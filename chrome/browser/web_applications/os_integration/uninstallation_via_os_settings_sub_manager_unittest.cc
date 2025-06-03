@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "base/files/file_util.h"
+#include "base/memory/raw_ptr.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
 #include "chrome/browser/profiles/profile.h"
@@ -68,8 +69,7 @@ class UninstallationViaOsSettingsSubManagerTest
     auto protocol_handler_manager =
         std::make_unique<WebAppProtocolHandlerManager>(profile());
     auto shortcut_manager = std::make_unique<WebAppShortcutManager>(
-        profile(), /*icon_manager=*/nullptr, file_handler_manager.get(),
-        protocol_handler_manager.get());
+        profile(), file_handler_manager.get(), protocol_handler_manager.get());
     auto os_integration_manager = std::make_unique<OsIntegrationManager>(
         profile(), std::move(shortcut_manager), std::move(file_handler_manager),
         std::move(protocol_handler_manager), /*url_handler_manager=*/nullptr);
@@ -89,14 +89,15 @@ class UninstallationViaOsSettingsSubManagerTest
     WebAppTest::TearDown();
   }
 
-  web_app::AppId InstallWebApp(webapps::WebappInstallSource install_source) {
+  webapps::AppId InstallWebApp(webapps::WebappInstallSource install_source) {
     std::unique_ptr<WebAppInstallInfo> info =
         std::make_unique<WebAppInstallInfo>();
     info->start_url = kWebAppUrl;
     info->title = u"Test App";
     info->user_display_mode = web_app::mojom::UserDisplayMode::kStandalone;
     auto source = install_source;
-    base::test::TestFuture<const AppId&, webapps::InstallResultCode> result;
+    base::test::TestFuture<const webapps::AppId&, webapps::InstallResultCode>
+        result;
     // InstallFromInfoWithParams is used instead of InstallFromInfo, because
     // InstallFromInfo doesn't register OS integration.
     provider().scheduler().InstallFromInfoWithParams(
@@ -105,11 +106,11 @@ class UninstallationViaOsSettingsSubManagerTest
     bool success = result.Wait();
     EXPECT_TRUE(success);
     if (!success) {
-      return AppId();
+      return webapps::AppId();
     }
     EXPECT_EQ(result.Get<webapps::InstallResultCode>(),
               webapps::InstallResultCode::kSuccessNewInstall);
-    return result.Get<AppId>();
+    return result.Get<webapps::AppId>();
   }
 
   OsIntegrationTestOverrideImpl& test_override() const {
@@ -120,7 +121,7 @@ class UninstallationViaOsSettingsSubManagerTest
   WebAppProvider& provider() { return *provider_; }
 
  private:
-  raw_ptr<FakeWebAppProvider> provider_;
+  raw_ptr<FakeWebAppProvider, DanglingUntriaged> provider_ = nullptr;
   base::test::ScopedFeatureList scoped_feature_list_;
   std::unique_ptr<OsIntegrationTestOverrideImpl::BlockingRegistration>
       test_override_;
@@ -135,7 +136,7 @@ bool IsOsUninstallationSupported() {
 }
 
 TEST_P(UninstallationViaOsSettingsSubManagerTest, TestUserUninstallable) {
-  const AppId& app_id =
+  const webapps::AppId& app_id =
       InstallWebApp(webapps::WebappInstallSource::OMNIBOX_INSTALL_ICON);
 
   auto state =
@@ -160,7 +161,7 @@ TEST_P(UninstallationViaOsSettingsSubManagerTest, TestUserUninstallable) {
 }
 
 TEST_P(UninstallationViaOsSettingsSubManagerTest, TestNotUserUninstallable) {
-  const AppId& app_id =
+  const webapps::AppId& app_id =
       InstallWebApp(webapps::WebappInstallSource::EXTERNAL_POLICY);
 
   auto state =
@@ -188,7 +189,7 @@ TEST_P(UninstallationViaOsSettingsSubManagerTest, TestNotUserUninstallable) {
 }
 
 TEST_P(UninstallationViaOsSettingsSubManagerTest, UninstallApp) {
-  const AppId& app_id =
+  const webapps::AppId& app_id =
       InstallWebApp(webapps::WebappInstallSource::OMNIBOX_INSTALL_ICON);
   test::UninstallAllWebApps(profile());
   auto state =
@@ -200,7 +201,7 @@ TEST_P(UninstallationViaOsSettingsSubManagerTest, UninstallApp) {
 // the app has been uninstalled.
 TEST_P(UninstallationViaOsSettingsSubManagerTest,
        OsStatesCleanupAfterAppUninstallation) {
-  const AppId& app_id =
+  const webapps::AppId& app_id =
       InstallWebApp(webapps::WebappInstallSource::OMNIBOX_INSTALL_ICON);
 
   auto state =
@@ -224,10 +225,11 @@ TEST_P(UninstallationViaOsSettingsSubManagerTest,
         << "Error parsing os integration: " << install_result.error();
     EXPECT_TRUE(install_result.value());
 
-    // Verify that uninstallation unregistration is bypassed but the app is
+    // Verify that OS integration is bypassed but the app is
     // uninstalled, leading to left over OS states.
-    auto bypass_uninstallation_unregistration = base::AutoReset<bool>(
-        &g_skip_execute_os_settings_sub_manager_for_testing, true);
+    absl::optional<OsIntegrationManager::ScopedSuppressForTesting>
+        scoped_supress = absl::nullopt;
+    scoped_supress.emplace();
     test::UninstallAllWebApps(profile());
     base::expected<bool, std::string> output_result =
         test_override().IsUninstallRegisteredWithOs(app_id, "Test App",
@@ -236,14 +238,11 @@ TEST_P(UninstallationViaOsSettingsSubManagerTest,
         << "Error parsing os integration: " << output_result.error();
     EXPECT_TRUE(output_result.value());
 
-    // Call OS integration again with the force_unregister_on_app_missing flag
+    // Call OS integration again with the force_unregister_os_integration flag
     // set to true.
     SynchronizeOsOptions options;
-    options.force_unregister_on_app_missing = true;
-    base::test::TestFuture<void> synchronization_complete;
-    provider().scheduler().SynchronizeOsIntegration(
-        app_id, synchronization_complete.GetCallback(), options);
-    EXPECT_TRUE(synchronization_complete.Wait());
+    options.force_unregister_os_integration = true;
+    test::SynchronizeOsIntegration(profile(), app_id, options);
 
     // OS Uninstallation entries should no longer exist in the registry.
     base::expected<bool, std::string> final_result =
@@ -252,6 +251,7 @@ TEST_P(UninstallationViaOsSettingsSubManagerTest,
     ASSERT_TRUE(final_result.has_value())
         << "Error parsing os integration: " << final_result.error();
     EXPECT_FALSE(final_result.value());
+    scoped_supress.reset();
 #endif
   }
 }

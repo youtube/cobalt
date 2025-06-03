@@ -6,6 +6,7 @@
 
 #include <vector>
 
+#include "base/check_is_test.h"
 #include "base/check_op.h"
 #include "base/command_line.h"
 #include "build/build_config.h"
@@ -19,6 +20,8 @@
 #include "chrome/browser/ui/webui/extensions/extension_icon_source.h"
 #include "chrome/common/extensions/api/url_handlers/url_handlers_parser.h"
 #include "chrome/common/extensions/sync_helper.h"
+#include "chrome/common/pref_names.h"
+#include "components/prefs/pref_service.h"
 #include "components/variations/variations_associated_data.h"
 #include "content/public/browser/site_instance.h"
 #include "extensions/browser/disable_reason.h"
@@ -26,9 +29,13 @@
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/extension_system.h"
 #include "extensions/browser/extension_util.h"
+#include "extensions/browser/pref_names.h"
+#include "extensions/browser/renderer_startup_helper.h"
+#include "extensions/browser/user_script_manager.h"
 #include "extensions/common/extension.h"
 #include "extensions/common/extension_icon_set.h"
 #include "extensions/common/extension_urls.h"
+#include "extensions/common/features/feature_developer_mode_only.h"
 #include "extensions/common/manifest_handlers/incognito_info.h"
 #include "extensions/common/manifest_handlers/permissions_parser.h"
 #include "extensions/common/permissions/permissions_data.h"
@@ -69,14 +76,62 @@ std::string ReloadExtensionIfEnabled(const std::string& extension_id,
   return ReloadExtension(extension_id, context);
 }
 
+#if BUILDFLAG(IS_CHROMEOS_ASH)
+// Returns true if the extension ID is found in the InstallForceList policy. Is
+// checked by HasIsolatedStorage() when the extension is not found in the
+// registry.
+bool IsForceInstalledExtension(const ExtensionId& extension_id,
+                               content::BrowserContext* context) {
+  ExtensionPrefs* extension_prefs = ExtensionPrefs::Get(context);
+  const PrefService::Preference* const pref =
+      extension_prefs->pref_service()->FindPreference(
+          pref_names::kInstallForceList);
+  if (!pref || !pref->IsManaged() ||
+      pref->GetType() != base::Value::Type::DICT) {
+    return false;
+  }
+  for (const auto item : pref->GetValue()->GetDict()) {
+    if (extension_id == item.first) {
+      return true;
+    }
+  }
+  return false;
+}
+#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+
+// Returns true if the profile is a sign-in profile and the extension is policy
+// installed. `is_policy_installed` can be passed to the method if its value is
+// known (i.e. the extension was found in the registry and the extension
+// location was checked). If no value is passed for `is_policy_installed`, the
+// force-installed list will be queried for the extension ID.
+bool IsLoginScreenExtension(
+    ExtensionId extension_id,
+    content::BrowserContext* context,
+    absl::optional<bool> is_policy_installed = absl::nullopt) {
+#if BUILDFLAG(IS_CHROMEOS_ASH)
+  // Verify the force-installed extension list if no value for
+  // `is_policy_installed` was passed.
+  if (is_policy_installed == absl::nullopt) {
+    is_policy_installed = IsForceInstalledExtension(extension_id, context);
+  }
+  Profile* profile = Profile::FromBrowserContext(context);
+  return profile && ash::ProfileHelper::IsSigninProfile(profile) &&
+         is_policy_installed.value();
+#else
+  return false;
+#endif
+}
+
 }  // namespace
 
-bool HasIsolatedStorage(const std::string& extension_id,
+bool HasIsolatedStorage(const ExtensionId& extension_id,
                         content::BrowserContext* context) {
   const Extension* extension =
-      ExtensionRegistry::Get(context)->enabled_extensions().GetByID(
-          extension_id);
-  return extension && HasIsolatedStorage(*extension, context);
+      ExtensionRegistry::Get(context)->GetInstalledExtension(extension_id);
+  // Extension is null when the extension is cleaned up after it's unloaded and
+  // won't be present in the ExtensionRegistry.
+  return extension ? HasIsolatedStorage(*extension, context)
+                   : IsLoginScreenExtension(extension_id, context);
 }
 
 bool HasIsolatedStorage(const Extension& extension,
@@ -84,9 +139,7 @@ bool HasIsolatedStorage(const Extension& extension,
 #if BUILDFLAG(IS_CHROMEOS_ASH)
   const bool is_policy_extension =
       Manifest::IsPolicyLocation(extension.location());
-  Profile* profile = Profile::FromBrowserContext(context);
-  if (profile && ash::ProfileHelper::IsSigninProfile(profile) &&
-      is_policy_extension) {
+  if (IsLoginScreenExtension(extension.id(), context, is_policy_extension)) {
     return true;
   }
 #endif
@@ -280,6 +333,28 @@ std::vector<content::BrowserContext*> GetAllRelatedProfiles(
   }
 
   return related_contexts;
+}
+
+void SetDeveloperModeForProfile(Profile* profile, bool in_developer_mode) {
+  profile->GetPrefs()->SetBoolean(prefs::kExtensionsUIDeveloperMode,
+                                  in_developer_mode);
+  SetCurrentDeveloperMode(util::GetBrowserContextId(profile),
+                          in_developer_mode);
+  RendererStartupHelperFactory::GetForBrowserContext(profile)
+      ->OnDeveloperModeChanged(in_developer_mode);
+
+  // kDynamicUserScript scripts are allowed if and only if the user is in dev
+  // mode (since they allow raw code execution). Notify the user script manager
+  // to properly enable or disable any scripts.
+  UserScriptManager* user_script_manager =
+      ExtensionSystem::Get(profile)->user_script_manager();
+  if (!user_script_manager) {
+    CHECK_IS_TEST();  // `user_script_manager` can be null in unit tests.
+    return;
+  }
+
+  user_script_manager->SetUserScriptSourceEnabledForExtensions(
+      UserScript::Source::kDynamicUserScript, in_developer_mode);
 }
 
 }  // namespace util

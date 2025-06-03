@@ -489,10 +489,7 @@ void V4L2MjpegDecodeAccelerator::Decode(
 
 // static
 bool V4L2MjpegDecodeAccelerator::IsSupported() {
-  scoped_refptr<V4L2Device> device = V4L2Device::Create();
-  if (!device)
-    return false;
-
+  auto device = base::MakeRefCounted<V4L2Device>();
   return device->IsJpegDecodingSupported();
 }
 
@@ -896,9 +893,11 @@ bool V4L2MjpegDecodeAccelerator::ConvertOutputImage(
 
   // Dmabuf-backed frame needs to be mapped for SW access.
   if (dst_frame->HasDmaBufs()) {
+    // We should never need Intel media compressed buffers with V4L2.
     std::unique_ptr<VideoFrameMapper> frame_mapper =
-        VideoFrameMapperFactory::CreateMapper(dst_frame->format(),
-                                              VideoFrame::STORAGE_DMABUFS);
+        VideoFrameMapperFactory::CreateMapper(
+            dst_frame->format(), VideoFrame::STORAGE_DMABUFS,
+            /*must_support_intel_media_compressed_buffers=*/false);
     if (!frame_mapper) {
       VLOGF(1) << "Failed to create video frame mapper";
       return false;

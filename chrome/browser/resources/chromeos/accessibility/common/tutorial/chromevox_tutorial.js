@@ -9,6 +9,7 @@
 
 import {html, Polymer} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
+import {BackgroundBridge} from '../../../chromevox/common/background_bridge.js';
 import {EarconDescription} from '../../../chromevox/common/earcon_id.js';
 import {QueueMode} from '../../../chromevox/common/tts_types.js';
 
@@ -577,13 +578,11 @@ Polymer({
    * @param {number} queueMode
    * @param {{doNotInterrupt: boolean}=} properties
    * @private
-   * @suppress {undefinedVars|missingProperties} For referencing QueueMode,
-   * which is defined on the Panel window.
+   * @suppress {undefinedVars|missingProperties} For referencing
+   * BackgroundBridge, which is defined on the Panel window.
    */
   requestSpeech(text, queueMode, properties) {
-    this.dispatchEvent(new CustomEvent(
-        'requestspeech',
-        {composed: true, detail: {text, queueMode, properties}}));
+    BackgroundBridge.TtsBackground.speak(text, queueMode, properties);
   },
 
   /** @private */

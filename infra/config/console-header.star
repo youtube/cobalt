@@ -35,7 +35,7 @@ HEADER = headers.header(
         ),
         headers.oncall(
             name = "Fuchsia",
-            url = "https://chrome-ops-rotation-proxy.appspot.com/current/grotation:chrome-fuchsia-gardener",
+            url = "https://chrome-ops-rotation-proxy.appspot.com/current/grotation:chrome-fuchsia-engprod",
         ),
         headers.oncall(
             name = "GPU",
@@ -152,6 +152,11 @@ HEADER = headers.header(
                     branch_selector = branches.selector.ANDROID_BRANCHES,
                     url = "/p/{}/g/chromium.android".format(settings.project),
                     alt = "Chromium Android console",
+                ),
+                headers.link(
+                    text = "checks",
+                    url = "/p/{}/g/checks".format(settings.project),
+                    alt = "Checks console",
                 ),
                 headers.link(
                     text = "clang",
@@ -307,6 +312,11 @@ HEADER = headers.header(
                     alt = "Fuchsia",
                 ),
                 headers.link(
+                    text = "fuzz",
+                    url = "/p/{}/g/tryserver.chromium.fuzz/builders".format(settings.project),
+                    alt = "Fuzz",
+                ),
+                headers.link(
                     text = "linux",
                     branch_selector = branches.selector.LINUX_BRANCHES,
                     url = "/p/{}/g/tryserver.chromium.linux/builders".format(settings.project),
@@ -381,7 +391,7 @@ HEADER = headers.header(
                 console_ids = [
                     "chromium/chromium.android",
                     "chrome/chrome.perf",
-                    "chromium/chromium.fuchsia.fyi",
+                    "chromium/sheriff.fuchsia",
                     "chromium/chromium.gpu.fyi",
                     "chromium/chromium.angle",
                     "chromium/chromium.swangle",

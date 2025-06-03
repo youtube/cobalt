@@ -32,11 +32,8 @@
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/prefs/pref_change_registrar.h"
 #include "components/safe_browsing/content/browser/client_side_phishing_model.h"
-#include "components/safe_browsing/content/browser/client_side_phishing_model_optimization_guide.h"
 #include "components/safe_browsing/core/common/proto/csd.pb.h"
 #include "content/public/browser/browser_thread.h"
-#include "content/public/browser/notification_observer.h"
-#include "content/public/browser/notification_registrar.h"
 #include "content/public/browser/render_process_host_creation_observer.h"
 #include "net/base/ip_address.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
@@ -147,10 +144,6 @@ class ClientSideDetectionService
   // Sends a model to each renderer.
   virtual void SendModelToRenderers();
 
-  // Returns the model string. Used only for protobuf model. Virtual so that
-  // mock implementation can override it.
-  virtual const std::string& GetModelStr();
-
   // Returns the model type (protobuf or flatbuffer). Virtual so that mock
   // implementation can override it.
   virtual CSDModelType GetModelType();
@@ -162,6 +155,12 @@ class ClientSideDetectionService
   // Returns the TfLite model file. Virtual so that mock implementation can
   // override it.
   virtual const base::File& GetVisualTfLiteModel();
+
+  // Returns the Image Embedding model file. Virtual so that mock implementation
+  // can override it.
+  virtual const base::File& GetImageEmbeddingModel();
+
+  virtual bool IsModelMetadataImageEmbeddingVersionMatching();
 
   // Returns the visual TFLite model thresholds from the model class
   virtual const base::flat_map<std::string, TfLiteModelMetadata::Threshold>&
@@ -175,16 +174,26 @@ class ClientSideDetectionService
       scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory);
 
   // Sends a model to each renderer.
-  void SetPhishingModel(content::RenderProcessHost* rph);
+  void SetPhishingModel(content::RenderProcessHost* rph,
+                        bool new_renderer_process_host);
 
   // Returns a WeakPtr for this service.
   base::WeakPtr<ClientSideDetectionService> GetWeakPtr();
 
-  bool IsModelAvailable();
+  // Checks whether the model class has a model available or not. Virtual so
+  // that mock classes can override it.
+  virtual bool IsModelAvailable();
 
-  // For testing the model in browser test
+  // Checks whether the model class has an image embedding model available or
+  // not.
+  bool HasImageEmbeddingModel();
+
+  // For testing the model in browser test.
   void SetModelAndVisualTfLiteForTesting(const base::FilePath& model,
                                          const base::FilePath& visual_tf_lite);
+
+  bool IsSubscribedToImageEmbeddingModelUpdates();
+  bool ShouldSendImageEmbeddingModelToRenderer();
 
  private:
   friend class ClientSideDetectionServiceTest;
@@ -264,6 +273,18 @@ class ClientSideDetectionService
   // choice of model.
   bool extended_reporting_ = false;
 
+  // Whether the trigger models have been sent or not. This is used to determine
+  // whether an empty model in the model class determines whether the models
+  // haven't been sent or we should clear the models in the scorer because they
+  // have been sent.
+  bool sent_trigger_models_ = false;
+
+  // This is to keep track of the trigger model version that was last sent to
+  // the renderer host processes. This is used to determine, when the image
+  // embedding model arrives, whether a new scorer should be made with all
+  // models or the image embedding model can be attached to the current scorer.
+  int trigger_model_version_ = 0;
+
   // Map of client report phishing request to the corresponding callback that
   // has to be invoked when the request is done.
   struct ClientPhishingReportInfo;
@@ -293,8 +314,7 @@ class ClientSideDetectionService
 
   base::CallbackListSubscription update_model_subscription_;
 
-  std::unique_ptr<ClientSidePhishingModelOptimizationGuide>
-      client_side_phishing_model_optimization_guide_;
+  std::unique_ptr<ClientSidePhishingModel> client_side_phishing_model_;
 
   SEQUENCE_CHECKER(sequence_checker_);
 

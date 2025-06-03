@@ -9,14 +9,11 @@
  */
 import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
 import {WebUiListenerMixin} from 'chrome://resources/cr_elements/web_ui_listener_mixin.js';
-import {assertNotReached} from 'chrome://resources/js/assert_ts.js';
+import {assertNotReached} from 'chrome://resources/js/assert.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {PasswordCheckReferrer, PasswordManagerImpl, PasswordManagerPage} from '../autofill_page/password_manager_proxy.js';
-import {loadTimeData} from '../i18n_setup.js';
 import {MetricsBrowserProxy, MetricsBrowserProxyImpl, SafetyCheckInteractions} from '../metrics_browser_proxy.js';
-import {routes} from '../route.js';
-import {Router} from '../router.js';
 
 import {SafetyCheckCallbackConstants, SafetyCheckPasswordsStatus} from './safety_check_browser_proxy.js';
 import {SafetyCheckIconStatus} from './safety_check_child.js';
@@ -68,13 +65,6 @@ export class SettingsSafetyCheckPasswordsChildElement extends
           SafetyCheckPasswordsStatus.WEAK_PASSWORDS_EXIST,
         ]),
       },
-
-      enableNewPasswordManagerPage_: {
-        type: Boolean,
-        value() {
-          return loadTimeData.getBoolean('enableNewPasswordManagerPage');
-        },
-      },
     };
   }
 
@@ -83,7 +73,6 @@ export class SettingsSafetyCheckPasswordsChildElement extends
   private rowClickableStatuses: Set<SafetyCheckPasswordsStatus>;
   private metricsBrowserProxy_: MetricsBrowserProxy =
       MetricsBrowserProxyImpl.getInstance();
-  private enableNewPasswordManagerPage_: boolean;
 
   override connectedCallback() {
     super.connectedCallback();
@@ -114,6 +103,8 @@ export class SettingsSafetyCheckPasswordsChildElement extends
       case SafetyCheckPasswordsStatus.ERROR:
       case SafetyCheckPasswordsStatus.FEATURE_UNAVAILABLE:
       case SafetyCheckPasswordsStatus.WEAK_PASSWORDS_EXIST:
+      case SafetyCheckPasswordsStatus.REUSED_PASSWORDS_EXIST:
+      case SafetyCheckPasswordsStatus.MUTED_COMPROMISED_EXIST:
         return SafetyCheckIconStatus.INFO;
       default:
         assertNotReached();
@@ -160,14 +151,8 @@ export class SettingsSafetyCheckPasswordsChildElement extends
   private openPasswordCheckPage_() {
     PasswordManagerImpl.getInstance().recordPasswordCheckReferrer(
         PasswordCheckReferrer.SAFETY_CHECK);
-    if (this.enableNewPasswordManagerPage_) {
-      PasswordManagerImpl.getInstance().showPasswordManager(
-          PasswordManagerPage.CHECKUP);
-      return;
-    }
-    Router.getInstance().navigateTo(
-        routes.CHECK_PASSWORDS,
-        /* dynamicParams= */ undefined, /* removeSearch= */ true);
+    PasswordManagerImpl.getInstance().showPasswordManager(
+        PasswordManagerPage.CHECKUP);
   }
 }
 

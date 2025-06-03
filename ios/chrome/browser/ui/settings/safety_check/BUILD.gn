@@ -5,7 +5,6 @@
 import("//build/config/ios/swift_source_set.gni")
 
 source_set("safety_check_ui") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   sources = [
     "safety_check_bridge.h",
     "safety_check_consumer.h",
@@ -41,7 +40,6 @@ swift_source_set("safety_check_ui_swift") {
 }
 
 source_set("safety_check") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   sources = [
     "safety_check_constants.h",
     "safety_check_constants.mm",
@@ -63,15 +61,17 @@ source_set("safety_check") {
     "//components/safe_browsing/core/common:safe_browsing_prefs",
     "//components/version_info",
     "//ios/chrome/app/strings",
-    "//ios/chrome/browser/application_context",
-    "//ios/chrome/browser/browser_state",
-    "//ios/chrome/browser/content_settings",
-    "//ios/chrome/browser/main:public",
+    "//ios/chrome/browser/content_settings/model",
     "//ios/chrome/browser/omaha",
-    "//ios/chrome/browser/passwords",
-    "//ios/chrome/browser/passwords:password_checkup_utils",
-    "//ios/chrome/browser/prefs:pref_names",
+    "//ios/chrome/browser/passwords/model",
+    "//ios/chrome/browser/passwords/model:password_checkup_utils",
     "//ios/chrome/browser/shared/coordinator/chrome_coordinator",
+    "//ios/chrome/browser/shared/model/application_context",
+    "//ios/chrome/browser/shared/model/browser",
+    "//ios/chrome/browser/shared/model/browser_state",
+    "//ios/chrome/browser/shared/model/prefs",
+    "//ios/chrome/browser/shared/model/prefs:pref_names",
+    "//ios/chrome/browser/shared/model/utils",
     "//ios/chrome/browser/shared/public/commands",
     "//ios/chrome/browser/shared/public/features",
     "//ios/chrome/browser/shared/ui/symbols",
@@ -79,8 +79,7 @@ source_set("safety_check") {
     "//ios/chrome/browser/shared/ui/table_view:utils",
     "//ios/chrome/browser/shared/ui/util",
     "//ios/chrome/browser/signin",
-    "//ios/chrome/browser/sync",
-    "//ios/chrome/browser/ui/resources:password_key",
+    "//ios/chrome/browser/sync/model",
     "//ios/chrome/browser/ui/settings:settings_root",
     "//ios/chrome/browser/ui/settings/cells",
     "//ios/chrome/browser/ui/settings/cells:public",
@@ -90,8 +89,8 @@ source_set("safety_check") {
     "//ios/chrome/browser/ui/settings/password/password_issues",
     "//ios/chrome/browser/ui/settings/privacy:privacy_ui",
     "//ios/chrome/browser/ui/settings/utils",
-    "//ios/chrome/browser/upgrade",
-    "//ios/chrome/browser/upgrade:public",
+    "//ios/chrome/browser/upgrade/model",
+    "//ios/chrome/browser/upgrade/model:public",
     "//ios/chrome/common",
     "//ios/chrome/common:string_util",
     "//ios/chrome/common/ui/colors",
@@ -104,13 +103,13 @@ source_set("safety_check") {
 }
 
 source_set("unit_tests") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   testonly = true
   sources = [ "safety_check_mediator_unittest.mm" ]
   deps = [
     ":safety_check",
     ":safety_check_ui",
     "//base/test:test_support",
+    "//components/password_manager/core/browser",
     "//components/password_manager/core/browser:test_support",
     "//components/password_manager/core/common",
     "//components/prefs:test_support",
@@ -119,22 +118,26 @@ source_set("unit_tests") {
     "//components/strings",
     "//components/sync_preferences:test_support",
     "//ios/chrome/app/strings",
-    "//ios/chrome/browser/application_context",
-    "//ios/chrome/browser/browser_state:test_support",
-    "//ios/chrome/browser/main:test_support",
-    "//ios/chrome/browser/passwords",
+    "//ios/chrome/browser/ntp/home:features",
+    "//ios/chrome/browser/passwords/model",
+    "//ios/chrome/browser/shared/model/application_context",
+    "//ios/chrome/browser/shared/model/browser/test:test_support",
+    "//ios/chrome/browser/shared/model/browser_state",
+    "//ios/chrome/browser/shared/model/browser_state:test_support",
+    "//ios/chrome/browser/shared/model/prefs",
+    "//ios/chrome/browser/shared/model/prefs:pref_names",
     "//ios/chrome/browser/shared/public/features",
     "//ios/chrome/browser/shared/ui/symbols",
     "//ios/chrome/browser/shared/ui/table_view:test_support",
     "//ios/chrome/browser/shared/ui/table_view/cells",
     "//ios/chrome/browser/signin",
     "//ios/chrome/browser/signin:test_support",
-    "//ios/chrome/browser/sync",
-    "//ios/chrome/browser/sync:test_support",
+    "//ios/chrome/browser/sync/model",
+    "//ios/chrome/browser/sync/model:test_support",
     "//ios/chrome/browser/ui/settings/cells",
     "//ios/chrome/browser/ui/settings/utils",
-    "//ios/chrome/browser/upgrade",
-    "//ios/chrome/browser/upgrade:public",
+    "//ios/chrome/browser/upgrade/model",
+    "//ios/chrome/browser/upgrade/model:public",
     "//ios/chrome/common:string_util",
     "//ios/chrome/common/ui/colors",
     "//ios/chrome/test:test_support",

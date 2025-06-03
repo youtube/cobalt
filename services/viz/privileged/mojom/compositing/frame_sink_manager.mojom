@@ -156,7 +156,8 @@ interface FrameSinkManager {
   // Creates a FrameSinkVideoCapturer instance.
   CreateVideoCapturer(pending_receiver<FrameSinkVideoCapturer> receiver);
 
-  // Marks the given SurfaceIds for destruction.
+  // Marks the given SurfaceIds for destruction. The client must supply a sorted
+  // `surface_ids`.
   EvictSurfaces(array<SurfaceId> surface_ids);
 
   // Throttles the frame sinks specified by |frame_sink_ids| and all their
@@ -179,7 +180,11 @@ interface FrameSinkManager {
   // Takes a snapshot of |surface_id| or a newer surface with the same
   // FrameSinkId. The request will be queued up until such surface exists and is
   // reachable from the root surface.
-  RequestCopyOfOutput(SurfaceId surface_id, CopyOutputRequest request);
+  //
+  // `capture_exact_surface_id`, when set to true, makes sure the snapshot will
+  // only be taken by the surface with the exact `surface_id`.
+  RequestCopyOfOutput(SurfaceId surface_id, CopyOutputRequest request,
+                      bool capture_exact_surface_id);
 
 
   // Caches the back buffer for the |root_frame_sink_id|. The back buffer is
@@ -220,4 +225,13 @@ interface FrameSinkManagerClient {
   // when a surface of the provided |frame_sink_id| activates.
   OnFrameTokenChanged(FrameSinkId frame_sink_id, uint32 frame_token,
                       mojo_base.mojom.TimeTicks activation_time);
+
+  // Verifies that |thread_ids| do not belong to the host process. Renderer
+  // processes send their thread ids to the GPU process to be added to the ADPF
+  // session. GPU needs to make sure that they do not belong to the host
+  // process or the GPU process (i.e. itself) before adding the threads to the
+  // ADPF hint session.
+  [EnableIf=is_android]
+  VerifyThreadIdsDoNotBelongToHost(array<int32> thread_ids)
+      => (bool passed_verification);
 };

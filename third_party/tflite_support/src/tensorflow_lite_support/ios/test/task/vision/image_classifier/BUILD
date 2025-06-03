@@ -8,7 +8,6 @@ load(
 )
 
 package(
-    default_applicable_licenses = ["//tensorflow_lite_support:license"],
     default_visibility = ["//visibility:private"],
     licenses = ["notice"],  # Apache 2.0
 )
@@ -78,7 +77,7 @@ objc_library(
         "//tensorflow_lite_support/ios/task/core:TFLBaseOptions",
         "//tensorflow_lite_support/ios/task/vision:TFLImageClassifier",
         "//tensorflow_lite_support/ios/task/vision/utils:GMLImageUtils",
-        "@org_tensorflow//tensorflow/lite/experimental/acceleration/configuration:coreml_plugin",
+        "@org_tensorflow//tensorflow/lite/acceleration/configuration:coreml_plugin",
     ],
 )
 

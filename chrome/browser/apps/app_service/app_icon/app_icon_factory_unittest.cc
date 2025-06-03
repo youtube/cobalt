@@ -16,7 +16,6 @@
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/test/bind.h"
-#include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
 #include "build/chromeos_buildflags.h"
 #include "cc/test/pixel_comparator.h"
@@ -30,7 +29,6 @@
 #include "content/public/test/browser_task_environment.h"
 #include "services/data_decoder/public/cpp/test_support/in_process_data_decoder.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "ui/base/layout.h"
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/gfx/codec/png_codec.h"
 #include "ui/gfx/image/image_skia_operations.h"
@@ -85,7 +83,7 @@ class AppIconFactoryTest : public testing::Test {
   std::string GetPngData(const std::string file_name) {
     base::FilePath base_path;
     std::string png_data_as_string;
-    CHECK(base::PathService::Get(base::DIR_SOURCE_ROOT, &base_path));
+    CHECK(base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &base_path));
     base::FilePath icon_file_path = base_path.AppendASCII("ash")
                                         .AppendASCII("components")
                                         .AppendASCII("arc")
@@ -133,7 +131,8 @@ class AppIconFactoryTest : public testing::Test {
   apps::IconValuePtr RunLoadIconFromResource(apps::IconType icon_type,
                                              apps::IconEffects icon_effects) {
     base::test::TestFuture<apps::IconValuePtr> future;
-    apps::LoadIconFromResource(icon_type, kSizeInDip, IDR_LOGO_CROSTINI_DEFAULT,
+    apps::LoadIconFromResource(/*profile=*/nullptr, /*app_id=*/absl::nullopt,
+                               icon_type, kSizeInDip, IDR_LOGO_CROSTINI_DEFAULT,
                                /*is_placeholder_icon=*/false, icon_effects,
                                future.GetCallback());
     auto icon = future.Take();
@@ -379,9 +378,6 @@ class AppServiceAppIconTest : public AppIconFactoryTest {
   void SetUp() override {
     AppIconFactoryTest::SetUp();
 
-    scoped_feature_list_.InitAndEnableFeature(
-        apps::kUnifiedAppServiceIconLoading);
-
     ash::CiceroneClient::InitializeFake();
     profile_ = std::make_unique<TestingProfile>();
     proxy_ = AppServiceProxyFactory::GetForProfile(profile_.get());
@@ -430,8 +426,8 @@ class AppServiceAppIconTest : public AppIconFactoryTest {
                                          const IconKey& icon_key,
                                          IconType icon_type) {
     base::test::TestFuture<apps::IconValuePtr> result;
-    app_service_proxy().LoadIconFromIconKey(
-        AppType::kCrostini, app_id, icon_key, icon_type, kSizeInDip,
+    app_service_proxy().app_icon_loader()->LoadIconFromIconKey(
+        app_id, icon_key, icon_type, kSizeInDip,
         /*allow_placeholder_icon=*/false, result.GetCallback());
     return result.Take();
   }
@@ -440,12 +436,10 @@ class AppServiceAppIconTest : public AppIconFactoryTest {
 
  private:
   std::unique_ptr<TestingProfile> profile_;
-  raw_ptr<AppServiceProxy> proxy_;
+  raw_ptr<AppServiceProxy, DanglingUntriaged> proxy_;
   std::unique_ptr<apps::FakePublisherForIconTest> fake_publisher_;
 
   std::unique_ptr<crostini::CrostiniTestHelper> crostini_test_helper_;
-
-  base::test::ScopedFeatureList scoped_feature_list_;
 
   base::WeakPtrFactory<AppServiceAppIconTest> weak_ptr_factory_{this};
 };

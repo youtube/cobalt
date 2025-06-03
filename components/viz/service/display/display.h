@@ -124,6 +124,10 @@ class VIZ_SERVICE_EXPORT Display : public DisplaySchedulerClient,
   void SetVisible(bool visible);
   void Resize(const gfx::Size& new_size);
 
+  // Sets additional clip rect for the OutputSurface. DirectRenderer will not
+  // draw outside of this rect.
+  void SetOutputSurfaceClipRect(const gfx::Rect& clip_rect);
+
   // Sets the current SurfaceId to an invalid value. Additionally, the display
   // will fail to draw until SetLocalSurfaceId() is called.
   void InvalidateCurrentSurfaceId();
@@ -183,6 +187,8 @@ class VIZ_SERVICE_EXPORT Display : public DisplaySchedulerClient,
       mojom::CompositorFrameSinkType* type) override;
 
   bool has_scheduler() const { return !!scheduler_; }
+  bool visible() const { return visible_; }
+  const RendererSettings& settings() const { return settings_; }
   DirectRenderer* renderer_for_testing() const { return renderer_.get(); }
 
   bool resize_based_on_root_surface() const {
@@ -212,6 +218,10 @@ class VIZ_SERVICE_EXPORT Display : public DisplaySchedulerClient,
       mojo::PendingReceiver<gfx::mojom::DelegatedInkPointRenderer>
           pending_receiver);
 
+  // `old_client` is used to guarantee that the callee is a correct owner of
+  // this Display instance.
+  void ResetDisplayClientForTesting(DisplayClient* old_client);
+
  protected:
   friend class DisplayTest;
   // PresentationGroupTiming stores rendering pipeline stage timings associated
@@ -232,7 +242,8 @@ class VIZ_SERVICE_EXPORT Display : public DisplaySchedulerClient,
         std::unique_ptr<Surface::PresentationHelper> helper);
     void OnDraw(base::TimeTicks frame_time,
                 base::TimeTicks draw_start_timestamp,
-                base::flat_set<base::PlatformThreadId> thread_ids);
+                base::flat_set<base::PlatformThreadId> thread_ids,
+                HintSession::BoostType boost_type);
     void OnSwap(gfx::SwapTimings timings, DisplaySchedulerBase* scheduler);
     bool HasSwapped() const { return !swap_timings_.is_null(); }
     void OnPresent(const gfx::PresentationFeedback& feedback);
@@ -248,6 +259,7 @@ class VIZ_SERVICE_EXPORT Display : public DisplaySchedulerClient,
     gfx::SwapTimings swap_timings_;
     std::vector<std::unique_ptr<Surface::PresentationHelper>>
         presentation_helpers_;
+    HintSession::BoostType boost_type_;
   };
 
   // TODO(cblume, crbug.com/900973): |enable_shared_images| is a temporary

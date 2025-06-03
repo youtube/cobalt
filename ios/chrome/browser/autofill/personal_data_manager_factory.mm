@@ -6,26 +6,26 @@
 
 #import <utility>
 
+#import "base/feature_list.h"
 #import "base/no_destructor.h"
 #import "components/autofill/core/browser/personal_data_manager.h"
 #import "components/autofill/core/browser/strike_databases/strike_database.h"
 #import "components/autofill/core/browser/webdata/autofill_webdata_service.h"
+#import "components/autofill/core/common/autofill_payments_features.h"
 #import "components/keyed_service/core/service_access_type.h"
 #import "components/keyed_service/ios/browser_state_dependency_manager.h"
 #import "components/sync/base/command_line_switches.h"
 #import "components/variations/service/variations_service.h"
-#import "ios/chrome/browser/application_context/application_context.h"
+#import "ios/chrome/browser/autofill/autofill_image_fetcher_factory.h"
+#import "ios/chrome/browser/autofill/autofill_image_fetcher_impl.h"
 #import "ios/chrome/browser/autofill/strike_database_factory.h"
-#import "ios/chrome/browser/browser_state/browser_state_otr_helper.h"
-#import "ios/chrome/browser/browser_state/chrome_browser_state.h"
 #import "ios/chrome/browser/history/history_service_factory.h"
+#import "ios/chrome/browser/shared/model/application_context/application_context.h"
+#import "ios/chrome/browser/shared/model/browser_state/browser_state_otr_helper.h"
+#import "ios/chrome/browser/shared/model/browser_state/chrome_browser_state.h"
 #import "ios/chrome/browser/signin/identity_manager_factory.h"
-#import "ios/chrome/browser/sync/sync_service_factory.h"
-#import "ios/chrome/browser/webdata_services/web_data_service_factory.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
+#import "ios/chrome/browser/sync/model/sync_service_factory.h"
+#import "ios/chrome/browser/webdata_services/model/web_data_service_factory.h"
 
 namespace autofill {
 
@@ -88,13 +88,18 @@ PersonalDataManagerFactory::BuildServiceInstanceFor(
       StrikeDatabaseFactory::GetForBrowserState(chrome_browser_state);
   auto* sync_service =
       SyncServiceFactory::GetForBrowserState(chrome_browser_state);
+  auto* autofill_image_fetcher =
+      base::FeatureList::IsEnabled(
+          autofill::features::kAutofillEnableCardArtImage)
+          ? AutofillImageFetcherFactory::GetForBrowserState(
+                chrome_browser_state)
+          : nullptr;
 
   service->Init(
       local_storage, account_storage, chrome_browser_state->GetPrefs(),
       GetApplicationContext()->GetLocalState(),
       IdentityManagerFactory::GetForBrowserState(chrome_browser_state),
-      history_service, sync_service, strike_database,
-      /*image_fetcher=*/nullptr, chrome_browser_state->IsOffTheRecord());
+      history_service, sync_service, strike_database, autofill_image_fetcher);
 
   return service;
 }

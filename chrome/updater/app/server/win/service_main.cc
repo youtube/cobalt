@@ -7,6 +7,7 @@
 #include <atlsecurity.h>
 #include <sddl.h>
 
+#include <ios>
 #include <string>
 #include <type_traits>
 
@@ -14,10 +15,11 @@
 #include "base/command_line.h"
 #include "base/logging.h"
 #include "base/no_destructor.h"
+#include "base/notreached.h"
 #include "base/process/launch.h"
 #include "base/task/single_thread_task_executor.h"
 #include "base/win/scoped_com_initializer.h"
-#include "chrome/updater/app/server/win/server.h"
+#include "chrome/updater/app/app_server_win.h"
 #include "chrome/updater/constants.h"
 #include "chrome/updater/util/win_util.h"
 
@@ -28,11 +30,6 @@ namespace {
 // Command line switch "--console" runs the service interactively for
 // debugging purposes.
 constexpr char kConsoleSwitchName[] = "console";
-
-bool IsInternalService() {
-  return base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
-             kServerServiceSwitch) == kServerUpdateServiceInternalSwitchValue;
-}
 
 HRESULT RunWakeTask() {
   base::CommandLine run_updater_wake_command(
@@ -96,7 +93,9 @@ ServiceMain::ServiceMain() {
   service_status_.dwControlsAccepted = SERVICE_ACCEPT_STOP;
 }
 
-ServiceMain::~ServiceMain() = default;
+ServiceMain::~ServiceMain() {
+  NOTREACHED();  // The instance of this class is a leaky singleton.
+}
 
 int ServiceMain::RunAsService() {
   const std::wstring service_name = GetServiceName(IsInternalService());
@@ -124,9 +123,10 @@ void ServiceMain::ServiceMainImpl(const base::CommandLine& command_line) {
   SetServiceStatus(SERVICE_RUNNING);
 
   // When the Run function returns, the service has stopped.
-  // `hr` can be either a HRESULT or a Windows error code.
+  // `hr` can be either an HRESULT or a Windows error code.
   const HRESULT hr = Run(command_line);
   if (hr != S_OK) {
+    VLOG(2) << "Run returned: " << std::hex << hr;
     service_status_.dwWin32ExitCode = ERROR_SERVICE_SPECIFIC_ERROR;
     service_status_.dwServiceSpecificExitCode = hr;
   }
@@ -144,7 +144,7 @@ void ServiceMain::ServiceControlHandler(DWORD control) {
   switch (control) {
     case SERVICE_CONTROL_STOP:
       self->SetServiceStatus(SERVICE_STOP_PENDING);
-      AppServerSingletonInstance()->Stop();
+      GetAppServerWinInstance()->Stop();
       break;
 
     default:
@@ -168,28 +168,28 @@ HRESULT ServiceMain::Run(const base::CommandLine& command_line) {
     return RunCOMServer();
   }
 
-  VLOG(2) << "Running Wake task from the Windows Service";
-  return RunWakeTask();
+  if (IsInternalService()) {
+    VLOG(2) << "Running Wake task from the Windows Service";
+    return RunWakeTask();
+  }
+
+  return S_OK;
 }
 
 HRESULT ServiceMain::RunCOMServer() {
   base::SingleThreadTaskExecutor service_task_executor(
-      base::MessagePumpType::UI);
-
-  // Initialize COM for the current thread.
+      base::MessagePumpType::DEFAULT);
   base::win::ScopedCOMInitializer com_initializer(
       base::win::ScopedCOMInitializer::kMTA);
   if (!com_initializer.Succeeded()) {
     LOG(ERROR) << "Failed to initialize COM";
     return CO_E_INITIALIZATIONFAILED;
   }
-
   HRESULT hr = InitializeComSecurity();
   if (FAILED(hr)) {
     return hr;
   }
-
-  return AppServerSingletonInstance()->Run();
+  return GetAppServerWinInstance()->Run();
 }
 
 // static

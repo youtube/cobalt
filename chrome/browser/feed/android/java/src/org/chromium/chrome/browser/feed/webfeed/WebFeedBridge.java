@@ -7,10 +7,11 @@ package org.chromium.chrome.browser.feed.webfeed;
 import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.Callback;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.url.GURL;
 
@@ -27,11 +28,11 @@ public class WebFeedBridge {
     public static final int CHANGE_REASON_WEB_PAGE_ACCELERATOR = 2;
     public static final int CHANGE_REASON_MANAGEMENT = 3;
     public static final int CHANGE_REASON_RECOMMENDATION_WEB_PAGE_ACCELERATOR = 6;
+    public static final int CHANGE_REASON_SINGLE_WEB_FEED = 7;
 
     // Access to JNI test hooks for other libraries. This can go away once more Feed code is
     // migrated to chrome/browser/feed.
-    public static org.chromium.base.JniStaticTestMocker<WebFeedBridge.Natives>
-    getTestHooksForTesting() {
+    public static org.jni_zero.JniStaticTestMocker<WebFeedBridge.Natives> getTestHooksForTesting() {
         return WebFeedBridgeJni.TEST_HOOKS;
     }
 
@@ -209,6 +210,10 @@ public class WebFeedBridge {
         public final String url;
     }
 
+    public static boolean isCormorantEnabledForLocale() {
+        return WebFeedBridgeJni.get().isCormorantEnabledForLocale();
+    }
+
     /**
      * Requests to follow of the most relevant Web Feed represented by the provided URL.
      * @param tab The tab with the loaded page that should be followed.
@@ -284,7 +289,7 @@ public class WebFeedBridge {
         }
     }
 
-    @VisibleForTesting
+    @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
     @NativeMethods
     public interface Natives {
         void followWebFeed(WebFeedPageInformation pageInfo, int webFeedChangeReason,
@@ -304,5 +309,6 @@ public class WebFeedBridge {
         void incrementFollowedFromWebPageMenuCount();
         void queryWebFeed(String url, Callback<QueryResult> callback);
         void queryWebFeedId(String id, Callback<QueryResult> callback);
+        boolean isCormorantEnabledForLocale();
     }
 }

@@ -388,7 +388,8 @@ viz::CompositorFrame ArCompositorFrameSink::CreateFrame(WebXrFrame* xr_frame,
           /*quad_layer_rect=*/output_rect,
           /*visible_layer_rect=*/output_rect, gfx::MaskFilterInfo(),
           /*clip_rect=*/absl::nullopt, /*are_contents_opaque=*/false,
-          /*opacity=*/1.f, SkBlendMode::kSrcOver, /*sorting_context_id=*/0);
+          /*opacity=*/1.f, SkBlendMode::kSrcOver, /*sorting_context_id=*/0,
+          /*layer_id=*/0u, /*fast_rounded_corner=*/false);
 
       viz::SurfaceDrawQuad* dom_quad =
           render_pass->CreateAndAppendDrawQuad<viz::SurfaceDrawQuad>();
@@ -417,7 +418,8 @@ viz::CompositorFrame ArCompositorFrameSink::CreateFrame(WebXrFrame* xr_frame,
         /*quad_layer_rect=*/output_rect,
         /*visible_layer_rect=*/output_rect, gfx::MaskFilterInfo(),
         /*clip_rect=*/absl::nullopt, /*are_contents_opaque=*/false,
-        /*opacity=*/1.f, SkBlendMode::kSrcOver, /*sorting_context_id=*/0);
+        /*opacity=*/1.f, SkBlendMode::kSrcOver, /*sorting_context_id=*/0,
+        /*layer_id=*/0u, /*fast_rounded_corner=*/false);
 
     viz::TextureDrawQuad* xr_content_quad =
         render_pass->CreateAndAppendDrawQuad<viz::TextureDrawQuad>();
@@ -439,7 +441,8 @@ viz::CompositorFrame ArCompositorFrameSink::CreateFrame(WebXrFrame* xr_frame,
         renderer_buffer->mailbox_holder.texture_target,
         renderer_buffer->mailbox_holder.sync_token, renderer_buffer->size,
         viz::SinglePlaneFormat::kRGBA_8888,
-        /*is_overlay_candidate=*/false);
+        /*is_overlay_candidate=*/false,
+        viz::TransferableResource::ResourceSource::kAR);
 
     renderer_resource.id = renderer_buffer->id;
     id_to_frame_map_[renderer_buffer->id] = xr_frame;
@@ -457,7 +460,8 @@ viz::CompositorFrame ArCompositorFrameSink::CreateFrame(WebXrFrame* xr_frame,
       /*quad_layer_rect=*/output_rect,
       /*visible_layer_rect=*/output_rect, gfx::MaskFilterInfo(),
       /*clip_rect=*/absl::nullopt, /*are_contents_opaque=*/true,
-      /*opacity=*/1.f, SkBlendMode::kSrcOver, /*sorting_context_id=*/0);
+      /*opacity=*/1.f, SkBlendMode::kSrcOver, /*sorting_context_id=*/0,
+      /*layer_id=*/0u, /*fast_rounded_corner=*/false);
 
   viz::TextureDrawQuad* camera_quad =
       render_pass->CreateAndAppendDrawQuad<viz::TextureDrawQuad>();
@@ -481,7 +485,8 @@ viz::CompositorFrame ArCompositorFrameSink::CreateFrame(WebXrFrame* xr_frame,
       camera_buffer->mailbox_holder.texture_target,
       camera_buffer->mailbox_holder.sync_token, camera_buffer->size,
       viz::SinglePlaneFormat::kRGBA_8888,
-      /*is_overlay_candidate=*/false);
+      /*is_overlay_candidate=*/false,
+      viz::TransferableResource::ResourceSource::kAR);
 
   camera_resource.id = camera_buffer->id;
   id_to_frame_map_[camera_buffer->id] = xr_frame;

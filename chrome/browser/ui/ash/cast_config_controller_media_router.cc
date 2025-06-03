@@ -32,7 +32,7 @@
 
 namespace {
 
-absl::optional<media_router::MediaRouter*> media_router_for_test_;
+absl::optional<media_router::MediaRouter*> g_media_router_for_test;
 
 Profile* GetProfile() {
   if (!user_manager::UserManager::IsInitialized())
@@ -48,8 +48,9 @@ Profile* GetProfile() {
 // Returns the MediaRouter instance for the current primary profile, if there is
 // one.
 media_router::MediaRouter* GetMediaRouter() {
-  if (media_router_for_test_)
-    return *media_router_for_test_;
+  if (g_media_router_for_test) {
+    return *g_media_router_for_test;
+  }
 
   Profile* profile = GetProfile();
   if (!profile || !media_router::MediaRouterEnabled(profile))
@@ -154,7 +155,7 @@ void CastConfigControllerMediaRouter::OnFreezeInfoChanged() {
 // static
 void CastConfigControllerMediaRouter::SetMediaRouterForTest(
     media_router::MediaRouter* media_router) {
-  media_router_for_test_ = media_router;
+  g_media_router_for_test = media_router;
 }
 
 CastDeviceCache* CastConfigControllerMediaRouter::device_cache() {
@@ -236,7 +237,7 @@ void CastConfigControllerMediaRouter::CastToSink(const std::string& sink_id) {
     GetMediaRouter()->CreateRoute(
         media_router::MediaSource::ForUnchosenDesktop().id(), sink_id,
         url::Origin::Create(GURL("http://cros-cast-origin/")), nullptr,
-        base::DoNothing(), base::TimeDelta(), false);
+        base::DoNothing(), base::TimeDelta());
   }
 }
 
@@ -337,8 +338,8 @@ void CastConfigControllerMediaRouter::UpdateDevices() {
         // Only set freeze info if the appropriate feature is enabled. Else,
         // values default to false and freeze ui is not shown.
         if (freeze_host) {
-          device.route.freeze_info.can_freeze = freeze_host->can_freeze();
-          device.route.freeze_info.is_frozen = freeze_host->is_frozen();
+          device.route.freeze_info.can_freeze = freeze_host->CanFreeze();
+          device.route.freeze_info.is_frozen = freeze_host->IsFrozen();
         }
 
         // Default to a tab/app capture. This will display the media router

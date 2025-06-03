@@ -58,13 +58,16 @@ class ServiceWorkerContextAdapter
   void UnregisterServiceWorker(const GURL& scope,
                                const blink::StorageKey& key,
                                ResultCallback callback) override;
+  void UnregisterServiceWorkerImmediately(const GURL& scope,
+                                          const blink::StorageKey& key,
+                                          ResultCallback callback) override;
   content::ServiceWorkerExternalRequestResult StartingExternalRequest(
       int64_t service_worker_version_id,
       content::ServiceWorkerExternalRequestTimeoutType timeout_type,
-      const std::string& request_uuid) override;
+      const base::Uuid& request_uuid) override;
   content::ServiceWorkerExternalRequestResult FinishedExternalRequest(
       int64_t service_worker_version_id,
-      const std::string& request_uuid) override;
+      const base::Uuid& request_uuid) override;
   size_t CountExternalRequestsForTest(const blink::StorageKey& key) override;
   bool ExecuteScriptForTest(
       const std::string& script,
@@ -100,8 +103,11 @@ class ServiceWorkerContextAdapter
   const base::flat_map<int64_t /* version_id */,
                        content::ServiceWorkerRunningInfo>&
   GetRunningServiceWorkerInfos() override;
+  bool IsLiveStartingServiceWorker(int64_t service_worker_version_id) override;
   bool IsLiveRunningServiceWorker(int64_t service_worker_version_id) override;
   service_manager::InterfaceProvider& GetRemoteInterfaces(
+      int64_t service_worker_version_id) override;
+  blink::AssociatedInterfaceProvider& GetRemoteAssociatedInterfaces(
       int64_t service_worker_version_id) override;
 
   // content::ServiceWorkerContextObserver:

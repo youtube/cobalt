@@ -75,6 +75,7 @@ class CONTENT_EXPORT FileSystemAccessDirectoryHandleImpl
       mojo::PendingReceiver<blink::mojom::FileSystemAccessTransferToken> token)
       override;
   void GetUniqueId(GetUniqueIdCallback callback) override;
+  void GetCloudIdentifiers(GetCloudIdentifiersCallback callback) override;
 
   // Calculates a FileSystemURL for a (direct) child of this directory with the
   // given basename.  Returns an error when `basename` includes invalid input
@@ -89,7 +90,8 @@ class CONTENT_EXPORT FileSystemAccessDirectoryHandleImpl
   // to be exposed to the web.
   // TODO(https://crbug.com/1154757): Merge this with
   // net::IsSafePortablePathComponent.
-  static bool IsSafePathComponent(const std::string& name);
+  static bool IsSafePathComponent(storage::FileSystemType type,
+                                  const std::string& name);
 
  private:
   // This method creates the file if it does not currently exists. I.e. it is

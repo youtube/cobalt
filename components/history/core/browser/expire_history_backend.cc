@@ -24,6 +24,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "build/build_config.h"
 #include "components/favicon/core/favicon_database.h"
+#include "components/history/core/browser/features.h"
 #include "components/history/core/browser/history_backend_client.h"
 #include "components/history/core/browser/history_backend_notifier.h"
 #include "components/history/core/browser/history_database.h"
@@ -230,7 +231,8 @@ void ExpireHistoryBackend::DeleteURLs(const std::vector<GURL>& urls,
   DeleteFaviconsIfPossible(&effects);
 
   BroadcastNotifications(&effects, DELETION_USER_INITIATED,
-                         DeletionTimeRange::Invalid(), absl::nullopt);
+                         DeletionTimeRange::Invalid(), absl::nullopt,
+                         DeletionInfo::Reason::kOther);
 }
 
 void ExpireHistoryBackend::ExpireHistoryBetween(
@@ -258,7 +260,8 @@ void ExpireHistoryBackend::ExpireHistoryBetween(
   DeletionTimeRange time_range(begin_time, end_time);
   ExpireVisitsInternal(
       visits, time_range, restrict_urls,
-      user_initiated ? DELETION_USER_INITIATED : DELETION_EXPIRED);
+      user_initiated ? DELETION_USER_INITIATED : DELETION_EXPIRED,
+      DeletionInfo::Reason::kOther);
 }
 
 void ExpireHistoryBackend::ExpireHistoryForTimes(
@@ -275,19 +278,21 @@ void ExpireHistoryBackend::ExpireHistoryForTimes(
   // Find the affected visits and delete them.
   VisitVector visits;
   main_db_->GetVisitsForTimes(times, &visits);
-  ExpireVisits(visits);
+  ExpireVisits(visits, DeletionInfo::Reason::kOther);
 }
 
-void ExpireHistoryBackend::ExpireVisits(const VisitVector& visits) {
+void ExpireHistoryBackend::ExpireVisits(const VisitVector& visits,
+                                        DeletionInfo::Reason deletion_reason) {
   ExpireVisitsInternal(visits, DeletionTimeRange::Invalid(), {},
-                       DELETION_USER_INITIATED);
+                       DELETION_USER_INITIATED, deletion_reason);
 }
 
 void ExpireHistoryBackend::ExpireVisitsInternal(
     const VisitVector& visits,
     const DeletionTimeRange& time_range,
     const std::set<GURL>& restrict_urls,
-    DeletionType type) {
+    DeletionType type,
+    DeletionInfo::Reason deletion_reason) {
   if (visits.empty())
     return;
 
@@ -303,7 +308,8 @@ void ExpireHistoryBackend::ExpireVisitsInternal(
   DeleteFaviconsIfPossible(&effects);
   BroadcastNotifications(
       &effects, type, time_range,
-      restrict_urls.empty() ? absl::optional<std::set<GURL>>() : restrict_urls);
+      restrict_urls.empty() ? absl::optional<std::set<GURL>>() : restrict_urls,
+      deletion_reason);
 
   // Pick up any bits possibly left over.
   ParanoidExpireHistory();
@@ -354,7 +360,8 @@ void ExpireHistoryBackend::ClearOldOnDemandFaviconsIfPossible(
   }
 
   BroadcastNotifications(&effects, DELETION_EXPIRED,
-                         DeletionTimeRange::Invalid(), absl::nullopt);
+                         DeletionTimeRange::Invalid(), absl::nullopt,
+                         DeletionInfo::Reason::kOther);
 }
 
 void ExpireHistoryBackend::InitWorkQueue() {
@@ -416,7 +423,8 @@ void ExpireHistoryBackend::BroadcastNotifications(
     DeleteEffects* effects,
     DeletionType type,
     const DeletionTimeRange& time_range,
-    absl::optional<std::set<GURL>> restrict_urls) {
+    absl::optional<std::set<GURL>> restrict_urls,
+    DeletionInfo::Reason deletion_reason) {
   if (!effects->modified_urls.empty()) {
     notifier_->NotifyURLsModified(
         effects->modified_urls,
@@ -424,8 +432,9 @@ void ExpireHistoryBackend::BroadcastNotifications(
   }
   if (!effects->deleted_urls.empty() || time_range.IsValid()) {
     notifier_->NotifyURLsDeleted(DeletionInfo(
-        time_range, type == DELETION_EXPIRED, std::move(effects->deleted_urls),
-        std::move(effects->deleted_favicons), std::move(restrict_urls)));
+        time_range, type == DELETION_EXPIRED, deletion_reason,
+        std::move(effects->deleted_urls), std::move(effects->deleted_favicons),
+        std::move(restrict_urls)));
   }
 }
 
@@ -464,6 +473,25 @@ void ExpireHistoryBackend::DeleteVisitRelatedInfo(const VisitVector& visits,
     // Delete content & context annotations associated with visit.
     if (visit.visit_id)
       main_db_->DeleteAnnotationsForVisit(visit.visit_id);
+
+    // Decrease the visit count of the corresponding VisitedLinkRow if the flag
+    // is enabled.
+    if (base::FeatureList::IsEnabled(kPopulateVisitedLinkDatabase)) {
+      VisitedLinkRow visited_link_row;
+      if (visit.visited_link_id &&
+          main_db_->GetVisitedLinkRow(visit.visited_link_id,
+                                      visited_link_row)) {
+        int new_visit_count = visited_link_row.visit_count - 1;
+        // If we deleted the last visit associated with this VisitedLink, then
+        // we delete the VisitedLinkRow.
+        if (new_visit_count > 0) {
+          main_db_->UpdateVisitedLinkRowVisitCount(visited_link_row.id,
+                                                   new_visit_count);
+        } else {
+          main_db_->DeleteVisitedLinkRow(visit.visited_link_id);
+        }
+      }
+    }
 
     notifier_->NotifyVisitDeleted(visit);
   }
@@ -638,7 +666,8 @@ bool ExpireHistoryBackend::ExpireSomeOldHistory(
   DeleteFaviconsIfPossible(&deleted_effects);
 
   BroadcastNotifications(&deleted_effects, DELETION_EXPIRED,
-                         DeletionTimeRange::Invalid(), absl::nullopt);
+                         DeletionTimeRange::Invalid(), absl::nullopt,
+                         DeletionInfo::Reason::kOther);
 
   return more_to_expire;
 }

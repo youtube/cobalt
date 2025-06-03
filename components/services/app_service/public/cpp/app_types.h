@@ -132,13 +132,23 @@ struct COMPONENT_EXPORT(APP_TYPES) App {
 
   ~App();
 
+  bool operator==(const App& other) const;
+  bool operator!=(const App& other) const;
+
   std::unique_ptr<App> Clone() const;
 
   AppType app_type;
   std::string app_id;
 
   Readiness readiness = Readiness::kUnknown;
+
+  // The full name of the app. Will be used in most UIs.
   absl::optional<std::string> name;
+  // A shortened version of the app name. May omit branding (e.g.
+  // "Google" prefixes) or rely on abbreviations (e.g. "YT Music"). If no
+  // `short_name` is supplied, the `name` will be used instead.
+  // The `short_name` may be used in UIs where space is limited and/or we want
+  // to optimize for scannability.
   absl::optional<std::string> short_name;
 
   // An optional, publisher-specific ID for this app, e.g. for Android apps,
@@ -218,11 +228,15 @@ struct COMPONENT_EXPORT(APP_TYPES) App {
   absl::optional<uint64_t> app_size_in_bytes;
   absl::optional<uint64_t> data_size_in_bytes;
 
-  // When adding new fields to the App type, the `Clone` function and the
-  // `AppUpdate` class should also be updated.
+  // When adding new fields to the App type, the `Clone` function, the
+  // `operator==` function, and the `AppUpdate` class should also be updated.
 };
 
 using AppPtr = std::unique_ptr<App>;
+
+COMPONENT_EXPORT(APP_TYPES)
+bool IsEqual(const std::vector<AppPtr>& source,
+             const std::vector<AppPtr>& target);
 
 COMPONENT_EXPORT(APP_TYPES)
 ApplicationType ConvertAppTypeToProtoApplicationType(AppType app_type);

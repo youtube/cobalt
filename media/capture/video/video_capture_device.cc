@@ -24,21 +24,40 @@ CapturedExternalVideoBuffer::CapturedExternalVideoBuffer(
       format(std::move(format)),
       color_space(std::move(color_space)) {}
 
+#if BUILDFLAG(IS_WIN)
+CapturedExternalVideoBuffer::CapturedExternalVideoBuffer(
+    Microsoft::WRL::ComPtr<IMFMediaBuffer> imf_buffer,
+    gfx::GpuMemoryBufferHandle handle,
+    VideoCaptureFormat format,
+    gfx::ColorSpace color_space)
+    : imf_buffer(std::move(imf_buffer)),
+      handle(std::move(handle)),
+      format(std::move(format)),
+      color_space(std::move(color_space)) {}
+#endif
+
 CapturedExternalVideoBuffer::CapturedExternalVideoBuffer(
     CapturedExternalVideoBuffer&& other)
     : handle(std::move(other.handle)),
       format(std::move(other.format)),
-      color_space(std::move(other.color_space)) {}
-
-CapturedExternalVideoBuffer::~CapturedExternalVideoBuffer() = default;
+      color_space(std::move(other.color_space)) {
+#if BUILDFLAG(IS_WIN)
+  imf_buffer = std::move(other.imf_buffer);
+#endif
+}
 
 CapturedExternalVideoBuffer& CapturedExternalVideoBuffer::operator=(
     CapturedExternalVideoBuffer&& other) {
   handle = std::move(other.handle);
   format = std::move(other.format);
   color_space = std::move(other.color_space);
+#if BUILDFLAG(IS_WIN)
+  imf_buffer = std::move(other.imf_buffer);
+#endif
   return *this;
 }
+
+CapturedExternalVideoBuffer::~CapturedExternalVideoBuffer() = default;
 
 VideoCaptureDevice::Client::Buffer::Buffer() : id(0), frame_feedback_id(0) {}
 
@@ -89,10 +108,11 @@ VideoCaptureDevice::~VideoCaptureDevice() = default;
 
 void VideoCaptureDevice::Crop(
     const base::Token& crop_id,
-    uint32_t crop_version,
-    base::OnceCallback<void(media::mojom::CropRequestResult)> callback) {
+    uint32_t sub_capture_target_version,
+    base::OnceCallback<void(media::mojom::ApplySubCaptureTargetResult)>
+        callback) {
   std::move(callback).Run(
-      media::mojom::CropRequestResult::kUnsupportedCaptureDevice);
+      media::mojom::ApplySubCaptureTargetResult::kUnsupportedCaptureDevice);
 }
 
 void VideoCaptureDevice::GetPhotoState(GetPhotoStateCallback callback) {}

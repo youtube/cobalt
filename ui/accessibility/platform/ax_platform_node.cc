@@ -26,6 +26,9 @@ base::LazyInstance<AXPlatformNode::NativeWindowHandlerCallback>::Leaky
 AXMode AXPlatformNode::ax_mode_;
 
 // static
+bool AXPlatformNode::disallow_ax_mode_changes_;
+
+// static
 gfx::NativeViewAccessible AXPlatformNode::popup_focus_override_ = nullptr;
 
 // static
@@ -50,6 +53,11 @@ void AXPlatformNode::RegisterNativeWindowHandler(
   native_window_handler_.Get() = handler;
 }
 
+// static
+void AXPlatformNode::DisallowAXModeChanges() {
+  disallow_ax_mode_changes_ = true;
+}
+
 AXPlatformNode::AXPlatformNode() = default;
 
 AXPlatformNode::~AXPlatformNode() = default;
@@ -59,15 +67,8 @@ void AXPlatformNode::Destroy() {
 
 int32_t AXPlatformNode::GetUniqueId() const {
   DCHECK(GetDelegate()) << "|GetUniqueId| must be called after |Init|.";
-  return GetDelegate() ? GetDelegate()->GetUniqueId().Get() : -1;
-}
-
-void AXPlatformNode::SetIsPrimaryWebContentsForWindow(bool is_primary) {
-  is_primary_web_contents_for_window_ = is_primary;
-}
-
-bool AXPlatformNode::IsPrimaryWebContentsForWindow() const {
-  return is_primary_web_contents_for_window_;
+  return GetDelegate() ? GetDelegate()->GetUniqueId().Get()
+                       : kInvalidAXUniqueId;
 }
 
 std::string AXPlatformNode::ToString() {
@@ -94,6 +95,10 @@ void AXPlatformNode::RemoveAXModeObserver(AXModeObserver* observer) {
 
 // static
 void AXPlatformNode::NotifyAddAXModeFlags(AXMode mode_flags) {
+  if (disallow_ax_mode_changes_) {
+    return;
+  }
+
   AXMode new_ax_mode(ax_mode_);
   new_ax_mode |= mode_flags;
 

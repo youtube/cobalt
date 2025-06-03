@@ -10,16 +10,14 @@
 #import "base/test/ios/wait_util.h"
 #import "base/time/time.h"
 #import "ios/chrome/app/application_delegate/app_state.h"
-#import "ios/chrome/app/application_delegate/browser_launcher.h"
 #import "ios/chrome/app/application_delegate/startup_information.h"
-#import "ios/chrome/app/main_application_delegate.h"
-#import "ios/chrome/browser/browser_state/chrome_browser_state.h"
-#import "ios/chrome/browser/browser_state/test_chrome_browser_state.h"
-#import "ios/chrome/browser/main/browser_list.h"
-#import "ios/chrome/browser/main/browser_list_factory.h"
-#import "ios/chrome/browser/main/test_browser.h"
-#import "ios/chrome/browser/web_state_list/web_state_list.h"
-#import "ios/chrome/browser/web_state_list/web_state_opener.h"
+#import "ios/chrome/browser/shared/model/browser/browser_list.h"
+#import "ios/chrome/browser/shared/model/browser/browser_list_factory.h"
+#import "ios/chrome/browser/shared/model/browser/test/test_browser.h"
+#import "ios/chrome/browser/shared/model/browser_state/chrome_browser_state.h"
+#import "ios/chrome/browser/shared/model/browser_state/test_chrome_browser_state.h"
+#import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
+#import "ios/chrome/browser/shared/model/web_state_list/web_state_opener.h"
 #import "ios/chrome/test/block_cleanup_test.h"
 #import "ios/web/public/security/certificate_policy_cache.h"
 #import "ios/web/public/session/session_certificate_policy_cache.h"
@@ -32,10 +30,6 @@
 #import "net/test/test_data_directory.h"
 #import "third_party/ocmock/OCMock/OCMock.h"
 #import "third_party/ocmock/gtest_support.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 using base::test::ios::kWaitForActionTimeout;
 using base::test::ios::SpinRunLoopWithMaxDelay;
@@ -53,13 +47,9 @@ class CertificatePolicyAppStateAgentTest : public BlockCleanupTest {
         cert_(net::ImportCertFromFile(net::GetTestCertsDirectory(),
                                       "ok_cert.pem")),
         status_(net::CERT_STATUS_REVOKED) {
-    // Mocks for AppState dependencies.
-    browser_launcher_mock_ =
-        [OCMockObject mockForProtocol:@protocol(BrowserLauncher)];
+    // Mock for AppState dependencies.
     startup_information_mock_ =
         [OCMockObject mockForProtocol:@protocol(StartupInformation)];
-    main_application_delegate_ =
-        [OCMockObject mockForClass:[MainApplicationDelegate class]];
 
     TestChromeBrowserState::Builder test_cbs_builder;
     chrome_browser_state_ = test_cbs_builder.Build();
@@ -68,9 +58,7 @@ class CertificatePolicyAppStateAgentTest : public BlockCleanupTest {
         BrowserListFactory::GetForBrowserState(chrome_browser_state_.get());
 
     app_state_ =
-        [[AppState alloc] initWithBrowserLauncher:browser_launcher_mock_
-                               startupInformation:startup_information_mock_
-                              applicationDelegate:main_application_delegate_];
+        [[AppState alloc] initWithStartupInformation:startup_information_mock_];
     app_state_.mainBrowserState = chrome_browser_state_.get();
 
     // Create two regular and one OTR browsers.
@@ -244,10 +232,8 @@ class CertificatePolicyAppStateAgentTest : public BlockCleanupTest {
   scoped_refptr<net::X509Certificate> cert_;
   net::CertStatus status_;
 
-  // Mocks for AppState dependencies.
-  id browser_launcher_mock_;
+  // Mock for AppState dependencies.
   id startup_information_mock_;
-  id main_application_delegate_;
 };
 
 // Test that updating an empty cache with no webstates results in an empty

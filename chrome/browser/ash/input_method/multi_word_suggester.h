@@ -31,7 +31,8 @@ class MultiWordSuggester : public Suggester {
   void OnFocus(int context_id) override;
   void OnBlur() override;
   void OnExternalSuggestionsUpdated(
-      const std::vector<ime::AssistiveSuggestion>& suggestions) override;
+      const std::vector<ime::AssistiveSuggestion>& suggestions,
+      const absl::optional<ime::SuggestionsTextContext>& context) override;
   SuggestionStatus HandleKeyEvent(const ui::KeyEvent& event) override;
   bool TrySuggestWithSurroundingText(const std::u16string& text,
                                      gfx::Range selection_range) override;
@@ -87,7 +88,14 @@ class MultiWordSuggester : public Suggester {
     void UpdateSurroundingText(const SurroundingText& surrounding_text);
 
     // Captures new suggestion context.
-    void UpdateSuggestion(const Suggestion& suggestion);
+    void UpdateSuggestion(const Suggestion& suggestion,
+                          bool new_tracking_behavior);
+
+    // Validates the given suggestion text context with the current surrounding
+    // text, and returns the state of the given suggestion context.
+    MultiWordSuggestionState ValidateSuggestion(
+        const Suggestion& suggestion,
+        const ime::SuggestionsTextContext& context);
 
     // Takes the current suggestion and surrounding text state, and ensures the
     // confirmed length or any other suggestion details are correct.
@@ -148,7 +156,8 @@ class MultiWordSuggester : public Suggester {
   absl::optional<int> focused_context_id_;
 
   // Not owned by this class
-  raw_ptr<SuggestionHandlerInterface, ExperimentalAsh> suggestion_handler_;
+  raw_ptr<SuggestionHandlerInterface, DanglingUntriaged | ExperimentalAsh>
+      suggestion_handler_;
 
   // Current suggestion state
   SuggestionState state_;

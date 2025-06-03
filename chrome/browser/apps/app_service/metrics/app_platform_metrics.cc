@@ -8,9 +8,9 @@
 #include <set>
 
 #include "base/check_deref.h"
+#include "base/containers/fixed_flat_set.h"
 #include "base/json/values_util.h"
 #include "base/metrics/histogram_functions.h"
-#include "base/no_destructor.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_piece_forward.h"
 #include "base/time/time.h"
@@ -23,6 +23,7 @@
 #include "chrome/browser/ash/borealis/borealis_util.h"
 #include "chrome/browser/ash/guest_os/guest_os_registry_service.h"
 #include "chrome/browser/ash/guest_os/guest_os_registry_service_factory.h"
+#include "chrome/browser/ash/guest_os/guest_os_shelf_utils.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/web_applications/web_app_utils.h"
@@ -66,29 +67,25 @@ constexpr char kInstallReasonCommandLineHistogram[] = "CommandLine";
 
 constexpr base::TimeDelta kMaxDuration = base::Days(1);
 
-std::set<apps::AppTypeName>& GetAppTypeNameSet() {
-  static base::NoDestructor<std::set<apps::AppTypeName>> app_type_name_map;
-  if (app_type_name_map->empty()) {
-    app_type_name_map->insert(apps::AppTypeName::kArc);
-    app_type_name_map->insert(apps::AppTypeName::kBuiltIn);
-    app_type_name_map->insert(apps::AppTypeName::kCrostini);
-    app_type_name_map->insert(apps::AppTypeName::kChromeApp);
-    app_type_name_map->insert(apps::AppTypeName::kWeb);
-    app_type_name_map->insert(apps::AppTypeName::kMacOs);
-    app_type_name_map->insert(apps::AppTypeName::kPluginVm);
-    app_type_name_map->insert(apps::AppTypeName::kStandaloneBrowser);
-    app_type_name_map->insert(apps::AppTypeName::kRemote);
-    app_type_name_map->insert(apps::AppTypeName::kBorealis);
-    app_type_name_map->insert(apps::AppTypeName::kSystemWeb);
-    app_type_name_map->insert(apps::AppTypeName::kChromeBrowser);
-    app_type_name_map->insert(apps::AppTypeName::kStandaloneBrowserChromeApp);
-    app_type_name_map->insert(apps::AppTypeName::kExtension);
-    app_type_name_map->insert(apps::AppTypeName::kStandaloneBrowserExtension);
-    app_type_name_map->insert(apps::AppTypeName::kStandaloneBrowserWebApp);
-    app_type_name_map->insert(apps::AppTypeName::kBruschetta);
-  }
-  return *app_type_name_map;
-}
+constexpr auto kAppTypeNameSet = base::MakeFixedFlatSet<apps::AppTypeName>({
+    apps::AppTypeName::kArc,
+    apps::AppTypeName::kBuiltIn,
+    apps::AppTypeName::kCrostini,
+    apps::AppTypeName::kChromeApp,
+    apps::AppTypeName::kWeb,
+    apps::AppTypeName::kMacOs,
+    apps::AppTypeName::kPluginVm,
+    apps::AppTypeName::kStandaloneBrowser,
+    apps::AppTypeName::kRemote,
+    apps::AppTypeName::kBorealis,
+    apps::AppTypeName::kSystemWeb,
+    apps::AppTypeName::kChromeBrowser,
+    apps::AppTypeName::kStandaloneBrowserChromeApp,
+    apps::AppTypeName::kExtension,
+    apps::AppTypeName::kStandaloneBrowserExtension,
+    apps::AppTypeName::kStandaloneBrowserWebApp,
+    apps::AppTypeName::kBruschetta,
+});
 
 std::string GetInstallReason(apps::InstallReason install_reason) {
   switch (install_reason) {
@@ -285,6 +282,7 @@ constexpr char kWebAppTabHistogramName[] = "WebAppTab";
 constexpr char kWebAppWindowHistogramName[] = "WebAppWindow";
 
 constexpr char kUsageTimeAppIdKey[] = "app_id";
+constexpr char kUsageTimeAppPublisherIdKey[] = "app_publisher_id";
 constexpr char kUsageTimeAppTypeKey[] = "app_type";
 constexpr char kUsageTimeDurationKey[] = "time";
 constexpr char kReportingUsageTimeDurationKey[] = "reporting_usage_time";
@@ -340,10 +338,6 @@ std::string GetAppTypeHistogramNameV2(apps::AppTypeNameV2 app_type_name) {
   }
 }
 
-const std::set<apps::AppTypeName>& GetAppTypeNameSet() {
-  return ::GetAppTypeNameSet();
-}
-
 ApplicationInstallTime ConvertInstallTimeToProtoApplicationInstallTime(
     InstallTime install_time) {
   switch (install_time) {
@@ -378,6 +372,10 @@ void RecordAppLaunchMetrics(Profile* profile,
   }
 }
 
+AppPlatformMetrics::UsageTime::UsageTime() = default;
+
+AppPlatformMetrics::UsageTime::~UsageTime() = default;
+
 AppPlatformMetrics::UsageTime::UsageTime(const base::Value& value) {
   const base::Value::Dict* data_dict = value.GetIfDict();
   if (!data_dict) {
@@ -388,6 +386,12 @@ AppPlatformMetrics::UsageTime::UsageTime(const base::Value& value) {
       data_dict->FindString(kUsageTimeAppIdKey);
   if (!app_id_value) {
     return;
+  }
+
+  const std::string* const app_publisher_id_value =
+      data_dict->FindString(kUsageTimeAppPublisherIdKey);
+  if (app_publisher_id_value) {
+    app_publisher_id = *app_publisher_id_value;
   }
 
   const std::string* const app_type_value =
@@ -424,6 +428,7 @@ AppPlatformMetrics::UsageTime::UsageTime(const base::Value& value) {
 base::Value::Dict AppPlatformMetrics::UsageTime::ConvertToDict() const {
   base::Value::Dict usage_time_dict;
   usage_time_dict.Set(kUsageTimeAppIdKey, app_id);
+  usage_time_dict.Set(kUsageTimeAppPublisherIdKey, app_publisher_id);
   usage_time_dict.Set(kUsageTimeAppTypeKey,
                       GetAppTypeHistogramName(app_type_name));
   usage_time_dict.Set(kUsageTimeDurationKey,
@@ -438,8 +443,8 @@ AppPlatformMetrics::AppPlatformMetrics(
     apps::AppRegistryCache& app_registry_cache,
     InstanceRegistry& instance_registry)
     : profile_(profile), app_registry_cache_(app_registry_cache) {
-  apps::AppRegistryCache::Observer::Observe(&app_registry_cache);
-  apps::InstanceRegistry::Observer::Observe(&instance_registry);
+  app_registry_cache_observer_.Observe(&app_registry_cache);
+  instance_registry_observation_.Observe(&instance_registry);
   user_type_by_device_type_ = GetUserTypeByDeviceTypeMetrics();
   InitRunningDuration();
   LoadAppsUsageTimeUkmFromPref();
@@ -468,9 +473,13 @@ ukm::SourceId AppPlatformMetrics::GetSourceId(Profile* profile,
     return ukm::kInvalidSourceId;
   }
 
-  ukm::SourceId source_id = ukm::kInvalidSourceId;
   AppType app_type = GetAppType(profile, app_id);
   if (!ShouldRecordUkmForAppTypeName(app_type)) {
+    return ukm::kInvalidSourceId;
+  }
+
+  GURL url = GetURLForApp(profile, app_id);
+  if (url.is_empty()) {
     return ukm::kInvalidSourceId;
   }
 
@@ -479,115 +488,171 @@ ukm::SourceId AppPlatformMetrics::GetSourceId(Profile* profile,
     case AppType::kChromeApp:
     case AppType::kExtension:
     case AppType::kStandaloneBrowser:
-      source_id = ukm::AppSourceUrlRecorder::GetSourceIdForChromeApp(app_id);
-      break;
     case AppType::kStandaloneBrowserChromeApp:
     case AppType::kStandaloneBrowserExtension:
-      source_id = ukm::AppSourceUrlRecorder::GetSourceIdForChromeApp(
-          GetStandaloneBrowserExtensionAppId(app_id));
-      break;
+    case AppType::kSystemWeb:
+      return ukm::AppSourceUrlRecorder::GetSourceIdForUrl(
+          url, ukm::AppType::kChromeApp);
     case AppType::kArc:
-    case AppType::kWeb:
-    case AppType::kSystemWeb: {
-      std::string publisher_id;
-      apps::InstallReason install_reason;
-      apps::AppServiceProxyFactory::GetForProfile(profile)
-          ->AppRegistryCache()
-          .ForOneApp(app_id, [&publisher_id,
-                              &install_reason](const apps::AppUpdate& update) {
-            publisher_id = update.PublisherId();
-            install_reason = update.InstallReason();
-          });
-      if (publisher_id.empty()) {
-        return ukm::kInvalidSourceId;
+      return ukm::AppSourceUrlRecorder::GetSourceIdForUrl(url,
+                                                          ukm::AppType::kArc);
+    case AppType::kWeb: {
+      // Some system web-apps may be PWAs.
+      if (IsSystemWebApp(profile, app_id)) {
+        return ukm::AppSourceUrlRecorder::GetSourceIdForUrl(
+            url, ukm::AppType::kChromeApp);
       }
-      if (app_type == AppType::kArc) {
-        source_id = ukm::AppSourceUrlRecorder::GetSourceIdForArcPackageName(
-            publisher_id);
-        break;
-      }
-      if (app_type == AppType::kSystemWeb ||
-          install_reason == apps::InstallReason::kSystem) {
-        // For system web apps, call GetSourceIdForChromeApp to record the app
-        // id because the url could be filtered by the server side.
-        source_id = ukm::AppSourceUrlRecorder::GetSourceIdForChromeApp(app_id);
-        break;
-      }
-      source_id =
-          ukm::AppSourceUrlRecorder::GetSourceIdForPWA(GURL(publisher_id));
-      break;
+      return ukm::AppSourceUrlRecorder::GetSourceIdForUrl(url,
+                                                          ukm::AppType::kPWA);
     }
     case AppType::kCrostini:
-      source_id = GetSourceIdForCrostini(profile, app_id);
-      break;
+      return ukm::AppSourceUrlRecorder::GetSourceIdForUrl(
+          url, ukm::AppType::kCrostini);
     case AppType::kBorealis:
-      source_id = GetSourceIdForBorealis(profile, app_id);
-      break;
-    case AppType::kBruschetta:
-    case AppType::kUnknown:
-    case AppType::kMacOs:
-    case AppType::kPluginVm:
-    case AppType::kRemote:
+      return ukm::AppSourceUrlRecorder::GetSourceIdForUrl(
+          url, ukm::AppType::kBorealis);
+    // App types that are not supported by UKM.
+    default:
       return ukm::kInvalidSourceId;
   }
-  return source_id;
 }
 
 // static
-ukm::SourceId AppPlatformMetrics::GetSourceIdForBorealis(
-    Profile* profile,
-    const std::string& app_id) {
+GURL AppPlatformMetrics::GetURLForApp(Profile* profile,
+                                      const std::string& app_id) {
+  AppType app_type = GetAppType(profile, app_id);
+
+  // If the app should not be recorded, then emit an empty URL so the URL is not
+  // recorded for the associated app.
+  if (!ShouldRecordUkmForAppTypeName(app_type)) {
+    return GURL();
+  }
+
+  switch (app_type) {
+    // |app_id| is already hashed for these apps and are of the format
+    // app://{app_id}.
+    case AppType::kBuiltIn:
+    case AppType::kChromeApp:
+    case AppType::kExtension:
+    case AppType::kStandaloneBrowser:
+    case AppType::kStandaloneBrowserChromeApp:
+    case AppType::kStandaloneBrowserExtension:
+    // For system web apps, call GetSourceIdForChromeApp to record the app
+    // id because the url could be filtered by the server side.
+    case AppType::kSystemWeb:
+      return ukm::AppSourceUrlRecorder::GetURLForChromeApp(app_id);
+    // ARC apps contain the app package name and the URL generated is of the
+    // format app://{package_name}. The package name will be populated if it is
+    // a properly registered ARC app.
+    case AppType::kArc: {
+      std::string package_name = GetPublisherId(profile, app_id);
+      // Empty package name ID indicates that the ARC app is not properly
+      // registered application.
+      if (package_name.empty() || app_id.empty()) {
+        return GURL();
+      }
+      return ukm::AppSourceUrlRecorder::GetURLForArcPackageName(package_name);
+    }
+    case AppType::kWeb: {
+      // Some PWAs can be categorized as system web apps. System web apps should
+      // be encoded as a ChromeApp hash.
+      if (IsSystemWebApp(profile, app_id)) {
+        return ukm::AppSourceUrlRecorder::GetURLForChromeApp(app_id);
+      }
+
+      std::string publisher_id = GetPublisherId(profile, app_id);
+      // Empty publisher ID indicates that the app is not a properly registered
+      // PWA.
+      if (publisher_id.empty() || app_id.empty()) {
+        return GURL();
+      }
+
+      return ukm::AppSourceUrlRecorder::GetURLForPWA(GURL(publisher_id));
+    }
+    case AppType::kCrostini: {
+      auto crostini_app_id = GetIdForCrostini(profile, app_id);
+      return ukm::AppSourceUrlRecorder::GetURLForCrostini(
+          crostini_app_id.desktop_id, crostini_app_id.registration_name);
+    }
+    case AppType::kBorealis:
+      return GetURLForBorealis(profile, app_id);
+    // Other app types should not be logged. Return empty GURL so that
+    // these app types are not recorded.
+    default:
+      return GURL();
+  }
+}
+
+// static
+std::string AppPlatformMetrics::GetPublisherId(Profile* profile,
+                                               const std::string& app_id) {
+  std::string publisher_id;
+  apps::AppServiceProxyFactory::GetForProfile(profile)
+      ->AppRegistryCache()
+      .ForOneApp(app_id, [&publisher_id](const apps::AppUpdate& update) {
+        publisher_id = update.PublisherId();
+      });
+  return publisher_id;
+}
+
+// static
+GURL AppPlatformMetrics::GetURLForBorealis(Profile* profile,
+                                           const std::string& app_id) {
   // Most Borealis apps are identified by a numeric ID, except these.
   if (app_id == borealis::kClientAppId) {
-    return ukm::AppSourceUrlRecorder::GetSourceIdForBorealis("client");
+    return ukm::AppSourceUrlRecorder::GetURLForBorealis("client");
   } else if (app_id == borealis::kInstallerAppId) {
-    return ukm::AppSourceUrlRecorder::GetSourceIdForBorealis("installer");
+    return ukm::AppSourceUrlRecorder::GetURLForBorealis("installer");
   } else if (app_id.find(borealis::kIgnoredAppIdPrefix) != std::string::npos) {
-    // These are not real apps from a user's point of view,
-    // so it doesn't make sense to record metrics for them.
-    return ukm::kInvalidSourceId;
+    // These are not real apps from a user's point of view, so it doesn't make
+    // sense to record metrics for them.
+    return GURL();
   }
 
-  auto* registry =
-      guest_os::GuestOsRegistryServiceFactory::GetForProfile(profile);
-  auto registration = registry->GetRegistration(app_id);
-  if (!registration) {
-    // If there's no registration then we're not allowed to record anything that
-    // could identify the app (and we don't know the app name anyway), but
-    // recording every unregistered app in one big bucket is fine.
-    //
-    // In general all Borealis apps should be registered, so if we do see this
-    // Source ID being reported, that's a bug.
-    LOG(WARNING) << "Couldn't get Borealis ID for UNREGISTERED app " << app_id;
-    return ukm::AppSourceUrlRecorder::GetSourceIdForBorealis("UNREGISTERED");
+  // For most borealis apps, we convert to the "steam app id", which is a unique
+  // number valve assigns to each game.
+  //
+  // This is more robust, as it handles some unidentified apps (if they have a
+  // steam id).
+  absl::optional<int> borealis_id = borealis::SteamGameId(profile, app_id);
+  if (borealis_id.has_value()) {
+    return ukm::AppSourceUrlRecorder::GetURLForBorealis(
+        base::NumberToString(borealis_id.value()));
   }
-  absl::optional<int> borealis_id =
-      borealis::GetBorealisAppId(registration->Exec());
-  if (!borealis_id)
-    LOG(WARNING) << "Couldn't get Borealis ID for registered app " << app_id;
-  return ukm::AppSourceUrlRecorder::GetSourceIdForBorealis(
-      borealis_id ? base::NumberToString(borealis_id.value()) : "NoId");
+
+  // If there's no steam id then we're not allowed to record anything that
+  // could identify the app (and we don't know the app name anyway), but
+  // recording every unregistered app in one big bucket is fine.
+  //
+  // In general all Borealis apps should have a steam id, so if we do see this
+  // Source ID being reported, that's a bug.
+  LOG(WARNING) << "Couldn't get Borealis ID for UNREGISTERED app " << app_id;
+  return ukm::AppSourceUrlRecorder::GetURLForBorealis("UNREGISTERED");
 }
 
 // static
-ukm::SourceId AppPlatformMetrics::GetSourceIdForCrostini(
-    Profile* profile,
-    const std::string& app_id) {
+CrostiniAppId AppPlatformMetrics::GetIdForCrostini(Profile* profile,
+                                                   const std::string& app_id) {
   auto* registry =
       guest_os::GuestOsRegistryServiceFactory::GetForProfile(profile);
   auto registration = registry->GetRegistration(app_id);
   if (!registration) {
-    // If there's no registration then we're not allowed to record anything that
-    // could identify the app (and we don't know the app name anyway), but
-    // recording every unregistered app in one big bucket is fine.
-    return ukm::AppSourceUrlRecorder::GetSourceIdForCrostini("UNREGISTERED",
-                                                             "UNREGISTERED");
+    // If there's no registration then we're not allowed to record anything
+    // that could identify the app (and we don't know the app name anyway),
+    // but recording every unregistered app in one big bucket is fine.
+    return CrostiniAppId{
+        .desktop_id = "UNREGISTERED",
+        .registration_name = "UNREGISTERED",
+    };
   }
   auto desktop_id = registration->DesktopFileId() == ""
                         ? "NoId"
                         : registration->DesktopFileId();
-  return ukm::AppSourceUrlRecorder::GetSourceIdForCrostini(
-      desktop_id, registration->Name());
+  return CrostiniAppId{
+      .desktop_id = desktop_id,
+      .registration_name = registration->Name(),
+
+  };
 }
 
 // static
@@ -763,7 +828,7 @@ void AppPlatformMetrics::OnAppTypeInitialized(AppType app_type) {
 
 void AppPlatformMetrics::OnAppRegistryCacheWillBeDestroyed(
     apps::AppRegistryCache* cache) {
-  apps::AppRegistryCache::Observer::Observe(nullptr);
+  app_registry_cache_observer_.Reset();
 }
 
 void AppPlatformMetrics::OnAppUpdate(const apps::AppUpdate& update) {
@@ -871,7 +936,7 @@ void AppPlatformMetrics::OnInstanceUpdate(const apps::InstanceUpdate& update) {
 
 void AppPlatformMetrics::OnInstanceRegistryWillBeDestroyed(
     apps::InstanceRegistry* cache) {
-  apps::InstanceRegistry::Observer::Observe(nullptr);
+  instance_registry_observation_.Reset();
 }
 
 void AppPlatformMetrics::GetBrowserInstanceInfo(
@@ -999,7 +1064,7 @@ void AppPlatformMetrics::InitRunningDuration() {
   ScopedDictPrefUpdate activated_count_update(profile_->GetPrefs(),
                                               kAppActivatedCount);
 
-  for (auto app_type_name : GetAppTypeNameSet()) {
+  for (auto app_type_name : kAppTypeNameSet) {
     std::string key = GetAppTypeHistogramName(app_type_name);
     if (key.empty()) {
       continue;
@@ -1253,7 +1318,7 @@ void AppPlatformMetrics::SaveUsageTime() {
   }
 
   ScopedDictPrefUpdate usage_dict_pref(profile_->GetPrefs(), kAppUsageTime);
-  for (auto it : usage_time_per_two_hours_) {
+  for (const auto& it : usage_time_per_two_hours_) {
     const std::string& instance_id = it.first.ToString();
     auto* const usage_info = usage_dict_pref->FindDictByDottedPath(instance_id);
     if (!usage_info) {

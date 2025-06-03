@@ -15,14 +15,20 @@
 
 namespace chromeos {
 
+namespace {
+
+namespace crosapi = ::crosapi::mojom;
+
+}  // namespace
+
 EventRouter::EventRouter(content::BrowserContext* context)
     : browser_context_(context) {}
 
 EventRouter::~EventRouter() = default;
 
-mojo::PendingRemote<crosapi::mojom::TelemetryEventObserver>
+mojo::PendingRemote<crosapi::TelemetryEventObserver>
 EventRouter::GetPendingRemoteForCategoryAndExtension(
-    crosapi::mojom::TelemetryEventCategoryEnum category,
+    crosapi::TelemetryEventCategoryEnum category,
     extensions::ExtensionId extension_id) {
   auto iter_extension = observers_.find(extension_id);
   if (iter_extension == observers_.end()) {
@@ -37,7 +43,7 @@ EventRouter::GetPendingRemoteForCategoryAndExtension(
         iter_category, std::piecewise_construct,
         std::forward_as_tuple(category),
         std::forward_as_tuple(std::make_unique<EventObservationCrosapi>(
-            extension_id, browser_context_)));
+            extension_id, this, browser_context_)));
   }
 
   return iter_category->second->GetRemote();
@@ -50,23 +56,51 @@ void EventRouter::ResetReceiversForExtension(
 
 void EventRouter::ResetReceiversOfExtensionByCategory(
     extensions::ExtensionId extension_id,
-    crosapi::mojom::TelemetryEventCategoryEnum category) {
+    crosapi::TelemetryEventCategoryEnum category) {
   auto it = observers_.find(extension_id);
   if (it == observers_.end()) {
     return;
   }
 
   it->second.erase(category);
+  if (it->second.empty()) {
+    observers_.erase(it);
+  }
+}
+
+void EventRouter::RestrictReceiversOfExtension(
+    extensions::ExtensionId extension_id) {
+  restricted_extensions_.insert(extension_id);
+}
+
+void EventRouter::UnrestrictReceiversOfExtension(
+    extensions::ExtensionId extension_id) {
+  restricted_extensions_.erase(extension_id);
+}
+
+bool EventRouter::IsExtensionObserving(extensions::ExtensionId extension_id) {
+  return observers_.find(extension_id) != observers_.end();
 }
 
 bool EventRouter::IsExtensionObservingForCategory(
     extensions::ExtensionId extension_id,
-    crosapi::mojom::TelemetryEventCategoryEnum category) {
+    crosapi::TelemetryEventCategoryEnum category) {
   auto it = observers_.find(extension_id);
   if (it == observers_.end()) {
     return false;
   }
 
   return it->second.contains(category);
+}
+
+bool EventRouter::IsExtensionRestricted(extensions::ExtensionId extension_id) {
+  return restricted_extensions_.contains(extension_id);
+}
+
+bool EventRouter::IsExtensionAllowedForCategory(
+    extensions::ExtensionId extension_id,
+    crosapi::TelemetryEventCategoryEnum category) {
+  return !kCategoriesWithFocusRestriction.contains(category) ||
+         !restricted_extensions_.contains(extension_id);
 }
 }  // namespace chromeos

@@ -21,21 +21,21 @@
 #include "ash/wm/overview/overview_test_util.h"
 #include "ash/wm/pip/pip_positioner.h"
 #include "ash/wm/screen_pinning_controller.h"
+#include "ash/wm/splitview/split_view_constants.h"
 #include "ash/wm/splitview/split_view_controller.h"
 #include "ash/wm/splitview/split_view_divider.h"
 #include "ash/wm/tablet_mode/tablet_mode_controller.h"
+#include "ash/wm/test/fake_window_state.h"
 #include "ash/wm/window_state.h"
 #include "ash/wm/window_state_delegate.h"
 #include "ash/wm/window_util.h"
 #include "ash/wm/wm_event.h"
 #include "base/memory/raw_ptr.h"
 #include "base/test/bind.h"
-#include "base/test/scoped_feature_list.h"
 #include "chromeos/ui/base/window_state_type.h"
 #include "chromeos/ui/frame/caption_buttons/snap_controller.h"
 #include "chromeos/ui/frame/header_view.h"
 #include "chromeos/ui/wm/constants.h"
-#include "chromeos/ui/wm/features.h"
 #include "chromeos/ui/wm/window_util.h"
 #include "ui/aura/client/aura_constants.h"
 #include "ui/compositor/scoped_animation_duration_scale_mode.h"
@@ -139,29 +139,6 @@ class TestWidgetDelegate : public views::WidgetDelegateView {
   }
 };
 
-class TestWindowStateDelegate : public WindowStateDelegate {
- public:
-  TestWindowStateDelegate() = default;
-  TestWindowStateDelegate(const TestWindowStateDelegate&) = delete;
-  TestWindowStateDelegate& operator=(const TestWindowStateDelegate&) = delete;
-  ~TestWindowStateDelegate() override = default;
-
-  // WindowStateDelegate:
-  std::unique_ptr<PresentationTimeRecorder> OnDragStarted(
-      int component) override {
-    drag_in_progress_ = true;
-    return nullptr;
-  }
-  void OnDragFinished(bool cancel, const gfx::PointF& location) override {
-    drag_in_progress_ = false;
-  }
-
-  bool drag_in_progress() const { return drag_in_progress_; }
-
- private:
-  bool drag_in_progress_ = false;
-};
-
 }  // namespace
 
 class ClientControlledStateTest : public AshTestBase {
@@ -175,10 +152,6 @@ class ClientControlledStateTest : public AshTestBase {
   ~ClientControlledStateTest() override = default;
 
   void SetUp() override {
-    // We need to enable the flag before `AshTestBase::SetUp()` to make
-    // FloatController instantiated in Shell.
-    scoped_feature_list_.InitAndEnableFeature(
-        chromeos::wm::features::kWindowLayoutMenu);
     AshTestBase::SetUp();
 
     widget_delegate_ = new TestWidgetDelegate();
@@ -199,7 +172,7 @@ class ClientControlledStateTest : public AshTestBase {
     auto state = std::make_unique<ClientControlledState>(std::move(delegate));
     state_ = state.get();
     window_state->SetStateObject(std::move(state));
-    auto window_state_delegate = std::make_unique<TestWindowStateDelegate>();
+    auto window_state_delegate = std::make_unique<FakeWindowStateDelegate>();
     window_state_delegate_ = window_state_delegate.get();
     window_state->SetDelegate(std::move(window_state_delegate));
     widget_->Show();
@@ -221,7 +194,7 @@ class ClientControlledStateTest : public AshTestBase {
   ScreenPinningController* GetScreenPinningController() {
     return Shell::Get()->screen_pinning_controller();
   }
-  TestWindowStateDelegate* window_state_delegate() {
+  FakeWindowStateDelegate* window_state_delegate() {
     return window_state_delegate_;
   }
 
@@ -237,15 +210,16 @@ class ClientControlledStateTest : public AshTestBase {
   }
 
  private:
-  raw_ptr<ClientControlledState, ExperimentalAsh> state_ = nullptr;
-  raw_ptr<TestClientControlledStateDelegate, ExperimentalAsh> state_delegate_ =
+  raw_ptr<ClientControlledState, DanglingUntriaged | ExperimentalAsh> state_ =
       nullptr;
-  raw_ptr<TestWidgetDelegate, ExperimentalAsh> widget_delegate_ =
-      nullptr;  // owned by itself.
-  raw_ptr<TestWindowStateDelegate, ExperimentalAsh> window_state_delegate_ =
-      nullptr;
+  raw_ptr<TestClientControlledStateDelegate,
+          DanglingUntriaged | ExperimentalAsh>
+      state_delegate_ = nullptr;
+  raw_ptr<TestWidgetDelegate, DanglingUntriaged | ExperimentalAsh>
+      widget_delegate_ = nullptr;  // owned by itself.
+  raw_ptr<FakeWindowStateDelegate, DanglingUntriaged | ExperimentalAsh>
+      window_state_delegate_ = nullptr;
   std::unique_ptr<views::Widget> widget_;
-  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 // This suite runs test cases both in clamshell mode and tablet mode.
@@ -435,17 +409,18 @@ TEST_F(ClientControlledStateTest, SetBounds) {
 
 TEST_F(ClientControlledStateTest, CenterWindow) {
   display::Screen* screen = display::Screen::GetScreen();
-  gfx::Rect bounds = screen->GetPrimaryDisplay().work_area();
+  const gfx::Rect bounds = screen->GetPrimaryDisplay().work_area();
 
-  const WMEvent center_event(WM_EVENT_CENTER);
-  window_state()->OnWMEvent(&center_event);
+  gfx::Rect center_bounds = bounds;
+  center_bounds.ClampToCenteredSize(window()->bounds().size());
+  window()->SetBoundsInScreen(center_bounds, screen->GetPrimaryDisplay());
   EXPECT_NEAR(bounds.CenterPoint().x(),
               delegate()->requested_bounds().CenterPoint().x(), 1);
   EXPECT_NEAR(bounds.CenterPoint().y(),
               delegate()->requested_bounds().CenterPoint().y(), 1);
 }
 
-TEST_F(ClientControlledStateTest, SnapWindow) {
+TEST_F(ClientControlledStateTest, CycleSnapWindow) {
   // Snap disabled.
   display::Screen* screen = display::Screen::GetScreen();
   gfx::Rect work_area = screen->GetPrimaryDisplay().work_area();
@@ -453,12 +428,12 @@ TEST_F(ClientControlledStateTest, SnapWindow) {
   ASSERT_FALSE(window_state()->CanSnap());
 
   // The event should be ignored.
-  const WMEvent snap_left_event(WM_EVENT_CYCLE_SNAP_PRIMARY);
+  const WindowSnapWMEvent snap_left_event(WM_EVENT_CYCLE_SNAP_PRIMARY);
   window_state()->OnWMEvent(&snap_left_event);
   EXPECT_FALSE(window_state()->IsSnapped());
   EXPECT_TRUE(delegate()->requested_bounds().IsEmpty());
 
-  const WMEvent snap_right_event(WM_EVENT_CYCLE_SNAP_SECONDARY);
+  const WindowSnapWMEvent snap_right_event(WM_EVENT_CYCLE_SNAP_SECONDARY);
   window_state()->OnWMEvent(&snap_right_event);
   EXPECT_FALSE(window_state()->IsSnapped());
   EXPECT_TRUE(delegate()->requested_bounds().IsEmpty());
@@ -488,6 +463,53 @@ TEST_F(ClientControlledStateTest, SnapWindow) {
   EXPECT_EQ(WindowStateType::kSecondarySnapped, delegate()->new_state());
 }
 
+TEST_P(ClientControlledStateTestClamshellAndTablet, SnapWindow) {
+  // Snap disabled.
+  const gfx::Rect work_area =
+      display::Screen::GetScreen()->GetPrimaryDisplay().work_area();
+  ASSERT_FALSE(window_state()->CanResize());
+  ASSERT_FALSE(window_state()->CanSnap());
+
+  // The event should be ignored.
+  const WindowSnapWMEvent snap_primary_event(WM_EVENT_SNAP_PRIMARY);
+  window_state()->OnWMEvent(&snap_primary_event);
+  EXPECT_FALSE(window_state()->IsSnapped());
+  EXPECT_TRUE(delegate()->requested_bounds().IsEmpty());
+
+  const WindowSnapWMEvent snap_secondary_event(WM_EVENT_SNAP_SECONDARY);
+  window_state()->OnWMEvent(&snap_secondary_event);
+  EXPECT_FALSE(window_state()->IsSnapped());
+  EXPECT_TRUE(delegate()->requested_bounds().IsEmpty());
+
+  // Snap enabled.
+  widget_delegate()->EnableSnap();
+  ASSERT_TRUE(window_state()->CanResize());
+  ASSERT_TRUE(window_state()->CanSnap());
+
+  // Snap to primary.
+  window_state()->OnWMEvent(&snap_primary_event);
+  EXPECT_NEAR(work_area.CenterPoint().x() +
+                  (InTabletMode() ? -kSplitviewDividerShortSideLength / 2 : 0),
+              delegate()->requested_bounds().right(), 1);
+  EXPECT_EQ(work_area.height(), delegate()->requested_bounds().height());
+  EXPECT_TRUE(delegate()->requested_bounds().origin().IsOrigin());
+  EXPECT_EQ(WindowStateType::kDefault, delegate()->old_state());
+  EXPECT_EQ(WindowStateType::kPrimarySnapped, delegate()->new_state());
+
+  delegate()->Reset();
+
+  // Snap to secondary.
+  window_state()->OnWMEvent(&snap_secondary_event);
+  EXPECT_NEAR(work_area.CenterPoint().x() +
+                  (InTabletMode() ? kSplitviewDividerShortSideLength / 2 : 0),
+              delegate()->requested_bounds().x(), 1);
+  EXPECT_EQ(work_area.height(), delegate()->requested_bounds().height());
+  EXPECT_EQ(work_area.bottom_right(),
+            delegate()->requested_bounds().bottom_right());
+  EXPECT_EQ(WindowStateType::kDefault, delegate()->old_state());
+  EXPECT_EQ(WindowStateType::kSecondarySnapped, delegate()->new_state());
+}
+
 TEST_F(ClientControlledStateTest, PartialSnap) {
   // Snap enabled.
   widget_delegate()->EnableSnap();
@@ -496,7 +518,7 @@ TEST_F(ClientControlledStateTest, PartialSnap) {
       display::Screen::GetScreen()->GetPrimaryDisplay().work_area();
 
   // Test that snap from half to partial works.
-  const WMEvent snap_left_half(WM_EVENT_SNAP_PRIMARY);
+  const WindowSnapWMEvent snap_left_half(WM_EVENT_SNAP_PRIMARY);
   window_state()->OnWMEvent(&snap_left_half);
   gfx::Rect expected_bounds(work_area.x(), work_area.y(),
                             work_area.width() * chromeos::kDefaultSnapRatio,
@@ -504,23 +526,23 @@ TEST_F(ClientControlledStateTest, PartialSnap) {
   EXPECT_EQ(WindowStateType::kPrimarySnapped, delegate()->new_state());
   EXPECT_EQ(expected_bounds, delegate()->requested_bounds());
 
-  const WMEvent snap_left_partial(WM_EVENT_SNAP_PRIMARY,
-                                  chromeos::kTwoThirdSnapRatio);
+  const WindowSnapWMEvent snap_left_partial(WM_EVENT_SNAP_PRIMARY,
+                                            chromeos::kTwoThirdSnapRatio);
   window_state()->OnWMEvent(&snap_left_partial);
   expected_bounds.set_width(work_area.width() * chromeos::kTwoThirdSnapRatio);
   EXPECT_EQ(WindowStateType::kPrimarySnapped, delegate()->new_state());
   EXPECT_EQ(expected_bounds, delegate()->requested_bounds());
 
   // Test that snap from primary to secondary works.
-  const WMEvent snap_right_half(WM_EVENT_SNAP_SECONDARY);
+  const WindowSnapWMEvent snap_right_half(WM_EVENT_SNAP_SECONDARY);
   window_state()->OnWMEvent(&snap_right_half);
   EXPECT_EQ(WindowStateType::kSecondarySnapped, delegate()->new_state());
   expected_bounds.set_x(work_area.width() * chromeos::kDefaultSnapRatio);
   expected_bounds.set_width(work_area.width() * chromeos::kDefaultSnapRatio);
   EXPECT_EQ(expected_bounds, delegate()->requested_bounds());
 
-  const WMEvent snap_right_partial(WM_EVENT_SNAP_SECONDARY,
-                                   chromeos::kOneThirdSnapRatio);
+  const WindowSnapWMEvent snap_right_partial(WM_EVENT_SNAP_SECONDARY,
+                                             chromeos::kOneThirdSnapRatio);
   window_state()->OnWMEvent(&snap_right_partial);
   EXPECT_EQ(WindowStateType::kSecondarySnapped, delegate()->new_state());
   expected_bounds.set_x(
@@ -542,7 +564,7 @@ TEST_F(ClientControlledStateTest, SnapInSecondaryDisplay) {
   widget_delegate()->EnableSnap();
 
   // Make sure the requested bounds for snapped window is local to display.
-  const WMEvent snap_left_event(WM_EVENT_CYCLE_SNAP_PRIMARY);
+  const WindowSnapWMEvent snap_left_event(WM_EVENT_CYCLE_SNAP_PRIMARY);
   window_state()->OnWMEvent(&snap_left_event);
 
   EXPECT_EQ(second_display_id, delegate()->display_id());
@@ -565,7 +587,7 @@ TEST_F(ClientControlledStateTest, SnapMinimizeAndUnminimize) {
   UpdateDisplay("800x600");
   widget_delegate()->EnableSnap();
 
-  const WMEvent snap_left_event(WM_EVENT_CYCLE_SNAP_PRIMARY);
+  const WindowSnapWMEvent snap_left_event(WM_EVENT_CYCLE_SNAP_PRIMARY);
   window_state()->OnWMEvent(&snap_left_event);
   state()->EnterNextState(window_state(), delegate()->new_state());
   EXPECT_EQ(gfx::Rect(0, 0, 400, 600 - ShelfConfig::Get()->shelf_size()),
@@ -840,38 +862,44 @@ TEST_F(ClientControlledStateTest,
   EXPECT_EQ(WindowStateType::kMaximized, delegate()->new_state());
 }
 
-TEST_F(ClientControlledStateTest, ResizeSnappedWindowInTabletMode) {
+TEST_P(ClientControlledStateTestClamshellAndTablet, ResizeSnappedWindow) {
+  // Set screen width.
+  UpdateDisplay("1200x600");
+
   window()->SetProperty(aura::client::kAppType,
                         static_cast<int>(AppType::ARC_APP));
   ASSERT_EQ(chromeos::OrientationType::kLandscapePrimary,
             GetCurrentScreenOrientation());
   auto* const split_view_controller = SplitViewController::Get(window());
 
-  // Enter tablet mode
-  Shell::Get()->tablet_mode_controller()->SetEnabledForTest(true);
-  ASSERT_EQ(true, Shell::Get()->tablet_mode_controller()->InTabletMode());
-
   // Snap a window
   widget_delegate()->EnableSnap();
-  split_view_controller->SnapWindow(
-      window(), SplitViewController::SnapPosition::kPrimary);
-  EXPECT_EQ(WindowStateType::kPrimarySnapped, delegate()->new_state());
+  const WindowSnapWMEvent snap_primary(WM_EVENT_SNAP_PRIMARY);
+  window_state()->OnWMEvent(&snap_primary);
   state()->EnterNextState(window_state(), delegate()->new_state());
+  ApplyPendingRequestedBounds();
   EXPECT_TRUE(window_state()->IsSnapped());
 
-  // Move the divider
-  const gfx::Rect initial_bounds = delegate()->requested_bounds();
-  auto* const split_view_divider = split_view_controller->split_view_divider();
-  const gfx::Rect divider_bounds =
-      split_view_divider->GetDividerBoundsInScreen(false);
+  // Resize to 1/3 (i.e. make the width 400).
   ui::test::EventGenerator* const generator = GetEventGenerator();
-  generator->set_current_screen_location(divider_bounds.CenterPoint());
-  const gfx::Rect display_bounds =
-      screen_util::GetDisplayWorkAreaBoundsInScreenForActiveDeskContainer(
-          window());
-  const gfx::Point resize_point(display_bounds.width() * 0.33f, 0);
-  generator->DragMouseTo(resize_point);
-  EXPECT_GT(initial_bounds.width(), delegate()->requested_bounds().width());
+  if (InTabletMode()) {
+    const gfx::Rect divider_bounds =
+        split_view_controller->split_view_divider()->GetDividerBoundsInScreen(
+            false);
+    generator->set_current_screen_location(divider_bounds.CenterPoint());
+  } else {
+    generator->set_current_screen_location(
+        window()->GetBoundsInScreen().right_center());
+  }
+  generator->DragMouseTo(gfx::Point(1200 / 3, 0));
+  EXPECT_NEAR(delegate()->requested_bounds().width(), 1200 / 3,
+              InTabletMode() ? kSplitviewDividerShortSideLength / 2 : 0);
+  ApplyPendingRequestedBounds();
+
+  // Changing display size should keep the current snap ratio.
+  UpdateDisplay("900x600");
+  EXPECT_NEAR(delegate()->requested_bounds().width(), 900 / 3,
+              InTabletMode() ? kSplitviewDividerShortSideLength / 2 : 0);
 }
 
 TEST_F(ClientControlledStateTest, FlingFloatedWindowInTabletMode) {
@@ -887,7 +915,8 @@ TEST_F(ClientControlledStateTest, FlingFloatedWindowInTabletMode) {
   ASSERT_EQ(true, Shell::Get()->tablet_mode_controller()->InTabletMode());
 
   // Float window.
-  const WMEvent float_event(WM_EVENT_FLOAT);
+  const WindowFloatWMEvent float_event(
+      chromeos::FloatStartLocation::kBottomRight);
   window_state()->OnWMEvent(&float_event);
   ApplyPendingRequestedBounds();
   state()->EnterNextState(window_state(), delegate()->new_state());
@@ -939,7 +968,8 @@ TEST_F(ClientControlledStateTest, TuckAndUntuckFloatedWindowInTabletMode) {
   ASSERT_TRUE(Shell::Get()->tablet_mode_controller()->InTabletMode());
 
   // Float window.
-  const WMEvent float_event(WM_EVENT_FLOAT);
+  const WindowFloatWMEvent float_event(
+      chromeos::FloatStartLocation::kBottomRight);
   window_state()->OnWMEvent(&float_event);
   ApplyPendingRequestedBounds();
   state()->EnterNextState(window_state(), delegate()->new_state());
@@ -973,7 +1003,7 @@ TEST_F(ClientControlledStateTest, TuckAndUntuckFloatedWindowInTabletMode) {
   ShellTestApi().WaitForWindowFinishAnimating(window());
   EXPECT_TRUE(window()->IsVisible());
   EXPECT_FALSE(float_controller->IsFloatedWindowTuckedForTablet(window()));
-  EXPECT_EQ(FloatController::GetPreferredFloatWindowTabletBounds(window()),
+  EXPECT_EQ(FloatController::GetFloatWindowTabletBounds(window()),
             delegate()->requested_bounds());
 }
 
@@ -989,7 +1019,8 @@ TEST_P(ClientControlledStateTestClamshellAndTablet, MoveFloatedWindow) {
   ASSERT_TRUE(chromeos::wm::CanFloatWindow(window()));
 
   // Float window.
-  const WMEvent float_event(WM_EVENT_FLOAT);
+  const WindowFloatWMEvent float_event(
+      chromeos::FloatStartLocation::kBottomRight);
   window_state()->OnWMEvent(&float_event);
   ApplyPendingRequestedBounds();
   state()->EnterNextState(window_state(), delegate()->new_state());
@@ -1039,6 +1070,12 @@ TEST_P(ClientControlledStateTestClamshellAndTablet, MoveFloatedWindow) {
     // persist after releasing the mouse button.
     EXPECT_EQ(delegate()->requested_bounds(), expected_bounds);
   }
+
+  // Minimize and unminimize the window. Test that its bounds are restored.
+  window_state()->Minimize();
+  window_state()->Restore();
+  ApplyPendingRequestedBounds();
+  EXPECT_EQ(delegate()->requested_bounds(), expected_bounds);
 }
 
 TEST_P(ClientControlledStateTestClamshellAndTablet, FloatWindow) {
@@ -1053,13 +1090,14 @@ TEST_P(ClientControlledStateTestClamshellAndTablet, FloatWindow) {
   ASSERT_TRUE(chromeos::wm::CanFloatWindow(window()));
 
   // Test float.
-  const WMEvent float_event(WM_EVENT_FLOAT);
+  const WindowFloatWMEvent float_event(
+      chromeos::FloatStartLocation::kBottomRight);
   window_state()->OnWMEvent(&float_event);
-  EXPECT_EQ(
-      InTabletMode()
-          ? FloatController::GetPreferredFloatWindowTabletBounds(window())
-          : FloatController::GetPreferredFloatWindowClamshellBounds(window()),
-      delegate()->requested_bounds());
+  EXPECT_EQ(InTabletMode()
+                ? FloatController::GetFloatWindowTabletBounds(window())
+                : FloatController::GetFloatWindowClamshellBounds(
+                      window(), chromeos::FloatStartLocation::kBottomRight),
+            delegate()->requested_bounds());
   EXPECT_EQ(WindowStateType::kDefault, delegate()->old_state());
   EXPECT_EQ(WindowStateType::kFloated, delegate()->new_state());
 
@@ -1073,11 +1111,11 @@ TEST_P(ClientControlledStateTestClamshellAndTablet, FloatWindow) {
       display::Screen::GetScreen()->GetPrimaryDisplay().id(),
       display::Display::ROTATE_90, display::Display::RotationSource::USER);
   ASSERT_FALSE(chromeos::wm::IsLandscapeOrientationForWindow(window()));
-  EXPECT_EQ(
-      InTabletMode()
-          ? FloatController::GetPreferredFloatWindowTabletBounds(window())
-          : FloatController::GetPreferredFloatWindowClamshellBounds(window()),
-      delegate()->requested_bounds());
+  EXPECT_EQ(InTabletMode()
+                ? FloatController::GetFloatWindowTabletBounds(window())
+                : FloatController::GetFloatWindowClamshellBounds(
+                      window(), chromeos::FloatStartLocation::kBottomRight),
+            delegate()->requested_bounds());
 
   // Test minimize.
   const WMEvent minimize_event(WM_EVENT_MINIMIZE);
@@ -1091,11 +1129,11 @@ TEST_P(ClientControlledStateTestClamshellAndTablet, FloatWindow) {
   // Test unminimize.
   const WMEvent unminimize_event(WM_EVENT_RESTORE);
   window_state()->OnWMEvent(&unminimize_event);
-  EXPECT_EQ(
-      InTabletMode()
-          ? FloatController::GetPreferredFloatWindowTabletBounds(window())
-          : FloatController::GetPreferredFloatWindowClamshellBounds(window()),
-      delegate()->requested_bounds());
+  EXPECT_EQ(InTabletMode()
+                ? FloatController::GetFloatWindowTabletBounds(window())
+                : FloatController::GetFloatWindowClamshellBounds(
+                      window(), chromeos::FloatStartLocation::kBottomRight),
+            delegate()->requested_bounds());
   EXPECT_EQ(WindowStateType::kMinimized, delegate()->old_state());
   EXPECT_EQ(WindowStateType::kFloated, delegate()->new_state());
   state()->EnterNextState(window_state(), delegate()->new_state());
@@ -1115,7 +1153,7 @@ TEST_P(ClientControlledStateTestClamshellAndTablet, FloatWindow) {
 
 TEST_P(ClientControlledStateTestClamshellAndTablet,
        DragOverviewWindowToSnapOneSide) {
-  auto* const overview_controller = Shell::Get()->overview_controller();
+  auto* const overview_controller = OverviewController::Get();
   auto* const split_view_controller = SplitViewController::Get(window());
 
   widget_delegate()->EnableSnap();
@@ -1160,7 +1198,7 @@ TEST_P(ClientControlledStateTestClamshellAndTablet,
 
 TEST_P(ClientControlledStateTestClamshellAndTablet,
        DragOverviewWindowToSnapBothSide) {
-  auto* const overview_controller = Shell::Get()->overview_controller();
+  auto* const overview_controller = OverviewController::Get();
   auto* const split_view_controller = SplitViewController::Get(window());
   auto* const event_generator = GetEventGenerator();
 
@@ -1225,7 +1263,7 @@ TEST_P(ClientControlledStateTestClamshellAndTablet,
 
 TEST_P(ClientControlledStateTestClamshellAndTablet,
        SnapBeforePreviousEventIsApplied) {
-  auto* const overview_controller = Shell::Get()->overview_controller();
+  auto* const overview_controller = OverviewController::Get();
   auto* const split_view_controller = SplitViewController::Get(window());
 
   widget_delegate()->EnableSnap();
@@ -1240,7 +1278,7 @@ TEST_P(ClientControlledStateTestClamshellAndTablet,
   requested_bounds_queue.push(delegate()->requested_bounds());
 
   // Send a snap request.
-  const WMEvent snap(WM_EVENT_SNAP_PRIMARY);
+  const WindowSnapWMEvent snap(WM_EVENT_SNAP_PRIMARY);
   window_state()->OnWMEvent(&snap);
   new_state_queue.push(delegate()->new_state());
   requested_bounds_queue.push(delegate()->requested_bounds());
@@ -1268,6 +1306,47 @@ TEST_P(ClientControlledStateTestClamshellAndTablet,
     EXPECT_EQ(split_view_controller->primary_window(), window());
     EXPECT_TRUE(overview_controller->InOverviewSession());
   }
+}
+
+TEST_P(ClientControlledStateTestClamshellAndTablet, SnapFloatedWindow) {
+  const gfx::Rect work_area =
+      display::Screen::GetScreen()->GetPrimaryDisplay().work_area();
+
+  // The AppType must be set to any except `AppType::NON_APP` (default value) to
+  // make it floatable.
+  window()->SetProperty(aura::client::kAppType,
+                        static_cast<int>(AppType::ARC_APP));
+  widget_delegate()->EnableFloat();
+  ASSERT_TRUE(chromeos::wm::CanFloatWindow(window()));
+
+  widget_delegate()->EnableSnap();
+  ASSERT_TRUE(window_state()->CanSnap());
+
+  // Send a float request and accepts it.
+  const WindowFloatWMEvent float_event(
+      chromeos::FloatStartLocation::kBottomRight);
+  window_state()->OnWMEvent(&float_event);
+  state()->EnterNextState(window_state(), delegate()->new_state());
+  ApplyPendingRequestedBounds();
+  ASSERT_TRUE(window_state()->IsFloated());
+
+  // Send a snap request but don't accept it yet.
+  const WindowSnapWMEvent snap(WM_EVENT_SNAP_PRIMARY);
+  window_state()->OnWMEvent(&snap);
+  ASSERT_EQ(WindowStateType::kPrimarySnapped, delegate()->new_state());
+  ASSERT_FALSE(window_state()->IsSnapped());
+
+  // Emit the size constraints changed event.
+  widget()->OnSizeConstraintsChanged();
+
+  // The requested bounds should be the snapped one (not floated bounds).
+  gfx::Rect expected_bounds(
+      work_area.x(), work_area.y(),
+      work_area.width() * chromeos::kDefaultSnapRatio -
+          (InTabletMode() ? kSplitviewDividerShortSideLength / 2 : 0),
+      work_area.height());
+  EXPECT_EQ(WindowStateType::kPrimarySnapped, delegate()->new_state());
+  EXPECT_EQ(expected_bounds, delegate()->requested_bounds());
 }
 
 }  // namespace ash

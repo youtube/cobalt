@@ -5,6 +5,7 @@
 #include <memory>
 #include <string>
 
+#include "base/containers/contains.h"
 #include "base/functional/callback.h"
 #include "base/memory/ref_counted.h"
 #include "base/strings/strcat.h"
@@ -19,6 +20,9 @@
 #include "components/network_session_configurator/common/network_switches.h"
 #include "components/ukm/test_ukm_recorder.h"
 #include "content/browser/attribution_reporting/attribution_manager.h"
+#include "content/browser/attribution_reporting/attribution_os_level_manager.h"
+#include "content/browser/attribution_reporting/attribution_test_utils.h"
+#include "content/browser/attribution_reporting/test/mock_content_browser_client.h"
 #include "content/browser/back_forward_cache_browsertest.h"
 #include "content/browser/fenced_frame/fenced_frame.h"
 #include "content/browser/fenced_frame/fenced_frame_reporter.h"
@@ -28,6 +32,8 @@
 #include "content/browser/renderer_host/navigation_request.h"
 #include "content/browser/renderer_host/render_frame_proxy_host.h"
 #include "content/browser/web_contents/web_contents_impl.h"
+#include "content/common/features.h"
+#include "content/public/browser/browser_context.h"
 #include "content/public/browser/frame_type.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/common/content_features.h"
@@ -41,6 +47,7 @@
 #include "content/public/test/fenced_frame_test_util.h"
 #include "content/public/test/mock_web_contents_observer.h"
 #include "content/public/test/navigation_handle_observer.h"
+#include "content/public/test/resource_load_observer.h"
 #include "content/public/test/test_browser_context.h"
 #include "content/public/test/test_frame_navigation_observer.h"
 #include "content/public/test/test_navigation_observer.h"
@@ -48,7 +55,6 @@
 #include "content/shell/browser/shell_browser_context.h"
 #include "content/test/content_browser_test_utils_internal.h"
 #include "content/test/fenced_frame_test_utils.h"
-#include "content/test/resource_load_observer.h"
 #include "mojo/public/cpp/test_support/test_utils.h"
 #include "net/base/features.h"
 #include "net/dns/mock_host_resolver.h"
@@ -60,6 +66,7 @@
 #include "services/network/public/cpp/features.h"
 #include "services/network/public/cpp/simple_url_loader.h"
 #include "testing/gmock/include/gmock/gmock.h"
+#include "testing/gtest/include/gtest/gtest-spi.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/fenced_frame/fenced_frame_utils.h"
 #include "third_party/blink/public/common/frame/fenced_frame_sandbox_flags.h"
@@ -67,11 +74,6 @@
 #include "third_party/blink/public/mojom/frame/frame.mojom-test-utils.h"
 #include "url/gurl.h"
 #include "url/origin.h"
-
-#if BUILDFLAG(IS_ANDROID)
-#include "content/browser/attribution_reporting/attribution_os_level_manager_android.h"
-#include "content/browser/attribution_reporting/test/mock_content_browser_client.h"
-#endif
 
 namespace content {
 
@@ -156,6 +158,12 @@ class FencedFrameBrowserTestBase : public ContentBrowserTest {
 class FencedFrameMPArchBrowserTest : public FencedFrameBrowserTestBase {
  protected:
   FencedFrameMPArchBrowserTest() = default;
+
+  // TODO(crbug.com/1491942): This fails with the field trial testing config.
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    FencedFrameBrowserTestBase::SetUpCommandLine(command_line);
+    command_line->AppendSwitch("disable-field-trial-config");
+  }
 
   base::HistogramTester histogram_tester_;
 
@@ -269,7 +277,7 @@ IN_PROC_BROWSER_TEST_F(FencedFrameMPArchBrowserTest, AboutBlankNavigation) {
   ASSERT_EQ(1ul, fenced_frames.size());
   FencedFrame* fenced_frame = fenced_frames.back();
 
-  // Exepct the origin is correct.
+  // Expect the origin is correct.
   EXPECT_EQ(url::Origin::Create(fenced_frame_url),
             EvalJs(fenced_frame->GetInnerRoot(), "self.origin;"));
 
@@ -284,8 +292,41 @@ IN_PROC_BROWSER_TEST_F(FencedFrameMPArchBrowserTest, AboutBlankNavigation) {
                      "FencedFrameConfig('about:blank');"));
   observer.Wait();
 
-  EXPECT_TRUE(!fenced_frame->GetInnerRoot()->IsErrorDocument());
+  EXPECT_FALSE(fenced_frame->GetInnerRoot()->IsErrorDocument());
   EXPECT_EQ("null", EvalJs(fenced_frame->GetInnerRoot(), "self.origin;"));
+  EXPECT_EQ("about:blank",
+            EvalJs(fenced_frame->GetInnerRoot(), "window.location.href"));
+}
+
+IN_PROC_BROWSER_TEST_F(FencedFrameMPArchBrowserTest,
+                       SettingNullConfigNavigatesToAboutBlank) {
+  ASSERT_TRUE(https_server()->Start());
+  const GURL main_url = https_server()->GetURL("a.test", "/title1.html");
+  EXPECT_TRUE(NavigateToURL(shell(), main_url));
+
+  RenderFrameHostImpl* primary_rfh = primary_main_frame_host();
+
+  const GURL fenced_frame_url =
+      https_server()->GetURL("c.test", "/fenced_frames/title1.html");
+  fenced_frame_test_helper().CreateFencedFrame(primary_rfh, fenced_frame_url);
+
+  std::vector<FencedFrame*> fenced_frames = primary_rfh->GetFencedFrames();
+  ASSERT_EQ(1ul, fenced_frames.size());
+  FencedFrame* fenced_frame = fenced_frames.back();
+
+  // Expect the origin is correct.
+  EXPECT_EQ(url::Origin::Create(fenced_frame_url),
+            EvalJs(fenced_frame->GetInnerRoot(), "self.origin;"));
+
+  TestFrameNavigationObserver observer(fenced_frame->GetInnerRoot());
+  EXPECT_TRUE(ExecJs(primary_rfh,
+                     "document.querySelector('fencedframe').config = null;"));
+  observer.Wait();
+
+  EXPECT_FALSE(fenced_frame->GetInnerRoot()->IsErrorDocument());
+  EXPECT_EQ("null", EvalJs(fenced_frame->GetInnerRoot(), "self.origin;"));
+  EXPECT_EQ("about:blank",
+            EvalJs(fenced_frame->GetInnerRoot(), "window.location.href"));
 }
 
 IN_PROC_BROWSER_TEST_F(FencedFrameMPArchBrowserTest, FrameIteration) {
@@ -2006,6 +2047,28 @@ class FledgeFencedFrameOriginContentBrowserClient
       const url::Origin& api_origin) override {
     return true;
   }
+
+  bool IsPrivacySandboxReportingDestinationAttested(
+      content::BrowserContext* browser_context,
+      const url::Origin& destination_origin,
+      content::PrivacySandboxInvokingAPI invoking_api,
+      bool post_impression_reporting) override {
+    return true;
+  }
+
+  bool AreDeprecatedAutomaticBeaconCredentialsAllowed(
+      content::BrowserContext* browser_context,
+      const GURL& destination_url,
+      const url::Origin& top_frame_origin) override {
+    return allow_automatic_beacon_credentials_;
+  }
+
+  void SetAllowAutomaticBeaconCredentials(bool allowed) {
+    allow_automatic_beacon_credentials_ = allowed;
+  }
+
+ private:
+  bool allow_automatic_beacon_credentials_ = true;
 };
 
 INSTANTIATE_TEST_SUITE_P(
@@ -2028,7 +2091,7 @@ class FencedFrameParameterizedBrowserTest : public FencedFrameBrowserTestBase {
     scoped_feature_list_.InitWithFeaturesAndParameters(
         {{blink::features::kFencedFrames, {}},
          {net::features::kThirdPartyStoragePartitioning, {}},
-         {net::features::kNoncedPartitionedCookies, {}},
+         {net::features::kPartitionedCookies, {}},
          {features::kPrivacySandboxAdsAPIsOverride, {}},
          {blink::features::kInterestGroupStorage, {}},
          {blink::features::kAdInterestGroupAPI, {}},
@@ -2039,7 +2102,11 @@ class FencedFrameParameterizedBrowserTest : public FencedFrameBrowserTestBase {
          {features::kBackForwardCache, {}},
          // This feature allows `runAdAuction()`'s promise to resolve to a
          // `FencedFrameConfig` object upon developer request.
-         {blink::features::kFencedFramesAPIChanges, {}}},
+         {blink::features::kFencedFramesAPIChanges, {}},
+         {blink::features::kFencedFramesM120FeaturesPart1, {}},
+         {blink::features::kFencedFramesAutomaticBeaconCredentials, {}},
+         {blink::features::kFencedFramesM120FeaturesPart2, {}},
+         {blink::features::kFencedFramesReportingAttestationsChanges, {}}},
         {/* disabled_features */});
   }
 
@@ -2159,7 +2226,7 @@ class FencedFrameParameterizedBrowserTest : public FencedFrameBrowserTestBase {
     SCOPED_TRACE(from_here.ToString());
     DCHECK_CURRENTLY_ON(BrowserThread::UI);
     std::string file_name = url.path();
-    CHECK(cookie_headers_map_.find(file_name) != cookie_headers_map_.end());
+    CHECK(base::Contains(cookie_headers_map_, file_name));
     std::string header = cookie_headers_map_[file_name];
     EXPECT_EQ(expected_value, header);
     cookie_headers_map_.erase(file_name);
@@ -2174,12 +2241,15 @@ class FencedFrameParameterizedBrowserTest : public FencedFrameBrowserTestBase {
     SCOPED_TRACE(from_here.ToString());
     DCHECK_CURRENTLY_ON(BrowserThread::UI);
     std::string file_name = url.path();
-    CHECK(sec_fetch_dest_headers_map_.find(file_name) !=
-          sec_fetch_dest_headers_map_.end());
+    CHECK(base::Contains(sec_fetch_dest_headers_map_, file_name));
     std::string header = sec_fetch_dest_headers_map_[file_name];
     EXPECT_EQ(expected_value, header);
     sec_fetch_dest_headers_map_.erase(file_name);
     return !header.empty();
+  }
+
+  void SetAllowAutomaticBeaconCredentials(bool allowed) {
+    content_browser_client_->SetAllowAutomaticBeaconCredentials(allowed);
   }
 
   ~FencedFrameParameterizedBrowserTest() override {
@@ -2188,19 +2258,6 @@ class FencedFrameParameterizedBrowserTest : public FencedFrameBrowserTestBase {
     if (https_server()->Started()) {
       EXPECT_TRUE(https_server()->ShutdownAndWaitUntilComplete());
     }
-  }
-
-  // Checking the count of NavigationEntries for fenced frame.
-  void CheckNavigationEntryCount(FrameTreeNode* root,
-                                 FrameTreeNode* fenced_frame,
-                                 int shadowdom_cnt,
-                                 int mparch_cnt) const {
-    // Wait for web content to stop loading.
-    EXPECT_TRUE(WaitForLoadStop(shell()->web_contents()));
-    // MPArch fenced frame has its own NavigationController so checking
-    // `fenced_frame->navigator().controller()`.
-    EXPECT_EQ(mparch_cnt,
-              fenced_frame->navigator().controller().GetEntryCount());
   }
 
  private:
@@ -2327,7 +2384,8 @@ IN_PROC_BROWSER_TEST_F(FencedFrameParameterizedBrowserTest,
       https_server()->GetURL("b.test", "/fenced_frames/title1.html");
   SimulateSharedStorageURNMappingComplete(
       url_mapping1, urn_uuid1, mapped_url1,
-      /*shared_storage_origin=*/url::Origin::Create(GURL("https://foo.com")),
+      /*shared_storage_site=*/
+      net::SchemefulSite::Deserialize("https://foo.com"),
       /*budget_to_charge=*/2.0);
 
   EXPECT_TRUE(ExecJs(root,
@@ -2354,7 +2412,8 @@ IN_PROC_BROWSER_TEST_F(FencedFrameParameterizedBrowserTest,
       https_server()->GetURL("c.test", "/fenced_frames/title1.html");
   SimulateSharedStorageURNMappingComplete(
       url_mapping2, urn_uuid2, mapped_url2,
-      /*shared_storage_origin=*/url::Origin::Create(GURL("https://bar.com")),
+      /*shared_storage_site=*/
+      net::SchemefulSite::Deserialize("https://bar.com"),
       /*budget_to_charge=*/3.0);
 
   EXPECT_TRUE(ExecJs(fenced_frame_root_node1,
@@ -2376,10 +2435,12 @@ IN_PROC_BROWSER_TEST_F(FencedFrameParameterizedBrowserTest,
 
   EXPECT_EQ(metadata.size(), 2u);
 
-  EXPECT_EQ(metadata[0]->origin, url::Origin::Create(GURL("https://bar.com")));
+  EXPECT_EQ(metadata[0]->site,
+            net::SchemefulSite::Deserialize("https://bar.com"));
   EXPECT_DOUBLE_EQ(metadata[0]->budget_to_charge, 3.0);
 
-  EXPECT_EQ(metadata[1]->origin, url::Origin::Create(GURL("https://foo.com")));
+  EXPECT_EQ(metadata[1]->site,
+            net::SchemefulSite::Deserialize("https://foo.com"));
   EXPECT_DOUBLE_EQ(metadata[1]->budget_to_charge, 2.0);
 }
 
@@ -2417,7 +2478,8 @@ IN_PROC_BROWSER_TEST_F(
       https_server()->GetURL("a.test", "/fenced_frames/title1.html");
   SimulateSharedStorageURNMappingComplete(
       url_mapping, urn_uuid, mapped_url,
-      /*shared_storage_origin=*/url::Origin::Create(GURL("https://bar.com")),
+      /*shared_storage_site=*/
+      net::SchemefulSite::Deserialize("https://bar.com"),
       /*budget_to_charge=*/2.0);
 
   {
@@ -2506,7 +2568,8 @@ IN_PROC_BROWSER_TEST_F(
   // Trigger the mapping to resume the deferred navigation.
   SimulateSharedStorageURNMappingComplete(
       url_mapping, urn_uuid, mapped_url,
-      /*shared_storage_origin=*/url::Origin::Create(GURL("https://bar.com")),
+      /*shared_storage_site=*/
+      net::SchemefulSite::Deserialize("https://bar.com"),
       /*budget_to_charge=*/2.0);
 
   EXPECT_FALSE(url_mapping_test_peer.HasObserver(urn_uuid, request));
@@ -2519,8 +2582,8 @@ IN_PROC_BROWSER_TEST_F(
 
   budget_metadata = fenced_frame_root_node->FindSharedStorageBudgetMetadata();
   EXPECT_EQ(budget_metadata.size(), 1u);
-  EXPECT_EQ(budget_metadata[0]->origin,
-            url::Origin::Create(GURL("https://bar.com")));
+  EXPECT_EQ(budget_metadata[0]->site,
+            net::SchemefulSite::Deserialize("https://bar.com"));
   EXPECT_DOUBLE_EQ(budget_metadata[0]->budget_to_charge, 2.0);
 }
 
@@ -2581,7 +2644,8 @@ IN_PROC_BROWSER_TEST_F(
   // Trigger the mapping to resume the deferred navigation.
   SimulateSharedStorageURNMappingComplete(
       url_mapping, urn_uuid, mapped_url,
-      /*shared_storage_origin=*/url::Origin::Create(GURL("https://bar.com")),
+      /*shared_storage_site=*/
+      net::SchemefulSite::Deserialize("https://bar.com"),
       /*budget_to_charge=*/2.0);
 
   EXPECT_FALSE(url_mapping_test_peer.HasObserver(urn_uuid, request));
@@ -2842,6 +2906,140 @@ IN_PROC_BROWSER_TEST_F(FencedFrameParameterizedBrowserTest,
                    "document.cookie;"));
 }
 
+// Similar to `CheckPartitionedCookiesWithNonce`, but this test set up consists
+// of three layers nested frames, from top to bottom:
+// - A fenced frame loads an origin of "a.test".
+// - An urn iframe loads an origin of "a.test".
+// - An iframe loads origin of "a.test".
+// Both the nested urn iframe in the middle and the iframe in the bottom should
+// be able to access the same cookies as the top-level fenced frame because they
+// operate on the same partition nonce.
+// TODO(crbug.com/1355857): Once navigation support for urn::uuid in iframes is
+// deprecated, this test should be removed.
+IN_PROC_BROWSER_TEST_F(
+    FencedFrameParameterizedBrowserTest,
+    CheckPartitionedCookiesWithNonceShouldTraverseFrameTree) {
+  // Create an a.test main page and set cookies. Then create a same-origin
+  // fenced frame.
+  GURL main_url = https_server()->GetURL("a.test", "/hello.html");
+  EXPECT_TRUE(NavigateToURL(shell(), main_url));
+
+  // It is safe to obtain the root frame tree node here, as it doesn't change.
+  RenderFrameHostImpl* root_rfh =
+      static_cast<WebContentsImpl*>(shell()->web_contents())
+          ->GetPrimaryFrameTree()
+          .root()
+          ->current_frame_host();
+
+  // Set SameSite=Lax and SameSite=None cookies and retrieve them.
+  EXPECT_TRUE(ExecJs(root_rfh,
+                     "document.cookie = 'B=2; SameSite=Lax';"
+                     "document.cookie = 'C=2; SameSite=None; Secure';"));
+  EXPECT_EQ("B=2; C=2", EvalJs(root_rfh, "document.cookie;"));
+
+  // Add and navigate a fenced frame.
+  EXPECT_TRUE(ExecJs(root_rfh,
+                     "var f = document.createElement('fencedframe');"
+                     "document.body.appendChild(f);"));
+  EXPECT_EQ(1U, root_rfh->child_count());
+  FrameTreeNode* fenced_frame_root_node =
+      GetFencedFrameRootNode(root_rfh->child_at(0));
+  EXPECT_TRUE(fenced_frame_root_node->IsFencedFrameRoot());
+  EXPECT_TRUE(fenced_frame_root_node->IsInFencedFrameTree());
+
+  GURL https_url(
+      https_server()->GetURL("a.test", "/fenced_frames/title1.html"));
+  FencedFrameURLMapping& url_mapping =
+      root_rfh->GetPage().fenced_frame_urls_map();
+  auto urn_uuid = test::AddAndVerifyFencedFrameURL(&url_mapping, https_url);
+
+  std::string navigate_urn_script =
+      JsReplace("f.config = new FencedFrameConfig($1);", urn_uuid);
+  NavigateFrameInsideFencedFrameTreeAndWaitForFinishedLoad(
+      fenced_frame_root_node, navigate_urn_script);
+  EXPECT_EQ(
+      https_url,
+      fenced_frame_root_node->current_frame_host()->GetLastCommittedURL());
+  EXPECT_EQ(
+      url::Origin::Create(https_url),
+      fenced_frame_root_node->current_frame_host()->GetLastCommittedOrigin());
+
+  // Create cookies in the Fenced Frame.
+  EXPECT_TRUE(ExecJs(fenced_frame_root_node->current_frame_host(),
+                     "document.cookie = 'B=3; SameSite=Lax';"
+                     "document.cookie = 'C=3; SameSite=None; Secure';"));
+
+  const net::IsolationInfo& isolation_info =
+      fenced_frame_root_node->current_frame_host()
+          ->GetIsolationInfoForSubresources();
+  EXPECT_TRUE(isolation_info.nonce());
+  absl::optional<net::CookiePartitionKey> partition_key =
+      net::CookiePartitionKey::FromNetworkIsolationKey(
+          isolation_info.network_isolation_key());
+  EXPECT_TRUE(partition_key && partition_key->nonce());
+  net::CookiePartitionKeyCollection cookie_partition_key_collection =
+      net::CookiePartitionKeyCollection::FromOptional(partition_key);
+
+  std::vector<net::CanonicalCookie> cookies =
+      GetCanonicalCookies(shell()->web_contents()->GetBrowserContext(),
+                          https_url, cookie_partition_key_collection);
+  EXPECT_EQ(2u, cookies.size());
+  for (auto cookie : cookies) {
+    EXPECT_TRUE(cookie.IsPartitioned());
+    EXPECT_TRUE(cookie.PartitionKey() && cookie.PartitionKey()->nonce());
+    EXPECT_EQ(cookie.PartitionKey()->nonce(), partition_key->nonce());
+    EXPECT_EQ("3", cookie.Value());
+  }
+
+  // Run the same test for an urn iframe inside the fenced frame. It should be
+  // able to access the same cookies because urn iframe nested in a fenced
+  // frame should operate on the partition nonce from the fenced frame.
+  GURL iframe_url(
+      https_server()->GetURL("a.test", "/fenced_frames/title1.html"));
+
+  // Generate urn uuid.
+  FencedFrameURLMapping& iframe_url_mapping =
+      fenced_frame_root_node->current_frame_host()
+          ->GetPage()
+          .fenced_frame_urls_map();
+  auto iframe_urn_uuid =
+      test::AddAndVerifyFencedFrameURL(&iframe_url_mapping, iframe_url);
+
+  EXPECT_EQ(0U, fenced_frame_root_node->child_count());
+  FrameTreeNode* iframe_node =
+      AddIframeInFencedFrame(fenced_frame_root_node, 0);
+  NavigateIframeInFencedFrame(fenced_frame_root_node->child_at(0),
+                              iframe_urn_uuid);
+  EXPECT_EQ(iframe_url, fenced_frame_root_node->child_at(0)
+                            ->current_frame_host()
+                            ->GetLastCommittedURL());
+  EXPECT_EQ(url::Origin::Create(iframe_url), fenced_frame_root_node->child_at(0)
+                                                 ->current_frame_host()
+                                                 ->GetLastCommittedOrigin());
+  EXPECT_EQ("B=3; C=3",
+            EvalJs(fenced_frame_root_node->child_at(0)->current_frame_host(),
+                   "document.cookie;"));
+
+  // Add another iframe under the nested urn iframe. The iframe should be able
+  // to access the same cookies as the top-level fenced frame because they
+  // operate on the same partition nonce.
+  GURL bottom_iframe_url(
+      https_server()->GetURL("a.test", "/fenced_frames/title0.html"));
+
+  EXPECT_EQ(0U, iframe_node->child_count());
+  FrameTreeNode* bottom_iframe_node = AddIframeInFencedFrame(iframe_node, 0);
+  NavigateIframeInFencedFrame(iframe_node->child_at(0), bottom_iframe_url);
+
+  EXPECT_EQ(
+      bottom_iframe_url,
+      iframe_node->child_at(0)->current_frame_host()->GetLastCommittedURL());
+  EXPECT_EQ(
+      url::Origin::Create(bottom_iframe_url),
+      iframe_node->child_at(0)->current_frame_host()->GetLastCommittedOrigin());
+  EXPECT_EQ("B=3; C=3", EvalJs(bottom_iframe_node->current_frame_host(),
+                               "document.cookie;"));
+}
+
 // Tests when a frame is considered a fenced frame or being inside a fenced
 // frame tree.
 IN_PROC_BROWSER_TEST_F(FencedFrameParameterizedBrowserTest,
@@ -2938,9 +3136,10 @@ IN_PROC_BROWSER_TEST_F(FencedFrameParameterizedBrowserTest,
 
   // There should be a nonce in the StorageKey.
   EXPECT_TRUE(
-      fenced_frame->current_frame_host()->storage_key().nonce().has_value());
-  EXPECT_EQ(fenced_frame_nonce.value(),
-            fenced_frame->current_frame_host()->storage_key().nonce().value());
+      fenced_frame->current_frame_host()->GetStorageKey().nonce().has_value());
+  EXPECT_EQ(
+      fenced_frame_nonce.value(),
+      fenced_frame->current_frame_host()->GetStorageKey().nonce().value());
 
   // Add an iframe. It should not have a nonce.
   EXPECT_TRUE(ExecJs(root,
@@ -2953,7 +3152,8 @@ IN_PROC_BROWSER_TEST_F(FencedFrameParameterizedBrowserTest,
   const net::IsolationInfo& iframe_isolation_info =
       iframe->current_frame_host()->GetIsolationInfoForSubresources();
   EXPECT_FALSE(iframe_isolation_info.nonce().has_value());
-  EXPECT_FALSE(iframe->current_frame_host()->storage_key().nonce().has_value());
+  EXPECT_FALSE(
+      iframe->current_frame_host()->GetStorageKey().nonce().has_value());
 
   // Navigate the iframe. It should still not have a nonce.
   EXPECT_TRUE(NavigateToURLFromRenderer(
@@ -2962,7 +3162,8 @@ IN_PROC_BROWSER_TEST_F(FencedFrameParameterizedBrowserTest,
       iframe->current_frame_host()->GetIsolationInfoForSubresources();
 
   EXPECT_FALSE(iframe_new_isolation_info.nonce().has_value());
-  EXPECT_FALSE(iframe->current_frame_host()->storage_key().nonce().has_value());
+  EXPECT_FALSE(
+      iframe->current_frame_host()->GetStorageKey().nonce().has_value());
 
   // Add a nested iframe inside the fenced frame which needs to be a URL that
   // also opts in to be allowed to load inside of a fenced frame.
@@ -2983,7 +3184,7 @@ IN_PROC_BROWSER_TEST_F(FencedFrameParameterizedBrowserTest,
             nested_iframe_nonce.value());
   EXPECT_EQ(fenced_frame_nonce.value(), fenced_frame->child_at(0)
                                             ->current_frame_host()
-                                            ->storage_key()
+                                            ->GetStorageKey()
                                             .nonce()
                                             .value());
 
@@ -2999,7 +3200,7 @@ IN_PROC_BROWSER_TEST_F(FencedFrameParameterizedBrowserTest,
             nested_iframe_nonce.value());
   EXPECT_EQ(fenced_frame_nonce.value(), fenced_frame->child_at(0)
                                             ->current_frame_host()
-                                            ->storage_key()
+                                            ->GetStorageKey()
                                             .nonce()
                                             .value());
 
@@ -3061,13 +3262,14 @@ IN_PROC_BROWSER_TEST_F(FencedFrameParameterizedBrowserTest,
 
   // There should be a nonce in the StorageKey.
   EXPECT_TRUE(
-      fenced_frame->current_frame_host()->storage_key().nonce().has_value());
+      fenced_frame->current_frame_host()->GetStorageKey().nonce().has_value());
 
   absl::optional<base::UnguessableToken> fenced_frame_nonce =
       fenced_frame->GetFencedFrameNonce();
   EXPECT_TRUE(fenced_frame_nonce.has_value());
-  EXPECT_EQ(fenced_frame_nonce.value(),
-            fenced_frame->current_frame_host()->storage_key().nonce().value());
+  EXPECT_EQ(
+      fenced_frame_nonce.value(),
+      fenced_frame->current_frame_host()->GetStorageKey().nonce().value());
 
   // Add an iframe.
   EXPECT_TRUE(ExecJs(root,
@@ -3077,13 +3279,15 @@ IN_PROC_BROWSER_TEST_F(FencedFrameParameterizedBrowserTest,
   auto* iframe = root->child_at(1);
   EXPECT_FALSE(iframe->IsFencedFrameRoot());
   EXPECT_FALSE(iframe->IsInFencedFrameTree());
-  EXPECT_FALSE(iframe->current_frame_host()->storage_key().nonce().has_value());
+  EXPECT_FALSE(
+      iframe->current_frame_host()->GetStorageKey().nonce().has_value());
 
   // Navigate the iframe. It should still not have a nonce.
   EXPECT_TRUE(NavigateToURLFromRenderer(
       iframe, https_server()->GetURL("a.test", "/title1.html")));
 
-  EXPECT_FALSE(iframe->current_frame_host()->storage_key().nonce().has_value());
+  EXPECT_FALSE(
+      iframe->current_frame_host()->GetStorageKey().nonce().has_value());
 
   // Set and read a value in the fenced frame's local storage.
   EXPECT_TRUE(ExecJs(fenced_frame, "localStorage[\"foo\"] = \"a\""));
@@ -3758,8 +3962,8 @@ IN_PROC_BROWSER_TEST_F(FencedFrameParameterizedBrowserTest,
   GURL fenced_frame_url_1 =
       https_server()->GetURL("a.test", "/fenced_frames/title1.html");
 
-  CheckNavigationEntryCount(root, fenced_frame, /*shadowdom_cnt=*/1,
-                            /*mparch_cnt=*/1);
+  EXPECT_TRUE(WaitForLoadStop(shell()->web_contents()));
+  EXPECT_EQ(1, fenced_frame->navigator().controller().GetEntryCount());
   EXPECT_EQ(fenced_frame_url_1,
             fenced_frame->current_frame_host()->GetLastCommittedURL());
 
@@ -3793,18 +3997,14 @@ IN_PROC_BROWSER_TEST_F(FencedFrameParameterizedBrowserTest,
   EXPECT_TRUE(fenced_frame->IsFencedFrameRoot());
   EXPECT_TRUE(fenced_frame->IsInFencedFrameTree());
 
-  // ShadowDOM fenced frames have the same NavigationController as the top-level
-  // frame, therefore the count here is 2 because of the navigation of the
-  // top-level frame.
   // Note the last committed url is the latest one (`fenced_frame_url_2`) when
   // back/forward cache is enabled. However, when back/forward cache is
-  // disabled, it will navigate to `fenced_frame_url_1`. MPArch fenced frame has
-  // its own NavigationController which is not retained when the top-level page
-  // navigates. Therefore going back lands on the initial navigation in the
-  // Fenced Frame.
-  // TODO(domfarolino): Before merge remove stuff about shadowdom.
-  CheckNavigationEntryCount(root, fenced_frame, /*shadowdom_cnt=*/2,
-                            /*mparch_cnt=*/1);
+  // disabled, it will navigate to `fenced_frame_url_1`. Fenced frames have
+  // their own NavigationController which is not retained when the top-level
+  // page navigates. Therefore going back lands on the initial navigation in
+  // the Fenced Frame.
+  EXPECT_TRUE(WaitForLoadStop(shell()->web_contents()));
+  EXPECT_EQ(1, fenced_frame->navigator().controller().GetEntryCount());
 
   if (BackForwardCache::IsBackForwardCacheFeatureEnabled()) {
     EXPECT_EQ(fenced_frame_url_2,
@@ -3896,8 +4096,9 @@ IN_PROC_BROWSER_TEST_F(FencedFrameParameterizedBrowserTest,
 }
 
 // Simulates the crash in crbug.com/1317642 by disabling BFCache and going back
-// to a page with a fenced frame navigation, which in shadowDOM FFs will lead to
-// a AUTO_SUBFRAME navigation initiated in the browser.
+// to a page with a fenced frame navigation. This is a regression test
+// originally for Shadow DOM fenced frames, which no longer exist, but we still
+// explicitly test this scenario.
 IN_PROC_BROWSER_TEST_F(FencedFrameParameterizedBrowserTest,
                        GoBackToPageWithFencedFrameNavigationNoBFCache) {
   GURL main_url(https_server()->GetURL(
@@ -3930,8 +4131,8 @@ IN_PROC_BROWSER_TEST_F(FencedFrameParameterizedBrowserTest,
   GURL fenced_frame_url_1 =
       https_server()->GetURL("a.test", "/fenced_frames/title1.html");
 
-  CheckNavigationEntryCount(root, fenced_frame, /*shadowdom_cnt=*/1,
-                            /*mparch_cnt=*/1);
+  EXPECT_TRUE(WaitForLoadStop(shell()->web_contents()));
+  EXPECT_EQ(1, fenced_frame->navigator().controller().GetEntryCount());
   EXPECT_EQ(fenced_frame_url_1,
             fenced_frame->current_frame_host()->GetLastCommittedURL());
   DisableBackForwardCacheForTesting(shell()->web_contents(),
@@ -3954,18 +4155,12 @@ IN_PROC_BROWSER_TEST_F(FencedFrameParameterizedBrowserTest,
   EXPECT_TRUE(fenced_frame->IsFencedFrameRoot());
   EXPECT_TRUE(fenced_frame->IsInFencedFrameTree());
 
-  // ShadowDOM fenced frames have the same NavigationController as the top-level
-  // frame, therefore the count here is 2 because of the navigation of the
-  // top-level frame.
-  // Note the last committed url is the latest one in shadowDOM due to the joint
-  // history maintained in the single navigation controller and going back can
-  // therefore get the latest navigation in the frame which is
-  // `fenced_frame_url_1`.
-  // MPArch fenced frame has its own NavigationController which is not retained
+  // Fenced frames have their own NavigationController which is not retained
   // when the top-level page navigates. Therefore going back lands on the
   // initial fenced frame without any navigation.
-  CheckNavigationEntryCount(root, fenced_frame, /*shadowdom_cnt=*/2,
-                            /*mparch_cnt=*/1);
+  EXPECT_TRUE(WaitForLoadStop(shell()->web_contents()));
+  EXPECT_EQ(1, fenced_frame->navigator().controller().GetEntryCount());
+
   EXPECT_TRUE(!fenced_frame->navigator().controller().GetLastCommittedEntry() ||
               fenced_frame->navigator()
                   .controller()
@@ -3997,8 +4192,8 @@ IN_PROC_BROWSER_TEST_F(FencedFrameParameterizedBrowserTest,
   GURL fenced_frame_url_1 =
       https_server()->GetURL("a.test", "/fenced_frames/title1.html");
 
-  CheckNavigationEntryCount(root, fenced_frame, /*shadowdom_cnt=*/1,
-                            /*mparch_cnt=*/1);
+  EXPECT_TRUE(WaitForLoadStop(shell()->web_contents()));
+  EXPECT_EQ(1, fenced_frame->navigator().controller().GetEntryCount());
   EXPECT_EQ(fenced_frame_url_1,
             fenced_frame->current_frame_host()->GetLastCommittedURL());
 
@@ -4393,8 +4588,8 @@ IN_PROC_BROWSER_TEST_F(FencedFrameParameterizedBrowserTest,
                     true /*G*/});
 }
 
-// TODO(https://crbug.com/1335512): Flaky.
-#if BUILDFLAG(IS_ANDROID)
+// TODO(crbug.com/1459591): Flaky on Android release bots.
+#if BUILDFLAG(IS_ANDROID) && defined(NDEBUG)
 #define MAYBE_FencedAdSizes DISABLED_FencedAdSizes
 #else
 #define MAYBE_FencedAdSizes FencedAdSizes
@@ -4484,8 +4679,6 @@ IN_PROC_BROWSER_TEST_F(FencedFrameParameterizedBrowserTest,
         EvalJs(nodeA, "getComputedStyle(nested_fenced_frame).height")
             .ExtractString();
 
-    ASSERT_TRUE(WaitForFencedFrameSizeFreeze(nodeA->current_frame_host()));
-
     // Navigate the fenced frame, which should force its inner size to the
     // nearest allowed one.
     TestFrameNavigationObserver observer(nodeB);
@@ -4494,20 +4687,17 @@ IN_PROC_BROWSER_TEST_F(FencedFrameParameterizedBrowserTest,
     observer.Wait();
 
     // Check that the outer container size hasn't changed.
-    EXPECT_EQ(EvalJs(nodeA, "getComputedStyle(nested_fenced_frame).width")
-                  .ExtractString(),
-              frame_width);
-    EXPECT_EQ(EvalJs(nodeA, "getComputedStyle(nested_fenced_frame).height")
-                  .ExtractString(),
-              frame_height);
-
-    ASSERT_TRUE(WaitForFencedFrameSizeFreeze(nodeA->current_frame_host()));
+    EXPECT_TRUE(PollUntilEvalToTrue(
+        JsReplace("getComputedStyle(nested_fenced_frame).width == $1 && "
+                  "getComputedStyle(nested_fenced_frame).height == $2",
+                  frame_width, frame_height),
+        nodeA->current_frame_host()));
 
     // Check that the inner size is what we expect.
-    int inner_width = EvalJs(nodeB, "innerWidth").ExtractInt();
-    int inner_height = EvalJs(nodeB, "innerHeight").ExtractInt();
-    EXPECT_EQ(inner_width, output_width);
-    EXPECT_EQ(inner_height, output_height);
+    EXPECT_TRUE(
+        PollUntilEvalToTrue(JsReplace("innerWidth == $1 && innerHeight == $2",
+                                      output_width, output_height),
+                            nodeB->current_frame_host()));
 
     // Attempt to change the size of the fenced frame from the embedder.
     const int new_width = 970;
@@ -4520,13 +4710,11 @@ IN_PROC_BROWSER_TEST_F(FencedFrameParameterizedBrowserTest,
     ASSERT_TRUE(EvalJs(nodeA, "getComputedStyle(nested_fenced_frame).width")
                     .error.empty());
 
-    ASSERT_TRUE(WaitForFencedFrameSizeFreeze(nodeA->current_frame_host()));
-
     // Check that the inner size hasn't changed.
-    inner_width = EvalJs(nodeB, "innerWidth").ExtractInt();
-    inner_height = EvalJs(nodeB, "innerHeight").ExtractInt();
-    EXPECT_EQ(inner_width, output_width);
-    EXPECT_EQ(inner_height, output_height);
+    EXPECT_TRUE(
+        PollUntilEvalToTrue(JsReplace("innerWidth == $1 && innerHeight == $2",
+                                      output_width, output_height),
+                            nodeB->current_frame_host()));
   };
 
   // Run all the individual test cases we want.
@@ -4595,6 +4783,105 @@ IN_PROC_BROWSER_TEST_F(FencedFrameParameterizedBrowserTest,
   }
 }
 
+// 1. creates a default mode fenced frame.
+// 2. creates an opaque mode urn iframe nested in the fenced frame.
+// 3. do an `_unfencedTop` navigation from the urn iframe.
+//
+// The `_unfencedTop` navigation should succeed. This verifies the fenced frame
+// properties from the urn iframe are used for checks in
+// `ValidateUnfencedTopNavigation`. Otherwise, if the fenced frame properties
+// from the top-level fenced frame are used, a mojo bad message should be
+// received.
+//
+// Note: Outside tests, one common scenairo that results in the same setup is
+// creating a shared storage urn iframe nested inside a default fenced frame.
+//
+// TODO(crbug.com/1355857): Once navigation support for urn::uuid in iframes is
+// deprecated, this test should be removed.
+IN_PROC_BROWSER_TEST_F(FencedFrameParameterizedBrowserTest,
+                       NestedUrnIframeUnderFencedFrameUnfencedTopNavigation) {
+  base::HistogramTester histogram_tester;
+  const GURL main_url = https_server()->GetURL("a.test", "/title1.html");
+  EXPECT_TRUE(NavigateToURL(shell(), main_url));
+
+  RenderFrameHostImpl* root_rfh =
+      static_cast<WebContentsImpl*>(shell()->web_contents())
+          ->GetPrimaryFrameTree()
+          .root()
+          ->current_frame_host();
+
+  // Add fenced frame.
+  EXPECT_TRUE(ExecJs(
+      root_rfh,
+      JsReplace(R"(
+                    var f = document.createElement('fencedframe');
+                    f.mode = $1;
+                    document.body.appendChild(f);
+                  )",
+                blink::FencedFrame::DeprecatedFencedFrameMode::kDefault)));
+  EXPECT_EQ(1U, root_rfh->child_count());
+  FrameTreeNode* fenced_frame_root_node =
+      GetFencedFrameRootNode(root_rfh->child_at(0));
+
+  // Navigate fenced frame.
+  const GURL fenced_frame_url =
+      https_server()->GetURL("a.test", "/fenced_frames/title0.html");
+
+  std::string navigate_urn_script =
+      JsReplace("f.config = new FencedFrameConfig($1);", fenced_frame_url);
+  NavigateFrameInsideFencedFrameTreeAndWaitForFinishedLoad(
+      fenced_frame_root_node, navigate_urn_script);
+  EXPECT_EQ(
+      fenced_frame_url,
+      fenced_frame_root_node->current_frame_host()->GetLastCommittedURL());
+  EXPECT_EQ(
+      url::Origin::Create(fenced_frame_url),
+      fenced_frame_root_node->current_frame_host()->GetLastCommittedOrigin());
+
+  // Check histograms.
+  content::FetchHistogramsFromChildProcesses();
+  histogram_tester.ExpectTotalCount(
+      blink::kFencedFrameCreationOrNavigationOutcomeHistogram, 1);
+  histogram_tester.ExpectBucketCount(
+      blink::kFencedFrameCreationOrNavigationOutcomeHistogram,
+      blink::FencedFrameCreationOutcome::kSuccessDefault, 1);
+
+  // Add nested urn iframe.
+  FrameTreeNode* urn_iframe_node =
+      AddIframeInFencedFrame(fenced_frame_root_node, 0);
+
+  // Generate urn.
+  const GURL urn_iframe_url =
+      https_server()->GetURL("a.test", "/fenced_frames/title0.html");
+
+  absl::optional<GURL> urn_uuid =
+      fenced_frame_root_node->current_frame_host()
+          ->GetPage()
+          .fenced_frame_urls_map()
+          .AddFencedFrameURLForTesting(urn_iframe_url);
+  EXPECT_TRUE(urn_uuid.has_value());
+  EXPECT_TRUE(urn_uuid->is_valid());
+
+  // Navigate the iframe using the urn.
+  NavigateIframeInFencedFrame(urn_iframe_node, urn_uuid.value());
+
+  // Do an `_unfencedTop` navigation from the nested urn iframe.
+  const GURL new_page_url =
+      https_server()->GetURL("a.test", "/fenced_frames/title1.html");
+  FrameTreeNode* root = static_cast<WebContentsImpl*>(shell()->web_contents())
+                            ->GetPrimaryFrameTree()
+                            .root();
+
+  TestFrameNavigationObserver observer(root);
+  EXPECT_TRUE(
+      ExecJs(urn_iframe_node,
+             JsReplace("window.open($1, '_unfencedTop');", new_page_url)));
+  observer.Wait();
+
+  // Expect the `_unfencedTop` navigation to succeed.
+  EXPECT_EQ(new_page_url, root->current_frame_host()->GetLastCommittedURL());
+}
+
 class FencedFrameReportEventBrowserTest
     : public FencedFrameParameterizedBrowserTest {
  public:
@@ -4624,6 +4911,9 @@ class FencedFrameReportEventBrowserTest
     // Whether attribution-reporting permission policy is expected to be
     // allowed.
     bool expect_attribution_reporting_allowed = true;
+    // Whether the report should disregard the `event` field and instead
+    // send to a custom destination URL.
+    bool use_custom_destination_url = false;
 
     struct Event {
       std::string type;
@@ -4660,14 +4950,15 @@ class FencedFrameReportEventBrowserTest
       kNoMeta,
       kNoDestination,
       kNoReportingURL,
-      kInvalidReportingURL
+      kInvalidReportingURL,
+      kExceedMaxEventDataLength
     };
 
     // Outcome of reportEvent.
     Result report_event_result = Result::kSuccess;
   };
 
-  std::string GetConsoleWarningPattern(Step::Result result) {
+  std::string GetErrorPattern(Step::Result result) {
     switch (result) {
       case Step::Result::kModeNotOpaque:
         return "Fenced event reporting is only available in the 'opaque-ads' "
@@ -4686,6 +4977,9 @@ class FencedFrameReportEventBrowserTest
       case Step::Result::kInvalidReportingURL:
         return "This frame registered invalid reporting url for destination * "
                "and event_type *";
+      case Step::Result::kExceedMaxEventDataLength:
+        return "The data provided to reportEvent() exceeds the maximum length, "
+               "which is 64KB.";
       default:
         return "";
     }
@@ -4711,55 +5005,24 @@ class FencedFrameReportEventBrowserTest
     return response;
   }
 
-  void SendBasicRequest(GURL url,
-                        absl::optional<std::string> content = absl::nullopt) {
-    // Construct the resource request.
-    scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory =
-        web_contents()
-            ->GetPrimaryMainFrame()
-            ->GetStoragePartition()
-            ->GetURLLoaderFactoryForBrowserProcess();
-
-    auto request = std::make_unique<network::ResourceRequest>();
-
-    request->url = url;
-    request->credentials_mode = network::mojom::CredentialsMode::kOmit;
-    request->method = net::HttpRequestHeaders::kPostMethod;
-    request->trusted_params = network::ResourceRequest::TrustedParams();
-    request->trusted_params->isolation_info =
-        net::IsolationInfo::CreateTransient();
-
-    std::unique_ptr<network::SimpleURLLoader> simple_url_loader =
-        network::SimpleURLLoader::Create(std::move(request),
-                                         TRAFFIC_ANNOTATION_FOR_TESTS);
-
-    if (content) {
-      simple_url_loader->AttachStringForUpload(
-          content.value(),
-          /*upload_content_type=*/"text/plain;charset=UTF-8");
-    }
-    network::SimpleURLLoader* simple_url_loader_ptr = simple_url_loader.get();
-
-    // Send out the reporting beacon.
-    simple_url_loader_ptr->DownloadHeadersOnly(
-        url_loader_factory.get(),
-        base::DoNothingWithBoundArgs(std::move(simple_url_loader)));
-  }
-
   scoped_refptr<FencedFrameReporter> CreateFencedFrameReporter() {
     return FencedFrameReporter::CreateForFledge(
         web_contents()
             ->GetPrimaryMainFrame()
             ->GetStoragePartition()
             ->GetURLLoaderFactoryForBrowserProcess(),
-        AttributionManager::FromBrowserContext(
-            web_contents()->GetBrowserContext()),
+        web_contents()->GetBrowserContext(),
         /*direct_seller_is_seller=*/false,
         PrivateAggregationManager::GetManager(
             *web_contents()->GetBrowserContext()),
         /*main_frame_origin=*/
         web_contents()->GetPrimaryMainFrame()->GetLastCommittedOrigin(),
-        /*winner_origin=*/url::Origin::Create(GURL("https://a.test")));
+        /*winner_origin=*/url::Origin::Create(GURL("https://a.test")),
+        /*winner_aggregation_coordinator_origin=*/absl::nullopt,
+        /*allowed_reporting_origins=*/
+        {{url::Origin::Create(https_server()->GetURL("a.test", "/")),
+          url::Origin::Create(https_server()->GetURL("b.test", "/")),
+          url::Origin::Create(https_server()->GetURL("c.test", "/"))}});
   }
 
   // A helper function for specifying reportEvent tests. Each step consists of a
@@ -4793,7 +5056,7 @@ class FencedFrameReportEventBrowserTest
         ASSERT_FALSE(step.destination.path.empty());
         int redirect_index = 0;
         for (auto& redirect_destination : step.redirects) {
-          ASSERT_TRUE(paths.find(redirect_destination.path) == paths.end());
+          ASSERT_FALSE(base::Contains(paths, redirect_destination.path));
           ASSERT_FALSE(redirect_destination.origin.empty());
           ASSERT_FALSE(redirect_destination.path.empty());
           paths.insert(redirect_destination.path);
@@ -4816,12 +5079,21 @@ class FencedFrameReportEventBrowserTest
             https_server(), kReportingURL));
     ASSERT_TRUE(https_server()->Start());
 
-    // Set up the embedder and a fenced frame.
-    GURL main_url = https_server()->GetURL("a.test", "/hello.html");
-    EXPECT_TRUE(NavigateToURL(shell(), main_url));
+    // Set up the document.cookie. We will later verify that this is not sent
+    // with the reportEvent() beacon.
+    // TODO(crbug.com/1496395): Remove this block after 3PCD.
+    GURL reporting_cookie_url =
+        https_server()->GetURL(reporting_origin, "/hello.html");
+    EXPECT_TRUE(NavigateToURL(shell(), reporting_cookie_url));
     FrameTreeNode* root = static_cast<WebContentsImpl*>(shell()->web_contents())
                               ->GetPrimaryFrameTree()
                               .root();
+    EXPECT_TRUE(ExecJs(
+        root, "document.cookie = 'name=foobarbaz; SameSite=None; Secure';"));
+
+    // Set up the embedder and a fenced frame.
+    GURL main_url = https_server()->GetURL("a.test", "/hello.html");
+    EXPECT_TRUE(NavigateToURL(shell(), main_url));
     EXPECT_TRUE(
         ExecJs(root,
                "var fenced_frame = document.createElement('fencedframe');"
@@ -4837,18 +5109,24 @@ class FencedFrameReportEventBrowserTest
         CreateFencedFrameReporter();
     GURL reporting_url(
         https_server()->GetURL("c.test", "/_report_event_server.html"));
+    url::Origin reporting_worklet_origin =
+        url::Origin::Create(GURL(https_server()->GetURL("d.test", "/")));
     // Set valid reporting metadata for buyer.
     fenced_frame_reporter->OnUrlMappingReady(
         blink::FencedFrame::ReportingDestination::kBuyer,
+        reporting_worklet_origin,
         {
             {"click", reporting_url},
-        });
+        },
+        /*reporting_ad_macros=*/FencedFrameReporter::ReportingMacros());
     // Set empty reporting url for seller.
     fenced_frame_reporter->OnUrlMappingReady(
-        blink::FencedFrame::ReportingDestination::kSeller, {{"click", GURL()}});
+        blink::FencedFrame::ReportingDestination::kSeller,
+        reporting_worklet_origin, {{"click", GURL()}});
     // Set no reporting urls for component seller.
     fenced_frame_reporter->OnUrlMappingReady(
-        blink::FencedFrame::ReportingDestination::kComponentSeller, {});
+        blink::FencedFrame::ReportingDestination::kComponentSeller,
+        reporting_worklet_origin, {});
 
     // Get the urn mapping object.
     FencedFrameURLMapping& url_mapping =
@@ -4932,17 +5210,29 @@ class FencedFrameReportEventBrowserTest
       WebContentsConsoleObserver console_observer(web_contents());
       auto filter =
           [](const content::WebContentsConsoleObserver::Message& message) {
-            return message.log_level ==
-                   blink::mojom::ConsoleMessageLevel::kError;
+            return (message.log_level ==
+                    blink::mojom::ConsoleMessageLevel::kError) ||
+                   (message.log_level ==
+                    blink::mojom::ConsoleMessageLevel::kWarning);
           };
       console_observer.SetFilter(base::BindRepeating(filter));
       if (step.report_event_result != Step::Result::kSuccess) {
-        console_observer.SetPattern(
-            GetConsoleWarningPattern(step.report_event_result));
+        console_observer.SetPattern(GetErrorPattern(step.report_event_result));
       }
 
       // Perform the reportEvent call, with a unique body.
-      if (!step.event.data) {
+      if (step.use_custom_destination_url) {
+        // Call reportEvent to a custom `destinationURL`.
+        EXPECT_TRUE(ExecJs(
+            navigation_target_node,
+            JsReplace(R"(
+              window.fence.reportEvent({
+                destinationURL: $1
+              });
+            )",
+                      https_server()->GetURL("c.test", kReportingURL).spec())));
+
+      } else if (!step.event.data) {
         // Call reportEvent without `eventData` field.
         EXPECT_TRUE(ExecJs(
             navigation_target_node,
@@ -4955,8 +5245,8 @@ class FencedFrameReportEventBrowserTest
                       step.event.type, step.event.reporting_destination)));
       } else {
         // Call reportEvent with `eventData`.
-        EXPECT_TRUE(
-            ExecJs(navigation_target_node,
+        EvalJsResult result =
+            EvalJs(navigation_target_node,
                    JsReplace(R"(
               window.fence.reportEvent({
                 eventType: $1,
@@ -4965,7 +5255,20 @@ class FencedFrameReportEventBrowserTest
               });
             )",
                              step.event.type, step.event.reporting_destination,
-                             step.event.data.value(), navigation_index)));
+                             step.event.data.value(), navigation_index));
+
+        if (step.report_event_result ==
+            Step::Result::kExceedMaxEventDataLength) {
+          // When eventData exceeds the length limit, a security error is thrown
+          // instead of a console error.
+          EXPECT_FALSE(result.error.empty());
+          EXPECT_THAT(
+              result.error,
+              testing::HasSubstr(GetErrorPattern(step.report_event_result)));
+          continue;
+        }
+
+        EXPECT_TRUE(result.error.empty());
       }
 
       // If relevant, check that the event report succeeded.
@@ -4974,24 +5277,39 @@ class FencedFrameReportEventBrowserTest
         response.WaitForRequest();
 
         // Verify the request has the correct content.
-        if (!step.event.data) {
-          EXPECT_TRUE(response.http_request()->content.empty());
+        if (step.use_custom_destination_url) {
+          EXPECT_EQ(response.http_request()->method,
+                    net::test_server::METHOD_GET);
+          // For custom destination URL reports, the request initiator should
+          // not be the worklet origin.
+          EXPECT_NE(response.http_request()->headers.at("Origin"),
+                    reporting_worklet_origin.Serialize());
         } else {
-          EXPECT_EQ(response.http_request()->content,
-                    step.event.data.value() + " " +
-                        base::NumberToString(navigation_index));
+          if (!step.event.data) {
+            EXPECT_TRUE(response.http_request()->content.empty());
+          } else {
+            EXPECT_EQ(response.http_request()->content,
+                      step.event.data.value() + " " +
+                          base::NumberToString(navigation_index));
+          }
+          // For preregistered URL reports, the request initiator should be the
+          // worklet origin.
+          EXPECT_EQ(response.http_request()->headers.at("Origin"),
+                    reporting_worklet_origin.Serialize());
         }
         // Verify the request contains the eligibility header.
         if (step.expect_attribution_reporting_allowed) {
-          EXPECT_EQ(response.http_request()->headers.at(
-                        "Attribution-Reporting-Eligible"),
-                    "event-source");
+          ExpectValidAttributionReportingEligibleHeaderForEventBeacon(
+              response.http_request()->headers.at(
+                  "Attribution-Reporting-Eligible"));
         } else {
           EXPECT_FALSE(base::Contains(response.http_request()->headers,
                                       "Attribution-Reporting-Eligible"));
         }
         EXPECT_FALSE(base::Contains(response.http_request()->headers,
                                     "Attribution-Reporting-Support"));
+        // TODO(crbug.com/1496395): Remove this check after 3PCD.
+        EXPECT_EQ(0U, response.http_request()->headers.count("Cookie"));
         response.Done();
         ++response_index;
       } else {
@@ -5047,7 +5365,7 @@ IN_PROC_BROWSER_TEST_F(FencedFrameReportEventBrowserTest,
         return message.log_level == blink::mojom::ConsoleMessageLevel::kError;
       };
   console_observer.SetFilter(base::BindRepeating(filter));
-  console_observer.SetPattern(GetConsoleWarningPattern(Step::Result::kNoMeta));
+  console_observer.SetPattern(GetErrorPattern(Step::Result::kNoMeta));
 
   // Perform the reportEvent call, with a unique body.
   const char report_event_script[] = R"(
@@ -5067,7 +5385,9 @@ IN_PROC_BROWSER_TEST_F(FencedFrameReportEventBrowserTest,
   // Check that the request received is from `SendBasicRequest`. This implies
   // the reporting beacon from `window.fence.reportEvent` was not sent as
   // expected.
-  SendBasicRequest(https_server()->GetURL("c.test", kReportingURL), "response");
+  fenced_frame_test_helper().SendBasicRequest(
+      web_contents(), https_server()->GetURL("c.test", kReportingURL),
+      "response");
   response.WaitForRequest();
   EXPECT_TRUE(response.has_received_request());
   EXPECT_EQ(response.http_request()->content, "response");
@@ -5098,6 +5418,23 @@ IN_PROC_BROWSER_TEST_F(FencedFrameReportEventBrowserTest,
                     /*data=*/absl::nullopt},
           .destination = {"a.test", "/fenced_frames/title1.html"},
           .report_event_result = Step::Result::kSuccess,
+      },
+  };
+  RunTest(config);
+}
+
+// The `eventData` field should not exceed the limit of 64KB.
+IN_PROC_BROWSER_TEST_F(FencedFrameReportEventBrowserTest,
+                       FencedFrameReportEventEventDataExceedsLengthLimit) {
+  std::vector<Step> config = {
+      {
+          .is_embedder_initiated = true,
+          .is_opaque = true,
+          .event = {/*type=*/"click", /*reporting_destination=*/"buyer",
+                    /*data=*/
+                    std::string(blink::kFencedFrameMaxBeaconLength + 1, '*')},
+          .destination = {"a.test", "/fenced_frames/title1.html"},
+          .report_event_result = Step::Result::kExceedMaxEventDataLength,
       },
   };
   RunTest(config);
@@ -5423,6 +5760,113 @@ IN_PROC_BROWSER_TEST_F(
   RunTest(config);
 }
 
+// Tests for reportEvent to a custom destinationURL:
+
+// The simplest test case: URN navigation into reportEvent.
+IN_PROC_BROWSER_TEST_F(FencedFrameReportEventBrowserTest,
+                       FencedFrameReportEventCustomURLEmbedderURNNavigation) {
+  std::vector<Step> config = {
+      {
+          .is_embedder_initiated = true,
+          .is_opaque = true,
+          .use_custom_destination_url = true,
+          .destination = {"a.test", "/fenced_frames/title1.html"},
+          .report_event_result = Step::Result::kSuccess,
+      },
+  };
+  RunTest(config);
+}
+
+// reportEvent should work in subframes that are same-origin to the most recent
+// embedder-initiated committed url in the fenced frame, regardless of the
+// fenced frame root's current url.
+IN_PROC_BROWSER_TEST_F(
+    FencedFrameReportEventBrowserTest,
+    FencedFrameReportEventCustomURLNestedIframeSameOriginNavigation) {
+  std::vector<Step> config = {
+      {
+          .is_embedder_initiated = true,
+          .is_opaque = true,
+          .use_custom_destination_url = true,
+          .destination = {"a.test", "/fenced_frames/title1.html"},
+          .report_event_result = Step::Result::kSuccess,
+      },
+      {
+          .is_target_nested_iframe = true,
+          .use_custom_destination_url = true,
+          .destination = {"a.test", "/fenced_frames/title1.html"},
+          .report_event_result = Step::Result::kSuccess,
+      },
+      {
+          .use_custom_destination_url = true,
+          .destination = {"b.test", "/fenced_frames/title1.html"},
+          .report_event_result = Step::Result::kNoMeta,
+      },
+      {
+          .is_target_nested_iframe = true,
+          .use_custom_destination_url = true,
+          .destination = {"a.test", "/fenced_frames/title1.html"},
+          .report_event_result = Step::Result::kSuccess,
+      },
+  };
+  RunTest(config);
+}
+
+// reportEvent shouldn't work in subframes that are cross-origin to the most
+// recent embedder-initiated committed url in the fenced frame, regardless of
+// the fenced frame root's current url.
+IN_PROC_BROWSER_TEST_F(
+    FencedFrameReportEventBrowserTest,
+    FencedFrameReportEventCustomURLNestedIframeCrossOriginNavigation) {
+  std::vector<Step> config = {
+      {
+          .is_embedder_initiated = true,
+          .is_opaque = true,
+          .use_custom_destination_url = true,
+          .destination = {"a.test", "/fenced_frames/title1.html"},
+          .report_event_result = Step::Result::kSuccess,
+      },
+      {
+          .is_target_nested_iframe = true,
+          .use_custom_destination_url = true,
+          .destination = {"b.test", "/fenced_frames/title1.html"},
+          .report_event_result = Step::Result::kNoMeta,
+      },
+      {
+          .use_custom_destination_url = true,
+          .destination = {"b.test", "/fenced_frames/title1.html"},
+          .report_event_result = Step::Result::kNoMeta,
+      },
+      {
+          .is_target_nested_iframe = true,
+          .use_custom_destination_url = true,
+          .destination = {"b.test", "/fenced_frames/title1.html"},
+          .report_event_result = Step::Result::kNoMeta,
+      },
+  };
+  RunTest(config);
+}
+
+// Attribution Reporting headers are not set if attribution-reporting permission
+// policy is disallowed for the fenced frame.
+IN_PROC_BROWSER_TEST_F(
+    FencedFrameReportEventBrowserTest,
+    FencedFrameReportEventCustomURLAttributionReportingDisallowed) {
+  std::vector<Step> config = {
+      {
+          .is_embedder_initiated = true,
+          .is_opaque = true,
+          .expect_attribution_reporting_allowed = false,
+          .use_custom_destination_url = true,
+          .destination =
+              {"a.test",
+               "/fenced_frames/attribution_reporting_disallowed.html"},
+          .report_event_result = Step::Result::kSuccess,
+      },
+  };
+  RunTest(config);
+}
+
 // (Temporary test for FLEDGE iframe OT.)
 // Tests that an iframe with a urn:uuid commits the navigation with the
 // associated reporting metadata and `fence.reportEvent` sends the beacon to
@@ -5455,13 +5899,16 @@ IN_PROC_BROWSER_TEST_F(FencedFrameReportEventBrowserTest,
   // Set valid reporting metadata for buyer.
   fenced_frame_reporter->OnUrlMappingReady(
       blink::FencedFrame::ReportingDestination::kBuyer,
+      url::Origin::Create(GURL()),
       {{"mouse interaction", reporting_url},
        {"click", https_server()->GetURL("c.test", "/title1.html")}});
   // Set empty reporting url for seller and component seller.
   fenced_frame_reporter->OnUrlMappingReady(
-      blink::FencedFrame::ReportingDestination::kSeller, {});
+      blink::FencedFrame::ReportingDestination::kSeller,
+      url::Origin::Create(GURL()), {});
   fenced_frame_reporter->OnUrlMappingReady(
-      blink::FencedFrame::ReportingDestination::kComponentSeller, {});
+      blink::FencedFrame::ReportingDestination::kComponentSeller,
+      url::Origin::Create(GURL()), {});
 
   GURL https_url(
       https_server()->GetURL("a.test", "/fenced_frames/title1.html"));
@@ -5496,16 +5943,16 @@ IN_PROC_BROWSER_TEST_F(FencedFrameReportEventBrowserTest,
   // Verify the request has the correct content.
   EXPECT_EQ(reporting_response.http_request()->content, event_data);
   // Verify the request contains the eligibility header.
-  EXPECT_EQ(reporting_response.http_request()->headers.at(
-                "Attribution-Reporting-Eligible"),
-            "event-source");
+  ExpectValidAttributionReportingEligibleHeaderForEventBeacon(
+      reporting_response.http_request()->headers.at(
+          "Attribution-Reporting-Eligible"));
   EXPECT_FALSE(base::Contains(reporting_response.http_request()->headers,
                               "Attribution-Reporting-Support"));
 }
 
 // The reportEvent beacon is a POST request. Upon receiving a 302 redirect
 // response, the request is changed to a GET request. In this test case, the
-// reporting url is same-origin. There is no preflight requests.
+// reporting url is same-origin. There are no preflight requests.
 // 1. A POST request is sent to the reporting destination.
 // 2. A response with 302 redirect is sent back to the requester.
 // 3. A GET request is sent to the redirected destination.
@@ -5543,7 +5990,7 @@ IN_PROC_BROWSER_TEST_F(FencedFrameReportEventBrowserTest,
   // Set valid reporting metadata for buyer.
   fenced_frame_reporter->OnUrlMappingReady(
       blink::FencedFrame::ReportingDestination::kBuyer,
-      {{"click", reporting_url}});
+      url::Origin::Create(https_url), {{"click", reporting_url}});
 
   // Get the urn mapping object.
   FencedFrameURLMapping& url_mapping =
@@ -5584,9 +6031,8 @@ IN_PROC_BROWSER_TEST_F(FencedFrameReportEventBrowserTest,
     EXPECT_EQ(response.http_request()->content, event_data);
     EXPECT_EQ(response.http_request()->method,
               net::test_server::HttpMethod::METHOD_POST);
-    EXPECT_EQ(
-        response.http_request()->headers.at("Attribution-Reporting-Eligible"),
-        "event-source");
+    ExpectValidAttributionReportingEligibleHeaderForEventBeacon(
+        response.http_request()->headers.at("Attribution-Reporting-Eligible"));
     EXPECT_TRUE(
         base::Contains(response.http_request()->headers, "Content-Length"));
     EXPECT_TRUE(
@@ -5621,9 +6067,9 @@ IN_PROC_BROWSER_TEST_F(FencedFrameReportEventBrowserTest,
     // Check that the content body was stripped.
     EXPECT_TRUE(redirect_response.http_request()->content.empty());
     // These extra request headers were not stripped.
-    EXPECT_EQ(redirect_response.http_request()->headers.at(
-                  "Attribution-Reporting-Eligible"),
-              "event-source");
+    ExpectValidAttributionReportingEligibleHeaderForEventBeacon(
+        redirect_response.http_request()->headers.at(
+            "Attribution-Reporting-Eligible"));
     EXPECT_FALSE(base::Contains(response.http_request()->headers,
                                 "Attribution-Reporting-Support"));
   }
@@ -5631,12 +6077,10 @@ IN_PROC_BROWSER_TEST_F(FencedFrameReportEventBrowserTest,
 
 // The reportEvent beacon is a POST request. Upon receiving a 302 redirect
 // response, the request is changed to a GET request. In this test case, the
-// reporting url is cross-origin.
-// 1. A response with 200 OK is sent back to the requester.
-// 2. A POST request is sent to the reporting destination.
-// 3. A response with 302 redirect is sent back to the requester.
-// 4. A response with 200 OK is sent back to the requester.
-// 5. A GET request is sent to the redirected destination.
+// reporting url is cross-origin. There are no preflight requests.
+// 1. A POST request is sent to the reporting destination.
+// 2. A response with 302 redirect is sent back to the requester.
+// 3. A GET request is sent to the redirected destination.
 IN_PROC_BROWSER_TEST_F(FencedFrameReportEventBrowserTest,
                        CrossOriginReportEventPost302RedirectGet) {
   net::test_server::ControllableHttpResponse reporting_response(https_server(),
@@ -5671,7 +6115,7 @@ IN_PROC_BROWSER_TEST_F(FencedFrameReportEventBrowserTest,
   // Set valid reporting metadata for buyer.
   fenced_frame_reporter->OnUrlMappingReady(
       blink::FencedFrame::ReportingDestination::kBuyer,
-      {{"click", reporting_url}});
+      url::Origin::Create(GURL(https_url)), {{"click", reporting_url}});
 
   // Get the urn mapping object.
   FencedFrameURLMapping& url_mapping =
@@ -5717,9 +6161,9 @@ IN_PROC_BROWSER_TEST_F(FencedFrameReportEventBrowserTest,
                                "Content-Type"));
     EXPECT_TRUE(
         base::Contains(reporting_response.http_request()->headers, "Origin"));
-    EXPECT_EQ(reporting_response.http_request()->headers.at(
-                  "Attribution-Reporting-Eligible"),
-              "event-source");
+    ExpectValidAttributionReportingEligibleHeaderForEventBeacon(
+        reporting_response.http_request()->headers.at(
+            "Attribution-Reporting-Eligible"));
     EXPECT_FALSE(base::Contains(reporting_response.http_request()->headers,
                                 "Attribution-Reporting-Support"));
 
@@ -5748,22 +6192,28 @@ IN_PROC_BROWSER_TEST_F(FencedFrameReportEventBrowserTest,
     // Check that the content body was stripped.
     EXPECT_TRUE(redirect_response.http_request()->content.empty());
     // These extra request headers were not stripped.
-    EXPECT_EQ(redirect_response.http_request()->headers.at(
-                  "Attribution-Reporting-Eligible"),
-              "event-source");
+    ExpectValidAttributionReportingEligibleHeaderForEventBeacon(
+        redirect_response.http_request()->headers.at(
+            "Attribution-Reporting-Eligible"));
     EXPECT_FALSE(base::Contains(reporting_response.http_request()->headers,
                                 "Attribution-Reporting-Support"));
   }
 }
 
-#if BUILDFLAG(IS_ANDROID)
 IN_PROC_BROWSER_TEST_F(FencedFrameReportEventBrowserTest,
                        AttributionNoneSupported_EligibleHeaderNotSet) {
   MockAttributionReportingContentBrowserClientBase<
       ContentBrowserTestContentBrowserClient>
       browser_client;
-  EXPECT_CALL(browser_client, IsWebAttributionReportingAllowed())
-      .WillRepeatedly(testing::Return(false));
+  EXPECT_CALL(
+      browser_client,
+      GetAttributionSupport(
+          ContentBrowserClient::AttributionReportingOsApiState::kDisabled,
+          testing::_))
+      .WillRepeatedly(
+          testing::Return(network::mojom::AttributionSupport::kNone));
+  ON_CALL(browser_client, IsPrivacySandboxReportingDestinationAttested)
+      .WillByDefault(testing::Return(true));
 
   net::test_server::ControllableHttpResponse response(https_server(),
                                                       kReportingURL);
@@ -5794,7 +6244,7 @@ IN_PROC_BROWSER_TEST_F(FencedFrameReportEventBrowserTest,
   // Set valid reporting metadata for buyer.
   fenced_frame_reporter->OnUrlMappingReady(
       blink::FencedFrame::ReportingDestination::kBuyer,
-      {{"click", reporting_url}});
+      url::Origin::Create(GURL()), {{"click", reporting_url}});
 
   // Get the urn mapping object.
   FencedFrameURLMapping& url_mapping =
@@ -5836,7 +6286,291 @@ IN_PROC_BROWSER_TEST_F(FencedFrameReportEventBrowserTest,
   EXPECT_FALSE(base::Contains(response.http_request()->headers,
                               "Attribution-Reporting-Support"));
 }
-#endif
+
+// This test case covers the crash due to different implementations are used to
+// get fenced frame properties at renderer side v.s. browser side. The test set
+// up consists of three layers nested frames, from top to bottom:
+// - A fenced frame loads an origin of "a.test", with reporting metadata.
+// - An urn iframe loads an origin of "b.test", with reporting metadata.
+// - An iframe loads origin of "a.test".
+//
+// At the time of crashing, `FrameTreeNode::GetFencedFrameProperties()` has
+// two different behaviors, controlled by its parameter `source_node`. Plus
+// feature `kAllowURNsInIframes` is enabled, so urn iframes are allowed.
+// - When `source_node` is set to `kClosestAncestor`, the fenced frame
+// properties are obtained by doing a bottom-up traversal from the frame tree
+// node.
+// - When it is set to `kFrameTreeRoot`, the fenced frame properties are
+// obtained directly from the fenced frame tree root node if the node is in a
+// fenced frame tree. Otherwise it performs a traversal just like the case
+// above.
+//
+// In both cases if there is no fenced frame properties found in the end, the
+// fenced frame properties of this frame tree node itself is returned.
+//
+// Crash happens when calling `reportEvent()` from the bottom iframe.
+// The renderer gets fenced frame properties with `source_node` set to
+// `kFrameTreeRoot`. The fenced frame properties are from the top-level fenced
+// frame. However, at browser side, the fenced frame properties are obtained
+// with `source_node` set to `kClosestAncestor`. The fenced frame properties are
+// from the middle urn iframe.
+//
+// When reportEvent is called, renderer side checks will pass. But browser side
+// checks will fail because the mapped url of the fenced frame properties is
+// "b.test", which is cross-origin with the iframe origin "a.test". This results
+// in a mojo bad message because browser assumes this error should be caught at
+// renderer side before it reaches here.
+//
+// The solution is to let renderer call the getter with `source_node`
+// set to `kClosestAncestor`. Now both renderer and browser should get the
+// fenced frame properties from the nested urn iframe. Then the expected
+// behavior is that the reportEvent call fails at renderer because there is no
+// reporting metadata registered. If the nested iframe is navigated to "b.test",
+// `reportEvent()` should succeed.
+//
+// See crbug.com/1470634.
+//
+// Note: If the urn iframe in the middle is an ad component, the nested iframe
+// is not allowed to call `reportEvent()`.
+// See test `ReportEventNotAllowedInNestedIframeUnderAdComponent` in
+// `InterestGroupAdComponentAutomaticBeaconBrowserTest`.
+//
+// TODO(crbug.com/1355857): Once navigation support for urn::uuid in iframes is
+// deprecated, this test should be removed.
+IN_PROC_BROWSER_TEST_F(FencedFrameReportEventBrowserTest,
+                       GetFencedFramePropertiesShouldTraverseFrameTree) {
+  net::test_server::ControllableHttpResponse reporting_response(https_server(),
+                                                                kReportingURL);
+  ASSERT_TRUE(https_server()->Start());
+  GURL main_url = https_server()->GetURL("a.test", "/hello.html");
+  EXPECT_TRUE(NavigateToURL(shell(), main_url));
+
+  // It is safe to obtain the root frame tree node here, as it doesn't change.
+  RenderFrameHostImpl* root_rfh =
+      static_cast<WebContentsImpl*>(shell()->web_contents())
+          ->GetPrimaryFrameTree()
+          .root()
+          ->current_frame_host();
+
+  // Top level fenced frame, origin is "a.test".
+  EXPECT_TRUE(ExecJs(root_rfh,
+                     "var f = document.createElement('fencedframe');"
+                     "document.body.appendChild(f);"));
+  EXPECT_EQ(1U, root_rfh->child_count());
+
+  // Add reporting metadata.
+  GURL reporting_url(https_server()->GetURL("a.test", kReportingURL));
+  scoped_refptr<FencedFrameReporter> fenced_frame_reporter =
+      CreateFencedFrameReporter();
+  fenced_frame_reporter->OnUrlMappingReady(
+      blink::FencedFrame::ReportingDestination::kBuyer,
+      url::Origin::Create(GURL()), {{"click", reporting_url}});
+  GURL fenced_frame_url(
+      https_server()->GetURL("a.test", "/fenced_frames/title1.html"));
+
+  FencedFrameURLMapping& url_mapping =
+      root_rfh->GetPage().fenced_frame_urls_map();
+  auto urn_uuid = test::AddAndVerifyFencedFrameURL(
+      &url_mapping, fenced_frame_url, fenced_frame_reporter);
+
+  FrameTreeNode* fenced_frame_root_node =
+      GetFencedFrameRootNode(root_rfh->child_at(0));
+
+  EXPECT_TRUE(fenced_frame_root_node->IsFencedFrameRoot());
+  EXPECT_TRUE(fenced_frame_root_node->IsInFencedFrameTree());
+
+  // Navigate fenced frame.
+  NavigateFrameInsideFencedFrameTreeAndWaitForFinishedLoad(
+      fenced_frame_root_node,
+      JsReplace("f.config = new FencedFrameConfig($1);", urn_uuid));
+  EXPECT_EQ(
+      fenced_frame_url,
+      fenced_frame_root_node->current_frame_host()->GetLastCommittedURL());
+  EXPECT_EQ(
+      url::Origin::Create(fenced_frame_url),
+      fenced_frame_root_node->current_frame_host()->GetLastCommittedOrigin());
+
+  // Nested urn iframe, origin is "b.test".
+  GURL nested_iframe_url(
+      https_server()->GetURL("b.test", "/fenced_frames/title1.html"));
+
+  // Add reporting metadata.
+  GURL nested_iframe_reporting_url(
+      https_server()->GetURL("b.test", kReportingURL));
+  scoped_refptr<FencedFrameReporter> nested_iframe_reporter =
+      CreateFencedFrameReporter();
+  nested_iframe_reporter->OnUrlMappingReady(
+      blink::FencedFrame::ReportingDestination::kBuyer,
+      url::Origin::Create(GURL()), {{"click", nested_iframe_reporting_url}});
+  FencedFrameURLMapping& nested_iframe_url_mapping =
+      fenced_frame_root_node->current_frame_host()
+          ->GetPage()
+          .fenced_frame_urls_map();
+
+  // Generate urn.
+  auto nested_iframe_urn_uuid = test::AddAndVerifyFencedFrameURL(
+      &nested_iframe_url_mapping, nested_iframe_url, nested_iframe_reporter);
+
+  EXPECT_EQ(0U, fenced_frame_root_node->child_count());
+  FrameTreeNode* nested_iframe_node =
+      AddIframeInFencedFrame(fenced_frame_root_node, 0);
+  EXPECT_TRUE(nested_iframe_node);
+
+  // Navigate the nested urn iframe.
+  NavigateIframeInFencedFrame(fenced_frame_root_node->child_at(0),
+                              nested_iframe_urn_uuid);
+
+  EXPECT_EQ(nested_iframe_url, fenced_frame_root_node->child_at(0)
+                                   ->current_frame_host()
+                                   ->GetLastCommittedURL());
+  EXPECT_EQ(url::Origin::Create(nested_iframe_url),
+            fenced_frame_root_node->child_at(0)
+                ->current_frame_host()
+                ->GetLastCommittedOrigin());
+
+  // Bottom nested iframe, origin is "a.test".
+  GURL bottom_iframe_url(
+      https_server()->GetURL("a.test", "/fenced_frames/title1.html"));
+
+  EXPECT_EQ(0U, nested_iframe_node->child_count());
+  FrameTreeNode* bottom_iframe_node =
+      AddIframeInFencedFrame(nested_iframe_node, 0);
+
+  // Navigate the bottom iframe.
+  NavigateIframeInFencedFrame(nested_iframe_node->child_at(0),
+                              bottom_iframe_url);
+
+  EXPECT_EQ(bottom_iframe_url, nested_iframe_node->child_at(0)
+                                   ->current_frame_host()
+                                   ->GetLastCommittedURL());
+  EXPECT_EQ(url::Origin::Create(bottom_iframe_url),
+            nested_iframe_node->child_at(0)
+                ->current_frame_host()
+                ->GetLastCommittedOrigin());
+
+  // Set up console error observer.
+  WebContentsConsoleObserver console_observer(web_contents());
+  auto filter =
+      [](const content::WebContentsConsoleObserver::Message& message) {
+        return message.log_level == blink::mojom::ConsoleMessageLevel::kError;
+      };
+  console_observer.SetFilter(base::BindRepeating(filter));
+  console_observer.SetPattern(GetErrorPattern(Step::Result::kNoMeta));
+
+  // Expect reportEvent to fail because this frame is cross-origin with
+  // the middle urn iframe.
+  std::string event_data = "this is a click";
+  std::string report_event_script = JsReplace(R"(
+        window.fence.reportEvent({
+          eventType: 'click',
+          eventData: $1,
+          destination: ['buyer'],
+        });
+      )",
+                                              event_data);
+  EXPECT_TRUE(ExecJs(bottom_iframe_node, report_event_script));
+
+  // Check console error.
+  ASSERT_TRUE(console_observer.Wait());
+  EXPECT_EQ(console_observer.messages().size(), 1u);
+
+  // Navigate the bottom iframe to "b.test". It then becomes same-origin with
+  // its parent urn iframe.
+  NavigateIframeInFencedFrame(nested_iframe_node->child_at(0),
+                              nested_iframe_url);
+
+  EXPECT_TRUE(ExecJs(bottom_iframe_node, report_event_script));
+
+  // Now `reportEvent()` should succeed.
+  reporting_response.WaitForRequest();
+  EXPECT_EQ(reporting_response.http_request()->content, event_data);
+}
+
+class FencedFrameReportEventAttributionDisabledBrowserTest
+    : public FencedFrameReportEventBrowserTest {
+ public:
+  FencedFrameReportEventAttributionDisabledBrowserTest() {
+    scoped_feature_list_.InitAndDisableFeature(
+        features::kAttributionFencedFrameReportingBeacon);
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(FencedFrameReportEventAttributionDisabledBrowserTest,
+                       FeatureDisabled_EligibleHeaderNotSet) {
+  net::test_server::ControllableHttpResponse response(https_server(),
+                                                      kReportingURL);
+  ASSERT_TRUE(https_server()->Start());
+
+  GURL main_url = https_server()->GetURL("a.test", "/hello.html");
+  EXPECT_TRUE(NavigateToURL(shell(), main_url));
+  FrameTreeNode* root = static_cast<WebContentsImpl*>(shell()->web_contents())
+                            ->GetPrimaryFrameTree()
+                            .root();
+  EXPECT_TRUE(ExecJs(root,
+                     "var f = document.createElement('fencedframe');"
+                     "document.body.appendChild(f);"));
+
+  EXPECT_EQ(1U, root->child_count());
+  FrameTreeNode* fenced_frame_root_node =
+      GetFencedFrameRootNode(root->child_at(0));
+  EXPECT_TRUE(fenced_frame_root_node->IsFencedFrameRoot());
+  EXPECT_TRUE(fenced_frame_root_node->IsInFencedFrameTree());
+
+  GURL https_url(
+      https_server()->GetURL("a.test", "/fenced_frames/title1.html"));
+
+  // Create a FencedFrameReporter and pass it reporting metadata.
+  scoped_refptr<FencedFrameReporter> fenced_frame_reporter =
+      CreateFencedFrameReporter();
+  GURL reporting_url(https_server()->GetURL("a.test", kReportingURL));
+  // Set valid reporting metadata for buyer.
+  fenced_frame_reporter->OnUrlMappingReady(
+      blink::FencedFrame::ReportingDestination::kBuyer,
+      url::Origin::Create(GURL()), {{"click", reporting_url}});
+
+  // Get the urn mapping object.
+  FencedFrameURLMapping& url_mapping =
+      root->current_frame_host()->GetPage().fenced_frame_urls_map();
+
+  // Add url and its reporting metadata to fenced frame url mapping.
+  auto urn_uuid = test::AddAndVerifyFencedFrameURL(&url_mapping, https_url,
+                                                   fenced_frame_reporter);
+
+  TestFencedFrameURLMappingResultObserver mapping_observer;
+  url_mapping.ConvertFencedFrameURNToURL(urn_uuid, &mapping_observer);
+  TestFrameNavigationObserver observer(
+      fenced_frame_root_node->current_frame_host());
+
+  // Navigate the fenced frame.
+  EXPECT_TRUE(ExecJs(
+      root, JsReplace("f.config = new FencedFrameConfig($1);", urn_uuid)));
+
+  observer.WaitForCommit();
+  EXPECT_TRUE(mapping_observer.mapping_complete_observed());
+  EXPECT_EQ(fenced_frame_reporter, mapping_observer.fenced_frame_reporter());
+
+  // Perform the reportEvent call, with a unique body.
+  std::string event_data = "this is a click";
+  std::string report_event_script = JsReplace(R"(
+        window.fence.reportEvent({
+          eventType: 'click',
+          eventData: $1,
+          destination: ['buyer'],
+        });
+      )",
+                                              event_data);
+  EXPECT_TRUE(ExecJs(fenced_frame_root_node, report_event_script));
+
+  response.WaitForRequest();
+  EXPECT_EQ(response.http_request()->content, event_data);
+  EXPECT_FALSE(base::Contains(response.http_request()->headers,
+                              "Attribution-Reporting-Eligible"));
+  EXPECT_FALSE(base::Contains(response.http_request()->headers,
+                              "Attribution-Reporting-Support"));
+}
 
 class FencedFrameReportEventAttributionCrossAppWebEnabledBrowserTest
     : public FencedFrameReportEventBrowserTest {
@@ -5853,11 +6587,8 @@ class FencedFrameReportEventAttributionCrossAppWebEnabledBrowserTest
 IN_PROC_BROWSER_TEST_F(
     FencedFrameReportEventAttributionCrossAppWebEnabledBrowserTest,
     ReportEventSameOriginSetsSupportHeader) {
-#if BUILDFLAG(IS_ANDROID)
-  AttributionOsLevelManagerAndroid::ScopedApiStateForTesting
-      scoped_api_state_setting(
-          AttributionOsLevelManagerAndroid::ApiState::kEnabled);
-#endif
+  AttributionOsLevelManager::ScopedApiStateForTesting scoped_api_state_setting(
+      AttributionOsLevelManager::ApiState::kEnabled);
 
   net::test_server::ControllableHttpResponse response(https_server(),
                                                       kReportingURL);
@@ -5889,7 +6620,7 @@ IN_PROC_BROWSER_TEST_F(
   // Set valid reporting metadata for buyer.
   fenced_frame_reporter->OnUrlMappingReady(
       blink::FencedFrame::ReportingDestination::kBuyer,
-      {{"click", reporting_url}});
+      url::Origin::Create(GURL()), {{"click", reporting_url}});
 
   // Get the urn mapping object.
   FencedFrameURLMapping& url_mapping =
@@ -5927,18 +6658,12 @@ IN_PROC_BROWSER_TEST_F(
   // Verify the request contains the eligibility header.
   response.WaitForRequest();
   EXPECT_EQ(response.http_request()->content, event_data);
-  EXPECT_EQ(
-      response.http_request()->headers.at("Attribution-Reporting-Eligible"),
-      "event-source");
-#if BUILDFLAG(IS_ANDROID)
-  EXPECT_EQ(
+  ExpectValidAttributionReportingEligibleHeaderForEventBeacon(
+      response.http_request()->headers.at("Attribution-Reporting-Eligible"));
+  ExpectValidAttributionReportingSupportHeader(
       response.http_request()->headers.at("Attribution-Reporting-Support"),
-      "os, web");
-#else
-  EXPECT_EQ(
-      response.http_request()->headers.at("Attribution-Reporting-Support"),
-      "web");
-#endif
+      /*web_expected=*/true,
+      /*os_expected=*/true);
 }
 
 IN_PROC_BROWSER_TEST_F(
@@ -5974,7 +6699,7 @@ IN_PROC_BROWSER_TEST_F(
   // Set valid reporting metadata for buyer.
   fenced_frame_reporter->OnUrlMappingReady(
       blink::FencedFrame::ReportingDestination::kBuyer,
-      {{"click", reporting_url}});
+      url::Origin::Create(GURL()), {{"click", reporting_url}});
 
   // Get the urn mapping object.
   FencedFrameURLMapping& url_mapping =
@@ -6013,12 +6738,14 @@ IN_PROC_BROWSER_TEST_F(
   {
     reporting_response.WaitForRequest();
     EXPECT_EQ(reporting_response.http_request()->content, event_data);
-    EXPECT_EQ(reporting_response.http_request()->headers.at(
-                  "Attribution-Reporting-Eligible"),
-              "event-source");
-    EXPECT_EQ(reporting_response.http_request()->headers.at(
-                  "Attribution-Reporting-Support"),
-              "web");
+    ExpectValidAttributionReportingEligibleHeaderForEventBeacon(
+        reporting_response.http_request()->headers.at(
+            "Attribution-Reporting-Eligible"));
+    ExpectValidAttributionReportingSupportHeader(
+        reporting_response.http_request()->headers.at(
+            "Attribution-Reporting-Support"),
+        /*web_expected=*/true,
+        /*os_expected=*/false);
   }
 }
 
@@ -6106,6 +6833,7 @@ IN_PROC_BROWSER_TEST_P(UUIDFrameTreeBrowserTest,
     // A console warning is emitted during navigation. This will be removed
     // once navigation support for urn::uuid in iframes is deprecated.
     // TODO(crbug.com/1355857)
+    ASSERT_TRUE(console_observer.Wait());
     EXPECT_FALSE(console_observer.messages().empty());
     EXPECT_EQ(
         console_observer.GetMessageAt(0),
@@ -6197,6 +6925,7 @@ class FencedFrameAutomaticBeaconBrowserTest
     };
 
     Destination starting_url;
+    Destination secondary_initiator_url;
     Destination navigation_url;
 
     // Optional message to be sent as part of the payload.
@@ -6208,6 +6937,10 @@ class FencedFrameAutomaticBeaconBrowserTest
     // Whether there is a call to `setReportEventDataForAutomaticBeacons()`.
     bool register_beacon_data = true;
 
+    // Weather the destinations field is set when calling
+    // `setReportEventDataForAutomaticBeacons()`.
+    bool register_destinations = true;
+
     // Whether the initiating frame should have user activation when navigating.
     bool initiator_has_user_activation = true;
 
@@ -6217,6 +6950,13 @@ class FencedFrameAutomaticBeaconBrowserTest
 
     // Whether we expect the beacon to send properly or not.
     bool expected_success = true;
+
+    // Whether we expect the beacon to send with data or not.
+    bool expected_data = true;
+
+    // Whether we expect cookie data to be attached to the beacon.
+    // TODO(crbug.com/1496395): Remove this after 3PCD.
+    bool expected_cookie = true;
   };
 
   static std::string DescribeParams(
@@ -6250,15 +6990,15 @@ class FencedFrameAutomaticBeaconBrowserTest
             ->GetPrimaryMainFrame()
             ->GetStoragePartition()
             ->GetURLLoaderFactoryForBrowserProcess(),
-        AttributionManager::FromBrowserContext(
-            web_contents()->GetBrowserContext()),
+        web_contents()->GetBrowserContext(),
         /*direct_seller_is_seller=*/false,
         static_cast<StoragePartitionImpl*>(
             web_contents()->GetPrimaryMainFrame()->GetStoragePartition())
             ->GetPrivateAggregationManager(),
         /*main_frame_origin=*/
         web_contents()->GetPrimaryMainFrame()->GetLastCommittedOrigin(),
-        /*winner_origin=*/url::Origin::Create(GURL("https://a.test")));
+        /*winner_origin=*/url::Origin::Create(GURL("https://a.test")),
+        /*winner_aggregation_coordinator_origin=*/absl::nullopt);
   }
 
   // A helper function for specifying automatic beacon tests.
@@ -6279,6 +7019,7 @@ class FencedFrameAutomaticBeaconBrowserTest
                                                config.starting_url.path);
     GURL navigation_url = https_server()->GetURL(config.navigation_url.origin,
                                                  config.navigation_url.path);
+
     EXPECT_TRUE(NavigateToURL(shell(), main_url));
     FrameTreeNode* root = static_cast<WebContentsImpl*>(shell()->web_contents())
                               ->GetPrimaryFrameTree()
@@ -6287,20 +7028,22 @@ class FencedFrameAutomaticBeaconBrowserTest
     // Create a FencedFrameReporter and pass it reporting metadata.
     scoped_refptr<FencedFrameReporter> fenced_frame_reporter =
         CreateFencedFrameReporter();
-    GURL reporting_url(
-        https_server()->GetURL(reporting_origin, "/_report_event_server.html"));
+    GURL reporting_url(https_server()->GetURL(reporting_origin, kReportingURL));
     // Set valid reporting metadata for buyer.
     fenced_frame_reporter->OnUrlMappingReady(
         blink::FencedFrame::ReportingDestination::kBuyer,
+        url::Origin::Create(GURL()),
         {
-            {blink::kFencedFrameTopNavigationBeaconType, reporting_url},
+            {blink::kFencedFrameTopNavigationCommitBeaconType, reporting_url},
         });
     // Set empty reporting url for seller.
     fenced_frame_reporter->OnUrlMappingReady(
-        blink::FencedFrame::ReportingDestination::kSeller, {{"click", GURL()}});
+        blink::FencedFrame::ReportingDestination::kSeller,
+        url::Origin::Create(GURL()), {{"click", GURL()}});
     // Set no reporting urls for component seller.
     fenced_frame_reporter->OnUrlMappingReady(
-        blink::FencedFrame::ReportingDestination::kComponentSeller, {});
+        blink::FencedFrame::ReportingDestination::kComponentSeller,
+        url::Origin::Create(GURL()), {});
 
     // Get the urn mapping object.
     FencedFrameURLMapping& url_mapping =
@@ -6349,6 +7092,12 @@ class FencedFrameAutomaticBeaconBrowserTest
     }
     ad_frame_observer.WaitForCommit();
 
+    base::Value::List destination_list;
+    if (config.register_destinations) {
+      destination_list.Append("buyer");
+      destination_list.Append("seller");
+    }
+
     if (config.register_beacon_data) {
       if (!config.message) {
         // Call `setReportEventDataForAutomaticBeacons()` without `eventData`
@@ -6358,25 +7107,59 @@ class FencedFrameAutomaticBeaconBrowserTest
                    JsReplace(R"(
               window.fence.setReportEventDataForAutomaticBeacons({
                 eventType: $1,
-                destination: ['seller', 'buyer']
+                destination: $2
               });
             )",
-                             blink::kFencedFrameTopNavigationBeaconType),
+                             blink::kFencedFrameTopNavigationCommitBeaconType,
+                             destination_list.Clone()),
                    ad_frame_execjs_options));
       } else {
         // Call `setReportEventDataForAutomaticBeacons()` with `eventData`.
-        EXPECT_TRUE(ExecJs(ad_frame_root_node,
-                           JsReplace(R"(
+        EvalJsResult result =
+            EvalJs(ad_frame_root_node,
+                   JsReplace(R"(
               window.fence.setReportEventDataForAutomaticBeacons({
                 eventType: $1,
                 eventData: $2,
-                destination: ['seller', 'buyer']
+                destination: $3
               });
             )",
-                                     blink::kFencedFrameTopNavigationBeaconType,
-                                     config.message.value()),
-                           ad_frame_execjs_options));
+                             blink::kFencedFrameTopNavigationCommitBeaconType,
+                             config.message.value(), destination_list.Clone()),
+                   ad_frame_execjs_options);
+
+        if (config.message->length() > blink::kFencedFrameMaxBeaconLength) {
+          // When eventData exceeds the length limit, a security error is thrown
+          // instead of a console error.
+          EXPECT_FALSE(result.error.empty());
+          EXPECT_THAT(
+              result.error,
+              testing::HasSubstr("The data provided to "
+                                 "setReportEventDataForAutomaticBeacons() "
+                                 "exceeds the maximum length, which is 64KB."));
+        } else {
+          EXPECT_TRUE(result.error.empty());
+        }
       }
+    }
+
+    // If a secondary initiator URL is specified, navigate the ad frame to the
+    // second URL before performing a top-level navigation. This checks that
+    // automatic beacons are not sent if the current URL of a frame is
+    // cross-origin to the mapped URL in the fenced frame config.
+    GURL secondary_initiator_url =
+        config.secondary_initiator_url.origin.empty()
+            ? GURL()
+            : https_server()->GetURL(config.secondary_initiator_url.origin,
+                                     config.secondary_initiator_url.path);
+    if (secondary_initiator_url.is_valid()) {
+      TestFrameNavigationObserver ad_frame_new_navigation_observer(
+          ad_frame_root_node->current_frame_host());
+      EXPECT_TRUE(
+          ExecJs(ad_frame_root_node,
+                 JsReplace(R"(window.location = $1;)", secondary_initiator_url),
+                 ad_frame_execjs_options));
+      ad_frame_new_navigation_observer.WaitForCommit();
     }
 
     std::string target;
@@ -6386,6 +7169,26 @@ class FencedFrameAutomaticBeaconBrowserTest
       target = "_unfencedTop";
     } else {
       target = "_top";
+    }
+
+    // Set up the document.cookie for credentialed automatic beacons.
+    // TODO(crbug.com/1496395): Remove this block after 3PCD.
+    GURL reporting_cookie_url =
+        https_server()->GetURL(reporting_origin, "/hello.html");
+    if (config.expected_success) {
+      EXPECT_TRUE(ExecJs(root,
+                         "var cookie_frame = document.createElement('iframe');"
+                         "document.body.appendChild(cookie_frame);"));
+      EXPECT_EQ(2U, root->child_count());
+      FrameTreeNode* cookie_frame_root_node = root->child_at(1);
+      TestFrameNavigationObserver cookie_frame_observer(
+          cookie_frame_root_node->current_frame_host());
+      EXPECT_TRUE(ExecJs(
+          root, JsReplace("cookie_frame.src = $1;", reporting_cookie_url)));
+      cookie_frame_observer.WaitForCommit();
+      EXPECT_TRUE(
+          ExecJs(cookie_frame_root_node,
+                 "document.cookie = 'name=foobarbaz; SameSite=None; Secure';"));
     }
 
     EXPECT_TRUE(
@@ -6401,35 +7204,84 @@ class FencedFrameAutomaticBeaconBrowserTest
       // received the request from `SendBasicRequest`, which was sent after the
       // possible automatic beacon, implies the automatic beacon was not sent as
       // a result of the top navigation, as expected.
-      SendBasicRequest(https_server()->GetURL("c.test", kReportingURL),
-                       "response");
+      EXPECT_TRUE(content::WaitForLoadStop(shell()->web_contents()));
+      fenced_frame_test_helper().SendBasicRequest(
+          web_contents(), https_server()->GetURL("c.test", kReportingURL),
+          "response");
       response.WaitForRequest();
       EXPECT_TRUE(response.has_received_request());
       EXPECT_EQ(response.http_request()->content, "response");
+      // Fenced frames do not allow top-level navigation without user activation
+      // due to the permissions policy always being disabled. We only test the
+      // histogram for iframes.
+      if (!config.initiator_has_user_activation &&
+          GetParam() == std::string("iframe")) {
+        histogram_tester_.ExpectUniqueSample(
+            blink::kAutomaticBeaconOutcomeHistogram,
+            blink::AutomaticBeaconOutcome::kNoUserActivation, 1);
+      }
+      if (secondary_initiator_url.is_valid()) {
+        histogram_tester_.ExpectUniqueSample(
+            blink::kAutomaticBeaconOutcomeHistogram,
+            blink::AutomaticBeaconOutcome::kNotSameOrigin, 1);
+      }
       return;
     }
 
     response.WaitForRequest();
     // Verify the request has the correct content.
-    if (!config.message) {
+    if (!config.message || !config.expected_data) {
       EXPECT_TRUE(response.http_request()->content.empty());
     } else {
       EXPECT_EQ(response.http_request()->content, config.message);
     }
     // Verify the request contains the eligibility header.
-    EXPECT_EQ(
-        response.http_request()->headers.at("Attribution-Reporting-Eligible"),
-        "navigation-source");
+    ExpectValidAttributionReportingEligibleHeaderForNavigation(
+        response.http_request()->headers.at("Attribution-Reporting-Eligible"));
     EXPECT_FALSE(base::Contains(response.http_request()->headers,
                                 "Attribution-Reporting-Support"));
+
+    // Verify the request has credentials attached.
+    // TODO(crbug.com/1496395): Remove this block after 3PCD.
+    if (config.expected_cookie) {
+      EXPECT_EQ("name=foobarbaz",
+                response.http_request()->headers.at("Cookie"));
+      // Send a response that sets new cookies.
+      auto response_packet =
+          std::make_unique<net::test_server::BasicHttpResponse>();
+      response_packet->set_code(net::HTTP_OK);
+      response_packet->AddCustomHeader("Set-Cookie",
+                                       "name=qux; SameSite=None; Secure");
+      response.Send(response_packet->ToResponseString());
+
+      // Verify that the cookies got set correctly.
+      EXPECT_TRUE(NavigateToURL(shell(), reporting_cookie_url));
+      root = static_cast<WebContentsImpl*>(shell()->web_contents())
+                 ->GetPrimaryFrameTree()
+                 .root();
+      EXPECT_EQ("name=qux", EvalJs(root, "document.cookie"));
+    } else {
+      EXPECT_EQ(0U, response.http_request()->headers.count("Cookie"));
+    }
+
     response.Done();
+
+    histogram_tester_.ExpectUniqueSample(
+        blink::kAutomaticBeaconOutcomeHistogram,
+        blink::AutomaticBeaconOutcome::kSuccess, 1);
+    histogram_tester_.ExpectBucketCount(
+        blink::kFencedFrameTopNavigationHistogram,
+        blink::FencedFrameNavigationState::kBegin, 1);
+    histogram_tester_.ExpectBucketCount(
+        blink::kFencedFrameTopNavigationHistogram,
+        blink::FencedFrameNavigationState::kCommit, 1);
   }
 
  private:
   // Server must start after ControllableHttpResponse object being constructed.
   void AssertServerStart() override {}
 
-  base::test::ScopedFeatureList scoped_feature_list_;
+  base::HistogramTester histogram_tester_;
 };
 
 IN_PROC_BROWSER_TEST_P(FencedFrameAutomaticBeaconBrowserTest, SameOriginBasic) {
@@ -6465,6 +7317,17 @@ IN_PROC_BROWSER_TEST_P(FencedFrameAutomaticBeaconBrowserTest, EmptyMessage) {
       .navigation_url = {"b.test", "/fenced_frames/title1.html"},
       .message = "",
       .expected_success = true,
+  };
+  RunTest(config);
+}
+
+IN_PROC_BROWSER_TEST_P(FencedFrameAutomaticBeaconBrowserTest,
+                       MessageExceedsLengthLimit) {
+  Config config = {
+      .starting_url = {"a.test", "/fenced_frames/title1.html"},
+      .navigation_url = {"b.test", "/fenced_frames/title1.html"},
+      .message = std::string(blink::kFencedFrameMaxBeaconLength + 1, '*'),
+      .expected_success = false,
   };
   RunTest(config);
 }
@@ -6519,6 +7382,39 @@ IN_PROC_BROWSER_TEST_P(FencedFrameAutomaticBeaconBrowserTest,
       .starting_url = {"a.test", "/fenced_frames/title1.html"},
       .navigation_url = {"b.test", "/fenced_frames/title1.html"},
       .target_blank_navigation = true,
+  };
+  RunTest(config);
+}
+
+IN_PROC_BROWSER_TEST_P(FencedFrameAutomaticBeaconBrowserTest,
+                       CrossOriginToMappedURL) {
+  Config config = {
+      .starting_url = {"a.test", "/fenced_frames/title1.html"},
+      .secondary_initiator_url = {"c.test", "/fenced_frames/title1.html"},
+      .navigation_url = {"b.test", "/fenced_frames/title1.html"},
+      .expected_success = false,
+  };
+  RunTest(config);
+}
+
+IN_PROC_BROWSER_TEST_P(FencedFrameAutomaticBeaconBrowserTest,
+                       NoDestinationsRegistered) {
+  Config config = {
+      .starting_url = {"a.test", "/fenced_frames/title1.html"},
+      .navigation_url = {"b.test", "/fenced_frames/title1.html"},
+      .register_destinations = false,
+      .expected_data = false,
+  };
+  RunTest(config);
+}
+
+IN_PROC_BROWSER_TEST_P(FencedFrameAutomaticBeaconBrowserTest,
+                       AutomaticBeaconCredentialsDisallowed) {
+  SetAllowAutomaticBeaconCredentials(false);
+  Config config = {
+      .starting_url = {"a.test", "/fenced_frames/title1.html"},
+      .navigation_url = {"a.test", "/fenced_frames/title1.html"},
+      .expected_cookie = false,
   };
   RunTest(config);
 }

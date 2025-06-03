@@ -5,6 +5,7 @@
 #include "third_party/blink/renderer/modules/accessibility/ax_selection.h"
 
 #include "third_party/blink/renderer/core/dom/events/event.h"
+#include "third_party/blink/renderer/core/dom/focus_params.h"
 #include "third_party/blink/renderer/core/dom/node.h"
 #include "third_party/blink/renderer/core/dom/range.h"
 #include "third_party/blink/renderer/core/editing/ephemeral_range.h"
@@ -349,7 +350,8 @@ void AXSelection::UpdateSelectionIfNecessary() {
 
 bool AXSelection::Select(const AXSelectionBehavior selection_behavior) {
   if (!IsValid()) {
-    NOTREACHED() << "Trying to select an invalid accessibility selection.";
+    // By the time the selection action gets here, content could have
+    // changed from the content the action was initially prepared for.
     return false;
   }
 
@@ -368,7 +370,7 @@ bool AXSelection::Select(const AXSelectionBehavior selection_behavior) {
     // TextControl::SetSelectionRange deliberately does not set focus. But if
     // we're updating the selection, the text control should be focused.
     ScheduleSelectEvent(text_control);
-    text_control.Focus();
+    text_control.Focus(FocusParams(FocusTrigger::kUserGesture));
     return true;
   }
 
@@ -422,9 +424,9 @@ bool AXSelection::Select(const AXSelectionBehavior selection_behavior) {
 }
 
 String AXSelection::ToString() const {
-  if (!IsValid())
-    return "Invalid AXSelection";
-  return "AXSelection from " + Base().ToString() + " to " + Extent().ToString();
+  String prefix = IsValid() ? "" : "Invalid ";
+  return prefix + "AXSelection from " + Base().ToString() + " to " +
+         Extent().ToString();
 }
 
 absl::optional<AXSelection::TextControlSelection>

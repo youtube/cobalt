@@ -57,6 +57,7 @@
 <translation id="3566302376254083266">સૌથી ઉપર ડાબી દિશામાં ખસેડી રહ્યાં છીએ</translation>
 <translation id="3573890771273113519">સ્કૅન મોડ પર સ્વિચ કરો</translation>
 <translation id="3583444040776960729">દસ્તાવેજનો સૌથી નીચેનો ડાબો ખૂણો</translation>
+<translation id="3642192109456033823">વીડિયો પર પ્રક્રિયા કરી રહ્યાં છીએ…</translation>
 <translation id="3789724198583203151">ઘડિયાળની વિપરીત દિશામાં 90 ડિગ્રી ફેરવો</translation>
 <translation id="3810838688059735925">વીડિયો</translation>
 <translation id="3892148308691398805">ટેક્સ્ટ કૉપિ કરો</translation>
@@ -65,9 +66,10 @@
 <translation id="4118525110028899586">રેકોર્ડિંગ થોભાવો</translation>
 <translation id="4121305183798804752">દસ્તાવેજની ભાળ મળી</translation>
 <translation id="414641094616694804">આ કૅમેરા રિઝોલ્યુશનમાં ફેરફાર કરી શકતો નથી</translation>
+<translation id="4176463684765177261">અક્ષમ કરેલું</translation>
 <translation id="4269820728363426813">લિંક સરનામું કૉપિ કરો</translation>
-<translation id="4281620174117014503">મધ્યમ રિઝોલ્યુશન</translation>
 <translation id="428234092390943511">પેજ થંબનેલ</translation>
+<translation id="4349714250734879769">Chrome દ્વારા ફ્રેમ સ્કેલ કરો</translation>
 <translation id="4383571725254449280">કાર્યપ્રદર્શનના લૉગ પ્રિન્ટ કરો</translation>
 <translation id="4445542136948522167">ફોટા લેવાનું બંધ કરો</translation>
 <translation id="4570032796877367747">આગળનો કૅમેરા</translation>
@@ -93,6 +95,7 @@
 <translation id="5374917190292010970">4K (2160p)</translation>
 <translation id="5662366948659129155"><ph name="COUNT" /> નંબરનું પેજ સ્કૅન કરી રહ્યાં છીએ</translation>
 <translation id="5671277269877808209">ચોરસ</translation>
+<translation id="574392208103952083">મધ્યમ</translation>
 <translation id="5746169159649715125">PDF તરીકે સાચવો</translation>
 <translation id="5753488212459587150">નિષ્ણાત મોડ ચાલુ કરો</translation>
 <translation id="5759254179196327752">દસ્તાવેજને સ્કૅન કરો</translation>
@@ -148,6 +151,7 @@
 <translation id="8145038249676204903">ફોટો લેવા માટે સ્વિચ કરો</translation>
 <translation id="8167081290930651932">ફોટો તરીકે સાચવો</translation>
 <translation id="8239780215768881278">વીડિયો સ્નૅપશૉટ લો</translation>
+<translation id="8346544573713510785">કૅમેરા HAL દ્વારા ફ્રેમ સ્કેલ કરો</translation>
 <translation id="8425673304802773841">નીચે ટિલ્ટ કરો</translation>
 <translation id="8428213095426709021">સેટિંગ</translation>
 <translation id="8629662593426079630">360p</translation>

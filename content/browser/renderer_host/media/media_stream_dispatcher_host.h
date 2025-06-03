@@ -19,10 +19,12 @@
 #include "content/browser/media/media_stream_web_contents_observer.h"
 #include "content/common/content_export.h"
 #include "content/public/browser/browser_thread.h"
+#include "media/capture/mojom/video_capture_types.mojom.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "third_party/blink/public/common/mediastream/media_stream_controls.h"
+#include "third_party/blink/public/mojom/mediastream/media_devices.mojom.h"
 #include "third_party/blink/public/mojom/mediastream/media_stream.mojom.h"
 
 namespace content {
@@ -51,9 +53,9 @@ class CONTENT_EXPORT MediaStreamDispatcherHost
       mojo::PendingReceiver<blink::mojom::MediaStreamDispatcherHost> receiver);
 
   void OnWebContentsFocused();
-  void set_salt_and_origin_callback_for_testing(
-      MediaDeviceSaltAndOriginCallback callback) {
-    salt_and_origin_callback_ = std::move(callback);
+  void set_get_salt_and_origin_cb_for_testing(
+      GetMediaDeviceSaltAndOriginCallback callback) {
+    get_salt_and_origin_cb_ = std::move(callback);
   }
   void SetMediaStreamDeviceObserverForTesting(
       mojo::PendingRemote<blink::mojom::MediaStreamDeviceObserver> observer) {
@@ -81,17 +83,19 @@ class CONTENT_EXPORT MediaStreamDispatcherHost
       base::circular_deque<std::unique_ptr<PendingAccessRequest>>;
   RequestsQueue pending_requests_;
 
-  static bool CheckRequestAllScreensAllowed(int render_process_id,
-                                            int render_frame_id);
+  static bool CheckRequestAllScreensAllowed(
+      GlobalRenderFrameHostId render_frame_host_id);
 
   // Performs checks / computations that need to be done on the UI
   // thread (i.e. if a select all screens request is permitted and
   // the computation of the device salt and origin).
-  static GenerateStreamsUIThreadCheckResult GenerateStreamsChecksOnUIThread(
-      int render_process_id,
-      int render_frame_id,
+  static void GenerateStreamsChecksOnUIThread(
+      GlobalRenderFrameHostId render_frame_host_id,
       bool request_all_screens,
-      base::OnceCallback<MediaDeviceSaltAndOrigin()> salt_and_origin_callback);
+      base::OnceCallback<void(MediaDeviceSaltAndOriginCallback)>
+          get_salt_and_origin_cb,
+      base::OnceCallback<void(GenerateStreamsUIThreadCheckResult)>
+          result_callback);
 
   const mojo::Remote<blink::mojom::MediaStreamDeviceObserver>&
   GetMediaStreamDeviceObserver();
@@ -127,16 +131,19 @@ class CONTENT_EXPORT MediaStreamDispatcherHost
       KeepDeviceAliveForTransferCallback callback) override;
 #if !BUILDFLAG(IS_ANDROID)
   void FocusCapturedSurface(const std::string& label, bool focus) override;
-  void Crop(const base::UnguessableToken& device_id,
-            const base::Token& crop_id,
-            uint32_t crop_version,
-            CropCallback callback) override;
+  void ApplySubCaptureTarget(const base::UnguessableToken& device_id,
+                             media::mojom::SubCaptureTargetType type,
+                             const base::Token& sub_capture_target,
+                             uint32_t sub_capture_target_version,
+                             ApplySubCaptureTargetCallback callback) override;
 
-  void OnCropValidationComplete(const base::UnguessableToken& device_id,
-                                const base::Token& crop_id,
-                                uint32_t crop_version,
-                                CropCallback callback,
-                                bool crop_id_passed_validation);
+  void OnSubCaptureTargetValidationComplete(
+      const base::UnguessableToken& device_id,
+      media::mojom::SubCaptureTargetType type,
+      const base::Token& target,
+      uint32_t sub_capture_target_version,
+      ApplySubCaptureTargetCallback callback,
+      bool target_passed_validation);
 #endif
   void GetOpenDevice(int32_t page_request_id,
                      const base::UnguessableToken& session_id,
@@ -146,7 +153,7 @@ class CONTENT_EXPORT MediaStreamDispatcherHost
                        const base::UnguessableToken& session_id,
                        const base::UnguessableToken& transfer_id,
                        GetOpenDeviceCallback callback,
-                       MediaDeviceSaltAndOrigin salt_and_origin);
+                       const MediaDeviceSaltAndOrigin& salt_and_origin);
   void DoGenerateStreams(
       int32_t request_id,
       const blink::StreamControls& controls,
@@ -158,7 +165,7 @@ class CONTENT_EXPORT MediaStreamDispatcherHost
                     const std::string& device_id,
                     blink::mojom::MediaStreamType type,
                     OpenDeviceCallback callback,
-                    MediaDeviceSaltAndOrigin salt_and_origin);
+                    const MediaDeviceSaltAndOrigin& salt_and_origin);
 
   void OnDeviceStopped(const std::string& label,
                        const blink::MediaStreamDevice& device);
@@ -193,13 +200,12 @@ class CONTENT_EXPORT MediaStreamDispatcherHost
 
   static int next_requester_id_;
 
-  const int render_process_id_;
-  const int render_frame_id_;
+  const GlobalRenderFrameHostId render_frame_host_id_;
   const int requester_id_;
   raw_ptr<MediaStreamManager> media_stream_manager_;
   mojo::Remote<blink::mojom::MediaStreamDeviceObserver>
       media_stream_device_observer_;
-  MediaDeviceSaltAndOriginCallback salt_and_origin_callback_;
+  GetMediaDeviceSaltAndOriginCallback get_salt_and_origin_cb_;
 
   std::unique_ptr<MediaStreamWebContentsObserver,
                   BrowserThread::DeleteOnUIThread>

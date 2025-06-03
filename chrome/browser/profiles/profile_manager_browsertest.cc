@@ -17,11 +17,12 @@
 #include "base/test/bind.h"
 #include "base/test/test_future.h"
 #include "base/test/test_timeouts.h"
+#include "base/test/to_vector.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
 #include "chrome/browser/apps/platform_apps/shortcut_manager.h"
 #include "chrome/browser/browser_features.h"
-#include "chrome/browser/password_manager/password_store_factory.h"
+#include "chrome/browser/password_manager/profile_password_store_factory.h"
 #include "chrome/browser/policy/policy_test_utils.h"
 #include "chrome/browser/profiles/keep_alive/profile_keep_alive_types.h"
 #include "chrome/browser/profiles/keep_alive/scoped_profile_keep_alive.h"
@@ -229,7 +230,7 @@ class PasswordStoreConsumerVerifier
 base::FilePath GetFirstNonSigninNonLockScreenAppProfile(
     ProfileAttributesStorage* storage) {
   std::vector<ProfileAttributesEntry*> entries =
-      storage->GetAllProfilesAttributesSortedByName();
+      storage->GetAllProfilesAttributesSortedByNameWithCheck();
 #if BUILDFLAG(IS_CHROMEOS_ASH)
   const base::FilePath signin_path = ash::ProfileHelper::GetSigninProfileDir();
   const base::FilePath lock_screen_apps_path =
@@ -655,6 +656,23 @@ IN_PROC_BROWSER_TEST_P(ProfileManagerBrowserTest, AddMultipleProfiles) {
   // Verifies that the browser doesn't crash when it is restarted.
 }
 
+// Regression test for https://crbug.com/1472849
+IN_PROC_BROWSER_TEST_F(ProfileManagerBrowserTestBase,
+                       ConcurrentCreationAsyncAndSync) {
+  ProfileManager* profile_manager = g_browser_process->profile_manager();
+  base::FilePath profile_path =
+      profile_manager->GenerateNextProfileDirectoryPath();
+  // Initiate asynchronous creation.
+  profile_manager->CreateProfileAsync(profile_path, base::DoNothing());
+  // The profile is being created, but creation is not complete.
+  EXPECT_EQ(nullptr, profile_manager->GetProfileByPath(profile_path));
+  // Request synchronous creation of the same profile, this should not crash.
+  Profile* profile = profile_manager->GetProfile(profile_path);
+  // The profile has been loaded.
+  EXPECT_EQ(profile, profile_manager->GetProfileByPath(profile_path));
+  EXPECT_EQ(profile->GetPath(), profile_path);
+}
+
 IN_PROC_BROWSER_TEST_P(ProfileManagerBrowserTest, EphemeralProfile) {
   // If multiprofile mode is not enabled, you can't switch between profiles.
   if (!profiles::IsMultipleProfilesEnabled())
@@ -763,8 +781,8 @@ IN_PROC_BROWSER_TEST_P(ProfileManagerBrowserTest, DeletePasswords) {
   form.blocked_by_user = false;
 
   scoped_refptr<password_manager::PasswordStoreInterface> password_store =
-      PasswordStoreFactory::GetForProfile(profile,
-                                          ServiceAccessType::EXPLICIT_ACCESS)
+      ProfilePasswordStoreFactory::GetForProfile(
+          profile, ServiceAccessType::EXPLICIT_ACCESS)
           .get();
   ASSERT_TRUE(password_store.get());
 
@@ -855,7 +873,7 @@ INSTANTIATE_TEST_SUITE_P(DestroyProfileOnBrowserClose,
 #if !BUILDFLAG(IS_CHROMEOS_ASH)
 
 const base::FilePath::CharType kNonAsciiProfileDir[] =
-    FILE_PATH_LITERAL("\xd9\x85\xd8\xb5\xd8\xb1");
+    FILE_PATH_LITERAL("\u0645\u0635\u0631");
 
 class ProfileManagerNonAsciiBrowserTest : public ProfileManagerBrowserTestBase {
  protected:
@@ -902,13 +920,10 @@ IN_PROC_BROWSER_TEST_F(ProfileManagerNonAsciiBrowserTest,
       g_browser_process->profile_manager()
           ->GetProfileAttributesStorage()
           .GetAllProfilesAttributes();
-  std::vector<base::FilePath::StringType> actual_paths;
-  base::ranges::transform(entries, std::back_inserter(actual_paths),
-                          [](const ProfileAttributesEntry* entry) {
-                            return entry->GetPath().BaseName().value();
-                          });
-
-  EXPECT_THAT(actual_paths,
+  EXPECT_THAT(base::test::ToVector(entries,
+                                   [](const auto* entry) {
+                                     return entry->GetPath().BaseName().value();
+                                   }),
               ::testing::UnorderedElementsAreArray(expected_paths));
 }
 

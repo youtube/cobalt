@@ -57,7 +57,7 @@ type keyedMACPrimitive struct {
 	algo string
 }
 
-func (k *keyedMACPrimitive) Process(vectorSet []byte, m Transactable) (interface{}, error) {
+func (k *keyedMACPrimitive) Process(vectorSet []byte, m Transactable) (any, error) {
 	var vs keyedMACTestVectorSet
 	if err := json.Unmarshal(vectorSet, &vs); err != nil {
 		return nil, err
@@ -65,6 +65,7 @@ func (k *keyedMACPrimitive) Process(vectorSet []byte, m Transactable) (interface
 
 	var respGroups []keyedMACTestGroupResponse
 	for _, group := range vs.Groups {
+		group := group
 		respGroup := keyedMACTestGroupResponse{ID: group.ID}
 
 		if group.KeyBits%8 != 0 {
@@ -90,6 +91,7 @@ func (k *keyedMACPrimitive) Process(vectorSet []byte, m Transactable) (interface
 		outputBytes := uint32le(group.MACBits / 8)
 
 		for _, test := range group.Tests {
+			test := test
 			respTest := keyedMACTestResponse{ID: test.ID}
 
 			// Validate input.
@@ -122,17 +124,17 @@ func (k *keyedMACPrimitive) Process(vectorSet []byte, m Transactable) (interface
 			}
 
 			if generate {
-				result, err := m.Transact(k.algo, 1, outputBytes, key, msg)
-				if err != nil {
-					return nil, fmt.Errorf("wrapper %s operation failed: %s", k.algo, err)
-				}
+				expectedNumBytes := int(group.MACBits / 8)
 
-				calculatedMAC := result[0]
-				if len(calculatedMAC) != int(group.MACBits/8) {
-					return nil, fmt.Errorf("%s operation returned incorrect length value", k.algo)
-				}
+				m.TransactAsync(k.algo, 1, [][]byte{outputBytes, key, msg}, func(result [][]byte) error {
+					calculatedMAC := result[0]
+					if len(calculatedMAC) != expectedNumBytes {
+						return fmt.Errorf("%s operation returned incorrect length value", k.algo)
+					}
 
-				respTest.MACHex = hex.EncodeToString(calculatedMAC)
+					respTest.MACHex = hex.EncodeToString(calculatedMAC)
+					return nil
+				})
 			} else {
 				expectedMAC, err := hex.DecodeString(test.MACHex)
 				if err != nil {
@@ -142,23 +144,29 @@ func (k *keyedMACPrimitive) Process(vectorSet []byte, m Transactable) (interface
 					return nil, fmt.Errorf("MACHex in test case %d/%d is %x, but should be %d bits", group.ID, test.ID, expectedMAC, group.MACBits)
 				}
 
-				result, err := m.Transact(k.algo+"/verify", 1, key, msg, expectedMAC)
-				if err != nil {
-					return nil, fmt.Errorf("wrapper %s operation failed: %s", k.algo, err)
-				}
+				m.TransactAsync(k.algo+"/verify", 1, [][]byte{key, msg, expectedMAC}, func(result [][]byte) error {
+					if len(result[0]) != 1 || (result[0][0]&0xfe) != 0 {
+						return fmt.Errorf("wrapper %s returned invalid success flag: %x", k.algo, result[0])
+					}
 
-				if len(result[0]) != 1 || (result[0][0]&0xfe) != 0 {
-					return nil, fmt.Errorf("wrapper %s returned invalid success flag: %x", k.algo, result[0])
-				}
-
-				ok := result[0][0] == 1
-				respTest.Passed = &ok
+					ok := result[0][0] == 1
+					respTest.Passed = &ok
+					return nil
+				})
 			}
 
-			respGroup.Tests = append(respGroup.Tests, respTest)
+			m.Barrier(func() {
+				respGroup.Tests = append(respGroup.Tests, respTest)
+			})
 		}
 
-		respGroups = append(respGroups, respGroup)
+		m.Barrier(func() {
+			respGroups = append(respGroups, respGroup)
+		})
+	}
+
+	if err := m.Flush(); err != nil {
+		return nil, err
 	}
 
 	return respGroups, nil

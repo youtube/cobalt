@@ -94,13 +94,10 @@ class TestAppDiscoveryService : public apps::AppDiscoveryService {
 };
 
 apps::Result MakeAppsResult(bool masking_allowed) {
-  return apps::Result(
-      apps::AppSource::kGames, "12345", u"Title",
-      std::make_unique<apps::GameExtras>(
-          absl::make_optional(std::vector<std::u16string>({u"A", u"B", u"C"})),
-          u"SourceName", u"TestGamePublisher",
-          base::FilePath("/icons/test.png"), masking_allowed,
-          GURL("https://game.com/game")));
+  return apps::Result(apps::AppSource::kGames, "12345", u"Title",
+                      std::make_unique<apps::GameExtras>(
+                          u"SourceName", base::FilePath("/icons/test.png"),
+                          masking_allowed, GURL("https://game.com/game")));
 }
 
 }  // namespace
@@ -142,8 +139,9 @@ TEST_F(GameResultTest, Icons) {
 
   EXPECT_EQ(maskable_result.icon().dimension, kAppIconDimension);
   EXPECT_EQ(maskable_result.icon().shape, ash::SearchResultIconShape::kCircle);
-  EXPECT_TRUE(gfx::BitmapsAreEqual(*maskable_result.icon().icon.bitmap(),
-                                   *GetTestIcon().bitmap()));
+  EXPECT_TRUE(gfx::BitmapsAreEqual(
+      *maskable_result.icon().icon.Rasterize(nullptr).bitmap(),
+      *GetTestIcon().bitmap()));
 
   // The non-maskable icon must be resized and placed on a white circle.
   apps::Result non_maskable_app = MakeAppsResult(/*masking_allowed=*/false);
@@ -154,8 +152,9 @@ TEST_F(GameResultTest, Icons) {
   EXPECT_EQ(non_maskable_result.icon().dimension, kAppIconDimension);
   EXPECT_EQ(non_maskable_result.icon().shape,
             ash::SearchResultIconShape::kCircle);
-  EXPECT_TRUE(gfx::BitmapsAreEqual(*non_maskable_result.icon().icon.bitmap(),
-                                   *GetExpectedNonMaskableIcon().bitmap()));
+  EXPECT_TRUE(gfx::BitmapsAreEqual(
+      *non_maskable_result.icon().icon.Rasterize(nullptr).bitmap(),
+      *GetExpectedNonMaskableIcon().bitmap()));
 
   // If there is no icon, then the result should be filtered out.
   app_discovery_service_->set_icons_available(false);

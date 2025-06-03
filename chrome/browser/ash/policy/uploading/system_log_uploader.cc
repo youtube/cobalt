@@ -15,7 +15,6 @@
 #include "base/files/scoped_temp_dir.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
-#include "base/metrics/histogram_macros.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "base/syslog_logging.h"
@@ -67,6 +66,8 @@ const char* const kSystemLogFileNames[] = {"/var/log/bios_info.txt",
                                            "/var/log/chrome/chrome",
                                            "/var/log/chrome/chrome.PREVIOUS",
                                            "/var/log/eventlog.txt",
+                                           "/var/log/extensions.log",
+                                           "/var/log/extensions.1.log",
                                            "/var/log/platform_info.txt",
                                            "/var/log/messages",
                                            "/var/log/messages.1",
@@ -138,6 +139,7 @@ std::unique_ptr<SystemLogUploader::SystemLogs> ReadFiles() {
   auto system_logs = std::make_unique<SystemLogUploader::SystemLogs>();
   redaction::RedactionTool redactor(
       extension_misc::kBuiltInFirstPartyExtensionIds);
+  redactor.EnableCreditCardRedaction(true);
   for (const char* file_path : kSystemLogFileNames) {
     if (!base::PathExists(base::FilePath(file_path)))
       continue;
@@ -316,9 +318,6 @@ const char* const SystemLogUploader::kZippedLogsFileName = "logs.zip";
 const char* const SystemLogUploader::kContentTypeOctetStream =
     "application/octet-stream";
 
-const char* const SystemLogUploader::kSystemLogUploadResultHistogram =
-    "Enterprise.SystemLogUploadResult";
-
 SystemLogUploader::SystemLogUploader(
     std::unique_ptr<Delegate> syslog_delegate,
     const scoped_refptr<base::SequencedTaskRunner>& task_runner)
@@ -338,13 +337,9 @@ SystemLogUploader::SystemLogUploader(
       base::BindRepeating(&SystemLogUploader::RefreshUploadSettings,
                           base::Unretained(this)));
 
-  // Fetch the current value of the policy.
+  // Fetch the current value of the policy. This will also schedule a
+  // system log upload if uploads become enabled.
   RefreshUploadSettings();
-
-  // Immediately schedule the next system log upload (last_upload_attempt_ is
-  // set to the start of the epoch, so this will trigger an update upload in the
-  // immediate future).
-  ScheduleNextSystemLogUpload(upload_frequency_, absl::nullopt);
 }
 
 SystemLogUploader::~SystemLogUploader() {}
@@ -356,10 +351,6 @@ void SystemLogUploader::OnSuccess() {
   log_upload_in_progress_ = false;
   retry_count_ = 0;
 
-  // TODO(b/279419095): Remove the histogram.
-  UMA_HISTOGRAM_ENUMERATION(kSystemLogUploadResultHistogram,
-                            ZIPPED_LOGS_UPLOAD_SUCCESS);
-
   // On successful log upload schedule the next log upload after
   // upload_frequency_ time from now.
   ScheduleNextSystemLogUpload(upload_frequency_, absl::nullopt);
@@ -370,9 +361,6 @@ void SystemLogUploader::OnFailure(UploadJob::ErrorCode error_code) {
   last_upload_attempt_ = base::Time::NowFromSystemTime();
   log_upload_in_progress_ = false;
 
-  // TODO(b/279419095): Remove the histogram.
-  UMA_HISTOGRAM_ENUMERATION(kSystemLogUploadResultHistogram,
-                            ZIPPED_LOGS_UPLOAD_FAILURE);
   //  If we have hit the maximum number of retries, terminate this upload
   //  attempt and schedule the next one using the normal delay. Otherwise, retry
   //  uploading after kErrorUploadDelayMs milliseconds.
@@ -414,8 +402,18 @@ void SystemLogUploader::RefreshUploadSettings() {
 
   // CrosSettings are trusted - we want to use the last trusted values, by
   // default do not upload system logs.
+  // We also want to schedule a job if the settings switch to enabled, so
+  // store the previous value.
+  const bool previous_upload_enabled = upload_enabled_;
   if (!settings->GetBoolean(ash::kSystemLogUploadEnabled, &upload_enabled_)) {
     upload_enabled_ = false;
+  }
+
+  // Schedule a log upload job if uploads were previously disabled and
+  // are now enabled. If no jobs have been attempted (ie. last_upload_attempt_
+  // is the initial value) it will be scheduled immediately.
+  if (!previous_upload_enabled && upload_enabled_){
+    ScheduleNextSystemLogUpload(upload_frequency_, absl::nullopt);
   }
 }
 
@@ -504,7 +502,7 @@ base::Time SystemLogUploader::UpdateLocalStateForLogs() {
     // ListValue stores Value type and Value does not support base::Time,
     // so we store double and convert to base::Time here.
     const base::Time current_item_time =
-        base::Time::FromDoubleT(item.GetDouble());
+        base::Time::FromSecondsSinceUnixEpoch(item.GetDouble());
 
     // Logs are valid only if they occur in previous kLogThrottleWindowDuration
     // time window.
@@ -527,7 +525,7 @@ base::Time SystemLogUploader::UpdateLocalStateForLogs() {
   // Create a list to be updated for the pref.
   base::Value::List updated_prev_log_uploads;
   for (auto it : updated_log_uploads) {
-    updated_prev_log_uploads.Append(it.ToDoubleT());
+    updated_prev_log_uploads.Append(it.InSecondsFSinceUnixEpoch());
   }
   local_state->SetList(prefs::kStoreLogStatesAcrossReboots,
                        std::move(updated_prev_log_uploads));

@@ -147,18 +147,6 @@ enum WhitespaceRemovalPolicy {
   DO_NOT_REMOVE_WHITESPACE,
 };
 
-// This template converts a given character type to the corresponding
-// StringPiece type.
-template<typename CHAR> struct CharToStringPiece {
-};
-template<> struct CharToStringPiece<char> {
-  typedef base::StringPiece Piece;
-};
-template <>
-struct CharToStringPiece<char16_t> {
-  typedef base::StringPiece16 Piece;
-};
-
 // Given a string and a range inside the string, compares it to the given
 // lower-case |compare_to| buffer.
 template<typename CHAR>
@@ -168,8 +156,7 @@ inline bool DoCompareSchemeComponent(const CHAR* spec,
   if (component.is_empty())
     return compare_to[0] == 0;  // When component is empty, match empty scheme.
   return base::EqualsCaseInsensitiveASCII(
-      typename CharToStringPiece<CHAR>::Piece(&spec[component.begin],
-                                              component.len),
+      std::basic_string_view(&spec[component.begin], component.len),
       compare_to);
 }
 
@@ -185,8 +172,7 @@ bool DoIsInSchemes(const CHAR* spec,
 
   for (const SchemeWithType& scheme_with_type : schemes) {
     if (base::EqualsCaseInsensitiveASCII(
-            typename CharToStringPiece<CHAR>::Piece(&spec[scheme.begin],
-                                                    scheme.len),
+            std::basic_string_view(&spec[scheme.begin], scheme.len),
             scheme_with_type.scheme)) {
       *type = scheme_with_type.type;
       return true;
@@ -735,8 +721,8 @@ bool FindAndCompareScheme(const char16_t* str,
   return DoFindAndCompareScheme(str, str_len, compare, found_scheme);
 }
 
-bool DomainIs(base::StringPiece canonical_host,
-              base::StringPiece canonical_domain) {
+bool DomainIs(std::string_view canonical_host,
+              std::string_view canonical_domain) {
   if (canonical_host.empty() || canonical_domain.empty())
     return false;
 
@@ -754,7 +740,7 @@ bool DomainIs(base::StringPiece canonical_host,
   const char* host_first_pos =
       canonical_host.data() + host_len - canonical_domain.length();
 
-  if (base::StringPiece(host_first_pos, canonical_domain.length()) !=
+  if (std::string_view(host_first_pos, canonical_domain.length()) !=
       canonical_domain) {
     return false;
   }
@@ -771,7 +757,7 @@ bool DomainIs(base::StringPiece canonical_host,
   return true;
 }
 
-bool HostIsIPAddress(base::StringPiece host) {
+bool HostIsIPAddress(std::string_view host) {
   STACK_UNINITIALIZED url::RawCanonOutputT<char, 128> ignored_output;
   url::CanonHostInfo host_info;
   url::CanonicalizeIPAddress(host.data(), Component(0, host.length()),
@@ -847,19 +833,18 @@ bool ReplaceComponents(const char* spec,
                              charset_converter, output, out_parsed);
 }
 
-void DecodeURLEscapeSequences(const char* input,
-                              int length,
+void DecodeURLEscapeSequences(std::string_view input,
                               DecodeURLMode mode,
                               CanonOutputW* output) {
-  if (length <= 0)
+  if (input.empty()) {
     return;
+  }
 
   STACK_UNINITIALIZED RawCanonOutputT<char> unescaped_chars;
-  size_t length_size_t = static_cast<size_t>(length);
-  for (size_t i = 0; i < length_size_t; i++) {
+  for (size_t i = 0; i < input.length(); i++) {
     if (input[i] == '%') {
       unsigned char ch;
-      if (DecodeEscaped(input, &i, length_size_t, &ch)) {
+      if (DecodeEscaped(input.data(), &i, input.length(), &ch)) {
         unescaped_chars.push_back(ch);
       } else {
         // Invalid escape sequence, copy the percent literal.
@@ -885,8 +870,8 @@ void DecodeURLEscapeSequences(const char* input,
       // character.
       size_t next_character = i;
       base_icu::UChar32 code_point;
-      if (ReadUTFChar(unescaped_chars.data(), &next_character, unescaped_length,
-                      &code_point)) {
+      if (ReadUTFCharLossy(unescaped_chars.data(), &next_character,
+                           unescaped_length, &code_point)) {
         // Valid UTF-8 character, convert to UTF-16.
         AppendUTF16Value(code_point, output);
         i = next_character;
@@ -908,14 +893,18 @@ void DecodeURLEscapeSequences(const char* input,
   }
 }
 
-void EncodeURIComponent(const char* input, int length, CanonOutput* output) {
-  for (int i = 0; i < length; ++i) {
-    unsigned char c = static_cast<unsigned char>(input[i]);
-    if (IsComponentChar(c))
+void EncodeURIComponent(std::string_view input, CanonOutput* output) {
+  for (unsigned char c : input) {
+    if (IsComponentChar(c)) {
       output->push_back(c);
-    else
+    } else {
       AppendEscapedChar(c, output);
+    }
   }
+}
+
+bool IsURIComponentChar(char c) {
+  return IsComponentChar(c);
 }
 
 bool CompareSchemeComponent(const char* spec,
@@ -928,6 +917,18 @@ bool CompareSchemeComponent(const char16_t* spec,
                             const Component& component,
                             const char* compare_to) {
   return DoCompareSchemeComponent(spec, component, compare_to);
+}
+
+bool HasInvalidURLEscapeSequences(std::string_view input) {
+  for (size_t i = 0; i < input.size(); i++) {
+    if (input[i] == '%') {
+      unsigned char ch;
+      if (!DecodeEscaped(input.data(), &i, input.size(), &ch)) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 }  // namespace url

@@ -17,6 +17,7 @@
 #include "third_party/blink/renderer/platform/platform_export.h"
 #include "ui/base/ime/mojom/text_input_state.mojom-blink.h"
 #include "ui/base/ime/mojom/virtual_keyboard_types.mojom-blink.h"
+#include "ui/base/ui_base_types.h"
 #include "ui/gfx/mojom/delegated_ink_metadata.mojom-blink.h"
 
 namespace cc {
@@ -114,6 +115,12 @@ class PLATFORM_EXPORT FrameWidget {
   // Returns the DisplayMode in use for the widget.
   virtual mojom::blink::DisplayMode DisplayMode() const = 0;
 
+  // Returns the WindowShowState in use for the widget.
+  virtual ui::WindowShowState WindowShowState() const = 0;
+
+  // Returns the CanResize value of the widget.
+  virtual bool Resizable() const = 0;
+
   // Returns the window segments for the widget.
   virtual const WebVector<gfx::Rect>& WindowSegments() const = 0;
 
@@ -127,13 +134,14 @@ class PLATFORM_EXPORT FrameWidget {
                              const gfx::PointF& position,
                              const gfx::Vector2dF& velocity) = 0;
 
-  // Requests that a gesture of |injected_type| be reissued at a later point in
-  // time. |injected_type| is required to be one of
-  // GestureScroll{Begin,Update,End}. The dispatched gesture will scroll the
+  // For a scrollbar scroll action, requests that a gesture of |injected_type|
+  // be reissued at a later point in time. |injected_type| is required to be one
+  // of GestureScroll{Begin,Update,End}. The dispatched gesture will scroll the
   // ScrollableArea identified by |scrollable_area_element_id| by the given
   // delta + granularity.
-  virtual void InjectGestureScrollEvent(
-      mojom::blink::GestureDevice device,
+  // See also InputHandlerProxy::InjectScrollbarGestureScroll() which may
+  // shortcut callers of this function for composited scrollbars.
+  virtual void InjectScrollbarGestureScroll(
       const gfx::Vector2dF& delta,
       ui::ScrollGranularity granularity,
       cc::ElementId scrollable_area_element_id,
@@ -145,6 +153,12 @@ class PLATFORM_EXPORT FrameWidget {
   // Return the composition character in window coordinates.
   virtual void GetCompositionCharacterBoundsInWindow(
       Vector<gfx::Rect>* bounds_in_dips) = 0;
+
+  // Return the visible line bounds in screen coordinates.
+  virtual Vector<gfx::Rect>& GetVisibleLineBoundsOnScreen() = 0;
+
+  // Update the current visible line bounds for the focused element.
+  virtual void UpdateLineBounds() = 0;
 
   virtual gfx::Range CompositionRange() = 0;
   // Returns ime_text_spans and corresponding window coordinates for the list

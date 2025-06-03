@@ -95,8 +95,8 @@ class ManagePasswordsUIController
       const url::Origin& origin) override;
   void OnPromptEnableAutoSignin() override;
   void OnAutomaticPasswordSave(
-      std::unique_ptr<password_manager::PasswordFormManagerForUI> form_manager)
-      override;
+      std::unique_ptr<password_manager::PasswordFormManagerForUI> form_manager,
+      bool is_update_confirmation) override;
   void OnPasswordAutofilled(
       const std::vector<const password_manager::PasswordForm*>& password_forms,
       const url::Origin& origin,
@@ -111,6 +111,7 @@ class ManagePasswordsUIController
   void OnBiometricAuthenticationForFilling(PrefService* prefs) override;
   void ShowBiometricActivationConfirmation() override;
   void OnBiometricAuthBeforeFillingDeclined() override;
+  void OnAddUsernameSaveClicked(const std::u16string& username) override;
 
   virtual void NotifyUnsyncedCredentialsWillBeDeleted(
       std::vector<password_manager::PasswordForm> unsynced_credentials);
@@ -172,8 +173,6 @@ class ManagePasswordsUIController
   void ChooseCredential(
       const password_manager::PasswordForm& form,
       password_manager::CredentialType credential_type) override;
-  void NavigateToPasswordManagerAccountDashboard(
-      password_manager::ManagePasswordsReferrer referrer) override;
   void NavigateToPasswordManagerSettingsPage(
       password_manager::ManagePasswordsReferrer referrer) override;
   void EnableSync(const AccountInfo& account) override;
@@ -186,6 +185,7 @@ class ManagePasswordsUIController
   void AuthenticateUserForAccountStoreOptInAndMovePassword() override;
   void AuthenticateUserForAccountStoreOptInAfterSavingLocallyAndMovePassword()
       override;
+  void MaybeShowIOSPasswordPromo() override;
   // Skips user os level authentication during the life time of the returned
   // object. To be used in tests of flows that require user authentication.
   [[nodiscard]] std::unique_ptr<base::AutoReset<bool>>
@@ -319,6 +319,10 @@ class ManagePasswordsUIController
   // Cancels current authentication and releases |biometric_authenticator_|.
   void CancelAnyOngoingBiometricAuth();
 
+  // Returns true if the password that is about to be changed was previously
+  // phished.
+  bool IsPendingPasswordPhished() const;
+
   // Timeout in seconds for the manual fallback for saving.
   static int save_fallback_timeout_in_seconds_;
 
@@ -345,7 +349,7 @@ class ManagePasswordsUIController
   std::list<std::unique_ptr<password_manager::MovePasswordToAccountStoreHelper>>
       move_to_account_store_helpers_;
 
-  scoped_refptr<device_reauth::DeviceAuthenticator> biometric_authenticator_;
+  std::unique_ptr<device_reauth::DeviceAuthenticator> biometric_authenticator_;
 
   // Used to bypass user authentication in integration tests.
   bool bypass_user_auth_for_testing_ = false;

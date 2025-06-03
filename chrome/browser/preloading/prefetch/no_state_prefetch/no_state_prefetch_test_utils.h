@@ -89,8 +89,7 @@ class TestNoStatePrefetchContents : public NoStatePrefetchContents,
 // A handle to a TestNoStatePrefetchContents whose lifetime is under the
 // caller's control. A NoStatePrefetchContents may be destroyed at any point.
 // This allows tracking the FinalStatus.
-class TestPrerender : public NoStatePrefetchContents::Observer,
-                      public base::SupportsWeakPtr<TestPrerender> {
+class TestPrerender : public NoStatePrefetchContents::Observer {
  public:
   TestPrerender();
 
@@ -122,6 +121,10 @@ class TestPrerender : public NoStatePrefetchContents::Observer,
 
   void OnPrefetchStop(NoStatePrefetchContents* contents) override;
 
+  base::WeakPtr<TestPrerender> AsWeakPtr() {
+    return weak_ptr_factory_.GetWeakPtr();
+  }
+
  private:
   raw_ptr<TestNoStatePrefetchContents> contents_;
   FinalStatus final_status_;
@@ -136,6 +139,7 @@ class TestPrerender : public NoStatePrefetchContents::Observer,
   base::RunLoop create_loop_;
   base::RunLoop start_loop_;
   base::RunLoop stop_loop_;
+  base::WeakPtrFactory<TestPrerender> weak_ptr_factory_{this};
 };
 
 // Blocks until a TestNoStatePrefetchContents has been destroyed with the given
@@ -365,9 +369,9 @@ class PrerenderInProcessBrowserTest : virtual public InProcessBrowserTest {
       external_protocol_handler_delegate_;
   std::unique_ptr<safe_browsing::TestSafeBrowsingServiceFactory>
       safe_browsing_factory_;
-  raw_ptr<TestNoStatePrefetchContentsFactory, DanglingUntriaged>
+  raw_ptr<TestNoStatePrefetchContentsFactory, AcrossTasksDanglingUntriaged>
       no_state_prefetch_contents_factory_;
-  raw_ptr<Browser, DanglingUntriaged> explicitly_set_browser_;
+  raw_ptr<Browser, AcrossTasksDanglingUntriaged> explicitly_set_browser_;
   bool autostart_test_server_;
   base::HistogramTester histogram_tester_;
   std::unique_ptr<net::EmbeddedTestServer> https_src_server_;

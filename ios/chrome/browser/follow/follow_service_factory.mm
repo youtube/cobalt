@@ -7,16 +7,12 @@
 #import "base/no_destructor.h"
 #import "components/keyed_service/ios/browser_state_dependency_manager.h"
 #import "components/pref_registry/pref_registry_syncable.h"
-#import "ios/chrome/browser/browser_state/chrome_browser_state.h"
 #import "ios/chrome/browser/discover_feed/discover_feed_service_factory.h"
 #import "ios/chrome/browser/follow/follow_configuration.h"
 #import "ios/chrome/browser/follow/follow_service.h"
-#import "ios/chrome/browser/prefs/pref_names.h"
+#import "ios/chrome/browser/shared/model/browser_state/chrome_browser_state.h"
+#import "ios/chrome/browser/shared/model/prefs/pref_names.h"
 #import "ios/public/provider/chrome/browser/follow/follow_api.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 // static
 FollowService* FollowServiceFactory::GetForBrowserState(
@@ -55,4 +51,5 @@ std::unique_ptr<KeyedService> FollowServiceFactory::BuildServiceInstanceFor(
 void FollowServiceFactory::RegisterBrowserStatePrefs(
     user_prefs::PrefRegistrySyncable* registry) {
   registry->RegisterIntegerPref(prefs::kFirstFollowUIShownCount, 0);
+  registry->RegisterIntegerPref(prefs::kFirstFollowUpdateUIShownCount, 0);
 }

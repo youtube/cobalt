@@ -9,6 +9,7 @@
 #include "base/strings/string_util.h"
 #include "base/uuid.h"
 #include "content/browser/fenced_frame/fenced_frame_reporter.h"
+#include "services/network/public/cpp/attribution_reporting_runtime_features.h"
 #include "third_party/blink/public/common/interest_group/ad_auction_constants.h"
 
 namespace content {
@@ -18,6 +19,33 @@ const char kUrnUuidPrefix[] = "urn:uuid:";
 GURL GenerateUrnUuid() {
   return GURL(kUrnUuidPrefix +
               base::Uuid::GenerateRandomV4().AsLowercaseString());
+}
+
+std::string SubstituteMappedStrings(
+    const std::string& input,
+    const std::vector<std::pair<std::string, std::string>>& substitutions) {
+  std::vector<std::string> output_vec;
+  size_t input_idx = 0;
+  while (input_idx < input.size()) {
+    size_t replace_idx = input.size();
+    size_t replace_end_idx = input.size();
+    std::pair<std::string, std::string> const* next_replacement = nullptr;
+    for (const auto& substitution : substitutions) {
+      size_t found_idx = input.find(substitution.first, input_idx);
+      if (found_idx < replace_idx) {
+        replace_idx = found_idx;
+        replace_end_idx = found_idx + substitution.first.size();
+        next_replacement = &substitution;
+      }
+    }
+    output_vec.push_back(input.substr(input_idx, replace_idx - input_idx));
+    if (replace_idx < input.size()) {
+      output_vec.push_back(next_replacement->second);
+    }
+    // move input index to after what we replaced (or end of string).
+    input_idx = replace_end_idx;
+  }
+  return base::StrCat(output_vec);
 }
 
 namespace {
@@ -61,6 +89,32 @@ void RedactProperty(
 }
 
 }  // namespace
+
+AutomaticBeaconInfo::AutomaticBeaconInfo() = default;
+
+AutomaticBeaconInfo::AutomaticBeaconInfo(
+    const std::string& data,
+    const std::vector<blink::FencedFrame::ReportingDestination>& destinations,
+    network::AttributionReportingRuntimeFeatures
+        attribution_reporting_runtime_features,
+    bool once)
+    : data(data),
+      destinations(destinations),
+      attribution_reporting_runtime_features(
+          attribution_reporting_runtime_features),
+      once(once) {}
+
+AutomaticBeaconInfo::AutomaticBeaconInfo(const AutomaticBeaconInfo&) = default;
+
+AutomaticBeaconInfo::AutomaticBeaconInfo(AutomaticBeaconInfo&&) = default;
+
+AutomaticBeaconInfo& AutomaticBeaconInfo::operator=(
+    const AutomaticBeaconInfo&) = default;
+
+AutomaticBeaconInfo& AutomaticBeaconInfo::operator=(AutomaticBeaconInfo&&) =
+    default;
+
+AutomaticBeaconInfo::~AutomaticBeaconInfo() = default;
 
 FencedFrameConfig::FencedFrameConfig() = default;
 
@@ -176,6 +230,9 @@ blink::FencedFrame::RedactedFencedFrameConfig FencedFrameConfig::RedactFor(
   // was called to generate the config, rather than any cross-site data.
   redacted_config.mode_ = mode_;
 
+  redacted_config.effective_enabled_permissions_ =
+      effective_enabled_permissions;
+
   return redacted_config;
 }
 
@@ -206,7 +263,8 @@ FencedFrameProperties::FencedFrameProperties(const FencedFrameConfig& config)
                        VisibilityToEmbedder::kOpaque,
                        VisibilityToContent::kOpaque),
       mode_(config.mode_),
-      is_ad_component_(config.is_ad_component_) {
+      is_ad_component_(config.is_ad_component_),
+      effective_enabled_permissions(config.effective_enabled_permissions) {
   if (config.shared_storage_budget_metadata_) {
     shared_storage_budget_metadata_.emplace(
         &config.shared_storage_budget_metadata_->GetValueIgnoringVisibility(),
@@ -276,16 +334,21 @@ FencedFrameProperties::RedactFor(FencedFrameEntity entity) const {
     }
   }
 
-  if (fenced_frame_reporter_ || is_ad_component_) {
+  if ((fenced_frame_reporter_ || is_ad_component_) &&
+      entity != FencedFrameEntity::kCrossOriginContent) {
     // An ad component should use its parent's fenced frame reporter. Even
     // though it does not have a reporter in its `FencedFrameProperties`, this
-    // flag is still marked as true.
+    // flag is still marked as true. Content that is cross-origin to the
+    // config's mapped url will not get access to its parent's reporter.
     redacted_properties.has_fenced_frame_reporting_ = true;
   }
 
   // The mode never needs to be redacted, because it is a function of which API
   // was called to generate the config, rather than any cross-site data.
   redacted_properties.mode_ = mode_;
+
+  redacted_properties.effective_enabled_permissions_ =
+      effective_enabled_permissions;
 
   return redacted_properties;
 }
@@ -296,11 +359,35 @@ void FencedFrameProperties::UpdateMappedURL(GURL url) {
 }
 
 void FencedFrameProperties::UpdateAutomaticBeaconData(
+    blink::mojom::AutomaticBeaconType event_type,
     const std::string& event_data,
-    const std::vector<blink::FencedFrame::ReportingDestination>& destinations) {
+    const std::vector<blink::FencedFrame::ReportingDestination>& destinations,
+    network::AttributionReportingRuntimeFeatures
+        attribution_reporting_runtime_features,
+    bool once) {
   // For an ad component, the event data from its automatic beacon is ignored.
-  automatic_beacon_info_.emplace(is_ad_component_ ? std::string{} : event_data,
-                                 destinations);
+  automatic_beacon_info_[event_type] =
+      AutomaticBeaconInfo(is_ad_component_ ? std::string{} : event_data,
+                          destinations, attribution_reporting_runtime_features,
+                          once);
+}
+
+void FencedFrameProperties::MaybeResetAutomaticBeaconData(
+    blink::mojom::AutomaticBeaconType event_type) {
+  auto it = automatic_beacon_info_.find(event_type);
+  if (it != automatic_beacon_info_.end() && it->second.once == true) {
+    automatic_beacon_info_.erase(it);
+  }
+}
+
+const absl::optional<AutomaticBeaconInfo>
+FencedFrameProperties::GetAutomaticBeaconInfo(
+    blink::mojom::AutomaticBeaconType event_type) const {
+  auto it = automatic_beacon_info_.find(event_type);
+  if (it == automatic_beacon_info_.end()) {
+    return absl::nullopt;
+  }
+  return it->second;
 }
 
 }  // namespace content

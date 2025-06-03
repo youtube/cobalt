@@ -13,7 +13,9 @@
 #include "chrome/browser/ui/ash/desks/desks_client.h"
 #include "chromeos/crosapi/mojom/desk.mojom.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
+#include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver_set.h"
+#include "mojo/public/cpp/bindings/remote_set.h"
 
 namespace ash {
 class Desk;
@@ -34,7 +36,8 @@ class DeskAsh : public mojom::Desk {
   void LaunchEmptyDesk(const std::string& desk_name,
                        LaunchEmptyDeskCallback callback) override;
   void RemoveDesk(const base::Uuid& desk_uuid,
-                  bool close_all,
+                  bool combine_desk,
+                  absl::optional<bool> allow_undo,
                   RemoveDeskCallback callback) override;
   void GetTemplateJson(const base::Uuid& uuid,
                        GetTemplateJsonCallback callback) override;
@@ -56,6 +59,12 @@ class DeskAsh : public mojom::Desk {
   void SwitchDesk(const base::Uuid& uuid, SwitchDeskCallback callback) override;
   void GetDeskByID(const base::Uuid& uuid,
                    GetDeskByIDCallback callback) override;
+  void AddDeskEventObserver(
+      mojo::PendingRemote<crosapi::mojom::DeskEventObserver> observer) override;
+  void NotifyDeskAdded(const base::Uuid& uuid, bool from_undo = false);
+  void NotifyDeskRemoved(const base::Uuid& uuid);
+  void NotifyDeskSwitched(const base::Uuid& current_id,
+                          const base::Uuid& previous_id);
 
  private:
   // Returns the window pointer by app restore window Id.
@@ -63,6 +72,9 @@ class DeskAsh : public mojom::Desk {
                                               int32_t app_restore_window_id);
 
   mojo::ReceiverSet<mojom::Desk> receivers_;
+
+  // Cache remote clients that are currently consuming desk events.
+  mojo::RemoteSet<mojom::DeskEventObserver> remote_desk_event_observers_;
 
   base::WeakPtrFactory<DeskAsh> weak_ptr_factory_{this};
 };

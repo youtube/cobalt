@@ -5,7 +5,7 @@
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {getTemplate} from './app_service_internals.html.js';
-import {AppInfo, AppServiceInternalsPageHandler, PreferredAppInfo, PromiseAppInfo} from './app_service_internals.mojom-webui.js';
+import {AppCapabilityInfo, AppInfo, AppServiceInternalsPageHandler, PreferredAppInfo, PromiseAppInfo, ShortcutInfo} from './app_service_internals.mojom-webui.js';
 
 export class AppServiceInternalsElement extends PolymerElement {
   static get is() {
@@ -21,6 +21,8 @@ export class AppServiceInternalsElement extends PolymerElement {
       appList_: Array,
       preferredAppList_: Array,
       promiseAppList_: Array,
+      appCapabilityList_: Array,
+      shortcutList_: Array,
     };
   }
 
@@ -31,18 +33,28 @@ export class AppServiceInternalsElement extends PolymerElement {
   private preferredAppList_: PreferredAppInfo[] = [];
   /** List containing debug information for all promise apps. */
   private promiseAppList_: PromiseAppInfo[] = [];
+  /** List containing app capability access information. */
+  private appCapabilityList_: AppCapabilityInfo[] = [];
+  /** List containing debug information for all shortcuts. */
+  private shortcutList_: ShortcutInfo[] = [];
 
   override ready() {
     super.ready();
     (async () => {
       const remote = AppServiceInternalsPageHandler.getRemote();
 
-      this.appList_ = (await remote.getApps()).appList;
-      this.preferredAppList_ =
-          (await remote.getPreferredApps()).preferredAppList;
-      this.promiseAppList_ = (await remote.getPromiseApps()).promiseAppList;
-      this.onHashChanged_();
+      const {debugInfo} = await remote.getDebugInfo();
+      if (debugInfo) {
+        this.appList_ = debugInfo.appList;
+        this.preferredAppList_ = debugInfo.preferredAppList;
+        this.promiseAppList_ = debugInfo.promiseAppList;
+        this.appCapabilityList_ = debugInfo.appCapabilityList;
+        this.shortcutList_ = debugInfo.shortcutList;
+      }
       window.addEventListener('hashchange', this.hashChangeListener_);
+      // setTimeout ensures that we only apply the hash change after all the
+      // page content has rendered.
+      setTimeout(() => this.onHashChanged_(), 0);
     })();
   }
 
@@ -69,7 +81,7 @@ export class AppServiceInternalsElement extends PolymerElement {
   }
 
   private save_() {
-    const fileParts = [];
+    const fileParts: string[] = [];
     fileParts.push('App List\n');
     fileParts.push('========\n\n');
     for (const app of this.appList_) {
@@ -81,9 +93,33 @@ export class AppServiceInternalsElement extends PolymerElement {
     fileParts.push('Preferred Apps\n');
     fileParts.push('==============\n\n');
     for (const preferredApp of this.preferredAppList_) {
-      fileParts.push(preferredApp.name + '\n');
+      fileParts.push(preferredApp.name + ' (' + preferredApp.id + ')\n');
       fileParts.push('-----\n');
       fileParts.push(preferredApp.preferredFilters + '\n');
+    }
+
+    fileParts.push('App Capabilities\n');
+    fileParts.push('================\n\n');
+    for (const appCapability of this.appCapabilityList_) {
+      fileParts.push(appCapability.name + '\n');
+      fileParts.push('-----\n');
+      fileParts.push(appCapability.debugInfo + '\n');
+    }
+
+    fileParts.push('Shortcut List\n');
+    fileParts.push('================\n\n');
+    for (const shortcut of this.shortcutList_) {
+      fileParts.push(shortcut.name + '\n');
+      fileParts.push('-----\n');
+      fileParts.push(shortcut.debugInfo + '\n');
+    }
+
+    fileParts.push('Promise App List\n');
+    fileParts.push('================\n\n');
+    for (const promiseApp of this.promiseAppList_) {
+      fileParts.push(promiseApp.packageId + '\n');
+      fileParts.push('-----\n');
+      fileParts.push(promiseApp.debugInfo + '\n');
     }
 
     const file = new Blob(fileParts);

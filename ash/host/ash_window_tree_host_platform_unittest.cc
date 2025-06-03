@@ -105,6 +105,9 @@ class TestInputController : public ui::InputController {
                         GetTouchEventLogReply reply) override {
     std::move(reply).Run(std::vector<base::FilePath>());
   }
+  void DescribeForLog(DescribeForLogReply reply) const override {
+    std::move(reply).Run(std::string());
+  }
   void PlayVibrationEffect(int id,
                            uint8_t amplitude,
                            uint16_t duration_millis) override {}
@@ -124,8 +127,10 @@ class TestInputController : public ui::InputController {
   void GetGesturePropertiesService(
       mojo::PendingReceiver<ui::ozone::mojom::GesturePropertiesService>
           receiver) override {}
+  bool AreAnyKeysPressed() override { return false; }
 
   bool GetAccelerationSuspended() { return acceleration_suspended_; }
+  void DisableKeyboardImposterCheck() override {}
 
  private:
   // member variable used to keep track of mouse acceleration suspension

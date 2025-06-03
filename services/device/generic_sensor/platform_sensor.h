@@ -9,7 +9,6 @@
 #include <map>
 #include <memory>
 
-#include "base/containers/flat_set.h"
 #include "base/functional/callback_forward.h"
 #include "base/location.h"
 #include "base/memory/raw_ptr.h"
@@ -28,6 +27,7 @@ namespace device {
 
 class PlatformSensorProvider;
 class PlatformSensorConfiguration;
+struct SensorReadingSharedBuffer;
 
 // Base class for the sensors provided by the platform. Concrete instances of
 // this class are created by platform specific PlatformSensorProvider.
@@ -133,22 +133,28 @@ class PlatformSensor : public base::RefCountedThreadSafe<PlatformSensor> {
 
   base::ObserverList<Client, true>::Unchecked clients_;
 
+  base::WeakPtr<PlatformSensor> AsWeakPtr();
+
  private:
   friend class base::RefCountedThreadSafe<PlatformSensor>;
 
-  // Updates shared buffer with provided SensorReading. If
-  // |do_significance_check| is true then |last_raw_reading_| and
-  // |reading_buffer_| are only updated if |reading| is significantly different
-  // from |last_raw_reading_|. Returns true if |reading_buffer_| has been
-  // updated, and false otherwise.
+  // Updates shared buffer with provided SensorReading. For sensors whose
+  // reporting mode is ON_CHANGE, |reading_buffer_| is updated only if
+  // |reading| and its rounded version pass the required threshold and
+  // significance checks. Returns true if |reading_buffer_| has been updated,
+  // and false otherwise.
   // Note: this method is thread-safe.
-  bool UpdateSharedBuffer(const SensorReading& reading,
-                          bool do_significance_check)
+  bool UpdateSharedBuffer(const SensorReading& reading)
       EXCLUSIVE_LOCKS_REQUIRED(lock_);
 
-  // Check if multiple instances of PlatformSensor can exist at once. It weas
-  // first suggested in crbug.com/1383180.
-  static base::flat_set<mojom::SensorType>& GetInitializedSensors();
+  // Stores an empty reading into the shared buffer and resets
+  // |last_{raw,rounded}_reading|.
+  void ResetSharedBuffer() EXCLUSIVE_LOCKS_REQUIRED(lock_);
+
+  // Writes the given reading to |reading_buffer_|. Requires |is_active_| to be
+  // true.
+  void WriteToSharedBuffer(const SensorReading&)
+      EXCLUSIVE_LOCKS_REQUIRED(lock_);
 
   scoped_refptr<base::SequencedTaskRunner> main_task_runner_;
 

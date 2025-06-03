@@ -38,6 +38,7 @@ void CloneChildren(ui::Layer* to_clone,
       CloneChildren(owner->layer(), old_layer, map_func);
     }
   }
+  parent->set_no_mutation(true);
 }
 
 // Invokes Mirror() on all the children of |to_mirror|, adding the newly cloned
@@ -138,6 +139,10 @@ void SetWindowFullscreen(aura::Window* window,
 
 bool WindowStateIs(const aura::Window* window, ui::WindowShowState state) {
   return window->GetProperty(aura::client::kShowStateKey) == state;
+}
+
+ui::WindowShowState GetWindowState(const aura::Window* window) {
+  return window->GetProperty(aura::client::kShowStateKey);
 }
 
 void SetWindowState(aura::Window* window, ui::WindowShowState state) {

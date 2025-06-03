@@ -61,6 +61,21 @@ std::ostream& operator<<(std::ostream& os,
 
 }  // namespace
 
+OnDeviceTailModelExecutor::ModelInput::ModelInput() = default;
+
+OnDeviceTailModelExecutor::ModelInput::ModelInput(std::string prefix,
+                                                  std::string previous_query,
+                                                  size_t max_num_suggestions,
+                                                  size_t max_rnn_steps,
+                                                  float probability_threshold)
+    : prefix(std::move(prefix)),
+      previous_query(std::move(previous_query)),
+      max_num_suggestions(max_num_suggestions),
+      max_rnn_steps(max_rnn_steps),
+      probability_threshold(probability_threshold) {}
+
+OnDeviceTailModelExecutor::ModelInput::~ModelInput() = default;
+
 OnDeviceTailModelExecutor::RnnCellStates::RnnCellStates() = default;
 
 OnDeviceTailModelExecutor::RnnCellStates::RnnCellStates(size_t num_layer,
@@ -117,34 +132,54 @@ OnDeviceTailModelExecutor::OnDeviceTailModelExecutor()
 
 OnDeviceTailModelExecutor::~OnDeviceTailModelExecutor() = default;
 
-bool OnDeviceTailModelExecutor::Init(const base::FilePath& model_filepath,
-                                     const base::FilePath& vocab_filepath,
-                                     const ModelMetadata& metadata) {
+bool OnDeviceTailModelExecutor::Init() {
+  executor_last_called_time_ = base::TimeTicks::Now();
   Reset();
-  if (model_filepath.empty() || vocab_filepath.empty()) {
+  if (model_filepath_.empty() || vocab_filepath_.empty()) {
     return false;
   }
-
   auto tokenizer = std::make_unique<OnDeviceTailTokenizer>();
-  tokenizer->Init(vocab_filepath);
+  tokenizer->Init(vocab_filepath_);
   if (!tokenizer->IsReady()) {
     DVLOG(1) << "Could not create tokenizer from file "
-             << vocab_filepath.LossyDisplayName();
+             << vocab_filepath_.LossyDisplayName();
+    vocab_filepath_.clear();
     return false;
   }
   tokenizer_ = std::move(tokenizer);
 
-  if (!InitModelInterpreter(model_filepath)) {
+  if (!InitModelInterpreter(model_filepath_)) {
     Reset();
+    model_filepath_.clear();
     return false;
   }
 
-  state_size_ = metadata.lstm_model_params().state_size();
-  num_layer_ = metadata.lstm_model_params().num_layer();
-  embedding_dimension_ = metadata.lstm_model_params().embedding_dimension();
+  state_size_ = metadata_.lstm_model_params().state_size();
+  num_layer_ = metadata_.lstm_model_params().num_layer();
+  embedding_dimension_ = metadata_.lstm_model_params().embedding_dimension();
   vocab_size_ = tokenizer_->vocab_size();
 
   return true;
+}
+
+bool OnDeviceTailModelExecutor::Init(const base::FilePath& model_filepath,
+                                     const base::FilePath& vocab_filepath,
+                                     const ModelMetadata& metadata) {
+  if (model_filepath.empty() || vocab_filepath.empty()) {
+    return false;
+  }
+
+  model_filepath_ = model_filepath;
+  vocab_filepath_ = vocab_filepath;
+  metadata_ = metadata;
+
+  if (Init()) {
+    return true;
+  }
+
+  model_filepath_.clear();
+  vocab_filepath_.clear();
+  return false;
 }
 
 bool OnDeviceTailModelExecutor::InitModelInterpreter(
@@ -508,39 +543,36 @@ float OnDeviceTailModelExecutor::GetLogProbability(float probability) {
 
 std::vector<OnDeviceTailModelExecutor::Prediction>
 OnDeviceTailModelExecutor::GenerateSuggestionsForPrefix(
-    const std::string& prefix,
-    const std::string& previous_query,
-    size_t max_num_suggestions,
-    size_t max_rnn_steps,
-    float probability_threshold) {
+    const ModelInput& input) {
+  executor_last_called_time_ = base::TimeTicks::Now();
   DCHECK(IsReady());
   std::vector<Prediction> predictions;
 
-  if (prefix.empty()) {
+  if (input.prefix.empty()) {
     return predictions;
   }
 
   OnDeviceTailTokenizer::Tokenization input_tokenization;
-  tokenizer_->CreatePrefixTokenization(prefix, &input_tokenization);
+  tokenizer_->CreatePrefixTokenization(input.prefix, &input_tokenization);
 
   OnDeviceTailTokenizer::TokenIds prev_query_token_ids;
-  tokenizer_->TokenizePrevQuery(previous_query, &prev_query_token_ids);
+  tokenizer_->TokenizePrevQuery(input.previous_query, &prev_query_token_ids);
 
   std::vector<float> prev_query_encoding;
   BeamNode root_beam;
   if (!GetRootBeamNode(input_tokenization, prev_query_token_ids,
                        &prev_query_encoding, &root_beam)) {
-    DVLOG(1) << "Failed to get root beam node for prefix [" << prefix << "]["
-             << previous_query << "]";
+    DVLOG(1) << "Failed to get root beam node for prefix [" << input.prefix
+             << "][" << input.previous_query << "]";
     return predictions;
   }
 
   OnDeviceTailModelExecutor::CandidateQueue partial_candidates,
       completed_candidates;
   partial_candidates.emplace(std::move(root_beam));
-  float log_prob_threshold = GetLogProbability(probability_threshold);
+  float log_prob_threshold = GetLogProbability(input.probability_threshold);
 
-  for (size_t i = 0; i < max_rnn_steps; ++i) {
+  for (size_t i = 0; i < input.max_rnn_steps; ++i) {
     if (partial_candidates.empty()) {
       break;
     }
@@ -555,7 +587,7 @@ OnDeviceTailModelExecutor::GenerateSuggestionsForPrefix(
       RnnStepOutput rnn_step_output;
       if (RunRnnStep(beam.rnn_step_cache_key, beam.token_ids.back(),
                      prev_query_encoding, beam.states, &rnn_step_output)) {
-        CreateNewBeams(rnn_step_output, beam, max_num_suggestions,
+        CreateNewBeams(rnn_step_output, beam, input.max_num_suggestions,
                        log_prob_threshold, &partial_candidates,
                        &completed_candidates);
 
@@ -593,7 +625,7 @@ OnDeviceTailModelExecutor::GenerateSuggestionsForPrefix(
     }
 
     // Remove echo suggestion.
-    if (suggestion == prefix) {
+    if (suggestion == input.prefix) {
       continue;
     }
 

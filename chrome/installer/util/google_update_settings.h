@@ -18,6 +18,7 @@
 #include "chrome/installer/util/google_update_constants.h"
 #include "chrome/installer/util/util_constants.h"
 #include "components/metrics/client_info.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace installer {
 class AdditionalParameters;
@@ -102,6 +103,11 @@ class GoogleUpdateSettings {
   [[nodiscard]] static bool GetCollectStatsConsentDefault(
       bool* stats_consent_default);
 #endif
+
+  // Returns a hash of the current update cohort ID string to which the
+  // browser is assigned, if any. Discards any cohort data past the final ":".
+  // If there is no ":", returns nullopt.
+  static absl::optional<uint32_t> GetHashedCohortId();
 
   // Returns the metrics client info backed up in the registry. nullptr
   // if-and-only-if the client_id couldn't be retrieved (failure to retrieve
@@ -266,21 +272,6 @@ class GoogleUpdateSettings {
   // Returns product data for the current product. (Equivalent to calling
   // GetUpdateDetailForApp with the current install mode's app guid.)
   static bool GetUpdateDetail(ProductData* data);
-
-  // Sets |experiment_labels| as the Google Update experiment_labels value in
-  // the ClientState key for this Chrome product, if appropriate. If
-  // |experiment_labels| is empty, this will delete the value instead. This will
-  // return true if the label was successfully set (or deleted), false otherwise
-  // (even if the label does not need to be set for this particular brand).
-  static bool SetExperimentLabels(const std::wstring& experiment_labels);
-
-  // Reads the Google Update experiment_labels value in the ClientState key for
-  // this Chrome product and writes it into |experiment_labels|. If the key or
-  // value does not exist, |experiment_labels| will be set to the empty string.
-  // If this brand does not set the experiment_labels value, this will do
-  // nothing to |experiment_labels|. This will return true if the label did not
-  // exist, or was successfully read.
-  static bool ReadExperimentLabels(std::wstring* experiment_labels);
 };
 
 #endif  // CHROME_INSTALLER_UTIL_GOOGLE_UPDATE_SETTINGS_H_

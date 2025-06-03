@@ -33,6 +33,7 @@
 #include "ash/wm/tablet_mode/tablet_mode_controller.h"
 #include "base/command_line.h"
 #include "base/run_loop.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "ui/compositor/layer.h"
 #include "ui/compositor/layer_animator.h"
@@ -229,6 +230,7 @@ TEST_F(HomeButtonWithQuickAppAccess, NonExistentApp) {
 // Test that when setting a quick app with no icon, the quick app button doesn't
 // show until an icon is loaded.
 TEST_F(HomeButtonWithQuickAppAccess, AppWithNoIconThenLoaded) {
+  base::HistogramTester histogram_tester;
   EXPECT_FALSE(IsQuickAppVisible());
 
   const std::string quick_app_id = "Quick App Item";
@@ -246,8 +248,11 @@ TEST_F(HomeButtonWithQuickAppAccess, AppWithNoIconThenLoaded) {
 
   // Set the default icon and check that the quick app button is visible after.
   item->SetDefaultIconAndColor(
-      CreateSolidColorTestImage(gfx::Size(32, 32), SK_ColorRED), IconColor());
+      CreateSolidColorTestImage(gfx::Size(32, 32), SK_ColorRED), IconColor(),
+      /*is_placeholder_icon=*/false);
   EXPECT_TRUE(IsQuickAppVisible());
+
+  histogram_tester.ExpectTotalCount("Apps.QuickAppIconLoadTime", 1);
 }
 
 // Test that the quick app button image changes when setting a new quick app
@@ -259,13 +264,15 @@ TEST_F(HomeButtonWithQuickAppAccess, IconUpdatesOnNewQuickAppSet) {
   AppListItem* item = new AppListItem(quick_app_id);
   GetAppListTestHelper()->model()->AddItem(item);
   item->SetDefaultIconAndColor(
-      CreateSolidColorTestImage(gfx::Size(32, 32), SK_ColorRED), IconColor());
+      CreateSolidColorTestImage(gfx::Size(32, 32), SK_ColorRED), IconColor(),
+      /*is_placeholder_icon=*/false);
 
   const std::string quick_app_id_two = "Quick App Item Two";
   AppListItem* item_two = new AppListItem(quick_app_id_two);
   GetAppListTestHelper()->model()->AddItem(item_two);
   item_two->SetDefaultIconAndColor(
-      CreateSolidColorTestImage(gfx::Size(32, 32), SK_ColorBLUE), IconColor());
+      CreateSolidColorTestImage(gfx::Size(32, 32), SK_ColorBLUE), IconColor(),
+      /*is_placeholder_icon=*/false);
 
   EXPECT_TRUE(
       Shell::Get()->app_list_controller()->SetHomeButtonQuickApp(quick_app_id));
@@ -405,7 +412,7 @@ TEST_F(HomeButtonWithQuickAppAccess, QuickAppButtonAnimation) {
   EXPECT_FALSE(quick_app_button->layer()->GetAnimator()->is_animating());
 
   const int quick_app_margin = 8;
-  EXPECT_EQ(home_button()->width() + quick_app_margin,
+  EXPECT_EQ(ShelfConfig::Get()->control_size() + quick_app_margin,
             quick_app_button->bounds().x());
   EXPECT_EQ(0, quick_app_button->bounds().y());
 

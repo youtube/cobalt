@@ -44,6 +44,10 @@ class InitAwareBackgroundDownloadServiceTest : public testing::Test {
         std::move(controller));
   }
 
+  void TearDown() override {
+    controller_ = nullptr;
+  }
+
  protected:
   raw_ptr<test::MockController> controller_;
   std::unique_ptr<InitAwareBackgroundDownloadService> service_;

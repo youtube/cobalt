@@ -7,13 +7,13 @@
 #include "third_party/blink/renderer/bindings/modules/v8/v8_gpu_command_buffer_descriptor.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_gpu_command_encoder_descriptor.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_gpu_compute_pass_descriptor.h"
-#include "third_party/blink/renderer/bindings/modules/v8/v8_gpu_compute_pass_timestamp_write.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_gpu_compute_pass_timestamp_writes.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_gpu_image_copy_buffer.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_gpu_image_copy_texture.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_gpu_render_pass_color_attachment.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_gpu_render_pass_depth_stencil_attachment.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_gpu_render_pass_descriptor.h"
-#include "third_party/blink/renderer/bindings/modules/v8/v8_gpu_render_pass_timestamp_write.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_gpu_render_pass_timestamp_writes.h"
 #include "third_party/blink/renderer/modules/webgpu/dawn_conversions.h"
 #include "third_party/blink/renderer/modules/webgpu/gpu_buffer.h"
 #include "third_party/blink/renderer/modules/webgpu/gpu_command_buffer.h"
@@ -49,33 +49,46 @@ bool ConvertToDawn(const GPURenderPassColorAttachment* in,
   return true;
 }
 
-WGPUComputePassTimestampWrite AsDawnType(
-    const GPUComputePassTimestampWrite* webgpu_desc) {
-  DCHECK(webgpu_desc);
-  DCHECK(webgpu_desc->querySet());
-
-  WGPUComputePassTimestampWrite dawn_desc = {};
-  dawn_desc.querySet = webgpu_desc->querySet()->GetHandle();
-  dawn_desc.queryIndex = webgpu_desc->queryIndex();
-  dawn_desc.location = AsDawnEnum(webgpu_desc->location());
-
-  return dawn_desc;
-}
-
-WGPURenderPassTimestampWrite AsDawnType(
-    const GPURenderPassTimestampWrite* webgpu_desc) {
-  DCHECK(webgpu_desc);
-  DCHECK(webgpu_desc->querySet());
-
-  WGPURenderPassTimestampWrite dawn_desc = {};
-  dawn_desc.querySet = webgpu_desc->querySet()->GetHandle();
-  dawn_desc.queryIndex = webgpu_desc->queryIndex();
-  dawn_desc.location = AsDawnEnum(webgpu_desc->location());
-
-  return dawn_desc;
-}
-
 namespace {
+
+// Dawn represents `undefined` as the special uint32_t value
+// WGPU_QUERY_SET_INDEX_UNDEFINED (0xFFFF'FFFF). Blink must make sure that an
+// actual value of 0xFFFF'FFFF coming in from JS is not treated as
+// WGPU_QUERY_SET_INDEX_UNDEFINED, so it injects an error in that case.
+template <typename GPUTimestampWrites, typename WGPUTimestampWrites>
+const char* ValidateAndConvertTimestampWrites(
+    const GPUTimestampWrites* webgpu_desc,
+    WGPUTimestampWrites* dawn_desc) {
+  DCHECK(webgpu_desc);
+  DCHECK(webgpu_desc->querySet());
+
+  uint32_t beginningOfPassWriteIndex = 0;
+  if (webgpu_desc->hasBeginningOfPassWriteIndex()) {
+    beginningOfPassWriteIndex = webgpu_desc->beginningOfPassWriteIndex();
+    if (beginningOfPassWriteIndex == WGPU_QUERY_SET_INDEX_UNDEFINED) {
+      return "beginningOfPassWriteIndex is too large";
+    }
+  } else {
+    beginningOfPassWriteIndex = WGPU_QUERY_SET_INDEX_UNDEFINED;
+  }
+
+  uint32_t endOfPassWriteIndex = 0;
+  if (webgpu_desc->hasEndOfPassWriteIndex()) {
+    endOfPassWriteIndex = webgpu_desc->endOfPassWriteIndex();
+    if (endOfPassWriteIndex == WGPU_QUERY_SET_INDEX_UNDEFINED) {
+      return "endOfPassWriteIndex is too large";
+    }
+  } else {
+    endOfPassWriteIndex = WGPU_QUERY_SET_INDEX_UNDEFINED;
+  }
+
+  *dawn_desc = {};
+  dawn_desc->querySet = webgpu_desc->querySet()->GetHandle();
+  dawn_desc->beginningOfPassWriteIndex = beginningOfPassWriteIndex;
+  dawn_desc->endOfPassWriteIndex = endOfPassWriteIndex;
+
+  return nullptr;
+}
 
 WGPURenderPassDepthStencilAttachment AsDawnType(
     GPUDevice* device,
@@ -201,25 +214,17 @@ GPURenderPassEncoder* GPUCommandEncoder::beginRenderPass(
     dawn_desc.occlusionQuerySet = AsDawnType(descriptor->occlusionQuerySet());
   }
 
-  uint32_t timestamp_writes_count =
-      static_cast<uint32_t>(descriptor->timestampWrites().size());
-  dawn_desc.timestampWriteCount = timestamp_writes_count;
-  std::unique_ptr<WGPURenderPassTimestampWrite[]> timestamp_writes;
-  if (timestamp_writes_count > 0) {
-    V8GPUFeatureName::Enum requiredFeatureEnum =
-        V8GPUFeatureName::Enum::kTimestampQuery;
-    if (!device_->features()->has(requiredFeatureEnum)) {
-      exception_state.ThrowTypeError(
-          String::Format("Use of the timestampWrites member in render pass "
-                         "descriptor requires the '%s' "
-                         "feature to be enabled on %s.",
-                         V8GPUFeatureName(requiredFeatureEnum).AsCStr(),
-                         device_->formattedLabel().c_str()));
-      return nullptr;
+  WGPURenderPassTimestampWrites timestampWrites = {};
+  if (descriptor->hasTimestampWrites()) {
+    GPURenderPassTimestampWrites* timestamp_writes =
+        descriptor->timestampWrites();
+    const char* error =
+        ValidateAndConvertTimestampWrites(timestamp_writes, &timestampWrites);
+    if (error) {
+      GetProcs().commandEncoderInjectValidationError(GetHandle(), error);
+    } else {
+      dawn_desc.timestampWrites = &timestampWrites;
     }
-
-    timestamp_writes = AsDawnType(descriptor->timestampWrites());
-    dawn_desc.timestampWrites = timestamp_writes.get();
   }
 
   WGPURenderPassDescriptorMaxDrawCount max_draw_count = {};
@@ -248,27 +253,17 @@ GPUComputePassEncoder* GPUCommandEncoder::beginComputePass(
     dawn_desc.label = label.c_str();
   }
 
-  uint32_t timestamp_writes_count =
-      static_cast<uint32_t>(descriptor->timestampWrites().size());
-  dawn_desc.timestampWriteCount = timestamp_writes_count;
-  std::unique_ptr<WGPUComputePassTimestampWrite[]> timestamp_writes;
-  if (timestamp_writes_count > 0) {
-    V8GPUFeatureName::Enum requiredFeatureEnum =
-        V8GPUFeatureName::Enum::kTimestampQuery;
-    if (!device_->features()->has(requiredFeatureEnum)) {
-      exception_state.ThrowTypeError(
-          String::Format("Use of the timestampWrites member in compute pass "
-                         "descriptor requires the '%s' "
-                         "feature to be enabled on %s.",
-                         V8GPUFeatureName(requiredFeatureEnum).AsCStr(),
-                         device_->formattedLabel().c_str()));
-      return nullptr;
+  WGPUComputePassTimestampWrites timestampWrites = {};
+  if (descriptor->hasTimestampWrites()) {
+    GPUComputePassTimestampWrites* timestamp_writes =
+        descriptor->timestampWrites();
+    const char* error =
+        ValidateAndConvertTimestampWrites(timestamp_writes, &timestampWrites);
+    if (error) {
+      GetProcs().commandEncoderInjectValidationError(GetHandle(), error);
+    } else {
+      dawn_desc.timestampWrites = &timestampWrites;
     }
-
-    timestamp_writes = AsDawnType(descriptor->timestampWrites());
-    dawn_desc.timestampWrites = timestamp_writes.get();
-  } else {
-    dawn_desc.timestampWrites = nullptr;
   }
 
   GPUComputePassEncoder* encoder = MakeGarbageCollected<GPUComputePassEncoder>(
@@ -285,7 +280,7 @@ void GPUCommandEncoder::copyBufferToTexture(GPUImageCopyBuffer* source,
                                             ExceptionState& exception_state) {
   WGPUExtent3D dawn_copy_size;
   WGPUImageCopyTexture dawn_destination;
-  if (!ConvertToDawn(copy_size, &dawn_copy_size, exception_state) ||
+  if (!ConvertToDawn(copy_size, &dawn_copy_size, device_, exception_state) ||
       !ConvertToDawn(destination, &dawn_destination, exception_state)) {
     return;
   }
@@ -308,7 +303,7 @@ void GPUCommandEncoder::copyTextureToBuffer(GPUImageCopyTexture* source,
                                             ExceptionState& exception_state) {
   WGPUExtent3D dawn_copy_size;
   WGPUImageCopyTexture dawn_source;
-  if (!ConvertToDawn(copy_size, &dawn_copy_size, exception_state) ||
+  if (!ConvertToDawn(copy_size, &dawn_copy_size, device_, exception_state) ||
       !ConvertToDawn(source, &dawn_source, exception_state)) {
     return;
   }
@@ -332,7 +327,7 @@ void GPUCommandEncoder::copyTextureToTexture(GPUImageCopyTexture* source,
   WGPUExtent3D dawn_copy_size;
   WGPUImageCopyTexture dawn_source;
   WGPUImageCopyTexture dawn_destination;
-  if (!ConvertToDawn(copy_size, &dawn_copy_size, exception_state) ||
+  if (!ConvertToDawn(copy_size, &dawn_copy_size, device_, exception_state) ||
       !ConvertToDawn(source, &dawn_source, exception_state) ||
       !ConvertToDawn(destination, &dawn_destination, exception_state)) {
     return;

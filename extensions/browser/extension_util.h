@@ -10,6 +10,7 @@
 
 #include "base/functional/callback.h"
 #include "extensions/common/manifest.h"
+#include "extensions/common/mojom/renderer.mojom.h"
 #include "url/gurl.h"
 
 namespace base {
@@ -76,6 +77,19 @@ content::ServiceWorkerContext* GetServiceWorkerContextForExtensionId(
     const ExtensionId& extension_id,
     content::BrowserContext* browser_context);
 
+// Sets the `extension` user script world configuration for `browser_context`
+// in the state store and notifies the renderer.
+void SetUserScriptWorldInfo(const Extension& extension,
+                            content::BrowserContext* browser_context,
+                            absl::optional<std::string> csp,
+                            bool messaging);
+
+// Returns the `extension_id` user script world configuration for
+// `browser_context`.
+mojom::UserScriptWorldInfoPtr GetUserScriptWorldInfo(
+    const ExtensionId& extension_id,
+    content::BrowserContext* browser_context);
+
 // Maps a |file_url| to a |file_path| on the local filesystem, including
 // resources in extensions. Returns true on success. See NaClBrowserDelegate for
 // full details. If |use_blocking_api| is false, only a subset of URLs will be
@@ -95,7 +109,11 @@ bool CanWithholdPermissionsFromExtension(
     const Manifest::Type type,
     const mojom::ManifestLocation location);
 
-// Returns a unique int id for each context.
+// Returns a unique int id for each context. Prefer using
+// `BrowserContext::UniqueId()` directly.
+// TODO(crbug.com/1444279):  Migrate callers to use the `context` unique id
+// directly. For that we need to update all data keyed by integer context ids to
+// be keyed by strings instead.
 int GetBrowserContextId(content::BrowserContext* context);
 
 // Returns whether the |extension| should be loaded in the given

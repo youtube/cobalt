@@ -51,10 +51,12 @@ MediaSinkInternal CreateSinkForDisplay(const Display& display,
 bool CompareDisplays(int64_t primary_id,
                      const Display& display1,
                      const Display& display2) {
-  if (display1.id() == primary_id)
-    return true;
-  if (display2.id() == primary_id)
+  if (display2.id() == primary_id) {
     return false;
+  }
+  if (display1.id() == primary_id) {
+    return true;
+  }
   return display1.bounds().y() < display2.bounds().y() ||
          (display1.bounds().y() == display2.bounds().y() &&
           display1.bounds().x() < display2.bounds().x());
@@ -97,7 +99,6 @@ void WiredDisplayMediaRouteProvider::CreateRoute(
     const url::Origin& origin,
     int32_t frame_tree_node_id,
     base::TimeDelta timeout,
-    bool off_the_record,
     CreateRouteCallback callback) {
   DCHECK(!base::Contains(presentations_, presentation_id));
   absl::optional<Display> display = GetDisplayBySinkId(sink_id);
@@ -115,7 +116,6 @@ void WiredDisplayMediaRouteProvider::CreateRoute(
   MediaRoute route(presentation_id, MediaSource(media_source), sink_id,
                    GetRouteDescription(media_source), true);
   route.set_local_presentation(true);
-  route.set_off_the_record(profile_->IsOffTheRecord());
   route.set_controller_type(RouteControllerType::kGeneric);
 
   Presentation& presentation =
@@ -134,7 +134,6 @@ void WiredDisplayMediaRouteProvider::JoinRoute(
     const url::Origin& origin,
     int32_t frame_tree_node_id,
     base::TimeDelta timeout,
-    bool off_the_record,
     JoinRouteCallback callback) {
   std::move(callback).Run(
       absl::nullopt, nullptr,
@@ -195,16 +194,6 @@ void WiredDisplayMediaRouteProvider::StartObservingMediaRoutes() {
     route_list.push_back(presentation.second.route());
 
   media_router_->OnRoutesUpdated(kProviderId, route_list);
-}
-
-void WiredDisplayMediaRouteProvider::StartListeningForRouteMessages(
-    const std::string& route_id) {
-  // Messages should be handled by LocalPresentationManager.
-}
-
-void WiredDisplayMediaRouteProvider::StopListeningForRouteMessages(
-    const std::string& route_id) {
-  // Messages should be handled by LocalPresentationManager.
 }
 
 void WiredDisplayMediaRouteProvider::DetachRoute(const std::string& route_id) {

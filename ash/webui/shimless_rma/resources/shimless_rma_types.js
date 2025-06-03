@@ -367,6 +367,26 @@ export const Network = NetworkStateProperties;
 export const ShutdownMethod = ash.shimlessRma.mojom.ShutdownMethod;
 
 /**
+ * Type alias for the FeatureLevel.
+ * @typedef {ash.shimlessRma.mojom.FeatureLevel}
+ */
+export const FeatureLevel = ash.shimlessRma.mojom.FeatureLevel;
+
+/**
  * @typedef {{savePath: mojoBase.mojom.FilePath, error: RmadErrorCode}}
  */
 export let SaveLogResponse;
+
+/**
+ * Type alias for the Shimless3pDiagnosticsAppInfo.
+ * @typedef {ash.shimlessRma.mojom.Shimless3pDiagnosticsAppInfo}
+ */
+export const Shimless3pDiagnosticsAppInfo =
+    ash.shimlessRma.mojom.Shimless3pDiagnosticsAppInfo;
+
+/**
+ * Type alias for the Show3pDiagnosticsAppResult.
+ * @typedef {ash.shimlessRma.mojom.Show3pDiagnosticsAppResult}
+ */
+export const Show3pDiagnosticsAppResult =
+    ash.shimlessRma.mojom.Show3pDiagnosticsAppResult;

@@ -528,7 +528,6 @@ public class PeerConnection {
     public boolean enableCpuOveruseDetection;
     public boolean suspendBelowMinBitrate;
     @Nullable public Integer screencastMinBitrate;
-    @Nullable public Boolean combinedAudioVideoBwe;
     // Use "Unknown" to represent no preference of adapter types, not the
     // preference of adapters of unknown types.
     public AdapterType networkPreference;
@@ -540,11 +539,6 @@ public class PeerConnection {
     // Actively reset the SRTP parameters whenever the DTLS transports underneath are reset for
     // every offer/answer negotiation.This is only intended to be a workaround for crbug.com/835958
     public boolean activeResetSrtpParams;
-
-    // Whether this client is allowed to switch encoding codec mid-stream. This is a workaround for
-    // a WebRTC bug where the receiver could get confussed if a codec switch happened mid-call.
-    // Null indicates no change to currently configured value.
-    @Nullable public Boolean allowCodecSwitching;
 
     /**
      * Defines advanced optional cryptographic settings related to SRTP and
@@ -607,13 +601,11 @@ public class PeerConnection {
       enableCpuOveruseDetection = true;
       suspendBelowMinBitrate = false;
       screencastMinBitrate = null;
-      combinedAudioVideoBwe = null;
       networkPreference = AdapterType.UNKNOWN;
       sdpSemantics = SdpSemantics.UNIFIED_PLAN;
       activeResetSrtpParams = false;
       cryptoOptions = null;
       turnLoggingId = null;
-      allowCodecSwitching = null;
       enableImplicitRollback = false;
       offerExtmapAllowMixed = true;
     }
@@ -788,12 +780,6 @@ public class PeerConnection {
       return screencastMinBitrate;
     }
 
-    @Nullable
-    @CalledByNative("RTCConfiguration")
-    Boolean getCombinedAudioVideoBwe() {
-      return combinedAudioVideoBwe;
-    }
-
     @CalledByNative("RTCConfiguration")
     AdapterType getNetworkPreference() {
       return networkPreference;
@@ -807,12 +793,6 @@ public class PeerConnection {
     @CalledByNative("RTCConfiguration")
     boolean getActiveResetSrtpParams() {
       return activeResetSrtpParams;
-    }
-
-    @Nullable
-    @CalledByNative("RTCConfiguration")
-    Boolean getAllowCodecSwitching() {
-      return allowCodecSwitching;
     }
 
     @Nullable

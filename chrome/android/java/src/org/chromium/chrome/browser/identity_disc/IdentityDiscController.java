@@ -5,6 +5,7 @@
 package org.chromium.chrome.browser.identity_disc;
 
 import android.content.Context;
+import android.content.res.Resources;
 import android.graphics.drawable.Drawable;
 
 import androidx.annotation.Nullable;
@@ -17,7 +18,6 @@ import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.layouts.LayoutType;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
 import org.chromium.chrome.browser.lifecycle.NativeInitObserver;
@@ -68,9 +68,6 @@ public class IdentityDiscController implements NativeInitObserver, ProfileDataCa
     // ProfileDataCache facilitates retrieving profile picture.
     private ProfileDataCache mProfileDataCache;
 
-    // Whether the identity disc is visible.
-    private boolean mIsIdentityDiscShown;
-
     private ButtonDataImpl mButtonData;
     private ObserverList<ButtonDataObserver> mObservers = new ObserverList<>();
     private boolean mNativeIsInitialized;
@@ -101,7 +98,9 @@ public class IdentityDiscController implements NativeInitObserver, ProfileDataCa
                 new IPHCommandBuilder(mContext.getResources(),
                         FeatureConstants.IDENTITY_DISC_FEATURE, R.string.iph_identity_disc_text,
                         R.string.iph_identity_disc_accessibility_text),
-                /*isEnabled=*/true, AdaptiveToolbarButtonVariant.UNKNOWN);
+                /*isEnabled=*/true, AdaptiveToolbarButtonVariant.UNKNOWN, /*tooltipTextResId=*/
+                Resources.ID_NULL,
+                /*showHoverHighlight=*/true);
     }
 
     /**
@@ -162,27 +161,17 @@ public class IdentityDiscController implements NativeInitObserver, ProfileDataCa
         }
 
         String email = CoreAccountInfo.getEmailFrom(getSignedInAccountInfo());
-        if (ChromeFeatureList.isEnabled(ChromeFeatureList.IDENTITY_STATUS_CONSISTENCY)) {
-            mIsIdentityDiscShown = true;
-        } else {
-            mIsIdentityDiscShown = email != null;
-        }
-        ensureProfileDataCache(mIsIdentityDiscShown);
+        ensureProfileDataCache();
 
-        if (mIsIdentityDiscShown) {
-            mButtonData.setButtonSpec(
-                    buttonSpecWithDrawableAndDescription(mButtonData.getButtonSpec(), email));
-            mButtonData.setCanShow(true);
-        } else {
-            mButtonData.setCanShow(false);
-        }
+        mButtonData.setButtonSpec(
+                buttonSpecWithDrawableAndDescription(mButtonData.getButtonSpec(), email));
+        mButtonData.setCanShow(true);
     }
 
     private ButtonSpec buttonSpecWithDrawableAndDescription(
             ButtonSpec buttonSpec, @Nullable String email) {
         Drawable drawable = getProfileImage(email);
-        if (!ChromeFeatureList.isEnabled(ChromeFeatureList.IDENTITY_STATUS_CONSISTENCY)
-                && (buttonSpec.getDrawable() == drawable)) {
+        if (buttonSpec.getDrawable() == drawable) {
             return buttonSpec;
         }
 
@@ -190,15 +179,16 @@ public class IdentityDiscController implements NativeInitObserver, ProfileDataCa
         return new ButtonSpec(drawable, buttonSpec.getOnClickListener(),
                 /*onLongClickListener=*/null, contentDescription, buttonSpec.getSupportsTinting(),
                 buttonSpec.getIPHCommandBuilder(), AdaptiveToolbarButtonVariant.UNKNOWN,
-                buttonSpec.getActionChipLabelResId());
+                buttonSpec.getActionChipLabelResId(), buttonSpec.getHoverTooltipTextId(),
+                buttonSpec.getShouldShowHoverHighlight());
     }
 
     /**
      * Creates and initializes ProfileDataCache if it wasn't created previously. Subscribes
      * IdentityDiscController for profile data updates.
      */
-    private void ensureProfileDataCache(boolean isIdentityDiscShown) {
-        if (!isIdentityDiscShown || mProfileDataCache != null) return;
+    private void ensureProfileDataCache() {
+        if (mProfileDataCache != null) return;
 
         mProfileDataCache =
                 ProfileDataCache.createWithoutBadge(mContext, R.dimen.toolbar_identity_disc_size);
@@ -209,8 +199,7 @@ public class IdentityDiscController implements NativeInitObserver, ProfileDataCa
      * Returns Profile picture Drawable. The size of the image corresponds to current visual state.
      */
     private Drawable getProfileImage(@Nullable String email) {
-        assert mIsIdentityDiscShown;
-        if (shouldUseSignedOutAvatar(email)) {
+        if (email == null) {
             return AppCompatResources.getDrawable(mContext, R.drawable.account_circle);
         }
         return mProfileDataCache.getProfileDataOrDefault(email).getImage();
@@ -222,7 +211,6 @@ public class IdentityDiscController implements NativeInitObserver, ProfileDataCa
      */
     private void resetIdentityDiscCache() {
         if (mProfileDataCache != null) {
-            assert mIsIdentityDiscShown;
             mProfileDataCache.removeObserver(this);
             mProfileDataCache = null;
         }
@@ -239,7 +227,6 @@ public class IdentityDiscController implements NativeInitObserver, ProfileDataCa
      */
     @Override
     public void onProfileDataUpdated(String accountEmail) {
-        if (!mIsIdentityDiscShown) return;
         assert mProfileDataCache != null;
 
         if (accountEmail.equals(CoreAccountInfo.getEmailFrom(getSignedInAccountInfo()))) {
@@ -257,8 +244,8 @@ public class IdentityDiscController implements NativeInitObserver, ProfileDataCa
     /**
      * Implements {@link IdentityManager.Observer}.
      *
-     * IdentityDisc should be shown as long as the user is signed in or IDENTITY_STATUS_CONSISTENCY
-     * is enabled. Whether the user is syncing or not should not matter.
+     * <p>IdentityDisc should be always shown regardless of whether the user is signed out, signed
+     * in or syncing.
      */
     @Override
     public void onPrimaryAccountChanged(PrimaryAccountChangeEvent eventDetails) {
@@ -308,7 +295,7 @@ public class IdentityDiscController implements NativeInitObserver, ProfileDataCa
     private void recordIdentityDiscUsed() {
         BrowserUiUtils.recordIdentityDiscClicked(mIsStartSurface, mIsTabNtp);
 
-        assert mProfileSupplier != null && mProfileSupplier.get() != null;
+        assert isProfileInitialized();
         Tracker tracker = TrackerFactory.getTrackerForProfile(mProfileSupplier.get());
         tracker.notifyEvent(EventConstants.IDENTITY_DISC_USED);
         RecordUserAction.record("MobileToolbarIdentityDiscTap");
@@ -344,10 +331,6 @@ public class IdentityDiscController implements NativeInitObserver, ProfileDataCa
     }
 
     private String getContentDescription(@Nullable String email) {
-        if (!ChromeFeatureList.isEnabled(ChromeFeatureList.IDENTITY_STATUS_CONSISTENCY)) {
-            return mContext.getString(R.string.accessibility_toolbar_btn_identity_disc);
-        }
-
         if (email == null) {
             return mContext.getString(R.string.accessibility_toolbar_btn_signed_out_identity_disc);
         }
@@ -364,9 +347,13 @@ public class IdentityDiscController implements NativeInitObserver, ProfileDataCa
                 R.string.accessibility_toolbar_btn_identity_disc_with_name, userName);
     }
 
+    private boolean isProfileInitialized() {
+        return mProfileSupplier != null && mProfileSupplier.hasValue();
+    }
+
     @VisibleForTesting
     void onClick() {
-        if (!mNativeIsInitialized) {
+        if (!isProfileInitialized()) {
             return;
         }
         recordIdentityDiscUsed();
@@ -385,12 +372,5 @@ public class IdentityDiscController implements NativeInitObserver, ProfileDataCa
     @VisibleForTesting
     boolean isProfileDataCacheEmpty() {
         return mProfileDataCache == null;
-    }
-
-    private static boolean shouldUseSignedOutAvatar(@Nullable String email) {
-        boolean isIdentityStatusConsistencyEnabled =
-                ChromeFeatureList.isEnabled(ChromeFeatureList.IDENTITY_STATUS_CONSISTENCY);
-        boolean isUserSignedOut = email == null;
-        return isIdentityStatusConsistencyEnabled && isUserSignedOut;
     }
 }

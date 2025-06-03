@@ -118,11 +118,10 @@ class BrowserDevToolsAgentHost::BrowserAutoAttacher final
   // DevToolsAgentHostObserver overrides.
   void DevToolsAgentHostCreated(DevToolsAgentHost* host) override {
     DCHECK(auto_attach());
-    // In the top level target handler auto-attach to pages as soon as they
+    // In the top level target handler, auto-attach to pages as soon as they
     // are created, otherwise if they don't incur any network activity we'll
     // never get a chance to throttle them (and auto-attach there).
-
-    if (IsMainFrameHost(host) || IsSharedWorkerHost(host)) {
+    if (ShouldAttachToTarget(host)) {
       DispatchAutoAttach(
           host, wait_for_debugger_on_start() && !processing_existent_targets_);
     }
@@ -130,8 +129,17 @@ class BrowserDevToolsAgentHost::BrowserAutoAttacher final
 
   bool ShouldForceDevToolsAgentHostCreation() override { return true; }
 
-  static bool IsSharedWorkerHost(DevToolsAgentHost* host) {
-    return host->GetType() == DevToolsAgentHost::kTypeSharedWorker;
+  static bool ShouldAttachToTarget(DevToolsAgentHost* host) {
+    if (host->GetType() == DevToolsAgentHost::kTypeSharedWorker) {
+      return true;
+    }
+    if (host->GetType() == DevToolsAgentHost::kTypeSharedStorageWorklet) {
+      return true;
+    }
+    if (host->GetType() == DevToolsAgentHost::kTypeTab) {
+      return true;
+    }
+    return IsMainFrameHost(host);
   }
 
   static bool IsMainFrameHost(DevToolsAgentHost* host) {
@@ -203,7 +211,8 @@ bool BrowserDevToolsAgentHost::AttachSession(DevToolsSession* session,
     session->CreateAndAddHandler<protocol::TetheringHandler>(
         socket_callback_, tethering_task_runner_);
   }
-  session->CreateAndAddHandler<protocol::TracingHandler>(GetIOContext());
+  session->CreateAndAddHandler<protocol::TracingHandler>(
+      this, GetIOContext(), /* root_session */ nullptr);
 
 #if BUILDFLAG(CLANG_PROFILING_INSIDE_SANDBOX) && BUILDFLAG(CLANG_PGO)
   session->CreateAndAddHandler<protocol::NativeProfilingHandler>();

@@ -221,7 +221,7 @@ namespace declarativeNetRequest {
     DOMString? regexFilter;
 
     // Whether the <code>urlFilter</code> or <code>regexFilter</code>
-    // (whichever is specified) is case sensitive. Default is true.
+    // (whichever is specified) is case sensitive. Default is false.
     boolean? isUrlFilterCaseSensitive;
 
     // The rule will only match network requests originating from the list of
@@ -689,7 +689,7 @@ namespace declarativeNetRequest {
     // |callback|: Called once the update is complete. In case of an error,
     // $(ref:runtime.lastError) will be set and no change will be made to the
     // enabled static rules.
-    [nodoc, supportsPromises] static void updateStaticRules(
+    [supportsPromises] static void updateStaticRules(
         UpdateStaticRulesOptions options,
         optional EmptyCallback callback);
 
@@ -698,7 +698,7 @@ namespace declarativeNetRequest {
     // |options|: Specifies the ruleset to query.
     // |callback|: Called with a list of ids that correspond to the disabled
     // rules in that ruleset.
-    [nodoc, supportsPromises] static void getDisabledRuleIds(
+    [supportsPromises] static void getDisabledRuleIds(
         GetDisabledRuleIdsOptions options,
         GetDisabledRuleIdsCallback callback);
 
@@ -758,13 +758,22 @@ namespace declarativeNetRequest {
     // the <a href="#global-static-rule-limit">global static rule limit</a>.
     [value=30000] static long GUARANTEED_MINIMUM_STATIC_RULES();
 
-    // The maximum number of dynamic rules that an extension can add.
-    [nodoc, deprecated="Use $(ref:MAX_NUMBER_OF_DYNAMIC_AND_SESSION_RULES) instead", value=5000]
-    static long MAX_NUMBER_OF_DYNAMIC_RULES();
-
     // The maximum number of combined dynamic and session scoped rules an
     // extension can add.
     [value=5000] static long MAX_NUMBER_OF_DYNAMIC_AND_SESSION_RULES();
+
+    // The maximum number of dynamic rules that an extension can add.
+    [nodoc, value=30000] static long MAX_NUMBER_OF_DYNAMIC_RULES();
+
+    // The maximum number of "unsafe" dynamic rules that an extension can add.
+    [nodoc, value=5000] static long MAX_NUMBER_OF_UNSAFE_DYNAMIC_RULES();
+
+    // The maximum number of session scoped rules that an extension can add.
+    [nodoc, value=5000] static long MAX_NUMBER_OF_SESSION_RULES();
+
+    // The maximum number of "unsafe" session scoped rules that an extension can
+    // add.
+    [nodoc, value=5000] static long MAX_NUMBER_OF_UNSAFE_SESSION_RULES();
 
     // Time interval within which <code>MAX_GETMATCHEDRULES_CALLS_PER_INTERVAL
     // getMatchedRules</code> calls can be made, specified in minutes.
@@ -784,11 +793,11 @@ namespace declarativeNetRequest {
 
     // The maximum number of static <code>Rulesets</code> an extension can
     // specify as part of the <code>"rule_resources"</code> manifest key.
-    [value=50] static long MAX_NUMBER_OF_STATIC_RULESETS();
+    [value=100] static long MAX_NUMBER_OF_STATIC_RULESETS();
 
     // The maximum number of static <code>Rulesets</code> an extension can
     // enable at any one time.
-    [value=10] static long MAX_NUMBER_OF_ENABLED_STATIC_RULESETS();
+    [value=50] static long MAX_NUMBER_OF_ENABLED_STATIC_RULESETS();
 
     // Ruleset ID for the dynamic rules added by the extension.
     [value="_dynamic"] static DOMString DYNAMIC_RULESET_ID();

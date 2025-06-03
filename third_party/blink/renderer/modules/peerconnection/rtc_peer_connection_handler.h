@@ -12,6 +12,7 @@
 #include <string>
 #include <vector>
 
+#include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/task/single_thread_task_runner.h"
@@ -206,10 +207,7 @@ class MODULES_EXPORT RTCPeerConnectionHandler {
   virtual void RestartIce();
 
   virtual void GetStats(RTCStatsRequest* request);
-  virtual void GetStats(
-      RTCStatsReportCallback callback,
-      const Vector<webrtc::NonStandardGroupId>& exposed_group_ids,
-      bool is_track_stats_deprecation_trial_enabled);
+  virtual void GetStats(RTCStatsReportCallback callback);
   virtual webrtc::RTCErrorOr<std::unique_ptr<RTCRtpTransceiverPlatform>>
   AddTransceiverWithTrack(MediaStreamComponent* component,
                           const webrtc::RtpTransceiverInit& init);
@@ -221,6 +219,9 @@ class MODULES_EXPORT RTCPeerConnectionHandler {
            const MediaStreamDescriptorVector& descriptors);
   virtual webrtc::RTCErrorOr<std::unique_ptr<RTCRtpTransceiverPlatform>>
   RemoveTrack(blink::RTCRtpSenderPlatform* web_sender);
+
+  Vector<std::unique_ptr<blink::RTCRtpSenderPlatform>> GetPlatformSenders()
+      const;
 
   virtual rtc::scoped_refptr<webrtc::DataChannelInterface> CreateDataChannel(
       const String& label,
@@ -247,6 +248,9 @@ class MODULES_EXPORT RTCPeerConnectionHandler {
   void GetStats(rtc::scoped_refptr<webrtc::StatsObserver> observer,
                 webrtc::PeerConnectionInterface::StatsOutputLevel level,
                 rtc::scoped_refptr<webrtc::MediaStreamTrackInterface> selector);
+
+  // Allows webrtc-internals to request a brief dump of the current state.
+  void EmitCurrentStateForTracker();
 
   // Tells the |client_| to close RTCPeerConnection.
   // Make it virtual for testing purpose.
@@ -439,7 +443,7 @@ class MODULES_EXPORT RTCPeerConnectionHandler {
   // references on the signaling thread during GC.
   scoped_refptr<base::SingleThreadTaskRunner> signaling_thread_;
 
-  blink::WebLocalFrame* frame_ = nullptr;
+  raw_ptr<blink::WebLocalFrame, ExperimentalRenderer> frame_ = nullptr;
 
   // Map and owners of track adapters. Every track that is in use by the peer
   // connection has an associated blink and webrtc layer representation of it.

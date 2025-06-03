@@ -16,6 +16,7 @@
 <translation id="1729654308190250600">Bo‘sh bo‘lmagan e-pochta manzilini kiriting.</translation>
 <translation id="1758486001363313524">Boshqa...</translation>
 <translation id="1787192514241997742">umimiy vaqt: <ph name="REMAINING_TIME" /></translation>
+<translation id="1800494066469288780">Kameraga ruxsat berish</translation>
 <translation id="1822429046913737220">AM/PM</translation>
 <translation id="1832974991323546415">masofadagi qurilmada ijro etish</translation>
 <translation id="1921819250265091946">kk</translation>
@@ -24,9 +25,9 @@
 <translation id="1993104285338243655">Tasvir boshqa ekranga uzatilmoqda</translation>
 <translation id="2031987842108996681">Qizil kanal</translation>
 <translation id="2060505056492490888">“<ph name="INVALIDDOMAIN" />” manzilida <ph name="DOT" /> belgisi noto‘g‘ri qo‘yildi.</translation>
+<translation id="2068711044993563745">Minimal qiymat (<ph name="MINIMUM" />) maksimal qiymatdan (<ph name="MAXIMUM" />) kichik boʻlishi kerak.</translation>
 <translation id="2148716181193084225">Bugun</translation>
 <translation id="2226276347425096477">Bu matnni <ph name="MAX_CHARACTERS" /> belgigacha kamaytiring (hozircha <ph name="CURRENT_LENGTH" /> ta belgi kiritdingiz).</translation>
-<translation id="2246498165605549352">Qurilmadagi fayl</translation>
 <translation id="2247351761944213033"><ph name="WEEKNUMBER" />-hafta , <ph name="YEAR" /></translation>
 <translation id="2277199496770840904">Musiqa <ph name="NUMBER" /></translation>
 <translation id="2393030564806080191">Rangning 16 raqamli qiymati</translation>
@@ -45,11 +46,13 @@
 <translation id="2761667185364618470">Davom etish uchun ushbu katakchani belgilang.</translation>
 <translation id="2908441821576996758">Elektron pochta manzillarini bir vergul bilan ajratilgan holda kiriting.</translation>
 <translation id="3049748772180311791"><ph name="QUANTITY" /> MB</translation>
+<translation id="3053226512517284904">audio tavsiflarni chiqarish menyusi</translation>
 <translation id="3075154866155599887">Yaroqli qiymat kiriting. Maydon to‘ldirilmadi yoki noto‘g‘ri sana kiritildi.</translation>
 <translation id="310520048233152454">URL kiriting.</translation>
 <translation id="3220661731597678625">joriy qadam</translation>
 <translation id="3321030238473337787">Ijro tezligi</translation>
 <translation id="3329013043687509092">To‘liqlik</translation>
+<translation id="3377518164566272702">Mikrofon va kameraga ruxsat berish</translation>
 <translation id="3450233048674729344">Qiymat <ph name="MAXIMUM" /> ga teng yoki undan kichik bo‘lishi kerak.</translation>
 <translation id="3732799496749320381">mm</translation>
 <translation id="3754210790023674521">Tasvir ustida tasvir rejimidan chiqish</translation>
@@ -65,6 +68,7 @@
 <translation id="4718048029184481307">Tasvir ustida tasvir rejimida ijro etilmoqda</translation>
 <translation id="4748357248530471599">belgilangan ekran qismidan butun ekranga o‘tish</translation>
 <translation id="4763480195061959176">video</translation>
+<translation id="4792862212177489858">Joylashuvni ulashish</translation>
 <translation id="4812940957355064477">Son kiriting.</translation>
 <translation id="4912200001568447310">joriy element</translation>
 <translation id="4915360478455618802">Vaqt tanlash oynasini chiqarish</translation>
@@ -74,6 +78,7 @@
 <translation id="4975562563186953947"><ph name="SELECTED_COUNT" /> ta element tanlandi</translation>
 <translation id="4992066212339426712">Ovozni yoqish</translation>
 <translation id="49969490063480558">Elektron manzilning qolgan qismini “<ph name="ATSIGN" />” belgisidan keyin kiriting. “<ph name="INVALIDADDRESS" />” manzili to‘liq emas.</translation>
+<translation id="5037575921016181960">Kuchli parol</translation>
 <translation id="5090250355906949916">video ijro yoʻlagi</translation>
 <translation id="509897012892853729">Koʻk kanal</translation>
 <translation id="5117590920725113268">Keyingi oyni ko‘rsatish</translation>
@@ -89,6 +94,7 @@
 <translation id="5425179576310518467">joriy sana</translation>
 <translation id="5466621249238537318">Bir yoki bir nechta faylni tanlang</translation>
 <translation id="5468998798572797635">to‘liq ekran rejimidan chiqish</translation>
+<translation id="5514612371225420585">Qurilmadagi fayl</translation>
 <translation id="5516235301412634559">0,75</translation>
 <translation id="5537725057119320332">Cast</translation>
 <translation id="5546461542133609677">ovozni yoqish</translation>
@@ -113,6 +119,7 @@
 <translation id="6398862346408813489">Oy tanlash panelini ko‘rsatish</translation>
 <translation id="6404546809543547843">ijro yo‘lagi</translation>
 <translation id="6443871981718447451">taglavha menyusini ochish</translation>
+<translation id="6484738902856791350">Chiroyli tartiblash</translation>
 <translation id="6550675742724504774">Parametrlar</translation>
 <translation id="6572309429103589720">Grammatik xato</translation>
 <translation id="658823671542763450">to‘liq ekran rejimi</translation>
@@ -176,6 +183,7 @@
 <translation id="9132465097189459683">Boshqa...</translation>
 <translation id="9155987714137265666"><ph name="WEEK" />, boshlanadi: <ph name="WEEK_START_DATE" /></translation>
 <translation id="916607977885256133">Tasvir ustida tasvir</translation>
+<translation id="918430632320614861">Mikrofonga ruxsat berish</translation>
 <translation id="945780513535800434">Qisman belgilangan</translation>
 <translation id="954003015749068518">tasvir ustida tasvir rejimiga kirish</translation>
 </translationbundle>

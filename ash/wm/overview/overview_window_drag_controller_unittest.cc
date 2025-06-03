@@ -3,8 +3,6 @@
 // found in the LICENSE file.
 
 #include "ash/wm/overview/overview_window_drag_controller.h"
-#include "base/memory/raw_ptr.h"
-
 #include "ash/display/screen_orientation_controller.h"
 #include "ash/display/screen_orientation_controller_test_api.h"
 #include "ash/shell.h"
@@ -17,17 +15,20 @@
 #include "ash/wm/desks/desks_util.h"
 #include "ash/wm/desks/legacy_desk_bar_view.h"
 #include "ash/wm/desks/zero_state_button.h"
-#include "ash/wm/mru_window_tracker.h"
 #include "ash/wm/overview/overview_controller.h"
+#include "ash/wm/overview/overview_drop_target.h"
 #include "ash/wm/overview/overview_grid.h"
 #include "ash/wm/overview/overview_item.h"
 #include "ash/wm/overview/overview_session.h"
+#include "ash/wm/overview/overview_test_util.h"
 #include "ash/wm/splitview/split_view_constants.h"
 #include "ash/wm/splitview/split_view_controller.h"
 #include "ash/wm/splitview/split_view_drag_indicators.h"
 #include "ash/wm/window_util.h"
 #include "base/containers/contains.h"
+#include "base/memory/raw_ptr.h"
 #include "base/test/scoped_feature_list.h"
+#include "chromeos/constants/chromeos_features.h"
 #include "ui/aura/window_tree_host.h"
 #include "ui/display/test/display_manager_test_api.h"
 #include "ui/events/test/event_generator.h"
@@ -42,7 +43,7 @@ namespace ash {
 namespace {
 
 // Drags the item by |x| and |y| and does not drop it.
-void StartDraggingItemBy(OverviewItem* item,
+void StartDraggingItemBy(OverviewItemBase* item,
                          int x,
                          int y,
                          bool by_touch_gestures,
@@ -147,7 +148,7 @@ class OverviewWindowDragControllerTest : public AshTestBase {
     return overview_grid()->desks_bar_view()->GetWidget();
   }
 
-  OverviewItem* GetOverviewItemForWindow(aura::Window* window) {
+  OverviewItemBase* GetOverviewItemForWindow(aura::Window* window) {
     return overview_session()->GetOverviewItemForWindow(window);
   }
 
@@ -219,6 +220,51 @@ TEST_F(OverviewWindowDragControllerTest, NoDragToCloseUsingMouse) {
   EXPECT_EQ(target_bounds_before_drag, overview_item->target_bounds());
 }
 
+// Tests that the bounds of the drop target for `OverviewItem` will match that
+// of the corresponding item which the drop target is a placeholder for.
+TEST_F(OverviewWindowDragControllerTest, DropTargetBoundsTest) {
+  auto* desk_controller = DesksController::Get();
+  desk_controller->NewDesk(DesksCreationRemovalSource::kButton);
+  ASSERT_EQ(2u, desk_controller->desks().size());
+
+  std::unique_ptr<aura::Window> window = CreateAppWindow();
+
+  OverviewController* overview_controller = Shell::Get()->overview_controller();
+  overview_controller->StartOverview(OverviewStartAction::kTests,
+                                     OverviewEnterExitType::kImmediateEnter);
+  ASSERT_TRUE(overview_controller->InOverviewSession());
+
+  auto* overview_grid = GetOverviewGridForRoot(Shell::GetPrimaryRootWindow());
+  ASSERT_TRUE(overview_grid);
+  const auto& window_list = overview_grid->window_list();
+  ASSERT_EQ(window_list.size(), 1u);
+
+  OverviewSession* overview_session = overview_controller->overview_session();
+  auto* overview_item =
+      overview_session->GetOverviewItemForWindow(window.get());
+  auto* event_generator = GetEventGenerator();
+  const gfx::RectF target_bounds_before_dragging =
+      overview_item->target_bounds();
+
+  for (const bool by_touch : {false, true}) {
+    DragItemToPoint(
+        overview_item,
+        Shell::GetPrimaryRootWindow()->GetBoundsInScreen().CenterPoint(),
+        event_generator, by_touch, /*drop=*/false);
+    EXPECT_TRUE(overview_controller->InOverviewSession());
+
+    OverviewDropTarget* drop_target = overview_grid->drop_target();
+    EXPECT_TRUE(drop_target);
+    EXPECT_EQ(gfx::RectF(drop_target->item_widget()->GetWindowBoundsInScreen()),
+              target_bounds_before_dragging);
+    if (by_touch) {
+      event_generator->ReleaseTouch();
+    } else {
+      event_generator->ReleaseLeftButton();
+    }
+  }
+}
+
 TEST_F(OverviewWindowDragControllerTest,
        SwitchDragToCloseToNormalDragWhenDraggedToDesk) {
   UpdateDisplay("600x800");
@@ -272,7 +318,7 @@ TEST_F(OverviewWindowDragControllerTest,
   event_generator->ReleaseTouch();
   EXPECT_TRUE(overview_controller->InOverviewSession());
   EXPECT_TRUE(overview_grid->empty());
-  const Desk* desk_2 = controller->desks()[1].get();
+  const Desk* desk_2 = controller->GetDeskAtIndex(1);
   EXPECT_TRUE(base::Contains(desk_2->windows(), window.get()));
   EXPECT_TRUE(const_cast<OverviewGrid*>(overview_grid)->no_windows_widget());
 }
@@ -306,7 +352,7 @@ TEST_F(OverviewWindowDragControllerTest, WindowDestroyedDuringDragging) {
 TEST_F(OverviewWindowDragControllerTest,
        DragAndDropWindowInPortraitModeWithOneDesk) {
   // Update the display to make it portrait mode.
-  UpdateDisplay("768x1366");
+  UpdateDisplay("768x1000");
   auto window = CreateAppWindow(gfx::Rect(0, 0, 250, 100));
 
   wm::ActivateWindow(window.get());
@@ -315,24 +361,42 @@ TEST_F(OverviewWindowDragControllerTest,
   StartDraggingAndValidateDesksBarShifted(window.get());
   const auto* desks_bar_view = overview_grid()->desks_bar_view();
   ASSERT_TRUE(desks_bar_view);
-  // Check the height of the desks bar view. It should have height
-  // `kDeskBarZeroStateHeight` while dragging `window`.
-  EXPECT_EQ(kDeskBarZeroStateHeight, desks_bar_view->bounds().height());
+
+  const bool is_jellyroll_enabled = chromeos::features::IsJellyrollEnabled();
+
+  // Check the height of the desks bar view.
+  // When Jellyroll is enabled, desks bar is transformed to expanded state
+  // immediately at the beginning of the drag.
+  EXPECT_EQ(is_jellyroll_enabled
+                ? GetDesksBarViewExpandedStateHeight(desks_bar_view)
+                : kDeskBarZeroStateHeight,
+            desks_bar_view->bounds().height());
 
   // Now drop `window`. Check the height of the desks bar view. It should still
   // be `kDeskBarZeroStateHeight`.
   auto* event_generator = GetEventGenerator();
   event_generator->ReleaseLeftButton();
-  EXPECT_EQ(kDeskBarZeroStateHeight, desks_bar_view->bounds().height());
+
+  // When Jellyroll is enabled, desks bar never goes back to zero state after
+  // it's initialized.
+  EXPECT_EQ(is_jellyroll_enabled
+                ? GetDesksBarViewExpandedStateHeight(desks_bar_view)
+                : kDeskBarZeroStateHeight,
+            desks_bar_view->bounds().height());
 
   // Click on the zero state new desk button to create a new desk. This
   // shouldn't end overview mode. The desks bar view should be transformed to
   // the expanded state.
+  views::LabelButton* new_desk_button = nullptr;
+  if (is_jellyroll_enabled) {
+    new_desk_button =
+        const_cast<CrOSNextDeskIconButton*>(desks_bar_view->new_desk_button());
+  } else {
+    new_desk_button = desks_bar_view->zero_state_new_desk_button();
+  }
+
   const gfx::Point new_desk_button_center =
-      desks_bar_view->zero_state_new_desk_button()
-          ->GetView()
-          ->GetBoundsInScreen()
-          .CenterPoint();
+      new_desk_button->GetBoundsInScreen().CenterPoint();
   EXPECT_TRUE(overview_controller()->InOverviewSession());
   event_generator->MoveMouseTo(new_desk_button_center);
   event_generator->ClickLeftButton();
@@ -346,15 +410,20 @@ TEST_F(OverviewWindowDragControllerTest,
                          DesksCreationRemovalSource::kButton,
                          DeskCloseType::kCombineDesks);
   EXPECT_TRUE(overview_controller()->InOverviewSession());
-  EXPECT_TRUE(desks_bar_view->IsZeroState());
-  EXPECT_EQ(kDeskBarZeroStateHeight, desks_bar_view->bounds().height());
+  EXPECT_EQ(is_jellyroll_enabled ? DeskBarViewBase::State::kExpanded
+                                 : DeskBarViewBase::State::kZero,
+            desks_bar_view->state());
+  EXPECT_EQ(is_jellyroll_enabled
+                ? GetDesksBarViewExpandedStateHeight(desks_bar_view)
+                : kDeskBarZeroStateHeight,
+            desks_bar_view->bounds().height());
 }
 
 // Tests that dragging window in portrait mode won't cause overview items
 // overlap with desks bar. Regression test for https://crbug.com/1275285.
 TEST_F(OverviewWindowDragControllerTest, DragWindowInPortraitMode) {
   // Update the display to make it portrait mode.
-  UpdateDisplay("768x1366");
+  UpdateDisplay("768x1000");
 
   // Create 10 windows with size the same as the maximized window's size.
   std::vector<std::unique_ptr<aura::Window>> windows;
@@ -417,7 +486,7 @@ class OverviewWindowDragControllerDesksPortraitTabletTest
     // Give the second desk a name. The desk name gets exposed as the accessible
     // name. And the focusable views that are painted in these tests will fail
     // the accessibility paint checker checks if they lack an accessible name.
-    desks_controller->desks()[1]->SetName(u"Desk 2", false);
+    desks_controller->GetDeskAtIndex(1)->SetName(u"Desk 2", false);
   }
 };
 
@@ -515,6 +584,8 @@ TEST_F(OverviewWindowDragControllerDesksPortraitTabletTest, DragAndDropInDesk) {
 // overlap with desks bar. Regression test for https://crbug.com/1275285.
 TEST_F(OverviewWindowDragControllerDesksPortraitTabletTest,
        DragWindowInPortraitMode) {
+  UpdateDisplay("700x1000");
+
   // Create 7 windows to make sure we can use tablet mode grid layout.
   std::vector<std::unique_ptr<aura::Window>> windows;
   for (int i = 0; i < 7; ++i)
@@ -526,7 +597,7 @@ TEST_F(OverviewWindowDragControllerDesksPortraitTabletTest,
   // overview mode, there's no desks bar after entering overview mode. Cause we
   // don't show desks bar for tablet mode when there's only one desk.
   auto* desks_controller = DesksController::Get();
-  DesksController::Get()->RemoveDesk(desks_controller->desks()[1].get(),
+  DesksController::Get()->RemoveDesk(desks_controller->GetDeskAtIndex(1),
                                      DesksCreationRemovalSource::kButton,
                                      DeskCloseType::kCombineDesks);
   EXPECT_TRUE(Shell::Get()->overview_controller()->InOverviewSession());

@@ -11,29 +11,17 @@
 #include "src/compiler/turboshaft/index.h"
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/optimization-phase.h"
+#include "src/compiler/turboshaft/phase.h"
+#include "src/compiler/turboshaft/representations.h"
 
 namespace v8::internal::compiler::turboshaft {
 
 #include "src/compiler/turboshaft/define-assembler-macros.inc"
 
-struct FastApiCallReducerArgs {
-  Factory* factory;
-  Isolate* isolate;
-};
-
 template <typename Next>
 class FastApiCallReducer : public Next {
  public:
   TURBOSHAFT_REDUCER_BOILERPLATE()
-
-  using ArgT =
-      base::append_tuple_type<typename Next::ArgT, FastApiCallReducerArgs>;
-
-  template <typename... Args>
-  explicit FastApiCallReducer(const std::tuple<Args...>& args)
-      : Next(args),
-        factory_(std::get<FastApiCallReducerArgs>(args).factory),
-        isolate_(std::get<FastApiCallReducerArgs>(args).isolate) {}
 
   OpIndex REDUCE(FastApiCall)(OpIndex data_argument,
                               base::Vector<const OpIndex> arguments,
@@ -120,7 +108,7 @@ class FastApiCallReducer : public Next {
     // Build the actual call.
     const TSCallDescriptor* call_descriptor = TSCallDescriptor::Create(
         Linkage::GetSimplifiedCDescriptor(__ graph_zone(), builder.Build()),
-        __ graph_zone());
+        CanThrow::kNo, __ graph_zone());
     OpIndex c_call_result =
         WrapFastCall(call_descriptor, callee, base::VectorOf(args));
     V<Object> fast_call_result = ConvertReturnValue(c_signature, c_call_result);
@@ -136,9 +124,9 @@ class FastApiCallReducer : public Next {
     GOTO(done, FastApiCallOp::kSuccessValue, fast_call_result);
 
     if (BIND(handle_error)) {
-      // We pass Smi(0) as the value here, although this should never be visible
-      // when calling code reacts to `kFailureValue` properly.
-      GOTO(done, FastApiCallOp::kFailureValue, __ SmiTag(0));
+      // We pass Tagged<Smi>(0) as the value here, although this should never be
+      // visible when calling code reacts to `kFailureValue` properly.
+      GOTO(done, FastApiCallOp::kFailureValue, __ TagSmi(0));
     }
 
     BIND(done, state, value);
@@ -460,7 +448,7 @@ class FastApiCallReducer : public Next {
         // contains compensated offset value) will decompress the tagged value.
         // See JSTypedArray::ExternalPointerCompensationForOnHeapArray() for
         // details.
-        base = __ ChangeUint32ToUintPtr(base);
+        base = __ ChangeUint32ToUintPtr(__ TruncateWordPtrToWord32(base));
       }
       data_ptr = __ WordPtrAdd(base, external_pointer);
     }
@@ -506,9 +494,44 @@ class FastApiCallReducer : public Next {
         return __ ConvertInt32ToNumber(result);
       case CTypeInfo::Type::kUint32:
         return __ ConvertUint32ToNumber(result);
-      case CTypeInfo::Type::kInt64:
-      case CTypeInfo::Type::kUint64:
-        UNREACHABLE();
+      case CTypeInfo::Type::kInt64: {
+        CFunctionInfo::Int64Representation repr =
+            c_signature->GetInt64Representation();
+        if (repr == CFunctionInfo::Int64Representation::kBigInt) {
+          return __ ConvertUntaggedToJSPrimitive(
+              result, ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::kBigInt,
+              RegisterRepresentation::Word64(),
+              ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kSigned,
+              CheckForMinusZeroMode::kDontCheckForMinusZero);
+        } else if (repr == CFunctionInfo::Int64Representation::kNumber) {
+          return __ ConvertUntaggedToJSPrimitive(
+              result, ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::kNumber,
+              RegisterRepresentation::Word64(),
+              ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kSigned,
+              CheckForMinusZeroMode::kDontCheckForMinusZero);
+        } else {
+          UNREACHABLE();
+        }
+      }
+      case CTypeInfo::Type::kUint64: {
+        CFunctionInfo::Int64Representation repr =
+            c_signature->GetInt64Representation();
+        if (repr == CFunctionInfo::Int64Representation::kBigInt) {
+          return __ ConvertUntaggedToJSPrimitive(
+              result, ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::kBigInt,
+              RegisterRepresentation::Word64(),
+              ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kUnsigned,
+              CheckForMinusZeroMode::kDontCheckForMinusZero);
+        } else if (repr == CFunctionInfo::Int64Representation::kNumber) {
+          return __ ConvertUntaggedToJSPrimitive(
+              result, ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::kNumber,
+              RegisterRepresentation::Word64(),
+              ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kUnsigned,
+              CheckForMinusZeroMode::kDontCheckForMinusZero);
+        } else {
+          UNREACHABLE();
+        }
+      }
       case CTypeInfo::Type::kFloat32:
         return __ ConvertFloat64ToNumber(
             __ ChangeFloat32ToFloat64(result),
@@ -537,16 +560,16 @@ class FastApiCallReducer : public Next {
     GOTO_IF(__ WordPtrEqual(pointer, 0), done,
             __ HeapConstant(factory_->null_value()));
 
-    V<HeapObject> external =
+    Uninitialized<HeapObject> external =
         __ Allocate(JSExternalObject::kHeaderSize, AllocationType::kYoung);
-    __ StoreField(external, AccessBuilder::ForMap(),
-                  __ HeapConstant(factory_->external_map()));
+    __ InitializeField(external, AccessBuilder::ForMap(),
+                       __ HeapConstant(factory_->external_map()));
     V<FixedArray> empty_fixed_array =
         __ HeapConstant(factory_->empty_fixed_array());
-    __ StoreField(external, AccessBuilder::ForJSObjectPropertiesOrHash(),
-                  empty_fixed_array);
-    __ StoreField(external, AccessBuilder::ForJSObjectElements(),
-                  empty_fixed_array);
+    __ InitializeField(external, AccessBuilder::ForJSObjectPropertiesOrHash(),
+                       empty_fixed_array);
+    __ InitializeField(external, AccessBuilder::ForJSObjectElements(),
+                       empty_fixed_array);
 
 #ifdef V8_ENABLE_SANDBOX
     OpIndex isolate_ptr =
@@ -564,13 +587,15 @@ class FastApiCallReducer : public Next {
     OpIndex handle =
         __ Call(allocate_and_initialize_external_pointer_table_entry,
                 {isolate_ptr, pointer},
-                TSCallDescriptor::Create(call_descriptor, __ graph_zone()));
-    __ StoreField(external, AccessBuilder::ForJSExternalObjectPointerHandle(),
-                  handle);
+                TSCallDescriptor::Create(call_descriptor, CanThrow::kNo,
+                                         __ graph_zone()));
+    __ InitializeField(
+        external, AccessBuilder::ForJSExternalObjectPointerHandle(), handle);
 #else
-    __ StoreField(external, AccessBuilder::ForJSExternalObjectValue(), pointer);
+    __ InitializeField(external, AccessBuilder::ForJSExternalObjectValue(),
+                       pointer);
 #endif  // V8_ENABLE_SANDBOX
-    GOTO(done, external);
+    GOTO(done, __ FinishInitialization(std::move(external)));
 
     BIND(done, result);
     return result;
@@ -614,8 +639,8 @@ class FastApiCallReducer : public Next {
     return result;
   }
 
-  Factory* factory_;
-  Isolate* isolate_;
+  Isolate* isolate_ = PipelineData::Get().isolate();
+  Factory* factory_ = isolate_->factory();
 };
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"

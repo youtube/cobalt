@@ -14,9 +14,16 @@ BASE_FEATURE(kHidePrefetchParameter,
              "HidePrefetchParameter",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+// If you add a new type of prerender trigger, please refer to the internal
+// document go/update-prerender-new-trigger-metrics to make sure that metrics
+// include the newly added trigger type.
+// LINT.IfChange
 const char kDefaultSearchEngineMetricSuffix[] = "DefaultSearchEngine";
 const char kDirectUrlInputMetricSuffix[] = "DirectURLInput";
 const char kBookmarkBarMetricSuffix[] = "BookmarkBar";
+const char kNewTabPageMetricSuffix[] = "NewTabPage";
+const char kLinkPreviewMetricsSuffix[] = "LinkPreview";
+// LINT.ThenChange()
 
 bool IsDirectUrlInputPrerenderEnabled() {
   return base::FeatureList::IsEnabled(features::kOmniboxTriggerForPrerender2);
@@ -31,20 +38,7 @@ bool ShouldUpdateCacheEntryManually() {
   return base::FeatureList::IsEnabled(kHidePrefetchParameter);
 }
 
-bool SearchPrefetchUpgradeToPrerenderIsEnabled() {
-  CHECK(IsSearchSuggestionPrerenderEnabled());
-  switch (features::kSearchSuggestionPrerenderImplementationTypeParam.Get()) {
-    case features::SearchSuggestionPrerenderImplementationType::kUsePrefetch:
-      return true;
-    case features::SearchSuggestionPrerenderImplementationType::kIgnorePrefetch:
-      return false;
-  }
-}
-
 bool SearchPreloadShareableCacheIsEnabled() {
-  if (!SearchPrefetchUpgradeToPrerenderIsEnabled()) {
-    return false;
-  }
   switch (features::kSearchPreloadShareableCacheTypeParam.Get()) {
     case features::SearchPreloadShareableCacheType::kEnabled:
       return true;

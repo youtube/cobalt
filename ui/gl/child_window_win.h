@@ -5,12 +5,15 @@
 #ifndef UI_GL_CHILD_WINDOW_WIN_H_
 #define UI_GL_CHILD_WINDOW_WIN_H_
 
-#include "base/memory/weak_ptr.h"
+#include "base/memory/ref_counted.h"
 #include "base/task/task_runner.h"
-#include "base/threading/thread.h"
 #include "ui/gl/gl_export.h"
 
 #include <windows.h>
+
+namespace gfx {
+class Size;
+}
 
 namespace gl {
 
@@ -28,11 +31,16 @@ class GL_EXPORT ChildWindowWin {
   void Initialize();
   HWND window() const { return window_; }
 
+  bool Resize(const gfx::Size& size);
+
   scoped_refptr<base::TaskRunner> GetTaskRunnerForTesting();
 
  private:
+  class ChildWindowThread;
+
   // The window owner thread.
-  std::unique_ptr<base::Thread> thread_;
+  scoped_refptr<ChildWindowThread> thread_;
+
   HWND window_ = nullptr;
   // The window is initially created with this parent window. We need to keep it
   // around so that we can destroy it at the end.

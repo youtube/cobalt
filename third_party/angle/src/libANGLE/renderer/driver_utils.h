@@ -10,6 +10,7 @@
 #define LIBANGLE_RENDERER_DRIVER_UTILS_H_
 
 #include "common/platform.h"
+#include "common/platform_helpers.h"
 #include "libANGLE/angletypes.h"
 
 namespace rx
@@ -29,13 +30,18 @@ enum VendorID : uint32_t
     VENDOR_ID_MICROSOFT = 0x1414,
     VENDOR_ID_NVIDIA    = 0x10DE,
     VENDOR_ID_POWERVR   = 0x1010,
+#if defined(ANGLE_PLATFORM_WINDOWS)
+    // Qualcomm devices on Windows are ACPI, and use a different vendor ID than Android.
+    VENDOR_ID_QUALCOMM = 0x4D4F4351,
+#else
     // This is Qualcomm PCI Vendor ID.
     // Android doesn't have a PCI bus, but all we need is a unique id.
     VENDOR_ID_QUALCOMM = 0x5143,
-    VENDOR_ID_SAMSUNG  = 0x144D,
-    VENDOR_ID_VIVANTE  = 0x9999,
-    VENDOR_ID_VMWARE   = 0x15AD,
-    VENDOR_ID_VIRTIO   = 0x1AF4,
+#endif
+    VENDOR_ID_SAMSUNG = 0x144D,
+    VENDOR_ID_VIVANTE = 0x9999,
+    VENDOR_ID_VMWARE  = 0x15AD,
+    VENDOR_ID_VIRTIO  = 0x1AF4,
 };
 
 enum AndroidDeviceID : uint32_t
@@ -45,6 +51,8 @@ enum AndroidDeviceID : uint32_t
     ANDROID_DEVICE_ID_PIXEL2      = 0x5040001,
     ANDROID_DEVICE_ID_PIXEL1XL    = 0x5030004,
     ANDROID_DEVICE_ID_PIXEL4      = 0x6040001,
+    ANDROID_DEVICE_ID_GALAXYA23   = 0x6010901,
+    ANDROID_DEVICE_ID_GALAXYS23   = 0x43050A01,
     ANDROID_DEVICE_ID_SWIFTSHADER = 0xC0DE,
 };
 
@@ -53,7 +61,7 @@ inline bool IsAMD(uint32_t vendorId)
     return vendorId == VENDOR_ID_AMD;
 }
 
-inline bool IsApple(uint32_t vendorId)
+inline bool IsAppleGPU(uint32_t vendorId)
 {
     return vendorId == VENDOR_ID_APPLE;
 }
@@ -138,12 +146,22 @@ inline bool IsPixel4(uint32_t vendorId, uint32_t deviceId)
     return IsQualcomm(vendorId) && deviceId == ANDROID_DEVICE_ID_PIXEL4;
 }
 
+inline bool IsGalaxyA23(uint32_t vendorId, uint32_t deviceId)
+{
+    return IsQualcomm(vendorId) && deviceId == ANDROID_DEVICE_ID_GALAXYA23;
+}
+
+inline bool IsGalaxyS23(uint32_t vendorId, uint32_t deviceId)
+{
+    return IsQualcomm(vendorId) && deviceId == ANDROID_DEVICE_ID_GALAXYS23;
+}
+
 inline bool IsSwiftshader(uint32_t vendorId, uint32_t deviceId)
 {
     return IsGoogle(vendorId) && deviceId == ANDROID_DEVICE_ID_SWIFTSHADER;
 }
 
-const char *GetVendorString(uint32_t vendorId);
+std::string GetVendorString(uint32_t vendorId);
 
 // For Linux, Intel graphics driver version is the Mesa version. The version number has three
 // fields: major revision, minor revision and release number.
@@ -177,106 +195,31 @@ bool Is9thGenIntel(uint32_t DeviceId);
 bool Is11thGenIntel(uint32_t DeviceId);
 bool Is12thGenIntel(uint32_t DeviceId);
 
-struct MajorMinorPatchVersion
-{
-    MajorMinorPatchVersion();
-    MajorMinorPatchVersion(int major, int minor, int patch);
-
-    int majorVersion = 0;
-    int minorVersion = 0;
-    int patchVersion = 0;
-};
-bool operator==(const MajorMinorPatchVersion &a, const MajorMinorPatchVersion &b);
-bool operator!=(const MajorMinorPatchVersion &a, const MajorMinorPatchVersion &b);
-bool operator<(const MajorMinorPatchVersion &a, const MajorMinorPatchVersion &b);
-bool operator>=(const MajorMinorPatchVersion &a, const MajorMinorPatchVersion &b);
-
-using ARMDriverVersion = MajorMinorPatchVersion;
+using ARMDriverVersion = angle::VersionTriple;
 ARMDriverVersion ParseARMDriverVersion(uint32_t driverVersion);
 
 // Platform helpers
-inline bool IsWindows()
-{
-#if defined(ANGLE_PLATFORM_WINDOWS)
-    return true;
-#else
-    return false;
-#endif
-}
-
-inline bool IsLinux()
-{
-#if defined(ANGLE_PLATFORM_LINUX)
-    return true;
-#else
-    return false;
-#endif
-}
-
-inline bool IsChromeOS()
-{
-#if defined(ANGLE_PLATFORM_CHROMEOS)
-    return true;
-#else
-    return false;
-#endif
-}
-
-inline bool IsApple()
-{
-#if defined(ANGLE_PLATFORM_APPLE)
-    return true;
-#else
-    return false;
-#endif
-}
-
-inline bool IsMac()
-{
-#if defined(ANGLE_PLATFORM_APPLE) && defined(ANGLE_PLATFORM_MACOS)
-    return true;
-#else
-    return false;
-#endif
-}
-
-inline bool IsFuchsia()
-{
-#if defined(ANGLE_PLATFORM_FUCHSIA)
-    return true;
-#else
-    return false;
-#endif
-}
-
-inline bool IsIOS()
-{
-#if ANGLE_PLATFORM_IOS_FAMILY
-    return true;
-#else
-    return false;
-#endif
-}
+using angle::IsAndroid;
+using angle::IsApple;
+using angle::IsChromeOS;
+using angle::IsFuchsia;
+using angle::IsIOS;
+using angle::IsLinux;
+using angle::IsMac;
+using angle::IsWindows;
+using angle::IsWindows10OrLater;
+using angle::IsWindows8OrLater;
+using angle::IsWindowsVistaOrLater;
 
 bool IsWayland();
-bool IsWin10OrGreater();
 
-using OSVersion = MajorMinorPatchVersion;
+using OSVersion = angle::VersionTriple;
 
 OSVersion GetMacOSVersion();
 
 OSVersion GetiOSVersion();
 
 OSVersion GetLinuxOSVersion();
-
-inline bool IsAndroid()
-{
-#if defined(ANGLE_PLATFORM_ANDROID)
-    return true;
-#else
-    return false;
-#endif
-}
 
 int GetAndroidSDKVersion();
 

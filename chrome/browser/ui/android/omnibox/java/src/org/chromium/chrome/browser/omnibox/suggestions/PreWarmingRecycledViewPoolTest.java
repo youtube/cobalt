@@ -38,22 +38,19 @@ import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.test.util.browser.Features;
 import org.chromium.chrome.test.util.browser.Features.DisableFeatures;
 import org.chromium.chrome.test.util.browser.Features.EnableFeatures;
+import org.chromium.components.omnibox.suggestions.OmniboxSuggestionUiType;
 import org.chromium.ui.modelutil.MVCListAdapter.ModelList;
 
 import java.util.Arrays;
 
-/**
- * Unit tests for {@link PreWarmingRecycledViewPool}.
- */
+/** Unit tests for {@link PreWarmingRecycledViewPool}. */
 @RunWith(BaseRobolectricTestRunner.class)
 public class PreWarmingRecycledViewPoolTest {
     public @Rule TestRule mProcessor = new Features.JUnitProcessor();
     public @Rule MockitoRule mMockitoRule = MockitoJUnit.rule();
 
-    @Mock
-    private Handler mHandler;
-    @Mock
-    private View mView;
+    @Mock private Handler mHandler;
+    @Mock private View mView;
 
     private Context mContext;
     private OmniboxSuggestionsDropdownAdapter mAdapter;
@@ -62,28 +59,31 @@ public class PreWarmingRecycledViewPoolTest {
     @Before
     public void setUp() {
         mContext = ApplicationProvider.getApplicationContext();
-        mAdapter = Mockito.spy(new OmniboxSuggestionsDropdownAdapter(new ModelList()) {
-            @Override
-            protected View createView(ViewGroup parent, int viewType) {
-                return mView;
-            }
+        mAdapter =
+                Mockito.spy(
+                        new OmniboxSuggestionsDropdownAdapter(new ModelList()) {
+                            @Override
+                            protected View createView(ViewGroup parent, int viewType) {
+                                return mView;
+                            }
 
-            @Override
-            @NonNull
-            public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-                return new ViewHolder(mView, null);
-            }
-        });
+                            @Override
+                            public @NonNull ViewHolder onCreateViewHolder(
+                                    @NonNull ViewGroup parent, int viewType) {
+                                return new ViewHolder(mView, null);
+                            }
+                        });
         mPool = new PreWarmingRecycledViewPool(mAdapter, mContext, mHandler);
     }
 
-    @EnableFeatures({ChromeFeatureList.OMNIBOX_WARM_RECYCLED_VIEW_POOL})
+    @EnableFeatures(ChromeFeatureList.OMNIBOX_WARM_RECYCLED_VIEW_POOL)
     @Test
     public void testCreateViews() {
-        doAnswer((invocation -> {
-            ((Runnable) invocation.getArgument(0)).run();
-            return null;
-        }))
+        doAnswer(
+                        (invocation -> {
+                            ((Runnable) invocation.getArgument(0)).run();
+                            return null;
+                        }))
                 .when(mHandler)
                 .postDelayed(any(Runnable.class), anyLong());
         mPool.onNativeInitialized();
@@ -99,23 +99,28 @@ public class PreWarmingRecycledViewPoolTest {
         View expectedView = mView;
         // null out mView so that newly-created ViewHolders will be distinct from pre-warmed ones.
         mView = null;
-        for (var uiType : Arrays.asList(OmniboxSuggestionUiType.EDIT_URL_SUGGESTION,
-                     OmniboxSuggestionUiType.TILE_NAVSUGGEST, OmniboxSuggestionUiType.HEADER,
-                     OmniboxSuggestionUiType.CLIPBOARD_SUGGESTION, OmniboxSuggestionUiType.DEFAULT,
-                     OmniboxSuggestionUiType.ENTITY_SUGGESTION)) {
+        for (var uiType :
+                Arrays.asList(
+                        OmniboxSuggestionUiType.EDIT_URL_SUGGESTION,
+                        OmniboxSuggestionUiType.TILE_NAVSUGGEST,
+                        OmniboxSuggestionUiType.HEADER,
+                        OmniboxSuggestionUiType.CLIPBOARD_SUGGESTION,
+                        OmniboxSuggestionUiType.DEFAULT,
+                        OmniboxSuggestionUiType.ENTITY_SUGGESTION)) {
             ViewHolder viewHolder = mPool.getRecycledView(uiType);
             assertNotNull(viewHolder);
             assertEquals(expectedView, viewHolder.itemView);
         }
     }
 
-    @DisableFeatures({ChromeFeatureList.OMNIBOX_WARM_RECYCLED_VIEW_POOL})
+    @DisableFeatures(ChromeFeatureList.OMNIBOX_WARM_RECYCLED_VIEW_POOL)
     @Test
     public void testCreateViews_featureDisabled() {
-        doAnswer((invocation -> {
-            ((Runnable) invocation.getArgument(0)).run();
-            return null;
-        }))
+        doAnswer(
+                        (invocation -> {
+                            ((Runnable) invocation.getArgument(0)).run();
+                            return null;
+                        }))
                 .when(mHandler)
                 .postDelayed(any(Runnable.class), anyLong());
         mPool.onNativeInitialized();
@@ -124,7 +129,7 @@ public class PreWarmingRecycledViewPoolTest {
         verifyNoMoreInteractions(mHandler);
     }
 
-    @EnableFeatures({ChromeFeatureList.OMNIBOX_WARM_RECYCLED_VIEW_POOL})
+    @EnableFeatures(ChromeFeatureList.OMNIBOX_WARM_RECYCLED_VIEW_POOL)
     @Test
     public void testStopCreating() {
         mPool.onNativeInitialized();

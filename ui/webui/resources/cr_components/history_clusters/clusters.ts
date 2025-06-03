@@ -15,7 +15,7 @@ import {CrDialogElement} from 'chrome://resources/cr_elements/cr_dialog/cr_dialo
 import {CrLazyRenderElement} from 'chrome://resources/cr_elements/cr_lazy_render/cr_lazy_render.js';
 import {CrToastElement} from 'chrome://resources/cr_elements/cr_toast/cr_toast.js';
 import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
-import {assert} from 'chrome://resources/js/assert_ts.js';
+import {assert} from 'chrome://resources/js/assert.js';
 import {FocusOutlineManager} from 'chrome://resources/js/focus_outline_manager.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {Time} from 'chrome://resources/mojo/mojo/public/mojom/base/time.mojom-webui.js';
@@ -38,11 +38,6 @@ import {PageCallbackRouter, PageHandlerRemote, QueryResult} from './history_clus
 declare global {
   interface HTMLElementTagNameMap {
     'history-clusters': HistoryClustersElement;
-  }
-
-  interface Window {
-    // https://github.com/microsoft/TypeScript/issues/40807
-    requestIdleCallback(callback: () => void): void;
   }
 }
 
@@ -236,6 +231,13 @@ export class HistoryClustersElement extends HistoryClustersElementBase {
   }
 
   /**
+   * Called with `event` received from visits requesting to be hidden.
+   */
+  private onHideVisits_(event: CustomEvent<URLVisit[]>) {
+    this.pageHandler_.hideVisits(event.detail);
+  }
+
+  /**
    * Called with `event` received from a cluster requesting to be removed from
    * the list when all its visits have been removed. Contains the cluster index.
    */
@@ -322,7 +324,7 @@ export class HistoryClustersElement extends HistoryClustersElementBase {
    */
   private onBrowserIdle_(): Promise<void> {
     return new Promise(resolve => {
-      window.requestIdleCallback(() => {
+      requestIdleCallback(() => {
         resolve();
       });
     });

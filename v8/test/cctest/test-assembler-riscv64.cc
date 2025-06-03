@@ -1960,7 +1960,7 @@ TEST(jump_tables3) {
     values[i] = isolate->factory()->NewHeapNumber<AllocationType::kOld>(value);
   }
   Label labels[kNumCases], done, dispatch;
-  Object obj;
+  Tagged<Object> obj;
   int64_t imm64;
 
   auto fn = [&labels, &done, &dispatch, values, &obj,
@@ -2003,10 +2003,11 @@ TEST(jump_tables3) {
 
   for (int i = 0; i < kNumCases; ++i) {
     Handle<Object> result(
-        Object(reinterpret_cast<Address>(f.Call(i, 0, 0, 0, 0))), isolate);
+        Tagged<Object>(reinterpret_cast<Address>(f.Call(i, 0, 0, 0, 0))),
+        isolate);
 #ifdef OBJECT_PRINT
     ::printf("f(%d) = ", i);
-    result->Print(std::cout);
+    Print(*result, std::cout);
     ::printf("\n");
 #endif
     CHECK(values[i].is_identical_to(result));
@@ -2106,6 +2107,47 @@ TEST(RVV_VFMV_signaling_NaN) {
     GenAndRunTest<int64_t, int64_t>((int64_t)rs1_fval, (int64_t)dst, fn);
     for (uint32_t i = 0; i < n; i++) {
       CHECK_EQ(rs1_fval, dst[i]);
+    }
+  }
+}
+
+TEST(RVV_VFNEG_signaling_NaN) {
+  if (!CpuFeatures::IsSupported(RISCV_SIMD)) return;
+  CcTest::InitializeVM();
+
+  {
+    constexpr uint32_t n = 2;
+    int64_t rs1_fval = 0x7FF4000000000000;
+    int64_t expected_fval = 0xFFF4000000000000;
+    int64_t dst[n] = {0};
+    auto fn = [](MacroAssembler& assm) {
+      __ VU.set(t0, VSew::E64, Vlmul::m1);
+      __ fmv_d_x(ft0, a0);
+      __ vfmv_vf(v1, ft0);
+      __ vfneg_vv(v2, v1);
+      __ vs(v2, a1, 0, VSew::E64);
+    };
+    GenAndRunTest<int64_t, int64_t>((int64_t)rs1_fval, (int64_t)dst, fn);
+    for (uint32_t i = 0; i < n; i++) {
+      CHECK_EQ(expected_fval, dst[i]);
+    }
+  }
+
+  {
+    constexpr uint32_t n = 4;
+    int32_t rs1_fval = 0x7F400000;
+    int32_t expected_fval = 0xFF400000;
+    int32_t dst[n] = {0};
+    auto fn = [](MacroAssembler& assm) {
+      __ VU.set(t0, VSew::E32, Vlmul::m1);
+      __ fmv_w_x(ft0, a0);
+      __ vfmv_vf(v1, ft0);
+      __ vfneg_vv(v2, v1);
+      __ vs(v2, a1, 0, VSew::E32);
+    };
+    GenAndRunTest<int64_t, int64_t>((int64_t)rs1_fval, (int64_t)dst, fn);
+    for (uint32_t i = 0; i < n; i++) {
+      CHECK_EQ(expected_fval, dst[i]);
     }
   }
 }
@@ -2730,6 +2772,10 @@ UTEST_RVV_FMA_VF_FORM_WITH_RES(vfnmsac_vf, ARRAY_FLOAT,
           (uint64_t)base::bit_cast<uint32_t>(rs1_fval) << 32 |         \
           base::bit_cast<uint32_t>(rs1_fval));                         \
       for (double val : temp_arr) {                                    \
+        if (is_invalid_fadd(expect_res, val)) {                        \
+          expect_res = std::numeric_limits<float>::quiet_NaN();        \
+          break;                                                       \
+        }                                                              \
         expect_res += val;                                             \
         if (std::isnan(expect_res)) {                                  \
           expect_res = std::numeric_limits<double>::quiet_NaN();       \
@@ -2741,8 +2787,8 @@ UTEST_RVV_FMA_VF_FORM_WITH_RES(vfnmsac_vf, ARRAY_FLOAT,
     }                                                                  \
   }
 
-UTEST_RVV_VFW_REDSUM_VV_FORM_WITH_RES(vfwredusum_vv)
-UTEST_RVV_VFW_REDSUM_VV_FORM_WITH_RES(vfwredosum_vv)
+UTEST_RVV_VFW_REDSUM_VV_FORM_WITH_RES(vfwredusum_vs)
+UTEST_RVV_VFW_REDSUM_VV_FORM_WITH_RES(vfwredosum_vs)
 
 #undef UTEST_RVV_VFW_REDSUM_VV_FORM_WITH_RES
 // calculate the value of r used in rounding

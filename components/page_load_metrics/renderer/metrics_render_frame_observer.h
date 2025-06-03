@@ -14,9 +14,11 @@
 #include "components/page_load_metrics/renderer/page_timing_metadata_recorder.h"
 #include "components/subresource_filter/content/renderer/ad_resource_tracker.h"
 #include "content/public/renderer/render_frame_observer.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/loader/loading_behavior_flag.h"
 #include "third_party/blink/public/common/responsiveness_metrics/user_interaction_latency.h"
 #include "third_party/blink/public/common/subresource_load_metrics.h"
+#include "third_party/blink/public/common/tokens/tokens.h"
 #include "third_party/blink/public/mojom/loader/resource_load_info.mojom-shared.h"
 #include "third_party/blink/public/web/web_local_frame_observer.h"
 
@@ -25,6 +27,11 @@ class GURL;
 namespace base {
 class OneShotTimer;
 }  // namespace base
+
+namespace blink {
+struct JavaScriptFrameworkDetectionResult;
+struct SoftNavigationMetrics;
+}  // namespace blink
 
 namespace page_load_metrics {
 
@@ -51,17 +58,19 @@ class MetricsRenderFrameObserver
 
   // RenderFrameObserver implementation
   void DidChangePerformanceTiming() override;
-  void DidObserveInputDelay(base::TimeDelta input_delay) override;
   void DidObserveUserInteraction(
-      base::TimeDelta max_event_duration,
+      base::TimeTicks max_event_start,
+      base::TimeTicks max_event_end,
       blink::UserInteractionType interaction_type) override;
   void DidChangeCpuTiming(base::TimeDelta time) override;
   void DidObserveLoadingBehavior(blink::LoadingBehaviorFlag behavior) override;
+  void DidObserveJavaScriptFrameworks(
+      const blink::JavaScriptFrameworkDetectionResult&) override;
   void DidObserveSubresourceLoad(
       const blink::SubresourceLoadMetrics& subresource_load_metrics) override;
   void DidObserveNewFeatureUsage(
       const blink::UseCounterFeature& feature) override;
-  void DidObserveSoftNavigation(uint32_t count) override;
+  void DidObserveSoftNavigation(blink::SoftNavigationMetrics metrics) override;
   void DidObserveLayoutShift(double score, bool after_input_or_scroll) override;
   void DidStartResponse(
       const url::SchemeHostPort& final_response_url,
@@ -146,6 +155,7 @@ class MetricsRenderFrameObserver
   void SendMetrics();
   void OnMetricsSenderCreated();
   virtual Timing GetTiming() const;
+  virtual mojom::SoftNavigationMetricsPtr GetSoftNavigationMetrics() const;
   virtual std::unique_ptr<base::OneShotTimer> CreateTimer();
   virtual std::unique_ptr<PageTimingSender> CreatePageTimingSender(
       bool limited_sending_mode);
@@ -180,6 +190,10 @@ class MetricsRenderFrameObserver
 
   // Will be null when we're not actively sending metrics.
   std::unique_ptr<PageTimingMetricsSender> page_timing_metrics_sender_;
+
+  // DocumentToken associated with current page load. Only available after
+  // `DidCreateDocumentElement` event.
+  absl::optional<blink::DocumentToken> document_token_;
 };
 
 }  // namespace page_load_metrics

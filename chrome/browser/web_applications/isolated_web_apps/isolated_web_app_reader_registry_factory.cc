@@ -29,7 +29,8 @@ IsolatedWebAppReaderRegistryFactory::GetForProfile(Profile* profile) {
 // static
 IsolatedWebAppReaderRegistryFactory*
 IsolatedWebAppReaderRegistryFactory::GetInstance() {
-  return base::Singleton<IsolatedWebAppReaderRegistryFactory>::get();
+  static base::NoDestructor<IsolatedWebAppReaderRegistryFactory> instance;
+  return instance.get();
 }
 
 IsolatedWebAppReaderRegistryFactory::IsolatedWebAppReaderRegistryFactory()
@@ -40,7 +41,8 @@ IsolatedWebAppReaderRegistryFactory::IsolatedWebAppReaderRegistryFactory()
 IsolatedWebAppReaderRegistryFactory::~IsolatedWebAppReaderRegistryFactory() =
     default;
 
-KeyedService* IsolatedWebAppReaderRegistryFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+IsolatedWebAppReaderRegistryFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
   Profile* profile = Profile::FromBrowserContext(context);
 
@@ -51,7 +53,7 @@ KeyedService* IsolatedWebAppReaderRegistryFactory::BuildServiceInstanceFor(
   auto validator = std::make_unique<IsolatedWebAppValidator>(
       std::move(isolated_web_app_trust_checker));
 
-  return new IsolatedWebAppReaderRegistry(
+  return std::make_unique<IsolatedWebAppReaderRegistry>(
       std::move(validator), base::BindRepeating([]() {
         return std::make_unique<
             web_package::SignedWebBundleSignatureVerifier>();

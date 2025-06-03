@@ -33,7 +33,7 @@ class ASH_EXPORT LoginBigUserView : public NonAccessibleView,
     void Remove();
 
    private:
-    const raw_ptr<LoginBigUserView, ExperimentalAsh> view_;
+    const raw_ptr<LoginBigUserView, DanglingUntriaged | ExperimentalAsh> view_;
   };
 
   LoginBigUserView(
@@ -45,9 +45,6 @@ class ASH_EXPORT LoginBigUserView : public NonAccessibleView,
   LoginBigUserView& operator=(const LoginBigUserView&) = delete;
 
   ~LoginBigUserView() override;
-
-  // NonAccessibleView:
-  void OnThemeChanged() override;
 
   // Base on the user type, call CreateAuthUser or CreatePublicAccount.
   void CreateChildView(const LoginUserInfo& user);
@@ -84,9 +81,10 @@ class ASH_EXPORT LoginBigUserView : public NonAccessibleView,
   void CreatePublicAccount(const LoginUserInfo& user);
 
   // Either |auth_user_| or |public_account_| must be null.
-  raw_ptr<LoginPublicAccountUserView, ExperimentalAsh> public_account_ =
+  raw_ptr<LoginPublicAccountUserView, DanglingUntriaged | ExperimentalAsh>
+      public_account_ = nullptr;
+  raw_ptr<LoginAuthUserView, DanglingUntriaged | ExperimentalAsh> auth_user_ =
       nullptr;
-  raw_ptr<LoginAuthUserView, ExperimentalAsh> auth_user_ = nullptr;
 
   LoginAuthUserView::Callbacks auth_user_callbacks_;
   LoginPublicAccountUserView::Callbacks public_account_callbacks_;

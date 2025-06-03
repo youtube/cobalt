@@ -174,6 +174,8 @@ const char *GLenumToString(GLESEnum enumGroup, unsigned int value)
                     return "GL_LINE_WIDTH";
                 case 0xB22:
                     return "GL_SMOOTH_LINE_WIDTH_RANGE";
+                case 0xB40:
+                    return "GL_POLYGON_MODE_NV";
                 case 0xB44:
                     return "GL_CULL_FACE";
                 case 0xB45:
@@ -454,6 +456,12 @@ const char *GLenumToString(GLESEnum enumGroup, unsigned int value)
                     return "GL_LUMINANCE";
                 case 0x190A:
                     return "GL_LUMINANCE_ALPHA";
+                case 0x1B00:
+                    return "GL_POINT_NV";
+                case 0x1B01:
+                    return "GL_LINE_NV";
+                case 0x1B02:
+                    return "GL_FILL_NV";
                 case 0x1D00:
                     return "GL_FLAT";
                 case 0x1D01:
@@ -512,6 +520,10 @@ const char *GLenumToString(GLESEnum enumGroup, unsigned int value)
                     return "GL_REPEAT";
                 case 0x2A00:
                     return "GL_POLYGON_OFFSET_UNITS";
+                case 0x2A01:
+                    return "GL_POLYGON_OFFSET_POINT_NV";
+                case 0x2A02:
+                    return "GL_POLYGON_OFFSET_LINE_NV";
                 case 0x3000:
                     return "GL_CLIP_PLANE0";
                 case 0x3001:
@@ -2098,6 +2110,8 @@ const char *GLenumToString(GLESEnum enumGroup, unsigned int value)
                     return "GL_FETCH_PER_SAMPLE_ARM";
                 case 0x8F66:
                     return "GL_FRAGMENT_SHADER_FRAMEBUFFER_FETCH_MRT_ARM";
+                case 0x8F69:
+                    return "GL_TEXTURE_ASTC_DECODE_PRECISION_EXT";
                 case 0x8F94:
                     return "GL_R8_SNORM";
                 case 0x8F95:
@@ -2760,6 +2774,8 @@ const char *GLenumToString(GLESEnum enumGroup, unsigned int value)
                     return "GL_PIXEL_LOCAL_CLEAR_VALUE_INT_ANGLE";
                 case 0x96EE:
                     return "GL_PIXEL_LOCAL_CLEAR_VALUE_UNSIGNED_INT_ANGLE";
+                case 0x9EA0:
+                    return "GL_RENDERABILITY_VALIDATION_ANGLE";
                 case 0xFFFFFFFF:
                     return "GL_INVALID_INDEX";
                 default:
@@ -3819,6 +3835,8 @@ const char *GLenumToString(GLESEnum enumGroup, unsigned int value)
                     return "GL_SCISSOR_TEST";
                 case 0xDE1:
                     return "GL_TEXTURE_2D";
+                case 0x2A02:
+                    return "GL_POLYGON_OFFSET_LINE_ANGLE";
                 case 0x3000:
                     return "GL_CLIP_PLANE0";
                 case 0x3001:
@@ -3914,6 +3932,17 @@ const char *GLenumToString(GLESEnum enumGroup, unsigned int value)
                     return "GL_OUT_OF_MEMORY";
                 case 0x506:
                     return "GL_INVALID_FRAMEBUFFER_OPERATION";
+                default:
+                    return UnknownEnumToString(value);
+            }
+        }
+
+        case GLESEnum::EvalMapsModeNV:
+        {
+            switch (value)
+            {
+                case 0x1B02:
+                    return "GL_FILL_NV";
                 default:
                     return UnknownEnumToString(value);
             }
@@ -4448,6 +4477,8 @@ const char *GLenumToString(GLESEnum enumGroup, unsigned int value)
                     return "GL_LINE_WIDTH";
                 case 0xB22:
                     return "GL_SMOOTH_LINE_WIDTH_RANGE";
+                case 0xB40:
+                    return "GL_POLYGON_MODE_ANGLE";
                 case 0xB44:
                     return "GL_CULL_FACE";
                 case 0xB45:
@@ -4608,6 +4639,8 @@ const char *GLenumToString(GLESEnum enumGroup, unsigned int value)
                     return "GL_TEXTURE_2D";
                 case 0x2A00:
                     return "GL_POLYGON_OFFSET_UNITS";
+                case 0x2A02:
+                    return "GL_POLYGON_OFFSET_LINE_ANGLE";
                 case 0x3000:
                     return "GL_CLIP_PLANE0";
                 case 0x3001:
@@ -6231,6 +6264,19 @@ const char *GLenumToString(GLESEnum enumGroup, unsigned int value)
             }
         }
 
+        case GLESEnum::PolygonMode:
+        {
+            switch (value)
+            {
+                case 0x1B01:
+                    return "GL_LINE_ANGLE";
+                case 0x1B02:
+                    return "GL_FILL_ANGLE";
+                default:
+                    return UnknownEnumToString(value);
+            }
+        }
+
         case GLESEnum::PrecisionType:
         {
             switch (value)
@@ -7453,6 +7499,8 @@ const char *GLenumToString(GLESEnum enumGroup, unsigned int value)
                     return "GL_DEPTH_STENCIL_TEXTURE_MODE";
                 case 0x9580:
                     return "GL_TEXTURE_TILING_EXT";
+                case 0x9EA0:
+                    return "GL_RENDERABILITY_VALIDATION_ANGLE";
                 default:
                     return UnknownEnumToString(value);
             }
@@ -20292,6 +20340,7 @@ static StringEnumEntry g_stringEnumTable[] = {
     {"GL_FIELD_UPPER_NV", 0x9022},
     {"GL_FILE_NAME_NV", 0x9074},
     {"GL_FILL", 0x1B02},
+    {"GL_FILL_ANGLE", 0x1B02},
     {"GL_FILL_NV", 0x1B02},
     {"GL_FILL_RECTANGLE_NV", 0x933C},
     {"GL_FILTER", 0x829A},
@@ -21099,6 +21148,7 @@ static StringEnumEntry g_stringEnumTable[] = {
     {"GL_LINES_ADJACENCY_ARB", 0x000A},
     {"GL_LINES_ADJACENCY_EXT", 0x000A},
     {"GL_LINES_ADJACENCY_OES", 0x000A},
+    {"GL_LINE_ANGLE", 0x1B01},
     {"GL_LINE_BIT", 0x0004},
     {"GL_LINE_LOOP", 0x0002},
     {"GL_LINE_NV", 0x1B01},
@@ -22508,6 +22558,7 @@ static StringEnumEntry g_stringEnumTable[] = {
     {"GL_POLYGON", 0x0009},
     {"GL_POLYGON_BIT", 0x0008},
     {"GL_POLYGON_MODE", 0x0B40},
+    {"GL_POLYGON_MODE_ANGLE", 0x0B40},
     {"GL_POLYGON_MODE_NV", 0x0B40},
     {"GL_POLYGON_OFFSET_BIAS_EXT", 0x8039},
     {"GL_POLYGON_OFFSET_CLAMP", 0x8E1B},
@@ -22518,6 +22569,7 @@ static StringEnumEntry g_stringEnumTable[] = {
     {"GL_POLYGON_OFFSET_FACTOR_EXT", 0x8038},
     {"GL_POLYGON_OFFSET_FILL", 0x8037},
     {"GL_POLYGON_OFFSET_LINE", 0x2A02},
+    {"GL_POLYGON_OFFSET_LINE_ANGLE", 0x2A02},
     {"GL_POLYGON_OFFSET_LINE_NV", 0x2A02},
     {"GL_POLYGON_OFFSET_POINT", 0x2A01},
     {"GL_POLYGON_OFFSET_POINT_NV", 0x2A01},
@@ -22918,6 +22970,7 @@ static StringEnumEntry g_stringEnumTable[] = {
     {"GL_RELATIVE_VERTICAL_LINE_TO_NV", 0x0009},
     {"GL_RELEASED_APPLE", 0x8A19},
     {"GL_RENDER", 0x1C00},
+    {"GL_RENDERABILITY_VALIDATION_ANGLE", 0x9EA0},
     {"GL_RENDERBUFFER", 0x8D41},
     {"GL_RENDERBUFFER_ALPHA_SIZE", 0x8D53},
     {"GL_RENDERBUFFER_ALPHA_SIZE_EXT", 0x8D53},
@@ -23579,6 +23632,7 @@ static StringEnumEntry g_stringEnumTable[] = {
     {"GL_STENCIL_INDEX8", 0x8D48},
     {"GL_STENCIL_INDEX8_EXT", 0x8D48},
     {"GL_STENCIL_INDEX8_OES", 0x8D48},
+    {"GL_STENCIL_INDEX_ANGLE", 0x1901},
     {"GL_STENCIL_INDEX_OES", 0x1901},
     {"GL_STENCIL_OP_VALUE_AMD", 0x874C},
     {"GL_STENCIL_PASS_DEPTH_FAIL", 0x0B95},

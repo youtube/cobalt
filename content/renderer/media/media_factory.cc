@@ -12,6 +12,7 @@
 #include "base/command_line.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
+#include "base/memory/raw_ptr.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/string_number_conversions.h"
@@ -182,7 +183,7 @@ class FrameFetchContext : public blink::ResourceFetchContext {
   }
 
  private:
-  blink::WebLocalFrame* frame_;
+  raw_ptr<blink::WebLocalFrame, ExperimentalRenderer> frame_;
 };
 
 // Obtains the media ContextProvider and calls the given callback on the same
@@ -272,8 +273,7 @@ std::unique_ptr<media::RendererImplFactory> CreateRendererImplFactory(
       media_log, decoder_factory,
       base::BindRepeating(&content::RenderThreadImpl::GetGpuFactories,
                           base::Unretained(render_thread)),
-      player_id,
-      render_frame->CreateSpeechRecognitionClient(base::OnceClosure()));
+      player_id, render_frame->CreateSpeechRecognitionClient());
 #endif
   return factory;
 }
@@ -513,8 +513,9 @@ blink::WebMediaPlayer* MediaFactory::CreateMediaPlayer(
       std::move(compositor_worker_task_runner),
       render_thread->compositor_task_runner(),
       std::move(video_frame_compositor_task_runner),
-      base::BindRepeating(&v8::Isolate::AdjustAmountOfExternalAllocatedMemory,
-                          base::Unretained(blink::MainThreadIsolate())),
+      base::BindRepeating(
+          &v8::Isolate::AdjustAmountOfExternalAllocatedMemory,
+          base::Unretained(web_frame->GetAgentGroupScheduler()->Isolate())),
       initial_cdm, request_routing_token_cb_, media_observer,
       enable_instant_source_buffer_gc, embedded_media_experience_enabled,
       std::move(metrics_provider),
@@ -729,16 +730,20 @@ MediaFactory::CreateRendererFactorySelector(
             std::move(observe_overlay_state_cb), CreateMojoRendererFactory(),
             std::move(media_foundation_renderer_notifier)));
 
-    if (use_mf_for_clear) {
+    if (use_mf_for_clear && !is_base_renderer_factory_set) {
       // We want to use Media Foundation even for non-explicit Media Foundation
-      // clients, register Media Foundation as the base renderer type.
-      // We don't use AddBaseFactory here because if ENABLE_MOJO_RENDERER
-      // is set then we may have already called it previously and it is
-      // expected that AddBaseFactory will only be called when there is not
-      // already a base factory type set. Instead manually set the new base
-      // factory type with SetBaseRendererType.
+      // clients (e.g. Media Foundation for Clear), register Media Foundation
+      // Renderer Factory as the base factory.
       factory_selector->SetBaseRendererType(RendererType::kMediaFoundation);
       is_base_renderer_factory_set = true;
+
+      // There are cases which Media Foundation may not support which will
+      // require us to fallback to the renderer impl so we add the renderer
+      // impl factory here to allow that fallback.
+      auto renderer_impl_factory = CreateRendererImplFactory(
+          player_id, media_log, decoder_factory, render_thread, render_frame_);
+      factory_selector->AddFactory(RendererType::kRendererImpl,
+                                   std::move(renderer_impl_factory));
     }
   }
 #endif  // BUILDFLAG(IS_WIN)

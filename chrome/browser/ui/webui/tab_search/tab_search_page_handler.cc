@@ -29,6 +29,7 @@
 #include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/browser_live_tab_context.h"
 #include "chrome/browser/ui/browser_window.h"
+#include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_renderer_data.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
@@ -37,8 +38,13 @@
 #include "chrome/browser/ui/webui/metrics_reporter/metrics_reporter.h"
 #include "chrome/browser/ui/webui/tab_search/tab_search_prefs.h"
 #include "chrome/browser/ui/webui/util/image_util.h"
+#include "chrome/browser/user_education/user_education_service.h"
+#include "chrome/browser/user_education/user_education_service_factory.h"
 #include "chrome/common/webui_url_constants.h"
+#include "components/user_education/common/tutorial_identifier.h"
+#include "components/user_education/common/tutorial_service.h"
 #include "ui/base/l10n/time_format.h"
+#include "ui/color/color_provider.h"
 
 namespace {
 constexpr base::TimeDelta kTabsChangeDelay = base::Milliseconds(50);
@@ -94,6 +100,17 @@ void CreateTabGroupIfNotPresent(
   }
 }
 
+// Applies theming to favicons where necessary. This is needed to handle favicon
+// resources that are rasterized in a theme-unaware way. This is common of
+// favicons not sourced directly from the browser.
+gfx::ImageSkia ThemeFavicon(const gfx::ImageSkia& source,
+                            const ui::ColorProvider& provider) {
+  return favicon::ThemeFavicon(
+      source, provider.GetColor(kColorTabSearchPrimaryForeground),
+      provider.GetColor(kColorTabSearchBackground),
+      provider.GetColor(kColorTabSearchBackground));
+}
+
 }  // namespace
 
 TabSearchPageHandler::TabSearchPageHandler(
@@ -144,6 +161,22 @@ void TabSearchPageHandler::CloseTab(int32_t tab_id) {
   // Do not add code past this point.
 }
 
+void TabSearchPageHandler::AcceptTabOrganization(
+    int32_t session_id,
+    int32_t organization_id,
+    const std::string& name,
+    std::vector<tab_search::mojom::TabPtr> tabs) {
+  // TODO(dpenning): Implement this
+  Browser* browser = chrome::FindLastActive();
+  browser->profile()->GetPrefs()->SetBoolean(
+      tab_search_prefs::kTabOrganizationShowFRE, false);
+}
+
+void TabSearchPageHandler::RejectTabOrganization(int32_t session_id,
+                                                 int32_t organization_id) {
+  // TODO(dpenning): Implement this
+}
+
 void TabSearchPageHandler::GetProfileData(GetProfileDataCallback callback) {
   TRACE_EVENT0("browser", "TabSearchPageHandler:GetProfileTabs");
   auto profile_tabs = CreateProfileData();
@@ -168,6 +201,13 @@ void TabSearchPageHandler::GetProfileData(GetProfileDataCallback callback) {
   }
 
   std::move(callback).Run(std::move(profile_tabs));
+}
+
+void TabSearchPageHandler::GetTabOrganizationSession(
+    GetTabOrganizationSessionCallback callback) {
+  auto session = tab_search::mojom::TabOrganizationSession::New();
+  // TODO(dpenning): Fill out session
+  std::move(callback).Run(std::move(session));
 }
 
 absl::optional<TabSearchPageHandler::TabDetails>
@@ -229,6 +269,10 @@ void TabSearchPageHandler::OpenRecentlyClosedEntry(int32_t session_id) {
       WindowOpenDisposition::NEW_FOREGROUND_TAB);
 }
 
+void TabSearchPageHandler::RequestTabOrganization() {
+  // TODO(dpenning): Implement this
+}
+
 void TabSearchPageHandler::SaveRecentlyClosedExpandedPref(bool expanded) {
   Profile::FromWebUI(web_ui_)->GetPrefs()->SetBoolean(
       tab_search_prefs::kTabSearchRecentlyClosedSectionExpanded, expanded);
@@ -237,6 +281,33 @@ void TabSearchPageHandler::SaveRecentlyClosedExpandedPref(bool expanded) {
       "Tabs.TabSearch.RecentlyClosedSectionToggleAction",
       expanded ? TabSearchRecentlyClosedToggleAction::kExpand
                : TabSearchRecentlyClosedToggleAction::kCollapse);
+}
+
+void TabSearchPageHandler::SetTabIndex(int32_t index) {
+  Profile::FromWebUI(web_ui_)->GetPrefs()->SetInteger(
+      tab_search_prefs::kTabSearchTabIndex, index);
+}
+
+void TabSearchPageHandler::StartTabGroupTutorial() {
+  // Close the tab search bubble if showing.
+  auto embedder = webui_controller_->embedder();
+  if (embedder) {
+    embedder->CloseUI();
+  }
+
+  const Browser* const browser = chrome::FindLastActive();
+  auto* const user_education_service =
+      UserEducationServiceFactory::GetForBrowserContext(browser->profile());
+  user_education::TutorialService* const tutorial_service =
+      user_education_service ? &user_education_service->tutorial_service()
+                             : nullptr;
+  CHECK(tutorial_service);
+
+  const ui::ElementContext context = browser->window()->GetElementContext();
+  CHECK(context);
+
+  user_education::TutorialIdentifier tutorial_id = kTabGroupTutorialId;
+  tutorial_service->StartTutorial(tutorial_id, context);
 }
 
 void TabSearchPageHandler::ShowUI() {
@@ -456,14 +527,24 @@ tab_search::mojom::TabPtr TabSearchPageHandler::GetTab(
           ? tab_renderer_data.visible_url
           : last_committed_url;
 
-  if (tab_renderer_data.favicon.isNull()) {
+  if (tab_renderer_data.favicon.IsEmpty()) {
     tab_data->is_default_favicon = true;
   } else {
+    const ui::ColorProvider& provider =
+        web_ui_->GetWebContents()->GetColorProvider();
+    const gfx::ImageSkia default_favicon =
+        favicon::GetDefaultFaviconModel().Rasterize(&provider);
+    gfx::ImageSkia raster_favicon =
+        tab_renderer_data.favicon.Rasterize(&provider);
+
+    if (tab_renderer_data.should_themify_favicon) {
+      raster_favicon = ThemeFavicon(raster_favicon, provider);
+    }
+
     tab_data->favicon_url = GURL(webui::EncodePNGAndMakeDataURI(
-        tab_renderer_data.favicon, web_ui_->GetDeviceScaleFactor()));
+        raster_favicon, web_ui_->GetDeviceScaleFactor()));
     tab_data->is_default_favicon =
-        tab_renderer_data.favicon.BackedBySameObjectAs(
-            favicon::GetDefaultFavicon().AsImageSkia());
+        raster_favicon.BackedBySameObjectAs(default_favicon);
   }
 
   tab_data->show_icon = tab_renderer_data.show_icon;
@@ -575,7 +656,7 @@ void TabSearchPageHandler::TabChangedAt(content::WebContents* contents,
   // out the changes we are not interested in.
   if (change_type != TabChangeType::kAll)
     return;
-  Browser* browser = chrome::FindBrowserWithWebContents(contents);
+  Browser* browser = chrome::FindBrowserWithTab(contents);
   if (!browser)
     return;
   Browser* active_browser = chrome::FindLastActive();
@@ -593,6 +674,13 @@ void TabSearchPageHandler::TabChangedAt(content::WebContents* contents,
   tab_update_info->in_active_window = (browser == active_browser);
   tab_update_info->tab = GetTab(browser->tab_strip_model(), contents, index);
   page_->TabUpdated(std::move(tab_update_info));
+}
+
+void TabSearchPageHandler::OnTabOrganizationSessionChanged() {
+  auto session = tab_search::mojom::TabOrganizationSession::New();
+  // TODO(dpenning): Fill out session
+  session->state = tab_search::mojom::TabOrganizationState::kNotStarted;
+  page_->TabOrganizationSessionUpdated(std::move(session));
 }
 
 void TabSearchPageHandler::ScheduleDebounce() {

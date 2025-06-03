@@ -78,6 +78,16 @@ extern const char kChromeMachineLevelUserCloudPolicyIOSType[];
 extern const char kChromeMachineLevelExtensionCloudPolicyType[];
 extern const char kChromeRemoteCommandPolicyType[];
 
+// Remote command type for `type` field in DeviceRemoteCommandRequest.
+// Command for Chrome OS Ash user.
+extern const char kChromeAshUserRemoteCommandType[];
+// Command for Chrome OS device.
+extern const char kChromeDeviceRemoteCommandType[];
+// Command for CBCM device on non-CrOS
+extern const char kChromeBrowserRemoteCommandType[];
+// Command for browser profile.
+extern const char kChromeUserRemoteCommandType[];
+
 extern const char kChromeMachineLevelUserCloudPolicyTypeBase64[];
 
 // These codes are sent in the |error_code| field of PolicyFetchResponse.
@@ -152,28 +162,28 @@ enum DeviceManagementStatus {
   // Service error: Illegal account for packaged EDU license.
   DM_STATUS_SERVICE_ILLEGAL_ACCOUNT_FOR_PACKAGED_EDU_LICENSE = 908,
   // Service error: Packaged license device can't enroll KIOSK.
-  DM_STATUS_SERVICE_INVALID_PACKAGED_DEVICE_FOR_KIOSK = 909,
+  DM_STATUS_SERVICE_INVALID_PACKAGED_DEVICE_FOR_KIOSK = 909
 };
 
-// List of modes that the device can be locked into.
+// List of modes that the device can be locked into. Some IDs are skipped
+// because they have been used in the past but got deprecated and deleted.
 enum DeviceMode {
-  DEVICE_MODE_PENDING,        // The device mode is not yet available.
-  DEVICE_MODE_NOT_SET,        // The device is not yet enrolled or owned.
-  DEVICE_MODE_CONSUMER,       // The device is locally owned as consumer
-                              // device.
-  DEVICE_MODE_ENTERPRISE,     // The device is enrolled as an enterprise
-                              // device.
-  DEVICE_MODE_ENTERPRISE_AD,  // The device has joined AD.
-  DEPRECATED_DEVICE_MODE_LEGACY_RETAIL_MODE,  // The device is enrolled as a
-                                              // retail kiosk device. This is
-                                              // deprecated.
-  DEVICE_MODE_CONSUMER_KIOSK_AUTOLAUNCH,      // The device is locally owned as
-                                          // consumer kiosk with ability to auto
-                                          // launch a kiosk webapp.
-  DEVICE_MODE_DEMO,  // The device is in demo mode. It was
-                     // either enrolled online or setup
-                     // offline into demo mode domain -
-                     // see kDemoModeDomain.
+  DEVICE_MODE_PENDING = 0,     // The device mode is not yet available.
+  DEVICE_MODE_NOT_SET = 1,     // The device is not yet enrolled or owned.
+  DEVICE_MODE_CONSUMER = 2,    // The device is locally owned as consumer
+                               // device.
+  DEVICE_MODE_ENTERPRISE = 3,  // The device is enrolled as an enterprise
+                               // device.
+  DEPRECATED_DEVICE_MODE_LEGACY_RETAIL_MODE = 5,  // The device is enrolled as a
+                                                  // retail kiosk device. This
+                                                  // is deprecated.
+  DEVICE_MODE_CONSUMER_KIOSK_AUTOLAUNCH = 6,  // The device is locally owned as
+                                              // consumer kiosk with ability to
+                                              // auto launch a kiosk webapp.
+  DEVICE_MODE_DEMO = 7,  // The device is in demo mode. It was
+                         // either enrolled online or setup
+                         // offline into demo mode domain -
+                         // see kDemoModeDomain.
 };
 
 // Domain that demo mode devices are enrolled into: cros-demo-mode.com

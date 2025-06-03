@@ -12,21 +12,28 @@
 #import "base/strings/sys_string_conversions.h"
 #import "components/feature_engagement/public/event_constants.h"
 #import "components/feature_engagement/public/tracker.h"
+#import "components/prefs/pref_service.h"
 #import "components/reading_list/core/reading_list_entry.h"
 #import "components/reading_list/features/reading_list_switches.h"
+#import "components/signin/public/base/signin_pref_names.h"
 #import "components/signin/public/identity_manager/objc/identity_manager_observer_bridge.h"
-#import "components/sync/driver/sync_service.h"
-#import "ios/chrome/browser/browser_state/chrome_browser_state.h"
+#import "components/sync/base/features.h"
+#import "components/sync/base/user_selectable_type.h"
+#import "components/sync/service/sync_service.h"
+#import "components/sync/service/sync_user_settings.h"
 #import "ios/chrome/browser/favicon/ios_chrome_favicon_loader_factory.h"
 #import "ios/chrome/browser/favicon/ios_chrome_large_icon_service_factory.h"
-#import "ios/chrome/browser/feature_engagement/tracker_factory.h"
-#import "ios/chrome/browser/main/browser.h"
+#import "ios/chrome/browser/feature_engagement/model/tracker_factory.h"
 #import "ios/chrome/browser/metrics/new_tab_page_uma.h"
 #import "ios/chrome/browser/policy/policy_util.h"
-#import "ios/chrome/browser/reading_list/offline_page_tab_helper.h"
-#import "ios/chrome/browser/reading_list/offline_url_utils.h"
-#import "ios/chrome/browser/reading_list/reading_list_model_factory.h"
+#import "ios/chrome/browser/reading_list/model/offline_page_tab_helper.h"
+#import "ios/chrome/browser/reading_list/model/offline_url_utils.h"
+#import "ios/chrome/browser/reading_list/model/reading_list_model_factory.h"
 #import "ios/chrome/browser/shared/coordinator/scene/scene_state_browser_agent.h"
+#import "ios/chrome/browser/shared/model/browser/browser.h"
+#import "ios/chrome/browser/shared/model/browser_state/chrome_browser_state.h"
+#import "ios/chrome/browser/shared/model/url/chrome_url_constants.h"
+#import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/public/commands/application_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
@@ -37,8 +44,7 @@
 #import "ios/chrome/browser/signin/authentication_service_factory.h"
 #import "ios/chrome/browser/signin/chrome_account_manager_service_factory.h"
 #import "ios/chrome/browser/signin/identity_manager_factory.h"
-#import "ios/chrome/browser/sync/sync_service_factory.h"
-#import "ios/chrome/browser/sync/sync_setup_service.h"
+#import "ios/chrome/browser/sync/model/sync_service_factory.h"
 #import "ios/chrome/browser/ui/authentication/cells/signin_promo_view_consumer.h"
 #import "ios/chrome/browser/ui/authentication/enterprise/enterprise_utils.h"
 #import "ios/chrome/browser/ui/authentication/signin_presenter.h"
@@ -56,21 +62,15 @@
 #import "ios/chrome/browser/ui/reading_list/reading_list_table_view_controller.h"
 #import "ios/chrome/browser/ui/sharing/sharing_coordinator.h"
 #import "ios/chrome/browser/ui/sharing/sharing_params.h"
-#import "ios/chrome/browser/url/chrome_url_constants.h"
-#import "ios/chrome/browser/url_loading/url_loading_browser_agent.h"
-#import "ios/chrome/browser/url_loading/url_loading_params.h"
-#import "ios/chrome/browser/web_state_list/web_state_list.h"
-#import "ios/chrome/browser/window_activities/window_activity_helpers.h"
+#import "ios/chrome/browser/url_loading/model/url_loading_browser_agent.h"
+#import "ios/chrome/browser/url_loading/model/url_loading_params.h"
+#import "ios/chrome/browser/window_activities/model/window_activity_helpers.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "ios/web/common/features.h"
 #import "ios/web/public/navigation/referrer.h"
 #import "ui/base/l10n/l10n_util.h"
 #import "ui/strings/grit/ui_strings.h"
 #import "url/gurl.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 // TODO(crbug.com/1425862): SigninPromoViewMediator will be refactored so that
 // we can move the SigninPromoViewConsumer implementation from the coordinator
@@ -114,15 +114,8 @@
   PrefService* _prefService;
   // Manager for user's Google identities.
   signin::IdentityManager* _identityManager;
-}
-
-- (NSString*)description {
-  return [NSString
-      stringWithFormat:
-          @"<%@: %p, isStarted: %d, _delegate: %p, _shouldShowSignInPromo: %d,"
-          @"isPresented: %d>",
-          self.class.description, self, self.isStarted, _delegate,
-          _shouldShowSignInPromo, [self.tableViewController isBeingPresented]];
+  // Sync service.
+  syncer::SyncService* _syncService;
 }
 
 #pragma mark - ChromeCoordinator
@@ -139,11 +132,13 @@
   // Create the mediator.
   ReadingListModel* model =
       ReadingListModelFactory::GetInstance()->GetForBrowserState(browserState);
+  _syncService = SyncServiceFactory::GetForBrowserState(browserState);
   ReadingListListItemFactory* itemFactory =
       [[ReadingListListItemFactory alloc] init];
   FaviconLoader* faviconLoader =
       IOSChromeFaviconLoaderFactory::GetForBrowserState(browserState);
   self.mediator = [[ReadingListMediator alloc] initWithModel:model
+                                                 syncService:_syncService
                                                faviconLoader:faviconLoader
                                              listItemFactory:itemFactory];
   // Initialize services.
@@ -204,16 +199,18 @@
   ChromeAccountManagerService* accountManagerService =
       ChromeAccountManagerServiceFactory::GetForBrowserState(browserState);
   _signinPromoViewMediator = [[SigninPromoViewMediator alloc]
-            initWithBrowser:(Browser*)self.browser
-      accountManagerService:accountManagerService
-                authService:_authService
-                prefService:_prefService
-                accessPoint:signin_metrics::AccessPoint::
-                                ACCESS_POINT_READING_LIST
-                  presenter:self
-         baseViewController:self.tableViewController];
-  _signinPromoViewMediator.signInOnly = YES;
+      initWithAccountManagerService:accountManagerService
+                        authService:_authService
+                        prefService:_prefService
+                        syncService:_syncService
+                        accessPoint:signin_metrics::AccessPoint::
+                                        ACCESS_POINT_READING_LIST
+                          presenter:self];
+  _signinPromoViewMediator.signinPromoAction =
+      SigninPromoAction::kInstantSignin;
   _signinPromoViewMediator.consumer = self;
+  _signinPromoViewMediator.dataTypeToWaitForInitialSync =
+      syncer::ModelType::READING_LIST;
   [self updateSignInPromoVisibility];
 
   [super start];
@@ -233,6 +230,15 @@
       dismissViewControllerAnimated:YES
                          completion:nil];
   self.tableViewController = nil;
+  // It is possible that the user opens the reading list when there's already
+  // a reading list view (with tap on the NTP icons for instance when the
+  // previous reading list is dismissing).
+  // In this case, `closeReadingList` (thus this `stop` method) is called
+  // immediately, and `presentationController.delegate` needs be set to nil to
+  // avoid receiving `presentationControllerDidDismiss` which calls
+  // `closeReadingList` again.
+  // See https://crbug.com/1449105.
+  self.navigationController.presentationController.delegate = nil;
   self.navigationController = nil;
 
   [self.mediator disconnect];
@@ -247,10 +253,15 @@
   _authService = nullptr;
   _prefService = nullptr;
   _identityManager = nullptr;
+  _syncService = nullptr;
   _identityManagerObserverBridge.reset();
 
   [super stop];
   self.started = NO;
+}
+
+- (void)dealloc {
+  DCHECK(!self.mediator);
 }
 
 #pragma mark - ReadingListListViewControllerAudience
@@ -304,6 +315,18 @@
               openItemOfflineInNewTab:(id<ReadingListListItem>)item {
   DCHECK_EQ(self.tableViewController, viewController);
   [self openItemOfflineInNewTab:item];
+}
+
+- (void)didLoadContent {
+  if (!_shouldShowSignInPromo) {
+    return;
+  }
+
+  SigninPromoViewConfigurator* promoConfigurator =
+      [_signinPromoViewMediator createConfigurator];
+  [self.tableViewController promoStateChanged:YES
+                            promoConfigurator:promoConfigurator
+                                promoDelegate:_signinPromoViewMediator];
 }
 
 #pragma mark - URL Loading Helpers
@@ -552,6 +575,10 @@
                            identityChanged:identityChanged];
 }
 
+- (void)promoProgressStateDidChange {
+  [self updateSignInPromoVisibility];
+}
+
 - (void)signinDidFinish {
   [self updateSignInPromoVisibility];
 }
@@ -570,7 +597,7 @@
     (const signin::PrimaryAccountChangeEvent&)event {
   switch (event.GetEventTypeFor(signin::ConsentLevel::kSignin)) {
     case signin::PrimaryAccountChangeEvent::Type::kSet:
-      if (!_signinPromoViewMediator.signinInProgress) {
+      if (!_signinPromoViewMediator.showSpinner) {
         self.shouldShowSignInPromo = NO;
       }
       break;
@@ -589,10 +616,9 @@
 - (void)updateSignInPromoVisibility {
   BOOL areAccountStorageAndPromoEnabled =
       base::FeatureList::IsEnabled(
-          reading_list::switches::kReadingListEnableDualReadingListModel) &&
+          syncer::kReadingListEnableDualReadingListModel) &&
       base::FeatureList::IsEnabled(
-          reading_list::switches::
-              kReadingListEnableSyncTransportModeUponSignIn);
+          syncer::kReadingListEnableSyncTransportModeUponSignIn);
   if (!areAccountStorageAndPromoEnabled || self.isSyncDisabledByAdministrator) {
     self.shouldShowSignInPromo = NO;
     return;
@@ -607,9 +633,18 @@
     return;
   }
 
-  self.shouldShowSignInPromo =
-      !_identityManager->HasPrimaryAccount(signin::ConsentLevel::kSignin) &&
-      !_identityManager->HasPrimaryAccount(signin::ConsentLevel::kSync);
+  if (_identityManager->HasPrimaryAccount(signin::ConsentLevel::kSignin)) {
+    // If the user is signed-in with the promo (thus opted-in for Reading List
+    // account storage), the promo should stay visible during the initial sync
+    // and a spinner should be shown on it.
+    self.shouldShowSignInPromo = _signinPromoViewMediator.showSpinner;
+  } else {
+    const std::string lastSignedInGaiaId =
+        _prefService->GetString(prefs::kGoogleServicesLastSyncingGaiaId);
+    // If the last signed-in user did not remove data during sign-out, don't
+    // show the signin promo.
+    self.shouldShowSignInPromo = lastSignedInGaiaId.empty();
+  }
 }
 
 // Updates the visibility of the sign-in promo.
@@ -652,12 +687,11 @@
 
 // Returns YES if the user cannot turn on sync for enterprise policy reasons.
 - (BOOL)isSyncDisabledByAdministrator {
-  syncer::SyncService* syncService = SyncServiceFactory::GetForBrowserState(
-      self.browser->GetBrowserState()->GetOriginalChromeBrowserState());
-  const bool syncDisabledPolicy = syncService->GetDisableReasons().Has(
+  const bool syncDisabledPolicy = _syncService->HasDisableReason(
       syncer::SyncService::DISABLE_REASON_ENTERPRISE_POLICY);
   const bool syncTypesDisabledPolicy =
-      IsManagedSyncDataType(_prefService, SyncSetupService::kSyncReadingList);
+      _syncService->GetUserSettings()->IsTypeManagedByPolicy(
+          syncer::UserSelectableType::kReadingList);
   return syncDisabledPolicy || syncTypesDisabledPolicy;
 }
 

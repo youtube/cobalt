@@ -40,9 +40,18 @@ class CSSTimingData {
     return timing_function_list_;
   }
 
+  bool HasSingleInitialDelayStart() const {
+    return delay_start_list_.size() == 1u &&
+           delay_start_list_.front() == InitialDelayStart();
+  }
+
+  bool HasSingleInitialDelayEnd() const {
+    return delay_end_list_.size() == 1u &&
+           delay_end_list_.front() == InitialDelayEnd();
+  }
+
   static Timing::Delay InitialDelayStart() { return Timing::Delay(); }
   static Timing::Delay InitialDelayEnd() { return Timing::Delay(); }
-  static absl::optional<double> InitialDuration() { return 0; }
   static scoped_refptr<TimingFunction> InitialTimingFunction() {
     return CubicBezierTimingFunction::Preset(
         CubicBezierTimingFunction::EaseType::EASE);
@@ -54,8 +63,8 @@ class CSSTimingData {
   }
 
  protected:
-  CSSTimingData();
-  explicit CSSTimingData(const CSSTimingData&);
+  explicit CSSTimingData(absl::optional<double> initial_duration);
+  CSSTimingData(const CSSTimingData&);
 
   Timing ConvertToTiming(size_t index) const;
   bool TimingMatchForStyleRecalc(const CSSTimingData&) const;

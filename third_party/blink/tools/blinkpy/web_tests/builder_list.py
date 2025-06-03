@@ -50,7 +50,6 @@ class BuilderList:
             "is_try_builder": Whether the builder is a trybot.
             "main": The main name of the builder. It is deprecated, but still required
                 by test-results.appspot.com API."
-            "has_webdriver_tests": Whether webdriver_tests_suite runs on this builder.
 
         Possible refactoring note: Potentially, it might make sense to use
         blinkpy.common.net.results_fetcher.Builder and add port_name and
@@ -109,7 +108,7 @@ class BuilderList:
             builder
             for builder in self.filter_builders(is_try=True,
                                                 exclude_specifiers={'android'})
-            if not self.uses_wptrunner(builder)
+            if self.has_rwt_steps(builder)
         }
         # Remove CQ builders whose port is a duplicate of a *-blink-rel builder
         # to avoid wasting resources.
@@ -198,9 +197,6 @@ class BuilderList:
     def main_for_builder(self, builder_name):
         return self._builders[builder_name].get('main', '')
 
-    def has_webdriver_tests_for_builder(self, builder_name):
-        return self._builders[builder_name].get('has_webdriver_tests')
-
     def port_name_for_builder_name(self, builder_name):
         return self._builders[builder_name]['port_name']
 
@@ -222,10 +218,19 @@ class BuilderList:
     def is_try_server_builder(self, builder_name):
         return self._builders[builder_name].get('is_try_builder', False)
 
-    def uses_wptrunner(self, builder_name: str) -> bool:
+    def has_rwt_steps(self, builder_name: str) -> bool:
+        return any(not step.get('uses_wptrunner', False)
+                   for step_name, step in self._steps(builder_name).items())
+
+    def has_wptrunner_steps(self, builder_name: str) -> bool:
         return any(
-            step.get('uses_wptrunner', 'wpt_tests_suite' in step_name)
+            step.get('uses_wptrunner', False)
             for step_name, step in self._steps(builder_name).items())
+
+    def uses_wptrunner(self, builder_name: str, step_name: str) -> bool:
+        steps = self._steps(builder_name)
+        return step_name in steps and steps[step_name].get(
+            'uses_wptrunner', False)
 
     def product_for_build_step(self, builder_name: str, step_name: str) -> str:
         steps = self._steps(builder_name)
@@ -287,7 +292,7 @@ class BuilderList:
         """Returns the builder name for a give version and build type.
 
         Args:
-            version: A string with the OS version specifier. e.g. "Trusty", "Win10".
+            version: A string with the OS or OS version specifier. e.g. "Win10".
             build_type: A string with the build type. e.g. "Debug" or "Release".
 
         Returns:

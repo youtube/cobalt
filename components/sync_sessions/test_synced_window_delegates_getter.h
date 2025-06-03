@@ -8,6 +8,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "base/functional/callback.h"
@@ -59,6 +60,7 @@ class TestSyncedTabDelegate : public SyncedTabDelegate {
   SessionID GetWindowId() const override;
   SessionID GetSessionId() const override;
   bool IsBeingDestroyed() const override;
+  base::Time GetLastActiveTime() const override;
   std::string GetExtensionAppId() const override;
   bool ProfileHasChildAccount() const override;
   void set_has_child_account(bool has_child_account);
@@ -69,6 +71,8 @@ class TestSyncedTabDelegate : public SyncedTabDelegate {
   int64_t GetTaskIdForNavigationId(int nav_id) const override;
   int64_t GetParentTaskIdForNavigationId(int nav_id) const override;
   int64_t GetRootTaskIdForNavigationId(int nav_id) const override;
+  std::unique_ptr<SyncedTabDelegate> CreatePlaceholderTabSyncedTabDelegate()
+      override;
 
  private:
   const SessionID window_id_;
@@ -97,12 +101,18 @@ class PlaceholderTabDelegate : public SyncedTabDelegate {
 
   ~PlaceholderTabDelegate() override;
 
+  void SetPlaceholderTabSyncedTabDelegate(
+      std::unique_ptr<SyncedTabDelegate> delegate);
+
   // SyncedTabDelegate overrides.
   SessionID GetSessionId() const override;
   bool IsPlaceholderTab() const override;
+  std::unique_ptr<SyncedTabDelegate> CreatePlaceholderTabSyncedTabDelegate()
+      override;
   // Everything else is invalid to invoke as it depends on a valid WebContents.
   SessionID GetWindowId() const override;
   bool IsBeingDestroyed() const override;
+  base::Time GetLastActiveTime() const override;
   std::string GetExtensionAppId() const override;
   bool IsInitialBlankNavigation() const override;
   int GetCurrentEntryIndex() const override;
@@ -122,6 +132,7 @@ class PlaceholderTabDelegate : public SyncedTabDelegate {
 
  private:
   const SessionID tab_id_;
+  std::unique_ptr<SyncedTabDelegate> placeholder_tab_synced_tab_delegate_;
 };
 
 class TestSyncedWindowDelegate : public SyncedWindowDelegate {
@@ -145,7 +156,6 @@ class TestSyncedWindowDelegate : public SyncedWindowDelegate {
   bool HasWindow() const override;
   SessionID GetSessionId() const override;
   int GetTabCount() const override;
-  int GetActiveIndex() const override;
   bool IsTypeNormal() const override;
   bool IsTypePopup() const override;
   bool IsTabPinned(const SyncedTabDelegate* tab) const override;
@@ -201,7 +211,7 @@ class TestSyncedWindowDelegatesGetter : public SyncedWindowDelegatesGetter {
     void NotifySessionRestoreComplete();
 
    private:
-    raw_ptr<LocalSessionEventHandler> handler_ = nullptr;
+    raw_ptr<LocalSessionEventHandler, DanglingUntriaged> handler_ = nullptr;
   };
 
   SyncedWindowDelegateMap delegates_;

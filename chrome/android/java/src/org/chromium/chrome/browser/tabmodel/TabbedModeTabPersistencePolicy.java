@@ -20,11 +20,13 @@ import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.supplier.Supplier;
 import org.chromium.base.task.AsyncTask;
 import org.chromium.base.task.BackgroundOnlyAsyncTask;
+import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskRunner;
+import org.chromium.base.task.TaskTraits;
 import org.chromium.chrome.browser.app.tabmodel.TabWindowManagerSingleton;
 import org.chromium.chrome.browser.compositor.layouts.content.TabContentManager;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
-import org.chromium.chrome.browser.preferences.SharedPreferencesManager;
+import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.chrome.browser.tabpersistence.TabStateDirectory;
 import org.chromium.chrome.browser.tabpersistence.TabStateFileManager;
 
@@ -129,10 +131,10 @@ public class TabbedModeTabPersistencePolicy implements TabPersistencePolicy {
     public boolean performInitialization(TaskRunner taskRunner) {
         ThreadUtils.assertOnUiThread();
 
-        final boolean hasRunLegacyMigration = SharedPreferencesManager.getInstance().readBoolean(
+        final boolean hasRunLegacyMigration = ChromeSharedPreferences.getInstance().readBoolean(
                 ChromePreferenceKeys.TABMODEL_HAS_RUN_FILE_MIGRATION, false);
         final boolean hasRunMultiInstanceMigration =
-                SharedPreferencesManager.getInstance().readBoolean(
+                ChromeSharedPreferences.getInstance().readBoolean(
                         ChromePreferenceKeys.TABMODEL_HAS_RUN_MULTI_INSTANCE_FILE_MIGRATION, false);
 
         if (hasRunLegacyMigration && hasRunMultiInstanceMigration) return false;
@@ -275,12 +277,12 @@ public class TabbedModeTabPersistencePolicy implements TabPersistencePolicy {
     }
 
     private void setLegacyFileMigrationPref() {
-        SharedPreferencesManager.getInstance().writeBoolean(
+        ChromeSharedPreferences.getInstance().writeBoolean(
                 ChromePreferenceKeys.TABMODEL_HAS_RUN_FILE_MIGRATION, true);
     }
 
     private void setMultiInstanceFileMigrationPref() {
-        SharedPreferencesManager.getInstance().writeBoolean(
+        ChromeSharedPreferences.getInstance().writeBoolean(
                 ChromePreferenceKeys.TABMODEL_HAS_RUN_MULTI_INSTANCE_FILE_MIGRATION, true);
     }
 
@@ -313,24 +315,25 @@ public class TabbedModeTabPersistencePolicy implements TabPersistencePolicy {
 
     /**
      * {@inheritDoc}
-     * <p>
-     * Creates an asynchronous task to delete persistent data. The task is run using a thread pool
-     * and may be executed in parallel with other tasks. The cleanup task use a combination of the
-     * current model and the tab state files for other models to determine which tab files should
-     * be deleted. The cleanup task should be canceled if a second tab model is created.
+     *
+     * <p>Creates an asynchronous task to delete persistent data. The task is run using a thread
+     * pool and may be executed in parallel with other tasks. The cleanup task use a combination of
+     * the current model and the tab state files for other models to determine which tab files
+     * should be deleted. The cleanup task should be canceled if a second tab model is created.
      */
     @Override
-    public void cleanupUnusedFiles(Callback<List<String>> filesToDelete) {
+    public void cleanupUnusedFiles(Callback<TabPersistenceFileInfo> tabDataToDelete) {
         synchronized (CLEAN_UP_TASK_LOCK) {
             if (sCleanupTask != null) sCleanupTask.cancel(true);
-            sCleanupTask = new CleanUpTabStateDataTask(
-                    filesToDelete, () -> getOtherTabsId(mSelectorIndex));
+            sCleanupTask =
+                    new CleanUpTabStateDataTask(
+                            tabDataToDelete, () -> getOtherTabsId(mSelectorIndex));
             sCleanupTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
         }
     }
 
     @Override
-    public void cleanupInstanceState(int index, Callback<List<String>> filesToDelete) {
+    public void cleanupInstanceState(int index, Callback<TabPersistenceFileInfo> tabDataToDelete) {
         TabModelSelector selector =
                 TabWindowManagerSingleton.getInstance().getTabModelSelectorById(index);
         if (selector != null) {
@@ -343,7 +346,8 @@ public class TabbedModeTabPersistencePolicy implements TabPersistencePolicy {
         }
         synchronized (CLEAN_UP_TASK_LOCK) {
             if (sCleanupTask != null) sCleanupTask.cancel(true);
-            sCleanupTask = new CleanUpTabStateDataTask(filesToDelete, () -> getOtherTabsId(index));
+            sCleanupTask =
+                    new CleanUpTabStateDataTask(tabDataToDelete, () -> getOtherTabsId(index));
             sCleanupTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
         }
     }
@@ -407,16 +411,17 @@ public class TabbedModeTabPersistencePolicy implements TabPersistencePolicy {
     }
 
     private class CleanUpTabStateDataTask extends AsyncTask<Void> {
-        private final Callback<List<String>> mFilesToDeleteCallback;
+        private final Callback<TabPersistenceFileInfo> mTabDataToDelete;
 
         private String[] mTabFileNames;
         private String[] mThumbnailFileNames;
         private Supplier<SparseBooleanArray> mOtherTabSupplier;
         private SparseBooleanArray mOtherTabIds; // Tab in use by other selectors, not be deleted.
 
-        CleanUpTabStateDataTask(Callback<List<String>> filesToDelete,
+        CleanUpTabStateDataTask(
+                Callback<TabPersistenceFileInfo> storedTabDataId,
                 Supplier<SparseBooleanArray> otherTabsSupplier) {
-            mFilesToDeleteCallback = filesToDelete;
+            mTabDataToDelete = storedTabDataId;
             mOtherTabSupplier = otherTabsSupplier;
         }
 
@@ -436,7 +441,7 @@ public class TabbedModeTabPersistencePolicy implements TabPersistencePolicy {
             if (mDestroyed) return;
             TabWindowManager tabWindowManager = TabWindowManagerSingleton.getInstance();
 
-            List<String> filesToDelete = new ArrayList<>();
+            TabPersistenceFileInfo storedTabDataToDelete = new TabPersistenceFileInfo();
             if (mTabFileNames != null) {
                 for (String fileName : mTabFileNames) {
                     Pair<Integer, Boolean> data =
@@ -444,14 +449,14 @@ public class TabbedModeTabPersistencePolicy implements TabPersistencePolicy {
                     if (data != null) {
                         int tabId = data.first;
                         if (shouldDeleteTabFile(tabId, tabWindowManager)) {
-                            filesToDelete.add(fileName);
+                            storedTabDataToDelete.addTabStateFileInfo(tabId, data.second);
                         }
                     }
                 }
             }
             // Invoke the callback even if filesToDelete is empty since it could perform other
             // cleanups.
-            mFilesToDeleteCallback.onResult(filesToDelete);
+            mTabDataToDelete.onResult(storedTabDataToDelete);
 
             if (mTabContentManager != null && mThumbnailFileNames != null) {
                 HashSet<Integer> checkedTabIds = new HashSet<>();
@@ -493,7 +498,17 @@ public class TabbedModeTabPersistencePolicy implements TabPersistencePolicy {
         }
     }
 
-    @VisibleForTesting
+    @Override
+    public void getAllTabIds(Callback<SparseBooleanArray> tabIdsCallback) {
+        PostTask.postTask(TaskTraits.USER_BLOCKING_MAY_BLOCK, () -> {
+            SparseBooleanArray tabIds = new SparseBooleanArray();
+            for (int i = 0; i < mMaxSelectors; ++i) {
+                getTabsFromStateFiles(tabIds, i);
+            }
+            PostTask.postTask(TaskTraits.UI_DEFAULT, () -> { tabIdsCallback.onResult(tabIds); });
+        });
+    }
+
     protected static void resetMigrationTaskForTesting() {
         sMigrationTask = null;
     }

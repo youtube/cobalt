@@ -19,10 +19,11 @@
 
 class ChromeBrowserState;
 class GURL;
-class WebOmniboxEditModelDelegate;
+class WebLocationBar;
 struct AutocompleteMatch;
 @class OmniboxTextFieldIOS;
 @protocol OmniboxCommands;
+@protocol ToolbarCommands;
 
 // iOS implementation of OmniBoxView.  Wraps a UITextField and
 // interfaces with the rest of the autocomplete system.
@@ -33,9 +34,10 @@ class OmniboxViewIOS : public OmniboxView,
  public:
   // Retains `field`.
   OmniboxViewIOS(OmniboxTextFieldIOS* field,
-                 WebOmniboxEditModelDelegate* edit_model_delegate,
+                 WebLocationBar* location_bar,
                  ChromeBrowserState* browser_state,
-                 id<OmniboxCommands> omnibox_focuser);
+                 id<OmniboxCommands> omnibox_focuser,
+                 id<ToolbarCommands> toolbar_commands_handler);
 
   ~OmniboxViewIOS() override;
 
@@ -171,15 +173,15 @@ class OmniboxViewIOS : public OmniboxView,
   void SetEmphasis(bool emphasize, const gfx::Range& range) override {}
   void UpdateSchemeStyle(const gfx::Range& scheme_range) override {}
 
-  // Removes the query refinement chip from the omnibox.
-  void RemoveQueryRefinementChip();
-
   OmniboxTextFieldIOS* field_;
 
-  WebOmniboxEditModelDelegate* edit_model_delegate_;  // weak, owns us
+  WebLocationBar* location_bar_;  // weak, owns us
   // Focuser, used to transition the location bar to focused/defocused state as
   // necessary.
   __weak id<OmniboxCommands> omnibox_focuser_;
+
+  // Handler for ToolbarCommands.
+  __weak id<ToolbarCommands> toolbar_commands_handler_;
 
   State state_before_change_;
   NSString* marked_text_before_change_;

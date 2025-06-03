@@ -10,7 +10,7 @@
 #include "components/endpoint_fetcher/endpoint_fetcher.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/signin/public/identity_manager/primary_account_change_event.h"
-#include "components/sync/driver/sync_service.h"
+#include "components/sync/service/sync_service.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
 #include "services/data_decoder/public/cpp/data_decoder.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
@@ -21,12 +21,6 @@ class PrefChangeRegistrar;
 
 namespace commerce {
 
-extern const char kOAuthScope[];
-extern const char kOAuthName[];
-extern const char kGetHttpMethod[];
-extern const char kPostHttpMethod[];
-extern const char kContentType[];
-extern const char kEmptyPostData[];
 extern const char kNotificationsPrefUrl[];
 
 // Used to check user account status.

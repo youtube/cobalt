@@ -7,6 +7,7 @@
 
 #include <memory>
 
+#include "ash/quick_pair/companion_app/companion_app_broker.h"
 #include "ash/quick_pair/feature_status_tracker/quick_pair_feature_status_tracker.h"
 #include "ash/quick_pair/keyed_service/fast_pair_bluetooth_config_delegate.h"
 #include "ash/quick_pair/pairing/pairer_broker.h"
@@ -46,19 +47,22 @@ class Mediator final
       public ScannerBroker::Observer,
       public PairerBroker::Observer,
       public UIBroker::Observer,
+      public CompanionAppBroker::Observer,
       public RetroactivePairingDetector::Observer,
-      public FastPairBluetoothConfigDelegate::Observer,
+      public FastPairBluetoothConfigDelegate::Delegate,
       public bluetooth_config::AdapterStateController::Observer,
       public bluetooth_config::mojom::DiscoverySessionStatusObserver {
  public:
   class Factory {
    public:
-    static std::unique_ptr<Mediator> Create();
-    static void SetFactoryForTesting(Factory* factory);
     virtual ~Factory() = default;
-
-   private:
     virtual std::unique_ptr<Mediator> BuildInstance() = 0;
+  };
+
+  class FactoryImpl : public Factory {
+   private:
+    // Mediator::Factory:
+    std::unique_ptr<Mediator> BuildInstance() override;
   };
 
   Mediator(
@@ -68,6 +72,7 @@ class Mediator final
       std::unique_ptr<MessageStreamLookup> message_stream_lookup,
       std::unique_ptr<PairerBroker> pairer_broker,
       std::unique_ptr<UIBroker> ui_broker,
+      std::unique_ptr<CompanionAppBroker> companion_app_broker,
       std::unique_ptr<FastPairRepository> fast_pair_repository,
       std::unique_ptr<QuickPairProcessManager> process_manager);
   Mediator(const Mediator&) = delete;
@@ -103,10 +108,15 @@ class Mediator final
   void OnAssociateAccountAction(scoped_refptr<Device> device,
                                 AssociateAccountAction action) override;
 
+  // CompanionAppBroker::Observer
+  void ShowInstallCompanionApp(scoped_refptr<Device> device) override;
+  void ShowLaunchCompanionApp(scoped_refptr<Device> device) override;
+  void OnCompanionAppInstalled(scoped_refptr<Device> device) override;
+
   // RetroactivePairingDetector::Observer
   void OnRetroactivePairFound(scoped_refptr<Device> device) override;
 
-  // FastPairBluetoothConfigDelegate::Observer
+  // FastPairBluetoothConfigDelegate::Delegate
   void OnAdapterStateControllerChanged(bluetooth_config::AdapterStateController*
                                            adapter_state_controller) override;
 
@@ -140,6 +150,7 @@ class Mediator final
   bool IsDeviceCurrentlyShowingNotification(scoped_refptr<Device> device);
   bool IsDeviceBlockedForDiscoveryNotifications(scoped_refptr<Device> device);
   void UpdateDiscoveryBlockList(scoped_refptr<Device> device);
+  void RemoveFromDiscoveryBlockList(scoped_refptr<Device> device);
 
   bool has_at_least_one_discovery_session_ = false;
 
@@ -176,6 +187,7 @@ class Mediator final
   std::unique_ptr<PairerBroker> pairer_broker_;
   std::unique_ptr<RetroactivePairingDetector> retroactive_pairing_detector_;
   std::unique_ptr<UIBroker> ui_broker_;
+  std::unique_ptr<CompanionAppBroker> companion_app_broker_;
   std::unique_ptr<FastPairRepository> fast_pair_repository_;
   std::unique_ptr<QuickPairProcessManager> process_manager_;
   std::unique_ptr<QuickPairMetricsLogger> metrics_logger_;
@@ -194,9 +206,8 @@ class Mediator final
       retroactive_pairing_detector_observation_{this};
   base::ScopedObservation<UIBroker, UIBroker::Observer> ui_broker_observation_{
       this};
-  base::ScopedObservation<FastPairBluetoothConfigDelegate,
-                          FastPairBluetoothConfigDelegate::Observer>
-      config_delegate_observation_{this};
+  base::ScopedObservation<CompanionAppBroker, CompanionAppBroker::Observer>
+      companion_app_broker_observation_{this};
   base::ScopedObservation<bluetooth_config::AdapterStateController,
                           bluetooth_config::AdapterStateController::Observer>
       adapter_state_controller_observation_{this};

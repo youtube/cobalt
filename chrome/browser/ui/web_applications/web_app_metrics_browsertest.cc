@@ -12,14 +12,12 @@
 #include "base/numerics/clamped_math.h"
 #include "base/run_loop.h"
 #include "base/task/thread_pool/thread_pool_instance.h"
-#include "base/test/bind.h"
 #include "base/time/time.h"
 #include "base/time/time_override.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
 #include "chrome/browser/apps/intent_helper/preferred_apps_test_util.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/sync/sync_service_factory.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/web_applications/test/web_app_browsertest_util.h"
@@ -29,16 +27,11 @@
 #include "chrome/browser/web_applications/mojom/user_display_mode.mojom-shared.h"
 #include "chrome/browser/web_applications/test/web_app_install_test_utils.h"
 #include "chrome/browser/web_applications/web_app_constants.h"
-#include "chrome/browser/web_applications/web_app_id.h"
 #include "chrome/browser/web_applications/web_app_install_info.h"
 #include "chrome/common/chrome_features.h"
-#include "components/keyed_service/core/keyed_service.h"
-#include "components/services/app_service/public/cpp/app_types.h"
-#include "components/sync/driver/sync_service.h"
-#include "components/sync/driver/sync_user_settings.h"
-#include "components/sync/test/test_sync_service.h"
 #include "components/ukm/test_ukm_recorder.h"
 #include "components/webapps/browser/installable/installable_metrics.h"
+#include "components/webapps/common/web_app_id.h"
 #include "content/public/test/browser_test.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
@@ -58,10 +51,6 @@
 #include "chrome/browser/web_applications/app_service/test/loopback_crosapi_app_service_proxy.h"
 #endif
 
-namespace content {
-class BrowserContext;
-}
-
 namespace web_app {
 
 using UkmEntry = ukm::builders::WebApp_DailyInteraction;
@@ -80,23 +69,13 @@ class WebAppMetricsBrowserTest : public WebAppControllerBrowserTest {
   WebAppMetricsBrowserTest& operator=(const WebAppMetricsBrowserTest&) = delete;
   ~WebAppMetricsBrowserTest() override = default;
 
-  void OnWillCreateBrowserContextServices(
-      content::BrowserContext* context) override {
-    SyncServiceFactory::GetInstance()->SetTestingFactory(
-        context,
-        base::BindLambdaForTesting(
-            [](content::BrowserContext*) -> std::unique_ptr<KeyedService> {
-              return std::make_unique<syncer::TestSyncService>();
-            }));
-  }
-
   void SetUpOnMainThread() override {
     WebAppControllerBrowserTest::SetUpOnMainThread();
     // Ignore real window activation which causes flakiness in tests.
     WebAppMetrics::Get(profile())->RemoveBrowserListObserverForTesting();
   }
 
-  AppId InstallWebApp() {
+  webapps::AppId InstallWebApp() {
     auto web_app_info = std::make_unique<WebAppInstallInfo>();
     web_app_info->start_url = GetInstallableAppURL();
     web_app_info->title = u"A Web App";
@@ -110,8 +89,7 @@ class WebAppMetricsBrowserTest : public WebAppControllerBrowserTest {
   }
 
   void ForceEmitMetricsNow() {
-    FlushAllRecordsForTesting(profile(),
-                              SyncServiceFactory::GetForProfile(profile()));
+    FlushAllRecordsForTesting(profile());
     // Ensure async call for origin check in daily_metrics_helper completes.
     base::ThreadPoolInstance::Get()->FlushForTesting();
     base::RunLoop().RunUntilIdle();
@@ -152,27 +130,6 @@ IN_PROC_BROWSER_TEST_F(WebAppMetricsBrowserTest,
       entry, UkmEntry::kBackgroundDurationName));
   EXPECT_FALSE(ukm::TestAutoSetUkmRecorder::EntryHasMetric(
       entry, UkmEntry::kNumSessionsName));
-}
-
-IN_PROC_BROWSER_TEST_F(WebAppMetricsBrowserTest,
-                       AppSyncNotEnabled_RecordsNothing) {
-  ukm::TestAutoSetUkmRecorder ukm_recorder;
-  SyncServiceFactory::GetForProfile(profile())
-      ->GetUserSettings()
-      ->SetSelectedTypes(/*sync_everything=*/false, /*types=*/{});
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-  SyncServiceFactory::GetForProfile(profile())
-      ->GetUserSettings()
-      ->SetSelectedOsTypes(/*sync_all_os_types=*/false, /*types=*/{});
-#endif
-
-  AddBlankTabAndShow(browser());
-  NavigateAndAwaitInstallabilityCheck(browser(), GetInstallableAppURL());
-
-  ForceEmitMetricsNow();
-
-  auto entries = ukm_recorder.GetEntriesByName(UkmEntry::kEntryName);
-  ASSERT_EQ(entries.size(), 0U);
 }
 
 IN_PROC_BROWSER_TEST_F(WebAppMetricsBrowserTest,
@@ -265,7 +222,7 @@ IN_PROC_BROWSER_TEST_F(WebAppMetricsBrowserTest,
   ukm::TestAutoSetUkmRecorder::ExpectEntryMetric(
       entry, UkmEntry::kCapturesLinksName, false);
   ukm::TestAutoSetUkmRecorder::ExpectEntryMetric(
-      entry, UkmEntry::kPromotableName, false);
+      entry, UkmEntry::kPromotableName, true);
   // Not in window, but is preinstalled, so should have session count (and would
   // be expected to have session time upon further interaction).
   ukm::TestAutoSetUkmRecorder::ExpectEntryMetric(entry,
@@ -294,7 +251,7 @@ IN_PROC_BROWSER_TEST_F(
   web_app_info->title = u"A Web App";
   web_app_info->display_mode = DisplayMode::kStandalone;
   web_app_info->user_display_mode = mojom::UserDisplayMode::kStandalone;
-  AppId app_id =
+  webapps::AppId app_id =
       web_app::test::InstallWebApp(profile(), std::move(web_app_info));
 
   apps_util::SetSupportedLinksPreferenceAndWait(profile(), app_id);
@@ -367,7 +324,7 @@ IN_PROC_BROWSER_TEST_F(WebAppMetricsBrowserTest,
                        NavigationsWithinInstalledWebApp_RecordsOneSession) {
   ukm::TestAutoSetUkmRecorder ukm_recorder;
 
-  AppId app_id = InstallWebApp();
+  webapps::AppId app_id = InstallWebApp();
   Browser* browser = LaunchWebAppBrowserAndAwaitInstallabilityCheck(app_id);
   NavigateAndAwaitInstallabilityCheck(browser, GetInstallableAppURL());
   NavigateAndAwaitInstallabilityCheck(browser, GetInstallableAppURL());
@@ -385,7 +342,7 @@ IN_PROC_BROWSER_TEST_F(WebAppMetricsBrowserTest,
 IN_PROC_BROWSER_TEST_F(WebAppMetricsBrowserTest,
                        InstalledWebApp_RecordsTimeAndSessions) {
   ukm::TestAutoSetUkmRecorder ukm_recorder;
-  AppId app_id = InstallWebApp();
+  webapps::AppId app_id = InstallWebApp();
   Browser* app_browser;
 
   // Open the app.
@@ -439,7 +396,7 @@ IN_PROC_BROWSER_TEST_F(WebAppMetricsBrowserTest,
 IN_PROC_BROWSER_TEST_F(WebAppMetricsBrowserTest,
                        InstalledWebApp_RecordsTimeAndSessionWhenClosed) {
   ukm::TestAutoSetUkmRecorder ukm_recorder;
-  AppId app_id = InstallWebApp();
+  webapps::AppId app_id = InstallWebApp();
   Browser* app_browser;
 
   // Open the app.
@@ -484,7 +441,7 @@ IN_PROC_BROWSER_TEST_F(WebAppMetricsBrowserTest,
 IN_PROC_BROWSER_TEST_F(WebAppMetricsBrowserTest,
                        MultipleWebAppInstances_StillRecordsTime) {
   ukm::TestAutoSetUkmRecorder ukm_recorder;
-  AppId app_id = InstallWebApp();
+  webapps::AppId app_id = InstallWebApp();
   Browser* app_browser;
 
   // Open the app.
@@ -543,7 +500,7 @@ IN_PROC_BROWSER_TEST_F(WebAppMetricsBrowserTest,
 IN_PROC_BROWSER_TEST_F(WebAppMetricsBrowserTest,
                        InstalledWebApp_RecordsZeroTimeIfOverLimit) {
   ukm::TestAutoSetUkmRecorder ukm_recorder;
-  AppId app_id = InstallWebApp();
+  webapps::AppId app_id = InstallWebApp();
   Browser* app_browser;
 
   // Open the app.
@@ -584,7 +541,7 @@ IN_PROC_BROWSER_TEST_F(WebAppMetricsBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(WebAppMetricsBrowserTest, Suspend_FlushesSessionTimes) {
   ukm::TestAutoSetUkmRecorder ukm_recorder;
-  AppId app_id = InstallWebApp();
+  webapps::AppId app_id = InstallWebApp();
   Browser* app_browser;
 
   // Open the app.

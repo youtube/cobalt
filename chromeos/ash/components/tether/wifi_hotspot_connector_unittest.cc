@@ -149,8 +149,8 @@ bool VerifyOpenConfiguration(const base::Value::Dict& shill_properties,
   bool ok = VerifyBaseConfiguration(shill_properties, expected_ssid, out_guid);
 
   std::string actual_security_class = GetSecurityClass(shill_properties);
-  if (actual_security_class != shill::kSecurityNone) {
-    ADD_FAILURE() << "Expected security class '" << shill::kSecurityNone
+  if (actual_security_class != shill::kSecurityClassNone) {
+    ADD_FAILURE() << "Expected security class '" << shill::kSecurityClassNone
                   << "' but had '" << actual_security_class;
     ok = false;
   }
@@ -415,7 +415,8 @@ class WifiHotspotConnectorTest : public testing::Test {
   std::vector<std::string> connection_callback_responses_;
   TestNetworkStateHandlerObserver scan_observer_;
 
-  raw_ptr<base::MockOneShotTimer, ExperimentalAsh> mock_timer_;
+  raw_ptr<base::MockOneShotTimer, DanglingUntriaged | ExperimentalAsh>
+      mock_timer_;
   base::SimpleTestClock test_clock_;
   scoped_refptr<base::TestSimpleTaskRunner> test_task_runner_;
   std::unique_ptr<TestNetworkConnect> test_network_connect_;

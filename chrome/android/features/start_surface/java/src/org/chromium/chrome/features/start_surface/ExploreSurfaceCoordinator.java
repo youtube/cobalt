@@ -13,6 +13,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.VisibleForTesting;
 import androidx.recyclerview.widget.RecyclerView;
 
+import org.chromium.base.jank_tracker.JankTracker;
 import org.chromium.base.supplier.Supplier;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.app.feed.FeedActionDelegateImpl;
@@ -35,7 +36,7 @@ import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.toolbar.top.Toolbar;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.chrome.browser.util.BrowserUiUtils;
-import org.chromium.chrome.browser.xsurface.FeedLaunchReliabilityLogger.SurfaceType;
+import org.chromium.chrome.browser.xsurface.feed.FeedLaunchReliabilityLogger.SurfaceType;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.ui.base.WindowAndroid;
 
@@ -50,6 +51,7 @@ public class ExploreSurfaceCoordinator {
     public static final String FEED_CONTENT_FIRST_LOADED_TIME_MS_UMA = "FeedContentFirstLoadedTime";
 
     private final Activity mActivity;
+    private final JankTracker mJankTracker;
     private final FeedSurfaceCoordinator mFeedSurfaceCoordinator;
     private final ExploreSurfaceNavigationDelegate mExploreSurfaceNavigationDelegate;
     private final boolean mIsPlaceholderShownInitially;
@@ -69,13 +71,14 @@ public class ExploreSurfaceCoordinator {
             long embeddingSurfaceConstructedTimeNs, FeedSwipeRefreshLayout swipeRefreshLayout,
             ViewGroup parentView, Supplier<Tab> parentTabSupplier, SnackbarManager snackbarManager,
             Supplier<ShareDelegate> shareDelegateSupplier, WindowAndroid windowAndroid,
-            TabModelSelector tabModelSelector) {
+            JankTracker jankTracker, TabModelSelector tabModelSelector) {
         mActivity = activity;
+        mJankTracker = jankTracker;
         mExploreSurfaceNavigationDelegate = new ExploreSurfaceNavigationDelegate(parentTabSupplier);
         mIsPlaceholderShownInitially = isPlaceholderShown;
 
         mFeedSurfaceCoordinator = new FeedSurfaceCoordinator(mActivity, snackbarManager,
-                windowAndroid, /*snapScrollHelper=*/null, /*ntpHeader=*/null,
+                windowAndroid, mJankTracker, /*snapScrollHelper=*/null, /*ntpHeader=*/null,
                 mActivity.getResources().getDimensionPixelSize(R.dimen.toolbar_height_no_shadow),
                 isInNightMode, /*delegate=*/new ExploreFeedSurfaceDelegate(), profile,
                 isPlaceholderShown, bottomSheetController, shareDelegateSupplier,
@@ -84,7 +87,7 @@ public class ExploreSurfaceCoordinator {
                 SurfaceType.START_SURFACE, embeddingSurfaceConstructedTimeNs, swipeRefreshLayout,
                 /*overScrollDisabled=*/true, parentView,
                 new ExploreSurfaceActionDelegate(
-                        snackbarManager, BookmarkModel.getForProfile(profile)),
+                        snackbarManager, BookmarkModel.getForProfile(profile), tabModelSelector),
                 HelpAndFeedbackLauncherImpl.getForProfile(profile), tabModelSelector);
 
         mFeedSurfaceCoordinator.getView().setId(R.id.start_surface_explore_view);
@@ -137,9 +140,10 @@ public class ExploreSurfaceCoordinator {
     }
 
     private class ExploreSurfaceActionDelegate extends FeedActionDelegateImpl {
-        ExploreSurfaceActionDelegate(SnackbarManager snackbarManager, BookmarkModel bookmarkModel) {
+        ExploreSurfaceActionDelegate(SnackbarManager snackbarManager, BookmarkModel bookmarkModel,
+                TabModelSelector tabModelSelector) {
             super(mActivity, snackbarManager, mExploreSurfaceNavigationDelegate, bookmarkModel,
-                    BrowserUiUtils.HostSurface.START_SURFACE);
+                    BrowserUiUtils.HostSurface.START_SURFACE, tabModelSelector);
         }
 
         @Override
@@ -172,7 +176,6 @@ public class ExploreSurfaceCoordinator {
         }
     }
 
-    @VisibleForTesting
     public FeedActionDelegate getFeedActionDelegateForTesting() {
         return mFeedSurfaceCoordinator.getActionDelegateForTesting(); // IN-TEST
     }

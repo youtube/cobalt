@@ -1,4 +1,4 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,19 +8,15 @@
 #import "base/strings/sys_string_conversions.h"
 #import "components/consent_auditor/consent_auditor.h"
 #import "components/signin/public/identity_manager/objc/identity_manager_observer_bridge.h"
-#import "components/sync/driver/sync_service.h"
+#import "components/sync/service/sync_service.h"
 #import "components/unified_consent/unified_consent_service.h"
 #import "ios/chrome/browser/signin/authentication_service.h"
 #import "ios/chrome/browser/signin/chrome_account_manager_service.h"
 #import "ios/chrome/browser/signin/chrome_account_manager_service_observer_bridge.h"
-#import "ios/chrome/browser/sync/sync_setup_service.h"
+#import "ios/chrome/browser/sync/model/sync_setup_service.h"
 #import "ios/chrome/browser/ui/authentication/authentication_flow.h"
 #import "ios/chrome/browser/ui/authentication/tangible_sync/tangible_sync_consumer.h"
 #import "ios/chrome/browser/ui/authentication/tangible_sync/tangible_sync_mediator_delegate.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 @interface TangibleSyncMediator () <ChromeAccountManagerServiceObserver,
                                     IdentityManagerObserverBridgeDelegate>
@@ -47,6 +43,8 @@
   SyncSetupService* _syncSetupService;
   // Manager for user consent.
   unified_consent::UnifiedConsentService* _unifiedConsentService;
+  // Sync opt-in access point.
+  signin_metrics::AccessPoint _accessPoint;
 }
 
 - (instancetype)
@@ -59,9 +57,17 @@
                       syncService:(syncer::SyncService*)syncService
                  syncSetupService:(SyncSetupService*)syncSetupService
             unifiedConsentService:
-                (unified_consent::UnifiedConsentService*)unifiedConsentService {
+                (unified_consent::UnifiedConsentService*)unifiedConsentService
+                      accessPoint:(signin_metrics::AccessPoint)accessPoint {
   self = [super init];
   if (self) {
+    CHECK(authenticationService);
+    CHECK(chromeAccountManagerService);
+    CHECK(consentAuditor);
+    CHECK(identityManager);
+    CHECK(syncService);
+    CHECK(syncSetupService);
+    CHECK(unifiedConsentService);
     _authenticationService = authenticationService;
     _accountManagerService = chromeAccountManagerService;
     _accountManagerServiceObserver =
@@ -75,6 +81,7 @@
     _syncService = syncService;
     _syncSetupService = syncSetupService;
     _unifiedConsentService = unifiedConsentService;
+    _accessPoint = accessPoint;
   }
   return self;
 }
@@ -83,11 +90,13 @@
   _accountManagerServiceObserver.reset();
   _identityManagerObserver.reset();
   self.consumer = nil;
-  _authenticationService = nil;
-  _accountManagerService = nil;
-  _identityManager = nil;
-  _syncService = nil;
-  _syncSetupService = nil;
+  _authenticationService = nullptr;
+  _accountManagerService = nullptr;
+  _consentAuditor = nullptr;
+  _identityManager = nullptr;
+  _syncService = nullptr;
+  _syncSetupService = nullptr;
+  _unifiedConsentService = nullptr;
 }
 
 - (void)startSyncWithConfirmationID:(const int)confirmationID
@@ -138,6 +147,12 @@
   if ([primaryIdentity isEqual:identity]) {
     [self updateAvatarImageWithIdentity:identity];
   }
+}
+
+- (void)onChromeAccountManagerServiceShutdown:
+    (ChromeAccountManagerService*)accountManagerService {
+  // TODO(crbug.com/1489595): Remove `[self disconnect]`.
+  [self disconnect];
 }
 
 #pragma mark - IdentityManagerObserverBridgeDelegate
@@ -215,13 +230,13 @@
         base::SysNSStringToUTF8(identity.gaiaID),
         base::SysNSStringToUTF8(identity.userEmail));
     _consentAuditor->RecordSyncConsent(coreAccountId, syncConsent);
-    _authenticationService->GrantSyncConsent(identity);
+    _authenticationService->GrantSyncConsent(identity, _accessPoint);
 
     _unifiedConsentService->SetUrlKeyedAnonymizedDataCollectionEnabled(true);
 
     // Turn on FirstSetupComplete flag after the authentication service has
     // granted user consent to start Sync.
-    _syncSetupService->SetFirstSetupComplete(
+    _syncSetupService->SetInitialSyncFeatureSetupComplete(
         syncer::SyncFirstSetupCompleteSource::BASIC_FLOW);
 
     _syncSetupService->CommitSyncChanges();

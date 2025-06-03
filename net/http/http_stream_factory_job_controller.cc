@@ -14,9 +14,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/task/single_thread_task_runner.h"
-#include "base/trace_event/memory_usage_estimator.h"
 #include "base/values.h"
-#include "net/base/features.h"
 #include "net/base/host_mapping_rules.h"
 #include "net/base/load_flags.h"
 #include "net/base/net_errors.h"
@@ -27,16 +25,13 @@
 #include "net/http/bidirectional_stream_impl.h"
 #include "net/http/transport_security_state.h"
 #include "net/log/net_log.h"
-#include "net/log/net_log_capture_mode.h"
 #include "net/log/net_log_event_type.h"
-#include "net/log/net_log_source.h"
 #include "net/log/net_log_with_source.h"
 #include "net/proxy_resolution/proxy_resolution_request.h"
+#include "net/proxy_resolution/proxy_resolution_service.h"
 #include "net/spdy/spdy_session.h"
 #include "url/gurl.h"
 #include "url/scheme_host_port.h"
-#include "url/third_party/mozilla/url_parse.h"
-#include "url/url_canon.h"
 #include "url/url_constants.h"
 
 namespace net {
@@ -176,10 +171,10 @@ HttpStreamFactory::JobController::JobController(
 }
 
 HttpStreamFactory::JobController::~JobController() {
+  bound_job_ = nullptr;
   main_job_.reset();
   alternative_job_.reset();
   dns_alpn_h3_job_.reset();
-  bound_job_ = nullptr;
   if (proxy_resolve_request_) {
     DCHECK_EQ(STATE_RESOLVE_PROXY_COMPLETE, next_state_);
     proxy_resolve_request_.reset();
@@ -819,6 +814,8 @@ int HttpStreamFactory::JobController::DoCreateJobs() {
     DCHECK_NE(quic_version, quic::ParsedQuicVersion::Unsupported());
   }
   const bool dns_alpn_h3_job_enabled =
+      !HttpStreamFactory::Job::OriginToForceQuicOn(
+          *session_->context().quic_context->params(), destination) &&
       enable_alternative_services_ &&
       session_->params().use_dns_https_svcb_alpn &&
       base::EqualsCaseInsensitiveASCII(origin_url.scheme(),

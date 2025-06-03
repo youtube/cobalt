@@ -95,6 +95,12 @@ class BaseSearchProvider : public AutocompleteProvider {
       int accepted_suggestion,
       bool is_tail_suggestion);
 
+  static scoped_refptr<OmniboxAction> CreateActionInSuggest(
+      omnibox::ActionInfo action_info,
+      const TemplateURLRef& search_url,
+      const TemplateURLRef::SearchTermsArgs& original_search_terms,
+      const SearchTermsData& search_terms_data);
+
   // Appends specific suggest client based on page |page_classification| to
   // the additional query params of |search_terms_args| only for Google template
   // URLs.
@@ -225,7 +231,7 @@ class BaseSearchProvider : public AutocompleteProvider {
   // server to handle the results of the deletion. It will be called after the
   // deletion request completes.
   void OnDeletionComplete(const network::SimpleURLLoader* source,
-                          const bool response_received,
+                          const int response_code,
                           std::unique_ptr<std::string> response_body);
 
   raw_ptr<AutocompleteProviderClient> client_;

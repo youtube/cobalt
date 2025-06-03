@@ -10,13 +10,13 @@
 #include "base/containers/adapters.h"
 #include "base/files/file_util.h"
 #include "base/functional/callback.h"
+#include "base/i18n/time_formatting.h"
 #include "base/ranges/algorithm.h"
 #include "base/strings/strcat.h"
 #include "base/system/sys_info.h"
 #include "base/task/bind_post_task.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
-#include "base/time/time_to_iso8601.h"
 #include "chrome/browser/ash/crostini/crostini_manager.h"
 #include "chrome/browser/ash/crostini/crostini_util.h"
 #include "chrome/browser/ash/drive/drive_integration_service.h"
@@ -53,7 +53,7 @@ bool UpdateTrashInfoContents(const base::FilePath& original_path,
   entry.trash_info_contents = base::StrCat(
       {"[Trash Info]\nPath=", prefix.AsEndingWithSeparator().value(),
        relative_restore_path,
-       "\nDeletionDate=", base::TimeToISO8601(entry.deletion_time)});
+       "\nDeletionDate=", base::TimeFormatAsIso8601(entry.deletion_time)});
   return true;
 }
 
@@ -532,8 +532,8 @@ void TrashIOTask::TrashFile(size_t source_idx,
 
   // File browsers generally default to preserving mtimes on copy/move so we
   // should do the same.
-  storage::FileSystemOperation::CopyOrMoveOptionSet options(
-      storage::FileSystemOperation::CopyOrMoveOption::kPreserveLastModified);
+  storage::FileSystemOperation::CopyOrMoveOptionSet options = {
+      storage::FileSystemOperation::CopyOrMoveOption::kPreserveLastModified};
 
   auto complete_callback = base::BindPostTaskToCurrentDefault(base::BindOnce(
       &TrashIOTask::OnMoveComplete, weak_ptr_factory_.GetWeakPtr(), source_idx,

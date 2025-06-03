@@ -18,7 +18,9 @@
 #include "chrome/common/extensions/api/web_navigation.h"
 #include "chrome/test/base/profile_destruction_waiter.h"
 #include "chrome/test/base/ui_test_utils.h"
+#include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
+#include "content/public/test/browser_test_utils.h"
 #include "extensions/browser/background_script_executor.h"
 #include "extensions/browser/event_router.h"
 #include "extensions/browser/extension_event_histogram_value.h"
@@ -29,6 +31,8 @@
 #include "extensions/test/extension_test_message_listener.h"
 #include "extensions/test/result_catcher.h"
 #include "extensions/test/test_extension_dir.h"
+#include "net/dns/mock_host_resolver.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace extensions {
 
@@ -166,7 +170,9 @@ IN_PROC_BROWSER_TEST_F(ExtensionApiTest, EventAfterPermissionRemoved) {
     };
   )";
 
-  PermissionsRequestFunction::SetAutoConfirmForTests(true);
+  auto dialog_action_reset =
+      PermissionsRequestFunction::SetDialogActionForTests(
+          PermissionsRequestFunction::DialogAction::kAutoConfirm);
   PermissionsRequestFunction::SetIgnoreUserGestureForTests(true);
   TestExtensionDir test_dir;
   test_dir.WriteManifest(kManifest);
@@ -316,6 +322,8 @@ class EventsApiTest : public ExtensionApiTest {
  protected:
   void SetUpOnMainThread() override {
     ExtensionApiTest::SetUpOnMainThread();
+    host_resolver()->AddRule("*", "127.0.0.1");
+    ASSERT_TRUE(embedded_test_server()->Start());
     EXPECT_TRUE(scoped_temp_dir_.CreateUniqueTempDir());
   }
 
@@ -455,6 +463,75 @@ IN_PROC_BROWSER_TEST_F(EventsApiTest, MAYBE_NewlyIntroducedListener) {
   }
 }
 
+// Tests that, if an extension registers multiple listeners for a filtered
+// event where the listeners overlap, but are not identical, each listener is
+// only triggered once for a given event.
+// TODO(https://crbug.com/373579): This test is currently (intentionally)
+// testing improper behavior and will be fixed as part of the linked bug.
+IN_PROC_BROWSER_TEST_F(
+    EventsApiTest,
+    MultipleFilteredListenersWithOverlappingFiltersShouldOnlyTriggerOnce) {
+  // Load an extension that registers two listeners for a webNavigation event
+  // (which supports filters). The first filter is for any event with a host
+  // that matches 'example' (such as 'example.com') and the second filter is
+  // for any that has a path that matches 'simple'. Thus, the URL
+  // http://example.com/simple.html matches both filters.
+  // Note that we use a page here (instead of a service worker) because we
+  // separately (and purely coincidentally) de-dupe messages to lazy contexts.
+  static constexpr char kManifest[] =
+      R"({
+           "name": "Events test",
+           "manifest_version": 3,
+           "version": "0.1",
+           "permissions": ["webNavigation"]
+         })";
+  static constexpr char kPageHtml[] =
+      R"(<html><script src="page.js"></script></html>)";
+  static constexpr char kPageJs[] =
+      R"(self.receivedEvents = 0;
+         chrome.webNavigation.onCommitted.addListener(() => {
+           ++receivedEvents;
+         }, {url: [{hostContains: 'example'}]});
+         chrome.webNavigation.onCommitted.addListener(() => {
+           ++receivedEvents;
+         }, {url: [{pathContains: 'simple'}]});)";
+
+  TestExtensionDir test_dir;
+  test_dir.WriteManifest(kManifest);
+  test_dir.WriteFile(FILE_PATH_LITERAL("page.html"), kPageHtml);
+  test_dir.WriteFile(FILE_PATH_LITERAL("page.js"), kPageJs);
+
+  const Extension* extension = LoadExtension(test_dir.UnpackedPath());
+  ASSERT_TRUE(extension);
+
+  // Navigate to the extension page that registers the events.
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), extension->GetResourceURL("page.html")));
+
+  content::WebContents* extension_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+
+  // So far, no events should have been received.
+  EXPECT_EQ(0, content::EvalJs(extension_contents, "self.receivedEvents;"));
+
+  // Navigate to http://example.com/simple.html.
+  const GURL url =
+      embedded_test_server()->GetURL("example.com", "/simple.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
+      browser(), url, WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
+
+  // TODO(https://crbug.com/373579): This should be:
+  // EXPECT_EQ(2, content::EvalJs(extension_contents, "self.receivedEvents;"));
+  // because each listener should fire exactly once (we only visited one new
+  // page).
+  // However, currently we'll disptach the event to the same process twice
+  // (once for each listener), and each dispatch will match both listeners,
+  // resulting in each listener being triggered twice (for a total of four
+  // received events).
+  EXPECT_EQ(4, content::EvalJs(extension_contents, "self.receivedEvents;"));
+}
+
 class ChromeUpdatesEventsApiTest : public EventsApiTest,
                                    public ProcessManagerObserver {
  public:
@@ -534,6 +611,177 @@ IN_PROC_BROWSER_TEST_F(ChromeUpdatesEventsApiTest, ChromeUpdates) {
   // chrome update event.
   EXPECT_TRUE(observed_extension_names().count("chrome updates listener"));
   EXPECT_FALSE(observed_extension_names().count("chrome updates non listener"));
+}
+
+class EventPageEventDispatchingApiTest : public ExtensionApiTest {
+ public:
+  EventPageEventDispatchingApiTest() = default;
+
+  EventPageEventDispatchingApiTest(const EventPageEventDispatchingApiTest&) =
+      delete;
+  EventPageEventDispatchingApiTest& operator=(
+      const EventPageEventDispatchingApiTest&) = delete;
+
+  void SetUpOnMainThread() override {
+    ExtensionApiTest::SetUpOnMainThread();
+    host_resolver()->AddRule("*", "127.0.0.1");
+    ASSERT_TRUE(StartEmbeddedTestServer());
+  }
+
+  content::WebContents* web_contents() {
+    return browser()->tab_strip_model()->GetActiveWebContents();
+  }
+};
+
+// Tests that an event page will receive an event message and properly track
+// and remove the unacked event message in ExtensionHost.
+IN_PROC_BROWSER_TEST_F(EventPageEventDispatchingApiTest,
+                       DispatchToEventPage_Acks) {
+  // Load an extension with a chrome.storage.onChanged listener.
+  static constexpr char kManifest[] =
+      R"({
+           "name": "Event page",
+           "version": "0.1",
+           "manifest_version": 2,
+           "background": {
+             "scripts": ["background.js"],
+             "persistent": false
+            },
+           "permissions": ["storage"]
+         })";
+  TestExtensionDir test_dir;
+  test_dir.WriteManifest(kManifest);
+  constexpr char kBackgroundJs[] =
+      R"(
+      chrome.runtime.onInstalled.addListener((details) => {
+        // Asynchronously send the message that the listener fired so that the
+        // event is considered ack'd in the browser C++ code.
+        setTimeout(() => {
+          chrome.test.sendMessage('installed listener fired');
+        }, 0);
+      });
+
+      chrome.storage.onChanged.addListener((details) => {
+        // Asynchronously send the message that the listener fired so that the
+        // event is considered ack'd in the browser C++ code.
+        setTimeout(() => {
+          chrome.test.sendMessage('listener fired');
+        }, 0);
+      });
+    )";
+  test_dir.WriteFile(FILE_PATH_LITERAL("background.js"), kBackgroundJs);
+  ExtensionTestMessageListener extension_oninstall_listener_fired(
+      "installed listener fired");
+  const Extension* extension = LoadExtension(test_dir.UnpackedPath());
+  ASSERT_TRUE(extension);
+  // This ensures that we wait until the the browser receives the ack from the
+  // renderer. This prevents unexpected event state later when we check it.
+  ASSERT_TRUE(extension_oninstall_listener_fired.WaitUntilSatisfied());
+
+  // Confirm there are no unacked messages before we send the test event.
+  ProcessManager* process_manager = ProcessManager::Get(profile());
+  ExtensionHost* extension_host =
+      process_manager->GetBackgroundHostForExtension(extension->id());
+  ASSERT_EQ(extension_host->GetUnackedMessagesSizeForTesting(), 0UL);
+
+  // Set storage value which should fire chrome.storage.onChanged listeners.
+  ExtensionTestMessageListener extension_event_listener_fired("listener fired");
+  static constexpr char kScript[] =
+      R"(chrome.storage.local.set({"key" : "value"});)";
+  BackgroundScriptExecutor::ExecuteScriptAsync(profile(), extension->id(),
+                                               kScript);
+
+  // Confirm that the listener in the event page background script was fired.
+  EXPECT_TRUE(extension_event_listener_fired.WaitUntilSatisfied());
+  // TODO(crbug.com/1496093): Can we add an observer so that we know that an
+  // unacked message was added and then removed?
+  EXPECT_EQ(extension_host->GetUnackedMessagesSizeForTesting(), 0UL);
+}
+
+// Tests that an event targeted to a content script listener is not recorded
+// in unacked event messages in ExtensionHost.
+IN_PROC_BROWSER_TEST_F(EventPageEventDispatchingApiTest,
+                       DispatchToContentScript_DoesNotRecordMessageForAcking) {
+  // Load an extension with a content script that has the only
+  // chrome.storage.onChanged listener.
+  static constexpr char kManifest[] =
+      R"({
+           "name": "Event page",
+           "version": "0.1",
+           "manifest_version": 2,
+           "background": {
+             "scripts": ["background.js"],
+             "persistent": false
+            },
+           "content_scripts": [{
+             "matches": ["https://*/*", "http://*/*"],
+             "js": ["content_script.js"]
+           }],
+           "permissions": ["storage"]
+         })";
+  TestExtensionDir test_dir;
+  test_dir.WriteManifest(kManifest);
+  constexpr char kContentScriptJs[] =
+      R"(
+       chrome.storage.onChanged.addListener((details) => {
+         // Asynchronously send the message that the listener fired so that the
+         // event is considered ack'd in the browser C++ code.
+         setTimeout(() => {
+           chrome.test.sendMessage('listener fired');
+         }, 0);
+       });
+
+       chrome.test.sendMessage('content script loaded');
+      )";
+  test_dir.WriteFile(FILE_PATH_LITERAL("content_script.js"), kContentScriptJs);
+  constexpr char kBackgroundJs[] =
+      R"(
+      chrome.runtime.onInstalled.addListener((details) => {
+        // Asynchronously send the message that the listener fired so that the
+        // event is considered ack'd in the browser C++ code.
+        setTimeout(() => {
+          chrome.test.sendMessage('installed listener fired');
+        }, 0);
+      });
+    )";
+  test_dir.WriteFile(FILE_PATH_LITERAL("background.js"), kBackgroundJs);
+  ExtensionTestMessageListener extension_oninstall_listener_fired(
+      "installed listener fired");
+  const Extension* extension = LoadExtension(test_dir.UnpackedPath());
+  ASSERT_TRUE(extension);
+  // This ensures that we wait until the the browser receives the ack from the
+  // renderer. This prevents inconsistent unacked event messages state later
+  // when we check it.
+  ASSERT_TRUE(extension_oninstall_listener_fired.WaitUntilSatisfied());
+
+  // Confirm there are no unacked messages before we send the test event.
+  ProcessManager* process_manager = ProcessManager::Get(profile());
+  ExtensionHost* extension_host =
+      process_manager->GetBackgroundHostForExtension(extension->id());
+  ASSERT_EQ(extension_host->GetUnackedMessagesSizeForTesting(), 0UL);
+
+  ExtensionTestMessageListener content_script_loaded("content script loaded");
+  // Navigate to example.com to get the content_script to load.
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(),
+      embedded_test_server()->GetURL("example.com", "/simple.html")));
+  ASSERT_TRUE(content::WaitForLoadStop(web_contents()));
+  ASSERT_TRUE(content_script_loaded.WaitUntilSatisfied());
+
+  // Set storage value which should fire chrome.storage.onChanged listeners.
+  ExtensionTestMessageListener content_script_event_listener_fired(
+      "listener fired");
+  static constexpr char kScript[] =
+      R"(chrome.storage.local.set({"key" : "value"});)";
+  BackgroundScriptExecutor::ExecuteScriptAsync(profile(), extension->id(),
+                                               kScript);
+
+  // Confirm that the listener in the content script was fired and no unacked
+  // messages remain.
+  EXPECT_TRUE(content_script_event_listener_fired.WaitUntilSatisfied());
+  // TODO(crbug.com/1496093): Can we add an observer so that we know that an
+  // unacked message was not added to map at all?
+  EXPECT_EQ(extension_host->GetUnackedMessagesSizeForTesting(), 0UL);
 }
 
 }  // namespace extensions

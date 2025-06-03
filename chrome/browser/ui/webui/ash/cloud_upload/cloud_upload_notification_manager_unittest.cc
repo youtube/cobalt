@@ -5,9 +5,11 @@
 #include "chrome/browser/ui/webui/ash/cloud_upload/cloud_upload_notification_manager.h"
 
 #include "base/files/file_path.h"
+#include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
 #include "base/test/bind.h"
 #include "base/time/time.h"
+#include "chrome/browser/ash/file_manager/io_task.h"
 #include "chrome/browser/notifications/notification_display_service_factory.h"
 #include "chrome/browser/notifications/stub_notification_display_service.h"
 #include "chrome/test/base/testing_profile.h"
@@ -52,16 +54,37 @@ class CloudUploadNotificationManagerTest : public testing::Test {
     return absl::nullopt;
   }
 
-  bool HaveProgressNotification() {
+  bool HaveMoveProgressNotification() {
     return notification().has_value() &&
            notification()->type() ==
                message_center::NotificationType::NOTIFICATION_TYPE_PROGRESS &&
+           notification()->title().starts_with(u"Moving ") &&
            notification()->display_source() ==
                l10n_util::GetStringUTF16(
                    IDS_ASH_MESSAGE_CENTER_SYSTEM_APP_NAME_FILES);
   }
 
-  bool HaveCompleteNotification() {
+  bool HaveMoveProgressNotificationWithCancelButton() {
+    return HaveMoveProgressNotification() &&
+           !notification()->buttons().empty() &&
+           (notification()->buttons().front().title == u"Cancel");
+  }
+
+  bool HaveMoveProgressNotificationWithoutCancelButton() {
+    return HaveMoveProgressNotification() && notification()->buttons().empty();
+  }
+
+  bool HaveCopyProgressNotification() {
+    return notification().has_value() &&
+           notification()->type() ==
+               message_center::NotificationType::NOTIFICATION_TYPE_PROGRESS &&
+           notification()->title().starts_with(u"Copying ") &&
+           notification()->display_source() ==
+               l10n_util::GetStringUTF16(
+                   IDS_ASH_MESSAGE_CENTER_SYSTEM_APP_NAME_FILES);
+  }
+
+  bool HaveMoveCompleteNotification() {
     return notification().has_value() &&
            notification()->type() ==
                message_center::NotificationType::NOTIFICATION_TYPE_SIMPLE &&
@@ -73,11 +96,33 @@ class CloudUploadNotificationManagerTest : public testing::Test {
            (notification()->buttons().front().title == u"Show in folder");
   }
 
-  bool HaveErrorNotification() {
+  bool HaveCopyCompleteNotification() {
+    return notification().has_value() &&
+           notification()->type() ==
+               message_center::NotificationType::NOTIFICATION_TYPE_SIMPLE &&
+           notification()->title().starts_with(u"Copied ") &&
+           notification()->display_source() ==
+               l10n_util::GetStringUTF16(
+                   IDS_ASH_MESSAGE_CENTER_SYSTEM_APP_NAME_FILES) &&
+           !notification()->buttons().empty() &&
+           (notification()->buttons().front().title == u"Show in folder");
+  }
+
+  bool HaveMoveErrorNotification() {
     return notification().has_value() &&
            notification()->type() ==
                message_center::NotificationType::NOTIFICATION_TYPE_SIMPLE &&
            notification()->title().starts_with(u"Can't move file") &&
+           notification()->display_source() ==
+               l10n_util::GetStringUTF16(
+                   IDS_ASH_MESSAGE_CENTER_SYSTEM_APP_NAME_FILES);
+  }
+
+  bool HaveCopyErrorNotification() {
+    return notification().has_value() &&
+           notification()->type() ==
+               message_center::NotificationType::NOTIFICATION_TYPE_SIMPLE &&
+           notification()->title().starts_with(u"Can't copy file") &&
            notification()->display_source() ==
                l10n_util::GetStringUTF16(
                    IDS_ASH_MESSAGE_CENTER_SYSTEM_APP_NAME_FILES);
@@ -92,40 +137,85 @@ class CloudUploadNotificationManagerTest : public testing::Test {
 };
 
 TEST_F(CloudUploadNotificationManagerTest,
-       ShowUploadProgressCreatesNotification) {
+       ShowUploadProgressCreatesNotificationForMove) {
   scoped_refptr<CloudUploadNotificationManager> manager =
       base::MakeRefCounted<CloudUploadNotificationManager>(
-          profile(), file_name_, "Google Drive", "Google Docs", 1);
+          profile(), file_name_, "Google Drive", "Google Docs", 1,
+          UploadType::kMove);
 
   ASSERT_EQ(absl::nullopt, notification());
   manager->ShowUploadProgress(1);
-  ASSERT_TRUE(HaveProgressNotification());
+  ASSERT_TRUE(HaveMoveProgressNotification());
 
   manager->CloseForTest();
 }
 
-TEST_F(CloudUploadNotificationManagerTest, MinimumTiming) {
+TEST_F(CloudUploadNotificationManagerTest,
+       ShowUploadProgressCreatesNotificationForCopy) {
   scoped_refptr<CloudUploadNotificationManager> manager =
       base::MakeRefCounted<CloudUploadNotificationManager>(
-          profile(), file_name_, "Google Drive", "Google Docs", 1);
+          profile(), file_name_, "Google Drive", "Google Docs", 1,
+          UploadType::kCopy);
+
+  ASSERT_EQ(absl::nullopt, notification());
+  manager->ShowUploadProgress(1);
+  ASSERT_TRUE(HaveCopyProgressNotification());
+
+  manager->CloseForTest();
+}
+
+TEST_F(CloudUploadNotificationManagerTest, MinimumTimingForMove) {
+  scoped_refptr<CloudUploadNotificationManager> manager =
+      base::MakeRefCounted<CloudUploadNotificationManager>(
+          profile(), file_name_, "Google Drive", "Google Docs", 1,
+          UploadType::kMove);
 
   manager->ShowUploadProgress(1);
   manager->ShowUploadProgress(100);
   manager->SetDestinationPath(file_path_);
   manager->MarkUploadComplete();
-  ASSERT_TRUE(HaveProgressNotification());
+  ASSERT_TRUE(HaveMoveProgressNotification());
 
   // The progress notification should still be showing.
   task_environment_.FastForwardBy(base::Milliseconds(4900));
-  ASSERT_TRUE(HaveProgressNotification());
+  ASSERT_TRUE(HaveMoveProgressNotification());
 
   // Now we see the Complete nofication after 5s.
   task_environment_.FastForwardBy(base::Milliseconds(500));
-  ASSERT_TRUE(HaveCompleteNotification());
+  ASSERT_TRUE(HaveMoveCompleteNotification());
 
   // Now we're at 9900 ms total - we still expect the Complete notification.
   task_environment_.FastForwardBy(base::Milliseconds(4500));
-  ASSERT_TRUE(HaveCompleteNotification());
+  ASSERT_TRUE(HaveMoveCompleteNotification());
+
+  // After > 10s total, the notification should be closed.
+  task_environment_.FastForwardBy(base::Milliseconds(500));
+  ASSERT_EQ(absl::nullopt, notification());
+}
+
+TEST_F(CloudUploadNotificationManagerTest, MinimumTimingForCopy) {
+  scoped_refptr<CloudUploadNotificationManager> manager =
+      base::MakeRefCounted<CloudUploadNotificationManager>(
+          profile(), file_name_, "Google Drive", "Google Docs", 1,
+          UploadType::kCopy);
+
+  manager->ShowUploadProgress(1);
+  manager->ShowUploadProgress(100);
+  manager->SetDestinationPath(file_path_);
+  manager->MarkUploadComplete();
+  ASSERT_TRUE(HaveCopyProgressNotification());
+
+  // The progress notification should still be showing.
+  task_environment_.FastForwardBy(base::Milliseconds(4900));
+  ASSERT_TRUE(HaveCopyProgressNotification());
+
+  // Now we see the Complete nofication after 5s.
+  task_environment_.FastForwardBy(base::Milliseconds(500));
+  ASSERT_TRUE(HaveCopyCompleteNotification());
+
+  // Now we're at 9900 ms total - we still expect the Complete notification.
+  task_environment_.FastForwardBy(base::Milliseconds(4500));
+  ASSERT_TRUE(HaveCopyCompleteNotification());
 
   // After > 10s total, the notification should be closed.
   task_environment_.FastForwardBy(base::Milliseconds(500));
@@ -135,32 +225,95 @@ TEST_F(CloudUploadNotificationManagerTest, MinimumTiming) {
 TEST_F(CloudUploadNotificationManagerTest, CompleteWithoutProgress) {
   scoped_refptr<CloudUploadNotificationManager> manager =
       base::MakeRefCounted<CloudUploadNotificationManager>(
-          profile(), file_name_, "Google Drive", "Google Docs", 1);
+          profile(), file_name_, "Google Drive", "Google Docs", 1,
+          UploadType::kMove);
 
   manager->SetDestinationPath(file_path_);
   manager->MarkUploadComplete();
-  ASSERT_TRUE(HaveCompleteNotification());
+  ASSERT_TRUE(HaveMoveCompleteNotification());
 
   // The complete notification should still be showing.
   task_environment_.FastForwardBy(base::Milliseconds(4900));
-  ASSERT_TRUE(HaveCompleteNotification());
+  ASSERT_TRUE(HaveMoveCompleteNotification());
 
   // After > 5s total, the notification should be closed.
   task_environment_.FastForwardBy(base::Milliseconds(500));
   ASSERT_EQ(absl::nullopt, notification());
 }
 
+TEST_F(CloudUploadNotificationManagerTest, CancelClick) {
+  base::RunLoop run_loop;
+  base::OnceClosure cancel_callback = run_loop.QuitClosure();
+
+  scoped_refptr<CloudUploadNotificationManager> manager =
+      base::MakeRefCounted<CloudUploadNotificationManager>(
+          profile(), file_name_, "Google Drive", "Google Docs", 1,
+          UploadType::kMove);
+
+  manager->SetCancelCallback(std::move(cancel_callback));
+  manager->ShowUploadProgress(1);
+  ASSERT_TRUE(HaveMoveProgressNotificationWithCancelButton());
+
+  // Click "Cancel" button (0th button) which triggers |cancel_callback|.
+  display_service_->SimulateClick(NotificationHandler::Type::TRANSIENT,
+                                  notification()->id(), /*action_index=*/0,
+                                  absl::nullopt);
+
+  // Run loop until |cancel_callback| is called.
+  run_loop.Run();
+  manager->CloseForTest();
+}
+
+TEST_F(CloudUploadNotificationManagerTest,
+       CancelButtonDisappearsAfterProgressComplete) {
+  scoped_refptr<CloudUploadNotificationManager> manager =
+      base::MakeRefCounted<CloudUploadNotificationManager>(
+          profile(), file_name_, "Google Drive", "Google Docs", 1,
+          UploadType::kMove);
+
+  // TODO(b/244396230): remove CancelCallback once button always set for both
+  // Clouds.
+  manager->SetCancelCallback(base::DoNothing());
+  manager->ShowUploadProgress(1);
+  ASSERT_TRUE(HaveMoveProgressNotificationWithCancelButton());
+  manager->MarkUploadComplete();
+  ASSERT_TRUE(HaveMoveProgressNotificationWithoutCancelButton());
+  manager->CloseForTest();
+}
+
+TEST_F(CloudUploadNotificationManagerTest,
+       CancelButtonRemainsAfterMinimumTime) {
+  scoped_refptr<CloudUploadNotificationManager> manager =
+      base::MakeRefCounted<CloudUploadNotificationManager>(
+          profile(), file_name_, "Google Drive", "Google Docs", 1,
+          UploadType::kMove);
+
+  // TODO(b/244396230): remove CancelCallback once button always set for both
+  // Clouds.
+  manager->SetCancelCallback(base::DoNothing());
+  manager->ShowUploadProgress(1);
+  ASSERT_TRUE(HaveMoveProgressNotificationWithCancelButton());
+
+  // The Cancel button should still appear after the minimum progress
+  // notification time of 5s.
+  task_environment_.FastForwardBy(base::Milliseconds(6000));
+  ASSERT_TRUE(HaveMoveProgressNotificationWithCancelButton());
+
+  manager->CloseForTest();
+}
+
 TEST_F(CloudUploadNotificationManagerTest, ShowInFolderClick) {
   scoped_refptr<CloudUploadNotificationManager> manager =
       base::MakeRefCounted<CloudUploadNotificationManager>(
-          profile(), file_name_, "Google Drive", "Google Docs", 1);
+          profile(), file_name_, "Google Drive", "Google Docs", 1,
+          UploadType::kMove);
 
   manager->SetDestinationPath(file_path_);
   manager->MarkUploadComplete();
-  ASSERT_TRUE(HaveCompleteNotification());
+  ASSERT_TRUE(HaveMoveCompleteNotification());
 
   base::RunLoop run_loop;
-  manager->SetHandleNotificationClickCallbackForTesting(
+  manager->SetHandleCompleteNotificationClickCallbackForTesting(
       base::BindLambdaForTesting(
           [&run_loop, this](base::FilePath destination_path) {
             // Check |destination_path| is as expected.
@@ -176,22 +329,43 @@ TEST_F(CloudUploadNotificationManagerTest, ShowInFolderClick) {
 
   // Run loop until |HandleNotificationClick| is called.
   run_loop.Run();
+  manager->CloseForTest();
 }
 
-TEST_F(CloudUploadNotificationManagerTest, ErrorStaysOpen) {
+TEST_F(CloudUploadNotificationManagerTest, ErrorStaysOpenForMove) {
   scoped_refptr<CloudUploadNotificationManager> manager =
       base::MakeRefCounted<CloudUploadNotificationManager>(
-          profile(), file_name_, "Google Drive", "Google Docs", 1);
+          profile(), file_name_, "Google Drive", "Google Docs", 1,
+          UploadType::kMove);
 
   manager->ShowUploadProgress(1);
   manager->ShowUploadProgress(100);
   manager->ShowUploadError("error");
   // The error is shown straight away.
-  ASSERT_TRUE(HaveErrorNotification());
+  ASSERT_TRUE(HaveMoveErrorNotification());
 
   // The error notification should still be showing.
   task_environment_.FastForwardBy(base::Seconds(60));
-  ASSERT_TRUE(HaveErrorNotification());
+  ASSERT_TRUE(HaveMoveErrorNotification());
+
+  manager->CloseForTest();
+}
+
+TEST_F(CloudUploadNotificationManagerTest, ErrorStaysOpenForCopy) {
+  scoped_refptr<CloudUploadNotificationManager> manager =
+      base::MakeRefCounted<CloudUploadNotificationManager>(
+          profile(), file_name_, "Google Drive", "Google Docs", 1,
+          UploadType::kCopy);
+
+  manager->ShowUploadProgress(1);
+  manager->ShowUploadProgress(100);
+  manager->ShowUploadError("error");
+  // The error is shown straight away.
+  ASSERT_TRUE(HaveCopyErrorNotification());
+
+  // The error notification should still be showing.
+  task_environment_.FastForwardBy(base::Seconds(60));
+  ASSERT_TRUE(HaveCopyErrorNotification());
 
   manager->CloseForTest();
 }
@@ -200,14 +374,15 @@ TEST_F(CloudUploadNotificationManagerTest, ManagerLifetime) {
   {
     scoped_refptr<CloudUploadNotificationManager> manager =
         base::MakeRefCounted<CloudUploadNotificationManager>(
-            profile(), file_name_, "Google Drive", "Google Docs", 1);
+            profile(), file_name_, "Google Drive", "Google Docs", 1,
+            UploadType::kMove);
 
     manager->ShowUploadProgress(1);
     manager->ShowUploadError("error");
-    ASSERT_TRUE(HaveErrorNotification());
+    ASSERT_TRUE(HaveMoveErrorNotification());
   }
   // We still have a ref to manager until the notification is dismissed.
-  ASSERT_TRUE(HaveErrorNotification());
+  ASSERT_TRUE(HaveMoveErrorNotification());
 
   notification()->delegate()->Click(absl::nullopt, absl::nullopt);
   ASSERT_EQ(absl::nullopt, notification());

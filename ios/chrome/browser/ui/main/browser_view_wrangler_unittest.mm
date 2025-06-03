@@ -8,26 +8,26 @@
 
 #import "base/test/scoped_feature_list.h"
 #import "components/bookmarks/test/bookmark_test_helpers.h"
-#import "ios/chrome/browser/bookmarks/local_or_syncable_bookmark_model_factory.h"
-#import "ios/chrome/browser/browser_state/test_chrome_browser_state.h"
+#import "ios/chrome/browser/bookmarks/model/local_or_syncable_bookmark_model_factory.h"
 #import "ios/chrome/browser/favicon/favicon_service_factory.h"
 #import "ios/chrome/browser/favicon/ios_chrome_favicon_loader_factory.h"
 #import "ios/chrome/browser/favicon/ios_chrome_large_icon_service_factory.h"
 #import "ios/chrome/browser/history/history_service_factory.h"
-#import "ios/chrome/browser/main/browser_list.h"
-#import "ios/chrome/browser/main/browser_list_factory.h"
-#import "ios/chrome/browser/main/test_browser_list_observer.h"
-#import "ios/chrome/browser/prerender/prerender_service_factory.h"
-#import "ios/chrome/browser/search_engines/template_url_service_factory.h"
-#import "ios/chrome/browser/sessions/scene_util_test_support.h"
+#import "ios/chrome/browser/prerender/model/prerender_service_factory.h"
+#import "ios/chrome/browser/search_engines/model/template_url_service_factory.h"
 #import "ios/chrome/browser/sessions/session_restoration_browser_agent.h"
 #import "ios/chrome/browser/sessions/test_session_service.h"
 #import "ios/chrome/browser/shared/coordinator/scene/scene_state.h"
 #import "ios/chrome/browser/shared/coordinator/scene/scene_state_browser_agent.h"
+#import "ios/chrome/browser/shared/coordinator/scene/scene_util_test_support.h"
+#import "ios/chrome/browser/shared/model/browser/browser_list.h"
+#import "ios/chrome/browser/shared/model/browser/browser_list_factory.h"
+#import "ios/chrome/browser/shared/model/browser/test/test_browser_list_observer.h"
+#import "ios/chrome/browser/shared/model/browser_state/test_chrome_browser_state.h"
 #import "ios/chrome/browser/signin/authentication_service_factory.h"
 #import "ios/chrome/browser/signin/fake_authentication_service_delegate.h"
-#import "ios/chrome/browser/sync/send_tab_to_self_sync_service_factory.h"
-#import "ios/chrome/browser/tabs/inactive_tabs/features.h"
+#import "ios/chrome/browser/sync/model/send_tab_to_self_sync_service_factory.h"
+#import "ios/chrome/browser/tabs/model/inactive_tabs/features.h"
 #import "ios/chrome/browser/ui/browser_view/browser_view_controller.h"
 #import "ios/chrome/browser/ui/main/wrangled_browser.h"
 #import "ios/chrome/test/ios_chrome_scoped_testing_local_state.h"
@@ -37,9 +37,9 @@
 #import "third_party/ocmock/OCMock/OCMock.h"
 #import "ui/base/device_form_factor.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
+// To get access to web::features::kEnableSessionSerializationOptimizations.
+// TODO(crbug.com/1383087): remove once the feature is fully launched.
+#import "ios/web/common/features.h"
 
 @interface SceneStateWithFakeScene : SceneState
 
@@ -64,11 +64,14 @@ namespace {
 
 class BrowserViewWranglerTest : public PlatformTest {
  protected:
-  BrowserViewWranglerTest()
-      : fake_scene_(FakeSceneWithIdentifier([[NSUUID UUID] UUIDString])),
-        scene_state_(
-            [[SceneStateWithFakeScene alloc] initWithScene:fake_scene_]),
-        test_session_service_([[TestSessionService alloc] init]) {
+  BrowserViewWranglerTest() {
+    scoped_feature_list_.InitAndDisableFeature(
+        web::features::kEnableSessionSerializationOptimizations);
+
+    fake_scene_ = FakeSceneWithIdentifier([[NSUUID UUID] UUIDString]);
+    scene_state_ = [[SceneStateWithFakeScene alloc] initWithScene:fake_scene_];
+    test_session_service_ = [[TestSessionService alloc] init];
+
     TestChromeBrowserState::Builder test_cbs_builder;
     test_cbs_builder.AddTestingFactory(
         SendTabToSelfSyncServiceFactory::GetInstance(),
@@ -112,6 +115,7 @@ class BrowserViewWranglerTest : public PlatformTest {
   }
 
   web::WebTaskEnvironment task_environment_;
+  base::test::ScopedFeatureList scoped_feature_list_;
   IOSChromeScopedTestingLocalState local_state_;
   std::unique_ptr<TestChromeBrowserState> chrome_browser_state_;
   id fake_scene_;
@@ -130,9 +134,8 @@ TEST_F(BrowserViewWranglerTest, TestInitNilObserver) {
                          sceneState:scene_state_
          applicationCommandEndpoint:(id<ApplicationCommands>)nil
         browsingDataCommandEndpoint:nil];
-    [wrangler createMainBrowser];
     [wrangler createMainCoordinatorAndInterface];
-    [wrangler createInactiveBrowser];
+
     // Test that BVC is created on demand.
     UIViewController* bvc = wrangler.mainInterface.viewController;
     EXPECT_NE(bvc, nil);
@@ -178,29 +181,23 @@ TEST_F(BrowserViewWranglerTest, TestBrowserList) {
        applicationCommandEndpoint:nil
       browsingDataCommandEndpoint:nil];
 
-  // After creating the main browser, it should have been added to the browser
-  // list.
-  [wrangler createMainBrowser];
+  // Create the coordinator and interface. This is required to get access
+  // to the Browser via the -mainInterface/-incognitoInterface providers.
   [wrangler createMainCoordinatorAndInterface];
-  EXPECT_EQ(wrangler.mainInterface.browser, observer.GetLastAddedBrowser());
-  EXPECT_EQ(1UL, browser_list->AllRegularBrowsers().size());
 
-  // Create the inactive browser. Sould be added in the main interface and in
-  // the browser list even if the feature is disabled.
-  [wrangler createInactiveBrowser];
+  // The BrowserViewWrangler creates all browser in its initializer. The
+  // first created CL is the main Browser, the second one the inactive
+  // Browser, and then the OTR Browser.
   EXPECT_EQ(2UL, browser_list->AllRegularBrowsers().size());
+  EXPECT_EQ(1UL, browser_list->AllIncognitoBrowsers().size());
   EXPECT_EQ(wrangler.mainInterface.inactiveBrowser,
             observer.GetLastAddedBrowser());
-
-  // The lazy OTR browser creation should involve an addition to the browser
-  // list.
   EXPECT_EQ(wrangler.incognitoInterface.browser,
             observer.GetLastAddedIncognitoBrowser());
-  EXPECT_EQ(1UL, browser_list->AllIncognitoBrowsers().size());
 
-  Browser* prior_otr_browser = observer.GetLastAddedIncognitoBrowser();
-
-  // WARNING: after the following call, `last_otr_browser` is unsafe.
+  // Record the old Browser before it is destroyed. This will be dangling
+  // after the call to -willDestroyIncognitoBrowserState.
+  Browser* prior_otr_browser = wrangler.incognitoInterface.browser;
   [wrangler willDestroyIncognitoBrowserState];
   chrome_browser_state_->DestroyOffTheRecordChromeBrowserState();
   chrome_browser_state_->GetOffTheRecordChromeBrowserState();
@@ -219,6 +216,7 @@ TEST_F(BrowserViewWranglerTest, TestBrowserList) {
 
   // After shutdown all browsers are destroyed.
   [wrangler shutdown];
+
   // There should be no browsers in the BrowserList.
   EXPECT_EQ(0UL, browser_list->AllRegularBrowsers().size());
   EXPECT_EQ(0UL, browser_list->AllIncognitoBrowsers().size());
@@ -254,9 +252,7 @@ TEST_F(BrowserViewWranglerTest, TestInactiveInterface) {
        applicationCommandEndpoint:nil
       browsingDataCommandEndpoint:nil];
 
-  [wrangler createMainBrowser];
   [wrangler createMainCoordinatorAndInterface];
-  [wrangler createInactiveBrowser];
   EXPECT_EQ(2UL, browser_list->AllRegularBrowsers().size());
   EXPECT_EQ(wrangler.mainInterface.inactiveBrowser,
             observer.GetLastAddedBrowser());
@@ -264,6 +260,42 @@ TEST_F(BrowserViewWranglerTest, TestInactiveInterface) {
   // After shutdown all browsers are destroyed.
   [wrangler shutdown];
   EXPECT_EQ(0UL, browser_list->AllRegularBrowsers().size());
+
+  browser_list->RemoveObserver(&observer);
+}
+
+TEST_F(BrowserViewWranglerTest, TestIncognitoBrowserSessionRestorationLogic) {
+  BrowserList* browser_list =
+      BrowserListFactory::GetForBrowserState(chrome_browser_state_.get());
+  TestBrowserListObserver observer;
+  browser_list->AddObserver(&observer);
+
+  BrowserViewWrangler* wrangler = [[BrowserViewWrangler alloc]
+             initWithBrowserState:chrome_browser_state_.get()
+                       sceneState:scene_state_
+       applicationCommandEndpoint:nil
+      browsingDataCommandEndpoint:nil];
+
+  // Create the coordinator and interface. This is required to get access
+  // to the Browser via the -mainInterface/-incognitoInterface providers.
+  [wrangler createMainCoordinatorAndInterface];
+  EXPECT_EQ(0, test_session_service_.loadSessionCallsCount);
+
+  // Load the session for all Browser. There should be one for the main
+  // Browser, one for the inactive Browser and one for the OTR Browser.
+  [wrangler loadSession];
+  EXPECT_EQ(3, test_session_service_.loadSessionCallsCount);
+
+  // Destroing and rebuilding the incognito browser should not restore the
+  // sessions.
+  [wrangler willDestroyIncognitoBrowserState];
+  chrome_browser_state_->DestroyOffTheRecordChromeBrowserState();
+  chrome_browser_state_->GetOffTheRecordChromeBrowserState();
+  [wrangler incognitoBrowserStateCreated];
+
+  EXPECT_EQ(3, test_session_service_.loadSessionCallsCount);
+
+  [wrangler shutdown];
 
   browser_list->RemoveObserver(&observer);
 }

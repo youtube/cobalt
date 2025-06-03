@@ -114,7 +114,7 @@ enum class DOMExceptionCode : ExceptionCode {
   kWebTransportError,
 
   // Smart Card API
-  // https://github.com/WICG/web-smart-card/blob/main/README.md#web-idl
+  // https://wicg.github.io/web-smart-card/#smartcarderror-interface
   kSmartCardError,
 
   // WebGPU https://www.w3.org/TR/webgpu/
@@ -123,6 +123,10 @@ enum class DOMExceptionCode : ExceptionCode {
   // Media Capture and Streams API
   // https://w3c.github.io/mediacapture-main/#overconstrainederror-interface
   kOverconstrainedError,
+
+  // FedCM API
+  // https://fedidcg.github.io/FedCM/#browser-api-identity-credential-error-interface
+  kIdentityCredentialError,
 
   kNumOfCodes,
 };

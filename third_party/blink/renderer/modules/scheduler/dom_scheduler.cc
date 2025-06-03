@@ -54,11 +54,6 @@ DOMScheduler::DOMScheduler(ExecutionContext* context)
   CHECK(context->GetScheduler());
   CreateFixedPriorityTaskQueues(context, WebSchedulingQueueType::kTaskQueue,
                                 fixed_priority_task_queues_);
-  if (RuntimeEnabledFeatures::SchedulerYieldEnabled(context)) {
-    CreateFixedPriorityTaskQueues(context,
-                                  WebSchedulingQueueType::kContinuationQueue,
-                                  fixed_priority_continuation_queues_);
-  }
 }
 
 void DOMScheduler::ContextDestroyed() {
@@ -90,23 +85,25 @@ ScriptPromise DOMScheduler::postTask(
     return ScriptPromise();
   }
 
-  auto* task_signal = GetTaskSignalFromOptions(
-      script_state, exception_state, options->getSignalOr(nullptr),
+  SchedulingState state = GetSchedulingStateFromOptions(
+      script_state, options->getSignalOr(nullptr),
       options->hasPriority()
           ? AtomicString(IDLEnumAsString(options->priority()))
           : g_null_atom);
-  if (exception_state.HadException()) {
-    // The given signal was aborted.
+  if (state.abort_source && state.abort_source->aborted()) {
+    exception_state.RethrowV8Exception(
+        ToV8Traits<IDLAny>::ToV8(script_state,
+                                 state.abort_source->reason(script_state))
+            .ToLocalChecked());
     return ScriptPromise();
   }
 
-  CHECK(task_signal);
   auto* task_queue =
-      GetTaskQueue(task_signal, WebSchedulingQueueType::kTaskQueue);
+      GetTaskQueue(state.priority_source, WebSchedulingQueueType::kTaskQueue);
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
       script_state, exception_state.GetContext());
-  MakeGarbageCollected<DOMTask>(resolver, callback_function, task_signal,
-                                task_queue,
+  MakeGarbageCollected<DOMTask>(resolver, callback_function, state.abort_source,
+                                state.priority_source, task_queue,
                                 base::Milliseconds(options->delay()));
   return resolver->Promise();
 }
@@ -118,6 +115,12 @@ ScriptPromise DOMScheduler::yield(ScriptState* script_state,
     exception_state.ThrowDOMException(DOMExceptionCode::kNotSupportedError,
                                       "Current window is detached");
     return ScriptPromise();
+  }
+
+  if (fixed_priority_continuation_queues_.empty()) {
+    CreateFixedPriorityTaskQueues(GetExecutionContext(),
+                                  WebSchedulingQueueType::kContinuationQueue,
+                                  fixed_priority_continuation_queues_);
   }
 
   // Abort and priority can be inherited together or separately. Abort
@@ -148,19 +151,23 @@ ScriptPromise DOMScheduler::yield(ScriptState* script_state,
     priority_option = AtomicString(IDLEnumAsString(options->priority()));
   }
 
-  auto* task_signal = GetTaskSignalFromOptions(script_state, exception_state,
-                                               signal_option, priority_option);
-  if (exception_state.HadException()) {
-    // The given or inherited signal was aborted.
+  SchedulingState state = GetSchedulingStateFromOptions(
+      script_state, signal_option, priority_option);
+  if (state.abort_source && state.abort_source->aborted()) {
+    exception_state.RethrowV8Exception(
+        ToV8Traits<IDLAny>::ToV8(script_state,
+                                 state.abort_source->reason(script_state))
+            .ToLocalChecked());
     return ScriptPromise();
   }
 
-  CHECK(task_signal);
-  auto* task_queue =
-      GetTaskQueue(task_signal, WebSchedulingQueueType::kContinuationQueue);
+  CHECK(state.priority_source);
+  auto* task_queue = GetTaskQueue(state.priority_source,
+                                  WebSchedulingQueueType::kContinuationQueue);
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
       script_state, exception_state.GetContext());
-  MakeGarbageCollected<DOMTaskContinuation>(resolver, task_signal, task_queue);
+  MakeGarbageCollected<DOMTaskContinuation>(resolver, state.abort_source,
+                                            task_queue);
   return resolver->Promise();
 }
 
@@ -168,14 +175,17 @@ scheduler::TaskAttributionIdType DOMScheduler::taskId(
     ScriptState* script_state) {
   ThreadScheduler* scheduler = ThreadScheduler::Current();
   DCHECK(scheduler);
-  DCHECK(scheduler->GetTaskAttributionTracker());
-  absl::optional<scheduler::TaskAttributionId> task_id =
-      scheduler->GetTaskAttributionTracker()->RunningTaskAttributionId(
-          script_state);
-  // task_id cannot be unset here, as a task has presumably already ran in order
+  auto* tracker = scheduler->GetTaskAttributionTracker();
+  if (!tracker) {
+    // Can happen when a feature flag disables TaskAttribution.
+    return 0;
+  }
+  scheduler::TaskAttributionInfo* task =
+      scheduler->GetTaskAttributionTracker()->RunningTask(script_state);
+  // task cannot be nullptr here, as a task has presumably already ran in order
   // for this API call to be called.
-  DCHECK(task_id);
-  return task_id.value().value();
+  DCHECK(task);
+  return task->Id().value();
 }
 
 AtomicString DOMScheduler::isAncestor(
@@ -185,21 +195,23 @@ AtomicString DOMScheduler::isAncestor(
       scheduler::TaskAttributionTracker::AncestorStatus::kNotAncestor;
   ThreadScheduler* scheduler = ThreadScheduler::Current();
   DCHECK(scheduler);
-  scheduler::TaskAttributionTracker* tracker =
-      scheduler->GetTaskAttributionTracker();
-  DCHECK(tracker);
+  auto* tracker = scheduler->GetTaskAttributionTracker();
+  if (!tracker) {
+    // Can happen when a feature flag disables TaskAttribution.
+    return AtomicString("unknown");
+  }
   status =
       tracker->IsAncestor(script_state, scheduler::TaskAttributionId(parentId));
   switch (status) {
     case scheduler::TaskAttributionTracker::AncestorStatus::kAncestor:
-      return "ancestor";
+      return AtomicString("ancestor");
     case scheduler::TaskAttributionTracker::AncestorStatus::kNotAncestor:
-      return "not ancestor";
+      return AtomicString("not ancestor");
     case scheduler::TaskAttributionTracker::AncestorStatus::kUnknown:
-      return "unknown";
+      return AtomicString("unknown");
   }
   NOTREACHED();
-  return "not reached";
+  return AtomicString("not reached");
 }
 
 void DOMScheduler::CreateFixedPriorityTaskQueues(
@@ -235,97 +247,55 @@ DOMScheduler::DOMTaskQueue* DOMScheduler::CreateDynamicPriorityTaskQueue(
   return dom_task_queue;
 }
 
-DOMTaskSignal* DOMScheduler::GetTaskSignalFromOptions(
+DOMScheduler::SchedulingState DOMScheduler::GetSchedulingStateFromOptions(
     ScriptState* script_state,
-    ExceptionState& exception_state,
     absl::variant<AbortSignal*, InheritOption> signal_option,
     absl::variant<AtomicString, InheritOption> priority_option) {
-  // `inherited_signal` will be null if no inheritance was specified or there's
-  // nothing to inherit, e.g. yielding from a non-postTask task.
-  // Note: `inherited_signal` will be the one from the original task, i.e. it
-  // doesn't get reset by continuations.
-  DOMTaskSignal* inherited_signal = nullptr;
+  // `inherited_abort_source` and `inherited_priority_source` will be null if no
+  // inheritance was specified or there's nothing to inherit, e.g. yielding from
+  // a non-postTask task.
+  // Note: The inherited signals will be from the original task, i.e. they don't
+  // get reset by continuations.
+  AbortSignal* inherited_abort_source = nullptr;
+  DOMTaskSignal* inherited_priority_source = nullptr;
   if (absl::holds_alternative<InheritOption>(signal_option) ||
       absl::holds_alternative<InheritOption>(priority_option)) {
     CHECK(RuntimeEnabledFeatures::SchedulerYieldEnabled(
         ExecutionContext::From(script_state)));
     if (auto* inherited_state =
             ScriptWrappableTaskState::GetCurrent(script_state)) {
-      inherited_signal = inherited_state->GetSignal();
+      inherited_abort_source = inherited_state->GetAbortSource();
+      inherited_priority_source = inherited_state->GetPrioritySource();
     }
   }
 
-  AbortSignal* abort_source =
-      absl::holds_alternative<AbortSignal*>(signal_option)
-          ? absl::get<AbortSignal*>(signal_option)
-          : inherited_signal;
-  // Short-circuit things now that we know if `abort_source` is aborted.
-  if (abort_source && abort_source->aborted()) {
-    exception_state.RethrowV8Exception(
-        ToV8Traits<IDLAny>::ToV8(script_state,
-                                 abort_source->reason(script_state))
-            .ToLocalChecked());
-    return nullptr;
+  SchedulingState result;
+  result.abort_source = absl::holds_alternative<AbortSignal*>(signal_option)
+                            ? absl::get<AbortSignal*>(signal_option)
+                            : inherited_abort_source;
+  if (result.abort_source && result.abort_source->aborted()) {
+    // This task or continuation won't be scheduled, so short-circuit.
+    return result;
   }
 
-  DOMTaskSignal* priority_source = nullptr;
   if (absl::holds_alternative<InheritOption>(priority_option)) {
-    priority_source = inherited_signal;
+    result.priority_source = inherited_priority_source;
   } else if (absl::get<AtomicString>(priority_option) != g_null_atom) {
     // The priority option overrides the signal for priority.
-    priority_source = GetFixedPriorityTaskSignal(
+    result.priority_source = GetFixedPriorityTaskSignal(
         script_state, WebSchedulingPriorityFromString(
                           absl::get<AtomicString>(priority_option)));
   } else if (IsA<DOMTaskSignal>(absl::get<AbortSignal*>(signal_option))) {
-    priority_source = To<DOMTaskSignal>(absl::get<AbortSignal*>(signal_option));
+    result.priority_source =
+        To<DOMTaskSignal>(absl::get<AbortSignal*>(signal_option));
   }
   // `priority_source` is null if there was nothing to inherit or no signal or
   // priority was specified.
-  if (!priority_source) {
-    priority_source =
+  if (!result.priority_source) {
+    result.priority_source =
         GetFixedPriorityTaskSignal(script_state, kDefaultPriority);
   }
-
-  // The priority and abort sources are the same non-null task signal, so use
-  // that signal.
-  if (priority_source == abort_source) {
-    return priority_source;
-  }
-
-  // `priority_source` is already settled for abort and priority, and there is
-  // no abort source to combine with. Use `priority_source` rather than creating
-  // a new one.
-  if (priority_source->HasFixedPriority() && !priority_source->CanAbort() &&
-      (!abort_source || !abort_source->CanAbort())) {
-    return priority_source;
-  }
-
-  // Otherwise there are separate priority and abort sources. Create a
-  // composite signal from the sources and use that.
-  if (RuntimeEnabledFeatures::AbortSignalCompositionEnabled()) {
-    HeapVector<Member<AbortSignal>> abort_source_signals;
-    if (abort_source) {
-      abort_source_signals.push_back(abort_source);
-    }
-    return MakeGarbageCollected<DOMTaskSignal>(
-        script_state, priority_source->priority(), priority_source,
-        abort_source_signals);
-  } else {
-    // Fall back to use Follow if composition isn't enabled (kill switch path).
-    CHECK(priority_source->HasFixedPriority());
-    CHECK_EQ(priority_source->GetSignalType(),
-             AbortSignal::SignalType::kInternal);
-    //  `priority_source` wasn't returned earlier because internal signals are
-    //  never settled. Even though an abort algorithm will be added, it's safe
-    //  to just use this signal.
-    if (!abort_source) {
-      return priority_source;
-    }
-    auto* result_signal = DOMTaskSignal::CreateFixedPriorityTaskSignal(
-        script_state, priority_source->priority());
-    result_signal->Follow(script_state, abort_source);
-    return result_signal;
-  }
+  return result;
 }
 
 DOMTaskSignal* DOMScheduler::GetFixedPriorityTaskSignal(
@@ -338,7 +308,7 @@ DOMTaskSignal* DOMScheduler::GetFixedPriorityTaskSignal(
     CHECK(signal->HasFixedPriority());
     fixed_priority_task_signals_[index] = signal;
   }
-  return fixed_priority_task_signals_[index];
+  return fixed_priority_task_signals_[index].Get();
 }
 
 DOMScheduler::DOMTaskQueue* DOMScheduler::GetTaskQueue(

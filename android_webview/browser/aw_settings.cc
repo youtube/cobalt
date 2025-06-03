@@ -7,10 +7,13 @@
 #include <memory>
 
 #include "android_webview/browser/aw_browser_context.h"
+#include "android_webview/browser/aw_browser_process.h"
+#include "android_webview/browser/aw_client_hints_controller_delegate.h"
 #include "android_webview/browser/aw_content_browser_client.h"
 #include "android_webview/browser/aw_contents.h"
 #include "android_webview/browser/aw_contents_origin_matcher.h"
 #include "android_webview/browser/aw_dark_mode.h"
+#include "android_webview/browser/aw_user_agent_metadata.h"
 #include "android_webview/browser/renderer_host/aw_render_view_host_ext.h"
 #include "android_webview/browser_jni_headers/AwSettings_jni.h"
 #include "android_webview/common/aw_content_client.h"
@@ -18,8 +21,11 @@
 #include "base/android/jni_android.h"
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
+#include "base/containers/contains.h"
 #include "base/memory/raw_ptr.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/supports_user_data.h"
+#include "components/embedder_support/user_agent_utils.h"
 #include "components/viz/common/features.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_entry.h"
@@ -29,6 +35,7 @@
 #include "content/public/browser/web_contents.h"
 #include "net/http/http_util.h"
 #include "services/network/public/mojom/network_context.mojom.h"
+#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/renderer_preferences/renderer_preferences.h"
 #include "third_party/blink/public/mojom/webpreferences/web_preferences.mojom.h"
 #include "url/gurl.h"
@@ -43,6 +50,21 @@ using blink::web_pref::WebPreferences;
 namespace android_webview {
 
 namespace {
+
+// Metrics on the count of difference cases when we populate the user-agent
+// metadata. These values are persisted to logs. Entries should not be
+// renumbered and numeric values should never be reused.
+enum class UserAgentMetadataAvailableType {
+  kSystemDefault = 0,
+  kSystemDefaultLowEntropyOnly = 1,
+  kUserOverrides = 2,
+  kMaxValue = kUserOverrides,
+};
+
+void LogUserAgentMetadataAvailableType(UserAgentMetadataAvailableType type) {
+  base::UmaHistogramEnumeration(
+      "Android.WebView.UserAgentClientHintsMetadata.AvailableType", type);
+}
 
 void PopulateFixedWebPreferences(WebPreferences* web_prefs) {
   web_prefs->shrinks_standalone_images_to_fit = false;
@@ -111,6 +133,10 @@ bool AwSettings::GetJavaScriptEnabled() {
 
 AwSettings::MixedContentMode AwSettings::GetMixedContentMode() {
   return mixed_content_mode_;
+}
+
+AwSettings::AttributionBehavior AwSettings::GetAttributionBehavior() {
+  return attribution_behavior_;
 }
 
 void AwSettings::Destroy(JNIEnv* env, const JavaParamRef<jobject>& obj) {
@@ -188,6 +214,7 @@ void AwSettings::UpdateEverythingLocked(JNIEnv* env,
   UpdateJavaScriptPolicyLocked(env, obj);
   UpdateAllowFileAccessLocked(env, obj);
   UpdateMixedContentModeLocked(env, obj);
+  UpdateAttributionBehaviorLocked(env, obj);
 }
 
 void AwSettings::UpdateUserAgentLocked(JNIEnv* env,
@@ -198,11 +225,57 @@ void AwSettings::UpdateUserAgentLocked(JNIEnv* env,
   ScopedJavaLocalRef<jstring> str =
       Java_AwSettings_getUserAgentLocked(env, obj);
   bool ua_overidden = !!str;
+  bool ua_metadata_overridden =
+      Java_AwSettings_getHasUserAgentMetadataOverridesLocked(env, obj);
 
   if (ua_overidden) {
-    std::string override = base::android::ConvertJavaStringToUTF8(str);
-    web_contents()->SetUserAgentOverride(
-        blink::UserAgentOverride::UserAgentOnly(override), true);
+    std::string ua_string_override =
+        base::android::ConvertJavaStringToUTF8(str);
+    std::string ua_default = GetUserAgent();
+    blink::UserAgentOverride override_ua_with_metadata;
+    override_ua_with_metadata.ua_string_override = ua_string_override;
+
+    // If kUACHOverrideBlank is enabled, set user-agent metadata with the
+    // default blank value.
+    if (!ua_string_override.empty() &&
+        base::FeatureList::IsEnabled(blink::features::kUACHOverrideBlank)) {
+      override_ua_with_metadata.ua_metadata_override =
+          blink::UserAgentMetadata();
+    }
+
+    if (base::FeatureList::IsEnabled(blink::features::kUserAgentClientHint)) {
+      // Generate user-agent client hints in the following three cases:
+      // 1. If user provide the user-agent metadata overrides, we use the
+      // override data to populate the user-agent client hints.
+      // 2. Otherwise, if override user-agent contains default user-agent, we
+      // use system default user-agent metadata to populate the user-agent
+      // client hints.
+      // 3. Finally, if the above two cases don't match, we only populate system
+      // default low-entropy client hints.
+      if (ua_metadata_overridden) {
+        ScopedJavaLocalRef<jobject> java_ua_metadata =
+            Java_AwSettings_getUserAgentMetadataLocked(env, obj);
+        override_ua_with_metadata.ua_metadata_override =
+            FromJavaAwUserAgentMetadata(env, java_ua_metadata);
+        LogUserAgentMetadataAvailableType(
+            UserAgentMetadataAvailableType::kUserOverrides);
+      } else if (base::Contains(ua_string_override, ua_default)) {
+        override_ua_with_metadata.ua_metadata_override =
+            AwClientHintsControllerDelegate::
+                GetUserAgentMetadataOverrideBrand();
+        LogUserAgentMetadataAvailableType(
+            UserAgentMetadataAvailableType::kSystemDefault);
+      } else {
+        override_ua_with_metadata.ua_metadata_override =
+            AwClientHintsControllerDelegate::GetUserAgentMetadataOverrideBrand(
+                /*only_low_entropy_ch=*/true);
+        LogUserAgentMetadataAvailableType(
+            UserAgentMetadataAvailableType::kSystemDefaultLowEntropyOnly);
+      }
+    }
+
+    // Set overridden user-agent and default client hints metadata if applied.
+    web_contents()->SetUserAgentOverride(override_ua_with_metadata, true);
   }
 
   content::NavigationController& controller = web_contents()->GetController();
@@ -345,6 +418,29 @@ void AwSettings::UpdateMixedContentModeLocked(
 
   mixed_content_mode_ = static_cast<MixedContentMode>(
       Java_AwSettings_getMixedContentMode(env, obj));
+}
+
+void AwSettings::UpdateAttributionBehaviorLocked(
+    JNIEnv* env,
+    const JavaParamRef<jobject>& obj) {
+  if (!web_contents()) {
+    return;
+  }
+
+  AttributionBehavior previous = attribution_behavior_;
+  attribution_behavior_ = static_cast<AttributionBehavior>(
+      Java_AwSettings_getAttributionBehavior(env, obj));
+
+  base::UmaHistogramEnumeration("Conversions.AttributionBehavior",
+                                attribution_behavior_);
+
+  // If attribution was previously disabled or has now been disabled, then
+  // we need to update attribution support values in the renderer.
+  if (previous != attribution_behavior_ &&
+      (previous == AwSettings::AttributionBehavior::DISABLED ||
+       attribution_behavior_ == AwSettings::AttributionBehavior::DISABLED)) {
+    web_contents()->UpdateAttributionSupportRenderer();
+  }
 }
 
 void AwSettings::RenderViewHostChanged(content::RenderViewHost* old_host,
@@ -612,17 +708,6 @@ AwSettings::UpdateXRequestedWithAllowListOriginMatcher(
   return base::android::ToJavaArrayOfStrings(env, bad_rules);
 }
 
-void AwSettings::SetRestrictSensitiveWebContentEnabled(
-    JNIEnv* env,
-    const JavaParamRef<jobject>& obj,
-    jboolean enabled) {
-  restrict_sensitive_web_content_enabled_ = enabled;
-}
-
-bool AwSettings::GetRestrictSensitiveWebContentEnabled() {
-  return restrict_sensitive_web_content_enabled();
-}
-
 scoped_refptr<AwContentsOriginMatcher> AwSettings::xrw_allowlist_matcher() {
   return xrw_allowlist_matcher_;
 }
@@ -639,6 +724,13 @@ static jlong JNI_AwSettings_Init(JNIEnv* env,
 static ScopedJavaLocalRef<jstring> JNI_AwSettings_GetDefaultUserAgent(
     JNIEnv* env) {
   return base::android::ConvertUTF8ToJavaString(env, GetUserAgent());
+}
+
+static ScopedJavaLocalRef<jobject> JNI_AwSettings_GetDefaultUserAgentMetadata(
+    JNIEnv* env) {
+  return ToJavaAwUserAgentMetadata(
+      env,
+      AwClientHintsControllerDelegate::GetUserAgentMetadataOverrideBrand());
 }
 
 }  // namespace android_webview

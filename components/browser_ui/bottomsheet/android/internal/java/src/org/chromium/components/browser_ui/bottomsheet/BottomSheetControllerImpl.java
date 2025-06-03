@@ -20,7 +20,6 @@ import org.chromium.components.browser_ui.widget.scrim.ScrimCoordinator;
 import org.chromium.components.browser_ui.widget.scrim.ScrimProperties;
 import org.chromium.ui.KeyboardVisibilityDelegate;
 import org.chromium.ui.modelutil.PropertyModel;
-import org.chromium.ui.util.AccessibilityUtil;
 import org.chromium.ui.util.TokenHolder;
 
 import java.util.ArrayList;
@@ -81,9 +80,6 @@ class BottomSheetControllerImpl implements ManagedBottomSheetController {
      */
     private final TokenHolder mSuppressionTokens;
 
-    /** A means of checking whether accessibility is currently enabled. */
-    private AccessibilityUtil mAccessibilityUtil;
-
     /** A supplier indicating whether back press should be handled by the bottom sheet. */
     private final ObservableSupplierImpl<Boolean> mBackPressStateChangedSupplier =
             new ObservableSupplierImpl<>();
@@ -93,6 +89,9 @@ class BottomSheetControllerImpl implements ManagedBottomSheetController {
      * sheet content.
      */
     private final BackPressHandler mBackPressHandler;
+
+    /** Whether or not always use the fulll width of the container. */
+    private final boolean mAlwaysFullWidth;
 
     /**
      * An observer that observes changes to the bottom sheet content {@code
@@ -109,14 +108,16 @@ class BottomSheetControllerImpl implements ManagedBottomSheetController {
      * @param window A means of accessing the screen size.
      * @param keyboardDelegate A means of hiding the keyboard.
      * @param root The view that should contain the sheet.
+     * @param alwaysFullWidth Whether bottom sheet is full-width.
      */
     public BottomSheetControllerImpl(final Supplier<ScrimCoordinator> scrim,
             Callback<View> initializedCallback, Window window,
-            KeyboardVisibilityDelegate keyboardDelegate, Supplier<ViewGroup> root) {
+            KeyboardVisibilityDelegate keyboardDelegate, Supplier<ViewGroup> root,
+            boolean alwaysFullWidth) {
         mScrimCoordinatorSupplier = scrim;
         mPendingSheetObservers = new ArrayList<>();
         mSuppressionTokens = new TokenHolder(() -> onSuppressionTokensChanged());
-
+        mAlwaysFullWidth = alwaysFullWidth;
         mSheetInitializer = () -> {
             initializeSheet(initializedCallback, window, keyboardDelegate, root);
         };
@@ -166,8 +167,7 @@ class BottomSheetControllerImpl implements ManagedBottomSheetController {
         mBottomSheet = (BottomSheet) root.get().findViewById(R.id.bottom_sheet);
         initializedCallback.onResult(mBottomSheet);
 
-        mBottomSheet.init(window, keyboardDelegate);
-        mBottomSheet.setAccessibilityUtil(mAccessibilityUtil);
+        mBottomSheet.init(window, keyboardDelegate, mAlwaysFullWidth);
 
         // Initialize the queue with a comparator that checks content priority.
         mContentQueue = new PriorityQueue<>(INITIAL_QUEUE_CAPACITY,
@@ -424,22 +424,14 @@ class BottomSheetControllerImpl implements ManagedBottomSheetController {
         mSheetStateBeforeSuppress = SheetState.NONE;
     }
 
-    @Override
-    public void setAccessibilityUtil(AccessibilityUtil enabledSupplier) {
-        mAccessibilityUtil = enabledSupplier;
-    }
-
-    @VisibleForTesting
     void setSheetStateForTesting(@SheetState int state, boolean animate) {
         mBottomSheet.setSheetState(state, animate);
     }
 
-    @VisibleForTesting
     View getBottomSheetViewForTesting() {
         return mBottomSheet;
     }
 
-    @VisibleForTesting
     public void endAnimationsForTesting() {
         mBottomSheet.endAnimations();
     }
@@ -613,7 +605,6 @@ class BottomSheetControllerImpl implements ManagedBottomSheetController {
         return !mBottomSheet.isSheetOpen();
     }
 
-    @VisibleForTesting
     boolean hasSuppressionTokensForTesting() {
         return mSuppressionTokens.hasTokens();
     }

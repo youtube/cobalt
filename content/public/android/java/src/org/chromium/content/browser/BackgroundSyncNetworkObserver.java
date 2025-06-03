@@ -11,13 +11,14 @@ import android.os.Process;
 
 import androidx.annotation.VisibleForTesting;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeClassQualifiedName;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.ApiCompatibilityUtils;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.ThreadUtils;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeClassQualifiedName;
-import org.chromium.base.annotations.NativeMethods;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.net.ConnectionType;
 import org.chromium.net.NetworkChangeNotifierAutoDetect;
@@ -55,7 +56,6 @@ public class BackgroundSyncNetworkObserver implements NetworkChangeNotifierAutoD
     private @ConnectionType int mLastBroadcastConnectionType;
     private boolean mHasBroadcastConnectionType;
 
-    @VisibleForTesting
     public static void setConnectionTypeForTesting(@ConnectionType int connectionType) {
         sSetConnectionTypeForTesting = true;
         getBackgroundSyncNetworkObserver().broadcastNetworkChangeIfNecessary(connectionType);

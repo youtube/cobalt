@@ -31,10 +31,10 @@ import {loadTimeData} from '../i18n_setup.js';
 import {MetricsBrowserProxy, MetricsBrowserProxyImpl, SafetyCheckInteractions} from '../metrics_browser_proxy.js';
 import {routes} from '../route.js';
 import {Route, RouteObserverMixin, Router} from '../router.js';
-import {SiteSettingsPermissionsBrowserProxy, SiteSettingsPermissionsBrowserProxyImpl, UnusedSitePermissions} from '../site_settings/site_settings_permissions_browser_proxy.js';
-import {NotificationPermission, SiteSettingsPrefsBrowserProxy, SiteSettingsPrefsBrowserProxyImpl} from '../site_settings/site_settings_prefs_browser_proxy.js';
+import {NotificationPermission, SafetyHubBrowserProxy, SafetyHubBrowserProxyImpl, SafetyHubEvent, UnusedSitePermissions} from '../safety_hub/safety_hub_browser_proxy.js';
 
 import {SafetyCheckBrowserProxy, SafetyCheckBrowserProxyImpl, SafetyCheckCallbackConstants, SafetyCheckParentStatus} from './safety_check_browser_proxy.js';
+import {SafetyCheckExtensionsBrowserProxyImpl} from './safety_check_extensions_browser_proxy.js';
 import {getTemplate} from './safety_check_page.html.js';
 
 interface ParentChangedEvent {
@@ -84,6 +84,14 @@ export class SettingsSafetyCheckPageElement extends
         },
       },
 
+      /** Boolean to show/hide extensions entry point. */
+      safetyCheckExtensionsReviewEnabled_: {
+        type: Boolean,
+        value() {
+          return loadTimeData.getBoolean('safetyCheckExtensionsReviewEnabled');
+        },
+      },
+
       /* List of notification permission sites. */
       notificationPermissionSites_: Array,
     };
@@ -93,13 +101,13 @@ export class SettingsSafetyCheckPageElement extends
   private parentDisplayString_: string;
   private safetyCheckNotificationPermissionsEnabled_: boolean;
   private safetyCheckUnusedSitePermissionsEnabled_: boolean;
+  private safetyCheckExtensionsReviewEnabled_: boolean;
+  private safetyCheckNumberOfExtensionsThatNeedReview_: number;
   private notificationPermissionSites_: NotificationPermission[] = [];
   private unusedSitePermissions_: UnusedSitePermissions[] = [];
   private shouldRecordMetrics_: boolean = false;
-  private siteSettingsBrowserProxy_: SiteSettingsPrefsBrowserProxy =
-      SiteSettingsPrefsBrowserProxyImpl.getInstance();
-  private permissionsBrowserProxy_: SiteSettingsPermissionsBrowserProxy =
-      SiteSettingsPermissionsBrowserProxyImpl.getInstance();
+  private permissionsBrowserProxy_: SafetyHubBrowserProxy =
+      SafetyHubBrowserProxyImpl.getInstance();
   private safetyCheckBrowserProxy_: SafetyCheckBrowserProxy =
       SafetyCheckBrowserProxyImpl.getInstance();
   private metricsBrowserProxy_: MetricsBrowserProxy =
@@ -116,6 +124,11 @@ export class SettingsSafetyCheckPageElement extends
         SafetyCheckCallbackConstants.PARENT_CHANGED,
         this.onSafetyCheckParentChanged_.bind(this));
 
+    // Register for safety check status updates.
+    this.addWebUiListener(
+        SafetyCheckCallbackConstants.EXTENSIONS_CHANGED,
+        this.shouldShowSafetyCheckExtensionsReview_.bind(this));
+
     // Configure default UI.
     this.parentDisplayString_ =
         this.i18n('safetyCheckParentPrimaryLabelBefore');
@@ -127,21 +140,25 @@ export class SettingsSafetyCheckPageElement extends
 
     // Register for notification permission review list updates.
     this.addWebUiListener(
-        'notification-permission-review-list-maybe-changed',
+        SafetyHubEvent.NOTIFICATION_PERMISSIONS_MAYBE_CHANGED,
         (sites: NotificationPermission[]) =>
             this.onReviewNotificationPermissionListChanged_(sites));
 
     this.notificationPermissionSites_ =
-        await this.siteSettingsBrowserProxy_.getNotificationPermissionReview();
+        await this.permissionsBrowserProxy_.getNotificationPermissionReview();
 
     // Register for updates on the unused site permission list.
     this.addWebUiListener(
-        'unused-permission-review-list-maybe-changed',
+        SafetyHubEvent.UNUSED_PERMISSIONS_MAYBE_CHANGED,
         (sites: UnusedSitePermissions[]) =>
             this.onUnusedSitePermissionListChanged_(sites));
 
     this.unusedSitePermissions_ = await this.permissionsBrowserProxy_
                                       .getRevokedUnusedSitePermissionsList();
+
+    this.safetyCheckNumberOfExtensionsThatNeedReview_ =
+        await SafetyCheckExtensionsBrowserProxyImpl.getInstance()
+            .getNumberOfExtensionsThatNeedReview();
 
     if (this.shouldRecordMetrics_) {
       this.metricsBrowserProxy_
@@ -240,6 +257,16 @@ export class SettingsSafetyCheckPageElement extends
   private shouldShowUnusedSitePermissions_(): boolean {
     return this.safetyCheckUnusedSitePermissionsEnabled_ &&
         this.unusedSitePermissions_.length !== 0;
+  }
+
+  private shouldShowSafetyCheckExtensionsReview_(): boolean {
+    if (this.safetyCheckExtensionsReviewEnabled_ &&
+        this.safetyCheckNumberOfExtensionsThatNeedReview_ !== 0) {
+      this.metricsBrowserProxy_.recordAction(
+          'Settings.SafetyCheck.ShownExtensionsReviewRow');
+      return true;
+    }
+    return false;
   }
 }
 

@@ -7,7 +7,6 @@ import("//build/config/ios/swift_source_set.gni")
 import("//ios/build/chrome_build.gni")
 
 source_set("util") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   sources = [
     "accessibility_close_menu_button.h",
     "accessibility_close_menu_button.mm",
@@ -50,8 +49,8 @@ source_set("util") {
     "//components/open_from_clipboard:open_from_clipboard_impl",
     "//ios/chrome/app:tests_hook",
     "//ios/chrome/app/strings",
-    "//ios/chrome/browser/flags:system_flags",
     "//ios/chrome/browser/shared/public/features",
+    "//ios/chrome/browser/shared/public/features:system_flags",
     "//ios/chrome/browser/shared/ui/symbols",
     "//ios/chrome/browser/shared/ui/util/image",
     "//ios/chrome/common:button_config",
@@ -85,8 +84,13 @@ swift_source_set("util_swift") {
   frameworks = [ "UIKit.framework" ]
 }
 
+swift_source_set("util_swiftui") {
+  sources = [ "ConditionalViewModifier.swift" ]
+  deps = []
+  frameworks = [ "SwiftUI.framework" ]
+}
+
 source_set("terms_util") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   sources = [
     "terms_util.h",
     "terms_util.mm",
@@ -95,15 +99,14 @@ source_set("terms_util") {
     "//base",
     "//components/resources:terms_resources",
     "//ios/chrome/app/strings",
-    "//ios/chrome/browser/application_context",
-    "//ios/chrome/browser/url:constants",
+    "//ios/chrome/browser/shared/model/application_context",
+    "//ios/chrome/browser/shared/model/url:constants",
     "//ui/base",
     "//url",
   ]
 }
 
 source_set("url_with_title") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   sources = [
     "url_with_title.h",
     "url_with_title.mm",
@@ -112,7 +115,6 @@ source_set("url_with_title") {
 }
 
 source_set("unit_tests") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   testonly = true
   sources = [
     "frame_layout_guide_unittest.mm",
@@ -140,10 +142,7 @@ source_set("unit_tests") {
 }
 
 source_set("eg_app_support+eg2") {
-  configs += [
-    "//build/config/compiler:enable_arc",
-    "//build/config/ios:xctest_config",
-  ]
+  configs += [ "//build/config/ios:xctest_config" ]
   testonly = true
   sources = [
     "keyboard_observer_helper_app_interface.h",
@@ -158,10 +157,7 @@ source_set("eg_app_support+eg2") {
 }
 
 source_set("eg_test_support+eg2") {
-  configs += [
-    "//build/config/compiler:enable_arc",
-    "//build/config/ios:xctest_config",
-  ]
+  configs += [ "//build/config/ios:xctest_config" ]
   testonly = true
   sources = [ "keyboard_observer_helper_app_interface.h" ]
   deps = [

@@ -235,6 +235,7 @@ END_METADATA
 
 class PaymentRequestBackArrowButton : public views::ImageButton {
  public:
+  METADATA_HEADER(PaymentRequestBackArrowButton);
   explicit PaymentRequestBackArrowButton(
       views::Button::PressedCallback back_arrow_callback)
       : views::ImageButton(back_arrow_callback) {
@@ -255,6 +256,9 @@ class PaymentRequestBackArrowButton : public views::ImageButton {
         cp->GetColor(kColorPaymentsRequestBackArrowButtonIconDisabled));
   }
 };
+
+BEGIN_METADATA(PaymentRequestBackArrowButton, views::ImageButton)
+END_METADATA
 
 }  // namespace internal
 
@@ -344,6 +348,10 @@ std::unique_ptr<views::View> PaymentRequestSheetController::CreateView() {
             .SetID(static_cast<int>(DialogViewID::PAYMENT_SHEET_SCROLL_VIEW))
             .SetHorizontalScrollBarMode(
                 views::ScrollView::ScrollBarMode::kDisabled)
+            // Hack to make labels in ScrollView contents wrap to scroll view
+            // width.
+            // TODO(crbug.com/1479113): Fix this hack.
+            .ClipHeightTo(0, std::numeric_limits<int>::max())
             .SetContents(content_view_builder));
   } else {
     sheet_view_builder.AddChildren(content_view_builder);

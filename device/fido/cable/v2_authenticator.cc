@@ -260,9 +260,7 @@ std::vector<uint8_t> BuildGetInfoResponse() {
 
   cbor::Value::ArrayValue extensions;
   extensions.emplace_back("devicePubKey");
-  if (base::FeatureList::IsEnabled(kWebAuthnPRFAsAuthenticator)) {
-    extensions.emplace_back("prf");
-  }
+  extensions.emplace_back("prf");
 
   cbor::Value::MapValue response_map;
   response_map.emplace(1, std::move(versions));
@@ -394,8 +392,9 @@ class TunnelTransport : public Transport {
 
     network_context_->CreateWebSocket(
         target_, {device::kCableWebSocketProtocol}, net::SiteForCookies(),
-        net::IsolationInfo(), /*additional_headers=*/{},
-        network::mojom::kBrowserProcessId, url::Origin::Create(target_),
+        /*has_storage_access=*/false, net::IsolationInfo(),
+        /*additional_headers=*/{}, network::mojom::kBrowserProcessId,
+        url::Origin::Create(target_),
         network::mojom::kWebSocketOptionBlockAllCookies,
         net::MutableNetworkTrafficAnnotationTag(kTrafficAnnotation),
         websocket_client_->BindNewHandshakeClientPipe(),
@@ -409,7 +408,8 @@ class TunnelTransport : public Transport {
   void OnTunnelReady(
       WebSocketAdapter::Result result,
       absl::optional<std::array<uint8_t, device::cablev2::kRoutingIdSize>>
-          routing_id) {
+          routing_id,
+      WebSocketAdapter::ConnectSignalSupport) {
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
     DCHECK(state_ == State::kConnecting || state_ == State::kConnectingPaired);
     bool ok = (result == WebSocketAdapter::Result::OK);
@@ -477,7 +477,6 @@ class TunnelTransport : public Transport {
         update_callback_.Run(Platform::Status::HANDSHAKE_COMPLETE);
         websocket_client_->Write(response);
         crypter_ = std::move(result->first);
-        crypter_->UseNewConstruction();
 
         cbor::Value::MapValue post_handshake_msg;
         post_handshake_msg.emplace(1, BuildGetInfoResponse());
@@ -618,7 +617,7 @@ class TunnelTransport : public Transport {
     }
   }
 
-  const raw_ptr<Platform> platform_;
+  const raw_ptr<Platform, DanglingUntriaged> platform_;
   State state_ = State::kNone;
   const std::array<uint8_t, kTunnelIdSize> tunnel_id_;
   const std::array<uint8_t, kEIDKeySize> eid_key_;
@@ -840,6 +839,8 @@ class CTAP2Processor : public Transaction {
         }
 
         auto params = blink::mojom::PublicKeyCredentialRequestOptions::New();
+        params->extensions =
+            blink::mojom::AuthenticationExtensionsClientInputs::New();
         params->challenge = *get_assertion_request.client_data_hash;
         params->relying_party_id = *get_assertion_request.rp_id;
         params->user_verification =
@@ -854,22 +855,22 @@ class CTAP2Processor : public Transaction {
         if (get_assertion_request.device_public_key_attestation) {
           // Play Services doesn't support any of the devicePubKey parameters so
           // this code doesn't bother parsing them nor passing them on.
-          params->device_public_key =
+          params->extensions->device_public_key =
               blink::mojom::DevicePublicKeyRequest::New();
         }
 
         if (get_assertion_request.prf_eval_first) {
-          params->prf = true;
+          params->extensions->prf = true;
           auto values = blink::mojom::PRFValues::New();
           values->first = *get_assertion_request.prf_eval_first;
           if (get_assertion_request.prf_eval_second) {
             values->second = *get_assertion_request.prf_eval_second;
           }
-          params->prf_inputs.emplace_back(std::move(values));
+          params->extensions->prf_inputs.emplace_back(std::move(values));
         }
 
         if (get_assertion_request.prf_eval_by_cred) {
-          params->prf = true;
+          params->extensions->prf = true;
           if (!get_assertion_request.prf_eval_by_cred->is_map()) {
             return Platform::Error::INVALID_CTAP;
           }
@@ -898,9 +899,14 @@ class CTAP2Processor : public Transaction {
               values->second = second_it->second.GetBytestring();
             }
 
-            params->prf_inputs.emplace_back(std::move(values));
+            params->extensions->prf_inputs.emplace_back(std::move(values));
           }
         }
+
+        // PRF inputs are already hashed when coming via CTAP so, if there are
+        // any PRF inputs, they're hashed.
+        params->extensions->prf_inputs_hashed =
+            !params->extensions->prf_inputs.empty();
 
         transaction_received_ = true;
         const bool empty_allowlist = params->allow_credentials.empty();
@@ -1050,17 +1056,18 @@ class CTAP2Processor : public Transaction {
       }
 
       cbor::Value::MapValue unsigned_extension_outputs;
-      if (auth_response->device_public_key) {
+      if (auth_response->extensions->device_public_key) {
         unsigned_extension_outputs.emplace(
             kExtensionDevicePublicKey,
-            auth_response->device_public_key->signature);
+            auth_response->extensions->device_public_key->signature);
       }
-      if (auth_response->prf_results) {
+      if (auth_response->extensions->prf_results) {
         cbor::Value::MapValue prf, results;
-        results.emplace(kExtensionPRFFirst, auth_response->prf_results->first);
-        if (auth_response->prf_results->second) {
+        results.emplace(kExtensionPRFFirst,
+                        auth_response->extensions->prf_results->first);
+        if (auth_response->extensions->prf_results->second) {
           results.emplace(kExtensionPRFSecond,
-                          *auth_response->prf_results->second);
+                          *auth_response->extensions->prf_results->second);
         }
         prf.emplace(kExtensionPRFResults, std::move(results));
         unsigned_extension_outputs.emplace(kExtensionPRF, std::move(prf));

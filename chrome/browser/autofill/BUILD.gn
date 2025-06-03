@@ -5,6 +5,7 @@
 import("//build/buildflag_header.gni")
 import("//build/config/chromeos/ui_mode.gni")
 import("//chrome/version.gni")
+import("//components/optimization_guide/features.gni")
 import("//extensions/buildflags/buildflags.gni")
 
 static_library("autofill") {
@@ -13,26 +14,26 @@ static_library("autofill") {
     "address_normalizer_factory.h",
     "autocomplete_history_manager_factory.cc",
     "autocomplete_history_manager_factory.h",
-    "autofill_gstatic_reader.cc",
-    "autofill_gstatic_reader.h",
     "autofill_image_fetcher_factory.cc",
     "autofill_image_fetcher_factory.h",
-    "autofill_image_fetcher_impl.cc",
-    "autofill_image_fetcher_impl.h",
     "autofill_offer_manager_factory.cc",
     "autofill_offer_manager_factory.h",
     "autofill_optimization_guide_factory.cc",
     "autofill_optimization_guide_factory.h",
-    "autofill_popup_controller_utils.cc",
-    "autofill_popup_controller_utils.h",
     "iban_manager_factory.cc",
     "iban_manager_factory.h",
     "merchant_promo_code_manager_factory.cc",
     "merchant_promo_code_manager_factory.h",
     "personal_data_manager_factory.cc",
     "personal_data_manager_factory.h",
+    "shopping_service_delegate_impl.cc",
+    "shopping_service_delegate_impl.h",
     "strike_database_factory.cc",
     "strike_database_factory.h",
+    "subkey_requester_factory.cc",
+    "subkey_requester_factory.h",
+    "ui/ui_util.cc",
+    "ui/ui_util.h",
     "validation_rules_storage_factory.cc",
     "validation_rules_storage_factory.h",
   ]
@@ -44,6 +45,7 @@ static_library("autofill") {
     "//components/autofill/core/common",
     "//components/keyed_service/content",
     "//components/keyed_service/core",
+    "//components/signin/public/identity_manager:identity_manager",
     "//content/public/browser",
     "//services/network/public/cpp",
     "//ui/gfx",
@@ -55,12 +57,14 @@ static_library("autofill") {
     "//chrome/browser/profiles",
     "//chrome/common:constants",
     "//components/autofill/content/browser",
+    "//components/commerce/core:shopping_service",
     "//components/image_fetcher/core",
     "//components/prefs",
     "//components/strings:components_strings_grit",
     "//components/variations/service",
     "//third_party/libphonenumber",
   ]
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
 
   if (is_android) {
     sources += [
@@ -68,6 +72,8 @@ static_library("autofill") {
       "address_accessory_controller.h",
       "address_accessory_controller_impl.cc",
       "address_accessory_controller_impl.h",
+      "android/autofill_image_fetcher_impl.cc",
+      "android/autofill_image_fetcher_impl.h",
       "android/personal_data_manager_android.cc",
       "android/personal_data_manager_android.h",
       "android/phone_number_util_android.cc",
@@ -96,11 +102,21 @@ static_library("autofill") {
       "//components/messages/android:feature_flags",
       "//components/password_manager/core/browser",
       "//third_party/libaddressinput",
-      "//url:gurl_android",
     ]
   } else {
     # !is_android
+    sources += [
+      "ui/autofill_image_fetcher_impl.cc",
+      "ui/autofill_image_fetcher_impl.h",
+    ]
     deps += [ "//components/sync/base" ]
+  }
+
+  if (build_with_tflite_lib) {
+    sources += [
+      "autofill_ml_prediction_model_service_factory.cc",
+      "autofill_ml_prediction_model_service_factory.h",
+    ]
   }
 }
 
@@ -149,6 +165,7 @@ static_library("test_support") {
       "//chrome/browser",
       "//chrome/browser/autofill",
     ]
+    public_deps += [ "test:test_support" ]
   }
 }
 
@@ -187,6 +204,8 @@ if (!is_android) {
     testonly = true
 
     sources = [
+      "autofill_flow_test_util.cc",
+      "autofill_flow_test_util.h",
       "autofill_uitest.cc",
       "autofill_uitest.h",
     ]

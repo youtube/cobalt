@@ -62,16 +62,13 @@ void AutozoomToastController::ShowToast() {
 
   tray_->CloseSecondaryBubbles();
 
-  TrayBubbleView::InitParams init_params;
-  init_params.shelf_alignment = tray_->shelf()->alignment();
+  TrayBubbleView::InitParams init_params =
+      CreateInitParamsForTrayBubble(tray_, /*anchor_to_shelf_corner=*/true);
+  init_params.type = TrayBubbleView::TrayBubbleType::kSecondaryBubble;
   init_params.preferred_width = kAutozoomToastMinWidth;
+
+  // Use this controller as the delegate rather than the tray.
   init_params.delegate = GetWeakPtr();
-  init_params.parent_window = tray_->GetBubbleWindowContainer();
-  init_params.anchor_view = nullptr;
-  init_params.anchor_mode = TrayBubbleView::AnchorMode::kRect;
-  init_params.anchor_rect = tray_->shelf()->GetSystemTrayAnchorRect();
-  init_params.insets = GetTrayBubbleInsets();
-  init_params.translucent = true;
 
   auto bubble_view = std::make_unique<TrayBubbleView>(init_params);
   // bubble_view_ is owned by the view hierarchy and not by this class.
@@ -121,6 +118,8 @@ std::u16string AutozoomToastController::GetAccessibleNameForBubble() {
   return toast_view_->GetAccessibleName();
 }
 
+void AutozoomToastController::HideBubble(const TrayBubbleView* bubble_view) {}
+
 void AutozoomToastController::StartAutoCloseTimer() {
   close_timer_.Stop();
 
@@ -128,12 +127,12 @@ void AutozoomToastController::StartAutoCloseTimer() {
   if (toast_view_ && toast_view_->IsButtonFocused())
     return;
 
-  int autoclose_delay = kTrayPopupAutoCloseDelayInSeconds;
-  if (Shell::Get()->accessibility_controller()->spoken_feedback().enabled())
-    autoclose_delay = kTrayPopupAutoCloseDelayInSecondsWithSpokenFeedback;
-
-  close_timer_.Start(FROM_HERE, base::Seconds(autoclose_delay), this,
-                     &AutozoomToastController::HideToast);
+  close_timer_.Start(
+      FROM_HERE,
+      Shell::Get()->accessibility_controller()->spoken_feedback().enabled()
+          ? kSecondaryBubbleWithSpokenFeedbackDuration
+          : kSecondaryBubbleDuration,
+      this, &AutozoomToastController::HideToast);
 }
 
 void AutozoomToastController::OnAutozoomStateChanged(

@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "base/feature_list.h"
 #include "base/memory/ptr_util.h"
 #include "base/task/thread_pool.h"
 #include "build/build_config.h"
@@ -22,7 +23,6 @@
 #include "third_party/blink/renderer/core/css/background_color_paint_image_generator.h"
 #include "third_party/blink/renderer/core/css/clip_path_paint_image_generator.h"
 #include "third_party/blink/renderer/core/css/css_paint_image_generator.h"
-#include "third_party/blink/renderer/core/dom/context_features_client_impl.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/editing/suggestion/text_suggestion_backend_impl.h"
 #include "third_party/blink/renderer/core/event_type_names.h"
@@ -46,6 +46,7 @@
 #include "third_party/blink/renderer/modules/canvas/canvas2d/canvas_rendering_context_2d.h"
 #include "third_party/blink/renderer/modules/canvas/imagebitmap/image_bitmap_rendering_context.h"
 #include "third_party/blink/renderer/modules/canvas/offscreencanvas2d/offscreen_canvas_rendering_context_2d.h"
+#include "third_party/blink/renderer/modules/content_extraction/inner_text_agent.h"
 #include "third_party/blink/renderer/modules/csspaint/css_paint_image_generator_impl.h"
 #include "third_party/blink/renderer/modules/csspaint/nativepaint/background_color_paint_image_generator_impl.h"
 #include "third_party/blink/renderer/modules/csspaint/nativepaint/clip_path_paint_image_generator_impl.h"
@@ -56,7 +57,6 @@
 #include "third_party/blink/renderer/modules/document_metadata/document_metadata_server.h"
 #include "third_party/blink/renderer/modules/document_picture_in_picture/picture_in_picture_controller_impl.h"
 #include "third_party/blink/renderer/modules/encryptedmedia/html_media_element_encrypted_media.h"
-#include "third_party/blink/renderer/modules/encryptedmedia/media_keys_controller.h"
 #include "third_party/blink/renderer/modules/event_interface_modules_names.h"
 #include "third_party/blink/renderer/modules/event_modules_factory.h"
 #include "third_party/blink/renderer/modules/event_target_modules_names.h"
@@ -126,6 +126,11 @@ namespace {
 // CategorizedWorkerPool, which predates the base thread pool.
 BASE_FEATURE(kBlinkMediaPlayerUsesBaseThreadPool,
              "BlinkMediaPlayerUsesThreadPool",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Serves as a kill switch.
+BASE_FEATURE(kBlinkEnableInnerTextAgent,
+             "BlinkEnableInnerTextAgent",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_ANDROID)
@@ -254,6 +259,11 @@ void ModulesInitializer::InitLocalFrame(LocalFrame& frame) const {
   frame.GetInterfaceRegistry()->AddInterface(
       WTF::BindRepeating(&PeerConnectionTracker::BindToFrame,
                          WrapCrossThreadWeakPersistent(&frame)));
+
+  if (base::FeatureList::IsEnabled(kBlinkEnableInnerTextAgent)) {
+    frame.GetInterfaceRegistry()->AddInterface(WTF::BindRepeating(
+        &InnerTextAgent::BindReceiver, WrapWeakPersistent(&frame)));
+  }
 }
 
 void ModulesInitializer::InstallSupplements(LocalFrame& frame) const {
@@ -356,11 +366,7 @@ WebRemotePlaybackClient* ModulesInitializer::CreateWebRemotePlaybackClient(
 void ModulesInitializer::ProvideModulesToPage(
     Page& page,
     const SessionStorageNamespaceId& namespace_id) const {
-  MediaKeysController::ProvideMediaKeysTo(page);
-  ::blink::ProvideContextFeaturesTo(
-      page, std::make_unique<ContextFeaturesClientImpl>());
-  ::blink::ProvideDatabaseClientTo(page,
-                                   MakeGarbageCollected<DatabaseClient>());
+  page.ProvideSupplement(MakeGarbageCollected<DatabaseClient>(page));
   StorageNamespace::ProvideSessionStorageNamespaceTo(page, namespace_id);
   AudioGraphTracer::ProvideAudioGraphTracerTo(page);
 #if BUILDFLAG(IS_ANDROID)

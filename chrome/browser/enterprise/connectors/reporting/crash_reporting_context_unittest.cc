@@ -131,8 +131,7 @@ TEST_F(CrashReportingContextTest, UploadToReportingServer) {
 
   TestingProfile* profile =
       profile_manager_.CreateTestingProfile("fake-profile");
-  policy::SetDMTokenForTesting(
-      policy::DMToken::CreateValidTokenForTesting("fake-token"));
+  policy::SetDMTokenForTesting(policy::DMToken::CreateValidToken("fake-token"));
   RealtimeReportingClientFactory::GetInstance()->SetTestingFactory(
       profile, base::BindRepeating(&CreateMockRealtimeCrashReportingClient));
   MockRealtimeCrashReportingClient* reporting_client =
@@ -143,7 +142,8 @@ TEST_F(CrashReportingContextTest, UploadToReportingServer) {
               ReportPastEvent(ReportingServiceSettings::kBrowserCrashEvent, _,
                               _, base::Time::FromTimeT(timestamp)))
       .Times(1);
-  UploadToReportingServer(reporting_client, &pref_service, reports);
+  UploadToReportingServer(reporting_client->GetWeakPtr(), &pref_service,
+                          reports);
   EXPECT_EQ(timestamp, GetLatestCrashReportTime(&pref_service));
 }
 

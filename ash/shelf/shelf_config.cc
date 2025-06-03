@@ -19,20 +19,12 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/scoped_observation.h"
 #include "chromeos/constants/chromeos_features.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/chromeos/styles/cros_tokens_color_mappings.h"
 
 namespace ash {
 
 namespace {
-
-// Used in as a value in histogram to record the reason shelf navigation buttons
-// are shown in tablet mode.
-// The values assigned to enum items should not be changed/reassigned.
-constexpr int kControlButtonsShownForShelfNavigationButtonsSetting = 1;
-constexpr int kControlButtonsShownForSpokenFeedback = 1 << 1;
-constexpr int kControlButtonsShownForSwitchAccess = 1 << 2;
-constexpr int kControlButtonsShownForAutoclick = 1 << 3;
-constexpr int kControlButtonsShownReasonCount = 1 << 4;
 
 // When any edge of the primary display is less than or equal to this threshold,
 // dense shelf will be active.
@@ -45,33 +37,6 @@ constexpr float kDragHideRatioThreshold = 0.4f;
 constexpr int kSystemShelfSizeTabletModeDense = 48;
 constexpr int kSystemShelfSizeTabletModeNormal = 56;
 constexpr int kElevatedSystemShelfSizeTabletMode = 136;
-
-// Records the histogram value tracking the reason shelf control buttons are
-// shown in tablet mode.
-void RecordReasonForShowingShelfControls() {
-  AccessibilityControllerImpl* accessibility_controller =
-      Shell::Get()->accessibility_controller();
-  int buttons_shown_reason_mask = 0;
-
-  if (accessibility_controller
-          ->tablet_mode_shelf_navigation_buttons_enabled()) {
-    buttons_shown_reason_mask |=
-        kControlButtonsShownForShelfNavigationButtonsSetting;
-  }
-
-  if (accessibility_controller->spoken_feedback().enabled())
-    buttons_shown_reason_mask |= kControlButtonsShownForSpokenFeedback;
-
-  if (accessibility_controller->switch_access().enabled())
-    buttons_shown_reason_mask |= kControlButtonsShownForSwitchAccess;
-
-  if (accessibility_controller->autoclick().enabled())
-    buttons_shown_reason_mask |= kControlButtonsShownForAutoclick;
-
-  base::UmaHistogramExactLinear(
-      "Ash.Shelf.NavigationButtonsInTabletMode.ReasonShown",
-      buttons_shown_reason_mask, kControlButtonsShownReasonCount);
-}
 
 int IsDenseForCurrentScreen() {
   const gfx::Rect screen_size =
@@ -266,6 +231,8 @@ void ShelfConfig::OnTabletModeEnding() {
   in_tablet_mode_ = false;
 
   UpdateConfig(is_app_list_visible_, /*tablet_mode_changed=*/true);
+
+  has_shown_elevated_app_bar_ = absl::nullopt;
 }
 
 void ShelfConfig::OnDisplayMetricsChanged(const display::Display& display,
@@ -409,12 +376,6 @@ void ShelfConfig::UpdateConfig(bool new_is_app_list_visible,
       in_tablet_mode_ && features::IsHideShelfControlsInTabletModeEnabled();
   const bool new_shelf_controls_shown =
       !can_hide_shelf_controls || ShelfControlsForcedShownForAccessibility();
-  // Record reason to show shelf control buttons only if tablet mode changes, or
-  // if the buttons visibility state changes
-  if (can_hide_shelf_controls && new_shelf_controls_shown &&
-      (tablet_mode_changed || !shelf_controls_shown_)) {
-    RecordReasonForShowingShelfControls();
-  }
 
   // TODO(https://crbug.com/1058205): Test this behavior.
   // If the virtual keyboard is shown, the back button and in-app shelf should
@@ -474,7 +435,9 @@ SkColor ShelfConfig::GetShelfControlButtonColor(
     return is_in_app_ ? SK_ColorTRANSPARENT : GetDefaultShelfColor(widget);
   }
   return widget->GetColorProvider()->GetColor(
-      kColorAshControlBackgroundColorInactive);
+      chromeos::features::IsJellyEnabled()
+          ? static_cast<ui::ColorId>(cros_tokens::kCrosSysSystemOnBase)
+          : kColorAshControlBackgroundColorInactive);
 }
 
 SkColor ShelfConfig::GetMaximizedShelfColor(const views::Widget* widget) const {
@@ -556,12 +519,18 @@ int ShelfConfig::GetSystemShelfSizeInTabletMode() const {
                                    : kSystemShelfSizeTabletModeNormal;
 }
 
-int ShelfConfig::GetSystemShelfInsetsInTabletMode() const {
-  if (elevate_tablet_mode_app_bar_) {
-    return kElevatedSystemShelfSizeTabletMode;
-  } else {
-    return GetSystemShelfSizeInTabletMode();
+int ShelfConfig::GetTabletModeShelfInsetsAndRecordUMA() {
+  if (!has_shown_elevated_app_bar_.has_value() ||
+      has_shown_elevated_app_bar_.value() != elevate_tablet_mode_app_bar_) {
+    has_shown_elevated_app_bar_ = elevate_tablet_mode_app_bar_;
+    // This method can be called more than once during the app bar rendering.
+    // Records only once when `elevate_tablet_mode_app_bar_` changes.
+    base::UmaHistogramBoolean("Ash.Shelf.ShowStackedHotseat",
+                              elevate_tablet_mode_app_bar_);
   }
+
+  return elevate_tablet_mode_app_bar_ ? kElevatedSystemShelfSizeTabletMode
+                                      : GetSystemShelfSizeInTabletMode();
 }
 
 int ShelfConfig::GetMinimumInlineAppBarSize() const {

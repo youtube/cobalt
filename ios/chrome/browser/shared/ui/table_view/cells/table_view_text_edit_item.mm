@@ -15,10 +15,6 @@
 #import "ios/chrome/common/ui/table_view/table_view_cells_constants.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace {
 
 // Minimum gap between the label and the text field.
@@ -72,7 +68,10 @@ const CGFloat kSymbolSize = 15;
   }
   cell.textField.text = self.textFieldValue;
   cell.textField.secureTextEntry = self.textFieldSecureTextEntry;
-  if (self.fieldNameLabelText.length) {
+  if (self.customTextfieldAccessibilityIdentifier.length) {
+    cell.textField.accessibilityIdentifier =
+        self.customTextfieldAccessibilityIdentifier;
+  } else if (self.fieldNameLabelText.length) {
     cell.textField.accessibilityIdentifier =
         [NSString stringWithFormat:@"%@_textField", self.fieldNameLabelText];
   }

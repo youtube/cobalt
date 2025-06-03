@@ -126,8 +126,7 @@ void AudioWorkletHandler::Process(uint32_t frames_to_process) {
   }
   for (unsigned i = 0; i < NumberOfOutputs(); ++i) {
     outputs_[i] = Output(i).RenderingFanOutCount() > 0
-                      ? WrapRefCounted(Output(i).Bus())
-                      : nullptr;
+        ? WrapRefCounted(Output(i).Bus()) : nullptr;
   }
 
   for (const auto& param_name : param_value_map_.Keys()) {
@@ -203,8 +202,8 @@ double AudioWorkletHandler::TailTime() const {
 
 void AudioWorkletHandler::SetProcessorOnRenderThread(
     AudioWorkletProcessor* processor) {
-  // TODO(hongchan): unify the thread ID check. The thread ID for this call
-  // is different from `Context()->IsAudiothread()`.
+  // TODO(crbug.com/1071917): unify the thread ID check. The thread ID for this
+  // call may be different from `Context()->IsAudiothread()`.
   DCHECK(!IsMainThread());
 
   // `processor` can be `nullptr` when the invocation of user-supplied

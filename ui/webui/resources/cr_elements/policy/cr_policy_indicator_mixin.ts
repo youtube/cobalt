@@ -8,7 +8,7 @@
  * rework the "policy" naming scheme throughout this directory.
  */
 
-import {assertNotReached} from '//resources/js/assert_ts.js';
+import {assertNotReached} from '//resources/js/assert.js';
 import {dedupingMixin, PolymerElement} from '//resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 /**
@@ -21,13 +21,13 @@ export interface CrPolicyStringsType {
   controlledSettingPolicy: string;
   controlledSettingRecommendedMatches: string;
   controlledSettingRecommendedDiffers: string;
+  controlledSettingParent: string;
+  controlledSettingChildRestriction: string;
 
   // <if expr="chromeos_ash">
   controlledSettingShared: string;
   controlledSettingWithOwner: string;
   controlledSettingNoOwner: string;
-  controlledSettingParent: string;
-  controlledSettingChildRestriction: string;
   // </if>
 }
 
@@ -169,12 +169,10 @@ export const CrPolicyIndicatorMixin = dedupingMixin(
               return matches ?
                   CrPolicyStrings.controlledSettingRecommendedMatches! :
                   CrPolicyStrings.controlledSettingRecommendedDiffers!;
-            // <if expr="chromeos_ash">
             case CrPolicyIndicatorType.PARENT:
               return CrPolicyStrings.controlledSettingParent!;
             case CrPolicyIndicatorType.CHILD_RESTRICTION:
               return CrPolicyStrings.controlledSettingChildRestriction!;
-              // </if>
           }
           return '';
         }

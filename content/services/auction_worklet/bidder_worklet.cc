@@ -13,14 +13,17 @@
 #include <utility>
 #include <vector>
 
+#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/strcat.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/task/bind_post_task.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
+#include "base/timer/elapsed_timer.h"
 #include "base/trace_event/trace_event.h"
 #include "base/types/optional_util.h"
 #include "content/services/auction_worklet/auction_v8_helper.h"
@@ -28,9 +31,12 @@
 #include "content/services/auction_worklet/direct_from_seller_signals_requester.h"
 #include "content/services/auction_worklet/for_debugging_only_bindings.h"
 #include "content/services/auction_worklet/private_aggregation_bindings.h"
+#include "content/services/auction_worklet/public/cpp/auction_network_events_delegate.h"
 #include "content/services/auction_worklet/public/mojom/auction_worklet_service.mojom.h"
+#include "content/services/auction_worklet/public/mojom/bidder_worklet.mojom-shared.h"
 #include "content/services/auction_worklet/public/mojom/private_aggregation_request.mojom.h"
 #include "content/services/auction_worklet/register_ad_beacon_bindings.h"
+#include "content/services/auction_worklet/register_ad_macro_bindings.h"
 #include "content/services/auction_worklet/report_bindings.h"
 #include "content/services/auction_worklet/set_bid_bindings.h"
 #include "content/services/auction_worklet/set_priority_bindings.h"
@@ -52,6 +58,8 @@
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/interest_group/ad_auction_constants.h"
 #include "third_party/blink/public/common/interest_group/ad_auction_currencies.h"
+#include "third_party/blink/public/common/interest_group/ad_display_size.h"
+#include "third_party/blink/public/common/interest_group/ad_display_size_utils.h"
 #include "third_party/blink/public/mojom/interest_group/interest_group_types.mojom.h"
 #include "url/gurl.h"
 #include "url/origin.h"
@@ -72,7 +80,7 @@ class DeepFreezeAllowAll : public v8::Context::DeepFreezeDelegate {
  public:
   bool FreezeEmbedderObjectAndGetChildren(
       v8::Local<v8::Object> obj,
-      std::vector<v8::Local<v8::Object>>& children_out) override {
+      v8::LocalVector<v8::Object>& children_out) override {
     return true;
   }
 };
@@ -80,15 +88,146 @@ class DeepFreezeAllowAll : public v8::Context::DeepFreezeDelegate {
 bool AppendJsonValueOrNull(AuctionV8Helper* const v8_helper,
                            v8::Local<v8::Context> context,
                            const std::string* maybe_json,
-                           std::vector<v8::Local<v8::Value>>* args) {
+                           v8::LocalVector<v8::Value>* args) {
   v8::Isolate* isolate = v8_helper->isolate();
   if (maybe_json) {
-    if (!v8_helper->AppendJsonValue(context, *maybe_json, args))
+    if (!v8_helper->AppendJsonValue(context, *maybe_json, args)) {
       return false;
+    }
   } else {
     args->push_back(v8::Null(isolate));
   }
   return true;
+}
+
+// Checks both types of DirectFromSellerSignals results (subresource bundle
+// based and header based) -- at most one of these should be non-null.
+//
+// Returns the V8 conversion of the in-use version of DirectFromSellerSignals,
+// or v8::Null() if both types of DirectFromSellerSignals are null.
+v8::Local<v8::Value> GetDirectFromSellerSignals(
+    const DirectFromSellerSignalsRequester::Result& subresource_bundle_result,
+    const absl::optional<std::string>& header_result,
+    AuctionV8Helper& v8_helper,
+    v8::Local<v8::Context> context,
+    std::vector<std::string>& errors) {
+  CHECK(subresource_bundle_result.IsNull() || !header_result);
+
+  if (header_result) {
+    // `header_result` JSON was validated, parsed and reconstructed into a
+    // string by the browser process, so CHECK it is valid JSON.
+    return v8_helper.CreateValueFromJson(context, *header_result)
+        .ToLocalChecked();
+  }
+
+  return subresource_bundle_result.GetSignals(v8_helper, context, errors);
+}
+
+// TODO(crbug.com/1441988): Remove this code after rename. These functions allow
+// having multiple dictionary keys (e.g. renderUrl and renderURL) share the same
+// V8 value.
+bool SetDictMember(v8::Isolate* isolate,
+                   v8::Local<v8::Object> object,
+                   const std::string& key,
+                   v8::Local<v8::Value> v8_value) {
+  v8::Maybe<bool> result = object->Set(isolate->GetCurrentContext(),
+                                       gin::StringToV8(isolate, key), v8_value);
+  return !result.IsNothing() && result.FromJust();
+}
+
+bool SetRenderUrl(v8::Isolate* isolate,
+                  v8::Local<v8::Object> object,
+                  const std::string& val) {
+  v8::Local<v8::Value> v8_value;
+  if (!gin::TryConvertToV8(isolate, val, &v8_value)) {
+    return false;
+  }
+  return SetDictMember(isolate, object, "renderURL", v8_value) &&
+         SetDictMember(isolate, object, "renderUrl", v8_value);
+}
+
+bool SetBiddingLogicUrl(v8::Isolate* isolate,
+                        v8::Local<v8::Object> object,
+                        const std::string& val) {
+  v8::Local<v8::Value> v8_value;
+  if (!gin::TryConvertToV8(isolate, val, &v8_value)) {
+    return false;
+  }
+  return SetDictMember(isolate, object, "biddingLogicURL", v8_value) &&
+         SetDictMember(isolate, object, "biddingLogicUrl", v8_value);
+}
+
+bool SetBiddingWasmHelperUrl(v8::Isolate* isolate,
+                             v8::Local<v8::Object> object,
+                             const std::string& val) {
+  v8::Local<v8::Value> v8_value;
+  if (!gin::TryConvertToV8(isolate, val, &v8_value)) {
+    return false;
+  }
+  return SetDictMember(isolate, object, "biddingWasmHelperURL", v8_value) &&
+         SetDictMember(isolate, object, "biddingWasmHelperUrl", v8_value);
+}
+
+bool SetUpdateUrl(v8::Isolate* isolate,
+                  v8::Local<v8::Object> object,
+                  const std::string& val) {
+  v8::Local<v8::Value> v8_value;
+  if (!gin::TryConvertToV8(isolate, val, &v8_value)) {
+    return false;
+  }
+  return SetDictMember(isolate, object, "updateURL", v8_value) &&
+         SetDictMember(isolate, object, "updateUrl", v8_value) &&
+         SetDictMember(isolate, object, "dailyUpdateUrl", v8_value);
+}
+
+bool SetTrustedBiddingSignalsUrl(v8::Isolate* isolate,
+                                 v8::Local<v8::Object> object,
+                                 const std::string& val) {
+  v8::Local<v8::Value> v8_value;
+  if (!gin::TryConvertToV8(isolate, val, &v8_value)) {
+    return false;
+  }
+  return SetDictMember(isolate, object, "trustedBiddingSignalsURL", v8_value) &&
+         SetDictMember(isolate, object, "trustedBiddingSignalsUrl", v8_value);
+}
+
+bool CanSetRequestedAdSize(
+    const absl::optional<blink::AdSize>& requested_ad_size) {
+  return requested_ad_size.has_value() &&
+         blink::IsValidAdSize(requested_ad_size.value());
+}
+
+// Must only be called after CanSetRequestedAdSize(). The requested_ad_size is
+// optional for the auction, so if it's invalid, it just won't be passed to the
+// bidding logic.
+bool SetRequestedAdSize(v8::Isolate* isolate,
+                        v8::Local<v8::Object> top_level_object,
+                        const blink::AdSize& requested_ad_size) {
+  v8::Local<v8::Value> v8_width;
+  if (!gin::TryConvertToV8(
+          isolate,
+          base::StrCat({base::NumberToString(requested_ad_size.width),
+                        blink::ConvertAdSizeUnitToString(
+                            requested_ad_size.width_units)}),
+          &v8_width)) {
+    return false;
+  }
+
+  v8::Local<v8::Value> v8_height;
+  if (!gin::TryConvertToV8(
+          isolate,
+          base::StrCat({base::NumberToString(requested_ad_size.height),
+                        blink::ConvertAdSizeUnitToString(
+                            requested_ad_size.height_units)}),
+          &v8_height)) {
+    return false;
+  }
+
+  v8::Local<v8::Object> size_object = v8::Object::New(isolate);
+
+  return SetDictMember(isolate, size_object, "width", v8_width) &&
+         SetDictMember(isolate, size_object, "height", v8_height) &&
+         SetDictMember(isolate, top_level_object, "requestedSize", size_object);
 }
 
 // Converts a vector of blink::InterestGroup::Ads into a v8 object.
@@ -99,14 +238,16 @@ bool CreateAdVector(AuctionV8Helper* v8_helper,
                     v8::Local<v8::Value>& out_value) {
   v8::Isolate* isolate = v8_helper->isolate();
 
-  std::vector<v8::Local<v8::Value>> ads_vector;
+  v8::LocalVector<v8::Value> ads_vector(isolate);
   for (const auto& ad : ads) {
     if (is_ad_excluded.Run(ad.render_url)) {
       continue;
     }
     v8::Local<v8::Object> ad_object = v8::Object::New(isolate);
     gin::Dictionary ad_dict(isolate, ad_object);
-    if (!ad_dict.Set("renderUrl", ad.render_url.spec()) ||
+    if (
+        // TODO(crbug.com/1441988): Remove deprecated `renderUrl` alias.
+        !SetRenderUrl(isolate, ad_object, ad.render_url.spec()) ||
         (ad.metadata && !v8_helper->InsertJsonValue(context, "metadata",
                                                     *ad.metadata, ad_object))) {
       return false;
@@ -137,6 +278,13 @@ bool HasKAnonFailureComponent(
   return false;
 }
 
+absl::optional<base::TimeDelta> NullOptIfZero(base::TimeDelta delta) {
+  if (delta.is_zero()) {
+    return absl::nullopt;
+  }
+  return delta;
+}
+
 }  // namespace
 
 BidderWorklet::BidderWorklet(
@@ -146,6 +294,8 @@ BidderWorklet::BidderWorklet(
     bool pause_for_debugger_on_start,
     mojo::PendingRemote<network::mojom::URLLoaderFactory>
         pending_url_loader_factory,
+    mojo::PendingRemote<auction_worklet::mojom::AuctionNetworkEventsHandler>
+        auction_network_events_handler,
     const GURL& script_source_url,
     const absl::optional<GURL>& wasm_helper_url,
     const absl::optional<GURL>& trusted_bidding_signals_url,
@@ -159,20 +309,24 @@ BidderWorklet::BidderWorklet(
       url_loader_factory_(std::move(pending_url_loader_factory)),
       script_source_url_(script_source_url),
       wasm_helper_url_(wasm_helper_url),
-      trusted_signals_request_manager_(
-          trusted_bidding_signals_url
-              ? std::make_unique<TrustedSignalsRequestManager>(
-                    TrustedSignalsRequestManager::Type::kBiddingSignals,
-                    url_loader_factory_.get(),
-                    /*automatically_send_requests=*/false,
-                    top_window_origin,
-                    *trusted_bidding_signals_url,
-                    experiment_group_id,
-                    v8_helper_.get())
-              : nullptr),
       top_window_origin_(top_window_origin),
-      v8_state_(nullptr, base::OnTaskRunnerDeleter(v8_runner_)) {
+      v8_state_(nullptr, base::OnTaskRunnerDeleter(v8_runner_)),
+      auction_network_events_handler_(
+          std::move(auction_network_events_handler)) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(user_sequence_checker_);
+
+  trusted_signals_request_manager_ =
+      (trusted_bidding_signals_url
+           ? std::make_unique<TrustedSignalsRequestManager>(
+                 TrustedSignalsRequestManager::Type::kBiddingSignals,
+                 url_loader_factory_.get(),
+                 /*auction_network_events_handler=*/
+                 CreateNewAuctionNetworkEventsHandlerRemote(
+                     auction_network_events_handler_),
+                 /*automatically_send_requests=*/false, top_window_origin,
+                 *trusted_bidding_signals_url, experiment_group_id,
+                 v8_helper_.get())
+           : nullptr);
 
   v8_state_ = std::unique_ptr<V8State, base::OnTaskRunnerDeleter>(
       new V8State(v8_helper, debug_id_, std::move(shared_storage_host_remote),
@@ -182,8 +336,9 @@ BidderWorklet::BidderWorklet(
       base::OnTaskRunnerDeleter(v8_runner_));
 
   paused_ = pause_for_debugger_on_start;
-  if (!paused_)
+  if (!paused_) {
     Start();
+  }
 }
 
 BidderWorklet::~BidderWorklet() {
@@ -209,8 +364,9 @@ bool BidderWorklet::IsKAnon(
     const mojom::BidderWorkletNonSharedParams* bidder_worklet_non_shared_params,
     const GURL& script_source_url,
     const mojom::BidderWorkletBidPtr& bid) {
-  if (!bid)
+  if (!bid) {
     return true;
+  }
   if (!BidderWorklet::IsKAnon(
           bidder_worklet_non_shared_params,
           blink::KAnonKeyForAdBid(url::Origin::Create(script_source_url),
@@ -238,8 +394,10 @@ void BidderWorklet::BeginGenerateBid(
     const absl::optional<GURL>& direct_from_seller_auction_signals,
     const url::Origin& browser_signal_seller_origin,
     const absl::optional<url::Origin>& browser_signal_top_level_seller_origin,
+    const base::TimeDelta browser_signal_recency,
     mojom::BiddingBrowserSignalsPtr bidding_browser_signals,
     base::Time auction_start_time,
+    const absl::optional<blink::AdSize>& requested_ad_size,
     uint64_t trace_id,
     mojo::PendingAssociatedRemote<mojom::GenerateBidClient> generate_bid_client,
     mojo::PendingAssociatedReceiver<mojom::GenerateBidFinalizer>
@@ -256,9 +414,11 @@ void BidderWorklet::BeginGenerateBid(
       browser_signal_seller_origin;
   generate_bid_task->browser_signal_top_level_seller_origin =
       browser_signal_top_level_seller_origin;
+  generate_bid_task->browser_signal_recency = browser_signal_recency;
   generate_bid_task->bidding_browser_signals =
       std::move(bidding_browser_signals);
   generate_bid_task->auction_start_time = auction_start_time;
+  generate_bid_task->requested_ad_size = requested_ad_size;
   generate_bid_task->trace_id = trace_id;
   generate_bid_task->generate_bid_client.Bind(std::move(generate_bid_client));
   // Deleting `generate_bid_task` will destroy `generate_bid_client` and thus
@@ -304,17 +464,26 @@ void BidderWorklet::BeginGenerateBid(
 }
 
 void BidderWorklet::SendPendingSignalsRequests() {
-  if (trusted_signals_request_manager_)
+  if (trusted_signals_request_manager_) {
     trusted_signals_request_manager_->StartBatchedTrustedSignalsRequest();
+  }
 }
 
 void BidderWorklet::ReportWin(
-    const std::string& interest_group_name,
+    bool is_for_additional_bid,
+    mojom::ReportingIdField reporting_id_field,
+    const std::string& reporting_id,
     const absl::optional<std::string>& auction_signals_json,
     const absl::optional<std::string>& per_buyer_signals_json,
     const absl::optional<GURL>& direct_from_seller_per_buyer_signals,
+    const absl::optional<std::string>&
+        direct_from_seller_per_buyer_signals_header_ad_slot,
     const absl::optional<GURL>& direct_from_seller_auction_signals,
+    const absl::optional<std::string>&
+        direct_from_seller_auction_signals_header_ad_slot,
     const std::string& seller_signals_json,
+    mojom::KAnonymityBidMode kanon_mode,
+    bool bid_is_kanon,
     const GURL& browser_signal_render_url,
     double browser_signal_bid,
     const absl::optional<blink::AdCurrency>& browser_signal_bid_currency,
@@ -328,18 +497,25 @@ void BidderWorklet::ReportWin(
     uint8_t browser_signal_recency,
     const url::Origin& browser_signal_seller_origin,
     const absl::optional<url::Origin>& browser_signal_top_level_seller_origin,
-    uint32_t bidding_signals_data_version,
-    bool has_bidding_signals_data_version,
+    absl::optional<uint32_t> bidding_signals_data_version,
     uint64_t trace_id,
     ReportWinCallback report_win_callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(user_sequence_checker_);
+  CHECK((!direct_from_seller_per_buyer_signals &&
+         !direct_from_seller_auction_signals) ||
+        (!direct_from_seller_per_buyer_signals_header_ad_slot &&
+         !direct_from_seller_auction_signals_header_ad_slot));
 
   report_win_tasks_.emplace_front();
   auto report_win_task = report_win_tasks_.begin();
-  report_win_task->interest_group_name = interest_group_name;
+  report_win_task->is_for_additional_bid = is_for_additional_bid;
+  report_win_task->reporting_id_field = reporting_id_field,
+  report_win_task->reporting_id = reporting_id;
   report_win_task->auction_signals_json = auction_signals_json;
   report_win_task->per_buyer_signals_json = per_buyer_signals_json;
   report_win_task->seller_signals_json = seller_signals_json;
+  report_win_task->kanon_mode = kanon_mode;
+  report_win_task->bid_is_kanon = bid_is_kanon;
   report_win_task->browser_signal_render_url = browser_signal_render_url;
   report_win_task->browser_signal_bid = browser_signal_bid;
   report_win_task->browser_signal_bid_currency = browser_signal_bid_currency;
@@ -357,9 +533,7 @@ void BidderWorklet::ReportWin(
   report_win_task->browser_signal_seller_origin = browser_signal_seller_origin;
   report_win_task->browser_signal_top_level_seller_origin =
       browser_signal_top_level_seller_origin;
-  if (has_bidding_signals_data_version)
-    report_win_task->bidding_signals_data_version =
-        bidding_signals_data_version;
+  report_win_task->bidding_signals_data_version = bidding_signals_data_version;
   report_win_task->callback = std::move(report_win_callback);
   report_win_task->trace_id = trace_id;
 
@@ -397,6 +571,10 @@ void BidderWorklet::ReportWin(
         DirectFromSellerSignalsRequester::Result();
   }
   report_win_task->trace_wait_deps_start = base::TimeTicks::Now();
+  report_win_task->direct_from_seller_per_buyer_signals_header_ad_slot =
+      direct_from_seller_per_buyer_signals_header_ad_slot;
+  report_win_task->direct_from_seller_auction_signals_header_ad_slot =
+      direct_from_seller_auction_signals_header_ad_slot;
 
   TRACE_EVENT_NESTABLE_ASYNC_BEGIN0("fledge", "wait_report_win_deps", trace_id);
   RunReportWinIfReady(report_win_task);
@@ -417,13 +595,26 @@ void BidderWorklet::FinishGenerateBid(
     const absl::optional<base::TimeDelta> per_buyer_timeout,
     const absl::optional<blink::AdCurrency>& expected_buyer_currency,
     const absl::optional<GURL>& direct_from_seller_per_buyer_signals,
-    const absl::optional<GURL>& direct_from_seller_auction_signals) {
+    const absl::optional<std::string>&
+        direct_from_seller_per_buyer_signals_header_ad_slot,
+    const absl::optional<GURL>& direct_from_seller_auction_signals,
+    const absl::optional<std::string>&
+        direct_from_seller_auction_signals_header_ad_slot) {
+  CHECK((!direct_from_seller_per_buyer_signals &&
+         !direct_from_seller_auction_signals) ||
+        (!direct_from_seller_per_buyer_signals_header_ad_slot &&
+         !direct_from_seller_auction_signals_header_ad_slot));
+
   GenerateBidTaskList::iterator task = finalize_receiver_set_.current_context();
   task->auction_signals_json = auction_signals_json;
   task->per_buyer_signals_json = per_buyer_signals_json;
   task->per_buyer_timeout = per_buyer_timeout;
   task->expected_buyer_currency = expected_buyer_currency;
   task->finalize_generate_bid_called = true;
+  task->direct_from_seller_per_buyer_signals_header_ad_slot =
+      direct_from_seller_per_buyer_signals_header_ad_slot;
+  task->direct_from_seller_auction_signals_header_ad_slot =
+      direct_from_seller_auction_signals_header_ad_slot;
   HandleDirectFromSellerForGenerateBid(direct_from_seller_per_buyer_signals,
                                        direct_from_seller_auction_signals,
                                        task);
@@ -491,6 +682,7 @@ BidderWorklet::V8State::SingleGenerateBidResult::SingleGenerateBidResult(
     base::flat_map<std::string, mojom::PrioritySignalsDoublePtr>
         update_priority_signals_overrides,
     PrivateAggregationRequests pa_requests,
+    mojom::RejectReason reject_reason,
     std::vector<std::string> error_msgs)
     : context_recycler_for_rerun(std::move(context_recycler_for_rerun)),
       bid(std::move(bid)),
@@ -501,6 +693,7 @@ BidderWorklet::V8State::SingleGenerateBidResult::SingleGenerateBidResult(
       update_priority_signals_overrides(
           std::move(update_priority_signals_overrides)),
       pa_requests(std::move(pa_requests)),
+      reject_reason(reject_reason),
       error_msgs(std::move(error_msgs)) {}
 
 BidderWorklet::V8State::SingleGenerateBidResult::SingleGenerateBidResult(
@@ -512,14 +705,22 @@ BidderWorklet::V8State::SingleGenerateBidResult::operator=(
     SingleGenerateBidResult&&) = default;
 
 void BidderWorklet::V8State::ReportWin(
-    const std::string& interest_group_name,
+    bool is_for_additional_bid,
+    mojom::ReportingIdField reporting_id_field,
+    const std::string& reporting_id,
     const absl::optional<std::string>& auction_signals_json,
     const absl::optional<std::string>& per_buyer_signals_json,
     DirectFromSellerSignalsRequester::Result
         direct_from_seller_result_per_buyer_signals,
+    const absl::optional<std::string>&
+        direct_from_seller_per_buyer_signals_header_ad_slot,
     DirectFromSellerSignalsRequester::Result
         direct_from_seller_result_auction_signals,
+    const absl::optional<std::string>&
+        direct_from_seller_auction_signals_header_ad_slot,
     const std::string& seller_signals_json,
+    mojom::KAnonymityBidMode kanon_mode,
+    bool bid_is_kanon,
     const GURL& browser_signal_render_url,
     double browser_signal_bid,
     const absl::optional<blink::AdCurrency>& browser_signal_bid_currency,
@@ -538,6 +739,7 @@ void BidderWorklet::V8State::ReportWin(
     ReportWinCallbackInternal callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(v8_sequence_checker_);
   TRACE_EVENT_NESTABLE_ASYNC_END0("fledge", "post_v8_task", trace_id);
+  base::ElapsedTimer elapsed_timer;
 
   AuctionV8Helper::FullIsolateScope isolate_scope(v8_helper_.get());
   v8::Isolate* isolate = v8_helper_->isolate();
@@ -549,7 +751,7 @@ void BidderWorklet::V8State::ReportWin(
   ContextRecyclerScope context_recycler_scope(context_recycler);
   v8::Local<v8::Context> context = context_recycler_scope.GetContext();
 
-  std::vector<v8::Local<v8::Value>> args;
+  v8::LocalVector<v8::Value> args(isolate);
   if (!AppendJsonValueOrNull(v8_helper_.get(), context,
                              base::OptionalToPtr(auction_signals_json),
                              &args) ||
@@ -559,21 +761,59 @@ void BidderWorklet::V8State::ReportWin(
       !v8_helper_->AppendJsonValue(context, seller_signals_json, &args)) {
     PostReportWinCallbackToUserThread(std::move(callback),
                                       /*report_url=*/absl::nullopt,
-                                      /*ad_beacon_map=*/{}, /*pa_requests=*/{},
+                                      /*ad_beacon_map=*/{},
+                                      /*ad_macro_map=*/{},
+                                      /*pa_requests=*/{}, base::TimeDelta(),
                                       /*errors=*/std::vector<std::string>());
     return;
   }
 
   v8::Local<v8::Object> browser_signals = v8::Object::New(isolate);
   gin::Dictionary browser_signals_dict(isolate, browser_signals);
+
+  const char* reporting_id_field_name = nullptr;
+  switch (reporting_id_field) {
+    case mojom::ReportingIdField::kInterestGroupName:
+      reporting_id_field_name = "interestGroupName";
+      break;
+    case mojom::ReportingIdField::kBuyerReportingId:
+      reporting_id_field_name = "buyerReportingId";
+      break;
+    case mojom::ReportingIdField::kBuyerAndSellerReportingId:
+      reporting_id_field_name = "buyerAndSellerReportingId";
+      break;
+  }
+
+  std::string kanon_status;
+  switch (kanon_mode) {
+    case mojom::KAnonymityBidMode::kEnforce:
+      // If k-anon was truly enforced and it passed.
+      kanon_status = "passedAndEnforced";
+      break;
+    case mojom::KAnonymityBidMode::kSimulate:
+      if (bid_is_kanon) {
+        // If K-anon can determine the value and kSimulate is on.
+        kanon_status = "passedNotEnforced";
+      } else {
+        // Number of ad was below the threshold and kSimulate is on.
+        kanon_status = "belowThreshold";
+      }
+      break;
+    case mojom::KAnonymityBidMode::kNone:
+      // K-anon cannot determine the theoretical outcome.
+      kanon_status = "notCalculated";
+      break;
+  }
+
   if (!browser_signals_dict.Set("topWindowHostname",
                                 top_window_origin_.host()) ||
       !browser_signals_dict.Set(
           "interestGroupOwner",
           url::Origin::Create(script_source_url_).Serialize()) ||
-      !browser_signals_dict.Set("interestGroupName", interest_group_name) ||
-      !browser_signals_dict.Set("renderUrl",
-                                browser_signal_render_url.spec()) ||
+      !browser_signals_dict.Set(reporting_id_field_name, reporting_id) ||
+      // TODO(crbug.com/1441988): Remove deprecated `renderUrl` alias.
+      !SetRenderUrl(isolate, browser_signals,
+                    browser_signal_render_url.spec()) ||
       !browser_signals_dict.Set("bid", browser_signal_bid) ||
       !browser_signals_dict.Set(
           "bidCurrency",
@@ -605,31 +845,42 @@ void BidderWorklet::V8State::ReportWin(
            browser_signal_top_level_seller_origin->Serialize())) ||
       (bidding_signals_data_version.has_value() &&
        !browser_signals_dict.Set("dataVersion",
-                                 bidding_signals_data_version.value()))) {
+                                 bidding_signals_data_version.value())) ||
+      (base::FeatureList::IsEnabled(
+           blink::features::kFledgePassKAnonStatusToReportWin) &&
+       !kanon_status.empty() &&
+       !browser_signals_dict.Set("kAnonStatus", kanon_status))) {
     PostReportWinCallbackToUserThread(std::move(callback),
                                       /*report_url=*/absl::nullopt,
-                                      /*ad_beacon_map=*/{}, /*pa_requests=*/{},
+                                      /*ad_beacon_map=*/{},
+                                      /*ad_macro_map=*/{},
+                                      /*pa_requests=*/{}, base::TimeDelta(),
                                       /*errors=*/std::vector<std::string>());
     return;
   }
+
   args.push_back(browser_signals);
 
   std::vector<std::string> errors_out;
   v8::Local<v8::Object> direct_from_seller_signals = v8::Object::New(isolate);
   gin::Dictionary direct_from_seller_signals_dict(isolate,
                                                   direct_from_seller_signals);
-  v8::Local<v8::Value> per_buyer_signals =
-      direct_from_seller_result_per_buyer_signals.GetSignals(
-          *v8_helper_, context, errors_out);
-  v8::Local<v8::Value> auction_signals =
-      direct_from_seller_result_auction_signals.GetSignals(*v8_helper_, context,
-                                                           errors_out);
+  v8::Local<v8::Value> per_buyer_signals = GetDirectFromSellerSignals(
+      direct_from_seller_result_per_buyer_signals,
+      direct_from_seller_per_buyer_signals_header_ad_slot, *v8_helper_, context,
+      errors_out);
+  v8::Local<v8::Value> auction_signals = GetDirectFromSellerSignals(
+      direct_from_seller_result_auction_signals,
+      direct_from_seller_auction_signals_header_ad_slot, *v8_helper_, context,
+      errors_out);
   if (!direct_from_seller_signals_dict.Set("perBuyerSignals",
                                            per_buyer_signals) ||
       !direct_from_seller_signals_dict.Set("auctionSignals", auction_signals)) {
     PostReportWinCallbackToUserThread(std::move(callback),
                                       /*report_url=*/absl::nullopt,
-                                      /*ad_beacon_map=*/{}, /*pa_requests=*/{},
+                                      /*ad_beacon_map=*/{},
+                                      /*ad_macro_map=*/{}, /*pa_requests=*/{},
+                                      base::TimeDelta(),
                                       /*errors=*/std::move(errors_out));
     return;
   }
@@ -643,20 +894,24 @@ void BidderWorklet::V8State::ReportWin(
   v8::Local<v8::UnboundScript> unbound_worklet_script =
       worklet_script_.Get(isolate);
   TRACE_EVENT_NESTABLE_ASYNC_BEGIN0("fledge", "report_win", trace_id);
+  std::unique_ptr<AuctionV8Helper::TimeLimit> total_timeout =
+      v8_helper_->CreateTimeLimit(/*script_timeout=*/absl::nullopt);
   bool script_failed =
       !v8_helper_->RunScript(context, unbound_worklet_script, debug_id_.get(),
-                             /*script_timeout=*/absl::nullopt, errors_out);
+                             total_timeout.get(), errors_out);
   if (script_failed) {
     TRACE_EVENT_NESTABLE_ASYNC_END0("fledge", "report_win", trace_id);
     PostReportWinCallbackToUserThread(
         std::move(callback), /*report_url=*/absl::nullopt,
-        /*ad_beacon_map=*/{},
-        /*pa_requests=*/{}, std::move(errors_out));
+        /*ad_beacon_map=*/{}, /*ad_macro_map=*/{},
+        /*pa_requests=*/{}, elapsed_timer.Elapsed(), std::move(errors_out));
     return;
   }
 
   context_recycler.AddReportBindings();
   context_recycler.AddRegisterAdBeaconBindings();
+  context_recycler.AddRegisterAdMacroBindings();
+
   context_recycler.AddPrivateAggregationBindings(
       permissions_policy_state_->private_aggregation_allowed);
 
@@ -669,10 +924,11 @@ void BidderWorklet::V8State::ReportWin(
   }
   script_failed =
       v8_helper_
-          ->CallFunction(context, debug_id_.get(),
-                         v8_helper_->FormatScriptName(unbound_worklet_script),
-                         "reportWin", args, /*script_timeout=*/absl::nullopt,
-                         errors_out)
+          ->CallFunction(
+              context, debug_id_.get(),
+              v8_helper_->FormatScriptName(unbound_worklet_script),
+              is_for_additional_bid ? "reportAdditionalBidWin" : "reportWin",
+              args, total_timeout.get(), errors_out)
           .IsEmpty();
   TRACE_EVENT_NESTABLE_ASYNC_END0("fledge", "report_win", trace_id);
 
@@ -681,10 +937,10 @@ void BidderWorklet::V8State::ReportWin(
     // detect script timeout or failures.
     PostReportWinCallbackToUserThread(
         std::move(callback), /*report_url=*/absl::nullopt,
-        /*ad_beacon_map=*/{},
+        /*ad_beacon_map=*/{}, /*ad_macro_map=*/{},
         context_recycler.private_aggregation_bindings()
             ->TakePrivateAggregationRequests(),
-        std::move(errors_out));
+        elapsed_timer.Elapsed(), std::move(errors_out));
     return;
   }
 
@@ -693,9 +949,10 @@ void BidderWorklet::V8State::ReportWin(
   PostReportWinCallbackToUserThread(
       std::move(callback), context_recycler.report_bindings()->report_url(),
       context_recycler.register_ad_beacon_bindings()->TakeAdBeaconMap(),
+      context_recycler.register_ad_macro_bindings()->TakeAdMacroMap(),
       context_recycler.private_aggregation_bindings()
           ->TakePrivateAggregationRequests(),
-      std::move(errors_out));
+      elapsed_timer.Elapsed(), std::move(errors_out));
 }
 
 void BidderWorklet::V8State::GenerateBid(
@@ -706,14 +963,20 @@ void BidderWorklet::V8State::GenerateBid(
     const absl::optional<std::string>& per_buyer_signals_json,
     DirectFromSellerSignalsRequester::Result
         direct_from_seller_result_per_buyer_signals,
+    const absl::optional<std::string>&
+        direct_from_seller_per_buyer_signals_header_ad_slot,
     DirectFromSellerSignalsRequester::Result
         direct_from_seller_result_auction_signals,
+    const absl::optional<std::string>&
+        direct_from_seller_auction_signals_header_ad_slot,
     const absl::optional<base::TimeDelta> per_buyer_timeout,
     const absl::optional<blink::AdCurrency>& expected_buyer_currency,
     const url::Origin& browser_signal_seller_origin,
     const absl::optional<url::Origin>& browser_signal_top_level_seller_origin,
+    const base::TimeDelta browser_signal_recency,
     mojom::BiddingBrowserSignalsPtr bidding_browser_signals,
     base::Time auction_start_time,
+    const absl::optional<blink::AdSize>& requested_ad_size,
     scoped_refptr<TrustedSignals::Result> trusted_bidding_signals_result,
     uint64_t trace_id,
     base::ScopedClosureRunner cleanup_generate_bid_task,
@@ -731,11 +994,13 @@ void BidderWorklet::V8State::GenerateBid(
       base::OptionalToPtr(auction_signals_json),
       base::OptionalToPtr(per_buyer_signals_json),
       direct_from_seller_result_per_buyer_signals,
-      direct_from_seller_result_auction_signals, per_buyer_timeout,
+      direct_from_seller_per_buyer_signals_header_ad_slot,
+      direct_from_seller_result_auction_signals,
+      direct_from_seller_auction_signals_header_ad_slot, per_buyer_timeout,
       expected_buyer_currency, browser_signal_seller_origin,
       base::OptionalToPtr(browser_signal_top_level_seller_origin),
-      bidding_browser_signals, auction_start_time,
-      trusted_bidding_signals_result, trace_id,
+      browser_signal_recency, bidding_browser_signals, auction_start_time,
+      requested_ad_size, trusted_bidding_signals_result, trace_id,
       /*context_recycler_for_rerun=*/nullptr,
       /*restrict_to_kanon_ads=*/false);
   if (!result.has_value()) {
@@ -768,10 +1033,14 @@ void BidderWorklet::V8State::GenerateBid(
               base::OptionalToPtr(auction_signals_json),
               base::OptionalToPtr(per_buyer_signals_json),
               direct_from_seller_result_per_buyer_signals,
-              direct_from_seller_result_auction_signals, per_buyer_timeout,
-              expected_buyer_currency, browser_signal_seller_origin,
+              direct_from_seller_per_buyer_signals_header_ad_slot,
+              direct_from_seller_result_auction_signals,
+              direct_from_seller_auction_signals_header_ad_slot,
+              per_buyer_timeout, expected_buyer_currency,
+              browser_signal_seller_origin,
               base::OptionalToPtr(browser_signal_top_level_seller_origin),
-              bidding_browser_signals, auction_start_time,
+              browser_signal_recency, bidding_browser_signals,
+              auction_start_time, requested_ad_size,
               trusted_bidding_signals_result, trace_id,
               std::move(result->context_recycler_for_rerun),
               /*restrict_to_kanon_ads=*/true);
@@ -818,7 +1087,7 @@ void BidderWorklet::V8State::GenerateBid(
                      std::move(result->pa_requests),
                      std::move(result->non_kanon_pa_requests),
                      /*bidding_latency=*/base::TimeTicks::Now() - bidding_start,
-                     std::move(result->error_msgs)));
+                     result->reject_reason, std::move(result->error_msgs)));
 }
 
 absl::optional<BidderWorklet::V8State::SingleGenerateBidResult>
@@ -829,14 +1098,20 @@ BidderWorklet::V8State::GenerateSingleBid(
     const std::string* per_buyer_signals_json,
     const DirectFromSellerSignalsRequester::Result&
         direct_from_seller_result_per_buyer_signals,
+    const absl::optional<std::string>&
+        direct_from_seller_per_buyer_signals_header_ad_slot,
     const DirectFromSellerSignalsRequester::Result&
         direct_from_seller_result_auction_signals,
+    const absl::optional<std::string>&
+        direct_from_seller_auction_signals_header_ad_slot,
     const absl::optional<base::TimeDelta> per_buyer_timeout,
     const absl::optional<blink::AdCurrency>& expected_buyer_currency,
     const url::Origin& browser_signal_seller_origin,
     const url::Origin* browser_signal_top_level_seller_origin,
+    const base::TimeDelta browser_signal_recency,
     const mojom::BiddingBrowserSignalsPtr& bidding_browser_signals,
     base::Time auction_start_time,
+    const absl::optional<blink::AdSize>& requested_ad_size,
     const scoped_refptr<TrustedSignals::Result>& trusted_bidding_signals_result,
     uint64_t trace_id,
     std::unique_ptr<ContextRecycler> context_recycler_for_rerun,
@@ -896,10 +1171,13 @@ BidderWorklet::V8State::GenerateSingleBid(
   v8_helper_->MaybeTriggerInstrumentationBreakpoint(
       *debug_id_, "beforeBidderWorkletBiddingStart");
 
+  std::unique_ptr<AuctionV8Helper::TimeLimit> total_timeout =
+      v8_helper_->CreateTimeLimit(per_buyer_timeout);
+
   // No recycled context, make a fresh one.
   if (!context_recycler) {
     fresh_context_recycler = CreateContextRecyclerAndRunTopLevelForGenerateBid(
-        trace_id, per_buyer_timeout, should_deep_freeze, errors_out);
+        trace_id, *total_timeout, should_deep_freeze, errors_out);
 
     if (!fresh_context_recycler) {
       return absl::make_optional(SingleGenerateBidResult(
@@ -909,7 +1187,9 @@ BidderWorklet::V8State::GenerateSingleBid(
           /*debug_win_report_url=*/absl::nullopt,
           /*set_priority=*/absl::nullopt,
           /*update_priority_signals_overrides=*/{},
-          /*pa_requests=*/{}, std::move(errors_out)));
+          /*pa_requests=*/{},
+          /*reject_reason=*/mojom::RejectReason::kNotAvailable,
+          std::move(errors_out)));
     }
 
     context_recycler = fresh_context_recycler.get();
@@ -963,7 +1243,7 @@ BidderWorklet::V8State::GenerateSingleBid(
       &bidder_worklet_non_shared_params, expected_buyer_currency,
       should_exclude_ad_due_to_kanon, should_exclude_component_ad_due_to_kanon);
 
-  std::vector<v8::Local<v8::Value>> args;
+  v8::LocalVector<v8::Value> args(isolate);
   v8::Local<v8::Object> interest_group_object = v8::Object::New(isolate);
   gin::Dictionary interest_group_dict(isolate, interest_group_object);
   if (!interest_group_dict.Set("owner", owner_.Serialize()) ||
@@ -971,21 +1251,17 @@ BidderWorklet::V8State::GenerateSingleBid(
       !interest_group_dict.Set("useBiddingSignalsPrioritization",
                                bidder_worklet_non_shared_params
                                    .enable_bidding_signals_prioritization) ||
-      !interest_group_dict.Set("biddingLogicUrl", script_source_url_.spec()) ||
+      !SetBiddingLogicUrl(isolate, interest_group_object,
+                          script_source_url_.spec()) ||
       (wasm_helper_url_ &&
-       !interest_group_dict.Set("biddingWasmHelperUrl",
+       !SetBiddingWasmHelperUrl(isolate, interest_group_object,
                                 wasm_helper_url_->spec())) ||
       (bidder_worklet_non_shared_params.update_url &&
-       (!interest_group_dict.Set(
-            "updateUrl", bidder_worklet_non_shared_params.update_url->spec()) ||
-        // TODO(https://crbug.com/1420080) Remove deprecated `dailyUpdateUrl`
-        // alias.
-        !interest_group_dict.Set(
-            "dailyUpdateUrl",
-            bidder_worklet_non_shared_params.update_url->spec()))) ||
+       !SetUpdateUrl(isolate, interest_group_object,
+                     bidder_worklet_non_shared_params.update_url->spec())) ||
       (trusted_bidding_signals_url_ &&
-       !interest_group_dict.Set("trustedBiddingSignalsUrl",
-                                trusted_bidding_signals_url_->spec()))) {
+       !SetTrustedBiddingSignalsUrl(isolate, interest_group_object,
+                                    trusted_bidding_signals_url_->spec()))) {
     return absl::nullopt;
   }
 
@@ -1055,9 +1331,16 @@ BidderWorklet::V8State::GenerateSingleBid(
                                 bidding_browser_signals->join_count) ||
       !browser_signals_dict.Set("bidCount",
                                 bidding_browser_signals->bid_count) ||
+      (base::FeatureList::IsEnabled(
+           blink::features::kFledgePassRecencyToGenerateBid) &&
+       !browser_signals_dict.Set("recency",
+                                 browser_signal_recency.InMilliseconds())) ||
       (bidding_signals_data_version.has_value() &&
        !browser_signals_dict.Set("dataVersion",
-                                 bidding_signals_data_version.value()))) {
+                                 bidding_signals_data_version.value())) ||
+      (CanSetRequestedAdSize(requested_ad_size) &&
+       !SetRequestedAdSize(isolate, browser_signals,
+                           requested_ad_size.value()))) {
     return absl::nullopt;
   }
 
@@ -1085,12 +1368,14 @@ BidderWorklet::V8State::GenerateSingleBid(
   v8::Local<v8::Object> direct_from_seller_signals = v8::Object::New(isolate);
   gin::Dictionary direct_from_seller_signals_dict(isolate,
                                                   direct_from_seller_signals);
-  v8::Local<v8::Value> per_buyer_signals =
-      direct_from_seller_result_per_buyer_signals.GetSignals(
-          *v8_helper_, context, errors_out);
-  v8::Local<v8::Value> auction_signals =
-      direct_from_seller_result_auction_signals.GetSignals(*v8_helper_, context,
-                                                           errors_out);
+  v8::Local<v8::Value> per_buyer_signals = GetDirectFromSellerSignals(
+      direct_from_seller_result_per_buyer_signals,
+      direct_from_seller_per_buyer_signals_header_ad_slot, *v8_helper_, context,
+      errors_out);
+  v8::Local<v8::Value> auction_signals = GetDirectFromSellerSignals(
+      direct_from_seller_result_auction_signals,
+      direct_from_seller_auction_signals_header_ad_slot, *v8_helper_, context,
+      errors_out);
   if (!direct_from_seller_signals_dict.Set("perBuyerSignals",
                                            per_buyer_signals) ||
       !direct_from_seller_signals_dict.Set("auctionSignals", auction_signals)) {
@@ -1106,17 +1391,20 @@ BidderWorklet::V8State::GenerateSingleBid(
           ->CallFunction(
               context, debug_id_.get(),
               v8_helper_->FormatScriptName(worklet_script_.Get(isolate)),
-              "generateBid", args, std::move(per_buyer_timeout), errors_out)
+              "generateBid", args, total_timeout.get(), errors_out)
           .ToLocal(&generate_bid_result);
   TRACE_EVENT_NESTABLE_ASYNC_END0("fledge", "generate_bid", trace_id);
   base::UmaHistogramTimes("Ads.InterestGroup.Auction.GenerateBidTime",
                           base::TimeTicks::Now() - start);
 
   if (got_return_value) {
-    context_recycler->set_bid_bindings()->SetBid(
-        generate_bid_result,
-        base::StrCat({script_source_url_.spec(), " generateBid() "}),
-        errors_out);
+    IdlConvert::Status status =
+        context_recycler->set_bid_bindings()->SetBidImpl(
+            generate_bid_result,
+            base::StrCat({script_source_url_.spec(), " generateBid() "}));
+    if (!status.is_success()) {
+      errors_out.push_back(status.ConvertToErrorString(isolate));
+    }
   }
 
   if (!context_recycler->set_bid_bindings()->has_bid()) {
@@ -1138,6 +1426,7 @@ BidderWorklet::V8State::GenerateSingleBid(
             ->TakeSetPrioritySignalsOverrides(),
         context_recycler->private_aggregation_bindings()
             ->TakePrivateAggregationRequests(),
+        context_recycler->set_bid_bindings()->reject_reason(),
         std::move(errors_out)));
   }
 
@@ -1155,13 +1444,13 @@ BidderWorklet::V8State::GenerateSingleBid(
           ->TakeSetPrioritySignalsOverrides(),
       context_recycler->private_aggregation_bindings()
           ->TakePrivateAggregationRequests(),
-      std::move(errors_out)));
+      mojom::RejectReason::kNotAvailable, std::move(errors_out)));
 }
 
 std::unique_ptr<ContextRecycler>
 BidderWorklet::V8State::CreateContextRecyclerAndRunTopLevelForGenerateBid(
     uint64_t trace_id,
-    const absl::optional<base::TimeDelta> per_buyer_timeout,
+    AuctionV8Helper::TimeLimit& total_timeout,
     bool should_deep_freeze,
     std::vector<std::string>& errors_out) {
   base::TimeTicks start = base::TimeTicks::Now();
@@ -1177,7 +1466,7 @@ BidderWorklet::V8State::CreateContextRecyclerAndRunTopLevelForGenerateBid(
   TRACE_EVENT_NESTABLE_ASYNC_BEGIN0("fledge", "biddingScript", trace_id);
   bool success =
       v8_helper_->RunScript(context, unbound_worklet_script, debug_id_.get(),
-                            per_buyer_timeout, errors_out);
+                            &total_timeout, errors_out);
   TRACE_EVENT_NESTABLE_ASYNC_END0("fledge", "biddingScript", trace_id);
   base::UmaHistogramTimes("Ads.InterestGroup.Auction.BidScriptTime",
                           base::TimeTicks::Now() - start);
@@ -1256,13 +1545,16 @@ void BidderWorklet::V8State::PostReportWinCallbackToUserThread(
     ReportWinCallbackInternal callback,
     const absl::optional<GURL>& report_url,
     base::flat_map<std::string, GURL> ad_beacon_map,
+    base::flat_map<std::string, std::string> ad_macro_map,
     PrivateAggregationRequests pa_requests,
+    base::TimeDelta reporting_latency,
     std::vector<std::string> errors) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(v8_sequence_checker_);
   user_thread_->PostTask(
       FROM_HERE, base::BindOnce(std::move(callback), std::move(report_url),
                                 std::move(ad_beacon_map),
-                                std::move(pa_requests), std::move(errors)));
+                                std::move(ad_macro_map), std::move(pa_requests),
+                                reporting_latency, std::move(errors)));
 }
 
 void BidderWorklet::V8State::PostErrorBidCallbackToUserThread(
@@ -1284,13 +1576,16 @@ void BidderWorklet::V8State::PostErrorBidCallbackToUserThread(
           base::flat_map<std::string, mojom::PrioritySignalsDoublePtr>(),
           /*pa_requests=*/
           PrivateAggregationRequests(), std::move(non_kanon_pa_requests),
-          bidding_latency, std::move(error_msgs)));
+          bidding_latency,
+          /*reject_reason=*/mojom::RejectReason::kNotAvailable,
+          std::move(error_msgs)));
 }
 
 void BidderWorklet::ResumeIfPaused() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(user_sequence_checker_);
-  if (!paused_)
+  if (!paused_) {
     return;
+  }
 
   paused_ = false;
   Start();
@@ -1299,12 +1594,15 @@ void BidderWorklet::ResumeIfPaused() {
 void BidderWorklet::Start() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(user_sequence_checker_);
   DCHECK(!paused_);
-
   base::UmaHistogramCounts100000(
       "Ads.InterestGroup.Net.RequestUrlSizeBytes.BiddingScriptJS",
       script_source_url_.spec().size());
   worklet_loader_ = std::make_unique<WorkletLoader>(
-      url_loader_factory_.get(), script_source_url_, v8_helper_, debug_id_,
+      url_loader_factory_.get(),
+      /*auction_network_events_handler=*/
+      CreateNewAuctionNetworkEventsHandlerRemote(
+          auction_network_events_handler_),
+      script_source_url_, v8_helper_, debug_id_,
       base::BindOnce(&BidderWorklet::OnScriptDownloaded,
                      base::Unretained(this)));
 
@@ -1313,8 +1611,11 @@ void BidderWorklet::Start() {
         "Ads.InterestGroup.Net.RequestUrlSizeBytes.BiddingScriptWasm",
         wasm_helper_url_->spec().size());
     wasm_loader_ = std::make_unique<WorkletWasmLoader>(
-        url_loader_factory_.get(), wasm_helper_url_.value(), v8_helper_,
-        debug_id_,
+        url_loader_factory_.get(),
+        /*auction_network_events_handler=*/
+        CreateNewAuctionNetworkEventsHandlerRemote(
+            auction_network_events_handler_),
+        wasm_helper_url_.value(), v8_helper_, debug_id_,
         base::BindOnce(&BidderWorklet::OnWasmDownloaded,
                        base::Unretained(this)));
   }
@@ -1339,8 +1640,9 @@ void BidderWorklet::OnScriptDownloaded(WorkletLoader::Result worklet_script,
     return;
   }
 
-  if (error_msg.has_value())
+  if (error_msg.has_value()) {
     load_code_error_msgs_.push_back(std::move(error_msg.value()));
+  }
 
   v8_runner_->PostTask(FROM_HERE,
                        base::BindOnce(&BidderWorklet::V8State::SetWorkletScript,
@@ -1371,8 +1673,9 @@ void BidderWorklet::OnWasmDownloaded(WorkletWasmLoader::Result wasm_helper,
     return;
   }
 
-  if (error_msg.has_value())
+  if (error_msg.has_value()) {
     load_code_error_msgs_.push_back(std::move(error_msg.value()));
+  }
 
   v8_runner_->PostTask(FROM_HERE,
                        base::BindOnce(&BidderWorklet::V8State::SetWasmHelper,
@@ -1407,8 +1710,9 @@ void BidderWorklet::RunReadyTasks() {
 
   // While reportWin() doesn't use WASM, since we do load it, we wait for it in
   // order to ensure determinism if the load fails.
-  if (!IsCodeReady())
+  if (!IsCodeReady()) {
     return;
+  }
 
   // Run all ReportWin() tasks that are ready. RunReportWinIfReady() does *not*
   // modify `report_win_tasks_` when invoked, so this is safe.
@@ -1558,8 +1862,9 @@ bool BidderWorklet::IsReadyToGenerateBid(const GenerateBidTask& task) const {
 
 void BidderWorklet::GenerateBidIfReady(GenerateBidTaskList::iterator task) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(user_sequence_checker_);
-  if (!IsReadyToGenerateBid(*task))
+  if (!IsReadyToGenerateBid(*task)) {
     return;
+  }
 
   // If there was a trusted signals request, it should have already completed
   // and been cleaned up before `signals_received_callback_invoked` was set to
@@ -1616,12 +1921,16 @@ void BidderWorklet::GenerateBidIfReady(GenerateBidTaskList::iterator task) {
           std::move(task->auction_signals_json),
           std::move(task->per_buyer_signals_json),
           std::move(task->direct_from_seller_result_per_buyer_signals),
+          std::move(task->direct_from_seller_per_buyer_signals_header_ad_slot),
           std::move(task->direct_from_seller_result_auction_signals),
+          std::move(task->direct_from_seller_auction_signals_header_ad_slot),
           std::move(task->per_buyer_timeout),
           std::move(task->expected_buyer_currency),
           std::move(task->browser_signal_seller_origin),
           std::move(task->browser_signal_top_level_seller_origin),
+          std::move(task->browser_signal_recency),
           std::move(task->bidding_browser_signals), task->auction_start_time,
+          std::move(task->requested_ad_size),
           std::move(task->trusted_bidding_signals_result), task->trace_id,
           base::ScopedClosureRunner(std::move(cleanup_generate_bid_task)),
           base::BindOnce(&BidderWorklet::DeliverBidCallbackOnUserThread,
@@ -1669,8 +1978,9 @@ bool BidderWorklet::IsReadyToReportWin(const ReportWinTask& task) const {
 
 void BidderWorklet::RunReportWinIfReady(ReportWinTaskList::iterator task) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(user_sequence_checker_);
-  if (!IsReadyToReportWin(*task))
+  if (!IsReadyToReportWin(*task)) {
     return;
+  }
 
   TRACE_EVENT_NESTABLE_ASYNC_END1(
       "fledge", "wait_report_win_deps", task->trace_id, "data",
@@ -1692,12 +2002,16 @@ void BidderWorklet::RunReportWinIfReady(ReportWinTaskList::iterator task) {
       v8_runner_.get(), FROM_HERE,
       base::BindOnce(
           &BidderWorklet::V8State::ReportWin, base::Unretained(v8_state_.get()),
-          std::move(task->interest_group_name),
+          std::move(task->is_for_additional_bid),
+          std::move(task->reporting_id_field), std::move(task->reporting_id),
           std::move(task->auction_signals_json),
           std::move(task->per_buyer_signals_json),
           std::move(task->direct_from_seller_result_per_buyer_signals),
+          std::move(task->direct_from_seller_per_buyer_signals_header_ad_slot),
           std::move(task->direct_from_seller_result_auction_signals),
-          std::move(task->seller_signals_json),
+          std::move(task->direct_from_seller_auction_signals_header_ad_slot),
+          std::move(task->seller_signals_json), std::move(task->kanon_mode),
+          std::move(task->bid_is_kanon),
           std::move(task->browser_signal_render_url),
           std::move(task->browser_signal_bid),
           std::move(task->browser_signal_bid_currency),
@@ -1728,6 +2042,7 @@ void BidderWorklet::DeliverBidCallbackOnUserThread(
     PrivateAggregationRequests pa_requests,
     PrivateAggregationRequests non_kanon_pa_requests,
     base::TimeDelta bidding_latency,
+    mojom::RejectReason reject_reason,
     std::vector<std::string> error_msgs) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(user_sequence_checker_);
 
@@ -1743,7 +2058,15 @@ void BidderWorklet::DeliverBidCallbackOnUserThread(
       bidding_signals_data_version.has_value(), debug_loss_report_url,
       debug_win_report_url, set_priority.value_or(0), set_priority.has_value(),
       std::move(update_priority_signals_overrides), std::move(pa_requests),
-      std::move(non_kanon_pa_requests), bidding_latency, error_msgs);
+      std::move(non_kanon_pa_requests), bidding_latency,
+      mojom::GenerateBidDependencyLatencies::New(
+          /*code_ready_latency=*/NullOptIfZero(task->wait_code),
+          /*config_promises_latency=*/NullOptIfZero(task->wait_promises),
+          /*direct_from_seller_signals_latency=*/
+          NullOptIfZero(task->wait_direct_from_seller_signals),
+          /*trusted_bidding_signals_latency=*/
+          NullOptIfZero(task->wait_trusted_signals)),
+      reject_reason, error_msgs);
   CleanUpBidTaskOnUserThread(task);
 }
 
@@ -1763,14 +2086,17 @@ void BidderWorklet::DeliverReportWinOnUserThread(
     ReportWinTaskList::iterator task,
     absl::optional<GURL> report_url,
     base::flat_map<std::string, GURL> ad_beacon_map,
+    base::flat_map<std::string, std::string> ad_macro_map,
     PrivateAggregationRequests pa_requests,
+    base::TimeDelta reporting_latency,
     std::vector<std::string> errors) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(user_sequence_checker_);
   errors.insert(errors.end(), load_code_error_msgs_.begin(),
                 load_code_error_msgs_.end());
   std::move(task->callback)
       .Run(std::move(report_url), std::move(ad_beacon_map),
-           std::move(pa_requests), std::move(errors));
+           std::move(ad_macro_map), std::move(pa_requests), reporting_latency,
+           std::move(errors));
   report_win_tasks_.erase(task);
 }
 

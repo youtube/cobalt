@@ -12,11 +12,13 @@
 #include "base/cancelable_callback.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
-#include "base/memory/weak_ptr.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/notreached.h"
 #include "base/synchronization/lock.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/task/task_traits.h"
+#include "base/task/thread_pool.h"
 #include "base/time/time.h"
 #include "media/audio/audio_handler.h"
 #include "media/audio/flac_audio_handler.h"
@@ -170,9 +172,9 @@ AudioStreamHandler::AudioStreamHandler(
     SoundsManager::StreamFactoryBinder stream_factory_binder,
     const base::StringPiece& audio_data,
     media::AudioCodec codec) {
-  task_runner_ = base::SequencedTaskRunner::GetCurrentDefault();
-  std::unique_ptr<media::AudioHandler> audio_handler;
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
+  std::unique_ptr<media::AudioHandler> audio_handler;
   switch (codec) {
     case media::AudioCodec::kPCM: {
       audio_handler = media::WavAudioHandler::Create(audio_data);
@@ -208,52 +210,44 @@ AudioStreamHandler::AudioStreamHandler(
   }
 
   duration_ = audio_handler->GetDuration();
-  stream_ = std::make_unique<AudioStreamContainer>(
+  stream_ = base::SequenceBound<AudioStreamContainer>(
+      base::ThreadPool::CreateSequencedTaskRunner(
+          {base::MayBlock(), base::WithBaseSyncPrimitives(),
+           base::TaskPriority::USER_VISIBLE}),
       std::move(stream_factory_binder), std::move(audio_handler));
 }
 
 AudioStreamHandler::~AudioStreamHandler() {
-  // TODO(b/279455052): A question about the overall design for if this class
-  // need to post functions into `task_runner`. Same questions for the `Play`
-  // and `Stop`.
-  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (IsInitialized()) {
-    task_runner_->PostTask(FROM_HERE,
-                           base::BindOnce(&AudioStreamContainer::Stop,
-                                          base::Unretained(stream_.get())));
-    task_runner_->DeleteSoon(FROM_HERE, stream_.release());
+    stream_.AsyncCall(&AudioStreamContainer::Stop);
   }
 }
 
 bool AudioStreamHandler::IsInitialized() const {
-  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return !!stream_;
 }
 
 bool AudioStreamHandler::Play() {
-  DCHECK(task_runner_->RunsTasksInCurrentSequence());
-
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!IsInitialized())
     return false;
 
-  task_runner_->PostTask(
-      FROM_HERE, base::BindOnce(base::IgnoreResult(&AudioStreamContainer::Play),
-                                base::Unretained(stream_.get())));
+  stream_.AsyncCall(&AudioStreamContainer::Play);
   return true;
 }
 
 void AudioStreamHandler::Stop() {
-  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!IsInitialized())
     return;
 
-  task_runner_->PostTask(FROM_HERE,
-                         base::BindOnce(&AudioStreamContainer::Stop,
-                                        base::Unretained(stream_.get())));
+  stream_.AsyncCall(&AudioStreamContainer::Stop);
 }
 
 base::TimeDelta AudioStreamHandler::duration() const {
-  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(IsInitialized());
   return duration_;
 }

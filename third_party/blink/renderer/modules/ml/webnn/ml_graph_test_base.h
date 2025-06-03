@@ -24,7 +24,7 @@ class V8TestingScope;
 // The utility methods for graph test.
 enum ExecutionMode { kAsync, kSync };
 // The backends share the unit tests in the MLGraphTest.
-enum BackendType { kFake, kXnnpack, kModelLoader };
+enum BackendType { kFake, kXnnpack, kModelLoader, kWebNNService };
 
 using TestVariety = std::tuple<BackendType, ExecutionMode>;
 
@@ -58,6 +58,16 @@ class MLGraphTestBase : public ::testing::Test,
                              MLGraph* graph,
                              MLNamedArrayBufferViews& inputs,
                              MLNamedArrayBufferViews& outputs);
+
+  // Helper method for testing both context and ML graph builder creation.
+  // If the context cannot be created for the graph, returns nullptr.
+  static MLGraphBuilder* CreateGraphBuilder(V8TestingScope& scope,
+                                            MLContextOptions* options);
+
+  // Helper method for testing only context creation.
+  static ScriptPromise CreateContext(
+      V8TestingScope& scope,
+      MLContextOptions* options = MLContextOptions::Create());
 
  private:
   // The execution mode for testing build and compute graph (e.g. async, sync.).

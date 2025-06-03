@@ -31,13 +31,11 @@
 #ifndef UI_EVENTS_KEYCODES_KEYBOARD_CODES_POSIX_H_
 #define UI_EVENTS_KEYCODES_KEYBOARD_CODES_POSIX_H_
 
-#include "build/build_config.h"
-
 namespace ui {
 
 // When adding a new KeyboardCode, be sure to also update the associated mojom
 // file at ash/public/mojom/accelerator_keys.mojom.
-enum KeyboardCode {
+enum KeyboardCode : unsigned char {
   VKEY_CANCEL = 0x03,
   VKEY_BACK = 0x08,
   VKEY_TAB = 0x09,
@@ -255,10 +253,6 @@ enum KeyboardCode {
   VKEY_DICTATE = 0xEE,
   // All applications - this also triggers the launcher in Chrome OS.
   VKEY_ALL_APPLICATIONS = 0xEF,
-#if BUILDFLAG(IS_COBALT)
-  // Toggle subtitles
-  KEY_SUBTITLES = 0x1CC,
-#endif  // BUILDFLAG(IS_COBALT)
 };
 
 }  // namespace ui

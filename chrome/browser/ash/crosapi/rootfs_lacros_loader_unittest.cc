@@ -43,8 +43,8 @@ class RootfsLacrosLoaderTest : public testing::Test {
   base::ScopedTempDir temp_dir_;
   base::FilePath metadata_path_;
 
-  user_manager::ScopedUserManager scoped_user_manager_{
-      std::make_unique<user_manager::FakeUserManager>()};
+  user_manager::TypedScopedUserManager<user_manager::FakeUserManager>
+      scoped_user_manager_{std::make_unique<user_manager::FakeUserManager>()};
   ash::FakeUpstartClient fake_upstart_client_;
   std::unique_ptr<RootfsLacrosLoader> rootfs_lacros_loader_;
 };
@@ -56,13 +56,14 @@ TEST_F(RootfsLacrosLoaderTest, LoadRootfsLacros) {
          const std::vector<std::string>& upstart_env) {
         EXPECT_EQ(job, kLacrosMounterUpstartJob);
         *callback_called = true;
-        return true;
+        return ash::FakeUpstartClient::StartJobResult(true /* success */);
       },
       &callback_called));
 
   base::test::TestFuture<base::Version, const base::FilePath&> future;
   rootfs_lacros_loader_->Load(
-      future.GetCallback<base::Version, const base::FilePath&>());
+      future.GetCallback<base::Version, const base::FilePath&>(),
+      /*forced=*/false);
   EXPECT_EQ(base::Version(version_str), future.Get<0>());
   EXPECT_TRUE(callback_called);
 }

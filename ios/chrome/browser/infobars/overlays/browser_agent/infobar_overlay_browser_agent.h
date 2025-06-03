@@ -10,10 +10,10 @@
 
 #import "base/scoped_multi_source_observation.h"
 #import "ios/chrome/browser/infobars/infobar_type.h"
-#import "ios/chrome/browser/main/browser_user_data.h"
 #import "ios/chrome/browser/overlays/public/overlay_browser_agent_base.h"
 #import "ios/chrome/browser/overlays/public/overlay_presenter.h"
 #import "ios/chrome/browser/overlays/public/overlay_presenter_observer.h"
+#import "ios/chrome/browser/shared/model/browser/browser_user_data.h"
 
 class InfobarInteractionHandler;
 
@@ -31,6 +31,13 @@ class InfobarOverlayBrowserAgent
   // can be added.
   void AddInfobarInteractionHandler(
       std::unique_ptr<InfobarInteractionHandler> interaction_handler);
+
+  // Adds an InfobarInteractionHandler that corresponds to the given
+  // `infobar_type`to make model-layer updates for interactions with infobars.
+  // This method calls `AddInfobarInteractionHandler:` to create the
+  // InfobarInteractionHandler.
+  void AddDefaultInfobarInteractionHandlerForInfobarType(
+      InfobarType infobar_type);
 
  private:
   friend class BrowserUserData<InfobarOverlayBrowserAgent>;

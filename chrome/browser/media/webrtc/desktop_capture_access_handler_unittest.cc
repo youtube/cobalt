@@ -20,8 +20,6 @@
 #include "content/public/browser/desktop_media_id.h"
 #include "content/public/browser/desktop_streams_registry.h"
 #include "content/public/browser/media_stream_request.h"
-#include "content/public/browser/notification_service.h"
-#include "content/public/browser/notification_types.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/web_contents.h"
@@ -34,7 +32,7 @@
 #include "third_party/blink/public/mojom/mediastream/media_stream.mojom.h"
 
 #if BUILDFLAG(IS_CHROMEOS)
-#include "chrome/browser/chromeos/policy/dlp/mock_dlp_content_manager.h"
+#include "chrome/browser/chromeos/policy/dlp/test/mock_dlp_content_manager.h"
 #include "ui/aura/window.h"
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
@@ -174,7 +172,7 @@ class DesktopCaptureAccessHandlerTest : public ChromeRenderViewHostTestHarness {
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
  protected:
-  raw_ptr<FakeDesktopMediaPickerFactory> picker_factory_;
+  raw_ptr<FakeDesktopMediaPickerFactory, DanglingUntriaged> picker_factory_;
   std::unique_ptr<DesktopCaptureAccessHandler> access_handler_;
 };
 
@@ -361,7 +359,6 @@ TEST_F(DesktopCaptureAccessHandlerTest, GenerateStreamSuccess) {
           url::Origin::Create(origin),
           content::DesktopMediaID(content::DesktopMediaID::TYPE_SCREEN,
                                   content::DesktopMediaID::kFakeId),
-          /*extension_name=*/"",
           content::DesktopStreamRegistryType::kRegistryStreamTypeDesktop);
 
   ProcessGenerateStreamRequest(id, origin, /*extension=*/nullptr, &result,
@@ -524,7 +521,6 @@ TEST_F(DesktopCaptureAccessHandlerTest, GenerateStreamDlpRestricted) {
           url::Origin::Create(GURL(kOrigin)),
           content::DesktopMediaID(content::DesktopMediaID::TYPE_SCREEN,
                                   content::DesktopMediaID::kFakeId),
-          /*extension_name=*/"",
           content::DesktopStreamRegistryType::kRegistryStreamTypeDesktop);
   blink::mojom::MediaStreamRequestResult result =
       blink::mojom::MediaStreamRequestResult::NOT_SUPPORTED;
@@ -557,7 +553,6 @@ TEST_F(DesktopCaptureAccessHandlerTest, GenerateStreamDlpNotRestricted) {
           url::Origin::Create(GURL(kOrigin)),
           content::DesktopMediaID(content::DesktopMediaID::TYPE_SCREEN,
                                   content::DesktopMediaID::kFakeId),
-          /*extension_name=*/"",
           content::DesktopStreamRegistryType::kRegistryStreamTypeDesktop);
   blink::mojom::MediaStreamRequestResult result =
       blink::mojom::MediaStreamRequestResult::NOT_SUPPORTED;

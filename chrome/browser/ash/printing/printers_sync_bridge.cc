@@ -11,7 +11,7 @@
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
-#include "base/metrics/histogram_functions.h"
+#include "base/trace_event/trace_event.h"
 #include "chrome/browser/ash/printing/specifics_translation.h"
 #include "chromeos/printing/printer_configuration.h"
 #include "components/sync/base/report_unrecoverable_error.h"
@@ -48,13 +48,11 @@ std::unique_ptr<EntityData> CopyToEntityData(
 // manufacturer and model strings.
 bool MigrateMakeAndModel(sync_pb::PrinterSpecifics* specifics) {
   if (specifics->has_make_and_model()) {
-    base::UmaHistogramBoolean("Printing.CUPS.MigratedMakeAndModel", false);
     return false;
   }
 
   specifics->set_make_and_model(
       MakeAndModel(specifics->manufacturer(), specifics->model()));
-  base::UmaHistogramBoolean("Printing.CUPS.MigratedMakeAndModel", true);
   return true;
 }
 
@@ -165,6 +163,9 @@ class PrintersSyncBridge::StoreProxy {
   void OnReadAllMetadata(
       const absl::optional<syncer::ModelError>& error,
       std::unique_ptr<syncer::MetadataBatch> metadata_batch) {
+    TRACE_EVENT0(
+        "ui",
+        "ash::{anonympus}::PrintersSyncBridge::StoreProxy::OnReadAllMetadata");
     if (error) {
       owner_->change_processor()->ReportError(*error);
       return;
@@ -223,12 +224,10 @@ absl::optional<syncer::ModelError> PrintersSyncBridge::MergeFullSyncData(
     for (const auto& entry : all_data_) {
       const std::string& local_entity_id = entry.first;
 
-      // TODO(crbug.com/737809): Remove when all data is expected to have been
-      // migrated.
+      // Migrate old schema to new combined one (crbug.com/737809).
       bool migrated = MigrateMakeAndModel(entry.second.get());
 
-      // TODO(crbug.com/987869): Remove when all data is expected to have been
-      // resolved.
+      // Clean up invalid ppd references (crbug.com/987869).
       bool resolved = ResolveInvalidPpdReference(entry.second.get());
 
       if (migrated || resolved ||
@@ -377,7 +376,8 @@ bool PrintersSyncBridge::UpdatePrinterLocked(
   // Modify the printer in-place then notify the change processor.
   sync_pb::PrinterSpecifics* merged = iter->second.get();
   MergePrinterToSpecifics(*SpecificsToPrinter(*printer), merged);
-  merged->set_updated_timestamp(base::Time::Now().ToJavaTime());
+  merged->set_updated_timestamp(
+      base::Time::Now().InMillisecondsSinceUnixEpoch());
   CommitPrinterPut(*merged);
 
   return false;
@@ -449,7 +449,8 @@ void PrintersSyncBridge::AddPrinterLocked(
   // TODO(skau): Benchmark this code.  Make sure it doesn't hold onto the lock
   // for too long.
   data_lock_.AssertAcquired();
-  printer->set_updated_timestamp(base::Time::Now().ToJavaTime());
+  printer->set_updated_timestamp(
+      base::Time::Now().InMillisecondsSinceUnixEpoch());
 
   CommitPrinterPut(*printer);
   auto& dest = all_data_[printer->id()];

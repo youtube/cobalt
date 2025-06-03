@@ -89,7 +89,7 @@ const base::Version& ConfiguratorImpl::GetBrowserVersion() const {
 }
 
 std::string ConfiguratorImpl::GetOSLongName() const {
-  return version_info::GetOSType();
+  return std::string(version_info::GetOSType());
 }
 
 base::flat_map<std::string, std::string> ConfiguratorImpl::ExtraRequestParams()
@@ -142,7 +142,7 @@ update_client::UpdaterStateProvider ConfiguratorImpl::GetUpdaterStateProvider()
 
 absl::optional<bool> ConfiguratorImpl::IsMachineExternallyManaged() const {
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
-  // TODO (crbug.com/1320776): For legacy compatibility, this uses
+  // TODO(crbug.com/1320776): For legacy compatibility, this uses
   // IsEnterpriseDevice() which effectively equates to a domain join check.
   // Consider whether this should use IsManagedDevice() instead.
   return base::IsEnterpriseDevice();

@@ -7,11 +7,14 @@
 #include "base/base64.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/rand_util.h"
+#include "base/strings/escape.h"
 #include "components/prefs/pref_service.h"
+#include "components/safe_browsing/core/browser/hashprefix_realtime/hash_realtime_utils.h"
 #include "components/safe_browsing/core/browser/utils/backoff_operator.h"
 #include "components/safe_browsing/core/common/features.h"
 #include "components/safe_browsing/core/common/safe_browsing_prefs.h"
 #include "components/safe_browsing/core/common/utils.h"
+#include "google_apis/google_api_keys.h"
 #include "net/base/net_errors.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_status_code.h"
@@ -55,7 +58,7 @@ constexpr int kServerTriggeredFetchMaxDelayTimeSec = 60;
 // Backoff constants
 const size_t kNumFailuresToEnforceBackoff = 3;
 const size_t kMinBackOffResetDurationInSeconds = 5 * 60;   //  5 minutes.
-const size_t kMaxBackOffResetDurationInSeconds = 30 * 60;  // 30 minutes.
+const size_t kMaxBackOffResetDurationInSeconds = 24 * 60 * 60;  // 1 day.
 
 constexpr net::NetworkTrafficAnnotationTag kOhttpKeyTrafficAnnotation =
     net::DefineNetworkTrafficAnnotation("safe_browsing_ohttp_key_fetch",
@@ -94,6 +97,12 @@ constexpr net::NetworkTrafficAnnotationTag kOhttpKeyTrafficAnnotation =
         SafeBrowsingProtectionLevel: 0
       }
     }
+    chrome_policy {
+      SafeBrowsingProxiedRealTimeChecksAllowed {
+        policy_options {mode: MANDATORY}
+        SafeBrowsingProxiedRealTimeChecksAllowed: false
+      }
+    }
   }
   comments:
       "SafeBrowsingProtectionLevel value of 0 or 2 disables fetching this "
@@ -101,18 +110,33 @@ constexpr net::NetworkTrafficAnnotationTag kOhttpKeyTrafficAnnotation =
       "default."
   )");
 
-bool IsEnabled(const PrefService& pref_service) {
+bool IsEnabled(PrefService* pref_service) {
   safe_browsing::SafeBrowsingState state =
-      safe_browsing::GetSafeBrowsingState(pref_service);
-  return (state == safe_browsing::SafeBrowsingState::STANDARD_PROTECTION &&
-          !base::FeatureList::IsEnabled(
-              safe_browsing::kSafeBrowsingLookupMechanismExperiment)) ||
-         // The service is enabled when enhanced protection and lookup mechanism
-         // experiment are both enabled, because Chrome needs to send HPRT
-         // requests to conduct the experiment.
+      safe_browsing::GetSafeBrowsingState(*pref_service);
+  // If this class has been created, it is already known that the session is not
+  // off-the-record and that the user's location is eligible, so
+  // |is_off_the_record| is passed through as false and
+  // |stored_permanent_country| as nullopt.
+  return safe_browsing::hash_realtime_utils::DetermineHashRealTimeSelection(
+             /*is_off_the_record=*/false, pref_service,
+             /*stored_permanent_country=*/absl::nullopt) ==
+             safe_browsing::hash_realtime_utils::HashRealTimeSelection::
+                 kHashRealTimeService ||
+         // The service is enabled when enhanced protection and
+         // kHashRealTimeOverOhttp are both enabled, because when this is true,
+         // Chrome needs to send HPRT requests over OHTTP when conducting the
+         // lookup mechanism experiment.
          (state == safe_browsing::SafeBrowsingState::ENHANCED_PROTECTION &&
-          base::FeatureList::IsEnabled(
-              safe_browsing::kSafeBrowsingLookupMechanismExperiment));
+          base::FeatureList::IsEnabled(safe_browsing::kHashRealTimeOverOhttp));
+}
+
+GURL GetKeyFetchingUrl() {
+  GURL url(kKeyFetchServerUrl);
+  std::string api_key = google_apis::GetAPIKey();
+  if (!api_key.empty()) {
+    url = url.Resolve("?key=" + base::EscapeQueryParamValue(api_key, true));
+  }
+  return url;
 }
 
 }  // namespace
@@ -138,22 +162,20 @@ OhttpKeyService::OhttpKeyService(
   PopulateKeyFromPref();
 
   pref_change_registrar_.Init(pref_service_);
-  pref_change_registrar_.Add(
-      prefs::kSafeBrowsingEnabled,
-      base::BindRepeating(&OhttpKeyService::OnSafeBrowsingStateChanged,
-                          weak_factory_.GetWeakPtr()));
-  pref_change_registrar_.Add(
-      prefs::kSafeBrowsingEnhanced,
-      base::BindRepeating(&OhttpKeyService::OnSafeBrowsingStateChanged,
-                          weak_factory_.GetWeakPtr()));
+  for (const char* pref :
+       hash_realtime_utils::GetHashRealTimeSelectionConfiguringPrefs()) {
+    pref_change_registrar_.Add(
+        pref, base::BindRepeating(&OhttpKeyService::OnConfiguringPrefsChanged,
+                                  weak_factory_.GetWeakPtr()));
+  }
 
-  SetEnabled(IsEnabled(*pref_service_));
+  SetEnabled(IsEnabled(pref_service_));
 }
 
 OhttpKeyService::~OhttpKeyService() = default;
 
-void OhttpKeyService::OnSafeBrowsingStateChanged() {
-  SetEnabled(IsEnabled(*pref_service_));
+void OhttpKeyService::OnConfiguringPrefsChanged() {
+  SetEnabled(IsEnabled(pref_service_));
 }
 
 void OhttpKeyService::SetEnabled(bool enable) {
@@ -188,7 +210,8 @@ void OhttpKeyService::GetOhttpKey(Callback callback) {
     return;
   }
 
-  StartFetch(std::move(callback));
+  StartFetch(std::move(callback),
+             FetchTriggerReason::kDuringHashRealTimeLookup);
 }
 
 void OhttpKeyService::NotifyLookupResponse(
@@ -217,7 +240,8 @@ void OhttpKeyService::NotifyLookupResponse(
     base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
         FROM_HERE,
         base::BindOnce(&OhttpKeyService::MaybeStartServerTriggeredFetch,
-                       weak_factory_.GetWeakPtr(), key),
+                       weak_factory_.GetWeakPtr(), key,
+                       FetchTriggerReason::kKeyRelatedHttpErrorCode),
         base::Seconds(base::RandInt(0, kServerTriggeredFetchMaxDelayTimeSec)));
     return;
   }
@@ -230,13 +254,18 @@ void OhttpKeyService::NotifyLookupResponse(
     base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
         FROM_HERE,
         base::BindOnce(&OhttpKeyService::MaybeStartServerTriggeredFetch,
-                       weak_factory_.GetWeakPtr(), key),
+                       weak_factory_.GetWeakPtr(), key,
+                       FetchTriggerReason::kKeyRotatedHeader),
         base::Seconds(base::RandInt(0, kServerTriggeredFetchMaxDelayTimeSec)));
     return;
   }
 }
 
-void OhttpKeyService::StartFetch(Callback callback) {
+void OhttpKeyService::StartFetch(Callback callback,
+                                 FetchTriggerReason trigger_reason) {
+  base::UmaHistogramEnumeration(
+      "SafeBrowsing.HPRT.OhttpKeyService.FetchKeyTriggerReason",
+      trigger_reason);
   bool in_backoff = backoff_operator_->IsInBackoffMode();
   base::UmaHistogramBoolean("SafeBrowsing.HPRT.OhttpKeyService.BackoffState",
                             in_backoff);
@@ -245,16 +274,14 @@ void OhttpKeyService::StartFetch(Callback callback) {
     return;
   }
 
-  if (callback) {
-    pending_callbacks_.AddUnsafe(std::move(callback));
-  }
+  pending_callbacks_.AddUnsafe(std::move(callback));
   // If url_loader_ is not null, that means a request is already in progress.
   // Will notify the callback when it is completed.
   if (url_loader_) {
     return;
   }
   auto resource_request = std::make_unique<network::ResourceRequest>();
-  resource_request->url = GURL(kKeyFetchServerUrl);
+  resource_request->url = GetKeyFetchingUrl();
   resource_request->credentials_mode = network::mojom::CredentialsMode::kOmit;
   url_loader_ = network::SimpleURLLoader::Create(std::move(resource_request),
                                                  kOhttpKeyTrafficAnnotation);
@@ -303,7 +330,8 @@ void OhttpKeyService::MaybeStartOrRescheduleAsyncFetch() {
 
   if (ShouldStartAsyncFetch()) {
     StartFetch(base::BindOnce(&OhttpKeyService::OnAsyncFetchCompleted,
-                              weak_factory_.GetWeakPtr()));
+                              weak_factory_.GetWeakPtr()),
+               FetchTriggerReason::kAsyncFetch);
   } else {
     async_fetch_timer_.Start(
         FROM_HERE, kAsyncFetchCheckInterval, this,
@@ -335,14 +363,16 @@ bool OhttpKeyService::ShouldStartAsyncFetch() {
                             base::Time::Now() + kKeyCloseToExpirationThreshold;
 }
 
-void OhttpKeyService::MaybeStartServerTriggeredFetch(std::string previous_key) {
+void OhttpKeyService::MaybeStartServerTriggeredFetch(
+    std::string previous_key,
+    FetchTriggerReason trigger_reason) {
   server_triggered_fetch_scheduled_ = false;
   if (ohttp_key_ && ohttp_key_->key != previous_key) {
     // The key has already been updated, no action needed.
     return;
   }
 
-  StartFetch(base::NullCallback());
+  StartFetch(base::DoNothing(), trigger_reason);
 }
 
 void OhttpKeyService::PopulateKeyFromPref() {

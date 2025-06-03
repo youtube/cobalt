@@ -16,6 +16,7 @@
 #include "third_party/blink/renderer/platform/scheduler/public/frame_scheduler.h"
 #include "third_party/blink/renderer/platform/scheduler/public/page_scheduler.h"
 #include "third_party/blink/renderer/platform/scheduler/public/thread_scheduler.h"
+#include "third_party/blink/renderer/platform/scheduler/public/web_scheduling_task_queue.h"
 #include "third_party/blink/renderer/platform/scheduler/test/fake_task_runner.h"
 #include "third_party/blink/renderer/platform/testing/scoped_scheduler_overrider.h"
 
@@ -121,12 +122,13 @@ class IdleTaskControllerFrameScheduler : public FrameScheduler {
     return WebScopedVirtualTimePauser();
   }
   void DidStartProvisionalLoad() override {}
-  void DidCommitProvisionalLoad(bool, FrameScheduler::NavigationType) override {
-  }
+  void DidCommitProvisionalLoad(bool,
+                                FrameScheduler::NavigationType,
+                                DidCommitProvisionalLoadParams) override {}
   void OnFirstContentfulPaintInMainFrame() override {}
   void OnMainFrameInteractive() override {}
-  void OnFirstMeaningfulPaint() override {}
-  void OnLoad() override {}
+  void OnFirstMeaningfulPaint(base::TimeTicks timestamp) override {}
+  void OnDispatchLoadEvent() override {}
   bool IsExemptFromBudgetBasedThrottling() const override { return false; }
   std::unique_ptr<blink::mojom::blink::PauseSubresourceLoadingHandle>
   GetPauseSubresourceLoadingHandle() override {

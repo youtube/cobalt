@@ -5,9 +5,9 @@
 #ifndef SERVICES_NETWORK_SHARED_DICTIONARY_SHARED_DICTIONARY_WRITER_ON_DISK_H_
 #define SERVICES_NETWORK_SHARED_DICTIONARY_SHARED_DICTIONARY_WRITER_ON_DISK_H_
 
+#include <deque>
 #include <set>
 #include <string>
-#include <vector>
 
 #include "base/component_export.h"
 #include "base/functional/callback.h"
@@ -39,15 +39,14 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) SharedDictionaryWriterOnDisk
     kErrorWriteDataFailed,
     kErrorAborted,
     kErrorSizeZero,
+    kErrorSizeExceedsLimit,
   };
-  using FinishCallback =
-      base::OnceCallback<void(Result result,
-                              size_t size,
-                              const net::SHA256HashValue& hash,
-                              const base::UnguessableToken& cache_key_token)>;
+  using FinishCallback = base::OnceCallback<
+      void(Result result, size_t size, const net::SHA256HashValue& hash)>;
   // `callback` is called when the entire dictionary binary has been stored to
   // the disk cache, or when an error occurs.
   SharedDictionaryWriterOnDisk(
+      const base::UnguessableToken& token,
       FinishCallback callback,
       base::WeakPtr<SharedDictionaryDiskCache> disk_cahe);
   void Initialize();
@@ -69,17 +68,17 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) SharedDictionaryWriterOnDisk
 
   void MaybeFinish();
 
+  const base::UnguessableToken token_;
   FinishCallback callback_;
   base::WeakPtr<SharedDictionaryDiskCache> disk_cahe_;
   std::unique_ptr<crypto::SecureHash> secure_hash_;
-  const base::UnguessableToken token_;
 
   size_t total_size_ = 0;
   size_t written_size_ = 0;
 
   State state_ = State::kBeforeInitialize;
   disk_cache::ScopedEntryPtr entry_;
-  std::vector<scoped_refptr<net::StringIOBuffer>> pending_write_buffers_;
+  std::deque<scoped_refptr<net::StringIOBuffer>> pending_write_buffers_;
 
   int offset_ = 0;
   bool finish_called_ = false;

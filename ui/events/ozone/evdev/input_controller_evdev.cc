@@ -72,6 +72,9 @@ void InputControllerEvdev::SetInputDeviceFactory(
 void InputControllerEvdev::set_has_mouse(bool has_mouse) {
   has_mouse_ = has_mouse;
 }
+void InputControllerEvdev::set_any_keys_pressed(bool any) {
+  any_keys_are_pressed_ = any;
+}
 
 void InputControllerEvdev::set_has_pointing_stick(bool has_pointing_stick) {
   has_pointing_stick_ = has_pointing_stick;
@@ -88,6 +91,10 @@ void InputControllerEvdev::set_has_haptic_touchpad(bool has_haptic_touchpad) {
 void InputControllerEvdev::SetInputDevicesEnabled(bool enabled) {
   input_device_settings_.enable_devices = enabled;
   ScheduleUpdateDeviceSettings();
+}
+
+void InputControllerEvdev::DisableKeyboardImposterCheck() {
+  input_device_factory_->DisableKeyboardImposterCheck();
 }
 
 bool InputControllerEvdev::HasMouse() {
@@ -368,6 +375,15 @@ void InputControllerEvdev::GetTouchEventLog(const base::FilePath& out_dir,
     std::move(reply).Run(std::vector<base::FilePath>());
 }
 
+void InputControllerEvdev::DescribeForLog(
+    InputController::DescribeForLogReply reply) const {
+  if (input_device_factory_) {
+    input_device_factory_->DescribeForLog(std::move(reply));
+  } else {
+    std::move(reply).Run(std::string());
+  }
+}
+
 void InputControllerEvdev::GetGesturePropertiesService(
     mojo::PendingReceiver<ozone::mojom::GesturePropertiesService> receiver) {
   if (input_device_factory_)
@@ -438,6 +454,10 @@ void InputControllerEvdev::OnInputDeviceRemoved(int device_id) {
     pointing_stick_button_map_->RemoveDeviceFromSettings(device_id);
   }
   ScheduleUpdateDeviceSettings();
+}
+
+bool InputControllerEvdev::AreAnyKeysPressed() {
+  return any_keys_are_pressed_;
 }
 
 }  // namespace ui

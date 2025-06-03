@@ -23,17 +23,18 @@
 #include "components/autofill/core/browser/data_model/credit_card.h"
 #include "components/autofill/core/browser/payments/account_info_getter.h"
 #include "components/autofill/core/browser/payments/client_behavior_constants.h"
-#include "components/autofill/core/browser/payments/local_card_migration_manager.h"
 #include "components/autofill/core/browser/payments/payments_requests/get_details_for_enrollment_request.h"
+#include "components/autofill/core/browser/payments/payments_requests/get_iban_upload_details_request.h"
 #include "components/autofill/core/browser/payments/payments_requests/get_unmask_details_request.h"
 #include "components/autofill/core/browser/payments/payments_requests/get_upload_details_request.h"
-#include "components/autofill/core/browser/payments/payments_requests/migrate_cards_request.h"
 #include "components/autofill/core/browser/payments/payments_requests/opt_change_request.h"
 #include "components/autofill/core/browser/payments/payments_requests/payments_request.h"
 #include "components/autofill/core/browser/payments/payments_requests/select_challenge_option_request.h"
 #include "components/autofill/core/browser/payments/payments_requests/unmask_card_request.h"
+#include "components/autofill/core/browser/payments/payments_requests/unmask_iban_request.h"
 #include "components/autofill/core/browser/payments/payments_requests/update_virtual_card_enrollment_request.h"
 #include "components/autofill/core/browser/payments/payments_requests/upload_card_request.h"
+#include "components/autofill/core/browser/payments/payments_requests/upload_iban_request.h"
 #include "components/autofill/core/browser/payments/payments_service_url.h"
 #include "components/autofill/core/common/autofill_features.h"
 #include "components/autofill/core/common/autofill_payments_features.h"
@@ -50,6 +51,11 @@
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "services/network/public/cpp/simple_url_loader.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
+
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+#include "components/autofill/core/browser/payments/local_card_migration_manager.h"
+#include "components/autofill/core/browser/payments/payments_requests/migrate_cards_request.h"
+#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 
 namespace autofill::payments {
 
@@ -79,11 +85,14 @@ GURL GetRequestUrl(const std::string& path) {
 
 }  // namespace
 
-const char PaymentsClient::kRecipientName[] = "recipient_name";
-const char PaymentsClient::kPhoneNumber[] = "phone_number";
-
 PaymentsClient::UnmaskDetails::UnmaskDetails() = default;
-PaymentsClient::UnmaskDetails::~UnmaskDetails() = default;
+
+PaymentsClient::UnmaskDetails::UnmaskDetails(const UnmaskDetails& other) {
+  *this = other;
+}
+
+PaymentsClient::UnmaskDetails::UnmaskDetails(UnmaskDetails&&) = default;
+
 PaymentsClient::UnmaskDetails& PaymentsClient::UnmaskDetails::operator=(
     const PaymentsClient::UnmaskDetails& other) {
   unmask_auth_method = other.unmask_auth_method;
@@ -96,6 +105,11 @@ PaymentsClient::UnmaskDetails& PaymentsClient::UnmaskDetails::operator=(
   fido_eligible_card_ids = other.fido_eligible_card_ids;
   return *this;
 }
+
+PaymentsClient::UnmaskDetails& PaymentsClient::UnmaskDetails::operator=(
+    UnmaskDetails&&) = default;
+
+PaymentsClient::UnmaskDetails::~UnmaskDetails() = default;
 
 PaymentsClient::UnmaskRequestDetails::UnmaskRequestDetails() = default;
 PaymentsClient::UnmaskRequestDetails::UnmaskRequestDetails(
@@ -118,6 +132,7 @@ PaymentsClient::UnmaskRequestDetails::operator=(
   otp = other.otp;
   last_committed_primary_main_frame_origin =
       other.last_committed_primary_main_frame_origin;
+  merchant_domain_for_footprints = other.merchant_domain_for_footprints;
   selected_challenge_option = other.selected_challenge_option;
   client_behavior_signals = other.client_behavior_signals;
   return *this;
@@ -125,26 +140,46 @@ PaymentsClient::UnmaskRequestDetails::operator=(
 PaymentsClient::UnmaskRequestDetails::~UnmaskRequestDetails() = default;
 
 PaymentsClient::UnmaskResponseDetails::UnmaskResponseDetails() = default;
+
 PaymentsClient::UnmaskResponseDetails::UnmaskResponseDetails(
     const UnmaskResponseDetails& other) {
   *this = other;
 }
-PaymentsClient::UnmaskResponseDetails::~UnmaskResponseDetails() = default;
+
+PaymentsClient::UnmaskResponseDetails::UnmaskResponseDetails(
+    UnmaskResponseDetails&&) = default;
+
 PaymentsClient::UnmaskResponseDetails&
 PaymentsClient::UnmaskResponseDetails::operator=(
-    const PaymentsClient::UnmaskResponseDetails& other) {
+    const UnmaskResponseDetails& other) {
   real_pan = other.real_pan;
+  dcvv = other.dcvv;
+  expiration_month = other.expiration_month;
+  expiration_year = other.expiration_year;
   if (other.fido_request_options.has_value()) {
     fido_request_options = other.fido_request_options->Clone();
   } else {
     fido_request_options.reset();
   }
-  card_unmask_challenge_options = other.card_unmask_challenge_options;
   card_authorization_token = other.card_authorization_token;
-  flow_status = other.flow_status;
+  card_unmask_challenge_options = other.card_unmask_challenge_options;
   context_token = other.context_token;
+  flow_status = other.flow_status;
+  card_type = other.card_type;
+  autofill_error_dialog_context = other.autofill_error_dialog_context;
   return *this;
 }
+
+PaymentsClient::UnmaskResponseDetails&
+PaymentsClient::UnmaskResponseDetails::operator=(UnmaskResponseDetails&&) =
+    default;
+
+PaymentsClient::UnmaskResponseDetails::~UnmaskResponseDetails() = default;
+
+PaymentsClient::UnmaskIbanRequestDetails::UnmaskIbanRequestDetails() = default;
+PaymentsClient::UnmaskIbanRequestDetails::UnmaskIbanRequestDetails(
+    const UnmaskIbanRequestDetails& other) = default;
+PaymentsClient::UnmaskIbanRequestDetails::~UnmaskIbanRequestDetails() = default;
 
 PaymentsClient::OptChangeRequestDetails::OptChangeRequestDetails() = default;
 PaymentsClient::OptChangeRequestDetails::OptChangeRequestDetails(
@@ -182,6 +217,11 @@ PaymentsClient::UploadRequestDetails::UploadRequestDetails() = default;
 PaymentsClient::UploadRequestDetails::UploadRequestDetails(
     const UploadRequestDetails& other) = default;
 PaymentsClient::UploadRequestDetails::~UploadRequestDetails() = default;
+
+PaymentsClient::UploadIbanRequestDetails::UploadIbanRequestDetails() = default;
+PaymentsClient::UploadIbanRequestDetails::UploadIbanRequestDetails(
+    const UploadIbanRequestDetails& other) = default;
+PaymentsClient::UploadIbanRequestDetails::~UploadIbanRequestDetails() = default;
 
 PaymentsClient::MigrationRequestDetails::MigrationRequestDetails() = default;
 PaymentsClient::MigrationRequestDetails::MigrationRequestDetails(
@@ -251,20 +291,28 @@ void PaymentsClient::GetUnmaskDetails(
                             PaymentsClient::UnmaskDetails&)> callback,
     const std::string& app_locale) {
   IssueRequest(std::make_unique<GetUnmaskDetailsRequest>(
-                   std::move(callback), app_locale,
-                   account_info_getter_->IsSyncFeatureEnabled()),
-               /*authenticate=*/true);
+      std::move(callback), app_locale,
+      account_info_getter_->IsSyncFeatureEnabledForPaymentsServerMetrics()));
 }
 
 void PaymentsClient::UnmaskCard(
     const PaymentsClient::UnmaskRequestDetails& request_details,
     base::OnceCallback<void(AutofillClient::PaymentsRpcResult,
                             PaymentsClient::UnmaskResponseDetails&)> callback) {
-  IssueRequest(
-      std::make_unique<UnmaskCardRequest>(
-          request_details, account_info_getter_->IsSyncFeatureEnabled(),
-          std::move(callback)),
-      /*authenticate=*/true);
+  IssueRequest(std::make_unique<UnmaskCardRequest>(
+      request_details,
+      account_info_getter_->IsSyncFeatureEnabledForPaymentsServerMetrics(),
+      std::move(callback)));
+}
+
+void PaymentsClient::UnmaskIban(
+    const UnmaskIbanRequestDetails& request_details,
+    base::OnceCallback<void(AutofillClient::PaymentsRpcResult,
+                            const std::u16string&)> callback) {
+  IssueRequest(std::make_unique<UnmaskIbanRequest>(
+      request_details,
+      account_info_getter_->IsSyncFeatureEnabledForPaymentsServerMetrics(),
+      std::move(callback)));
 }
 
 void PaymentsClient::OptChange(
@@ -273,9 +321,8 @@ void PaymentsClient::OptChange(
                             PaymentsClient::OptChangeResponseDetails&)>
         callback) {
   IssueRequest(std::make_unique<OptChangeRequest>(
-                   request_details, std::move(callback),
-                   account_info_getter_->IsSyncFeatureEnabled()),
-               /*authenticate=*/true);
+      request_details, std::move(callback),
+      account_info_getter_->IsSyncFeatureEnabledForPaymentsServerMetrics()));
 }
 
 void PaymentsClient::GetUploadDetails(
@@ -291,43 +338,62 @@ void PaymentsClient::GetUploadDetails(
     const int64_t billing_customer_number,
     UploadCardSource upload_card_source) {
   IssueRequest(std::make_unique<GetUploadDetailsRequest>(
-                   addresses, detected_values, client_behavior_signals,
-                   account_info_getter_->IsSyncFeatureEnabled(), app_locale,
-                   std::move(callback), billable_service_number,
-                   billing_customer_number, upload_card_source),
-               /*authenticate=*/base::FeatureList::IsEnabled(
-                   features::kAutofillUpstreamAuthenticatePreflightCall));
+      addresses, detected_values, client_behavior_signals,
+      account_info_getter_->IsSyncFeatureEnabledForPaymentsServerMetrics(),
+      app_locale, std::move(callback), billable_service_number,
+      billing_customer_number, upload_card_source));
 }
 
 void PaymentsClient::UploadCard(
     const PaymentsClient::UploadRequestDetails& request_details,
     base::OnceCallback<void(AutofillClient::PaymentsRpcResult,
                             const UploadCardResponseDetails&)> callback) {
-  IssueRequest(
-      std::make_unique<UploadCardRequest>(
-          request_details, account_info_getter_->IsSyncFeatureEnabled(),
-          std::move(callback)),
-      /*authenticate=*/true);
+  IssueRequest(std::make_unique<UploadCardRequest>(
+      request_details,
+      account_info_getter_->IsSyncFeatureEnabledForPaymentsServerMetrics(),
+      std::move(callback)));
 }
 
+void PaymentsClient::GetIbanUploadDetails(
+    const std::string& app_locale,
+    int64_t billing_customer_number,
+    int billable_service_number,
+    base::OnceCallback<void(AutofillClient::PaymentsRpcResult,
+                            const std::u16string&,
+                            std::unique_ptr<base::Value::Dict>)> callback) {
+  IssueRequest(std::make_unique<GetIbanUploadDetailsRequest>(
+      account_info_getter_->IsSyncFeatureEnabledForPaymentsServerMetrics(),
+      app_locale, billing_customer_number, billable_service_number,
+      std::move(callback)));
+}
+
+void PaymentsClient::UploadIban(
+    const UploadIbanRequestDetails& details,
+    base::OnceCallback<void(AutofillClient::PaymentsRpcResult)> callback) {
+  IssueRequest(std::make_unique<UploadIbanRequest>(
+      details,
+      account_info_getter_->IsSyncFeatureEnabledForPaymentsServerMetrics(),
+      std::move(callback)));
+}
+
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 void PaymentsClient::MigrateCards(
     const MigrationRequestDetails& request_details,
     const std::vector<MigratableCreditCard>& migratable_credit_cards,
     MigrateCardsCallback callback) {
-  IssueRequest(
-      std::make_unique<MigrateCardsRequest>(
-          request_details, migratable_credit_cards,
-          account_info_getter_->IsSyncFeatureEnabled(), std::move(callback)),
-      /*authenticate=*/true);
+  IssueRequest(std::make_unique<MigrateCardsRequest>(
+      request_details, migratable_credit_cards,
+      account_info_getter_->IsSyncFeatureEnabledForPaymentsServerMetrics(),
+      std::move(callback)));
 }
+#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 
 void PaymentsClient::SelectChallengeOption(
     const SelectChallengeOptionRequestDetails& request_details,
     base::OnceCallback<void(AutofillClient::PaymentsRpcResult,
                             const std::string&)> callback) {
   IssueRequest(std::make_unique<SelectChallengeOptionRequest>(
-                   request_details, std::move(callback)),
-               /*authenticate=*/true);
+      request_details, std::move(callback)));
 }
 
 void PaymentsClient::GetVirtualCardEnrollmentDetails(
@@ -337,16 +403,14 @@ void PaymentsClient::GetVirtualCardEnrollmentDetails(
                                 GetDetailsForEnrollmentResponseDetails&)>
         callback) {
   IssueRequest(std::make_unique<GetDetailsForEnrollmentRequest>(
-                   request_details, std::move(callback)),
-               /*authenticate=*/true);
+      request_details, std::move(callback)));
 }
 
 void PaymentsClient::UpdateVirtualCardEnrollment(
     const UpdateVirtualCardEnrollmentRequestDetails& request_details,
     base::OnceCallback<void(AutofillClient::PaymentsRpcResult)> callback) {
   IssueRequest(std::make_unique<UpdateVirtualCardEnrollmentRequest>(
-                   request_details, std::move(callback)),
-               /*authenticate=*/true);
+      request_details, std::move(callback)));
 }
 
 void PaymentsClient::CancelRequest() {
@@ -363,16 +427,17 @@ void PaymentsClient::set_url_loader_factory_for_testing(
   url_loader_factory_ = std::move(url_loader_factory);
 }
 
-void PaymentsClient::IssueRequest(std::unique_ptr<PaymentsRequest> request,
-                                  bool authenticate) {
+void PaymentsClient::set_access_token_for_testing(std::string access_token) {
+  access_token_ = access_token;
+}
+
+void PaymentsClient::IssueRequest(std::unique_ptr<PaymentsRequest> request) {
   request_ = std::move(request);
   has_retried_authorization_ = false;
 
   InitializeResourceRequest();
 
-  if (!authenticate) {
-    StartRequest();
-  } else if (access_token_.empty()) {
+  if (access_token_.empty()) {
     StartTokenFetch(false);
   } else {
     SetOAuth2TokenAndStartRequest();
@@ -542,14 +607,12 @@ void PaymentsClient::StartTokenFetch(bool invalidate_old) {
 }
 
 void PaymentsClient::SetOAuth2TokenAndStartRequest() {
+  // Set OAuth2 token:
   DCHECK(resource_request_);
   resource_request_->headers.SetHeader(net::HttpRequestHeaders::kAuthorization,
                                        std::string("Bearer ") + access_token_);
-  StartRequest();
-}
 
-void PaymentsClient::StartRequest() {
-  DCHECK(resource_request_);
+  // Start request:
   net::NetworkTrafficAnnotationTag traffic_annotation =
       net::DefineNetworkTrafficAnnotation("payments_sync_cards", R"(
         semantics {

@@ -1,4 +1,4 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -22,12 +22,11 @@ class GURL;
 - (instancetype)initWithParams:(UIImage*)image
                          title:(NSString*)title
                       subtitle:(NSString*)subtitle
-            primaryActionTitle:(NSString*)primaryAction
+            primaryActionTitle:(NSString*)primaryActionTitle
               instructionSteps:(NSArray<NSString*>*)instructionSteps
-              hasPrimaryAction:(BOOL)hasPrimaryAction
                           type:(WhatsNewType)type
+                 primaryAction:(WhatsNewPrimaryAction)primaryAction
                   learnMoreURL:(const GURL&)learnMoreURL
-            hasLearnMoreAction:(BOOL)hasLearnMoreAction
     NS_DESIGNATED_INITIALIZER;
 
 - (instancetype)initWithNibName:(NSString*)nibNameOrNil
@@ -39,7 +38,7 @@ class GURL;
 // The delegate object that manages interactions with the primary action.
 @property(nonatomic, weak) id<WhatsNewDetailViewActionHandler> actionHandler;
 
-// The delegate object to the main coordinator (`WhatsNewCoordinator`).
+// The delegate object to this coordinator's parent.
 @property(nonatomic, weak) id<WhatsNewDetailViewDelegate> delegate;
 
 @end

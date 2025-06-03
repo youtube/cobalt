@@ -49,12 +49,12 @@ LockScreenMediaControlsView* LockContentsViewTestApi::media_controls_view()
   return view_->media_controls_view_;
 }
 
-views::View* LockContentsViewTestApi::note_action() const {
-  return view_->note_action_;
+LockScreenMediaView* LockContentsViewTestApi::media_view() const {
+  return view_->media_view_;
 }
 
-views::View* LockContentsViewTestApi::tooltip_bubble() const {
-  return view_->tooltip_bubble_;
+views::View* LockContentsViewTestApi::note_action() const {
+  return view_->note_action_;
 }
 
 views::View* LockContentsViewTestApi::management_bubble() const {

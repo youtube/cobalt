@@ -32,13 +32,18 @@ NO_EVENT_MARKER_EXCEPTIONS_LIST = sorted([
     "glInsertEventMarkerEXT",
 ])
 
-# glRenderbufferStorageMultisampleEXT aliases glRenderbufferStorageMultisample on desktop GL, and is
-# marked as such in the registry.  However, that is not correct for GLES where this entry point
-# comes from GL_EXT_multisampled_render_to_texture which is never promoted to core GLES.
 ALIASING_EXCEPTIONS = [
-    'glRenderbufferStorageMultisampleEXT', 'renderbufferStorageMultisampleEXT',
-    'drawArraysInstancedBaseInstanceANGLE', 'drawElementsInstancedBaseVertexBaseInstanceANGLE',
-    'glLogicOpANGLE', 'logicOpANGLE'
+    # glRenderbufferStorageMultisampleEXT aliases
+    # glRenderbufferStorageMultisample on desktop GL, and is marked as such in
+    # the registry.  However, that is not correct for GLES where this entry
+    # point comes from GL_EXT_multisampled_render_to_texture which is never
+    # promoted to core GLES.
+    'renderbufferStorageMultisampleEXT',
+    # Other entry points where the extension behavior is not identical to core
+    # behavior.
+    'drawArraysInstancedBaseInstanceANGLE',
+    'drawElementsInstancedBaseVertexBaseInstanceANGLE',
+    'logicOpANGLE',
 ]
 
 # These are the entry points which potentially are used first by an application
@@ -105,6 +110,7 @@ PLS_ALLOW_WILDCARDS = [
     "DebugMessageCallback*",
     "DebugMessageControl*",
     "DebugMessageInsert*",
+    "Delete*",
     "Disablei*",
     "DrawArrays*",
     "DrawElements*",
@@ -122,6 +128,104 @@ PLS_ALLOW_WILDCARDS = [
     "TexParameter*",
     "Uniform*",
     "VertexAttrib*",
+]
+
+# These are the entry points which purely set state in the current context with
+# no interaction with the other contexts, including through shared resources.
+# As a result, they don't require the share group lock.
+CONTEXT_PRIVATE_LIST = [
+    'glActiveTexture',
+    'glBlendColor',
+    'glClearColor',
+    'glClearDepthf',
+    'glClearStencil',
+    'glClipControl',
+    'glColorMask',
+    'glColorMaski',
+    'glCoverageModulation',
+    'glCullFace',
+    'glDepthFunc',
+    'glDepthMask',
+    'glDepthRangef',
+    'glDisable',
+    'glDisablei',
+    'glEnable',
+    'glEnablei',
+    'glFrontFace',
+    'glHint',
+    'glIsEnabled',
+    'glIsEnabledi',
+    'glLineWidth',
+    'glLogicOpANGLE',
+    'glMinSampleShading',
+    'glPatchParameteri',
+    'glPixelStorei',
+    'glPolygonMode',
+    'glPolygonModeNV',
+    'glPolygonOffset',
+    'glPolygonOffsetClamp',
+    'glPrimitiveBoundingBox',
+    'glProvokingVertex',
+    'glSampleCoverage',
+    'glSampleMaski',
+    'glScissor',
+    'glShadingRate',
+    'glStencilFunc',
+    'glStencilFuncSeparate',
+    'glStencilMask',
+    'glStencilMaskSeparate',
+    'glStencilOp',
+    'glStencilOpSeparate',
+    'glViewport',
+    # GLES1 entry points
+    'glAlphaFunc',
+    'glAlphaFuncx',
+    'glClearColorx',
+    'glClearDepthx',
+    'glColor4f',
+    'glColor4ub',
+    'glColor4x',
+    'glDepthRangex',
+    'glLineWidthx',
+    'glLoadIdentity',
+    'glLogicOp',
+    'glMatrixMode',
+    'glPointSize',
+    'glPointSizex',
+    'glPopMatrix',
+    'glPolygonOffsetx',
+    'glPushMatrix',
+    'glSampleCoveragex',
+    'glShadeModel',
+]
+CONTEXT_PRIVATE_WILDCARDS = [
+    'glBlendFunc*',
+    'glBlendEquation*',
+    'glVertexAttrib[1-4]*',
+    'glVertexAttribI[1-4]*',
+    'glVertexAttribP[1-4]*',
+    'glVertexAttribL[1-4]*',
+    # GLES1 entry points
+    'glClipPlane[fx]',
+    'glGetClipPlane[fx]',
+    'glFog[fx]*',
+    'glFrustum[fx]',
+    'glGetLight[fx]v',
+    'glGetMaterial[fx]v',
+    'glGetTexEnv[fix]v',
+    'glLoadMatrix[fx]',
+    'glLight[fx]*',
+    'glLightModel[fx]*',
+    'glMaterial[fx]*',
+    'glMultMatrix[fx]',
+    'glMultiTexCoord4[fx]',
+    'glNormal3[fx]',
+    'glOrtho[fx]',
+    'glPointParameter[fx]*',
+    'glRotate[fx]',
+    'glScale[fx]',
+    'glTexEnv[fix]*',
+    'glTranslate[fx]',
 ]
 
 TEMPLATE_ENTRY_POINT_HEADER = """\
@@ -259,6 +363,30 @@ void GL_APIENTRY GL_{name}({params})
     {{
         {constext_lost_error_generator}
     }}
+    {epilog}
+}}
+"""
+
+TEMPLATE_GLES_CONTEXT_PRIVATE_ENTRY_POINT_NO_RETURN = """\
+void GL_APIENTRY GL_{name}({params})
+{{
+    Context *context = {context_getter};
+    {event_comment}EVENT(context, GL{name}, "context = %d{comma_if_needed}{format_params}", CID(context){comma_if_needed}{pass_params});
+
+    if ({valid_context_check})
+    {{{packed_gl_enum_conversions}
+        bool isCallValid = (context->skipValidation() || {validation_expression});
+        if (isCallValid)
+        {{
+            ContextPrivate{name_no_suffix}({context_private_internal_params});
+        }}
+        ANGLE_CAPTURE_GL({name}, isCallValid, {gl_capture_params});
+    }}
+    else
+    {{
+        {constext_lost_error_generator}
+    }}
+    ASSERT(!egl::Display::GetCurrentThreadUnlockedTailCall()->any());
 }}
 """
 
@@ -280,7 +408,7 @@ TEMPLATE_GLES_ENTRY_POINT_WITH_RETURN = """\
         else
         {{
             returnValue = GetDefaultReturnValue<angle::EntryPoint::GL{name}, {return_type}>();
-    }}
+        }}
         ANGLE_CAPTURE_GL({name}, isCallValid, {gl_capture_params}, returnValue);
     }}
     else
@@ -288,6 +416,37 @@ TEMPLATE_GLES_ENTRY_POINT_WITH_RETURN = """\
         {constext_lost_error_generator}
         returnValue = GetDefaultReturnValue<angle::EntryPoint::GL{name}, {return_type}>();
     }}
+    {epilog}
+    return returnValue;
+}}
+"""
+
+TEMPLATE_GLES_CONTEXT_PRIVATE_ENTRY_POINT_WITH_RETURN = """\
+{return_type} GL_APIENTRY GL_{name}({params})
+{{
+    Context *context = {context_getter};
+    {event_comment}EVENT(context, GL{name}, "context = %d{comma_if_needed}{format_params}", CID(context){comma_if_needed}{pass_params});
+
+    {return_type} returnValue;
+    if ({valid_context_check})
+    {{{packed_gl_enum_conversions}
+        bool isCallValid = (context->skipValidation() || {validation_expression});
+        if (isCallValid)
+        {{
+            returnValue = ContextPrivate{name_no_suffix}({context_private_internal_params});
+        }}
+        else
+        {{
+            returnValue = GetDefaultReturnValue<angle::EntryPoint::GL{name}, {return_type}>();
+        }}
+        ANGLE_CAPTURE_GL({name}, isCallValid, {gl_capture_params}, returnValue);
+    }}
+    else
+    {{
+        {constext_lost_error_generator}
+        returnValue = GetDefaultReturnValue<angle::EntryPoint::GL{name}, {return_type}>();
+    }}
+    ASSERT(!egl::Display::GetCurrentThreadUnlockedTailCall()->any());
     return returnValue;
 }}
 """
@@ -303,18 +462,16 @@ void EGLAPIENTRY EGL_{name}({params})
 
         {packed_gl_enum_conversions}
 
-        ANGLE_EGL_VALIDATE_VOID(thread, {name}, {labeled_object}, {internal_params});
+        {{
+            ANGLE_EGL_SCOPED_CONTEXT_LOCK({name}, thread{comma_if_needed_context_lock}{internal_context_lock_params});
+            ANGLE_EGL_VALIDATE_VOID(thread, {name}, {labeled_object}, {internal_params});
 
-        {name}(thread{comma_if_needed}{internal_params});
+            {name}(thread{comma_if_needed}{internal_params});
+        }}
+
         ANGLE_CAPTURE_EGL({name}, true, {egl_capture_params});
     }}
-}}
-"""
-
-TEMPLATE_EGL_ENTRY_POINT_NO_RETURN_CUSTOM = """\
-void EGLAPIENTRY EGL_{name}({params})
-{{
-    {name}({internal_params});
+    {epilog}
 }}
 """
 
@@ -330,19 +487,17 @@ TEMPLATE_EGL_ENTRY_POINT_WITH_RETURN = """\
 
         {packed_gl_enum_conversions}
 
-        ANGLE_EGL_VALIDATE(thread, {name}, {labeled_object}, {return_type}{comma_if_needed}{internal_params});
+        {{
+            ANGLE_EGL_SCOPED_CONTEXT_LOCK({name}, thread{comma_if_needed_context_lock}{internal_context_lock_params});
+            ANGLE_EGL_VALIDATE(thread, {name}, {labeled_object}, {return_type}{comma_if_needed}{internal_params});
 
-        returnValue = {name}(thread{comma_if_needed}{internal_params});
+            returnValue = {name}(thread{comma_if_needed}{internal_params});
+        }}
+
         ANGLE_CAPTURE_EGL({name}, true, {egl_capture_params}, returnValue);
     }}
+    {epilog}
     return returnValue;
-}}
-"""
-
-TEMPLATE_EGL_ENTRY_POINT_WITH_RETURN_CUSTOM = """\
-{return_type} EGLAPIENTRY EGL_{name}({params})
-{{
-    return {name}({internal_params});
 }}
 """
 
@@ -542,6 +697,8 @@ TEMPLATE_GL_VALIDATION_HEADER = """\
 namespace gl
 {{
 class Context;
+class PrivateState;
+class ErrorSet;
 
 {prototypes}
 }}  // namespace gl
@@ -595,6 +752,54 @@ namespace egl
 }}  // namespace egl
 
 #endif  // LIBANGLE_VALIDATION_{annotation}_AUTOGEN_H_
+"""
+
+TEMPLATE_CONTEXT_PRIVATE_CALL_HEADER = """\
+// GENERATED FILE - DO NOT EDIT.
+// Generated by {script_name} using data from {data_source_name}.
+//
+// Copyright 2023 The ANGLE Project Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+//
+// context_private_call_{annotation}_autogen.h:
+//   Helpers that set/get state that is entirely privately accessed by the context.
+
+#ifndef LIBANGLE_CONTEXT_PRIVATE_CALL_{annotation}_AUTOGEN_H_
+#define LIBANGLE_CONTEXT_PRIVATE_CALL_{annotation}_AUTOGEN_H_
+
+#include "libANGLE/Context.h"
+
+namespace gl
+{{
+{prototypes}
+}}  // namespace gl
+
+#endif  // LIBANGLE_CONTEXT_PRIVATE_CALL_{annotation}_AUTOGEN_H_
+"""
+
+TEMPLATE_EGL_CONTEXT_LOCK_HEADER = """\
+// GENERATED FILE - DO NOT EDIT.
+// Generated by {script_name} using data from {data_source_name}.
+//
+// Copyright 2023 The ANGLE Project Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+//
+// {annotation_lower}_context_lock_autogen.h:
+//   Context Lock functions for the {comment} entry points.
+
+#ifndef LIBGLESV2_{annotation_upper}_CONTEXT_LOCK_AUTOGEN_H_
+#define LIBGLESV2_{annotation_upper}_CONTEXT_LOCK_AUTOGEN_H_
+
+#include "libGLESv2/global_state.h"
+
+namespace egl
+{{
+{prototypes}
+}}  // namespace egl
+
+#endif  // LIBGLESV2_{annotation_upper}_CONTEXT_LOCK_AUTOGEN_H_
 """
 
 TEMPLATE_CAPTURE_HEADER = """\
@@ -893,6 +1098,7 @@ TEMPLATE_SOURCES_INCLUDES = """\
 #include "common/gl_enum_utils.h"
 #include "libANGLE/Context.h"
 #include "libANGLE/Context.inl.h"
+#include "libANGLE/context_private_call_gles_autogen.h"
 #include "libANGLE/capture/capture_{header_version}_autogen.h"
 #include "libANGLE/validation{validation_header_version}.h"
 #include "libANGLE/entry_points_utils.h"
@@ -936,6 +1142,8 @@ TEMPLATE_DESKTOP_GL_SOURCE_INCLUDES = """\
 #include "common/gl_enum_utils.h"
 #include "libANGLE/Context.h"
 #include "libANGLE/Context.inl.h"
+#include "libANGLE/context_private_call_gles_autogen.h"
+#include "libANGLE/context_private_call_gl_autogen.h"
 #include "libANGLE/capture/capture_gl_{1}_autogen.h"
 #include "libANGLE/validationEGL.h"
 #include "libANGLE/validationES.h"
@@ -959,10 +1167,12 @@ EGL_HEADER_INCLUDES = """\
 
 EGL_SOURCE_INCLUDES = """\
 #include "libGLESv2/entry_points_egl_autogen.h"
+#include "libGLESv2/entry_points_egl_ext_autogen.h"
 
 #include "libANGLE/capture/capture_egl_autogen.h"
 #include "libANGLE/entry_points_utils.h"
 #include "libANGLE/validationEGL_autogen.h"
+#include "libGLESv2/egl_context_lock_impl.h"
 #include "libGLESv2/egl_stubs_autogen.h"
 #include "libGLESv2/egl_ext_stubs_autogen.h"
 #include "libGLESv2/global_state.h"
@@ -982,6 +1192,7 @@ EGL_EXT_SOURCE_INCLUDES = """\
 #include "libANGLE/capture/capture_egl_autogen.h"
 #include "libANGLE/entry_points_utils.h"
 #include "libANGLE/validationEGL_autogen.h"
+#include "libGLESv2/egl_context_lock_impl.h"
 #include "libGLESv2/egl_ext_stubs_autogen.h"
 #include "libGLESv2/global_state.h"
 
@@ -1081,6 +1292,10 @@ TEMPLATE_EVENT_COMMENT = """\
 TEMPLATE_CAPTURE_PROTO = "angle::CallCapture Capture%s(%s);"
 
 TEMPLATE_VALIDATION_PROTO = "%s Validate%s(%s);"
+
+TEMPLATE_CONTEXT_PRIVATE_CALL_PROTO = "%s ContextPrivate%s(%s);"
+
+TEMPLATE_CONTEXT_LOCK_PROTO = "ScopedContextMutexLock GetContextLock_%s(%s);"
 
 TEMPLATE_WINDOWS_DEF_FILE = """\
 ; GENERATED FILE - DO NOT EDIT.
@@ -1347,21 +1562,35 @@ CAPTURE_BLOCKLIST = ['eglGetProcAddress']
 
 
 def is_aliasing_excepted(api, cmd_name):
+    # For simplicity, strip the prefix gl and lower the case of the first
+    # letter.  This makes sure that all variants of the cmd_name that reach
+    # here end up looking similar for the sake of looking up in ALIASING_EXCEPTIONS
+    cmd_name = cmd_name[2:] if cmd_name.startswith('gl') else cmd_name
+    cmd_name = cmd_name[0].lower() + cmd_name[1:]
     return api == apis.GLES and cmd_name in ALIASING_EXCEPTIONS
 
 
 def is_allowed_with_active_pixel_local_storage(name):
     return name in PLS_ALLOW_LIST or any(
-        [fnmatch.fnmatchcase(name, x) for x in PLS_ALLOW_WILDCARDS])
+        [fnmatch.fnmatchcase(name, entry) for entry in PLS_ALLOW_WILDCARDS])
 
 
-def get_validation_expression(cmd_name, entry_point_name, internal_params):
+def is_context_private_state_command(api, name):
+    name = strip_suffix(api, name)
+    return name in CONTEXT_PRIVATE_LIST or any(
+        [fnmatch.fnmatchcase(name, entry) for entry in CONTEXT_PRIVATE_WILDCARDS])
+
+
+def get_validation_expression(api, cmd_name, entry_point_name, internal_params):
     name = strip_api_prefix(cmd_name)
+    private_params = ["context->getPrivateState()", "context->getMutableErrorSetForValidation()"]
+    extra_params = private_params if is_context_private_state_command(api,
+                                                                      cmd_name) else ["context"]
     expr = "Validate{name}({params})".format(
-        name=name, params=", ".join(["context", entry_point_name] + internal_params))
+        name=name, params=", ".join(extra_params + [entry_point_name] + internal_params))
     if not is_allowed_with_active_pixel_local_storage(name):
-        expr = "(ValidatePixelLocalStorageInactive(context, {entry_point_name}) && {expr})".format(
-            entry_point_name=entry_point_name, expr=expr)
+        expr = "(ValidatePixelLocalStorageInactive({extra_params}, {entry_point_name}) && {expr})".format(
+            extra_params=", ".join(private_params), entry_point_name=entry_point_name, expr=expr)
     return expr
 
 
@@ -1560,15 +1789,19 @@ def get_constext_lost_error_generator(cmd_name):
     return "GenerateContextLostErrorOnCurrentGlobalContext();"
 
 
+def strip_suffix_always(api, name):
+    for suffix in registry_xml.strip_suffixes:
+        if name.endswith(suffix):
+            name = name[0:-len(suffix)]
+    return name
+
+
 def strip_suffix(api, name):
     # For commands where aliasing is excepted, keep the suffix
     if is_aliasing_excepted(api, name):
         return name
 
-    for suffix in registry_xml.strip_suffixes:
-        if name.endswith(suffix):
-            name = name[0:-len(suffix)]
-    return name
+    return strip_suffix_always(api, name)
 
 
 def find_gl_enum_group_in_command(command_node, param_name):
@@ -1586,7 +1819,7 @@ def find_gl_enum_group_in_command(command_node, param_name):
 
 def get_packed_enums(api, cmd_packed_gl_enums, cmd_name, packed_param_types, params):
     # Always strip the suffix when querying packed enums.
-    result = cmd_packed_gl_enums.get(strip_suffix(api, cmd_name), {})
+    result = cmd_packed_gl_enums.get(strip_suffix_always(api, cmd_name), {})
     for param in params:
         param_type = just_the_type(param)
         if param_type in packed_param_types:
@@ -1594,31 +1827,28 @@ def get_packed_enums(api, cmd_packed_gl_enums, cmd_name, packed_param_types, par
     return result
 
 
-CUSTOM_EGL_ENTRY_POINTS = ["eglPrepareSwapBuffersANGLE"]
-
-
 def get_def_template(api, cmd_name, return_type, has_errcode_ret):
     if return_type == "void":
         if api == apis.EGL:
-            if cmd_name in CUSTOM_EGL_ENTRY_POINTS:
-                return TEMPLATE_EGL_ENTRY_POINT_NO_RETURN_CUSTOM
             return TEMPLATE_EGL_ENTRY_POINT_NO_RETURN
         elif api == apis.CL:
             return TEMPLATE_CL_ENTRY_POINT_NO_RETURN
+        elif is_context_private_state_command(api, cmd_name):
+            return TEMPLATE_GLES_CONTEXT_PRIVATE_ENTRY_POINT_NO_RETURN
         else:
             return TEMPLATE_GLES_ENTRY_POINT_NO_RETURN
     elif return_type == "cl_int":
         return TEMPLATE_CL_ENTRY_POINT_WITH_RETURN_ERROR
     else:
         if api == apis.EGL:
-            if cmd_name in CUSTOM_EGL_ENTRY_POINTS:
-                return TEMPLATE_EGL_ENTRY_POINT_WITH_RETURN_CUSTOM
             return TEMPLATE_EGL_ENTRY_POINT_WITH_RETURN
         elif api == apis.CL:
             if has_errcode_ret:
                 return TEMPLATE_CL_ENTRY_POINT_WITH_ERRCODE_RET
             else:
                 return TEMPLATE_CL_ENTRY_POINT_WITH_RETURN_POINTER
+        elif is_context_private_state_command(api, cmd_name):
+            return TEMPLATE_GLES_CONTEXT_PRIVATE_ENTRY_POINT_WITH_RETURN
         else:
             return TEMPLATE_GLES_ENTRY_POINT_WITH_RETURN
 
@@ -1626,15 +1856,18 @@ def get_def_template(api, cmd_name, return_type, has_errcode_ret):
 def format_entry_point_def(api, command_node, cmd_name, proto, params, cmd_packed_enums,
                            packed_param_types, ep_to_object):
     packed_enums = get_packed_enums(api, cmd_packed_enums, cmd_name, packed_param_types, params)
-    if cmd_name in CUSTOM_EGL_ENTRY_POINTS:
-        internal_params = [just_the_name(param) for param in params]
-    else:
-        internal_params = [just_the_name_packed(param, packed_enums) for param in params]
+    internal_params = [just_the_name_packed(param, packed_enums) for param in params]
     if internal_params and internal_params[-1] == "errcode_ret":
         internal_params.pop()
         has_errcode_ret = True
     else:
         has_errcode_ret = False
+
+    internal_context_lock_params = [
+        just_the_name_packed(param, packed_enums) for param in params if just_the_type_packed(
+            param, packed_enums) in ["Thread *", "egl::Display *", "gl::ContextID"] or
+        just_the_name_packed(param, packed_enums) in ["attribute"]
+    ]
 
     packed_gl_enum_conversions = []
 
@@ -1654,12 +1887,15 @@ def format_entry_point_def(api, command_node, cmd_name, proto, params, cmd_packe
     return_type = proto[:-len(cmd_name)].strip()
     initialization = "InitBackEnds(%s);\n" % INIT_DICT[cmd_name] if cmd_name in INIT_DICT else ""
     event_comment = TEMPLATE_EVENT_COMMENT if cmd_name in NO_EVENT_MARKER_EXCEPTIONS_LIST else ""
-    name_lower_no_suffix = strip_suffix(api, cmd_name[2:3].lower() + cmd_name[3:])
+    name_no_suffix = strip_suffix(api, cmd_name[2:])
+    name_lower_no_suffix = name_no_suffix[0:1].lower() + name_no_suffix[1:]
     entry_point_name = "angle::EntryPoint::GL" + strip_api_prefix(cmd_name)
 
     format_params = {
         "name":
             strip_api_prefix(cmd_name),
+        "name_no_suffix":
+            name_no_suffix,
         "name_lower_no_suffix":
             name_lower_no_suffix,
         "return_type":
@@ -1668,6 +1904,12 @@ def format_entry_point_def(api, command_node, cmd_name, proto, params, cmd_packe
             ", ".join(params),
         "internal_params":
             ", ".join(internal_params),
+        "context_private_internal_params":
+            ", ".join(
+                ["context->getMutablePrivateState()", "context->getMutablePrivateStateCache()"] +
+                internal_params),
+        "internal_context_lock_params":
+            ", ".join(internal_context_lock_params),
         "initialization":
             initialization,
         "packed_gl_enum_conversions":
@@ -1676,12 +1918,14 @@ def format_entry_point_def(api, command_node, cmd_name, proto, params, cmd_packe
             ", ".join(pass_params),
         "comma_if_needed":
             ", " if len(params) > 0 else "",
+        "comma_if_needed_context_lock":
+            ", " if len(internal_context_lock_params) > 0 else "",
         "gl_capture_params":
             ", ".join(["context"] + internal_params),
         "egl_capture_params":
             ", ".join(["thread"] + internal_params),
         "validation_expression":
-            get_validation_expression(cmd_name, entry_point_name, internal_params),
+            get_validation_expression(api, cmd_name, entry_point_name, internal_params),
         "format_params":
             ", ".join(format_params),
         "context_getter":
@@ -1697,7 +1941,9 @@ def format_entry_point_def(api, command_node, cmd_name, proto, params, cmd_packe
         "context_lock":
             get_context_lock(api, cmd_name),
         "preamble":
-            get_preamble(api, cmd_name, params)
+            get_preamble(api, cmd_name, params),
+        "epilog":
+            get_epilog(api, cmd_name),
     }
 
     template = get_def_template(api, cmd_name, return_type, has_errcode_ret)
@@ -1813,7 +2059,7 @@ def format_capture_method(api, command, cmd_name, proto, params, all_param_types
 
 def const_pointer_type(param, packed_gl_enums):
     type = just_the_type_packed(param, packed_gl_enums)
-    if just_the_name(param) == "errcode_ret" or "(" in type:
+    if just_the_name(param) == "errcode_ret" or type == "ErrorSet *" or "(" in type:
         return type
     elif "**" in type and "const" not in type:
         return type.replace("**", "* const *")
@@ -1841,6 +2087,31 @@ def get_validation_params(api, cmd_name, params, cmd_packed_gl_enums, packed_par
         make_param(
             const_pointer_type(param, packed_gl_enums),
             just_the_name_packed(param, packed_gl_enums)) for param in params[:last]
+    ])
+
+
+def get_context_private_call_params(api, cmd_name, params, cmd_packed_gl_enums,
+                                    packed_param_types):
+    packed_gl_enums = get_packed_enums(api, cmd_packed_gl_enums, cmd_name, packed_param_types,
+                                       params)
+    return ", ".join([
+        make_param(
+            just_the_type_packed(param, packed_gl_enums),
+            just_the_name_packed(param, packed_gl_enums)) for param in params
+    ])
+
+
+def get_context_lock_params(api, cmd_name, params, cmd_packed_gl_enums, packed_param_types):
+    packed_gl_enums = get_packed_enums(api, cmd_packed_gl_enums, cmd_name, packed_param_types,
+                                       params)
+    return ", ".join([
+        make_param(
+            just_the_type_packed(param, packed_gl_enums),
+            just_the_name_packed(param, packed_gl_enums))
+        for param in params
+        if just_the_type_packed(
+            param, packed_gl_enums) in ["Thread *", "egl::Display *", "gl::ContextID"] or
+        just_the_name_packed(param, packed_gl_enums) in ["attribute"]
     ])
 
 
@@ -1873,13 +2144,16 @@ def format_entry_point_export(cmd_name, proto, params, template):
         internal_params=", ".join(internal_params))
 
 
-def format_validation_proto(api, cmd_name, proto, params, cmd_packed_gl_enums, packed_param_types):
+def format_validation_proto(api, cmd_name, params, cmd_packed_gl_enums, packed_param_types):
     if api == apis.CL:
         return_type = "cl_int"
     else:
         return_type = "bool"
     if api in [apis.GL, apis.GLES]:
-        with_extra_params = ["Context *context"] + ["angle::EntryPoint entryPoint"] + params
+        with_extra_params = ["const PrivateState &state",
+                             "ErrorSet *errors"] if is_context_private_state_command(
+                                 api, cmd_name) else ["Context *context"]
+        with_extra_params += ["angle::EntryPoint entryPoint"] + params
     elif api == apis.EGL:
         with_extra_params = ["ValidationContext *val"] + params
     else:
@@ -1887,6 +2161,27 @@ def format_validation_proto(api, cmd_name, proto, params, cmd_packed_gl_enums, p
     internal_params = get_validation_params(api, cmd_name, with_extra_params, cmd_packed_gl_enums,
                                             packed_param_types)
     return TEMPLATE_VALIDATION_PROTO % (return_type, strip_api_prefix(cmd_name), internal_params)
+
+
+def format_context_private_call_proto(api, cmd_name, proto, params, cmd_packed_gl_enums,
+                                      packed_param_types):
+    with_extra_params = ["PrivateState *privateState", "PrivateStateCache *privateStateCache"
+                        ] + params
+    packed_enums = get_packed_enums(api, cmd_packed_gl_enums, cmd_name, packed_param_types,
+                                    with_extra_params)
+    internal_params = get_context_private_call_params(api, cmd_name, with_extra_params,
+                                                      cmd_packed_gl_enums, packed_param_types)
+    stripped_name = strip_suffix(api, strip_api_prefix(cmd_name))
+    return_type = proto[:-len(cmd_name)].strip()
+    return TEMPLATE_CONTEXT_PRIVATE_CALL_PROTO % (return_type, stripped_name,
+                                                  internal_params), stripped_name
+
+
+def format_context_lock_proto(api, cmd_name, params, cmd_packed_gl_enums, packed_param_types):
+    with_extra_params = ["Thread *thread"] + params
+    internal_params = get_context_lock_params(api, cmd_name, with_extra_params,
+                                              cmd_packed_gl_enums, packed_param_types)
+    return TEMPLATE_CONTEXT_LOCK_PROTO % (strip_api_prefix(cmd_name), internal_params)
 
 
 def format_capture_proto(api, cmd_name, proto, params, cmd_packed_gl_enums, packed_param_types):
@@ -1921,6 +2216,9 @@ class ANGLEEntryPoints(registry_xml.EntryPoints):
         self.defs = []
         self.export_defs = []
         self.validation_protos = []
+        self.context_private_call_protos = []
+        self.context_private_call_functions = []
+        self.context_lock_protos = []
         self.capture_protos = []
         self.capture_methods = []
         self.capture_pointer_funcs = []
@@ -1935,8 +2233,20 @@ class ANGLEEntryPoints(registry_xml.EntryPoints):
                 format_entry_point_export(cmd_name, proto_text, param_text, export_template))
 
             self.validation_protos.append(
-                format_validation_proto(self.api, cmd_name, proto_text, param_text,
-                                        cmd_packed_enums, packed_param_types))
+                format_validation_proto(self.api, cmd_name, param_text, cmd_packed_enums,
+                                        packed_param_types))
+
+            if is_context_private_state_command(self.api, cmd_name):
+                proto, function = format_context_private_call_proto(self.api, cmd_name, proto_text,
+                                                                    param_text, cmd_packed_enums,
+                                                                    packed_param_types)
+                self.context_private_call_protos.append(proto)
+                self.context_private_call_functions.append(function)
+
+            if api == apis.EGL:
+                self.context_lock_protos.append(
+                    format_context_lock_proto(api, cmd_name, param_text, cmd_packed_enums,
+                                              packed_param_types))
 
             self.capture_protos.append(
                 format_capture_proto(self.api, cmd_name, proto_text, param_text, cmd_packed_enums,
@@ -2069,6 +2379,11 @@ def get_decls(api,
 
         name_no_suffix = strip_suffix(api, cmd_name)
         if name_no_suffix in already_included:
+            continue
+
+        # Don't generate Context::entryPoint declarations for entry points that
+        # directly access the context-private state.
+        if is_context_private_state_command(api, cmd_name):
             continue
 
         param_text = ["".join(param.itertext()) for param in command.findall('param')]
@@ -2206,6 +2521,36 @@ def write_validation_header(annotation, comment, protos, source, template):
         prototypes="\n".join(protos))
 
     path = path_to("libANGLE", "validation%s_autogen.h" % annotation)
+
+    with open(path, "w") as out:
+        out.write(content)
+        out.close()
+
+
+def write_context_private_call_header(annotation, protos, source, template):
+    content = TEMPLATE_CONTEXT_PRIVATE_CALL_HEADER.format(
+        script_name=os.path.basename(sys.argv[0]),
+        data_source_name=source,
+        annotation=annotation,
+        prototypes="\n".join(protos))
+
+    path = path_to("libANGLE", "context_private_call_%s_autogen.h" % annotation)
+
+    with open(path, "w") as out:
+        out.write(content)
+        out.close()
+
+
+def write_context_lock_header(annotation, comment, protos, source, template):
+    content = template.format(
+        script_name=os.path.basename(sys.argv[0]),
+        data_source_name=source,
+        annotation_lower=annotation.lower(),
+        annotation_upper=annotation.upper(),
+        comment=comment,
+        prototypes="\n".join(protos))
+
+    path = path_to("libGLESv2", "%s_context_lock_autogen.h" % annotation.lower())
 
     with open(path, "w") as out:
         out.write(content)
@@ -2677,8 +3022,9 @@ def get_egl_entry_point_labeled_object(ep_to_object, cmd_stripped, params, packe
 def get_context_lock(api, cmd_name):
     # EGLImage related commands need to access EGLImage and Display which should
     # be protected with global lock
+    # Also handles ContextMutex merging when "angle_enable_context_mutex" is true.
     if api == apis.GLES and cmd_name.startswith("glEGLImage"):
-        return "SCOPED_GLOBAL_AND_SHARE_CONTEXT_LOCK(context);"
+        return "SCOPED_EGL_IMAGE_SHARE_CONTEXT_LOCK(context, imagePacked);"
 
     return "SCOPED_SHARE_CONTEXT_LOCK(context);"
 
@@ -2698,7 +3044,7 @@ def get_prepare_swap_buffers_call(api, cmd_name, params):
         if param_type == "EGLSurface":
             passed_params[1] = param
 
-    return "ANGLE_EGLBOOLEAN_TRY(PrepareSwapBuffersANGLE(%s));" % (", ".join(
+    return "ANGLE_EGLBOOLEAN_TRY(EGL_PrepareSwapBuffersANGLE(%s));" % (", ".join(
         [just_the_name(param) for param in passed_params]))
 
 
@@ -2707,6 +3053,52 @@ def get_preamble(api, cmd_name, params):
     preamble += get_prepare_swap_buffers_call(api, cmd_name, params)
     # TODO: others?
     return preamble
+
+
+def get_unlocked_tail_call(api, cmd_name):
+    # Only the following can generate tail calls:
+    #
+    # - eglDestroySurface, eglMakeCurrent and eglReleaseThread -> May destroy
+    #   VkSurfaceKHR in tail call
+    # - eglCreateWindowSurface and eglCreatePlatformWindowSurface[EXT] -> May
+    #   destroy VkSurfaceKHR in tail call if surface initialization fails
+    #
+    # - eglPrepareSwapBuffersANGLE -> Calls vkAcquireNextImageKHR in tail call
+    #
+    # - eglSwapBuffers, eglSwapBuffersWithDamageKHR and
+    #   eglSwapBuffersWithFrameTokenANGLE -> May throttle the CPU in tail call
+    #
+    # - eglClientWaitSyncKHR, eglClientWaitSync, glClientWaitSync,
+    #   glFinishFenceNV -> May wait on fence in tail call
+    #
+    # - glTexImage2D, glTexImage3D, glTexSubImage2D, glTexSubImage3D,
+    #   glCompressedTexImage2D, glCompressedTexImage3D,
+    #   glCompressedTexSubImage2D, glCompressedTexSubImage3D -> May perform the
+    #   data upload on the host in  tail call
+    #
+    if (cmd_name in [
+            'eglDestroySurface', 'eglMakeCurrent', 'eglReleaseThread', 'eglCreateWindowSurface',
+            'eglCreatePlatformWindowSurface', 'eglCreatePlatformWindowSurfaceEXT',
+            'eglPrepareSwapBuffersANGLE', 'eglSwapBuffers', 'eglSwapBuffersWithDamageKHR',
+            'eglSwapBuffersWithFrameTokenANGLE', 'glFinishFenceNV'
+    ] or cmd_name.startswith('glTexImage2D') or cmd_name.startswith('glTexImage3D') or
+            cmd_name.startswith('glTexSubImage2D') or cmd_name.startswith('glTexSubImage3D') or
+            cmd_name.startswith('glCompressedTexImage2D') or
+            cmd_name.startswith('glCompressedTexImage3D') or
+            cmd_name.startswith('glCompressedTexSubImage2D') or
+            cmd_name.startswith('glCompressedTexSubImage3D')):
+        return 'egl::Display::GetCurrentThreadUnlockedTailCall()->run(nullptr);'
+
+    if cmd_name in ['eglClientWaitSyncKHR', 'eglClientWaitSync', 'glClientWaitSync']:
+        return 'egl::Display::GetCurrentThreadUnlockedTailCall()->run(&returnValue);'
+
+    # Otherwise assert that no tail calls where generated
+    return 'ASSERT(!egl::Display::GetCurrentThreadUnlockedTailCall()->any());'
+
+
+def get_epilog(api, cmd_name):
+    epilog = get_unlocked_tail_call(api, cmd_name)
+    return epilog
 
 
 def write_stubs_header(api, annotation, title, data_source, out_file, all_commands, commands,
@@ -2723,23 +3115,15 @@ def write_stubs_header(api, annotation, title, data_source, out_file, all_comman
 
         proto_text = "".join(proto.itertext())
 
-        if cmd_name in CUSTOM_EGL_ENTRY_POINTS:
-            params = []
-        else:
-            params = [] if api == apis.CL else ["Thread *thread"]
-
+        params = [] if api == apis.CL else ["Thread *thread"]
         params += ["".join(param.itertext()) for param in command.findall('param')]
         if params and just_the_name(params[-1]) == "errcode_ret":
             params[-1] = "cl_int &errorCode"
         return_type = proto_text[:-len(cmd_name)].strip()
 
-        if cmd_name in CUSTOM_EGL_ENTRY_POINTS:
-            stubs.append("%s %s(%s);" %
-                         (return_type, strip_api_prefix(cmd_name), ", ".join(params)))
-        else:
-            internal_params = get_internal_params(api, cmd_name, params, cmd_packed_egl_enums,
-                                                  packed_param_types)
-            stubs.append("%s %s(%s);" % (return_type, strip_api_prefix(cmd_name), internal_params))
+        internal_params = get_internal_params(api, cmd_name, params, cmd_packed_egl_enums,
+                                              packed_param_types)
+        stubs.append("%s %s(%s);" % (return_type, strip_api_prefix(cmd_name), internal_params))
 
     args = {
         "annotation_lower": annotation.lower(),
@@ -2783,6 +3167,8 @@ def main():
             '../src/libANGLE/Context_gles_3_1_autogen.h',
             '../src/libANGLE/Context_gles_3_2_autogen.h',
             '../src/libANGLE/Context_gles_ext_autogen.h',
+            '../src/libANGLE/context_private_call_gles_autogen.h',
+            '../src/libANGLE/context_private_call_gl_autogen.h',
             '../src/libANGLE/capture/capture_egl_autogen.cpp',
             '../src/libANGLE/capture/capture_egl_autogen.h',
             '../src/libANGLE/capture/capture_gl_1_autogen.cpp',
@@ -2849,6 +3235,7 @@ def main():
             '../src/libGLESv2/entry_points_gl_3_autogen.h',
             '../src/libGLESv2/entry_points_gl_4_autogen.cpp',
             '../src/libGLESv2/entry_points_gl_4_autogen.h',
+            '../src/libGLESv2/egl_context_lock_autogen.h',
             '../util/capture/frame_capture_replay_autogen.cpp',
         ]
 
@@ -2878,8 +3265,10 @@ def main():
     all_commands_no_suffix = []
     all_commands_with_suffix = []
 
-    # Collect all GL+GLES validation declarations
-    glesv2_validation_protos = []
+    # Collect all context-private-state-accessing helper declarations
+    context_private_call_gles_protos = []
+    context_private_call_gl_protos = []
+    context_private_call_functions = set()
 
     # First run through the main GLES entry points.  Since ES2+ is the primary use
     # case, we go through those first and then add ES1-only APIs at the end.
@@ -2936,6 +3325,9 @@ def main():
         write_gl_validation_header(validation_annotation, "ES %s" % comment, eps.validation_protos,
                                    "gl.xml and gl_angle_ext.xml")
 
+        context_private_call_gles_protos += eps.context_private_call_protos
+        context_private_call_functions.update(eps.context_private_call_functions)
+
         write_capture_header(apis.GLES, 'gles_' + version, comment, eps.capture_protos,
                              eps.capture_pointer_funcs)
         write_capture_source(apis.GLES, 'gles_' + version, validation_annotation, comment,
@@ -2984,6 +3376,12 @@ def main():
         ext_capture_methods += eps.capture_methods
         ext_capture_pointer_funcs += eps.capture_pointer_funcs
 
+        for proto, function in zip(eps.context_private_call_protos,
+                                   eps.context_private_call_functions):
+            if function not in context_private_call_functions:
+                context_private_call_gles_protos.append(proto)
+        context_private_call_functions.update(eps.context_private_call_functions)
+
         libgles_ep_defs += [comment] + eps.export_defs
         libgles_ep_exports += get_exports(ext_cmd_names)
 
@@ -3000,6 +3398,10 @@ def main():
             glesdecls['exts']['ANGLE Extensions'][extension_name] = get_decls(
                 apis.GLES, CONTEXT_DECL_FORMAT, xml.all_commands, ext_cmd_names,
                 all_commands_no_suffix, GLEntryPoints.get_packed_enums())
+
+    write_context_private_call_header("gles", context_private_call_gles_protos,
+                                      "gl.xml and gl_angle_ext.xml",
+                                      TEMPLATE_CONTEXT_PRIVATE_CALL_HEADER)
 
     for name in extension_commands:
         all_commands_with_suffix.append(name)
@@ -3056,6 +3458,13 @@ def main():
             libgles_ep_defs += [cpp_comment] + eps.export_defs
             libgl_ep_exports += [def_comment] + get_exports(all_libgl_commands)
             validation_protos += [cpp_comment] + eps.validation_protos
+
+            for proto, function in zip(eps.context_private_call_protos,
+                                       eps.context_private_call_functions):
+                if function not in context_private_call_functions:
+                    context_private_call_gl_protos.append(proto)
+            context_private_call_functions.update(eps.context_private_call_functions)
+
             capture_protos += [cpp_comment] + eps.capture_protos
             capture_pointer_funcs += [cpp_comment] + eps.capture_pointer_funcs
             capture_defs += [cpp_comment] + eps.capture_methods
@@ -3086,6 +3495,10 @@ def main():
         write_gl_validation_header("GL%s" % major_version, name, validation_protos, "gl.xml")
 
     libgles_ep_defs.append('#endif // defined(ANGLE_ENABLE_GL_DESKTOP_FRONTEND)')
+
+    write_context_private_call_header("gl", context_private_call_gl_protos,
+                                      "gl.xml and gl_angle_ext.xml",
+                                      TEMPLATE_CONTEXT_PRIVATE_CALL_HEADER)
 
     # GLX
     glxxml = registry_xml.RegistryXML('glx.xml')
@@ -3191,6 +3604,7 @@ def main():
     eglxml = registry_xml.RegistryXML('egl.xml', 'egl_angle_ext.xml')
 
     egl_validation_protos = []
+    egl_context_lock_protos = []
     egl_decls = ["extern \"C\" {"]
     egl_defs = ["extern \"C\" {"]
     libegl_ep_defs = []
@@ -3225,6 +3639,7 @@ def main():
         egl_defs += [comment] + eps.defs
         libegl_ep_defs += [comment] + eps.export_defs
         egl_validation_protos += [comment] + eps.validation_protos
+        egl_context_lock_protos += [comment] + eps.context_lock_protos
         libegl_windows_def_exports += [win_def_comment] + get_exports(eglxml.commands[version])
         egl_capture_protos += eps.capture_protos
         egl_capture_methods += eps.capture_methods
@@ -3262,6 +3677,7 @@ def main():
         egl_ext_defs += [comment] + eps.defs
         libegl_ep_defs += [comment] + eps.export_defs
         egl_validation_protos += [comment] + eps.validation_protos
+        egl_context_lock_protos += [comment] + eps.context_lock_protos
         libegl_windows_def_exports += [win_def_comment] + get_exports(ext_cmd_names)
         egl_capture_protos += eps.capture_protos
         egl_capture_methods += eps.capture_methods
@@ -3280,6 +3696,8 @@ def main():
                "cpp", EGL_EXT_SOURCE_INCLUDES, "libGLESv2", "egl.xml and egl_angle_ext.xml")
     write_validation_header("EGL", "EGL", egl_validation_protos, "egl.xml and egl_angle_ext.xml",
                             TEMPLATE_EGL_VALIDATION_HEADER)
+    write_context_lock_header("EGL", "EGL", egl_context_lock_protos,
+                              "egl.xml and egl_angle_ext.xml", TEMPLATE_EGL_CONTEXT_LOCK_HEADER)
     write_stubs_header("EGL", "egl_ext", "EXT extension", "egl.xml and egl_angle_ext.xml",
                        EGL_EXT_STUBS_HEADER_PATH, eglxml.all_commands, egl_ext_commands,
                        EGLEntryPoints.get_packed_enums(), EGL_PACKED_TYPES)

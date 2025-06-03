@@ -124,8 +124,8 @@ MatchedFilterLagAggregator::PreEchoLagAggregator::PreEchoLagAggregator(
     size_t max_filter_lag,
     size_t down_sampling_factor)
     : block_size_log2_(GetDownSamplingBlockSizeLog2(down_sampling_factor)),
-      penalize_high_delays_initial_phase_(
-          field_trial::IsEnabled("WebRTC-Aec3PenalyzeHighDelaysInitialPhase")),
+      penalize_high_delays_initial_phase_(!field_trial::IsDisabled(
+          "WebRTC-Aec3PenalyzeHighDelaysInitialPhase")),
       histogram_(
           ((max_filter_lag + 1) * down_sampling_factor) >> kBlockSizeLog2,
           0) {
@@ -162,7 +162,8 @@ void MatchedFilterLagAggregator::PreEchoLagAggregator::Aggregate(
     float penalization_per_delay = 1.0f;
     float max_histogram_value = -1.0f;
     for (auto it = histogram_.begin();
-         it + kMatchedFilterWindowSizeSubBlocks <= histogram_.end();
+         std::distance(it, histogram_.end()) >=
+         static_cast<int>(kMatchedFilterWindowSizeSubBlocks);
          it = it + kMatchedFilterWindowSizeSubBlocks) {
       auto it_max_element =
           std::max_element(it, it + kMatchedFilterWindowSizeSubBlocks);

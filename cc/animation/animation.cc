@@ -142,26 +142,9 @@ void Animation::PushPropertiesTo(Animation* animation_impl) {
   keyframe_effect()->PushPropertiesTo(animation_impl->keyframe_effect());
 }
 
-void Animation::Tick(base::TimeTicks tick_time) {
+bool Animation::Tick(base::TimeTicks tick_time) {
   DCHECK(!IsWorkletAnimation());
-  if (IsScrollLinkedAnimation()) {
-    // blink::Animation uses its start time to calculate local time for each of
-    // its keyframes. However, in cc the start time is stored at the Keyframe
-    // level so we have to delegate the tick time to a lower level to calculate
-    // the local time.
-    // With ScrollTimeline, the start time of the animation is calculated
-    // differently i.e. it is not the current time at the moment of start.
-    // To deal with this the scroll timeline pauses the animation at its desired
-    // time and then ticks it which side-steps the start time altogether. See
-    // crbug.com/1076012 for alternative design choices considered for future
-    // improvement.
-    keyframe_effect()->Pause(tick_time - base::TimeTicks(),
-                             PauseCondition::kAfterStart);
-    keyframe_effect()->Tick(base::TimeTicks());
-  } else {
-    DCHECK(!tick_time.is_null());
-    keyframe_effect()->Tick(tick_time);
-  }
+  return keyframe_effect()->Tick(tick_time);
 }
 
 bool Animation::IsScrollLinkedAnimation() const {
@@ -201,22 +184,22 @@ void Animation::DispatchAndDelegateAnimationEvent(const AnimationEvent& event) {
 void Animation::DelegateAnimationEvent(const AnimationEvent& event) {
   if (animation_delegate_) {
     switch (event.type) {
-      case AnimationEvent::STARTED:
+      case AnimationEvent::Type::kStarted:
         animation_delegate_->NotifyAnimationStarted(
             event.monotonic_time, event.target_property, event.group_id);
         break;
 
-      case AnimationEvent::FINISHED:
+      case AnimationEvent::Type::kFinished:
         animation_delegate_->NotifyAnimationFinished(
             event.monotonic_time, event.target_property, event.group_id);
         break;
 
-      case AnimationEvent::ABORTED:
+      case AnimationEvent::Type::kAborted:
         animation_delegate_->NotifyAnimationAborted(
             event.monotonic_time, event.target_property, event.group_id);
         break;
 
-      case AnimationEvent::TAKEOVER:
+      case AnimationEvent::Type::kTakeOver:
         // TODO(crbug.com/1018213): Routing TAKEOVER events is broken.
         DCHECK(!event.is_impl_only);
         DCHECK(event.target_property == TargetProperty::SCROLL_OFFSET);
@@ -226,7 +209,7 @@ void Animation::DelegateAnimationEvent(const AnimationEvent& event) {
             event.animation_start_time, event.curve->Clone());
         break;
 
-      case AnimationEvent::TIME_UPDATED:
+      case AnimationEvent::Type::kTimeUpdated:
         DCHECK(!event.is_impl_only);
         animation_delegate_->NotifyLocalTimeUpdated(event.local_time);
         break;
@@ -305,7 +288,7 @@ void Animation::NotifyKeyframeModelFinishedForTesting(
     int keyframe_model_id,
     TargetProperty::Type target_property,
     int group_id) {
-  AnimationEvent event(AnimationEvent::FINISHED,
+  AnimationEvent event(AnimationEvent::Type::kFinished,
                        {timeline_id, id(), keyframe_model_id}, group_id,
                        target_property, base::TimeTicks());
   DispatchAndDelegateAnimationEvent(event);

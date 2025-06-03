@@ -23,6 +23,7 @@
 #include "base/task/thread_pool.h"
 #include "base/test/task_environment.h"
 #include "base/threading/sequence_bound.h"
+#include "base/types/expected.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
 #include "components/reporting/compression/compression_module.h"
@@ -48,6 +49,8 @@ using ::testing::DoAll;
 using ::testing::Eq;
 using ::testing::Invoke;
 using ::testing::Ne;
+using ::testing::Not;
+using ::testing::NotNull;
 using ::testing::Return;
 using ::testing::Sequence;
 using ::testing::StrEq;
@@ -124,7 +127,7 @@ class StorageQueueTest
                 (const));
     MOCK_METHOD(bool,
                 UploadRecord,
-                (int64_t /*uploader_id*/, int64_t, base::StringPiece),
+                (int64_t /*uploader_id*/, int64_t, std::string_view),
                 (const));
     MOCK_METHOD(bool,
                 UploadRecordFailure,
@@ -136,7 +139,7 @@ class StorageQueueTest
                 (const));
     MOCK_METHOD(void,
                 HasUnencryptedCopy,
-                (int64_t /*uploader_id*/, Destination, base::StringPiece),
+                (int64_t /*uploader_id*/, Destination, std::string_view),
                 (const));
     MOCK_METHOD(void,
                 UploadComplete,
@@ -185,14 +188,14 @@ class StorageQueueTest
           .append("/")
           .append(base::NumberToString(generation_id))
           .append(" '")
-          .append(record.data().data(), record.data().size())
+          .append(record.data())
           .append("'\n");
       bool success =
           mock_upload_->UploadRecord(uploader_id, sequencing_id, record.data());
       if (success && possible_record_copy.has_value()) {
         const auto& record_copy = possible_record_copy.value();
         upload_progress_.append("Has unencrypted copy: ")
-            .append(record_copy.data().data(), record_copy.data().size())
+            .append(record_copy.data())
             .append("'\n");
         mock_upload_->HasUnencryptedCopy(uploader_id, record_copy.destination(),
                                          record_copy.data());
@@ -301,7 +304,7 @@ class StorageQueueTest
         return std::move(uploader_);
       }
 
-      SetUp& Required(int64_t sequencing_id, base::StringPiece value) {
+      SetUp& Required(int64_t sequencing_id, std::string_view value) {
         CHECK(uploader_) << "'Complete' already called";
         EXPECT_CALL(*uploader_->mock_upload_,
                     UploadRecord(Eq(uploader_id_), Eq(sequencing_id),
@@ -311,7 +314,7 @@ class StorageQueueTest
         return *this;
       }
 
-      SetUp& Possible(int64_t sequencing_id, base::StringPiece value) {
+      SetUp& Possible(int64_t sequencing_id, std::string_view value) {
         CHECK(uploader_) << "'Complete' already called";
         EXPECT_CALL(*uploader_->mock_upload_,
                     UploadRecord(Eq(uploader_id_), Eq(sequencing_id),
@@ -343,7 +346,7 @@ class StorageQueueTest
 
       SetUp& HasUnencryptedCopy(int64_t sequencing_id,
                                 Destination destination,
-                                base::StringPiece value) {
+                                std::string_view value) {
         CHECK(uploader_) << "'Complete' already called";
         EXPECT_CALL(*uploader_->mock_upload_,
                     HasUnencryptedCopy(Eq(uploader_id_), Eq(destination),
@@ -540,15 +543,15 @@ class StorageQueueTest
       }
 
       // Verify local elements are not included in Record.
-      DCHECK_EQ(wrapped_record.record().has_reserved_space(), 0);
-      DCHECK(!wrapped_record.record().needs_local_unencrypted_copy());
+      EXPECT_FALSE(wrapped_record.record().has_reserved_space());
+      EXPECT_FALSE(wrapped_record.record().needs_local_unencrypted_copy());
 
       // Verify digest and its match.
       {
         std::string serialized_record;
         wrapped_record.record().SerializeToString(&serialized_record);
         const auto record_digest = crypto::SHA256HashString(serialized_record);
-        DCHECK_EQ(record_digest.size(), crypto::kSHA256Length);
+        CHECK_EQ(record_digest.size(), crypto::kSHA256Length);
         if (record_digest != wrapped_record.record_digest()) {
           sequence_bound_upload_
               .AsyncCall(&SequenceBoundUpload::DoUploadRecordFailure)
@@ -601,10 +604,17 @@ class StorageQueueTest
     const int64_t uploader_id_;
 
     absl::optional<int64_t> generation_id_;
-    const raw_ptr<absl::optional<int64_t>> last_upload_generation_id_;
-    const raw_ptr<LastRecordDigestMap> last_record_digest_map_;
 
-    const raw_ptr<const MockUpload> mock_upload_;
+    // These dangling raw_ptr occurred in:
+    // components_unittests:
+    // VaryingFileSize/StorageQueueTest.WriteAndRepeatedlyImmediateUpload/4
+    // https://ci.chromium.org/ui/p/chromium/builders/try/linux-rel/1425477/test-results?q=ExactID%3Aninja%3A%2F%2Fcomponents%3Acomponents_unittests%2FStorageQueueTest.WriteAndRepeatedlyImmediateUpload%2FVaryingFileSize.4+VHash%3A54d84870d628118f
+    const raw_ptr<absl::optional<int64_t>, FlakyDanglingUntriaged>
+        last_upload_generation_id_;
+    const raw_ptr<LastRecordDigestMap, FlakyDanglingUntriaged>
+        last_record_digest_map_;
+
+    const raw_ptr<const MockUpload, FlakyDanglingUntriaged> mock_upload_;
     const base::SequenceBound<SequenceBoundUpload> sequence_bound_upload_;
 
     Sequence test_encounter_sequence_;
@@ -614,10 +624,10 @@ class StorageQueueTest
   void CreateTestStorageQueueOrDie(const QueueOptions& options) {
     ASSERT_FALSE(storage_queue_) << "TestStorageQueue already assigned";
     auto storage_queue_result = CreateTestStorageQueue(options);
-    ASSERT_OK(storage_queue_result)
+    ASSERT_TRUE(storage_queue_result.has_value())
         << "Failed to create TestStorageQueue, error="
-        << storage_queue_result.status();
-    storage_queue_ = std::move(storage_queue_result.ValueOrDie());
+        << storage_queue_result.error();
+    storage_queue_ = std::move(storage_queue_result.value());
   }
 
   void CreateTestEncryptionModuleOrDie() {
@@ -714,11 +724,11 @@ class StorageQueueTest
                 LOG(ERROR) << "Upload not expected, reason="
                            << UploaderInterface::ReasonToString(reason);
                 std::move(start_uploader_cb)
-                    .Run(Status(
+                    .Run(base::unexpected(Status(
                         error::CANCELLED,
                         base::StrCat(
                             {"Unexpected upload ignored, reason=",
-                             UploaderInterface::ReasonToString(reason)})));
+                             UploaderInterface::ReasonToString(reason)}))));
                 return;
               }
               --(self->expected_uploads_count_);
@@ -727,20 +737,21 @@ class StorageQueueTest
               LOG_IF(FATAL, ++(self->upload_count_) >= 8uL)
                   << "Too many uploads";
               auto result = self->set_mock_uploader_expectations_.Call(reason);
-              if (!result.ok()) {
+              if (!result.has_value()) {
                 LOG(ERROR) << "Upload not allowed, reason="
                            << UploaderInterface::ReasonToString(reason) << " "
-                           << result.status();
-                std::move(start_uploader_cb).Run(result.status());
+                           << result.error();
+                std::move(start_uploader_cb)
+                    .Run(base::unexpected(result.error()));
                 return;
               }
-              auto uploader = std::move(result.ValueOrDie());
+              auto uploader = std::move(result.value());
               std::move(start_uploader_cb).Run(std::move(uploader));
             },
             reason, std::move(start_uploader_cb), base::Unretained(this)));
   }
 
-  Status WriteString(base::StringPiece data) {
+  Status WriteString(std::string_view data) {
     Record record;
     record.set_data(std::string(data));
     record.set_destination(UPLOAD_EVENTS);
@@ -759,7 +770,7 @@ class StorageQueueTest
     return write_event.result();
   }
 
-  void WriteStringOrDie(base::StringPiece data) {
+  void WriteStringOrDie(std::string_view data) {
     const Status write_result = WriteString(data);
     ASSERT_OK(write_result) << write_result;
   }
@@ -1042,7 +1053,8 @@ TEST_P(StorageQueueTest,
                 Call(Eq(UploaderInterface::UploadReason::INIT_RESUME)))
         .WillOnce(Invoke([&waiter](UploaderInterface::UploadReason reason) {
           waiter.Signal();
-          return Status(error::UNAVAILABLE, "Skipped upload in test");
+          return base::unexpected(
+              Status(error::UNAVAILABLE, "Skipped upload in test"));
         }))
         .RetiresOnSaturation();
 
@@ -1115,7 +1127,8 @@ TEST_P(
                 Call(Eq(UploaderInterface::UploadReason::INIT_RESUME)))
         .WillOnce(Invoke([&waiter](UploaderInterface::UploadReason reason) {
           waiter.Signal();
-          return Status(error::UNAVAILABLE, "Skipped upload in test");
+          return base::unexpected(
+              Status(error::UNAVAILABLE, "Skipped upload in test"));
         }))
         .RetiresOnSaturation();
 
@@ -1169,7 +1182,8 @@ TEST_P(StorageQueueTest,
                 Call(Eq(UploaderInterface::UploadReason::INIT_RESUME)))
         .WillOnce(Invoke([&waiter](UploaderInterface::UploadReason reason) {
           waiter.Signal();
-          return Status(error::UNAVAILABLE, "Skipped upload in test");
+          return base::unexpected(
+              Status(error::UNAVAILABLE, "Skipped upload in test"));
         }))
         .RetiresOnSaturation();
 
@@ -1291,7 +1305,8 @@ TEST_P(StorageQueueTest, WriteIntoNewStorageQueueReopenWriteMoreAndFlush) {
                 Call(Eq(UploaderInterface::UploadReason::INIT_RESUME)))
         .WillOnce(Invoke([&waiter](UploaderInterface::UploadReason reason) {
           waiter.Signal();
-          return Status(error::UNAVAILABLE, "Skipped upload in test");
+          return base::unexpected(
+              Status(error::UNAVAILABLE, "Skipped upload in test"));
         }))
         .RetiresOnSaturation();
 
@@ -1582,7 +1597,8 @@ TEST_P(StorageQueueTest, WriteAndRepeatedlyUploadWithConfirmationsAndReopen) {
                 Call(Eq(UploaderInterface::UploadReason::INIT_RESUME)))
         .WillOnce(Invoke([&waiter](UploaderInterface::UploadReason reason) {
           waiter.Signal();
-          return Status(error::UNAVAILABLE, "Skipped upload in test");
+          return base::unexpected(
+              Status(error::UNAVAILABLE, "Skipped upload in test"));
         }))
         .RetiresOnSaturation();
 
@@ -1717,7 +1733,8 @@ TEST_P(StorageQueueTest,
                 Call(Eq(UploaderInterface::UploadReason::INIT_RESUME)))
         .WillOnce(Invoke([&waiter](UploaderInterface::UploadReason reason) {
           waiter.Signal();
-          return Status(error::UNAVAILABLE, "Skipped upload in test");
+          return base::unexpected(
+              Status(error::UNAVAILABLE, "Skipped upload in test"));
         }))
         .RetiresOnSaturation();
 
@@ -1973,7 +1990,8 @@ TEST_P(StorageQueueTest, WriteAndImmediateUploadWithFailure) {
     EXPECT_CALL(set_mock_uploader_expectations_,
                 Call(Eq(UploaderInterface::UploadReason::IMMEDIATE_FLUSH)))
         .WillOnce(Invoke([](UploaderInterface::UploadReason reason) {
-          return Status(error::UNAVAILABLE, "Intended failure in test");
+          return base::unexpected(
+              Status(error::UNAVAILABLE, "Intended failure in test"));
         }))
         .RetiresOnSaturation();
     EXPECT_CALL(set_mock_uploader_expectations_,
@@ -2041,11 +2059,12 @@ TEST_P(StorageQueueTest, WriteAndImmediateUploadWithoutConfirmation) {
 
 TEST_P(StorageQueueTest, WriteEncryptFailure) {
   CreateTestStorageQueueOrDie(BuildStorageQueueOptionsPeriodic());
-  DCHECK(test_encryption_module_);
+  ASSERT_THAT(test_encryption_module_, NotNull());
   EXPECT_CALL(*test_encryption_module_, EncryptRecordImpl(_, _))
       .WillOnce(WithArg<1>(
           Invoke([](base::OnceCallback<void(StatusOr<EncryptedRecord>)> cb) {
-            std::move(cb).Run(Status(error::UNKNOWN, "Failing for tests"));
+            std::move(cb).Run(
+                base::unexpected(Status(error::UNKNOWN, "Failing for tests")));
           })));
   const Status result = WriteString("TEST_MESSAGE");
   EXPECT_FALSE(result.ok());
@@ -2222,8 +2241,8 @@ TEST_P(StorageQueueTest, CreateStorageQueueInvalidOptionsPath) {
   options_.set_directory(base::FilePath(kInvalidDirectoryPath));
   StatusOr<scoped_refptr<StorageQueue>> queue_result =
       CreateTestStorageQueue(BuildStorageQueueOptionsPeriodic());
-  EXPECT_FALSE(queue_result.ok());
-  EXPECT_EQ(queue_result.status().error_code(), error::UNAVAILABLE);
+  EXPECT_FALSE(queue_result.has_value());
+  EXPECT_EQ(queue_result.error().error_code(), error::UNAVAILABLE);
 }
 
 TEST_P(StorageQueueTest, WriteRecordMetadataWithInsufficientDiskSpaceFailure) {
@@ -2452,7 +2471,7 @@ TEST_P(StorageQueueTest, WriteIntoNewStorageQueueReopenWithCorruptData) {
 
   // All data files should be irreparably corrupt
   auto storage_queue_result = CreateTestStorageQueue(options);
-  EXPECT_THAT(storage_queue_result.status(), Ne(Status::StatusOK()));
+  EXPECT_THAT(storage_queue_result.error(), Ne(Status::StatusOK()));
 }
 
 TEST_P(StorageQueueTest, WriteWithUnencryptedCopy) {

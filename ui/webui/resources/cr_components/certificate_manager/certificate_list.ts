@@ -12,7 +12,7 @@ import './certificate_entry.js';
 import './certificate_shared.css.js';
 
 import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
-import {assertNotReached} from 'chrome://resources/js/assert_ts.js';
+import {assertNotReached} from 'chrome://resources/js/assert.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
@@ -147,12 +147,12 @@ export class CertificateListElement extends CertificateListElementBase {
     }));
   }
 
-  private onImportTap_(e: Event) {
+  private onImportClick_(e: Event) {
     this.handleImport_(false, e.target as HTMLElement);
   }
 
   // <if expr="is_chromeos">
-  private onImportAndBindTap_(e: Event) {
+  private onImportAndBindClick_(e: Event) {
     this.handleImport_(true, e.target as HTMLElement);
   }
   // </if>

@@ -11,7 +11,6 @@
 
 #include "base/task/bind_post_task.h"
 #include "base/task/single_thread_task_runner.h"
-#include "components/viz/common/resources/resource_format_utils.h"
 #include "gpu/command_buffer/common/constants.h"
 #include "gpu/command_buffer/common/shared_image_usage.h"
 #include "gpu/command_buffer/service/dxgi_shared_handle_manager.h"
@@ -64,8 +63,7 @@ size_t NumPlanes(DXGI_FORMAT dxgi_format) {
     case DXGI_FORMAT_R16G16B16A16_FLOAT:
       return 1;
     default:
-      NOTREACHED();
-      return 0;
+      NOTREACHED_NORETURN();
   }
 }
 
@@ -94,10 +92,13 @@ Texture2DWrapper::Texture2DWrapper() = default;
 
 Texture2DWrapper::~Texture2DWrapper() = default;
 
-DefaultTexture2DWrapper::DefaultTexture2DWrapper(const gfx::Size& size,
-                                                 DXGI_FORMAT dxgi_format,
-                                                 ComD3D11Device device)
+DefaultTexture2DWrapper::DefaultTexture2DWrapper(
+    const gfx::Size& size,
+    const gfx::ColorSpace& color_space,
+    DXGI_FORMAT dxgi_format,
+    ComD3D11Device device)
     : size_(size),
+      color_space_(color_space),
       dxgi_format_(dxgi_format),
       video_device_(std::move(device)) {}
 
@@ -140,6 +141,10 @@ D3D11Status DefaultTexture2DWrapper::ProcessTexture(
   // We're just binding, so the output and output color spaces are the same.
   *output_color_space = input_color_space;
 
+  // TODO(hitawala): Possibly optimize this method as input and stored color
+  // spaces should be same.
+  CHECK_EQ(input_color_space, color_space_);
+
   return D3D11Status::Codes::kOk;
 }
 
@@ -180,9 +185,9 @@ D3D11Status DefaultTexture2DWrapper::Init(
                      weak_factory_.GetWeakPtr()));
   gpu_resources_ = base::SequenceBound<GpuResources>(
       std::move(gpu_task_runner), std::move(on_error_cb),
-      std::move(get_helper_cb), std::move(mailboxes), size_, dxgi_format_,
-      video_device_, texture, array_slice, std::move(picture_buffer),
-      std::move(gpu_resource_init_cb));
+      std::move(get_helper_cb), std::move(mailboxes), size_, color_space_,
+      dxgi_format_, video_device_, texture, array_slice,
+      std::move(picture_buffer), std::move(gpu_resource_init_cb));
   return D3D11Status::Codes::kOk;
 }
 
@@ -211,6 +216,7 @@ DefaultTexture2DWrapper::GpuResources::GpuResources(
     GetCommandBufferHelperCB get_helper_cb,
     const std::vector<gpu::Mailbox>& mailboxes,
     const gfx::Size& size,
+    const gfx::ColorSpace& color_space,
     DXGI_FORMAT dxgi_format,
     ComD3D11Device video_device,
     ComD3D11Texture2D texture,
@@ -238,7 +244,7 @@ DefaultTexture2DWrapper::GpuResources::GpuResources(
   texture->GetDesc(&desc);
   // Create shared handle for shareable output texture.
   if (desc.MiscFlags & D3D11_RESOURCE_MISC_SHARED_NTHANDLE) {
-    Microsoft::WRL::ComPtr<IDXGIResource1> dxgi_resource;
+    ComDXGIResource1 dxgi_resource;
     HRESULT hr = texture.As(&dxgi_resource);
     if (FAILED(hr)) {
       DLOG(ERROR) << "QueryInterface for IDXGIResource failed with error "
@@ -269,13 +275,22 @@ DefaultTexture2DWrapper::GpuResources::GpuResources(
   std::vector<std::unique_ptr<gpu::SharedImageBacking>> shared_image_backings;
   if (IsMultiPlaneFormatForHardwareVideoEnabled()) {
     DCHECK_EQ(mailboxes.size(), 1u);
-    // TODO(crbug.com/1430349): Switch |texture_target| to GL_TEXTURE_2D since
-    // it's now supported by ANGLE.
-    shared_image_backings.push_back(gpu::D3DImageBacking::Create(
-        mailboxes[0], DXGIFormatToMultiPlanarSharedImageFormat(dxgi_format),
-        size, gfx::ColorSpace(), kTopLeft_GrSurfaceOrigin, kPremul_SkAlphaType,
-        usage, texture, std::move(dxgi_shared_handle_state),
-        GL_TEXTURE_EXTERNAL_OES, array_slice));
+    // The target must be GL_TEXTURE_EXTERNAL_OES as the texture is not created
+    // with D3D11_BIND_RENDER_TARGET bind flag and so it cannot be bound to the
+    // framebuffer. To prevent Skia trying to bind it for read pixels, we need
+    // it to be GL_TEXTURE_EXTERNAL_OES.
+    std::unique_ptr<gpu::SharedImageBacking> backing =
+        gpu::D3DImageBacking::Create(
+            mailboxes[0], DXGIFormatToMultiPlanarSharedImageFormat(dxgi_format),
+            size, color_space, kTopLeft_GrSurfaceOrigin, kPremul_SkAlphaType,
+            usage, texture, std::move(dxgi_shared_handle_state),
+            GL_TEXTURE_EXTERNAL_OES, array_slice);
+    if (backing) {
+      // Need to clear the backing since the D3D11 Video Decoder will initialize
+      // the textures.
+      backing->SetCleared();
+      shared_image_backings.push_back(std::move(backing));
+    }
   } else {
     shared_image_backings = gpu::D3DImageBacking::CreateFromVideoTexture(
         mailboxes, dxgi_format, size, usage, texture, array_slice,

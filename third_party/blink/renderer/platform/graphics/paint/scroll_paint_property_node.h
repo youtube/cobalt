@@ -27,7 +27,6 @@ class ClipPaintPropertyNode;
 
 using MainThreadScrollingReasons = uint32_t;
 
-// For CompositeScrollAfterPaint.
 enum class CompositedScrollingPreference : uint8_t {
   kDefault,
   kPreferred,
@@ -71,7 +70,6 @@ class PLATFORM_EXPORT ScrollPaintPropertyNode
     bool prevent_viewport_scrolling_from_inner = false;
 
     bool max_scroll_offset_affected_by_page_scale = false;
-    // Used in CompositeScrollAfterPaint.
     CompositedScrollingPreference composited_scrolling_preference =
         CompositedScrollingPreference::kDefault;
     MainThreadScrollingReasons main_thread_scrolling_reasons =
@@ -164,20 +162,13 @@ class PLATFORM_EXPORT ScrollPaintPropertyNode
     return state_.max_scroll_offset_affected_by_page_scale;
   }
   CompositedScrollingPreference GetCompositedScrollingPreference() const {
-    DCHECK(RuntimeEnabledFeatures::CompositeScrollAfterPaintEnabled());
     return state_.composited_scrolling_preference;
   }
 
-  // Note that this doesn't include non-composited main-thread scrolling
-  // reasons in CompositeScrollAfterPaint.
+  // Note that this doesn't include main-thread scrolling reasons computed
+  // after paint.
   MainThreadScrollingReasons GetMainThreadScrollingReasons() const {
     return state_.main_thread_scrolling_reasons;
-  }
-
-  // Main thread scrolling reason for the threaded scrolling disabled setting.
-  bool ThreadedScrollingDisabled() const {
-    return state_.main_thread_scrolling_reasons &
-           cc::MainThreadScrollingReason::kThreadedScrollingDisabled;
   }
 
   // Main thread scrolling reason for background attachment fixed descendants.

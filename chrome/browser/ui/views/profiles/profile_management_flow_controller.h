@@ -45,6 +45,8 @@ class ProfileManagementFlowController {
     // Moves the rest of the flow to a browser tab so that the user can complete
     // the SAML sign in they started at the previous step.
     kFinishSamlSignin,
+    // Renders the reauth page.
+    kReauth,
 #endif
     // Renders all post-sign in screens: enterprise management consent, profile
     // switch, sync opt-in, etc.
@@ -52,6 +54,14 @@ class ProfileManagementFlowController {
 
     // Renders the beginning of the First Run Experience.
     kIntro,
+
+    // Renders a default browser promo.
+    kDefaultBrowser,
+
+#if BUILDFLAG(ENABLE_SEARCH_ENGINE_CHOICE)
+    // Renders the search engine choice screen.
+    kSearchEngineChoice,
+#endif
   };
 
   // Creates a flow controller that will start showing UI when `Init()`-ed.
@@ -94,6 +104,10 @@ class ProfileManagementFlowController {
   // the content it's rendering. As a final fallback, if this value is empty
   // (which is the default), the host will choose itself some generic title.
   virtual std::u16string GetFallbackAccessibleWindowTitle() const;
+
+  // A helper method to create a pop callback that will switch to the existing
+  // step (prior to the actual switch that this pop closure should be part of).
+  base::OnceClosure CreateSwitchToCurrentStepPopCallback();
 
  protected:
   void RegisterStep(Step step,

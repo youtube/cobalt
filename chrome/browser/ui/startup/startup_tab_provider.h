@@ -47,15 +47,6 @@ class StartupTabProvider {
   virtual StartupTabs GetDistributionFirstRunTabs(
       StartupBrowserCreator* browser_creator) const = 0;
 
-#if BUILDFLAG(IS_WIN)
-  // Returns a "welcome back" tab to be shown if requested for a specific
-  // launch.
-  virtual StartupTabs GetWelcomeBackTabs(
-      Profile* profile,
-      StartupBrowserCreator* browser_creator,
-      chrome::startup::IsProcessStartup process_startup) const = 0;
-#endif  // BUILDFLAG(IS_WIN)
-
   // Checks for the presence of a trigger indicating the need to offer a Profile
   // Reset on this profile. Returns any tabs which should be shown accordingly.
   virtual StartupTabs GetResetTriggerTabs(Profile* profile) const = 0;
@@ -94,12 +85,6 @@ class StartupTabProvider {
   virtual CommandLineTabsPresent HasCommandLineTabs(
       const base::CommandLine& command_line,
       const base::FilePath& cur_dir) const = 0;
-
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-  // Returns the URLs given via the crosapi BrowserInitParams with
-  // kOpenWindowWithUrls action.
-  virtual StartupTabs GetCrosapiTabs() const = 0;
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
 
 #if !BUILDFLAG(IS_ANDROID)
   // Returns tabs related to the What's New UI (if applicable).
@@ -217,14 +202,6 @@ class StartupTabProviderImpl : public StartupTabProvider {
 
   // StartupTabProvider:
   StartupTabs GetOnboardingTabs(Profile* profile) const override;
-
-#if BUILDFLAG(IS_WIN)
-  StartupTabs GetWelcomeBackTabs(
-      Profile* profile,
-      StartupBrowserCreator* browser_creator,
-      chrome::startup::IsProcessStartup process_startup) const override;
-#endif  // BUILDFLAG(IS_WIN)
-
   StartupTabs GetDistributionFirstRunTabs(
       StartupBrowserCreator* browser_creator) const override;
   StartupTabs GetResetTriggerTabs(Profile* profile) const override;
@@ -242,10 +219,6 @@ class StartupTabProviderImpl : public StartupTabProvider {
   CommandLineTabsPresent HasCommandLineTabs(
       const base::CommandLine& command_line,
       const base::FilePath& cur_dir) const override;
-
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-  StartupTabs GetCrosapiTabs() const override;
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
 
 #if !BUILDFLAG(IS_ANDROID)
   StartupTabs GetNewFeaturesTabs(bool whats_new_enabled) const override;

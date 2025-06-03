@@ -5,6 +5,7 @@
 #ifndef COMPONENTS_EXO_SHELL_SURFACE_H_
 #define COMPONENTS_EXO_SHELL_SURFACE_H_
 
+#include "ash/focus_cycler.h"
 #include "ash/wm/toplevel_window_event_handler.h"
 #include "ash/wm/window_state_observer.h"
 #include "base/containers/circular_deque.h"
@@ -55,6 +56,11 @@ class ShellSurface : public ShellSurfaceBase, public ash::WindowStateObserver {
                                        float raster_scale)>;
   using OriginChangeCallback =
       base::RepeatingCallback<void(const gfx::Point& origin)>;
+  using RotateFocusCallback =
+      base::RepeatingCallback<uint32_t(ash::FocusCycler::Direction direction,
+                                       bool restart)>;
+  using OverviewChangeCallback =
+      base::RepeatingCallback<void(bool in_overview)>;
 
   void set_configure_callback(const ConfigureCallback& configure_callback) {
     configure_callback_ = configure_callback;
@@ -63,6 +69,14 @@ class ShellSurface : public ShellSurfaceBase, public ash::WindowStateObserver {
   void set_origin_change_callback(
       const OriginChangeCallback& origin_change_callback) {
     origin_change_callback_ = origin_change_callback;
+  }
+
+  void set_rotate_focus_callback(const RotateFocusCallback callback) {
+    rotate_focus_callback_ = callback;
+  }
+
+  void set_overview_change_callback(const OverviewChangeCallback callback) {
+    overview_change_callback_ = callback;
   }
 
   // When the client is asked to configure the surface, it should acknowledge
@@ -85,11 +99,18 @@ class ShellSurface : public ShellSurfaceBase, public ash::WindowStateObserver {
   // Restore the shell surface.
   void Restore();
 
-  // Set fullscreen state for shell surface.
-  void SetFullscreen(bool fullscreen);
+  // Set fullscreen state for shell surface. When `fullscreen` is true,
+  // `display_id` indicates the id of the display where the surface should be
+  // shown on, otherwise it gets ignored. When `display::kInvalidDisplayId` is
+  // specified the current display will be used.
+  void SetFullscreen(bool fullscreen, int64_t display_id);
 
   // Make the shell surface popup type.
   void SetPopup();
+
+  // Invokes when the surface has reached the end of its own focus rotation.
+  // This signals ash to to continue its own focus rotation.
+  void AckRotateFocus(uint32_t serial, bool handled);
 
   // Set event grab on the surface.
   void Grab();
@@ -97,10 +118,20 @@ class ShellSurface : public ShellSurfaceBase, public ash::WindowStateObserver {
   // Start an interactive resize of surface. |component| is one of the windows
   // HT constants (see ui/base/hit_test.h) and describes in what direction the
   // surface should be resized.
-  void StartResize(int component);
+  bool StartResize(int component);
 
   // Start an interactive move of surface.
-  void StartMove();
+  bool StartMove();
+
+  // Sends a wayland request to the surface to rotate focus within itself. If
+  // the client was able to rotate, it will return a "handled" response,
+  // otherwise it will respond with a "not handled" response.
+  // If the client does not support the wayland event, the base class'
+  // impl is invoked. In practice, this means that the surface will be focused,
+  // but it will not rotate focus within its panes.
+  bool RotatePaneFocusFromView(views::View* focused_view,
+                               bool forward,
+                               bool enable_wrapping) override;
 
   // Return the initial show state for this surface.
   ui::WindowShowState initial_show_state() { return initial_show_state_; }
@@ -190,13 +221,22 @@ class ShellSurface : public ShellSurfaceBase, public ash::WindowStateObserver {
 
   bool GetCanResizeFromSizeConstraints() const override;
 
-  void AttemptToStartDrag(int component);
+  bool AttemptToStartDrag(int component);
+
+  // Utility methods to resolve the initial bounds for the first commit.
+  gfx::Rect GetInitialBoundsForState(
+      const chromeos::WindowStateType state) const;
+  display::Display GetDisplayForInitialBounds() const;
 
   std::unique_ptr<ash::ScopedAnimationDisabler> animations_disabler_;
 
   std::unique_ptr<ui::CompositorLock> configure_compositor_lock_;
+
   ConfigureCallback configure_callback_;
   OriginChangeCallback origin_change_callback_;
+  RotateFocusCallback rotate_focus_callback_;
+  OverviewChangeCallback overview_change_callback_;
+
   raw_ptr<ScopedConfigure, ExperimentalAsh> scoped_configure_ = nullptr;
   base::circular_deque<std::unique_ptr<Config>> pending_configs_;
   // Stores the config which is acked but not yet committed. This will keep the
@@ -216,10 +256,17 @@ class ShellSurface : public ShellSurfaceBase, public ash::WindowStateObserver {
 
   int resize_component_ = HTCAPTION;  // HT constant (see ui/base/hit_test.h)
   int pending_resize_component_ = HTCAPTION;
+  // TODO(oshima): Use WindowStateType instead.
   ui::WindowShowState initial_show_state_ = ui::SHOW_STATE_DEFAULT;
   bool notify_bounds_changes_ = true;
   bool window_state_is_changing_ = false;
   float pending_raster_scale_ = 1.0;
+
+  struct InflightFocusRotateRequest {
+    uint32_t serial;
+    ash::FocusCycler::Direction direction;
+  };
+  std::queue<InflightFocusRotateRequest> rotate_focus_inflight_requests_;
 
   base::ObserverList<ShellSurfaceObserver> observers_;
 };

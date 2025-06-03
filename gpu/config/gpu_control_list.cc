@@ -313,8 +313,9 @@ bool GpuControlList::DriverInfo::Contains(
 }
 
 bool GpuControlList::GLStrings::Contains(const GPUInfo& gpu_info) const {
-  if (StringMismatch(gpu_info.gl_extensions, gl_extensions))
+  if (StringMismatch(gpu_info.gl_extensions, gl_extensions)) {
     return false;
+  }
 
   std::string vendor;
   std::string renderer;
@@ -611,10 +612,12 @@ bool GpuControlList::Conditions::NeedsMoreInfo(const GPUInfo& gpu_info) const {
       gpu_info.gl_version.empty()) {
     return true;
   }
-  if (gl_strings && gl_strings->gl_vendor && gpu_info.gl_vendor.empty())
+  if (gl_strings && gl_strings->gl_vendor && gpu_info.gl_vendor.empty()) {
     return true;
-  if (gl_strings && gl_strings->gl_renderer && gpu_info.gl_renderer.empty())
+  }
+  if (gl_strings && gl_strings->gl_renderer && gpu_info.gl_renderer.empty()) {
     return true;
+  }
   if (more && more->pixel_shader_version.IsSpecified() &&
       gpu_info.pixel_shader_version.empty()) {
     return true;

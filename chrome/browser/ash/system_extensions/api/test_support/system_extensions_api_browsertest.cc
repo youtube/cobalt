@@ -311,8 +311,8 @@ void SystemExtensionsApiBrowserTest::MaybeInstallSystemExtension(
     const char* path;
     const char* name;
   } mojom_files[] = {
-      {"gen/mojo/public/js/", "mojo_bindings_lite.js"},
-      {"gen/chrome/browser/ash/system_extensions/api/test_support/",
+      {"mojo/public/js/", "mojo_bindings_lite.js"},
+      {"chrome/browser/ash/system_extensions/api/test_support/",
        "system_extensions_test_runner.test-mojom-lite.js"},
   };
   for (auto mojom_file : base::make_span(mojom_files)) {
@@ -339,8 +339,8 @@ void SystemExtensionsApiBrowserTest::MaybeInstallSystemExtension(
   }
 
   // Write manifest.
-  const std::string manifest_str =
-      base::StringPrintf(manifest_template_.data(), test_file_name.data());
+  const std::string manifest_str = base::StringPrintfNonConstexpr(
+      manifest_template_.c_str(), std::string(test_file_name).c_str());
   CHECK(base::WriteFile(system_extension_path.AppendASCII("manifest.json"),
                         manifest_str))
       << "Failed to write the manifest.";

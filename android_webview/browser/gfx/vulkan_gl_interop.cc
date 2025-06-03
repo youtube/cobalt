@@ -24,8 +24,10 @@
 #include "third_party/skia/include/core/SkPaint.h"
 #include "third_party/skia/include/core/SkSamplingOptions.h"
 #include "third_party/skia/include/gpu/GrBackendSemaphore.h"
+#include "third_party/skia/include/gpu/GrBackendSurface.h"
 #include "third_party/skia/include/gpu/GrTypes.h"
 #include "third_party/skia/include/gpu/ganesh/SkImageGanesh.h"
+#include "third_party/skia/include/gpu/ganesh/vk/GrVkBackendSurface.h"
 #include "third_party/skia/include/gpu/vk/GrVkBackendContext.h"
 #include "third_party/skia/include/gpu/vk/GrVkExtensions.h"
 #include "third_party/skia/include/private/chromium/GrVkSecondaryCBDrawContext.h"
@@ -60,13 +62,13 @@ VulkanGLInterop::GLNonOwnedCompatibilityContext* VulkanGLInterop::g_gl_context =
 class VulkanGLInterop::GLNonOwnedCompatibilityContext
     : public gl::GLContextEGL {
  public:
-  GLNonOwnedCompatibilityContext()
-      : gl::GLContextEGL(nullptr),
-        surface_(base::MakeRefCounted<gl::PbufferGLSurfaceEGL>(
-            gl::GLSurfaceEGL::GetGLDisplayEGL(),
-            gfx::Size(1, 1))) {
+  GLNonOwnedCompatibilityContext() : gl::GLContextEGL(nullptr) {
     gl::GLContextAttribs attribs;
-    Initialize(surface_.get(), attribs);
+    // No need to store the surface as the gl::GLContext will have it saved.
+    auto surface = base::MakeRefCounted<gl::PbufferGLSurfaceEGL>(
+        gl::GLSurfaceEGL::GetGLDisplayEGL(), gfx::Size(1, 1));
+    Initialize(surface.get(), attribs);
+    DCHECK(default_surface());
 
     DCHECK(!g_gl_context);
     g_gl_context = this;
@@ -95,7 +97,7 @@ class VulkanGLInterop::GLNonOwnedCompatibilityContext
     return gl::GLContextEGL::MakeCurrentImpl(surface);
   }
 
-  bool MakeCurrent() { return gl::GLContext::MakeCurrent(surface_.get()); }
+  bool MakeCurrent() { return gl::GLContext::MakeCurrentDefault(); }
 
   static scoped_refptr<GLNonOwnedCompatibilityContext> GetOrCreateInstance() {
     if (g_gl_context)
@@ -108,8 +110,6 @@ class VulkanGLInterop::GLNonOwnedCompatibilityContext
     DCHECK_EQ(g_gl_context, this);
     g_gl_context = nullptr;
   }
-
-  scoped_refptr<gl::GLSurface> surface_;
 };
 
 VulkanGLInterop::InFlightInteropDraw::InFlightInteropDraw(
@@ -315,13 +315,14 @@ void VulkanGLInterop::DrawVk(sk_sp<GrVkSecondaryCBDrawContext> draw_context,
       return;
     }
 
-    pending_draw->image_info = gpu::CreateGrVkImageInfo(vulkan_image.get());
+    pending_draw->image_info = gpu::CreateGrVkImageInfo(
+        vulkan_image.get(), gfx::ColorSpace(*color_space));
     pending_draw->vulkan_image = std::move(vulkan_image);
   }
 
   // Create an SkImage from AHB.
-  GrBackendTexture backend_texture(params.width, params.height,
-                                   pending_draw->image_info);
+  auto backend_texture = GrBackendTextures::MakeVk(params.width, params.height,
+                                                   pending_draw->image_info);
   pending_draw->ahb_skimage = SkImages::BorrowTextureFrom(
       vulkan_context_provider_->GetGrContext(), backend_texture,
       kBottomLeft_GrSurfaceOrigin, kRGBA_8888_SkColorType, kPremul_SkAlphaType,
@@ -360,7 +361,7 @@ void VulkanGLInterop::PostDrawVk() {
     return;
   }
   GrVkImageInfo image_info;
-  if (!backend_texture.getVkImageInfo(&image_info)) {
+  if (!GrBackendTextures::GetVkImageInfo(backend_texture, &image_info)) {
     LOG(ERROR) << "Could not get Vk image info.";
     return;
   }

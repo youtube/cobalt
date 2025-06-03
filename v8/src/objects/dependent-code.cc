@@ -12,24 +12,25 @@
 namespace v8 {
 namespace internal {
 
-DependentCode DependentCode::GetDependentCode(HeapObject object) {
-  if (object.IsMap()) {
-    return Map::cast(object).dependent_code();
-  } else if (object.IsPropertyCell()) {
-    return PropertyCell::cast(object).dependent_code();
-  } else if (object.IsAllocationSite()) {
-    return AllocationSite::cast(object).dependent_code();
+Tagged<DependentCode> DependentCode::GetDependentCode(
+    Tagged<HeapObject> object) {
+  if (IsMap(object)) {
+    return Map::cast(object)->dependent_code();
+  } else if (IsPropertyCell(object)) {
+    return PropertyCell::cast(object)->dependent_code();
+  } else if (IsAllocationSite(object)) {
+    return AllocationSite::cast(object)->dependent_code();
   }
   UNREACHABLE();
 }
 
 void DependentCode::SetDependentCode(Handle<HeapObject> object,
                                      Handle<DependentCode> dep) {
-  if (object->IsMap()) {
+  if (IsMap(*object)) {
     Handle<Map>::cast(object)->set_dependent_code(*dep);
-  } else if (object->IsPropertyCell()) {
+  } else if (IsPropertyCell(*object)) {
     Handle<PropertyCell>::cast(object)->set_dependent_code(*dep);
-  } else if (object->IsAllocationSite()) {
+  } else if (IsAllocationSite(*object)) {
     Handle<AllocationSite>::cast(object)->set_dependent_code(*dep);
   } else {
     UNREACHABLE();
@@ -75,7 +76,8 @@ Handle<DependentCode> DependentCode::InsertWeakCode(
     Handle<Code> code) {
   if (entries->length() == entries->capacity()) {
     // We'd have to grow - try to compact first.
-    entries->IterateAndCompact([](Code, DependencyGroups) { return false; });
+    entries->IterateAndCompact(
+        [](Tagged<Code>, DependencyGroups) { return false; });
   }
 
   MaybeObjectHandle code_slot(HeapObjectReference::Weak(*code), isolate);
@@ -104,7 +106,7 @@ void DependentCode::IterateAndCompact(const IterateAndCompactFn& fn) {
       continue;
     }
 
-    if (fn(Code::cast(obj->GetHeapObjectAssumeWeak()),
+    if (fn(Code::cast(obj.GetHeapObjectAssumeWeak()),
            static_cast<DependencyGroups>(
                Get(i + kGroupsSlotOffset).ToSmi().value()))) {
       len = FillEntryFromBack(i, len);
@@ -121,11 +123,11 @@ bool DependentCode::MarkCodeForDeoptimization(
   DisallowGarbageCollection no_gc;
 
   bool marked_something = false;
-  IterateAndCompact([&](Code code, DependencyGroups groups) {
+  IterateAndCompact([&](Tagged<Code> code, DependencyGroups groups) {
     if ((groups & deopt_groups) == 0) return false;
 
-    if (!code.marked_for_deoptimization()) {
-      code.SetMarkedForDeoptimization(isolate, "code dependencies");
+    if (!code->marked_for_deoptimization()) {
+      code->SetMarkedForDeoptimization(isolate, "code dependencies");
       marked_something = true;
     }
 
@@ -161,7 +163,8 @@ void DependentCode::DeoptimizeDependencyGroups(
 }
 
 // static
-DependentCode DependentCode::empty_dependent_code(const ReadOnlyRoots& roots) {
+Tagged<DependentCode> DependentCode::empty_dependent_code(
+    const ReadOnlyRoots& roots) {
   return DependentCode::cast(roots.empty_weak_array_list());
 }
 

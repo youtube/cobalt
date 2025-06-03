@@ -6,8 +6,8 @@ package org.chromium.components.policy;
 
 import android.util.Pair;
 
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
 
 import java.util.Arrays;
 import java.util.List;
@@ -24,6 +24,7 @@ public class PolicyCacheUpdater {
             Arrays.asList(Pair.create("BrowserSignin", PolicyCache.Type.Integer),
                     Pair.create("CloudManagementEnrollmentToken", PolicyCache.Type.String),
                     Pair.create("ChromeVariations", PolicyCache.Type.Integer),
+                    Pair.create("SafeSitesFilterBehavior", PolicyCache.Type.Integer),
                     Pair.create("URLAllowlist", PolicyCache.Type.List),
                     Pair.create("URLBlocklist", PolicyCache.Type.List),
                     Pair.create("FirstPartySetsEnabled", PolicyCache.Type.Boolean),

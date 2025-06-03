@@ -27,7 +27,7 @@ struct CORE_EXPORT LineStyle {
  public:
   LineStyle();
 
-  bool IsTransparent() const { return color == Color::kTransparent; }
+  bool IsFullyTransparent() const { return color == Color::kTransparent; }
 
   Color color;
   String pattern;
@@ -39,7 +39,7 @@ struct CORE_EXPORT BoxStyle {
  public:
   BoxStyle();
 
-  bool IsTransparent() const {
+  bool IsFullyTransparent() const {
     return fill_color == Color::kTransparent &&
            hatch_color == Color::kTransparent;
   }
@@ -320,7 +320,7 @@ BuildIsolatedElementInfo(Element& element,
                          float scale);
 
 void CORE_EXPORT
-AppendStyleInfo(Node* node,
+AppendStyleInfo(Element* element,
                 protocol::DictionaryValue* element_info,
                 const InspectorHighlightContrastInfo& node_contrast,
                 const ContrastAlgorithm& contrast_algorithm);

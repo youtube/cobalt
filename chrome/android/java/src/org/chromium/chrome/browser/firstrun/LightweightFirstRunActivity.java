@@ -20,8 +20,8 @@ import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.IntentUtils;
 import org.chromium.base.ThreadUtils;
-import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.chrome.R;
+import org.chromium.chrome.browser.back_press.SecondaryActivityBackPressUma.SecondaryActivity;
 import org.chromium.chrome.browser.customtabs.CustomTabActivity;
 import org.chromium.chrome.browser.enterprise.util.EnterpriseInfo;
 import org.chromium.ui.base.LocalizationUtils;
@@ -64,8 +64,8 @@ public class LightweightFirstRunActivity
         super();
 
         if (sSupportSkippingTos) {
-            mSkipTosDialogPolicyListener = new SkipTosDialogPolicyListener(getPolicyLoadListener(),
-                    EnterpriseInfo.getInstance(), new LightWeightTosDialogMetricsNameProvider());
+            mSkipTosDialogPolicyListener = new SkipTosDialogPolicyListener(
+                    getPolicyLoadListener(), EnterpriseInfo.getInstance(), null);
             // We can ignore the result from #onAvailable here, as views are not created at this
             // point.
             mSkipTosDialogPolicyListener.onAvailable((ignored) -> onPolicyLoadListenerAvailable());
@@ -78,7 +78,8 @@ public class LightweightFirstRunActivity
 
         setFinishOnTouchOutside(true);
 
-        mFirstRunFlowSequencer = new FirstRunFlowSequencer(this, getChildAccountStatusSupplier()) {
+        mFirstRunFlowSequencer = new FirstRunFlowSequencer(
+                this, getProfileSupplier(), getChildAccountStatusSupplier()) {
             @Override
             public void onFlowIsKnown(Bundle freProperties) {
                 if (freProperties == null) {
@@ -176,8 +177,6 @@ public class LightweightFirstRunActivity
     @Override
     public void onHideLoadingUIComplete() {
         assert mSkipTosDialogPolicyListener != null && mSkipTosDialogPolicyListener.get() != null;
-        RecordHistogram.recordTimesHistogram("MobileFre.Lightweight.LoadingDuration",
-                SystemClock.elapsedRealtime() - mViewCreatedTimeMs);
         if (mSkipTosDialogPolicyListener.get()) {
             skipTosByPolicy();
         } else {
@@ -218,6 +217,11 @@ public class LightweightFirstRunActivity
     public @BackPressResult int handleBackPress() {
         abortFirstRunExperience();
         return BackPressResult.SUCCESS;
+    }
+
+    @Override
+    public int getSecondaryActivity() {
+        return SecondaryActivity.LIGHTWEIGHT_FIRST_RUN;
     }
 
     private void abortFirstRunExperience() {
@@ -268,23 +272,6 @@ public class LightweightFirstRunActivity
     public void showInfoPage(@StringRes int url) {
         CustomTabActivity.showInfoPage(
                 this, LocalizationUtils.substituteLocalePlaceholder(getString(url)));
-    }
-
-    private class LightWeightTosDialogMetricsNameProvider
-            implements SkipTosDialogPolicyListener.HistogramNameProvider {
-        @Override
-        public String getOnDeviceOwnedDetectedTimeHistogramName() {
-            return mViewCreated
-                    ? "MobileFre.Lightweight.IsDeviceOwnedCheckSpeed.SlowerThanInflation"
-                    : "MobileFre.Lightweight.IsDeviceOwnedCheckSpeed.FasterThanInflation";
-        }
-
-        @Override
-        public String getOnPolicyAvailableTimeHistogramName() {
-            return mViewCreated
-                    ? "MobileFre.Lightweight.EnterprisePolicyCheckSpeed.SlowerThanInflation"
-                    : "MobileFre.Lightweight.EnterprisePolicyCheckSpeed.FasterThanInflation";
-        }
     }
 
     @VisibleForTesting

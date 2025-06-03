@@ -5,6 +5,7 @@
 #include "third_party/blink/renderer/modules/ml/ml_context.h"
 
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_ml_context_options.h"
 #include "third_party/blink/renderer/core/dom/dom_exception.h"
 #include "third_party/blink/renderer/modules/ml/ml.h"
 #include "third_party/blink/renderer/modules/ml/ml_model_loader.h"
@@ -12,22 +13,35 @@
 
 namespace blink {
 
+// static
+MLContext* MLContext::ValidateAndCreateSync(MLContextOptions* options, ML* ml) {
+  return MakeGarbageCollected<MLContext>(
+      options->devicePreference(), options->deviceType(),
+      options->powerPreference(), options->modelFormat(), options->numThreads(),
+      ml);
+}
+
 MLContext::MLContext(const V8MLDevicePreference device_preference,
+                     const V8MLDeviceType device_type,
                      const V8MLPowerPreference power_preference,
                      const V8MLModelFormat model_format,
                      const unsigned int num_threads,
                      ML* ml)
     : device_preference_(device_preference),
+      device_type_(device_type),
       power_preference_(power_preference),
       model_format_(model_format),
       num_threads_(num_threads),
-      ml_(ml),
-      webnn_context_(ml->GetExecutionContext()) {}
+      ml_(ml) {}
 
 MLContext::~MLContext() = default;
 
 V8MLDevicePreference MLContext::GetDevicePreference() const {
   return device_preference_;
+}
+
+V8MLDeviceType MLContext::GetDeviceType() const {
+  return device_type_;
 }
 
 V8MLPowerPreference MLContext::GetPowerPreference() const {
@@ -62,13 +76,12 @@ MLModelLoader* MLContext::GetModelLoaderForWebNN(ScriptState* script_state) {
     ml_model_loader_ =
         MakeGarbageCollected<MLModelLoader>(execution_context, this);
   }
-  return ml_model_loader_;
+  return ml_model_loader_.Get();
 }
 
 void MLContext::Trace(Visitor* visitor) const {
   visitor->Trace(ml_);
   visitor->Trace(ml_model_loader_);
-  visitor->Trace(webnn_context_);
 
   ScriptWrappable::Trace(visitor);
 }
@@ -112,56 +125,31 @@ void MLContext::computeSync(MLGraph* graph,
   graph->ComputeSync(inputs, outputs, exception_state);
 }
 
-void MLContext::CreateWebNNGraph(ScriptState* script_state,
-                                 CreateWebNNGraphCallback callback) {
-  if (!webnn_context_.is_bound()) {
-    // Needs to create `WebNNContext` interface first.
-    auto options = webnn::mojom::blink::CreateContextOptions::New();
-    // TODO(crbug.com/1273291): Set power preference in the context option.
-    ml_->CreateWebNNContext(
-        std::move(options),
-        WTF::BindOnce(&MLContext::OnCreateWebNNContext, WrapPersistent(this),
-                      WrapPersistent(script_state), std::move(callback)));
-  } else {
-    // Directly use `WebNNContext` to create `WebNNGraph` message pipe.
-    webnn_context_->CreateGraph(
-        WTF::BindOnce(std::move(callback), CreateWebNNGraphResult::kOk));
-  }
+void MLContext::CreateAsync(ScriptPromiseResolver* resolver,
+                            MLContextOptions* options) {
+  CreateAsyncImpl(resolver, options);
 }
 
-void MLContext::OnCreateWebNNContext(
-    ScriptState* script_state,
-    CreateWebNNGraphCallback callback,
-    webnn::mojom::blink::CreateContextResult result,
-    mojo::PendingRemote<webnn::mojom::blink::WebNNContext>
-        pending_remote_context) {
-  if (!script_state->ContextIsValid()) {
-    std::move(callback).Run(CreateWebNNGraphResult::kUnknownError,
-                            mojo::NullRemote());
-    return;
-  }
-  switch (result) {
-    case webnn::mojom::blink::CreateContextResult::kUnknownError: {
-      std::move(callback).Run(CreateWebNNGraphResult::kUnknownError,
-                              mojo::NullRemote());
-      return;
-    }
-    case webnn::mojom::blink::CreateContextResult::kNotSupported: {
-      std::move(callback).Run(CreateWebNNGraphResult::kNotSupported,
-                              mojo::NullRemote());
-      return;
-    }
-    case webnn::mojom::blink::CreateContextResult::kOk: {
-      auto* execution_context = ExecutionContext::From(script_state);
-      webnn_context_.Bind(
-          std::move(pending_remote_context),
-          execution_context->GetTaskRunner(TaskType::kInternalDefault));
+MLContext* MLContext::CreateSync(ScriptState* script_state,
+                                 MLContextOptions* options,
+                                 ExceptionState& exception_state) {
+  return CreateSyncImpl(script_state, options, exception_state);
+}
 
-      webnn_context_->CreateGraph(
-          WTF::BindOnce(std::move(callback), CreateWebNNGraphResult::kOk));
-      return;
-    }
-  }
+void MLContext::CreateAsyncImpl(ScriptPromiseResolver* resolver,
+                                MLContextOptions* options) {
+  // TODO(crbug.com/1273291): Remove when async creation gets implemented for
+  // all context types.
+  NOTIMPLEMENTED();
+}
+
+MLContext* MLContext::CreateSyncImpl(ScriptState* script_state,
+                                     MLContextOptions* options,
+                                     ExceptionState& exception_state) {
+  // TODO(crbug.com/1273291): Remove when sync creation gets implemented for
+  // all context types.
+  NOTIMPLEMENTED();
+  return nullptr;
 }
 
 }  // namespace blink

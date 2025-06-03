@@ -3,20 +3,31 @@
 // found in the LICENSE file.
 
 #include <cmath>
+#include <string_view>
 #include <tuple>
 
 #include "base/memory/raw_ptr.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
+#include "base/scoped_observation.h"
+#include "base/strings/strcat.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/test/bind.h"
 #include "base/test/icu_test_util.h"
 #include "base/test/test_future.h"
 #include "base/test/test_timeouts.h"
 #include "build/build_config.h"
+#include "build/chromeos_buildflags.h"
+#include "chrome/browser/download/bubble/download_bubble_ui_controller.h"
+#include "chrome/browser/download/bubble/download_display_controller.h"
 #include "chrome/browser/extensions/chrome_test_extension_loader.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/themes/custom_theme_supplier.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_finder.h"
+#include "chrome/browser/ui/download/download_display.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/view_ids.h"
 #include "chrome/browser/ui/views/extensions/extensions_menu_view.h"
@@ -34,6 +45,7 @@
 #include "chrome/browser/ui/views/web_apps/frame_toolbar/web_app_frame_toolbar_test_helper.h"
 #include "chrome/browser/ui/views/web_apps/frame_toolbar/web_app_frame_toolbar_view.h"
 #include "chrome/browser/ui/views/web_apps/frame_toolbar/web_app_navigation_button_container.h"
+#include "chrome/browser/ui/views/web_apps/frame_toolbar/web_app_origin_text.h"
 #include "chrome/browser/ui/views/web_apps/frame_toolbar/web_app_toolbar_button_container.h"
 #include "chrome/browser/ui/views/web_apps/frame_toolbar/window_controls_overlay_toggle_button.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
@@ -44,6 +56,8 @@
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_location.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_url_info.h"
 #include "chrome/browser/web_applications/mojom/user_display_mode.mojom.h"
+#include "chrome/browser/web_applications/scope_extension_info.h"
+#include "chrome/browser/web_applications/test/web_app_install_test_utils.h"
 #include "chrome/browser/web_applications/web_app_constants.h"
 #include "chrome/browser/web_applications/web_app_install_info.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
@@ -55,6 +69,9 @@
 #include "components/infobars/content/content_infobar_manager.h"
 #include "components/permissions/permission_request_manager.h"
 #include "components/safe_browsing/core/common/features.h"
+#include "components/webapps/services/web_app_origin_association/test/test_web_app_origin_association_fetcher.h"
+#include "content/public/browser/notification_service.h"
+#include "content/public/browser/render_view_host.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/common/page_zoom.h"
@@ -70,10 +87,13 @@
 #include "third_party/blink/public/common/features.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/base/hit_test.h"
+#include "ui/compositor/scoped_animation_duration_scale_mode.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/views/animation/ink_drop.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/view.h"
+#include "ui/views/view_observer.h"
+#include "ui/views/widget/any_widget_observer.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 
@@ -83,6 +103,10 @@
 
 #if BUILDFLAG(IS_LINUX)
 #include "chrome/browser/ui/views/frame/opaque_browser_frame_view_layout.h"
+#endif
+
+#if defined(USE_AURA)
+#include "ui/aura/client/aura_constants.h"
 #endif
 
 namespace {
@@ -96,8 +120,9 @@ template <typename T>
 T* GetLastVisible(const std::vector<T*>& views) {
   T* visible = nullptr;
   for (auto* view : views) {
-    if (view->GetVisible())
+    if (view->GetVisible()) {
       visible = view;
+    }
   }
   return visible;
 }
@@ -116,6 +141,13 @@ void LoadTestPopUpExtension(Profile* profile) {
   test_extension_dir.WriteFile(FILE_PATH_LITERAL("popup.html"), "");
   extensions::ChromeTestExtensionLoader(profile).LoadExtension(
       test_extension_dir.UnpackedPath());
+}
+
+SkColor GetFrameColor(Browser* browser) {
+  CustomThemeSupplier* theme = browser->app_controller()->GetThemeSupplier();
+  SkColor result;
+  EXPECT_TRUE(theme->GetColor(ThemeProperties::COLOR_FRAME_ACTIVE, &result));
+  return result;
 }
 
 }  // namespace
@@ -182,8 +214,9 @@ IN_PROC_BROWSER_TEST_F(WebAppFrameToolbarBrowserTest, SpaceConstrained) {
           ->web_app_frame_toolbar()
           ->GetPageActionIconControllerForTesting()
           ->GetPageActionIconViewsForTesting();
-  for (const PageActionIconView* action : page_actions)
+  for (const PageActionIconView* action : page_actions) {
     EXPECT_EQ(action->parent(), toolbar_right_container);
+  }
 
   views::View* const menu_button =
       helper()->browser_view()->toolbar_button_provider()->GetAppMenuButton();
@@ -357,6 +390,20 @@ IN_PROC_BROWSER_TEST_F(WebAppFrameToolbarBrowserTest, TitleHover) {
 #endif
 }
 
+IN_PROC_BROWSER_TEST_F(WebAppFrameToolbarBrowserTest,
+                       MenuButtonAccessibleName) {
+  const GURL app_url("https://test.org");
+  helper()->InstallAndLaunchWebApp(browser(), app_url);
+
+  views::View* const menu_button =
+      helper()->browser_view()->toolbar_button_provider()->GetAppMenuButton();
+
+  EXPECT_EQ(menu_button->GetAccessibleName(),
+            u"Customize and control A minimal-ui app");
+  EXPECT_EQ(menu_button->GetTooltipText(gfx::Point()),
+            u"Customize and control A minimal-ui app");
+}
+
 class WebAppFrameToolbarBrowserTest_ElidedExtensionsMenu
     : public WebAppFrameToolbarBrowserTest {
  public:
@@ -469,25 +516,7 @@ class BorderlessIsolatedWebAppBrowserTest
 
   void GrantWindowManagementPermission() {
     auto* web_contents = browser_view()->GetActiveWebContents();
-    std::string permission_auto_approve_script = R"(
-      const draggable = document.getElementById('draggable');
-      draggable.setAttribute('allow', 'window-placement');
-    )";
-    EXPECT_TRUE(ExecJs(web_contents, permission_auto_approve_script,
-                       content::EXECUTE_SCRIPT_NO_USER_GESTURE));
-
-    permissions::PermissionRequestManager::FromWebContents(web_contents)
-        ->set_auto_response_for_test(
-            permissions::PermissionRequestManager::ACCEPT_ALL);
-
-    EXPECT_TRUE(ExecJs(web_contents, "window.getScreenDetails();"));
-
-    std::string permission_query_script = R"(
-      navigator.permissions.query({
-        name: 'window-placement'
-      }).then(res => res.state)
-    )";
-    EXPECT_EQ("granted", EvalJs(web_contents, permission_query_script));
+    WebAppFrameToolbarTestHelper::GrantWindowManagementPermission(web_contents);
 
     // It takes some time to udate the borderless mode state. The title is
     // updated on a change event hooked to the window.matchMedia() function,
@@ -560,27 +589,23 @@ class BorderlessIsolatedWebAppBrowserTest
                                          gfx::Size& expected_inner_size,
                                          gfx::Size& expected_outer_size) {
     auto* web_contents = browser_view->GetActiveWebContents();
+    content::WaitForLoadStop(web_contents);
 
-    while (!(web_contents->CompletedFirstVisuallyNonEmptyPaint() &&
-             !web_contents->IsLoading() &&
-             web_contents->IsDocumentOnLoadCompletedInPrimaryMainFrame() &&
-             IsWindowSizeCorrect(browser_view, expected_inner_size,
-                                 expected_outer_size))) {
+    while (!IsWindowSizeCorrect(browser_view, expected_inner_size,
+                                expected_outer_size)) {
       base::RunLoop run_loop;
       base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
           FROM_HERE, run_loop.QuitClosure(), TestTimeouts::tiny_timeout());
       run_loop.Run();
     }
-
-    ASSERT_TRUE(content::WaitForLoadStop(web_contents));
   }
 
  private:
   base::test::ScopedFeatureList scoped_feature_list_;
   std::unique_ptr<net::EmbeddedTestServer> isolated_web_app_dev_server_;
-  raw_ptr<Browser, DanglingUntriaged> browser_;
-  raw_ptr<BrowserView, DanglingUntriaged> browser_view_;
-  raw_ptr<BrowserNonClientFrameView, DanglingUntriaged> frame_view_;
+  raw_ptr<Browser, AcrossTasksDanglingUntriaged> browser_;
+  raw_ptr<BrowserView, AcrossTasksDanglingUntriaged> browser_view_;
+  raw_ptr<BrowserNonClientFrameView, AcrossTasksDanglingUntriaged> frame_view_;
 };
 
 IN_PROC_BROWSER_TEST_F(BorderlessIsolatedWebAppBrowserTest,
@@ -591,7 +616,6 @@ IN_PROC_BROWSER_TEST_F(BorderlessIsolatedWebAppBrowserTest,
   ASSERT_TRUE(
       browser_view()->window_management_permission_granted_for_testing());
   ASSERT_TRUE(browser_view()->IsBorderlessModeEnabled());
-  ASSERT_FALSE(web_app_frame_toolbar()->GetAppMenuButton()->GetVisible());
 }
 
 IN_PROC_BROWSER_TEST_F(BorderlessIsolatedWebAppBrowserTest,
@@ -641,7 +665,6 @@ IN_PROC_BROWSER_TEST_F(BorderlessIsolatedWebAppBrowserTest,
   ASSERT_FALSE(
       browser_view()->window_management_permission_granted_for_testing());
   ASSERT_FALSE(browser_view()->IsBorderlessModeEnabled());
-  ASSERT_TRUE(web_app_frame_toolbar()->GetAppMenuButton()->GetVisible());
 }
 
 IN_PROC_BROWSER_TEST_F(BorderlessIsolatedWebAppBrowserTest,
@@ -824,18 +847,14 @@ class WebAppFrameToolbarBrowserTest_WindowControlsOverlay
     WebAppFrameToolbarBrowserTest::SetUp();
   }
 
-  web_app::AppId InstallAndLaunchWebApp() {
-    EXPECT_TRUE(https_server()->Start());
-    GURL start_url =
-        helper()->LoadWindowControlsOverlayTestPageWithDataAndGetURL(
-            embedded_test_server(), &temp_dir_);
-
+  webapps::AppId InstallAndLaunchWCOWebApp(GURL start_url,
+                                           std::u16string app_title) {
     std::vector<blink::mojom::DisplayMode> display_overrides;
     display_overrides.push_back(web_app::DisplayMode::kWindowControlsOverlay);
-    auto web_app_info = std::make_unique<WebAppInstallInfo>();
+    auto web_app_info = std::make_unique<web_app::WebAppInstallInfo>();
     web_app_info->start_url = start_url;
     web_app_info->scope = start_url.GetWithoutFilename();
-    web_app_info->title = u"A window-controls-overlay app";
+    web_app_info->title = std::move(app_title);
     web_app_info->display_mode = web_app::DisplayMode::kStandalone;
     web_app_info->user_display_mode =
         web_app::mojom::UserDisplayMode::kStandalone;
@@ -843,6 +862,22 @@ class WebAppFrameToolbarBrowserTest_WindowControlsOverlay
 
     return helper()->InstallAndLaunchCustomWebApp(
         browser(), std::move(web_app_info), start_url);
+  }
+
+  webapps::AppId InstallAndLaunchWebApp() {
+    EXPECT_TRUE(https_server()->Start());
+    return InstallAndLaunchWCOWebApp(
+        helper()->LoadWindowControlsOverlayTestPageWithDataAndGetURL(
+            embedded_test_server(), &temp_dir_),
+        u"A window-controls-overlay app");
+  }
+
+  webapps::AppId InstallAndLaunchFullyDraggableWebApp() {
+    EXPECT_TRUE(https_server()->Start());
+    return InstallAndLaunchWCOWebApp(
+        helper()->LoadWholeAppIsDraggableTestPageWithDataAndGetURL(
+            embedded_test_server(), &temp_dir_),
+        u"Full page draggable window-controls-overlay app");
   }
 
   void ToggleWindowControlsOverlayAndWaitHelper(
@@ -1144,8 +1179,7 @@ IN_PROC_BROWSER_TEST_F(WebAppFrameToolbarBrowserTest_WindowControlsOverlay,
 
   std::string kCSSTitlebarRect = GetCSSTitlebarRect();
   auto* web_contents = helper()->browser_view()->GetActiveWebContents();
-  EXPECT_TRUE(
-      ExecuteScript(web_contents->GetPrimaryMainFrame(), kCSSTitlebarRect));
+  EXPECT_TRUE(ExecJs(web_contents->GetPrimaryMainFrame(), kCSSTitlebarRect));
 
   const std::string kRectListString =
       "var rect = [titlebarAreaXInt, titlebarAreaYInt, "
@@ -1177,8 +1211,7 @@ IN_PROC_BROWSER_TEST_F(WebAppFrameToolbarBrowserTest_WindowControlsOverlay,
   new_bounds.set_height(new_bounds.height() + 20);
   ResizeWindowBoundsAndWait(new_bounds);
 
-  EXPECT_TRUE(
-      ExecuteScript(web_contents->GetPrimaryMainFrame(), kCSSTitlebarRect));
+  EXPECT_TRUE(ExecJs(web_contents->GetPrimaryMainFrame(), kCSSTitlebarRect));
 
   base::Value::List updated_rect_list = helper()->GetXYWidthHeightListValue(
       helper()->browser_view()->GetActiveWebContents(), kRectListString,
@@ -1201,8 +1234,7 @@ IN_PROC_BROWSER_TEST_F(WebAppFrameToolbarBrowserTest_WindowControlsOverlay,
 
   std::string kCSSTitlebarRect = GetCSSTitlebarRect();
   auto* web_contents = helper()->browser_view()->GetActiveWebContents();
-  EXPECT_TRUE(
-      ExecuteScript(web_contents->GetPrimaryMainFrame(), kCSSTitlebarRect));
+  EXPECT_TRUE(ExecJs(web_contents->GetPrimaryMainFrame(), kCSSTitlebarRect));
 
   const std::string kRectListString =
       "var rect = [titlebarAreaXInt, titlebarAreaYInt, "
@@ -1229,8 +1261,7 @@ IN_PROC_BROWSER_TEST_F(WebAppFrameToolbarBrowserTest_WindowControlsOverlay,
   new_bounds.set_height(new_bounds.height() + 15);
   ResizeWindowBoundsAndWait(new_bounds);
 
-  EXPECT_TRUE(
-      ExecuteScript(web_contents->GetPrimaryMainFrame(), kCSSTitlebarRect));
+  EXPECT_TRUE(ExecJs(web_contents->GetPrimaryMainFrame(), kCSSTitlebarRect));
 
   base::Value::List updated_rect_list = helper()->GetXYWidthHeightListValue(
       helper()->browser_view()->GetActiveWebContents(), kRectListString,
@@ -1251,6 +1282,68 @@ IN_PROC_BROWSER_TEST_F(WebAppFrameToolbarBrowserTest_WindowControlsOverlay,
   InstallAndLaunchWebApp();
   ToggleWindowControlsOverlayAndWait();
   helper()->TestDraggableRegions();
+}
+
+// Regression test for https://crbug.com/1448878.
+IN_PROC_BROWSER_TEST_F(WebAppFrameToolbarBrowserTest_WindowControlsOverlay,
+                       DraggableRegionsIgnoredForOwnedWidgets) {
+  auto app_id = InstallAndLaunchFullyDraggableWebApp();
+  ToggleWindowControlsOverlayAndWait();
+
+  BrowserView* browser_view = helper()->browser_view();
+  views::NonClientFrameView* frame_view =
+      browser_view->GetWidget()->non_client_view()->frame_view();
+
+  // A widget owned by BrowserView is triggered to ensure that a click inside
+  // the widget overlaying a draggable region correctly returns `HTCLIENT` and
+  // not `HTCAPTION`. The widget ownership varies between platforms so using
+  // different widgets based on platform.
+
+#if BUILDFLAG(IS_WIN)
+  views::NamedWidgetShownWaiter widget_waiter(
+      views::test::AnyWidgetTestPasskey{}, "DropdownBarHost");
+  // Press Ctrl+F to open find bar.
+  content::NativeWebKeyboardEvent event(
+      blink::WebKeyboardEvent::Type::kRawKeyDown,
+      blink::WebInputEvent::kControlKey,
+      blink::WebInputEvent::GetStaticTimeStampForTests());
+  event.windows_key_code = ui::VKEY_F;
+  event.skip_if_unhandled = false;
+  browser_view->GetActiveWebContents()
+      ->GetPrimaryMainFrame()
+      ->GetRenderViewHost()
+      ->GetWidget()
+      ->ForwardKeyboardEvent(event);
+#else
+  views::NamedWidgetShownWaiter widget_waiter(
+      views::test::AnyWidgetTestPasskey{}, "PermissionPromptBubbleBaseView");
+  content::ExecuteScriptAsyncWithoutUserGesture(
+      browser_view->GetActiveWebContents(),
+      "navigator.geolocation.getCurrentPosition(() => {});");
+#endif  // BUILDFLAG(IS_WIN)
+
+  views::Widget* widget = widget_waiter.WaitIfNeededAndGet();
+
+  // A point inside the widget is not draggable and returns `HTCLIENT` and not
+  // e.g. `HTCAPTION`.
+  auto widget_in_screen_bounds = widget->GetWindowBoundsInScreen();
+  gfx::Point point_in_widget = widget_in_screen_bounds.CenterPoint();
+  views::View::ConvertPointToTarget(
+      browser_view, browser_view->contents_web_view(), &point_in_widget);
+  EXPECT_TRUE(browser_view->ShouldDescendIntoChildForEventHandling(
+      browser_view->GetWidget()->GetNativeView(), point_in_widget));
+  EXPECT_EQ(frame_view->NonClientHitTest(point_in_widget), HTCLIENT);
+
+  // A point inside a draggable region (but outside the widget) is draggable
+  // and returns `HTCAPTION` as expected. This is to make sure having the widget
+  // open doesn't interfere with the way the draggable regions work beyond the
+  // area of the widget.
+  gfx::Point point_below_widget =
+      gfx::Point(widget_in_screen_bounds.bottom_center().x(),
+                 widget_in_screen_bounds.bottom_center().y() + 5);
+  EXPECT_FALSE(browser_view->ShouldDescendIntoChildForEventHandling(
+      browser_view->GetWidget()->GetNativeView(), point_below_widget));
+  EXPECT_EQ(frame_view->NonClientHitTest(point_below_widget), HTCAPTION);
 }
 
 IN_PROC_BROWSER_TEST_F(WebAppFrameToolbarBrowserTest_WindowControlsOverlay,
@@ -1358,7 +1451,7 @@ IN_PROC_BROWSER_TEST_F(WebAppFrameToolbarBrowserTest_WindowControlsOverlay,
 // Regression test for https://crbug.com/1239443.
 IN_PROC_BROWSER_TEST_F(WebAppFrameToolbarBrowserTest_WindowControlsOverlay,
                        OpenWithOverlayEnabled) {
-  web_app::AppId app_id = InstallAndLaunchWebApp();
+  webapps::AppId app_id = InstallAndLaunchWebApp();
   base::test::TestFuture<void> future;
   helper()
       ->browser_view()
@@ -1441,7 +1534,7 @@ IN_PROC_BROWSER_TEST_F(WebAppFrameToolbarBrowserTest_WindowControlsOverlay,
 // Regression test for https://crbug.com/1351566.
 IN_PROC_BROWSER_TEST_F(WebAppFrameToolbarBrowserTest_WindowControlsOverlay,
                        ExtensionsIconVisibility) {
-  web_app::AppId app_id = InstallAndLaunchWebApp();
+  webapps::AppId app_id = InstallAndLaunchWebApp();
   ToggleWindowControlsOverlayAndWait();
 
   // There should be no visible Extensions icon.
@@ -1473,22 +1566,79 @@ IN_PROC_BROWSER_TEST_F(WebAppFrameToolbarBrowserTest_WindowControlsOverlay,
 #endif  // !BUILDFLAG(IS_CHROMEOS)
 
 #if !BUILDFLAG(IS_CHROMEOS_ASH)
+// Test that a download by a web app browser only shows the download UI in that
+// app's window.
 IN_PROC_BROWSER_TEST_F(WebAppFrameToolbarBrowserTest_WindowControlsOverlay,
-                       DownloadIconVisibility) {
-  web_app::AppId app_id = InstallAndLaunchWebApp();
+                       DownloadIconVisibilityForAppDownload) {
+  webapps::AppId app_id = InstallAndLaunchWebApp();
   ToggleWindowControlsOverlayAndWait();
 
-  // There should be no visible Downloads icon.
+  Browser* non_app_browser = CreateBrowser(profile());
+
+  // There should be no visible Downloads icon prior to the download, in either
+  // the app browser or the non-app browser.
   WebAppToolbarButtonContainer* toolbar_button_container =
       helper()->web_app_frame_toolbar()->get_right_container_for_testing();
   EXPECT_FALSE(toolbar_button_container->download_button()->GetVisible());
+  EXPECT_FALSE(non_app_browser->window()
+                   ->GetDownloadBubbleUIController()
+                   ->GetDownloadDisplayController()
+                   ->download_display_for_testing()
+                   ->IsShowing());
 
+  // Download a file in the app browser.
   ui_test_utils::DownloadURL(
-      browser(), ui_test_utils::GetTestUrl(
-                     base::FilePath().AppendASCII("downloads"),
-                     base::FilePath().AppendASCII("a_zip_file.zip")));
+      helper()->app_browser(),
+      ui_test_utils::GetTestUrl(
+          base::FilePath().AppendASCII("downloads"),
+          base::FilePath().AppendASCII("a_zip_file.zip")));
 
+  // The download button is visible in the app browser.
   EXPECT_TRUE(toolbar_button_container->download_button()->GetVisible());
+
+  // The download button is not visible in the non-app browser.
+  EXPECT_FALSE(non_app_browser->window()
+                   ->GetDownloadBubbleUIController()
+                   ->GetDownloadDisplayController()
+                   ->download_display_for_testing()
+                   ->IsShowing());
+}
+
+// Test that a download by a regular browser does not show the download UI in an
+// app's window.
+IN_PROC_BROWSER_TEST_F(WebAppFrameToolbarBrowserTest_WindowControlsOverlay,
+                       DownloadIconVisibilityForRegularDownload) {
+  webapps::AppId app_id = InstallAndLaunchWebApp();
+  ToggleWindowControlsOverlayAndWait();
+
+  Browser* non_app_browser = CreateBrowser(profile());
+
+  // There should be no visible Downloads icon prior to the download, in either
+  // the app browser or the non-app browser.
+  WebAppToolbarButtonContainer* toolbar_button_container =
+      helper()->web_app_frame_toolbar()->get_right_container_for_testing();
+  EXPECT_FALSE(toolbar_button_container->download_button()->GetVisible());
+  EXPECT_FALSE(non_app_browser->window()
+                   ->GetDownloadBubbleUIController()
+                   ->GetDownloadDisplayController()
+                   ->download_display_for_testing()
+                   ->IsShowing());
+
+  // Download a file in the regular browser.
+  ui_test_utils::DownloadURL(
+      non_app_browser, ui_test_utils::GetTestUrl(
+                           base::FilePath().AppendASCII("downloads"),
+                           base::FilePath().AppendASCII("a_zip_file.zip")));
+
+  // The download button is not visible in the app browser.
+  EXPECT_FALSE(toolbar_button_container->download_button()->GetVisible());
+
+  // The download button is visible in the non-app browser.
+  EXPECT_TRUE(non_app_browser->window()
+                  ->GetDownloadBubbleUIController()
+                  ->GetDownloadDisplayController()
+                  ->download_display_for_testing()
+                  ->IsShowing());
 }
 #endif  // !BUILDFLAG(IS_CHROMEOS_ASH)
 
@@ -1527,4 +1677,657 @@ IN_PROC_BROWSER_TEST_F(WebAppFrameToolbarBrowserTest_WindowControlsOverlay,
   EXPECT_FALSE(GetWindowControlOverlayVisibility());
   ASSERT_TRUE(EvalJs(web_contents, match_media_standalone).ExtractBool());
   ASSERT_EQ(blue, EvalJs(web_contents, get_background_color));
+}
+
+#if !BUILDFLAG(IS_ANDROID)
+class WebAppFrameToolbarBrowserTest_AdditionalWindowingControls
+    : public WebAppFrameToolbarBrowserTest {
+ public:
+  WebAppFrameToolbarBrowserTest_AdditionalWindowingControls() {
+    scoped_feature_list_.InitAndEnableFeature(
+        blink::features::kDesktopPWAsAdditionalWindowingControls);
+  }
+
+  void SetUp() override {
+    ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
+    embedded_test_server()->ServeFilesFromDirectory(temp_dir_.GetPath());
+    ASSERT_TRUE(embedded_test_server()->Start());
+    WebAppFrameToolbarBrowserTest::SetUp();
+  }
+
+  webapps::AppId InstallAndLaunchWebApp() {
+    DCHECK(https_server()->Start());
+
+    const GURL start_url = helper()->LoadTestPageWithDataAndGetURL(
+        embedded_test_server(), &temp_dir_, "");
+    second_page_url_ = helper()->LoadTestPageWithDataAndGetURL(
+        embedded_test_server(), &temp_dir_, "");
+
+    auto web_app_info = std::make_unique<web_app::WebAppInstallInfo>();
+    web_app_info->start_url = start_url;
+    web_app_info->scope = start_url.GetWithoutFilename();
+    web_app_info->title = std::move(u"Test app");
+    web_app_info->display_mode = web_app::DisplayMode::kStandalone;
+    web_app_info->user_display_mode =
+        web_app::mojom::UserDisplayMode::kStandalone;
+
+    return helper()->InstallAndLaunchCustomWebApp(
+        browser(), std::move(web_app_info), start_url);
+  }
+
+  void SetResizableAndWait(content::WebContents* web_contents,
+                           bool resizable,
+                           bool expected) {
+    auto set_resizable_script =
+        content::JsReplace("window.setResizable($1)", resizable);
+    EXPECT_TRUE(ExecJs(web_contents, set_resizable_script));
+    content::WaitForLoadStop(web_contents);
+
+    auto MatchMediaMatches = [&web_contents, &expected]() {
+      auto match_media_script = content::JsReplace(
+          "window.matchMedia('(resizable: $1)').matches", expected);
+      return EvalJs(web_contents, match_media_script).ExtractBool();
+    };
+
+    while (!MatchMediaMatches()) {
+      base::RunLoop run_loop;
+      base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
+          FROM_HERE, run_loop.QuitClosure(), TestTimeouts::tiny_timeout());
+      run_loop.Run();
+    }
+  }
+
+  GURL second_page_url() { return second_page_url_; }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+  base::ScopedTempDir temp_dir_;
+  GURL second_page_url_;
+};
+
+IN_PROC_BROWSER_TEST_F(
+    WebAppFrameToolbarBrowserTest_AdditionalWindowingControls,
+    WindowSetResizableMatches) {
+  InstallAndLaunchWebApp();
+  helper()->GrantWindowManagementPermission();
+
+  auto* web_contents = helper()->browser_view()->GetActiveWebContents();
+
+  auto CheckCanResize = [&](bool browser_view_can_resize_expected,
+                            absl::optional<bool> web_api_can_resize_expected) {
+    EXPECT_EQ(helper()->browser_view()->CanResize(),
+              browser_view_can_resize_expected);
+    EXPECT_EQ(helper()->browser_view()->GetCanResizeFromWebAPI(),
+              web_api_can_resize_expected);
+
+#if defined(USE_AURA)
+    EXPECT_EQ(helper()->browser_view()->GetNativeWindow()->GetProperty(
+                  aura::client::kResizeBehaviorKey) &
+                  aura::client::kResizeBehaviorCanResize,
+              browser_view_can_resize_expected);
+#endif
+  };
+
+  // This will be the default value.
+  helper()->browser_view()->SetCanResize(true);
+
+  // Defaults to `absl::nullopt` -> Returns "fallback".
+  CheckCanResize(true, absl::nullopt);
+
+  // Explicitly set to false -> Returns false.
+  SetResizableAndWait(web_contents, /*resizable=*/false, /*expected=*/false);
+  CheckCanResize(false, false);
+
+  // Explicitly set to true -> Returns true.
+  SetResizableAndWait(web_contents, /*resizable=*/true, /*expected=*/true);
+  CheckCanResize(true, true);
+
+  // `window.setResizable()` API can only alter the resizability of
+  // `BrowserView` which `can_resize` is true. If it's false, then
+  // `SetCanResizeFromWebAPI` cannot override it.
+  helper()->browser_view()->SetCanResize(false);
+  helper()->browser_view()->SetCanResizeFromWebAPI(absl::nullopt);
+  CheckCanResize(false, absl::nullopt);
+
+  SetResizableAndWait(web_contents, /*resizable=*/false, /*expected=*/false);
+  CheckCanResize(false, false);
+
+  SetResizableAndWait(web_contents, /*resizable=*/true, /*expected=*/false);
+  CheckCanResize(false, true);
+}
+
+IN_PROC_BROWSER_TEST_F(
+    WebAppFrameToolbarBrowserTest_AdditionalWindowingControls,
+    NavigatingBetweenTwoPagesWithUnsetResizability) {
+  InstallAndLaunchWebApp();
+  helper()->GrantWindowManagementPermission();
+
+  auto* web_contents = helper()->browser_view()->GetActiveWebContents();
+  content::WaitForLoadStop(web_contents);
+  EXPECT_EQ(helper()->browser_view()->GetCanResizeFromWebAPI(), absl::nullopt);
+
+  // Navigates to the second page of the app.
+  std::ignore = ui_test_utils::NavigateToURL(
+      helper()->browser_view()->browser(), second_page_url());
+  content::WaitForLoadStop(web_contents);
+  EXPECT_EQ(helper()->browser_view()->GetCanResizeFromWebAPI(), absl::nullopt);
+}
+
+IN_PROC_BROWSER_TEST_F(
+    WebAppFrameToolbarBrowserTest_AdditionalWindowingControls,
+    NavigatingBetweenTwoPagesWithNonNullResizability) {
+  InstallAndLaunchWebApp();
+  helper()->GrantWindowManagementPermission();
+  auto* web_contents = helper()->browser_view()->GetActiveWebContents();
+
+  // Sets the resizability false for the main page.
+  SetResizableAndWait(web_contents, /*resizable=*/false, /*expected=*/false);
+  EXPECT_FALSE(helper()->browser_view()->GetCanResizeFromWebAPI().value());
+
+  // Navigates to the second page of the app.
+  std::ignore = ui_test_utils::NavigateToURL(
+      helper()->browser_view()->browser(), second_page_url());
+  content::WaitForLoadStop(web_contents);
+  EXPECT_EQ(helper()->browser_view()->GetCanResizeFromWebAPI(), absl::nullopt);
+
+  // Sets the resizability true for the second page.
+  SetResizableAndWait(web_contents, /*resizable=*/true, /*expected=*/true);
+  EXPECT_TRUE(helper()->browser_view()->GetCanResizeFromWebAPI().value());
+
+  // Returns back to the main page.
+  web_contents->GetController().GoBack();
+  content::WaitForLoadStop(web_contents);
+  // Reads the resizability from the BFCache if it's enabled. Otherwise null.
+  if (content::BackForwardCache::IsBackForwardCacheFeatureEnabled()) {
+    EXPECT_FALSE(helper()->browser_view()->GetCanResizeFromWebAPI().value());
+  } else {
+    EXPECT_EQ(helper()->browser_view()->GetCanResizeFromWebAPI(),
+              absl::nullopt);
+  }
+
+  // Navigates forward to the already visited second page.
+  web_contents->GetController().GoForward();
+  content::WaitForLoadStop(web_contents);
+  // Reads the resizability from the BFCache if it's enabled. Otherwise null.
+  if (content::BackForwardCache::IsBackForwardCacheFeatureEnabled()) {
+    EXPECT_TRUE(helper()->browser_view()->GetCanResizeFromWebAPI().value());
+  } else {
+    EXPECT_EQ(helper()->browser_view()->GetCanResizeFromWebAPI(),
+              absl::nullopt);
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(
+    WebAppFrameToolbarBrowserTest_AdditionalWindowingControls,
+    NavigatingOutsideTheAppScopeAndBackResetsAndThenRestoresResizability) {
+  InstallAndLaunchWebApp();
+  helper()->GrantWindowManagementPermission();
+
+  auto* web_contents = helper()->browser_view()->GetActiveWebContents();
+
+  // Sets the resizability true for the app.
+  SetResizableAndWait(web_contents, /*resizable=*/true, /*expected=*/true);
+  EXPECT_TRUE(helper()->browser_view()->GetCanResizeFromWebAPI().value());
+
+  // Another URL where resizability is not set resets the web API overridden
+  // resizability.
+  std::ignore = ui_test_utils::NavigateToURL(
+      helper()->browser_view()->browser(), GURL("http://www.google.com/"));
+  content::WaitForLoadStop(web_contents);
+  EXPECT_EQ(helper()->browser_view()->GetCanResizeFromWebAPI(), absl::nullopt);
+
+  // Returning to the original URL then reads the resizability from the BFCache
+  // if it's enabled.
+  web_contents->GetController().GoBack();
+  content::WaitForLoadStop(web_contents);
+  if (content::BackForwardCache::IsBackForwardCacheFeatureEnabled()) {
+    EXPECT_TRUE(helper()->browser_view()->GetCanResizeFromWebAPI().value());
+  } else {
+    EXPECT_EQ(helper()->browser_view()->GetCanResizeFromWebAPI(),
+              absl::nullopt);
+  }
+}
+#endif  // !BUILDFLAG(IS_ANDROID)
+
+class OriginTextVisibilityWaiter : public views::ViewObserver {
+ public:
+  enum class VisibilityChange { kAppear, kDisappear };
+  explicit OriginTextVisibilityWaiter(WebAppOriginText* origin_text)
+      : origin_text_(origin_text) {
+    observation_.Observe(origin_text_);
+  }
+  ~OriginTextVisibilityWaiter() override = default;
+
+  // views::ViewObserver:
+  void OnViewVisibilityChanged(views::View* view_or_ancestor,
+                               views::View* starting_view) override {
+    log_.push_back(origin_text_->GetVisible() ? VisibilityChange::kAppear
+                                              : VisibilityChange::kDisappear);
+    if (origin_text_->GetVisible() && observed_text_.empty()) {
+      observed_text_ = origin_text_->GetLabelTextForTesting();
+    }
+    CheckAndMaybeResolve();
+  }
+
+  // Returns true if the animation was correct, false otherwise. Also returns
+  // the observed text.
+  std::tuple<bool, std::u16string> Wait() { return future_.Take(); }
+
+  void WaitForOriginTextAnimation(const std::string& hostname, uint16_t port) {
+    std::u16string expected_origin_text = base::StrCat(
+        {base::ASCIIToUTF16(hostname), u":", base::NumberToString16(port)});
+
+    auto [animated_correctly, observed_text] = Wait();
+    EXPECT_TRUE(animated_correctly);
+    EXPECT_EQ(observed_text, expected_origin_text);
+  }
+
+ private:
+  void CheckAndMaybeResolve() {
+    CHECK(!log_.empty());
+    // Expects origin_text_ to become visible then become invisible.
+    std::vector<VisibilityChange> expectation = {
+        VisibilityChange::kAppear,
+        VisibilityChange::kDisappear,
+    };
+    if (log_ == expectation) {
+      future_.SetValue(true, observed_text_);
+      return;
+    }
+    // Fail if log_ isn't a prefix of expectation.
+    for (size_t i = 0; i < log_.size(); ++i) {
+      if (log_[i] != expectation[i]) {
+        future_.SetValue(false, observed_text_);
+        return;
+      }
+    }
+  }
+
+  const raw_ptr<WebAppOriginText> origin_text_;
+  std::u16string observed_text_;
+  base::test::TestFuture<bool, std::u16string> future_;
+  std::vector<VisibilityChange> log_;
+  base::ScopedObservation<views::View, views::ViewObserver> observation_{this};
+};
+
+class WebAppFrameToolbarBrowserTest_OriginText
+    : public WebAppFrameToolbarBrowserTest,
+      public testing::WithParamInterface<bool> {
+ public:
+  static constexpr char in_scope_host_[] = "test.org";
+  static constexpr char out_of_scope_host_[] = "test.biz";
+
+  WebAppFrameToolbarBrowserTest_OriginText() {
+    WebAppToolbarButtonContainer::DisableAnimationForTesting(false);
+
+    if (IsScopeExtensionsEnabled()) {
+      scoped_feature_list_.InitAndEnableFeature(
+          blink::features::kWebAppEnableScopeExtensions);
+    } else {
+      scoped_feature_list_.InitAndDisableFeature(
+          blink::features::kWebAppEnableScopeExtensions);
+    }
+  }
+
+  void InstallAndLaunchWebApp() {
+    helper()->InstallAndLaunchWebApp(browser(), app_url());
+
+    // Origin text should show after install and launch.
+    ExpectOriginTextAndAnimation(in_scope_host_);
+  }
+
+  void ExpectLastCommittedUrl(const GURL& url) {
+    EXPECT_EQ(url, helper()
+                       ->app_browser()
+                       ->tab_strip_model()
+                       ->GetActiveWebContents()
+                       ->GetLastCommittedURL());
+  }
+
+  void ExpectOriginTextAndAnimation(const std::string& hostname) {
+    ui_test_utils::WaitForViewVisibility(helper()->app_browser(),
+                                         VIEW_ID_WEB_APP_ORIGIN_TEXT, true);
+    std::u16string expected_origin_text =
+        base::StrCat({base::ASCIIToUTF16(hostname), u":",
+                      base::NumberToString16(https_server()->port())});
+    EXPECT_EQ(helper()->app_browser()->app_controller()->GetLaunchFlashText(),
+              expected_origin_text);
+    EXPECT_EQ(helper()->origin_text_view()->GetLabelTextForTesting(),
+              expected_origin_text);
+    ui_test_utils::WaitForViewVisibility(helper()->app_browser(),
+                                         VIEW_ID_WEB_APP_ORIGIN_TEXT, false);
+  }
+
+  GURL app_url() {
+    return https_server()->GetURL(in_scope_host_, "/web_apps/basic.html");
+  }
+
+  bool IsScopeExtensionsEnabled() { return GetParam(); }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+
+  ui::ScopedAnimationDurationScaleMode scoped_animation_duration_scale_mode_{
+      ui::ScopedAnimationDurationScaleMode::NON_ZERO_DURATION};
+};
+
+IN_PROC_BROWSER_TEST_P(WebAppFrameToolbarBrowserTest_OriginText,
+                       InScopeNavigation) {
+  ASSERT_TRUE(https_server()->Start());
+  InstallAndLaunchWebApp();
+  // Origin text should not show if navigating to a URL in scope and with the
+  // same theme color.
+  const GURL nav_url = https_server()->GetURL(
+      in_scope_host_, "/web_apps/different_start_url.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(helper()->app_browser(), nav_url));
+  ui_test_utils::WaitForViewVisibility(helper()->app_browser(),
+                                       VIEW_ID_WEB_APP_ORIGIN_TEXT, false);
+  EXPECT_FALSE(
+      helper()->app_browser()->app_controller()->ShouldShowCustomTabBar());
+  ExpectLastCommittedUrl(nav_url);
+}
+
+IN_PROC_BROWSER_TEST_P(WebAppFrameToolbarBrowserTest_OriginText,
+                       OutOfScopeBarShown) {
+  ASSERT_TRUE(https_server()->Start());
+  InstallAndLaunchWebApp();
+  // Origin text should not show if out-of-scope bar is shown after navigation.
+  const GURL nav_url =
+      https_server()->GetURL(out_of_scope_host_, "/web_apps/basic.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(helper()->app_browser(), nav_url));
+  ui_test_utils::WaitForViewVisibility(helper()->app_browser(),
+                                       VIEW_ID_WEB_APP_ORIGIN_TEXT, false);
+  EXPECT_TRUE(
+      helper()->app_browser()->app_controller()->ShouldShowCustomTabBar());
+  ExpectLastCommittedUrl(nav_url);
+
+  // Origin text should not show if navigating back to the start url.
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(helper()->app_browser(), app_url()));
+  ui_test_utils::WaitForViewVisibility(helper()->app_browser(),
+                                       VIEW_ID_WEB_APP_ORIGIN_TEXT, false);
+  EXPECT_FALSE(
+      helper()->app_browser()->app_controller()->ShouldShowCustomTabBar());
+  ExpectLastCommittedUrl(app_url());
+}
+
+IN_PROC_BROWSER_TEST_P(WebAppFrameToolbarBrowserTest_OriginText,
+                       ThemeColorChange) {
+  ASSERT_TRUE(https_server()->Start());
+  InstallAndLaunchWebApp();
+  content::WebContents* web_contents =
+      helper()->app_browser()->tab_strip_model()->GetActiveWebContents();
+  content::AwaitDocumentOnLoadCompleted(web_contents);
+
+  // Origin text should appear if theme color changes. This could happen when
+  // navigating to a page within scope that has a different theme color.
+  OriginTextVisibilityWaiter origin_text_waiter(helper()->origin_text_view());
+  const GURL nav_url = https_server()->GetURL(
+      in_scope_host_, "/web_apps/basic_with_theme_color.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(helper()->app_browser(), nav_url));
+  content::AwaitDocumentOnLoadCompleted(web_contents);
+  EXPECT_EQ(GetFrameColor(helper()->app_browser()), SK_ColorYELLOW);
+  origin_text_waiter.WaitForOriginTextAnimation(in_scope_host_,
+                                                https_server()->port());
+  EXPECT_FALSE(
+      helper()->app_browser()->app_controller()->ShouldShowCustomTabBar());
+  ExpectLastCommittedUrl(nav_url);
+}
+
+IN_PROC_BROWSER_TEST_P(WebAppFrameToolbarBrowserTest_OriginText,
+                       OutOfScopeBarWithThemeColorChange) {
+  ASSERT_TRUE(https_server()->Start());
+  InstallAndLaunchWebApp();
+  content::WebContents* web_contents =
+      helper()->app_browser()->tab_strip_model()->GetActiveWebContents();
+  content::AwaitDocumentOnLoadCompleted(web_contents);
+
+  // Origin text should show if theme color changes even though out-of-scope bar
+  // is shown after navigation.
+  {
+    OriginTextVisibilityWaiter origin_text_waiter(helper()->origin_text_view());
+    const GURL nav_url = https_server()->GetURL(
+        out_of_scope_host_, "/web_apps/basic_with_theme_color.html");
+    ASSERT_TRUE(ui_test_utils::NavigateToURL(helper()->app_browser(), nav_url));
+    content::AwaitDocumentOnLoadCompleted(web_contents);
+    EXPECT_EQ(GetFrameColor(helper()->app_browser()), SK_ColorYELLOW);
+
+    // Existing behavior: origin text should be created with start URL when the
+    // out-of-scope bar is shown. Behavior with scope_extensions: origin text
+    // should be created with the URL of the page.
+    origin_text_waiter.WaitForOriginTextAnimation(
+        IsScopeExtensionsEnabled() ? out_of_scope_host_ : in_scope_host_,
+        https_server()->port());
+    EXPECT_TRUE(
+        helper()->app_browser()->app_controller()->ShouldShowCustomTabBar());
+    ExpectLastCommittedUrl(nav_url);
+  }
+
+  // Origin text should not show if navigating back to the start url.
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(helper()->app_browser(), app_url()));
+  content::AwaitDocumentOnLoadCompleted(web_contents);
+  ui_test_utils::WaitForViewVisibility(helper()->app_browser(),
+                                       VIEW_ID_WEB_APP_ORIGIN_TEXT, false);
+  EXPECT_FALSE(
+      helper()->app_browser()->app_controller()->ShouldShowCustomTabBar());
+  ExpectLastCommittedUrl(app_url());
+}
+INSTANTIATE_TEST_SUITE_P(
+    /* no prefix */,
+    WebAppFrameToolbarBrowserTest_OriginText,
+    ::testing::Bool());
+
+class WebAppFrameToolbarBrowserTest_ScopeExtensionsOriginText
+    : public WebAppFrameToolbarBrowserTest {
+ public:
+  static constexpr char in_scope_host_[] = "test.org";
+  static constexpr char in_extended_scope_host_[] = "test.com";
+  static constexpr char out_of_extended_scope_host_[] = "test.biz";
+
+  WebAppFrameToolbarBrowserTest_ScopeExtensionsOriginText() {
+    WebAppToolbarButtonContainer::DisableAnimationForTesting(false);
+  }
+  ~WebAppFrameToolbarBrowserTest_ScopeExtensionsOriginText() override = default;
+
+  void SetUpOnMainThread() override {
+    web_app::WebAppProvider* provider =
+        web_app::WebAppProvider::GetForTest(browser()->profile());
+    web_app::test::WaitUntilWebAppProviderAndSubsystemsReady(provider);
+
+    auto origin_association_fetcher =
+        std::make_unique<webapps::TestWebAppOriginAssociationFetcher>();
+    test_origin_association_fetcher_ = origin_association_fetcher.get();
+    provider->origin_association_manager().SetFetcherForTest(
+        std::move(origin_association_fetcher));
+
+    WebAppControllerBrowserTest::SetUpOnMainThread();
+  }
+
+  void TearDownOnMainThread() override {
+    test_origin_association_fetcher_ = nullptr;
+    web_app::WebAppControllerBrowserTest::TearDownOnMainThread();
+  }
+
+  std::string OriginAssociationFileFromAppIdentity(const GURL& app_identity) {
+    constexpr char kOriginAssociationTemplate[] = R"(
+    {
+      "web_apps": [
+        {
+          "web_app_identity": "$1"
+        }
+      ]
+    })";
+    return base::ReplaceStringPlaceholders(kOriginAssociationTemplate,
+                                           {app_identity.spec()}, nullptr);
+  }
+
+  void ExpectLastCommittedUrl(const GURL& url) {
+    EXPECT_EQ(url, helper()
+                       ->app_browser()
+                       ->tab_strip_model()
+                       ->GetActiveWebContents()
+                       ->GetLastCommittedURL());
+  }
+
+  GURL app_url() {
+    return https_server()->GetURL(
+        in_scope_host_,
+        "/banners/"
+        "manifest_test_page.html?manifest=manifest_scope_extensions.json");
+  }
+
+  GURL extension_url() {
+    return https_server()->GetURL(in_extended_scope_host_,
+                                  "/ssl/blank_page.html");
+  }
+
+  void ExpectOriginTextAndAnimation(const std::string& hostname) {
+    ui_test_utils::WaitForViewVisibility(helper()->app_browser(),
+                                         VIEW_ID_WEB_APP_ORIGIN_TEXT, true);
+    std::u16string expected_origin_text =
+        base::StrCat({base::ASCIIToUTF16(hostname), u":",
+                      base::NumberToString16(https_server()->port())});
+    EXPECT_EQ(helper()->app_browser()->app_controller()->GetLaunchFlashText(),
+              expected_origin_text);
+    EXPECT_EQ(helper()->origin_text_view()->GetLabelTextForTesting(),
+              expected_origin_text);
+    ui_test_utils::WaitForViewVisibility(helper()->app_browser(),
+                                         VIEW_ID_WEB_APP_ORIGIN_TEXT, false);
+  }
+
+  void InstallAndLaunchWebApp() {
+    test_origin_association_fetcher_->SetData(
+        {{url::Origin::Create(extension_url()),
+          OriginAssociationFileFromAppIdentity(app_url())}});
+
+    auto web_app_info = std::make_unique<web_app::WebAppInstallInfo>();
+    web_app_info->start_url = app_url();
+    web_app_info->scope = app_url().GetWithoutFilename();
+    web_app_info->title = u"scope_extensions test app";
+    web_app_info->display_mode = web_app::DisplayMode::kStandalone;
+    web_app_info->user_display_mode =
+        web_app::mojom::UserDisplayMode::kStandalone;
+    web_app::ScopeExtensionInfo scope_extension;
+    scope_extension.origin = url::Origin::Create(extension_url());
+    scope_extension.has_origin_wildcard = false;
+    web_app_info->scope_extensions = {std::move(scope_extension)};
+    helper()->InstallAndLaunchCustomWebApp(browser(), std::move(web_app_info),
+                                           app_url());
+
+    // Origin text should show after install and launch.
+    ExpectOriginTextAndAnimation(in_scope_host_);
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_{
+      blink::features::kWebAppEnableScopeExtensions};
+
+  raw_ptr<webapps::TestWebAppOriginAssociationFetcher>
+      test_origin_association_fetcher_ = nullptr;
+
+  ui::ScopedAnimationDurationScaleMode scoped_animation_duration_scale_mode_{
+      ui::ScopedAnimationDurationScaleMode::NON_ZERO_DURATION};
+};
+
+IN_PROC_BROWSER_TEST_F(WebAppFrameToolbarBrowserTest_ScopeExtensionsOriginText,
+                       ExtendedScope) {
+  ASSERT_TRUE(https_server()->Start());
+  InstallAndLaunchWebApp();
+  content::WebContents* web_contents =
+      helper()->app_browser()->tab_strip_model()->GetActiveWebContents();
+  content::AwaitDocumentOnLoadCompleted(web_contents);
+  {
+    // Navigate to another origin that is within extended scope. Origin text
+    // should show as there is a change in origin.
+    OriginTextVisibilityWaiter origin_text_waiter(helper()->origin_text_view());
+    ASSERT_TRUE(
+        ui_test_utils::NavigateToURL(helper()->app_browser(), extension_url()));
+    content::AwaitDocumentOnLoadCompleted(web_contents);
+    origin_text_waiter.WaitForOriginTextAnimation(in_extended_scope_host_,
+                                                  https_server()->port());
+    EXPECT_FALSE(
+        helper()->app_browser()->app_controller()->ShouldShowCustomTabBar());
+    ExpectLastCommittedUrl(extension_url());
+  }
+  {
+    // Origin text should show if navigating back to the start url as there is a
+    // change in origin.
+    OriginTextVisibilityWaiter origin_text_waiter(helper()->origin_text_view());
+    ASSERT_TRUE(
+        ui_test_utils::NavigateToURL(helper()->app_browser(), app_url()));
+    content::AwaitDocumentOnLoadCompleted(web_contents);
+    origin_text_waiter.WaitForOriginTextAnimation(in_scope_host_,
+                                                  https_server()->port());
+    EXPECT_FALSE(
+        helper()->app_browser()->app_controller()->ShouldShowCustomTabBar());
+    ExpectLastCommittedUrl(app_url());
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(WebAppFrameToolbarBrowserTest_ScopeExtensionsOriginText,
+                       ExtendedScopeToOutOfScope) {
+  ASSERT_TRUE(https_server()->Start());
+  InstallAndLaunchWebApp();
+  content::WebContents* web_contents =
+      helper()->app_browser()->tab_strip_model()->GetActiveWebContents();
+  content::AwaitDocumentOnLoadCompleted(web_contents);
+  {
+    // Navigate to another origin that is within extended scope.
+    OriginTextVisibilityWaiter origin_text_waiter(helper()->origin_text_view());
+    ASSERT_TRUE(
+        ui_test_utils::NavigateToURL(helper()->app_browser(), extension_url()));
+    content::AwaitDocumentOnLoadCompleted(web_contents);
+    origin_text_waiter.WaitForOriginTextAnimation(in_extended_scope_host_,
+                                                  https_server()->port());
+    EXPECT_FALSE(
+        helper()->app_browser()->app_controller()->ShouldShowCustomTabBar());
+    ExpectLastCommittedUrl(extension_url());
+  }
+  // From extended scope, navigate to another origin out of scope. Origin text
+  // should not show because out-of-scope bar is shown.
+  const GURL nav_url = https_server()->GetURL(out_of_extended_scope_host_,
+                                              "/web_apps/basic.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(helper()->app_browser(), nav_url));
+  content::AwaitDocumentOnLoadCompleted(web_contents);
+  ui_test_utils::WaitForViewVisibility(helper()->app_browser(),
+                                       VIEW_ID_WEB_APP_ORIGIN_TEXT, false);
+  EXPECT_TRUE(
+      helper()->app_browser()->app_controller()->ShouldShowCustomTabBar());
+  ExpectLastCommittedUrl(nav_url);
+}
+
+IN_PROC_BROWSER_TEST_F(WebAppFrameToolbarBrowserTest_ScopeExtensionsOriginText,
+                       ExtendedScopeThemeColorChange) {
+  ASSERT_TRUE(https_server()->Start());
+  InstallAndLaunchWebApp();
+  content::WebContents* web_contents =
+      helper()->app_browser()->tab_strip_model()->GetActiveWebContents();
+  content::AwaitDocumentOnLoadCompleted(web_contents);
+  {
+    // Navigate to another origin that is within extended scope.
+    OriginTextVisibilityWaiter origin_text_waiter(helper()->origin_text_view());
+    ASSERT_TRUE(
+        ui_test_utils::NavigateToURL(helper()->app_browser(), extension_url()));
+    content::AwaitDocumentOnLoadCompleted(web_contents);
+    origin_text_waiter.WaitForOriginTextAnimation(in_extended_scope_host_,
+                                                  https_server()->port());
+    EXPECT_FALSE(
+        helper()->app_browser()->app_controller()->ShouldShowCustomTabBar());
+    ExpectLastCommittedUrl(extension_url());
+  }
+  {
+    // From extended scope, navigate to another origin out of scope. Origin text
+    // should be shown because theme color changes, even though out-of-scope bar
+    // is shown.
+    OriginTextVisibilityWaiter origin_text_waiter(helper()->origin_text_view());
+    const GURL nav_url = https_server()->GetURL(
+        out_of_extended_scope_host_, "/web_apps/basic_with_theme_color.html");
+    ASSERT_TRUE(ui_test_utils::NavigateToURL(helper()->app_browser(), nav_url));
+    content::AwaitDocumentOnLoadCompleted(web_contents);
+    origin_text_waiter.WaitForOriginTextAnimation(out_of_extended_scope_host_,
+                                                  https_server()->port());
+    EXPECT_EQ(GetFrameColor(helper()->app_browser()), SK_ColorYELLOW);
+    EXPECT_TRUE(
+        helper()->app_browser()->app_controller()->ShouldShowCustomTabBar());
+    ExpectLastCommittedUrl(nav_url);
+  }
 }

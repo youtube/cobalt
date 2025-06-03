@@ -10,10 +10,13 @@
 #include "ash/constants/ash_constants.h"
 #include "ash/constants/ash_features.h"
 #include "ash/constants/ash_switches.h"
+#include "ash/public/cpp/session/session_types.h"
 #include "ash/root_window_controller.h"
+#include "ash/session/session_controller_impl.h"
 #include "ash/shell.h"
 #include "ash/strings/grit/ash_strings.h"
 #include "ash/system/message_center/ash_message_popup_collection.h"
+#include "ash/system/message_center/message_center_utils.h"
 #include "ash/system/message_center/unified_message_center_bubble.h"
 #include "ash/system/notification_center/notification_center_tray.h"
 #include "ash/system/notification_center/notification_center_view.h"
@@ -23,11 +26,13 @@
 #include "ash/system/video_conference/fake_video_conference_tray_controller.h"
 #include "ash/test/ash_test_base.h"
 #include "base/command_line.h"
+#include "base/containers/contains.h"
 #include "base/functional/bind.h"
 #include "base/memory/weak_ptr.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "chromeos/ash/components/audio/cras_audio_handler.h"
+#include "components/session_manager/session_manager_types.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/compositor/scoped_animation_duration_scale_mode.h"
 #include "ui/events/test/event_generator.h"
@@ -39,6 +44,12 @@
 namespace ash {
 
 namespace {
+
+void SetSessionState(session_manager::SessionState state) {
+  ash::SessionInfo info;
+  info.state = state;
+  ash::Shell::Get()->session_controller()->SetSessionInfo(info);
+}
 
 class TestDelegate : public PrivacyIndicatorsNotificationDelegate {
  public:
@@ -78,10 +89,14 @@ void ExpectPrivacyIndicatorsTrayItemVisible(bool visible,
                                             bool microphone_visible) {
   for (auto* root_window_controller :
        ash::Shell::Get()->GetAllRootWindowControllers()) {
-    auto* privacy_indicators_view =
-        root_window_controller->GetStatusAreaWidget()
-            ->unified_system_tray()
-            ->privacy_indicators_view();
+    StatusAreaWidget* status_area_widget =
+        root_window_controller->GetStatusAreaWidget();
+    PrivacyIndicatorsTrayItemView* privacy_indicators_view =
+        features::IsQsRevampEnabled()
+            ? status_area_widget->notification_center_tray()
+                  ->privacy_indicators_view()
+            : status_area_widget->unified_system_tray()
+                  ->privacy_indicators_view();
 
     ASSERT_TRUE(privacy_indicators_view);
     EXPECT_EQ(visible, privacy_indicators_view->GetVisible());
@@ -110,12 +125,27 @@ class PrivacyIndicatorsControllerTest : public AshTestBase {
   // Get the notification view from message center associated with `id`.
   message_center::NotificationViewBase* GetNotificationViewFromMessageCenter(
       const std::string& id) {
-    GetPrimaryUnifiedSystemTray()->ShowBubble();
-    auto* view = GetPrimaryUnifiedSystemTray()
-                     ->message_center_bubble()
-                     ->notification_center_view()
-                     ->notification_list_view()
-                     ->GetMessageViewForNotificationId(id);
+    // Privacy notifications have been moved to the notification center tray if
+    // QsRevamp is enabled.
+    message_center::MessageView* view;
+    if (features::IsQsRevampEnabled()) {
+      NotificationCenterTray* notification_center_tray =
+          Shell::GetPrimaryRootWindowController()
+              ->GetStatusAreaWidget()
+              ->notification_center_tray();
+
+      notification_center_tray->ShowBubble();
+      view = notification_center_tray->GetNotificationListView()
+                 ->GetMessageViewForNotificationId(id);
+    } else {
+      GetPrimaryUnifiedSystemTray()->ShowBubble();
+      view = GetPrimaryUnifiedSystemTray()
+                 ->message_center_bubble()
+                 ->notification_center_view()
+                 ->notification_list_view()
+                 ->GetMessageViewForNotificationId(id);
+    }
+
     auto* notification_view =
         static_cast<message_center::NotificationViewBase*>(view);
     EXPECT_TRUE(notification_view);
@@ -143,10 +173,15 @@ class PrivacyIndicatorsControllerTest : public AshTestBase {
 
   PrivacyIndicatorsTrayItemView* GetPrimaryDisplayPrivacyIndicatorsView()
       const {
-    return Shell::GetPrimaryRootWindowController()
-        ->GetStatusAreaWidget()
-        ->unified_system_tray()
-        ->privacy_indicators_view();
+    return features::IsQsRevampEnabled()
+               ? Shell::GetPrimaryRootWindowController()
+                     ->GetStatusAreaWidget()
+                     ->notification_center_tray()
+                     ->privacy_indicators_view()
+               : Shell::GetPrimaryRootWindowController()
+                     ->GetStatusAreaWidget()
+                     ->unified_system_tray()
+                     ->privacy_indicators_view();
   }
 
  private:
@@ -167,7 +202,7 @@ TEST_F(PrivacyIndicatorsControllerTest, NotificationMetadata) {
           notification_id);
 
   // Notification message should contains app name.
-  EXPECT_NE(std::string::npos, notification->message().find(app_name));
+  EXPECT_TRUE(base::Contains((notification->message()), app_name));
 
   // Privacy indicators notification should not be a popup. It is silently added
   // to the tray.
@@ -321,7 +356,10 @@ TEST_F(PrivacyIndicatorsControllerTest, NotificationWithTwoApps) {
   // A group parent notification should also be created for these 2
   // notifications.
   std::string id_parent =
-      notification_id1 + message_center::kIdSuffixForGroupContainerNotification;
+      notification_id1 +
+      message_center_utils::GenerateGroupParentNotificationIdSuffix(
+          message_center->FindNotificationById(notification_id1)
+              ->notifier_id());
   EXPECT_TRUE(message_center->FindNotificationById(id_parent));
 
   // Update the state. All notifications should be removed.
@@ -343,10 +381,12 @@ TEST_F(PrivacyIndicatorsControllerTest, NotificationWithTwoApps) {
 // conference feature is enabled.
 TEST_F(PrivacyIndicatorsControllerTest,
        DoNotShowNotificationWithVideoConferenceEnabled) {
-  base::test::ScopedFeatureList scoped_feature_list_{
-      features::kVideoConference};
-  base::CommandLine::ForCurrentProcess()->AppendSwitch(
-      switches::kCameraEffectsSupportedByHardware);
+  base::test::ScopedFeatureList scoped_feature_list_;
+  scoped_feature_list_.InitWithFeatures(
+      {ash::features::kVideoConference,
+       ash::features::kCameraEffectsSupportedByHardware},
+      {});
+
   // Try to show a notification.
   std::string app_id = "test_app_id";
   std::string notification_id = GetPrivacyIndicatorsNotificationId(app_id);
@@ -706,6 +746,53 @@ TEST_F(PrivacyIndicatorsControllerTest, MicrophoneDisabledWithMultipleApps) {
       notification_id2));
 }
 
+// Tests to make sure that privacy indicators are updated accordingly in locked
+// screen.
+TEST_F(PrivacyIndicatorsControllerTest, UpdateUsageStageInLockScreen) {
+  auto* controller = PrivacyIndicatorsController::Get();
+
+  std::string app_id = "test_app_id";
+  scoped_refptr<TestDelegate> delegate = base::MakeRefCounted<TestDelegate>();
+
+  SetSessionState(session_manager::SessionState::ACTIVE);
+
+  controller->UpdatePrivacyIndicators(app_id, u"test_app_name",
+                                      /*is_camera_used=*/true,
+                                      /*is_microphone_used=*/true, delegate,
+                                      PrivacyIndicatorsSource::kApps);
+
+  // Privacy indicators should show up as expected in an active session.
+  std::string notification_id = GetPrivacyIndicatorsNotificationId(app_id);
+  ASSERT_TRUE(message_center::MessageCenter::Get()->FindNotificationById(
+      notification_id));
+  ASSERT_TRUE(GetPrimaryDisplayPrivacyIndicatorsView()->GetVisible());
+
+  // Privacy indicators should show up as expected in a locked session.
+  SetSessionState(session_manager::SessionState::LOCKED);
+
+  EXPECT_TRUE(message_center::MessageCenter::Get()->FindNotificationById(
+      notification_id));
+  EXPECT_TRUE(GetPrimaryDisplayPrivacyIndicatorsView()->GetVisible());
+
+  // Update privacy indicators in a locked session. Should update accordingly.
+  controller->UpdatePrivacyIndicators(app_id, u"test_app_name",
+                                      /*is_camera_used=*/false,
+                                      /*is_microphone_used=*/false, delegate,
+                                      PrivacyIndicatorsSource::kApps);
+
+  EXPECT_FALSE(message_center::MessageCenter::Get()->FindNotificationById(
+      notification_id));
+  EXPECT_FALSE(GetPrimaryDisplayPrivacyIndicatorsView()->GetVisible());
+
+  // Indicators should still show up correctly when log back to an active
+  // session.
+  SetSessionState(session_manager::SessionState::ACTIVE);
+
+  EXPECT_FALSE(message_center::MessageCenter::Get()->FindNotificationById(
+      notification_id));
+  EXPECT_FALSE(GetPrimaryDisplayPrivacyIndicatorsView()->GetVisible());
+}
+
 // Tests enabling both `kPrivacyIndicators` and `kVideoConference`,
 // parameterized with `kQsRevamp` enabled and disabled.
 class PrivacyIndicatorsControllerVideoConferenceTest
@@ -713,17 +800,11 @@ class PrivacyIndicatorsControllerVideoConferenceTest
       public testing::WithParamInterface<bool> {
  public:
   PrivacyIndicatorsControllerVideoConferenceTest() {
-    std::vector<base::test::FeatureRef> enabled_features = {
-        features::kPrivacyIndicators, features::kVideoConference};
-    std::vector<base::test::FeatureRef> disabled_features;
-
-    if (IsQsRevampEnabled()) {
-      enabled_features.push_back(features::kQsRevamp);
-    } else {
-      disabled_features.push_back(features::kQsRevamp);
-    }
-
-    scoped_feature_list_.InitWithFeatures(enabled_features, disabled_features);
+    scoped_feature_list_.InitWithFeatureStates(
+        {{features::kPrivacyIndicators, true},
+         {features::kVideoConference, true},
+         {features::kCameraEffectsSupportedByHardware, true},
+         {features::kQsRevamp, IsQsRevampEnabled()}});
   }
   PrivacyIndicatorsControllerVideoConferenceTest(
       const PrivacyIndicatorsControllerVideoConferenceTest&) = delete;
@@ -731,13 +812,11 @@ class PrivacyIndicatorsControllerVideoConferenceTest
       const PrivacyIndicatorsControllerVideoConferenceTest&) = delete;
   ~PrivacyIndicatorsControllerVideoConferenceTest() override = default;
 
-  bool IsQsRevampEnabled() { return GetParam(); }
+  // TODO(b/305075031) clean up after the flag is removed.
+  bool IsQsRevampEnabled() { return true; }
 
   // AshTestBase:
   void SetUp() override {
-    base::CommandLine::ForCurrentProcess()->AppendSwitch(
-        switches::kCameraEffectsSupportedByHardware);
-
     // Instantiates a fake controller (the real one is created in
     // ChromeBrowserMainExtraPartsAsh::PreProfileInit() which is not called in
     // ash unit tests).

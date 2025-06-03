@@ -8,7 +8,6 @@
 #include "base/functional/bind.h"
 #include "base/location.h"
 #import "base/mac/mac_util.h"
-#import "base/mac/scoped_nsobject.h"
 #include "base/strings/sys_string_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
@@ -248,32 +247,19 @@ void BrowserAccessibilityManagerMac::FireGeneratedEvent(
         }
       }
 
-      if (base::mac::IsOS10_13()) {
-        // Use the announcement API to get around OS <= 10.13 VoiceOver bug
-        // where it stops announcing live regions after the first time focus
-        // leaves any content area.
-        // Unfortunately this produces an annoying boing sound with each live
-        // announcement, but the alternative is almost no live region support.
-        PostAnnouncementNotification(
-            base::SysUTF16ToNSString(wrapper->GetTextContentUTF16()),
-            [NSApp mainWindow], NSAccessibilityPriorityLow);
-        return;
-      }
-
       // Use native VoiceOver support for live regions.
-      base::scoped_nsobject<BrowserAccessibilityCocoa> retained_node(
-          [native_node retain]);
+      BrowserAccessibilityCocoa* retained_node = native_node;
       GetUIThreadTaskRunner({})->PostDelayedTask(
           FROM_HERE,
           base::BindOnce(
-              [](base::scoped_nsobject<BrowserAccessibilityCocoa> wrapper) {
+              [](BrowserAccessibilityCocoa* wrapper) {
                 if (wrapper && [wrapper instanceActive]) {
                   NSAccessibilityPostNotification(
                       wrapper,
                       ui::NSAccessibilityLiveRegionChangedNotification);
                 }
               },
-              std::move(retained_node)),
+              retained_node),
           base::Milliseconds(kLiveRegionChangeIntervalMS));
       return;
     }
@@ -416,6 +402,7 @@ void BrowserAccessibilityManagerMac::FireGeneratedEvent(
     case ui::AXEventGenerator::Event::MULTILINE_STATE_CHANGED:
     case ui::AXEventGenerator::Event::MULTISELECTABLE_STATE_CHANGED:
     case ui::AXEventGenerator::Event::OBJECT_ATTRIBUTE_CHANGED:
+    case ui::AXEventGenerator::Event::ORIENTATION_CHANGED:
     case ui::AXEventGenerator::Event::OTHER_ATTRIBUTE_CHANGED:
     case ui::AXEventGenerator::Event::PARENT_CHANGED:
     case ui::AXEventGenerator::Event::PLACEHOLDER_CHANGED:
@@ -495,18 +482,16 @@ void BrowserAccessibilityManagerMac::OnAtomicUpdateFinished(
 
 NSDictionary* BrowserAccessibilityManagerMac::
     GetUserInfoForSelectedTextChangedNotification() {
-  NSMutableDictionary* user_info =
-      [[[NSMutableDictionary alloc] init] autorelease];
-  [user_info setObject:@YES forKey:ui::NSAccessibilityTextStateSyncKey];
-  [user_info setObject:@(ui::AXTextSelectionDirectionUnknown)
-                forKey:ui::NSAccessibilityTextSelectionDirection];
-  [user_info setObject:@(ui::AXTextSelectionGranularityUnknown)
-                forKey:ui::NSAccessibilityTextSelectionGranularity];
-  [user_info setObject:@YES
-                forKey:ui::NSAccessibilityTextSelectionChangedFocus];
+  NSMutableDictionary* user_info = [NSMutableDictionary dictionary];
+  user_info[ui::NSAccessibilityTextStateSyncKey] = @YES;
+  user_info[ui::NSAccessibilityTextSelectionDirection] =
+      @(ui::AXTextSelectionDirectionUnknown);
+  user_info[ui::NSAccessibilityTextSelectionGranularity] =
+      @(ui::AXTextSelectionGranularityUnknown);
+  user_info[ui::NSAccessibilityTextSelectionChangedFocus] = @YES;
 
   // Try to detect when the text selection changes due to a focus change.
-  // This is necessary so that VoiceOver also anounces information about the
+  // This is necessary so that VoiceOver also announces information about the
   // element that contains this selection.
   // TODO(mrobinson): Determine definitively what the type of this text
   // selection change is. This requires passing this information here from
@@ -515,26 +500,25 @@ NSDictionary* BrowserAccessibilityManagerMac::
   DCHECK(focus_object);
 
   if (focus_object != GetFromAXNode(GetLastFocusedNode())) {
-    [user_info setObject:@(ui::AXTextStateChangeTypeSelectionMove)
-                  forKey:ui::NSAccessibilityTextStateChangeTypeKey];
+    user_info[ui::NSAccessibilityTextStateChangeTypeKey] =
+        @(ui::AXTextStateChangeTypeSelectionMove);
   } else {
-    [user_info setObject:@(ui::AXTextStateChangeTypeUnknown)
-                  forKey:ui::NSAccessibilityTextStateChangeTypeKey];
+    user_info[ui::NSAccessibilityTextStateChangeTypeKey] =
+        @(ui::AXTextStateChangeTypeUnknown);
   }
 
   focus_object = focus_object->PlatformGetLowestPlatformAncestor();
   BrowserAccessibilityCocoa* native_focus_object =
       focus_object->GetNativeViewAccessible();
   if (native_focus_object && [native_focus_object instanceActive]) {
-    [user_info setObject:native_focus_object
-                  forKey:ui::NSAccessibilityTextChangeElement];
+    user_info[ui::NSAccessibilityTextChangeElement] = native_focus_object;
 
     id selected_text = [native_focus_object selectedTextMarkerRange];
     if (selected_text) {
       NSString* const NSAccessibilitySelectedTextMarkerRangeAttribute =
           @"AXSelectedTextMarkerRange";
-      [user_info setObject:selected_text
-                    forKey:NSAccessibilitySelectedTextMarkerRangeAttribute];
+      user_info[NSAccessibilitySelectedTextMarkerRangeAttribute] =
+          selected_text;
     }
   }
 
@@ -551,7 +535,7 @@ BrowserAccessibilityManagerMac::GetUserInfoForValueChangedNotification(
   if (deleted_text.empty() && inserted_text.empty())
     return nil;
 
-  NSMutableArray* changes = [[[NSMutableArray alloc] init] autorelease];
+  NSMutableArray* changes = [NSMutableArray array];
   if (!deleted_text.empty()) {
     NSMutableDictionary* change =
         [NSMutableDictionary dictionaryWithDictionary:@{
@@ -614,34 +598,39 @@ bool BrowserAccessibilityManagerMac::IsChromeNewTabPage() {
 
 bool BrowserAccessibilityManagerMac::ShouldFireLoadCompleteNotification() {
   // If it's not the top-level document, we shouldn't fire AXLoadComplete.
-  if (!IsRootFrameManager())
+  if (!IsRootFrameManager()) {
     return false;
+  }
 
   // On MacOS 10.15, firing AXLoadComplete causes focus to move to the
   // webpage and read content, despite the "Automatically speak the webpage"
   // checkbox in Voiceover utility being unchecked. The checkbox is
   // unchecked by default in 10.15 so we don't fire AXLoadComplete events to
   // support the default behavior.
-  if (base::mac::IsOS10_15())
+  if (base::mac::MacOSMajorVersion() < 11) {
     return false;
+  }
 
   // Voiceover moves focus to the web content when it receives an
   // AXLoadComplete event. On Chrome's new tab page, focus should stay
   // in the omnibox, so we purposefully do not fire the AXLoadComplete
   // event in this case.
-  if (IsChromeNewTabPage())
+  if (IsChromeNewTabPage()) {
     return false;
+  }
 
   // We also check that the window is focused because VoiceOver responds
   // to this notification by changing focus and possibly reading the entire
   // page contents, sometimes even when the window is minimized or another
   // Chrome window is active/focused.
   id window = GetWindow();
-  if (!window)
+  if (!window) {
     return false;
+  }
 
-  if ([NSApp isActive])
+  if ([NSApp isActive]) {
     return window == [NSApp accessibilityFocusedWindow];
+  }
 
   // TODO(accessibility): We need a solution to the problem described below.
   // If the window is NSAccessibilityRemoteUIElement, there are some challenges:
@@ -668,8 +657,9 @@ bool BrowserAccessibilityManagerMac::ShouldFireLoadCompleteNotification() {
   // This may be due to the issues described above, or the fact that one
   // cannot ascend the accessibility tree all the way to the parent window
   // from within the app shim content.
-  if ([window isKindOfClass:[NSAccessibilityRemoteUIElement class]])
+  if ([window isKindOfClass:[NSAccessibilityRemoteUIElement class]]) {
     return true;
+  }
 
   return false;
 }

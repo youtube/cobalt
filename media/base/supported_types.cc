@@ -42,24 +42,30 @@ namespace media {
 
 namespace {
 
+template <typename T>
 class SupplementalProfileCache {
  public:
-  void UpdateCache(const base::flat_set<media::VideoCodecProfile>& profiles) {
+  void UpdateCache(const base::flat_set<T>& profiles) {
     base::AutoLock lock(profiles_lock_);
     profiles_ = profiles;
   }
-  bool IsProfileSupported(media::VideoCodecProfile profile) {
+  bool IsProfileSupported(T profile) {
     base::AutoLock lock(profiles_lock_);
     return profiles_.find(profile) != profiles_.end();
   }
 
  private:
   base::Lock profiles_lock_;
-  base::flat_set<media::VideoCodecProfile> profiles_ GUARDED_BY(profiles_lock_);
+  base::flat_set<T> profiles_ GUARDED_BY(profiles_lock_);
 };
 
-SupplementalProfileCache* GetSupplementalProfileCache() {
-  static base::NoDestructor<SupplementalProfileCache> cache;
+SupplementalProfileCache<VideoCodecProfile>* GetSupplementalProfileCache() {
+  static base::NoDestructor<SupplementalProfileCache<VideoCodecProfile>> cache;
+  return cache.get();
+}
+
+SupplementalProfileCache<AudioType>* GetSupplementalAudioTypeCache() {
+  static base::NoDestructor<SupplementalProfileCache<AudioType>> cache;
   return cache.get();
 }
 
@@ -191,6 +197,7 @@ bool IsAudioCodecProprietary(AudioCodec codec) {
     case AudioCodec::kDTS:
     case AudioCodec::kDTSXP2:
     case AudioCodec::kDTSE:
+    case AudioCodec::kAC4:
       return true;
 
     case AudioCodec::kFLAC:
@@ -286,8 +293,8 @@ bool IsAV1Supported(const VideoType& type) {
 }
 
 bool IsMPEG4Supported() {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-  return true;
+#if BUILDFLAG(IS_CHROMEOS) && BUILDFLAG(USE_PROPRIETARY_CODECS)
+  return base::FeatureList::IsEnabled(kCrOSLegacyMediaFormats);
 #else
   return false;
 #endif
@@ -300,11 +307,19 @@ bool IsAACSupported(const AudioType& type) {
   return base::android::BuildInfo::GetInstance()->sdk_int() >=
          base::android::SDK_VERSION_P;
 #elif BUILDFLAG(IS_MAC)
-  if (__builtin_available(macOS 10.15, *))
-    return true;
-  return false;
+  return true;
 #elif BUILDFLAG(IS_WIN)
   return base::win::GetVersion() >= base::win::Version::WIN11_22H2;
+#else
+  return false;
+#endif
+}
+
+bool IsDolbyVisionProfileSupported(const VideoType& type) {
+#if BUILDFLAG(ENABLE_PLATFORM_HEVC) &&               \
+    BUILDFLAG(PLATFORM_HAS_OPTIONAL_HEVC_SUPPORT) && \
+    BUILDFLAG(ENABLE_PLATFORM_DOLBY_VISION)
+  return GetSupplementalProfileCache()->IsProfileSupported(type.profile);
 #else
   return false;
 #endif
@@ -336,9 +351,10 @@ bool IsDefaultSupportedVideoType(const VideoType& type) {
 #endif
 
   switch (type.codec) {
+    case VideoCodec::kTheora:
+      return IsBuiltInVideoCodec(type.codec);
     case VideoCodec::kH264:
     case VideoCodec::kVP8:
-    case VideoCodec::kTheora:
       return true;
     case VideoCodec::kAV1:
       return IsAV1Supported(type);
@@ -348,10 +364,11 @@ bool IsDefaultSupportedVideoType(const VideoType& type) {
       return IsHevcProfileSupported(type);
     case VideoCodec::kMPEG4:
       return IsMPEG4Supported();
+    case VideoCodec::kDolbyVision:
+      return IsDolbyVisionProfileSupported(type);
     case VideoCodec::kUnknown:
     case VideoCodec::kVC1:
     case VideoCodec::kMPEG2:
-    case VideoCodec::kDolbyVision:
       return false;
   }
 }
@@ -383,6 +400,7 @@ bool IsDefaultSupportedAudioType(const AudioType& type) {
     case AudioCodec::kGSM_MS:
     case AudioCodec::kALAC:
     case AudioCodec::kMpegHAudio:
+    case AudioCodec::kAC4:
     case AudioCodec::kUnknown:
       return false;
     case AudioCodec::kDTS:
@@ -406,7 +424,7 @@ bool IsDefaultSupportedAudioType(const AudioType& type) {
 bool IsBuiltInVideoCodec(VideoCodec codec) {
 #if BUILDFLAG(ENABLE_FFMPEG_VIDEO_DECODERS)
   if (codec == VideoCodec::kTheora)
-    return true;
+    return base::FeatureList::IsEnabled(kTheoraVideoCodec);
   if (codec == VideoCodec::kVP8)
     return true;
 #if BUILDFLAG(USE_PROPRIETARY_CODECS)
@@ -428,6 +446,10 @@ bool IsBuiltInVideoCodec(VideoCodec codec) {
 void UpdateDefaultSupportedVideoProfiles(
     const base::flat_set<media::VideoCodecProfile>& profiles) {
   GetSupplementalProfileCache()->UpdateCache(profiles);
+}
+
+void UpdateDefaultSupportedAudioTypes(const base::flat_set<AudioType>& types) {
+  GetSupplementalAudioTypeCache()->UpdateCache(types);
 }
 
 }  // namespace media

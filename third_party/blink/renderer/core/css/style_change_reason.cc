@@ -11,6 +11,7 @@
 namespace blink {
 
 namespace style_change_reason {
+const char kAccessibility[] = "Accessibility";
 const char kActiveStylesheetsUpdate[] = "ActiveStylesheetsUpdate";
 const char kAnimation[] = "Animation";
 const char kAttribute[] = "Attribute";
@@ -21,6 +22,7 @@ const char kDeclarativeContent[] = "Extension declarativeContent.css";
 const char kDesignMode[] = "DesignMode";
 const char kDialog[] = "Dialog";
 const char kDisplayLock[] = "DisplayLock";
+const char kEditContext[] = "EditContext";
 const char kViewTransition[] = "ViewTransition";
 const char kFlatTreeChange[] = "FlatTreeChange";
 const char kFonts[] = "Fonts";
@@ -63,7 +65,6 @@ DEFINE_GLOBAL(AtomicString, g_focus_visible);
 DEFINE_GLOBAL(AtomicString, g_focus_within);
 DEFINE_GLOBAL(AtomicString, g_hover);
 DEFINE_GLOBAL(AtomicString, g_past);
-DEFINE_GLOBAL(AtomicString, g_toggle);
 DEFINE_GLOBAL(AtomicString, g_unresolved);
 
 void Init() {
@@ -79,7 +80,6 @@ void Init() {
       AtomicString(":focus-within");
   new (WTF::NotNullTag::kNotNull, (void*)&g_hover) AtomicString(":hover");
   new (WTF::NotNullTag::kNotNull, (void*)&g_past) AtomicString(":past");
-  new (WTF::NotNullTag::kNotNull, (void*)&g_toggle) AtomicString(":toggle");
   new (WTF::NotNullTag::kNotNull, (void*)&g_unresolved)
       AtomicString(":unresolved");
 }

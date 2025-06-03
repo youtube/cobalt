@@ -145,6 +145,21 @@ enum WeakHandlingFlag {
   kWeakHandling,
 };
 
+// This is for tracing inside collections that have special support for weak
+// pointers.
+//
+// Structure:
+// - `Trace()`: Traces the contents.
+// - `IsAlive()`: Returns true if the contents are still considered alive, and
+// false otherwise.
+//
+// Default implementation for non-weak types is to use the regular non-weak
+// TraceTrait. Default implementation for types with weakness is to
+// delegate to sub types until reaching WeakMember or KeyValuePair which
+// have defined weakness semantics.
+template <WeakHandlingFlag weakness, typename T, typename Traits>
+struct TraceInCollectionTrait;
+
 template <typename T>
 struct WeakHandlingTrait
     : std::integral_constant<WeakHandlingFlag,
@@ -199,6 +214,24 @@ template <typename T>
 struct IsStackAllocatedType<T,
                             std::void_t<typename T::IsStackAllocatedTypeMarker>>
     : std::true_type {};
+
+template <typename T>
+struct IsPointerToGced {
+ private:
+  typedef char YesType;
+  struct NoType {
+    char padding[8];
+  };
+
+  template <typename X,
+            typename = std::enable_if_t<WTF::IsGarbageCollectedType<X>::value>>
+  static YesType SubclassCheck(X**);
+  static NoType SubclassCheck(...);
+  static T* t_;
+
+ public:
+  static const bool value = sizeof(SubclassCheck(t_)) == sizeof(YesType);
+};
 
 }  // namespace WTF
 

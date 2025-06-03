@@ -15,6 +15,7 @@
 #if BUILDFLAG(ENABLE_LIBAOM)
 #include "media/cast/encoding/av1_encoder.h"
 #endif
+#include "media/base/video_encoder_metrics_provider.h"
 #include "media/cast/common/sender_encoded_frame.h"
 #include "media/cast/encoding/fake_software_video_encoder.h"
 #include "media/cast/encoding/vpx_encoder.h"
@@ -45,6 +46,9 @@ void EncodeVideoFrameOnEncoderThread(
   encoder->UpdateRates(dynamic_config.bit_rate);
 
   auto encoded_frame = std::make_unique<SenderEncodedFrame>();
+  encoded_frame->capture_begin_time =
+      video_frame->metadata().capture_begin_time;
+  encoded_frame->capture_end_time = video_frame->metadata().capture_end_time;
   encoder->Encode(std::move(video_frame), reference_time, encoded_frame.get());
   encoded_frame->encode_completion_time = environment->Clock()->NowTicks();
   environment->PostTask(CastEnvironment::MAIN, FROM_HERE,
@@ -56,6 +60,7 @@ void EncodeVideoFrameOnEncoderThread(
 VideoEncoderImpl::VideoEncoderImpl(
     scoped_refptr<CastEnvironment> cast_environment,
     const FrameSenderConfig& video_config,
+    std::unique_ptr<VideoEncoderMetricsProvider> metrics_provider,
     StatusChangeCallback status_change_cb)
     : cast_environment_(cast_environment) {
   CHECK(cast_environment_->HasVideoThread());
@@ -63,7 +68,8 @@ VideoEncoderImpl::VideoEncoderImpl(
 
   if (video_config.codec == Codec::kVideoVp8 ||
       video_config.codec == Codec::kVideoVp9) {
-    encoder_ = std::make_unique<VpxEncoder>(video_config);
+    encoder_ =
+        std::make_unique<VpxEncoder>(video_config, std::move(metrics_provider));
     cast_environment_->PostTask(
         CastEnvironment::VIDEO, FROM_HERE,
         base::BindOnce(&InitializeEncoderOnEncoderThread, cast_environment,
@@ -73,7 +79,8 @@ VideoEncoderImpl::VideoEncoderImpl(
     encoder_ = std::make_unique<FakeSoftwareVideoEncoder>(video_config);
 #if BUILDFLAG(ENABLE_LIBAOM)
   } else if (video_config.codec == Codec::kVideoAv1) {
-    encoder_ = std::make_unique<Av1Encoder>(video_config);
+    encoder_ =
+        std::make_unique<Av1Encoder>(video_config, std::move(metrics_provider));
     cast_environment_->PostTask(
         CastEnvironment::VIDEO, FROM_HERE,
         base::BindOnce(&InitializeEncoderOnEncoderThread, cast_environment,

@@ -20,12 +20,9 @@
 #include "chrome/common/url_constants.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/scoped_user_pref_update.h"
-#include "components/sync/driver/sync_service.h"
+#include "components/sync/service/sync_service.h"
 #include "components/sync_sessions/open_tabs_ui_delegate.h"
 #include "components/sync_sessions/session_sync_service.h"
-#include "content/public/browser/notification_details.h"
-#include "content/public/browser/notification_service.h"
-#include "content/public/browser/notification_source.h"
 #include "content/public/browser/web_contents.h"
 #include "url/android/gurl_android.h"
 
@@ -105,7 +102,7 @@ void JNI_ForeignSessionHelper_CopyTabToJava(
   Java_ForeignSessionHelper_pushTab(
       env, j_window, url::GURLAndroid::FromNativeGURL(env, tab_url),
       ConvertUTF16ToJavaString(env, current_navigation.title()),
-      tab.timestamp.ToJavaTime(), tab.tab_id.id());
+      tab.timestamp.InMillisecondsSinceUnixEpoch(), tab.tab_id.id());
 }
 
 void JNI_ForeignSessionHelper_CopyWindowToJava(
@@ -136,7 +133,8 @@ void JNI_ForeignSessionHelper_CopySessionToJava(
 
     ScopedJavaLocalRef<jobject> last_pushed_window;
     last_pushed_window.Reset(Java_ForeignSessionHelper_pushWindow(
-        env, j_session, window.timestamp.ToJavaTime(), window.window_id.id()));
+        env, j_session, window.timestamp.InMillisecondsSinceUnixEpoch(),
+        window.window_id.id()));
 
     JNI_ForeignSessionHelper_CopyWindowToJava(env, window, last_pushed_window);
   }
@@ -245,7 +243,8 @@ jboolean ForeignSessionHelper::GetForeignSessions(
     last_pushed_session.Reset(Java_ForeignSessionHelper_pushSession(
         env, result, ConvertUTF8ToJavaString(env, session.GetSessionTag()),
         ConvertUTF8ToJavaString(env, session.GetSessionName()),
-        session.GetModifiedTime().ToJavaTime()));
+        session.GetModifiedTime().InMillisecondsSinceUnixEpoch(),
+        static_cast<int>(session.GetDeviceFormFactor())));
 
     // Push the full session, with tabs ordered by visual position.
     JNI_ForeignSessionHelper_CopySessionToJava(env, session,
@@ -280,7 +279,8 @@ jboolean ForeignSessionHelper::GetMobileAndTabletForeignSessions(
       last_pushed_session.Reset(Java_ForeignSessionHelper_pushSession(
           env, result, ConvertUTF8ToJavaString(env, session->GetSessionTag()),
           ConvertUTF8ToJavaString(env, session->GetSessionName()),
-          session->GetModifiedTime().ToJavaTime()));
+          session->GetModifiedTime().InMillisecondsSinceUnixEpoch(),
+          static_cast<int>(session->GetDeviceFormFactor())));
 
       // Push the full session, with tabs ordered by visual position.
       JNI_ForeignSessionHelper_CopySessionToJava(env, *session,

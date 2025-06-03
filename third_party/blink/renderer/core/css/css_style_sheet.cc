@@ -36,6 +36,7 @@
 #include "third_party/blink/renderer/core/css/style_rule.h"
 #include "third_party/blink/renderer/core/css/style_sheet_contents.h"
 #include "third_party/blink/renderer/core/dom/document.h"
+#include "third_party/blink/renderer/core/dom/element.h"
 #include "third_party/blink/renderer/core/dom/node.h"
 #include "third_party/blink/renderer/core/dom/tree_scope.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
@@ -69,7 +70,7 @@ class StyleSheetCSSRuleList final : public CSSRuleList {
     return style_sheet_->item(index);
   }
 
-  CSSStyleSheet* GetStyleSheet() const override { return style_sheet_; }
+  CSSStyleSheet* GetStyleSheet() const override { return style_sheet_.Get(); }
 
   Member<CSSStyleSheet> style_sheet_;
 };
@@ -192,6 +193,8 @@ CSSStyleSheet::CSSStyleSheet(StyleSheetContents* contents,
                              const TextPosition& start_position)
     : contents_(contents),
       owner_node_(&owner_node),
+      owner_parent_or_shadow_host_element_(
+          owner_node.ParentOrShadowHostElement()),
       start_position_(start_position),
       is_inline_stylesheet_(is_inline_stylesheet) {
 #if DCHECK_IS_ON()
@@ -206,8 +209,8 @@ void CSSStyleSheet::WillMutateRules() {
   // If we are the only client it is safe to mutate.
   if (!contents_->IsUsedFromTextCache() &&
       !contents_->IsReferencedFromResource()) {
+    contents_->StartMutation();
     contents_->ClearRuleSet();
-    contents_->SetMutable();
     return;
   }
   // Only cacheable stylesheets should have multiple clients.
@@ -220,7 +223,7 @@ void CSSStyleSheet::WillMutateRules() {
   contents_ = contents_->Copy();
   contents_->RegisterClient(this);
 
-  contents_->SetMutable();
+  contents_->StartMutation();
 
   // Any existing CSSOM wrappers need to be connected to the copied child rules.
   ReattachChildRuleCSSOMWrappers();
@@ -314,6 +317,10 @@ void CSSStyleSheet::AddedAdoptedToTreeScope(TreeScope& tree_scope) {
 
 void CSSStyleSheet::RemovedAdoptedFromTreeScope(TreeScope& tree_scope) {
   adopted_tree_scopes_.erase(&tree_scope);
+}
+
+bool CSSStyleSheet::IsAdoptedByTreeScope(TreeScope& tree_scope) {
+  return adopted_tree_scopes_.Contains(&tree_scope);
 }
 
 bool CSSStyleSheet::HasViewportDependentMediaQueries() const {
@@ -653,6 +660,7 @@ void CSSStyleSheet::Trace(Visitor* visitor) const {
   visitor->Trace(contents_);
   visitor->Trace(media_queries_);
   visitor->Trace(owner_node_);
+  visitor->Trace(owner_parent_or_shadow_host_element_);
   visitor->Trace(owner_rule_);
   visitor->Trace(media_cssom_wrapper_);
   visitor->Trace(child_rule_cssom_wrappers_);

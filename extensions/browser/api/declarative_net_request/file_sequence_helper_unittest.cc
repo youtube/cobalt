@@ -15,11 +15,12 @@
 #include "base/strings/stringprintf.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/threading/thread_restrictions.h"
+#include "base/version.h"
 #include "components/crx_file/id_util.h"
 #include "extensions/browser/api/declarative_net_request/constants.h"
 #include "extensions/browser/api/declarative_net_request/file_backed_ruleset_source.h"
 #include "extensions/browser/api/declarative_net_request/parse_info.h"
-#include "extensions/browser/api/declarative_net_request/rules_count_pair.h"
+#include "extensions/browser/api/declarative_net_request/rule_counts.h"
 #include "extensions/browser/api/declarative_net_request/test_utils.h"
 #include "extensions/browser/api/declarative_net_request/utils.h"
 #include "extensions/browser/extension_file_task_runner.h"
@@ -101,7 +102,7 @@ class FileSequenceHelperTest : public ExtensionsTest {
         &run_loop, expected_did_load_successfully, expected_error);
 
     ExtensionId extension_id = crx_file::id_util::GenerateId("dummy_extension");
-    LoadRequestData data(extension_id);
+    LoadRequestData data(extension_id, base::Version("1.0"));
     data.rulesets.emplace_back(std::move(source));
 
     // Unretained is safe because |helper_| outlives the |add_rules_task|.
@@ -109,7 +110,8 @@ class FileSequenceHelperTest : public ExtensionsTest {
         &FileSequenceHelper::UpdateDynamicRules,
         base::Unretained(helper_.get()), std::move(data),
         /* rule_ids_to_remove */ std::vector<int>(), std::move(rules_to_add),
-        RulesCountPair(GetDynamicAndSessionRuleLimit(), GetRegexRuleLimit()),
+        RuleCounts(GetDynamicRuleLimit(), GetUnsafeDynamicRuleLimit(),
+                   GetRegexRuleLimit()),
         std::move(add_rules_callback));
 
     base::HistogramTester tester;
@@ -123,7 +125,7 @@ class FileSequenceHelperTest : public ExtensionsTest {
   }
 
   void TestLoadRulesets(const std::vector<TestCase>& test_cases) {
-    LoadRequestData data(GenerateDummyExtensionID());
+    LoadRequestData data(GenerateDummyExtensionID(), base::Version("1.0"));
     for (const auto& test_case : test_cases) {
       data.rulesets.emplace_back(test_case.source.Clone());
       data.rulesets.back().set_expected_checksum(test_case.checksum);
@@ -166,7 +168,7 @@ class FileSequenceHelperTest : public ExtensionsTest {
   }
 
   void TestNoRulesetsToLoad() {
-    LoadRequestData data(GenerateDummyExtensionID());
+    LoadRequestData data(GenerateDummyExtensionID(), base::Version("1.0"));
 
     base::RunLoop run_loop;
     auto load_ruleset_callback = base::BindOnce(

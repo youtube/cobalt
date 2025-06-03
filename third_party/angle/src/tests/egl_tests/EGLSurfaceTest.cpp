@@ -571,6 +571,116 @@ TEST_P(EGLSurfaceTest, MakeCurrentTwice)
     glClear(GL_COLOR_BUFFER_BIT);
 }
 
+// Test that we dont crash during a clear when specified scissor is outside render area
+// due to reducing window size.
+TEST_P(EGLSurfaceTest, ShrinkWindowThenScissoredClear)
+{
+    initializeDisplay();
+    initializeSurfaceWithDefaultConfig(false);
+    initializeMainContext();
+
+    // Create 64x64 window and make it current
+    eglMakeCurrent(mDisplay, mWindowSurface, mWindowSurface, mContext);
+    ASSERT_EGL_SUCCESS();
+
+    // Resize window to 32x32
+    mOSWindow->resize(32, 32);
+
+    // Perform empty swap
+    eglSwapBuffers(mDisplay, mWindowSurface);
+
+    // Enable scissor test
+    glEnable(GL_SCISSOR_TEST);
+    ASSERT_GL_NO_ERROR();
+
+    // Set scissor to (50, 50, 10, 10)
+    glScissor(50, 50, 10, 10);
+    ASSERT_GL_NO_ERROR();
+
+    // Clear to specific color
+    glClearColor(0.0f, 0.0f, 1.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    // Disable scissor test
+    glDisable(GL_SCISSOR_TEST);
+    ASSERT_GL_NO_ERROR();
+}
+
+// Test that we dont early return from a clear when specified scissor is outside render area
+// before increasing window size.
+TEST_P(EGLSurfaceTest, GrowWindowThenScissoredClear)
+{
+    initializeDisplay();
+    initializeSurfaceWithDefaultConfig(false);
+    initializeMainContext();
+
+    // Create 64x64 window and make it current
+    eglMakeCurrent(mDisplay, mWindowSurface, mWindowSurface, mContext);
+    ASSERT_EGL_SUCCESS();
+
+    // Resize window to 128x128
+    mOSWindow->resize(128, 128);
+
+    // Perform empty swap
+    eglSwapBuffers(mDisplay, mWindowSurface);
+
+    // Enable scissor test
+    glEnable(GL_SCISSOR_TEST);
+    ASSERT_GL_NO_ERROR();
+
+    // Set scissor to (64, 64, 10, 10)
+    glScissor(64, 64, 10, 10);
+    ASSERT_GL_NO_ERROR();
+
+    // Clear to specific color
+    glClearColor(0.0f, 0.0f, 1.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    // Disable scissor test
+    glDisable(GL_SCISSOR_TEST);
+    ASSERT_GL_NO_ERROR();
+
+    EXPECT_PIXEL_RECT_EQ(64, 64, 10, 10, GLColor::blue);
+    ASSERT_GL_NO_ERROR();
+}
+
+// Test that just a ClearBuffer* with an invalid scissor doesn't cause an assert.
+TEST_P(EGLSurfaceTest3, ShrinkWindowThenScissoredClearBuffer)
+{
+    initializeDisplay();
+    initializeSurfaceWithDefaultConfig(false);
+    initializeMainContext();
+
+    // Create 64x64 window and make it current
+    eglMakeCurrent(mDisplay, mWindowSurface, mWindowSurface, mContext);
+    ASSERT_EGL_SUCCESS();
+
+    // Resize window to 32x32
+    mOSWindow->resize(32, 32);
+
+    // Perform empty swap
+    eglSwapBuffers(mDisplay, mWindowSurface);
+
+    // Enable scissor test
+    glEnable(GL_SCISSOR_TEST);
+    ASSERT_GL_NO_ERROR();
+
+    // Set scissor to (50, 50, 10, 10)
+    glScissor(50, 50, 10, 10);
+    ASSERT_GL_NO_ERROR();
+
+    std::vector<GLint> testInt(4);
+    glClearBufferiv(GL_COLOR, 0, testInt.data());
+    std::vector<GLuint> testUint(4);
+    glClearBufferuiv(GL_COLOR, 0, testUint.data());
+    std::vector<GLfloat> testFloat(4);
+    glClearBufferfv(GL_COLOR, 0, testFloat.data());
+
+    // Disable scissor test
+    glDisable(GL_SCISSOR_TEST);
+    ASSERT_GL_NO_ERROR();
+}
+
 // This is a regression test to verify that surfaces are not prematurely destroyed.
 TEST_P(EGLSurfaceTest, SurfaceUseAfterFreeBug)
 {
@@ -970,6 +1080,71 @@ TEST_P(EGLSurfaceTest, CreateWithEGLConfig8880Support)
     drawWithProgram(program);
     EXPECT_GL_NO_ERROR();
     glDeleteProgram(program);
+}
+
+// Test creating a surface that supports GL_RGB10_A2 with BT2020 colorspaces
+TEST_P(EGLSurfaceTest, CreateWithEGLConfig1010102Support)
+{
+    const EGLint configAttributes[] = {EGL_SURFACE_TYPE,
+                                       EGL_WINDOW_BIT,
+                                       EGL_RED_SIZE,
+                                       10,
+                                       EGL_GREEN_SIZE,
+                                       10,
+                                       EGL_BLUE_SIZE,
+                                       10,
+                                       EGL_ALPHA_SIZE,
+                                       2,
+                                       EGL_DEPTH_SIZE,
+                                       0,
+                                       EGL_STENCIL_SIZE,
+                                       0,
+                                       EGL_SAMPLE_BUFFERS,
+                                       0,
+                                       EGL_NONE};
+
+    initializeDisplay();
+    ASSERT_NE(mDisplay, EGL_NO_DISPLAY);
+
+    EGLConfig config;
+    if (EGLWindow::FindEGLConfig(mDisplay, configAttributes, &config) == EGL_FALSE)
+    {
+        std::cout << "EGLConfig for a GL_RGB10_A2 surface is not supported, skipping test"
+                  << std::endl;
+        return;
+    }
+
+    ANGLE_SKIP_TEST_IF(!IsEGLDisplayExtensionEnabled(mDisplay, "EGL_EXT_gl_colorspace_bt2020_hlg"));
+    ANGLE_SKIP_TEST_IF(
+        !IsEGLDisplayExtensionEnabled(mDisplay, "EGL_EXT_gl_colorspace_bt2020_linear"));
+    ANGLE_SKIP_TEST_IF(!IsEGLDisplayExtensionEnabled(mDisplay, "EGL_EXT_gl_colorspace_bt2020_pq"));
+
+    constexpr std::array<EGLint, 3u> kBt2020Colorspaces = {EGL_GL_COLORSPACE_BT2020_HLG_EXT,
+                                                           EGL_GL_COLORSPACE_BT2020_LINEAR_EXT,
+                                                           EGL_GL_COLORSPACE_BT2020_PQ_EXT};
+    for (EGLint bt2020Colorspace : kBt2020Colorspaces)
+    {
+        std::vector<EGLint> winSurfaceAttribs;
+        winSurfaceAttribs.push_back(EGL_GL_COLORSPACE_KHR);
+        winSurfaceAttribs.push_back(bt2020Colorspace);
+
+        initializeSurfaceWithAttribs(config, winSurfaceAttribs);
+        ASSERT_EGL_SUCCESS();
+        ASSERT_NE(mWindowSurface, EGL_NO_SURFACE);
+
+        EXPECT_EGL_TRUE(eglMakeCurrent(mDisplay, mWindowSurface, mWindowSurface, mContext));
+        ASSERT_EGL_SUCCESS();
+
+        GLuint program = createProgram();
+        ASSERT_NE(0u, program);
+        drawWithProgram(program);
+        EXPECT_GL_NO_ERROR();
+        glDeleteProgram(program);
+
+        eglMakeCurrent(mDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+        eglDestroySurface(mDisplay, mWindowSurface);
+        mWindowSurface = EGL_NO_SURFACE;
+    }
 }
 
 TEST_P(EGLSurfaceTest, FixedSizeWindow)
@@ -2307,6 +2482,88 @@ TEST_P(EGLSingleBufferTest, ScissoredDraw)
     context = EGL_NO_CONTEXT;
 }
 
+// Tests that "one off" submission is waited before destroying the surface.
+TEST_P(EGLSingleBufferTest, WaitOneOffSubmission)
+{
+    ANGLE_SKIP_TEST_IF(!IsEGLDisplayExtensionEnabled(mDisplay, "EGL_KHR_mutable_render_buffer"));
+
+    EGLConfig config = EGL_NO_CONFIG_KHR;
+    ANGLE_SKIP_TEST_IF(!chooseConfig(&config, true));
+
+    EGLContext context = EGL_NO_CONTEXT;
+    EXPECT_EGL_TRUE(createContext(config, &context));
+    ASSERT_EGL_SUCCESS() << "eglCreateContext failed.";
+
+    EGLContext context2 = EGL_NO_CONTEXT;
+    EXPECT_EGL_TRUE(createContext(config, &context2));
+    ASSERT_EGL_SUCCESS() << "eglCreateContext failed.";
+
+    const EGLint pbufferSurfaceAttrs[] = {
+        EGL_WIDTH, 1024, EGL_HEIGHT, 1024, EGL_NONE,
+    };
+    EGLSurface pbufferSurface = eglCreatePbufferSurface(mDisplay, config, pbufferSurfaceAttrs);
+    ASSERT_EGL_SUCCESS() << "eglCreatePbufferSurface failed.";
+
+    EGLSurface surface = EGL_NO_SURFACE;
+    OSWindow *osWindow = OSWindow::New();
+    osWindow->initialize("EGLSingleBufferTest", kWidth, kHeight);
+    EXPECT_EGL_TRUE(
+        createWindowSurface(config, osWindow->getNativeWindow(), &surface, EGL_BACK_BUFFER));
+    ASSERT_EGL_SUCCESS() << "eglCreateWindowSurface failed.";
+
+    EXPECT_EGL_TRUE(eglMakeCurrent(mDisplay, surface, surface, context));
+    ASSERT_EGL_SUCCESS() << "eglMakeCurrent failed.";
+
+    // Query age for the first time to avoid submitting debug information a second time.
+    EGLint age = 0;
+    EXPECT_EGL_TRUE(eglQuerySurface(mDisplay, surface, EGL_BUFFER_AGE_EXT, &age));
+
+    if (eglSurfaceAttrib(mDisplay, surface, EGL_RENDER_BUFFER, EGL_SINGLE_BUFFER))
+    {
+        // Transition into EGL_SINGLE_BUFFER mode.
+        EXPECT_EGL_TRUE(eglSwapBuffers(mDisplay, surface));
+
+        // Submit heavy work to the GPU before querying the buffer age.
+        std::thread([this, context2, pbufferSurface]() {
+            EXPECT_EGL_TRUE(eglMakeCurrent(mDisplay, pbufferSurface, pbufferSurface, context2));
+            ASSERT_EGL_SUCCESS() << "eglMakeCurrent failed.";
+
+            ANGLE_GL_PROGRAM(greenProgram, essl1_shaders::vs::Simple(), essl1_shaders::fs::Green());
+            drawQuadInstanced(greenProgram, essl1_shaders::PositionAttrib(), 0.5f, 1.0f, false,
+                              1000);
+
+            EXPECT_EGL_TRUE(
+                eglMakeCurrent(mDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT));
+            ASSERT_EGL_SUCCESS() << "eglMakeCurrent failed.";
+        }).join();
+
+        // Querying the buffer age should perform first acquire of the image and "one off"
+        // submission to change image layout to the VK_IMAGE_LAYOUT_SHARED_PRESENT_KHR.
+        EXPECT_EGL_TRUE(eglQuerySurface(mDisplay, surface, EGL_BUFFER_AGE_EXT, &age));
+    }
+    else
+    {
+        std::cout << "EGL_SINGLE_BUFFER mode is not supported." << std::endl;
+    }
+
+    EXPECT_EGL_TRUE(eglMakeCurrent(mDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, context));
+    ASSERT_EGL_SUCCESS() << "eglMakeCurrent - uncurrent failed.";
+
+    eglDestroySurface(mDisplay, surface);
+    surface = EGL_NO_SURFACE;
+    osWindow->destroy();
+    OSWindow::Delete(&osWindow);
+
+    eglDestroySurface(mDisplay, pbufferSurface);
+    pbufferSurface = EGL_NO_SURFACE;
+
+    eglDestroyContext(mDisplay, context);
+    context = EGL_NO_CONTEXT;
+
+    eglDestroyContext(mDisplay, context2);
+    context2 = EGL_NO_CONTEXT;
+}
+
 // Test that setting a surface to EGL_SINGLE_BUFFER after enabling
 // EGL_FRONT_BUFFER_AUTO_REFRESH_ANDROID does not disable auto refresh
 TEST_P(EGLAndroidAutoRefreshTest, Basic)
@@ -2645,6 +2902,54 @@ TEST_P(EGLSurfaceTest, DISABLED_RandomClearTearing)
     mOSWindow->resize(kInitialSize, kInitialSize);
 }
 
+// Make sure a surface (from the same window) can be recreated after being destroyed, even if it's
+// still current.
+// This is to recreate the app behavior in https://issuetracker.google.com/292285899, which is
+// not the correct spec behavior. It serves as a purpose to test the workaround feature
+// uncurrent_egl_surface_upon_surface_destroy that is enabled only on vulkan backend to help
+// the app get over the problem.
+TEST_P(EGLSurfaceTest, DestroyAndRecreateWhileCurrent)
+{
+    setWindowVisible(mOSWindow, true);
+
+    initializeDisplay();
+
+    mConfig = chooseDefaultConfig(true);
+    ASSERT_NE(mConfig, nullptr);
+
+    EGLint surfaceType = EGL_NONE;
+    eglGetConfigAttrib(mDisplay, mConfig, EGL_SURFACE_TYPE, &surfaceType);
+    ASSERT_NE((surfaceType & EGL_WINDOW_BIT), 0);
+
+    initializeWindowSurfaceWithAttribs(mConfig, {}, EGL_SUCCESS);
+    initializeMainContext();
+
+    eglMakeCurrent(mDisplay, mWindowSurface, mWindowSurface, mContext);
+    ASSERT_EGL_SUCCESS();
+
+    // Draw with this surface to make sure it's used.
+    ANGLE_GL_PROGRAM(program, essl1_shaders::vs::Simple(), essl1_shaders::fs::Red());
+    glViewport(0, 0, 64, 64);
+    drawQuad(program, essl1_shaders::PositionAttrib(), 0.5f);
+    ASSERT_GL_NO_ERROR();
+
+    // Destroy the surface while it's current; it won't actually be destroyed.
+    eglDestroySurface(mDisplay, mWindowSurface);
+    mWindowSurface = EGL_NO_SURFACE;
+
+    // Create another surface from the same window right away.
+    initializeWindowSurfaceWithAttribs(mConfig, {}, EGL_SUCCESS);
+
+    // Make the new surface current; this leads to the actual destruction of the previous surface.
+    EXPECT_EGL_TRUE(eglMakeCurrent(mDisplay, mWindowSurface, mWindowSurface, mContext));
+    ASSERT_EGL_SUCCESS();
+
+    // Verify everything still works
+    ANGLE_GL_PROGRAM(program2, essl1_shaders::vs::Simple(), essl1_shaders::fs::Green());
+    drawQuad(program2, essl1_shaders::PositionAttrib(), 0.5f);
+    EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::green);
+    ASSERT_GL_NO_ERROR();
+}
 }  // anonymous namespace
 
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(EGLSingleBufferTest);

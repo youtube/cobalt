@@ -8,9 +8,11 @@
 
 #include "base/files/scoped_temp_dir.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "components/history/core/browser/history_service.h"
 #include "components/history_clusters/core/config.h"
+#include "components/history_clusters/core/features.h"
 #include "components/history_clusters/core/history_clusters_prefs.h"
 #include "components/history_clusters/core/history_clusters_service.h"
 #include "components/history_clusters/core/history_clusters_service_test_api.h"
@@ -43,13 +45,26 @@ class HistoryClustersProviderTest : public testing::Test,
                                     public AutocompleteProviderListener {
  public:
   void SetUp() override {
+    scoped_feature_list_.InitAndDisableFeature(
+        history_clusters::kRenameJourneys);
+
     config_.is_journeys_enabled_no_locale_check = true;
     config_.omnibox_history_cluster_provider = true;
+    // Setting this to false even though users see true behavior so that we do
+    // not need to register history clusters specific prefs in this test.
+    config_.persist_caches_to_prefs = false;
     history_clusters::SetConfigForTesting(config_);
 
     CHECK(history_dir_.CreateUniqueTempDir());
     history_service_ =
         history::CreateHistoryService(history_dir_.GetPath(), true);
+
+    autocomplete_provider_client_ =
+        std::make_unique<FakeAutocompleteProviderClient>();
+    static_cast<TestingPrefServiceSimple*>(
+        autocomplete_provider_client_->GetPrefs())
+        ->registry()
+        ->RegisterBooleanPref(history_clusters::prefs::kVisible, true);
 
     history_clusters_service_ =
         std::make_unique<history_clusters::HistoryClustersService>(
@@ -58,22 +73,16 @@ class HistoryClustersProviderTest : public testing::Test,
             /*url_loader_factory=*/nullptr,
             /*engagement_score_provider=*/nullptr,
             /*template_url_service=*/nullptr,
-            /*optimization_guide_decider=*/nullptr, /*pref_service=*/nullptr);
+            /*optimization_guide_decider=*/nullptr,
+            autocomplete_provider_client_->GetPrefs());
 
     history_clusters_service_test_api_ =
         std::make_unique<history_clusters::HistoryClustersServiceTestApi>(
             history_clusters_service_.get(), history_service_.get());
     history_clusters_service_test_api_->SetAllKeywordsCache(
         {{u"keyword", {}}, {u"keyword2", {}}});
-
-    autocomplete_provider_client_ =
-        std::make_unique<FakeAutocompleteProviderClient>();
     autocomplete_provider_client_->set_history_clusters_service(
         history_clusters_service_.get());
-    static_cast<TestingPrefServiceSimple*>(
-        autocomplete_provider_client_->GetPrefs())
-        ->registry()
-        ->RegisterBooleanPref(history_clusters::prefs::kVisible, true);
 
     search_provider_ =
         new FakeAutocompleteProvider(AutocompleteProvider::Type::TYPE_SEARCH);
@@ -84,6 +93,10 @@ class HistoryClustersProviderTest : public testing::Test,
     provider_ = new HistoryClusterProvider(
         autocomplete_provider_client_.get(), this, search_provider_.get(),
         history_url_provider_.get(), history_quick_provider_.get());
+  }
+
+  void TearDown() override {
+    autocomplete_provider_client_->set_history_clusters_service(nullptr);
   }
 
   ~HistoryClustersProviderTest() override {
@@ -112,12 +125,14 @@ class HistoryClustersProviderTest : public testing::Test,
 
   base::test::TaskEnvironment task_environment_;
 
+  base::test::ScopedFeatureList scoped_feature_list_;
+
+  std::unique_ptr<FakeAutocompleteProviderClient> autocomplete_provider_client_;
+
   base::ScopedTempDir history_dir_;
   std::unique_ptr<history::HistoryService> history_service_;
   std::unique_ptr<history_clusters::HistoryClustersService>
       history_clusters_service_;
-
-  std::unique_ptr<FakeAutocompleteProviderClient> autocomplete_provider_client_;
 
   scoped_refptr<FakeAutocompleteProvider> search_provider_;
   scoped_refptr<FakeAutocompleteProvider> history_url_provider_;

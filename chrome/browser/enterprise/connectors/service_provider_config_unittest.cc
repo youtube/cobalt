@@ -65,6 +65,9 @@ TEST(ServiceProviderConfigTest, LocalTest1) {
             kMaxFileSize);
 }
 
+// Temporary code(b/268532118): Once DM server no longer sends
+// "local_system_agent" as a service_provider name, this test can be
+// removed.
 TEST(ServiceProviderConfigTest, LocalTest2) {
   const ServiceProviderConfig* config = GetServiceProviderConfig();
   ASSERT_TRUE(config->count("local_system_agent"));
@@ -75,7 +78,8 @@ TEST(ServiceProviderConfigTest, LocalTest2) {
 
   ASSERT_FALSE(service_provider.analysis->url);
   ASSERT_TRUE(service_provider.analysis->local_path);
-  ASSERT_EQ("path_system", std::string(service_provider.analysis->local_path));
+  ASSERT_EQ("brcm_chrm_cas",
+            std::string(service_provider.analysis->local_path));
   ASSERT_FALSE(service_provider.analysis->user_specific);
 
   // The test local service provider has 1 tag: dlp.
@@ -99,11 +103,31 @@ TEST(ServiceProviderConfigTest, BrcmChrmCas) {
   ASSERT_EQ("brcm_chrm_cas",
             std::string(service_provider.analysis->local_path));
   ASSERT_FALSE(service_provider.analysis->user_specific);
-  ASSERT_EQ(service_provider.analysis->subject_names.size(), 1u);
-  ASSERT_EQ(std::string(service_provider.analysis->subject_names[0]),
-            "Broadcom Inc");
+  ASSERT_EQ(service_provider.analysis->subject_names.size(), 0u);
 
   // The BrcmChrmCas local service provider has 1 tag: dlp.
+  ASSERT_EQ(service_provider.analysis->supported_tags.size(), 1u);
+  ASSERT_EQ(std::string(service_provider.analysis->supported_tags[0].name),
+            "dlp");
+  ASSERT_EQ(service_provider.analysis->supported_tags[0].max_file_size,
+            kMaxFileSize);
+}
+
+TEST(ServiceProviderConfigTest, Trellix) {
+  const ServiceProviderConfig* config = GetServiceProviderConfig();
+  ASSERT_TRUE(config->count("trellix"));
+  ServiceProvider service_provider = config->at("trellix");
+
+  ASSERT_TRUE(service_provider.analysis);
+  ASSERT_FALSE(service_provider.reporting);
+
+  ASSERT_FALSE(service_provider.analysis->url);
+  ASSERT_TRUE(service_provider.analysis->local_path);
+  ASSERT_EQ("Trellix_DLP", std::string(service_provider.analysis->local_path));
+  ASSERT_TRUE(service_provider.analysis->user_specific);
+  ASSERT_EQ(service_provider.analysis->subject_names.size(), 1u);
+
+  // The trellix local service provider has 1 tag: dlp.
   ASSERT_EQ(service_provider.analysis->supported_tags.size(), 1u);
   ASSERT_EQ(std::string(service_provider.analysis->supported_tags[0].name),
             "dlp");

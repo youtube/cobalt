@@ -11,7 +11,7 @@
 #include "base/metrics/histogram_macros.h"
 #include "base/trace_event/trace_event.h"
 #include "chrome/browser/predictors/resource_prefetch_predictor.h"
-#include "chrome/browser/prefetch/prefetch_prefs.h"
+#include "chrome/browser/preloading/preloading_prefs.h"
 #include "chrome/browser/profiles/profile.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/browser_task_traits.h"
@@ -96,6 +96,9 @@ void PreconnectManager::Start(const GURL& url,
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   if (!IsEnabled())
     return;
+  if (!url.SchemeIsHTTPOrHTTPS()) {
+    return;
+  }
   PreresolveInfo* info;
   if (preresolve_info_.find(url) == preresolve_info_.end()) {
     auto iterator_and_whether_inserted = preresolve_info_.emplace(
@@ -139,6 +142,9 @@ void PreconnectManager::StartPreresolveHosts(
     return;
   // Push jobs in front of the queue due to higher priority.
   for (const GURL& url : base::Reversed(urls)) {
+    if (!url.SchemeIsHTTPOrHTTPS()) {
+      continue;
+    }
     PreresolveJobId job_id = preresolve_jobs_.Add(
         std::make_unique<PreresolveJob>(url.DeprecatedGetOriginAsURL(), 0,
                                         kAllowCredentialsOnPreconnectByDefault,
@@ -188,11 +194,6 @@ void PreconnectManager::PreconnectUrl(
 
   auto* network_context = GetNetworkContext();
 
-#if defined(UNIT_TEST)
-  if (!network_context)
-    return;
-#endif
-
   network_context->PreconnectSockets(num_sockets, url, allow_credentials,
                                      network_anonymization_key);
 }
@@ -206,18 +207,6 @@ std::unique_ptr<ResolveHostClientImpl> PreconnectManager::PreresolveUrl(
 
   auto* network_context = GetNetworkContext();
 
-#if defined(UNIT_TEST)
-  if (!network_context) {
-    // Cannot invoke the callback right away because it would cause a
-    // use-after-free after returning from this method:
-    // The return value of this method is assigned to a member variable of a
-    // PreresolveJob that is destroyed when the callback executes.
-    content::GetUIThreadTaskRunner()->PostTask(
-        FROM_HERE, base::BindOnce(std::move(callback), false));
-    return nullptr;
-  }
-#endif
-
   return std::make_unique<ResolveHostClientImpl>(
       url, network_anonymization_key, std::move(callback), network_context);
 }
@@ -230,13 +219,6 @@ std::unique_ptr<ProxyLookupClientImpl> PreconnectManager::LookupProxyForUrl(
   DCHECK(url.SchemeIsHTTPOrHTTPS());
 
   auto* network_context = GetNetworkContext();
-
-#if defined(UNIT_TEST)
-  if (!network_context) {
-    std::move(callback).Run(false);
-    return nullptr;
-  }
-#endif
 
   return std::make_unique<ProxyLookupClientImpl>(
       url, network_anonymization_key, std::move(callback), network_context);
@@ -370,12 +352,6 @@ void PreconnectManager::AllPreresolvesForUrlFinished(PreresolveInfo* info) {
 network::mojom::NetworkContext* PreconnectManager::GetNetworkContext() const {
   if (network_context_)
     return network_context_;
-
-#if defined(UNIT_TEST)
-  // We're testing and |network_context_| wasn't set. Return nullptr to avoid
-  // hitting the network.
-  return nullptr;
-#endif
 
   auto* network_context =
       browser_context_->GetDefaultStoragePartition()->GetNetworkContext();

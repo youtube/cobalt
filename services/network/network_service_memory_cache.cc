@@ -11,7 +11,6 @@
 #include "base/memory/ref_counted_memory.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/metrics/field_trial_params.h"
-#include "base/metrics/histogram_functions.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_piece.h"
@@ -28,14 +27,14 @@
 #include "net/http/http_vary_data.h"
 #include "net/url_request/url_request.h"
 #include "net/url_request/url_request_context.h"
-#include "services/network/local_network_access_checker.h"
 #include "services/network/network_context.h"
 #include "services/network/network_service_memory_cache_url_loader.h"
 #include "services/network/network_service_memory_cache_writer.h"
+#include "services/network/private_network_access_checker.h"
 #include "services/network/public/cpp/corb/corb_api.h"
 #include "services/network/public/cpp/cross_origin_resource_policy.h"
 #include "services/network/public/cpp/features.h"
-#include "services/network/public/cpp/local_network_access_check_result.h"
+#include "services/network/public/cpp/private_network_access_check_result.h"
 #include "services/network/public/cpp/request_destination.h"
 #include "services/network/public/cpp/resource_request.h"
 #include "services/network/public/mojom/network_context.mojom.h"
@@ -96,23 +95,6 @@ const base::FeatureParam<int> kNetworkServiceMemoryCacheMaxPerEntrySize{
     &features::kNetworkServiceMemoryCache, "max_per_entry_size",
     4 * 1024 * 1024};
 
-// These values are persisted to logs. Entries should not be renumbered and
-// numeric values should never be reused.
-enum class EntryStatus {
-  kNotInCache = 0,
-  kStale = 1,
-  kUsed = 2,
-  kVaryMismatch = 3,
-  kBlockedByRequestHeaders = 4,
-  kBlockedServiceWorkerOriginatedRequest_Deprecated = 5,
-  kMaxValue = kBlockedServiceWorkerOriginatedRequest_Deprecated,
-};
-
-void RecordEntryStatus(EntryStatus result) {
-  base::UmaHistogramEnumeration("NetworkService.MemoryCache.EntryStatus",
-                                result);
-}
-
 absl::optional<std::string> GenerateCacheKeyForResourceRequest(
     const ResourceRequest& resource_request,
     const net::NetworkIsolationKey& network_isolation_key) {
@@ -120,8 +102,7 @@ absl::optional<std::string> GenerateCacheKeyForResourceRequest(
       resource_request.destination == mojom::RequestDestination::kIframe;
   return net::HttpCache::GenerateCacheKey(
       resource_request.url, resource_request.load_flags, network_isolation_key,
-      /*upload_data_identifier=*/0, is_subframe_document_resource,
-      /*use_single_keyed_cache=*/false, /*single_key_checksum=*/"");
+      /*upload_data_identifier=*/0, is_subframe_document_resource);
 }
 
 absl::optional<std::string> GenerateCacheKeyForURLRequest(
@@ -132,9 +113,7 @@ absl::optional<std::string> GenerateCacheKeyForURLRequest(
   return net::HttpCache::GenerateCacheKey(
       url_request.url(), url_request.load_flags(),
       url_request.isolation_info().network_isolation_key(),
-      /*upload_data_identifier=*/0, is_subframe_document_resource,
-      /*use_single_keyed_cache=*/false,
-      /*single_key_checksum=*/"");
+      /*upload_data_identifier=*/0, is_subframe_document_resource);
 }
 
 bool CheckCrossOriginReadBlocking(const ResourceRequest& resource_request,
@@ -150,9 +129,9 @@ bool CheckCrossOriginReadBlocking(const ResourceRequest& resource_request,
   // here.
   corb::PerFactoryState state;
   auto analyzer = corb::ResponseAnalyzer::Create(state);
-  corb::ResponseAnalyzer::Decision decision =
-      analyzer->Init(resource_request.url, resource_request.request_initiator,
-                     resource_request.mode, response);
+  corb::ResponseAnalyzer::Decision decision = analyzer->Init(
+      resource_request.url, resource_request.request_initiator,
+      resource_request.mode, resource_request.destination, response);
 
   if (decision == corb::ResponseAnalyzer::Decision::kSniffMore) {
     const size_t size =
@@ -167,15 +146,15 @@ bool CheckCrossOriginReadBlocking(const ResourceRequest& resource_request,
   return decision == corb::ResponseAnalyzer::Decision::kAllow;
 }
 
-bool CheckLocalNetworkAccess(
+bool CheckPrivateNetworkAccess(
     uint32_t load_options,
     const ResourceRequest& resource_request,
     const mojom::ClientSecurityState* factory_client_security_state,
     const net::TransportInfo& transport_info) {
-  LocalNetworkAccessChecker checker(
+  PrivateNetworkAccessChecker checker(
       resource_request, factory_client_security_state, load_options);
-  LocalNetworkAccessCheckResult result = checker.Check(transport_info);
-  return !LocalNetworkAccessCheckResultToCorsError(result).has_value();
+  PrivateNetworkAccessCheckResult result = checker.Check(transport_info);
+  return !PrivateNetworkAccessCheckResultToCorsError(result).has_value();
 }
 
 // Checks whether Vary header in the cached response only has headers that the
@@ -226,7 +205,8 @@ absl::optional<BlockedByRequestHeaderReason> CheckSpecialRequestHeaders(
 bool MatchVaryHeader(const ResourceRequest& resource_request,
                      const net::HttpVaryData& vary_data,
                      const net::HttpResponseHeaders& cached_response_headers,
-                     bool enable_brotli) {
+                     bool enable_brotli,
+                     bool enable_zstd) {
   if ((resource_request.load_flags & net::LOAD_SKIP_VARY_CHECK) ||
       !vary_data.is_valid()) {
     return true;
@@ -239,7 +219,7 @@ bool MatchVaryHeader(const ResourceRequest& resource_request,
   request_info.extra_headers = resource_request.headers;
   request_info.extra_headers.SetAcceptEncodingIfMissing(
       resource_request.url, resource_request.devtools_accepted_stream_types,
-      enable_brotli);
+      enable_brotli, enable_zstd);
   return vary_data.MatchesRequest(request_info, cached_response_headers);
 }
 
@@ -338,8 +318,8 @@ NetworkServiceMemoryCache::MaybeCreateWriter(
   }
 
   // TODO(https://crbug.com/1339708): Make `this` work for responses from
-  // local network. Currently some tests are failing.
-  if (response->response_address_space == mojom::IPAddressSpace::kLocal) {
+  // private network. Currently some tests are failing.
+  if (response->response_address_space == mojom::IPAddressSpace::kPrivate) {
     return nullptr;
   }
 
@@ -397,24 +377,6 @@ void NetworkServiceMemoryCache::StoreResponse(
     // The corresponding URLRequest was cancelled.
     return;
   }
-
-  base::UmaHistogramCustomCounts(
-      base::StrCat(
-          {"NetworkService.MemoryCache.ContentLength.",
-           RequestDestinationToStringForHistogram(request_destination)}),
-      base::saturated_cast<base::Histogram::Sample>(data.size()),
-      /*min=*/1, /*exclusive_max=*/50000000,
-      /*buckets=*/50);
-
-  // Record fresness of the response in seconds.
-  const int64_t freshness_in_seconds = lifetimes.freshness.InSeconds();
-  constexpr int kMinSeconds = 1;
-  constexpr int kMaxSeconds = 60 * 60 * 24 * 10;  // 10 days.
-  base::UmaHistogramCustomCounts(
-      "NetworkService.MemoryCache.FreshnessAtStore",
-      base::saturated_cast<base::Histogram::Sample>(freshness_in_seconds),
-      kMinSeconds, kMaxSeconds,
-      /*buckets=*/50);
 
   auto prev = entries_.Peek(cache_key);
   if (prev != entries_.end()) {
@@ -474,23 +436,18 @@ absl::optional<std::string> NetworkServiceMemoryCache::CanServe(
 
   auto it = entries_.Peek(*cache_key);
   if (it == entries_.end()) {
-    RecordEntryStatus(EntryStatus::kNotInCache);
     return absl::nullopt;
   }
 
   absl::optional<BlockedByRequestHeaderReason> blocked_by_headers =
       CheckSpecialRequestHeaders(resource_request.headers);
   if (blocked_by_headers.has_value()) {
-    RecordEntryStatus(EntryStatus::kBlockedByRequestHeaders);
-    base::UmaHistogramEnumeration(
-        "NetworkService.MemoryCache.BlockedByRequestHeaderReason",
-        *blocked_by_headers);
     return absl::nullopt;
   }
 
-  if (!CheckLocalNetworkAccess(load_options, resource_request,
-                               factory_client_security_state,
-                               it->second->transport_info)) {
+  if (!CheckPrivateNetworkAccess(load_options, resource_request,
+                                 factory_client_security_state,
+                                 it->second->transport_info)) {
     return absl::nullopt;
   }
 
@@ -512,21 +469,19 @@ absl::optional<std::string> NetworkServiceMemoryCache::CanServe(
 
   if (!MatchVaryHeader(
           resource_request, it->second->vary_data, *response->headers,
-          network_context_->url_request_context()->enable_brotli())) {
-    RecordEntryStatus(EntryStatus::kVaryMismatch);
+          network_context_->url_request_context()->enable_brotli(),
+          network_context_->url_request_context()->enable_zstd())) {
     return absl::nullopt;
   }
 
   net::ValidationType validation_type = response->headers->RequiresValidation(
       response->request_time, response->response_time, GetCurrentTime());
   if (validation_type != net::VALIDATION_NONE) {
-    RecordEntryStatus(EntryStatus::kStale);
     // The cached response is stale, erase it from the in-memory cache.
     EraseEntry(it);
     return absl::nullopt;
   }
 
-  RecordEntryStatus(EntryStatus::kUsed);
   return std::move(*cache_key);
 }
 

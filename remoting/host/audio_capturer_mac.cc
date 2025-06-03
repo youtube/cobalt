@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "base/containers/contains.h"
 #include "base/containers/flat_set.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
@@ -80,7 +81,7 @@ void AudioCapturerInstanceSet::Remove(AudioCapturerMac* instance) {
 
 // static
 bool AudioCapturerInstanceSet::Contains(AudioCapturerMac* instance) {
-  return Get()->instance_set_.find(instance) != Get()->instance_set_.end();
+  return base::Contains(Get()->instance_set_, instance);
 }
 
 AudioCapturerInstanceSet::AudioCapturerInstanceSet() = default;
@@ -134,7 +135,7 @@ AudioCapturerMac::GetAudioDevices() {
 
     // Get the device name.
     property_address.mSelector = kAudioObjectPropertyName;
-    base::ScopedCFTypeRef<CFStringRef> device_name;
+    base::apple::ScopedCFTypeRef<CFStringRef> device_name;
     property_size = sizeof(CFStringRef);
     result = AudioObjectGetPropertyData(device_id, &property_address, 0, NULL,
                                         &property_size,
@@ -149,7 +150,7 @@ AudioCapturerMac::GetAudioDevices() {
 
     // Now find out its UID.
     property_address.mSelector = kAudioDevicePropertyDeviceUID;
-    base::ScopedCFTypeRef<CFStringRef> device_uid;
+    base::apple::ScopedCFTypeRef<CFStringRef> device_uid;
     property_size = sizeof(CFStringRef);
     result =
         AudioObjectGetPropertyData(device_id, &property_address, 0, NULL,
@@ -297,7 +298,7 @@ bool AudioCapturerMac::StartInputQueue() {
 
   // Use the loopback device for input.
   HOST_LOG << "Using loopback device: " << audio_device_uid_;
-  base::ScopedCFTypeRef<CFStringRef> device_uid =
+  base::apple::ScopedCFTypeRef<CFStringRef> device_uid =
       base::SysUTF8ToCFStringRef(audio_device_uid_);
   CFStringRef unowned_device_uid = device_uid.get();
   err = AudioQueueSetProperty(input_queue_, kAudioQueueProperty_CurrentDevice,

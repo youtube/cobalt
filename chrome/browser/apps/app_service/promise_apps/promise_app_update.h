@@ -22,6 +22,8 @@ class PromiseAppUpdate {
   PromiseAppUpdate(const PromiseAppUpdate&) = delete;
   PromiseAppUpdate& operator=(const PromiseAppUpdate&) = delete;
 
+  bool operator==(const PromiseAppUpdate&) const;
+
   const PackageId& PackageId() const;
 
   // Indicates the app name for the package. If app name is not known or still
@@ -42,15 +44,23 @@ class PromiseAppUpdate {
 
   bool StatusChanged() const;
 
+  // The ID of the app installed from the package.
+  // Empty unless promise app installed successfully.
+  std::string InstalledAppId() const;
+
+  bool InstalledAppIdChanged() const;
+
   // Indicates whether the promise app should show in the Launcher/ Shelf.
   bool ShouldShow() const;
 
   bool ShouldShowChanged() const;
 
  private:
-  raw_ptr<const PromiseApp> state_ = nullptr;
-  raw_ptr<const PromiseApp> delta_ = nullptr;
+  raw_ptr<const PromiseApp, DanglingUntriaged> state_ = nullptr;
+  raw_ptr<const PromiseApp, DanglingUntriaged> delta_ = nullptr;
 };
+
+std::ostream& operator<<(std::ostream& out, const PromiseAppUpdate& update);
 
 }  // namespace apps
 

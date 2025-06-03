@@ -79,11 +79,12 @@ public class CustomTabsConnectionServiceImpl extends CustomTabsConnectionService
     }
 
     @Override
-    protected boolean requestPostMessageChannel(
-            CustomTabsSessionToken sessionToken, Uri postMessageOrigin) {
-        Origin origin = Origin.create(postMessageOrigin);
-        if (origin == null) return false;
-        return mConnection.requestPostMessageChannel(sessionToken, origin);
+    protected boolean requestPostMessageChannel(CustomTabsSessionToken sessionToken,
+            Uri postMessageSourceOrigin, @Nullable Uri postMessageTargetOrigin) {
+        Origin sourceOrigin = Origin.create(postMessageSourceOrigin);
+        if (sourceOrigin == null) return false;
+        return mConnection.requestPostMessageChannel(
+                sessionToken, sourceOrigin, Origin.create(postMessageTargetOrigin));
     }
 
     @Override
@@ -121,11 +122,6 @@ public class CustomTabsConnectionServiceImpl extends CustomTabsConnectionService
     protected boolean setEngagementSignalsCallback(CustomTabsSessionToken sessionToken,
             EngagementSignalsCallback callback, Bundle extras) {
         return mConnection.setEngagementSignalsCallback(sessionToken, callback, extras);
-    }
-
-    @Override
-    protected int getGreatestScrollPercentage(CustomTabsSessionToken sessionToken, Bundle extras) {
-        return mConnection.getGreatestScrollPercentage(sessionToken, extras);
     }
 
     private boolean isFirstRunDone() {

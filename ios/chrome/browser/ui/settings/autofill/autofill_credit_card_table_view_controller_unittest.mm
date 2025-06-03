@@ -4,26 +4,22 @@
 
 #import "ios/chrome/browser/ui/settings/autofill/autofill_credit_card_table_view_controller.h"
 
-#import "base/guid.h"
-#import "base/mac/foundation_util.h"
+#import "base/apple/foundation_util.h"
 #import "base/strings/utf_string_conversions.h"
 #import "base/test/ios/wait_util.h"
+#import "base/uuid.h"
 #import "components/autofill/core/browser/data_model/credit_card.h"
 #import "components/autofill/core/browser/personal_data_manager.h"
 #import "components/autofill/core/common/autofill_features.h"
 #import "ios/chrome/browser/autofill/personal_data_manager_factory.h"
-#import "ios/chrome/browser/browser_state/test_chrome_browser_state.h"
-#import "ios/chrome/browser/main/test_browser.h"
+#import "ios/chrome/browser/shared/model/browser/test/test_browser.h"
+#import "ios/chrome/browser/shared/model/browser_state/test_chrome_browser_state.h"
 #import "ios/chrome/browser/shared/ui/table_view/chrome_table_view_controller_test.h"
 #import "ios/chrome/browser/ui/settings/personal_data_manager_finished_profile_tasks_waiter.h"
-#import "ios/chrome/browser/webdata_services/web_data_service_factory.h"
+#import "ios/chrome/browser/webdata_services/model/web_data_service_factory.h"
 #import "ios/chrome/test/ios_chrome_scoped_testing_local_state.h"
 #import "ios/web/public/test/web_task_environment.h"
 #import "testing/gtest/include/gtest/gtest.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace {
 
@@ -53,7 +49,7 @@ class AutofillCreditCardTableViewControllerTest
   }
 
   void TearDown() override {
-    [base::mac::ObjCCastStrict<AutofillCreditCardTableViewController>(
+    [base::apple::ObjCCastStrict<AutofillCreditCardTableViewController>(
         controller()) settingsWillBeDismissed];
     ChromeTableViewControllerTest::TearDown();
   }
@@ -66,18 +62,16 @@ class AutofillCreditCardTableViewControllerTest
             chrome_browser_state_.get());
     PersonalDataManagerFinishedProfileTasksWaiter waiter(personal_data_manager);
 
-    autofill::CreditCard credit_card(base::GenerateGUID(), origin);
+    autofill::CreditCard credit_card(
+        base::Uuid::GenerateRandomV4().AsLowercaseString(), origin);
     credit_card.SetRawInfo(autofill::CREDIT_CARD_NAME_FULL,
                            base::ASCIIToUTF16(card_holder_name));
     credit_card.SetRawInfo(autofill::CREDIT_CARD_NUMBER,
                            base::ASCIIToUTF16(card_number));
     personal_data_manager->OnAcceptedLocalCreditCardSave(credit_card);
-    if (base::FeatureList::IsEnabled(
-            autofill::features::kAutofillUseAlternativeStateNameMap)) {
-      personal_data_manager->personal_data_manager_cleaner_for_testing()
-          ->alternative_state_name_map_updater_for_testing()
-          ->set_local_state_for_testing(local_state_.Get());
-    }
+    personal_data_manager->personal_data_manager_cleaner_for_testing()
+        ->alternative_state_name_map_updater_for_testing()
+        ->set_local_state_for_testing(local_state_.Get());
     waiter.Wait();  // Wait for completion of the asynchronous operation.
   }
 
@@ -85,7 +79,7 @@ class AutofillCreditCardTableViewControllerTest
   // timeout.
   bool deleteItemAndWait(int section, int row, ConditionBlock condition) {
     AutofillCreditCardTableViewController* view_controller =
-        base::mac::ObjCCastStrict<AutofillCreditCardTableViewController>(
+        base::apple::ObjCCastStrict<AutofillCreditCardTableViewController>(
             controller());
     [view_controller deleteItems:@[ [NSIndexPath indexPathForRow:row
                                                        inSection:section] ]];

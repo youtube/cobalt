@@ -24,6 +24,7 @@
 #include "ash/system/unified/unified_system_tray.h"
 #include "ash/system/unified/unified_system_tray_bubble.h"
 #include "ash/test/ash_test_base.h"
+#include "base/containers/contains.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/no_destructor.h"
@@ -71,7 +72,8 @@ void AddNotification(const std::string& notification_id,
           ? message_center::NotifierId(
                 message_center::NotifierType::SYSTEM_COMPONENT, "system",
                 NotificationCatalogName::kHPSNotify)
-          : message_center::NotifierId(/*url=*/GURL(), notifier_title);
+          : message_center::NotifierId(/*url=*/GURL(), notifier_title,
+                                       /*web_app_id=*/absl::nullopt);
 
   message_center::MessageCenter::Get()->AddNotification(
       std::make_unique<message_center::Notification>(
@@ -120,7 +122,7 @@ size_t PositionInInfoPopupMessage(const std::u16string& substr) {
 // A blocker that blocks only a popup with the given ID.
 class IdPopupBlocker : public message_center::NotificationBlocker {
  public:
-  IdPopupBlocker(message_center::MessageCenter* message_center)
+  explicit IdPopupBlocker(message_center::MessageCenter* message_center)
       : NotificationBlocker(message_center) {}
   IdPopupBlocker(const IdPopupBlocker&) = delete;
   IdPopupBlocker& operator=(const IdPopupBlocker&) = delete;
@@ -194,7 +196,7 @@ class SnoopingProtectionNotificationBlockerTest : public AshTestBase {
               {"SnoopingProtection_positive_score_threshold", "0"},
               {"SnoopingProtection_negative_score_threshold", "0"},
           }}},
-        {ash::features::kQuickDim});
+        {ash::features::kQuickDim, ash::features::kQsRevamp});
     scoped_command_line_.GetProcessCommandLine()->AppendSwitch(
         switches::kHasHps);
   }
@@ -254,9 +256,10 @@ class SnoopingProtectionNotificationBlockerTest : public AshTestBase {
   }
 
  protected:
-  raw_ptr<SnoopingProtectionController, ExperimentalAsh> controller_ = nullptr;
-  raw_ptr<message_center::MessageCenter, ExperimentalAsh> message_center_ =
-      nullptr;
+  raw_ptr<SnoopingProtectionController, DanglingUntriaged | ExperimentalAsh>
+      controller_ = nullptr;
+  raw_ptr<message_center::MessageCenter, DanglingUntriaged | ExperimentalAsh>
+      message_center_ = nullptr;
 
  private:
   base::test::ScopedFeatureList scoped_feature_list_;
@@ -406,6 +409,7 @@ TEST_F(SnoopingProtectionNotificationBlockerTest, InfoPopup) {
 // blocking.
 TEST_F(SnoopingProtectionNotificationBlockerTest, InfoPopupOtherBlocker) {
   IdPopupBlocker other_blocker(message_center_);
+  other_blocker.Init();
   other_blocker.SetTargetId("notification-2");
 
   SetBlockerPref(true);
@@ -488,6 +492,10 @@ TEST_F(SnoopingProtectionNotificationBlockerTest,
 
 // Test that message center is visible when click "Show" button.
 TEST_F(SnoopingProtectionNotificationBlockerTest, ShowButtonClicked) {
+  // TODO(b/305075031) clean up after the flag is removed.
+  if (features::IsQsRevampEnabled()) {
+    return;
+  }
   SetBlockerPref(true);
 
   // Simulate snooper presence.
@@ -537,7 +545,8 @@ TEST(SnoopingProtectionNotificationBlockerInternalTest, WebsiteNotifierTitles) {
 
   // Website with a trusted title uses the title.
   const message_center::NotifierId trusted_notifier(
-      GURL("https://trusted.com:443"), u"Trusted");
+      GURL("https://trusted.com:443"), u"Trusted",
+      /*web_app_id=*/absl::nullopt);
   const std::u16string trusted_title =
       hps_internal::GetNotifierTitle<FakeAppRegistryCache>(trusted_notifier,
                                                            AccountId());
@@ -583,7 +592,7 @@ TEST(SnoopingProtectionNotificationBlockerInternalTest, PopupMessage) {
   const std::vector<std::u16string> list_1 = {u"App title"};
   const std::u16string list_1_msg =
       hps_internal::GetTitlesBlockedMessage(list_1);
-  EXPECT_TRUE(list_1_msg.find(u"App title") != std::u16string::npos);
+  EXPECT_TRUE(base::Contains(list_1_msg, u"App title"));
 
   // Improper app names should use a reasonable default. In this case, the
   // default should be capitalized since it is the first word in the message.
@@ -591,10 +600,10 @@ TEST(SnoopingProtectionNotificationBlockerInternalTest, PopupMessage) {
       IDS_ASH_SMART_PRIVACY_SNOOPING_NOTIFICATION_WEB_TITLE_LOWER)};
   const std::u16string list_2_msg =
       hps_internal::GetTitlesBlockedMessage(list_2);
-  EXPECT_TRUE(
-      list_2_msg.find(l10n_util::GetStringUTF16(
-          IDS_ASH_SMART_PRIVACY_SNOOPING_NOTIFICATION_WEB_TITLE_UPPER)) !=
-      std::u16string::npos);
+  EXPECT_TRUE(base::Contains(
+      list_2_msg,
+      l10n_util::GetStringUTF16(
+          IDS_ASH_SMART_PRIVACY_SNOOPING_NOTIFICATION_WEB_TITLE_UPPER)));
 
   // Subsequent improper app names should not be capitalized.
   const std::vector<std::u16string> list_3 = {
@@ -603,10 +612,10 @@ TEST(SnoopingProtectionNotificationBlockerInternalTest, PopupMessage) {
           IDS_ASH_SMART_PRIVACY_SNOOPING_NOTIFICATION_WEB_TITLE_LOWER)};
   const std::u16string list_3_msg =
       hps_internal::GetTitlesBlockedMessage(list_3);
-  EXPECT_TRUE(
-      list_3_msg.find(l10n_util::GetStringUTF16(
-          IDS_ASH_SMART_PRIVACY_SNOOPING_NOTIFICATION_WEB_TITLE_UPPER)) ==
-      std::u16string::npos);
+  EXPECT_FALSE(base::Contains(
+      list_3_msg,
+      l10n_util::GetStringUTF16(
+          IDS_ASH_SMART_PRIVACY_SNOOPING_NOTIFICATION_WEB_TITLE_UPPER)));
 }
 
 }  // namespace

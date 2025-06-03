@@ -21,6 +21,7 @@
 #include "components/signin/core/browser/signin_header_helper.h"
 #include "components/signin/public/base/account_consistency_method.h"
 #include "components/signin/public/base/signin_buildflags.h"
+#include "google_apis/gaia/core_account_id.h"
 #include "google_apis/gaia/gaia_auth_consumer.h"
 
 #if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
@@ -58,15 +59,22 @@ class ProcessDiceHeaderDelegate {
   virtual void HandleTokenExchangeSuccess(CoreAccountId account_id,
                                           bool is_new_account) = 0;
 
-  // Asks the delegate to enable sync for the |account_id|.
+  // Asks the delegate to enable sync for the |account_info|.
   // Called after the account was seeded in the account tracker service and
   // after the refresh token was fetched and updated in the token service.
-  virtual void EnableSync(const CoreAccountId& account_id) = 0;
+  virtual void EnableSync(const CoreAccountInfo& account_info) = 0;
+
+  // Called when a Dice signin header is received. This is received before
+  // navigating to the `continue_url`. Chrome has received the authorization
+  // code, but has not exchanged it for a token yet.
+  virtual void OnDiceSigninHeaderReceived() = 0;
 
   // Handles a failure in the token exchange (i.e. shows the error to the user).
   virtual void HandleTokenExchangeFailure(
       const std::string& email,
       const GoogleServiceAuthError& error) = 0;
+
+  virtual signin_metrics::AccessPoint GetAccessPoint() = 0;
 };
 
 // Processes the Dice responses from Gaia.
@@ -183,8 +191,9 @@ class DiceResponseHandler : public KeyedService {
     std::unique_ptr<GaiaAuthFetcher> gaia_auth_fetcher_;
 #if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
     std::unique_ptr<RegistrationTokenHelper> registration_token_helper_;
-    absl::optional<unexportable_keys::UnexportableKeyId> binding_key_id_;
+    // The following fields are empty if the binding key wasn't generated.
     std::string binding_registration_token_;
+    std::vector<uint8_t> wrapped_binding_key_;
 #endif  // BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
   };
 
@@ -212,13 +221,12 @@ class DiceResponseHandler : public KeyedService {
 
   // Called after exchanging an OAuth 2.0 authorization code for a refresh token
   // after DiceAction::SIGNIN.
-  void OnTokenExchangeSuccess(
-      DiceTokenFetcher* token_fetcher,
-      const std::string& refresh_token,
-      bool is_under_advanced_protection
+  void OnTokenExchangeSuccess(DiceTokenFetcher* token_fetcher,
+                              const std::string& refresh_token,
+                              bool is_under_advanced_protection
 #if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
-      ,
-      absl::optional<unexportable_keys::UnexportableKeyId> binding_key_id
+                              ,
+                              const std::vector<uint8_t>& wrapped_binding_key
 #endif  // BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
   );
   void OnTokenExchangeFailure(DiceTokenFetcher* token_fetcher,

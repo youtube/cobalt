@@ -10,7 +10,7 @@
 @protocol ApplicationCommands;
 class Browser;
 @class PasswordIssuesCoordinator;
-@class ReauthenticationModule;
+@protocol ReauthenticationProtocol;
 
 namespace password_manager {
 enum class WarningType;
@@ -36,11 +36,19 @@ enum class WarningType;
                                    browser:(Browser*)browser NS_UNAVAILABLE;
 
 // Reauthentication module used by password details coordinator.
-@property(nonatomic, strong) ReauthenticationModule* reauthModule;
+@property(nonatomic, strong) id<ReauthenticationProtocol> reauthModule;
 
 @property(nonatomic, weak) id<PasswordIssuesCoordinatorDelegate> delegate;
 
 @property(nonatomic, weak) id<ApplicationCommands> dispatcher;
+
+// Whether Local Authentication should be skipped when the coordinator is
+// started. Defaults to NO. Authentication should be required when starting the
+// coordinator unless it was already required by the starting coordinator or
+// another ancestor higher in the ancestor chain. This property is most likely
+// used only by coordinators for other password manager subpages as the password
+// manager requires authentication upon entry.
+@property(nonatomic) BOOL skipAuthenticationOnStart;
 
 @end
 

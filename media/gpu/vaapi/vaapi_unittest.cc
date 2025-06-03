@@ -36,6 +36,7 @@
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
 #include "media/base/media_switches.h"
+#include "media/base/platform_features.h"
 #include "media/gpu/vaapi/vaapi_wrapper.h"
 #include "media/media_buildflags.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -46,6 +47,10 @@
 // GN doesn't understand conditional includes, so we need nogncheck here.
 // See crbug.com/1125897.
 #include "ui/ozone/public/ozone_platform.h"  // nogncheck
+#endif
+
+#ifndef I915_FORMAT_MOD_4_TILED
+#define I915_FORMAT_MOD_4_TILED 0x100000000000009
 #endif
 
 namespace media {
@@ -217,9 +222,24 @@ const char* VAProfileToString(VAProfile profile) {
 #if VA_MAJOR_VERSION >= 2 || VA_MINOR_VERSION >= 11
     TOSTR(VAProfileProtected);
 #endif
+#if VA_MAJOR_VERSION >= 2 || VA_MINOR_VERSION >= 18
+    TOSTR(VAProfileH264High10);
+#endif
   }
   // clang-format on
   return "<unknown profile>";
+}
+
+// Returns true if the Display version is 14. CPU model ID's are referenced from
+// the following file in the kernel source: arch/x86/include/asm/intel-family.h.
+bool IsDisplayVer14() {
+  constexpr int kMeteorLakeModelId = 0xAC;
+  constexpr int kMeteorLake_LModelId = 0xAA;
+  constexpr int kPentiumAndLaterFamily = 0x06;
+  const base::CPU cpuid;
+  return cpuid.family() == kPentiumAndLaterFamily &&
+         (cpuid.model() == kMeteorLakeModelId ||
+          cpuid.model() == kMeteorLake_LModelId);
 }
 
 }  // namespace
@@ -551,8 +571,7 @@ TEST_F(VaapiTest, CheckSupportedSVCScalabilityModes) {
       VaapiWrapper::GetSupportedScalabilityModes(VP9PROFILE_PROFILE0,
                                                  VAProfileVP9Profile0);
 #if BUILDFLAG(IS_CHROMEOS)
-  if (base::FeatureList::IsEnabled(kVaapiVp9kSVCHWEncoding) &&
-      VaapiWrapper::GetDefaultVaEntryPoint(
+  if (VaapiWrapper::GetDefaultVaEntryPoint(
           VaapiWrapper::kEncodeConstantQuantizationParameter,
           VAProfileVP9Profile0) == VAEntrypointEncSliceLP) {
     EXPECT_EQ(scalability_modes_vp9_profile0, kSupportedTemporalAndKeySVC);
@@ -666,7 +685,7 @@ TEST_P(VaapiVppTest, BlitWithVAAllocatedSurfaces) {
 
   ASSERT_TRUE(wrapper->BlitSurface(*surface_in, *surface_out,
                                    gfx::Rect(kInputSize),
-                                   gfx::Rect(kOutputSize), VIDEO_ROTATION_0));
+                                   gfx::Rect(kOutputSize)));
   ASSERT_TRUE(wrapper->SyncSurface(scoped_surface_out->id()));
   wrapper->DestroyContext();
 }
@@ -812,9 +831,10 @@ TEST_P(VaapiMinigbmTest, AllocateAndCompareWithMinigbm) {
   uint64_t expected_drm_modifier = DRM_FORMAT_MOD_LINEAR;
 
   if (backend == VAImplementation::kIntelIHD) {
-    expected_drm_modifier = I915_FORMAT_MOD_Y_TILED;
+    expected_drm_modifier =
+        IsDisplayVer14() ? I915_FORMAT_MOD_4_TILED : I915_FORMAT_MOD_Y_TILED;
   } else if (backend == VAImplementation::kMesaGallium) {
-    if (va_vendor_string.find("STONEY") != std::string::npos) {
+    if (va_vendor_string.find("stoney") != std::string::npos) {
       expected_drm_modifier = DRM_FORMAT_MOD_INVALID;
     }
   }

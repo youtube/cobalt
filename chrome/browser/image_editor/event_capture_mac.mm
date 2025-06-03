@@ -8,6 +8,7 @@
 
 #include <memory>
 
+#include "base/apple/owned_objc.h"
 #include "base/check.h"
 #include "base/functional/callback.h"
 #include "base/memory/ptr_util.h"
@@ -50,7 +51,8 @@ class EventCaptureMac::MouseCaptureDelegateImpl
  private:
   // remote_cocoa::CocoaMouseCaptureDelegate:
   bool PostCapturedEvent(NSEvent* event) override {
-    std::unique_ptr<ui::Event> ui_event = ui::EventFromNative(event);
+    std::unique_ptr<ui::Event> ui_event =
+        ui::EventFromNative(base::apple::OwnedNSEvent(event));
     if (!ui_event) {
       return false;
     }
@@ -88,10 +90,10 @@ class EventCaptureMac::MouseCaptureDelegateImpl
 
   raw_ptr<ui::EventHandler> event_handler_;
   base::OnceClosure capture_lost_callback_;
-  NSView* web_contents_view_ = nil;
-  NSWindow* window_ = nil;
+  NSView* __weak web_contents_view_ = nil;
+  NSWindow* __weak window_ = nil;
   std::unique_ptr<remote_cocoa::CocoaMouseCapture> mouse_capture_;
-  id local_keyboard_monitor_ = nil;
+  id __strong local_keyboard_monitor_ = nil;
 };
 
 EventCaptureMac::EventCaptureMac(ui::EventHandler* event_handler,
@@ -121,8 +123,9 @@ void EventCaptureMac::CreateKeyDownLocalMonitor(
       return event;
     }
 
-    if (!target_window || [event window] == target_window) {
-      std::unique_ptr<ui::Event> ui_event = ui::EventFromNative(event);
+    if (!target_window || event.window == target_window) {
+      std::unique_ptr<ui::Event> ui_event =
+          ui::EventFromNative(base::apple::OwnedNSEvent(event));
       if (!ui_event) {
         return event;
       }

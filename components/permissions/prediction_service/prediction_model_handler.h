@@ -13,11 +13,9 @@
 #include "components/permissions/prediction_service/prediction_service_messages.pb.h"
 
 namespace permissions {
-class PredictionModelHandler
-    : public optimization_guide::ModelHandler<
-          GeneratePredictionsResponse,
-          const GeneratePredictionsRequest&,
-          const absl::optional<WebPermissionPredictionsModelMetadata>&> {
+class PredictionModelHandler : public optimization_guide::ModelHandler<
+                                   GeneratePredictionsResponse,
+                                   const PredictionModelExecutorInput&> {
  public:
   explicit PredictionModelHandler(
       optimization_guide::OptimizationGuideModelProvider* model_provider,
@@ -30,7 +28,8 @@ class PredictionModelHandler
   // optimization_guide::ModelHandler overrides.
   void OnModelUpdated(
       optimization_guide::proto::OptimizationTarget optimization_target,
-      const optimization_guide::ModelInfo& model_info) override;
+      base::optional_ref<const optimization_guide::ModelInfo> model_info)
+      override;
 
   void WaitForModelLoadForTesting();
 

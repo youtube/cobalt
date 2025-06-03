@@ -31,6 +31,7 @@
 #include "ui/display/display_layout.h"
 #include "ui/display/display_switches.h"
 #include "ui/display/manager/display_manager.h"
+#include "ui/display/test/display_manager_test_api.h"
 
 namespace policy {
 
@@ -84,12 +85,13 @@ PolicyValue GetPolicySetting() {
 }
 
 void AddExternalDisplay(display::DisplayManager* display_manager) {
-  display_manager->AddRemoveDisplay(
-      {display::ManagedDisplayMode(gfx::Size(800, 600), 30.0, false, false),
-       display::ManagedDisplayMode(gfx::Size(800, 600), 60.0, false, false),
-       display::ManagedDisplayMode(gfx::Size(1280, 800), 60.0, false, false),
-       display::ManagedDisplayMode(gfx::Size(1920, 1080), 30.0, false, false),
-       display::ManagedDisplayMode(gfx::Size(1920, 1080), 60.0, false, true)});
+  display::test::DisplayManagerTestApi test_api(display_manager);
+  test_api.UpdateDisplay(
+      "1280x800,1920x1080#1920x1080%60|800x600%30|800x600%60|1280x800%60|"
+      "1920x1080%30",
+      /*from_native_platform=*/true);
+
+  // Policy change is applied in the posted task.
   base::RunLoop().RunUntilIdle();
 }
 
@@ -324,8 +326,7 @@ class DisplayResolutionBootTest
   DeviceDisplayCrosTestHelper helper_;
 };
 
-// b/276667320 Disable flaky test
-IN_PROC_BROWSER_TEST_P(DisplayResolutionBootTest, DISABLED_PRE_Reboot) {
+IN_PROC_BROWSER_TEST_P(DisplayResolutionBootTest, PRE_Reboot) {
   const PolicyValue policy_value = GetParam();
 
   // Set policy.
@@ -357,8 +358,7 @@ IN_PROC_BROWSER_TEST_P(DisplayResolutionBootTest, DISABLED_PRE_Reboot) {
       << "Initial primary display scale after policy set";
 }
 
-// b/276667320 Disable flaky test
-IN_PROC_BROWSER_TEST_P(DisplayResolutionBootTest, DISABLED_Reboot) {
+IN_PROC_BROWSER_TEST_P(DisplayResolutionBootTest, Reboot) {
   const PolicyValue policy_value = GetParam();
 
   AddExternalDisplay(display_helper()->GetDisplayManager());

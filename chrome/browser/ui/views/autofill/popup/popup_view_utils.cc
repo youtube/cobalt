@@ -11,7 +11,7 @@
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/views/extensions/extension_popup.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
-#include "chrome/browser/ui/views/permissions/permission_prompt_bubble_view.h"
+#include "chrome/browser/ui/views/permissions/permission_prompt_bubble_base_view.h"
 #include "components/autofill/core/browser/ui/popup_item_ids.h"
 #include "components/autofill/core/common/autofill_features.h"
 #include "content/public/browser/web_contents.h"
@@ -249,6 +249,7 @@ bool CanShowDropdownHere(int item_height,
       element_bounds.bottom() > content_area_bounds.y() &&
       element_bounds.bottom() <= content_area_bounds.bottom();
 
+  // TODO(crbug.com/1455336): Test the space on the left/right or forbid it explicitly.
   return (enough_space_for_one_item_in_content_area_above_element &&
           element_top_is_within_content_area_bounds) ||
          (enough_space_for_one_item_in_content_area_below_element &&
@@ -291,7 +292,7 @@ bool BoundsOverlapWithAnyOpenPrompt(const gfx::Rect& screen_bounds,
 bool BoundsOverlapWithOpenPermissionsPrompt(
     const gfx::Rect& screen_bounds,
     content::WebContents* web_contents) {
-  Browser* browser = chrome::FindBrowserWithWebContents(web_contents);
+  Browser* browser = chrome::FindBrowserWithTab(web_contents);
   if (!browser) {
     return false;
   }
@@ -303,7 +304,7 @@ bool BoundsOverlapWithOpenPermissionsPrompt(
 
   views::View* const permission_bubble_view =
       views::ElementTrackerViews::GetInstance()->GetFirstMatchingView(
-          PermissionPromptBubbleView::kPermissionPromptBubbleViewIdentifier,
+          PermissionPromptBubbleBaseView::kMainViewId,
           views::ElementTrackerViews::GetInstance()->GetContextForView(
               browser_view));
   if (!permission_bubble_view) {
@@ -408,12 +409,10 @@ bool IsPopupPlaceableOnSideOfElement(const gfx::Rect& content_area_bounds,
 views::BubbleArrowSide GetOptimalArrowSide(
     const gfx::Rect& content_area_bounds,
     const gfx::Rect& element_bounds,
-    const gfx::Size& popup_preferred_size) {
+    const gfx::Size& popup_preferred_size,
+    base::span<const views::BubbleArrowSide> popup_preferred_sides) {
   // Probe for a side of the element on which the popup can be shown entirely.
-  const std::vector<views::BubbleArrowSide> sides_by_preference(
-      {views::BubbleArrowSide::kTop, views::BubbleArrowSide::kBottom,
-       views::BubbleArrowSide::kLeft, views::BubbleArrowSide::kRight});
-  for (views::BubbleArrowSide possible_side : sides_by_preference) {
+  for (views::BubbleArrowSide possible_side : popup_preferred_sides) {
     if (IsPopupPlaceableOnSideOfElement(
             content_area_bounds, element_bounds, popup_preferred_size,
             BubbleBorder::kVisibleArrowLength, possible_side) &&
@@ -441,11 +440,13 @@ BubbleBorder::Arrow GetOptimalPopupPlacement(
     int scrollbar_width,
     int maximum_pixel_offset_to_center,
     int maximum_width_percentage_to_center,
-    gfx::Rect& popup_bounds) {
+    gfx::Rect& popup_bounds,
+    base::span<const views::BubbleArrowSide> popup_preferred_sides) {
   // Determine the best side of the element to put the popup and get a
   // corresponding arrow.
-  views::BubbleArrowSide side = GetOptimalArrowSide(
-      content_area_bounds, element_bounds, popup_preferred_size);
+  views::BubbleArrowSide side =
+      GetOptimalArrowSide(content_area_bounds, element_bounds,
+                          popup_preferred_size, popup_preferred_sides);
   BubbleBorder::Arrow arrow =
       GetBubbleArrowForBubbleArrowSide(side, right_to_left);
 
@@ -532,23 +533,146 @@ BubbleBorder::Arrow GetOptimalPopupPlacement(
   return arrow;
 }
 
-bool IsFooterFrontendId(int frontend_id) {
-  switch (frontend_id) {
-    case PopupItemId::POPUP_ITEM_ID_SCAN_CREDIT_CARD:
-    case PopupItemId::POPUP_ITEM_ID_CREDIT_CARD_SIGNIN_PROMO:
-    case PopupItemId::POPUP_ITEM_ID_PASSWORD_ACCOUNT_STORAGE_EMPTY:
-    case PopupItemId::POPUP_ITEM_ID_PASSWORD_ACCOUNT_STORAGE_OPT_IN:
-    case PopupItemId::POPUP_ITEM_ID_PASSWORD_ACCOUNT_STORAGE_RE_SIGNIN:
-    case PopupItemId::
-        POPUP_ITEM_ID_PASSWORD_ACCOUNT_STORAGE_OPT_IN_AND_GENERATE:
-    case PopupItemId::POPUP_ITEM_ID_SHOW_ACCOUNT_CARDS:
-    case PopupItemId::POPUP_ITEM_ID_USE_VIRTUAL_CARD:
-    case PopupItemId::POPUP_ITEM_ID_ALL_SAVED_PASSWORDS_ENTRY:
-    case PopupItemId::POPUP_ITEM_ID_CLEAR_FORM:
-    case PopupItemId::POPUP_ITEM_ID_AUTOFILL_OPTIONS:
-    case PopupItemId::POPUP_ITEM_ID_SEE_PROMO_CODE_DETAILS:
+int GetMainTextStyleForPopupItemId(PopupItemId popup_item_id) {
+  switch (popup_item_id) {
+    case PopupItemId::kFillFullAddress:
+    case PopupItemId::kFillFullName:
+      return views::style::TextStyle::STYLE_SECONDARY;
+    case PopupItemId::kAccountStoragePasswordEntry:
+    case PopupItemId::kAccountStorageUsernameEntry:
+    case PopupItemId::kAddressEntry:
+    case PopupItemId::kAllSavedPasswordsEntry:
+    case PopupItemId::kAutocompleteEntry:
+    case PopupItemId::kAutofillOptions:
+    case PopupItemId::kClearForm:
+    case PopupItemId::kCompose:
+    case PopupItemId::kCreateNewPlusAddress:
+    case PopupItemId::kCreditCardEntry:
+    case PopupItemId::kDatalistEntry:
+    case PopupItemId::kDeleteAddressProfile:
+    case PopupItemId::kDevtoolsTestAddressEntry:
+    case PopupItemId::kDevtoolsTestAddresses:
+    case PopupItemId::kEditAddressProfile:
+    case PopupItemId::kFieldByFieldFilling:
+    case PopupItemId::kFillEverythingFromAddressProfile:
+    case PopupItemId::kFillExistingPlusAddress:
+    case PopupItemId::kFillFullEmail:
+    case PopupItemId::kFillFullPhoneNumber:
+    case PopupItemId::kGeneratePasswordEntry:
+    case PopupItemId::kIbanEntry:
+    case PopupItemId::kInsecureContextPaymentDisabledMessage:
+    case PopupItemId::kMerchantPromoCodeEntry:
+    case PopupItemId::kMixedFormMessage:
+    case PopupItemId::kPasswordAccountStorageEmpty:
+    case PopupItemId::kPasswordAccountStorageOptIn:
+    case PopupItemId::kPasswordAccountStorageOptInAndGenerate:
+    case PopupItemId::kPasswordAccountStorageReSignin:
+    case PopupItemId::kPasswordEntry:
+    case PopupItemId::kScanCreditCard:
+    case PopupItemId::kSeePromoCodeDetails:
+    case PopupItemId::kSeparator:
+    case PopupItemId::kShowAccountCards:
+    case PopupItemId::kTitle:
+    case PopupItemId::kUsernameEntry:
+    case PopupItemId::kVirtualCreditCardEntry:
+    case PopupItemId::kWebauthnCredential:
+    case PopupItemId::kWebauthnSignInWithAnotherDevice:
+      return views::style::TextStyle::STYLE_PRIMARY;
+  }
+}
+
+bool IsFooterPopupItemId(PopupItemId popup_item_id) {
+  switch (popup_item_id) {
+    case PopupItemId::kScanCreditCard:
+    case PopupItemId::kPasswordAccountStorageEmpty:
+    case PopupItemId::kPasswordAccountStorageOptIn:
+    case PopupItemId::kPasswordAccountStorageReSignin:
+    case PopupItemId::kPasswordAccountStorageOptInAndGenerate:
+    case PopupItemId::kShowAccountCards:
+    case PopupItemId::kAllSavedPasswordsEntry:
+    case PopupItemId::kFillEverythingFromAddressProfile:
+    case PopupItemId::kClearForm:
+    case PopupItemId::kAutofillOptions:
+    case PopupItemId::kSeePromoCodeDetails:
+    case PopupItemId::kEditAddressProfile:
+    case PopupItemId::kDeleteAddressProfile:
       return true;
-    default:
+    case PopupItemId::kAccountStoragePasswordEntry:
+    case PopupItemId::kAccountStorageUsernameEntry:
+    case PopupItemId::kAddressEntry:
+    case PopupItemId::kAutocompleteEntry:
+    case PopupItemId::kCompose:
+    case PopupItemId::kCreateNewPlusAddress:
+    case PopupItemId::kCreditCardEntry:
+    case PopupItemId::kDatalistEntry:
+    case PopupItemId::kDevtoolsTestAddressEntry:
+    case PopupItemId::kDevtoolsTestAddresses:
+    case PopupItemId::kFieldByFieldFilling:
+    case PopupItemId::kFillExistingPlusAddress:
+    case PopupItemId::kFillFullAddress:
+    case PopupItemId::kFillFullName:
+    case PopupItemId::kFillFullEmail:
+    case PopupItemId::kFillFullPhoneNumber:
+    case PopupItemId::kGeneratePasswordEntry:
+    case PopupItemId::kIbanEntry:
+    case PopupItemId::kInsecureContextPaymentDisabledMessage:
+    case PopupItemId::kMerchantPromoCodeEntry:
+    case PopupItemId::kMixedFormMessage:
+    case PopupItemId::kPasswordEntry:
+    case PopupItemId::kSeparator:
+    case PopupItemId::kTitle:
+    case PopupItemId::kUsernameEntry:
+    case PopupItemId::kVirtualCreditCardEntry:
+    case PopupItemId::kWebauthnCredential:
+    case PopupItemId::kWebauthnSignInWithAnotherDevice:
+      return false;
+  }
+}
+
+bool IsExpandablePopupItemId(PopupItemId popup_item_id) {
+  switch (popup_item_id) {
+    case PopupItemId::kAddressEntry:
+    case PopupItemId::kDevtoolsTestAddresses:
+    case PopupItemId::kFillFullAddress:
+    case PopupItemId::kFillFullName:
+    case PopupItemId::kFillFullEmail:
+    case PopupItemId::kFillFullPhoneNumber:
+    case PopupItemId::kFieldByFieldFilling:
+      return true;
+    case PopupItemId::kAccountStoragePasswordEntry:
+    case PopupItemId::kAccountStorageUsernameEntry:
+    case PopupItemId::kAllSavedPasswordsEntry:
+    case PopupItemId::kAutocompleteEntry:
+    case PopupItemId::kAutofillOptions:
+    case PopupItemId::kClearForm:
+    case PopupItemId::kCompose:
+    case PopupItemId::kCreateNewPlusAddress:
+    case PopupItemId::kCreditCardEntry:
+    case PopupItemId::kDatalistEntry:
+    case PopupItemId::kDevtoolsTestAddressEntry:
+    case PopupItemId::kDeleteAddressProfile:
+    case PopupItemId::kEditAddressProfile:
+    case PopupItemId::kFillEverythingFromAddressProfile:
+    case PopupItemId::kFillExistingPlusAddress:
+    case PopupItemId::kGeneratePasswordEntry:
+    case PopupItemId::kIbanEntry:
+    case PopupItemId::kInsecureContextPaymentDisabledMessage:
+    case PopupItemId::kMerchantPromoCodeEntry:
+    case PopupItemId::kMixedFormMessage:
+    case PopupItemId::kPasswordAccountStorageEmpty:
+    case PopupItemId::kPasswordAccountStorageOptIn:
+    case PopupItemId::kPasswordAccountStorageOptInAndGenerate:
+    case PopupItemId::kPasswordAccountStorageReSignin:
+    case PopupItemId::kPasswordEntry:
+    case PopupItemId::kScanCreditCard:
+    case PopupItemId::kSeePromoCodeDetails:
+    case PopupItemId::kSeparator:
+    case PopupItemId::kShowAccountCards:
+    case PopupItemId::kTitle:
+    case PopupItemId::kUsernameEntry:
+    case PopupItemId::kVirtualCreditCardEntry:
+    case PopupItemId::kWebauthnCredential:
+    case PopupItemId::kWebauthnSignInWithAnotherDevice:
       return false;
   }
 }

@@ -11,6 +11,7 @@
 #include "chrome/browser/password_manager/android/password_manager_lifecycle_helper_impl.h"
 #include "chrome/browser/password_manager/android/password_settings_updater_android_bridge_helper.h"
 #include "components/password_manager/core/browser/password_manager_setting.h"
+#include "components/password_manager/core/browser/password_manager_util.h"
 #include "components/password_manager/core/browser/password_sync_util.h"
 #include "components/password_manager/core/common/password_manager_features.h"
 #include "components/password_manager/core/common/password_manager_pref_names.h"
@@ -18,13 +19,14 @@
 #include "components/signin/public/base/signin_pref_names.h"
 #include "components/signin/public/identity_manager/account_info.h"
 #include "components/sync/base/user_selectable_type.h"
-#include "components/sync/driver/sync_service.h"
-#include "components/sync/driver/sync_user_settings.h"
+#include "components/sync/service/sync_service.h"
+#include "components/sync/service/sync_user_settings.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
 using password_manager::PasswordManagerSetting;
 using password_manager::PasswordSettingsUpdaterAndroidBridgeHelper;
-using password_manager::sync_util::IsPasswordSyncEnabled;
+using password_manager::sync_util::IsSyncFeatureEnabledIncludingPasswords;
+using password_manager_util::UsesUPMForLocalM2;
 
 namespace {
 
@@ -82,16 +84,33 @@ bool IsUnenrolledFromUPM(PrefService* pref_service) {
 // In error cases, the UPM can set the kSavePasswordsSuspendedByError
 // pref to temporarily prevent password saves. If the user doesn't use GMS,
 // saving keeps working and only the syncing of changes is delayed.
-bool ShouldSuspendPasswordSavingDueToError(PrefService* pref_service) {
-  // The messages feature is a subset of UPM. The actual feature is irrelevant.
-  if (!base::FeatureList::IsEnabled(
-          password_manager::features::kUnifiedPasswordManagerErrorMessages)) {
-    return false;  // Non-UPM users can still save.
-  }
+bool ShouldSuspendPasswordSavingDueToError(PrefService* pref_service,
+                                           syncer::SyncService* sync_service) {
   // Ensure the user is still enrolled. Evicted users can still save normally.
-  return !IsUnenrolledFromUPM(pref_service) &&
+  bool is_pwd_sync_enabled =
+      IsSyncFeatureEnabledIncludingPasswords(sync_service);
+  return is_pwd_sync_enabled && !IsUnenrolledFromUPM(pref_service) &&
          pref_service->GetBoolean(
              password_manager::prefs::kSavePasswordsSuspendedByError);
+}
+
+// Checks that the user is either syncing and enrolled in UPM or not syncing and
+// ready to use local UPM.
+bool UsesUPMBackend(PrefService* pref_service,
+                    syncer::SyncService* sync_service) {
+  // TODO(crbug.com/1494913): Include the bridge helper check here.
+  // TODO(crbug.com/1466445): Migrate away from `ConsentLevel::kSync` on
+  // Android.
+  bool is_pwd_sync_enabled =
+      IsSyncFeatureEnabledIncludingPasswords(sync_service);
+  bool is_unenrolled = IsUnenrolledFromUPM(pref_service);
+  if (is_pwd_sync_enabled && is_unenrolled) {
+    return false;
+  }
+  if (is_pwd_sync_enabled) {
+    return true;
+  }
+  return UsesUPMForLocalM2(pref_service);
 }
 
 }  // namespace
@@ -100,9 +119,7 @@ PasswordManagerSettingsServiceAndroidImpl::
     PasswordManagerSettingsServiceAndroidImpl(PrefService* pref_service,
                                               syncer::SyncService* sync_service)
     : pref_service_(pref_service), sync_service_(sync_service) {
-  DCHECK(pref_service_);
-  DCHECK(sync_service_);
-  DCHECK(password_manager::features::UsesUnifiedPasswordManagerUi());
+  CHECK(pref_service_);
   if (!PasswordSettingsUpdaterAndroidBridgeHelper::CanCreateAccessor())
     return;
   bridge_helper_ = PasswordSettingsUpdaterAndroidBridgeHelper::Create();
@@ -113,7 +130,7 @@ PasswordManagerSettingsServiceAndroidImpl::
 // Constructor for tests
 PasswordManagerSettingsServiceAndroidImpl::
     PasswordManagerSettingsServiceAndroidImpl(
-        base::PassKey<class PasswordManagerSettingsServiceAndroidImplTest>,
+        base::PassKey<class PasswordManagerSettingsServiceAndroidImplBaseTest>,
         PrefService* pref_service,
         syncer::SyncService* sync_service,
         std::unique_ptr<PasswordSettingsUpdaterAndroidBridgeHelper>
@@ -123,8 +140,7 @@ PasswordManagerSettingsServiceAndroidImpl::
       sync_service_(sync_service),
       bridge_helper_(std::move(bridge_helper)),
       lifecycle_helper_(std::move(lifecycle_helper)) {
-  DCHECK(pref_service_);
-  DCHECK(sync_service_);
+  CHECK(pref_service_);
   if (!bridge_helper_)
     return;
   Init();
@@ -140,22 +156,18 @@ PasswordManagerSettingsServiceAndroidImpl::
 bool PasswordManagerSettingsServiceAndroidImpl::IsSettingEnabled(
     PasswordManagerSetting setting) const {
   if (setting == PasswordManagerSetting::kOfferToSavePasswords &&
-      ShouldSuspendPasswordSavingDueToError(pref_service_)) {
+      ShouldSuspendPasswordSavingDueToError(pref_service_, sync_service_)) {
     return false;
   }
   const PrefService::Preference* regular_pref =
       GetRegularPrefFromSetting(pref_service_, setting);
-  DCHECK(regular_pref);
-
-  if (IsUnenrolledFromUPM(pref_service_)) {
-    return regular_pref->GetValue()->GetBool();
-  }
-
-  if (!IsPasswordSyncEnabled(sync_service_)) {
-    return regular_pref->GetValue()->GetBool();
-  }
+  CHECK(regular_pref);
 
   if (!bridge_helper_) {
+    return regular_pref->GetValue()->GetBool();
+  }
+
+  if (!UsesUPMBackend(pref_service_, sync_service_)) {
     return regular_pref->GetValue()->GetBool();
   }
 
@@ -165,21 +177,24 @@ bool PasswordManagerSettingsServiceAndroidImpl::IsSettingEnabled(
 
   const PrefService::Preference* android_pref =
       GetGMSPrefFromSetting(pref_service_, setting);
-  DCHECK(android_pref);
+  CHECK(android_pref);
   return android_pref->GetValue()->GetBool();
 }
 
 void PasswordManagerSettingsServiceAndroidImpl::RequestSettingsFromBackend() {
-  // Backend has settings data only if passwords are synced.
-  if (bridge_helper_ && IsPasswordSyncEnabled(sync_service_) &&
-      !IsUnenrolledFromUPM(pref_service_)) {
-    FetchSettings();
+  if (!bridge_helper_) {
+    return;
   }
+  if (!UsesUPMBackend(pref_service_, sync_service_)) {
+    return;
+  }
+  FetchSettings();
 }
 
 void PasswordManagerSettingsServiceAndroidImpl::TurnOffAutoSignIn() {
-  if (!bridge_helper_ || !IsPasswordSyncEnabled(sync_service_) ||
-      IsUnenrolledFromUPM(pref_service_)) {
+  // TODO(crbug.com/1466445): Migrate away from `ConsentLevel::kSync` on
+  // Android.
+  if (!bridge_helper_ || !UsesUPMBackend(pref_service_, sync_service_)) {
     pref_service_->SetBoolean(
         password_manager::prefs::kCredentialsEnableAutosignin, false);
     return;
@@ -191,21 +206,34 @@ void PasswordManagerSettingsServiceAndroidImpl::TurnOffAutoSignIn() {
 
   pref_service_->SetBoolean(password_manager::prefs::kAutoSignInEnabledGMS,
                             false);
+  absl::optional<SyncingAccount> account = absl::nullopt;
+  // TODO(crbug.com/1466445): Migrate away from `ConsentLevel::kSync` on
+  // Android.
+  if (IsSyncFeatureEnabledIncludingPasswords(sync_service_)) {
+    account = SyncingAccount(sync_service_->GetAccountInfo().email);
+  }
+  // TODO(crbug.com/1492135): Implement retries for writing to GMSCore.
   bridge_helper_->SetPasswordSettingValue(
-      SyncingAccount(sync_service_->GetAccountInfo().email),
-      PasswordManagerSetting::kAutoSignIn, false);
+      account, PasswordManagerSetting::kAutoSignIn, false);
 }
 
 void PasswordManagerSettingsServiceAndroidImpl::Init() {
-  DCHECK(bridge_helper_);
-  MigratePrefsIfNeeded();
+  CHECK(bridge_helper_);
+  // TODO(crbug.com/1485556): Copy the pref values to GMSCore for local users.
   bridge_helper_->SetConsumer(weak_ptr_factory_.GetWeakPtr());
 
   lifecycle_helper_->RegisterObserver(base::BindRepeating(
       &PasswordManagerSettingsServiceAndroidImpl::OnChromeForegrounded,
       weak_ptr_factory_.GetWeakPtr()));
-  is_password_sync_enabled_ = IsPasswordSyncEnabled(sync_service_);
-  sync_service_->AddObserver(this);
+  // TODO(crbug.com/1466445): Migrate away from `ConsentLevel::kSync` on
+  // Android.
+  is_password_sync_enabled_ =
+      IsSyncFeatureEnabledIncludingPasswords(sync_service_);
+  if (sync_service_) {
+    // The `sync_service_` can be null when --disable-sync has been passed in as
+    // a command line flag.
+    sync_service_->AddObserver(this);
+  }
 
   pref_change_registrar_.Init(pref_service_);
   pref_change_registrar_.Add(
@@ -225,14 +253,44 @@ void PasswordManagerSettingsServiceAndroidImpl::OnSettingValueFetched(
     PasswordManagerSetting setting,
     bool value) {
   UpdateSettingFetchState(setting);
-  if (!fetch_after_sync_status_change_in_progress_ &&
-      !IsPasswordSyncEnabled(sync_service_)) {
+  // For the users not using the UPM backend, the setting value should not be
+  // written to the cache and the regular pref, unless this call to
+  // `OnSettingValueFetched` was part of the final fetch after a sync state
+  // change.
+  if (!UsesUPMBackend(pref_service_, sync_service_) &&
+      !fetch_after_sync_status_change_in_progress_) {
     return;
   }
 
+  WriteToTheCacheAndRegularPref(setting, value);
+}
+
+void PasswordManagerSettingsServiceAndroidImpl::OnSettingValueAbsent(
+    password_manager::PasswordManagerSetting setting) {
+  CHECK(bridge_helper_);
+  UpdateSettingFetchState(setting);
+
+  if (!UsesUPMBackend(pref_service_, sync_service_)) {
+    return;
+  }
+
+  // This code is currently called only for UPM users. If the setting value
+  // is absent in GMSCore, the cached setting value is set to the default value,
+  // which is true for both of the password-related settings: AutoSignIn and
+  // OfferToSavePasswords.
+  WriteToTheCacheAndRegularPref(setting, absl::nullopt);
+}
+
+void PasswordManagerSettingsServiceAndroidImpl::WriteToTheCacheAndRegularPref(
+    PasswordManagerSetting setting,
+    absl::optional<bool> value) {
   const PrefService::Preference* android_pref =
       GetGMSPrefFromSetting(pref_service_, setting);
-  pref_service_->SetBoolean(android_pref->name(), value);
+  if (value.has_value()) {
+    pref_service_->SetBoolean(android_pref->name(), value.value());
+  } else {
+    pref_service_->ClearPref(android_pref->name());
+  }
 
   // Updating the regular pref now will ensure that if passwods sync turns off
   // the regular pref contains the latest setting value. This can only be done
@@ -242,68 +300,45 @@ void PasswordManagerSettingsServiceAndroidImpl::OnSettingValueFetched(
   if (!HasChosenToSyncPreferences(sync_service_)) {
     const PrefService::Preference* regular_pref =
         GetRegularPrefFromSetting(pref_service_, setting);
-    pref_service_->SetBoolean(regular_pref->name(), value);
+    if (value.has_value()) {
+      pref_service_->SetBoolean(regular_pref->name(), value.value());
+    } else {
+      pref_service_->ClearPref(regular_pref->name());
+    }
   }
-}
-
-void PasswordManagerSettingsServiceAndroidImpl::OnSettingValueAbsent(
-    password_manager::PasswordManagerSetting setting) {
-  DCHECK(bridge_helper_);
-  UpdateSettingFetchState(setting);
-  if (IsUnenrolledFromUPM(pref_service_))
-    return;
-
-  if (!IsPasswordSyncEnabled(sync_service_))
-    return;
-
-  const PrefService::Preference* pref =
-      GetGMSPrefFromSetting(pref_service_, setting);
-
-  // If both GMS and Chrome have default values for the setting, then no update
-  // is needed.
-  if (!pref_service_->GetUserPrefValue(pref->name()))
-    return;
-
-  // If Chrome has an explicitly set value, GMS needs to know about it.
-  // TODO(crbug.com/1289700): Check whether this should be guarded by a
-  // migration pref.
-  bridge_helper_->SetPasswordSettingValue(
-      SyncingAccount(sync_service_->GetAccountInfo().email), setting,
-      pref->GetValue()->GetBool());
-}
-
-void PasswordManagerSettingsServiceAndroidImpl::MigratePrefsIfNeeded() {
-  if (IsUnenrolledFromUPM(pref_service_))
-    return;
-
-  if (pref_service_->GetBoolean(
-          password_manager::prefs::kSettingsMigratedToUPM))
-    return;
-
-  base::UmaHistogramBoolean("PasswordManager.MigratedSettingsUPMAndroid", true);
-  pref_service_->SetBoolean(password_manager::prefs::kSettingsMigratedToUPM,
-                            true);
-  // No need to copy the values until sync turns on. When sync turns on, this
-  // will be handled as part of the sync state change rather than migration.
-  if (!IsPasswordSyncEnabled(sync_service_))
-    return;
-
-  DumpChromePrefsIntoGMSPrefs();
 }
 
 void PasswordManagerSettingsServiceAndroidImpl::OnStateChanged(
     syncer::SyncService* sync) {
-  if (IsUnenrolledFromUPM(pref_service_))
-    return;
-
   // Return early if the setting didn't change and no sync errors were resolved.
-  if (IsPasswordSyncEnabled(sync) == is_password_sync_enabled_)
+  // TODO(crbug.com/1466445): Migrate away from `ConsentLevel::kSync` on
+  // Android.
+  if (IsSyncFeatureEnabledIncludingPasswords(sync) ==
+      is_password_sync_enabled_) {
     return;
+  }
 
-  is_password_sync_enabled_ = IsPasswordSyncEnabled(sync);
+  // TODO(crbug.com/1466445): Migrate away from `ConsentLevel::kSync` on
+  // Android.
+  // TODO(crbug.com/1493631): Consider using is_password_sync_enabled_ where
+  // possible, instead of calling IsSyncFeatureEnabledIncludingPasswords.
+  is_password_sync_enabled_ = IsSyncFeatureEnabledIncludingPasswords(sync);
 
-  if (is_password_sync_enabled_)
-    DumpChromePrefsIntoGMSPrefs();
+  if (is_password_sync_enabled_ && IsUnenrolledFromUPM(pref_service_)) {
+    return;
+  }
+
+  // If sync just turned off, but the client was unenrolled prior to the change
+  // and they are not using local storage support, it means that there is no
+  // backend to talk to and Chrome will be reading the settings from the regular
+  // prefs, so there is no point in making a request for new settings values.
+  // Users not syncing passwords that have local storage support ignore
+  // unenrollment and need to fetch new settings from the local backend to
+  // replace the account ones.
+  if (!is_password_sync_enabled_ && IsUnenrolledFromUPM(pref_service_) &&
+      !UsesUPMForLocalM2(pref_service_)) {
+    return;
+  }
 
   // Fetch settings from the backend to align values stored in GMS Core and
   // Chrome.
@@ -324,32 +359,28 @@ void PasswordManagerSettingsServiceAndroidImpl::UpdateSettingFetchState(
 }
 
 void PasswordManagerSettingsServiceAndroidImpl::FetchSettings() {
-  DCHECK(bridge_helper_);
-  for (PasswordManagerSetting setting : kAllPasswordSettings) {
-    bridge_helper_->GetPasswordSettingValue(
-        SyncingAccount(
-            pref_service_->GetString(::prefs::kGoogleServicesLastUsername)),
-        setting);
+  CHECK(bridge_helper_);
+  absl::optional<SyncingAccount> account = absl::nullopt;
+  // TODO(crbug.com/1466445): Migrate away from `ConsentLevel::kSync` on
+  // Android.
+  bool is_syncing_passwords =
+      IsSyncFeatureEnabledIncludingPasswords(sync_service_);
+  CHECK(!(is_syncing_passwords && IsUnenrolledFromUPM(pref_service_)));
+  bool is_final_fetch_for_local_user_without_upm =
+      fetch_after_sync_status_change_in_progress_ && !is_syncing_passwords &&
+      !UsesUPMForLocalM2(pref_service_);
+  if (is_syncing_passwords || is_final_fetch_for_local_user_without_upm) {
+    // Note: This method also handles the case where the previously-syncing
+    // account has just signed out. So the account can't be queried via
+    // `sync_service_->GetAccountInfo().email` but instead needs to be retrieved
+    // via kGoogleServices*Last*SyncingUsername.
+    // TODO(crbug.com/1490523): Revisit this logic - does anything need to be
+    // done for signed-in non-syncing users too?
+    account = SyncingAccount(
+        pref_service_->GetString(::prefs::kGoogleServicesLastSyncingUsername));
   }
-}
-
-void PasswordManagerSettingsServiceAndroidImpl::DumpChromePrefsIntoGMSPrefs() {
   for (PasswordManagerSetting setting : kAllPasswordSettings) {
-    const PrefService::Preference* regular_pref =
-        GetRegularPrefFromSetting(pref_service_, setting);
-
-    if (!pref_service_->GetUserPrefValue(regular_pref->name()))
-      continue;
-
-    const PrefService::Preference* gms_pref =
-        GetGMSPrefFromSetting(pref_service_, setting);
-
-    // Make sure the user prefs are consistent. If the settings are set by
-    // policy, the value of the managed pref will still apply in checks, but
-    // the UPM prefs should contain the user set value.
-    pref_service_->SetBoolean(
-        gms_pref->name(),
-        pref_service_->GetUserPrefValue(regular_pref->name())->GetBool());
+    bridge_helper_->GetPasswordSettingValue(account, setting);
   }
 }
 
@@ -358,7 +389,6 @@ void PasswordManagerSettingsServiceAndroidImpl::
   if (!IsUnenrolledFromUPM(pref_service_)) {
     // Perform actions that are usually done on startup, but were skipped
     // for the evicted users.
-    MigratePrefsIfNeeded();
     RequestSettingsFromBackend();
   }
 }

@@ -16,7 +16,6 @@
 #include "ash/components/arc/test/connection_holder_util.h"
 #include "ash/components/arc/test/fake_arc_session.h"
 #include "ash/components/arc/test/fake_policy_instance.h"
-#include "ash/constants/ash_switches.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/json/json_reader.h"
@@ -33,6 +32,7 @@
 #include "chrome/browser/ash/login/users/fake_chrome_user_manager.h"
 #include "chrome/browser/policy/developer_tools_policy_handler.h"
 #include "chrome/browser/signin/identity_test_environment_profile_adaptor.h"
+#include "chrome/common/chrome_switches.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile_manager.h"
@@ -218,13 +218,11 @@ class ArcPolicyBridgeTestBase {
         .Times(1);
 
     // Set up user profile for ReportCompliance() tests.
-    auto* const fake_user_manager = new ash::FakeChromeUserManager();
-    user_manager_enabler_ = std::make_unique<user_manager::ScopedUserManager>(
-        base::WrapUnique(fake_user_manager));
+    fake_user_manager_.Reset(std::make_unique<ash::FakeChromeUserManager>());
     const AccountId account_id(
         AccountId::FromUserEmailGaiaId(kTestUserEmail, "1111111111"));
-    fake_user_manager->AddUserWithAffiliation(account_id, is_affiliated);
-    fake_user_manager->LoginUser(account_id);
+    fake_user_manager_->AddUserWithAffiliation(account_id, is_affiliated);
+    fake_user_manager_->LoginUser(account_id);
     testing_profile_manager_ = std::make_unique<TestingProfileManager>(
         TestingBrowserProcess::GetGlobal());
     ASSERT_TRUE(testing_profile_manager_->SetUp());
@@ -347,12 +345,14 @@ class ArcPolicyBridgeTestBase {
  private:
   content::BrowserTaskEnvironment task_environment_;
   data_decoder::test::InProcessDataDecoder in_process_data_decoder_;
-  std::unique_ptr<user_manager::ScopedUserManager> user_manager_enabler_;
+  user_manager::TypedScopedUserManager<ash::FakeChromeUserManager>
+      fake_user_manager_;
   std::unique_ptr<TestingProfileManager> testing_profile_manager_;
   base::RunLoop run_loop_;
-  raw_ptr<TestingProfile, ExperimentalAsh> profile_;
+  raw_ptr<TestingProfile, DanglingUntriaged | ExperimentalAsh> profile_;
   std::unique_ptr<ArcBridgeService> bridge_service_;
-  raw_ptr<CertStoreService, ExperimentalAsh> cert_store_service_;  // Not owned.
+  raw_ptr<CertStoreService, DanglingUntriaged | ExperimentalAsh>
+      cert_store_service_;  // Not owned.
 
   std::unique_ptr<ArcSessionManager> arc_session_manager_;
   std::unique_ptr<ArcPolicyBridge> policy_bridge_;
@@ -437,32 +437,6 @@ TEST_F(ArcPolicyBridgeTest, ArcPolicyTest) {
       "{\"apkCacheEnabled\":true,"
       "\"applications\":"
       "[{\"installType\":\"REQUIRED\","
-      "\"lockTaskAllowed\":false,"
-      "\"packageName\":\"com.google.android.apps.youtube.kids\","
-      "\"permissionGrants\":[]"
-      "}],"
-      "\"defaultPermissionPolicy\":\"GRANT\","
-      "\"guid\":\"" +
-      instance_guid() + "\"," + kMountPhysicalMediaDisabledPolicySetting + "}");
-}
-
-TEST_F(ArcPolicyBridgeTest, InstallTypeOptionalMigrationTest) {
-  policy_map().Set(
-      policy::key::kArcPolicy, policy::POLICY_LEVEL_MANDATORY,
-      policy::POLICY_SCOPE_USER, policy::POLICY_SOURCE_CLOUD,
-      base::Value("{\"applications\":"
-                  "[{\"packageName\":\"com.google.android.apps.youtube.kids\","
-                  "\"installType\":\"OPTIONAL\","
-                  "\"lockTaskAllowed\":false,"
-                  "\"permissionGrants\":[]"
-                  "}],"
-                  "\"defaultPermissionPolicy\":\"GRANT\""
-                  "}"),
-      nullptr);
-  GetPoliciesAndVerifyResult(
-      "{\"apkCacheEnabled\":true,"
-      "\"applications\":"
-      "[{\"installType\":\"AVAILABLE\","
       "\"lockTaskAllowed\":false,"
       "\"packageName\":\"com.google.android.apps.youtube.kids\","
       "\"permissionGrants\":[]"
@@ -656,13 +630,13 @@ TEST_F(ArcPolicyBridgeTest, ForceDevToolsAvailabilityTest) {
           policy::DeveloperToolsPolicyHandler::Availability::kDisallowed)));
   base::test::ScopedCommandLine command_line;
   command_line.GetProcessCommandLine()->AppendSwitch(
-      ash::switches::kForceDevToolsAvailable);
+      switches::kForceDevToolsAvailable);
   GetPoliciesAndVerifyResult(
       "{\"apkCacheEnabled\":true,\"debuggingFeaturesDisabled\":false,"
       "\"guid\":\"" +
       instance_guid() + "\"," + kMountPhysicalMediaDisabledPolicySetting + "}");
   command_line.GetProcessCommandLine()->RemoveSwitch(
-      ash::switches::kForceDevToolsAvailable);
+      switches::kForceDevToolsAvailable);
 }
 
 TEST_F(ArcPolicyBridgeTest, ManagedConfigurationVariablesTest) {

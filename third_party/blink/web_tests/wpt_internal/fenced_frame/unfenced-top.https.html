@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <title>Test top-level navigation from fenced frames with _unfencedTop</title>
+<meta name="timeout" content="long">
 <script src="/resources/testharness.js"></script>
 <script src="/resources/testharnessreport.js"></script>
 <script src="/resources/testdriver.js"></script>
@@ -8,7 +9,6 @@
 <script src="/common/utils.js"></script>
 <script src="/common/dispatcher/dispatcher.js"></script>
 <script src="resources/utils.js"></script>
-<meta name="timeout" content="long">
 
 <body>
 <script>
@@ -52,7 +52,8 @@ async function createAndValidateWindow() {
     // frame. In MPArch it only works when called from inside the fenced frame.
     // So we do both.
 
-    // User activate ShadowDOM.
+    // User activate ShadowDOM. TODO(crbug.com/1262022): Remove
+    // ShadowDOM-specific tests and comments.
     assert_not_equals(eventSender, null);
     var rect = window.fenced_frame.element.getBoundingClientRect();
     eventSender.mouseMoveTo(rect.x+rect.width/2, rect.y+rect.height/2);

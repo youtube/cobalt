@@ -45,11 +45,12 @@ source_set("download") {
     "//components/keyed_service/ios",
     "//components/strings",
     "//ios/chrome/app/strings",
-    "//ios/chrome/browser/browser_state",
     "//ios/chrome/browser/overlays",
     "//ios/chrome/browser/overlays/public/common/confirmation",
     "//ios/chrome/browser/overlays/public/common/confirmation:util",
-    "//ios/chrome/browser/prerender",
+    "//ios/chrome/browser/prerender/model",
+    "//ios/chrome/browser/shared/model/browser_state",
+    "//ios/chrome/browser/shared/model/utils",
     "//ios/chrome/browser/shared/public/commands",
     "//ios/chrome/browser/ui/download:features",
     "//ios/web/common",
@@ -64,8 +65,6 @@ source_set("download") {
     "QuartzCore.framework",
     "QuickLook.framework",
   ]
-
-  configs += [ "//build/config/compiler:enable_arc" ]
 }
 
 source_set("mime_types") {
@@ -77,12 +76,9 @@ source_set("mime_types") {
   ]
 
   deps = [ "//base" ]
-
-  configs += [ "//build/config/compiler:enable_arc" ]
 }
 
 source_set("unit_tests") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   testonly = true
   sources = [
     "ar_quick_look_tab_helper_unittest.mm",
@@ -98,10 +94,10 @@ source_set("unit_tests") {
   deps = [
     ":test_support",
     "//base/test:test_support",
-    "//ios/chrome/browser/browser_state:test_support",
     "//ios/chrome/browser/download",
+    "//ios/chrome/browser/shared/model/browser_state:test_support",
+    "//ios/chrome/browser/shared/model/web_state_list/test:test_support",
     "//ios/chrome/browser/ui/download:features",
-    "//ios/chrome/browser/web_state_list:test_support",
     "//ios/chrome/test/fakes",
     "//ios/web/public",
     "//ios/web/public/download",
@@ -115,7 +111,6 @@ source_set("unit_tests") {
 }
 
 source_set("test_support") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   testonly = true
   sources = [
     "download_test_util.cc",

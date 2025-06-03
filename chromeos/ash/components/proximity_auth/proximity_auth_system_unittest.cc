@@ -91,7 +91,6 @@ class MockProximityAuthPrefManager : public ProximityAuthProfilePrefManager {
   MockProximityAuthPrefManager& operator=(const MockProximityAuthPrefManager&) =
       delete;
 
-  ~MockProximityAuthPrefManager() override {}
   MOCK_CONST_METHOD0(GetLastPasswordEntryTimestampMs, int64_t());
 };
 
@@ -101,7 +100,7 @@ class TestableProximityAuthSystem : public ProximityAuthSystem {
   TestableProximityAuthSystem(
       ash::secure_channel::SecureChannelClient* secure_channel_client,
       std::unique_ptr<UnlockManager> unlock_manager,
-      ProximityAuthPrefManager* pref_manager)
+      ProximityAuthProfilePrefManager* pref_manager)
       : ProximityAuthSystem(secure_channel_client, std::move(unlock_manager)),
         life_cycle_(nullptr) {}
 
@@ -123,7 +122,8 @@ class TestableProximityAuthSystem : public ProximityAuthSystem {
     return life_cycle;
   }
 
-  raw_ptr<FakeRemoteDeviceLifeCycle, ExperimentalAsh> life_cycle_;
+  raw_ptr<FakeRemoteDeviceLifeCycle, DanglingUntriaged | ExperimentalAsh>
+      life_cycle_;
 };
 
 }  // namespace

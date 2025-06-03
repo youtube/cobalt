@@ -9,7 +9,7 @@
 #include <type_traits>
 
 #include "base/auto_reset.h"
-#include "base/cxx17_backports.h"
+#include "base/check.h"
 #include "base/debug/alias.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
@@ -51,7 +51,7 @@ DWORD GetSleepTimeoutMs(TimeTicks next_task_time,
 
   // A saturated_cast with an unsigned destination automatically clamps negative
   // values at zero.
-  static_assert(!std::is_signed<DWORD>::value, "DWORD is unexpectedly signed");
+  static_assert(!std::is_signed_v<DWORD>, "DWORD is unexpectedly signed");
   return saturated_cast<DWORD>(timeout_ms);
 }
 
@@ -91,7 +91,7 @@ void MessagePumpWin::Quit() {
 MessagePumpForUI::MessagePumpForUI() {
   bool succeeded = message_window_.Create(
       BindRepeating(&MessagePumpForUI::MessageCallback, Unretained(this)));
-  DCHECK(succeeded);
+  CHECK(succeeded);
 }
 
 MessagePumpForUI::~MessagePumpForUI() = default;
@@ -415,8 +415,8 @@ void MessagePumpForUI::ScheduleNativeTimer(
   } else {
     // TODO(gab): ::SetTimer()'s documentation claims it does this for us.
     // Consider removing this safety net.
-    delay_msec =
-        clamp(delay_msec, UINT(USER_TIMER_MINIMUM), UINT(USER_TIMER_MAXIMUM));
+    delay_msec = std::clamp(delay_msec, static_cast<UINT>(USER_TIMER_MINIMUM),
+                            static_cast<UINT>(USER_TIMER_MAXIMUM));
 
     // Tell the optimizer to retain the delay to simplify analyzing hangs.
     base::debug::Alias(&delay_msec);
@@ -716,7 +716,6 @@ void MessagePumpForIO::DoRunLoop() {
     if (run_state_->should_quit)
       break;
 
-    run_state_->delegate->BeforeWait();
     more_work_is_plausible |= WaitForIOCompletion(0);
     if (run_state_->should_quit)
       break;

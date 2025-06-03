@@ -6,6 +6,7 @@
 
 #include "base/functional/callback.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/notreached.h"
 #include "base/ranges/algorithm.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
@@ -449,6 +450,10 @@ class WebBundleURLLoaderFactory::BundleDataSource
     std::move(callback).Run(false);
   }
 
+  void Close(CloseCallback callback) override {
+    NOTIMPLEMENTED() << "Close() is not implemented";
+  }
+
   // Implements mojo::DataPipeDrainer::Client.
   void OnDataAvailable(const void* data, size_t num_bytes) override {
     DCHECK(!finished_loading_);
@@ -593,12 +598,13 @@ void WebBundleURLLoaderFactory::SetBundleStream(
                      weak_ptr_factory_.GetWeakPtr()),
       base::BindOnce(&WebBundleURLLoaderFactory::OnDataCompleted,
                      weak_ptr_factory_.GetWeakPtr()));
-  // WebBundleParser will self-destruct on remote mojo ends' disconnection.
-  new web_package::WebBundleParser(parser_.BindNewPipeAndPassReceiver(),
-                                   std::move(data_source), bundle_url_);
+
+  mojo::MakeSelfOwnedReceiver(std::make_unique<web_package::WebBundleParser>(
+                                  std::move(data_source), bundle_url_),
+                              parser_.BindNewPipeAndPassReceiver());
 
   parser_->ParseMetadata(
-      /*offset=*/-1,
+      /*offset=*/absl::nullopt,
       base::BindOnce(&WebBundleURLLoaderFactory::OnMetadataParsed,
                      weak_ptr_factory_.GetWeakPtr()));
 }
@@ -889,24 +895,28 @@ void WebBundleURLLoaderFactory::SendResponseToLoader(
     return;
   }
 
-  // Enforce FLEDGE auction-only signals -- the renderer process isn't allowed
-  // to read auction-only signals for FLEDGE auctions; only the browser process
+  // Enforce ad-auction-only signals -- the renderer process isn't allowed
+  // to read auction-only signals for ad auctions; only the browser process
   // is allowed to read those, and only the browser process can issue trusted
   // requests.
-  std::string fledge_auction_only_signals;
+  std::string auction_only;
+  // TODO(crbug.com/1448564): Remove old names once API users have migrated to
+  // new names.
   if (!loader->is_trusted() && response_head->headers &&
-      response_head->headers->GetNormalizedHeader(
-          "X-FLEDGE-Auction-Only", &fledge_auction_only_signals) &&
-      base::EqualsCaseInsensitiveASCII(fledge_auction_only_signals, "true")) {
+      (response_head->headers->GetNormalizedHeader("Ad-Auction-Only",
+                                                   &auction_only) ||
+       response_head->headers->GetNormalizedHeader("X-FLEDGE-Auction-Only",
+                                                   &auction_only)) &&
+      base::EqualsCaseInsensitiveASCII(auction_only, "true")) {
     loader->CompleteBlockedResponse(net::ERR_BLOCKED_BY_RESPONSE,
                                     /*reason=*/absl::nullopt);
     return;
   }
 
   auto corb_analyzer = corb::ResponseAnalyzer::Create(corb_state_);
-  auto decision =
-      corb_analyzer->Init(loader->url(), loader->request_initiator(),
-                          loader->request_mode(), *response_head);
+  auto decision = corb_analyzer->Init(
+      loader->url(), loader->request_initiator(), loader->request_mode(),
+      loader->request_destination(), *response_head);
   switch (decision) {
     case network::corb::ResponseAnalyzer::Decision::kBlock:
       loader->BlockResponseForCorb(std::move(response_head));

@@ -132,6 +132,7 @@ base::StringPiece ValidStringPieceForValue(const std::string& value) {
 namespace net {
 
 ParsedCookie::ParsedCookie(const std::string& cookie_line,
+                           bool block_truncated,
                            CookieInclusionStatus* status_out) {
   // Put a pointer on the stack so the rest of the function can assign to it if
   // the default nullptr is passed in.
@@ -141,17 +142,14 @@ ParsedCookie::ParsedCookie(const std::string& cookie_line,
   }
   *status_out = CookieInclusionStatus();
 
-  ParseTokenValuePairs(cookie_line, *status_out);
+  ParseTokenValuePairs(cookie_line, block_truncated, *status_out);
   if (IsValid()) {
     SetupAttributes();
-  } else if (status_out->IsInclude()) {
-    // TODO(crbug.com/1228815): Apply more specific exclusion reasons.
-    status_out->AddExclusionReason(
-        CookieInclusionStatus::EXCLUDE_FAILURE_TO_STORE);
+  } else {
+    // Status should indicate exclusion if the resulting ParsedCookie is
+    // invalid.
+    CHECK(!status_out->IsInclude());
   }
-
-  // Status should indicate exclusion if the resulting ParsedCookie is invalid.
-  DCHECK(IsValid() || !status_out->IsInclude());
 }
 
 ParsedCookie::~ParsedCookie() = default;
@@ -476,9 +474,8 @@ bool ParsedCookie::IsValidCookieNameValuePair(
   // Ignore cookies with neither name nor value.
   if (name.empty() && value.empty()) {
     if (status_out != nullptr) {
-      // TODO(crbug.com/1228815): Apply more specific exclusion reasons.
       status_out->AddExclusionReason(
-          CookieInclusionStatus::EXCLUDE_FAILURE_TO_STORE);
+          CookieInclusionStatus::EXCLUDE_NO_COOKIE_CONTENT);
     }
     // TODO(crbug.com/1228815) Note - if the exclusion reasons change to no
     // longer be the same, we'll need to not return right away and evaluate all
@@ -501,10 +498,9 @@ bool ParsedCookie::IsValidCookieNameValuePair(
   // Ignore Set-Cookie directives containing control characters. See
   // http://crbug.com/238041.
   if (!IsValidCookieName(name) || !IsValidCookieValue(value)) {
-    // TODO(crbug.com/1228815): Apply more specific exclusion reasons.
     if (status_out != nullptr) {
       status_out->AddExclusionReason(
-          CookieInclusionStatus::EXCLUDE_FAILURE_TO_STORE);
+          CookieInclusionStatus::EXCLUDE_DISALLOWED_CHARACTER);
     }
     return false;
   }
@@ -513,6 +509,7 @@ bool ParsedCookie::IsValidCookieNameValuePair(
 
 // Parse all token/value pairs and populate pairs_.
 void ParsedCookie::ParseTokenValuePairs(const std::string& cookie_line,
+                                        bool block_truncated,
                                         CookieInclusionStatus& status_out) {
   pairs_.clear();
 
@@ -543,13 +540,18 @@ void ParsedCookie::ParseTokenValuePairs(const std::string& cookie_line,
       default:
         NOTREACHED();
     }
+    if (block_truncated &&
+        base::FeatureList::IsEnabled(net::features::kBlockTruncatedCookies)) {
+      status_out.AddExclusionReason(
+          CookieInclusionStatus::EXCLUDE_DISALLOWED_CHARACTER);
+      return;
+    }
   }
 
   // Exit early for an empty cookie string.
   if (it == end) {
-    // TODO(crbug.com/1228815): Apply more specific exclusion reasons.
     status_out.AddExclusionReason(
-        CookieInclusionStatus::EXCLUDE_FAILURE_TO_STORE);
+        CookieInclusionStatus::EXCLUDE_NO_COOKIE_CONTENT);
     return;
   }
 
@@ -619,9 +621,8 @@ void ParsedCookie::ParseTokenValuePairs(const std::string& cookie_line,
       // this attribute name is one of the allowed ones here, so just re-use
       // the cookie name check.
       if (!IsValidCookieName(pair.first)) {
-        // TODO(crbug.com/1228815): Apply more specific exclusion reasons.
         status_out.AddExclusionReason(
-            CookieInclusionStatus::EXCLUDE_FAILURE_TO_STORE);
+            CookieInclusionStatus::EXCLUDE_DISALLOWED_CHARACTER);
         pairs_.clear();
         break;
       }
@@ -630,7 +631,7 @@ void ParsedCookie::ParseTokenValuePairs(const std::string& cookie_line,
         // If the attribute value contains invalid characters, the whole
         // cookie should be ignored.
         status_out.AddExclusionReason(
-            CookieInclusionStatus::EXCLUDE_FAILURE_TO_STORE);
+            CookieInclusionStatus::EXCLUDE_DISALLOWED_CHARACTER);
         pairs_.clear();
         break;
       }

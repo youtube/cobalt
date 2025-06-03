@@ -35,9 +35,8 @@ constexpr base::TimeDelta kDelayToDismissToast = base::Seconds(6);
 std::u16string GetCaptureToastLabelOnToastType(
     CaptureToastType capture_toast_type) {
   const int nudge_message_id =
-      features::AreCaptureModeDemoToolsEnabled()
-          ? IDS_ASH_SCREEN_CAPTURE_SHOW_DEMO_TOOLS_USER_NUDGE
-          : IDS_ASH_SCREEN_CAPTURE_SHOW_CAMERA_USER_NUDGE;
+      IDS_ASH_SCREEN_CAPTURE_SHOW_DEMO_TOOLS_USER_NUDGE;
+
   const int message_id =
       capture_toast_type == CaptureToastType::kCameraPreview
           ? IDS_ASH_SCREEN_CAPTURE_SURFACE_TOO_SMALL_USER_NUDGE
@@ -201,7 +200,7 @@ gfx::Rect CaptureModeToastController::CalculateToastWidgetBoundsInScreen()
 
   // Align the centers of the capture mode bar and the toast horizontally.
   const auto bar_widget_bounds_in_screen =
-      capture_session_->capture_mode_bar_widget()->GetWindowBoundsInScreen();
+      capture_session_->GetCaptureModeBarWidget()->GetWindowBoundsInScreen();
   bounds.set_x(bar_widget_bounds_in_screen.CenterPoint().x() -
                preferred_size.width() / 2);
   bounds.set_y(bar_widget_bounds_in_screen.y() - bounds.height() -

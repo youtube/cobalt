@@ -58,6 +58,7 @@ class DnsClient;
 class DnsProbeRunner;
 class IPAddress;
 class MDnsClient;
+class ClientSocketFactory;
 class MDnsSocketFactory;
 class NetLog;
 
@@ -185,6 +186,8 @@ class NET_EXPORT HostResolverManager
   // Sets overriding configuration that will replace or add to configuration
   // read from the system for DnsClient resolution.
   void SetDnsConfigOverrides(DnsConfigOverrides overrides);
+
+  void SetIPv6ReachabilityOverride(bool reachability_override);
 
   // Support for invalidating cached per-context data on changes to network or
   // DNS configuration. ContextHostResolvers should register/deregister
@@ -431,6 +434,7 @@ class NET_EXPORT HostResolverManager
   // completed asynchronously. When called repeatedly this method returns OK to
   // confirm that results have been cached.
   int StartIPv6ReachabilityCheck(const NetLogWithSource& net_log,
+                                 ClientSocketFactory* client_socket_factory,
                                  CompletionOnceCallback callback);
 
   void FinishIPv6ReachabilityCheck(CompletionOnceCallback callback, int rv);
@@ -445,9 +449,11 @@ class NET_EXPORT HostResolverManager
   // result of the reachability check will be set when `callback` is run.
   // Returns OK if the reachability check succeeded, ERR_FAILED if it failed,
   // ERR_IO_PENDING if it will be asynchronous.
-  virtual int StartGloballyReachableCheck(const IPAddress& dest,
-                                          const NetLogWithSource& net_log,
-                                          CompletionOnceCallback callback);
+  virtual int StartGloballyReachableCheck(
+      const IPAddress& dest,
+      const NetLogWithSource& net_log,
+      ClientSocketFactory* client_socket_factory,
+      CompletionOnceCallback callback);
 
   bool FinishGloballyReachableCheck(DatagramClientSocket* socket, int rv);
 
@@ -556,6 +562,9 @@ class NET_EXPORT HostResolverManager
   base::TimeTicks last_ipv6_probe_time_;
   bool last_ipv6_probe_result_ = true;
   bool probing_ipv6_ = false;
+
+  // When true, query AAAA even when the globally reachable check failed.
+  bool ipv6_reachability_override_ = false;
 
   // Any resolver flags that should be added to a request by default.
   HostResolverFlags additional_resolver_flags_ = 0;

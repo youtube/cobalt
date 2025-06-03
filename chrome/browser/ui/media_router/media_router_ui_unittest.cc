@@ -39,11 +39,6 @@
 #include "ui/display/display.h"
 #include "url/origin.h"
 
-#if BUILDFLAG(IS_MAC)
-#include "base/mac/mac_util.h"
-#include "ui/base/cocoa/permissions_utils.h"
-#endif
-
 using testing::_;
 using testing::Invoke;
 using testing::Mock;
@@ -186,14 +181,13 @@ class MediaRouterViewsUITest : public ChromeRenderViewHostTestHarness {
     ui_->OnRoutesUpdated(routes);
   }
 
-  void StartTabCasting(bool is_incognito) {
+  void StartTabCasting() {
     MediaSource media_source = MediaSource::ForTab(
         sessions::SessionTabHelper::IdForTab(web_contents()).id());
     MediaRouteResponseCallback callback;
-    EXPECT_CALL(
-        *mock_router_,
-        CreateRouteInternal(media_source.id(), kSinkId, _, web_contents(), _,
-                            base::Seconds(60), is_incognito))
+    EXPECT_CALL(*mock_router_,
+                CreateRouteInternal(media_source.id(), kSinkId, _,
+                                    web_contents(), _, base::Seconds(60)))
         .WillOnce(SaveArgWithMove<4>(&callback));
     MediaSink sink{CreateCastSink(kSinkId, kSinkName)};
     for (MediaSinksObserver* sinks_observer : media_sinks_observers_)
@@ -221,9 +215,9 @@ class MediaRouterViewsUITest : public ChromeRenderViewHostTestHarness {
     MediaSink sink{CreateCastSink(kSinkId, kSinkName)};
     ui_->OnSinksUpdated({{sink, {cast_mode}}});
     MediaRouteResponseCallback callback;
-    EXPECT_CALL(*mock_router_,
-                CreateRouteInternal(_, _, _, _, _,
-                                    base::Seconds(timeout_seconds), false))
+    EXPECT_CALL(
+        *mock_router_,
+        CreateRouteInternal(_, _, _, _, _, base::Seconds(timeout_seconds)))
         .WillOnce(SaveArgWithMove<4>(&callback));
     for (MediaSinksObserver* sinks_observer : media_sinks_observers_)
       sinks_observer->OnSinksUpdated({sink}, std::vector<url::Origin>());
@@ -264,7 +258,7 @@ class MediaRouterViewsUITest : public ChromeRenderViewHostTestHarness {
 
  protected:
   std::vector<MediaSinksObserver*> media_sinks_observers_;
-  raw_ptr<MockMediaRouter> mock_router_ = nullptr;
+  raw_ptr<MockMediaRouter, DanglingUntriaged> mock_router_ = nullptr;
   std::unique_ptr<MediaRouterUI> ui_;
   std::unique_ptr<StartPresentationContext> start_presentation_context_;
   std::unique_ptr<LoggerImpl> logger_;
@@ -394,7 +388,7 @@ TEST_F(MediaRouterViewsUITest, SetDialogHeader) {
 }
 
 TEST_F(MediaRouterViewsUITest, StartCasting) {
-  StartTabCasting(false);
+  StartTabCasting();
 }
 
 TEST_F(MediaRouterViewsUITest, StopCasting) {
@@ -548,11 +542,6 @@ TEST_F(MediaRouterViewsUITest, RouteCreationTimeoutIssueTitle) {
 
 #if BUILDFLAG(IS_MAC)
 TEST_F(MediaRouterViewsUITest, DesktopMirroringFailsWhenDisallowedOnMac) {
-  // Failure due to a lack of screen capture permissions only happens on macOS
-  // 10.15 or later. See crbug.com/1087236 for more info.
-  if (!base::mac::IsAtLeastOS10_15())
-    return;
-
   set_screen_capture_allowed_for_testing(false);
   MockControllerObserver observer(ui_.get());
   MediaSink sink{CreateCastSink(kSinkId, kSinkName)};
@@ -733,25 +722,6 @@ TEST_F(MediaRouterViewsUITest, OnFreezeInfoChanged) {
 
   EXPECT_CALL(observer, OnControllerDestroyingInternal());
   ui_.reset();
-}
-
-class MediaRouterViewsUIIncognitoTest : public MediaRouterViewsUITest {
- protected:
-  void SetMediaRouterFactory() override {
-    // We must set the factory on the non-incognito browser context.
-    MediaRouterFactory::GetInstance()->SetTestingFactory(
-        MediaRouterViewsUITest::GetBrowserContext(),
-        base::BindRepeating(&MockMediaRouter::Create));
-  }
-
-  content::BrowserContext* GetBrowserContext() override {
-    return static_cast<Profile*>(MediaRouterViewsUITest::GetBrowserContext())
-        ->GetPrimaryOTRProfile(/*create_if_needed=*/true);
-  }
-};
-
-TEST_F(MediaRouterViewsUIIncognitoTest, RouteRequestFromIncognito) {
-  StartTabCasting(true);
 }
 
 }  // namespace media_router

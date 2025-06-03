@@ -100,7 +100,8 @@ IN_PROC_BROWSER_TEST_P(ParentAccessDialogBrowserTest, ShowDialog) {
   // Verify that it is correctly configured.
   EXPECT_EQ(dialog->GetDialogContentURL().spec(),
             chrome::kChromeUIParentAccessURL);
-  EXPECT_TRUE(dialog->ShouldShowCloseButton());
+  EXPECT_FALSE(dialog->ShouldShowDialogTitle());
+  EXPECT_FALSE(dialog->ShouldShowCloseButton());
   EXPECT_EQ(dialog->GetDialogModalType(), ui::ModalType::MODAL_TYPE_SYSTEM);
 
   // Send ESCAPE keypress.  EventGenerator requires the root window, which has
@@ -122,7 +123,7 @@ IN_PROC_BROWSER_TEST_P(ParentAccessDialogBrowserTest, SetApproved) {
   expected_result.status = ParentAccessDialog::Result::Status::kApproved;
   expected_result.parent_access_token = "TEST_TOKEN";
   expected_result.parent_access_token_expire_timestamp =
-      base::Time::FromDoubleT(123456L);
+      base::Time::FromSecondsSinceUnixEpoch(123456L);
 
   ParentAccessDialog::Callback callback = base::BindLambdaForTesting(
       [&](std::unique_ptr<ParentAccessDialog::Result> result) -> void {

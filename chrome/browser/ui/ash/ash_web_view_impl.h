@@ -41,6 +41,8 @@ class AshWebViewImpl : public ash::AshWebView,
   void RemoveObserver(Observer* observer) override;
   bool GoBack() override;
   void Navigate(const GURL& url) override;
+  const GURL& GetVisibleURL() override;
+  bool IsErrorDocument() override;
   void AddedToWidget() override;
   views::View* GetInitiallyFocusedView() override;
 

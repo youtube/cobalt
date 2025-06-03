@@ -14,16 +14,12 @@
 #import "components/favicon_base/favicon_types.h"
 #import "components/favicon_base/select_favicon_frames.h"
 #import "components/grit/components_scaled_resources.h"
-#import "ios/chrome/browser/url/chrome_url_constants.h"
+#import "ios/chrome/browser/shared/model/url/chrome_url_constants.h"
 #import "ios/components/webui/web_ui_url_constants.h"
-#import "ui/base/layout.h"
 #import "ui/base/resource/resource_bundle.h"
+#import "ui/base/resource/resource_scale_factor.h"
 #import "ui/gfx/favicon_size.h"
 #import "url/gurl.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace {
 
@@ -45,11 +41,11 @@ void GetFaviconBitmapForNativeURL(
 
   // Use ui::GetSupportedResourceScaleFactors() because native URL favicon comes
   // from resources.
-  std::vector<ui::ResourceScaleFactor> scale_factors =
+  const std::vector<ui::ResourceScaleFactor>& scale_factors =
       ui::GetSupportedResourceScaleFactors();
 
   std::vector<gfx::Size> candidate_sizes;
-  for (ui::ResourceScaleFactor scale_factor : scale_factors) {
+  for (const auto scale_factor : scale_factors) {
     float scale = ui::GetScaleForResourceScaleFactor(scale_factor);
     int candidate_size = static_cast<int>(gfx::kFaviconSize * scale + 0.5f);
     candidate_sizes.push_back(gfx::Size(candidate_size, candidate_size));

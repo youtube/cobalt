@@ -5,7 +5,7 @@
 #include "chrome/browser/sync/session_sync_service_factory.h"
 
 #include "base/memory/raw_ptr.h"
-#include "base/memory/singleton.h"
+#include "base/no_destructor.h"
 #include "build/build_config.h"
 #include "chrome/browser/favicon/favicon_service_factory.h"
 #include "chrome/browser/history/history_service_factory.h"
@@ -128,11 +128,13 @@ sync_sessions::SessionSyncService* SessionSyncServiceFactory::GetForProfile(
 
 // static
 SessionSyncServiceFactory* SessionSyncServiceFactory::GetInstance() {
-  return base::Singleton<SessionSyncServiceFactory>::get();
+  static base::NoDestructor<SessionSyncServiceFactory> instance;
+  return instance.get();
 }
 
-// static
-bool SessionSyncServiceFactory::ShouldSyncURLForTesting(const GURL& url) {
+// static - exposed for testing and metrics.
+bool SessionSyncServiceFactory::ShouldSyncURLForTestingAndMetrics(
+    const GURL& url) {
   return ShouldSyncURLImpl(url);
 }
 

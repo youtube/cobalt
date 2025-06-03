@@ -10,15 +10,17 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/display/display_features.h"
-#include "ui/display/fake/fake_display_snapshot.h"
+#include "ui/display/manager/test/fake_display_snapshot.h"
 #include "ui/display/manager/test/test_native_display_delegate.h"
+#include "ui/display/manager/util/display_manager_test_util.h"
 #include "ui/display/types/display_constants.h"
 
 namespace display::test {
 
 namespace {
 constexpr int64_t kDisplayId = 123;
-const DisplayMode kDisplayMode{gfx::Size(1366, 768), false, 60.0f};
+const DisplayMode kDisplayMode =
+    CreateDisplayModeForTest({1366, 768}, false, 60.0f);
 const std::string kFakeKey285 =
     "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuv"
     "wxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqr"

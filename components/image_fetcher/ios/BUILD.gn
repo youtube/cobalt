@@ -14,11 +14,8 @@ source_set("ios") {
     "//components/image_fetcher/core",
     "//ios/web",
     "//net",
-    "//third_party/libwebp:libwebp_dec",
-    "//third_party/libwebp:libwebp_webp",
     "//ui/gfx",
   ]
-  configs += [ "//build/config/compiler:enable_arc" ]
 }
 
 source_set("unit_tests") {
@@ -39,7 +36,6 @@ source_set("unit_tests") {
     "//testing/gtest",
     "//ui/gfx",
   ]
-  configs += [ "//build/config/compiler:enable_arc" ]
 }
 
 bundle_data("webp_transcode_unit_tests_bundle_data") {

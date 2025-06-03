@@ -11,11 +11,11 @@
 
 #include "ash/ambient/ambient_controller.h"
 #include "ash/ambient/ambient_photo_cache.h"
+#include "ash/ambient/metrics/ambient_metrics.h"
 #include "ash/ambient/util/ambient_util.h"
 #include "ash/constants/ash_features.h"
 #include "ash/public/cpp/ambient/ambient_backend_controller.h"
 #include "ash/public/cpp/ambient/ambient_client.h"
-#include "ash/public/cpp/ambient/ambient_metrics.h"
 #include "ash/public/cpp/ambient/ambient_prefs.h"
 #include "ash/public/cpp/ambient/common/ambient_settings.h"
 #include "ash/public/cpp/ambient/proto/photo_cache_entry.pb.h"
@@ -414,7 +414,7 @@ void AmbientBackendControllerImpl::GetSettings(GetSettingsCallback callback) {
 }
 
 void AmbientBackendControllerImpl::UpdateSettings(
-    const AmbientSettings& settings,
+    const AmbientSettings settings,
     UpdateSettingsCallback callback) {
   auto* ambient_controller = Shell::Get()->ambient_controller();
 
@@ -499,6 +499,10 @@ AmbientBackendControllerImpl::GetTimeOfDayVideoPreviewImageUrls(
 
 const char* AmbientBackendControllerImpl::GetPromoBannerUrl() const {
   return chromeos::ambient::kTimeOfDayBannerImageUrl;
+}
+
+const char* AmbientBackendControllerImpl::GetTimeOfDayProductName() const {
+  return chromeos::ambient::kTimeOfDayProductName;
 }
 
 void AmbientBackendControllerImpl::FetchScreenUpdateInfoInternal(
@@ -609,7 +613,7 @@ void AmbientBackendControllerImpl::StartToUpdateSettings(
     const std::string& gaia_id,
     const std::string& access_token) {
   if (gaia_id.empty() || access_token.empty()) {
-    std::move(callback).Run(/*success=*/false);
+    std::move(callback).Run(/*success=*/false, settings);
     return;
   }
 
@@ -647,7 +651,7 @@ void AmbientBackendControllerImpl::OnUpdateSettings(
         static_cast<int>(ambient::AmbientSettingsToPhotoSource(settings)));
   }
 
-  std::move(callback).Run(success);
+  std::move(callback).Run(success, settings);
 }
 
 void AmbientBackendControllerImpl::FetchPersonalAlbumsInternal(

@@ -27,6 +27,7 @@
 #include "extensions/common/extension.h"
 #include "extensions/common/extension_builder.h"
 #include "extensions/common/extension_id.h"
+#include "extensions/common/switches.h"
 #include "services/network/public/cpp/weak_wrapper_shared_url_loader_factory.h"
 #include "services/network/test/test_url_loader_factory.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -39,6 +40,11 @@ using extensions::mojom::ManifestLocation;
 using ExtensionInfo =
     safe_browsing::ExtensionTelemetryReportRequest_ExtensionInfo;
 using TelemetryReport = safe_browsing::ExtensionTelemetryReportRequest;
+using ExtensionTelemetryReportResponse =
+    safe_browsing::ExtensionTelemetryReportResponse;
+using OffstoreExtensionVerdict =
+    ::safe_browsing::ExtensionTelemetryReportResponse_OffstoreExtensionVerdict;
+using ::extensions::ExtensionService;
 
 namespace safe_browsing {
 
@@ -83,6 +89,8 @@ class ExtensionTelemetryServiceTest : public ::testing::Test {
                                           Extension::NO_FLAGS);
   }
 
+  base::FilePath CreateExtensionForCommandLineLoad(
+      const std::string& extension_name);
   void RegisterExtensionWithExtensionService(const ExtensionId& extension_id,
                                              const std::string& extension_name,
                                              const ManifestLocation& location,
@@ -139,11 +147,6 @@ ExtensionTelemetryServiceTest::ExtensionTelemetryServiceTest()
 
   profile_.GetPrefs()->SetBoolean(prefs::kSafeBrowsingEnhanced, true);
 
-  // Create telemetry service instance.
-  telemetry_service_ = std::make_unique<ExtensionTelemetryService>(
-      &profile_, test_url_loader_factory_.GetSafeWeakWrapper(),
-      extension_registry_, extension_prefs_);
-
   // Create fake extension service instance.
   base::CommandLine command_line(base::CommandLine::NO_PROGRAM);
   auto* test_extension_system = static_cast<extensions::TestExtensionSystem*>(
@@ -151,6 +154,34 @@ ExtensionTelemetryServiceTest::ExtensionTelemetryServiceTest()
   extension_service_ = test_extension_system->CreateExtensionService(
       &command_line, base::FilePath() /* install_directory */,
       false /* autoupdate_enabled */);
+
+  // Create telemetry service instance.
+  telemetry_service_ = std::make_unique<ExtensionTelemetryService>(
+      &profile_, test_url_loader_factory_.GetSafeWeakWrapper());
+}
+
+base::FilePath ExtensionTelemetryServiceTest::CreateExtensionForCommandLineLoad(
+    const std::string& extension_name) {
+  // Create extension path.
+  base::FilePath path =
+      extensions_root_dir_.GetPath().AppendASCII(extension_name);
+  CreateDirectory(path);
+
+  scoped_refptr<const extensions::Extension> extension =
+      ExtensionBuilder(extension_name)
+          .SetLocation(ManifestLocation::kCommandLine)
+          .SetPath(path)
+          .Build();
+
+  // Write extension files.
+  EXPECT_TRUE(
+      base::WriteFile(path.AppendASCII(kJavaScriptFile), kJavaScriptFile));
+  base::FilePath manifest_path = path.AppendASCII(kManifestFile);
+  JSONFileValueSerializer(manifest_path)
+      .Serialize(*extension->manifest()->value());
+  EXPECT_TRUE(base::PathExists(manifest_path));
+
+  return path;
 }
 
 void ExtensionTelemetryServiceTest::RegisterExtensionWithExtensionService(
@@ -169,11 +200,10 @@ void ExtensionTelemetryServiceTest::RegisterExtensionWithExtensionService(
           .SetID(extension_id)
           .SetPath(path)
           .SetLocation(location)
-          .SetManifest(extensions::DictionaryBuilder()
+          .SetManifest(base::Value::Dict()
                            .Set("name", extension_name)
                            .Set("version", kExtensionVersion)
-                           .Set("manifest_version", 2)
-                           .Build())
+                           .Set("manifest_version", 2))
           .AddFlags(flags)
           .Build();
 
@@ -221,8 +251,7 @@ TEST_F(ExtensionTelemetryServiceTest, IsEnabledOnlyWhenESBIsEnabled) {
 
   // Destruct and restart service and verify that it starts disabled.
   telemetry_service_ = std::make_unique<ExtensionTelemetryService>(
-      &profile_, test_url_loader_factory_.GetSafeWeakWrapper(),
-      extension_registry_, extension_prefs_);
+      &profile_, test_url_loader_factory_.GetSafeWeakWrapper());
   EXPECT_FALSE(IsTelemetryServiceEnabled());
 
   // Re-enable ESB, service should become enabled.
@@ -241,7 +270,8 @@ TEST_F(ExtensionTelemetryServiceTest, ProcessesSignal) {
   EXPECT_EQ(info->name(), kExtensionName[0]);
   EXPECT_EQ(info->version(), kExtensionVersion);
   EXPECT_EQ(info->install_timestamp_msec(),
-            extension_prefs_->GetLastUpdateTime(kExtensionId[0]).ToJavaTime());
+            extension_prefs_->GetLastUpdateTime(kExtensionId[0])
+                .InMillisecondsSinceUnixEpoch());
 }
 
 TEST_F(ExtensionTelemetryServiceTest, DiscardsInvalidSignal) {
@@ -319,7 +349,8 @@ TEST_F(ExtensionTelemetryServiceTest, GeneratesTelemetryReportWithNoSignals) {
               kExtensionVersion);
     EXPECT_EQ(
         telemetry_report_pb->reports(i).extension().install_timestamp_msec(),
-        extension_prefs_->GetLastUpdateTime(kExtensionId[i]).ToJavaTime());
+        extension_prefs_->GetLastUpdateTime(kExtensionId[i])
+            .InMillisecondsSinceUnixEpoch());
     // Verify that there is no signal data associated with the extension.
     EXPECT_EQ(telemetry_report_pb->reports(i).signals().size(), 0);
   }
@@ -345,7 +376,8 @@ TEST_F(ExtensionTelemetryServiceTest, GeneratesTelemetryReportWithSignal) {
               kExtensionVersion);
     EXPECT_EQ(
         telemetry_report_pb->reports(i).extension().install_timestamp_msec(),
-        extension_prefs_->GetLastUpdateTime(kExtensionId[i]).ToJavaTime());
+        extension_prefs_->GetLastUpdateTime(kExtensionId[i])
+            .InMillisecondsSinceUnixEpoch());
   }
 
   // Verify that first extension's report has signal data.
@@ -484,9 +516,6 @@ TEST_F(ExtensionTelemetryServiceTest, TestExtensionInfoProtoConstruction) {
 TEST_F(ExtensionTelemetryServiceTest,
        PersistsReportsOnShutdownWithSignalDataPresent) {
   // Setting up the persister and signals.
-  telemetry_service_->SetEnabled(false);
-  scoped_feature_list.InitAndEnableFeature(kExtensionTelemetryPersistence);
-  telemetry_service_->SetEnabled(true);
   PrimeTelemetryServiceWithSignal();
   task_environment_.RunUntilIdle();
   // After a shutdown, the persister should create a file of persisted data.
@@ -506,9 +535,6 @@ TEST_F(ExtensionTelemetryServiceTest,
 TEST_F(ExtensionTelemetryServiceTest,
        DoesNotPersistsReportsOnShutdownWithNoSignalDataPresent) {
   // Setting up the persister and signals.
-  telemetry_service_->SetEnabled(false);
-  scoped_feature_list.InitAndEnableFeature(kExtensionTelemetryPersistence);
-  telemetry_service_->SetEnabled(true);
   task_environment_.RunUntilIdle();
   // After a shutdown, the persister should not persist a file. There are
   // extensions installed but there is no signal data present.
@@ -523,9 +549,6 @@ TEST_F(ExtensionTelemetryServiceTest,
 TEST_F(ExtensionTelemetryServiceTest, PersistsReportOnFailedUpload) {
   // Setting up the persister, signals, upload/write intervals, and the
   // uploader itself.
-  telemetry_service_->SetEnabled(false);
-  scoped_feature_list.InitAndEnableFeature(kExtensionTelemetryPersistence);
-  telemetry_service_->SetEnabled(true);
   base::TimeDelta interval = telemetry_service_->current_reporting_interval();
   profile_.GetPrefs()->SetTime(prefs::kExtensionTelemetryLastUploadTime,
                                base::Time::NowFromSystemTime());
@@ -546,9 +569,6 @@ TEST_F(ExtensionTelemetryServiceTest, NoReportPersistedIfUploadSucceeds) {
   // same as the reporting interval. At each interval, the in-memory data
   // is used to create a report which is then uploaded. If the upload succeeds,
   // there is no need to persist anything.
-  telemetry_service_->SetEnabled(false);
-  scoped_feature_list.InitAndEnableFeature(kExtensionTelemetryPersistence);
-  telemetry_service_->SetEnabled(true);
   base::TimeDelta interval = telemetry_service_->current_reporting_interval();
   profile_.GetPrefs()->SetTime(prefs::kExtensionTelemetryLastUploadTime,
                                base::Time::NowFromSystemTime());
@@ -567,10 +587,9 @@ TEST_F(ExtensionTelemetryServiceTest, PersistsReportsOnInterval) {
   // Setting up the persister, signals, upload/write intervals, and the
   // uploader itself.
   telemetry_service_->SetEnabled(false);
-  scoped_feature_list.InitWithFeaturesAndParameters(
-      {{kExtensionTelemetry, {{"NumberOfWritesInInterval", "4"}}},
-       {kExtensionTelemetryPersistence, {}}},
-      {});
+  // NumChecksPerUploadInterval defaults to 1, setting to 4 to test
+  // functionality of writing at intervals and uploading multiple files.
+  telemetry_service_->num_checks_per_upload_interval_ = 4;
   telemetry_service_->SetEnabled(true);
   base::TimeDelta interval = telemetry_service_->current_reporting_interval();
   profile_.GetPrefs()->SetTime(prefs::kExtensionTelemetryLastUploadTime,
@@ -598,13 +617,10 @@ TEST_F(ExtensionTelemetryServiceTest, PersistsReportsOnInterval) {
 }
 
 TEST_F(ExtensionTelemetryServiceTest, MalformedPersistedFile) {
-  // Setting up the persister, signals, upload/write intervals, and the
+  // Setting up the persister, signals, upload/check intervals, and the
   // uploader itself.
   telemetry_service_->SetEnabled(false);
-  scoped_feature_list.InitWithFeaturesAndParameters(
-      {{kExtensionTelemetry, {{"NumberOfWritesInInterval", "4"}}},
-       {kExtensionTelemetryPersistence, {}}},
-      {});
+  telemetry_service_->num_checks_per_upload_interval_ = 4;
   telemetry_service_->SetEnabled(true);
   base::TimeDelta interval = telemetry_service_->current_reporting_interval();
   profile_.GetPrefs()->SetTime(prefs::kExtensionTelemetryLastUploadTime,
@@ -639,8 +655,6 @@ TEST_F(ExtensionTelemetryServiceTest, MalformedPersistedFile) {
 TEST_F(ExtensionTelemetryServiceTest, StartupUploadCheck) {
   // Setting up the persister, signals, upload/write intervals, and the
   // uploader itself.
-  telemetry_service_->SetEnabled(false);
-  scoped_feature_list.InitAndEnableFeature(kExtensionTelemetryPersistence);
   telemetry_service_->SetEnabled(true);
   task_environment_.RunUntilIdle();
   profile_.GetPrefs()->SetTime(prefs::kExtensionTelemetryLastUploadTime,
@@ -666,11 +680,9 @@ TEST_F(ExtensionTelemetryServiceTest, StartupUploadCheck) {
 }
 
 TEST_F(ExtensionTelemetryServiceTest, PersisterThreadSafetyCheck) {
-  scoped_feature_list.InitAndEnableFeature(kExtensionTelemetryPersistence);
   std::unique_ptr<ExtensionTelemetryService> telemetry_service_2 =
       std::make_unique<ExtensionTelemetryService>(
-          &profile_, test_url_loader_factory_.GetSafeWeakWrapper(),
-          extension_registry_, extension_prefs_);
+          &profile_, test_url_loader_factory_.GetSafeWeakWrapper());
   telemetry_service_2->SetEnabled(true);
   telemetry_service_2.reset();
 }
@@ -751,8 +763,7 @@ TEST_F(ExtensionTelemetryServiceTest, FileData_IgnoresNonOffstoreExtensions) {
   EXPECT_FALSE(file_data_dict.contains(kExtensionId[4]));
 }
 
-TEST_F(ExtensionTelemetryServiceTest,
-       FileData_RemovesUninstalledExtensionFromPref) {
+TEST_F(ExtensionTelemetryServiceTest, FileData_RemovesStaleExtensionFromPref) {
   // Process extension 0 and 1 and save to prefs.
   telemetry_service_->SetEnabled(false);
   scoped_feature_list.InitAndEnableFeatureWithParameters(
@@ -829,8 +840,8 @@ TEST_F(ExtensionTelemetryServiceTest, FileData_HandlesEmptyTimestampsInPrefs) {
   // Set up pref dict:
   // extension 0 - empty timestamp string
   // extension 1 - missing timestamp key
-  base::Value::Dict extension_0_dict;
-  extension_0_dict.Set(kFileDataProcessTimestampPref, "");
+  auto extension_0_dict =
+      base::Value::Dict().Set(kFileDataProcessTimestampPref, "");
   base::Value::Dict empty_timestamps_dict;
   empty_timestamps_dict.Set(kExtensionId[0], std::move(extension_0_dict));
   empty_timestamps_dict.Set(kExtensionId[1], base::Value::Dict());
@@ -905,6 +916,53 @@ TEST_F(ExtensionTelemetryServiceTest,
 }
 
 TEST_F(ExtensionTelemetryServiceTest,
+       FileData_IncludesCommandlineExtensionsFileDataInReport) {
+  // Remove previously installed extensions.
+  UnregisterExtensionWithExtensionService(kExtensionId[0]);
+  UnregisterExtensionWithExtensionService(kExtensionId[1]);
+  telemetry_service_->SetEnabled(false);
+  // Enable necessary features.
+  scoped_feature_list.InitWithFeaturesAndParameters(
+      // enabled_features
+      {{kExtensionTelemetryFileDataForCommandLineExtensions, {}},
+       {kExtensionTelemetryFileData,
+        {{"StartupDelaySeconds",
+          base::NumberToString(kFileDataStartUpDelaySeconds)}}}},
+      // disabled_features
+      {});
+  // Create a commandline extension, set up the --load-extension commandline
+  // switch, and re-enable the telemetry service.
+  base::FilePath path = CreateExtensionForCommandLineLoad("commandline_crx");
+  base::CommandLine::ForCurrentProcess()->AppendSwitchPath(
+      extensions::switches::kLoadExtension, path);
+  telemetry_service_->SetEnabled(true);
+  task_environment_.FastForwardBy(base::Seconds(kFileDataStartUpDelaySeconds));
+  task_environment_.RunUntilIdle();
+
+  // Generate and verify telemetry report contents.
+  std::unique_ptr<TelemetryReport> telemetry_report_pb = GetTelemetryReport();
+  ASSERT_TRUE(telemetry_report_pb);
+  ASSERT_EQ(telemetry_report_pb->reports_size(), 1);
+  // Verify that cmdline extension file data stored in prefs matches that in the
+  // telemetry report.
+  const auto& file_data_dict =
+      profile_.GetPrefs()->GetDict(prefs::kExtensionTelemetryFileData);
+  ASSERT_EQ(file_data_dict.size(), 1u);
+  auto cmdline_extension_id = telemetry_report_pb->reports(0).extension().id();
+  const base::Value::Dict* cmdline_extension_dict =
+      file_data_dict.FindDict(cmdline_extension_id)
+          ->FindDict(kFileDataDictPref);
+  ASSERT_TRUE(cmdline_extension_dict);
+  EXPECT_EQ(telemetry_report_pb->reports(0).extension().manifest_json(),
+            *(cmdline_extension_dict->FindString(kManifestFile)));
+  EXPECT_EQ(telemetry_report_pb->reports(0).extension().file_infos_size(), 1);
+  EXPECT_EQ(telemetry_report_pb->reports(0).extension().file_infos(0).name(),
+            kJavaScriptFile);
+  EXPECT_EQ(telemetry_report_pb->reports(0).extension().file_infos(0).hash(),
+            *(cmdline_extension_dict->FindString(kJavaScriptFile)));
+}
+
+TEST_F(ExtensionTelemetryServiceTest,
        FileData_DoesNotAttachFileDataForNonOffstoreExtensions) {
   // Register webstore extension 2.
   RegisterExtensionWithExtensionService(kExtensionId[2], kExtensionName[2],
@@ -973,6 +1031,166 @@ TEST_F(ExtensionTelemetryServiceTest, FileData_HandlesEmptyFileDataInPrefs) {
   EXPECT_EQ(telemetry_report_pb->reports(1).extension().id(), kExtensionId[1]);
   EXPECT_FALSE(telemetry_report_pb->reports(1).extension().has_manifest_json());
   EXPECT_EQ(telemetry_report_pb->reports(1).extension().file_infos_size(), 0);
+}
+
+TEST_F(ExtensionTelemetryServiceTest,
+       FileData_EnforcesCollectionDurationLimit) {
+  // Enable |kExtensionTelemetryFileData| feature and starts collection.
+  telemetry_service_->SetEnabled(false);
+  scoped_feature_list.InitAndEnableFeatureWithParameters(
+      {kExtensionTelemetryFileData},
+      {{"StartupDelaySeconds",
+        base::NumberToString(kFileDataStartUpDelaySeconds)}});
+  // Set collection duration limit to 0 milliseconds.
+  telemetry_service_->offstore_file_data_collection_duration_limit_ =
+      base::Milliseconds(0);
+  telemetry_service_->SetEnabled(true);
+  task_environment_.FastForwardBy(base::Seconds(kFileDataStartUpDelaySeconds));
+  task_environment_.RunUntilIdle();
+
+  std::unique_ptr<TelemetryReport> telemetry_report_pb = GetTelemetryReport();
+
+  // Verify Extension 0 does not have offstore file data.
+  EXPECT_EQ(telemetry_report_pb->reports(0).extension().id(), kExtensionId[0]);
+  EXPECT_FALSE(telemetry_report_pb->reports(0).extension().has_manifest_json());
+  EXPECT_EQ(telemetry_report_pb->reports(0).extension().file_infos_size(), 0);
+
+  // Verify Extension 1 does not have offstore file data.
+  EXPECT_EQ(telemetry_report_pb->reports(1).extension().id(), kExtensionId[1]);
+  EXPECT_FALSE(telemetry_report_pb->reports(1).extension().has_manifest_json());
+  EXPECT_EQ(telemetry_report_pb->reports(1).extension().file_infos_size(), 0);
+}
+
+TEST_F(ExtensionTelemetryServiceTest, DisableOffstoreExtensions) {
+  telemetry_service_->SetEnabled(false);
+  scoped_feature_list.InitAndEnableFeature(
+      kExtensionTelemetryDisableOffstoreExtensions);
+  telemetry_service_->SetEnabled(true);
+
+  // Extension 0 is enabled and not on blocklist.
+  EXPECT_TRUE(
+      extension_registry_->enabled_extensions().Contains(kExtensionId[0]));
+  EXPECT_FALSE(
+      extension_registry_->blocklisted_extensions().Contains(kExtensionId[0]));
+
+  // Attach a MALWARE verdict for Extension 0 in telemetry report response.
+  ExtensionTelemetryReportResponse response;
+  auto* malware_verdict = response.add_offstore_extension_verdicts();
+  malware_verdict->set_extension_id(kExtensionId[0]);
+  malware_verdict->set_verdict_type(OffstoreExtensionVerdict::MALWARE);
+
+  test_url_loader_factory_.AddResponse(
+      ExtensionTelemetryUploader::GetUploadURLForTest(),
+      response.SerializeAsString(), net::HTTP_OK);
+
+  task_environment_.FastForwardBy(
+      telemetry_service_->current_reporting_interval());
+  task_environment_.RunUntilIdle();
+
+  // Verify Extension 0 is on blocklisted list.
+  EXPECT_FALSE(
+      extension_registry_->enabled_extensions().Contains(kExtensionId[0]));
+  EXPECT_TRUE(
+      extension_registry_->blocklisted_extensions().Contains(kExtensionId[0]));
+}
+
+TEST_F(ExtensionTelemetryServiceTest,
+       DisableOffstoreExtensions_IgnoresNonOffstoreExtensions) {
+  // Register webstore extension 2 and component extension 3.
+  RegisterExtensionWithExtensionService(kExtensionId[2], kExtensionName[2],
+                                        ManifestLocation::kInternal,
+                                        Extension::FROM_WEBSTORE);
+  RegisterExtensionWithExtensionService(kExtensionId[3], kExtensionName[3],
+                                        ManifestLocation::kComponent,
+                                        Extension::NO_FLAGS);
+  telemetry_service_->SetEnabled(false);
+  scoped_feature_list.InitAndEnableFeature(
+      kExtensionTelemetryDisableOffstoreExtensions);
+  telemetry_service_->SetEnabled(true);
+
+  // Extensions 2/3 is enabled and not on blocklist.
+  EXPECT_TRUE(
+      extension_registry_->enabled_extensions().Contains(kExtensionId[2]));
+  EXPECT_FALSE(
+      extension_registry_->blocklisted_extensions().Contains(kExtensionId[2]));
+  EXPECT_TRUE(
+      extension_registry_->enabled_extensions().Contains(kExtensionId[3]));
+  EXPECT_FALSE(
+      extension_registry_->blocklisted_extensions().Contains(kExtensionId[3]));
+
+  // Attach a MALWARE verdict for Extensions 2/3 in telemetry report response.
+  ExtensionTelemetryReportResponse response;
+  auto* malware_verdict_2 = response.add_offstore_extension_verdicts();
+  malware_verdict_2->set_extension_id(kExtensionId[2]);
+  malware_verdict_2->set_verdict_type(OffstoreExtensionVerdict::MALWARE);
+  auto* malware_verdict_3 = response.add_offstore_extension_verdicts();
+  malware_verdict_3->set_extension_id(kExtensionId[3]);
+  malware_verdict_3->set_verdict_type(OffstoreExtensionVerdict::MALWARE);
+
+  test_url_loader_factory_.AddResponse(
+      ExtensionTelemetryUploader::GetUploadURLForTest(),
+      response.SerializeAsString(), net::HTTP_OK);
+
+  task_environment_.FastForwardBy(
+      telemetry_service_->current_reporting_interval());
+  task_environment_.RunUntilIdle();
+
+  // Verify no action taken on Extensions 2/3.
+  EXPECT_TRUE(
+      extension_registry_->enabled_extensions().Contains(kExtensionId[2]));
+  EXPECT_FALSE(
+      extension_registry_->blocklisted_extensions().Contains(kExtensionId[2]));
+  EXPECT_TRUE(
+      extension_registry_->enabled_extensions().Contains(kExtensionId[3]));
+  EXPECT_FALSE(
+      extension_registry_->blocklisted_extensions().Contains(kExtensionId[3]));
+}
+
+TEST_F(ExtensionTelemetryServiceTest, DisableOffstoreExtensions_Reenable) {
+  telemetry_service_->SetEnabled(false);
+  scoped_feature_list.InitAndEnableFeature(
+      kExtensionTelemetryDisableOffstoreExtensions);
+  telemetry_service_->SetEnabled(true);
+
+  // Attach a MALWARE verdict for Extension 0 in telemetry report response.
+  ExtensionTelemetryReportResponse malware_response;
+  auto* malware_verdict = malware_response.add_offstore_extension_verdicts();
+  malware_verdict->set_extension_id(kExtensionId[0]);
+  malware_verdict->set_verdict_type(OffstoreExtensionVerdict::MALWARE);
+
+  test_url_loader_factory_.AddResponse(
+      ExtensionTelemetryUploader::GetUploadURLForTest(),
+      malware_response.SerializeAsString(), net::HTTP_OK);
+
+  task_environment_.FastForwardBy(
+      telemetry_service_->current_reporting_interval());
+  task_environment_.RunUntilIdle();
+
+  // Verify Extension 0 is on blocklisted list.
+  EXPECT_FALSE(
+      extension_registry_->enabled_extensions().Contains(kExtensionId[0]));
+  EXPECT_TRUE(
+      extension_registry_->blocklisted_extensions().Contains(kExtensionId[0]));
+
+  // Attach a NONE verdict for Extension 0 in telemetry report response.
+  ExtensionTelemetryReportResponse unblocklist_response;
+  auto* none_verdict = unblocklist_response.add_offstore_extension_verdicts();
+  none_verdict->set_extension_id(kExtensionId[0]);
+  none_verdict->set_verdict_type(OffstoreExtensionVerdict::NONE);
+
+  test_url_loader_factory_.AddResponse(
+      ExtensionTelemetryUploader::GetUploadURLForTest(),
+      unblocklist_response.SerializeAsString(), net::HTTP_OK);
+
+  task_environment_.FastForwardBy(
+      telemetry_service_->current_reporting_interval());
+  task_environment_.RunUntilIdle();
+
+  // Extension 0 is enabled and not on blocklist.
+  EXPECT_TRUE(
+      extension_registry_->enabled_extensions().Contains(kExtensionId[0]));
+  EXPECT_FALSE(
+      extension_registry_->blocklisted_extensions().Contains(kExtensionId[0]));
 }
 
 }  // namespace safe_browsing

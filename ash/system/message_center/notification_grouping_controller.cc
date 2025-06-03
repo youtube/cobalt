@@ -14,6 +14,7 @@
 #include "ash/system/notification_center/notification_center_view.h"
 #include "ash/system/notification_center/notification_list_view.h"
 #include "ash/system/unified/unified_system_tray.h"
+#include "base/containers/contains.h"
 #include "base/ranges/algorithm.h"
 #include "ui/display/display.h"
 #include "ui/display/screen.h"
@@ -41,8 +42,7 @@ class GroupedNotificationList {
 
   void AddGroupedNotification(const std::string& notification_id,
                               const std::string& parent_id) {
-    if (notifications_in_parent_map_.find(parent_id) ==
-        notifications_in_parent_map_.end()) {
+    if (!base::Contains(notifications_in_parent_map_, parent_id)) {
       notifications_in_parent_map_[parent_id] = {};
     }
 
@@ -85,12 +85,11 @@ class GroupedNotificationList {
   }
 
   bool GroupedChildNotificationExists(const std::string& child_id) {
-    return child_parent_map_.find(child_id) != child_parent_map_.end();
+    return base::Contains(child_parent_map_, child_id);
   }
 
   bool ParentNotificationExists(const std::string& parent_id) {
-    return notifications_in_parent_map_.find(parent_id) !=
-           notifications_in_parent_map_.end();
+    return base::Contains(notifications_in_parent_map_, parent_id);
   }
 
   // Replaces all instances of `old_parent_id` with `new_parent_id` in
@@ -289,17 +288,23 @@ NotificationGroupingController::CreateCopyForParentNotification(
   auto copy = std::make_unique<Notification>(
       message_center::NotificationType::NOTIFICATION_TYPE_SIMPLE,
       parent_notification.id() +
-          message_center::kIdSuffixForGroupContainerNotification,
+          message_center_utils::GenerateGroupParentNotificationIdSuffix(
+              parent_notification.notifier_id()),
       parent_notification.title(), parent_notification.message(),
-      ui::ImageModel(), std::u16string(), parent_notification.origin_url(),
-      parent_notification.notifier_id(), message_center::RichNotificationData(),
+      ui::ImageModel(), parent_notification.display_source(),
+      parent_notification.origin_url(), parent_notification.notifier_id(),
+      message_center::RichNotificationData(),
       /*delegate=*/nullptr);
   copy->set_timestamp(parent_notification.timestamp() - base::Milliseconds(1));
   copy->set_settings_button_handler(
       parent_notification.rich_notification_data().settings_button_handler);
   copy->set_fullscreen_visibility(parent_notification.fullscreen_visibility());
-  copy->set_delegate(parent_notification.delegate());
+  if (parent_notification.delegate()) {
+    copy->set_delegate(
+        parent_notification.delegate()->GetDelegateForParentCopy());
+  }
   copy->set_vector_small_image(parent_notification.parent_vector_small_image());
+  copy->set_small_image(parent_notification.small_image());
 
   if (parent_notification.accent_color_id().has_value()) {
     copy->set_accent_color_id(parent_notification.accent_color_id().value());
@@ -382,8 +387,11 @@ void NotificationGroupingController::OnNotificationAdded(
       message_center->FindParentNotification(notification);
   std::string parent_id = parent_notification->id();
 
+  // TODO(b/308814203): clean the static_cast checks by replacing
+  // AshNotificationView* with a base class.
   auto* parent_view =
-      GetActiveNotificationViewController()
+      (GetActiveNotificationViewController() &&
+       message_center_utils::IsAshNotification(parent_notification))
           ? static_cast<AshNotificationView*>(
                 GetActiveNotificationViewController()
                     ->GetMessageViewForNotificationId(parent_id))
@@ -467,7 +475,11 @@ void NotificationGroupingController::OnNotificationUpdated(
   Notification* notification =
       message_center->FindNotificationById(notification_id);
 
-  if (!notification || !notification->group_child()) {
+  if (!notification) {
+    return;
+  }
+  ReparentNotificationIfNecessary(notification);
+  if (!notification->group_child()) {
     return;
   }
 
@@ -475,6 +487,12 @@ void NotificationGroupingController::OnNotificationUpdated(
       grouped_notification_list_->GetParentForChild(notification_id);
   Notification* parent_notification =
       MessageCenter::Get()->FindNotificationById(parent_id);
+
+  auto* notification_view_controller = GetActiveNotificationViewController();
+  if (notification_view_controller) {
+    notification_view_controller->OnChildNotificationViewUpdated(
+        parent_id, notification_id);
+  }
 
   if (parent_notification && notification->pinned()) {
     parent_notification->set_pinned(true);
@@ -558,6 +576,34 @@ void NotificationGroupingController::UpdateParentNotificationPinnedState(
   }
 
   parent_notification->set_pinned(pinned);
+}
+
+void NotificationGroupingController::ReparentNotificationIfNecessary(
+    message_center::Notification* notification) {
+  if (!grouped_notification_list_->GroupedChildNotificationExists(
+          notification->id())) {
+    return;
+  }
+  auto* parent_notification =
+      message_center::MessageCenter::Get()->FindParentNotification(
+          notification);
+
+  if (!parent_notification || parent_notification == notification) {
+    grouped_notification_list_->RemoveGroupedChildNotification(
+        notification->id());
+    return;
+  }
+
+  // Update the group state for the `notification` if the parent notification
+  // does not match the parent id in `grouped_notification_list_`. This happens
+  // when a notification is updated with a different `NotifierId`.
+  if (grouped_notification_list_->GetParentForChild(notification->id()) !=
+      parent_notification->id()) {
+    grouped_notification_list_->RemoveGroupedChildNotification(
+        notification->id());
+    grouped_notification_list_->AddGroupedNotification(
+        notification->id(), parent_notification->id());
+  }
 }
 
 }  // namespace ash

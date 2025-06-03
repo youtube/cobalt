@@ -86,7 +86,8 @@ bool ConstraintSetHasImageCapture(
          constraint_set->hasSaturation() || constraint_set->hasSharpness() ||
          constraint_set->hasFocusDistance() || constraint_set->hasPan() ||
          constraint_set->hasTilt() || constraint_set->hasZoom() ||
-         constraint_set->hasTorch() || constraint_set->hasBackgroundBlur();
+         constraint_set->hasTorch() || constraint_set->hasBackgroundBlur() ||
+         constraint_set->hasFaceFraming();
 }
 
 bool ConstraintSetHasNonImageCapture(
@@ -169,13 +170,13 @@ CreateWebAudioSourceFromMediaStreamTrack(MediaStreamComponent* component,
                                                         context_sample_rate);
 }
 
-void ConnectToSource(MediaStreamComponent* component) {
-  DCHECK(component);
-  DCHECK(component->Source());
+void DidCloneMediaStreamTrack(MediaStreamComponent* clone) {
+  DCHECK(clone);
+  DCHECK(clone->Source());
 
-  if (component->GetSourceType() == MediaStreamSource::kTypeAudio) {
-    MediaStreamAudioSource::From(component->Source())
-        ->ConnectToInitializedTrack(component);
+  if (clone->GetSourceType() == MediaStreamSource::kTypeAudio) {
+    MediaStreamAudioSource::From(clone->Source())
+        ->ConnectToInitializedTrack(clone);
   }
 }
 
@@ -231,18 +232,6 @@ MediaStreamTrack* MediaStreamTrackImpl::Create(ExecutionContext* context,
   }
 }
 
-MediaStreamTrackImpl* MediaStreamTrackImpl::CreateCloningComponent(
-    ExecutionContext* execution_context,
-    MediaStreamComponent* component) {
-  MediaStreamTrackImpl* track = MakeGarbageCollected<MediaStreamTrackImpl>(
-      execution_context, component->Clone(), component->GetReadyState(),
-      base::DoNothing());
-
-  ConnectToSource(track->Component());
-
-  return track;
-}
-
 MediaStreamTrackImpl::MediaStreamTrackImpl(ExecutionContext* context,
                                            MediaStreamComponent* component)
     : MediaStreamTrackImpl(context,
@@ -262,7 +251,8 @@ MediaStreamTrackImpl::MediaStreamTrackImpl(
     ExecutionContext* context,
     MediaStreamComponent* component,
     MediaStreamSource::ReadyState ready_state,
-    base::OnceClosure callback)
+    base::OnceClosure callback,
+    bool is_clone)
     : ready_state_(ready_state),
       component_(component),
       execution_context_(context) {
@@ -442,7 +432,7 @@ MediaStreamTrack* MediaStreamTrackImpl::clone(
   MediaStreamTrackImpl* cloned_track =
       MakeGarbageCollected<MediaStreamTrackImpl>(
           execution_context, Component()->Clone(), ready_state_,
-          base::DoNothing());
+          base::DoNothing(), /*is_clone=*/true);
 
   // Copy state.
   CloneInternal(cloned_track);
@@ -674,6 +664,43 @@ MediaTrackSettings* MediaStreamTrackImpl::getSettings() const {
   }
 
   return settings;
+}
+
+MediaStreamTrackVideoStats* MediaStreamTrackImpl::stats() {
+  switch (component_->GetSourceType()) {
+    case MediaStreamSource::kTypeAudio:
+      // `MediaStreamTrack.stats` is not supported for audio tracks.
+      return nullptr;
+    case MediaStreamSource::kTypeVideo: {
+      absl::optional<const MediaStreamDevice> source_device = device();
+      if (!source_device.has_value() ||
+          source_device->type == mojom::blink::MediaStreamType::NO_SERVICE) {
+        // If the track is backed by a getUserMedia or getDisplayMedia device,
+        // a service will be set. Other sources may have default initialized
+        // devices, but these have type NO_SERVICE.
+        // TODO(https://github.com/w3c/mediacapture-extensions/issues/102): This
+        // is an unnecessary restriction - if the W3C Working Group can be
+        // convinced otherwise, simply don't throw this exception. Some sources
+        // may need to wire up the OnFrameDropped callback in order for
+        // totalFrames to include "early" frame drops, but this is probably N/A
+        // for most (if not all) sources that are not backed by a gUM/gDM device
+        // since non-device sources aren't real-time in which case FPS can be
+        // reduced by not generating the frame in the first place, so then there
+        // is no need to drop it.
+        return nullptr;
+      }
+      if (!video_stats_) {
+        video_stats_ = MakeGarbageCollected<MediaStreamTrackVideoStats>(this);
+      }
+      return video_stats_.Get();
+    }
+  }
+}
+
+MediaStreamTrackPlatform::VideoFrameStats
+MediaStreamTrackImpl::GetVideoFrameStats() const {
+  CHECK_EQ(component_->GetSourceType(), MediaStreamSource::kTypeVideo);
+  return component_->GetPlatformTrack()->GetVideoFrameStats();
 }
 
 CaptureHandle* MediaStreamTrackImpl::getCaptureHandle() const {
@@ -997,14 +1024,15 @@ void MediaStreamTrackImpl::Trace(Visitor* visitor) const {
   visitor->Trace(image_capture_);
   visitor->Trace(execution_context_);
   visitor->Trace(observers_);
-  EventTargetWithInlineData::Trace(visitor);
+  visitor->Trace(video_stats_);
+  EventTarget::Trace(visitor);
   MediaStreamTrack::Trace(visitor);
 }
 
 void MediaStreamTrackImpl::CloneInternal(MediaStreamTrackImpl* cloned_track) {
   DCHECK(cloned_track);
 
-  ConnectToSource(cloned_track->Component());
+  DidCloneMediaStreamTrack(cloned_track->Component());
 
   cloned_track->SetInitialConstraints(constraints_);
 

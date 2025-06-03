@@ -8,10 +8,11 @@ import android.content.Context;
 
 import androidx.annotation.VisibleForTesting;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.UserData;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
 import org.chromium.content.browser.PopupController;
 import org.chromium.content.browser.PopupController.HideablePopup;
 import org.chromium.content.browser.WindowEventObserver;
@@ -226,7 +227,6 @@ public class TextSuggestionHost implements WindowEventObserver, HideablePopup, U
     /**
      * @return The TextSuggestionsPopupWindow, if one exists.
      */
-    @VisibleForTesting
     public SuggestionsPopupWindow getTextSuggestionsPopupWindowForTesting() {
         return mTextSuggestionsPopupWindow;
     }
@@ -234,7 +234,6 @@ public class TextSuggestionHost implements WindowEventObserver, HideablePopup, U
     /**
      * @return The SpellCheckPopupWindow, if one exists.
      */
-    @VisibleForTesting
     public SuggestionsPopupWindow getSpellCheckPopupWindowForTesting() {
         return mSpellCheckPopupWindow;
     }

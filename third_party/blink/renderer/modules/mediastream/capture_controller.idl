@@ -5,6 +5,7 @@
 // https://w3c.github.io/mediacapture-screen-share/#dom-capturecontroller
 
 enum CaptureStartFocusBehavior {
+  "focus-capturing-application",
   "focus-captured-surface",
   "no-focus-change"
 };
@@ -14,7 +15,7 @@ enum CaptureStartFocusBehavior {
   SecureContext,
   RuntimeEnabled=CaptureController
 ]
-interface CaptureController {
+interface CaptureController : EventTarget {
   [CallWith=ExecutionContext] constructor();
 
   [
@@ -22,4 +23,7 @@ interface CaptureController {
     MeasureAs=ConditionalFocus
   ]
   void setFocusBehavior(CaptureStartFocusBehavior focusBehavior);
+
+  // https://screen-share.github.io/mouse-events/#capture-controller-extensions
+  [RuntimeEnabled=CapturedMouseEvents] attribute EventHandler oncapturedmousechange;
 };

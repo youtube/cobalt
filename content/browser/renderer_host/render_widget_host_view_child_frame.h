@@ -23,9 +23,9 @@
 #include "components/viz/common/surfaces/surface_info.h"
 #include "components/viz/host/host_frame_sink_client.h"
 #include "content/browser/compositor/image_transport_factory.h"
-#include "content/browser/renderer_host/event_with_latency_info.h"
 #include "content/browser/renderer_host/render_widget_host_view_base.h"
 #include "content/common/content_export.h"
+#include "content/common/input/event_with_latency_info.h"
 #include "content/public/browser/touch_selection_controller_client_manager.h"
 #include "services/viz/public/mojom/compositing/compositor_frame_sink.mojom.h"
 #include "third_party/blink/public/common/widget/visual_properties.h"
@@ -139,6 +139,8 @@ class CONTENT_EXPORT RenderWidgetHostViewChildFrame
   const viz::LocalSurfaceId& GetLocalSurfaceId() const override;
   void NotifyHitTestRegionUpdated(const viz::AggregatedHitTestRegion&) override;
   bool ScreenRectIsUnstableFor(const blink::WebInputEvent& event) override;
+  bool ScreenRectIsUnstableForIOv2For(
+      const blink::WebInputEvent& event) override;
   void PreProcessTouchEvent(const blink::WebTouchEvent& event) override;
   viz::FrameSinkId GetRootFrameSinkId() override;
   viz::SurfaceId GetCurrentSurfaceId() const override;
@@ -159,6 +161,7 @@ class CONTENT_EXPORT RenderWidgetHostViewChildFrame
   std::unique_ptr<SyntheticGestureTarget> CreateSyntheticGestureTarget()
       override;
   bool IsRenderWidgetHostViewChildFrame() override;
+  void InvalidateLocalSurfaceIdAndAllocationGroup() override;
 
 #if BUILDFLAG(IS_MAC)
   // RenderWidgetHostView implementation.
@@ -220,6 +223,10 @@ class CONTENT_EXPORT RenderWidgetHostViewChildFrame
 
   ui::TextInputType GetTextInputType() const;
 
+  // Retrieves the UTF-16 code unit range containing accessible text in the
+  // view. Returns false if the information cannot be retrieved right now.
+  bool GetTextRange(gfx::Range* range) const;
+
   RenderWidgetHostViewBase* GetRootRenderWidgetHostView() const;
 
  protected:
@@ -243,6 +250,7 @@ class CONTENT_EXPORT RenderWidgetHostViewChildFrame
   void ProcessFrameSwappedCallbacks();
 
   // RenderWidgetHostViewBase:
+  void UpdateFrameSinkIdRegistration() override;
   void UpdateBackgroundColor() override;
   absl::optional<DisplayFeature> GetDisplayFeature() override;
   void SetDisplayFeatureForTesting(
@@ -306,13 +314,18 @@ class CONTENT_EXPORT RenderWidgetHostViewChildFrame
       const blink::WebGestureEvent& event,
       blink::mojom::InputEventResultState ack_result) override;
 
+  // Performs gesture ack handling needed for swipe-to-move-cursor gestures.
+  void HandleSwipeToMoveCursorGestureAck(const blink::WebGestureEvent& event);
+
   std::vector<base::OnceClosure> frame_swapped_callbacks_;
 
   // The surface client ID of the parent RenderWidgetHostView.  0 if none.
   viz::FrameSinkId parent_frame_sink_id_;
 
   gfx::RectF last_stable_screen_rect_;
+  gfx::RectF last_stable_screen_rect_for_iov2_;
   base::TimeTicks screen_rect_stable_since_;
+  base::TimeTicks screen_rect_stable_since_for_iov2_;
 
   gfx::Insets insets_;
 
@@ -321,6 +334,9 @@ class CONTENT_EXPORT RenderWidgetHostViewChildFrame
 
   // True if there is currently a scroll sequence being bubbled to our parent.
   bool is_scroll_sequence_bubbling_ = false;
+
+  // Whether a swipe-to-move-cursor gesture is activated.
+  bool swipe_to_move_cursor_activated_ = false;
 
   // If a new RWHVCF is created for a cross-origin navigation, the parent
   // will typically not notice and will not transmit a full complement of

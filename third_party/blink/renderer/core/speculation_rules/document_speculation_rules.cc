@@ -5,7 +5,10 @@
 #include "third_party/blink/renderer/core/speculation_rules/document_speculation_rules.h"
 
 #include "base/containers/contains.h"
+#include "base/metrics/histogram_functions.h"
+#include "base/numerics/safe_conversions.h"
 #include "base/ranges/algorithm.h"
+#include "base/state_transitions.h"
 #include "third_party/blink/public/common/browser_interface_broker_proxy.h"
 #include "third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom-shared.h"
 #include "third_party/blink/renderer/core/css/style_engine.h"
@@ -31,6 +34,7 @@
 #include "third_party/blink/renderer/platform/weborigin/referrer.h"
 #include "third_party/blink/renderer/platform/weborigin/security_origin.h"
 #include "third_party/blink/renderer/platform/weborigin/security_policy.h"
+#include "third_party/blink/renderer/platform/wtf/std_lib_extras.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 
 namespace blink {
@@ -127,7 +131,7 @@ absl::optional<Referrer> GetReferrer(SpeculationRule* rule,
         MakeReferrerWarning(action, url, referrer));
     if (using_link_referrer_policy) {
       console_message->SetNodes(link->GetDocument().GetFrame(),
-                                {DOMNodeIds::IdForNode(link)});
+                                {link->GetDomNodeId()});
     }
     execution_context->AddConsoleMessage(console_message);
     return absl::nullopt;
@@ -136,14 +140,26 @@ absl::optional<Referrer> GetReferrer(SpeculationRule* rule,
   return referrer;
 }
 
-absl::optional<base::UnguessableToken> GetDevToolsNavigationToken(
-    DocumentLoader* document_loader) {
-  return document_loader ? document_loader->GetDevToolsNavigationToken()
-                         : static_cast<absl::optional<base::UnguessableToken>>(
-                               absl::nullopt);
-}
+// The reason for calling |UpdateSpeculationCandidates| for metrics.
+// Currently, this is designed to measure the impact of
+// |kRetriggerPreloadingOnBFCacheRestoration|(crbug.com/1449163) so that
+// other update reasons (such as ruleset insertion/removal etc...) will be
+// tentatively classified as |kOther|.
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+enum class UpdateSpeculationCandidatesReason {
+  kOther = 0,
+  kRestoredFromBFCache = 1,
+  kMaxValue = kRestoredFromBFCache,
+};
 
 }  // namespace
+
+std::ostream& operator<<(
+    std::ostream& o,
+    const DocumentSpeculationRules::PendingUpdateState& s) {
+  return o << static_cast<unsigned>(s);
+}
 
 // static
 const char DocumentSpeculationRules::kSupplementName[] =
@@ -166,10 +182,7 @@ DocumentSpeculationRules* DocumentSpeculationRules::FromIfExists(
 }
 
 DocumentSpeculationRules::DocumentSpeculationRules(Document& document)
-    : Supplement(document),
-      host_(document.GetExecutionContext()),
-      devtools_navigation_token_(
-          GetDevToolsNavigationToken(document.Loader())) {}
+    : Supplement(document), host_(document.GetExecutionContext()) {}
 
 void DocumentSpeculationRules::AddRuleSet(SpeculationRuleSet* rule_set) {
   CountSpeculationRulesLoadOutcome(SpeculationRulesLoadOutcome::kSuccess);
@@ -217,7 +230,17 @@ void DocumentSpeculationRules::RemoveRuleSet(SpeculationRuleSet* rule_set) {
           document, EventHandlerRegistry::kPointerEvent);
     }
   }
-  QueueUpdateSpeculationCandidates();
+
+  // When a rule set is removed, we want to assure that an update including the
+  // removal is promptly processed, so that the browser can cancel any activity
+  // that is no longer needed. This makes it more predictable when the author
+  // can re-add those rules to start a new speculation (to freshen it), rather
+  // than continuing an existing one.
+  //
+  // Since style doesn't necessarily become clean promptly enough for that (a
+  // scheduled microtask is what we have in mind), we want style to be forced
+  // clean by the deadline, if necessary.
+  QueueUpdateSpeculationCandidates(/*force_style_update=*/true);
 
   probe::DidRemoveSpeculationRuleSet(*GetSupplementable(), *rule_set);
 }
@@ -329,8 +352,7 @@ void DocumentSpeculationRules::LinkGainedOrLostComputedStyle(
 }
 
 void DocumentSpeculationRules::DocumentStyleUpdated() {
-  if (pending_update_state_ ==
-      PendingUpdateState::kUpdateWithCleanStylePending) {
+  if (pending_update_state_ == PendingUpdateState::kOnNextStyleUpdate) {
     UpdateSpeculationCandidates();
   }
 }
@@ -423,6 +445,22 @@ void DocumentSpeculationRules::DisplayLockedElementDisconnected(Element* root) {
   // |root|'s children will also be disconnected shortly after this.
 }
 
+void DocumentSpeculationRules::DocumentRestoredFromBFCache() {
+  CHECK(base::FeatureList::IsEnabled(
+      blink::features::kRetriggerPreloadingOnBFCacheRestoration));
+  first_update_after_restored_from_bfcache_ = true;
+  QueueUpdateSpeculationCandidates();
+}
+
+void DocumentSpeculationRules::InitiatePreview(const KURL& url) {
+  CHECK(base::FeatureList::IsEnabled(features::kLinkPreview));
+
+  auto* host = GetHost();
+  if (host) {
+    host->InitiatePreview(url);
+  }
+}
+
 void DocumentSpeculationRules::Trace(Visitor* visitor) const {
   Supplement::Trace(visitor);
   visitor->Trace(rule_sets_);
@@ -448,49 +486,61 @@ mojom::blink::SpeculationHost* DocumentSpeculationRules::GetHost() {
   return host_.get();
 }
 
-void DocumentSpeculationRules::QueueUpdateSpeculationCandidates() {
-  if (pending_update_state_ != PendingUpdateState::kNoUpdatePending) {
-    return;
-  }
+void DocumentSpeculationRules::QueueUpdateSpeculationCandidates(
+    bool force_style_update) {
+  const bool microtask_already_queued = IsMicrotaskQueued();
 
-  // If "selector_matches" is enabled and style isn't clean, we don't need to
-  // enqueue a microtask to run UpdateSpeculationCandidates, and instead wait
-  // for DocumentStyleUpdated to be called.
-  if (SelectorMatchesEnabled() &&
-      GetSupplementable()->NeedsLayoutTreeUpdate()) {
-    SetPendingUpdateState(PendingUpdateState::kUpdateWithCleanStylePending);
-    return;
+  bool needs_microtask = true;
+  if (force_style_update) {
+    SetPendingUpdateState(
+        PendingUpdateState::kMicrotaskQueuedWithForcedStyleUpdate);
+  } else if (pending_update_state_ == PendingUpdateState::kNoUpdate) {
+    SetPendingUpdateState(PendingUpdateState::kMicrotaskQueued);
+  } else {
+    // An update of some kind is already scheduled, whether on a microtask or
+    // the next style update. That's sufficient.
+    needs_microtask = false;
   }
 
   auto* execution_context = GetSupplementable()->GetExecutionContext();
-  if (!execution_context)
-    return;
+  if (needs_microtask && !microtask_already_queued && execution_context) {
+    execution_context->GetAgent()->event_loop()->EnqueueMicrotask(WTF::BindOnce(
+        &DocumentSpeculationRules::UpdateSpeculationCandidatesMicrotask,
+        WrapWeakPersistent(this)));
+  }
+}
 
-  SetPendingUpdateState(PendingUpdateState::kUpdatePending);
-  execution_context->GetAgent()->event_loop()->EnqueueMicrotask(
-      WTF::BindOnce(&DocumentSpeculationRules::UpdateSpeculationCandidates,
-                    WrapWeakPersistent(this)));
+void DocumentSpeculationRules::UpdateSpeculationCandidatesMicrotask() {
+  DCHECK(IsMicrotaskQueued());
+
+  // Wait for style to be clean before proceeding. Or force it, if this update
+  // needs to happen promptly.
+  Document& document = *GetSupplementable();
+  if (SelectorMatchesEnabled() && document.NeedsLayoutTreeUpdate()) {
+    if (pending_update_state_ ==
+        PendingUpdateState::kMicrotaskQueuedWithForcedStyleUpdate) {
+      document.UpdateStyleAndLayoutTree();
+    } else {
+      SetPendingUpdateState(PendingUpdateState::kOnNextStyleUpdate);
+      return;
+    }
+  }
+
+  UpdateSpeculationCandidates();
 }
 
 void DocumentSpeculationRules::UpdateSpeculationCandidates() {
-  DCHECK_NE(pending_update_state_, PendingUpdateState::kNoUpdatePending);
-
-  // Style may be invalidated after we enqueue a microtask, in which case we
-  // wait for style to be clean before proceeding.
-  if (SelectorMatchesEnabled() &&
-      GetSupplementable()->NeedsLayoutTreeUpdate()) {
-    SetPendingUpdateState(PendingUpdateState::kUpdateWithCleanStylePending);
-    return;
+  DCHECK_NE(pending_update_state_, PendingUpdateState::kNoUpdate);
+  if (SelectorMatchesEnabled()) {
+    DCHECK(!GetSupplementable()->NeedsLayoutTreeUpdate());
   }
 
   // We are actually performing the update below, so mark as no update pending.
-  SetPendingUpdateState(PendingUpdateState::kNoUpdatePending);
+  SetPendingUpdateState(PendingUpdateState::kNoUpdate);
 
   mojom::blink::SpeculationHost* host = GetHost();
   auto* execution_context = GetSupplementable()->GetExecutionContext();
-  // devtools_navigation_token is expected to be non-null because a null token
-  // means the document is detached and will be destroyed shortly.
-  if (!host || !execution_context || !devtools_navigation_token_.has_value()) {
+  if (!host || !execution_context) {
     return;
   }
 
@@ -556,6 +606,20 @@ void DocumentSpeculationRules::UpdateSpeculationCandidates() {
   // Add candidates derived from document rule predicates.
   AddLinkBasedSpeculationCandidates(candidates);
 
+  // Remove candidates for links to fragments in the current document. These are
+  // unlikely to be useful to preload, because such navigations are likely to
+  // trigger fragment navigation (see
+  // |FrameLoader::ShouldPerformFragmentNavigation|).
+  // Note that the document's URL is not necessarily the same as the base URL
+  // (e,g., when a <base> element is present in the document).
+  const KURL& document_url = GetSupplementable()->Url();
+  auto* last = base::ranges::remove_if(candidates, [&](const auto& candidate) {
+    const KURL& url = candidate->url();
+    return url.HasFragmentIdentifier() &&
+           EqualIgnoringFragmentIdentifier(url, document_url);
+  });
+  candidates.Shrink(base::checked_cast<wtf_size_t>(last - candidates.begin()));
+
   if (!sent_is_part_of_no_vary_search_trial_ &&
       RuntimeEnabledFeatures::NoVarySearchPrefetchEnabled(execution_context)) {
     sent_is_part_of_no_vary_search_trial_ = true;
@@ -576,8 +640,7 @@ void DocumentSpeculationRules::UpdateSpeculationCandidates() {
     mojom_candidates.push_back(candidate->ToMojom());
   }
 
-  host->UpdateSpeculationCandidates(devtools_navigation_token_.value(),
-                                    std::move(mojom_candidates));
+  host->UpdateSpeculationCandidates(std::move(mojom_candidates));
 
   if (eagerness_set.Has(SpeculationEagerness::kConservative)) {
     UseCounter::Count(GetSupplementable(),
@@ -590,6 +653,17 @@ void DocumentSpeculationRules::UpdateSpeculationCandidates() {
   if (eagerness_set.Has(SpeculationEagerness::kEager)) {
     UseCounter::Count(GetSupplementable(),
                       WebFeature::kSpeculationRulesEagernessEager);
+  }
+
+  if (base::FeatureList::IsEnabled(
+          blink::features::kRetriggerPreloadingOnBFCacheRestoration)) {
+    base::UmaHistogramEnumeration(
+        "Preloading.Experimental.UpdateSpeculationCandidatesReason",
+        first_update_after_restored_from_bfcache_
+            ? UpdateSpeculationCandidatesReason::kRestoredFromBFCache
+            : UpdateSpeculationCandidatesReason::kOther);
+
+    first_update_after_restored_from_bfcache_ = false;
   }
 }
 
@@ -816,10 +890,33 @@ void DocumentSpeculationRules::UpdateSelectors() {
 
 void DocumentSpeculationRules::SetPendingUpdateState(
     PendingUpdateState new_state) {
-  PendingUpdateState old_state = pending_update_state_;
-  // This is the only invalid state transition.
-  DCHECK(!(old_state == PendingUpdateState::kUpdateWithCleanStylePending &&
-           new_state == PendingUpdateState::kUpdatePending));
+#if DCHECK_IS_ON()
+  // TODO(jbroman): This could use "using enum" once that's allowed.
+  using S = PendingUpdateState;
+  DEFINE_STATIC_LOCAL(
+      base::StateTransitions<S>, transitions,
+      ({
+          // When there is no update, we can only queue an update.
+          {S::kNoUpdate,
+           {S::kMicrotaskQueued, S::kMicrotaskQueuedWithForcedStyleUpdate}},
+          // When an update is queued, it can complete, get upgraded to forcing
+          // style, or need to wait for style (lazily).
+          {S::kMicrotaskQueued,
+           {S::kNoUpdate, S::kMicrotaskQueuedWithForcedStyleUpdate,
+            S::kOnNextStyleUpdate}},
+          // When waiting for style, this can complete, or we can realize we
+          // need to queue another microtask to force an update, including
+          // forcing style, by a predictable moment.
+          {S::kOnNextStyleUpdate,
+           {S::kNoUpdate, S::kMicrotaskQueuedWithForcedStyleUpdate}},
+          // When a microtask with forced style has been queued, all it can do
+          // is complete.
+          {S::kMicrotaskQueuedWithForcedStyleUpdate, {S::kNoUpdate}},
+      }));
+  if (pending_update_state_ != new_state) {
+    DCHECK_STATE_TRANSITION(&transitions, pending_update_state_, new_state);
+  }
+#endif
   pending_update_state_ = new_state;
 }
 

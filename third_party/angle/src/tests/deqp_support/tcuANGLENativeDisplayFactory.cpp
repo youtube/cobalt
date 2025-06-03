@@ -32,7 +32,7 @@
 #include "tcuTexture.hpp"
 #include "util/OSPixmap.h"
 #include "util/OSWindow.h"
-#include "util/angle_features_autogen.h"
+#include "util/autogen/angle_features_autogen.h"
 
 // clang-format off
 #if (DE_OS == DE_OS_WIN32)
@@ -84,10 +84,12 @@ constexpr eglu::NativePixmap::Capability kBitmapCapabilities =
     eglu::NativePixmap::CAPABILITY_CREATE_SURFACE_LEGACY;
 constexpr eglu::NativeWindow::Capability kWindowCapabilities =
     static_cast<eglu::NativeWindow::Capability>(
+#if (DE_OS == DE_OS_WIN32)
+        eglu::NativeWindow::CAPABILITY_READ_SCREEN_PIXELS |
+#endif
         eglu::NativeWindow::CAPABILITY_CREATE_SURFACE_LEGACY |
         eglu::NativeWindow::CAPABILITY_GET_SURFACE_SIZE |
         eglu::NativeWindow::CAPABILITY_GET_SCREEN_SIZE |
-        eglu::NativeWindow::CAPABILITY_READ_SCREEN_PIXELS |
         eglu::NativeWindow::CAPABILITY_SET_SURFACE_SIZE |
         eglu::NativeWindow::CAPABILITY_CHANGE_VISIBILITY |
         eglu::NativeWindow::CAPABILITY_CREATE_SURFACE_PLATFORM_EXTENSION);

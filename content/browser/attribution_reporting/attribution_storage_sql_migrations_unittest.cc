@@ -8,10 +8,13 @@
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/path_service.h"
+#include "base/strings/strcat.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/time/time.h"
+#include "content/browser/attribution_reporting/attribution_reporting.pb.h"
 #include "content/browser/attribution_reporting/attribution_storage.h"
 #include "content/browser/attribution_reporting/attribution_storage_sql.h"
 #include "content/browser/attribution_reporting/attribution_test_utils.h"
@@ -20,11 +23,14 @@
 #include "sql/database.h"
 #include "sql/statement.h"
 #include "sql/test/test_helpers.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace content {
 
 namespace {
+
+using ::testing::ElementsAre;
 
 // Normalize schema strings to compare them reliabily. Notably, applies the
 // following transformations:
@@ -64,10 +70,8 @@ class AttributionStorageSqlMigrationsTest : public testing::Test {
   }
 
   static base::FilePath GetVersionFilePath(int version_id) {
-    // Should be safe cross platform because StringPrintf has overloads for wide
-    // strings.
-    return base::FilePath(
-        base::StringPrintf(FILE_PATH_LITERAL("version_%d.sql"), version_id));
+    return base::FilePath::FromASCII(
+        base::StrCat({"version_", base::NumberToString(version_id), ".sql"}));
   }
 
   std::string GetCurrentSchema() {
@@ -88,7 +92,7 @@ class AttributionStorageSqlMigrationsTest : public testing::Test {
   // successfully, false otherwise.
   bool GetDatabaseData(const base::FilePath& file, std::string* contents) {
     base::FilePath source_path;
-    base::PathService::Get(base::DIR_SOURCE_ROOT, &source_path);
+    base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &source_path);
     source_path = source_path.AppendASCII(
         "content/test/data/attribution_reporting/databases");
     source_path = source_path.Append(file);
@@ -197,6 +201,179 @@ TEST_F(AttributionStorageSqlMigrationsTest, MigrateLatestDeprecatedToCurrent) {
   // DB creation histograms should be recorded.
   histograms.ExpectTotalCount("Conversions.Storage.CreationTime", 1);
   histograms.ExpectTotalCount("Conversions.Storage.MigrationTime", 0);
+}
+
+TEST_F(AttributionStorageSqlMigrationsTest, MigrateVersion52ToCurrent) {
+  base::HistogramTester histograms;
+  LoadDatabase(GetVersionFilePath(52), DbPath());
+
+  // Verify pre-conditions.
+  {
+    sql::Database db;
+    ASSERT_TRUE(db.Open(DbPath()));
+
+    sql::Statement s(db.GetUniqueStatement(
+        "SELECT aggregatable_budget_consumed FROM sources"));
+    ASSERT_TRUE(s.Step());
+    ASSERT_EQ(0, s.ColumnInt(0));
+    ASSERT_TRUE(s.Step());
+    ASSERT_EQ(200, s.ColumnInt(0));
+    ASSERT_FALSE(s.Step());
+  }
+  MigrateDatabase();
+
+  // Verify schema is current.
+  {
+    sql::Database db;
+    ASSERT_TRUE(db.Open(DbPath()));
+
+    CheckVersionNumbers(&db);
+
+    // Compare normalized schemas
+    EXPECT_EQ(NormalizeSchema(GetCurrentSchema()),
+              NormalizeSchema(db.GetSchema()));
+
+    // Verify that data is preserved across the migration.
+    sql::Statement s(
+        db.GetUniqueStatement("SELECT aggregatable_budget_consumed, "
+                              "num_aggregatable_reports FROM sources"));
+    ASSERT_TRUE(s.Step());
+    // First source has no budget consumed so hasn't made any reports.
+    ASSERT_EQ(0, s.ColumnInt(0));
+    ASSERT_EQ(0, s.ColumnInt(1));
+    ASSERT_TRUE(s.Step());
+    // Second source has budget consumed so we set their num reports to 1.
+    ASSERT_EQ(200, s.ColumnInt(0));
+    ASSERT_EQ(1, s.ColumnInt(1));
+    ASSERT_FALSE(s.Step());
+  }
+
+  // DB creation histograms should be recorded.
+  histograms.ExpectTotalCount("Conversions.Storage.CreationTime", 0);
+  histograms.ExpectTotalCount("Conversions.Storage.MigrationTime", 1);
+}
+
+TEST_F(AttributionStorageSqlMigrationsTest, MigrateVersion53ToCurrent) {
+  base::HistogramTester histograms;
+  LoadDatabase(GetVersionFilePath(53), DbPath());
+
+  // Verify pre-conditions.
+  {
+    sql::Database db;
+    ASSERT_TRUE(db.Open(DbPath()));
+
+    sql::Statement s(
+        db.GetUniqueStatement("SELECT reporting_origin FROM rate_limits"));
+    ASSERT_TRUE(s.Step());
+    ASSERT_EQ("https://a.r.test", s.ColumnString(0));
+  }
+  MigrateDatabase();
+
+  // Verify schema is current.
+  {
+    sql::Database db;
+    ASSERT_TRUE(db.Open(DbPath()));
+
+    CheckVersionNumbers(&db);
+
+    // Compare normalized schemas
+    EXPECT_EQ(NormalizeSchema(GetCurrentSchema()),
+              NormalizeSchema(db.GetSchema()));
+
+    // Verify that data is preserved across the migration.
+    sql::Statement s(
+        db.GetUniqueStatement("SELECT reporting_site FROM rate_limits"));
+    ASSERT_TRUE(s.Step());
+    ASSERT_EQ("https://r.test", s.ColumnString(0));
+    ASSERT_FALSE(s.Step());
+  }
+
+  // DB creation histograms should be recorded.
+  histograms.ExpectTotalCount("Conversions.Storage.CreationTime", 0);
+  histograms.ExpectTotalCount("Conversions.Storage.MigrationTime", 1);
+}
+
+TEST_F(AttributionStorageSqlMigrationsTest, MigrateVersion54ToCurrent) {
+  base::HistogramTester histograms;
+  LoadDatabase(GetVersionFilePath(54), DbPath());
+
+  // Verify pre-conditions.
+  {
+    sql::Database db;
+    ASSERT_TRUE(db.Open(DbPath()));
+
+    sql::Statement s(
+        db.GetUniqueStatement("SELECT reporting_origin FROM rate_limits"));
+    ASSERT_TRUE(s.Step());
+    ASSERT_EQ("https://a.r.test", s.ColumnString(0));
+  }
+  MigrateDatabase();
+
+  // Verify schema is current.
+  {
+    sql::Database db;
+    ASSERT_TRUE(db.Open(DbPath()));
+
+    CheckVersionNumbers(&db);
+
+    // Compare normalized schemas
+    EXPECT_EQ(NormalizeSchema(GetCurrentSchema()),
+              NormalizeSchema(db.GetSchema()));
+
+    // Verify that data is preserved across the migration.
+    sql::Statement s(
+        db.GetUniqueStatement("SELECT reporting_origin FROM rate_limits"));
+    ASSERT_TRUE(s.Step());
+    ASSERT_EQ("https://a.r.test", s.ColumnString(0));
+    ASSERT_FALSE(s.Step());
+  }
+
+  // DB creation histograms should be recorded.
+  histograms.ExpectTotalCount("Conversions.Storage.CreationTime", 0);
+  histograms.ExpectTotalCount("Conversions.Storage.MigrationTime", 1);
+}
+
+TEST_F(AttributionStorageSqlMigrationsTest, MigrateVersion55ToCurrent) {
+  base::HistogramTester histograms;
+  LoadDatabase(GetVersionFilePath(55), DbPath());
+
+  // Verify pre-conditions.
+  {
+    sql::Database db;
+    ASSERT_TRUE(db.Open(DbPath()));
+    ASSERT_FALSE(db.DoesColumnExist("sources", "read_only_source_data"));
+  }
+  MigrateDatabase();
+
+  // Verify schema is current.
+  {
+    sql::Database db;
+    ASSERT_TRUE(db.Open(DbPath()));
+
+    CheckVersionNumbers(&db);
+
+    // Compare normalized schemas
+    EXPECT_EQ(NormalizeSchema(GetCurrentSchema()),
+              NormalizeSchema(db.GetSchema()));
+
+    // Verify that data is preserved across the migration.
+    ASSERT_TRUE(db.DoesColumnExist("sources", "read_only_source_data"));
+    sql::Statement s(
+        db.GetUniqueStatement("SELECT read_only_source_data FROM sources"));
+    ASSERT_TRUE(s.Step());
+    proto::AttributionReadOnlySourceData msg;
+    ASSERT_TRUE(msg.ParseFromString(s.ColumnString(0)));
+    EXPECT_EQ(3, msg.max_event_level_reports());
+    EXPECT_FALSE(msg.has_randomized_response_rate());
+    EXPECT_EQ(0, msg.event_level_report_window_start_time());
+    EXPECT_THAT(msg.event_level_report_window_end_times(),
+                ElementsAre(base::Hours(1).InMicroseconds()));
+    ASSERT_FALSE(s.Step());
+  }
+
+  // DB creation histograms should be recorded.
+  histograms.ExpectTotalCount("Conversions.Storage.CreationTime", 0);
+  histograms.ExpectTotalCount("Conversions.Storage.MigrationTime", 1);
 }
 
 }  // namespace content

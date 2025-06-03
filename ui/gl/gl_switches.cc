@@ -167,12 +167,21 @@ const char* const kGLSwitchesCopiedFromGpuProcessHost[] = {
     kEnableDirectCompositionVideoOverlays,
     kDirectCompositionVideoSwapChainFormat,
 };
-const int kGLSwitchesCopiedFromGpuProcessHostNumSwitches =
+const size_t kGLSwitchesCopiedFromGpuProcessHostNumSwitches =
     std::size(kGLSwitchesCopiedFromGpuProcessHost);
 
 }  // namespace switches
 
 namespace features {
+
+// Enable DComp debug visualizations. This can be useful to determine how much
+// work DWM is doing when we update our tree.
+//
+// Please be aware that some of these visualizations result in quickly flashing
+// colors.
+BASE_FEATURE(kDCompDebugVisualization,
+             "DCompDebugVisualization",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Use BufferCount of 3 for the direct composition root swap chain.
 BASE_FEATURE(kDCompTripleBufferRootSwapChain,
@@ -182,6 +191,11 @@ BASE_FEATURE(kDCompTripleBufferRootSwapChain,
 // Use BufferCount of 3 for direct composition video swap chains.
 BASE_FEATURE(kDCompTripleBufferVideoSwapChain,
              "DCompTripleBufferVideoSwapChain",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Enables incremental update of dcomp visual tree.
+BASE_FEATURE(kDCompVisualTreeOptimization,
+             "DCompVisualTreeOptimization",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Use presentation feedback event queries (must be enabled) to limit latency.
@@ -218,7 +232,11 @@ BASE_FEATURE(kDirectCompositionLetterboxVideoOptimization,
 // internal rendering to be on the low power GPU.
 BASE_FEATURE(kEGLDualGPURendering,
              "EGLDualGPURendering",
+#if BUILDFLAG(IS_MAC)
+             base::FEATURE_ENABLED_BY_DEFAULT);
+#else
              base::FEATURE_DISABLED_BY_DEFAULT);
+#endif
 
 // Allow overlay swapchain to use Intel video processor for super resolution.
 BASE_FEATURE(kIntelVpSuperResolution,
@@ -228,6 +246,11 @@ BASE_FEATURE(kIntelVpSuperResolution,
 // Allow overlay swapchain to use NVIDIA video processor for super resolution.
 BASE_FEATURE(kNvidiaVpSuperResolution,
              "NvidiaVpSuperResolution",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Allow overlay swapchain to use NVIDIA video processor for trueHDR.
+BASE_FEATURE(kNvidiaVpTrueHDR,
+             "NvidiaVpTrueHDR",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Default to using ANGLE's OpenGL backend

@@ -6,6 +6,7 @@ import("//build/config/chromeos/ui_mode.gni")
 import("//build/config/cronet/config.gni")
 import("//build/config/ui.gni")
 import("//gpu/vulkan/features.gni")
+import("//skia/features.gni")
 import("//testing/libfuzzer/fuzzer_test.gni")
 import("//testing/test.gni")
 import("//third_party/angle/gni/angle.gni")
@@ -205,6 +206,8 @@ static_library("test_support") {
     "//gpu/command_buffer/client:gles2_interface",
     "//gpu/command_buffer/client:webgpu_interface",
     "//gpu/ipc:gpu_thread_holder",
+    "//third_party/dawn/src/dawn:cpp",
+    "//third_party/dawn/src/dawn:proc",
   ]
   deps = [
     "//base/test:test_support",
@@ -407,7 +410,6 @@ test("gl_tests") {
     "//mojo/core/embedder",
     "//testing/gmock",
     "//testing/gtest",
-    "//third_party/angle:translator",
     "//third_party/libyuv",
     "//ui/gfx",
     "//ui/gfx:test_support",
@@ -417,8 +419,15 @@ test("gl_tests") {
     "//ui/gl/init",
   ]
 
+  if (use_static_angle) {
+    deps += [ "//third_party/angle:translator" ]
+  } else {
+    deps += [ "//third_party/angle:translator_gl_d3d_only" ]
+  }
+
   if (use_ozone) {
     deps += [ "//ui/ozone" ]
+    sources += [ "command_buffer/service/shared_image/ozone_image_backing_factory_unittest.cc" ]
   }
 
   if (enable_vulkan) {
@@ -452,11 +461,16 @@ test("gl_tests") {
     }
   }
 
-  if (use_dawn) {
+  if (use_dawn || skia_use_dawn) {
     deps += [
       "//third_party/dawn/src/dawn:cpp",
       "//third_party/dawn/src/dawn:proc",
       "//third_party/dawn/src/dawn/native",
+    ]
+
+    sources += [
+      "command_buffer/service/shared_image/dawn_image_representation_unittest_common.cc",
+      "command_buffer/service/shared_image/dawn_image_representation_unittest_common.h",
     ]
   }
 
@@ -464,6 +478,10 @@ test("gl_tests") {
 
   if (is_android && enable_chrome_android_internal) {
     data_deps += [ "//clank/build/bot/filters:gl_tests_filters" ]
+  }
+
+  if (is_chromeos) {
+    deps += [ "//ui/gfx/linux:gbm" ]
   }
 }
 
@@ -493,7 +511,6 @@ test("gpu_unittests") {
     "command_buffer/client/vertex_array_object_manager_unittest.cc",
     "command_buffer/client/webgpu_implementation_unittest.cc",
     "command_buffer/client/webgpu_implementation_unittest_autogen.h",
-    "command_buffer/common/activity_flags_unittest.cc",
     "command_buffer/common/buffer_unittest.cc",
     "command_buffer/common/command_buffer_shared_test.cc",
     "command_buffer/common/debug_marker_manager_unittest.cc",
@@ -504,6 +521,7 @@ test("gpu_unittests") {
     "command_buffer/common/id_allocator_test.cc",
     "command_buffer/common/raster_cmd_format_test.cc",
     "command_buffer/common/raster_cmd_format_test_autogen.h",
+    "command_buffer/common/shm_count_unittest.cc",
     "command_buffer/common/unittest_main.cc",
     "command_buffer/common/webgpu_cmd_format_test.cc",
     "command_buffer/common/webgpu_cmd_format_test_autogen.h",
@@ -648,7 +666,7 @@ test("gpu_unittests") {
     ]
   }
 
-  if (is_linux || is_chromeos || is_android || is_chromeos) {
+  if (is_linux || is_chromeos || is_android) {
     sources += [ "command_buffer/service/gpu_fence_manager_unittest.cc" ]
   }
 
@@ -695,7 +713,7 @@ test("gpu_unittests") {
     "//build:chromeos_buildflags",
     "//cc:test_support",
     "//cc/paint",
-    "//components/viz/common:resource_format",
+    "//components/viz/common:shared_image_format",
     "//gpu/command_buffer/client:gles2_c_lib",
     "//gpu/command_buffer/client:gles2_implementation",
     "//gpu/command_buffer/client:raster",
@@ -718,7 +736,6 @@ test("gpu_unittests") {
     "//skia",
     "//testing/gmock",
     "//testing/gtest",
-    "//third_party/angle:translator",
     "//third_party/mesa_headers",
     "//third_party/re2",
     "//ui/gfx",
@@ -730,11 +747,10 @@ test("gpu_unittests") {
     "//url",
   ]
 
-  # Cronet disables tracing (crbug.com/1400235).
-  # TODO(rasikan): Remove when unblocked by chromiumos change to add shared lib
-  # to add the shared lib to the chrome-binary-tests directory.
-  if (enable_base_tracing && !is_cronet_build && is_chromeos) {
-    deps += [ "//base/test:test_trace_processor" ]
+  if (use_static_angle) {
+    deps += [ "//third_party/angle:translator" ]
+  } else {
+    deps += [ "//third_party/angle:translator_gl_d3d_only" ]
   }
 
   if (is_android) {
@@ -755,6 +771,10 @@ test("gpu_unittests") {
 
   if (use_ozone) {
     deps += [ "//ui/ozone" ]
+  }
+
+  if (is_chromeos) {
+    deps += [ "//ui/gfx/linux:gbm" ]
   }
 }
 
@@ -832,101 +852,82 @@ test("command_buffer_perftests") {
   assert_no_deps = [ "//chrome" ]
 }
 
-fuzzer_test("gpu_fuzzer") {
+# We allow validating command decoder fuzzer on linux for better coverage.
+if (enable_validating_command_decoder || is_linux) {
+  fuzzer_test("gpu_fuzzer") {
+    sources = [ "command_buffer/tests/fuzzer_main.cc" ]
+
+    deps = [
+      ":gles2",
+      ":gpu",
+      "//base",
+      "//base:i18n",
+      "//base/third_party/dynamic_annotations",
+      "//ui/gfx/geometry",
+      "//ui/gl",
+      "//ui/gl:test_support",
+    ]
+
+    libfuzzer_options = [ "max_len=16384" ]
+
+    if (use_ozone) {
+      deps += [ "//ui/ozone" ]
+    }
+  }
+}
+
+fuzzer_test("gpu_angle_passthrough_fuzzer") {
   sources = [ "command_buffer/tests/fuzzer_main.cc" ]
+
+  defines = [
+    "GPU_FUZZER_USE_ANGLE",
+    "GPU_FUZZER_USE_PASSTHROUGH_CMD_DECODER",
+  ]
 
   deps = [
     ":gles2",
     ":gpu",
     "//base",
-    "//base:i18n",
     "//base/third_party/dynamic_annotations",
     "//ui/gfx/geometry",
     "//ui/gl",
     "//ui/gl:test_support",
   ]
 
+  if (use_ozone) {
+    deps += [ "//ui/ozone" ]
+  }
+
   libfuzzer_options = [ "max_len=16384" ]
+}
+
+fuzzer_test("gpu_swangle_passthrough_fuzzer") {
+  sources = [ "command_buffer/tests/fuzzer_main.cc" ]
+
+  defines = [
+    "GPU_FUZZER_USE_ANGLE",
+    "GPU_FUZZER_USE_SWANGLE",
+    "GPU_FUZZER_USE_PASSTHROUGH_CMD_DECODER",
+  ]
+
+  deps = [
+    ":gles2",
+    ":gpu",
+    "//base",
+    "//base/third_party/dynamic_annotations",
+    "//ui/gfx/geometry",
+    "//ui/gl",
+    "//ui/gl:test_support",
+  ]
 
   if (use_ozone) {
     deps += [ "//ui/ozone" ]
   }
+
+  libfuzzer_options = [ "max_len=16384" ]
 }
 
 if (is_linux || is_chromeos) {
-  fuzzer_test("gpu_angle_fuzzer") {
-    sources = [ "command_buffer/tests/fuzzer_main.cc" ]
-
-    defines = [ "GPU_FUZZER_USE_ANGLE" ]
-
-    deps = [
-      ":gles2",
-      ":gpu",
-      "//base",
-      "//base/third_party/dynamic_annotations",
-      "//ui/gfx/geometry",
-      "//ui/gl",
-      "//ui/gl:test_support",
-    ]
-
-    if (use_ozone) {
-      deps += [ "//ui/ozone" ]
-    }
-
-    libfuzzer_options = [ "max_len=16384" ]
-  }
-
-  fuzzer_test("gpu_angle_passthrough_fuzzer") {
-    sources = [ "command_buffer/tests/fuzzer_main.cc" ]
-
-    defines = [
-      "GPU_FUZZER_USE_ANGLE",
-      "GPU_FUZZER_USE_PASSTHROUGH_CMD_DECODER",
-    ]
-
-    deps = [
-      ":gles2",
-      ":gpu",
-      "//base",
-      "//base/third_party/dynamic_annotations",
-      "//ui/gfx/geometry",
-      "//ui/gl",
-      "//ui/gl:test_support",
-    ]
-
-    if (use_ozone) {
-      deps += [ "//ui/ozone" ]
-    }
-
-    libfuzzer_options = [ "max_len=16384" ]
-  }
-
-  fuzzer_test("gpu_swangle_passthrough_fuzzer") {
-    sources = [ "command_buffer/tests/fuzzer_main.cc" ]
-
-    defines = [
-      "GPU_FUZZER_USE_ANGLE",
-      "GPU_FUZZER_USE_SWANGLE",
-      "GPU_FUZZER_USE_PASSTHROUGH_CMD_DECODER",
-    ]
-
-    deps = [
-      ":gles2",
-      ":gpu",
-      "//base",
-      "//base/third_party/dynamic_annotations",
-      "//ui/gfx/geometry",
-      "//ui/gl",
-      "//ui/gl:test_support",
-    ]
-
-    if (use_ozone) {
-      deps += [ "//ui/ozone" ]
-    }
-
-    libfuzzer_options = [ "max_len=16384" ]
-  }
-
   fuzzer_test("gpu_raster_fuzzer") {
     sources = [ "command_buffer/tests/fuzzer_main.cc" ]
 
@@ -956,31 +957,6 @@ if (is_linux || is_chromeos) {
       "GPU_FUZZER_USE_ANGLE",
       "GPU_FUZZER_USE_RASTER_DECODER",
       "GPU_FUZZER_USE_PASSTHROUGH_CMD_DECODER",
-    ]
-
-    deps = [
-      ":gles2",
-      ":gpu",
-      "//base",
-      "//base/third_party/dynamic_annotations",
-      "//ui/gfx/geometry",
-      "//ui/gl",
-      "//ui/gl:test_support",
-    ]
-
-    if (use_ozone) {
-      deps += [ "//ui/ozone" ]
-    }
-
-    libfuzzer_options = [ "max_len=16384" ]
-  }
-
-  fuzzer_test("gpu_raster_angle_fuzzer") {
-    sources = [ "command_buffer/tests/fuzzer_main.cc" ]
-
-    defines = [
-      "GPU_FUZZER_USE_RASTER_DECODER",
-      "GPU_FUZZER_USE_ANGLE",
     ]
 
     deps = [

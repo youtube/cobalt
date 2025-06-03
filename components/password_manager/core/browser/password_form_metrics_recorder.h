@@ -97,27 +97,6 @@ class PasswordFormMetricsRecorder
     kManagerFillEventAutofilled
   };
 
-  // What the form is used for. SubmittedFormType::kUnspecified is only set
-  // before the SetSubmittedFormType() is called, and should never be actually
-  // uploaded.
-  //
-  // These values are persisted to logs. Entries should not be renumbered and
-  // numeric values should never be reused.
-  //
-  // Needs to stay in sync with PasswordFormType in enums.xml.
-  enum class SubmittedFormType {
-    kLogin = 0,
-    kLoginNoUsername = 1,
-    kChangePasswordEnabled = 2,
-    kChangePasswordDisabled = 3,
-    kChangePasswordNoUsername = 4,
-    kSignup = 5,
-    kSignupNoUsername = 6,
-    kLoginAndSignup = 7,
-    kUnspecified = 8,
-    kCount = 9,
-  };
-
   // The reason why a password bubble was shown on the screen.
   //
   // These values are persisted to logs. Entries should not be renumbered and
@@ -335,6 +314,23 @@ class PasswordFormMetricsRecorder
     kMaxValue = kAutofillOrUserInput,
   };
 
+  // Used in UKM for difference on form parsing during filling and saving.
+  // Do not reorder and keep in sync with PasswordFormParsingDifference
+  // in enums.xml.
+  enum class ParsingDifference {
+    // The same username and password elements are identified.
+    kNone = 0,
+    // Different fields are picked as usernames, but password parsing is
+    // consistent.
+    kUsernameDiff = 1,
+    // Different fields are picked as passwords, but username parsing is
+    // consistent.
+    kPasswordDiff = 2,
+    // Both username and password parsing is inconsistent.
+    kUsernameAndPasswordDiff = 3,
+    kMaxValue = kUsernameAndPasswordDiff,
+  };
+
   // Called if the user could generate a password for this form.
   void MarkGenerationAvailable();
 
@@ -355,7 +351,7 @@ class PasswordFormMetricsRecorder
                                        bool is_manual_generation);
 
   // Call this once the submitted form type has been determined.
-  void SetSubmittedFormType(SubmittedFormType form_type);
+  void SetSubmittedFormType(metrics_util::SubmittedFormType form_type);
 
   // Call this when a password is saved to indicate which path led to
   // submission.
@@ -405,7 +401,7 @@ class PasswordFormMetricsRecorder
 
   void RecordFirstFillingResult(int32_t result);
   void RecordFirstWaitForUsernameReason(WaitForUsernameReason reason);
-  void RecordMatchedFormType(MatchedFormType type);
+  void RecordMatchedFormType(const PasswordForm& form);
 
   // Calculates FillingAssistance metric for |submitted_form|. The result is
   // stored in |filling_assistance_| and recorded in the destructor in case when
@@ -418,12 +414,20 @@ class PasswordFormMetricsRecorder
           saved_passwords,
       bool is_blocklisted,
       const std::vector<InteractionsStats>& interactions_stats,
-      metrics_util::PasswordAccountStorageUsageLevel
+      features_util::PasswordAccountStorageUsageLevel
           account_storage_usage_level);
 
   // Calculates whether all field values in |submitted_form| came from
   // JavaScript. The result is stored in |js_only_input_|.
   void CalculateJsOnlyInput(const autofill::FormData& submitted_form);
+
+  // Caches how the form was parsed for filling. Needed to measure the
+  // difference in form parsing on filling and saving.
+  void CacheParsingResultInFillingMode(const PasswordForm& form);
+
+  // Calculates whether the password form was parsed in the same way
+  // during parsing and saving.
+  void CalculateParsingDifferenceOnSavingAndFilling(const PasswordForm& form);
 
   void set_possible_username_used(bool value) {
     possible_username_used_ = value;
@@ -493,10 +497,10 @@ class PasswordFormMetricsRecorder
   ManagerAction manager_action_ = kManagerActionNone;
   SubmitResult submit_result_ = SubmitResult::kNotSubmitted;
 
-  // Form type of the form that the PasswordFormManager is managing. Set after
-  // submission as the classification of the form can change depending on what
-  // data the user has entered.
-  SubmittedFormType submitted_form_type_ = SubmittedFormType::kUnspecified;
+  // Presumed form type of the form that the PasswordFormManager is managing.
+  // Set after submission, as the form type can change depending on the
+  // user-entered data.
+  absl::optional<metrics_util::SubmittedFormType> submitted_form_type_;
 
   // The UKM SourceId of the document the form belongs to.
   ukm::SourceId source_id_;
@@ -526,7 +530,7 @@ class PasswordFormMetricsRecorder
 
   absl::optional<FillingAssistance> filling_assistance_;
   absl::optional<FillingSource> filling_source_;
-  absl::optional<metrics_util::PasswordAccountStorageUsageLevel>
+  absl::optional<features_util::PasswordAccountStorageUsageLevel>
       account_storage_usage_level_;
   absl::optional<metrics_util::SubmittedFormFrame> submitted_form_frame_;
 
@@ -538,6 +542,15 @@ class PasswordFormMetricsRecorder
   absl::optional<JsOnlyInput> js_only_input_;
 
   bool is_mixed_content_form_ = false;
+
+  // Renderer ids of key password form elements, saved on form filling.
+  // Needed to measure the difference in form parsing on filling and saving.
+  autofill::FieldRendererId username_rendered_id_;
+  autofill::FieldRendererId password_rendered_id_;
+  autofill::FieldRendererId new_password_rendered_id_;
+  autofill::FieldRendererId confirmation_password_rendered_id_;
+
+  std::optional<ParsingDifference> parsing_diff_on_filling_and_saving_;
 };
 
 }  // namespace password_manager

@@ -6,31 +6,32 @@
 
 #import <Foundation/Foundation.h>
 
-#import "base/mac/foundation_util.h"
-#import "ios/chrome/app/main_controller_private.h"
-#import "ios/chrome/browser/browser_state/chrome_browser_state.h"
-#import "ios/chrome/browser/flags/system_flags.h"
-#import "ios/chrome/browser/main/browser.h"
-#import "ios/chrome/browser/main/browser_provider.h"
+#import "base/apple/foundation_util.h"
+#import "ios/chrome/app/main_controller.h"
 #import "ios/chrome/browser/metrics/tab_usage_recorder_browser_agent.h"
-#import "ios/chrome/browser/sessions/session_restoration_browser_agent.h"
+#import "ios/chrome/browser/sessions/session_restoration_util.h"
 #import "ios/chrome/browser/shared/coordinator/scene/scene_controller.h"
 #import "ios/chrome/browser/shared/coordinator/scene/scene_controller_testing.h"
+#import "ios/chrome/browser/shared/model/browser/browser.h"
+#import "ios/chrome/browser/shared/model/browser/browser_provider.h"
+#import "ios/chrome/browser/shared/model/browser/browser_provider_interface.h"
+#import "ios/chrome/browser/shared/model/browser_state/chrome_browser_state.h"
+#import "ios/chrome/browser/shared/model/url/chrome_url_constants.h"
+#import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/public/commands/browser_commands.h"
 #import "ios/chrome/browser/shared/public/commands/open_new_tab_command.h"
 #import "ios/chrome/browser/shared/public/commands/show_signin_command.h"
-#import "ios/chrome/browser/tabs/tab_title_util.h"
+#import "ios/chrome/browser/shared/public/features/system_flags.h"
+#import "ios/chrome/browser/tabs/model/tab_title_util.h"
 #import "ios/chrome/browser/ui/tab_switcher/tab_grid/tab_grid_coordinator.h"
-#import "ios/chrome/browser/url/chrome_url_constants.h"
-#import "ios/chrome/browser/url_loading/url_loading_params.h"
-#import "ios/chrome/browser/web_state_list/web_state_list.h"
+#import "ios/chrome/browser/url_loading/model/url_loading_params.h"
 #import "ios/chrome/browser/web_state_list/web_usage_enabler/web_usage_enabler_browser_agent.h"
 #import "ios/chrome/test/app/chrome_test_util.h"
 #import "ios/testing/open_url_context.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
+// To get access to UseSessionSerializationOptimizations().
+// TODO(crbug.com/1383087): remove once the feature is fully launched.
+#import "ios/web/common/features.h"
 
 namespace chrome_test_util {
 
@@ -47,6 +48,14 @@ Browser* GetCurrentBrowser() {
 WebStateList* GetCurrentWebStateList() {
   Browser* browser = GetCurrentBrowser();
   return browser ? browser->GetWebStateList() : nullptr;
+}
+
+// Close all tabs for `browser` and request the session to be saved.
+void CloseAllTabsForBrowser(Browser* browser) {
+  DCHECK(browser);
+  const int close_flags = WebStateList::CLOSE_USER_ACTION;
+  browser->GetWebStateList()->CloseAllWebStates(close_flags);
+  SaveSessionForBrowser(browser);
 }
 
 }  // namespace
@@ -90,7 +99,7 @@ void SimulateAddAccountFromWeb() {
   id<ApplicationCommands, BrowserCommands> handler =
       chrome_test_util::HandlerForActiveBrowser();
   ShowSigninCommand* command = [[ShowSigninCommand alloc]
-      initWithOperation:AuthenticationOperationAddAccount
+      initWithOperation:AuthenticationOperation::kAddAccount
             accessPoint:signin_metrics::AccessPoint::ACCESS_POINT_UNKNOWN];
   UIViewController* baseViewController =
       GetForegroundActiveScene()
@@ -156,6 +165,16 @@ void CloseCurrentTab() {
                                   WebStateList::CLOSE_USER_ACTION);
 }
 
+void PinCurrentTab() {
+  WebStateList* web_state_list = GetCurrentWebStateList();
+  if (!web_state_list ||
+      web_state_list->active_index() == WebStateList::kInvalidIndex) {
+    return;
+  }
+  web_state_list->SetWebStatePinnedAt(web_state_list->active_index(),
+                                      /*pinned =*/true);
+}
+
 void CloseTabAtIndex(NSUInteger index) {
   @autoreleasepool {  // Make sure that all internals are deallocated.
     DCHECK_LE(index, static_cast<NSUInteger>(INT_MAX));
@@ -176,24 +195,19 @@ void CloseAllTabsInCurrentMode() {
 
 void CloseAllTabs() {
   if (GetIncognitoTabCount() && GetForegroundActiveSceneController()) {
-    Browser* browser =
+    CloseAllTabsForBrowser(
         GetForegroundActiveSceneController()
-            .browserProviderInterface.incognitoBrowserProvider.browser;
-    DCHECK(browser);
-    browser->GetWebStateList()->CloseAllWebStates(
-        WebStateList::CLOSE_USER_ACTION);
-    SessionRestorationBrowserAgent::FromBrowser(browser)->SaveSession(
-        /*immediately=*/true);
+            .browserProviderInterface.incognitoBrowserProvider.browser);
   }
   if (GetMainTabCount() && GetForegroundActiveScene()) {
-    Browser* browser =
+    CloseAllTabsForBrowser(
         GetForegroundActiveScene()
-            .browserProviderInterface.mainBrowserProvider.browser;
-    DCHECK(browser);
-    browser->GetWebStateList()->CloseAllWebStates(
-        WebStateList::CLOSE_USER_ACTION);
-    SessionRestorationBrowserAgent::FromBrowser(browser)->SaveSession(
-        /*immediately=*/true);
+            .browserProviderInterface.mainBrowserProvider.browser);
+  }
+  if (GetInactiveTabCount() && GetForegroundActiveScene()) {
+    CloseAllTabsForBrowser(
+        GetForegroundActiveScene()
+            .browserProviderInterface.mainBrowserProvider.inactiveBrowser);
   }
 }
 
@@ -208,6 +222,13 @@ void SelectTabAtIndexInCurrentMode(NSUInteger index) {
 NSUInteger GetMainTabCount() {
   return GetMainController()
       .browserProviderInterface.mainBrowserProvider.browser->GetWebStateList()
+      ->count();
+}
+
+NSUInteger GetInactiveTabCount() {
+  return GetMainController()
+      .browserProviderInterface.mainBrowserProvider.inactiveBrowser
+      ->GetWebStateList()
       ->count();
 }
 

@@ -19,6 +19,7 @@
 #include "base/location.h"
 #include "base/logging.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/numerics/safe_conversions.h"
 #include "base/ranges/algorithm.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
@@ -75,10 +76,6 @@ enum class KeyStatus : uint32_t {
   KEY_STATUS_USABLE_IN_FUTURE = 5,  // Added in API level 29.
 };
 
-const uint8_t kWidevineUuid[16] = {
-    0xED, 0xEF, 0x8B, 0xA9, 0x79, 0xD6, 0x4A, 0xCE,  //
-    0xA3, 0xC8, 0x27, 0xDC, 0xD5, 0x1D, 0x21, 0xED};
-
 // Convert |init_data_type| to a string supported by MediaDRM.
 // "audio"/"video" does not matter, so use "video".
 std::string ConvertInitDataType(media::EmeInitDataType init_data_type) {
@@ -92,10 +89,10 @@ std::string ConvertInitDataType(media::EmeInitDataType init_data_type) {
       return "video/mp4";
     case media::EmeInitDataType::KEYIDS:
       return "keyids";
-    default:
-      NOTREACHED();
-      return "unknown";
+    case media::EmeInitDataType::UNKNOWN:
+      NOTREACHED_NORETURN();
   }
+  NOTREACHED_NORETURN();
 }
 
 // Convert CdmSessionType to MediaDrmKeyType supported by MediaDrm.
@@ -123,8 +120,7 @@ CdmMessageType GetMessageType(RequestType request_type) {
       return CdmMessageType::LICENSE_RELEASE;
   }
 
-  NOTREACHED();
-  return CdmMessageType::LICENSE_REQUEST;
+  NOTREACHED_NORETURN();
 }
 
 CdmKeyInformation::KeyStatus ConvertKeyStatus(KeyStatus key_status,
@@ -158,8 +154,7 @@ CdmKeyInformation::KeyStatus ConvertKeyStatus(KeyStatus key_status,
       return CdmKeyInformation::EXPIRED;
   }
 
-  NOTREACHED();
-  return CdmKeyInformation::INTERNAL_ERROR;
+  NOTREACHED_NORETURN();
 }
 
 class KeySystemManager {
@@ -182,9 +177,11 @@ KeySystemManager::KeySystemManager() {
   // Widevine is always supported in Android.
   key_system_uuid_map_[kWidevineKeySystem] =
       UUID(kWidevineUuid, kWidevineUuid + std::size(kWidevineUuid));
-  // ClearKey is always supported in Android.
-  key_system_uuid_map_[kExternalClearKeyKeySystem] =
-      UUID(kClearKeyUuid, kClearKeyUuid + std::size(kClearKeyUuid));
+  // External Clear Key is supported only for testing.
+  if (base::FeatureList::IsEnabled(media::kExternalClearKeyForTesting)) {
+    key_system_uuid_map_[kExternalClearKeyKeySystem] =
+        UUID(kClearKeyUuid, kClearKeyUuid + std::size(kClearKeyUuid));
+  }
   MediaDrmBridgeClient* client = GetMediaDrmBridgeClient();
   if (client)
     client->AddKeySystemUUIDMappings(&key_system_uuid_map_);
@@ -220,10 +217,7 @@ KeySystemManager* GetKeySystemManager() {
 // resolved.
 bool IsKeySystemSupportedWithTypeImpl(const std::string& key_system,
                                       const std::string& container_mime_type) {
-  if (key_system.empty()) {
-    NOTREACHED();
-    return false;
-  }
+  CHECK(!key_system.empty());
 
   UUID scheme_uuid = GetKeySystemManager()->GetUUID(key_system);
   if (scheme_uuid.empty()) {
@@ -397,6 +391,7 @@ void MediaDrmBridge::SetServerCertificate(
     ResolvePromise(promise_id);
   } else {
     RejectPromise(promise_id, CdmPromise::Exception::TYPE_ERROR,
+                  MediaDrmSystemCode::SET_SERVER_CERTIFICATE_FAILED,
                   "Set server certificate failed.");
   }
 }
@@ -427,6 +422,7 @@ void MediaDrmBridge::CreateSessionAndGenerateRequest(
                                      &init_data_from_delegate,
                                      &optional_parameters_from_delegate)) {
         RejectPromise(promise_id, CdmPromise::Exception::TYPE_ERROR,
+                      MediaDrmSystemCode::CREATE_SESSION_FAILED,
                       "Invalid init data.");
         return;
       }
@@ -472,6 +468,7 @@ void MediaDrmBridge::LoadSession(
 
   if (session_type != CdmSessionType::kPersistentLicense) {
     RejectPromise(promise_id, CdmPromise::Exception::NOT_SUPPORTED_ERROR,
+                  MediaDrmSystemCode::NOT_PERSISTENT_LICENSE,
                   "LoadSession() is only supported for 'persistent-license'.");
     return;
   }
@@ -563,6 +560,12 @@ bool MediaDrmBridge::IsSecureCodecRequired() {
   if (base::ranges::equal(scheme_uuid_, kWidevineUuid))
     return SECURITY_LEVEL_1 == GetSecurityLevel();
 
+  // If UUID is ClearKey, we should automatically return false since secure
+  // codecs should not be required.
+  if (base::ranges::equal(scheme_uuid_, kClearKeyUuid)) {
+    return false;
+  }
+
   // For other key systems, assume true.
   return true;
 }
@@ -598,9 +601,11 @@ void MediaDrmBridge::ResolvePromiseWithSession(uint32_t promise_id,
 
 void MediaDrmBridge::RejectPromise(uint32_t promise_id,
                                    CdmPromise::Exception exception_code,
+                                   MediaDrmSystemCode system_code,
                                    const std::string& error_message) {
   DVLOG(2) << __func__;
-  cdm_promise_adapter_.RejectPromise(promise_id, exception_code, 0,
+  cdm_promise_adapter_.RejectPromise(promise_id, exception_code,
+                                     base::checked_cast<uint32_t>(system_code),
                                      error_message);
 }
 
@@ -703,11 +708,15 @@ void MediaDrmBridge::OnPromiseRejected(
     JNIEnv* env,
     const JavaParamRef<jobject>& j_media_drm,
     jint j_promise_id,
+    jint j_system_code,
     const JavaParamRef<jstring>& j_error_message) {
+  CHECK(j_system_code >= static_cast<jint>(MediaDrmSystemCode::MIN_VALUE) &&
+        j_system_code <= static_cast<jint>(MediaDrmSystemCode::MAX_VALUE));
   task_runner_->PostTask(
       FROM_HERE,
       base::BindOnce(&MediaDrmBridge::RejectPromise, weak_factory_.GetWeakPtr(),
                      j_promise_id, CdmPromise::Exception::NOT_SUPPORTED_ERROR,
+                     static_cast<MediaDrmSystemCode>(j_system_code),
                      ConvertJavaStringToUTF8(env, j_error_message)));
 }
 
@@ -798,8 +807,8 @@ void MediaDrmBridge::OnSessionKeysChange(
 // spec uses to indicate that the license will never expire [5].
 // [1]
 // http://developer.android.com/reference/android/media/MediaDrm.OnExpirationUpdateListener.html
-// [2] See base::Time::FromDoubleT()
-// [3] See base::Time::ToJavaTime()
+// [2] See base::Time::FromSecondsSinceUnixEpoch()
+// [3] See base::Time::InMillisecondsSinceUnixEpoch()
 // [4] See MediaKeySession::expirationChanged()
 // [5] https://github.com/w3c/encrypted-media/issues/58
 void MediaDrmBridge::OnSessionExpirationUpdate(
@@ -812,8 +821,9 @@ void MediaDrmBridge::OnSessionExpirationUpdate(
   JavaByteArrayToString(env, j_session_id, &session_id);
   task_runner_->PostTask(
       FROM_HERE,
-      base::BindOnce(session_expiration_update_cb_, std::move(session_id),
-                     base::Time::FromDoubleT(expiry_time_ms / 1000.0)));
+      base::BindOnce(
+          session_expiration_update_cb_, std::move(session_id),
+          base::Time::FromMillisecondsSinceUnixEpoch(expiry_time_ms)));
 }
 
 //------------------------------------------------------------------------------

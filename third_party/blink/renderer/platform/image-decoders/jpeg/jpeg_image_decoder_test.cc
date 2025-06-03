@@ -1,32 +1,6 @@
-/*
- * Copyright (C) 2013 Google Inc. All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are
- * met:
- *
- *     * Redistributions of source code must retain the above copyright
- * notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above
- * copyright notice, this list of conditions and the following disclaimer
- * in the documentation and/or other materials provided with the
- * distribution.
- *     * Neither the name of Google Inc. nor the names of its
- * contributors may be used to endorse or promote products derived from
- * this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
+// Copyright 2013 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #include "third_party/blink/renderer/platform/image-decoders/jpeg/jpeg_image_decoder.h"
 
@@ -50,7 +24,7 @@ namespace {
 
 std::unique_ptr<JPEGImageDecoder> CreateJPEGDecoder(size_t max_decoded_bytes) {
   return std::make_unique<JPEGImageDecoder>(
-      ImageDecoder::kAlphaNotPremultiplied, ColorBehavior::TransformToSRGB(),
+      ImageDecoder::kAlphaNotPremultiplied, ColorBehavior::kTransformToSRGB,
       max_decoded_bytes);
 }
 
@@ -123,6 +97,13 @@ void ReadYUV(size_t max_decoded_bytes,
 
   EXPECT_EQ(expect_decoding_failure, decoder->Failed());
   EXPECT_TRUE(decoder->HasDisplayableYUVData());
+}
+
+void TestJpegBppHistogram(const char* image_name,
+                          const char* histogram_name = nullptr,
+                          base::HistogramBase::Sample sample = 0) {
+  TestBppHistogram(CreateJPEGDecoder, "Jpeg", image_name, histogram_name,
+                   sample);
 }
 
 }  // anonymous namespace
@@ -491,8 +472,9 @@ TEST_P(ColorSpaceTest, CorrectColorSpaceUMARecorded) {
 // subsamplings if applicable).
 TEST_P(ColorSpaceTest, YuvDecode) {
   // Test only successful decoding
-  if (!GetParam().expected_success)
+  if (!GetParam().expected_success) {
     return;
+  }
 
   if (GetParam().expect_yuv_decoding) {
     const auto jpeg_file = ("/images/resources/" + GetParam().file);
@@ -506,8 +488,9 @@ TEST_P(ColorSpaceTest, YuvDecode) {
 // subsamplings if applicable).
 TEST_P(ColorSpaceTest, RgbDecode) {
   // Test only successful decoding
-  if (!GetParam().expected_success)
+  if (!GetParam().expected_success) {
     return;
+  }
 
   if (!GetParam().expect_yuv_decoding) {
     const auto jpeg_file = ("/images/resources/" + GetParam().file);
@@ -631,6 +614,116 @@ TEST(JPEGImageDecoderTest, PartialRgbDecodeBlocksYuvDecoding) {
   EXPECT_NE(frame->GetStatus(), ImageFrame::kFrameComplete);
   decoder->SetData(full_data.get(), true);
   EXPECT_FALSE(decoder->CanDecodeToYUV());
+}
+
+TEST(JPEGImageDecoderTest, Gainmap) {
+  const char* jpeg_file = "/images/resources/gainmap-trattore0.jpg";
+  scoped_refptr<SharedBuffer> full_data = ReadFile(jpeg_file);
+  ASSERT_TRUE(full_data);
+
+  auto base_decoder = CreateJPEGDecoder();
+  base_decoder->SetData(full_data.get(), true);
+  ASSERT_TRUE(base_decoder->IsSizeAvailable());
+  EXPECT_EQ(gfx::Size(134, 100), base_decoder->DecodedSize());
+
+  SkGainmapInfo gainmap_info;
+  scoped_refptr<SegmentReader> gainmap_data;
+  ASSERT_TRUE(base_decoder->GetGainmapInfoAndData(gainmap_info, gainmap_data));
+
+  // Ensure that the gainmap information was extracted.
+  EXPECT_NEAR(gainmap_info.fDisplayRatioHdr, 2.718f, 1.0e-3f);
+
+  // Ensure that the extracted gainmap image contains an appropriately-sized
+  // image.
+  auto gainmap_decoder = CreateJPEGDecoder();
+  gainmap_decoder->SetData(gainmap_data.get(), true);
+  ASSERT_TRUE(gainmap_decoder->IsSizeAvailable());
+  EXPECT_FALSE(gainmap_decoder->Failed());
+  EXPECT_EQ(gfx::Size(33, 25), gainmap_decoder->DecodedSize());
+}
+
+TEST(JPEGImageDecoderTest, BppHistogramSmall) {
+  constexpr int kImageArea = 500 * 644;  // = 322000
+  constexpr int kFileSize = 98527;
+  constexpr int kSample =
+      (kFileSize * 100 * 8 + kImageArea / 2) / kImageArea;  // = 245
+  TestJpegBppHistogram("/images/resources/flowchart.jpg",
+                       "Blink.DecodedImage.JpegDensity.Count.0.4MP", kSample);
+}
+
+TEST(JPEGImageDecoderTest, BppHistogramSmall16x16) {
+  // The centi bpp = 764 * 100 * 8 / (16 * 16) ~= 2388, which is greater than
+  // the histogram's max value (1000), so this sample goes into the overflow
+  // bucket.
+  constexpr int kSample = 1000;
+  TestJpegBppHistogram("/images/resources/green.jpg",
+                       "Blink.DecodedImage.JpegDensity.Count.0.1MP", kSample);
+}
+
+TEST(JPEGImageDecoderTest, BppHistogramSmall900000) {
+  constexpr int kImageArea = 1200 * 750;  // = 900000
+  constexpr int kFileSize = 13726;
+  constexpr int kSample =
+      (kFileSize * 100 * 8 + kImageArea / 2) / kImageArea;  // = 12
+  TestJpegBppHistogram("/images/resources/peach_900000.jpg",
+                       "Blink.DecodedImage.JpegDensity.Count.0.9MP", kSample);
+}
+
+TEST(JPEGImageDecoderTest, BppHistogramBig) {
+  constexpr int kImageArea = 4032 * 3024;  // = 12192768
+  constexpr int kFileSize = 54423;
+  constexpr int kSample =
+      (kFileSize * 100 * 8 + kImageArea / 2) / kImageArea;  // = 4
+  TestJpegBppHistogram("/images/resources/bee.jpg",
+                       "Blink.DecodedImage.JpegDensity.Count.13MP", kSample);
+}
+
+TEST(JPEGImageDecoderTest, BppHistogramBig13000000) {
+  constexpr int kImageArea = 4000 * 3250;  // = 13000000
+  constexpr int kFileSize = 49203;
+  constexpr int kSample =
+      (kFileSize * 100 * 8 + kImageArea / 2) / kImageArea;  // = 3
+  TestJpegBppHistogram("/images/resources/peach_13000000.jpg",
+                       "Blink.DecodedImage.JpegDensity.Count.13MP", kSample);
+}
+
+TEST(JPEGImageDecoderTest, BppHistogramHuge) {
+  constexpr int kImageArea = 4624 * 3472;  // = 16054528
+  constexpr int kFileSize = 60007;
+  constexpr int kSample =
+      (kFileSize * 100 * 8 + kImageArea / 2) / kImageArea;  // = 3
+  TestJpegBppHistogram("/images/resources/peach.jpg",
+                       "Blink.DecodedImage.JpegDensity.Count.14+MP", kSample);
+}
+
+TEST(JPEGImageDecoderTest, BppHistogramHuge13000002) {
+  constexpr int kImageArea = 3961 * 3282;  // = 13000002
+  constexpr int kFileSize = 49325;
+  constexpr int kSample =
+      (kFileSize * 100 * 8 + kImageArea / 2) / kImageArea;  // = 3
+  TestJpegBppHistogram("/images/resources/peach_13000002.jpg",
+                       "Blink.DecodedImage.JpegDensity.Count.14+MP", kSample);
+}
+
+TEST(JPEGImageDecoderTest, BppHistogramInvalid) {
+  base::HistogramTester histogram_tester;
+  std::unique_ptr<ImageDecoder> decoder = CreateJPEGDecoder();
+  decoder->SetData(ReadFile("/images/resources/green-truncated.jpg"), true);
+  ASSERT_TRUE(decoder->IsSizeAvailable());
+  EXPECT_FALSE(decoder->Failed());
+  EXPECT_EQ(decoder->FrameCount(), 1u);
+  ImageFrame* frame = decoder->DecodeFrameBufferAtIndex(0);
+  ASSERT_TRUE(frame);
+  EXPECT_NE(ImageFrame::kFrameComplete, frame->GetStatus());
+  EXPECT_TRUE(decoder->Failed());
+  const base::HistogramTester::CountsMap empty_counts;
+  EXPECT_THAT(histogram_tester.GetTotalCountsForPrefix(
+                  "Blink.DecodedImage.JpegDensity.Count."),
+              testing::ContainerEq(empty_counts));
+}
+
+TEST(JPEGImageDecoderTest, BppHistogramGrayscale) {
+  TestJpegBppHistogram("/images/resources/cs-uma-grayscale.jpg");
 }
 
 }  // namespace blink

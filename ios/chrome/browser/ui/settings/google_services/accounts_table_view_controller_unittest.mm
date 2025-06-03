@@ -4,20 +4,19 @@
 
 #import "ios/chrome/browser/ui/settings/google_services/accounts_table_view_controller.h"
 
+#import "base/apple/foundation_util.h"
 #import "base/functional/callback_helpers.h"
-#import "base/mac/foundation_util.h"
 #import "base/run_loop.h"
 #import "base/strings/sys_string_conversions.h"
 #import "base/test/scoped_feature_list.h"
-#import "components/signin/public/identity_manager/account_info.h"
 #import "components/sync/base/features.h"
-#import "components/sync/driver/sync_service.h"
+#import "components/sync/service/sync_service.h"
 #import "components/sync/test/test_sync_service.h"
 #import "components/variations/scoped_variations_ids_provider.h"
 #import "google_apis/gaia/core_account_id.h"
-#import "ios/chrome/browser/application_context/application_context.h"
-#import "ios/chrome/browser/browser_state/test_chrome_browser_state.h"
-#import "ios/chrome/browser/main/test_browser.h"
+#import "ios/chrome/browser/shared/model/application_context/application_context.h"
+#import "ios/chrome/browser/shared/model/browser/test/test_browser.h"
+#import "ios/chrome/browser/shared/model/browser_state/test_chrome_browser_state.h"
 #import "ios/chrome/browser/shared/public/commands/application_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
@@ -28,9 +27,9 @@
 #import "ios/chrome/browser/signin/fake_system_identity.h"
 #import "ios/chrome/browser/signin/fake_system_identity_manager.h"
 #import "ios/chrome/browser/signin/identity_manager_factory.h"
-#import "ios/chrome/browser/sync/sync_service_factory.h"
-#import "ios/chrome/browser/sync/sync_setup_service_factory.h"
-#import "ios/chrome/browser/sync/sync_setup_service_mock.h"
+#import "ios/chrome/browser/sync/model/sync_service_factory.h"
+#import "ios/chrome/browser/sync/model/sync_setup_service_factory.h"
+#import "ios/chrome/browser/sync/model/sync_setup_service_mock.h"
 #import "ios/chrome/test/ios_chrome_scoped_testing_local_state.h"
 #import "ios/web/public/browser_state.h"
 #import "ios/web/public/test/web_task_environment.h"
@@ -38,10 +37,6 @@
 #import "testing/gtest/include/gtest/gtest.h"
 #import "third_party/ocmock/OCMock/OCMock.h"
 #import "third_party/ocmock/gtest_support.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace {
 
@@ -56,7 +51,7 @@ void SetSyncStateFeatureActive(const CoreAccountInfo& account,
   sync_service->SetHasSyncConsent(true);
   sync_service->SetTransportState(syncer::SyncService::TransportState::ACTIVE);
   sync_service->SetDisableReasons({});
-  sync_service->SetFirstSetupComplete(true);
+  sync_service->SetInitialSyncFeatureSetupComplete(true);
   ASSERT_TRUE(sync_service->IsSyncFeatureEnabled());
 }
 
@@ -65,8 +60,7 @@ void SetSyncStateTransportActive(const CoreAccountInfo& account,
   sync_service->SetAccountInfo(account);
   sync_service->SetHasSyncConsent(false);
   sync_service->SetTransportState(syncer::SyncService::TransportState::ACTIVE);
-  sync_service->SetDisableReasons(
-      {syncer::SyncService::DisableReason::DISABLE_REASON_USER_CHOICE});
+  sync_service->SetDisableReasons({});
   ASSERT_FALSE(sync_service->IsSyncFeatureEnabled());
 }
 
@@ -117,7 +111,7 @@ class AccountsTableViewControllerTest : public ChromeTableViewControllerTest {
   }
 
   void TearDown() override {
-    [base::mac::ObjCCast<AccountsTableViewController>(controller())
+    [base::apple::ObjCCast<AccountsTableViewController>(controller())
         settingsWillBeDismissed];
     ChromeTableViewControllerTest::TearDown();
   }
@@ -165,7 +159,8 @@ TEST_F(AccountsTableViewControllerTest, AddChromeIdentity) {
   fake_system_identity_manager()->AddIdentity(identity);
 
   // Simulates a credential reload.
-  authentication_service()->SignIn(identity);
+  authentication_service()->SignIn(
+      identity, signin_metrics::AccessPoint::ACCESS_POINT_SETTINGS);
   fake_system_identity_manager()->FireSystemIdentityReloaded();
   base::RunLoop().RunUntilIdle();
 
@@ -190,7 +185,8 @@ TEST_F(AccountsTableViewControllerTest, IgnoreMismatchWithAccountInfo) {
   fake_system_identity_manager()->AddIdentity(identity2);
 
   // Simulates a credential reload.
-  authentication_service()->SignIn(identity1);
+  authentication_service()->SignIn(
+      identity1, signin_metrics::AccessPoint::ACCESS_POINT_SETTINGS);
   fake_system_identity_manager()->FireSystemIdentityReloaded();
   base::RunLoop().RunUntilIdle();
 
@@ -217,10 +213,10 @@ TEST_F(AccountsTableViewControllerTest, IgnoreMismatchWithAccountInfo) {
 
 // Tests that when eligible the account model holds the passphrase error and
 // clears the error when the error is resolved.
+// kReplaceSyncPromosWithSignInPromos is disabled.
 TEST_F(AccountsTableViewControllerTest, HoldPassphraseErrorWhenEligible) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(
-      syncer::kIndicateAccountStorageErrorInAccountCell);
+  base::test::ScopedFeatureList features;
+  features.InitAndDisableFeature(syncer::kReplaceSyncPromosWithSignInPromos);
 
   const std::string email = "foo@gmail.com";
   const std::string gaia_id = "fooID";
@@ -232,7 +228,8 @@ TEST_F(AccountsTableViewControllerTest, HoldPassphraseErrorWhenEligible) {
   fake_system_identity_manager()->AddIdentity(identity);
 
   // Simulate a credential reload.
-  authentication_service()->SignIn(identity);
+  authentication_service()->SignIn(
+      identity, signin_metrics::AccessPoint::ACCESS_POINT_SETTINGS);
   fake_system_identity_manager()->FireSystemIdentityReloaded();
   base::RunLoop().RunUntilIdle();
 
@@ -253,10 +250,10 @@ TEST_F(AccountsTableViewControllerTest, HoldPassphraseErrorWhenEligible) {
 // Tests that the Account Storage error is removed from the account model when
 // the error is resolved. Triggers the model update by firing a Sync State
 // change.
+// kReplaceSyncPromosWithSignInPromos is disabled.
 TEST_F(AccountsTableViewControllerTest, ClearPassphraseErrorWhenResolved) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(
-      syncer::kIndicateAccountStorageErrorInAccountCell);
+  base::test::ScopedFeatureList features;
+  features.InitAndDisableFeature(syncer::kReplaceSyncPromosWithSignInPromos);
 
   const std::string email = "foo@gmail.com";
   const std::string gaia_id = "fooID";
@@ -268,7 +265,8 @@ TEST_F(AccountsTableViewControllerTest, ClearPassphraseErrorWhenResolved) {
   fake_system_identity_manager()->AddIdentity(identity);
 
   // Simulate a credential reload.
-  authentication_service()->SignIn(identity);
+  authentication_service()->SignIn(
+      identity, signin_metrics::AccessPoint::ACCESS_POINT_SETTINGS);
   fake_system_identity_manager()->FireSystemIdentityReloaded();
   base::RunLoop().RunUntilIdle();
 
@@ -299,10 +297,10 @@ TEST_F(AccountsTableViewControllerTest, ClearPassphraseErrorWhenResolved) {
 
 // Tests that when ineligible the account model doesn't hold the Account Storage
 // error.
+// kReplaceSyncPromosWithSignInPromos is disabled.
 TEST_F(AccountsTableViewControllerTest, DontHoldPassphraseErrorWhenIneligible) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(
-      syncer::kIndicateAccountStorageErrorInAccountCell);
+  base::test::ScopedFeatureList features;
+  features.InitAndDisableFeature(syncer::kReplaceSyncPromosWithSignInPromos);
 
   const std::string email = "foo@gmail.com";
   const std::string gaia_id = "fooID";
@@ -314,7 +312,8 @@ TEST_F(AccountsTableViewControllerTest, DontHoldPassphraseErrorWhenIneligible) {
   fake_system_identity_manager()->AddIdentity(identity);
 
   // Simulate a credential reload.
-  authentication_service()->SignIn(identity);
+  authentication_service()->SignIn(
+      identity, signin_metrics::AccessPoint::ACCESS_POINT_SETTINGS);
   fake_system_identity_manager()->FireSystemIdentityReloaded();
   base::RunLoop().RunUntilIdle();
 
@@ -331,13 +330,13 @@ TEST_F(AccountsTableViewControllerTest, DontHoldPassphraseErrorWhenIneligible) {
   EXPECT_EQ(2, NumberOfSections());
 }
 
-// Tests that when eligible the account model doesn't have the Account Storage
-// error when there is no error.
+// Tests that when kReplaceSyncPromosWithSignInPromos is enabled, no passphrase
+// error is exposed in the account table view (since it's exposed one level up).
+// kReplaceSyncPromosWithSignInPromos is enabled.
 TEST_F(AccountsTableViewControllerTest,
-       DontHoldPassphraseErrorWhenEligibleNoError) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(
-      syncer::kIndicateAccountStorageErrorInAccountCell);
+       DontHoldPassphraseErrorWhenSyncToSigninEnabled) {
+  base::test::ScopedFeatureList features(
+      syncer::kReplaceSyncPromosWithSignInPromos);
 
   const std::string email = "foo@gmail.com";
   const std::string gaia_id = "fooID";
@@ -349,7 +348,40 @@ TEST_F(AccountsTableViewControllerTest,
   fake_system_identity_manager()->AddIdentity(identity);
 
   // Simulate a credential reload.
-  authentication_service()->SignIn(identity);
+  authentication_service()->SignIn(
+      identity, signin_metrics::AccessPoint::ACCESS_POINT_SETTINGS);
+  fake_system_identity_manager()->FireSystemIdentityReloaded();
+  base::RunLoop().RunUntilIdle();
+
+  CoreAccountInfo account;
+  account.email = email;
+  account.gaia = gaia_id;
+  account.account_id = CoreAccountId::FromGaiaId(account.gaia);
+  SetSyncStateTransportActive(account, test_sync_service());
+  test_sync_service()->SetPassphraseRequiredForPreferredDataTypes(true);
+
+  CreateController();
+  CheckController();
+
+  EXPECT_EQ(2, NumberOfSections());
+}
+
+// Tests that when eligible the account model doesn't have the Account Storage
+// error when there is no error.
+TEST_F(AccountsTableViewControllerTest,
+       DontHoldPassphraseErrorWhenEligibleNoError) {
+  const std::string email = "foo@gmail.com";
+  const std::string gaia_id = "fooID";
+
+  FakeSystemIdentity* identity =
+      [FakeSystemIdentity identityWithEmail:base::SysUTF8ToNSString(email)
+                                     gaiaID:base::SysUTF8ToNSString(gaia_id)
+                                       name:@"Fake Foo"];
+  fake_system_identity_manager()->AddIdentity(identity);
+
+  // Simulate a credential reload.
+  authentication_service()->SignIn(
+      identity, signin_metrics::AccessPoint::ACCESS_POINT_SETTINGS);
   fake_system_identity_manager()->FireSystemIdentityReloaded();
   base::RunLoop().RunUntilIdle();
 

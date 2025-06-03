@@ -5,6 +5,7 @@
 #include "ash/app_list/views/scrollable_apps_grid_view.h"
 
 #include <limits>
+#include <list>
 #include <memory>
 #include <string>
 #include <utility>
@@ -23,6 +24,7 @@
 #include "ash/app_list/views/search_box_view.h"
 #include "ash/constants/ash_features.h"
 #include "ash/public/cpp/app_list/app_list_config.h"
+#include "ash/public/cpp/app_list/app_list_features.h"
 #include "ash/public/cpp/shelf_item_delegate.h"
 #include "ash/public/cpp/shelf_model.h"
 #include "ash/public/cpp/test/test_shelf_item_delegate.h"
@@ -30,6 +32,7 @@
 #include "ash/shell.h"
 #include "ash/test/ash_test_base.h"
 #include "base/memory/raw_ptr.h"
+#include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
@@ -43,26 +46,39 @@ namespace {
 class ShelfItemFactoryFake : public ShelfModel::ShelfItemFactory {
  public:
   virtual ~ShelfItemFactoryFake() = default;
-  bool CreateShelfItemForAppId(
-      const std::string& app_id,
-      ShelfItem* item,
-      std::unique_ptr<ShelfItemDelegate>* delegate) override {
-    *item = ShelfItem();
-    item->id = ShelfID(app_id);
-    *delegate = std::make_unique<TestShelfItemDelegate>(item->id);
-    return true;
+
+  // ShelfModel::ShelfItemFactory:
+  std::unique_ptr<ShelfItem> CreateShelfItemForApp(
+      const ShelfID& shelf_id,
+      ShelfItemStatus status,
+      ShelfItemType shelf_item_type,
+      const std::u16string& title) override {
+    auto item = std::make_unique<ShelfItem>();
+    item->id = shelf_id;
+    item->status = status;
+    item->type = shelf_item_type;
+    item->title = title;
+    return item;
+  }
+
+  std::unique_ptr<ShelfItemDelegate> CreateShelfItemDelegateForAppId(
+      const std::string& app_id) override {
+    return std::make_unique<TestShelfItemDelegate>(ShelfID(app_id));
   }
 };
 
 }  // namespace
 
-class ScrollableAppsGridViewTest : public AshTestBase {
+class ScrollableAppsGridViewTest : public AshTestBase,
+                                   public testing::WithParamInterface<bool> {
  public:
   ScrollableAppsGridViewTest()
       : AshTestBase(base::test::TaskEnvironment::TimeSource::MOCK_TIME) {}
   ~ScrollableAppsGridViewTest() override = default;
 
   void SetUp() override {
+    scoped_feature_list_.InitWithFeatureState(
+        app_list_features::kDragAndDropRefactor, GetParam());
     AshTestBase::SetUp();
 
     shelf_item_factory_ = std::make_unique<ShelfItemFactoryFake>();
@@ -108,13 +124,16 @@ class ScrollableAppsGridViewTest : public AshTestBase {
     scroll_view_ = apps_grid_view_->scroll_view_for_test();
   }
 
-  AppListItemView* StartDragOnItemViewAt(int item_index) {
-    AppListItemView* item = apps_grid_view_->GetItemViewAt(item_index);
+  AppListItemView* StartDragOnView(AppListItemView* item) {
     auto* generator = GetEventGenerator();
     generator->MoveMouseTo(item->GetBoundsInScreen().CenterPoint());
     generator->PressLeftButton();
-    item->FireMouseDragTimerForTest();
+    EXPECT_TRUE(item->FireMouseDragTimerForTest());
     return item;
+  }
+
+  AppListItemView* StartDragOnItemViewAt(int item_index) {
+    return StartDragOnView(apps_grid_view_->GetItemViewAt(item_index));
   }
 
   AppListItemView* StartDragOnItemInFolderAt(int item_index) {
@@ -122,20 +141,16 @@ class ScrollableAppsGridViewTest : public AshTestBase {
     auto* folder_view = GetAppListTestHelper()->GetBubbleFolderView();
     AppListItemView* item =
         folder_view->items_grid_view()->GetItemViewAt(item_index);
-    auto* generator = GetEventGenerator();
-    generator->MoveMouseTo(item->GetBoundsInScreen().CenterPoint());
-    generator->PressLeftButton();
-    item->FireMouseDragTimerForTest();
-    return item;
+    return StartDragOnView(item);
   }
 
   void DragItemOutOfFolder() {
     ASSERT_TRUE(GetAppListTestHelper()->IsInFolderView());
     auto* folder_view = GetAppListTestHelper()->GetBubbleFolderView();
     ASSERT_TRUE(folder_view->items_grid_view()->has_dragged_item());
-    gfx::Point outside_view =
-        folder_view->GetBoundsInScreen().bottom_right() + gfx::Vector2d(10, 10);
+    gfx::Point outside_view = folder_view->GetBoundsInScreen().bottom_right();
     GetEventGenerator()->MoveMouseTo(outside_view);
+    GetEventGenerator()->MoveMouseBy(10, 10);
     folder_view->items_grid_view()->FireFolderItemReparentTimerForTest();
   }
 
@@ -155,11 +170,16 @@ class ScrollableAppsGridViewTest : public AshTestBase {
   std::unique_ptr<ShelfItemFactoryFake> shelf_item_factory_;
 
   // Cache some view pointers to make the tests more concise.
-  raw_ptr<ScrollableAppsGridView, ExperimentalAsh> apps_grid_view_ = nullptr;
-  raw_ptr<views::ScrollView, ExperimentalAsh> scroll_view_ = nullptr;
+  raw_ptr<ScrollableAppsGridView, DanglingUntriaged | ExperimentalAsh>
+      apps_grid_view_ = nullptr;
+  raw_ptr<views::ScrollView, DanglingUntriaged | ExperimentalAsh> scroll_view_ =
+      nullptr;
+  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
-TEST_F(ScrollableAppsGridViewTest, ClickOnApp) {
+INSTANTIATE_TEST_SUITE_P(All, ScrollableAppsGridViewTest, testing::Bool());
+
+TEST_P(ScrollableAppsGridViewTest, ClickOnApp) {
   AddAppListItem("id");
 
   ShowAppList();
@@ -175,7 +195,7 @@ TEST_F(ScrollableAppsGridViewTest, ClickOnApp) {
   EXPECT_EQ("id", GetTestAppListClient()->activate_item_last_id());
 }
 
-TEST_F(ScrollableAppsGridViewTest, DragApp) {
+TEST_P(ScrollableAppsGridViewTest, DragApp) {
   base::HistogramTester histogram_tester;
   AddAppListItem("id1");
   AddAppListItem("id2");
@@ -184,10 +204,17 @@ TEST_F(ScrollableAppsGridViewTest, DragApp) {
   // Start dragging the first item.
   StartDragOnItemViewAt(0);
 
-  // Drag to the right of the second item.
-  gfx::Size tile_size = apps_grid_view_->GetTotalTileSize(/*page=*/0);
   auto* generator = GetEventGenerator();
-  generator->MoveMouseBy(tile_size.width() * 2, 0);
+  // Drag to the right of the second item.
+  std::list<base::OnceClosure> tasks;
+  tasks.push_back(base::BindLambdaForTesting([&]() {
+    gfx::Size tile_size = apps_grid_view_->GetTotalTileSize(/*page=*/0);
+    generator->MoveMouseBy(tile_size.width() * 2, 0);
+  }));
+  tasks.push_back(base::BindLambdaForTesting(
+      [&]() { GetEventGenerator()->ReleaseLeftButton(); }));
+  MaybeRunDragAndDropSequenceForAppList(&tasks, /*is_touch=*/false);
+
   generator->ReleaseLeftButton();
 
   // The item was not activated.
@@ -205,18 +232,22 @@ TEST_F(ScrollableAppsGridViewTest, DragApp) {
                                      kReorderByDragInTopLevel, 1);
 }
 
-TEST_F(ScrollableAppsGridViewTest, SearchBoxHasFocusAfterDrag) {
+TEST_P(ScrollableAppsGridViewTest, SearchBoxHasFocusAfterDrag) {
   PopulateApps(2);
   ShowAppList();
 
   // Drag the first item to the right.
   AppListItemView* item = StartDragOnItemViewAt(0);
-  GetEventGenerator()->MoveMouseBy(250, 0);
-  GetEventGenerator()->ReleaseLeftButton();
 
-  // The item does not have focus.
+  std::list<base::OnceClosure> tasks;
+  tasks.push_back(base::BindLambdaForTesting(
+      [&]() { GetEventGenerator()->MoveMouseBy(250, 0); }));
+  tasks.push_back(base::BindLambdaForTesting(
+      [&]() { GetEventGenerator()->ReleaseLeftButton(); }));
+  MaybeRunDragAndDropSequenceForAppList(&tasks, /*is_touch=*/false);
+
+  // The item does not have focus, but it might be selected.
   EXPECT_FALSE(item->HasFocus());
-  EXPECT_FALSE(apps_grid_view_->IsSelectedView(item));
 
   // The search box has focus.
   auto* search_box_view = GetAppListTestHelper()->GetBubbleSearchBoxView();
@@ -224,7 +255,7 @@ TEST_F(ScrollableAppsGridViewTest, SearchBoxHasFocusAfterDrag) {
   EXPECT_TRUE(search_box_view->is_search_box_active());
 }
 
-TEST_F(ScrollableAppsGridViewTest, DragAppAfterScrollingDown) {
+TEST_P(ScrollableAppsGridViewTest, DragAppAfterScrollingDown) {
   // Simulate data from another device.
   PopulateApps(20);
   AddAppListItem("aaa");
@@ -244,21 +275,25 @@ TEST_F(ScrollableAppsGridViewTest, DragAppAfterScrollingDown) {
   ASSERT_EQ("aaa", item->item()->id());
   item->ScrollViewToVisible();
 
-  // Drag the "aaa" item to the right.
   auto* generator = GetEventGenerator();
-  generator->MoveMouseTo(item->GetBoundsInScreen().CenterPoint());
-  generator->PressLeftButton();
-  item->FireMouseDragTimerForTest();
-  gfx::Size tile_size = apps_grid_view->GetTotalTileSize(/*page=*/0);
-  generator->MoveMouseBy(tile_size.width() * 2, 0);
-  generator->ReleaseLeftButton();
+  // Drag the "aaa" item to the right.
+  StartDragOnView(item);
+
+  std::list<base::OnceClosure> tasks;
+  tasks.push_back(base::BindLambdaForTesting([&]() {
+    gfx::Size tile_size = apps_grid_view->GetTotalTileSize(/*page=*/0);
+    generator->MoveMouseBy(tile_size.width() * 2, 0);
+  }));
+  tasks.push_back(
+      base::BindLambdaForTesting([&]() { generator->ReleaseLeftButton(); }));
+  MaybeRunDragAndDropSequenceForAppList(&tasks, /*is_touch=*/false);
 
   // The last 2 items were reordered.
   EXPECT_EQ("bbb", item_list->item_at(20)->id()) << item_list->ToString();
   EXPECT_EQ("aaa", item_list->item_at(21)->id()) << item_list->ToString();
 }
 
-TEST_F(ScrollableAppsGridViewTest, AutoScrollDown) {
+TEST_P(ScrollableAppsGridViewTest, AutoScrollDown) {
   PopulateApps(30);
   ShowAppList();
 
@@ -268,54 +303,67 @@ TEST_F(ScrollableAppsGridViewTest, AutoScrollDown) {
 
   // Drag an item into the bottom auto-scroll margin.
   StartDragOnItemViewAt(0);
+
   auto* generator = GetEventGenerator();
-  generator->MoveMouseTo(scroll_view_->GetBoundsInScreen().bottom_center());
-
-  // The scroll view scrolls immediately.
-  const int scroll_offset1 = scroll_view_->GetVisibleRect().y();
-  EXPECT_GT(scroll_offset1, 0);
-
-  // Scroll timer is running.
-  EXPECT_TRUE(apps_grid_view_->auto_scroll_timer_for_test()->IsRunning());
-
-  // Reordering is paused.
-  EXPECT_FALSE(apps_grid_view_->reorder_timer_for_test()->IsRunning());
-
-  // Holding the mouse in place for a while scrolls down more.
-  task_environment()->FastForwardBy(base::Milliseconds(100));
-  const int scroll_offset2 = scroll_view_->GetVisibleRect().y();
-  EXPECT_GT(scroll_offset2, scroll_offset1);
-
-  // Move the mouse back into the (vertical) center of the view (not in the
-  // scroll margin). Use a point close to a horizontal edge to avoid hitting an
-  // item bounds (which would trigger reparent instead of reorder timer).
-  generator->MoveMouseTo(scroll_view_->GetBoundsInScreen().left_center() +
-                         gfx::Vector2d(5, 0));
-
-  // Scroll position didn't change, auto-scrolling is stopped, and reordering
-  // started again.
-  EXPECT_EQ(scroll_offset2, scroll_view_->GetVisibleRect().y());
-  EXPECT_FALSE(apps_grid_view_->auto_scroll_timer_for_test()->IsRunning());
-  EXPECT_TRUE(apps_grid_view_->reorder_timer_for_test()->IsRunning());
+  int scroll_offset_start, scroll_offset_end;
+  // Drag an item into the bottom auto-scroll margin.
+  std::list<base::OnceClosure> tasks;
+  tasks.push_back(base::BindLambdaForTesting([&]() {
+    generator->MoveMouseTo(scroll_view_->GetBoundsInScreen().bottom_center() +
+                           gfx::Vector2d(0, -5));
+    // The scroll view scrolls immediately.
+    scroll_offset_start = scroll_view_->GetVisibleRect().y();
+    EXPECT_GT(scroll_offset_start, 0);
+    // Scroll timer is running.
+    EXPECT_TRUE(apps_grid_view_->auto_scroll_timer_for_test()->IsRunning());
+    // Reordering is paused.
+    EXPECT_FALSE(apps_grid_view_->reorder_timer_for_test()->IsRunning());
+  }));
+  tasks.push_back(base::BindLambdaForTesting([&]() {
+    // Holding the mouse in place for a while scrolls down more.
+    task_environment()->FastForwardBy(base::Milliseconds(100));
+    scroll_offset_end = scroll_view_->GetVisibleRect().y();
+    EXPECT_GT(scroll_offset_end, scroll_offset_start);
+  }));
+  tasks.push_back(base::BindLambdaForTesting([&]() {
+    // Move the mouse back into the (vertical) center of the view (not in the
+    // scroll margin). Use a point within the grid and not the scroll view,
+    // since the apps grid is the target for drop events.
+    generator->MoveMouseTo(apps_grid_view_->GetBoundsInScreen().left_center());
+    // Scroll position didn't change, auto-scrolling is stopped, and reordering
+    // started again.
+    EXPECT_EQ(scroll_offset_end, scroll_view_->GetVisibleRect().y());
+    EXPECT_FALSE(apps_grid_view_->auto_scroll_timer_for_test()->IsRunning());
+    EXPECT_TRUE(apps_grid_view_->reorder_timer_for_test()->IsRunning());
+    GetEventGenerator()->ReleaseLeftButton();
+  }));
+  MaybeRunDragAndDropSequenceForAppList(&tasks, /*is_touch=*/false);
 }
 
-TEST_F(ScrollableAppsGridViewTest, DoesNotAutoScrollUpWhenAtTop) {
+TEST_P(ScrollableAppsGridViewTest, DoesNotAutoScrollUpWhenAtTop) {
   PopulateApps(30);
   ShowAppList();
 
+  auto* generator = GetEventGenerator();
   // Drag an item into the top auto-scroll margin and wait a while.
   StartDragOnItemViewAt(0);
-  GetEventGenerator()->MoveMouseTo(
-      scroll_view_->GetBoundsInScreen().top_center());
-  task_environment()->FastForwardBy(base::Milliseconds(500));
 
-  // View did not scroll.
-  int scroll_offset = scroll_view_->GetVisibleRect().y();
-  EXPECT_EQ(scroll_offset, 0);
-  EXPECT_FALSE(apps_grid_view_->auto_scroll_timer_for_test()->IsRunning());
+  std::list<base::OnceClosure> tasks;
+  tasks.push_back(base::BindLambdaForTesting([&]() {
+    generator->MoveMouseTo(apps_grid_view_->GetBoundsInScreen().top_center());
+  }));
+  tasks.push_back(base::BindLambdaForTesting([&]() {
+    task_environment()->FastForwardBy(base::Milliseconds(500));
+    // View did not scroll.
+    int scroll_offset = scroll_view_->GetVisibleRect().y();
+    EXPECT_EQ(scroll_offset, 0);
+    EXPECT_FALSE(apps_grid_view_->auto_scroll_timer_for_test()->IsRunning());
+    generator->ReleaseLeftButton();
+  }));
+  MaybeRunDragAndDropSequenceForAppList(&tasks, /*is_touch=*/false);
 }
 
-TEST_F(ScrollableAppsGridViewTest, DoesNotAutoScrollDownWhenAtBottom) {
+TEST_P(ScrollableAppsGridViewTest, DoesNotAutoScrollDownWhenAtBottom) {
   PopulateApps(30);
   ShowAppList();
 
@@ -326,35 +374,52 @@ TEST_F(ScrollableAppsGridViewTest, DoesNotAutoScrollDownWhenAtBottom) {
 
   // Drag an item into the bottom auto-scroll margin and wait a while.
   StartDragOnItemViewAt(29);
-  GetEventGenerator()->MoveMouseTo(
-      scroll_view_->GetBoundsInScreen().bottom_center());
-  task_environment()->FastForwardBy(base::Milliseconds(500));
 
-  // View did not scroll.
-  int scroll_offset = scroll_view_->GetVisibleRect().y();
-  EXPECT_EQ(scroll_offset, initial_scroll_offset);
-  EXPECT_FALSE(apps_grid_view_->auto_scroll_timer_for_test()->IsRunning());
+  auto* generator = GetEventGenerator();
+
+  std::list<base::OnceClosure> tasks;
+  tasks.push_back(base::BindLambdaForTesting([&]() {
+    generator->MoveMouseTo(
+        apps_grid_view_->GetBoundsInScreen().bottom_center());
+  }));
+  tasks.push_back(base::BindLambdaForTesting([&]() {
+    task_environment()->FastForwardBy(base::Milliseconds(500));
+    // View did not scroll.
+    int scroll_offset = scroll_view_->GetVisibleRect().y();
+    EXPECT_EQ(scroll_offset, initial_scroll_offset);
+    EXPECT_FALSE(apps_grid_view_->auto_scroll_timer_for_test()->IsRunning());
+    generator->ReleaseLeftButton();
+  }));
+  MaybeRunDragAndDropSequenceForAppList(&tasks, /*is_touch=*/false);
 }
 
-TEST_F(ScrollableAppsGridViewTest, DoesNotAutoScrollWhenDraggedToTheRight) {
+TEST_P(ScrollableAppsGridViewTest, DoesNotAutoScrollWhenDraggedToTheRight) {
   PopulateApps(30);
   ShowAppList();
 
   // Drag an item outside the bottom-right corner of the scroll view (i.e.
   // towards the shelf).
   StartDragOnItemViewAt(0);
-  gfx::Point point = scroll_view_->GetBoundsInScreen().bottom_right();
-  point.Offset(10, 10);
-  GetEventGenerator()->MoveMouseTo(point);
-  task_environment()->FastForwardBy(base::Milliseconds(500));
 
-  // View did not scroll.
-  int scroll_offset = scroll_view_->GetVisibleRect().y();
-  EXPECT_EQ(scroll_offset, 0);
-  EXPECT_FALSE(apps_grid_view_->auto_scroll_timer_for_test()->IsRunning());
+  auto* generator = GetEventGenerator();
+  gfx::Point point = apps_grid_view_->GetBoundsInScreen().bottom_right();
+  point.Offset(10, 10);
+
+  std::list<base::OnceClosure> tasks;
+  tasks.push_back(
+      base::BindLambdaForTesting([&]() { generator->MoveMouseTo(point); }));
+  tasks.push_back(base::BindLambdaForTesting([&]() {
+    task_environment()->FastForwardBy(base::Milliseconds(500));
+    // View did not scroll.
+    int scroll_offset = scroll_view_->GetVisibleRect().y();
+    EXPECT_EQ(scroll_offset, 0);
+    EXPECT_FALSE(apps_grid_view_->auto_scroll_timer_for_test()->IsRunning());
+    generator->ReleaseLeftButton();
+  }));
+  MaybeRunDragAndDropSequenceForAppList(&tasks, /*is_touch=*/false);
 }
 
-TEST_F(ScrollableAppsGridViewTest, DoesNotAutoScrollWhenAboveWidget) {
+TEST_P(ScrollableAppsGridViewTest, DoesNotAutoScrollWhenAboveWidget) {
   PopulateApps(30);
   ShowAppList();
 
@@ -365,38 +430,54 @@ TEST_F(ScrollableAppsGridViewTest, DoesNotAutoScrollWhenAboveWidget) {
 
   // Drag an item above the widget scroll margin.
   StartDragOnItemViewAt(29);
+
+  auto* generator = GetEventGenerator();
   gfx::Point point =
       scroll_view_->GetWidget()->GetWindowBoundsInScreen().top_center();
   point.Offset(0, -10);
-  GetEventGenerator()->MoveMouseTo(point);
-  task_environment()->FastForwardBy(base::Milliseconds(500));
 
-  // View did not scroll.
-  int scroll_offset = scroll_view_->GetVisibleRect().y();
-  EXPECT_EQ(scroll_offset, initial_scroll_offset);
-  EXPECT_FALSE(apps_grid_view_->auto_scroll_timer_for_test()->IsRunning());
+  std::list<base::OnceClosure> tasks;
+  tasks.push_back(
+      base::BindLambdaForTesting([&]() { generator->MoveMouseTo(point); }));
+  tasks.push_back(base::BindLambdaForTesting([&]() {
+    task_environment()->FastForwardBy(base::Milliseconds(500));
+    // View did not scroll.
+    int scroll_offset = scroll_view_->GetVisibleRect().y();
+    EXPECT_EQ(scroll_offset, initial_scroll_offset);
+    EXPECT_FALSE(apps_grid_view_->auto_scroll_timer_for_test()->IsRunning());
+    generator->ReleaseLeftButton();
+  }));
+  MaybeRunDragAndDropSequenceForAppList(&tasks, /*is_touch=*/false);
 }
 
-TEST_F(ScrollableAppsGridViewTest, DoesNotAutoScrollWhenBelowWidget) {
+TEST_P(ScrollableAppsGridViewTest, DoesNotAutoScrollWhenBelowWidget) {
   PopulateApps(30);
   ShowAppList();
 
   // Drag an item below the widget scroll margin.
   StartDragOnItemViewAt(0);
+
+  auto* generator = GetEventGenerator();
   gfx::Point point =
       scroll_view_->GetWidget()->GetWindowBoundsInScreen().bottom_center();
   point.Offset(0, 10);
-  GetEventGenerator()->MoveMouseTo(point);
-  task_environment()->FastForwardBy(base::Milliseconds(500));
 
-  // View did not scroll.
-  int scroll_offset = scroll_view_->GetVisibleRect().y();
-  EXPECT_EQ(scroll_offset, 0);
-  EXPECT_FALSE(apps_grid_view_->auto_scroll_timer_for_test()->IsRunning());
+  std::list<base::OnceClosure> tasks;
+  tasks.push_back(
+      base::BindLambdaForTesting([&]() { generator->MoveMouseTo(point); }));
+  tasks.push_back(base::BindLambdaForTesting([&]() {
+    task_environment()->FastForwardBy(base::Milliseconds(500));
+    // View did not scroll.
+    int scroll_offset = scroll_view_->GetVisibleRect().y();
+    EXPECT_EQ(scroll_offset, 0);
+    EXPECT_FALSE(apps_grid_view_->auto_scroll_timer_for_test()->IsRunning());
+    generator->ReleaseLeftButton();
+  }));
+  MaybeRunDragAndDropSequenceForAppList(&tasks, /*is_touch=*/false);
 }
 
 // Regression test for https://crbug.com/1258954
-TEST_F(ScrollableAppsGridViewTest, DragItemIntoEmptySpaceWillReorderToEnd) {
+TEST_P(ScrollableAppsGridViewTest, DragItemIntoEmptySpaceWillReorderToEnd) {
   AddAppListItem("id1");
   AddAppListItem("id2");
   AddAppListItem("id3");
@@ -409,10 +490,16 @@ TEST_F(ScrollableAppsGridViewTest, DragItemIntoEmptySpaceWillReorderToEnd) {
 
   // Drag and drop the first item straight down below the first row.
   StartDragOnItemViewAt(0);
+
   gfx::Size tile_size = apps_grid_view_->GetTotalTileSize(/*page=*/0);
   auto* generator = GetEventGenerator();
-  generator->MoveMouseBy(0, tile_size.height());
-  generator->ReleaseLeftButton();
+
+  std::list<base::OnceClosure> tasks;
+  tasks.push_back(base::BindLambdaForTesting([&]() {
+    generator->MoveMouseBy(0, tile_size.height());
+    generator->ReleaseLeftButton();
+  }));
+  MaybeRunDragAndDropSequenceForAppList(&tasks, /*is_touch=*/false);
 
   // The first item was reordered to the end.
   AppListItemList* item_list =
@@ -423,7 +510,7 @@ TEST_F(ScrollableAppsGridViewTest, DragItemIntoEmptySpaceWillReorderToEnd) {
   EXPECT_EQ("id1", item_list->item_at(2)->id());
 }
 
-TEST_F(ScrollableAppsGridViewTest, ChangingAppListModelUpdatesAppsGridHeight) {
+TEST_P(ScrollableAppsGridViewTest, ChangingAppListModelUpdatesAppsGridHeight) {
   // Start with 4 rows of 5.
   PopulateApps(20);
   ShowAppList();
@@ -441,7 +528,7 @@ TEST_F(ScrollableAppsGridViewTest, ChangingAppListModelUpdatesAppsGridHeight) {
   EXPECT_LT(apps_grid_view_->height(), height_before_removing);
 }
 
-TEST_F(ScrollableAppsGridViewTest, SmallFolderHasCorrectWidth) {
+TEST_P(ScrollableAppsGridViewTest, SmallFolderHasCorrectWidth) {
   CreateAndPopulateFolderWithApps(2);
   ShowAppList();
 
@@ -464,7 +551,7 @@ TEST_F(ScrollableAppsGridViewTest, SmallFolderHasCorrectWidth) {
             items_grid_view->GetLocalBounds().right());
 }
 
-TEST_F(ScrollableAppsGridViewTest, DragItemToReorderInFolderRecordsHistogram) {
+TEST_P(ScrollableAppsGridViewTest, DragItemToReorderInFolderRecordsHistogram) {
   base::HistogramTester histogram_tester;
   // Create a folder with 3 apps.
   AppListFolderItem* folder_item = CreateAndPopulateFolderWithApps(3);
@@ -478,10 +565,15 @@ TEST_F(ScrollableAppsGridViewTest, DragItemToReorderInFolderRecordsHistogram) {
   AppListItemView* item_view = StartDragOnItemInFolderAt(0);
 
   // Drag the item to the third position in the folder.
-  gfx::Size tile_size = apps_grid_view_->GetTileViewSize();
+  gfx::Size tile_size = apps_grid_view_->GetTotalTileSize(/*page=*/0);
   auto* generator = GetEventGenerator();
-  generator->MoveMouseBy(0, tile_size.height());
-  generator->ReleaseLeftButton();
+
+  std::list<base::OnceClosure> tasks;
+  tasks.push_back(base::BindLambdaForTesting([&]() {
+    generator->MoveMouseBy(0, tile_size.height());
+    generator->ReleaseLeftButton();
+  }));
+  MaybeRunDragAndDropSequenceForAppList(&tasks, /*is_touch=*/false);
 
   // The item is now reordered in the folder and the reordering is recorded.
   EXPECT_EQ(3u, folder_item->ChildItemCount());
@@ -491,7 +583,7 @@ TEST_F(ScrollableAppsGridViewTest, DragItemToReorderInFolderRecordsHistogram) {
                                      kReorderByDragInFolder, 1);
 }
 
-TEST_F(ScrollableAppsGridViewTest, DragItemIntoFolderRecordsHistogram) {
+TEST_P(ScrollableAppsGridViewTest, DragItemIntoFolderRecordsHistogram) {
   base::HistogramTester histogram_tester;
   // Create a folder and an app.
   AppListFolderItem* folder_item = CreateAndPopulateFolderWithApps(3);
@@ -502,9 +594,14 @@ TEST_F(ScrollableAppsGridViewTest, DragItemIntoFolderRecordsHistogram) {
   StartDragOnItemViewAt(1);
   ASSERT_TRUE(apps_grid_view_->GetItemViewAt(0)->item()->is_folder());
   auto* generator = GetEventGenerator();
-  generator->MoveMouseTo(
-      apps_grid_view_->GetItemViewAt(0)->GetBoundsInScreen().CenterPoint());
-  generator->ReleaseLeftButton();
+
+  std::list<base::OnceClosure> tasks;
+  tasks.push_back(base::BindLambdaForTesting([&]() {
+    generator->MoveMouseTo(
+        apps_grid_view_->GetItemViewAt(0)->GetBoundsInScreen().CenterPoint());
+    generator->ReleaseLeftButton();
+  }));
+  MaybeRunDragAndDropSequenceForAppList(&tasks, /*is_touch=*/false);
 
   // The dragged app is now in the folder and the reordering is recorded.
   EXPECT_EQ(4u, folder_item->ChildItemCount());
@@ -513,7 +610,7 @@ TEST_F(ScrollableAppsGridViewTest, DragItemIntoFolderRecordsHistogram) {
                                      kMoveByDragIntoFolder, 1);
 }
 
-TEST_F(ScrollableAppsGridViewTest, DragItemOutOfFolderRecordsHistogram) {
+TEST_P(ScrollableAppsGridViewTest, DragItemOutOfFolderRecordsHistogram) {
   base::HistogramTester histogram_tester;
   // Create a folder with 3 apps.
   AppListFolderItem* folder_item = CreateAndPopulateFolderWithApps(3);
@@ -526,14 +623,18 @@ TEST_F(ScrollableAppsGridViewTest, DragItemOutOfFolderRecordsHistogram) {
   // Drag the first app in the folder and move it out of the folder.
   AppListItemView* item_view = StartDragOnItemInFolderAt(0);
   std::string item_id = item_view->item()->id();
-  DragItemOutOfFolder();
-
-  // Drag the app item to near the expected end position and end the drag.
   auto* generator = GetEventGenerator();
-  generator->MoveMouseTo(
-      apps_grid_view_->GetItemViewAt(0)->GetBoundsInScreen().right_center() +
-      gfx::Vector2d(20, 0));
-  generator->ReleaseLeftButton();
+
+  std::list<base::OnceClosure> tasks;
+  tasks.push_back(base::BindLambdaForTesting([&]() { DragItemOutOfFolder(); }));
+  tasks.push_back(base::BindLambdaForTesting([&]() {
+    // Drag the app item to near the expected end position and end the drag.
+    generator->MoveMouseTo(
+        apps_grid_view_->GetItemViewAt(0)->GetBoundsInScreen().right_center() +
+        gfx::Vector2d(20, 0));
+    generator->ReleaseLeftButton();
+  }));
+  MaybeRunDragAndDropSequenceForAppList(&tasks, /*is_touch=*/false);
 
   // The folder view should be closed and invisible after releasing the drag.
   EXPECT_FALSE(GetAppListTestHelper()->IsInFolderView());
@@ -550,7 +651,7 @@ TEST_F(ScrollableAppsGridViewTest, DragItemOutOfFolderRecordsHistogram) {
                                      kMoveByDragOutOfFolder, 1);
 }
 
-TEST_F(ScrollableAppsGridViewTest,
+TEST_P(ScrollableAppsGridViewTest,
        DragItemFromOneFolderToAnotherRecordsHistogram) {
   base::HistogramTester histogram_tester;
   // Create two folders.
@@ -564,13 +665,17 @@ TEST_F(ScrollableAppsGridViewTest,
 
   // Drag the first app in the folder and move it out of the folder.
   StartDragOnItemInFolderAt(0);
-  DragItemOutOfFolder();
-
-  // Move the app item into the other folder and end the drag.
   auto* generator = GetEventGenerator();
-  generator->MoveMouseTo(
-      apps_grid_view_->GetItemViewAt(1)->GetBoundsInScreen().CenterPoint());
-  generator->ReleaseLeftButton();
+
+  std::list<base::OnceClosure> tasks;
+  tasks.push_back(base::BindLambdaForTesting([&]() { DragItemOutOfFolder(); }));
+  tasks.push_back(base::BindLambdaForTesting([&]() {
+    // Move the app item into the other folder and end the drag.
+    generator->MoveMouseTo(
+        apps_grid_view_->GetItemViewAt(1)->GetBoundsInScreen().CenterPoint());
+    generator->ReleaseLeftButton();
+  }));
+  MaybeRunDragAndDropSequenceForAppList(&tasks, /*is_touch=*/false);
 
   // No folder view is showing now.
   EXPECT_FALSE(GetAppListTestHelper()->IsInFolderView());
@@ -584,7 +689,7 @@ TEST_F(ScrollableAppsGridViewTest,
                                      kMoveIntoAnotherFolder, 1);
 }
 
-TEST_F(ScrollableAppsGridViewTest, ReparentDragToNewRow) {
+TEST_P(ScrollableAppsGridViewTest, ReparentDragToNewRow) {
   const int kInitialItems = 20;
   AppListFolderItem* folder_item = CreateAndPopulateFolderWithApps(3);
   PopulateApps(kInitialItems - 1);
@@ -600,32 +705,34 @@ TEST_F(ScrollableAppsGridViewTest, ReparentDragToNewRow) {
   // Drag the first app in the folder and move it out of the folder.
   AppListItemView* const dragged_view = StartDragOnItemInFolderAt(0);
   const std::string dragged_item_id = dragged_view->item()->id();
-  DragItemOutOfFolder();
-
-  ASSERT_TRUE(apps_grid_view_->reorder_timer_for_test()->IsRunning());
-  apps_grid_view_->reorder_timer_for_test()->FireNow();
-  apps_grid_view_->GetWidget()->LayoutRootViewIfNecessary();
-
-  // Scroll the grid to the bottom.
-  apps_grid_view_->ScrollRectToVisible(gfx::Rect(
-      apps_grid_view_->GetLocalBounds().bottom_center() - gfx::Vector2d(0, 1),
-      gfx::Size(1, 1)));
-
-  // Drop the item over expected first empty slot bounds. This should drop the
-  // item into the last slot.
-  gfx::Rect last_slot_bounds =
-      test::AppsGridViewTestApi(apps_grid_view_)
-          .GetItemTileRectOnCurrentPageAt(
-              kInitialItems / apps_grid_view_->cols(), 1);
-  views::View::ConvertRectToScreen(apps_grid_view_, &last_slot_bounds);
-
   auto* generator = GetEventGenerator();
-  generator->MoveMouseTo(last_slot_bounds.CenterPoint());
 
-  ASSERT_TRUE(apps_grid_view_->reorder_timer_for_test()->IsRunning());
-  apps_grid_view_->reorder_timer_for_test()->FireNow();
-
-  generator->ReleaseLeftButton();
+  std::list<base::OnceClosure> tasks;
+  tasks.push_back(base::BindLambdaForTesting([&]() {
+    DragItemOutOfFolder();
+    ASSERT_TRUE(apps_grid_view_->reorder_timer_for_test()->IsRunning());
+    apps_grid_view_->reorder_timer_for_test()->FireNow();
+    apps_grid_view_->GetWidget()->LayoutRootViewIfNecessary();
+  }));
+  tasks.push_back(base::BindLambdaForTesting([&]() {
+    // Scroll the grid to the bottom.
+    apps_grid_view_->ScrollRectToVisible(gfx::Rect(
+        apps_grid_view_->GetLocalBounds().bottom_center() - gfx::Vector2d(0, 1),
+        gfx::Size(1, 1)));
+    // Drop the item over expected first empty slot bounds. This should drop the
+    // item into the last slot.
+    gfx::Rect last_slot_bounds =
+        test::AppsGridViewTestApi(apps_grid_view_)
+            .GetItemTileRectOnCurrentPageAt(
+                kInitialItems / apps_grid_view_->cols(), 1);
+    views::View::ConvertRectToScreen(apps_grid_view_, &last_slot_bounds);
+    generator->MoveMouseTo(last_slot_bounds.CenterPoint());
+    ASSERT_TRUE(apps_grid_view_->reorder_timer_for_test()->IsRunning());
+    apps_grid_view_->reorder_timer_for_test()->FireNow();
+  }));
+  tasks.push_back(
+      base::BindLambdaForTesting([&]() { generator->ReleaseLeftButton(); }));
+  MaybeRunDragAndDropSequenceForAppList(&tasks, /*is_touch=*/false);
 
   AppListItemView* last_item = apps_grid_view_->GetItemViewAt(kInitialItems);
   ASSERT_TRUE(last_item);
@@ -634,7 +741,7 @@ TEST_F(ScrollableAppsGridViewTest, ReparentDragToNewRow) {
   EXPECT_EQ(2u, folder_item->ChildItemCount());
 }
 
-TEST_F(ScrollableAppsGridViewTest, CanceledReparentDragToNewRow) {
+TEST_P(ScrollableAppsGridViewTest, CanceledReparentDragToNewRow) {
   const int kInitialItems = 20;
   AppListFolderItem* folder_item = CreateAndPopulateFolderWithApps(3);
   PopulateApps(kInitialItems - 1);
@@ -652,23 +759,30 @@ TEST_F(ScrollableAppsGridViewTest, CanceledReparentDragToNewRow) {
   // Drag the first app in the folder and move it out of the folder.
   AppListItemView* const dragged_view = StartDragOnItemInFolderAt(0);
   const std::string dragged_item_id = dragged_view->item()->id();
-  DragItemOutOfFolder();
-
-  ASSERT_TRUE(apps_grid_view_->reorder_timer_for_test()->IsRunning());
-  apps_grid_view_->reorder_timer_for_test()->FireNow();
-  apps_grid_view_->GetWidget()->LayoutRootViewIfNecessary();
-
-  // Scroll the grid to the bottom.
-  apps_grid_view_->ScrollRectToVisible(gfx::Rect(
-      apps_grid_view_->GetLocalBounds().bottom_center() - gfx::Vector2d(0, 1),
-      gfx::Size(1, 1)));
-
-  // Move the mouse pointer outside the apps grid bounds, and release it. This
-  // should cancel the reparent drag operation.
   auto* generator = GetEventGenerator();
-  generator->MoveMouseTo(apps_grid_view_->GetBoundsInScreen().bottom_center() +
-                         gfx::Vector2d(0, 50));
-  generator->ReleaseLeftButton();
+
+  std::list<base::OnceClosure> tasks;
+  tasks.push_back(base::BindLambdaForTesting([&]() {
+    DragItemOutOfFolder();
+    ASSERT_TRUE(apps_grid_view_->reorder_timer_for_test()->IsRunning());
+    apps_grid_view_->reorder_timer_for_test()->FireNow();
+    apps_grid_view_->GetWidget()->LayoutRootViewIfNecessary();
+  }));
+  tasks.push_back(base::BindLambdaForTesting([&]() {
+    // Scroll the grid to the bottom.
+    apps_grid_view_->ScrollRectToVisible(gfx::Rect(
+        apps_grid_view_->GetLocalBounds().bottom_center() - gfx::Vector2d(0, 1),
+        gfx::Size(1, 1)));
+  }));
+  tasks.push_back(base::BindLambdaForTesting([&]() {
+    // Move the mouse pointer outside the apps grid bounds, and release it. This
+    // should cancel the reparent drag operation.
+    generator->MoveMouseTo(
+        apps_grid_view_->GetBoundsInScreen().bottom_center() +
+        gfx::Vector2d(0, 50));
+    generator->ReleaseLeftButton();
+  }));
+  MaybeRunDragAndDropSequenceForAppList(&tasks, /*is_touch=*/false);
 
   EXPECT_EQ(initial_preferred_size, apps_grid_view_->GetPreferredSize());
   AppListItemView* last_item = apps_grid_view_->GetItemViewAt(kInitialItems);
@@ -680,7 +794,7 @@ TEST_F(ScrollableAppsGridViewTest, CanceledReparentDragToNewRow) {
   EXPECT_EQ(3u, folder_item->ChildItemCount());
 }
 
-TEST_F(ScrollableAppsGridViewTest, LeftAndRightArrowKeysMoveSelection) {
+TEST_P(ScrollableAppsGridViewTest, LeftAndRightArrowKeysMoveSelection) {
   PopulateApps(2);
   ShowAppList();
 
@@ -700,7 +814,7 @@ TEST_F(ScrollableAppsGridViewTest, LeftAndRightArrowKeysMoveSelection) {
   EXPECT_FALSE(item2->HasFocus());
 }
 
-TEST_F(ScrollableAppsGridViewTest, ArrowKeysCanMoveFocusOutOfGrid) {
+TEST_P(ScrollableAppsGridViewTest, ArrowKeysCanMoveFocusOutOfGrid) {
   PopulateApps(2);
   ShowAppList();
 
@@ -734,7 +848,7 @@ TEST_F(ScrollableAppsGridViewTest, ArrowKeysCanMoveFocusOutOfGrid) {
 }
 
 // Tests that histograms are recorded when apps are moved with control+arrow.
-TEST_F(ScrollableAppsGridViewTest, ControlArrowRecordsHistogramBasic) {
+TEST_P(ScrollableAppsGridViewTest, ControlArrowRecordsHistogramBasic) {
   base::HistogramTester histogram_tester;
   PopulateApps(20);
   ShowAppList();
@@ -773,7 +887,7 @@ TEST_F(ScrollableAppsGridViewTest, ControlArrowRecordsHistogramBasic) {
 }
 
 // Test that histograms do not record when the keyboard move is a no-op.
-TEST_F(ScrollableAppsGridViewTest,
+TEST_P(ScrollableAppsGridViewTest,
        ControlArrowDoesNotRecordHistogramWithNoOpMove) {
   base::HistogramTester histogram_tester;
   PopulateApps(20);
@@ -800,7 +914,7 @@ TEST_F(ScrollableAppsGridViewTest,
 
 // Tests that histograms are recorded in folder view when apps are moved with
 // control+arrow.
-TEST_F(ScrollableAppsGridViewTest, ControlArrowRecordsHistogramInFolderBasic) {
+TEST_P(ScrollableAppsGridViewTest, ControlArrowRecordsHistogramInFolderBasic) {
   base::HistogramTester histogram_tester;
   CreateAndPopulateFolderWithApps(4);
   ShowAppList();
@@ -849,7 +963,7 @@ TEST_F(ScrollableAppsGridViewTest, ControlArrowRecordsHistogramInFolderBasic) {
 
 // Tests that histograms do not record when the keyboard move is a no-op in the
 // folder view.
-TEST_F(ScrollableAppsGridViewTest,
+TEST_P(ScrollableAppsGridViewTest,
        ControlArrowDoesNotRecordHistogramWithNoOpMoveInFolder) {
   base::HistogramTester histogram_tester;
   CreateAndPopulateFolderWithApps(4);
@@ -891,7 +1005,7 @@ TEST_F(ScrollableAppsGridViewTest,
 }
 
 // Tests that control + shift + arrow moves selected item out of a folder.
-TEST_F(ScrollableAppsGridViewTest, ControlShiftArrowMovesItemOutOfFolder) {
+TEST_P(ScrollableAppsGridViewTest, ControlShiftArrowMovesItemOutOfFolder) {
   base::HistogramTester histogram_tester;
   AppListFolderItem* folder_item = CreateAndPopulateFolderWithApps(5);
   ShowAppList();
@@ -946,7 +1060,7 @@ TEST_F(ScrollableAppsGridViewTest, ControlShiftArrowMovesItemOutOfFolder) {
 }
 
 // Verify on the apps grid with zero scroll offset.
-TEST_F(ScrollableAppsGridViewTest, VerifyVisibleRangeByDefault) {
+TEST_P(ScrollableAppsGridViewTest, VerifyVisibleRangeByDefault) {
   PopulateApps(33);
   ShowAppList();
 
@@ -962,7 +1076,7 @@ TEST_F(ScrollableAppsGridViewTest, VerifyVisibleRangeByDefault) {
 }
 
 // Verify on the apps grid whose first row is unfilled.
-TEST_F(ScrollableAppsGridViewTest, VerifyVisibleRangeFirstRowUnfilled) {
+TEST_P(ScrollableAppsGridViewTest, VerifyVisibleRangeFirstRowUnfilled) {
   PopulateApps(4);
   ShowAppList();
 
@@ -977,7 +1091,7 @@ TEST_F(ScrollableAppsGridViewTest, VerifyVisibleRangeFirstRowUnfilled) {
 }
 
 // Verify on the apps grid whose first row is filled.
-TEST_F(ScrollableAppsGridViewTest, VerifyVisibleRangeFirstRowFilled) {
+TEST_P(ScrollableAppsGridViewTest, VerifyVisibleRangeFirstRowFilled) {
   PopulateApps(5);
   ShowAppList();
 
@@ -991,7 +1105,7 @@ TEST_F(ScrollableAppsGridViewTest, VerifyVisibleRangeFirstRowFilled) {
 }
 
 // Verify on the apps grid with a non-zero scroll offset.
-TEST_F(ScrollableAppsGridViewTest, VerifyVisibleRangeAfterScrolling) {
+TEST_P(ScrollableAppsGridViewTest, VerifyVisibleRangeAfterScrolling) {
   PopulateApps(33);
   ShowAppList();
 
@@ -1019,7 +1133,7 @@ TEST_F(ScrollableAppsGridViewTest, VerifyVisibleRangeAfterScrolling) {
 
 // Verify visible items' index range by scrolling to the end on a partially
 // filled apps grid.
-TEST_F(ScrollableAppsGridViewTest,
+TEST_P(ScrollableAppsGridViewTest,
        VerifyVisibleRangeAfterScrollingToEndPartiallyFilled) {
   constexpr int populated_app_count = 33;
   PopulateApps(populated_app_count);
@@ -1042,7 +1156,7 @@ TEST_F(ScrollableAppsGridViewTest,
 
 // Verify visible items' item index range by scrolling to the end on a full
 // apps grid.
-TEST_F(ScrollableAppsGridViewTest,
+TEST_P(ScrollableAppsGridViewTest,
        VerifyVisibleRangeAfterScrollingToEndFilled) {
   constexpr int populated_app_count = 35;
   PopulateApps(populated_app_count);
@@ -1074,7 +1188,7 @@ class ScrollableAppsGridViewWithNudgeTest : public ScrollableAppsGridViewTest {
 };
 
 // Verify on the apps grid with zero scroll offset.
-TEST_F(ScrollableAppsGridViewWithNudgeTest, VerifyVisibleRangeByDefault) {
+TEST_P(ScrollableAppsGridViewWithNudgeTest, VerifyVisibleRangeByDefault) {
   PopulateApps(33);
   ShowAppList();
 
@@ -1089,5 +1203,8 @@ TEST_F(ScrollableAppsGridViewWithNudgeTest, VerifyVisibleRangeByDefault) {
   EXPECT_TRUE(
       IsIndexRangeExpected(/*first_index=*/0, /*last_index=*/4 * cols - 1));
 }
+INSTANTIATE_TEST_SUITE_P(All,
+                         ScrollableAppsGridViewWithNudgeTest,
+                         testing::Bool());
 
 }  // namespace ash

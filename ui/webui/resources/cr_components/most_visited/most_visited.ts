@@ -15,17 +15,17 @@ import {CrActionMenuElement} from 'chrome://resources/cr_elements/cr_action_menu
 import {CrDialogElement} from 'chrome://resources/cr_elements/cr_dialog/cr_dialog.js';
 import {CrToastElement} from 'chrome://resources/cr_elements/cr_toast/cr_toast.js';
 import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
-import {assert} from 'chrome://resources/js/assert_ts.js';
+import {assert} from 'chrome://resources/js/assert.js';
 import {skColorToRgba} from 'chrome://resources/js/color_utils.js';
 import {EventTracker} from 'chrome://resources/js/event_tracker.js';
 import {FocusOutlineManager} from 'chrome://resources/js/focus_outline_manager.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {isMac} from 'chrome://resources/js/platform.js';
-import {hasKeyModifiers} from 'chrome://resources/js/util_ts.js';
+import {hasKeyModifiers} from 'chrome://resources/js/util.js';
 import {TextDirection} from 'chrome://resources/mojo/mojo/public/mojom/base/text_direction.mojom-webui.js';
 import {SkColor} from 'chrome://resources/mojo/skia/public/mojom/skcolor.mojom-webui.js';
 import {Url} from 'chrome://resources/mojo/url/mojom/url.mojom-webui.js';
-import {DomRepeat, DomRepeatEvent, PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import {afterNextRender, DomRepeat, DomRepeatEvent, PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {MostVisitedBrowserProxy} from './browser_proxy.js';
 import {getTemplate} from './most_visited.html.js';
@@ -101,6 +101,12 @@ export class MostVisitedElement extends MostVisitedElementBase {
         observer: 'onSingleRowChange_',
       },
 
+      /** If true, reflows tiles that are overflowing. */
+      reflowOnOverflow: {
+        type: Boolean,
+        value: false,
+      },
+
       /**
        * When the tile icon background is dark, the icon color is white for
        * contrast. This can be used to determine the color of the tile hover as
@@ -112,15 +118,6 @@ export class MostVisitedElement extends MostVisitedElementBase {
         computed: `computeUseWhiteTileIcon_(theme)`,
       },
 
-      /**
-       * If true wraps the tile titles in white pills.
-       */
-      useTitlePill_: {
-        type: Boolean,
-        reflectToAttribute: true,
-        computed: `computeUseTitlePill_(theme)`,
-      },
-
       columnCount_: {
         type: Number,
         computed:
@@ -129,7 +126,7 @@ export class MostVisitedElement extends MostVisitedElementBase {
 
       rowCount_: {
         type: Number,
-        computed: 'computeRowCount_(singleRow, columnCount_, tiles_)',
+        computed: 'computeRowCount_(singleRow, columnCount_, tiles_, showAdd_)',
       },
 
       customLinksEnabled_: {
@@ -216,10 +213,10 @@ export class MostVisitedElement extends MostVisitedElementBase {
     };
   }
 
-  public theme: MostVisitedTheme|null;
-  public singleRow: boolean;
+  theme: MostVisitedTheme|null;
+  reflowOnOverflow: boolean;
+  singleRow: boolean;
   private useWhiteTileIcon_: boolean;
-  private useTitlePill_: boolean;
   private columnCount_: number;
   private rowCount_: number;
   private customLinksEnabled_: boolean;
@@ -240,7 +237,6 @@ export class MostVisitedElement extends MostVisitedElementBase {
   private tiles_: MostVisitedTile[];
   private toastContent_: string;
   private visible_: boolean;
-
   private adding_: boolean = false;
   private callbackRouter_: MostVisitedPageCallbackRouter;
   private pageHandler_: MostVisitedPageHandlerRemote;
@@ -253,6 +249,7 @@ export class MostVisitedElement extends MostVisitedElementBase {
   private mediaEventTracker_: EventTracker;
   private eventTracker_: EventTracker;
   private boundOnDocumentKeyDown_: (e: KeyboardEvent) => void;
+  private preloadingTimer_: undefined|ReturnType<typeof setTimeout>;
 
   private get tileElements_() {
     return Array.from(
@@ -358,6 +355,11 @@ export class MostVisitedElement extends MostVisitedElementBase {
       return 0;
     }
 
+    if (this.reflowOnOverflow && this.tiles_) {
+      return Math.ceil(
+          (this.tiles_.length + (this.showAdd_ ? 1 : 0)) / this.columnCount_);
+    }
+
     if (this.singleRow) {
       return 1;
     }
@@ -371,6 +373,10 @@ export class MostVisitedElement extends MostVisitedElementBase {
   }
 
   private computeMaxVisibleTiles_(): number {
+    if (this.reflowOnOverflow) {
+      return this.computeMaxTiles_();
+    }
+
     return this.columnCount_ * this.rowCount_;
   }
 
@@ -411,10 +417,6 @@ export class MostVisitedElement extends MostVisitedElementBase {
 
   private computeUseWhiteTileIcon_(): boolean {
     return this.theme ? this.theme.useWhiteTileIcon : false;
-  }
-
-  private computeUseTitlePill_(): boolean {
-    return this.theme ? this.theme.useTitlePill : false;
   }
 
   /**
@@ -563,6 +565,10 @@ export class MostVisitedElement extends MostVisitedElementBase {
   }
 
   private isHidden_(index: number): boolean {
+    if (this.reflowOnOverflow) {
+      return false;
+    }
+
     return index >= this.maxVisibleTiles_;
   }
 
@@ -740,7 +746,7 @@ export class MostVisitedElement extends MostVisitedElementBase {
 
   private onTileClick_(e: DomRepeatEvent<MostVisitedTile, MouseEvent>) {
     if (e.defaultPrevented) {
-      // Ignore previousely handled events.
+      // Ignore previously handled events.
       return;
     }
 
@@ -772,6 +778,44 @@ export class MostVisitedElement extends MostVisitedElementBase {
     const advanceKey = this.isRtl_ ? 'ArrowLeft' : 'ArrowRight';
     const delta = (e.key === advanceKey || e.key === 'ArrowDown') ? 1 : -1;
     this.tileFocus_(Math.max(0, index + delta));
+  }
+
+  private onTileHover_(e: DomRepeatEvent<MostVisitedTile, MouseEvent>) {
+    if (e.defaultPrevented) {
+      // Ignore previously handled events.
+      return;
+    }
+
+    if (loadTimeData.getBoolean('prerenderEnabled') &&
+        loadTimeData.getInteger('prerenderStartTimeThreshold') >= 0) {
+      this.preloadingTimer_ = setTimeout(() => {
+        this.pageHandler_.prerenderMostVisitedTile(e.model.item, true);
+      }, loadTimeData.getInteger('prerenderStartTimeThreshold'));
+    }
+  }
+
+  private onTileMouseDown_(e: DomRepeatEvent<MostVisitedTile, MouseEvent>) {
+    if (e.defaultPrevented) {
+      // Ignore previously handled events.
+      return;
+    }
+
+    if (loadTimeData.getBoolean('prerenderEnabled')) {
+      this.pageHandler_.prerenderMostVisitedTile(e.model.item, false);
+    }
+  }
+
+  private onTileExit_(e: DomRepeatEvent<MostVisitedTile, MouseEvent>) {
+    if (e.defaultPrevented) {
+      // Ignore previously handled events.
+      return;
+    }
+
+    if (this.preloadingTimer_) {
+      clearTimeout(this.preloadingTimer_);
+    }
+
+    this.pageHandler_.cancelPrerender();
   }
 
   private onUndoClick_() {
@@ -817,7 +861,7 @@ export class MostVisitedElement extends MostVisitedElementBase {
     }
     const tileElements = this.tileElements_;
     if (index < tileElements.length) {
-      tileElements[index].focus();
+      (tileElements[index] as HTMLElement).querySelector('a')!.focus();
     } else if (this.showAdd_ && index === tileElements.length) {
       this.$.addShortcut.focus();
     }
@@ -837,7 +881,9 @@ export class MostVisitedElement extends MostVisitedElementBase {
     this.toast_(
         'linkRemovedMsg',
         /* showButtons= */ this.customLinksEnabled_ || !isQueryTile);
-    this.tileFocus_(index);
+
+    // Move focus after the next render so that tileElements_ is updated.
+    afterNextRender(this, () => this.tileFocus_(index));
   }
 
   private onTilesRendered_() {
@@ -845,6 +891,14 @@ export class MostVisitedElement extends MostVisitedElementBase {
     assert(this.maxVisibleTiles_);
     this.pageHandler_.onMostVisitedTilesRendered(
         this.tiles_.slice(0, this.maxVisibleTiles_), this.windowProxy_.now());
+  }
+
+  private getMoreActionText_(title: string) {
+    // Check that 'shortcutMoreActions' is set to more than an empty string,
+    // since we do not use this text for third party NTP.
+    return loadTimeData.getString('shortcutMoreActions') ?
+        loadTimeData.getStringF('shortcutMoreActions', title) :
+        '';
   }
 }
 

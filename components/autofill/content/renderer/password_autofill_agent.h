@@ -12,6 +12,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/types/strong_alias.h"
 #include "build/build_config.h"
@@ -30,6 +31,7 @@
 #include "mojo/public/cpp/bindings/associated_remote.h"
 #include "mojo/public/cpp/bindings/pending_associated_receiver.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_registry.h"
+#include "third_party/blink/public/web/web_form_control_element.h"
 #include "third_party/blink/public/web/web_input_element.h"
 
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
@@ -108,7 +110,6 @@ class PasswordAutofillAgent : public content::RenderFrameObserver,
  public:
   using UseFallbackData = base::StrongAlias<class UseFallbackDataTag, bool>;
   using ShowAll = base::StrongAlias<class ShowAllTag, bool>;
-  using GenerationShowing = base::StrongAlias<class GenerationShowingTag, bool>;
 
   PasswordAutofillAgent(content::RenderFrame* render_frame,
                         blink::AssociatedInterfaceRegistry* registry);
@@ -118,11 +119,12 @@ class PasswordAutofillAgent : public content::RenderFrameObserver,
 
   ~PasswordAutofillAgent() override;
 
+  // Must be called prior to calling other methods.
+  void Init(AutofillAgent* autofill_agent);
+
   void BindPendingReceiver(
       mojo::PendingAssociatedReceiver<mojom::PasswordAutofillAgent>
           pending_receiver);
-
-  void SetAutofillAgent(AutofillAgent* autofill_agent);
 
   void SetPasswordGenerationAgent(PasswordGenerationAgent* generation_agent);
 
@@ -131,6 +133,8 @@ class PasswordAutofillAgent : public content::RenderFrameObserver,
 
   // mojom::PasswordAutofillAgent:
   void SetPasswordFillData(const PasswordFormFillData& form_data) override;
+  void FillPasswordSuggestion(const std::u16string& username,
+                              const std::u16string& password) override;
   void InformNoSavedCredentials(
       bool should_show_popup_without_passwords) override;
   void FillIntoFocusedField(bool is_password,
@@ -139,7 +143,7 @@ class PasswordAutofillAgent : public content::RenderFrameObserver,
   void AnnotateFieldsWithParsingResult(
       const ParsingResult& parsing_result) override;
 #if BUILDFLAG(IS_ANDROID)
-  void TouchToFillClosed(bool show_virtual_keyboard) override;
+  void KeyboardReplacingSurfaceClosed(bool show_virtual_keyboard) override;
   void TriggerFormSubmission() override;
 #endif
 
@@ -165,12 +169,6 @@ class PasswordAutofillAgent : public content::RenderFrameObserver,
   // Instructs `autofill_agent_` to track the autofilled `element`.
   void TrackAutofilledElement(const blink::WebFormControlElement& element);
 
-  // Fills the username and password fields of this form with the given values.
-  // Returns true if the fields were filled, false otherwise.
-  bool FillSuggestion(const blink::WebFormControlElement& control_element,
-                      const std::u16string& username,
-                      const std::u16string& password);
-
   // Previews the username and password fields of this form with the given
   // values. Returns true if the fields were previewed, false otherwise.
   bool PreviewSuggestion(const blink::WebFormControlElement& node,
@@ -191,9 +189,9 @@ class PasswordAutofillAgent : public content::RenderFrameObserver,
   // Returns whether the soft keyboard should be suppressed.
   bool ShouldSuppressKeyboard();
 
-  // Asks the agent to show the touch to fill UI for |control_element|. Returns
-  // whether the agent was able to do so.
-  bool TryToShowTouchToFill(
+  // Asks the agent to show the keyboard replacing surface for
+  // |control_element|. Returns whether the agent was able to do so.
+  bool TryToShowKeyboardReplacingSurface(
       const blink::WebFormControlElement& control_element);
 #endif
 
@@ -204,9 +202,7 @@ class PasswordAutofillAgent : public content::RenderFrameObserver,
   // as both UIs should not be shown at the same time. This function should
   // still be called in this situation so that UMA stats can be logged.
   // Returns true if any suggestions were shown, false otherwise.
-  bool ShowSuggestions(const blink::WebInputElement& element,
-                       ShowAll show_all,
-                       GenerationShowing generation_popup_showing);
+  bool ShowSuggestions(const blink::WebInputElement& element, ShowAll show_all);
 
   // Called when new form controls are inserted.
   void OnDynamicFormsSeen();
@@ -255,16 +251,23 @@ class PasswordAutofillAgent : public content::RenderFrameObserver,
   // Check if the given element is a username input field.
   bool IsUsernameInputField(const blink::WebInputElement& input_element) const;
 
+  const blink::WebFormControlElement& focused_element() const {
+    CHECK(autofill_agent_);
+    return autofill_agent_->focused_element();
+  }
+
  private:
   using OnPasswordField = base::StrongAlias<class OnPasswordFieldTag, bool>;
 
   class DeferringPasswordManagerDriver;
 
-  // Enumeration representing possible Touch To Fill states. This is used to
-  // make sure that Touch To Fill will only be shown in response to the first
-  // password form focus during a frame's life time and to suppress the soft
-  // keyboard when Touch To Fill is shown.
-  enum class TouchToFillState {
+  // Enumeration representing possible keyboard replacing surface states. A
+  // keyboard replacing surface can be either Touch To Fill UI or Android
+  // Credential Manager UI. This is used to make sure that keyboard replacing
+  // surface will only be shown in response to the first password form focus
+  // during a frame's life time and to suppress the soft keyboard when
+  // credential selector sheet is shown.
+  enum class KeyboardReplacingSurfaceState {
     kShouldShow,
     kIsShowing,
     kWasShown,
@@ -413,9 +416,6 @@ class PasswordAutofillAgent : public content::RenderFrameObserver,
   // only one value per |PasswordAutofillAgent| instance.
   void LogPrefilledUsernameFillOutcome(PrefilledUsernameFillOutcome outcome);
 
-  // Helper function called when form submission is successful.
-  void FireSubmissionIfFormDisappear(mojom::SubmissionIndicatorEvent event);
-
   void OnFrameDetached();
 
   void HidePopup();
@@ -519,9 +519,10 @@ class PasswordAutofillAgent : public content::RenderFrameObserver,
   // Records the username typed before suggestions preview.
   std::u16string username_query_prefix_;
 
-  base::WeakPtr<AutofillAgent> autofill_agent_;
+  raw_ptr<AutofillAgent> autofill_agent_;
 
-  PasswordGenerationAgent* password_generation_agent_;  // Weak reference.
+  raw_ptr<PasswordGenerationAgent, ExperimentalRenderer>
+      password_generation_agent_;  // Weak reference.
 
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
   PagePasswordsAnalyser page_passwords_analyser_;
@@ -569,9 +570,10 @@ class PasswordAutofillAgent : public content::RenderFrameObserver,
   FieldRendererId field_renderer_id_to_submit_;
 
 #if BUILDFLAG(IS_ANDROID)
-  // Current state of Touch To Fill. This is reset during
+  // Current state of the keyboard replacing surface. This is reset during
   // CleanupOnDocumentShutdown.
-  TouchToFillState touch_to_fill_state_ = TouchToFillState::kShouldShow;
+  KeyboardReplacingSurfaceState keyboard_replacing_surface_state_ =
+      KeyboardReplacingSurfaceState::kShouldShow;
 #endif
 };
 

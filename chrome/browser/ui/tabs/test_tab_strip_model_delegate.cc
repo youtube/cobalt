@@ -103,8 +103,7 @@ bool TestTabStripModelDelegate::SupportsReadLater() {
 }
 
 void TestTabStripModelDelegate::CacheWebContents(
-    const std::vector<std::unique_ptr<TabStripModel::DetachedWebContents>>&
-        web_contents) {}
+    const std::vector<std::unique_ptr<DetachedWebContents>>& web_contents) {}
 
 void TestTabStripModelDelegate::FollowSite(content::WebContents* web_contents) {
 }
@@ -117,3 +116,9 @@ bool TestTabStripModelDelegate::IsForWebApp() {
 }
 
 void TestTabStripModelDelegate::CopyURL(content::WebContents* web_contents) {}
+
+void TestTabStripModelDelegate::GoBack(content::WebContents* web_contents) {}
+
+bool TestTabStripModelDelegate::CanGoBack(content::WebContents* web_contents) {
+  return false;
+}

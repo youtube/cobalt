@@ -38,10 +38,6 @@ enum CreditCardSaveManagerObserverEvent : int {
 // Returns the number of profiles (addresses) in the data manager.
 + (NSInteger)profilesCount;
 
-// Used to automatically import addresses without a prompt when `autoAccept` is
-// YES.
-+ (void)setAutoAcceptAddressImports:(BOOL)autoAccept;
-
 // Clears the profiles (addresses) in the data manager.
 + (void)clearProfilesStore;
 
@@ -65,7 +61,8 @@ enum CreditCardSaveManagerObserverEvent : int {
 + (NSInteger)localCreditCount;
 
 // Saves a masked credit card that requires CVC to be used.
-+ (void)saveMaskedCreditCard;
+// Returns the `card.NetworkAndLastFourDigits` of the card used in the UIs.
++ (NSString*)saveMaskedCreditCard;
 
 // The functions below are helpers for the SaveCardInfobarEGTest that requires
 // observing autofill events in the app process.
@@ -99,6 +96,11 @@ enum CreditCardSaveManagerObserverEvent : int {
 
 // Sets the risk data for payments.
 + (void)setPaymentsRiskData:(NSString*)riskData;
+
+// Make it that we consider the credit card form to be a secure in the current
+// context. This will allow us to fill the textfields on the web page. We only
+// want to use this for tests.
++ (void)considerCreditCardFormSecureForTesting;
 
 @end
 

@@ -1,4 +1,4 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,7 +9,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/web_applications/web_app_icon_manager.h"
-#include "chrome/browser/web_applications/web_app_id.h"
+#include "components/webapps/common/web_app_id.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
 class Profile;
@@ -41,7 +41,7 @@ class WebAppIconDiagnostic {
     }
   };
 
-  WebAppIconDiagnostic(Profile* profile, AppId app_id);
+  WebAppIconDiagnostic(Profile* profile, webapps::AppId app_id);
   ~WebAppIconDiagnostic();
 
   void Run(base::OnceCallback<void(absl::optional<Result>)> result_callback);
@@ -65,7 +65,7 @@ class WebAppIconDiagnostic {
       WebAppIconManager::IconFilesCheck icon_files_check);
 
   const raw_ptr<Profile> profile_;
-  const AppId app_id_;
+  const webapps::AppId app_id_;
 
   const raw_ptr<WebAppProvider> provider_;
   const raw_ptr<const WebApp> app_;

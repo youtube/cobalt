@@ -21,7 +21,6 @@
 #include "base/location.h"
 #include "base/memory/singleton.h"
 #include "base/metrics/field_trial.h"
-#include "base/metrics/field_trial_params.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/notreached.h"
@@ -31,6 +30,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/values.h"
 #include "build/build_config.h"
+#include "components/miracle_parameter/common/public/miracle_parameter.h"
 #include "crypto/ec_private_key.h"
 #include "crypto/openssl_util.h"
 #include "net/base/features.h"
@@ -81,8 +81,15 @@ const int kSSLClientSocketNoPendingResult = 1;
 // overlap with any value of the net::Error range, including net::OK).
 const int kCertVerifyPending = 1;
 
+BASE_FEATURE(kDefaultOpenSSLBufferSizeFeature,
+             "DefaultOpenSSLBufferSizeFeature",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 // Default size of the internal BoringSSL buffers.
-const int kDefaultOpenSSLBufferSize = 17 * 1024;
+MIRACLE_PARAMETER_FOR_INT(GetDefaultOpenSSLBufferSize,
+                          kDefaultOpenSSLBufferSizeFeature,
+                          "DefaultOpenSSLBufferSize",
+                          17 * 1024)
 
 base::Value::Dict NetLogPrivateKeyOperationParams(uint16_t algorithm,
                                                   SSLPrivateKey* key) {
@@ -624,22 +631,11 @@ void SSLClientSocketImpl::GetSSLCertRequestInfo(
         CRYPTO_BUFFER_len(ca_name));
   }
 
-  cert_request_info->cert_key_types.clear();
-  const uint8_t* client_cert_types;
-  size_t num_client_cert_types =
-      SSL_get0_certificate_types(ssl_.get(), &client_cert_types);
-  for (size_t i = 0; i < num_client_cert_types; i++) {
-    switch (client_cert_types[i]) {
-      case static_cast<uint8_t>(SSLClientCertType::kRsaSign):
-      case static_cast<uint8_t>(SSLClientCertType::kEcdsaSign):
-        cert_request_info->cert_key_types.push_back(
-            static_cast<SSLClientCertType>(client_cert_types[i]));
-        break;
-      default:
-        // Unknown client certificate types are ignored.
-        break;
-    }
-  }
+  const uint16_t* algorithms;
+  size_t num_algorithms =
+      SSL_get0_peer_verify_algorithms(ssl_.get(), &algorithms);
+  cert_request_info->signature_algorithms.assign(algorithms,
+                                                 algorithms + num_algorithms);
 }
 
 void SSLClientSocketImpl::ApplySocketTag(const SocketTag& tag) {
@@ -702,8 +698,10 @@ int SSLClientSocketImpl::Write(
   if (rv == ERR_IO_PENDING) {
     user_write_callback_ = std::move(callback);
   } else {
-    if (rv > 0)
+    if (rv > 0) {
+      CHECK_LE(rv, buf_len);
       was_ever_used_ = true;
+    }
     user_write_buf_ = nullptr;
     user_write_buf_len_ = 0;
   }
@@ -754,9 +752,8 @@ int SSLClientSocketImpl::Init() {
     return ERR_UNEXPECTED;
   }
 
-  if (context_->config().post_quantum_enabled &&
-      base::FeatureList::IsEnabled(features::kPostQuantumKyber)) {
-    static const int kCurves[] = {NID_X25519Kyber768, NID_X25519,
+  if (context_->config().PostQuantumKeyAgreementEnabled()) {
+    static const int kCurves[] = {NID_X25519Kyber768Draft00, NID_X25519,
                                   NID_X9_62_prime256v1, NID_secp384r1};
     if (!SSL_set1_curves(ssl_.get(), kCurves, std::size(kCurves))) {
       return ERR_UNEXPECTED;
@@ -781,9 +778,9 @@ int SSLClientSocketImpl::Init() {
       SSL_set_session(ssl_.get(), session.get());
   }
 
+  const int kBufferSize = GetDefaultOpenSSLBufferSize();
   transport_adapter_ = std::make_unique<SocketBIOAdapter>(
-      stream_socket_.get(), kDefaultOpenSSLBufferSize,
-      kDefaultOpenSSLBufferSize, this);
+      stream_socket_.get(), kBufferSize, kBufferSize, this);
   BIO* transport_bio = transport_adapter_->bio();
 
   BIO_up_ref(transport_bio);  // SSL_set0_rbio takes ownership.
@@ -1247,10 +1244,15 @@ ssl_verify_result_t SSLClientSocketImpl::HandleVerifyResult() {
   }
 
   // Enforce keyUsage extension for RSA leaf certificates chaining up to known
-  // roots.
-  // TODO(crbug.com/795089): Enforce this unconditionally.
+  // roots unconditionally. Enforcement for local anchors is, for now,
+  // conditional on feature flags and external configuration. See
+  // https://crbug.com/795089.
+  bool rsa_key_usage_for_local_anchors =
+      context_->config().rsa_key_usage_for_local_anchors_override.value_or(
+          base::FeatureList::IsEnabled(features::kRSAKeyUsageForLocalAnchors));
   SSL_set_enforce_rsa_key_usage(
-      ssl_.get(), server_cert_verify_result_.is_issued_by_known_root);
+      ssl_.get(), rsa_key_usage_for_local_anchors ||
+                      server_cert_verify_result_.is_issued_by_known_root);
 
   // If the connection was good, check HPKP and CT status simultaneously,
   // but prefer to treat the HPKP error as more serious, if there was one.
@@ -1505,6 +1507,7 @@ int SSLClientSocketImpl::DoPayloadWrite() {
   int rv = SSL_write(ssl_.get(), user_write_buf_->data(), user_write_buf_len_);
 
   if (rv >= 0) {
+    CHECK_LE(rv, user_write_buf_len_);
     net_log_.AddByteTransferEvent(NetLogEventType::SSL_SOCKET_BYTES_SENT, rv,
                                   user_write_buf_->data());
     if (first_post_handshake_write_ && SSL_is_init_finished(ssl_.get())) {
@@ -1644,21 +1647,9 @@ int SSLClientSocketImpl::ClientCertRequestCallback(SSL* ssl) {
   // Clear any currently configured certificates.
   SSL_certs_clear(ssl_.get());
 
-#if BUILDFLAG(IS_IOS)
-  // TODO(droger): Support client auth on iOS. See http://crbug.com/145954).
-  //
-  // Historically this was disabled because client auth required
-  // platform-specific code deep in //net. Nowadays, this is abstracted away and
-  // we could enable the interfaces on iOS for platform-independence. However,
-  // merely enabling them changes our behavior from automatically proceeding
-  // with no client certificate to raising
-  // `URLRequest::Delegate::OnCertificateRequested`. Callers would need to be
-  // updated to apply that behavior manually.
-  //
-  // If fixing this, re-enable the tests in ssl_client_socket_unittest.cc and
-  // ssl_server_socket_unittest.cc which are disabled on iOS.
+#if !BUILDFLAG(ENABLE_CLIENT_CERTIFICATES)
   LOG(WARNING) << "Client auth is not supported";
-#else   // !BUILDFLAG(IS_IOS)
+#else   // BUILDFLAG(ENABLE_CLIENT_CERTIFICATES)
   if (!send_client_cert_) {
     // First pass: we know that a client certificate is needed, but we do not
     // have one at hand. Suspend the handshake. SSL_get_error will return
@@ -1693,7 +1684,7 @@ int SSLClientSocketImpl::ClientCertRequestCallback(SSL* ssl) {
                                 client_cert_->intermediate_buffers().size()));
     return 1;
   }
-#endif  // BUILDFLAG(IS_IOS)
+#endif  // !BUILDFLAG(ENABLE_CLIENT_CERTIFICATES)
 
   // Send no client certificate.
   net_log_.AddEventWithIntParams(NetLogEventType::SSL_CLIENT_CERT_PROVIDED,
@@ -1842,7 +1833,7 @@ void SSLClientSocketImpl::MessageCallback(int is_write,
       break;
     case SSL3_RT_CLIENT_HELLO_INNER:
       DCHECK(is_write);
-      net_log_.AddEvent(NetLogEventType::SSL_ENCYPTED_CLIENT_HELLO,
+      net_log_.AddEvent(NetLogEventType::SSL_ENCRYPTED_CLIENT_HELLO,
                         [&](NetLogCaptureMode capture_mode) {
                           return NetLogSSLMessageParams(!!is_write, buf, len,
                                                         capture_mode);

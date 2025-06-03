@@ -45,7 +45,7 @@ gfx::GpuFenceHandle CreateMergedGpuFenceFromFDs(
 
   gfx::GpuFenceHandle handle;
   if (merged_fd.is_valid())
-    handle.owned_fd = std::move(merged_fd);
+    handle.Adopt(std::move(merged_fd));
 
   return handle;
 }
@@ -102,12 +102,19 @@ bool HardwareDisplayPlaneManagerAtomic::SetConnectorProps(
   // updated only after a successful modeset.
   ConnectorProperties connector_props = connectors_props_[*connector_index];
   connector_props.crtc_id.value = crtc_id;
-  // Always set link-status to DRM_MODE_LINK_STATUS_GOOD. In case a link
-  // training has failed and link-status is now BAD, the kernel expects the
-  // userspace to reset it to GOOD; otherwise, it will ignore modeset requests
-  // which have the same mode as the reported bad status.
+  // Set link-status to DRM_MODE_LINK_STATUS_GOOD when a connector is connected
+  // and has modes. In case a link training has failed and link-status is now
+  // BAD, the kernel expects the userspace to reset it to GOOD; otherwise, it
+  // will ignore modeset requests which have the same mode as the reported bad
+  // status. However, if a connector is marked connected but has no modes, it
+  // effectively has a bandwidth of 0Gbps and failed all link training
+  // attempts. Leave it in link_status bad, since resetting the connector's
+  // resources in DRM should not be affected by this state.
   // https://www.kernel.org/doc/html/latest/gpu/drm-kms.html#standard-connector-properties
-  connector_props.link_status.value = DRM_MODE_LINK_STATUS_GOOD;
+  if (connector_props.connection == DRM_MODE_CONNECTED &&
+      connector_props.count_modes != 0) {
+    connector_props.link_status.value = DRM_MODE_LINK_STATUS_GOOD;
+  }
 
   bool status =
       AddPropertyIfValid(atomic_request, connector_id, connector_props.crtc_id);
@@ -226,9 +233,10 @@ void HardwareDisplayPlaneManagerAtomic::SetAtomicPropsForCommit(
     plane->set_owning_crtc(0);
     HardwareDisplayPlaneAtomic* atomic_plane =
         static_cast<HardwareDisplayPlaneAtomic*>(plane);
-    atomic_plane->AssignPlaneProps(
-        0, 0, gfx::Rect(), gfx::Rect(), gfx::OVERLAY_TRANSFORM_NONE,
-        base::kInvalidPlatformFile, DRM_FORMAT_INVALID, false);
+    atomic_plane->AssignPlaneProps(nullptr, 0, 0, gfx::Rect(), gfx::Rect(),
+                                   gfx::Rect(), gfx::OVERLAY_TRANSFORM_NONE,
+                                   base::kInvalidPlatformFile,
+                                   DRM_FORMAT_INVALID, false);
     atomic_plane->SetPlaneProps(atomic_request);
   }
 
@@ -335,9 +343,10 @@ bool HardwareDisplayPlaneManagerAtomic::DisableOverlayPlanes(
 
       HardwareDisplayPlaneAtomic* atomic_plane =
           static_cast<HardwareDisplayPlaneAtomic*>(plane);
-      atomic_plane->AssignPlaneProps(
-          0, 0, gfx::Rect(), gfx::Rect(), gfx::OVERLAY_TRANSFORM_NONE,
-          base::kInvalidPlatformFile, DRM_FORMAT_INVALID, false);
+      atomic_plane->AssignPlaneProps(nullptr, 0, 0, gfx::Rect(), gfx::Rect(),
+                                     gfx::Rect(), gfx::OVERLAY_TRANSFORM_NONE,
+                                     base::kInvalidPlatformFile,
+                                     DRM_FORMAT_INVALID, false);
       atomic_plane->SetPlaneProps(plane_list->atomic_property_set.get());
     }
     ret = drm_->CommitProperties(plane_list->atomic_property_set.get(),
@@ -404,12 +413,12 @@ bool HardwareDisplayPlaneManagerAtomic::SetPlaneData(
 
   if (overlay.gpu_fence) {
     const auto& gpu_fence_handle = overlay.gpu_fence->GetGpuFenceHandle();
-    fence_fd = gpu_fence_handle.owned_fd.get();
+    fence_fd = gpu_fence_handle.Peek();
   }
 
   if (!atomic_plane->AssignPlaneProps(
-          crtc_id, framebuffer_id, overlay.display_bounds, src_rect,
-          overlay.plane_transform, fence_fd,
+          drm_, crtc_id, framebuffer_id, overlay.display_bounds, src_rect,
+          overlay.damage_rect, overlay.plane_transform, fence_fd,
           overlay.buffer->framebuffer_pixel_format(),
           overlay.buffer->is_original_buffer())) {
     return false;

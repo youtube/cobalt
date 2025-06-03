@@ -92,6 +92,7 @@ InternalsUI::InternalsUI(content::WebUI* web_ui)
 #else
   source_->AddResourcePath("user-education",
                            IDR_USER_EDUCATION_INTERNALS_INDEX_HTML);
+  webui::SetupChromeRefresh2023(source_.get());
 #endif  // BUILDFLAG(IS_ANDROID)
 
   // chrome://internals/session-service
@@ -111,11 +112,8 @@ void InternalsUI::AddLensInternals(content::WebUI* web_ui) {
 }
 
 void InternalsUI::AddQueryTilesInternals(content::WebUI* web_ui) {
-  source_->AddResourcePath("query_tiles_internals.js",
-                           IDR_QUERY_TILES_INTERNALS_JS);
-  source_->AddResourcePath("query_tiles_internals_browser_proxy.js",
-                           IDR_QUERY_TILES_INTERNALS_BROWSER_PROXY_JS);
-  source_->AddResourcePath("query-tiles", IDR_QUERY_TILES_INTERNALS_HTML);
+  source_->AddResourcePath(
+      "query-tiles", IDR_QUERY_TILES_INTERNALS_QUERY_TILES_INTERNALS_HTML);
   web_ui->AddMessageHandler(
       std::make_unique<QueryTilesInternalsUIMessageHandler>(profile_));
 }
@@ -146,6 +144,13 @@ void InternalsUI::CreateHelpBubbleHandler(
   help_bubble_handler_ = std::make_unique<user_education::HelpBubbleHandler>(
       std::move(pending_handler), std::move(pending_client), this,
       std::vector<ui::ElementIdentifier>{kWebUIIPHDemoElementIdentifier});
+}
+
+void InternalsUI::BindInterface(
+    mojo::PendingReceiver<color_change_listener::mojom::PageHandler>
+        pending_receiver) {
+  color_provider_handler_ = std::make_unique<ui::ColorChangeHandler>(
+      web_ui()->GetWebContents(), std::move(pending_receiver));
 }
 
 #endif  // BUILDFLAG(IS_ANDROID)

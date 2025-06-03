@@ -47,14 +47,12 @@ class COMPONENT_EXPORT(UI_BASE) MenuModel
                        // selected.
   };
 
+  // ID to use for TYPE_TITLE items.
+  static constexpr int kTitleId = -2;
+
   MenuModel();
 
   virtual ~MenuModel();
-
-  // Returns true if any of the items within the model have icons. Not all
-  // platforms support icons in menus natively and so this is a hint for
-  // triggering a custom rendering mode.
-  virtual bool HasIcons() const = 0;
 
   // Returns the number of items in the menu.
   virtual size_t GetItemCount() const = 0;

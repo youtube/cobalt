@@ -35,6 +35,19 @@ component("policy") {
     "//sandbox/policy/mojom",
   ]
   public_deps = [ "//sandbox:common" ]
+  if (is_android) {
+    sources += [
+      "linux/bpf_base_policy_linux.cc",
+      "linux/bpf_base_policy_linux.h",
+      "linux/bpf_renderer_policy_linux.cc",
+      "linux/bpf_renderer_policy_linux.h",
+    ]
+    deps += [
+      "//sandbox:sandbox_buildflags",
+      "//sandbox/linux:sandbox_services",
+      "//sandbox/linux:seccomp_bpf",
+    ]
+  }
   if ((is_linux || is_chromeos) && !is_cobalt_hermetic_build) {
     sources += [
       "linux/bpf_audio_policy_linux.cc",
@@ -80,6 +93,9 @@ component("policy") {
         "linux/bpf_hardware_video_decoding_policy_linux.h",
       ]
       deps += [ "//media/gpu:buildflags" ]
+    }
+    if (is_linux) {
+      deps += [ "//net" ]  # TODO(crbug.com/1312226): remove this.
     }
     if (enable_oop_printing) {
       sources += [
@@ -159,6 +175,8 @@ component("policy") {
       "win/lpac_capability.h",
       "win/sandbox_diagnostics.cc",
       "win/sandbox_diagnostics.h",
+      "win/sandbox_warmup.cc",
+      "win/sandbox_warmup.h",
       "win/sandbox_win.cc",
       "win/sandbox_win.h",
     ]
@@ -193,7 +211,7 @@ component("policy") {
       "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.sysmem:fuchsia.sysmem_hlcpp",
       "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.tracing.perfetto:fuchsia.tracing.perfetto_hlcpp",
       "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.tracing.provider:fuchsia.tracing.provider_hlcpp",
-      "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.ui.scenic:fuchsia.ui.scenic_hlcpp",
+      "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.ui.composition:fuchsia.ui.composition_hlcpp",
     ]
   }
 }

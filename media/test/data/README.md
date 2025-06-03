@@ -67,6 +67,15 @@ ffmpeg -fflags nofillin -i noise_1ch_29_4khz_aot42_19_lufs_drc_config_change_mp4
 ffmpeg -fflags nofillin -i noise_2ch_44_1khz_aot42_19_lufs_config_change_mp4.m4a -acodec copy -t 1 -movflags frag_keyframe+empty_moov+default_base_moof noise-xhe-aac-44kHz.mp4
 ```
 
+#### sync2-trimmed.mp4
+Special mp4 created with audio/video offset by 3 seconds. sync2.mp4 is an
+internal higher resolution version of sync2.ogv.
+```
+ffmpeg -ss 83.482733 -i sync2.mp4 -an -vcodec copy -t 5 out_vid.mp4
+ffmpeg -ss 80.482733 -i sync2.mp4 -vn -acodec copy -t 8 out_audio.mp4
+ffmpeg -i out_vid.mp4 -itsoffset -3 -i out_audio.mp4 -c copy sync2-trimmed.mp4
+```
+
 ### FLAC
 
 #### bear-flac.mp4
@@ -106,6 +115,188 @@ Fragmented audio-only 44.1kHz FLAC in MP4 file, created using:
 ```
 ffmpeg -i sfx.flac -map 0:0 -acodec copy -strict -2 -movflags frag_keyframe+empty_moov+default_base_moof sfx-flac_frag.mp4
 ```
+
+### VVC
+
+#### bear_180p.vvc
+Created using FFmpeg/vvencapp with the following commands:
+```
+ffmpeg -i bear.y4m -f rawvideo bear_180P.yuv
+vvencapp --preset medium -i bear_180P.yuv -s 320x180 -r 15 -b 1000000 \
+  -p 2 -o bear_180p.vvc
+```
+
+#### bbb_360p.vvc
+Created using FFmpeg/vvencapp with the following commands:
+```
+ffmpeg -i bbb-320x240-2video-2audio.mp4 bbb.y4m
+ffmpeg -i bbb.y4m -vf scale=480x360 bbb_480x360.yuv
+vvencapp --preset medium -i bbb_480x360.yuv -s 480x360 -r 15 -b 1000000 \
+  -p 2 -f 60 -o bbb_360p.vvc
+```
+
+#### basketball_2_layers.vvc
+2 spatial layer VVC video with layer 0 at 208x120 and layer 1 at 832x480.
+Used for vvc parser test. Once vvencapp supports multi-layer encoding, the
+creation command needs to be provided.
+
+#### bbb_9tiles.vvc
+VVC stream generated with VTM with each picture configured to be with 9 tiles
+and single raster scan slice.
+Created with VTM and ffmpeg:
+```
+ffmpeg -i bbb-320x240-2video-2audio.mp4 bbb.y4m
+ffmpeg -i bbb.y4m -vf scale=1920x1080 bbb_1920x1080.yuv
+EncoderApp --EnablePicPartitioning=1 --CTUSize=128 --TileColumnWidthArray=5 \
+  --TileRowHeightArray=3 --RasterScanSlices=1 --RasterSliceSizes=15 \
+  -f 8 --InputFile=bbb_1920x1080.yuv --BitstreamFile=bbb_9tiles.vvc
+```
+
+#### bbb_15tiles_15slices.vvc
+VVC stream generated with VTM with each picture configured to be with 15 tiles
+and 15 rect slices.
+Created with VTM and ffmpeg:
+```
+ffmpeg -i bbb-320x240-2video-2audio.mp4 bbb.y4m
+ffmpeg -i bbb.y4m -vf scale=1920x1080 bbb_1920x1080.yuv
+EncoderApp -f 8 --EnablePicPartitioning=1 --CTUSize=128 \
+  --TileColumnWidthArray=3,3,3,3,3  --TileRowHeightArray=3,3 \
+  --RasterScanSlices=0 --RectSliceFixedWidth=1 \
+  --RectSliceFixedHeight=1 --InputFile=bbb_1920x1080.yuv \
+  --BitstreamFile=bbb_15tiles_15slices.vvc
+```
+
+#### bbb_9tiles_18slices.vvc
+VVC stream generated with VTM with each picture configured to be with 9 tiles
+and 18 rect slices.
+Created with VTM and ffmpeg:
+```
+ffmpeg -i bbb-320x240-2video-2audio.mp4 bbb.y4m
+ffmpeg -i bbb.y4m -vf scale=1920x1080 bbb_1920x1080.yuv
+EncoderApp -f 8 --EnablePicPartitioning=1 --CTUSize=128 \
+  --TileColumnWidthArray=5,5,5 --TileRowHeightArray=3,3 --RasterScanSlices=0 \
+  --RectSliceFixedWidth=0 --RectSliceFixedHeight=0 \
+  --RectSlicePositions=0,19,30,34,45,64,75,79,90,109,120,124,5,24,35,39,50,69,\
+80,84,95,114,125,129,10,29,40,44,55,74,85,89,100,119,130,134 \
+  --InputFile=bbb_1920x1080.yuv --BitstreamFile=bbb_9tiles_18slices.vvc
+```
+
+#### bbb_chroma_qp_offset_lists.vvc
+VVC stream generated with VTM with chroma QP offset lists enabled.
+Created with VTM and ffmpeg:
+```
+ffmpeg -i bbb-320x240-2video-2audio.mp4 bbb.y4m
+ffmpeg -i bbb.y4m -vf scale=1920x1080 bbb_1920x1080.yuv
+EncoderApp --CTUSize=128 --CbQpOffsetList=3,3,8,9 --CrQpOffsetList=2,4,1,7 \
+  -f 8 --InputFile=bbb_1920x1080.yuv \
+  --BitstreamFile=bbb_chroma_qp_offset_lists.vvc
+```
+
+#### bbb_scaling_lists.vvc
+VVC stream generated with VTM that is used to verify scaling list parsing.
+Created with VTM and ffmpeg:
+```
+ffmpeg -i bbb-320x240-2video-2audio.mp4 bbb.y4m
+ffmpeg -i bbb.y4m -vf scale=1920x1080 bbb_1920x1080.yuv
+EncoderApp --CTUSize=128 -c sample_scaling_list.cfg -f 8 \
+  --InputFile=bbb_1920x1080.yuv \
+  --BitstreamFile=bbb_scaling_lists.vvc
+```
+Please be noted sample_scaling_list.cfg is the file with the same name from VTM
+sample configure.
+
+#### bbb_rpl_in_ph_nut.vvc
+VVC stream generated with VTM that is used to verify parsing of complex picture
+header structure in a separate PH NALU.
+Created with VTM and ffmpeg:
+```
+ffmpeg -i bbb-320x240-2video-2audio.mp4 bbb.y4m
+ffmpeg -i bbb.y4m -vf scale=1920x1080 bbb_1920x1080.yuv
+EncoderApp -f 5 --EnablePicPartitioning=1 --CTUSize=128 \
+  --TileColumnWidthArray=5,5,5 --TileRowHeightArray=3,3 --RasterScanSlices=0 \
+  --RectSliceFixedWidth=0 --RectSliceFixedHeight=0 \
+  --RectSlicePositions=0,19,30,34,45,64,75,79,90,109,120,124,5,24,35,39,50,69,\
+80,84,95,114,125,129,10,29,40,44,55,74,85,89,100,119,130,134 \
+  --SliceLevelRpl=0 --SliceLevelDblk=0 --SliceLevelSao=0 --SliceLevelAlf=0 \
+  --SliceLevelDeltaQp=0 --ALF=1 --JointCbCr=1 --SAO=1 --WeightedPredP=1 \
+  --WeightedPredB=1 --WeightedPredMethod=4 --CCALF=1 \
+  --VirtualBoundariesPresentInSPSFlag=0 --SliceLevelWeightedPrediction=0
+```
+
+#### bbb_rpl_in_slice.vvc
+VVC stream generated with VTM that is used to verify slice header which contains
+RPL and pred_weight_table directly in it, instead of the picture header structure
+that is part of slice header.
+Created with VTM and ffmpeg:
+```
+ffmpeg -i bbb-320x240-2video-2audio.mp4 bbb.y4m
+ffmpeg -i bbb.y4m -vf scale=1920x1080 bbb_1920x1080.yuv
+EncoderApp -f 5 --EnablePicPartitioning=1 --CTUSize=128 \
+  --SliceLevelRpl=1 --SliceLevelDblk=1 --SliceLevelSao=1 --SliceLevelAlf=1 \
+  --SliceLevelDeltaQp=1 --ALF=1 --JointCbCr=1 --SAO=1 --WeightedPredP=1 \
+  --WeightedPredB=1 --WeightedPredMethod=4 --CCALF=1 \
+  --VirtualBoundariesPresentInSPSFlag=0 --SliceLevelWeightedPrediction=1 \
+  --InputFile=bbb_1920x1080.yuv --BitstreamFile=bbb_rpl_in_slice.vvc
+```
+
+#### bbb_slice_with_entrypoints.vvc
+VVC stream generated with VTM that is used to verify slices with entrypoints
+specified in slice header, and also with deblocking filter params in it.
+Created with VTM and ffmpeg:
+```
+ffmpeg -i bbb-320x240-2video-2audio.mp4 bbb.y4m
+ffmpeg -i bbb.y4m -vf scale=1920x1080 bbb_1920x1080.yuv
+EncoderApp --EnablePicPartitioning=1 --CTUSize=128 --TileColumnWidthArray=5 \
+  --TileRowHeightArray=3 --RasterScanSlices=1 --RasterSliceSizes=15 \
+  --DisableLoopFilterAcrossTiles=0 --DisableLoopFilterAcrossSlices \
+  --SliceLevelRpl=0 --SliceLevelDblk=0 --SliceLevelSao=0 --SliceLevelAlf=0 \
+  --SliceLevelWeightedPrediction=0 --VirtualBoundariesPresentInSPSFlag=0 \
+  --DeblockingFilterOffsetInPPS=0 --DeblockingFilterDisable=0 \
+  --DeblockingFilterBetaOffset_div2=-2 --DeblockingFilterTcOffset_div2=-2 \
+  --DeblockingFilterCbBetaOffset_div2=-2 --DeblockingFilterCbTcOffset_div2=0 \
+  --DeblockingFilterCrBetaOffset_div2=-2 --DeblockingFilterCrTcOffset_div2=0 \
+  --DeblockingFilterMetric=0 --EntryPointsPresent=1 --WaveFrontSynchro=1 \
+  -f 2 --InputFile=bbb_1920x1080.yuv --BitstreamFile=bbb_slice_with_entrypoints.vvc
+```
+
+#### bbb_2_subpictures_8_slices.vvc
+VVC stream generated with VTM that is used to verify VVC slice parser on stream
+that is with multiple subpictures.
+Created with VTM and ffmpeg:
+```
+ffmpeg -i bbb-320x240-2video-2audio.mp4 bbb.y4m
+ffmpeg -i bbb.y4m -vf scale=1920x1080 bbb_1920x1080.yuv
+EncoderApp --EnablePicPartitioning=1 --CTUSize=128 --TileColumnWidthArray=3,4 \
+ --TileRowHeightArray=3 --RasterScanSlices=0 --RectSliceFixedWidth=0 \
+ --RectSliceFixedHeight=0 --RectSlicePositions=0,17,30,32,45,62,75,77,3,85,90,\
+ 130,11,89,101,134 --DisableLoopFilterAcrossTiles=1 \
+ --DisableLoopFilterAcrossSlices=1 --SubPicInfoPresentFlag=1 --NumSubPics=2 \
+ --SubPicCtuTopLeftX=0,11 --SubPicCtuTopLeftY=0,0 --SubPicWidth=11,4 \
+ --SubPicHeight=9,9 --SubPicTreatedAsPicFlag=1,1 \
+ --LoopFilterAcrossSubpicEnabledFlag=0,0 \
+ --SubPicIdMappingExplicitlySignalledFlag=0 \
+ -f 2 --InputFile=bbb_1920x1080.yuv --BitstreamFile=bbb_2_subpictures_8slices.vvc
+```
+
+#### bbb_poc_msb.vvc
+VVC stream generated with VTM that is modified to limit the POC LSB maximum value
+to 16. This is done by change sps_log2_max_pic_order_cnt_lsb_minus4 to 0 in the
+VTM encoder implementation.
+
+#### bbb_poc_gop8.vvc
+VVC stream generated with VTM that is configured to having a GOP size of 4 and
+IDR interval of 8, to verify the POC difference for IDR frame with HEVC.
+Created with VTM and ffmpeg:
+```
+ffmpeg -i bbb-320x240-2video-2audio.mp4 bbb_320x240.yuv
+EncoderApp --CTUSize=128 --GOPSize=4 --DecodingRefreshType=2 --IntraPeriod=8 \
+  --InputFile=bbb_320x240.yuv --BitstreamFile=bbb__poc_gop8.vvc
+```
+
+#### vvc_frames_with_ltr.vvc
+VVC stream generated manually with modified VTM to enable long term reference
+pictures. The stream is also encoded with multiple slices per AU, and each
+slice is with different reference picture lists.
 
 ### AV1
 
@@ -319,6 +510,23 @@ converted from four-colors.mp4 by ffmpeg.
 #### four-colors-vp9-i420a.webm
 A 960x540 yuva420p vp9 video with 4 color blocks (Y,R,G,B) in every frame. This
 is converted from four-colors.mp4 by adding an opacity of 0.5 using ffmpeg.
+
+
+#### four-colors-av1.mp4
+```
+ffmpeg -y -i four-colors.png -t 2 \
+       -vf "colorspace=bt709:iall=bt709:fast=1,scale=960:540,setsar=1:1" \
+       -c:v libaom-av1 -b:v 2M \
+       -pix_fmt yuv420p -movflags +write_colr four-colors-av1.mp4
+```
+
+#### four-colors-hevc.mp4
+```
+ffmpeg -y -i four-colors.png -t 2 \
+       -vf "colorspace=bt709:iall=bt709:fast=1,scale=960:540,setsar=1:1" \
+       -c:v libx265 -crf 26 \
+       -pix_fmt yuv420p -movflags +write_colr four-colors-hevc.mp4
+```
 
 #### bear-320x180-hi10p.mp4
 #### bear-320x240-vp9_profile2.webm
@@ -643,6 +851,9 @@ shaka/packager/tools/pssh/pssh-box.py --common-system-id --key-id 30313233343536
 
 ### HLS
 
+#### bear-1280x720-hls-clear-mpl.m3u8
+A single-segment hls media playlist which plays bear-1280x720-hls.ts.
+
 #### bear-1280x720-hls.ts
 Produced using Apple's mediafilesegmenter tool with bear-1280x720.ts as input,
 with no encryption.
@@ -657,6 +868,10 @@ manually and prepended to convey the encryption metadata, notably key id and IV)
 ```
 mediafilesegmenter -S -P -k 'key_iv.bin' -t 10 -start-segments-with-iframe -f 'output/' bear-1280x720.ts
 ```
+
+#### HLS - directory
+Samples of assorted playlist types and a README file explaining how each sample
+is generated.
 
 #### bear-1280x720-hls-with-CAT.ts
 Same as bear-1280x720-hls.ts but with an extra TS packet prepended. This is the
@@ -1187,10 +1402,28 @@ HEVC video stream with 8-bit main profile, generated with
 ffmpeg -i bear-1280x720.mp4 -vcodec hevc bear-1280x720-hevc.mp4
 ```
 
+#### bear-1280x720-hevc-no-audio.mp4
+HEVC video stream with 8-bit main profile, generated with
+```
+ffmpeg -i bear-1280x720-hevc.mp4 -vcodec copy -an bear-1280x720-hevc-no-audio.mp4
+```
+
 #### bear-1280x720-hevc-10bit.mp4
 HEVC video stream with 10-bit main10 profile, generated with
 ```
 ffmpeg -i bear-1280x720.mp4 -vcodec hevc -pix_fmt yuv420p10le bear-1280x720-hevc-10bit.mp4
+```
+
+#### bear-1280x720-hevc-8bit-422.mp4
+HEVC video stream with 8-bit 422 range extension profile, generated with
+```
+ffmpeg -i bear-1280x720.mp4 -vcodec hevc -pix_fmt yuv422p bear-1280x720-hevc-8bit-422.mp4
+```
+
+#### bear-1280x720-hevc-10bit-no-audio.mp4
+HEVC video stream with 10-bit main10 profile, generated with
+```
+ffmpeg -i bear-1280x720-hevc-10bit.mp4 -vcodec copy -an bear-1280x720-hevc-10bit-no-audio.mp4
 ```
 
 #### bear-1280x720-hevc-10bit-422.mp4
@@ -1199,10 +1432,22 @@ HEVC video stream with 10-bit 422 range extension profile, generated with
 ffmpeg -i bear-1280x720.mp4 -vcodec libx265 -pix_fmt yuv422p10le bear-1280x720-hevc-10bit-422.mp4
 ```
 
+#### bear-1280x720-hevc-10bit-422-no-audio.mp4
+HEVC video stream with 10-bit 422 range extension profile, generated with
+```
+ffmpeg -i bear-1280x720-hevc-10bit-422.mp4 -vcodec copy -an bear-1280x720-hevc-10bit-422-no-audio.mp4
+```
+
 #### bear-1280x720-hevc-10bit-444.mp4
 HEVC video stream with 10-bit 444 range extension profile, generated with
 ```
 ffmpeg -i bear-1280x720.mp4 -vcodec libx265 -pix_fmt yuv444p10le bear-1280x720-hevc-10bit-444.mp4
+```
+
+#### bear-1280x720-hevc-10bit-444-no-audio.mp4
+HEVC video stream with 10-bit 444 range extension profile, generated with
+```
+ffmpeg -i bear-1280x720-hevc-10bit-444.mp4 -vcodec copy -an bear-1280x720-hevc-10bit-444-no-audio.mp4
 ```
 
 #### bear-1280x720-hevc-12bit-420.mp4
@@ -1228,6 +1473,12 @@ HEVC video stream with HDR10 metadata included, generated with
 ````
 ffmpeg -i bear-1280x720.mp4 -vcodec libx265 -x265-params colorprim=bt2020:transfer=smpte2084:colormatrix=bt2020nc:master-display="G(13250,34500)B(7500,3000)R(34000,16000)WP(15635,16450)L(10000000,500)":max-cll=1000,400 -pix_fmt yuv420p10le bear-1280x720-hevc-10bit-hdr10.mp4 // nocheck
 ````
+
+#### bear-3840x2160-hevc.mp4
+HEVC video stream with 8-bit main profile, generated with
+```
+ffmpeg -i bear-1280x720.mp4 -vf "scale=3840:2160,setpts=4*PTS" -c:v libx265 -crf 28 -c:a copy bear-3840x2160-hevc.mp4
+```
 
 ### Multi-track MP4 file
 
@@ -1256,6 +1507,12 @@ Generated using following steps:
     ```
     ffmpeg -i bbb1.mp4 -i bbb2.mp4 -map 0:0 -map 0:1 -map 1:0 -map 1:1 -c:v copy -c:a copy -movflags frag_keyframe+omit_tfhd_offset+separate_moof bbb-320x240-2video-2audio.mp4
     ```
+
+#### multitrack-disabled.mp4
+H.264 video stream with the first track marked as disabled, generated with
+````
+ffmpeg -f lavfi -i "color=c=white:d=1" -f lavfi -i "testsrc2=d=1" -map 0 -disposition:v:0 0 -map 1 -disposition:v:1 default -c:v libx264 multitrack-disabled.mp4
+````
 
 ### Multi-track WebM file
 
@@ -1339,3 +1596,16 @@ ffmpeg -i bear2.wav -i bear2.wav -i bear2.wav -ar 48000 -filter_complex 'amerge=
 ffmpeg -i bear6.wav -c:a dtsxS -b:a 160000 -movflags frag_keyframe -y bear_dtsx.mp4
 # truncate to size of moov box (truncate -s)
 ```
+### one_frame_1280x720.mjpeg
+It's a single frame mjpeg data. Resolution: 1280x720, color primary: sRGB, transfer function: BT.709, color matrix: BT.601, color range: full-range.
+
+### avc-bitstream-format-0.h264
+The first 2 frames of the H.264 with bitstream format (NALU length)
+
+avc-bitstream-format-0.h264: IDR
+- ffmpeg -y -i bear-1280x720.mp4 -vcodec copy -f m4v avc-bitstream-format-0.h264
+avc-bitstream-format-1.h264: Non-IDR
+- split bear-1280x720.mp4 to annexb files by command of
+  ffmpeg -i %1 -f image2 -vcodec copy -bsf h264_mp4toannexb "%d.h264"
+- manually convert one of created Non-IDR annexb file to avc bitstream.
+  (replace annexb start code with length)

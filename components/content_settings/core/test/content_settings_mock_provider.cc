@@ -17,7 +17,7 @@ MockProvider::~MockProvider() = default;
 std::unique_ptr<RuleIterator> MockProvider::GetRuleIterator(
     ContentSettingsType content_type,
     bool incognito) const {
-  return value_map_.GetRuleIterator(content_type, nullptr);
+  return value_map_.GetRuleIterator(content_type);
 }
 
 bool MockProvider::SetWebsiteSetting(
@@ -28,11 +28,12 @@ bool MockProvider::SetWebsiteSetting(
     const ContentSettingConstraints& constraints) {
   if (read_only_)
     return false;
+  base::AutoLock lock(value_map_.GetLock());
   if (!in_value.is_none()) {
+    RuleMetaData metadata;
+    metadata.SetFromConstraints(constraints);
     value_map_.SetValue(requesting_url_pattern, embedding_url_pattern,
-                        content_type, std::move(in_value),
-                        {.expiration = constraints.expiration,
-                         .session_model = constraints.session_model});
+                        content_type, std::move(in_value), metadata);
   } else {
     base::Value value(std::move(in_value));
     value_map_.DeleteValue(requesting_url_pattern, embedding_url_pattern,

@@ -10,12 +10,9 @@
 
 #include "ash/ash_export.h"
 #include "ash/wm/window_transient_descendant_iterator.h"
-#include "ui/base/ui_base_types.h"
+#include "ash/wm/wm_metrics.h"
+#include "ui/aura/window.h"
 #include "ui/wm/core/window_util.h"
-
-namespace aura {
-class Window;
-}
 
 namespace gfx {
 class Point;
@@ -27,14 +24,26 @@ namespace ui {
 class LocatedEvent;
 }  // namespace ui
 
-namespace ash {
+namespace views {
+class View;
+}  // namespace views
 
-namespace window_util {
+namespace ash::window_util {
 
 // See ui/wm/core/window_util.h for ActivateWindow(), DeactivateWindow(),
 // IsActiveWindow() and CanActivateWindow().
 ASH_EXPORT aura::Window* GetActiveWindow();
 ASH_EXPORT aura::Window* GetFocusedWindow();
+
+// Returns true if `win1` is stacked (not directly) below `win2`. Note that this
+// API only applies for windows with the same direct parent.
+ASH_EXPORT bool IsStackedBelow(aura::Window* win1, aura::Window* win2);
+
+// Returns the top most window for the given `windows` list by first finding the
+// lowest common parent of all the `windows` and then finding the window among
+// `windows` that is top-most in terms of z-order. Note that this doesn't take
+// account of the visibility of the windows.
+ASH_EXPORT aura::Window* GetTopMostWindow(const aura::Window::Windows& windows);
 
 // Returns the window with capture, null if no window currently has capture.
 ASH_EXPORT aura::Window* GetCaptureWindow();
@@ -123,7 +132,7 @@ bool IsAnyWindowDragged();
 
 // Returns the top window on MRU window list, or null if the list is empty.
 aura::Window* GetTopWindow();
-aura::Window* GetTopNonFloatedWindow();
+ASH_EXPORT aura::Window* GetTopNonFloatedWindow();
 
 // Returns the floated window for the active desk if it exists.
 ASH_EXPORT aura::Window* GetFloatedWindowForActiveDesk();
@@ -133,7 +142,7 @@ ASH_EXPORT bool ShouldMinimizeTopWindowOnBack();
 
 // Returns true if `window` is in minimized state, or is in floated state and
 // tucked to the side in tablet mode.
-bool IsMinimizedOrTucked(aura::Window* window);
+ASH_EXPORT bool IsMinimizedOrTucked(aura::Window* window);
 
 // Sends |ui::VKEY_BROWSER_BACK| key press and key release event to the
 // WindowTreeHost associated with |root_window|.
@@ -149,7 +158,7 @@ WindowTransientDescendantIteratorRange GetVisibleTransientTreeIterator(
 // transient hierarchy. The returned Rect is in screen coordinates. The returned
 // bounds are adjusted to allow the original |transformed_window|'s header to be
 // hidden if |top_inset| is not zero.
-gfx::RectF GetTransformedBounds(aura::Window* transformed_window,
+ASH_EXPORT gfx::RectF GetTransformedBounds(aura::Window* transformed_window,
                                 int top_inset);
 
 // If multi profile is on, check if |window| should be shown for the current
@@ -161,7 +170,24 @@ ASH_EXPORT aura::Window* GetEventHandlerForEvent(const ui::LocatedEvent& event);
 // Checks the prefs to see if natural scroll for the touchpad is turned on.
 ASH_EXPORT bool IsNaturalScrollOn();
 
-}  // namespace window_util
-}  // namespace ash
+// The thumbnail window (transformed window for non-minimized state in overview,
+// mirror window for minimized state in overview and alt+tab windows) may need
+// to be rounded depending on the state of the backdrop. This helper takes into
+// account the rounded corners of `backdrop_view`, if it exists. Used for
+// overview and alt+tab.
+ASH_EXPORT bool ShouldRoundThumbnailWindow(
+    views::View* backdrop_view,
+    const gfx::RectF& thumbnail_bounds_in_screen);
+
+// Returns true if either `kFasterSplitScreenSetup` is enabled or
+// `kSnapGroup` and `AutomaticLockGroup` is true. When this is true, snapping
+// one window will automatically start SplitViewOverviewSession.
+bool IsFasterSplitScreenOrSnapGroupArm1Enabled();
+
+// Starts SplitViewOverviewSession for `window`, if it wasn't already active.
+void MaybeStartSplitViewOverview(aura::Window* window,
+                                 WindowSnapActionSource snap_action_source);
+
+}  // namespace ash::window_util
 
 #endif  // ASH_WM_WINDOW_UTIL_H_

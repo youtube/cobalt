@@ -10,7 +10,6 @@ import android.view.View;
 
 import org.chromium.base.TraceEvent;
 import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.util.ChromeAccessibilityUtil;
 import org.chromium.components.browser_ui.widget.highlight.ViewHighlighter;
@@ -47,6 +46,8 @@ public class UserEducationHelper {
     private final Handler mHandler;
 
     public UserEducationHelper(Activity activity, Handler handler) {
+        assert activity != null : "Trying to show an IPH for a null activity.";
+
         mActivity = activity;
         mHandler = handler;
     }
@@ -74,7 +75,8 @@ public class UserEducationHelper {
     private void showIPH(Tracker tracker, IPHCommand iphCommand) {
         // Activity was destroyed; don't show IPH.
         View anchorView = iphCommand.anchorView;
-        if (mActivity.isFinishing() || mActivity.isDestroyed() || anchorView == null) {
+        if (mActivity == null || mActivity.isFinishing() || mActivity.isDestroyed()
+                || anchorView == null) {
             iphCommand.onBlockedCallback.run();
             return;
         }
@@ -100,11 +102,9 @@ public class UserEducationHelper {
             return;
         }
 
-        // If scroll optimizations were enabled, iphCommand would have been built lazily, and we
-        // would have to fetch the data that is needed from this point on.
-        if (ChromeFeatureList.isEnabled(ChromeFeatureList.ANDROID_SCROLL_OPTIMIZATIONS)) {
-            iphCommand.fetchFromResources();
-        }
+        // iphCommand would have been built lazily, and we would have to fetch the data that is
+        // needed from this point on.
+        iphCommand.fetchFromResources();
 
         String contentString = iphCommand.contentString;
         String accessibilityString = iphCommand.accessibilityText;
@@ -112,8 +112,7 @@ public class UserEducationHelper {
         assert (!accessibilityString.isEmpty());
 
         textBubble = new TextBubble(mActivity, anchorView, contentString, accessibilityString,
-                iphCommand.removeArrow ? false : true,
-                viewRectProvider != null ? viewRectProvider : rectProvider,
+                !iphCommand.removeArrow, viewRectProvider != null ? viewRectProvider : rectProvider,
                 ChromeAccessibilityUtil.get().isAccessibilityEnabled());
         textBubble.setPreferredVerticalOrientation(iphCommand.preferredVerticalOrientation);
         textBubble.setDismissOnTouchInteraction(iphCommand.dismissOnTouch);

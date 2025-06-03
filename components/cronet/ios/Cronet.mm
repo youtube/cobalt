@@ -7,9 +7,9 @@
 #include <memory>
 #include <vector>
 
+#include "base/apple/bundle_locations.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
-#include "base/mac/bundle_locations.h"
 #include "base/strings/sys_string_conversions.h"
 #include "base/synchronization/lock.h"
 #import "base/task/single_thread_task_runner.h"
@@ -24,10 +24,6 @@
 #include "net/base/url_util.h"
 #include "net/cert/cert_verifier.h"
 #include "net/url_request/url_request_context_getter.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 // Cronet NSError constants.
 NSString* const CRNCronetErrorDomain = @"CRNCronetErrorDomain";
@@ -485,13 +481,13 @@ class CronetHttpProtocolHandlerDelegate
       base::SysNSStringToUTF8(hostResolverRulesForTesting));
 }
 
-// This is a private dummy method that prevents the linker from stripping out
+// This is a private no-op method that prevents the linker from stripping out
 // the otherwise unreferenced methods from 'bidirectional_stream.cc'.
 + (void)preventStrippingCronetBidirectionalStream {
   bidirectional_stream_create(NULL, 0, 0);
 }
 
-// This is a private dummy method that prevents the linker from stripping out
+// This is a private no-op method that prevents the linker from stripping out
 // the otherwise unreferenced modules from 'native'.
 + (void)preventStrippingNativeCronetModules {
   Cronet_Buffer_Create();

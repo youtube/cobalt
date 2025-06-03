@@ -46,7 +46,8 @@ class FamilyUserDeviceMetricsTest
   }
   bool IsUserExisting() const { return std::get<1>(GetParam()); }
 
-  raw_ptr<FakeChromeUserManager, ExperimentalAsh> user_manager_ = nullptr;
+  raw_ptr<FakeChromeUserManager, DanglingUntriaged | ExperimentalAsh>
+      user_manager_ = nullptr;
 
   LoggedInUserMixin logged_in_user_mixin_{
       &mixin_host_,
@@ -147,6 +148,7 @@ IN_PROC_BROWSER_TEST_P(FamilyUserDeviceMetricsTest, SingleUserCount) {
 IN_PROC_BROWSER_TEST_P(FamilyUserDeviceMetricsTest, LoginAsNewChildUser) {
   base::HistogramTester histogram_tester;
 
+  logged_in_user_mixin_.GetLoginManagerMixin()->SkipPostLoginScreens();
   logged_in_user_mixin_.GetLoginManagerMixin()->LoginAsNewChildUser();
   logged_in_user_mixin_.GetLoginManagerMixin()->WaitForActiveSession();
 
@@ -172,6 +174,7 @@ IN_PROC_BROWSER_TEST_P(FamilyUserDeviceMetricsTest, LoginAsNewChildUser) {
 IN_PROC_BROWSER_TEST_P(FamilyUserDeviceMetricsTest, LoginAsNewRegularUser) {
   base::HistogramTester histogram_tester;
 
+  logged_in_user_mixin_.GetLoginManagerMixin()->SkipPostLoginScreens();
   logged_in_user_mixin_.GetLoginManagerMixin()->LoginAsNewRegularUser();
   logged_in_user_mixin_.GetLoginManagerMixin()->WaitForActiveSession();
 
@@ -199,25 +202,7 @@ IN_PROC_BROWSER_TEST_P(FamilyUserDeviceMetricsTest, GuestUser) {
 
   user_manager_->AddGuestUser();
 
-  logged_in_user_mixin_.GetLoginManagerMixin()->LoginAsNewRegularUser();
-  logged_in_user_mixin_.GetLoginManagerMixin()->WaitForActiveSession();
-
-  size_t total_user_count = IsUserExisting() ? 3 : 2;
-  EXPECT_EQ(total_user_count, user_manager_->GetUsers().size());
-
-  // If no existing users on login screen, then this user is the first and only.
-  const int gaia_users_count = IsUserExisting() ? 2 : 1;
-
-  histogram_tester.ExpectUniqueSample(
-      FamilyUserDeviceMetrics::GetGaiaUsersCountHistogramNameForTest(),
-      /*sample=*/gaia_users_count,
-      /*expected_count=*/1);
-}
-
-IN_PROC_BROWSER_TEST_P(FamilyUserDeviceMetricsTest, ActiveDirectoryUser) {
-  base::HistogramTester histogram_tester;
-
-  user_manager_->AddActiveDirectoryUser(kActiveDirectoryUserAccountId);
+  logged_in_user_mixin_.GetLoginManagerMixin()->SkipPostLoginScreens();
   logged_in_user_mixin_.GetLoginManagerMixin()->LoginAsNewRegularUser();
   logged_in_user_mixin_.GetLoginManagerMixin()->WaitForActiveSession();
 
@@ -244,6 +229,7 @@ class FamilyUserDeviceMetricsManagedDeviceTest
     : public FamilyUserDeviceMetricsTest {
  protected:
   void LoginAsNewRegularUser() {
+    logged_in_user_mixin_.GetLoginManagerMixin()->SkipPostLoginScreens();
     logged_in_user_mixin_.GetLoginManagerMixin()->LoginAsNewRegularUser();
     logged_in_user_mixin_.GetLoginManagerMixin()->WaitForActiveSession();
   }

@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "base/test/bind.h"
+#include "content/public/common/content_features.h"
 #include "extensions/common/features/feature.h"
 #include "extensions/common/features/simple_feature.h"
 #include "extensions/common/manifest.h"

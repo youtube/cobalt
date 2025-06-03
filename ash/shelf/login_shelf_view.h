@@ -27,6 +27,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
+#include "components/account_id/account_id.h"
 #include "ui/views/controls/button/button.h"
 #include "ui/views/view.h"
 
@@ -69,6 +70,7 @@ class ASH_EXPORT LoginShelfView : public views::View,
     kEnterpriseEnrollment,  // Start enterprise enrollment flow.
     kSignIn,                // Start signin.
     kOsInstall,             // Start OS Install flow.
+    kSchoolEnrollment,      // Start enterprise enrollment flow for child setup.
   };
 
   // Stores and notifies UiUpdate test callbacks.
@@ -145,6 +147,7 @@ class ASH_EXPORT LoginShelfView : public views::View,
   // Test API. Returns true if request was successful (i.e. button was
   // clickable).
   bool LaunchAppForTesting(const std::string& app_id);
+  bool LaunchAppForTesting(const AccountId& account_id);
 
   // Adds test delegate. Delegate will become owned by LoginShelfView.
   void InstallTestUiUpdateDelegate(
@@ -217,6 +220,8 @@ class ASH_EXPORT LoginShelfView : public views::View,
   bool ShouldShowGuestButton() const;
 
   bool ShouldShowEnterpriseEnrollmentButton() const;
+
+  bool ShouldShowSchoolEnrollmentButton() const;
 
   bool ShouldShowSignInButton() const;
 

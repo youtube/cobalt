@@ -48,17 +48,23 @@ public class WebsiteAddress implements Comparable<WebsiteAddress>, Serializable 
         }
 
         // Pattern
-        if (originOrHostOrPattern.startsWith(ANY_SUBDOMAIN_PATTERN)) {
-            String origin = null;
+        if (originOrHostOrPattern.contains(ANY_SUBDOMAIN_PATTERN)) {
             String scheme = null;
-            String host = originOrHostOrPattern.substring(ANY_SUBDOMAIN_PATTERN.length());
+            String origin = null;
             boolean omitProtocolAndPort = true;
+            int idx = originOrHostOrPattern.indexOf(ANY_SUBDOMAIN_PATTERN);
+            String host = originOrHostOrPattern.substring(idx + ANY_SUBDOMAIN_PATTERN.length());
+            if (idx != 0) {
+                scheme = originOrHostOrPattern.substring(0, idx);
+                origin = scheme + host;
+                omitProtocolAndPort = false;
+            }
             return new WebsiteAddress(
                     originOrHostOrPattern, origin, scheme, host, omitProtocolAndPort);
         }
 
         // Origin
-        if (originOrHostOrPattern.indexOf(SCHEME_SUFFIX) != -1) {
+        if (originOrHostOrPattern.contains(SCHEME_SUFFIX)) {
             Uri uri = Uri.parse(originOrHostOrPattern);
             String origin = trimTrailingBackslash(originOrHostOrPattern);
             boolean omitProtocolAndPort = UrlConstants.HTTP_SCHEME.equals(uri.getScheme())
@@ -103,7 +109,9 @@ public class WebsiteAddress implements Comparable<WebsiteAddress>, Serializable 
 
     public String getTitle() {
         if (mOrigin == null) return mHost;
-        return UrlFormatter.formatUrlForSecurityDisplay(mOrigin,
+        return UrlFormatter.formatUrlForSecurityDisplay(mOrigin.contains(ANY_SUBDOMAIN_PATTERN)
+                        ? mOrigin.replace(ANY_SUBDOMAIN_PATTERN, "")
+                        : mOrigin,
                 mOmitProtocolAndPort ? SchemeDisplay.OMIT_HTTP_AND_HTTPS : SchemeDisplay.SHOW);
     }
 

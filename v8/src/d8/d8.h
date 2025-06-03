@@ -207,7 +207,14 @@ class Worker : public std::enable_shared_from_this<Worker> {
 
   // Start running the given worker in another thread.
   static bool StartWorkerThread(Isolate* requester,
-                                std::shared_ptr<Worker> worker);
+                                std::shared_ptr<Worker> worker,
+                                base::Thread::Priority priority);
+
+  // Enters State::kTerminated for the Worker and resets the task runner.
+  void EnterTerminatedState();
+
+  // Returns the Worker instance for this thread.
+  static Worker* GetCurrentWorker();
 
  private:
   friend class ProcessMessageTask;
@@ -227,8 +234,9 @@ class Worker : public std::enable_shared_from_this<Worker> {
 
   class WorkerThread : public base::Thread {
    public:
-    explicit WorkerThread(std::shared_ptr<Worker> worker)
-        : base::Thread(base::Thread::Options("WorkerThread")),
+    explicit WorkerThread(std::shared_ptr<Worker> worker,
+                          base::Thread::Priority priority)
+        : base::Thread(base::Thread::Options("WorkerThread", priority)),
           worker_(std::move(worker)) {}
 
     void Run() override;
@@ -239,6 +247,8 @@ class Worker : public std::enable_shared_from_this<Worker> {
 
   void ExecuteInThread();
   static void PostMessageOut(const v8::FunctionCallbackInfo<v8::Value>& info);
+
+  static void SetCurrentWorker(Worker* worker);
 
   i::ParkingSemaphore out_semaphore_{0};
   SerializationDataQueue out_queue_;
@@ -417,6 +427,8 @@ class ShellOptions {
   DisallowReassignment<bool> no_fail = {"no-fail", false};
   DisallowReassignment<bool> dump_counters = {"dump-counters", false};
   DisallowReassignment<bool> dump_counters_nvp = {"dump-counters-nvp", false};
+  DisallowReassignment<bool> dump_system_memory_stats = {
+      "dump-system-memory-stats", false};
   DisallowReassignment<bool> ignore_unhandled_promises = {
       "ignore-unhandled-promises", false};
   DisallowReassignment<bool> mock_arraybuffer_allocator = {
@@ -448,6 +460,7 @@ class ShellOptions {
   DisallowReassignment<int> read_from_tcp_port = {"read-from-tcp-port", -1};
   DisallowReassignment<bool> enable_os_system = {"enable-os-system", false};
   DisallowReassignment<bool> quiet_load = {"quiet-load", false};
+  DisallowReassignment<bool> apply_priority = {"apply-priority", true};
   DisallowReassignment<int> thread_pool_size = {"thread-pool-size", 0};
   DisallowReassignment<bool> stress_delay_tasks = {"stress-delay-tasks", false};
   std::vector<const char*> arguments;
@@ -472,10 +485,6 @@ class ShellOptions {
   DisallowReassignment<bool> enable_sandbox_crash_filter = {
       "enable-sandbox-crash-filter", false};
 #endif  // V8_ENABLE_SANDBOX
-  DisallowReassignment<bool> throw_on_failed_access_check = {
-      "throw-on-failed-access-check", false};
-  DisallowReassignment<bool> noop_on_failed_access_check = {
-      "noop-on-failed-access-check", false};
   DisallowReassignment<size_t> max_serializer_memory = {"max-serializer-memory",
                                                         1 * i::MB};
 };

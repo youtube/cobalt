@@ -12,9 +12,12 @@ source_set("headless") {
     "headless_mode_util.h",
   ]
 
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
+
   deps = [
     "//base",
     "//chrome/common:non_code_constants",
+    "//content/public/common",
     "//ui/gfx",
   ]
 
@@ -26,15 +29,34 @@ source_set("headless") {
   }
 }
 
+source_set("metrics") {
+  sources = [
+    "headless_mode_metrics.cc",
+    "headless_mode_metrics.h",
+  ]
+
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
+
+  deps = [
+    ":headless",
+    "//base",
+    "//components/headless/command_handler:switches",
+    "//content/public/browser",
+  ]
+}
+
 source_set("command_processor") {
   sources = [
     "headless_command_processor.cc",
     "headless_command_processor.h",
   ]
 
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
+
   deps = [
     ":headless",
     "//base",
+    "//chrome/common:non_code_constants",
     "//components/headless/command_handler",
     "//content/public/browser",
   ]
@@ -52,6 +74,7 @@ if (!is_android) {
 
     if (is_linux || is_win || is_mac) {
       sources += [
+        "headless_mode_command_browsertest.cc",
         "headless_mode_devtooled_browsertest.cc",
         "headless_mode_devtooled_browsertest.h",
         "headless_mode_protocol_browsertest.cc",
@@ -79,6 +102,7 @@ if (!is_android) {
       "//chrome/browser",
       "//chrome/test:test_support",
       "//content/test:test_support",
+      "//pdf",
       "//testing/gtest",
     ]
 
@@ -88,6 +112,10 @@ if (!is_android) {
         "//chrome/browser/ui",
         "//components/devtools/simple_devtools_protocol_client",
         "//components/headless/clipboard",
+        "//components/headless/command_handler",
+        "//components/headless/command_handler:switches",
+        "//components/headless/select_file_dialog",
+        "//components/headless/test",
         "//content/public/browser",
         "//ui/display",
         "//ui/gfx",

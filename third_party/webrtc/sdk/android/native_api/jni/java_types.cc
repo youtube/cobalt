@@ -178,19 +178,35 @@ std::map<std::string, std::string> JavaToNativeStringMap(
 }
 
 ScopedJavaLocalRef<jobject> NativeToJavaBoolean(JNIEnv* env, bool b) {
+#ifdef RTC_JNI_GENERATOR_LEGACY_SYMBOLS
   return JNI_Boolean::Java_Boolean_ConstructorJLB_Z(env, b);
+#else
+  return JNI_Boolean::Java_Boolean_Constructor__boolean(env, b);
+#endif
 }
 
 ScopedJavaLocalRef<jobject> NativeToJavaDouble(JNIEnv* env, double d) {
+#ifdef RTC_JNI_GENERATOR_LEGACY_SYMBOLS
   return JNI_Double::Java_Double_ConstructorJLD_D(env, d);
+#else
+  return JNI_Double::Java_Double_Constructor__double(env, d);
+#endif
 }
 
 ScopedJavaLocalRef<jobject> NativeToJavaInteger(JNIEnv* jni, int32_t i) {
+#ifdef RTC_JNI_GENERATOR_LEGACY_SYMBOLS
   return JNI_Integer::Java_Integer_ConstructorJLI_I(jni, i);
+#else
+  return JNI_Integer::Java_Integer_Constructor__int(jni, i);
+#endif
 }
 
 ScopedJavaLocalRef<jobject> NativeToJavaLong(JNIEnv* env, int64_t u) {
+#ifdef RTC_JNI_GENERATOR_LEGACY_SYMBOLS
   return JNI_Long::Java_Long_ConstructorJLLO_J(env, u);
+#else
+  return JNI_Long::Java_Long_Constructor__long(env, u);
+#endif
 }
 
 ScopedJavaLocalRef<jstring> NativeToJavaString(JNIEnv* env, const char* str) {
@@ -324,17 +340,33 @@ ScopedJavaLocalRef<jobjectArray> NativeToJavaStringArray(
 }
 
 JavaListBuilder::JavaListBuilder(JNIEnv* env)
-    : env_(env), j_list_(JNI_ArrayList::Java_ArrayList_ConstructorJUALI(env)) {}
+#ifdef RTC_JNI_GENERATOR_LEGACY_SYMBOLS
+    : env_(env),
+      j_list_(JNI_ArrayList::Java_ArrayList_ConstructorJUALI(env)) {}
+#else
+    : env_(env), j_list_(JNI_ArrayList::Java_ArrayList_Constructor(env)) {
+}
+#endif
 
-JavaListBuilder::~JavaListBuilder() = default;
+      JavaListBuilder::~JavaListBuilder() = default;
 
 void JavaListBuilder::add(const JavaRef<jobject>& element) {
+#ifdef RTC_JNI_GENERATOR_LEGACY_SYMBOLS
   JNI_ArrayList::Java_ArrayList_addZ_JUE(env_, j_list_, element);
+#else
+  JNI_ArrayList::Java_ArrayList_add(env_, j_list_, element);
+#endif
 }
 
 JavaMapBuilder::JavaMapBuilder(JNIEnv* env)
     : env_(env),
-      j_map_(JNI_LinkedHashMap::Java_LinkedHashMap_ConstructorJULIHM(env)) {}
+#ifdef RTC_JNI_GENERATOR_LEGACY_SYMBOLS
+      j_map_(JNI_LinkedHashMap::Java_LinkedHashMap_ConstructorJULIHM(env)) {
+}
+#else
+      j_map_(JNI_LinkedHashMap::Java_LinkedHashMap_Constructor(env)) {
+}
+#endif
 
 JavaMapBuilder::~JavaMapBuilder() = default;
 

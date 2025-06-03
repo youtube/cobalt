@@ -9,13 +9,8 @@
 #import "ios/web/common/url_scheme_util.h"
 #import "ios/web/public/annotations/annotations_text_observer.h"
 #import "ios/web/public/js_messaging/web_frame.h"
-#import "ios/web/public/js_messaging/web_frame_util.h"
 #import "ios/web/public/navigation/navigation_context.h"
 #import "ios/web/public/web_state.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace web {
 
@@ -58,6 +53,13 @@ void AnnotationsTextManagerImpl::RemoveDecorations() {
   AnnotationsJavaScriptFeature::GetInstance()->RemoveDecorations(web_state_);
 }
 
+void AnnotationsTextManagerImpl::RemoveDecorationsWithType(
+    const std::string& type) {
+  seq_id_++;
+  AnnotationsJavaScriptFeature::GetInstance()->RemoveDecorationsWithType(
+      web_state_, type);
+}
+
 void AnnotationsTextManagerImpl::RemoveHighlight() {
   AnnotationsJavaScriptFeature::GetInstance()->RemoveHighlight(web_state_);
 }
@@ -82,7 +84,10 @@ void AnnotationsTextManagerImpl::PageLoaded(
     web::PageLoadCompletionStatus load_completion_status) {
   DCHECK_EQ(web_state_, web_state);
   if (load_completion_status == web::PageLoadCompletionStatus::SUCCESS) {
-    StartExtractingText();
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE,
+        base::BindOnce(&AnnotationsTextManagerImpl::StartExtractingText,
+                       weak_factory_.GetWeakPtr()));
   }
 }
 
@@ -93,15 +98,17 @@ void AnnotationsTextManagerImpl::WebStateDestroyed(WebState* web_state) {
 
 #pragma mark - JS Methods
 
-void AnnotationsTextManagerImpl::OnTextExtracted(WebState* web_state,
-                                                 const std::string& text,
-                                                 int seq_id) {
+void AnnotationsTextManagerImpl::OnTextExtracted(
+    WebState* web_state,
+    const std::string& text,
+    int seq_id,
+    const base::Value::Dict& metadata) {
   if (!web_state_ || seq_id != seq_id_) {
     return;
   }
   DCHECK(web_state_ == web_state);
   for (auto& observer : observers_) {
-    observer.OnTextExtracted(web_state, text, seq_id);
+    observer.OnTextExtracted(web_state, text, seq_id, metadata);
   }
 }
 

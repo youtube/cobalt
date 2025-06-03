@@ -5,28 +5,29 @@
 #import "ios/chrome/browser/ui/passwords/bottom_sheet/password_suggestion_bottom_sheet_coordinator.h"
 
 #import "components/keyed_service/core/service_access_type.h"
+#import "components/password_manager/core/browser/ui/credential_ui_entry.h"
 #import "components/password_manager/core/browser/ui/saved_passwords_presenter.h"
-#import "ios/chrome/browser/browser_state/chrome_browser_state.h"
 #import "ios/chrome/browser/favicon/ios_chrome_favicon_loader_factory.h"
-#import "ios/chrome/browser/main/browser.h"
-#import "ios/chrome/browser/passwords/ios_chrome_account_password_store_factory.h"
-#import "ios/chrome/browser/passwords/ios_chrome_affiliation_service_factory.h"
-#import "ios/chrome/browser/passwords/ios_chrome_password_store_factory.h"
-#import "ios/chrome/browser/passwords/password_controller_delegate.h"
+#import "ios/chrome/browser/passwords/model/ios_chrome_account_password_store_factory.h"
+#import "ios/chrome/browser/passwords/model/ios_chrome_profile_password_store_factory.h"
+#import "ios/chrome/browser/passwords/model/password_controller_delegate.h"
+#import "ios/chrome/browser/shared/model/browser/browser.h"
+#import "ios/chrome/browser/shared/model/browser_state/chrome_browser_state.h"
+#import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
+#import "ios/chrome/browser/ui/passwords/bottom_sheet/password_suggestion_bottom_sheet_coordinator_delegate.h"
 #import "ios/chrome/browser/ui/passwords/bottom_sheet/password_suggestion_bottom_sheet_mediator.h"
 #import "ios/chrome/browser/ui/passwords/bottom_sheet/password_suggestion_bottom_sheet_view_controller.h"
+#import "ios/chrome/browser/ui/passwords/bottom_sheet/scoped_password_suggestion_bottom_sheet_reauth_module_override.h"
+#import "ios/chrome/common/ui/reauthentication/reauthentication_module.h"
+#import "ios/web/public/web_state.h"
+#import "third_party/abseil-cpp/absl/types/optional.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
+using PasswordSuggestionBottomSheetExitReason::kShowPasswordDetails;
+using PasswordSuggestionBottomSheetExitReason::kShowPasswordManager;
 
 @interface PasswordSuggestionBottomSheetCoordinator () {
   // The password controller delegate used to open the password manager.
   id<PasswordControllerDelegate> _passwordControllerDelegate;
-
-  // Service which gives us a view on users' saved passwords.
-  std::unique_ptr<password_manager::SavedPasswordsPresenter>
-      _savedPasswordsPresenter;
 }
 
 // This mediator is used to fetch data related to the bottom sheet.
@@ -35,6 +36,9 @@
 // This view controller is used to display the bottom sheet.
 @property(nonatomic, strong)
     PasswordSuggestionBottomSheetViewController* viewController;
+
+// Module handling reauthentication before accessing sensitive data.
+@property(nonatomic, strong) id<ReauthenticationProtocol> reauthModule;
 
 @end
 
@@ -48,29 +52,39 @@
   self = [super initWithBaseViewController:viewController browser:browser];
   if (self) {
     _passwordControllerDelegate = delegate;
+
+    WebStateList* webStateList = browser->GetWebStateList();
+    const GURL& URL = webStateList->GetActiveWebState()->GetLastCommittedURL();
     self.viewController = [[PasswordSuggestionBottomSheetViewController alloc]
-        initWithHandler:self];
+        initWithHandler:self
+                    URL:URL];
 
     ChromeBrowserState* browserState =
         browser->GetBrowserState()->GetOriginalChromeBrowserState();
-    _savedPasswordsPresenter =
-        std::make_unique<password_manager::SavedPasswordsPresenter>(
-            IOSChromeAffiliationServiceFactory::GetForBrowserState(
-                browserState),
-            IOSChromePasswordStoreFactory::GetForBrowserState(
-                browserState, ServiceAccessType::EXPLICIT_ACCESS),
-            IOSChromeAccountPasswordStoreFactory::GetForBrowserState(
-                browserState, ServiceAccessType::EXPLICIT_ACCESS));
 
+    auto profilePasswordStore =
+        IOSChromeProfilePasswordStoreFactory::GetForBrowserState(
+            browserState, ServiceAccessType::EXPLICIT_ACCESS);
+    auto accountPasswordStore =
+        IOSChromeAccountPasswordStoreFactory::GetForBrowserState(
+            browserState, ServiceAccessType::EXPLICIT_ACCESS);
+
+    self.reauthModule =
+        ScopedPasswordSuggestionBottomSheetReauthModuleOverride::instance
+            ? ScopedPasswordSuggestionBottomSheetReauthModuleOverride::instance
+                  ->module
+            : [[ReauthenticationModule alloc] init];
     self.mediator = [[PasswordSuggestionBottomSheetMediator alloc]
-           initWithWebStateList:browser->GetWebStateList()
-                  faviconLoader:IOSChromeFaviconLoaderFactory::
-                                    GetForBrowserState(browserState)
-                    prefService:browserState->GetPrefs()
-                         params:params
-        savedPasswordsPresenter:_savedPasswordsPresenter.get()];
+        initWithWebStateList:webStateList
+               faviconLoader:IOSChromeFaviconLoaderFactory::GetForBrowserState(
+                                 browserState)
+                 prefService:browserState->GetPrefs()
+                      params:params
+                reauthModule:_reauthModule
+                         URL:URL
+        profilePasswordStore:profilePasswordStore
+        accountPasswordStore:accountPasswordStore];
     self.viewController.delegate = self.mediator;
-
     self.mediator.consumer = self.viewController;
   }
   return self;
@@ -83,7 +97,7 @@
   // sheet. Instead, re-focus the field which triggered the bottom sheet and
   // disable it.
   if (![self.mediator hasSuggestions]) {
-    [self.mediator refocus];
+    [self.mediator dismiss];
     return;
   }
 
@@ -104,7 +118,36 @@
 #pragma mark - PasswordSuggestionBottomSheetHandler
 
 - (void)displayPasswordManager {
+  [self.mediator logExitReason:kShowPasswordManager];
+
+  __weak __typeof(self) weakSelf = self;
+  [self.baseViewController.presentedViewController
+      dismissViewControllerAnimated:NO
+                         completion:^{
+                           [weakSelf stop];
+                         }];
+
   [_passwordControllerDelegate displaySavedPasswordList];
+}
+
+- (void)displayPasswordDetailsForFormSuggestion:
+    (FormSuggestion*)formSuggestion {
+  [self.mediator logExitReason:kShowPasswordDetails];
+  absl::optional<password_manager::CredentialUIEntry> credential =
+      [self.mediator getCredentialForFormSuggestion:formSuggestion];
+
+  __weak __typeof(self) weakSelf = self;
+  [self.baseViewController.presentedViewController
+      dismissViewControllerAnimated:NO
+                         completion:^{
+                           [weakSelf stop];
+                         }];
+
+  if (credential.has_value()) {
+    [_passwordControllerDelegate
+        showPasswordDetailsForCredential:credential.value()];
+  }
+  // TODO(crbug.com/1422344): Add metric for when the credential is nil.
 }
 
 @end

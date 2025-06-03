@@ -19,7 +19,6 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/web_applications/extension_status_utils.h"
-#include "content/public/browser/notification_service.h"
 #include "content/public/common/url_constants.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
@@ -32,14 +31,13 @@
 #include "extensions/browser/extension_host_test_helper.h"
 #include "extensions/browser/extension_prefs.h"
 #include "extensions/browser/extension_registry.h"
-#include "extensions/browser/notification_types.h"
 #include "extensions/common/extension_builder.h"
 #include "extensions/common/extension_id.h"
 #include "extensions/test/extension_test_message_listener.h"
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
 #include "chrome/browser/ash/login/demo_mode/demo_session.h"
-#include "chrome/browser/ash/login/demo_mode/demo_setup_test_utils.h"
+#include "chrome/browser/ash/login/demo_mode/demo_mode_test_utils.h"
 #endif
 
 namespace keys = extension_management_api_constants;
@@ -280,15 +278,8 @@ IN_PROC_BROWSER_TEST_P(ExtensionManagementApiTestWithBackgroundType,
   ASSERT_TRUE(listener2.WaitUntilSatisfied());
 }
 
-#if BUILDFLAG(IS_MAC)
-// Flaky on Mac: https://crbug.com/1132581
-#define MAYBE_SelfUninstallNoPermissions DISABLED_SelfUninstallNoPermissions
-#else
-#define MAYBE_SelfUninstallNoPermissions SelfUninstallNoPermissions
-#endif
-
 IN_PROC_BROWSER_TEST_P(ExtensionManagementApiTestWithBackgroundType,
-                       MAYBE_SelfUninstallNoPermissions) {
+                       SelfUninstallNoPermissions) {
   // Wait for the helper script to finish before loading the primary
   // extension. This ensures that the onUninstall event listener is
   // added before we proceed to the uninstall step.

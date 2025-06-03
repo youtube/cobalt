@@ -57,7 +57,8 @@ class SaveUpdateAddressProfileBubbleControllerImpl
   const AutofillProfile& GetProfileToSave() const override;
   const AutofillProfile* GetOriginalProfile() const override;
   void OnUserDecision(
-      AutofillClient::SaveAddressProfileOfferUserDecision decision) override;
+      AutofillClient::SaveAddressProfileOfferUserDecision decision,
+      base::optional_ref<const AutofillProfile> profile) override;
   void OnEditButtonClicked() override;
   void OnBubbleClosed() override;
 
@@ -79,6 +80,8 @@ class SaveUpdateAddressProfileBubbleControllerImpl
       content::WebContents* web_contents);
   friend class content::WebContentsUserData<
       SaveUpdateAddressProfileBubbleControllerImpl>;
+
+  base::WeakPtr<SaveUpdateAddressProfileBubbleController> GetWeakPtr();
 
   std::u16string GetEditorFooterMessage() const;
 
@@ -104,6 +107,9 @@ class SaveUpdateAddressProfileBubbleControllerImpl
   bool is_migration_to_account_ = false;
 
   std::string app_locale_;
+
+  base::WeakPtrFactory<SaveUpdateAddressProfileBubbleController>
+      weak_ptr_factory_{this};
 
   WEB_CONTENTS_USER_DATA_KEY_DECL();
 };

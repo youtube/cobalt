@@ -4,6 +4,7 @@
 
 #include "chrome/browser/printing/print_job_utils_lacros.h"
 
+#include "base/check_op.h"
 #include "base/functional/callback_helpers.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/printing/print_job.h"
@@ -30,8 +31,10 @@ crosapi::mojom::PrintJobPtr PrintJobToMojom(int job_id,
   }
   const PrintSettings& settings = document.settings();
   int duplex = static_cast<int>(settings.duplex_mode());
-  DCHECK(duplex >= 0);
-  DCHECK(duplex < 3);
+  CHECK_GE(duplex, 0);
+  CHECK_LT(duplex, 3);
+
+  CHECK_NE(settings.color(), mojom::ColorModel::kUnknownColorModel);
   return crosapi::mojom::PrintJob::New(
       base::UTF16ToUTF8(settings.device_name()), base::UTF16ToUTF8(title),
       job_id, document.page_count(), source, source_id, settings.color(),
@@ -42,17 +45,17 @@ crosapi::mojom::PrintJobPtr PrintJobToMojom(int job_id,
 
 }  // namespace
 
-void NotifyAshJobCreated(const PrintJob& job,
-                         int job_id,
+void NotifyAshJobCreated(int job_id,
                          const PrintedDocument& document,
+                         const crosapi::mojom::PrintJob::Source& source,
+                         const std::string& source_id,
                          crosapi::mojom::LocalPrinter* local_printer) {
   if (!local_printer) {
     LOG(ERROR) << "Could not report print job queued";
     return;
   }
   local_printer->CreatePrintJob(
-      PrintJobToMojom(job_id, document, job.source(), job.source_id()),
-      base::DoNothing());
+      PrintJobToMojom(job_id, document, source, source_id), base::DoNothing());
 }
 
 void NotifyAshJobCreated(const PrintJob& job,
@@ -62,7 +65,8 @@ void NotifyAshJobCreated(const PrintJob& job,
   chromeos::LacrosService* service = chromeos::LacrosService::Get();
   if (service->IsAvailable<crosapi::mojom::LocalPrinter>())
     local_printer = service->GetRemote<crosapi::mojom::LocalPrinter>().get();
-  NotifyAshJobCreated(job, job_id, document, local_printer);
+  NotifyAshJobCreated(job_id, document, job.source(), job.source_id(),
+                      local_printer);
 }
 
 }  // namespace printing

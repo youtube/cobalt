@@ -348,6 +348,13 @@ AccessibilitySelectionTest::AccessibilitySelectionTest(
     LocalFrameClient* local_frame_client)
     : AccessibilityTest(local_frame_client) {}
 
+void AccessibilitySelectionTest::SetUp() {
+  RenderingTest::SetUp();
+  // Do not include noisy inline textboxes in selection tests.
+  ax_context_ =
+      std::make_unique<AXContext>(GetDocument(), ui::AXMode::kWebContents);
+}
+
 std::string AccessibilitySelectionTest::GetCurrentSelectionText() const {
   const SelectionInDOMTree selection =
       GetFrame().Selection().GetSelectionInDOMTree();
@@ -438,7 +445,12 @@ void AccessibilitySelectionTest::RunSelectionTest(
     actual_ax_file_contents += GetCurrentSelectionText();
   }
 
-  EXPECT_EQ(ax_file_contents, actual_ax_file_contents);
+  EXPECT_TRUE(ax_file_contents == actual_ax_file_contents)
+      << "\nSelection does not match expectations. Legend: ^=selection start  "
+         "|=selection end"
+      << "\n\nExpected:\n--------\n"
+      << ax_file_contents << "\n\nActual:\n------\n"
+      << actual_ax_file_contents;
 
   // Uncomment these lines to write the output to the expectations file.
   // TODO(dmazzoni): make this a command-line parameter.

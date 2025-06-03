@@ -50,7 +50,8 @@ source_set("ui") {
     ":feature_flags",
     ":utils",
     "//base",
-    "//components/password_manager/core/browser:password_generator",
+    "//components/password_manager/core/browser/generation:core",
+    "//components/password_manager/core/common:constants",
     "//ios/chrome/common:constants",
     "//ios/chrome/common/app_group",
     "//ios/chrome/common/app_group:client",
@@ -80,7 +81,6 @@ source_set("ui") {
     "MobileCoreServices.framework",
     "UniformTypeIdentifiers.framework",
   ]
-  configs += [ "//build/config/compiler:enable_arc" ]
 }
 
 source_set("feature_flags") {
@@ -93,7 +93,6 @@ source_set("feature_flags") {
     "//ios/chrome/common/credential_provider",
   ]
   frameworks = [ "Foundation.framework" ]
-  configs += [ "//build/config/compiler:enable_arc" ]
 }
 
 source_set("utils") {
@@ -109,7 +108,6 @@ source_set("utils") {
     "UIKit.framework",
     "QuartzCore.framework",
   ]
-  configs += [ "//build/config/compiler:enable_arc" ]
 }
 
 source_set("unit_tests") {
@@ -124,5 +122,4 @@ source_set("unit_tests") {
     "//ios/chrome/credential_provider_extension:password_util",
     "//testing/gtest",
   ]
-  configs += [ "//build/config/compiler:enable_arc" ]
 }

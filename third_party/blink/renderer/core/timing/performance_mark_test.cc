@@ -14,6 +14,7 @@
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/bindings/script_state.h"
 #include "third_party/blink/renderer/platform/bindings/v8_binding.h"
+#include "third_party/blink/renderer/platform/wtf/uuid.h"
 
 namespace blink {
 
@@ -30,8 +31,8 @@ TEST(PerformanceMarkTest, CreateWithOptions) {
   PerformanceMarkOptions* options = PerformanceMarkOptions::Create();
   options->setDetail(script_value);
 
-  PerformanceMark* pm = PerformanceMark::Create(script_state, "mark-name",
-                                                options, exception_state);
+  PerformanceMark* pm = PerformanceMark::Create(
+      script_state, AtomicString("mark-name"), options, exception_state);
   ASSERT_EQ(pm->entryType(), performance_entry_names::kMark);
   ASSERT_EQ(pm->EntryTypeEnum(), PerformanceEntry::EntryType::kMark);
   ASSERT_EQ(payload_string->Deserialize(isolate),
@@ -46,14 +47,15 @@ TEST(PerformanceMarkTest, Construction) {
   v8::Isolate* isolate = scope.GetIsolate();
 
   PerformanceMark* pm = MakeGarbageCollected<PerformanceMark>(
-      "mark-name", 0, base::TimeTicks(), SerializedScriptValue::NullValue(),
-      exception_state, LocalDOMWindow::From(script_state));
+      AtomicString("mark-name"), 0, base::TimeTicks(),
+      SerializedScriptValue::NullValue(), exception_state,
+      LocalDOMWindow::From(script_state));
   ASSERT_EQ(pm->entryType(), performance_entry_names::kMark);
   ASSERT_EQ(pm->EntryTypeEnum(), PerformanceEntry::EntryType::kMark);
 
   ASSERT_EQ(SerializedScriptValue::NullValue()->Deserialize(isolate),
             pm->detail(script_state).V8Value());
-  ASSERT_EQ(1u, pm->navigationId());
+  ASSERT_TRUE(WTF::IsValidUUID(pm->navigationId()));
 }
 
 TEST(PerformanceMarkTest, ConstructionWithDetail) {
@@ -66,8 +68,8 @@ TEST(PerformanceMarkTest, ConstructionWithDetail) {
       SerializedScriptValue::Create(String("some-payload"));
 
   PerformanceMark* pm = MakeGarbageCollected<PerformanceMark>(
-      "mark-name", 0, base::TimeTicks(), payload_string, exception_state,
-      LocalDOMWindow::From(script_state));
+      AtomicString("mark-name"), 0, base::TimeTicks(), payload_string,
+      exception_state, LocalDOMWindow::From(script_state));
   ASSERT_EQ(pm->entryType(), performance_entry_names::kMark);
   ASSERT_EQ(pm->EntryTypeEnum(), PerformanceEntry::EntryType::kMark);
 
@@ -81,10 +83,10 @@ TEST(PerformanceMarkTest, BuildJSONValue) {
   ExceptionState& exception_state = scope.GetExceptionState();
   ScriptState* script_state = scope.GetScriptState();
 
-  const AtomicString expected_name = "mark-name";
+  const AtomicString expected_name("mark-name");
   const double expected_start_time = 0;
   const double expected_duration = 0;
-  const AtomicString expected_entry_type = "mark";
+  const AtomicString expected_entry_type("mark");
   PerformanceMark pm(expected_name, expected_start_time, base::TimeTicks(),
                      SerializedScriptValue::NullValue(), exception_state,
                      LocalDOMWindow::From(script_state));

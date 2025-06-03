@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+#include "chrome/browser/safe_browsing/phishy_interaction_tracker.h"
 #include "components/autofill/core/browser/logging/log_manager.h"
 #include "components/safe_browsing/core/browser/password_protection/password_reuse_detection_manager.h"
 #include "components/safe_browsing/core/browser/password_protection/password_reuse_detection_manager_client.h"
@@ -50,7 +51,7 @@ class ChromePasswordReuseDetectionManagerClient
   autofill::LogManager* GetLogManager() override;
   password_manager::PasswordReuseManager* GetPasswordReuseManager()
       const override;
-  bool IsSyncAccountEmail(const std::string& username) override;
+  bool IsHistorySyncAccountEmail(const std::string& username) override;
   bool IsPasswordFieldDetectedOnPage() override;
   void CheckProtectedPasswordEntry(
       password_manager::metrics_util::PasswordType reused_password_type,
@@ -94,6 +95,8 @@ class ChromePasswordReuseDetectionManagerClient
   const raw_ptr<Profile> profile_;
 
   std::unique_ptr<autofill::RoutingLogManager> log_manager_;
+
+  safe_browsing::PhishyInteractionTracker phishy_interaction_tracker_;
 
 #if BUILDFLAG(IS_ANDROID)
   // Last composing text from ime, this is updated when ime set composing text

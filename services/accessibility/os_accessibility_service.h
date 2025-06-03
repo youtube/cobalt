@@ -26,6 +26,7 @@ class OSAccessibilityService : public mojom::AccessibilityService {
  private:
   friend class OSAccessibilityServiceTest;
   friend class AssistiveTechnologyControllerTest;
+  friend class AtpJSApiTest;
 
   // mojom::AccessibilityService:
   void BindAccessibilityServiceClient(
@@ -36,6 +37,10 @@ class OSAccessibilityService : public mojom::AccessibilityService {
           at_controller_receiver,
       const std::vector<mojom::AssistiveTechnologyType>& enabled_features)
       override;
+
+  void ConnectDevToolsAgent(
+      ::mojo::PendingAssociatedReceiver<::blink::mojom::DevToolsAgent> agent,
+      mojom::AssistiveTechnologyType type) override;
 
   std::unique_ptr<AssistiveTechnologyControllerImpl> at_controller_;
 

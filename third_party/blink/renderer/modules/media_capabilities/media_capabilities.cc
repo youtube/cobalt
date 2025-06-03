@@ -55,7 +55,6 @@
 #include "third_party/blink/renderer/modules/encryptedmedia/encrypted_media_utils.h"
 #include "third_party/blink/renderer/modules/encryptedmedia/media_key_system_access.h"
 #include "third_party/blink/renderer/modules/encryptedmedia/media_key_system_access_initializer_base.h"
-#include "third_party/blink/renderer/modules/encryptedmedia/media_keys_controller.h"
 #include "third_party/blink/renderer/modules/media_capabilities/media_capabilities_identifiability_metrics.h"
 #include "third_party/blink/renderer/modules/media_capabilities_names.h"
 #include "third_party/blink/renderer/modules/mediarecorder/media_recorder_handler.h"
@@ -838,7 +837,7 @@ ScriptPromise MediaCapabilities::decodingInfo(
     ScriptPromise promise = resolver->Promise();
 
     if (auto* handler = webrtc_decoding_info_handler_for_test_
-                            ? webrtc_decoding_info_handler_for_test_
+                            ? webrtc_decoding_info_handler_for_test_.get()
                             : WebrtcDecodingInfoHandler::Instance()) {
       const int callback_id = CreateCallbackId();
       pending_cb_map_.insert(
@@ -1042,7 +1041,7 @@ ScriptPromise MediaCapabilities::encodingInfo(
                       WebFeature::kMediaCapabilitiesEncodingInfoWebrtc);
 
     if (auto* handler = webrtc_encoding_info_handler_for_test_
-                            ? webrtc_encoding_info_handler_for_test_
+                            ? webrtc_encoding_info_handler_for_test_.get()
                             : WebrtcEncodingInfoHandler::Instance()) {
       const int callback_id = CreateCallbackId();
       pending_cb_map_.insert(
@@ -1105,7 +1104,8 @@ ScriptPromise MediaCapabilities::encodingInfo(
 
   if (auto* handler = MakeGarbageCollected<MediaRecorderHandler>(
           resolver->GetExecutionContext()->GetTaskRunner(
-              TaskType::kInternalMediaRealTime))) {
+              TaskType::kInternalMediaRealTime),
+          KeyFrameRequestProcessor::Configuration())) {
     handler->EncodingInfo(ToWebMediaConfiguration(config),
                           WTF::BindOnce(&OnMediaCapabilitiesEncodingInfo,
                                         WrapPersistent(resolver)));
@@ -1328,9 +1328,8 @@ ScriptPromise MediaCapabilities::GetEmeSupport(
   // undefined. See comment above Promise() in script_promise_resolver.h
   ScriptPromise promise = initializer->Promise();
 
-  Page* page = To<LocalDOMWindow>(execution_context)->GetFrame()->GetPage();
-  MediaKeysController::From(page)
-      ->EncryptedMediaClient(execution_context)
+  EncryptedMediaUtils::GetEncryptedMediaClientFromLocalDOMWindow(
+      To<LocalDOMWindow>(execution_context))
       ->RequestMediaKeySystemAccess(WebEncryptedMediaRequest(initializer));
 
   return promise;

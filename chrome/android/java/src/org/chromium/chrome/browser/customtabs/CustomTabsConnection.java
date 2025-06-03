@@ -10,7 +10,6 @@ import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
-import android.net.ConnectivityManager;
 import android.net.Uri;
 import android.os.Binder;
 import android.os.Build;
@@ -30,6 +29,9 @@ import androidx.browser.customtabs.CustomTabsSessionToken;
 import androidx.browser.customtabs.EngagementSignalsCallback;
 import androidx.browser.customtabs.PostMessageServiceConnection;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -38,13 +40,11 @@ import org.chromium.base.CommandLine;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.IntentUtils;
 import org.chromium.base.Log;
+import org.chromium.base.ResettersForTesting;
 import org.chromium.base.StrictModeContext;
 import org.chromium.base.SysUtils;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.TraceEvent;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.supplier.Supplier;
 import org.chromium.base.task.ChainedTasks;
@@ -58,15 +58,17 @@ import org.chromium.chrome.browser.WarmupManager;
 import org.chromium.chrome.browser.browserservices.PostMessageHandler;
 import org.chromium.chrome.browser.browserservices.SessionDataHolder;
 import org.chromium.chrome.browser.browserservices.SessionHandler;
+import org.chromium.chrome.browser.browserservices.intents.BrowserServicesIntentDataProvider;
 import org.chromium.chrome.browser.browserservices.intents.BrowserServicesIntentDataProvider.ActivityLayoutState;
-import org.chromium.chrome.browser.customtabs.features.sessionrestore.SessionRestoreManager;
-import org.chromium.chrome.browser.customtabs.features.sessionrestore.SessionRestoreManagerImpl;
+import org.chromium.chrome.browser.customtabs.ClientManager.CalledWarmup;
+import org.chromium.chrome.browser.customtabs.content.EngagementSignalsHandler;
 import org.chromium.chrome.browser.device.DeviceClassManager;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.MutableFlagWithSafeDefault;
 import org.chromium.chrome.browser.init.ChromeBrowserInitializer;
-import org.chromium.chrome.browser.metrics.PageLoadMetrics;
 import org.chromium.chrome.browser.metrics.UmaSessionStats;
+import org.chromium.chrome.browser.page_insights.proto.Config.PageInsightsConfig;
+import org.chromium.chrome.browser.page_load_metrics.PageLoadMetrics;
 import org.chromium.chrome.browser.prefetch.settings.PreloadPagesSettingsBridge;
 import org.chromium.chrome.browser.prefetch.settings.PreloadPagesState;
 import org.chromium.chrome.browser.privacy.settings.PrivacyPreferencesManagerImpl;
@@ -80,6 +82,7 @@ import org.chromium.components.user_prefs.UserPrefs;
 import org.chromium.components.variations.SyntheticTrialAnnotationMode;
 import org.chromium.content_public.browser.BrowserStartupController;
 import org.chromium.content_public.browser.ChildProcessLauncherHelper;
+import org.chromium.content_public.browser.NavigationHandle;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.content_public.common.Referrer;
 import org.chromium.network.mojom.ReferrerPolicy;
@@ -121,32 +124,33 @@ public class CustomTabsConnection {
     @VisibleForTesting
     static final String ON_DETACHED_REQUEST_COMPLETED = "onDetachedRequestCompleted";
 
-    // For CustomTabs.SpeculationStatusOnStart, see tools/metrics/enums.xml. Append only.
+    // For SpeculationStatusOnStart status.
+    // TODO(crbug.com/1384816): remove if applicable.
+    @VisibleForTesting
     private static final int SPECULATION_STATUS_ON_START_ALLOWED = 0;
+
     // What kind of speculation was started, counted in addition to
     // SPECULATION_STATUS_ALLOWED.
-    private static final int SPECULATION_STATUS_ON_START_PREFETCH = 1;
     private static final int SPECULATION_STATUS_ON_START_PRERENDER = 2;
     private static final int SPECULATION_STATUS_ON_START_BACKGROUND_TAB = 3;
-    private static final int SPECULATION_STATUS_ON_START_PRERENDER_NOT_STARTED = 4;
     // The following describe reasons why a speculation was not allowed, and are
     // counted instead of SPECULATION_STATUS_ALLOWED.
     private static final int SPECULATION_STATUS_ON_START_NOT_ALLOWED_DEVICE_CLASS = 5;
     private static final int SPECULATION_STATUS_ON_START_NOT_ALLOWED_BLOCK_3RD_PARTY_COOKIES = 6;
     private static final int SPECULATION_STATUS_ON_START_NOT_ALLOWED_NETWORK_PREDICTION_DISABLED =
             7;
-    private static final int SPECULATION_STATUS_ON_START_NOT_ALLOWED_DATA_REDUCTION_ENABLED = 8;
     // Obsolete due to no longer running the experiment
     // "PredictivePrefetchingAllowedOnAllConnectionTypes".
     // private static final int SPECULATION_STATUS_ON_START_NOT_ALLOWED_NETWORK_METERED = 9;
-    private static final int SPECULATION_STATUS_ON_START_MAX = 10;
+
+    // Obsolete due to expired histogram.
+    //private static final int SPECULATION_STATUS_ON_START_MAX = 10;
 
     // For CustomTabs.SpeculationStatusOnSwap, see tools/metrics/enums.xml. Append only.
-    private static final int SPECULATION_STATUS_ON_SWAP_BACKGROUND_TAB_TAKEN = 0;
-    private static final int SPECULATION_STATUS_ON_SWAP_BACKGROUND_TAB_NOT_MATCHED = 1;
-    private static final int SPECULATION_STATUS_ON_SWAP_PRERENDER_TAKEN = 2;
-    private static final int SPECULATION_STATUS_ON_SWAP_PRERENDER_NOT_MATCHED = 3;
-    private static final int SPECULATION_STATUS_ON_SWAP_MAX = 4;
+    // Obsolete due to expired histogram.
+    // private static final int SPECULATION_STATUS_ON_SWAP_BACKGROUND_TAB_TAKEN = 0;
+    // private static final int SPECULATION_STATUS_ON_SWAP_BACKGROUND_TAB_NOT_MATCHED = 1;
+    // private static final int SPECULATION_STATUS_ON_SWAP_MAX = 4;
 
     // Constants for sending connection characteristics.
     public static final String DATA_REDUCTION_ENABLED = "dataReductionEnabled";
@@ -187,14 +191,6 @@ public class CustomTabsConnection {
     @VisibleForTesting
     static final String ON_ACTIVITY_LAYOUT_STATE_EXTRA = "state";
 
-    private static final String ON_VERTICAL_SCROLL_EVENT_CALLBACK = "onVerticalScrollEvent";
-    private static final String ON_VERTICAL_SCROLL_EVENT_IS_DIRECTION_UP_EXTRA = "isDirectionUp";
-    private static final String ON_GREATEST_SCROLL_PERCENTAGE_INCREASED_CALLBACK =
-            "onGreatestScrollPercentageIncreased";
-    private static final String ON_GREATEST_SCROLL_PERCENTAGE_INCREASED_PERCENTAGE_EXTRA =
-            "scrollPercentage";
-    private static final String DID_GET_USER_INTERACTION_CALLBACK = "didGetUserInteraction";
-    private static final String DID_GET_USER_INTERACTION_EXTRA = "didInteract";
     private static final MutableFlagWithSafeDefault sRealTimeEngagementFlag =
             new MutableFlagWithSafeDefault(
                     ChromeFeatureList.CCT_REAL_TIME_ENGAGEMENT_SIGNALS, false);
@@ -244,8 +240,6 @@ public class CustomTabsConnection {
 
     @Nullable
     private Callback<CustomTabsSessionToken> mDisconnectCallback;
-    @Nullable
-    private SessionRestoreManager mSessionRestoreManager;
 
     private volatile ChainedTasks mWarmupTasks;
 
@@ -329,8 +323,8 @@ public class CustomTabsConnection {
         for (String key : bundle.keySet()) {
             Object o = bundle.get(key);
             try {
-                if (o instanceof Bundle) {
-                    json.put(key, bundleToJson((Bundle) o));
+                if (o instanceof Bundle b) {
+                    json.put(key, bundleToJson(b));
                 } else if (o instanceof Integer || o instanceof Long || o instanceof Boolean) {
                     json.put(key, o);
                 } else if (o == null) {
@@ -392,8 +386,9 @@ public class CustomTabsConnection {
         PostMessageServiceConnection serviceConnection =
                 new PostMessageServiceConnection(session) {};
         PostMessageHandler handler = new PostMessageHandler(serviceConnection);
-        return mClientManager.newSession(
-                session, Binder.getCallingUid(), onDisconnect, handler, serviceConnection);
+        var engagementSignalsHandler = new EngagementSignalsHandler(this, session);
+        return mClientManager.newSession(session, Binder.getCallingUid(), onDisconnect, handler,
+                serviceConnection, engagementSignalsHandler);
     }
 
     /**
@@ -561,20 +556,8 @@ public class CustomTabsConnection {
         return true;
     }
 
-    @VisibleForTesting
-    public Tab getHiddenTab() {
-        return mHiddenTabHolder != null ? mHiddenTabHolder.getHiddenTab() : null;
-    }
-
-    /* Return the SessionRestoreManager for session restore. */
-    public @Nullable SessionRestoreManager getSessionRestoreManager() {
-        if (!ChromeFeatureList.sCctRetainableStateInMemory.isEnabled()) {
-            return null;
-        }
-        if (mSessionRestoreManager == null) {
-            mSessionRestoreManager = new SessionRestoreManagerImpl();
-        }
-        return mSessionRestoreManager;
+    public Tab getHiddenTabForTesting() {
+        return mHiddenTabHolder != null ? mHiddenTabHolder.getHiddenTabForTesting() : null;
     }
 
     private boolean preconnectUrls(List<Bundle> likelyBundles) {
@@ -759,31 +742,42 @@ public class CustomTabsConnection {
                     () -> handler.updateRemoteViews(remoteViews, clickableIDs, pendingIntent));
         }
 
-        if (ChromeFeatureList.sCctBottomBarSwipeUpGesture.isEnabled()
-                && bundle.containsKey(
-                        CustomTabIntentDataProvider.EXTRA_SECONDARY_TOOLBAR_SWIPE_UP_ACTION)) {
-            PendingIntent pendingIntent = IntentUtils.safeGetParcelable(
-                    bundle, CustomTabIntentDataProvider.EXTRA_SECONDARY_TOOLBAR_SWIPE_UP_ACTION);
-            result &= PostTask.runSynchronously(TaskTraits.UI_DEFAULT,
-                    () -> handler.updateSecondaryToolbarSwipeUpPendingIntent(pendingIntent));
+        if (ChromeFeatureList.sCctBottomBarSwipeUpGesture.isEnabled()) {
+            PendingIntent pendingIntent = getSecondarySwipeToolbarSwipeUpGesture(bundle);
+            if (pendingIntent != null) {
+                result &= PostTask.runSynchronously(TaskTraits.UI_DEFAULT,
+                        () -> handler.updateSecondaryToolbarSwipeUpPendingIntent(pendingIntent));
+            }
         }
         logCall("updateVisuals()", result);
         return result;
     }
 
-    public boolean requestPostMessageChannel(
-            CustomTabsSessionToken session, Origin postMessageOrigin) {
-        boolean success = requestPostMessageChannelInternal(session, postMessageOrigin);
+    private static PendingIntent getSecondarySwipeToolbarSwipeUpGesture(Bundle bundle) {
+        PendingIntent pendingIntent = IntentUtils.safeGetParcelable(
+                bundle, CustomTabsIntent.EXTRA_SECONDARY_TOOLBAR_SWIPE_UP_GESTURE);
+        if (pendingIntent == null) {
+            pendingIntent = IntentUtils.safeGetParcelable(
+                    bundle, CustomTabIntentDataProvider.EXTRA_SECONDARY_TOOLBAR_SWIPE_UP_ACTION);
+        }
+        return pendingIntent;
+    }
+
+    public boolean requestPostMessageChannel(CustomTabsSessionToken session,
+            Origin postMessageSourceOrigin, @Nullable Origin postMessageTargetOrigin) {
+        boolean success = requestPostMessageChannelInternal(
+                session, postMessageSourceOrigin, postMessageTargetOrigin);
         logCall("requestPostMessageChannel() with origin "
-                        + (postMessageOrigin != null ? postMessageOrigin.toString() : ""),
+                        + (postMessageSourceOrigin != null ? postMessageSourceOrigin.toString()
+                                                           : ""),
                 success);
         RecordHistogram.recordBooleanHistogram(
                 "CustomTabs.PostMessage.RequestPostMessageChannel", success);
         return success;
     }
 
-    private boolean requestPostMessageChannelInternal(
-            final CustomTabsSessionToken session, final Origin postMessageOrigin) {
+    private boolean requestPostMessageChannelInternal(final CustomTabsSessionToken session,
+            final Origin postMessageOrigin, @Nullable Origin postMessageTargetOrigin) {
         if (!mWarmupHasBeenCalled.get()) return false;
         if (!isCallerForegroundOrSelf() && !mSessionDataHolder.isActiveSession(session)) {
             return false;
@@ -800,10 +794,12 @@ public class CustomTabsConnection {
             // channel for session.
             Uri verifiedOrigin = verifyOriginForSession(session, uid, postMessageOrigin);
             if (verifiedOrigin == null) {
-                mClientManager.verifyAndInitializeWithPostMessageOriginForSession(
-                        session, postMessageOrigin, CustomTabsService.RELATION_USE_AS_ORIGIN);
+                mClientManager.verifyAndInitializeWithPostMessageOriginForSession(session,
+                        postMessageOrigin, postMessageTargetOrigin,
+                        CustomTabsService.RELATION_USE_AS_ORIGIN);
             } else {
-                mClientManager.initializeWithPostMessageOriginForSession(session, verifiedOrigin);
+                mClientManager.initializeWithPostMessageOriginForSession(session, verifiedOrigin,
+                        postMessageTargetOrigin != null ? postMessageTargetOrigin.uri() : null);
             }
         });
         return true;
@@ -884,8 +880,7 @@ public class CustomTabsConnection {
         mClientManager.registerLaunch(session, url);
     }
 
-    @Nullable
-    public String getSpeculatedUrl(CustomTabsSessionToken session) {
+    public @Nullable String getSpeculatedUrl(CustomTabsSessionToken session) {
         return mHiddenTabHolder.getSpeculatedUrl(session);
     }
 
@@ -898,8 +893,7 @@ public class CustomTabsConnection {
      * @param referrer The referrer to use for |url|.
      * @return The hidden tab, or null.
      */
-    @Nullable
-    public Tab takeHiddenTab(
+    public @Nullable Tab takeHiddenTab(
             @Nullable CustomTabsSessionToken session, String url, @Nullable String referrer) {
         return mHiddenTabHolder.takeHiddenTab(
                 session, mClientManager.getIgnoreFragmentsForSession(session), url, referrer);
@@ -1004,8 +998,8 @@ public class CustomTabsConnection {
      * @param intent Incoming intent with the extras.
      * @return Whether the request was started, with reason in case of failure.
      */
-    @ParallelRequestStatus
-    private int maybeStartParallelRequest(CustomTabsSessionToken session, Intent intent) {
+    private @ParallelRequestStatus int maybeStartParallelRequest(
+            CustomTabsSessionToken session, Intent intent) {
         ThreadUtils.assertOnUiThread();
 
         if (!intent.hasExtra(PARALLEL_REQUEST_URL_KEY)) return ParallelRequestStatus.NO_REQUEST;
@@ -1111,6 +1105,11 @@ public class CustomTabsConnection {
         return mClientManager.shouldSpeculateLoadOnCellularForSession(session);
     }
 
+    /** @see ClientManager#getCanUseHiddenTab(CustomTabsSessionToken) */
+    public boolean canUseHiddenTabForSession(CustomTabsSessionToken session) {
+        return mClientManager.getCanUseHiddenTab(session);
+    }
+
     /** @see ClientManager#shouldSendNavigationInfoForSession(CustomTabsSessionToken) */
     public boolean shouldSendNavigationInfoForSession(CustomTabsSessionToken session) {
         return mClientManager.shouldSendNavigationInfoForSession(session);
@@ -1131,7 +1130,6 @@ public class CustomTabsConnection {
         if (packageName == null) return false;
         return ExternalAuthUtils.getInstance().isGoogleSigned(packageName);
     }
-
     void setIgnoreUrlFragmentsForSession(CustomTabsSessionToken session, boolean value) {
         mClientManager.setIgnoreFragmentsForSession(session, value);
     }
@@ -1182,10 +1180,6 @@ public class CustomTabsConnection {
      */
     public void sendNavigationInfo(
             CustomTabsSessionToken session, String url, String title, Uri snapshotPath) {}
-
-    // TODO(yfriedman): Remove when internal code is deleted.
-    public void sendNavigationInfo(
-            CustomTabsSessionToken session, String url, String title, Bitmap snapshotPath) {}
 
     /**
      * Called when the bottom bar for the custom tab has been hidden or shown completely by user
@@ -1250,89 +1244,6 @@ public class CustomTabsConnection {
 
         if (safeExtraCallback(session, ON_ACTIVITY_LAYOUT_CALLBACK, args) && mLogRequests) {
             logCallback("extraCallback(" + ON_ACTIVITY_LAYOUT_CALLBACK + ")", args);
-        }
-    }
-
-    /**
-     * Notifies the application of a vertical scroll event, i.e. when a scroll started or changed
-     * direction.
-     *
-     * @param session The Binder object identifying the session.
-     * @param isDirectionUp Whether the scroll direction is up.
-     */
-    public void notifyVerticalScrollEvent(CustomTabsSessionToken session, boolean isDirectionUp) {
-        Bundle args = new Bundle();
-        args.putBoolean(ON_VERTICAL_SCROLL_EVENT_IS_DIRECTION_UP_EXTRA, isDirectionUp);
-
-        if (safeExtraCallback(session, ON_VERTICAL_SCROLL_EVENT_CALLBACK, args)) {
-            logCallback("extraCallback(" + ON_VERTICAL_SCROLL_EVENT_CALLBACK + ")", args);
-        }
-
-        EngagementSignalsCallback callback =
-                mClientManager.getEngagementSignalsCallbackForSession(session);
-        if (callback == null) return;
-        try {
-            callback.onVerticalScrollEvent(isDirectionUp, null);
-        } catch (Exception e) {
-            // Catching all exceptions is really bad, but we need it here,
-            // because Android exposes us to client bugs by throwing a variety
-            // of exceptions. See crbug.com/517023.
-        }
-    }
-
-    /**
-     * Notifies the application that the scroll percentage of the page reached a new maximum.
-     * Only the values that are multiples of 5 will be reported, and every value will be reported at
-     * most once.
-     *
-     * @param session The Binder object identifying the session.
-     * @param scrollPercentage The new scroll percentage.
-     */
-    public void notifyGreatestScrollPercentageIncreased(
-            CustomTabsSessionToken session, int scrollPercentage) {
-        Bundle args = new Bundle();
-        args.putInt(ON_GREATEST_SCROLL_PERCENTAGE_INCREASED_PERCENTAGE_EXTRA, scrollPercentage);
-        if (safeExtraCallback(session, ON_GREATEST_SCROLL_PERCENTAGE_INCREASED_CALLBACK, args)) {
-            logCallback("extraCallback(" + ON_GREATEST_SCROLL_PERCENTAGE_INCREASED_CALLBACK + ")",
-                    args);
-        }
-
-        EngagementSignalsCallback callback =
-                mClientManager.getEngagementSignalsCallbackForSession(session);
-        if (callback == null) return;
-        try {
-            callback.onGreatestScrollPercentageIncreased(scrollPercentage, null);
-        } catch (Exception e) {
-            // Catching all exceptions is really bad, but we need it here,
-            // because Android exposes us to client bugs by throwing a variety
-            // of exceptions. See crbug.com/517023.
-        }
-    }
-
-    /**
-     * Notify the application whether the user had interaction on the web contents. A user
-     * interaction includes touch event / mouse event / raw key down event / scroll event.
-     * @param session The Binder object identifying the session.
-     * @param didGetUserInteraction Whether user had any interaction in the current CCT session.
-     */
-    public void notifyDidGetUserInteraction(
-            CustomTabsSessionToken session, boolean didGetUserInteraction) {
-        Bundle args = new Bundle();
-        args.putBoolean(DID_GET_USER_INTERACTION_EXTRA, didGetUserInteraction);
-
-        if (safeExtraCallback(session, DID_GET_USER_INTERACTION_CALLBACK, args)) {
-            logCallback("extraCallback(" + DID_GET_USER_INTERACTION_CALLBACK + ")", args);
-        }
-
-        EngagementSignalsCallback callback =
-                mClientManager.getEngagementSignalsCallbackForSession(session);
-        if (callback == null) return;
-        try {
-            callback.onSessionEnded(didGetUserInteraction, null);
-        } catch (Exception e) {
-            // Catching all exceptions is really bad, but we need it here,
-            // because Android exposes us to client bugs by throwing a variety
-            // of exceptions. See crbug.com/517023.
         }
     }
 
@@ -1420,19 +1331,11 @@ public class CustomTabsConnection {
     @VisibleForTesting
     boolean areExperimentsSupported(
             List<String> enabledExperiments, List<String> disabledExperiments) {
-        boolean enableEngagement = enabledExperiments != null
+        return enabledExperiments != null
                 && enabledExperiments.contains(ChromeFeatureList.CCT_REAL_TIME_ENGAGEMENT_SIGNALS);
-        boolean enableBranding = enabledExperiments != null
-                && enabledExperiments.contains(ChromeFeatureList.CCT_BRAND_TRANSPARENCY);
-        boolean disableEngagement = disabledExperiments != null
-                && disabledExperiments.contains(ChromeFeatureList.CCT_REAL_TIME_ENGAGEMENT_SIGNALS);
-        boolean disableBranding = disabledExperiments != null
-                && disabledExperiments.contains(ChromeFeatureList.CCT_BRAND_TRANSPARENCY);
-        // We currently only support having a set of two features: the Engagement Signals Feature
-        // and the Branding Feature.
-        return (enableBranding && enableEngagement) || (disableBranding && disableEngagement);
     }
 
+    // TODO(https://crbug.com/1458640): Remove this and other dynamic feature related methods.
     /**
      * Determines if the given Feature is enabled after factoring in active Intent overrides.
      * @see #setupDynamicFeatures
@@ -1442,7 +1345,6 @@ public class CustomTabsConnection {
     public boolean isDynamicFeatureEnabled(String featureName) {
         if (mIsDynamicIntentFeatureOverridesEnabled) {
             assert featureName.equals(ChromeFeatureList.CCT_REAL_TIME_ENGAGEMENT_SIGNALS)
-                    || featureName.equals(ChromeFeatureList.CCT_BRAND_TRANSPARENCY)
                 : "Unsupported Feature";
             if (mDynamicEnabledFeatures != null && mDynamicEnabledFeatures.contains(featureName)) {
                 return true;
@@ -1451,9 +1353,6 @@ public class CustomTabsConnection {
                     && mDynamicDisabledFeatures.contains(featureName)) {
                 return false;
             }
-        }
-        if (featureName.equals(ChromeFeatureList.CCT_BRAND_TRANSPARENCY)) {
-            return ChromeFeatureList.sCctBrandTransparency.isEnabled();
         }
         if (featureName.equals(ChromeFeatureList.CCT_REAL_TIME_ENGAGEMENT_SIGNALS)) {
             return sRealTimeEngagementFlag.isEnabled();
@@ -1733,15 +1632,11 @@ public class CustomTabsConnection {
         if (PreloadPagesSettingsBridge.getState() == PreloadPagesState.NO_PRELOADING) {
             return SPECULATION_STATUS_ON_START_NOT_ALLOWED_NETWORK_PREDICTION_DISABLED;
         }
-        ConnectivityManager cm =
-                (ConnectivityManager) ContextUtils.getApplicationContext().getSystemService(
-                        Context.CONNECTIVITY_SERVICE);
         return SPECULATION_STATUS_ON_START_ALLOWED;
     }
 
     boolean maySpeculate(CustomTabsSessionToken session) {
         int speculationResult = maySpeculateWithResult(session);
-        recordSpeculationStatusOnStart(speculationResult);
         return speculationResult == SPECULATION_STATUS_ON_START_ALLOWED;
     }
 
@@ -1765,7 +1660,6 @@ public class CustomTabsConnection {
         cancelSpeculation(null);
 
         if (useHiddenTab) {
-            recordSpeculationStatusOnStart(SPECULATION_STATUS_ON_START_BACKGROUND_TAB);
             launchUrlInHiddenTab(session, url, extras);
         } else {
             createSpareWebContents();
@@ -1814,32 +1708,13 @@ public class CustomTabsConnection {
         mTrustedPublisherUrlPackage = packageName;
     }
 
-    private static void recordSpeculationStatusOnStart(int status) {
-        RecordHistogram.recordEnumeratedHistogram(
-                "CustomTabs.SpeculationStatusOnStart", status, SPECULATION_STATUS_ON_START_MAX);
-    }
-
-    private static void recordSpeculationStatusOnSwap(int status) {
-        RecordHistogram.recordEnumeratedHistogram(
-                "CustomTabs.SpeculationStatusOnSwap", status, SPECULATION_STATUS_ON_SWAP_MAX);
-    }
-
-    static void recordSpeculationStatusSwapTabTaken() {
-        recordSpeculationStatusOnSwap(SPECULATION_STATUS_ON_SWAP_BACKGROUND_TAB_TAKEN);
-    }
-
-    static void recordSpeculationStatusSwapTabNotMatched() {
-        recordSpeculationStatusOnSwap(SPECULATION_STATUS_ON_SWAP_BACKGROUND_TAB_NOT_MATCHED);
-    }
-
     public void setEngagementSignalsAvailableSupplier(
             CustomTabsSessionToken session, Supplier<Boolean> supplier) {
         mClientManager.setEngagementSignalsAvailableSupplierForSession(session, supplier);
     }
 
-    public void setGreatestScrollPercentageSupplier(
-            CustomTabsSessionToken session, Supplier<Integer> supplier) {
-        mClientManager.setGreatestScrollPercentageSupplierForSession(session, supplier);
+    public EngagementSignalsHandler getEngagementSignalsHandler(CustomTabsSessionToken session) {
+        return mClientManager.getEngagementSignalsHandlerForSession(session);
     }
 
     @CalledByNative
@@ -1887,19 +1762,18 @@ public class CustomTabsConnection {
 
     public boolean setEngagementSignalsCallback(CustomTabsSessionToken sessionToken,
             EngagementSignalsCallback callback, Bundle extras) {
-        if (!isEngagementSignalsApiAvailableInternal(sessionToken)) {
+        if (!isDynamicFeatureEnabled(ChromeFeatureList.CCT_REAL_TIME_ENGAGEMENT_SIGNALS)
+                || !isEngagementSignalsApiAvailableInternal(sessionToken)) {
             return false;
         }
+        var engagementSignalsHandler =
+                mClientManager.getEngagementSignalsHandlerForSession(sessionToken);
+        if (engagementSignalsHandler == null) return false;
 
         mClientManager.setEngagementSignalsCallbackForSession(sessionToken, callback);
+        PostTask.postTask(TaskTraits.UI_DEFAULT,
+                () -> engagementSignalsHandler.setEngagementSignalsCallback(callback));
         return true;
-    }
-
-    public int getGreatestScrollPercentage(CustomTabsSessionToken sessionToken, Bundle extras) {
-        if (!isEngagementSignalsApiAvailableInternal(sessionToken)) {
-            throw new UnsupportedOperationException("Engagement Signals API is not available.");
-        }
-        return mClientManager.getGreatestScrollPercentageForSession(sessionToken, extras);
     }
 
     private boolean isEngagementSignalsApiAvailableInternal(CustomTabsSessionToken session) {
@@ -1909,12 +1783,47 @@ public class CustomTabsConnection {
                 : PrivacyPreferencesManagerImpl.getInstance().isUsageAndCrashReportingPermitted();
     }
 
+    public boolean hasEngagementSignalsCallback(CustomTabsSessionToken session) {
+        return mClientManager.getEngagementSignalsCallbackForSession(session) != null;
+    }
+
+    /**
+     * Whether PageInsight Hub is enabled by the launching Intent. False by default.
+     * @param intentData {@link BrowserServicesIntentDataProvider} built from the Intent that
+     *     launched this CCT.
+     */
+    public boolean shouldEnablePageInsightsForIntent(BrowserServicesIntentDataProvider intentData) {
+        return false;
+    }
+
+    /**
+     * Returns how the Page Insights feature should be configured for the given params. Only applies
+     * if {@link #shouldEnablePageInsightsForIntent(BrowserServicesIntentDataProvider)} returns
+     * true.
+     *
+     * @param intentData {@link BrowserServicesIntentDataProvider} built from the Intent that
+     *     launched this CCT.
+     * @param navigationHandle the {@link NavigationHandle} for the current page.
+     * @param profileSupplier supplier of the current {@link Profile}.
+     */
+    public PageInsightsConfig getPageInsightsConfig(
+            BrowserServicesIntentDataProvider intentData,
+            @Nullable NavigationHandle navigationHandle,
+            Supplier<Profile> profileSupplier) {
+        return PageInsightsConfig.newBuilder()
+                .setShouldAutoTrigger(false)
+                .setShouldXsurfaceLog(false)
+                .setShouldAttachGaiaToRequest(false)
+                .build();
+    }
+
     /**
      * Called when text fragment lookups on the current page has completed.
+     *
      * @param session session object.
      * @param stateKey unique key for the embedder to keep track of the request.
      * @param foundTextFragments text fragments from the initial request that were found on the
-     *         page.
+     *     page.
      */
     @CalledByNative
     private static void notifyClientOfTextFragmentLookupCompletion(
@@ -1927,9 +1836,21 @@ public class CustomTabsConnection {
             CustomTabsSessionToken session, String stateKey, ArrayList<String> foundTextFragments) {
     }
 
-    @VisibleForTesting
+    protected boolean isCCTAPIDeprecated(String featureParamName) {
+        return false;
+    }
+
+    /**
+     * @return The CalledWarmup state for the session.
+     */
+    public @CalledWarmup int getWarmupState(CustomTabsSessionToken session) {
+        return mClientManager.getWarmupState(session);
+    }
+
     public static void setInstanceForTesting(CustomTabsConnection connection) {
+        var oldValue = sInstance;
         sInstance = connection;
+        ResettersForTesting.register(() -> sInstance = oldValue);
     }
 
     @NativeMethods

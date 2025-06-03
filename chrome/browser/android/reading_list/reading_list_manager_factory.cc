@@ -12,7 +12,8 @@
 
 // static
 ReadingListManagerFactory* ReadingListManagerFactory::GetInstance() {
-  return base::Singleton<ReadingListManagerFactory>::get();
+  static base::NoDestructor<ReadingListManagerFactory> instance;
+  return instance.get();
 }
 
 // static
@@ -25,15 +26,21 @@ ReadingListManager* ReadingListManagerFactory::GetForBrowserContext(
 ReadingListManagerFactory::ReadingListManagerFactory()
     : ProfileKeyedServiceFactory(
           "ReadingListManager",
-          ProfileSelections::BuildRedirectedInIncognito()) {
+          ProfileSelections::Builder()
+              .WithRegular(ProfileSelection::kRedirectedToOriginal)
+              // TODO(crbug.com/1418376): Check if this service is needed in
+              // Guest mode.
+              .WithGuest(ProfileSelection::kRedirectedToOriginal)
+              .Build()) {
   DependsOn(ReadingListModelFactory::GetInstance());
 }
 
 ReadingListManagerFactory::~ReadingListManagerFactory() = default;
 
-KeyedService* ReadingListManagerFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+ReadingListManagerFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
   auto* reading_list_model =
       ReadingListModelFactory::GetForBrowserContext(context);
-  return new ReadingListManagerImpl(reading_list_model);
+  return std::make_unique<ReadingListManagerImpl>(reading_list_model);
 }

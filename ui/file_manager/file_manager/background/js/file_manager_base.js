@@ -6,15 +6,14 @@ import {loadTimeData} from 'chrome://resources/ash/common/load_time_data.m.js';
 
 import {resolveIsolatedEntries} from '../../common/js/api.js';
 import {FilesAppState} from '../../common/js/files_app_state.js';
-import {metrics} from '../../common/js/metrics.js';
-import {str, util} from '../../common/js/util.js';
+import {recordInterval} from '../../common/js/metrics.js';
+import {doIfPrimaryContext} from '../../common/js/util.js';
 import {VolumeManagerCommon} from '../../common/js/volume_manager_types.js';
 import {Crostini} from '../../externs/background/crostini.js';
 import {DriveSyncHandler} from '../../externs/background/drive_sync_handler.js';
 import {FileManagerBaseInterface} from '../../externs/background/file_manager_base.js';
 import {FileOperationManager} from '../../externs/background/file_operation_manager.js';
 import {ProgressCenter} from '../../externs/background/progress_center.js';
-import {VolumeInfo} from '../../externs/volume_info.js';
 import {VolumeManager} from '../../externs/volume_manager.js';
 
 import {CrostiniImpl} from './crostini.js';
@@ -22,7 +21,7 @@ import {DriveSyncHandlerImpl} from './drive_sync_handler.js';
 import {FileOperationHandler} from './file_operation_handler.js';
 import {FileOperationManagerImpl} from './file_operation_manager.js';
 import {fileOperationUtil} from './file_operation_util.js';
-import {launcher} from './launcher.js';
+import {launchFileManager, setInitializationPromise} from './launcher.js';
 import {ProgressCenterImpl} from './progress_center.js';
 import {volumeManagerFactory} from './volume_manager_factory.js';
 
@@ -34,15 +33,15 @@ export class FileManagerBase {
   constructor() {
     /**
      * Map of all currently open file dialogs. The key is an app ID.
-     * @type {!Object<!Window>}
+     * @type {!Record<string, !Window>}
      */
     this.dialogs = {};
 
     /**
      * Initializes the strings. This needs for the volume manager.
-     * @type {?Promise}
+     * @type {?Promise<*>}
      */
-    this.initializationPromise_ = new Promise((fulfill, reject) => {
+    this.initializationPromise_ = new Promise((fulfill) => {
       chrome.fileManagerPrivate.getStrings(stringData => {
         if (chrome.runtime.lastError) {
           console.error(chrome.runtime.lastError.message);
@@ -65,11 +64,13 @@ export class FileManagerBase {
      * File operation manager.
      * @type {FileOperationManager}
      */
+    // @ts-ignore: error TS2322: Type 'null' is not assignable to type
+    // 'FileOperationManager'.
     this.fileOperationManager = null;
 
     /**
      * Event handler for progress center.
-     * @private {FileOperationHandler}
+     * @private @type {?FileOperationHandler}
      */
     this.fileOperationHandler_ = null;
 
@@ -77,14 +78,15 @@ export class FileManagerBase {
      * Drive sync handler.
      * @type {!DriveSyncHandler}
      */
-    this.driveSyncHandler = new DriveSyncHandlerImpl(this.progressCenter);
+    this.driveSyncHandler = /** @type {!DriveSyncHandler}*/ (
+        new DriveSyncHandlerImpl(this.progressCenter));
 
     /** @type {!Crostini} */
-    this.crostini = new CrostiniImpl();
+    this.crostini = /** @type {!Crostini} */ (new CrostiniImpl());
 
     /**
      * String assets.
-     * @type {Object<string>}
+     * @type {?Record<string, string>}
      */
     this.stringData = null;
 
@@ -102,8 +104,8 @@ export class FileManagerBase {
       });
 
       this.fileOperationManager = new FileOperationManagerImpl();
-      this.fileOperationHandler_ = new FileOperationHandler(
-          this.fileOperationManager, this.progressCenter);
+      this.fileOperationHandler_ =
+          new FileOperationHandler(this.progressCenter);
     });
 
     // Handle newly mounted FSP file systems. Workaround for crbug.com/456648.
@@ -111,7 +113,7 @@ export class FileManagerBase {
     chrome.fileManagerPrivate.onMountCompleted.addListener(
         this.onMountCompleted_.bind(this));
 
-    launcher.setInitializationPromise(this.initializationPromise_);
+    setInitializationPromise(this.initializationPromise_);
   }
 
   /**
@@ -125,9 +127,10 @@ export class FileManagerBase {
    * Register callback to be invoked after initialization.
    * If the initialization is already done, the callback is invoked immediately.
    *
-   * @param {function()} callback Initialize callback to be registered.
+   * @param {function():void} callback Initialize callback to be registered.
    */
   ready(callback) {
+    // @ts-ignore: error TS2531: Object is possibly 'null'.
     this.initializationPromise_.then(callback);
   }
 
@@ -136,6 +139,8 @@ export class FileManagerBase {
    * @param {boolean} enable
    */
   forceFileOperationErrorForTest(enable) {
+    // @ts-ignore: error TS2339: Property 'forceErrorForTest' does not exist on
+    // type 'typeof fileOperationUtil'.
     fileOperationUtil.forceErrorForTest = enable;
   }
 
@@ -161,8 +166,10 @@ export class FileManagerBase {
    * @param {!FilesAppState=} appState App state.
    * @return {!Promise<void>} Resolved when the new window is opened.
    */
+  // @ts-ignore: error TS2739: Type '{}' is missing the following properties
+  // from type 'FilesAppState': currentDirectoryURL, selectionURL
   async launchFileManager(appState = {}) {
-    return launcher.launchFileManager(appState);
+    return launchFileManager(appState);
   }
 
   /**
@@ -173,7 +180,7 @@ export class FileManagerBase {
    * @private
    */
   handleViewEvent_(event) {
-    util.doIfPrimaryContext(() => {
+    doIfPrimaryContext(() => {
       this.handleViewEventInternal_(event);
     });
   }
@@ -191,18 +198,30 @@ export class FileManagerBase {
          * @param {!VolumeManager} volumeManager
          */
         volumeManager => {
+          // @ts-ignore: error TS2339: Property 'devicePath' does not exist on
+          // type 'Event'.
           if (event.devicePath) {
+            // @ts-ignore: error TS2339: Property 'devicePath' does not exist on
+            // type 'Event'.
             const volume = volumeManager.findByDevicePath(event.devicePath);
             if (volume) {
               this.navigateToVolumeRoot_(volume);
             } else {
               console.warn(
+                  // @ts-ignore: error TS2339: Property 'devicePath' does not
+                  // exist on type 'Event'.
                   `Got view event with invalid volume id: ${event.devicePath}`);
             }
+            // @ts-ignore: error TS2339: Property 'volumeId' does not exist on
+            // type 'Event'.
           } else if (event.volumeId) {
             if (event.type === VolumeManagerCommon.VOLUME_ALREADY_MOUNTED) {
+              // @ts-ignore: error TS2339: Property 'volumeId' does not exist on
+              // type 'Event'.
               this.navigateToVolumeInFocusedWindowWhenReady_(event.volumeId);
             } else {
+              // @ts-ignore: error TS2339: Property 'volumeId' does not exist on
+              // type 'Event'.
               this.navigateToVolumeWhenReady_(event.volumeId);
             }
           } else {
@@ -215,10 +234,12 @@ export class FileManagerBase {
    * Retrieves the root file entry of the volume on the requested device.
    *
    * @param {!string} volumeId ID of the volume to navigate to.
-   * @return {!Promise<!VolumeInfo>}
+   * @return {!Promise<!import("../../externs/volume_info.js").VolumeInfo>}
    * @private
    */
   retrieveVolumeInfo_(volumeId) {
+    // @ts-ignore: error TS2322: Type 'Promise<void | VolumeInfo>' is not
+    // assignable to type 'Promise<VolumeInfo>'.
     return volumeManagerFactory.getInstance().then(
         (/**
           * @param {!VolumeManager} volumeManager
@@ -263,7 +284,7 @@ export class FileManagerBase {
    * If a path was specified, retrieve that directory entry,
    * otherwise return the root entry of the volume.
    *
-   * @param {!VolumeInfo} volume
+   * @param {!import("../../externs/volume_info.js").VolumeInfo} volume
    * @param {string=} opt_directoryPath Optional directory path to be opened.
    * @return {!Promise<!DirectoryEntry>}
    * @private
@@ -282,7 +303,7 @@ export class FileManagerBase {
   /**
    * Opens the volume root (or opt directoryPath) in main UI.
    *
-   * @param {!VolumeInfo} volume
+   * @param {!import("../../externs/volume_info.js").VolumeInfo} volume
    * @param {string=} opt_directoryPath Optional directory path to be opened.
    * @private
    */
@@ -294,8 +315,10 @@ export class FileManagerBase {
              * @param {DirectoryEntry} directory
              */
             directory => {
-              launcher.launchFileManager(
-                  {currentDirectoryURL: directory.toURL()});
+              // @ts-ignore: error TS2345: Argument of type '{
+              // currentDirectoryURL: string; }' is not assignable to parameter
+              // of type 'FilesAppState'.
+              launchFileManager({currentDirectoryURL: directory.toURL()});
             });
   }
 
@@ -303,7 +326,7 @@ export class FileManagerBase {
    * Opens the volume root (or opt directoryPath) in main UI of the focused
    * window.
    *
-   * @param {!VolumeInfo} volume
+   * @param {!import("../../externs/volume_info.js").VolumeInfo} volume
    * @param {string=} opt_directoryPath Optional directory path to be opened.
    * @private
    */
@@ -326,7 +349,7 @@ export class FileManagerBase {
    * @private
    */
   onMountCompleted_(event) {
-    util.doIfPrimaryContext(() => {
+    doIfPrimaryContext(() => {
       this.onMountCompletedInternal_(event);
     });
   }
@@ -336,19 +359,36 @@ export class FileManagerBase {
    * @private
    */
   onMountCompletedInternal_(event) {
+    // @ts-ignore: error TS2339: Property 'status' does not exist on type
+    // 'Object'.
     const statusOK = event.status === 'success' ||
+        // @ts-ignore: error TS2339: Property 'status' does not exist on type
+        // 'Object'.
         event.status === VolumeManagerCommon.VolumeError.PATH_ALREADY_MOUNTED;
+    // @ts-ignore: error TS2339: Property 'volumeMetadata' does not exist on
+    // type 'Object'.
     const volumeTypeOK = event.volumeMetadata.volumeType ===
             VolumeManagerCommon.VolumeType.PROVIDED &&
+        // @ts-ignore: error TS2339: Property 'volumeMetadata' does not exist on
+        // type 'Object'.
         event.volumeMetadata.source === VolumeManagerCommon.Source.FILE;
+    // @ts-ignore: error TS2339: Property 'eventType' does not exist on type
+    // 'Object'.
     if (event.eventType === 'mount' && statusOK &&
+        // @ts-ignore: error TS2339: Property 'volumeMetadata' does not exist on
+        // type 'Object'.
         event.volumeMetadata.mountContext === 'user' && volumeTypeOK) {
+      // @ts-ignore: error TS2339: Property 'volumeMetadata' does not exist on
+      // type 'Object'.
       this.navigateToVolumeWhenReady_(event.volumeMetadata.volumeId);
     }
   }
 }
 
-/** @private {number} Total number of retries for the resolve entries below.*/
+/**
+ * @private @type {number} Total number of retries for the resolve entries
+ *     below.
+ */
 const MAX_RETRIES = 6;
 
 /**
@@ -358,6 +398,8 @@ const MAX_RETRIES = 6;
  * @return {!Promise<!Array<!Entry>>} Promise resolved with the entries
  *   resolved.
  */
+// @ts-ignore: error TS6133: 'retryResolveIsolatedEntries' is declared but its
+// value is never read.
 async function retryResolveIsolatedEntries(isolatedEntries) {
   let count = 0;
   let externalEntries = [];
@@ -403,10 +445,11 @@ let nextFileManagerDialogID = 0;
  * @type {!FileManagerBaseInterface}
  */
 export const background = new FileManagerBase();
+// @ts-ignore: error TS2339: Property 'background' does not exist on type
+// 'Window & typeof globalThis'.
 window.background = background;
 
 /**
  * End recording of the background page Load.BackgroundScript metric.
- * NOTE: This call must come after the call to metrics.clearUserId.
  */
-metrics.recordInterval('Load.BackgroundScript');
+recordInterval('Load.BackgroundScript');

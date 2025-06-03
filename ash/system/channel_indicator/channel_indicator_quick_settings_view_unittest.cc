@@ -22,10 +22,8 @@ class ChannelIndicatorQuickSettingsViewTest
       public testing::WithParamInterface<std::tuple<bool, bool>> {
  public:
   ChannelIndicatorQuickSettingsViewTest() {
-    // Param 0 is whether QsRevamp is enabled.
-    if (std::get<0>(GetParam())) {
-      feature_list_.InitAndEnableFeature(features::kQsRevamp);
-    }
+    // TODO(b/305075031) clean up after the flag is removed.
+    feature_list_.InitAndEnableFeature(features::kQsRevamp);
   }
   ChannelIndicatorQuickSettingsViewTest(
       const ChannelIndicatorQuickSettingsViewTest&) = delete;
@@ -66,9 +64,12 @@ class ChannelIndicatorQuickSettingsViewTest
 
  private:
   base::test::ScopedFeatureList feature_list_;
-  raw_ptr<TestSystemTrayClient, ExperimentalAsh> system_tray_client_ = nullptr;
+  raw_ptr<TestSystemTrayClient, DanglingUntriaged | ExperimentalAsh>
+      system_tray_client_ = nullptr;
   std::unique_ptr<views::Widget> widget_;
-  raw_ptr<ChannelIndicatorQuickSettingsView, ExperimentalAsh> view_ = nullptr;
+  raw_ptr<ChannelIndicatorQuickSettingsView,
+          DanglingUntriaged | ExperimentalAsh>
+      view_ = nullptr;
 };
 
 // Run the `Visible` test below for each value of version_info::Channel.

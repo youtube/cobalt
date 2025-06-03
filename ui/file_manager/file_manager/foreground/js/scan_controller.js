@@ -2,11 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {metrics} from '../../common/js/metrics.js';
-import {util} from '../../common/js/util.js';
+import {recordDirectoryListLoadWithTolerance, startInterval} from '../../common/js/metrics.js';
 import {VolumeManagerCommon} from '../../common/js/volume_manager_types.js';
-import {Store} from '../../externs/ts/store.js';
-import {updateDirectoryContent} from '../../state/actions/current_directory.js';
+import {updateDirectoryContent} from '../../state/ducks/current_directory.js';
 import {getStore} from '../../state/store.js';
 
 import {DirectoryModel} from './directory_model.js';
@@ -26,35 +24,36 @@ export class ScanController {
    */
   constructor(
       directoryModel, listContainer, spinnerController, selectionHandler) {
-    /** @private @const {!DirectoryModel} */
+    /** @private @const @type {!DirectoryModel} */
     this.directoryModel_ = directoryModel;
 
-    /** @private @const {!ListContainer} */
+    /** @private @const @type {!ListContainer} */
     this.listContainer_ = listContainer;
 
-    /** @private @const {!SpinnerController} */
+    /** @private @const @type {!SpinnerController} */
     this.spinnerController_ = spinnerController;
 
-    /** @private @const {!FileSelectionHandler} */
+    /** @private @const @type {!FileSelectionHandler} */
     this.selectionHandler_ = selectionHandler;
 
-    /** @private @const {!Store} */
+    // @ts-ignore: error TS2304: Cannot find name 'Store'.
+    /** @private @const @type {!Store} */
     this.store_ = getStore();
 
     /**
      * Whether a scan is in progress.
-     * @private {boolean}
+     * @private @type {boolean}
      */
     this.scanInProgress_ = false;
 
     /**
      * Timer ID to delay UI refresh after a scan is updated.
-     * @private {number}
+     * @private @type {number}
      */
     this.scanUpdatedTimer_ = 0;
 
     /**
-     * @private {?function()}
+     * @private @type {?function():void}
      */
     this.spinnerHideCallback_ = null;
 
@@ -90,7 +89,7 @@ export class ScanController {
     if (volumeInfo &&
         (volumeInfo.volumeType === VolumeManagerCommon.VolumeType.DOWNLOADS ||
          volumeInfo.volumeType === VolumeManagerCommon.VolumeType.MY_FILES)) {
-      metrics.startInterval(
+      startInterval(
           `DirectoryListLoad.${VolumeManagerCommon.RootType.MY_FILES}`);
     }
 
@@ -144,7 +143,7 @@ export class ScanController {
            volumeInfo.volumeType === VolumeManagerCommon.VolumeType.MY_FILES)) {
         const metricName =
             `DirectoryListLoad.${VolumeManagerCommon.RootType.MY_FILES}`;
-        metrics.recordDirectoryListLoadWithTolerance(
+        recordDirectoryListLoadWithTolerance(
             metricName, this.directoryModel_.getFileList().length,
             [10, 100, 1000], /*tolerance=*/ 0.2);
       }

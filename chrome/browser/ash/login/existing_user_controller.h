@@ -20,7 +20,7 @@
 #include "chrome/browser/ash/login/saml/password_sync_token_checkers_collection.h"
 #include "chrome/browser/ash/login/screens/encryption_migration_mode.h"
 #include "chrome/browser/ash/login/session/user_session_manager.h"
-#include "chrome/browser/ash/login/ui/login_display.h"
+#include "chrome/browser/ash/login/signin_specifics.h"
 #include "chromeos/ash/components/login/auth/login_performer.h"
 #include "chromeos/ash/components/login/auth/public/auth_failure.h"
 #include "chromeos/ash/components/login/auth/public/user_context.h"
@@ -108,8 +108,6 @@ class ExistingUserController : public content::NotificationObserver,
   void CompleteLogin(const UserContext& user_context);
   void OnGaiaScreenReady();
   void SetDisplayEmail(const std::string& email);
-  void SetDisplayAndGivenName(const std::string& display_name,
-                              const std::string& given_name);
   bool IsUserAllowlisted(
       const AccountId& account_id,
       const absl::optional<user_manager::UserType>& user_type);
@@ -192,8 +190,7 @@ class ExistingUserController : public content::NotificationObserver,
   // that the diversion to a resume flow did not occur, indicating either no
   // hibernation image was present, the resume was cancelled/aborted, or
   // hibernate is simply not supported.
-  void ContinueAuthSuccessAfterResumeAttempt(const UserContext& user_context,
-                                             bool resume_call_success);
+  void ContinueAuthSuccessAfterResumeAttempt(const UserContext& user_context);
 
   // UserSessionManagerDelegate implementation:
   void OnProfilePrepared(Profile* profile, bool browser_launched) override;
@@ -348,13 +345,6 @@ class ExistingUserController : public content::NotificationObserver,
   // The displayed email for the next login attempt set by `SetDisplayEmail`.
   std::string display_email_;
 
-  // The displayed name for the next login attempt set by
-  // `SetDisplayAndGivenName`.
-  std::u16string display_name_;
-
-  // The given name for the next login attempt set by `SetDisplayAndGivenName`.
-  std::u16string given_name_;
-
   // Whether login attempt is running.
   bool is_login_in_progress_ = false;
 
@@ -376,10 +366,6 @@ class ExistingUserController : public content::NotificationObserver,
 
   // Timer for the interval to wait for the reboot after TPM error UI was shown.
   base::OneShotTimer reboot_timer_;
-
-  // Collection of verifiers that check validity of password sync token for SAML
-  // users.
-  std::unique_ptr<PasswordSyncTokenCheckersCollection> sync_token_checkers_;
 
   std::unique_ptr<login::NetworkStateHelper> network_state_helper_;
 

@@ -74,6 +74,8 @@
 
 namespace blink {
 
+using mojom::blink::FormControlType;
+
 class SerializerMarkupAccumulator : public MarkupAccumulator {
   STACK_ALLOCATED();
 
@@ -336,7 +338,8 @@ void FrameSerializer::AddResourceForElement(Document& document,
     ImageResourceContent* cached_image = image->CachedImage();
     AddImageToResources(cached_image, document.CompleteURL(image_url_value));
   } else if (const auto* input = DynamicTo<HTMLInputElement>(element)) {
-    if (input->type() == input_type_names::kImage && input->ImageLoader()) {
+    if (input->FormControlType() == FormControlType::kInputImage &&
+        input->ImageLoader()) {
       KURL image_url = input->Src();
       ImageResourceContent* cached_image = input->ImageLoader()->GetContent();
       AddImageToResources(cached_image, image_url);
@@ -437,7 +440,7 @@ void FrameSerializer::SerializeCSSRule(CSSRule* rule) {
     case CSSRule::kContainerRule:
     case CSSRule::kLayerBlockRule:
     case CSSRule::kScopeRule:
-    case CSSRule::kInitialRule: {
+    case CSSRule::kStartingStyleRule: {
       CSSRuleList* rule_list = rule->cssRules();
       for (unsigned i = 0; i < rule_list->length(); ++i)
         SerializeCSSRule(rule_list->item(i));
@@ -468,6 +471,7 @@ void FrameSerializer::SerializeCSSRule(CSSRule* rule) {
     case CSSRule::kLayerStatementRule:
     case CSSRule::kPositionFallbackRule:
     case CSSRule::kTryRule:
+    case CSSRule::kViewTransitionsRule:
       break;
   }
 }

@@ -10,8 +10,11 @@
 #include "base/task/sequenced_task_runner_helpers.h"
 #include "content/public/browser/browser_message_filter.h"
 #include "content/public/browser/browser_thread.h"
+#include "extensions/buildflags/buildflags.h"
 #include "extensions/common/extension_id.h"
 #include "extensions/common/mojom/frame.mojom-forward.h"
+
+#if BUILDFLAG(ENABLE_EXTENSIONS_LEGACY_IPC)
 
 namespace content {
 class BrowserContext;
@@ -67,10 +70,12 @@ class ExtensionServiceWorkerMessageFilter
   base::CallbackListSubscription shutdown_notifier_subscription_;
 
   // Owned by the StoragePartition of our profile.
-  raw_ptr<content::ServiceWorkerContext, DanglingUntriaged>
+  raw_ptr<content::ServiceWorkerContext, AcrossTasksDanglingUntriaged>
       service_worker_context_;
 };
 
 }  // namespace extensions
+
+#endif
 
 #endif  // EXTENSIONS_BROWSER_EXTENSION_SERVICE_WORKER_MESSAGE_FILTER_H_

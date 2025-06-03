@@ -16,6 +16,7 @@
 #include "components/send_tab_to_self/send_tab_to_self_entry.h"
 #include "components/vector_icons/vector_icons.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/models/image_model.h"
 #include "ui/base/ui_base_features.h"
 #include "ui/color/color_id.h"
@@ -26,12 +27,11 @@ namespace send_tab_to_self {
 
 SendTabToSelfToolbarIconView::SendTabToSelfToolbarIconView(
     BrowserView* browser_view)
-    : ImageView(ui::ImageModel::FromVectorIcon(
-          features::IsChromeRefresh2023()
-              ? kLaptopAndSmartphoneChromeRefreshIcon
-              : kLaptopAndSmartphoneIcon,
-          ui::kColorIcon,
-          gfx::kFaviconSize)),
+    : ImageView(ui::ImageModel::FromVectorIcon(features::IsChromeRefresh2023()
+                                                   ? kDevicesChromeRefreshIcon
+                                                   : kDevicesIcon,
+                                               ui::kColorIcon,
+                                               gfx::kFaviconSize)),
       browser_(browser_view->browser()),
       browser_view_(browser_view) {
   SetAccessibleName(l10n_util::GetStringUTF16(
@@ -83,5 +83,8 @@ void SendTabToSelfToolbarIconView::LogNotificationDismissed() {
       ->GetToolbarButtonControllerForProfile(browser_->profile())
       ->LogNotificationDismissed();
 }
+
+BEGIN_METADATA(SendTabToSelfToolbarIconView, views::ImageView)
+END_METADATA
 
 }  // namespace send_tab_to_self

@@ -15,11 +15,14 @@
 #include "extensions/browser/event_router_factory.h"
 #include "extensions/browser/events/event_ack_data.h"
 #include "extensions/browser/extension_registry_factory.h"
+#include "extensions/browser/extensions_browser_client.h"
 #include "extensions/browser/process_manager.h"
 #include "extensions/browser/process_manager_factory.h"
 #include "extensions/common/extension_messages.h"
 
 namespace extensions {
+
+#if BUILDFLAG(ENABLE_EXTENSIONS_LEGACY_IPC)
 
 namespace {
 
@@ -44,6 +47,12 @@ class ShutdownNotifierFactory
     DependsOn(ProcessManagerFactory::GetInstance());
   }
   ~ShutdownNotifierFactory() override = default;
+
+  content::BrowserContext* GetBrowserContextToUse(
+      content::BrowserContext* context) const override {
+    return ExtensionsBrowserClient::Get()->GetContextOwnInstance(
+        context, /*force_guest_profile=*/true);
+  }
 };
 
 }  // namespace
@@ -124,4 +133,5 @@ void ExtensionServiceWorkerMessageFilter::DidFailDecrementInflightEvent() {
   bad_message::ReceivedBadMessage(this, bad_message::ESWMF_BAD_EVENT_ACK);
 }
 
+#endif
 }  // namespace extensions

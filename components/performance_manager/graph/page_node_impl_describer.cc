@@ -49,6 +49,11 @@ base::Value::Dict PageNodeImplDescriber::DescribePageNodeData(
 
   result.Set("visibility_change_time",
              TimeDeltaFromNowToValue(page_node_impl->visibility_change_time_));
+  if (page_node_impl->audible_change_time_.has_value()) {
+    result.Set(
+        "audible_change_time",
+        TimeDeltaFromNowToValue(page_node_impl->audible_change_time_.value()));
+  }
   result.Set(
       "navigation_committed_time",
       TimeDeltaFromNowToValue(page_node_impl->navigation_committed_time_));
@@ -80,6 +85,7 @@ base::Value::Dict PageNodeImplDescriber::DescribePageNodeData(
   }
   result.Set("freezing_vote",
              FreezingVoteToString(page_node_impl->freezing_vote()));
+  result.Set("resource_context", page_node_impl->resource_context().ToString());
 
   base::Value::Dict estimates;
   estimates.Set(

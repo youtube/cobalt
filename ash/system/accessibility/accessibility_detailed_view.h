@@ -13,7 +13,7 @@
 #include "ash/system/tray/tray_detailed_view.h"
 #include "base/memory/raw_ptr.h"
 #include "components/soda/soda_installer.h"
-#include "ui/gfx/font.h"
+#include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/views/controls/button/button.h"
 #include "ui/views/view.h"
 
@@ -37,8 +37,7 @@ class ASH_EXPORT AccessibilityDetailedView
     : public TrayDetailedView,
       public speech::SodaInstaller::Observer {
  public:
-  static const char kClassName[];
-
+  METADATA_HEADER(AccessibilityDetailedView);
   explicit AccessibilityDetailedView(DetailedViewDelegate* delegate);
 
   AccessibilityDetailedView(const AccessibilityDetailedView&) = delete;
@@ -48,9 +47,6 @@ class ASH_EXPORT AccessibilityDetailedView
   ~AccessibilityDetailedView() override;
 
   void OnAccessibilityStatusChanged();
-
-  // views::View
-  const char* GetClassName() const override;
 
  private:
   friend class AccessibilityDetailedViewLoginScreenTest;
@@ -72,7 +68,6 @@ class ASH_EXPORT AccessibilityDetailedView
   void AppendAccessibilityList();
 
   // Adds the enabled accessibility features to the `container`.
-  // Only used with QsRevamp.
   void AddEnabledFeatures(views::View* container);
 
   // Adds all accessibility features to the `container`.
@@ -83,6 +78,7 @@ class ASH_EXPORT AccessibilityDetailedView
   HoverHighlightView* AddSpokenFeedbackView(views::View* container);
   HoverHighlightView* AddSelectToSpeakView(views::View* container);
   HoverHighlightView* AddDictationView(views::View* container);
+  HoverHighlightView* AddColorCorrectionView(views::View* container);
   HoverHighlightView* AddHighContrastView(views::View* container);
   HoverHighlightView* AddScreenMagnifierView(views::View* container);
   HoverHighlightView* AddDockedMagnifierView(views::View* container);
@@ -97,8 +93,7 @@ class ASH_EXPORT AccessibilityDetailedView
   HoverHighlightView* AddHighlightKeyboardFocusView(views::View* container);
   HoverHighlightView* AddStickyKeysView(views::View* container);
 
-  // Adds a HoverHighlightView to the scroll list and returns it. Configures
-  // the view based on the QsRevamp feature flag.
+  // Adds a HoverHighlightView to the scroll list and returns it.
   HoverHighlightView* AddScrollListFeatureItem(views::View* container,
                                                const gfx::VectorIcon& icon,
                                                const std::u16string& text,
@@ -106,7 +101,7 @@ class ASH_EXPORT AccessibilityDetailedView
                                                bool enterprise_managed);
 
   // Adds a HoverHighlightView with a toggle button on the right to the scroll
-  // list and returns it. Only used with QsRevamp.
+  // list and returns it.
   HoverHighlightView* AddScrollListToggleItem(views::View* container,
                                               const gfx::VectorIcon& icon,
                                               const std::u16string& text,
@@ -131,6 +126,7 @@ class ASH_EXPORT AccessibilityDetailedView
   raw_ptr<HoverHighlightView, ExperimentalAsh> spoken_feedback_view_ = nullptr;
   raw_ptr<HoverHighlightView, ExperimentalAsh> select_to_speak_view_ = nullptr;
   raw_ptr<HoverHighlightView, ExperimentalAsh> dictation_view_ = nullptr;
+  raw_ptr<HoverHighlightView, ExperimentalAsh> color_correction_view_ = nullptr;
   raw_ptr<HoverHighlightView, ExperimentalAsh> high_contrast_view_ = nullptr;
   raw_ptr<HoverHighlightView, ExperimentalAsh> screen_magnifier_view_ = nullptr;
   raw_ptr<HoverHighlightView, ExperimentalAsh> docked_magnifier_view_ = nullptr;
@@ -149,12 +145,13 @@ class ASH_EXPORT AccessibilityDetailedView
 
   // Views that appear in the top section listing enabled items. Created if the
   // feature is enabled, otherwise nullptr. Owned by views hierarchy.
-  // Only used with QsRevamp.
   raw_ptr<HoverHighlightView, ExperimentalAsh> spoken_feedback_top_view_ =
       nullptr;
   raw_ptr<HoverHighlightView, ExperimentalAsh> select_to_speak_top_view_ =
       nullptr;
   raw_ptr<HoverHighlightView, ExperimentalAsh> dictation_top_view_ = nullptr;
+  raw_ptr<HoverHighlightView, ExperimentalAsh> color_correction_top_view_ =
+      nullptr;
   raw_ptr<HoverHighlightView, ExperimentalAsh> high_contrast_top_view_ =
       nullptr;
   raw_ptr<HoverHighlightView, ExperimentalAsh> screen_magnifier_top_view_ =
@@ -181,10 +178,6 @@ class ASH_EXPORT AccessibilityDetailedView
   raw_ptr<views::Button, ExperimentalAsh> settings_view_ = nullptr;
 
   LoginStatus login_;
-
-  // Whether `features::kQsRevamp` is enabled. Used to avoid redundant
-  // base::Feature lookups when building the view.
-  const bool is_qs_revamp_enabled_;
 };
 
 }  // namespace ash

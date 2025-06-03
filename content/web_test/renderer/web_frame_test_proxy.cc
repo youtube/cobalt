@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "content/web_test/renderer/web_frame_test_proxy.h"
+#include "base/memory/raw_ptr.h"
 
 #include "components/plugins/renderer/plugin_placeholder.h"
 #include "content/public/renderer/render_frame_observer.h"
@@ -215,8 +216,8 @@ class TestRenderFrameObserver : public RenderFrameObserver {
   void ScriptedPrint(bool user_initiated) override {
     // This is using the main frame for the size, but maybe it should be using
     // the frame's size.
-    gfx::Size page_size_in_pixels =
-        frame_proxy()->GetLocalRootWebFrameWidget()->Size();
+    gfx::SizeF page_size_in_pixels(
+        frame_proxy()->GetLocalRootWebFrameWidget()->Size());
     if (page_size_in_pixels.IsEmpty())
       return;
     blink::WebPrintParams print_params(page_size_in_pixels);
@@ -224,7 +225,7 @@ class TestRenderFrameObserver : public RenderFrameObserver {
     render_frame()->GetWebFrame()->PrintEnd();
   }
 
-  TestRunner* const test_runner_;
+  const raw_ptr<TestRunner, ExperimentalRenderer> test_runner_;
 };
 
 }  // namespace
@@ -550,9 +551,8 @@ void WebFrameTestProxy::PostAccessibilityEvent(const ui::AXEvent& event) {
     case ax::mojom::Event::kActiveDescendantChanged:
       event_name = "ActiveDescendantChanged";
       break;
-    case ax::mojom::Event::kAriaAttributeChanged:
-      event_name = "AriaAttributeChanged";
-      break;
+    case ax::mojom::Event::kAriaAttributeChangedDeprecated:
+      NOTREACHED_NORETURN();
     case ax::mojom::Event::kBlur:
       event_name = "Blur";
       break;
@@ -752,12 +752,43 @@ void WebFrameTestProxy::DidClearWindowObject() {
   RenderFrameImpl::DidClearWindowObject();
 }
 
+void WebFrameTestProxy::DidCommitNavigation(
+    blink::WebHistoryCommitType commit_type,
+    bool should_reset_browser_interface_broker,
+    const blink::ParsedPermissionsPolicy& permissions_policy_header,
+    const blink::DocumentPolicyFeatureState& document_policy_header) {
+  if (should_block_parsing_in_next_commit_) {
+    should_block_parsing_in_next_commit_ = false;
+    GetWebFrame()->BlockParserForTesting();
+  }
+  RenderFrameImpl::DidCommitNavigation(
+      commit_type, should_reset_browser_interface_broker,
+      permissions_policy_header, document_policy_header);
+}
+
 void WebFrameTestProxy::OnDeactivated() {
   test_runner()->OnFrameDeactivated(this);
 }
 
 void WebFrameTestProxy::OnReactivated() {
   test_runner()->OnFrameReactivated(this);
+}
+
+void WebFrameTestProxy::BlockTestUntilStart() {
+  should_block_parsing_in_next_commit_ = true;
+}
+
+void WebFrameTestProxy::StartTest() {
+  CHECK(!should_block_parsing_in_next_commit_);
+  GetWebFrame()->FlushInputForTesting(base::BindOnce(
+      [](base::WeakPtr<RenderFrameImpl> render_frame) {
+        if (!render_frame || !render_frame->GetWebFrame()) {
+          return;
+        }
+
+        render_frame->GetWebFrame()->ResumeParserForTesting();
+      },
+      GetWeakPtr()));
 }
 
 blink::FrameWidgetTestHelper*

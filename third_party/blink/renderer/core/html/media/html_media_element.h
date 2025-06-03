@@ -98,7 +98,6 @@ class TextTrackList;
 class TimeRanges;
 class VideoTrack;
 class VideoTrackList;
-class WebInbandTextTrack;
 class WebRemotePlaybackClient;
 
 class CORE_EXPORT HTMLMediaElement
@@ -156,11 +155,14 @@ class CORE_EXPORT HTMLMediaElement
   // Note that even an audio element can have video track in cases such as
   // <audio src="video.webm">, in which case this function will return true.
   bool HasVideo() const;
+
   // Returns true if loaded media has an audio track.
   bool HasAudio() const;
 
-  bool SupportsSave() const;
+  // Whether the media element has encrypted audio or video streams.
+  bool IsEncrypted() const;
 
+  bool SupportsSave() const;
   bool SupportsLoop() const;
 
   cc::Layer* CcLayer() const;
@@ -210,7 +212,7 @@ class CORE_EXPORT HTMLMediaElement
   WebTimeRanges BufferedInternal() const;
   TimeRanges* buffered() const;
   void load();
-  String canPlayType(ExecutionContext* context, const String& mime_type) const;
+  String canPlayType(const String& mime_type) const;
 
   // ready state
   enum ReadyState {
@@ -343,7 +345,9 @@ class CORE_EXPORT HTMLMediaElement
   // ScriptWrappable functions.
   bool HasPendingActivity() const override;
 
-  AudioSourceProviderClient* AudioSourceNode() { return audio_source_node_; }
+  AudioSourceProviderClient* AudioSourceNode() {
+    return audio_source_node_.Get();
+  }
   void SetAudioSourceNode(AudioSourceProviderClient*);
 
   AudioSourceProvider& GetAudioSourceProvider() {
@@ -435,7 +439,7 @@ class CORE_EXPORT HTMLMediaElement
   void AttachLayoutTree(AttachContext&) override;
   void ParserDidSetAttributes() override;
   void CloneNonAttributePropertiesFrom(const Element&,
-                                       CloneChildrenFlag) override;
+                                       NodeCloningData&) override;
 
   InsertionNotificationRequest InsertedInto(ContainerNode&) override;
   void RemovedFrom(ContainerNode&) override;
@@ -493,7 +497,10 @@ class CORE_EXPORT HTMLMediaElement
   bool AreAuthorShadowsAllowed() const final { return false; }
 
   bool SupportsFocus() const final;
-  bool IsMouseFocusable() const final;
+  bool IsFocusable(
+      bool disallow_layout_updates_for_accessibility_only = false) const final;
+  bool IsKeyboardFocusable() const final;
+  int DefaultTabIndex() const final;
   bool LayoutObjectIsNeeded(const DisplayStyle&) const override;
   LayoutObject* CreateLayoutObject(const ComputedStyle&) override;
   void DidNotifySubtreeInsertionsToDocument() override;
@@ -545,8 +552,6 @@ class CORE_EXPORT HTMLMediaElement
                                         const WebString&,
                                         bool) final;
   void RemoveVideoTrack(WebMediaPlayer::TrackId) final;
-  void AddTextTrack(WebInbandTextTrack*) final;
-  void RemoveTextTrack(WebInbandTextTrack*) final;
   void MediaSourceOpened(WebMediaSource*) final;
   void RemotePlaybackCompatibilityChanged(const WebURL&,
                                           bool is_compatible) final;
@@ -559,7 +564,6 @@ class CORE_EXPORT HTMLMediaElement
   WebRemotePlaybackClient* RemotePlaybackClient() final {
     return remote_playback_client_;
   }
-  Vector<TextTrackMetadata> GetTextTrackMetadata() override;
   gfx::ColorSpace TargetColorSpace() override;
   bool WasAutoplayInitiated() override;
   bool IsInAutoPIP() const override { return false; }
@@ -595,7 +599,6 @@ class CORE_EXPORT HTMLMediaElement
   void RequestSeekBackward(base::TimeDelta seek_time) override;
   void RequestSeekTo(base::TimeDelta seek_time) override;
   void RequestEnterPictureInPicture() override {}
-  void RequestExitPictureInPicture() override {}
   void RequestMute(bool mute) override;
   void SetVolumeMultiplier(double multiplier) override;
   void SetPersistentState(bool persistent) override {}

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {assert} from 'chrome://resources/js/assert_ts.js';
+import {assert} from 'chrome://resources/js/assert.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 
 import {pageVisibility} from './page_visibility.js';
@@ -17,14 +17,24 @@ function addPrivacyChildRoutes(r: Partial<SettingsRoutes>) {
   r.CLEAR_BROWSER_DATA = r.PRIVACY.createChild('/clearBrowserData');
   r.CLEAR_BROWSER_DATA.isNavigableDialog = true;
 
-  r.SAFETY_CHECK = r.PRIVACY.createSection('/safetyCheck', 'safetyCheck');
+  if (loadTimeData.getBoolean('enableSafetyHub')) {
+    r.SAFETY_HUB = r.PRIVACY.createChild('/safetyCheck');
+  } else {
+    r.SAFETY_CHECK = r.PRIVACY.createSection('/safetyCheck', 'safetyCheck');
+  }
 
   if (loadTimeData.getBoolean('showPrivacyGuide')) {
     r.PRIVACY_GUIDE = r.PRIVACY.createChild('guide');
   }
   r.SITE_SETTINGS = r.PRIVACY.createChild('/content');
-  r.COOKIES = r.PRIVACY.createChild('/cookies');
   r.SECURITY = r.PRIVACY.createChild('/security');
+
+  r.TRACKING_PROTECTION = r.PRIVACY.createChild('/trackingProtection');
+  r.COOKIES = r.PRIVACY.createChild('/cookies');
+  if (!loadTimeData.getBoolean(
+          'isPerformanceSettingsPreloadingSubpageEnabled')) {
+    r.PRELOADING = r.COOKIES.createChild('/preloading');
+  }
 
   if (loadTimeData.getBoolean('isPrivacySandboxSettings4') &&
       !loadTimeData.getBoolean('isPrivacySandboxRestricted')) {
@@ -58,10 +68,6 @@ function addPrivacyChildRoutes(r: Partial<SettingsRoutes>) {
     // </if>
   }
 
-  if (loadTimeData.getBoolean('showPreloadingSubPage')) {
-    r.PRELOADING = r.COOKIES.createChild('/preloading');
-  }
-
   r.SITE_SETTINGS_ALL = r.SITE_SETTINGS.createChild('all');
   r.SITE_SETTINGS_SITE_DETAILS =
       r.SITE_SETTINGS_ALL.createChild('/content/siteDetails');
@@ -74,6 +80,10 @@ function addPrivacyChildRoutes(r: Partial<SettingsRoutes>) {
   r.SITE_SETTINGS_AR = r.SITE_SETTINGS.createChild('ar');
   r.SITE_SETTINGS_AUTOMATIC_DOWNLOADS =
       r.SITE_SETTINGS.createChild('automaticDownloads');
+  if (loadTimeData.getBoolean('autoPictureInPictureEnabled')) {
+    r.SITE_SETTINGS_AUTO_PICTURE_IN_PICTURE =
+        r.SITE_SETTINGS.createChild('autoPictureInPicture');
+  }
   if (loadTimeData.getBoolean('privateStateTokensEnabled')) {
     r.SITE_SETTINGS_AUTO_VERIFY = r.SITE_SETTINGS.createChild('autoVerify');
   }
@@ -123,7 +133,14 @@ function addPrivacyChildRoutes(r: Partial<SettingsRoutes>) {
   r.SITE_SETTINGS_WINDOW_MANAGEMENT =
       r.SITE_SETTINGS.createChild('windowManagement');
   r.SITE_SETTINGS_FILE_SYSTEM_WRITE = r.SITE_SETTINGS.createChild('filesystem');
+  r.SITE_SETTINGS_FILE_SYSTEM_WRITE_DETAILS =
+      r.SITE_SETTINGS_FILE_SYSTEM_WRITE.createChild('siteDetails');
   r.SITE_SETTINGS_LOCAL_FONTS = r.SITE_SETTINGS.createChild('localFonts');
+
+  if (loadTimeData.getBoolean('enablePermissionStorageAccessApi')) {
+    r.SITE_SETTINGS_STORAGE_ACCESS =
+        r.SITE_SETTINGS.createChild('storageAccess');
+  }
 }
 
 /**
@@ -151,6 +168,9 @@ function createBrowserSettingsRoutes(): SettingsRoutes {
 
     r.SYNC = r.PEOPLE.createChild('/syncSetup');
     r.SYNC_ADVANCED = r.SYNC.createChild('/syncSetup/advanced');
+    if (loadTimeData.getBoolean('enablePageContentSetting')) {
+      r.PAGE_CONTENT = r.SYNC.createChild('/syncSetup/pageContent');
+    }
   }
 
   const visibility = pageVisibility || {};
@@ -172,16 +192,6 @@ function createBrowserSettingsRoutes(): SettingsRoutes {
   if (visibility.autofill !== false) {
     r.AUTOFILL = r.BASIC.createSection(
         '/autofill', 'autofill', loadTimeData.getString('autofillPageTitle'));
-    if (!loadTimeData.getBoolean('enableNewPasswordManagerPage')) {
-      r.PASSWORDS = r.AUTOFILL.createChild('/passwords');
-      if (loadTimeData.getBoolean('enablePasswordViewPage')) {
-        r.PASSWORD_VIEW = r.PASSWORDS.createChild('view');
-      }
-      r.CHECK_PASSWORDS = r.PASSWORDS.createChild('check');
-
-      r.DEVICE_PASSWORDS = r.PASSWORDS.createChild('device');
-    }
-
     r.PAYMENTS = r.AUTOFILL.createChild('/payments');
     r.ADDRESSES = r.AUTOFILL.createChild('/addresses');
 

@@ -107,8 +107,8 @@ void DocumentPictureInPictureWindowControllerImpl::Close(
 }
 
 void DocumentPictureInPictureWindowControllerImpl::CloseAndFocusInitiator() {
-  Close(false /* should_pause_video */);
   FocusInitiator();
+  Close(false /* should_pause_video */);
 }
 
 void DocumentPictureInPictureWindowControllerImpl::OnWindowDestroyed(
@@ -119,6 +119,11 @@ void DocumentPictureInPictureWindowControllerImpl::OnWindowDestroyed(
 
 WebContents* DocumentPictureInPictureWindowControllerImpl::GetWebContents() {
   return web_contents();
+}
+
+absl::optional<url::Origin>
+DocumentPictureInPictureWindowControllerImpl::GetOrigin() {
+  return absl::nullopt;
 }
 
 void DocumentPictureInPictureWindowControllerImpl::WebContentsDestroyed() {

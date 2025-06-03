@@ -59,6 +59,24 @@ void AutofillPrivateEventRouter::Shutdown() {
     personal_data_->RemoveObserver(this);
 }
 
+void AutofillPrivateEventRouter::RebindPersonalDataManagerForTesting(
+    autofill::PersonalDataManager* personal_data) {
+  if (personal_data_) {
+    personal_data_->RemoveObserver(this);
+  }
+  personal_data_ = personal_data;
+  if (personal_data_) {
+    personal_data_->AddObserver(this);
+  }
+}
+
+void AutofillPrivateEventRouter::UnbindPersonalDataManagerForTesting() {
+  if (personal_data_) {
+    personal_data_->RemoveObserver(this);
+    personal_data_ = nullptr;
+  }
+}
+
 void AutofillPrivateEventRouter::OnPersonalDataChanged() {
   BroadcastCurrentData();
 }
@@ -98,11 +116,6 @@ void AutofillPrivateEventRouter::BroadcastCurrentData() {
                 std::move(args)));
 
   event_router_->BroadcastEvent(std::move(extension_event));
-}
-
-AutofillPrivateEventRouter* AutofillPrivateEventRouter::Create(
-    content::BrowserContext* context) {
-  return new AutofillPrivateEventRouter(context);
 }
 
 }  // namespace extensions

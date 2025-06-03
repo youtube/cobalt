@@ -8,13 +8,13 @@ import android.app.Activity;
 
 import androidx.annotation.VisibleForTesting;
 
+import org.jni_zero.CalledByNative;
+
 import org.chromium.base.TimeUtils;
-import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.metrics.RecordHistogram;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
+import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.chrome.browser.preferences.Pref;
-import org.chromium.chrome.browser.preferences.SharedPreferencesManager;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.signin.services.IdentityServicesProvider;
 import org.chromium.components.prefs.PrefService;
@@ -26,29 +26,27 @@ import org.chromium.ui.base.WindowAndroid;
 
 import java.util.concurrent.TimeUnit;
 
-/**
- *  The bridge provides a way to interact with the Android sign in flow.
- */
+/** The bridge provides a way to interact with the Android sign in flow. */
 public class PasswordManagerErrorMessageHelperBridge {
     @VisibleForTesting
     static final long MINIMAL_INTERVAL_BETWEEN_PROMPTS_MS =
             TimeUnit.MILLISECONDS.convert(24, TimeUnit.HOURS);
+
     @VisibleForTesting
     static final long MINIMAL_INTERVAL_TO_SYNC_ERROR_MS =
             TimeUnit.MILLISECONDS.convert(30, TimeUnit.MINUTES);
 
-    /**
-     * Checks whether the right amount of time has passed since the last error UI messages
-     * were shown.
-     *
-     * The error UI should be shown at least {@link #MINIMAL_INTERVAL_BETWEEN_PROMPTS_MS} from the
-     * previous one and at least {@link #MINIMAL_INTERVAL_TO_SYNC_ERROR_MS} from the last sync error
-     * UI.
-     *
-     * @return whether the UI can be shown given the conditions above.
-     */
-    @CalledByNative
-    static boolean shouldShowErrorUi() {
+  /**
+   * Checks whether the right amount of time has passed since the last error UI messages were shown.
+   *
+   * <p>The error UI should be shown at least {@link #MINIMAL_INTERVAL_BETWEEN_PROMPTS_MS} from the
+   * previous one and at least {@link #MINIMAL_INTERVAL_TO_SYNC_ERROR_MS} from the last sync error
+   * UI.
+   *
+   * @return whether the UI can be shown given the conditions above.
+   */
+  @CalledByNative
+  static boolean shouldShowErrorUi() {
         Profile profile = Profile.getLastUsedRegularProfile();
         final CoreAccountInfo primaryAccountInfo =
                 IdentityServicesProvider.get().getIdentityManager(profile).getPrimaryAccountInfo(
@@ -58,16 +56,10 @@ public class PasswordManagerErrorMessageHelperBridge {
         // case, the error is no longer relevant/fixable.
         if (primaryAccountInfo == null) return false;
 
-        if (ChromeFeatureList.getFieldTrialParamByFeatureAsBoolean(
-                    ChromeFeatureList.UNIFIED_PASSWORD_MANAGER_ERROR_MESSAGES,
-                    "ignore_auth_error_message_timeouts", false)) {
-            return true;
-        }
-
         PrefService prefService = UserPrefs.get(Profile.getLastUsedRegularProfile());
         long lastShownTimestamp =
                 Long.valueOf(prefService.getString(Pref.UPM_ERROR_UI_SHOWN_TIMESTAMP));
-        long lastShownSyncErrorTimestamp = SharedPreferencesManager.getInstance().readLong(
+        long lastShownSyncErrorTimestamp = ChromeSharedPreferences.getInstance().readLong(
                 ChromePreferenceKeys.SYNC_ERROR_MESSAGE_SHOWN_AT_TIME, 0);
         long currentTime = TimeUtils.currentTimeMillis();
         return (currentTime - lastShownTimestamp > MINIMAL_INTERVAL_BETWEEN_PROMPTS_MS)

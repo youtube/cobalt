@@ -10,6 +10,7 @@
 
 #include "base/check_op.h"
 #include "base/functional/bind.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/notreached.h"
 #include "base/strings/escape.h"
@@ -84,10 +85,6 @@ constexpr const char* kDeniedSchemes[] = {
     // want to shellexecute it.
     "view-source",
     "vnd.ms.radio",
-};
-
-constexpr const char* kAllowedSchemes[] = {
-    "mailto", "news", "snews",
 };
 
 void AddMessageToConsole(const content::WeakDocumentPtr& document,
@@ -189,7 +186,7 @@ void LaunchUrlWithoutSecurityCheckWithDelegate(
   // Avoid calling CloseContents if the tab is not in this browser's tab strip
   // model; this can happen if the protocol was initiated by something
   // internal to Chrome.
-  Browser* browser = chrome::FindBrowserWithWebContents(web_contents);
+  Browser* browser = chrome::FindBrowserWithTab(web_contents);
   if (browser && web_contents->GetController().IsInitialNavigation() &&
       browser->tab_strip_model()->count() > 1 &&
       browser->tab_strip_model()->GetIndexOfWebContents(web_contents) !=
@@ -304,6 +301,8 @@ bool IsSchemeOriginPairAllowedByPolicy(const std::string& scheme,
 
 }  // namespace
 
+const char ExternalProtocolHandler::kBlockStateMetric[] =
+    "BrowserDialogs.ExternalProtocol.BlockState";
 const char ExternalProtocolHandler::kHandleStateMetric[] =
     "BrowserDialogs.ExternalProtocol.HandleState";
 
@@ -337,21 +336,28 @@ ExternalProtocolHandler::BlockState ExternalProtocolHandler::GetBlockState(
   }
 
   // Always block the hard-coded denied schemes.
-  for (size_t i = 0; i < std::size(kDeniedSchemes); ++i) {
-    if (kDeniedSchemes[i] == scheme)
+  for (const auto* candidate : kDeniedSchemes) {
+    if (candidate == scheme) {
+      base::UmaHistogramEnumeration(kBlockStateMetric,
+                                    BlockStateMetric::kDeniedDefault);
       return BLOCK;
+    }
   }
 
-  // Always allow the hard-coded allowed schemes.
-  for (size_t i = 0; i < std::size(kAllowedSchemes); ++i) {
-    if (kAllowedSchemes[i] == scheme)
-      return DONT_BLOCK;
+  // The mailto scheme is allowed explicitly because of its ubiquity on the web
+  // and because every platform provides a default handler for it.
+  if (scheme == "mailto") {
+    base::UmaHistogramEnumeration(kBlockStateMetric,
+                                  BlockStateMetric::kAllowedDefaultMail);
+    return DONT_BLOCK;
   }
 
   PrefService* profile_prefs = profile->GetPrefs();
   if (profile_prefs) {  // May be NULL during testing.
     if (IsSchemeOriginPairAllowedByPolicy(scheme, initiating_origin,
                                           profile_prefs)) {
+      base::UmaHistogramEnumeration(
+          kBlockStateMetric, BlockStateMetric::kAllowedByEnterprisePolicy);
       return DONT_BLOCK;
     }
 
@@ -366,12 +372,16 @@ ExternalProtocolHandler::BlockState ExternalProtocolHandler::GetBlockState(
       if (allowed_protocols_for_origin) {
         absl::optional<bool> allow =
             allowed_protocols_for_origin->FindBool(scheme);
-        if (allow.has_value() && allow.value())
+        if (allow.has_value() && allow.value()) {
+          base::UmaHistogramEnumeration(kBlockStateMetric,
+                                        BlockStateMetric::kAllowedByPreference);
           return DONT_BLOCK;
+        }
       }
     }
   }
 
+  base::UmaHistogramEnumeration(kBlockStateMetric, BlockStateMetric::kPrompt);
   return UNKNOWN;
 }
 

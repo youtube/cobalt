@@ -354,13 +354,14 @@ std::string ParseLastNameIntoSecondLastNameExpression() {
 std::string ParseStreetNameHouseNumberExpression() {
   return CaptureTypeWithPattern(
       ADDRESS_HOME_STREET_ADDRESS,
-      {CaptureTypeWithPattern(ADDRESS_HOME_STREET_AND_DEPENDENT_STREET_NAME,
-                              CaptureTypeWithPattern(ADDRESS_HOME_STREET_NAME,
-                                                     kMultipleLazyWordsRe),
-                              CaptureOptions{.separator = ""}),
-       CaptureTypeWithAffixedPattern(ADDRESS_HOME_HOUSE_NUMBER,
-                                     kHouseNumberOptionalPrefixRe,
-                                     "(?:\\d+\\w?)", "(th\\.|\\.)?"),
+      {CaptureTypeWithPattern(
+           ADDRESS_HOME_STREET_LOCATION,
+           {CaptureTypeWithPattern(ADDRESS_HOME_STREET_NAME,
+                                   kMultipleLazyWordsRe),
+            CaptureTypeWithAffixedPattern(ADDRESS_HOME_HOUSE_NUMBER,
+                                          kHouseNumberOptionalPrefixRe,
+                                          "(?:\\d+\\w?)", "(th\\.|\\.)?")},
+           CaptureOptions{.separator = ""}),
        CaptureTypeWithPattern(
            ADDRESS_HOME_SUBPREMISE,
            {
@@ -385,13 +386,15 @@ std::string ParseStreetNameHouseNumberExpression() {
 std::string ParseStreetNameHouseNumberSuffixedFloorAndAppartmentExpression() {
   return CaptureTypeWithPattern(
       ADDRESS_HOME_STREET_ADDRESS,
-      {CaptureTypeWithPattern(ADDRESS_HOME_STREET_AND_DEPENDENT_STREET_NAME,
-                              CaptureTypeWithPattern(ADDRESS_HOME_STREET_NAME,
-                                                     kMultipleLazyWordsRe),
-                              CaptureOptions{.separator = ""}),
-       CaptureTypeWithAffixedPattern(ADDRESS_HOME_HOUSE_NUMBER,
-                                     kHouseNumberOptionalPrefixRe,
-                                     "(?:\\d+\\w?)", "(th\\.|\\.)?"),
+      {CaptureTypeWithPattern(
+           ADDRESS_HOME_STREET_LOCATION,
+           {CaptureTypeWithPattern(ADDRESS_HOME_STREET_NAME,
+                                   kMultipleLazyWordsRe),
+            CaptureTypeWithAffixedPattern(ADDRESS_HOME_HOUSE_NUMBER,
+                                          kHouseNumberOptionalPrefixRe,
+                                          "(?:\\d+\\w?)", "(th\\.|\\.)?")},
+           CaptureOptions{.separator = ""}),
+
        CaptureTypeWithPattern(
            ADDRESS_HOME_SUBPREMISE,
            {
@@ -418,13 +421,14 @@ std::string ParseStreetNameHouseNumberExpressionSuffixedFloor() {
       {
 
           CaptureTypeWithPattern(
-              ADDRESS_HOME_STREET_AND_DEPENDENT_STREET_NAME,
-              CaptureTypeWithPattern(ADDRESS_HOME_STREET_NAME,
-                                     kMultipleLazyWordsRe),
+              ADDRESS_HOME_STREET_LOCATION,
+              {CaptureTypeWithPattern(ADDRESS_HOME_STREET_NAME,
+                                      kMultipleLazyWordsRe),
+               CaptureTypeWithAffixedPattern(ADDRESS_HOME_HOUSE_NUMBER,
+                                             kHouseNumberOptionalPrefixRe,
+                                             "(?:\\d+\\w?)", "(th\\.|\\.)?")},
               {.separator = ""}),
-          CaptureTypeWithAffixedPattern(ADDRESS_HOME_HOUSE_NUMBER,
-                                        kHouseNumberOptionalPrefixRe,
-                                        "(?:\\d+\\w?)", "(th\\.|\\.)?"),
+
           CaptureTypeWithPattern(
               ADDRESS_HOME_SUBPREMISE,
               {
@@ -448,13 +452,14 @@ std::string ParseStreetNameHouseNumberExpressionSuffixedFloor() {
 std::string ParseHouseNumberStreetNameExpression() {
   return CaptureTypeWithPattern(
       ADDRESS_HOME_STREET_ADDRESS,
-      {CaptureTypeWithAffixedPattern(ADDRESS_HOME_HOUSE_NUMBER,
-                                     kHouseNumberOptionalPrefixRe,
-                                     "(?:\\d+\\w?)", "(th\\.|\\.)?"),
-       CaptureTypeWithPattern(ADDRESS_HOME_STREET_AND_DEPENDENT_STREET_NAME,
-                              CaptureTypeWithPattern(ADDRESS_HOME_STREET_NAME,
-                                                     kMultipleLazyWordsRe),
-                              {.separator = ""}),
+      {CaptureTypeWithPattern(
+           ADDRESS_HOME_STREET_LOCATION,
+           {CaptureTypeWithAffixedPattern(ADDRESS_HOME_HOUSE_NUMBER,
+                                          kHouseNumberOptionalPrefixRe,
+                                          "(?:\\d+\\w?)", "(th\\.|\\.)?"),
+            CaptureTypeWithPattern(ADDRESS_HOME_STREET_NAME,
+                                   kMultipleLazyWordsRe)},
+           {.separator = ""}),
        CaptureTypeWithPattern(
            ADDRESS_HOME_SUBPREMISE,
            {
@@ -492,7 +497,8 @@ StructuredAddressesRegExProvider* StructuredAddressesRegExProvider::Instance() {
 }
 
 std::string StructuredAddressesRegExProvider::GetPattern(
-    RegEx expression_identifier) {
+    RegEx expression_identifier,
+    const std::string& country_code) {
   switch (expression_identifier) {
     case RegEx::kSingleWord:
       return kSingleWordRe;
@@ -528,7 +534,7 @@ std::string StructuredAddressesRegExProvider::GetPattern(
       return ParseHouseNumberStreetNameExpression();
     case RegEx::kParseStreetNameHouseNumberSuffixedFloor:
       return ParseStreetNameHouseNumberExpressionSuffixedFloor();
-    case RegEx::kParseStreetNameHouseNumberSuffixedFloorAndAppartmentRe:
+    case RegEx::kParseStreetNameHouseNumberSuffixedFloorAndApartmentRe:
       return ParseStreetNameHouseNumberSuffixedFloorAndAppartmentExpression();
     case RegEx::kParseStreetNameHouseNumber:
       return ParseStreetNameHouseNumberExpression();
@@ -539,12 +545,13 @@ std::string StructuredAddressesRegExProvider::GetPattern(
 }
 
 const RE2* StructuredAddressesRegExProvider::GetRegEx(
-    RegEx expression_identifier) {
+    RegEx expression_identifier,
+    const std::string& country_code) {
   base::AutoLock lock(lock_);
   auto it = cached_expressions_.find(expression_identifier);
   if (it == cached_expressions_.end()) {
     std::unique_ptr<const RE2> expression =
-        BuildRegExFromPattern(GetPattern(expression_identifier));
+        BuildRegExFromPattern(GetPattern(expression_identifier, country_code));
     const RE2* expresstion_ptr = expression.get();
     cached_expressions_.emplace(expression_identifier, std::move(expression));
     return expresstion_ptr;

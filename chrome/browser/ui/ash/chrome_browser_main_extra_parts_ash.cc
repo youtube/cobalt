@@ -9,25 +9,29 @@
 
 #include "ash/components/arc/arc_features.h"
 #include "ash/constants/ash_features.h"
+#include "ash/constants/ash_switches.h"
 #include "ash/public/cpp/shelf_model.h"
 #include "ash/public/cpp/window_properties.h"
 #include "ash/quick_pair/keyed_service/quick_pair_mediator.h"
 #include "ash/shell.h"
 #include "ash/system/video_conference/fake_video_conference_tray_controller.h"
 #include "ash/system/video_conference/video_conference_tray_controller.h"
+#include "base/check.h"
+#include "base/check_op.h"
 #include "base/command_line.h"
+#include "base/functional/callback.h"
 #include "base/scoped_observation.h"
+#include "base/trace_event/trace_event.h"
 #include "chrome/browser/ash/app_list/app_list_client_impl.h"
 #include "chrome/browser/ash/arc/util/arc_window_watcher.h"
 #include "chrome/browser/ash/crosapi/browser_util.h"
+#include "chrome/browser/ash/display/refresh_rate_controller.h"
 #include "chrome/browser/ash/game_mode/game_mode_controller.h"
 #include "chrome/browser/ash/geolocation/system_geolocation_source.h"
 #include "chrome/browser/ash/login/signin/signin_error_notifier_factory.h"
-#include "chrome/browser/ash/night_light/night_light_client.h"
 #include "chrome/browser/ash/policy/display/display_resolution_handler.h"
 #include "chrome/browser/ash/policy/display/display_rotation_default_handler.h"
 #include "chrome/browser/ash/policy/display/display_settings_handler.h"
-#include "chrome/browser/ash/policy/handlers/screensaver_images_policy_handler.h"
 #include "chrome/browser/ash/privacy_hub/privacy_hub_util.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/ash/sync/sync_error_notifier_factory.h"
@@ -36,6 +40,7 @@
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/browser_process_platform_part.h"
 #include "chrome/browser/chromeos/tablet_mode/tablet_mode_page_behavior.h"
+#include "chrome/browser/enterprise/connectors/device_trust/attestation/ash/ash_attestation_cleanup_manager.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/ash/accessibility/accessibility_controller_client.h"
 #include "chrome/browser/ui/ash/ambient/ambient_client_impl.h"
@@ -62,23 +67,20 @@
 #include "chrome/browser/ui/ash/session_controller_client_impl.h"
 #include "chrome/browser/ui/ash/shelf/app_service/exo_app_type_resolver.h"
 #include "chrome/browser/ui/ash/shelf/chrome_shelf_controller.h"
-#include "chrome/browser/ui/ash/shelf/chrome_shelf_item_factory.h"
 #include "chrome/browser/ui/ash/system_tray_client_impl.h"
 #include "chrome/browser/ui/ash/tab_cluster_ui_client.h"
 #include "chrome/browser/ui/ash/vpn_list_forwarder.h"
 #include "chrome/browser/ui/ash/wallpaper_controller_client_impl.h"
-#include "chrome/browser/ui/quick_answers/quick_answers_controller_impl.h"
+#include "chrome/browser/ui/quick_answers/read_write_cards_manager_impl.h"
 #include "chrome/browser/ui/views/select_file_dialog_extension.h"
 #include "chrome/browser/ui/views/select_file_dialog_extension_factory.h"
 #include "chrome/browser/ui/views/tabs/tab_scrubber_chromeos.h"
 #include "chromeos/ash/components/dbus/dbus_thread_manager.h"
+#include "chromeos/ash/components/heatmap/heatmap_palm_detector.h"
 #include "chromeos/ash/components/network/network_connect.h"
 #include "chromeos/ash/components/network/portal_detector/network_portal_detector.h"
 #include "chromeos/ash/services/bluetooth_config/fast_pair_delegate.h"
 #include "chromeos/ash/services/bluetooth_config/in_process_instance.h"
-#include "chromeos/components/quick_answers/public/cpp/controller/quick_answers_controller.h"
-#include "chromeos/components/quick_answers/quick_answers_client.h"
-#include "components/crash/core/common/crash_key.h"
 #include "components/session_manager/core/session_manager.h"
 #include "components/session_manager/core/session_manager_observer.h"
 #include "components/startup_metric_utils/browser/startup_metric_utils.h"
@@ -88,10 +90,15 @@
 #include "services/device/public/cpp/geolocation/geolocation_manager.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "ui/base/ime/ash/input_method_manager.h"
+#include "ui/ozone/public/ozone_platform.h"
 
 #if BUILDFLAG(ENABLE_WAYLAND_SERVER)
 #include "chrome/browser/exo_parts.h"
 #endif
+
+namespace {
+ChromeBrowserMainExtraPartsAsh* g_instance = nullptr;
+}  // namespace
 
 namespace internal {
 
@@ -112,22 +119,19 @@ class ChromeShelfControllerInitializer
   ~ChromeShelfControllerInitializer() override {
     if (!chrome_shelf_controller_)
       session_manager::SessionManager::Get()->RemoveObserver(this);
-    if (chrome_shelf_item_factory_)
-      ash::ShelfModel::Get()->SetShelfItemFactory(nullptr);
   }
 
   // session_manager::SessionManagerObserver:
   void OnSessionStateChanged() override {
+    TRACE_EVENT0("ui",
+                 "ChromeShelfControllerInitializer::OnSessionStateChanged");
     DCHECK(!chrome_shelf_controller_);
     DCHECK(!ChromeShelfController::instance());
 
     if (session_manager::SessionManager::Get()->session_state() ==
         session_manager::SessionState::ACTIVE) {
-      chrome_shelf_item_factory_ = std::make_unique<ChromeShelfItemFactory>();
-      ash::ShelfModel::Get()->SetShelfItemFactory(
-          chrome_shelf_item_factory_.get());
       chrome_shelf_controller_ = std::make_unique<ChromeShelfController>(
-          nullptr, ash::ShelfModel::Get(), chrome_shelf_item_factory_.get());
+          nullptr, ash::ShelfModel::Get());
       chrome_shelf_controller_->Init();
 
       session_manager::SessionManager::Get()->RemoveObserver(this);
@@ -135,22 +139,33 @@ class ChromeShelfControllerInitializer
   }
 
  private:
-  std::unique_ptr<ChromeShelfItemFactory> chrome_shelf_item_factory_;
   std::unique_ptr<ChromeShelfController> chrome_shelf_controller_;
 };
 
 }  // namespace internal
 
-ChromeBrowserMainExtraPartsAsh::ChromeBrowserMainExtraPartsAsh() = default;
+// static
+ChromeBrowserMainExtraPartsAsh* ChromeBrowserMainExtraPartsAsh::Get() {
+  return g_instance;
+}
 
-ChromeBrowserMainExtraPartsAsh::~ChromeBrowserMainExtraPartsAsh() = default;
+ChromeBrowserMainExtraPartsAsh::ChromeBrowserMainExtraPartsAsh() {
+  CHECK(!g_instance);
+  g_instance = this;
+}
+
+ChromeBrowserMainExtraPartsAsh::~ChromeBrowserMainExtraPartsAsh() {
+  CHECK_EQ(g_instance, this);
+  g_instance = nullptr;
+}
 
 void ChromeBrowserMainExtraPartsAsh::PreCreateMainMessageLoop() {
   user_profile_loaded_observer_ = std::make_unique<UserProfileLoadedObserver>();
 }
 
 void ChromeBrowserMainExtraPartsAsh::PreProfileInit() {
-  if (base::FeatureList::IsEnabled(arc::kEnableArcIdleManager)) {
+  if (base::FeatureList::IsEnabled(arc::kEnableArcIdleManager) ||
+      base::FeatureList::IsEnabled(arc::kVmmSwapPolicy)) {
     // Early init so that later objects can rely on this one.
     arc_window_watcher_ = std::make_unique<ash::ArcWindowWatcher>();
   }
@@ -225,11 +240,6 @@ void ChromeBrowserMainExtraPartsAsh::PreProfileInit() {
           std::make_unique<wallpaper_handlers::WallpaperFetcherDelegateImpl>());
   wallpaper_controller_client_->Init();
 
-  if (ash::features::IsAmbientModeManagedScreensaverEnabled()) {
-    screensaver_images_policy_handler_ =
-        std::make_unique<policy::ScreensaverImagesPolicyHandler>();
-  }
-
   session_controller_client_ = std::make_unique<SessionControllerClientImpl>();
   session_controller_client_->Init();
   // By this point ash shell should have initialized its D-Bus signal
@@ -253,7 +263,8 @@ void ChromeBrowserMainExtraPartsAsh::PreProfileInit() {
   chrome_shelf_controller_initializer_ =
       std::make_unique<internal::ChromeShelfControllerInitializer>();
 
-  ui::SelectFileDialog::SetFactory(new SelectFileDialogExtensionFactory);
+  ui::SelectFileDialog::SetFactory(
+      std::make_unique<SelectFileDialogExtensionFactory>());
 
 #if BUILDFLAG(ENABLE_WAYLAND_SERVER)
   exo_parts_ = ExoParts::CreateIfNecessary();
@@ -263,17 +274,17 @@ void ChromeBrowserMainExtraPartsAsh::PreProfileInit() {
   }
 #endif
 
-  night_light_client_ = std::make_unique<ash::NightLightClient>(
-      g_browser_process->platform_part()->GetTimezoneResolverManager(),
-      g_browser_process->shared_url_loader_factory());
-  night_light_client_->Start();
+  // Result is unused, but `TimezoneResolverManager` must be created here for
+  // its internal initialization to succeed.
+  g_browser_process->platform_part()->GetTimezoneResolverManager();
 
-  if (ash::features::IsProjectorEnabled()) {
-    projector_app_client_ = std::make_unique<ProjectorAppClientImpl>();
-    projector_client_ = std::make_unique<ProjectorClientImpl>();
-  }
+  projector_app_client_ = std::make_unique<ProjectorAppClientImpl>();
+  projector_client_ = std::make_unique<ProjectorClientImpl>();
 
   desks_client_ = std::make_unique<DesksClient>();
+
+  attestation_cleanup_manager_ =
+      std::make_unique<enterprise_connectors::AshAttestationCleanupManager>();
 
   ash::bluetooth_config::FastPairDelegate* delegate =
       ash::features::IsFastPairEnabled()
@@ -283,8 +294,11 @@ void ChromeBrowserMainExtraPartsAsh::PreProfileInit() {
   ash::bluetooth_config::Initialize(delegate);
 
   // Create geolocation manager
-  g_browser_process->SetGeolocationManager(
+  device::GeolocationManager::SetInstance(
       ash::SystemGeolocationSource::CreateGeolocationManagerOnAsh());
+
+  ui::OzonePlatform::GetInstance()->SetPalmDetector(
+      std::make_unique<ash::HeatmapPalmDetector>());
 }
 
 void ChromeBrowserMainExtraPartsAsh::PostProfileInit(Profile* profile,
@@ -304,15 +318,8 @@ void ChromeBrowserMainExtraPartsAsh::PostProfileInit(Profile* profile,
   // Passes (and continues passing) the current camera count to the PrivacyHub.
   ash::privacy_hub_util::SetUpCameraCountObserver();
 
-  if (ash::features::IsMicMuteNotificationsEnabled()) {
-    app_access_notifier_ = std::make_unique<AppAccessNotifier>();
-  }
-
-  // Check if Lacros is enabled for crash reporting here to give the user
-  // manager a chance to be initialized first.
-  constexpr char kLacrosEnabledDataKey[] = "lacros-enabled";
-  static crash_reporter::CrashKeyString<4> key(kLacrosEnabledDataKey);
-  key.Set(crosapi::browser_util::IsLacrosEnabled() ? "yes" : "no");
+  app_access_notifier_ = std::make_unique<AppAccessNotifier>();
+  ash::privacy_hub_util::SetAppAccessNotifier(app_access_notifier_.get());
 
   // Instantiate DisplaySettingsHandler after CrosSettings has been
   // initialized.
@@ -333,20 +340,28 @@ void ChromeBrowserMainExtraPartsAsh::PostProfileInit(Profile* profile,
   }
 
   ash_web_view_factory_ = std::make_unique<AshWebViewFactoryImpl>();
+  bool force_throttle = base::CommandLine::ForCurrentProcess()->HasSwitch(
+      ash::switches::kForceRefreshRateThrottle);
 
-  quick_answers_controller_ = std::make_unique<QuickAnswersControllerImpl>();
-  QuickAnswersController::Get()->SetClient(
-      std::make_unique<quick_answers::QuickAnswersClient>(
-          g_browser_process->shared_url_loader_factory(),
-          QuickAnswersController::Get()->GetQuickAnswersDelegate()));
   game_mode_controller_ = std::make_unique<game_mode::GameModeController>();
+  refresh_rate_controller_ = std::make_unique<ash::RefreshRateController>(
+      ash::Shell::Get()->display_configurator(), ash::PowerStatus::Get(),
+      game_mode_controller_.get(), force_throttle);
 
   // Initialize TabScrubberChromeOS after the Ash Shell has been initialized.
   TabScrubberChromeOS::GetInstance();
+
+  read_write_cards_manager_ =
+      std::make_unique<chromeos::ReadWriteCardsManagerImpl>();
 }
 
 void ChromeBrowserMainExtraPartsAsh::PostBrowserStart() {
   mobile_data_notifications_ = std::make_unique<MobileDataNotifications>();
+
+  did_post_browser_start_ = true;
+  if (post_browser_start_callback_) {
+    std::move(post_browser_start_callback_).Run();
+  }
 }
 
 void ChromeBrowserMainExtraPartsAsh::PostMainMessageLoopRun() {
@@ -363,9 +378,9 @@ void ChromeBrowserMainExtraPartsAsh::PostMainMessageLoopRun() {
   exo_parts_.reset();
 #endif
 
-  night_light_client_.reset();
   mobile_data_notifications_.reset();
   chrome_shelf_controller_initializer_.reset();
+  attestation_cleanup_manager_.reset();
   desks_client_.reset();
 
   projector_client_.reset();
@@ -377,23 +392,21 @@ void ChromeBrowserMainExtraPartsAsh::PostMainMessageLoopRun() {
   tab_cluster_ui_client_.reset();
 
   // Initialized in PostProfileInit (which may not get called in some tests).
+  refresh_rate_controller_.reset();
   game_mode_controller_.reset();
-  quick_answers_controller_.reset();
   ash_web_view_factory_.reset();
   network_portal_notification_controller_.reset();
   display_settings_handler_.reset();
   media_client_.reset();
   login_screen_client_.reset();
 
-  if (ash::features::IsMicMuteNotificationsEnabled()) {
-    app_access_notifier_.reset();
-  }
+  ash::privacy_hub_util::SetAppAccessNotifier(nullptr);
+  app_access_notifier_.reset();
 
   // Initialized in PreProfileInit (which may not get called in some tests).
-  g_browser_process->SetGeolocationManager(nullptr);
+  device::GeolocationManager::SetInstance(nullptr);
   system_tray_client_.reset();
   session_controller_client_.reset();
-  screensaver_images_policy_handler_.reset();
   ime_controller_client_.reset();
   in_session_auth_dialog_client_.reset();
   arc_open_url_delegate_impl_.reset();
@@ -404,8 +417,9 @@ void ChromeBrowserMainExtraPartsAsh::PostMainMessageLoopRun() {
   app_list_client_.reset();
   ash_shell_init_.reset();
 
-  // This instance must be destructed after `ash_shell_init_`.
+  // These instances must be destructed after `ash_shell_init_`.
   video_conference_tray_controller_.reset();
+  read_write_cards_manager_.reset();
 
   ambient_client_.reset();
 

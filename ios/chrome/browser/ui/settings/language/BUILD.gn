@@ -3,7 +3,6 @@
 # found in the LICENSE file.
 
 source_set("language") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   sources = [
     "language_settings_mediator.h",
     "language_settings_mediator.mm",
@@ -16,10 +15,9 @@ source_set("language") {
     "//components/prefs/ios",
     "//components/translate/core/browser",
     "//ios/chrome/app/strings",
-    "//ios/chrome/browser/application_context",
-    "//ios/chrome/browser/browser_state",
-    "//ios/chrome/browser/language",
-    "//ios/chrome/browser/translate",
+    "//ios/chrome/browser/shared/model/application_context",
+    "//ios/chrome/browser/shared/model/browser_state",
+    "//ios/chrome/browser/translate/model",
     "//ios/chrome/browser/ui/settings/language/cells",
     "//ios/chrome/browser/ui/settings/utils",
     "//ui/base",
@@ -27,7 +25,6 @@ source_set("language") {
 }
 
 source_set("language_ui") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   sources = [
     "add_language_table_view_controller.h",
     "add_language_table_view_controller.mm",
@@ -46,8 +43,8 @@ source_set("language_ui") {
     "//components/prefs",
     "//components/translate/core/browser:translate_pref_names",
     "//ios/chrome/app/strings",
-    "//ios/chrome/browser/application_context",
     "//ios/chrome/browser/net:crurl",
+    "//ios/chrome/browser/shared/model/application_context",
     "//ios/chrome/browser/shared/public/features",
     "//ios/chrome/browser/shared/ui/list_model",
     "//ios/chrome/browser/shared/ui/table_view",
@@ -70,7 +67,6 @@ source_set("language_ui") {
 }
 
 source_set("language_ui_constants") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   sources = [
     "language_settings_ui_constants.h",
     "language_settings_ui_constants.mm",
@@ -78,7 +74,6 @@ source_set("language_ui_constants") {
 }
 
 source_set("unit_tests") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   testonly = true
   sources = [ "language_settings_mediator_unittest.mm" ]
   deps = [
@@ -90,9 +85,10 @@ source_set("unit_tests") {
     "//components/sync_preferences",
     "//components/sync_preferences:test_support",
     "//components/translate/core/browser",
-    "//ios/chrome/browser/browser_state:test_support",
-    "//ios/chrome/browser/prefs:browser_prefs",
-    "//ios/chrome/browser/translate",
+    "//ios/chrome/browser/language/model",
+    "//ios/chrome/browser/shared/model/browser_state:test_support",
+    "//ios/chrome/browser/shared/model/prefs:browser_prefs",
+    "//ios/chrome/browser/translate/model",
     "//ios/chrome/browser/ui/settings/language",
     "//ios/chrome/browser/ui/settings/language/cells",
     "//testing/gmock",
@@ -102,7 +98,6 @@ source_set("unit_tests") {
 }
 
 source_set("eg_app_support+eg2") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   testonly = true
   sources = [
     "language_settings_app_interface.h",
@@ -111,17 +106,14 @@ source_set("eg_app_support+eg2") {
   deps = [
     "//components/language/core/browser",
     "//components/translate/core/browser",
-    "//ios/chrome/browser/browser_state",
-    "//ios/chrome/browser/translate",
+    "//ios/chrome/browser/shared/model/browser_state",
+    "//ios/chrome/browser/translate/model",
     "//ios/chrome/test/app:test_support",
   ]
 }
 
 source_set("eg_test_support+eg2") {
-  configs += [
-    "//build/config/compiler:enable_arc",
-    "//build/config/ios:xctest_config",
-  ]
+  configs += [ "//build/config/ios:xctest_config" ]
   testonly = true
   sources = [
     "language_settings_app_interface.h",
@@ -131,10 +123,7 @@ source_set("eg_test_support+eg2") {
 }
 
 source_set("eg2_tests") {
-  configs += [
-    "//build/config/compiler:enable_arc",
-    "//build/config/ios:xctest_config",
-  ]
+  configs += [ "//build/config/ios:xctest_config" ]
   testonly = true
   sources = [ "language_settings_egtest.mm" ]
   deps = [

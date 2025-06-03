@@ -28,7 +28,6 @@ class BuildState;
 class DownloadRequestLimiter;
 class DownloadStatusUpdater;
 class GpuModeManager;
-class HidPolicyAllowedDevices;
 class IconManager;
 class MediaFileSystemRegistry;
 class NotificationPlatformBridge;
@@ -43,11 +42,12 @@ class WebRtcLogUploader;
 
 #if !BUILDFLAG(IS_ANDROID)
 class HidSystemTrayIcon;
+class UsbSystemTrayIcon;
 class IntranetRedirectDetector;
 #endif
 
-namespace device {
-class GeolocationManager;
+namespace embedder_support {
+class OriginTrialsSettingsStorage;
 }
 
 namespace network {
@@ -91,6 +91,10 @@ namespace network_time {
 class NetworkTimeTracker;
 }
 
+namespace os_crypt_async {
+class OSCryptAsync;
+}
+
 namespace policy {
 class ChromeBrowserPolicyConnector;
 class PolicyService;
@@ -128,13 +132,14 @@ class BrowserProcess {
   // the current sequence.
   virtual void FlushLocalStateAndReply(base::OnceClosure reply) = 0;
 
-  // Provides the geolocation manager or nullptr if not available
-  virtual device::GeolocationManager* geolocation_manager() = 0;
-
   // Gets the manager for the various metrics-related services, constructing it
   // if necessary.
   virtual metrics_services_manager::MetricsServicesManager*
   GetMetricsServicesManager() = 0;
+
+  // Gets the OriginTrialsSettingsStorage, constructing it if necessary.
+  virtual embedder_support::OriginTrialsSettingsStorage*
+  GetOriginTrialsSettingsStorage() = 0;
 
   // Services: any of these getters may return NULL
   virtual metrics::MetricsService* metrics_service() = 0;
@@ -154,10 +159,6 @@ class BrowserProcess {
   // NotificationPlatformBridge + NotificationDisplayService
   virtual NotificationUIManager* notification_ui_manager() = 0;
   virtual NotificationPlatformBridge* notification_platform_bridge() = 0;
-
-  // Sets geolocation manager
-  virtual void SetGeolocationManager(
-      std::unique_ptr<device::GeolocationManager> geolocation_manager) = 0;
 
   // Replacement for IOThread. It owns and manages the
   // NetworkContext which will use the network service when the network service
@@ -269,14 +270,18 @@ class BrowserProcess {
   // through the policy engine.
   virtual SerialPolicyAllowedPorts* serial_policy_allowed_ports() = 0;
 
-  // Returns the object which keeps track of Human Interface Device (HID)
-  // permissions configured through the policy engine.
-  virtual HidPolicyAllowedDevices* hid_policy_allowed_devices() = 0;
-
   // Returns the object which maintains Human Interface Device (HID) system tray
   // icon.
   virtual HidSystemTrayIcon* hid_system_tray_icon() = 0;
+
+  // Returns the object which maintains Universal Serial Bus (USB) system tray
+  // icon.
+  virtual UsbSystemTrayIcon* usb_system_tray_icon() = 0;
 #endif
+
+  // Obtain the browser instance of OSCryptAsync, which should be used for data
+  // encryption.
+  virtual os_crypt_async::OSCryptAsync* os_crypt_async() = 0;
 
   virtual BuildState* GetBuildState() = 0;
 };

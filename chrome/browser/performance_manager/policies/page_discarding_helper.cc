@@ -34,9 +34,6 @@ namespace performance_manager {
 namespace policies {
 namespace {
 
-// Time during which a tab cannot be discarded after having played audio.
-constexpr base::TimeDelta kTabAudioProtectionTime = base::Minutes(1);
-
 // NodeAttachedData used to indicate that there's already been an attempt to
 // discard a PageNode.
 // TODO(sebmarchand): The only reason for a discard attempt to fail is if we try
@@ -147,7 +144,8 @@ void PageDiscardingHelper::DiscardMultiplePages(
     if (!discard_protected_tabs && is_protected) {
       continue;
     }
-    candidates.emplace_back(page_node, false, is_protected,
+    candidates.emplace_back(page_node, false, page_node->IsVisible(),
+                            is_protected, page_node->IsFocused(),
                             page_node->GetTimeSinceLastVisibilityChange());
   }
   // Sorts with ascending importance.
@@ -225,18 +223,6 @@ void PageDiscardingHelper::ImmediatelyDiscardSpecificPage(
   }
 }
 
-void PageDiscardingHelper::OnBeforePageNodeRemoved(const PageNode* page_node) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  last_change_to_non_audible_time_.erase(page_node);
-}
-
-void PageDiscardingHelper::OnIsAudibleChanged(const PageNode* page_node) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (!page_node->IsAudible()) {
-    last_change_to_non_audible_time_[page_node] = base::TimeTicks::Now();
-  }
-}
-
 void PageDiscardingHelper::SetNoDiscardPatternsForProfile(
     const std::string& browser_context_id,
     const std::vector<std::string>& patterns) {
@@ -271,7 +257,6 @@ void PageDiscardingHelper::RemovesDiscardAttemptMarkerForTesting(
 void PageDiscardingHelper::OnPassedToGraph(Graph* graph) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   graph_ = graph;
-  graph->AddPageNodeObserver(this);
   graph->RegisterObject(this);
   graph->GetNodeDataDescriberRegistry()->RegisterDescriber(this,
                                                            kDescriberName);
@@ -281,7 +266,6 @@ void PageDiscardingHelper::OnTakenFromGraph(Graph* graph) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   graph->GetNodeDataDescriberRegistry()->UnregisterDescriber(this);
   graph->UnregisterObject(this);
-  graph->RemovePageNodeObserver(this);
   graph_ = nullptr;
 }
 
@@ -315,20 +299,21 @@ PageDiscardingHelper::CanDiscardResult PageDiscardingHelper::CanDiscard(
   if (page_node->IsVisible()) {
     return CanDiscardResult::kProtected;
   }
+  // Don't discard tabs that are playing or have recently played audio.
   if (page_node->IsAudible()) {
     return CanDiscardResult::kProtected;
-  }
-
-  // Don't discard tabs that have recently played audio.
-  auto it = last_change_to_non_audible_time_.find(page_node);
-  if (it != last_change_to_non_audible_time_.end()) {
-    if (base::TimeTicks::Now() - it->second < kTabAudioProtectionTime) {
-      return CanDiscardResult::kProtected;
-    }
+  } else if (page_node->GetTimeSinceLastAudibleChange().value_or(
+                 base::TimeDelta::Max()) < kTabAudioProtectionTime) {
+    return CanDiscardResult::kProtected;
   }
 
   if (page_node->GetTimeSinceLastVisibilityChange() <
       minimum_time_in_background) {
+    return CanDiscardResult::kProtected;
+  }
+
+  // Don't discard pages that are displaying content in picture-in-picture.
+  if (page_node->HasPictureInPicture()) {
     return CanDiscardResult::kProtected;
   }
 
@@ -340,28 +325,31 @@ PageDiscardingHelper::CanDiscardResult PageDiscardingHelper::CanDiscard(
   }
 
   // Don't discard tabs that don't have a main frame yet.
-  auto* main_frame = page_node->GetMainFrameNode();
-  if (!main_frame) {
+  // TODO(crbug.com/1441986): Due to a state tracking bug, sometimes there are
+  // two frames marked "current". In that case GetMainFrameNode() returns an
+  // arbitrary one, which may not have the url set correctly. As a workaround
+  // ignore the returned frame and use GetMainFrameUrl() for the url.
+  if (!page_node->GetMainFrameNode()) {
     return CanDiscardResult::kProtected;
   }
 
   // Only discard http(s) pages and internal pages to make sure that we don't
   // discard extensions or other PageNode that don't correspond to a tab.
+  const GURL& main_frame_url = page_node->GetMainFrameUrl();
   bool is_web_page_or_internal_page =
-      main_frame->GetURL().SchemeIsHTTPOrHTTPS() ||
-      main_frame->GetURL().SchemeIs("chrome");
+      main_frame_url.SchemeIsHTTPOrHTTPS() || main_frame_url.SchemeIs("chrome");
   if (!is_web_page_or_internal_page) {
     return CanDiscardResult::kProtected;
   }
 
-  if (!main_frame->GetURL().is_valid() || main_frame->GetURL().is_empty()) {
+  if (!main_frame_url.is_valid() || main_frame_url.is_empty()) {
     return CanDiscardResult::kProtected;
   }
 
   // The enterprise policy to except pages from discarding applies to both
   // proactive and urgent discards.
   if (IsPageOptedOutOfDiscarding(page_node->GetBrowserContextID(),
-                                 main_frame->GetURL())) {
+                                 main_frame_url)) {
     return CanDiscardResult::kProtected;
   }
 
@@ -469,14 +457,9 @@ base::Value::Dict PageDiscardingHelper::DescribePageNodeData(
   base::Value::Dict ret;
   ret.Set("can_urgently_discard", can_discard(DiscardReason::URGENT));
   ret.Set("can_proactively_discard", can_discard(DiscardReason::PROACTIVE));
-  auto it = last_change_to_non_audible_time_.find(node);
-  if (it != last_change_to_non_audible_time_.end()) {
-    ret.Set("non_audible_change_time", TimeDeltaFromNowToValue(it->second));
-  }
-  auto* main_frame = node->GetMainFrameNode();
-  if (main_frame) {
+  if (!node->GetMainFrameUrl().is_empty()) {
     ret.Set("opted_out", IsPageOptedOutOfDiscarding(node->GetBrowserContextID(),
-                                                    main_frame->GetURL()));
+                                                    node->GetMainFrameUrl()));
   }
   return ret;
 }

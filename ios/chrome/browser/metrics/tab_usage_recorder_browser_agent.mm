@@ -9,12 +9,12 @@
 #import "base/metrics/histogram_macros.h"
 #import "components/previous_session_info/previous_session_info.h"
 #import "components/ukm/ios/ukm_url_recorder.h"
-#import "ios/chrome/browser/main/browser.h"
-#import "ios/chrome/browser/prerender/prerender_service.h"
-#import "ios/chrome/browser/prerender/prerender_service_factory.h"
-#import "ios/chrome/browser/sessions/session_restoration_browser_agent.h"
-#import "ios/chrome/browser/url/chrome_url_constants.h"
-#import "ios/chrome/browser/web_state_list/web_state_list.h"
+#import "ios/chrome/browser/prerender/model/prerender_service.h"
+#import "ios/chrome/browser/prerender/model/prerender_service_factory.h"
+#import "ios/chrome/browser/sessions/session_restoration_observer_helper.h"
+#import "ios/chrome/browser/shared/model/browser/browser.h"
+#import "ios/chrome/browser/shared/model/url/chrome_url_constants.h"
+#import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/components/webui/web_ui_url_constants.h"
 #import "ios/web/public/navigation/navigation_context.h"
 #import "ios/web/public/navigation/navigation_item.h"
@@ -22,10 +22,6 @@
 #import "ios/web/public/web_state.h"
 #import "services/metrics/public/cpp/ukm_builders.h"
 #import "ui/base/page_transition_types.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 BROWSER_USER_DATA_KEY_IMPL(TabUsageRecorderBrowserAgent)
 
@@ -43,10 +39,7 @@ TabUsageRecorderBrowserAgent::TabUsageRecorderBrowserAgent(Browser* browser)
     web_state->AddObserver(this);
   }
 
-  SessionRestorationBrowserAgent* restoration_agent =
-      SessionRestorationBrowserAgent::FromBrowser(browser);
-  if (restoration_agent)
-    restoration_agent->AddObserver(this);
+  AddSessionRestorationObserver(browser, this);
 
   // Register for backgrounding and foregrounding notifications. It is safe for
   // the block to capture a pointer to `this` as they are unregistered in the
@@ -82,10 +75,7 @@ void TabUsageRecorderBrowserAgent::BrowserDestroyed(Browser* browser) {
 
   web_state_list_->RemoveObserver(this);
   browser->RemoveObserver(this);
-  SessionRestorationBrowserAgent* restoration_agent =
-      SessionRestorationBrowserAgent::FromBrowser(browser);
-  if (restoration_agent)
-    restoration_agent->RemoveObserver(this);
+  RemoveSessionRestorationObserver(browser, this);
   if (application_backgrounding_observer_) {
     [[NSNotificationCenter defaultCenter]
         removeObserver:application_backgrounding_observer_];
@@ -179,8 +169,9 @@ void TabUsageRecorderBrowserAgent::RecordTabSwitched(
 }
 
 void TabUsageRecorderBrowserAgent::RecordPrimaryBrowserChange(
-    bool primary_browser,
-    web::WebState* active_web_state) {
+    bool primary_browser) {
+  web::WebState* active_web_state =
+      web_state_list_ ? web_state_list_->GetActiveWebState() : nullptr;
   if (primary_browser) {
     // User just came back to this tab model, so record a tab selection even
     // though the current tab was reselected.
@@ -479,6 +470,8 @@ bool TabUsageRecorderBrowserAgent::ShouldRecordPageLoadStartForNavigation(
   return false;
 }
 
+#pragma mark - WebStateObserver
+
 void TabUsageRecorderBrowserAgent::DidStartNavigation(
     web::WebState* web_state,
     web::NavigationContext* navigation_context) {
@@ -520,49 +513,68 @@ void TabUsageRecorderBrowserAgent::WebStateDestroyed(web::WebState* web_state) {
   NOTREACHED();
 }
 
-void TabUsageRecorderBrowserAgent::WebStateInsertedAt(
-    WebStateList* web_state_list,
-    web::WebState* web_state,
-    int index,
-    bool activating) {
-  if (activating)
-    web_state_created_selected_ = web_state;
+#pragma mark - WebStateListObserver
 
-  web_state->AddObserver(this);
+void TabUsageRecorderBrowserAgent::WebStateListDidChange(
+    WebStateList* web_state_list,
+    const WebStateListChange& change,
+    const WebStateListStatus& status) {
+  switch (change.type()) {
+    case WebStateListChange::Type::kStatusOnly:
+      // The activation is handled after this switch statement.
+      break;
+    case WebStateListChange::Type::kDetach: {
+      const WebStateListChangeDetach& detach_change =
+          change.As<WebStateListChangeDetach>();
+      OnWebStateDestroyed(detach_change.detached_web_state());
+      break;
+    }
+    case WebStateListChange::Type::kMove:
+      // Do nothing when a WebState is moved.
+      break;
+    case WebStateListChange::Type::kReplace: {
+      const WebStateListChangeReplace& replace_change =
+          change.As<WebStateListChangeReplace>();
+      OnWebStateDestroyed(replace_change.replaced_web_state());
+      replace_change.inserted_web_state()->AddObserver(this);
+      break;
+    }
+    case WebStateListChange::Type::kInsert: {
+      const WebStateListChangeInsert& insert_change =
+          change.As<WebStateListChangeInsert>();
+      web::WebState* inserted_web_state = insert_change.inserted_web_state();
+      if (status.active_web_state_change()) {
+        web_state_created_selected_ = inserted_web_state;
+      }
+
+      inserted_web_state->AddObserver(this);
+      break;
+    }
+  }
+
+  if (status.active_web_state_change() &&
+      change.type() != WebStateListChange::Type::kReplace) {
+    RecordTabSwitched(status.old_active_web_state, status.new_active_web_state);
+  }
 }
 
-void TabUsageRecorderBrowserAgent::WebStateReplacedAt(
-    WebStateList* web_state_list,
-    web::WebState* old_web_state,
-    web::WebState* new_web_state,
-    int index) {
-  OnWebStateDestroyed(old_web_state);
+#pragma mark - SessionRestorationObserver
 
-  if (new_web_state)
-    new_web_state->AddObserver(this);
-}
-
-void TabUsageRecorderBrowserAgent::WebStateDetachedAt(
-    WebStateList* web_state_list,
-    web::WebState* web_state,
-    int index) {
-  OnWebStateDestroyed(web_state);
-}
-
-void TabUsageRecorderBrowserAgent::WebStateActivatedAt(
-    WebStateList* web_state_list,
-    web::WebState* old_web_state,
-    web::WebState* new_web_state,
-    int active_index,
-    ActiveWebStateChangeReason reason) {
-  if (reason == ActiveWebStateChangeReason::Replaced)
-    return;
-
-  RecordTabSwitched(old_web_state, new_web_state);
+void TabUsageRecorderBrowserAgent::WillStartSessionRestoration(
+    Browser* browser) {
+  // Nothing to do.
 }
 
 void TabUsageRecorderBrowserAgent::SessionRestorationFinished(
+    Browser* browser,
     const std::vector<web::WebState*>& restored_web_states) {
+  // Ignore the event if it does not correspond to the browser this
+  // object is bound to (which can happen with the optimised session
+  // storage code).
+  if (browser->GetWebStateList() != web_state_list_) {
+    return;
+  }
+
   InitialRestoredTabs(web_state_list_->GetActiveWebState(),
                       restored_web_states);
 }

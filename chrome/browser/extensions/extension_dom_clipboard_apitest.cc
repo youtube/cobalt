@@ -85,10 +85,12 @@ bool ClipboardApiTest::ExecuteCommandInIframeInSelectedTab(
   const char kScript[] =
       "var ifr = document.createElement('iframe');\n"
       "document.body.appendChild(ifr);\n"
-      "ifr.contentDocument.write('<script>parent.domAutomationController.send("
-          "document.execCommand(\"%s\"))</script>');";
-  return ExecuteScriptInSelectedTab(base::StringPrintf(kScript, command),
-                                    content::EXECUTE_SCRIPT_USE_MANUAL_REPLY);
+      "new Promise(res => {\n"
+      "  window.resolve = res;\n"
+      "  ifr.contentDocument.write('<script>parent.resolve("
+      "    document.execCommand(\"%s\"))</script>');\n"
+      "});";
+  return ExecuteScriptInSelectedTab(base::StringPrintf(kScript, command));
 }
 
 bool ClipboardApiTest::ExecuteScriptInSelectedTab(const std::string& script,
@@ -127,12 +129,12 @@ IN_PROC_BROWSER_TEST_F(ClipboardApiTest, MAYBE_ExtensionNoPermission) {
 IN_PROC_BROWSER_TEST_F(ClipboardApiTest, BrowserPermissionCheck) {
   ASSERT_TRUE(StartEmbeddedTestServer());
 
-  content::RenderFrameHost* rfh = ui_test_utils::NavigateToURL(
+  content::RenderFrameHost* render_frame_host = ui_test_utils::NavigateToURL(
       browser(), embedded_test_server()->GetURL("/english_page.html"));
   // No extensions are installed. Clipboard access should be disallowed.
   EXPECT_FALSE(
       content::GetContentClientForTesting()->browser()->IsClipboardPasteAllowed(
-          rfh));
+          render_frame_host));
 
   static constexpr char kManifest[] =
       R"({
@@ -154,7 +156,7 @@ IN_PROC_BROWSER_TEST_F(ClipboardApiTest, BrowserPermissionCheck) {
   // the page.
   EXPECT_FALSE(
       content::GetContentClientForTesting()->browser()->IsClipboardPasteAllowed(
-          rfh));
+          render_frame_host));
 
   // Inject a script on the page through the extension.
   static constexpr char kScript[] =
@@ -175,7 +177,7 @@ IN_PROC_BROWSER_TEST_F(ClipboardApiTest, BrowserPermissionCheck) {
   // Now the page should have access to the clipboard.
   EXPECT_TRUE(
       content::GetContentClientForTesting()->browser()->IsClipboardPasteAllowed(
-          rfh));
+          render_frame_host));
 }
 
 IN_PROC_BROWSER_TEST_F(ClipboardApiTest, HostedApp) {

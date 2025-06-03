@@ -12,7 +12,8 @@
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
 #include "chrome/browser/browser_process.h"
-#include "chrome/browser/chrome_notification_types.h"
+#include "chrome/browser/enterprise/remote_commands/user_remote_commands_service.h"
+#include "chrome/browser/enterprise/remote_commands/user_remote_commands_service_factory.h"
 #include "chrome/browser/enterprise/util/managed_browser_utils.h"
 #include "chrome/browser/policy/cloud/user_policy_signin_service_internal.h"
 #include "chrome/browser/policy/cloud/user_policy_signin_service_util.h"
@@ -33,8 +34,6 @@
 #include "components/signin/public/base/consent_level.h"
 #include "components/signin/public/identity_manager/account_info.h"
 #include "components/signin/public/identity_manager/primary_account_change_event.h"
-#include "content/public/browser/notification_details.h"
-#include "content/public/browser/notification_source.h"
 #include "content/public/browser/storage_partition.h"
 #include "google_apis/gaia/gaia_constants.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
@@ -153,6 +152,13 @@ void UserPolicySigninService::InitializeCloudPolicyManager(
   manager->SetSigninAccountId(account_id);
   UserPolicySigninServiceBase::InitializeCloudPolicyManager(account_id,
                                                             std::move(client));
+  // Triggers the initialization of user remote commands service.
+  auto* remote_command_service =
+      enterprise_commands::UserRemoteCommandsServiceFactory::GetForProfile(
+          profile_);
+  if (remote_command_service) {
+    remote_command_service->Init();
+  }
   ProhibitSignoutIfNeeded();
 }
 
@@ -163,6 +169,12 @@ void UserPolicySigninService::Shutdown() {
 }
 
 void UserPolicySigninService::ShutdownCloudPolicyManager() {
+  auto* remote_command_service =
+      enterprise_commands::UserRemoteCommandsServiceFactory::GetForProfile(
+          profile_);
+  if (remote_command_service) {
+    remote_command_service->Shutdown();
+  }
   UserPolicySigninServiceBase::ShutdownCloudPolicyManager();
 }
 

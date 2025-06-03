@@ -18,17 +18,19 @@
 #include "chrome/browser/ash/app_list/search/test/search_results_changed_waiter.h"
 #include "chrome/browser/ash/app_list/search/test/test_continue_files_search_provider.h"
 #include "chrome/browser/ash/system_web_apps/system_web_app_manager.h"
+#include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/ui/ash/system_web_apps/system_web_app_ui_utils.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/web_applications/test/web_app_install_test_utils.h"
 #include "chrome/browser/web_applications/test/with_crosapi_param.h"
-#include "chrome/browser/web_applications/web_app_id.h"
 #include "chrome/browser/web_applications/web_app_id_constants.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/common/chrome_paths.h"
 #include "chrome/common/pref_names.h"
 #include "chromeos/strings/grit/chromeos_strings.h"
+#include "components/webapps/common/web_app_id.h"
 
 using web_app::test::CrosapiParam;
 using web_app::test::WithCrosapiParam;
@@ -52,7 +54,7 @@ class HelpAppSearchBrowserTestBase : public AppListSearchBrowserTest {
 
   // InProcessBrowserTest:
   void SetUpOnMainThread() override {
-    InProcessBrowserTest::SetUpOnMainThread();
+    AppListSearchBrowserTest::SetUpOnMainThread();
     AppListClientImpl::GetInstance()->UpdateProfile();
     web_app::test::WaitUntilReady(
         web_app::WebAppProvider::GetForTest(browser()->profile()));
@@ -122,9 +124,9 @@ class HelpAppSearchBrowserTest : public HelpAppSearchBrowserTestBase {
                       std::move(drive_continue_section_provider)));
   }
 
-  raw_ptr<TestContinueFilesSearchProvider, ExperimentalAsh>
+  raw_ptr<TestContinueFilesSearchProvider, DanglingUntriaged | ExperimentalAsh>
       local_continue_section_provider_ = nullptr;
-  raw_ptr<TestContinueFilesSearchProvider, ExperimentalAsh>
+  raw_ptr<TestContinueFilesSearchProvider, DanglingUntriaged | ExperimentalAsh>
       drive_continue_section_provider_ = nullptr;
 };
 
@@ -192,9 +194,10 @@ IN_PROC_BROWSER_TEST_F(HelpAppSearchBrowserTest,
 
 // Test that the number of times the suggestion chip should show decreases when
 // the chip is shown in tablet mode.
+// https://crbug.com/1489431: test is flaky on bots.
 IN_PROC_BROWSER_TEST_F(
     HelpAppSearchBrowserTest,
-    ReleaseNotesDecreasesTimesShownOnAppListOpenInTabletMode) {
+    DISABLED_ReleaseNotesDecreasesTimesShownOnAppListOpenInTabletMode) {
   ash::SystemWebAppManager::GetForTest(GetProfile())
       ->InstallSystemAppsForTesting();
   GetProfile()->GetPrefs()->SetInteger(
@@ -340,6 +343,18 @@ class HelpAppSwaSearchBrowserTest : public HelpAppSearchBrowserTestBase,
  public:
   HelpAppSwaSearchBrowserTest() = default;
   ~HelpAppSwaSearchBrowserTest() override = default;
+
+  void SetUpOnMainThread() override {
+    if (browser() == nullptr) {
+      // Create a new Ash browser window so test code using browser() can work
+      // even when Lacros is the only browser.
+      // TODO(crbug.com/1450158): Remove uses of browser() from such tests.
+      chrome::NewEmptyWindow(ProfileManager::GetActiveUserProfile());
+      SelectFirstBrowser();
+    }
+    HelpAppSearchBrowserTestBase::SetUpOnMainThread();
+    VerifyLacrosStatus();
+  }
 };
 
 // Test that Help App shows up normally even when suggestion chip should show.
@@ -362,7 +377,7 @@ IN_PROC_BROWSER_TEST_P(HelpAppSwaSearchBrowserTest, AppListSearchHasApp) {
 IN_PROC_BROWSER_TEST_P(HelpAppSwaSearchBrowserTest, Launch) {
   Profile* profile = browser()->profile();
   ash::SystemWebAppManager::GetForTest(profile)->InstallSystemAppsForTesting();
-  const web_app::AppId app_id = web_app::kHelpAppId;
+  const webapps::AppId app_id = web_app::kHelpAppId;
 
   ShowAppListAndWaitForZeroStateResults(
       {ash::AppListSearchResultType::kZeroStateHelpApp,

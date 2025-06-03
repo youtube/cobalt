@@ -4,10 +4,12 @@
 
 // <if expr="chromeos_ash">
 import {NativeEventTarget as EventTarget} from 'chrome://resources/ash/common/event_target.js';
+
 // </if>
 
 import {Channel} from './channel.js';
 import {PostMessageChannel} from './post_message_channel.js';
+import {SafeXMLUtils} from './safe_xml_utils.js';
 import {PasswordAttributes, readPasswordAttributes} from './saml_password_attributes.js';
 import {maybeAutofillUsername} from './saml_username_autofill.js';
 import {WebviewEventManager} from './webview_event_manager.js';
@@ -47,12 +49,6 @@ import {WebviewEventManager} from './webview_event_manager.js';
   /** @const */
   const SAML_VERIFIED_ACCESS_RESPONSE_HEADER =
       'x-verified-access-challenge-response';
-
-  /** @const */
-  const BEGIN_CERTIFICATE = '-----BEGIN CERTIFICATE-----';
-
-  /** @const */
-  const END_CERTIFICATE = '-----END CERTIFICATE-----';
 
   /** @const */
   const injectedScriptName = 'samlInjected';
@@ -250,6 +246,13 @@ import {WebviewEventManager} from './webview_event_manager.js';
        * @private {?string}
        */
       this.verifiedAccessChallengeResponse_ = null;
+
+      /**
+       * If set, this should handle the account creation message.
+       * If not set, this will log any account creation message as invalid call.
+       * @public {?boolean}
+       */
+      this.shouldHandleAccountCreationMessage = false;
 
       /**
        * Certificate that were extracted from the SAMLResponse.
@@ -554,21 +557,8 @@ import {WebviewEventManager} from './webview_event_manager.js';
      * @private
      */
     setX509certificate_(samlResponse) {
-      const parser = new DOMParser();
-      const xmlDoc = parser.parseFromString(samlResponse, 'text/xml');
-      let certificate = xmlDoc.getElementsByTagName('ds:X509Certificate');
-      if (!certificate || certificate.length === 0) {
-        // tag 'ds:X509Certificate' doesn't exist
-        certificate = xmlDoc.getElementsByTagName('X509Certificate');
-      }
-
-      if (certificate && certificate.length > 0 && certificate[0].childNodes &&
-          certificate[0].childNodes[0] &&
-          certificate[0].childNodes[0].nodeValue) {
-        certificate = certificate[0].childNodes[0].nodeValue;
-        this.x509certificate = BEGIN_CERTIFICATE + '\n' + certificate.trim() +
-            '\n' + END_CERTIFICATE + '\n';
-      }
+      const xmlUtils = new SafeXMLUtils(samlResponse);
+      this.x509certificate = xmlUtils.getX509Certificate();
     }
 
     /**
@@ -889,6 +879,18 @@ import {WebviewEventManager} from './webview_event_manager.js';
         // TODO(b/261613412): Change warn to info.
         console.warn('SamlHandler.onAPICall_: password added');
         this.dispatchEvent(new CustomEvent('apiPasswordAdded'));
+      } else if (call.method === 'createaccount') {
+        if (!this.shouldHandleAccountCreationMessage) {
+          console.warn('SamlHandler.onAPICall_: message not supported');
+          return;
+        }
+        if (!(call.token in this.apiTokenStore_)) {
+          console.error('SamlHandler.onAPICall_: token mismatch');
+          return;
+        }
+        // TODO(b/261613412): Change warn to info.
+        console.warn('SamlHandler.onAPICall_: new account created');
+        this.dispatchEvent(new CustomEvent('apiAccountCreated'));
       } else if (call.method === 'confirm') {
         if (!(call.token in this.apiTokenStore_)) {
           console.error('SamlHandler.onAPICall_: token mismatch');

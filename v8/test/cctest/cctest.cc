@@ -37,6 +37,7 @@
 #include "include/v8-locker.h"
 #include "src/base/lazy-instance.h"
 #include "src/base/logging.h"
+#include "src/base/optional.h"
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/semaphore.h"
@@ -51,6 +52,7 @@
 #include "src/flags/flags.h"
 #include "src/objects/objects-inl.h"
 #include "src/trap-handler/trap-handler.h"
+#include "test/cctest/heap/heap-utils.h"
 #include "test/cctest/print-extension.h"
 #include "test/cctest/profiler-extension.h"
 #include "test/cctest/trace-extension.h"
@@ -161,9 +163,10 @@ void CcTest::Run(const char* snapshot_directory) {
   {
 #ifdef V8_ENABLE_DIRECT_LOCAL
     // TODO(v8:13270): This handle scope should not be needed. It will be
-    // removed when the implementation of direct locals is complete and they
-    // can never implicitly be converted to indirect locals.
-    v8::HandleScope scope(isolate_);
+    // removed when the implementation of direct handles is complete and they
+    // can never implicitly be converted to indirect handles.
+    v8::base::Optional<v8::HandleScope> scope;
+    if (initialize_) scope.emplace(isolate_);
 #endif
     callback_();
   }
@@ -206,34 +209,6 @@ void CcTest::AddGlobalFunction(v8::Local<v8::Context> env, const char* name,
       func_template->GetFunction(env).ToLocalChecked();
   func->SetName(v8_str(name));
   env->Global()->Set(env, v8_str(name), func).FromJust();
-}
-
-void CcTest::CollectGarbage(i::AllocationSpace space, i::Isolate* isolate) {
-  i::Isolate* iso = isolate ? isolate : i_isolate();
-  iso->heap()->CollectGarbage(space, i::GarbageCollectionReason::kTesting);
-}
-
-void CcTest::CollectAllGarbage(i::Isolate* isolate) {
-  i::Isolate* iso = isolate ? isolate : i_isolate();
-  iso->heap()->CollectAllGarbage(i::Heap::kNoGCFlags,
-                                 i::GarbageCollectionReason::kTesting);
-}
-
-void CcTest::CollectAllAvailableGarbage(i::Isolate* isolate) {
-  i::Isolate* iso = isolate ? isolate : i_isolate();
-  iso->heap()->CollectAllAvailableGarbage(i::GarbageCollectionReason::kTesting);
-}
-
-void CcTest::PreciseCollectAllGarbage(i::Isolate* isolate) {
-  i::Isolate* iso = isolate ? isolate : i_isolate();
-  iso->heap()->PreciseCollectAllGarbage(i::Heap::kNoGCFlags,
-                                        i::GarbageCollectionReason::kTesting);
-}
-
-void CcTest::CollectSharedGarbage(i::Isolate* isolate) {
-  i::Isolate* iso = isolate ? isolate : i_isolate();
-  iso->heap()->CollectGarbageShared(iso->main_thread_local_heap(),
-                                    i::GarbageCollectionReason::kTesting);
 }
 
 i::Handle<i::String> CcTest::MakeString(const char* str) {
@@ -433,8 +408,7 @@ int main(int argc, char* argv[]) {
   return 0;
 }
 
-RegisterThreadedTest* RegisterThreadedTest::first_ = nullptr;
-int RegisterThreadedTest::count_ = 0;
+std::vector<const RegisterThreadedTest*> RegisterThreadedTest::tests_;
 
 bool IsValidUnwrapObject(v8::Object* object) {
   i::Address addr = i::ValueHelper::ValueAsAddress(object);
@@ -444,45 +418,6 @@ bool IsValidUnwrapObject(v8::Object* object) {
                               i::Internals::kLastJSApiObjectType) ||
           instance_type == i::Internals::kJSObjectType ||
           instance_type == i::Internals::kJSSpecialApiObjectType);
-}
-
-ManualGCScope::ManualGCScope(i::Isolate* isolate)
-    : flag_concurrent_marking_(i::v8_flags.concurrent_marking),
-      flag_concurrent_sweeping_(i::v8_flags.concurrent_sweeping),
-      flag_concurrent_minor_mc_marking_(
-          i::v8_flags.concurrent_minor_mc_marking),
-      flag_stress_concurrent_allocation_(
-          i::v8_flags.stress_concurrent_allocation),
-      flag_stress_incremental_marking_(i::v8_flags.stress_incremental_marking),
-      flag_parallel_marking_(i::v8_flags.parallel_marking),
-      flag_detect_ineffective_gcs_near_heap_limit_(
-          i::v8_flags.detect_ineffective_gcs_near_heap_limit) {
-  // Some tests run threaded (back-to-back) and thus the GC may already be
-  // running by the time a ManualGCScope is created. Finalizing existing marking
-  // prevents any undefined/unexpected behavior.
-  if (isolate && isolate->heap()->incremental_marking()->IsMarking()) {
-    CcTest::CollectGarbage(i::OLD_SPACE, isolate);
-  }
-
-  i::v8_flags.concurrent_marking = false;
-  i::v8_flags.concurrent_sweeping = false;
-  i::v8_flags.concurrent_minor_mc_marking = false;
-  i::v8_flags.stress_incremental_marking = false;
-  i::v8_flags.stress_concurrent_allocation = false;
-  // Parallel marking has a dependency on concurrent marking.
-  i::v8_flags.parallel_marking = false;
-  i::v8_flags.detect_ineffective_gcs_near_heap_limit = false;
-}
-
-ManualGCScope::~ManualGCScope() {
-  i::v8_flags.concurrent_marking = flag_concurrent_marking_;
-  i::v8_flags.concurrent_sweeping = flag_concurrent_sweeping_;
-  i::v8_flags.concurrent_minor_mc_marking = flag_concurrent_minor_mc_marking_;
-  i::v8_flags.stress_concurrent_allocation = flag_stress_concurrent_allocation_;
-  i::v8_flags.stress_incremental_marking = flag_stress_incremental_marking_;
-  i::v8_flags.parallel_marking = flag_parallel_marking_;
-  i::v8_flags.detect_ineffective_gcs_near_heap_limit =
-      flag_detect_ineffective_gcs_near_heap_limit_;
 }
 
 v8::PageAllocator* TestPlatform::GetPageAllocator() {

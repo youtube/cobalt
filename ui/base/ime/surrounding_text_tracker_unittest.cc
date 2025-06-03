@@ -9,6 +9,51 @@
 
 namespace ui {
 
+TEST(SurroundingTextTracker, StateGetSurroundingTextRange) {
+  SurroundingTextTracker::State state{u"abcde", /*utf16_offset=*/10,
+                                      /*selection=*/gfx::Range(),
+                                      /*composition=*/gfx::Range()};
+
+  EXPECT_EQ(gfx::Range(10, 15), state.GetSurroundingTextRange());
+}
+
+TEST(SurroundingTextTracker, StateGetCompositionText) {
+  {
+    SurroundingTextTracker::State state{u"abcde", /*utf16_offset=*/10,
+                                        /*selection=*/gfx::Range(),
+                                        /*composition=*/gfx::Range()};
+
+    // Empty composition range is valid. Empty composition is expected.
+    EXPECT_EQ(base::StringPiece16(), state.GetCompositionText());
+  }
+
+  {
+    SurroundingTextTracker::State state{u"abcde", /*utf16_offset=*/10,
+                                        /*selection=*/gfx::Range(),
+                                        /*composition=*/gfx::Range(11, 13)};
+
+    EXPECT_EQ(base::StringPiece16(u"bc"), state.GetCompositionText());
+  }
+
+  {
+    SurroundingTextTracker::State state{u"abcde", /*utf16_offset=*/10,
+                                        /*selection=*/gfx::Range(),
+                                        /*composition=*/gfx::Range(1, 3)};
+
+    // Out of the range case.
+    EXPECT_EQ(absl::nullopt, state.GetCompositionText());
+  }
+
+  {
+    SurroundingTextTracker::State state{u"abcde", /*utf16_offset=*/10,
+                                        /*selection=*/gfx::Range(),
+                                        /*composition=*/gfx::Range(8, 12)};
+
+    // Overlapping but not fully covered case.
+    EXPECT_EQ(absl::nullopt, state.GetCompositionText());
+  }
+}
+
 TEST(SurroundingTextTracker, SetCompositionText) {
   SurroundingTextTracker tracker;
 
@@ -711,6 +756,20 @@ TEST(SurroundingTextTracker, ExtendSelectionAndDelete) {
               tracker.predicted_state().selection);
     EXPECT_TRUE(tracker.predicted_state().composition.is_empty());
   }
+}
+
+TEST(SurroundingTextTracker, CancelCompositionResetsCompositionOnly) {
+  SurroundingTextTracker tracker;
+  ui::CompositionText composition;
+  composition.text = u"abc";
+  composition.selection = gfx::Range(3);  // at the end.
+  tracker.OnSetCompositionText(composition);
+
+  tracker.CancelComposition();
+
+  EXPECT_EQ(u"abc", tracker.predicted_state().surrounding_text);
+  EXPECT_EQ(gfx::Range(3), tracker.predicted_state().selection);
+  EXPECT_TRUE(tracker.predicted_state().composition.is_empty());
 }
 
 }  // namespace ui

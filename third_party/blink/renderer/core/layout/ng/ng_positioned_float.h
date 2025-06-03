@@ -7,7 +7,7 @@
 
 #include "base/memory/scoped_refptr.h"
 #include "third_party/blink/renderer/core/core_export.h"
-#include "third_party/blink/renderer/core/layout/ng/geometry/ng_bfc_offset.h"
+#include "third_party/blink/renderer/core/layout/geometry/bfc_offset.h"
 #include "third_party/blink/renderer/core/layout/ng/ng_layout_result.h"
 
 namespace blink {
@@ -21,11 +21,13 @@ struct CORE_EXPORT NGPositionedFloat {
  public:
   NGPositionedFloat() = default;
   NGPositionedFloat(const NGLayoutResult* layout_result,
-                    const NGBfcOffset& bfc_offset,
-                    bool need_break_before = false)
+                    const NGBlockBreakToken* break_before_token,
+                    const BfcOffset& bfc_offset,
+                    LayoutUnit minimum_space_shortage)
       : layout_result(layout_result),
+        break_before_token(break_before_token),
         bfc_offset(bfc_offset),
-        need_break_before(need_break_before) {}
+        minimum_space_shortage(minimum_space_shortage) {}
   NGPositionedFloat(NGPositionedFloat&&) noexcept = default;
   NGPositionedFloat(const NGPositionedFloat&) = default;
   NGPositionedFloat& operator=(NGPositionedFloat&&) = default;
@@ -33,9 +35,12 @@ struct CORE_EXPORT NGPositionedFloat {
 
   void Trace(Visitor*) const;
 
+  const NGBlockBreakToken* BreakToken() const;
+
   Member<const NGLayoutResult> layout_result;
-  NGBfcOffset bfc_offset;
-  bool need_break_before = false;
+  Member<const NGBlockBreakToken> break_before_token;
+  BfcOffset bfc_offset;
+  LayoutUnit minimum_space_shortage;
 };
 
 }  // namespace blink

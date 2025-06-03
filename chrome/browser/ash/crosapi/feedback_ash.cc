@@ -28,6 +28,14 @@ chrome::FeedbackSource FromMojo(mojom::LacrosFeedbackSource source) {
       return chrome::kFeedbackSourceQuickAnswers;
     case mojom::LacrosFeedbackSource::kDeprecatedLacrosWindowLayoutMenu:
       return chrome::kFeedbackSourceWindowLayoutMenu;
+    case mojom::LacrosFeedbackSource::kFeedbackSourceCookieControls:
+      return chrome::kFeedbackSourceCookieControls;
+    case mojom::LacrosFeedbackSource::kFeedbackSourceSettingsPerformancePage:
+      return chrome::kFeedbackSourceSettingsPerformancePage;
+    case mojom::LacrosFeedbackSource::kFeedbackSourceProfileErrorDialog:
+      return chrome::kFeedbackSourceProfileErrorDialog;
+    case mojom::LacrosFeedbackSource::kFeedbackSourceQuickOffice:
+      return chrome::kFeedbackSourceQuickOffice;
     case mojom::LacrosFeedbackSource::kUnknown:
       return chrome::kFeedbackSourceUnknownLacrosSource;
   }

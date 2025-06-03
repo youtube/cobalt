@@ -42,6 +42,11 @@ class LinkTest : public test::BaseControlTestWidget {
         GetContext(), widget()->GetNativeWindow());
   }
 
+  void TearDown() override {
+    link_ = nullptr;
+    test::BaseControlTestWidget::TearDown();
+  }
+
  protected:
   void CreateWidgetContent(View* container) override {
     // Create a widget containing a link which does not take the full size.

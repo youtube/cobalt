@@ -21,7 +21,7 @@
 #include "ui/events/event_handler.h"
 
 namespace ui {
-enum class DomCode;
+enum class DomCode : uint32_t;
 class KeyEvent;
 }
 
@@ -85,6 +85,11 @@ class Keyboard : public ui::EventHandler,
   Surface* focused_surface_for_testing() const { return focus_; }
 
  private:
+  // Returns a set of keys with keys that should not be handled by the surface
+  // filtered out from pressed_keys_.
+  base::flat_map<ui::DomCode, KeyState> GetPressedKeysForSurface(
+      Surface* surface);
+
   // Change keyboard focus to |surface|.
   void SetFocus(Surface* surface);
 
@@ -138,6 +143,9 @@ class Keyboard : public ui::EventHandler,
 
   // Delay until a key state change expected to be acknowledged is expired.
   const base::TimeDelta expiration_delay_for_pending_key_acks_;
+
+  // Tracks whether the last key event is the target of autorepeat.
+  bool auto_repeat_enabled_ = true;
 
   // True when the ARC app window is focused.
   // TODO(yhanada, https://crbug.com/847500): Remove this when we find a way to

@@ -18,10 +18,6 @@
 #import "ios/web/public/js_messaging/web_frames_manager.h"
 #import "ios/web/public/web_state.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace {
 
 // Returns a JavaScript safe string based on `script_filename`. This is used as
@@ -29,12 +25,13 @@ namespace {
 // `MakeScriptInjectableOnce` which ensures JS isn't executed multiple times due
 // to duplicate injection.
 NSString* InjectionTokenForScript(NSString* script_filename) {
-  NSMutableCharacterSet* validCharacters =
+  NSMutableCharacterSet* valid_characters =
       [NSMutableCharacterSet alphanumericCharacterSet];
-  [validCharacters addCharactersInString:@"$_"];
-  NSCharacterSet* invalidCharacters = validCharacters.invertedSet;
+  [valid_characters addCharactersInString:@"$_"];
+  NSCharacterSet* invalid_characters = valid_characters.invertedSet;
   NSString* token =
-      [script_filename stringByTrimmingCharactersInSet:invalidCharacters];
+      [[script_filename componentsSeparatedByCharactersInSet:invalid_characters]
+          componentsJoinedByString:@""];
   DCHECK_GT(token.length, 0ul);
   return token;
 }
@@ -52,18 +49,38 @@ JavaScriptFeature::FeatureScript::CreateWithFilename(
     TargetFrames target_frames,
     ReinjectionBehavior reinjection_behavior,
     const PlaceholderReplacementsCallback& replacements_callback) {
-  return JavaScriptFeature::FeatureScript(filename, injection_time,
-                                          target_frames, reinjection_behavior,
-                                          replacements_callback);
+  NSString* injection_token =
+      InjectionTokenForScript(base::SysUTF8ToNSString(filename));
+  return JavaScriptFeature::FeatureScript(
+      filename, /*script=*/absl::nullopt, injection_token, injection_time,
+      target_frames, reinjection_behavior, replacements_callback);
+}
+
+JavaScriptFeature::FeatureScript
+JavaScriptFeature::FeatureScript::CreateWithString(
+    const std::string& script,
+    InjectionTime injection_time,
+    TargetFrames target_frames,
+    ReinjectionBehavior reinjection_behavior,
+    const PlaceholderReplacementsCallback& replacements_callback) {
+  NSString* unique_id = [[NSProcessInfo processInfo] globallyUniqueString];
+  NSString* injection_token = InjectionTokenForScript(unique_id);
+  return JavaScriptFeature::FeatureScript(
+      /*filename=*/absl::nullopt, script, injection_token, injection_time,
+      target_frames, reinjection_behavior, replacements_callback);
 }
 
 JavaScriptFeature::FeatureScript::FeatureScript(
-    const std::string& filename,
+    absl::optional<std::string> filename,
+    absl::optional<std::string> script,
+    NSString* injection_token,
     InjectionTime injection_time,
     TargetFrames target_frames,
     ReinjectionBehavior reinjection_behavior,
     const PlaceholderReplacementsCallback& replacements_callback)
     : script_filename_(filename),
+      script_(script),
+      injection_token_(injection_token),
       injection_time_(injection_time),
       target_frames_(target_frames),
       reinjection_behavior_(reinjection_behavior),
@@ -82,18 +99,24 @@ JavaScriptFeature::FeatureScript& JavaScriptFeature::FeatureScript::operator=(
 JavaScriptFeature::FeatureScript::~FeatureScript() = default;
 
 NSString* JavaScriptFeature::FeatureScript::GetScriptString() const {
-  NSString* script_filename = base::SysUTF8ToNSString(script_filename_);
+  NSString* script = nil;
+  if (script_) {
+    script = base::SysUTF8ToNSString(script_.value());
+  } else {
+    CHECK(script_filename_);
+    script = GetPageScript(base::SysUTF8ToNSString(*script_filename_));
+  }
+
   if (reinjection_behavior_ ==
       ReinjectionBehavior::kReinjectOnDocumentRecreation) {
-    return ReplacePlaceholders(GetPageScript(script_filename));
+    return ReplacePlaceholders(script);
   }
   // WKUserScript instances will automatically be re-injected by WebKit when the
   // document is re-created, even though the JavaScript context will not be
   // re-created. So the script needs to be wrapped in `MakeScriptInjectableOnce`
   // so that is is not re-injected.
-  return MakeScriptInjectableOnce(
-      InjectionTokenForScript(script_filename),
-      ReplacePlaceholders(GetPageScript(script_filename)));
+  return MakeScriptInjectableOnce(injection_token_,
+                                  ReplacePlaceholders(script));
 }
 
 NSString* JavaScriptFeature::FeatureScript::ReplacePlaceholders(
@@ -175,7 +198,7 @@ void JavaScriptFeature::ScriptMessageReceived(WebState* web_state,
 bool JavaScriptFeature::CallJavaScriptFunction(
     WebFrame* web_frame,
     const std::string& function_name,
-    const std::vector<base::Value>& parameters) {
+    const base::Value::List& parameters) {
   DCHECK(web_frame);
 
   JavaScriptFeatureManager* feature_manager =
@@ -193,7 +216,7 @@ bool JavaScriptFeature::CallJavaScriptFunction(
 bool JavaScriptFeature::CallJavaScriptFunction(
     WebFrame* web_frame,
     const std::string& function_name,
-    const std::vector<base::Value>& parameters,
+    const base::Value::List& parameters,
     base::OnceCallback<void(const base::Value*)> callback,
     base::TimeDelta timeout) {
   DCHECK(web_frame);

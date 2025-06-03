@@ -18,7 +18,7 @@
 #include "components/viz/common/resources/resource_sizes.h"
 #include "gpu/command_buffer/common/mailbox.h"
 #include "gpu/command_buffer/common/shared_image_trace_utils.h"
-#include "gpu/command_buffer/service/shared_image/shared_image_format_utils.h"
+#include "gpu/command_buffer/service/shared_image/shared_image_format_service_utils.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/gl/trace_util.h"
 
@@ -171,6 +171,11 @@ gfx::BufferFormat DisplayResourceProvider::GetBufferFormat(ResourceId id) {
   return gpu::ToBufferFormat(resource->transferable.format);
 }
 
+SharedImageFormat DisplayResourceProvider::GetSharedImageFormat(ResourceId id) {
+  ChildResource* resource = GetResource(id);
+  return resource->transferable.format;
+}
+
 const gfx::ColorSpace& DisplayResourceProvider::GetOverlayColorSpace(
     ResourceId id) {
   ChildResource* resource = GetResource(id);
@@ -183,8 +188,7 @@ gfx::ColorSpace DisplayResourceProvider::GetSamplerColorSpace(ResourceId id) {
       resource->transferable.color_space);
 }
 
-const absl::optional<gfx::HDRMetadata>& DisplayResourceProvider::GetHDRMetadata(
-    ResourceId id) {
+const gfx::HDRMetadata& DisplayResourceProvider::GetHDRMetadata(ResourceId id) {
   ChildResource* resource = GetResource(id);
   return resource->transferable.hdr_metadata;
 }

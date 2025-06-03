@@ -257,13 +257,14 @@ void ExtendedDragSource::OnToplevelWindowDragCancelled() {
 }
 
 void ExtendedDragSource::OnToplevelWindowDragEvent(ui::LocatedEvent* event) {
-  DCHECK(event);
-  aura::Window* target = static_cast<aura::Window*>(event->target());
   pointer_location_ = event->root_location_f();
-  wm::ConvertPointToScreen(target->GetRootWindow(), &pointer_location_);
 
   if (!dragged_window_holder_)
     return;
+
+  DCHECK(event);
+  aura::Window* target = static_cast<aura::Window*>(event->target());
+  wm::ConvertPointToScreen(target->GetRootWindow(), &pointer_location_);
 
   auto* handler = ash::Shell::Get()->toplevel_window_event_handler();
   if (event->IsMouseEvent()) {
@@ -379,17 +380,9 @@ void ExtendedDragSource::OnDraggedWindowVisibilityChanged(bool visible) {
 
   auto toplevel_bounds =
       gfx::Rect({screen_location, toplevel->bounds().size()});
-  auto display = display::Screen::GetScreen()->GetDisplayNearestWindow(
-      drag_source_window_ ? drag_source_window_.get() : toplevel);
+  auto display =
+      display::Screen::GetScreen()->GetDisplayNearestWindow(toplevel);
   toplevel->SetBoundsInScreen(toplevel_bounds, display);
-
-  if (WMHelper::GetInstance()->InTabletMode()) {
-    // The bounds that is stored in ash::kRestoreBoundsOverrideKey will be used
-    // by DragDetails to calculate the detached window bounds during dragging
-    // when detaching in tablet mode to ensure the detached window is correctly
-    // placed under the pointer/finger.
-    toplevel->SetProperty(ash::kRestoreBoundsOverrideKey, toplevel_bounds);
-  }
 
   DVLOG(1) << "Dragged window mapped. toplevel=" << toplevel
            << " origin=" << screen_location.ToString();

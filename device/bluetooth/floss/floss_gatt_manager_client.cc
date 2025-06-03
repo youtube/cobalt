@@ -24,7 +24,13 @@ constexpr char kWriteType[] = "write_type";
 namespace {
 // Randomly generated UUID for use in this client.
 constexpr char kDefaultGattManagerClientUuid[] =
+// Ash and LaCrOS should use the different APP UUID, otherwise the latter one
+// (usually LaCrOS) fails on registering.
+#if BUILDFLAG(IS_CHROMEOS_ASH)
     "e060b902508c485f8b0e27639c7f2d41";
+#else
+    "58523f357dbc4390ab78ed075b15a634";
+#endif
 
 // Default to not requesting eatt support with gatt client.
 constexpr bool kDefaultEattSupport = false;
@@ -252,7 +258,11 @@ GattService::GattService(const GattService&) = default;
 GattService::~GattService() = default;
 
 const char FlossGattManagerClient::kExportedCallbacksPath[] =
-    "/org/chromium/bluetooth/gattclient";
+#if BUILDFLAG(IS_CHROMEOS_LACROS)
+    "/org/chromium/bluetooth/gatt/callback/lacros";
+#else
+    "/org/chromium/bluetooth/gatt/callback";
+#endif
 
 // static
 std::unique_ptr<FlossGattManagerClient> FlossGattManagerClient::Create() {
@@ -523,11 +533,13 @@ void FlossGattManagerClient::ServerSendNotification(
 void FlossGattManagerClient::Init(dbus::Bus* bus,
                                   const std::string& service_name,
                                   const int adapter_index,
+                                  base::Version version,
                                   base::OnceClosure on_ready) {
   // Set field variables.
   bus_ = bus;
   service_name_ = service_name;
   gatt_adapter_path_ = GenerateGattPath(adapter_index);
+  version_ = version;
 
   // Initialize DBus object proxy.
   dbus::ObjectProxy* object_proxy =

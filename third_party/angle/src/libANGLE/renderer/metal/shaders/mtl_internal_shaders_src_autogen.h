@@ -12,7 +12,7 @@ static char gDefaultMetallibSrc[] = R"(
 # 1 "temp_master_source.metal"
 # 1 "<built-in>" 1
 # 1 "<built-in>" 3
-# 477 "<built-in>" 3
+# 483 "<built-in>" 3
 # 1 "<command line>" 1
 # 1 "<built-in>" 2
 # 1 "temp_master_source.metal" 2
@@ -308,8 +308,9 @@ using namespace rx::mtl_shader;
 
 constant bool kPremultiplyAlpha [[function_constant(1)]];
 constant bool kUnmultiplyAlpha [[function_constant(2)]];
-constant int kSourceTextureType [[function_constant(3)]];
-constant int kSourceTexture2Type [[function_constant(4)]];
+constant bool kTransformLinearToSrgb [[function_constant(3)]];
+constant int kSourceTextureType [[function_constant(4)]];
+constant int kSourceTexture2Type [[function_constant(5)]];
 
 constant bool kSourceTextureType2D = kSourceTextureType == kTextureType2D;
 constant bool kSourceTextureType2DArray = kSourceTextureType == kTextureType2DArray;
@@ -387,7 +388,7 @@ static inline vec<T, 4> blitSampleTexture3D(texture3d<T> srcTexture,
 
     return srcTexture.sample(textureSampler, float3(texCoords, zCoord), level(options.srcLevel));
 }
-# 112 "./blit.metal"
+# 113 "./blit.metal"
 template <typename T>
 static inline vec<T, 4> blitReadTexture(BlitVSOut input [[stage_in]], texture2d<T> srcTexture2d [[texture(0), function_constant(kSourceTextureType2D)]], texture2d_array<T> srcTexture2dArray [[texture(0), function_constant(kSourceTextureType2DArray)]], texture2d_ms<T> srcTexture2dMS [[texture(0), function_constant(kSourceTextureType2DMS)]], texturecube<T> srcTextureCube [[texture(0), function_constant(kSourceTextureTypeCube)]], texture3d<T> srcTexture3d [[texture(0), function_constant(kSourceTextureType3D)]], sampler textureSampler [[sampler(0)]], constant BlitParams &options [[buffer(0)]])
 {
@@ -415,16 +416,21 @@ static inline vec<T, 4> blitReadTexture(BlitVSOut input [[stage_in]], texture2d<
             break;
     }
 
-    if (kPremultiplyAlpha)
-    {
-        output.xyz *= output.a;
+    if (kTransformLinearToSrgb) {
+        output.x = linearToSRGB(output.x);
+        output.y = linearToSRGB(output.y);
+        output.z = linearToSRGB(output.z);
     }
-    else if (kUnmultiplyAlpha)
+    if (kUnmultiplyAlpha)
     {
         if (output.a != 0.0)
         {
             output.xyz /= output.a;
         }
+    }
+    if (kPremultiplyAlpha)
+    {
+        output.xyz *= output.a;
     }
 
     if (options.dstLuminance)
@@ -1568,6 +1574,7 @@ enum
     B8G8R8A8_UNORM,
     B8G8R8A8_UNORM_SRGB,
     B8G8R8X8_UNORM,
+    B8G8R8X8_UNORM_SRGB,
     BC1_RGBA_UNORM_BLOCK,
     BC1_RGBA_UNORM_SRGB_BLOCK,
     BC1_RGB_UNORM_BLOCK,
@@ -1703,6 +1710,7 @@ enum
     R8G8B8A8_UNORM_SRGB,
     R8G8B8A8_USCALED,
     R8G8B8X8_UNORM,
+    R8G8B8X8_UNORM_SRGB,
     R8G8B8_SINT,
     R8G8B8_SNORM,
     R8G8B8_SSCALED,
@@ -1730,7 +1738,15 @@ enum
     X2R10G10B10_SSCALED_VERTEX,
     X2R10G10B10_UINT_VERTEX,
     X2R10G10B10_UNORM_VERTEX,
-    X2R10G10B10_USCALED_VERTEX
+    X2R10G10B10_USCALED_VERTEX,
+    EXTERNAL0,
+    EXTERNAL1,
+    EXTERNAL2,
+    EXTERNAL3,
+    EXTERNAL4,
+    EXTERNAL5,
+    EXTERNAL6,
+    EXTERNAL7
 };
 
 }
@@ -3123,6 +3139,24 @@ vertex void expandVertexFormatComponentsVS(uint index [[vertex_id]],
                                            device uchar *dstBuffer [[buffer(2)]])
 {
     expandVertexFormatComponents(index, options, srcBuffer, dstBuffer);
+}
+
+
+kernel void linearizeBlocks(ushort2 position [[thread_position_in_grid]],
+                            constant uint2 *dimensions [[buffer(0)]],
+                            constant uint2 *srcBuffer [[buffer(1)]],
+                            device uint2 *dstBuffer [[buffer(2)]])
+{
+    if (any(uint2(position) >= *dimensions))
+    {
+        return;
+    }
+    uint2 t = uint2(position);
+    t = (t | (t << 8)) & 0x00FF00FF;
+    t = (t | (t << 4)) & 0x0F0F0F0F;
+    t = (t | (t << 2)) & 0x33333333;
+    t = (t | (t << 1)) & 0x55555555;
+    dstBuffer[position.y * (*dimensions).x + position.x] = srcBuffer[(t.x << 1) | t.y];
 }
 # 6 "temp_master_source.metal" 2
 # 1 "./visibility.metal" 1

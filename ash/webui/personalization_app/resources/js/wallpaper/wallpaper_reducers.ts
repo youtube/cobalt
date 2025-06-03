@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {assert} from 'chrome://resources/js/assert_ts.js';
+import {assert} from 'chrome://resources/js/assert.js';
 import {FilePath} from 'chrome://resources/mojo/mojo/public/mojom/base/file_path.mojom-webui.js';
 
 import {WallpaperCollection} from '../../personalization_app.mojom-webui.js';
@@ -61,7 +61,7 @@ function loadingReducer(
         local: {...state.local, data: {...state.local.data, [action.id]: true}},
       };
     case WallpaperActionName.BEGIN_LOAD_SELECTED_IMAGE:
-      return {...state, selected: true};
+      return {...state, selected: {attribution: true, image: true}};
     case WallpaperActionName.BEGIN_SELECT_IMAGE:
       return {...state, setImage: state.setImage + 1};
     case WallpaperActionName.END_SELECT_IMAGE:
@@ -149,7 +149,9 @@ function loadingReducer(
         // loading.selected stays true.
         return state;
       }
-      return {...state, selected: false};
+      return {...state, selected: {...state.selected, image: false}};
+    case WallpaperActionName.SET_ATTRIBUTION:
+      return {...state, selected: {...state.selected, attribution: false}};
     case WallpaperActionName.BEGIN_UPDATE_DAILY_REFRESH_IMAGE:
       return {...state, refreshWallpaper: true};
     case WallpaperActionName.SET_UPDATED_DAILY_REFRESH_IMAGE:
@@ -318,6 +320,17 @@ function localReducer(
           [action.id]: action.data,
         },
       };
+    default:
+      return state;
+  }
+}
+
+function attributionReducer(
+    state: WallpaperState['attribution'], action: Actions,
+    _: PersonalizationState): WallpaperState['attribution'] {
+  switch (action.name) {
+    case WallpaperActionName.SET_ATTRIBUTION:
+      return action.attribution;
     default:
       return state;
   }
@@ -612,14 +625,40 @@ function googlePhotosReducer(
   }
 }
 
+function seaPenReducer(
+    state: WallpaperState['seaPen'], action: Actions,
+    _: PersonalizationState): WallpaperState['seaPen'] {
+  switch (action.name) {
+    case WallpaperActionName.BEGIN_SEARCH_IMAGE_THUMBNAILS:
+      return {
+        thumbnailsLoading: true,
+        query: action.query,
+        thumbnails: state.thumbnails,
+      };
+    case WallpaperActionName.SET_IMAGE_THUMBNAILS:
+      console.log('seaPenReducer, text: ', action.query);
+      assert(!!action.query, 'input text is empty.');
+      console.log('seapenReducer, thumbnails: ', action.images);
+      return {
+        thumbnailsLoading: false,
+        query: action.query,
+        thumbnails: action.images,
+      };
+    default:
+      return state;
+  }
+}
+
 export const wallpaperReducers:
     {[K in keyof WallpaperState]: ReducerFunction<WallpaperState[K]>} = {
       backdrop: backdropReducer,
       loading: loadingReducer,
       local: localReducer,
+      attribution: attributionReducer,
       currentSelected: currentSelectedReducer,
       pendingSelected: pendingSelectedReducer,
       dailyRefresh: dailyRefreshReducer,
       fullscreen: fullscreenReducer,
       googlePhotos: googlePhotosReducer,
+      seaPen: seaPenReducer,
     };

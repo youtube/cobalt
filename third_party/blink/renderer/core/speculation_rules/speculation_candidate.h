@@ -6,6 +6,7 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_SPECULATION_RULES_SPECULATION_CANDIDATE_H_
 
 #include "third_party/blink/public/mojom/speculation_rules/speculation_rules.mojom-blink.h"
+#include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/heap/member.h"
 #include "third_party/blink/renderer/platform/weborigin/referrer.h"
@@ -21,7 +22,8 @@ class SpeculationRuleSet;
 // third_party/blink/public/mojom/speculation_rules/speculation_rules.mojom.
 // Largely equivalent to the mojom type, but stores some extra fields that
 // are used by DevTools.
-class SpeculationCandidate : public GarbageCollected<SpeculationCandidate> {
+class CORE_EXPORT SpeculationCandidate
+    : public GarbageCollected<SpeculationCandidate> {
  public:
   SpeculationCandidate(const KURL& url,
                        mojom::blink::SpeculationAction action,
@@ -45,10 +47,10 @@ class SpeculationCandidate : public GarbageCollected<SpeculationCandidate> {
     return target_hint_;
   }
   mojom::blink::SpeculationEagerness eagerness() const { return eagerness_; }
-  SpeculationRuleSet* rule_set() const { return rule_set_; }
+  SpeculationRuleSet* rule_set() const { return rule_set_.Get(); }
   // Only set for candidates derived from a document rule (is null for
   // candidates derived from list rules).
-  HTMLAnchorElement* anchor() const { return anchor_; }
+  HTMLAnchorElement* anchor() const { return anchor_.Get(); }
 
  private:
   const KURL url_;

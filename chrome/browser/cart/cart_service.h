@@ -25,7 +25,7 @@
 #include "components/history/core/browser/history_service.h"
 #include "components/history/core/browser/history_service_observer.h"
 #include "components/keyed_service/core/keyed_service.h"
-#include "components/optimization_guide/content/browser/optimization_guide_decider.h"
+#include "components/optimization_guide/core/optimization_guide_decider.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
@@ -264,8 +264,8 @@ class CartService : public history::HistoryServiceObserver,
   std::unique_ptr<CartDB> cart_db_;
   base::ScopedObservation<history::HistoryService, HistoryServiceObserver>
       history_service_observation_{this};
-  absl::optional<base::Value> domain_name_mapping_;
-  absl::optional<base::Value> domain_cart_url_mapping_;
+  base::Value::Dict domain_name_mapping_;
+  base::Value::Dict domain_cart_url_mapping_;
   std::unique_ptr<FetchDiscountWorker> fetch_discount_worker_;
   std::unique_ptr<FetchDiscountWorker> fetch_discount_worker_for_testing_;
   std::unique_ptr<CartDiscountLinkFetcher> discount_link_fetcher_;

@@ -5,6 +5,7 @@
 if (is_android) {
   import("//build/config/android/config.gni")
   import("//build/config/android/rules.gni")
+  import("//third_party/jni_zero/jni_zero.gni")
 }
 
 component("devices") {
@@ -19,11 +20,15 @@ component("devices") {
     "input_device.cc",
     "input_device.h",
     "input_device_event_observer.h",
+    "keyboard_device.cc",
+    "keyboard_device.h",
     "microphone_mute_switch_monitor.cc",
     "microphone_mute_switch_monitor.h",
     "stylus_state.h",
     "touch_device_transform.cc",
     "touch_device_transform.h",
+    "touchpad_device.cc",
+    "touchpad_device.h",
     "touchscreen_device.cc",
     "touchscreen_device.h",
   ]

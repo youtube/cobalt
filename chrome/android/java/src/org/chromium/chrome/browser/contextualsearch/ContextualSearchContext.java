@@ -10,9 +10,9 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.NativeClassQualifiedName;
-import org.chromium.base.annotations.NativeMethods;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.NativeClassQualifiedName;
+import org.jni_zero.NativeMethods;
 
 /**
  * Provides a context in which to search, and links to the native ContextualSearchContext.
@@ -59,16 +59,13 @@ public abstract class ContextualSearchContext {
 
     // The offset of the tapped word within the surrounding text or {@code INVALID_OFFSET} if not
     // yet analyzed.
-    private int mWordTappedStartOffset = INVALID_OFFSET;
 
     // The offset of the tap within the tapped word, or {@code INVALID_OFFSET} if not yet analyzed.
     private int mTapWithinWordOffset = INVALID_OFFSET;
 
     // Translation members.
-    @NonNull
-    private String mTargetLanguage = "";
-    @NonNull
-    private String mFluentLanguages = "";
+    private @NonNull String mTargetLanguage = "";
+    private @NonNull String mFluentLanguages = "";
 
     // The Related Searches stamp - non-empty when Related Searches are being requested.
     private String mRelatedSearchesStamp;

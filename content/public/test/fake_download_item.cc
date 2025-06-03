@@ -202,6 +202,10 @@ FakeDownloadItem::GetDownloadCreationType() const {
   return download::DownloadItem::DownloadCreationType::TYPE_ACTIVE_DOWNLOAD;
 }
 
+bool FakeDownloadItem::IsDlpManaged() const {
+  return false;
+}
+
 ::network::mojom::CredentialsMode FakeDownloadItem::GetCredentialsMode() const {
   return ::network::mojom::CredentialsMode::kInclude;
 }
@@ -358,11 +362,6 @@ int64_t FakeDownloadItem::GetBytesWasted() const {
 int32_t FakeDownloadItem::GetAutoResumeCount() const {
   NOTREACHED();
   return 0;
-}
-
-bool FakeDownloadItem::IsOffTheRecord() const {
-  NOTREACHED();
-  return false;
 }
 
 const GURL& FakeDownloadItem::GetReferrerUrl() const {
@@ -550,6 +549,10 @@ void FakeDownloadItem::SetOpened(bool opened) {
 }
 
 void FakeDownloadItem::SetDisplayName(const base::FilePath& name) {
+  NOTREACHED();
+}
+
+void FakeDownloadItem::SetIsDlpManaged(bool is_managed) {
   NOTREACHED();
 }
 

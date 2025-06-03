@@ -4,6 +4,7 @@
 
 package org.chromium.ui.permissions;
 
+import android.Manifest;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.pm.PackageManager.NameNotFoundException;
@@ -12,6 +13,7 @@ import android.os.Build;
 import android.text.TextUtils;
 
 import org.chromium.base.ContextUtils;
+import org.chromium.base.TimeUtils;
 
 import java.util.List;
 
@@ -115,8 +117,7 @@ public class PermissionPrefs {
      */
     public static long getAndroidNotificationPermissionRequestTimestamp() {
         String prefName = ANDROID_PERMISSION_REQUEST_TIMESTAMP_KEY_PREFIX
-                + PermissionPrefs.normalizePermissionName(
-                        PermissionConstants.NOTIFICATION_PERMISSION);
+                + PermissionPrefs.normalizePermissionName(Manifest.permission.POST_NOTIFICATIONS);
         SharedPreferences prefs = ContextUtils.getAppSharedPreferences();
         return prefs.getLong(prefName, 0);
     }
@@ -127,7 +128,7 @@ public class PermissionPrefs {
     static void onAndroidPermissionRequestUiShown(String[] permissions) {
         boolean isNotification = false;
         for (String permission : permissions) {
-            if (TextUtils.equals(permission, PermissionConstants.NOTIFICATION_PERMISSION)) {
+            if (TextUtils.equals(permission, Manifest.permission.POST_NOTIFICATIONS)) {
                 isNotification = true;
                 break;
             }
@@ -135,10 +136,9 @@ public class PermissionPrefs {
         if (!isNotification) return;
 
         String prefName = ANDROID_PERMISSION_REQUEST_TIMESTAMP_KEY_PREFIX
-                + PermissionPrefs.normalizePermissionName(
-                        PermissionConstants.NOTIFICATION_PERMISSION);
+                + PermissionPrefs.normalizePermissionName(Manifest.permission.POST_NOTIFICATIONS);
         SharedPreferences prefs = ContextUtils.getAppSharedPreferences();
-        prefs.edit().putLong(prefName, System.currentTimeMillis()).apply();
+        prefs.edit().putLong(prefName, TimeUtils.currentTimeMillis()).apply();
     }
 
     /**

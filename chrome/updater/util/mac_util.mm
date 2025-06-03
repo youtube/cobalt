@@ -4,21 +4,23 @@
 
 #import "chrome/updater/util/mac_util.h"
 
+#import <CoreFoundation/CoreFoundation.h>
+
+#include "base/apple/bridging.h"
+#include "base/apple/foundation_util.h"
 #include "base/command_line.h"
 #include "base/files/file.h"
 #include "base/files/file_enumerator.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/logging.h"
-#include "base/mac/foundation_util.h"
 #include "base/mac/mac_util.h"
-#include "base/mac/scoped_cftyperef.h"
 #include "base/process/launch.h"
 #include "base/strings/strcat.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/sys_string_conversions.h"
 #include "base/threading/scoped_blocking_call.h"
 #include "base/version.h"
-#include "chrome/common/mac/launchd.h"
 #include "chrome/updater/constants.h"
 #include "chrome/updater/updater_branding.h"
 #include "chrome/updater/updater_scope.h"
@@ -29,8 +31,6 @@
 
 namespace updater {
 namespace {
-
-constexpr int kLaunchctlExitCodeNoSuchProcess = 3;
 
 constexpr base::FilePath::CharType kZipExePath[] =
     FILE_PATH_LITERAL("/usr/bin/unzip");
@@ -44,14 +44,23 @@ base::FilePath ExecutableFolderPath() {
 
 }  // namespace
 
+std::string GetDomain(UpdaterScope scope) {
+  switch (scope) {
+    case UpdaterScope::kSystem:
+      return "system";
+    case UpdaterScope::kUser:
+      return base::StrCat({"gui/", base::NumberToString(geteuid())});
+  }
+}
+
 absl::optional<base::FilePath> GetLibraryFolderPath(UpdaterScope scope) {
   switch (scope) {
     case UpdaterScope::kUser:
-      return base::mac::GetUserLibraryPath();
+      return base::apple::GetUserLibraryPath();
     case UpdaterScope::kSystem: {
       base::FilePath local_library_path;
-      if (!base::mac::GetLocalDirectory(NSLibraryDirectory,
-                                        &local_library_path)) {
+      if (!base::apple::GetLocalDirectory(NSLibraryDirectory,
+                                          &local_library_path)) {
         VLOG(1) << "Could not get local library path";
         return absl::nullopt;
       }
@@ -65,12 +74,15 @@ absl::optional<base::FilePath> GetApplicationSupportDirectory(
   base::FilePath path;
   switch (scope) {
     case UpdaterScope::kUser:
-      if (base::mac::GetUserDirectory(NSApplicationSupportDirectory, &path))
+      if (base::apple::GetUserDirectory(NSApplicationSupportDirectory, &path)) {
         return path;
+      }
       break;
     case UpdaterScope::kSystem:
-      if (base::mac::GetLocalDirectory(NSApplicationSupportDirectory, &path))
+      if (base::apple::GetLocalDirectory(NSApplicationSupportDirectory,
+                                         &path)) {
         return path;
+      }
       break;
   }
 
@@ -93,35 +105,32 @@ absl::optional<base::FilePath> GetKSAdminPath(UpdaterScope scope) {
   return absl::make_optional(ksadmin_path);
 }
 
-base::ScopedCFTypeRef<CFStringRef> CopyWakeLaunchdName(UpdaterScope scope) {
-  return base::SysUTF8ToCFStringRef(
-      IsSystemInstall(scope) ? MAC_BUNDLE_IDENTIFIER_STRING ".wake.system"
-                             : MAC_BUNDLE_IDENTIFIER_STRING ".wake");
+std::string GetWakeLaunchdName(UpdaterScope scope) {
+  return IsSystemInstall(scope) ? MAC_BUNDLE_IDENTIFIER_STRING ".wake.system"
+                                : MAC_BUNDLE_IDENTIFIER_STRING ".wake";
 }
 
-bool RemoveJobFromLaunchd(UpdaterScope scope,
-                          Launchd::Domain domain,
-                          Launchd::Type type,
-                          base::ScopedCFTypeRef<CFStringRef> name) {
+bool RemoveWakeJobFromLaunchd(UpdaterScope scope) {
+  const absl::optional<base::FilePath> path = GetWakeTaskPlistPath(scope);
+  if (!path) {
+    return false;
+  }
+
   // This may block while deleting the launchd plist file.
   base::ScopedBlockingCall scoped_blocking_call(FROM_HERE,
                                                 base::BlockingType::MAY_BLOCK);
 
-  if (Launchd::GetInstance()->PlistExists(domain, type, name)) {
-    if (!Launchd::GetInstance()->DeletePlist(domain, type, name))
-      return false;
-  }
-
   base::CommandLine command_line(base::FilePath("/bin/launchctl"));
-  command_line.AppendArg("remove");
-  command_line.AppendArg(base::SysCFStringRefToUTF8(name));
-  if (IsSystemInstall(scope))
-    command_line = MakeElevated(command_line);
-
+  command_line.AppendArg("bootout");
+  command_line.AppendArg(GetDomain(scope));
+  command_line.AppendArgPath(*path);
   int exit_code = -1;
   std::string output;
-  base::GetAppOutputWithExitCode(command_line, &output, &exit_code);
-  return exit_code == 0 || exit_code == kLaunchctlExitCodeNoSuchProcess;
+  if (base::GetAppOutputWithExitCode(command_line, &output, &exit_code) &&
+      exit_code != 0) {
+    VLOG(2) << "launchctl bootout exited " << exit_code << ": " << output;
+  }
+  return base::DeleteFile(*path);
 }
 
 bool UnzipWithExe(const base::FilePath& src_path,
@@ -218,6 +227,16 @@ absl::optional<base::FilePath> GetInstallDirectory(UpdaterScope scope) {
               : absl::nullopt;
 }
 
+absl::optional<base::FilePath> GetCacheBaseDirectory(UpdaterScope scope) {
+  base::FilePath caches_path;
+  if (!base::apple::GetLocalDirectory(NSCachesDirectory, &caches_path)) {
+    VLOG(1) << "Could not get Caches path";
+    return absl::nullopt;
+  }
+  return absl::optional<base::FilePath>(
+      caches_path.AppendASCII(MAC_BUNDLE_IDENTIFIER_STRING));
+}
+
 absl::optional<base::FilePath> GetUpdateServiceLauncherPath(
     UpdaterScope scope) {
   absl::optional<base::FilePath> install_dir = GetInstallDirectory(scope);
@@ -243,6 +262,51 @@ bool RemoveQuarantineAttributes(const base::FilePath& updater_bundle_path) {
     success = base::mac::RemoveQuarantineAttribute(name) && success;
   }
   return success;
+}
+
+absl::optional<base::FilePath> GetWakeTaskPlistPath(UpdaterScope scope) {
+  @autoreleasepool {
+    NSArray* library_paths = NSSearchPathForDirectoriesInDomains(
+        NSLibraryDirectory,
+        IsSystemInstall(scope) ? NSLocalDomainMask : NSUserDomainMask, YES);
+    if ([library_paths count] < 1) {
+      return absl::nullopt;
+    }
+    return base::apple::NSStringToFilePath(library_paths[0])
+        .Append(IsSystemInstall(scope) ? "LaunchDaemons" : "LaunchAgents")
+        .AppendASCII(base::StrCat({GetWakeLaunchdName(scope), ".plist"}));
+  }
+}
+
+absl::optional<std::string> ReadValueFromPlist(const base::FilePath& path,
+                                               const std::string& key) {
+  if (key.empty() || path.empty()) {
+    return absl::nullopt;
+  }
+  NSData* data;
+  {
+    base::ScopedBlockingCall scoped_blocking_call(
+        FROM_HERE, base::BlockingType::WILL_BLOCK);
+    data =
+        [NSData dataWithContentsOfFile:base::apple::FilePathToNSString(path)];
+  }
+  if ([data length] == 0) {
+    return absl::nullopt;
+  }
+  NSDictionary* all_keys = base::apple::ObjCCastStrict<NSDictionary>(
+      [NSPropertyListSerialization propertyListWithData:data
+                                                options:NSPropertyListImmutable
+                                                 format:nil
+                                                  error:nil]);
+  if (all_keys == nil) {
+    return absl::nullopt;
+  }
+  CFStringRef value = base::apple::GetValueFromDictionary<CFStringRef>(
+      base::apple::NSToCFPtrCast(all_keys), base::SysUTF8ToCFStringRef(key));
+  if (value == nullptr) {
+    return absl::nullopt;
+  }
+  return base::SysCFStringRefToUTF8(value);
 }
 
 }  // namespace updater

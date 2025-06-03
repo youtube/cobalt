@@ -4,12 +4,8 @@
 
 #import "ios/chrome/browser/infobars/overlays/browser_agent/interaction_handlers/test/mock_autofill_save_update_address_profile_delegate_ios.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 #import "base/functional/bind.h"
-#import "base/guid.h"
+#import "base/uuid.h"
 #import "components/autofill/core/browser/autofill_test_utils.h"
 
 MockAutofillSaveUpdateAddressProfileDelegateIOS::
@@ -32,8 +28,7 @@ MockAutofillSaveUpdateAddressProfileDelegateIOS::
 #pragma mark - MockAutofillSaveUpdateAddressProfileDelegateIOSFactory
 
 MockAutofillSaveUpdateAddressProfileDelegateIOSFactory::
-    MockAutofillSaveUpdateAddressProfileDelegateIOSFactory()
-    : profile_(base::GenerateGUID(), "https://www.example.com/") {}
+    MockAutofillSaveUpdateAddressProfileDelegateIOSFactory() = default;
 
 MockAutofillSaveUpdateAddressProfileDelegateIOSFactory::
     ~MockAutofillSaveUpdateAddressProfileDelegateIOSFactory() = default;

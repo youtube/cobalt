@@ -27,7 +27,6 @@ class ChromeWebClient : public web::WebClient {
   void AddAdditionalSchemes(Schemes* schemes) const override;
   std::string GetApplicationLocale() const override;
   bool IsAppSpecificURL(const GURL& url) const override;
-  std::u16string GetPluginNotSupportedText() const override;
   std::string GetUserAgent(web::UserAgentType type) const override;
   std::u16string GetLocalizedString(int message_id) const override;
   base::StringPiece GetDataResource(
@@ -49,25 +48,24 @@ class ChromeWebClient : public web::WebClient {
                         int64_t navigation_id,
                         base::OnceCallback<void(NSString*)> callback) override;
   UIView* GetWindowedContainer() override;
+  bool EnableFullscreenAPI() const override;
   bool EnableLongPressUIContextMenu() const override;
-  bool EnableWebInspector() const override;
+  bool EnableWebInspector(web::BrowserState* browser_state) const override;
   web::UserAgentType GetDefaultUserAgent(web::WebState* web_state,
                                          const GURL& url) const override;
   void LogDefaultUserAgent(web::WebState* web_state,
                            const GURL& url) const override;
-  bool RestoreSessionFromCache(web::WebState* web_state) const override;
+  NSData* FetchSessionFromCache(web::WebState* web_state) const override;
   void CleanupNativeRestoreURLs(web::WebState* web_state) const override;
   void WillDisplayMediaCapturePermissionPrompt(
       web::WebState* web_state) const override;
   bool IsPointingToSameDocument(const GURL& url1,
                                 const GURL& url2) const override;
-  id<CRWFindSession> CreateFindSessionForWebState(
-      web::WebState* web_state) const override API_AVAILABLE(ios(16));
-  void StartTextSearchInWebState(web::WebState* web_state) override;
-  void StopTextSearchInWebState(web::WebState* web_state) override;
   bool IsMixedContentAutoupgradeEnabled(
       web::BrowserState* browser_state) const override;
   bool IsBrowserLockdownModeEnabled(web::BrowserState* browser_state) override;
+  void SetOSLockdownModeEnabled(web::BrowserState* browser_state,
+                                bool enabled) override;
 
  private:
   // Reference to a view that is attached to a window.

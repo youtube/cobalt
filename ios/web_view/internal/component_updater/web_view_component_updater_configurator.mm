@@ -12,6 +12,8 @@
 #import <vector>
 
 #import "base/containers/flat_map.h"
+#import "base/files/file_path.h"
+#import "base/path_service.h"
 #import "base/version.h"
 #import "components/component_updater/component_updater_command_line_config_policy.h"
 #import "components/component_updater/configurator_impl.h"
@@ -30,17 +32,13 @@
 #import "services/network/public/cpp/shared_url_loader_factory.h"
 #import "third_party/abseil-cpp/absl/types/optional.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace ios_web_view {
 
 namespace {
 
 // A //ios/web_view specific configurator.
 // See similar implementation at
-// //ios/chrome/browser/component_updater/ios_component_updater_configurator.mm
+// //ios/chrome/browser/component_updater/model/ios_component_updater_configurator.mm
 class WebViewConfigurator : public update_client::Configurator {
  public:
   explicit WebViewConfigurator(const base::CommandLine* cmdline);
@@ -75,6 +73,7 @@ class WebViewConfigurator : public update_client::Configurator {
   GetProtocolHandlerFactory() const override;
   absl::optional<bool> IsMachineExternallyManaged() const override;
   update_client::UpdaterStateProvider GetUpdaterStateProvider() const override;
+  absl::optional<base::FilePath> GetCrxCachePath() const override;
 
  private:
   friend class base::RefCountedThreadSafe<WebViewConfigurator>;
@@ -227,6 +226,14 @@ absl::optional<bool> WebViewConfigurator::IsMachineExternallyManaged() const {
 update_client::UpdaterStateProvider
 WebViewConfigurator::GetUpdaterStateProvider() const {
   return configurator_impl_.GetUpdaterStateProvider();
+}
+
+absl::optional<base::FilePath> WebViewConfigurator::GetCrxCachePath() const {
+  base::FilePath path;
+  if (!base::PathService::Get(base::DIR_CACHE, &path)) {
+    return absl::nullopt;
+  }
+  return path.Append(FILE_PATH_LITERAL("ios_webview_crx_cache"));
 }
 
 }  // namespace

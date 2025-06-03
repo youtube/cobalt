@@ -22,10 +22,6 @@
 #import "testing/platform_test.h"
 #import "url/scheme_host_port.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace web {
 namespace wk_navigation_util {
 
@@ -336,18 +332,6 @@ TEST_F(WKNavigationUtilTest, IsNotRestoreSessionUrl) {
   EXPECT_FALSE(IsRestoreSessionUrl([NSURL URLWithString:@"file://somefile"]));
   EXPECT_FALSE(IsRestoreSessionUrl(GURL("http://www.1.com")));
   EXPECT_FALSE(IsRestoreSessionUrl([NSURL URLWithString:@"http://www.1.com"]));
-}
-
-// Tests that CreateRedirectUrl and ExtractTargetURL used back-to-back is an
-// identity transformation.
-TEST_F(WKNavigationUtilTest, CreateAndExtractTargetURL) {
-  GURL target_url = GURL("http://www.1.com?query=special%26chars");
-  GURL url = CreateRedirectUrl(target_url);
-  ASSERT_TRUE(url.SchemeIsFile());
-
-  GURL extracted_url;
-  ASSERT_TRUE(ExtractTargetURL(url, &extracted_url));
-  EXPECT_EQ(target_url, extracted_url);
 }
 
 // Tests that app specific urls and non-placeholder about: urls do not need a

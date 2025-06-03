@@ -8,10 +8,10 @@
 
 #include <vector>
 
+#import "base/apple/foundation_util.h"
+#import "base/apple/scoped_objc_class_swizzler.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
-#import "base/mac/foundation_util.h"
-#import "base/mac/scoped_objc_class_swizzler.h"
 #include "base/task/current_thread.h"
 #import "base/task/single_thread_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
@@ -233,8 +233,8 @@ class MockNSEventClassMethods {
                                         [FakeNSEventTestingDonor class],
                                         @selector(pressedMouseButtons)) {}
 
-  base::mac::ScopedObjCClassSwizzler mouse_location_swizzler_;
-  base::mac::ScopedObjCClassSwizzler pressed_mouse_buttons_swizzler_;
+  base::apple::ScopedObjCClassSwizzler mouse_location_swizzler_;
+  base::apple::ScopedObjCClassSwizzler pressed_mouse_buttons_swizzler_;
 };
 
 }  // namespace
@@ -263,15 +263,19 @@ bool SendKeyPress(gfx::NativeWindow window,
                                     base::OnceClosure());
 }
 
-// Win and Linux implement a SendKeyPress() this as a
-// SendKeyPressAndRelease(), so we should as well (despite the name).
+// The implementation in ui_controls_aura.cc sends key press *and* release, so
+// this implementation does the same.
 bool SendKeyPressNotifyWhenDone(gfx::NativeWindow window,
                                 ui::KeyboardCode key,
                                 bool control,
                                 bool shift,
                                 bool alt,
                                 bool command,
-                                base::OnceClosure task) {
+                                base::OnceClosure task,
+                                KeyEventType wait_for) {
+  // This doesn't time out if `window` is deleted before the key release events
+  // are dispatched, so it's fine to ignore `wait_for` and always wait for key
+  // release events.
   CHECK(g_ui_controls_enabled);
   return SendKeyEventsNotifyWhenDone(
       window, key, kKeyPress | kKeyRelease, std::move(task),

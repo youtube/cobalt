@@ -7,10 +7,9 @@
 #include <sstream>
 
 #include "base/check.h"
-#include "base/feature_list.h"
+#include "base/files/safe_base_name.h"
 #include "base/strings/escape.h"
 #include "base/strings/string_util.h"
-#include "storage/browser/file_system/file_system_features.h"
 #include "storage/browser/file_system/file_system_util.h"
 #include "storage/common/file_system/file_system_types.h"
 #include "storage/common/file_system/file_system_util.h"
@@ -29,15 +28,12 @@ bool AreSameStorageKey(const FileSystemURL& a, const FileSystemURL& b) {
   // systems. This leads to unexpected behavior when comparing two non-sandboxed
   // FileSystemURLs which differ only in the nonce of their default-constructed
   // StorageKey.
-  return base::FeatureList::IsEnabled(
-             features::kFileSystemURLComparatorsTreatOpaqueOriginAsNoOrigin)
-             ? a.storage_key() == b.storage_key() ||
-                   (a.type() == b.type() &&
-                    (a.type() == storage::kFileSystemTypeExternal ||
-                     a.type() == storage::kFileSystemTypeLocal) &&
-                    a.storage_key().origin().opaque() &&
-                    b.storage_key().origin().opaque())
-             : a.storage_key() == b.storage_key();
+  return a.storage_key() == b.storage_key() ||
+         (a.type() == b.type() &&
+          (a.type() == storage::kFileSystemTypeExternal ||
+           a.type() == storage::kFileSystemTypeLocal) &&
+          a.storage_key().origin().opaque() &&
+          b.storage_key().origin().opaque());
 }
 
 }  // namespace
@@ -59,18 +55,41 @@ FileSystemURL& FileSystemURL::operator=(FileSystemURL&&) noexcept = default;
 
 FileSystemURL::~FileSystemURL() = default;
 
+FileSystemURL FileSystemURL::CreateSibling(
+    const base::SafeBaseName& sibling_name) const {
+  const base::FilePath& new_base_name = sibling_name.path();
+  if (!is_valid_ || new_base_name.empty()) {
+    return FileSystemURL();
+  }
+
+  const base::FilePath old_base_name = VirtualPath::BaseName(virtual_path_);
+  if (!path_.empty() && (path_.BaseName() != old_base_name)) {
+    return FileSystemURL();
+  }
+
+  FileSystemURL sibling(*this);
+  sibling.virtual_path_ =
+      VirtualPath::DirName(virtual_path_).Append(new_base_name);
+  if (!path_.empty()) {
+    sibling.path_ = path_.DirName().Append(new_base_name);
+  }
+  return sibling;
+}
+
 // static
 FileSystemURL FileSystemURL::CreateForTest(const GURL& url) {
   return FileSystemURL(
       url, blink::StorageKey::CreateFirstParty(url::Origin::Create(url)));
 }
 
+// static
 FileSystemURL FileSystemURL::CreateForTest(const blink::StorageKey& storage_key,
                                            FileSystemType mount_type,
                                            const base::FilePath& virtual_path) {
   return FileSystemURL(storage_key, mount_type, virtual_path);
 }
 
+// static
 FileSystemURL FileSystemURL::CreateForTest(
     const blink::StorageKey& storage_key,
     FileSystemType mount_type,
@@ -83,6 +102,51 @@ FileSystemURL FileSystemURL::CreateForTest(
   return FileSystemURL(storage_key, mount_type, virtual_path,
                        mount_filesystem_id, cracked_type, cracked_path,
                        filesystem_id, mount_option);
+}
+
+// static
+bool FileSystemURL::TypeImpliesPathIsReal(FileSystemType type) {
+  switch (type) {
+    // Public enum values, also exposed to JavaScript.
+    case kFileSystemTypeTemporary:
+    case kFileSystemTypePersistent:
+    case kFileSystemTypeIsolated:
+    case kFileSystemTypeExternal:
+      break;
+
+      // Everything else is a private (also known as internal) enum value.
+
+    case kFileSystemInternalTypeEnumStart:
+    case kFileSystemInternalTypeEnumEnd:
+      NOTREACHED();
+      break;
+
+    case kFileSystemTypeLocal:
+    case kFileSystemTypeLocalMedia:
+    case kFileSystemTypeLocalForPlatformApp:
+    case kFileSystemTypeDriveFs:
+    case kFileSystemTypeSmbFs:
+    case kFileSystemTypeFuseBox:
+      return true;
+
+    case kFileSystemTypeUnknown:
+    case kFileSystemTypeTest:
+    case kFileSystemTypeDragged:
+    case kFileSystemTypeDeviceMedia:
+    case kFileSystemTypeSyncable:
+    case kFileSystemTypeSyncableForInternalSync:
+    case kFileSystemTypeForTransientFile:
+    case kFileSystemTypeProvided:
+    case kFileSystemTypeDeviceMediaAsFileStorage:
+    case kFileSystemTypeArcContent:
+    case kFileSystemTypeArcDocumentsProvider:
+      break;
+
+      // We don't use a "default:" case. Whenever `FileSystemType` gains a
+      // new enum value, raise a compiler error (with -Werror,-Wswitch) unless
+      // this switch statement is also updated.
+  }
+  return false;
 }
 
 FileSystemURL::FileSystemURL(const GURL& url,
@@ -203,16 +267,15 @@ BucketLocator FileSystemURL::GetBucket() const {
 }
 
 bool FileSystemURL::IsParent(const FileSystemURL& child) const {
-  return IsInSameFileSystem(child) && path().IsParent(child.path());
+  return IsInSameFileSystem(child) &&
+         (path().IsParent(child.path()) ||
+          (VirtualPath::IsRootPath(path()) &&
+           !VirtualPath::IsRootPath(child.path())));
 }
 
 bool FileSystemURL::IsInSameFileSystem(const FileSystemURL& other) const {
   // Invalid FileSystemURLs should never be considered of the same file system.
-  bool is_maybe_valid =
-      !base::FeatureList::IsEnabled(
-          features::kFileSystemURLComparatorsTreatOpaqueOriginAsNoOrigin) ||
-      (is_valid() && other.is_valid());
-  return AreSameStorageKey(*this, other) && is_maybe_valid &&
+  return AreSameStorageKey(*this, other) && is_valid() && other.is_valid() &&
          type() == other.type() && filesystem_id() == other.filesystem_id() &&
          bucket() == other.bucket();
 }

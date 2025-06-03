@@ -14,6 +14,7 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
+#include "base/types/expected.h"
 #include "base/values.h"
 #include "build/chromeos_buildflags.h"
 #include "chrome/browser/ash/input_method/assistive_window_properties.h"
@@ -23,6 +24,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_observer.h"
 #include "components/prefs/pref_change_registrar.h"
+#include "extensions/common/extension_id.h"
 #include "ui/base/ime/ash/input_method_descriptor.h"
 #include "ui/base/ime/ash/input_method_manager.h"
 #include "ui/base/ime/ash/text_input_method.h"
@@ -112,6 +114,11 @@ class InputMethodEngine : virtual public TextInputMethod,
     int total_candidates = 0;
   };
 
+  enum class Error {
+    kInputMethodNotActive,
+    kIncorrectContextId,
+  };
+
   InputMethodEngine();
   InputMethodEngine(const InputMethodEngine&) = delete;
   InputMethodEngine& operator=(const InputMethodEngine&) = delete;
@@ -151,6 +158,16 @@ class InputMethodEngine : virtual public TextInputMethod,
                              int offset,
                              size_t number_of_chars,
                              std::string* error);
+
+  // Deletes any active composition, and the current selection plus the
+  // specified number of char16 values before and after the selection, and
+  // replaces it with |replacement_string|.
+  // Places the cursor at the end of |replacement_string|.
+  base::expected<void, Error> ReplaceSurroundingText(
+      int context_id,
+      int length_before_selection,
+      int length_after_selection,
+      base::StringPiece16 replacement_text);
 
   // Commit the text currently being composed to the composition.
   // Fails if the context is not focused.
@@ -251,6 +268,7 @@ class InputMethodEngine : virtual public TextInputMethod,
   bool AcceptSuggestionCandidate(int context_id,
                                  const std::u16string& candidate,
                                  size_t delete_previous_utf16_len,
+                                 bool use_replace_surrounding_text,
                                  std::string* error) override;
   bool SetAssistiveWindowProperties(
       int context_id,
@@ -359,7 +377,7 @@ class InputMethodEngine : virtual public TextInputMethod,
   std::string active_component_id_;
 
   // The IME extension ID.
-  std::string extension_id_;
+  extensions::ExtensionId extension_id_;
 
   raw_ptr<Profile> profile_;
 

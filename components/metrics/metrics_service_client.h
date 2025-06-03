@@ -11,6 +11,7 @@
 
 #include "base/callback_list.h"
 #include "base/functional/callback.h"
+#include "base/metrics/field_trial_params.h"
 #include "base/time/time.h"
 #include "components/metrics/metrics_log_store.h"
 #include "components/metrics/metrics_log_uploader.h"
@@ -35,6 +36,36 @@ namespace metrics {
 class MetricsLogUploader;
 class MetricsService;
 
+namespace structured {
+class StructuredMetricsService;
+}
+
+// The minimum number bytes of the queue to be persisted before logs are
+// dropped. This will be applied to both log queues (initial/ongoing). This
+// ensures that a reasonable amount of history will be stored even if there is a
+// long series of very small logs.
+//
+// Refer to //components/metrics/unsent_log_store.h for more details on when
+// logs are dropped.
+extern const base::FeatureParam<int> kMinLogQueueBytes;
+
+// The minimum number of ongoing logs to persist in the queue before logs are
+// dropped.
+//
+// Note that each ongoing log may be pretty large, since "initial" logs must
+// first be sent before any ongoing logs are transmitted. "Initial" logs will
+// not be sent if a user is offline. As a result, the current ongoing log will
+// accumulate until the "initial" log can be transmitted. We don't want to save
+// too many of these mega-logs (this should be capped by kMaxLogQueueBytes).
+//
+// A "standard shutdown" will create a small log, including just the data that
+// was not yet been transmitted, and that is normal (to have exactly one
+// ongoing_log_ at startup).
+//
+// Refer to //components/metrics/unsent_log_store.h for more details on when
+// logs are dropped.
+extern const base::FeatureParam<int> kMinOngoingLogQueueCount;
+
 // An abstraction of operations that depend on the embedder's (e.g. Chrome)
 // environment.
 class MetricsServiceClient {
@@ -58,6 +89,10 @@ class MetricsServiceClient {
 
   // Returns the UkmService instance that this client is associated with.
   virtual ukm::UkmService* GetUkmService();
+
+  // Returns the StructuredMetricsService instance that this client is
+  // associated with.
+  virtual structured::StructuredMetricsService* GetStructuredMetricsService();
 
   // Returns true if metrics should be uploaded for the given |user_id|, which
   // corresponds to the |user_id| field in ChromeUserMetricsExtension.
@@ -96,6 +131,11 @@ class MetricsServiceClient {
   // |serialized_environment| are consumed by the call, but the caller maintains
   // ownership.
   virtual void OnEnvironmentUpdate(std::string* serialized_environment) {}
+
+  // Collects child process histograms and merges them into StatisticsRecorder.
+  // Called when child process histograms need to be merged ASAP. For example,
+  // on Android, when the browser was backgrounded.
+  virtual void MergeSubprocessHistograms() {}
 
   // Called prior to a metrics log being closed, allowing the client to collect
   // extra histograms that will go in that log. Asynchronous API - the client

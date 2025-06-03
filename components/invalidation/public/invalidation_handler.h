@@ -13,7 +13,7 @@
 
 namespace invalidation {
 
-class TopicInvalidationMap;
+class Invalidation;
 
 class INVALIDATION_EXPORT InvalidationHandler {
  public:
@@ -25,19 +25,13 @@ class INVALIDATION_EXPORT InvalidationHandler {
   // Called when the invalidator state changes.
   virtual void OnInvalidatorStateChange(InvalidatorState state) = 0;
 
-  // Called when a invalidation is received. Note that this may be called
+  // Called when an invalidation is received. Note that this may be called
   // regardless of the current invalidator state.
-  virtual void OnIncomingInvalidation(
-      const TopicInvalidationMap& invalidation_map) = 0;
+  virtual void OnIncomingInvalidation(const Invalidation& invalidation) = 0;
 
   // Returned value must be unique for the handlers using the same invalidation
   // service.
   virtual std::string GetOwnerName() const = 0;
-
-  // Called on change of |client_id|. Client id is used to identify the
-  // the invalidator. The id is only relevant to some handlers, e.g. Sync
-  // where the reflection blocking logic is based on it.
-  virtual void OnInvalidatorClientIdChange(const std::string& client_id);
 
   virtual bool IsPublicTopic(const Topic& topic) const;
 };

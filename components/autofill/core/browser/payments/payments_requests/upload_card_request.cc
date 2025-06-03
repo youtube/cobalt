@@ -20,14 +20,8 @@ const char kUploadCardRequestPath[] =
     "?s7e_suffix=chromewallet";
 const char kUploadCardRequestFormat[] =
     "requestContentType=application/json; charset=utf-8&request=%s"
-    "&s7e_1_pan=%s&s7e_13_cvc=%s";
-const char kUploadCardRequestFormatWithoutCvc[] =
-    "requestContentType=application/json; charset=utf-8&request=%s"
-    "&s7e_1_pan=%s";
-const char kUploadCardRequestFormatUsingAlternateType[] =
-    "requestContentType=application/json; charset=utf-8&request=%s"
     "&s7e_21_pan=%s&s7e_13_cvc=%s";
-const char kUploadCardRequestFormatWithoutCvcUsingAlternateType[] =
+const char kUploadCardRequestFormatWithoutCvc[] =
     "requestContentType=application/json; charset=utf-8&request=%s"
     "&s7e_21_pan=%s";
 }  // namespace
@@ -54,12 +48,7 @@ std::string UploadCardRequest::GetRequestContentType() {
 
 std::string UploadCardRequest::GetRequestContent() {
   base::Value::Dict request_dict;
-  if (base::FeatureList::IsEnabled(
-          features::kAutofillUpstreamUseAlternateSecureDataType)) {
-    request_dict.Set("pan", "__param:s7e_21_pan");
-  } else {
-    request_dict.Set("encrypted_pan", "__param:s7e_1_pan");
-  }
+  request_dict.Set("pan", "__param:s7e_21_pan");
   if (!request_details_.cvc.empty())
     request_dict.Set("encrypted_cvc", "__param:s7e_13_cvc");
   request_dict.Set("risk_data_encoded",
@@ -68,7 +57,7 @@ std::string UploadCardRequest::GetRequestContent() {
   const std::string& app_locale = request_details_.app_locale;
   base::Value::Dict context;
   context.Set("language_code", app_locale);
-  context.Set("billable_service", kUploadCardBillableServiceNumber);
+  context.Set("billable_service", kUploadPaymentMethodBillableServiceNumber);
   if (request_details_.billing_customer_number != 0) {
     context.Set("customer_context",
                 BuildCustomerContextDictionary(
@@ -112,18 +101,12 @@ std::string UploadCardRequest::GetRequestContent() {
   std::string request_content;
   if (request_details_.cvc.empty()) {
     request_content = base::StringPrintf(
-        base::FeatureList::IsEnabled(
-            features::kAutofillUpstreamUseAlternateSecureDataType)
-            ? kUploadCardRequestFormatWithoutCvcUsingAlternateType
-            : kUploadCardRequestFormatWithoutCvc,
+        kUploadCardRequestFormatWithoutCvc,
         base::EscapeUrlEncodedData(json_request, true).c_str(),
         base::EscapeUrlEncodedData(base::UTF16ToASCII(pan), true).c_str());
   } else {
     request_content = base::StringPrintf(
-        base::FeatureList::IsEnabled(
-            features::kAutofillUpstreamUseAlternateSecureDataType)
-            ? kUploadCardRequestFormatUsingAlternateType
-            : kUploadCardRequestFormat,
+        kUploadCardRequestFormat,
         base::EscapeUrlEncodedData(json_request, true).c_str(),
         base::EscapeUrlEncodedData(base::UTF16ToASCII(pan), true).c_str(),
         base::EscapeUrlEncodedData(base::UTF16ToASCII(request_details_.cvc),
@@ -157,18 +140,18 @@ void UploadCardRequest::ParseResponse(const base::Value::Dict& response) {
     if (virtual_card_enrollment_status) {
       if (*virtual_card_enrollment_status == "ENROLLED") {
         upload_card_response_details_.virtual_card_enrollment_state =
-            CreditCard::VirtualCardEnrollmentState::ENROLLED;
+            CreditCard::VirtualCardEnrollmentState::kEnrolled;
       } else if (*virtual_card_enrollment_status == "ENROLLMENT_ELIGIBLE") {
         upload_card_response_details_.virtual_card_enrollment_state =
-            CreditCard::VirtualCardEnrollmentState::UNENROLLED_AND_ELIGIBLE;
+            CreditCard::VirtualCardEnrollmentState::kUnenrolledAndEligible;
       } else {
         upload_card_response_details_.virtual_card_enrollment_state =
-            CreditCard::VirtualCardEnrollmentState::UNENROLLED_AND_NOT_ELIGIBLE;
+            CreditCard::VirtualCardEnrollmentState::kUnenrolledAndNotEligible;
       }
     }
 
     if (upload_card_response_details_.virtual_card_enrollment_state ==
-        CreditCard::VirtualCardEnrollmentState::UNENROLLED_AND_ELIGIBLE) {
+        CreditCard::VirtualCardEnrollmentState::kUnenrolledAndEligible) {
       const auto* virtual_card_enrollment_data =
           virtual_card_metadata->FindDict("virtual_card_enrollment_data");
       if (virtual_card_enrollment_data) {

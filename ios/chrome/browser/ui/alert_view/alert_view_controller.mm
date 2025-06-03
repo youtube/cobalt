@@ -18,10 +18,6 @@
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace {
 
 // Properties of the alert shadow.
@@ -133,28 +129,6 @@ void AddSeparatorToStackView(UIStackView* stackView) {
 
 // Returns a GrayHighlightButton to be added to the alert for `action`.
 GrayHighlightButton* GetButtonForAction(AlertAction* action) {
-  // TODO(crbug.com/1418068): Simplify after minimum version required is >=
-  // iOS 15.
-  GrayHighlightButton* button = nil;
-  if (base::ios::IsRunningOnIOS15OrLater() &&
-      IsUIButtonConfigurationEnabled()) {
-    if (@available(iOS 15, *)) {
-      UIButtonConfiguration* buttonConfiguration =
-          [UIButtonConfiguration plainButtonConfiguration];
-      buttonConfiguration.contentInsets =
-          NSDirectionalEdgeInsetsMake(kButtonInsetTop, kButtonInsetLeading,
-                                      kButtonInsetBottom, kButtonInsetTrailing);
-      button = [GrayHighlightButton buttonWithConfiguration:buttonConfiguration
-                                              primaryAction:nil];
-    }
-  } else {
-    button = [[GrayHighlightButton alloc] init];
-    UIEdgeInsets contentEdgeInsets =
-        UIEdgeInsetsMake(kButtonInsetTop, kButtonInsetLeading,
-                         kButtonInsetBottom, kButtonInsetTrailing);
-    SetContentEdgeInsets(button, contentEdgeInsets);
-  }
-
   UIFont* font = nil;
   UIColor* textColor = nil;
   if (action.style == UIAlertActionStyleDefault) {
@@ -167,11 +141,33 @@ GrayHighlightButton* GetButtonForAction(AlertAction* action) {
     font = [UIFont preferredFontForTextStyle:UIFontTextStyleBody];
     textColor = [UIColor colorNamed:kRedColor];
   }
-  button.titleLabel.font = font;
-  button.titleLabel.adjustsFontForContentSizeCategory = YES;
 
-  [button setTitleColor:textColor forState:UIControlStateNormal];
-  [button setTitle:action.title forState:UIControlStateNormal];
+  GrayHighlightButton* button = nil;
+  if (IsUIButtonConfigurationEnabled()) {
+    UIButtonConfiguration* buttonConfiguration =
+        [UIButtonConfiguration plainButtonConfiguration];
+    buttonConfiguration.contentInsets =
+        NSDirectionalEdgeInsetsMake(kButtonInsetTop, kButtonInsetLeading,
+                                    kButtonInsetBottom, kButtonInsetTrailing);
+    NSDictionary* attributes = @{NSFontAttributeName : font};
+    NSAttributedString* title =
+        [[NSAttributedString alloc] initWithString:action.title
+                                        attributes:attributes];
+    buttonConfiguration.attributedTitle = title;
+    buttonConfiguration.baseForegroundColor = textColor;
+    button = [GrayHighlightButton buttonWithConfiguration:buttonConfiguration
+                                            primaryAction:nil];
+  } else {
+    button = [[GrayHighlightButton alloc] init];
+    UIEdgeInsets contentEdgeInsets =
+        UIEdgeInsetsMake(kButtonInsetTop, kButtonInsetLeading,
+                         kButtonInsetBottom, kButtonInsetTrailing);
+    SetContentEdgeInsets(button, contentEdgeInsets);
+    button.titleLabel.font = font;
+    button.titleLabel.adjustsFontForContentSizeCategory = YES;
+    [button setTitleColor:textColor forState:UIControlStateNormal];
+    [button setTitle:action.title forState:UIControlStateNormal];
+  }
 
   button.contentHorizontalAlignment = UIControlContentHorizontalAlignmentCenter;
   button.translatesAutoresizingMaskIntoConstraints = NO;

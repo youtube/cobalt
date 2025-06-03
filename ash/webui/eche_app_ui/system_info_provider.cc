@@ -16,8 +16,7 @@
 #include "chromeos/services/network_config/public/mojom/cros_network_config.mojom.h"
 #include "crypto/sha2.h"
 
-namespace ash {
-namespace eche_app {
+namespace ash::eche_app {
 
 namespace network_config = ::chromeos::network_config;
 using network_config::mojom::ConnectionStateType;
@@ -29,10 +28,13 @@ const char kJsonWifiConnectionStateKey[] = "wifi_connection_state";
 const char kJsonDebugModeKey[] = "debug_mode";
 const char kJsonGaiaIdKey[] = "gaia_id";
 const char kJsonDeviceTypeKey[] = "device_type";
+const char kJsonOsVersionKey[] = "os_version";
+const char kJsonChannelKey[] = "channel";
 const char kJsonMeasureLatencyKey[] = "measure_latency";
 const char kJsonSendStartSignalingKey[] = "send_start_signaling";
 const char kJsonDisableStunServerKey[] = "disable_stun_server";
 const char kJsonCheckAndroidNetworkInfoKey[] = "check_android_network_info";
+const char kJsonProcessAndroidAccessibilityTreeKey[] = "process_android_accessibility_tree";
 
 const std::map<ConnectionStateType, const char*> CONNECTION_STATE_TYPE{
     {ConnectionStateType::kOnline, "online"},
@@ -90,6 +92,10 @@ void SystemInfoProvider::GetSystemInfo(
   json_dictionary.Set(kJsonTabletModeKey, TabletMode::Get()->InTabletMode());
   json_dictionary.Set(kJsonGaiaIdKey, system_info_->GetGaiaId());
   json_dictionary.Set(kJsonDeviceTypeKey, system_info_->GetDeviceType());
+  if (features::IsEcheMetricsRevampEnabled()) {
+    json_dictionary.Set(kJsonOsVersionKey, system_info_->GetOsVersion());
+    json_dictionary.Set(kJsonChannelKey, system_info_->GetChannel());
+  }
   auto found_type = CONNECTION_STATE_TYPE.find(wifi_connection_state_);
   std::string connecton_state_string =
       found_type == CONNECTION_STATE_TYPE.end() ? "" : found_type->second;
@@ -108,6 +114,9 @@ void SystemInfoProvider::GetSystemInfo(
   json_dictionary.Set(
       kJsonCheckAndroidNetworkInfoKey,
       base::FeatureList::IsEnabled(features::kEcheSWACheckAndroidNetworkInfo));
+  json_dictionary.Set(
+      kJsonProcessAndroidAccessibilityTreeKey,
+      base::FeatureList::IsEnabled(features::kEcheSWAProcessAndroidAccessibilityTree));
 
   std::string json_message;
   base::JSONWriter::Write(json_dictionary, &json_message);
@@ -221,5 +230,4 @@ void SystemInfoProvider::OnActiveWifiNetworkListFetched(
   hashed_wifi_ssid_ = std::string();
 }
 
-}  // namespace eche_app
-}  // namespace ash
+}  // namespace ash::eche_app

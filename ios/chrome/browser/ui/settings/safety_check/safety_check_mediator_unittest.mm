@@ -11,27 +11,37 @@
 #import "base/strings/string_util.h"
 #import "base/strings/sys_string_conversions.h"
 #import "base/strings/utf_string_conversions.h"
+#import "base/test/bind.h"
 #import "base/test/ios/wait_util.h"
+#import "base/test/metrics/histogram_tester.h"
 #import "base/test/scoped_feature_list.h"
 #import "components/keyed_service/core/service_access_type.h"
+#import "components/password_manager/core/browser/affiliation/fake_affiliation_service.h"
 #import "components/password_manager/core/browser/password_form.h"
 #import "components/password_manager/core/browser/password_manager_test_utils.h"
 #import "components/password_manager/core/browser/test_password_store.h"
+#import "components/password_manager/core/browser/ui/password_check_referrer.h"
 #import "components/password_manager/core/common/password_manager_features.h"
 #import "components/prefs/pref_service.h"
 #import "components/prefs/testing_pref_service.h"
 #import "components/safe_browsing/core/common/features.h"
 #import "components/safe_browsing/core/common/safe_browsing_prefs.h"
+#import "components/safety_check/safety_check.h"
 #import "components/strings/grit/components_strings.h"
+#import "components/sync/test/mock_sync_service.h"
 #import "components/sync_preferences/pref_service_mock_factory.h"
-#import "ios/chrome/browser/application_context/application_context.h"
-#import "ios/chrome/browser/browser_state/chrome_browser_state.h"
-#import "ios/chrome/browser/browser_state/test_chrome_browser_state.h"
-#import "ios/chrome/browser/main/test_browser.h"
-#import "ios/chrome/browser/passwords/ios_chrome_password_check_manager.h"
-#import "ios/chrome/browser/passwords/ios_chrome_password_check_manager_factory.h"
-#import "ios/chrome/browser/passwords/ios_chrome_password_store_factory.h"
-#import "ios/chrome/browser/passwords/password_check_observer_bridge.h"
+#import "ios/chrome/browser/ntp/home/features.h"
+#import "ios/chrome/browser/passwords/model/ios_chrome_affiliation_service_factory.h"
+#import "ios/chrome/browser/passwords/model/ios_chrome_password_check_manager.h"
+#import "ios/chrome/browser/passwords/model/ios_chrome_password_check_manager_factory.h"
+#import "ios/chrome/browser/passwords/model/ios_chrome_profile_password_store_factory.h"
+#import "ios/chrome/browser/passwords/model/password_check_observer_bridge.h"
+#import "ios/chrome/browser/shared/model/application_context/application_context.h"
+#import "ios/chrome/browser/shared/model/browser/test/test_browser.h"
+#import "ios/chrome/browser/shared/model/browser_state/chrome_browser_state.h"
+#import "ios/chrome/browser/shared/model/browser_state/test_chrome_browser_state.h"
+#import "ios/chrome/browser/shared/model/prefs/pref_backed_boolean.h"
+#import "ios/chrome/browser/shared/model/prefs/pref_names.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_text_item.h"
@@ -39,18 +49,16 @@
 #import "ios/chrome/browser/signin/authentication_service.h"
 #import "ios/chrome/browser/signin/authentication_service_factory.h"
 #import "ios/chrome/browser/signin/fake_authentication_service_delegate.h"
-#import "ios/chrome/browser/sync/sync_setup_service_factory.h"
-#import "ios/chrome/browser/sync/sync_setup_service_mock.h"
+#import "ios/chrome/browser/sync/model/sync_service_factory.h"
 #import "ios/chrome/browser/ui/settings/cells/settings_check_item.h"
 #import "ios/chrome/browser/ui/settings/safety_check/safety_check_constants.h"
 #import "ios/chrome/browser/ui/settings/safety_check/safety_check_consumer.h"
 #import "ios/chrome/browser/ui/settings/safety_check/safety_check_mediator+private.h"
-#import "ios/chrome/browser/ui/settings/utils/pref_backed_boolean.h"
-#import "ios/chrome/browser/upgrade/upgrade_constants.h"
-#import "ios/chrome/browser/upgrade/upgrade_recommended_details.h"
+#import "ios/chrome/browser/upgrade/model/upgrade_constants.h"
+#import "ios/chrome/browser/upgrade/model/upgrade_recommended_details.h"
 #import "ios/chrome/common/string_util.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
-#import "ios/chrome/grit/ios_chromium_strings.h"
+#import "ios/chrome/grit/ios_branded_strings.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "ios/chrome/test/ios_chrome_scoped_testing_local_state.h"
 #import "ios/web/public/test/web_task_environment.h"
@@ -61,14 +69,9 @@
 #import "ui/base/l10n/l10n_util.h"
 #import "ui/base/l10n/time_format.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace {
 
 using l10n_util::GetNSString;
-using password_manager::InsecureCredential;
 using password_manager::InsecureType;
 using password_manager::TestPasswordStore;
 using password_manager::features::IsPasswordCheckupEnabled;
@@ -93,6 +96,18 @@ PrefService* SetPrefService() {
   PrefRegistrySimple* registry = prefs->registry();
   registry->RegisterBooleanPref(prefs::kSafeBrowsingEnabled, true);
   registry->RegisterBooleanPref(prefs::kSafeBrowsingEnhanced, true);
+  return prefs;
+}
+
+// Registers local preference for the Safety Check last run time.
+PrefService* SetLocalPrefService() {
+  TestingPrefServiceSimple* prefs = new TestingPrefServiceSimple();
+
+  PrefRegistrySimple* registry = prefs->registry();
+
+  registry->RegisterTimePref(prefs::kIosSettingsSafetyCheckLastRunTime,
+                             base::Time());
+
   return prefs;
 }
 
@@ -131,13 +146,22 @@ class SafetyCheckMediatorTest : public PlatformTest {
         AuthenticationServiceFactory::GetInstance(),
         AuthenticationServiceFactory::GetDefaultFactory());
     test_cbs_builder.AddTestingFactory(
-        SyncSetupServiceFactory::GetInstance(),
-        base::BindRepeating(&SyncSetupServiceMock::CreateKeyedService));
+        SyncServiceFactory::GetInstance(),
+        base::BindRepeating(
+            [](web::BrowserState*) -> std::unique_ptr<KeyedService> {
+              return std::make_unique<syncer::MockSyncService>();
+            }));
     test_cbs_builder.AddTestingFactory(
-        IOSChromePasswordStoreFactory::GetInstance(),
+        IOSChromeProfilePasswordStoreFactory::GetInstance(),
         base::BindRepeating(
             &password_manager::BuildPasswordStore<web::BrowserState,
                                                   TestPasswordStore>));
+    test_cbs_builder.AddTestingFactory(
+        IOSChromeAffiliationServiceFactory::GetInstance(),
+        base::BindRepeating(base::BindLambdaForTesting([](web::BrowserState*) {
+          return std::unique_ptr<KeyedService>(
+              std::make_unique<password_manager::FakeAffiliationService>());
+        })));
     browser_state_ = test_cbs_builder.Build();
     AuthenticationServiceFactory::CreateAndInitializeForBrowserState(
         browser_state_.get(),
@@ -148,7 +172,7 @@ class SafetyCheckMediatorTest : public PlatformTest {
 
     store_ =
         base::WrapRefCounted(static_cast<password_manager::TestPasswordStore*>(
-            IOSChromePasswordStoreFactory::GetForBrowserState(
+            IOSChromeProfilePasswordStoreFactory::GetForBrowserState(
                 browser_state_.get(), ServiceAccessType::EXPLICIT_ACCESS)
                 .get()));
 
@@ -157,15 +181,20 @@ class SafetyCheckMediatorTest : public PlatformTest {
 
     pref_service_ = SetPrefService();
 
-    mediator_ =
-        [[SafetyCheckMediator alloc] initWithUserPrefService:pref_service_
-                                        passwordCheckManager:password_check_
-                                                 authService:auth_service_
-                                                 syncService:syncService()];
+    local_pref_service_ = SetLocalPrefService();
+
+    mediator_ = [[SafetyCheckMediator alloc]
+        initWithUserPrefService:pref_service_
+               localPrefService:local_pref_service_
+           passwordCheckManager:password_check_
+                    authService:auth_service_
+                    syncService:syncService()
+                       referrer:password_manager::PasswordCheckReferrer::
+                                    kSafetyCheck];
   }
 
-  SyncSetupService* syncService() {
-    return SyncSetupServiceFactory::GetForBrowserState(browser_state_.get());
+  syncer::SyncService* syncService() {
+    return SyncServiceFactory::GetForBrowserState(browser_state_.get());
   }
 
   void RunUntilIdle() { environment_.RunUntilIdle(); }
@@ -183,6 +212,11 @@ class SafetyCheckMediatorTest : public PlatformTest {
     [defaults removeObjectForKey:kIOSChromeUpgradeURLKey];
   }
 
+  void resetLocalPrefsForTesting() {
+    local_pref_service_->SetTime(prefs::kIosSettingsSafetyCheckLastRunTime,
+                                 base::Time());
+  }
+
   // Creates a form.
   std::unique_ptr<password_manager::PasswordForm> CreateForm(
       std::string signon_realm = "http://www.example.com/") {
@@ -192,7 +226,7 @@ class SafetyCheckMediatorTest : public PlatformTest {
     form->username_element = u"Email";
     form->username_value = u"test@egmail.com";
     form->password_element = u"Passwd";
-    form->password_value = u"test";
+    form->password_value = u"fnlsr4@cm^mdls@fkspnsg3d";
     form->submit_element = u"signIn";
     form->signon_realm = signon_realm;
     form->scheme = password_manager::PasswordForm::Scheme::kHtml;
@@ -223,12 +257,30 @@ class SafetyCheckMediatorTest : public PlatformTest {
 
   TestPasswordStore& GetTestStore() {
     return *static_cast<TestPasswordStore*>(
-        IOSChromePasswordStoreFactory::GetForBrowserState(
+        IOSChromeProfilePasswordStoreFactory::GetForBrowserState(
             browser_state_.get(), ServiceAccessType::EXPLICIT_ACCESS)
             .get());
   }
 
+  // Tests that only having a leaked password results in an umuted compromised
+  // password row state.
+  void CheckCompromisedRowState() {
+    base::HistogramTester histogram_tester;
+
+    AddSavedInsecureForm(InsecureType::kLeaked);
+    mediator_.currentPasswordCheckState = PasswordCheckState::kRunning;
+    [mediator_ passwordCheckStateDidChange:PasswordCheckState::kIdle];
+
+    histogram_tester.ExpectUniqueSample(
+        kSafetyCheckMetricsPasswords,
+        safety_check::PasswordsStatus::kCompromisedExist, 1);
+
+    EXPECT_EQ(mediator_.passwordCheckRowState,
+              PasswordCheckRowStateUnmutedCompromisedPasswords);
+  }
+
  protected:
+  base::test::ScopedFeatureList feature_list_;
   web::WebTaskEnvironment environment_;
   IOSChromeScopedTestingLocalState scoped_testing_local_state_;
   std::unique_ptr<TestChromeBrowserState> browser_state_;
@@ -237,6 +289,7 @@ class SafetyCheckMediatorTest : public PlatformTest {
   scoped_refptr<IOSChromePasswordCheckManager> password_check_;
   SafetyCheckMediator* mediator_;
   PrefService* pref_service_;
+  PrefService* local_pref_service_;
   PrefBackedBoolean* safe_browsing_preference_;
 };
 
@@ -294,8 +347,8 @@ TEST_F(SafetyCheckMediatorTest, TimestampSetIfIssueFound) {
       PasswordCheckRowStateUnmutedCompromisedPasswords;
   [mediator_ resetsCheckStartItemIfNeeded];
 
-  base::Time lastCompletedCheck =
-      base::Time::FromDoubleT([[NSUserDefaults standardUserDefaults]
+  base::Time lastCompletedCheck = base::Time::FromSecondsSinceUnixEpoch(
+      [[NSUserDefaults standardUserDefaults]
           doubleForKey:kTimestampOfLastIssueFoundKey]);
   EXPECT_GE(lastCompletedCheck, base::Time::Now() - base::Seconds(1));
   EXPECT_LE(lastCompletedCheck, base::Time::Now() + base::Seconds(1));
@@ -309,8 +362,8 @@ TEST_F(SafetyCheckMediatorTest, TimestampResetIfNoIssuesInCheck) {
       PasswordCheckRowStateUnmutedCompromisedPasswords;
   [mediator_ resetsCheckStartItemIfNeeded];
 
-  base::Time lastCompletedCheck =
-      base::Time::FromDoubleT([[NSUserDefaults standardUserDefaults]
+  base::Time lastCompletedCheck = base::Time::FromSecondsSinceUnixEpoch(
+      [[NSUserDefaults standardUserDefaults]
           doubleForKey:kTimestampOfLastIssueFoundKey]);
   EXPECT_GE(lastCompletedCheck, base::Time::Now() - base::Seconds(1));
   EXPECT_LE(lastCompletedCheck, base::Time::Now() + base::Seconds(1));
@@ -319,12 +372,34 @@ TEST_F(SafetyCheckMediatorTest, TimestampResetIfNoIssuesInCheck) {
   mediator_.passwordCheckRowState = PasswordCheckRowStateSafe;
   [mediator_ resetsCheckStartItemIfNeeded];
 
-  lastCompletedCheck =
-      base::Time::FromDoubleT([[NSUserDefaults standardUserDefaults]
+  lastCompletedCheck = base::Time::FromSecondsSinceUnixEpoch(
+      [[NSUserDefaults standardUserDefaults]
           doubleForKey:kTimestampOfLastIssueFoundKey]);
   EXPECT_EQ(base::Time(), lastCompletedCheck);
 
   resetNSUserDefaultsForTesting();
+}
+
+// Checks the timestamp of the latest run is set after the Safety Check
+// completes its run.
+TEST_F(SafetyCheckMediatorTest, TimestampSetForLatestRun) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitWithFeatures({kMagicStack, kSafetyCheckMagicStack}, {});
+
+  mediator_.checkDidRun = true;
+
+  mediator_.passwordCheckRowState =
+      PasswordCheckRowStateUnmutedCompromisedPasswords;
+
+  [mediator_ resetsCheckStartItemIfNeeded];
+
+  base::Time lastRunTime =
+      local_pref_service_->GetTime(prefs::kIosSettingsSafetyCheckLastRunTime);
+
+  EXPECT_GE(lastRunTime, base::Time::Now() - base::Seconds(1));
+  EXPECT_LE(lastRunTime, base::Time::Now() + base::Seconds(1));
+
+  resetLocalPrefsForTesting();
 }
 
 #pragma mark - Safe Browsing check tests
@@ -476,11 +551,19 @@ TEST_F(SafetyCheckMediatorTest, PasswordCheckSafeUIWithKIOSPasswordCheckup) {
 // Tests that only having a leaked password results in an umuted compromised
 // password row state.
 TEST_F(SafetyCheckMediatorTest, PasswordCheckUnmutedCompromisedPasswordsCheck) {
-  AddSavedInsecureForm(InsecureType::kLeaked);
-  mediator_.currentPasswordCheckState = PasswordCheckState::kRunning;
-  [mediator_ passwordCheckStateDidChange:PasswordCheckState::kIdle];
-  EXPECT_EQ(mediator_.passwordCheckRowState,
-            PasswordCheckRowStateUnmutedCompromisedPasswords);
+  {
+    base::test::ScopedFeatureList feature_list(
+        password_manager::features::kIOSPasswordCheckup);
+
+    CheckCompromisedRowState();
+  }
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndDisableFeature(
+        password_manager::features::kIOSPasswordCheckup);
+
+    CheckCompromisedRowState();
+  }
 }
 
 // Tests that the content of the `passwordCheckItem` is as expected when in
@@ -535,11 +618,18 @@ TEST_F(SafetyCheckMediatorTest, PasswordCheckReusedPasswordsCheck) {
   base::test::ScopedFeatureList feature_list(
       password_manager::features::kIOSPasswordCheckup);
 
+  base::HistogramTester histogram_tester;
+
   AddSavedInsecureForm(InsecureType::kReused);
   AddSavedInsecureForm(InsecureType::kReused, /*is_muted=*/false,
                        /*signon_realm=*/"http://www.example1.com/");
   mediator_.currentPasswordCheckState = PasswordCheckState::kRunning;
   [mediator_ passwordCheckStateDidChange:PasswordCheckState::kIdle];
+
+  histogram_tester.ExpectUniqueSample(
+      kSafetyCheckMetricsPasswords,
+      safety_check::PasswordsStatus::kReusedPasswordsExist, 1);
+
   EXPECT_EQ(mediator_.passwordCheckRowState,
             PasswordCheckRowStateReusedPasswords);
 }
@@ -571,9 +661,16 @@ TEST_F(SafetyCheckMediatorTest, PasswordCheckWeakPasswordsCheck) {
   base::test::ScopedFeatureList feature_list(
       password_manager::features::kIOSPasswordCheckup);
 
+  base::HistogramTester histogram_tester;
+
   AddSavedInsecureForm(InsecureType::kWeak);
   mediator_.currentPasswordCheckState = PasswordCheckState::kRunning;
   [mediator_ passwordCheckStateDidChange:PasswordCheckState::kIdle];
+
+  histogram_tester.ExpectUniqueSample(
+      kSafetyCheckMetricsPasswords,
+      safety_check::PasswordsStatus::kWeakPasswordsExist, 1);
+
   EXPECT_EQ(mediator_.passwordCheckRowState,
             PasswordCheckRowStateWeakPasswords);
 }
@@ -604,9 +701,16 @@ TEST_F(SafetyCheckMediatorTest, PasswordCheckDismissedWarningsCheck) {
   base::test::ScopedFeatureList feature_list(
       password_manager::features::kIOSPasswordCheckup);
 
+  base::HistogramTester histogram_tester;
+
   AddSavedInsecureForm(InsecureType::kLeaked, /*is_muted=*/true);
   mediator_.currentPasswordCheckState = PasswordCheckState::kRunning;
   [mediator_ passwordCheckStateDidChange:PasswordCheckState::kIdle];
+
+  histogram_tester.ExpectUniqueSample(
+      kSafetyCheckMetricsPasswords,
+      safety_check::PasswordsStatus::kMutedCompromisedExist, 1);
+
   EXPECT_EQ(mediator_.passwordCheckRowState,
             PasswordCheckRowStateDismissedWarnings);
 }

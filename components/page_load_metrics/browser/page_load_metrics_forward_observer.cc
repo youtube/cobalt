@@ -66,6 +66,14 @@ PageLoadMetricsForwardObserver::OnPrerenderStart(
   return STOP_OBSERVING;
 }
 
+PageLoadMetricsObserverInterface::ObservePolicy
+PageLoadMetricsForwardObserver::OnPreviewStart(
+    content::NavigationHandle* navigation_handle,
+    const GURL& currently_committed_url) {
+  NOTREACHED();
+  return STOP_OBSERVING;
+}
+
 // Main frame events will be converted as sub-frame events on forwarding, and
 // OnRedirect is an event only for the main frame. We just mask it here.
 PageLoadMetricsObserverInterface::ObservePolicy
@@ -141,15 +149,15 @@ void PageLoadMetricsForwardObserver::OnTimingUpdate(
     const mojom::PageLoadTiming& timing) {}
 
 // Soft navigations only happen in outermost top-level documents.
-void PageLoadMetricsForwardObserver::OnSoftNavigationCountUpdated() {}
+void PageLoadMetricsForwardObserver::OnSoftNavigationUpdated(
+    const mojom::SoftNavigationMetrics&) {}
 
 void PageLoadMetricsForwardObserver::OnInputTimingUpdate(
     content::RenderFrameHost* subframe_rfh,
     const mojom::InputTiming& input_timing_delta) {}
 
 void PageLoadMetricsForwardObserver::OnPageInputTimingUpdate(
-    uint64_t num_interactions,
-    uint64_t num_input_events) {}
+    uint64_t num_interactions) {}
 
 void PageLoadMetricsForwardObserver::OnPageRenderDataUpdate(
     const mojom::FrameRenderDataUpdate& render_data,
@@ -227,11 +235,15 @@ void PageLoadMetricsForwardObserver::OnFirstMeaningfulPaintInMainFrameDocument(
 void PageLoadMetricsForwardObserver::OnFirstInputInPage(
     const mojom::PageLoadTiming& timing) {}
 
-// OnLoadingBehaviorObserved is called through PageLoadTracker::UpdateMetrics.
-// So, the event is always forwarded at the PageLoadTracker layer.
+// OnLoadingBehaviorObserved and OnJavaScriptFrameworksObserved are called
+// through PageLoadTracker::UpdateMetrics. So, the event is always forwarded at
+// the PageLoadTracker layer.
 void PageLoadMetricsForwardObserver::OnLoadingBehaviorObserved(
     content::RenderFrameHost* rfh,
     int behavior_flags) {}
+void PageLoadMetricsForwardObserver::OnJavaScriptFrameworksObserved(
+    content::RenderFrameHost* rfh,
+    const blink::JavaScriptFrameworkDetectionResult&) {}
 
 void PageLoadMetricsForwardObserver::OnFeaturesUsageObserved(
     content::RenderFrameHost* rfh,
@@ -347,23 +359,27 @@ void PageLoadMetricsForwardObserver::OnSubFrameDeleted(int frame_tree_node_id) {
 void PageLoadMetricsForwardObserver::OnCookiesRead(
     const GURL& url,
     const GURL& first_party_url,
-    const net::CookieList& cookie_list,
-    bool blocked_by_policy) {
+    bool blocked_by_policy,
+    bool is_ad_tagged,
+    const net::CookieSettingOverrides& cookie_setting_overrides) {
   if (!parent_observer_)
     return;
-  parent_observer_->OnCookiesRead(url, first_party_url, cookie_list,
-                                  blocked_by_policy);
+  parent_observer_->OnCookiesRead(url, first_party_url, blocked_by_policy,
+                                  is_ad_tagged, cookie_setting_overrides);
 }
 
 void PageLoadMetricsForwardObserver::OnCookieChange(
     const GURL& url,
     const GURL& first_party_url,
     const net::CanonicalCookie& cookie,
-    bool blocked_by_policy) {
+    bool blocked_by_policy,
+    bool is_ad_tagged,
+    const net::CookieSettingOverrides& cookie_setting_overrides) {
   if (!parent_observer_)
     return;
   parent_observer_->OnCookieChange(url, first_party_url, cookie,
-                                   blocked_by_policy);
+                                   blocked_by_policy, is_ad_tagged,
+                                   cookie_setting_overrides);
 }
 
 void PageLoadMetricsForwardObserver::OnStorageAccessed(

@@ -33,6 +33,7 @@
 #include "base/test/metrics/user_action_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/time/time.h"
+#include "chromeos/constants/chromeos_features.h"
 #include "components/soda/soda_installer.h"
 #include "components/soda/soda_installer_impl_chromeos.h"
 #include "ui/accessibility/accessibility_features.h"
@@ -64,12 +65,6 @@ const std::string kDisabledTooltip = "Downloading speech files";
 DictationButtonTray* GetTray() {
   return StatusAreaWidgetTestHelper::GetStatusAreaWidget()
       ->dictation_button_tray();
-}
-
-ui::GestureEvent CreateTapEvent(
-    base::TimeDelta delta_from_start = base::TimeDelta()) {
-  return ui::GestureEvent(0, 0, 0, base::TimeTicks() + delta_from_start,
-                          ui::GestureEventDetails(ui::ET_GESTURE_TAP));
 }
 
 // ProgressIndicatorWaiter -----------------------------------------------------
@@ -162,10 +157,10 @@ TEST_F(DictationButtonTrayTest, ButtonActivatesDictation) {
   controller->dictation().SetEnabled(true);
   EXPECT_FALSE(controller->dictation_active());
 
-  GetTray()->PerformAction(CreateTapEvent());
+  GestureTapOn(GetTray());
   EXPECT_TRUE(controller->dictation_active());
 
-  GetTray()->PerformAction(CreateTapEvent());
+  GestureTapOn(GetTray());
   EXPECT_FALSE(controller->dictation_active());
 }
 
@@ -195,12 +190,12 @@ TEST_F(DictationButtonTrayTest, ActiveStateOnlyDuringDictation) {
   EXPECT_TRUE(GetTray()->GetEnabled());
 
   Shell::Get()->accelerator_controller()->PerformActionIfEnabled(
-      AcceleratorAction::TOGGLE_DICTATION, {});
+      AcceleratorAction::kEnableOrToggleDictation, {});
   EXPECT_TRUE(controller->dictation_active());
   EXPECT_TRUE(GetTray()->is_active());
 
   Shell::Get()->accelerator_controller()->PerformActionIfEnabled(
-      AcceleratorAction::TOGGLE_DICTATION, {});
+      AcceleratorAction::kEnableOrToggleDictation, {});
   EXPECT_FALSE(controller->dictation_active());
   EXPECT_FALSE(GetTray()->is_active());
 }
@@ -211,18 +206,28 @@ TEST_F(DictationButtonTrayTest, ImageIcons) {
   TestAccessibilityControllerClient client;
   controller->dictation().SetEnabled(true);
 
-  SkColor color =
-      GetTray()->GetColorProvider()->GetColor(kColorAshIconColorPrimary);
+  const bool is_jelly_enabled = chromeos::features::IsJellyEnabled();
+  const auto* color_provider = GetTray()->GetColorProvider();
+  const auto off_icon_color = color_provider->GetColor(
+      is_jelly_enabled
+          ? static_cast<ui::ColorId>(cros_tokens::kCrosSysOnSurface)
+          : kColorAshIconColorPrimary);
+  const auto on_icon_color = color_provider->GetColor(
+      is_jelly_enabled ? static_cast<ui::ColorId>(
+                             cros_tokens::kCrosSysSystemOnPrimaryContainer)
+                       : kColorAshIconColorPrimary);
+
   gfx::ImageSkia off_icon =
-      gfx::CreateVectorIcon(kDictationOffNewuiIcon, color);
-  gfx::ImageSkia on_icon = gfx::CreateVectorIcon(kDictationOnNewuiIcon, color);
+      gfx::CreateVectorIcon(kDictationOffNewuiIcon, off_icon_color);
+  gfx::ImageSkia on_icon =
+      gfx::CreateVectorIcon(kDictationOnNewuiIcon, on_icon_color);
 
   views::ImageView* view = GetImageView(GetTray());
   EXPECT_TRUE(gfx::test::AreBitmapsEqual(*view->GetImage().bitmap(),
                                          *off_icon.bitmap()));
 
   Shell::Get()->accelerator_controller()->PerformActionIfEnabled(
-      AcceleratorAction::TOGGLE_DICTATION, {});
+      AcceleratorAction::kEnableOrToggleDictation, {});
 
   EXPECT_TRUE(gfx::test::AreBitmapsEqual(*view->GetImage().bitmap(),
                                          *on_icon.bitmap()));
@@ -239,7 +244,7 @@ TEST_F(DictationButtonTrayTest, DisabledWhenNoInputFocused) {
 
   // Action doesn't work because disabled.
   Shell::Get()->accelerator_controller()->PerformActionIfEnabled(
-      AcceleratorAction::TOGGLE_DICTATION, {});
+      AcceleratorAction::kEnableOrToggleDictation, {});
   EXPECT_FALSE(controller->dictation_active());
   EXPECT_FALSE(tray->GetEnabled());
 

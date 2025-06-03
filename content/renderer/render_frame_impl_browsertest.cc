@@ -11,6 +11,7 @@
 #include "base/debug/leak_annotations.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
+#include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
@@ -19,8 +20,8 @@
 #include "base/test/scoped_feature_list.h"
 #include "base/unguessable_token.h"
 #include "build/build_config.h"
+#include "content/common/features.h"
 #include "content/common/renderer.mojom.h"
-#include "content/public/common/content_features.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/renderer/content_renderer_client.h"
 #include "content/public/test/frame_load_waiter.h"
@@ -212,7 +213,7 @@ class RenderFrameImplTest : public RenderViewTest {
   }
 
  private:
-  TestRenderFrame* frame_;
+  raw_ptr<TestRenderFrame, DanglingUntriaged> frame_;
   mojo::AssociatedRemote<blink::mojom::Widget> widget_remote_;
 };
 
@@ -768,7 +769,7 @@ class ScopedNewFrameInterfaceProviderExerciser {
 
  private:
   void OnFrameCreated(TestRenderFrame* frame) {
-    ASSERT_EQ(nullptr, frame_);
+    ASSERT_EQ(nullptr, frame_.get());
     frame_ = frame;
     frame_commit_waiter_.emplace(frame);
 
@@ -789,8 +790,9 @@ class ScopedNewFrameInterfaceProviderExerciser {
     EXPECT_TRUE(frame->GetWebFrame()->GetCurrentHistoryItem().IsNull());
   }
 
-  FrameCreationObservingRendererClient* frame_creation_observer_;
-  TestRenderFrame* frame_ = nullptr;
+  raw_ptr<FrameCreationObservingRendererClient, ExperimentalRenderer>
+      frame_creation_observer_;
+  raw_ptr<TestRenderFrame, ExperimentalRenderer> frame_ = nullptr;
   absl::optional<std::string> html_override_for_first_load_;
   GURL first_committed_url_;
 
@@ -883,7 +885,8 @@ class RenderFrameRemoteInterfacesTest : public RenderViewTest {
 
  private:
   // Owned by RenderViewTest.
-  FrameCreationObservingRendererClient* frame_creation_observer_ = nullptr;
+  raw_ptr<FrameCreationObservingRendererClient, ExperimentalRenderer>
+      frame_creation_observer_ = nullptr;
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 

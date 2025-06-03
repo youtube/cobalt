@@ -23,7 +23,6 @@
 #include "build/chromeos_buildflags.h"
 #include "chrome/browser/browser_features.h"
 #include "chrome/browser/browser_process.h"
-#include "chrome/browser/chrome_notification_types.h"
 #include "chrome/browser/policy/profile_policy_connector.h"
 #include "chrome/browser/prefs/browser_prefs.h"
 #include "chrome/browser/prefs/incognito_mode_prefs.h"
@@ -52,7 +51,6 @@
 #include "components/policy/core/common/policy_pref_names.h"
 #include "components/supervised_user/core/common/buildflags.h"
 #include "components/supervised_user/core/common/pref_names.h"
-#include "content/public/browser/notification_service.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/test/browser_task_environment.h"
 #include "content/public/test/test_utils.h"
@@ -589,6 +587,39 @@ TEST_F(ProfileManagerTest, CreateProfilesAsync) {
   content::RunAllTasksUntilIdle();
 }
 
+// Regression test for https://crbug.com/1472849
+TEST_F(ProfileManagerTest, ConcurrentCreationAsyncAndSync) {
+  ProfileManager* profile_manager = g_browser_process->profile_manager();
+
+  MockObserver mock_observer;
+  EXPECT_CALL(mock_observer, OnProfileCreated(testing::_)).Times(0);
+  EXPECT_CALL(mock_observer, OnProfileInitialized(testing::_)).Times(0);
+
+  base::FilePath profile_path = temp_dir_.GetPath().AppendASCII("New Profile");
+  CreateProfileAsync(profile_manager, profile_path, &mock_observer);
+
+  // The profile is being created, but creation is not complete.
+  EXPECT_EQ(nullptr, profile_manager->GetProfileByPath(profile_path));
+
+  // Request synchronous creation of the same profile, this should not crash.
+  Profile* profile_created = nullptr;
+  Profile* profile_initialized = nullptr;
+  EXPECT_CALL(mock_observer, OnProfileCreated(testing::NotNull()))
+      .Times(1)
+      .WillOnce(testing::SaveArg<0>(&profile_created));
+  EXPECT_CALL(mock_observer, OnProfileInitialized(testing::NotNull()))
+      .Times(1)
+      .WillOnce(testing::SaveArg<0>(&profile_initialized));
+  Profile* profile = profile_manager->GetProfile(profile_path);
+
+  // The profile has been loaded correctly, and all callbacks were called.
+  EXPECT_EQ(profile, profile_manager->GetProfileByPath(profile_path));
+  testing::Mock::VerifyAndClearExpectations(&mock_observer);
+  EXPECT_EQ(profile->GetPath(), profile_path);
+  EXPECT_EQ(profile, profile_initialized);
+  EXPECT_EQ(profile, profile_created);
+}
+
 #if !BUILDFLAG(IS_ANDROID)
 // There's no multi-profiles on Android.
 TEST_F(ProfileManagerTest, CreateMultiProfileAsync) {
@@ -808,7 +839,8 @@ TEST_F(ProfileManagerTest, AddProfileToStorageCheckNotOmitted) {
   // ownership.
   profile_manager->RegisterTestingProfile(std::move(supervised_profile), true);
   ASSERT_EQ(1u, storage.GetNumberOfProfiles());
-  EXPECT_FALSE(storage.GetAllProfilesAttributesSortedByName()[0]->IsOmitted());
+  EXPECT_FALSE(
+      storage.GetAllProfilesAttributesSortedByNameWithCheck()[0]->IsOmitted());
 #endif
 
   const base::FilePath nonsupervised_path =
@@ -886,7 +918,7 @@ class ProfileManagerGuestTest : public ProfileManagerTest {
     ProfileManagerTest::SetUp();
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
-    RegisterUser(GetFakeUserManager()->GetGuestAccountId());
+    RegisterUser(user_manager::GuestAccountId());
 #endif
   }
 
@@ -912,7 +944,8 @@ class ProfileManagerGuestTest : public ProfileManagerTest {
 #endif
 
  private:
-  raw_ptr<UnittestGuestProfileManager> unittest_profile_manager_ = nullptr;
+  raw_ptr<UnittestGuestProfileManager, DanglingUntriaged>
+      unittest_profile_manager_ = nullptr;
 };
 
 TEST_F(ProfileManagerGuestTest, GetLastUsedProfileAllowedByPolicy) {
@@ -1270,6 +1303,7 @@ TEST_F(ProfileManagerTest, LastOpenedProfiles) {
   std::vector<Profile*> last_opened_profiles =
       profile_manager->GetLastOpenedProfiles();
   ASSERT_EQ(0U, last_opened_profiles.size());
+  EXPECT_FALSE(profile_manager->has_updated_last_opened_profiles());
 
   // Create a browser for profile1.
   Browser::CreateParams profile1_params(profile1, true);
@@ -1278,6 +1312,7 @@ TEST_F(ProfileManagerTest, LastOpenedProfiles) {
 
   last_opened_profiles = profile_manager->GetLastOpenedProfiles();
   ASSERT_EQ(1U, last_opened_profiles.size());
+  EXPECT_TRUE(profile_manager->has_updated_last_opened_profiles());
   EXPECT_EQ(profile1, last_opened_profiles[0]);
 
   // And for profile2.
@@ -1287,6 +1322,7 @@ TEST_F(ProfileManagerTest, LastOpenedProfiles) {
 
   last_opened_profiles = profile_manager->GetLastOpenedProfiles();
   ASSERT_EQ(2U, last_opened_profiles.size());
+  EXPECT_TRUE(profile_manager->has_updated_last_opened_profiles());
   EXPECT_EQ(profile1, last_opened_profiles[0]);
   EXPECT_EQ(profile2, last_opened_profiles[1]);
 
@@ -1295,6 +1331,7 @@ TEST_F(ProfileManagerTest, LastOpenedProfiles) {
       CreateBrowserWithTestWindowForParams(profile1_params));
   last_opened_profiles = profile_manager->GetLastOpenedProfiles();
   ASSERT_EQ(2U, last_opened_profiles.size());
+  EXPECT_TRUE(profile_manager->has_updated_last_opened_profiles());
   EXPECT_EQ(profile1, last_opened_profiles[0]);
   EXPECT_EQ(profile2, last_opened_profiles[1]);
 
@@ -1302,17 +1339,22 @@ TEST_F(ProfileManagerTest, LastOpenedProfiles) {
   browser1a.reset();
   last_opened_profiles = profile_manager->GetLastOpenedProfiles();
   ASSERT_EQ(2U, last_opened_profiles.size());
+  EXPECT_TRUE(profile_manager->has_updated_last_opened_profiles());
   EXPECT_EQ(profile1, last_opened_profiles[0]);
   EXPECT_EQ(profile2, last_opened_profiles[1]);
 
   browser1b.reset();
   last_opened_profiles = profile_manager->GetLastOpenedProfiles();
   ASSERT_EQ(1U, last_opened_profiles.size());
+  EXPECT_TRUE(profile_manager->has_updated_last_opened_profiles());
   EXPECT_EQ(profile2, last_opened_profiles[0]);
 
+  // `has_updated_last_opened_profiles()` should return true even after all
+  // profiles have been cleared from the list.
   browser2.reset();
   last_opened_profiles = profile_manager->GetLastOpenedProfiles();
   ASSERT_EQ(0U, last_opened_profiles.size());
+  EXPECT_TRUE(profile_manager->has_updated_last_opened_profiles());
 }
 
 TEST_F(ProfileManagerTest, LastOpenedProfilesAtShutdown) {

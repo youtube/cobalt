@@ -135,7 +135,7 @@ class ClientTagBasedModelTypeProcessor : public ModelTypeProcessor,
   // These values are persisted to logs. Entries should not be renumbered and
   // numeric values should never be reused. Public for tests.
   enum class ErrorSite {
-    kBridgeInitiated = 0,
+    kReportedByBridge = 0,
     kApplyFullUpdates = 1,
     kApplyIncrementalUpdates = 2,
     kApplyUpdatesOnCommitResponse = 3,
@@ -257,10 +257,14 @@ class ClientTagBasedModelTypeProcessor : public ModelTypeProcessor,
 
   // ModelTypeSyncBridge linked to this processor. The bridge owns this
   // processor instance so the pointer should never become invalid.
-  raw_ptr<ModelTypeSyncBridge> bridge_;
+  raw_ptr<ModelTypeSyncBridge, DanglingUntriaged> bridge_ = nullptr;
 
   // Function to capture and upload a stack trace when an error occurs.
   const base::RepeatingClosure dump_stack_;
+
+  // Whether there is an ongoing processing of incoming updates, used to detect
+  // local updates based on remote changes.
+  bool processing_incremental_updates_ = false;
 
   /////////////////
   // Model state //

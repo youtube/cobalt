@@ -23,7 +23,6 @@
 #include "content/browser/loader/navigation_url_loader_impl.h"
 #include "content/browser/renderer_host/frame_tree_node.h"
 #include "content/browser/renderer_host/navigation_request.h"
-#include "content/browser/service_worker/embedded_worker_status.h"
 #include "content/browser/service_worker/service_worker_context_core.h"
 #include "content/browser/service_worker/service_worker_context_wrapper.h"
 #include "content/browser/service_worker/service_worker_metrics.h"
@@ -49,12 +48,19 @@
 #include "services/network/public/cpp/single_request_url_loader_factory.h"
 #include "services/network/public/cpp/wrapper_shared_url_loader_factory.h"
 #include "services/network/public/mojom/early_hints.mojom.h"
+#include "third_party/blink/public/common/service_worker/embedded_worker_status.h"
 #include "third_party/blink/public/common/service_worker/service_worker_status_code.h"
 #include "third_party/blink/public/mojom/loader/resource_load_info.mojom.h"
 
 namespace content {
 
 namespace {
+
+// TODO(crbug.com/1446228): When this is enabled, the browser will schedule
+// ServiceWorkerFetchDispatcher::ResponseCallback in a high priority task queue.
+BASE_FEATURE(kServiceWorkerFetchResponseCallbackUseHighPriority,
+             "ServiceWorkerFetchResponseCallbackUseHighPriority",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 void NotifyNavigationPreloadRequestSent(const network::ResourceRequest& request,
                                         const std::pair<int, int>& worker_id,
@@ -342,7 +348,9 @@ void CreateNetworkFactoryForNavigationPreload(
       ukm::SourceIdObj::FromInt64(
           frame_tree_node.navigation_request()->GetNextPageUkmSourceId()),
       &receiver, &header_client, &bypass_redirect_checks_unused,
-      /*disable_secure_dns=*/nullptr, /*factory_override=*/nullptr);
+      /*disable_secure_dns=*/nullptr, /*factory_override=*/nullptr,
+      content::GetUIThreadTaskRunner(
+          {content::BrowserTaskType::kNavigationNetworkResponse}));
 
   // Make the network factory.
   NavigationURLLoaderImpl::CreateURLLoaderFactoryWithHeaderClient(
@@ -362,7 +370,14 @@ class ServiceWorkerFetchDispatcher::ResponseCallback
           receiver,
       base::WeakPtr<ServiceWorkerFetchDispatcher> fetch_dispatcher,
       ServiceWorkerVersion* version)
-      : receiver_(this, std::move(receiver)),
+      : receiver_(
+            this,
+            std::move(receiver),
+            (base::FeatureList::IsEnabled(
+                 kServiceWorkerFetchResponseCallbackUseHighPriority)
+                 ? GetUIThreadTaskRunner(
+                       {BrowserTaskType::kServiceWorkerStorageControlResponse})
+                 : base::SequencedTaskRunner::GetCurrentDefault())),
         fetch_dispatcher_(fetch_dispatcher),
         version_(version) {
     receiver_.set_disconnect_handler(base::BindOnce(
@@ -563,7 +578,7 @@ void ServiceWorkerFetchDispatcher::StartWorker() {
     return;
   }
 
-  if (version_->running_status() == EmbeddedWorkerStatus::RUNNING) {
+  if (version_->running_status() == blink::EmbeddedWorkerStatus::kRunning) {
     DispatchFetchEvent();
     return;
   }
@@ -600,8 +615,8 @@ void ServiceWorkerFetchDispatcher::DidStartWorker(
 
 void ServiceWorkerFetchDispatcher::DispatchFetchEvent() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  DCHECK(EmbeddedWorkerStatus::STARTING == version_->running_status() ||
-         EmbeddedWorkerStatus::RUNNING == version_->running_status())
+  DCHECK(blink::EmbeddedWorkerStatus::kStarting == version_->running_status() ||
+         blink::EmbeddedWorkerStatus::kRunning == version_->running_status())
       << "Worker stopped too soon after it was started.";
   TRACE_EVENT_WITH_FLOW0("ServiceWorker",
                          "ServiceWorkerFetchDispatcher::DispatchFetchEvent",
@@ -650,6 +665,14 @@ void ServiceWorkerFetchDispatcher::DispatchFetchEvent() {
   params->preload_url_loader_client_receiver =
       std::move(preload_url_loader_client_receiver_);
   params->is_offline_capability_check = is_offline_capability_check_;
+  if (race_network_request_token_) {
+    params->request->service_worker_race_network_request_token =
+        race_network_request_token_;
+  }
+  if (race_network_request_loader_factory_) {
+    params->race_network_request_loader_factory =
+        std::move(race_network_request_loader_factory_);
+  }
 
   // |endpoint()| is owned by |version_|. So it is safe to pass the
   // unretained raw pointer of |version_| to OnFetchEventFinished callback.

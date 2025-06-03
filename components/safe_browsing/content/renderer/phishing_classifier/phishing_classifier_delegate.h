@@ -11,6 +11,7 @@
 #include <string>
 
 #include "base/memory/read_only_shared_memory_region.h"
+#include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
 #include "components/safe_browsing/content/common/safe_browsing.mojom.h"
 #include "components/safe_browsing/content/renderer/phishing_classifier/scorer.h"
@@ -38,7 +39,9 @@ enum class SBPhishingClassifierEvent {
   kUrlShouldNotBeClassified = 3,
   // Phishing detection could not finish because the class was destructed.
   kDestructedBeforeClassificationDone = 4,
-  kMaxValue = kDestructedBeforeClassificationDone,
+  // Scorer is updated and classifier is ready within timeout.
+  kScorerUpdatedWithinRetryTimeout = 5,
+  kMaxValue = kScorerUpdatedWithinRetryTimeout,
 };
 
 class PhishingClassifierDelegate : public content::RenderFrameObserver,
@@ -88,6 +91,7 @@ class PhishingClassifierDelegate : public content::RenderFrameObserver,
     PAGE_RECAPTURED,
     SHUTDOWN,
     NEW_PHISHING_SCORER,
+    SCORER_CLEARED,
     CANCEL_CLASSIFICATION_MAX  // Always add new values before this one.
   };
 
@@ -116,6 +120,8 @@ class PhishingClassifierDelegate : public content::RenderFrameObserver,
 
   // Shared code to begin classification if all conditions are met.
   void MaybeStartClassification();
+
+  void OnRetryTimeout();
 
   // ScorerStorage::Observer implementation:
   void OnScorerChanged() override;
@@ -162,6 +168,11 @@ class PhishingClassifierDelegate : public content::RenderFrameObserver,
   // set to false whenever phishing detection has finished.
   bool is_phishing_detection_running_ = false;
 
+  // Set to true when we want to classify for the page, but classifier was not
+  // ready. It is set to false whenever |is_phishing_detection_running_| is set
+  // to true, classification is happening, completed, or cancelled.
+  bool awaiting_retry_ = false;
+
   // The callback from the most recent call to StartPhishingDetection.
   StartPhishingDetectionCallback callback_;
 
@@ -170,6 +181,8 @@ class PhishingClassifierDelegate : public content::RenderFrameObserver,
 
   base::ScopedObservation<ScorerStorage, ScorerStorage::Observer>
       model_change_observation_{this};
+
+  base::WeakPtrFactory<PhishingClassifierDelegate> weak_factory_{this};
 };
 
 }  // namespace safe_browsing

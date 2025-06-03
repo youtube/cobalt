@@ -2,17 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {assertArrayEquals, assertEquals, assertFalse, assertNotEquals, assertTrue} from 'chrome://webui-test/chai_assert.js';
+import {getTrustedHTML} from 'chrome://resources/js/static_types.js';
+import {assertEquals, assertFalse, assertNotEquals, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {eventToPromise} from 'chrome://webui-test/test_util.js';
 
 import {waitForElementUpdate} from '../common/js/unittest_util.js';
 
-import {TreeSelectedChangedEvent, XfTree} from './xf_tree.js';
-import {TreeItemCollapsedEvent, TreeItemExpandedEvent, XfTreeItem} from './xf_tree_item.js';
+import {type TreeSelectedChangedEvent, XfTree} from './xf_tree.js';
+import {type TreeItemCollapsedEvent, type TreeItemExpandedEvent, XfTreeItem} from './xf_tree_item.js';
 
 export function setUp() {
-  document.body.setAttribute('theme', 'refresh23');
-  document.body.innerHTML = '<xf-tree></xf-tree>';
+  document.body.innerHTML = getTrustedHTML`
+    <xf-tree></xf-tree>
+  `;
 }
 
 async function getTree(): Promise<XfTree> {
@@ -32,16 +34,9 @@ function getTreeItemById(id: string): XfTreeItem {
   return document.querySelector(`xf-tree-item#${id}`)!;
 }
 
-/** Helper method to get the ids of elements in the tab order. */
-function getTabbableTreeIds(tree: XfTree): string[] {
-  const allItems: XfTreeItem[] =
-      Array.from(tree.querySelectorAll('xf-tree-item'));
-  return allItems.filter(el => el.tabIndex !== -1).map(el => el.id);
-}
-
 function sendKeyDownEvent(tree: XfTree, key: string) {
   const keyDownEvent = new KeyboardEvent('keydown', {key});
-  getTreeRoot(tree).dispatchEvent(keyDownEvent);
+  tree.dispatchEvent(keyDownEvent);
 }
 
 function simulateDoubleClick(element: HTMLElement) {
@@ -51,15 +46,24 @@ function simulateDoubleClick(element: HTMLElement) {
   }));
 }
 
+function simulateRightClick(element: HTMLElement) {
+  element.dispatchEvent(new MouseEvent('mousedown', {
+    button: 2,
+    bubbles: true,
+    composed: true,
+  }));
+}
+
 /**
- * Helper method that checks that focused item is correct,
- * and tab orders updated so only the focused item is tabbable.
+ * Helper method that checks that focused item is correct.
  */
 function checkFocusedItemToBe(tree: XfTree, id: string): boolean {
-  const item = getTreeItemById(id);
-  const tabbableIds = getTabbableTreeIds(tree);
-  return document.activeElement === item && tabbableIds.length === 1 &&
-      tabbableIds[0] === id;
+  // Force focus the tree before checking document.activeElement. This is
+  // because if the tree item itself is selected programmatically (e.g. via
+  // ".selected = true"), the `.focusedItem` will update but it won't be
+  // actually focused(). For more details check `Tree.makeItemFocusable_()`.
+  tree.focus();
+  return tree.focusedItem!.id === id && document.activeElement!.id === id;
 }
 
 /** Construct a tree with only direct children. */
@@ -69,8 +73,10 @@ async function appendDirectTreeItems(tree: XfTree) {
   // ── item2
   const item1 = document.createElement('xf-tree-item');
   item1.id = 'item1';
+  item1.label = 'item1';
   const item2 = document.createElement('xf-tree-item');
   item2.id = 'item2';
+  item2.label = 'item2';
   tree.appendChild(item1);
   tree.appendChild(item2);
   await waitForElementUpdate(tree);
@@ -86,14 +92,19 @@ async function appendNestedTreeItems(tree: XfTree) {
   // ── item2
   const item1 = document.createElement('xf-tree-item');
   item1.id = 'item1';
+  item1.label = 'item1';
   const item1a = document.createElement('xf-tree-item');
   item1a.id = 'item1a';
+  item1a.label = 'item1a';
   const item1b = document.createElement('xf-tree-item');
   item1b.id = 'item1b';
+  item1b.label = 'item1b';
   const item1bi = document.createElement('xf-tree-item');
   item1bi.id = 'item1bi';
+  item1bi.label = 'item1bi';
   const item2 = document.createElement('xf-tree-item');
   item2.id = 'item2';
+  item2.label = 'item2';
 
   item1b.appendChild(item1bi);
   item1.appendChild(item1a);
@@ -167,10 +178,10 @@ export async function testHomeAndEndNavigation(done: () => void) {
   await appendNestedTreeItems(tree);
 
   const item1bi = getTreeItemById('item1bi');
-  // Expand item1 and item1b, then focus item1bi.
+  // Expand item1 and item1b, then select item1bi.
   item1bi.selected = true;
   await waitForElementUpdate(tree);
-  assertArrayEquals(['item1bi'], getTabbableTreeIds(tree));
+  assertTrue(checkFocusedItemToBe(tree, 'item1bi'));
   // Home -> item1.
   sendKeyDownEvent(tree, 'Home');
   assertTrue(checkFocusedItemToBe(tree, 'item1'));
@@ -498,7 +509,7 @@ export async function testEnterToSelectItem(done: () => void) {
       eventToPromise(XfTree.events.TREE_SELECTION_CHANGED, tree);
   sendKeyDownEvent(tree, 'ArrowUp');
   assertTrue(checkFocusedItemToBe(tree, 'item1'));
-  sendKeyDownEvent(tree, 'Space');
+  sendKeyDownEvent(tree, ' ');
   await waitForElementUpdate(tree);
   const selectionChangeEvent2 = await selectionChangeEventPromise2;
   assertTrue(item1.selected);
@@ -549,6 +560,7 @@ export async function testSelectTreeItemByClick(done: () => void) {
   // item1 should be selected, not expanded.
   assertFalse(item1.expanded);
   assertTrue(item1.selected);
+  assertTrue(checkFocusedItemToBe(tree, 'item1'));
 
   done();
 }
@@ -565,6 +577,7 @@ export async function testExpandTreeItemByDoubleClick(done: () => void) {
 
   // item1 should be expanded.
   assertTrue(item1.expanded);
+  assertTrue(checkFocusedItemToBe(tree, 'item1'));
 
   // Double click again on item1.
   simulateDoubleClick(item1);
@@ -572,6 +585,77 @@ export async function testExpandTreeItemByDoubleClick(done: () => void) {
 
   // item1 should be collapsed.
   assertFalse(item1.expanded);
+  assertTrue(checkFocusedItemToBe(tree, 'item1'));
+
+  done();
+}
+
+/** Tests tree item can be focused by right click. */
+export async function testFocusTreeItemByRightClick(done: () => void) {
+  const tree = await getTree();
+  await appendDirectTreeItems(tree);
+
+  // Right click on item1.
+  const item1 = getTreeItemById('item1');
+  simulateRightClick(item1);
+  await waitForElementUpdate(item1);
+
+  // item1 should be focused.
+  assertTrue(checkFocusedItemToBe(tree, 'item1'));
+
+  done();
+}
+
+export async function testClickHostShouldFocusItem(done: () => void) {
+  const tree = await getTree();
+  await appendDirectTreeItems(tree);
+
+  // Make item2 focusable.
+  const item2 = getTreeItemById('item2');
+  tree.focusedItem = item2;
+
+  // item2 should not be focused yet.
+  assertNotEquals('item2', document.activeElement!.id);
+
+  // Click the tree will make item2 become focused.
+  tree.click();
+  assertEquals('item2', document.activeElement!.id);
+
+  done();
+}
+
+export async function testRightClickHostShouldFocusItem(done: () => void) {
+  const tree = await getTree();
+  await appendDirectTreeItems(tree);
+
+  // Make item2 focusable.
+  const item2 = getTreeItemById('item2');
+  tree.focusedItem = item2;
+
+  // item2 should not be focused yet.
+  assertNotEquals('item2', document.activeElement!.id);
+
+  // Right click the tree will make item2 become focused.
+  simulateRightClick(tree);
+  assertEquals('item2', document.activeElement!.id);
+
+  done();
+}
+
+export async function testDoubleClickHostShouldFocusItem(done: () => void) {
+  const tree = await getTree();
+  await appendDirectTreeItems(tree);
+
+  // Make item2 focusable.
+  const item2 = getTreeItemById('item2');
+  tree.focusedItem = item2;
+
+  // item2 should not be focused yet.
+  assertNotEquals('item2', document.activeElement!.id);
+
+  // Double click the tree will make item2 become focused.
+  simulateDoubleClick(tree);
+  assertEquals('item2', document.activeElement!.id);
 
   done();
 }
@@ -682,6 +766,30 @@ export async function testSelectionUpdateAfterRemoving(done: () => void) {
 
   // The selected item should be null now.
   assertEquals(null, tree.selectedItem);
+
+  done();
+}
+
+/** Tests removing a focused tree item should update focusedItem properly. */
+export async function testFocusUpdateAfterRemoving(done: () => void) {
+  const tree = await getTree();
+  await appendDirectTreeItems(tree);
+
+  // Focus item2.
+  const item2 = getTreeItemById('item2');
+  tree.focusedItem = item2;
+
+  // Select item1.
+  const item1 = getTreeItemById('item1');
+  item1.selected = true;
+  await waitForElementUpdate(item1);
+
+  // Remove item2.
+  tree.removeChild(item2);
+  await waitForElementUpdate(tree);
+
+  // The selected item should be the selected item now.
+  assertEquals('item1', tree.focusedItem.id);
 
   done();
 }

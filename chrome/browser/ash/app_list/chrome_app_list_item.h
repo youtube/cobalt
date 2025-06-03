@@ -59,6 +59,9 @@ class ChromeAppListItem {
   static gfx::ImageSkia CreateDisabledIcon(const gfx::ImageSkia& icon);
 
   const std::string& id() const { return metadata_->id; }
+  const std::string& promise_package_id() const {
+    return metadata_->promise_package_id;
+  }
   const std::string& folder_id() const { return metadata_->folder_id; }
   const syncer::StringOrdinal& position() const { return metadata_->position; }
   const std::string& name() const { return metadata_->name; }
@@ -69,6 +72,10 @@ class ChromeAppListItem {
   const ash::IconColor& icon_color() const { return metadata_->icon_color; }
   bool is_new_install() const { return metadata_->is_new_install; }
   bool is_ephemeral() const { return metadata_->is_ephemeral; }
+  float progress() const { return metadata_->progress; }
+  const std::string accessible_name() const {
+    return metadata_->accessible_name;
+  }
 
   void SetMetadata(std::unique_ptr<ash::AppListItemMetadata> metadata);
   std::unique_ptr<ash::AppListItemMetadata> CloneMetadata() const;
@@ -81,6 +88,7 @@ class ChromeAppListItem {
   // interfaces that talk to ash directly.
   void IncrementIconVersion();
   void SetIcon(const gfx::ImageSkia& icon, bool is_place_holder_icon);
+  void SetBadgeIcon(const gfx::ImageSkia& badge_icon);
   void SetAppStatus(ash::AppStatus app_status);
   void SetFolderId(const std::string& folder_id);
   void SetIsSystemFolder(bool is_system_folder);
@@ -93,6 +101,9 @@ class ChromeAppListItem {
   void SetChromeName(const std::string& name);
   void SetChromePosition(const syncer::StringOrdinal& position);
   void SetIsEphemeral(bool is_ephemeral);
+
+  // Checks whether the item is for a promise app.
+  bool IsPromiseApp() const;
 
   // Call |Activate()| and dismiss launcher if necessary.
   void PerformActivate(int event_flags);
@@ -120,6 +131,8 @@ class ChromeAppListItem {
   // has its Android analog installed.
   virtual bool IsBadged() const;
 
+  virtual std::string GetPromisedItemId() const;
+
   bool CompareForTest(const ChromeAppListItem* other) const;
 
   std::string ToDebugString() const;
@@ -139,7 +152,10 @@ class ChromeAppListItem {
 
   AppListControllerDelegate* GetController();
 
+  void SetAccessibleName(const std::string& label);
   void SetName(const std::string& name);
+  void SetPromisePackageId(const std::string& promise_package_id);
+  void SetProgress(float progress);
   void SetPosition(const syncer::StringOrdinal& position);
 
   void set_model_updater(AppListModelUpdater* model_updater) {
@@ -160,7 +176,7 @@ class ChromeAppListItem {
  private:
   std::unique_ptr<ash::AppListItemMetadata> metadata_;
   raw_ptr<Profile> profile_;
-  raw_ptr<AppListModelUpdater> model_updater_ = nullptr;
+  raw_ptr<AppListModelUpdater, DanglingUntriaged> model_updater_ = nullptr;
 };
 
 #endif  // CHROME_BROWSER_ASH_APP_LIST_CHROME_APP_LIST_ITEM_H_

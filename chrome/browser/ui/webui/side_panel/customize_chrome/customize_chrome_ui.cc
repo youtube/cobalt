@@ -8,20 +8,27 @@
 #include <utility>
 
 #include "chrome/browser/cart/cart_handler.h"
+#include "chrome/browser/image_fetcher/image_decoder_impl.h"
 #include "chrome/browser/new_tab_page/modules/new_tab_page_modules.h"
 #include "chrome/browser/new_tab_page/new_tab_page_util.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/search/background/ntp_custom_background_service_factory.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
+#include "chrome/browser/ui/webui/cr_components/customize_color_scheme_mode/customize_color_scheme_mode_handler.h"
+#include "chrome/browser/ui/webui/cr_components/theme_color_picker/theme_color_picker_handler.h"
 #include "chrome/browser/ui/webui/new_tab_page/new_tab_page_ui.h"
 #include "chrome/browser/ui/webui/sanitized_image_source.h"
 #include "chrome/browser/ui/webui/side_panel/customize_chrome/customize_chrome_page_handler.h"
 #include "chrome/browser/ui/webui/side_panel/customize_chrome/customize_chrome_section.h"
+#include "chrome/browser/ui/webui/side_panel/customize_chrome/wallpaper_search/wallpaper_search_handler.h"
 #include "chrome/browser/ui/webui/webui_util.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/grit/side_panel_customize_chrome_resources.h"
 #include "chrome/grit/side_panel_customize_chrome_resources_map.h"
+#include "chrome/grit/side_panel_shared_resources.h"
+#include "chrome/grit/side_panel_shared_resources_map.h"
+#include "components/optimization_guide/core/optimization_guide_features.h"
 #include "components/search/ntp_features.h"
 #include "components/strings/grit/components_strings.h"
 #include "content/public/browser/web_contents.h"
@@ -44,6 +51,7 @@ DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(CustomizeChromeUI, kChromeThemeElementId);
 
 CustomizeChromeUI::CustomizeChromeUI(content::WebUI* web_ui)
     : ui::MojoBubbleWebUIController(web_ui),
+      image_decoder_(std::make_unique<ImageDecoderImpl>()),
       profile_(Profile::FromWebUI(web_ui)),
       web_contents_(web_ui->GetWebContents()),
       module_id_names_(ntp::MakeModuleIdNames(
@@ -70,13 +78,17 @@ CustomizeChromeUI::CustomizeChromeUI(content::WebUI* web_ui)
       {"colorPickerLabel", IDS_NTP_CUSTOMIZE_COLOR_PICKER_LABEL},
       {"currentTheme", IDS_NTP_CUSTOMIZE_CHROME_CURRENT_THEME_LABEL},
       {"defaultColorName", IDS_NTP_CUSTOMIZE_DEFAULT_LABEL},
+      {"greyDefaultColorName", IDS_NTP_CUSTOMIZE_GREY_DEFAULT_LABEL},
+      {"hueSliderTitle", IDS_NTP_CUSTOMIZE_COLOR_HUE_SLIDER_TITLE},
       {"mainColorName", IDS_NTP_CUSTOMIZE_MAIN_COLOR_LABEL},
       {"managedColorsTitle", IDS_NTP_THEME_MANAGED_DIALOG_TITLE},
       {"managedColorsBody", IDS_NTP_THEME_MANAGED_DIALOG_BODY},
       {"uploadImage", IDS_NTP_CUSTOM_BG_UPLOAD_AN_IMAGE},
       {"uploadedImage", IDS_NTP_CUSTOMIZE_UPLOADED_IMAGE_LABEL},
+      {"yourUploadedImage", IDS_NTP_CUSTOMIZE_YOUR_UPLOADED_IMAGE_LABEL},
       {"resetToClassicChrome",
        IDS_NTP_CUSTOMIZE_CHROME_RESET_TO_CLASSIC_CHROME_LABEL},
+      {"followThemeToggle", IDS_NTP_CUSTOMIZE_CHROME_FOLLOW_THEME_LABEL},
       {"refreshDaily", IDS_NTP_CUSTOM_BG_DAILY_REFRESH},
       // Shortcut strings.
       {"mostVisited", IDS_NTP_CUSTOMIZE_MOST_VISITED_LABEL},
@@ -93,6 +105,12 @@ CustomizeChromeUI::CustomizeChromeUI(content::WebUI* web_ui)
       {"controlledSettingPolicy", IDS_CONTROLLED_SETTING_POLICY},
       {"close", IDS_NEW_TAB_VOICE_CLOSE_TOOLTIP},
       {"ok", IDS_OK},
+      // CustomizeColorSchemeMode strings.
+      {"colorSchemeModeLabel",
+       IDS_NTP_CUSTOMIZE_CHROME_COLOR_SCHEME_MODE_GROUP_LABEL},
+      {"lightMode", IDS_NTP_CUSTOMIZE_CHROME_COLOR_SCHEME_MODE_LIGHT_LABEL},
+      {"darkMode", IDS_NTP_CUSTOMIZE_CHROME_COLOR_SCHEME_MODE_DARK_LABEL},
+      {"systemMode", IDS_NTP_CUSTOMIZE_CHROME_COLOR_SCHEME_MODE_SYSTEM_LABEL},
   };
   source->AddLocalizedStrings(kLocalizedStrings);
 
@@ -105,6 +123,27 @@ CustomizeChromeUI::CustomizeChromeUI(content::WebUI* web_ui)
       IsCartModuleEnabled() &&
           base::FeatureList::IsEnabled(
               ntp_features::kNtpChromeCartInHistoryClusterModule));
+
+  source->AddBoolean("showDeviceThemeToggle",
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_WIN)
+                     features::IsChromeWebuiRefresh2023());
+#else
+                     false);
+#endif
+
+  source->AddBoolean(
+      "extensionsCardEnabled",
+      base::FeatureList::IsEnabled(
+          ntp_features::kCustomizeChromeSidePanelExtensionsCard) &&
+          features::IsChromeWebuiRefresh2023());
+
+  source->AddBoolean(
+      "wallpaperSearchEnabled",
+      base::FeatureList::IsEnabled(
+          ntp_features::kCustomizeChromeWallpaperSearch) &&
+          base::FeatureList::IsEnabled(
+              optimization_guide::features::kOptimizationGuideModelExecution));
+
   webui::SetupChromeRefresh2023(source);
 
   webui::SetupWebUIDataSource(
@@ -112,6 +151,8 @@ CustomizeChromeUI::CustomizeChromeUI(content::WebUI* web_ui)
       base::make_span(kSidePanelCustomizeChromeResources,
                       kSidePanelCustomizeChromeResourcesSize),
       IDR_SIDE_PANEL_CUSTOMIZE_CHROME_CUSTOMIZE_CHROME_HTML);
+  source->AddResourcePaths(base::make_span(kSidePanelSharedResources,
+                                           kSidePanelSharedResourcesSize));
 
   content::URLDataSource::Add(profile_,
                               std::make_unique<SanitizedImageSource>(profile_));
@@ -159,10 +200,40 @@ void CustomizeChromeUI::BindInterface(
 }
 
 void CustomizeChromeUI::BindInterface(
+    mojo::PendingReceiver<customize_color_scheme_mode::mojom::
+                              CustomizeColorSchemeModeHandlerFactory>
+        pending_receiver) {
+  if (customize_color_scheme_mode_handler_factory_receiver_.is_bound()) {
+    customize_color_scheme_mode_handler_factory_receiver_.reset();
+  }
+  customize_color_scheme_mode_handler_factory_receiver_.Bind(
+      std::move(pending_receiver));
+}
+
+void CustomizeChromeUI::BindInterface(
+    mojo::PendingReceiver<
+        theme_color_picker::mojom::ThemeColorPickerHandlerFactory>
+        pending_receiver) {
+  if (theme_color_picker_handler_factory_receiver_.is_bound()) {
+    theme_color_picker_handler_factory_receiver_.reset();
+  }
+  theme_color_picker_handler_factory_receiver_.Bind(
+      std::move(pending_receiver));
+}
+
+void CustomizeChromeUI::BindInterface(
     mojo::PendingReceiver<color_change_listener::mojom::PageHandler>
         pending_receiver) {
   color_provider_handler_ = std::make_unique<ui::ColorChangeHandler>(
       web_ui()->GetWebContents(), std::move(pending_receiver));
+}
+
+void CustomizeChromeUI::BindInterface(
+    mojo::PendingReceiver<
+        side_panel::customize_chrome::mojom::WallpaperSearchHandler>
+        pending_receiver) {
+  wallpaper_search_handler_ = std::make_unique<WallpaperSearchHandler>(
+      std::move(pending_receiver), profile_, image_decoder_.get());
 }
 
 void CustomizeChromeUI::CreatePageHandler(
@@ -191,4 +262,27 @@ void CustomizeChromeUI::CreateHelpBubbleHandler(
           CustomizeChromeUI::kChromeThemeCollectionElementId,
           CustomizeChromeUI::kChromeThemeElementId,
           CustomizeChromeUI::kChromeThemeBackElementId});
+}
+
+void CustomizeChromeUI::CreateCustomizeColorSchemeModeHandler(
+    mojo::PendingRemote<
+        customize_color_scheme_mode::mojom::CustomizeColorSchemeModeClient>
+        client,
+    mojo::PendingReceiver<
+        customize_color_scheme_mode::mojom::CustomizeColorSchemeModeHandler>
+        handler) {
+  customize_color_scheme_mode_handler_ =
+      std::make_unique<CustomizeColorSchemeModeHandler>(
+          std::move(client), std::move(handler), profile_);
+}
+
+void CustomizeChromeUI::CreateThemeColorPickerHandler(
+    mojo::PendingReceiver<theme_color_picker::mojom::ThemeColorPickerHandler>
+        handler,
+    mojo::PendingRemote<theme_color_picker::mojom::ThemeColorPickerClient>
+        client) {
+  theme_color_picker_handler_ = std::make_unique<ThemeColorPickerHandler>(
+      std::move(handler), std::move(client),
+      NtpCustomBackgroundServiceFactory::GetForProfile(profile_),
+      web_contents_);
 }

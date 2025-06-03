@@ -8,9 +8,10 @@
 #include "base/test/metrics/histogram_tester.h"
 #include "base/values.h"
 #include "components/commerce/core/commerce_feature_list.h"
+#include "components/commerce/core/metrics/metrics_utils.h"
 #include "components/commerce/core/shopping_service.h"
 #include "components/commerce/core/shopping_service_test_base.h"
-#include "components/optimization_guide/core/new_optimization_guide_decider.h"
+#include "components/optimization_guide/core/optimization_guide_decider.h"
 #include "components/optimization_guide/core/optimization_guide_decision.h"
 #include "components/optimization_guide/core/optimization_metadata.h"
 #include "components/optimization_guide/proto/hints.pb.h"
@@ -45,6 +46,7 @@ class ShoppingServiceMetricsTest : public ShoppingServiceTestBase {
   ~ShoppingServiceMetricsTest() override = default;
 
   void SetUp() override {
+    ShoppingServiceTestBase::SetUp();
     histogram_tester_ = std::make_unique<base::HistogramTester>();
   }
 
@@ -59,9 +61,8 @@ TEST_F(ShoppingServiceMetricsTest,
   test_features_.InitWithFeatures({kShoppingList, kCommerceAllowLocalImages},
                                   {kCommerceAllowServerImages});
 
-  MockWebWrapper web(GURL(kProductUrl), false);
   base::Value js_result("{\"image\": \"" + std::string(kImageUrl2) + "\"}");
-  web.SetMockJavaScriptResult(&js_result);
+  MockWebWrapper web(GURL(kProductUrl), false, &js_result);
 
   opt_guide_->SetResponse(GURL(kProductUrl), OptimizationType::PRICE_TRACKING,
                           OptimizationGuideDecision::kTrue,
@@ -75,6 +76,7 @@ TEST_F(ShoppingServiceMetricsTest,
   ASSERT_NE(kImageUrl, cached_info->image_url);
 
   DidFinishLoad(&web);
+  SimulateProductInfoLocalExtractionTaskFinished();
 
   // After the page has loaded and the on-page js has run, we should have the
   // on-page image.
@@ -93,9 +95,8 @@ TEST_F(ShoppingServiceMetricsTest,
   test_features_.InitWithFeatures({kShoppingList, kCommerceAllowServerImages},
                                   {kCommerceAllowLocalImages});
 
-  MockWebWrapper web(GURL(kProductUrl), false);
   base::Value js_result("{\"image\": \"" + std::string(kImageUrl2) + "\"}");
-  web.SetMockJavaScriptResult(&js_result);
+  MockWebWrapper web(GURL(kProductUrl), false, &js_result);
 
   opt_guide_->SetResponse(GURL(kProductUrl), OptimizationType::PRICE_TRACKING,
                           OptimizationGuideDecision::kTrue,
@@ -109,6 +110,7 @@ TEST_F(ShoppingServiceMetricsTest,
   ASSERT_EQ(kImageUrl, cached_info->image_url.spec());
 
   DidFinishLoad(&web);
+  SimulateProductInfoLocalExtractionTaskFinished();
 
   // After the page has loaded and the on-page js has run, we should have the
   // on-page image.
@@ -127,9 +129,8 @@ TEST_F(ShoppingServiceMetricsTest, TestImageAvailabilityNoServerImage) {
       {kShoppingList, kCommerceAllowLocalImages, kCommerceAllowServerImages},
       {});
 
-  MockWebWrapper web(GURL(kProductUrl), false);
   base::Value js_result("{\"image\": \"" + std::string(kImageUrl2) + "\"}");
-  web.SetMockJavaScriptResult(&js_result);
+  MockWebWrapper web(GURL(kProductUrl), false, &js_result);
 
   opt_guide_->SetResponse(GURL(kProductUrl), OptimizationType::PRICE_TRACKING,
                           OptimizationGuideDecision::kTrue,
@@ -143,6 +144,7 @@ TEST_F(ShoppingServiceMetricsTest, TestImageAvailabilityNoServerImage) {
   ASSERT_NE(kImageUrl, cached_info->image_url);
 
   DidFinishLoad(&web);
+  SimulateProductInfoLocalExtractionTaskFinished();
 
   // After the page has loaded and the on-page js has run, we should have the
   // on-page image.
@@ -160,9 +162,8 @@ TEST_F(ShoppingServiceMetricsTest, TestImageAvailabilityNoLocalImage) {
       {kShoppingList, kCommerceAllowLocalImages, kCommerceAllowServerImages},
       {});
 
-  MockWebWrapper web(GURL(kProductUrl), false);
   base::Value js_result("{\"irrelevant\": \"value\"}");
-  web.SetMockJavaScriptResult(&js_result);
+  MockWebWrapper web(GURL(kProductUrl), false, &js_result);
 
   opt_guide_->SetResponse(GURL(kProductUrl), OptimizationType::PRICE_TRACKING,
                           OptimizationGuideDecision::kTrue,
@@ -176,6 +177,7 @@ TEST_F(ShoppingServiceMetricsTest, TestImageAvailabilityNoLocalImage) {
   ASSERT_EQ(kImageUrl, cached_info->image_url);
 
   DidFinishLoad(&web);
+  SimulateProductInfoLocalExtractionTaskFinished();
 
   // After the page has loaded and the on-page js has run, we should not have
   // detected another image and report "server only".
@@ -207,6 +209,130 @@ TEST_F(ShoppingServiceMetricsTest, TestImageAvailabilityNoRecordIfJSNotRun) {
   ASSERT_EQ(kImageUrl, cached_info->image_url.spec());
 
   histogram_tester_->ExpectTotalCount(kImageAvailabilityHistogramName, 0);
+}
+
+TEST_F(ShoppingServiceMetricsTest, TestLocalPDPDetection_NoLocal) {
+  test_features_.InitWithFeatures({kShoppingList, kCommerceLocalPDPDetection},
+                                  {});
+
+  //  Set the type as a non-product.
+  base::Value js_result("{\"" + std::string(kOgType) + "\": \"article\"}");
+  MockWebWrapper web(GURL(kProductUrl), false, &js_result);
+
+  opt_guide_->SetResponse(GURL(kProductUrl), OptimizationType::PRICE_TRACKING,
+                          OptimizationGuideDecision::kTrue,
+                          og_response_with_image_);
+
+  DidNavigatePrimaryMainFrame(&web);
+  DidFinishLoad(&web);
+  SimulateProductInfoLocalExtractionTaskFinished();
+
+  histogram_tester_->ExpectBucketCount(
+      metrics::kPDPStateWithLocalMetaName,
+      metrics::ShoppingPDPDetectionMethod::kPDPServerOnly, 1);
+  histogram_tester_->ExpectTotalCount(metrics::kPDPStateWithLocalMetaName, 1);
+}
+
+TEST_F(ShoppingServiceMetricsTest, TestLocalPDPDetection_BothServerAndLocal) {
+  test_features_.InitWithFeatures({kShoppingList, kCommerceLocalPDPDetection},
+                                  {});
+
+  base::Value js_result("{\"" + std::string(kOgType) + "\": \"" +
+                        kOgTypeOgProduct + "\"}");
+  MockWebWrapper web(GURL(kProductUrl), false, &js_result);
+
+  opt_guide_->SetResponse(GURL(kProductUrl), OptimizationType::PRICE_TRACKING,
+                          OptimizationGuideDecision::kTrue,
+                          og_response_with_image_);
+
+  DidNavigatePrimaryMainFrame(&web);
+  DidFinishLoad(&web);
+  SimulateProductInfoLocalExtractionTaskFinished();
+
+  histogram_tester_->ExpectBucketCount(
+      metrics::kPDPStateWithLocalMetaName,
+      metrics::ShoppingPDPDetectionMethod::kPDPServerAndLocalMeta, 1);
+  histogram_tester_->ExpectTotalCount(metrics::kPDPStateWithLocalMetaName, 1);
+}
+
+TEST_F(ShoppingServiceMetricsTest, TestLocalPDPDetection_NoServer) {
+  test_features_.InitWithFeatures({kShoppingList, kCommerceLocalPDPDetection},
+                                  {});
+
+  base::Value js_result("{\"" + std::string(kOgType) + "\": \"" +
+                        kOgTypeOgProduct + "\"}");
+  MockWebWrapper web(GURL(kProductUrl), false, &js_result);
+
+  opt_guide_->SetResponse(GURL(kProductUrl), OptimizationType::PRICE_TRACKING,
+                          OptimizationGuideDecision::kFalse,
+                          OptimizationMetadata());
+
+  DidNavigatePrimaryMainFrame(&web);
+  DidFinishLoad(&web);
+  SimulateProductInfoLocalExtractionTaskFinished();
+
+  histogram_tester_->ExpectBucketCount(
+      metrics::kPDPStateWithLocalMetaName,
+      metrics::ShoppingPDPDetectionMethod::kPDPLocalMetaOnly, 1);
+  histogram_tester_->ExpectTotalCount(metrics::kPDPStateWithLocalMetaName, 1);
+}
+
+TEST_F(ShoppingServiceMetricsTest, TestLocalPDPDetection_IllegalScheme) {
+  test_features_.InitWithFeatures({kShoppingList, kCommerceLocalPDPDetection},
+                                  {});
+
+  base::Value js_result("{\"" + std::string(kOgType) + "\": \"" +
+                        kOgTypeOgProduct + "\"}");
+  MockWebWrapper web(GURL("chrome://internal-page"), false, &js_result);
+
+  opt_guide_->SetResponse(GURL(kProductUrl), OptimizationType::PRICE_TRACKING,
+                          OptimizationGuideDecision::kFalse,
+                          OptimizationMetadata());
+
+  DidNavigatePrimaryMainFrame(&web);
+  DidFinishLoad(&web);
+  SimulateProductInfoLocalExtractionTaskFinished();
+
+  histogram_tester_->ExpectTotalCount(metrics::kPDPStateWithLocalMetaName, 0);
+}
+
+TEST_F(ShoppingServiceMetricsTest,
+       TestLocalPDPDetection_NoServer_NoExperimentFlag) {
+  test_features_.InitWithFeatures({kShoppingList},
+                                  {kCommerceLocalPDPDetection});
+
+  base::Value js_result("{\"" + std::string(kOgType) + "\": \"" +
+                        kOgTypeOgProduct + "\"}");
+  MockWebWrapper web(GURL(kProductUrl), false, &js_result);
+
+  opt_guide_->SetResponse(GURL(kProductUrl), OptimizationType::PRICE_TRACKING,
+                          OptimizationGuideDecision::kFalse,
+                          OptimizationMetadata());
+
+  DidNavigatePrimaryMainFrame(&web);
+  DidFinishLoad(&web);
+  SimulateProductInfoLocalExtractionTaskFinished();
+
+  histogram_tester_->ExpectTotalCount(metrics::kPDPStateWithLocalMetaName, 0);
+}
+
+TEST_F(ShoppingServiceMetricsTest, TestProductInfoJsExecutionTime) {
+  test_features_.InitWithFeatures({kShoppingList}, {});
+
+  // The content of the javascript result only needs to be json for this text,
+  // the actual fields don't matter.
+  base::Value js_result("{\"success\": true}");
+  MockWebWrapper web(GURL(kProductUrl), false, &js_result);
+
+  opt_guide_->SetResponse(GURL(kProductUrl), OptimizationType::PRICE_TRACKING,
+                          OptimizationGuideDecision::kTrue,
+                          og_response_no_image_);
+
+  DidNavigatePrimaryMainFrame(&web);
+  DidFinishLoad(&web);
+  SimulateProductInfoLocalExtractionTaskFinished();
+
+  histogram_tester_->ExpectTotalCount(kProductInfoLocalExtractionTime, 1);
 }
 
 }  // namespace commerce

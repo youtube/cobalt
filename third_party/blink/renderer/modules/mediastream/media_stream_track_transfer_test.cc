@@ -1,4 +1,4 @@
-// Copyright (c) 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -145,7 +145,7 @@ MediaStreamTrack::TransferredValues TransferredValuesTabCaptureVideo() {
       .muted = true,
       .content_hint = WebMediaStreamTrack::ContentHintType::kVideoMotion,
       .ready_state = MediaStreamSource::kReadyStateLive,
-      .crop_version = 0};
+      .sub_capture_target_version = 0};
 }
 
 mojom::blink::StreamDevices DevicesTabCaptureVideo(
@@ -168,7 +168,7 @@ TEST(MediaStreamTrackTransferTest, TabCaptureVideoFromTransferredStateBasic) {
   auto data = TransferredValuesTabCaptureVideo();
 #if BUILDFLAG(IS_ANDROID)
   data.track_impl_subtype = MediaStreamTrack::GetStaticWrapperTypeInfo();
-  data.crop_version = absl::nullopt;
+  data.sub_capture_target_version = absl::nullopt;
 #endif
   scoped_user_media_client.display_mock_media_stream_dispatcher_host
       .SetStreamDevices(DevicesTabCaptureVideo(data.session_id));
@@ -202,7 +202,8 @@ TEST(MediaStreamTrackTransferTest, TabCaptureVideoFromTransferredStateBasic) {
   ThreadState::Current()->CollectAllGarbageForTesting();
 }
 
-// TODO(crbug.com/1288839): implement and test transferred crop version
+// TODO(crbug.com/1288839): implement and test transferred sub-capture-target
+// version
 
 TEST(MediaStreamTrackTransferTest, TabCaptureAudioFromTransferredState) {
   V8TestingScope scope;

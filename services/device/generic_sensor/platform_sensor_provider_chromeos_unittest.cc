@@ -7,6 +7,7 @@
 #include <memory>
 #include <utility>
 
+#include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/test/bind.h"
@@ -55,7 +56,7 @@ class FakeClient : public PlatformSensor::Client {
   bool IsSuspended() override { return false; }
 
  private:
-  PlatformSensor* platform_sensor_;
+  raw_ptr<PlatformSensor> platform_sensor_;
 };
 
 }  // namespace
@@ -747,7 +748,7 @@ TEST_F(PlatformSensorProviderChromeOSTest, LatePresentLightSensors) {
   // Wait until |provider_| finishes processing the new device.
   base::RunLoop().RunUntilIdle();
 
-  // Test PlatformSensorProviderBase::NotifySensorCreated on different sensors
+  // Test PlatformSensorProvider::NotifySensorCreated on different sensors
   // of the same type.
   auto light_lid = CreateSensor(mojom::SensorType::AMBIENT_LIGHT);
   EXPECT_TRUE(light_lid);
@@ -767,7 +768,7 @@ TEST_F(PlatformSensorProviderChromeOSTest, LatePresentLightSensors) {
   SensorReading result;
   EXPECT_FALSE(light_base->GetLatestReading(&result));
 
-  // Test PlatformSensorProviderBase::RemoveSensor on different sensors of the
+  // Test PlatformSensorProvider::RemoveSensor on different sensors of the
   // same type.
   light_base.reset();
 

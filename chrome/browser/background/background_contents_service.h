@@ -245,13 +245,13 @@ class BackgroundContentsService
   // Delay (in ms) before restarting a force-installed extension that crashed.
   static int restart_delay_in_ms_;
 
-  raw_ptr<Profile, DanglingUntriaged> profile_;
+  raw_ptr<Profile, FlakyDanglingUntriaged> profile_;
 
   base::ObserverList<BackgroundContentsServiceObserver> observers_;
 
   // PrefService used to store list of background pages (or NULL if this is
   // running under an incognito profile).
-  raw_ptr<PrefService> prefs_ = nullptr;
+  raw_ptr<PrefService, FlakyDanglingUntriaged> prefs_ = nullptr;
 
   // Information we track about each BackgroundContents.
   struct BackgroundContentsInfo {

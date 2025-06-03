@@ -21,7 +21,8 @@ AuthTokenValidator* AuthTokenValidatorFactory::GetForProfile(Profile* profile) {
 
 // static
 AuthTokenValidatorFactory* AuthTokenValidatorFactory::GetInstance() {
-  return base::Singleton<AuthTokenValidatorFactory>::get();
+  static base::NoDestructor<AuthTokenValidatorFactory> instance;
+  return instance.get();
 }
 
 AuthTokenValidatorFactory::AuthTokenValidatorFactory()
@@ -34,11 +35,12 @@ AuthTokenValidatorFactory::AuthTokenValidatorFactory()
               .WithGuest(ProfileSelection::kOriginalOnly)
               .Build()) {}
 
-AuthTokenValidatorFactory::~AuthTokenValidatorFactory() {}
+AuthTokenValidatorFactory::~AuthTokenValidatorFactory() = default;
 
-KeyedService* AuthTokenValidatorFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+AuthTokenValidatorFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
-  return new AuthTokenValidatorImpl(
+  return std::make_unique<AuthTokenValidatorImpl>(
       quick_unlock::QuickUnlockFactory::GetForProfile(
           Profile::FromBrowserContext(context)));
 }

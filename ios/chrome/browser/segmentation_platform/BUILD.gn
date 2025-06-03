@@ -29,25 +29,23 @@ source_set("segmentation_platform") {
     "//components/segmentation_platform/public/proto",
     "//components/sync_device_info",
     "//components/variations",
-    "//ios/chrome/browser/application_context",
-    "//ios/chrome/browser/browser_state",
     "//ios/chrome/browser/history",
-    "//ios/chrome/browser/main:public",
     "//ios/chrome/browser/metrics:accessor",
     "//ios/chrome/browser/optimization_guide",
-    "//ios/chrome/browser/paths",
-    "//ios/chrome/browser/sync",
-    "//ios/chrome/browser/web_state_list",
+    "//ios/chrome/browser/shared/model/application_context",
+    "//ios/chrome/browser/shared/model/browser",
+    "//ios/chrome/browser/shared/model/browser_state",
+    "//ios/chrome/browser/shared/model/paths",
+    "//ios/chrome/browser/shared/model/web_state_list",
+    "//ios/chrome/browser/sync/model",
   ]
   if (build_with_tflite_lib) {
     deps += [ "//components/segmentation_platform/internal:optimization_guide_segmentation_handler" ]
   }
-  configs += [ "//build/config/compiler:enable_arc" ]
   frameworks = [ "Foundation.framework" ]
 }
 
 source_set("unit_tests") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   testonly = true
   sources = [
     "otr_web_state_observer_unittest.mm",
@@ -61,11 +59,11 @@ source_set("unit_tests") {
     "//components/segmentation_platform/internal/proto",
     "//components/segmentation_platform/public",
     "//components/segmentation_platform/public/proto",
-    "//ios/chrome/browser/browser_state:test_support",
-    "//ios/chrome/browser/main:public",
-    "//ios/chrome/browser/main:test_support",
-    "//ios/chrome/browser/prefs:browser_prefs",
-    "//ios/chrome/browser/web_state_list",
+    "//ios/chrome/browser/shared/model/browser",
+    "//ios/chrome/browser/shared/model/browser/test:test_support",
+    "//ios/chrome/browser/shared/model/browser_state:test_support",
+    "//ios/chrome/browser/shared/model/prefs:browser_prefs",
+    "//ios/chrome/browser/shared/model/web_state_list",
     "//ios/chrome/test:test_support",
     "//ios/web/public/test",
     "//ios/web/public/test/fakes",

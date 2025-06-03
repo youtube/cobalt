@@ -24,6 +24,7 @@
 #include "base/values.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
+#include "chrome/browser/printing/print_backend_service_manager.h"
 #include "chrome/browser/printing/print_backend_service_test_impl.h"
 #include "chrome/browser/printing/print_test_utils.h"
 #include "chrome/common/chrome_paths.h"
@@ -141,6 +142,7 @@ class PrintBackendBrowserTest : public InProcessBrowserTest {
     InProcessBrowserTest::TearDown();
     PrintingContext::SetPrintingContextFactoryForTest(/*factory=*/nullptr);
     PrintBackend::SetPrintBackendForTesting(/*print_backend=*/nullptr);
+    PrintBackendServiceManager::ResetForTesting();
   }
 
   // Load the test backend with a default printer driver.
@@ -149,9 +151,9 @@ class PrintBackendBrowserTest : public InProcessBrowserTest {
     // tests.
     auto default_caps = std::make_unique<PrinterSemanticCapsAndDefaults>();
     default_caps->copies_max = kCopiesMax;
-    default_caps->default_paper = kTestPaperLetter;
-    default_caps->papers.push_back(kTestPaperLetter);
-    default_caps->papers.push_back(kTestPaperLegal);
+    default_caps->default_paper = test::kPaperLetter;
+    default_caps->papers.push_back(test::kPaperLetter);
+    default_caps->papers.push_back(test::kPaperLegal);
     test_print_backend_->AddValidPrinter(
         kDefaultPrinterName, std::move(default_caps),
         std::make_unique<PrinterBasicInfo>(kDefaultPrinterInfo));
@@ -394,9 +396,9 @@ class PrintBackendBrowserTest : public InProcessBrowserTest {
    public:
     std::unique_ptr<PrintingContext> CreatePrintingContext(
         PrintingContext::Delegate* delegate,
-        bool skip_system_calls) override {
+        PrintingContext::ProcessBehavior process_behavior) override {
       auto context =
-          std::make_unique<TestPrintingContext>(delegate, skip_system_calls);
+          std::make_unique<TestPrintingContext>(delegate, process_behavior);
 
       auto settings = std::make_unique<PrintSettings>();
       settings->set_copies(kPrintSettingsCopies);
@@ -590,22 +592,22 @@ IN_PROC_BROWSER_TEST_F(PrintBackendBrowserTest, GetPaperPrintableArea) {
     }
   }
   ASSERT_TRUE(non_default_paper.has_value());
-  EXPECT_EQ(non_default_paper->printable_area_um,
-            gfx::Rect(non_default_paper->size_um));
+  EXPECT_EQ(non_default_paper->printable_area_um(),
+            gfx::Rect(non_default_paper->size_um()));
 
   // Request the printable area for this paper size, which should no longer
   // match the physical size but have real printable area values.
   gfx::Rect printable_area_um;
   PrintSettings::RequestedMedia media(
-      /*.size_microns =*/non_default_paper->size_um,
-      /*.vendor_id = */ non_default_paper->vendor_id);
+      /*.size_microns =*/non_default_paper->size_um(),
+      /*.vendor_id = */ non_default_paper->vendor_id());
   GetPrintBackendService()->GetPaperPrintableArea(
       kDefaultPrinterName, media,
       base::BindOnce(&PrintBackendBrowserTest::OnDidGetPaperPrintableArea,
                      base::Unretained(this), std::ref(printable_area_um)));
   WaitUntilCallbackReceived();
   ASSERT_TRUE(!printable_area_um.IsEmpty());
-  EXPECT_NE(printable_area_um, non_default_paper->printable_area_um);
+  EXPECT_NE(printable_area_um, non_default_paper->printable_area_um());
 }
 #endif  // BUILDFLAG(IS_WIN)
 

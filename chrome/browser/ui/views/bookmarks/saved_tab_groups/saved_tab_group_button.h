@@ -28,10 +28,7 @@ namespace gfx {
 class Canvas;
 }
 
-// The display button for the Saved Tab Group in the bookmarks bar.
-// Note: we currently recreate this button if any content (title, tabs, color,
-// etc.) changes
-// TODO(dljames): Find a way to not recreate the button for each update.
+// The visual representation of a SavedTabGroup shown in the bookmarks bar.
 class SavedTabGroupButton : public views::MenuButton,
                             public views::DragController {
  public:
@@ -55,6 +52,9 @@ class SavedTabGroupButton : public views::MenuButton,
       const override;
   void OnThemeChanged() override;
 
+  // views::View
+  bool OnKeyPressed(const ui::KeyEvent& event) override;
+
   // views::DragController
   void WriteDragDataForView(View* sender,
                             const gfx::Point& press_pt,
@@ -68,7 +68,7 @@ class SavedTabGroupButton : public views::MenuButton,
   // displayed in the context menu.
   void UpdateButtonData(const SavedTabGroup& group);
 
-  tab_groups::TabGroupColorId tab_group_color_id() {
+  tab_groups::TabGroupColorId tab_group_color_id() const {
     return tab_group_color_id_;
   }
 
@@ -78,6 +78,8 @@ class SavedTabGroupButton : public views::MenuButton,
   DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kMoveGroupToNewWindowMenuItem);
 
  private:
+  std::u16string GetAccessibleNameForButton();
+  void SetTextProperties(const SavedTabGroup& group);
   void UpdateButtonLayout();
   void TabMenuItemPressed(const GURL& url, int event_flags);
   void MoveGroupToNewWindowPressed(int event_flags);

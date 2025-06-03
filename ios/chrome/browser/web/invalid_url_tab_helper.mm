@@ -13,10 +13,6 @@
 #import "ui/base/page_transition_types.h"
 #import "url/url_constants.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace {
 
 // Returns true if URL request is valid and navigation should be allowed.
@@ -25,7 +21,7 @@ bool IsUrlRequestValid(NSURLRequest* request) {
     return false;
   }
 
-  if ([request.URL.scheme isEqual:@"data"]) {
+  if ([request.URL.scheme isEqualToString:@"data"]) {
     std::string mime_type;
     std::string charset;
     std::string data;

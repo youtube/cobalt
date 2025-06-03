@@ -5,7 +5,7 @@
 #include "third_party/blink/renderer/modules/xr/xr_plane.h"
 
 #include "third_party/blink/renderer/core/dom/dom_exception.h"
-#include "third_party/blink/renderer/modules/xr/type_converters.h"
+#include "third_party/blink/renderer/modules/xr/vr_service_type_converters.h"
 #include "third_party/blink/renderer/modules/xr/xr_object_space.h"
 #include "third_party/blink/renderer/modules/xr/xr_reference_space.h"
 #include "third_party/blink/renderer/modules/xr/xr_session.h"
@@ -49,7 +49,7 @@ XRSpace* XRPlane::planeSpace() const {
     plane_space_ = MakeGarbageCollected<XRObjectSpace<XRPlane>>(session_, this);
   }
 
-  return plane_space_;
+  return plane_space_.Get();
 }
 
 absl::optional<gfx::Transform> XRPlane::MojoFromObject() const {

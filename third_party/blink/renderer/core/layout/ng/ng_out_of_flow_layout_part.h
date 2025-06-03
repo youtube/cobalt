@@ -9,13 +9,13 @@
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/layout/geometry/logical_rect.h"
 #include "third_party/blink/renderer/core/layout/geometry/physical_offset.h"
-#include "third_party/blink/renderer/core/layout/geometry/scroll_offset_range.h"
-#include "third_party/blink/renderer/core/layout/ng/geometry/ng_static_position.h"
-#include "third_party/blink/renderer/core/layout/ng/inline/inline_containing_block_utils.h"
+#include "third_party/blink/renderer/core/layout/geometry/static_position.h"
+#include "third_party/blink/renderer/core/layout/inline/inline_containing_block_utils.h"
 #include "third_party/blink/renderer/core/layout/ng/ng_absolute_utils.h"
 #include "third_party/blink/renderer/core/layout/ng/ng_block_node.h"
 #include "third_party/blink/renderer/core/layout/ng/ng_box_fragment_builder.h"
 #include "third_party/blink/renderer/core/layout/ng/ng_constraint_space.h"
+#include "third_party/blink/renderer/core/layout/ng/non_overflowing_scroll_range.h"
 #include "third_party/blink/renderer/core/style/computed_style_base_constants.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_map.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_set.h"
@@ -46,28 +46,7 @@ class CORE_EXPORT NGOutOfFlowLayoutPart {
   NGOutOfFlowLayoutPart(const NGBlockNode& container_node,
                         const NGConstraintSpace& container_space,
                         NGBoxFragmentBuilder* container_builder);
-
-  // The |container_builder|, |container_space|, and |container_style|
-  // parameters are all with respect to the containing block of the relevant
-  // out-of-flow positioned descendants. If the CSS "containing block" of such
-  // an out-of-flow positioned descendant isn't a true block (e.g. a relatively
-  // positioned inline instead), the containing block here is the containing
-  // block of said non-block.
-  NGOutOfFlowLayoutPart(
-      bool is_absolute_container,
-      bool is_fixed_container,
-      bool is_grid_container,
-      const NGConstraintSpace& container_space,
-      NGBoxFragmentBuilder* container_builder,
-      absl::optional<LogicalSize> initial_containing_block_fixed_size);
-
-  // Normally this function lays out and positions all out-of-flow objects from
-  // the container_builder and additional ones it discovers through laying out
-  // those objects. However, if only_layout is specified, only that object will
-  // get laid out; any additional ones will be stored as out-of-flow
-  // descendants in the builder for use via
-  // LayoutResult::OutOfFlowPositionedDescendants.
-  void Run(const LayoutBox* only_layout = nullptr);
+  void Run();
 
   struct ColumnBalancingInfo {
     DISALLOW_NEW();
@@ -123,7 +102,7 @@ class CORE_EXPORT NGOutOfFlowLayoutPart {
   // There are two types of containing blocks:
   // 1) Default containing block (DCB)
   //    Containing block passed in NGOutOfFlowLayoutPart constructor.
-  //    It is the block element inside which this algorighm runs.
+  //    It is the block element inside which this algorithm runs.
   //    All OOF descendants not in inline containing block are placed in DCB.
   // 2) Inline containing block
   //    OOF descendants might be positioned wrt inline containing block.
@@ -173,7 +152,7 @@ class CORE_EXPORT NGOutOfFlowLayoutPart {
    public:
     NGBlockNode node;
     const NGConstraintSpace constraint_space;
-    const NGLogicalStaticPosition static_position;
+    const LogicalStaticPosition static_position;
     PhysicalSize container_physical_content_size;
     const ContainingBlockInfo container_info;
     const WritingDirectionMode default_writing_direction;
@@ -185,7 +164,7 @@ class CORE_EXPORT NGOutOfFlowLayoutPart {
 
     NodeInfo(NGBlockNode node,
              const NGConstraintSpace constraint_space,
-             const NGLogicalStaticPosition static_position,
+             const LogicalStaticPosition static_position,
              PhysicalSize container_physical_content_size,
              const ContainingBlockInfo container_info,
              const WritingDirectionMode default_writing_direction,
@@ -218,6 +197,9 @@ class CORE_EXPORT NGOutOfFlowLayoutPart {
     DISALLOW_NEW();
 
    public:
+    // Absolutized inset property values. Not necessarily the insets of the box.
+    BoxStrut insets_for_get_computed_style;
+    // Offset to container's border box.
     LogicalOffset offset;
     // If |has_cached_layout_result| is true, this will hold the cached layout
     // result that should be returned. Otherwise, this will hold the initial
@@ -229,6 +211,15 @@ class CORE_EXPORT NGOutOfFlowLayoutPart {
     absl::optional<LayoutUnit> block_estimate;
     NGLogicalOutOfFlowDimensions node_dimensions;
 
+    // The offset from the OOF to the top of the fragmentation context root.
+    // This should only be used when laying out a fragmentainer descendant.
+    LogicalOffset original_offset;
+
+    // These fields are set only if this |OffsetInfo| is calculated from a
+    // position fallback style, either from a @try rule or auto-generated.
+    absl::optional<wtf_size_t> fallback_index;
+    Vector<NonOverflowingScrollRange> non_overflowing_ranges;
+
     bool inline_size_depends_on_min_max_sizes = false;
 
     // If true, a cached layout result was found. See the comment for
@@ -237,14 +228,13 @@ class CORE_EXPORT NGOutOfFlowLayoutPart {
 
     bool disable_first_tier_cache = false;
 
-    // The offset from the OOF to the top of the fragmentation context root.
-    // This should only be used when laying out a fragmentainer descendant.
-    LogicalOffset original_offset;
+    bool uses_fallback_style = false;
 
-    // These two fields are set only if this |OffsetInfo| is calculated from a
-    // @try rule of a @position-fallback rule.
-    absl::optional<wtf_size_t> fallback_index;
-    Vector<PhysicalScrollRange> non_overflowing_ranges;
+    // True if this element is anchor-positioned, and any anchor reference in
+    // the axis is in the same scroll container as the default anchor, in which
+    // case we need scroll adjustment in the axis after layout.
+    bool needs_scroll_adjustment_in_x = false;
+    bool needs_scroll_adjustment_in_y = false;
 
     void Trace(Visitor* visitor) const;
   };
@@ -299,8 +289,7 @@ class CORE_EXPORT NGOutOfFlowLayoutPart {
       bool adjust_for_fragmentation = false);
 
   void LayoutCandidates(
-      HeapVector<NGLogicalOutOfFlowPositionedNode>* candidates,
-      const LayoutBox* only_layout);
+      HeapVector<NGLogicalOutOfFlowPositionedNode>* candidates);
 
   void HandleMulticolsWithPendingOOFs(NGBoxFragmentBuilder* container_builder);
   void LayoutOOFsInMulticol(
@@ -320,7 +309,6 @@ class CORE_EXPORT NGOutOfFlowLayoutPart {
 
   const NGLayoutResult* LayoutOOFNode(
       NodeToLayout& oof_node_to_layout,
-      const LayoutBox* only_layout,
       const NGConstraintSpace* fragmentainer_constraint_space = nullptr,
       bool is_last_fragmentainer_so_far = false);
 
@@ -328,7 +316,6 @@ class CORE_EXPORT NGOutOfFlowLayoutPart {
   // changing this to a more accurate name.
   OffsetInfo CalculateOffset(
       const NodeInfo& node_info,
-      const LayoutBox* only_layout,
       bool is_first_run = true,
       const NGLogicalAnchorQueryMap* anchor_queries = nullptr);
   // Calculates offsets with the given ComputedStyle. Returns nullopt if
@@ -337,12 +324,11 @@ class CORE_EXPORT NGOutOfFlowLayoutPart {
   absl::optional<OffsetInfo> TryCalculateOffset(
       const NodeInfo& node_info,
       const ComputedStyle& style,
-      const LayoutBox* only_layout,
       const NGLogicalAnchorQueryMap* anchor_queries,
       const LayoutObject* implicit_anchor,
       bool try_fit_available_space,
       bool is_first_run,
-      PhysicalScrollRange* out_scroll_range);
+      NonOverflowingScrollRange* out_scroll_range);
 
   const NGLayoutResult* Layout(
       const NodeToLayout& oof_node_to_layout,
@@ -406,9 +392,9 @@ class CORE_EXPORT NGOutOfFlowLayoutPart {
   // paint-layer.
   void SaveStaticPositionOnPaintLayer(
       LayoutBox* layout_box,
-      const NGLogicalStaticPosition& position) const;
-  NGLogicalStaticPosition ToStaticPositionForLegacy(
-      NGLogicalStaticPosition position) const;
+      const LogicalStaticPosition& position) const;
+  LogicalStaticPosition ToStaticPositionForLegacy(
+      LogicalStaticPosition position) const;
 
   const NGFragmentBuilder::ChildrenVector& FragmentationContextChildren()
       const {

@@ -13,11 +13,11 @@
 #include "components/performance_manager/public/graph/node.h"
 #include "components/performance_manager/public/mojom/coordination_unit.mojom.h"
 #include "components/performance_manager/public/mojom/lifecycle.mojom.h"
+#include "components/performance_manager/public/resource_attribution/frame_context.h"
 #include "content/public/browser/browsing_instance_id.h"
 #include "content/public/browser/site_instance.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/tokens/tokens.h"
-#include "ui/gfx/geometry/rect.h"
 
 class GURL;
 
@@ -30,6 +30,10 @@ class RenderFrameHostProxy;
 class WorkerNode;
 
 using execution_context_priority::PriorityAndReason;
+
+namespace execution_context_priority {
+class InheritClientPriorityVoter;
+}
 
 // Frame nodes form a tree structure, each FrameNode at most has one parent
 // that is a FrameNode. Conceptually, a FrameNode corresponds to a
@@ -109,6 +113,10 @@ class FrameNode : public Node {
   // Gets the ID of the site instance to which this frame belongs. This is a
   // constant over the lifetime of the frame.
   virtual content::SiteInstanceId GetSiteInstanceId() const = 0;
+
+  // Gets the unique token identifying this node for resource attribution. This
+  // token will not be reused after the node is destroyed.
+  virtual resource_attribution::FrameContext GetResourceContext() const = 0;
 
   // A frame is a main frame if it has no parent FrameNode. This can be
   // called from any thread.
@@ -196,10 +204,6 @@ class FrameNode : public Node {
   virtual bool VisitChildDedicatedWorkers(
       const WorkerNodeVisitor& visitor) const = 0;
 
-  // Returns the current priority of the frame, and the reason for the frame
-  // having that particular priority.
-  virtual const PriorityAndReason& GetPriorityAndReason() const = 0;
-
   // Returns true if at least one form of the frame has been interacted with.
   virtual bool HadFormInteraction() const = 0;
 
@@ -211,13 +215,22 @@ class FrameNode : public Node {
   // Returns true if the frame is audible, false otherwise.
   virtual bool IsAudible() const = 0;
 
-  // Returns the intersection of this frame with the viewport. This is initially
-  // null on node creation and is initialized during layout when the viewport
-  // intersection is first calculated. May only be called for a child frame.
-  virtual const absl::optional<gfx::Rect>& GetViewportIntersection() const = 0;
+  // Returns true if the frame is capturing a video stream.
+  virtual bool IsCapturingVideoStream() const = 0;
+
+  // Returns true if the frame intersects with the viewport. This could be false
+  // if the frame is not rendered (display: none) or is scrolled out of view.
+  // This is initially null on node creation and is initialized during layout
+  // when the viewport intersection is first calculated. May only be called for
+  // a child frame, as the main frame is always considered to be intersecting
+  // the viewport.
+  virtual absl::optional<bool> IntersectsViewport() const = 0;
 
   // Returns true if the frame is visible. This value is based on the viewport
   // intersection of the frame, and the visibility of the page.
+  //
+  // Note that for the visibility of the page, page mirroring *is* taken into
+  // account, as opposed to `PageNode::IsVisible()`.
   virtual Visibility GetVisibility() const = 0;
 
   // Returns a proxy to the RenderFrameHost associated with this node. The
@@ -236,6 +249,14 @@ class FrameNode : public Node {
   // kilobytes. This is an estimate because it is computed by process, and a
   // process can host multiple frames.
   virtual uint64_t GetPrivateFootprintKbEstimate() const = 0;
+
+ private:
+  friend class execution_context_priority::InheritClientPriorityVoter;
+
+  // Returns the current priority of the frame, and the reason for the frame
+  // having that particular priority.
+  // Note: Do not use, not ready for prime time.
+  virtual const PriorityAndReason& GetPriorityAndReason() const = 0;
 };
 
 // Pure virtual observer interface. Derive from this if you want to be forced to
@@ -303,8 +324,11 @@ class FrameNodeObserver {
   // Invoked when the IsAudible property changes.
   virtual void OnIsAudibleChanged(const FrameNode* frame_node) = 0;
 
+  // Invoked when the IsCapturingVideoStream property changes.
+  virtual void OnIsCapturingVideoStreamChanged(const FrameNode* frame_node) = 0;
+
   // Invoked when a frame's intersection with the viewport changes
-  virtual void OnViewportIntersectionChanged(const FrameNode* frame_node) = 0;
+  virtual void OnIntersectsViewportChanged(const FrameNode* frame_node) = 0;
 
   // Invoked when the visibility property changes.
   virtual void OnFrameVisibilityChanged(
@@ -357,7 +381,8 @@ class FrameNode::ObserverDefaultImpl : public FrameNodeObserver {
   void OnHadFormInteractionChanged(const FrameNode* frame_node) override {}
   void OnHadUserEditsChanged(const FrameNode* frame_node) override {}
   void OnIsAudibleChanged(const FrameNode* frame_node) override {}
-  void OnViewportIntersectionChanged(const FrameNode* frame_node) override {}
+  void OnIsCapturingVideoStreamChanged(const FrameNode* frame_node) override {}
+  void OnIntersectsViewportChanged(const FrameNode* frame_node) override {}
   void OnFrameVisibilityChanged(const FrameNode* frame_node,
                                 FrameNode::Visibility previous_value) override {
   }

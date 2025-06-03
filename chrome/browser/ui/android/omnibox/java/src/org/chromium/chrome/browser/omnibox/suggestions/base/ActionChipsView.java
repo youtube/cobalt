@@ -5,27 +5,27 @@
 package org.chromium.chrome.browser.omnibox.suggestions.base;
 
 import android.content.Context;
-import android.graphics.Rect;
 import android.view.KeyEvent;
-import android.view.View;
 
-import androidx.annotation.Nullable;
+import androidx.annotation.NonNull;
 import androidx.annotation.Px;
+import androidx.annotation.VisibleForTesting;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
-import androidx.recyclerview.widget.RecyclerView.ItemDecoration;
 
+import org.chromium.build.annotations.CheckDiscard;
 import org.chromium.chrome.browser.omnibox.R;
+import org.chromium.chrome.browser.omnibox.styles.OmniboxResourceProvider;
+import org.chromium.chrome.browser.omnibox.suggestions.RecyclerViewSelectionController;
 import org.chromium.chrome.browser.util.KeyNavigationUtil;
 import org.chromium.components.browser_ui.widget.chips.ChipView;
 
 /**
- * Container view for the {@link ChipView}.
- * Chips should be initially horizontally aligned with the Content view and stretch to the end of
- * the encompassing BaseSuggestionView
+ * Container view for the {@link ChipView}. Chips should be initially horizontally aligned with the
+ * Content view and stretch to the end of the encompassing BaseSuggestionView.
  */
 public class ActionChipsView extends RecyclerView {
-    private @Nullable ActionChipsAdapter mAdapter;
+    private @NonNull RecyclerViewSelectionController mSelectionController;
 
     /**
      * Constructs a new pedal view.
@@ -36,58 +36,65 @@ public class ActionChipsView extends RecyclerView {
         super(context);
 
         setItemAnimator(null);
-        setLayoutManager(new LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false));
-        setMinimumHeight(getResources().getDimensionPixelSize(
-                R.dimen.omnibox_action_chips_container_height));
+        setId(R.id.omnibox_actions_carousel);
+        var layoutManager = new LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false);
+        setLayoutManager(layoutManager);
 
-        final @Px int actionChipSpacing =
-                getResources().getDimensionPixelSize(R.dimen.omnibox_action_chip_spacing);
-        addItemDecoration(new ItemDecoration() {
-            @Override
-            public void getItemOffsets(
-                    Rect outRect, View view, RecyclerView parent, RecyclerView.State state) {
-                outRect.right = actionChipSpacing / 2;
-                outRect.left = actionChipSpacing / 2;
-            }
-        });
+        mSelectionController = new RecyclerViewSelectionController(layoutManager);
+        mSelectionController.setCycleThroughNoSelection(true);
+        addOnChildAttachStateChangeListener(mSelectionController);
 
-        setPaddingRelative(0, 0, 0,
+        setMinimumHeight(
+                getResources()
+                        .getDimensionPixelSize(R.dimen.omnibox_action_chips_container_height));
+        setPaddingRelative(
+                0,
+                0,
+                0,
                 getResources().getDimensionPixelSize(R.dimen.omnibox_suggestion_content_padding));
+
+        final @Px int leadInSpace =
+                OmniboxResourceProvider.getSuggestionDecorationIconSizeWidth(context);
+        final @Px int elementSpace =
+                getResources().getDimensionPixelSize(R.dimen.omnibox_action_chip_spacing);
+
+        addItemDecoration(new SpacingRecyclerViewItemDecoration(leadInSpace, elementSpace / 2));
     }
 
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
-        if (mAdapter == null) return false;
-
         if (event.getKeyCode() == KeyEvent.KEYCODE_TAB) {
             if (event.isShiftPressed()) {
-                mAdapter.selectPreviousItem();
+                mSelectionController.selectPreviousItem();
             } else {
-                mAdapter.selectNextItem();
+                mSelectionController.selectNextItem();
             }
             return true;
         } else if (KeyNavigationUtil.isEnter(event)) {
-            var chip = mAdapter.getSelectedView();
+            var chip = mSelectionController.getSelectedView();
             if (chip != null) return chip.performClick();
         }
 
+        return superOnKeyDown(keyCode, event);
+    }
+
+    /**
+     * Proxy calls to super.onKeyDown; call exposed for testing purposes. There is no way to detect
+     * calls to super using robolectric.
+     */
+    @CheckDiscard("Should be inlined except for testing")
+    @VisibleForTesting
+    public boolean superOnKeyDown(int keyCode, KeyEvent event) {
         return super.onKeyDown(keyCode, event);
-    }
-
-    public void setAdapter(@Nullable ActionChipsAdapter adapter) {
-        super.setAdapter(adapter);
-        mAdapter = adapter;
-    }
-
-    @Override
-    public @Nullable ActionChipsAdapter getAdapter() {
-        return mAdapter;
     }
 
     @Override
     public void setSelected(boolean isSelected) {
-        if (mAdapter != null) {
-            mAdapter.resetSelection();
-        }
+        mSelectionController.resetSelection();
+    }
+
+    @VisibleForTesting(otherwise = VisibleForTesting.NONE)
+    void setSelectionControllerForTesting(RecyclerViewSelectionController controller) {
+        mSelectionController = controller;
     }
 }

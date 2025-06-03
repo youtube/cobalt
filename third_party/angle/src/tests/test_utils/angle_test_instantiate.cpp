@@ -218,7 +218,7 @@ SystemInfo *GetTestSystemInfo()
         // high-performance GPU for tests.
         // We can call the generic GPU info collector which selects the
         // non-Intel GPU as the active one on dual-GPU machines.
-        if (IsOSX())
+        if (IsMac())
         {
             GetDualGPUInfo(sSystemInfo);
         }
@@ -232,42 +232,6 @@ SystemInfo *GetTestSystemInfo()
         }
     }
     return sSystemInfo;
-}
-
-bool IsAndroid()
-{
-#if defined(ANGLE_PLATFORM_ANDROID)
-    return true;
-#else
-    return false;
-#endif
-}
-
-bool IsLinux()
-{
-#if defined(ANGLE_PLATFORM_LINUX)
-    return true;
-#else
-    return false;
-#endif
-}
-
-bool IsOSX()
-{
-#if defined(ANGLE_PLATFORM_MACOS)
-    return true;
-#else
-    return false;
-#endif
-}
-
-bool IsIOS()
-{
-#if ANGLE_PLATFORM_IOS_FAMILY
-    return true;
-#else
-    return false;
-#endif
 }
 
 bool IsARM64()
@@ -299,33 +263,6 @@ bool IsOzone()
     // vague (read the comment above).
     return false;
 #elif defined(USE_OZONE)
-    return true;
-#else
-    return false;
-#endif
-}
-
-bool IsWindows()
-{
-#if defined(ANGLE_PLATFORM_WINDOWS)
-    return true;
-#else
-    return false;
-#endif
-}
-
-bool IsWindows7()
-{
-#if defined(ANGLE_PLATFORM_WINDOWS)
-    return ::IsWindows7OrGreater() && !::IsWindows8OrGreater();
-#else
-    return false;
-#endif
-}
-
-bool IsFuchsia()
-{
-#if defined(ANGLE_PLATFORM_FUCHSIA)
     return true;
 #else
     return false;
@@ -392,7 +329,7 @@ bool IsAMD()
     return HasSystemVendorID(kVendorID_AMD);
 }
 
-bool IsApple()
+bool IsAppleGPU()
 {
     return HasSystemVendorID(kVendorID_Apple);
 }
@@ -405,6 +342,15 @@ bool IsARM()
 bool IsSwiftshaderDevice()
 {
     return HasSystemDeviceID(kVendorID_GOOGLE, kDeviceID_Swiftshader);
+}
+
+bool IsSwiftShaderSupported()
+{
+#if defined(ANGLE_ENABLE_SWIFTSHADER)
+    return true;
+#else
+    return false;
+#endif
 }
 
 bool IsNVIDIA()
@@ -423,15 +369,6 @@ bool IsQualcomm()
 {
     return IsNexus5X() || IsNexus9() || IsPixelXL() || IsPixel2() || IsPixel2XL() || IsPixel4() ||
            IsPixel4XL();
-}
-
-bool Is64Bit()
-{
-#if defined(ANGLE_IS_64_BIT_CPU)
-    return true;
-#else
-    return false;
-#endif  // defined(ANGLE_IS_64_BIT_CPU)
 }
 
 bool HasMesa()
@@ -457,17 +394,24 @@ bool IsConfigAllowlisted(const SystemInfo &systemInfo, const PlatformParameters 
             return true;
     }
 
-    // TODO: http://crbug.com/swiftshader/145
-    // Swiftshader does not currently have all the robustness features
-    // we need for ANGLE. In particular, it is unable to detect and recover
-    // from infinitely looping shaders. That bug is the tracker for fixing
-    // that and when resolved we can remove the following code.
-    // This test will disable tests marked with the config WithRobustness
-    // when run with the swiftshader Vulkan driver and on Android.
-    if ((param.isSwiftshader() || IsSwiftshaderDevice()) &&
-        param.eglParameters.robustness == EGL_TRUE)
+    if (param.isSwiftshader() || IsSwiftshaderDevice())
     {
-        return false;
+        if (!IsSwiftShaderSupported())
+        {
+            return false;
+        }
+
+        // TODO: http://crbug.com/swiftshader/145
+        // Swiftshader does not currently have all the robustness features
+        // we need for ANGLE. In particular, it is unable to detect and recover
+        // from infinitely looping shaders. That bug is the tracker for fixing
+        // that and when resolved we can remove the following code.
+        // This test will disable tests marked with the config WithRobustness
+        // when run with the swiftshader Vulkan driver and on Android.
+        if (param.eglParameters.robustness == EGL_TRUE)
+        {
+            return false;
+        }
     }
 
 // Skip test configs that target the desktop OpenGL frontend when it's not enabled.
@@ -535,7 +479,7 @@ bool IsConfigAllowlisted(const SystemInfo &systemInfo, const PlatformParameters 
     }
 
 #if defined(ANGLE_PLATFORM_APPLE)
-    if (IsOSX() || IsIOS())
+    if (IsMac() || IsIOS())
     {
         // We do not support non-ANGLE bindings on OSX.
         if (param.driver != GLESDriverType::AngleEGL)
@@ -662,10 +606,6 @@ bool IsConfigAllowlisted(const SystemInfo &systemInfo, const PlatformParameters 
                     return false;
                 }
                 if (!IsAndroid9OrNewer())
-                {
-                    return false;
-                }
-                if (param.isDisableRequested(Feature::SupportsNegativeViewport))
                 {
                     return false;
                 }

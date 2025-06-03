@@ -115,20 +115,28 @@ class WebContentsInteractionTestUtil : private content::WebContentsObserver,
 
     // What type of state change are we watching for?
     enum class Type {
-      // Triggers when `test_function`, evaluated at `where`, returns true.
-      // If `where` does not exist, an error is generated.
+      // Automatically chooses one of the other types, based on which of
+      // `test_function` and `where` are set. Will never choose `kDoesNotExist`
+      // (default).
+      kAuto,
+      // Triggers when `test_function` returns true. The `where` field
+      // should not be set.
       kConditionTrue,
       // Triggers when the element specified by `where` exists in the DOM.
-      // The `test_function` field is ignored.
+      // The `test_function` field should not be set.
       kExists,
       // Triggers when the element specified by `where` exists in the DOM *and*
-      // `test_function` evaluates to true.
-      kExistsAndConditionTrue
+      // `test_function` evaluates to true. Both must be set.
+      kExistsAndConditionTrue,
+      // Triggers if/when the element specified by `where` no longer exists.
+      // The `test_function` field should not be set.
+      kDoesNotExist
     };
 
-    // By default we want to check `test_function` and assume the element
-    // exists.
-    Type type = Type::kConditionTrue;
+    // By default the type of state change is inferred from the other
+    // parameters. This may be set explicitly, but it should only be required
+    // for `kDoesNotExist` as there is no way to infer that option.
+    Type type = Type::kAuto;
 
     // Function to be evaluated every `polling_interval`. Must be able to
     // execute multiple times successfully. State change is detected when this
@@ -156,6 +164,12 @@ class WebContentsInteractionTestUtil : private content::WebContentsObserver,
     // How long to wait for the condition before timing out. If not set, waits
     // indefinitely (in practice, until the test itself times out).
     absl::optional<base::TimeDelta> timeout;
+
+    // If this is set to `true`, the condition will continue to be polled across
+    // page navigation. This can be used when the target WebContents may
+    // transition through one or more intermediate pages before the expected
+    // condition is met.
+    bool continue_across_navigation = false;
 
     // The event to fire when `test_script` returns a truthy value. Must be
     // specified.
@@ -274,10 +288,15 @@ class WebContentsInteractionTestUtil : private content::WebContentsObserver,
   // return value. If the return value is a promise, will block until the
   // promise resolves and then return the result.
   //
+  // If `error_msg` is specified, receives an error message on an uncaught
+  // exception, and the return value will be `NONE`. If `error_msg` is not
+  // specified, crashes on failure.
+  //
   // If you wish to do a background or asynchronous task but not block, have
   // your script return immediately and then call SendEventOnStateChange() to
   // monitor the result.
-  base::Value Evaluate(const std::string& function);
+  base::Value Evaluate(const std::string& function,
+                       std::string* error_msg = nullptr);
 
   // Executes `function` in the target WebContents. Identical to `Evaluate()`
   // except that the return value of the function is discarded and no effort is
@@ -311,15 +330,22 @@ class WebContentsInteractionTestUtil : private content::WebContentsObserver,
   // Evaluates `function` on the element returned by finding the element at
   // `where`; throw an error if `where` doesn't exist or capture with a second
   // argument.
+  //
   // The `function` parameter should be the text of a valid javascript unnamed
   // function that takes a DOM element and/or an error parameter if occurs and
   // optionally returns a value.
+  //
+  // If `error_msg` is specified, receives an error message on an uncaught
+  // exception, and the return value will be `NONE`. If `error_msg` is not
+  // specified, crashes on failure.
   //
   // Example:
   //   function(el) { return el.innterText; }
   // Or capture the error instead of throw:
   //   (el, err) => !err && !!el
-  base::Value EvaluateAt(const DeepQuery& where, const std::string& function);
+  base::Value EvaluateAt(const DeepQuery& where,
+                         const std::string& function,
+                         std::string* error_message = nullptr);
 
   // Same as EvaluateAt except that `function` is executed, the return value is
   // discarded, and no effort is made to wait for or return the result.
@@ -397,7 +423,6 @@ class WebContentsInteractionTestUtil : private content::WebContentsObserver,
                            OpenTabSearchMenuAndTestVisibility);
   class NewTabWatcher;
   class Poller;
-  struct PollerData;
   class WebViewData;
 
   WebContentsInteractionTestUtil(content::WebContents* web_contents,
@@ -408,8 +433,7 @@ class WebContentsInteractionTestUtil : private content::WebContentsObserver,
   void MaybeCreateElement(bool force = false);
   void DiscardCurrentElement();
 
-  void OnPollTimeout(Poller* poller);
-  void OnPollEvent(Poller* poller);
+  void OnPollEvent(Poller* poller, ui::CustomElementEventType event);
 
   void StartWatchingWebContents(content::WebContents* web_contents);
 
@@ -429,7 +453,7 @@ class WebContentsInteractionTestUtil : private content::WebContentsObserver,
   std::unique_ptr<TrackedElementWebContents> current_element_;
 
   // List of active event pollers for the current page.
-  std::map<Poller*, PollerData> pollers_;
+  std::list<std::unique_ptr<Poller>> pollers_;
 
   // Optional object that watches for a new tab to be created, either in a
   // specific browser or in any browser.
@@ -442,5 +466,13 @@ extern void PrintTo(const WebContentsInteractionTestUtil::DeepQuery& deep_query,
 extern std::ostream& operator<<(
     std::ostream& os,
     const WebContentsInteractionTestUtil::DeepQuery& deep_query);
+
+extern void PrintTo(
+    const WebContentsInteractionTestUtil::StateChange& state_change,
+    std::ostream* os);
+
+extern std::ostream& operator<<(
+    std::ostream& os,
+    const WebContentsInteractionTestUtil::StateChange& state_change);
 
 #endif  // CHROME_TEST_INTERACTION_WEBCONTENTS_INTERACTION_TEST_UTIL_H_

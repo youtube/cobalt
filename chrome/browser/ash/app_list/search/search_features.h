@@ -18,6 +18,11 @@ BASE_DECLARE_FEATURE(kLauncherKeywordExtractionScoring);
 // Federated analytics for launcher queries, via Private Heavy Hitters (PHH).
 BASE_DECLARE_FEATURE(kLauncherQueryFederatedAnalyticsPHH);
 
+// Change relevance score in Drive Files, Local Files, Help App, Keyboard
+// shortcuts, OS Settings and personalization app to all be based on a fuzzy
+// match
+BASE_DECLARE_FEATURE(kLauncherFuzzyMatchAcrossProviders);
+
 // Enables a fuzzy match between the query and title in Omnibox result to
 // calculate the relevance
 BASE_DECLARE_FEATURE(kLauncherFuzzyMatchForOmnibox);
@@ -25,17 +30,23 @@ BASE_DECLARE_FEATURE(kLauncherFuzzyMatchForOmnibox);
 // Enables image search in the launcher.
 BASE_DECLARE_FEATURE(kLauncherImageSearch);
 
-BASE_DECLARE_FEATURE(kLauncherSystemInfoAnswerCards);
+// Enable Image Content-based Annotation
+BASE_DECLARE_FEATURE(kLauncherImageSearchIca);
 
-BASE_DECLARE_FEATURE(kLauncherOmniboxPublishLogicLog);
+// Enable Optical Character Recognition
+BASE_DECLARE_FEATURE(kLauncherImageSearchOcr);
+
+BASE_DECLARE_FEATURE(kLauncherSystemInfoAnswerCards);
 
 bool IsLauncherGameSearchEnabled();
 bool IsLauncherKeywordExtractionScoringEnabled();
 bool IsLauncherQueryFederatedAnalyticsPHHEnabled();
 bool IsLauncherImageSearchEnabled();
+bool IsLauncherImageSearchIcaEnabled();
+bool IsLauncherImageSearchOcrEnabled();
+bool IsLauncherFuzzyMatchAcrossProvidersEnabled();
 bool isLauncherFuzzyMatchForOmniboxEnabled();
 bool isLauncherSystemInfoAnswerCardsEnabled();
-bool isLauncherOmniboxPublishLogicLogEnabled();
 
 }  // namespace search_features
 

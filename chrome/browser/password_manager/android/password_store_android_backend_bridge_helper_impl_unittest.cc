@@ -87,6 +87,10 @@ class MockPasswordStoreAndroidBackendDispatcherBridge
               (JobId, const std::string&, Account),
               (override));
   MOCK_METHOD(void,
+              GetAffiliatedLoginsForSignonRealm,
+              (JobId, const std::string&, Account),
+              (override));
+  MOCK_METHOD(void,
               AddLogin,
               (JobId, const PasswordForm&, Account),
               (override));
@@ -98,7 +102,6 @@ class MockPasswordStoreAndroidBackendDispatcherBridge
               RemoveLogin,
               (JobId, const PasswordForm&, Account),
               (override));
-  MOCK_METHOD(void, ShowErrorNotification, (), (override));
 };
 
 }  // namespace

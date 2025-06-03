@@ -5,7 +5,6 @@
 #ifndef UI_VIEWS_CONTROLS_MENU_MENU_CONTROLLER_COCOA_DELEGATE_IMPL_H_
 #define UI_VIEWS_CONTROLS_MENU_MENU_CONTROLLER_COCOA_DELEGATE_IMPL_H_
 
-#import "base/mac/scoped_nsobject.h"
 #import "ui/base/cocoa/menu_controller.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/views/views_export.h"
@@ -13,7 +12,6 @@
 VIEWS_EXPORT
 @interface MenuControllerCocoaDelegateImpl
     : NSObject <MenuControllerCocoaDelegate>
-- (void)setAnchorRect:(gfx::Rect)rect;
 @end
 
 #endif  // UI_VIEWS_CONTROLS_MENU_MENU_CONTROLLER_COCOA_DELEGATE_IMPL_H_

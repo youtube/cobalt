@@ -10,7 +10,6 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
-#include "base/threading/hang_watcher.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
 #include "chrome/browser/buildflags.h"
@@ -19,10 +18,6 @@
 #include "chrome/common/buildflags.h"
 #include "content/public/browser/browser_main_parts.h"
 #include "content/public/common/result_codes.h"
-
-#if BUILDFLAG(ENABLE_PROCESS_SINGLETON)
-#include "chrome/browser/process_singleton.h"
-#endif
 
 #if BUILDFLAG(ENABLE_DOWNGRADE_PROCESSING)
 #include "chrome/browser/downgrade/downgrade_manager.h"
@@ -98,10 +93,12 @@ class ChromeBrowserMainParts : public content::BrowserMainParts {
 
   // Additional stages for ChromeBrowserMainExtraParts. These stages are called
   // in order from PreMainMessageLoopRun(). See implementation for details.
-  // TODO(crbug.com/1150326): Update the comment once the feature launches.
-  // `PostProfileInit()` might not be called in order, it is planned to be
-  // called for each new profile as part of that launch. See bug for context.
   virtual void PreProfileInit();
+  // `PostProfileInit()` is called for each regular profile that is created. The
+  // first call has `is_initial_profile`=true, and subsequent calls have
+  // `is_initial_profile`=false.
+  // It may be called during startup if a profile is loaded immediately, or
+  // later if the profile picker is shown.
   virtual void PostProfileInit(Profile* profile, bool is_initial_profile);
   virtual void PreBrowserStart();
   virtual void PostBrowserStart();
@@ -166,9 +163,6 @@ class ChromeBrowserMainParts : public content::BrowserMainParts {
   // it is destroyed last.
   std::unique_ptr<ShutdownWatcherHelper> shutdown_watcher_;
 
-  // HangWatcher based equivalent to |shutdown_watcher_|
-  absl::optional<base::WatchHangsInScope> watch_hangs_scope_;
-
   std::unique_ptr<WebUsbDetector> web_usb_detector_;
 #endif  // !BUILDFLAG(IS_ANDROID)
 
@@ -189,11 +183,6 @@ class ChromeBrowserMainParts : public content::BrowserMainParts {
   // Browser creation happens on the Java side in Android.
   std::unique_ptr<StartupBrowserCreator> browser_creator_;
 #endif  // !BUILDFLAG(IS_ANDROID)
-
-#if BUILDFLAG(ENABLE_PROCESS_SINGLETON)
-  ProcessSingleton::NotifyResult notify_result_ =
-      ProcessSingleton::PROCESS_NONE;
-#endif  // BUILDFLAG(ENABLE_PROCESS_SINGLETON)
 
 #if !BUILDFLAG(IS_ANDROID)
   // Members needed across shutdown methods.

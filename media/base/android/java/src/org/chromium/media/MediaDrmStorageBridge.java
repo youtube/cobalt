@@ -4,18 +4,17 @@
 
 package org.chromium.media;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.Callback;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
-import org.chromium.build.annotations.MainDex;
 
 /**
  * Origin isolated media drm scope id storage. Isolated origin is guranteed by native
  * implementation. Thus no origin information is stored here.
  */
 @JNINamespace("media")
-@MainDex
 class MediaDrmStorageBridge {
     private static final long INVALID_NATIVE_MEDIA_DRM_STORAGE_BRIDGE = -1;
 

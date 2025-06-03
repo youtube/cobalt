@@ -28,7 +28,7 @@ struct LanguageCodePair {
 // are different to be exact.
 //
 // If this table is updated, please sync this with the synonym table in
-// chrome/browser/resources/settings/languages_page/languages.js.
+// chrome/browser/resources/settings/languages_page/languages.ts.
 const LanguageCodePair kTranslateOnlySynonyms[] = {
     {"no", "nb"},
     {"id", "in"},
@@ -38,8 +38,9 @@ const LanguageCodePair kTranslateOnlySynonyms[] = {
 // codes are used, so we must see them as synonyms.
 //
 // If this table is updated, please sync this with the synonym table in
-// chrome/browser/resources/settings/languages_page/languages.js.
+// chrome/browser/resources/settings/languages_page/languages.ts.
 const LanguageCodePair kLanguageCodeSynonyms[] = {
+    {"gom", "kok"},
     {"iw", "he"},
     {"jw", "jv"},
     {"tl", "fil"},
@@ -49,7 +50,7 @@ const LanguageCodePair kLanguageCodeSynonyms[] = {
 // Translate.
 //
 // If this table is updated, please sync this with the synonym table in
-// chrome/browser/resources/settings/languages_page/languages.js.
+// chrome/browser/resources/settings/languages_page/languages.ts.
 const LanguageCodePair kLanguageCodeChineseCompatiblePairs[] = {
     {"zh-TW", "zh-HK"},
     {"zh-TW", "zh-MO"},
@@ -84,20 +85,24 @@ void ToTranslateLanguageSynonym(std::string* language) {
     return;
   }
 
-  // Chinese is a special case: we do not return the main_part only.
-  // There is not a single base language, but two: traditional and simplified.
-  // The kLanguageCodeChineseCompatiblePairs list contains the relation between
-  // various Chinese locales. We need to return the code from that mapping
-  // instead of the main_part.
-  // Note that "zh" does not have any mapping and as such we leave it as is. See
-  // https://crbug/798512 for more info.
-  for (const auto& language_pair : kLanguageCodeChineseCompatiblePairs) {
-    if (*language == language_pair.chrome_language) {
-      *language = language_pair.translate_language;
-      return;
-    }
+  if (main_part == "mni") {
+    // "mni-Mtei" does not have any mapping and as such we leave it as is.
+    return;
   }
+
   if (main_part == "zh") {
+    // Chinese is a special case, there can be two base languages: traditional
+    // and simplified. The kLanguageCodeChineseCompatiblePairs list contains the
+    // relation between various Chinese locales. We need to return the code from
+    // that mapping - if it exists.
+    for (const auto& language_pair : kLanguageCodeChineseCompatiblePairs) {
+      if (*language == language_pair.chrome_language) {
+        *language = language_pair.translate_language;
+        return;
+      }
+    }
+    // Note that "zh" does not have any mapping and as such we leave it as is.
+    // See https://crbug/798512 for more info.
     return;
   }
 

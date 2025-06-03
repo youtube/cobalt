@@ -72,6 +72,10 @@ namespace subresource_filter {
 class UnverifiedRulesetDealer;
 }
 
+namespace url {
+class Origin;
+}
+
 namespace web_cache {
 class WebCacheImpl;
 }
@@ -135,8 +139,10 @@ class ChromeContentRendererClient
       base::SingleThreadTaskRunner* compositor_thread_task_runner) override;
   bool RunIdleHandlerWhenWidgetsHidden() override;
   bool AllowPopup() override;
-  blink::ProtocolHandlerSecurityLevel GetProtocolHandlerSecurityLevel()
-      override;
+  bool ShouldNotifyServiceWorkerOnWebSocketActivity(
+      v8::Local<v8::Context> context) override;
+  blink::ProtocolHandlerSecurityLevel GetProtocolHandlerSecurityLevel(
+      const url::Origin& origin) override;
   void WillSendRequest(blink::WebLocalFrame* frame,
                        ui::PageTransition transition_type,
                        const blink::WebURL& url,
@@ -159,8 +165,7 @@ class ChromeContentRendererClient
       content::RenderFrame* render_frame) override;
 #if BUILDFLAG(ENABLE_SPEECH_SERVICE)
   std::unique_ptr<media::SpeechRecognitionClient> CreateSpeechRecognitionClient(
-      content::RenderFrame* render_frame,
-      media::SpeechRecognitionClient::OnReadyCallback callback) override;
+      content::RenderFrame* render_frame) override;
 #endif  // BUILDFLAG(ENABLE_SPEECH_SERVICE)
   void GetSupportedKeySystems(media::GetSupportedKeySystemsCB cb) override;
   bool IsPluginAllowedToUseCameraDeviceAPI(const GURL& url) override;

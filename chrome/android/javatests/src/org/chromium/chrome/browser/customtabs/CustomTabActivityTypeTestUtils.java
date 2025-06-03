@@ -6,7 +6,7 @@ package org.chromium.chrome.browser.customtabs;
 
 import android.content.Intent;
 
-import androidx.test.InstrumentationRegistry;
+import androidx.test.core.app.ApplicationProvider;
 
 import org.chromium.chrome.browser.browserservices.TrustedWebActivityTestUtil;
 import org.chromium.chrome.browser.browserservices.intents.BrowserServicesIntentDataProvider;
@@ -20,8 +20,8 @@ import org.chromium.chrome.test.util.browser.webapps.WebApkIntentDataProviderBui
 import java.util.concurrent.TimeoutException;
 
 /**
- * Helper methods for running a test against multiple activity types.
- * Supported activity types: webapp, WebAPK, CCT, and TWA.
+ * Helper methods for running a test against multiple activity types. Supported activity types:
+ * webapp, WebAPK, CCT, and TWA.
  */
 public class CustomTabActivityTypeTestUtils {
     public static ChromeActivityTestRule<? extends BaseCustomTabActivity> createActivityTestRule(
@@ -72,12 +72,12 @@ public class CustomTabActivityTypeTestUtils {
     private static void launchCct(CustomTabActivityTestRule activityTestRule, String url) {
         activityTestRule.startCustomTabActivityWithIntent(
                 CustomTabsIntentTestUtils.createMinimalCustomTabIntent(
-                        InstrumentationRegistry.getTargetContext(), url));
+                        ApplicationProvider.getApplicationContext(), url));
     }
 
     private static void launchTwa(CustomTabActivityTestRule activityTestRule, String url)
             throws TimeoutException {
-        String packageName = InstrumentationRegistry.getTargetContext().getPackageName();
+        String packageName = ApplicationProvider.getApplicationContext().getPackageName();
         Intent intent = TrustedWebActivityTestUtil.createTrustedWebActivityIntent(url);
         TrustedWebActivityTestUtil.spoofVerification(packageName, url);
         TrustedWebActivityTestUtil.createSession(intent, packageName);

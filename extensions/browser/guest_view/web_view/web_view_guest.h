@@ -21,7 +21,12 @@
 #include "extensions/browser/guest_view/web_view/web_view_permission_helper.h"
 #include "extensions/browser/guest_view/web_view/web_view_permission_types.h"
 #include "extensions/browser/script_executor.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/mojom/frame/find_in_page.mojom.h"
+
+namespace content {
+class StoragePartitionConfig;
+}
 
 namespace extensions {
 
@@ -40,7 +45,7 @@ class WebViewGuest : public guest_view::GuestView<WebViewGuest> {
   WebViewGuest& operator=(const WebViewGuest&) = delete;
 
   static std::unique_ptr<GuestViewBase> Create(
-      content::WebContents* owner_web_contents);
+      content::RenderFrameHost* owner_rfh);
   // Cleans up state when this GuestView is being destroyed.
   // Note that this cannot be done in the destructor since a GuestView could
   // potentially be created and destroyed in JavaScript before getting a
@@ -94,12 +99,6 @@ class WebViewGuest : public guest_view::GuestView<WebViewGuest> {
   void SetAllowTransparency(bool allow);
   bool allow_transparency() const { return allow_transparency_; }
 
-  // Loads a data URL with a specified base URL and virtual URL.
-  bool LoadDataWithBaseURL(const GURL& data_url,
-                           const GURL& base_url,
-                           const GURL& virtual_url,
-                           std::string* error);
-
   // Begin or continue a find request.
   void StartFind(const std::u16string& search_text,
                  blink::mojom::FindOptionsPtr options,
@@ -149,7 +148,7 @@ class WebViewGuest : public guest_view::GuestView<WebViewGuest> {
   }
 
  private:
-  explicit WebViewGuest(content::WebContents* owner_web_contents);
+  explicit WebViewGuest(content::RenderFrameHost* owner_rfh);
 
   void ClearCodeCache(base::Time remove_since,
                       uint32_t removal_mask,
@@ -178,7 +177,7 @@ class WebViewGuest : public guest_view::GuestView<WebViewGuest> {
   void DidAttachToEmbedder() final;
   void DidInitialize(const base::Value::Dict& create_params) final;
   void MaybeRecreateGuestContents(
-      content::WebContents* embedder_web_contents) final;
+      content::RenderFrameHost* outer_contents_frame) final;
   void EmbedderFullscreenToggled(bool entered_fullscreen) final;
   void FindReply(content::WebContents* source,
                  int request_id,
@@ -189,7 +188,6 @@ class WebViewGuest : public guest_view::GuestView<WebViewGuest> {
   bool ZoomPropagatesFromEmbedderToGuest() const final;
   const char* GetAPINamespace() const final;
   int GetTaskPrefix() const final;
-  void GuestReady() final;
   void GuestSizeChangedDueToAutoSize(const gfx::Size& old_size,
                                      const gfx::Size& new_size) final;
   void GuestViewDidStopLoading() final;
@@ -198,6 +196,7 @@ class WebViewGuest : public guest_view::GuestView<WebViewGuest> {
   void SignalWhenReady(base::OnceClosure callback) final;
   void WillAttachToEmbedder() final;
   bool RequiresSslInterstitials() const final;
+  bool IsPermissionRequestable(ContentSettingsType type) const final;
 
   // WebContentsDelegate implementation.
   void CloseContents(content::WebContents* source) final;
@@ -225,6 +224,7 @@ class WebViewGuest : public guest_view::GuestView<WebViewGuest> {
                    base::OnceCallback<void(bool)> callback) final;
   content::JavaScriptDialogManager* GetJavaScriptDialogManager(
       content::WebContents* source) final;
+  bool ShouldResumeRequestsForCreatedWindow() override;
   void AddNewContents(content::WebContents* source,
                       std::unique_ptr<content::WebContents> new_contents,
                       const GURL& target_url,
@@ -310,7 +310,13 @@ class WebViewGuest : public guest_view::GuestView<WebViewGuest> {
 
   void ApplyAttributes(const base::Value::Dict& params);
 
-  void SetTransparency();
+  void SetTransparency(content::RenderFrameHost* render_frame_host);
+
+  void CreateWebContentsWithStoragePartition(
+      std::unique_ptr<GuestViewBase> owned_this,
+      const base::Value::Dict& create_params,
+      WebContentsCreatedCallback callback,
+      absl::optional<content::StoragePartitionConfig> storage_partition_config);
 
   // Identifies the set of rules registries belonging to this guest.
   int rules_registry_id_;

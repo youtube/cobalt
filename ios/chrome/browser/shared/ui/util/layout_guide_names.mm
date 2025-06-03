@@ -4,14 +4,10 @@
 
 #import "ios/chrome/browser/shared/ui/util/layout_guide_names.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 GuideName* const kContentAreaGuide = @"ContentAreaGuide";
 GuideName* const kPrimaryToolbarGuide = @"kPrimaryToolbarGuide";
 GuideName* const kSecondaryToolbarGuide = @"kSecondaryToolbarGuide";
-GuideName* const kOmniboxGuide = @"kOmniboxGuide";
+GuideName* const kTopOmniboxGuide = @"kTopOmniboxGuide";
 GuideName* const kOmniboxLeadingImageGuide = @"kOmniboxLeadingImageGuide";
 GuideName* const kOmniboxTextFieldGuide = @"kOmniboxTextFieldGuide";
 GuideName* const kBackButtonGuide = @"kBackButtonGuide";
@@ -21,6 +17,9 @@ GuideName* const kTabSwitcherGuide = @"kTabSwitcherGuide";
 GuideName* const kToolsMenuGuide = @"kToolsMenuGuide";
 GuideName* const kVoiceSearchButtonGuide = @"kVoiceSearchButtonGuide";
 GuideName* const kDiscoverFeedHeaderMenuGuide = @"kDiscoverFeedHeaderMenuGuide";
+GuideName* const kShareButtonGuide = @"kShareButtonGuide";
 GuideName* const kTabGridBottomToolbarGuide = @"kTabGridBottomToolbarGuide";
 GuideName* const kAutofillFirstSuggestionGuide =
     @"kAutofillFirstSuggestionGuide";
+GuideName* const kLensKeyboardButtonGuide = @"kLensKeyboardButtonGuide";
+GuideName* const kMagicStackGuide = @"kMagicStackGuide";

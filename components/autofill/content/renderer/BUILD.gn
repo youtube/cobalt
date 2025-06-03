@@ -4,8 +4,12 @@
 
 static_library("renderer") {
   sources = [
+    "a11y_utils.cc",
+    "a11y_utils.h",
     "autofill_agent.cc",
     "autofill_agent.h",
+    "form_autofill_issues.cc",
+    "form_autofill_issues.h",
     "form_autofill_util.cc",
     "form_autofill_util.h",
     "form_cache.cc",
@@ -30,6 +34,8 @@ static_library("renderer") {
     "prefilled_values_detector.h",
     "renderer_save_password_progress_logger.cc",
     "renderer_save_password_progress_logger.h",
+    "suggestion_properties.cc",
+    "suggestion_properties.h",
   ]
 
   deps = [
@@ -52,6 +58,8 @@ static_library("renderer") {
     "//third_party/re2",
     "//ui/base",
   ]
+
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
 }
 
 static_library("test_support") {

@@ -18,7 +18,7 @@
 #include "chrome/browser/sharing/sharing_sync_preference.h"
 #include "chrome/browser/sharing/sharing_utils.h"
 #include "chrome/browser/sharing/vapid_key_manager.h"
-#include "components/sync/driver/sync_service.h"
+#include "components/sync/service/sync_service.h"
 #include "components/sync_device_info/device_info.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
@@ -181,7 +181,6 @@ void SharingService::UnregisterDevice() {
 
 void SharingService::OnDeviceRegistered(
     SharingDeviceRegistrationResult result) {
-  LogSharingRegistrationResult(result);
   switch (result) {
     case SharingDeviceRegistrationResult::kSuccess:
       backoff_entry_.InformOfRequest(true);
@@ -229,7 +228,6 @@ void SharingService::OnDeviceRegistered(
 
 void SharingService::OnDeviceUnregistered(
     SharingDeviceRegistrationResult result) {
-  LogSharingUnregistrationResult(result);
   if (IsSyncEnabledForSharing(sync_service_)) {
     // In case sync is enabled during un-registration, register it.
     state_ = State::REGISTERING;

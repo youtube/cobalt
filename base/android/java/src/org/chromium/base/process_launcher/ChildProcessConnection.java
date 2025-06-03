@@ -20,7 +20,7 @@ import androidx.annotation.IntDef;
 import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 
-import org.chromium.base.BaseFeatureList;
+import org.chromium.base.BaseFeatureMap;
 import org.chromium.base.BaseFeatures;
 import org.chromium.base.BuildInfo;
 import org.chromium.base.ChildBindingState;
@@ -621,9 +621,9 @@ public class ChildProcessConnection {
                         "Android.ChildMismatch.BrowserVersionChanged2", versionHasChanged);
                 childMismatchError += "; browser version has changed: " + versionHasChanged;
                 Log.e(TAG, "Child process code mismatch: %s", childMismatchError);
-                boolean crashIfBrowserChanged = BaseFeatureList.isEnabled(
+                boolean crashIfBrowserChanged = BaseFeatureMap.isEnabled(
                         BaseFeatures.CRASH_BROWSER_ON_CHILD_MISMATCH_IF_BROWSER_CHANGED);
-                if (BaseFeatureList.isEnabled(BaseFeatures.CRASH_BROWSER_ON_ANY_CHILD_MISMATCH)
+                if (BaseFeatureMap.isEnabled(BaseFeatures.CRASH_BROWSER_ON_ANY_CHILD_MISMATCH)
                         || (versionHasChanged && crashIfBrowserChanged)) {
                     throw new ChildProcessMismatchException(childMismatchError);
                 }
@@ -798,33 +798,49 @@ public class ChildProcessConnection {
         assert isRunningOnLauncherThread();
         assert !mUnbound;
 
-        boolean success;
+        boolean success = bindUsingExistingBindings(useStrongBinding);
         boolean usedFallback = sAlwaysFallback && mFallbackServiceName != null;
-        if (useStrongBinding) {
-            mStrongBindingCount++;
-            success = mStrongBinding.bindServiceConnection();
-        } else {
-            mVisibleBindingCount++;
-            success = mVisibleBinding.bindServiceConnection();
-        }
-        if (!success) {
+        boolean canFallback = !sAlwaysFallback && mFallbackServiceName != null;
+        if (!success && !usedFallback && canFallback) {
             // Note this error condition is generally transient so `sAlwaysFallback` is
             // not set in this code path.
-            if (!usedFallback && mFallbackServiceName != null && retireBindingsAndBindFallback()) {
-                usedFallback = true;
-            } else {
-                return false;
-            }
+            retireAndCreateFallbackBindings();
+            success = bindUsingExistingBindings(useStrongBinding);
+            usedFallback = true;
+            canFallback = false;
         }
 
-        if (!usedFallback && mFallbackServiceName != null) {
+        if (success && !usedFallback && canFallback) {
             mLauncherHandler.postDelayed(
                     this::checkBindTimeOut, FALLBACK_TIMEOUT_IN_SECONDS * 1000);
         }
 
-        mWaivedBinding.bindServiceConnection();
-        updateBindingState();
-        return true;
+        return success;
+    }
+
+    private boolean bindUsingExistingBindings(boolean useStrongBinding) {
+        assert isRunningOnLauncherThread();
+
+        boolean success;
+        if (useStrongBinding) {
+            success = mStrongBinding.bindServiceConnection();
+            if (success) {
+                mStrongBindingCount++;
+            }
+        } else {
+            success = mVisibleBinding.bindServiceConnection();
+            if (success) {
+                mVisibleBindingCount++;
+            }
+        }
+
+        if (success) {
+            boolean result = mWaivedBinding.bindServiceConnection();
+            // One binding already succeeded. Waived binding should succeed too.
+            assert result;
+            updateBindingState();
+        }
+        return success;
     }
 
     private void checkBindTimeOut() {
@@ -842,19 +858,12 @@ public class ChildProcessConnection {
 
     private boolean retireBindingsAndBindFallback() {
         assert mFallbackServiceName != null;
-        Log.w(TAG, "Fallback to %s", mFallbackServiceName);
         boolean isStrongBindingBound = mStrongBinding.isBound();
         boolean isVisibleBindingBound = mVisibleBinding.isBound();
         boolean isNotPerceptibleBindingBound =
                 supportNotPerceptibleBinding() && mNotPerceptibleBinding.isBound();
         boolean isWaivedBindingBound = mWaivedBinding.isBound();
-        mStrongBinding.retire();
-        mVisibleBinding.retire();
-        if (supportNotPerceptibleBinding()) {
-            mNotPerceptibleBinding.retire();
-        }
-        mWaivedBinding.retire();
-        createBindings(mFallbackServiceName);
+        retireAndCreateFallbackBindings();
         // Expect all bindings to succeed or fail together. So early out as soon as
         // one binding fails.
         if (isStrongBindingBound) {
@@ -880,6 +889,18 @@ public class ChildProcessConnection {
         return true;
     }
 
+    private void retireAndCreateFallbackBindings() {
+        assert mFallbackServiceName != null;
+        Log.w(TAG, "Fallback to %s", mFallbackServiceName);
+        mStrongBinding.retire();
+        mVisibleBinding.retire();
+        if (supportNotPerceptibleBinding()) {
+            mNotPerceptibleBinding.retire();
+        }
+        mWaivedBinding.retire();
+        createBindings(mFallbackServiceName);
+    }
+
     @VisibleForTesting
     protected void unbind() {
         assert isRunningOnLauncherThread();
@@ -903,8 +924,6 @@ public class ChildProcessConnection {
 
     public void updateGroupImportance(int group, int importanceInGroup) {
         assert isRunningOnLauncherThread();
-        assert !mUnbound;
-        assert mWaivedBinding.isBound();
         assert group != 0 || importanceInGroup == 0;
         if (mGroup != group || mImportanceInGroup != importanceInGroup) {
             mGroup = group;
@@ -1123,7 +1142,6 @@ public class ChildProcessConnection {
         return mLauncherHandler.getLooper() == Looper.myLooper();
     }
 
-    @VisibleForTesting
     public void crashServiceForTesting() {
         try {
             mService.forceKill();
@@ -1132,7 +1150,6 @@ public class ChildProcessConnection {
         }
     }
 
-    @VisibleForTesting
     public boolean didOnServiceConnectedForTesting() {
         return mDidOnServiceConnected;
     }

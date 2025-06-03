@@ -4,11 +4,9 @@
 
 #include "third_party/blink/renderer/modules/accessibility/ax_sparse_attribute_setter.h"
 
-#include "third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom-blink.h"
 #include "third_party/blink/renderer/core/dom/qualified_name.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/modules/accessibility/ax_object_cache_impl.h"
-#include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
 
@@ -25,18 +23,6 @@ void SetBoolAttribute(ax::mojom::blink::BoolAttribute attribute,
                       AXObject* object,
                       ui::AXNodeData* node_data,
                       const AtomicString& value) {
-  // Don't set kTouchPassthrough unless the feature is enabled in this
-  // context.
-  if (attribute == ax::mojom::blink::BoolAttribute::kTouchPassthrough) {
-    auto* context = object->AXObjectCache().GetDocument().GetExecutionContext();
-    if (RuntimeEnabledFeatures::AccessibilityAriaTouchPassthroughEnabled(
-            context)) {
-      UseCounter::Count(context, WebFeature::kAccessibilityTouchPassthroughSet);
-    } else {
-      return;
-    }
-  }
-
   // ARIA booleans are true if not "false" and not specifically undefined.
   bool is_true = !AccessibleNode::IsUndefinedAttrValue(value) &&
                  !EqualIgnoringASCIICase(value, "false");
@@ -66,9 +52,6 @@ void SetObjectAttribute(ax::mojom::blink::IntAttribute attribute,
                         AXObject* object,
                         ui::AXNodeData* node_data,
                         const AtomicString& value) {
-  if (object->IsProhibited(attribute))
-    return;
-
   Element* element = object->GetElement();
   if (!element)
     return;
@@ -94,28 +77,15 @@ void SetIntListAttribute(ax::mojom::blink::IntListAttribute attribute,
                          AXObject* object,
                          ui::AXNodeData* node_data,
                          const AtomicString& value) {
+  if (object->IsProhibited(attribute)) {
+    return;
+  }
   Element* element = object->GetElement();
   if (!element)
     return;
   HeapVector<Member<Element>>* attr_associated_elements =
       element->GetElementArrayAttribute(qualified_name);
-  if (!attr_associated_elements) {
-    return;
-  }
-
-  if (attr_associated_elements->empty()) {
-    // The target element was not yet available, so keep the source element
-    // dirty until the target element is in the DOM. For example, this can
-    // happen during a page load, if the source and target are loaded in
-    // separate batches.
-    // TODO(accessibility) Are there realistic cases where we need to do this
-    // outside of page loads? We currently only do this during page loads so
-    // so that bad markup, where the target id will never exist, doesn't stay
-    // dirty during the lifetime of the document.
-    DCHECK(object->GetDocument());
-    if (!object->GetDocument()->IsLoadCompleted()) {
-      object->AXObjectCache().MarkAXObjectDirty(object);
-    }
+  if (!attr_associated_elements || attr_associated_elements->empty()) {
     return;
   }
   std::vector<int32_t> ax_ids;
@@ -174,8 +144,8 @@ AXSparseAttributeSetterMap& GetAXSparseAttributeSetterMap() {
                            html_names::kAriaControlsAttr));
     ax_sparse_setter_map.Set(
         html_names::kAriaErrormessageAttr,
-        WTF::BindRepeating(&SetObjectAttribute,
-                           ax::mojom::blink::IntAttribute::kErrormessageId,
+        WTF::BindRepeating(&SetIntListAttribute,
+                           ax::mojom::blink::IntListAttribute::kErrormessageIds,
                            html_names::kAriaErrormessageAttr));
     ax_sparse_setter_map.Set(
         html_names::kAriaDetailsAttr,
@@ -204,10 +174,6 @@ AXSparseAttributeSetterMap& GetAXSparseAttributeSetterMap() {
         WTF::BindRepeating(
             &SetStringAttribute,
             ax::mojom::blink::StringAttribute::kRoleDescription));
-    ax_sparse_setter_map.Set(
-        html_names::kAriaTouchpassthroughAttr,
-        WTF::BindRepeating(&SetBoolAttribute,
-                           ax::mojom::blink::BoolAttribute::kTouchPassthrough));
     if (RuntimeEnabledFeatures::AccessibilityAriaVirtualContentEnabled()) {
       ax_sparse_setter_map.Set(
           html_names::kAriaVirtualcontentAttr,
@@ -249,7 +215,7 @@ void AXNodeDataAOMPropertyClient::AddStringProperty(AOMStringProperty property,
     default:
       return;
   }
-  node_data_.AddStringAttribute(attribute, value.Utf8());
+  node_data_->AddStringAttribute(attribute, value.Utf8());
 }
 
 void AXNodeDataAOMPropertyClient::AddBooleanProperty(
@@ -263,7 +229,7 @@ void AXNodeDataAOMPropertyClient::AddBooleanProperty(
     default:
       return;
   }
-  node_data_.AddBoolAttribute(attribute, value);
+  node_data_->AddBoolAttribute(attribute, value);
 }
 
 void AXNodeDataAOMPropertyClient::AddFloatProperty(AOMFloatProperty property,
@@ -277,9 +243,6 @@ void AXNodeDataAOMPropertyClient::AddRelationProperty(
     case AOMRelationProperty::kActiveDescendant:
       attribute = ax::mojom::blink::IntAttribute::kActivedescendantId;
       break;
-    case AOMRelationProperty::kErrorMessage:
-      attribute = ax::mojom::blink::IntAttribute::kErrormessageId;
-      break;
     default:
       return;
   }
@@ -289,7 +252,7 @@ void AXNodeDataAOMPropertyClient::AddRelationProperty(
   if (!ax_target)
     return;
 
-  node_data_.AddIntAttribute(attribute, ax_target->AXObjectID());
+  node_data_->AddIntAttribute(attribute, ax_target->AXObjectID());
 }
 
 void AXNodeDataAOMPropertyClient::AddRelationListProperty(
@@ -302,6 +265,9 @@ void AXNodeDataAOMPropertyClient::AddRelationListProperty(
       break;
     case AOMRelationListProperty::kDetails:
       attribute = ax::mojom::blink::IntListAttribute::kDetailsIds;
+      break;
+    case AOMRelationListProperty::kErrorMessage:
+      attribute = ax::mojom::blink::IntListAttribute::kErrormessageIds;
       break;
     case AOMRelationListProperty::kFlowTo:
       attribute = ax::mojom::blink::IntListAttribute::kFlowtoIds;
@@ -321,7 +287,7 @@ void AXNodeDataAOMPropertyClient::AddRelationListProperty(
     }
   }
 
-  node_data_.AddIntListAttribute(attribute, ax_ids);
+  node_data_->AddIntListAttribute(attribute, ax_ids);
 }
 
 }  // namespace blink

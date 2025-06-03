@@ -59,11 +59,32 @@ class WebFramesManagerImpl;
 //    writing them out for session saves.
 class WebStateImpl final : public WebState {
  public:
+  // Empty structure used to mark the constructor used to implement Clone.
+  struct CloneFrom {};
+
+  // Forward-declaration of the two internal classes used to implement
+  // the "unrealized" state of the WebState. See the documentation at
+  // //docs/ios/unrealized_web_state.md for more details.
+  class RealizedWebState;
+  class SerializedData;
+
   // Constructor for WebStateImpls created for new sessions.
   explicit WebStateImpl(const CreateParams& params);
 
   // Constructor for WebStateImpls created for deserialized sessions
   WebStateImpl(const CreateParams& params, CRWSessionStorage* session_storage);
+
+  // Constructor for WebStateImpls created for deserialized sessions. The
+  // callbacks are used to load the complete serialized data from disk when
+  // the WebState transition to the realized state.
+  WebStateImpl(BrowserState* browser_state,
+               WebStateID unique_identifier,
+               proto::WebStateMetadataStorage metadata,
+               WebStateStorageLoader storage_loader,
+               NativeSessionFetcher session_fetcher);
+
+  // Constructor for cloned WebStateImpl.
+  WebStateImpl(CloneFrom, const RealizedWebState& pimpl);
 
   WebStateImpl(const WebStateImpl&) = delete;
   WebStateImpl& operator=(const WebStateImpl&) = delete;
@@ -263,8 +284,10 @@ class WebStateImpl final : public WebState {
       API_AVAILABLE(ios(15.0));
 
   // WebState:
+  void SerializeToProto(proto::WebStateStorage& storage) const final;
   WebStateDelegate* GetDelegate() final;
   void SetDelegate(WebStateDelegate* delegate) final;
+  std::unique_ptr<WebState> Clone() const final;
   bool IsRealized() const final;
   WebState* ForceRealized() final;
   bool IsWebUsageEnabled() const final;
@@ -294,11 +317,11 @@ class WebStateImpl final : public WebState {
   const SessionCertificatePolicyCache* GetSessionCertificatePolicyCache()
       const final;
   SessionCertificatePolicyCache* GetSessionCertificatePolicyCache() final;
-  CRWSessionStorage* BuildSessionStorage() final;
+  CRWSessionStorage* BuildSessionStorage() const final;
   void LoadData(NSData* data, NSString* mime_type, const GURL& url) final;
   void ExecuteUserJavaScript(NSString* javaScript) final;
   NSString* GetStableIdentifier() const final;
-  SessionID GetUniqueIdentifier() const final;
+  WebStateID GetUniqueIdentifier() const final;
   const std::string& GetContentsMimeType() const final;
   bool ContentIsHTML() const final;
   const std::u16string& GetTitle() const final;
@@ -314,7 +337,7 @@ class WebStateImpl final : public WebState {
   int GetNavigationItemCount() const final;
   const GURL& GetVisibleURL() const final;
   const GURL& GetLastCommittedURL() const final;
-  GURL GetCurrentURL(URLVerificationTrustLevel* trust_level) const final;
+  absl::optional<GURL> GetLastCommittedURLIfTrusted() const final;
   id<CRWWebViewProxy> GetWebViewProxy() const final;
   void DidChangeVisibleSecurityState() final;
   InterfaceBinder* GetInterfaceBinderForMainFrame() final;
@@ -344,6 +367,8 @@ class WebStateImpl final : public WebState {
   void SetFindInteractionEnabled(bool enabled) final;
   id<CRWFindInteraction> GetFindInteraction() final API_AVAILABLE(ios(16));
   id GetActivityItem() final API_AVAILABLE(ios(16.4));
+  UIColor* GetThemeColor() final;
+  UIColor* GetUnderPageBackgroundColor() final;
 
  protected:
   // WebState:
@@ -351,12 +376,6 @@ class WebStateImpl final : public WebState {
   void RemovePolicyDecider(WebStatePolicyDecider* decider) final;
 
  private:
-  // Forward-declaration of the two internal classes used to implement
-  // the "unrealized" state of the WebState. See the documentation at
-  // //docs/ios/unrealized_web_state.md for more details.
-  class RealizedWebState;
-  class SerializedData;
-
   // Type aliases for the various ObserverList map used by WebStateImpl (reused
   // by the RealizedWebState class).
   using WebStateObserverList = base::ObserverList<WebStateObserver, true>;
@@ -368,6 +387,14 @@ class WebStateImpl final : public WebState {
   // then return a pointer to the RealizedWebState. Safe to call if the
   // WebState is already realized.
   RealizedWebState* RealizedState();
+
+  // Add a marker used to ensure casting a WebState to WebStateImpl is a
+  // safe operation (if this marker is not present, the cast is invalid).
+  void AddWebStateImplMarker();
+
+  // Send global creation event. Needs to be the last method called in
+  // the constructor.
+  void SendGlobalCreationEvent();
 
   // Stores whether the web state is currently being destroyed. This is not
   // stored in RealizedWebState/SerializedData as a WebState can be destroyed

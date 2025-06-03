@@ -7,8 +7,9 @@
 #include <string>
 #include <vector>
 
-#include "base/mac/scoped_cftyperef.h"
-#include "base/mac/scoped_nsobject.h"
+#include "base/apple/bridging.h"
+#include "base/apple/scoped_cftyperef.h"
+#include "base/enterprise_util.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/strings/sys_string_conversions.h"
@@ -25,7 +26,9 @@ static NSString* const kKeystoneSharedPreferenceSuite = @"com.google.Keystone";
 
 class ManagedPreferencePolicyManager : public PolicyManagerInterface {
  public:
-  explicit ManagedPreferencePolicyManager(CRUUpdatePolicyDictionary* policy);
+  ManagedPreferencePolicyManager(
+      CRUUpdatePolicyDictionary* policy,
+      const absl::optional<bool>& override_is_managed_device);
   ManagedPreferencePolicyManager(const ManagedPreferencePolicyManager&) =
       delete;
   ManagedPreferencePolicyManager& operator=(
@@ -39,7 +42,7 @@ class ManagedPreferencePolicyManager : public PolicyManagerInterface {
   absl::optional<base::TimeDelta> GetLastCheckPeriod() const override;
   absl::optional<UpdatesSuppressedTimes> GetUpdatesSuppressedTimes()
       const override;
-  absl::optional<std::string> GetDownloadPreferenceGroupPolicy() const override;
+  absl::optional<std::string> GetDownloadPreference() const override;
   absl::optional<int> GetPackageCacheSizeLimitMBytes() const override;
   absl::optional<int> GetPackageCacheExpirationTimeDays() const override;
   absl::optional<int> GetEffectivePolicyForAppInstalls(
@@ -60,22 +63,27 @@ class ManagedPreferencePolicyManager : public PolicyManagerInterface {
 
  private:
   ~ManagedPreferencePolicyManager() override;
-  base::scoped_nsobject<CRUManagedPreferencePolicyManager> impl_;
+
+  CRUManagedPreferencePolicyManager* __strong impl_;
+  const bool is_managed_device_;
 };
 
 ManagedPreferencePolicyManager::ManagedPreferencePolicyManager(
-    CRUUpdatePolicyDictionary* policyDict)
+    CRUUpdatePolicyDictionary* policyDict,
+    const absl::optional<bool>& override_is_managed_device)
     : impl_([[CRUManagedPreferencePolicyManager alloc]
-          initWithDictionary:policyDict]) {}
+          initWithDictionary:policyDict]),
+      is_managed_device_(override_is_managed_device.value_or(
+          base::IsManagedOrEnterpriseDevice())) {}
 
 ManagedPreferencePolicyManager::~ManagedPreferencePolicyManager() = default;
 
 bool ManagedPreferencePolicyManager::HasActiveDevicePolicies() const {
-  return [impl_ managed];
+  return is_managed_device_ && impl_.hasActivePolicy;
 }
 
 std::string ManagedPreferencePolicyManager::source() const {
-  return base::SysNSStringToUTF8([impl_ source]);
+  return base::SysNSStringToUTF8(impl_.source);
 }
 
 absl::optional<base::TimeDelta>
@@ -95,7 +103,7 @@ ManagedPreferencePolicyManager::GetUpdatesSuppressedTimes() const {
 }
 
 absl::optional<std::string>
-ManagedPreferencePolicyManager::GetDownloadPreferenceGroupPolicy() const {
+ManagedPreferencePolicyManager::GetDownloadPreference() const {
   NSString* value = [impl_ downloadPreference];
   return value ? absl::optional<std::string>(base::SysNSStringToUTF8(value))
                : absl::nullopt;
@@ -198,27 +206,30 @@ ManagedPreferencePolicyManager::GetAppsWithPolicy() const {
 }
 
 NSDictionary* ReadManagedPreferencePolicyDictionary() {
-  base::ScopedCFTypeRef<CFPropertyListRef> policies(CFPreferencesCopyAppValue(
-      (__bridge CFStringRef)kManagedPreferencesUpdatePolicies,
-      (__bridge CFStringRef)kKeystoneSharedPreferenceSuite));
+  base::apple::ScopedCFTypeRef<CFPropertyListRef> policies(
+      CFPreferencesCopyAppValue(
+          base::apple::NSToCFPtrCast(kManagedPreferencesUpdatePolicies),
+          base::apple::NSToCFPtrCast(kKeystoneSharedPreferenceSuite)));
   if (!policies)
     return nil;
 
   if (!CFPreferencesAppValueIsForced(
-          (__bridge CFStringRef)kManagedPreferencesUpdatePolicies,
-          (__bridge CFStringRef)kKeystoneSharedPreferenceSuite)) {
+          base::apple::NSToCFPtrCast(kManagedPreferencesUpdatePolicies),
+          base::apple::NSToCFPtrCast(kKeystoneSharedPreferenceSuite))) {
     return nil;
   }
 
   if (CFGetTypeID(policies) != CFDictionaryGetTypeID())
     return nil;
 
-  return reinterpret_cast<NSDictionary*>(CFBridgingRelease(policies.release()));
+  return base::apple::CFToNSOwnershipCast((CFDictionaryRef)policies.release());
 }
 
-scoped_refptr<PolicyManagerInterface> CreateManagedPreferencePolicyManager() {
+scoped_refptr<PolicyManagerInterface> CreateManagedPreferencePolicyManager(
+    const absl::optional<bool>& override_is_managed_device) {
   NSDictionary* policyDict = ReadManagedPreferencePolicyDictionary();
-  return base::MakeRefCounted<ManagedPreferencePolicyManager>(policyDict);
+  return base::MakeRefCounted<ManagedPreferencePolicyManager>(
+      policyDict, override_is_managed_device);
 }
 
 }  // namespace updater

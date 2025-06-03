@@ -7,6 +7,7 @@
 #include <tuple>
 
 #include "base/files/file_util.h"
+#include "base/json/json_writer.h"
 #include "base/numerics/checked_math.h"
 #include "base/strings/string_util.h"
 #include "base/threading/thread_restrictions.h"
@@ -35,6 +36,13 @@ void TestExtensionDir::WriteManifest(base::StringPiece manifest) {
   WriteFile(FILE_PATH_LITERAL("manifest.json"), manifest);
 }
 
+void TestExtensionDir::WriteManifest(const base::Value::Dict& manifest) {
+  std::string manifest_out;
+  base::JSONWriter::WriteWithOptions(
+      manifest, base::JSONWriter::OPTIONS_PRETTY_PRINT, &manifest_out);
+  WriteManifest(manifest_out);
+}
+
 void TestExtensionDir::WriteFile(const base::FilePath::StringType& filename,
                                  base::StringPiece contents) {
   base::ScopedAllowBlockingForTesting allow_blocking;
@@ -50,11 +58,11 @@ void TestExtensionDir::CopyFileTo(
       << "Failed to copy file from " << from_path << " to " << local_filename;
 }
 
-base::FilePath TestExtensionDir::Pack() {
+base::FilePath TestExtensionDir::Pack(base::StringPiece custom_path) {
   base::ScopedAllowBlockingForTesting allow_blocking;
   ExtensionCreator creator;
-  base::FilePath crx_path =
-      crx_dir_.GetPath().Append(FILE_PATH_LITERAL("ext.crx"));
+  base::FilePath crx_path = crx_dir_.GetPath().AppendASCII(
+      custom_path.empty() ? "ext.crx" : custom_path);
   base::FilePath pem_path =
       crx_dir_.GetPath().Append(FILE_PATH_LITERAL("ext.pem"));
   base::FilePath pem_in_path, pem_out_path;

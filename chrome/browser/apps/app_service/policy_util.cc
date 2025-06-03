@@ -1,4 +1,4 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,15 +11,20 @@
 #include "base/no_destructor.h"
 #include "base/ranges/algorithm.h"
 #include "base/strings/string_piece.h"
+#include "base/strings/string_util.h"
 #include "chrome/browser/apps/app_service/app_service_proxy.h"
 #include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/web_applications/web_app_id_constants.h"
 #include "components/crx_file/id_util.h"
 #include "components/services/app_service/public/cpp/app_update.h"
+#include "components/services/app_service/public/cpp/types_util.h"
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
-#include "chrome/browser/ash/app_list/arc/arc_app_list_prefs.h"
+#include "base/containers/map_util.h"
+#include "base/types/optional_util.h"
+#include "chrome/browser/ash/file_manager/office_file_tasks.h"
+#include "chrome/browser/ash/file_manager/virtual_tasks/id_constants.h"
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
 namespace apps_util {
@@ -27,6 +32,8 @@ namespace apps_util {
 namespace {
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
+
+namespace fm_tasks = file_manager::file_tasks;
 
 // This mapping excludes SWAs not included in official builds (like SAMPLE).
 // These app Id constants need to be kept in sync with java/com/
@@ -60,14 +67,19 @@ constexpr auto kSystemWebAppsMapping =
 
 constexpr ash::SystemWebAppType GetMaxSystemWebAppType() {
   return base::ranges::max(kSystemWebAppsMapping, base::ranges::less{},
-                           [](const auto& systemWebAppMappingPair) {
-                             return systemWebAppMappingPair.second;
-                           })
+                           &decltype(kSystemWebAppsMapping)::value_type::second)
       .second;
 }
 
 static_assert(GetMaxSystemWebAppType() == ash::SystemWebAppType::kMaxValue,
               "Not all SWA types are listed in |system_web_apps_mapping|.");
+
+// These virtual task identifiers are supposed to be a subset of tasks listed in
+// chrome/browser/ash/file_manager/virtual_file_tasks.cc
+constexpr auto kVirtualFileTasksMapping =
+    base::MakeFixedFlatMap<base::StringPiece, base::StringPiece>(
+        {{"install-isolated-web-app", fm_tasks::kActionIdInstallIsolatedWebApp},
+         {"microsoft-office", fm_tasks::kActionIdOpenInOffice}});
 
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
@@ -90,22 +102,13 @@ GetPreinstalledWebAppsMappingForTesting() {
 
 }  // namespace
 
-bool IsSupportedAppTypePolicyId(base::StringPiece policy_id) {
-  return IsChromeAppPolicyId(policy_id) ||
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-         IsArcAppPolicyId(policy_id) || IsSystemWebAppPolicyId(policy_id) ||
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
-         IsWebAppPolicyId(policy_id) || IsPreinstalledWebAppPolicyId(policy_id);
-}
-
 bool IsChromeAppPolicyId(base::StringPiece policy_id) {
   return crx_file::id_util::IdIsValid(policy_id);
 }
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
 bool IsArcAppPolicyId(base::StringPiece policy_id) {
-  return policy_id.find('.') != base::StringPiece::npos &&
-         !IsWebAppPolicyId(policy_id);
+  return base::Contains(policy_id, '.') && !IsWebAppPolicyId(policy_id);
 }
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
@@ -126,6 +129,23 @@ bool IsPreinstalledWebAppPolicyId(base::StringPiece policy_id) {
   return base::Contains(kPreinstalledWebAppsMapping, policy_id);
 }
 
+#if BUILDFLAG(IS_CHROMEOS_ASH)
+bool IsFileManagerVirtualTaskPolicyId(base::StringPiece policy_id) {
+  return GetVirtualTaskIdFromPolicyId(policy_id).has_value();
+}
+
+absl::optional<base::StringPiece> GetVirtualTaskIdFromPolicyId(
+    base::StringPiece policy_id) {
+  if (!base::StartsWith(policy_id, kVirtualTaskPrefix)) {
+    return absl::nullopt;
+  }
+  static constexpr size_t kOffset =
+      std::char_traits<char>::length(kVirtualTaskPrefix);
+  return base::OptionalFromPtr(
+      base::FindOrNull(kVirtualFileTasksMapping, policy_id.substr(kOffset)));
+}
+#endif
+
 std::string TransformRawPolicyId(const std::string& raw_policy_id) {
   if (const GURL raw_policy_id_gurl{raw_policy_id};
       raw_policy_id_gurl.is_valid()) {
@@ -135,72 +155,36 @@ std::string TransformRawPolicyId(const std::string& raw_policy_id) {
   return raw_policy_id;
 }
 
-absl::optional<std::string> GetAppIdFromPolicyId(Profile* profile,
-                                                 const std::string& policy_id) {
-  // AppService might be absent in some cases, e.g. Arc++ Kiosk mode.
-  // TODO(b/240493670): Revisit this after app service is available in Kiosk.
-  if (apps::AppServiceProxyFactory::IsAppServiceAvailableForProfile(profile)) {
-    absl::optional<std::string> app_id;
-    apps::AppServiceProxyFactory::GetForProfile(profile)
-        ->AppRegistryCache()
-        .ForEachApp([&policy_id, &app_id](const apps::AppUpdate& update) {
-          if (base::Contains(update.PolicyIds(), policy_id)) {
-            DCHECK(!app_id);
-            app_id = update.AppId();
-          }
-        });
-
-    return app_id;
+std::vector<std::string> GetAppIdsFromPolicyId(Profile* profile,
+                                               const std::string& policy_id) {
+  if (!apps::AppServiceProxyFactory::IsAppServiceAvailableForProfile(profile)) {
+    return {};
   }
-
-  if (IsChromeAppPolicyId(policy_id)) {
-    return policy_id;
-  }
-
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-  if (IsArcAppPolicyId(policy_id)) {
-    auto* arc_prefs = ArcAppListPrefs::Get(profile);
-    if (!arc_prefs) {
-      return {};
-    }
-    std::string app_id = arc_prefs->GetAppIdByPackageName(policy_id);
-    if (app_id.empty()) {
-      return {};
-    }
-    return app_id;
-  }
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
-
-  return {};
+  std::vector<std::string> app_ids;
+  apps::AppServiceProxyFactory::GetForProfile(profile)
+      ->AppRegistryCache()
+      .ForEachApp([&policy_id, &app_ids](const apps::AppUpdate& update) {
+        if (IsInstalled(update.Readiness()) &&
+            base::Contains(update.PolicyIds(), policy_id)) {
+          app_ids.push_back(update.AppId());
+        }
+      });
+  return app_ids;
 }
 
 absl::optional<std::vector<std::string>> GetPolicyIdsFromAppId(
     Profile* profile,
     const std::string& app_id) {
-  // AppService might be absent in some cases, e.g. Arc++ Kiosk mode.
-  // TODO(b/240493670): Revisit this after app service is available in Kiosk.
-  if (apps::AppServiceProxyFactory::IsAppServiceAvailableForProfile(profile)) {
-    absl::optional<std::vector<std::string>> policy_ids;
-    apps::AppServiceProxyFactory::GetForProfile(profile)
-        ->AppRegistryCache()
-        .ForOneApp(app_id, [&policy_ids](const apps::AppUpdate& update) {
-          policy_ids = update.PolicyIds();
-        });
-
-    return policy_ids;
+  if (!apps::AppServiceProxyFactory::IsAppServiceAvailableForProfile(profile)) {
+    return absl::nullopt;
   }
-
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-  // Handle Arc++ ids
-  if (auto* arc_prefs = ArcAppListPrefs::Get(profile)) {
-    if (auto app_info = arc_prefs->GetApp(app_id)) {
-      return {{app_info->package_name}};
-    }
-  }
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
-
-  // Handle Chrome App ids
-  return {{app_id}};
+  absl::optional<std::vector<std::string>> policy_ids;
+  apps::AppServiceProxyFactory::GetForProfile(profile)
+      ->AppRegistryCache()
+      .ForOneApp(app_id, [&policy_ids](const apps::AppUpdate& update) {
+        policy_ids = update.PolicyIds();
+      });
+  return policy_ids;
 }
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)

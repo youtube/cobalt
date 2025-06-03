@@ -7,6 +7,7 @@
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/core/css/font_face_cache.h"
 #include "third_party/blink/renderer/core/css/font_face_set_load_event.h"
+#include "third_party/blink/renderer/platform/font_family_names.h"
 #include "third_party/blink/renderer/platform/fonts/font.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
@@ -14,7 +15,11 @@
 namespace blink {
 
 const int FontFaceSet::kDefaultFontSize = 10;
-const char FontFaceSet::kDefaultFontFamily[] = "sans-serif";
+
+// static
+const AtomicString& FontFaceSet::DefaultFontFamily() {
+  return font_family_names::kSansSerif;
+}
 
 void FontFaceSet::HandlePendingEventsAndPromisesSoon() {
   if (!pending_task_queued_) {
@@ -127,7 +132,7 @@ void FontFaceSet::Trace(Visitor* visitor) const {
   visitor->Trace(failed_fonts_);
   visitor->Trace(ready_);
   ExecutionContextClient::Trace(visitor);
-  EventTargetWithInlineData::Trace(visitor);
+  EventTarget::Trace(visitor);
   FontFace::LoadFontCallback::Trace(visitor);
 }
 
@@ -233,32 +238,26 @@ bool FontFaceSet::check(const String& font_string,
   FontSelector* font_selector = GetFontSelector();
   FontFaceCache* font_face_cache = font_selector->GetFontFaceCache();
 
-  bool has_loaded_faces = false;
-  for (const FontFamily* f = &font.GetFontDescription().Family(); f;
-       f = f->Next()) {
-    if (f->FamilyIsGeneric()) {
-      continue;
-    }
-    CSSSegmentedFontFace* face =
-        font_face_cache->Get(font.GetFontDescription(), f->FamilyName());
-    if (face) {
-      if (!face->CheckFont(text)) {
+  unsigned index = 0;
+  while (index < text.length()) {
+    UChar32 c = text.CharacterStartingAt(index);
+    index += U16_LENGTH(c);
+
+    for (const FontFamily* f = &font.GetFontDescription().Family(); f;
+         f = f->Next()) {
+      if (f->FamilyIsGeneric() || font_selector->IsPlatformFamilyMatchAvailable(
+                                      font.GetFontDescription(), *f)) {
+        continue;
+      }
+
+      CSSSegmentedFontFace* face =
+          font_face_cache->Get(font.GetFontDescription(), f->FamilyName());
+      if (face && !face->CheckFont(c)) {
         return false;
       }
-      has_loaded_faces = true;
     }
   }
-  if (has_loaded_faces) {
-    return true;
-  }
-  for (const FontFamily* f = &font.GetFontDescription().Family(); f;
-       f = f->Next()) {
-    if (font_selector->IsPlatformFamilyMatchAvailable(font.GetFontDescription(),
-                                                      *f)) {
-      return true;
-    }
-  }
-  return false;
+  return true;
 }
 
 void FontFaceSet::FireDoneEvent() {

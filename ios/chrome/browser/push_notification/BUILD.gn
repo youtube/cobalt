@@ -3,7 +3,6 @@
 # found in the LICENSE file.
 
 source_set("push_notification_browser_state_service") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   sources = [
     "push_notification_browser_state_service.h",
     "push_notification_browser_state_service.mm",
@@ -15,15 +14,15 @@ source_set("push_notification_browser_state_service") {
     "//components/keyed_service/core",
     "//components/prefs",
     "//components/signin/public/identity_manager",
-    "//ios/chrome/browser/application_context",
-    "//ios/chrome/browser/browser_state",
-    "//ios/chrome/browser/commerce",
-    "//ios/chrome/browser/prefs:pref_names",
+    "//ios/chrome/browser/commerce/model",
+    "//ios/chrome/browser/shared/model/application_context",
+    "//ios/chrome/browser/shared/model/browser_state",
+    "//ios/chrome/browser/shared/model/prefs:pref_names",
+    "//ios/web/public/thread",
   ]
 }
 
 source_set("push_notification_browser_state_service_factory") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   sources = [
     "push_notification_browser_state_service_factory.h",
     "push_notification_browser_state_service_factory.mm",
@@ -34,15 +33,14 @@ source_set("push_notification_browser_state_service_factory") {
     ":push_notification_service",
     "//base",
     "//components/keyed_service/ios",
-    "//ios/chrome/browser/browser_state",
-    "//ios/chrome/browser/commerce",
-    "//ios/chrome/browser/commerce/push_notification",
+    "//ios/chrome/browser/commerce/model",
+    "//ios/chrome/browser/commerce/model/push_notification",
+    "//ios/chrome/browser/shared/model/browser_state",
     "//ios/chrome/browser/signin",
   ]
 }
 
 source_set("push_notification_service") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   sources = [
     "push_notification_account_context_manager.h",
     "push_notification_account_context_manager.mm",
@@ -64,15 +62,15 @@ source_set("push_notification_service") {
     "//components/pref_registry",
     "//components/prefs",
     "//ios/chrome/app/application_delegate:app_state_header",
-    "//ios/chrome/browser/application_context",
-    "//ios/chrome/browser/browser_state",
-    "//ios/chrome/browser/commerce/push_notification",
-    "//ios/chrome/browser/prefs:pref_names",
+    "//ios/chrome/app/startup:startup_basic",
+    "//ios/chrome/browser/commerce/model/push_notification",
+    "//ios/chrome/browser/shared/model/application_context",
+    "//ios/chrome/browser/shared/model/browser_state",
+    "//ios/chrome/browser/shared/model/prefs:pref_names",
   ]
 }
 
 source_set("push_notification_client") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   sources = [
     "push_notification_client.h",
     "push_notification_client.mm",
@@ -82,20 +80,23 @@ source_set("push_notification_client") {
 }
 
 source_set("unit_tests") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   testonly = true
   sources = [
     "push_notification_account_context_manager+testing.h",
     "push_notification_account_context_manager_unittest.mm",
     "push_notification_client_manager_unittest.mm",
+    "push_notification_util+testing.h",
+    "push_notification_util_unittest.mm",
   ]
   deps = [
     ":push_notification_client",
     ":push_notification_service",
     ":test_support",
     "//base",
-    "//ios/chrome/browser/application_context",
-    "//ios/chrome/browser/browser_state:test_support",
+    "//base/test:test_support",
+    "//ios/chrome/browser/shared/model/application_context",
+    "//ios/chrome/browser/shared/model/browser_state",
+    "//ios/chrome/browser/shared/model/browser_state:test_support",
     "//ios/chrome/test:test_support",
     "//ios/web/public/test",
     "//testing/gtest",
@@ -103,7 +104,6 @@ source_set("unit_tests") {
 }
 
 source_set("test_support") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   sources = [
     "test_push_notification_client.h",
     "test_push_notification_client.mm",

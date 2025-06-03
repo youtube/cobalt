@@ -28,6 +28,7 @@
 #include "media/base/media_switches.h"
 #include "media/base/media_util.h"
 #include "media/base/overlay_info.h"
+#include "media/base/platform_features.h"
 #include "media/base/video_types.h"
 #include "media/renderers/default_decoder_factory.h"
 #include "media/video/gpu_video_accelerator_factories.h"
@@ -502,9 +503,8 @@ int32_t RTCVideoDecoderStreamAdapter::Decode(
     // true, we will do the decoder capability check.
     if (video_codec_type_ == webrtc::kVideoCodecVP9 &&
         input_image.SpatialIndex().value_or(0) > 0 &&
-        !RTCVideoDecoderAdapter::Vp9HwSupportForSpatialLayers(
-            video_decoder_type_) &&
-        decoder_configured_ && decoder_info_.is_hardware_accelerated) {
+        !media::IsVp9kSVCHWDecodingEnabled() && decoder_configured_ &&
+        decoder_info_.is_hardware_accelerated) {
       DLOG(ERROR) << __func__
                   << " fallback to software due to decoder doesn't support "
                      "decoding VP9 multiple spatial layers.";
@@ -549,19 +549,14 @@ int32_t RTCVideoDecoderStreamAdapter::Decode(
   // Convert to media::DecoderBuffer.
   // TODO(sandersd): What is |render_time_ms|?
   auto pending_buffer = std::make_unique<PendingBuffer>();
+  pending_buffer->buffer =
+      media::DecoderBuffer::CopyFrom(input_image.data(), input_image.size());
   if (spatial_layer_frame_size.size() > 1) {
-    const uint8_t* side_data =
-        reinterpret_cast<const uint8_t*>(spatial_layer_frame_size.data());
-    size_t side_data_size =
-        spatial_layer_frame_size.size() * sizeof(uint32_t) / sizeof(uint8_t);
-    pending_buffer->buffer = media::DecoderBuffer::CopyFrom(
-        input_image.data(), input_image.size(), side_data, side_data_size);
-  } else {
-    pending_buffer->buffer =
-        media::DecoderBuffer::CopyFrom(input_image.data(), input_image.size());
+    pending_buffer->buffer->WritableSideData().spatial_layers =
+        spatial_layer_frame_size;
   }
   pending_buffer->buffer->set_timestamp(
-      base::Microseconds(input_image.Timestamp()));
+      base::Microseconds(input_image.RtpTimestamp()));
   pending_buffer->buffer->set_is_key_frame(
       input_image._frameType == webrtc::VideoFrameType::kVideoFrameKey);
 
@@ -569,7 +564,8 @@ int32_t RTCVideoDecoderStreamAdapter::Decode(
   if (ShouldReinitializeForSettingHDRColorSpace(input_image)) {
     pending_buffer->new_config = config_;
     pending_buffer->new_config->set_color_space_info(
-        blink::WebRtcToMediaVideoColorSpace(*input_image.ColorSpace()));
+        media::VideoColorSpace::FromGfxColorSpace(
+            blink::WebRtcToGfxColorSpace(*input_image.ColorSpace())));
   }
 
   // Queue for decoding.
@@ -929,10 +925,10 @@ bool RTCVideoDecoderStreamAdapter::ShouldReinitializeForSettingHDRColorSpace(
 
   if (config_.profile() == media::VP9PROFILE_PROFILE2 &&
       input_image.ColorSpace()) {
-    const media::VideoColorSpace& new_color_space =
-        blink::WebRtcToMediaVideoColorSpace(*input_image.ColorSpace());
+    const gfx::ColorSpace& new_color_space =
+        blink::WebRtcToGfxColorSpace(*input_image.ColorSpace());
     if (!config_.color_space_info().IsSpecified() ||
-        new_color_space != config_.color_space_info()) {
+        new_color_space != config_.color_space_info().ToGfxColorSpace()) {
       return true;
     }
   }

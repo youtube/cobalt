@@ -16,6 +16,7 @@
 <translation id="1729654308190250600">ກະ​ລຸ​ນາ​ໃສ່​ທີ່​ຢູ່​ອີ​ເມວທີ່​ບໍ່​ວ່າງ​ເປົ່າ​.</translation>
 <translation id="1758486001363313524">ອື່ນ...</translation>
 <translation id="1787192514241997742">ເວລາທັງໝົດ: <ph name="REMAINING_TIME" /></translation>
+<translation id="1800494066469288780">ອະນຸຍາດກ້ອງຖ່າຍຮູບ</translation>
 <translation id="1822429046913737220">ໂມງເຊົ້າ/ໂມງແລງ</translation>
 <translation id="1832974991323546415">ຫຼິ້ນ​ຢູ່​ເທິງ​ອຸ​ປະ​ກອນ​ທາງໄກ</translation>
 <translation id="1921819250265091946">ວວ</translation>
@@ -24,9 +25,9 @@
 <translation id="1993104285338243655">ປ່ຽນເປັນການສະທ້ອນພາບແລ້ວ</translation>
 <translation id="2031987842108996681">ຊ່ອງສີແດງ</translation>
 <translation id="2060505056492490888">'<ph name="DOT" />' ຖືກໃຊ້ຢູ່ຜິດຕໍາແໜ່ງ​ໃນ '<ph name="INVALIDDOMAIN" />'.</translation>
+<translation id="2068711044993563745">ຄ່າຕ່ຳສຸດ (<ph name="MINIMUM" />) ຕ້ອງໜ້ອຍກວ່າຄ່າສູງສຸດ (<ph name="MAXIMUM" />).</translation>
 <translation id="2148716181193084225">ມື້​ນີ້</translation>
 <translation id="2226276347425096477">ກະລຸນາຫຍໍ້ຂໍ້ຄວາມນີ້ລົງໃຫ້ເຫຼືອ <ph name="MAX_CHARACTERS" /> ຕົວອັກສອນ ຫຼືໜ້ອຍກ່ວາ (ປະຈຸບັນທ່ານກໍາລັງໃຊ້ <ph name="CURRENT_LENGTH" /> ຕົວອັກສອນ).</translation>
-<translation id="2246498165605549352">ໄຟລ໌ໃນເຄື່ອງ</translation>
 <translation id="2247351761944213033">ອາ​ທິດ <ph name="WEEKNUMBER" />, <ph name="YEAR" /></translation>
 <translation id="2277199496770840904">ແທຣັກ <ph name="NUMBER" /></translation>
 <translation id="2393030564806080191">ຄ່າສີແບບຖານສິບຫົກ</translation>
@@ -45,11 +46,13 @@
 <translation id="2761667185364618470">ກະລຸນາໝາຍຕິກໃສ່ຫ້ອງນີ້ ຖ້າທ່ານຕ້ອງການດໍາເນີນຕໍ່.</translation>
 <translation id="2908441821576996758">ກະລຸນາໃສ່ລາຍຊື່ທີ່ຢູ່ອີເມວທີ່​ແຍກ​ກັນ​ດ້ວຍ​ໝາຍ​ຈຸດ.</translation>
 <translation id="3049748772180311791"><ph name="QUANTITY" /> MB</translation>
+<translation id="3053226512517284904">ສະແດງເມນູສຽງບັນຍາຍ</translation>
 <translation id="3075154866155599887">ກະ​ລຸ​ນາ​ປ້ອນ​ຄ່າທີ່ໃຊ້ໄດ້​. ບ່ອນໃສ່ຂໍ້ມູນ​ບໍ່​ຄົບ​ຖ້ວນ​ ຫຼື​ມີ​ວັນທີໃຊ້ບໍ່ໄດ້.</translation>
 <translation id="310520048233152454">ກະລຸນາປ້ອນ URL.</translation>
 <translation id="3220661731597678625">ຂັ້ນຕອນປັດຈຸບັນ</translation>
 <translation id="3321030238473337787">ຄວາມໄວການຫຼິ້ນ</translation>
 <translation id="3329013043687509092">ການອີ່ມຕົວ</translation>
+<translation id="3377518164566272702">ອະນຸຍາດໄມໂຄຣໂຟນ ແລະ ກ້ອງຖ່າຍຮູບ</translation>
 <translation id="3450233048674729344">ຄ່າຕ້ອງນ້ອຍກ່ວາ ຫຼືເທົ່າກັບ <ph name="MAXIMUM" />.</translation>
 <translation id="3732799496749320381">ມ​ມ</translation>
 <translation id="3754210790023674521">ອອກຈາກໂໝດສະແດງຜົນຊ້ອນກັນ</translation>
@@ -65,6 +68,7 @@
 <translation id="4718048029184481307">ກຳລັງຫຼິ້ນໃນໂໝດສະແດງຜົນຊ້ອນກັນ</translation>
 <translation id="4748357248530471599">ປ່ຽນເປັນໜ້າຈໍເຕັມສຳລັບຈໍສະແດງຜົນທີ່ມີຮອຍບາກ</translation>
 <translation id="4763480195061959176">ວິ​ດີ​ໂອ</translation>
+<translation id="4792862212177489858">ແບ່ງປັນສະຖານທີ່</translation>
 <translation id="4812940957355064477">ກະ​ລຸ​ນາ​ປ້ອນຕົວເລກ​.</translation>
 <translation id="4912200001568447310">ລາຍການປັດຈຸບັນ</translation>
 <translation id="4915360478455618802">ສະແດງຕົວເລືອກເວລາ</translation>
@@ -74,6 +78,7 @@
 <translation id="4975562563186953947">ເລືອກ <ph name="SELECTED_COUNT" /> ແລ້ວ</translation>
 <translation id="4992066212339426712">ເປີດສຽງ</translation>
 <translation id="49969490063480558">ກະ​ລຸ​ນາ​ໃສ່​ພາກ​ສ່ວນໜຶ່ງ​ຫຼັງຈາກ '<ph name="ATSIGN" />'. '<ph name="INVALIDADDRESS" />' ບໍ່ສໍາເລັດ.</translation>
+<translation id="5037575921016181960">ລະຫັດຜ່ານຍາກ</translation>
 <translation id="5090250355906949916">ຕົວຄວບຄຸມເວລາຂອງວິດີໂອ</translation>
 <translation id="509897012892853729">ຊ່ອງສີຟ້າ</translation>
 <translation id="5117590920725113268">ສະ​ແດງ​ເດືອນ​ຕໍ່​ໄປ</translation>
@@ -89,6 +94,7 @@
 <translation id="5425179576310518467">ວັນທີປະຈຸບັນ</translation>
 <translation id="5466621249238537318">ກະລຸນາເລືອກໜຶ່ງ ຫຼືຫຼາຍໄຟລ໌.</translation>
 <translation id="5468998798572797635">ອອກຈາກເຕັມໜ້າຈໍ</translation>
+<translation id="5514612371225420585">ໄຟລ໌ຢູ່ອຸປະກອນຂອງທ່ານ</translation>
 <translation id="5516235301412634559">0.75</translation>
 <translation id="5537725057119320332">ຄາສທ໌</translation>
 <translation id="5546461542133609677">ເປີດສຽງ</translation>
@@ -113,6 +119,7 @@
 <translation id="6398862346408813489">ສະແດງແຜງເລືອກເດືອນ</translation>
 <translation id="6404546809543547843">ຕົວຍົກເລີກເວລາສຽງ</translation>
 <translation id="6443871981718447451">ສະແດງເມນູຄຳອະທິບາຍພາບ</translation>
+<translation id="6484738902856791350">Pretty-print</translation>
 <translation id="6550675742724504774">ທາງ​ເລືອກ</translation>
 <translation id="6572309429103589720">ໄວຍາກອນບໍ່ຖືກຕ້ອງ</translation>
 <translation id="658823671542763450">​​ເຂົ້າເຕັມ​ຫນ້າ​ຈໍ</translation>
@@ -176,6 +183,7 @@
 <translation id="9132465097189459683">ອື່ນໆ...</translation>
 <translation id="9155987714137265666"><ph name="WEEK" />, ເລີ່ມຕົ້ນໃນວັນທີ <ph name="WEEK_START_DATE" /></translation>
 <translation id="916607977885256133">ສະແດງຜົນຫຼາຍຢ່າງພ້ອມກັນ</translation>
+<translation id="918430632320614861">ອະນຸຍາດໄມໂຄຣໂຟນ</translation>
 <translation id="945780513535800434">ໝາຍເລືອກບາງສ່ວນ</translation>
 <translation id="954003015749068518">ເຂົ້າໂໝດສະແດງຜົນຊ້ອນກັນ</translation>
 </translationbundle>

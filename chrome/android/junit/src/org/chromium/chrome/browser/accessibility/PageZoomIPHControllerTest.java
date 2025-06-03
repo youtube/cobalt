@@ -30,7 +30,6 @@ import org.chromium.base.FeatureList.TestValues;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Features;
 import org.chromium.chrome.R;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.ui.appmenu.AppMenuHandler;
 import org.chromium.chrome.browser.user_education.IPHCommand;
 import org.chromium.chrome.browser.user_education.UserEducationHelper;
@@ -40,20 +39,14 @@ import org.chromium.components.feature_engagement.FeatureConstants;
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 public class PageZoomIPHControllerTest {
-    @Rule
-    public TestRule mFeaturesProcessor = new Features.JUnitProcessor();
+    @Rule public TestRule mFeaturesProcessor = new Features.JUnitProcessor();
 
-    @Mock
-    private Context mContext;
-    @Mock
-    private AppMenuHandler mAppMenuHandler;
-    @Mock
-    private View mToolbarMenuButton;
-    @Mock
-    private UserEducationHelper mUserEducationHelper;
+    @Mock private Context mContext;
+    @Mock private AppMenuHandler mAppMenuHandler;
+    @Mock private View mToolbarMenuButton;
+    @Mock private UserEducationHelper mUserEducationHelper;
 
-    @Captor
-    private ArgumentCaptor<IPHCommand> mIPHCommandCaptor;
+    @Captor private ArgumentCaptor<IPHCommand> mIPHCommandCaptor;
 
     private final TestValues mTestValues = new TestValues();
 
@@ -63,16 +56,15 @@ public class PageZoomIPHControllerTest {
     public void setUp() {
         MockitoAnnotations.initMocks(this);
 
-        mTestValues.addFeatureFlagOverride(ChromeFeatureList.ENABLE_IPH, true);
-        mTestValues.addFeatureFlagOverride(ChromeFeatureList.ANDROID_SCROLL_OPTIMIZATIONS, true);
         FeatureList.setTestValues(mTestValues);
 
         Resources resources = ApplicationProvider.getApplicationContext().getResources();
         doReturn(resources).when(mContext).getResources();
         doReturn(mContext).when(mToolbarMenuButton).getContext();
 
-        mPageZoomIPHController = new PageZoomIPHController(
-                mAppMenuHandler, mToolbarMenuButton, mUserEducationHelper);
+        mPageZoomIPHController =
+                new PageZoomIPHController(
+                        mAppMenuHandler, mToolbarMenuButton, mUserEducationHelper);
     }
 
     @Test
@@ -81,9 +73,13 @@ public class PageZoomIPHControllerTest {
         verify(mUserEducationHelper).requestShowIPH(mIPHCommandCaptor.capture());
 
         IPHCommand command = mIPHCommandCaptor.getValue();
-        Assert.assertEquals("IPHCommand feature should match.", command.featureName,
+        Assert.assertEquals(
+                "IPHCommand feature should match.",
+                command.featureName,
                 FeatureConstants.PAGE_ZOOM_FEATURE);
-        Assert.assertEquals("IPHCommand stringId should match.", R.string.page_zoom_iph_message,
+        Assert.assertEquals(
+                "IPHCommand stringId should match.",
+                R.string.page_zoom_iph_message,
                 command.stringId);
 
         command.onShowCallback.run();

@@ -11,104 +11,17 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/notreached.h"
 #include "base/task/single_thread_task_runner.h"
+#include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/supervised_user/supervised_user_browser_utils.h"
-#include "chrome/browser/supervised_user/supervised_user_interstitial.h"
 #include "chrome/browser/supervised_user/supervised_user_navigation_observer.h"
-#include "chrome/browser/supervised_user/supervised_user_service.h"
 #include "chrome/browser/supervised_user/supervised_user_service_factory.h"
+#include "components/supervised_user/core/browser/supervised_user_interstitial.h"
+#include "components/supervised_user/core/browser/supervised_user_service.h"
 #include "components/supervised_user/core/browser/supervised_user_url_filter.h"
 #include "content/public/browser/navigation_handle.h"
 #include "ui/base/page_transition_types.h"
 #include "url/gurl.h"
-
-namespace {
-
-// These values corresponds to SupervisedUserSafetyFilterResult in
-// tools/metrics/histograms/histograms.xml. If you change anything here, make
-// sure to also update histograms.xml accordingly.
-enum {
-  FILTERING_BEHAVIOR_ALLOW = 1,
-  FILTERING_BEHAVIOR_ALLOW_UNCERTAIN,
-  FILTERING_BEHAVIOR_BLOCK_DENYLIST,  // deprecated
-  FILTERING_BEHAVIOR_BLOCK_SAFESITES,
-  FILTERING_BEHAVIOR_BLOCK_MANUAL,
-  FILTERING_BEHAVIOR_BLOCK_DEFAULT,
-  FILTERING_BEHAVIOR_ALLOW_ALLOWLIST,
-  FILTERING_BEHAVIOR_MAX = FILTERING_BEHAVIOR_ALLOW_ALLOWLIST
-};
-const int kHistogramFilteringBehaviorSpacing = 100;
-const int kHistogramPageTransitionMaxKnownValue =
-    static_cast<int>(ui::PAGE_TRANSITION_KEYWORD_GENERATED);
-const int kHistogramPageTransitionFallbackValue =
-    kHistogramFilteringBehaviorSpacing - 1;
-const int kHistogramMax = 800;
-
-static_assert(kHistogramPageTransitionMaxKnownValue <
-                  kHistogramPageTransitionFallbackValue,
-              "HistogramPageTransition MaxKnownValue must be < FallbackValue");
-static_assert(FILTERING_BEHAVIOR_MAX * kHistogramFilteringBehaviorSpacing +
-                      kHistogramPageTransitionFallbackValue <
-                  kHistogramMax,
-              "Invalid HistogramMax value");
-
-int GetHistogramValueForFilteringBehavior(
-    supervised_user::SupervisedUserURLFilter::FilteringBehavior behavior,
-    supervised_user::FilteringBehaviorReason reason,
-    bool uncertain) {
-  switch (behavior) {
-    case supervised_user::SupervisedUserURLFilter::ALLOW:
-      if (reason == supervised_user::FilteringBehaviorReason::ALLOWLIST) {
-        return FILTERING_BEHAVIOR_ALLOW_ALLOWLIST;
-      }
-      return uncertain ? FILTERING_BEHAVIOR_ALLOW_UNCERTAIN
-                       : FILTERING_BEHAVIOR_ALLOW;
-    case supervised_user::SupervisedUserURLFilter::BLOCK:
-      switch (reason) {
-        case supervised_user::FilteringBehaviorReason::ASYNC_CHECKER:
-          return FILTERING_BEHAVIOR_BLOCK_SAFESITES;
-        case supervised_user::FilteringBehaviorReason::ALLOWLIST:
-          NOTREACHED();
-          break;
-        case supervised_user::FilteringBehaviorReason::MANUAL:
-          return FILTERING_BEHAVIOR_BLOCK_MANUAL;
-        case supervised_user::FilteringBehaviorReason::DEFAULT:
-          return FILTERING_BEHAVIOR_BLOCK_DEFAULT;
-        case supervised_user::FilteringBehaviorReason::NOT_SIGNED_IN:
-          // Should never happen, only used for requests from Webview
-          NOTREACHED();
-      }
-      [[fallthrough]];
-    case supervised_user::SupervisedUserURLFilter::INVALID:
-      NOTREACHED();
-  }
-  return 0;
-}
-
-int GetHistogramValueForTransitionType(ui::PageTransition transition_type) {
-  int value =
-      static_cast<int>(ui::PageTransitionStripQualifier(transition_type));
-  if (0 <= value && value <= kHistogramPageTransitionMaxKnownValue) {
-    return value;
-  }
-  NOTREACHED();
-  return kHistogramPageTransitionFallbackValue;
-}
-
-void RecordFilterResultEvent(
-    supervised_user::SupervisedUserURLFilter::FilteringBehavior behavior,
-    supervised_user::FilteringBehaviorReason reason,
-    bool uncertain,
-    ui::PageTransition transition_type) {
-  int value =
-      GetHistogramValueForFilteringBehavior(behavior, reason, uncertain) *
-          kHistogramFilteringBehaviorSpacing +
-      GetHistogramValueForTransitionType(transition_type);
-  DCHECK_LT(value, kHistogramMax);
-  base::UmaHistogramSparse("ManagedUsers.FilteringResult", value);
-}
-
-}  // namespace
 
 // static
 std::unique_ptr<SupervisedUserNavigationThrottle>
@@ -117,7 +30,7 @@ SupervisedUserNavigationThrottle::MaybeCreateThrottleFor(
   Profile* profile = Profile::FromBrowserContext(
       navigation_handle->GetWebContents()->GetBrowserContext());
 
-  SupervisedUserService* supervised_user_service =
+  supervised_user::SupervisedUserService* supervised_user_service =
       SupervisedUserServiceFactory::GetForProfile(profile);
   if (!supervised_user_service ||
       !supervised_user_service->IsURLFilteringEnabled()) {
@@ -245,7 +158,8 @@ void SupervisedUserNavigationThrottle::OnCheckDone(
 
   ui::PageTransition transition = navigation_handle()->GetPageTransition();
 
-  RecordFilterResultEvent(behavior, reason, uncertain, transition);
+  supervised_user::SupervisedUserURLFilter::RecordFilterResultEvent(
+      behavior, reason, /*is_filtering_behavior_known=*/!uncertain, transition);
 
   if (navigation_handle()->IsInPrimaryMainFrame()) {
     // Update navigation observer about the navigation state of the main frame.
@@ -277,10 +191,10 @@ void SupervisedUserNavigationThrottle::OnInterstitialResult(
       Profile* profile = Profile::FromBrowserContext(
           navigation_handle()->GetWebContents()->GetBrowserContext());
       std::string interstitial_html =
-          SupervisedUserInterstitial::GetHTMLContents(
+          supervised_user::SupervisedUserInterstitial::GetHTMLContents(
               SupervisedUserServiceFactory::GetForProfile(profile),
-              profile->GetPrefs(), reason_, already_sent_request,
-              is_main_frame);
+              profile->GetPrefs(), reason_, already_sent_request, is_main_frame,
+              g_browser_process->GetApplicationLocale());
       CancelDeferredNavigation(content::NavigationThrottle::ThrottleCheckResult(
           CANCEL, net::ERR_BLOCKED_BY_CLIENT, interstitial_html));
     }

@@ -31,6 +31,7 @@ component("vr_cardboard") {
 
   deps = [
     "//base",
+    "//device/vr:vr_util",
     "//device/vr/android:vr_android",
     "//gpu/command_buffer/service:gles2",
     "//third_party/cardboard",
@@ -38,4 +39,6 @@ component("vr_cardboard") {
     "//ui/gfx",
     "//ui/gl/init",
   ]
+
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
 }

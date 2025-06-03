@@ -10,10 +10,6 @@
 #import "ios/web/public/thread/web_task_traits.h"
 #import "ios/web/public/thread/web_thread.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace web {
 
 const char kBrowserContextDataKey[] = "browser_context";
@@ -50,7 +46,7 @@ content::BrowserContext* ContentBrowserContext::FromBrowserState(
 }
 
 ContentBrowserContext::ContentBrowserContext(web::BrowserState* browser_state)
-    : resource_context_(std::make_unique<ResourceContext>()),
+    : resource_context_(std::make_unique<content::ResourceContext>()),
       browser_state_(browser_state) {
   InitWhileIOAllowed();
 
@@ -61,10 +57,6 @@ ContentBrowserContext::ContentBrowserContext(web::BrowserState* browser_state)
       base::FilePath(base::SysNSStringToUTF8(NSTemporaryDirectory()))
           .Append("Chromium");
 }
-
-ContentBrowserContext::ResourceContext::ResourceContext() {}
-
-ContentBrowserContext::ResourceContext::~ResourceContext() {}
 
 ContentBrowserContext::~ContentBrowserContext() {
   NotifyWillBeDestroyed();

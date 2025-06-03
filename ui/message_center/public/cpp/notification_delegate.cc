@@ -9,6 +9,12 @@
 
 namespace message_center {
 
+  // NotificationDelegate:
+
+NotificationDelegate* NotificationDelegate::GetDelegateForParentCopy() {
+  return this;
+}
+
 // ThunkNotificationDelegate:
 
 ThunkNotificationDelegate::ThunkNotificationDelegate(
@@ -35,6 +41,18 @@ void ThunkNotificationDelegate::SettingsClick() {
 void ThunkNotificationDelegate::DisableNotification() {
   if (impl_)
     impl_->DisableNotification();
+}
+
+void ThunkNotificationDelegate::ExpandStateChanged(bool expanded) {
+  // Not implemented by default.
+}
+
+void ThunkNotificationDelegate::SnoozeButtonClicked() {
+  // Not implemented by default.
+}
+
+NotificationDelegate* ThunkNotificationDelegate::GetDelegateForParentCopy() {
+  return this;
 }
 
 ThunkNotificationDelegate::~ThunkNotificationDelegate() = default;

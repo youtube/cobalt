@@ -96,8 +96,8 @@ class MockTabStripModelObserver : public TabStripModelObserver {
           TabStripModelObserverAction action)
         : dst_contents(dst_contents), dst_index(dst_index), action(action) {}
 
-    raw_ptr<WebContents> src_contents = nullptr;
-    raw_ptr<WebContents> dst_contents;
+    raw_ptr<WebContents, DanglingUntriaged> src_contents = nullptr;
+    raw_ptr<WebContents, DanglingUntriaged> dst_contents;
     absl::optional<size_t> src_index;
     absl::optional<size_t> dst_index;
     int change_reason = CHANGE_REASON_NONE;
@@ -622,8 +622,9 @@ TEST_F(TabStripModelTest, TestBasicAPI) {
 
   // Test CloseWebContentsAt
   {
-    EXPECT_TRUE(tabstrip.CloseWebContentsAt(2, TabCloseTypes::CLOSE_NONE));
-    EXPECT_EQ(2, tabstrip.count());
+    int previous_tab_count = tabstrip.count();
+    tabstrip.CloseWebContentsAt(2, TabCloseTypes::CLOSE_NONE);
+    EXPECT_EQ(previous_tab_count - 1, tabstrip.count());
 
     EXPECT_EQ(5, observer.GetStateCount());
     State s1(raw_contents3, 2, MockTabStripModelObserver::CLOSE);
@@ -729,6 +730,68 @@ TEST_F(TabStripModelTest, TestBasicAPI) {
   // Opener methods are tested below...
 
   tabstrip.RemoveObserver(&observer);
+}
+
+TEST_F(TabStripModelTest, TestTabHandlesStaticTabstrip) {
+  TestTabStripModelDelegate delegate;
+  TabStripModel tabstrip(&delegate, profile());
+  EXPECT_TRUE(tabstrip.empty());
+
+  tabstrip.AppendWebContents(CreateWebContentsWithID(1), true);
+  const TabHandle handle1 = tabstrip.GetTabHandleAt(0);
+  tabstrip.AppendWebContents(CreateWebContentsWithID(2), true);
+  const TabHandle handle2 = tabstrip.GetTabHandleAt(1);
+
+  EXPECT_EQ(0, tabstrip.GetIndexOfTab(handle1));
+  EXPECT_EQ(handle1, tabstrip.GetTabHandleAt(0));
+  EXPECT_EQ(1, tabstrip.GetIndexOfTab(handle2));
+  EXPECT_EQ(handle2, tabstrip.GetTabHandleAt(1));
+}
+
+TEST_F(TabStripModelTest, TestTabHandlesMovingTabInSameTabstrip) {
+  TestTabStripModelDelegate delegate;
+  TabStripModel tabstrip(&delegate, profile());
+  EXPECT_TRUE(tabstrip.empty());
+
+  tabstrip.AppendWebContents(CreateWebContentsWithID(1), true);
+  const TabHandle handle1 = tabstrip.GetTabHandleAt(0);
+  tabstrip.AppendWebContents(CreateWebContentsWithID(2), true);
+  const TabHandle handle2 = tabstrip.GetTabHandleAt(1);
+
+  tabstrip.MoveWebContentsAt(0, 1, false);
+
+  EXPECT_EQ(0, tabstrip.GetIndexOfTab(handle2));
+  EXPECT_EQ(handle2, tabstrip.GetTabHandleAt(0));
+  EXPECT_EQ(1, tabstrip.GetIndexOfTab(handle1));
+  EXPECT_EQ(handle1, tabstrip.GetTabHandleAt(1));
+}
+
+TEST_F(TabStripModelTest, TestTabHandlesTabClosed) {
+  TestTabStripModelDelegate delegate;
+  TabStripModel tabstrip(&delegate, profile());
+  EXPECT_TRUE(tabstrip.empty());
+
+  tabstrip.AppendWebContents(CreateWebContentsWithID(1), true);
+  const TabHandle handle = tabstrip.GetTabHandleAt(0);
+  tabstrip.AppendWebContents(CreateWebContentsWithID(2), true);
+
+  tabstrip.CloseWebContentsAt(0, TabCloseTypes::CLOSE_NONE);
+
+  EXPECT_EQ(TabStripModel::kNoTab, tabstrip.GetIndexOfTab(handle));
+  EXPECT_EQ(nullptr, handle.Get());
+}
+
+TEST_F(TabStripModelTest, TestTabHandlesOutOfBounds) {
+  TestTabStripModelDelegate delegate;
+  TabStripModel tabstrip(&delegate, profile());
+  EXPECT_TRUE(tabstrip.empty());
+
+  tabstrip.AppendWebContents(CreateWebContentsWithID(1), true);
+  tabstrip.AppendWebContents(CreateWebContentsWithID(2), true);
+
+  EXPECT_EQ(TabStripModel::kNoTab, tabstrip.GetIndexOfTab(TabHandle::Null()));
+  EXPECT_DEATH_IF_SUPPORTED(tabstrip.GetTabHandleAt(2).Get(), "");
+  EXPECT_DEATH_IF_SUPPORTED(tabstrip.GetTabHandleAt(-1).Get(), "");
 }
 
 TEST_F(TabStripModelTest, TestBasicOpenerAPI) {
@@ -1065,9 +1128,11 @@ TEST_F(TabStripModelTest, TestInsertionIndexDeterminationNestedOpener) {
   EXPECT_EQ(2, tabstrip.GetIndexOfLastWebContentsOpenedBy(raw_child11, 1));
 
   // Closing a tab should cause its children to inherit the tab's opener.
-  EXPECT_EQ(true, tabstrip.CloseWebContentsAt(
-                      1, TabCloseTypes::CLOSE_USER_GESTURE |
-                             TabCloseTypes::CLOSE_CREATE_HISTORICAL_TAB));
+  int previous_tab_count = tabstrip.count();
+  tabstrip.CloseWebContentsAt(1,
+                              TabCloseTypes::CLOSE_USER_GESTURE |
+                                  TabCloseTypes::CLOSE_CREATE_HISTORICAL_TAB);
+  EXPECT_EQ(previous_tab_count - 1, tabstrip.count());
   EXPECT_EQ("1 111 12 2", GetTabStripStateString(tabstrip));
   EXPECT_EQ(1, GetID(tabstrip.GetActiveWebContents()));
   // opener1 is now the opener of 111, so has two adjacent descendants (111, 12)
@@ -1983,7 +2048,9 @@ TEST_F(TabStripModelTest, AppendContentsReselectionTest) {
   // and make sure the correct tab gets selected when the new tab is closed.
   tabstrip.AppendWebContents(CreateWebContents(), true);
   EXPECT_EQ(2, tabstrip.active_index());
+  int previous_tab_count = tabstrip.count();
   tabstrip.CloseWebContentsAt(2, TabCloseTypes::CLOSE_NONE);
+  EXPECT_EQ(previous_tab_count - 1, tabstrip.count());
   EXPECT_EQ(0, tabstrip.active_index());
 
   // Clean up after ourselves.
@@ -3125,6 +3192,7 @@ class DummySingleWebContentsDialogManager
   void Pulse() override {}
   void HostChanged(web_modal::WebContentsModalDialogHost* new_host) override {}
   gfx::NativeWindow dialog() override { return dialog_; }
+  bool IsActive() const override { return true; }
 
  private:
   raw_ptr<web_modal::SingleWebContentsDialogManagerDelegate> delegate_;
@@ -3166,10 +3234,10 @@ TEST_F(TabStripModelTest, TabBlockedState) {
   // DummySingleWebContentsDialogManager doesn't care about the
   // dialog window value, so any dummy value works.
   DummySingleWebContentsDialogManager* native_manager =
-      new DummySingleWebContentsDialogManager(gfx::kNullNativeWindow,
+      new DummySingleWebContentsDialogManager(gfx::NativeWindow(),
                                               modal_dialog_manager);
   modal_dialog_manager->ShowDialogWithManager(
-      gfx::kNullNativeWindow,
+      gfx::NativeWindow(),
       std::unique_ptr<web_modal::SingleWebContentsDialogManager>(
           native_manager));
   EXPECT_TRUE(strip_src.IsTabBlocked(1));

@@ -11,6 +11,7 @@
 #include "ui/base/ui_base_features.h"
 #include "ui/color/color_id.h"
 #include "ui/gfx/canvas.h"
+#include "ui/gfx/color_utils.h"
 #include "ui/gfx/geometry/point_f.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size_f.h"
@@ -20,6 +21,7 @@
 #include "ui/views/controls/button/button.h"
 #include "ui/views/layout/layout_provider.h"
 #include "ui/views/style/typography.h"
+#include "ui/views/style/typography_provider.h"
 
 namespace views {
 
@@ -91,8 +93,9 @@ void ConfigureComboboxButtonInkDrop(Button* host_view) {
             host->GetColorProvider()->GetColor(
                 features::IsChromeRefresh2023()
                     ? ui::kColorComboboxInkDropHovered
-                    : views::style::GetColorId(views::style::CONTEXT_BUTTON,
-                                               views::style::STYLE_PRIMARY)));
+                    : views::TypographyProvider::Get().GetColorId(
+                          views::style::CONTEXT_BUTTON,
+                          views::style::STYLE_PRIMARY)));
       },
       host_view));
   // Chrome Refresh colors already have opacity applied for ripple state. Set
@@ -105,8 +108,8 @@ void ConfigureComboboxButtonInkDrop(Button* host_view) {
             host->GetColorProvider()->GetColor(
                 features::IsChromeRefresh2023()
                     ? ui::kColorComboboxInkDropRipple
-                    : style::GetColorId(style::CONTEXT_TEXTFIELD,
-                                        style::STYLE_PRIMARY)),
+                    : TypographyProvider::Get().GetColorId(
+                          style::CONTEXT_TEXTFIELD, style::STYLE_PRIMARY)),
             features::IsChromeRefresh2023()
                 ? 1
                 : InkDrop::Get(host)->GetVisibleOpacity());

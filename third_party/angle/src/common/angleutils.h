@@ -60,7 +60,7 @@ template <typename Key,
           class KeyEqual = std::equal_to<Key>>
 using HashMap = std::unordered_map<Key, T, Hash, KeyEqual>;
 template <typename Key, class Hash = std::hash<Key>, class KeyEqual = std::equal_to<Key>>
-using HashSet  = std::unordered_set<Key, Hash, KeyEqual>;
+using HashSet = std::unordered_set<Key, Hash, KeyEqual>;
 #    if __cpp_lib_generic_unordered_lookup >= 201811L
 #        define ANGLE_HAS_HASH_MAP_GENERIC_LOOKUP 1
 #    else
@@ -206,6 +206,7 @@ struct PerfMonitorTriplet
     FN(textureDescriptorSetCacheMisses)            \
     FN(textureDescriptorSetCacheTotalSize)         \
     FN(shaderResourcesDescriptorSetCacheHits)      \
+    FN(deviceMemoryImageAllocationFallbacks)       \
     FN(mutableTexturesUploaded)                    \
     FN(shaderResourcesDescriptorSetCacheMisses)    \
     FN(shaderResourcesDescriptorSetCacheTotalSize) \
@@ -214,7 +215,8 @@ struct PerfMonitorTriplet
     FN(allocateNewBufferBlockCalls)                \
     FN(bufferSuballocationCalls)                   \
     FN(dynamicBufferAllocations)                   \
-    FN(framebufferCacheSize)
+    FN(framebufferCacheSize)                       \
+    FN(pendingSubmissionGarbageObjects)
 
 #define ANGLE_DECLARE_PERF_COUNTER(COUNTER) uint64_t COUNTER;
 
@@ -399,6 +401,15 @@ class ConditionalMutex final : angle::NonCopyable
     bool mUseMutex;
 };
 
+// Helper macro that casts to a bitfield type then verifies no bits were dropped.
+#define SetBitField(lhs, rhs)                                                         \
+    do                                                                                \
+    {                                                                                 \
+        auto ANGLE_LOCAL_VAR = rhs;                                                   \
+        lhs = static_cast<typename std::decay<decltype(lhs)>::type>(ANGLE_LOCAL_VAR); \
+        ASSERT(static_cast<decltype(ANGLE_LOCAL_VAR)>(lhs) == ANGLE_LOCAL_VAR);       \
+    } while (0)
+
 // snprintf is not defined with MSVC prior to to msvc14
 #if defined(_MSC_VER) && _MSC_VER < 1900
 #    define snprintf _snprintf
@@ -413,6 +424,9 @@ class ConditionalMutex final : angle::NonCopyable
 #define GL_UINT_64_ANGLEX 0x6ABF
 #define GL_BGRA8_SRGB_ANGLEX 0x6AC0
 #define GL_BGR10_A2_ANGLEX 0x6AF9
+#define GL_BGRX8_SRGB_ANGLEX 0x6AFC
+// fake format for GL_ANGLE_rgbx_internal_format
+#define GL_RGBX8_SRGB_ANGLEX 0x6AFA
 
 // These are fake formats used to fit typeless D3D textures that can be bound to EGL pbuffers into
 // the format system (for extension EGL_ANGLE_d3d_texture_client_buffer):
@@ -527,6 +541,13 @@ class MsanScopedDisableInterceptorChecks final : angle::NonCopyable
 #    define ANGLE_NO_SANITIZE_THREAD
 #endif
 
+// Similar to the above, but for cfi-icall.
+#ifdef __clang__
+#    define ANGLE_NO_SANITIZE_CFI_ICALL __attribute__((no_sanitize("cfi-icall")))
+#else
+#    define ANGLE_NO_SANITIZE_CFI_ICALL
+#endif
+
 // The below inlining code lifted from V8.
 #if defined(__clang__) || (defined(__GNUC__) && defined(__has_attribute))
 #    define ANGLE_HAS_ATTRIBUTE_ALWAYS_INLINE (__has_attribute(always_inline))
@@ -567,6 +588,22 @@ class MsanScopedDisableInterceptorChecks final : angle::NonCopyable
 #    endif
 #else
 #    define ANGLE_FORMAT_PRINTF(fmt, args)
+#endif
+
+#if defined(__clang__) || (defined(__GNUC__) && defined(__has_attribute))
+#    define ANGLE_HAS_ATTRIBUTE_CONSTRUCTOR (__has_attribute(constructor))
+#    define ANGLE_HAS_ATTRIBUTE_DESTRUCTOR (__has_attribute(destructor))
+#else
+#    define ANGLE_HAS_ATTRIBUTE_CONSTRUCTOR 0
+#    define ANGLE_HAS_ATTRIBUTE_DESTRUCTOR 0
+#endif
+
+#if ANGLE_HAS_ATTRIBUTE_CONSTRUCTOR
+#    define ANGLE_CONSTRUCTOR __attribute__((constructor))
+#endif
+
+#if ANGLE_HAS_ATTRIBUTE_DESTRUCTOR
+#    define ANGLE_DESTRUCTOR __attribute__((destructor))
 #endif
 
 ANGLE_FORMAT_PRINTF(1, 0)

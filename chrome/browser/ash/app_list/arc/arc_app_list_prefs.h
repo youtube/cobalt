@@ -170,9 +170,11 @@ class ArcAppListPrefs : public KeyedService,
                 bool should_sync,
                 bool vpn_provider,
                 bool preinstalled,
+                bool game_controls_opt_out,
                 base::flat_map<arc::mojom::AppPermission,
                                arc::mojom::PermissionStatePtr> permissions,
-                arc::mojom::WebAppInfoPtr web_app_info);
+                arc::mojom::WebAppInfoPtr web_app_info,
+                arc::mojom::PackageLocaleInfoPtr locale_info);
     ~PackageInfo();
 
     std::string package_name;
@@ -184,10 +186,13 @@ class ArcAppListPrefs : public KeyedService,
     // If the package is pre-installed in the system image. This is true even
     // after the package is updated.
     bool preinstalled;
+    // True if the package has the Game Controls Opt Out metadata set to true.
+    bool game_controls_opt_out;
     // Maps app permission to permission states
     base::flat_map<arc::mojom::AppPermission, arc::mojom::PermissionStatePtr>
         permissions;
     arc::mojom::WebAppInfoPtr web_app_info;
+    arc::mojom::PackageLocaleInfoPtr locale_info;
   };
 
   class Observer : public base::CheckedObserver {
@@ -265,6 +270,16 @@ class ArcAppListPrefs : public KeyedService,
 
     // Notifies that installation of package started.
     virtual void OnInstallationStarted(const std::string& package_name) {}
+
+    // Notifies that package installation has a new progress percentage.
+    virtual void OnInstallationProgressChanged(const std::string& package_name,
+                                               float progress) {}
+
+    // Notifies that a package installation session has either become active
+    // (currently downloading or installing) or inactive (installation is
+    // pending or paused).
+    virtual void OnInstallationActiveChanged(const std::string& package_name,
+                                             bool active) {}
 
     // Notifies that installation of package finished. |succeed| is set to true
     // in case of success.
@@ -527,6 +542,10 @@ class ArcAppListPrefs : public KeyedService,
       std::vector<arc::mojom::ArcPackageInfoPtr> packages) override;
   void OnInstallationStarted(
       const absl::optional<std::string>& package_name) override;
+  void OnInstallationProgressChanged(const std::string& package_name,
+                                     float progress) override;
+  void OnInstallationActiveChanged(const std::string& package_name,
+                                   bool active) override;
   void OnInstallationFinished(
       arc::mojom::InstallationResultPtr result) override;
 

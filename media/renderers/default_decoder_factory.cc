@@ -13,6 +13,7 @@
 #include "build/buildflag.h"
 #include "components/viz/common/gpu/raster_context_provider.h"
 #include "media/base/decoder_factory.h"
+#include "media/base/media_log.h"
 #include "media/base/media_switches.h"
 #include "media/media_buildflags.h"
 #include "media/video/gpu_video_accelerator_factories.h"
@@ -91,8 +92,9 @@ void DefaultDecoderFactory::CreateVideoDecoders(
     const gfx::ColorSpace& target_color_space,
     std::vector<std::unique_ptr<VideoDecoder>>* video_decoders) {
   base::AutoLock auto_lock(shutdown_lock_);
-  if (is_shutdown_)
+  if (is_shutdown_) {
     return;
+  }
 
 #if !BUILDFLAG(IS_ANDROID)
   video_decoders->push_back(
@@ -119,7 +121,7 @@ void DefaultDecoderFactory::CreateVideoDecoders(
 
 #if BUILDFLAG(ENABLE_DAV1D_DECODER)
   video_decoders->push_back(
-      std::make_unique<OffloadingDav1dVideoDecoder>(media_log));
+      std::make_unique<OffloadingDav1dVideoDecoder>(media_log->Clone()));
 #endif
 
 #if BUILDFLAG(ENABLE_FFMPEG_VIDEO_DECODERS)

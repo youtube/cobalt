@@ -18,13 +18,17 @@
 #include "chrome/updater/policy/manager.h"
 #include "chrome/updater/policy/service.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
+#include "url/gurl.h"
 
 namespace updater {
 
 // The PolicyFetcher handles registration and DM policy refreshes.
 class PolicyFetcher : public base::RefCountedThreadSafe<PolicyFetcher> {
  public:
-  explicit PolicyFetcher(scoped_refptr<PolicyService> policy_service);
+  PolicyFetcher(const GURL& server_url,
+                const absl::optional<PolicyServiceProxyConfiguration>&
+                    proxy_configuration,
+                const absl::optional<bool>& override_is_managed_device);
   void FetchPolicies(
       base::OnceCallback<void(int, scoped_refptr<PolicyManagerInterface>)>
           callback);
@@ -49,9 +53,10 @@ class PolicyFetcher : public base::RefCountedThreadSafe<PolicyFetcher> {
       const std::vector<PolicyValidationResult>& validation_results);
 
   SEQUENCE_CHECKER(sequence_checker_);
-  const scoped_refptr<PolicyService> policy_service_;
+  const GURL server_url_;
   const absl::optional<PolicyServiceProxyConfiguration>
       policy_service_proxy_configuration_;
+  const absl::optional<bool> override_is_managed_device_;
   const scoped_refptr<base::SequencedTaskRunner> sequenced_task_runner_;
 };
 

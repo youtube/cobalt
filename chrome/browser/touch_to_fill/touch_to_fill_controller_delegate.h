@@ -47,6 +47,8 @@ class TouchToFillControllerDelegate {
       bool passkeys_shown,
       base::OnceClosure action_completed) = 0;
 
+  virtual void OnHybridSignInSelected(base::OnceClosure action_completed) = 0;
+
   // Informs the controller that the user has dismissed the sheet. No-op if
   // invoked repeatedly.
   virtual void OnDismiss(base::OnceClosure action_completed) = 0;
@@ -58,6 +60,14 @@ class TouchToFillControllerDelegate {
   // Indicates whether the controller should trigger submission on selection of
   // a password credential.
   virtual bool ShouldTriggerSubmission() = 0;
+
+  // Indicates whether the view should display an option to activate hybrid
+  // sign-in for passkeys.
+  virtual bool ShouldShowHybridOption() = 0;
+
+  // Indicates if the delegate requires displaying a no passkeys bottom sheet
+  // when the touch to fill component does not have any credentials to display.
+  virtual bool ShouldShowNoPasskeysSheetIfRequired() = 0;
 
   // The web page view containing the focused field.
   virtual gfx::NativeView GetNativeView() = 0;

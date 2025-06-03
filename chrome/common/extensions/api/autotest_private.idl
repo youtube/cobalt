@@ -5,6 +5,7 @@
 // API for integration testing. To be used on test images with a test component
 // extension.
 [platforms=("chromeos"),
+ modernised_enums,
  implemented_in="chrome/browser/ash/extensions/autotest_private/autotest_private_api.h"]
 namespace autotestPrivate {
 
@@ -70,6 +71,16 @@ namespace autotestPrivate {
     UninstalledByMigration
   };
 
+  // A mapping of arc::mojom::WakefulnessMode
+  enum WakefulnessMode {
+    Unknown,
+    Asleep,
+    Awake,
+    Dreaming,
+    Dozing
+  };
+  callback WakefulnessModeCallback = void (WakefulnessMode mode);
+
   // A subset of Window State types in ash::WindowStateType. We may add more
   // into the set in the future.
   enum WindowStateType {
@@ -77,8 +88,8 @@ namespace autotestPrivate {
     Minimized,
     Maximized,
     Fullscreen,
-    LeftSnapped,
-    RightSnapped,
+    PrimarySnapped,
+    SecondarySnapped,
     PIP,
     Floated
   };
@@ -90,8 +101,8 @@ namespace autotestPrivate {
     WMEventMaximize,
     WMEventMinimize,
     WMEventFullscreen,
-    WMEventSnapLeft,
-    WMEventSnapRight,
+    WMEventSnapPrimary,
+    WMEventSnapSecondary,
     WMEventFloat
   };
 
@@ -273,10 +284,12 @@ namespace autotestPrivate {
   // A mapping of crosapi::BrowserManager::State
   enum LacrosState {
     NotInitialized,
+    Reloading,
     Mounting,
     Unavailable,
     Stopped,
     CreatingLogFile,
+    PreLaunched,
     Starting,
     Running,
     Terminating
@@ -285,8 +298,6 @@ namespace autotestPrivate {
   // A mapping of crosapi::browser_util::LacrosMode
   enum LacrosMode {
     Disabled,
-    SideBySide,
-    Primary,
     Only
   };
 
@@ -300,7 +311,11 @@ namespace autotestPrivate {
     DOMString lacrosPath;
     // Specifies the mode Lacros is currently running.
     // For a full list of supported mode, see LacrosMode enum definition.
+    // DEPRECATED: please use isEnabled.
+    // TODO(crbug.com/1494005): Remove this field after tests are fixed.
     LacrosMode mode;
+    // True iff Lacros is enabled for the current user session's primary user.
+    boolean isEnabled;
   };
 
   callback GetLacrosInfoCallback = void (LacrosInfo info);
@@ -425,14 +440,6 @@ namespace autotestPrivate {
 
   callback GetAllInstalledAppsCallback = void (App[] apps);
 
-  dictionary CryptohomeRecoveryDataDict {
-    DOMString reauthProofToken;
-    DOMString refreshToken;
-  };
-
-  callback GetCryptohomeRecoveryDataCallback = void (
-    CryptohomeRecoveryDataDict dict);
-
   dictionary ShelfItem {
     DOMString appId;
     DOMString launchId;
@@ -441,6 +448,7 @@ namespace autotestPrivate {
     ShelfItemStatus status;
     boolean showsTooltip;
     boolean pinnedByPolicy;
+    boolean pinStateForcedByType;
     boolean hasNotification;
   };
 
@@ -813,6 +821,21 @@ namespace autotestPrivate {
   // Callback invoked when the temporary directory was removed.
   callback RemoveFuseboxTempDirCallback = void();
 
+  callback IsFeatureEnabledCallback = void(boolean enabled);
+
+  // Response data for <code>getCurrentInputMethodDescriptor</code>.
+  // Add more fields from ash/input_method/InputMethodDescriptor as needed.
+  dictionary GetCurrentInputMethodDescriptorData {
+    DOMString keyboardLayout;
+  };
+
+  // Response callback for current input method keyboard layout.
+  callback GetCurrentInputMethodDescriptorCallback = void
+      (GetCurrentInputMethodDescriptorData data);
+
+  // Response callback to report if a field trial exists and has been activated.
+  callback IsFieldTrialActiveCallback = void(boolean active);
+
   interface Functions {
     // Must be called to allow autotestPrivateAPI events to be fired.
     static void initializeEvents();
@@ -935,10 +958,6 @@ namespace autotestPrivate {
     [supportsPromises] static void getArcPackage(
         DOMString packageName,
         GetArcPackageCallback callback);
-
-    // Gets the data needed for Cryptohome Recovery.
-    [supportsPromises] static void getCryptohomeRecoveryData(
-        GetCryptohomeRecoveryDataCallback callback);
 
     // Waits for system web apps to complete the installation.
     [supportsPromises] static void waitForSystemWebAppsInstall(
@@ -1077,12 +1096,6 @@ namespace autotestPrivate {
     [supportsPromises] static void takeScreenshotForDisplay(
         DOMString display_id,
         TakeScreenshotCallback callback);
-
-    // Makes a basic request to ML Service, triggering 1. ML Service
-    // daemon startup, and 2. the initial D-Bus -> Mojo IPC bootstrap.
-    // |callback|: Called when the operation has completed.
-    [supportsPromises] static void bootstrapMachineLearningService(
-        VoidCallback callback);
 
     // Triggers an on-demand update of smart dim component and checks whether
     // it's successfully loaded by smart dim ml_agent.
@@ -1476,6 +1489,13 @@ namespace autotestPrivate {
         long timeout,
         VoidCallback callback);
 
+    // Waits for ambient video to successfully start playback.
+    // |timeout|: the timeout in seconds.
+    // |callback|: Called when the operation has completed.
+    [supportsPromises] static void waitForAmbientVideo(
+        long timeout,
+        VoidCallback callback);
+
     // Disables the automation feature. Note that the event handlers and caches
     // of automation nodes still remain in the test extension and so the next
     // automation.getDesktop will miss initialization. The caller should ensure
@@ -1508,15 +1528,17 @@ namespace autotestPrivate {
         VoidCallback callback);
 
     // Starts collection of ui::LoginEventRecorder data.
-    static void startLoginEventRecorderDataCollection(VoidCallback callback);
+    [supportsPromises] static void startLoginEventRecorderDataCollection(
+        VoidCallback callback);
 
     // Stops ui::LoginEventRecorder data collection and reports all the
     // collected data.
-    static void getLoginEventRecorderLoginEvents(
+    [supportsPromises] static void getLoginEventRecorderLoginEvents(
         GetLoginEventRecorderLoginEventsCallback callback);
 
     // Adds login event to test LoginEventRecorderDataCollection API.
-    static void addLoginEventForTesting(VoidCallback callback);
+    [supportsPromises] static void addLoginEventForTesting(
+        VoidCallback callback);
 
     // Force auto theme mode in dark mode or light mode for testing.
     [supportsPromises] static void forceAutoThemeMode(boolean darkModeEnabled, VoidCallback callback);
@@ -1553,6 +1575,37 @@ namespace autotestPrivate {
     // Ends frame counting in viz and return the collected data.
     [supportsPromises] static void stopFrameCounting(
         StopFrameCountingCallback  callback);
+
+    // Install a bruschetta VM.
+    [supportsPromises] static void installBruschetta(
+      DOMString vm_name, VoidCallback callback);
+
+    // Delete a bruschetta VM.
+    [supportsPromises] static void removeBruschetta(
+      DOMString vm_name, VoidCallback callback);
+
+    // Returns whether a base::Feature is enabled. The state may change because
+    // a Chrome uprev into ChromeOS changed the default feature state.
+    [supportsPromises] static void isFeatureEnabled(
+      DOMString feature_name, IsFeatureEnabledCallback callback);
+
+    // Returns keyboard layout used for current input method.
+    [supportsPromises] static void getCurrentInputMethodDescriptor(
+        GetCurrentInputMethodDescriptorCallback callback);
+
+    // ARC set interactive enable/disable state.
+    // |enabled|: Enable ARC interactive.
+    // |callback|: Called when the operation sent to ARC by mojo.
+    [supportsPromises] static void setArcInteractiveState(
+      boolean enabled, VoidCallback callback);
+
+    // Returns whether a field trial exists and has been activated.
+    [supportsPromises] static void isFieldTrialActive(DOMString feature_name,
+        IsFieldTrialActiveCallback callback);
+
+    // ARC get wakefulness mode.
+    [supportsPromises] static void getArcWakefulnessMode(
+      WakefulnessModeCallback callback);
   };
 
   interface Events {

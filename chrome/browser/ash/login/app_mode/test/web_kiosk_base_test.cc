@@ -5,7 +5,6 @@
 #include "chrome/browser/ash/login/app_mode/test/web_kiosk_base_test.h"
 
 #include "ash/public/cpp/login_screen_test_api.h"
-#include "base/time/time.h"
 #include "chrome/browser/ash/app_mode/web_app/web_kiosk_app_manager.h"
 #include "chrome/browser/ash/login/app_mode/kiosk_launch_controller.h"
 #include "chrome/browser/ash/login/app_mode/test/kiosk_test_helpers.h"
@@ -15,21 +14,27 @@
 #include "components/account_id/account_id.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace {
+
+AccountId ToWebKioskAccountId(const std::string& app_install_url) {
+  return AccountId(
+      AccountId::FromUserEmail(policy::GenerateDeviceLocalAccountUserId(
+          app_install_url, policy::DeviceLocalAccount::TYPE_WEB_KIOSK_APP)));
+}
+
+}  // anonymous namespace
+
 namespace ash {
 
 const char kAppInstallUrl[] = "https://app.com/install";
 
 WebKioskBaseTest::WebKioskBaseTest()
-    : account_id_(
-          AccountId::FromUserEmail(policy::GenerateDeviceLocalAccountUserId(
-              kAppInstallUrl,
-              policy::DeviceLocalAccount::TYPE_WEB_KIOSK_APP))) {
+    : app_install_url_(kAppInstallUrl),
+      account_id_(ToWebKioskAccountId(app_install_url_)) {
   set_exit_when_last_browser_closes(false);
   needs_background_networking_ = true;
   skip_splash_wait_override_ =
       KioskLaunchController::SkipSplashScreenWaitForTesting();
-  network_wait_override_ =
-      KioskLaunchController::SetNetworkWaitForTesting(base::Seconds(0));
 }
 
 WebKioskBaseTest::~WebKioskBaseTest() = default;
@@ -49,8 +54,8 @@ void WebKioskBaseTest::PrepareAppLaunch() {
   std::vector<policy::DeviceLocalAccount> device_local_accounts = {
       policy::DeviceLocalAccount(
           policy::DeviceLocalAccount::EphemeralMode::kUnset,
-          policy::WebKioskAppBasicInfo(kAppInstallUrl, "", ""),
-          kAppInstallUrl)};
+          policy::WebKioskAppBasicInfo(app_install_url_, "", ""),
+          app_install_url_)};
 
   settings_ = std::make_unique<ScopedDeviceSettings>();
   int ui_update_count = LoginScreenTestApi::GetUiUpdateCount();
@@ -61,8 +66,7 @@ void WebKioskBaseTest::PrepareAppLaunch() {
 }
 
 bool WebKioskBaseTest::LaunchApp() {
-  return LoginScreenTestApi::LaunchApp(
-      WebKioskAppManager::Get()->GetAppByAccountId(account_id())->app_id());
+  return LoginScreenTestApi::LaunchApp(account_id());
 }
 
 void WebKioskBaseTest::InitializeRegularOnlineKiosk() {
@@ -70,6 +74,11 @@ void WebKioskBaseTest::InitializeRegularOnlineKiosk() {
   PrepareAppLaunch();
   LaunchApp();
   KioskSessionInitializedWaiter().Wait();
+}
+
+void WebKioskBaseTest::SetAppInstallUrl(const std::string& app_install_url) {
+  app_install_url_ = app_install_url;
+  account_id_ = ToWebKioskAccountId(app_install_url);
 }
 
 }  // namespace ash

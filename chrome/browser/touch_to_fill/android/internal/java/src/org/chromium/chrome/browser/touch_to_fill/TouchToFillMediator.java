@@ -7,10 +7,13 @@ package org.chromium.chrome.browser.touch_to_fill;
 import static org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.CredentialProperties.CREDENTIAL;
 import static org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.CredentialProperties.FAVICON_OR_FALLBACK;
 import static org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.CredentialProperties.FORMATTED_ORIGIN;
+import static org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.CredentialProperties.ITEM_COLLECTION_INFO;
 import static org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.CredentialProperties.ON_CLICK_LISTENER;
 import static org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.CredentialProperties.SHOW_SUBMIT_BUTTON;
 import static org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.FooterProperties.MANAGE_BUTTON_TEXT;
+import static org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.FooterProperties.ON_CLICK_HYBRID;
 import static org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.FooterProperties.ON_CLICK_MANAGE;
+import static org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.FooterProperties.SHOW_HYBRID;
 import static org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.HeaderProperties.FORMATTED_URL;
 import static org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.HeaderProperties.IMAGE_DRAWABLE_ID;
 import static org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.HeaderProperties.ORIGIN_SECURE;
@@ -22,20 +25,23 @@ import static org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.We
 import static org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.WebAuthnCredentialProperties.SHOW_WEBAUTHN_SUBMIT_BUTTON;
 import static org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.WebAuthnCredentialProperties.WEBAUTHN_CREDENTIAL;
 import static org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.WebAuthnCredentialProperties.WEBAUTHN_FAVICON_OR_FALLBACK;
+import static org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.WebAuthnCredentialProperties.WEBAUTHN_ITEM_COLLECTION_INFO;
 
 import android.content.Context;
 
 import androidx.annotation.Px;
 
 import org.chromium.base.metrics.RecordHistogram;
-import org.chromium.chrome.browser.password_manager.PasswordManagerHelper;
+import org.chromium.chrome.browser.password_manager.PasswordManagerResourceProviderFactory;
 import org.chromium.chrome.browser.touch_to_fill.TouchToFillComponent.UserAction;
 import org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.CredentialProperties;
 import org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.FaviconOrFallback;
 import org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.FooterProperties;
 import org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.HeaderProperties;
+import org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.MorePasskeysProperties;
 import org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.WebAuthnCredentialProperties;
 import org.chromium.chrome.browser.touch_to_fill.common.BottomSheetFocusHelper;
+import org.chromium.chrome.browser.touch_to_fill.common.FillableItemCollectionInfo;
 import org.chromium.chrome.browser.touch_to_fill.data.Credential;
 import org.chromium.chrome.browser.touch_to_fill.data.WebAuthnCredential;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
@@ -61,7 +67,6 @@ class TouchToFillMediator {
             "PasswordManager.TouchToFill.DismissalReason";
     static final String UMA_TOUCH_TO_FILL_CREDENTIAL_INDEX =
             "PasswordManager.TouchToFill.CredentialIndex";
-    static final String UMA_TOUCH_TO_FILL_USER_ACTION = "PasswordManager.TouchToFill.UserAction";
 
     private Context mContext;
     private TouchToFillComponent.Delegate mDelegate;
@@ -87,12 +92,11 @@ class TouchToFillMediator {
 
     void showCredentials(GURL url, boolean isOriginSecure,
             List<WebAuthnCredential> webAuthnCredentials, List<Credential> credentials,
-            boolean triggerSubmission, boolean managePasskeysHidesPasswords) {
+            boolean showMorePasskeys, boolean triggerSubmission,
+            boolean managePasskeysHidesPasswords, boolean showHybridPasskeyOption) {
         assert credentials != null;
 
         mManagePasskeysHidesPasswords = managePasskeysHidesPasswords;
-
-        TouchToFillResourceProvider resourceProvider = new TouchToFillResourceProviderImpl();
 
         ListModel<ListItem> sheetItems = mModel.get(SHEET_ITEMS);
         sheetItems.clear();
@@ -105,14 +109,23 @@ class TouchToFillMediator {
                                         url, SchemeDisplay.OMIT_HTTP_AND_HTTPS))
                         .with(ORIGIN_SECURE, isOriginSecure)
                         .with(SHOW_SUBMIT_SUBTITLE, triggerSubmission)
-                        .with(IMAGE_DRAWABLE_ID, resourceProvider.getHeaderImageDrawableId())
+                        // TODO(crbug.com/1471888): Use the TTF resource provider instead and use a
+                        // 32dp icon.
+                        .with(IMAGE_DRAWABLE_ID,
+                                PasswordManagerResourceProviderFactory.create()
+                                        .getPasswordManagerIcon())
                         .build()));
+
+        int fillableItemsTotal = credentials.size() + webAuthnCredentials.size();
+        int fillableItemPosition = 0;
 
         mWebAuthnCredentials = webAuthnCredentials;
         for (WebAuthnCredential credential : webAuthnCredentials) {
-            final PropertyModel model = createWebAuthnModel(credential);
+            final PropertyModel model = createWebAuthnModel(credential,
+                    new FillableItemCollectionInfo(++fillableItemPosition, fillableItemsTotal));
             sheetItems.add(new ListItem(TouchToFillProperties.ItemType.WEBAUTHN_CREDENTIAL, model));
-            if (shouldCreateConfirmationButton(credentials, webAuthnCredentials)) {
+            if (shouldCreateConfirmationButton(
+                        credentials, webAuthnCredentials, showMorePasskeys)) {
                 sheetItems.add(new ListItem(TouchToFillProperties.ItemType.FILL_BUTTON, model));
             }
             requestWebAuthnIconOrFallbackImage(model, url);
@@ -120,12 +133,30 @@ class TouchToFillMediator {
 
         mCredentials = credentials;
         for (Credential credential : credentials) {
-            final PropertyModel model = createModel(credential, triggerSubmission);
+            final PropertyModel model = createModel(credential, triggerSubmission,
+                    new FillableItemCollectionInfo(++fillableItemPosition, fillableItemsTotal));
             sheetItems.add(new ListItem(TouchToFillProperties.ItemType.CREDENTIAL, model));
-            if (shouldCreateConfirmationButton(credentials, webAuthnCredentials)) {
+            if (shouldCreateConfirmationButton(
+                        credentials, webAuthnCredentials, showMorePasskeys)) {
                 sheetItems.add(new ListItem(TouchToFillProperties.ItemType.FILL_BUTTON, model));
             }
             requestIconOrFallbackImage(model, url);
+        }
+
+        if (showMorePasskeys) {
+            String morePasskeyTitle =
+                    webAuthnCredentials.size() == 0
+                            ? mContext.getString(R.string.touch_to_fill_select_passkey)
+                            : mContext.getString(R.string.touch_to_fill_more_passkeys);
+            sheetItems.add(
+                    new ListItem(
+                            TouchToFillProperties.ItemType.MORE_PASSKEYS,
+                            new PropertyModel.Builder(MorePasskeysProperties.ALL_KEYS)
+                                    .with(
+                                            MorePasskeysProperties.ON_CLICK,
+                                            this::onSelectedMorePasskeys)
+                                    .with(MorePasskeysProperties.TITLE, morePasskeyTitle)
+                                    .build()));
         }
 
         sheetItems.add(new ListItem(TouchToFillProperties.ItemType.FOOTER,
@@ -133,6 +164,8 @@ class TouchToFillMediator {
                         .with(ON_CLICK_MANAGE, this::onManagePasswordSelected)
                         .with(MANAGE_BUTTON_TEXT,
                                 getManageButtonText(credentials, webAuthnCredentials))
+                        .with(ON_CLICK_HYBRID, this::onHybridSignInSelected)
+                        .with(SHOW_HYBRID, showHybridPasskeyOption)
                         .build()));
 
         mBottomSheetFocusHelper.registerForOneTimeUse();
@@ -152,8 +185,7 @@ class TouchToFillMediator {
 
     private String getManageButtonText(
             List<Credential> credentials, List<WebAuthnCredential> webAuthnCredentials) {
-        if (!PasswordManagerHelper.usesUnifiedPasswordManagerUI()
-                || webAuthnCredentials.size() == 0) {
+        if (webAuthnCredentials.size() == 0) {
             return mContext.getString(R.string.manage_passwords);
         }
 
@@ -184,8 +216,6 @@ class TouchToFillMediator {
     }
 
     private void requestWebAuthnIconOrFallbackImage(PropertyModel credentialModel, GURL url) {
-        WebAuthnCredential credential = credentialModel.get(WEBAUTHN_CREDENTIAL);
-
         // WebAuthn credentials have already been filtered to match the current site's URL.
         final String iconOrigin = url.getSpec();
 
@@ -217,9 +247,6 @@ class TouchToFillMediator {
             // the recording.
             RecordHistogram.recordCount100Histogram(UMA_TOUCH_TO_FILL_CREDENTIAL_INDEX, index);
         }
-
-        RecordHistogram.recordEnumeratedHistogram(
-                UMA_TOUCH_TO_FILL_USER_ACTION, userAction, UserAction.MAX_VALUE + 1);
     }
 
     private void onSelectedCredential(Credential credential) {
@@ -236,49 +263,59 @@ class TouchToFillMediator {
         mDelegate.onWebAuthnCredentialSelected(credential);
     }
 
+    private void onSelectedMorePasskeys() {
+        mModel.set(VISIBLE, false);
+        // TODO(crbug/1474805): add metrics
+        mDelegate.onShowMorePasskeysSelected();
+    }
+
     public void onDismissed(@StateChangeReason int reason) {
         if (!mModel.get(VISIBLE)) return; // Dismiss only if not dismissed yet.
         mModel.set(VISIBLE, false);
         RecordHistogram.recordEnumeratedHistogram(UMA_TOUCH_TO_FILL_DISMISSAL_REASON, reason,
                 BottomSheetController.StateChangeReason.MAX_VALUE + 1);
-        RecordHistogram.recordEnumeratedHistogram(
-                UMA_TOUCH_TO_FILL_USER_ACTION, UserAction.DISMISS, UserAction.MAX_VALUE + 1);
         mDelegate.onDismissed();
     }
 
     private void onManagePasswordSelected() {
         mModel.set(VISIBLE, false);
-        RecordHistogram.recordEnumeratedHistogram(UMA_TOUCH_TO_FILL_USER_ACTION,
-                UserAction.SELECT_MANAGE_PASSWORDS, UserAction.MAX_VALUE + 1);
         boolean passkeysShown = (mWebAuthnCredentials.size() > 0);
         mDelegate.onManagePasswordsSelected(passkeysShown);
+    }
+
+    private void onHybridSignInSelected() {
+        mModel.set(VISIBLE, false);
+        mDelegate.onHybridSignInSelected();
     }
 
     /**
      * @param credentials The available credentials. Show the confirmation for a lone credential.
      * @return True if a confirmation button should be shown at the end of the bottom sheet.
      */
-    private boolean shouldCreateConfirmationButton(
-            List<Credential> credentials, List<WebAuthnCredential> webauthnCredentials) {
+    private boolean shouldCreateConfirmationButton(List<Credential> credentials,
+            List<WebAuthnCredential> webauthnCredentials, boolean shouldShowMorePasskeys) {
+        if (shouldShowMorePasskeys) return false;
         return credentials.size() + webauthnCredentials.size() == 1;
     }
 
-    private PropertyModel createModel(Credential credential, boolean triggerSubmission) {
+    private PropertyModel createModel(Credential credential, boolean triggerSubmission,
+            FillableItemCollectionInfo itemCollectionInfo) {
         return new PropertyModel.Builder(CredentialProperties.ALL_KEYS)
                 .with(CREDENTIAL, credential)
                 .with(ON_CLICK_LISTENER, this::onSelectedCredential)
-                .with(FORMATTED_ORIGIN,
-                        UrlFormatter.formatUrlForDisplayOmitScheme(credential.getOriginUrl()))
+                .with(FORMATTED_ORIGIN, credential.getDisplayName())
                 .with(SHOW_SUBMIT_BUTTON, triggerSubmission)
+                .with(ITEM_COLLECTION_INFO, itemCollectionInfo)
                 .build();
     }
 
-    private PropertyModel createWebAuthnModel(WebAuthnCredential credential) {
-        TouchToFillResourceProvider resourceProvider = new TouchToFillResourceProviderImpl();
+    private PropertyModel createWebAuthnModel(
+            WebAuthnCredential credential, FillableItemCollectionInfo itemCollectionInfo) {
         return new PropertyModel.Builder(WebAuthnCredentialProperties.ALL_KEYS)
                 .with(WEBAUTHN_CREDENTIAL, credential)
                 .with(ON_WEBAUTHN_CLICK_LISTENER, this::onSelectedWebAuthnCredential)
                 .with(SHOW_WEBAUTHN_SUBMIT_BUTTON, false)
+                .with(WEBAUTHN_ITEM_COLLECTION_INFO, itemCollectionInfo)
                 .build();
     }
 }

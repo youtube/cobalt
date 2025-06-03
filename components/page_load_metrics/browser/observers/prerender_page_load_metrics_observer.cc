@@ -41,11 +41,6 @@ const char
              "Gap1000ms.Max5000ms2";
 
 // Responsiveness metrics.
-const char
-    kHistogramPrerenderAverageUserInteractionLatencyOverBudgetMaxEventDuration
-        [] = "PageLoad.InteractiveTiming."
-             "AverageUserInteractionLatencyOverBudget."
-             "MaxEventDuration.Prerender";
 const char kHistogramPrerenderNumInteractions[] =
     "PageLoad.InteractiveTiming.NumInteractions.Prerender";
 const char
@@ -192,8 +187,10 @@ void PrerenderPageLoadMetricsObserver::DidActivatePrerenderedPage(
         main_frame_resource_has_no_store_.value() ? 1 : 0);
   }
 
-  builder.SetWasPrerendered(true).SetTiming_NavigationToActivation(
-      navigation_to_activation.InMilliseconds());
+  builder.SetWasPrerendered(true)
+      .SetTiming_NavigationToActivation(
+          navigation_to_activation.InMilliseconds())
+      .SetNavigation_PageTransition(navigation_handle->GetPageTransition());
   builder.Record(ukm::UkmRecorder::Get());
 }
 
@@ -423,12 +420,6 @@ void PrerenderPageLoadMetricsObserver::RecordNormalizedResponsivenessMetrics() {
       base::Seconds(60), 50);
   UmaHistogramCustomTimes(
       internal::
-          kHistogramPrerenderAverageUserInteractionLatencyOverBudgetMaxEventDuration,
-      max_event_durations.sum_of_latency_over_budget /
-          normalized_responsiveness_metrics.num_user_interactions,
-      base::Milliseconds(1), base::Seconds(60), 50);
-  UmaHistogramCustomTimes(
-      internal::
           kHistogramPrerenderUserInteractionLatencyHighPercentile2MaxEventDuration,
       high_percentile2_max_event_duration, base::Milliseconds(1),
       base::Seconds(60), 50);
@@ -439,10 +430,6 @@ void PrerenderPageLoadMetricsObserver::RecordNormalizedResponsivenessMetrics() {
   ukm::builders::PrerenderPageLoad builder(GetDelegate().GetPageUkmSourceId());
   builder.SetInteractiveTiming_WorstUserInteractionLatency_MaxEventDuration(
       max_event_durations.worst_latency.InMilliseconds());
-  builder
-      .SetInteractiveTiming_AverageUserInteractionLatencyOverBudget_MaxEventDuration(
-          max_event_durations.sum_of_latency_over_budget.InMilliseconds() /
-          normalized_responsiveness_metrics.num_user_interactions);
 
   builder
       .SetInteractiveTiming_UserInteractionLatency_HighPercentile2_MaxEventDuration(

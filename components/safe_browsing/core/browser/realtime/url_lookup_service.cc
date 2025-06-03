@@ -54,7 +54,8 @@ RealTimeUrlLookupService::RealTimeUrlLookupService(
     : RealTimeUrlLookupServiceBase(url_loader_factory,
                                    cache_manager,
                                    get_user_population_callback,
-                                   referrer_chain_provider),
+                                   referrer_chain_provider,
+                                   pref_service),
       pref_service_(pref_service),
       token_fetcher_(std::move(token_fetcher)),
       client_token_config_callback_(client_token_config_callback),
@@ -87,7 +88,8 @@ void RealTimeUrlLookupService::GetAccessToken(
 
 void RealTimeUrlLookupService::OnPrefChanged() {
   if (CanPerformFullURLLookup()) {
-    url_lookup_enabled_timestamp_ = base::Time::Now().ToDoubleT();
+    url_lookup_enabled_timestamp_ =
+        base::Time::Now().InSecondsFSinceUnixEpoch();
   }
 }
 
@@ -139,7 +141,8 @@ bool RealTimeUrlLookupService::CanSendPageLoadToken() const {
 }
 
 bool RealTimeUrlLookupService::CanCheckSubresourceURL() const {
-  return IsEnhancedProtectionEnabled(*pref_service_);
+  return IsEnhancedProtectionEnabled(*pref_service_) &&
+         CanPerformFullURLLookup();
 }
 
 bool RealTimeUrlLookupService::CanCheckSafeBrowsingDb() const {
@@ -231,6 +234,18 @@ bool RealTimeUrlLookupService::ShouldIncludeCredentials() const {
 double RealTimeUrlLookupService::GetMinAllowedTimestampForReferrerChains()
     const {
   return url_lookup_enabled_timestamp_;
+}
+
+void RealTimeUrlLookupService::MaybeLogLastProtegoPingTimeToPrefs(
+    bool sent_with_token) {
+  // `pref_service_` can be null in tests.
+  if (pref_service_ && IsEnhancedProtectionEnabled(*pref_service_)) {
+    pref_service_->SetTime(
+        sent_with_token
+            ? prefs::kSafeBrowsingEsbProtegoPingWithTokenLastLogTime
+            : prefs::kSafeBrowsingEsbProtegoPingWithoutTokenLastLogTime,
+        base::Time::Now());
+  }
 }
 
 }  // namespace safe_browsing

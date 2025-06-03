@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "android_webview/browser/aw_browser_context.h"
+#include "android_webview/browser/aw_browser_context_store.h"
 #include "android_webview/browser/aw_client_hints_controller_delegate.h"
 #include "android_webview/browser/aw_cookie_access_policy.h"
 #include "android_webview/browser_jni_headers/AwCookieManager_jni.h"
@@ -19,6 +20,7 @@
 #include "base/android/callback_android.h"
 #include "base/android/jni_string.h"
 #include "base/android/path_utils.h"
+#include "base/android/scoped_java_ref.h"
 #include "base/command_line.h"
 #include "base/containers/circular_deque.h"
 #include "base/files/file_util.h"
@@ -179,8 +181,8 @@ const bool kDefaultFileSchemeAllowed = false;
 }  // namespace
 
 // static
-CookieManager* CookieManager::GetInstance() {
-  static base::NoDestructor<CookieManager> instance;
+CookieManager* CookieManager::GetDefaultInstance() {
+  static base::NoDestructor<CookieManager> instance(nullptr);
   return instance.get();
 }
 
@@ -195,8 +197,9 @@ base::FilePath GetPathInAppDirectory(std::string path) {
 }
 }  // namespace
 
-CookieManager::CookieManager()
-    : allow_file_scheme_cookies_(kDefaultFileSchemeAllowed),
+CookieManager::CookieManager(AwBrowserContext* const parent_context)
+    : parent_context_(parent_context),
+      allow_file_scheme_cookies_(kDefaultFileSchemeAllowed),
       cookie_store_created_(false),
       workaround_http_secure_cookies_(
           base::android::BuildInfo::GetInstance()->target_sdk_version() <
@@ -207,11 +210,11 @@ CookieManager::CookieManager()
   cookie_store_client_thread_.Start();
   cookie_store_backend_thread_.Start();
   cookie_store_task_runner_ = cookie_store_client_thread_.task_runner();
-
-  // TODO(amalova): initialize cookie_store_path_ for non-default profile
-  // Do not migrate cookies for non-default profile.
-  cookie_store_path_ = GetPathInAppDirectory("Default/Cookies");
-  MigrateCookieStorePath();
+  cookie_store_path_ = GetContextPath().Append(FILE_PATH_LITERAL("Cookies"));
+  if (!parent_context_) {
+    // Default profile
+    MigrateCookieStorePath();
+  }
 }
 
 CookieManager::~CookieManager() = default;
@@ -314,6 +317,8 @@ base::FilePath CookieManager::GetCookieStorePath() {
 }
 
 net::CookieStore* CookieManager::GetCookieStore() {
+  // This should only be called for the default context.
+  CHECK(!parent_context_);
   DCHECK(cookie_store_task_runner_->RunsTasksInCurrentSequence());
 
   if (!cookie_store_) {
@@ -405,6 +410,16 @@ void CookieManager::SwapMojoCookieManagerAsync(
   RunPendingCookieTasks();
 }
 
+base::android::ScopedJavaLocalRef<jobject>
+CookieManager::GetJavaCookieManager() {
+  if (!java_obj_) {
+    JNIEnv* env = base::android::AttachCurrentThread();
+    java_obj_ =
+        Java_AwCookieManager_create(env, reinterpret_cast<intptr_t>(this));
+  }
+  return base::android::ScopedJavaLocalRef<jobject>(java_obj_);
+}
+
 void CookieManager::SetWorkaroundHttpSecureCookiesForTesting(
     JNIEnv* env,
     const JavaParamRef<jobject>& obj,
@@ -474,7 +489,7 @@ void CookieManager::SetCookieHelper(const GURL& host,
 
   std::unique_ptr<net::CanonicalCookie> cc(net::CanonicalCookie::Create(
       new_host, value, base::Time::Now(), absl::nullopt /* server_time */,
-      absl::nullopt /* cookie_partition_key */));
+      net::CookiePartitionKey::FromWire(net::SchemefulSite(new_host))));
 
   if (!cc || !should_allow_cookie) {
     MaybeRunCookieCallback(std::move(callback), false);
@@ -758,17 +773,34 @@ void CookieManager::ClearClientHintsCachedPerOriginMapIfNeeded() {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   // If we had a client hint cache clear pending, we should do it as soon as we
   // next check and see that the browser has been started.
-  if (should_clear_client_hints_cached_per_origin_map_ &&
-      AwBrowserContext::GetDefault() &&
-      AwBrowserContext::GetDefault()->GetPrefService()) {
-    AwBrowserContext::GetDefault()->GetPrefService()->SetDict(
+  if (should_clear_client_hints_cached_per_origin_map_) {
+    GetContext()->GetPrefService()->SetDict(
         prefs::kClientHintsCachedPerOriginMap, base::Value::Dict());
     should_clear_client_hints_cached_per_origin_map_ = false;
   }
 }
 
 static jlong JNI_AwCookieManager_GetDefaultCookieManager(JNIEnv* env) {
-  return reinterpret_cast<intptr_t>(CookieManager::GetInstance());
+  return reinterpret_cast<intptr_t>(CookieManager::GetDefaultInstance());
+}
+
+AwBrowserContext* CookieManager::GetContext() const {
+  if (parent_context_) {
+    return parent_context_;
+  } else {
+    return AwBrowserContext::GetDefault();
+  }
+}
+
+base::FilePath CookieManager::GetContextPath() const {
+  if (parent_context_) {
+    // Non-default profile
+    return parent_context_->GetPath();
+  } else {
+    // Default profile
+    return AwBrowserContext::BuildStoragePath(
+        base::FilePath(AwBrowserContextStore::kDefaultContextPath));
+  }
 }
 
 }  // namespace android_webview

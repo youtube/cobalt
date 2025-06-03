@@ -4,7 +4,9 @@
 
 package org.chromium.components.browser_ui.widget.gesture;
 
+import androidx.activity.BackEventCompat;
 import androidx.annotation.IntDef;
+import androidx.annotation.NonNull;
 
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplierImpl;
@@ -23,31 +25,53 @@ public interface BackPressHandler {
     // When adding a new identifier, make corresponding changes in the
     // - tools/metrics/histograms/enums.xml: <enum name="BackPressConsumer">
     // - chrome/browser/back_press/android/.../BackPressManager.java: sMetricsMap
-    @IntDef({Type.TEXT_BUBBLE, Type.VR_DELEGATE, Type.XR_DELEGATE, Type.SCENE_OVERLAY,
-            Type.START_SURFACE, Type.SELECTION_POPUP, Type.MANUAL_FILLING, Type.TAB_MODAL_HANDLER,
-            Type.FULLSCREEN, Type.TAB_SWITCHER, Type.CLOSE_WATCHER, Type.FIND_TOOLBAR,
-            Type.LOCATION_BAR, Type.TAB_HISTORY, Type.TAB_RETURN_TO_CHROME_START_SURFACE,
-            Type.BOTTOM_SHEET, Type.SHOW_READING_LIST, Type.MINIMIZE_APP_AND_CLOSE_TAB})
+    @IntDef({
+        Type.TEXT_BUBBLE,
+        Type.VR_DELEGATE,
+        Type.XR_DELEGATE,
+        Type.SCENE_OVERLAY,
+        Type.START_SURFACE,
+        Type.SELECTION_POPUP,
+        Type.MANUAL_FILLING,
+        Type.TAB_MODAL_HANDLER,
+        Type.FULLSCREEN,
+        Type.TAB_SWITCHER,
+        Type.CLOSE_WATCHER,
+        Type.FIND_TOOLBAR,
+        Type.LOCATION_BAR,
+        Type.BOTTOM_CONTROLS,
+        Type.TAB_HISTORY,
+        Type.TAB_RETURN_TO_CHROME_START_SURFACE,
+        Type.BOTTOM_SHEET,
+        Type.PAGE_INSIGHTS_BOTTOM_SHEET,
+        Type.SHOW_READING_LIST,
+        Type.MINIMIZE_APP_AND_CLOSE_TAB
+    })
     @Retention(RetentionPolicy.SOURCE)
     @interface Type {
         int TEXT_BUBBLE = 0;
         int VR_DELEGATE = 1;
         int XR_DELEGATE = 2;
         int SCENE_OVERLAY = 3;
-        int START_SURFACE = 4;
-        int SELECTION_POPUP = 5;
-        int MANUAL_FILLING = 6;
-        int FULLSCREEN = 7;
-        int BOTTOM_SHEET = 8;
-        int LOCATION_BAR = 9;
-        int TAB_MODAL_HANDLER = 10;
-        int TAB_SWITCHER = 11;
-        int CLOSE_WATCHER = 12;
-        int FIND_TOOLBAR = 13;
-        int TAB_HISTORY = 14;
-        int TAB_RETURN_TO_CHROME_START_SURFACE = 15;
-        int SHOW_READING_LIST = 16;
-        int MINIMIZE_APP_AND_CLOSE_TAB = 17;
+        int BOTTOM_SHEET = 4;
+        // TODO(b/307046796): Remove this once we have found better way to integrate with back
+        // handling logic.
+        int PAGE_INSIGHTS_BOTTOM_SHEET = 5;
+        int START_SURFACE = 6;
+        int TAB_SWITCHER = 7;
+        // Fullscreen must be before selection popup. crbug.com/1454817.
+        int FULLSCREEN = 8;
+        int SELECTION_POPUP = 9;
+        int MANUAL_FILLING = 10;
+        int LOCATION_BAR = 11;
+        int TAB_MODAL_HANDLER = 12;
+        int CLOSE_WATCHER = 13;
+        int FIND_TOOLBAR = 14;
+        int BOTTOM_CONTROLS = 15;
+        int TAB_HISTORY = 16;
+        int TAB_RETURN_TO_CHROME_START_SURFACE = 17;
+        int SHOW_READING_LIST = 18;
+        int MINIMIZE_APP_AND_CLOSE_TAB = 19;
         int NUM_TYPES = MINIMIZE_APP_AND_CLOSE_TAB + 1;
     }
 
@@ -98,4 +122,22 @@ public interface BackPressHandler {
     default ObservableSupplier<Boolean> getHandleBackPressChangedSupplier() {
         return new ObservableSupplierImpl<>();
     }
+
+    /**
+     * API 34+ only. Triggered when a back press press is cancelled. In this case,
+     * {@link #handleBackPress()} must not be triggered any more.
+     */
+    default void handleOnBackCancelled() {}
+
+    /**
+     * API 34+ only. Triggered after a back press is started
+     * ({@link #handleOnBackStarted(BackEventCompat)}) and before a back press is released
+     * (either {@link #handleBackPress()} or {@link #handleOnBackCancelled()})
+     */
+    default void handleOnBackProgressed(@NonNull BackEventCompat backEvent) {}
+
+    /**
+     * API 34+ only. Triggered when a back press event is initialized.
+     */
+    default void handleOnBackStarted(@NonNull BackEventCompat backEvent) {}
 }

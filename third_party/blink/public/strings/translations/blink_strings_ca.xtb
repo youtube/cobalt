@@ -16,17 +16,18 @@
 <translation id="1729654308190250600">Introduïu una adreça electrònica.</translation>
 <translation id="1758486001363313524">Altres...</translation>
 <translation id="1787192514241997742">temps total: <ph name="REMAINING_TIME" /></translation>
+<translation id="1800494066469288780">Permet l'accés a la càmera</translation>
 <translation id="1822429046913737220">a. m./p. m.</translation>
 <translation id="1832974991323546415">reprodueix al dispositiu remot</translation>
 <translation id="1921819250265091946">dd</translation>
 <translation id="1938124657309484470">El valor ha de ser <ph name="MAXIMUM_DATE_OR_TIME" /> o anterior.</translation>
 <translation id="1946271899482435442">Mostra el selector de dates</translation>
-<translation id="1993104285338243655">S'ha canviat a projecció</translation>
+<translation id="1993104285338243655">S'ha canviat a duplicació</translation>
 <translation id="2031987842108996681">Canal vermell</translation>
 <translation id="2060505056492490888">"<ph name="DOT" />" s'ha utilitzat en una posició incorrecta a "<ph name="INVALIDDOMAIN" />".</translation>
+<translation id="2068711044993563745">El valor mínim (<ph name="MINIMUM" />) ha de ser inferior al valor màxim (<ph name="MAXIMUM" />).</translation>
 <translation id="2148716181193084225">Avui</translation>
 <translation id="2226276347425096477">Escurceu aquest text a un màxim de <ph name="MAX_CHARACTERS" /> caràcters (ara n'esteu utilitzant <ph name="CURRENT_LENGTH" />).</translation>
-<translation id="2246498165605549352">Fitxer local</translation>
 <translation id="2247351761944213033">Setmana <ph name="WEEKNUMBER" />, <ph name="YEAR" /></translation>
 <translation id="2277199496770840904">Pista <ph name="NUMBER" /></translation>
 <translation id="2393030564806080191">Valor hexadecimal del color</translation>
@@ -45,11 +46,13 @@
 <translation id="2761667185364618470">Marqueu aquesta casella si voleu continuar.</translation>
 <translation id="2908441821576996758">Introduïu una llista d'adreces electròniques separades per comes.</translation>
 <translation id="3049748772180311791"><ph name="QUANTITY" /> MB</translation>
+<translation id="3053226512517284904">mostra el menú d'audiodescripcions</translation>
 <translation id="3075154866155599887">Introduïu un valor vàlid. El camp està incomplet o conté una data no vàlida.</translation>
 <translation id="310520048233152454">Introduïu un URL.</translation>
 <translation id="3220661731597678625">pas actual</translation>
 <translation id="3321030238473337787">Velocitat de reproducció</translation>
 <translation id="3329013043687509092">Saturació</translation>
+<translation id="3377518164566272702">Permet l'accés al micròfon i a la càmera</translation>
 <translation id="3450233048674729344">El valor ha de ser igual o inferior a <ph name="MAXIMUM" />.</translation>
 <translation id="3732799496749320381">mm</translation>
 <translation id="3754210790023674521">Surt d'imatge sobre imatge</translation>
@@ -65,6 +68,7 @@
 <translation id="4718048029184481307">S'està reproduint imatge sobre imatge</translation>
 <translation id="4748357248530471599">activa o desactiva la pantalla completa al retall de pantalla</translation>
 <translation id="4763480195061959176">vídeo</translation>
+<translation id="4792862212177489858">Comparteix la ubicació</translation>
 <translation id="4812940957355064477">Introduïu un número.</translation>
 <translation id="4912200001568447310">element actual</translation>
 <translation id="4915360478455618802">Mostra el selector d'hora</translation>
@@ -74,6 +78,7 @@
 <translation id="4975562563186953947">Elements seleccionats: <ph name="SELECTED_COUNT" /></translation>
 <translation id="4992066212339426712">Deixa de silenciar</translation>
 <translation id="49969490063480558">Introduïu un domini precedit per "<ph name="ATSIGN" />". "<ph name="INVALIDADDRESS" />" no és una adreça electrònica completa.</translation>
+<translation id="5037575921016181960">Contrasenya segura</translation>
 <translation id="5090250355906949916">barra de moment del vídeo</translation>
 <translation id="509897012892853729">Canal blau</translation>
 <translation id="5117590920725113268">Mostra el mes següent</translation>
@@ -89,6 +94,7 @@
 <translation id="5425179576310518467">data actual</translation>
 <translation id="5466621249238537318">Seleccioneu un o diversos fitxers.</translation>
 <translation id="5468998798572797635">surt de la pantalla completa</translation>
+<translation id="5514612371225420585">Fitxer al teu dispositiu</translation>
 <translation id="5516235301412634559">0,75</translation>
 <translation id="5537725057119320332">Emet</translation>
 <translation id="5546461542133609677">deixa de silenciar</translation>
@@ -113,6 +119,7 @@
 <translation id="6398862346408813489">Mostra el tauler de la selecció de mes</translation>
 <translation id="6404546809543547843">barra de moment de l'àudio</translation>
 <translation id="6443871981718447451">mostra el menú de subtítols</translation>
+<translation id="6484738902856791350">Aplica estils de format</translation>
 <translation id="6550675742724504774">Opcions</translation>
 <translation id="6572309429103589720">La gramàtica no és vàlida</translation>
 <translation id="658823671542763450">passa a pantalla completa</translation>
@@ -176,6 +183,7 @@
 <translation id="9132465097189459683">Altres...</translation>
 <translation id="9155987714137265666"><ph name="WEEK" />, a partir del dia <ph name="WEEK_START_DATE" /></translation>
 <translation id="916607977885256133">Imatge sobre imatge</translation>
+<translation id="918430632320614861">Permet l'accés al micròfon</translation>
 <translation id="945780513535800434">Marcada parcialment</translation>
 <translation id="954003015749068518">entra a imatge sobre imatge</translation>
 </translationbundle>

@@ -58,37 +58,6 @@ void FakeDebugDaemonClient::SetKstaledRatio(uint8_t val,
   std::move(callback).Run(true /* success */);
 }
 
-void FakeDebugDaemonClient::SetSwapParameter(
-    const std::string& parameter,
-    int32_t value,
-    chromeos::DBusMethodCallback<std::string> callback) {
-  std::move(callback).Run(std::string());
-}
-
-void FakeDebugDaemonClient::SwapZramEnableWriteback(
-    uint32_t size_mb,
-    chromeos::DBusMethodCallback<std::string> callback) {
-  std::move(callback).Run(std::string());
-}
-
-void FakeDebugDaemonClient::SwapZramSetWritebackLimit(
-    uint32_t limit_pages,
-    chromeos::DBusMethodCallback<std::string> callback) {
-  std::move(callback).Run(std::string());
-}
-
-void FakeDebugDaemonClient::SwapZramMarkIdle(
-    uint32_t age_seconds,
-    chromeos::DBusMethodCallback<std::string> callback) {
-  std::move(callback).Run(std::string());
-}
-
-void FakeDebugDaemonClient::InitiateSwapZramWriteback(
-    debugd::ZramWritebackMode mode,
-    chromeos::DBusMethodCallback<std::string> callback) {
-  std::move(callback).Run(std::string());
-}
-
 std::string FakeDebugDaemonClient::GetTracingAgentName() {
   return kCrOSTracingAgentName;
 }
@@ -278,6 +247,7 @@ void FakeDebugDaemonClient::SetServiceIsAvailable(bool is_available) {
 void FakeDebugDaemonClient::CupsAddManuallyConfiguredPrinter(
     const std::string& name,
     const std::string& uri,
+    const std::string& language,
     const std::string& ppd_contents,
     CupsAddPrinterCallback callback) {
   printers_.insert(name);
@@ -288,6 +258,7 @@ void FakeDebugDaemonClient::CupsAddManuallyConfiguredPrinter(
 void FakeDebugDaemonClient::CupsAddAutoConfiguredPrinter(
     const std::string& name,
     const std::string& uri,
+    const std::string& language,
     CupsAddPrinterCallback callback) {
   printers_.insert(name);
   base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(

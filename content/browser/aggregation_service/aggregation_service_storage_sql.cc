@@ -7,6 +7,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -604,6 +605,11 @@ AggregationServiceStorageSql::GetRequestsReportingOnOrBefore(
   if (!EnsureDatabaseOpen(DbCreationPolicy::kFailIfAbsent))
     return {};
 
+  sql::Transaction transaction(&db_);
+  if (!transaction.Begin()) {
+    return {};
+  }
+
   static constexpr char kGetRequestsSql[] =
       "SELECT request_id,report_time,request_proto FROM report_requests "
       "WHERE report_time<=? ORDER BY report_time LIMIT ?";
@@ -615,25 +621,40 @@ AggregationServiceStorageSql::GetRequestsReportingOnOrBefore(
   // See https://www.sqlite.org/lang_select.html.
   get_requests_statement.BindInt(1, limit.value_or(-1));
 
-  // Partial results are not returned in case of any error.
   // TODO(crbug.com/1340046): Limit the total number of results that can be
   // returned in one query.
   std::vector<AggregationServiceStorage::RequestAndId> result;
+  std::vector<AggregationServiceStorage::RequestId> failures;
   while (get_requests_statement.Step()) {
+    AggregationServiceStorage::RequestId request_id{
+        get_requests_statement.ColumnInt64(0)};
     absl::optional<AggregatableReportRequest> parsed_request =
         AggregatableReportRequest::Deserialize(
             get_requests_statement.ColumnBlob(2));
-    if (!parsed_request)
-      return {};
+    if (!parsed_request) {
+      failures.push_back(request_id);
+      continue;
+    }
 
     result.push_back(AggregationServiceStorage::RequestAndId{
-        .request = std::move(parsed_request.value()),
-        .id = AggregationServiceStorage::RequestId(
-            get_requests_statement.ColumnInt64(0))});
+        .request = std::move(parsed_request.value()), .id = request_id});
   }
 
   if (!get_requests_statement.Succeeded())
     return {};
+
+  // In case of deserialization failures, remove the request from storage. This
+  // could occur if the coordinator chosen is no longer on the allowlist. It is
+  // also possible in case of database corruption.
+  for (AggregationServiceStorage::RequestId request_id : failures) {
+    if (!DeleteRequestImpl(request_id)) {
+      return {};
+    }
+  }
+
+  if (!transaction.Commit()) {
+    return {};
+  }
 
   return result;
 }
@@ -705,6 +726,31 @@ AggregationServiceStorageSql::AdjustOfflineReportTimes(
   statement.Run();
 
   return NextReportTimeAfterImpl(base::Time::Min());
+}
+
+std::set<url::Origin>
+AggregationServiceStorageSql::GetReportRequestReportingOrigins() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (!EnsureDatabaseOpen(DbCreationPolicy::kFailIfAbsent)) {
+    return {};
+  }
+
+  std::set<url::Origin> origins;
+  static constexpr char kSelectRequestReportingOrigins[] =
+      "SELECT reporting_origin FROM report_requests";
+  sql::Statement statement(
+      db_.GetCachedStatement(SQL_FROM_HERE, kSelectRequestReportingOrigins));
+
+  while (statement.Step()) {
+    url::Origin reporting_origin =
+        url::Origin::Create(GURL(statement.ColumnString(0)));
+    if (reporting_origin.opaque()) {
+      continue;
+    }
+    origins.insert(std::move(reporting_origin));
+  }
+
+  return origins;
 }
 
 void AggregationServiceStorageSql::ClearDataBetween(

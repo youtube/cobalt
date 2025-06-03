@@ -100,11 +100,6 @@ TEST_F(ArcVmmSwapSchedulerTest, SetSwapEnableDisable) {
   EXPECT_EQ(enable_count, 0);
   EXPECT_EQ(disable_count, 0);
 
-  // Default is disabled, not send signal.
-  scheduler->SetSwappable(false);
-  EXPECT_EQ(enable_count, 0);
-  EXPECT_EQ(disable_count, 0);
-
   // Enable vmm swap.
   scheduler->SetSwappable(true);
   EXPECT_EQ(enable_count, 1);
@@ -225,6 +220,7 @@ TEST_F(ArcVmmSwapSchedulerTest, ReceiveSignalAndSave) {
   EXPECT_EQ(GetSwapOutTime(), base::Time());
   vm_tools::concierge::VmSwappingSignal signal;
   signal.set_name("arcvm");
+  signal.set_state(vm_tools::concierge::SWAPPING_OUT);
   scheduler->OnVmSwapping(signal);
 
   EXPECT_NE(GetSwapOutTime(), base::Time());
@@ -253,13 +249,11 @@ TEST_F(ArcVmmSwapSchedulerTest, SetDisableVmStateWhenDurationReset) {
   base::RunLoop().RunUntilIdle();
   // Expect swap enabled.
   EXPECT_GT(swap_count, 0);
-  EXPECT_TRUE(scheduler->swappable());
 
   task_environment_.FastForwardBy(base::Minutes(10));
   // Set ARC activated.
   provider_raw->SetDuration(absl::nullopt);
   base::RunLoop().RunUntilIdle();
-  EXPECT_FALSE(scheduler->swappable());
 }
 
 }  // namespace arc

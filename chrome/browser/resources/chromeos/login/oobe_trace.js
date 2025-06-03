@@ -33,6 +33,7 @@ import {loadTimeData} from './i18n_setup.js';
 export const TraceEvent = {
   FIRST_INSTRUCTION: 'FIRST_INSTRUCTION',
   FIRST_LINE_AFTER_IMPORTS: 'FIRST_LINE_AFTER_IMPORTS',
+  PRIORITY_SCREENS_ADDED: 'PRIORITY_SCREENS_ADDED',
   COMMON_SCREENS_ADDED: 'COMMON_SCREENS_ADDED',
   REMAINING_SCREENS_ADDED: 'REMAINING_SCREENS_ADDED',
   DOM_CONTENT_LOADED: 'DOM_CONTENT_LOADED',
@@ -120,13 +121,15 @@ function maybeTraceLastOobeLottieInitialization() {
 // switch 'oobe-print-frontend-timings' is present. More details can be found in
 // go/oobe-frontend-trace-timings
 function maybePrintTraces() {
-  if (!loadTimeData.getBoolean('printFrontendTimings')) {
+  if (!loadTimeData.valueExists('printFrontendTimings') ||
+      !loadTimeData.getBoolean('printFrontendTimings')) {
     return;
   }
 
   const EventPrintOrder = [
     TraceEvent.FIRST_INSTRUCTION,
     TraceEvent.FIRST_LINE_AFTER_IMPORTS,
+    TraceEvent.PRIORITY_SCREENS_ADDED,
     TraceEvent.COMMON_SCREENS_ADDED,
     TraceEvent.REMAINING_SCREENS_ADDED,
     TraceEvent.DOM_CONTENT_LOADED,

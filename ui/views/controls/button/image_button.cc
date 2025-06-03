@@ -159,17 +159,12 @@ std::unique_ptr<ImageButton> ImageButton::CreateIconButton(
     PressedCallback callback,
     const gfx::VectorIcon& icon,
     const std::u16string& accessible_name,
-    MaterialIconStyle icon_style) {
-  const int kSmallIconSize = 14;
+    MaterialIconStyle icon_style,
+    absl::optional<gfx::Insets> insets) {
+  const int kSmallIconSize = 16;
   const int kLargeIconSize = 20;
   int icon_size = (icon_style == MaterialIconStyle::kLarge) ? kLargeIconSize
                                                             : kSmallIconSize;
-  // Icon images have padding between the image and image border. To account
-  // for that padding, add a general padding value. This value might be
-  // incorrect depending on the icon image.
-  icon_size +=
-      LayoutProvider::Get()->GetDistanceMetric(DISTANCE_VECTOR_ICON_PADDING);
-
   std::unique_ptr<ImageButton> icon_button =
       std::make_unique<ImageButton>(callback);
   icon_button->SetImageModel(
@@ -186,11 +181,13 @@ std::unique_ptr<ImageButton> ImageButton::CreateIconButton(
       ui::ImageModel::FromVectorIcon(icon, ui::kColorIconDisabled, icon_size));
 
   const gfx::Insets target_insets =
-      LayoutProvider::Get()->GetInsetsMetric(InsetsMetric::INSETS_ICON_BUTTON);
+      insets.has_value() ? insets.value()
+                         : LayoutProvider::Get()->GetInsetsMetric(
+                               InsetsMetric::INSETS_ICON_BUTTON);
   icon_button->SetBorder(views::CreateEmptyBorder(target_insets));
 
   const int kSmallIconButtonSize = 24;
-  const int kLargeIconButtonSize = 32;
+  const int kLargeIconButtonSize = 28;
   int button_size = (icon_style == MaterialIconStyle::kLarge)
                         ? kLargeIconButtonSize
                         : kSmallIconButtonSize;
@@ -211,6 +208,7 @@ std::unique_ptr<ImageButton> ImageButton::CreateIconButton(
           icon_button.get()));
 
   icon_button->SetAccessibleName(accessible_name);
+  icon_button->SetTooltipText(accessible_name);
 
   return icon_button;
 }

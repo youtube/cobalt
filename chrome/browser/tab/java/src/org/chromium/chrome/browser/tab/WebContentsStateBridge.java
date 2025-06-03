@@ -7,7 +7,8 @@ package org.chromium.chrome.browser.tab;
 import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 
-import org.chromium.base.annotations.NativeMethods;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.url.Origin;
 
@@ -47,8 +48,7 @@ public class WebContentsStateBridge {
     Only valid during this call frame.
      * @return WebContentsState A new state or null if nothing changed.
      */
-    @Nullable
-    public static WebContentsState deleteNavigationEntries(
+    public static @Nullable WebContentsState deleteNavigationEntries(
             WebContentsState webContentsState, long predicate) {
         ByteBuffer newBuffer = WebContentsStateBridgeJni.get().deleteNavigationEntries(
                 webContentsState.buffer(), webContentsState.version(), predicate);
@@ -95,7 +95,7 @@ public class WebContentsStateBridge {
     }
 
     @NativeMethods
-    @VisibleForTesting
+    @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
     public interface Natives {
         WebContents restoreContentsFromByteBuffer(ByteBuffer buffer, int savedStateVersion,
                 boolean initiallyHidden, boolean noRenderer);

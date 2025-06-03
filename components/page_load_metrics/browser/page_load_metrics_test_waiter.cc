@@ -52,10 +52,10 @@ class WaiterMetricsObserver final : public PageLoadMetricsObserver {
   void OnTimingUpdate(content::RenderFrameHost* subframe_rfh,
                       const mojom::PageLoadTiming& timing) override;
 
-  void OnSoftNavigationCountUpdated() override;
+  void OnSoftNavigationUpdated(
+      const mojom::SoftNavigationMetrics& soft_navigation_metrics) override;
 
-  void OnPageInputTimingUpdate(uint64_t num_interactions,
-                               uint64_t num_input_events) override;
+  void OnPageInputTimingUpdate(uint64_t num_interactions) override;
 
   void OnCpuTimingUpdate(content::RenderFrameHost* subframe_rfh,
                          const mojom::CpuTiming& timing) override;
@@ -131,9 +131,6 @@ std::string PageLoadMetricsTestWaiter::TimingFieldBitSet::ToDebugString()
 
   if (ContainsTimingField(TimingField::kLargestContentfulPaint))
     debug_string += "LargestContentfulPaint|";
-
-  if (ContainsTimingField(TimingField::kTotalInputDelay))
-    debug_string += "TotalInputDelay|";
 
   if (ContainsTimingField(TimingField::kFirstScrollDelay))
     debug_string += "FirstScrollDelay|";
@@ -246,11 +243,13 @@ void PageLoadMetricsTestWaiter::AddLoadingBehaviorExpectation(
 void PageLoadMetricsTestWaiter::
     AddMinimumLargestContentfulPaintImageExpectation(int expected_minimum) {
   expected_num_largest_contentful_paint_image_ = expected_minimum;
+  current_num_largest_contentful_paint_image_ = 0;
 }
 
 void PageLoadMetricsTestWaiter::AddMinimumLargestContentfulPaintTextExpectation(
     int expected_minimum) {
   expected_num_largest_contentful_paint_text_ = expected_minimum;
+  current_num_largest_contentful_paint_text_ = 0;
 }
 
 void PageLoadMetricsTestWaiter::AddLargestContentfulPaintGreaterThanExpectation(
@@ -264,6 +263,11 @@ void PageLoadMetricsTestWaiter::AddPageLayoutShiftExpectation(
   expected_.num_layout_shifts_ = num_layout_shifts;
   shift_frame_ = shift_frame;
   observed_.num_layout_shifts_ = 0;
+}
+
+void PageLoadMetricsTestWaiter::AddSoftNavigationCountExpectation(
+    int expected_count) {
+  expected_soft_navigation_count_ = expected_count;
 }
 
 bool PageLoadMetricsTestWaiter::DidObserveInPage(TimingField field) const {
@@ -319,21 +323,52 @@ void PageLoadMetricsTestWaiter::OnTimingUpdated(
     run_loop_->Quit();
 }
 
-void PageLoadMetricsTestWaiter::OnSoftNavigationCountUpdated() {
+void PageLoadMetricsTestWaiter::OnSoftNavigationMetricsUpdated(
+    const page_load_metrics::mojom::SoftNavigationMetrics&
+        new_soft_navigation_metrics) {
   soft_navigation_count_updated_ = true;
+  // Increment soft navigation count.
+  if (new_soft_navigation_metrics.count > current_soft_navigation_count_) {
+    current_soft_navigation_count_ = new_soft_navigation_metrics.count;
+  }
+
+  // Increment image lcp update counts.
+  if (!new_soft_navigation_metrics.largest_contentful_paint.is_null()) {
+    if (new_soft_navigation_metrics.largest_contentful_paint
+            ->largest_image_paint.has_value() &&
+        new_soft_navigation_metrics.largest_contentful_paint
+            ->largest_image_paint->is_positive() &&
+        new_soft_navigation_metrics.largest_contentful_paint
+                ->largest_image_paint->InMillisecondsF() !=
+            observed_soft_navigation_image_lcp_) {
+      observed_soft_navigation_image_lcp_update_++;
+      observed_soft_navigation_image_lcp_ =
+          new_soft_navigation_metrics.largest_contentful_paint
+              ->largest_image_paint->InMillisecondsF();
+    }
+  }
+
+  // Increment text lcp update counts.
+  if (!new_soft_navigation_metrics.largest_contentful_paint.is_null()) {
+    if (new_soft_navigation_metrics.largest_contentful_paint->largest_text_paint
+            .has_value() &&
+        new_soft_navigation_metrics.largest_contentful_paint->largest_text_paint
+            ->is_positive() &&
+        new_soft_navigation_metrics.largest_contentful_paint->largest_text_paint
+                ->InMillisecondsF() != observed_soft_navigation_text_lcp_) {
+      observed_soft_navigation_text_lcp_update_++;
+      observed_soft_navigation_text_lcp_ =
+          new_soft_navigation_metrics.largest_contentful_paint
+              ->largest_text_paint->InMillisecondsF();
+    }
+  }
 }
 
 void PageLoadMetricsTestWaiter::OnPageInputTimingUpdated(
-    uint64_t num_interactions,
-    uint64_t num_input_events) {
+    uint64_t num_interactions) {
   // The number of user interactions, including click, tap and key press in this
   // update.
   current_num_interactions_ += num_interactions;
-  // The total number of input events including click, tap, key press,
-  // cancellable touchstart, or pointer down followed by a pointer up...
-  current_num_input_events_ = num_input_events;
-  if (num_input_events)
-    observed_.page_fields_.Set(TimingField::kTotalInputDelay);
   if (ExpectationsSatisfied() && run_loop_)
     run_loop_->Quit();
 }
@@ -677,13 +712,6 @@ bool PageLoadMetricsTestWaiter::MemoryUpdateExpectationsSatisfied() const {
   return IsSubset(expected_.memory_update_frame_ids_,
                   observed_.memory_update_frame_ids_);
 }
-
-bool PageLoadMetricsTestWaiter::TotalInputDelayExpectationsSatisfied() const {
-  if (!expected_.page_fields_.IsSet(TimingField::kTotalInputDelay))
-    return true;
-  return current_num_input_events_ == expected_num_input_events_;
-}
-
 bool PageLoadMetricsTestWaiter::LayoutShiftExpectationsSatisfied() const {
   return expected_.num_layout_shifts_ <= observed_.num_layout_shifts_;
 }
@@ -691,7 +719,7 @@ bool PageLoadMetricsTestWaiter::LayoutShiftExpectationsSatisfied() const {
 bool PageLoadMetricsTestWaiter::NumInteractionsExpectationsSatisfied() const {
   if (expected_num_interactions_ == 0)
     return true;
-  return current_num_interactions_ == expected_num_interactions_;
+  return current_num_interactions_ >= expected_num_interactions_;
 }
 
 bool PageLoadMetricsTestWaiter::NumLargestContentfulPaintImageSatisfied()
@@ -711,6 +739,35 @@ bool PageLoadMetricsTestWaiter::
          expected_min_largest_contentful_paint_;
 }
 
+bool PageLoadMetricsTestWaiter::SoftNavigationCountExpectationSatisfied()
+    const {
+  return current_soft_navigation_count_ >= expected_soft_navigation_count_;
+}
+
+void PageLoadMetricsTestWaiter::AddSoftNavigationImageLCPExpectation(
+    int expected_soft_navigation_image_lcp_update) {
+  expected_soft_navigation_image_lcp_update_ =
+      expected_soft_navigation_image_lcp_update;
+}
+
+void PageLoadMetricsTestWaiter::AddSoftNavigationTextLCPExpectation(
+    int expected_soft_navigation_text_lcp_update) {
+  expected_soft_navigation_text_lcp_update_ =
+      expected_soft_navigation_text_lcp_update;
+}
+
+bool PageLoadMetricsTestWaiter::SoftNavigationImageLCPExpectationSatisfied()
+    const {
+  return observed_soft_navigation_image_lcp_update_ >=
+         expected_soft_navigation_image_lcp_update_;
+}
+
+bool PageLoadMetricsTestWaiter::SoftNavigationTextLCPExpectationSatisfied()
+    const {
+  return observed_soft_navigation_text_lcp_update_ >=
+         expected_soft_navigation_text_lcp_update_;
+}
+
 bool PageLoadMetricsTestWaiter::ExpectationsSatisfied() const {
   return expected_.page_fields_.AreAllSetIn(observed_.page_fields_) &&
          expected_.subframe_fields_.AreAllSetIn(observed_.subframe_fields_) &&
@@ -725,12 +782,14 @@ bool PageLoadMetricsTestWaiter::ExpectationsSatisfied() const {
          MainFrameViewportRectExpectationsSatisfied() &&
          MainFrameImageAdRectsExpectationsSatisfied() &&
          MemoryUpdateExpectationsSatisfied() &&
-         TotalInputDelayExpectationsSatisfied() &&
          LayoutShiftExpectationsSatisfied() &&
          NumInteractionsExpectationsSatisfied() &&
          NumLargestContentfulPaintImageSatisfied() &&
          NumLargestContentfulPaintTextSatisfied() &&
-         LargestContentfulPaintGreaterThanExpectationSatisfied();
+         LargestContentfulPaintGreaterThanExpectationSatisfied() &&
+         SoftNavigationCountExpectationSatisfied() &&
+         SoftNavigationImageLCPExpectationSatisfied() &&
+         SoftNavigationTextLCPExpectationSatisfied();
 }
 
 void PageLoadMetricsTestWaiter::AssertExpectationsSatisfied() const {
@@ -747,7 +806,6 @@ void PageLoadMetricsTestWaiter::AssertExpectationsSatisfied() const {
   EXPECT_TRUE(MainFrameIntersectionExpectationsSatisfied());
   EXPECT_TRUE(MainFrameViewportRectExpectationsSatisfied());
   EXPECT_TRUE(MemoryUpdateExpectationsSatisfied());
-  EXPECT_TRUE(TotalInputDelayExpectationsSatisfied());
 }
 
 void PageLoadMetricsTestWaiter::ResetExpectations() {
@@ -785,15 +843,16 @@ void WaiterMetricsObserver::OnTimingUpdate(
     waiter_->OnTimingUpdated(subframe_rfh, timing);
 }
 
-void WaiterMetricsObserver::OnSoftNavigationCountUpdated() {
-  if (waiter_)
-    waiter_->OnSoftNavigationCountUpdated();
+void WaiterMetricsObserver::OnSoftNavigationUpdated(
+    const mojom::SoftNavigationMetrics& soft_navigation_metrics) {
+  if (waiter_) {
+    waiter_->OnSoftNavigationMetricsUpdated(soft_navigation_metrics);
+  }
 }
 
-void WaiterMetricsObserver::OnPageInputTimingUpdate(uint64_t num_interactions,
-                                                    uint64_t num_input_events) {
+void WaiterMetricsObserver::OnPageInputTimingUpdate(uint64_t num_interactions) {
   if (waiter_)
-    waiter_->OnPageInputTimingUpdated(num_interactions, num_input_events);
+    waiter_->OnPageInputTimingUpdated(num_interactions);
 }
 
 void WaiterMetricsObserver::OnCpuTimingUpdate(

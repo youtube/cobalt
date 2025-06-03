@@ -19,14 +19,17 @@
 #include "base/containers/checked_iterators.h"
 #include "base/containers/contiguous_iterator.h"
 #include "base/cxx20_to_address.h"
-#include "base/numerics/safe_math.h"
+#include "base/numerics/safe_conversions.h"
+#include "base/template_util.h"
 
 namespace base {
 
 // [views.constants]
 constexpr size_t dynamic_extent = std::numeric_limits<size_t>::max();
 
-template <typename T, size_t Extent = dynamic_extent>
+template <typename T,
+          size_t Extent = dynamic_extent,
+          typename InternalPtrType = T*>
 class span;
 
 namespace internal {
@@ -79,8 +82,8 @@ using IteratorHasConvertibleReferenceType =
 
 template <typename Iter, typename T>
 using EnableIfCompatibleContiguousIterator = std::enable_if_t<
-    std::conjunction<IsContiguousIterator<Iter>,
-                     IteratorHasConvertibleReferenceType<Iter, T>>::value>;
+    std::conjunction_v<IsContiguousIterator<Iter>,
+                       IteratorHasConvertibleReferenceType<Iter, T>>>;
 
 template <typename Container, typename T>
 using ContainerHasConvertibleData = IsLegalDataConversion<
@@ -161,8 +164,8 @@ constexpr size_t must_not_be_dynamic_extent() {
 // own the underlying memory, so care must be taken to ensure that a span does
 // not outlive the backing store.
 //
-// span is somewhat analogous to StringPiece, but with arbitrary element types,
-// allowing mutation if T is non-const.
+// span is somewhat analogous to std::string_view, but with arbitrary element
+// types, allowing mutation if T is non-const.
 //
 // span is implicitly convertible from C++ arrays, as well as most [1]
 // container-like types that provide a data() and size() method (such as
@@ -232,7 +235,7 @@ constexpr size_t must_not_be_dynamic_extent() {
 // appropriate make_span() utility functions are provided.
 
 // [span], class template span
-template <typename T, size_t Extent>
+template <typename T, size_t Extent, typename InternalPtrType>
 class GSL_POINTER span : public internal::ExtentStorage<Extent> {
  private:
   using ExtentStorage = internal::ExtentStorage<Extent>;
@@ -247,9 +250,6 @@ class GSL_POINTER span : public internal::ExtentStorage<Extent> {
   using reference = T&;
   using const_reference = const T&;
   using iterator = CheckedContiguousIterator<T>;
-  // TODO(https://crbug.com/828324): Drop the const_iterator typedef once gMock
-  // supports containers without this nested type.
-  using const_iterator = iterator;
   using reverse_iterator = std::reverse_iterator<iterator>;
   static constexpr size_t extent = Extent;
 
@@ -285,11 +285,10 @@ class GSL_POINTER span : public internal::ExtentStorage<Extent> {
     CHECK(Extent == dynamic_extent || Extent == count);
   }
 
-  template <
-      typename It,
-      typename End,
-      typename = internal::EnableIfCompatibleContiguousIterator<It, T>,
-      typename = std::enable_if_t<!std::is_convertible<End, size_t>::value>>
+  template <typename It,
+            typename End,
+            typename = internal::EnableIfCompatibleContiguousIterator<It, T>,
+            typename = std::enable_if_t<!std::is_convertible_v<End, size_t>>>
   constexpr span(It begin, End end) noexcept
       // Subtracting two iterators gives a ptrdiff_t, but the result should be
       // non-negative: see CHECK below.
@@ -436,11 +435,11 @@ class GSL_POINTER span : public internal::ExtentStorage<Extent> {
 
   // [span.iter], span iterator support
   constexpr iterator begin() const noexcept {
-    return iterator(data_, data_ + size());
+    return iterator(data(), data() + size());
   }
 
   constexpr iterator end() const noexcept {
-    return iterator(data_, data_ + size(), data_ + size());
+    return iterator(data(), data() + size(), data() + size());
   }
 
   constexpr reverse_iterator rbegin() const noexcept {
@@ -452,13 +451,40 @@ class GSL_POINTER span : public internal::ExtentStorage<Extent> {
   }
 
  private:
-  T* data_;
+  // This field is not a raw_ptr<> because it was filtered by the rewriter
+  // for: #constexpr-ctor-field-initializer, #global-scope, #union
+  InternalPtrType data_;
 };
 
 // span<T, Extent>::extent can not be declared inline prior to C++17, hence this
 // definition is required.
-template <class T, size_t Extent>
-constexpr size_t span<T, Extent>::extent;
+template <class T, size_t Extent, typename InternalPtrType>
+constexpr size_t span<T, Extent, InternalPtrType>::extent;
+
+template <typename It,
+          typename T = std::remove_reference_t<iter_reference_t<It>>>
+span(It, StrictNumeric<size_t>) -> span<T>;
+
+template <typename It,
+          typename End,
+          typename = std::enable_if_t<!std::is_convertible_v<End, size_t>>,
+          typename T = std::remove_reference_t<iter_reference_t<It>>>
+span(It, End) -> span<T>;
+
+template <typename T, size_t N>
+span(T (&)[N]) -> span<T, N>;
+
+template <typename T, size_t N>
+span(std::array<T, N>&) -> span<T, N>;
+
+template <typename T, size_t N>
+span(const std::array<T, N>&) -> span<const T, N>;
+
+template <typename Container,
+          typename T = std::remove_pointer_t<
+              decltype(std::data(std::declval<Container>()))>,
+          size_t X = internal::Extent<Container>::value>
+span(Container&&) -> span<T, X>;
 
 // [span.objectrep], views of object representation
 template <typename T, size_t X>
@@ -469,7 +495,7 @@ as_bytes(span<T, X> s) noexcept {
 
 template <typename T,
           size_t X,
-          typename = std::enable_if_t<!std::is_const<T>::value>>
+          typename = std::enable_if_t<!std::is_const_v<T>>>
 span<uint8_t, (X == dynamic_extent ? dynamic_extent : sizeof(T) * X)>
 as_writable_bytes(span<T, X> s) noexcept {
   return {reinterpret_cast<uint8_t*>(s.data()), s.size_bytes()};

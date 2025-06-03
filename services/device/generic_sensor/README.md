@@ -68,13 +68,26 @@ The `//services` side also includes a few other directories:
     *   [SensorProvider](/services/device/public/mojom/sensor_provider.mojom) is
         a “factory-like” interface that provides data about the sensors present
         on the device and their capabilities (reporting mode, maximum sampling
-        frequency), and allows users to request a specific sensor.
+        frequency), and allows users to request a specific sensor. Note that
+        Blink calls go through
+        [WebSensorProvider](/third_party/blink/public/mojom/sensor/web_sensor_provider.mojom)
+        first.
     *   [Sensor](/services/device/public/mojom/sensor.mojom) is an interface
         wrapping a concrete device sensor.
     *   [SensorClient](/services/device/public/mojom/sensor.mojom) is
         implemented by Blink (and other consumers) to be notified about errors
         occurred on platform side and about sensor reading updates for sensors
         with ‘onchange’ reporting mode.
+
+The Blink implementation also contains the following directories:
+
+*   `third_party/blink/public/mojom/sensor` contains the Mojo interfaces that
+    are exposed to Blink users.
+    *   [WebSensorProvider](/third_party/blink/public/mojom/sensor/web_sensor_provider.mojom)
+        provides an API that is a subset of what `SensorProvider` exposes. This
+        allows the latter to offer privileged methods that should not be
+        visible or accessible by Blink. The translation between the two Mojo
+        interfaces happens in `//content`.
 
 Actual sensor data is not passed to consumers (such as Blink) via Mojo
 calls \- a shared memory buffer is used instead, thus we avoid filling up the
@@ -179,9 +192,7 @@ and incognito windows.
     create and track `PlatformSensor` instances. `PlatformSensorProvider` is
     also responsible for creating a shared buffer for sensor readings. Every
     platform has its own implementation of `PlatformSensorProvider`
-    (`PlatformSensorProviderAndroid`, `PlatformSensorProviderWin` etc), and the
-    generic part of the functionality is encapsulated inside the
-    `PlatformSensorProviderBase` class.
+    (`PlatformSensorProviderAndroid`, `PlatformSensorProviderWin` etc).
 
 *   `PlatformSensor`: represents device sensor of a given type. There can be
     only one `PlatformSensor` instance of the same type at a time, its ownership
@@ -364,7 +375,7 @@ API](https://w3c.github.io/permissions/) are performed before a sensor is
 started.
 
 In Chromium, the permission checks are done in the `//content/browser` side:
-`SensorProviderProxyImpl::GetSensor()` invokes
+`WebContentsSensorProviderProxy::GetSensor()` invokes
 `PermissionController::RequestPermissionFromCurrentDocument()` and only
 connects to the `//services` side if permission has been granted.
 
@@ -396,7 +407,7 @@ Blink performs checks in
 [`Sensor::Sensor()`](/third_party/blink/renderer/modules/sensor/sensor.cc) by
 calling `AreFeaturesEnabled()`, while the `content/` side also performs checks
 in
-[`SensorProviderProxyImpl::CheckFeaturePolicies()`](/content/browser/generic_sensor/sensor_provider_proxy_impl.cc).
+[`FrameSensorProviderProxy`](/content/browser/generic_sensor/frame_sensor_provider_proxy.cc).
 
 #### Reporting values to consumer
 
@@ -506,20 +517,20 @@ between Blink calls `SensorProviderProxy::GetSensor()` works roughly like this:
 1.  `SensorProviderProxy::GetSensor()` calls the `GetSensor()` operation in the
     Sensor Mojo interface.
 1.  That is implemented by `SensorProviderImpl::GetSensor()`. It invokes
-    `PlatformSensorProviderBase::CloneSharedMemoryRegion()`.
-    1.  `PlatformSensorProviderBase::CloneSharedMemoryRegion()` initializes the
+    `PlatformSensorProvider::CloneSharedMemoryRegion()`.
+    1.  `PlatformSensorProvider::CloneSharedMemoryRegion()` initializes the
         shared buffer and the mapping if necessary in
-        `PlatformSensorProviderBase::CreateSharedBufferIfNeeded()`.
-    1.  `PlatformSensorProviderBase::CloneSharedMemoryRegion()` returns a
+        `PlatformSensorProvider::CreateSharedBufferIfNeeded()`.
+    1.  `PlatformSensorProvider::CloneSharedMemoryRegion()` returns a
         read-only mapping handle.
 1.  If the platform sensor still needs to be created,
     `SensorProviderImpl::GetSensor()` will invoke
-    `PlatformSensorProviderBase::CreateSensor()`, which invokes
-    `PlatformSensorProviderBase::GetSensorReadingSharedBufferForType()`. The
+    `PlatformSensorProvider::CreateSensor()`, which invokes
+    `PlatformSensorProvider::GetSensorReadingSharedBufferForType()`. The
     `SensorReadingSharedBuffer` pointer returned by this function is later
     passed to `PlatformSensor` and its subclasses, which update it when the
     readings change.
-1.  Ultimately, `PlatformSensorProviderBase::SensorCreated()` is called, and the
+1.  Ultimately, `PlatformSensorProvider::SensorCreated()` is called, and the
     read-only shared buffer handle and the offset in it corresponding to the
     sensor type being created are passed in `mojom::SensorInitParams`.
 1.  On the Blink side, `SensorProxyImpl::OnSensorCreated()` is invoked with the

@@ -365,11 +365,6 @@ void HTMLVideoElement::RequestEnterPictureInPicture() {
       .EnterPictureInPicture(this, /*promise=*/nullptr);
 }
 
-void HTMLVideoElement::RequestExitPictureInPicture() {
-  PictureInPictureController::From(GetDocument())
-      .ExitPictureInPicture(this, nullptr);
-}
-
 void HTMLVideoElement::RequestMediaRemoting() {
   GetWebMediaPlayer()->RequestMediaRemoting();
 }
@@ -395,6 +390,13 @@ void HTMLVideoElement::PaintCurrentFrame(cc::PaintCanvas* canvas,
 bool HTMLVideoElement::HasAvailableVideoFrame() const {
   if (auto* wmp = GetWebMediaPlayer())
     return wmp->HasAvailableVideoFrame();
+  return false;
+}
+
+bool HTMLVideoElement::HasReadableVideoFrame() const {
+  if (auto* wmp = GetWebMediaPlayer()) {
+    return wmp->HasReadableVideoFrame();
+  }
   return false;
 }
 
@@ -554,7 +556,7 @@ scoped_refptr<StaticBitmapImage> HTMLVideoElement::CreateStaticBitmapImage(
 }
 
 scoped_refptr<Image> HTMLVideoElement::GetSourceImageForCanvas(
-    CanvasResourceProvider::FlushReason,
+    FlushReason,
     SourceImageStatus* status,
     const gfx::SizeF&,
     const AlphaDisposition alpha_disposition) {
@@ -786,7 +788,9 @@ void HTMLVideoElement::AttributeChanged(
 }
 
 void HTMLVideoElement::OnRequestVideoFrameCallback() {
-  VideoFrameCallbackRequester::From(*this)->OnRequestVideoFrameCallback();
+  if (auto* vfc_requester = VideoFrameCallbackRequester::From(*this)) {
+    vfc_requester->OnRequestVideoFrameCallback();
+  }
 }
 
 }  // namespace blink

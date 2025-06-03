@@ -28,11 +28,12 @@
 
 namespace blink {
 
-// Tests that MixedContentChecker::isMixedContent correctly detects or ignores
-// many cases where there is or there is not mixed content, respectively.
+// Tests that `blink::MixedContentChecker::IsMixedContent` correctly detects or
+// ignores many cases where there is or there is not mixed content respectively.
 // Note: Renderer side version of
-// MixedContentNavigationThrottleTest.IsMixedContent. Must be kept in sync
-// manually!
+// `content::MixedContentCheckerTest::IsMixedContent`.
+// Must be kept in sync manually!
+// LINT.IfChange
 TEST(MixedContentCheckerTest, IsMixedContent) {
   struct TestCase {
     const char* origin;
@@ -77,6 +78,7 @@ TEST(MixedContentCheckerTest, IsMixedContent) {
                                     security_origin.get(), target_url));
   }
 }
+// LINT.ThenChange(content/browser/renderer_host/mixed_content_checker_unittest.cc)
 
 TEST(MixedContentCheckerTest, ContextTypeForInspector) {
   auto dummy_page_holder = std::make_unique<DummyPageHolder>(gfx::Size(1, 1));
@@ -212,23 +214,21 @@ TEST(MixedContentCheckerTest, DetectMixedFavicon) {
   EXPECT_TRUE(MixedContentChecker::ShouldBlockFetch(
       &dummy_page_holder->GetFrame(), mojom::blink::RequestContextType::FAVICON,
       network::mojom::blink::IPAddressSpace::kPublic, http_favicon_url,
-      ResourceRequest::RedirectStatus::kNoRedirect, http_favicon_url,
-      absl::optional<String>(), ReportingDisposition::kSuppressReporting,
-      *notifier_remote));
+      ResourceRequest::RedirectStatus::kNoRedirect, http_favicon_url, String(),
+      ReportingDisposition::kSuppressReporting, *notifier_remote));
 
   // Test that a secure favicon is not blocked.
   EXPECT_FALSE(MixedContentChecker::ShouldBlockFetch(
       &dummy_page_holder->GetFrame(), mojom::blink::RequestContextType::FAVICON,
       network::mojom::blink::IPAddressSpace::kPublic, https_favicon_url,
-      ResourceRequest::RedirectStatus::kNoRedirect, https_favicon_url,
-      absl::optional<String>(), ReportingDisposition::kSuppressReporting,
-      *notifier_remote));
+      ResourceRequest::RedirectStatus::kNoRedirect, https_favicon_url, String(),
+      ReportingDisposition::kSuppressReporting, *notifier_remote));
 
   EXPECT_TRUE(MixedContentChecker::ShouldBlockFetch(
       &dummy_page_holder->GetFrame(), mojom::blink::RequestContextType::FAVICON,
       network::mojom::blink::IPAddressSpace::kPublic,
       http_ip_address_favicon_url, ResourceRequest::RedirectStatus::kNoRedirect,
-      http_ip_address_favicon_url, absl::optional<String>(),
+      http_ip_address_favicon_url, String(),
       ReportingDisposition::kSuppressReporting, *notifier_remote));
 
   EXPECT_FALSE(MixedContentChecker::ShouldBlockFetch(
@@ -236,7 +236,7 @@ TEST(MixedContentCheckerTest, DetectMixedFavicon) {
       network::mojom::blink::IPAddressSpace::kPublic,
       http_local_ip_address_favicon_url,
       ResourceRequest::RedirectStatus::kNoRedirect,
-      http_local_ip_address_favicon_url, absl::optional<String>(),
+      http_local_ip_address_favicon_url, String(),
       ReportingDisposition::kSuppressReporting, *notifier_remote));
 }
 
@@ -263,8 +263,7 @@ TEST(MixedContentCheckerTest, DetectUpgradeableMixedContent) {
       &dummy_page_holder->GetFrame(), mojom::blink::RequestContextType::AUDIO,
       network::mojom::blink::IPAddressSpace::kPublic, http_ip_address_audio_url,
       ResourceRequest::RedirectStatus::kNoRedirect, http_ip_address_audio_url,
-      absl::optional<String>(), ReportingDisposition::kSuppressReporting,
-      *notifier_remote);
+      String(), ReportingDisposition::kSuppressReporting, *notifier_remote);
 
 #if BUILDFLAG(IS_FUCHSIA) && BUILDFLAG(ENABLE_CAST_RECEIVER)
   // Mixed Content from an insecure IP address is not blocked for Fuchsia Cast

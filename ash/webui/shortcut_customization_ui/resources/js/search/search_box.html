@@ -35,6 +35,10 @@
     padding-bottom: var(--separator-height);
   }
 
+  :host-context(body.jelly-enabled) {
+    --cros-toolbar-search-bg-color: var(--cros-sys-input_field_on_shaded);
+  }
+
   :host-context(body:not(.jelly-enabled)) cr-toolbar-search-field {
     --cr-toolbar-search-field-input-icon-color:
         var(--cros-icon-color-primary);
@@ -74,10 +78,16 @@
   }
 
   #noSearchResultsContainer {
+    align-items: center;
     color: var(--cros-text-color-secondary);
-    height: 32px;
-    line-height: 32px;
+    display: flex;
+    height: 24px;
     margin-inline-start: 24px;
+    margin-top: 6px;
+  }
+
+  #noSearchResultsContainer[hidden] {
+    display: none;
   }
 
   /* The separator covers the top box shadow of the dropdown so that
@@ -136,4 +146,3 @@
     </div>
   </div>
 </iron-dropdown>
-

@@ -23,7 +23,7 @@ namespace ash {
 // A round button with arrow icon in the middle.
 // This will be used by LoginPublicAccountUserView and expanded public account
 // view.
-class ArrowButtonView : public LoginButton {
+class ASH_EXPORT ArrowButtonView : public LoginButton {
  public:
   METADATA_HEADER(ArrowButtonView);
 
@@ -48,9 +48,7 @@ class ArrowButtonView : public LoginButton {
   // the animation is looped.
   void EnableLoadingAnimation(bool enabled);
 
-  void SetBackgroundColorId(ui::ColorId color_id) {
-    background_color_id_ = color_id;
-  }
+  void SetBackgroundColorId(ui::ColorId color_id);
 
  private:
   // Helper class that translates events from the loading animation events into
@@ -72,7 +70,6 @@ class ArrowButtonView : public LoginButton {
 
   LoadingAnimationDelegate loading_animation_delegate_{this};
   std::unique_ptr<gfx::MultiAnimation> loading_animation_;
-  absl::optional<ui::ColorId> background_color_id_;
 };
 
 }  // namespace ash

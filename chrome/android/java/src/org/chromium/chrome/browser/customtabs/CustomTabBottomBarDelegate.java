@@ -21,13 +21,13 @@ import android.widget.LinearLayout;
 import android.widget.RemoteViews;
 
 import androidx.annotation.Nullable;
-import androidx.annotation.VisibleForTesting;
 import androidx.browser.customtabs.CustomTabsIntent;
 
 import org.chromium.base.ApiCompatibilityUtils;
 import org.chromium.base.Callback;
 import org.chromium.base.Log;
 import org.chromium.base.metrics.RecordUserAction;
+import org.chromium.base.supplier.Supplier;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsSizer;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider;
@@ -45,7 +45,7 @@ import org.chromium.components.browser_ui.widget.gesture.SwipeGestureListener;
 import org.chromium.components.browser_ui.widget.gesture.SwipeGestureListener.ScrollDirection;
 import org.chromium.ui.base.ViewportInsets;
 import org.chromium.ui.base.WindowAndroid;
-import org.chromium.ui.interpolators.BakedBezierInterpolator;
+import org.chromium.ui.interpolators.Interpolators;
 
 import java.util.List;
 
@@ -64,7 +64,7 @@ public class CustomTabBottomBarDelegate
     private final WindowAndroid mWindowAndroid;
     private final BrowserControlsSizer mBrowserControlsSizer;
     private final BrowserServicesIntentDataProvider mDataProvider;
-    private final CustomTabActivityTabProvider mTabProvider;
+    private final Supplier<Tab> mTabProvider;
     private final CustomTabNightModeStateController mNightModeStateController;
     private final SystemNightModeMonitor mSystemNightModeMonitor;
 
@@ -108,7 +108,7 @@ public class CustomTabBottomBarDelegate
         mBrowserControlsSizer = browserControlsSizer;
         mNightModeStateController = nightModeStateController;
         mSystemNightModeMonitor = systemNightModeMonitor;
-        mTabProvider = tabProvider;
+        mTabProvider = () -> tabProvider.getTab();
         browserControlsSizer.addObserver(this);
 
         compositorContentInitializer.addCallback(this::addOverlayPanelManagerObserver);
@@ -248,7 +248,7 @@ public class CustomTabBottomBarDelegate
             return 0;
         }
         if (mBottomBarHeightOverride != -1) return mBottomBarHeightOverride;
-        return mBottomBarView.getChildAt(1).getHeight();
+        return mBottomBarView.getHeight();
     }
 
     /**
@@ -281,7 +281,7 @@ public class CustomTabBottomBarDelegate
                 if (mBottomBarView == null) return;
                 mBottomBarView.animate()
                         .alpha(0)
-                        .setInterpolator(BakedBezierInterpolator.TRANSFORM_CURVE)
+                        .setInterpolator(Interpolators.FAST_OUT_SLOW_IN_INTERPOLATOR)
                         .setDuration(SLIDE_ANIMATION_DURATION_MS)
                         .withEndAction(() -> mBottomBarView.setVisibility(View.GONE))
                         .start();
@@ -292,7 +292,7 @@ public class CustomTabBottomBarDelegate
                 mBottomBarView.setVisibility(View.VISIBLE);
                 mBottomBarView.animate()
                         .alpha(1)
-                        .setInterpolator(BakedBezierInterpolator.TRANSFORM_CURVE)
+                        .setInterpolator(Interpolators.FAST_OUT_SLOW_IN_INTERPOLATOR)
                         .setDuration(SLIDE_ANIMATION_DURATION_MS)
                         .start();
             }
@@ -306,8 +306,10 @@ public class CustomTabBottomBarDelegate
     private void hideBottomBar() {
         if (mBottomBarView == null) return;
         stopListeningForSwipeUpGestures();
-        mBottomBarView.animate().alpha(0f).translationY(mBottomBarView.getHeight())
-                .setInterpolator(BakedBezierInterpolator.TRANSFORM_CURVE)
+        mBottomBarView.animate()
+                .alpha(0f)
+                .translationY(mBottomBarView.getHeight())
+                .setInterpolator(Interpolators.FAST_OUT_SLOW_IN_INTERPOLATOR)
                 .setDuration(SLIDE_ANIMATION_DURATION_MS)
                 .withEndAction(new Runnable() {
                     @Override
@@ -315,7 +317,8 @@ public class CustomTabBottomBarDelegate
                         ((ViewGroup) mBottomBarView.getParent()).removeView(mBottomBarView);
                         mBottomBarView = null;
                     }
-                }).start();
+                })
+                .start();
         mBrowserControlsSizer.setBottomControlsHeight(0, 0);
     }
 
@@ -324,8 +327,7 @@ public class CustomTabBottomBarDelegate
         // as it is unique across all tags.
         view.setTag(R.id.view_id_tag_key, view.getId());
         view.setId(View.NO_ID);
-        if (view instanceof ViewGroup) {
-            final ViewGroup group = (ViewGroup) view;
+        if (view instanceof ViewGroup group) {
             final int childCount = group.getChildCount();
             for (int i = 0; i < childCount; i++) {
                 final View child = group.getChildAt(i);
@@ -366,9 +368,9 @@ public class CustomTabBottomBarDelegate
     }
 
     private static void sendPendingIntentWithUrl(PendingIntent pendingIntent, Intent extraIntent,
-            Activity activity, CustomTabActivityTabProvider tabProvider) {
+            Activity activity, Supplier<Tab> tabProvider) {
         Intent addedIntent = extraIntent == null ? new Intent() : new Intent(extraIntent);
-        Tab tab = tabProvider.getTab();
+        Tab tab = tabProvider.get();
         if (tab != null) addedIntent.setData(Uri.parse(tab.getUrl().getSpec()));
         try {
             ActivityOptions options = ActivityOptions.makeBasic();
@@ -465,7 +467,8 @@ public class CustomTabBottomBarDelegate
     @Override
     public void onSwipeStarted(@ScrollDirection int direction, MotionEvent ev) {
         if (mSwipeUpPendingIntent == null) return;
-        sendPendingIntentWithUrl(mSwipeUpPendingIntent, null, mActivity, mTabProvider);
+        // Do not send URL for swipe action.
+        sendPendingIntentWithUrl(mSwipeUpPendingIntent, null, mActivity, () -> null);
     }
 
     @Override
@@ -474,7 +477,6 @@ public class CustomTabBottomBarDelegate
                 && getBottomBarView().getVisibility() == View.VISIBLE;
     }
 
-    @VisibleForTesting
     void setBottomBarViewForTesting(CustomTabBottomBarView bottomBarView) {
         mBottomBarView = bottomBarView;
     }

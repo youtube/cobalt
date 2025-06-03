@@ -21,6 +21,11 @@
 #include "chrome/test/base/in_process_browser_test.h"
 #include "content/public/test/browser_test.h"
 
+#if BUILDFLAG(IS_CHROMEOS_ASH)
+#include "chrome/browser/profiles/profile_manager.h"
+#include "chrome/browser/ui/browser_commands.h"
+#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+
 using web_app::test::CrosapiParam;
 using web_app::test::WithCrosapiParam;
 
@@ -29,8 +34,9 @@ namespace web_app {
 class PreinstalledWebAppsBrowserTest : public WebAppControllerBrowserTest,
                                        public WithCrosapiParam {
  public:
-  PreinstalledWebAppsBrowserTest() {
-    PreinstalledWebAppManager::SkipStartupForTesting();
+  PreinstalledWebAppsBrowserTest()
+      : skip_preinstalled_web_app_startup_(
+            PreinstalledWebAppManager::SkipStartupForTesting()) {
     // Ignore any default app configs on disk.
     SetPreinstalledWebAppConfigDirForTesting(&empty_path_);
     WebAppProvider::SetOsIntegrationManagerFactoryForTesting(
@@ -52,7 +58,22 @@ class PreinstalledWebAppsBrowserTest : public WebAppControllerBrowserTest,
     command_line->RemoveSwitch(switches::kDisableDefaultApps);
   }
 
+#if BUILDFLAG(IS_CHROMEOS_ASH)
+  void SetUpOnMainThread() override {
+    if (browser() == nullptr) {
+      // Create a new Ash browser window so test code using browser() can work
+      // even when Lacros is the only browser.
+      // TODO(crbug.com/1450158): Remove uses of browser() from such tests.
+      chrome::NewEmptyWindow(ProfileManager::GetActiveUserProfile());
+      SelectFirstBrowser();
+    }
+    WebAppControllerBrowserTest::SetUpOnMainThread();
+    VerifyLacrosStatus();
+  }
+#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+
   base::FilePath empty_path_;
+  base::AutoReset<bool> skip_preinstalled_web_app_startup_;
 };
 
 IN_PROC_BROWSER_TEST_P(PreinstalledWebAppsBrowserTest, CheckInstalledFields) {

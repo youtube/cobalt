@@ -9,6 +9,7 @@
 #include <unordered_map>
 #include <utility>
 
+#include "base/debug/crash_logging.h"
 #include "base/feature_list.h"
 #include "base/lazy_instance.h"
 #include "base/memory/raw_ptr.h"
@@ -28,7 +29,6 @@
 #include "content/browser/renderer_host/navigator_delegate.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/browser/renderer_host/render_view_host_impl.h"
-#include "content/browser/web_package/subresource_web_bundle_navigation_info.h"
 #include "content/browser/webauth/authenticator_environment.h"
 #include "content/common/navigation_params_utils.h"
 #include "content/public/browser/browser_thread.h"
@@ -143,9 +143,10 @@ FrameTreeNode::FencedFrameStatus ComputeFencedFrameStatus(
     const blink::FramePolicy& frame_policy) {
   using FencedFrameStatus = FrameTreeNode::FencedFrameStatus;
   if (blink::features::IsFencedFramesEnabled() &&
-      frame_tree.type() == FrameTree::Type::kFencedFrame) {
-    if (!parent)
+      frame_tree.is_fenced_frame()) {
+    if (!parent) {
       return FencedFrameStatus::kFencedFrameRoot;
+    }
     return FencedFrameStatus::kIframeNestedWithinFencedFrame;
   }
 
@@ -593,6 +594,21 @@ void FrameTreeNode::TakeNavigationRequest(
     ResetNavigationRequestButKeepState();
   }
 
+  // Cancel any task that will restart BackForwardCache navigation that was
+  // initiated previously.
+  CancelRestartingBackForwardCacheNavigation();
+
+  // If `navigation_request` is a BFCache navigation, the RFH for BFCache
+  // restore should not be evicted before.
+  // This CHECK is added with the fix of https://crbug.com/1468984. See
+  // `BackForwardCacheBrowserTest.TwoBackNavigationsToTheSameEntry` for how
+  // BFCache entry could be evicted before the BFCache `NavigationRequest`
+  // is moved to the FrameTreeNode without the fix.
+  if (navigation_request->IsServedFromBackForwardCache()) {
+    CHECK(!navigation_request->GetRenderFrameHostRestoredFromBackForwardCache()
+               ->is_evicted_from_back_forward_cache());
+  }
+
   navigation_request_ = std::move(navigation_request);
   if (was_discarded_) {
     navigation_request_->set_was_discarded();
@@ -618,6 +634,10 @@ void FrameTreeNode::ResetNavigationRequestButKeepState() {
   if (!navigation_request_)
     return;
 
+  // When resetting the NavigationRequest, any BFCache navigation restarting
+  // task should be cancelled. This is to ensure that the FrameTreeNode won't
+  // accidentally complete a navigation that should be reset.
+  CancelRestartingBackForwardCacheNavigation();
   devtools_instrumentation::OnResetNavigationRequest(navigation_request_.get());
   navigation_request_.reset();
 }
@@ -643,6 +663,7 @@ void FrameTreeNode::DidStartLoading(
 
   // Notify the proxies of the event.
   current_frame_host()->browsing_context_state()->OnDidStartLoading();
+  devtools_instrumentation::DidChangeFrameLoadingState(*this);
   base::UmaHistogramTimes(
       base::StrCat({"Navigation.DidStartLoading.",
                     IsOutermostMainFrame() ? "MainFrame" : "Subframe"}),
@@ -680,6 +701,7 @@ void FrameTreeNode::DidStopLoading() {
     loading_tree->NodeLoadingStateChanged(*this,
                                           LoadingState::LOADING_UI_REQUESTED);
   }
+  devtools_instrumentation::DidChangeFrameLoadingState(*this);
 }
 
 void FrameTreeNode::DidChangeLoadProgress(double load_progress) {
@@ -895,35 +917,52 @@ bool FrameTreeNode::IsInFencedFrameTree() const {
 }
 
 const absl::optional<FencedFrameProperties>&
-FrameTreeNode::GetFencedFrameProperties() {
-  return GetFencedFramePropertiesForEditing();
+FrameTreeNode::GetFencedFrameProperties(
+    FencedFramePropertiesNodeSource node_source) {
+  return GetFencedFramePropertiesForEditing(node_source);
 }
 
 absl::optional<FencedFrameProperties>&
-FrameTreeNode::GetFencedFramePropertiesForEditing() {
-  if (IsInFencedFrameTree()) {
+FrameTreeNode::GetFencedFramePropertiesForEditing(
+    FencedFramePropertiesNodeSource node_source) {
+  if (node_source == FencedFramePropertiesNodeSource::kFrameTreeRoot) {
     return frame_tree().root()->fenced_frame_properties_;
   }
 
-  // If we might be in a urn iframe, try to find the "urn iframe root",
-  // and, if it exists, return the attached `FencedFrameProperties`.
-  if (blink::features::IsAllowURNsInIframeEnabled()) {
-    FrameTreeNode* node = this;
-    while (node->parent()) {
-      CHECK(node->parent()->frame_tree_node());
-      if (node->fenced_frame_properties_.has_value()) {
-        return node->fenced_frame_properties_;
-      }
-      node = node->parent()->frame_tree_node();
+  // The only other option is `kClosestAncestor`. In this case the fenced frame
+  // properties are obtained by a bottom-up traversal.
+  CHECK_EQ(node_source, FencedFramePropertiesNodeSource::kClosestAncestor);
+
+  FrameTreeNode* node = this;
+  while (node) {
+    if (node->fenced_frame_properties_.has_value()) {
+      return node->fenced_frame_properties_;
     }
+    node = node->parent() ? node->parent()->frame_tree_node() : nullptr;
   }
 
   return fenced_frame_properties_;
 }
 
+void FrameTreeNode::MaybeResetFencedFrameAutomaticBeaconReportEventData(
+    blink::mojom::AutomaticBeaconType event_type) {
+  absl::optional<FencedFrameProperties>& properties =
+      GetFencedFramePropertiesForEditing();
+  // `properties` will exist for both fenced frames as well as iframes loaded
+  // with a urn:uuid.
+  if (!properties) {
+    return;
+  }
+  properties->MaybeResetAutomaticBeaconData(event_type);
+}
+
 void FrameTreeNode::SetFencedFrameAutomaticBeaconReportEventData(
+    blink::mojom::AutomaticBeaconType event_type,
     const std::string& event_data,
-    const std::vector<blink::FencedFrame::ReportingDestination>& destinations) {
+    const std::vector<blink::FencedFrame::ReportingDestination>& destinations,
+    network::AttributionReportingRuntimeFeatures
+        attribution_reporting_runtime_features,
+    bool once) {
   absl::optional<FencedFrameProperties>& properties =
       GetFencedFramePropertiesForEditing();
   // `properties` will exist for both fenced frames as well as iframes loaded
@@ -945,7 +984,9 @@ void FrameTreeNode::SetFencedFrameAutomaticBeaconReportEventData(
         "origin to the mapped url from the fenced frame config.");
     return;
   }
-  properties->UpdateAutomaticBeaconData(event_data, destinations);
+  properties->UpdateAutomaticBeaconData(event_type, event_data, destinations,
+                                        attribution_reporting_runtime_features,
+                                        once);
 }
 
 size_t FrameTreeNode::GetFencedFrameDepth(
@@ -978,7 +1019,10 @@ size_t FrameTreeNode::GetFencedFrameDepth(
 }
 
 absl::optional<base::UnguessableToken> FrameTreeNode::GetFencedFrameNonce() {
-  auto& root_fenced_frame_properties = GetFencedFrameProperties();
+  // For partition nonce, all nested frame inside a fenced frame tree should
+  // operate on the partition nonce of the frame tree root.
+  auto& root_fenced_frame_properties = GetFencedFrameProperties(
+      /*node_source=*/FencedFramePropertiesNodeSource::kFrameTreeRoot);
   if (!root_fenced_frame_properties.has_value()) {
     return absl::nullopt;
   }
@@ -1009,6 +1053,15 @@ FrameTreeNode::GetDeprecatedFencedFrameMode() {
     return blink::FencedFrame::DeprecatedFencedFrameMode::kDefault;
   }
 
+  // See test "NestedUrnIframeUnderFencedFrameUnfencedTopNavigation" in
+  // "FencedFrameParameterizedBrowserTest" for why tree traversal is
+  // needed here to obtain the correct fenced frame properties.
+  // TODO(crbug.com/1475682): Now the fenced frame properties here are obtained
+  // via tree traversal, we should make sure it does not break things at
+  // renderers, for example, `_unfencedTop` navigation. Note these issues are
+  // pre-existing.
+  // TODO(crbug.com/1355857): Once navigation support for urn::uuid in iframes
+  // is deprecated, the issue above will no longer be relevant.
   auto& root_fenced_frame_properties = GetFencedFrameProperties();
   if (!root_fenced_frame_properties.has_value()) {
     return blink::FencedFrame::DeprecatedFencedFrameMode::kDefault;
@@ -1139,16 +1192,13 @@ FrameTreeNode::CreateNavigationRequestForSynchronousRendererCommit(
     const std::vector<GURL>& redirects,
     const GURL& original_url,
     std::unique_ptr<CrossOriginEmbedderPolicyReporter> coep_reporter,
-    std::unique_ptr<SubresourceWebBundleNavigationInfo>
-        subresource_web_bundle_navigation_info,
     int http_response_code) {
   return NavigationRequest::CreateForSynchronousRendererCommit(
       this, render_frame_host, is_same_document, url, origin,
       initiator_base_url, isolation_info_for_subresources, std::move(referrer),
       transition, should_replace_current_entry, method,
       has_transient_activation, is_overriding_user_agent, redirects,
-      original_url, std::move(coep_reporter),
-      std::move(subresource_web_bundle_navigation_info), http_response_code);
+      original_url, std::move(coep_reporter), http_response_code);
 }
 
 void FrameTreeNode::CancelNavigation() {
@@ -1173,5 +1223,40 @@ void FrameTreeNode::GetVirtualAuthenticatorManager(
                                                          std::move(receiver));
 }
 #endif  // !BUILDFLAG(IS_ANDROID)
+
+void FrameTreeNode::RestartBackForwardCachedNavigationAsync(int nav_entry_id) {
+  TRACE_EVENT0("navigation",
+               "FrameTreeNode::RestartBackForwardCachedNavigationAsync");
+  // The `navigation_request_` must be the BFCache navigation to the same entry
+  // as the restarted navigation.
+  CHECK(navigation_request_->IsServedFromBackForwardCache());
+  CHECK_EQ(navigation_request_->nav_entry_id(), nav_entry_id);
+  // Reset the `NavigationRequest` since the BFCache navigation will be
+  // restarted.
+  ResetNavigationRequest(NavigationDiscardReason::kNewNavigation);
+
+  // Post a task to restart the navigation asynchronously.
+  restart_back_forward_cached_navigation_tracker_.PostTask(
+      GetUIThreadTaskRunner({}).get(), FROM_HERE,
+      base::BindOnce(&FrameTreeNode::RestartBackForwardCachedNavigationImpl,
+                     weak_factory_.GetWeakPtr(), nav_entry_id));
+}
+
+void FrameTreeNode::RestartBackForwardCachedNavigationImpl(int nav_entry_id) {
+  TRACE_EVENT0("navigation",
+               "FrameTreeNode::RestartBackForwardCachedNavigationImpl");
+  NavigationControllerImpl& controller = frame_tree_->controller();
+  int nav_index = controller.GetEntryIndexWithUniqueID(nav_entry_id);
+  // If the NavigationEntry was deleted, do not do anything.
+  if (nav_index != -1) {
+    controller.GoToIndex(nav_index);
+  }
+}
+
+void FrameTreeNode::CancelRestartingBackForwardCacheNavigation() {
+  TRACE_EVENT0("navigation",
+               "FrameTreeNode::CancelRestartingBackForwardCacheNavigation");
+  restart_back_forward_cached_navigation_tracker_.TryCancelAll();
+}
 
 }  // namespace content

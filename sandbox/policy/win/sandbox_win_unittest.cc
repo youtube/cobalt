@@ -19,6 +19,7 @@
 #include "base/notreached.h"
 #include "base/path_service.h"
 #include "base/scoped_native_library.h"
+#include "base/test/scoped_amount_of_physical_memory_override.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/win/security_descriptor.h"
 #include "base/win/sid.h"
@@ -61,11 +62,17 @@ class TestTargetConfig : public TargetConfig {
   }
   JobLevel GetJobLevel() const override { return sandbox::JobLevel{}; }
   void SetJobMemoryLimit(size_t memory_limit) override {}
-  ResultCode AddRule(SubSystem subsystem,
-                     Semantics semantics,
-                     const wchar_t* pattern) override {
+  ResultCode AllowFileAccess(FileSemantics semantics,
+                             const wchar_t* pattern) override {
     return SBOX_ALL_OK;
   }
+  ResultCode AllowNamedPipes(const wchar_t* pattern) override {
+    return SBOX_ALL_OK;
+  }
+  ResultCode AllowExtraDlls(const wchar_t* pattern) override {
+    return SBOX_ALL_OK;
+  }
+  ResultCode SetFakeGdiInit() override { return SBOX_ALL_OK; }
   void AddDllToUnload(const wchar_t* dll_name) override {
     blocklisted_dlls_.push_back(dll_name);
   }
@@ -104,8 +111,9 @@ class TestTargetConfig : public TargetConfig {
     } else {
       app_container_ = AppContainerBase::Open(package_name);
     }
-    if (!app_container_)
+    if (!app_container_) {
       return SBOX_ERROR_CREATE_APPCONTAINER;
+    }
     return SBOX_ALL_OK;
   }
 
@@ -119,6 +127,7 @@ class TestTargetConfig : public TargetConfig {
   void SetDesktop(Desktop desktop) override {}
   void SetFilterEnvironment(bool env) override {}
   bool GetEnvironmentFiltered() override { return false; }
+  void SetZeroAppShim() override {}
 
  private:
   std::vector<std::wstring> blocklisted_dlls_;
@@ -133,6 +142,7 @@ class TestTargetPolicy : public TargetPolicy {
   ResultCode SetStdoutHandle(HANDLE handle) override { return SBOX_ALL_OK; }
   ResultCode SetStderrHandle(HANDLE handle) override { return SBOX_ALL_OK; }
   void AddHandleToShare(HANDLE handle) override {}
+  void AddDelegateData(base::span<const uint8_t> data) override {}
 
  private:
   TestTargetConfig config_;
@@ -143,8 +153,9 @@ bool DropTempFileWithSecurity(
     const base::ScopedTempDir& temp_dir,
     const std::initializer_list<std::wstring>& capabilities,
     base::FilePath* path) {
-  if (!base::CreateTemporaryFileInDir(temp_dir.GetPath(), path))
+  if (!base::CreateTemporaryFileInDir(temp_dir.GetPath(), path)) {
     return false;
+  }
 
   base::win::SecurityDescriptor sd;
   CHECK(sd.SetDaclEntry(base::win::WellKnownSid::kWorld,
@@ -266,8 +277,9 @@ TEST_F(SandboxWinTest, IsGpuAppContainerEnabled) {
   // Unlike the other tests below that merely test App Container behavior, and
   // can rely on RS1 version check, the GPU App Container feature is gated on
   // RS5. See sandbox::features::IsAppContainerSandboxSupported.
-  if (base::win::GetVersion() < base::win::Version::WIN10_RS5)
+  if (base::win::GetVersion() < base::win::Version::WIN10_RS5) {
     return;
+  }
   base::CommandLine command_line(base::CommandLine::NO_PROGRAM);
   EXPECT_FALSE(SandboxWin::IsAppContainerEnabledForSandbox(
       command_line, sandbox::mojom::Sandbox::kGpu));
@@ -280,8 +292,9 @@ TEST_F(SandboxWinTest, IsGpuAppContainerEnabled) {
 }
 
 TEST_F(SandboxWinTest, AppContainerAccessCheckFail) {
-  if (base::win::GetVersion() < base::win::Version::WIN10_RS1)
+  if (base::win::GetVersion() < base::win::Version::WIN10_RS1) {
     return;
+  }
   base::CommandLine command_line(base::CommandLine::NO_PROGRAM);
   scoped_refptr<AppContainerBase> profile;
   ResultCode result = CreateAppContainerProfile(
@@ -291,8 +304,9 @@ TEST_F(SandboxWinTest, AppContainerAccessCheckFail) {
 }
 
 TEST_F(SandboxWinTest, AppContainerCheckProfile) {
-  if (base::win::GetVersion() < base::win::Version::WIN10_RS1)
+  if (base::win::GetVersion() < base::win::Version::WIN10_RS1) {
     return;
+  }
   constexpr wchar_t kInternetClient[] = L"internetClient";
   constexpr wchar_t kPrivateNetworkClientServer[] =
       L"privateNetworkClientServer";
@@ -327,7 +341,8 @@ TEST_F(SandboxWinTest, AppContainerCheckProfile) {
       {sandbox::mojom::Sandbox::kNetwork,
        L"S-1-15-2-1204153576-2881085000-2101973085-273300490-2415804912-"
        L"3587146283-1585457728",
-       true,
+       base::FeatureList::IsEnabled(
+           features::kWinSboxNetworkServiceSandboxIsLPAC),
        {kInternetClient, kPrivateNetworkClientServer, kEnterpriseAuthentication,
         kLpacIdentityServices, kLpacCryptoServices, kLpacChromeInstallFiles,
         kRegistryRead},
@@ -352,8 +367,9 @@ TEST_F(SandboxWinTest, AppContainerCheckProfile) {
 }
 
 TEST_F(SandboxWinTest, AppContainerCheckProfileDisableLpac) {
-  if (base::win::GetVersion() < base::win::Version::WIN10_RS1)
+  if (base::win::GetVersion() < base::win::Version::WIN10_RS1) {
     return;
+  }
   base::CommandLine command_line(base::CommandLine::NO_PROGRAM);
   base::test::ScopedFeatureList features;
   features.InitAndDisableFeature(features::kGpuLPAC);
@@ -366,8 +382,9 @@ TEST_F(SandboxWinTest, AppContainerCheckProfileDisableLpac) {
 }
 
 TEST_F(SandboxWinTest, AppContainerCheckProfileAddCapabilities) {
-  if (base::win::GetVersion() < base::win::Version::WIN10_RS1)
+  if (base::win::GetVersion() < base::win::Version::WIN10_RS1) {
     return;
+  }
   base::CommandLine command_line(base::CommandLine::NO_PROGRAM);
   command_line.AppendSwitchASCII(switches::kAddGpuAppContainerCaps,
                                  "  cap1   ,   cap2   ,");
@@ -528,6 +545,96 @@ TEST_F(SandboxWinTest, GeneratedPolicyTestNoSandbox) {
       cmd_line, switches::kRendererProcess, handles_to_inherit,
       &test_unsandboxed_delegate, policy.get());
   ASSERT_EQ(ResultCode::SBOX_ERROR_UNSANDBOXED_PROCESS, result);
+}
+
+TEST_F(SandboxWinTest, GetJobMemoryLimit) {
+  constexpr uint64_t k8GB = 8192;
+#if defined(ARCH_CPU_64_BITS)
+  constexpr uint64_t kGB = 1024 * 1024 * 1024;
+  constexpr uint64_t k65GB = 66560;
+  constexpr uint64_t k33GB = 33792;
+  constexpr uint64_t k17GB = 17408;
+
+  // Test GPU with physical memory > 64GB.
+  {
+    base::test::ScopedAmountOfPhysicalMemoryOverride memory_override(k65GB);
+    absl::optional<size_t> memory_limit =
+        SandboxWin::GetJobMemoryLimit(sandbox::mojom::Sandbox::kGpu);
+    EXPECT_TRUE(memory_limit.has_value());
+    EXPECT_EQ(memory_limit, 64 * kGB);
+  }
+
+  // Test GPU with physical memory > 32GB
+  {
+    base::test::ScopedAmountOfPhysicalMemoryOverride memory_override(k33GB);
+    absl::optional<size_t> memory_limit =
+        SandboxWin::GetJobMemoryLimit(sandbox::mojom::Sandbox::kGpu);
+    EXPECT_TRUE(memory_limit.has_value());
+    EXPECT_EQ(memory_limit, 32 * kGB);
+  }
+
+  // Test GPU with physical memory > 16GB
+  {
+    base::test::ScopedAmountOfPhysicalMemoryOverride memory_override(k17GB);
+    absl::optional<size_t> memory_limit =
+        SandboxWin::GetJobMemoryLimit(sandbox::mojom::Sandbox::kGpu);
+    EXPECT_TRUE(memory_limit.has_value());
+    EXPECT_EQ(memory_limit, 16 * kGB);
+  }
+
+  // Test GPU with physical memory < 16GB
+  {
+    base::test::ScopedAmountOfPhysicalMemoryOverride memory_override(k8GB);
+    absl::optional<size_t> memory_limit =
+        SandboxWin::GetJobMemoryLimit(sandbox::mojom::Sandbox::kGpu);
+    EXPECT_TRUE(memory_limit.has_value());
+    EXPECT_EQ(memory_limit, 8 * kGB);
+  }
+
+  // Test Renderer with physical memory > 16GB
+  {
+    base::test::ScopedAmountOfPhysicalMemoryOverride memory_override(k17GB);
+    base::test::ScopedFeatureList scoped_feature_list;
+    scoped_feature_list.InitAndDisableFeature(
+        sandbox::policy::features::kWinSboxHighRendererJobMemoryLimits);
+    absl::optional<size_t> memory_limit =
+        SandboxWin::GetJobMemoryLimit(sandbox::mojom::Sandbox::kRenderer);
+    EXPECT_TRUE(memory_limit.has_value());
+    EXPECT_EQ(memory_limit, 16 * kGB);
+  }
+
+  // Test Renderer with physical memory < 16GB
+  {
+    base::test::ScopedAmountOfPhysicalMemoryOverride memory_override(k8GB);
+    base::test::ScopedFeatureList scoped_feature_list;
+    scoped_feature_list.InitAndDisableFeature(
+        sandbox::policy::features::kWinSboxHighRendererJobMemoryLimits);
+    absl::optional<size_t> memory_limit =
+        SandboxWin::GetJobMemoryLimit(sandbox::mojom::Sandbox::kRenderer);
+    EXPECT_TRUE(memory_limit.has_value());
+    EXPECT_EQ(memory_limit, 8 * kGB);
+  }
+
+  // Test Renderer with high renderer limits enabled.
+  {
+    base::test::ScopedAmountOfPhysicalMemoryOverride memory_override(k8GB);
+    base::test::ScopedFeatureList scoped_feature_list;
+    scoped_feature_list.InitAndEnableFeature(
+        sandbox::policy::features::kWinSboxHighRendererJobMemoryLimits);
+    absl::optional<size_t> memory_limit =
+        SandboxWin::GetJobMemoryLimit(sandbox::mojom::Sandbox::kRenderer);
+    EXPECT_TRUE(memory_limit.has_value());
+    EXPECT_EQ(memory_limit, 1024 * kGB);
+  }
+#else
+  // Test 32-bit processes don't get a limit.
+  {
+    base::test::ScopedAmountOfPhysicalMemoryOverride memory_override(k8GB);
+    absl::optional<size_t> memory_limit =
+        SandboxWin::GetJobMemoryLimit(sandbox::mojom::Sandbox::kRenderer);
+    EXPECT_FALSE(memory_limit.has_value());
+  }
+#endif  // defined(ARCH_CPU_64_BITS)
 }
 
 }  // namespace policy

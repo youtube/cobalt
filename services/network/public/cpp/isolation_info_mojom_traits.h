@@ -57,11 +57,6 @@ struct COMPONENT_EXPORT(NETWORK_CPP_BASE)
     return input.site_for_cookies();
   }
 
-  static const absl::optional<std::set<net::SchemefulSite>>& party_context(
-      const net::IsolationInfo& input) {
-    return input.party_context_;
-  }
-
   static bool Read(network::mojom::IsolationInfoDataView data,
                    net::IsolationInfo* out);
 };

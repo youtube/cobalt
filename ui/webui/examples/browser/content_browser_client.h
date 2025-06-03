@@ -29,8 +29,17 @@ class ContentBrowserClient : public content::ContentBrowserClient {
       content::WebContents* web_contents) override;
   std::unique_ptr<content::DevToolsManagerDelegate>
   CreateDevToolsManagerDelegate() override;
+  void RegisterBrowserInterfaceBindersForFrame(
+      content::RenderFrameHost* render_frame_host,
+      mojo::BinderMapWithContext<content::RenderFrameHost*>* map) override;
+  void ExposeInterfacesToRenderer(
+      service_manager::BinderRegistry* registry,
+      blink::AssociatedInterfaceRegistry* associated_registry,
+      content::RenderProcessHost* render_process_host) override;
+  std::string GetUserAgent() override;
 
-  raw_ptr<BrowserMainParts> browser_main_parts_ = nullptr;
+  raw_ptr<BrowserMainParts, AcrossTasksDanglingUntriaged> browser_main_parts_ =
+      nullptr;
 };
 
 }  // namespace webui_examples

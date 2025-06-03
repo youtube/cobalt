@@ -8,6 +8,7 @@
 
 #include "base/check.h"
 #include "base/functional/bind.h"
+#include "base/memory/raw_ptr.h"
 #include "base/ranges/algorithm.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
@@ -102,7 +103,7 @@ struct APIBinding::MethodData {
   // sendMessage).
   const std::string full_name;
   // The expected API signature.
-  const APISignature* signature;
+  raw_ptr<const APISignature, ExperimentalRenderer> signature;
   // The callback used by the v8 function.
   APIBinding::HandlerCallback callback;
 };
@@ -160,7 +161,7 @@ struct APIBinding::EventData {
   // EventData is only accessed from the callbacks associated with the
   // APIBinding, and both the APIBinding and APIEventHandler are owned by the
   // same object (the APIBindingsSystem).
-  APIBinding* binding;
+  raw_ptr<APIBinding, ExperimentalRenderer> binding;
 };
 
 struct APIBinding::CustomPropertyData {
@@ -179,7 +180,7 @@ struct APIBinding::CustomPropertyData {
   // chrome.storage.local.
   std::string property_name;
   // Values curried into this particular type from the schema.
-  const base::Value::List* property_values;
+  raw_ptr<const base::Value::List, ExperimentalRenderer> property_values;
 
   CreateCustomType create_custom_type;
 };
@@ -231,11 +232,10 @@ APIBinding::APIBinding(const std::string& api_name,
 
   if (type_definitions) {
     for (const auto& type : *type_definitions) {
-      const base::Value::Dict* type_dict = type.GetIfDict();
-      CHECK(type_dict);
-      const std::string* id = type_dict->FindString("id");
+      const base::Value::Dict& type_dict = type.GetDict();
+      const std::string* id = type_dict.FindString("id");
       CHECK(id);
-      auto argument_spec = std::make_unique<ArgumentSpec>(type);
+      auto argument_spec = std::make_unique<ArgumentSpec>(type_dict);
       const std::set<std::string>& enum_values = argument_spec->enum_values();
       if (!enum_values.empty()) {
         // Type names may be prefixed by the api name. If so, remove the prefix.
@@ -254,8 +254,7 @@ APIBinding::APIBinding(const std::string& api_name,
       type_refs->AddSpec(*id, std::move(argument_spec));
       // Some types, like storage.StorageArea, have functions associated with
       // them. Cache the function signatures in the type map.
-      const base::Value::List* type_functions =
-          type_dict->FindList("functions");
+      const base::Value::List* type_functions = type_dict.FindList("functions");
       if (type_functions) {
         for (const auto& func : *type_functions) {
           const base::Value::Dict* func_dict = func.GetIfDict();
@@ -590,7 +589,7 @@ void APIBinding::GetCustomPropertyObject(
 
   v8::Local<v8::Object> property = property_data->create_custom_type.Run(
       isolate, property_data->type_name, property_data->property_name,
-      property_data->property_values);
+      property_data->property_values.get());
   if (property.IsEmpty())
     return;
 
@@ -614,7 +613,7 @@ void APIBinding::HandleCall(const std::string& name,
     return;
   }
 
-  std::vector<v8::Local<v8::Value>> argument_list = arguments->GetAll();
+  v8::LocalVector<v8::Value> argument_list = arguments->GetAll();
 
   bool invalid_invocation = false;
   v8::Local<v8::Function> custom_callback;

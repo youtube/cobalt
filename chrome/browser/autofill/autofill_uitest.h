@@ -32,7 +32,8 @@ namespace autofill {
 enum class ObservedUiEvents {
   kPreviewFormData,
   kFormDataFilled,
-  kSuggestionShown,
+  kSuggestionsShown,
+  kSuggestionsHidden,
   kNoEvent,
   kMaxValue = kNoEvent
 };
@@ -45,7 +46,7 @@ std::ostream& operator<<(std::ostream& os, ObservedUiEvents event);
 void TryToCloseAllPrompts(content::WebContents* web_contents);
 
 class BrowserAutofillManagerTestDelegateImpl
-    : public autofill::BrowserAutofillManagerTestDelegate {
+    : public BrowserAutofillManagerTestDelegate {
  public:
   BrowserAutofillManagerTestDelegateImpl();
 
@@ -66,7 +67,7 @@ class BrowserAutofillManagerTestDelegateImpl
   void DidPreviewFormData() override;
   void DidFillFormData() override;
   void DidShowSuggestions() override;
-  void OnTextFieldChanged() override;
+  void DidHideSuggestions() override;
 
   void SetExpectations(std::list<ObservedUiEvents> expected_events,
                        base::TimeDelta timeout = base::Seconds(0),

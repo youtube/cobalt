@@ -139,6 +139,7 @@ const char kSignalStrength[] = "SignalStrength";
 const char kSIMLockStatus[] = "SIMLockStatus";
 const char kSIMPresent[] = "SIMPresent";
 const char kSMDPAddress[] = "SMDPAddress";
+const char kSMDSAddress[] = "SMDSAddress";
 const char kSupportNetworkScan[] = "SupportNetworkScan";
 const char kTechnologyCdma1Xrtt[] = "CDMA1XRTT";
 const char kTechnologyEdge[] = "EDGE";
@@ -151,6 +152,9 @@ const char kTechnologyLte[] = "LTE";
 const char kTechnologyLteAdvanced[] = "LTEAdvanced";
 const char kTechnologyUmts[] = "UMTS";
 const char kTechnology5gNr[] = "5GNR";
+const char kTextMessagesAllow[] = "Allow";
+const char kTextMessagesSuppress[] = "Suppress";
+const char kTextMessagesUnset[] = "Unset";
 }  // namespace cellular
 
 namespace cellular_provider {
@@ -183,6 +187,7 @@ const char kIpTypeIpv4Ipv6[] = "IPv4orIPv6";
 const char kApnTypes[] = "ApnTypes";
 const char kApnTypeDefault[] = "Default";
 const char kApnTypeAttach[] = "Attach";
+const char kApnTypeTether[] = "Tether";
 }  // namespace cellular_apn
 
 namespace cellular_found_network {
@@ -244,6 +249,7 @@ const char kAllowGatewayARPPolling[] = "AllowGatewayARPPolling";
 const char kAutoConnect[] = "AutoConnect";
 const char kBSSID[] = "BSSID";
 const char kBSSIDAllowlist[] = "BSSIDAllowlist";
+const char kBSSIDRequested[] = "BSSIDRequested";
 const char kEAP[] = "EAP";
 const char kFrequency[] = "Frequency";
 const char kFrequencyList[] = "FrequencyList";
@@ -527,6 +533,7 @@ const char kPasswordPlaceholderVerbatim[] = "${PASSWORD}";
 
 namespace global_network_config {
 const char kAllowCellularSimLock[] = "AllowCellularSimLock";
+const char kAllowCellularHotspot[] = "AllowCellularHotspot";
 const char kAllowOnlyPolicyCellularNetworks[] =
     "AllowOnlyPolicyCellularNetworks";
 const char kAllowOnlyPolicyNetworksToAutoconnect[] =
@@ -543,10 +550,14 @@ const char* const kAllowOnlyPolicyWiFiToConnect =
     kAllowOnlyPolicyNetworksToConnect;
 const char* const kAllowOnlyPolicyWiFiToConnectIfAvailable =
     kAllowOnlyPolicyNetworksToConnectIfAvailable;
+const char* const kAllowTextMessages = "AllowTextMessages";
 
 const char kBlacklistedHexSSIDs[] = "BlacklistedHexSSIDs";  // Deprecated
 const char kBlockedHexSSIDs[] = "BlockedHexSSIDs";
 const char kDisableNetworkTypes[] = "DisableNetworkTypes";
+const char kRecommendedValuesAreEphemeral[] = "RecommendedValuesAreEphemeral";
+const char kUserCreatedNetworkConfigurationsAreEphemeral[] =
+    "UserCreatedNetworkConfigurationsAreEphemeral";
 }  // global_network_config
 
 namespace device_state {

@@ -32,7 +32,6 @@
 #include "extensions/common/mojom/injection_type.mojom-shared.h"
 #include "extensions/common/mojom/run_location.mojom-shared.h"
 #include "extensions/common/user_script.h"
-#include "extensions/common/value_builder.h"
 
 namespace extensions {
 
@@ -88,7 +87,8 @@ class ExtensionActionRunnerUnitTest : public ChromeRenderViewHostTestHarness {
   void SetUp() override;
 
   // The associated ExtensionActionRunner.
-  raw_ptr<ExtensionActionRunner> extension_action_runner_ = nullptr;
+  raw_ptr<ExtensionActionRunner, DanglingUntriaged> extension_action_runner_ =
+      nullptr;
 
   // The map of observed executions, keyed by extension id.
   std::map<std::string, int> extension_executions_;
@@ -103,15 +103,13 @@ const Extension* ExtensionActionRunnerUnitTest::AddExtension() {
   const std::string kId = crx_file::id_util::GenerateId("all_hosts_extension");
   extension_ =
       ExtensionBuilder()
-          .SetManifest(
-              DictionaryBuilder()
-                  .Set("name", "all_hosts_extension")
-                  .Set("description", "an extension")
-                  .Set("manifest_version", 2)
-                  .Set("version", "1.0.0")
-                  .Set("permissions",
-                       ListBuilder().Append(kAllHostsPermission).Build())
-                  .Build())
+          .SetManifest(base::Value::Dict()
+                           .Set("name", "all_hosts_extension")
+                           .Set("description", "an extension")
+                           .Set("manifest_version", 2)
+                           .Set("version", "1.0.0")
+                           .Set("permissions", base::Value::List().Append(
+                                                   kAllHostsPermission)))
           .SetLocation(mojom::ManifestLocation::kInternal)
           .SetID(kId)
           .Build();

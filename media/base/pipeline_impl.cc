@@ -14,6 +14,7 @@
 #include "base/functional/callback_helpers.h"
 #include "base/location.h"
 #include "base/memory/raw_ptr.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/synchronization/lock.h"
@@ -22,6 +23,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "build/build_config.h"
+#include "media/base/callback_timeout_helpers.h"
 #include "media/base/cdm_context.h"
 #include "media/base/decoder.h"
 #include "media/base/demuxer.h"
@@ -30,8 +32,6 @@
 #include "media/base/renderer.h"
 #include "media/base/renderer_client.h"
 #include "media/base/serial_runner.h"
-#include "media/base/text_renderer.h"
-#include "media/base/text_track_config.h"
 #include "media/base/timestamp_constants.h"
 #include "media/base/video_decoder_config.h"
 
@@ -50,6 +50,16 @@ gfx::Size GetRotatedVideoSize(VideoRotation rotation, gfx::Size natural_size) {
   if (rotation == VIDEO_ROTATION_90 || rotation == VIDEO_ROTATION_270)
     return gfx::Size(natural_size.height(), natural_size.width());
   return natural_size;
+}
+
+void OnCallbackTimeout(const std::string& uma_name,
+                       bool called_on_destruction) {
+  DVLOG(1) << "Callback Timeout: " << uma_name
+           << ", called_on_destruction=" << called_on_destruction;
+  base::UmaHistogramEnumeration(
+      uma_name, called_on_destruction
+                    ? CallbackTimeoutStatus::kDestructedBeforeTimeout
+                    : CallbackTimeoutStatus::kTimeout);
 }
 
 }  // namespace
@@ -192,7 +202,7 @@ class PipelineImpl::RendererWrapper final : public DemuxerHost,
 
   const scoped_refptr<base::SequencedTaskRunner> media_task_runner_;
   const scoped_refptr<base::SingleThreadTaskRunner> main_task_runner_;
-  const raw_ptr<MediaLog> media_log_;
+  const raw_ptr<MediaLog, AcrossTasksDanglingUntriaged> media_log_;
 
   // A weak pointer to PipelineImpl. Must only use on the main task runner.
   base::WeakPtr<PipelineImpl> weak_pipeline_;
@@ -230,9 +240,8 @@ class PipelineImpl::RendererWrapper final : public DemuxerHost,
   // reset the pipeline state, and restore this to PIPELINE_OK.
   PipelineStatus status_;
 
-  // Whether we've received the audio/video/text ended events.
+  // Whether we've received the audio/video ended events.
   bool renderer_ended_;
-  bool text_renderer_ended_;
 
   // Series of tasks to Start(), Seek(), and Resume().
   std::unique_ptr<SerialRunner> pending_callbacks_;
@@ -260,8 +269,7 @@ PipelineImpl::RendererWrapper::RendererWrapper(
       cdm_context_(nullptr),
       state_(kCreated),
       status_(PIPELINE_OK),
-      renderer_ended_(false),
-      text_renderer_ended_(false) {}
+      renderer_ended_(false) {}
 
 PipelineImpl::RendererWrapper::~RendererWrapper() {
   DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
@@ -284,7 +292,6 @@ void PipelineImpl::RendererWrapper::Start(
       << "Received start in unexpected state: " << state_;
   DCHECK(!demuxer_);
   DCHECK(!renderer_ended_);
-  DCHECK(!text_renderer_ended_);
 
   SetState(kStarting);
   demuxer_ = demuxer;
@@ -371,7 +378,6 @@ void PipelineImpl::RendererWrapper::Seek(base::TimeDelta time) {
 
   SetState(kSeeking);
   renderer_ended_ = false;
-  text_renderer_ended_ = false;
 
   // Queue asynchronous actions required to start.
   DCHECK(!pending_callbacks_);
@@ -458,7 +464,6 @@ void PipelineImpl::RendererWrapper::Resume(
 
   default_renderer_ = std::move(default_renderer);
   renderer_ended_ = false;
-  text_renderer_ended_ = false;
   base::TimeDelta start_timestamp =
       std::max(timestamp, demuxer_->GetStartTime());
 
@@ -819,10 +824,8 @@ void PipelineImpl::RendererWrapper::OnDemuxerCompletedTrackChange(
       shared_state_.renderer->OnSelectedVideoTracksChanged(
           streams, std::move(change_completed_cb));
       break;
-    // TODO(tmathmeyer): Look into text track switching.
-    case DemuxerStream::TEXT:
     case DemuxerStream::UNKNOWN:  // Fail on unknown type.
-      NOTREACHED();
+      NOTREACHED_NORETURN();
   }
 }
 
@@ -960,7 +963,14 @@ void PipelineImpl::RendererWrapper::OnPipelineError(PipelineStatus error) {
     return;
   }
 
-  status_ = error;
+  // PIPELINE_ERROR_HARDWARE_CONTEXT_RESET and DEMUXER_ERROR_DETECTED_HLS are
+  // not fatal errors. They are just signals to restart or reconfig the
+  // pipeline.
+  if (error != PIPELINE_ERROR_HARDWARE_CONTEXT_RESET &&
+      error != DEMUXER_ERROR_DETECTED_HLS) {
+    status_ = error;
+  }
+
   main_task_runner_->PostTask(
       FROM_HERE, base::BindOnce(&PipelineImpl::OnError, weak_pipeline_, error));
 }
@@ -1114,7 +1124,7 @@ void PipelineImpl::RendererWrapper::InitializeRenderer(
   DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
 
   switch (demuxer_->GetType()) {
-    case MediaResource::Type::STREAM:
+    case MediaResource::Type::kStream:
       if (demuxer_->GetAllStreams().empty()) {
         DVLOG(1) << "Error: demuxer does not have an audio or a video stream.";
         std::move(done_cb).Run(PIPELINE_ERROR_COULD_NOT_RENDER);
@@ -1122,7 +1132,7 @@ void PipelineImpl::RendererWrapper::InitializeRenderer(
       }
       break;
 
-    case MediaResource::Type::URL:
+    case MediaResource::Type::KUrl:
       // NOTE: Empty GURL are not valid.
       if (!demuxer_->GetMediaUrlParams().media_url.is_valid()) {
         DVLOG(1) << "Error: demuxer does not have a valid URL.";
@@ -1147,7 +1157,14 @@ void PipelineImpl::RendererWrapper::InitializeRenderer(
   shared_state_.renderer->SetWasPlayedWithUserActivation(
       was_played_with_user_activation_);
 
-  shared_state_.renderer->Initialize(demuxer_, this, std::move(done_cb));
+  // Initialize Renderer and report timeout UMA.
+  std::string uma_name = "Media.InitializeRendererTimeout";
+  base::UmaHistogramEnumeration(uma_name, CallbackTimeoutStatus::kCreate);
+  shared_state_.renderer->Initialize(
+      demuxer_, this,
+      WrapCallbackWithTimeoutHandler(
+          std::move(done_cb), /*timeout_delay=*/base::Seconds(10),
+          base::BindOnce(&OnCallbackTimeout, uma_name)));
 }
 
 void PipelineImpl::RendererWrapper::DestroyRenderer() {
@@ -1169,7 +1186,7 @@ void PipelineImpl::RendererWrapper::ReportMetadata(StartType start_type) {
   std::vector<DemuxerStream*> streams;
 
   switch (demuxer_->GetType()) {
-    case MediaResource::Type::STREAM:
+    case MediaResource::Type::kStream:
       metadata.timeline_offset = demuxer_->GetTimelineOffset();
       // TODO(servolk): What should we do about metadata for multiple streams?
       streams = demuxer_->GetAllStreams();
@@ -1188,7 +1205,7 @@ void PipelineImpl::RendererWrapper::ReportMetadata(StartType start_type) {
       }
       break;
 
-    case MediaResource::Type::URL:
+    case MediaResource::Type::KUrl:
       // We don't know if the MediaPlayerRender has Audio/Video until we start
       // playing. Conservatively assume that they do.
       metadata.has_video = true;
@@ -1221,7 +1238,7 @@ void PipelineImpl::RendererWrapper::ReportMetadata(StartType start_type) {
 
 bool PipelineImpl::RendererWrapper::HasEncryptedStream() {
   // Encrypted streams are only handled explicitly for STREAM type.
-  if (demuxer_->GetType() != MediaResource::Type::STREAM)
+  if (demuxer_->GetType() != MediaResource::Type::kStream)
     return false;
 
   auto streams = demuxer_->GetAllStreams();
@@ -1570,8 +1587,7 @@ const char* PipelineImpl::GetStateString(State state) {
     RETURN_STRING(kSuspended);
     RETURN_STRING(kResuming);
   }
-  NOTREACHED();
-  return "INVALID";
+  NOTREACHED_NORETURN();
 }
 
 #undef RETURN_STRING

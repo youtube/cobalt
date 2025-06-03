@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 #include "chrome/services/sharing/nearby/platform/ble_v2_medium.h"
 
+#include "base/containers/flat_set.h"
 #include "base/logging.h"
 #include "base/notreached.h"
 #include "base/rand_util.h"
@@ -208,6 +209,18 @@ bool BleV2Medium::IsExtendedAdvertisementsAvailable() {
   return false;
 }
 
+bool BleV2Medium::GetRemotePeripheral(const std::string& mac_address,
+                                      GetRemotePeripheralCallback callback) {
+  NOTIMPLEMENTED();
+  return false;
+}
+
+bool BleV2Medium::GetRemotePeripheral(api::ble_v2::BlePeripheral::UniqueId id,
+                                      GetRemotePeripheralCallback callback) {
+  NOTIMPLEMENTED();
+  return false;
+}
+
 void BleV2Medium::PresentChanged(bool present) {
   NOTIMPLEMENTED();
 }
@@ -221,7 +234,9 @@ void BleV2Medium::DiscoverableChanged(bool discoverable) {
 }
 
 void BleV2Medium::DiscoveringChanged(bool discovering) {
-  NOTIMPLEMENTED();
+  if (!discovering) {
+    StopScanning();
+  }
 }
 
 void BleV2Medium::DeviceAdded(bluetooth::mojom::DeviceInfoPtr device) {
@@ -248,18 +263,15 @@ void BleV2Medium::DeviceAdded(bluetooth::mojom::DeviceInfoPtr device) {
       .is_extended_advertisement = false,
       .service_data = {},
   };
+  base::flat_set<device::BluetoothUUID> bluetooth_service_set;
   for (const auto& service_data_pair : device->service_data_map) {
+    bluetooth_service_set.insert(service_data_pair.first);
     advertisement_data.service_data.insert(
         {BluetoothServiceUuidToNearbyUuid(service_data_pair.first),
          ByteArray{std::string(service_data_pair.second.begin(),
                                service_data_pair.second.end())}});
   }
 
-  // Extract bluetooth service ids from the advertising device.
-  // TODO(b/274997457): make sure cros bt platform will provide service_uuids
-  // in addition to service_data_map.
-  std::vector<device::BluetoothUUID> bluetooth_service_set{
-      device->service_uuids};
   // Add a new or update the existing discovered peripheral. Note: Because
   // BleV2Peripherals are passed by reference to NearbyConnections, if a
   // BleV2Peripheral already exists with the given address, the reference should

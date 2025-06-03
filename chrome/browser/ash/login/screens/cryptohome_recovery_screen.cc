@@ -1,4 +1,4 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -20,6 +20,9 @@ constexpr char kUserActionDone[] = "done";
 constexpr char kUserActionRetry[] = "retry";
 constexpr char kUserActionEnterOldPassword[] = "enter-old-password";
 constexpr char kUserActionReauth[] = "reauth";
+// The time difference between the timeout on the screen, and Auth Session
+// expiry.
+const base::TimeDelta kTimeoutDiff = base::Seconds(10);
 
 }  // namespace
 
@@ -40,6 +43,8 @@ std::string CryptohomeRecoveryScreen::GetResultString(Result result) {
       return "NoRecoveryFactor";
     case Result::kNotApplicable:
       return BaseScreen::kNotApplicable;
+    case Result::kTimeout:
+      return "Timeout";
   }
 }
 
@@ -48,6 +53,7 @@ CryptohomeRecoveryScreen::CryptohomeRecoveryScreen(
     const ScreenExitCallback& exit_callback)
     : BaseScreen(CryptohomeRecoveryScreenView::kScreenId,
                  OobeScreenPriority::DEFAULT),
+      auth_factor_editor_(UserDataAuthClient::Get()),
       view_(std::move(view)),
       exit_callback_(exit_callback) {}
 
@@ -98,26 +104,18 @@ void CryptohomeRecoveryScreen::OnGetAuthFactorsConfiguration(
     return;
   }
 
-  // TODO(b/272474463): remove the child user check.
-  // TODO(b/278780685): add browser test for the password change flow for child
-  // accounts.
-  auto* user =
-      user_manager::UserManager::Get()->FindUser(user_context->GetAccountId());
-  if (user && user->IsChild()) {
-    context()->user_context = std::move(user_context);
-    exit_callback_.Run(Result::kNotApplicable);
-    return;
-  }
-
   const auto& config = user_context->GetAuthFactorsConfiguration();
   bool is_configured =
       config.HasConfiguredFactor(cryptohome::AuthFactorType::kRecovery);
   if (is_configured) {
     if (user_context->GetReauthProofToken().empty()) {
-      if (context()->gaia_reauth_token_fetch_error) {
+      if (was_reauth_proof_token_missing_) {
+        LOG(ERROR)
+            << "Reauth proof token is still missing after the second attempt";
         view_->OnRecoveryFailed();
       } else {
         LOG(WARNING) << "Reauth proof token is not present";
+        was_reauth_proof_token_missing_ = true;
         RecordReauthReason(user_context->GetAccountId(),
                            ReauthReason::kCryptohomeRecovery);
         view_->ShowReauthNotification();
@@ -147,6 +145,21 @@ void CryptohomeRecoveryScreen::OnAuthenticateWithRecovery(
     context()->user_context = std::move(user_context);
     view_->OnRecoveryFailed();
     return;
+  }
+
+  auth_factor_editor_.RotateRecoveryFactor(
+      std::move(user_context),
+      base::BindOnce(&CryptohomeRecoveryScreen::OnRotateRecoveryFactor,
+                     weak_ptr_factory_.GetWeakPtr()));
+}
+
+void CryptohomeRecoveryScreen::OnRotateRecoveryFactor(
+    std::unique_ptr<UserContext> user_context,
+    absl::optional<AuthenticationError> error) {
+  if (error.has_value()) {
+    LOG(ERROR) << "Failed to rotate recovery factor, code "
+               << error->get_cryptohome_code();
+    // TODO(b/289472295): handle failure scenario.
   }
 
   std::string key_label;
@@ -181,7 +194,23 @@ void CryptohomeRecoveryScreen::OnReplaceContextKey(
     view_->OnRecoveryFailed();
     return;
   }
+  VLOG(1) << "User data is successfully recovered";
   view_->OnRecoverySucceeded();
+
+  auto delta = context()->user_context->GetSessionLifetime() -
+               base::Time::Now() - kTimeoutDiff;
+  if (!delta.is_positive()) {
+    OnAuthSessionExpired();
+    return;
+  }
+  expiration_timer_ = std::make_unique<base::OneShotTimer>();
+  expiration_timer_->Start(FROM_HERE, delta, this,
+                           &CryptohomeRecoveryScreen::OnAuthSessionExpired);
+}
+
+void CryptohomeRecoveryScreen::OnAuthSessionExpired() {
+  LOG(WARNING) << "Exiting due to expired Auth Session.";
+  exit_callback_.Run(Result::kTimeout);
 }
 
 }  // namespace ash

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {assertNotReached} from 'chrome://resources/js/assert_ts.js';
+import {assertNotReached} from 'chrome://resources/js/assert.js';
 
 import {ContentSettingsTypes} from '../site_settings/constants.js';
 
@@ -17,6 +17,8 @@ export function getLocalizationStringForContentType(
       return 'siteSettingsAdsMidSentence';
     case ContentSettingsTypes.AR:
       return 'siteSettingsArMidSentence';
+    case ContentSettingsTypes.AUTO_PICTURE_IN_PICTURE:
+      return 'siteSettingsAutoPictureInPictureMidSentence';
     case ContentSettingsTypes.AUTOMATIC_DOWNLOADS:
       return 'siteSettingsAutomaticDownloadsMidSentence';
     case ContentSettingsTypes.BACKGROUND_SYNC:
@@ -49,6 +51,7 @@ export function getLocalizationStringForContentType(
       return 'siteSettingsFontAccessMidSentence';
     case ContentSettingsTypes.MIC:
       return 'siteSettingsMicMidSentence';
+    case ContentSettingsTypes.MIDI:
     case ContentSettingsTypes.MIDI_DEVICES:
       return 'siteSettingsMidiDevicesMidSentence';
     case ContentSettingsTypes.MIXEDSCRIPT:
@@ -69,6 +72,8 @@ export function getLocalizationStringForContentType(
       return 'siteSettingsSerialPortsMidSentence';
     case ContentSettingsTypes.SOUND:
       return 'siteSettingsSoundMidSentence';
+    case ContentSettingsTypes.STORAGE_ACCESS:
+      return 'siteSettingsStorageAccessMidSentence';
     case ContentSettingsTypes.USB_DEVICES:
       return 'siteSettingsUsbDevicesMidSentence';
     case ContentSettingsTypes.VR:

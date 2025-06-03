@@ -4,6 +4,7 @@
 
 package org.chromium.chrome.browser.toolbar.top;
 
+import android.content.res.Resources;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.View.OnLongClickListener;
@@ -11,13 +12,13 @@ import android.view.ViewStub;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.Callback;
 import org.chromium.base.CallbackController;
 import org.chromium.base.supplier.Supplier;
-import org.chromium.chrome.browser.device.DeviceClassManager;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.layouts.LayoutType;
+import org.chromium.chrome.browser.logo.LogoUtils;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.search_engines.TemplateUrlServiceFactory;
 import org.chromium.chrome.browser.tabmodel.IncognitoStateProvider;
@@ -63,17 +64,34 @@ public class StartSurfaceToolbarCoordinator {
     private MenuButtonCoordinator mMenuButtonCoordinator;
     private CallbackController mCallbackController = new CallbackController();
     private boolean mIsNativeInitialized;
+    private final boolean mIsSurfacePolishEnabled;
+    private final boolean mIsSurfacePolishMoveDownLogoEnabled;
+    private final boolean mIsSurfacePolishLessBrandSpaceEnabled;
+    // This is used for 2 cases for the surface polish project, one is when the logo is moved down
+    // from the toolbar, and the other is when the logo is moved down from the toolbar with less
+    // brand space.
+    private int mFakeSearchBoxOffsetForSurfacePolishMoveDownLogo;
+    // This is used for the surface polish project for the case when the logo stays in the toolbar.
+    private int mFakeSearchBoxOffsetForSurfacePolishLogoInToolbar;
 
     StartSurfaceToolbarCoordinator(ViewStub startSurfaceToolbarStub,
             UserEducationHelper userEducationHelper, ButtonDataProvider identityDiscController,
             ThemeColorProvider provider, MenuButtonCoordinator menuButtonCoordinator,
-            Supplier<ButtonData> identityDiscButtonSupplier, boolean isGridTabSwitcherEnabled,
-            boolean isTabToGtsAnimationEnabled, boolean isTabGroupsAndroidContinuationEnabled,
+            Supplier<ButtonData> identityDiscButtonSupplier, boolean isTabToGtsAnimationEnabled,
             BooleanSupplier isIncognitoModeEnabledSupplier,
             Callback<LoadUrlParams> logoClickedCallback, boolean isRefactorEnabled,
             boolean shouldCreateLogoInToolbar, Callback<Boolean> finishedTransitionCallback,
             ToolbarColorObserverManager toolbarColorObserverManager) {
         mStub = startSurfaceToolbarStub;
+        mIsSurfacePolishEnabled = ChromeFeatureList.sSurfacePolish.isEnabled();
+        mIsSurfacePolishMoveDownLogoEnabled = mIsSurfacePolishEnabled
+                && StartSurfaceConfiguration.SURFACE_POLISH_MOVE_DOWN_LOGO.getValue();
+        mIsSurfacePolishLessBrandSpaceEnabled = mIsSurfacePolishMoveDownLogoEnabled
+                && StartSurfaceConfiguration.SURFACE_POLISH_LESS_BRAND_SPACE.getValue();
+
+        if (mIsSurfacePolishEnabled) {
+            setFakeSearchBoxToScreenTopOffsetForSurfacePolish();
+        }
 
         mPropertyModel =
                 new PropertyModel.Builder(StartSurfaceToolbarProperties.ALL_KEYS)
@@ -82,13 +100,9 @@ public class StartSurfaceToolbarCoordinator {
                                          .START_SURFACE_HIDE_INCOGNITO_SWITCH_NO_TAB.getValue())
                         .with(StartSurfaceToolbarProperties.MENU_IS_VISIBLE, true)
                         .with(StartSurfaceToolbarProperties.IS_VISIBLE, false)
-                        .with(StartSurfaceToolbarProperties.GRID_TAB_SWITCHER_ENABLED,
-                                isGridTabSwitcherEnabled)
                         .build();
 
         mShouldCreateLogoInToolbar = shouldCreateLogoInToolbar;
-        boolean isTabToGtsFadeAnimationEnabled = isTabToGtsAnimationEnabled
-                && !DeviceClassManager.enableAccessibilityLayout(mStub.getContext());
         mToolbarMediator = new StartSurfaceToolbarMediator(mStub.getContext(), mPropertyModel,
                 (iphCommandBuilder)
                         -> {
@@ -100,10 +114,9 @@ public class StartSurfaceToolbarCoordinator {
                 },
                 StartSurfaceConfiguration.START_SURFACE_HIDE_INCOGNITO_SWITCH_NO_TAB.getValue(),
                 menuButtonCoordinator, identityDiscController, identityDiscButtonSupplier,
-                isTabToGtsFadeAnimationEnabled, isTabGroupsAndroidContinuationEnabled,
-                isIncognitoModeEnabledSupplier, logoClickedCallback, isRefactorEnabled,
-                StartSurfaceConfiguration.IS_DOODLE_SUPPORTED.getValue(), shouldCreateLogoInToolbar,
-                finishedTransitionCallback, toolbarColorObserverManager);
+                isTabToGtsAnimationEnabled, isIncognitoModeEnabledSupplier, logoClickedCallback,
+                isRefactorEnabled, StartSurfaceConfiguration.IS_DOODLE_SUPPORTED.getValue(),
+                shouldCreateLogoInToolbar, finishedTransitionCallback, toolbarColorObserverManager);
 
         mThemeColorProvider = provider;
         mMenuButtonCoordinator = menuButtonCoordinator;
@@ -235,19 +248,33 @@ public class StartSurfaceToolbarCoordinator {
         boolean isBigLogoShownInContent = !mShouldCreateLogoInToolbar && mIsNativeInitialized
                 && TemplateUrlServiceFactory.getForProfile(Profile.getLastUsedRegularProfile())
                            .doesDefaultSearchEngineHaveLogo();
-        // This value should be equal to
-        // |fakeSearchBoxToRealSearchBoxTop + realVerticalMargin| in
-        // StartSurfaceCoordinator#initializeOffsetChangedListener
-        int fakeSearchBoxMarginToScreenTop = getDimenPixel(R.dimen.toolbar_height_no_shadow)
-                + (isBigLogoShownInContent
-                                ? getDimenPixel(R.dimen.start_surface_content_logo_height)
-                                : getDimenPixel(R.dimen.start_surface_fake_search_box_top_margin));
+        int fakeSearchBoxMarginToScreenTop;
+        if (mIsSurfacePolishEnabled) {
+            fakeSearchBoxMarginToScreenTop =
+                    isBigLogoShownInContent && mIsSurfacePolishMoveDownLogoEnabled
+                    ? mFakeSearchBoxOffsetForSurfacePolishMoveDownLogo
+                    : mFakeSearchBoxOffsetForSurfacePolishLogoInToolbar;
+        } else {
+            // This value should be equal to
+            // |fakeSearchBoxToRealSearchBoxTop + realVerticalMargin| in
+            // StartSurfaceCoordinator#initializeOffsetChangedListener
+            fakeSearchBoxMarginToScreenTop = getDimenPixel(R.dimen.toolbar_height_no_shadow)
+                    + (isBigLogoShownInContent
+                                    ? getDimenPixel(R.dimen.start_surface_content_logo_height)
+                                    : getDimenPixel(
+                                            R.dimen.start_surface_fake_search_box_top_margin));
+        }
         return mToolbarMediator.shouldShowRealSearchBox(fakeSearchBoxMarginToScreenTop);
     }
 
     /** Returns whether it's on the start surface homepage.*/
     boolean isOnHomepage() {
         return mToolbarMediator.isOnHomepage();
+    }
+
+    /** Returns whether the real search box is focused.*/
+    boolean isRealSearchBoxFocused() {
+        return mToolbarMediator.isRealSearchBoxFocused();
     }
 
     boolean isShowingTabSwitcher() {
@@ -302,7 +329,31 @@ public class StartSurfaceToolbarCoordinator {
         return mStub.getResources().getDimensionPixelOffset(id);
     }
 
-    @VisibleForTesting
+    /**
+     * Set the distance to be added for the offset which indicated where the toolbar phone layout
+     * view should be shown when the user scrolls up the screen for Surface Polish.
+     */
+    private void setFakeSearchBoxToScreenTopOffsetForSurfacePolish() {
+        assert mIsSurfacePolishEnabled;
+
+        // Ensure the fake search box reaches the top of the screen.
+        Resources resources = mStub.getResources();
+        int toolbarPlaceholderHeight = getDimenPixel(R.dimen.toolbar_height_no_shadow);
+        if (mIsSurfacePolishLessBrandSpaceEnabled) {
+            mFakeSearchBoxOffsetForSurfacePolishMoveDownLogo = toolbarPlaceholderHeight
+                    + LogoUtils.getLogoHeightPolishedShort(resources)
+                    + LogoUtils.getTopMarginPolishedSmall(resources)
+                    + LogoUtils.getBottomMarginPolishedSmall(resources);
+        } else if (mIsSurfacePolishMoveDownLogoEnabled) {
+            mFakeSearchBoxOffsetForSurfacePolishMoveDownLogo = toolbarPlaceholderHeight
+                    + LogoUtils.getLogoHeightPolished(resources)
+                    + LogoUtils.getTopMarginPolished(resources)
+                    + LogoUtils.getBottomMarginPolished(resources);
+        }
+        mFakeSearchBoxOffsetForSurfacePolishLogoInToolbar = toolbarPlaceholderHeight
+                + getDimenPixel(R.dimen.start_surface_fake_search_box_top_margin);
+    }
+
     public TabCountProvider getIncognitoToggleTabCountProviderForTesting() {
         return mPropertyModel.get(StartSurfaceToolbarProperties.INCOGNITO_TAB_COUNT_PROVIDER);
     }

@@ -1,9 +1,13 @@
-// Copyright 2019 The Chromium Authors. All rights reserved.
+// Copyright 2019 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+
+import {TestRunner} from 'test_runner';
+import {AxeCoreTestRunner} from 'axe_core_test_runner';
+import {PerformanceTestRunner} from 'performance_test_runner';
+
+import * as Timeline from 'devtools/panels/timeline/timeline.js';
 (async function() {
-  await TestRunner.loadTestModule('axe_core_test_runner');
-  await TestRunner.loadTestModule('performance_test_runner');
   await TestRunner.showPanel('timeline');
 
   const testData = [
@@ -39,13 +43,15 @@
   // create dummy data for test
   const model = await PerformanceTestRunner.createPerformanceModelWithEvents(testData);
 
-  const detailsView = UI.panels.timeline.flameChart.detailsView;
+  const detailsView = Timeline.TimelinePanel.TimelinePanel.instance().flameChart.detailsView;
 
   async function testDetailsView() {
     TestRunner.addResult('Tests accessibility in performance Details view using the axe-core linter');
 
     // Details pane gets data from the parent TimelineDetails view
-    detailsView.setModel(model, PerformanceTestRunner.mainTrack());
+    // model = SDK Performance Model
+    // null = where we would pass in the new TraceEngine data, if we had it.
+    detailsView.setModel(model, null, PerformanceTestRunner.mainTrackEvents());
 
     const tabbedPane = detailsView.tabbedPane;
     tabbedPane.selectTab(Timeline.TimelineDetailsView.Tab.Details);
@@ -62,7 +68,7 @@
 
     // update child views with the same test data
     detailsTab.setModel(model, PerformanceTestRunner.mainTrack());
-    detailsTab.updateContents(Timeline.TimelineSelection.fromRange(
+    detailsTab.updateContents(Timeline.TimelineSelection.TimelineSelection.fromRange(
         model.timelineModel().minimumRecordTime(),
         model.timelineModel().maximumRecordTime()));
 

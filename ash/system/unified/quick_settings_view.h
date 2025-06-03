@@ -13,6 +13,7 @@
 #include "base/memory/raw_ptr.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/views/view.h"
+#include "ui/views/view_utils.h"
 
 namespace views {
 class FlexLayoutView;
@@ -22,7 +23,7 @@ namespace ash {
 
 class FeatureTile;
 class FeatureTilesContainerView;
-class PageIndicatorView;
+class PaginationView;
 class QuickSettingsFooter;
 class QuickSettingsHeader;
 class QuickSettingsMediaViewContainer;
@@ -54,12 +55,10 @@ class ASH_EXPORT QuickSettingsView : public views::View,
   views::View* AddSliderView(std::unique_ptr<views::View> slider_view);
 
   // Adds media controls view to `media_controls_container_`. Only called if
-  // media::kGlobalMediaControlsForChromeOS is enabled and
   // media::kGlobalMediaControlsCrOSUpdatedUI is disabled.
   void AddMediaControlsView(views::View* media_controls);
 
   // Shows media controls view. Only called if
-  // media::kGlobalMediaControlsForChromeOS is enabled and
   // media::kGlobalMediaControlsCrOSUpdatedUI is disabled.
   void ShowMediaControls();
 
@@ -107,14 +106,24 @@ class ASH_EXPORT QuickSettingsView : public views::View,
   FeatureTilesContainerView* feature_tiles_container() {
     return feature_tiles_container_;
   }
+  views::View* detailed_view_container() { return detailed_view_container_; }
 
-  views::View* detailed_view() { return detailed_view_container_; }
-  views::View* detailed_view_for_testing() { return detailed_view_container_; }
-  PageIndicatorView* page_indicator_view_for_test() {
-    return page_indicator_view_;
+  // Returns the current tray detailed view.
+  template <typename T>
+  T* GetDetailedViewForTest() {
+    CHECK(!detailed_view_container_->children().empty());
+    views::View* view = detailed_view_container_->children()[0];
+    CHECK(views::IsViewClass<T>(view));
+    return static_cast<T*>(view);
   }
+
+  PaginationView* pagination_view_for_test() { return pagination_view_; }
+
   UnifiedMediaControlsContainer* media_controls_container_for_testing() {
     return media_controls_container_;
+  }
+  QuickSettingsMediaViewContainer* media_view_container_for_testing() {
+    return media_view_container_;
   }
   QuickSettingsFooter* footer_for_testing() { return footer_; }
 
@@ -132,12 +141,12 @@ class ASH_EXPORT QuickSettingsView : public views::View,
   raw_ptr<QuickSettingsHeader, ExperimentalAsh> header_ = nullptr;
   raw_ptr<FeatureTilesContainerView, ExperimentalAsh> feature_tiles_container_ =
       nullptr;
-  raw_ptr<PageIndicatorView, ExperimentalAsh> page_indicator_view_ = nullptr;
+  raw_ptr<PaginationView, ExperimentalAsh> pagination_view_ = nullptr;
   raw_ptr<views::FlexLayoutView, ExperimentalAsh> sliders_container_ = nullptr;
   raw_ptr<QuickSettingsFooter, ExperimentalAsh> footer_ = nullptr;
   raw_ptr<views::View, ExperimentalAsh> detailed_view_container_ = nullptr;
 
-  // Null if media::kGlobalMediaControlsForChromeOS is disabled.
+  // Null if media::kGlobalMediaControlsCrOSUpdatedUI is enabled.
   raw_ptr<UnifiedMediaControlsContainer, ExperimentalAsh>
       media_controls_container_ = nullptr;
 

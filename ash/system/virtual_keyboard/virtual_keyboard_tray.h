@@ -42,6 +42,8 @@ class VirtualKeyboardTray : public TrayBackgroundView,
   void HandleLocaleChange() override;
   void HideBubbleWithView(const TrayBubbleView* bubble_view) override;
   void ClickedOutsideBubble() override;
+  void UpdateTrayItemColor(bool is_active) override;
+  void HideBubble(const TrayBubbleView* bubble_view) override;
 
   // AccessibilityObserver:
   void OnAccessibilityStatusChanged() override;

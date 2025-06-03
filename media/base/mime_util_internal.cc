@@ -107,6 +107,9 @@ const StringToCodecMap& GetStringToCodecMap() {
       {"dtsx", MimeUtil::DTSXP2},
       {"mp4a.b2", MimeUtil::DTSXP2},
       {"mp4a.B2", MimeUtil::DTSXP2},
+      {"ac-4", MimeUtil::AC4},
+      {"mp4a.ae", MimeUtil::AC4},
+      {"mp4a.AE", MimeUtil::AC4},
   });
 
   return *kStringToCodecMap;
@@ -202,6 +205,8 @@ AudioCodec MimeUtilToAudioCodec(MimeUtil::Codec codec) {
       return AudioCodec::kDTSXP2;
     case MimeUtil::DTSE:
       return AudioCodec::kDTSE;
+    case MimeUtil::AC4:
+      return AudioCodec::kAC4;
     default:
       break;
   }
@@ -307,7 +312,9 @@ void MimeUtil::AddSupportedMediaFormats() {
 
   CodecSet ogg_video_codecs{VP8};
 #if BUILDFLAG(ENABLE_FFMPEG_VIDEO_DECODERS)
-  ogg_video_codecs.emplace(THEORA);
+  if (base::FeatureList::IsEnabled(kTheoraVideoCodec)) {
+    ogg_video_codecs.emplace(THEORA);
+  }
 #endif  // BUILDFLAG(ENABLE_FFMPEG_VIDEO_DECODERS)
 
   CodecSet ogg_codecs(ogg_audio_codecs);
@@ -342,6 +349,10 @@ void MimeUtil::AddSupportedMediaFormats() {
   mp4_audio_codecs.emplace(AC3);
   mp4_audio_codecs.emplace(EAC3);
 #endif  // BUILDFLAG(ENABLE_PLATFORM_AC3_EAC3_AUDIO)
+
+#if BUILDFLAG(ENABLE_PLATFORM_AC4_AUDIO)
+  mp4_audio_codecs.emplace(AC4);
+#endif  // BUILDFLAG(ENABLE_PLATFORM_AC4_AUDIO)
 
 #if BUILDFLAG(ENABLE_PLATFORM_MPEG_H_AUDIO)
   mp4_audio_codecs.emplace(MPEG_H_AUDIO);
@@ -401,10 +412,6 @@ void MimeUtil::AddSupportedMediaFormats() {
   video_3gpp_codecs.emplace(H264);
   AddContainerWithCodecs("video/3gpp", video_3gpp_codecs);
 
-#if BUILDFLAG(ENABLE_MSE_MPEG2TS_STREAM_PARSER)
-  CodecSet mp2t_codecs{H264, MPEG2_AAC, MPEG4_AAC, MP3};
-  AddContainerWithCodecs("video/mp2t", mp2t_codecs);
-#endif  // BUILDFLAG(ENABLE_MSE_MPEG2TS_STREAM_PARSER)
 #if BUILDFLAG(IS_ANDROID)
   if (base::FeatureList::IsEnabled(kCanPlayHls)) {
     // HTTP Live Streaming (HLS).
@@ -710,6 +717,9 @@ bool MimeUtil::IsCodecSupportedOnAndroid(Codec codec,
 #else
       return false;
 #endif
+
+    case AC4:
+      return false;
   }
 
   return false;
@@ -899,6 +909,13 @@ bool MimeUtil::ParseCodecHelper(base::StringPiece mime_type_lower_case,
   if (base::StartsWith(codec_id, "mhm1.", base::CompareCase::SENSITIVE) ||
       base::StartsWith(codec_id, "mha1.", base::CompareCase::SENSITIVE)) {
     out_result->codec = MimeUtil::MPEG_H_AUDIO;
+    return true;
+  }
+#endif
+
+#if BUILDFLAG(ENABLE_PLATFORM_AC4_AUDIO)
+  if (ParseDolbyAc4CodecId(codec_id.data(), nullptr, nullptr, nullptr)) {
+    out_result->codec = MimeUtil::AC4;
     return true;
   }
 #endif

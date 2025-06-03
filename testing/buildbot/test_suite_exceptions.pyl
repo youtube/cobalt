@@ -23,6 +23,25 @@
 # The goal is to drive the number of exceptions to zero, to make all
 # the bots behave similarly.
 {
+  'accessibility_unittests': {
+    'modifications': {
+      'Linux ASan LSan Tests (1)': {
+        'args': [
+            # TODO(crbug.com/1442303): Re-enable.
+          '--gtest_filter=-AXPlatformNodeAuraLinuxTest.AtkComponentScrollTo:'
+          'AtkUtilAuraLinuxTest.*',
+        ],
+      },
+      'linux-exp-asan-lsan-fyi-rel': {
+        'swarming': {
+          'dimensions': {
+            # TODO(crbug.com/1442303): Move to Jammy when it's compatible.
+            'os': 'Ubuntu-18.04',
+          },
+        },
+      },
+    },
+  },
   'android_browsertests': {
     'modifications': {
       'android-11-x86-rel': {
@@ -47,7 +66,27 @@
       'android-12l-x64-dbg-tests': {
         'args': [
           # https://crbug.com/1289764
+          '--gtest_filter=-All/ChromeBrowsingDataLifetimeManagerScheduledRemovalTest.History/*:'
+          # https://crbug.com/1468262
+          'All/PaymentHandlerEnforceFullDelegationTest.WhenEnabled_ShowPaymentSheet_WhenDisabled_Reject/1',
+        ],
+        'swarming': {
+          'shards': 4,
+        },
+      },
+      'android-12l-x64-fyi-dbg': {
+        'args': [
+          # https://crbug.com/1289764
           '--gtest_filter=-All/ChromeBrowsingDataLifetimeManagerScheduledRemovalTest.History/*',
+        ],
+        'swarming': {
+          'shards': 4,
+        },
+      },
+      'android-13-x64-fyi-rel': {
+        'args': [
+          # https://crbug.com/1414886
+          '--gtest_filter=-OfferNotificationControllerAndroidBrowserTestForMessagesUi.MessageShown',
         ],
         'swarming': {
           'shards': 4,
@@ -62,8 +101,13 @@
           'shards': 4,
         },
       },
+      'android-code-coverage-native': {
+        'swarming': {
+          'shards': 3,
+        },
+      },
       # If you change this, make similar changes in android-x86-code-coverage below
-      'android-nougat-x86-rel': {
+      'android-oreo-x86-rel': {
         'ci_only': True,
         'swarming': {
           'shards': 9,
@@ -73,14 +117,13 @@
         'args': [
           '--gtest_filter=-ImportantSitesUtilBrowserTest.DSENotConsideredImportantInRegularMode', # https://crbug.com/1034001
         ],
-        # TODO(crbug.com/1111436): Move this back to walleye if/when additional
-        # capacity has been deployed.
         'swarming': {
           'dimensions': {
-            'device_type': 'sailfish',
+            'device_type': 'crosshatch',
           },
-          'shards': 4,
-          'quickrun_shards': 6,
+          # TODO(crbug/1456515): Temporarily increase the shard by 1 for the surging number of tests.
+          # Recover to original number of shards(4) after the bug is fixed.
+          'shards': 5,
         },
       },
       'android-pie-x86-rel': {
@@ -93,7 +136,7 @@
           },
         },
       },
-      # Keep this same as android-nougat-x86-rel above
+      # Keep this same as android-oreo-x86-rel above
       'android-x86-code-coverage': {
         'ci_only': True,
         'swarming': {
@@ -102,6 +145,22 @@
       },
     },
   },
+  'android_browsertests_no_fieldtrial': {
+    'modifications': {
+      'android-12-x64-rel': {
+        # TODO(crbug.com/1225851): Remove experiment and ci_only
+        # once the test suite is stable.
+        'experiment_percentage': 100,
+        'args': [
+          # https://crbug.com/1289764
+          '--gtest_filter=-All/ChromeBrowsingDataLifetimeManagerScheduledRemovalTest.History/*',
+        ],
+      }
+    },
+    'remove_from': [
+      'android-12l-x64-fyi-dbg',
+    ],
+  },
   'android_sync_integration_tests': {
    'modifications': {
       'android-12-x64-rel': {
@@ -109,14 +168,19 @@
           'shards': 3,
         },
       },
+      'android-code-coverage-native': {
+        'swarming': {
+          'shards': 2,
+        },
+      },
       # If you change this, make similar changes in android-x86-code-coverage below
-      'android-nougat-x86-rel': {
+      'android-oreo-x86-rel': {
         'ci_only': True,
         'swarming': {
           'shards': 2,
         },
       },
-      # Keep this same as android-nougat-x86-rel above
+      # Keep this same as android-oreo-x86-rel above
       'android-x86-code-coverage': {
         'ci_only': True,
         'swarming': {
@@ -157,18 +221,6 @@
       'Linux ChromiumOS MSan Tests',
     ]
   },
-  'aura_unittests amd64-generic': {
-    'remove_from': [
-      # TODO(crbug.com/1204231): Re-enable.
-      'lacros-amd64-generic-rel',
-    ]
-  },
-  'aura_unittests eve': {
-    'remove_from': [
-      # TODO(crbug.com/1204231): Re-enable.
-      'lacros-amd64-generic-rel',
-    ]
-  },
   'base_unittests': {
     'modifications': {
       'ToTAndroid': {
@@ -182,6 +234,16 @@
         ],
       },
       'android-12l-x64-dbg-tests': {
+        'args': [
+          '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator.base_unittests.filter',
+        ],
+      },
+      'android-12l-x64-fyi-dbg': {
+        'args': [
+          '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator.base_unittests.filter',
+        ],
+      },
+      'android-13-x64-fyi-rel': {
         'args': [
           '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator.base_unittests.filter',
         ],
@@ -207,7 +269,7 @@
     'modifications': {
       'android-bfcache-rel': {
         'args': [
-          '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_n.content_browsertests.filter',
+          '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_o.content_browsertests.filter',
         ],
         'swarming': {
           'shards': 15,
@@ -217,27 +279,14 @@
   },
   'blink_platform_unittests': {
     'modifications': {
-      # TODO(crbug.com/1303439): Remove this filter
-      # If you change this, make similar changes in android-x86-code-coverage below
-      'android-nougat-x86-rel': {
-        'args': [
-          '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_n.blink_platform_unittests.filter',
-        ],
-      },
       'android-pie-arm64-rel': {
         # TODO(crbug.com/1111436): Move this back to walleye if/when additional
         # capacity has been deployed.
         'swarming': {
           'dimensions': {
-            'device_type': 'sailfish',
+            'device_type': 'crosshatch',
           },
         },
-      },
-      # Keep this same as android-nougat-x86-rel above
-      'android-x86-code-coverage': {
-        'args': [
-          '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_n.blink_platform_unittests.filter',
-        ],
       },
       'fuchsia-code-coverage': {
         'swarming': {
@@ -281,20 +330,12 @@
           'shards': 12,
         },
       },
-      'Mac10.13 Tests': {
-        'swarming': {
-          'dimensions': {
-            'gpu': None,
-          },
-          'shards': 10,
-        },
-      },
       'Mac10.15 Tests': {
         'swarming': {
           'dimensions': {
             'gpu': None,
           },
-          'shards': 10,
+          'shards': 1,
         },
       },
       'Mac11 Tests': {
@@ -311,11 +352,17 @@
             'gpu': None,
           },
           'shards': 12,
-          'inverse_quickrun_shards': 24,
         },
       },
-      'Mac12 Tests (dbg)': {
-        'experiment_percentage': 100,
+      'Mac13 Tests': {
+        'swarming': {
+          'dimensions': {
+            'gpu': None,
+          },
+          'shards': 12,
+        },
+      },
+      'Mac13 Tests (dbg)': {
         'args': [
           '--debug',
         ],
@@ -391,8 +438,12 @@
           'Release_x64',
         ],
         'swarming': {
+          # blink_web_tests has issues on non-broadwell machines.
+          # see https://crbug.com/1458859
+          'dimensions': {
+            'cpu': 'x86-64-Broadwell_GCE',
+          },
           "shards": 12,
-          "inverse_quickrun_shards": 24,
         },
       },
       'Win10 Tests x64 (dbg)': {
@@ -469,6 +520,9 @@
         'args': [
           '--flag-specific=force-renderer-accessibility',
         ],
+        'swarming': {
+          'shards': 20,
+        },
       },
       'linux-blink-wpt-reset-rel': {
         'args': [
@@ -484,6 +538,7 @@
       },
       'linux-code-coverage': {
         'args': [
+          '--additional-driver-flag=--no-sandbox',
           '--additional-env-var=LLVM_PROFILE_FILE=${ISOLATED_OUTDIR}/profraw/default-%2m.profraw',
         ],
         'swarming': {
@@ -497,8 +552,9 @@
       },
       'linux-rel-cft': {
         "args": [
-          "--additional-env-var=LLVM_PROFILE_FILE=${ISOLATED_OUTDIR}/profraw/default-%2m.profraw",
-	  '--test-launcher-filter-file=../../testing/buildbot/filters/cft.blink_web_tests.filter',
+          '--additional-env-var=LLVM_PROFILE_FILE=${ISOLATED_OUTDIR}/profraw/default-%2m.profraw',
+          '--test-launcher-filter-file=../../testing/buildbot/filters/cft.blink_web_tests.filter',
+          '--flag-specific=chrome-for-testing',
         ],
         'swarming': {
           'shards': 8,
@@ -521,22 +577,11 @@
             'gpu': None,
           },
           'shards': 12,
-          'inverse_quickrun_shards': 24,
-        },
-      },
-      'mac10.13-blink-rel': {
-        'swarming': {
-          'shards': 1,
-        },
-      },
-      'mac10.14-blink-rel': {
-        'swarming': {
-          'shards': 1,
         },
       },
       'mac10.15-blink-rel': {
         'swarming': {
-          'shards': 8,
+          'shards': 1,
           'hard_timeout': 2400,
         },
       },
@@ -565,11 +610,10 @@
         'args': [
           '--target',
           'Release_x64',
-	  '--test-launcher-filter-file=../../testing/buildbot/filters/cft.blink_web_tests.filter',
+          '--test-launcher-filter-file=../../testing/buildbot/filters/cft.blink_web_tests.filter',
         ],
         'swarming': {
           "shards": 12,
-          "inverse_quickrun_shards": 24,
         },
       },
       'win10-rel-no-external-ip': {
@@ -586,6 +630,15 @@
           'shards': 6,
           'hard_timeout': 2400,
         },
+      },
+      'win11-arm64-blink-rel': {
+        'swarming': {
+          'hard_timeout': 2400,
+        },
+        'args': [
+          '--target',
+          'Release_x64',
+        ],
       },
       'win11-blink-rel': {
         'swarming': {
@@ -624,20 +677,12 @@
           'shards': 18,
         },
       },
-      'Mac10.13 Tests': {
-        'swarming': {
-          'dimensions': {
-            'gpu': None,
-          },
-          'shards': 15,
-        },
-      },
       'Mac10.15 Tests': {
         'swarming': {
           'dimensions': {
             'gpu': None,
           },
-          'shards': 15,
+          'shards': 1,
         },
       },
       'Mac11 Tests': {
@@ -654,11 +699,17 @@
             'gpu': None,
           },
           'shards': 18,
-          'inverse_quickrun_shards': 36,
         },
       },
-      'Mac12 Tests (dbg)': {
-        'experiment_percentage': 100,
+      'Mac13 Tests': {
+        'swarming': {
+          'dimensions': {
+            'gpu': None,
+          },
+          'shards': 18,
+        },
+      },
+      'Mac13 Tests (dbg)': {
         'args': [
           '--debug',
         ],
@@ -735,7 +786,6 @@
         ],
         'swarming': {
           "shards": 18,
-          "inverse_quickrun_shards": 36,
         },
       },
       'Win10 Tests x64 (dbg)': {
@@ -810,11 +860,9 @@
       },
       'linux-code-coverage': {
         'args': [
+          '--additional-driver-flag=--no-sandbox',
           '--additional-env-var=LLVM_PROFILE_FILE=${ISOLATED_OUTDIR}/profraw/default-%2m.profraw',
         ],
-        'swarming': {
-          'shards': 12,
-        },
       },
       'linux-layout-tests-edit-ng': {
         'args': [
@@ -824,6 +872,7 @@
       'linux-rel-cft': {
         "args": [
           "--additional-env-var=LLVM_PROFILE_FILE=${ISOLATED_OUTDIR}/profraw/default-%2m.profraw",
+          '--flag-specific=chrome-for-testing',
         ],
         'swarming': {
           'shards': 10,
@@ -846,17 +895,6 @@
             'gpu': None,
           },
           'shards': 18,
-          'inverse_quickrun_shards': 36,
-        },
-      },
-      'mac10.13-blink-rel': {
-        'swarming': {
-          'shards': 1,
-        },
-      },
-      'mac10.14-blink-rel': {
-        'swarming': {
-          'shards': 1,
         },
       },
       'mac10.15-blink-rel': {
@@ -893,7 +931,6 @@
         ],
         'swarming': {
           "shards": 18,
-          "inverse_quickrun_shards": 36,
         },
       },
       'win10-rel-no-external-ip': {
@@ -910,6 +947,15 @@
           'shards': 9,
           'hard_timeout': 2400,
         },
+      },
+      'win11-arm64-blink-rel': {
+        'swarming': {
+          'hard_timeout': 2400,
+        },
+        'args': [
+          '--target',
+          'Release_x64',
+        ],
       },
       'win11-blink-rel': {
         'swarming': {
@@ -929,13 +975,13 @@
       'ToTLinuxTSan',  # https://crbug.com/368525
       # TODO(crbug.com/1171053): Enable the suite in 'Mac10.15 Tests' once it's
       # off CQ.
-      'Mac10.13 Tests', # https://crbug.com/1042757
-      'Mac10.15 Tests', # https://crbug.com/1042757
-      'Mac12 Tests (dbg)', # https://crbug.com/1201386
+      'Mac13 Tests (dbg)', # https://crbug.com/1201386
       'mac-code-coverage', # https://crbug.com/1201386
       'mac11-arm64-rel-tests', # https://crbug.com/1406364
       'mac12-arm64-rel-tests', # https://crbug.com/1406364
+      'mac13-arm64-rel-tests', # https://crbug.com/1406364
       'Linux TSan Tests',  # https://crbug.com/368525
+      'linux-exp-tsan-fyi-rel',  # https://crbug.com/368525
       'Win10 Tests x64 (dbg)',
     ],
     'modifications': {
@@ -966,11 +1012,6 @@
           'shards': 40,
         },
       },
-      'Linux ASan Tests (sandboxed)': {
-        'swarming': {
-          'shards': 30, # https://crbug.com/1103330
-        },
-      },
       'Linux CFI': {
         'swarming': {
           'shards': 20,  # https://crbug.com/1361973
@@ -979,8 +1020,10 @@
       'Linux Chromium OS ASan LSan Tests (1)': {
         # These are very slow on the ASAN trybot for some reason.
         # crbug.com/1257927
+        # And even more slow on linux-chromeos: crbug.com/1491533.
         'swarming': {
-          'shards': 60,
+          'shards': 140,
+          'hard_timeout': 7200,
         },
       },
       'Linux ChromiumOS MSan Tests': {
@@ -1000,6 +1043,10 @@
         },
       },
       'Linux Tests': {
+        # Only retry the individual failed tests instead of rerunning entire
+        # shards.
+        # crbug.com/1473501
+        'retry_only_failed_tests': True,
         'swarming': {
           'shards': 20,
         },
@@ -1009,15 +1056,19 @@
         'args': [
           '--test-launcher-filter-file=../../testing/buildbot/filters/ozone-linux.wayland_browser_tests.filter',
         ],
+        # Only retry the individual failed tests instead of rerunning entire
+        # shards.
+        # crbug.com/1473501
+        'retry_only_failed_tests': True,
         'swarming': {
           'shards': 20,
-          'quickrun_shards': 24,
         },
       },
       'Linux Tests (dbg)(1)': {
         # crbug.com/1066161
+        # crbug.com/1459645
         'swarming': {
-          'shards': 20,
+          'shards': 27,
         },
       },
       'Mac ASan 64 Tests (1)': {
@@ -1038,15 +1089,9 @@
       'Mac10.15 Tests': {
         # crbug.com/1042757
         'swarming': {
-          'dimensions': {
-            # These shards are liable to time out when running on macmini7,1.
-            'cores': '8|12',
-          },
+          'shards': 30,
         },
-        # crbug.com/1196416
-        'args': [
-          '--test-launcher-filter-file=../../testing/buildbot/filters/mac.mac-rel.browser_tests.filter',
-        ],
+        'experiment_percentage': 100,
       },
       'Mac11 Tests': {
         'ci_only': True,
@@ -1060,7 +1105,13 @@
           'shards': 20,  # crbug.com/1361887
         },
       },
-      'Mac12 Tests (dbg)': {
+      'Mac13 Tests': {
+        'ci_only': True,
+        'swarming': {
+          'shards': 20,  # crbug.com/1361887
+        },
+      },
+      'Mac13 Tests (dbg)': {
         # crbug.com/1042757
         'swarming': {
           'dimensions': {
@@ -1093,6 +1144,10 @@
         'args': [
           '--disable-features=WebRTC-H264WithOpenH264FFmpeg',
         ],
+        # Only retry the individual failed tests instead of rerunning entire
+        # shards.
+        # crbug.com/1473501
+        'retry_only_failed_tests': True,
         'swarming': {
           # This is for slow test execution that often becomes a critical path of
           # swarming jobs. crbug.com/868114
@@ -1108,7 +1163,6 @@
           # This is for slow test execution that often becomes a critical path of
           # swarming jobs. crbug.com/868114
           'shards': 15,
-          'quickrun_shards': 30,
         }
       },
       'linux-chromeos-chrome': {
@@ -1128,10 +1182,14 @@
       },
       'linux-chromeos-dbg': {
         'swarming': {
-          'shards': 50,
+          'shards': 80,
         },
       },
       'linux-chromeos-rel': {
+        # Only retry the individual failed tests instead of rerunning entire
+        # shards.
+        # crbug.com/1473501
+        'retry_only_failed_tests': True,
         'swarming': {
           'shards': 60,
           'dimensions': {
@@ -1147,6 +1205,19 @@
           'shards': 50,
         },
       },
+      'linux-exp-asan-lsan-fyi-rel': {
+        'ci_only': True,
+        # These are very slow on the ASAN trybot for some reason.
+        # crbug.com/1257927
+        'swarming': {
+          'shards': 40,
+        },
+      },
+      'linux-exp-msan-fyi-rel': {
+        'swarming': {
+          'shards': 23,
+        },
+      },
       # asan tests is slower.
       'linux-lacros-asan-lsan-rel': {
         'swarming': {
@@ -1158,6 +1229,10 @@
         ],
       },
       'linux-lacros-tester-rel': {
+        # Only retry the individual failed tests instead of rerunning entire
+        # shards.
+        # crbug.com/1473501
+        'retry_only_failed_tests': True,
         'swarming': {
           'shards': 20,
         },
@@ -1170,6 +1245,11 @@
           'shards': 20,
         },
       },
+      'linux-ubsan-fyi-rel': {
+        'swarming': {
+          'shards': 20,
+        }
+      },
       'mac-code-coverage': {
         'args': [
           '--coverage-continuous-mode=1',
@@ -1177,7 +1257,7 @@
       },
       'mac-osxbeta-rel': {
         'swarming': {
-          'shards': 12,
+          'shards': 30,
         },
       },
       'mac-rel-cft': {
@@ -1191,9 +1271,10 @@
       },
       'win-arm64-rel': {
         # Surface Pros aren't using 100% scaling, which some browser tests
-        # rely on.
+        # rely on. They also have touch enabled, which we need to disable.
         'args': [
           '--force-device-scale-factor=1',
+          '--top-chrome-touch-ui=disabled',
         ],
       },
       'win-asan': {
@@ -1207,11 +1288,6 @@
           'shards': 60,
         },
       },
-      'win-backuprefptr-x64-fyi-rel': {
-       'args': [
-          '--test-launcher-filter-file=../../testing/buildbot/filters/win_backuprefptr_fyi.browser_tests.filter',
-        ],
-      },
       'win-rel-cft': {
         'args': [
           # crbug.com/868082
@@ -1224,6 +1300,15 @@
           'shards': 15,
         }
       },
+      'win10-code-coverage': {
+        'swarming': {
+          'shards': 40,
+          'dimensions': {
+            'pool': 'chromium.tests.coverage',
+            'ssd': '1',
+          },
+        }
+      },
       'win10-rel-no-external-ip': {
         # crbug.com/868082
         'args': [
@@ -1232,6 +1317,25 @@
         'swarming': {
           'shards': 15,
         }
+      },
+    },
+  },
+  'browser_tests_no_field_trial': {
+    'remove_from': [
+      'win10-rel-no-external-ip',
+      'win-arm64-rel',
+      'win-rel-cft',
+      'Win11 Tests x64',
+    ],
+  },
+  'capture_unittests': {
+    'modifications': {
+      'WebRTC Chromium Linux Tester': {
+        'swarming': {
+          'dimensions': {
+            'os': 'Ubuntu-22.04|Ubuntu-18.04',
+          },
+        },
       },
     },
   },
@@ -1260,11 +1364,6 @@
           '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator.cc_unittests.filter',
         ],
       },
-      'chromeos-amd64-generic-rel': {
-        'swarming': {
-          'quickrun_shards': 2,
-        },
-      },
       'fuchsia-code-coverage': {
         'swarming': {
           'shards': 4,
@@ -1275,12 +1374,10 @@
           '--test-launcher-filter-file=../../testing/buildbot/filters/fuchsia.debug.cc_unittests.filter',
         ],
       },
-    },
-  },
-  'cc_unittests eve': {
-    'modifications': {
-      'lacros-amd64-generic-rel': {
-        'ci_only': True,
+      'linux-exp-tsan-fyi-rel': {
+        'swarming': {
+          'shards': 3,
+        },
       },
     },
   },
@@ -1300,7 +1397,7 @@
   },
   'chrome_all_tast_tests': {
     'modifications': {
-      'chromeos-amd64-generic-rel': {
+      'chromeos-amd64-generic-rel-renamed': {
         'swarming': {
           'shards': 7,
         },
@@ -1312,6 +1409,7 @@
         'args': [
           # This bot sets symbol_level=2, which doesn't fit inside a normal VM.
           '--strip-chrome',
+          '--tast-shard-method=hash',
         ],
       },
       'chromeos-betty-pi-arc-chrome': {
@@ -1321,8 +1419,8 @@
       },
       'chromeos-eve-chrome': {
         'swarming': {
-          # Increased timeout to 3 hours due to shard timeout.
-          'hard_timeout': 10800,
+          # Increased timeout to 4 hours due to shard timeout.
+          'hard_timeout': 14400,
         }
       },
       # TODO(crbug.com/1141234): Move out of experimental if/when the bots are
@@ -1330,26 +1428,10 @@
       'chromeos-jacuzzi-chrome': {
         'experiment_percentage': 100,
       },
-      'chromeos-kevin-chrome': {
-        'swarming': {
-          # Reducing parallelism due to DUT shortage (b/238271231)
-          'shards': 5,
-          # Increased timeout to 3 hours due to shard timeout.
-          'hard_timeout': 10800,
-        }
-      },
-    },
-  },
-  'chrome_java_test_pagecontroller_tests': {
-    'modifications': {
-      'android-pie-arm64-rel': {
-        # TODO(crbug.com/1111436): Move this back to walleye if/when additional
-        # capacity has been deployed.
-        'swarming': {
-          'dimensions': {
-            'device_type': 'sailfish',
-          },
-        },
+      'chromeos-reven-chrome': {
+        'args': [
+          '--tast-shard-method=hash',
+        ],
       },
     },
   },
@@ -1393,6 +1475,20 @@
         'args': [
           '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_12l.chrome_public_test_apk.filter',
         ],
+        # TODO(crbug.com/1439624): Remove experiment and ci_only
+        # once the test suite is stable.
+        'ci_only': True,
+        'experiment_percentage': 100,
+      },
+      'android-12l-x64-fyi-dbg': {
+        'args': [
+          '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_12l.chrome_public_test_apk.filter',
+        ],
+      },
+      'android-13-x64-fyi-rel': {
+        'args': [
+          '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_13.chrome_public_test_apk.filter',
+        ],
       },
       'android-13-x64-rel': {
         'args': [
@@ -1405,9 +1501,9 @@
         },
       },
       # If you change this, make similar changes in android-x86-code-coverage below
-      'android-nougat-x86-rel': {
+      'android-oreo-x86-rel': {
         'args': [
-          '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_n.chrome_public_test_apk.filter',
+          '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_o.chrome_public_test_apk.filter',
         ],
         'swarming': {
           'shards': 75,
@@ -1439,10 +1535,10 @@
           'shards': 30,
         },
       },
-      # Keep this same as android-nougat-x86-rel above
+      # Keep this same as android-oreo-x86-rel above
       'android-x86-code-coverage': {
         'args': [
-          '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_n.chrome_public_test_apk.filter',
+          '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_o.chrome_public_test_apk.filter',
         ],
         'swarming': {
           'shards': 75,
@@ -1450,52 +1546,6 @@
             # use 8-core to shorten runtime
             'cores': '8',
           },
-        },
-      },
-    },
-  },
-  'chrome_public_test_apk_with_playstore': {
-    'modifications': {
-      'android-11-x86-rel': {
-        'args': [
-          '--avd-config=../../tools/android/avd/proto/generic_playstore_android30.textpb',
-        ],
-        'swarming': {
-          # soft affinity so that bots with caches will be picked first
-          'optional_dimensions': {
-            '60': [
-              {
-                'caches': 'generic_playstore_android30',
-              }
-            ],
-          },
-          'named_caches': [
-            {
-              'name': 'generic_playstore_android30',
-              'path': '.android_emulator/generic_playstore_android30',
-            },
-          ],
-        },
-      },
-      'android-pie-x86-rel': {
-        'args': [
-          '--avd-config=../../tools/android/avd/proto/generic_playstore_android28.textpb',
-        ],
-        'swarming': {
-          # soft affinity so that bots with caches will be picked first
-          'optional_dimensions': {
-            '60': [
-              {
-                'caches': 'generic_playstore_android28',
-              }
-            ],
-          },
-          'named_caches': [
-            {
-              'name': 'generic_playstore_android28',
-              'path': '.android_emulator/generic_playstore_android28',
-            },
-          ],
         },
       },
     },
@@ -1538,15 +1588,52 @@
           '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_12l.chrome_public_unit_test_apk.filter',
         ],
       },
+      'android-12l-x64-fyi-dbg': {
+        'args': [
+          '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_12l.chrome_public_unit_test_apk.filter',
+        ],
+      },
+      'android-13-x64-fyi-rel': {
+        'args': [
+          '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_13.chrome_public_unit_test_apk.filter',
+        ],
+      },
       'android-13-x64-rel': {
         'args': [
           '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_13.chrome_public_unit_test_apk.filter',
+        ],
+      },
+      # If you change this, make similar changes in android-x86-code-coverage below
+      'android-oreo-x86-rel': {
+        'args': [
+          '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_o.chrome_public_unit_test_apk.filter',
+        ],
+      },
+      'android-pie-arm64-rel': {
+        'swarming': {
+          'dimensions': {
+            'device_type': 'crosshatch',
+          },
+          # TODO(crbug.com/1462745): Temporarily increase the shard to 5 for the network issue.
+          'shards': 5,
+        },
+      },
+      # Keep this same as android-oreo-x86-rel above
+      'android-x86-code-coverage': {
+        'args': [
+          '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_o.chrome_public_unit_test_apk.filter',
         ],
       },
     },
   },
   'chrome_public_wpt': {
     'modifications': {
+      'android-chrome-pie-x86-wpt-android-specific': {
+        'args': [
+          '--test-list',
+          '../../third_party/blink/web_tests/TestLists/android.filter'
+        ]
+      },
       'android-chrome-pie-x86-wpt-fyi-rel': {
         'args': [
           '--use-upstream-wpt',
@@ -1556,19 +1643,11 @@
   },
   'chrome_sizes': {
     'modifications': {
-      'lacros-amd64-generic-chrome': {
-        'swarming': {
-          'dimensions': {
-            'cpu': 'x86-64',
-            'os': 'Ubuntu-18.04',
-          },
-        },
-      },
       'lacros-amd64-generic-chrome-skylab': {
         'swarming': {
           'dimensions': {
             'cpu': 'x86-64',
-            'os': 'Ubuntu-18.04',
+            'os': 'Ubuntu-22.04',
           },
         },
       },
@@ -1576,7 +1655,7 @@
         'swarming': {
           'dimensions': {
             'cpu': 'x86-64',
-            'os': 'Ubuntu-18.04',
+            'os': 'Ubuntu-22.04',
           },
         },
       },
@@ -1584,7 +1663,7 @@
         'swarming': {
           'dimensions': {
             'cpu': 'x86-64',
-            'os': 'Ubuntu-18.04',
+            'os': 'Ubuntu-22.04',
           },
         },
       },
@@ -1624,18 +1703,36 @@
         },
       },
       # If you change this, make similar changes in android-x86-code-coverage below
-      'android-nougat-x86-rel': {
+      'android-oreo-x86-rel': {
         'swarming': {
           'shards': 4,
         },
       },
-      # Keep this same as android-nougat-x86-rel above
+      # Keep this same as android-oreo-x86-rel above
       'android-x86-code-coverage': {
         'swarming': {
           'shards': 4,
         },
       },
+      'fuchsia-code-coverage': {
+        'swarming': {
+          'shards': 4,
+        },
+      },
+      'linux-exp-tsan-fyi-rel': {
+        'swarming': {
+          'shards': 2,
+        },
+      },
     },
+  },
+  'components_browsertests_no_field_trial': {
+    'remove_from': [
+      'win10-rel-no-external-ip',
+      'win-arm64-rel',
+      'win-rel-cft',
+      'Win11 Tests x64',
+    ],
   },
   'components_unittests': {
     'modifications': {
@@ -1658,22 +1755,6 @@
           'shards': 2,
         },
       },
-      # https://crbug.com/1344223
-      'Mac10.13 Tests': {
-        'swarming': {
-          'shards': 2,
-        },
-      },
-      'Mac12 Tests': {
-        'swarming': {
-          'inverse_quickrun_shards': 2,
-        },
-      },
-      'Win10 Tests x64': {
-        'swarming': {
-          'inverse_quickrun_shards': 2,
-        },
-      },
       'android-11-x86-rel': {
         'args': [
           # TODO(crbug.com/1192348): Fix the test failure
@@ -1686,21 +1767,16 @@
           '--gtest_filter=-FieldFormatterTest.DifferentLocales',
         ],
       },
-      # If you change this, make similar changes in android-x86-code-coverage below
-      'android-nougat-x86-rel': {
+      'linux-exp-asan-lsan-fyi-rel': {
+        # These are very slow on the ASAN trybot for some reason.
+        # crbug.com/1257927
         'swarming': {
-          'inverse_quickrun_shards': 12,
+          'shards': 5,
         },
       },
-      # Keep this same as android-nougat-x86-rel above
-      'android-x86-code-coverage': {
+      'linux-exp-tsan-fyi-rel': {
         'swarming': {
-          'inverse_quickrun_shards': 12,
-        },
-      },
-      'mac-rel-cft': {
-        'swarming': {
-          'inverse_quickrun_shards': 2,
+          'shards': 2,
         },
       },
       'win-asan': {
@@ -1709,14 +1785,9 @@
           'shards': 2,
         },
       },
-      'win-rel-cft': {
-        'swarming': {
-          'inverse_quickrun_shards': 2,
-        },
-      },
       'win10-code-coverage': {
         'swarming': {
-          'shards': 4,
+          'shards': 6,
         },
       },
     },
@@ -1732,6 +1803,8 @@
   },
   'content_browsertests': {
     'remove_from': [
+      # TODO(crbug.com/1431581): Temporarily remove it from android-12L builder due to infra flakiness.
+      'android-12l-x64-dbg-tests',
       'CrWinAsan(dll)', # https://crbug.com/935598
       # TODO(crbug.com/1371630): Enable on Fuchsia dbg/asan/clang builders.
       'fuchsia-fyi-arm64-dbg',
@@ -1750,21 +1823,37 @@
         'args': [
           '--test-launcher-filter-file=../../testing/buildbot/filters/cast-linux.content_browsertests.filter',
         ],
+        # Only retry the individual failed tests instead of rerunning entire
+        # shards.
+        # crbug.com/1475852
+        'retry_only_failed_tests': True,
       },
       'Linux ASan LSan Tests (1)': {
         'swarming': {
           'shards': 24,
         },
       },
-      'Linux ASan Tests (sandboxed)': {
+      'Linux Chromium OS ASan LSan Tests (1)': {
         'swarming': {
-          'shards': 10, # https://crbug.com/1103330
+          'shards': 10, # https://crbug.com/1471857
         },
       },
       'Linux TSan Tests': {
         'swarming': {
           'shards': 30,
         },
+      },
+      'Linux Tests': {
+        # Only retry the individual failed tests instead of rerunning entire
+        # shards.
+        # crbug.com/1475852
+        'retry_only_failed_tests': True,
+      },
+      'Linux Tests (Wayland)': {
+        # Only retry the individual failed tests instead of rerunning entire
+        # shards.
+        # crbug.com/1475852
+        'retry_only_failed_tests': True,
       },
       'Mac ASan 64 Tests (1)': { # https://crbug.com/1200640
         'experiment_percentage': 100,
@@ -1777,10 +1866,18 @@
       'Mac12 Tests': {
         'swarming': {
           'shards': 12,
-          'inverse_quickrun_shards': 24,
         },
       },
-      'Mac12 Tests (dbg)': { # https://crbug.com/1279504
+      'Mac13 Tests': {
+        # Only retry the individual failed tests instead of rerunning entire
+        # shards.
+        # crbug.com/1475852
+        'retry_only_failed_tests': True,
+        'swarming': {
+          'shards': 12,
+        },
+      },
+      'Mac13 Tests (dbg)': { # https://crbug.com/1279504
         'swarming': {
           'shards': 18,
         },
@@ -1800,9 +1897,10 @@
         'args': [
           '--disable-features=WebRTC-H264WithOpenH264FFmpeg',
         ],
-        'swarming': {
-          'quickrun_shards': 18,
-        },
+        # Only retry the individual failed tests instead of rerunning entire
+        # shards.
+        # crbug.com/1475852
+        'retry_only_failed_tests': True,
       },
       'Win10 Tests x64 (dbg)': {
         'experiment_percentage': 100,
@@ -1845,6 +1943,26 @@
         },
       },
       'android-12l-x64-dbg-tests': {
+        # TODO(crbug.com/1439624): Remove experiment and ci_only
+        # once the test suite is stable.
+        'ci_only': True,
+        'experiment_percentage': 100,
+        'args': [
+          '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_12l_13.content_browsertests.filter',
+        ],
+        'swarming': {
+          'shards': 40,
+        },
+      },
+      'android-12l-x64-fyi-dbg': {
+        'args': [
+          '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_12l_13.content_browsertests.filter',
+        ],
+        'swarming': {
+          'shards': 40,
+        },
+      },
+      'android-13-x64-fyi-rel': {
         'args': [
           '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_12l_13.content_browsertests.filter',
         ],
@@ -1873,10 +1991,15 @@
           'shards': 25,
         },
       },
+      'android-code-coverage-native': {
+        'swarming': {
+          'shards': 25,
+        },
+      },
       # If you change this, make similar changes in android-x86-code-coverage below
-      'android-nougat-x86-rel': {
+      'android-oreo-x86-rel': {
         'args': [
-          '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_n.content_browsertests.filter',
+          '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_o.content_browsertests.filter',
         ],
         'swarming': {
           'shards': 75,
@@ -1890,8 +2013,14 @@
         'args': [
           '--test-launcher-filter-file=../../testing/buildbot/filters/android.pie_arm64.content_browsertests_coverage.filter',
         ],
+        # Only retry the individual failed tests instead of rerunning entire
+        # shards.
+        # crbug.com/1475852
+        'retry_only_failed_tests': True,
         'swarming': {
-          'quickrun_shards': 40
+          # TODO(crbug.com/1462745): Temporarily increase the shard by 5 for the surging number of tests.
+          # Recover to default number of shards(20) after the bug is fixed.
+          'shards': 25,
         },
       },
       'android-pie-x86-rel': {
@@ -1904,10 +2033,10 @@
           'shards': 30,
         },
       },
-      # Keep this same as android-nougat-x86-rel above
+      # Keep this same as android-oreo-x86-rel above
       'android-x86-code-coverage': {
         'args': [
-          '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_n.content_browsertests.filter',
+          '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_o.content_browsertests.filter',
         ],
         'swarming': {
           'shards': 75,
@@ -1930,6 +2059,15 @@
         # TODO(crbug.com/1371630): Remove this when resource requirements are
         # lower.
         'ci_only': True,
+      },
+      'fuchsia-code-coverage': {
+        'args': [
+          '--test-launcher-filter-file=../../testing/buildbot/filters/fuchsia.coverage.content_browsertests.filter',
+          '--test-launcher-jobs=1',
+        ],
+        'swarming': {
+          'shards': 41,
+        },
       },
       'fuchsia-x64-cast-receiver-rel': {
         # Temporarily only run this on CI due to resource requirements.
@@ -1960,6 +2098,10 @@
         },
       },
       'linux-chromeos-rel': {
+        # Only retry the individual failed tests instead of rerunning entire
+        # shards.
+        # crbug.com/1475852
+        'retry_only_failed_tests': True,
         'swarming': {
           'shards': 6,
         },
@@ -1972,9 +2114,30 @@
           'shards': 12,
         },
       },
+      'linux-exp-asan-lsan-fyi-rel': {
+        'swarming': {
+          'shards': 24,
+        },
+      },
+      'linux-exp-tsan-fyi-rel': {
+        'swarming': {
+          'shards': 30,
+        },
+      },
       # https://crbug.com/1111979
       'linux-lacros-tester-fyi-rel': {
         'experiment_percentage': 100,
+      },
+      'linux-lacros-tester-rel': {
+        # Only retry the individual failed tests instead of rerunning entire
+        # shards.
+        # crbug.com/1475852
+        'retry_only_failed_tests': True,
+      },
+      'linux-ubsan-fyi-rel': {
+        'swarming': {
+          'shards': 16,
+        }
       },
       'mac-code-coverage': {
         'args': [
@@ -1984,7 +2147,6 @@
       'mac-rel-cft': {
         'swarming': {
           'shards': 12,
-          'inverse_quickrun_shards': 24,
         },
       },
       # https://crbug.com/1255940
@@ -2002,7 +2164,8 @@
           '--test-launcher-jobs=3',
         ],
         'swarming': {
-          'shards': 16,
+          # ASAN bot is slow: https://crbug.com/1484550#c3
+          'shards': 32,
         },
       },
       'win-rel-cft': {
@@ -2010,9 +2173,15 @@
         'args': [
           '--disable-features=WebRTC-H264WithOpenH264FFmpeg',
         ],
+      },
+      'win10-code-coverage': {
         'swarming': {
-          'quickrun_shards': 18,
-        },
+          'shards': 40,
+          'dimensions': {
+            'pool': 'chromium.tests.coverage',
+            'ssd': '1',
+          },
+        }
       },
       'win10-rel-no-external-ip': {
         # crbug.com/868082
@@ -2024,8 +2193,8 @@
   },
   'content_shell_crash_test': {
     'remove_from': [
-      'android-nougat-x86-rel', # crbug.com/1084353. If you remove this, also remove android-x86-code-coverage.
-      'android-x86-code-coverage'
+      'android-oreo-x86-rel', # crbug.com/1084353. If you remove this, also remove android-x86-code-coverage.
+      'android-x86-code-coverage',
     ],
     'modifications': {
       'Win10 Tests x64 (dbg)': {
@@ -2050,13 +2219,20 @@
           '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_12.content_shell_test_apk.filter',
         ],
         'ci_only': True,
-        'swarming': {
-          'inverse_quickrun_shards': 6,
-        },
       },
       'android-12l-x64-dbg-tests': {
         'args': [
           '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_12l.content_shell_test_apk.filter',
+        ],
+      },
+      'android-12l-x64-fyi-dbg': {
+        'args': [
+          '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_12l.content_shell_test_apk.filter',
+        ],
+      },
+      'android-13-x64-fyi-rel': {
+        'args': [
+          '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_13.content_shell_test_apk.filter',
         ],
       },
       'android-13-x64-rel': {
@@ -2065,10 +2241,7 @@
         ],
       },
       # If you change this, make similar changes in android-x86-code-coverage below
-      'android-nougat-x86-rel': {
-        'args': [
-          '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_n.content_shell_test_apk.filter',
-        ],
+      'android-oreo-x86-rel': {
         'swarming': {
           'shards': 6,
           'dimensions': {
@@ -2079,14 +2252,11 @@
       },
       'android-pie-x86-rel': {
         'args': [
-          '--gtest_filter=-ContentViewScrollingTest.testFling',
+          '--gtest_filter=-org.chromium.content.browser.input.ImeInputModeTest.testShowAndHideInputMode*',
         ],
       },
-      # Keep this same as android-nougat-x86-rel above
+      # Keep this same as android-oreo-x86-rel above
       'android-x86-code-coverage': {
-        'args': [
-          '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_n.content_shell_test_apk.filter',
-        ],
         'swarming': {
           'shards': 6,
           'dimensions': {
@@ -2123,6 +2293,13 @@
           '--test-launcher-filter-file=../../testing/buildbot/filters/fuchsia.lsan.content_unittests.filter',
         ],
       },
+      'linux-exp-asan-lsan-fyi-rel': {
+        # These are slow on the ASAN trybot for some reason.
+        # crbug.com/1257927
+        'swarming': {
+          'shards': 2,
+        },
+      },
       'linux-rel-dev': {
         'swarming': {
           'dimensions': {
@@ -2130,7 +2307,24 @@
           },
         },
       },
+      'win10-code-coverage': {
+        'swarming': {
+          'shards': 2,
+        },
+      },
     },
+  },
+  'context_lost_metal_passthrough_ganesh_tests': {
+    'remove_from': [
+      # crbug.com/1458020 for Mac Retina ASAN removal
+      'Mac FYI Retina ASAN (AMD)',
+    ],
+  },
+  'context_lost_metal_passthrough_graphite_tests': {
+    'remove_from': [
+      # crbug.com/1458020 for Mac Retina ASAN removal
+      'Mac FYI Retina ASAN (AMD)',
+    ],
   },
   'context_lost_validating_tests': {
     # TODO(https://crbug.com/850107): Remove the Android FYI Release (Pixel 2)
@@ -2139,11 +2333,22 @@
       'Android FYI Release (Pixel 2)',
     ],
   },
+  'cr23_pixel_browser_tests': {
+    'modifications': {
+      'win-rel-cft': {
+        'args': [
+          '--test-launcher-filter-file=../../testing/buildbot/filters/win.win-rel-cft.cr23_pixel_browser_tests.filter',
+        ],
+      },
+    },
+  },
   'crashpad_tests': {
     'remove_from': [
       'linux-win_cross-rel', # https://crbug.com/762167
       # https://crbug.com/crashpad/304
       'Linux TSan Tests',
+      # https://crbug.com/crashpad/304
+      'linux-exp-tsan-fyi-rel',
       'ToTLinuxTSan',
       # https://crbug.com/crashpad/306
       'Linux CFI',
@@ -2176,6 +2381,16 @@
           '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator.crashpad_tests.filter',
         ],
       },
+      'android-12l-x64-fyi-dbg': {
+        'args': [
+          '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator.crashpad_tests.filter',
+        ],
+      },
+      'android-13-x64-fyi-rel': {
+        'args': [
+          '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator.crashpad_tests.filter',
+        ],
+      },
       'android-13-x64-rel': {
         'args': [
           '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator.crashpad_tests.filter',
@@ -2195,6 +2410,8 @@
       # Android.
       'Dawn Android arm DEPS Release (Pixel 4)',
       'Dawn Android arm Release (Pixel 4)',
+      'Dawn Android arm64 DEPS Release (Pixel 6)',
+      'Dawn Android arm64 Release (Pixel 6)',
     ],
   },
   'dawn_end2end_validation_layers_tests': {
@@ -2203,6 +2420,8 @@
       # Android.
       'Dawn Android arm DEPS Release (Pixel 4)',
       'Dawn Android arm Release (Pixel 4)',
+      'Dawn Android arm64 DEPS Release (Pixel 6)',
+      'Dawn Android arm64 Release (Pixel 6)',
     ],
   },
   'dawn_end2end_wire_tests': {
@@ -2211,6 +2430,8 @@
       # Android.
       'Dawn Android arm DEPS Release (Pixel 4)',
       'Dawn Android arm Release (Pixel 4)',
+      'Dawn Android arm64 DEPS Release (Pixel 6)',
+      'Dawn Android arm64 Release (Pixel 6)',
     ],
   },
   'dawn_perf_tests': {
@@ -2219,6 +2440,8 @@
       # Android.
       'Dawn Android arm DEPS Release (Pixel 4)',
       'Dawn Android arm Release (Pixel 4)',
+      'Dawn Android arm64 DEPS Release (Pixel 6)',
+      'Dawn Android arm64 Release (Pixel 6)',
     ],
   },
   'device_unittests': {
@@ -2233,6 +2456,16 @@
           '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator.device_unittests.filter',
         ],
       },
+      'android-12l-x64-fyi-dbg': {
+        'args': [
+          '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator.device_unittests.filter',
+        ],
+      },
+      'android-13-x64-fyi-rel': {
+        'args': [
+          '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator.device_unittests.filter',
+        ],
+      },
       'android-13-x64-rel': {
         'args': [
           '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator.device_unittests.filter',
@@ -2240,12 +2473,122 @@
       },
     },
   },
-  'exo_unittests': {
+  'expected_color_pixel_gl_passthrough_ganesh_test': {
+    'replacements': {
+      'Mac V8 FYI Release (Intel)': {
+        'args': {
+          '--git-revision': '${got_cr_revision}',
+        },
+      },
+    },
+  },
+  'expected_color_pixel_metal_passthrough_ganesh_test': {
+    'remove_from': [
+      # crbug.com/1458020 for Mac Retina ASAN removal
+      'Mac FYI Retina ASAN (AMD)',
+    ],
+    'replacements': {
+      'Mac V8 FYI Release (Intel)': {
+        'args': {
+          '--git-revision': '${got_cr_revision}',
+        },
+      },
+    },
+  },
+  'expected_color_pixel_metal_passthrough_graphite_test': {
+    'remove_from': [
+      # crbug.com/1458020 for Mac Retina ASAN removal
+      'Mac FYI Retina ASAN (AMD)',
+    ],
+    'replacements': {
+      'Mac V8 FYI Release (Intel)': {
+        'args': {
+          '--git-revision': '${got_cr_revision}',
+        },
+      },
+    },
+  },
+  'expected_color_pixel_passthrough_test': {
     'modifications': {
-      'linux-chromeos-rel': {
-        'swarming': {
-          'quickrun_shards': 2,
-        }
+      'Android FYI Release (Pixel 4)': {
+        'args': [
+          # Pixel 4s are weird in that they can output in different color spaces
+          # simultaneously. The readback code for capturing a screenshot assumes
+          # only one color space, so disable wide color gamut for the test to
+          # work around the issue. See https://crbug.com/1166379 for more
+          # information.
+          '--extra-browser-args=--disable-wcg-for-test',
+        ],
+      },
+      'android_optional_gpu_tests_rel': {
+        'args': [
+          # See above.
+          '--extra-browser-args=--disable-wcg-for-test',
+        ],
+      },
+    },
+    'replacements': {
+      # The V8 builders pass the V8 revision for ${got_revision}, so instead
+      # use ${got_cr_revision}, which is only set on the V8 bots.
+      'Linux V8 FYI Release (NVIDIA)': {
+        'args': {
+          '--git-revision': '${got_cr_revision}',
+        },
+      },
+      'Linux V8 FYI Release - pointer compression (NVIDIA)': {
+        'args': {
+          '--git-revision': '${got_cr_revision}',
+        },
+      },
+      'Win V8 FYI Release (NVIDIA)': {
+        'args': {
+          '--git-revision': '${got_cr_revision}',
+        },
+      },
+    },
+  },
+  'expected_color_pixel_passthrough_test JACUZZI_RELEASE_LKGM': {
+    'modifications': {
+      'ChromeOS FYI Release Skylab (jacuzzi)': {
+        'args': [
+          # Skylab currently doesn't support use of LUCI_CONTEXT, so Gold cannot
+          # automatically get the service account to authenticate with.
+          '--service-account=/creds/service_accounts/skylab-drone.json',
+        ],
+      },
+    },
+  },
+  'expected_color_pixel_validating_test': {
+    'modifications': {
+      'Android FYI Release (Pixel 4)': {
+        'args': [
+          # Pixel 4s are weird in that they can output in different color spaces
+          # simultaneously. The readback code for capturing a screenshot assumes
+          # only one color space, so disable wide color gamut for the test to
+          # work around the issue. See https://crbug.com/1166379 for more
+          # information.
+          '--extra-browser-args=--disable-wcg-for-test',
+        ],
+      },
+      'android_optional_gpu_tests_rel': {
+        'args': [
+          # See above.
+          '--extra-browser-args=--disable-wcg-for-test',
+        ],
+      },
+    },
+    # TODO(https://crbug.com/850107): Remove the Android FYI Release (Pixel 2)
+    # exception once there is enough capacity to run these tests.
+    'remove_from': [
+      'Android FYI Release (Pixel 2)',
+    ],
+    'replacements': {
+      # The V8 builders pass the V8 revision for ${got_revision}, so instead
+      # use ${got_cr_revision}, which is only set on the V8 bots.
+      'Android V8 FYI Release (Nexus 5X)': {
+        'args': {
+          '--git-revision': '${got_cr_revision}',
+        },
       },
     },
   },
@@ -2279,10 +2622,24 @@
           '--gtest_filter=-BluetoothShellApiTest.ApiSanityCheck:BluetoothSocketApiTest.Listen:BluetoothSocketApiTest.PermissionDenied',
         ],
       },
+      'win10-code-coverage': {
+        'swarming': {
+          'shards': 2,
+          'dimensions': {
+            'pool': 'chromium.tests.coverage',
+            'ssd': '1',
+          },
+        }
+      },
     },
   },
   'extensions_unittests': {
     'modifications': {
+      'fuchsia-code-coverage': {
+        'swarming': {
+          'shards': 2,
+        },
+      },
       'fuchsia-fyi-x64-asan': {
         'args': [
           '--test-launcher-filter-file=../../testing/buildbot/filters/fuchsia.lsan.extensions_unittests.filter',
@@ -2291,31 +2648,38 @@
       # https://crbug.com/1111979
       'linux-lacros-asan-lsan-rel': {
         'args': [
-          '--gtest_filter=-NativeExtensionBindingsSystemUnittest*:'
-          'BluetoothSocketApiUnittest.CreateThenClose:'
-          'FeatureProviderTest.PermissionFeatureAvailability',
+          '--gtest_filter=-NativeExtensionBindingsSystemUnittest.AccessToAliasDoesntGiveAliasSourceAccess:'
+          'NativeExtensionBindingsSystemUnittest.AliasedAPIsAreDifferentObjects',
         ],
       },
       # https://crbug.com/1111979,
       'linux-lacros-code-coverage': {
         'args': [
-          '--gtest_filter=-BluetoothSocketApiUnittest.CreateThenClose:'
-          'NativeExtensionBindingsSystemUnittest.*',
+          '--gtest_filter=-NativeExtensionBindingsSystemUnittest.AccessToAliasDoesntGiveAliasSourceAccess:'
+          'NativeExtensionBindingsSystemUnittest.AliasedAPIsAreDifferentObjects',
         ],
       },
       'linux-lacros-dbg-tests-fyi': {
         'args': [
-          '--gtest_filter=-NativeExtensionBindingsSystemUnittest*:'
-          'BluetoothSocketApiUnittest.CreateThenClose:'
-          'FeatureProviderTest.PermissionFeatureAvailability',
+          '--gtest_filter=-NativeExtensionBindingsSystemUnittest.AccessToAliasDoesntGiveAliasSourceAccess:'
+          'NativeExtensionBindingsSystemUnittest.AliasedAPIsAreDifferentObjects',
         ],
       },
       'linux-lacros-tester-rel': {
         'args': [
-          '--gtest_filter=-NativeExtensionBindingsSystemUnittest*:'
-          'BluetoothSocketApiUnittest.CreateThenClose:'
-          'FeatureProviderTest.PermissionFeatureAvailability',
+          '--gtest_filter=-NativeExtensionBindingsSystemUnittest.AccessToAliasDoesntGiveAliasSourceAccess:'
+          'NativeExtensionBindingsSystemUnittest.AliasedAPIsAreDifferentObjects',
         ],
+      },
+    },
+  },
+  'gcp_unittests': {
+    'modifications': {
+      # Flakily times out with only a single shard due to slow runtime.
+      'win-asan': {
+        'swarming': {
+          'shards': 2,
+        },
       },
     },
   },
@@ -2333,12 +2697,19 @@
       'ToTLinuxASan',  # https://crbug.com/831667
       'Linux ASan LSan Tests (1)',  # https://crbug.com/831667
       'Linux Chromium OS ASan LSan Tests (1)',  # https://crbug.com/831667
+      'linux-exp-asan-lsan-fyi-rel',  # https://crbug.com/831667
     ],
     'modifications': {
+      'android-arm64-proguard-rel': {
+        'args': [
+          # https://crbug.com/1404782
+          '--test-launcher-filter-file=../../testing/buildbot/filters/android.pie_arm64.gin_unittests.filter',
+        ],
+      },
       'android-code-coverage-native': {
         'args': [
           # https://crbug.com/1404782
-          '--test-launcher-filter-file=../../testing/buildbot/filters/android.pie_arm64.gin_unittests_coverage.filter',
+          '--test-launcher-filter-file=../../testing/buildbot/filters/android.pie_arm64.gin_unittests.filter',
         ],
       },
       'fuchsia-fyi-x64-asan': {
@@ -2355,9 +2726,12 @@
       # Android.
       'Dawn Android arm DEPS Release (Pixel 4)',
       'Dawn Android arm Release (Pixel 4)',
+      'Dawn Android arm64 DEPS Release (Pixel 6)',
+      'Dawn Android arm64 Release (Pixel 6)',
       # Can't run on MSAN because gl_tests uses the hardware driver,
       # which isn't instrumented.
       'Linux MSan Tests',
+      'linux-exp-msan-fyi-rel',
     ],
     'modifications': {
       # TODO(kbr): figure out a better way to specify blocks of
@@ -2368,9 +2742,10 @@
           '--no-xvfb',
         ],
         'swarming': {
+          # This must be kept in sync with linux_nvidia_gtx_1660_stable mixin
           'dimensions': {
-            'gpu': '10de:2184',
-            'os': 'Ubuntu',
+            'gpu': '10de:2184-440.100',
+            'os': 'Ubuntu-18.04.5|Ubuntu-18.04.6',
             'pool': 'chromium.tests.gpu',
           },
         },
@@ -2381,9 +2756,10 @@
           '--no-xvfb',
         ],
         'swarming': {
+          # This must be kept in sync with linux_nvidia_gtx_1660_stable mixin
           'dimensions': {
-            'gpu': '10de:2184',
-            'os': 'Ubuntu',
+            'gpu': '10de:2184-440.100',
+            'os': 'Ubuntu-18.04.5|Ubuntu-18.04.6',
             'pool': 'chromium.tests.gpu',
           },
         },
@@ -2394,9 +2770,38 @@
           '--no-xvfb',
         ],
         'swarming': {
+          # This must be kept in sync with linux_nvidia_gtx_1660_stable mixin
           'dimensions': {
-            'gpu': '10de:2184',
-            'os': 'Ubuntu',
+            'gpu': '10de:2184-440.100',
+            'os': 'Ubuntu-18.04.5|Ubuntu-18.04.6',
+            'pool': 'chromium.tests.gpu',
+          },
+        },
+      },
+      'linux-exp-asan-lsan-fyi-rel': {
+        'args': [
+          '--use-gpu-in-tests',
+          '--no-xvfb',
+        ],
+        'swarming': {
+          # This must be kept in sync with linux_nvidia_gtx_1660_stable mixin
+          'dimensions': {
+            'gpu': '10de:2184-440.100',
+            'os': 'Ubuntu-18.04.5|Ubuntu-18.04.6',
+            'pool': 'chromium.tests.gpu',
+          },
+        },
+      },
+      'linux-exp-tsan-fyi-rel': {
+        'args': [
+          '--use-gpu-in-tests',
+          '--no-xvfb',
+        ],
+        'swarming': {
+          # This must be kept in sync with linux_nvidia_gtx_1660_stable mixin
+          'dimensions': {
+            'gpu': '10de:2184-440.100',
+            'os': 'Ubuntu-18.04.5|Ubuntu-18.04.6',
             'pool': 'chromium.tests.gpu',
           },
         },
@@ -2404,9 +2809,6 @@
     },
   },
   'gl_tests_validating': {
-   'remove_from': [
-      'Android FYI Release (Nexus 5X)',
-    ],
     'modifications': {
       'Android FYI Release (Samsung A13)': {
         'args': [
@@ -2438,6 +2840,16 @@
           '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_12_12l_13.gl_tests.filter',
         ],
       },
+      'android-12l-x64-fyi-dbg': {
+        'args': [
+          '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_12_12l_13.gl_tests.filter',
+        ],
+      },
+      'android-13-x64-fyi-rel': {
+        'args': [
+          '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_12_12l_13.gl_tests.filter',
+        ],
+      },
       'android-13-x64-rel': {
         'args': [
           '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_12_12l_13.gl_tests.filter',
@@ -2454,9 +2866,9 @@
         ],
       },
       # If you change this, make similar changes in android-x86-code-coverage below
-      'android-nougat-x86-rel': {
+      'android-oreo-x86-rel': {
         'args': [
-          '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_n.gl_tests.filter',
+          '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_o_p.gl_tests.filter',
         ],
       },
       'android-pie-arm64-rel': {
@@ -2466,13 +2878,13 @@
       },
       'android-pie-x86-rel': {
         'args': [
-          '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator.gl_tests.filter',
+          '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_o_p.gl_tests.filter',
         ],
       },
-      # Keep this same as android-nougat-x86-rel above
+      # Keep this same as android-oreo-x86-rel above
       'android-x86-code-coverage': {
         'args': [
-          '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_n.gl_tests.filter',
+          '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_o_p.gl_tests.filter',
         ],
       },
     },
@@ -2486,9 +2898,12 @@
       # Android.
       'Dawn Android arm DEPS Release (Pixel 4)',
       'Dawn Android arm Release (Pixel 4)',
+      'Dawn Android arm64 DEPS Release (Pixel 6)',
+      'Dawn Android arm64 Release (Pixel 6)',
       # Can't run on MSAN because gl_unittests uses the hardware driver,
       # which isn't instrumented.
       'Linux MSan Tests',
+      'linux-exp-msan-fyi-rel',
     ],
     'modifications': {
       'android-12-x64-rel': {
@@ -2515,6 +2930,8 @@
       # TODO(https://crbug.com/850107): Remove the Android FYI Release (Pixel 2)
       # exception once there is enough capacity to run these tests.
       'Android FYI Release (Pixel 2)',
+      # crbug.com/1458020 for Mac Retina ASAN removal
+      'Mac FYI Retina ASAN (AMD)',
     ],
   },
   'gpu_pytype': {
@@ -2537,6 +2954,8 @@
       'mac11-arm64-rel-tests',
       # TODO(https://crbug.com/1267125): Re-enable.
       'mac12-arm64-rel-tests',
+      # TODO(https://crbug.com/1267125): Re-enable.
+      'mac13-arm64-rel-tests',
     ],
   },
   'hardware_accelerated_feature_tests': {
@@ -2544,6 +2963,8 @@
       # TODO(https://crbug.com/850107): Remove the Android FYI Release (Pixel 2)
       # exception once there is enough capacity to run these tests.
       'Android FYI Release (Pixel 2)',
+      # crbug.com/1458020 for Mac Retina ASAN removal
+      'Mac FYI Retina ASAN (AMD)',
     ],
   },
   'headless_browsertests': {
@@ -2565,6 +2986,8 @@
       'Android V8 FYI Release (Nexus 5X)',
       'Linux V8 FYI Release (NVIDIA)',
       'Linux V8 FYI Release - pointer compression (NVIDIA)',
+      # crbug.com/1458020 for Mac Retina ASAN removal
+      'Mac FYI Retina ASAN (AMD)',
       'Mac V8 FYI Release (Intel)',
       'Win V8 FYI Release (NVIDIA)',
     ],
@@ -2590,17 +3013,25 @@
       },
       'Mac FYI Experimental Release (Apple M1)': {
         'args': {
-          # The GPU information is not yet exposed in swarming, so we can't
-          # explicitly request it and have the JSON generation handle this
-          # automatically.
+          # Apple silicon does not show up normally as a PCI-e device, but
+          # Chrome is able to find a vendor ID that matches other (non-GPU)
+          # Apple PCI-e devices.
           '--expected-vendor-id': '106b',
         },
       },
       'Mac FYI Release (Apple M1)': {
         'args': {
-          # The GPU information is not yet exposed in swarming, so we can't
-          # explicitly request it and have the JSON generation handle this
-          # automatically.
+          # Apple silicon does not show up normally as a PCI-e device, but
+          # Chrome is able to find a vendor ID that matches other (non-GPU)
+          # Apple PCI-e devices.
+          '--expected-vendor-id': '106b',
+        },
+      },
+      'Mac FYI Retina Release (Apple M2)': {
+        'args': {
+          # Apple silicon does not show up normally as a PCI-e device, but
+          # Chrome is able to find a vendor ID that matches other (non-GPU)
+          # Apple PCI-e devices.
           '--expected-vendor-id': '106b',
         },
       },
@@ -2617,6 +3048,9 @@
         },
       },
       'Linux ASan LSan Tests (1)': {
+        # Only retry the individual failed tests instead of rerunning entire
+        # shards.
+        'retry_only_failed_tests': True,
         # These are slow on the ASan trybot for some reason, crbug.com/1257927
         'swarming': {
           'shards': 12,
@@ -2626,7 +3060,6 @@
         # These are slow on the ASan trybot for some reason, crbug.com/1257927
         'swarming': {
           'shards': 6,
-          'quickrun_shards': 12,
         },
       },
       'Linux ChromiumOS MSan Tests': {
@@ -2636,7 +3069,15 @@
           'shards': 5,
         },
       },
+      'Linux MSan Tests': {
+        'swarming': {
+          'shards': 4,
+        },
+      },
       'Linux TSan Tests': {
+        # Only retry the individual failed tests instead of rerunning entire
+        # shards.
+        'retry_only_failed_tests': True,
         # These are slow on the TSan bots for some reason, crbug.com/1257927
         'swarming': {
           'shards': 32, # Adjusted for testing, see https://crbug.com/1179567
@@ -2648,21 +3089,25 @@
           '--test-launcher-filter-file=../../testing/buildbot/filters/ozone-linux.interactive_ui_tests_wayland.filter',
         ],
       },
+      'Linux Tests (dbg)(1)': {
+        'swarming': {
+          'shards': 5,
+        },
+      },
       'Mac ASan 64 Tests (1)': { # https://crbug.com/1251656
         'experiment_percentage': 100,
-      },
-      'Mac11 Tests': {
-        'swarming': {
-          'quickrun_shards': 6,
-        },
       },
       'Mac12 Tests': {
         'swarming': {
           'shards': 6,
-          'inverse_quickrun_shards': 12,
         },
       },
-      'Mac12 Tests (dbg)': { # https://crbug.com/1265051
+      'Mac13 Tests': {
+        'swarming': {
+          'shards': 6,
+        },
+      },
+      'Mac13 Tests (dbg)': { # https://crbug.com/1265051
         'experiment_percentage': 100,
         'swarming': {
           'shards':6,
@@ -2700,6 +3145,9 @@
         },
       },
       'linux-chromeos-rel': {
+        # Only retry the individual failed tests instead of rerunning entire
+        # shards.
+        'retry_only_failed_tests': True,
         'swarming': {
           'shards': 5,
         },
@@ -2709,10 +3157,42 @@
           'shards': 10,
         },
       },
+      'linux-exp-asan-lsan-fyi-rel': {
+        # These are slow on the ASan trybot for some reason, crbug.com/1257927
+        'swarming': {
+          'shards': 12,
+        },
+      },
+      'linux-exp-msan-fyi-rel': {
+        'swarming': {
+          'shards': 4,
+        },
+      },
+      'linux-exp-tsan-fyi-rel': {
+        # These are slow on the TSan bots for some reason, crbug.com/1257927
+        'swarming': {
+          'shards': 32, # Adjusted for testing, see https://crbug.com/1179567
+        },
+      },
+      'linux-lacros-asan-lsan-rel': {
+        'swarming': {
+          'shards': 5,
+        },
+      },
+      'linux-lacros-tester-rel': {
+        # Only retry the individual failed tests instead of rerunning entire
+        # shards.
+        'retry_only_failed_tests': True,
+      },
       'linux-rel-cft': {
         'args': [
           '--test-launcher-filter-file=../../testing/buildbot/filters/linux.linux-rel-cft.interactive_ui_tests.filter',
         ],
+      },
+      'linux-ubsan-fyi-rel': {
+        'swarming': {
+          'shards': 6,
+        }
       },
       'mac-code-coverage': {
         'args': [
@@ -2729,8 +3209,19 @@
         ],
         'swarming': {
           'shards': 6,
-          'inverse_quickrun_shards': 12,
         },
+      },
+      'mac13-arm64-rel-tests': {
+        'ci_only': False,
+        'swarming': {
+          'shards': 6,
+        },
+      },
+      'win-arm64-rel': {
+        # Surface Pros have touch turned on by default, which makes some interactive-ui-tests fail.
+        'args': [
+          '--top-chrome-touch-ui=disabled',
+        ],
       },
       'win-asan': {
          # Tests shows tests run faster with fewer retries by using fewer jobs crbug.com/1411912
@@ -2749,21 +3240,60 @@
           'shards': 9,
         },
       },
+      'win10-code-coverage': {
+        'swarming': {
+          'shards': 32,
+          'dimensions': {
+            'pool': 'chromium.tests.coverage',
+            'ssd': '1',
+          },
+        }
+      },
     },
   },
-  'interactive_ui_tests amd64-generic': {
-    'remove_from': [
-      # TODO(crbug.com/1204231): Re-enable.
-      'lacros-amd64-generic-rel',
-      'lacros-amd64-generic-rel-fyi',
-    ]
+  'interactive_ui_tests Lacros version skew testing ash beta': {
+    'modifications': {
+      'linux-lacros-asan-lsan-rel': {
+        'swarming': {
+          'shards': 5,
+        },
+      },
+    },
   },
-  'interactive_ui_tests eve': {
+  'interactive_ui_tests Lacros version skew testing ash canary': {
+    'modifications': {
+      'linux-lacros-asan-lsan-rel': {
+        'swarming': {
+          'shards': 5,
+        },
+      },
+    },
+  },
+  'interactive_ui_tests Lacros version skew testing ash dev': {
+    'modifications': {
+      'linux-lacros-asan-lsan-rel': {
+        'swarming': {
+          'shards': 5,
+        },
+      },
+    },
+  },
+  'interactive_ui_tests Lacros version skew testing ash stable': {
+    'modifications': {
+      'linux-lacros-asan-lsan-rel': {
+        'swarming': {
+          'shards': 5,
+        },
+      },
+    },
+  },
+  'interactive_ui_tests_no_field_trial': {
     'remove_from': [
-      # TODO(crbug.com/1204231): Re-enable.
-      'lacros-amd64-generic-rel',
-      'lacros-amd64-generic-rel-fyi',
-    ]
+      'win10-rel-no-external-ip',
+      'win-arm64-rel',
+      'win-rel-cft',
+      'Win11 Tests x64',
+    ],
   },
   'ipc_tests': {
     'modifications': {
@@ -2774,31 +3304,55 @@
       },
     },
   },
-  'lacros_all_tast_tests eve': {
+  'lacros_chrome_browsertests': {
     'modifications': {
-      'lacros-amd64-generic-rel': {
-        'ci_only': True,
+      'linux-lacros-asan-lsan-rel': {
+        'swarming': {
+          'shards': 5,
+        },
       },
     },
   },
-  'lacros_all_tast_tests jacuzzi': {
+  'lacros_chrome_browsertests Lacros version skew testing ash beta': {
     'modifications': {
-      'lacros-arm-generic-rel': {
-        'ci_only': True,
+      'linux-lacros-asan-lsan-rel': {
+        'swarming': {
+          'shards': 5,
+        },
       },
     },
   },
-  'lacros_cq_tast_tests_jacuzzi jacuzzi': {
+  'lacros_chrome_browsertests Lacros version skew testing ash canary': {
     'modifications': {
-      'lacros-arm-generic-rel': {
-        'ci_only': True,
+      'linux-lacros-asan-lsan-rel': {
+        'swarming': {
+          'shards': 5,
+        },
+      },
+    },
+  },
+  'lacros_chrome_browsertests Lacros version skew testing ash dev': {
+    'modifications': {
+      'linux-lacros-asan-lsan-rel': {
+        'swarming': {
+          'shards': 5,
+        },
+      },
+    },
+  },
+  'lacros_chrome_browsertests Lacros version skew testing ash stable': {
+    'modifications': {
+      'linux-lacros-asan-lsan-rel': {
+        'swarming': {
+          'shards': 5,
+        },
       },
     },
   },
   'leveldb_unittests': {
     'remove_from': [
       # TODO(https://crbug.com/1432753): Runs too slowly in this configuration.
-      'android-nougat-x86-rel',
+      'android-oreo-x86-rel',
     ],
   },
   'mac_signing_tests': {
@@ -2808,94 +3362,15 @@
       'mac-rel-cft',
     ],
   },
-  'maps_pixel_passthrough_test': {
-    'modifications': {
-      'Android FYI Release (Pixel 4)': {
-        'args': [
-          # Pixel 4s are weird in that they can output in different color spaces
-          # simultaneously. The readback code for capturing a screenshot assumes
-          # only one color space, so disable wide color gamut for the test to
-          # work around the issue. See https://crbug.com/1166379 for more
-          # information.
-          '--extra-browser-args=--disable-wcg-for-test',
-        ],
-      },
-      'android_optional_gpu_tests_rel': {
-        'args': [
-          # See above.
-          '--extra-browser-args=--disable-wcg-for-test',
-        ],
-      },
-    },
-    'replacements': {
-      # The V8 builders pass the V8 revision for ${got_revision}, so instead
-      # use ${got_cr_revision}, which is only set on the V8 bots.
-      'Linux V8 FYI Release (NVIDIA)': {
-        'args': {
-          '--git-revision': '${got_cr_revision}',
-        },
-      },
-      'Linux V8 FYI Release - pointer compression (NVIDIA)': {
-        'args': {
-          '--git-revision': '${got_cr_revision}',
-        },
-      },
-      'Mac V8 FYI Release (Intel)': {
-        'args': {
-          '--git-revision': '${got_cr_revision}',
-        },
-      },
-      'Win V8 FYI Release (NVIDIA)': {
-        'args': {
-          '--git-revision': '${got_cr_revision}',
-        },
-      },
-    },
-  },
-  'maps_pixel_validating_test': {
-    'modifications': {
-      'Android FYI Release (Pixel 4)': {
-        'args': [
-          # Pixel 4s are weird in that they can output in different color spaces
-          # simultaneously. The readback code for capturing a screenshot assumes
-          # only one color space, so disable wide color gamut for the test to
-          # work around the issue. See https://crbug.com/1166379 for more
-          # information.
-          '--extra-browser-args=--disable-wcg-for-test',
-        ],
-      },
-      'android_optional_gpu_tests_rel': {
-        'args': [
-          # See above.
-          '--extra-browser-args=--disable-wcg-for-test',
-        ],
-      },
-    },
-    # TODO(https://crbug.com/850107): Remove the Android FYI Release (Pixel 2)
-    # exception once there is enough capacity to run these tests.
+  'media_foundation_browser_tests': {
     'remove_from': [
-      'Android FYI Release (Pixel 2)',
+      # TODO(crbug.com/1445173): Enable Media Foundation browser tests on NVIDIA
+      # gpu bots once the Windows OS supports HW secure decryption.
+      'Win10 FYI x64 Debug (NVIDIA)',
+      'Win10 FYI x64 Release (AMD RX 5500 XT)',
+      'Win10 FYI x64 Release (NVIDIA)',
+      'Win10 FYI x86 Release (NVIDIA)',
     ],
-    'replacements': {
-      # The V8 builders pass the V8 revision for ${got_revision}, so instead
-      # use ${got_cr_revision}, which is only set on the V8 bots.
-      'Android V8 FYI Release (Nexus 5X)': {
-        'args': {
-          '--git-revision': '${got_cr_revision}',
-        },
-      },
-    },
-  },
-  'maps_pixel_validating_test KEVIN_PUBLIC_LKGM': {
-    'modifications': {
-      'ChromeOS FYI Release Skylab (kevin)': {
-        'args': [
-          # Skylab currently doesn't support use of LUCI_CONTEXT, so Gold cannot
-          # automatically get the service account to authenticate with.
-          '--service-account=/creds/service_accounts/skylab-drone.json',
-        ],
-      },
-    },
   },
   'media_unittests': {
     'modifications': {
@@ -2910,6 +3385,16 @@
         ],
       },
       'android-12l-x64-dbg-tests': {
+        'args': [
+          '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator.media_unittests.filter',
+        ],
+      },
+      'android-12l-x64-fyi-dbg': {
+        'args': [
+          '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator.media_unittests.filter',
+        ],
+      },
+      'android-13-x64-fyi-rel': {
         'args': [
           '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator.media_unittests.filter',
         ],
@@ -2935,6 +3420,12 @@
         ],
       },
     },
+  },
+  'mediapipe_passthrough_tests': {
+    'remove_from': [
+      # crbug.com/1458020 for Mac Retina ASAN removal
+      'Mac FYI Retina ASAN (AMD)',
+    ],
   },
   'mediapipe_validating_tests': {
     'remove_from': [
@@ -2963,12 +3454,15 @@
     },
   },
   'nacl_loader_unittests': {
+    # If you change this, make similar changes in ppapi_unittests
     'remove_from': [
       'ToTMacASan',  # The mac asan tot bot sets enable_nacl=false
       'linux-win_cross-rel',  # Sets enable_nacl=false, https://crbug.com/774186
       'Linux TSan Tests',  # The TSan bot sets enable_nacl=false
+      'linux-exp-tsan-fyi-rel',  # The TSan bot sets enable_nacl=false
       'Mac ASan 64 Tests (1)',  # The mac asan bot sets enable_nacl=false
       'win-arm64-rel',  # Not available on arm64.
+      'linux-arm64-rel-cft',  # Not available on arm64.
     ],
   },
   'net_unittests': {
@@ -3028,11 +3522,6 @@
           'shards': 4,
         }
       },
-      'android-12-x64-rel': {
-        'swarming': {
-          'inverse_quickrun_shards': 6,
-        },
-      },
       'android-cronet-x86-dbg-10-tests': {
         'args': [
           '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_10.net_unittests.filter',
@@ -3054,21 +3543,11 @@
           '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator.net_unittests.filter',
         ],
       },
-      'android-cronet-x86-rel-kitkat-tests': {
-        'args': [
-          '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_k.net_unittests.filter',
-        ],
-      },
       'android-pie-x86-rel': {
         # crbug.com/1046060
         'args': [
           '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator.net_unittests.filter',
         ],
-      },
-      'chromeos-amd64-generic-rel': {
-        'swarming': {
-          'quickrun_shards': 6,
-        },
       },
       'fuchsia-code-coverage': {
         'swarming': {
@@ -3079,6 +3558,18 @@
         'swarming': {
           'shards': 2,
         },
+      },
+      'linux-exp-asan-lsan-fyi-rel': {
+        # These are very slow on the ASAN trybot for some reason.
+        # crbug.com/1257927
+        'swarming': {
+          'shards': 16,
+        },
+      },
+      'linux-exp-tsan-fyi-rel': {
+        'swarming': {
+          'shards': 4,
+        }
       },
       'win-asan': {
         # TODO(crbug.com/1257927): net_unittests is slow under ASan.
@@ -3098,12 +3589,10 @@
         "args": [
           "--additional-env-var=LLVM_PROFILE_FILE=${ISOLATED_OUTDIR}/profraw/default-%2m.profraw",
         ],
-        'swarming': {
-          'quickrun_shards': 18,
-        },
       },
       'linux-code-coverage': {
         'args': [
+          '--additional-driver-flag=--no-sandbox',
           '--additional-env-var=LLVM_PROFILE_FILE=${ISOLATED_OUTDIR}/profraw/default-%2m.profraw',
         ],
         'swarming': {
@@ -3112,11 +3601,9 @@
       },
       'linux-rel-cft': {
         "args": [
-          "--additional-env-var=LLVM_PROFILE_FILE=${ISOLATED_OUTDIR}/profraw/default-%2m.profraw",
+          '--additional-env-var=LLVM_PROFILE_FILE=${ISOLATED_OUTDIR}/profraw/default-%2m.profraw',
+          '--flag-specific=chrome-for-testing',
         ],
-        'swarming': {
-          'quickrun_shards': 18,
-        },
       },
     },
   },
@@ -3132,15 +3619,6 @@
       'ToTWin64(dbg)',
       'ToTWin64(dll)',
     ],
-  },
-  'oop_network_service_content_browsertests': {
-    'modifications': {
-       'android-12-x64-fyi-rel': {
-        'args': [
-          '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_12.oop_network_service_content_browsertests.filter',
-        ],
-      },
-    },
   },
   'ozone_unittests': {
     'modifications': {
@@ -3158,13 +3636,6 @@
         'args': [
           '--test-launcher-filter-file=../../testing/buildbot/filters/chromeos.ozone_unittests.filter',
         ],
-      },
-    },
-  },
-  'ozone_unittests eve': {
-    'modifications': {
-      'lacros-amd64-generic-rel': {
-        'ci_only': True,
       },
     },
   },
@@ -3189,6 +3660,18 @@
           '--gtest_filter=-ScopedDirTest.CloseOutOfScope',
         ],
       },
+      'android-12l-x64-fyi-dbg': {
+        'args': [
+          # TODO(crbug.com/1260440): Fix the failed test
+          '--gtest_filter=-ScopedDirTest.CloseOutOfScope',
+        ],
+      },
+      'android-13-x64-fyi-rel': {
+        'args': [
+          # TODO(crbug.com/1260440): Fix the failed test
+          '--gtest_filter=-ScopedDirTest.CloseOutOfScope',
+        ],
+      },
       'android-13-x64-rel': {
         'args': [
           # TODO(crbug.com/1260440): Fix the failed test
@@ -3196,13 +3679,13 @@
         ],
       },
       # If you change this, make similar changes in android-x86-code-coverage below
-      'android-nougat-x86-rel': {
+      'android-oreo-x86-rel': {
         'args': [
           # TODO(crbug.com/1260440): Fix the failed test
           '--gtest_filter=-ScopedDirTest.CloseOutOfScope',
         ],
       },
-      # Keep this same as android-nougat-x86-rel above
+      # Keep this same as android-oreo-x86-rel above
       'android-x86-code-coverage': {
         'args': [
           # TODO(crbug.com/1260440): Fix the failed test
@@ -3225,13 +3708,12 @@
       'android-pie-arm64-rel',
       'android-pie-x86-rel',
       'android-11-x86-rel',
-      'Nougat Phone Tester',
       'ToTAndroid'
     ]
   },
   'performance_test_suite': {
     'modifications': {
-      'Mac12 Tests (dbg)': {
+      'Mac13 Tests (dbg)': {
         'args': [
           '--browser=debug',
         ],
@@ -3255,6 +3737,41 @@
       'win-rel-cft',
     ],
   },
+  'pixel_skia_gold_gl_passthrough_ganesh_test': {
+    'replacements': {
+      'Mac V8 FYI Release (Intel)': {
+        'args': {
+          '--git-revision': '${got_cr_revision}',
+        },
+      },
+    },
+  },
+  'pixel_skia_gold_metal_passthrough_ganesh_test': {
+    'remove_from': [
+      # crbug.com/1458020 for Mac Retina ASAN removal
+      'Mac FYI Retina ASAN (AMD)',
+    ],
+    'replacements': {
+      'Mac V8 FYI Release (Intel)': {
+        'args': {
+          '--git-revision': '${got_cr_revision}',
+        },
+      },
+    },
+  },
+  'pixel_skia_gold_metal_passthrough_graphite_test': {
+    'remove_from': [
+      # crbug.com/1458020 for Mac Retina ASAN removal
+      'Mac FYI Retina ASAN (AMD)',
+    ],
+    'replacements': {
+      'Mac V8 FYI Release (Intel)': {
+        'args': {
+          '--git-revision': '${got_cr_revision}',
+        },
+      },
+    },
+  },
   'pixel_skia_gold_passthrough_test': {
     'modifications': {
       'Android FYI Release (Pixel 4)': {
@@ -3266,16 +3783,6 @@
           # information.
           '--extra-browser-args=--disable-wcg-for-test',
         ],
-      },
-      'Mac Retina Release (AMD)': {
-        'swarming': {
-          'quickrun_shards': 2,
-        },
-      },
-      'Win10 x64 Release (NVIDIA)': {
-        'swarming': {
-          'quickrun_shards': 2,
-        },
       },
       'android_optional_gpu_tests_rel': {
         'args': [
@@ -3297,15 +3804,21 @@
           '--git-revision': '${got_cr_revision}',
         },
       },
-      'Mac V8 FYI Release (Intel)': {
-        'args': {
-          '--git-revision': '${got_cr_revision}',
-        },
-      },
       'Win V8 FYI Release (NVIDIA)': {
         'args': {
           '--git-revision': '${got_cr_revision}',
         },
+      },
+    },
+  },
+  'pixel_skia_gold_passthrough_test JACUZZI_RELEASE_LKGM': {
+    'modifications': {
+      'ChromeOS FYI Release Skylab (jacuzzi)': {
+        'args': [
+          # Skylab currently doesn't support use of LUCI_CONTEXT, so Gold cannot
+          # automatically get the service account to authenticate with.
+          '--service-account=/creds/service_accounts/skylab-drone.json',
+        ],
       },
     },
   },
@@ -3343,17 +3856,6 @@
       },
     },
   },
-  'pixel_skia_gold_validating_test KEVIN_PUBLIC_LKGM': {
-    'modifications': {
-      'ChromeOS FYI Release Skylab (kevin)': {
-        'args': [
-          # Skylab currently doesn't support use of LUCI_CONTEXT, so Gold cannot
-          # automatically get the service account to authenticate with.
-          '--service-account=/creds/service_accounts/skylab-drone.json',
-        ],
-      },
-    },
-  },
   'pixel_test':{
     'modifications': {
       'Android Release (Nexus 5X)': {
@@ -3363,28 +3865,54 @@
       },
     },
   },
+  'ppapi_unittests': {
+    # If you change this, make similar changes in nacl_loader_unittests
+    'remove_from': [
+      'ToTMacASan',  # The mac asan tot bot sets enable_nacl=false
+      'linux-win_cross-rel',  # Sets enable_nacl=false, https://crbug.com/774186
+      'Linux TSan Tests',  # The TSan bot sets enable_nacl=false
+      'linux-exp-tsan-fyi-rel',  # The TSan bot sets enable_nacl=false
+      'Mac ASan 64 Tests (1)',  # The mac asan bot sets enable_nacl=false
+      'win-arm64-rel',  # Not available on arm64.
+    ],
+  },
+  'pthreadpool_unittests': {
+    'remove_from': [
+      # pthreadpool is not built for ChromeOS currently.
+      'linux-chromeos-dbg',
+      'linux-chromeos-rel',
+      'linux-lacros-tester-rel',
+    ],
+  },
+  'remoting_unittests': {
+    'remove_from': [
+      # Not available on Linux ARM64
+      'linux-arm64-rel-cft',
+    ],
+  },
   'sandbox_linux_unittests': {
-    'modifications': {
-      # If you change this, make similar changes in android-x86-code-coverage below
-      'android-nougat-x86-rel': {
-        'args': [
-          '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator.sandbox_linux_unittests.filter',
-        ]
-      },
-      'android-pie-x86-rel': {
-        'args': [
-          '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator.sandbox_linux_unittests.filter',
-        ]
-      },
-      # Keep this same as android-nougat-x86-rel above
-      'android-x86-code-coverage': {
-        'args': [
-          '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator.sandbox_linux_unittests.filter',
-        ]
-      },
-    },
     'remove_from': [
       'android-asan',  # https://crbug.com/962650
+    ],
+    'modifications': {
+      'linux-ubsan-vptr': {
+        'args': [
+          # TODO(crbug.com/1456464): Remove this.
+          '--gtest_filter=-SandboxBPF.ApplyBasicAllowlistPolicy:SandboxBPF.SyntheticPolicy:SandboxBPF.UnsafeTrapWithCond',
+        ],
+      },
+    },
+  },
+  'screenshot_sync_metal_passthrough_ganesh_tests': {
+    'remove_from': [
+      # crbug.com/1458020 for Mac Retina ASAN removal
+      'Mac FYI Retina ASAN (AMD)',
+    ],
+  },
+  'screenshot_sync_metal_passthrough_graphite_tests': {
+    'remove_from': [
+      # crbug.com/1458020 for Mac Retina ASAN removal
+      'Mac FYI Retina ASAN (AMD)',
     ],
   },
   'screenshot_sync_passthrough_tests': {
@@ -3439,13 +3967,9 @@
       'Mac Pro FYI Release (AMD)',
       'Linux ChromiumOS MSan Tests',  # https://crbug.com/831676
       'Linux MSan Tests',  # https://crbug.com/831676
+      'linux-exp-msan-fyi-rel',  # https://crbug.com/831676
     ],
     'modifications': {
-      'Linux ASan LSan Tests (1)': {
-        'swarming': {
-          'quickrun_shards': 2,
-        },
-      },
       'android-11-x86-rel': {
         'args': [
           # TODO(crbug.com/1264654): Fix the failed tests
@@ -3462,26 +3986,31 @@
         },
       },
       # If you change this, make similar changes in android-x86-code-coverage below
-      'android-nougat-x86-rel': {
-        'args': [
-          # TODO(crbug.com/1264654): Fix the failed tests
-          '--gtest_filter=-PacLibraryTest.ActualPacMyIpAddress*'
-        ],
+      'android-oreo-x86-rel': {
         'ci_only': True,
+        'args': [
+          '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_o.services_unittests.filter',
+        ],
         'swarming': {
           'shards': 3,
-          'inverse_quickrun_shards': 4,
         },
       },
-      # Keep this same as android-nougat-x86-rel above
-      'android-x86-code-coverage': {
+      'android-pie-x86-rel': {
         'args': [
           # TODO(crbug.com/1264654): Fix the failed tests
           '--gtest_filter=-PacLibraryTest.ActualPacMyIpAddress*'
         ],
         'swarming': {
+          'shards': 2,
+        },
+      },
+      # Keep this same as android-oreo-x86-rel above
+      'android-x86-code-coverage': {
+        'args': [
+          '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_o.services_unittests.filter',
+        ],
+        'swarming': {
           'shards': 3,
-          'inverse_quickrun_shards': 4,
         },
       },
       'fuchsia-code-coverage': {
@@ -3536,7 +4065,13 @@
           'shards': 4,
         },
       },
-      'Mac12 Tests (dbg)':{
+      'Mac13 Tests': {
+        'ci_only': True,
+        'swarming': {
+          'shards': 4,
+        },
+      },
+      'Mac13 Tests (dbg)':{
         'swarming': {
           'shards': 3,
         }
@@ -3569,6 +4104,16 @@
           'shards': 4,
         },
       },
+      'linux-exp-asan-lsan-fyi-rel': {
+        'swarming': {
+          'shards': 4,
+        },
+      },
+      'linux-exp-tsan-fyi-rel': {
+        'swarming': {
+          'shards': 6,
+        },
+      },
       'mac-code-coverage': {
         'args': [
           '--coverage-continuous-mode=1',
@@ -3594,16 +4139,35 @@
           'shards': 3,
         },
       },
+      'win10-code-coverage': {
+        'swarming': {
+          'shards': 4,
+          'dimensions': {
+            'pool': 'chromium.tests.coverage',
+            'ssd': '1',
+          },
+        }
+      },
     },
+  },
+  'sync_integration_tests_no_field_trial': {
+    'remove_from': [
+      'win10-rel-no-external-ip',
+      'win-arm64-rel',
+      'win-rel-cft',
+      'Win11 Tests x64',
+    ],
   },
   'system_webview_wpt': {
     'modifications': {
-      'android-pie-arm64-wpt-rel-non-cq': {
-        'experiment_percentage': 100,
+      'android-chrome-pie-x86-wpt-android-specific': {
+        'args': [
+          '--test-list',
+          '../../third_party/blink/web_tests/TestLists/android.filter'
+        ]
       },
       'android-webview-pie-x86-wpt-fyi-rel': {
         'args': [
-          '--log-wptreport',
           '--use-upstream-wpt',
         ],
       },
@@ -3625,10 +4189,10 @@
   'telemetry_chromium_minidump_unittests': {
     'modifications': {
       # If you change this, make similar changes in android-x86-code-coverage below
-      'android-nougat-x86-rel': {
+      'android-oreo-x86-rel': {
         'ci_only': True,
       },
-      # Keep this same as android-nougat-x86-rel above
+      # Keep this same as android-oreo-x86-rel above
       'android-x86-code-coverage': {
         'ci_only': True,
       },
@@ -3637,10 +4201,10 @@
   'telemetry_monochrome_minidump_unittests': {
     'modifications': {
       # If you change this, make similar changes in android-x86-code-coverage below
-      'android-nougat-x86-rel': {
+      'android-oreo-x86-rel': {
         'ci_only': True,
       },
-      # Keep this same as android-nougat-x86-rel above
+      # Keep this same as android-oreo-x86-rel above
       'android-x86-code-coverage': {
         'ci_only': True,
       },
@@ -3666,8 +4230,11 @@
       'Mac12 Tests': {
         'ci_only': True,
       },
+      'Mac13 Tests': {
+        'ci_only': True,
+      },
       # If you change this, make similar changes in android-x86-code-coverage below
-      'android-nougat-x86-rel': {
+      'android-oreo-x86-rel': {
         'args': [
           # For whatever reason, automatic browser selection on this bot chooses
           # webview instead of the full browser, so explicitly specify it here.
@@ -3675,7 +4242,7 @@
         ],
         'ci_only': True,
       },
-      # Keep this same as android-nougat-x86-rel above
+      # Keep this same as android-oreo-x86-rel above
       'android-x86-code-coverage': {
         'args': [
           # For whatever reason, automatic browser selection on this bot chooses
@@ -3684,21 +4251,11 @@
         ],
         'ci_only': True,
       },
-      'chromeos-amd64-generic-rel': {
-        'swarming': {
-          'quickrun_shards': 24,
-        },
-      },
       'chromeos-eve-chrome': {
         'args': [
           # TODO(crbug.com/1191132): Re-enable.
           '--skip=benchmarks.benchmark_smoke_unittest.BenchmarkSmokeTest.wasmpspdfkit',
         ],
-      },
-      'chromeos-kevin-chrome': {
-        # TODO(crbug.com/1182948): Remove the experiment.
-        # TODO(b/188822176): Restore to 100% when we have additional capacity.
-        'experiment_percentage': 0,
       },
       'linux-rel-cft': {
         'args': [
@@ -3719,10 +4276,9 @@
     'remove_from': [
       'android-pie-arm64-rel',
       # crbug.com/936540
-      'Mac10.13 Tests',
       'Mac10.15 Tests',
       # TODO crbug.com/1277277
-      'Mac12 Tests (dbg)',
+      'Mac13 Tests (dbg)',
       'Linux - Future (dbg)',  # client.v8.chromium
       'Win10 Tests x64',
       'Win10 Tests x64 (dbg)',
@@ -3736,16 +4292,10 @@
       'Win10 Tests x64 (dbg)': {
         'experiment_percentage': 100,  # crbug.com/870673
       },
-      'chromeos-amd64-generic-rel': {
-        'swarming': {
-          'quickrun_shards': 60,
-        },
-      },
     },
     'remove_from': [
       # TODO(crbug.com/1141234): Restore when there's more DUTs
       'chromeos-eve-chrome',
-      'chromeos-kevin-chrome',
 
       'Win10 Tests x64',
       'Win11 Tests x64',
@@ -3756,16 +4306,35 @@
       'mac11-arm64-rel-tests',
       # TODO(https://crbug.com/1267161): Re-enable when platform is supported.
       'mac12-arm64-rel-tests',
-    ],
-  },
-  'test_buildbucket_api_gpu_use_cases GTX 1660': {
-    'remove_from': [
-      'linux_optional_gpu_tests_rel',  # crbug.com/1080749
+      # TODO(https://crbug.com/1267161): Re-enable when platform is supported.
+      'mac13-arm64-rel-tests',
     ],
   },
   'testing_pytype': {
     'remove_from': [
       'linux-code-coverage',
+    ],
+  },
+  'trace_test': {
+    'modifications': {
+      # The browser is restarted after every test in this suite, which includes
+      # re-applying permissions. Nexus 5Xs are very slow to apply permissions
+      # compared to other devices, so increase sharding to offset the increased
+      # runtime.
+      'Android FYI Release (Nexus 5X)': {
+        'swarming': {
+          'shards': 2,
+        },
+      },
+      'Android Release (Nexus 5X)': {
+        'swarming': {
+          'shards': 2,
+        },
+      },
+    },
+    'remove_from': [
+      # crbug.com/1458020 for Mac Retina ASAN removal
+      'Mac FYI Retina ASAN (AMD)',
     ],
   },
   'unit_tests': {
@@ -3774,6 +4343,9 @@
     ],
     'modifications': {
       'Linux ASan LSan Tests (1)': {
+        # Only retry the individual failed tests instead of rerunning entire
+        # shards.
+        'retry_only_failed_tests': True,
         # These are slow on the ASAN trybot for some reason.
         # crbug.com/1257927
         'swarming': {
@@ -3799,18 +4371,26 @@
           'shards': 2,
         },
       },
+      'Linux Tests': {
+        # Only retry the individual failed tests instead of rerunning entire
+        # shards.
+        'retry_only_failed_tests': True,
+      },
       # https://crbug.com/1184127
       'Linux Tests (Wayland)': {
         'args': [
           '--test-launcher-filter-file=../../testing/buildbot/filters/ozone-linux.unit_tests_wayland.filter',
         ],
+        # Only retry the individual failed tests instead of rerunning entire
+        # shards.
+        'retry_only_failed_tests': True,
       },
-      'Mac12 Tests': {
+      'Mac13 Tests': {
         'swarming': {
-          'inverse_quickrun_shards': 2,
+          'shards': 2,
         },
       },
-      'Mac12 Tests (dbg)': {
+      'Mac13 Tests (dbg)': {
         'swarming': {
           'shards': 2,
         },
@@ -3841,9 +4421,29 @@
         },
       },
       'linux-chromeos-rel': {
+        # Only retry the individual failed tests instead of rerunning entire
+        # shards.
+        'retry_only_failed_tests': True,
         'swarming': {
           'shards': 2,
         },
+      },
+      'linux-exp-asan-lsan-fyi-rel': {
+        # These are slow on the ASAN trybot for some reason.
+        # crbug.com/1257927
+        'swarming': {
+          'shards': 4,
+        },
+      },
+      'linux-exp-tsan-fyi-rel': {
+        'swarming': {
+          'shards': 2,
+        },
+      },
+      'linux-lacros-tester-rel': {
+        # Only retry the individual failed tests instead of rerunning entire
+        # shards.
+        'retry_only_failed_tests': True,
       },
       'linux-rel-dev': {
         'swarming': {
@@ -3852,15 +4452,21 @@
           },
         },
       },
-      'mac-rel-cft': {
+      'linux-ubsan-fyi-rel': {
         'swarming': {
-          'inverse_quickrun_shards': 2,
-        },
+          'shards': 2,
+        }
       },
       'win-arm64-rel': {
         'args': [
           '--top-chrome-touch-ui=disabled',
         ],
+      },
+      'win-asan': {
+        'swarming': {
+          # ASAN bot is slow: https://crbug.com/1484550#c4
+          'shards': 4,
+        },
       },
       'win10-code-coverage': {
         'swarming': {
@@ -3868,11 +4474,6 @@
         },
       },
     },
-  },
-  'vaapi_unittest eve': {
-    'remove_from': [
-      'lacros-amd64-generic-rel',
-    ]
   },
   'variations_smoke_tests': {
     'modifications': {
@@ -3964,6 +4565,8 @@
   'vr_common_unittests': {
     'remove_from': [
       'android-pie-x86-rel',
+      # Not available on Linux ARM64
+      'linux-arm64-rel-cft',
     ],
   },
   'vulkan_pixel_skia_gold_test': {
@@ -4006,29 +4609,36 @@
       },
     },
   },
+  'web_engine_integration_tests': {
+    'modifications': {
+      'fuchsia-code-coverage': {
+        'args': [
+          '--test-launcher-jobs=1',
+        ],
+        'swarming': {
+          'shards': 4,
+        },
+      },
+    },
+  },
+  'webcodecs_tests': {
+    'remove_from': [
+      # crbug.com/1458020 for Mac Retina ASAN removal
+      'Mac FYI Retina ASAN (AMD)',
+    ],
+  },
   'webdriver_tests_suite': {
+    'modifications': {
+      'Linux Tests (dbg)(1)': {
+        'args': [
+          '--debug',
+        ],
+      },
+    },
     'remove_from': [
       'Linux Tests',  # https://crbug.com/929689, https://crbug.com/936557
       'linux-rel-cft',
     ],
-  },
-  'webengine_support_instrumentation_test_apk': {
-    'modifications': {
-      'android-12-x64-rel': {
-        'ci_only': True,
-      },
-      # If you change this, make similar changes in android-x86-code-coverage below
-      'android-nougat-x86-rel': {
-        'ci_only': True,
-      },
-      'android-pie-arm64-rel': {
-        'ci_only': True,
-      },
-      # Keep this same as android-nougat-x86-rel above
-      'android-x86-code-coverage': {
-        'ci_only': True,
-      },
-    },
   },
   'webgl2_conformance_d3d11_passthrough_tests': {
     'remove_from': [
@@ -4068,6 +4678,22 @@
       },
     },
   },
+  'webgl2_conformance_gles_passthrough_tests Ash ToT': {
+    'modifications': {
+      # Not enough capacity.
+      'Lacros FYI Release (jacuzzi)': {
+        'swarming': {
+          'shards': 1,
+        },
+      },
+      # Not enough capacity.
+      'Lacros FYI Release (octopus)': {
+        'swarming': {
+          'shards': 1,
+        },
+      },
+    },
+  },
   'webgl2_conformance_metal_passthrough_tests': {
     'remove_from': [
       # crbug.com/1270755
@@ -4075,6 +4701,7 @@
       'Mac FYI Retina ASAN (AMD)',
       # Not enough capacity.
       'Mac FYI Retina Release (NVIDIA)',
+      'Mac FYI Experimental Retina Release (NVIDIA)',
       # Removed from V8 builders since WebGL 1 should provide reasonable
       # upstream test coverage without the capacity hit from WebGL 2.
       'Mac V8 FYI Release (Intel)',
@@ -4083,38 +4710,11 @@
       'Mac FYI ASAN (Intel)': {
         'args': [
           '--extra-browser-args=--disable-metal-shader-cache',
-          '--enable-metal-debug-layers',
-        ],
-      },
-      'Mac FYI Experimental Retina Release (AMD)': {
-        'args': [
-          '--enable-metal-debug-layers',
-        ],
-      },
-      'Mac FYI Release (Intel)': {
-        'args': [
-          '--enable-metal-debug-layers',
         ],
       },
       'Mac FYI Retina ASAN (AMD)': {
         'args': [
           '--extra-browser-args=--disable-metal-shader-cache',
-          '--enable-metal-debug-layers',
-        ],
-      },
-      'Mac FYI Retina Release (AMD)': {
-        'args': [
-          '--enable-metal-debug-layers',
-        ],
-      },
-      'mac-angle-chromium-amd': {
-        'args': [
-          '--enable-metal-debug-layers',
-        ],
-      },
-      'mac-angle-chromium-intel': {
-        'args': [
-          '--enable-metal-debug-layers',
         ],
       },
     },
@@ -4125,9 +4725,6 @@
       # TODO(crbug.com/1280418): Re-enable once more of the Pixel 6 capacity
       # is deployed.
       'Android FYI Release (Pixel 6)',
-      # Passthrough version run on this configuration, not enough capacity for
-      # both. See https://crbug.com/1238070.
-      'ChromeOS FYI Release (kevin)',
     ],
     'modifications': {
       # This VM configuration is known to be significantly slower than other
@@ -4143,18 +4740,6 @@
         # show up with the validating decoder are just an FYI.
         'experiment_percentage': 100,
       },
-      'ChromeOS FYI Release (kevin)': {
-        'experiment_percentage': 100,
-      },
-    },
-  },
-  'webgl_conformance_d3d11_passthrough_tests': {
-    'modifications': {
-      'Win10 x64 Release (NVIDIA)': {
-        'swarming': {
-          'quickrun_shards': 4,
-        },
-      },
     },
   },
   'webgl_conformance_gl_passthrough_tests 1002:67ef': {
@@ -4167,6 +4752,22 @@
       },
     },
   },
+  'webgl_conformance_gles_passthrough_tests Ash ToT': {
+    'modifications': {
+      # Not enough capacity.
+      'Lacros FYI Release (jacuzzi)': {
+        'swarming': {
+          'shards': 1,
+        },
+      },
+      # Not enough capacity.
+      'Lacros FYI Release (octopus)': {
+        'swarming': {
+          'shards': 1,
+        },
+      },
+    },
+  },
   'webgl_conformance_metal_passthrough_tests': {
     'remove_from': [
       # crbug.com/1270755
@@ -4174,57 +4775,28 @@
       'Mac FYI Retina ASAN (AMD)',
       # crbug.com/1158857: re-enable when switching to Metal by default.
       'Mac FYI Retina Release (NVIDIA)',
+      'Mac FYI Experimental Retina Release (NVIDIA)',
     ],
     'modifications': {
       'Mac FYI ASAN (Intel)': {
         'args': [
           '--extra-browser-args=--disable-metal-shader-cache',
-          '--enable-metal-debug-layers',
-        ],
-      },
-      'Mac FYI Experimental Retina Release (AMD)': {
-        'args': [
-          '--enable-metal-debug-layers',
-        ],
-      },
-      'Mac FYI Release (Intel)': {
-        'args': [
-          '--enable-metal-debug-layers',
         ],
       },
       'Mac FYI Retina ASAN (AMD)': {
         'args': [
           '--extra-browser-args=--disable-metal-shader-cache',
-          '--enable-metal-debug-layers',
-        ],
-      },
-      'Mac FYI Retina Release (AMD)': {
-        'args': [
-          '--enable-metal-debug-layers',
-        ],
-      },
-      'mac-angle-chromium-amd': {
-        'args': [
-          '--enable-metal-debug-layers',
-        ],
-      },
-      'mac-angle-chromium-intel': {
-        'args': [
-          '--enable-metal-debug-layers',
         ],
       },
     },
   },
   'webgl_conformance_tests': {
     'modifications': {
-      'chromeos-amd64-generic-rel': {
+      'chromeos-amd64-generic-rel-renamed': {
         'args': [
           # Added to debug crbug.com/1293967.
           '--extra-browser-args=--disable-features=BackgroundVideoPauseOptimization --disable-background-media-suspend --disable-renderer-backgrounding --disable-background-timer-throttling',
         ],
-        'swarming': {
-          'quickrun_shards': 40,
-        },
       },
     },
   },
@@ -4234,6 +4806,8 @@
       # Android.
       'Dawn Android arm DEPS Release (Pixel 4)',
       'Dawn Android arm Release (Pixel 4)',
+      'Dawn Android arm64 DEPS Release (Pixel 6)',
+      'Dawn Android arm64 Release (Pixel 6)',
     ],
     'modifications': {
       # These tests must run with a GPU.
@@ -4257,7 +4831,7 @@
             # which is used by Dawn Mac x64 Release (Intel).
             'cpu': 'x86-64',
             'gpu': '8086:3e9b',
-            'os': 'Mac-12.5',
+            'os': 'Mac-13.5',
             'display_attached': '1',
           },
         },
@@ -4282,6 +4856,8 @@
       # Android.
       'Dawn Android arm DEPS Release (Pixel 4)',
       'Dawn Android arm Release (Pixel 4)',
+      'Dawn Android arm64 DEPS Release (Pixel 6)',
+      'Dawn Android arm64 Release (Pixel 6)',
       # Remove from bots where capacity is constrained.
       'Dawn Win10 x64 DEPS Release (Intel)',
       'Dawn Win10 x64 Release (Intel)',
@@ -4291,13 +4867,19 @@
     ],
   },
   'webgpu_cts_tests': {
-    'remove_from': [
-      # TODO(crbug.com/1363409): Enable these once they're shown to work on
-      # Android.
-      'Dawn Android arm DEPS Release (Pixel 4)',
-      'Dawn Android arm Release (Pixel 4)',
-    ],
     'modifications': {
+      'Dawn Android arm DEPS Release (Pixel 4)': {
+        'ci_only': True,
+      },
+      'Dawn Android arm Release (Pixel 4)': {
+        'ci_only': True,
+      },
+      'Dawn Android arm64 DEPS Release (Pixel 6)': {
+        'ci_only': True,
+      },
+      'Dawn Android arm64 Release (Pixel 6)': {
+        'ci_only': True,
+      },
       # These tests must run with a GPU.
       'linux-code-coverage': {
         'swarming': {
@@ -4319,7 +4901,7 @@
             # which is used by Dawn Mac x64 Release (Intel).
             'cpu': 'x86-64',
             'gpu': '8086:3e9b',
-            'os': 'Mac-12.5',
+            'os': 'Mac-13.5',
             'display_attached': '1',
           },
         },
@@ -4340,31 +4922,38 @@
   },
   'webgpu_cts_with_validation_tests': {
     'remove_from': [
-      # TODO(crbug.com/1363409): Enable these once they're shown to work on
-      # Android.
-      'Dawn Android arm DEPS Release (Pixel 4)',
-      'Dawn Android arm Release (Pixel 4)',
       # Remove from bots where capacity is constrained.
       'Dawn Win10 x64 DEPS Release (Intel)',
       'Dawn Win10 x64 Release (Intel)',
+      # Disable testing with validation on x86 where they frequently OOM.
+      # See crbug.com/1444815.
       'Dawn Win10 x86 DEPS Release (Intel)',
       'Dawn Win10 x86 Release (Intel)',
+      'Dawn Win10 x86 DEPS Release (NVIDIA)',
+      'Dawn Win10 x86 Release (NVIDIA)',
+      # Don't need validation layers on code coverage bots
       'linux-code-coverage',
       'mac-code-coverage',
       'win10-code-coverage',
     ],
     'modifications': {
+      'Dawn Android arm DEPS Release (Pixel 4)': {
+        'ci_only': True,
+      },
+      'Dawn Android arm Release (Pixel 4)': {
+        'ci_only': True,
+      },
+      'Dawn Android arm64 DEPS Release (Pixel 6)': {
+        'ci_only': True,
+      },
+      'Dawn Android arm64 Release (Pixel 6)': {
+        'ci_only': True,
+      },
       # ci_only for bots where capacity is constrained.
       'Dawn Linux x64 DEPS Release (Intel UHD 630)': {
         'ci_only': True,
       },
       'Dawn Linux x64 Release (Intel UHD 630)': {
-        'ci_only': True,
-      },
-      'Dawn Mac x64 DEPS Release (AMD)': {
-        'ci_only': True,
-      },
-      'Dawn Mac x64 Release (AMD)': {
         'ci_only': True,
       },
     },
@@ -4385,12 +4974,6 @@
       'Dawn Linux x64 Release (Intel UHD 630)': {
         'ci_only': True,
       },
-      'Dawn Mac x64 DEPS Release (AMD)': {
-        'ci_only': True,
-      },
-      'Dawn Mac x64 Release (AMD)': {
-        'ci_only': True,
-      },
     },
   },
   'webkit_unit_tests': {
@@ -4407,17 +4990,22 @@
           'shards': 2,
         },
       },
-      # If you change this, make similar changes in android-x86-code-coverage below
-      'android-nougat-x86-rel': {
+      'linux-exp-asan-lsan-fyi-rel': {
+        # These are very slow on the ASAN trybot for some reason.
+        # crbug.com/1257927
         'swarming': {
-          'inverse_quickrun_shards': 12,
+          'shards': 5,
         },
       },
-      # Keep this same as android-nougat-x86-rel above
-      'android-x86-code-coverage': {
+      'linux-exp-tsan-fyi-rel': {
         'swarming': {
-          'inverse_quickrun_shards': 12,
+          'shards': 2,
         },
+      },
+      'linux-ubsan-fyi-rel': {
+        'swarming': {
+          'shards': 2,
+        }
       },
       'win10-code-coverage': {
         'swarming': {
@@ -4426,64 +5014,16 @@
       },
     },
   },
-  'weblayer_browsertests': {
-    'modifications': {
-      'android-12-x64-rel': {
-        'ci_only': True,
-      },
-      # If you change this, make similar changes in android-x86-code-coverage below
-      'android-nougat-x86-rel': {
-        'ci_only': True,
-      },
-      'android-pie-arm64-rel': {
-        'ci_only': True,
-      },
-      # Keep this same as android-nougat-x86-rel above
-      'android-x86-code-coverage': {
-        'ci_only': True,
-      },
-    },
-  },
   'webview_64_cts_tests': {
     'modifications': {
       'android-pie-arm64-rel': {
-        'args': [
-          '--test-launcher-filter-file=../../testing/buildbot/filters/android.webview_cts_tests_coverage.filter',
-        ],
         # TODO(crbug.com/1111436): Move this back to walleye if/when additional
         # capacity has been deployed.
         'swarming': {
           'dimensions': {
-            'device_type': 'sailfish',
+            'device_type': 'crosshatch',
           },
         },
-      },
-    },
-  },
-  'webview_cts_tests': {
-    'modifications': {
-      # If you change this, make similar changes in android-x86-code-coverage below
-      'android-nougat-x86-rel': {
-        'args': [
-          '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator.webview_cts_tests.filter',
-          '--test-launcher-filter-file=../../testing/buildbot/filters/android.webview_cts_tests_coverage.filter',
-        ],
-      },
-      'android-pie-arm64-rel': {
-        # TODO(crbug.com/1111436): Move this back to walleye if/when additional
-        # capacity has been deployed.
-        'swarming': {
-          'dimensions': {
-            'device_type': 'sailfish',
-          },
-        },
-      },
-      # Keep this same as android-nougat-x86-rel above
-      'android-x86-code-coverage': {
-        'args': [
-          '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator.webview_cts_tests.filter',
-          '--test-launcher-filter-file=../../testing/buildbot/filters/android.webview_cts_tests_coverage.filter',
-        ],
       },
     },
   },
@@ -4493,7 +5033,6 @@
       # matching android builders, the test fails on these.
       'ToTAndroid',
       'android-asan',  # https://crbug.com/964562
-      'android-code-coverage-native', # Does not generate profraw data.
     ],
     'modifications': {
       'Oreo Phone Tester': {
@@ -4511,7 +5050,6 @@
       'android-12-x64-rel': {
         'swarming': {
           'shards': 10,
-          'inverse_quickrun_shards': 14,
         },
       },
       'android-12l-x64-dbg-tests': {
@@ -4522,16 +5060,36 @@
           'shards': 9,
         },
       },
-      'android-13-x64-rel': {
+      'android-12l-x64-fyi-dbg': {
         'args': [
-          '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_13.webview_instrumentation_test_apk.filter',
+          '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_12l.webview_instrumentation_test_apk.filter',
         ],
         'swarming': {
           'shards': 9,
         },
       },
+      'android-13-x64-fyi-rel': {
+        'swarming': {
+          'shards': 9,
+        },
+      },
+      'android-13-x64-rel': {
+        'swarming': {
+          'shards': 9,
+        },
+      },
+      'android-code-coverage-native': {
+        'args': [
+          '--use-persistent-shell',
+        ],
+        'swarming': {
+          # Shard number is increased for longer test execution time and added
+          # local coverage data merging time.
+          'shards': 36,
+        },
+      },
       # If you change this, make similar changes in android-x86-code-coverage below
-      'android-nougat-x86-rel': {
+      'android-oreo-x86-rel': {
         'args': [
           '--use-persistent-shell',
         ],
@@ -4553,10 +5111,10 @@
           '--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator.webview_instrumentation_test_apk.filter',
         ],
         'swarming': {
-          'shards': 9,
+          'shards': 13, # crbug.com/1294924
         },
       },
-      # Keep this same as android-nougat-x86-rel above
+      # Keep this same as android-oreo-x86-rel above
       'android-x86-code-coverage': {
         'args': [
           '--use-persistent-shell',
@@ -4567,10 +5125,25 @@
       },
     },
   },
+  'webview_instrumentation_test_apk_no_field_trial': {
+    'remove_from': [
+      'android-12-x64-rel', # These tests are not ready to run on a non FYI CI.
+    ]
+  },
   'webview_ui_test_app_test_apk': {
     'remove_from': [
       'android-11-x86-rel', # crbug.com/1165280
     ],
+  },
+  'webview_ui_test_app_test_apk_single_group_per_study_prefer_existing_behavior': {
+    'remove_from': [
+      'android-12-x64-rel', # These tests are not ready to run on a non FYI CI.
+    ]
+  },
+  'webview_ui_test_app_test_apk_single_group_per_study_prefer_new_behavior': {
+    'remove_from': [
+      'android-12-x64-rel', # These tests are not ready to run on a non FYI CI.
+    ]
   },
   'wpt_tests_suite': {
     'modifications': {

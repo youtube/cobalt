@@ -13,11 +13,7 @@
 #import "ios/web/annotations/annotations_text_manager_impl.h"
 #import "ios/web/public/js_messaging/script_message.h"
 #import "ios/web/public/js_messaging/web_frame.h"
-#import "ios/web/public/js_messaging/web_frame_util.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
+#import "ios/web/public/js_messaging/web_frames_manager.h"
 
 namespace {
 const char kScriptName[] = "annotations";
@@ -47,14 +43,14 @@ void AnnotationsJavaScriptFeature::ExtractText(WebState* web_state,
                                                int maximum_text_length,
                                                int seq_id) {
   DCHECK(web_state);
-  auto* frame = web::GetMainFrame(web_state);
+  WebFrame* frame = GetWebFramesManager(web_state)->GetMainWebFrame();
   if (!frame) {
     return;
   }
 
-  std::vector<base::Value> parameters;
-  parameters.push_back(base::Value(maximum_text_length));
-  parameters.push_back(base::Value(seq_id));
+  base::Value::List parameters;
+  parameters.Append(maximum_text_length);
+  parameters.Append(seq_id);
   CallJavaScriptFunction(frame, "annotations.extractText", parameters);
 }
 
@@ -62,19 +58,19 @@ void AnnotationsJavaScriptFeature::DecorateAnnotations(
     WebState* web_state,
     base::Value& annotations) {
   DCHECK(web_state);
-  auto* frame = web::GetMainFrame(web_state);
+  WebFrame* frame = GetWebFramesManager(web_state)->GetMainWebFrame();
   if (!frame) {
     return;
   }
 
-  std::vector<base::Value> parameters;
-  parameters.push_back(base::Value(std::move(annotations)));
+  base::Value::List parameters;
+  parameters.Append(std::move(annotations));
   CallJavaScriptFunction(frame, "annotations.decorateAnnotations", parameters);
 }
 
 void AnnotationsJavaScriptFeature::RemoveDecorations(WebState* web_state) {
   DCHECK(web_state);
-  auto* frame = web::GetMainFrame(web_state);
+  WebFrame* frame = GetWebFramesManager(web_state)->GetMainWebFrame();
   if (!frame) {
     return;
   }
@@ -82,9 +78,25 @@ void AnnotationsJavaScriptFeature::RemoveDecorations(WebState* web_state) {
   CallJavaScriptFunction(frame, "annotations.removeDecorations", {});
 }
 
+void AnnotationsJavaScriptFeature::RemoveDecorationsWithType(
+    WebState* web_state,
+    const std::string& type) {
+  DCHECK(web_state);
+  WebFrame* frame = GetWebFramesManager(web_state)->GetMainWebFrame();
+  if (!frame) {
+    return;
+  }
+
+  base::Value::List parameters;
+  parameters.Append(std::move(type));
+
+  CallJavaScriptFunction(frame, "annotations.removeDecorationsWithType",
+                         parameters);
+}
+
 void AnnotationsJavaScriptFeature::RemoveHighlight(WebState* web_state) {
   DCHECK(web_state);
-  auto* frame = web::GetMainFrame(web_state);
+  WebFrame* frame = GetWebFramesManager(web_state)->GetMainWebFrame();
   if (!frame) {
     return;
   }
@@ -128,11 +140,12 @@ void AnnotationsJavaScriptFeature::ScriptMessageReceived(
   if (*command == "annotations.extractedText") {
     const std::string* text = dict.FindString("text");
     absl::optional<double> seq_id = dict.FindDouble("seqId");
-    if (!text || !seq_id) {
+    const base::Value::Dict* metadata = dict.FindDict("metadata");
+    if (!text || !seq_id || !metadata) {
       return;
     }
-    manager->OnTextExtracted(web_state, *text,
-                             static_cast<int>(seq_id.value()));
+    manager->OnTextExtracted(web_state, *text, static_cast<int>(seq_id.value()),
+                             *metadata);
   } else if (*command == "annotations.decoratingComplete") {
     absl::optional<double> optional_annotations =
         dict.FindDouble("annotations");

@@ -28,6 +28,7 @@
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/web_applications/web_app_helpers.h"
 #include "chrome/test/base/in_process_browser_test.h"
+#include "chromeos/ash/components/standalone_browser/feature_refs.h"
 #include "components/keyed_service/content/browser_context_dependency_manager.h"
 #include "components/services/app_service/public/cpp/app_types.h"
 #include "components/webapps/browser/install_result_code.h"
@@ -65,7 +66,7 @@ class ApkWebAppServiceLacrosBrowserTest : public InProcessBrowserTest,
  public:
   ApkWebAppServiceLacrosBrowserTest() {
     scoped_feature_list_.InitWithFeatures(
-        {features::kLacrosSupport, features::kLacrosPrimary}, {});
+        ash::standalone_browser::GetFeatureRefs(), {});
     dependency_manager_subscription_ =
         BrowserContextDependencyManager::GetInstance()
             ->RegisterCreateServicesCallbackForTesting(base::BindRepeating(
@@ -127,7 +128,7 @@ class ApkWebAppServiceLacrosBrowserTest : public InProcessBrowserTest,
                             webapps::InstallResultCode::kSuccessNewInstall);
   }
 
-  void MaybeUninstallWebAppInLacros(const web_app::AppId& web_app_id) override {
+  void MaybeUninstallWebAppInLacros(const webapps::AppId& web_app_id) override {
     if (!lacros_running_) {
       return;
     }
@@ -437,7 +438,7 @@ IN_PROC_BROWSER_TEST_F(ApkWebAppServiceLacrosBrowserTest,
   EXPECT_TRUE(IsWebAppInstalled("https://example.org/a?start"));
 
   // Disable ARC through settings.
-  base::test::TestFuture<const std::string&, const web_app::AppId&>
+  base::test::TestFuture<const std::string&, const webapps::AppId&>
       uninstalled_future;
   service.SetWebAppUninstalledCallbackForTesting(
       uninstalled_future.GetCallback());

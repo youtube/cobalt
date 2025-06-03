@@ -8,15 +8,13 @@
 #import "components/policy/core/common/policy_pref_names.h"
 #import "components/prefs/pref_service.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 bool IsIncognitoPolicyApplied(PrefService* pref_service) {
   if (!pref_service)
     return NO;
   return pref_service->IsManagedPreference(
-      policy::policy_prefs::kIncognitoModeAvailability);
+             policy::policy_prefs::kIncognitoModeAvailability) ||
+         pref_service->IsPreferenceManagedByCustodian(
+             policy::policy_prefs::kIncognitoModeAvailability);
 }
 
 bool IsIncognitoModeDisabled(PrefService* pref_service) {
@@ -36,4 +34,19 @@ bool IsIncognitoModeForced(PrefService* pref_service) {
 bool IsApplicationManagedByPlatform() {
   return [[[NSUserDefaults standardUserDefaults]
              dictionaryForKey:kPolicyLoaderIOSConfigurationKey] count] > 0;
+}
+
+bool IsAddNewTabAllowedByPolicy(PrefService* prefs, bool is_incognito) {
+  if (!prefs) {
+    // Return true to just ignore policy check if this is null.
+    return true;
+  }
+
+  if (IsIncognitoModeDisabled(prefs)) {
+    return !is_incognito;
+  } else if (IsIncognitoModeForced(prefs)) {
+    return is_incognito;
+  }
+
+  return true;
 }

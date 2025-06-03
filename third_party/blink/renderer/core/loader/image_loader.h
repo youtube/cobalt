@@ -83,7 +83,7 @@ class CORE_EXPORT ImageLoader : public GarbageCollected<ImageLoader>,
 
   void ElementDidMoveToNewDocument();
 
-  Element* GetElement() const { return element_; }
+  Element* GetElement() const { return element_.Get(); }
   bool ImageComplete() const { return image_complete_; }
 
   ImageResourceContent* GetContent() const { return image_content_.Get(); }
@@ -166,7 +166,6 @@ class CORE_EXPORT ImageLoader : public GarbageCollected<ImageLoader>,
   // force_blocking ensures that the image will block the load event.
   void DoUpdateFromElement(scoped_refptr<const DOMWrapperWorld> world,
                            UpdateFromElementBehavior,
-                           base::TimeTicks discovery_time,
                            UpdateType = UpdateType::kAsync,
                            bool force_blocking = false);
 
@@ -190,8 +189,7 @@ class CORE_EXPORT ImageLoader : public GarbageCollected<ImageLoader>,
   void ClearFailedLoadURL();
   void DispatchErrorEvent();
   void CrossSiteOrCSPViolationOccurred(AtomicString);
-  void EnqueueImageLoadingMicroTask(UpdateFromElementBehavior update_behavior,
-                                    base::TimeTicks discovery_time);
+  void EnqueueImageLoadingMicroTask(UpdateFromElementBehavior update_behavior);
 
   KURL ImageSourceToKURL(AtomicString) const;
 
@@ -241,12 +239,6 @@ class CORE_EXPORT ImageLoader : public GarbageCollected<ImageLoader>,
 
   bool image_complete_ : 1;
   bool suppress_error_events_ : 1;
-  // Tracks whether or not an image whose load was deferred was explicitly lazy
-  // (i.e., had developer-supplied `loading=lazy`). This matters because images
-  // that were not explicitly lazy but were deferred via automatic lazy image
-  // loading should continue to block the window load event, whereas explicitly
-  // lazy images should never block the window load event.
-  bool was_deferred_explicitly_ : 1;
 
   LazyImageLoadState lazy_image_load_state_;
 

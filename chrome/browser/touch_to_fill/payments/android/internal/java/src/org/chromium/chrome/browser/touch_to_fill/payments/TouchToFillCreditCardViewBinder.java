@@ -10,6 +10,7 @@ import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillCred
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillCreditCardProperties.CreditCardProperties.CARD_ICON_ID;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillCreditCardProperties.CreditCardProperties.CARD_NAME;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillCreditCardProperties.CreditCardProperties.CARD_NUMBER;
+import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillCreditCardProperties.CreditCardProperties.ITEM_COLLECTION_INFO;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillCreditCardProperties.CreditCardProperties.NETWORK_NAME;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillCreditCardProperties.CreditCardProperties.ON_CLICK_ACTION;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillCreditCardProperties.CreditCardProperties.VIRTUAL_CARD_LABEL;
@@ -24,12 +25,15 @@ import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillCred
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.accessibility.AccessibilityNodeInfo;
 import android.widget.ImageView;
 import android.widget.TextView;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.content.res.AppCompatResources;
 
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.autofill.AutofillUiUtils;
+import org.chromium.chrome.browser.touch_to_fill.common.FillableItemCollectionInfo;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel;
@@ -39,6 +43,34 @@ import org.chromium.ui.modelutil.PropertyModel;
  * PropertyModel} to the suitable method in {@link TouchToFillCreditCardView}.
  */
 class TouchToFillCreditCardViewBinder {
+    /**
+     * The collection info is added by setting an instance of this delegate on the last text view
+     * (it is important to sound naturally and mimic the default message), so that the message
+     * which is built from item children gets a suffix like ", 1 of 3.".
+     * This delegate also assumes that its host sets text on {@link AccessibilityNodeInfo},
+     * which is true for {@link TextView}.
+     */
+    private static class TextViewCollectionInfoAccessibilityDelegate
+            extends View.AccessibilityDelegate {
+        private FillableItemCollectionInfo mCollectionInfo;
+
+        public TextViewCollectionInfoAccessibilityDelegate(
+                @NonNull FillableItemCollectionInfo collectionInfo) {
+            mCollectionInfo = collectionInfo;
+        }
+
+        @Override
+        public void onInitializeAccessibilityNodeInfo(
+                @NonNull View host, @NonNull AccessibilityNodeInfo info) {
+            super.onInitializeAccessibilityNodeInfo(host, info);
+
+            assert info.getText() != null;
+            info.setContentDescription(host.getContext().getString(
+                    R.string.autofill_credit_card_a11y_item_collection_info, info.getText(),
+                    mCollectionInfo.getPosition(), mCollectionInfo.getTotal()));
+        }
+    }
+
     /**
      * Called whenever a property in the given model changes. It updates the given view accordingly.
      * @param model The observed {@link PropertyModel}. Its data need to be reflected in the view.
@@ -78,10 +110,9 @@ class TouchToFillCreditCardViewBinder {
         TextView cardName = view.findViewById(R.id.card_name);
         ImageView icon = view.findViewById(R.id.favicon);
         if (propertyKey == CARD_ICON_ID) {
-            icon.setImageDrawable(getCardIcon(view.getContext(), model.get(CARD_ART_URL),
-                    model.get(CARD_ICON_ID), R.dimen.touch_to_fill_payments_favicon_width,
-                    R.dimen.touch_to_fill_payments_favicon_height, R.dimen.card_art_corner_radius,
-                    ChromeFeatureList.isEnabled(ChromeFeatureList.AUTOFILL_ENABLE_CARD_ART_IMAGE)));
+            icon.setImageDrawable(
+                    getCardIcon(view.getContext(), model.get(CARD_ART_URL), model.get(CARD_ICON_ID),
+                            AutofillUiUtils.CardIconSize.LARGE, /* showCustomIcon= */ true));
         } else if (propertyKey == CARD_ART_URL) {
             // Skip, because it is already handled in the `CARD_ICON_ID` case.
         } else if (propertyKey == NETWORK_NAME) {
@@ -104,6 +135,13 @@ class TouchToFillCreditCardViewBinder {
             virtualCardLabel.setText(model.get(VIRTUAL_CARD_LABEL));
         } else if (propertyKey == ON_CLICK_ACTION) {
             view.setOnClickListener(unusedView -> model.get(ON_CLICK_ACTION).run());
+        } else if (propertyKey == ITEM_COLLECTION_INFO) {
+            TextView lastItemTextview = view.findViewById(R.id.description_line_2);
+            FillableItemCollectionInfo collectionInfo = model.get(ITEM_COLLECTION_INFO);
+            if (collectionInfo != null) {
+                lastItemTextview.setAccessibilityDelegate(
+                        new TextViewCollectionInfoAccessibilityDelegate(collectionInfo));
+            }
         } else {
             assert false : "Unhandled update to property:" + propertyKey;
         }
@@ -136,7 +174,7 @@ class TouchToFillCreditCardViewBinder {
 
     static View createFillButtonView(ViewGroup parent) {
         return LayoutInflater.from(parent.getContext())
-                .inflate(R.layout.touch_to_fill_fill_button_modern, parent, false);
+                .inflate(R.layout.touch_to_fill_fill_button, parent, false);
     }
 
     static void bindFillButtonView(PropertyModel model, View view, PropertyKey propertyKey) {
@@ -147,7 +185,7 @@ class TouchToFillCreditCardViewBinder {
         } else if (propertyKey == CARD_ICON_ID || propertyKey == CARD_ART_URL
                 || propertyKey == NETWORK_NAME || propertyKey == CARD_NAME
                 || propertyKey == CARD_NUMBER || propertyKey == CARD_EXPIRATION
-                || propertyKey == VIRTUAL_CARD_LABEL) {
+                || propertyKey == VIRTUAL_CARD_LABEL || propertyKey == ITEM_COLLECTION_INFO) {
             // Skip, because none of these changes affect the button
         } else {
             assert false : "Unhandled update to property:" + propertyKey;

@@ -5,24 +5,17 @@
 #include "chrome/browser/ash/borealis/borealis_util.h"
 
 #include "base/base64.h"
-#include "base/json/json_writer.h"
-#include "base/logging.h"
 #include "base/process/launch.h"
-#include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
-#include "base/strings/stringprintf.h"
-#include "base/system/sys_info.h"
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
 #include "base/values.h"
+#include "chrome/browser/ash/borealis/borealis_window_manager.h"
 #include "chrome/browser/ash/guest_os/guest_os_registry_service.h"
 #include "chrome/browser/ash/guest_os/guest_os_registry_service_factory.h"
-#include "chrome/browser/ash/profiles/profile_helper.h"
 #include "components/crx_file/id_util.h"
 #include "components/exo/shell_surface_util.h"
-#include "net/base/url_util.h"
 #include "third_party/re2/src/re2/re2.h"
-#include "ui/display/screen.h"
 
 namespace borealis {
 
@@ -34,36 +27,16 @@ const char kBorealisDlcName[] = "borealis-dlc";
 const char kAllowedScheme[] = "steam";
 const re2::LazyRE2 kURLAllowlistRegex[] = {{"//store/[0-9]{1,32}"},
                                            {"//run/[0-9]{1,32}"}};
-const char kBorealisAppIdRegex[] = "(?:steam:\\/\\/rungameid\\/)(\\d+)";
 const char kCompatToolVersionGameMismatch[] = "UNKNOWN (GameID mismatch)";
 const char kDeviceInformationKey[] = "entry.1613887985";
-
-const char kInsertCoinSuccessMessage[] = "Success";
-const char kInsertCoinRejectMessage[] = "Coin Invalid";
+const re2::LazyRE2 kSpuriousGameBlocklist[] = {
+    {"Proton [0-9.]+"},
+    {"Steam Linux Runtime - [a-zA-Z]*"},
+    {"Steam Linux Runtime"},
+    {"Proton Experimental"},
+    {"Proton EasyAntiCheat Runtime"}};
 
 namespace {
-
-// Base feedback form URL, without query parameters for prefilling.
-static constexpr char kFeedbackUrl[] =
-    "https://docs.google.com/forms/d/e/"
-    "1FAIpQLScGvT2BIwYJe9g15OINX2pvw6TgK8e2ihvSq3hHZudAneRmuA/"
-    "viewform?usp=pp_url";
-// Query parameter keys for prefilling form data.
-static constexpr char kAppNameKey[] = "entry.504707995";
-// JSON keys for prefilling JSON section.
-static constexpr char kJSONAppIdKey[] = "steam_appid";
-static constexpr char kJSONBoardKey[] = "board";
-static constexpr char kJSONMonitorsExternal[] = "external_monitors";
-static constexpr char kJSONMonitorsInternal[] = "internal_monitors";
-static constexpr char kJSONPlatformKey[] = "platform_version";
-static constexpr char kJSONProtonKey[] = "proton_version";
-static constexpr char kJSONSpecsKey[] = "specs";
-static constexpr char kJSONSteamKey[] = "steam_runtime_version";
-
-// App IDs prefixed with this are identified with a numeric "Borealis ID".
-const base::StringPiece kBorealisWindowWithIdPrefix(
-    "org.chromium.guest_os.borealis.xprop.");
-
 // Windows with these app IDs are not games. Don't prompt for feedback for them.
 //
 // Some Steam updater windows use Zenity to show dialog boxes, and use its
@@ -77,122 +50,80 @@ static constexpr char kSteamClientId[] =
 static constexpr char kSteamBigPictureId[] =
     "borealis_anon:org.chromium.guest_os.borealis.xprop.769";
 
-GURL AssembleUrlAsync(std::string owner_id,
-                      absl::optional<int> game_id,
-                      std::string window_title) {
-  GURL url(kFeedbackUrl);
-  url = net::AppendQueryParameter(url, kAppNameKey, window_title);
+// The regex used for extracting the "steam game id" of a .desktop's "Exec="
+// field.
+const re2::LazyRE2 kSteamGameIdFromExecRegex = {
+    "steam:\\/\\/rungameid\\/(\\d+)"};
+// The regex used for extracting the "steam game id" of a borealis window (or
+// anonymous app).
+const re2::LazyRE2 kSteamGameIdFromWindowRegex = {
+    "org\\.chromium\\.guest_os\\.borealis\\.xprop\\.(\\d+)"};
 
-  base::Value::Dict json_root;
-
-  // System specs
-  json_root.Set(kJSONBoardKey, base::SysInfo::HardwareModelName());
-  json_root.Set(
-      kJSONSpecsKey,
-      base::StringPrintf("%ldGB; %s",
-                         (long)(base::SysInfo::AmountOfPhysicalMemory() /
-                                (1000 * 1000 * 1000)),
-                         base::SysInfo::CPUModelName().c_str()));
-  json_root.Set(kJSONPlatformKey, base::SysInfo::OperatingSystemVersion());
-
-  // Number of monitors
-  int internal_displays = 0;
-  int external_displays = 0;
-  for (const display::Display& d :
-       display::Screen::GetScreen()->GetAllDisplays()) {
-    if (d.IsInternal()) {
-      internal_displays++;
-    } else {
-      external_displays++;
-    }
-  }
-  json_root.Set(kJSONMonitorsInternal, internal_displays);
-  json_root.Set(kJSONMonitorsExternal, external_displays);
-
-  // Proton/SLR versions
-  borealis::CompatToolInfo compat_tool_info;
-  std::string output;
-  if (borealis::GetCompatToolInfo(owner_id, &output)) {
-    compat_tool_info = borealis::ParseCompatToolInfo(game_id, output);
-  } else {
-    LOG(WARNING) << "Failed to get compat tool version info:";
-    LOG(WARNING) << output;
-  }
-  json_root.Set(kJSONProtonKey, compat_tool_info.proton);
-  json_root.Set(kJSONSteamKey, compat_tool_info.slr);
-
-  // Steam GameID
-  if (!game_id.has_value() && compat_tool_info.game_id.has_value()) {
-    game_id = compat_tool_info.game_id.value();
-  }
-  if (game_id.has_value()) {
-    json_root.Set(kJSONAppIdKey, base::StringPrintf("%d", game_id.value()));
-  }
-
-  std::string device_info;
-  base::JSONWriter::Write(json_root, &device_info);
-  url = net::AppendQueryParameter(url, kDeviceInformationKey, device_info);
-  return url;
-}
-
-}  // namespace
-
-absl::optional<int> GetBorealisAppId(std::string exec) {
+// Works for window-data either in the exo_id form, or the anonymous app_id
+// form.
+absl::optional<int> ParseGameIdFromWindowData(const std::string& data) {
   int app_id;
-  if (RE2::PartialMatch(exec, kBorealisAppIdRegex, &app_id)) {
+  if (RE2::PartialMatch(data, *kSteamGameIdFromWindowRegex, &app_id)) {
     return app_id;
-  } else {
-    return absl::nullopt;
-  }
-}
-
-absl::optional<int> GetBorealisAppId(const aura::Window* window) {
-  const std::string* id = exo::GetShellApplicationId(window);
-  if (id && base::StartsWith(*id, kBorealisWindowWithIdPrefix)) {
-    int borealis_id;
-    if (base::StringToInt(id->substr(kBorealisWindowWithIdPrefix.size()),
-                          &borealis_id)) {
-      return borealis_id;
-    }
   }
   return absl::nullopt;
 }
 
-void FeedbackFormUrl(Profile* const profile,
-                     const std::string& app_id,
-                     const std::string& window_title,
-                     base::OnceCallback<void(GURL)> url_callback) {
-  const guest_os::GuestOsRegistryService* registry_service =
-      guest_os::GuestOsRegistryServiceFactory::GetForProfile(profile);
+}  // namespace
 
-  // Exclude windows that aren't games.
+absl::optional<int> ParseSteamGameId(std::string exec) {
+  int app_id;
+  if (RE2::PartialMatch(exec, *kSteamGameIdFromExecRegex, &app_id)) {
+    return app_id;
+  }
+  return absl::nullopt;
+}
+
+absl::optional<int> SteamGameId(const aura::Window* window) {
+  const std::string* id = exo::GetShellApplicationId(window);
+  if (!id) {
+    return absl::nullopt;
+  }
+  return ParseGameIdFromWindowData(*id);
+}
+
+absl::optional<int> SteamGameId(Profile* profile, const std::string& app_id) {
+  if (BorealisWindowManager::IsAnonymousAppId(app_id)) {
+    return ParseGameIdFromWindowData(app_id);
+  }
+  guest_os::GuestOsRegistryService* registry =
+      guest_os::GuestOsRegistryServiceFactory::GetForProfile(profile);
+  if (!registry) {
+    return absl::nullopt;
+  }
+  absl::optional<guest_os::GuestOsRegistryService::Registration> reg =
+      registry->GetRegistration(app_id);
+  if (!reg) {
+    return absl::nullopt;
+  }
+  return ParseSteamGameId(reg->Exec());
+}
+
+bool IsNonGameBorealisApp(const std::string& app_id) {
   if (app_id.find(kIgnoredAppIdPrefix) != std::string::npos ||
       app_id == kClientAppId) {
-    std::move(url_callback).Run(GURL());
-    return;
+    return true;
   }
 
   if (app_id == kZenityId || app_id == kSteamClientId ||
       app_id == kSteamBigPictureId) {
-    std::move(url_callback).Run(GURL());
-    return;
+    return true;
   }
+  return false;
+}
 
-  // Attempt to get the Borealis app ID.
-  // TODO(b/173977876): Implement this in a more reliable way.
-  absl::optional<int> game_id;
-  absl::optional<guest_os::GuestOsRegistryService::Registration> registration =
-      registry_service->GetRegistration(app_id);
-  if (registration.has_value()) {
-    game_id = GetBorealisAppId(registration->Exec());
+bool ShouldHideIrrelevantApp(const std::string& desktop_name) {
+  for (auto& blocklist_regex : kSpuriousGameBlocklist) {
+    if (re2::RE2::FullMatch(desktop_name, *blocklist_regex)) {
+      return true;
+    }
   }
-
-  base::ThreadPool::PostTaskAndReplyWithResult(
-      FROM_HERE, base::MayBlock(),
-      base::BindOnce(&AssembleUrlAsync,
-                     ash::ProfileHelper::GetUserIdHashFromProfile(profile),
-                     std::move(game_id), std::move(window_title)),
-      std::move(url_callback));
+  return false;
 }
 
 bool IsExternalURLAllowed(const GURL& url) {

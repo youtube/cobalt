@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "base/check_op.h"
+#include "base/containers/contains.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
@@ -190,8 +191,9 @@ bool isNonWildcardTLD(const std::string& url,
 
   std::string host(url, start_of_host, end_of_host - start_of_host);
   // Global wildcards are not allowed.
-  if (host.empty() || host.find("*") != std::string::npos)
+  if (host.empty() || base::Contains(host, "*")) {
     return false;
+  }
 
   if (!is_wildcard_subdomain || !should_check_rcd)
     return true;
@@ -262,11 +264,11 @@ std::string GetSecureDirectiveValues(
     if (is_secure_csp_token) {
       sane_csp_parts.push_back(source_literal);
     } else if (warnings) {
-      warnings->push_back(
-          InstallWarning(ErrorUtils::FormatErrorMessage(
-                             manifest_errors::kInvalidCSPInsecureValueIgnored,
-                             manifest_key, source_literal, directive_name),
-                         manifest_key));
+      warnings->emplace_back(
+          ErrorUtils::FormatErrorMessage(
+              manifest_errors::kInvalidCSPInsecureValueIgnored, manifest_key,
+              source_literal, directive_name),
+          manifest_key);
     }
   }
   // End of CSP directive that was started at the beginning of this method. If
@@ -300,11 +302,11 @@ std::string GetAppSandboxSecureDirectiveValues(
       seen_self_or_none |= source_lower == "'none'" || source_lower == "'self'";
       sane_csp_parts.push_back(source_lower);
     } else if (warnings) {
-      warnings->push_back(
-          InstallWarning(ErrorUtils::FormatErrorMessage(
-                             manifest_errors::kInvalidCSPInsecureValueIgnored,
-                             manifest_key, source_literal, directive_name),
-                         manifest_key));
+      warnings->emplace_back(
+          ErrorUtils::FormatErrorMessage(
+              manifest_errors::kInvalidCSPInsecureValueIgnored, manifest_key,
+              source_literal, directive_name),
+          manifest_key);
     }
   }
 
@@ -462,11 +464,10 @@ std::string CSPEnforcer::Enforce(const DirectiveList& directives,
       enforced_csp_parts.push_back(GetDefaultCSPValue(status));
 
       if (warnings && show_missing_csp_warnings_) {
-        warnings->push_back(
-            InstallWarning(ErrorUtils::FormatErrorMessage(
-                               manifest_errors::kInvalidCSPMissingSecureSrc,
-                               manifest_key_, status.name()),
-                           manifest_key_));
+        warnings->emplace_back(ErrorUtils::FormatErrorMessage(
+                                   manifest_errors::kInvalidCSPMissingSecureSrc,
+                                   manifest_key_, status.name()),
+                               manifest_key_);
       }
     }
   }

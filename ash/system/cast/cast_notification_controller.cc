@@ -9,6 +9,7 @@
 #include "ash/resources/vector_icons/vector_icons.h"
 #include "ash/root_window_controller.h"
 #include "ash/shelf/shelf.h"
+#include "ash/shelf/shelf_focus_cycler.h"
 #include "ash/shell.h"
 #include "ash/strings/grit/ash_strings.h"
 #include "ash/system/notification_center/notification_center_tray.h"
@@ -51,16 +52,39 @@ std::u16string GetNotificationTitle(const CastSink& sink,
 
 std::u16string GetNotificationMessage(const CastRoute& route) {
   if (route.freeze_info.is_frozen) {
-    return l10n_util::GetStringUTF16(IDS_ASH_STATUS_TRAY_CAST_CAST_PAUSED);
-  }
-  switch (route.content_source) {
-    case ContentSource::kUnknown:
-      return std::u16string();
-    case ContentSource::kTab:
-      return base::UTF8ToUTF16(route.title);
-    case ContentSource::kDesktop:
-      return l10n_util::GetStringUTF16(
-          IDS_ASH_STATUS_TRAY_CAST_CAST_DESKTOP_NOTIFICATION_MESSAGE);
+    // Casting is paused.
+    switch (route.content_source) {
+      case ContentSource::kUnknown:
+      case ContentSource::kTab:
+        return l10n_util::GetStringUTF16(
+            IDS_ASH_STATUS_TRAY_CAST_NOTIFICATION_MESSAGE_PAUSED);
+      case ContentSource::kDesktop:
+        return l10n_util::GetStringUTF16(
+            IDS_ASH_STATUS_TRAY_CAST_NOTIFICATION_MESSAGE_SCREEN_PAUSED);
+    }
+  } else if (route.freeze_info.can_freeze) {
+    // Casting is not paused, but it is pausable.
+    switch (route.content_source) {
+      case ContentSource::kUnknown:
+        return std::u16string();
+      case ContentSource::kTab:
+        return l10n_util::GetStringUTF16(
+            IDS_ASH_STATUS_TRAY_CAST_NOTIFICATION_MESSAGE_TAB_CAN_PAUSE);
+      case ContentSource::kDesktop:
+        return l10n_util::GetStringUTF16(
+            IDS_ASH_STATUS_TRAY_CAST_NOTIFICATION_MESSAGE_SCREEN_CAN_PAUSE);
+    }
+  } else {
+    // The cast session is not pausable.
+    switch (route.content_source) {
+      case ContentSource::kUnknown:
+        return std::u16string();
+      case ContentSource::kTab:
+        return base::UTF8ToUTF16(route.title);
+      case ContentSource::kDesktop:
+        return l10n_util::GetStringUTF16(
+            IDS_ASH_STATUS_TRAY_CAST_CAST_DESKTOP_NOTIFICATION_MESSAGE);
+    }
   }
 }
 
@@ -88,6 +112,10 @@ void CastNotificationController::OnDevicesUpdated(
         kNotificationId, false /* by_user */);
     return;
   }
+
+  // The cast notification controller outlives cast sessions. Ensure
+  // `freeze_button_index_` starts reset when creating a new notification.
+  freeze_button_index_.reset();
 
   for (const auto& device : devices) {
     const CastSink& sink = device.sink;
@@ -165,6 +193,11 @@ void CastNotificationController::FreezePressed() {
       status_area_widget->unified_system_tray()->GetBubbleWidget()->AddObserver(
           this);
       status_area_widget->unified_system_tray()->CloseBubble();
+      Shell::GetPrimaryRootWindowController()
+          ->shelf()
+          ->shelf_focus_cycler()
+          ->FocusStatusArea(false);
+      status_area_widget->unified_system_tray()->RequestFocus();
     } else if (status_area_widget->notification_center_tray() &&
                status_area_widget->notification_center_tray()
                    ->IsBubbleShown()) {  // Notification tray is open.
@@ -173,6 +206,11 @@ void CastNotificationController::FreezePressed() {
           ->GetBubbleWidget()
           ->AddObserver(this);
       status_area_widget->notification_center_tray()->CloseBubble();
+      Shell::GetPrimaryRootWindowController()
+          ->shelf()
+          ->shelf_focus_cycler()
+          ->FocusStatusArea(false);
+      status_area_widget->notification_center_tray()->RequestFocus();
     } else {
       controller->FreezeRoute(displayed_route_id_);
     }

@@ -2,17 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <memory>
+#include "chrome/browser/ui/views/profiles/first_run_flow_controller_dice.h"
+
 #include "base/functional/callback_helpers.h"
-#include "base/scoped_environment_variable_override.h"
 #include "base/strings/strcat.h"
-#include "base/test/scoped_feature_list.h"
+#include "chrome/browser/enterprise/browser_management/management_service_factory.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/test/test_browser_ui.h"
-#include "chrome/browser/ui/views/profiles/first_run_flow_controller_dice.h"
 #include "chrome/browser/ui/views/profiles/profile_management_step_controller.h"
 #include "chrome/browser/ui/views/profiles/profile_picker_view_test_utils.h"
 #include "chrome/browser/ui/views/profiles/profiles_pixel_test_utils.h"
+#include "components/policy/core/common/management/scoped_management_service_override_for_testing.h"
 #include "components/signin/public/base/signin_buildflags.h"
 #include "content/public/test/browser_test.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -71,24 +71,19 @@ const char kMakeCardDescriptionLongerJsString[] =
 }  // namespace
 
 class FirstRunIntroPixelTest
-    : public UiBrowserTest,
+    : public ProfilesPixelTestBaseT<UiBrowserTest>,
       public testing::WithParamInterface<FirstRunTestParam> {
  public:
-  FirstRunIntroPixelTest() {
-    std::vector<base::test::FeatureRef> enabled_features = {};
-    std::vector<base::test::FeatureRef> disabled_features = {};
-    InitPixelTestFeatures(GetParam().pixel_test_param, scoped_feature_list_,
-                          enabled_features, disabled_features);
-  }
-
-  void SetUpCommandLine(base::CommandLine* command_line) override {
-    SetUpPixelTestCommandLine(GetParam().pixel_test_param, scoped_env_override_,
-                              command_line);
-  }
+  FirstRunIntroPixelTest()
+      : ProfilesPixelTestBaseT<UiBrowserTest>(GetParam().pixel_test_param) {}
 
   void ShowUi(const std::string& name) override {
     ui::ScopedAnimationDurationScaleMode disable_animation(
         ui::ScopedAnimationDurationScaleMode::ZERO_DURATION);
+    policy::ScopedManagementServiceOverrideForTesting browser_management(
+        policy::ManagementServiceFactory::GetForPlatform(),
+        policy::EnterpriseManagementAuthority::NONE);
+
     profile_picker_view_ = new ProfileManagementStepTestView(
         ProfilePicker::Params::ForFirstRun(browser()->profile()->GetPath(),
                                            base::DoNothing()),
@@ -116,7 +111,8 @@ class FirstRunIntroPixelTest
     const std::string screenshot_name =
         base::StrCat({test_info->test_case_name(), "_", test_info->name()});
 
-    return VerifyPixelUi(widget, "FirstRunIntroPixelTest", screenshot_name);
+    return VerifyPixelUi(widget, "FirstRunIntroPixelTest", screenshot_name) !=
+           ui::test::ActionResult::kFailed;
   }
 
   void WaitForUserDismissal() override {
@@ -128,9 +124,6 @@ class FirstRunIntroPixelTest
   views::Widget* GetWidgetForScreenshot() {
     return profile_picker_view_->GetWidget();
   }
-
-  base::test::ScopedFeatureList scoped_feature_list_;
-  std::unique_ptr<base::ScopedEnvironmentVariableOverride> scoped_env_override_;
 
   raw_ptr<ProfileManagementStepTestView, DanglingUntriaged>
       profile_picker_view_;

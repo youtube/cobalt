@@ -21,26 +21,28 @@ namespace {
 static const char kAnnexBHeaderBytes[4] = {0, 0, 0, 1};
 }  // anonymous namespace
 
-base::ScopedCFTypeRef<CFDictionaryRef>
+base::apple::ScopedCFTypeRef<CFDictionaryRef>
 DictionaryWithKeysAndValues(CFTypeRef* keys, CFTypeRef* values, size_t size) {
-  return base::ScopedCFTypeRef<CFDictionaryRef>(CFDictionaryCreate(
+  return base::apple::ScopedCFTypeRef<CFDictionaryRef>(CFDictionaryCreate(
       kCFAllocatorDefault, keys, values, size, &kCFTypeDictionaryKeyCallBacks,
       &kCFTypeDictionaryValueCallBacks));
 }
 
-base::ScopedCFTypeRef<CFDictionaryRef> DictionaryWithKeyValue(CFTypeRef key,
-                                                              CFTypeRef value) {
+base::apple::ScopedCFTypeRef<CFDictionaryRef> DictionaryWithKeyValue(
+    CFTypeRef key,
+    CFTypeRef value) {
   CFTypeRef keys[1] = {key};
   CFTypeRef values[1] = {value};
   return DictionaryWithKeysAndValues(keys, values, 1);
 }
 
-base::ScopedCFTypeRef<CFArrayRef> ArrayWithIntegers(const int* v, size_t size) {
+base::apple::ScopedCFTypeRef<CFArrayRef> ArrayWithIntegers(const int* v,
+                                                           size_t size) {
   std::vector<CFNumberRef> numbers;
   numbers.reserve(size);
   for (const int* end = v + size; v < end; ++v)
     numbers.push_back(CFNumberCreate(nullptr, kCFNumberSInt32Type, v));
-  base::ScopedCFTypeRef<CFArrayRef> array(CFArrayCreate(
+  base::apple::ScopedCFTypeRef<CFArrayRef> array(CFArrayCreate(
       kCFAllocatorDefault, reinterpret_cast<const void**>(&numbers[0]),
       numbers.size(), &kCFTypeArrayCallBacks));
   for (auto* number : numbers) {
@@ -49,12 +51,13 @@ base::ScopedCFTypeRef<CFArrayRef> ArrayWithIntegers(const int* v, size_t size) {
   return array;
 }
 
-base::ScopedCFTypeRef<CFArrayRef> ArrayWithIntegerAndFloat(int int_val,
-                                                           float float_val) {
+base::apple::ScopedCFTypeRef<CFArrayRef> ArrayWithIntegerAndFloat(
+    int int_val,
+    float float_val) {
   std::array<CFNumberRef, 2> numbers = {
       {CFNumberCreate(nullptr, kCFNumberSInt32Type, &int_val),
        CFNumberCreate(nullptr, kCFNumberFloat32Type, &float_val)}};
-  base::ScopedCFTypeRef<CFArrayRef> array(CFArrayCreate(
+  base::apple::ScopedCFTypeRef<CFArrayRef> array(CFArrayCreate(
       kCFAllocatorDefault, reinterpret_cast<const void**>(numbers.data()),
       numbers.size(), &kCFTypeArrayCallBacks));
   for (auto* number : numbers)
@@ -163,8 +166,7 @@ OSStatus GetParameterSetAtIndex(VideoCodec codec,
           parameterSetSizeOut, parameterSetCountOut, NALUnitHeaderLengthOut);
 #endif  // BUILDFLAG(ENABLE_HEVC_PARSER_AND_HW_DECODER)
     default:
-      NOTREACHED();
-      return kCMFormatDescriptionBridgeError_InvalidParameter;
+      NOTREACHED_NORETURN();
   }
 }
 
@@ -239,7 +241,7 @@ bool CopySampleBufferToAnnexBBuffer(VideoCodec codec,
 
   // Block buffers can be composed of non-contiguous chunks. For the sake of
   // keeping this code simple, flatten non-contiguous block buffers.
-  base::ScopedCFTypeRef<CMBlockBufferRef> contiguous_bb(
+  base::apple::ScopedCFTypeRef<CMBlockBufferRef> contiguous_bb(
       bb, base::scoped_policy::RETAIN);
   if (!CMBlockBufferIsRangeContiguous(bb, 0, 0)) {
     contiguous_bb.reset();
@@ -255,8 +257,8 @@ bool CopySampleBufferToAnnexBBuffer(VideoCodec codec,
   // Copy all the NAL units. In the process convert them from AVCC/HVCC format
   // (length header) to AnnexB format (start code).
   char* bb_data;
-  status =
-      CMBlockBufferGetDataPointer(contiguous_bb, 0, nullptr, nullptr, &bb_data);
+  status = CMBlockBufferGetDataPointer(contiguous_bb.get(), 0, nullptr, nullptr,
+                                       &bb_data);
   if (status != noErr) {
     DLOG(ERROR) << " CMBlockBufferGetDataPointer failed: " << status;
     return false;
@@ -296,7 +298,7 @@ bool CopySampleBufferToAnnexBBuffer(VideoCodec codec,
 }
 
 SessionPropertySetter::SessionPropertySetter(
-    base::ScopedCFTypeRef<VTCompressionSessionRef> session)
+    base::apple::ScopedCFTypeRef<VTCompressionSessionRef> session)
     : session_(session) {}
 
 SessionPropertySetter::~SessionPropertySetter() {}
@@ -305,40 +307,42 @@ bool SessionPropertySetter::IsSupported(CFStringRef key) {
   DCHECK(session_);
   if (!supported_keys_) {
     CFDictionaryRef dict_ref;
-    if (VTSessionCopySupportedPropertyDictionary(session_, &dict_ref) == noErr)
+    if (VTSessionCopySupportedPropertyDictionary(session_.get(), &dict_ref) ==
+        noErr) {
       supported_keys_.reset(dict_ref);
+    }
   }
-  return supported_keys_ && CFDictionaryContainsKey(supported_keys_, key);
+  return supported_keys_ && CFDictionaryContainsKey(supported_keys_.get(), key);
 }
 
 bool SessionPropertySetter::Set(CFStringRef key, int32_t value) {
   DCHECK(session_);
-  base::ScopedCFTypeRef<CFNumberRef> cfvalue(
+  base::apple::ScopedCFTypeRef<CFNumberRef> cfvalue(
       CFNumberCreate(nullptr, kCFNumberSInt32Type, &value));
-  return VTSessionSetProperty(session_, key, cfvalue) == noErr;
+  return VTSessionSetProperty(session_.get(), key, cfvalue.get()) == noErr;
 }
 
 bool SessionPropertySetter::Set(CFStringRef key, bool value) {
   DCHECK(session_);
   CFBooleanRef cfvalue = (value) ? kCFBooleanTrue : kCFBooleanFalse;
-  return VTSessionSetProperty(session_, key, cfvalue) == noErr;
+  return VTSessionSetProperty(session_.get(), key, cfvalue) == noErr;
 }
 
 bool SessionPropertySetter::Set(CFStringRef key, double value) {
   DCHECK(session_);
-  base::ScopedCFTypeRef<CFNumberRef> cfvalue(
+  base::apple::ScopedCFTypeRef<CFNumberRef> cfvalue(
       CFNumberCreate(nullptr, kCFNumberDoubleType, &value));
-  return VTSessionSetProperty(session_, key, cfvalue) == noErr;
+  return VTSessionSetProperty(session_.get(), key, cfvalue.get()) == noErr;
 }
 
 bool SessionPropertySetter::Set(CFStringRef key, CFStringRef value) {
   DCHECK(session_);
-  return VTSessionSetProperty(session_, key, value) == noErr;
+  return VTSessionSetProperty(session_.get(), key, value) == noErr;
 }
 
 bool SessionPropertySetter::Set(CFStringRef key, CFArrayRef value) {
   DCHECK(session_);
-  return VTSessionSetProperty(session_, key, value) == noErr;
+  return VTSessionSetProperty(session_.get(), key, value) == noErr;
 }
 
 }  // namespace video_toolbox

@@ -6,9 +6,11 @@
  * @fileoverview Polymer element for displaying material design OOBE.
  */
 
+import '//resources/cr_elements/chromeos/cros_color_overrides.css.js';
 import '//resources/cr_elements/cr_input/cr_input.js';
 import '//resources/cr_elements/cr_shared_vars.css.js';
 import '//resources/polymer/v3_0/iron-icon/iron-icon.js';
+import '../../components/oobe_a11y_option.js';
 import '../../components/oobe_icons.html.js';
 import '../../components/oobe_i18n_dropdown.js';
 import '../../components/common_styles/oobe_common_styles.css.js';
@@ -75,6 +77,15 @@ const OobeWelcomeScreenBase = mixinBehaviors(
  * }}
  */
 OobeWelcomeScreenBase.$;
+
+/**
+ * Data that is passed to the screen during onBeforeShow.
+ * @typedef {{
+ *   isDeveloperMode: boolean,
+ * }}
+ */
+let WelcomeScreenData;
+
 /**
  * @polymer
  */
@@ -242,8 +253,7 @@ class OobeWelcomeScreen extends OobeWelcomeScreenBase {
 
   /**
    * Event handler that is invoked just before the screen is shown.
-   * TODO (https://crbug.com/948932): Define this type.
-   * @param {Object} data Screen init payload.
+   * @param {WelcomeScreenData} data Screen init payload.
    */
   onBeforeShow(data) {
     this.debuggingLinkVisible_ =
@@ -842,9 +852,11 @@ class OobeWelcomeScreen extends OobeWelcomeScreenBase {
           ', giving default hint in English.');
     }
     this.cleanupChromeVoxHint_();
+    // |msgId| depends on both feature enabled status and tablet mode.
     const msgId = this.$.welcomeScreen.isInTabletMode ?
-        'chromeVoxHintAnnouncementTextTablet' :
-        'chromeVoxHintAnnouncementTextLaptop';
+        'chromeVoxHintAnnouncementTextTabletExpanded' :
+        'chromeVoxHintAnnouncementTextLaptopExpanded';
+
     const message = this.i18n(msgId);
     chrome.tts.speak(message, options, () => {
       this.showChromeVoxHint_();

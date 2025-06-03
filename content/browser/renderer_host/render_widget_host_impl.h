@@ -30,10 +30,8 @@
 #include "base/timer/timer.h"
 #include "build/build_config.h"
 #include "cc/mojom/render_frame_metadata.mojom.h"
-#include "components/power_scheduler/power_mode_voter.h"
 #include "components/viz/common/surfaces/frame_sink_id.h"
 #include "content/browser/renderer_host/agent_scheduling_group_host.h"
-#include "content/browser/renderer_host/event_with_latency_info.h"
 #include "content/browser/renderer_host/frame_token_message_queue.h"
 #include "content/browser/renderer_host/input/input_disposition_handler.h"
 #include "content/browser/renderer_host/input/input_router_impl.h"
@@ -47,6 +45,7 @@
 #include "content/browser/scheduler/browser_ui_thread_scheduler.h"
 #include "content/common/content_export.h"
 #include "content/common/frame.mojom-forward.h"
+#include "content/common/input/event_with_latency_info.h"
 #include "content/public/browser/render_process_host_observer.h"
 #include "content/public/browser/render_process_host_priority_client.h"
 #include "content/public/browser/render_widget_host.h"
@@ -95,7 +94,7 @@ class Vector2dF;
 }  // namespace gfx
 
 namespace ui {
-enum class DomCode;
+enum class DomCode : uint32_t;
 }
 
 namespace content {
@@ -158,6 +157,7 @@ class CONTENT_EXPORT RenderWidgetHostImpl
   static std::unique_ptr<RenderWidgetHostImpl> Create(
       FrameTree* frame_tree,
       RenderWidgetHostDelegate* delegate,
+      viz::FrameSinkId frame_sink_id,
       base::SafeRef<SiteInstanceGroup> site_instance_group,
       int32_t routing_id,
       bool hidden,
@@ -195,6 +195,11 @@ class CONTENT_EXPORT RenderWidgetHostImpl
   // Use RenderWidgetHostImpl::From(rwh) to downcast a RenderWidgetHost to a
   // RenderWidgetHostImpl.
   static RenderWidgetHostImpl* From(RenderWidgetHost* rwh);
+
+  // Generates the FrameSinkId to use for a RenderWidgetHost allocated with
+  // `group` and `routing_id`.
+  static viz::FrameSinkId DefaultFrameSinkId(const SiteInstanceGroup& group,
+                                             int routing_id);
 
   // TODO(crbug.com/1179502): FrameTree and FrameTreeNode will not be const as
   // with prerenderer activation the page needs to move between FrameTreeNodes
@@ -265,8 +270,6 @@ class CONTENT_EXPORT RenderWidgetHostImpl
   float GetDeviceScaleFactor() override;
   absl::optional<cc::TouchAction> GetAllowedTouchAction() override;
   void WriteIntoTrace(perfetto::TracedValue context) override;
-  using DragOperationCallback =
-      base::OnceCallback<void(::ui::mojom::DragOperation)>;
   // |drop_data| must have been filtered. The embedder should call
   // FilterDropData before passing the drop data to RWHI.
   void DragTargetDragEnter(const DropData& drop_data,
@@ -449,6 +452,11 @@ class CONTENT_EXPORT RenderWidgetHostImpl
   void GotFocus();
   void LostFocus();
   void LostCapture();
+
+  // Used by the RenderFrameHost to help with verifying changes in focus. Tells
+  // whether LostFocus() was called after any frame on this page was focused.
+  bool HasLostFocus() const { return has_lost_focus_; }
+  void ResetLostFocus() { has_lost_focus_ = false; }
 
   // Indicates whether the RenderWidgetHost thinks it is focused.
   // This is different from RenderWidgetHostView::HasFocus() in the sense that
@@ -756,7 +764,9 @@ class CONTENT_EXPORT RenderWidgetHostImpl
     return &render_frame_metadata_provider_;
   }
 
+  // SyntheticGestureController::Delegate overrides.
   bool HasGestureStopped() override;
+  bool IsHidden() const override;
 
   // Signals that a frame with token |frame_token| was finished processing. If
   // there are any queued messages belonging to it, they will be processed.
@@ -773,7 +783,8 @@ class CONTENT_EXPORT RenderWidgetHostImpl
   blink::mojom::WidgetInputHandler* GetWidgetInputHandler() override;
   void OnImeCompositionRangeChanged(
       const gfx::Range& range,
-      const std::vector<gfx::Rect>& character_bounds) override;
+      const absl::optional<std::vector<gfx::Rect>>& character_bounds,
+      const absl::optional<std::vector<gfx::Rect>>& line_bounds) override;
   void OnImeCancelComposition() override;
   RenderWidgetHostViewBase* GetRenderWidgetHostViewBase() override;
   void OnStartStylusWriting() override;
@@ -901,6 +912,19 @@ class CONTENT_EXPORT RenderWidgetHostImpl
                                   cc::BrowserControlsState current,
                                   bool animate);
 
+  void StartDragging(blink::mojom::DragDataPtr drag_data,
+                     const url::Origin& source_origin,
+                     blink::DragOperationsMask drag_operations_mask,
+                     const SkBitmap& unsafe_bitmap,
+                     const gfx::Vector2d& cursor_offset_in_dip,
+                     const gfx::Rect& drag_obj_rect_in_dip,
+                     blink::mojom::DragEventSourceInfoPtr event_info);
+
+  // Notifies the widget that the viz::FrameSinkId assigned to it is now bound
+  // to its renderer side widget. If the renderer issued a FrameSink request
+  // before this handoff, the request is buffered and will be issued here.
+  void SetViewIsFrameSinkIdOwner(bool is_owner);
+
  protected:
   // |routing_id| must not be MSG_ROUTING_NONE.
   // If this object outlives |delegate|, DetachDelegate() must be called when
@@ -910,6 +934,7 @@ class CONTENT_EXPORT RenderWidgetHostImpl
   RenderWidgetHostImpl(
       FrameTree* frame_tree,
       bool self_owned,
+      viz::FrameSinkId frame_sink_id,
       RenderWidgetHostDelegate* delegate,
       base::SafeRef<SiteInstanceGroup> site_instance_group,
       int32_t routing_id,
@@ -968,6 +993,8 @@ class CONTENT_EXPORT RenderWidgetHostImpl
   FRIEND_TEST_ALL_PREFIXES(RenderWidgetHostTest,
                            AddAndRemoveInputEventObserver);
   FRIEND_TEST_ALL_PREFIXES(RenderWidgetHostTest,
+                           ScopedObservationWithInputEventObserver);
+  FRIEND_TEST_ALL_PREFIXES(RenderWidgetHostTest,
                            AddAndRemoveImeInputEventObserver);
   FRIEND_TEST_ALL_PREFIXES(RenderWidgetHostTest,
                            InputRouterReceivesHasTouchEventHandlers);
@@ -1016,8 +1043,9 @@ class CONTENT_EXPORT RenderWidgetHostImpl
   // IPC message handlers
   void OnClose();
   void OnUpdateScreenRectsAck();
-  void OnUpdateDragCursor(DragOperationCallback callback,
-                          ui::mojom::DragOperation current_op);
+  void OnUpdateDragOperation(DragOperationCallback callback,
+                             ui::mojom::DragOperation current_op,
+                             bool document_is_handling_drag);
 
   // blink::mojom::FrameWidgetHost overrides.
   void AnimateDoubleTapZoomInMainFrame(const gfx::Point& tap_point,
@@ -1030,12 +1058,6 @@ class CONTENT_EXPORT RenderWidgetHostImpl
   void AutoscrollStart(const gfx::PointF& position) override;
   void AutoscrollFling(const gfx::Vector2dF& velocity) override;
   void AutoscrollEnd() override;
-  void StartDragging(blink::mojom::DragDataPtr drag_data,
-                     blink::DragOperationsMask drag_operations_mask,
-                     const SkBitmap& unsafe_bitmap,
-                     const gfx::Vector2d& cursor_offset_in_dip,
-                     const gfx::Rect& drag_obj_rect_in_dip,
-                     blink::mojom::DragEventSourceInfoPtr event_info) override;
 
   // When the RenderWidget is destroyed and recreated, this resets states in the
   // browser to match the clean start for the renderer side.
@@ -1167,6 +1189,10 @@ class CONTENT_EXPORT RenderWidgetHostImpl
   void AddPendingUserActivation(const blink::WebInputEvent& event);
   void ClearPendingUserActivation();
 
+  // Dispatch any buffered FrameSink requests from the renderer if the widget
+  // has a view and is the owner for the FrameSinkId assigned to it.
+  void MaybeDispatchBufferedFrameSinkRequest();
+
   // An expiry time for resetting the pending_user_activation_timer_.
   static const base::TimeDelta kActivationNotificationExpireTime;
 
@@ -1199,7 +1225,7 @@ class CONTENT_EXPORT RenderWidgetHostImpl
 
   // Our delegate, which wants to know mainly about keyboard events.
   // It will remain non-null until DetachDelegate() is called.
-  raw_ptr<RenderWidgetHostDelegate, DanglingUntriaged> delegate_;
+  raw_ptr<RenderWidgetHostDelegate, FlakyDanglingUntriaged> delegate_;
 
   // The delegate of the owner of this object.
   // This member is non-null if and only if this RenderWidgetHost is associated
@@ -1237,6 +1263,13 @@ class CONTENT_EXPORT RenderWidgetHostImpl
   // One side of a pipe that is held open while the pointer is locked.
   // The other side is held be the renderer.
   mojo::Receiver<blink::mojom::PointerLockContext> mouse_lock_context_{this};
+
+  // Tracks if LostFocus() has been called on this RenderWidgetHost since the
+  // previous change in focus. This tracks behaviors like a user clicking out of
+  // the page and into a UI element when verifying if a change in focus is
+  // allowed. The value will be reset after a RFHI gets focus. The RFHI will
+  // then keep track of this value to handle passing focus to other frames.
+  bool has_lost_focus_ = false;
 
 #if BUILDFLAG(IS_ANDROID)
   // Tracks the current importance of widget.
@@ -1492,15 +1525,18 @@ class CONTENT_EXPORT RenderWidgetHostImpl
 
   mojo::Remote<blink::mojom::WidgetCompositor> widget_compositor_;
 
-  std::unique_ptr<power_scheduler::PowerModeVoter> power_mode_input_voter_;
-  std::unique_ptr<power_scheduler::PowerModeVoter> power_mode_loading_voter_;
   absl::optional<BrowserUIThreadScheduler::UserInputActiveHandle>
       user_input_active_handle_;
 
-  // Use for metrics reporting. Used to check if
-  // OnRenderFrameMetadataChangedAfterActivation is being called for the first
-  // time.
-  bool first_surface_activated_ = false;
+  // Same-process cross-RenderFrameHost navigations may reuse the compositor
+  // from the previous RenderFrameHost. While the speculative RenderWidgetHost
+  // is created early, ownership of the FrameSinkId is transferred at commit.
+  // This bit is used to track which view owns the FrameSinkId.
+  //
+  // The renderer side WebFrameWidget's compositor can create a FrameSink and
+  // produce frames associated with `frame_sink_id_` only when it owns that
+  // FrameSinkId.
+  bool view_is_frame_sink_id_owner_{false};
 
   base::WeakPtrFactory<RenderWidgetHostImpl> weak_factory_{this};
 };

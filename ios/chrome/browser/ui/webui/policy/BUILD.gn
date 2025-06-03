@@ -3,8 +3,6 @@
 # found in the LICENSE file.
 
 source_set("policy") {
-  configs += [ "//build/config/compiler:enable_arc" ]
-
   sources = [
     "policy_ui.h",
     "policy_ui.mm",
@@ -24,11 +22,11 @@ source_set("policy") {
     "//components/version_info",
     "//components/version_ui",
     "//ios/chrome/app/strings",
-    "//ios/chrome/browser/application_context",
-    "//ios/chrome/browser/browser_state",
     "//ios/chrome/browser/policy",
+    "//ios/chrome/browser/shared/model/application_context",
+    "//ios/chrome/browser/shared/model/browser_state",
+    "//ios/chrome/browser/shared/model/url:constants",
     "//ios/chrome/browser/shared/ui/util",
-    "//ios/chrome/browser/url:constants",
     "//ios/chrome/common",
     "//ios/web/public/webui",
     "//ui/base",

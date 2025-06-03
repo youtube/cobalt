@@ -22,10 +22,8 @@ const GetAccessibilityFocusNative =
     nativeAutomationInternal.GetAccessibilityFocus;
 const SetDesktopID = nativeAutomationInternal.SetDesktopID;
 
-/**
- * A namespace to export utility functions to other files in automation.
- */
-window.automationUtil = function() {};
+// A namespace to export utility functions to other files in automation.
+const automationUtil = function() {};
 
 // TODO(aboxhall): Look into using WeakMap
 let idToCallback = {};
@@ -66,36 +64,6 @@ automationUtil.nextTreeChangeObserverId = 1;
 
 apiBridge.registerCustomHook(function(bindingsAPI) {
   const apiFunctions = bindingsAPI.apiFunctions;
-
-  // TODO(aboxhall, dtseng): Make this return the speced AutomationRootNode obj.
-  automationUtil.tabIDToAutomationNode = {};
-  apiFunctions.setHandleRequest('getTree', function getTree(tabID, callback) {
-    StartCachingAccessibilityTrees();
-
-    // enableTab() ensures the renderer for the active or specified tab has
-    // accessibility enabled, and fetches its ax tree id to use as
-    // a key in the idToAutomationRootNode map. The callback to
-    // enableTab is bound to the callback passed in to getTree(), so that once
-    // the tree is available (either due to having been cached earlier, or after
-    // an accessibility event occurs which causes the tree to be populated), the
-    // callback can be called.
-    if (tabID && automationUtil.tabIDToAutomationNode[tabID]) {
-      callback(automationUtil.tabIDToAutomationNode[tabID]);
-      return;
-    }
-
-    const params = {tabID: tabID};
-    automationInternal.enableTab(params, function onEnable(result) {
-      if (bindingUtil.hasLastError()) {
-        callback();
-        return;
-      }
-      automationUtil.storeTreeCallback(result.treeID, function(root) {
-        automationUtil.tabIDToAutomationNode[result.tabID] = root;
-        callback(root);
-      });
-    });
-  });
 
   apiFunctions.setHandleRequest('getDesktop', function(callback) {
     StartCachingAccessibilityTrees();
@@ -310,11 +278,6 @@ automationInternal.onAccessibilityTreeDestroyed.addListener(function(id) {
   if (targetTree) {
     privates(targetTree).impl.destroy();
     AutomationRootNode.destroy(id);
-    for (const tabID in automationUtil.tabIDToAutomationNode) {
-      if (automationUtil.tabIDToAutomationNode[tabID] == targetTree) {
-        delete automationUtil.tabIDToAutomationNode[tabID];
-      }
-    }
   } else {
     logging.WARNING('no targetTree to destroy');
   }

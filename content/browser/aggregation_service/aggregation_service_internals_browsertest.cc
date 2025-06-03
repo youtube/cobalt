@@ -17,6 +17,7 @@
 #include "content/browser/aggregation_service/aggregation_service_observer.h"
 #include "content/browser/aggregation_service/aggregation_service_storage.h"
 #include "content/browser/aggregation_service/aggregation_service_test_utils.h"
+#include "content/browser/private_aggregation/private_aggregation_test_utils.h"
 #include "content/browser/storage_partition_impl.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/web_contents.h"
@@ -55,11 +56,12 @@ class AggregationServiceInternalsWebUiBrowserTest : public ContentBrowserTest {
               AggregatableReportRequestsAndIdsBuilder().Build());
         });
 
-    static_cast<StoragePartitionImpl*>(shell()
-                                           ->web_contents()
-                                           ->GetBrowserContext()
-                                           ->GetDefaultStoragePartition())
-        ->OverrideAggregationServiceForTesting(std::move(aggregation_service));
+    storage_partition_impl()->OverrideAggregationServiceForTesting(
+        std::move(aggregation_service));
+
+    storage_partition_impl()->OverridePrivateAggregationManagerForTesting(
+        std::make_unique<MockPrivateAggregationManagerImpl>(
+            storage_partition_impl()));
   }
 
   // Executing javascript in the WebUI requires using an isolated world in which
@@ -93,14 +95,22 @@ class AggregationServiceInternalsWebUiBrowserTest : public ContentBrowserTest {
   }
 
  protected:
+  StoragePartitionImpl* storage_partition_impl() {
+    return static_cast<StoragePartitionImpl*>(
+        shell()
+            ->web_contents()
+            ->GetBrowserContext()
+            ->GetDefaultStoragePartition());
+  }
+
   MockAggregationService& aggregation_service() {
-    AggregationService* agg_service =
-        static_cast<StoragePartitionImpl*>(shell()
-                                               ->web_contents()
-                                               ->GetBrowserContext()
-                                               ->GetDefaultStoragePartition())
-            ->GetAggregationService();
-    return static_cast<MockAggregationService&>(*agg_service);
+    return static_cast<MockAggregationService&>(
+        *storage_partition_impl()->GetAggregationService());
+  }
+
+  MockPrivateAggregationManagerImpl& private_aggregation_manager() {
+    return static_cast<MockPrivateAggregationManagerImpl&>(
+        *storage_partition_impl()->GetPrivateAggregationManager());
   }
 };
 
@@ -141,14 +151,12 @@ IN_PROC_BROWSER_TEST_F(AggregationServiceInternalsWebUiBrowserTest,
                 .Build());
       });
 
-  aggregation_service::TestHpkeKey hpke_key =
-      aggregation_service::GenerateKey("id123");
-
+  aggregation_service::TestHpkeKey hpke_key{/*key_id=*/"id123"};
   AggregatableReportRequest request_1 =
       aggregation_service::CreateExampleRequest();
   absl::optional<AggregatableReport> report_1 =
       AggregatableReport::Provider().CreateFromRequestAndPublicKeys(
-          request_1, {hpke_key.public_key});
+          request_1, {hpke_key.GetPublicKey()});
 
   aggregation_service().NotifyReportHandled(
       std::move(request_1), AggregationServiceStorage::RequestId(1),
@@ -167,7 +175,7 @@ IN_PROC_BROWSER_TEST_F(AggregationServiceInternalsWebUiBrowserTest,
       aggregation_service::CreateExampleRequest();
   absl::optional<AggregatableReport> report_3 =
       AggregatableReport::Provider().CreateFromRequestAndPublicKeys(
-          request_3, {hpke_key.public_key});
+          request_3, {hpke_key.GetPublicKey()});
 
   aggregation_service().NotifyReportHandled(
       std::move(request_3), AggregationServiceStorage::RequestId(3),
@@ -196,8 +204,8 @@ IN_PROC_BROWSER_TEST_F(AggregationServiceInternalsWebUiBrowserTest,
         }
       });
       obs.observe(table, {'childList': true});)";
-    EXPECT_TRUE(ExecJsInWebUI(
-        JsReplace(wait_script, kCompleteTitle, (now).ToJsTime())));
+    EXPECT_TRUE(ExecJsInWebUI(JsReplace(
+        wait_script, kCompleteTitle, (now).InMillisecondsFSinceUnixEpoch())));
 
     TitleWatcher title_watcher(shell()->web_contents(), kCompleteTitle);
     ClickRefreshButton();
@@ -336,13 +344,12 @@ IN_PROC_BROWSER_TEST_F(AggregationServiceInternalsWebUiBrowserTest,
                 .Build());
       });
 
-  aggregation_service::TestHpkeKey hpke_key =
-      aggregation_service::GenerateKey("id123");
+  aggregation_service::TestHpkeKey hpke_key{/*key_id=*/"id123"};
   AggregatableReportRequest request =
       aggregation_service::CreateExampleRequest();
   absl::optional<AggregatableReport> report =
       AggregatableReport::Provider().CreateFromRequestAndPublicKeys(
-          request, {hpke_key.public_key});
+          request, {hpke_key.GetPublicKey()});
 
   aggregation_service().NotifyReportHandled(
       std::move(request), AggregationServiceStorage::RequestId(10),
@@ -351,6 +358,9 @@ IN_PROC_BROWSER_TEST_F(AggregationServiceInternalsWebUiBrowserTest,
       AggregationServiceObserver::ReportStatus::kSent);
 
   EXPECT_CALL(aggregation_service(), ClearData)
+      .WillOnce(base::test::RunOnceCallback<3>());
+
+  EXPECT_CALL(private_aggregation_manager(), ClearBudgetData)
       .WillOnce(base::test::RunOnceCallback<3>());
 
   // Verify both rows get rendered.
@@ -373,7 +383,7 @@ IN_PROC_BROWSER_TEST_F(AggregationServiceInternalsWebUiBrowserTest,
   ClickRefreshButton();
   EXPECT_EQ(kCompleteTitle, title_watcher.WaitAndGetTitle());
 
-  // Click the send reports button and expect that the report table is emptied.
+  // Click the clear-data button and expect that the report table is emptied.
   const std::u16string kDeleteTitle = u"Delete";
   TitleWatcher delete_title_watcher(shell()->web_contents(), kDeleteTitle);
   SetTitleOnReportsTableEmpty(kDeleteTitle);

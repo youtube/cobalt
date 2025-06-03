@@ -7,22 +7,25 @@
 #include "chrome/browser/policy/messaging_layer/util/test_request_payload.h"
 
 #include <string>
+#include <string_view>
 
 #include "base/json/json_reader.h"
+#include "base/ranges/algorithm.h"
+#include "base/strings/string_util.h"
+#include "third_party/abseil-cpp/absl/strings/ascii.h"
 
 namespace reporting {
 
 // Return true if s a properly formatted positive integer, i.e., is not empty,
 // contains digits only and does not start with 0.
-static bool IsPositiveInteger(base::StringPiece s) {
+static bool IsPositiveInteger(std::string_view s) {
   if (s.empty()) {
     return false;
-  } else if (s.size() == 1) {
-    return std::isdigit(s[0]);
-  } else {
-    return s[0] != '0' &&
-           s.find_first_not_of("0123456789") == std::string::npos;
   }
+  if (s.size() == 1) {
+    return absl::ascii_isdigit(static_cast<unsigned char>(s[0]));
+  }
+  return s[0] != '0' && s.find_first_not_of("0123456789") == std::string::npos;
 }
 
 // Get the record list. If it can't, print the message to listener and return a
@@ -91,6 +94,97 @@ std::string NoAttachEncryptionSettingsMatcher::Name() const {
   return "no-attach-encryption-settings-matcher";
 }
 
+bool ConfigurationFileVersionMatcher::MatchAndExplain(
+    const base::Value::Dict& arg,
+    MatchResultListener* listener) const {
+  auto* attach_configuration_file = arg.Find("configurationFileVersion");
+  if (!attach_configuration_file->GetIfInt().has_value()) {
+    *listener << "No key named \"configurationFileVersion\" in the argument or "
+                 "the value is not of int type.";
+    return false;
+  }
+  return true;
+}
+
+void ConfigurationFileVersionMatcher::DescribeTo(std::ostream* os) const {
+  *os << "has a valid configurationFileVersion field.";
+}
+
+void ConfigurationFileVersionMatcher::DescribeNegationTo(
+    std::ostream* os) const {
+  *os << "has an invalid configurationFileVersion field.";
+}
+
+std::string ConfigurationFileVersionMatcher::Name() const {
+  return "configuration-file-version-matcher";
+}
+
+bool NoConfigurationFileVersionMatcher::MatchAndExplain(
+    const base::Value::Dict& arg,
+    MatchResultListener* listener) const {
+  if (arg.Find("configurationFileVersion") != nullptr) {
+    *listener << "Found \"configurationFileVersion\" in the argument.";
+    return false;
+  }
+  return true;
+}
+
+void NoConfigurationFileVersionMatcher::DescribeTo(std::ostream* os) const {
+  *os << "expectedly has no configurationFileVersion field.";
+}
+
+void NoConfigurationFileVersionMatcher::DescribeNegationTo(
+    std::ostream* os) const {
+  *os << "unexpectedly has an configurationFileVersion field.";
+}
+
+std::string NoConfigurationFileVersionMatcher::Name() const {
+  return "no-configuration-file-version-matcher";
+}
+
+bool SourceMatcher::MatchAndExplain(const base::Value::Dict& arg,
+                                    MatchResultListener* listener) const {
+  if (arg.FindString("source") == nullptr) {
+    *listener << "No key named \"source\" or the value "
+                 "is not a string in the argument.";
+    return false;
+  }
+  return true;
+}
+
+void SourceMatcher::DescribeTo(std::ostream* os) const {
+  *os << "has a valid source field.";
+}
+
+void SourceMatcher::DescribeNegationTo(std::ostream* os) const {
+  *os << "has an invalid source field.";
+}
+
+std::string SourceMatcher::Name() const {
+  return "source-test-matcher";
+}
+
+bool NoSourceMatcher::MatchAndExplain(const base::Value::Dict& arg,
+                                      MatchResultListener* listener) const {
+  if (arg.Find("source") != nullptr) {
+    *listener << "Found \"source\" in the argument.";
+    return false;
+  }
+  return true;
+}
+
+void NoSourceMatcher::DescribeTo(std::ostream* os) const {
+  *os << "expectedly has no source field.";
+}
+
+void NoSourceMatcher::DescribeNegationTo(std::ostream* os) const {
+  *os << "unexpectedly has an Source field.";
+}
+
+std::string NoSourceMatcher::Name() const {
+  return "source-test-matcher";
+}
+
 void CompressionInformationMatcher::DescribeTo(std::ostream* os) const {
   *os << "has a valid compression information field.";
 }
@@ -134,8 +228,7 @@ bool RequestIdMatcher::MatchAndExplain(const base::Value::Dict& arg,
     *listener << "Request ID is empty.";
     return false;
   }
-  if (request_id->find_first_not_of("0123456789abcdefABCDEF") !=
-      std::string::npos) {
+  if (!base::ranges::all_of(*request_id, base::IsHexDigit<char>)) {
     *listener << "Request ID is not a hexadecimal number.";
     return false;
   }
@@ -335,7 +428,7 @@ bool RequestContainingRecordMatcher::IsSubDict(const base::Value::Dict& sub,
 }
 
 RequestContainingRecordMatcher::RequestContainingRecordMatcher(
-    base::StringPiece matched_record_json)
+    std::string_view matched_record_json)
     : matched_record_json_(matched_record_json) {}
 
 bool RequestContainingRecordMatcher::MatchAndExplain(

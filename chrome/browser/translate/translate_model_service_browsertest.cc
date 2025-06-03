@@ -204,7 +204,7 @@ class TranslateModelServiceBrowserTest
 
 base::FilePath model_file_path() {
   base::FilePath source_root_dir;
-  base::PathService::Get(base::DIR_SOURCE_ROOT, &source_root_dir);
+  base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &source_root_dir);
   return source_root_dir.AppendASCII("components")
       .AppendASCII("test")
       .AppendASCII("data")
@@ -370,7 +370,7 @@ IN_PROC_BROWSER_TEST_F(TranslateModelServiceBrowserTest,
 
   ui_test_utils::NavigateToURLWithDisposition(
       browser(), english_url(), WindowOpenDisposition::NEW_BACKGROUND_TAB,
-      ui_test_utils::BROWSER_TEST_NONE);
+      ui_test_utils::BROWSER_TEST_NO_WAIT);
 
   // Opening the browser causes the first model deferral event. The second
   // is due to the background tab.

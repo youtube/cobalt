@@ -10,9 +10,9 @@ import android.os.Process;
 import android.webkit.WebSettings;
 
 import org.chromium.android_webview.common.AwFeatures;
+import org.chromium.android_webview.common.Lifetime;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.Log;
-import org.chromium.base.annotations.JNINamespace;
 
 import java.util.Collections;
 import java.util.Set;
@@ -23,7 +23,7 @@ import java.util.Set;
  * Methods in this class can be called from any thread, including threads created by
  * the client of WebView.
  */
-@JNINamespace("android_webview")
+@Lifetime.Profile
 public class AwServiceWorkerSettings {
     // Must be maximum 20 characters, hence the abbreviation
     private static final String TAG = "AwSWSettings";
@@ -62,7 +62,7 @@ public class AwServiceWorkerSettings {
             // hitting assets in the application context.
             mBlockSpecialFileUrls = ContextUtils.isSdkSandboxProcess();
 
-            if (AwFeatureList.isEnabled(
+            if (AwFeatureMap.isEnabled(
                         AwFeatures.WEBVIEW_X_REQUESTED_WITH_HEADER_MANIFEST_ALLOW_LIST)) {
                 mRequestedWithHeaderAllowedOriginRules =
                         ManifestMetadataUtil.getXRequestedWithAllowList();

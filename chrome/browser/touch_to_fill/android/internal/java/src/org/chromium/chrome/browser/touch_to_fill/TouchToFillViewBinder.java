@@ -4,15 +4,17 @@
 
 package org.chromium.chrome.browser.touch_to_fill;
 
-import static org.chromium.chrome.browser.password_manager.PasswordManagerHelper.usesUnifiedPasswordManagerBranding;
 import static org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.CredentialProperties.CREDENTIAL;
 import static org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.CredentialProperties.FAVICON_OR_FALLBACK;
 import static org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.CredentialProperties.FORMATTED_ORIGIN;
+import static org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.CredentialProperties.ITEM_COLLECTION_INFO;
 import static org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.CredentialProperties.ON_CLICK_LISTENER;
 import static org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.CredentialProperties.SHOW_SUBMIT_BUTTON;
 import static org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.DISMISS_HANDLER;
 import static org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.FooterProperties.MANAGE_BUTTON_TEXT;
+import static org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.FooterProperties.ON_CLICK_HYBRID;
 import static org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.FooterProperties.ON_CLICK_MANAGE;
+import static org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.FooterProperties.SHOW_HYBRID;
 import static org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.HeaderProperties.FORMATTED_URL;
 import static org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.HeaderProperties.IMAGE_DRAWABLE_ID;
 import static org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.HeaderProperties.ORIGIN_SECURE;
@@ -24,7 +26,7 @@ import static org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.We
 import static org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.WebAuthnCredentialProperties.SHOW_WEBAUTHN_SUBMIT_BUTTON;
 import static org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.WebAuthnCredentialProperties.WEBAUTHN_CREDENTIAL;
 import static org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.WebAuthnCredentialProperties.WEBAUTHN_FAVICON_OR_FALLBACK;
-import static org.chromium.components.embedder_support.util.UrlUtilities.stripScheme;
+import static org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.WebAuthnCredentialProperties.WEBAUTHN_ITEM_COLLECTION_INFO;
 
 import android.content.Context;
 import android.text.method.PasswordTransformationMethod;
@@ -35,9 +37,10 @@ import android.widget.TextView;
 
 import androidx.appcompat.content.res.AppCompatResources;
 
-import org.chromium.chrome.browser.password_manager.PasswordManagerResourceProviderFactory;
 import org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.FaviconOrFallback;
 import org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.ItemType;
+import org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.MorePasskeysProperties;
+import org.chromium.chrome.browser.touch_to_fill.common.FillableItemCollectionInfo;
 import org.chromium.chrome.browser.touch_to_fill.data.Credential;
 import org.chromium.chrome.browser.touch_to_fill.data.WebAuthnCredential;
 import org.chromium.chrome.browser.ui.favicon.FaviconUtils;
@@ -89,28 +92,19 @@ class TouchToFillViewBinder {
             ViewGroup parent, @ItemType int itemType) {
         switch (itemType) {
             case ItemType.HEADER:
-                return new TouchToFillViewHolder(parent,
-                        usesUnifiedPasswordManagerBranding()
-                                ? R.layout.touch_to_fill_header_item_modern
-                                : R.layout.touch_to_fill_header_item,
+                return new TouchToFillViewHolder(parent, R.layout.touch_to_fill_header_item,
                         TouchToFillViewBinder::bindHeaderView);
             case ItemType.CREDENTIAL:
-                return new TouchToFillViewHolder(parent,
-                        usesUnifiedPasswordManagerBranding()
-                                ? R.layout.touch_to_fill_credential_item_modern
-                                : R.layout.touch_to_fill_credential_item,
+                return new TouchToFillViewHolder(parent, R.layout.touch_to_fill_list_item,
                         TouchToFillViewBinder::bindCredentialView);
             case ItemType.WEBAUTHN_CREDENTIAL:
-                return new TouchToFillViewHolder(parent,
-                        usesUnifiedPasswordManagerBranding()
-                                ? R.layout.touch_to_fill_webauthn_credential_item_modern
-                                : R.layout.touch_to_fill_webauthn_credential_item,
+                return new TouchToFillViewHolder(parent, R.layout.touch_to_fill_list_item,
                         TouchToFillViewBinder::bindWebAuthnCredentialView);
+            case ItemType.MORE_PASSKEYS:
+                return new TouchToFillViewHolder(parent, R.layout.touch_to_fill_more_passkeys_item,
+                        TouchToFillViewBinder::bindMorePasskeysView);
             case ItemType.FILL_BUTTON:
-                return new TouchToFillViewHolder(parent,
-                        usesUnifiedPasswordManagerBranding()
-                                ? R.layout.touch_to_fill_fill_button_modern
-                                : R.layout.touch_to_fill_fill_button,
+                return new TouchToFillViewHolder(parent, R.layout.touch_to_fill_fill_button,
                         TouchToFillViewBinder::bindFillButtonView);
             case ItemType.FOOTER:
                 return new TouchToFillViewHolder(parent, R.layout.touch_to_fill_footer_item,
@@ -150,29 +144,31 @@ class TouchToFillViewBinder {
                     view.getResources(), data.mIconSize));
         } else if (propertyKey == ON_CLICK_LISTENER) {
             view.setOnClickListener(
-                    clickedView -> { model.get(ON_CLICK_LISTENER).onResult(credential); });
+                    clickedView -> model.get(ON_CLICK_LISTENER).onResult(credential));
         } else if (propertyKey == FORMATTED_ORIGIN) {
             TextView pslOriginText = view.findViewById(R.id.credential_origin);
             pslOriginText.setText(model.get(FORMATTED_ORIGIN));
             pslOriginText.setVisibility(credential.isExactMatch() ? View.GONE : View.VISIBLE);
-        } else if (propertyKey == CREDENTIAL) {
+        } else if (propertyKey == CREDENTIAL || propertyKey == ITEM_COLLECTION_INFO) {
             TextView pslOriginText = view.findViewById(R.id.credential_origin);
-            String formattedOrigin = stripScheme(credential.getOriginUrl());
-            formattedOrigin =
-                    formattedOrigin.replaceFirst("/$", ""); // Strip possibly trailing slash.
-            pslOriginText.setText(formattedOrigin);
+            pslOriginText.setText(credential.getDisplayName());
             pslOriginText.setVisibility(credential.isExactMatch() ? View.GONE : View.VISIBLE);
 
             TextView usernameText = view.findViewById(R.id.username);
             usernameText.setText(credential.getFormattedUsername());
 
-            TextView passwordText = view.findViewById(R.id.password);
+            TextView passwordText = view.findViewById(R.id.password_or_context);
             passwordText.setText(credential.getPassword());
             passwordText.setTransformationMethod(new PasswordTransformationMethod());
 
-            String contentDescription = view.getContext().getString(
+            String label = view.getContext().getString(
                     R.string.touch_to_fill_password_credential_accessibility_description,
                     credential.getFormattedUsername());
+            FillableItemCollectionInfo collectionInfo = model.get(ITEM_COLLECTION_INFO);
+            String contentDescription = collectionInfo == null
+                    ? label
+                    : view.getContext().getString(R.string.touch_to_fill_a11y_item_collection_info,
+                            label, collectionInfo.getPosition(), collectionInfo.getTotal());
             view.setContentDescription(contentDescription);
         } else if (propertyKey == SHOW_SUBMIT_BUTTON) {
             // Whether Touch To Fill should auto-submit a form doesn't affect the credentials list.
@@ -190,6 +186,7 @@ class TouchToFillViewBinder {
     private static void bindWebAuthnCredentialView(
             PropertyModel model, View view, PropertyKey propertyKey) {
         WebAuthnCredential credential = model.get(WEBAUTHN_CREDENTIAL);
+        view.findViewById(R.id.credential_origin).setVisibility(View.GONE);
         if (propertyKey == ON_WEBAUTHN_CLICK_LISTENER) {
             view.setOnClickListener(
                     clickedView -> model.get(ON_WEBAUTHN_CLICK_LISTENER).onResult(credential));
@@ -200,19 +197,45 @@ class TouchToFillViewBinder {
                     data.mUrl, data.mFallbackColor,
                     FaviconUtils.createCircularIconGenerator(view.getContext()),
                     view.getResources(), data.mIconSize));
-        } else if (propertyKey == WEBAUTHN_CREDENTIAL) {
+        } else if (propertyKey == WEBAUTHN_CREDENTIAL
+                || propertyKey == WEBAUTHN_ITEM_COLLECTION_INFO) {
             TextView usernameText = view.findViewById(R.id.username);
             usernameText.setText(credential.getUsername());
-            TextView descriptionText = view.findViewById(R.id.webauthn_credential_context);
+            TextView descriptionText = view.findViewById(R.id.password_or_context);
             descriptionText.setText(R.string.touch_to_fill_sheet_webauthn_credential_context);
-            String contentDescription = view.getContext().getString(
+
+            String label = view.getContext().getString(
                     R.string.touch_to_fill_passkey_credential_accessibility_description,
                     credential.getUsername());
+            FillableItemCollectionInfo collectionInfo = model.get(WEBAUTHN_ITEM_COLLECTION_INFO);
+            String contentDescription = collectionInfo == null
+                    ? label
+                    : view.getContext().getString(R.string.touch_to_fill_a11y_item_collection_info,
+                            label, collectionInfo.getPosition(), collectionInfo.getTotal());
             view.setContentDescription(contentDescription);
         } else if (propertyKey == SHOW_WEBAUTHN_SUBMIT_BUTTON) {
             // Ignore.
         } else {
             assert false : "Unhandled update to property:" + propertyKey;
+        }
+    }
+
+    /**
+     * Called whenever an action button to use more passkeys is bound to this view holder.
+     * @param model The model containing the data for the view
+     * @param view The view to be bound
+     * @param propertyKey The key of the property to be bound
+     */
+    private static void bindMorePasskeysView(
+            PropertyModel model, View view, PropertyKey propertyKey) {
+        if (propertyKey == MorePasskeysProperties.ON_CLICK) {
+            view.setOnClickListener(
+                    clickedView -> model.get(MorePasskeysProperties.ON_CLICK).run());
+        } else if (propertyKey == MorePasskeysProperties.TITLE) {
+            TextView labelText = view.findViewById(R.id.more_passkeys_label);
+            labelText.setText(model.get(MorePasskeysProperties.TITLE));
+        } else {
+            assert false : "Unhandled update to property: " + propertyKey;
         }
     }
 
@@ -245,7 +268,9 @@ class TouchToFillViewBinder {
                                                            : R.string.touch_to_fill_continue));
         } else if (propertyKey == FAVICON_OR_FALLBACK || propertyKey == FORMATTED_ORIGIN
                 || propertyKey == CREDENTIAL || propertyKey == WEBAUTHN_CREDENTIAL
-                || propertyKey == WEBAUTHN_FAVICON_OR_FALLBACK) {
+                || propertyKey == WEBAUTHN_FAVICON_OR_FALLBACK
+                || propertyKey == ITEM_COLLECTION_INFO
+                || propertyKey == WEBAUTHN_ITEM_COLLECTION_INFO) {
             // Credential properties don't affect the button.
         } else {
             assert false : "Unhandled update to property:" + propertyKey;
@@ -290,11 +315,8 @@ class TouchToFillViewBinder {
             sheetSubtitleText.setText(getSubtitle(model, view.getContext()));
 
             ImageView sheetHeaderImage = view.findViewById(R.id.touch_to_fill_sheet_header_image);
-            sheetHeaderImage.setImageDrawable(AppCompatResources.getDrawable(view.getContext(),
-                    usesUnifiedPasswordManagerBranding()
-                            ? PasswordManagerResourceProviderFactory.create()
-                                      .getPasswordManagerIcon()
-                            : model.get(IMAGE_DRAWABLE_ID)));
+            sheetHeaderImage.setImageDrawable(AppCompatResources.getDrawable(
+                    view.getContext(), model.get(IMAGE_DRAWABLE_ID)));
         } else {
             assert false : "Unhandled update to property:" + key;
         }
@@ -310,6 +332,12 @@ class TouchToFillViewBinder {
         if (key == ON_CLICK_MANAGE) {
             view.findViewById(R.id.touch_to_fill_sheet_manage_passwords)
                     .setOnClickListener((v) -> model.get(ON_CLICK_MANAGE).run());
+        } else if (key == ON_CLICK_HYBRID) {
+            view.findViewById(R.id.touch_to_fill_sheet_use_passkeys_other_device)
+                    .setOnClickListener((v) -> model.get(ON_CLICK_HYBRID).run());
+        } else if (key == SHOW_HYBRID) {
+            view.findViewById(R.id.touch_to_fill_sheet_use_passkeys_other_device)
+                    .setVisibility(model.get(SHOW_HYBRID) ? View.VISIBLE : View.GONE);
         } else if (key == MANAGE_BUTTON_TEXT) {
             TextView managePasswordsView =
                     view.findViewById(R.id.touch_to_fill_sheet_manage_passwords);

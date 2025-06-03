@@ -4,7 +4,6 @@
 
 #include "third_party/blink/renderer/core/layout/ng/ng_length_utils.h"
 
-#include "base/memory/scoped_refptr.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/renderer/core/css/resolver/style_resolver.h"
 #include "third_party/blink/renderer/core/layout/ng/ng_block_node.h"
@@ -49,7 +48,7 @@ class NGLengthUtilsTest : public testing::Test {
       const absl::optional<MinMaxSizes>& sizes = absl::nullopt,
       NGConstraintSpace constraint_space = ConstructConstraintSpace(200, 300)) {
     return ::blink::ResolveMainInlineLength(
-        constraint_space, *initial_style_, /* border_padding */ NGBoxStrut(),
+        constraint_space, *initial_style_, /* border_padding */ BoxStrut(),
         [&](MinMaxSizesType) -> MinMaxSizesResult {
           return {*sizes, /* depends_on_block_constraints */ false};
         },
@@ -61,7 +60,7 @@ class NGLengthUtilsTest : public testing::Test {
       const absl::optional<MinMaxSizes>& sizes = absl::nullopt,
       NGConstraintSpace constraint_space = ConstructConstraintSpace(200, 300)) {
     return ::blink::ResolveMinInlineLength(
-        constraint_space, *initial_style_, /* border_padding */ NGBoxStrut(),
+        constraint_space, *initial_style_, /* border_padding */ BoxStrut(),
         [&](MinMaxSizesType) -> MinMaxSizesResult {
           return {*sizes, /* depends_on_block_constraints */ false};
         },
@@ -73,7 +72,7 @@ class NGLengthUtilsTest : public testing::Test {
       const absl::optional<MinMaxSizes>& sizes = absl::nullopt,
       NGConstraintSpace constraint_space = ConstructConstraintSpace(200, 300)) {
     return ::blink::ResolveMaxInlineLength(
-        constraint_space, *initial_style_, /* border_padding */ NGBoxStrut(),
+        constraint_space, *initial_style_, /* border_padding */ BoxStrut(),
         [&](MinMaxSizesType) -> MinMaxSizesResult {
           return {*sizes, /* depends_on_block_constraints */ false};
         },
@@ -84,11 +83,11 @@ class NGLengthUtilsTest : public testing::Test {
                                     LayoutUnit content_size = LayoutUnit()) {
     NGConstraintSpace constraint_space = ConstructConstraintSpace(200, 300);
     return ::blink::ResolveMainBlockLength(constraint_space, *initial_style_,
-                                           /* border_padding */ NGBoxStrut(),
+                                           /* border_padding */ BoxStrut(),
                                            length, content_size);
   }
 
-  scoped_refptr<const ComputedStyle> initial_style_;
+  Persistent<const ComputedStyle> initial_style_;
 };
 
 class NGLengthUtilsTestWithNode : public RenderingTest {
@@ -97,8 +96,8 @@ class NGLengthUtilsTestWithNode : public RenderingTest {
       const NGBlockNode& node,
       NGConstraintSpace constraint_space = ConstructConstraintSpace(200, 300),
       const MinMaxSizes& sizes = MinMaxSizes()) {
-    NGBoxStrut border_padding = ComputeBorders(constraint_space, node) +
-                                ComputePadding(constraint_space, node.Style());
+    BoxStrut border_padding = ComputeBorders(constraint_space, node) +
+                              ComputePadding(constraint_space, node.Style());
     return ::blink::ComputeInlineSizeForFragment(constraint_space, node,
                                                  border_padding, &sizes);
   }
@@ -109,8 +108,8 @@ class NGLengthUtilsTestWithNode : public RenderingTest {
       LayoutUnit content_size = LayoutUnit(),
       absl::optional<LayoutUnit> inline_size = absl::nullopt) {
     const auto& style = node.Style();
-    NGBoxStrut border_padding = ComputeBorders(constraint_space, node) +
-                                ComputePadding(constraint_space, style);
+    BoxStrut border_padding = ComputeBorders(constraint_space, node) +
+                              ComputePadding(constraint_space, style);
     return ::blink::ComputeBlockSizeForFragment(
         constraint_space, style, border_padding, content_size, inline_size);
   }
@@ -477,11 +476,11 @@ TEST_F(NGLengthUtilsTest, TestMargins) {
   builder.SetMarginRight(Length::Fixed(52));
   builder.SetMarginBottom(Length::Auto());
   builder.SetMarginLeft(Length::Percent(11));
-  scoped_refptr<const ComputedStyle> style = builder.TakeStyle();
+  const ComputedStyle* style = builder.TakeStyle();
 
   NGConstraintSpace constraint_space = ConstructConstraintSpace(200, 300);
 
-  NGPhysicalBoxStrut margins = ComputePhysicalMargins(constraint_space, *style);
+  PhysicalBoxStrut margins = ComputePhysicalMargins(constraint_space, *style);
 
   EXPECT_EQ(LayoutUnit(20), margins.top);
   EXPECT_EQ(LayoutUnit(52), margins.right);
@@ -500,9 +499,9 @@ TEST_F(NGLengthUtilsTest, TestBorders) {
   builder.SetBorderBottomStyle(EBorderStyle::kSolid);
   builder.SetBorderLeftStyle(EBorderStyle::kSolid);
   builder.SetWritingMode(WritingMode::kVerticalLr);
-  scoped_refptr<const ComputedStyle> style = builder.TakeStyle();
+  const ComputedStyle* style = builder.TakeStyle();
 
-  NGBoxStrut borders = ComputeBordersForTest(*style);
+  BoxStrut borders = ComputeBordersForTest(*style);
 
   EXPECT_EQ(LayoutUnit(4), borders.block_start);
   EXPECT_EQ(LayoutUnit(3), borders.inline_end);
@@ -517,12 +516,12 @@ TEST_F(NGLengthUtilsTest, TestPadding) {
   builder.SetPaddingBottom(Length::Auto());
   builder.SetPaddingLeft(Length::Percent(11));
   builder.SetWritingMode(WritingMode::kVerticalRl);
-  scoped_refptr<const ComputedStyle> style = builder.TakeStyle();
+  const ComputedStyle* style = builder.TakeStyle();
 
   NGConstraintSpace constraint_space = ConstructConstraintSpace(
       200, 300, false, false, WritingMode::kVerticalRl);
 
-  NGBoxStrut padding = ComputePadding(constraint_space, *style);
+  BoxStrut padding = ComputePadding(constraint_space, *style);
 
   EXPECT_EQ(LayoutUnit(52), padding.block_start);
   EXPECT_EQ(LayoutUnit(), padding.inline_end);
@@ -534,14 +533,14 @@ TEST_F(NGLengthUtilsTest, TestAutoMargins) {
   ComputedStyleBuilder builder(*initial_style_);
   builder.SetMarginRight(Length::Auto());
   builder.SetMarginLeft(Length::Auto());
-  scoped_refptr<const ComputedStyle> style = builder.TakeStyle();
+  const ComputedStyle* style = builder.TakeStyle();
 
   LayoutUnit kInlineSize(150);
   LayoutUnit kAvailableInlineSize(200);
 
-  NGBoxStrut margins;
-  ResolveInlineMargins(*style, *style, kAvailableInlineSize, kInlineSize,
-                       &margins);
+  BoxStrut margins;
+  ResolveInlineAutoMargins(*style, *style, kAvailableInlineSize, kInlineSize,
+                           &margins);
 
   EXPECT_EQ(LayoutUnit(), margins.block_start);
   EXPECT_EQ(LayoutUnit(), margins.block_end);
@@ -551,9 +550,9 @@ TEST_F(NGLengthUtilsTest, TestAutoMargins) {
   builder = ComputedStyleBuilder(*style);
   builder.SetMarginLeft(Length::Fixed(0));
   style = builder.TakeStyle();
-  margins = NGBoxStrut();
-  ResolveInlineMargins(*style, *style, kAvailableInlineSize, kInlineSize,
-                       &margins);
+  margins = BoxStrut();
+  ResolveInlineAutoMargins(*style, *style, kAvailableInlineSize, kInlineSize,
+                           &margins);
   EXPECT_EQ(LayoutUnit(0), margins.inline_start);
   EXPECT_EQ(LayoutUnit(50), margins.inline_end);
 
@@ -561,9 +560,9 @@ TEST_F(NGLengthUtilsTest, TestAutoMargins) {
   builder.SetMarginLeft(Length::Auto());
   builder.SetMarginRight(Length::Fixed(0));
   style = builder.TakeStyle();
-  margins = NGBoxStrut();
-  ResolveInlineMargins(*style, *style, kAvailableInlineSize, kInlineSize,
-                       &margins);
+  margins = BoxStrut();
+  ResolveInlineAutoMargins(*style, *style, kAvailableInlineSize, kInlineSize,
+                           &margins);
   EXPECT_EQ(LayoutUnit(50), margins.inline_start);
   EXPECT_EQ(LayoutUnit(0), margins.inline_end);
 
@@ -573,12 +572,12 @@ TEST_F(NGLengthUtilsTest, TestAutoMargins) {
   builder.SetMarginLeft(Length::Auto());
   builder.SetMarginRight(Length::Fixed(5000));
   style = builder.TakeStyle();
-  margins = NGBoxStrut();
+  margins = BoxStrut();
   margins.inline_end = LayoutUnit(5000);
-  ResolveInlineMargins(*style, *style, kAvailableInlineSize, kInlineSize,
-                       &margins);
+  ResolveInlineAutoMargins(*style, *style, kAvailableInlineSize, kInlineSize,
+                           &margins);
   EXPECT_EQ(LayoutUnit(0), margins.inline_start);
-  EXPECT_EQ(LayoutUnit(50), margins.inline_end);
+  EXPECT_EQ(LayoutUnit(5000), margins.inline_end);
 }
 
 // Simple wrappers that don't use LayoutUnit(). Their only purpose is to make
@@ -650,7 +649,7 @@ TEST_F(NGLengthUtilsTest, TestColumnWidthAndCount) {
 }
 
 LayoutUnit ComputeInlineSize(LogicalSize aspect_ratio, LayoutUnit block_size) {
-  return InlineSizeFromAspectRatio(NGBoxStrut(), aspect_ratio,
+  return InlineSizeFromAspectRatio(BoxStrut(), aspect_ratio,
                                    EBoxSizing::kBorderBox, block_size);
 }
 TEST_F(NGLengthUtilsTest, AspectRatio) {

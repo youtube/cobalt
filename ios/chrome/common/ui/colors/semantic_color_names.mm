@@ -4,10 +4,6 @@
 
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 #pragma mark - Element Colors
 NSString* const kBackgroundColor = @"background_color";
 NSString* const kCloseButtonColor = @"close_button_color";
@@ -42,12 +38,14 @@ NSString* const kTextfieldHighlightBackgroundColor =
 NSString* const kTextfieldPlaceholderColor = @"textfield_placeholder_color";
 NSString* const kToolbarButtonColor = @"toolbar_button_color";
 NSString* const kToolbarShadowColor = @"toolbar_shadow_color";
+NSString* const kOmniboxKeyboardButtonColor = @"omnibox_keyboard_button_color";
 
 #pragma mark - Standard Colors
 NSString* const kSolidBlackColor = @"solid_black_color";
 NSString* const kSolidWhiteColor = @"solid_white_color";
 NSString* const kBlueColor = @"blue_color";
 NSString* const kBlueHaloColor = @"blue_halo_color";
+NSString* const kBlue300Color = @"blue_300_color";
 NSString* const kBlue400Color = @"blue_400_color";
 NSString* const kBlue500Color = @"blue_500_color";
 NSString* const kBlue600Color = @"blue_600_color";
@@ -57,10 +55,17 @@ NSString* const kStaticBlue400Color = @"static_blue_400_color";
 NSString* const kGreenColor = @"green_color";
 NSString* const kGreen50Color = @"green_50_color";
 NSString* const kGreen100Color = @"green_100_color";
+NSString* const kGreen300Color = @"green_300_color";
+NSString* const kGreen400Color = @"green_400_color";
 NSString* const kGreen500Color = @"green_500_color";
+NSString* const kGreen600Color = @"green_600_color";
 NSString* const kGreen700Color = @"green_700_color";
 NSString* const kGreen800Color = @"green_800_color";
 
+NSString* const kRed50Color = @"red_50_color";
+NSString* const kRed100Color = @"red_100_color";
+NSString* const kRed300Color = @"red_300_color";
+NSString* const kRed400Color = @"red_400_color";
 NSString* const kRed500Color = @"red_500_color";
 NSString* const kRed600Color = @"red_600_color";
 NSString* const kRedColor = @"red_600_color";

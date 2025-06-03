@@ -7,6 +7,7 @@
 
 #include "base/files/file_path.h"
 #include "base/functional/callback.h"
+#include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
@@ -163,6 +164,14 @@ class BrowserDataBackMigrator : public BrowserDataBackMigratorBase {
                            MergesListSplitPreferencesCorrectly);
   FRIEND_TEST_ALL_PREFIXES(BrowserDataBackMigratorTest,
                            MergesLacrosPreferencesCorrectly);
+  FRIEND_TEST_ALL_PREFIXES(BrowserDataBackMigratorTest,
+                           MergesDictWithKeysContainingDot);
+  FRIEND_TEST_ALL_PREFIXES(BrowserDataBackMigratorShouldMigrateBackTest,
+                           CommandLineForceMigration);
+  FRIEND_TEST_ALL_PREFIXES(BrowserDataBackMigratorShouldMigrateBackTest,
+                           CommandLineForceSkip);
+  FRIEND_TEST_ALL_PREFIXES(BrowserDataBackMigratorShouldMigrateBackTest,
+                           MaybeRestartToMigrateSecondaryUser);
 
   enum class MigrationStep {
     kStart = 0,
@@ -284,9 +293,8 @@ class BrowserDataBackMigrator : public BrowserDataBackMigratorBase {
   // Traverse all JSON dotted paths in Lacros preferences using
   // depth-first search and merge them into |ash_root_dict|.
   static bool MergeLacrosPreferences(base::Value::Dict& ash_root_dict,
-                                     std::string& current_path,
-                                     const base::Value& current_value,
-                                     unsigned int recursion_depth);
+                                     const std::vector<std::string>& path,
+                                     const base::Value& current_value);
 
   // Decides whether preferences for the given `extension_id` should be migrated
   // back from Lacros to Ash.

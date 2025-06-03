@@ -21,15 +21,16 @@ import android.view.ViewStructure;
 import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.JavaExceptionReporter;
 import org.chromium.base.Log;
 import org.chromium.base.ObserverList;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.UserData;
 import org.chromium.base.UserDataHost;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
 import org.chromium.blink_public.input.SelectionGranularity;
 import org.chromium.content.browser.AppWebMessagePort;
 import org.chromium.content.browser.GestureListenerManagerImpl;
@@ -91,7 +92,6 @@ public class WebContentsImpl implements WebContents, RenderFrameHostDelegate, Wi
      * Used to reset the internal tracking for whether or not a serialized {@link WebContents}
      * was created in this process or not.
      */
-    @VisibleForTesting
     public static void invalidateSerializedWebContentsForTesting() {
         sParcelableUUID = UUID.randomUUID();
     }
@@ -171,11 +171,8 @@ public class WebContentsImpl implements WebContents, RenderFrameHostDelegate, Wi
         }
 
         public void onSmartClipDataExtracted(String text, String html, Rect clipRect) {
-            // The clipRect is in dip scale here. Add the contentOffset in same scale.
             RenderCoordinatesImpl coordinateSpace = getRenderCoordinates();
-            clipRect.offset(0,
-                    (int) (coordinateSpace.getContentOffsetYPix()
-                            / coordinateSpace.getDeviceScaleFactor()));
+            clipRect.offset(0, (int) coordinateSpace.getContentOffsetYPix());
             Bundle bundle = new Bundle();
             bundle.putString("url", getVisibleUrl().getSpec());
             bundle.putString("title", getTitle());
@@ -684,11 +681,23 @@ public class WebContentsImpl implements WebContents, RenderFrameHostDelegate, Wi
     }
 
     @Override
-    public void selectAroundCaret(@SelectionGranularity int granularity, boolean shouldShowHandle,
-            boolean shouldShowContextMenu) {
+    public void selectAroundCaret(
+            @SelectionGranularity int granularity,
+            boolean shouldShowHandle,
+            boolean shouldShowContextMenu,
+            int startOffset,
+            int endOffset,
+            int surroundingTextLength) {
         checkNotDestroyed();
-        WebContentsImplJni.get().selectAroundCaret(
-                mNativeWebContentsAndroid, granularity, shouldShowHandle, shouldShowContextMenu);
+        WebContentsImplJni.get()
+                .selectAroundCaret(
+                        mNativeWebContentsAndroid,
+                        granularity,
+                        shouldShowHandle,
+                        shouldShowContextMenu,
+                        startOffset,
+                        endOffset,
+                        surroundingTextLength);
     }
 
     @Override
@@ -724,7 +733,6 @@ public class WebContentsImpl implements WebContents, RenderFrameHostDelegate, Wi
     }
 
     @Override
-    @VisibleForTesting
     public void evaluateJavaScriptForTests(String script, JavaScriptCallback callback) {
         ThreadUtils.assertOnUiThread();
         if (script == null) return;
@@ -796,11 +804,9 @@ public class WebContentsImpl implements WebContents, RenderFrameHostDelegate, Wi
         if (mSmartClipCallback == null) return;
         checkNotDestroyed();
         RenderCoordinatesImpl coordinateSpace = getRenderCoordinates();
-        float dpi = coordinateSpace.getDeviceScaleFactor();
         y = y - (int) coordinateSpace.getContentOffsetYPix();
-        WebContentsImplJni.get().requestSmartClipExtract(mNativeWebContentsAndroid,
-                mSmartClipCallback, (int) (x / dpi), (int) (y / dpi), (int) (width / dpi),
-                (int) (height / dpi));
+        WebContentsImplJni.get().requestSmartClipExtract(
+                mNativeWebContentsAndroid, mSmartClipCallback, x, y, width, height);
     }
 
     @Override
@@ -832,7 +838,6 @@ public class WebContentsImpl implements WebContents, RenderFrameHostDelegate, Wi
                 mNativeWebContentsAndroid, root, builder, doneCallback);
     }
 
-    @VisibleForTesting
     public void simulateRendererKilledForTesting() {
         if (mObserverProxy != null) {
             mObserverProxy.renderProcessGone();
@@ -1037,7 +1042,6 @@ public class WebContentsImpl implements WebContents, RenderFrameHostDelegate, Wi
     /**
      * Convenience method to initialize test state. Only use for testing.
      */
-    @VisibleForTesting
     public void initializeForTesting() {
         if (mInternalsHolder == null) {
             mInternalsHolder = WebContents.createDefaultInternalsHolder();
@@ -1054,7 +1058,6 @@ public class WebContentsImpl implements WebContents, RenderFrameHostDelegate, Wi
     /**
      * Convenience method to set user data. Only use for testing.
      */
-    @VisibleForTesting
     public <T extends UserData> void setUserDataForTesting(Class<T> key, T userData) {
         // Be sure to call initializeForTesting() first.
         assert mInitialized;
@@ -1226,8 +1229,16 @@ public class WebContentsImpl implements WebContents, RenderFrameHostDelegate, Wi
         boolean isFullscreenForCurrentTab(long nativeWebContentsAndroid);
         void exitFullscreen(long nativeWebContentsAndroid);
         void scrollFocusedEditableNodeIntoView(long nativeWebContentsAndroid);
-        void selectAroundCaret(long nativeWebContentsAndroid, int granularity,
-                boolean shouldShowHandle, boolean shouldShowContextMenu);
+
+        void selectAroundCaret(
+                long nativeWebContentsAndroid,
+                int granularity,
+                boolean shouldShowHandle,
+                boolean shouldShowContextMenu,
+                int startOffset,
+                int endOffset,
+                int surroundingTextLength);
+
         void adjustSelectionByCharacterOffset(long nativeWebContentsAndroid, int startAdjust,
                 int endAdjust, boolean showSelectionMenu);
         GURL getLastCommittedURL(long nativeWebContentsAndroid);

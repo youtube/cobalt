@@ -39,8 +39,10 @@ from typing import (
     Dict,
     List,
     NamedTuple,
+    Optional,
     Set,
     Tuple,
+    get_args,
 )
 from urllib.parse import urlparse
 
@@ -50,19 +52,22 @@ from blinkpy.common.host import Host
 from blinkpy.common.path_finder import WEB_TESTS_LAST_COMPONENT
 from blinkpy.common.memoized import memoized
 from blinkpy.common.net.results_fetcher import Build
-from blinkpy.common.net.web_test_results import Artifact, WebTestResult
-from blinkpy.tool.commands.command import Command, check_dir_option
+from blinkpy.common.net.web_test_results import (
+    Artifact,
+    BaselineSuffix,
+    WebTestResult,
+)
+from blinkpy.tool.commands.command import (
+    Command,
+    check_dir_option,
+    check_file_option,
+)
 from blinkpy.web_tests.models import test_failures
-from blinkpy.web_tests.models.test_expectations import SystemConfigurationRemover, TestExpectations
+from blinkpy.web_tests.models.test_expectations import SystemConfigurationEditor, TestExpectations
 from blinkpy.web_tests.models.typ_types import RESULT_TAGS, ResultType
-from blinkpy.web_tests.port import base, factory
+from blinkpy.web_tests.port import factory
 
 _log = logging.getLogger(__name__)
-
-# For CLI compatibility, we would like a list of baseline extensions without
-# the leading dot.
-# TODO(robertma): Investigate changing the CLI.
-BASELINE_SUFFIX_LIST = tuple(ext[1:] for ext in base.Port.BASELINE_EXTENSIONS)
 
 
 class AbstractRebaseliningCommand(Command):
@@ -96,7 +101,7 @@ class AbstractRebaseliningCommand(Command):
         help='Local results directory to use.')
     suffixes_option = optparse.make_option(
         '--suffixes',
-        default=','.join(BASELINE_SUFFIX_LIST),
+        default=','.join(get_args(BaselineSuffix)),
         action='store',
         help='Comma-separated-list of file types to rebaseline.')
     builder_option = optparse.make_option(
@@ -108,10 +113,16 @@ class AbstractRebaseliningCommand(Command):
         help=('Fully-qualified name of the port that new baselines belong to, '
               'e.g. "mac-mac11". If not given, this is determined based on '
               '--builder.'))
+    test_name_file_option = optparse.make_option(
+        '--test-name-file',
+        action='callback',
+        callback=check_file_option,
+        type='string',
+        help=('Read names of tests to update from this file, '
+              'one test per line.'))
 
     def __init__(self, options=None):
-        super(AbstractRebaseliningCommand, self).__init__(options=options)
-        self._baseline_suffix_list = BASELINE_SUFFIX_LIST
+        super().__init__(options=options)
         self.expectation_line_changes = ChangeSet()
         self._tool = None
         self._results_dir = None
@@ -234,7 +245,11 @@ class TestBaselineSet(collections.abc.Set):
     def runs_for_test(self, test: str):
         return list(self._test_map[test])
 
-    def add(self, test, build, step_name=None, port_name=None):
+    def add(self,
+            test: str,
+            build: Build,
+            step_name: str,
+            port_name: Optional[str] = None):
         """Adds an entry for baselines to download for some set of tests.
 
         Args:
@@ -257,7 +272,7 @@ class TestBaselineSet(collections.abc.Set):
 
 class RebaselineFailureReason(enum.Enum):
     TIMEOUT_OR_CRASH = 'May not run to completion'
-    REFTEST_FAILURE = 'Reftest failure'
+    REFTEST_IMAGE_FAILURE = 'Reftest image failure'
     FLAKY_OUTPUT = 'Flaky output'
     LOCAL_BASELINE_NOT_FOUND = 'Missing from local results directory'
 
@@ -302,12 +317,8 @@ class AbstractParallelRebaselineCommand(AbstractRebaseliningCommand):
             if (build.builder_name,
                     step_name) not in build_steps_to_fetch_from:
                 continue
-            if self._host_port.reference_files(test):
-                self._rebaseline_failures[task] = (
-                    RebaselineFailureReason.REFTEST_FAILURE)
-                continue
-            suffixes = list(
-                self._suffixes_for_actual_failures(test, build, step_name))
+            suffixes = self._suffixes_for_actual_failures(
+                test, build, step_name)
             if suffixes:
                 rebaselinable_set.add(test, build, step_name, port_name)
         return rebaselinable_set
@@ -340,7 +351,7 @@ class AbstractParallelRebaselineCommand(AbstractRebaseliningCommand):
         #TODO: we should make the selection of (builder, step) deterministic
         for builder, step in list(release_build_steps) + list(
                 debug_build_steps):
-            if not self._tool.builders.uses_wptrunner(builder):
+            if not self._tool.builders.uses_wptrunner(builder, step):
                 # Some result db related unit tests set step to None
                 is_legacy_step = step is None or 'blink_web_tests' in step
                 flag_spec_option = self._tool.builders.flag_specific_option(
@@ -464,7 +475,7 @@ class AbstractParallelRebaselineCommand(AbstractRebaseliningCommand):
             expectations_dict={
                 path: self._tool.filesystem.read_text_file(path)
             })
-        system_remover = SystemConfigurationRemover(self._tool.filesystem, test_expectations)
+        system_remover = SystemConfigurationEditor(test_expectations)
         for test, versions in to_remove.items():
             system_remover.remove_os_versions(test, versions)
         system_remover.update_expectations()
@@ -586,7 +597,8 @@ class AbstractParallelRebaselineCommand(AbstractRebaseliningCommand):
     def unstaged_baselines(self):
         """Returns absolute paths for unstaged (including untracked) baselines."""
         baseline_re = re.compile(r'.*[\\/]' + WEB_TESTS_LAST_COMPONENT +
-                                 r'[\\/].*-expected\.(txt|png|wav)$')
+                                 r'[\\/].*-expected\.(' +
+                                 '|'.join(get_args(BaselineSuffix)) + ')$')
         unstaged_changes = self._tool.git().unstaged_changes()
         return sorted(self._tool.git().absolute_path(path)
                       for path in unstaged_changes
@@ -678,8 +690,8 @@ class Rebaseline(AbstractParallelRebaselineCommand):
         tests = self._host_port.tests(args)
         for builder in builders_to_check:
             build = Build(builder)
-            step_names = self._tool.results_fetcher.get_layout_test_step_names(
-                build)
+            step_names = self._tool.builders.step_names_for_builder(
+                build.builder_name)
             for step_name in step_names:
                 for test in tests:
                     test_baseline_set.add(test, build, step_name)
@@ -793,6 +805,9 @@ class BaselineLoader:
             RebaselineFailure: If a test cannot be rebaselined (e.g., flakiness
                 outside fuzzy parameters).
         """
+        if suffix == 'png' and self._default_port.reference_files(test_name):
+            raise RebaselineFailure(
+                RebaselineFailureReason.REFTEST_IMAGE_FAILURE)
         assert artifacts
         contents_by_run = {
             artifact: self.load(artifact)

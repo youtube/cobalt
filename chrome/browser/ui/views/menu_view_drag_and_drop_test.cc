@@ -214,7 +214,7 @@ class MenuViewDragAndDropTest : public MenuTestBase,
                    std::unique_ptr<ui::LayerTreeOwner> drag_image_layer_owner);
 
   // The special view in the menu, which supports its own drag and drop.
-  raw_ptr<TestTargetView> target_view_ = nullptr;
+  raw_ptr<TestTargetView, DanglingUntriaged> target_view_ = nullptr;
 
   // Whether or not we have been asked to close on drag complete.
   bool asked_to_close_ = false;
@@ -405,7 +405,8 @@ void MenuViewDragAndDropTestTestInMenuDrag::StartDrag() {
 // menu automatically once the drag is complete, and does not ask the delegate
 // to stay open.
 // TODO(pkasting): https://crbug.com/939621 Fails on Mac.
-#if BUILDFLAG(IS_MAC)
+// TODO(crbug.com/1443197): Re-enable this test for linux.
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 #define MAYBE_TestInMenuDrag DISABLED_TestInMenuDrag
 #else
 #define MAYBE_TestInMenuDrag TestInMenuDrag

@@ -20,6 +20,9 @@
 #include "ash/keyboard/test_keyboard_ui.h"
 #include "ash/public/cpp/test/test_keyboard_controller_observer.h"
 #include "ash/public/cpp/test/test_new_window_delegate.h"
+#include "ash/quick_pair/common/fake_quick_pair_browser_delegate.h"
+#include "ash/quick_pair/keyed_service/fake_quick_pair_mediator_factory.h"
+#include "ash/quick_pair/keyed_service/quick_pair_mediator.h"
 #include "ash/session/test_session_controller_client.h"
 #include "ash/shell.h"
 #include "ash/shell_init_params.h"
@@ -42,7 +45,9 @@
 #include "chromeos/ash/components/audio/cras_audio_handler.h"
 #include "chromeos/ash/components/dbus/audio/cras_audio_client.h"
 #include "chromeos/ash/components/dbus/rgbkbd/rgbkbd_client.h"
+#include "chromeos/ash/components/dbus/typecd/typecd_client.h"
 #include "chromeos/ash/components/login/login_state/login_state.h"
+#include "chromeos/ash/services/bluetooth_config/in_process_instance.h"
 #include "chromeos/dbus/power/power_policy_controller.h"
 #include "chromeos/ui/frame/multitask_menu/multitask_menu_nudge_controller.h"
 #include "device/bluetooth/bluetooth_adapter_factory.h"
@@ -56,6 +61,8 @@
 #include "ui/color/color_provider_manager.h"
 #include "ui/display/display_switches.h"
 #include "ui/display/manager/display_manager.h"
+#include "ui/display/manager/test/fake_display_delegate.h"
+#include "ui/display/manager/util/display_manager_test_util.h"
 #include "ui/display/test/display_manager_test_api.h"
 #include "ui/display/util/display_util.h"
 #include "ui/events/gesture_detection/gesture_configuration.h"
@@ -139,8 +146,9 @@ AshTestHelper::AshTestHelper(ui::ContextFactory* context_factory)
 }
 
 AshTestHelper::~AshTestHelper() {
-  if (app_list_test_helper_)
+  if (app_list_test_helper_) {
     TearDown();
+  }
 
   // Ensure the next test starts with a null display::Screen.  This must be done
   // here instead of in TearDown() since some tests test access to the Screen
@@ -176,6 +184,8 @@ void AshTestHelper::TearDown() {
 
   LoginState::Shutdown();
 
+  TypecdClient::Shutdown();
+
   if (create_global_cras_audio_handler_) {
     CrasAudioHandler::Shutdown();
     CrasAudioClient::Shutdown();
@@ -203,6 +213,7 @@ void AshTestHelper::TearDown() {
   prefs_provider_.reset();
   statistics_provider_.reset();
   command_line_.reset();
+  quick_pair_browser_delegate_.reset();
 
   // Purge ColorProviderManager between tests so that we don't accumulate
   // ColorProviderInitializers. crbug.com/1349232.
@@ -222,8 +233,9 @@ void AshTestHelper::TearDown() {
 
 aura::Window* AshTestHelper::GetContext() {
   aura::Window* root_window = Shell::GetRootWindowForNewWindows();
-  if (!root_window)
+  if (!root_window) {
     root_window = Shell::GetPrimaryRootWindow();
+  }
   DCHECK(root_window);
   return root_window;
 }
@@ -253,6 +265,8 @@ aura::client::CaptureClient* AshTestHelper::GetCaptureClient() {
 void AshTestHelper::SetUp(InitParams init_params) {
   create_global_cras_audio_handler_ =
       init_params.create_global_cras_audio_handler;
+  create_quick_pair_mediator_ = init_params.create_quick_pair_mediator;
+
   if (create_global_cras_audio_handler_) {
     // Create `CrasAudioHandler` for testing since `g_browser_process` is not
     // created in `AshTestBase` tests.
@@ -288,34 +302,51 @@ void AshTestHelper::SetUp(InitParams init_params) {
     }
   }
 
-  if (!RgbkbdClient::Get())
+  if (!RgbkbdClient::Get()) {
     RgbkbdClient::InitializeFake();
-  if (!chromeos::PowerManagerClient::Get())
+  }
+  if (!chromeos::PowerManagerClient::Get()) {
     chromeos::PowerManagerClient::InitializeFake();
+  }
   if (!chromeos::PowerPolicyController::IsInitialized()) {
     power_policy_controller_initializer_ =
         std::make_unique<PowerPolicyControllerInitializer>();
   }
+
+  if (!TypecdClient::Get()) {
+    TypecdClient::InitializeFake();
+  }
+
   if (!NewWindowDelegate::GetInstance()) {
     new_window_delegate_provider_ =
         std::make_unique<TestNewWindowDelegateProvider>(
             std::make_unique<TestNewWindowDelegate>());
   }
-  if (!views::ViewsDelegate::GetInstance())
+  if (!views::ViewsDelegate::GetInstance()) {
     test_views_delegate_ = MakeTestViewsDelegate();
+  }
 
   LoginState::Initialize();
 
   ambient_ash_test_helper_ = std::make_unique<AmbientAshTestHelper>();
+  quick_pair_browser_delegate_ =
+      std::make_unique<quick_pair::FakeQuickPairBrowserDelegate>();
 
   ShellInitParams shell_init_params;
   shell_init_params.delegate = std::move(init_params.delegate);
-  if (!shell_init_params.delegate)
+  if (!shell_init_params.delegate) {
     shell_init_params.delegate = std::make_unique<TestShellDelegate>();
+  }
   shell_init_params.context_factory = GetContextFactory();
   shell_init_params.local_state = init_params.local_state;
   shell_init_params.keyboard_ui_factory =
       std::make_unique<TestKeyboardUIFactory>();
+  if (create_quick_pair_mediator_) {
+    shell_init_params.quick_pair_mediator_factory =
+        std::make_unique<quick_pair::FakeQuickPairMediatorFactory>();
+  }
+  shell_init_params.native_display_delegate =
+      std::make_unique<display::FakeDisplayDelegate>();
   Shell::CreateInstance(std::move(shell_init_params));
   Shell* shell = Shell::Get();
 
@@ -344,8 +375,9 @@ void AshTestHelper::SetUp(InitParams init_params) {
   session_controller_client_ = std::make_unique<TestSessionControllerClient>(
       shell->session_controller(), prefs_provider_.get());
   session_controller_client_->InitializeAndSetClient();
-  if (init_params.start_session)
+  if (init_params.start_session) {
     session_controller_client_->CreatePredefinedUserSessions(1);
+  }
 
   // Requires the AppListController the Shell creates.
   app_list_test_helper_ = std::make_unique<AppListTestHelper>();
@@ -379,9 +411,10 @@ void AshTestHelper::SetUp(InitParams init_params) {
   // Tests expect empty wallpaper.
   shell->wallpaper_controller()->CreateEmptyWallpaperForTesting();
 
-  // Move the mouse cursor to far away so that native events don't interfere
-  // with test expectations.
-  Shell::GetPrimaryRootWindow()->MoveCursorTo(gfx::Point(-1000, -1000));
+  // Native events and mouse movements are disabled by
+  // `ui::DisableNativeUiEventDispatchDisabled()`. Just make sure that the the
+  // mouse cursour is not on the screen by default.
+  aura::Env::GetInstance()->SetLastMouseLocation(gfx::Point(-1000, -1000));
   shell->cursor_manager()->EnableMouseEvents();
 
   // Changing GestureConfiguration shouldn't make tests fail. These values
@@ -397,10 +430,15 @@ void AshTestHelper::SetUp(InitParams init_params) {
   AccelerometerReader::GetInstance()->SetECLidAngleDriverStatusForTesting(
       ECLidAngleDriverStatus::NOT_SUPPORTED);
 
+  if (TabletMode::IsBoardTypeMarkedAsTabletCapable()) {
+    shell->tablet_mode_controller()->OnDeviceListsComplete();
+  }
+
   // Call `StabilizeUIForPixelTest()` after the user session is activated (if
   // any) in the test setup.
-  if (pixel_test_helper_)
+  if (pixel_test_helper_) {
     StabilizeUIForPixelTest();
+  }
 
   saved_desk_test_helper_ = std::make_unique<SavedDeskTestHelper>();
 }
@@ -411,12 +449,18 @@ display::Display AshTestHelper::GetSecondaryDisplay() const {
 }
 
 void AshTestHelper::SimulateUserLogin(const AccountId& account_id,
-                                      user_manager::UserType user_type) {
+                                      user_manager::UserType user_type,
+                                      bool is_new_profile) {
   session_controller_client_->AddUserSession(
-      account_id, account_id.GetUserEmail(), user_type);
+      account_id, account_id.GetUserEmail(), user_type,
+      /*provide_pref_service=*/true, is_new_profile);
   session_controller_client_->SwitchActiveUser(account_id);
   session_controller_client_->SetSessionState(
       session_manager::SessionState::ACTIVE);
+
+  if (pixel_test_helper_) {
+    pixel_test_helper_->StabilizeUi();
+  }
 }
 
 void AshTestHelper::StabilizeUIForPixelTest() {

@@ -4,7 +4,10 @@
 
 #include "components/web_package/signed_web_bundles/signed_web_bundle_integrity_block.h"
 
-#include "base/strings/stringprintf.h"
+#include <string>
+#include <utility>
+
+#include "base/types/expected_macros.h"
 #include "components/web_package/mojom/web_bundle_parser.mojom.h"
 #include "components/web_package/signed_web_bundles/signed_web_bundle_signature_stack.h"
 
@@ -26,16 +29,15 @@ SignedWebBundleIntegrityBlock::Create(
         raw_entry->public_key, raw_entry->signature);
   }
 
-  auto signature_stack =
-      SignedWebBundleSignatureStack::Create(signature_stack_entries);
-  if (!signature_stack.has_value()) {
-    return base::unexpected(
-        base::StringPrintf("Cannot create an integrity block: %s",
-                           signature_stack.error().c_str()));
-  }
+  ASSIGN_OR_RETURN(
+      auto signature_stack,
+      SignedWebBundleSignatureStack::Create(signature_stack_entries),
+      [](std::string error) {
+        return "Cannot create an integrity block: " + std::move(error);
+      });
 
   return SignedWebBundleIntegrityBlock(integrity_block->size,
-                                       std::move(*signature_stack));
+                                       std::move(signature_stack));
 }
 
 SignedWebBundleIntegrityBlock::SignedWebBundleIntegrityBlock(

@@ -3,6 +3,7 @@
 # found in the LICENSE file.
 
 import("//build/config/chromeos/ui_mode.gni")
+import("//chrome/browser/devtools/buildflags.gni")
 import("//extensions/buildflags/buildflags.gni")
 import("//printing/buildflags/buildflags.gni")
 
@@ -17,6 +18,8 @@ if (!is_android) {
   import("$_inspector_protocol/inspector_protocol.gni")
 
   _protocol_generated = [
+    "protocol/autofill.cc",
+    "protocol/autofill.h",
     "protocol/browser.cc",
     "protocol/browser.h",
     "protocol/cast.cc",
@@ -30,6 +33,8 @@ if (!is_android) {
     "protocol/security.h",
     "protocol/storage.cc",
     "protocol/storage.h",
+    "protocol/system_info.cc",
+    "protocol/system_info.h",
     "protocol/target.cc",
     "protocol/target.h",
   ]
@@ -92,6 +97,13 @@ static_library("devtools") {
     "//build/config:precompiled_headers",
   ]
 
+  if (enable_aida) {
+    defines = [
+      "AIDA_ENDPOINT=\"$aida_endpoint\"",
+      "AIDA_SCOPE=\"$aida_scope\"",
+    ]
+  }
+
   deps = [
     "//base",
 
@@ -106,9 +118,13 @@ static_library("devtools") {
 
     # Similar bandaid as the above. Since we cannot depend on
     # //chrome/browser:browser, we include indirect dependencies here.
+    "//chrome/browser/autofill:autofill",
+    "//components/autofill/content/browser:browser",
+    "//components/autofill/core/browser:browser",
     "//components/paint_preview/buildflags:buildflags",
     "//content/public/browser",
     "//net",
+    "//services/metrics/public/cpp:ukm_builders",
     "//services/viz/privileged/mojom/compositing",
     "//third_party/blink/public:buildflags",
     "//ui/events:dom_keycode_converter",
@@ -137,7 +153,7 @@ static_library("devtools") {
       "//components/prefs",
       "//components/sessions",
       "//components/signin/public/identity_manager:identity_manager",
-      "//components/sync/driver:driver",
+      "//components/sync/service",
       "//components/sync_preferences",
       "//components/viz/host",
       "//components/web_modal",
@@ -149,6 +165,7 @@ static_library("devtools") {
       "//ui/base/cursor",
       "//ui/base/cursor/mojom:cursor_type",
       "//ui/shell_dialogs",
+      "//ui/views/controls/webview",
     ]
     if (is_chromeos_ash) {
       deps += [ "//ash/constants" ]
@@ -221,11 +238,19 @@ static_library("devtools") {
       "serialize_host_descriptions.h",
       "url_constants.cc",
       "url_constants.h",
+      "visual_logging.cc",
+      "visual_logging.h",
     ]
     if (enable_service_discovery) {
       sources += [
         "device/cast_device_provider.cc",
         "device/cast_device_provider.h",
+      ]
+    }
+    if (enable_aida) {
+      sources += [
+        "aida_client.cc",
+        "aida_client.h",
       ]
     }
   }
@@ -243,12 +268,15 @@ static_library("devtools") {
       "//components/media_router/browser",
       "//components/media_router/common/mojom:media_router",
       "//components/payments/content",
+      "//components/privacy_sandbox/privacy_sandbox_attestations",
       "//components/security_state/content",
       "//components/subresource_filter/content/browser:browser",
       "//components/webapps/browser",
       "//third_party/inspector_protocol:crdtp",
     ]
     sources += [
+      "protocol/autofill_handler.cc",
+      "protocol/autofill_handler.h",
       "protocol/browser_handler.cc",
       "protocol/browser_handler.h",
       "protocol/cast_handler.cc",
@@ -261,6 +289,8 @@ static_library("devtools") {
       "protocol/security_handler.h",
       "protocol/storage_handler.cc",
       "protocol/storage_handler.h",
+      "protocol/system_info_handler.cc",
+      "protocol/system_info_handler.h",
       "protocol/target_handler.cc",
       "protocol/target_handler.h",
     ]
@@ -301,11 +331,17 @@ static_library("test_support") {
       "//chrome/browser/ui",
       "//content/public/browser",
       "//content/test:test_support",
+      "//net",
+      "//net/traffic_annotation:test_support",
     ]
 
     sources += [
+      "device/adb/mock_adb_server.cc",
+      "device/adb/mock_adb_server.h",
       "devtools_window_testing.cc",
       "devtools_window_testing.h",
     ]
+
+    defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
   }
 }

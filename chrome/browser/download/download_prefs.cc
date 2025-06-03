@@ -6,11 +6,11 @@
 
 #include <stddef.h>
 
+#include <algorithm>
 #include <string>
 #include <vector>
 
 #include "base/check.h"
-#include "base/cxx17_backports.h"
 #include "base/feature_list.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
@@ -219,7 +219,6 @@ DownloadPrefs::DownloadPrefs(Profile* profile) : profile_(profile) {
   safebrowsing_for_trusted_sources_enabled_.Init(
       prefs::kSafeBrowsingForTrustedSourcesEnabled, prefs);
   download_restriction_.Init(prefs::kDownloadRestrictions, prefs);
-  download_bubble_enabled_.Init(prefs::kDownloadBubbleEnabled, prefs);
   prompt_for_duplicate_file_.Init(prefs::kDownloadDuplicateFilePromptEnabled,
                                   prefs);
 
@@ -291,7 +290,9 @@ void DownloadPrefs::RegisterProfilePrefs(
   registry->RegisterIntegerPref(prefs::kSaveFileType,
                                 content::SAVE_PAGE_TYPE_AS_COMPLETE_HTML);
   registry->RegisterIntegerPref(prefs::kDownloadRestrictions, 0);
-  registry->RegisterBooleanPref(prefs::kDownloadBubbleEnabled, true);
+  // The following two prefs are ignored on ChromeOS Lacros if SysUI integration
+  // is enabled.
+  // TODO(chlily): Clean them up once SysUI integration is enabled by default.
   registry->RegisterBooleanPref(prefs::kDownloadBubblePartialViewEnabled, true);
   registry->RegisterIntegerPref(prefs::kDownloadBubblePartialViewImpressions,
                                 0);
@@ -308,8 +309,6 @@ void DownloadPrefs::RegisterProfilePrefs(
                                  default_download_path);
   registry->RegisterFilePathPref(prefs::kSaveFileDefaultDirectory,
                                  default_download_path);
-  registry->RegisterTimePref(prefs::kDownloadLastCompleteTime,
-                             /*default_value=*/base::Time());
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || \
     BUILDFLAG(IS_MAC)
   registry->RegisterBooleanPref(prefs::kOpenPdfDownloadInSystemReader, false);
@@ -385,15 +384,6 @@ void DownloadPrefs::SetSaveFilePath(const base::FilePath& path) {
 
 void DownloadPrefs::SetSaveFileType(int type) {
   save_file_type_.SetValue(type);
-}
-
-base::Time DownloadPrefs::GetLastCompleteTime() {
-  return profile_->GetPrefs()->GetTime(prefs::kDownloadLastCompleteTime);
-}
-
-void DownloadPrefs::SetLastCompleteTime(const base::Time& last_complete_time) {
-  profile_->GetPrefs()->SetTime(prefs::kDownloadLastCompleteTime,
-                                last_complete_time);
 }
 
 bool DownloadPrefs::PromptForDownload() const {

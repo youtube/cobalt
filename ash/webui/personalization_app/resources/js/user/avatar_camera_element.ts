@@ -13,7 +13,7 @@ import 'chrome://resources/polymer/v3_0/paper-spinner/paper-spinner-lite.js';
 import '../../css/cros_button_style.css.js';
 
 import {CrDialogElement} from 'chrome://resources/cr_elements/cr_dialog/cr_dialog.js';
-import {assertInstanceof, assertNotReached} from 'chrome://resources/js/assert_ts.js';
+import {assertInstanceof, assertNotReached} from 'chrome://resources/js/assert.js';
 import {afterNextRender} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {WithPersonalizationStore} from '../personalization_store.js';
@@ -57,11 +57,11 @@ function getCaptureSize(mode: AvatarCameraMode):
   }
 }
 
-export interface AvatarCamera {
+export interface AvatarCameraElement {
   $: {dialog: CrDialogElement, webcamVideo: HTMLVideoElement};
 }
 
-export class AvatarCamera extends WithPersonalizationStore {
+export class AvatarCameraElement extends WithPersonalizationStore {
   static get is() {
     return 'avatar-camera';
   }
@@ -253,10 +253,10 @@ export class AvatarCamera extends WithPersonalizationStore {
   }
 }
 
-customElements.define(AvatarCamera.is, AvatarCamera);
+customElements.define(AvatarCameraElement.is, AvatarCameraElement);
 
 declare global {
   interface HTMLElementTagNameMap {
-    'avatar-camera': AvatarCamera;
+    'avatar-camera': AvatarCameraElement;
   }
 }

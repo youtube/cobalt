@@ -6,12 +6,12 @@
 
 #include <string>
 
-#include "base/allocator/partition_allocator/pointers/raw_ptr.h"
 #include "base/functional/callback_helpers.h"
+#include "base/memory/raw_ptr.h"
 #include "base/test/mock_callback.h"
 #include "base/test/scoped_feature_list.h"
+#include "chrome/browser/autofill/ui/ui_util.h"
 #include "chrome/browser/browser_process.h"
-#include "chrome/browser/ui/autofill/ui_util.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/test/base/browser_with_test_window_test.h"
 #include "components/autofill/core/browser/autofill_address_util.h"
@@ -25,6 +25,9 @@
 #include "ui/base/l10n/l10n_util.h"
 
 namespace autofill {
+
+using ::testing::Property;
+using profile_ref = base::optional_ref<const AutofillProfile>;
 
 class SaveUpdateAddressProfileBubbleControllerImplTest
     : public BrowserWithTestWindowTest {
@@ -43,7 +46,7 @@ class SaveUpdateAddressProfileBubbleControllerImplTest
   }
 
  protected:
-  base::raw_ptr<content::WebContents> web_contents() const {
+  raw_ptr<content::WebContents> web_contents() const {
     return browser()->tab_strip_model()->GetActiveWebContents();
   }
 
@@ -64,9 +67,10 @@ TEST_F(SaveUpdateAddressProfileBubbleControllerImplTest,
   EXPECT_CALL(
       callback,
       Run(AutofillClient::SaveAddressProfileOfferUserDecision::kAccepted,
-          profile));
+          Property(&profile_ref::has_value, false)));
   controller()->OnUserDecision(
-      AutofillClient::SaveAddressProfileOfferUserDecision::kAccepted);
+      AutofillClient::SaveAddressProfileOfferUserDecision::kAccepted,
+      std::nullopt);
 }
 
 TEST_F(SaveUpdateAddressProfileBubbleControllerImplTest,
@@ -81,9 +85,10 @@ TEST_F(SaveUpdateAddressProfileBubbleControllerImplTest,
   EXPECT_CALL(
       callback,
       Run(AutofillClient::SaveAddressProfileOfferUserDecision::kDeclined,
-          testing::_));
+          Property(&profile_ref::has_value, false)));
   controller()->OnUserDecision(
-      AutofillClient::SaveAddressProfileOfferUserDecision::kDeclined);
+      AutofillClient::SaveAddressProfileOfferUserDecision::kDeclined,
+      std::nullopt);
 }
 
 // This is testing that closing all tabs (which effectively destroys the web
@@ -111,12 +116,13 @@ TEST_F(SaveUpdateAddressProfileBubbleControllerImplTest,
   EXPECT_EQ(2, tab_strip_model->count());
   EXPECT_CALL(callback,
               Run(AutofillClient::SaveAddressProfileOfferUserDecision::kIgnored,
-                  testing::_));
+                  Property(&profile_ref::has_value, false)));
   // Close controller tab.
-  EXPECT_TRUE(browser()->tab_strip_model()->CloseWebContentsAt(
+  int previous_tab_count = browser()->tab_strip_model()->count();
+  browser()->tab_strip_model()->CloseWebContentsAt(
       tab_strip_model->GetIndexOfWebContents(controller_web_contents),
-      TabCloseTypes::CLOSE_USER_GESTURE));
-  EXPECT_EQ(1, tab_strip_model->count());
+      TabCloseTypes::CLOSE_USER_GESTURE);
+  EXPECT_EQ(previous_tab_count - 1, browser()->tab_strip_model()->count());
 }
 
 // This is testing that when the SaveAddressProfilePromptOptions has the
@@ -165,7 +171,7 @@ TEST_F(SaveUpdateAddressProfileBubbleControllerImplTest,
   EXPECT_CALL(
       callback,
       Run(AutofillClient::SaveAddressProfileOfferUserDecision::kAutoDeclined,
-          testing::_));
+          Property(&profile_ref::has_value, false)));
   controller()->OfferSave(
       profile, /*original_profile=*/nullptr,
       AutofillClient::SaveAddressProfilePromptOptions{.show_prompt = true},
@@ -189,7 +195,7 @@ TEST_F(SaveUpdateAddressProfileBubbleControllerImplTest,
   // When second prompt comes, the first one will be ignored.
   EXPECT_CALL(callback,
               Run(AutofillClient::SaveAddressProfileOfferUserDecision::kIgnored,
-                  testing::_));
+                  Property(&profile_ref::has_value, false)));
   controller()->OfferSave(
       profile, /*original_profile=*/nullptr,
       AutofillClient::SaveAddressProfilePromptOptions{.show_prompt = true},

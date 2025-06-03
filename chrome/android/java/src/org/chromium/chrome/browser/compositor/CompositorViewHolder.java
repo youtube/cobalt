@@ -14,6 +14,7 @@ import android.graphics.RectF;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.SystemClock;
 import android.util.AttributeSet;
 import android.util.Pair;
 import android.view.DragEvent;
@@ -22,7 +23,6 @@ import android.view.MotionEvent;
 import android.view.PointerIcon;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.ViewGroup.LayoutParams;
 import android.view.accessibility.AccessibilityEvent;
 import android.widget.FrameLayout;
 
@@ -39,6 +39,7 @@ import org.chromium.base.SysUtils;
 import org.chromium.base.TraceEvent;
 import org.chromium.base.compat.ApiHelperForN;
 import org.chromium.base.compat.ApiHelperForO;
+import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.chrome.R;
@@ -47,12 +48,12 @@ import org.chromium.chrome.browser.browser_controls.BrowserControlsUtils;
 import org.chromium.chrome.browser.compositor.layouts.LayoutManagerHost;
 import org.chromium.chrome.browser.compositor.layouts.LayoutManagerImpl;
 import org.chromium.chrome.browser.compositor.layouts.LayoutRenderHost;
-import org.chromium.chrome.browser.compositor.layouts.content.ContentOffsetProvider;
 import org.chromium.chrome.browser.compositor.layouts.content.TabContentManager;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.MutableFlagWithSafeDefault;
 import org.chromium.chrome.browser.fullscreen.BrowserControlsManager;
 import org.chromium.chrome.browser.fullscreen.FullscreenManager;
+import org.chromium.chrome.browser.layouts.EventFilter.EventType;
 import org.chromium.chrome.browser.layouts.components.VirtualView;
 import org.chromium.chrome.browser.preferences.Pref;
 import org.chromium.chrome.browser.tab.EmptyTabObserver;
@@ -73,6 +74,7 @@ import org.chromium.chrome.browser.toolbar.ToolbarFeatures;
 import org.chromium.chrome.browser.util.ChromeAccessibilityUtil;
 import org.chromium.chrome.features.start_surface.StartSurfaceUserData;
 import org.chromium.components.browser_ui.widget.TouchEventObserver;
+import org.chromium.components.browser_ui.widget.TouchEventProvider;
 import org.chromium.components.content_capture.OnscreenContentProvider;
 import org.chromium.components.embedder_support.view.ContentView;
 import org.chromium.components.prefs.PrefService;
@@ -98,22 +100,24 @@ import java.util.Set;
 /**
  * This class holds a {@link CompositorView}. This level of indirection is needed to benefit from
  * the {@link android.view.ViewGroup#onInterceptTouchEvent(android.view.MotionEvent)} capability on
- * available on {@link android.view.ViewGroup}s.
- * This class also holds the {@link LayoutManagerImpl} responsible to describe the items to be
- * drawn by the UI compositor on the native side.
+ * available on {@link android.view.ViewGroup}s. This class also holds the {@link LayoutManagerImpl}
+ * responsible to describe the items to be drawn by the UI compositor on the native side.
  */
 public class CompositorViewHolder extends FrameLayout
-        implements ContentOffsetProvider, LayoutManagerHost, LayoutRenderHost, Invalidator.Host,
-                   BrowserControlsStateProvider.Observer, ChromeAccessibilityUtil.Observer,
-                   TabObscuringHandler.Observer, ViewGroup.OnHierarchyChangeListener {
+        implements LayoutManagerHost,
+                LayoutRenderHost,
+                Invalidator.Host,
+                TouchEventProvider,
+                BrowserControlsStateProvider.Observer,
+                ChromeAccessibilityUtil.Observer,
+                TabObscuringHandler.Observer,
+                ViewGroup.OnHierarchyChangeListener {
     private static final long SYSTEM_UI_VIEWPORT_UPDATE_DELAY_MS = 500;
     private static final MutableFlagWithSafeDefault sDeferKeepScreenOnFlag =
             new MutableFlagWithSafeDefault(
                     ChromeFeatureList.DEFER_KEEP_SCREEN_ON_DURING_GESTURE, false);
     private static final MutableFlagWithSafeDefault sDeferNotifyInMotion =
             new MutableFlagWithSafeDefault(ChromeFeatureList.DEFER_NOTIFY_IN_MOTION, false);
-    private static final MutableFlagWithSafeDefault sResizeOnlyActiveTab =
-            new MutableFlagWithSafeDefault(ChromeFeatureList.RESIZE_ONLY_ACTIVE_TAB, false);
 
     /**
      * Initializer interface used to decouple initialization from the class that owns
@@ -231,6 +235,8 @@ public class CompositorViewHolder extends FrameLayout
     private boolean mFirstTabCreated;
     private boolean mHasDrawnOnce;
     private int mDelayTempStripRemovalTimeoutMs;
+    private long mBuffersSwappedTimestamp;
+    private long mTabStateInitializedTimestamp;
 
     /**
      * Last MotionEvent dispatched to this object for a currently active gesture. If there is no
@@ -286,16 +292,6 @@ public class CompositorViewHolder extends FrameLayout
 
     private PrefService mPrefService;
 
-    /**
-     * Creates a {@link CompositorView}.
-     * @param c The Context to create this {@link CompositorView} in.
-     */
-    public CompositorViewHolder(Context c) {
-        super(c);
-
-        internalInit();
-    }
-
     @Override
     public PointerIcon onResolvePointerIcon(MotionEvent event, int pointerIndex) {
         View activeView = getContentView();
@@ -310,7 +306,6 @@ public class CompositorViewHolder extends FrameLayout
      */
     public CompositorViewHolder(Context c, AttributeSet attrs) {
         super(c, attrs);
-
         internalInit();
     }
 
@@ -411,27 +406,16 @@ public class CompositorViewHolder extends FrameLayout
         addOnLayoutChangeListener((v, left, top, right, bottom, oldLeft, oldTop, oldRight,
                                           oldBottom) -> {
             Tab tab = getCurrentTab();
-            if (sResizeOnlyActiveTab.isEnabled()) {
-                if (tab != null) {
-                    // Set the size of NTP if we're in the attached state as it may have not been
-                    // sized properly when initializing tab. See the comment in #initializeTab() for
-                    // why.
-                    boolean attachedNativePage =
-                            tab.isNativePage() && isAttachedToWindow(tab.getView());
-                    boolean sizeChanged = (right - left) != (oldRight - oldLeft)
-                            || (top - bottom) != (oldTop - oldBottom);
-                    if (attachedNativePage || sizeChanged) {
-                        tryUpdateControlsAndWebContentsSizing();
-                    }
-                }
-            } else {
-                // TODO(bokan): This old path is behind an on-by-default flag as changing it is
-                // potentially risky. Can be removed after successful landing.
-
-                // Set the size of NTP if we're in the attached state as it may have not been sized
-                // properly when initializing tab. See the comment in #initializeTab() for why.
-                if (tab != null && tab.isNativePage() && isAttachedToWindow(tab.getView())) {
-                    updateWebContentsSize(tab);
+            if (tab != null) {
+                // Set the size of NTP if we're in the attached state as it may have not been
+                // sized properly when initializing tab. See the comment in #initializeTab() for
+                // why.
+                boolean attachedNativePage =
+                        tab.isNativePage() && isAttachedToWindow(tab.getView());
+                boolean sizeChanged = (right - left) != (oldRight - oldLeft)
+                        || (top - bottom) != (oldTop - oldBottom);
+                if (attachedNativePage || sizeChanged) {
+                    tryUpdateControlsAndWebContentsSizing();
                 }
             }
 
@@ -676,18 +660,14 @@ public class CompositorViewHolder extends FrameLayout
         return mInvalidator;
     }
 
-    /**
-     * Add observer that needs to listen and process touch events.
-     * @param o {@link TouchEventObserver} object.
-     */
+    // TouchEventProvider implementation.
+
+    @Override
     public void addTouchEventObserver(TouchEventObserver o) {
         mTouchEventObservers.addObserver(o);
     }
 
-    /**
-     * Remove observer that needs to listen and process touch events.
-     * @param o {@link TouchEventObserver} object.
-     */
+    @Override
     public void removeTouchEventObserver(TouchEventObserver o) {
         mTouchEventObservers.removeObserver(o);
     }
@@ -696,18 +676,21 @@ public class CompositorViewHolder extends FrameLayout
     public boolean onInterceptTouchEvent(MotionEvent e) {
         super.onInterceptTouchEvent(e);
         for (TouchEventObserver o : mTouchEventObservers) {
-            if (o.shouldInterceptTouchEvent(e)) return true;
+            if (o.onInterceptTouchEvent(e)) return true;
         }
 
         if (mLayoutManager == null) return false;
 
         mEventOffsetHandler.onInterceptTouchEvent(e);
-        return mLayoutManager.onInterceptTouchEvent(e, mIsKeyboardShowing);
+        return mLayoutManager.onInterceptMotionEvent(e, mIsKeyboardShowing, EventType.TOUCH);
     }
 
     @Override
     public boolean onTouchEvent(MotionEvent e) {
         super.onTouchEvent(e);
+        for (TouchEventObserver o : mTouchEventObservers) {
+            if (o.onTouchEvent(e)) return true;
+        }
 
         boolean consumed = mLayoutManager != null && mLayoutManager.onTouchEvent(e);
         mEventOffsetHandler.onTouchEvent(e);
@@ -751,7 +734,16 @@ public class CompositorViewHolder extends FrameLayout
     @Override
     public boolean onInterceptHoverEvent(MotionEvent e) {
         mEventOffsetHandler.onInterceptHoverEvent(e);
-        return super.onInterceptHoverEvent(e);
+        if (mLayoutManager == null) return super.onInterceptHoverEvent(e);
+        return mLayoutManager.onInterceptMotionEvent(e, mIsKeyboardShowing, EventType.HOVER);
+    }
+
+    @Override
+    public boolean onHoverEvent(MotionEvent e) {
+        super.onHoverEvent(e);
+        boolean consumed = mLayoutManager != null && mLayoutManager.onHoverEvent(e);
+        mEventOffsetHandler.onHoverEvent(e);
+        return consumed;
     }
 
     @Override
@@ -774,9 +766,12 @@ public class CompositorViewHolder extends FrameLayout
 
     @Override
     public boolean dispatchTouchEvent(MotionEvent e) {
+        assert e != null : "The motion event dispatched shouldn't be null!";
         updateLastActiveTouchEvent(e);
         updateIsInGesture(e);
-        for (TouchEventObserver o : mTouchEventObservers) o.handleTouchEvent(e);
+        for (TouchEventObserver o : mTouchEventObservers) {
+            if (o.dispatchTouchEvent(e)) return true;
+        }
 
         // This is where input events go from android through native to the web content. This
         // process is latency sensitive. Ideally observers that might be expensive, such as
@@ -848,9 +843,6 @@ public class CompositorViewHolder extends FrameLayout
     @Override
     protected void onSizeChanged(int w, int h, int oldw, int oldh) {
         super.onSizeChanged(w, h, oldw, oldh);
-
-        // TODO(bokan): On-by-default flag guard, remove once landed.
-        if (sResizeOnlyActiveTab.isEnabled()) return;
 
         if (mTabModelSelector == null) return;
 
@@ -1106,7 +1098,7 @@ public class CompositorViewHolder extends FrameLayout
         ViewGroup view = getContentView();
         if (view != null) {
             assert mBrowserControlsManager != null;
-            float topViewsTranslation = getOverlayTranslateY();
+            float topViewsTranslation = mBrowserControlsManager.getTopVisibleContentOffset();
             float bottomMargin =
                     BrowserControlsUtils.getBottomContentOffset(mBrowserControlsManager);
             applyTranslationToTopChildViews(view, topViewsTranslation);
@@ -1264,6 +1256,16 @@ public class CompositorViewHolder extends FrameLayout
             } else {
                 mCanSetBackground = true;
             }
+
+            // If tab state is already initialized, record how long it took for the real tab strip
+            // to be ready to be drawn.
+            if (mTabStateInitializedTimestamp != 0) {
+                RecordHistogram.recordTimesHistogram(
+                        "Android.TabStrip.TimeToBufferSwapAfterInitializeTabState",
+                        SystemClock.elapsedRealtime() - mTabStateInitializedTimestamp);
+            } else {
+                mBuffersSwappedTimestamp = SystemClock.elapsedRealtime();
+            }
         }
 
         for (Runnable runnable : mDidSwapBuffersCallbacks) {
@@ -1274,8 +1276,18 @@ public class CompositorViewHolder extends FrameLayout
     }
 
     private void runSetBackgroundRunnable() {
+        // This runnable should only be run once.
+        if (mSetBackgroundRunnable == null) return;
+
         new Handler().post(mSetBackgroundRunnable);
         mSetBackgroundRunnable = null;
+
+        // Mark that we timed out if we remove the background before the tab state is initialized.
+        // Called when the background is actually being removed, since if the timeout is reached,
+        // but the second buffer swap happens after the tab state is initialized, we shouldn't
+        // actually see any jank.
+        RecordHistogram.recordBooleanHistogram("Android.TabStrip.DelayTempStripRemovalTimedOut",
+                !mTabModelSelector.isTabStateInitialized());
     }
 
     @VisibleForTesting
@@ -1381,11 +1393,6 @@ public class CompositorViewHolder extends FrameLayout
         return mControlsResizeView;
     }
 
-    @Override
-    public float getOverlayTranslateY() {
-        return mBrowserControlsManager.getTopVisibleContentOffset();
-    }
-
     /**
      * Sets the URL bar. This is needed so that the ContentViewHolder can find out
      * whether it can claim focus.
@@ -1469,6 +1476,16 @@ public class CompositorViewHolder extends FrameLayout
                 // frame is ready.
                 if (mDelayTempStripRemoval && mSetBackgroundRunnable != null && mCanSetBackground) {
                     runSetBackgroundRunnable();
+                }
+
+                // If real tab strip is ready to be drawn, record how long it took for the tab state
+                // to be initialized.
+                if (mBuffersSwappedTimestamp != 0) {
+                    RecordHistogram.recordTimesHistogram(
+                            "Android.TabStrip.TimeToInitializeTabStateAfterBufferSwap",
+                            SystemClock.elapsedRealtime() - mBuffersSwappedTimestamp);
+                } else {
+                    mTabStateInitializedTimestamp = SystemClock.elapsedRealtime();
                 }
             }
 
@@ -1755,7 +1772,7 @@ public class CompositorViewHolder extends FrameLayout
         protected int getVirtualViewAt(float x, float y) {
             if (mVirtualViews == null) return INVALID_ID;
             for (int i = 0; i < mVirtualViews.size(); i++) {
-                if (mVirtualViews.get(i).checkClicked(x / mDpToPx, y / mDpToPx)) {
+                if (mVirtualViews.get(i).checkClickedOrHovered(x / mDpToPx, y / mDpToPx)) {
                     return i;
                 }
             }

@@ -6,7 +6,7 @@
  * @fileoverview Utility methods for the holding space feature.
  */
 
-import {metrics} from '../../common/js/metrics.js';
+import {recordValue} from '../../common/js/metrics.js';
 import {storage} from '../../common/js/storage.js';
 import {VolumeManagerCommon} from '../../common/js/volume_manager_types.js';
 
@@ -55,6 +55,9 @@ export class HoldingSpaceUtil {
     return new Promise(resolve => {
       const key = HoldingSpaceUtil.TIME_OF_FIRST_PIN_KEY_;
       storage.local.get(key, values => {
+        // @ts-ignore: error TS7053: Element implicitly has an 'any' type
+        // because expression of type 'string' can't be used to index type
+        // 'Object'.
         resolve(values[key]);
       });
     });
@@ -71,6 +74,9 @@ export class HoldingSpaceUtil {
     return new Promise(resolve => {
       const key = HoldingSpaceUtil.TIME_OF_FIRST_WELCOME_BANNER_SHOW_KEY_;
       storage.local.get(key, values => {
+        // @ts-ignore: error TS7053: Element implicitly has an 'any' type
+        // because expression of type 'string' can't be used to index type
+        // 'Object'.
         resolve(values[key]);
       });
     });
@@ -90,6 +96,8 @@ export class HoldingSpaceUtil {
 
     // Store time of first pin.
     const values = {};
+    // @ts-ignore: error TS7053: Element implicitly has an 'any' type because
+    // expression of type 'string' can't be used to index type '{}'.
     values[HoldingSpaceUtil.TIME_OF_FIRST_PIN_KEY_] = now;
     storage.local.set(values);
 
@@ -109,7 +117,7 @@ export class HoldingSpaceUtil {
     // respectively.
     const oneSecondInMillis = 1000;
     const oneDayInMillis = 24 * 60 * 60 * 1000;
-    metrics.recordValue(
+    recordValue(
         /*name=*/ 'HoldingSpace.TimeFromFirstWelcomeBannerShowToFirstPin',
         chrome.metricsPrivate.MetricTypeType.HISTOGRAM_LOG,
         /*min=*/ oneSecondInMillis,
@@ -132,6 +140,8 @@ export class HoldingSpaceUtil {
 
     // Store time of first show.
     const values = {};
+    // @ts-ignore: error TS7053: Element implicitly has an 'any' type because
+    // expression of type 'string' can't be used to index type '{}'.
     values[HoldingSpaceUtil.TIME_OF_FIRST_WELCOME_BANNER_SHOW_KEY_] = now;
     storage.local.set(values);
   }

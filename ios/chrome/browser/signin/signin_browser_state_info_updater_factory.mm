@@ -4,13 +4,9 @@
 
 #import "ios/chrome/browser/signin/signin_browser_state_info_updater_factory.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 #import "base/no_destructor.h"
 #import "components/keyed_service/ios/browser_state_dependency_manager.h"
-#import "ios/chrome/browser/browser_state/chrome_browser_state.h"
+#import "ios/chrome/browser/shared/model/browser_state/chrome_browser_state.h"
 #import "ios/chrome/browser/signin/identity_manager_factory.h"
 #import "ios/chrome/browser/signin/signin_browser_state_info_updater.h"
 #import "ios/chrome/browser/signin/signin_error_controller_factory.h"

@@ -11,6 +11,7 @@
 
 #include "base/containers/flat_map.h"
 #include "base/process/kill.h"
+#include "base/process/process_handle.h"
 #include "content/browser/devtools/devtools_io_context.h"
 #include "content/browser/devtools/devtools_renderer_channel.h"
 #include "content/browser/devtools/devtools_session.h"
@@ -20,6 +21,7 @@
 #include "net/cookies/site_for_cookies.h"
 #include "services/network/public/cpp/cross_origin_embedder_policy.h"
 #include "services/network/public/cpp/cross_origin_opener_policy.h"
+#include "services/network/public/mojom/content_security_policy.mojom.h"
 
 namespace content {
 
@@ -46,6 +48,8 @@ class CONTENT_EXPORT DevToolsAgentHostImpl : public DevToolsAgentHost {
                                base::span<const uint8_t> message) override;
   bool IsAttached() override;
   void InspectElement(RenderFrameHost* frame_host, int x, int y) override;
+  void GetUniqueFormControlId(int node_id,
+                              GetUniqueFormControlIdCallback callback) override;
   std::string GetId() override;
   std::string CreateIOStreamFromData(
       scoped_refptr<base::RefCountedMemory> data) override;
@@ -101,9 +105,14 @@ class CONTENT_EXPORT DevToolsAgentHostImpl : public DevToolsAgentHost {
   cross_origin_embedder_policy(const std::string& id);
   virtual absl::optional<network::CrossOriginOpenerPolicy>
   cross_origin_opener_policy(const std::string& id);
+  virtual absl::optional<
+      std::vector<network::mojom::ContentSecurityPolicyHeader>>
+  content_security_policy(const std::string& id);
 
   virtual protocol::TargetAutoAttacher* auto_attacher();
   virtual std::string GetSubtype();
+
+  base::ProcessId GetProcessId() const { return process_id_; }
 
  protected:
   explicit DevToolsAgentHostImpl(const std::string& id);
@@ -119,6 +128,10 @@ class CONTENT_EXPORT DevToolsAgentHostImpl : public DevToolsAgentHost {
   void NotifyCreated();
   void NotifyNavigated();
   void NotifyCrashed(base::TerminationStatus status);
+
+  void SetProcessId(base::ProcessId process_id);
+  void ProcessHostChanged();
+
   void ForceDetachRestrictedSessions(
       const std::vector<DevToolsSession*>& restricted_sessions);
   DevToolsIOContext* GetIOContext() { return &io_context_; }
@@ -129,6 +142,13 @@ class CONTENT_EXPORT DevToolsAgentHostImpl : public DevToolsAgentHost {
   // at this point, so `this` will become invalid as soon as returned refptr
   // gets destroyed.
   [[nodiscard]] scoped_refptr<DevToolsAgentHost> ForceDetachAllSessionsImpl();
+
+  // Called when the corresponding renderer process notifies that the main
+  // thread debugger is paused or resumed.
+  // TODO(https://crbug.com/1449114): Remove this method when we collect enough
+  // data to understand how likely that situation could happen.
+  virtual void MainThreadDebuggerPaused();
+  virtual void MainThreadDebuggerResumed();
 
  private:
   // Note that calling this may result in the instance being deleted,
@@ -156,6 +176,8 @@ class CONTENT_EXPORT DevToolsAgentHostImpl : public DevToolsAgentHost {
       session_by_client_;
   DevToolsIOContext io_context_;
   DevToolsRendererChannel renderer_channel_;
+  base::ProcessId process_id_ = base::kNullProcessId;
+
   static int s_force_creation_count_;
 };
 

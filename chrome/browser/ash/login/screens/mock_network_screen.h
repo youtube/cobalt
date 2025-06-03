@@ -36,10 +36,11 @@ class MockNetworkScreenView : public NetworkScreenView {
 
   ~MockNetworkScreenView() override;
 
-  MOCK_METHOD(void, Show, ());
+  MOCK_METHOD(void, ShowScreenWithData, (base::Value::Dict data));
   MOCK_METHOD(void, ShowError, (const std::u16string& message));
   MOCK_METHOD(void, ClearErrors, ());
   MOCK_METHOD(void, SetOfflineDemoModeEnabled, (bool enabled));
+  MOCK_METHOD(void, SetQuickStartEnabled, ());
 };
 
 }  // namespace ash

@@ -46,7 +46,7 @@ namespace declarative_net_request {
 class RulesetMatcher;
 enum class DynamicRuleUpdateAction;
 struct LoadRequestData;
-struct RulesCountPair;
+struct RuleCounts;
 
 // Observes loading and unloading of extensions to load and unload their
 // rulesets for the Declarative Net Request API. Lives on the UI thread. Note: A
@@ -135,9 +135,9 @@ class RulesMonitorService : public BrowserContextKeyedAPI,
       std::vector<api::declarative_net_request::Rule> rules_to_add,
       ApiCallback callback);
 
-  // Returns the RulesCountPair for the |extension_id| and |ruleset_id| pair.
-  RulesCountPair GetRulesCountPair(const ExtensionId& extension_id,
-                                   RulesetID ruleset_id) const;
+  // Returns the RuleCounts for the |extension_id| and |ruleset_id| pair.
+  RuleCounts GetRuleCounts(const ExtensionId& extension_id,
+                           RulesetID ruleset_id) const;
 
   RulesetManager* ruleset_manager() { return &ruleset_manager_; }
 
@@ -150,6 +150,10 @@ class RulesMonitorService : public BrowserContextKeyedAPI,
   GlobalRulesTracker& global_rules_tracker() { return global_rules_tracker_; }
 
   void SetObserverForTest(TestObserver* observer) { test_observer_ = observer; }
+
+  bool HasAnyExtraHeadersMatcher() const {
+    return ruleset_manager_.HasAnyExtraHeadersMatcher();
+  }
 
  private:
   class FileSequenceBridge;
@@ -240,12 +244,6 @@ class RulesMonitorService : public BrowserContextKeyedAPI,
   // the `extension`, it is replaced.
   void UpdateRulesetMatcher(const Extension& extension,
                             std::unique_ptr<RulesetMatcher> ruleset_matcher);
-
-  // Adjusts the extra headers listener count on the
-  // ExtensionWebRequestEventRouter. Usually called after an update to the
-  // RulesetManager. |had_extra_headers_matcher| denotes whether the
-  // RulesetManager had an extra headers matcher before the update.
-  void AdjustExtraHeaderListenerCountIfNeeded(bool had_extra_headers_matcher);
 
   // Logs metrics related to the result of loading rulesets and updates ruleset
   // checksum in preferences from |load_data|.

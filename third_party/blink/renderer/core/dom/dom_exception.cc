@@ -157,7 +157,7 @@ const struct DOMExceptionEntry {
      "The WebTransport operation failed."},
 
     // Smart Card API
-    // https://github.com/WICG/web-smart-card/blob/main/README.md#web-idl
+    // https://wicg.github.io/web-smart-card/#smartcarderror-interface
     {DOMExceptionCode::kSmartCardError, "SmartCardError",
      "A Smart Card operation failed."},
 
@@ -168,7 +168,12 @@ const struct DOMExceptionEntry {
     // Media Capture and Streams API
     // https://w3c.github.io/mediacapture-main/#overconstrainederror-interface
     {DOMExceptionCode::kOverconstrainedError, "OverconstrainedError",
-     "The desired set of constraints/capabilities cannot be met."}
+     "The desired set of constraints/capabilities cannot be met."},
+
+    // FedCM API
+    // https://fedidcg.github.io/FedCM/#browser-api-identity-credential-error-interface
+    {DOMExceptionCode::kIdentityCredentialError, "IdentityCredentialError",
+     "An attempt to retrieve an IdentityCredential has failed."}
 
     // Extra comment to keep the end of the initializer list on its own line.
 };

@@ -8,9 +8,9 @@
 #include "base/scoped_observation.h"
 #include "components/history/core/browser/sync/history_model_type_controller_helper.h"
 #include "components/sync/base/model_type.h"
-#include "components/sync/driver/model_type_controller.h"
-#include "components/sync/driver/sync_service.h"
-#include "components/sync/driver/sync_service_observer.h"
+#include "components/sync/service/model_type_controller.h"
+#include "components/sync/service/sync_service.h"
+#include "components/sync/service/sync_service_observer.h"
 
 class PrefService;
 
@@ -23,13 +23,11 @@ namespace history {
 
 class HistoryService;
 
-// ModelTypeController for "history" data types - HISTORY and TYPED_URLS.
+// ModelTypeController for syncer::HISTORY.
 class HistoryModelTypeController : public syncer::ModelTypeController,
                                    public syncer::SyncServiceObserver {
  public:
-  // `model_type` must be either HISTORY or TYPED_URLS.
-  HistoryModelTypeController(syncer::ModelType model_type,
-                             syncer::SyncService* sync_service,
+  HistoryModelTypeController(syncer::SyncService* sync_service,
                              signin::IdentityManager* identity_manager,
                              HistoryService* history_service,
                              PrefService* pref_service);

@@ -33,6 +33,8 @@ class COMPONENT_EXPORT(DBUS_AUDIO) FakeCrasAudioClient
 
   void SetNoiseCancellationSupported(bool noise_cancellation_supported);
   uint32_t GetNoiseCancellationEnabledCount();
+  void SetHfpMicSrSupported(bool hfp_mic_sr_supported);
+  uint32_t GetHfpMicSrEnabled();
 
   // CrasAudioClient overrides:
   void AddObserver(Observer* observer) override;
@@ -94,6 +96,12 @@ class COMPONENT_EXPORT(DBUS_AUDIO) FakeCrasAudioClient
   void ResendBluetoothBattery() override;
   void WaitForServiceToBeAvailable(
       chromeos::WaitForServiceToBeAvailableCallback callback) override;
+  void SetForceRespectUiGains(bool force_respect_ui_gains_enabled) override;
+  void GetNumStreamIgnoreUiGains(
+      chromeos::DBusMethodCallback<int> callback) override;
+  void SetHfpMicSrEnabled(bool hfp_mic_sr_on) override;
+  void GetHfpMicSrSupported(
+      chromeos::DBusMethodCallback<bool> callback) override;
 
   // Sets the number of non chrome audio streams in output mode.
   void SetNumberOfNonChromeOutputStreams(int32_t streams);
@@ -130,6 +138,10 @@ class COMPONENT_EXPORT(DBUS_AUDIO) FakeCrasAudioClient
   void SetActiveInputStreamsWithPermission(
       const ClientTypeToInputStreamCount& input_streams);
 
+  // Generates fake signal for SurveyTriggered.
+  void NotifySurveyTriggered(
+      const base::flat_map<std::string, std::string>& survey_specific_data);
+
   const AudioNodeList& node_list() const { return node_list_; }
   const uint64_t& active_input_node_id() const { return active_input_node_id_; }
   const uint64_t& active_output_node_id() const {
@@ -156,6 +168,16 @@ class COMPONENT_EXPORT(DBUS_AUDIO) FakeCrasAudioClient
     return noise_cancellation_enabled_;
   }
 
+  bool speak_on_mute_detection_enabled() const {
+    return speak_on_mute_detection_enabled_;
+  }
+
+  bool force_respect_ui_gains_enabled() const {
+    return force_respect_ui_gains_enabled_;
+  }
+
+  bool hfp_mic_sr_enabled() const { return hfp_mic_sr_enabled_; }
+
  private:
   // Finds a node in the list based on the id.
   AudioNodeList::iterator FindNode(uint64_t node_id);
@@ -173,6 +195,10 @@ class COMPONENT_EXPORT(DBUS_AUDIO) FakeCrasAudioClient
   uint32_t noise_cancellation_enabled_counter_ = 0;
   int32_t number_non_chrome_output_streams_ = 0;
   bool noise_cancellation_enabled_ = false;
+  bool speak_on_mute_detection_enabled_ = false;
+  bool force_respect_ui_gains_enabled_ = false;
+  bool hfp_mic_sr_enabled_ = false;
+  bool hfp_mic_sr_supported_ = false;
   // Maps audio client type to the number of active input streams for clients
   // with the type specified
   ClientTypeToInputStreamCount active_input_streams_;

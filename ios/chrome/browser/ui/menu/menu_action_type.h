@@ -50,7 +50,9 @@ enum class MenuActionType {
   SearchCopiedText = 38,
   PinTab = 39,
   UnpinTab = 40,
-  kMaxValue = UnpinTab
+  LensCameraSearch = 41,
+  SaveImageToGooglePhotos = 42,
+  kMaxValue = SaveImageToGooglePhotos
 };
 
 #endif  // IOS_CHROME_BROWSER_UI_MENU_MENU_ACTION_TYPE_H_

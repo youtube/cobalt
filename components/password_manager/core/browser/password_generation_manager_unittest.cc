@@ -12,10 +12,12 @@
 #include "components/password_manager/core/browser/fake_form_fetcher.h"
 #include "components/password_manager/core/browser/form_saver_impl.h"
 #include "components/password_manager/core/browser/mock_password_store_interface.h"
+#include "components/password_manager/core/browser/password_form.h"
 #include "components/password_manager/core/browser/password_form_manager_for_ui.h"
 #include "components/password_manager/core/browser/stub_password_manager_client.h"
 #include "components/password_manager/core/browser/stub_password_manager_driver.h"
 #include "components/password_manager/core/common/password_manager_features.h"
+#include "password_form.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -63,7 +65,7 @@ PasswordForm CreateSavedPSL() {
   form.action = GURL("https://login.example.org");
   form.username_value = u"old_username2";
   form.password_value = u"passw0rd";
-  form.is_public_suffix_match = true;
+  form.match_type = PasswordForm::MatchType::kPSL;
   return form;
 }
 
@@ -146,8 +148,7 @@ class PasswordGenerationManagerTest : public testing::Test {
 PasswordGenerationManagerTest::PasswordGenerationManagerTest()
     : mock_store_(new testing::StrictMock<MockPasswordStoreInterface>()),
       form_saver_(mock_store_.get()),
-      generation_manager_(&client_) {
-}
+      generation_manager_(&client_) {}
 
 PasswordGenerationManagerTest::~PasswordGenerationManagerTest() {
   mock_store_->ShutdownOnUIThread();
@@ -237,27 +238,7 @@ TEST_F(PasswordGenerationManagerTest,
   ui_form->OnNoInteraction(true);
 }
 
-TEST_F(PasswordGenerationManagerTest,
-       GeneratedPasswordAccepted_UpdateUINope_SuggestionPreviewDisabled) {
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndDisableFeature(
-      password_manager::features::kPasswordGenerationPreviewOnHover);
-
-  MockPasswordManagerDriver driver;
-  EXPECT_CALL(driver, GeneratedPasswordAccepted).Times(0);
-  std::unique_ptr<PasswordFormManagerForUI> ui_form =
-      SetUpOverwritingUI(driver.AsWeakPtr());
-  ASSERT_TRUE(ui_form);
-  EXPECT_CALL(driver, ClearPreviewedForm).Times(0);
-  ui_form->OnNopeUpdateClicked();
-}
-
-TEST_F(PasswordGenerationManagerTest,
-       GeneratedPasswordAccepted_UpdateUINope_SuggestionPreviewEnabled) {
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndEnableFeature(
-      password_manager::features::kPasswordGenerationPreviewOnHover);
-
+TEST_F(PasswordGenerationManagerTest, GeneratedPasswordAccepted_UpdateUINope) {
   MockPasswordManagerDriver driver;
   EXPECT_CALL(driver, GeneratedPasswordAccepted).Times(0);
   std::unique_ptr<PasswordFormManagerForUI> ui_form =
@@ -424,18 +405,22 @@ TEST_F(PasswordGenerationManagerTest, PresaveGeneratedPassword_ThenUpdate) {
   related_password.username_value = u"username";
   related_password.username_element = u"username_field";
   related_password.password_value = u"old password";
+  related_password.match_type = PasswordForm::MatchType::kExact;
 
   PasswordForm related_psl_password = CreateSavedPSL();
   related_psl_password.username_value = u"username";
   related_psl_password.password_value = u"old password";
+  related_psl_password.match_type = PasswordForm::MatchType::kPSL;
 
   PasswordForm unrelated_password = CreateSaved();
   unrelated_password.username_value = u"another username";
   unrelated_password.password_value = u"some password";
+  unrelated_password.match_type = PasswordForm::MatchType::kExact;
 
   PasswordForm unrelated_psl_password = CreateSavedPSL();
   unrelated_psl_password.username_value = u"another username";
   unrelated_psl_password.password_value = u"some password";
+  unrelated_psl_password.match_type = PasswordForm::MatchType::kPSL;
 
   EXPECT_CALL(store(), AddLogin);
   const std::vector<const PasswordForm*> matches = {
@@ -645,6 +630,35 @@ TEST_F(PasswordGenerationManagerTest,
       1);
   histogram_tester.ExpectUniqueSample(
       "PasswordGeneration.EditsInGeneratedPassword.AttributesMask", 1, 1);
+}
+
+// Check that committing a password for the second time results in updating it.
+// This may happen when the user submits the form with empty username and the
+// crediential with no username gets committed and then the dialog with the
+// proposition to add username is displayed. If the user adds a username the
+// credential will be committed for the second time.
+TEST_F(PasswordGenerationManagerTest, CommitGeneratedPassword_Replace) {
+  PasswordForm generated = CreateGenerated();
+  generated.date_created = base::Time::Now();
+  generated.date_password_modified = base::Time::Now();
+  generated.date_last_used = base::Time::Now();
+
+  EXPECT_CALL(store(), AddLogin);
+  manager().PresaveGeneratedPassword(generated, {}, &form_saver());
+
+  EXPECT_CALL(store(), UpdateLoginWithPrimaryKey(
+                           generated, FormHasUniqueKey(generated), _));
+  manager().CommitGeneratedPassword(generated, {}, u"", &form_saver());
+
+  ForwardByMinute();
+  PasswordForm generated_updated = generated;
+  generated_updated.username_value = u"NewUsername";
+  generated_updated.date_created = base::Time::Now();
+  generated_updated.date_password_modified = base::Time::Now();
+  generated_updated.date_last_used = base::Time::Now();
+  EXPECT_CALL(store(), UpdateLoginWithPrimaryKey(
+                           generated_updated, FormHasUniqueKey(generated), _));
+  manager().CommitGeneratedPassword(generated_updated, {}, u"", &form_saver());
 }
 
 }  // namespace

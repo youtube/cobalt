@@ -10,8 +10,10 @@
 #include "base/notreached.h"
 #include "base/strings/string_util.h"
 #include "device/gamepad/public/cpp/gamepads.h"
+#include "device/vr/openxr/openxr_extension_helper.h"
 #include "device/vr/openxr/openxr_util.h"
 #include "device/vr/util/xr_standard_gamepad_builder.h"
+#include "third_party/openxr/src/include/openxr/openxr.h"
 #include "ui/gfx/geometry/decomposed_transform.h"
 #include "ui/gfx/geometry/quaternion.h"
 #include "ui/gfx/geometry/transform.h"
@@ -217,6 +219,7 @@ XrResult OpenXrController::InitializeControllerActions() {
   RETURN_IF_XR_FAILED(CreateActionsForButton(OpenXrButtonType::kButton2));
   RETURN_IF_XR_FAILED(CreateActionsForButton(OpenXrButtonType::kGrasp));
   RETURN_IF_XR_FAILED(CreateActionsForButton(OpenXrButtonType::kShoulder));
+  RETURN_IF_XR_FAILED(CreateActionsForButton(OpenXrButtonType::kMenu));
 
   const std::string type_string = GetStringFromType(type_);
   const std::string name_prefix = type_string + "_controller_";
@@ -597,6 +600,9 @@ XrResult OpenXrController::CreateActionsForButton(
       break;
     case OpenXrButtonType::kShoulder:
       name_prefix += "shoulder_";
+      break;
+    case OpenXrButtonType::kMenu:
+      name_prefix += "menu_";
       break;
   }
 

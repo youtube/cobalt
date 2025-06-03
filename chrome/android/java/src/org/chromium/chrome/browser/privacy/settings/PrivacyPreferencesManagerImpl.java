@@ -9,16 +9,20 @@ import android.content.Context;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 
-import androidx.annotation.VisibleForTesting;
+import androidx.annotation.Nullable;
+
+import org.jni_zero.NativeMethods;
 
 import org.chromium.base.CommandLine;
 import org.chromium.base.ContextUtils;
-import org.chromium.base.ObserverList;
-import org.chromium.base.annotations.NativeMethods;
+import org.chromium.base.ResettersForTesting;
+import org.chromium.base.ThreadUtils;
+import org.chromium.base.shared_preferences.SharedPreferencesManager;
+import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.policy.PolicyServiceFactory;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
-import org.chromium.chrome.browser.preferences.SharedPreferencesManager;
+import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.components.minidump_uploader.util.NetworkPermissionUtil;
 import org.chromium.components.policy.PolicyMap;
 import org.chromium.components.policy.PolicyService;
@@ -32,16 +36,17 @@ public class PrivacyPreferencesManagerImpl implements PrivacyPreferencesManager 
 
     private final Context mContext;
     private final SharedPreferencesManager mPrefs;
-
-    private ObserverList<Observer> mObservers;
     private PolicyService mPolicyService;
     private PolicyService.Observer mPolicyServiceObserver;
+
+    // Supplier for other class to observe. Null until the supplier is requested.
+    private @Nullable ObservableSupplierImpl<Boolean> mCrashUploadPermittedSupplier;
 
     private boolean mNativeInitialized;
 
     PrivacyPreferencesManagerImpl(Context context) {
         mContext = context;
-        mPrefs = SharedPreferencesManager.getInstance();
+        mPrefs = ChromeSharedPreferences.getInstance();
         mNativeInitialized = false;
         // TODO(https://crbug.com/1320040). Clean up deprecated preference migration.
         migrateDeprecatedPreferences();
@@ -54,9 +59,10 @@ public class PrivacyPreferencesManagerImpl implements PrivacyPreferencesManager 
         return sInstance;
     }
 
-    @VisibleForTesting
     public static void setInstanceForTesting(PrivacyPreferencesManagerImpl instance) {
+        var oldValue = sInstance;
         sInstance = instance;
+        ResettersForTesting.register(() -> sInstance = oldValue);
     }
 
     public void onNativeInitialized() {
@@ -130,29 +136,14 @@ public class PrivacyPreferencesManagerImpl implements PrivacyPreferencesManager 
 
     @Override
     public void addObserver(Observer observer) {
-        if (mObservers == null) {
-            mObservers = new ObserverList<>();
-        }
-        mObservers.addObserver(observer);
-        mPrefs.addObserver(key -> {
-            if (key.equals(ChromePreferenceKeys.PRIVACY_METRICS_REPORTING_PERMITTED_BY_USER)
-                    || key.equals(
-                            ChromePreferenceKeys.PRIVACY_METRICS_REPORTING_PERMITTED_BY_POLICY)) {
-                notifyObservers();
-            }
-        });
+        getUsageAndCrashReportingPermittedObservableSupplier().addObserver(
+                observer::onIsUsageAndCrashReportingPermittedChanged);
     }
 
     @Override
     public void removeObserver(Observer observer) {
-        mObservers.removeObserver(observer);
-    }
-
-    private void notifyObservers() {
-        boolean permitted = isUsageAndCrashReportingPermitted();
-        for (var observer : mObservers) {
-            observer.onIsUsageAndCrashReportingPermittedChanged(permitted);
-        }
+        getUsageAndCrashReportingPermittedObservableSupplier().removeObserver(
+                observer::onIsUsageAndCrashReportingPermittedChanged);
     }
 
     @Override
@@ -201,7 +192,8 @@ public class PrivacyPreferencesManagerImpl implements PrivacyPreferencesManager 
 
     @Override
     public boolean isUploadEnabledForTests() {
-        return CommandLine.getInstance().hasSwitch(ChromeSwitches.FORCE_CRASH_DUMP_UPLOAD);
+        CommandLine commandLine = CommandLine.getInstance();
+        return commandLine != null && commandLine.hasSwitch(ChromeSwitches.FORCE_CRASH_DUMP_UPLOAD);
     }
 
     @Override
@@ -218,6 +210,17 @@ public class PrivacyPreferencesManagerImpl implements PrivacyPreferencesManager 
     @Override
     public void setMetricsReportingEnabled(boolean enabled) {
         PrivacyPreferencesManagerImplJni.get().setMetricsReportingEnabled(enabled);
+        getUsageAndCrashReportingPermittedObservableSupplier().set(enabled);
+    }
+
+    @Override
+    public ObservableSupplierImpl<Boolean> getUsageAndCrashReportingPermittedObservableSupplier() {
+        ThreadUtils.assertOnUiThread();
+        if (mCrashUploadPermittedSupplier == null) {
+            mCrashUploadPermittedSupplier = new ObservableSupplierImpl<>();
+            mCrashUploadPermittedSupplier.set(isUsageAndCrashReportingPermitted());
+        }
+        return mCrashUploadPermittedSupplier;
     }
 
     @NativeMethods

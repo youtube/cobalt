@@ -33,7 +33,8 @@ class ScriptResultQueue;
 //  For compatibility with legacy scripts, background page contexts can choose
 //  send results via window.domAutomationController.send(). New code should not
 //  do this.
-// This class is designed for single-use executions.
+// This class is designed for single-use executions and is only meant to be used
+// in tests.
 class BackgroundScriptExecutor {
  public:
   // The manner in which the script will use to send the result.
@@ -137,7 +138,7 @@ class BackgroundScriptExecutor {
   std::unique_ptr<ScriptResultQueue> script_result_queue_;
 
   // The associated Extension.
-  raw_ptr<const Extension, DanglingUntriaged> extension_ = nullptr;
+  raw_ptr<const Extension, FlakyDanglingUntriaged> extension_ = nullptr;
 
   // The script to inject; cached mostly for logging purposes.
   std::string script_;

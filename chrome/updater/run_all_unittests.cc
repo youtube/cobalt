@@ -18,7 +18,7 @@
 #include "chrome/updater/test/integration_test_commands.h"
 #include "chrome/updater/test_scope.h"
 #include "chrome/updater/updater_scope.h"
-#include "chrome/updater/util/unittest_util.h"
+#include "chrome/updater/util/unit_test_util.h"
 
 #if BUILDFLAG(IS_WIN)
 #include <shlobj.h>
@@ -166,13 +166,12 @@ int main(int argc, char** argv) {
 #if BUILDFLAG(IS_WIN)
   updater::test::MaybeExcludePathsFromWindowsDefender();
 
-  VLOG(0) << "Process priority: " << base::Process::Current().GetPriority();
+  VLOG(0) << "Process priority: " << base::Process::Current().GetOSPriority();
   VLOG(0) << updater::GetUACState();
 
-  // TODO(crbug.com/1245429): remove when the bug is fixed.
-  // Typically, the test suite runner expects the swarming task to run with
-  // normal priority but for some reason, on the updater bots with UAC on, the
-  // swarming task runs with a priority below normal.
+  // The test suite runner expects the swarming task to run with normal priority
+  // but for some reason, on the updater bots with UAC on, the swarming task
+  // runs with a priority below normal (see crbug.com/1245429).
   FixExecutionPriorities();
 
   auto scoped_com_initializer =
@@ -195,7 +194,7 @@ int main(int argc, char** argv) {
 
   // Use the {ISOLATED_OUTDIR} as a log destination for the test suite.
   base::TestSuite test_suite(argc, argv);
-  updater::test::InitLoggingForUnitTest(base::FilePath([]() {
+  updater::test::InitLoggingForUnitTest(base::FilePath([] {
     switch (updater::GetTestScope()) {
       case updater::UpdaterScope::kSystem:
         return FILE_PATH_LITERAL("updater_test_system.log");
@@ -205,7 +204,7 @@ int main(int argc, char** argv) {
   }()));
   chrome::RegisterPathProvider();
   return base::LaunchUnitTestsWithOptions(
-      argc, argv, 1, 10, true, base::BindRepeating([]() {
+      argc, argv, 1, 10, true, base::BindRepeating([] {
         LOG(ERROR) << "A test timeout has occured in "
                    << updater::test::GetTestName();
         updater::test::CreateIntegrationTestCommands()->PrintLog();

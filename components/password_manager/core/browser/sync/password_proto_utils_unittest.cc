@@ -86,6 +86,13 @@ sync_pb::PasswordSpecificsData CreateSpecificsData(
     // non-exists.
     password_specifics.mutable_notes();
   }
+  password_specifics.set_sender_email("sender@example.com");
+  password_specifics.set_sender_name("Sender Name");
+  password_specifics.set_date_received_windows_epoch_micros(
+      kIssuesCreationTime);
+  password_specifics.set_sharing_notification_displayed(true);
+  password_specifics.set_sender_profile_image_url(
+      "http://www.sender.com/profile_image");
   return password_specifics;
 }
 
@@ -99,6 +106,7 @@ sync_pb::PasswordSpecificsMetadata CreateSpecificsMetadata(
       password_specifics_data.date_last_used());
   *password_specifics_metadata.mutable_password_issues() =
       password_specifics_data.password_issues();
+  password_specifics_metadata.set_type(password_specifics_data.type());
   return password_specifics_metadata;
 }
 

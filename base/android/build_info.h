@@ -87,10 +87,21 @@ class BASE_EXPORT BuildInfo {
     return gms_version_code_;
   }
 
+  // The package name of the host app which has loaded WebView, retrieved from
+  // the application context. In the context of the SDK Runtime, the package
+  // name of the app that owns this particular instance of the SDK Runtime will
+  // also be included. e.g.
+  // com.google.android.sdksandbox:com:com.example.myappwithads
   const char* host_package_name() const { return host_package_name_; }
 
+  // The application name (e.g. "Chrome"). For WebView, this is name of the
+  // embedding app. In the context of the SDK Runtime, this is the name of the
+  // app that owns this particular instance of the SDK Runtime.
   const char* host_version_code() const { return host_version_code_; }
 
+  // By default: same as versionCode. For WebView: versionCode of the embedding
+  // app. In the context of the SDK Runtime, this is the versionCode of the app
+  // that owns this particular instance of the SDK Runtime.
   const char* host_package_label() const { return host_package_label_; }
 
   const char* package_version_code() const {
@@ -104,9 +115,6 @@ class BASE_EXPORT BuildInfo {
   const char* package_name() const {
     return package_name_;
   }
-
-  // Will be empty string if no app id is assigned.
-  const char* firebase_app_id() const { return firebase_app_id_; }
 
   const char* custom_themes() const { return custom_themes_; }
 
@@ -152,6 +160,9 @@ class BASE_EXPORT BuildInfo {
 
   const char* codename() const { return codename_; }
 
+  // Available only on Android T+.
+  int32_t vulkan_deqp_level() const { return vulkan_deqp_level_; }
+
  private:
   friend struct BuildInfoSingletonTraits;
 
@@ -179,7 +190,6 @@ class BASE_EXPORT BuildInfo {
   const char* const gms_version_code_;
   const char* const installer_package_name_;
   const char* const abi_name_;
-  const char* const firebase_app_id_;
   const char* const custom_themes_;
   const char* const resources_version_;
   // Not needed by breakpad.
@@ -193,6 +203,7 @@ class BASE_EXPORT BuildInfo {
   const bool is_at_least_u_;
   const bool targets_at_least_u_;
   const char* const codename_;
+  const int32_t vulkan_deqp_level_;
 };
 
 }  // namespace android

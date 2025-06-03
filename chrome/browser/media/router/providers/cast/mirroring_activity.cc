@@ -6,7 +6,10 @@
 
 #include <stdint.h>
 
+#include <cstddef>
+#include <cstdint>
 #include <memory>
+#include <string>
 #include <utility>
 
 #include "base/command_line.h"
@@ -17,18 +20,24 @@
 #include "base/metrics/user_metrics.h"
 #include "base/metrics/user_metrics_action.h"
 #include "base/strings/strcat.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/string_piece.h"
+#include "base/strings/string_tokenizer.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/bind_post_task.h"
 #include "base/task/sequenced_task_runner.h"
+#include "base/time/time.h"
 #include "base/values.h"
 #include "chrome/browser/media/cast_mirroring_service_host_factory.h"
 #include "chrome/browser/media/router/data_decoder_util.h"
+#include "chrome/browser/media/router/discovery/access_code/access_code_cast_feature.h"
 #include "chrome/browser/media/router/media_router_feature.h"
 #include "chrome/browser/media/router/providers/cast/cast_activity_manager.h"
 #include "chrome/browser/media/router/providers/cast/cast_internal_message_util.h"
+#include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/grit/generated_resources.h"
+#include "components/access_code_cast/common/access_code_cast_metrics.h"
 #include "components/media_router/browser/media_router_debugger.h"
 #include "components/media_router/browser/mirroring_to_flinging_switcher.h"
 #include "components/media_router/common/discovery/media_sink_internal.h"
@@ -40,7 +49,9 @@
 #include "components/mirroring/mojom/session_parameters.mojom.h"
 #include "content/public/browser/browser_thread.h"
 #include "media/base/media_switches.h"
+#include "media/cast/cast_config.h"
 #include "media/cast/constants.h"
+#include "media/cast/logging/stats_event_subscriber.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "net/base/ip_address.h"
@@ -85,6 +96,25 @@ constexpr char kHistogramStartSuccessAccessCodeManualEntry[] =
     "MediaRouter.CastStreaming.Start.Success.AccessCodeManualEntry";
 constexpr char kHistogramStartSuccessAccessCodeRememberedDevice[] =
     "MediaRouter.CastStreaming.Start.Success.AccessCodeRememberedDevice";
+
+const char kHistogramTypeAudio[] = "Audio";
+const char kHistogramTypeVideo[] = "Video";
+constexpr char kHistogramTransmissionKbps[] =
+    "CastStreaming.Sender.%s.TransmissionRate";
+constexpr char kHistogramAverageEncodeTime[] =
+    "CastStreaming.Sender.%s.AverageEncodeTime";
+constexpr char kHistogramAverageCaptureLatency[] =
+    "CastStreaming.Sender.%s.AverageCaptureLatency";
+constexpr char kHistogramAverageEndToEndLatency[] =
+    "CastStreaming.Sender.%s.AverageEndToEndLatency";
+constexpr char kHistogramAverageNetworkLatency[] =
+    "CastStreaming.Sender.%s.AverageNetworkLatency";
+constexpr char kHistogramRetransmittedPacketsPercentage[] =
+    "CastStreaming.Sender.%s.RetransmittedPacketsPercentage";
+constexpr char kHistogramExceededPlayoutDelayPacketsPercentage[] =
+    "CastStreaming.Sender.%s.ExceededPlayoutDelayPacketsPercentage";
+constexpr char kHistogramLateFramesPercentage[] =
+    "CastStreaming.Sender.%s.LateFramesPercentage";
 
 constexpr char kLoggerComponent[] = "MirroringService";
 
@@ -152,6 +182,172 @@ bool ShouldForceLetterboxing(base::StringPiece model_name) {
   return model_name.find("Nest Hub") != base::StringPiece::npos;
 }
 
+absl::optional<int> GetExceededPlayoutDelayPacketPercent(
+    const base::Value::List* network_latency_ms_histo,
+    int64_t target_playout_delay) {
+  if (!network_latency_ms_histo) {
+    return absl::nullopt;
+  }
+
+  static constexpr char kOverflowBucketPrefix[] = ">=";
+  static constexpr char kBucketDelimiter[] = "-";
+
+  int all_count = 0;
+  int exceeded_count = 0;
+  for (const base::Value& entry : *network_latency_ms_histo) {
+    if (!entry.is_dict() || entry.GetDict().empty()) {
+      continue;
+    }
+    const auto key_value_pair = entry.GetDict().cbegin();
+    const std::string& key = key_value_pair->first;
+    int count = key_value_pair->second.GetIfDouble().value_or(0);
+    if (count == 0) {
+      continue;
+    }
+    all_count += count;
+
+    std::string min_str = "";
+    if (key.starts_with(kOverflowBucketPrefix)) {
+      min_str = key.substr(2, std::string::npos);
+    } else {
+      base::StringTokenizer tokenizer(key, kBucketDelimiter);
+      if (tokenizer.GetNext()) {
+        min_str = tokenizer.token();
+      }
+    }
+    int min = 0;
+    if (base::StringToInt(min_str, &min) && min > target_playout_delay) {
+      exceeded_count += count;
+    }
+  }
+  if (all_count > 0) {
+    return exceeded_count * 100 / all_count;
+  }
+  return absl::nullopt;
+}
+
+absl::optional<double> LookupStat(
+    const base::Value::Dict& mirroring_stats,
+    media::cast::StatsEventSubscriber::CastStat cast_stat) {
+  const std::string key =
+      media::cast::StatsEventSubscriber::CastStatToString(cast_stat);
+  return mirroring_stats.FindDouble(key);
+}
+
+void MaybeRecordLatencyHistogram(const char* fmt,
+                                 const char* streaming_type,
+                                 absl::optional<double> value) {
+  if (value) {
+    const std::string name =
+        base::StringPrintfNonConstexpr(fmt, streaming_type);
+    base::UmaHistogramTimes(name, base::Milliseconds(*value));
+  }
+}
+
+void MaybeRecordMemoryHistogram(const char* fmt,
+                                const char* streaming_type,
+                                absl::optional<double> value) {
+  if (value) {
+    const std::string name =
+        base::StringPrintfNonConstexpr(fmt, streaming_type);
+    base::UmaHistogramMemoryKB(name, *value);
+  }
+}
+
+void RecordCastStreamingSenderUma(const base::Value::Dict& all_mirroring_stats,
+                                  base::StringPiece stats_dict_key,
+                                  int64_t target_playout_delay) {
+  const base::Value::Dict* mirroring_stats =
+      all_mirroring_stats.FindDict(stats_dict_key);
+  if (!mirroring_stats) {
+    return;
+  }
+  const char* streaming_type =
+      stats_dict_key == media::cast::StatsEventSubscriber::kAudioStatsDictKey
+          ? kHistogramTypeAudio
+          : kHistogramTypeVideo;
+
+  const absl::optional<double> transmission_kbps = LookupStat(
+      *mirroring_stats, media::cast::StatsEventSubscriber::TRANSMISSION_KBPS);
+  MaybeRecordMemoryHistogram(kHistogramTransmissionKbps, streaming_type,
+                             transmission_kbps);
+
+  const absl::optional<double> avg_encode_time_ms = LookupStat(
+      *mirroring_stats, media::cast::StatsEventSubscriber::AVG_ENCODE_TIME_MS);
+  MaybeRecordLatencyHistogram(kHistogramAverageEncodeTime, streaming_type,
+                              avg_encode_time_ms);
+
+  const absl::optional<double> avg_capture_latency_ms =
+      LookupStat(*mirroring_stats,
+                 media::cast::StatsEventSubscriber::AVG_CAPTURE_LATENCY_MS);
+  MaybeRecordLatencyHistogram(kHistogramAverageCaptureLatency, streaming_type,
+                              avg_capture_latency_ms);
+
+  const absl::optional<double> avg_end_to_end_latency_ms = LookupStat(
+      *mirroring_stats, media::cast::StatsEventSubscriber::AVG_E2E_LATENCY_MS);
+  MaybeRecordLatencyHistogram(kHistogramAverageEndToEndLatency, streaming_type,
+                              avg_end_to_end_latency_ms);
+
+  const absl::optional<double> avg_network_latency_ms =
+      LookupStat(*mirroring_stats,
+                 media::cast::StatsEventSubscriber::AVG_NETWORK_LATENCY_MS);
+  MaybeRecordLatencyHistogram(kHistogramAverageNetworkLatency, streaming_type,
+                              avg_network_latency_ms);
+
+  const std::string num_packets_sent_key =
+      media::cast::StatsEventSubscriber::CastStatToString(
+          media::cast::StatsEventSubscriber::NUM_PACKETS_SENT);
+  const size_t num_packets_sent =
+      mirroring_stats->FindDouble(num_packets_sent_key).value_or(0);
+  if (num_packets_sent > 0) {
+    const std::string num_packets_retransmitted_key =
+        media::cast::StatsEventSubscriber::CastStatToString(
+            media::cast::StatsEventSubscriber::NUM_PACKETS_RETRANSMITTED);
+    const size_t num_packets_retransmitted =
+        mirroring_stats->FindDouble(num_packets_retransmitted_key).value_or(0);
+    const std::string retransmit_packets_percent_histogram_name =
+        base::StringPrintf(kHistogramRetransmittedPacketsPercentage,
+                           streaming_type);
+    base::UmaHistogramPercentage(
+        retransmit_packets_percent_histogram_name,
+        num_packets_retransmitted * 100 / num_packets_sent);
+  }
+
+  const std::string network_latency_ms_histo_key =
+      media::cast::StatsEventSubscriber::CastStatToString(
+          media::cast::StatsEventSubscriber::NETWORK_LATENCY_MS_HISTO);
+  const base::Value::List* network_latency_ms_histo =
+      mirroring_stats->FindList(network_latency_ms_histo_key);
+  absl::optional<int> exceeded_playout_percent =
+      GetExceededPlayoutDelayPacketPercent(network_latency_ms_histo,
+                                           target_playout_delay);
+  if (exceeded_playout_percent.has_value()) {
+    const std::string exceeded_playout_delay_packets_percent_histogram_name =
+        base::StringPrintf(kHistogramExceededPlayoutDelayPacketsPercentage,
+                           streaming_type);
+    base::UmaHistogramPercentage(
+        exceeded_playout_delay_packets_percent_histogram_name,
+        exceeded_playout_percent.value());
+  }
+
+  const double num_frames_captured =
+      LookupStat(*mirroring_stats,
+                 media::cast::StatsEventSubscriber::NUM_FRAMES_CAPTURED)
+          .value_or(0.0);
+  if (num_frames_captured) {
+    const double num_frames_late =
+        LookupStat(*mirroring_stats,
+                   media::cast::StatsEventSubscriber::NUM_FRAMES_LATE)
+            .value_or(-1.0);
+    if (num_frames_late >= 0) {
+      const std::string late_frames_percent_histogram_name =
+          base::StringPrintf(kHistogramLateFramesPercentage, streaming_type);
+      base::UmaHistogramPercentage(late_frames_percent_histogram_name,
+                                   num_frames_late * 100 / num_frames_captured);
+    }
+  }
+}
+
 }  // namespace
 
 MirroringActivity::MirroringActivity(
@@ -181,8 +377,41 @@ MirroringActivity::~MirroringActivity() {
     return;
   }
 
+  // Record mirroring pause metrics.
+  if (mirroring_pause_timestamp_) {  // The session is ending while paused.
+    AccessCodeCastMetrics::RecordMirroringPauseDuration(
+        base::Time::Now() - mirroring_pause_timestamp_.value());
+  }
+  // We can only get a profile on the UI thread, so we must post a task to check
+  // if we should log certain metrics.
+  content::GetUIThreadTaskRunner({})->PostTask(
+      FROM_HERE,
+      base::BindOnce(
+          [](int pause_count) {
+            // Don't record pause count if the cast session cannot be paused.
+            if (pause_count > 0 ||
+                media_router::IsAccessCodeCastFreezeUiEnabled(
+                    ProfileManager::GetLastUsedProfile())) {
+              AccessCodeCastMetrics::RecordMirroringPauseCount(pause_count);
+            }
+          },
+          mirroring_pause_count_));
+
   auto cast_duration = base::Time::Now() - *did_start_mirroring_timestamp_;
   base::UmaHistogramLongTimes(kHistogramSessionLength, cast_duration);
+
+  const int64_t target_playout_delay_ms =
+      target_playout_delay_.has_value()
+          ? target_playout_delay_->InMilliseconds()
+          : media::cast::kDefaultTargetPlayoutDelay.InMilliseconds();
+  RecordCastStreamingSenderUma(
+      most_recent_mirroring_stats_,
+      media::cast::StatsEventSubscriber::kAudioStatsDictKey,
+      target_playout_delay_ms);
+  RecordCastStreamingSenderUma(
+      most_recent_mirroring_stats_,
+      media::cast::StatsEventSubscriber::kVideoStatsDictKey,
+      target_playout_delay_ms);
 
   if (!mirroring_type_) {
     // The mirroring activity should always be set by now, but check anyway
@@ -359,6 +588,12 @@ void MirroringActivity::OnSourceChanged() {
   source_changed_callback_.Run(frame_tree_node_id_, *frame_tree_node_id);
   frame_tree_node_id_ = *frame_tree_node_id;
 
+  // The source changed, which means that a new capturer was created that is
+  // now sending frames. Ensure the state is now PLAYING.
+  media_status_->play_state = mojom::MediaStatus::PlayState::PLAYING;
+  OnMirroringResumed();
+  NotifyMediaStatusObservers();
+
   content::GetUIThreadTaskRunner({})->PostTask(
       FROM_HERE,
       base::BindOnce(&SwitchToFlingingIfPossible, frame_tree_node_id_));
@@ -369,7 +604,8 @@ void MirroringActivity::OnRemotingStateChanged(bool is_remoting) {
   // Transitions to/from remoting restart the capturer. Set the state to
   // playing.
   media_status_->play_state = mojom::MediaStatus::PlayState::PLAYING;
-  NotifyMediaStatusObserver();
+  OnMirroringResumed();
+  NotifyMediaStatusObservers();
 }
 
 void MirroringActivity::OnMessage(mirroring::mojom::CastMessagePtr message) {
@@ -462,10 +698,8 @@ void MirroringActivity::CreateMediaController(
     mojo::PendingReceiver<mojom::MediaController> media_controller,
     mojo::PendingRemote<mojom::MediaStatusObserver> observer) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(io_sequence_checker_);
-  media_controller_receiver_.reset();
-  media_controller_receiver_.Bind(std::move(media_controller));
-  media_status_observer_.reset();
-  media_status_observer_.Bind(std::move(observer));
+  media_controller_receivers_.Add(this, std::move(media_controller));
+  media_status_observers_.Add(std::move(observer));
 }
 
 std::string MirroringActivity::GetRouteDescription(
@@ -490,7 +724,15 @@ void MirroringActivity::HandleParseJsonResult(
     const std::string& route_id,
     data_decoder::DataDecoder::ValueOrError result) {
   CastSession* session = GetSession();
-  DCHECK(session);
+  if (!session) {
+    // TODO(crbug.com/1457011): If we're reaching here, determine why.
+    logger_->LogError(media_router::mojom::LogCategory::kMirroring,
+                      kLoggerComponent,
+                      base::StrCat({"Failed to retrieve the session."}),
+                      route().media_sink_id(), route().media_source().id(),
+                      route().presentation_id());
+    return;
+  }
 
   if (!result.has_value() || !result.value().is_dict()) {
     // TODO(crbug.com/905002): Record UMA metric for parse result.
@@ -570,6 +812,11 @@ void MirroringActivity::StartSession(const std::string& destination_id,
   mojo::PendingRemote<mirroring::mojom::CastMessageChannel> channel_remote;
   channel_receiver_.Bind(channel_remote.InitWithNewPipeAndPassReceiver());
 
+  // If the target playout delay has not yet been set (from site-initiated
+  // mirroring request) then try to set it from a feature or commandline.
+  target_playout_delay_ = cast_source->target_playout_delay().has_value()
+                              ? cast_source->target_playout_delay()
+                              : GetCastMirroringPlayoutDelay();
   should_fetch_stats_on_start_ = enable_rtcp_reporting;
 
   // If this fails, it's probably because CreateMojoBindings() hasn't been
@@ -582,8 +829,7 @@ void MirroringActivity::StartSession(const std::string& destination_id,
           SessionParameters::New(
               session_type, cast_data_.ip_endpoint.address(),
               cast_data_.model_name, sink_.sink().name(), destination_id,
-              message_handler_->source_id(),
-              cast_source->target_playout_delay(),
+              message_handler_->source_id(), target_playout_delay_,
               route().media_source().IsRemotePlaybackSource(),
               ShouldForceLetterboxing(cast_data_.model_name),
               enable_rtcp_reporting),
@@ -677,6 +923,9 @@ void MirroringActivity::FetchMirroringStats() {
 void MirroringActivity::OnMirroringStats(base::Value json_stats) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(io_sequence_checker_);
   debugger_->OnMirroringStats(json_stats.Clone());
+  if (json_stats.is_dict()) {
+    most_recent_mirroring_stats_ = std::move(json_stats.GetDict());
+  }
 }
 
 void MirroringActivity::Play() {
@@ -705,13 +954,37 @@ void MirroringActivity::Pause() {
 
 void MirroringActivity::SetPlayState(mojom::MediaStatus::PlayState play_state) {
   media_status_->play_state = play_state;
-  NotifyMediaStatusObserver();
+  if (play_state == mojom::MediaStatus::PlayState::PLAYING) {
+    OnMirroringResumed();
+  } else if (play_state == mojom::MediaStatus::PlayState::PAUSED) {
+    OnMirroringPaused();
+  }
+  NotifyMediaStatusObservers();
 }
 
-void MirroringActivity::NotifyMediaStatusObserver() {
-  if (media_status_observer_) {
-    media_status_observer_->OnMediaStatusUpdated(media_status_.Clone());
+void MirroringActivity::NotifyMediaStatusObservers() {
+  for (const mojo::Remote<mojom::MediaStatusObserver>& observer :
+       media_status_observers_) {
+    observer->OnMediaStatusUpdated(media_status_.Clone());
   }
+}
+
+void MirroringActivity::OnMirroringPaused() {
+  // Do nothing if we are already paused.
+  if (mirroring_pause_timestamp_) {
+    return;
+  }
+  mirroring_pause_timestamp_ = base::Time::Now();
+  mirroring_pause_count_++;
+}
+
+void MirroringActivity::OnMirroringResumed() {
+  if (!mirroring_pause_timestamp_) {
+    return;
+  }
+  AccessCodeCastMetrics::RecordMirroringPauseDuration(
+      base::Time::Now() - mirroring_pause_timestamp_.value());
+  mirroring_pause_timestamp_.reset();
 }
 
 }  // namespace media_router

@@ -22,7 +22,7 @@
         --cr-dialog-title-slot-padding-start: 32px;
         --cr-dialog-title-slot-padding-top: 32px;
         --cr-primary-text-color: var(--cros-sys-on_surface);
-        font-weight: 500;
+        font: var(--cros-display-7-font);
       }
 
       :host-context([theme='legacy']) [slot='button-container']  {
@@ -118,6 +118,7 @@
         --cr-input-padding-end: 16px;
         --cr-input-padding-start: 16px;
         --cr-input-placeholder-color: var(--cros-sys-secondary);
+        font: var(--cros-body-2-font);
       }
 
       .md-select,
@@ -154,6 +155,10 @@
       :host-context([theme='refresh23']):host-context(.focus-outline-visible)
           #saveCredentialsCheckbox:focus-within {
         --cr-checkbox-ripple-ring: 2px solid var(--cros-sys-focus_ring);
+      }
+
+      #saveCredentialsCheckboxJelly {
+        --cros-checkbox-reserve-inline-start: 0px;
       }
 
       :host-context([theme='legacy']) cr-button {
@@ -206,6 +211,7 @@
         --text-color: var(--cros-sys-on_primary_container);
         border: none;
         border-radius: 18px;
+        font: var(--cros-button-2-font);
         position: relative;
       }
 
@@ -325,9 +331,18 @@
               label="[[i18n('smbSharePassword')]]" value="{{password_}}"
               invalid="[[shouldShowCredentialError_(currentMountError_)]]">
           </cr-input>
-          <cr-checkbox id="saveCredentialsCheckbox" checked>
-            [[i18n('smbShareSaveCredentials')]]
-          </cr-checkbox>
+          <template is="dom-if" if="[[isCrosComponentsEnabled_()]]">
+            <label>
+              <cros-checkbox id="saveCredentialsCheckboxJelly" checked>
+              </cros-checkbox>
+              [[i18n('smbShareSaveCredentials')]]
+            </label>
+          </template>
+          <template is="dom-if" if="[[!isCrosComponentsEnabled_()]]">
+            <cr-checkbox id="saveCredentialsCheckbox" checked>
+              [[i18n('smbShareSaveCredentials')]]
+            </cr-checkbox>
+          </template>
         </div>
       </div>
       <div slot="button-container">

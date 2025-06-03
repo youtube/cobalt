@@ -151,7 +151,6 @@ void CmdBufFuzz::GfxInit() {
   wire_descriptor_->serializer = dawn_wire_serializer_.get();
   wire_server_ = std::make_unique<dawn::wire::WireServer>(*wire_descriptor_);
   dawn_instance_ = std::make_unique<dawn::native::Instance>();
-  dawn_instance_->DiscoverDefaultAdapters();
   wire_server_->InjectInstance(dawn_instance_->Get(), 1, 0);
 
   VLOG(3) << "Populate data structure grab bag";
@@ -248,22 +247,13 @@ void CmdBufFuzz::RunCommandBuffer(fuzzing::CmdBufSession session) {
 
           case fuzzing::InProcessCommandBufferOp::kWaitForTokenInRange: {
             VLOG(3) << "kWaitForTokenInRange";
-            // TODO(bookholt): random start/end values is probably unwise
-            break;
-            command_buffer_->WaitForTokenInRange(
-                op.waitfortokeninrange().start(),
-                op.waitfortokeninrange().end());
+            // It'd be nice to fuzz this, but it's currently too slow.
             break;
           }
 
           case fuzzing::InProcessCommandBufferOp::kWaitForGetOffsetInRange: {
             VLOG(3) << "kWaitForGetOffsetInRange";
-            // TODO(bookholt): random count/start/end values is probably unwise
-            break;
-            command_buffer_->WaitForGetOffsetInRange(
-                op.waitforgetoffsetinrange().set_get_buffer_count(),
-                op.waitforgetoffsetinrange().start(),
-                op.waitforgetoffsetinrange().end());
+            // It'd be nice to fuzz this, but it's currently too slow.
             break;
           }
 

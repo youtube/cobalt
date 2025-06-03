@@ -28,7 +28,6 @@
 #include "base/files/scoped_temp_dir.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
-#include "base/guid.h"
 #include "base/logging.h"
 #include "base/path_service.h"
 #include "base/rand_util.h"
@@ -45,6 +44,7 @@
 #include "base/threading/platform_thread.h"
 #include "base/threading/thread.h"
 #include "base/time/time.h"
+#include "base/uuid.h"
 #include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/multiprocess_func_list.h"
@@ -56,11 +56,9 @@
 #include <tchar.h>
 #include <windows.h>
 #include <winioctl.h>
-#include "base/features.h"
 #include "base/scoped_native_library.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/test/gtest_util.h"
-#include "base/test/scoped_feature_list.h"
 #include "base/win/scoped_handle.h"
 #include "base/win/win_util.h"
 #endif
@@ -659,7 +657,7 @@ TEST_F(FileUtilTest, DevicePathToDriveLetter) {
   // Get a drive letter.
   std::wstring real_drive_letter = AsWString(
       ToUpperASCII(AsStringPiece16(temp_dir_.GetPath().value().substr(0, 2))));
-  if (!isalpha(real_drive_letter[0]) || ':' != real_drive_letter[1]) {
+  if (!IsAsciiAlpha(real_drive_letter[0]) || ':' != real_drive_letter[1]) {
     LOG(ERROR) << "Can't get a drive letter to test with.";
     return;
   }
@@ -3014,7 +3012,7 @@ TEST_F(FileUtilTest, GetSecureSystemTemp) {
   FilePath secure_system_temp;
   ASSERT_EQ(GetSecureSystemTemp(&secure_system_temp), !!::IsUserAnAdmin());
   if (!::IsUserAnAdmin()) {
-    return;
+    GTEST_SKIP() << "This test must be run by an admin user";
   }
 
   FilePath dir_windows;
@@ -3031,17 +3029,26 @@ TEST_F(FileUtilTest, CreateNewTempDirectoryTest) {
   FilePath temp_dir;
   ASSERT_TRUE(CreateNewTempDirectory(FilePath::StringType(), &temp_dir));
   EXPECT_TRUE(PathExists(temp_dir));
+  EXPECT_TRUE(DeleteFile(temp_dir));
+}
 
 #if BUILDFLAG(IS_WIN)
+TEST_F(FileUtilTest, TempDirectoryParentTest) {
+  if (!::IsUserAnAdmin()) {
+    GTEST_SKIP() << "This test must be run by an admin user";
+  }
+  FilePath temp_dir;
+  ASSERT_TRUE(CreateNewTempDirectory(FilePath::StringType(), &temp_dir));
+  EXPECT_TRUE(PathExists(temp_dir));
+
   FilePath expected_parent_dir;
   if (!GetSecureSystemTemp(&expected_parent_dir)) {
     EXPECT_TRUE(PathService::Get(DIR_TEMP, &expected_parent_dir));
   }
   EXPECT_TRUE(expected_parent_dir.IsParent(temp_dir));
-#endif  // BUILDFLAG(IS_WIN)
-
   EXPECT_TRUE(DeleteFile(temp_dir));
 }
+#endif  // BUILDFLAG(IS_WIN)
 
 TEST_F(FileUtilTest, CreateNewTemporaryDirInDirTest) {
   FilePath new_dir;
@@ -4585,7 +4592,7 @@ TEST(FileUtilMultiThreadedTest, MultiThreadedTempFiles) {
     ScopedFILE output_file(CreateAndOpenTemporaryStream(&output_filename));
     EXPECT_TRUE(output_file);
 
-    const std::string content = GenerateGUID();
+    const std::string content = Uuid::GenerateRandomV4().AsLowercaseString();
 #if BUILDFLAG(IS_WIN)
     HANDLE handle =
         reinterpret_cast<HANDLE>(_get_osfhandle(_fileno(output_file.get())));

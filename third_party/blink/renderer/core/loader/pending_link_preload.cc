@@ -40,7 +40,7 @@ class PendingLinkPreload::FinishObserver final : public ResourceFinishObserver {
     return "PendingLinkPreload::FinishObserver";
   }
 
-  Resource* GetResource() { return resource_; }
+  Resource* GetResource() { return resource_.Get(); }
   void Dispose() {
     if (!resource_)
       return;
@@ -110,7 +110,7 @@ void PendingLinkPreload::Dispose() {
   document_->RemovePendingLinkHeaderPreloadIfNeeded(*this);
 }
 
-Resource* PendingLinkPreload::GetResourceForTesting() {
+Resource* PendingLinkPreload::GetResourceForTesting() const {
   return finish_observer_ ? finish_observer_->GetResource() : nullptr;
 }
 

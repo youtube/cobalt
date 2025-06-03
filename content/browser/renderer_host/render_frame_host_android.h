@@ -61,6 +61,14 @@ class RenderFrameHostAndroid : public base::SupportsUserData::Data {
   void NotifyUserActivation(JNIEnv* env,
                             const base::android::JavaParamRef<jobject>&);
 
+  void NotifyWebAuthnAssertionRequestSucceeded(
+      JNIEnv* env,
+      const base::android::JavaParamRef<jobject>&);
+
+  jboolean IsCloseWatcherActive(
+      JNIEnv* env,
+      const base::android::JavaParamRef<jobject>&) const;
+
   jboolean SignalCloseWatcherIfActive(
       JNIEnv* env,
       const base::android::JavaParamRef<jobject>&) const;
@@ -102,6 +110,12 @@ class RenderFrameHostAndroid : public base::SupportsUserData::Data {
 
   void InsertVisualStateCallback(
       JNIEnv* env,
+      const base::android::JavaParamRef<jobject>& jcallback);
+
+  void ExecuteJavaScriptInIsolatedWorld(
+      JNIEnv* env,
+      const base::android::JavaParamRef<jstring>& jstring,
+      jint jworldId,
       const base::android::JavaParamRef<jobject>& jcallback);
 
   RenderFrameHostImpl* render_frame_host() const { return render_frame_host_; }

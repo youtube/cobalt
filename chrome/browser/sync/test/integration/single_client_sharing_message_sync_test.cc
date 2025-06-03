@@ -15,7 +15,7 @@
 #include "chrome/browser/sync/test/integration/single_client_status_change_checker.h"
 #include "chrome/browser/sync/test/integration/sync_service_impl_harness.h"
 #include "chrome/browser/sync/test/integration/sync_test.h"
-#include "components/sync/driver/sync_token_status.h"
+#include "components/sync/service/sync_token_status.h"
 #include "components/sync/test/fake_server_http_post_provider.h"
 #include "content/public/test/browser_test.h"
 
@@ -270,7 +270,7 @@ IN_PROC_BROWSER_TEST_F(SingleClientSharingMessageSyncTest,
       callback_checker.GetCommitFinishedCallback());
 
   GetClient(0)->StopSyncServiceAndClearData();
-  GetClient(0)->EnableSyncFeature();
+  ASSERT_TRUE(GetClient(0)->EnableSyncFeature());
 
   EXPECT_TRUE(callback_checker.Wait());
   EXPECT_TRUE(GetFakeServer()

@@ -15,8 +15,8 @@
 #include "testing/gmock/include/gmock/gmock.h"
 
 namespace autofill {
-class AutofillEntry;
-class AutofillKey;
+class AutocompleteEntry;
+class AutocompleteKey;
 class AutofillProfile;
 class AutofillType;
 class CreditCard;
@@ -38,26 +38,21 @@ enum ProfileType {
 
 // Adds the form fields in |keys| to the WebDataService of sync profile
 // |profile|.
-void AddKeys(int profile, const std::set<autofill::AutofillKey>& keys);
+void AddKeys(int profile, const std::set<autofill::AutocompleteKey>& keys);
 
 // Removes the form field in |key| from the WebDataService of sync profile
 // |profile|.
-void RemoveKey(int profile, const autofill::AutofillKey& key);
+void RemoveKey(int profile, const autofill::AutocompleteKey& key);
 
 // Removes all of the keys from the WebDataService of sync profile |profile|.
 void RemoveKeys(int profile);
 
 // Gets all the form fields in the WebDataService of sync profile |profile|.
-[[nodiscard]] std::set<autofill::AutofillEntry> GetAllKeys(int profile);
+[[nodiscard]] std::set<autofill::AutocompleteEntry> GetAllKeys(int profile);
 
 // Compares the form fields in the WebDataServices of sync profiles
 // |profile_a| and |profile_b|. Returns true if they match.
 [[nodiscard]] bool KeysMatch(int profile_a, int profile_b);
-
-// Replaces the Autofill profiles in sync profile |profile| with
-// |autofill_profiles|.
-void SetProfiles(int profile,
-                 std::vector<autofill::AutofillProfile>* autofill_profiles);
 
 // Replaces the CreditCard profiles in sync profile |profile| with
 // |credit_cards|.
@@ -104,10 +99,10 @@ autofill::AutofillProfile CreateUniqueAutofillProfile();
 
 }  // namespace autofill_helper
 
-// Checker to block until autofill keys match on both profiles.
-class AutofillKeysChecker : public MultiClientStatusChangeChecker {
+// Checker to block until autocomplete keys match on both profiles.
+class AutocompleteKeysChecker : public MultiClientStatusChangeChecker {
  public:
-  AutofillKeysChecker(int profile_a, int profile_b);
+  AutocompleteKeysChecker(int profile_a, int profile_b);
 
   // StatusChangeChecker implementation.
   bool IsExitConditionSatisfied(std::ostream* os) override;
@@ -137,16 +132,6 @@ class AutofillProfileChecker : public StatusChangeChecker,
   const int profile_a_;
   const int profile_b_;
   const absl::optional<unsigned int> expected_count_;
-};
-
-class PersonalDataLoadedObserverMock
-    : public autofill::PersonalDataManagerObserver {
- public:
-  PersonalDataLoadedObserverMock();
-  ~PersonalDataLoadedObserverMock() override;
-
-  MOCK_METHOD(void, OnPersonalDataChanged, (), (override));
-  MOCK_METHOD(void, OnPersonalDataFinishedProfileTasks, (), (override));
 };
 
 #endif  // CHROME_BROWSER_SYNC_TEST_INTEGRATION_AUTOFILL_HELPER_H_

@@ -20,6 +20,7 @@ import '../../components/oobe_carousel.js';
 import '../../components/oobe_slide.js';
 
 import {html, mixinBehaviors, PolymerElement} from '//resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 
 import {LoginScreenBehavior, LoginScreenBehaviorInterface} from '../../components/behaviors/login_screen_behavior.js';
 import {MultiStepBehavior, MultiStepBehaviorInterface} from '../../components/behaviors/multi_step_behavior.js';
@@ -60,6 +61,7 @@ const PERCENT_THRESHOLDS = [
  */
 const UpdateUIState = {
   CHECKING: 'checking',
+  CHECKING_SOFTWARE: 'checking-software',
   UPDATE: 'update',
   RESTART: 'restart',
   REBOOT: 'reboot',
@@ -84,6 +86,14 @@ const UpdateBase = mixinBehaviors(
  * }}
  */
 UpdateBase.$;
+
+/**
+ * Data that is passed to the screen during onBeforeShow.
+ * @typedef {{
+ *   isOptOutEnabled: (boolean|undefined),
+ * }}
+ */
+let UpdateScreenData;
 
 /** @polymer */
 class Update extends UpdateBase {
@@ -177,6 +187,17 @@ class Update extends UpdateBase {
         type: Boolean,
         value: false,
       },
+
+      /**
+       * Whether to show the loading UI different for
+       * checking update stage
+       */
+      isOobeSoftwareUpdateEnabled_: {
+        type: Boolean,
+        value() {
+          return loadTimeData.getBoolean('isOobeSoftwareUpdateEnabled');
+        },
+      },
     };
   }
 
@@ -185,7 +206,11 @@ class Update extends UpdateBase {
   }
 
   defaultUIStep() {
-    return UpdateUIState.CHECKING;
+    if (this.isOobeSoftwareUpdateEnabled_) {
+      return UpdateUIState.CHECKING_SOFTWARE;
+    } else {
+      return UpdateUIState.CHECKING;
+    }
   }
 
   get UI_STEPS() {
@@ -212,11 +237,11 @@ class Update extends UpdateBase {
 
   /**
    * Event handler that is invoked just before the screen is shown.
-   * @param {Object} data Screen init payload.
+   * @param {UpdateScreenData} data Screen init payload.
    */
   onBeforeShow(data) {
-    if (data && 'is_opt_out_enabled' in data) {
-      this.isOptOutEnabled = data['is_opt_out_enabled'];
+    if (data && 'isOptOutEnabled' in data) {
+      this.isOptOutEnabled = data['isOptOutEnabled'];
     }
   }
 
@@ -257,7 +282,11 @@ class Update extends UpdateBase {
    * @param {UpdateUIState} value Current update state.
    */
   setUpdateState(value) {
-    this.setUIStep(value);
+    if (value === 'checking' && this.isOobeSoftwareUpdateEnabled_) {
+      this.setUIStep(UpdateUIState.CHECKING_SOFTWARE);
+    } else {
+      this.setUIStep(value);
+    }
   }
 
   /**

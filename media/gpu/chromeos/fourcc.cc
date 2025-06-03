@@ -39,7 +39,7 @@ absl::optional<Fourcc> Fourcc::FromUint32(uint32_t fourcc) {
     case Q10C:
       return Fourcc(static_cast<Value>(fourcc));
   }
-  DVLOGF(3) << "Unmapped fourcc: " << FourccToString(fourcc);
+  DVLOGF(4) << "Unmapped fourcc: " << FourccToString(fourcc);
   return absl::nullopt;
 }
 
@@ -200,6 +200,8 @@ VideoPixelFormat Fourcc::ToVideoPixelFormat() const {
     // bitdepth and internal layout as P010.
     case Q10C:
       return PIXEL_FORMAT_P016LE;
+    case UNDEFINED:
+      break;
   }
   NOTREACHED() << "Unmapped Fourcc: " << ToString();
   return PIXEL_FORMAT_UNKNOWN;
@@ -268,6 +270,7 @@ absl::optional<uint32_t> Fourcc::ToVAFourCC() const {
     case MT2T:
     case Q08C:
     case Q10C:
+    case UNDEFINED:
       // VAAPI does not know about these formats, so signal this by returning
       // nullopt.
       DVLOGF(3) << "Fourcc not convertible to VaFourCC: " << ToString();
@@ -305,6 +308,7 @@ absl::optional<Fourcc> Fourcc::ToSinglePlanar() const {
     case MT21:
     case Q08C:
     case Q10C:
+    case UNDEFINED:
       return absl::nullopt;
   }
 }
@@ -326,6 +330,7 @@ bool Fourcc::IsMultiPlanar() const {
     case AR24:
     case Q08C:
     case Q10C:
+    case UNDEFINED:
       return false;
     case YM12:
     case YM21:
@@ -354,19 +359,16 @@ static_assert(Fourcc::NM12 == V4L2_PIX_FMT_NV12M, "Mismatch Fourcc");
 static_assert(Fourcc::NM21 == V4L2_PIX_FMT_NV21M, "Mismatch Fourcc");
 static_assert(Fourcc::YU16 == V4L2_PIX_FMT_YUV422P, "Mismatch Fourcc");
 static_assert(Fourcc::YM16 == V4L2_PIX_FMT_YUV422M, "Mismatch Fourcc");
+static_assert(Fourcc::MM21 == V4L2_PIX_FMT_MM21, "Mismatch Fourcc");
 static_assert(Fourcc::MT21 == V4L2_PIX_FMT_MT21C, "Mismatch Fourcc");
 static_assert(Fourcc::AR24 == V4L2_PIX_FMT_ABGR32, "Mismatch Fourcc");
-// TODO(b/189218019): The following formats are upstream, but not in the
-// ChromeOS headers
-#ifdef V4L2_PIX_FMT_MM21
-static_assert(Fourcc::MM21 == V4L2_PIX_FMT_MM21, "Mismatch Fourcc");
-#endif  // V4L2_PIX_FMT_MM21
-#ifdef V4L2_PIX_FMT_P010
 static_assert(Fourcc::P010 == V4L2_PIX_FMT_P010, "Mismatch Fourcc");
-#endif  // V4L2_PIX_FMT_P010
+// MT2T has not been upstreamed yet
 #ifdef V4L2_PIX_FMT_MT2T
 static_assert(Fourcc::MT2T == V4L2_PIX_FMT_MT2T, "Mismatch Fourcc");
 #endif  // V4L2_PIX_FMT_MT2T
+// TODO(b/189218019): The following formats are upstream, but not in the
+// ChromeOS headers
 #ifdef V4L2_PIX_FMT_QC08C
 static_assert(Fourcc::Q08C == V4L2_PIX_FMT_QC08C, "Mismatch Fourcc");
 #endif  // V4L2_PIX_FMT_QC08C

@@ -40,14 +40,20 @@ class FrameTimingHistory {
   // Records a value for DidNotProduceToFrameArrival histogram if applicable.
   // For each DidNotProduceFrame response, the first call to this method
   // reports one value; the subsequent calls (if any) are ignored.
-  //   - `valid` set to false indicates that either (1) DidNotProduceFrame is
-  //     issued when there are already queued BeginFrame requests; or (2) a new
-  //     BeginFrame request arrives before the next frame. In this case the
-  //     value reported is 0.
+  //   - `valid` set to false indicates that (1) DidNotProduceFrame is issued
+  //     when there are already queued BeginFrame requests; or (2) a new
+  //     BeginFrame request arrives before the next frame; or (3) BeginFrame
+  //     requests are paused. In this case the value reported is 0.
   //   - `valid` set to true: called at the next frame arrival time, reporting
   //     the duration between sending the DidNotProduceFrame response and the
   //     next frame arrival.
   void MayRecordDidNotProduceToFrameArrvial(bool valid);
+
+  // The number of DidNotProduceFrame responses since the last time when a frame
+  // is submitted.
+  int32_t consecutive_did_not_produce_count() const {
+    return consecutive_did_not_produce_count_;
+  }
 
  private:
   void RecordFrameResponseToRemote(bool did_not_produce);
@@ -60,6 +66,8 @@ class FrameTimingHistory {
   // Records the time of sending the last DidNotProduceFrame response. It is
   // used to report DidNotProduceToFrameArrival metric and then reset.
   base::TimeTicks last_did_not_produce_time_;
+
+  int32_t consecutive_did_not_produce_count_ = 0;
 
   // Counters used to report metrics.
   int32_t frame_response_count_ = 0;

@@ -139,6 +139,22 @@ UDPSocketPosix::UDPSocketPosix(DatagramSocket::BindType bind_type,
   net_log_.BeginEventReferencingSource(NetLogEventType::SOCKET_ALIVE, source);
 }
 
+UDPSocketPosix::UDPSocketPosix(DatagramSocket::BindType bind_type,
+                               NetLogWithSource source_net_log)
+    : socket_(kInvalidSocket),
+      bind_type_(bind_type),
+      read_socket_watcher_(FROM_HERE),
+      write_socket_watcher_(FROM_HERE),
+      read_watcher_(this),
+      write_watcher_(this),
+      net_log_(source_net_log),
+      bound_network_(handles::kInvalidNetworkHandle),
+      always_update_bytes_received_(base::FeatureList::IsEnabled(
+          features::kUdpSocketPosixAlwaysUpdateBytesReceived)) {
+  net_log_.BeginEventReferencingSource(NetLogEventType::SOCKET_ALIVE,
+                                       net_log_.source());
+}
+
 UDPSocketPosix::~UDPSocketPosix() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   Close();
@@ -536,7 +552,7 @@ int UDPSocketPosix::SetDoNotFragment() {
 
 // setsockopt(IP_DONTFRAG) is supported on macOS from Big Sur
 #elif BUILDFLAG(IS_MAC)
-  if (!base::mac::IsAtLeastOS11()) {
+  if (base::mac::MacOSMajorVersion() < 11) {
     return ERR_NOT_IMPLEMENTED;
   }
   int val = 1;
@@ -572,6 +588,32 @@ int UDPSocketPosix::SetDoNotFragment() {
   int rv = setsockopt(socket_, IPPROTO_IP, IP_MTU_DISCOVER, &val, sizeof(val));
   return rv == 0 ? OK : MapSystemError(errno);
 #endif
+}
+
+int UDPSocketPosix::SetRecvEcn() {
+  DCHECK_NE(socket_, kInvalidSocket);
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+
+  unsigned int ecn = 1;
+  if (addr_family_ == AF_INET6) {
+    if (setsockopt(socket_, IPPROTO_IPV6, IPV6_RECVTCLASS, &ecn, sizeof(ecn)) !=
+        0) {
+      return MapSystemError(errno);
+    }
+
+    int v6_only = false;
+    socklen_t v6_only_len = sizeof(v6_only);
+    if (getsockopt(socket_, IPPROTO_IPV6, IPV6_V6ONLY, &v6_only,
+                   &v6_only_len) != 0) {
+      return MapSystemError(errno);
+    }
+    if (v6_only) {
+      return OK;
+    }
+  }
+
+  int rv = setsockopt(socket_, IPPROTO_IP, IP_RECVTOS, &ecn, sizeof(ecn));
+  return rv == 0 ? OK : MapSystemError(errno);
 }
 
 void UDPSocketPosix::SetMsgConfirm(bool confirm) {

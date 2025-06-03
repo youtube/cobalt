@@ -18,12 +18,6 @@ namespace base {
 
 namespace internal {
 
-template <typename T, typename = void>
-struct SupportsToString : std::false_type {};
-template <typename T>
-struct SupportsToString<T, decltype(void(std::declval<T>().ToString()))>
-    : std::true_type {};
-
 // Used to detech whether the given type is an iterator.  This is normally used
 // with std::enable_if to provide disambiguation for functions that take
 // templatzed iterators as input.
@@ -51,11 +45,11 @@ namespace internal {
 
 // The indirection with std::is_enum<T> is required, because instantiating
 // std::underlying_type_t<T> when T is not an enum is UB prior to C++20.
-template <typename T, bool = std::is_enum<T>::value>
+template <typename T, bool = std::is_enum_v<T>>
 struct IsScopedEnumImpl : std::false_type {};
 
 template <typename T>
-struct IsScopedEnumImpl<T, /*std::is_enum<T>::value=*/true>
+struct IsScopedEnumImpl<T, /*std::is_enum_v<T>=*/true>
     : std::negation<std::is_convertible<T, std::underlying_type_t<T>>> {};
 
 }  // namespace internal

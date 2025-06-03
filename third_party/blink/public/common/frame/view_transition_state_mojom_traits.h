@@ -6,6 +6,7 @@
 #define THIRD_PARTY_BLINK_PUBLIC_COMMON_FRAME_VIEW_TRANSITION_STATE_MOJOM_TRAITS_H_
 
 #include "base/check_op.h"
+#include "base/containers/flat_map.h"
 #include "services/viz/public/mojom/compositing/view_transition_element_resource_id.mojom.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/common_export.h"
@@ -46,8 +47,15 @@ struct BLINK_COMMON_EXPORT
     return r.paint_order;
   }
 
-  static bool is_root(const blink::ViewTransitionElement& r) {
-    return r.is_root;
+  static const absl::optional<gfx::RectF>& captured_rect_in_layout_space(
+      const blink::ViewTransitionElement& r) {
+    return r.captured_rect_in_layout_space;
+  }
+
+  static const base::flat_map<blink::mojom::ViewTransitionPropertyId,
+                              std::string>&
+  captured_css_properties(const blink::ViewTransitionElement& r) {
+    return r.captured_css_properties;
   }
 
   static bool Read(blink::mojom::ViewTransitionElementDataView r,
@@ -71,6 +79,10 @@ struct BLINK_COMMON_EXPORT
   static const gfx::Size& snapshot_root_size_at_capture(
       const blink::ViewTransitionState& r) {
     return r.snapshot_root_size_at_capture;
+  }
+
+  static float device_pixel_ratio(const blink::ViewTransitionState& r) {
+    return r.device_pixel_ratio;
   }
 
   static bool Read(blink::mojom::ViewTransitionStateDataView r,

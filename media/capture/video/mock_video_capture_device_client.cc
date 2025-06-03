@@ -39,8 +39,7 @@ class StubBufferHandleProvider
   ~StubBufferHandleProvider() override = default;
 
   base::UnsafeSharedMemoryRegion DuplicateAsUnsafeRegion() override {
-    NOTREACHED();
-    return {};
+    return base::UnsafeSharedMemoryRegion();
   }
 
   std::unique_ptr<VideoCaptureBufferHandle> GetHandleForInProcessAccess()

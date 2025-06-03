@@ -12,27 +12,32 @@
 #include "ash/public/cpp/wallpaper/wallpaper_controller.h"
 #include "ash/rgb_keyboard/rgb_keyboard_manager.h"
 #include "ash/shell.h"
+#include "ash/wallpaper/wallpaper_constants.h"
+#include "ash/webui/common/trusted_types_util.h"
 #include "ash/webui/grit/ash_personalization_app_resources.h"
 #include "ash/webui/grit/ash_personalization_app_resources_map.h"
 #include "ash/webui/personalization_app/personalization_app_ambient_provider.h"
 #include "ash/webui/personalization_app/personalization_app_keyboard_backlight_provider.h"
 #include "ash/webui/personalization_app/personalization_app_theme_provider.h"
-#include "ash/webui/personalization_app/personalization_app_url_constants.h"
 #include "ash/webui/personalization_app/personalization_app_user_provider.h"
 #include "ash/webui/personalization_app/personalization_app_wallpaper_provider.h"
 #include "base/check.h"
 #include "base/containers/contains.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/time/time.h"
 #include "chromeos/constants/chromeos_features.h"
 #include "chromeos/strings/grit/chromeos_strings.h"
+#include "components/manta/features.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_ui_data_source.h"
 #include "content/public/common/url_constants.h"
 #include "services/network/public/mojom/content_security_policy.mojom-shared.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/chromeos/devicetype_utils.h"
 #include "ui/resources/grit/webui_resources.h"
 #include "ui/webui/color_change_listener/color_change_handler.h"
 #include "ui/webui/mojo_web_ui_controller.h"
@@ -191,6 +196,14 @@ void AddStrings(content::WebUIDataSource* source) {
        IDS_PERSONALIZATION_APP_AMBIENT_MODE_PAGE_DESCRIPTION},
       {"ambientModeOn", IDS_PERSONALIZATION_APP_AMBIENT_MODE_ON},
       {"ambientModeOff", IDS_PERSONALIZATION_APP_AMBIENT_MODE_OFF},
+      {"ambientModeDurationTitle",
+       IDS_PERSONALIZATION_APP_AMBIENT_MODE_DURATION_TITLE},
+      {"ambientModeDurationMinutes",
+       IDS_PERSONALIZATION_APP_AMBIENT_MODE_DURATION_MINUTES},
+      {"ambientModeDurationOneHour",
+       IDS_PERSONALIZATION_APP_AMBIENT_MODE_DURATION_ONE_HOUR},
+      {"ambientModeDurationForever",
+       IDS_PERSONALIZATION_APP_AMBIENT_MODE_DURATION_FOREVER},
       {"ambientModeTopicSourceTitle",
        IDS_PERSONALIZATION_APP_AMBIENT_MODE_TOPIC_SOURCE_TITLE},
       {"ambientModeTopicSourceGooglePhotos",
@@ -205,8 +218,6 @@ void AddStrings(content::WebUIDataSource* source) {
        IDS_PERSONALIZATION_APP_AMBIENT_MODE_TOPIC_SOURCE_ART_GALLERY_DESCRIPTION},
       {"ambientModeTopicSourceVideo",
        IDS_PERSONALIZATION_APP_AMBIENT_MODE_TOPIC_SOURCE_VIDEO},
-      {"ambientModeTopicSourceVideoDescription",
-       IDS_PERSONALIZATION_APP_AMBIENT_MODE_TOPIC_SOURCE_VIDEO_DESCRIPTION},
       {"ambientModeTopicSourceSelectedRow",
        IDS_PERSONALIZATION_APP_AMBIENT_MODE_TOPIC_SOURCE_SELECTED_ROW},
       {"ambientModeTopicSourceUnselectedRow",
@@ -230,9 +241,9 @@ void AddStrings(content::WebUIDataSource* source) {
       {"ambientModeAlbumsSubpageAlbumUnselected",
        IDS_PERSONALIZATION_APP_AMBIENT_MODE_ALBUMS_SUBPAGE_ALBUM_UNSELECTED},
       {"ambientModeLastArtAlbumMessage",
-       IDS_PERONSONALIZATION_APP_AMBIENT_MODE_LAST_ART_ALBUM_MESSAGE},
+       IDS_PERSONALIZATION_APP_AMBIENT_MODE_LAST_ART_ALBUM_MESSAGE},
       {"ambientModeArtAlbumDialogCloseButtonLabel",
-       IDS_PERONSONALIZATION_APP_AMBIENT_MODE_ART_ALBUM_DIALOG_CLOSE_BUTTON_LABEL},
+       IDS_PERSONALIZATION_APP_AMBIENT_MODE_ART_ALBUM_DIALOG_CLOSE_BUTTON_LABEL},
       {"ambientModeAnimationTitle",
        IDS_PERSONALIZATION_APP_AMBIENT_MODE_ANIMATION_TITLE},
       {"ambientModeAnimationSlideshowLabel",
@@ -319,26 +330,40 @@ void AddStrings(content::WebUIDataSource* source) {
       {"googlePhotosAlbumZeroStateMessage",
        IDS_PERSONALIZATION_APP_GOOGLE_PHOTOS_ALBUM_ZERO_STATE_MESSAGE},
 
-      //  Time of day Wallpaper/Screen saver strings
-      {"timeOfDayWallpaperDialogTitle",
-       IDS_PERSONALIZATION_APP_TIME_OF_DAY_WALLPAPER_DIALOG_TITLE},
-      {"timeOfDayWallpaperDialogContent",
-       IDS_PERSONALIZATION_APP_TIME_OF_DAY_WALLPAPER_DIALOG_CONTENT},
-      {"timeOfDayWallpaperDialogBackButton",
-       IDS_PERSONALIZATION_APP_TIME_OF_DAY_WALLPAPER_DIALOG_BACK_BUTTON},
-      {"timeOfDayWallpaperDialogConfirmButton",
-       IDS_PERSONALIZATION_APP_TIME_OF_DAY_WALLPAPER_DIALOG_CONFIRM_BUTTON},
-      {"timeOfDayBannerTitle",
-       IDS_PERSONALIZATION_APP_TIME_OF_DAY_BANNER_TITLE},
+      // Time of day Wallpaper/Screen saver strings
       {"timeOfDayBannerDescription",
-       IDS_PERSONALIZATION_APP_TIME_OF_DAY_BANNER_DESCRIPTION}};
+       IDS_PERSONALIZATION_APP_TIME_OF_DAY_BANNER_DESCRIPTION},
+      {"timeOfDayBannerDescriptionNoScreensaver",
+       IDS_PERSONALIZATION_APP_TIME_OF_DAY_BANNER_DESCRIPTION_NO_SCREENSAVER},
+      {"timeOfDayWallpaperCollectionSublabel",
+       IDS_PERSONALIZATION_APP_TIME_OF_DAY_WALLPAPER_COLLECTION_SUBLABEL}};
 
   source->AddLocalizedStrings(kLocalizedStrings);
 
   source->AddString("googlePhotosURL", GetGooglePhotosURL());
 
+  source->AddString("timeOfDayWallpaperCollectionId",
+                    wallpaper_constants::kTimeOfDayWallpaperCollectionId);
+
   source->AddString("timeOfDayBannerImageUrl",
                     GetAmbientBackendController()->GetPromoBannerUrl());
+
+  // Product name does not need to be translated.
+  auto product_name =
+      l10n_util::GetStringUTF16(ui::GetChromeOSDeviceTypeResourceId());
+  if (features::IsTimeOfDayScreenSaverEnabled()) {
+    product_name = base::UTF8ToUTF16(
+        GetAmbientBackendController()->GetTimeOfDayProductName());
+  }
+  source->AddString(
+      "ambientModeTopicSourceVideoDescription",
+      l10n_util::GetStringFUTF16(
+          IDS_PERSONALIZATION_APP_AMBIENT_MODE_TOPIC_SOURCE_VIDEO_DESCRIPTION,
+          product_name));
+  source->AddString(
+      "timeOfDayBannerTitle",
+      l10n_util::GetStringFUTF16(
+          IDS_PERSONALIZATION_APP_TIME_OF_DAY_BANNER_TITLE, product_name));
 
   source->AddString(
       "ambientModeAlbumsSubpageGooglePhotosTitle",
@@ -375,6 +400,7 @@ PersonalizationAppUI::PersonalizationAppUI(
       theme_provider_(std::move(theme_provider)),
       user_provider_(std::move(user_provider)),
       wallpaper_provider_(std::move(wallpaper_provider)) {
+  start_time_ = base::Time::Now();
   DCHECK(wallpaper_provider_);
 
   content::WebUIDataSource* source = content::WebUIDataSource::CreateAndAdd(
@@ -392,8 +418,7 @@ PersonalizationAppUI::PersonalizationAppUI(
       "script-src chrome://resources chrome://test chrome://webui-test "
       "'self';");
 
-  // TODO(crbug.com/1400799): Enable TrustedTypes.
-  source->DisableTrustedTypesCSP();
+  ash::EnableTrustedTypesCSP(source);
 
   AddResources(source);
   AddStrings(source);
@@ -401,7 +426,13 @@ PersonalizationAppUI::PersonalizationAppUI(
   AddIntegers(source);
 }
 
-PersonalizationAppUI::~PersonalizationAppUI() = default;
+PersonalizationAppUI::~PersonalizationAppUI() {
+  base::TimeDelta duration = base::Time::Now() - start_time_;
+  base::UmaHistogramCustomTimes("Ash.Personalization.App.Duration", duration,
+                                /*min=*/base::Minutes(1),
+                                /*max=*/base::Minutes(30),
+                                /*buckets=*/31);
+}
 
 void PersonalizationAppUI::BindInterface(
     mojo::PendingReceiver<personalization_app::mojom::AmbientProvider>
@@ -449,14 +480,10 @@ void PersonalizationAppUI::AddBooleans(content::WebUIDataSource* source) {
 
   source->AddBoolean(
       "isRgbKeyboardSupported",
-      features::IsRgbKeyboardEnabled() &&
-          Shell::Get()->rgb_keyboard_manager()->IsRgbKeyboardSupported());
+      Shell::Get()->rgb_keyboard_manager()->IsRgbKeyboardSupported());
 
   source->AddBoolean("isScreenSaverDurationEnabled",
                      features::IsScreenSaverDurationEnabled());
-
-  source->AddBoolean("isScreenSaverPreviewEnabled",
-                     features::IsScreenSaverPreviewEnabled());
 
   source->AddBoolean("isPersonalizationJellyEnabled",
                      features::IsPersonalizationJellyEnabled());
@@ -466,6 +493,16 @@ void PersonalizationAppUI::AddBooleans(content::WebUIDataSource* source) {
 
   source->AddBoolean("isTimeOfDayScreenSaverEnabled",
                      features::IsTimeOfDayScreenSaverEnabled());
+
+  source->AddBoolean("isTimeOfDayWallpaperEnabled",
+                     features::IsTimeOfDayWallpaperEnabled());
+
+  source->AddBoolean(
+      "isSeaPenEnabled",
+      features::IsSeaPenEnabled() && manta::features::IsMantaServiceEnabled());
+  source->AddBoolean("isSeaPenTextInputEnabled",
+                     features::IsSeaPenTextInputEnabled() &&
+                         manta::features::IsMantaServiceEnabled());
 }
 
 void PersonalizationAppUI::AddIntegers(content::WebUIDataSource* source) {

@@ -11,7 +11,7 @@
 #include "ui/base/ui_base_features.h"
 #include "ui/gfx/font_list.h"
 #include "ui/views/controls/focus_ring.h"
-#include "ui/views/style/typography.h"
+#include "ui/views/style/typography_provider.h"
 #include "ui/views/views_delegate.h"
 
 namespace views {
@@ -40,7 +40,8 @@ LayoutProvider* LayoutProvider::Get() {
 int LayoutProvider::GetControlHeightForFont(int context,
                                             int style,
                                             const gfx::FontList& font) {
-  return std::max(style::GetLineHeight(context, style), font.GetHeight()) +
+  return std::max(TypographyProvider::Get().GetLineHeight(context, style),
+                  font.GetHeight()) +
          Get()->GetDistanceMetric(DISTANCE_CONTROL_VERTICAL_TEXT_PADDING) * 2;
 }
 
@@ -87,7 +88,7 @@ int LayoutProvider::GetDistanceMetric(int metric) const {
     case DISTANCE_BUTTON_MAX_LINKABLE_WIDTH:
       return 112;
     case DISTANCE_CLOSE_BUTTON_MARGIN:
-      return 4;
+      return features::IsChromeRefresh2023() ? 20 : 4;
     case DISTANCE_CONTROL_VERTICAL_TEXT_PADDING:
       return features::IsChromeRefresh2023() ? 10 : 8;
     case DISTANCE_DIALOG_BUTTON_MINIMUM_WIDTH:
@@ -187,11 +188,16 @@ ShapeSysTokens GetShapeSysToken(ShapeContextTokens id) {
           {ShapeContextTokens::kButtonRadius, ShapeSysTokens::kFull},
           {ShapeContextTokens::kComboboxRadius, ShapeSysTokens::kSmall},
           {ShapeContextTokens::kDialogRadius, ShapeSysTokens::kMediumSmall},
+          {ShapeContextTokens::kFindBarViewRadius, ShapeSysTokens::kSmall},
           {ShapeContextTokens::kMenuRadius, ShapeSysTokens::kSmall},
           {ShapeContextTokens::kMenuAuxRadius, ShapeSysTokens::kSmall},
           {ShapeContextTokens::kMenuTouchRadius, ShapeSysTokens::kSmall},
           {ShapeContextTokens::kOmniboxExpandedRadius, ShapeSysTokens::kMedium},
           {ShapeContextTokens::kTextfieldRadius, ShapeSysTokens::kSmall},
+          {ShapeContextTokens::kSidePanelContentRadius,
+           ShapeSysTokens::kMedium},
+          {ShapeContextTokens::kSidePanelPageContentRadius,
+           ShapeSysTokens::kSmall},
       });
   const auto* it = shape_token_map.find(id);
   return it == shape_token_map.end() ? ShapeSysTokens::kDefault : it->second;
@@ -207,6 +213,7 @@ int LayoutProvider::GetCornerRadiusMetric(ShapeContextTokens id,
         return GetCornerRadiusMetric(Emphasis::kMedium, size);
       case ShapeContextTokens::kComboboxRadius:
       case ShapeContextTokens::kDialogRadius:
+      case ShapeContextTokens::kFindBarViewRadius:
         return GetCornerRadiusMetric(Emphasis::kMedium, size);
       case ShapeContextTokens::kMenuRadius:
       case ShapeContextTokens::kMenuAuxRadius:
@@ -217,6 +224,8 @@ int LayoutProvider::GetCornerRadiusMetric(ShapeContextTokens id,
         return 16;
       case ShapeContextTokens::kTextfieldRadius:
         return FocusRing::kDefaultCornerRadiusDp;
+      case ShapeContextTokens::kSidePanelContentRadius:
+        return GetCornerRadiusMetric(Emphasis::kMedium);
       default:
         return 0;
     }

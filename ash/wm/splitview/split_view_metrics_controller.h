@@ -16,6 +16,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
 #include "base/time/time.h"
+#include "chromeos/ui/base/window_state_type.h"
 #include "ui/aura/env_observer.h"
 #include "ui/aura/window_observer.h"
 #include "ui/display/display_observer.h"
@@ -27,6 +28,16 @@ class Window;
 
 namespace ash {
 class SplitViewController;
+
+// Public so it can be used by unit tests.
+constexpr char kSnapTwoWindowsDurationHistogramName[] =
+    "Ash.Snap.SnapTwoWindowsDuration";
+constexpr char kMinimizeTwoWindowsDurationHistogramName[] =
+    "Ash.Snap.MinimizeTwoWindowsDuration";
+constexpr char kCloseTwoWindowsDurationHistogramName[] =
+    "Ash.Snap.CloseTwoWindowsDuration";
+constexpr base::TimeDelta kSequentialSnapActionMinTime = base::Seconds(1);
+constexpr base::TimeDelta kSequentialSnapActionMaxTime = base::Hours(50);
 
 // SplitViewMetricsController:
 // Manages split view related metrics. Tablet mode split view and clamshell
@@ -158,10 +169,44 @@ class SplitViewMetricsController : public TabletModeObserver,
   // If there are top windows snapped on both sides, start to record split
   // view metrics. Otherwise, stop recording split view metrics.
   void MaybeStartOrEndRecordBothSnappedClamshellSplitView();
+
   // Pauses recording of engagement time when a window hides the windows
   // snapped on both sides. Return true, if the recording is paused. Otherwise,
   // return false.
   bool MaybePauseRecordBothSnappedClamshellSplitView();
+
+  // Records and resets the duration between two windows getting snapped.
+  void RecordSnapTwoWindowsDuration(const base::TimeDelta& elapsed_time);
+
+  // Records and resets the duration between two snapped windows getting
+  // minimized.
+  void RecordMinimizeTwoWindowsDuration(const base::TimeDelta& elapsed_time);
+
+  // Records and resets the duration between two snapped windows getting
+  // closed.
+  void RecordCloseTwoWindowsDuration(const base::TimeDelta& elapsed_time);
+
+  // Starts recording the time if `window_state` was the first snapped window.
+  // Ends recording if either:
+  // 1. A second window is snapped;
+  // 2. The first window is unsnapped;
+  // 3. The first window is destroyed.
+  void MaybeStartOrEndRecordSnapTwoWindowsDuration(WindowState* window_state);
+
+  // Starts recording the time if `window_state` changed from snapped to
+  // minimized. Ends recording if either:
+  // 1. A second window state changes from snapped to minimized;
+  // 2. The first window is no longer snapped or minimized;
+  // 3. The first window is destroyed.
+  void MaybeStartOrEndRecordMinimizeTwoWindowsDuration(
+      WindowState* window_state,
+      chromeos::WindowStateType old_type);
+
+  // Starts recording the time if `window` was snapped and gets closed, i.e.
+  // destroyed. Ends recording if either:
+  // 1. A second snapped window is closed;
+  // 2. A second snapped window is unsnapped.
+  void MaybeStartOrEndRecordCloseTwoWindowsDuration(aura::Window* window);
 
   // Resets the variables related to time and counter metrics.
   void ResetTimeAndCounter();
@@ -242,6 +287,25 @@ class SplitViewMetricsController : public TabletModeObserver,
 
   // Counter of swapping windows in split view.
   int swap_count_ = 0;
+
+  // The first window that gets snapped and the time it's snapped at. Used by
+  // `Ash.Snap.SnapTwoWindowsDuration` in
+  // tools/metrics/histograms/metadata/ash/histograms.xml.
+  raw_ptr<aura::Window> first_snapped_window_ = nullptr;
+  base::TimeTicks first_snapped_time_;
+
+  // The first snapped window that gets minimized and the time it's minimized.
+  // Used by `Ash.Snap.MinimizeTwoWindowsDuration` in
+  // tools/metrics/histograms/metadata/ash/histograms.xml.
+  raw_ptr<WindowState> first_minimized_window_state_ = nullptr;
+  base::TimeTicks first_minimized_time_;
+
+  // The first snapped window that gets closed and the time it's closed.
+  // Used by `Ash.Snap.CloseTwoWindowsDuration` in
+  // tools/metrics/histograms/metadata/ash/histograms.xml.
+  chromeos::WindowStateType first_closed_state_type_ =
+      chromeos::WindowStateType::kDefault;
+  base::TimeTicks first_closed_time_;
 };
 
 }  // namespace ash

@@ -29,11 +29,9 @@
 #include "chrome/browser/ash/login/ui/login_display_host.h"
 #include "chrome/browser/ash/login/ui/login_web_dialog.h"
 #include "chrome/browser/ash/login/ui/webui_login_view.h"
-#include "chrome/browser/ash/policy/dlp/dlp_files_controller.h"
+#include "chrome/browser/ash/policy/dlp/dlp_files_controller_ash.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/chromeos/policy/dlp/dlp_file_destination.h"
-#include "chrome/browser/chromeos/policy/dlp/dlp_rules_manager.h"
-#include "chrome/browser/chromeos/policy/dlp/dlp_rules_manager_factory.h"
 #include "chrome/browser/download/download_prefs.h"
 #include "chrome/browser/extensions/extension_service.h"
 #include "chrome/browser/extensions/extension_view_host.h"
@@ -43,7 +41,6 @@
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
-#include "chrome/browser/ui/views/extensions/extension_dialog.h"
 #include "chrome/browser/ui/webui/ash/system_web_dialog_delegate.h"
 #include "chromeos/ui/base/window_properties.h"
 #include "extensions/browser/app_window/app_window.h"
@@ -186,15 +183,6 @@ SelectFileDialogExtension::RoutingID GetRoutingID(
   }
   LOG(ERROR) << "Unable to generate a RoutingID";
   return "";
-}
-
-// Returns an instance of DlpFilesController if there is one.
-policy::DlpFilesController* GetDlpFilesController() {
-  policy::DlpRulesManager* rules_manager =
-      policy::DlpRulesManagerFactory::GetForPrimaryProfile();
-  if (!rules_manager)
-    return nullptr;
-  return rules_manager->GetDlpFilesController();
 }
 
 }  // namespace
@@ -541,7 +529,7 @@ void SelectFileDialogExtension::SelectFileImpl(
   Owner owner;
   owner.window = owner_window;
   if (caller && caller->is_valid()) {
-    owner.dialog_caller.emplace(caller->spec());
+    owner.dialog_caller.emplace(*caller);
   }
   SelectFileWithFileManagerParams(type, title, default_path, file_types,
                                   file_type_index, params, owner,
@@ -573,7 +561,8 @@ void SelectFileDialogExtension::ApplyPolicyAndNotifyListener(
     return;
   }
 
-  if (auto* files_controller = GetDlpFilesController();
+  if (auto* files_controller =
+          policy::DlpFilesControllerAsh::GetForPrimaryProfile();
       files_controller && type_ == Type::SELECT_SAVEAS_FILE) {
     files_controller->CheckIfDownloadAllowed(
         dialog_caller.value(),

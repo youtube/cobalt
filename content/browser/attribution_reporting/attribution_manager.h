@@ -5,23 +5,15 @@
 #ifndef CONTENT_BROWSER_ATTRIBUTION_REPORTING_ATTRIBUTION_MANAGER_H_
 #define CONTENT_BROWSER_ATTRIBUTION_REPORTING_ATTRIBUTION_MANAGER_H_
 
-#include <string>
 #include <vector>
 
 #include "base/functional/callback_forward.h"
-#include "build/build_config.h"
-#include "build/buildflag.h"
-#include "components/attribution_reporting/source_registration_error.mojom-forward.h"
-#include "components/attribution_reporting/source_type.mojom-forward.h"
 #include "content/browser/attribution_reporting/attribution_report.h"
 #include "content/common/content_export.h"
 #include "content/public/browser/attribution_data_model.h"
 #include "content/public/browser/storage_partition.h"
 #include "services/network/public/mojom/attribution.mojom-forward.h"
-
-namespace attribution_reporting {
-class SuitableOrigin;
-}  // namespace attribution_reporting
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace base {
 class Time;
@@ -39,10 +31,7 @@ class StoredSource;
 class WebContents;
 
 struct GlobalRenderFrameHostId;
-
-#if BUILDFLAG(IS_ANDROID)
 struct OsRegistration;
-#endif
 
 // Interface that mediates data flow between the network, storage layer, and
 // blink.
@@ -52,7 +41,8 @@ class CONTENT_EXPORT AttributionManager : public AttributionDataModel {
 
   static AttributionManager* FromBrowserContext(BrowserContext*);
 
-  static network::mojom::AttributionSupport GetSupport();
+  static network::mojom::AttributionSupport GetAttributionSupport(
+      WebContents* web_contents);
 
   ~AttributionManager() override = default;
 
@@ -73,11 +63,7 @@ class CONTENT_EXPORT AttributionManager : public AttributionDataModel {
   virtual void HandleTrigger(AttributionTrigger trigger,
                              GlobalRenderFrameHostId render_frame_id) = 0;
 
-#if BUILDFLAG(IS_ANDROID)
-  virtual void HandleOsRegistration(
-      OsRegistration,
-      GlobalRenderFrameHostId render_frame_id) = 0;
-#endif
+  virtual void HandleOsRegistration(OsRegistration) = 0;
 
   // Get all sources that are currently stored in this partition. Used for
   // populating WebUI.
@@ -95,15 +81,6 @@ class CONTENT_EXPORT AttributionManager : public AttributionDataModel {
   virtual void SendReportsForWebUI(
       const std::vector<AttributionReport::Id>& ids,
       base::OnceClosure done) = 0;
-
-  // Notifies observers of a failed browser-side source-registration.
-  // Called by `AttributionDataHostManagerImpl`.
-  virtual void NotifyFailedSourceRegistration(
-      const std::string& header_value,
-      const attribution_reporting::SuitableOrigin& source_origin,
-      const attribution_reporting::SuitableOrigin& reporting_origin,
-      attribution_reporting::mojom::SourceType,
-      attribution_reporting::mojom::SourceRegistrationError) = 0;
 
   // Deletes all data in storage for storage keys matching `filter`, between
   // `delete_begin` and `delete_end` time.
@@ -123,6 +100,12 @@ class CONTENT_EXPORT AttributionManager : public AttributionDataModel {
                          BrowsingDataFilterBuilder* filter_builder,
                          bool delete_rate_limit_data,
                          base::OnceClosure done) = 0;
+
+  // If debug mode is enabled, noise and delays are disabled to facilitate
+  // testing, whether automated or manual. If `enabled` is `absl::nullopt`,
+  // falls back to `switches::kAttributionReportingDebugMode`.
+  virtual void SetDebugMode(absl::optional<bool> enabled,
+                            base::OnceClosure done) = 0;
 };
 
 }  // namespace content

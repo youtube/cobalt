@@ -20,6 +20,8 @@
 #include "base/timer/timer.h"
 #include "content/common/content_export.h"
 #include "content/services/auction_worklet/trusted_signals.h"
+#include "mojo/public/cpp/bindings/pending_remote.h"
+#include "mojo/public/cpp/bindings/remote.h"
 #include "services/network/public/mojom/url_loader_factory.mojom-forward.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
@@ -86,6 +88,8 @@ class CONTENT_EXPORT TrustedSignalsRequestManager {
   TrustedSignalsRequestManager(
       Type type,
       network::mojom::URLLoaderFactory* url_loader_factory,
+      mojo::PendingRemote<auction_worklet::mojom::AuctionNetworkEventsHandler>
+          auction_network_events_handler,
       bool automatically_send_requests,
       const url::Origin& top_level_origin,
       const GURL& trusted_signals_url,
@@ -135,7 +139,7 @@ class CONTENT_EXPORT TrustedSignalsRequestManager {
                 LoadSignalsCallback load_signals_callback);
 
     RequestImpl(TrustedSignalsRequestManager* trusted_signals_request_manager,
-                const GURL& render_urls,
+                const GURL& render_url,
                 std::set<std::string> ad_component_render_urls,
                 LoadSignalsCallback load_signals_callback);
 
@@ -218,6 +222,9 @@ class CONTENT_EXPORT TrustedSignalsRequestManager {
       batched_requests_;
 
   base::OneShotTimer timer_;
+
+  mojo::Remote<auction_worklet::mojom::AuctionNetworkEventsHandler>
+      auction_network_events_handler_;
 
   base::WeakPtrFactory<TrustedSignalsRequestManager> weak_ptr_factory{this};
 };

@@ -14,16 +14,18 @@
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/synchronization/waitable_event.h"
-#include "base/task/single_thread_task_runner.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "base/task/thread_pool/thread_pool_instance.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
+#include "base/uuid.h"
 #include "components/autofill/core/browser/data_model/autofill_profile.h"
 #include "components/autofill/core/browser/data_model/credit_card.h"
 #include "components/autofill/core/browser/geo/autofill_country.h"
+#include "components/autofill/core/browser/webdata/autocomplete_entry.h"
 #include "components/autofill/core/browser/webdata/autofill_change.h"
-#include "components/autofill/core/browser/webdata/autofill_entry.h"
 #include "components/autofill/core/browser/webdata/autofill_table.h"
 #include "components/autofill/core/browser/webdata/autofill_webdata_service.h"
 #include "components/autofill/core/browser/webdata/autofill_webdata_service_observer.h"
@@ -38,6 +40,8 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 using base::ASCIIToUTF16;
+using base::Bucket;
+using base::BucketsAre;
 using base::Time;
 using base::WaitableEvent;
 using testing::_;
@@ -48,29 +52,30 @@ using testing::ElementsAreArray;
 namespace {
 
 template <class T>
-class AutofillWebDataServiceConsumer : public WebDataServiceConsumer {
+class AutofillWebDataServiceWaiter : public WebDataServiceConsumer {
  public:
-  AutofillWebDataServiceConsumer() : handle_(0) {}
+  AutofillWebDataServiceWaiter() = default;
 
-  AutofillWebDataServiceConsumer(const AutofillWebDataServiceConsumer&) =
+  AutofillWebDataServiceWaiter(const AutofillWebDataServiceWaiter&) = delete;
+  AutofillWebDataServiceWaiter& operator=(const AutofillWebDataServiceWaiter&) =
       delete;
-  AutofillWebDataServiceConsumer& operator=(
-      const AutofillWebDataServiceConsumer&) = delete;
 
-  virtual ~AutofillWebDataServiceConsumer() {}
-
-  virtual void OnWebDataServiceRequestDone(
-      WebDataServiceBase::Handle handle,
-      std::unique_ptr<WDTypedResult> result) {
-    handle_ = handle;
-    result_ = std::move(static_cast<WDResult<T>*>(result.get())->GetValue());
+  WebDataServiceBase::Handle WaitForHandle() {
+    run_loop_.Run();
+    return handle_;
   }
-
-  WebDataServiceBase::Handle handle() { return handle_; }
   T& result() { return result_; }
 
  private:
-  WebDataServiceBase::Handle handle_;
+  void OnWebDataServiceRequestDone(
+      WebDataServiceBase::Handle handle,
+      std::unique_ptr<WDTypedResult> result) final {
+    handle_ = handle;
+    result_ = std::move(static_cast<WDResult<T>*>(result.get())->GetValue());
+    run_loop_.Quit();
+  }
+  WebDataServiceBase::Handle handle_ = 0;
+  base::RunLoop run_loop_;
   T result_;
 };
 
@@ -88,8 +93,8 @@ class MockAutofillWebDataServiceObserver
     : public AutofillWebDataServiceObserverOnDBSequence {
  public:
   MOCK_METHOD(void,
-              AutofillEntriesChanged,
-              (const AutofillChangeList& changes),
+              AutocompleteEntriesChanged,
+              (const AutocompleteChangeList& changes),
               (override));
   MOCK_METHOD(void,
               AutofillProfileChanged,
@@ -100,7 +105,9 @@ class MockAutofillWebDataServiceObserver
 class WebDataServiceTest : public testing::Test {
  public:
   WebDataServiceTest()
-      : task_environment_(base::test::TaskEnvironment::MainThreadType::UI) {}
+      : task_environment_(base::test::TaskEnvironment::MainThreadType::UI),
+        db_task_runner_(
+            base::ThreadPool::CreateSequencedTaskRunner({base::MayBlock()})) {}
 
  protected:
   void SetUp() override {
@@ -108,36 +115,32 @@ class WebDataServiceTest : public testing::Test {
     // OSCrypt is used for encryption of credit card data in this test.
     OSCryptMocker::SetUp();
 
-    // TODO(pkasting): http://crbug.com/740773 This should likely be sequenced,
-    // not single-threaded; it's also possible the various uses of this below
-    // should each use their own sequences instead of sharing this one.
-    auto db_task_runner =
-        base::ThreadPool::CreateSingleThreadTaskRunner({base::MayBlock()});
     wdbs_ = new WebDatabaseService(
-        path, base::SingleThreadTaskRunner::GetCurrentDefault(),
-        db_task_runner);
+        path, base::SequencedTaskRunner::GetCurrentDefault(), db_task_runner_);
     wdbs_->AddTable(std::make_unique<AutofillTable>());
     wdbs_->LoadDatabase();
 
     wds_ = new AutofillWebDataService(
-        wdbs_, base::SingleThreadTaskRunner::GetCurrentDefault(),
-        db_task_runner);
+        wdbs_, base::SequencedTaskRunner::GetCurrentDefault(), db_task_runner_);
     wds_->Init(base::NullCallback());
   }
 
   void TearDown() override {
     wds_->ShutdownOnUISequence();
     wdbs_->ShutdownDatabase();
-    wds_ = nullptr;
-    wdbs_ = nullptr;
-    task_environment_.RunUntilIdle();
+    base::RunLoop run_loop;
+    // Drain the db_task_runner.
+    db_task_runner_->PostTaskAndReply(FROM_HERE, base::BindOnce([]() {}),
+                                      run_loop.QuitClosure());
+    run_loop.Run();
     OSCryptMocker::TearDown();
   }
 
   base::test::TaskEnvironment task_environment_;
   base::FilePath profile_dir_;
-  scoped_refptr<AutofillWebDataService> wds_;
+  scoped_refptr<base::SequencedTaskRunner> db_task_runner_;
   scoped_refptr<WebDatabaseService> wdbs_;
+  scoped_refptr<AutofillWebDataService> wds_;
 };
 
 class WebDataServiceAutofillTest : public WebDataServiceTest {
@@ -195,14 +198,16 @@ class WebDataServiceAutofillTest : public WebDataServiceTest {
 };
 
 TEST_F(WebDataServiceAutofillTest, FormFillAdd) {
-  const AutofillChange expected_changes[] = {
-      AutofillChange(AutofillChange::ADD, AutofillKey(name1_, value1_)),
-      AutofillChange(AutofillChange::ADD, AutofillKey(name2_, value2_))};
+  const AutocompleteChange expected_changes[] = {
+      AutocompleteChange(AutocompleteChange::ADD,
+                         AutocompleteKey(name1_, value1_)),
+      AutocompleteChange(AutocompleteChange::ADD,
+                         AutocompleteKey(name2_, value2_))};
 
   // This will verify that the correct notification is triggered,
-  // passing the correct list of autofill keys in the details.
+  // passing the correct list of autocomplete keys in the details.
   EXPECT_CALL(observer_,
-              AutofillEntriesChanged(ElementsAreArray(expected_changes)))
+              AutocompleteEntriesChanged(ElementsAreArray(expected_changes)))
       .WillOnce(SignalEvent(&done_event_));
 
   std::vector<FormFieldData> form_fields;
@@ -213,20 +218,19 @@ TEST_F(WebDataServiceAutofillTest, FormFillAdd) {
   // The event will be signaled when the mock observer is notified.
   done_event_.TimedWait(test_timeout_);
 
-  AutofillWebDataServiceConsumer<std::vector<AutofillEntry>> consumer;
+  AutofillWebDataServiceWaiter<std::vector<AutocompleteEntry>> consumer;
   WebDataServiceBase::Handle handle;
   static const int limit = 10;
   handle = wds_->GetFormValuesForElementName(name1_, std::u16string(), limit,
                                              &consumer);
-  task_environment_.RunUntilIdle();
-  EXPECT_EQ(handle, consumer.handle());
+  EXPECT_EQ(handle, consumer.WaitForHandle());
   ASSERT_EQ(1U, consumer.result().size());
   EXPECT_EQ(value1_, consumer.result()[0].key().value());
 }
 
 TEST_F(WebDataServiceAutofillTest, FormFillRemoveOne) {
-  // First add some values to autofill.
-  EXPECT_CALL(observer_, AutofillEntriesChanged(_))
+  // First add some values to autocomplete.
+  EXPECT_CALL(observer_, AutocompleteEntriesChanged(_))
       .WillOnce(SignalEvent(&done_event_));
   std::vector<FormFieldData> form_fields;
   AppendFormField(name1_, value1_, &form_fields);
@@ -236,11 +240,11 @@ TEST_F(WebDataServiceAutofillTest, FormFillRemoveOne) {
   done_event_.TimedWait(test_timeout_);
 
   // This will verify that the correct notification is triggered,
-  // passing the correct list of autofill keys in the details.
-  const AutofillChange expected_changes[] = {
-      AutofillChange(AutofillChange::REMOVE, AutofillKey(name1_, value1_))};
+  // passing the correct list of autocomplete keys in the details.
+  const AutocompleteChange expected_changes[] = {AutocompleteChange(
+      AutocompleteChange::REMOVE, AutocompleteKey(name1_, value1_))};
   EXPECT_CALL(observer_,
-              AutofillEntriesChanged(ElementsAreArray(expected_changes)))
+              AutocompleteEntriesChanged(ElementsAreArray(expected_changes)))
       .WillOnce(SignalEvent(&done_event_));
   wds_->RemoveFormValueForElementName(name1_, value1_);
 
@@ -252,7 +256,7 @@ TEST_F(WebDataServiceAutofillTest, FormFillRemoveMany) {
   base::TimeDelta one_day(base::Days(1));
   Time t = AutofillClock::Now();
 
-  EXPECT_CALL(observer_, AutofillEntriesChanged(_))
+  EXPECT_CALL(observer_, AutocompleteEntriesChanged(_))
       .WillOnce(SignalEvent(&done_event_));
 
   std::vector<FormFieldData> form_fields;
@@ -264,12 +268,14 @@ TEST_F(WebDataServiceAutofillTest, FormFillRemoveMany) {
   done_event_.TimedWait(test_timeout_);
 
   // This will verify that the correct notification is triggered,
-  // passing the correct list of autofill keys in the details.
-  const AutofillChange expected_changes[] = {
-      AutofillChange(AutofillChange::REMOVE, AutofillKey(name1_, value1_)),
-      AutofillChange(AutofillChange::REMOVE, AutofillKey(name2_, value2_))};
+  // passing the correct list of autocomplete keys in the details.
+  const AutocompleteChange expected_changes[] = {
+      AutocompleteChange(AutocompleteChange::REMOVE,
+                         AutocompleteKey(name1_, value1_)),
+      AutocompleteChange(AutocompleteChange::REMOVE,
+                         AutocompleteKey(name2_, value2_))};
   EXPECT_CALL(observer_,
-              AutofillEntriesChanged(ElementsAreArray(expected_changes)))
+              AutocompleteEntriesChanged(ElementsAreArray(expected_changes)))
       .WillOnce(SignalEvent(&done_event_));
   wds_->RemoveFormElementsAddedBetween(t, t + one_day);
 
@@ -282,7 +288,7 @@ TEST_F(WebDataServiceAutofillTest, ProfileAdd) {
 
   // Check that GUID-based notification was sent.
   const AutofillProfileChange expected_change(AutofillProfileChange::ADD,
-                                              profile.guid(), &profile);
+                                              profile.guid(), profile);
   EXPECT_CALL(observer_, AutofillProfileChanged(expected_change))
       .WillOnce(SignalEvent(&done_event_));
 
@@ -290,12 +296,11 @@ TEST_F(WebDataServiceAutofillTest, ProfileAdd) {
   done_event_.TimedWait(test_timeout_);
 
   // Check that it was added.
-  AutofillWebDataServiceConsumer<std::vector<std::unique_ptr<AutofillProfile>>>
+  AutofillWebDataServiceWaiter<std::vector<std::unique_ptr<AutofillProfile>>>
       consumer;
   WebDataServiceBase::Handle handle = wds_->GetAutofillProfiles(
       AutofillProfile::Source::kLocalOrSyncable, &consumer);
-  task_environment_.RunUntilIdle();
-  EXPECT_EQ(handle, consumer.handle());
+  EXPECT_EQ(handle, consumer.WaitForHandle());
   ASSERT_EQ(1U, consumer.result().size());
   EXPECT_EQ(profile, *consumer.result()[0]);
 }
@@ -310,18 +315,17 @@ TEST_F(WebDataServiceAutofillTest, ProfileRemove) {
   done_event_.TimedWait(test_timeout_);
 
   // Check that it was added.
-  AutofillWebDataServiceConsumer<std::vector<std::unique_ptr<AutofillProfile>>>
+  AutofillWebDataServiceWaiter<std::vector<std::unique_ptr<AutofillProfile>>>
       consumer;
   WebDataServiceBase::Handle handle = wds_->GetAutofillProfiles(
       AutofillProfile::Source::kLocalOrSyncable, &consumer);
-  task_environment_.RunUntilIdle();
-  EXPECT_EQ(handle, consumer.handle());
+  EXPECT_EQ(handle, consumer.WaitForHandle());
   ASSERT_EQ(1U, consumer.result().size());
   EXPECT_EQ(profile, *consumer.result()[0]);
 
   // Check that GUID-based notification was sent.
   const AutofillProfileChange expected_change(AutofillProfileChange::REMOVE,
-                                              profile.guid(), &profile);
+                                              profile.guid(), profile);
   EXPECT_CALL(observer_, AutofillProfileChanged(expected_change))
       .WillOnce(SignalEvent(&done_event_));
 
@@ -331,24 +335,21 @@ TEST_F(WebDataServiceAutofillTest, ProfileRemove) {
   done_event_.TimedWait(test_timeout_);
 
   // Check that it was removed.
-  AutofillWebDataServiceConsumer<std::vector<std::unique_ptr<AutofillProfile>>>
+  AutofillWebDataServiceWaiter<std::vector<std::unique_ptr<AutofillProfile>>>
       consumer2;
   WebDataServiceBase::Handle handle2 = wds_->GetAutofillProfiles(
       AutofillProfile::Source::kLocalOrSyncable, &consumer2);
-  task_environment_.RunUntilIdle();
-  EXPECT_EQ(handle2, consumer2.handle());
+  EXPECT_EQ(handle2, consumer2.WaitForHandle());
   ASSERT_EQ(0U, consumer2.result().size());
 }
 
 TEST_F(WebDataServiceAutofillTest, ProfileUpdate) {
   // The GUIDs are alphabetical for easier testing.
-  AutofillProfile profile1("6141084B-72D7-4B73-90CF-3D6AC154673B",
-                           std::string());
+  AutofillProfile profile1("6141084B-72D7-4B73-90CF-3D6AC154673B");
   profile1.SetRawInfo(NAME_FIRST, u"Abe");
   profile1.FinalizeAfterImport();
 
-  AutofillProfile profile2("087151C8-6AB1-487C-9095-28E80BE5DA15",
-                           std::string());
+  AutofillProfile profile2("087151C8-6AB1-487C-9095-28E80BE5DA15");
   profile2.SetRawInfo(NAME_FIRST, u"Alice");
   profile2.FinalizeAfterImport();
 
@@ -361,12 +362,11 @@ TEST_F(WebDataServiceAutofillTest, ProfileUpdate) {
   done_event_.TimedWait(test_timeout_);
 
   // Check that they were added.
-  AutofillWebDataServiceConsumer<std::vector<std::unique_ptr<AutofillProfile>>>
+  AutofillWebDataServiceWaiter<std::vector<std::unique_ptr<AutofillProfile>>>
       consumer;
   WebDataServiceBase::Handle handle = wds_->GetAutofillProfiles(
       AutofillProfile::Source::kLocalOrSyncable, &consumer);
-  task_environment_.RunUntilIdle();
-  EXPECT_EQ(handle, consumer.handle());
+  EXPECT_EQ(handle, consumer.WaitForHandle());
   ASSERT_EQ(2U, consumer.result().size());
   EXPECT_EQ(profile2, *consumer.result()[0]);
   EXPECT_EQ(profile1, *consumer.result()[1]);
@@ -374,7 +374,7 @@ TEST_F(WebDataServiceAutofillTest, ProfileUpdate) {
   AutofillProfile profile2_changed(profile2);
   profile2_changed.SetRawInfo(NAME_FIRST, u"Bill");
   const AutofillProfileChange expected_change(
-      AutofillProfileChange::UPDATE, profile2.guid(), &profile2_changed);
+      AutofillProfileChange::UPDATE, profile2.guid(), profile2_changed);
 
   EXPECT_CALL(observer_, AutofillProfileChanged(expected_change))
       .WillOnce(SignalEvent(&done_event_));
@@ -384,12 +384,11 @@ TEST_F(WebDataServiceAutofillTest, ProfileUpdate) {
   done_event_.TimedWait(test_timeout_);
 
   // Check that the updates were made.
-  AutofillWebDataServiceConsumer<std::vector<std::unique_ptr<AutofillProfile>>>
+  AutofillWebDataServiceWaiter<std::vector<std::unique_ptr<AutofillProfile>>>
       consumer2;
   WebDataServiceBase::Handle handle2 = wds_->GetAutofillProfiles(
       AutofillProfile::Source::kLocalOrSyncable, &consumer2);
-  task_environment_.RunUntilIdle();
-  EXPECT_EQ(handle2, consumer2.handle());
+  EXPECT_EQ(handle2, consumer2.WaitForHandle());
   ASSERT_EQ(2U, consumer2.result().size());
   EXPECT_EQ(profile2_changed, *consumer2.result()[0]);
   EXPECT_NE(profile2, *consumer2.result()[0]);
@@ -401,11 +400,10 @@ TEST_F(WebDataServiceAutofillTest, CreditAdd) {
   wds_->AddCreditCard(card);
 
   // Check that it was added.
-  AutofillWebDataServiceConsumer<std::vector<std::unique_ptr<CreditCard>>>
+  AutofillWebDataServiceWaiter<std::vector<std::unique_ptr<CreditCard>>>
       consumer;
   WebDataServiceBase::Handle handle = wds_->GetCreditCards(&consumer);
-  task_environment_.RunUntilIdle();
-  EXPECT_EQ(handle, consumer.handle());
+  EXPECT_EQ(handle, consumer.WaitForHandle());
   ASSERT_EQ(1U, consumer.result().size());
   EXPECT_EQ(card, *consumer.result()[0]);
 }
@@ -417,11 +415,10 @@ TEST_F(WebDataServiceAutofillTest, CreditCardRemove) {
   wds_->AddCreditCard(credit_card);
 
   // Check that it was added.
-  AutofillWebDataServiceConsumer<std::vector<std::unique_ptr<CreditCard>>>
+  AutofillWebDataServiceWaiter<std::vector<std::unique_ptr<CreditCard>>>
       consumer;
   WebDataServiceBase::Handle handle = wds_->GetCreditCards(&consumer);
-  task_environment_.RunUntilIdle();
-  EXPECT_EQ(handle, consumer.handle());
+  EXPECT_EQ(handle, consumer.WaitForHandle());
   ASSERT_EQ(1U, consumer.result().size());
   EXPECT_EQ(credit_card, *consumer.result()[0]);
 
@@ -429,11 +426,10 @@ TEST_F(WebDataServiceAutofillTest, CreditCardRemove) {
   wds_->RemoveCreditCard(credit_card.guid());
 
   // Check that it was removed.
-  AutofillWebDataServiceConsumer<std::vector<std::unique_ptr<CreditCard>>>
+  AutofillWebDataServiceWaiter<std::vector<std::unique_ptr<CreditCard>>>
       consumer2;
   WebDataServiceBase::Handle handle2 = wds_->GetCreditCards(&consumer2);
-  task_environment_.RunUntilIdle();
-  EXPECT_EQ(handle2, consumer2.handle());
+  EXPECT_EQ(handle2, consumer2.WaitForHandle());
   ASSERT_EQ(0U, consumer2.result().size());
 }
 
@@ -447,11 +443,10 @@ TEST_F(WebDataServiceAutofillTest, CreditUpdate) {
   wds_->AddCreditCard(card2);
 
   // Check that they got added.
-  AutofillWebDataServiceConsumer<std::vector<std::unique_ptr<CreditCard>>>
+  AutofillWebDataServiceWaiter<std::vector<std::unique_ptr<CreditCard>>>
       consumer;
   WebDataServiceBase::Handle handle = wds_->GetCreditCards(&consumer);
-  task_environment_.RunUntilIdle();
-  EXPECT_EQ(handle, consumer.handle());
+  EXPECT_EQ(handle, consumer.WaitForHandle());
   ASSERT_EQ(2U, consumer.result().size());
   EXPECT_EQ(card2, *consumer.result()[0]);
   EXPECT_EQ(card1, *consumer.result()[1]);
@@ -462,11 +457,10 @@ TEST_F(WebDataServiceAutofillTest, CreditUpdate) {
   wds_->UpdateCreditCard(card2_changed);
 
   // Check that the updates were made.
-  AutofillWebDataServiceConsumer<std::vector<std::unique_ptr<CreditCard>>>
+  AutofillWebDataServiceWaiter<std::vector<std::unique_ptr<CreditCard>>>
       consumer2;
   WebDataServiceBase::Handle handle2 = wds_->GetCreditCards(&consumer2);
-  task_environment_.RunUntilIdle();
-  EXPECT_EQ(handle2, consumer2.handle());
+  EXPECT_EQ(handle2, consumer2.WaitForHandle());
   ASSERT_EQ(2U, consumer2.result().size());
   EXPECT_NE(card2, *consumer2.result()[0]);
   EXPECT_EQ(card2_changed, *consumer2.result()[0]);
@@ -482,12 +476,11 @@ TEST_F(WebDataServiceAutofillTest, AutofillRemoveModifiedBetween) {
   done_event_.TimedWait(test_timeout_);
 
   // Check that it was added.
-  AutofillWebDataServiceConsumer<std::vector<std::unique_ptr<AutofillProfile>>>
+  AutofillWebDataServiceWaiter<std::vector<std::unique_ptr<AutofillProfile>>>
       profile_consumer;
   WebDataServiceBase::Handle handle = wds_->GetAutofillProfiles(
       AutofillProfile::Source::kLocalOrSyncable, &profile_consumer);
-  task_environment_.RunUntilIdle();
-  EXPECT_EQ(handle, profile_consumer.handle());
+  EXPECT_EQ(handle, profile_consumer.WaitForHandle());
   ASSERT_EQ(1U, profile_consumer.result().size());
   EXPECT_EQ(profile, *profile_consumer.result()[0]);
 
@@ -496,17 +489,16 @@ TEST_F(WebDataServiceAutofillTest, AutofillRemoveModifiedBetween) {
   wds_->AddCreditCard(credit_card);
 
   // Check that it was added.
-  AutofillWebDataServiceConsumer<std::vector<std::unique_ptr<CreditCard>>>
+  AutofillWebDataServiceWaiter<std::vector<std::unique_ptr<CreditCard>>>
       card_consumer;
   handle = wds_->GetCreditCards(&card_consumer);
-  task_environment_.RunUntilIdle();
-  EXPECT_EQ(handle, card_consumer.handle());
+  EXPECT_EQ(handle, card_consumer.WaitForHandle());
   ASSERT_EQ(1U, card_consumer.result().size());
   EXPECT_EQ(credit_card, *card_consumer.result()[0]);
 
   // Check that GUID-based notification was sent for the profile.
   const AutofillProfileChange expected_profile_change(
-      AutofillProfileChange::REMOVE, profile.guid(), &profile);
+      AutofillProfileChange::REMOVE, profile.guid(), profile);
   EXPECT_CALL(observer_, AutofillProfileChanged(expected_profile_change))
       .WillOnce(SignalEvent(&done_event_));
 
@@ -515,21 +507,67 @@ TEST_F(WebDataServiceAutofillTest, AutofillRemoveModifiedBetween) {
   done_event_.TimedWait(test_timeout_);
 
   // Check that the profile was removed.
-  AutofillWebDataServiceConsumer<std::vector<std::unique_ptr<AutofillProfile>>>
+  AutofillWebDataServiceWaiter<std::vector<std::unique_ptr<AutofillProfile>>>
       profile_consumer2;
   WebDataServiceBase::Handle handle2 = wds_->GetAutofillProfiles(
       AutofillProfile::Source::kLocalOrSyncable, &profile_consumer2);
-  task_environment_.RunUntilIdle();
-  EXPECT_EQ(handle2, profile_consumer2.handle());
+  EXPECT_EQ(handle2, profile_consumer2.WaitForHandle());
   ASSERT_EQ(0U, profile_consumer2.result().size());
 
   // Check that the credit card was removed.
-  AutofillWebDataServiceConsumer<std::vector<std::unique_ptr<CreditCard>>>
+  AutofillWebDataServiceWaiter<std::vector<std::unique_ptr<CreditCard>>>
       card_consumer2;
   handle2 = wds_->GetCreditCards(&card_consumer2);
-  task_environment_.RunUntilIdle();
-  EXPECT_EQ(handle2, card_consumer2.handle());
+  EXPECT_EQ(handle2, card_consumer2.WaitForHandle());
   ASSERT_EQ(0U, card_consumer2.result().size());
+}
+
+// Verify that WebDatabase.AutofillWebDataBackendImpl.OperationSuccess records
+// success and failures in the methods of AutofillWebDataBackendImpl.
+TEST_F(WebDataServiceAutofillTest, SuccessReporting) {
+  auto add_card_synchronously = [&](const CreditCard& card) {
+    wds_->AddCreditCard(card);
+
+    // Wait that card was added by enqueuing a lookup which is handled on the
+    // same SequencedTaskRunner as the previous `AddCreditCard` operation and
+    // waiting for the result.
+    AutofillWebDataServiceWaiter<std::vector<std::unique_ptr<CreditCard>>>
+        consumer;
+    WebDataServiceBase::Handle handle = wds_->GetCreditCards(&consumer);
+    EXPECT_EQ(handle, consumer.WaitForHandle());
+  };
+
+  // Values are taken from enum Result in autofill_webdata_backend_impl.cc.
+  constexpr int kAddCreditCard_Success = 70;
+  constexpr int kRemoveCreditCard_ReadFailure = 91;
+
+  // Verify that success is reported correctly.
+  {
+    base::HistogramTester histogram_tester;
+    add_card_synchronously(CreditCard());
+    EXPECT_THAT(histogram_tester.GetAllSamples(
+                    "WebDatabase.AutofillWebDataBackendImpl.OperationResult"),
+                BucketsAre(Bucket(kAddCreditCard_Success, 1)));
+  }
+
+  // Verify that failure is reported correctly.
+  {
+    base::HistogramTester histogram_tester;
+    // Asynchronously delete a non-existing card which should trigger a failure
+    // report.
+    std::string non_existing_guid =
+        base::Uuid::GenerateRandomV4().AsLowercaseString();
+    wds_->RemoveCreditCard(non_existing_guid);
+
+    // Add a second card just to ensure that the delete operation has been fully
+    // processed.
+    add_card_synchronously(CreditCard());
+
+    EXPECT_THAT(histogram_tester.GetAllSamples(
+                    "WebDatabase.AutofillWebDataBackendImpl.OperationResult"),
+                BucketsAre(Bucket(kRemoveCreditCard_ReadFailure, 1),
+                           Bucket(kAddCreditCard_Success, 1)));
+  }
 }
 
 }  // namespace autofill

@@ -13,6 +13,8 @@
 #include "components/supervised_user/core/browser/supervised_user_url_filter.h"
 #include "components/supervised_user/core/common/pref_names.h"
 
+namespace supervised_user {
+
 namespace {
 
 constexpr base::TimeDelta kTimerInterval = base::Minutes(10);
@@ -43,7 +45,7 @@ SupervisedUserMetricsService::SupervisedUserMetricsService(
   DCHECK(url_filter);
 
   supervised_user_metrics_.push_back(
-      std::make_unique<ParentalControlMetrics>(pref_service, url_filter));
+      std::make_unique<ParentalControlMetrics>(url_filter));
 
   for (auto& supervised_user_metric : supervised_user_metrics_) {
     AddObserver(supervised_user_metric.get());
@@ -85,3 +87,5 @@ void SupervisedUserMetricsService::CheckForNewDay() {
                               GetDayId(now));
   }
 }
+
+}  // namespace supervised_user

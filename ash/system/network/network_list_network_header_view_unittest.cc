@@ -10,6 +10,7 @@
 #include "ash/strings/grit/ash_strings.h"
 #include "ash/system/network/fake_network_list_network_header_view_delegate.h"
 #include "ash/system/network/network_list_header_view.h"
+#include "ash/system/tray/hover_highlight_view.h"
 #include "ash/system/tray/tri_view.h"
 #include "ash/test/ash_test_base.h"
 #include "ui/views/controls/button/toggle_button.h"
@@ -55,7 +56,7 @@ class NetworkListNetworkHeaderViewTest : public AshTestBase {
   template <class T>
   T FindViewById(int id) {
     return static_cast<T>(
-        network_list_network_header_view_->container()->GetViewByID(id));
+        network_list_network_header_view_->entry_row()->GetViewByID(id));
   }
 
  private:

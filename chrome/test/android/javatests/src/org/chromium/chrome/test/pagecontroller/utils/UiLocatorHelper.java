@@ -6,7 +6,7 @@ package org.chromium.chrome.test.pagecontroller.utils;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.test.InstrumentationRegistry;
+import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.uiautomator.StaleObjectException;
 import androidx.test.uiautomator.UiDevice;
 import androidx.test.uiautomator.UiObject2;
@@ -25,12 +25,10 @@ import java.util.List;
  * This helper class provides these capabilities.
  */
 public class UiLocatorHelper {
-    private static final String TAG = "UiLocatorHelper";
     private static final long DEFAULT_TIMEOUT_MS = 3000L;
     // UI_CHECK_INTERVAL_MS is intentionally not modifiable so that longer timeouts
     // don't lead to slowness due to the checking interval being too coarse.
     static final long UI_CHECK_INTERVAL_MS = DEFAULT_TIMEOUT_MS / 4L;
-    private static final long DEFAULT_MAX_UI_SETTLE_TIME_MS = 200L;
 
     private static final ElementConverter<String> CONVERTER_TEXT = object2 -> {
         return object2.getText();

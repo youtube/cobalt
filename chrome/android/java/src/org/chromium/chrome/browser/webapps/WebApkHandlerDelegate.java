@@ -9,9 +9,10 @@ import android.content.Intent;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.ContextUtils;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.NativeMethods;
 import org.chromium.chrome.browser.browserservices.intents.WebappInfo;
 import org.chromium.components.webapk.lib.client.WebApkValidator;
 import org.chromium.components.webapps.ShortcutSource;
@@ -28,7 +29,8 @@ public class WebApkHandlerDelegate {
                 String packageName, String id, int shellApkVersion, int versionCode, String uri,
                 String scope, String manifestUrl, String manifestStartUrl, String manifestId,
                 int displayMode, int orientation, long themeColor, long backgroundColor,
-                long lastUpdateCheckTimeMs, long lastUpdateCompletionTimeMs, boolean relaxUpdates,
+                long darkThemeColor, long darkBackgroundColor, long lastUpdateCheckTimeMs,
+                long lastUpdateCompletionTimeMs, boolean relaxUpdates,
                 String backingBrowserPackageName, boolean isBackingBrowser, String updateStatus);
     }
 
@@ -108,6 +110,7 @@ public class WebApkHandlerDelegate {
                 webApkInfo.scopeUrl(), webApkInfo.manifestUrl(), webApkInfo.manifestStartUrl(),
                 webApkInfo.manifestId(), webApkInfo.displayMode(), webApkInfo.orientation(),
                 webApkInfo.toolbarColor(), webApkInfo.backgroundColor(),
+                webApkInfo.darkToolbarColor(), webApkInfo.darkBackgroundColor(),
                 lastUpdateCheckTimeMsForStorage, lastUpdateCompletionTimeMsInStorage,
                 relaxUpdatesForStorage, backingBrowserPackageName, isBackingBrowser, updateStatus);
     }

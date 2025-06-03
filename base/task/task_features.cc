@@ -9,6 +9,7 @@
 #include "base/base_export.h"
 #include "base/feature_list.h"
 #include "base/threading/platform_thread.h"
+#include "build/build_config.h"
 
 namespace base {
 
@@ -49,16 +50,33 @@ BASE_FEATURE(kAddTaskLeewayFeature,
 
 const base::FeatureParam<TimeDelta> kTaskLeewayParam{&kAddTaskLeewayFeature,
                                                      "leeway", kDefaultLeeway};
+const base::FeatureParam<TimeDelta> kMaxPreciseDelay{
+    &kAddTaskLeewayFeature, "max_precise_delay", kDefaultMaxPreciseDelay};
 
-BASE_FEATURE(kAlignWakeUps, "AlignWakeUps", base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kAlignWakeUps, "AlignWakeUps", base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kTimerSlackMac,
+             "TimerSlackMac",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kExplicitHighResolutionTimerWin,
              "ExplicitHighResolutionTimerWin",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kRunTasksByBatches,
              "RunTasksByBatches",
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_CHROMEOS)
+             base::FEATURE_ENABLED_BY_DEFAULT);
+#else
              base::FEATURE_DISABLED_BY_DEFAULT);
+#endif
+
+BASE_FEATURE(kThreadPoolCap2,
+             "ThreadPoolCap2",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+const base::FeatureParam<int> kThreadPoolCapRestrictedCount{
+    &kThreadPoolCap2, "restricted_count", 3};
 
 // Leeway value applied to delayed tasks. An atomic is used here because the
 // value is queried from multiple threads.

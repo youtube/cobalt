@@ -11,11 +11,12 @@
 #include "base/strings/stringprintf.h"
 #include "components/crx_file/id_util.h"
 #include "extensions/common/api/messaging/message.h"
-#include "extensions/common/api/messaging/serialization_format.h"
+#include "extensions/common/api/messaging/messaging_endpoint.h"
 #include "extensions/common/extension.h"
 #include "extensions/common/extension_features.h"
 #include "extensions/common/manifest.h"
 #include "extensions/common/manifest_handlers/background_info.h"
+#include "extensions/common/mojom/message_port.mojom-shared.h"
 #include "extensions/renderer/get_script_context.h"
 #include "extensions/renderer/script_context.h"
 #include "gin/converter.h"
@@ -72,7 +73,7 @@ std::unique_ptr<Message> MessageFromJSONString(v8::Isolate* isolate,
   bool has_unrestricted_user_activation =
       web_frame && web_frame->HasTransientUserActivation() &&
       !web_frame->LastActivationWasRestricted();
-  return std::make_unique<Message>(message, SerializationFormat::kJson,
+  return std::make_unique<Message>(message, mojom::SerializationFormat::kJson,
                                    has_unrestricted_user_activation,
                                    privileged_context);
 }
@@ -83,10 +84,12 @@ const char kSendMessageChannel[] = "chrome.runtime.sendMessage";
 const char kSendRequestChannel[] = "chrome.extension.sendRequest";
 
 const char kOnMessageEvent[] = "runtime.onMessage";
+const char kOnUserScriptMessageEvent[] = "runtime.onUserScriptMessage";
 const char kOnMessageExternalEvent[] = "runtime.onMessageExternal";
 const char kOnRequestEvent[] = "extension.onRequest";
 const char kOnRequestExternalEvent[] = "extension.onRequestExternal";
 const char kOnConnectEvent[] = "runtime.onConnect";
+const char kOnUserScriptConnectEvent[] = "runtime.onUserScriptConnect";
 const char kOnConnectExternalEvent[] = "runtime.onConnectExternal";
 const char kOnConnectNativeEvent[] = "runtime.onConnectNative";
 
@@ -94,7 +97,7 @@ const int kNoFrameId = -1;
 
 std::unique_ptr<Message> MessageFromV8(v8::Local<v8::Context> context,
                                        v8::Local<v8::Value> value,
-                                       SerializationFormat format,
+                                       mojom::SerializationFormat format,
                                        std::string* error_out) {
   // TODO(crbug.com/248548): Incorporate `format` while serializing the message.
   DCHECK(!value.IsEmpty());
@@ -163,17 +166,17 @@ int ExtractIntegerId(v8::Local<v8::Value> value) {
   return 0;
 }
 
-SerializationFormat GetSerializationFormat(
+mojom::SerializationFormat GetSerializationFormat(
     const ScriptContext& script_context) {
   if (!base::FeatureList::IsEnabled(
           extensions_features::kStructuredCloningForMV3Messaging)) {
-    return SerializationFormat::kJson;
+    return mojom::SerializationFormat::kJson;
   }
 
   const Extension* extension = script_context.extension();
   return extension && extension->manifest_version() >= 3
-             ? SerializationFormat::kStructuredCloned
-             : SerializationFormat::kJson;
+             ? mojom::SerializationFormat::kStructuredCloned
+             : mojom::SerializationFormat::kJson;
 }
 
 MessageOptions ParseMessageOptions(v8::Local<v8::Context> context,
@@ -265,14 +268,22 @@ bool GetTargetExtensionId(ScriptContext* script_context,
     }
   }
 
+  if (script_context->context_type() == Feature::USER_SCRIPT_CONTEXT) {
+    // User scripts should *always* have an associated extension.
+    CHECK(script_context->extension());
+    if (script_context->extension()->id() != target_id) {
+      *error_out = "User scripts may not message external extensions.";
+      return false;
+    }
+  }
+
   *target_out = std::move(target_id);
   return true;
 }
 
-void MassageSendMessageArguments(
-    v8::Isolate* isolate,
-    bool allow_options_argument,
-    std::vector<v8::Local<v8::Value>>* arguments_out) {
+void MassageSendMessageArguments(v8::Isolate* isolate,
+                                 bool allow_options_argument,
+                                 v8::LocalVector<v8::Value>* arguments_out) {
   base::span<const v8::Local<v8::Value>> arguments = *arguments_out;
   size_t max_size = allow_options_argument ? 4u : 3u;
   if (arguments.empty() || arguments.size() > max_size)
@@ -342,6 +353,50 @@ bool IsSendRequestDisabled(ScriptContext* script_context) {
   const Extension* extension = script_context->extension();
   return extension && Manifest::IsUnpackedLocation(extension->location()) &&
          BackgroundInfo::HasLazyBackgroundPage(extension);
+}
+
+std::string GetEventForChannel(const MessagingEndpoint& source_endpoint,
+                               const ExtensionId& target_extension_id,
+                               mojom::ChannelType channel_type) {
+  bool is_external_event =
+      MessagingEndpoint::IsExternal(source_endpoint, target_extension_id);
+  bool is_user_script_event =
+      source_endpoint.type == MessagingEndpoint::Type::kUserScript;
+  // We (deliberately) do not support external user script events.
+  CHECK(!is_user_script_event || !is_external_event);
+
+  std::string event_name;
+  switch (channel_type) {
+    case mojom::ChannelType::kSendRequest:
+      CHECK(!is_user_script_event);
+      event_name = is_external_event ? messaging_util::kOnRequestExternalEvent
+                                     : messaging_util::kOnRequestEvent;
+      break;
+    case mojom::ChannelType::kSendMessage:
+      if (is_external_event) {
+        event_name = messaging_util::kOnMessageExternalEvent;
+      } else if (is_user_script_event) {
+        event_name = messaging_util::kOnUserScriptMessageEvent;
+      } else {
+        event_name = messaging_util::kOnMessageEvent;
+      }
+      break;
+    case mojom::ChannelType::kConnect:
+      if (is_external_event) {
+        event_name = messaging_util::kOnConnectExternalEvent;
+      } else if (is_user_script_event) {
+        event_name = messaging_util::kOnUserScriptConnectEvent;
+      } else {
+        event_name = messaging_util::kOnConnectEvent;
+      }
+      break;
+    case mojom::ChannelType::kNative:
+      CHECK(!is_user_script_event);
+      event_name = messaging_util::kOnConnectNativeEvent;
+      break;
+  }
+
+  return event_name;
 }
 
 }  // namespace messaging_util

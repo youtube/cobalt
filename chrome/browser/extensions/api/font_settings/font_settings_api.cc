@@ -19,7 +19,6 @@
 #include "base/trace_event/trace_event.h"
 #include "base/values.h"
 #include "build/build_config.h"
-#include "chrome/browser/chrome_notification_types.h"
 #include "chrome/browser/extensions/api/preference/preference_helpers.h"
 #include "chrome/browser/extensions/extension_service.h"
 #include "chrome/browser/font_pref_change_notifier.h"
@@ -31,13 +30,12 @@
 #include "components/prefs/pref_change_registrar.h"
 #include "components/prefs/pref_service.h"
 #include "content/public/browser/font_list_async.h"
-#include "content/public/browser/notification_details.h"
-#include "content/public/browser/notification_source.h"
 #include "extensions/browser/event_router.h"
 #include "extensions/browser/extension_event_histogram_value.h"
 #include "extensions/browser/extension_prefs_helper.h"
 #include "extensions/browser/extension_prefs_helper_factory.h"
 #include "extensions/browser/extension_system.h"
+#include "extensions/common/api/types.h"
 #include "extensions/common/error_utils.h"
 
 #if BUILDFLAG(IS_WIN)
@@ -47,6 +45,7 @@
 namespace extensions {
 
 namespace fonts = api::font_settings;
+using extensions::api::types::ChromeSettingScope;
 
 namespace {
 
@@ -278,7 +277,7 @@ ExtensionFunction::ResponseAction FontSettingsClearFontFunction::Run() {
   EXTENSION_FUNCTION_VALIDATE(profile->GetPrefs()->FindPreference(pref_path));
 
   ExtensionPrefsHelper::Get(profile)->RemoveExtensionControlledPref(
-      extension_id(), pref_path, kExtensionPrefsScopeRegular);
+      extension_id(), pref_path, ChromeSettingScope::kRegular);
   return RespondNow(NoArguments());
 }
 
@@ -332,7 +331,7 @@ ExtensionFunction::ResponseAction FontSettingsSetFontFunction::Run() {
   EXTENSION_FUNCTION_VALIDATE(profile->GetPrefs()->FindPreference(pref_path));
 
   ExtensionPrefsHelper::Get(profile)->SetExtensionControlledPref(
-      extension_id(), pref_path, kExtensionPrefsScopeRegular,
+      extension_id(), pref_path, ChromeSettingScope::kRegular,
       base::Value(params->details.font_id));
   return RespondNow(NoArguments());
 }
@@ -383,7 +382,7 @@ ExtensionFunction::ResponseAction ClearFontPrefExtensionFunction::Run() {
     return RespondNow(Error(kSetFromIncognitoError));
 
   ExtensionPrefsHelper::Get(profile)->RemoveExtensionControlledPref(
-      extension_id(), GetPrefName(), kExtensionPrefsScopeRegular);
+      extension_id(), GetPrefName(), ChromeSettingScope::kRegular);
   return RespondNow(NoArguments());
 }
 
@@ -419,7 +418,7 @@ ExtensionFunction::ResponseAction SetFontPrefExtensionFunction::Run() {
   EXTENSION_FUNCTION_VALIDATE(value);
 
   ExtensionPrefsHelper::Get(profile)->SetExtensionControlledPref(
-      extension_id(), GetPrefName(), kExtensionPrefsScopeRegular,
+      extension_id(), GetPrefName(), ChromeSettingScope::kRegular,
       value->Clone());
   return RespondNow(NoArguments());
 }

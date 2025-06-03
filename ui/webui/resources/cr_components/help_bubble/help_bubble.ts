@@ -18,7 +18,7 @@ import './help_bubble_icons.html.js';
 
 import {CrButtonElement} from '//resources/cr_elements/cr_button/cr_button.js';
 import {CrIconButtonElement} from '//resources/cr_elements/cr_icon_button/cr_icon_button.js';
-import {assert, assertNotReached} from '//resources/js/assert_ts.js';
+import {assert, assertNotReached} from '//resources/js/assert.js';
 import {isWindows} from '//resources/js/platform.js';
 import {DomRepeat, DomRepeatEvent, PolymerElement} from '//resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 import {InsetsF} from 'chrome://resources/mojo/ui/gfx/geometry/mojom/geometry.mojom-webui.js';
@@ -107,7 +107,7 @@ export class HelpBubbleElement extends PolymerElement {
   timeoutMs: number|null = null;
   timeoutTimerId: number|null = null;
   debouncedUpdate: (() => void)|null = null;
-  padding: InsetsF = new InsetsF();
+  padding: InsetsF = {top: 0, bottom: 0, left: 0, right: 0};
   fixed: boolean = false;
 
   /**
@@ -324,7 +324,8 @@ export class HelpBubbleElement extends PolymerElement {
   }
 
   private getButtonClass_(isDefault: boolean): string {
-    return isDefault ? 'default-button' : '';
+    return isDefault ? 'default-button focus-outline-visible' :
+                       'focus-outline-visible';
   }
 
   private getButtonTabIndex_(index: number, isDefault: boolean): number {

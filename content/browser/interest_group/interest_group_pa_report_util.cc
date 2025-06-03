@@ -7,21 +7,31 @@
 #include <stdint.h>
 
 #include <cmath>
+#include <map>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "base/check.h"
+#include "base/check_op.h"
 #include "base/containers/flat_map.h"
+#include "base/feature_list.h"
 #include "base/notreached.h"
 #include "base/numerics/clamped_math.h"
+#include "components/aggregation_service/aggregation_coordinator_utils.h"
+#include "components/aggregation_service/features.h"
+#include "content/browser/private_aggregation/private_aggregation_manager.h"
 #include "content/common/content_export.h"
 #include "content/services/auction_worklet/public/mojom/private_aggregation_request.mojom.h"
 #include "content/services/auction_worklet/public/mojom/seller_worklet.mojom.h"
+#include "mojo/public/cpp/bindings/remote.h"
 #include "third_party/abseil-cpp/absl/numeric/int128.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
+#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/mojom/private_aggregation/aggregatable_report.mojom.h"
+#include "third_party/blink/public/mojom/private_aggregation/private_aggregation_host.mojom.h"
 #include "url/origin.h"
+#include "url/url_constants.h"
 
 namespace content {
 
@@ -34,13 +44,12 @@ namespace {
 // Returns the actual value of `base_value` with corresponding post auction
 // signal such as `winning_bid`. Returns absl::nullopt if corresponding signal
 // is not available.
-// TODO(crbug.com/1385549): Pass in signals for script run time and signals
-// fetch time.
 absl::optional<double> GetBaseValue(
     auction_worklet::mojom::BaseValue base_value,
     double winning_bid,
     double highest_scoring_other_bid,
-    const absl::optional<auction_worklet::mojom::RejectReason> reject_reason) {
+    const absl::optional<auction_worklet::mojom::RejectReason> reject_reason,
+    const PrivateAggregationTimings& timings) {
   // The mojom API declaration should ensure base_value is one of these cases.
   switch (base_value) {
     case auction_worklet::mojom::BaseValue::kWinningBid:
@@ -48,9 +57,9 @@ absl::optional<double> GetBaseValue(
     case auction_worklet::mojom::BaseValue::kHighestScoringOtherBid:
       return highest_scoring_other_bid;
     case auction_worklet::mojom::BaseValue::kScriptRunTime:
-      return absl::nullopt;
+      return timings.script_run_time.InMillisecondsF();
     case auction_worklet::mojom::BaseValue::kSignalsFetchTime:
-      return absl::nullopt;
+      return timings.signals_fetch_time.InMillisecondsF();
     case auction_worklet::mojom::BaseValue::kBidRejectReason:
       // reportWin() and reportResult() have no reject reason, so their private
       // aggregation requests with "bid-reject-reason" base value are not sent.
@@ -75,8 +84,6 @@ absl::optional<absl::uint128> CalculateBucket(
     const auction_worklet::mojom::SignalBucketPtr& bucket_obj,
     absl::optional<double> base) {
   if (!base.has_value()) {
-    // Once kScriptRunTime and kSignalsFetchTime are supported, this should not
-    // happen.
     return absl::nullopt;
   }
 
@@ -139,8 +146,6 @@ absl::optional<int32_t> CalculateValue(
     const auction_worklet::mojom::SignalValuePtr& value_obj,
     absl::optional<double> base) {
   if (!base.has_value()) {
-    // Once kScriptRunTime and kSignalsFetchTime are supported, this should not
-    // happen.
     return absl::nullopt;
   }
 
@@ -176,7 +181,8 @@ CalculateContributionBucketAndValue(
         contribution,
     double winning_bid,
     double highest_scoring_other_bid,
-    const absl::optional<auction_worklet::mojom::RejectReason> reject_reason) {
+    const absl::optional<auction_worklet::mojom::RejectReason> reject_reason,
+    const PrivateAggregationTimings& timings) {
   absl::uint128 bucket;
   int value;
 
@@ -186,8 +192,9 @@ CalculateContributionBucketAndValue(
     auction_worklet::mojom::SignalBucketPtr& bucket_obj =
         contribution->bucket->get_signal_bucket();
     absl::optional<absl::uint128> bucket_opt = CalculateBucket(
-        bucket_obj, GetBaseValue(bucket_obj->base_value, winning_bid,
-                                 highest_scoring_other_bid, reject_reason));
+        bucket_obj,
+        GetBaseValue(bucket_obj->base_value, winning_bid,
+                     highest_scoring_other_bid, reject_reason, timings));
     if (!bucket_opt.has_value()) {
       return nullptr;
     }
@@ -209,8 +216,9 @@ CalculateContributionBucketAndValue(
     const auction_worklet::mojom::SignalValuePtr& value_obj =
         contribution->value->get_signal_value();
     absl::optional<int> value_opt = CalculateValue(
-        value_obj, GetBaseValue(value_obj->base_value, winning_bid,
-                                highest_scoring_other_bid, reject_reason));
+        value_obj,
+        GetBaseValue(value_obj->base_value, winning_bid,
+                     highest_scoring_other_bid, reject_reason, timings));
     if (!value_opt.has_value()) {
       return nullptr;
     }
@@ -245,6 +253,7 @@ FillInPrivateAggregationRequest(
     double winning_bid,
     double highest_scoring_other_bid,
     const absl::optional<auction_worklet::mojom::RejectReason> reject_reason,
+    const PrivateAggregationTimings& timings,
     bool is_winner) {
   DCHECK(request);
   if (request->contribution->is_histogram_contribution()) {
@@ -292,7 +301,7 @@ FillInPrivateAggregationRequest(
   blink::mojom::AggregatableReportHistogramContributionPtr
       calculated_contribution = CalculateContributionBucketAndValue(
           std::move(contribution->get_for_event_contribution()), winning_bid,
-          highest_scoring_other_bid, reject_reason);
+          highest_scoring_other_bid, reject_reason, timings);
   if (!calculated_contribution) {
     return absl::nullopt;
   }
@@ -304,6 +313,87 @@ FillInPrivateAggregationRequest(
           request->aggregation_mode, std::move(request->debug_mode_details)),
       final_event_type);
   return request_with_event_type;
+}
+
+void SplitContributionsIntoBatchesThenSendToHost(
+    std::vector<auction_worklet::mojom::PrivateAggregationRequestPtr> requests,
+    PrivateAggregationManager& pa_manager,
+    const url::Origin& reporting_origin,
+    absl::optional<url::Origin> aggregation_coordinator_origin,
+    const url::Origin& main_frame_origin) {
+  CHECK_EQ(reporting_origin.scheme(), url::kHttpsScheme);
+  CHECK_EQ(main_frame_origin.scheme(), url::kHttpsScheme);
+
+  // Split the vector of requests into those with matching debug mode details.
+  std::map<
+      blink::mojom::DebugModeDetailsPtr,
+      std::vector<blink::mojom::AggregatableReportHistogramContributionPtr>>
+      contributions_map;
+
+  bool is_debug_mode_allowed = pa_manager.IsDebugModeAllowed(
+      /*top_frame_origin=*/main_frame_origin, reporting_origin);
+
+  for (auction_worklet::mojom::PrivateAggregationRequestPtr& request :
+       requests) {
+    // All for-event contributions have already been converted to histogram
+    // contributions by filling in post auction signals using
+    // `FillInPrivateAggregationRequest()` before reaching here.
+    CHECK(request->contribution->is_histogram_contribution());
+    CHECK(request->debug_mode_details);
+
+    // TODO(alexmt): Split by this too when it can be non-default.
+    CHECK_EQ(request->aggregation_mode,
+             blink::mojom::AggregationServiceMode::kDefault);
+
+    // If debug mode will be ignored by the Private Aggregation layer, we
+    // override the value here to allow the contributions to be batched
+    // together.
+    if (!is_debug_mode_allowed) {
+      request->debug_mode_details = blink::mojom::DebugModeDetails::New();
+    }
+
+    contributions_map[std::move(request->debug_mode_details)].push_back(
+        std::move(request->contribution->get_histogram_contribution()));
+  }
+
+  if (!base::FeatureList::IsEnabled(
+          blink::features::kPrivateAggregationApiMultipleCloudProviders) ||
+      !base::FeatureList::IsEnabled(
+          aggregation_service::kAggregationServiceMultipleCloudProviders)) {
+    // Override with the default if a non-default coordinator is specified when
+    // the feature is disabled.
+    aggregation_coordinator_origin = absl::nullopt;
+  }
+
+  if (aggregation_coordinator_origin &&
+      !aggregation_service::IsAggregationCoordinatorOriginAllowed(
+          aggregation_coordinator_origin.value())) {
+    // Ignore contributions that use an invalid coordinator.
+    return;
+  }
+
+  for (auto& [debug_mode_details, contributions] : contributions_map) {
+    mojo::Remote<blink::mojom::PrivateAggregationHost> remote_host;
+
+    bool bound = pa_manager.BindNewReceiver(
+        /*worklet_origin=*/reporting_origin,
+        /*top_frame_origin=*/main_frame_origin,
+        PrivateAggregationBudgetKey::Api::kProtectedAudience,
+        /*context_id=*/absl::nullopt,
+        /*timeout=*/absl::nullopt, aggregation_coordinator_origin,
+        remote_host.BindNewPipeAndPassReceiver());
+
+    // The worklet origin should be potentially trustworthy (and no context ID
+    // is set) and we checked the coordinator origin, so this should always
+    // succeed.
+    CHECK(bound);
+
+    if (debug_mode_details->is_enabled) {
+      remote_host->EnableDebugMode(std::move(debug_mode_details->debug_key));
+    }
+    remote_host->ContributeToHistogram(std::move(contributions));
+    remote_host.reset();
+  }
 }
 
 }  // namespace content

@@ -21,6 +21,7 @@
 #include <openssl/rand.h>
 
 #include "../internal.h"
+#include "../keccak/internal.h"
 #include "./internal.h"
 
 
@@ -132,7 +133,7 @@ static uint16_t reduce_once(uint16_t x) {
 static uint16_t reduce(uint32_t x) {
   assert(x < kPrime + 2u * kPrime * kPrime);
   uint64_t product = (uint64_t)x * kBarrettMultiplier;
-  uint32_t quotient = product >> kBarrettShift;
+  uint32_t quotient = (uint32_t)(product >> kBarrettShift);
   uint32_t remainder = x - quotient * kPrime;
   return reduce_once(remainder);
 }
@@ -230,7 +231,7 @@ static void scalar_sub(scalar *lhs, const scalar *rhs) {
 static void scalar_mult(scalar *out, const scalar *lhs, const scalar *rhs) {
   for (int i = 0; i < DEGREE / 2; i++) {
     uint32_t real_real = (uint32_t)lhs->c[2 * i] * rhs->c[2 * i];
-    uint32_t img_img = (uint32_t)rhs->c[2 * i + 1] * lhs->c[2 * i + 1];
+    uint32_t img_img = (uint32_t)lhs->c[2 * i + 1] * rhs->c[2 * i + 1];
     uint32_t real_img = (uint32_t)lhs->c[2 * i] * rhs->c[2 * i + 1];
     uint32_t img_real = (uint32_t)lhs->c[2 * i + 1] * rhs->c[2 * i];
     out->c[2 * i] =
@@ -283,16 +284,23 @@ static void scalar_inner_product(scalar *out, const vector *lhs,
 // operates on public inputs.
 static void scalar_from_keccak_vartime(scalar *out,
                                        struct BORINGSSL_keccak_st *keccak_ctx) {
-  uint8_t bytes[3];
-  for (int i = 0; i < DEGREE;) {
-    BORINGSSL_keccak_squeeze(keccak_ctx, bytes, sizeof(bytes));
-    uint16_t d1 = bytes[0] + 256 * (bytes[1] % 16);
-    uint16_t d2 = bytes[1] / 16 + 16 * bytes[2];
-    if (d1 < kPrime) {
-      out->c[i++] = d1;
-    }
-    if (d2 < kPrime && i < DEGREE) {
-      out->c[i++] = d2;
+  assert(keccak_ctx->squeeze_offset == 0);
+  assert(keccak_ctx->rate_bytes == 168);
+  static_assert(168 % 3 == 0, "block and coefficient boundaries do not align");
+
+  int done = 0;
+  while (done < DEGREE) {
+    uint8_t block[168];
+    BORINGSSL_keccak_squeeze(keccak_ctx, block, sizeof(block));
+    for (size_t i = 0; i < sizeof(block) && done < DEGREE; i += 3) {
+      uint16_t d1 = block[i] + 256 * (block[i + 1] % 16);
+      uint16_t d2 = block[i + 1] / 16 + 16 * block[i + 2];
+      if (d1 < kPrime) {
+        out->c[done++] = d1;
+      }
+      if (d2 < kPrime && done < DEGREE) {
+        out->c[done++] = d2;
+      }
     }
   }
 }
@@ -347,8 +355,8 @@ static void matrix_expand(matrix *out, const uint8_t rho[32]) {
       input[32] = i;
       input[33] = j;
       struct BORINGSSL_keccak_st keccak_ctx;
-      BORINGSSL_keccak_init(&keccak_ctx, input, sizeof(input),
-                            boringssl_shake128);
+      BORINGSSL_keccak_init(&keccak_ctx, boringssl_shake128);
+      BORINGSSL_keccak_absorb(&keccak_ctx, input, sizeof(input));
       scalar_from_keccak_vartime(&out->v[i][j], &keccak_ctx);
     }
   }
@@ -484,9 +492,10 @@ static int vector_decode(vector *out, const uint8_t *in, int bits) {
 // remainder (for rounding) and the quotient (as the result), we cannot use
 // |reduce| here, but need to do the Barrett reduction directly.
 static uint16_t compress(uint16_t x, int bits) {
-  uint32_t product = (uint32_t)x << bits;
-  uint32_t quotient = ((uint64_t)product * kBarrettMultiplier) >> kBarrettShift;
-  uint32_t remainder = product - quotient * kPrime;
+  uint32_t shifted = (uint32_t)x << bits;
+  uint64_t product = (uint64_t)shifted * kBarrettMultiplier;
+  uint32_t quotient = (uint32_t)(product >> kBarrettShift);
+  uint32_t remainder = shifted - quotient * kPrime;
 
   // Adjust the quotient to round correctly:
   //   0 <= remainder <= kHalfPrime round to 0

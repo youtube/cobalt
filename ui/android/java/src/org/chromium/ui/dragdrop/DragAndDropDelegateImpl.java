@@ -23,7 +23,6 @@ import android.view.DragEvent;
 import android.view.View;
 import android.view.View.DragShadowBuilder;
 import android.view.ViewGroup;
-import android.view.accessibility.AccessibilityManager;
 import android.widget.ImageView;
 
 import androidx.annotation.IntDef;
@@ -40,6 +39,8 @@ import org.chromium.base.compat.ApiHelperForN;
 import org.chromium.base.compat.ApiHelperForO;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.ui.R;
+import org.chromium.ui.accessibility.AccessibilityState;
+import org.chromium.ui.base.MimeTypeUtils;
 import org.chromium.ui.dragdrop.AnimatedImageDragShadowBuilder.CursorOffset;
 import org.chromium.ui.dragdrop.AnimatedImageDragShadowBuilder.DragShadowSpec;
 
@@ -55,18 +56,26 @@ public class DragAndDropDelegateImpl implements DragAndDropDelegate, DragStateTr
     /**
      * Java Enum of AndroidDragTargetType used for histogram recording for
      * Android.DragDrop.FromWebContent.TargetType. This is used for histograms and should therefore
-     * be treated as append-only.
+     * be treated as append-only. TODO (crbug.com/1484695) Revisit hists to capture drag and drop
+     * source.
      */
-    @IntDef({DragTargetType.INVALID, DragTargetType.TEXT, DragTargetType.IMAGE, DragTargetType.LINK,
-            DragTargetType.NUM_ENTRIES})
+    @IntDef({
+        DragTargetType.INVALID,
+        DragTargetType.TEXT,
+        DragTargetType.IMAGE,
+        DragTargetType.LINK,
+        DragTargetType.BROWSER_CONTENT,
+        DragTargetType.NUM_ENTRIES
+    })
     @Retention(RetentionPolicy.SOURCE)
     @interface DragTargetType {
         int INVALID = 0;
         int TEXT = 1;
         int IMAGE = 2;
         int LINK = 3;
+        int BROWSER_CONTENT = 4;
 
-        int NUM_ENTRIES = 4;
+        int NUM_ENTRIES = 5;
     }
 
     private int mShadowWidth;
@@ -108,13 +117,43 @@ public class DragAndDropDelegateImpl implements DragAndDropDelegate, DragStateTr
     public boolean startDragAndDrop(@NonNull View containerView, @NonNull Bitmap shadowImage,
             @NonNull DropDataAndroid dropData, int cursorOffsetX, int cursorOffsetY,
             int dragObjRectWidth, int dragObjRectHeight) {
+        if (isA11yStateEnabled()) return false;
+        int windowWidth = containerView.getRootView().getWidth();
+        int windowHeight = containerView.getRootView().getHeight();
+        View.DragShadowBuilder dragShadowBuilder =
+                createDragShadowBuilder(
+                        containerView,
+                        shadowImage,
+                        dropData.hasImage(),
+                        windowWidth,
+                        windowHeight,
+                        cursorOffsetX,
+                        cursorOffsetY,
+                        dragObjRectWidth,
+                        dragObjRectHeight);
+        return startDragAndDropInternal(containerView, dragShadowBuilder, dropData);
+    }
+
+    @Override
+    public boolean startDragAndDrop(
+            @NonNull View containerView,
+            @NonNull DragShadowBuilder dragShadowBuilder,
+            @NonNull DropDataAndroid dropData) {
+        if (isA11yStateEnabled()) return false;
+        return startDragAndDropInternal(containerView, dragShadowBuilder, dropData);
+    }
+
+    private static boolean isA11yStateEnabled() {
         // Drag and drop is disabled when gesture related a11y service is enabled.
         // See https://crbug.com/1250067.
-        AccessibilityManager a11yManager =
-                (AccessibilityManager) containerView.getContext().getSystemService(
-                        Context.ACCESSIBILITY_SERVICE);
-        if (a11yManager.isEnabled() && a11yManager.isTouchExplorationEnabled()) return false;
+        return AccessibilityState.isTouchExplorationEnabled()
+                || AccessibilityState.isPerformGesturesEnabled();
+    }
 
+    private boolean startDragAndDropInternal(
+            @NonNull View containerView,
+            @NonNull DragShadowBuilder dragShadowBuilder,
+            @NonNull DropDataAndroid dropData) {
         ClipData clipdata = buildClipData(dropData);
         if (clipdata == null) {
             return false;
@@ -123,16 +162,12 @@ public class DragAndDropDelegateImpl implements DragAndDropDelegate, DragStateTr
         mIsDragStarted = true;
         mDragStartSystemElapsedTime = SystemClock.elapsedRealtime();
         mDragTargetType = getDragTargetType(dropData);
-        int windowWidth = containerView.getRootView().getWidth();
-        int windowHeight = containerView.getRootView().getHeight();
+
         Object myLocalState = null;
         if (mDragAndDropBrowserDelegate != null
                 && mDragAndDropBrowserDelegate.getSupportDropInChrome()) {
             myLocalState = dropData;
         }
-        View.DragShadowBuilder dragShadowBuilder = createDragShadowBuilder(containerView,
-                shadowImage, dropData.hasImage(), windowWidth, windowHeight, cursorOffsetX,
-                cursorOffsetY, dragObjRectWidth, dragObjRectHeight);
         return ApiHelperForN.startDragAndDrop(
                 containerView, clipdata, dragShadowBuilder, myLocalState, buildFlags(dropData));
     }
@@ -161,6 +196,7 @@ public class DragAndDropDelegateImpl implements DragAndDropDelegate, DragStateTr
     @Override
     public void destroy() {
         reset();
+        mDragAndDropBrowserDelegate = null;
     }
 
     // Implements View.OnDragListener
@@ -208,7 +244,10 @@ public class DragAndDropDelegateImpl implements DragAndDropDelegate, DragStateTr
         int type = getDragTargetType(dropData);
         switch (type) {
             case DragTargetType.TEXT:
-                return ClipData.newPlainText(null, dropData.text);
+                return new ClipData(null,
+                        new String[] {ClipDescription.MIMETYPE_TEXT_PLAIN,
+                                MimeTypeUtils.CHROME_MIMETYPE_TEXT},
+                        new Item(dropData.text));
             case DragTargetType.IMAGE:
                 Uri cachedUri = DropDataProviderUtils.cacheImageData(dropData);
                 // If there's no content provider we shouldn't start the drag.
@@ -233,11 +272,14 @@ public class DragAndDropDelegateImpl implements DragAndDropDelegate, DragStateTr
                     if (intent != null) {
                         return new ClipData(null,
                                 new String[] {ClipDescription.MIMETYPE_TEXT_PLAIN,
-                                        ClipDescription.MIMETYPE_TEXT_INTENT},
+                                        ClipDescription.MIMETYPE_TEXT_INTENT,
+                                        MimeTypeUtils.CHROME_MIMETYPE_LINK},
                                 new Item(getTextForLinkData(dropData), intent, null));
                     }
                 }
                 return ClipData.newPlainText(null, getTextForLinkData(dropData));
+            case DragTargetType.BROWSER_CONTENT:
+                return mDragAndDropBrowserDelegate.buildClipData(dropData);
             case DragTargetType.INVALID:
                 return null;
             case DragTargetType.NUM_ENTRIES:
@@ -248,7 +290,7 @@ public class DragAndDropDelegateImpl implements DragAndDropDelegate, DragStateTr
     }
 
     protected int buildFlags(DropDataAndroid dropData) {
-        if (dropData.isPlainText()) {
+        if (dropData.isPlainText() || dropData.hasBrowserContent() || dropData.hasLink()) {
             return View.DRAG_FLAG_GLOBAL;
         } else if (dropData.hasImage()) {
             int flag = View.DRAG_FLAG_GLOBAL | View.DRAG_FLAG_GLOBAL_URI_READ;
@@ -257,8 +299,6 @@ public class DragAndDropDelegateImpl implements DragAndDropDelegate, DragStateTr
                 flag |= View.DRAG_FLAG_OPAQUE;
             }
             return flag;
-        } else if (dropData.hasLink()) {
-            return View.DRAG_FLAG_GLOBAL;
         } else {
             return 0;
         }
@@ -395,7 +435,9 @@ public class DragAndDropDelegateImpl implements DragAndDropDelegate, DragStateTr
      * TODO(https://crbug.com/1299994): Manage the ClipData bias with EventForwarder in one place.
      */
     static @DragTargetType int getDragTargetType(DropDataAndroid dropDataAndroid) {
-        if (dropDataAndroid.isPlainText()) {
+        if (dropDataAndroid.hasBrowserContent()) {
+            return DragTargetType.BROWSER_CONTENT;
+        } else if (dropDataAndroid.isPlainText()) {
             return DragTargetType.TEXT;
         } else if (dropDataAndroid.hasImage()) {
             return DragTargetType.IMAGE;

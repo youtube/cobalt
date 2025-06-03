@@ -115,6 +115,11 @@ class VariationsService
   // to |StartRepeatedVariationsSeedFetch|.
   void SetRestrictMode(const std::string& restrict_mode);
 
+  // Returns true if the restrict mode is likely that of a dogfood client, false
+  // otherwise. Note that that this might be a bit over-broad, returning true
+  // for clients that are not actually dogfooders.
+  bool IsLikelyDogfoodClient() const;
+
   // Returns the variations server URL. |http_options| determines whether to
   // use the http or https URL. This function will return an empty GURL when
   // the restrict param exists for USE_HTTP, to indicate that no HTTP fallback
@@ -123,10 +128,13 @@ class VariationsService
 
   // Returns the permanent overridden country code stored for this client. This
   // value will not be updated on Chrome updates.
+  // Country code is in the format of lowercase ISO 3166-1 alpha-2. Example: us,
+  // br, in.
   std::string GetOverriddenPermanentCountry();
 
-  // Returns the permanent country code stored for this client. Country code is
-  // in the format of lowercase ISO 3166-1 alpha-2. Example: us, br, in
+  // Returns the permanent country code stored for this client.
+  // Country code is in the format of lowercase ISO 3166-1 alpha-2. Example: us,
+  // br, in.
   std::string GetStoredPermanentCountry();
 
   // Forces an override of the stored permanent country. Returns true
@@ -137,6 +145,8 @@ class VariationsService
 
   // Returns what variations will consider to be the latest country. Returns
   // empty if it is not available.
+  // Country code is in the format of lowercase ISO 3166-1 alpha-2. Example: us,
+  // br, in.
   std::string GetLatestCountry() const;
 
   // Ensures the locale that was used for evaluating variations matches the

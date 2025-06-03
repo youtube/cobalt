@@ -144,11 +144,14 @@ enum class ShapeContextTokens {
   kButtonRadius,
   kComboboxRadius,
   kDialogRadius,
+  kFindBarViewRadius,
   kMenuRadius,
   kMenuAuxRadius,
   kMenuTouchRadius,
   kOmniboxExpandedRadius,
   kTextfieldRadius,
+  kSidePanelContentRadius,
+  kSidePanelPageContentRadius,
 };
 
 // ShapeSysTokens are tokens that map to a fixed value that aligns with UX/UI.
@@ -195,7 +198,7 @@ class VIEWS_EXPORT LayoutProvider {
   virtual int GetDistanceMetric(int metric) const;
 
   // Returns the TypographyProvider, used to configure text properties such as
-  // font, weight, color, size, and line height. Never null.
+  // font, weight, color, size, and line height.
   virtual const TypographyProvider& GetTypographyProvider() const;
 
   // Returns the actual width to use for a dialog that requires at least

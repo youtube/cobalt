@@ -61,9 +61,12 @@ class ScopedMockFirstPartySetsHandler : public content::FirstPartySetsHandler {
   void ComputeFirstPartySetMetadata(
       const net::SchemefulSite& site,
       const net::SchemefulSite* top_frame_site,
-      const std::set<net::SchemefulSite>& party_context,
       const net::FirstPartySetsContextConfig& config,
       base::OnceCallback<void(net::FirstPartySetMetadata)> callback) override;
+  bool ForEachEffectiveSetEntry(
+      const net::FirstPartySetsContextConfig& config,
+      base::FunctionRef<bool(const net::SchemefulSite&,
+                             const net::FirstPartySetEntry&)> f) const override;
 
   // Helper functions for tests to set up context.
   void SetContextConfig(net::FirstPartySetsContextConfig config);

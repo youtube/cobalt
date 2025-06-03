@@ -22,6 +22,7 @@
 #include "third_party/blink/public/common/frame/frame_policy.h"
 #include "third_party/blink/public/common/frame/view_transition_state.h"
 #include "third_party/blink/public/common/navigation/impression.h"
+#include "third_party/blink/public/common/page/browsing_context_group_info.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
 #include "third_party/blink/public/common/tokens/tokens.h"
 #include "third_party/blink/public/mojom/blob/blob_url_store.mojom-shared.h"
@@ -29,7 +30,8 @@
 #include "third_party/blink/public/mojom/frame/policy_container.mojom-forward.h"
 #include "third_party/blink/public/mojom/frame/triggering_event_info.mojom-shared.h"
 #include "third_party/blink/public/mojom/navigation/navigation_params.mojom-shared.h"
-#include "third_party/blink/public/mojom/runtime_feature_state/runtime_feature_state.mojom-shared.h"
+#include "third_party/blink/public/mojom/navigation/renderer_content_settings.mojom.h"
+#include "third_party/blink/public/mojom/runtime_feature_state/runtime_feature.mojom-shared.h"
 #include "third_party/blink/public/platform/cross_variant_mojo_util.h"
 #include "third_party/blink/public/platform/web_common.h"
 #include "third_party/blink/public/platform/web_content_security_policy_struct.h"
@@ -318,6 +320,9 @@ struct BLINK_EXPORT WebNavigationParams {
     // TODO(dgozman): we only use this response for navigation timings.
     // Perhaps, we can just get rid of it.
     WebURLResponse redirect_response;
+    // When navigation is restarted due to a Critical-CH header this stores the
+    // time at which the the restart was initiated.
+    base::TimeTicks critical_ch_restart_time;
   };
   // Redirects which happened while fetching the main resource.
   // TODO(dgozman): we are only interested in the final values instead of
@@ -530,11 +535,26 @@ struct BLINK_EXPORT WebNavigationParams {
   // Maps the blink runtime-enabled features modified in the browser process to
   // their new enabled/disabled status:
   // <enum_representing_runtime_enabled_feature, enabled/disabled>
-  base::flat_map<::blink::mojom::RuntimeFeatureState, bool>
+  base::flat_map<::blink::mojom::RuntimeFeature, bool>
       modified_runtime_features;
 
   // Whether the document should be loaded with the has_storage_access bit set.
   bool load_with_storage_access = false;
+
+  // Indicates which browsing context group this frame belongs to. This starts
+  // as nullopt and is only set when we commit a main frame in another browsing
+  // context group. Same browsing context group navigations never set this
+  // because no update is required. Subframes navigations never set this,
+  // because they cannot change browsing context group.
+  absl::optional<BrowsingContextGroupInfo> browsing_context_group_info =
+      absl::nullopt;
+
+  // For each document, the browser passes along state for each
+  // renderer-enforced content setting.
+  mojom::RendererContentSettingsPtr content_settings;
+
+  // The cookie deprecation label for cookie deprecation facilitated testing.
+  WebString cookie_deprecation_label;
 };
 
 }  // namespace blink

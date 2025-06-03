@@ -40,19 +40,18 @@ if os.getcwd() != self_dir:
   classpath = [fix_path(p) for p in classpath]
   java_path = fix_path(java_path)
 java_cmd = [java_path]
+
+# https://github.com/iBotPeaches/Apktool/issues/3174
+# https://chromium-review.googlesource.com/c/chromium/src/+/4697557/3
+java_cmd += ['-Djdk.util.zip.disableZip64ExtraFieldValidation=true']
+
 # This is a simple argparser for jvm, jar, and classpath arguments.
 parser = argparse.ArgumentParser(add_help=False)
 parser.add_argument('--jar-args')
 parser.add_argument('--jvm-args')
 parser.add_argument('--classpath')
 # Test_runner parses the classpath for sharding junit tests.
-parser.add_argument('--print-classpath', action='store_true',
-                    help='Prints the classpass. Used by test_runner.')
 known_args, unknown_args = parser.parse_known_args(sys.argv[1:])
-
-if known_args.print_classpath:
-  sys.stdout.write(':'.join(classpath))
-  sys.exit(0)
 
 if known_args.jvm_args:
   jvm_arguments = known_args.jvm_args.strip('"').split()
@@ -95,9 +94,6 @@ def main(argv):
   parser.add_argument('--tiered-stop-at-level-one',
                       action='store_true',
                       help='JVM flag: -XX:TieredStopAtLevel=1.')
-  parser.add_argument('--use-jdk-11',
-                      action='store_true',
-                      help='Use older JDK11 instead of modern JDK.')
   parser.add_argument('extra_program_args',
                       nargs='*',
                       help='This captures all '
@@ -116,11 +112,8 @@ def main(argv):
   run_dir = os.path.dirname(args.output)
   classpath = [os.path.relpath(p, run_dir) for p in classpath]
 
-  if args.use_jdk_11:
-    java_home = build_utils.JAVA_11_HOME_DEPRECATED
-  else:
-    java_home = build_utils.JAVA_HOME
-  java_path = os.path.relpath(os.path.join(java_home, 'bin', 'java'), run_dir)
+  java_path = os.path.relpath(
+      os.path.join(build_utils.JAVA_HOME, 'bin', 'java'), run_dir)
 
   with action_helpers.atomic_output(args.output, mode='w') as script:
     script.write(

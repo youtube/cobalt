@@ -10,11 +10,11 @@
 namespace autofill {
 
 AddressEmailFormLabelFormatter::AddressEmailFormLabelFormatter(
-    const std::vector<AutofillProfile*>& profiles,
+    const std::vector<const AutofillProfile*>& profiles,
     const std::string& app_locale,
     ServerFieldType focused_field_type,
     uint32_t groups,
-    const std::vector<ServerFieldType>& field_types)
+    const ServerFieldTypeSet& field_types)
     : LabelFormatter(profiles,
                      app_locale,
                      focused_field_type,
@@ -22,12 +22,12 @@ AddressEmailFormLabelFormatter::AddressEmailFormLabelFormatter(
                      field_types),
       form_has_street_address_(HasStreetAddress(field_types_for_labels())) {}
 
-AddressEmailFormLabelFormatter::~AddressEmailFormLabelFormatter() {}
+AddressEmailFormLabelFormatter::~AddressEmailFormLabelFormatter() = default;
 
 std::u16string AddressEmailFormLabelFormatter::GetLabelForProfile(
     const AutofillProfile& profile,
     FieldTypeGroup focused_group) const {
-  return focused_group == FieldTypeGroup::kAddressHome &&
+  return focused_group == FieldTypeGroup::kAddress &&
                  !IsStreetAddressPart(focused_field_type())
              ? GetLabelForProfileOnFocusedNonStreetAddress(
                    form_has_street_address_, profile, app_locale(),
@@ -53,7 +53,7 @@ std::u16string AddressEmailFormLabelFormatter::
         &label_parts);
   }
 
-  if (focused_group != FieldTypeGroup::kAddressHome) {
+  if (focused_group != FieldTypeGroup::kAddress) {
     AddLabelPartIfNotEmpty(
         GetLabelAddress(form_has_street_address_, profile, app_locale(),
                         field_types_for_labels()),

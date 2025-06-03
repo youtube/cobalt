@@ -17,16 +17,16 @@
 #include "chrome/browser/web_applications/locks/app_lock.h"
 #include "chrome/browser/web_applications/os_integration/os_integration_manager.h"
 #include "chrome/browser/web_applications/web_app_constants.h"
-#include "chrome/browser/web_applications/web_app_id.h"
 #include "chrome/browser/web_applications/web_app_registrar.h"
 #include "chrome/browser/web_applications/web_app_registry_update.h"
 #include "chrome/browser/web_applications/web_app_sync_bridge.h"
 #include "chrome/browser/web_applications/web_app_utils.h"
+#include "components/webapps/common/web_app_id.h"
 
 namespace web_app {
 
 UpdateProtocolHandlerApprovalCommand::UpdateProtocolHandlerApprovalCommand(
-    const AppId& app_id,
+    const webapps::AppId& app_id,
     const std::string& protocol_scheme,
     ApiApprovalState approval_state,
     base::OnceClosure callback)
@@ -60,7 +60,7 @@ void UpdateProtocolHandlerApprovalCommand::StartWithLock(
   // `update` goes out of scope. If it doesn't then observers will
   // examine stale data.
   {
-    ScopedRegistryUpdate update(&lock_->sync_bridge());
+    ScopedRegistryUpdate update = lock_->sync_bridge().BeginUpdate();
     WebApp* app_to_update = update->UpdateApp(app_id_);
     if (!app_to_update) {
       // If this command is scheduled after an uninstallation, the
@@ -144,8 +144,6 @@ void UpdateProtocolHandlerApprovalCommand::OnProtocolHandlersUpdated() {
   SignalCompletionAndSelfDestruct(CommandResult::kSuccess,
                                   std::move(callback_));
 }
-
-void UpdateProtocolHandlerApprovalCommand::OnSyncSourceRemoved() {}
 
 void UpdateProtocolHandlerApprovalCommand::OnShutdown() {
   SignalCompletionAndSelfDestruct(CommandResult::kShutdown,

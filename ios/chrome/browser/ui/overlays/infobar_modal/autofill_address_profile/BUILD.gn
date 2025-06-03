@@ -11,19 +11,17 @@ source_set("autofill_address_profile") {
     "save_address_profile_infobar_modal_overlay_mediator_delegate.h",
   ]
 
-  configs += [ "//build/config/compiler:enable_arc" ]
-
   deps = [
     "//base",
     "//components/autofill/core/browser",
     "//components/autofill/core/common",
     "//ios/chrome/app/strings",
     "//ios/chrome/browser/autofill",
-    "//ios/chrome/browser/browser_state",
-    "//ios/chrome/browser/main:public",
     "//ios/chrome/browser/overlays",
     "//ios/chrome/browser/overlays/public/common/infobars",
     "//ios/chrome/browser/overlays/public/infobar_modal",
+    "//ios/chrome/browser/shared/model/browser",
+    "//ios/chrome/browser/shared/model/browser_state",
     "//ios/chrome/browser/shared/ui/util",
     "//ios/chrome/browser/ui/autofill:autofill_shared_ui",
     "//ios/chrome/browser/ui/autofill/cells",
@@ -40,8 +38,6 @@ source_set("unit_tests") {
   testonly = true
   sources =
       [ "save_address_profile_infobar_modal_overlay_mediator_unittest.mm" ]
-
-  configs += [ "//build/config/compiler:enable_arc" ]
 
   deps = [
     ":autofill_address_profile",

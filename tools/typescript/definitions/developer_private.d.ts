@@ -138,6 +138,7 @@ declare global {
         suspiciousInstall: boolean;
         corruptInstall: boolean;
         updateRequired: boolean;
+        publishedInStoreRequired: boolean;
         blockedByPolicy: boolean;
         reloading: boolean;
         custodianApprovalRequired: boolean;
@@ -167,6 +168,11 @@ declare global {
         ON_CLICK = 'ON_CLICK',
         ON_SPECIFIC_SITES = 'ON_SPECIFIC_SITES',
         ON_ALL_SITES = 'ON_ALL_SITES',
+      }
+
+      export interface  SafetyCheckStrings {
+        panelString?: string;
+        detailString?: string;
       }
 
       export interface ControlledInfo {
@@ -206,10 +212,12 @@ declare global {
       export interface Permissions {
         simplePermissions: chrome.developerPrivate.Permission[];
         runtimeHostPermissions?: RuntimeHostPermissions;
+        canAccessSiteData: boolean;
       }
 
       export interface ExtensionInfo {
         blacklistText?: string;
+        safetyCheckText?: SafetyCheckStrings;
         commands: Command[];
         controlledInfo?: ControlledInfo;
         dependentExtensions: DependentExtension[];
@@ -245,6 +253,8 @@ declare global {
         webStoreUrl: string;
         showSafeBrowsingAllowlistWarning: boolean;
         showAccessRequestsInToolbar: boolean;
+        acknowledgeSafetyCheckWarning: boolean;
+        pinnedToToolbar?: boolean;
       }
 
       export interface ProfileInfo {
@@ -262,6 +272,8 @@ declare global {
         errorCollection?: boolean;
         hostAccess?: HostAccess;
         showAccessRequestsInToolbar?: boolean;
+        acknowledgeSafetyCheckWarning?: boolean;
+        pinnedToToolbar?: boolean;
       }
 
       export interface ProfileConfigurationUpdate {
@@ -319,6 +331,8 @@ declare global {
         PERMISSIONS_CHANGED = 'PERMISSIONS_CHANGED',
         SERVICE_WORKER_STARTED = 'SERVICE_WORKER_STARTED',
         SERVICE_WORKER_STOPPED = 'SERVICE_WORKER_STOPPED',
+        CONFIGURATION_CHANGED = 'CONFIGURATION_CHANGED',
+        PINNED_ACTIONS_CHANGED = 'PINNED_ACTIONS_CHANGED',
       }
 
       export enum SiteSet {
@@ -413,6 +427,7 @@ declare global {
       export interface MatchingExtensionInfo {
         id: string;
         siteAccess: HostAccess;
+        canRequestAllSites: boolean;
       }
 
       export interface ExtensionSiteAccessUpdate {
@@ -446,6 +461,8 @@ declare global {
       export function reload(extensionId: string, options?: ReloadOptions):
           Promise<LoadError|null>;
       export function removeHostPermission(extensionId: string, host: string):
+          Promise<void>;
+      export function removeMultipleExtensions(extensionIds: string[]):
           Promise<void>;
       export function repairExtension(extensionId: string): Promise<void>;
       export function requestFileSource(properties:

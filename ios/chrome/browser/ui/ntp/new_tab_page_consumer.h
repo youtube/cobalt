@@ -16,16 +16,21 @@
 // enough down that the omnibo was already pinned to the top).
 @property(nonatomic, assign, readonly) CGFloat collectionShiftingOffset;
 
+// Indicates that the omnibox has become the first responder to the keyboard.
+- (void)omniboxDidBecomeFirstResponder;
+
+// Indicates that the omnibox will stop being the first responder to the
+// keyboard.
+- (void)omniboxWillResignFirstResponder;
+
 // Indicates that the omnibox stopped being the first responder to the keyboard.
 - (void)omniboxDidResignFirstResponder;
 
-// Sets the feed collection contentOffset from the saved state to `offset` to
-// set the initial scroll position.
-- (void)setSavedContentOffset:(CGFloat)offset;
+// Restores a given scroll position if applicable.
+- (void)restoreScrollPosition:(CGFloat)scrollPosition;
 
-// Sets the feed collection contentOffset to the top of the page. Resets fake
-// omnibox back to initial state.
-- (void)setContentOffsetToTop;
+// Restores the scroll position to the top of the feed.
+- (void)restoreScrollPositionToTopOfFeed;
 
 // Returns the height of the content above the feed. The views above the feed
 // (like the content suggestions) are added through a content inset in the feed

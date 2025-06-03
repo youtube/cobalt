@@ -46,6 +46,7 @@
 #include "ui/views/controls/scrollbar/scroll_bar_views.h"
 #include "ui/views/layout/fill_layout.h"
 #include "ui/views/style/typography.h"
+#include "ui/views/style/typography_provider.h"
 #include "ui/views/views_features.h"
 #include "ui/views/widget/root_view.h"
 #include "ui/views/widget/widget.h"
@@ -87,8 +88,8 @@ constexpr auto kMaxExpansionStepDuration = base::Milliseconds(150);
 constexpr auto kDestroyPopupDelay = base::Seconds(10);
 
 const gfx::FontList& GetFont() {
-  return views::style::GetFont(views::style::CONTEXT_LABEL,
-                               views::style::STYLE_PRIMARY);
+  return views::TypographyProvider::Get().GetFont(views::style::CONTEXT_LABEL,
+                                                  views::style::STYLE_PRIMARY);
 }
 
 }  // namespace
@@ -805,11 +806,6 @@ int StatusBubbleViews::GetWidthForURL(const std::u16string& url_string) {
   int elided_url_width = gfx::GetStringWidth(url_string, GetFont());
   // Add proper paddings
   return elided_url_width + (kShadowThickness + kTextHorizPadding) * 2 + 1;
-}
-
-void StatusBubbleViews::OnThemeChanged() {
-  if (popup_)
-    popup_->ThemeChanged();
 }
 
 void StatusBubbleViews::SetStatus(const std::u16string& status_text) {

@@ -20,10 +20,11 @@
 #include "services/service_manager/public/cpp/binder_registry.h"
 #include "third_party/blink/public/mojom/badging/badging.mojom.h"
 #include "third_party/blink/public/mojom/clipboard/clipboard.mojom.h"
-#include "third_party/blink/public/mojom/conversions/attribution_reporting_automation.mojom-forward.h"
 #include "third_party/blink/public/mojom/cookie_manager/cookie_manager_automation.mojom-forward.h"
 #include "third_party/blink/public/mojom/permissions/permission_automation.mojom-forward.h"
+#include "third_party/blink/public/mojom/sensor/web_sensor_provider_automation.mojom-forward.h"
 #include "third_party/blink/public/mojom/storage_access/storage_access_automation.mojom-forward.h"
+#include "third_party/blink/public/mojom/webid/federated_auth_request_automation.mojom-forward.h"
 
 #if BUILDFLAG(IS_COBALT)
 #include "cobalt/browser/h5vcc_runtime/public/mojom/h5vcc_runtime.mojom-forward.h"
@@ -42,6 +43,7 @@ class FakeBluetoothDelegate;
 class MockBadgeService;
 class MockClipboardHost;
 class WebTestBrowserContext;
+class WebTestSensorProviderManager;
 
 #if BUILDFLAG(IS_COBALT)
 class StubH5vccRuntimeImpl;
@@ -121,6 +123,11 @@ class WebTestContentBrowserClient : public ShellContentBrowserClient {
                                  InterestGroupApiOperation operation,
                                  const url::Origin& top_frame_origin,
                                  const url::Origin& api_origin) override;
+  bool IsPrivacySandboxReportingDestinationAttested(
+      content::BrowserContext* browser_context,
+      const url::Origin& destination_origin,
+      content::PrivacySandboxInvokingAPI invoking_api,
+      bool post_impression_reporting) override;
   void GetHyphenationDictionary(
       base::OnceCallback<void(const base::FilePath&)>) override;
 
@@ -155,14 +162,22 @@ class WebTestContentBrowserClient : public ShellContentBrowserClient {
       mojo::PendingReceiver<blink::test::mojom::CookieManagerAutomation>
           receiver);
 
-  void BindAttributionReportingAutomation(
+  void BindFedCmAutomation(
       RenderFrameHost* render_frame_host,
-      mojo::PendingReceiver<blink::test::mojom::AttributionReportingAutomation>
+      mojo::PendingReceiver<blink::test::mojom::FederatedAuthRequestAutomation>
+          receiver);
+
+  void BindWebSensorProviderAutomation(
+      RenderFrameHost* render_frame_host,
+      mojo::PendingReceiver<blink::test::mojom::WebSensorProviderAutomation>
           receiver);
 
   void BindWebTestControlHost(
       int render_process_id,
       mojo::PendingAssociatedReceiver<mojom::WebTestControlHost> receiver);
+
+  void BindNonAssociatedWebTestControlHost(
+      mojo::PendingReceiver<mojom::NonAssociatedWebTestControlHost> receiver);
 
 #if BUILDFLAG(IS_COBALT)
   void BindH5vccRuntime(
@@ -178,10 +193,11 @@ class WebTestContentBrowserClient : public ShellContentBrowserClient {
   std::unique_ptr<FakeBluetoothDelegate> fake_bluetooth_delegate_;
   std::unique_ptr<MockClipboardHost> mock_clipboard_host_;
   std::unique_ptr<MockBadgeService> mock_badge_service_;
+  std::unique_ptr<WebTestSensorProviderManager> sensor_provider_manager_;
   mojo::UniqueReceiverSet<blink::test::mojom::CookieManagerAutomation>
       cookie_managers_;
-  mojo::UniqueReceiverSet<blink::test::mojom::AttributionReportingAutomation>
-      attribution_reporting_receivers_;
+  mojo::UniqueReceiverSet<blink::test::mojom::FederatedAuthRequestAutomation>
+      fedcm_managers_;
 
 #if BUILDFLAG(IS_COBALT)
   std::unique_ptr<StubH5vccRuntimeImpl> stub_h5vcc_runtime_impl_;

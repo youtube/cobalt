@@ -390,14 +390,18 @@ class Storage {
     return data_.allocated.allocated_data;
   }
 
-  Pointer<A> GetInlinedData() {
-    return reinterpret_cast<Pointer<A>>(
-        std::addressof(data_.inlined.inlined_data[0]));
+  // ABSL_ATTRIBUTE_NO_SANITIZE_CFI is used because the memory pointed to may be
+  // uninitialized, a common pattern in allocate()+construct() APIs.
+  // https://clang.llvm.org/docs/ControlFlowIntegrity.html#bad-cast-checking
+  // NOTE: When this was written, LLVM documentation did not explicitly
+  // mention that casting `char*` and using `reinterpret_cast` qualifies
+  // as a bad cast.
+  ABSL_ATTRIBUTE_NO_SANITIZE_CFI Pointer<A> GetInlinedData() {
+    return reinterpret_cast<Pointer<A>>(data_.inlined.inlined_data);
   }
 
-  ConstPointer<A> GetInlinedData() const {
-    return reinterpret_cast<ConstPointer<A>>(
-        std::addressof(data_.inlined.inlined_data[0]));
+  ABSL_ATTRIBUTE_NO_SANITIZE_CFI ConstPointer<A> GetInlinedData() const {
+    return reinterpret_cast<ConstPointer<A>>(data_.inlined.inlined_data);
   }
 
   SizeType<A> GetAllocatedCapacity() const {
@@ -1050,7 +1054,7 @@ template <typename NotMemcpyPolicy>
 void Storage<T, N, A>::SwapInlinedElements(NotMemcpyPolicy policy,
                                            Storage* other) {
   // Note: `destroy` needs to use pre-swap allocator while `construct` -
-  // post-swap allocator. Allocators will be swaped later on outside of
+  // post-swap allocator. Allocators will be swapped later on outside of
   // `SwapInlinedElements`.
   Storage* small_ptr = this;
   Storage* large_ptr = other;

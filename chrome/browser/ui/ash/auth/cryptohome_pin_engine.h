@@ -19,6 +19,7 @@ namespace ash {
 
 class UserContext;
 
+namespace legacy {
 // Handles Pin related authentication operations and is the source of truth
 // for the availability of Pin authentication.
 class CryptohomePinEngine {
@@ -64,12 +65,14 @@ class CryptohomePinEngine {
                                      absl::optional<AuthenticationError> error);
 
   // Non owning pointer
-  const base::raw_ptr<ash::AuthPerformer> auth_performer_;
+  const raw_ptr<ash::AuthPerformer> auth_performer_;
 
   ash::AuthFactorEditor auth_factor_editor_;
 
   base::WeakPtrFactory<CryptohomePinEngine> weak_factory_{this};
 };
+
+}  // namespace legacy
 
 }  // namespace ash
 

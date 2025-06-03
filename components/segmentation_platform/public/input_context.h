@@ -8,6 +8,11 @@
 #include "base/containers/flat_map.h"
 #include "base/memory/ref_counted.h"
 #include "components/segmentation_platform/public/types/processed_value.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
+
+namespace base {
+class Value;
+}
 
 namespace segmentation_platform {
 
@@ -25,11 +30,20 @@ struct InputContext : base::RefCounted<InputContext> {
   // semantics is still under construction.
   base::flat_map<std::string, processing::ProcessedValue> metadata_args;
 
+  // Returns the arg value from `metadata_args`.
+  absl::optional<processing::ProcessedValue> GetMetadataArgument(
+      base::StringPiece arg_name) const;
+
+  base::Value ToDebugValue() const;
+
  private:
   friend class base::RefCounted<InputContext>;
 
   ~InputContext();
 };
+
+// For logging and debug purposes.
+std::ostream& operator<<(std::ostream& out, const InputContext& value);
 
 }  // namespace segmentation_platform
 

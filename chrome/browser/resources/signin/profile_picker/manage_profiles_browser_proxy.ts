@@ -109,6 +109,13 @@ export interface ManageProfilesBrowserProxy {
   getProfileStatistics(profilePath: string): void;
 
   /**
+   * Stops showing the profile statistics and removes the related keep alive,
+   * unloading the profile for which the statistics are currently being shown if
+   * it has no more keep alives.
+   */
+  closeProfileStatistics(): void;
+
+  /**
    * Removes profile.
    */
   removeProfile(profilePath: string): void;
@@ -124,13 +131,6 @@ export interface ManageProfilesBrowserProxy {
    * Retrieves custom avatar list for the select avatar dialog.
    */
   getAvailableIcons(): Promise<AvatarIcon[]>;
-
-  /**
-   * Creates local profile.
-   */
-  createProfile(
-      profileName: string, profileColor: number, avatarIndex: number,
-      createShortcut: boolean): void;
 
   /**
    * Creates local profile and opens a profile customization modal dialog on a
@@ -162,6 +162,15 @@ export interface ManageProfilesBrowserProxy {
    * flow.
    */
   cancelProfileSwitch(): void;
+
+  /**
+   * Sends the profile order changes
+   * @param fromIndex the initial index of the tile that was dragged.
+   * @param toIndex the index to which the profile has been moved/dropped.
+   * All other profiles between `fromIndex` and `toIndex` +/-1 should be shifted
+   * by +/-1 depending on the change direction.
+   */
+  updateProfileOrder(fromIndex: number, toIndex: number): void;
 
   // <if expr="chromeos_lacros">
   /**
@@ -227,20 +236,16 @@ export class ManageProfilesBrowserProxyImpl {
     chrome.send('getProfileStatistics', [profilePath]);
   }
 
+  closeProfileStatistics() {
+    chrome.send('closeProfileStatistics');
+  }
+
   selectNewAccount(profileColor: number|null) {
     chrome.send('selectNewAccount', [profileColor]);
   }
 
   getAvailableIcons() {
     return sendWithPromise('getAvailableIcons');
-  }
-
-  createProfile(
-      profileName: string, profileColor: number, avatarIndex: number,
-      createShortcut: boolean) {
-    chrome.send(
-        'createProfile',
-        [profileName, profileColor, avatarIndex, createShortcut]);
   }
 
   createProfileAndOpenCustomizationDialog(profileColor: number) {
@@ -265,6 +270,10 @@ export class ManageProfilesBrowserProxyImpl {
 
   cancelProfileSwitch() {
     chrome.send('cancelProfileSwitch');
+  }
+
+  updateProfileOrder(fromIndex: number, toIndex: number) {
+    chrome.send('updateProfileOrder', [fromIndex, toIndex]);
   }
 
   // <if expr="chromeos_lacros">

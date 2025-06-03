@@ -120,6 +120,42 @@ void AppUpdate::Merge(App* state, const App* delta) {
   // updated.
 }
 
+// static
+bool AppUpdate::IsChanged(const App* state, const App* delta) {
+  if (!delta) {
+    return false;
+  }
+
+  if (!state) {
+    return true;
+  }
+
+  CHECK_EQ(state->app_id, delta->app_id);
+
+  if (state->app_type != delta->app_type) {
+    return true;
+  }
+
+  ::AccountId acount_id;
+  AppUpdate update(state, delta, acount_id);
+  return update.ReadinessChanged() || update.NameChanged() ||
+         update.ShortNameChanged() || update.PublisherIdChanged() ||
+         update.DescriptionChanged() || update.VersionChanged() ||
+         update.AdditionalSearchTermsChanged() || update.IconKeyChanged() ||
+         update.LastLaunchTimeChanged() || update.InstallTimeChanged() ||
+         update.PermissionsChanged() || update.InstallReasonChanged() ||
+         update.InstallSourceChanged() || update.PolicyIdsChanged() ||
+         update.IsPlatformAppChanged() || update.RecommendableChanged() ||
+         update.SearchableChanged() || update.ShowInLauncherChanged() ||
+         update.ShowInShelfChanged() || update.ShowInSearchChanged() ||
+         update.ShowInManagementChanged() || update.HandlesIntentsChanged() ||
+         update.AllowUninstallChanged() || update.HasBadgeChanged() ||
+         update.PausedChanged() || update.IntentFiltersChanged() ||
+         update.ResizeLockedChanged() || update.WindowModeChanged() ||
+         update.RunOnOsLoginChanged() || update.AppSizeInBytesChanged() ||
+         update.DataSizeInBytesChanged();
+}
+
 AppUpdate::AppUpdate(const App* state,
                      const App* delta,
                      const ::AccountId& account_id)
@@ -461,7 +497,7 @@ std::ostream& operator<<(std::ostream& out, const AppUpdate& app) {
 
   out << "Permissions:" << std::endl;
   for (const auto& permission : app.Permissions()) {
-    out << permission->ToString();
+    out << permission->ToString() << std::endl;
   }
 
   out << "InstallReason: " << EnumToString(app.InstallReason()) << std::endl;
@@ -470,28 +506,32 @@ std::ostream& operator<<(std::ostream& out, const AppUpdate& app) {
   out << "PolicyId: " << base::JoinString(app.PolicyIds(), ", ") << std::endl;
 
   out << "InstalledInternally: " << app.InstalledInternally() << std::endl;
-  out << "IsPlatformApp: " << PRINT_OPTIONAL_VALUE(IsPlatformApp) << std::endl;
-  out << "Recommendable: " << PRINT_OPTIONAL_VALUE(Recommendable) << std::endl;
-  out << "Searchable: " << PRINT_OPTIONAL_VALUE(Searchable) << std::endl;
-  out << "ShowInLauncher: " << PRINT_OPTIONAL_VALUE(ShowInLauncher)
+  out << "IsPlatformApp: " << PRINT_OPTIONAL_BOOL(app.IsPlatformApp())
       << std::endl;
-  out << "ShowInShelf: " << PRINT_OPTIONAL_VALUE(ShowInShelf) << std::endl;
-  out << "ShowInSearch: " << PRINT_OPTIONAL_VALUE(ShowInSearch) << std::endl;
-  out << "ShowInManagement: " << PRINT_OPTIONAL_VALUE(ShowInManagement)
+  out << "Recommendable: " << PRINT_OPTIONAL_BOOL(app.Recommendable())
       << std::endl;
-  out << "HandlesIntents: " << PRINT_OPTIONAL_VALUE(HandlesIntents)
+  out << "Searchable: " << PRINT_OPTIONAL_BOOL(app.Searchable()) << std::endl;
+  out << "ShowInLauncher: " << PRINT_OPTIONAL_BOOL(app.ShowInLauncher())
       << std::endl;
-  out << "AllowUninstall: " << PRINT_OPTIONAL_VALUE(AllowUninstall)
+  out << "ShowInShelf: " << PRINT_OPTIONAL_BOOL(app.ShowInShelf()) << std::endl;
+  out << "ShowInSearch: " << PRINT_OPTIONAL_BOOL(app.ShowInSearch())
       << std::endl;
-  out << "HasBadge: " << PRINT_OPTIONAL_VALUE(HasBadge) << std::endl;
-  out << "Paused: " << PRINT_OPTIONAL_VALUE(Paused) << std::endl;
+  out << "ShowInManagement: " << PRINT_OPTIONAL_BOOL(app.ShowInManagement())
+      << std::endl;
+  out << "HandlesIntents: " << PRINT_OPTIONAL_BOOL(app.HandlesIntents())
+      << std::endl;
+  out << "AllowUninstall: " << PRINT_OPTIONAL_BOOL(app.AllowUninstall())
+      << std::endl;
+  out << "HasBadge: " << PRINT_OPTIONAL_BOOL(app.HasBadge()) << std::endl;
+  out << "Paused: " << PRINT_OPTIONAL_BOOL(app.Paused()) << std::endl;
 
   out << "IntentFilters: " << std::endl;
   for (const auto& filter : app.IntentFilters()) {
     out << filter->ToString() << std::endl;
   }
 
-  out << "ResizeLocked: " << PRINT_OPTIONAL_VALUE(ResizeLocked) << std::endl;
+  out << "ResizeLocked: " << PRINT_OPTIONAL_BOOL(app.ResizeLocked())
+      << std::endl;
   out << "WindowMode: " << EnumToString(app.WindowMode()) << std::endl;
   if (app.RunOnOsLogin().has_value()) {
     out << "RunOnOsLoginMode: "

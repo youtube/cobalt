@@ -22,8 +22,10 @@
 #include "chrome/browser/apps/app_service/publishers/app_publisher.h"
 #include "chrome/browser/profiles/profile.h"
 #include "components/services/app_service/public/cpp/app_launch_util.h"
+#include "components/services/app_service/public/cpp/app_types.h"
 #include "components/services/app_service/public/cpp/app_update.h"
 #include "components/services/app_service/public/cpp/features.h"
+#include "components/services/app_service/public/cpp/icon_effects.h"
 #include "components/services/app_service/public/cpp/intent.h"
 #include "components/services/app_service/public/cpp/intent_filter.h"
 #include "components/services/app_service/public/cpp/intent_filter_util.h"
@@ -56,26 +58,26 @@ std::string GetActivityLabel(const IntentFilterPtr& filter,
 
 }  // anonymous namespace
 
-AppServiceProxyBase::InnerIconLoader::InnerIconLoader(AppServiceProxyBase* host)
+AppServiceProxyBase::AppInnerIconLoader::AppInnerIconLoader(
+    AppServiceProxyBase* host)
     : host_(host), overriding_icon_loader_for_testing_(nullptr) {}
 
-absl::optional<IconKey> AppServiceProxyBase::InnerIconLoader::GetIconKey(
-    const std::string& app_id) {
+absl::optional<IconKey> AppServiceProxyBase::AppInnerIconLoader::GetIconKey(
+    const std::string& id) {
   if (overriding_icon_loader_for_testing_) {
-    return overriding_icon_loader_for_testing_->GetIconKey(app_id);
+    return overriding_icon_loader_for_testing_->GetIconKey(id);
   }
 
   absl::optional<IconKey> icon_key;
   host_->app_registry_cache_.ForOneApp(
-      app_id,
+      id,
       [&icon_key](const AppUpdate& update) { icon_key = update.IconKey(); });
   return icon_key;
 }
 
 std::unique_ptr<IconLoader::Releaser>
-AppServiceProxyBase::InnerIconLoader::LoadIconFromIconKey(
-    AppType app_type,
-    const std::string& app_id,
+AppServiceProxyBase::AppInnerIconLoader::LoadIconFromIconKey(
+    const std::string& id,
     const IconKey& icon_key,
     IconType icon_type,
     int32_t size_hint_in_dip,
@@ -83,12 +85,13 @@ AppServiceProxyBase::InnerIconLoader::LoadIconFromIconKey(
     apps::LoadIconCallback callback) {
   if (overriding_icon_loader_for_testing_) {
     return overriding_icon_loader_for_testing_->LoadIconFromIconKey(
-        app_type, app_id, icon_key, icon_type, size_hint_in_dip,
-        allow_placeholder_icon, std::move(callback));
+        id, icon_key, icon_type, size_hint_in_dip, allow_placeholder_icon,
+        std::move(callback));
   }
 
+  AppType app_type = host_->AppRegistryCache().GetAppType(id);
   if (host_->ShouldReadIcons(app_type)) {
-    host_->ReadIcons(app_type, app_id, size_hint_in_dip, icon_key.Clone(),
+    host_->ReadIcons(app_type, id, size_hint_in_dip, icon_key.Clone(),
                      icon_type, std::move(callback));
     return nullptr;
   }
@@ -101,16 +104,16 @@ AppServiceProxyBase::InnerIconLoader::LoadIconFromIconKey(
   }
 
   RecordIconLoadMethodMetrics(IconLoadingMethod::kViaNonMojomCall);
-  publisher->LoadIcon(app_id, icon_key, icon_type, size_hint_in_dip,
+  publisher->LoadIcon(id, icon_key, icon_type, size_hint_in_dip,
                       allow_placeholder_icon, std::move(callback));
   return nullptr;
 }
 
 AppServiceProxyBase::AppServiceProxyBase(Profile* profile)
-    : inner_icon_loader_(this),
-      icon_coalescer_(&inner_icon_loader_),
-      outer_icon_loader_(&icon_coalescer_,
-                         IconCache::GarbageCollectionPolicy::kEager),
+    : app_inner_icon_loader_(this),
+      app_icon_coalescer_(&app_inner_icon_loader_),
+      app_outer_icon_loader_(&app_icon_coalescer_,
+                             IconCache::GarbageCollectionPolicy::kEager),
       profile_(profile) {
   preferred_apps_impl_ = std::make_unique<apps::PreferredAppsImpl>(
       this, profile ? profile->GetPath() : base::FilePath());
@@ -207,21 +210,46 @@ void AppServiceProxyBase::OnSupportedLinksPreferenceChanged(
   publishers_[app_type]->OnSupportedLinksPreferenceChanged(app_id, open_in_app);
 }
 
-absl::optional<IconKey> AppServiceProxyBase::GetIconKey(
-    const std::string& app_id) {
-  return outer_icon_loader_.GetIconKey(app_id);
+std::unique_ptr<IconLoader::Releaser> AppServiceProxyBase::LoadIcon(
+    AppType app_type,
+    const std::string& app_id,
+    const IconType& icon_type,
+    int32_t size_hint_in_dip,
+    bool allow_placeholder_icon,
+    apps::LoadIconCallback callback) {
+  return app_icon_loader()->LoadIcon(app_type, app_id, icon_type,
+                                     size_hint_in_dip, allow_placeholder_icon,
+                                     std::move(callback));
+}
+
+uint32_t AppServiceProxyBase::GetIconEffects(const std::string& app_id) {
+  absl::optional<apps::IconKey> icon_key =
+      app_icon_loader()->GetIconKey(app_id);
+  if (!icon_key.has_value()) {
+    return IconEffects::kNone;
+  }
+  return icon_key->icon_effects;
 }
 
 std::unique_ptr<apps::IconLoader::Releaser>
-AppServiceProxyBase::LoadIconFromIconKey(AppType app_type,
-                                         const std::string& app_id,
-                                         const IconKey& icon_key,
-                                         IconType icon_type,
-                                         int32_t size_hint_in_dip,
-                                         bool allow_placeholder_icon,
-                                         LoadIconCallback callback) {
-  return outer_icon_loader_.LoadIconFromIconKey(
-      app_type, app_id, icon_key, icon_type, size_hint_in_dip,
+AppServiceProxyBase::LoadIconWithIconEffects(AppType app_type,
+                                             const std::string& app_id,
+                                             uint32_t icon_effects,
+                                             IconType icon_type,
+                                             int32_t size_hint_in_dip,
+                                             bool allow_placeholder_icon,
+                                             LoadIconCallback callback) {
+  absl::optional<apps::IconKey> icon_key =
+      app_icon_loader()->GetIconKey(app_id);
+  if (!icon_key.has_value()) {
+    std::move(callback).Run(std::make_unique<IconValue>());
+    return nullptr;
+  }
+
+  icon_key->icon_effects = icon_effects;
+
+  return app_icon_loader()->LoadIconFromIconKey(
+      app_id, icon_key.value(), icon_type, size_hint_in_dip,
       allow_placeholder_icon, std::move(callback));
 }
 
@@ -421,6 +449,15 @@ void AppServiceProxyBase::GetMenuModel(
   }
 }
 
+void AppServiceProxyBase::UpdateAppSize(const std::string& app_id) {
+  auto app_type = app_registry_cache_.GetAppType(app_id);
+  auto* publisher = GetPublisher(app_type);
+  if (publisher) {
+    publisher->UpdateAppSize(app_id);
+  }
+  return;
+}
+
 void AppServiceProxyBase::ExecuteContextMenuCommand(
     const std::string& app_id,
     int command_id,
@@ -444,8 +481,8 @@ void AppServiceProxyBase::OpenNativeSettings(const std::string& app_id) {
 apps::IconLoader* AppServiceProxyBase::OverrideInnerIconLoaderForTesting(
     apps::IconLoader* icon_loader) {
   apps::IconLoader* old =
-      inner_icon_loader_.overriding_icon_loader_for_testing_;
-  inner_icon_loader_.overriding_icon_loader_for_testing_ = icon_loader;
+      app_inner_icon_loader_.overriding_icon_loader_for_testing_;
+  app_inner_icon_loader_.overriding_icon_loader_for_testing_ = icon_loader;
   return old;
 }
 
@@ -529,40 +566,6 @@ std::vector<IntentLaunchInfo> AppServiceProxyBase::GetAppsForFiles(
   return GetAppsForIntent(std::make_unique<apps::Intent>(
                               apps_util::kIntentActionView, std::move(files)),
                           false, false);
-}
-
-void AppServiceProxyBase::AddPreferredApp(const std::string& app_id,
-                                          const GURL& url) {
-  AddPreferredApp(app_id,
-                  std::make_unique<Intent>(apps_util::kIntentActionView, url));
-}
-
-void AppServiceProxyBase::AddPreferredApp(const std::string& app_id,
-                                          const IntentPtr& intent) {
-  DCHECK(!app_id.empty());
-  DCHECK(preferred_apps_impl_);
-
-  auto intent_filter = FindBestMatchingFilter(intent);
-  if (!intent_filter) {
-    return;
-  }
-
-  // Treat kUseBrowserForLink like an app with a single supported link, so
-  // that any apps with overlapping supported links will have their preference
-  // removed correctly.
-  if (app_id == apps_util::kUseBrowserForLink) {
-    std::vector<IntentFilterPtr> filters;
-    filters.push_back(std::move(intent_filter));
-    preferred_apps_impl_->SetSupportedLinksPreference(app_id,
-                                                      std::move(filters));
-    return;
-  }
-
-  // AddPreferredApp currently only supports adding preferences for link
-  // intents.
-  DCHECK(apps_util::IsSupportedLinkForApp(app_id, intent_filter));
-
-  SetSupportedLinksPreference(app_id);
 }
 
 void AppServiceProxyBase::SetSupportedLinksPreference(

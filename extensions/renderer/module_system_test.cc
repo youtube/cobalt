@@ -17,12 +17,13 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/lazy_instance.h"
+#include "base/memory/raw_ptr.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/strings/string_piece.h"
+#include "base/values.h"
 #include "extensions/common/extension_builder.h"
 #include "extensions/common/extension_paths.h"
-#include "extensions/common/value_builder.h"
 #include "extensions/renderer/ipc_message_sender.h"
 #include "extensions/renderer/logging_native_handler.h"
 #include "extensions/renderer/native_extension_bindings_system.h"
@@ -99,7 +100,8 @@ class GetAPINatives : public ObjectBackedNativeHandler {
   }
 
  private:
-  NativeExtensionBindingsSystem* bindings_system_ = nullptr;
+  raw_ptr<NativeExtensionBindingsSystem, ExperimentalRenderer>
+      bindings_system_ = nullptr;
 };
 
 }  // namespace
@@ -169,7 +171,8 @@ ModuleSystemTestEnvironment::ModuleSystemTestEnvironment(
   context_->v8_context()->Enter();
   assert_natives_ = new AssertNatives(context_);
 
-  bindings_system_ = std::make_unique<NativeExtensionBindingsSystem>(nullptr);
+  bindings_system_ = std::make_unique<NativeExtensionBindingsSystem>(
+      /*delegate=*/nullptr, /*ipc_message_sender=*/nullptr);
 
   {
     std::unique_ptr<ModuleSystem> module_system(
@@ -312,11 +315,10 @@ void ModuleSystemTest::TearDown() {
 }
 
 scoped_refptr<const Extension> ModuleSystemTest::CreateExtension() {
-  base::Value::Dict manifest = DictionaryBuilder()
+  base::Value::Dict manifest = base::Value::Dict()
                                    .Set("name", "test")
                                    .Set("version", "1.0")
-                                   .Set("manifest_version", 2)
-                                   .Build();
+                                   .Set("manifest_version", 2);
   return ExtensionBuilder().SetManifest(std::move(manifest)).Build();
 }
 

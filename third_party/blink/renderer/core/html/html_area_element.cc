@@ -113,9 +113,9 @@ Path HTMLAreaElement::GetPath(const LayoutObject* container_object) const {
   if (shape_ == kDefault) {
     Path path;
     // No need to zoom because it is already applied in
-    // containerObject->borderBoxRect().
+    // container_object->PhysicalBorderBoxRect().
     if (const auto* box = DynamicTo<LayoutBox>(container_object))
-      path.AddRect(gfx::RectF(box->BorderBoxRect()));
+      path.AddRect(gfx::RectF(box->PhysicalBorderBoxRect()));
     path_ = nullptr;
     return path;
   }
@@ -185,15 +185,20 @@ HTMLImageElement* HTMLAreaElement::ImageElement() const {
 }
 
 bool HTMLAreaElement::IsKeyboardFocusable() const {
-  return IsBaseElementFocusable();
+  // Explicitly skip over the HTMLAnchorElement's keyboard focus behavior.
+  return Element::IsKeyboardFocusable();
 }
 
-bool HTMLAreaElement::IsMouseFocusable() const {
-  return IsBaseElementFocusable();
+bool HTMLAreaElement::IsFocusable(
+    bool disallow_layout_updates_for_accessibility_only) const {
+  // Explicitly skip over the HTMLAnchorElement's mouse focus behavior.
+  return HTMLElement::IsFocusable(
+      disallow_layout_updates_for_accessibility_only);
 }
 
 bool HTMLAreaElement::IsFocusableStyle() const {
   if (HTMLImageElement* image = ImageElement()) {
+    // TODO(crbug.com/1444450): Why is this not just image->IsFocusableStyle()?
     if (LayoutObject* layout_object = image->GetLayoutObject()) {
       const ComputedStyle& style = layout_object->StyleRef();
       return !style.IsInert() && style.Visibility() == EVisibility::kVisible &&
@@ -222,7 +227,8 @@ void HTMLAreaElement::SetFocused(bool should_be_focused,
 void HTMLAreaElement::UpdateSelectionOnFocus(
     SelectionBehaviorOnFocus selection_behavior,
     const FocusOptions* options) {
-  GetDocument().UpdateStyleAndLayoutTreeForNode(this);
+  GetDocument().UpdateStyleAndLayoutTreeForNode(this,
+                                                DocumentUpdateReason::kFocus);
   if (!IsFocusable())
     return;
 

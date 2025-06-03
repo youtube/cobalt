@@ -14,14 +14,13 @@ class AutofillBubbleBase;
 class LocalCardMigrationBubbleController;
 class OfferNotificationBubbleController;
 class SaveUpdateAddressProfileBubbleController;
-class EditAddressProfileDialogController;
 class SaveCardBubbleController;
 class IbanBubbleController;
-class SaveUPIBubble;
-class SaveUPIBubbleController;
 class VirtualCardManualFallbackBubbleController;
 class VirtualCardEnrollBubbleController;
+class MandatoryReauthBubbleController;
 enum class IbanBubbleType;
+enum class MandatoryReauthBubbleType;
 
 // TODO(crbug.com/1337392): consider removing this class and give the logic back
 // to each bubble's controller. This class serves also the avatar button /
@@ -58,10 +57,6 @@ class AutofillBubbleHandler {
       OfferNotificationBubbleController* controller,
       bool is_user_gesture) = 0;
 
-  virtual SaveUPIBubble* ShowSaveUPIBubble(
-      content::WebContents* contents,
-      SaveUPIBubbleController* controller) = 0;
-
   virtual AutofillBubbleBase* ShowSaveAddressProfileBubble(
       content::WebContents* web_contents,
       SaveUpdateAddressProfileBubbleController* controller,
@@ -71,10 +66,6 @@ class AutofillBubbleHandler {
       content::WebContents* web_contents,
       SaveUpdateAddressProfileBubbleController* controller,
       bool is_user_gesture) = 0;
-
-  virtual AutofillBubbleBase* ShowEditAddressProfileDialog(
-      content::WebContents* web_contents,
-      EditAddressProfileDialogController* controller) = 0;
 
   virtual AutofillBubbleBase* ShowVirtualCardManualFallbackBubble(
       content::WebContents* web_contents,
@@ -86,10 +77,11 @@ class AutofillBubbleHandler {
       VirtualCardEnrollBubbleController* controller,
       bool is_user_gesture) = 0;
 
-  // TODO(crbug.com/964127): Wait for the integration with sign in after local
-  // save to be landed to see if we need to merge password saved and credit card
-  // saved functions.
-  virtual void OnPasswordSaved() = 0;
+  virtual AutofillBubbleBase* ShowMandatoryReauthBubble(
+      content::WebContents* web_contents,
+      MandatoryReauthBubbleController* controller,
+      bool is_user_gesture,
+      MandatoryReauthBubbleType bubble_type) = 0;
 };
 
 }  // namespace autofill

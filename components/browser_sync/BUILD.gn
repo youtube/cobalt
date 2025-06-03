@@ -4,6 +4,7 @@
 
 import("//build/config/chromeos/ui_mode.gni")
 import("//build/config/features.gni")
+import("//components/supervised_user/buildflags.gni")
 
 static_library("browser_sync") {
   sources = [
@@ -16,6 +17,8 @@ static_library("browser_sync") {
     "signin_confirmation_helper.h",
     "sync_api_component_factory_impl.cc",
     "sync_api_component_factory_impl.h",
+    "sync_client_utils.cc",
+    "sync_client_utils.h",
   ]
 
   public_deps = [ "//components/sync" ]
@@ -25,22 +28,27 @@ static_library("browser_sync") {
     "//build:chromeos_buildflags",
     "//components/autofill/core/browser",
     "//components/autofill/core/common",
+    "//components/bookmarks/browser",
     "//components/history/core/browser",
     "//components/history/core/common",
     "//components/password_manager/core/browser",
+    "//components/password_manager/core/browser/sharing",
     "//components/power_bookmarks/core",
     "//components/power_bookmarks/core:features",
     "//components/prefs",
     "//components/reading_list/core",
     "//components/reading_list/features:flags",
     "//components/send_tab_to_self",
+    "//components/supervised_user/core/common:buildflags",
     "//components/sync/invalidations",
     "//components/sync_bookmarks",
     "//components/sync_preferences",
     "//components/sync_sessions",
     "//components/sync_user_events",
+    "//components/url_formatter",
     "//components/version_info",
     "//components/version_info:generate_version_info",
+    "//ui/base",
   ]
 
   if (is_chromeos_ash) {
@@ -49,12 +57,19 @@ static_library("browser_sync") {
       "//components/desks_storage",
     ]
   }
+
+  if (enable_supervised_users) {
+    deps += [ "//components/supervised_user/core/browser" ]
+  }
 }
 
 source_set("unit_tests") {
   testonly = true
 
-  sources = [ "active_devices_provider_impl_unittest.cc" ]
+  sources = [
+    "active_devices_provider_impl_unittest.cc",
+    "sync_client_utils_unittest.cc",
+  ]
 
   deps = [
     ":browser_sync",
@@ -66,12 +81,15 @@ source_set("unit_tests") {
     "//components/bookmarks/managed",
     "//components/bookmarks/test",
     "//components/history/core/browser",
+    "//components/password_manager/core/browser:test_support",
     "//components/prefs",
+    "//components/reading_list/core:test_support",
     "//components/sync",
     "//components/sync:test_support",
     "//components/sync_bookmarks",
     "//components/sync_device_info",
     "//components/sync_device_info:test_support",
+    "//components/undo",
     "//components/version_info",
     "//components/version_info:generate_version_info",
     "//components/webdata/common",

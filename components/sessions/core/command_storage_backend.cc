@@ -174,6 +174,9 @@ class SessionFileReader {
   // The file.
   std::unique_ptr<base::File> file_;
 
+  // The number of bytes successfully read from `file_`.
+  int bytes_read_ = 0;
+
   // Position in buffer_ of the data.
   size_t buffer_position_ = 0;
 
@@ -205,7 +208,8 @@ CommandStorageBackend::ReadCommandsResult SessionFileReader::Read() {
 
   LOG_IF(ERROR, result.error_reading)
       << "Commands successfully read before error: "
-      << commands_result.commands.size();
+      << commands_result.commands.size()
+      << ", bytes successfully read from file before error: " << bytes_read_;
 
   // `error_reading` is only set if `command` is null.
   commands_result.error_reading = result.error_reading;
@@ -220,10 +224,23 @@ bool SessionFileReader::ReadHeader() {
   if (!file_->IsValid())
     return false;
   FileHeader header;
-  const int read_count =
+  CHECK_EQ(0, bytes_read_);
+  bytes_read_ =
       file_->ReadAtCurrentPos(reinterpret_cast<char*>(&header), sizeof(header));
-  if (read_count != sizeof(header) || header.signature != kFileSignature)
+  if (bytes_read_ < 0) {
+    VLOG(1) << "SessionFileReader::ReadHeader, failed to read header. "
+               "Attempted to read "
+            << sizeof(header)
+            << " bytes into buffer but encountered file read error: "
+            << base::File::ErrorToString(base::File::GetLastFileError());
+  }
+  if (bytes_read_ != sizeof(header) || header.signature != kFileSignature) {
+    VLOG(1) << "SessionFileReader::ReadHeader, failed to read header. "
+               "Attempted to read "
+            << sizeof(header) << " bytes into buffer but got " << bytes_read_
+            << " bytes instead.";
     return false;
+  }
   version_ = header.version;
   const bool encrypt = aead_.get() != nullptr;
   return (encrypt && (version_ == kEncryptedFileVersion ||
@@ -345,15 +362,21 @@ bool SessionFileReader::FillBuffer() {
   }
   buffer_position_ = 0;
   DCHECK(buffer_position_ + available_count_ < buffer_.size());
-  int to_read = static_cast<int>(buffer_.size() - available_count_);
-  int read_count =
+  const int to_read = static_cast<int>(buffer_.size() - available_count_);
+  const int read_count =
       file_->ReadAtCurrentPos(&(buffer_[available_count_]), to_read);
   if (read_count < 0) {
-    // TODO(sky): communicate/log an error here.
+    VLOG(1) << "SessionFileReader::FillBuffer, failed to read header. "
+               "Attempted to read "
+            << to_read << " bytes into buffer but encountered file read error: "
+            << base::File::ErrorToString(base::File::GetLastFileError())
+            << "\nRead " << bytes_read_
+            << " bytes successfully from file before error.";
     return false;
   }
   if (read_count == 0)
     return false;
+  bytes_read_ += read_count;
   available_count_ += read_count;
   return true;
 }
@@ -564,15 +587,22 @@ CommandStorageBackend::ReadCommandsResult
 CommandStorageBackend::ReadLastSessionCommands() {
   InitIfNecessary();
 
-  if (last_session_info_)
+  if (last_session_info_) {
+    VLOG(1) << "CommandStorageBackend::ReadLastSessionCommands, reading "
+               "commands from: "
+            << last_session_info_->path;
     return ReadCommandsFromFile(last_session_info_->path,
                                 initial_decryption_key_);
+  }
   return {};
 }
 
 void CommandStorageBackend::DeleteLastSession() {
   InitIfNecessary();
   if (last_session_info_) {
+    VLOG(1)
+        << "CommandStorageBackend::DeleteLastSession, deleting session file: "
+        << last_session_info_->path;
     base::DeleteFile(last_session_info_->path);
     last_session_info_.reset();
   }
@@ -594,6 +624,9 @@ void CommandStorageBackend::MoveCurrentSessionToLastSession() {
     last_or_current_path_with_valid_marker_.reset();
   }
   last_session_info_ = new_last_session_info;
+  VLOG(1) << "CommandStorageBackend::MoveCurrentSessionToLastSession, moved "
+             "current session to: "
+          << (last_session_info_ ? last_session_info_->path : base::FilePath());
 
   TruncateOrOpenFile();
 }
@@ -632,9 +665,6 @@ void CommandStorageBackend::InitIfNecessary() {
 
   inited_ = true;
   base::CreateDirectory(GetSessionDirName(type_, supplied_path_));
-
-  // Log the initial state of all session files in the directory.
-  LogSessionFiles();
 
   // TODO(sky): this is expensive. See if it can be delayed.
   last_session_info_ = FindLastSessionFile();
@@ -873,27 +903,6 @@ bool CommandStorageBackend::CanUseFileForLastSession(
   const SessionFileReader::MarkerStatus status =
       SessionFileReader::GetMarkerStatus(path, initial_decryption_key_);
   return !status.supports_marker || status.has_marker;
-}
-
-void CommandStorageBackend::LogSessionFiles() {
-  if (VLOG_IS_ON(1)) {
-    VLOG(1) << "Current session files:";
-    for (const SessionInfo& session :
-         GetSessionFilesSortedByReverseTimestamp()) {
-      int64_t file_size;
-      if (!base::GetFileSize(session.path, &file_size)) {
-        VLOG(1) << "Unable to compute file size for: " << session.path;
-        continue;
-      }
-      const SessionFileReader::MarkerStatus status =
-          SessionFileReader::GetMarkerStatus(session.path,
-                                             initial_decryption_key_);
-      VLOG(1) << "\nfile = " << session.path
-              << "\nsupports_marker = " << status.supports_marker
-              << "\nhas_marker = " << status.has_marker
-              << "\nsize_bytes = " << file_size;
-    }
-  }
 }
 
 }  // namespace sessions

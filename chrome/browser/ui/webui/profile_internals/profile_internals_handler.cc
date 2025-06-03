@@ -15,7 +15,7 @@
 #include "chrome/browser/profiles/profile_attributes_entry.h"
 #include "chrome/browser/profiles/profile_attributes_storage.h"
 #include "chrome/browser/profiles/profile_manager.h"
-#include "chrome/browser/ui/signin/profile_colors_util.h"
+#include "chrome/browser/ui/profiles/profile_colors_util.h"
 #include "components/signin/public/identity_manager/account_info.h"
 #include "content/public/browser/web_ui.h"
 #include "skia/ext/skia_utils_base.h"
@@ -121,7 +121,7 @@ base::Value::List ProfileInternalsHandler::GetProfilesList() {
   std::vector<ProfileAttributesEntry*> entries =
       g_browser_process->profile_manager()
           ->GetProfileAttributesStorage()
-          .GetAllProfilesAttributesSortedByLocalProfileName();
+          .GetAllProfilesAttributesSortedByLocalProfileNameWithCheck();
   std::vector<Profile*> loaded_profiles =
       g_browser_process->profile_manager()->GetLoadedProfiles();
   base::flat_set<base::FilePath> loaded_profile_paths =

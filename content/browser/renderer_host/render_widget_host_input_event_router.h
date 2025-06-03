@@ -18,11 +18,11 @@
 #include "components/viz/common/surfaces/surface_id.h"
 #include "components/viz/host/hit_test/hit_test_query.h"
 #include "components/viz/host/hit_test/hit_test_region_observer.h"
-#include "content/browser/renderer_host/event_with_latency_info.h"
 #include "content/browser/renderer_host/input/touch_emulator_client.h"
 #include "content/browser/renderer_host/render_widget_host_view_base_observer.h"
 #include "content/browser/renderer_host/render_widget_targeter.h"
 #include "content/common/content_export.h"
+#include "content/common/input/event_with_latency_info.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "third_party/blink/public/mojom/input/input_event_result.mojom-shared.h"
 #include "ui/gfx/geometry/transform.h"
@@ -121,10 +121,6 @@ class CONTENT_EXPORT RenderWidgetHostInputEventRouter final
   void AddFrameSinkIdOwner(const viz::FrameSinkId& id,
                            RenderWidgetHostViewBase* owner);
   void RemoveFrameSinkIdOwner(const viz::FrameSinkId& id);
-
-  bool is_registered(const viz::FrameSinkId& id) const {
-    return owner_map_.find(id) != owner_map_.end();
-  }
 
   TouchEmulator* GetTouchEmulator();
   // Since GetTouchEmulator will lazily create a touch emulator, the following
@@ -341,7 +337,9 @@ class CONTENT_EXPORT RenderWidgetHostInputEventRouter final
   }
 
   void SetTouchscreenGestureTarget(RenderWidgetHostViewBase* target,
-                                   bool moved_recently = false);
+                                   bool moved_recently,
+                                   bool moved_recently_for_iov2);
+  void ClearTouchscreenGestureTarget();
 
   void ForwardDelegatedInkPoint(
       RenderWidgetHostViewBase* target_view,
@@ -362,6 +360,7 @@ class CONTENT_EXPORT RenderWidgetHostInputEventRouter final
   RAW_PTR_EXCLUSION RenderWidgetHostViewBase* touch_target_ = nullptr;
   base::WeakPtr<RenderWidgetHostViewBase> touchscreen_gesture_target_;
   bool touchscreen_gesture_target_moved_recently_ = false;
+  bool touchscreen_gesture_target_moved_recently_for_iov2_ = false;
   // // This field is not a raw_ptr<> because of a reference to raw_ptr in
   // not-rewritten platform specific code.
   RAW_PTR_EXCLUSION RenderWidgetHostViewBase* touchpad_gesture_target_ =
@@ -455,10 +454,6 @@ class CONTENT_EXPORT RenderWidgetHostInputEventRouter final
   mutable gfx::PointF mouse_down_pre_transformed_coordinate_;
   mutable gfx::PointF mouse_down_post_transformed_coordinate_;
   raw_ptr<RenderWidgetHostViewBase> last_mouse_down_target_ = nullptr;
-
-  // Set to true when we first DwoC on an invalid RWHVB* in DispatchTouchEvent.
-  // Used to prevent multiple dumps.
-  bool has_dumped_ = false;
 
   // Remote end of the connection for sending delegated ink points to viz to
   // support the delegated ink trails feature.

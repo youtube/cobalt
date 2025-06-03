@@ -7,6 +7,7 @@
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/no_destructor.h"
+#include "base/system/sys_info.h"
 #include "chromeos/ash/components/dbus/concierge/concierge_client.h"
 #include "chromeos/ash/components/dbus/debug_daemon/debug_daemon_client.h"
 #include "chromeos/ash/components/dbus/vm_concierge/concierge_service.pb.h"
@@ -19,7 +20,8 @@ namespace {
 void OnSetVmCpuRestriction(
     absl::optional<vm_tools::concierge::SetVmCpuRestrictionResponse> response) {
   if (!response || !response->success()) {
-    LOG(ERROR) << "Failed to call SetVmCpuRestriction";
+    LOG_IF(ERROR, base::SysInfo::IsRunningOnChromeOS())
+        << "Failed to call SetVmCpuRestriction";
     return;
   }
 }
@@ -120,9 +122,10 @@ ConciergeHelperServiceFactory::ConciergeHelperServiceFactory()
               .WithGuest(ProfileSelection::kOriginalOnly)
               .Build()) {}
 
-KeyedService* ConciergeHelperServiceFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+ConciergeHelperServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
-  return new ConciergeHelperService();
+  return std::make_unique<ConciergeHelperService>();
 }
 
 }  // namespace ash

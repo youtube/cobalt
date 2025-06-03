@@ -16,7 +16,14 @@
 namespace cc {
 namespace {
 
-constexpr char kTracingCategory[] = "cc,benchmark,input,event_latency";
+constexpr char kTracingCategory[] = "cc,benchmark,input,input.scrolling";
+
+bool IsTracingEnabled() {
+  bool enabled;
+  TRACE_EVENT_CATEGORY_GROUP_ENABLED(kTracingCategory, &enabled);
+  return enabled;
+}
+
 constexpr base::TimeDelta high_latency_threshold = base::Milliseconds(90);
 
 constexpr perfetto::protos::pbzero::EventLatency::EventType ToProtoEnum(
@@ -51,6 +58,7 @@ constexpr perfetto::protos::pbzero::EventLatency::EventType ToProtoEnum(
     CASE(kGesturePinchEnd, GESTURE_PINCH_END);
     CASE(kGesturePinchUpdate, GESTURE_PINCH_UPDATE);
     CASE(kInertialGestureScrollUpdate, INERTIAL_GESTURE_SCROLL_UPDATE);
+    CASE(kMouseMoved, MOUSE_MOVED_EVENT);
   }
 }
 
@@ -204,6 +212,20 @@ void EventLatencyTracingRecorder::RecordEventLatencyTraceEvent(
     base::TimeTicks termination_time,
     const std::vector<CompositorFrameReporter::StageData>* stage_history,
     const CompositorFrameReporter::ProcessedVizBreakdown* viz_breakdown) {
+  // As there are multiple teardown paths for EventMetrics, we want to denote
+  // the attempt to trace, even if tracing is currently disabled.
+  if (IsTracingEnabled()) {
+    RecordEventLatencyTraceEventInternal(event_metrics, termination_time,
+                                         stage_history, viz_breakdown);
+  }
+  event_metrics->tracing_recorded();
+}
+
+void EventLatencyTracingRecorder::RecordEventLatencyTraceEventInternal(
+    const EventMetrics* event_metrics,
+    base::TimeTicks termination_time,
+    const std::vector<CompositorFrameReporter::StageData>* stage_history,
+    const CompositorFrameReporter::ProcessedVizBreakdown* viz_breakdown) {
   DCHECK(event_metrics);
   DCHECK(event_metrics->should_record_tracing());
 
@@ -228,6 +250,18 @@ void EventLatencyTracingRecorder::RecordEventLatencyTraceEvent(
           // type from a string to enum type in chrome_track_event.proto,
           // similar to event_type.
           event_latency->add_high_latency_stage(stage);
+        }
+        if (event_metrics->trace_id().has_value()) {
+          event_latency->set_event_latency_id(
+              event_metrics->trace_id()->value());
+        }
+
+        const ScrollUpdateEventMetrics* scroll_update =
+            event_metrics->AsScrollUpdate();
+        if (scroll_update &&
+            scroll_update->is_janky_scrolled_frame().has_value()) {
+          event_latency->set_is_janky_scrolled_frame(
+              scroll_update->is_janky_scrolled_frame().value());
         }
       });
 
@@ -335,8 +369,6 @@ void EventLatencyTracingRecorder::RecordEventLatencyTraceEvent(
     TRACE_EVENT_END(kTracingCategory, trace_track, termination_time);
   }
   TRACE_EVENT_END(kTracingCategory, trace_track, termination_time);
-
-  event_metrics->tracing_recorded();
 }
 
 }  // namespace cc

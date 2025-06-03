@@ -485,12 +485,15 @@ void AddMediaFoundationClearKey(
   }
 
 #if BUILDFLAG(USE_PROPRIETARY_CODECS)
+  // TODO(crbug.com/1412485): Remove this hard-codeded supported codecs so that
+  // real hardware capabilities can be checked.
   key_systems->push_back(std::make_unique<ExternalClearKeyKeySystemInfo>(
       media::kMediaFoundationClearKeyKeySystem, std::vector<std::string>(),
       // MediaFoundation Clear Key Key System uses Windows Media Foundation's
-      // decoders and H264 is always supported. VideoCodec::kH264 is an
-      // EME_CODEC_AVC1.
-      media::EME_CODEC_AVC1,
+      // decoders. H264 ("avc1.64001E") for video and MP4 AAC ("mp4a.40.2") for
+      // audio are always supported. VideoCodec::kH264 is an EME_CODEC_AVC1.
+      // AudioCodec::kAAC is an EME_CODEC_AAC.
+      media::EME_CODEC_AVC1 | media::EME_CODEC_AAC,
       // On Windows, MediaFoundation Clear Key CDM requires identifier,
       // persistent state and HW secure codecs. We pretent to require these for
       // testing purposes.

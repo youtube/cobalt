@@ -4,7 +4,7 @@
 
 // clang-format off
 import {dedupingMixin, PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
-import {assert} from 'chrome://resources/js/assert_ts.js';
+import {assert} from 'chrome://resources/js/assert.js';
 import {PromiseResolver} from 'chrome://resources/js/promise_resolver.js';
 
 import {PrivacySandboxDialogBrowserProxy, PrivacySandboxPromptAction} from './privacy_sandbox_dialog_browser_proxy.js';
@@ -83,6 +83,12 @@ export const PrivacySandboxDialogMixin = dedupingMixin(
               PrivacySandboxPromptAction.NOTICE_MORE_BUTTON_CLICKED);
         }
 
+        onRestrictedNoticeMoreClicked() {
+          this.onMoreClicked_();
+          this.promptActionOccurred(
+              PrivacySandboxPromptAction.RESTRICTED_NOTICE_MORE_BUTTON_CLICKED);
+        }
+
         promptActionOccurred(action: PrivacySandboxPromptAction) {
           PrivacySandboxDialogBrowserProxy.getInstance().promptActionOccurred(
               action);
@@ -152,7 +158,12 @@ export const PrivacySandboxDialogMixin = dedupingMixin(
             };
             const observer = new IntersectionObserver(entries => {
               assert(entries.length === 1);
-              this.wasScrolledToBottom = entries[0].intersectionRatio === 1;
+              // We cannot check for intersectionRatio strictly equal to 1
+              // because its value is sometimes reported with ~0.99 values
+              // (see crbug.com/1020466): this can lead to a state where
+              // the more button is always visible, with unclickable action
+              // buttons covered by an overlay (b/299120185).
+              this.wasScrolledToBottom = entries[0].intersectionRatio >= 0.99;
 
               // After the whole text content was visible at least once, stop
               // observing.

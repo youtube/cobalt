@@ -7,6 +7,7 @@
 #include <algorithm>
 
 #include "base/containers/contains.h"
+#include "base/memory/raw_ref.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/values.h"
@@ -44,8 +45,7 @@ std::vector<std::unique_ptr<ArgumentSpec>> ValueListToArgumentSpecs(
     size++;
   signatures.reserve(size);
   for (const auto& signature : specification_list) {
-    CHECK(signature.is_dict());
-    signatures.push_back(std::make_unique<ArgumentSpec>(signature));
+    signatures.push_back(std::make_unique<ArgumentSpec>(signature.GetDict()));
   }
 
   return signatures;
@@ -94,7 +94,7 @@ class ArgumentParser {
  public:
   ArgumentParser(v8::Local<v8::Context> context,
                  const std::vector<std::unique_ptr<ArgumentSpec>>& signature,
-                 const std::vector<v8::Local<v8::Value>>& arguments,
+                 const v8::LocalVector<v8::Value>& arguments,
                  const APITypeReferenceMap& type_refs,
                  PromisesAllowed promises_allowed)
       : context_(context),
@@ -134,7 +134,7 @@ class ArgumentParser {
   bool ResolveArguments(
       base::span<const v8::Local<v8::Value>> provided,
       base::span<const std::unique_ptr<ArgumentSpec>> expected,
-      std::vector<v8::Local<v8::Value>>* result,
+      v8::LocalVector<v8::Value>* result,
       size_t index,
       bool allow_omitted_final_argument);
 
@@ -161,9 +161,12 @@ class ArgumentParser {
   virtual void SetCallback(v8::Local<v8::Function> callback) = 0;
 
   v8::Local<v8::Context> context_;
-  const std::vector<std::unique_ptr<ArgumentSpec>>& signature_;
-  const std::vector<v8::Local<v8::Value>>& provided_arguments_;
-  const APITypeReferenceMap& type_refs_;
+  const raw_ref<const std::vector<std::unique_ptr<ArgumentSpec>>,
+                ExperimentalRenderer>
+      signature_;
+  const raw_ref<const v8::LocalVector<v8::Value>, ExperimentalRenderer>
+      provided_arguments_;
+  const raw_ref<const APITypeReferenceMap, ExperimentalRenderer> type_refs_;
   PromisesAllowed promises_allowed_;
   binding::AsyncResponseType async_type_ = binding::AsyncResponseType::kNone;
   std::string error_;
@@ -177,14 +180,15 @@ class V8ArgumentParser : public ArgumentParser {
  public:
   V8ArgumentParser(v8::Local<v8::Context> context,
                    const std::vector<std::unique_ptr<ArgumentSpec>>& signature,
-                   const std::vector<v8::Local<v8::Value>>& arguments,
+                   const v8::LocalVector<v8::Value>& arguments,
                    const APITypeReferenceMap& type_refs,
                    PromisesAllowed promises_allowed)
       : ArgumentParser(context,
                        signature,
                        arguments,
                        type_refs,
-                       promises_allowed) {}
+                       promises_allowed),
+        values_(context->GetIsolate()) {}
 
   V8ArgumentParser(const V8ArgumentParser&) = delete;
   V8ArgumentParser& operator=(const V8ArgumentParser&) = delete;
@@ -206,7 +210,7 @@ class V8ArgumentParser : public ArgumentParser {
   }
 
   v8::Local<v8::Value> last_arg_;
-  std::vector<v8::Local<v8::Value>> values_;
+  v8::LocalVector<v8::Value> values_;
 };
 
 class BaseValueArgumentParser : public ArgumentParser {
@@ -214,7 +218,7 @@ class BaseValueArgumentParser : public ArgumentParser {
   BaseValueArgumentParser(
       v8::Local<v8::Context> context,
       const std::vector<std::unique_ptr<ArgumentSpec>>& signature,
-      const std::vector<v8::Local<v8::Value>>& arguments,
+      const v8::LocalVector<v8::Value>& arguments,
       const APITypeReferenceMap& type_refs,
       PromisesAllowed promises_allowed)
       : ArgumentParser(context,
@@ -252,7 +256,7 @@ class BaseValueArgumentParser : public ArgumentParser {
 };
 
 bool ArgumentParser::ParseArgumentsImpl(bool signature_has_callback) {
-  if (provided_arguments_.size() > signature_.size()) {
+  if (provided_arguments_->size() > signature_->size()) {
     error_ = api_errors::NoMatchingSignature();
     return false;
   }
@@ -263,23 +267,25 @@ bool ArgumentParser::ParseArgumentsImpl(bool signature_has_callback) {
   bool allow_omitted_final_argument =
       signature_has_callback && promises_allowed_ == PromisesAllowed::kAllowed;
 
-  std::vector<v8::Local<v8::Value>> resolved_arguments(signature_.size());
-  if (!ResolveArguments(provided_arguments_, signature_, &resolved_arguments,
+  v8::LocalVector<v8::Value> resolved_arguments(context_->GetIsolate(),
+                                                signature_->size());
+  if (!ResolveArguments(*provided_arguments_, *signature_, &resolved_arguments,
                         0u, allow_omitted_final_argument)) {
     error_ = api_errors::NoMatchingSignature();
     return false;
   }
-  DCHECK_EQ(resolved_arguments.size(), signature_.size());
+  DCHECK_EQ(resolved_arguments.size(), signature_->size());
 
   size_t end_size =
-      signature_has_callback ? signature_.size() - 1 : signature_.size();
+      signature_has_callback ? signature_->size() - 1 : signature_->size();
   for (size_t i = 0; i < end_size; ++i) {
-    if (!ParseArgument(*signature_[i], resolved_arguments[i]))
+    if (!ParseArgument(*(*signature_)[i], resolved_arguments[i])) {
       return false;
+    }
   }
 
   if (signature_has_callback &&
-      !ParseCallback(*signature_.back(), resolved_arguments.back())) {
+      !ParseCallback(*signature_->back(), resolved_arguments.back())) {
     return false;
   }
 
@@ -289,7 +295,7 @@ bool ArgumentParser::ParseArgumentsImpl(bool signature_has_callback) {
 bool ArgumentParser::ResolveArguments(
     base::span<const v8::Local<v8::Value>> provided,
     base::span<const std::unique_ptr<ArgumentSpec>> expected,
-    std::vector<v8::Local<v8::Value>>* result,
+    v8::LocalVector<v8::Value>* result,
     size_t index,
     bool allow_omitted_final_argument) {
   // If the provided arguments and expected arguments are both empty, it means
@@ -317,7 +323,7 @@ bool ArgumentParser::ResolveArguments(
       // For null/undefined, just use an empty handle. It'll be normalized to
       // null in ParseArgument().
       (*result)[index] = v8::Local<v8::Value>();
-    } else if (expected[0]->IsCorrectType(provided[0], type_refs_, &error_)) {
+    } else if (expected[0]->IsCorrectType(provided[0], *type_refs_, &error_)) {
       can_match = true;
       (*result)[index] = provided[0];
     }
@@ -377,8 +383,8 @@ bool ArgumentParser::ParseArgument(const ArgumentSpec& spec,
 
   // ResolveArguments() should verify that all arguments are at least the
   // correct type.
-  DCHECK(spec.IsCorrectType(value, type_refs_, &error_));
-  if (!spec.ParseArgument(context_, value, type_refs_, GetBaseBuffer(),
+  DCHECK(spec.IsCorrectType(value, *type_refs_, &error_));
+  if (!spec.ParseArgument(context_, value, *type_refs_, GetBaseBuffer(),
                           GetV8Buffer(), &parse_error_)) {
     error_ = api_errors::ArgumentError(spec.name(), parse_error_);
     return false;
@@ -410,7 +416,7 @@ bool ArgumentParser::ParseCallback(const ArgumentSpec& spec,
 
   // Note: callbacks are set through SetCallback() rather than through the
   // buffered argument.
-  if (!spec.ParseArgument(context_, value, type_refs_, nullptr, nullptr,
+  if (!spec.ParseArgument(context_, value, *type_refs_, nullptr, nullptr,
                           &parse_error_)) {
     error_ = api_errors::ArgumentError(spec.name(), parse_error_);
     return false;
@@ -452,7 +458,7 @@ APISignature::JSONParseResult BaseValueArgumentParser::ParseArguments(
 // expected schema.
 bool ValidateSignatureForInternalCaller(
     v8::Local<v8::Context> context,
-    const std::vector<v8::Local<v8::Value>>& arguments,
+    const v8::LocalVector<v8::Value>& arguments,
     const std::vector<std::unique_ptr<ArgumentSpec>>& expected,
     const APITypeReferenceMap& type_refs,
     std::string* error) {
@@ -592,7 +598,7 @@ std::unique_ptr<APISignature> APISignature::CreateFromValues(
 
 APISignature::V8ParseResult APISignature::ParseArgumentsToV8(
     v8::Local<v8::Context> context,
-    const std::vector<v8::Local<v8::Value>>& arguments,
+    const v8::LocalVector<v8::Value>& arguments,
     const APITypeReferenceMap& type_refs) const {
   PromisesAllowed promises_allowed = CheckPromisesAllowed(context);
   return V8ArgumentParser(context, signature_, arguments, type_refs,
@@ -602,7 +608,7 @@ APISignature::V8ParseResult APISignature::ParseArgumentsToV8(
 
 APISignature::JSONParseResult APISignature::ParseArgumentsToJSON(
     v8::Local<v8::Context> context,
-    const std::vector<v8::Local<v8::Value>>& arguments,
+    const v8::LocalVector<v8::Value>& arguments,
     const APITypeReferenceMap& type_refs) const {
   PromisesAllowed promises_allowed = CheckPromisesAllowed(context);
   return BaseValueArgumentParser(context, signature_, arguments, type_refs,
@@ -612,7 +618,7 @@ APISignature::JSONParseResult APISignature::ParseArgumentsToJSON(
 
 APISignature::JSONParseResult APISignature::ConvertArgumentsIgnoringSchema(
     v8::Local<v8::Context> context,
-    const std::vector<v8::Local<v8::Value>>& arguments) const {
+    const v8::LocalVector<v8::Value>& arguments) const {
   JSONParseResult result;
   size_t size = arguments.size();
   // TODO(devlin): This is what the current bindings do, but it's quite terribly
@@ -666,22 +672,20 @@ APISignature::JSONParseResult APISignature::ConvertArgumentsIgnoringSchema(
   return result;
 }
 
-bool APISignature::ValidateResponse(
-    v8::Local<v8::Context> context,
-    const std::vector<v8::Local<v8::Value>>& arguments,
-    const APITypeReferenceMap& type_refs,
-    std::string* error) const {
+bool APISignature::ValidateResponse(v8::Local<v8::Context> context,
+                                    const v8::LocalVector<v8::Value>& arguments,
+                                    const APITypeReferenceMap& type_refs,
+                                    std::string* error) const {
   DCHECK(returns_async_);
   DCHECK(returns_async_->signature);
   return ValidateSignatureForInternalCaller(
       context, arguments, *returns_async_->signature, type_refs, error);
 }
 
-bool APISignature::ValidateCall(
-    v8::Local<v8::Context> context,
-    const std::vector<v8::Local<v8::Value>>& arguments,
-    const APITypeReferenceMap& type_refs,
-    std::string* error) const {
+bool APISignature::ValidateCall(v8::Local<v8::Context> context,
+                                const v8::LocalVector<v8::Value>& arguments,
+                                const APITypeReferenceMap& type_refs,
+                                std::string* error) const {
   return ValidateSignatureForInternalCaller(context, arguments, signature_,
                                             type_refs, error);
 }

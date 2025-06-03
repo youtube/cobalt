@@ -57,19 +57,6 @@ public interface AccountManagerFacade {
     void removeObserver(AccountsChangeObserver observer);
 
     /**
-     * Retrieves accounts on device after filtering them through account restriction patterns.
-     * The {@link Promise} will be fulfilled once the accounts cache will be populated.
-     * If an error occurs while getting account list, the returned {@link Promise} will wrap an
-     * empty array.
-     *
-     * Since a different {@link Promise} will be returned every time the accounts get updated,
-     * this makes the {@link Promise} a bad candidate for end users to cache locally unless
-     * the end users are awaiting the current list of accounts only.
-     */
-    @MainThread
-    Promise<List<Account>> getAccounts();
-
-    /**
      * Retrieves corresponding {@link CoreAccountInfo}s for filtered accounts.
      * The {@link Promise} will be fulfilled once the accounts cache is populated and gaia ids are
      * fetched. If an error occurs while getting account list, the returned {@link Promise} will
@@ -91,12 +78,13 @@ public interface AccountManagerFacade {
     /**
      * Synchronously gets an OAuth2 access token. May return a cached version, use
      * {@link #invalidateAccessToken} to invalidate a token in the cache.
-     * @param account The {@link Account} for which the token is requested.
+     * @param coreAccountInfo The {@link CoreAccountInfo} for which the token is requested.
      * @param scope OAuth2 scope for which the requested token should be valid.
      * @return The OAuth2 access token as an AccessTokenData with a string and an expiration time.
      */
     @WorkerThread
-    AccessTokenData getAccessToken(Account account, String scope) throws AuthException;
+    AccessTokenData getAccessToken(CoreAccountInfo coreAccountInfo, String scope)
+            throws AuthException;
 
     /**
      * Removes an OAuth2 access token from the cache with retries asynchronously.
@@ -108,6 +96,7 @@ public interface AccountManagerFacade {
 
     /**
      * Checks the child account status of the given account.
+     * TODO(crbug.com/1462264): Replace Account with CoreAccountId.
      *
      * @param account The account to check the child account status.
      * @param listener The listener is called when the status of the account

@@ -12,6 +12,7 @@ include_rules = [
   "+device/gamepad",
   "+gpu",
   "+media/media_buildflags.h",
+  "+media/base/media_switches.h",
   "+mojo/core/embedder/embedder.h",
   "+mojo/public/cpp",
   "+net/base",
@@ -22,6 +23,7 @@ include_rules = [
   "+third_party/khronos",
   "+third_party/skia",
   "+ui",
+  "+chromeos/constants"
 ]
 
 specific_include_rules = {
@@ -33,6 +35,7 @@ specific_include_rules = {
     "+components/viz/test",
   ],
   "ui_lock_controller_unittest\.cc": [
+    "+chromeos/ash/components/login/auth",
     "+chromeos/dbus/power",
     "+chromeos/dbus/power_manager",
   ],

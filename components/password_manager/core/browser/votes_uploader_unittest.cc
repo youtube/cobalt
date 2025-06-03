@@ -22,14 +22,10 @@
 #include "components/autofill/core/common/form_data.h"
 #include "components/autofill/core/common/signatures.h"
 #include "components/autofill/core/common/unique_ids.h"
-#include "components/password_manager/core/browser/field_info_manager.h"
-#include "components/password_manager/core/browser/field_info_store.h"
-#include "components/password_manager/core/browser/field_info_table.h"
-#include "components/password_manager/core/browser/mock_field_info_store.h"
+#include "components/password_manager/core/browser/features/password_features.h"
 #include "components/password_manager/core/browser/mock_password_store_interface.h"
 #include "components/password_manager/core/browser/stub_password_manager_client.h"
 #include "components/password_manager/core/browser/vote_uploads_test_matchers.h"
-#include "components/password_manager/core/common/password_manager_features.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/testing_pref_service.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -65,12 +61,6 @@ using testing::SaveArg;
 
 namespace password_manager {
 namespace {
-
-MATCHER_P3(FieldInfoHasData, form_signature, field_signature, field_type, "") {
-  return arg.form_signature == form_signature &&
-         arg.field_signature == field_signature &&
-         arg.field_type == field_type && arg.create_time != base::Time();
-}
 
 constexpr int kNumberOfPasswordAttributes =
     static_cast<int>(PasswordAttribute::kPasswordAttributesCount);
@@ -126,19 +116,6 @@ class MockAutofillDownloadManager : public AutofillDownloadManager {
 class MockPasswordManagerClient : public StubPasswordManagerClient {
  public:
   MOCK_METHOD0(GetAutofillDownloadManager, AutofillDownloadManager*());
-  MOCK_CONST_METHOD0(GetFieldInfoManager, FieldInfoManager*());
-};
-
-class MockFieldInfoManager : public FieldInfoManager {
- public:
-  MOCK_METHOD(void,
-              AddFieldType,
-              (FormSignature, FieldSignature, ServerFieldType),
-              (override));
-  MOCK_METHOD(ServerFieldType,
-              GetFieldType,
-              (FormSignature, autofill::FieldSignature),
-              (const override));
 };
 
 }  // namespace
@@ -159,6 +136,7 @@ class VotesUploaderTest : public testing::Test {
     for (size_t i = 0; i < kNumberOfFields; ++i) {
       FormFieldData field;
       field.name = GetFieldNameByIndex(i);
+      field.unique_renderer_id = FieldRendererId(i);
       form_to_upload_.form_data.fields.push_back(field);
       submitted_form_.form_data.fields.push_back(field);
     }
@@ -187,18 +165,21 @@ TEST_F(VotesUploaderTest, UploadPasswordVoteUpdate) {
   VotesUploader votes_uploader(&client_, true);
   std::u16string new_password_element = GetFieldNameByIndex(3);
   std::u16string confirmation_element = GetFieldNameByIndex(11);
-  form_to_upload_.new_password_element = new_password_element;
-  submitted_form_.new_password_element = new_password_element;
-  form_to_upload_.confirmation_password_element = confirmation_element;
-  submitted_form_.confirmation_password_element = confirmation_element;
+  form_to_upload_.new_password_element_renderer_id = FieldRendererId(3);
+  submitted_form_.new_password_element_renderer_id = FieldRendererId(3);
+  form_to_upload_.confirmation_password_element_renderer_id =
+      FieldRendererId(11);
+  submitted_form_.confirmation_password_element_renderer_id =
+      FieldRendererId(11);
   form_to_upload_.new_password_value = u"new_password_value";
   submitted_form_.new_password_value = u"new_password_value";
   submitted_form_.submission_event =
       SubmissionIndicatorEvent::HTML_FORM_SUBMISSION;
   ServerFieldTypeSet expected_field_types = {NEW_PASSWORD,
                                              CONFIRMATION_PASSWORD};
-  FieldTypeMap expected_types = {{new_password_element, NEW_PASSWORD},
-                                 {confirmation_element, CONFIRMATION_PASSWORD}};
+  std::map<std::u16string, ServerFieldType> expected_types = {
+      {new_password_element, NEW_PASSWORD},
+      {confirmation_element, CONFIRMATION_PASSWORD}};
   SubmissionIndicatorEvent expected_submission_event =
       SubmissionIndicatorEvent::HTML_FORM_SUBMISSION;
 
@@ -216,12 +197,12 @@ TEST_F(VotesUploaderTest, UploadPasswordVoteUpdate) {
 
 TEST_F(VotesUploaderTest, UploadPasswordVoteSave) {
   VotesUploader votes_uploader(&client_, false);
-  std::u16string password_element = GetFieldNameByIndex(5);
-  std::u16string confirmation_element = GetFieldNameByIndex(12);
-  form_to_upload_.password_element = password_element;
-  submitted_form_.password_element = password_element;
-  form_to_upload_.confirmation_password_element = confirmation_element;
-  submitted_form_.confirmation_password_element = confirmation_element;
+  form_to_upload_.password_element_renderer_id = FieldRendererId(5);
+  submitted_form_.password_element_renderer_id = FieldRendererId(5);
+  form_to_upload_.confirmation_password_element_renderer_id =
+      FieldRendererId(12);
+  submitted_form_.confirmation_password_element_renderer_id =
+      FieldRendererId(12);
   submitted_form_.submission_event =
       SubmissionIndicatorEvent::HTML_FORM_SUBMISSION;
   ServerFieldTypeSet expected_field_types = {PASSWORD, CONFIRMATION_PASSWORD};
@@ -236,6 +217,206 @@ TEST_F(VotesUploaderTest, UploadPasswordVoteSave) {
 
   EXPECT_TRUE(votes_uploader.UploadPasswordVote(
       form_to_upload_, submitted_form_, PASSWORD, login_form_signature_));
+}
+
+// Checks votes uploading when
+// 1. User saves a credential on a sign-up, but Chrome picked the wrong
+// field as username.
+// 2. The user modifies the username on login form before submission.
+TEST_F(VotesUploaderTest, UploadUsernameOverwrittenVote) {
+  VotesUploader votes_uploader(&client_, false);
+
+  form_to_upload_.username_element_renderer_id = FieldRendererId(6);
+  form_to_upload_.password_element_renderer_id = FieldRendererId(5);
+
+  std::map<std::u16string, ServerFieldType> expected_types = {
+      {GetFieldNameByIndex(6), autofill::USERNAME},
+      {GetFieldNameByIndex(5), autofill::ACCOUNT_CREATION_PASSWORD}};
+  ServerFieldTypeSet expected_field_types = {
+      autofill::ACCOUNT_CREATION_PASSWORD, autofill::USERNAME};
+
+  EXPECT_CALL(
+      mock_autofill_download_manager_,
+      StartUploadRequest(
+          AllOf(UploadedAutofillTypesAre(expected_types),
+                UsernameVoteTypeIsSameAs(autofill::AutofillUploadContents::
+                                             Field::USERNAME_OVERWRITTEN)),
+          false, expected_field_types, login_form_signature_, true, nullptr,
+          /*observer=*/IsNull()));
+
+  EXPECT_TRUE(votes_uploader.UploadPasswordVote(
+      form_to_upload_, submitted_form_, autofill::USERNAME,
+      login_form_signature_));
+}
+
+// Checks votes uploading when
+// 1. User saves a credential on a sign-up, but Chrome picked the wrong
+// field as username.
+// 2. The user modifies the username on login form before submission.
+// Simulates the flow by calling the functions that trigger UploadPasswordVote
+// from a level above (FindCorrectedUsernameElement and SendVotesOnSave).
+TEST_F(VotesUploaderTest, SendVotesOnSaveOverwrittenFlow) {
+  VotesUploader votes_uploader(&client_, false);
+  PasswordForm match_form;
+  match_form.all_alternative_usernames = {
+      {AlternativeElement::Value(u"correct_username"),
+       autofill::FieldRendererId(6),
+       AlternativeElement::Name(GetFieldNameByIndex(6))}};
+  match_form.password_value = u"password_value";
+  match_form.times_used_in_html_form = 0;
+
+  for (size_t i = 0; i < 10; ++i) {
+    FormFieldData field;
+    field.name = GetFieldNameByIndex(i);
+    match_form.form_data.fields.push_back(field);
+  }
+  std::vector<const PasswordForm*> matches = {&match_form};
+
+  ServerFieldTypeSet expected_field_types = {autofill::USERNAME};
+
+  EXPECT_TRUE(votes_uploader.FindCorrectedUsernameElement(
+      matches, u"correct_username", u"password_value"));
+
+  // SendVotesOnSave should call UploadPasswordVote and StartUploadRequest
+  // twice. The first call is not the one that should be tested.
+  testing::Expectation first_call =
+      EXPECT_CALL(mock_autofill_download_manager_, StartUploadRequest);
+
+  EXPECT_CALL(
+      mock_autofill_download_manager_,
+      StartUploadRequest(
+          UsernameVoteTypeIsSameAs(
+              autofill::AutofillUploadContents::Field::USERNAME_OVERWRITTEN),
+          false, expected_field_types, _, true, nullptr, /*observer=*/IsNull()))
+      .After(first_call);
+
+  votes_uploader.SendVotesOnSave(form_to_upload_.form_data, submitted_form_,
+                                 matches, &form_to_upload_);
+}
+
+// Checks votes uploading when user reuses credentials on login form.
+TEST_F(VotesUploaderTest, UploadCredentialsReusedVote) {
+  VotesUploader votes_uploader(&client_, false);
+
+  form_to_upload_.username_element_renderer_id = FieldRendererId(6);
+  form_to_upload_.password_element_renderer_id = FieldRendererId(5);
+
+  form_to_upload_.username_value = u"username_value";
+  submitted_form_.username_value = u"username_value";
+
+  std::map<std::u16string, ServerFieldType> expected_types = {
+      {GetFieldNameByIndex(6), autofill::USERNAME},
+      {GetFieldNameByIndex(5), autofill::ACCOUNT_CREATION_PASSWORD}};
+  ServerFieldTypeSet expected_field_types = {
+      autofill::ACCOUNT_CREATION_PASSWORD, autofill::USERNAME};
+
+  EXPECT_CALL(
+      mock_autofill_download_manager_,
+      StartUploadRequest(
+          AllOf(
+              UploadedAutofillTypesAre(expected_types),
+              UsernameVoteTypeIsSameAs(
+                  autofill::AutofillUploadContents::Field::CREDENTIALS_REUSED)),
+          false, expected_field_types, login_form_signature_, true, nullptr,
+          /*observer=*/IsNull()));
+
+  EXPECT_TRUE(votes_uploader.UploadPasswordVote(
+      form_to_upload_, submitted_form_, autofill::ACCOUNT_CREATION_PASSWORD,
+      login_form_signature_));
+}
+
+// Checks votes uploading when user reuses credentials on login form.
+// Simulates the flow by calling the function that triggers UploadPasswordVote
+// from a level above (SendVoteOnCredentialsReuse).
+TEST_F(VotesUploaderTest, SendVoteOnCredentialsReuseFlow) {
+  VotesUploader votes_uploader(&client_, false);
+  submitted_form_.username_value = u"username_value";
+
+  FormFieldData field;
+  field.name = GetFieldNameByIndex(6);
+  field.unique_renderer_id = FieldRendererId(6);
+
+  PasswordForm pending;
+  pending.times_used_in_html_form = 1;
+  pending.username_element_renderer_id = FieldRendererId(6);
+  pending.form_data.fields.push_back(field);
+  pending.username_value = u"username_value";
+
+  ServerFieldTypeSet expected_field_types = {autofill::USERNAME};
+
+  EXPECT_CALL(
+      mock_autofill_download_manager_,
+      StartUploadRequest(
+          UsernameVoteTypeIsSameAs(
+              autofill::AutofillUploadContents::Field::CREDENTIALS_REUSED),
+          false, expected_field_types, _, true, nullptr,
+          /*observer=*/IsNull()));
+  votes_uploader.SendVoteOnCredentialsReuse(form_to_upload_.form_data,
+                                            submitted_form_, &pending);
+}
+
+// Checks votes uploading when user modifies the username in a prompt.
+TEST_F(VotesUploaderTest, UploadUsernameEditedVote) {
+  VotesUploader votes_uploader(&client_, false);
+
+  form_to_upload_.username_element_renderer_id = FieldRendererId(6);
+  form_to_upload_.password_element_renderer_id = FieldRendererId(5);
+  form_to_upload_.username_value = u"new_username_value";
+
+  std::map<std::u16string, ServerFieldType> expected_types = {
+      {GetFieldNameByIndex(6), autofill::USERNAME},
+      {GetFieldNameByIndex(5), autofill::PASSWORD}};
+  ServerFieldTypeSet expected_field_types = {autofill::PASSWORD,
+                                             autofill::USERNAME};
+
+  // A user changes the username in a save prompt to the value of
+  // another field of the observed form.
+  votes_uploader.set_username_change_state(
+      VotesUploader::UsernameChangeState::kChangedToKnownValue);
+
+  EXPECT_CALL(
+      mock_autofill_download_manager_,
+      StartUploadRequest(
+          AllOf(UploadedAutofillTypesAre(expected_types),
+                UsernameVoteTypeIsSameAs(
+                    autofill::AutofillUploadContents::Field::USERNAME_EDITED)),
+          false, expected_field_types, login_form_signature_, true, nullptr,
+          /*observer=*/IsNull()));
+
+  EXPECT_TRUE(votes_uploader.UploadPasswordVote(
+      form_to_upload_, submitted_form_, autofill::PASSWORD,
+      login_form_signature_));
+}
+
+// Checks votes uploading when user modifies the username in a prompt. Simulates
+// the flow by calling the function that triggers UploadPasswordVote from a
+// level above (SendVotesOnSave).
+// TODO(crbug/1451740): It would be good to simulate the calls triggering
+// set_username_change_state (such as UpdatePasswordFormUsernameAndPassword) as
+// well.
+TEST_F(VotesUploaderTest, SendVotesOnSaveEditedFlow) {
+  VotesUploader votes_uploader(&client_, false);
+
+  form_to_upload_.username_element_renderer_id = FieldRendererId(6);
+  form_to_upload_.password_element_renderer_id = FieldRendererId(5);
+  form_to_upload_.username_value = u"new_username_value";
+
+  ServerFieldTypeSet expected_field_types = {autofill::PASSWORD,
+                                             autofill::USERNAME};
+
+  // A user changes the username in a save prompt to the value of
+  // another field of the observed form.
+  votes_uploader.set_username_change_state(
+      VotesUploader::UsernameChangeState::kChangedToKnownValue);
+
+  EXPECT_CALL(mock_autofill_download_manager_,
+              StartUploadRequest(
+                  UsernameVoteTypeIsSameAs(
+                      autofill::AutofillUploadContents::Field::USERNAME_EDITED),
+                  false, expected_field_types, _, true, nullptr,
+                  /*observer=*/IsNull()));
+  votes_uploader.SendVotesOnSave(form_to_upload_.form_data, submitted_form_, {},
+                                 &form_to_upload_);
 }
 
 TEST_F(VotesUploaderTest, InitialValueDetection) {
@@ -297,7 +478,7 @@ TEST_F(VotesUploaderTest, UploadPasswordAttributes) {
     if (autofill_type == autofill::NEW_PASSWORD ||
         autofill_type == autofill::PROBABLY_NEW_PASSWORD ||
         autofill_type == autofill::NOT_NEW_PASSWORD) {
-      form_to_upload_.new_password_element = u"new_password_element";
+      form_to_upload_.new_password_element_renderer_id = FieldRendererId(11);
       form_to_upload_.new_password_value = u"new_password_value";
     }
 
@@ -476,17 +657,19 @@ TEST_F(VotesUploaderTest, GeneratePasswordAttributesVote_NonAsciiPassword) {
 TEST_F(VotesUploaderTest, NoSingleUsernameDataNoUpload) {
   VotesUploader votes_uploader(&client_, false);
   EXPECT_CALL(mock_autofill_download_manager_, StartUploadRequest).Times(0);
-  votes_uploader.MaybeSendSingleUsernameVote();
+  base::HistogramTester histogram_tester;
+  votes_uploader.set_should_send_username_first_flow_votes(true);
+  votes_uploader.MaybeSendSingleUsernameVotes();
+
+  histogram_tester.ExpectUniqueSample(
+      "PasswordManager.SingleUsername.VoteDataAvailability",
+      static_cast<int>(
+          VotesUploader::SingleUsernameVoteDataAvailability::kNone),
+      1);
 }
 
 TEST_F(VotesUploaderTest, UploadSingleUsernameMultipleFieldsInUsernameForm) {
   VotesUploader votes_uploader(&client_, false);
-
-  MockFieldInfoManager mock_field_manager;
-  ON_CALL(mock_field_manager, GetFieldType(_, _))
-      .WillByDefault(Return(UNKNOWN_TYPE));
-  ON_CALL(client_, GetFieldInfoManager())
-      .WillByDefault(Return(&mock_field_manager));
 
   // Make form predictions for a form with multiple fields.
   FormPredictions form_predictions;
@@ -503,15 +686,15 @@ TEST_F(VotesUploaderTest, UploadSingleUsernameMultipleFieldsInUsernameForm) {
   form_predictions.fields.back().signature = kSingleUsernameFieldSignature;
 
   std::u16string single_username_candidate_value = u"username_candidate_value";
-  votes_uploader.set_single_username_vote_data(
+  votes_uploader.add_single_username_vote_data(SingleUsernameVoteData(
       kSingleUsernameRendererId, single_username_candidate_value,
       form_predictions,
-      /*stored_credentials=*/{}, /*password_form_had_username_field=*/false);
+      /*stored_credentials=*/{}, PasswordFormHadMatchingUsername(false)));
   votes_uploader.set_suggested_username(single_username_candidate_value);
-#if !BUILDFLAG(IS_ANDROID)
   votes_uploader.CalculateUsernamePromptEditState(
-      /*saved_username=*/single_username_candidate_value);
-#endif  // !BUILDFLAG(IS_ANDROID)
+      /*saved_username=*/single_username_candidate_value,
+      /*all_alternative_usernames=*/{});
+  votes_uploader.set_should_send_username_first_flow_votes(true);
 
 #if !BUILDFLAG(IS_ANDROID)
   // Upload on the username form.
@@ -527,7 +710,14 @@ TEST_F(VotesUploaderTest, UploadSingleUsernameMultipleFieldsInUsernameForm) {
   EXPECT_CALL(mock_autofill_download_manager_, StartUploadRequest).Times(0);
 #endif  // !BUILDFLAG(IS_ANDROID)
 
-  votes_uploader.MaybeSendSingleUsernameVote();
+  base::HistogramTester histogram_tester;
+  votes_uploader.MaybeSendSingleUsernameVotes();
+
+  histogram_tester.ExpectUniqueSample(
+      "PasswordManager.SingleUsername.VoteDataAvailability",
+      static_cast<int>(VotesUploader::SingleUsernameVoteDataAvailability::
+                           kUsernameFirstOnly),
+      1);
 }
 
 // Tests that a negeative vote is sent if the username candidate field
@@ -538,23 +728,16 @@ TEST_F(VotesUploaderTest, UploadNotSingleUsernameForWhitespaces) {
       features::kUsernameFirstFlowFallbackCrowdsourcing);
 
   VotesUploader votes_uploader(&client_, false);
-
-  MockFieldInfoManager mock_field_manager;
-  ON_CALL(mock_field_manager, GetFieldType(_, _))
-      .WillByDefault(Return(UNKNOWN_TYPE));
-  ON_CALL(client_, GetFieldInfoManager())
-      .WillByDefault(Return(&mock_field_manager));
-
-  votes_uploader.set_single_username_vote_data(
+  votes_uploader.add_single_username_vote_data(SingleUsernameVoteData(
       kSingleUsernameRendererId,
-      /*username_candidate_value=*/u"some search query",
+      /*username_value=*/u"some search query",
       MakeSimpleSingleUsernamePredictions(),
-      /*stored_credentials=*/{}, /*password_form_had_username_field=*/false);
-#if !BUILDFLAG(IS_ANDROID)
+      /*stored_credentials=*/{}, PasswordFormHadMatchingUsername(false)));
   votes_uploader.CalculateUsernamePromptEditState(
-      /*saved_username=*/u"saved_value");
-#endif  // !BUILDFLAG(IS_ANDROID)
+      /*saved_username=*/u"saved_value", /*all_alternative_usernames=*/{});
+  votes_uploader.set_should_send_username_first_flow_votes(true);
 
+#if !BUILDFLAG(IS_ANDROID)
   // Upload on the username form.
   ServerFieldTypeSet expected_types = {NOT_USERNAME};
   EXPECT_CALL(mock_autofill_download_manager_,
@@ -564,26 +747,24 @@ TEST_F(VotesUploaderTest, UploadNotSingleUsernameForWhitespaces) {
                             autofill::AutofillUploadContents::Field::STRONG)),
                   false, expected_types, std::string(), true,
                   /* pref_service= */ nullptr, /*observer=*/IsNull()));
+#else
+  EXPECT_CALL(mock_autofill_download_manager_, StartUploadRequest).Times(0);
+#endif  // !BUILDFLAG(IS_ANDROID)
 
-  votes_uploader.MaybeSendSingleUsernameVote();
+  votes_uploader.MaybeSendSingleUsernameVotes();
 
   // Upload on the password form for the fallback classifier.
   autofill::AutofillUploadContents::SingleUsernameData
       expected_single_username_data = MakeSimpleSingleUsernameData();
   expected_single_username_data.set_value_type(
       autofill::AutofillUploadContents::VALUE_WITH_WHITESPACE);
-#if !BUILDFLAG(IS_ANDROID)
   expected_single_username_data.set_prompt_edit(
       autofill::AutofillUploadContents::EDITED_NEGATIVE);
-#else
-  expected_single_username_data.set_prompt_edit(
-      autofill::AutofillUploadContents::EDIT_UNSPECIFIED);
-#endif  // !BUILDFLAG(IS_ANDROID)
   EXPECT_CALL(
       mock_autofill_download_manager_,
       StartUploadRequest(
           AllOf(SignatureIsSameAs(submitted_form_),
-                UploadedSingleUsernameDataIs(expected_single_username_data)),
+                UploadedSingleUsernameDataIs({expected_single_username_data})),
           _, _, _, _, _, /*observer=*/IsNull()));
 
   votes_uploader.UploadPasswordVote(submitted_form_, submitted_form_,
@@ -597,22 +778,17 @@ TEST_F(VotesUploaderTest, SingleUsernameValueSuggestedAndAccepted) {
   feature_list.InitAndEnableFeature(
       features::kUsernameFirstFlowFallbackCrowdsourcing);
 
-  MockFieldInfoManager mock_field_manager;
-  ON_CALL(mock_field_manager, GetFieldType).WillByDefault(Return(UNKNOWN_TYPE));
-  ON_CALL(client_, GetFieldInfoManager)
-      .WillByDefault(Return(&mock_field_manager));
-
   VotesUploader votes_uploader(&client_, false);
   std::u16string single_username_candidate_value = u"username_candidate_value";
-  votes_uploader.set_single_username_vote_data(
+  votes_uploader.add_single_username_vote_data(SingleUsernameVoteData(
       kSingleUsernameRendererId, single_username_candidate_value,
       MakeSimpleSingleUsernamePredictions(), /*stored_credentials=*/{},
-      /*password_form_had_username_field=*/false);
+      PasswordFormHadMatchingUsername(false)));
   votes_uploader.set_suggested_username(single_username_candidate_value);
-#if !BUILDFLAG(IS_ANDROID)
   votes_uploader.CalculateUsernamePromptEditState(
-      /*saved_username=*/single_username_candidate_value);
-#endif  // !BUILDFLAG(IS_ANDROID)
+      /*saved_username=*/single_username_candidate_value,
+      /*all_alternative_usernames=*/{});
+  votes_uploader.set_should_send_username_first_flow_votes(true);
 
 #if !BUILDFLAG(IS_ANDROID)
   // Upload on the username form.
@@ -631,23 +807,18 @@ TEST_F(VotesUploaderTest, SingleUsernameValueSuggestedAndAccepted) {
   EXPECT_CALL(mock_autofill_download_manager_, StartUploadRequest).Times(0);
 #endif  // !BUILDFLAG(IS_ANDROID)
 
-  votes_uploader.MaybeSendSingleUsernameVote();
+  votes_uploader.MaybeSendSingleUsernameVotes();
 
   // Upload on the password form for the fallback classifier.
   autofill::AutofillUploadContents::SingleUsernameData
       expected_single_username_data = MakeSimpleSingleUsernameData();
-#if !BUILDFLAG(IS_ANDROID)
   expected_single_username_data.set_prompt_edit(
       autofill::AutofillUploadContents::NOT_EDITED_POSITIVE);
-#else
-  expected_single_username_data.set_prompt_edit(
-      autofill::AutofillUploadContents::EDIT_UNSPECIFIED);
-#endif  // !BUILDFLAG(IS_ANDROID)
   EXPECT_CALL(
       mock_autofill_download_manager_,
       StartUploadRequest(
           AllOf(SignatureIsSameAs(submitted_form_),
-                UploadedSingleUsernameDataIs(expected_single_username_data)),
+                UploadedSingleUsernameDataIs({expected_single_username_data})),
           _, _, _, _, _, /*observer=*/IsNull()));
 
   votes_uploader.UploadPasswordVote(submitted_form_, submitted_form_,
@@ -662,23 +833,17 @@ TEST_F(VotesUploaderTest, SingleUsernameOtherValueSuggestedAndAccepted) {
   feature_list.InitAndEnableFeature(
       features::kUsernameFirstFlowFallbackCrowdsourcing);
 
-  MockFieldInfoManager mock_field_manager;
-  ON_CALL(mock_field_manager, GetFieldType).WillByDefault(Return(UNKNOWN_TYPE));
-  ON_CALL(client_, GetFieldInfoManager)
-      .WillByDefault(Return(&mock_field_manager));
-
   VotesUploader votes_uploader(&client_, false);
   std::u16string single_username_candidate_value = u"username_candidate_value";
-  votes_uploader.set_single_username_vote_data(
+  votes_uploader.add_single_username_vote_data(SingleUsernameVoteData(
       kSingleUsernameRendererId, single_username_candidate_value,
       MakeSimpleSingleUsernamePredictions(), /*stored_credentials=*/{},
-      /*password_form_had_username_field=*/false);
+      PasswordFormHadMatchingUsername(false)));
   std::u16string suggested_value = u"other_value";
   votes_uploader.set_suggested_username(suggested_value);
-#if !BUILDFLAG(IS_ANDROID)
   votes_uploader.CalculateUsernamePromptEditState(
-      /*saved_username=*/suggested_value);
-#endif  // !BUILDFLAG(IS_ANDROID)
+      /*saved_username=*/suggested_value, /*all_alternative_usernames=*/{});
+  votes_uploader.set_should_send_username_first_flow_votes(true);
 
 #if !BUILDFLAG(IS_ANDROID)
   // Upload on the username form.
@@ -697,23 +862,18 @@ TEST_F(VotesUploaderTest, SingleUsernameOtherValueSuggestedAndAccepted) {
   EXPECT_CALL(mock_autofill_download_manager_, StartUploadRequest).Times(0);
 #endif  // !BUILDFLAG(IS_ANDROID)
 
-  votes_uploader.MaybeSendSingleUsernameVote();
+  votes_uploader.MaybeSendSingleUsernameVotes();
 
   // Upload on the password form for the fallback classifier.
   autofill::AutofillUploadContents::SingleUsernameData
       expected_single_username_data = MakeSimpleSingleUsernameData();
-#if !BUILDFLAG(IS_ANDROID)
   expected_single_username_data.set_prompt_edit(
       autofill::AutofillUploadContents::NOT_EDITED_NEGATIVE);
-#else
-  expected_single_username_data.set_prompt_edit(
-      autofill::AutofillUploadContents::EDIT_UNSPECIFIED);
-#endif  // !BUILDFLAG(IS_ANDROID)
   EXPECT_CALL(
       mock_autofill_download_manager_,
       StartUploadRequest(
           AllOf(SignatureIsSameAs(submitted_form_),
-                UploadedSingleUsernameDataIs(expected_single_username_data)),
+                UploadedSingleUsernameDataIs({expected_single_username_data})),
           _, _, _, _, _, /*observer=*/IsNull()));
   votes_uploader.UploadPasswordVote(submitted_form_, submitted_form_,
                                     autofill::PASSWORD, std::string());
@@ -727,23 +887,18 @@ TEST_F(VotesUploaderTest, SingleUsernameValueSetInPrompt) {
   feature_list.InitAndEnableFeature(
       features::kUsernameFirstFlowFallbackCrowdsourcing);
 
-  MockFieldInfoManager mock_field_manager;
-  ON_CALL(mock_field_manager, GetFieldType).WillByDefault(Return(UNKNOWN_TYPE));
-  ON_CALL(client_, GetFieldInfoManager)
-      .WillByDefault(Return(&mock_field_manager));
-
   VotesUploader votes_uploader(&client_, false);
   std::u16string single_username_candidate_value = u"username_candidate_value";
-  votes_uploader.set_single_username_vote_data(
+  votes_uploader.add_single_username_vote_data(SingleUsernameVoteData(
       kSingleUsernameRendererId, single_username_candidate_value,
       MakeSimpleSingleUsernamePredictions(), /*stored_credentials=*/{},
-      /*password_form_had_username_field=*/false);
+      PasswordFormHadMatchingUsername(false)));
   std::u16string suggested_value = u"other_value";
   votes_uploader.set_suggested_username(suggested_value);
-#if !BUILDFLAG(IS_ANDROID)
   votes_uploader.CalculateUsernamePromptEditState(
-      /*saved_username=*/single_username_candidate_value);
-#endif  // !BUILDFLAG(IS_ANDROID)
+      /*saved_username=*/single_username_candidate_value,
+      /*all_alternative_usernames=*/{});
+  votes_uploader.set_should_send_username_first_flow_votes(true);
 
 #if !BUILDFLAG(IS_ANDROID)
   ServerFieldTypeSet expected_types = {SINGLE_USERNAME};
@@ -761,23 +916,18 @@ TEST_F(VotesUploaderTest, SingleUsernameValueSetInPrompt) {
   EXPECT_CALL(mock_autofill_download_manager_, StartUploadRequest).Times(0);
 #endif  // !BUILDFLAG(IS_ANDROID)
 
-  votes_uploader.MaybeSendSingleUsernameVote();
+  votes_uploader.MaybeSendSingleUsernameVotes();
 
   // Upload on the password form for the fallback classifier.
   autofill::AutofillUploadContents::SingleUsernameData
       expected_single_username_data = MakeSimpleSingleUsernameData();
-#if !BUILDFLAG(IS_ANDROID)
   expected_single_username_data.set_prompt_edit(
       autofill::AutofillUploadContents::EDITED_POSITIVE);
-#else
-  expected_single_username_data.set_prompt_edit(
-      autofill::AutofillUploadContents::EDIT_UNSPECIFIED);
-#endif  // !BUILDFLAG(IS_ANDROID)
   EXPECT_CALL(
       mock_autofill_download_manager_,
       StartUploadRequest(
           AllOf(SignatureIsSameAs(submitted_form_),
-                UploadedSingleUsernameDataIs(expected_single_username_data)),
+                UploadedSingleUsernameDataIs({expected_single_username_data})),
           _, _, _, _, _, /*observer=*/IsNull()));
   votes_uploader.UploadPasswordVote(submitted_form_, submitted_form_,
                                     autofill::PASSWORD, std::string());
@@ -791,21 +941,16 @@ TEST_F(VotesUploaderTest, SingleUsernameValueDeletedInPrompt) {
   feature_list.InitAndEnableFeature(
       features::kUsernameFirstFlowFallbackCrowdsourcing);
 
-  MockFieldInfoManager mock_field_manager;
-  ON_CALL(mock_field_manager, GetFieldType).WillByDefault(Return(UNKNOWN_TYPE));
-  ON_CALL(client_, GetFieldInfoManager)
-      .WillByDefault(Return(&mock_field_manager));
-
   VotesUploader votes_uploader(&client_, false);
   std::u16string single_username_candidate_value = u"username_candidate_value";
-  votes_uploader.set_single_username_vote_data(
+  votes_uploader.add_single_username_vote_data(SingleUsernameVoteData(
       kSingleUsernameRendererId, single_username_candidate_value,
       MakeSimpleSingleUsernamePredictions(), /*stored_credentials=*/{},
-      /*password_form_had_username_field=*/false);
+      PasswordFormHadMatchingUsername(false)));
   votes_uploader.set_suggested_username(single_username_candidate_value);
-#if !BUILDFLAG(IS_ANDROID)
-  votes_uploader.CalculateUsernamePromptEditState(/*saved_username=*/u"");
-#endif  // !BUILDFLAG(IS_ANDROID)
+  votes_uploader.CalculateUsernamePromptEditState(
+      /*saved_username=*/u"", /*all_alternative_usernames=*/{});
+  votes_uploader.set_should_send_username_first_flow_votes(true);
 
 #if !BUILDFLAG(IS_ANDROID)
   // Upload on the username form.
@@ -824,23 +969,18 @@ TEST_F(VotesUploaderTest, SingleUsernameValueDeletedInPrompt) {
   EXPECT_CALL(mock_autofill_download_manager_, StartUploadRequest).Times(0);
 #endif  // !BUILDFLAG(IS_ANDROID)
 
-  votes_uploader.MaybeSendSingleUsernameVote();
+  votes_uploader.MaybeSendSingleUsernameVotes();
 
   // Expect upload for the password form for the fallback classifier.
   autofill::AutofillUploadContents::SingleUsernameData
       expected_single_username_data = MakeSimpleSingleUsernameData();
-#if !BUILDFLAG(IS_ANDROID)
   expected_single_username_data.set_prompt_edit(
       autofill::AutofillUploadContents::EDITED_NEGATIVE);
-#else
-  expected_single_username_data.set_prompt_edit(
-      autofill::AutofillUploadContents::EDIT_UNSPECIFIED);
-#endif  // !BUILDFLAG(IS_ANDROID)
   EXPECT_CALL(
       mock_autofill_download_manager_,
       StartUploadRequest(
           AllOf(SignatureIsSameAs(submitted_form_),
-                UploadedSingleUsernameDataIs(expected_single_username_data)),
+                UploadedSingleUsernameDataIs({expected_single_username_data})),
           _, _, _, _, _, /*observer=*/IsNull()));
   votes_uploader.UploadPasswordVote(submitted_form_, submitted_form_,
                                     autofill::PASSWORD, std::string());
@@ -854,29 +994,24 @@ TEST_F(VotesUploaderTest, NotSingleUsernameValueDeletedInPrompt) {
   feature_list.InitAndEnableFeature(
       features::kUsernameFirstFlowFallbackCrowdsourcing);
 
-  MockFieldInfoManager mock_field_manager;
-  ON_CALL(mock_field_manager, GetFieldType).WillByDefault(Return(UNKNOWN_TYPE));
-  ON_CALL(client_, GetFieldInfoManager)
-      .WillByDefault(Return(&mock_field_manager));
-
   VotesUploader votes_uploader(&client_, false);
   std::u16string single_username_candidate_value = u"username_candidate_value";
-  votes_uploader.set_single_username_vote_data(
+  votes_uploader.add_single_username_vote_data(SingleUsernameVoteData(
       kSingleUsernameRendererId, single_username_candidate_value,
       MakeSimpleSingleUsernamePredictions(), /*stored_credentials=*/{},
-      /*password_form_had_username_field=*/false);
+      PasswordFormHadMatchingUsername(false)));
   std::u16string other_value = u"other_value";
   votes_uploader.set_suggested_username(other_value);
-#if !BUILDFLAG(IS_ANDROID)
-  votes_uploader.CalculateUsernamePromptEditState(/*saved_username=*/u"");
-#endif  // !BUILDFLAG(IS_ANDROID)
+  votes_uploader.CalculateUsernamePromptEditState(
+      /*saved_username=*/u"", /*all_alternative_usernames=*/{});
+  votes_uploader.set_should_send_username_first_flow_votes(true);
 
   // Expect no upload on username form, as th signal is not informative to us.
   EXPECT_CALL(mock_autofill_download_manager_,
               StartUploadRequest(SignatureIs(kSingleUsernameFormSignature), _,
                                  _, _, _, _, /*observer=*/IsNull()))
       .Times(0);
-  votes_uploader.MaybeSendSingleUsernameVote();
+  votes_uploader.MaybeSendSingleUsernameVotes();
 
   // Expect upload for the password form for the fallback classifier.
   autofill::AutofillUploadContents::SingleUsernameData
@@ -887,7 +1022,7 @@ TEST_F(VotesUploaderTest, NotSingleUsernameValueDeletedInPrompt) {
       mock_autofill_download_manager_,
       StartUploadRequest(
           AllOf(SignatureIsSameAs(submitted_form_),
-                UploadedSingleUsernameDataIs(expected_single_username_data)),
+                UploadedSingleUsernameDataIs({expected_single_username_data})),
           _, _, _, _, _, /*observer=*/IsNull()));
   votes_uploader.UploadPasswordVote(submitted_form_, submitted_form_,
                                     autofill::PASSWORD, std::string());
@@ -900,21 +1035,14 @@ TEST_F(VotesUploaderTest, SingleUsernameNoUsernameCandidate) {
   feature_list.InitAndEnableFeature(
       features::kUsernameFirstFlowFallbackCrowdsourcing);
 
-  MockFieldInfoManager mock_field_manager;
-  ON_CALL(mock_field_manager, GetFieldType).WillByDefault(Return(UNKNOWN_TYPE));
-  ON_CALL(client_, GetFieldInfoManager)
-      .WillByDefault(Return(&mock_field_manager));
-
   VotesUploader votes_uploader(&client_, false);
-  votes_uploader.set_single_username_vote_data(
-      FieldRendererId(), std::u16string(), FormPredictions(),
-      /*stored_credentials=*/{}, /*password_form_had_username_field=*/false);
+  votes_uploader.add_single_username_vote_data(SingleUsernameVoteData());
   votes_uploader.set_suggested_username(u"");
-#if !BUILDFLAG(IS_ANDROID)
-  votes_uploader.CalculateUsernamePromptEditState(/*saved_username=*/u"");
-#endif  // !BUILDFLAG(IS_ANDROID)
+  votes_uploader.CalculateUsernamePromptEditState(
+      /*saved_username=*/u"", /*all_alternative_usernames=*/{});
+  votes_uploader.set_should_send_username_first_flow_votes(true);
 
-  votes_uploader.MaybeSendSingleUsernameVote();
+  votes_uploader.MaybeSendSingleUsernameVotes();
 
   // Expect upload on the password form for the fallback classifier.
   autofill::AutofillUploadContents::SingleUsernameData
@@ -928,113 +1056,27 @@ TEST_F(VotesUploaderTest, SingleUsernameNoUsernameCandidate) {
       mock_autofill_download_manager_,
       StartUploadRequest(
           AllOf(SignatureIsSameAs(submitted_form_),
-                UploadedSingleUsernameDataIs(expected_single_username_data)),
+                UploadedSingleUsernameDataIs({expected_single_username_data})),
           _, _, _, _, _, /*observer=*/IsNull()));
   votes_uploader.UploadPasswordVote(submitted_form_, submitted_form_,
                                     autofill::PASSWORD, std::string());
 }
 
-TEST_F(VotesUploaderTest, SaveSingleUsernameVote) {
-  VotesUploader votes_uploader(&client_, false);
-
-  std::u16string single_username_candidate_value = u"username_candidate_value";
-  votes_uploader.set_single_username_vote_data(
-      kSingleUsernameRendererId, single_username_candidate_value,
-      MakeSimpleSingleUsernamePredictions(), /*stored_credentials=*/{},
-      /*password_form_had_username_field=*/false);
-#if !BUILDFLAG(IS_ANDROID)
-  votes_uploader.CalculateUsernamePromptEditState(
-      /*saved_username=*/single_username_candidate_value);
-#endif  // !BUILDFLAG(IS_ANDROID)
-
-  // Init store and expect that adding field info is called.
-  scoped_refptr<MockPasswordStoreInterface> store =
-      new testing::StrictMock<MockPasswordStoreInterface>();
-
-#if BUILDFLAG(IS_ANDROID)
-  EXPECT_CALL(*store, GetFieldInfoStore)
-      .WillRepeatedly(testing::Return(nullptr));
-#else
-  MockFieldInfoStore mock_field_store_;
-  EXPECT_CALL(*store, GetFieldInfoStore)
-      .WillRepeatedly(testing::Return(&mock_field_store_));
-  EXPECT_CALL(mock_field_store_,
-              AddFieldInfo(FieldInfoHasData(kSingleUsernameFormSignature,
-                                            kSingleUsernameFieldSignature,
-                                            SINGLE_USERNAME)));
-#endif  // BUILDFLAG(IS_ANDROID)
-
-  // Init FieldInfoManager.
-  FieldInfoManagerImpl field_info_manager(store);
-  EXPECT_CALL(client_, GetFieldInfoManager())
-      .WillRepeatedly(Return(&field_info_manager));
-
-  votes_uploader.MaybeSendSingleUsernameVote();
-  task_environment_.RunUntilIdle();
-}
-
-TEST_F(VotesUploaderTest, DontUploadSingleUsernameWhenAlreadyUploaded) {
-  VotesUploader votes_uploader(&client_, false);
-
-  MockFieldInfoManager mock_field_manager;
-  ON_CALL(client_, GetFieldInfoManager())
-      .WillByDefault(Return(&mock_field_manager));
-
-  // Simulate that the vote has been already uploaded.
-  ON_CALL(mock_field_manager, GetFieldType(kSingleUsernameFormSignature,
-                                           kSingleUsernameFieldSignature))
-      .WillByDefault(Return(SINGLE_USERNAME));
-
-  votes_uploader.set_single_username_vote_data(
-      kSingleUsernameRendererId, u"username_candidate_value",
-      MakeSimpleSingleUsernamePredictions(), /*stored_credentials=*/{},
-      /*password_form_had_username_field=*/false);
-
-  // Expect no upload on the username form, since the vote has been already
-  // uploaded.
-  EXPECT_CALL(mock_autofill_download_manager_,
-              StartUploadRequest(SignatureIs(kSingleUsernameFormSignature), _,
-                                 _, _, _, _, /*observer=*/IsNull()))
-      .Times(0);
-
-  votes_uploader.MaybeSendSingleUsernameVote();
-}
-
-// Tests FieldNameCollisionInVotes metric reports "true" when multiple fields in
-// the form to be uploaded have the same name.
+// Tests FieldNameCollisionInVotes metric doesn't report "true" when multiple
+// fields in the form to be uploaded have the same name.
 TEST_F(VotesUploaderTest, FieldNameCollisionInVotes) {
   VotesUploader votes_uploader(&client_, false);
   std::u16string password_element = GetFieldNameByIndex(5);
   form_to_upload_.password_element = password_element;
+  form_to_upload_.password_element_renderer_id = FieldRendererId(5);
   submitted_form_.password_element = password_element;
+  submitted_form_.password_element_renderer_id = FieldRendererId(5);
   form_to_upload_.confirmation_password_element = password_element;
+  form_to_upload_.confirmation_password_element_renderer_id =
+      FieldRendererId(11);
   submitted_form_.confirmation_password_element = password_element;
-  ServerFieldTypeSet expected_field_types = {CONFIRMATION_PASSWORD};
-
-  EXPECT_CALL(mock_autofill_download_manager_,
-              StartUploadRequest(_, false, expected_field_types,
-                                 login_form_signature_, true,
-                                 /* pref_service= */ nullptr,
-                                 /*observer=*/IsNull()));
-  base::HistogramTester histogram_tester;
-
-  EXPECT_TRUE(votes_uploader.UploadPasswordVote(
-      form_to_upload_, submitted_form_, PASSWORD, login_form_signature_));
-
-  histogram_tester.ExpectUniqueSample(
-      "PasswordManager.FieldNameCollisionInVotes", true, 1);
-}
-
-// Tests FieldNameCollisionInVotes metric reports "false" when all fields in the
-// form to be uploaded have different names.
-TEST_F(VotesUploaderTest, NoFieldNameCollisionInVotes) {
-  VotesUploader votes_uploader(&client_, false);
-  std::u16string password_element = GetFieldNameByIndex(5);
-  std::u16string confirmation_element = GetFieldNameByIndex(12);
-  form_to_upload_.password_element = password_element;
-  submitted_form_.password_element = password_element;
-  form_to_upload_.confirmation_password_element = confirmation_element;
-  submitted_form_.confirmation_password_element = confirmation_element;
+  submitted_form_.confirmation_password_element_renderer_id =
+      FieldRendererId(11);
   ServerFieldTypeSet expected_field_types = {PASSWORD, CONFIRMATION_PASSWORD};
 
   EXPECT_CALL(mock_autofill_download_manager_,
@@ -1049,6 +1091,119 @@ TEST_F(VotesUploaderTest, NoFieldNameCollisionInVotes) {
 
   histogram_tester.ExpectUniqueSample(
       "PasswordManager.FieldNameCollisionInVotes", false, 1);
+}
+
+// Tests FieldNameCollisionInVotes metric reports "false" when all fields in the
+// form to be uploaded have different names.
+TEST_F(VotesUploaderTest, NoFieldNameCollisionInVotes) {
+  VotesUploader votes_uploader(&client_, false);
+  form_to_upload_.password_element_renderer_id = FieldRendererId(5);
+  submitted_form_.password_element_renderer_id = FieldRendererId(5);
+  form_to_upload_.confirmation_password_element_renderer_id =
+      FieldRendererId(12);
+  submitted_form_.confirmation_password_element_renderer_id =
+      FieldRendererId(12);
+  ServerFieldTypeSet expected_field_types = {PASSWORD, CONFIRMATION_PASSWORD};
+
+  EXPECT_CALL(mock_autofill_download_manager_,
+              StartUploadRequest(_, false, expected_field_types,
+                                 login_form_signature_, true,
+                                 /* pref_service= */ nullptr,
+                                 /*observer=*/IsNull()));
+  base::HistogramTester histogram_tester;
+
+  EXPECT_TRUE(votes_uploader.UploadPasswordVote(
+      form_to_upload_, submitted_form_, PASSWORD, login_form_signature_));
+
+  histogram_tester.ExpectUniqueSample(
+      "PasswordManager.FieldNameCollisionInVotes", false, 1);
+}
+
+TEST_F(VotesUploaderTest, ForgotPasswordFormVote) {
+  VotesUploader votes_uploader(&client_, false);
+  std::u16string single_username_candidate_value = u"username_candidate_value";
+  votes_uploader.AddForgotPasswordVoteData(SingleUsernameVoteData(
+      kSingleUsernameRendererId, single_username_candidate_value,
+      MakeSimpleSingleUsernamePredictions(), /*stored_credentials=*/{},
+      PasswordFormHadMatchingUsername(false)));
+  votes_uploader.set_suggested_username(single_username_candidate_value);
+  votes_uploader.CalculateUsernamePromptEditState(
+      /*saved_username=*/single_username_candidate_value,
+      /*all_alternative_usernames=*/{});
+
+  // Upload on the username form.
+  ServerFieldTypeSet expected_types = {
+      autofill::SINGLE_USERNAME_FORGOT_PASSWORD};
+  EXPECT_CALL(
+      mock_autofill_download_manager_,
+      StartUploadRequest(AllOf(SignatureIs(kSingleUsernameFormSignature),
+                               UploadedSingleUsernameVoteTypeIs(
+                                   autofill::AutofillUploadContents::Field::
+                                       WEAK_FORGOT_PASSWORD)),
+                         /*form_was_autofilled=*/false, expected_types,
+                         /*login_form_signature=*/"",
+                         /*observed_submission=*/true,
+                         /*pref_service=*/nullptr,
+                         /*observer=*/IsNull()));
+
+  base::HistogramTester histogram_tester;
+  votes_uploader.MaybeSendSingleUsernameVotes();
+
+  histogram_tester.ExpectUniqueSample(
+      "PasswordManager.SingleUsername.VoteDataAvailability",
+      static_cast<int>(VotesUploader::SingleUsernameVoteDataAvailability::
+                           kForgotPasswordOnly),
+      1);
+}
+
+// Tests "PasswordManager.SingleUsername.VoteDataAvailability" UMA recording
+// when both UFF and FPF data is available and has info about the same form.
+TEST_F(VotesUploaderTest, SingleUsernameVoteDataUffOverlapsWithFpf) {
+  VotesUploader votes_uploader(&client_, false);
+
+  SingleUsernameVoteData data(kSingleUsernameRendererId, u"possible_username",
+                              MakeSimpleSingleUsernamePredictions(),
+                              /*stored_credentials=*/{},
+                              PasswordFormHadMatchingUsername(false));
+
+  votes_uploader.add_single_username_vote_data(data);
+  votes_uploader.AddForgotPasswordVoteData(data);
+
+  base::HistogramTester histogram_tester;
+  votes_uploader.MaybeSendSingleUsernameVotes();
+
+  histogram_tester.ExpectUniqueSample(
+      "PasswordManager.SingleUsername.VoteDataAvailability",
+      static_cast<int>(
+          VotesUploader::SingleUsernameVoteDataAvailability::kBothWithOverlap),
+      1);
+}
+
+// Tests "PasswordManager.SingleUsername.VoteDataAvailability" UMA recording
+// when both UFF and FPF data is available and has info about different forms.
+TEST_F(VotesUploaderTest, SingleUsernameVoteDataUffNoOverlapWithFpf) {
+  VotesUploader votes_uploader(&client_, false);
+
+  SingleUsernameVoteData data1(FieldRendererId(100), u"maybe_username",
+                               MakeSimpleSingleUsernamePredictions(),
+                               /*stored_credentials=*/{},
+                               PasswordFormHadMatchingUsername(false));
+  votes_uploader.add_single_username_vote_data(data1);
+
+  SingleUsernameVoteData data2(FieldRendererId(200), u"also_maybe_username",
+                               MakeSimpleSingleUsernamePredictions(),
+                               /*stored_credentials=*/{},
+                               PasswordFormHadMatchingUsername(false));
+  votes_uploader.AddForgotPasswordVoteData(data2);
+
+  base::HistogramTester histogram_tester;
+  votes_uploader.MaybeSendSingleUsernameVotes();
+
+  histogram_tester.ExpectUniqueSample(
+      "PasswordManager.SingleUsername.VoteDataAvailability",
+      static_cast<int>(
+          VotesUploader::SingleUsernameVoteDataAvailability::kBothNoOverlap),
+      1);
 }
 
 }  // namespace password_manager

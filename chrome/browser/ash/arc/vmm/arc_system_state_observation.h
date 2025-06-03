@@ -6,6 +6,8 @@
 #define CHROME_BROWSER_ASH_ARC_VMM_ARC_SYSTEM_STATE_OBSERVATION_H_
 
 #include "base/functional/callback_forward.h"
+#include "base/scoped_observation.h"
+#include "chrome/browser/ash/app_list/arc/arc_app_list_prefs.h"
 #include "chrome/browser/ash/throttle_service.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
@@ -23,6 +25,7 @@ class PeaceDurationProvider {
 };
 
 class ArcSystemStateObservation : public ash::ThrottleService,
+                                  public ArcAppListPrefs::Observer,
                                   public PeaceDurationProvider {
  public:
   explicit ArcSystemStateObservation(content::BrowserContext* context);
@@ -42,10 +45,20 @@ class ArcSystemStateObservation : public ash::ThrottleService,
   // ash::ThrottleService override:
   void ThrottleInstance(bool should_throttle) override;
 
+  // ArcAppListPrefs::Observer:
+  void OnAppStatesChanged(const std::string& id,
+                          const ArcAppListPrefs::AppInfo& app_info) override;
+
+  void OnArcAppListPrefsDestroyed() override;
+
  private:
+  bool arc_running_ = false;
+
   absl::optional<base::Time> last_peace_timestamp_;
   base::RepeatingClosure active_callback_;
 
+  base::ScopedObservation<ArcAppListPrefs, ArcAppListPrefs::Observer>
+      app_prefs_observation_{this};
   base::WeakPtrFactory<ArcSystemStateObservation> weak_ptr_factory_{this};
 };
 

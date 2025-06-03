@@ -16,6 +16,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/web_applications/external_install_options.h"
 #include "chrome/browser/web_applications/mojom/user_display_mode.mojom.h"
+#include "chrome/browser/web_applications/web_app_command_scheduler.h"
 #include "chrome/browser/web_applications/web_app_helpers.h"
 #include "chrome/browser/web_applications/web_app_install_finalizer.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
@@ -53,7 +54,7 @@ AndroidSmsAppSetupControllerImpl::PwaDelegate::PwaDelegate() = default;
 
 AndroidSmsAppSetupControllerImpl::PwaDelegate::~PwaDelegate() = default;
 
-absl::optional<web_app::AppId>
+absl::optional<webapps::AppId>
 AndroidSmsAppSetupControllerImpl::PwaDelegate::GetPwaForUrl(
     const GURL& install_url,
     Profile* profile) {
@@ -68,7 +69,7 @@ AndroidSmsAppSetupControllerImpl::PwaDelegate::GetCookieManager(
 }
 
 void AndroidSmsAppSetupControllerImpl::PwaDelegate::RemovePwa(
-    const web_app::AppId& app_id,
+    const webapps::AppId& app_id,
     Profile* profile,
     SuccessCallback callback) {
   // |provider| will be nullptr if Lacros web apps are enabled.
@@ -78,13 +79,12 @@ void AndroidSmsAppSetupControllerImpl::PwaDelegate::RemovePwa(
     return;
   }
 
-  provider->install_finalizer().UninstallExternalWebApp(
+  provider->scheduler().RemoveInstallSource(
       app_id, web_app::WebAppManagement::kDefault,
       webapps::WebappUninstallSource::kInternalPreinstalled,
       base::BindOnce(
           [](SuccessCallback callback, webapps::UninstallResultCode code) {
-            std::move(callback).Run(code ==
-                                    webapps::UninstallResultCode::kSuccess);
+            std::move(callback).Run(UninstallSucceeded(code));
           },
           std::move(callback)));
 }
@@ -128,7 +128,7 @@ void AndroidSmsAppSetupControllerImpl::SetUpApp(const GURL& app_url,
                      std::move(callback)));
 }
 
-absl::optional<web_app::AppId> AndroidSmsAppSetupControllerImpl::GetPwa(
+absl::optional<webapps::AppId> AndroidSmsAppSetupControllerImpl::GetPwa(
     const GURL& install_url) {
   return pwa_delegate_->GetPwaForUrl(install_url, profile_);
 }
@@ -156,7 +156,7 @@ void AndroidSmsAppSetupControllerImpl::RemoveApp(
     const GURL& install_url,
     const GURL& migrated_to_app_url,
     SuccessCallback callback) {
-  absl::optional<web_app::AppId> app_id =
+  absl::optional<webapps::AppId> app_id =
       pwa_delegate_->GetPwaForUrl(install_url, profile_);
 
   // If there is no app installed at |url|, there is nothing more to do.
@@ -252,9 +252,6 @@ void AndroidSmsAppSetupControllerImpl::TryInstallApp(const GURL& install_url,
       install_url, web_app::mojom::UserDisplayMode::kStandalone,
       web_app::ExternalInstallSource::kInternalDefault);
   options.override_previous_user_uninstall = true;
-  // The ServiceWorker does not load in time for the installability check, so
-  // bypass it as a workaround.
-  options.bypass_service_worker_check = true;
   options.require_manifest = true;
   externally_managed_app_manager_->Install(
       std::move(options),

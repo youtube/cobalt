@@ -6,13 +6,13 @@
 #define COMPONENTS_AUTOFILL_CONTENT_BROWSER_CONTENT_AUTOFILL_DRIVER_FACTORY_H_
 
 #include <string>
+#include <vector>
 
 #include "base/containers/flat_map.h"
 #include "base/memory/raw_ptr.h"
-#include "base/supports_user_data.h"
-#include "components/autofill/content/browser/content_autofill_router.h"
+#include "base/types/pass_key.h"
 #include "components/autofill/content/common/mojom/autofill_driver.mojom.h"
-#include "components/autofill/core/browser/autofill_manager.h"
+#include "components/autofill/core/browser/autofill_driver_router.h"
 #include "components/autofill/core/browser/browser_autofill_manager.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "mojo/public/cpp/bindings/pending_associated_receiver.h"
@@ -24,6 +24,7 @@ class RenderFrameHost;
 namespace autofill {
 
 class ContentAutofillDriver;
+class ScopedAutofillManagersObservation;
 
 // Creates an BrowserAutofillManager and attaches it to the `driver`.
 //
@@ -99,15 +100,22 @@ class ContentAutofillDriverFactory : public content::WebContentsObserver {
       content::NavigationHandle* navigation_handle) override;
   void DidFinishNavigation(
       content::NavigationHandle* navigation_handle) override;
-  void OnVisibilityChanged(content::Visibility visibility) override;
 
   AutofillClient* client() { return client_; }
+
+  AutofillDriverRouter& router() { return router_; }
 
   void AddObserver(Observer* observer) { observers_.AddObserver(observer); }
 
   void RemoveObserver(Observer* observer) {
     observers_.RemoveObserver(observer);
   }
+
+  size_t num_drivers() const { return driver_map_.size(); }
+
+  // Returns raw pointers to all drivers that the factory currently owns.
+  std::vector<ContentAutofillDriver*> GetExistingDrivers(
+      base::PassKey<ScopedAutofillManagersObservation>);
 
  private:
   friend class ContentAutofillDriverFactoryTestApi;
@@ -118,9 +126,9 @@ class ContentAutofillDriverFactory : public content::WebContentsObserver {
   raw_ptr<AutofillClient> client_;
   DriverInitCallback driver_init_hook_;
 
-  // Routes events between different drivers.
+  // Routes events between different ContentAutofillDrivers.
   // Must be destroyed after |driver_map_|'s elements.
-  ContentAutofillRouter router_;
+  AutofillDriverRouter router_;
 
   // Owns the drivers, one for each frame in the WebContents.
   // Should be empty at destruction time because its elements are erased in

@@ -11,7 +11,6 @@ import org.chromium.base.TraceEvent;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.chrome.browser.tab.TabState;
-import org.chromium.chrome.browser.tab.state.SerializedCriticalPersistedTabData;
 import org.chromium.components.embedder_support.util.UrlConstants;
 import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.content_public.browser.WebContents;
@@ -24,10 +23,6 @@ import org.chromium.url.GURL;
  * TODO(dfalcantara): Hunt down more places where we don't actually need to return a Tab.
  */
 public abstract class TabCreator {
-    /**
-     * @return Whether the TabCreator creates Tabs asynchronously.
-     */
-    public abstract boolean createsTabsAsynchronously();
 
     /**
      * Creates a new tab and posts to UI.
@@ -36,8 +31,7 @@ public abstract class TabCreator {
      * @param parent the parent tab, if present.
      * @return The new tab or null if no tab was created.
      */
-    @Nullable
-    public abstract Tab createNewTab(
+    public abstract @Nullable Tab createNewTab(
             LoadUrlParams loadUrlParams, @TabLaunchType int type, Tab parent);
 
     /**
@@ -48,22 +42,18 @@ public abstract class TabCreator {
      * @param position the requested position (index in the tab model)
      * @return The new tab or null if no tab was created.
      */
-    @Nullable
-    public abstract Tab createNewTab(
+    public abstract @Nullable Tab createNewTab(
             LoadUrlParams loadUrlParams, @TabLaunchType int type, Tab parent, int position);
 
     /**
      * On restore, allows us to create a frozen version of a tab using saved tab state we read
      * from disk.
      * @param state    The tab state that the tab can be restored from.
-     * @param serializedCriticalPersistedTabData serialized {@link CriticalPersistedTabData}
      * @param id       The id to give the new tab.
      * @param isIncognito if the {@link Tab} is incognito or not
      * @param index    The index for where to place the tab.
      */
-    public abstract Tab createFrozenTab(TabState state,
-            SerializedCriticalPersistedTabData serializedCriticalPersistedTabData, int id,
-            boolean isIncognito, int index);
+    public abstract Tab createFrozenTab(TabState state, int id, boolean isIncognito, int index);
 
     /*
      * Creates a new tab which is detached from the tab model.
@@ -71,8 +61,8 @@ public abstract class TabCreator {
      * @params boolean initializeRenderer whether to initialize renderer during WebContents creation
      * or not.
      */
-    @Nullable
-    public abstract Tab buildDetachedSpareTab(@TabLaunchType int type, boolean initializeRenderer);
+    public abstract @Nullable Tab buildDetachedSpareTab(
+            @TabLaunchType int type, boolean initializeRenderer);
 
     /**
      * Creates a new tab and loads the specified URL in it. This is a convenience method for
@@ -83,8 +73,7 @@ public abstract class TabCreator {
      *             opened (for example, in the foreground or background).
      * @return The new tab or null if no tab was created.
      */
-    @Nullable
-    public abstract Tab launchUrl(String url, @TabLaunchType int type);
+    public abstract @Nullable Tab launchUrl(String url, @TabLaunchType int type);
 
     /**
      * Creates a Tab to host the given WebContents.

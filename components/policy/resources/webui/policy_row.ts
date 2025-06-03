@@ -106,6 +106,19 @@ export class PolicyRowElement extends CustomElement {
       }
       scopeDisplay!.textContent = loadTimeData.getString(scope);
 
+      // Display scope and level as rows instead of columns on space constraint
+      // devices.
+      // <if expr="is_android or is_ios">
+      const scopeRowContentDisplay =
+          this.shadowRoot!.querySelector('.scope.row .value');
+      scopeRowContentDisplay!.textContent = loadTimeData.getString(scope);
+      const levelRowContentDisplay =
+          this.shadowRoot!.querySelector('.level.row .value');
+      levelRowContentDisplay!.textContent = loadTimeData.getString(
+          policy.level === 'recommended' ? 'levelRecommended' :
+                                           'levelMandatory');
+      // </if>
+
       const levelDisplay = this.shadowRoot!.querySelector('.level');
       levelDisplay!.textContent = loadTimeData.getString(
           policy.level === 'recommended' ? 'levelRecommended' :
@@ -243,6 +256,14 @@ export class PolicyRowElement extends CustomElement {
         this.shadowRoot!.querySelector('.infos.row') as CustomElement;
     const valueRowDisplay =
         this.shadowRoot!.querySelector('.value.row') as CustomElement;
+    // <if expr="is_android or is_ios">
+    const scopeRowDisplay =
+        this.shadowRoot!.querySelector('.scope.row') as CustomElement;
+    scopeRowDisplay.hidden = !scopeRowDisplay.hidden;
+    const levelRowDisplay =
+        this.shadowRoot!.querySelector('.level.row') as CustomElement;
+    levelRowDisplay.hidden = !levelRowDisplay.hidden;
+    // </if>
     valueRowDisplay.hidden = !valueRowDisplay.hidden;
     this.classList!.toggle('expanded', !valueRowDisplay.hidden);
 

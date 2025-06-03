@@ -4,12 +4,22 @@
 
 #include "media/cast/common/openscreen_conversion_helpers.h"
 
+#include "base/logging.h"
+#include "base/strings/string_number_conversions.h"
 #include "media/base/audio_codecs.h"
 #include "media/base/video_codecs.h"
 #include "media/cast/cast_config.h"
 #include "third_party/openscreen/src/platform/base/span.h"
 
 namespace media::cast {
+
+openscreen::Clock::time_point ToOpenscreenTimePoint(
+    absl::optional<base::TimeTicks> ticks) {
+  if (!ticks) {
+    return openscreen::Clock::time_point::min();
+  }
+  return ToOpenscreenTimePoint(*ticks);
+}
 
 openscreen::Clock::time_point ToOpenscreenTimePoint(base::TimeTicks ticks) {
   static_assert(sizeof(openscreen::Clock::time_point::rep) >=
@@ -61,6 +71,8 @@ const openscreen::cast::EncodedFrame ToOpenscreenEncodedFrame(
       encoded_frame.referenced_frame_id, encoded_frame.rtp_timestamp,
       ToOpenscreenTimePoint(encoded_frame.reference_time),
       std::chrono::milliseconds(encoded_frame.new_playout_delay_ms),
+      ToOpenscreenTimePoint(encoded_frame.capture_begin_time),
+      ToOpenscreenTimePoint(encoded_frame.capture_end_time),
       openscreen::ByteView(
           reinterpret_cast<const uint8_t*>(encoded_frame.data.data()),
           encoded_frame.data.size()));
@@ -75,8 +87,7 @@ openscreen::cast::AudioCodec ToOpenscreenAudioCodec(media::cast::Codec codec) {
     case Codec::kAudioAac:
       return openscreen::cast::AudioCodec::kAac;
     default:
-      NOTREACHED();
-      return openscreen::cast::AudioCodec::kNotSpecified;
+      NOTREACHED_NORETURN();
   }
 }
 
@@ -93,8 +104,7 @@ openscreen::cast::VideoCodec ToOpenscreenVideoCodec(media::cast::Codec codec) {
     case Codec::kVideoAv1:
       return openscreen::cast::VideoCodec::kAv1;
     default:
-      NOTREACHED();
-      return openscreen::cast::VideoCodec::kNotSpecified;
+      NOTREACHED_NORETURN();
   }
 }
 
@@ -107,8 +117,7 @@ Codec ToCodec(openscreen::cast::AudioCodec codec) {
     case openscreen::cast::AudioCodec::kAac:
       return Codec::kAudioAac;
   }
-  NOTREACHED();
-  return Codec::kUnknown;
+  NOTREACHED_NORETURN();
 }
 
 Codec ToCodec(openscreen::cast::VideoCodec codec) {
@@ -126,8 +135,7 @@ Codec ToCodec(openscreen::cast::VideoCodec codec) {
     case openscreen::cast::VideoCodec::kHevc:
       return Codec::kUnknown;
   }
-  NOTREACHED();
-  return Codec::kUnknown;
+  NOTREACHED_NORETURN();
 }
 
 AudioCodec ToAudioCodec(openscreen::cast::AudioCodec codec) {
@@ -140,8 +148,7 @@ AudioCodec ToAudioCodec(openscreen::cast::AudioCodec codec) {
     case openscreen::cast::AudioCodec::kAac:
       return AudioCodec::kAAC;
   }
-  NOTREACHED();
-  return AudioCodec::kUnknown;
+  NOTREACHED_NORETURN();
 }
 
 VideoCodec ToVideoCodec(openscreen::cast::VideoCodec codec) {
@@ -160,14 +167,40 @@ VideoCodec ToVideoCodec(openscreen::cast::VideoCodec codec) {
     case openscreen::cast::VideoCodec::kHevc:
       return VideoCodec::kHEVC;
   }
-  NOTREACHED();
-  return VideoCodec::kUnknown;
+  NOTREACHED_NORETURN();
 }
 
 openscreen::IPAddress ToOpenscreenIPAddress(const net::IPAddress& address) {
   const auto version = address.IsIPv6() ? openscreen::IPAddress::Version::kV6
                                         : openscreen::IPAddress::Version::kV4;
   return openscreen::IPAddress(version, address.bytes().data());
+}
+
+std::array<uint8_t, kAesKeyLength> AesKeyToArray(std::string aes_key) {
+  std::vector<uint8_t> vec;
+  if (!base::HexStringToBytes(aes_key, &vec)) {
+    return {};
+  }
+  if (vec.size() != static_cast<unsigned long>(kAesKeyLength)) {
+    return {};
+  }
+  std::array<uint8_t, kAesKeyLength> out;
+  for (size_t i = 0; i < vec.size(); ++i) {
+    out[i] = vec[i];
+  }
+  return out;
+}
+
+openscreen::cast::SessionConfig ToOpenscreenSessionConfig(
+    const FrameSenderConfig& config,
+    bool is_pli_enabled) {
+  return openscreen::cast::SessionConfig(
+      config.sender_ssrc, config.receiver_ssrc, config.rtp_timebase,
+      config.channels,
+      std::chrono::milliseconds(config.max_playout_delay.InMilliseconds()),
+
+      AesKeyToArray(config.aes_key), AesKeyToArray(config.aes_iv_mask),
+      is_pli_enabled);
 }
 
 openscreen::cast::AudioCaptureConfig ToOpenscreenAudioConfig(

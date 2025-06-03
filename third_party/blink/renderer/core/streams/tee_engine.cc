@@ -132,11 +132,14 @@ class TeeEngine::PullAlgorithm final : public StreamAlgorithm {
    private:
     void ChunkStepsBody(ScriptState* script_state,
                         v8::Global<v8::Value> value) const {
+      // This is called in a microtask, the ScriptState needs to be put back
+      // in scope.
+      ScriptState::Scope scope(script_state);
       // 1. Set readAgain to false.
       engine_->read_again_ = false;
 
       ExceptionState exception_state(script_state->GetIsolate(),
-                                     ExceptionState::kUnknownContext, "", "");
+                                     ExceptionContextType::kUnknown, "", "");
 
       // 2. Let chunk1 and chunk2 be chunk.
       v8::Local<v8::Value> chunk[2];

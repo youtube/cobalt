@@ -5,11 +5,12 @@
 package org.chromium.chrome.browser.tab.state;
 
 import androidx.annotation.MainThread;
-import androidx.annotation.VisibleForTesting;
+
+import org.jni_zero.CalledByNative;
+import org.jni_zero.NativeMethods;
 
 import org.chromium.base.Callback;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.NativeMethods;
+import org.chromium.base.ResettersForTesting;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.content_public.browser.BrowserContextHandle;
 
@@ -115,9 +116,9 @@ public class LevelDBPersistedDataStorage implements PersistedDataStorage {
         }
     }
 
-    @VisibleForTesting
     public static void setSkipNativeAssertionsForTesting(boolean skipNativeAssertionsForTesting) {
         sSkipNativeAssertionsForTesting = skipNativeAssertionsForTesting;
+        ResettersForTesting.register(() -> sSkipNativeAssertionsForTesting = false);
     }
 
     @NativeMethods

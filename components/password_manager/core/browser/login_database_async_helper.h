@@ -10,7 +10,8 @@
 #include "base/memory/weak_ptr.h"
 #include "base/task/sequenced_task_runner.h"
 #include "components/password_manager/core/browser/password_store_backend.h"
-#include "components/password_manager/core/browser/password_store_sync.h"
+#include "components/password_manager/core/browser/sync/password_store_sync.h"
+#include "components/sync/model/wipe_model_upon_sync_disabled_behavior.h"
 
 namespace syncer {
 class ModelTypeControllerDelegate;
@@ -22,7 +23,6 @@ class LoginDatabase;
 class PasswordSyncBridge;
 class UnsyncedCredentialsDeletionNotifier;
 
-struct FieldInfo;
 struct InteractionsStats;
 
 // Class which interacts directly with LoginDatabase. It is also responsible to
@@ -32,11 +32,13 @@ class LoginDatabaseAsyncHelper : private PasswordStoreSync {
   LoginDatabaseAsyncHelper(
       std::unique_ptr<LoginDatabase> login_db,
       std::unique_ptr<UnsyncedCredentialsDeletionNotifier> notifier,
-      scoped_refptr<base::SequencedTaskRunner> main_task_runner);
+      scoped_refptr<base::SequencedTaskRunner> main_task_runner,
+      syncer::WipeModelUponSyncDisabledBehavior
+          wipe_model_upon_sync_disabled_behavior);
 
   ~LoginDatabaseAsyncHelper() override;
 
-  // Opens |login_db_| and creates |sync_bridge_|.
+  // Opens |login_db_| and creates sync bridges.
   bool Initialize(
       PasswordStoreBackend::RemoteChangesReceived remote_form_changes_received,
       base::RepeatingClosure sync_enabled_or_disabled_cb);
@@ -69,11 +71,6 @@ class LoginDatabaseAsyncHelper : private PasswordStoreSync {
       const base::RepeatingCallback<bool(const GURL&)>& origin_filter,
       base::Time delete_begin,
       base::Time delete_end);
-
-  // Synchronous implementation of FieldInfoStore.
-  void AddFieldInfo(const FieldInfo& field_info);
-  std::vector<FieldInfo> GetAllFieldInfo();
-  void RemoveFieldInfoByTime(base::Time remove_begin, base::Time remove_end);
 
   // Instantiates a proxy controller delegate to react to sync events.
   base::WeakPtr<syncer::ModelTypeControllerDelegate>
@@ -125,12 +122,14 @@ class LoginDatabaseAsyncHelper : private PasswordStoreSync {
   std::unique_ptr<LoginDatabase> login_db_
       GUARDED_BY_CONTEXT(sequence_checker_);
 
-  std::unique_ptr<PasswordSyncBridge> sync_bridge_
+  const syncer::WipeModelUponSyncDisabledBehavior
+      wipe_model_upon_sync_disabled_behavior_;
+  std::unique_ptr<PasswordSyncBridge> password_sync_bridge_
       GUARDED_BY_CONTEXT(sequence_checker_);
 
-  // Whenever 'sync_bridge_'receive remote changes this callback is used to
-  // notify PasswordStore observers about them. Called on a main sequence from
-  // the 'NotifyLoginsChanged'.
+  // Whenever 'password_sync_bridge_' receive remote changes this callback is
+  // used to notify PasswordStore observers about them. Called on a main
+  // sequence from the 'NotifyLoginsChanged'.
   PasswordStoreBackend::RemoteChangesReceived
       remote_forms_changes_received_callback_
           GUARDED_BY_CONTEXT(sequence_checker_);

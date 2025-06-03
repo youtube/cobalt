@@ -24,11 +24,9 @@
 #include "chrome/browser/web_applications/web_app_helpers.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/services/app_service/public/cpp/app_launch_util.h"
-#include "content/public/browser/notification_service.h"
 #include "content/public/test/test_utils.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/extension_system.h"
-#include "extensions/browser/notification_types.h"
 #include "extensions/common/extension.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
@@ -93,6 +91,23 @@ bool DidChangeTitle(content::WebContents& web_contents,
   }
   ADD_FAILURE() << "Unexpected page title found:  " << title;
   return false;
+}
+
+BlockedActionWaiter::BlockedActionWaiter(ExtensionActionRunner* runner)
+    : runner_(runner) {
+  runner_->set_observer_for_testing(this);  // IN-TEST
+}
+
+BlockedActionWaiter::~BlockedActionWaiter() {
+  runner_->set_observer_for_testing(nullptr);  // IN-TEST
+}
+
+void BlockedActionWaiter::Wait() {
+  run_loop_.Run();
+}
+
+void BlockedActionWaiter::OnBlockedActionAdded() {
+  run_loop_.Quit();
 }
 
 }  // namespace extensions::browsertest_util

@@ -111,7 +111,7 @@ class ServiceFontManager::SkiaDiscardableManager
     // If this is not happening, please file a bug with a repro so
     // it can be fixed.
     static crash_reporter::CrashKeyString<64> crash_key("oop_cache_miss");
-    const char* kFormatString = "type: %" PRIu32 ", fontSize: %d";
+    static constexpr char kFormatString[] = "type: %" PRIu32 ", fontSize: %d";
 #if DCHECK_IS_ON()
     crash_reporter::ScopedCrashKeyString auto_clear(
         &crash_key, base::StringPrintf(kFormatString, type, fontSize));
@@ -240,7 +240,6 @@ bool ServiceFontManager::Deserialize(
 
 bool ServiceFontManager::AddHandle(SkDiscardableHandleId handle_id,
                                    ServiceDiscardableHandle handle) {
-  lock_.AssertAcquired();
   bool inserted;
   std::tie(std::ignore, inserted) =
       discardable_handle_map_.try_emplace(handle_id, std::move(handle));

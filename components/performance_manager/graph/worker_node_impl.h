@@ -65,6 +65,7 @@ class WorkerNodeImpl
   WorkerType worker_type() const;
   ProcessNodeImpl* process_node() const;
   const blink::WorkerToken& worker_token() const;
+  resource_attribution::WorkerContext resource_context() const;
 
   // Getters for non-const properties. These are not thread safe.
   const GURL& url() const;
@@ -75,10 +76,8 @@ class WorkerNodeImpl
   uint64_t resident_set_kb_estimate() const;
   uint64_t private_footprint_kb_estimate() const;
 
-  base::WeakPtr<WorkerNodeImpl> GetWeakPtr() {
-    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-    return weak_factory_.GetWeakPtr();
-  }
+  base::WeakPtr<WorkerNodeImpl> GetWeakPtrOnUIThread();
+  base::WeakPtr<WorkerNodeImpl> GetWeakPtr();
 
   // Implementation details below this point.
 
@@ -102,9 +101,12 @@ class WorkerNodeImpl
   const std::string& GetBrowserContextID() const override;
   const ProcessNode* GetProcessNode() const override;
   const blink::WorkerToken& GetWorkerToken() const override;
+  resource_attribution::WorkerContext GetResourceContext() const override;
   const GURL& GetURL() const override;
   const base::flat_set<const FrameNode*> GetClientFrames() const override;
+  bool VisitClientFrames(const FrameNodeVisitor&) const override;
   const base::flat_set<const WorkerNode*> GetClientWorkers() const override;
+  bool VisitClientWorkers(const WorkerNodeVisitor&) const override;
   const base::flat_set<const WorkerNode*> GetChildWorkers() const override;
   bool VisitChildDedicatedWorkers(const WorkerNodeVisitor&) const override;
   const PriorityAndReason& GetPriorityAndReason() const override;
@@ -167,6 +169,7 @@ class WorkerNodeImpl
   std::unique_ptr<NodeAttachedData> execution_context_
       GUARDED_BY_CONTEXT(sequence_checker_);
 
+  base::WeakPtr<WorkerNodeImpl> weak_this_;
   base::WeakPtrFactory<WorkerNodeImpl> weak_factory_
       GUARDED_BY_CONTEXT(sequence_checker_){this};
 };

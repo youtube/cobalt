@@ -279,7 +279,6 @@ GCMClientImpl::~GCMClientImpl() = default;
 void GCMClientImpl::Initialize(
     const ChromeBuildInfo& chrome_build_info,
     const base::FilePath& path,
-    bool remove_account_mappings_with_email_key,
     const scoped_refptr<base::SequencedTaskRunner>& blocking_task_runner,
     scoped_refptr<base::SequencedTaskRunner> io_task_runner,
     base::RepeatingCallback<void(
@@ -298,9 +297,8 @@ void GCMClientImpl::Initialize(
   url_loader_factory_ = url_loader_factory;
   network_connection_tracker_ = network_connection_tracker;
   chrome_build_info_ = chrome_build_info;
-  gcm_store_ = std::make_unique<GCMStoreImpl>(
-      path, remove_account_mappings_with_email_key, blocking_task_runner,
-      std::move(encryptor));
+  gcm_store_ = std::make_unique<GCMStoreImpl>(path, blocking_task_runner,
+                                              std::move(encryptor));
   delegate_ = delegate;
   io_task_runner_ = std::move(io_task_runner);
   recorder_.SetDelegate(this);
@@ -663,14 +661,10 @@ void GCMClientImpl::StartCheckin() {
   ToCheckinProtoVersion(chrome_build_info_, &chrome_build_proto);
 
   std::map<std::string, std::string> empty_account_tokens;
-  bool include_account_tokens = base::FeatureList::IsEnabled(
-      features::kGCMIncludeAccountTokensInCheckinRequest);
 
   CheckinRequest::RequestInfo request_info(
       device_checkin_info_.android_id, device_checkin_info_.secret,
-      include_account_tokens ? device_checkin_info_.account_tokens
-                             : empty_account_tokens,
-      gservices_settings_.digest(), chrome_build_proto);
+      empty_account_tokens, gservices_settings_.digest(), chrome_build_proto);
   checkin_request_ = std::make_unique<CheckinRequest>(
       gservices_settings_.GetCheckinURL(), request_info, GetGCMBackoffPolicy(),
       base::BindOnce(&GCMClientImpl::OnCheckinCompleted,

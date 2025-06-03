@@ -165,13 +165,15 @@ bundle_data("tests_bundle_data") {
     "//components/test/data/storage/shared_storage.v0.sql",
     "//components/test/data/storage/shared_storage.v1.no_budget_table.sql",
     "//components/test/data/storage/shared_storage.v1.sql",
-    "//components/test/data/storage/shared_storage.v2.empty_values_mapping.5origins.sql",
-    "//components/test/data/storage/shared_storage.v2.empty_values_mapping.6origins.sql",
-    "//components/test/data/storage/shared_storage.v2.empty_values_mapping.7origins.sql",
-    "//components/test/data/storage/shared_storage.v2.empty_values_mapping.8origins.sql",
-    "//components/test/data/storage/shared_storage.v2.iterator.sql",
-    "//components/test/data/storage/shared_storage.v2.single_origin.sql",
     "//components/test/data/storage/shared_storage.v2.sql",
+    "//components/test/data/storage/shared_storage.v3.empty_values_mapping.5origins.sql",
+    "//components/test/data/storage/shared_storage.v3.empty_values_mapping.6origins.sql",
+    "//components/test/data/storage/shared_storage.v3.empty_values_mapping.7origins.sql",
+    "//components/test/data/storage/shared_storage.v3.empty_values_mapping.8origins.sql",
+    "//components/test/data/storage/shared_storage.v3.iterator.sql",
+    "//components/test/data/storage/shared_storage.v3.single_origin.sql",
+    "//components/test/data/storage/shared_storage.v3.sql",
+    "//components/test/data/storage/shared_storage.v4.sql",
   ]
   outputs = [ "{{bundle_resources_dir}}/" +
               "{{source_root_relative_dir}}/{{source_file_part}}" ]
@@ -233,6 +235,10 @@ source_set("tests") {
     "//testing/gtest",
     "//third_party/sqlite",
   ]
+
+  if (is_ios) {
+    deps += [ "//components/test:service_worker_test_bundle_data" ]
+  }
 
   data = [ "//components/services/storage/test_data/" ]
 }

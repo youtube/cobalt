@@ -23,6 +23,7 @@
 #include "device/bluetooth/floss/bluetooth_socket_floss.h"
 #include "device/bluetooth/floss/floss_adapter_client.h"
 #include "device/bluetooth/floss/floss_battery_manager_client.h"
+#include "device/bluetooth/floss/floss_bluetooth_telephony_client.h"
 #include "device/bluetooth/floss/floss_dbus_client.h"
 #include "device/bluetooth/floss/floss_gatt_manager_client.h"
 #include "device/bluetooth/floss/floss_lescan_client.h"
@@ -183,6 +184,9 @@ class DEVICE_BLUETOOTH_EXPORT BluetoothAdapterFloss final
   // Set the adapter name to one chosen from the system information. Only Ash
   // needs to do this.
   void SetStandardChromeOSAdapterName() override;
+  // Enable telephony feature for floss. Only Ash needs to do this.
+  void ConfigureBluetoothTelephony(bool enabled);
+
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
   // ScannerClientObserver overrides
@@ -213,6 +217,10 @@ class DEVICE_BLUETOOTH_EXPORT BluetoothAdapterFloss final
   // Helper function to create a Floss device
   std::unique_ptr<BluetoothDeviceFloss> CreateBluetoothDeviceFloss(
       FlossDeviceId device);
+
+  // Helper function to update device properties if necessary
+  void UpdateDeviceProperties(bool is_triggered_by_inquiry,
+                              const FlossDeviceId& device_found);
 
   // Handle responses to most method calls
   void OnMethodResponse(base::OnceClosure callback,
@@ -269,10 +277,18 @@ class DEVICE_BLUETOOTH_EXPORT BluetoothAdapterFloss final
   void AdapterDiscoveringChanged(bool state) override;
   void AdapterFoundDevice(const FlossDeviceId& device_found) override;
   void AdapterClearedDevice(const FlossDeviceId& device_found) override;
+  void AdapterDevicePropertyChanged(
+      FlossAdapterClient::BtPropertyType prop_type,
+      const FlossDeviceId& device) override;
   void AdapterSspRequest(const FlossDeviceId& remote_device,
                          uint32_t cod,
                          FlossAdapterClient::BluetoothSspVariant variant,
                          uint32_t passkey) override;
+  void AdapterPinDisplay(const FlossDeviceId& remote_device,
+                         std::string pincode) override;
+  void AdapterPinRequest(const FlossDeviceId& remote_device,
+                         uint32_t cod,
+                         bool min_16_digit) override;
   void DeviceBondStateChanged(
       const FlossDeviceId& remote_device,
       uint32_t status,

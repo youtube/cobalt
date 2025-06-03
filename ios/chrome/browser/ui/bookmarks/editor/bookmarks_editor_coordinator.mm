@@ -4,16 +4,21 @@
 
 #import "ios/chrome/browser/ui/bookmarks/editor/bookmarks_editor_coordinator.h"
 
+#import <MaterialComponents/MaterialSnackbar.h>
+
 #import "base/metrics/user_metrics.h"
 #import "base/metrics/user_metrics_action.h"
-#import "ios/chrome/browser/bookmarks/account_bookmark_model_factory.h"
-#import "ios/chrome/browser/bookmarks/local_or_syncable_bookmark_model_factory.h"
-#import "ios/chrome/browser/browser_state/chrome_browser_state.h"
-#import "ios/chrome/browser/main/browser.h"
+#import "base/strings/sys_string_conversions.h"
+#import "components/bookmarks/browser/bookmark_node.h"
+#import "ios/chrome/browser/bookmarks/model/account_bookmark_model_factory.h"
+#import "ios/chrome/browser/bookmarks/model/local_or_syncable_bookmark_model_factory.h"
 #import "ios/chrome/browser/shared/coordinator/alert/action_sheet_coordinator.h"
+#import "ios/chrome/browser/shared/model/browser/browser.h"
+#import "ios/chrome/browser/shared/model/browser_state/chrome_browser_state.h"
+#import "ios/chrome/browser/shared/public/commands/snackbar_commands.h"
 #import "ios/chrome/browser/shared/ui/table_view/table_view_navigation_controller.h"
-#import "ios/chrome/browser/sync/sync_service_factory.h"
-#import "ios/chrome/browser/sync/sync_setup_service_factory.h"
+#import "ios/chrome/browser/sync/model/sync_service_factory.h"
+#import "ios/chrome/browser/ui/bookmarks/bookmark_utils_ios.h"
 #import "ios/chrome/browser/ui/bookmarks/editor/bookmarks_editor_coordinator_delegate.h"
 #import "ios/chrome/browser/ui/bookmarks/editor/bookmarks_editor_mediator.h"
 #import "ios/chrome/browser/ui/bookmarks/editor/bookmarks_editor_mediator_delegate.h"
@@ -23,10 +28,6 @@
 #import "ios/chrome/grit/ios_strings.h"
 #import "ui/base/l10n/l10n_util_mac.h"
 #import "url/gurl.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 @interface BookmarksEditorCoordinator () <
     BookmarksEditorViewControllerDelegate,
@@ -76,28 +77,31 @@
 
 - (void)start {
   [super start];
-  _viewController =
-      [[BookmarksEditorViewController alloc] initWithBrowser:self.browser];
+  _viewController = [[BookmarksEditorViewController alloc]
+      initWithName:bookmark_utils_ios::TitleForBookmarkNode(_node)
+               URL:base::SysUTF8ToNSString(_node->url().spec())
+        folderName:bookmark_utils_ios::TitleForBookmarkNode(_node->parent())];
   _viewController.delegate = self;
-  _viewController.snackbarCommandsHandler = _snackbarCommandsHandler;
   ChromeBrowserState* browserState =
       self.browser->GetBrowserState()->GetOriginalChromeBrowserState();
-  bookmarks::BookmarkModel* profileBookmarkModel =
+  bookmarks::BookmarkModel* localOrSyncableBookmarkModel =
       ios::LocalOrSyncableBookmarkModelFactory::GetForBrowserState(
           browserState);
   bookmarks::BookmarkModel* accountBookmarkModel =
       ios::AccountBookmarkModelFactory::GetForBrowserState(browserState);
+  syncer::SyncService* syncService =
+      SyncServiceFactory::GetForBrowserState(browserState);
+
   _mediator = [[BookmarksEditorMediator alloc]
-      initWithProfileBookmarkModel:profileBookmarkModel
-              accountBookmarkModel:accountBookmarkModel
-                      bookmarkNode:_node
-                             prefs:browserState->GetPrefs()
-                  syncSetupService:SyncSetupServiceFactory::GetForBrowserState(
-                                       browserState)
-                       syncService:SyncServiceFactory::GetForBrowserState(
-                                       browserState)];
+      initWithLocalOrSyncableBookmarkModel:localOrSyncableBookmarkModel
+                      accountBookmarkModel:accountBookmarkModel
+                              bookmarkNode:_node
+                                     prefs:browserState->GetPrefs()
+                               syncService:syncService
+                              browserState:browserState];
   _mediator.consumer = _viewController;
   _mediator.delegate = self;
+  _mediator.snackbarCommandsHandler = _snackbarCommandsHandler;
   _viewController.mutator = _mediator;
 
   _navigationController =
@@ -115,10 +119,11 @@
   [super stop];
   DCHECK(_navigationController);
   [_mediator disconnect];
+  [self dismissActionSheetCoordinator];
   _mediator.consumer = nil;
+  _mediator.snackbarCommandsHandler = nil;
   _mediator = nil;
   _viewController.delegate = nil;
-  _viewController.snackbarCommandsHandler = nil;
   _viewController.mutator = nil;
   _viewController = nil;
   _snackbarCommandsHandler = nil;
@@ -129,7 +134,12 @@
   // animatedDismissal should have been explicitly set before calling stop.
   [_navigationController dismissViewControllerAnimated:self.animatedDismissal
                                             completion:nil];
+  _navigationController.presentationController.delegate = nil;
   _navigationController = nil;
+}
+
+- (void)dealloc {
+  DCHECK(!_navigationController);
 }
 
 - (BOOL)canDismiss {
@@ -163,14 +173,14 @@
   [self.delegate bookmarksEditorCoordinatorShouldStop:self];
 }
 
-- (void)bookmarkEditorWillCommitTitleOrURLChange:
-    (BookmarksEditorViewController*)controller {
-  [self.delegate bookmarkEditorWillCommitTitleOrURLChange:self];
-}
 #pragma mark - UIAdaptivePresentationControllerDelegate
 
 - (void)presentationControllerDidAttemptToDismiss:
     (UIPresentationController*)presentationController {
+  if (!_viewController.canBeDismissed) {
+    return;
+  }
+
   self.actionSheetCoordinator = [[ActionSheetCoordinator alloc]
       initWithBaseViewController:_viewController
                          browser:self.browser
@@ -183,6 +193,7 @@
       addItemWithTitle:l10n_util::GetNSString(
                            IDS_IOS_VIEW_CONTROLLER_DISMISS_SAVE_CHANGES)
                 action:^{
+                  [weakSelf dismissActionSheetCoordinator];
                   BookmarksEditorCoordinator* strongSelf = weakSelf;
                   if (strongSelf != nil) {
                     [strongSelf->_viewController save];
@@ -193,6 +204,7 @@
       addItemWithTitle:l10n_util::GetNSString(
                            IDS_IOS_VIEW_CONTROLLER_DISMISS_DISCARD_CHANGES)
                 action:^{
+                  [weakSelf dismissActionSheetCoordinator];
                   BookmarksEditorCoordinator* strongSelf = weakSelf;
                   if (strongSelf != nil) {
                     [strongSelf->_viewController cancel];
@@ -203,6 +215,7 @@
       addItemWithTitle:l10n_util::GetNSString(
                            IDS_IOS_VIEW_CONTROLLER_DISMISS_CANCEL_CHANGES)
                 action:^{
+                  [weakSelf dismissActionSheetCoordinator];
                   BookmarksEditorCoordinator* strongSelf = weakSelf;
                   if (strongSelf != nil) {
                     [strongSelf->_viewController setNavigationItemsEnabled:YES];
@@ -244,6 +257,11 @@
   [_folderChooserCoordinator setSelectedFolder:newParent];
 }
 
+- (void)bookmarkEditorWillCommitTitleOrURLChange:
+    (BookmarksEditorMediator*)mediator {
+  [self.delegate bookmarkEditorWillCommitTitleOrURLChange:self];
+}
+
 #pragma mark - BookmarksFolderChooserCoordinatorDelegate
 
 - (void)bookmarksFolderChooserCoordinatorDidConfirm:
@@ -256,7 +274,7 @@
   _folderChooserCoordinator.delegate = nil;
   _folderChooserCoordinator = nil;
 
-  [_mediator changeFolder:folder];
+  [_mediator manuallyChangeFolder:folder];
 }
 
 - (void)bookmarksFolderChooserCoordinatorDidCancel:
@@ -272,6 +290,13 @@
     [_viewController.view endEditing:YES];
     [self.delegate bookmarksEditorCoordinatorShouldStop:self];
   }
+}
+
+#pragma mark - Private
+
+- (void)dismissActionSheetCoordinator {
+  [self.actionSheetCoordinator stop];
+  self.actionSheetCoordinator = nil;
 }
 
 @end

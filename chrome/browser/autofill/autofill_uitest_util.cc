@@ -10,6 +10,9 @@
 #include "chrome/browser/profiles/profile.h"
 #include "components/autofill/content/browser/content_autofill_driver.h"
 #include "components/autofill/core/browser/autofill_external_delegate.h"
+#include "components/autofill/core/browser/autofill_manager.h"
+#include "components/autofill/core/browser/browser_autofill_manager.h"
+#include "components/autofill/core/browser/browser_autofill_manager_test_api.h"
 #include "components/autofill/core/browser/data_model/autofill_profile.h"
 #include "components/autofill/core/browser/data_model/credit_card.h"
 #include "components/autofill/core/browser/personal_data_manager.h"
@@ -75,19 +78,6 @@ void AddTestProfile(Profile* base_profile, const AutofillProfile& profile) {
   observer.Wait();
 }
 
-void SetTestProfile(Profile* base_profile, const AutofillProfile& profile) {
-  std::vector<AutofillProfile> profiles;
-  profiles.push_back(profile);
-  SetTestProfiles(base_profile, &profiles);
-}
-
-void SetTestProfiles(Profile* base_profile,
-                     std::vector<AutofillProfile>* profiles) {
-  PdmChangeWaiter observer(base_profile);
-  GetPersonalDataManager(base_profile)->SetProfilesForAllSources(profiles);
-  observer.Wait();
-}
-
 void AddTestCreditCard(Profile* base_profile, const CreditCard& card) {
   PdmChangeWaiter observer(base_profile);
   GetPersonalDataManager(base_profile)->AddCreditCard(card);
@@ -127,34 +117,34 @@ void WaitForPersonalDataManagerToBeLoaded(Profile* base_profile) {
     WaitForPersonalDataChange(base_profile);
 }
 
-void GenerateTestAutofillPopup(
-    AutofillExternalDelegate* autofill_external_delegate) {
+void GenerateTestAutofillPopup(ContentAutofillDriver& driver,
+                               gfx::RectF element_bounds) {
   FormData form;
   form.url = GURL("https://foo.com/bar");
   form.fields.emplace_back();
   form.fields.front().is_focusable = true;
   form.fields.front().should_autocomplete = true;
-  gfx::RectF bounds(100.f, 100.f);
 
-  ContentAutofillDriver* driver = static_cast<ContentAutofillDriver*>(
-      absl::get<AutofillDriver*>(autofill_external_delegate->GetDriver()));
-  AutofillManager* manager = driver->autofill_manager();
-  mojom::AutofillDriver* mojo_driver = driver;
-  TestAutofillManagerWaiter waiter(*manager,
+  TestAutofillManagerWaiter waiter(driver.GetAutofillManager(),
                                    {AutofillManagerEvent::kAskForValuesToFill});
-  mojo_driver->AskForValuesToFill(form, form.fields.front(), bounds,
-                                  AutoselectFirstSuggestion(false),
-                                  FormElementWasClicked(false));
+  driver.renderer_events().AskForValuesToFill(
+      form, form.fields.front(), element_bounds,
+      AutofillSuggestionTriggerSource::kTextFieldDidChange);
   ASSERT_TRUE(waiter.Wait());
-  ASSERT_EQ(1u, manager->form_structures().size());
+  ASSERT_EQ(1u, driver.GetAutofillManager().form_structures().size());
   // `form.host_frame` and `form.url` have only been set by
   // ContentAutofillDriver::AskForValuesToFill().
-  form = manager->form_structures().begin()->second->ToFormData();
+  form = driver.GetAutofillManager()
+             .form_structures()
+             .begin()
+             ->second->ToFormData();
 
   std::vector<Suggestion> suggestions = {Suggestion(u"Test suggestion")};
-  autofill_external_delegate->OnSuggestionsReturned(
-      form.fields.front().global_id(), suggestions,
-      AutoselectFirstSuggestion(false));
+  test_api(static_cast<BrowserAutofillManager&>(driver.GetAutofillManager()))
+      .external_delegate()
+      ->OnSuggestionsReturned(
+          form.fields.front().global_id(), suggestions,
+          AutofillSuggestionTriggerSource::kFormControlElementClicked);
 }
 
 }  // namespace autofill

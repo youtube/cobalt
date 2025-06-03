@@ -6,28 +6,27 @@
 
 #import "base/test/task_environment.h"
 #import "components/omnibox/browser/omnibox_client.h"
+#import "components/omnibox/browser/omnibox_edit_model.h"
+#import "components/omnibox/browser/test_location_bar_model.h"
 #import "components/omnibox/browser/test_omnibox_client.h"
-#import "components/omnibox/browser/test_omnibox_edit_model_delegate.h"
 #import "components/omnibox/browser/test_omnibox_view.h"
 #import "components/search_engines/template_url_service.h"
 #import "components/search_engines/template_url_service_client.h"
 #import "ios/chrome/browser/main/browser_web_state_list_delegate.h"
-#import "ios/chrome/browser/main/test_browser.h"
+#import "ios/chrome/browser/shared/model/browser/test/test_browser.h"
+#import "ios/chrome/browser/shared/model/url/chrome_url_constants.h"
+#import "ios/chrome/browser/shared/model/web_state_list/test/fake_web_state_list_delegate.h"
+#import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
+#import "ios/chrome/browser/shared/model/web_state_list/web_state_opener.h"
 #import "ios/chrome/browser/ui/omnibox/omnibox_text_field_legacy.h"
-#import "ios/chrome/browser/url/chrome_url_constants.h"
-#import "ios/chrome/browser/web_state_list/fake_web_state_list_delegate.h"
-#import "ios/chrome/browser/web_state_list/web_state_list.h"
-#import "ios/chrome/browser/web_state_list/web_state_opener.h"
 #import "ios/web/public/test/fakes/fake_navigation_context.h"
 #import "ios/web/public/test/fakes/fake_navigation_manager.h"
 #import "ios/web/public/test/fakes/fake_web_state.h"
+#import "testing/gmock/include/gmock/gmock.h"
 #import "testing/gtest_mac.h"
 #import "testing/platform_test.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
+using testing::Return;
 using web::FakeWebState;
 
 namespace {
@@ -37,10 +36,8 @@ const char kTestSRPURL[] = "https://www.google.com/search?q=omnibox";
 
 class MockOmniboxEditModel : public OmniboxEditModel {
  public:
-  MockOmniboxEditModel(OmniboxView* view,
-                       OmniboxEditModelDelegate* edit_model_delegate,
-                       std::unique_ptr<OmniboxClient> client)
-      : OmniboxEditModel(view, edit_model_delegate, std::move(client)) {}
+  MockOmniboxEditModel(OmniboxController* omnibox_controller, OmniboxView* view)
+      : OmniboxEditModel(omnibox_controller, view) {}
 
   ~MockOmniboxEditModel() override = default;
   MockOmniboxEditModel(const MockOmniboxEditModel&) = delete;
@@ -62,12 +59,13 @@ class ZeroSuggestPrefetchHelperTest : public PlatformTest {
     PlatformTest::SetUp();
     web_state_list_ = std::make_unique<WebStateList>(&web_state_list_delegate_);
 
-    edit_model_delegate_ = std::make_unique<TestOmniboxEditModelDelegate>();
-    view_ = std::make_unique<TestOmniboxView>(edit_model_delegate_.get());
+    auto omnibox_client = std::make_unique<TestOmniboxClient>();
+    EXPECT_CALL(*omnibox_client, GetLocationBarModel())
+        .WillRepeatedly(Return(&location_bar_model_));
 
-    model_ = std::make_unique<MockOmniboxEditModel>(
-        view_.get(), edit_model_delegate_.get(),
-        std::make_unique<TestOmniboxClient>());
+    view_ = std::make_unique<TestOmniboxView>(std::move(omnibox_client));
+    model_ = std::make_unique<MockOmniboxEditModel>(view_->controller(),
+                                                    view_.get());
   }
 
   void CreateHelper() {
@@ -81,7 +79,7 @@ class ZeroSuggestPrefetchHelperTest : public PlatformTest {
   FakeWebStateListDelegate web_state_list_delegate_;
   std::unique_ptr<WebStateList> web_state_list_;
 
-  std::unique_ptr<TestOmniboxEditModelDelegate> edit_model_delegate_;
+  TestLocationBarModel location_bar_model_;
   std::unique_ptr<TestOmniboxView> view_;
   std::unique_ptr<MockOmniboxEditModel> model_;
 

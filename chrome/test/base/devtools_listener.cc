@@ -35,8 +35,8 @@ base::StringPiece SpanToStringPiece(const base::span<const uint8_t>& s) {
 
 std::string EncodeURIComponent(const std::string& component) {
   url::RawCanonOutputT<char> encoded;
-  url::EncodeURIComponent(component.c_str(), component.size(), &encoded);
-  return {encoded.data(), static_cast<size_t>(encoded.length())};
+  url::EncodeURIComponent(component, &encoded);
+  return std::string(encoded.view());
 }
 
 }  // namespace
@@ -221,7 +221,7 @@ void DevToolsListener::VerifyAllScriptsAreParsedRepeatedly(
   // pause in between verification attempts.
   bool missing_script = false;
   for (const auto& entry : *coverage_entries) {
-    const std::string* id = entry.FindStringPath("scriptId");
+    const std::string* id = entry.GetDict().FindString("scriptId");
     CHECK(id) << "Can't extract scriptId: " << entry;
     if (!script_ids.contains(*id)) {
       missing_script = true;

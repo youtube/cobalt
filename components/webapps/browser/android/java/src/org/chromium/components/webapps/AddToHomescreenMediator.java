@@ -10,9 +10,10 @@ import android.util.Pair;
 import androidx.annotation.NonNull;
 import androidx.annotation.StringRes;
 
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.modelutil.PropertyModel;
@@ -45,10 +46,9 @@ class AddToHomescreenMediator implements AddToHomescreenViewDelegate {
     }
 
     @CalledByNative
-    void setIcon(Bitmap icon, boolean isAdaptive, boolean needToAddPadding) {
+    void setIcon(Bitmap icon, boolean isAdaptive) {
         Bitmap iconToShow = icon;
-        if (needToAddPadding) {
-            assert isAdaptive;
+        if (isAdaptive) {
             iconToShow = WebappsIconUtils.createHomeScreenIconFromWebIcon(icon, true /*maskable*/);
         }
 

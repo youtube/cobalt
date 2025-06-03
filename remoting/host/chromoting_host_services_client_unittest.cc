@@ -43,7 +43,7 @@ class ChromotingHostServicesClientTest : public testing::Test,
   void SetRemoteDisconnectCallback(base::OnceClosure callback);
 
   base::test::TaskEnvironment task_environment_;
-  raw_ptr<base::Environment> environment_;
+  raw_ptr<base::Environment, DanglingUntriaged> environment_;
   bool is_server_started_ = true;
   std::unique_ptr<ChromotingHostServicesClient> client_;
   mojo::ReceiverSet<mojom::ChromotingHostServices> host_services_receivers_;
@@ -51,8 +51,7 @@ class ChromotingHostServicesClientTest : public testing::Test,
       session_services_receivers_;
 
  private:
-  mojo::PendingRemote<mojom::ChromotingHostServices> ConnectToServer(
-      mojo::IsolatedConnection& connection);
+  mojo::PendingRemote<mojom::ChromotingHostServices> ConnectToServer();
 
   // Used to block the thread until a session services bind request is received.
   std::unique_ptr<base::RunLoop> session_services_bound_run_loop_;
@@ -106,8 +105,7 @@ void ChromotingHostServicesClientTest::SetRemoteDisconnectCallback(
 }
 
 mojo::PendingRemote<mojom::ChromotingHostServices>
-ChromotingHostServicesClientTest::ConnectToServer(
-    mojo::IsolatedConnection& connection) {
+ChromotingHostServicesClientTest::ConnectToServer() {
   if (!is_server_started_) {
     return mojo::PendingRemote<mojom::ChromotingHostServices>();
   }

@@ -45,15 +45,17 @@
 #include "content/web_test/browser/fake_bluetooth_chooser_factory.h"
 #include "content/web_test/browser/fake_bluetooth_delegate.h"
 #include "content/web_test/browser/mojo_echo.h"
+#include "content/web_test/browser/mojo_optional_numerics_unittest.h"
 #include "content/web_test/browser/mojo_web_test_helper.h"
-#include "content/web_test/browser/web_test_attribution_manager.h"
 #include "content/web_test/browser/web_test_bluetooth_fake_adapter_setter_impl.h"
 #include "content/web_test/browser/web_test_browser_context.h"
 #include "content/web_test/browser/web_test_browser_main_parts.h"
 #include "content/web_test/browser/web_test_control_host.h"
 #include "content/web_test/browser/web_test_cookie_manager.h"
+#include "content/web_test/browser/web_test_fedcm_manager.h"
 #include "content/web_test/browser/web_test_origin_trial_throttle.h"
 #include "content/web_test/browser/web_test_permission_manager.h"
+#include "content/web_test/browser/web_test_sensor_provider_manager.h"
 #include "content/web_test/browser/web_test_storage_access_manager.h"
 #include "content/web_test/browser/web_test_tts_platform.h"
 #include "content/web_test/common/web_test_bluetooth_fake_adapter_setter.mojom.h"
@@ -83,9 +85,9 @@
 #include "storage/browser/quota/quota_settings.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_registry.h"
 #include "third_party/blink/public/common/web_preferences/web_preferences.h"
-#include "third_party/blink/public/mojom/conversions/attribution_reporting_automation.mojom.h"
 #include "ui/base/ui_base_switches.h"
 #include "url/origin.h"
+#include "url/url_constants.h"
 
 #if BUILDFLAG(IS_WIN)
 #include "base/strings/utf_string_conversions.h"
@@ -334,6 +336,12 @@ void WebTestContentBrowserClient::ExposeInterfacesToRenderer(
                          ui_task_runner);
   registry->AddInterface(base::BindRepeating(&MojoEcho::Bind), ui_task_runner);
   registry->AddInterface(
+      base::BindRepeating(&optional_numerics_unittest::Params::Bind),
+      ui_task_runner);
+  registry->AddInterface(
+      base::BindRepeating(&optional_numerics_unittest::ResponseParams::Bind),
+      ui_task_runner);
+  registry->AddInterface(
       base::BindRepeating(&WebTestBluetoothFakeAdapterSetterImpl::Create),
       ui_task_runner);
   registry->AddInterface(base::BindRepeating(&bluetooth::FakeBluetooth::Create),
@@ -365,6 +373,12 @@ void WebTestContentBrowserClient::ExposeInterfacesToRenderer(
       base::BindRepeating(&WebTestContentBrowserClient::BindWebTestControlHost,
                           base::Unretained(this),
                           render_process_host->GetID()));
+
+  registry->AddInterface(
+      base::BindRepeating(
+          &WebTestContentBrowserClient::BindNonAssociatedWebTestControlHost,
+          base::Unretained(this)),
+      ui_task_runner);
 }
 
 void WebTestContentBrowserClient::BindPermissionAutomation(
@@ -408,7 +422,7 @@ void WebTestContentBrowserClient::AppendExtraCommandLineSwitches(
   ShellContentBrowserClient::AppendExtraCommandLineSwitches(command_line,
                                                             child_process_id);
 
-  static const char* kForwardSwitches[] = {
+  static const char* const kForwardSwitches[] = {
       // Switches from web_test_switches.h that are used in the renderer.
       switches::kEnableAccelerated2DCanvas,
       switches::kEnableFontAntialiasing,
@@ -417,7 +431,7 @@ void WebTestContentBrowserClient::AppendExtraCommandLineSwitches(
   };
 
   command_line->CopySwitchesFrom(*base::CommandLine::ForCurrentProcess(),
-                                 kForwardSwitches, std::size(kForwardSwitches));
+                                 kForwardSwitches);
 }
 
 std::unique_ptr<BrowserMainParts>
@@ -469,18 +483,17 @@ WebTestContentBrowserClient::GetOriginsRequiringDedicatedProcess() {
 
     // The list of schemes below is based on
     // //third_party/blink/web_tests/external/wpt/config.json
-    const char* kOriginTemplates[] = {
-        "http://%s/",
-        "https://%s/",
+    const char* kSchemes[] = {
+        url::kHttpScheme,
+        url::kHttpsScheme,
     };
 
     origins_to_isolate.reserve(origins_to_isolate.size() +
-                               std::size(kWptHostnames) *
-                                   std::size(kOriginTemplates));
-    for (const char* kWptHostname : kWptHostnames) {
-      for (const char* kOriginTemplate : kOriginTemplates) {
-        std::string origin = base::StringPrintf(kOriginTemplate, kWptHostname);
-        origins_to_isolate.push_back(origin);
+                               std::size(kWptHostnames) * std::size(kSchemes));
+    for (const char* hostname : kWptHostnames) {
+      for (const char* scheme : kSchemes) {
+        origins_to_isolate.push_back(
+            base::StringPrintf("%s://%s/", scheme, hostname));
       }
     }
   }
@@ -537,10 +550,12 @@ void WebTestContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
   map->Add<blink::test::mojom::CookieManagerAutomation>(base::BindRepeating(
       &WebTestContentBrowserClient::BindCookieManagerAutomation,
       base::Unretained(this)));
-  map->Add<blink::test::mojom::AttributionReportingAutomation>(
-      base::BindRepeating(
-          &WebTestContentBrowserClient::BindAttributionReportingAutomation,
-          base::Unretained(this)));
+  map->Add<blink::test::mojom::FederatedAuthRequestAutomation>(
+      base::BindRepeating(&WebTestContentBrowserClient::BindFedCmAutomation,
+                          base::Unretained(this)));
+  map->Add<blink::test::mojom::WebSensorProviderAutomation>(base::BindRepeating(
+      &WebTestContentBrowserClient::BindWebSensorProviderAutomation,
+      base::Unretained(this)));
 #if BUILDFLAG(IS_COBALT)
   map->Add<h5vcc_runtime::mojom::H5vccRuntime>(base::BindRepeating(
       &WebTestContentBrowserClient::BindH5vccRuntime, base::Unretained(this)));
@@ -597,14 +612,23 @@ void WebTestContentBrowserClient::BindCookieManagerAutomation(
                        std::move(receiver));
 }
 
-void WebTestContentBrowserClient::BindAttributionReportingAutomation(
+void WebTestContentBrowserClient::BindFedCmAutomation(
     RenderFrameHost* render_frame_host,
-    mojo::PendingReceiver<blink::test::mojom::AttributionReportingAutomation>
+    mojo::PendingReceiver<blink::test::mojom::FederatedAuthRequestAutomation>
         receiver) {
-  attribution_reporting_receivers_.Add(
-      std::make_unique<WebTestAttributionManager>(
-          *GetWebTestBrowserContext()->GetDefaultStoragePartition()),
-      std::move(receiver));
+  fedcm_managers_.Add(std::make_unique<WebTestFedCmManager>(render_frame_host),
+                      std::move(receiver));
+}
+
+void WebTestContentBrowserClient::BindWebSensorProviderAutomation(
+    RenderFrameHost* render_frame_host,
+    mojo::PendingReceiver<blink::test::mojom::WebSensorProviderAutomation>
+        receiver) {
+  if (!sensor_provider_manager_) {
+    sensor_provider_manager_ = std::make_unique<WebTestSensorProviderManager>(
+        WebContents::FromRenderFrameHost(render_frame_host));
+  }
+  sensor_provider_manager_->Bind(std::move(receiver));
 }
 
 #if BUILDFLAG(IS_COBALT)
@@ -673,6 +697,14 @@ void WebTestContentBrowserClient::BindWebTestControlHost(
         render_process_id, std::move(receiver));
 }
 
+void WebTestContentBrowserClient::BindNonAssociatedWebTestControlHost(
+    mojo::PendingReceiver<mojom::NonAssociatedWebTestControlHost> receiver) {
+  if (WebTestControlHost::Get()) {
+    WebTestControlHost::Get()->BindNonAssociatedWebTestControlHost(
+        std::move(receiver));
+  }
+}
+
 #if BUILDFLAG(IS_WIN)
 bool WebTestContentBrowserClient::PreSpawnChild(
     sandbox::TargetConfig* config,
@@ -692,6 +724,14 @@ bool WebTestContentBrowserClient::IsInterestGroupAPIAllowed(
     InterestGroupApiOperation operation,
     const url::Origin& top_frame_origin,
     const url::Origin& api_origin) {
+  return true;
+}
+
+bool WebTestContentBrowserClient::IsPrivacySandboxReportingDestinationAttested(
+    content::BrowserContext* browser_context,
+    const url::Origin& destination_origin,
+    content::PrivacySandboxInvokingAPI invoking_api,
+    bool post_impression_reporting) {
   return true;
 }
 

@@ -28,7 +28,7 @@
 #include "components/error_page/common/error_page_switches.h"
 #include "components/error_page/common/net_error_info.h"
 #include "components/offline_pages/core/offline_page_feature.h"
-#include "components/strings/grit/components_chromium_strings.h"
+#include "components/strings/grit/components_branded_strings.h"
 #include "components/strings/grit/components_strings.h"
 #include "components/url_formatter/url_formatter.h"
 #include "net/base/net_errors.h"
@@ -306,7 +306,7 @@ const LocalizedErrorMap net_error_options[] = {
   {net::ERR_BLOCKED_BY_ADMINISTRATOR,
    IDS_ERRORPAGES_HEADING_BLOCKED,
    IDS_ERRORPAGES_SUMMARY_BLOCKED_BY_ADMINISTRATOR,
-   SUGGEST_CONTACT_ADMINISTRATOR,
+   SUGGEST_NONE,
    SHOW_NO_BUTTONS,
   },
   {net::ERR_SSL_VERSION_OR_CIPHER_MISMATCH,
@@ -528,7 +528,8 @@ const char* GetIconClassForError(const std::string& error_domain,
                                  int error_code) {
   return LocalizedError::IsOfflineError(error_domain, error_code)
              ? "icon-offline"
-             : "icon-generic";
+         : error_code == net::ERR_BLOCKED_BY_ADMINISTRATOR ? "icon-info"
+                                                           : "icon-generic";
 }
 
 base::Value::Dict SingleEntryDictionary(base::StringPiece path,
@@ -555,7 +556,7 @@ void AddLinkedSuggestionToList(const int error_code,
     case net::ERR_TOO_MANY_REDIRECTS:
       learn_more_url = GURL(kRedirectLoopLearnMoreUrl);
       suggestion_string = l10n_util::GetStringUTF16(
-          IDS_ERRORPAGES_SUGGESTION_CLEAR_COOKIES_SUMMARY);
+          IDS_ERRORPAGES_SUGGESTION_DELETE_COOKIES_SUMMARY);
       break;
     default:
       NOTREACHED();
@@ -1036,7 +1037,9 @@ LocalizedError::PageState LocalizedError::GetPageState(
   std::u16string error_string;
   if (error_domain == Error::kNetErrorDomain) {
     // Non-internationalized error string, for debugging Chrome itself.
-    error_string = base::ASCIIToUTF16(net::ErrorToShortString(error_code));
+    if (error_code != net::ERR_BLOCKED_BY_ADMINISTRATOR) {
+      error_string = base::ASCIIToUTF16(net::ErrorToShortString(error_code));
+    }
   } else if (error_domain == Error::kDnsProbeErrorDomain) {
     std::string ascii_error_string =
         error_page::DnsProbeStatusToString(error_code);

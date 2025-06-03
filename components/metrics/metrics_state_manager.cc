@@ -22,6 +22,7 @@
 #include "base/memory/raw_ref.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/metrics/statistics_recorder.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/rand_util.h"
 #include "base/strings/string_number_conversions.h"
@@ -178,16 +179,14 @@ class MetricsStateMetricsProvider : public MetricsProvider {
     if (metrics_ids_were_reset_) {
       LogClonedInstall();
       if (!previous_client_id_.empty()) {
+        // NOTE: If you are adding anything here, consider also changing
+        // FileMetricsProvider::ProvideIndependentMetricsOnTaskRunner().
+
         // If we know the previous client id, overwrite the client id for the
         // previous session log so the log contains the client id at the time
         // of the previous session. This allows better attribution of crashes
         // to earlier behavior. If the previous client id is unknown, leave
         // the current client id.
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-        metrics::structured::NeutrinoDevicesLogWithClientId(
-            previous_client_id_, metrics::structured::NeutrinoDevicesLocation::
-                                     kProvidePreviousSessionData);
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
         uma_proto->set_client_id(MetricsLog::Hash(previous_client_id_));
       }
     }
@@ -195,9 +194,15 @@ class MetricsStateMetricsProvider : public MetricsProvider {
 
   void ProvideCurrentSessionData(
       ChromeUserMetricsExtension* uma_proto) override {
-    if (cloned_install_detector_->ClonedInstallDetectedInCurrentSession())
+    if (cloned_install_detector_->ClonedInstallDetectedInCurrentSession()) {
       LogClonedInstall();
+    }
     log_normal_metric_state_.LogArtificialNonUniformity();
+#ifdef ARCH_CPU_64_BITS
+    base::UmaHistogramMediumTimes(
+        "UMA.StatisticsRecorder.LockWaitTime",
+        base::StatisticsRecorder::GetAndClearTotalWaitTime());
+#endif  // ARCH_CPU_64_BITS
   }
 
   // Set a random seed for the random number generator.
@@ -268,11 +273,6 @@ MetricsStateManager::MetricsStateManager(
   }
 
   if (enabled_state_provider_->IsConsentGiven()) {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-    metrics::structured::NeutrinoDevicesLogWithClientId(
-        client_id_,
-        metrics::structured::NeutrinoDevicesLocation::kMetricsStateManager);
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
     ForceClientIdCreation();
   } else {
 #if BUILDFLAG(IS_ANDROID)
@@ -342,6 +342,14 @@ bool MetricsStateManager::IsExtendedSafeModeSupported() const {
 
 int MetricsStateManager::GetLowEntropySource() {
   return entropy_state_.GetLowEntropySource();
+}
+
+int MetricsStateManager::GetOldLowEntropySource() {
+  return entropy_state_.GetOldLowEntropySource();
+}
+
+int MetricsStateManager::GetPseudoLowEntropySource() {
+  return entropy_state_.GetPseudoLowEntropySource();
 }
 
 void MetricsStateManager::InstantiateFieldTrialList() {
@@ -437,11 +445,6 @@ void MetricsStateManager::ForceClientIdCreation() {
   if (!client_id_.empty()) {
     base::UmaHistogramEnumeration("UMA.ClientIdSource",
                                   ClientIdSource::kClientIdFromLocalState);
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-    LogClientIdChanged(
-        metrics::structured::NeutrinoDevicesLocation::kClientIdFromLocalState,
-        previous_client_id);
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
     return;
   }
 
@@ -474,11 +477,6 @@ void MetricsStateManager::ForceClientIdCreation() {
                                   ClientIdSource::kClientIdBackupRecovered);
     base::UmaHistogramCounts10000("UMA.ClientIdBackupRecoveredWithAge",
                                   recovered_installation_age.InHours());
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-    LogClientIdChanged(
-        metrics::structured::NeutrinoDevicesLocation::kClientIdBackupRecovered,
-        previous_client_id);
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
     // Flush the backup back to persistent storage in case we re-generated
     // missing data above.
@@ -496,21 +494,11 @@ void MetricsStateManager::ForceClientIdCreation() {
     client_id_ = base::Uuid::GenerateRandomV4().AsLowercaseString();
     base::UmaHistogramEnumeration("UMA.ClientIdSource",
                                   ClientIdSource::kClientIdNew);
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-    LogClientIdChanged(
-        metrics::structured::NeutrinoDevicesLocation::kClientIdNew,
-        previous_client_id);
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
   } else {
     client_id_ = provisional_client_id;
     local_state_->ClearPref(prefs::kMetricsProvisionalClientID);
     base::UmaHistogramEnumeration("UMA.ClientIdSource",
                                   ClientIdSource::kClientIdFromProvisionalId);
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-    LogClientIdChanged(metrics::structured::NeutrinoDevicesLocation::
-                           kClientIdFromProvisionalId,
-                       previous_client_id);
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
   }
   local_state_->SetString(prefs::kMetricsClientID, client_id_);
 
@@ -634,10 +622,6 @@ std::string MetricsStateManager::GetHighEntropySource() {
   return entropy_state_.GetHighEntropySource(initial_client_id_);
 }
 
-int MetricsStateManager::GetOldLowEntropySource() {
-  return entropy_state_.GetOldLowEntropySource();
-}
-
 void MetricsStateManager::UpdateEntropySourceReturnedValue(
     EntropySourceType type) {
   if (entropy_source_returned_ != ENTROPY_SOURCE_NONE)
@@ -717,15 +701,5 @@ bool MetricsStateManager::ShouldGenerateProvisionalClientId(bool is_first_run) {
   return true;
 #endif  // BUILDFLAG(IS_WIN)
 }
-
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-void MetricsStateManager::LogClientIdChanged(
-    metrics::structured::NeutrinoDevicesLocation location,
-    std::string previous_client_id) {
-  metrics::structured::NeutrinoDevicesLogClientIdChanged(
-      client_id_, previous_client_id, ReadInstallDate(local_state_),
-      ReadEnabledDate(local_state_), location);
-}
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
 }  // namespace metrics

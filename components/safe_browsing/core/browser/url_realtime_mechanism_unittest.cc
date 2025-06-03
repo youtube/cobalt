@@ -39,7 +39,8 @@ class MockRealTimeUrlLookupService : public RealTimeUrlLookupServiceBase {
             /*get_user_population_callback=*/base::BindRepeating([]() {
               return ChromeUserPopulation();
             }),
-            /*referrer_chain_provider=*/nullptr) {}
+            /*referrer_chain_provider=*/nullptr,
+            /*pref_service=*/nullptr) {}
   // Returns the threat type previously set by |SetThreatTypeForUrl|. It crashes
   // if the threat type for the |gurl| is not set in advance.
   void StartLookup(
@@ -172,11 +173,12 @@ class MockSafeBrowsingDatabaseManager : public TestSafeBrowsingDatabaseManager {
   // SafeBrowsingDatabaseManager implementation.
   // Checks the threat type of |gurl| previously set by |SetThreatTypeForUrl|.
   // It crashes if the threat type of |gurl| is not set in advance.
-  bool CheckBrowseUrl(const GURL& gurl,
-                      const safe_browsing::SBThreatTypeSet& threat_types,
-                      Client* client,
-                      MechanismExperimentHashDatabaseCache
-                          experiment_cache_selection) override {
+  bool CheckBrowseUrl(
+      const GURL& gurl,
+      const safe_browsing::SBThreatTypeSet& threat_types,
+      Client* client,
+      MechanismExperimentHashDatabaseCache experiment_cache_selection,
+      CheckBrowseUrlType check_type) override {
     std::string url = gurl.spec();
     DCHECK(base::Contains(urls_threat_type_, url));
     DCHECK(base::Contains(urls_delayed_callback_, url));
@@ -205,19 +207,27 @@ class MockSafeBrowsingDatabaseManager : public TestSafeBrowsingDatabaseManager {
 
   bool ChecksAreAlwaysAsync() const override { return false; }
 
-  ThreatSource GetThreatSource() const override {
+  ThreatSource GetBrowseUrlThreatSource(
+      CheckBrowseUrlType check_type) const override {
+    return ThreatSource::UNKNOWN;
+  }
+
+  ThreatSource GetNonBrowseUrlThreatSource() const override {
     return ThreatSource::UNKNOWN;
   }
 
   // Returns the allowlist match result previously set by
   // |SetAllowlistResultForUrl|. It crashes if the allowlist match result for
   // the |gurl| is not set in advance.
-  bool CheckUrlForHighConfidenceAllowlist(
+  void CheckUrlForHighConfidenceAllowlist(
       const GURL& gurl,
-      const std::string& metric_variation) override {
+      const std::string& metric_variation,
+      base::OnceCallback<void(bool)> callback) override {
     std::string url = gurl.spec();
     DCHECK(base::Contains(urls_allowlist_match_, url));
-    return urls_allowlist_match_[url];
+    sb_task_runner()->PostTask(
+        FROM_HERE,
+        base::BindOnce(std::move(callback), urls_allowlist_match_[url]));
   }
 
   // Helper functions.
@@ -315,11 +325,14 @@ class UrlRealTimeMechanismTest : public PlatformTest {
   std::unique_ptr<MockRealTimeUrlLookupService> url_lookup_service_;
 };
 
-MATCHER_P2(Matches,
+MATCHER_P3(Matches,
+           matched_high_confidence_allowlist,
            locally_cached_results_threat_type,
            real_time_request_failed,
            "") {
-  return arg->locally_cached_results_threat_type ==
+  return arg->matched_high_confidence_allowlist ==
+             matched_high_confidence_allowlist &&
+         arg->locally_cached_results_threat_type ==
              locally_cached_results_threat_type &&
          arg->real_time_request_failed == real_time_request_failed;
 }
@@ -332,11 +345,11 @@ TEST_F(UrlRealTimeMechanismTest, CheckUrl_UrlRealTime_AllowlistMatchSafe) {
   database_manager_->SetAllowlistResultForUrl(url, true);
   base::MockCallback<SafeBrowsingLookupMechanism::CompleteCheckResultCallback>
       callback;
-  auto result = mechanism->StartCheck(callback.Get());
-  EXPECT_EQ(result.matched_high_confidence_allowlist, true);
+  mechanism->StartCheck(callback.Get());
 
   EXPECT_CALL(callback,
-              Run(Matches(/*locally_cached_results_threat_type=*/absl::nullopt,
+              Run(Matches(/*matched_high_confidence_allowlist=*/true,
+                          /*locally_cached_results_threat_type=*/absl::nullopt,
                           /*real_time_request_failed=*/false)))
       .Times(1);
   task_environment_.RunUntilIdle();
@@ -350,11 +363,11 @@ TEST_F(UrlRealTimeMechanismTest, CheckUrl_UrlRealTime_AllowlistMatchUnsafe) {
   database_manager_->SetAllowlistResultForUrl(url, true);
   base::MockCallback<SafeBrowsingLookupMechanism::CompleteCheckResultCallback>
       callback;
-  auto result = mechanism->StartCheck(callback.Get());
-  EXPECT_EQ(result.matched_high_confidence_allowlist, true);
+  mechanism->StartCheck(callback.Get());
 
   EXPECT_CALL(callback,
-              Run(Matches(/*locally_cached_results_threat_type=*/absl::nullopt,
+              Run(Matches(/*matched_high_confidence_allowlist=*/true,
+                          /*locally_cached_results_threat_type=*/absl::nullopt,
                           /*real_time_request_failed=*/false)))
       .Times(1);
   task_environment_.RunUntilIdle();
@@ -368,11 +381,11 @@ TEST_F(UrlRealTimeMechanismTest, CheckUrl_UrlRealTime_UnsafeLookup) {
   database_manager_->SetAllowlistResultForUrl(url, false);
   base::MockCallback<SafeBrowsingLookupMechanism::CompleteCheckResultCallback>
       callback;
-  auto result = mechanism->StartCheck(callback.Get());
-  EXPECT_EQ(result.matched_high_confidence_allowlist, false);
+  mechanism->StartCheck(callback.Get());
 
   EXPECT_CALL(callback,
               Run(Matches(
+                  /*matched_high_confidence_allowlist=*/false,
                   /*locally_cached_results_threat_type=*/SB_THREAT_TYPE_SAFE,
                   /*real_time_request_failed=*/false)))
       .Times(1);
@@ -391,12 +404,12 @@ TEST_F(UrlRealTimeMechanismTest, CheckUrl_UrlRealTime_UnsafeFromCache) {
 
   base::MockCallback<SafeBrowsingLookupMechanism::CompleteCheckResultCallback>
       callback;
-  auto result = mechanism->StartCheck(callback.Get());
-  EXPECT_EQ(result.matched_high_confidence_allowlist, false);
+  mechanism->StartCheck(callback.Get());
 
   EXPECT_CALL(
       callback,
       Run(Matches(
+          /*matched_high_confidence_allowlist=*/false,
           /*locally_cached_results_threat_type=*/SB_THREAT_TYPE_URL_MALWARE,
           /*real_time_request_failed=*/false)))
       .Times(1);
@@ -415,11 +428,11 @@ TEST_F(UrlRealTimeMechanismTest, CheckUrl_UrlRealTime_SafeFromCache) {
 
   base::MockCallback<SafeBrowsingLookupMechanism::CompleteCheckResultCallback>
       callback;
-  auto result = mechanism->StartCheck(callback.Get());
-  EXPECT_EQ(result.matched_high_confidence_allowlist, false);
+  mechanism->StartCheck(callback.Get());
 
   EXPECT_CALL(callback,
               Run(Matches(
+                  /*matched_high_confidence_allowlist=*/false,
                   /*locally_cached_results_threat_type=*/SB_THREAT_TYPE_SAFE,
                   /*real_time_request_failed=*/false)))
       .Times(1);
@@ -439,11 +452,11 @@ TEST_F(UrlRealTimeMechanismTest,
 
   base::MockCallback<SafeBrowsingLookupMechanism::CompleteCheckResultCallback>
       callback;
-  auto result = mechanism->StartCheck(callback.Get());
-  EXPECT_EQ(result.matched_high_confidence_allowlist, false);
+  mechanism->StartCheck(callback.Get());
 
   EXPECT_CALL(callback,
               Run(Matches(
+                  /*matched_high_confidence_allowlist=*/false,
                   /*locally_cached_results_threat_type=*/SB_THREAT_TYPE_SAFE,
                   /*real_time_request_failed=*/false)))
       .Times(1);
@@ -459,11 +472,11 @@ TEST_F(UrlRealTimeMechanismTest, CheckUrl_UrlRealTime_MissingService) {
   database_manager_->SetAllowlistResultForUrl(url, false);
   base::MockCallback<SafeBrowsingLookupMechanism::CompleteCheckResultCallback>
       callback;
-  auto result = mechanism->StartCheck(callback.Get());
-  EXPECT_EQ(result.matched_high_confidence_allowlist, false);
+  mechanism->StartCheck(callback.Get());
 
   EXPECT_CALL(callback,
-              Run(Matches(/*locally_cached_results_threat_type=*/absl::nullopt,
+              Run(Matches(/*matched_high_confidence_allowlist=*/false,
+                          /*locally_cached_results_threat_type=*/absl::nullopt,
                           /*real_time_request_failed=*/true)))
       .Times(1);
   task_environment_.RunUntilIdle();
@@ -480,11 +493,11 @@ TEST_F(UrlRealTimeMechanismTest, CheckUrl_UrlRealTime_UnsuccessfulLookup) {
   database_manager_->SetAllowlistResultForUrl(url, false);
   base::MockCallback<SafeBrowsingLookupMechanism::CompleteCheckResultCallback>
       callback;
-  auto result = mechanism->StartCheck(callback.Get());
-  EXPECT_EQ(result.matched_high_confidence_allowlist, false);
+  mechanism->StartCheck(callback.Get());
 
   EXPECT_CALL(callback,
-              Run(Matches(/*locally_cached_results_threat_type=*/absl::nullopt,
+              Run(Matches(/*matched_high_confidence_allowlist=*/false,
+                          /*locally_cached_results_threat_type=*/absl::nullopt,
                           /*real_time_request_failed=*/true)))
       .Times(1);
   task_environment_.RunUntilIdle();

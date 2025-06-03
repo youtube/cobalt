@@ -52,10 +52,14 @@ NavigationEntry* GetPossiblyPendingEntryAtIndex(
 
 }  // namespace
 
-TabContentsSyncedTabDelegate::TabContentsSyncedTabDelegate()
-    : web_contents_(nullptr) {}
-
-TabContentsSyncedTabDelegate::~TabContentsSyncedTabDelegate() = default;
+base::Time TabContentsSyncedTabDelegate::GetLastActiveTime() const {
+  // Use the TimeDelta common ground between the two units to make the
+  // conversion.
+  const base::TimeDelta delta_since_epoch =
+      web_contents_->GetLastActiveTime() - base::TimeTicks::UnixEpoch();
+  const base::Time converted_time = base::Time::UnixEpoch() + delta_since_epoch;
+  return converted_time;
+}
 
 bool TabContentsSyncedTabDelegate::IsBeingDestroyed() const {
   return web_contents_->IsBeingDestroyed();
@@ -121,6 +125,15 @@ TabContentsSyncedTabDelegate::GetBlockedNavigations() const {
 #if BUILDFLAG(ENABLE_SUPERVISED_USERS)
   SupervisedUserNavigationObserver* navigation_observer =
       SupervisedUserNavigationObserver::FromWebContents(web_contents_);
+#if BUILDFLAG(IS_ANDROID)
+  // TabHelpers::AttachTabHelpers() will not be called for a placeholder tab's
+  // WebContents that is temporarily created from a serialized state in
+  // SyncedTabDelegateAndroid::CreatePlaceholderTabSyncedTabDelegate(). When
+  // this occurs, early-out and return a nullptr.
+  if (!navigation_observer) {
+    return nullptr;
+  }
+#endif  // BUILDFLAG(IS_ANDROID)
   DCHECK(navigation_observer);
 
   return &navigation_observer->blocked_navigations();
@@ -137,8 +150,17 @@ bool TabContentsSyncedTabDelegate::ShouldSync(
     return false;
   }
 
-  if (ProfileHasChildAccount() && !GetBlockedNavigations()->empty()) {
-    return true;
+  if (ProfileHasChildAccount()) {
+#if BUILDFLAG(IS_ANDROID)
+    auto* blocked_navigations = GetBlockedNavigations();
+    if (blocked_navigations && !blocked_navigations->empty()) {
+      return true;
+    }
+#else
+    if (!GetBlockedNavigations()->empty()) {
+      return true;
+    }
+#endif  // BUILDFLAG(IS_ANDROID)
   }
 
   if (IsInitialBlankNavigation()) {

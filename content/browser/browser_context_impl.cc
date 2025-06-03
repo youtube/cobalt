@@ -18,6 +18,7 @@
 #include "content/browser/renderer_host/navigation_transitions/navigation_entry_screenshot_cache.h"
 #include "content/browser/renderer_host/navigation_transitions/navigation_entry_screenshot_manager.h"
 #include "content/browser/speech/tts_controller_impl.h"
+#include "content/browser/storage_partition_impl.h"
 #include "content/browser/storage_partition_impl_map.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/browser_thread.h"
@@ -37,15 +38,9 @@ namespace content {
 
 namespace {
 
-void ShutdownServiceWorkerContext(StoragePartition* partition) {
-  ServiceWorkerContextWrapper* wrapper =
-      static_cast<ServiceWorkerContextWrapper*>(
-          partition->GetServiceWorkerContext());
-  wrapper->process_manager()->Shutdown();
-}
-
-void ShutdownSharedWorkerContext(StoragePartition* partition) {
-  partition->GetSharedWorkerService()->Shutdown();
+void NotifyContextWillBeDestroyed(StoragePartition* partition) {
+  static_cast<StoragePartitionImpl*>(partition)
+      ->OnBrowserContextWillBeDestroyed();
 }
 
 void RegisterMediaLearningTask(
@@ -132,13 +127,8 @@ void BrowserContextImpl::NotifyWillBeDestroyed() {
     return;
   will_be_destroyed_soon_ = true;
 
-  // Shut down service worker and shared worker machinery because these can keep
-  // RenderProcessHosts and SiteInstances alive, and the codebase assumes these
-  // are destroyed before the BrowserContext is destroyed.
   self_->ForEachLoadedStoragePartition(
-      base::BindRepeating(ShutdownServiceWorkerContext));
-  self_->ForEachLoadedStoragePartition(
-      base::BindRepeating(ShutdownSharedWorkerContext));
+      base::BindRepeating(NotifyContextWillBeDestroyed));
 
   // Also forcibly release keep alive refcounts on RenderProcessHosts, to ensure
   // they destruct before the BrowserContext does.
@@ -295,8 +285,9 @@ storage::ExternalMountPoints* BrowserContextImpl::GetMountPoints() {
 }
 
 PrefetchService* BrowserContextImpl::GetPrefetchService() {
-  if (!prefetch_service_)
-    prefetch_service_ = PrefetchService::CreateIfPossible(self_);
+  if (!prefetch_service_) {
+    prefetch_service_ = std::make_unique<PrefetchService>(self_);
+  }
 
   return prefetch_service_.get();
 }

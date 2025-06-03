@@ -11,6 +11,7 @@
 #include <memory>
 #include <utility>
 
+#include "base/memory/raw_ptr.h"
 #include "components/autofill/content/common/mojom/autofill_agent.mojom.h"
 #include "components/autofill/content/common/mojom/autofill_driver.mojom.h"
 #include "components/autofill/content/renderer/renderer_save_password_progress_logger.h"
@@ -69,7 +70,7 @@ class PasswordGenerationAgent : public content::RenderFrameObserver,
   bool TextDidChangeInTextField(const blink::WebInputElement& element);
 
   // Returns true if the newly focused node caused the generation UI to show.
-  bool FocusedNodeHasChanged(const blink::WebNode& node);
+  bool ShowPasswordGenerationSuggestions(const blink::WebInputElement& element);
 
   // Event forwarded by AutofillAgent from WebAutofillClient, informing that
   // the text field editing has ended, which means that the field is not
@@ -166,11 +167,6 @@ class PasswordGenerationAgent : public content::RenderFrameObserver,
   // can be either automatic or manual password generation.
   std::unique_ptr<GenerationItemInfo> current_generation_item_;
 
-  // Password element that had focus last. Since Javascript could change focused
-  // element after the user triggered a generation request, it is better to save
-  // the last focused password element.
-  blink::WebInputElement last_focused_password_element_;
-
   // Contains correspondence between generation enabled element and data for
   // generation.
   std::map<FieldRendererId, PasswordFormGenerationData>
@@ -182,7 +178,7 @@ class PasswordGenerationAgent : public content::RenderFrameObserver,
 
   // Unowned pointer. Used to notify PassowrdAutofillAgent when values
   // in password fields are updated.
-  PasswordAutofillAgent* password_agent_;
+  raw_ptr<PasswordAutofillAgent, DanglingUntriaged> password_agent_;
 
   mojo::AssociatedRemote<mojom::PasswordGenerationDriver>
       password_generation_client_;

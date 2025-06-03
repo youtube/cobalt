@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 import {assert, assertNotReached} from '../../assert.js';
-import {ClearableAsyncJobQueue} from '../../async_job_queue.js';
+import {AsyncJobQueue} from '../../async_job_queue.js';
 import * as Comlink from '../../lib/comlink.js';
 import runFFmpeg from '../../lib/ffmpeg.js';
 import {WaitableEvent} from '../../waitable_event.js';
@@ -294,7 +294,7 @@ class FFMpegVideoProcessor {
 
   private readonly outputDevice: OutputDevice;
 
-  private readonly jobQueue = new ClearableAsyncJobQueue();
+  private readonly jobQueue = new AsyncJobQueue();
 
   /**
    * @param output The output writer.
@@ -330,12 +330,22 @@ class FFMpegVideoProcessor {
       arguments: args,
       locateFile: (file: string) => {
         assert(file === 'ffmpeg.wasm');
-        return '/js/lib/ffmpeg.wasm';
+        // util.expandPath can't be used here since util includes
+        // load_time_data, which includes file under chrome://, but this file
+        // is in chrome-untrusted://.
+        // TODO(pihsun): Separate util into multiple files so we can include
+        // expandPath here.
+        // TODO(b/213408699): Separate files included in different scope
+        // (chrome://, chrome-untrusted://, worker) into different folder /
+        // tsconfig.json, so this can be caught at compile time.
+        return '../../../js/lib/ffmpeg.wasm';
       },
       noFSInit: true,  // It would be setup in preRun().
-      preRun: () => {
+      preRun: [() => {
         // The FS property are injected by emscripten at runtime.
-        // eslint-disable-next-line @typescript-eslint/naming-convention
+        /* eslint-disable-next-line
+             @typescript-eslint/naming-convention,
+             @typescript-eslint/consistent-type-assertions */
         const fs = (config as unknown as {FS: FS}).FS;
         assert(fs !== null);
         // 80 is just a random major number that won't collide with other
@@ -358,7 +368,7 @@ class FFMpegVideoProcessor {
         assert(stdin.fd === 0);
         assert(stdout.fd === 1);
         assert(stderr.fd === 2);
-      },
+      }],
       waitReadable: (callback: ReadableCallback) => {
         this.inputDevice.setReadableCallback(callback);
       },
@@ -371,7 +381,7 @@ class FFMpegVideoProcessor {
         // be called when the runtime is initialized. Note that because the
         // then() function will return the object itself again, using await here
         // would cause an infinite loop.
-        runFFmpeg(config).then(() => resolve());
+        void runFFmpeg(config).then(() => resolve());
       });
     }
     this.jobQueue.push(initFFmpeg);
@@ -380,7 +390,7 @@ class FFMpegVideoProcessor {
   /**
    * Writes a blob with mkv data into the processor.
    */
-  async write(blob: Blob): Promise<void> {
+  write(blob: Blob): void {
     this.jobQueue.push(async () => {
       const buf = await blob.arrayBuffer();
       this.inputDevice.push(new Int8Array(buf));
@@ -394,7 +404,7 @@ class FFMpegVideoProcessor {
    */
   async close(): Promise<void> {
     // Flush and close the input device.
-    this.jobQueue.push(async () => {
+    this.jobQueue.push(() => {
       this.inputDevice.endPush();
     });
     await this.jobQueue.flush();
@@ -413,7 +423,7 @@ class FFMpegVideoProcessor {
   async cancel(): Promise<void> {
     // Clear and make sure there is no pending task.
     await this.jobQueue.clear();
-    this.jobQueue.push(async () => {
+    this.jobQueue.push(() => {
       this.inputDevice.cancel();
       // When input device is cancelled, for some reason calling
       // emscripten_force_exit() will not close the corresponding file

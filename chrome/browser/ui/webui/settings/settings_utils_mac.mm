@@ -6,11 +6,11 @@
 
 #include "chrome/browser/ui/webui/settings/settings_utils.h"
 
+#include "base/apple/foundation_util.h"
+#include "base/apple/osstatus_logging.h"
 #include "base/functional/callback_helpers.h"
 #include "base/logging.h"
-#include "base/mac/foundation_util.h"
 #include "base/mac/launch_application.h"
-#include "base/mac/mac_logging.h"
 #include "base/mac/mac_util.h"
 #include "base/strings/sys_string_conversions.h"
 #include "chrome/common/pref_names.h"
@@ -25,10 +25,10 @@ void ValidateFontFamily(PrefService* prefs, const char* family_pref_name) {
   // the webui settings window, we will fix the saved preference if necessary.
   NSString* family_name =
       base::SysUTF8ToNSString(prefs->GetString(family_pref_name));
-  NSFont* font = [NSFont fontWithName:family_name size:[NSFont systemFontSize]];
+  NSFont* font = [NSFont fontWithName:family_name size:NSFont.systemFontSize];
   if (font &&
-      [[font familyName] caseInsensitiveCompare:family_name] != NSOrderedSame) {
-    std::string new_family_name = base::SysNSStringToUTF8([font familyName]);
+      [font.familyName caseInsensitiveCompare:family_name] != NSOrderedSame) {
+    std::string new_family_name = base::SysNSStringToUTF8(font.familyName);
     prefs->SetString(family_pref_name, new_family_name);
   }
 }
@@ -44,7 +44,7 @@ void ShowNetworkProxySettings(content::WebContents* web_contents) {
 void ShowManageSSLCertificates(content::WebContents* web_contents) {
   NSURL* keychain_app = [NSWorkspace.sharedWorkspace
       URLForApplicationWithBundleIdentifier:@"com.apple.keychainaccess"];
-  base::mac::LaunchApplication(base::mac::NSURLToFilePath(keychain_app),
+  base::mac::LaunchApplication(base::apple::NSURLToFilePath(keychain_app),
                                /*command_line_args=*/{}, /*url_specs=*/{},
                                /*options=*/{}, base::DoNothing());
 }

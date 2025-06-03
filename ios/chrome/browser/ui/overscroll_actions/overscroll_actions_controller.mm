@@ -15,21 +15,18 @@
 #import "base/metrics/user_metrics_action.h"
 #import "base/notreached.h"
 #import "base/time/time.h"
+#import "build/blink_buildflags.h"
 #import "ios/chrome/browser/shared/ui/util/rtl_geometry.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/browser/ui/fullscreen/fullscreen_controller.h"
 #import "ios/chrome/browser/ui/fullscreen/scoped_fullscreen_disabler.h"
 #import "ios/chrome/browser/ui/overscroll_actions/overscroll_actions_gesture_recognizer.h"
 #import "ios/chrome/browser/ui/overscroll_actions/overscroll_actions_view.h"
-#import "ios/chrome/browser/ui/side_swipe/side_swipe_controller.h"
+#import "ios/chrome/browser/ui/side_swipe/side_swipe_mediator.h"
 #import "ios/chrome/browser/ui/voice/voice_search_notification_names.h"
 #import "ios/public/provider/chrome/browser/fullscreen/fullscreen_api.h"
 #import "ios/web/common/features.h"
 #import "ios/web/public/ui/crw_web_view_proxy.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace {
 // This enum is used to record the overscroll actions performed by the user on
@@ -120,9 +117,6 @@ UIEdgeInsets TopContentInset(UIScrollView* scrollView, CGFloat topInset) {
 }
 
 }  // namespace
-
-NSString* const kOverscrollActionsWillStart = @"OverscrollActionsWillStart";
-NSString* const kOverscrollActionsDidEnd = @"OverscrollActionsDidStop";
 
 // This protocol describes the subset of methods used between the
 // CRWWebViewScrollViewProxy and the UIWebView.
@@ -460,11 +454,16 @@ NSString* const kOverscrollActionsDidEnd = @"OverscrollActionsDidStop";
   // If Overscroll actions are triggered and dismissed quickly, it is
   // possible to be in a state where drag is enough to be in STARTED_PULLING
   // or ACTION_READY state, but with no selectedAction.
+  // TODO: This is not quite correct for blink, the contentOffset is always
+  // positive while scrolling the main content, resetting the insets causes
+  // after scrolling is done seems wrong.
+#if !BUILDFLAG(USE_BLINK)
   if (contentOffset.y >= 0 ||
       self.overscrollState == OverscrollState::NO_PULL_STARTED ||
       self.overscrollActionView.selectedAction == OverscrollAction::NONE) {
     [self resetScrollViewTopContentInset];
   }
+#endif
 
   [self triggerActionIfNeeded];
   _allowPullingActions = NO;
@@ -810,9 +809,6 @@ NSString* const kOverscrollActionsDidEnd = @"OverscrollActionsDidStop";
                          self.initialContentInset + statusBarFrame.size.height,
                          0);
       self.panPointScreenOrigin = CGPointZero;
-      [[NSNotificationCenter defaultCenter]
-          postNotificationName:kOverscrollActionsDidEnd
-                        object:self];
       [self resetScrollViewTopContentInset];
       self.disablingFullscreen = NO;
       if (_shouldInvalidate) {
@@ -827,10 +823,10 @@ NSString* const kOverscrollActionsDidEnd = @"OverscrollActionsDidStop";
         if (previousOverscrollState == OverscrollState::NO_PULL_STARTED) {
           UIView* view = [self.delegate
               toolbarSnapshotViewForOverscrollActionsController:self];
-          [self.overscrollActionView addSnapshotView:view];
-          [[NSNotificationCenter defaultCenter]
-              postNotificationName:kOverscrollActionsWillStart
-                            object:self];
+          if (view) {
+            // The NTP does not grab a snapshot
+            [self.overscrollActionView addSnapshotView:view];
+          }
           self.disablingFullscreen = YES;
         }
         [CATransaction begin];

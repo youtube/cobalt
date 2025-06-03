@@ -14,7 +14,8 @@
 #include "mojo/public/cpp/bindings/remote.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "ui/display/fake/fake_display_snapshot.h"
+#include "ui/display/manager/test/fake_display_snapshot.h"
+#include "ui/display/manager/util/display_manager_test_util.h"
 
 using chromeos::cdm::mojom::OutputProtection;
 using testing::_;
@@ -23,7 +24,8 @@ using testing::ReturnRef;
 
 constexpr uint64_t kFakeClientId = 1;
 constexpr int64_t kDisplayIds[] = {123, 234, 345, 456};
-const display::DisplayMode kDisplayMode{gfx::Size(1366, 768), false, 60.0f};
+const display::DisplayMode kDisplayMode =
+    display::CreateDisplayModeForTest({1366, 768}, false, 60.0f);
 
 namespace chromeos {
 
@@ -133,7 +135,8 @@ class OutputProtectionImplTest : public testing::Test {
   }
 
   mojo::Remote<OutputProtection> output_protection_mojo_;
-  raw_ptr<MockDisplaySystemDelegate> delegate_;  // Not owned.
+  raw_ptr<MockDisplaySystemDelegate, AcrossTasksDanglingUntriaged>
+      delegate_;  // Not owned.
   std::unique_ptr<display::DisplaySnapshot> displays_[std::size(kDisplayIds)];
   std::vector<display::DisplaySnapshot*> cached_displays_;
 

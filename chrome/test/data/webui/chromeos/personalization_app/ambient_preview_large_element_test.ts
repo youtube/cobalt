@@ -3,11 +3,10 @@
 // found in the LICENSE file.
 
 import 'chrome://personalization/strings.m.js';
-import 'chrome://webui-test/mojo_webui_test_support.js';
 
-import {AmbientObserver, AmbientPreviewLarge, Paths, PersonalizationRouter, TopicSource} from 'chrome://personalization/js/personalization_app.js';
+import {AmbientObserver, AmbientPreviewLargeElement, Paths, PersonalizationRouterElement, TopicSource} from 'chrome://personalization/js/personalization_app.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
-import {assertDeepEquals, assertEquals, assertTrue} from 'chrome://webui-test/chai_assert.js';
+import {assertDeepEquals, assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {waitAfterNextRender} from 'chrome://webui-test/polymer_test_util.js';
 import {TestMock} from 'chrome://webui-test/test_mock.js';
 
@@ -16,26 +15,26 @@ import {TestAmbientProvider} from './test_ambient_interface_provider.js';
 import {TestPersonalizationStore} from './test_personalization_store.js';
 
 
-suite('AmbientPreviewLargeTest', function() {
-  let ambientPreviewLargeElement: AmbientPreviewLarge|null;
+suite('AmbientPreviewLargeElementTest', function() {
+  let ambientPreviewLargeElement: AmbientPreviewLargeElement|null;
   let ambientProvider: TestAmbientProvider;
   let personalizationStore: TestPersonalizationStore;
-  const routerOriginal = PersonalizationRouter.instance;
-  const routerMock = TestMock.fromClass(PersonalizationRouter);
+  const routerOriginal = PersonalizationRouterElement.instance;
+  const routerMock = TestMock.fromClass(PersonalizationRouterElement);
 
   setup(() => {
     const mocks = baseSetup();
     ambientProvider = mocks.ambientProvider;
     personalizationStore = mocks.personalizationStore;
     AmbientObserver.initAmbientObserverIfNeeded();
-    PersonalizationRouter.instance = () => routerMock;
+    PersonalizationRouterElement.instance = () => routerMock;
   });
 
   teardown(async () => {
     await teardownElement(ambientPreviewLargeElement);
     ambientPreviewLargeElement = null;
     AmbientObserver.shutdown();
-    PersonalizationRouter.instance = routerOriginal;
+    PersonalizationRouterElement.instance = routerOriginal;
   });
 
   test(
@@ -46,7 +45,7 @@ suite('AmbientPreviewLargeTest', function() {
         personalizationStore.data.ambient.topicSource = TopicSource.kArtGallery;
         personalizationStore.data.ambient.ambientModeEnabled = false;
         personalizationStore.data.ambient.previews = ambientProvider.previews;
-        ambientPreviewLargeElement = initElement(AmbientPreviewLarge);
+        ambientPreviewLargeElement = initElement(AmbientPreviewLargeElement);
         personalizationStore.notifyObservers();
         await waitAfterNextRender(ambientPreviewLargeElement);
 
@@ -70,7 +69,7 @@ suite('AmbientPreviewLargeTest', function() {
         personalizationStore.data.ambient.topicSource = TopicSource.kArtGallery;
         personalizationStore.data.ambient.ambientModeEnabled = false;
         personalizationStore.data.ambient.previews = ambientProvider.previews;
-        ambientPreviewLargeElement = initElement(AmbientPreviewLarge);
+        ambientPreviewLargeElement = initElement(AmbientPreviewLargeElement);
         personalizationStore.notifyObservers();
         await waitAfterNextRender(ambientPreviewLargeElement);
 
@@ -85,15 +84,15 @@ suite('AmbientPreviewLargeTest', function() {
         button.click();
         assertTrue(personalizationStore.data.ambient.ambientModeEnabled);
 
-        const original = PersonalizationRouter.instance;
+        const original = PersonalizationRouterElement.instance;
         const goToRoutePromise = new Promise<[Paths, Object]>(resolve => {
-          PersonalizationRouter.instance = () => {
+          PersonalizationRouterElement.instance = () => {
             return {
               goToRoute(path: Paths, queryParams: Object = {}) {
                 resolve([path, queryParams]);
-                PersonalizationRouter.instance = original;
+                PersonalizationRouterElement.instance = original;
               },
-            } as PersonalizationRouter;
+            } as PersonalizationRouterElement;
           };
         });
         const [path, queryParams] = await goToRoutePromise;
@@ -109,19 +108,19 @@ suite('AmbientPreviewLargeTest', function() {
       ambientModeEnabled: true,
       previews: ambientProvider.previews,
     };
-    ambientPreviewLargeElement = initElement(AmbientPreviewLarge);
+    ambientPreviewLargeElement = initElement(AmbientPreviewLargeElement);
     personalizationStore.notifyObservers();
     await waitAfterNextRender(ambientPreviewLargeElement);
 
-    const original = PersonalizationRouter.instance;
+    const original = PersonalizationRouterElement.instance;
     const goToRoutePromise = new Promise<[Paths, Object]>(resolve => {
-      PersonalizationRouter.instance = () => {
+      PersonalizationRouterElement.instance = () => {
         return {
           goToRoute(path: Paths, queryParams: Object = {}) {
             resolve([path, queryParams]);
-            PersonalizationRouter.instance = original;
+            PersonalizationRouterElement.instance = original;
           },
-        } as PersonalizationRouter;
+        } as PersonalizationRouterElement;
       };
     });
 
@@ -145,20 +144,20 @@ suite('AmbientPreviewLargeTest', function() {
       ambientModeEnabled: true,
       previews: ambientProvider.previews,
     };
-    ambientPreviewLargeElement = initElement(AmbientPreviewLarge);
+    ambientPreviewLargeElement = initElement(AmbientPreviewLargeElement);
     personalizationStore.notifyObservers();
     await waitAfterNextRender(ambientPreviewLargeElement);
 
     function setFakeRouter() {
-      const original = PersonalizationRouter.instance;
+      const original = PersonalizationRouterElement.instance;
       return new Promise<TopicSource>(resolve => {
-        PersonalizationRouter.instance = () => {
+        PersonalizationRouterElement.instance = () => {
           return {
             selectAmbientAlbums(topicSource: TopicSource) {
               resolve(topicSource);
-              PersonalizationRouter.instance = original;
+              PersonalizationRouterElement.instance = original;
             },
-          } as PersonalizationRouter;
+          } as PersonalizationRouterElement;
         };
       });
     }
@@ -188,6 +187,65 @@ suite('AmbientPreviewLargeTest', function() {
         'navigates to google photos topic source');
   });
 
+  test('jelly shows 2 or 3 preview images', async () => {
+    loadTimeData.overrideValues({
+      isPersonalizationJellyEnabled: true,
+      isAmbientModeAllowed: true,
+    });
+    personalizationStore.data.ambient = {
+      ...personalizationStore.data.ambient,
+      albums: ambientProvider.albums,
+      topicSource: TopicSource.kArtGallery,
+      ambientModeEnabled: true,
+      previews: ambientProvider.previews,
+    };
+    ambientPreviewLargeElement = initElement(AmbientPreviewLargeElement);
+    personalizationStore.notifyObservers();
+    await waitAfterNextRender(ambientPreviewLargeElement);
+
+    assertEquals(
+        'http://test_url2',
+        ambientPreviewLargeElement.shadowRoot!
+            .querySelector<HTMLImageElement>(
+                '#imageContainer .preview-image')!.getAttribute('auto-src'),
+        'large container shows album preview image from first selected album');
+
+    assertFalse(
+        !!ambientPreviewLargeElement.shadowRoot!.getElementById(
+            'collageContainer'),
+        'collageContainer does not exist with jelly enabled');
+
+    const thumbnailContainer =
+        ambientPreviewLargeElement.shadowRoot!.getElementById(
+            'thumbnailContainer');
+    assertTrue(!!thumbnailContainer, 'thumbnailContainer exists');
+
+    let thumbnailImages =
+        thumbnailContainer.querySelectorAll<HTMLImageElement>('img');
+    assertDeepEquals(
+        [
+          'http://preview0',
+          'http://preview1',
+        ],
+        Array.from(thumbnailImages).map(img => img.getAttribute('auto-src')),
+        'first two preview images are shown for kArtGallery');
+
+    personalizationStore.data.ambient.topicSource = TopicSource.kGooglePhotos;
+    personalizationStore.notifyObservers();
+    await waitAfterNextRender(ambientPreviewLargeElement);
+
+    thumbnailImages =
+        thumbnailContainer.querySelectorAll<HTMLImageElement>('img');
+    assertDeepEquals(
+        [
+          'http://preview0',
+          'http://preview1',
+          'http://preview2',
+        ],
+        Array.from(thumbnailImages).map(img => img.getAttribute('auto-src')),
+        'first three preview images are shown for kGooglePhotos');
+  });
+
   test('click ambient thumbnail goes to ambient subpage', async () => {
     loadTimeData.overrideValues({isPersonalizationJellyEnabled: true});
 
@@ -198,21 +256,21 @@ suite('AmbientPreviewLargeTest', function() {
       ambientModeEnabled: true,
       previews: ambientProvider.previews,
     };
-    ambientPreviewLargeElement = initElement(AmbientPreviewLarge);
+    ambientPreviewLargeElement = initElement(AmbientPreviewLargeElement);
     personalizationStore.notifyObservers();
     await waitAfterNextRender(ambientPreviewLargeElement);
 
-    const original = PersonalizationRouter.instance;
+    const original = PersonalizationRouterElement.instance;
     const goToRoutePromise = new Promise<[Paths, Object]>(resolve => {
-      PersonalizationRouter.instance = () => {
+      PersonalizationRouterElement.instance = () => {
         return {
           goToRoute(path: Paths, queryParams: Object = {
             scrollTo: 'topic-source-list',
           }) {
             resolve([path, queryParams]);
-            PersonalizationRouter.instance = original;
+            PersonalizationRouterElement.instance = original;
           },
-        } as PersonalizationRouter;
+        } as PersonalizationRouterElement;
       };
     });
 
@@ -234,7 +292,7 @@ suite('AmbientPreviewLargeTest', function() {
     personalizationStore.data.ambient.topicSource = TopicSource.kArtGallery;
     personalizationStore.data.ambient.ambientModeEnabled = false;
     personalizationStore.data.ambient.previews = ambientProvider.previews;
-    ambientPreviewLargeElement = initElement(AmbientPreviewLarge);
+    ambientPreviewLargeElement = initElement(AmbientPreviewLargeElement);
     personalizationStore.notifyObservers();
     await waitAfterNextRender(ambientPreviewLargeElement);
 
@@ -261,7 +319,7 @@ suite('AmbientPreviewLargeTest', function() {
     personalizationStore.data.ambient.topicSource = TopicSource.kArtGallery;
     personalizationStore.data.ambient.ambientModeEnabled = false;
     personalizationStore.data.ambient.previews = ambientProvider.previews;
-    ambientPreviewLargeElement = initElement(AmbientPreviewLarge);
+    ambientPreviewLargeElement = initElement(AmbientPreviewLargeElement);
     personalizationStore.notifyObservers();
     await waitAfterNextRender(ambientPreviewLargeElement);
 

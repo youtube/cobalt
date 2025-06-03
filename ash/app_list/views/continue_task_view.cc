@@ -97,6 +97,7 @@ ContinueTaskView::ContinueTaskView(AppListViewDelegate* view_delegate,
       is_jelly_enabled
           ? static_cast<ui::ColorId>(cros_tokens::kCrosSysFocusRing)
           : ui::kColorAshFocusRing;
+  views::FocusRing::Get(this)->SetOutsetFocusRingDisabled(true);
   views::FocusRing::Get(this)->SetColorId(focus_ring_color);
   SetFocusPainter(nullptr);
 
@@ -166,10 +167,10 @@ ContinueTaskView::ContinueTaskView(AppListViewDelegate* view_delegate,
       std::make_unique<views::Label>(std::u16string()));
   if (is_jelly_enabled) {
     bubble_utils::ApplyStyle(subtitle_, TypographyToken::kCrosAnnotation1,
-                             kColorAshTextColorSecondary);
+                             cros_tokens::kCrosSysOnSurfaceVariant);
   } else {
     bubble_utils::ApplyStyle(subtitle_, TypographyToken::kCrosAnnotation1,
-                             cros_tokens::kCrosSysSecondary);
+                             kColorAshTextColorSecondary);
   }
   subtitle_->SetHorizontalAlignment(gfx::HorizontalAlignment::ALIGN_LEFT);
   subtitle_->SetElideBehavior(gfx::ElideBehavior::ELIDE_MIDDLE);
@@ -218,12 +219,8 @@ void ContinueTaskView::UpdateIcon() {
 
   gfx::ImageSkia icon;
 
-  // TODO(b/278271038): After changing the type of icon in
-  // `SearchResultIconInfo` from `ImageSkia` to `ImageModel`, please make sure
-  // get rid of `badge_icon` here; and use the `icon` instead. Also, you need to
-  // replace `SetBadgeIcon` in `DesksAdminTemplateResult` to `SetIcon`.
-  if (!result()->badge_icon().IsEmpty()) {
-    icon = result()->badge_icon().Rasterize(GetColorProvider());
+  if (!result()->icon().icon.IsEmpty()) {
+    icon = result()->icon().icon.Rasterize(GetColorProvider());
   } else {
     icon = result()->chip_icon();
   }
@@ -275,6 +272,7 @@ void ContinueTaskView::UpdateResult() {
 
   title_->SetText(result()->title());
   subtitle_->SetText(result()->details());
+  subtitle_->SetVisible(!result()->details().empty());
 
   GetViewAccessibility().OverrideName(result()->title() + u" " +
                                       result()->details());

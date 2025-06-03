@@ -71,11 +71,11 @@
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
 #include "chrome/browser/ash/login/users/fake_chrome_user_manager.h"
-#include "chrome/browser/ash/policy/dlp/dlp_files_controller.h"
+#include "chrome/browser/ash/policy/dlp/dlp_files_controller_ash.h"
 #include "chrome/browser/chromeos/policy/dlp/dlp_file_destination.h"
 #include "chrome/browser/chromeos/policy/dlp/dlp_rules_manager.h"
 #include "chrome/browser/chromeos/policy/dlp/dlp_rules_manager_factory.h"
-#include "chrome/browser/chromeos/policy/dlp/mock_dlp_rules_manager.h"
+#include "chrome/browser/chromeos/policy/dlp/test/mock_dlp_rules_manager.h"
 #endif
 
 using download::DownloadItem;
@@ -1324,12 +1324,12 @@ TEST_F(DownloadTargetDeterminerTest, TransitionType) {
       {// Benign file type. Results in a danger type of NOT_DANGEROUS. Page
        // transition type is irrelevant.
        ui::PAGE_TRANSITION_LINK, download::DOWNLOAD_DANGER_TYPE_NOT_DANGEROUS,
-       raw_ref(kSafeFile)},
+       ToRawRef<ExperimentalAsh>(kSafeFile)},
 
       {// File type is ALLOW_ON_USER_GESTURE. PAGE_TRANSITION_LINK doesn't
        // cause file to be marked as safe.
        ui::PAGE_TRANSITION_LINK, download::DOWNLOAD_DANGER_TYPE_DANGEROUS_FILE,
-       raw_ref(kAllowOnUserGesture)},
+       ToRawRef<ExperimentalAsh>(kAllowOnUserGesture)},
 
       {// File type is ALLOW_ON_USER_GESTURE. PAGE_TRANSITION_TYPED doesn't
        // cause file to be marked as safe. TYPED can be used for certain
@@ -1337,32 +1337,33 @@ TEST_F(DownloadTargetDeterminerTest, TransitionType) {
        // initiated by a user. Hence a resulting download may not be
        // intentional.
        ui::PAGE_TRANSITION_TYPED, download::DOWNLOAD_DANGER_TYPE_DANGEROUS_FILE,
-       raw_ref(kAllowOnUserGesture)},
+       ToRawRef<ExperimentalAsh>(kAllowOnUserGesture)},
 
       {// File type is ALLOW_ON_USER_GESTURE.
        // PAGE_TRANSITION_FROM_ADDRESS_BAR causes file to be marked as safe.
        static_cast<ui::PageTransition>(ui::PAGE_TRANSITION_TYPED |
                                        ui::PAGE_TRANSITION_FROM_ADDRESS_BAR),
        download::DOWNLOAD_DANGER_TYPE_NOT_DANGEROUS,
-       raw_ref(kAllowOnUserGesture)},
+       ToRawRef<ExperimentalAsh>(kAllowOnUserGesture)},
 
       {// File type is ALLOW_ON_USER_GESTURE.
        // PAGE_TRANSITION_FROM_ADDRESS_BAR causes file to be marked as safe.
        static_cast<ui::PageTransition>(ui::PAGE_TRANSITION_GENERATED |
                                        ui::PAGE_TRANSITION_FROM_ADDRESS_BAR),
        download::DOWNLOAD_DANGER_TYPE_NOT_DANGEROUS,
-       raw_ref(kAllowOnUserGesture)},
+       ToRawRef<ExperimentalAsh>(kAllowOnUserGesture)},
 
       {// File type is ALLOW_ON_USER_GESTURE.
        // PAGE_TRANSITION_FROM_ADDRESS_BAR causes file to be marked as safe.
        ui::PAGE_TRANSITION_FROM_ADDRESS_BAR,
        download::DOWNLOAD_DANGER_TYPE_NOT_DANGEROUS,
-       raw_ref(kAllowOnUserGesture)},
+       ToRawRef<ExperimentalAsh>(kAllowOnUserGesture)},
 
       {// File type is DANGEROUS. PageTransition is irrelevant.
        static_cast<ui::PageTransition>(ui::PAGE_TRANSITION_TYPED |
                                        ui::PAGE_TRANSITION_FROM_ADDRESS_BAR),
-       download::DOWNLOAD_DANGER_TYPE_DANGEROUS_FILE, raw_ref(kDangerousFile)},
+       download::DOWNLOAD_DANGER_TYPE_DANGEROUS_FILE,
+       ToRawRef<ExperimentalAsh>(kDangerousFile)},
   };
 
   // Test assumptions:
@@ -2843,10 +2844,11 @@ class DownloadTargetDeterminerDlpTest : public DownloadTargetDeterminerTest {
         scoped_user_manager_(std::make_unique<user_manager::ScopedUserManager>(
             base::WrapUnique(user_manager_.get()))) {}
 
-  class MockFilesController : public policy::DlpFilesController {
+  class MockFilesController : public policy::DlpFilesControllerAsh {
    public:
-    explicit MockFilesController(const policy::DlpRulesManager& rules_manager)
-        : DlpFilesController(rules_manager) {}
+    explicit MockFilesController(const policy::DlpRulesManager& rules_manager,
+                                 Profile* profile)
+        : DlpFilesControllerAsh(rules_manager, profile) {}
     ~MockFilesController() override = default;
 
     MOCK_METHOD(bool,
@@ -2872,6 +2874,7 @@ class DownloadTargetDeterminerDlpTest : public DownloadTargetDeterminerTest {
   }
 
   void TearDown() override {
+    mock_files_controller_.reset();
     scoped_user_manager_.reset();
     profile_.reset();
 
@@ -2881,7 +2884,8 @@ class DownloadTargetDeterminerDlpTest : public DownloadTargetDeterminerTest {
   std::unique_ptr<KeyedService> SetDlpRulesManager(
       content::BrowserContext* context) {
     auto dlp_rules_manager =
-        std::make_unique<testing::NiceMock<policy::MockDlpRulesManager>>();
+        std::make_unique<testing::NiceMock<policy::MockDlpRulesManager>>(
+            Profile::FromBrowserContext(context));
     rules_manager_ = dlp_rules_manager.get();
     return dlp_rules_manager;
   }
@@ -2897,18 +2901,47 @@ class DownloadTargetDeterminerDlpTest : public DownloadTargetDeterminerTest {
     ON_CALL(*rules_manager_, IsFilesPolicyEnabled)
         .WillByDefault(testing::Return(true));
     mock_files_controller_ =
-        std::make_unique<MockFilesController>(*rules_manager_);
+        std::make_unique<MockFilesController>(*rules_manager_, profile_.get());
     ON_CALL(*rules_manager_, GetDlpFilesController)
         .WillByDefault(testing::Return(mock_files_controller_.get()));
   }
 
   std::unique_ptr<TestingProfile> profile_;
-  raw_ptr<ash::FakeChromeUserManager, ExperimentalAsh> user_manager_;
+  raw_ptr<ash::FakeChromeUserManager, DanglingUntriaged | ExperimentalAsh>
+      user_manager_;
   std::unique_ptr<user_manager::ScopedUserManager> scoped_user_manager_;
-  raw_ptr<policy::MockDlpRulesManager, ExperimentalAsh> rules_manager_ =
-      nullptr;
+  raw_ptr<policy::MockDlpRulesManager, DanglingUntriaged | ExperimentalAsh>
+      rules_manager_ = nullptr;
   std::unique_ptr<MockFilesController> mock_files_controller_ = nullptr;
 };
+
+// Download URL might be invalid. Dlp must not crash in that case
+// (b/300605501).
+TEST_F(DownloadTargetDeterminerDlpTest, InvalidUrl) {
+  SetupRulesManager();
+
+  const DownloadTestCase kManagedPathTestCase = {
+      AUTOMATIC,
+      download::DOWNLOAD_DANGER_TYPE_NOT_DANGEROUS,
+      DownloadFileType::NOT_DANGEROUS,
+      "",
+      "text/plain",
+      FILE_PATH_LITERAL(""),
+
+      FILE_PATH_LITERAL("download.txt"),
+      DownloadItem::TARGET_DISPOSITION_PROMPT,
+
+      EXPECT_CRDOWNLOAD};
+
+  SetManagedDownloadPath(test_download_dir());
+  ASSERT_TRUE(download_prefs()->IsDownloadPathManaged());
+  EXPECT_CALL(*delegate(),
+              RequestConfirmation_(
+                  _, GetPathInDownloadDir(FILE_PATH_LITERAL("download.txt")),
+                  DownloadConfirmationReason::DLP_BLOCKED, _));
+  EXPECT_CALL(*mock_files_controller_, ShouldPromptBeforeDownload).Times(0);
+  RunTestCasesWithActiveItem(&kManagedPathTestCase, 1);
+}
 
 // Even if the download path is managed, we should prompt if the download path
 // is blocked by DLP.

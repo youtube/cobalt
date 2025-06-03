@@ -7,10 +7,13 @@
 #include "ash/public/cpp/schedule_enums.h"
 #include "ash/public/cpp/wallpaper/wallpaper_info.h"
 #include "ash/wallpaper/test_wallpaper_controller_client.h"
+#include "ash/wallpaper/wallpaper_constants.h"
+#include "ash/wallpaper/wallpaper_metrics_manager.h"
 #include "base/functional/callback_forward.h"
 #include "base/run_loop.h"
 #include "base/strings/stringprintf.h"
 #include "base/test/gtest_util.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
 #include "components/account_id/account_id.h"
@@ -41,6 +44,31 @@ std::vector<backdrop::Image> ImageSet(backdrop::Image_ImageType type,
   return images;
 }
 
+// Returns the time of day wallpapers in order of light, morning, late
+// afternoon, and dark.
+std::vector<backdrop::Image> TimeOfDayImageSet() {
+  const uint64_t kUnitId = 439;
+  const std::vector<backdrop::Image_ImageType> image_types = {
+      backdrop::Image::IMAGE_TYPE_LIGHT_MODE,
+      backdrop::Image::IMAGE_TYPE_MORNING_MODE,
+      backdrop::Image::IMAGE_TYPE_LATE_AFTERNOON_MODE,
+      backdrop::Image::IMAGE_TYPE_DARK_MODE};
+
+  std::vector<backdrop::Image> images;
+  for (size_t i = 0; i < image_types.size(); ++i) {
+    const uint64_t asset_id = i + 99;
+    const std::string url =
+        base::StringPrintf("https://preferred_wallpaper/images/%zu", asset_id);
+    backdrop::Image image;
+    image.set_asset_id(asset_id);
+    image.set_unit_id(kUnitId);
+    image.set_image_type(image_types[i]);
+    image.set_image_url(url);
+    images.push_back(image);
+  }
+  return images;
+}
+
 class OnlineWallpaperVariantInfoFetcherTest : public testing::Test {
  public:
   OnlineWallpaperVariantInfoFetcherTest()
@@ -55,6 +83,7 @@ class OnlineWallpaperVariantInfoFetcherTest : public testing::Test {
 
  protected:
   base::test::SingleThreadTaskEnvironment task_environment_;
+  base::HistogramTester histogram_tester_;
 
   TestWallpaperControllerClient client_;
   std::unique_ptr<OnlineWallpaperVariantInfoFetcher> wallpaper_fetcher_;
@@ -143,10 +172,9 @@ TEST_F(OnlineWallpaperVariantInfoFetcherTest,
 
   client_.AddCollection(kCollectionId, images);
 
-  WallpaperInfo info("", WallpaperLayout::WALLPAPER_LAYOUT_CENTER,
+  WallpaperInfo info(kLightUrl, WallpaperLayout::WALLPAPER_LAYOUT_CENTER,
                      WallpaperType::kOnline, base::Time::Now());
   info.collection_id = kCollectionId;
-  info.asset_id = kLightAssetId;
   const std::map<ScheduleCheckpoint, std::string> expected_mapping = {
       {ScheduleCheckpoint::kSunrise, kLightUrl},
       {ScheduleCheckpoint::kMorning, kLightUrl},
@@ -174,62 +202,18 @@ TEST_F(OnlineWallpaperVariantInfoFetcherTest,
        FetchOnlineWallpaper_TimeOfDayVariants) {
   // Add some images for a new collection id.
   const std::string kCollectionId = "FetchOnline";
-  const uint64_t kLightAssetId = 99;
-  const std::string kLightUrl = "https://preferred_wallpaper/images/99";
-  const uint64_t kMorningAssetId = 101;
-  const std::string kMorningUrl = "https://preferred_wallpaper/images/101";
-  const uint64_t kLateAfternoonAssetId = 103;
-  const std::string kLateAfternoonUrl =
-      "https://preferred_wallpaper/images/103";
-  const uint64_t kDarkAssetId = 105;
-  const std::string kDarkUrl = "https://preferred_wallpaper/images/105";
-  const uint64_t kUnitId = 439;
-
-  // Initially populate the collection with images we won't use.
-  std::vector<backdrop::Image> images =
-      ImageSet(backdrop::Image::IMAGE_TYPE_UNKNOWN, 6u);
-
-  // Push all assets that share a unit id.
-  backdrop::Image light_image;
-  light_image.set_asset_id(kLightAssetId);
-  light_image.set_unit_id(kUnitId);
-  light_image.set_image_type(backdrop::Image::IMAGE_TYPE_LIGHT_MODE);
-  light_image.set_image_url(kLightUrl);
-  images.push_back(light_image);
-
-  backdrop::Image morning_image;
-  morning_image.set_asset_id(kMorningAssetId);
-  morning_image.set_unit_id(kUnitId);
-  morning_image.set_image_type(backdrop::Image::IMAGE_TYPE_MORNING_MODE);
-  morning_image.set_image_url(kMorningUrl);
-  images.push_back(morning_image);
-
-  backdrop::Image late_afternoon_image;
-  late_afternoon_image.set_asset_id(kLateAfternoonAssetId);
-  late_afternoon_image.set_unit_id(kUnitId);
-  late_afternoon_image.set_image_type(
-      backdrop::Image::IMAGE_TYPE_LATE_AFTERNOON_MODE);
-  late_afternoon_image.set_image_url(kLateAfternoonUrl);
-  images.push_back(late_afternoon_image);
-
-  backdrop::Image dark_image;
-  dark_image.set_asset_id(kDarkAssetId);
-  dark_image.set_unit_id(kUnitId);
-  dark_image.set_image_type(backdrop::Image::IMAGE_TYPE_DARK_MODE);
-  dark_image.set_image_url(kDarkUrl);
-  images.push_back(dark_image);
-
+  std::vector<backdrop::Image> images = TimeOfDayImageSet();
   client_.AddCollection(kCollectionId, images);
 
-  WallpaperInfo info("", WallpaperLayout::WALLPAPER_LAYOUT_CENTER,
+  WallpaperInfo info(images[0].image_url(),
+                     WallpaperLayout::WALLPAPER_LAYOUT_CENTER,
                      WallpaperType::kOnline, base::Time::Now());
   info.collection_id = kCollectionId;
-  info.asset_id = kLightAssetId;
   const std::map<ScheduleCheckpoint, std::string> expected_mapping = {
-      {ScheduleCheckpoint::kSunrise, kLightUrl},
-      {ScheduleCheckpoint::kMorning, kMorningUrl},
-      {ScheduleCheckpoint::kLateAfternoon, kLateAfternoonUrl},
-      {ScheduleCheckpoint::kSunset, kDarkUrl}};
+      {ScheduleCheckpoint::kSunrise, images[0].image_url()},
+      {ScheduleCheckpoint::kMorning, images[1].image_url()},
+      {ScheduleCheckpoint::kLateAfternoon, images[2].image_url()},
+      {ScheduleCheckpoint::kSunset, images[3].image_url()}};
 
   for (const auto& mapping_pair : expected_mapping) {
     base::test::TestFuture<absl::optional<OnlineWallpaperParams>> test_future;
@@ -244,6 +228,50 @@ TEST_F(OnlineWallpaperVariantInfoFetcherTest,
   }
 }
 
+// Verify that time of day variants with matching unit id are matched with the
+// right checkpoints.
+TEST_F(OnlineWallpaperVariantInfoFetcherTest, FetchTimeOfDayWallpaper) {
+  auto images = TimeOfDayImageSet();
+  client_.AddCollection(wallpaper_constants::kTimeOfDayWallpaperCollectionId,
+                        images);
+
+  const std::map<ScheduleCheckpoint, std::string> expected_mapping = {
+      {ScheduleCheckpoint::kSunrise, images[0].image_url()},
+      {ScheduleCheckpoint::kMorning, images[1].image_url()},
+      {ScheduleCheckpoint::kLateAfternoon, images[2].image_url()},
+      {ScheduleCheckpoint::kSunset, images[3].image_url()}};
+
+  for (const auto& mapping_pair : expected_mapping) {
+    base::test::TestFuture<absl::optional<OnlineWallpaperParams>> test_future;
+
+    // Verifies that checkpoint and the variant matches.
+    wallpaper_fetcher_->FetchTimeOfDayWallpaper(kAccount1, images[0].unit_id(),
+                                                mapping_pair.first,
+                                                test_future.GetCallback());
+    auto result = test_future.Get();
+    EXPECT_TRUE(result);
+    EXPECT_EQ(4u, result->variants.size());
+    EXPECT_EQ(mapping_pair.second, result->url.spec());
+  }
+}
+
+// Verify requests for fetching time of day wallpapers fail with invalid unit
+// id.
+TEST_F(OnlineWallpaperVariantInfoFetcherTest,
+       FetchTimeOfDayWallpaper_InvalidUnitId) {
+  auto images = TimeOfDayImageSet();
+  client_.AddCollection(wallpaper_constants::kTimeOfDayWallpaperCollectionId,
+                        images);
+
+  base::test::TestFuture<absl::optional<OnlineWallpaperParams>> test_future;
+  // Verifies that checkpoint and the variant matches.
+  wallpaper_fetcher_->FetchTimeOfDayWallpaper(
+      kAccount1, 123, ScheduleCheckpoint::kLateAfternoon,
+      test_future.GetCallback());
+  auto result = test_future.Get();
+  EXPECT_FALSE(result);
+}
+
 // Verify that the request fails if there are no matching variants for dark
 // mode.
 TEST_F(OnlineWallpaperVariantInfoFetcherTest, FetchOnlineWallpaper_NoDarkMode) {
@@ -253,11 +281,10 @@ TEST_F(OnlineWallpaperVariantInfoFetcherTest, FetchOnlineWallpaper_NoDarkMode) {
   client_.AddCollection(kCollectionId, images);
 
   base::test::TestFuture<absl::optional<OnlineWallpaperParams>> test_future;
-  WallpaperInfo info("", WallpaperLayout::WALLPAPER_LAYOUT_CENTER,
+  WallpaperInfo info(images[0].image_url(),
+                     WallpaperLayout::WALLPAPER_LAYOUT_CENTER,
                      WallpaperType::kOnline, base::Time::Now());
   info.collection_id = kCollectionId;
-  // Pick an arbiratry asset in the set.
-  info.asset_id = images.front().asset_id();
 
   // Initial request will pass because variants are not populated in |info|.
   // Requesting dark mode when there are only light assets.
@@ -319,6 +346,24 @@ TEST_F(OnlineWallpaperVariantInfoFetcherTest,
   wallpaper_fetcher_->FetchOnlineWallpaper(
       kAccount1, info, ScheduleCheckpoint::kSunset, test_future.GetCallback());
   EXPECT_FALSE(test_future.Get());
+}
+
+TEST_F(OnlineWallpaperVariantInfoFetcherTest,
+       FetchOnlineWallpaper_FromInfo_NoLocation) {
+  WallpaperInfo info = WallpaperInfo(/*in_location=*/"",
+                                     WallpaperLayout::WALLPAPER_LAYOUT_CENTER,
+                                     WallpaperType::kOnline, base::Time::Now());
+
+  base::test::TestFuture<absl::optional<OnlineWallpaperParams>> test_future;
+  wallpaper_fetcher_->FetchOnlineWallpaper(
+      kAccount1, info, ScheduleCheckpoint::kSunset, test_future.GetCallback());
+
+  // Callback is called
+  auto result = test_future.Get();
+  EXPECT_FALSE(result);
+
+  histogram_tester_.ExpectBucketCount("Ash.Wallpaper.Online.Result",
+                                      SetWallpaperResult::kInvalidState, 1);
 }
 
 }  // namespace

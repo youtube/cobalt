@@ -6,7 +6,7 @@
 
 #include "base/strings/string_util.h"
 #include "chrome/browser/apps/app_preload_service/proto/app_preload.pb.h"
-#include "chrome/browser/apps/app_service/package_id.h"
+#include "components/services/app_service/public/cpp/package_id.h"
 #include "url/gurl.h"
 
 namespace apps {
@@ -31,6 +31,11 @@ AppType PreloadAppDefinition::GetPlatform() const {
     return package_id_->app_type();
   }
   return AppType::kUnknown;
+}
+
+bool PreloadAppDefinition::IsDefaultApp() const {
+  return app_proto_.install_reason() ==
+         proto::AppPreloadListResponse::INSTALL_REASON_DEFAULT;
 }
 
 bool PreloadAppDefinition::IsOemApp() const {

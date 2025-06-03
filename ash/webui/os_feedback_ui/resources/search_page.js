@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import 'chrome://resources/cr_elements/cr_button/cr_button.js';
 import './help_content.js';
 import './help_resources_icons.js';
 import './os_feedback_shared_css.js';
-import 'chrome://resources/cr_elements/cr_button/cr_button.js';
 
 import {I18nBehavior, I18nBehaviorInterface} from 'chrome://resources/ash/common/i18n_behavior.js';
-import {stringToMojoString16} from 'chrome://resources/ash/common/mojo_utils.js';
+import {stringToMojoString16} from 'chrome://resources/js/mojo_type_util.js';
 import {html, mixinBehaviors, PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {btRegEx, buildWordMatcher, FeedbackFlowState} from './feedback_flow.js';
@@ -92,6 +92,21 @@ const thunderboltRegEx = buildWordMatcher([
   'TBT4',
   'TB3',
   'TB4',
+]);
+
+/**
+ * Regular expression to check for Audio-related keywords.
+ */
+ const audioRegEx = buildWordMatcher([
+  'audio',
+  'sound',
+  'mic',
+  'speaker',
+  'headphone',
+  'headset',
+  'recording',
+  'volume',
+  'earbud',
 ]);
 
 /**
@@ -278,6 +293,12 @@ export class SearchPageElement extends SearchPageElementBase {
       this.hideError_();
     }
 
+    // When the user is not logged in, the feedback app does not allow access to
+    // external websites. Therefore, search is not needed.
+    if (!this.isUserLoggedIn_()) {
+      return;
+    }
+
     const querySeqNo = this.getNextQuerySeqNo_();
     this.searchTimerID_ = setTimeout(() => {
       this.fetchHelpContent_(query, querySeqNo);
@@ -293,6 +314,16 @@ export class SearchPageElement extends SearchPageElementBase {
   }
 
   /**
+   * When the feedback app is launched from OOBE or the login screen, the
+   * categoryTag is set to "Login".
+   * @returns {boolean} true if the categoryTag is not equal to Login.
+   * @protected
+   */
+  isUserLoggedIn_() {
+    return this.feedbackContext?.categoryTag !== 'Login';
+  }
+
+  /**
    * Fetches help content/popular search and notifies iframe if querySeqNo is
    * greater than previous.
    * @param {string} query
@@ -302,6 +333,12 @@ export class SearchPageElement extends SearchPageElementBase {
   async fetchHelpContent_(query, querySeqNo) {
     if (!this.iframe_) {
       console.warn('untrusted iframe is not found');
+      return;
+    }
+
+    // When the user is not logged in, the feedback app does not allow access to
+    // external websites. Therefore, search is not needed.
+    if (!this.isUserLoggedIn_()) {
       return;
     }
 
@@ -516,6 +553,10 @@ export class SearchPageElement extends SearchPageElementBase {
 
     if (displayRegEx.test(matchedText)) {
       toAppend.push(...domainQuestions['display']);
+    }
+
+    if (audioRegEx.test(matchedText)) {
+      toAppend.push(...domainQuestions['audio']);
     }
 
     if (thunderboltRegEx.test(matchedText)) {

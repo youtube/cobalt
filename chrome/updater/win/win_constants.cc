@@ -28,6 +28,10 @@ const wchar_t kRegValueName[] = L"name";
 const wchar_t kRegValueUninstallCmdLine[] = L"UninstallCmdLine";
 const wchar_t kRegValueVersion[] = L"version";
 
+const wchar_t kRegKeyCohort[] = L"cohort";
+const wchar_t kRegValueCohortName[] = L"name";
+const wchar_t kRegValueCohortHint[] = L"hint";
+
 const wchar_t kRegValueInstallerError[] = L"InstallerError";
 const wchar_t kRegValueInstallerExtraCode1[] = L"InstallerExtraCode1";
 const wchar_t kRegValueInstallerProgress[] = L"InstallerProgress";
@@ -44,14 +48,26 @@ const wchar_t kRegValueLastInstallerResultUIString[] =
 const wchar_t kRegValueLastInstallerSuccessLaunchCmdLine[] =
     L"LastInstallerSuccessLaunchCmdLine";
 
+const wchar_t* const kRegValuesLastInstaller[5] = {
+    kRegValueLastInstallerResult, kRegValueLastInstallerError,
+    kRegValueLastInstallerExtraCode1, kRegValueLastInstallerResultUIString,
+    kRegValueLastInstallerSuccessLaunchCmdLine};
+
 const wchar_t kRegKeyCompanyCloudManagement[] =
     COMPANY_POLICIES_KEY L"CloudManagement\\";
-const wchar_t kRegValueEnrollmentToken[] = L"EnrollmentToken\\";
+const wchar_t kRegValueEnrollmentToken[] = L"EnrollmentToken";
+
+const wchar_t kRegKeyCompanyLegacyCloudManagement[] =
+    COMPANY_POLICIES_KEY BROWSER_NAME_STRING L"\\";
+const wchar_t kRegValueCloudManagementEnrollmentToken[] =
+    L"CloudManagementEnrollmentToken";
 
 const wchar_t kRegValueEnrollmentMandatory[] = L"EnrollmentMandatory";
 
 const wchar_t kRegKeyCompanyEnrollment[] = COMPANY_KEY L"Enrollment\\";
 const wchar_t kRegValueDmToken[] = L"dmtoken";
+
+const wchar_t kRegValueIntegrationTestMode[] = L"IntegrationTestMode";
 
 const wchar_t kWindowsServiceName[] = L"Service";
 const wchar_t kWindowsInternalServiceName[] = L"InternalService";

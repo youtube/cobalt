@@ -8,7 +8,7 @@
 #include <cstddef>
 #include <vector>
 
-#include "base/cpu_reduction_experiment.h"
+#include "base/containers/contains.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/hash/md5_constexpr.h"
@@ -285,10 +285,10 @@ void Scheduler::Sequence::SetLastTaskFirstDependencyTimeIfNeeded() {
 void Scheduler::Sequence::AddWaitFence(const SyncToken& sync_token,
                                        uint32_t order_num,
                                        SequenceId release_sequence_id) {
-  auto it =
-      wait_fences_.find(WaitFence{sync_token, order_num, release_sequence_id});
-  if (it != wait_fences_.end())
+  WaitFence wait_fence{sync_token, order_num, release_sequence_id};
+  if (base::Contains(wait_fences_, wait_fence)) {
     return;
+  }
 
   // |release_sequence| can be nullptr if we wait on SyncToken from sequence
   // that is not in this scheduler. It can happen on WebView when compositing
@@ -709,8 +709,8 @@ void Scheduler::RunNextTask() {
   auto* task_runner = base::SingleThreadTaskRunner::GetCurrentDefault().get();
   auto* thread_state = &per_thread_state_map_[task_runner];
 
-  const bool log_histograms =
-      base::ShouldLogHistogramForCpuReductionExperiment();
+  // Subsampling these metrics reduced CPU utilization (crbug.com/1295441).
+  const bool log_histograms = metrics_subsampler_.ShouldSample(0.001);
 
   if (log_histograms) {
     UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(

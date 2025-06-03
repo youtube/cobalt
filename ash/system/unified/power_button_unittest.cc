@@ -7,7 +7,10 @@
 #include "ash/constants/ash_features.h"
 #include "ash/constants/quick_settings_catalogs.h"
 #include "ash/public/cpp/ash_view_ids.h"
+#include "ash/shell.h"
+#include "ash/shutdown_controller_impl.h"
 #include "ash/style/icon_button.h"
+#include "ash/system/tray/tray_detailed_view.h"
 #include "ash/system/unified/quick_settings_footer.h"
 #include "ash/system/unified/quick_settings_view.h"
 #include "ash/system/unified/unified_system_tray.h"
@@ -20,8 +23,11 @@
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "components/user_manager/user_type.h"
+#include "ui/chromeos/styles/cros_tokens_color_mappings.h"
 #include "ui/compositor/layer.h"
 #include "ui/events/base_event_utils.h"
+#include "ui/gfx/skia_util.h"
+#include "ui/views/controls/image_view.h"
 #include "ui/views/controls/menu/menu_item_view.h"
 #include "ui/views/test/views_test_utils.h"
 #include "ui/views/view.h"
@@ -41,9 +47,15 @@ class PowerButtonTest : public NoSessionAshTestBase {
   void SetUp() override {
     feature_list_.InitAndEnableFeature(features::kQsRevamp);
     NoSessionAshTestBase::SetUp();
+
     // Test with the real system tray bubble so that the power button has a real
     // UnifiedSystemTrayController to test clicking on the email item.
-    UnifiedSystemTray* system_tray = GetPrimaryUnifiedSystemTray();
+    ShowSystemTrayBubble();
+  }
+
+ protected:
+  void ShowSystemTrayBubble() {
+    auto* system_tray = GetPrimaryUnifiedSystemTray();
     system_tray->ShowBubble();
     button_ = system_tray->bubble()
                   ->quick_settings_view()
@@ -51,7 +63,6 @@ class PowerButtonTest : public NoSessionAshTestBase {
                   ->power_button_for_testing();
   }
 
- protected:
   views::MenuItemView* GetMenuView() {
     return button_->GetMenuViewForTesting();
   }
@@ -95,20 +106,44 @@ class PowerButtonTest : public NoSessionAshTestBase {
 
   PowerButton* GetPowerButton() { return button_; }
 
-  ui::Layer* GetBackgroundLayer() { return button_->background_view_->layer(); }
-
-  // Simulates mouse press event on the power button. The generator click
-  // does not work anymore since menu is a nested run loop.
-  void SimulatePowerButtonPress() {
-    ui::MouseEvent event(ui::ET_MOUSE_PRESSED,
-                         button_->GetBoundsInScreen().CenterPoint(),
-                         button_->GetBoundsInScreen().CenterPoint(),
-                         ui::EventTimeForNow(), 0, 0);
-    button_->button_content_->NotifyClick(event);
+  views::ImageView* GetPowerChevronIcon() {
+    auto* icon = button_->button_content_->GetViewByID(
+        VIEW_ID_QS_POWER_BUTTON_CHEVRON_ICON);
+    CHECK(icon);
+    return static_cast<views::ImageView*>(icon);
   }
 
+  ui::Layer* GetBackgroundLayer() { return button_->background_view_->layer(); }
+
+  // Simulates mouse press event on the power button.
+  void SimulatePowerButtonPress() { LeftClickOn(button_->button_content_); }
+
+  ui::ImageModel GetExpectedChevronImageModel(bool use_up_chevron) {
+    auto icon_color_id = use_up_chevron
+                             ? cros_tokens::kCrosSysSystemOnPrimaryContainer
+                             : cros_tokens::kCrosSysOnSurface;
+
+    return ui::ImageModel::FromVectorIcon(
+        use_up_chevron ? kChevronUpSmallIcon : kChevronDownSmallIcon,
+        icon_color_id);
+  }
+
+  bool ChevronIconsMatch(bool use_up_chevron) {
+    const auto* power_chevron_icon = GetPowerChevronIcon();
+
+    return gfx::BitmapsAreEqual(
+        *power_chevron_icon->GetImage().bitmap(),
+        *GetExpectedChevronImageModel(use_up_chevron)
+             .Rasterize(power_chevron_icon->GetColorProvider())
+             .bitmap());
+  }
+
+  bool IsUpChevron() { return ChevronIconsMatch(/*use_up_chevron=*/true); }
+
+  bool IsDownChevron() { return ChevronIconsMatch(/*use_up_chevron=*/false); }
+
   // Owned by view hierarchy.
-  raw_ptr<PowerButton, ExperimentalAsh> button_ = nullptr;
+  raw_ptr<PowerButton, DanglingUntriaged | ExperimentalAsh> button_ = nullptr;
 
   base::test::ScopedFeatureList feature_list_;
   base::HistogramTester histogram_tester_;
@@ -269,6 +304,9 @@ TEST_F(PowerButtonTest, ButtonStatesLockScreen) {
   CreateUserSessions(1);
   BlockUserSession(BLOCKED_BY_LOCK_SCREEN);
 
+  // Changes in lock state close the system tray bubble, so re-show it.
+  ShowSystemTrayBubble();
+
   EXPECT_TRUE(GetPowerButton()->GetVisible());
 
   // No menu buttons are visible before showing the menu.
@@ -362,12 +400,6 @@ TEST_F(PowerButtonTest, EmailIsNotShownForPublicAccount) {
 // NOTE: Kiosk user types are not tested because quick settings cannot be
 // accessed in kiosk mode.
 
-TEST_F(PowerButtonTest, EmailIsNotShownForActiveDirectory) {
-  SimulateUserLogin("test@test.com", user_manager::USER_TYPE_ACTIVE_DIRECTORY);
-  SimulatePowerButtonPress();
-  EXPECT_EQ(nullptr, GetEmailButton());
-}
-
 TEST_F(PowerButtonTest, ClickingEmailShowsUserChooserView) {
   SimulateUserLogin("user@gmail.com", user_manager::USER_TYPE_REGULAR);
   SimulatePowerButtonPress();
@@ -376,8 +408,7 @@ TEST_F(PowerButtonTest, ClickingEmailShowsUserChooserView) {
   QuickSettingsView* quick_settings_view =
       GetPrimaryUnifiedSystemTray()->bubble()->quick_settings_view();
   EXPECT_TRUE(quick_settings_view->IsDetailedViewShown());
-  EXPECT_TRUE(views::IsViewClass<UserChooserView>(
-      quick_settings_view->detailed_view()));
+  EXPECT_TRUE(quick_settings_view->GetDetailedViewForTest<UserChooserView>());
 }
 
 // Power button's rounded radii should change correctly when switching between
@@ -399,8 +430,8 @@ TEST_F(PowerButtonTest, ButtonRoundedRadii) {
   EXPECT_EQ(gfx::RoundedCornersF(4, 16, 16, 16),
             GetBackgroundLayer()->rounded_corner_radii());
 
-  // Click on a random button to close the menu.
-  LeftClickOn(GetLockButton());
+  // Click the power button again to close the menu.
+  SimulatePowerButtonPress();
 
   // Sets a RTL locale.
   base::i18n::SetICUDefaultLocale("ar");
@@ -413,6 +444,36 @@ TEST_F(PowerButtonTest, ButtonRoundedRadii) {
 
   EXPECT_EQ(gfx::RoundedCornersF(16, 4, 16, 16),
             GetBackgroundLayer()->rounded_corner_radii());
+}
+
+TEST_F(PowerButtonTest, DeviceRebootOnShutdownPolicyHidesPowerOffButton) {
+  CreateUserSessions(1);
+  // Simulate DeviceRebootOnShutdownPolicy is enabled.
+  Shell::Get()->shutdown_controller()->SetRebootOnShutdown(true);
+
+  SimulatePowerButtonPress();
+
+  EXPECT_FALSE(GetPowerOffButton());
+  EXPECT_TRUE(GetRestartButton());
+}
+
+TEST_F(PowerButtonTest, ChevronFlipsWhenMenuIsShowing) {
+  CreateUserSessions(1);
+
+  EXPECT_TRUE(GetPowerButton()->GetVisible());
+  EXPECT_FALSE(IsMenuShowing());
+  EXPECT_TRUE(IsDownChevron());
+
+  SimulatePowerButtonPress();
+
+  EXPECT_TRUE(IsMenuShowing());
+  EXPECT_TRUE(IsUpChevron());
+
+  // Click the power button again to close the menu.
+  SimulatePowerButtonPress();
+
+  EXPECT_FALSE(IsMenuShowing());
+  EXPECT_TRUE(IsDownChevron());
 }
 
 }  // namespace ash

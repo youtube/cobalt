@@ -20,13 +20,16 @@ lucicfg.enable_experiment("crbug.com/1182002")
 lucicfg.config(
     config_dir = "generated",
     tracked_files = [
-        "luci/chops-weetbix-dev.cfg",
+        "builders-dev/*/*/*",
+        "builders-dev/gn_args_locations.json",
         "luci/cr-buildbucket-dev.cfg",
         "luci/luci-analysis-dev.cfg",
+        "luci/luci-bisection-dev.cfg",
         "luci/luci-logdog-dev.cfg",
         "luci/luci-milo-dev.cfg",
         "luci/luci-scheduler-dev.cfg",
         "luci/realms-dev.cfg",
+        "luci/testhaus-staging.cfg",
     ],
     fail_on_warnings = True,
 )
@@ -37,10 +40,16 @@ lucicfg.emit(
     data = io.read_file("luci-analysis-dev.cfg"),
 )
 
-# TODO(b/270163072): Re-emit after staging is fixed.
-# lucicfg.emit(
-#     dest = "luci/chops-weetbix-dev.cfg",
-#     data = io.read_file("chops-weetbix-dev.cfg"),
-# )
+# Just copy LUCI Bisection config to generated outputs.
+lucicfg.emit(
+    dest = "luci/luci-bisection-dev.cfg",
+    data = io.read_file("luci-bisection-dev.cfg"),
+)
+
+# Just copy Testhaus config to generated outputs.
+lucicfg.emit(
+    dest = "luci/testhaus-staging.cfg",
+    data = io.read_file("testhaus-staging.cfg"),
+)
 
 branches.exec("//dev/dev.star")

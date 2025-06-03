@@ -12,7 +12,7 @@
 #include "base/ranges/algorithm.h"
 #include "build/chromeos_buildflags.h"
 #include "chrome/app/vector_icons/vector_icons.h"
-#include "chrome/browser/apps/intent_helper/page_transition_util.h"
+#include "chrome/browser/apps/link_capturing/link_capturing_navigation_throttle.h"
 #include "chrome/browser/chromeos/arc/arc_web_contents_data.h"
 #include "chrome/browser/sharing/click_to_call/click_to_call_metrics.h"
 #include "chrome/browser/sharing/click_to_call/click_to_call_ui_controller.h"
@@ -37,7 +37,7 @@
 #include "url/gurl.h"
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
-#include "chrome/browser/apps/intent_helper/metrics/intent_handling_metrics.h"
+#include "chrome/browser/apps/link_capturing/metrics/intent_handling_metrics.h"
 #endif
 
 using content::WebContents;
@@ -91,8 +91,9 @@ std::vector<apps::IntentPickerAppInfo> AddDevices(
   }
 
   // Append the previous list by moving its elements.
-  for (auto& entry : picker_entries)
+  for (auto& entry : picker_entries) {
     all_entries.emplace_back(std::move(entry));
+  }
 
   return all_entries;
 }
@@ -108,9 +109,10 @@ bool MaybeAddDevicesAndShowPicker(
     bool show_remember_selection,
     IntentPickerResponseWithDevices callback) {
   Browser* browser =
-      web_contents ? chrome::FindBrowserWithWebContents(web_contents) : nullptr;
-  if (!browser)
+      web_contents ? chrome::FindBrowserWithTab(web_contents) : nullptr;
+  if (!browser) {
     return false;
+  }
 
   bool has_apps = !app_info.empty();
   bool has_devices = false;
@@ -125,12 +127,14 @@ bool MaybeAddDevicesAndShowPicker(
         ClickToCallUiController::GetOrCreateFromWebContents(web_contents);
     devices = controller->GetDevices();
     has_devices = !devices.empty();
-    if (has_devices)
+    if (has_devices) {
       app_info = AddDevices(devices, std::move(app_info));
+    }
   }
 
-  if (app_info.empty())
+  if (app_info.empty()) {
     return false;
+  }
 
   IntentPickerTabHelper::ShowOrHideIcon(
       web_contents,
@@ -140,16 +144,18 @@ bool MaybeAddDevicesAndShowPicker(
       initiating_origin,
       base::BindOnce(std::move(callback), std::move(devices), bubble_type));
 
-  if (controller)
+  if (controller) {
     controller->OnIntentPickerShown(has_devices, has_apps);
+  }
 
   return true;
 }
 
 void CloseTabIfNeeded(base::WeakPtr<WebContents> web_contents,
                       bool safe_to_bypass_ui) {
-  if (!web_contents)
+  if (!web_contents) {
     return;
+  }
 
   if (web_contents->GetController().IsInitialNavigation() ||
       safe_to_bypass_ui) {
@@ -162,8 +168,9 @@ bool IsChromeAnAppCandidate(
     const std::vector<ArcIntentHelperMojoDelegate::IntentHandlerInfo>&
         handlers) {
   for (const auto& handler : handlers) {
-    if (handler.package_name == kArcIntentHelperPackageName)
+    if (handler.package_name == kArcIntentHelperPackageName) {
       return true;
+    }
   }
   return false;
 }
@@ -185,8 +192,9 @@ bool ForOpeningArcImeSettingsPage(
 
 // Shows |url| in the current tab.
 void OpenUrlInChrome(base::WeakPtr<WebContents> web_contents, const GURL& url) {
-  if (!web_contents)
+  if (!web_contents) {
     return;
+  }
 
   const ui::PageTransition page_transition_type =
       ui::PageTransitionFromInt(ui::PAGE_TRANSITION_LINK);
@@ -246,8 +254,9 @@ GetActionResult GetActionInternal(
       // Since |package_name| is "Chrome", and |fallback_url| is not null, the
       // URL must be either http or https. Check it just in case, and if not,
       // fallback to HANDLE_URL_IN_ARC;
-      if (out_url_and_activity_name->first.SchemeIsHTTPOrHTTPS())
+      if (out_url_and_activity_name->first.SchemeIsHTTPOrHTTPS()) {
         return GetActionResult::OPEN_URL_IN_CHROME;
+      }
 
       LOG(WARNING) << "Failed to handle " << out_url_and_activity_name->first
                    << " in Chrome. Falling back to ARC...";
@@ -319,8 +328,9 @@ GetActionResult GetAction(
     for (size_t i = 0; i < handlers.size(); ++i) {
       const ArcIntentHelperMojoDelegate::IntentHandlerInfo& handler =
           handlers[i];
-      if (!handler.is_preferred)
+      if (!handler.is_preferred) {
         continue;
+      }
       // This is another way to bypass the UI, since the user already expressed
       // some sort of preference.
       *in_out_safe_to_bypass_ui = true;
@@ -352,8 +362,9 @@ bool GetAndResetSafeToRedirectToArcWithoutUserConfirmationFlag(
       arc::ArcWebContentsData::ArcWebContentsData::kArcTransitionFlag;
   arc::ArcWebContentsData* arc_data =
       static_cast<arc::ArcWebContentsData*>(web_contents->GetUserData(key));
-  if (!arc_data)
+  if (!arc_data) {
     return false;
+  }
 
   web_contents->RemoveUserData(key);
   return true;
@@ -364,8 +375,9 @@ void HandleDeviceSelection(
     const std::vector<std::unique_ptr<syncer::DeviceInfo>>& devices,
     const std::string& device_guid,
     const GURL& url) {
-  if (!web_contents)
+  if (!web_contents) {
     return;
+  }
 
   const auto it =
       base::ranges::find(devices, device_guid, &syncer::DeviceInfo::guid);
@@ -394,8 +406,9 @@ bool HandleUrl(
   const GetActionResult result =
       GetAction(url, handlers, selected_app_index, &url_and_activity_name,
                 &safe_to_bypass_ui);
-  if (out_result)
+  if (out_result) {
     *out_result = result;
+  }
 
   switch (result) {
     case GetActionResult::OPEN_URL_IN_CHROME:
@@ -440,10 +453,11 @@ void OnIntentPickerDialogDeactivated(
     const std::vector<ArcIntentHelperMojoDelegate::IntentHandlerInfo>&
         handlers) {
   const GURL url_to_open_in_chrome = GetUrlToNavigateOnDeactivate(handlers);
-  if (url_to_open_in_chrome.is_empty())
+  if (url_to_open_in_chrome.is_empty()) {
     CloseTabIfNeeded(web_contents, safe_to_bypass_ui);
-  else
+  } else {
     OpenUrlInChrome(web_contents, url_to_open_in_chrome);
+  }
 }
 
 size_t GetAppIndex(
@@ -451,8 +465,9 @@ size_t GetAppIndex(
         app_candidates,
     const std::string& selected_app_package) {
   for (size_t i = 0; i < app_candidates.size(); ++i) {
-    if (app_candidates[i].package_name == selected_app_package)
+    if (app_candidates[i].package_name == selected_app_package) {
       return i;
+    }
   }
   return app_candidates.size();
 }
@@ -499,8 +514,6 @@ void OnIntentPickerClosed(
     HandleDeviceSelection(web_contents.get(), devices, selected_app_package,
                           url);
 #if BUILDFLAG(IS_CHROMEOS_ASH)
-    apps::IntentHandlingMetrics::RecordExternalProtocolMetrics(
-        Scheme::TEL, entry_type, /*accepted=*/true, should_persist);
     if (context) {
       apps::IntentHandlingMetrics::RecordExternalProtocolUserInteractionMetrics(
           context, entry_type, reason, should_persist);
@@ -514,8 +527,9 @@ void OnIntentPickerClosed(
   const size_t selected_app_index = GetAppIndex(handlers, selected_app_package);
 
   // Make sure ARC intent helper instance is connected.
-  if (!mojo_delegate->IsArcAvailable())
+  if (!mojo_delegate->IsArcAvailable()) {
     reason = apps::IntentPickerCloseReason::ERROR_AFTER_PICKER;
+  }
 
   if (reason == apps::IntentPickerCloseReason::OPEN_APP ||
       reason == apps::IntentPickerCloseReason::STAY_IN_CHROME) {
@@ -566,28 +580,6 @@ void OnIntentPickerClosed(
   }
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
-  const std::map<base::StringPiece, Scheme> string_to_scheme = {
-      {"bitcoin", Scheme::BITCOIN}, {"geo", Scheme::GEO},
-      {"im", Scheme::IM},           {"irc", Scheme::IRC},
-      {"magnet", Scheme::MAGNET},   {"mailto", Scheme::MAILTO},
-      {"mms", Scheme::MMS},         {"sip", Scheme::SIP},
-      {"skype", Scheme::SKYPE},     {"sms", Scheme::SMS},
-      {"spotify", Scheme::SPOTIFY}, {"ssh", Scheme::SSH},
-      {"tel", Scheme::TEL},         {"telnet", Scheme::TELNET},
-      {"webcal", Scheme::WEBCAL}};
-
-  bool protocol_accepted =
-      (reason == apps::IntentPickerCloseReason::OPEN_APP) ? true : false;
-
-  Scheme url_scheme = Scheme::OTHER;
-  base::StringPiece scheme = url.scheme_piece();
-  auto scheme_it = string_to_scheme.find(scheme);
-  if (scheme_it != string_to_scheme.end())
-    url_scheme = scheme_it->second;
-  // TODO(crbug.com/1275075): Support ARC metrics in Lacros.
-  apps::IntentHandlingMetrics::RecordExternalProtocolMetrics(
-      url_scheme, entry_type, protocol_accepted, should_persist);
-
   if (context) {
     apps::IntentHandlingMetrics::RecordExternalProtocolUserInteractionMetrics(
         context, entry_type, reason, should_persist);
@@ -623,11 +615,11 @@ void OnAppIconsReceived(
   }
 
   Browser* browser =
-      web_contents ? chrome::FindBrowserWithWebContents(web_contents.get())
-                   : nullptr;
+      web_contents ? chrome::FindBrowserWithTab(web_contents.get()) : nullptr;
 
-  if (!browser)
+  if (!browser) {
     return std::move(handled_cb).Run(false);
+  }
 
   bool handled = MaybeAddDevicesAndShowPicker(
       url, initiating_origin, web_contents.get(), std::move(app_info),
@@ -739,12 +731,14 @@ void RunArcExternalProtocolDialog(
   DCHECK(!url.SchemeIsHTTPOrHTTPS()) << url;
 
   // For external protocol navigation, always ignore the FROM_API qualifier.
-  const ui::PageTransition masked_page_transition = apps::MaskOutPageTransition(
-      page_transition, ui::PAGE_TRANSITION_FROM_API);
+  const ui::PageTransition masked_page_transition =
+      apps::LinkCapturingNavigationThrottle::MaskOutPageTransition(
+          page_transition, ui::PAGE_TRANSITION_FROM_API);
 
-  if (apps::ShouldIgnoreNavigation(masked_page_transition,
-                                   /*allow_form_submit=*/true,
-                                   is_in_fenced_frame_tree, has_user_gesture)) {
+  if (!apps::LinkCapturingNavigationThrottle::IsCapturableLinkNavigation(
+          masked_page_transition,
+          /*allow_form_submit=*/true, is_in_fenced_frame_tree,
+          has_user_gesture)) {
     LOG(WARNING) << "RunArcExternalProtocolDialog: ignoring " << url
                  << " with PageTransition=" << masked_page_transition
                  << ", is_in_fenced_frame_tree=" << is_in_fenced_frame_tree
@@ -832,118 +826,6 @@ void OnIntentPickerClosedForTesting(
       std::move(mojo_delegate), std::move(devices),
       apps::IntentPickerBubbleType::kExternalProtocol, selected_app_package,
       entry_type, reason, should_persist);
-}
-
-ProtocolAction GetProtocolAction(Scheme scheme,
-                                 apps::PickerEntryType entry_type,
-                                 bool accepted,
-                                 bool persisted) {
-  if (entry_type == apps::PickerEntryType::kDevice) {
-    DCHECK_EQ(Scheme::TEL, scheme);
-    DCHECK(accepted);
-    DCHECK(!persisted);
-    return ProtocolAction::TEL_DEVICE_SELECTED;
-  }
-  switch (scheme) {
-    case Scheme::OTHER:
-      if (!accepted)
-        return ProtocolAction::OTHER_REJECTED;
-      if (persisted)
-        return ProtocolAction::OTHER_ACCEPTED_PERSISTED;
-      return ProtocolAction::OTHER_ACCEPTED_NOT_PERSISTED;
-    case Scheme::BITCOIN:
-      if (!accepted)
-        return ProtocolAction::BITCOIN_REJECTED;
-      if (persisted)
-        return ProtocolAction::BITCOIN_ACCEPTED_PERSISTED;
-      return ProtocolAction::BITCOIN_ACCEPTED_NOT_PERSISTED;
-    case Scheme::GEO:
-      if (!accepted)
-        return ProtocolAction::GEO_REJECTED;
-      if (persisted)
-        return ProtocolAction::GEO_ACCEPTED_PERSISTED;
-      return ProtocolAction::GEO_ACCEPTED_NOT_PERSISTED;
-    case Scheme::IM:
-      if (!accepted)
-        return ProtocolAction::IM_REJECTED;
-      if (persisted)
-        return ProtocolAction::IM_ACCEPTED_PERSISTED;
-      return ProtocolAction::IM_ACCEPTED_NOT_PERSISTED;
-    case Scheme::IRC:
-      if (!accepted)
-        return ProtocolAction::IRC_REJECTED;
-      if (persisted)
-        return ProtocolAction::IRC_ACCEPTED_PERSISTED;
-      return ProtocolAction::IRC_ACCEPTED_NOT_PERSISTED;
-    case Scheme::MAGNET:
-      if (!accepted)
-        return ProtocolAction::MAGNET_REJECTED;
-      if (persisted)
-        return ProtocolAction::MAGNET_ACCEPTED_PERSISTED;
-      return ProtocolAction::MAGNET_ACCEPTED_NOT_PERSISTED;
-    case Scheme::MAILTO:
-      if (!accepted)
-        return ProtocolAction::MAILTO_REJECTED;
-      if (persisted)
-        return ProtocolAction::MAILTO_ACCEPTED_PERSISTED;
-      return ProtocolAction::MAILTO_ACCEPTED_NOT_PERSISTED;
-    case Scheme::MMS:
-      if (!accepted)
-        return ProtocolAction::MMS_REJECTED;
-      if (persisted)
-        return ProtocolAction::MMS_ACCEPTED_PERSISTED;
-      return ProtocolAction::MMS_ACCEPTED_NOT_PERSISTED;
-    case Scheme::SIP:
-      if (!accepted)
-        return ProtocolAction::SIP_REJECTED;
-      if (persisted)
-        return ProtocolAction::SIP_ACCEPTED_PERSISTED;
-      return ProtocolAction::SIP_ACCEPTED_NOT_PERSISTED;
-    case Scheme::SKYPE:
-      if (!accepted)
-        return ProtocolAction::SKYPE_REJECTED;
-      if (persisted)
-        return ProtocolAction::SKYPE_ACCEPTED_PERSISTED;
-      return ProtocolAction::SKYPE_ACCEPTED_NOT_PERSISTED;
-    case Scheme::SMS:
-      if (!accepted)
-        return ProtocolAction::SMS_REJECTED;
-      if (persisted)
-        return ProtocolAction::SMS_ACCEPTED_PERSISTED;
-      return ProtocolAction::SMS_ACCEPTED_NOT_PERSISTED;
-    case Scheme::SPOTIFY:
-      if (!accepted)
-        return ProtocolAction::SPOTIFY_REJECTED;
-      if (persisted)
-        return ProtocolAction::SPOTIFY_ACCEPTED_PERSISTED;
-      return ProtocolAction::SPOTIFY_ACCEPTED_NOT_PERSISTED;
-    case Scheme::SSH:
-      if (!accepted)
-        return ProtocolAction::SSH_REJECTED;
-      if (persisted)
-        return ProtocolAction::SSH_ACCEPTED_PERSISTED;
-      return ProtocolAction::SSH_ACCEPTED_NOT_PERSISTED;
-    case Scheme::TEL:
-      if (!accepted)
-        return ProtocolAction::TEL_REJECTED;
-      if (persisted)
-        return ProtocolAction::TEL_ACCEPTED_PERSISTED;
-      return ProtocolAction::TEL_ACCEPTED_NOT_PERSISTED;
-    case Scheme::TELNET:
-      if (!accepted)
-        return ProtocolAction::TELNET_REJECTED;
-      if (persisted)
-        return ProtocolAction::TELNET_ACCEPTED_PERSISTED;
-      return ProtocolAction::TELNET_ACCEPTED_NOT_PERSISTED;
-    case Scheme::WEBCAL:
-      if (!accepted)
-        return ProtocolAction::WEBCAL_REJECTED;
-      if (persisted)
-        return ProtocolAction::WEBCAL_ACCEPTED_PERSISTED;
-      return ProtocolAction::WEBCAL_ACCEPTED_NOT_PERSISTED;
-  }
-  NOTREACHED();
-  return ProtocolAction::OTHER_REJECTED;
 }
 
 }  // namespace arc

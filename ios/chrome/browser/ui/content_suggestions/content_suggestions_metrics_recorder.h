@@ -9,6 +9,7 @@
 
 #import "ios/chrome/browser/metrics/new_tab_page_uma.h"
 
+class PrefService;
 namespace web {
 class WebState;
 }
@@ -16,9 +17,29 @@ class WebState;
 typedef NS_ENUM(NSInteger, NTPCollectionShortcutType);
 
 @class ContentSuggestionsMostVisitedItem;
+enum class ContentSuggestionsModuleType;
+enum class SetUpListItemType;
 
 // Metrics recorder for the content suggestions.
 @interface ContentSuggestionsMetricsRecorder : NSObject
+
+- (instancetype)initWithLocalState:(PrefService*)localState
+    NS_DESIGNATED_INITIALIZER;
+- (instancetype)init NS_UNAVAILABLE;
+
+// Cleans up this class's saved properties before deallocation.
+- (void)disconnect;
+
+// Logs a metric for when a module of `type` is shown as the first module in the
+// Magic Stack.
+- (void)recordMagicStackTopModuleImpressionForType:
+    (ContentSuggestionsModuleType)type;
+
+// Logs a metric for when the user taps on a module of `type` in the Magic
+// Stack.
+- (void)recordMagicStackModuleEngagementForType:
+            (ContentSuggestionsModuleType)type
+                                        atIndex:(int)index;
 
 // Logs a metric for the "Return to Recent Tab" tile being shown.
 - (void)recordReturnToRecentTabTileShown;
@@ -29,8 +50,8 @@ typedef NS_ENUM(NSInteger, NTPCollectionShortcutType);
 // Logs a trending query opened at `index` in the module.
 - (void)recordTrendingQueryTappedAtIndex:(int)index;
 
-// Logs a most recent tab opened.
-- (void)recordMostRecentTabOpened;
+// Logs a tab resumption tab opened.
+- (void)recordTabResumptionTabOpened;
 
 // Logs the most visited tiles being shown.
 - (void)recordMostVisitedTilesShown;
@@ -46,6 +67,15 @@ typedef NS_ENUM(NSInteger, NTPCollectionShortcutType);
 
 // Logs a most visited tile being removed.
 - (void)recordMostVisitedTileRemoved;
+
+// Logs the Set Up List being shown.
+- (void)recordSetUpListShown;
+
+// Logs a Set Up List item being shown.
+- (void)recordSetUpListItemShown:(SetUpListItemType)type;
+
+// Logs a Set Up List item being selected.
+- (void)recordSetUpListItemSelected:(SetUpListItemType)type;
 
 @end
 

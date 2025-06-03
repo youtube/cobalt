@@ -252,7 +252,7 @@ V4GetHashProtocolManager::V4GetHashProtocolManager(
     const V4ProtocolConfig& config)
     : gethash_error_count_(0),
       gethash_back_off_mult_(1),
-      next_gethash_time_(Time::FromDoubleT(0)),
+      next_gethash_time_(Time::FromSecondsSinceUnixEpoch(0)),
       config_(config),
       url_loader_factory_(url_loader_factory),
       clock_(base::DefaultClock::GetInstance()) {
@@ -890,17 +890,6 @@ void V4GetHashProtocolManager::OnURLLoaderCompleteInternal(
   std::vector<FullHashInfo> full_hash_infos;
   Time negative_cache_expire;
 
-  if (net_error == net::ERR_INTERNET_DISCONNECTED) {
-    base::UmaHistogramSparse(
-        "SafeBrowsing.V4GetHash.Network.HttpResponseCode.InternetDisconnected",
-        response_code);
-  }
-  if (net_error == net::ERR_NETWORK_CHANGED) {
-    base::UmaHistogramSparse(
-        "SafeBrowsing.V4GetHash.Network.HttpResponseCode.NetworkChanged",
-        response_code);
-  }
-
   if (net_error == net::OK && response_code == net::HTTP_OK) {
     RecordGetHashResult(V4OperationResult::STATUS_200);
     if (gethash_error_count_)
@@ -952,14 +941,14 @@ void V4GetHashProtocolManager::CollectFullHashCacheInfo(
         full_hash_cache_info->add_full_hash_cache();
     full_hash_cache->set_hash_prefix(it.first);
     full_hash_cache->mutable_cached_hash_prefix_info()->set_negative_expiry(
-        it.second.negative_expiry.ToJavaTime());
+        it.second.negative_expiry.InMillisecondsSinceUnixEpoch());
 
     for (const auto& full_hash_infos_it : it.second.full_hash_infos) {
       FullHashCacheInfo::FullHashCache::CachedHashPrefixInfo::FullHashInfo*
           full_hash_info = full_hash_cache->mutable_cached_hash_prefix_info()
                                ->add_full_hash_info();
       full_hash_info->set_positive_expiry(
-          full_hash_infos_it.positive_expiry.ToJavaTime());
+          full_hash_infos_it.positive_expiry.InMillisecondsSinceUnixEpoch());
       full_hash_info->set_full_hash(full_hash_infos_it.full_hash);
 
       full_hash_info->mutable_list_identifier()->set_platform_type(

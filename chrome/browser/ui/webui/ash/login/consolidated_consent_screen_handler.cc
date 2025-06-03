@@ -8,10 +8,10 @@
 #include "ash/constants/ash_switches.h"
 #include "base/command_line.h"
 #include "base/values.h"
-#include "chrome/browser/ash/account_manager/account_apps_availability.h"
+#include "chrome/browser/ash/crosapi/browser_util.h"
 #include "chrome/browser/ash/login/oobe_screen.h"
 #include "chrome/browser/ash/login/screens/consolidated_consent_screen.h"
-#include "chrome/grit/chromium_strings.h"
+#include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/login/localized_values_builder.h"
 #include "ui/chromeos/devicetype_utils.h"
@@ -70,7 +70,7 @@ void ConsolidatedConsentScreenHandler::DeclareLocalizedValues(
   builder->Add("consolidatedConsentFooter", IDS_CONSOLIDATED_CONSENT_FOOTER);
   builder->Add("consolidatedConsentFooterChild",
                IDS_CONSOLIDATED_CONSENT_FOOTER_CHILD);
-  if (AccountAppsAvailability::IsArcAccountRestrictionsEnabled() &&
+  if (crosapi::browser_util::IsLacrosEnabled() &&
       features::IsOsSyncConsentRevampEnabled()) {
     builder->Add("consolidatedConsentUsageOptInLearnMore",
                  IDS_CONSOLIDATED_CONSENT_USAGE_OPT_IN_LEARN_MORE_OWNER_LACROS);

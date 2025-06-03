@@ -4,7 +4,7 @@
 
 import 'chrome://resources/polymer/v3_0/iron-test-helpers/mock-interactions.js';
 
-import {crosAudioConfigMojom, DevicePageBrowserProxyImpl, fakeCrosAudioConfig, FakeInputDeviceSettingsProvider, fakeKeyboards, fakeMice, fakePointingSticks, fakeTouchpads, IdleBehavior, LidClosedBehavior, NoteAppLockScreenSupport, Router, routes, setCrosAudioConfigForTesting, setDisplayApiForTesting, setInputDeviceSettingsProviderForTesting, StorageSpaceState} from 'chrome://os-settings/chromeos/os_settings.js';
+import {crosAudioConfigMojom, DevicePageBrowserProxyImpl, fakeCrosAudioConfig, fakeGraphicsTablets, FakeInputDeviceSettingsProvider, fakeKeyboards, fakeMice, fakePointingSticks, fakeTouchpads, IdleBehavior, LidClosedBehavior, NoteAppLockScreenSupport, Router, routes, setCrosAudioConfigForTesting, setDisplayApiForTesting, setInputDeviceSettingsProviderForTesting, StorageSpaceState} from 'chrome://os-settings/os_settings.js';
 import {assert} from 'chrome://resources/ash/common/assert.js';
 import {webUIListenerCallback} from 'chrome://resources/ash/common/cr.m.js';
 import {loadTimeData} from 'chrome://resources/ash/common/load_time_data.m.js';
@@ -18,6 +18,7 @@ import {isVisible} from 'chrome://webui-test/test_util.js';
 
 import {FakeSystemDisplay} from '../fake_system_display.js';
 
+import {getFakePrefs} from './device_page_test_util.js';
 import {TestDevicePageBrowserProxy} from './test_device_page_browser_proxy.js';
 
 /** @enum {string} */
@@ -25,6 +26,7 @@ const TestNames = {
   DevicePage: 'device page',
   Audio: 'audio',
   Display: 'display',
+  GraphicsTablet: 'graphics tablet',
   Keyboard: 'keyboard',
   PerDeviceMouse: 'per-device mouse',
   PerDeviceTouchpad: 'per-device touchpad',
@@ -37,228 +39,6 @@ const TestNames = {
   Stylus: 'stylus',
   KeyboardArrangementDisabled: 'arrow_key_arrangement_disabled',
 };
-
-function getFakePrefs() {
-  return {
-    arc: {
-      enabled: {
-        key: 'arc.enabled',
-        type: chrome.settingsPrivate.PrefType.BOOLEAN,
-        value: true,
-      },
-    },
-    ash: {
-      ambient_color: {
-        enabled: {
-          key: 'ash.ambient_color.enabled',
-          type: chrome.settingsPrivate.PrefType.BOOLEAN,
-          value: false,
-        },
-      },
-      night_light: {
-        enabled: {
-          key: 'ash.night_light.enabled',
-          type: chrome.settingsPrivate.PrefType.BOOLEAN,
-          value: false,
-        },
-        color_temperature: {
-          key: 'ash.night_light.color_temperature',
-          type: chrome.settingsPrivate.PrefType.NUMBER,
-          value: 0,
-        },
-        schedule_type: {
-          key: 'ash.night_light.schedule_type',
-          type: chrome.settingsPrivate.PrefType.NUMBER,
-          value: 0,
-        },
-        custom_start_time: {
-          key: 'ash.night_light.custom_start_time',
-          type: chrome.settingsPrivate.PrefType.NUMBER,
-          value: 0,
-        },
-        custom_end_time: {
-          key: 'ash.night_light.custom_end_time',
-          type: chrome.settingsPrivate.PrefType.NUMBER,
-          value: 0,
-        },
-      },
-    },
-    settings: {
-      // TODO(afakhry): Write tests to validate the Night Light slider
-      // behavior with 24-hour setting.
-      clock: {
-        use_24hour_clock: {
-          key: 'settings.clock.use_24hour_clock',
-          type: chrome.settingsPrivate.PrefType.BOOLEAN,
-          value: false,
-        },
-      },
-      enable_stylus_tools: {
-        key: 'settings.enable_stylus_tools',
-        type: chrome.settingsPrivate.PrefType.BOOLEAN,
-        value: false,
-      },
-      launch_palette_on_eject_event: {
-        key: 'settings.launch_palette_on_eject_event',
-        type: chrome.settingsPrivate.PrefType.BOOLEAN,
-        value: false,
-      },
-      restore_last_lock_screen_note: {
-        key: 'settings.restore_last_lock_screen_note',
-        type: chrome.settingsPrivate.PrefType.BOOLEAN,
-        value: true,
-      },
-      touchpad: {
-        enable_tap_to_click: {
-          key: 'settings.touchpad.enable_tap_to_click',
-          type: chrome.settingsPrivate.PrefType.BOOLEAN,
-          value: true,
-        },
-        enable_tap_dragging: {
-          key: 'settings.touchpad.enable_tap_dragging',
-          type: chrome.settingsPrivate.PrefType.BOOLEAN,
-          value: false,
-        },
-        natural_scroll: {
-          key: 'settings.touchpad.natural_scroll',
-          type: chrome.settingsPrivate.PrefType.BOOLEAN,
-          value: false,
-        },
-        acceleration: {
-          key: 'settings.touchpad.acceleration',
-          type: chrome.settingsPrivate.PrefType.BOOLEAN,
-          value: true,
-        },
-        scroll_acceleration: {
-          key: 'settings.touchpad.scroll_acceleration',
-          type: chrome.settingsPrivate.PrefType.BOOLEAN,
-          value: true,
-        },
-        sensitivity2: {
-          key: 'settings.touchpad.sensitivity2',
-          type: chrome.settingsPrivate.PrefType.NUMBER,
-          value: 3,
-        },
-        scroll_sensitivity: {
-          key: 'settings.touchpad.scroll_sensitivity',
-          type: chrome.settingsPrivate.PrefType.NUMBER,
-          value: 3,
-        },
-        haptic_feedback: {
-          key: 'settings.touchpad.haptic_feedback',
-          type: chrome.settingsPrivate.PrefType.BOOLEAN,
-          value: true,
-        },
-        haptic_click_sensitivity: {
-          key: 'settings.touchpad.haptic_click_sensitivity',
-          type: chrome.settingsPrivate.PrefType.NUMBER,
-          value: 3,
-        },
-      },
-      mouse: {
-        primary_right: {
-          key: 'settings.mouse.primary_right',
-          type: chrome.settingsPrivate.PrefType.BOOLEAN,
-          value: false,
-        },
-        reverse_scroll: {
-          key: 'settings.mouse.reverse_scroll',
-          type: chrome.settingsPrivate.PrefType.BOOLEAN,
-          value: false,
-        },
-        acceleration: {
-          key: 'settings.mouse.acceleration',
-          type: chrome.settingsPrivate.PrefType.BOOLEAN,
-          value: true,
-        },
-        scroll_acceleration: {
-          key: 'settings.mouse.scroll_acceleration',
-          type: chrome.settingsPrivate.PrefType.BOOLEAN,
-          value: true,
-        },
-        sensitivity2: {
-          key: 'settings.mouse.sensitivity2',
-          type: chrome.settingsPrivate.PrefType.NUMBER,
-          value: 4,
-        },
-        scroll_sensitivity: {
-          key: 'settings.mouse.scroll_sensitivity',
-          type: chrome.settingsPrivate.PrefType.NUMBER,
-          value: 4,
-        },
-      },
-      pointing_stick: {
-        primary_right: {
-          key: 'settings.pointing_stick.primary_right',
-          type: chrome.settingsPrivate.PrefType.BOOLEAN,
-          value: false,
-        },
-        acceleration: {
-          key: 'settings.pointing_stick.acceleration',
-          type: chrome.settingsPrivate.PrefType.BOOLEAN,
-          value: true,
-        },
-        sensitivity: {
-          key: 'settings.pointing_stick.sensitivity',
-          type: chrome.settingsPrivate.PrefType.NUMBER,
-          value: 4,
-        },
-      },
-      language: {
-        xkb_remap_search_key_to: {
-          key: 'settings.language.xkb_remap_search_key_to',
-          type: chrome.settingsPrivate.PrefType.NUMBER,
-          value: 0,
-        },
-        xkb_remap_control_key_to: {
-          key: 'settings.language.xkb_remap_control_key_to',
-          type: chrome.settingsPrivate.PrefType.NUMBER,
-          value: 1,
-        },
-        xkb_remap_alt_key_to: {
-          key: 'settings.language.xkb_remap_alt_key_to',
-          type: chrome.settingsPrivate.PrefType.NUMBER,
-          value: 2,
-        },
-        remap_caps_lock_key_to: {
-          key: 'settings.language.remap_caps_lock_key_to',
-          type: chrome.settingsPrivate.PrefType.NUMBER,
-          value: 4,
-        },
-        remap_escape_key_to: {
-          key: 'settings.language.remap_escape_key_to',
-          type: chrome.settingsPrivate.PrefType.NUMBER,
-          value: 5,
-        },
-        remap_backspace_key_to: {
-          key: 'settings.language.remap_backspace_key_to',
-          type: chrome.settingsPrivate.PrefType.NUMBER,
-          value: 6,
-        },
-        send_function_keys: {
-          key: 'settings.language.send_function_keys',
-          type: chrome.settingsPrivate.PrefType.BOOLEAN,
-          value: false,
-        },
-        xkb_auto_repeat_enabled_r2: {
-          key: 'prefs.settings.language.xkb_auto_repeat_enabled_r2',
-          type: chrome.settingsPrivate.PrefType.BOOLEAN,
-          value: true,
-        },
-        xkb_auto_repeat_delay_r2: {
-          key: 'settings.language.xkb_auto_repeat_delay_r2',
-          type: chrome.settingsPrivate.PrefType.NUMBER,
-          value: 500,
-        },
-        xkb_auto_repeat_interval_r2: {
-          key: 'settings.language.xkb_auto_repeat_interval_r2',
-          type: chrome.settingsPrivate.PrefType.NUMBER,
-          value: 500,
-        },
-      },
-    },
-  };
-}
 
 suite('SettingsDevicePage', function() {
   /** @type {!SettingsDevicePage|undefined} */
@@ -291,12 +71,8 @@ suite('SettingsDevicePage', function() {
     await flushTasks();
     devicePage = document.createElement('settings-device-page');
     devicePage.prefs = getFakePrefs();
-
-    // os-settings-animated-pages expects a parent with data-page set.
-    const basicPage = document.createElement('div');
-    basicPage.dataset.page = 'basic';
-    basicPage.appendChild(devicePage);
-    document.body.appendChild(basicPage);
+    document.body.appendChild(devicePage);
+    flush();
   }
 
   /** @return {!Promise<!HTMLElement>} */
@@ -308,87 +84,6 @@ suite('SettingsDevicePage', function() {
     const page = devicePage.shadowRoot.querySelector('settings-' + subpage);
     assert(page);
     return Promise.resolve(page);
-  }
-
-  /** @param {number} n The number of the display to add. */
-  function addDisplay(n) {
-    const display = {
-      id: 'fakeDisplayId' + n,
-      name: 'fakeDisplayName' + n,
-      mirroring: '',
-      isPrimary: n === 1,
-      isInternal: n === 1,
-      rotation: 0,
-      modes: [
-        {
-          deviceScaleFactor: 1.0,
-          widthInNativePixels: 1920,
-          heightInNativePixels: 1080,
-          width: 1920,
-          height: 1080,
-          refreshRate: 60,
-        },
-        {
-          deviceScaleFactor: 1.0,
-          widthInNativePixels: 1920,
-          heightInNativePixels: 1080,
-          width: 1920,
-          height: 1080,
-          refreshRate: 30,
-        },
-        {
-          deviceScaleFactor: 1.0,
-          widthInNativePixels: 3000,
-          heightInNativePixels: 2000,
-          width: 3000,
-          height: 2000,
-          refreshRate: 45,
-        },
-        {
-          deviceScaleFactor: 1.0,
-          widthInNativePixels: 3000,
-          heightInNativePixels: 2000,
-          width: 3000,
-          height: 2000,
-          refreshRate: 75,
-        },
-        // Include 3 copies of 3000x2000 mode to emulate duplicated modes
-        // reported by some monitors.  Only one is marked 'isNative'.
-        {
-          deviceScaleFactor: 1.0,
-          widthInNativePixels: 3000,
-          heightInNativePixels: 2000,
-          width: 3000,
-          height: 2000,
-          refreshRate: 100,
-        },
-        {
-          isNative: true,
-          deviceScaleFactor: 1.0,
-          widthInNativePixels: 3000,
-          heightInNativePixels: 2000,
-          width: 3000,
-          height: 2000,
-          refreshRate: 100,
-        },
-        {
-          deviceScaleFactor: 1.0,
-          widthInNativePixels: 3000,
-          heightInNativePixels: 2000,
-          width: 3000,
-          height: 2000,
-          refreshRate: 100,
-        },
-      ],
-      bounds: {
-        left: 0,
-        top: 0,
-        width: 1920,
-        height: 1080,
-      },
-      availableDisplayZoomFactors: [1, 1.25, 1.5, 2],
-    };
-    fakeSystemDisplay.addDisplayForTest(display);
   }
 
   /**
@@ -405,22 +100,23 @@ suite('SettingsDevicePage', function() {
    * @param {boolean} adaptiveChargingManaged
    */
   function sendPowerManagementSettings(
-      possibleAcIdleBehaviors, possibleBatteryIdleBehaviors, currAcIdleBehavior,
-      currBatteryIdleBehavior, acIdleManaged, batteryIdleManaged,
-      lidClosedBehavior, lidClosedControlled, hasLid, adaptiveCharging,
-      adaptiveChargingManaged) {
+      possibleAcIdleBehaviors, possibleBatteryIdleBehaviors,
+      currentAcIdleBehavior, currentBatteryIdleBehavior, acIdleManaged,
+      batteryIdleManaged, lidClosedBehavior, lidClosedControlled, hasLid,
+      adaptiveCharging, adaptiveChargingManaged, batterySaverFeatureEnabled) {
     webUIListenerCallback('power-management-settings-changed', {
-      possibleAcIdleBehaviors: possibleAcIdleBehaviors,
-      possibleBatteryIdleBehaviors: possibleBatteryIdleBehaviors,
-      currentAcIdleBehavior: currAcIdleBehavior,
-      currentBatteryIdleBehavior: currBatteryIdleBehavior,
-      acIdleManaged: acIdleManaged,
-      batteryIdleManaged: batteryIdleManaged,
-      lidClosedBehavior: lidClosedBehavior,
-      lidClosedControlled: lidClosedControlled,
-      hasLid: hasLid,
-      adaptiveCharging: adaptiveCharging,
-      adaptiveChargingManaged: adaptiveChargingManaged,
+      possibleAcIdleBehaviors,
+      possibleBatteryIdleBehaviors,
+      currentAcIdleBehavior,
+      currentBatteryIdleBehavior,
+      acIdleManaged,
+      batteryIdleManaged,
+      lidClosedBehavior,
+      lidClosedControlled,
+      hasLid,
+      adaptiveCharging,
+      adaptiveChargingManaged,
+      batterySaverFeatureEnabled,
     });
     flush();
   }
@@ -477,11 +173,26 @@ suite('SettingsDevicePage', function() {
     });
   }
 
+  /**
+   * Set enablePeripheralCustomization feature flag to true for split tests.
+   * @param {!boolean} isEnabled
+   */
+  function setPeripheralCustomizationEnabled(isEnabled) {
+    loadTimeData.overrideValues({
+      enablePeripheralCustomization: isEnabled,
+    });
+  }
+
   test(assert(TestNames.DevicePage), async function() {
+    const provider = new FakeInputDeviceSettingsProvider();
+    setInputDeviceSettingsProviderForTesting(provider);
+    provider.setFakeMice(fakeMice);
+    provider.setFakePointingSticks(fakePointingSticks);
+    provider.setFakeTouchpads(fakeTouchpads);
+    provider.setFakeGraphicsTablets(fakeGraphicsTablets);
+
     await init();
     assertTrue(isVisible(devicePage.shadowRoot.querySelector('#displayRow')));
-
-    // enableAudioSettingsPage feature flag by default is turned on in tests.
     assertTrue(isVisible(devicePage.shadowRoot.querySelector('#audioRow')));
 
     // enableInputDeviceSettingsSplit feature flag by default is turned on.
@@ -495,6 +206,9 @@ suite('SettingsDevicePage', function() {
         devicePage.shadowRoot.querySelector('#perDeviceKeyboardRow')));
     assertFalse(isVisible(devicePage.shadowRoot.querySelector('#pointersRow')));
     assertFalse(isVisible(devicePage.shadowRoot.querySelector('#keyboardRow')));
+
+    // enablePeripheralCustomization feature flag by default is turned on.
+    assertTrue(isVisible(devicePage.shadowRoot.querySelector('#tabletRow')));
 
     // Turn off the enableInputDeviceSettingsSplit feature flag.
     setDeviceSplitEnabled(false);
@@ -517,14 +231,11 @@ suite('SettingsDevicePage', function() {
     webUIListenerCallback('has-mouse-changed', true);
     await flushTasks();
     assertTrue(isVisible(devicePage.shadowRoot.querySelector('#pointersRow')));
-  });
 
-  test('audio row visibility', async function() {
-    loadTimeData.overrideValues({
-      enableAudioSettingsPage: false,
-    });
+    // Turn off the enablePeripheralCustomization feature flag.
+    setPeripheralCustomizationEnabled(false);
     await init();
-    assertFalse(isVisible(devicePage.shadowRoot.querySelector('#audioRow')));
+    assertFalse(isVisible(devicePage.shadowRoot.querySelector('#tabletRow')));
   });
 
   test('per-device-mouse row visibility', async function() {
@@ -535,30 +246,35 @@ suite('SettingsDevicePage', function() {
   });
 
   test(
-      'navigate back to device page when per-device-mouse is detached',
+      'per-device-mouse row visibility based on devices connected',
       async function() {
+        const provider = new FakeInputDeviceSettingsProvider();
+        setInputDeviceSettingsProviderForTesting(provider);
+
         // Tests with flag on.
         setDeviceSplitEnabled(true);
-        webUIListenerCallback('has-mouse-changed', true);
-
         await init();
+
+        provider.setFakeMice(fakeMice);
+        await flushTasks();
         assertTrue(isVisible(
             devicePage.shadowRoot.querySelector('#perDeviceMouseRow')));
 
-        webUIListenerCallback('has-mouse-changed', false);
+        provider.setFakeMice([]);
         await flushTasks();
         assertFalse(isVisible(
             devicePage.shadowRoot.querySelector('#perDeviceMouseRow')));
 
-        webUIListenerCallback('has-mouse-changed', true);
+        provider.setFakeMice(fakeMice);
         await flushTasks();
         assertTrue(isVisible(
             devicePage.shadowRoot.querySelector('#perDeviceMouseRow')));
 
         // Tests with flag off.
         setDeviceSplitEnabled(false);
-        webUIListenerCallback('has-mouse-changed', true);
+        await init();
 
+        webUIListenerCallback('has-mouse-changed', true);
         await init();
         assertFalse(isVisible(
             devicePage.shadowRoot.querySelector('#perDeviceMouseRow')));
@@ -577,31 +293,36 @@ suite('SettingsDevicePage', function() {
   });
 
   test(
-      'navigate back to device page when per-device-touchpad is detached',
+      'per-device-touchpad row visiblity based on connected devices',
       async function() {
+        const provider = new FakeInputDeviceSettingsProvider();
+        setInputDeviceSettingsProviderForTesting(provider);
+
         // Tests with flag on.
         setDeviceSplitEnabled(true);
-        webUIListenerCallback('has-touchpad-changed', true);
-
         await init();
+
+        provider.setFakeTouchpads(fakeTouchpads);
+        await flushTasks();
         assertTrue(isVisible(
             devicePage.shadowRoot.querySelector('#perDeviceTouchpadRow')));
 
-        webUIListenerCallback('has-touchpad-changed', false);
+        provider.setFakeTouchpads([]);
         await flushTasks();
         assertFalse(isVisible(
             devicePage.shadowRoot.querySelector('#perDeviceTouchpadRow')));
 
-        webUIListenerCallback('has-touchpad-changed', true);
+        provider.setFakeTouchpads(fakeTouchpads);
         await flushTasks();
         assertTrue(isVisible(
             devicePage.shadowRoot.querySelector('#perDeviceTouchpadRow')));
 
         // Tests with flag off.
         setDeviceSplitEnabled(false);
-        webUIListenerCallback('has-touchpad-changed', true);
-
         await init();
+
+        webUIListenerCallback('has-touchpad-changed', true);
+        await flushTasks();
         assertFalse(isVisible(
             devicePage.shadowRoot.querySelector('#perDeviceTouchpadRow')));
 
@@ -619,31 +340,36 @@ suite('SettingsDevicePage', function() {
   });
 
   test(
-      'navigate back to device page when per-device-pointing-stick is detached',
+      'per-device-pointing-stick row visibility based on devices connected',
       async function() {
+        const provider = new FakeInputDeviceSettingsProvider();
+        setInputDeviceSettingsProviderForTesting(provider);
+
         // Tests with flag on.
         setDeviceSplitEnabled(true);
-        webUIListenerCallback('has-pointing-stick-changed', true);
-
         await init();
+
+        provider.setFakePointingSticks(fakePointingSticks);
+        await flushTasks();
         assertTrue(isVisible(
             devicePage.shadowRoot.querySelector('#perDevicePointingStickRow')));
 
-        webUIListenerCallback('has-pointing-stick-changed', false);
+        provider.setFakePointingSticks([]);
         await flushTasks();
         assertFalse(isVisible(
             devicePage.shadowRoot.querySelector('#perDevicePointingStickRow')));
 
-        webUIListenerCallback('has-pointing-stick-changed', true);
+        provider.setFakePointingSticks(fakePointingSticks);
         await flushTasks();
         assertTrue(isVisible(
             devicePage.shadowRoot.querySelector('#perDevicePointingStickRow')));
 
         // Tests with flag off.
         setDeviceSplitEnabled(false);
-        webUIListenerCallback('has-pointing-stick-stick-changed', true);
-
         await init();
+
+        webUIListenerCallback('has-pointing-stick-stick-changed', true);
+        await flushTasks();
         assertFalse(isVisible(
             devicePage.shadowRoot.querySelector('#perDevicePointingStickRow')));
 
@@ -658,6 +384,49 @@ suite('SettingsDevicePage', function() {
     await init();
     assertFalse(isVisible(
         devicePage.shadowRoot.querySelector('#perDeviceKeyboardRow')));
+  });
+
+  test(
+      'graphics tablet row visibility based on devices connected',
+      async function() {
+        const provider = new FakeInputDeviceSettingsProvider();
+        setInputDeviceSettingsProviderForTesting(provider);
+        provider.setFakeGraphicsTablets(fakeGraphicsTablets);
+
+        // Tests with flag on.
+        setPeripheralCustomizationEnabled(true);
+        await init();
+
+        assertTrue(
+            isVisible(devicePage.shadowRoot.querySelector('#tabletRow')));
+
+        provider.setFakeGraphicsTablets([]);
+        await flushTasks();
+        assertFalse(
+            isVisible(devicePage.shadowRoot.querySelector('#tabletRow')));
+
+        provider.setFakeGraphicsTablets(fakeGraphicsTablets);
+        await flushTasks();
+        assertTrue(
+            isVisible(devicePage.shadowRoot.querySelector('#tabletRow')));
+      });
+
+  test('graphics tablet subpage navigates back to device page', async () => {
+    const provider = new FakeInputDeviceSettingsProvider();
+    setInputDeviceSettingsProviderForTesting(provider);
+    provider.setFakeGraphicsTablets(fakeGraphicsTablets);
+
+    // Tests with flag on.
+    setPeripheralCustomizationEnabled(true);
+    await init();
+
+    const row = assert(devicePage.shadowRoot.querySelector(`#tabletRow`));
+    row.click();
+    assertEquals(routes.GRAPHICS_TABLET, Router.getInstance().currentRoute);
+
+    provider.setFakeGraphicsTablets([]);
+    await flushTasks();
+    assertEquals(routes.DEVICE, Router.getInstance().currentRoute);
   });
 
   suite(assert(TestNames.PerDeviceKeyboard), function() {
@@ -680,9 +449,7 @@ suite('SettingsDevicePage', function() {
       const page =
           devicePage.shadowRoot.querySelector('settings-per-device-keyboard');
       assert(page);
-      return Promise.resolve(page).then(function(page) {
-        perDeviceKeyboardPage = page;
-      });
+      perDeviceKeyboardPage = page;
     });
 
     test('per-device keyboard subpage visibility', function() {
@@ -925,9 +692,6 @@ suite('SettingsDevicePage', function() {
     }
 
     setup(async function() {
-      loadTimeData.overrideValues({
-        enableAudioSettingsPage: true,
-      });
       await init();
 
       // FakeAudioConfig must be set before audio subpage is loaded.
@@ -2033,375 +1797,85 @@ suite('SettingsDevicePage', function() {
     });
   });
 
-  suite(assert(TestNames.Display), function() {
-    let displayPage;
-    let browserProxy;
+  suite(assert(TestNames.GraphicsTablet), function() {
+    let graphicsTabletPage;
+    let inputDeviceSettingsProvider;
 
-    setup(async () => {
+    suiteSetup(() => {
+      inputDeviceSettingsProvider = new FakeInputDeviceSettingsProvider();
+      inputDeviceSettingsProvider.setFakeGraphicsTablets(fakeGraphicsTablets);
+      setInputDeviceSettingsProviderForTesting(inputDeviceSettingsProvider);
+    });
+
+    setup(async function() {
+      setPeripheralCustomizationEnabled(true);
       await init();
-      displayPage = await showAndGetDeviceSubpage('display', routes.DISPLAY);
-      browserProxy = DevicePageBrowserProxyImpl.getInstance();
-      await fakeSystemDisplay.getInfoCalled.promise;
+      const row =
+          assert(devicePage.shadowRoot.querySelector(`#main #tabletRow`));
+      row.click();
+      assertEquals(routes.GRAPHICS_TABLET, Router.getInstance().currentRoute);
+      const page = devicePage.shadowRoot.querySelector(
+          'settings-graphics-tablet-subpage');
+      assert(page);
+      return Promise.resolve(page).then(function(page) {
+        graphicsTabletPage = page;
+      });
     });
 
-    test('display tests', function() {
-      // Verify all the conditionals that get run during page load
-      // before the display info has been populated.
-      assertEquals(undefined, displayPage.displays);
-      assertFalse(displayPage.showMirror_(true, displayPage.displays));
-      assertFalse(displayPage.showMirror_(false, displayPage.displays));
-      assertFalse(displayPage.isMirrored_(displayPage.displays));
-      assertFalse(
-          displayPage.showUnifiedDesktop_(true, true, displayPage.displays));
-      assertFalse(
-          displayPage.showUnifiedDesktop_(false, false, displayPage.displays));
+    test('graphics tablet subpage visibility', async () => {
+      assertEquals(routes.GRAPHICS_TABLET, Router.getInstance().currentRoute);
+      const items = graphicsTabletPage.shadowRoot.querySelectorAll('.device');
+      // Verify that all graphics tablets are displayed and their ids are same
+      // with the data in the provider.
+      assertEquals(items.length, fakeGraphicsTablets.length);
+      assertTrue(isVisible(items[0]));
       assertEquals(
-          displayPage.invalidDisplayId_, browserProxy.lastHighlightedDisplayId);
-
-      // Add a display.
-      addDisplay(1);
-      fakeSystemDisplay.onDisplayChanged.callListeners();
-
-      return Promise
-          .all([
-            fakeSystemDisplay.getInfoCalled.promise,
-            fakeSystemDisplay.getLayoutCalled.promise,
-          ])
-          .then(function() {
-            // There should be a single display which should be primary and
-            // selected. Mirroring should be disabled.
-            assertEquals(1, displayPage.displays.length);
-            assertEquals(
-                displayPage.displays[0].id, displayPage.selectedDisplay.id);
-            assertEquals(
-                displayPage.displays[0].id, displayPage.primaryDisplayId);
-            assertFalse(displayPage.showMirror_(false, displayPage.displays));
-            assertFalse(displayPage.isMirrored_(displayPage.displays));
-
-            // Verify unified desktop only shown when enabled.
-            assertTrue(displayPage.showUnifiedDesktop_(
-                true, true, displayPage.displays));
-            assertFalse(displayPage.showUnifiedDesktop_(
-                false, false, displayPage.displays));
-
-            // Sanity check the first display is internal.
-            assertTrue(displayPage.displays[0].isInternal);
-
-            // Ambient EQ only shown when enabled.
-            assertTrue(displayPage.showAmbientColorSetting_(
-                true, displayPage.displays[0]));
-            assertFalse(displayPage.showAmbientColorSetting_(
-                false, displayPage.displays[0]));
-
-            // Verify that the arrangement section is not shown.
-            assertEquals(
-                null,
-                displayPage.shadowRoot.querySelector('#arrangement-section'));
-
-            // Add a second display.
-            addDisplay(2);
-            fakeSystemDisplay.onDisplayChanged.callListeners();
-
-            return Promise.all([
-              fakeSystemDisplay.getInfoCalled.promise,
-              fakeSystemDisplay.getLayoutCalled.promise,
-              new Promise(function(resolve, reject) {
-                setTimeout(resolve);
-              }),
-            ]);
-          })
-          .then(function() {
-            // There should be two displays, the first should be primary and
-            // selected. Mirroring should be enabled but set to false.
-            assertEquals(2, displayPage.displays.length);
-            assertEquals(
-                displayPage.displays[0].id, displayPage.selectedDisplay.id);
-            assertEquals(
-                displayPage.displays[0].id, displayPage.primaryDisplayId);
-            assertTrue(displayPage.showMirror_(false, displayPage.displays));
-            assertFalse(displayPage.isMirrored_(displayPage.displays));
-
-            // Verify unified desktop only shown when enabled.
-            assertTrue(displayPage.showUnifiedDesktop_(
-                true, true, displayPage.displays));
-            assertFalse(displayPage.showUnifiedDesktop_(
-                false, false, displayPage.displays));
-
-            // Sanity check the second display is not internal.
-            assertFalse(displayPage.displays[1].isInternal);
-
-
-            // Verify the display modes are parsed correctly.
-
-            // 5 total modes, 2 parent modes.
-            assertEquals(7, displayPage.modeToParentModeMap_.size);
-            assertEquals(0, displayPage.modeToParentModeMap_.get(0));
-            assertEquals(0, displayPage.modeToParentModeMap_.get(1));
-            assertEquals(5, displayPage.modeToParentModeMap_.get(2));
-            assertEquals(5, displayPage.modeToParentModeMap_.get(3));
-            assertEquals(5, displayPage.modeToParentModeMap_.get(4));
-            assertEquals(5, displayPage.modeToParentModeMap_.get(5));
-            assertEquals(5, displayPage.modeToParentModeMap_.get(6));
-
-            // Two resolution options, one for each parent mode.
-            assertEquals(2, displayPage.refreshRateList_.length);
-
-            // Each parent mode has the correct number of refresh rates.
-            assertEquals(2, displayPage.parentModeToRefreshRateMap_.size);
-            assertEquals(
-                2, displayPage.parentModeToRefreshRateMap_.get(0).length);
-            assertEquals(
-                3, displayPage.parentModeToRefreshRateMap_.get(5).length);
-
-            // Ambient EQ never shown on non-internal display regardless of
-            // whether it is enabled.
-            assertFalse(displayPage.showAmbientColorSetting_(
-                true, displayPage.displays[1]));
-            assertFalse(displayPage.showAmbientColorSetting_(
-                false, displayPage.displays[1]));
-
-            // Verify that the arrangement section is shown.
-            assertTrue(
-                !!displayPage.shadowRoot.querySelector('#arrangement-section'));
-
-            // Select the second display and make it primary. Also change the
-            // orientation of the second display.
-            const displayLayout =
-                displayPage.shadowRoot.querySelector('#displayLayout');
-            assertTrue(!!displayLayout);
-            const displayDiv =
-                displayLayout.shadowRoot.querySelector('#_fakeDisplayId2');
-            assertTrue(!!displayDiv);
-            displayDiv.click();
-            assertEquals(
-                displayPage.displays[1].id, displayPage.selectedDisplay.id);
-            flush();
-
-            const primaryDisplaySelect =
-                displayPage.shadowRoot.getElementById('primaryDisplaySelect');
-            assertTrue(!!primaryDisplaySelect);
-            primaryDisplaySelect.value = '0';
-            primaryDisplaySelect.dispatchEvent(new CustomEvent('change'));
-            flush();
-
-            const orientationSelect =
-                displayPage.shadowRoot.getElementById('orientationSelect');
-            assertTrue(!!orientationSelect);
-            orientationSelect.value = '90';
-            orientationSelect.dispatchEvent(new CustomEvent('change'));
-            flush();
-
-            fakeSystemDisplay.onDisplayChanged.callListeners();
-
-            return Promise.all([
-              fakeSystemDisplay.getInfoCalled.promise,
-              fakeSystemDisplay.getLayoutCalled.promise,
-              new Promise(function(resolve, reject) {
-                setTimeout(resolve);
-              }),
-            ]);
-          })
-          .then(function() {
-            // Confirm that the second display is selected, primary, and
-            // rotated.
-            assertEquals(2, displayPage.displays.length);
-            assertEquals(
-                displayPage.displays[1].id, displayPage.selectedDisplay.id);
-            assertTrue(displayPage.displays[1].isPrimary);
-            assertEquals(
-                displayPage.displays[1].id, displayPage.primaryDisplayId);
-            assertEquals(90, displayPage.displays[1].rotation);
-
-            // Mirror the displays.
-            const displayMirrorCheckbox =
-                displayPage.shadowRoot.getElementById('displayMirrorCheckbox');
-            assertTrue(!!displayMirrorCheckbox);
-            displayMirrorCheckbox.click();
-            flush();
-
-            fakeSystemDisplay.onDisplayChanged.callListeners();
-
-            return Promise.all([
-              fakeSystemDisplay.getInfoCalled.promise,
-              fakeSystemDisplay.getLayoutCalled.promise,
-              new Promise(function(resolve, reject) {
-                setTimeout(resolve);
-              }),
-            ]);
-          })
-          .then(function() {
-            // Confirm that there is now only one display and that it is
-            // primary and mirroring is enabled.
-            assertEquals(1, displayPage.displays.length);
-            assertEquals(
-                displayPage.displays[0].id, displayPage.selectedDisplay.id);
-            assertTrue(displayPage.displays[0].isPrimary);
-            assertTrue(displayPage.showMirror_(false, displayPage.displays));
-            assertTrue(displayPage.isMirrored_(displayPage.displays));
-
-            // Verify that the arrangement section is shown while mirroring.
-            assertTrue(
-                !!displayPage.shadowRoot.querySelector('#arrangement-section'));
-
-            // Ensure that the zoom value remains unchanged while draggging.
-            function pointerEvent(eventType, ratio) {
-              const crSlider = displayPage.$.displaySizeSlider.$.slider;
-              const rect = crSlider.$.container.getBoundingClientRect();
-              crSlider.dispatchEvent(new PointerEvent(eventType, {
-                buttons: 1,
-                pointerId: 1,
-                clientX: rect.left + (ratio * rect.width),
-              }));
-            }
-
-            assertEquals(1, displayPage.selectedZoomPref_.value);
-            pointerEvent('pointerdown', .6);
-            assertEquals(1, displayPage.selectedZoomPref_.value);
-            pointerEvent('pointermove', .3);
-            assertEquals(1, displayPage.selectedZoomPref_.value);
-            pointerEvent('pointerup', 0);
-            assertEquals(1.25, displayPage.selectedZoomPref_.value);
-
-            // Navigate out of the display page.
-            return showAndGetDeviceSubpage('power', routes.POWER);
-          })
-          .then(function() {
-            // Moving out of the display page should set selected display to
-            // invalid.
-            assertEquals(
-                displayPage.invalidDisplayId_,
-                browserProxy.lastHighlightedDisplayId);
-
-            // Navigate back to the display page.
-            return showAndGetDeviceSubpage('display', routes.DISPLAY);
-          });
-    });
-
-    test('Deep link to display mirroring', async () => {
-      const params = new URLSearchParams();
-      params.append('settingId', '428');
-      Router.getInstance().navigateTo(routes.DISPLAY, params);
-      // await fakeSystemDisplay.getInfoCalled.promise;
-
-      addDisplay(1);
-      addDisplay(1);
-      fakeSystemDisplay.onDisplayChanged.callListeners();
-      await fakeSystemDisplay.getInfoCalled.promise;
-      await fakeSystemDisplay.getLayoutCalled.promise;
-      assertEquals(2, displayPage.displays.length);
-
-      flush();
-      // await fakeSystemDisplay.getInfoCalled.promise;
-      assert(displayPage);
-      assertEquals(2, displayPage.displays.length);
-      assertTrue(displayPage.shouldShowArrangementSection_());
-
-      const deepLinkElement =
-          displayPage.shadowRoot.querySelector('#displayMirrorCheckbox')
-              .shadowRoot.querySelector('#checkbox');
-      await waitAfterNextRender(deepLinkElement);
+          Number(items[0].getAttribute('data-evdev-id')),
+          fakeGraphicsTablets[0].id);
+      assertTrue(isVisible(items[1]));
       assertEquals(
-          deepLinkElement, getDeepActiveElement(),
-          'Display mirroring checkbox should be focused for settingId=428.');
+          Number(items[1].getAttribute('data-evdev-id')),
+          fakeGraphicsTablets[1].id);
+
+      // Verify that the customize-tablet-buttons and customize-pen-buttons
+      // crLinkRow are visible.
+      const customizeTabletButtons =
+          graphicsTabletPage.shadowRoot.querySelector(
+              '#customizeTabletButtons');
+      assert(customizeTabletButtons);
+      assertTrue(isVisible(customizeTabletButtons));
+
+      // Verify clicking the customize table buttons row will be redirecting
+      // to the customize table buttons subpage.
+      customizeTabletButtons.click();
+      await flushTasks();
+      assertEquals(
+          routes.CUSTOMIZE_TABLET_BUTTONS, Router.getInstance().currentRoute);
+
+      const urlSearchQuery =
+          Router.getInstance().getQueryParameters().get('graphicsTabletId');
+      assertTrue(!!urlSearchQuery);
+      const graphicsTabletId = Number(urlSearchQuery);
+      assertFalse(isNaN(graphicsTabletId));
+      assertEquals(fakeGraphicsTablets[0].id, graphicsTabletId);
+
+      // Verify clicking the customize pen buttons row will be redirected
+      // to the customize table buttons subpage.
+      Router.getInstance().navigateTo(routes.GRAPHICS_TABLET);
+      assertEquals(routes.GRAPHICS_TABLET, Router.getInstance().currentRoute);
+      const customizePenButtons =
+          graphicsTabletPage.shadowRoot.querySelector('#customizePenButtons');
+
+      assertTrue(isVisible(customizePenButtons));
+      customizePenButtons.click();
+      await flushTasks();
+      assertEquals(
+          routes.CUSTOMIZE_PEN_BUTTONS, Router.getInstance().currentRoute);
+      const graphicsTabletPenId = Number(
+          Router.getInstance().getQueryParameters().get('graphicsTabletId'));
+      assertFalse(isNaN(graphicsTabletPenId));
+      assertEquals(fakeGraphicsTablets[0].id, graphicsTabletPenId);
     });
-
-    test('Keyboard display arrangement', async () => {
-      addDisplay(1);
-      addDisplay(2);
-      fakeSystemDisplay.onDisplayChanged.callListeners();
-
-      return Promise
-          .all([
-            fakeSystemDisplay.getInfoCalled.promise,
-            fakeSystemDisplay.getLayoutCalled.promise,
-          ])
-          .then(() => {
-            return new Promise(resolve => {
-              flush();
-
-              assert(displayPage);
-              assertEquals(2, displayPage.displays.length);
-              assertTrue(displayPage.shouldShowArrangementSection_());
-
-              assertTrue(!!displayPage.shadowRoot.querySelector(
-                  '#arrangement-section'));
-
-              assertTrue(displayPage.showMirror_(false, displayPage.displays));
-              assertFalse(displayPage.isMirrored_(displayPage.displays));
-
-              flush();
-
-              microTask.run(resolve);
-            });
-          })
-          .then(() => {
-            const displayLayout =
-                displayPage.shadowRoot.querySelector('#displayLayout');
-            const display =
-                displayLayout.shadowRoot.querySelector('#_fakeDisplayId2');
-            const layout =
-                displayLayout.displayLayoutMap_.get('fakeDisplayId2');
-
-            assertEquals(layout.parentId, 'fakeDisplayId1');
-            assertEquals(layout.position, 'right');
-
-            const offset =
-                displayLayout.keyboardDragStepSize / displayLayout.visualScale;
-
-            display.focus();
-
-            display.dispatchEvent(new KeyboardEvent(
-                'keydown', {key: 'ArrowDown', bubbles: true}));
-            display.dispatchEvent(
-                new KeyboardEvent('keydown', {key: 'Enter', bubbles: true}));
-            assertEquals(offset, layout.offset);
-
-            display.dispatchEvent(new KeyboardEvent(
-                'keydown', {key: 'ArrowDown', bubbles: true}));
-            display.dispatchEvent(
-                new KeyboardEvent('keydown', {key: 'Enter', bubbles: true}));
-            assertEquals(offset * 2, layout.offset);
-
-            display.dispatchEvent(
-                new KeyboardEvent('keydown', {key: 'ArrowUp', bubbles: true}));
-            display.dispatchEvent(
-                new KeyboardEvent('keydown', {key: 'Enter', bubbles: true}));
-            assertEquals(offset, layout.offset);
-          });
-    });
-  });
-
-  test(assert(TestNames.NightLight), async function() {
-    // Set up a single display.
-    await init();
-    const displayPage =
-        await showAndGetDeviceSubpage('display', routes.DISPLAY);
-    await fakeSystemDisplay.getInfoCalled.promise;
-    addDisplay(1);
-    fakeSystemDisplay.onDisplayChanged.callListeners();
-    await fakeSystemDisplay.getInfoCalled.promise;
-    await fakeSystemDisplay.getLayoutCalled.promise;
-    assertEquals(1, displayPage.displays.length);
-
-    const temperature =
-        displayPage.shadowRoot.querySelector('#nightLightTemperatureDiv');
-    const schedule =
-        displayPage.shadowRoot.querySelector('#nightLightScheduleTypeDropDown');
-
-    // Night Light is off, so temperature is hidden. Schedule is always shown.
-    assertTrue(temperature.hidden);
-    assertFalse(schedule.hidden);
-
-    // Enable Night Light. Use an atomic update of |displayPage.prefs| so
-    // Polymer notices the change.
-    const newPrefs = getFakePrefs();
-    newPrefs.ash.night_light.enabled.value = true;
-    displayPage.prefs = newPrefs;
-    flush();
-
-    // Night Light is on, so temperature is visible.
-    assertFalse(temperature.hidden);
-    assertFalse(schedule.hidden);
   });
 
   suite(assert(TestNames.Power), function() {
@@ -2411,13 +1885,14 @@ suite('SettingsDevicePage', function() {
      * @param {string} powerSourceId
      * @param {bool} isLowPowerCharger
      */
-    function setPowerSources(sources, powerSourceId, isLowPowerCharger) {
+    function setPowerSources(
+        sources, powerSourceId, isExternalPowerUSB, isExternalPowerAC) {
       const sourcesCopy = sources.map(function(source) {
         return Object.assign({}, source);
       });
       webUIListenerCallback(
           'power-sources-changed', sourcesCopy, powerSourceId,
-          isLowPowerCharger);
+          isExternalPowerUSB, isExternalPowerAC);
     }
 
     suite('power settings', function() {
@@ -2427,6 +1902,7 @@ suite('SettingsDevicePage', function() {
       let acIdleSelect;
       let lidClosedToggle;
       let adaptiveChargingToggle;
+      let batterySaverToggle;
 
       suiteSetup(function() {
         // Adaptive charging setting should be shown.
@@ -2454,6 +1930,8 @@ suite('SettingsDevicePage', function() {
               adaptiveChargingToggle =
                   assert(powerPage.shadowRoot.querySelector(
                       '#adaptiveChargingToggle'));
+              batterySaverToggle = assert(
+                  powerPage.shadowRoot.querySelector('#batterySaverToggle'));
 
               assertEquals(
                   1,
@@ -2475,7 +1953,8 @@ suite('SettingsDevicePage', function() {
                   false /* batteryIdleManaged */, LidClosedBehavior.SUSPEND,
                   false /* lidClosedControlled */, true /* hasLid */,
                   false /* adaptiveCharging */,
-                  false /* adaptiveChargingManaged */);
+                  false /* adaptiveChargingManaged */,
+                  true /* batterySaverFeatureEnabled */);
             });
       });
 
@@ -2494,6 +1973,8 @@ suite('SettingsDevicePage', function() {
 
         // Power source row is hidden since there's no battery.
         assertTrue(powerSourceRow.hidden);
+        // Battery Saver is also hidden.
+        assertTrue(batterySaverToggle.hidden);
         // Idle settings while on battery and while charging should not be
         // visible if the battery is not present.
         assertEquals(
@@ -2523,7 +2004,7 @@ suite('SettingsDevicePage', function() {
         };
         webUIListenerCallback(
             'battery-status-changed', Object.assign({}, batteryStatus));
-        setPowerSources([], '', false);
+        setPowerSources([], '', false, false);
         flush();
 
         // Power sources row is visible but dropdown is hidden.
@@ -2536,7 +2017,7 @@ suite('SettingsDevicePage', function() {
           is_dedicated_charger: false,
           description: 'USB-C device',
         };
-        setPowerSources([powerSource], '', false);
+        setPowerSources([powerSource], '', false, false);
         flush();
 
         // "Battery" should be selected.
@@ -2544,7 +2025,7 @@ suite('SettingsDevicePage', function() {
         assertEquals('', powerSourceSelect.value);
 
         // Select the power source.
-        setPowerSources([powerSource], powerSource.id, true);
+        setPowerSources([powerSource], powerSource.id, true, false);
         flush();
         assertFalse(powerSourceSelect.hidden);
         assertEquals(powerSource.id, powerSourceSelect.value);
@@ -2552,7 +2033,8 @@ suite('SettingsDevicePage', function() {
         // Send another power source; the first should still be selected.
         const otherPowerSource = Object.assign({}, powerSource);
         otherPowerSource.id = '3';
-        setPowerSources([otherPowerSource, powerSource], powerSource.id, true);
+        setPowerSources(
+            [otherPowerSource, powerSource], powerSource.id, true, false);
         flush();
         assertFalse(powerSourceSelect.hidden);
         assertEquals(powerSource.id, powerSourceSelect.value);
@@ -2575,7 +2057,7 @@ suite('SettingsDevicePage', function() {
           is_dedicated_charger: false,
           description: 'USB-C device',
         };
-        setPowerSources([powerSource], '', false);
+        setPowerSources([powerSource], '', false, false);
         flush();
 
         // Select the device.
@@ -2595,7 +2077,7 @@ suite('SettingsDevicePage', function() {
         };
         webUIListenerCallback(
             'battery-status-changed', Object.assign({}, batteryStatus));
-        setPowerSources([], '', false);
+        setPowerSources([], '', false, false);
         flush();
 
         acIdleSelect =
@@ -2648,8 +2130,8 @@ suite('SettingsDevicePage', function() {
               IdleBehavior.DISPLAY_OFF, IdleBehavior.DISPLAY_OFF,
               false /* acIdleManaged */, false /* batteryIdleManaged */,
               lidBehavior, false /* lidClosedControlled */, true /* hasLid */,
-              false /* adaptiveCharging */,
-              false /* adaptiveChargingManaged */);
+              false /* adaptiveCharging */, false /* adaptiveChargingManaged */,
+              true /* batterySaverFeatureEnabled */);
         };
 
         sendLid(LidClosedBehavior.SUSPEND);
@@ -2692,7 +2174,8 @@ suite('SettingsDevicePage', function() {
                      LidClosedBehavior.DO_NOTHING,
                      false /* lidClosedControlled */, true /* hasLid */,
                      false /* adaptiveCharging */,
-                     false /* adaptiveChargingManaged */);
+                     false /* adaptiveChargingManaged */,
+                     true /* batterySaverFeatureEnabled */);
                  microTask.run(resolve);
                })
             .then(function() {
@@ -2750,7 +2233,8 @@ suite('SettingsDevicePage', function() {
                   true /* acIdleManaged */, true /* batteryIdleManaged */,
                   LidClosedBehavior.DO_NOTHING, false /* lidClosedControlled */,
                   true /* hasLid */, false /* adaptiveCharging */,
-                  false /* adaptiveChargingManaged */);
+                  false /* adaptiveChargingManaged */,
+                  true /* batterySaverFeatureEnabled */);
               return new Promise(function(resolve) {
                 microTask.run(resolve);
               });
@@ -2792,7 +2276,8 @@ suite('SettingsDevicePage', function() {
                      LidClosedBehavior.DO_NOTHING,
                      false /* lidClosedControlled */, true /* hasLid */,
                      false /* adaptiveCharging */,
-                     false /* adaptiveChargingManaged */);
+                     false /* adaptiveChargingManaged */,
+                     true /* batterySaverFeatureEnabled */);
                  microTask.run(resolve);
                })
             .then(function() {
@@ -2849,7 +2334,8 @@ suite('SettingsDevicePage', function() {
                   false /* acIdleManaged */, false /* batteryIdleManaged */,
                   LidClosedBehavior.SUSPEND, false /* lidClosedControlled */,
                   true /* hasLid */, false /* adaptiveCharging */,
-                  false /* adaptiveChargingManaged */);
+                  false /* adaptiveChargingManaged */,
+                  true /* batterySaverFeatureEnabled */);
               return new Promise(function(resolve) {
                 microTask.run(resolve);
               });
@@ -2902,7 +2388,8 @@ suite('SettingsDevicePage', function() {
                      LidClosedBehavior.SHUT_DOWN,
                      true /* lidClosedControlled */, true /* hasLid */,
                      false /* adaptiveCharging */,
-                     false /* adaptiveChargingManaged */);
+                     false /* adaptiveChargingManaged */,
+                     true /* batterySaverFeatureEnabled */);
                  microTask.run(resolve);
                })
             .then(function() {
@@ -2938,7 +2425,8 @@ suite('SettingsDevicePage', function() {
                   LidClosedBehavior.STOP_SESSION,
                   true /* lidClosedControlled */, true /* hasLid */,
                   false /* adaptiveCharging */,
-                  false /* adaptiveChargingManaged */);
+                  false /* adaptiveChargingManaged */,
+                  true /* batterySaverFeatureEnabled */);
               return new Promise(function(resolve) {
                 microTask.run(resolve);
               });
@@ -2989,7 +2477,8 @@ suite('SettingsDevicePage', function() {
                      false /* batteryIdleManaged */, LidClosedBehavior.SUSPEND,
                      false /* lidClosedControlled */, false /* hasLid */,
                      false /* adaptiveCharging */,
-                     false /* adaptiveChargingManaged */);
+                     false /* adaptiveChargingManaged */,
+                     true /* batterySaverFeatureEnabled */);
                  microTask.run(resolve);
                })
             .then(function() {
@@ -3046,7 +2535,8 @@ suite('SettingsDevicePage', function() {
             false /* acIdleManaged */, false /* batteryIdleManaged */,
             LidClosedBehavior.SUSPEND, false /* lidClosedControlled */,
             true /* hasLid */, true /* adaptiveCharging */,
-            true /* adaptiveCharingManaged */);
+            true /* adaptiveCharingManaged */,
+            true /* batterySaverFeatureEnabled */);
 
         assertTrue(adaptiveChargingToggle.shadowRoot.querySelector('cr-toggle')
                        .checked);
@@ -3065,6 +2555,90 @@ suite('SettingsDevicePage', function() {
             routes.POWER, '440',
             adaptiveChargingToggle.shadowRoot.querySelector('cr-toggle'),
             'Adaptive charging toggle');
+      });
+
+      test('Battery Saver hidden when feature disabled', () => {
+        sendPowerManagementSettings(
+            [
+              IdleBehavior.DISPLAY_OFF_SLEEP,
+              IdleBehavior.DISPLAY_OFF,
+              IdleBehavior.DISPLAY_ON,
+            ],
+            [
+              IdleBehavior.DISPLAY_OFF_SLEEP,
+              IdleBehavior.DISPLAY_OFF,
+              IdleBehavior.DISPLAY_ON,
+            ],
+            IdleBehavior.DISPLAY_OFF_SLEEP, IdleBehavior.DISPLAY_OFF_SLEEP,
+            false /* acIdleManaged */, false /* batteryIdleManaged */,
+            LidClosedBehavior.SUSPEND, false /* lidClosedControlled */,
+            true /* hasLid */, false /* adaptiveCharging */,
+            false /* adaptiveChargingManaged */,
+            false /* batterySaverFeatureEnabled */);
+
+        assertTrue(batterySaverToggle.hidden);
+      });
+
+      test('Battery Saver toggleable', () => {
+        // Battery is present.
+        webUIListenerCallback('battery-status-changed', {
+          present: true,
+          charging: false,
+          calculating: false,
+          percent: 50,
+          statusText: '5 hours left',
+        });
+        // There are no power sources.
+        setPowerSources([], '', false, false);
+        // Battery saver feature is enabled.
+        sendPowerManagementSettings(
+            [
+              IdleBehavior.DISPLAY_OFF_SLEEP,
+              IdleBehavior.DISPLAY_OFF,
+              IdleBehavior.DISPLAY_ON,
+            ],
+            [
+              IdleBehavior.DISPLAY_OFF_SLEEP,
+              IdleBehavior.DISPLAY_OFF,
+              IdleBehavior.DISPLAY_ON,
+            ],
+            IdleBehavior.DISPLAY_OFF_SLEEP, IdleBehavior.DISPLAY_OFF_SLEEP,
+            false /* acIdleManaged */, false /* batteryIdleManaged */,
+            LidClosedBehavior.SUSPEND, false /* lidClosedControlled */,
+            true /* hasLid */, false /* adaptiveCharging */,
+            false /* adaptiveChargingManaged */,
+            true /* batterySaverFeatureEnabled */);
+
+        // Battery saver should be visible and toggleable.
+        assertFalse(batterySaverToggle.hidden);
+        assertFalse(batterySaverToggle.disabled);
+
+        // Connect a dedicated AC power adapter.
+        const mainsPowerSource = {
+          id: '1',
+          is_dedicated_charger: true,
+          description: 'USB-C device',
+        };
+        setPowerSources([mainsPowerSource], '1', false, true);
+
+        // Battery saver should be visible but not toggleable.
+        assertFalse(batterySaverToggle.hidden);
+        assertTrue(batterySaverToggle.disabled);
+      });
+
+      test('Battery Saver updates when pref updates', () => {
+        function setPref(value) {
+          const newPrefs = getFakePrefs();
+          newPrefs.power.cros_battery_saver_active.value = value;
+          powerPage.prefs = newPrefs;
+          flush();
+        }
+
+        setPref(true);
+        assertTrue(batterySaverToggle.checked);
+
+        setPref(false);
+        assertFalse(batterySaverToggle.checked);
       });
     });
   });
@@ -3698,18 +3272,20 @@ suite('SettingsDevicePage', function() {
       return rowItem.querySelector('#subLabel').innerText;
     }
 
-    suiteSetup(function() {
+    async function setupPage() {
+      PolymerTest.clearBody();
+      await init();
+      storagePage = await showAndGetDeviceSubpage('storage', routes.STORAGE);
+      storagePage.stopPeriodicUpdate_();
+    }
+
+    suiteSetup(() => {
       // Disable animations so sub-pages open within one event loop.
       testing.Test.disableAnimationsAndTransitions();
     });
 
-    setup(async function() {
-      await init();
-      return showAndGetDeviceSubpage('storage', routes.STORAGE)
-          .then(function(page) {
-            storagePage = page;
-            storagePage.stopPeriodicUpdate_();
-          });
+    setup(async () => {
+      await setupPage();
     });
 
     test('storage stats size', async function() {
@@ -3840,6 +3416,107 @@ suite('SettingsDevicePage', function() {
       flush();
       assertFalse(
           isVisible(storagePage.shadowRoot.querySelector('#otherUsersSize')));
+    });
+
+    test('drive offline size', async () => {
+      async function assertDriveOfflineSizeVisibility(params) {
+        loadTimeData.overrideValues({
+          enableDriveFsBulkPinning: params.enableDriveFsBulkPinning,
+          showGoogleDriveSettingsPage: params.showGoogleDriveSettingsPage,
+        });
+        await setupPage();
+        devicePage.set('prefs.gdata.disabled.value', !params.isDriveEnabled);
+        await flushTasks();
+        const expectedState =
+            (params.isVisible) ? 'be visible' : 'not be visible';
+        assertEquals(
+            params.isVisible,
+            isVisible(
+                storagePage.shadowRoot.getElementById('driveOfflineSize')),
+            `Expected #driveOfflineSize to ${expectedState} with params: ${
+                JSON.stringify(params)}`);
+      }
+
+      await assertDriveOfflineSizeVisibility({
+        enableDriveFsBulkPinning: false,
+        showGoogleDriveSettingsPage: false,
+        isDriveEnabled: false,
+        isVisible: false,
+      });
+
+      await assertDriveOfflineSizeVisibility({
+        enableDriveFsBulkPinning: false,
+        showGoogleDriveSettingsPage: false,
+        isDriveEnabled: true,
+        isVisible: false,
+      });
+
+      await assertDriveOfflineSizeVisibility({
+        enableDriveFsBulkPinning: false,
+        showGoogleDriveSettingsPage: true,
+        isDriveEnabled: false,
+        isVisible: false,
+      });
+
+      await assertDriveOfflineSizeVisibility({
+        enableDriveFsBulkPinning: true,
+        showGoogleDriveSettingsPage: false,
+        isDriveEnabled: false,
+        isVisible: false,
+      });
+
+      await assertDriveOfflineSizeVisibility({
+        enableDriveFsBulkPinning: true,
+        showGoogleDriveSettingsPage: true,
+        isDriveEnabled: false,
+        isVisible: false,
+      });
+
+      await assertDriveOfflineSizeVisibility({
+        enableDriveFsBulkPinning: false,
+        showGoogleDriveSettingsPage: true,
+        isDriveEnabled: true,
+        isVisible: true,
+      });
+
+      await assertDriveOfflineSizeVisibility({
+        enableDriveFsBulkPinning: true,
+        showGoogleDriveSettingsPage: false,
+        isDriveEnabled: true,
+        isVisible: true,
+      });
+
+      await assertDriveOfflineSizeVisibility({
+        enableDriveFsBulkPinning: true,
+        showGoogleDriveSettingsPage: true,
+        isDriveEnabled: true,
+        isVisible: true,
+      });
+    });
+  });
+
+  suite('When OsSettingsRevampWayfinding feature is enabled', () => {
+    setup(() => {
+      loadTimeData.overrideValues({isRevampWayfindingEnabled: true});
+    });
+
+    test('Power row is not visible', async () => {
+      await init();
+      const powerRow = devicePage.shadowRoot.getElementById('powerRow');
+      assertFalse(isVisible(powerRow));
+    });
+
+    test('Storage row is not visible', async () => {
+      await init();
+      const storageRow = devicePage.shadowRoot.getElementById('storageRow');
+      assertFalse(isVisible(storageRow));
+    });
+
+    test('Printing settings card is visible', async () => {
+      await init();
+      const printingSettingsCard =
+          devicePage.shadowRoot.querySelector('printing-settings-card');
+      assertTrue(isVisible(printingSettingsCard));
     });
   });
 });

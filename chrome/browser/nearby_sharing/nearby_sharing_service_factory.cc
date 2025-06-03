@@ -7,14 +7,15 @@
 #include <memory>
 #include <utility>
 
+#include "ash/constants/ash_features.h"
 #include "base/feature_list.h"
-#include "base/memory/singleton.h"
+#include "base/no_destructor.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
 #include "chrome/browser/ash/nearby/nearby_process_manager_factory.h"
+#include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/nearby_sharing/common/nearby_share_features.h"
 #include "chrome/browser/nearby_sharing/common/nearby_share_prefs.h"
-#include "chrome/browser/nearby_sharing/logging/logging.h"
 #include "chrome/browser/nearby_sharing/nearby_connections_manager_impl.h"
 #include "chrome/browser/nearby_sharing/nearby_sharing_service_impl.h"
 #include "chrome/browser/nearby_sharing/power_client_chromeos.h"
@@ -23,9 +24,11 @@
 #include "chrome/browser/notifications/notification_display_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
+#include "components/cross_device/logging/logging.h"
 #include "components/pref_registry/pref_registry_syncable.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
+#include "components/user_manager/user_manager.h"
 #include "content/public/browser/browser_context.h"
 
 namespace {
@@ -42,28 +45,44 @@ absl::optional<bool>& IsSupportedTesting() {
 
 // static
 NearbySharingServiceFactory* NearbySharingServiceFactory::GetInstance() {
-  return base::Singleton<NearbySharingServiceFactory>::get();
+  static base::NoDestructor<NearbySharingServiceFactory> instance;
+  return instance.get();
 }
 
 // static
 bool NearbySharingServiceFactory::IsNearbyShareSupportedForBrowserContext(
     content::BrowserContext* context) {
-  if (IsSupportedTesting().has_value())
+  if (IsSupportedTesting().has_value()) {
     return *IsSupportedTesting();
+  }
 
-  if (!base::FeatureList::IsEnabled(features::kNearbySharing))
-    return false;
-
-  Profile* profile = Profile::FromBrowserContext(context);
-  if (!profile)
-    return false;
-
-  if (!ash::nearby::NearbyProcessManagerFactory::CanBeLaunchedForProfile(
-          profile)) {
+  if (!base::FeatureList::IsEnabled(
+          ash::features::kAllowCrossDeviceFeatureSuite)) {
     return false;
   }
 
-  return true;
+  if (!base::FeatureList::IsEnabled(features::kNearbySharing)) {
+    return false;
+  }
+
+  Profile* profile = Profile::FromBrowserContext(context);
+  if (!profile) {
+    return false;
+  }
+
+  // Guest/incognito/signin profiles cannot use Nearby Share.
+  if (ash::ProfileHelper::IsSigninProfile(profile) ||
+      profile->IsOffTheRecord()) {
+    return false;
+  }
+
+  // Likewise, kiosk users are ineligible.
+  if (user_manager::UserManager::Get()->IsLoggedInAsAnyKioskApp()) {
+    return false;
+  }
+
+  // Nearby Share is not supported for secondary profiles.
+  return ash::ProfileHelper::IsPrimaryProfile(profile);
 }
 
 // static
@@ -89,7 +108,8 @@ NearbySharingServiceFactory::NearbySharingServiceFactory()
 
 NearbySharingServiceFactory::~NearbySharingServiceFactory() = default;
 
-KeyedService* NearbySharingServiceFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+NearbySharingServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
   if (!IsNearbyShareSupportedForBrowserContext(context)) {
     return nullptr;
@@ -108,10 +128,10 @@ KeyedService* NearbySharingServiceFactory::BuildServiceInstanceFor(
       std::make_unique<NearbyConnectionsManagerImpl>(process_manager,
                                                      kServiceId);
 
-  NS_LOG(VERBOSE) << __func__
-                  << ": creating NearbySharingService for primary profile";
+  CD_LOG(VERBOSE, Feature::NS)
+      << __func__ << ": creating NearbySharingService for primary profile";
 
-  return new NearbySharingServiceImpl(
+  return std::make_unique<NearbySharingServiceImpl>(
       pref_service, notification_display_service, profile,
       std::move(nearby_connections_manager), process_manager,
       std::make_unique<PowerClientChromeos>(),

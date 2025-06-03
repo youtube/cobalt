@@ -16,6 +16,7 @@
 
 namespace blink {
 
+class ExceptionState;
 class GPUDevice;
 class GPUCanvasConfiguration;
 class GPUSwapChain;
@@ -63,8 +64,7 @@ class GPUCanvasContext : public CanvasRenderingContext,
   // If that texture has already been sent to the compositor, will produce a
   // snapshot of the just released texture associated to this gpu context.
   // todo(crbug/1267243) Make snapshot always return the current frame.
-  scoped_refptr<StaticBitmapImage> GetImage(
-      CanvasResourceProvider::FlushReason) final;
+  scoped_refptr<StaticBitmapImage> GetImage(FlushReason) final;
   bool PaintRenderingResultsToCanvas(SourceDrawingBuffer) final;
   // Copies the back buffer to given shared image resource provider which must
   // be webgpu compatible. Returns true on success.
@@ -75,11 +75,9 @@ class GPUCanvasContext : public CanvasRenderingContext,
       SourceDrawingBuffer src_buffer,
       const gfx::ColorSpace& dst_color_space,
       VideoFrameCopyCompletedCallback callback) override;
-  void SetIsInHiddenPage(bool) override {}
-  void SetIsBeingDisplayed(bool) override {}
+  void PageVisibilityChanged() override {}
   bool isContextLost() const override { return false; }
   bool IsComposited() const final { return true; }
-  bool IsAccelerated() const final { return true; }
   bool IsOriginTopLeft() const final { return true; }
   void SetFilterQuality(cc::PaintFlags::FilterQuality) override;
   bool IsPaintable() const final { return true; }
@@ -94,7 +92,7 @@ class GPUCanvasContext : public CanvasRenderingContext,
   // contents of the front buffer. This is done without any pixel copies. The
   // texture in the ImageBitmap is from the active ContextProvider on the
   // WebGPUSwapBufferProvider.
-  ImageBitmap* TransferToImageBitmap(ScriptState*) final;
+  ImageBitmap* TransferToImageBitmap(ScriptState*, ExceptionState&) final;
 
   bool IsOffscreenCanvas() const {
     if (Host())
@@ -107,7 +105,7 @@ class GPUCanvasContext : public CanvasRenderingContext,
 
   void configure(const GPUCanvasConfiguration* descriptor, ExceptionState&);
   void unconfigure();
-  GPUTexture* getCurrentTexture(ExceptionState&);
+  GPUTexture* getCurrentTexture(ScriptState*, ExceptionState&);
 
   // WebGPUSwapBufferProvider::Client implementation
   void OnTextureTransferred() override;
@@ -117,7 +115,7 @@ class GPUCanvasContext : public CanvasRenderingContext,
   void ReplaceDrawingBuffer(bool destroy_swap_buffers);
   void InitializeAlphaModePipeline(WGPUTextureFormat format);
 
-  void FinalizeFrame(CanvasResourceProvider::FlushReason) override;
+  void FinalizeFrame(FlushReason) override;
 
   scoped_refptr<StaticBitmapImage> SnapshotInternal(
       const WGPUTexture& texture,
@@ -128,6 +126,8 @@ class GPUCanvasContext : public CanvasRenderingContext,
       const gfx::Size& size,
       CanvasResourceProvider* resource_provider) const;
 
+  void CopyToSwapTexture();
+
   // Can't use DawnObjectBase, because the device can be reconfigured.
   const DawnProcTable& GetProcs() const;
   base::WeakPtr<WebGraphicsContext3DProviderWrapper> GetContextProviderWeakPtr()
@@ -136,13 +136,24 @@ class GPUCanvasContext : public CanvasRenderingContext,
   cc::PaintFlags::FilterQuality filter_quality_ =
       cc::PaintFlags::FilterQuality::kLow;
   Member<GPUDevice> device_;
+
+  // If the system doesn't support the requested format but it's one that WebGPU
+  // is required to offer, a texture_ will be allocated separately with the
+  // desired format and the will be copied to swap_texture_, allocated by the
+  // swap buffer provider with the system-supported format, when we're ready to
+  // present. Otherwise texture_ and swap_texture_ will point to the same
+  // texture, allocated by the swap buffer provider.
   Member<GPUTexture> texture_;
+  Member<GPUTexture> swap_texture_;
+
   PredefinedColorSpace color_space_ = PredefinedColorSpace::kSRGB;
   V8GPUCanvasAlphaMode::Enum alpha_mode_;
   scoped_refptr<WebGPUTextureAlphaClearer> alpha_clearer_;
   scoped_refptr<WebGPUSwapBufferProvider> swap_buffers_;
 
   bool new_texture_required_ = true;
+  bool copy_to_swap_texture_required_ = false;
+  bool suppress_preferred_format_warning_ = false;
   bool stopped_ = false;
 
   // Matches [[configuration]] != null in the WebGPU specification.
@@ -150,6 +161,10 @@ class GPUCanvasContext : public CanvasRenderingContext,
   // Matches [[texture_descriptor]] in the WebGPU specification except that it
   // never becomes null.
   WGPUTextureDescriptor texture_descriptor_;
+  // The texture descriptor for the swap_texture is tracked separately, since
+  // it may have different usage in the case that a copy is required.
+  WGPUTextureDescriptor swap_texture_descriptor_;
+  WGPUDawnTextureInternalUsageDescriptor texture_internal_usage_;
   std::unique_ptr<WGPUTextureFormat[]> view_formats_;
 };
 

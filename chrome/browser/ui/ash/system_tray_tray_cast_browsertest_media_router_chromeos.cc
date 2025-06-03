@@ -12,9 +12,10 @@
 #include "ash/shelf/shelf.h"
 #include "ash/shelf/shelf_widget.h"
 #include "ash/shell.h"
-#include "ash/system/cast/tray_cast.h"
+#include "ash/system/cast/cast_detailed_view.h"
 #include "ash/system/cast/unified_cast_detailed_view_controller.h"
 #include "ash/system/status_area_widget.h"
+#include "ash/system/tray/hover_highlight_view.h"
 #include "ash/system/unified/unified_system_tray.h"
 #include "ash/system/unified/unified_system_tray_bubble.h"
 #include "ash/system/unified/unified_system_tray_view.h"
@@ -105,7 +106,8 @@ class SystemTrayTrayCastMediaRouterChromeOSTest
 
   ~SystemTrayTrayCastMediaRouterChromeOSTest() override = default;
 
-  bool IsQsRevampEnabled() const { return GetParam(); }
+  // TODO(b/305075031) clean up after the flag is removed.
+  bool IsQsRevampEnabled() const { return true; }
 
   void ShowBubble() { tray_test_api_->ShowBubble(); }
 
@@ -174,7 +176,7 @@ class SystemTrayTrayCastMediaRouterChromeOSTest
 
   base::test::ScopedFeatureList feature_list_;
   std::unique_ptr<media_router::MockMediaRouter> media_router_;
-  raw_ptr<media_router::MediaSinksObserver, ExperimentalAsh>
+  raw_ptr<media_router::MediaSinksObserver, DanglingUntriaged | ExperimentalAsh>
       media_sinks_observer_ = nullptr;
   std::unique_ptr<ash::SystemTrayTestApi> tray_test_api_;
 };
@@ -300,7 +302,8 @@ class SystemTrayTrayCastAccessCodeChromeOSTest
 
   ~SystemTrayTrayCastAccessCodeChromeOSTest() override = default;
 
-  bool IsQsRevampEnabled() const { return GetParam(); }
+  // TODO(b/305075031) clean up after the flag is removed.
+  bool IsQsRevampEnabled() { return true; }
 
   void PreRunTestOnMainThread() override {
     CastConfigControllerMediaRouter::SetMediaRouterForTest(media_router_);
@@ -397,7 +400,7 @@ class SystemTrayTrayCastAccessCodeChromeOSTest
   ash::LoginManagerMixin login_mixin_{&mixin_host_};
 
   std::unique_ptr<ui::test::EventGenerator> event_generator_;
-  raw_ptr<const user_manager::User, ExperimentalAsh> user_;
+  raw_ptr<const user_manager::User, DanglingUntriaged | ExperimentalAsh> user_;
 
  private:
   std::unique_ptr<ash::SystemTrayTestApi> tray_test_api_;

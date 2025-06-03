@@ -15,15 +15,11 @@
 #import "ios/web/js_messaging/web_frame_impl.h"
 #import "ios/web/js_messaging/web_view_js_utils.h"
 #import "ios/web/public/js_messaging/web_frame.h"
-#import "ios/web/public/js_messaging/web_frame_util.h"
+#import "ios/web/public/js_messaging/web_frames_manager.h"
 #import "ios/web/public/ui/crw_web_view_scroll_view_proxy.h"
 #import "ios/web/web_state/ui/crw_web_controller.h"
 #import "ios/web/web_state/ui/crw_web_view_proxy_impl.h"
 #import "ios/web/web_state/web_state_impl.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 using base::test::ios::kWaitForJSCompletionTimeout;
 using base::test::ios::kWaitForUIElementTimeout;
@@ -66,7 +62,7 @@ std::unique_ptr<base::Value> ExecuteJavaScript(web::WebState* web_state,
 std::unique_ptr<base::Value> CallJavaScriptFunction(
     web::WebState* web_state,
     const std::string& function,
-    const std::vector<base::Value>& parameters) {
+    const base::Value::List& parameters) {
   return CallJavaScriptFunctionForFeature(web_state, function, parameters,
                                           /*feature=*/nullptr);
 }
@@ -74,13 +70,14 @@ std::unique_ptr<base::Value> CallJavaScriptFunction(
 std::unique_ptr<base::Value> CallJavaScriptFunctionForFeature(
     web::WebState* web_state,
     const std::string& function,
-    const std::vector<base::Value>& parameters,
+    const base::Value::List& parameters,
     JavaScriptFeature* feature) {
   if (!web_state) {
     DLOG(ERROR) << "JavaScript can not be called on a null WebState.";
     return nullptr;
   }
 
+  WebFrameImpl* frame = nullptr;
   JavaScriptContentWorld* world = nullptr;
   if (feature) {
     JavaScriptFeatureManager* feature_manager =
@@ -92,12 +89,16 @@ std::unique_ptr<base::Value> CallJavaScriptFunctionForFeature(
                   << "JavaScriptFeature does not appear to be configured.";
       return nullptr;
     }
+    ContentWorld content_world = feature->GetSupportedContentWorld();
+    frame = static_cast<WebFrameImpl*>(
+        web_state->GetWebFramesManager(content_world)->GetMainWebFrame());
   } else {
     world = JavaScriptFeatureManager::GetPageContentWorldForBrowserState(
         web_state->GetBrowserState());
+    frame = static_cast<WebFrameImpl*>(
+        web_state->GetPageWorldWebFramesManager()->GetMainWebFrame());
   }
 
-  WebFrameImpl* frame = static_cast<WebFrameImpl*>(GetMainFrame(web_state));
   if (!frame) {
     DLOG(ERROR) << "JavaScript can not be called on a null WebFrame.";
     return nullptr;

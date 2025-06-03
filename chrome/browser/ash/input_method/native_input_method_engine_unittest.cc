@@ -79,7 +79,8 @@ class FakeSuggesterSwitch : public AssistiveSuggesterSwitch {
 
   // AssistiveSuggesterSwitch overrides
   void FetchEnabledSuggestionsThen(
-      FetchEnabledSuggestionsCallback callback) override {
+      FetchEnabledSuggestionsCallback callback,
+      const TextInputMethod::InputContext& context) override {
     std::move(callback).Run(enabled_suggestions_);
   }
 
@@ -1214,8 +1215,7 @@ TEST_F(NativeInputMethodEngineWithRenderViewHostTest,
   IMEBridge::Get()->SetInputContextHandler(&ime);
 
   ukm::TestAutoSetUkmRecorder test_recorder;
-  test_recorder.UpdateRecording(
-      ukm::UkmConsentState(ukm::UkmConsentType::MSBB));
+  test_recorder.UpdateRecording({ukm::UkmConsentType::MSBB});
   ASSERT_EQ(0u, test_recorder.entries_count());
 
   auto metric = ime::mojom::NonCompliantApiMetric::New();
@@ -1260,8 +1260,7 @@ TEST_F(NativeInputMethodEngineWithRenderViewHostTest,
   IMEBridge::Get()->SetInputContextHandler(&ime);
 
   ukm::TestAutoSetUkmRecorder test_recorder;
-  test_recorder.UpdateRecording(
-      ukm::UkmConsentState(ukm::UkmConsentType::MSBB));
+  test_recorder.UpdateRecording({ukm::UkmConsentType::MSBB});
   ASSERT_EQ(0u, test_recorder.entries_count());
 
   // Should not record when random text is entered.

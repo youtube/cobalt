@@ -69,7 +69,10 @@ PowerButtonMenuView::PowerButtonMenuView(
   layer()->SetFillsBoundsOpaquely(false);
   layer()->SetRoundedCornerRadius(
       gfx::RoundedCornersF(kPowerButtonMenuCornerRadius));
-  layer()->SetBackgroundBlur(kPowerButtonMenuBlurType);
+  if (features::IsBackgroundBlurEnabled()) {
+    layer()->SetBackgroundBlur(ColorProvider::kBackgroundBlurSigma);
+    layer()->SetBackdropFilterQuality(ColorProvider::kBackgroundBlurQuality);
+  }
   GetViewAccessibility().OverrideRole(ax::mojom::Role::kMenu);
   GetViewAccessibility().OverrideName(
       l10n_util::GetStringUTF16(IDS_ASH_POWER_BUTTON_MENU_ACCESSIBLE));
@@ -188,7 +191,8 @@ void PowerButtonMenuView::RecreateItems() {
                                   session_controller->CanLockScreen();
   const bool create_capture_mode =
       Shell::Get()->tablet_mode_controller()->InTabletMode() &&
-      !session_controller->IsUserSessionBlocked();
+      !session_controller->IsUserSessionBlocked() &&
+      login_status != LoginStatus::KIOSK_APP;
   const bool create_feedback = login_status != LoginStatus::LOCKED &&
                                login_status != LoginStatus::KIOSK_APP;
 
@@ -219,7 +223,7 @@ void PowerButtonMenuView::RecreateItems() {
       create_capture_mode, PowerButtonMenuActionType::kCaptureMode,
       base::BindRepeating(&CaptureModeController::Start,
                           base::Unretained(CaptureModeController::Get()),
-                          CaptureModeEntryType::kPowerMenu),
+                          CaptureModeEntryType::kPowerMenu, base::DoNothing()),
       kCaptureModeIcon,
       l10n_util::GetStringUTF16(IDS_ASH_STATUS_TRAY_CAPTURE_MODE_BUTTON_LABEL),
       &capture_mode_item_);
@@ -307,10 +311,6 @@ gfx::Size PowerButtonMenuView::CalculatePreferredSize() const {
   }
   menu_size.set_width(width);
   return menu_size;
-}
-
-void PowerButtonMenuView::OnThemeChanged() {
-  views::View::OnThemeChanged();
 }
 
 void PowerButtonMenuView::OnImplicitAnimationsCompleted() {

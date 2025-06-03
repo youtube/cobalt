@@ -98,11 +98,12 @@ export class RemoteCall {
       }
       window.currentStep = new Promise(resolve => {
         finishCurrentStep = () => {
+          console.groupEnd();
           window.currentStep = null;
           resolve();
         };
       });
-      console.info('Executing: ' + func + ' on ' + appId + ' with args: ');
+      console.group('Executing: ' + func + ' on ' + appId + ' with args: ');
       console.info(args);
       if (window.autostep !== true) {
         await new Promise((onFulfilled) => {
@@ -131,24 +132,25 @@ export class RemoteCall {
   }
 
   /**
-   * Waits until a window having the given ID prefix appears.
-   * @param {string} windowIdPrefix ID prefix of the requested window.
-   * @return {!Promise<string>} promise Promise to be fulfilled with a found
-   *     window's ID.
+   * Wait for a SWA window to be open.
+   * @param {boolean=} debug Whether to debug the findSwaWindow.
+   * @return {!Promise<string>}
    */
-  waitForWindow(windowIdPrefix) {
+  async waitForWindow(debug = false) {
     const caller = getCaller();
-    const windowIdRegex = new RegExp(windowIdPrefix);
-    return repeatUntil(async () => {
-      const windows = await this.callRemoteTestUtil('getWindows', null, []);
-      for (const id in windows) {
-        if (id.indexOf(windowIdPrefix) === 0 || windowIdRegex.test(id)) {
-          return id;
-        }
+    const appId = await repeatUntil(async () => {
+      const msg = {name: 'findSwaWindow'};
+      if (debug) {
+        msg['debug'] = true;
       }
-      return pending(
-          caller, 'Window with the prefix %s is not found.', windowIdPrefix);
+      const ret = await sendTestMessage(msg);
+      if (ret === 'none') {
+        return pending(caller, 'Wait for SWA window');
+      }
+      return ret;
     });
+
+    return appId;
   }
 
   /**
@@ -180,10 +182,10 @@ export class RemoteCall {
    *     If query is an array, |query[0]| specifies the first
    *     element(s), |query[1]| specifies elements inside the shadow DOM of
    *     the first element, and so on.
-   * @return {Promise<ElementObject>} Promise to be fulfilled when the element
+   * @return {!Promise<!ElementObject>} Promise to be fulfilled when the element
    *     appears.
    */
-  waitForElement(appId, query) {
+  async waitForElement(appId, query) {
     return this.waitForElementStyles(appId, query, []);
   }
 
@@ -196,10 +198,10 @@ export class RemoteCall {
    *     the first element, and so on.
    * @param {!Array<string>} styleNames List of CSS property name to be
    *     obtained. NOTE: Causes element style re-calculation.
-   * @return {Promise<ElementObject>} Promise to be fulfilled when the element
+   * @return {!Promise<!ElementObject>} Promise to be fulfilled when the element
    *     appears.
    */
-  waitForElementStyles(appId, query, styleNames) {
+  async waitForElementStyles(appId, query, styleNames) {
     const caller = getCaller();
     return repeatUntil(async () => {
       const elements = await this.callRemoteTestUtil(
@@ -275,7 +277,7 @@ export class RemoteCall {
    * @param {number} count The expected element match count.
    * @return {Promise} Promise to be fulfilled on success.
    */
-  waitForElementsCount(appId, query, count) {
+  async waitForElementsCount(appId, query, count) {
     const caller = getCaller();
     return repeatUntil(async () => {
       const expect = `Waiting for [${query}] to match ${count} elements`;
@@ -358,7 +360,8 @@ export class RemoteCall {
    *     element(s), |query[1]| specifies elements inside the shadow DOM of
    *     the first element, and so on.
    * @param {KeyModifiers=} opt_keyModifiers Object
-   * @return {Promise} Promise to be fulfilled with the clicked element.
+   * @return {!Promise<ElementObject>} Promise to be fulfilled with the clicked
+   *     element.
    */
   async waitAndClickElement(appId, query, opt_keyModifiers) {
     const element = await this.waitForElement(appId, query);
@@ -489,30 +492,8 @@ export class RemoteCallFilesApp extends RemoteCall {
     });
   }
 
-  /** @override */
-  async waitForWindow(windowIdPrefix) {
-    return this.waitForSwaWindow();
-  }
-
   async getWindows() {
     return JSON.parse(await sendTestMessage({name: 'getWindows'}));
-  }
-
-  /**
-   * Wait for a SWA window to be open.
-   * @return {!Promise<string>}
-   */
-  async waitForSwaWindow() {
-    const caller = getCaller();
-    const appId = await repeatUntil(async () => {
-      const ret = await sendTestMessage({name: 'findSwaWindow'});
-      if (ret === 'none') {
-        return pending(caller, 'Wait for SWA window');
-      }
-      return ret;
-    });
-
-    return appId;
   }
 
   /**
@@ -719,17 +700,24 @@ export class RemoteCallFilesApp extends RemoteCall {
 
     const caller = getCaller();
     return repeatUntil(async () => {
-      let element =
+      const element =
           await this.callRemoteTestUtil('getActiveElement', appId, []);
       if (element && element.attributes['id'] === elementId) {
         return true;
       }
       // Try to check the shadow root.
-      element =
-          await this.callRemoteTestUtil('deepGetActiveElement', appId, []);
-      if (element && element.attributes['id'] === elementId) {
+      const activeElements =
+          await this.callRemoteTestUtil('deepGetActivePath', appId, []);
+      const matches =
+          activeElements.filter(el => el.attributes['id'] === elementId);
+      if (matches.length === 1) {
         return true;
       }
+      if (matches.length > 1) {
+        console.error(`Found ${
+            matches.length} active elements with the same id: ${elementId}`);
+      }
+
       return pending(
           caller,
           'Waiting for active element with id: "' + elementId +
@@ -778,77 +766,6 @@ export class RemoteCallFilesApp extends RemoteCall {
             caller, 'Expected path is %s got %s', expectedPath, path);
       }
     });
-  }
-
-  /**
-   * Expands tree item.
-   * @param {string} appId App window Id.
-   * @param {string} query Query to the <tree-item> element.
-   */
-  async expandTreeItemInDirectoryTree(appId, query) {
-    await this.waitForElement(appId, query);
-    const elements = await this.callRemoteTestUtil(
-        'queryAllElements', appId, [`${query}[expanded]`]);
-    // If it's already expanded just set the focus on directory tree.
-    if (elements.length > 0) {
-      return this.callRemoteTestUtil('focus', appId, ['#directory-tree']);
-    }
-
-    // We must wait until <tree-item> has attribute [has-children=true]
-    // otherwise it won't expand. We must also to account for the case
-    // :not([expanded]) to ensure it has NOT been expanded by some async
-    // operation since the [expanded] checks above.
-    const expandIcon =
-        query + ':not([expanded]) > .tree-row[has-children=true] .expand-icon';
-    await this.waitAndClickElement(appId, expandIcon);
-    // Wait for the expansion to finish.
-    await this.waitForElement(appId, query + '[expanded]');
-    // Force the focus on directory tree.
-    await this.callRemoteTestUtil('focus', appId, ['#directory-tree']);
-  }
-
-  /**
-   * Expands directory tree for specified path.
-   */
-  expandDirectoryTreeFor(appId, path, volumeType = 'downloads') {
-    return this.expandDirectoryTreeForInternal_(
-        appId, path.split('/'), 0, volumeType);
-  }
-
-  /**
-   * Internal function for expanding directory tree for specified path.
-   */
-  async expandDirectoryTreeForInternal_(appId, components, index, volumeType) {
-    if (index >= components.length - 1) {
-      return;
-    }
-
-    // First time we should expand the root/volume first.
-    if (index === 0) {
-      await this.expandVolumeInDirectoryTree(appId, volumeType);
-      return this.expandDirectoryTreeForInternal_(
-          appId, components, index + 1, volumeType);
-    }
-    const path = '/' + components.slice(1, index + 1).join('/');
-    await this.expandTreeItemInDirectoryTree(
-        appId, `[full-path-for-testing="${path}"]`);
-    await this.expandDirectoryTreeForInternal_(
-        appId, components, index + 1, volumeType);
-  }
-
-  /**
-   * Expands download volume in directory tree.
-   */
-  expandDownloadVolumeInDirectoryTree(appId) {
-    return this.expandVolumeInDirectoryTree(appId, 'downloads');
-  }
-
-  /**
-   * Expands download volume in directory tree.
-   */
-  expandVolumeInDirectoryTree(appId, volumeType) {
-    return this.expandTreeItemInDirectoryTree(
-        appId, `[volume-type-for-testing="${volumeType}"]`);
   }
 
   /**
@@ -1051,6 +968,18 @@ export class RemoteCallFilesApp extends RemoteCall {
   }
 
   /**
+   * Whether the Jellybean UI is enabled.
+   * @param {string} appId app window ID
+   * @returns {Promise<boolean>}
+   */
+  async isCrosComponents(appId) {
+    return await sendTestMessage({
+             appId,
+             name: 'isCrosComponents',
+           }) === 'true';
+  }
+
+  /**
    * Wait for the nudge with the given text to be visible.
    *
    * @param {string} appId app window ID.
@@ -1072,6 +1001,195 @@ export class RemoteCallFilesApp extends RemoteCall {
       chrome.test.assertEq(actualText.text, expectedText);
 
       return true;
+    });
+  }
+
+  /**
+   * Waits for the <xf-cloud-panel> element to be visible on the DOM.
+   * @param {string} appId app window ID
+   */
+  async waitForCloudPanelVisible(appId) {
+    const caller = getCaller();
+    return repeatUntil(async () => {
+      const styles = await this.waitForElementStyles(
+          appId, ['xf-cloud-panel', 'cr-action-menu', 'dialog'], ['left']);
+
+      if (styles.renderedHeight > 0 && styles.renderedWidth > 0 &&
+          styles.renderedTop > 0 && styles.renderedLeft > 0) {
+        return true;
+      }
+
+      return pending(caller, `Waiting for xf-cloud-panel to appear.`);
+    });
+  }
+
+  /**
+   * Wait for the underlying bulk pinning manager to enter the specified stage.
+   * @param {string} want The stage the bulk pinning is expected to be in. This
+   *     is a string relating to the stage defined in the `PinningManager`.
+   */
+  async waitForBulkPinningStage(want) {
+    const caller = getCaller();
+    return repeatUntil(async () => {
+      const currentStage = await sendTestMessage({name: 'getBulkPinningStage'});
+      if (currentStage === want) {
+        return true;
+      }
+      return pending(caller, `Still waiting for syncing stage: ${want}`);
+    });
+  }
+
+  /**
+   * Wait until the pin manager has the expected required space.
+   * @param {number} want
+   */
+  async waitForBulkPinningRequiredSpace(want) {
+    const caller = getCaller();
+    return repeatUntil(async () => {
+      const actualRequiredSpace =
+          await sendTestMessage({name: 'getBulkPinningRequiredSpace'});
+      const parsedSpace = parseInt(actualRequiredSpace, 10);
+      if (parsedSpace === want) {
+        return true;
+      }
+      return pending(caller, `Still waiting for required space to be ${want}`);
+    });
+  }
+
+  /**
+   * Wait until the cloud panel has the specified item and percentage attributes
+   * defined, if the `timeoutSeconds` is supplied it will only wait for the
+   * specified time before timing out.
+   * @param {string} appId app window ID
+   * @param {number} items The items expected on the cloud panel.
+   * @param {number} percentage The percentage integer expected on the cloud
+   *     panel.
+   * @param {number=} timeoutSeconds Whether to timeout when verifying the panel
+   *     attributes.
+   */
+  async waitForCloudPanelState(appId, items, percentage, timeoutSeconds = 10) {
+    const futureDate = new Date();
+    futureDate.setSeconds(futureDate.getSeconds() + timeoutSeconds);
+    const caller = getCaller();
+    return repeatUntil(async () => {
+      chrome.test.assertTrue(
+          new Date() < futureDate,
+          `Timed out waiting for items=${items} and percentage=${
+              percentage} to appear on xf-cloud-panel`);
+      const cloudPanel = await this.callRemoteTestUtil(
+          'deepQueryAllElements', appId,
+          [`xf-cloud-panel[percentage="${percentage}"][items="${items}"]`]);
+      if (cloudPanel && cloudPanel.length === 1) {
+        return true;
+      }
+      return pending(
+          caller,
+          `Still waiting for xf-cloud-panel to have items=${
+              items} and percentage=${percentage}`);
+    });
+  }
+
+  /**
+   * Wait for the feedback panel to show an item with the provided messages.
+   * @param {!string} appId app window ID
+   * @param {!RegExp} expectedPrimaryMessageRegex The expected primary-text of
+   *     the item.
+   * @param {!RegExp} expectedSecondaryMessageRegex The expected secondary-text
+   *     of the item.
+   */
+  async waitForFeedbackPanelItem(
+      appId, expectedPrimaryMessageRegex, expectedSecondaryMessageRegex) {
+    const caller = getCaller();
+    return repeatUntil(async () => {
+      const element = await this.waitForElement(
+          appId, ['#progress-panel', 'xf-panel-item']);
+
+      const actualPrimaryText = element.attributes['primary-text'];
+      const actualSecondaryText = element.attributes['secondary-text'];
+
+      if (expectedPrimaryMessageRegex.test(actualPrimaryText) &&
+          expectedSecondaryMessageRegex.test(actualSecondaryText)) {
+        return;
+      }
+      return pending(
+          caller,
+          `Expected feedback panel item with primary-text regex:"${
+              expectedPrimaryMessageRegex}" and secondary-text regex:"${
+              expectedSecondaryMessageRegex}", got item with primary-text "${
+              actualPrimaryText}" and secondary-text "${actualSecondaryText}"`);
+    });
+  }
+
+  /**
+   * Clicks the enabled and visible move to trash button and ensures the delete
+   * button is hidden.
+   * @param {string} appId
+   */
+  async clickTrashButton(appId) {
+    await this.waitForElement(appId, '#delete-button[hidden]');
+    await this.waitAndClickElement(
+        appId, '#move-to-trash-button:not([hidden]):not([disabled])');
+  }
+
+  /**
+   * Fakes the response from spaced when it retrieves the free space.
+   * @param {bigint} freeSpace
+   */
+  async setSpacedFreeSpace(freeSpace) {
+    console.log(freeSpace);
+    await sendTestMessage(
+        {name: 'setSpacedFreeSpace', freeSpace: String(freeSpace)});
+  }
+
+  /**
+   * Waits for the specified element appearing in the DOM. `query_jelly` or
+   * `query_old` are used depending on the state of the migration to
+   * cros_components.
+   * @param  {string} appId App window Id.
+   * @param {string|!Array<string>} query_jelly Used when cros_components are
+   *     used. See `waitForElement` for details.
+   * @param {string|!Array<string>} query_old Used when cros_components are not
+   *     used. See `waitForElement` for details.
+   * @returns {Promise<ElementObject>} Promise to be fulfilled when the
+   *     element appears.
+   */
+  waitForElementJelly(appId, query_jelly, query_old) {
+    return this.isCrosComponents(appId).then(
+        isJellybean =>
+            this.waitForElement(appId, isJellybean ? query_jelly : query_old));
+  }
+
+  /**
+   * Shorthand for clicking the appropriate element, depending the state of the
+   * Jellybean experiment.
+   * @param {string} appId App window Id.
+   * @param {string|!Array<string>} query_jelly The query when using
+   *     cros_components. See `waitAndClickElement` for details.
+   * @param {string|!Array<string>} query_old The query when not using
+   *     cros_components. See `waitAndClickElement` for details.
+   * @param {KeyModifiers=} opt_keyModifiers Object
+   * @return {Promise} Promise to be fulfilled with the clicked element.
+   */
+  async waitAndClickElementJelly(
+      appId, query_jelly, query_old, opt_keyModifiers) {
+    const isJellybean = await this.isCrosComponents(appId);
+    return await this.waitAndClickElement(
+        appId, isJellybean ? query_jelly : query_old, opt_keyModifiers);
+  }
+
+  /**
+   * Sets the pooled storage quota on Drive volume.
+   * @param {number} usedUserBytes
+   * @param {number} totalUserBytes
+   * @param {boolean} organizationLimitExceeded
+   */
+  async setPooledStorageQuotaUsage(
+      usedUserBytes, totalUserBytes, organizationLimitExceeded) {
+    return sendTestMessage({
+      name: 'setPooledStorageQuotaUsage',
+      usedUserBytes,
+      totalUserBytes,
+      organizationLimitExceeded,
     });
   }
 }

@@ -51,8 +51,7 @@
 #include "third_party/boringssl/src/include/openssl/pool.h"
 #include "url/url_canon.h"
 
-#if BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(USE_NSS_CERTS) || \
-    BUILDFLAG(CHROME_ROOT_STORE_SUPPORTED)
+#if BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(CHROME_ROOT_STORE_SUPPORTED)
 #include "net/cert/cert_verify_proc_builtin.h"
 #endif
 
@@ -409,8 +408,7 @@ base::Value::Dict CertVerifyParams(
 
 }  // namespace
 
-#if !(BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(IS_LINUX) || \
-      BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(CHROME_ROOT_STORE_ONLY))
+#if !(BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(CHROME_ROOT_STORE_ONLY))
 // static
 scoped_refptr<CertVerifyProc> CertVerifyProc::CreateSystemVerifyProc(
     scoped_refptr<CertNetFetcher> cert_net_fetcher,
@@ -426,7 +424,7 @@ scoped_refptr<CertVerifyProc> CertVerifyProc::CreateSystemVerifyProc(
 }
 #endif
 
-#if BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(USE_NSS_CERTS)
+#if BUILDFLAG(IS_FUCHSIA)
 // static
 scoped_refptr<CertVerifyProc> CertVerifyProc::CreateBuiltinVerifyProc(
     scoped_refptr<CertNetFetcher> cert_net_fetcher,
@@ -467,6 +465,9 @@ int CertVerifyProc::Verify(X509Certificate* cert,
                            const CertificateList& additional_trust_anchors,
                            CertVerifyResult* verify_result,
                            const NetLogWithSource& net_log) {
+  CHECK(cert);
+  CHECK(verify_result);
+
   net_log.BeginEvent(NetLogEventType::CERT_VERIFY_PROC, [&] {
     return CertVerifyParams(cert, hostname, ocsp_response, sct_list, flags,
                             crl_set(), additional_trust_anchors);
@@ -485,6 +486,8 @@ int CertVerifyProc::Verify(X509Certificate* cert,
 
   int rv = VerifyInternal(cert, hostname, ocsp_response, sct_list, flags,
                           additional_trust_anchors, verify_result, net_log);
+
+  CHECK(verify_result->verified_cert);
 
   // Check for mismatched signature algorithms and unknown signature algorithms
   // in the chain. Also fills in the has_* booleans for the digest algorithms
@@ -734,11 +737,6 @@ bool CertVerifyProc::HasNameConstraintsViolation(
       ".tf",  // Terres australes et antarctiques françaises
   };
 
-  static constexpr base::StringPiece kDomainsIndiaCCA[] = {
-      ".gov.in",   ".nic.in",    ".ac.in", ".rbi.org.in", ".bankofindia.co.in",
-      ".ncode.in", ".tcs.co.in",
-  };
-
   static constexpr base::StringPiece kDomainsTest[] = {
       ".example.com",
   };
@@ -758,45 +756,15 @@ bool CertVerifyProc::HasNameConstraintsViolation(
       // C=FR, ST=France, L=Paris, O=PM/SGDN, OU=DCSSI,
       // CN=IGC/A/emailAddress=igca@sgdn.pm.gouv.fr
       //
-      // net/data/ssl/blocklist/b9bea7860a962ea3611dab97ab6da3e21c1068b97d55575ed0e11279c11c8932.pem
+      // net/data/ssl/name_constrained/b9bea7860a962ea3611dab97ab6da3e21c1068b97d55575ed0e11279c11c8932.pem
       {
           {{0x86, 0xc1, 0x3a, 0x34, 0x08, 0xdd, 0x1a, 0xa7, 0x7e, 0xe8, 0xb6,
             0x94, 0x7c, 0x03, 0x95, 0x87, 0x72, 0xf5, 0x31, 0x24, 0x8c, 0x16,
             0x27, 0xbe, 0xfb, 0x2c, 0x4f, 0x4b, 0x04, 0xd0, 0x44, 0x96}},
           kDomainsANSSI,
       },
-      // C=IN, O=India PKI, CN=CCA India 2007
-      // Expires: July 4th 2015.
-      //
-      // net/data/ssl/blocklist/f375e2f77a108bacc4234894a9af308edeca1acd8fbde0e7aaa9634e9daf7e1c.pem
-      {
-          {{0x7e, 0x6a, 0xcd, 0x85, 0x3c, 0xac, 0xc6, 0x93, 0x2e, 0x9b, 0x51,
-            0x9f, 0xda, 0xd1, 0xbe, 0xb5, 0x15, 0xed, 0x2a, 0x2d, 0x00, 0x25,
-            0xcf, 0xd3, 0x98, 0xc3, 0xac, 0x1f, 0x0d, 0xbb, 0x75, 0x4b}},
-          kDomainsIndiaCCA,
-      },
-      // C=IN, O=India PKI, CN=CCA India 2011
-      // Expires: March 11 2016.
-      //
-      // net/data/ssl/blocklist/2d66a702ae81ba03af8cff55ab318afa919039d9f31b4d64388680f81311b65a.pem
-      {
-          {{0x42, 0xa7, 0x09, 0x84, 0xff, 0xd3, 0x99, 0xc4, 0xea, 0xf0, 0xe7,
-            0x02, 0xa4, 0x4b, 0xef, 0x2a, 0xd8, 0xa7, 0x9b, 0x8b, 0xf4, 0x64,
-            0x8f, 0x6b, 0xb2, 0x10, 0xe1, 0x23, 0xfd, 0x07, 0x57, 0x93}},
-          kDomainsIndiaCCA,
-      },
-      // C=IN, O=India PKI, CN=CCA India 2014
-      // Expires: March 5 2024.
-      //
-      // net/data/ssl/blocklist/60109bc6c38328598a112c7a25e38b0f23e5a7511cb815fb64e0c4ff05db7df7.pem
-      {
-          {{0x9c, 0xf4, 0x70, 0x4f, 0x3e, 0xe5, 0xa5, 0x98, 0x94, 0xb1, 0x6b,
-            0xf0, 0x0c, 0xfe, 0x73, 0xd5, 0x88, 0xda, 0xe2, 0x69, 0xf5, 0x1d,
-            0xe6, 0x6a, 0x4b, 0xa7, 0x74, 0x46, 0xee, 0x2b, 0xd1, 0xf7}},
-          kDomainsIndiaCCA,
-      },
       // Not a real certificate - just for testing.
-      // net/data/ssl/certificates/name_constraint_*.pem
+      // net/data/ssl/certificates/name_constrained_key.pem
       {
           {{0xa2, 0x2a, 0x88, 0x82, 0xba, 0x0c, 0xae, 0x9d, 0xf2, 0xc4, 0x5b,
             0x15, 0xa6, 0x1e, 0xfd, 0xfd, 0x19, 0x6b, 0xb1, 0x09, 0x19, 0xfd,
@@ -835,59 +803,33 @@ bool CertVerifyProc::HasTooLongValidity(const X509Certificate& cert) {
     return true;
   }
 
-  // These dates are derived from the transitions noted in Section 1.2.2
-  // (Relevant Dates) of the Baseline Requirements.
-  const base::Time time_2012_07_01 =
-      base::Time::UnixEpoch() + base::Seconds(1341100800);
-  const base::Time time_2015_04_01 =
-      base::Time::UnixEpoch() + base::Seconds(1427846400);
-  const base::Time time_2018_03_01 =
-      base::Time::UnixEpoch() + base::Seconds(1519862400);
-  const base::Time time_2019_07_01 =
-      base::Time::UnixEpoch() + base::Seconds(1561939200);
-  // From Chrome Root Certificate Policy
-  const base::Time time_2020_09_01 =
-      base::Time::UnixEpoch() + base::Seconds(1598918400);
-
-  // Compute the maximally permissive interpretations, accounting for leap
-  // years.
-  // 10 years - two possible leap years.
-  constexpr base::TimeDelta kTenYears = base::Days((365 * 8) + (366 * 2));
-  // 5 years - two possible leap years (year 0/year 4 or year 1/year 5).
-  constexpr base::TimeDelta kSixtyMonths = base::Days((365 * 3) + (366 * 2));
-  // 39 months - one possible leap year, two at 365 days, and the longest
-  // monthly sequence of 31/31/30 days (June/July/August).
-  constexpr base::TimeDelta kThirtyNineMonths =
-      base::Days(366 + 365 + 365 + 31 + 31 + 30);
+  // The maximum lifetime of publicly trusted certificates has reduced
+  // gradually over time. These dates are derived from the transitions noted in
+  // Section 1.2.2 (Relevant Dates) of the Baseline Requirements.
+  //
+  // * Certificates issued before BRs took effect, Chrome limited to max of ten
+  // years validity and a max notAfter date of 2019-07-01.
+  //   * Last possible expiry: 2019-07-01.
+  //
+  // * Cerificates issued on-or-after the BR effective date of 1 July 2012: 60
+  // months.
+  //   * Last possible expiry: 1 April 2015 + 60 months = 2020-04-01
+  //
+  // * Certificates issued on-or-after 1 April 2015: 39 months.
+  //   * Last possible expiry: 1 March 2018 + 39 months = 2021-06-01
+  //
+  // * Certificates issued on-or-after 1 March 2018: 825 days.
+  //   * Last possible expiry: 1 September 2020 + 825 days = 2022-12-05
+  //
+  // The current limit, from Chrome Root Certificate Policy:
+  // * Certificates issued on-or-after 1 September 2020: 398 days.
 
   base::TimeDelta validity_duration = cert.valid_expiry() - cert.valid_start();
 
-  // For certificates issued before the BRs took effect.
-  if (start < time_2012_07_01 &&
-      (validity_duration > kTenYears || expiry > time_2019_07_01)) {
-    return true;
-  }
-
-  // For certificates issued on-or-after the BR effective date of 1 July 2012:
-  // 60 months.
-  if (start >= time_2012_07_01 && validity_duration > kSixtyMonths)
-    return true;
-
-  // For certificates issued on-or-after 1 April 2015: 39 months.
-  if (start >= time_2015_04_01 && validity_duration > kThirtyNineMonths)
-    return true;
-
-  // For certificates issued on-or-after 1 March 2018: 825 days.
-  if (start >= time_2018_03_01 && validity_duration > base::Days(825)) {
-    return true;
-  }
-
-  // For certificates issued on-or-after 1 September 2020: 398 days.
-  if (start >= time_2020_09_01 && validity_duration > base::Days(398)) {
-    return true;
-  }
-
-  return false;
+  // No certificates issued before the latest lifetime requirement was enacted
+  // could possibly still be accepted, so we don't need to check the older
+  // limits explicitly.
+  return validity_duration > base::Days(398);
 }
 
 CertVerifyProcFactory::ImplParams::ImplParams() {

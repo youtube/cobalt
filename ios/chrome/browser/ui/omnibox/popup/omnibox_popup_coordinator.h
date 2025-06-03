@@ -17,6 +17,7 @@ class OmniboxPopupViewIOS;
 @protocol OmniboxReturnDelegate;
 @class OmniboxTextFieldIOS;
 @protocol PopupMatchPreviewDelegate;
+@protocol ToolbarOmniboxConsumer;
 
 /// Coordinator for the Omnibox Popup.
 @interface OmniboxPopupCoordinator : ChromeCoordinator
@@ -49,6 +50,12 @@ class OmniboxPopupViewIOS;
 /// Delegate for PopupMatchPreviewDelegate used in OmniboxPopupCoordinator.
 @property(nonatomic, weak) id<PopupMatchPreviewDelegate>
     popupMatchPreviewDelegate;
+
+// Returns the toolbar omnibox consumer.
+- (id<ToolbarOmniboxConsumer>)toolbarOmniboxConsumer;
+
+/// Toggle visibility of the omnibox debugger view.
+- (void)toggleOmniboxDebuggerView;
 
 @end
 

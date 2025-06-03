@@ -96,7 +96,10 @@ class SafeBrowsingTriggeredPopupBlockerTestBase
                 &SafeBrowsingTriggeredPopupBlockerTestBase::CreateThrottle,
                 base::Unretained(this)));
   }
-
+  void TearDown() override {
+    popup_blocker_ = nullptr;
+    content::RenderViewHostTestHarness::TearDown();
+  }
   FakeSafeBrowsingDatabaseManager* fake_safe_browsing_database() {
     return fake_safe_browsing_database_.get();
   }

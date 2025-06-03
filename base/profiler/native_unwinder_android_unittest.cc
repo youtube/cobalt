@@ -18,7 +18,7 @@
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "base/profiler/native_unwinder_android_map_delegate.h"
-#include "base/profiler/native_unwinder_android_memory_regions_map.h"
+#include "base/profiler/native_unwinder_android_memory_regions_map_impl.h"
 #include "base/profiler/register_context.h"
 #include "base/profiler/stack_buffer.h"
 #include "base/profiler/stack_copier_signal.h"
@@ -52,32 +52,25 @@ void AddMapInfo(uint64_t start,
   map_info.set_elf_offset(map_info.offset());
 }
 
-class NativeUnwinderAndroidMemoryRegionsMapForTesting
-    : public NativeUnwinderAndroidMemoryRegionsMap {
- public:
-  NativeUnwinderAndroidMemoryRegionsMapForTesting(unwindstack::Maps* maps,
-                                                  unwindstack::Memory* memory)
-      : maps_(maps), memory_(memory) {}
-  unwindstack::Maps* GetMaps() override { return maps_; }
-  unwindstack::Memory* GetMemory() override { return memory_; }
-  // This function is not expected to be called within the unittest, as
-  // `NativeUnwinderAndroidMemoryRegionsMapForTesting` does not own
-  // `unwindstack::Memory`.
-  std::unique_ptr<unwindstack::Memory> TakeMemory() override { return nullptr; }
-
- private:
-  raw_ptr<unwindstack::Maps> maps_;
-  raw_ptr<unwindstack::Memory> memory_;
-};
+std::unique_ptr<NativeUnwinderAndroidMemoryRegionsMapImpl>
+CreateMemoryRegionsMap() {
+  std::unique_ptr<NativeUnwinderAndroidMemoryRegionsMap> memory_regions_map =
+      NativeUnwinderAndroid::CreateMemoryRegionsMap();
+  std::unique_ptr<NativeUnwinderAndroidMemoryRegionsMapImpl> downcast(
+      static_cast<NativeUnwinderAndroidMemoryRegionsMapImpl*>(
+          memory_regions_map.release()));
+  return downcast;
+}
 
 class NativeUnwinderAndroidMapDelegateForTesting
     : public NativeUnwinderAndroidMapDelegate {
  public:
   explicit NativeUnwinderAndroidMapDelegateForTesting(
-      std::unique_ptr<NativeUnwinderAndroidMemoryRegionsMap> memory_regions_map)
+      std::unique_ptr<NativeUnwinderAndroidMemoryRegionsMapImpl>
+          memory_regions_map)
       : memory_regions_map_(std::move(memory_regions_map)) {}
 
-  NativeUnwinderAndroidMemoryRegionsMap* GetMapReference() override {
+  NativeUnwinderAndroidMemoryRegionsMapImpl* GetMapReference() override {
     acquire_count_++;
     return memory_regions_map_.get();
   }
@@ -87,7 +80,7 @@ class NativeUnwinderAndroidMapDelegateForTesting
   uint32_t release_count() { return release_count_; }
 
  private:
-  const std::unique_ptr<NativeUnwinderAndroidMemoryRegionsMap>
+  const std::unique_ptr<NativeUnwinderAndroidMemoryRegionsMapImpl>
       memory_regions_map_;
 
   uint32_t acquire_count_ = 0u;
@@ -139,17 +132,26 @@ std::vector<Frame> CaptureScenario(
   return sample;
 }
 
-// Checks that the expected information is present in sampled frames.
 // TODO(https://crbug.com/1147315): After fix, re-enable on all ASAN bots.
-// TODO(https://crbug.com/1368981): After fix, re-enable on all bots except
-// if defined(ADDRESS_SANITIZER).
-TEST(NativeUnwinderAndroidTest, DISABLED_PlainFunction) {
+#if defined(ADDRESS_SANITIZER)
+#define MAYBE_PlainFunction DISABLED_PlainFunction
+#else
+#define MAYBE_PlainFunction PlainFunction
+#endif
+// Checks that the expected information is present in sampled frames.
+TEST(NativeUnwinderAndroidTest, MAYBE_PlainFunction) {
+  const auto sdk_version = base::android::BuildInfo::GetInstance()->sdk_int();
+  if (sdk_version < base::android::SDK_VERSION_NOUGAT) {
+    GTEST_SKIP();
+  }
+
   UnwindScenario scenario(BindRepeating(&CallWithPlainFunction));
   NativeUnwinderAndroidMapDelegateForTesting map_delegate(
-      NativeUnwinderAndroid::CreateMemoryRegionsMap());
+      CreateMemoryRegionsMap());
 
   ModuleCache module_cache;
-  auto unwinder = std::make_unique<NativeUnwinderAndroid>(0, &map_delegate);
+  auto unwinder = std::make_unique<NativeUnwinderAndroid>(
+      0, &map_delegate, /*is_java_name_hashing_enabled=*/false);
 
   unwinder->Initialize(&module_cache);
   std::vector<Frame> sample =
@@ -173,19 +175,28 @@ TEST(NativeUnwinderAndroidTest, DISABLED_PlainFunction) {
                                scenario.GetOuterFunctionAddressRange()});
 }
 
+// TODO(https://crbug.com/1147315): After fix, re-enable on all ASAN bots.
+#if defined(ADDRESS_SANITIZER)
+#define MAYBE_Alloca DISABLED_Alloca
+#else
+#define MAYBE_Alloca Alloca
+#endif
 // Checks that the unwinder handles stacks containing dynamically-allocated
 // stack memory.
-// TODO(https://crbug.com/1147315): After fix, re-enable on all ASAN bots.
-// TODO(https://crbug.com/1368981): After fix, re-enable on all bots except
-// if defined(ADDRESS_SANITIZER).
-TEST(NativeUnwinderAndroidTest, DISABLED_Alloca) {
+TEST(NativeUnwinderAndroidTest, MAYBE_Alloca) {
+  const auto sdk_version = base::android::BuildInfo::GetInstance()->sdk_int();
+  if (sdk_version < base::android::SDK_VERSION_NOUGAT) {
+    GTEST_SKIP();
+  }
+
   UnwindScenario scenario(BindRepeating(&CallWithAlloca));
 
   NativeUnwinderAndroidMapDelegateForTesting map_delegate(
-      NativeUnwinderAndroid::CreateMemoryRegionsMap());
+      CreateMemoryRegionsMap());
 
   ModuleCache module_cache;
-  auto unwinder = std::make_unique<NativeUnwinderAndroid>(0, &map_delegate);
+  auto unwinder = std::make_unique<NativeUnwinderAndroid>(
+      0, &map_delegate, /*is_java_name_hashing_enabled=*/false);
 
   unwinder->Initialize(&module_cache);
   std::vector<Frame> sample =
@@ -209,20 +220,29 @@ TEST(NativeUnwinderAndroidTest, DISABLED_Alloca) {
                                scenario.GetOuterFunctionAddressRange()});
 }
 
+// TODO(https://crbug.com/1147315): After fix, re-enable on all ASAN bots.
+#if defined(ADDRESS_SANITIZER)
+#define MAYBE_OtherLibrary DISABLED_OtherLibrary
+#else
+#define MAYBE_OtherLibrary OtherLibrary
+#endif
 // Checks that a stack that runs through another library produces a stack with
 // the expected functions.
-// TODO(https://crbug.com/1147315): After fix, re-enable on all ASAN bots.
-// TODO(https://crbug.com/1368981): After fix, re-enable on all bots except
-// if defined(ADDRESS_SANITIZER).
-TEST(NativeUnwinderAndroidTest, DISABLED_OtherLibrary) {
+TEST(NativeUnwinderAndroidTest, MAYBE_OtherLibrary) {
+  const auto sdk_version = base::android::BuildInfo::GetInstance()->sdk_int();
+  if (sdk_version < base::android::SDK_VERSION_NOUGAT) {
+    GTEST_SKIP();
+  }
+
   NativeLibrary other_library = LoadOtherLibrary();
   UnwindScenario scenario(
       BindRepeating(&CallThroughOtherLibrary, Unretained(other_library)));
 
   NativeUnwinderAndroidMapDelegateForTesting map_delegate(
-      NativeUnwinderAndroid::CreateMemoryRegionsMap());
+      CreateMemoryRegionsMap());
   ModuleCache module_cache;
-  auto unwinder = std::make_unique<NativeUnwinderAndroid>(0, &map_delegate);
+  auto unwinder = std::make_unique<NativeUnwinderAndroid>(
+      0, &map_delegate, /*is_java_name_hashing_enabled=*/false);
 
   unwinder->Initialize(&module_cache);
   std::vector<Frame> sample =
@@ -249,16 +269,17 @@ TEST(NativeUnwinderAndroidTest, ExcludeOtherLibrary) {
       BindRepeating(&CallThroughOtherLibrary, Unretained(other_library)));
 
   NativeUnwinderAndroidMapDelegateForTesting map_delegate(
-      NativeUnwinderAndroid::CreateMemoryRegionsMap());
+      CreateMemoryRegionsMap());
   ModuleCache module_cache;
   unwindstack::MapInfo* other_library_map =
       map_delegate.GetMapReference()
-          ->GetMaps()
+          ->maps()
           ->Find(GetAddressInOtherLibrary(other_library))
           .get();
   ASSERT_NE(nullptr, other_library_map);
   auto unwinder = std::make_unique<NativeUnwinderAndroid>(
-      other_library_map->start(), &map_delegate);
+      other_library_map->start(), &map_delegate,
+      /*is_java_name_hashing_enabled=*/false);
   unwinder->Initialize(&module_cache);
 
   std::vector<Frame> sample =
@@ -291,7 +312,7 @@ TEST(NativeUnwinderAndroidTest, MAYBE_ResumeUnwinding) {
       BindRepeating(&CallThroughOtherLibrary, Unretained(other_library)));
 
   NativeUnwinderAndroidMapDelegateForTesting map_delegate(
-      NativeUnwinderAndroid::CreateMemoryRegionsMap());
+      CreateMemoryRegionsMap());
 
   // Several unwinders are used to unwind different portion of the stack. Since
   // only 1 unwinder can be registered as a module provider, each unwinder uses
@@ -300,24 +321,26 @@ TEST(NativeUnwinderAndroidTest, MAYBE_ResumeUnwinding) {
   // NativeUnwinderAndroid work with other unwinders, but doesn't reproduce what
   // happens in production.
   ModuleCache module_cache_for_all;
-  auto unwinder_for_all =
-      std::make_unique<NativeUnwinderAndroid>(0, &map_delegate);
+  auto unwinder_for_all = std::make_unique<NativeUnwinderAndroid>(
+      0, &map_delegate, /*is_java_name_hashing_enabled=*/false);
   unwinder_for_all->Initialize(&module_cache_for_all);
 
   ModuleCache module_cache_for_native;
   auto unwinder_for_native = std::make_unique<NativeUnwinderAndroid>(
-      reinterpret_cast<uintptr_t>(&__executable_start), &map_delegate);
+      reinterpret_cast<uintptr_t>(&__executable_start), &map_delegate,
+      /*is_java_name_hashing_enabled=*/false);
   unwinder_for_native->Initialize(&module_cache_for_native);
 
   ModuleCache module_cache_for_chrome;
   unwindstack::MapInfo* other_library_map =
       map_delegate.GetMapReference()
-          ->GetMaps()
+          ->maps()
           ->Find(GetAddressInOtherLibrary(other_library))
           .get();
   ASSERT_NE(nullptr, other_library_map);
   auto unwinder_for_chrome = std::make_unique<NativeUnwinderAndroid>(
-      other_library_map->start(), &map_delegate);
+      other_library_map->start(), &map_delegate,
+      /*is_java_name_hashing_enabled=*/false);
   unwinder_for_chrome->Initialize(&module_cache_for_chrome);
 
   std::vector<Frame> sample = CaptureScenario(
@@ -365,21 +388,25 @@ TEST(NativeUnwinderAndroidTest, MAYBE_ResumeUnwinding) {
 }
 
 // Checks that java frames can be unwound through.
-// Disabled, see: https://crbug.com/1076997
-TEST(NativeUnwinderAndroidTest, DISABLED_JavaFunction) {
+TEST(NativeUnwinderAndroidTest, JavaFunction) {
   auto* build_info = base::android::BuildInfo::GetInstance();
-  // Due to varying availability of compiled java unwind tables, unwinding is
-  // only expected to succeed on > SDK_VERSION_MARSHMALLOW.
-  bool can_always_unwind =
-      build_info->sdk_int() > base::android::SDK_VERSION_MARSHMALLOW;
+  const auto sdk_version = build_info->sdk_int();
+
+  // Skip this test on anything Android O or earlier, because Java unwinding
+  // fails on these.
+  if (sdk_version <= base::android::SDK_VERSION_OREO) {
+    GTEST_SKIP();
+  }
 
   UnwindScenario scenario(base::BindRepeating(callWithJavaFunction));
 
   NativeUnwinderAndroidMapDelegateForTesting map_delegate(
-      NativeUnwinderAndroid::CreateMemoryRegionsMap());
-  auto unwinder = std::make_unique<NativeUnwinderAndroid>(0, &map_delegate);
+      CreateMemoryRegionsMap());
 
   ModuleCache module_cache;
+  auto unwinder = std::make_unique<NativeUnwinderAndroid>(
+      0, &map_delegate, /*is_java_name_hashing_enabled=*/false);
+
   unwinder->Initialize(&module_cache);
   std::vector<Frame> sample =
       CaptureScenario(&scenario, &module_cache,
@@ -389,8 +416,7 @@ TEST(NativeUnwinderAndroidTest, DISABLED_JavaFunction) {
                         ASSERT_TRUE(unwinder->CanUnwindFrom(sample->back()));
                         UnwindResult result = unwinder->TryUnwind(
                             thread_context, stack_top, sample);
-                        if (can_always_unwind)
-                          EXPECT_EQ(UnwindResult::kCompleted, result);
+                        EXPECT_EQ(UnwindResult::kCompleted, result);
                       }));
 
   // Check that all the modules are valid.
@@ -398,11 +424,9 @@ TEST(NativeUnwinderAndroidTest, DISABLED_JavaFunction) {
     EXPECT_NE(nullptr, frame.module);
 
   // The stack should contain a full unwind.
-  if (can_always_unwind) {
-    ExpectStackContains(sample, {scenario.GetWaitForSampleAddressRange(),
-                                 scenario.GetSetupFunctionAddressRange(),
-                                 scenario.GetOuterFunctionAddressRange()});
-  }
+  ExpectStackContains(sample, {scenario.GetWaitForSampleAddressRange(),
+                               scenario.GetSetupFunctionAddressRange(),
+                               scenario.GetOuterFunctionAddressRange()});
 }
 
 TEST(NativeUnwinderAndroidTest, UnwindStackMemoryTest) {
@@ -435,18 +459,20 @@ TEST(NativeUnwinderAndroidTest, UnwindStackMemoryTest) {
 
 // Checks the debug basename is the whole name for a non-ELF module.
 TEST(NativeUnwinderAndroidTest, ModuleDebugBasenameForNonElf) {
-  unwindstack::Maps maps;
+  auto maps = std::make_unique<unwindstack::Maps>();
 
   AddMapInfo(0x1000u, 0x2000u, 0u, PROT_READ | PROT_EXEC, "[foo / bar]", {0xAA},
-             maps);
+             *maps);
 
   ModuleCache module_cache;
 
-  auto memory_regions_map = NativeUnwinderAndroid::CreateMemoryRegionsMap();
+  std::unique_ptr<NativeUnwinderAndroidMemoryRegionsMapImpl>
+      memory_regions_map = CreateMemoryRegionsMap();
+  memory_regions_map->SetMapsForTesting(std::move(maps));
   NativeUnwinderAndroidMapDelegateForTesting map_delegate(
-      std::make_unique<NativeUnwinderAndroidMemoryRegionsMapForTesting>(
-          &maps, memory_regions_map->GetMemory()));
-  auto unwinder = std::make_unique<NativeUnwinderAndroid>(0, &map_delegate);
+      std::move(memory_regions_map));
+  auto unwinder = std::make_unique<NativeUnwinderAndroid>(
+      0, &map_delegate, /*is_java_name_hashing_enabled=*/false);
   unwinder->Initialize(&module_cache);
 
   const ModuleCache::Module* module = module_cache.GetModuleForAddress(0x1000u);
@@ -457,17 +483,19 @@ TEST(NativeUnwinderAndroidTest, ModuleDebugBasenameForNonElf) {
 
 // Checks that modules are only created for executable memory regions.
 TEST(NativeUnwinderAndroidTest, ModulesCreatedOnlyForExecutableRegions) {
-  unwindstack::Maps maps;
-  AddMapInfo(0x1000u, 0x2000u, 0u, PROT_READ | PROT_EXEC, "[a]", {0xAA}, maps);
-  AddMapInfo(0x2000u, 0x3000u, 0u, PROT_READ, "[b]", {0xAB}, maps);
-  AddMapInfo(0x3000u, 0x4000u, 0u, PROT_READ | PROT_EXEC, "[c]", {0xAC}, maps);
+  auto maps = std::make_unique<unwindstack::Maps>();
+  AddMapInfo(0x1000u, 0x2000u, 0u, PROT_READ | PROT_EXEC, "[a]", {0xAA}, *maps);
+  AddMapInfo(0x2000u, 0x3000u, 0u, PROT_READ, "[b]", {0xAB}, *maps);
+  AddMapInfo(0x3000u, 0x4000u, 0u, PROT_READ | PROT_EXEC, "[c]", {0xAC}, *maps);
 
-  auto memory_regions_map = NativeUnwinderAndroid::CreateMemoryRegionsMap();
+  std::unique_ptr<NativeUnwinderAndroidMemoryRegionsMapImpl>
+      memory_regions_map = CreateMemoryRegionsMap();
+  memory_regions_map->SetMapsForTesting(std::move(maps));
   NativeUnwinderAndroidMapDelegateForTesting map_delegate(
-      std::make_unique<NativeUnwinderAndroidMemoryRegionsMapForTesting>(
-          &maps, memory_regions_map->GetMemory()));
+      std::move(memory_regions_map));
   ModuleCache module_cache;
-  auto unwinder = std::make_unique<NativeUnwinderAndroid>(0, &map_delegate);
+  auto unwinder = std::make_unique<NativeUnwinderAndroid>(
+      0, &map_delegate, /*is_java_name_hashing_enabled=*/false);
   unwinder->Initialize(&module_cache);
 
   const ModuleCache::Module* module1 =
@@ -487,12 +515,12 @@ TEST(NativeUnwinderAndroidTest, ModulesCreatedOnlyForExecutableRegions) {
 TEST(NativeUnwinderAndroidTest,
      AcquireAndReleaseMemoryRegionsMapThroughMapDelegate) {
   NativeUnwinderAndroidMapDelegateForTesting map_delegate(
-      NativeUnwinderAndroid::CreateMemoryRegionsMap());
+      CreateMemoryRegionsMap());
 
   {
     ModuleCache module_cache;
     auto unwinder = std::make_unique<NativeUnwinderAndroid>(
-        /* exclude_module_with_base_address= */ 0, &map_delegate);
+        0, &map_delegate, /*is_java_name_hashing_enabled=*/false);
     unwinder->Initialize(&module_cache);
     EXPECT_EQ(1u, map_delegate.acquire_count());
     EXPECT_EQ(0u, map_delegate.release_count());

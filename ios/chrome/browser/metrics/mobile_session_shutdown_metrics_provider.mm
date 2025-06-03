@@ -13,20 +13,14 @@
 #import "base/system/sys_info.h"
 #import "base/task/thread_pool.h"
 #import "base/version.h"
-#import "components/breadcrumbs/core/breadcrumb_persistent_storage_manager.h"
-#import "components/breadcrumbs/core/features.h"
 #import "components/metrics/metrics_pref_names.h"
 #import "components/metrics/metrics_service.h"
 #import "components/previous_session_info/previous_session_info.h"
 #import "components/version_info/version_info.h"
-#import "ios/chrome/browser/application_context/application_context.h"
-#import "ios/chrome/browser/crash_report/crash_helper.h"
-#import "ios/chrome/browser/crash_report/features.h"
-#import "ios/chrome/browser/crash_report/main_thread_freeze_detector.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
+#import "ios/chrome/browser/crash_report/model/crash_helper.h"
+#import "ios/chrome/browser/crash_report/model/features.h"
+#import "ios/chrome/browser/crash_report/model/main_thread_freeze_detector.h"
+#import "ios/chrome/browser/shared/model/application_context/application_context.h"
 
 using previous_session_info_constants::DeviceBatteryState;
 using previous_session_info_constants::DeviceThermalState;

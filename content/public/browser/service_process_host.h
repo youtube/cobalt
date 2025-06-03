@@ -28,13 +28,20 @@
 // TODO(crbug.com/1328879): Remove this when fixing the bug.
 #if BUILDFLAG(IS_CASTOS) || BUILDFLAG(IS_CAST_ANDROID)
 #include "mojo/public/cpp/system/message_pipe.h"
-#endif
+#endif  // BUILDFLAG(IS_CASTOS) || BUILDFLAG(IS_CAST_ANDROID)
+
+#if BUILDFLAG(IS_WIN)
+#include "base/files/file_path.h"
+#include "base/types/pass_key.h"
+#endif  // BUILDFLAG(IS_WIN)
 
 namespace base {
 class Process;
 }  // namespace base
 
 namespace content {
+class ServiceProcessHostPinUser32;
+class ServiceProcessHostPreloadLibraries;
 
 // Sandbox type for ServiceProcessHost::Launch<remote>() is found by
 // template matching on |remote|. Consult security-dev@chromium.org and
@@ -98,6 +105,23 @@ class CONTENT_EXPORT ServiceProcessHost {
     Options& WithProcessCallback(
         base::OnceCallback<void(const base::Process&)>);
 
+#if BUILDFLAG(IS_WIN)
+    // Specifies libraries to preload before the sandbox is locked down. Paths
+    // should be absolute paths. Libraries will be preloaded before sandbox
+    // lockdown. They should later be "loaded" in the utility process using the
+    // same paths after lockdown.
+    // Note that preloading does not occur with --no-sandbox - hence the need to
+    // load in the utility with the full path - this api exists to make the
+    // libraries available for later loading in the sandbox.
+    Options& WithPreloadedLibraries(
+        std::vector<base::FilePath> preload_libraries,
+        base::PassKey<ServiceProcessHostPreloadLibraries> passkey);
+
+    // Forces user32 to be loaded into the process before the sandbox is locked
+    // down.
+    Options& WithPinUser32(base::PassKey<ServiceProcessHostPinUser32> passkey);
+#endif  // BUILDFLAG(IS_WIN)
+
     // Passes the contents of this Options object to a newly returned Options
     // value. This must be called when moving a built Options object into a call
     // to |Launch()|.
@@ -108,6 +132,10 @@ class CONTENT_EXPORT ServiceProcessHost {
     absl::optional<int> child_flags;
     std::vector<std::string> extra_switches;
     base::OnceCallback<void(const base::Process&)> process_callback;
+#if BUILDFLAG(IS_WIN)
+    std::vector<base::FilePath> preload_libraries;
+    bool pin_user32;
+#endif  // BUILDFLAG(IS_WIN)
   };
 
   // An interface which can be implemented and registered/unregistered with

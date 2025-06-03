@@ -7,6 +7,8 @@
 #include "ash/constants/notifier_catalogs.h"
 #include "ash/public/cpp/shelf_config.h"
 #include "ash/public/cpp/shelf_types.h"
+#include "ash/public/cpp/system/scoped_nudge_pause.h"
+#include "ash/public/cpp/system/system_nudge_pause_manager.h"
 #include "ash/shelf/shelf.h"
 #include "ash/shelf/shelf_layout_manager.h"
 #include "ash/system/tray/system_nudge_controller.h"
@@ -14,6 +16,9 @@
 #include "ash/test/ash_test_base.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/task_environment.h"
+#include "ui/compositor/layer.h"
+#include "ui/compositor/layer_animator.h"
+#include "ui/compositor/scoped_animation_duration_scale_mode.h"
 #include "ui/gfx/vector_icon_types.h"
 
 namespace ash {
@@ -38,6 +43,9 @@ constexpr char kNudgeTimeToActionWithin1h[] =
     "Ash.NotifierFramework.Nudge.TimeToAction.Within1h";
 constexpr char kNudgeTimeToActionWithinSession[] =
     "Ash.NotifierFramework.Nudge.TimeToAction.WithinSession";
+
+constexpr base::TimeDelta kNudgeFadeAnimationTime = base::Milliseconds(250);
+constexpr base::TimeDelta kNudgeShowTime = base::Seconds(10);
 
 gfx::VectorIcon kEmptyIcon;
 
@@ -150,20 +158,20 @@ TEST_F(SystemNudgeTest, TimeToActionMetric) {
   nudge_controller->ResetNudgeRegistryForTesting();
 
   // Metric is not recorded if nudge has not been shown.
-  SystemNudgeController::RecordNudgeAction(kTestCatalogName);
+  SystemNudgeController::MaybeRecordNudgeAction(kTestCatalogName);
   histogram_tester.ExpectBucketCount(kNudgeTimeToActionWithin1m,
                                      kTestCatalogName, 0);
 
   // Metric is recorded after nudge is shown.
   nudge_controller->ShowNudge();
   task_environment()->FastForwardBy(base::Seconds(1));
-  SystemNudgeController::RecordNudgeAction(kTestCatalogName);
+  SystemNudgeController::MaybeRecordNudgeAction(kTestCatalogName);
   histogram_tester.ExpectBucketCount(kNudgeTimeToActionWithin1m,
                                      kTestCatalogName, 1);
 
   // Metric is not recorded if the nudge action is performed again without
   // another nudge being shown.
-  SystemNudgeController::RecordNudgeAction(kTestCatalogName);
+  SystemNudgeController::MaybeRecordNudgeAction(kTestCatalogName);
   histogram_tester.ExpectBucketCount(kNudgeTimeToActionWithin1m,
                                      kTestCatalogName, 1);
 
@@ -171,13 +179,13 @@ TEST_F(SystemNudgeTest, TimeToActionMetric) {
   // and waiting the time to fall into the next time bucket.
   nudge_controller->ShowNudge();
   task_environment()->FastForwardBy(base::Minutes(2));
-  SystemNudgeController::RecordNudgeAction(kTestCatalogName);
+  SystemNudgeController::MaybeRecordNudgeAction(kTestCatalogName);
   histogram_tester.ExpectBucketCount(kNudgeTimeToActionWithin1h,
                                      kTestCatalogName, 1);
 
   nudge_controller->ShowNudge();
   task_environment()->FastForwardBy(base::Hours(2));
-  SystemNudgeController::RecordNudgeAction(kTestCatalogName);
+  SystemNudgeController::MaybeRecordNudgeAction(kTestCatalogName);
   histogram_tester.ExpectBucketCount(kNudgeTimeToActionWithinSession,
                                      kTestCatalogName, 1);
 }
@@ -246,6 +254,78 @@ TEST_F(SystemNudgeTest, NudgePositionWithBottomLocked) {
   nudge_bounds.Outset(kNudgeMargin);
   EXPECT_EQ(nudge_bounds.x(), display_bounds.x());
   EXPECT_EQ(nudge_bounds.bottom(), display_bounds.bottom());
+}
+
+TEST_F(SystemNudgeTest, DismissTimer) {
+  ui::ScopedAnimationDurationScaleMode test_duration_mode(
+      ui::ScopedAnimationDurationScaleMode::NON_ZERO_DURATION);
+  auto nudge_controller = std::make_unique<TestSystemNudgeController>();
+
+  // Show a nudge.
+  EXPECT_FALSE(nudge_controller->GetSystemNudgeForTesting());
+  nudge_controller->ShowNudge();
+  auto* nudge = nudge_controller->GetSystemNudgeForTesting();
+  ASSERT_TRUE(nudge);
+
+  // Attempt hiding the nudge while it's animating in, the hide request should
+  // be ignored.
+  EXPECT_TRUE(nudge->widget()->GetLayer()->GetAnimator()->is_animating());
+  nudge_controller->HideNudge();
+  EXPECT_TRUE(nudge->widget());
+
+  // Fast forward the animation time, the nudge should have finished animating.
+  task_environment()->FastForwardBy(kNudgeFadeAnimationTime +
+                                    (kNudgeShowTime / 2));
+  EXPECT_FALSE(nudge->widget()->GetLayer()->GetAnimator()->is_animating());
+
+  // Fast forward nudge's default duration, the nudge should have been
+  // dismissed.
+  task_environment()->FastForwardBy(kNudgeShowTime + (kNudgeShowTime / 2));
+  EXPECT_FALSE(nudge_controller->GetSystemNudgeForTesting());
+}
+
+TEST_F(SystemNudgeTest, CloseNudgeImmediately) {
+  ui::ScopedAnimationDurationScaleMode test_duration_mode(
+      ui::ScopedAnimationDurationScaleMode::NON_ZERO_DURATION);
+  auto nudge_controller = std::make_unique<TestSystemNudgeController>();
+
+  // Show a nudge.
+  EXPECT_FALSE(nudge_controller->GetSystemNudgeForTesting());
+  nudge_controller->ShowNudge();
+  auto* nudge = nudge_controller->GetSystemNudgeForTesting();
+  ASSERT_TRUE(nudge);
+
+  // Call `CloseNudge()` to close a nudge immediately.
+  nudge_controller->CloseNudge();
+  EXPECT_FALSE(nudge_controller->GetSystemNudgeForTesting());
+}
+
+TEST_F(SystemNudgeTest, ShowNudgeWithScopedNudgePause) {
+  auto nudge_controller = std::make_unique<TestSystemNudgeController>();
+  auto scoped_nudge_pause = SystemNudgePauseManager::Get()->CreateScopedPause();
+  ASSERT_FALSE(nudge_controller->GetSystemNudgeForTesting());
+
+  // When a `ScopedNudgePause` is present, no nudge will be shown.
+  nudge_controller->ShowNudge();
+  ASSERT_FALSE(nudge_controller->GetSystemNudgeForTesting());
+
+  // Destroy the `ScopedNudgePause`, the nudge doesn't exist either.
+  scoped_nudge_pause.reset();
+  ASSERT_FALSE(nudge_controller->GetSystemNudgeForTesting());
+}
+
+TEST_F(SystemNudgeTest, CancelNudgeWithScopedNudgePause) {
+  auto nudge_controller = std::make_unique<TestSystemNudgeController>();
+  ASSERT_FALSE(nudge_controller->GetSystemNudgeForTesting());
+
+  // Firstly, the nudge will be shown.
+  nudge_controller->ShowNudge();
+  ASSERT_TRUE(nudge_controller->GetSystemNudgeForTesting());
+
+  // After a `ScopedNudgePause` is created, the nudge will be closed
+  // immediately.
+  SystemNudgePauseManager::Get()->CreateScopedPause();
+  ASSERT_FALSE(nudge_controller->GetSystemNudgeForTesting());
 }
 
 }  // namespace ash

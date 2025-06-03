@@ -57,7 +57,6 @@ namespace {
 constexpr size_t kFrameSize = 10;
 constexpr uint32_t kFps30Rtp = 90000 / 30;
 constexpr TimeDelta kFps30Delay = 1 / Frequency::Hertz(30);
-const VideoPlayoutDelay kZeroPlayoutDelay = {0, 0};
 constexpr Timestamp kClockStart = Timestamp::Millis(1000);
 
 auto TimedOut() {
@@ -70,11 +69,11 @@ auto Frame(testing::Matcher<EncodedFrame> m) {
 
 std::unique_ptr<test::FakeEncodedFrame> WithReceiveTimeFromRtpTimestamp(
     std::unique_ptr<test::FakeEncodedFrame> frame) {
-  if (frame->Timestamp() == 0) {
+  if (frame->RtpTimestamp() == 0) {
     frame->SetReceivedTime(kClockStart.ms());
   } else {
     frame->SetReceivedTime(
-        TimeDelta::Seconds(frame->Timestamp() / 90000.0).ms() +
+        TimeDelta::Seconds(frame->RtpTimestamp() / 90000.0).ms() +
         kClockStart.ms());
   }
   return frame;
@@ -95,7 +94,8 @@ class VCMTimingTest : public VCMTiming {
               ());
 };
 
-class VCMReceiveStatisticsCallbackMock : public VCMReceiveStatisticsCallback {
+class VideoStreamBufferControllerStatsObserverMock
+    : public VideoStreamBufferControllerStatsObserver {
  public:
   MOCK_METHOD(void,
               OnCompleteFrame,
@@ -105,11 +105,17 @@ class VCMReceiveStatisticsCallbackMock : public VCMReceiveStatisticsCallback {
               (override));
   MOCK_METHOD(void, OnDroppedFrames, (uint32_t num_dropped), (override));
   MOCK_METHOD(void,
+              OnDecodableFrame,
+              (TimeDelta jitter_buffer_delay,
+               TimeDelta target_delay,
+               TimeDelta minimum_delay),
+              (override));
+  MOCK_METHOD(void,
               OnFrameBufferTimingsUpdated,
-              (int max_decode_ms,
+              (int estimated_max_decode_time_ms,
                int current_delay_ms,
                int target_delay_ms,
-               int jitter_buffer_ms,
+               int jitter_delay_ms,
                int min_playout_delay_ms,
                int render_delay_ms),
               (override));
@@ -225,7 +231,8 @@ class VideoStreamBufferControllerFixture
   DecodeSynchronizer decode_sync_;
 
   ::testing::NiceMock<VCMTimingTest> timing_;
-  ::testing::NiceMock<VCMReceiveStatisticsCallbackMock> stats_callback_;
+  ::testing::NiceMock<VideoStreamBufferControllerStatsObserverMock>
+      stats_callback_;
   std::unique_ptr<VideoStreamBufferController> buffer_;
 
  private:
@@ -619,6 +626,7 @@ TEST_P(VideoStreamBufferControllerTest, SameFrameNotScheduledTwice) {
 TEST_P(VideoStreamBufferControllerTest, TestStatsCallback) {
   EXPECT_CALL(stats_callback_,
               OnCompleteFrame(true, kFrameSize, VideoContentType::UNSPECIFIED));
+  EXPECT_CALL(stats_callback_, OnDecodableFrame);
   EXPECT_CALL(stats_callback_, OnFrameBufferTimingsUpdated);
 
   // Fake timing having received decoded frame.
@@ -815,17 +823,25 @@ TEST_P(LowLatencyVideoStreamBufferControllerTest,
   StartNextDecodeForceKeyframe();
   timing_.set_min_playout_delay(TimeDelta::Zero());
   timing_.set_max_playout_delay(TimeDelta::Millis(10));
-  auto frame = test::FakeFrameBuilder().Id(0).Time(0).AsLast().Build();
   // Playout delay of 0 implies low-latency rendering.
-  frame->SetPlayoutDelay({0, 10});
+  auto frame = test::FakeFrameBuilder()
+                   .Id(0)
+                   .Time(0)
+                   .PlayoutDelay({TimeDelta::Zero(), TimeDelta::Millis(10)})
+                   .AsLast()
+                   .Build();
   buffer_->InsertFrame(std::move(frame));
   EXPECT_THAT(WaitForFrameOrTimeout(TimeDelta::Zero()), Frame(test::WithId(0)));
 
   // Delta frame would normally wait here, but should decode at the pacing rate
   // in low-latency mode.
   StartNextDecode();
-  frame = test::FakeFrameBuilder().Id(1).Time(kFps30Rtp).AsLast().Build();
-  frame->SetPlayoutDelay({0, 10});
+  frame = test::FakeFrameBuilder()
+              .Id(1)
+              .Time(kFps30Rtp)
+              .PlayoutDelay({TimeDelta::Zero(), TimeDelta::Millis(10)})
+              .AsLast()
+              .Build();
   buffer_->InsertFrame(std::move(frame));
   // Pacing is set to 16ms in the field trial so we should not decode yet.
   EXPECT_THAT(WaitForFrameOrTimeout(TimeDelta::Zero()), Eq(absl::nullopt));
@@ -838,17 +854,24 @@ TEST_P(LowLatencyVideoStreamBufferControllerTest, ZeroPlayoutDelayFullQueue) {
   StartNextDecodeForceKeyframe();
   timing_.set_min_playout_delay(TimeDelta::Zero());
   timing_.set_max_playout_delay(TimeDelta::Millis(10));
-  auto frame = test::FakeFrameBuilder().Id(0).Time(0).AsLast().Build();
+  auto frame = test::FakeFrameBuilder()
+                   .Id(0)
+                   .Time(0)
+                   .PlayoutDelay({TimeDelta::Zero(), TimeDelta::Millis(10)})
+                   .AsLast()
+                   .Build();
   // Playout delay of 0 implies low-latency rendering.
-  frame->SetPlayoutDelay({0, 10});
   buffer_->InsertFrame(std::move(frame));
   EXPECT_THAT(WaitForFrameOrTimeout(TimeDelta::Zero()), Frame(test::WithId(0)));
 
   // Queue up 5 frames (configured max queue size for 0-playout delay pacing).
   for (int id = 1; id <= 6; ++id) {
-    frame =
-        test::FakeFrameBuilder().Id(id).Time(kFps30Rtp * id).AsLast().Build();
-    frame->SetPlayoutDelay({0, 10});
+    frame = test::FakeFrameBuilder()
+                .Id(id)
+                .Time(kFps30Rtp * id)
+                .PlayoutDelay({TimeDelta::Zero(), TimeDelta::Millis(10)})
+                .AsLast()
+                .Build();
     buffer_->InsertFrame(std::move(frame));
   }
 
@@ -864,17 +887,25 @@ TEST_P(LowLatencyVideoStreamBufferControllerTest,
   StartNextDecodeForceKeyframe();
   timing_.set_min_playout_delay(TimeDelta::Zero());
   timing_.set_max_playout_delay(TimeDelta::Zero());
-  auto frame = test::FakeFrameBuilder().Id(0).Time(0).AsLast().Build();
   // Playout delay of 0 implies low-latency rendering.
-  frame->SetPlayoutDelay({0, 0});
+  auto frame = test::FakeFrameBuilder()
+                   .Id(0)
+                   .Time(0)
+                   .PlayoutDelay(VideoPlayoutDelay::Minimal())
+                   .AsLast()
+                   .Build();
   buffer_->InsertFrame(std::move(frame));
   EXPECT_THAT(WaitForFrameOrTimeout(TimeDelta::Zero()), Frame(test::WithId(0)));
 
   // Delta frame would normally wait here, but should decode at the pacing rate
   // in low-latency mode.
   StartNextDecode();
-  frame = test::FakeFrameBuilder().Id(1).Time(kFps30Rtp).AsLast().Build();
-  frame->SetPlayoutDelay({0, 0});
+  frame = test::FakeFrameBuilder()
+              .Id(1)
+              .Time(kFps30Rtp)
+              .PlayoutDelay(VideoPlayoutDelay::Minimal())
+              .AsLast()
+              .Build();
   buffer_->InsertFrame(std::move(frame));
   // The min/max=0 version of low-latency rendering will result in a large
   // negative decode wait time, so the frame should be ready right away.

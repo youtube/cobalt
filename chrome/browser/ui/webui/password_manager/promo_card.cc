@@ -7,20 +7,24 @@
 #include "base/functional/bind.h"
 #include "base/json/values_util.h"
 #include "base/memory/weak_ptr.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/notreached.h"
+#include "build/build_config.h"
 #include "chrome/browser/extensions/api/passwords_private/passwords_private_delegate.h"
 #include "chrome/browser/extensions/api/passwords_private/passwords_private_delegate_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/sync/sync_service_factory.h"
+#include "chrome/browser/user_education/user_education_service.h"
+#include "chrome/browser/user_education/user_education_service_factory.h"
 #include "chrome/browser/web_applications/web_app_helpers.h"
 #include "chrome/common/webui_url_constants.h"
-#include "chrome/grit/chromium_strings.h"
+#include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/password_manager/core/browser/password_manager_constants.h"
 #include "components/password_manager/core/browser/password_sync_util.h"
 #include "components/password_manager/core/common/password_manager_pref_names.h"
 #include "components/prefs/scoped_user_pref_update.h"
-#include "components/sync/driver/sync_service.h"
+#include "components/sync/service/sync_service.h"
 #include "ui/base/l10n/l10n_util.h"
 
 namespace password_manager {
@@ -166,7 +170,7 @@ PasswordCheckupPromo::PasswordCheckupPromo(
     extensions::PasswordsPrivateDelegate* delegate)
     : PromoCardInterface(kCheckupPromoId, prefs) {
   CHECK(delegate);
-  delegate_ = delegate;
+  delegate_ = delegate->AsWeakPtr();
 }
 
 PasswordCheckupPromo::~PasswordCheckupPromo() = default;
@@ -176,7 +180,13 @@ std::string PasswordCheckupPromo::GetPromoID() const {
 }
 
 bool PasswordCheckupPromo::ShouldShowPromo() const {
-  if (delegate_->GetCredentialGroups().empty()) {
+  // Don't show promo if checkup is disabled by policy.
+  if (!prefs_->GetBoolean(
+          password_manager::prefs::kPasswordLeakDetectionEnabled)) {
+    return false;
+  }
+  // Don't show promo if there are no saved passwords.
+  if (!delegate_ || delegate_->GetCredentialGroups().empty()) {
     return false;
   }
   // If promo card was dismissed or shown already for kPromoDisplayLimit times,
@@ -206,7 +216,13 @@ WebPasswordManagerPromo::WebPasswordManagerPromo(
     PrefService* prefs,
     const syncer::SyncService* sync_service)
     : PromoCardInterface(kWebPasswordManagerPromoId, prefs) {
-  sync_enabled_ = sync_util::IsPasswordSyncActive(sync_service);
+  // TODO(crbug.com/1464264): Migrate away from `ConsentLevel::kSync` on desktop
+  // platforms and remove #ifdef below.
+#if BUILDFLAG(IS_ANDROID)
+#error If this code is built on Android, please update TODO above.
+#endif  // BUILDFLAG(IS_ANDROID)
+  sync_enabled_ =
+      sync_util::IsSyncFeatureActiveIncludingPasswords(sync_service);
 }
 
 std::string WebPasswordManagerPromo::GetPromoID() const {
@@ -233,7 +249,8 @@ std::u16string WebPasswordManagerPromo::GetDescription() const {
 }
 
 PasswordManagerShortcutPromo::PasswordManagerShortcutPromo(Profile* profile)
-    : PromoCardInterface(kShortcutPromoId, profile->GetPrefs()) {
+    : PromoCardInterface(kShortcutPromoId, profile->GetPrefs()),
+      profile_(profile) {
   is_shortcut_installed_ =
       web_app::FindInstalledAppWithUrlInScope(
           profile, GURL(chrome::kChromeUIPasswordManagerURL))
@@ -249,6 +266,14 @@ bool PasswordManagerShortcutPromo::ShouldShowPromo() const {
     return false;
   }
 
+  auto* service = UserEducationServiceFactory::GetForBrowserContext(profile_);
+  if (service) {
+    auto* tutorial_service = &service->tutorial_service();
+    if (tutorial_service && tutorial_service->IsRunningTutorial()) {
+      return false;
+    }
+  }
+
   return !was_dismissed_ && number_of_times_shown_ < kPromoDisplayLimit;
 }
 
@@ -258,10 +283,8 @@ std::u16string PasswordManagerShortcutPromo::GetTitle() const {
 }
 
 std::u16string PasswordManagerShortcutPromo::GetDescription() const {
-  return l10n_util::GetStringFUTF16(
-      IDS_PASSWORD_MANAGER_UI_SHORTCUT_PROMO_CARD_DESCRIPTION,
-      l10n_util::GetStringUTF16(
-          IDS_PASSWORD_BUBBLES_PASSWORD_MANAGER_LINK_TEXT_SAVING_ON_DEVICE));
+  return l10n_util::GetStringUTF16(
+      IDS_PASSWORD_MANAGER_UI_SHORTCUT_PROMO_CARD_DESCRIPTION);
 }
 
 std::u16string PasswordManagerShortcutPromo::GetActionButtonText() const {

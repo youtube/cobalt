@@ -437,12 +437,6 @@ into the final APK as-is.
 
 NOTE: This has nothing to do with *Android* resources.
 
-* `deps_info['jni_all_source']`
-The list of all `deps_info['target_sources_file']` entries for all library
-dependencies for this APK. Note: this is a list of files, where each file
-contains a list of Java and Kotlin source files. This is used for JNI
-registration.
-
 * `deps_info['proguard_all_configs']`:
 The collection of all 'deps_info['proguard_configs']` values from this target
 and all its dependencies.
@@ -1473,19 +1467,6 @@ def main(argv):
   if options.r_text_path:
     deps_info['r_text_path'] = options.r_text_path
 
-  # TODO(tiborg): Remove creation of JNI info for type group and java_library
-  # once we can generate the JNI registration based on APK / module targets as
-  # opposed to groups and libraries.
-  if is_apk_or_module_target or options.type in ('group', 'java_library',
-                                                 'robolectric_binary',
-                                                 'dist_aar'):
-    all_target_sources = [
-        c['target_sources_file'] for c in all_library_deps
-        if 'target_sources_file' in c
-    ]
-    if options.target_sources_file:
-      all_target_sources.append(options.target_sources_file)
-
   if is_apk_or_module_target or options.type in ('group', 'java_library',
                                                  'robolectric_binary'):
     if options.apk_proto_resources:
@@ -1516,18 +1497,22 @@ def main(argv):
     # You are allowed to depend on both android |deps_require_android| and
     # non-android |deps_not_support_android| targets.
     if not options.bypass_platform_checks and not options.is_robolectric:
-      deps_require_android = (all_resources_deps +
-          [d['name'] for d in all_library_deps if d['requires_android']])
-      deps_not_support_android = (
-          [d['name'] for d in all_library_deps if not d['supports_android']])
+      deps_require_android = all_resources_deps + [
+          d for d in all_library_deps if d['requires_android']
+      ]
+      deps_not_support_android = [
+          d for d in all_library_deps if not d['supports_android']
+      ]
 
       if deps_require_android and not options.requires_android:
-        raise Exception('Some deps require building for the Android platform: '
-            + str(deps_require_android))
+        raise Exception(
+            'Some deps require building for the Android platform:\n' +
+            '\n'.join('* ' + d['gn_target'] for d in deps_require_android))
 
       if deps_not_support_android and options.supports_android:
-        raise Exception('Not all deps support the Android platform: '
-            + str(deps_not_support_android))
+        raise Exception('Not all deps support the Android platform:\n' +
+                        '\n'.join('* ' + d['gn_target']
+                                  for d in deps_not_support_android))
 
   if is_apk_or_module_target or options.type == 'dist_jar':
     all_dex_files = [c['dex_path'] for c in all_library_deps]
@@ -1822,7 +1807,6 @@ def main(argv):
         'device_classpath', 'trace_event_rewritten_device_classpath',
         'all_dex_files'
     ]
-    jni_all_source = set()
     lint_aars = set()
     lint_srcjars = set()
     lint_sources = set()
@@ -1843,7 +1827,6 @@ def main(argv):
         deps_info['lint_android_manifest'] = c['android_manifest']
       else:
         lint_extra_android_manifests.add(c['android_manifest'])
-      jni_all_source.update(c['jni_all_source'])
       lint_aars.update(c['lint_aars'])
       lint_srcjars.update(c['lint_srcjars'])
       lint_sources.update(c['lint_sources'])
@@ -1853,7 +1836,6 @@ def main(argv):
       for f in per_module_fields:
         if f in c:
           module[f] = c[f]
-    deps_info['jni_all_source'] = sorted(jni_all_source)
     deps_info['lint_aars'] = sorted(lint_aars)
     deps_info['lint_srcjars'] = sorted(lint_srcjars)
     deps_info['lint_sources'] = sorted(lint_sources)
@@ -1864,11 +1846,6 @@ def main(argv):
 
     _DedupFeatureModuleSharedCode(options.uses_split, modules,
                                   per_module_fields)
-
-  if is_apk_or_module_target or options.type in ('group', 'java_library',
-                                                 'robolectric_binary',
-                                                 'dist_aar'):
-    deps_info['jni_all_source'] = sorted(set(all_target_sources))
 
   system_jars = [c['unprocessed_jar_path'] for c in system_library_deps]
   system_interface_jars = [c['interface_jar_path'] for c in system_library_deps]
@@ -2173,7 +2150,6 @@ def main(argv):
       RemoveObjDups(config, ancestor, 'deps_info', 'dependency_zips')
       RemoveObjDups(config, ancestor, 'deps_info', 'dependency_zip_overlays')
       RemoveObjDups(config, ancestor, 'deps_info', 'extra_package_names')
-      RemoveObjDups(config, ancestor, 'deps_info', 'jni_all_source')
       RemoveObjDups(config, ancestor, 'extra_android_manifests')
 
   if is_java_target:

@@ -38,7 +38,7 @@ AutofillManager* GetAutofillManager(RenderFrameHost* render_frame_host) {
       autofill::ContentAutofillDriver::GetForRenderFrameHost(render_frame_host);
   if (!autofill_driver)
     return nullptr;
-  return autofill_driver->autofill_manager();
+  return &autofill_driver->GetAutofillManager();
 }
 }  // namespace
 
@@ -56,20 +56,27 @@ AutofillObserverImpl::~AutofillObserverImpl() {
   Invalidate();
 }
 
-void AutofillObserverImpl::OnFormSubmitted(autofill::AutofillManager&) {
+void AutofillObserverImpl::OnFormSubmitted(autofill::AutofillManager&,
+                                           autofill::FormGlobalId) {
   OnFormInteraction();
 }
 
-void AutofillObserverImpl::OnSelectControlDidChange(
-    autofill::AutofillManager&) {
+void AutofillObserverImpl::OnAfterSelectControlDidChange(
+    autofill::AutofillManager&,
+    autofill::FormGlobalId,
+    autofill::FieldGlobalId) {
   OnFormInteraction();
 }
 
-void AutofillObserverImpl::OnTextFieldDidChange(autofill::AutofillManager&) {
+void AutofillObserverImpl::OnAfterTextFieldDidChange(autofill::AutofillManager&,
+                                                     autofill::FormGlobalId,
+                                                     autofill::FieldGlobalId) {
   OnFormInteraction();
 }
 
-void AutofillObserverImpl::OnTextFieldDidScroll(autofill::AutofillManager&) {
+void AutofillObserverImpl::OnAfterTextFieldDidScroll(autofill::AutofillManager&,
+                                                     autofill::FormGlobalId,
+                                                     autofill::FieldGlobalId) {
   OnFormInteraction();
 }
 

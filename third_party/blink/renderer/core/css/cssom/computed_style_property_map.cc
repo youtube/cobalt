@@ -52,7 +52,7 @@ bool ComputedStylePropertyMap::ComparePropertyNames(
 Element* ComputedStylePropertyMap::StyledElement() const {
   DCHECK(element_);
   if (!pseudo_id_) {
-    return element_;
+    return element_.Get();
   }
   if (PseudoElement* pseudo_element = element_->GetPseudoElement(pseudo_id_)) {
     return pseudo_element;
@@ -69,7 +69,8 @@ const ComputedStyle* ComputedStylePropertyMap::UpdateStyle() const {
   // Update style before getting the value for the property
   // This could cause the element to be blown away. This code is copied from
   // CSSComputedStyleDeclaration::GetPropertyCSSValue.
-  element->GetDocument().UpdateStyleAndLayoutTreeForNode(element);
+  element->GetDocument().UpdateStyleAndLayoutTreeForNode(
+      element, DocumentUpdateReason::kComputedStyle);
   element = StyledElement();
   if (!element) {
     return nullptr;

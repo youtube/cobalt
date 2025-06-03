@@ -14,6 +14,14 @@ extern class Context extends HeapObject {
   elements[length]: Object;
 }
 
+@cppObjectDefinition
+extern class ScriptContextTable extends HeapObject {
+  const capacity: Smi;
+  length: Smi;
+  names_to_context_index: NameToIndexHashTable;
+  objects[capacity]: Context;
+}
+
 extern class AwaitContext extends Context generates 'TNode<Context>';
 extern class BlockContext extends Context generates 'TNode<Context>';
 extern class CatchContext extends Context generates 'TNode<Context>';
@@ -82,8 +90,8 @@ macro NativeContextSlot<T: type>(
     context: Context, index: Slot<NativeContext, T>):&T {
   return ContextSlot(LoadNativeContext(context), index);
 }
-macro NativeContextSlot<C: type, T: type>(implicit context: C)(
-    index: Slot<NativeContext, T>):&T {
+macro NativeContextSlot<C: type, T: type>(
+    implicit context: C)(index: Slot<NativeContext, T>):&T {
   return NativeContextSlot(context, index);
 }
 
@@ -110,6 +118,8 @@ extern enum ContextSlot extends intptr constexpr 'Context::Field' {
   VALID_ITERATOR_WRAPPER_MAP_INDEX: Slot<NativeContext, Map>,
   JS_ARRAY_PACKED_ELEMENTS_MAP_INDEX: Slot<NativeContext, Map>,
   JS_ARRAY_PACKED_SMI_ELEMENTS_MAP_INDEX: Slot<NativeContext, Map>,
+  JS_MAP_MAP_INDEX: Slot<NativeContext, Map>,
+  JS_SET_MAP_INDEX: Slot<NativeContext, Map>,
   MATH_RANDOM_CACHE_INDEX: Slot<NativeContext, FixedDoubleArray>,
   MATH_RANDOM_INDEX_INDEX: Slot<NativeContext, Smi>,
   NUMBER_FUNCTION_INDEX: Slot<NativeContext, JSFunction>,

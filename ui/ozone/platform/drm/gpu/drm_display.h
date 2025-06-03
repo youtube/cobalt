@@ -91,7 +91,8 @@ class DrmDisplay {
       const std::vector<display::GammaRampRGBEntry>& degamma_lut,
       const std::vector<display::GammaRampRGBEntry>& gamma_lut);
   bool SetPrivacyScreen(bool enabled);
-  bool SetHDR10Mode();
+  bool SetHdrOutputMetadata(const gfx::ColorSpace color_space);
+  bool SetColorspaceProperty(const gfx::ColorSpace color_space);
   void SetColorSpace(const gfx::ColorSpace& color_space);
 
   void set_is_hdr_capable_for_testing(bool value) { is_hdr_capable_ = value; }
@@ -100,6 +101,8 @@ class DrmDisplay {
   void CommitGammaCorrection(
       const std::vector<display::GammaRampRGBEntry>& degamma_lut,
       const std::vector<display::GammaRampRGBEntry>& gamma_lut);
+  gfx::HDRStaticMetadata::Eotf GetEotf(
+      const gfx::ColorSpace::TransferID transfer_id);
 
   const int64_t display_id_;
   const int64_t base_connector_id_;

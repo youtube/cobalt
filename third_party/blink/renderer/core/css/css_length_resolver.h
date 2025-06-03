@@ -32,6 +32,8 @@ class CORE_EXPORT CSSLengthResolver {
   virtual float RicFontSize(float zoom) const = 0;
   virtual float LineHeight(float zoom) const = 0;
   virtual float RootLineHeight(float zoom) const = 0;
+  virtual float CapFontSize(float zoom) const = 0;
+  virtual float RcapFontSize(float zoom) const = 0;
 
   // Other sizes are not pre-zoomed.
   virtual double ViewportWidth() const = 0;
@@ -46,6 +48,10 @@ class CORE_EXPORT CSSLengthResolver {
   virtual double ContainerHeight() const = 0;
 
   virtual WritingMode GetWritingMode() const = 0;
+
+  // Invoked to notify the resolver that there is an anchor reference in a
+  // calc() expression. Used to track the use of tree-scoped references.
+  virtual void ReferenceAnchor() const = 0;
 
   float Zoom() const { return zoom_; }
   void SetZoom(float zoom) {

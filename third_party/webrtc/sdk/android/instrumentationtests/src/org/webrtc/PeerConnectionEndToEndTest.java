@@ -582,7 +582,7 @@ public class PeerConnectionEndToEndTest {
     }
   }
 
-  private static class SdpObserverLatch implements SdpObserver {
+  static class SdpObserverLatch implements SdpObserver {
     private boolean success;
     private @Nullable SessionDescription sdp;
     private @Nullable String error;

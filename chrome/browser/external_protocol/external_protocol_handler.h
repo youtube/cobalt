@@ -36,6 +36,23 @@ class ExternalProtocolHandler {
   };
 
   // This is used to back a UMA histogram, so it should be treated as
+  // append-only.
+  // This metric is related to BlockState but is only used for metrics
+  // reporting, and it differentiates multiple possible states that map to
+  // BlockState.
+  enum class BlockStateMetric {
+    kDeniedDefault,
+    kAllowedDefaultMail,
+    kAllowedDefaultNews_Deprecated,  // No longer emitted.
+    kNewsNotDefault_Deprecated,      // No longer emitted.
+    kAllowedByEnterprisePolicy,
+    kAllowedByPreference,
+    kPrompt,
+    // Insert new metric values above this line and update kMaxValue.
+    kMaxValue = kPrompt,
+  };
+
+  // This is used to back a UMA histogram, so it should be treated as
   // append-only. Any new values should be inserted immediately prior to
   // HANDLE_STATE_LAST.
   enum HandleState {
@@ -73,6 +90,7 @@ class ExternalProtocolHandler {
   };
 
   // UMA histogram metric names.
+  static const char kBlockStateMetric[];
   static const char kHandleStateMetric[];
 
   ExternalProtocolHandler(const ExternalProtocolHandler&) = delete;

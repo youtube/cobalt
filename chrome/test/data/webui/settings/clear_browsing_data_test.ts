@@ -6,8 +6,9 @@
 import {webUIListenerCallback} from 'chrome://resources/js/cr.js';
 import {PromiseResolver} from 'chrome://resources/js/promise_resolver.js';
 import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
-import {ClearBrowsingDataBrowserProxyImpl, ClearBrowsingDataResult, SettingsCheckboxElement, SettingsClearBrowsingDataDialogElement, SettingsHistoryDeletionDialogElement, SettingsPasswordsDeletionDialogElement} from 'chrome://settings/lazy_load.js';
-import {CrButtonElement, loadTimeData, StatusAction, SyncBrowserProxyImpl} from 'chrome://settings/settings.js';
+import {waitAfterNextRender} from 'chrome://webui-test/polymer_test_util.js';
+import {ClearBrowsingDataBrowserProxyImpl, ClearBrowsingDataResult, SettingsCheckboxElement, SettingsClearBrowsingDataDialogElement, SettingsHistoryDeletionDialogElement, SettingsPasswordsDeletionDialogElement, TimePeriod} from 'chrome://settings/lazy_load.js';
+import {CrButtonElement, loadTimeData, StatusAction, SyncBrowserProxyImpl, SettingsDropdownMenuElement} from 'chrome://settings/settings.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {eventToPromise, isVisible} from 'chrome://webui-test/test_util.js';
 
@@ -90,6 +91,16 @@ function getClearBrowsingDataPrefs() {
           type: chrome.settingsPrivate.PrefType.NUMBER,
           value: 0,
         },
+        time_period_v2: {
+          key: 'browser.clear_data.time_period_v2',
+          type: chrome.settingsPrivate.PrefType.NUMBER,
+          value: 0,
+        },
+        time_period_v2_basic: {
+          key: 'browser.clear_data.time_period_v2_basic',
+          type: chrome.settingsPrivate.PrefType.NUMBER,
+          value: 0,
+        },
       },
       last_clear_browsing_data_tab: {
         key: 'browser.last_clear_browsing_data_tab',
@@ -98,6 +109,16 @@ function getClearBrowsingDataPrefs() {
       },
     },
   };
+}
+
+function getTimePeriodDropdown(
+    tabName: string, element: SettingsClearBrowsingDataDialogElement):
+    SettingsDropdownMenuElement {
+  const timePeriodDropdown =
+      element.shadowRoot!.getElementById(tabName)!
+          .querySelector<SettingsDropdownMenuElement>('.time-range-select');
+  assertTrue(!!timePeriodDropdown);
+  return timePeriodDropdown;
 }
 
 suite('ClearBrowsingDataDesktop', function() {
@@ -111,6 +132,7 @@ suite('ClearBrowsingDataDesktop', function() {
     testSyncBrowserProxy = new TestSyncBrowserProxy();
     SyncBrowserProxyImpl.setInstance(testSyncBrowserProxy);
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
+    loadTimeData.overrideValues({enableCbdTimeframeRequired: false});
     element = document.createElement('settings-clear-browsing-data-dialog');
     element.set('prefs', getClearBrowsingDataPrefs());
     document.body.appendChild(element);
@@ -284,6 +306,89 @@ suite('ClearBrowsingDataDesktop', function() {
         }
       }
     }
+  });
+
+  test('ClearBrowsingData_MenuOptions', function() {
+    const timeframe =
+        element.shadowRoot!.querySelector<SettingsDropdownMenuElement>(
+            '.time-range-select');
+    assertTrue(!!timeframe);
+    assertTrue(!!timeframe.menuOptions);
+    assertTrue(timeframe.menuOptions.length === 5);
+
+    // TODO(crbug.com/1487530): Remove once CbdTimeframeRequired finished.
+    assertTrue(!timeframe.menuOptions.some(
+        option =>
+            option.name === loadTimeData.getString('clearPeriod15Minutes')));
+  });
+
+  // TODO(crbug.com/1487530): Remove once CbdTimeframeRequired finished.
+  test('ClearBrowsingDataV2_15MinAddedWhenExperimentIsOn', async function() {
+    // This test requires recreation of the page (ClearBrowsingDataDialog) after
+    // defining loadTimeData to apply experiment changes after enabling the
+    // feature/flag.
+    testBrowserProxy.reset();
+    document.body.innerHTML = window.trustedTypes!.emptyHTML;
+    loadTimeData.overrideValues({enableCbdTimeframeRequired: true});
+    element = document.createElement('settings-clear-browsing-data-dialog');
+    element.set('prefs', getClearBrowsingDataPrefs());
+    document.body.appendChild(element);
+    await testBrowserProxy.whenCalled('initialize');
+    assertEquals(1, testBrowserProxy.getCallCount('initialize'));
+
+    const timeframe =
+        element.shadowRoot!.querySelector<SettingsDropdownMenuElement>(
+            '.time-range-select');
+    assertTrue(!!timeframe);
+    assertTrue(!!timeframe.menuOptions);
+
+    assertTrue(timeframe.menuOptions.length === 6);
+
+    assertTrue(timeframe.menuOptions.some(
+        option =>
+            option.name === loadTimeData.getString('clearPeriod15Minutes')));
+  });
+
+  test('ClearBrowsingData_UnsupportedTimePeriod_Advanced', async function() {
+    const timePeriodDropdown = getTimePeriodDropdown('advanced-tab', element);
+    const selectElement =
+        timePeriodDropdown.shadowRoot!.querySelector('select')!;
+    assertTrue(!!selectElement);
+
+    const unsupported_pref_value = 100;
+
+    element.setPrefValue(
+        'browser.clear_data.time_period', unsupported_pref_value);
+
+    await waitAfterNextRender(timePeriodDropdown);
+
+    // Assert unsupported value in Advanced tab is replaced by the Default value
+    // (Last hour).
+    assertEquals(
+        TimePeriod.LAST_HOUR,
+        element.getPref('browser.clear_data.time_period').value);
+    assertEquals(TimePeriod.LAST_HOUR.toString(), selectElement.value);
+  });
+
+  test('ClearBrowsingData_UnsupportedTimePeriod_Basic', async function() {
+    const timePeriodDropdown = getTimePeriodDropdown('basic-tab', element);
+    const selectElement =
+        timePeriodDropdown.shadowRoot!.querySelector('select')!;
+    assertTrue(!!selectElement);
+
+    const unsupported_pref_value = 100;
+
+    element.setPrefValue(
+        'browser.clear_data.time_period_basic', unsupported_pref_value);
+
+    await waitAfterNextRender(timePeriodDropdown);
+
+    // Assert unsupported value in Basic tab is replaced by the Default value
+    // (Last hour).
+    assertEquals(
+        TimePeriod.LAST_HOUR,
+        element.getPref('browser.clear_data.time_period_basic').value);
+    assertEquals(TimePeriod.LAST_HOUR.toString(), selectElement.value);
   });
 });
 
@@ -571,38 +676,6 @@ suite('ClearBrowsingDataAllPlatforms', function() {
     assertEquals('result', checkbox.subLabel);
   });
 
-  test('history rows are hidden for supervised users', async function() {
-    assertFalse(loadTimeData.getBoolean('isChildAccount'));
-    assertFalse(element.shadowRoot!
-                    .querySelector<SettingsCheckboxElement>(
-                        '#browsingCheckbox')!.hidden);
-    assertFalse(element.shadowRoot!
-                    .querySelector<SettingsCheckboxElement>(
-                        '#browsingCheckboxBasic')!.hidden);
-    assertFalse(element.shadowRoot!
-                    .querySelector<SettingsCheckboxElement>(
-                        '#downloadCheckbox')!.hidden);
-
-    element.remove();
-    testBrowserProxy.reset();
-    loadTimeData.overrideValues({isChildAccount: true});
-
-    element = document.createElement('settings-clear-browsing-data-dialog');
-    document.body.appendChild(element);
-    flush();
-
-    await testBrowserProxy.whenCalled('initialize');
-    assertTrue(element.shadowRoot!
-                   .querySelector<SettingsCheckboxElement>(
-                       '#browsingCheckbox')!.hidden);
-    assertTrue(element.shadowRoot!
-                   .querySelector<SettingsCheckboxElement>(
-                       '#browsingCheckboxBasic')!.hidden);
-    assertTrue(element.shadowRoot!
-                   .querySelector<SettingsCheckboxElement>(
-                       '#downloadCheckbox')!.hidden);
-  });
-
   // <if expr="is_chromeos">
   // On ChromeOS the footer is never shown.
   test('ClearBrowsingDataSyncAccountInfo', function() {
@@ -646,5 +719,68 @@ suite('ClearBrowsingDataAllPlatforms', function() {
     assertFalse(!!element.shadowRoot!.querySelector(
         '#clearBrowsingDataDialog [slot=footer]'));
   });
+  // </if>
+});
+
+
+suite('ClearBrowsingDataForSupervisedUsers', function() {
+  let testBrowserProxy: TestClearBrowsingDataBrowserProxy;
+  let element: SettingsClearBrowsingDataDialogElement;
+
+  setup(function() {
+    testBrowserProxy = new TestClearBrowsingDataBrowserProxy();
+    ClearBrowsingDataBrowserProxyImpl.setInstance(testBrowserProxy);
+    document.body.innerHTML = window.trustedTypes!.emptyHTML;
+    element = document.createElement('settings-clear-browsing-data-dialog');
+    element.set('prefs', getClearBrowsingDataPrefs());
+    loadTimeData.overrideValues({
+      isChildAccount: true,
+    });
+  });
+
+  teardown(function() {
+    element.remove();
+  });
+
+  test('history rows are shown for supervised users', async function() {
+    document.body.appendChild(element);
+    await testBrowserProxy.whenCalled('initialize');
+
+    assertTrue(element.$.clearBrowsingDataDialog.open);
+    assertFalse(element.shadowRoot!
+                    .querySelector<SettingsCheckboxElement>(
+                        '#browsingCheckbox')!.hidden);
+    assertFalse(element.shadowRoot!
+                    .querySelector<SettingsCheckboxElement>(
+                        '#browsingCheckboxBasic')!.hidden);
+    assertFalse(element.shadowRoot!
+                    .querySelector<SettingsCheckboxElement>(
+                        '#downloadCheckbox')!.hidden);
+  });
+
+  // <if expr="is_win or is_macosx or is_linux">
+  test(
+      'Additional information shown for supervised users when clearing cookies',
+      async function() {
+        loadTimeData.overrideValues({
+          clearingCookiesKeepsSupervisedUsersSignedIn: true,
+        });
+        document.body.appendChild(element);
+        await testBrowserProxy.whenCalled('initialize');
+
+        assertTrue(element.$.clearBrowsingDataDialog.open);
+
+        // Supervised users will see additional text informing them they will
+        // not be signed out when cookies are cleared and
+        // `kClearingCookiesKeepsSupervisedUsersSignedIn` flag enabled.
+        const checkbox =
+            element.shadowRoot!.querySelector<SettingsCheckboxElement>(
+                '#cookiesCheckboxBasic')!;
+
+        assertEquals(
+            element.i18n('clearCookiesSummarySignedInSupervisedProfile')
+                .toString(),
+            checkbox.subLabel);
+      });
   // </if>
 });

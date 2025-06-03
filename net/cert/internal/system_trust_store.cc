@@ -12,10 +12,7 @@
 #include "net/cert/internal/system_trust_store_nss.h"
 #endif  // BUILDFLAG(USE_NSS_CERTS)
 
-#if BUILDFLAG(USE_NSS_CERTS)
-#include <cert.h>
-#include <pk11pub.h>
-#elif BUILDFLAG(IS_MAC)
+#if BUILDFLAG(IS_MAC)
 #include <Security/Security.h>
 #endif
 
@@ -36,10 +33,7 @@
 #include "net/cert/x509_util.h"
 
 #if BUILDFLAG(USE_NSS_CERTS)
-#include "crypto/nss_util.h"
 #include "net/cert/internal/trust_store_nss.h"
-#include "net/cert/known_roots_nss.h"
-#include "net/cert/scoped_nss_types.h"
 #elif BUILDFLAG(IS_MAC)
 #include "net/base/features.h"
 #include "net/cert/internal/trust_store_mac.h"
@@ -63,8 +57,6 @@ namespace {
 class DummySystemTrustStore : public SystemTrustStore {
  public:
   TrustStore* GetTrustStore() override { return &trust_store_; }
-
-  bool UsesSystemTrustStore() const override { return false; }
 
   bool IsKnownRoot(const ParsedCertificate* trust_anchor) const override {
     return false;
@@ -96,8 +88,6 @@ class SystemTrustStoreChromeWithUnOwnedSystemStore : public SystemTrustStore {
   }
 
   TrustStore* GetTrustStore() override { return &trust_store_collection_; }
-
-  bool UsesSystemTrustStore() const override { return true; }
 
   // IsKnownRoot returns true if the given trust anchor is a standard one (as
   // opposed to a user-installed root)
@@ -140,61 +130,11 @@ std::unique_ptr<SystemTrustStore> CreateSystemTrustStoreChromeForTesting(
 #endif  // CHROME_ROOT_STORE_SUPPORTED
 
 #if BUILDFLAG(USE_NSS_CERTS)
-namespace {
 
-class SystemTrustStoreNSS : public SystemTrustStore {
- public:
-  explicit SystemTrustStoreNSS(std::unique_ptr<TrustStoreNSS> trust_store_nss)
-      : trust_store_nss_(std::move(trust_store_nss)) {}
-
-  TrustStore* GetTrustStore() override { return trust_store_nss_.get(); }
-
-  bool UsesSystemTrustStore() const override { return true; }
-
-  // IsKnownRoot returns true if the given trust anchor is a standard one (as
-  // opposed to a user-installed root)
-  bool IsKnownRoot(const ParsedCertificate* trust_anchor) const override {
-    // TODO(eroman): The overall approach of IsKnownRoot() is inefficient -- it
-    // requires searching for the trust anchor by DER in NSS, however path
-    // building already had a handle to it.
-    SECItem der_cert;
-    der_cert.data = const_cast<uint8_t*>(trust_anchor->der_cert().UnsafeData());
-    der_cert.len = trust_anchor->der_cert().Length();
-    der_cert.type = siDERCertBuffer;
-    ScopedCERTCertificate nss_cert(
-        CERT_FindCertByDERCert(CERT_GetDefaultCertDB(), &der_cert));
-    if (!nss_cert)
-      return false;
-
-    if (!net::IsKnownRoot(nss_cert.get()))
-      return false;
-
-    return trust_anchor->der_cert() ==
-           der::Input(nss_cert->derCert.data, nss_cert->derCert.len);
-  }
-
-#if BUILDFLAG(CHROME_ROOT_STORE_SUPPORTED)
-  int64_t chrome_root_store_version() override { return 0; }
-#endif
-
- private:
-  std::unique_ptr<TrustStoreNSS> trust_store_nss_;
-};
-
-}  // namespace
-
-std::unique_ptr<SystemTrustStore> CreateSslSystemTrustStore() {
-  return std::make_unique<SystemTrustStoreNSS>(std::make_unique<TrustStoreNSS>(
-      TrustStoreNSS::kUseSystemTrust,
-      TrustStoreNSS::UseTrustFromAllUserSlots()));
-}
-
-#if BUILDFLAG(CHROME_ROOT_STORE_SUPPORTED)
 std::unique_ptr<SystemTrustStore> CreateSslSystemTrustStoreChromeRoot(
     std::unique_ptr<TrustStoreChrome> chrome_root) {
   return std::make_unique<SystemTrustStoreChrome>(
       std::move(chrome_root), std::make_unique<TrustStoreNSS>(
-                                  TrustStoreNSS::kIgnoreSystemTrust,
                                   TrustStoreNSS::UseTrustFromAllUserSlots()));
 }
 
@@ -204,26 +144,10 @@ CreateSslSystemTrustStoreChromeRootWithUserSlotRestriction(
     crypto::ScopedPK11Slot user_slot_restriction) {
   return std::make_unique<SystemTrustStoreChrome>(
       std::move(chrome_root),
-      std::make_unique<TrustStoreNSS>(TrustStoreNSS::kIgnoreSystemTrust,
-                                      std::move(user_slot_restriction)));
-}
-
-#endif  // CHROME_ROOT_STORE_SUPPORTED
-
-std::unique_ptr<SystemTrustStore>
-CreateSslSystemTrustStoreNSSWithUserSlotRestriction(
-    crypto::ScopedPK11Slot user_slot_restriction) {
-  return std::make_unique<SystemTrustStoreNSS>(std::make_unique<TrustStoreNSS>(
-      TrustStoreNSS::kUseSystemTrust, std::move(user_slot_restriction)));
+      std::make_unique<TrustStoreNSS>(std::move(user_slot_restriction)));
 }
 
 #elif BUILDFLAG(IS_MAC)
-
-// Using the Builtin Verifier w/o the Chrome Root Store is unsupported on
-// Mac.
-std::unique_ptr<SystemTrustStore> CreateSslSystemTrustStore() {
-  return std::make_unique<DummySystemTrustStore>();
-}
 
 namespace {
 
@@ -280,7 +204,7 @@ class FuchsiaSystemCerts {
           bssl::UpRef(cert->cert_buffer()),
           x509_util::DefaultParseCertificateOptions(), &errors);
       CHECK(parsed) << errors.ToDebugString();
-      system_trust_store_.AddTrustAnchor(parsed);
+      system_trust_store_.AddTrustAnchor(std::move(parsed));
     }
   }
 
@@ -303,8 +227,6 @@ class SystemTrustStoreFuchsia : public SystemTrustStore {
     return g_root_certs_fuchsia.Get().system_trust_store();
   }
 
-  bool UsesSystemTrustStore() const override { return true; }
-
   bool IsKnownRoot(const ParsedCertificate* trust_anchor) const override {
     return g_root_certs_fuchsia.Get().system_trust_store()->Contains(
         trust_anchor);
@@ -316,12 +238,6 @@ std::unique_ptr<SystemTrustStore> CreateSslSystemTrustStore() {
 }
 
 #elif BUILDFLAG(IS_WIN)
-
-// Using the Builtin Verifier w/o the Chrome Root Store is unsupported on
-// Windows.
-std::unique_ptr<SystemTrustStore> CreateSslSystemTrustStore() {
-  return std::make_unique<DummySystemTrustStore>();
-}
 
 namespace {
 TrustStoreWin* GetGlobalTrustStoreWinForCRS() {
@@ -350,12 +266,6 @@ void InitializeTrustStoreWinSystem() {
 }
 
 #elif BUILDFLAG(IS_ANDROID)
-
-// Using the Builtin Verifier w/o the Chrome Root Store is unsupported on
-// Android.
-std::unique_ptr<SystemTrustStore> CreateSslSystemTrustStore() {
-  return std::make_unique<DummySystemTrustStore>();
-}
 
 #if BUILDFLAG(CHROME_ROOT_STORE_SUPPORTED)
 
@@ -395,12 +305,6 @@ void InitializeTrustStoreAndroid() {
 void InitializeTrustStoreAndroid() {}
 
 #endif  // CHROME_ROOT_STORE_SUPPORTED
-
-#else
-
-std::unique_ptr<SystemTrustStore> CreateSslSystemTrustStore() {
-  return std::make_unique<DummySystemTrustStore>();
-}
 
 #endif
 

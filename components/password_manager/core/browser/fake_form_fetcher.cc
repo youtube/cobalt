@@ -56,7 +56,7 @@ bool FakeFormFetcher::IsBlocklisted() const {
   return is_blocklisted_;
 }
 
-bool FakeFormFetcher::IsMovingBlocked(const autofill::GaiaIdHash& destination,
+bool FakeFormFetcher::IsMovingBlocked(const signin::GaiaIdHash& destination,
                                       const std::u16string& username) const {
   // This is analogous to the implementation in
   // MultiStoreFormFetcher::IsMovingBlocked().
@@ -93,7 +93,10 @@ const std::vector<const PasswordForm*>& FakeFormFetcher::GetBestMatches()
 }
 
 const PasswordForm* FakeFormFetcher::GetPreferredMatch() const {
-  return preferred_match_;
+  if (best_matches_.empty()) {
+    return nullptr;
+  }
+  return *best_matches_.begin();
 }
 
 std::unique_ptr<FormFetcher> FakeFormFetcher::Clone() {
@@ -103,9 +106,8 @@ std::unique_ptr<FormFetcher> FakeFormFetcher::Clone() {
 void FakeFormFetcher::SetNonFederated(
     const std::vector<const PasswordForm*>& non_federated) {
   non_federated_ = non_federated;
-  password_manager_util::FindBestMatches(non_federated_, scheme_,
-                                         &non_federated_same_scheme_,
-                                         &best_matches_, &preferred_match_);
+  password_manager_util::FindBestMatches(
+      non_federated_, scheme_, &non_federated_same_scheme_, &best_matches_);
 }
 
 void FakeFormFetcher::SetBlocklisted(bool is_blocklisted) {

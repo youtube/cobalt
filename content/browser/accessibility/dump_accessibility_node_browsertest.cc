@@ -27,16 +27,14 @@ class DumpAccessibilityNodeTest : public DumpAccessibilityTestBase {
     // which include a select element descendant.
     base::CommandLine::ForCurrentProcess()->AppendSwitchASCII(
         switches::kDisableAXMenuList, "false");
-    // Enable MathMLCore for some MathML tests.
-    base::CommandLine::ForCurrentProcess()->AppendSwitchASCII(
-        switches::kEnableBlinkFeatures, "MathMLCore");
     DumpAccessibilityTestBase::SetUpCommandLine(command_line);
   }
 
   std::vector<ui::AXPropertyFilter> DefaultFilters() const override {
     std::vector<AXPropertyFilter> property_filters;
-    if (GetParam() == ui::AXApiType::kMac)
+    if (GetParam().first == ui::AXApiType::kMac) {
       return property_filters;
+    }
 
     property_filters.emplace_back("value='*'", AXPropertyFilter::ALLOW);
     property_filters.emplace_back("value='http*'", AXPropertyFilter::DENY);
@@ -99,8 +97,9 @@ class DumpAccessibilityAccNameTest : public DumpAccessibilityNodeTest {
  public:
   std::vector<ui::AXPropertyFilter> DefaultFilters() const override {
     std::vector<AXPropertyFilter> property_filters;
-    if (GetParam() == ui::AXApiType::kMac)
+    if (GetParam().first == ui::AXApiType::kMac) {
       return property_filters;
+    }
 
     property_filters.emplace_back("name*", AXPropertyFilter::ALLOW_EMPTY);
     property_filters.emplace_back("description*",
@@ -157,45 +156,31 @@ class DumpAccessibilityMathMLNodeTest : public DumpAccessibilityNodeTest {
   }
 };
 
-class DumpAccessibilityNodeWithoutMathMLTest
-    : public DumpAccessibilityMathMLNodeTest {
- public:
-  void SetUpCommandLine(base::CommandLine* command_line) override {
-    DumpAccessibilityNodeTest::SetUpCommandLine(command_line);
-    command_line->AppendSwitchASCII(switches::kDisableBlinkFeatures,
-                                    "MathMLCore");
-  }
-};
-
 // Parameterize the tests so that each test-pass is run independently.
 struct TestPassToString {
   std::string operator()(
-      const ::testing::TestParamInfo<ui::AXApiType::Type>& i) const {
-    return std::string(i.param);
+      const ::testing::TestParamInfo<std::pair<ui::AXApiType::Type, bool>>& i)
+      const {
+    return std::string(i.param.first) + (i.param.second ? "1" : "0");
   }
 };
 
 INSTANTIATE_TEST_SUITE_P(
     All,
     DumpAccessibilityNodeTest,
-    ::testing::ValuesIn(ui::AXInspectTestHelper::TreeTestPasses()),
+    ::testing::ValuesIn(DumpAccessibilityTestBase::TreeTestPasses()),
     TestPassToString());
 
+// UIA is excluded due to flakiness. See https://crbug.com/1459215
 INSTANTIATE_TEST_SUITE_P(
     All,
     DumpAccessibilityAccNameTest,
-    ::testing::ValuesIn(ui::AXInspectTestHelper::TreeTestPasses()),
-    TestPassToString());
-
-INSTANTIATE_TEST_SUITE_P(
-    All,
-    DumpAccessibilityAccNameTestExceptUIA,
     ::testing::ValuesIn(DumpAccessibilityTestBase::TreeTestPassesExceptUIA()),
     TestPassToString());
 
 INSTANTIATE_TEST_SUITE_P(
     All,
-    DumpAccessibilityNodeWithoutMathMLTest,
+    DumpAccessibilityAccNameTestExceptUIA,
     ::testing::ValuesIn(DumpAccessibilityTestBase::TreeTestPassesExceptUIA()),
     TestPassToString());
 
@@ -240,9 +225,6 @@ IN_PROC_BROWSER_TEST_P(DumpAccessibilityMathMLNodeTest, MathMLIdentifier) {
 }
 IN_PROC_BROWSER_TEST_P(DumpAccessibilityMathMLNodeTest, MathMLMath) {
   RunMathMLTest(FILE_PATH_LITERAL("math.html"));
-}
-IN_PROC_BROWSER_TEST_P(DumpAccessibilityNodeWithoutMathMLTest, MathMLMath) {
-  RunMathMLTest(FILE_PATH_LITERAL("math-disabled.html"));
 }
 IN_PROC_BROWSER_TEST_P(DumpAccessibilityMathMLNodeTest, MathMLMultiscripts) {
   RunMathMLTest(FILE_PATH_LITERAL("mmultiscripts.html"));
@@ -371,6 +353,12 @@ IN_PROC_BROWSER_TEST_P(DumpAccessibilityAccNameTest,
                        DescImgAltDescribedbyPresentational) {
   RunAccNameTest(
       FILE_PATH_LITERAL("desc-img-alt-describedby-presentational.html"));
+}
+
+IN_PROC_BROWSER_TEST_P(DumpAccessibilityAccNameTest,
+                       DescImgAltDescribedbyPresentationalDynamic) {
+  RunAccNameTest(FILE_PATH_LITERAL(
+      "desc-img-alt-describedby-presentational-dynamic.html"));
 }
 
 IN_PROC_BROWSER_TEST_P(DumpAccessibilityAccNameTest, DescImgDescribedby) {
@@ -676,6 +664,50 @@ IN_PROC_BROWSER_TEST_P(DumpAccessibilityAccNameTest,
                        NameFromContentOfLabelledbyElementsOneOfWhichIsHidden) {
   RunAccNameTest(FILE_PATH_LITERAL(
       "name-from-content-of-labelledby-elements-one-of-which-is-hidden.html"));
+}
+
+IN_PROC_BROWSER_TEST_P(DumpAccessibilityAccNameTest,
+                       NameFromContentWhitespaceBlockChildren) {
+  RunAccNameTest(
+      FILE_PATH_LITERAL("name-from-content-whitespace-block-children.html"));
+}
+
+IN_PROC_BROWSER_TEST_P(
+    DumpAccessibilityAccNameTest,
+    NameFromContentWhitespaceBlockChildrenCollapsesExtraWhitespace) {
+  RunAccNameTest(
+      FILE_PATH_LITERAL("name-from-content-whitespace-block-children-collapses-"
+                        "extra-whitespace.html"));
+}
+
+IN_PROC_BROWSER_TEST_P(DumpAccessibilityAccNameTest,
+                       NameFromContentWhitespaceInlineBlockChildren) {
+  RunAccNameTest(FILE_PATH_LITERAL(
+      "name-from-content-whitespace-inline-block-children.html"));
+}
+
+IN_PROC_BROWSER_TEST_P(DumpAccessibilityAccNameTest,
+                       NameFromContentWhitespaceInlineChildren) {
+  RunAccNameTest(
+      FILE_PATH_LITERAL("name-from-content-whitespace-inline-children.html"));
+}
+
+IN_PROC_BROWSER_TEST_P(DumpAccessibilityAccNameTest,
+                       NameFromContentWhitespaceInlineFlexChildren) {
+  RunAccNameTest(FILE_PATH_LITERAL(
+      "name-from-content-whitespace-inline-flex-children.html"));
+}
+
+IN_PROC_BROWSER_TEST_P(DumpAccessibilityAccNameTest,
+                       NameFromContentWhitespaceInlineGridChildren) {
+  RunAccNameTest(FILE_PATH_LITERAL(
+      "name-from-content-whitespace-inline-grid-children.html"));
+}
+
+IN_PROC_BROWSER_TEST_P(DumpAccessibilityAccNameTest,
+                       NameFromContentWhitespaceInlineTableChildren) {
+  RunAccNameTest(FILE_PATH_LITERAL(
+      "name-from-content-whitespace-inline-table-children.html"));
 }
 
 IN_PROC_BROWSER_TEST_P(DumpAccessibilityAccNameTest, NameFromListItem) {

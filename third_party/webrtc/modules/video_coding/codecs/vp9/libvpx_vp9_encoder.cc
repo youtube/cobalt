@@ -47,6 +47,11 @@
 #include "vpx/vp8cx.h"
 #include "vpx/vpx_encoder.h"
 
+#if (defined(WEBRTC_ARCH_ARM) || defined(WEBRTC_ARCH_ARM64)) && \
+    (defined(WEBRTC_ANDROID) || defined(WEBRTC_IOS))
+#define MOBILE_ARM
+#endif
+
 namespace webrtc {
 
 namespace {
@@ -201,13 +206,12 @@ vpx_svc_ref_frame_config_t Vp9References(
 }
 
 bool AllowDenoising() {
-  // Do not enable the denoiser on ARM since optimization is pending.
-  // Denoiser is on by default on other platforms.
-#if !defined(WEBRTC_ARCH_ARM) && !defined(WEBRTC_ARCH_ARM64) && \
-    !defined(ANDROID)
-  return true;
-#else
+#ifdef MOBILE_ARM
+  // Keep the denoiser disabled on mobile ARM devices. It increases encode time
+  // by up to 16%.
   return false;
+#else
+  return true;
 #endif
 }
 
@@ -249,8 +253,6 @@ LibvpxVp9Encoder::LibvpxVp9Encoder(const cricket::VideoCodec& codec,
       trusted_rate_controller_(
           RateControlSettings::ParseFromKeyValueConfig(&trials)
               .LibvpxVp9TrustedRateController()),
-      layer_buffering_(false),
-      full_superframe_drop_(true),
       first_frame_in_picture_(true),
       ss_info_needed_(false),
       force_all_active_layers_(false),
@@ -768,9 +770,8 @@ int LibvpxVp9Encoder::NumberOfThreads(int width,
   } else if (width * height >= 640 * 360 && number_of_cores > 2) {
     return 2;
   } else {
-// Use 2 threads for low res on ARM.
-#if defined(WEBRTC_ARCH_ARM) || defined(WEBRTC_ARCH_ARM64) || \
-    defined(WEBRTC_ANDROID)
+// Use 2 threads for low res on mobile ARM.
+#ifdef MOBILE_ARM
     if (width * height >= 320 * 180 && number_of_cores > 2) {
       return 2;
     }
@@ -920,18 +921,11 @@ int LibvpxVp9Encoder::InitAndSetControlSettings(const VideoCodec* inst) {
       for (size_t i = 0; i < num_spatial_layers_; ++i) {
         svc_drop_frame_.framedrop_thresh[i] = config_->rc_dropframe_thresh;
       }
-      // No buffering is needed because the highest layer is always present in
-      // all frames in CONSTRAINED_FROM_ABOVE drop mode.
-      layer_buffering_ = false;
     } else {
       // Configure encoder to drop entire superframe whenever it needs to drop
       // a layer. This mode is preferred over per-layer dropping which causes
       // quality flickering and is not compatible with RTP non-flexible mode.
-      svc_drop_frame_.framedrop_mode =
-          full_superframe_drop_ ? FULL_SUPERFRAME_DROP : CONSTRAINED_LAYER_DROP;
-      // Buffering is needed only for constrained layer drop, as it's not clear
-      // which frame is the last.
-      layer_buffering_ = !full_superframe_drop_;
+      svc_drop_frame_.framedrop_mode = FULL_SUPERFRAME_DROP;
       svc_drop_frame_.max_consec_drop = std::numeric_limits<int>::max();
       for (size_t i = 0; i < num_spatial_layers_; ++i) {
         svc_drop_frame_.framedrop_thresh[i] = config_->rc_dropframe_thresh;
@@ -1275,11 +1269,6 @@ int LibvpxVp9Encoder::Encode(const VideoFrame& input_image,
     return WEBRTC_VIDEO_CODEC_ERROR;
   }
   timestamp_ += duration;
-
-  if (layer_buffering_) {
-    const bool end_of_picture = true;
-    DeliverBufferedFrame(end_of_picture);
-  }
 
   return WEBRTC_VIDEO_CODEC_OK;
 }
@@ -1715,12 +1704,6 @@ void LibvpxVp9Encoder::GetEncodedLayerFrame(const vpx_codec_cx_pkt* pkt) {
   vpx_svc_layer_id_t layer_id = {0};
   libvpx_->codec_control(encoder_, VP9E_GET_SVC_LAYER_ID, &layer_id);
 
-  if (layer_buffering_) {
-    // Deliver buffered low spatial layer frame.
-    const bool end_of_picture = false;
-    DeliverBufferedFrame(end_of_picture);
-  }
-
   encoded_image_.SetEncodedData(EncodedImageBuffer::Create(
       static_cast<const uint8_t*>(pkt->data.frame.buf), pkt->data.frame.sz));
 
@@ -1753,7 +1736,7 @@ void LibvpxVp9Encoder::GetEncodedLayerFrame(const vpx_codec_cx_pkt* pkt) {
   UpdateReferenceBuffers(*pkt, pics_since_key_);
 
   TRACE_COUNTER1("webrtc", "EncodedFrameSize", encoded_image_.size());
-  encoded_image_.SetTimestamp(input_image_->timestamp());
+  encoded_image_.SetRtpTimestamp(input_image_->timestamp());
   encoded_image_.SetCaptureTimeIdentifier(
       input_image_->capture_time_identifier());
   encoded_image_.SetColorSpace(input_image_->color_space());
@@ -1765,11 +1748,9 @@ void LibvpxVp9Encoder::GetEncodedLayerFrame(const vpx_codec_cx_pkt* pkt) {
   libvpx_->codec_control(encoder_, VP8E_GET_LAST_QUANTIZER, &qp);
   encoded_image_.qp_ = qp;
 
-  if (!layer_buffering_) {
-    const bool end_of_picture = encoded_image_.SpatialIndex().value_or(0) + 1 ==
-                                num_active_spatial_layers_;
-    DeliverBufferedFrame(end_of_picture);
-  }
+  const bool end_of_picture = encoded_image_.SpatialIndex().value_or(0) + 1 ==
+                              num_active_spatial_layers_;
+  DeliverBufferedFrame(end_of_picture);
 }
 
 void LibvpxVp9Encoder::DeliverBufferedFrame(bool end_of_picture) {
@@ -1790,7 +1771,7 @@ void LibvpxVp9Encoder::DeliverBufferedFrame(bool end_of_picture) {
     if (codec_.mode == VideoCodecMode::kScreensharing) {
       const uint8_t spatial_idx = encoded_image_.SpatialIndex().value_or(0);
       const uint32_t frame_timestamp_ms =
-          1000 * encoded_image_.Timestamp() / kVideoPayloadTypeFrequency;
+          1000 * encoded_image_.RtpTimestamp() / kVideoPayloadTypeFrequency;
       framerate_controller_[spatial_idx].AddFrame(frame_timestamp_ms);
 
       const size_t steady_state_size = SteadyStateSize(
@@ -2020,7 +2001,7 @@ LibvpxVp9Encoder::PerformanceFlags
 LibvpxVp9Encoder::GetDefaultPerformanceFlags() {
   PerformanceFlags flags;
   flags.use_per_layer_speed = true;
-#if defined(WEBRTC_ARCH_ARM) || defined(WEBRTC_ARCH_ARM64) || defined(ANDROID)
+#ifdef MOBILE_ARM
   // Speed 8 on all layers for all resolutions.
   flags.settings_by_resolution[0] = {.base_layer_speed = 8,
                                      .high_layer_speed = 8,

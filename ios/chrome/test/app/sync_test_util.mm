@@ -9,24 +9,24 @@
 
 #import "base/check.h"
 #import "base/functional/bind.h"
-#import "base/guid.h"
 #import "base/memory/ptr_util.h"
 #import "base/strings/sys_string_conversions.h"
 #import "base/strings/utf_string_conversions.h"
 #import "base/test/ios/wait_util.h"
 #import "base/time/time.h"
+#import "base/uuid.h"
 #import "components/autofill/core/browser/personal_data_manager.h"
 #import "components/history/core/browser/history_service.h"
 #import "components/keyed_service/core/service_access_type.h"
 #import "components/metrics/demographics/demographic_metrics_test_utils.h"
 #import "components/sync/base/pref_names.h"
 #import "components/sync/base/time.h"
-#import "components/sync/driver/sync_service.h"
-#import "components/sync/driver/sync_service_impl.h"
 #import "components/sync/engine/loopback_server/loopback_server_entity.h"
 #import "components/sync/protocol/device_info_specifics.pb.h"
 #import "components/sync/protocol/session_specifics.pb.h"
 #import "components/sync/protocol/sync_enums.pb.h"
+#import "components/sync/service/sync_service.h"
+#import "components/sync/service/sync_service_impl.h"
 #import "components/sync/test/entity_builder_factory.h"
 #import "components/sync/test/fake_server.h"
 #import "components/sync/test/fake_server_network_resources.h"
@@ -41,18 +41,14 @@
 #import "components/sync_sessions/session_store.h"
 #import "components/sync_sessions/session_sync_test_helper.h"
 #import "ios/chrome/browser/autofill/personal_data_manager_factory.h"
-#import "ios/chrome/browser/browser_state/chrome_browser_state.h"
 #import "ios/chrome/browser/history/history_service_factory.h"
-#import "ios/chrome/browser/sync/device_info_sync_service_factory.h"
-#import "ios/chrome/browser/sync/sync_service_factory.h"
-#import "ios/chrome/browser/synced_sessions/distant_session.h"
-#import "ios/chrome/browser/synced_sessions/distant_tab.h"
+#import "ios/chrome/browser/shared/model/browser_state/chrome_browser_state.h"
+#import "ios/chrome/browser/sync/model/device_info_sync_service_factory.h"
+#import "ios/chrome/browser/sync/model/sync_service_factory.h"
+#import "ios/chrome/browser/synced_sessions/model/distant_session.h"
+#import "ios/chrome/browser/synced_sessions/model/distant_tab.h"
 #import "ios/chrome/test/app/chrome_test_util.h"
 #import "testing/gtest/include/gtest/gtest.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace {
 
@@ -159,7 +155,8 @@ void AddBookmarkToFakeSyncServer(std::string url, std::string title) {
 void AddLegacyBookmarkToFakeSyncServer(std::string url,
                                        std::string title,
                                        std::string originator_client_item_id) {
-  DCHECK(!base::IsValidGUID(originator_client_item_id));
+  DCHECK(
+      !base::Uuid::ParseCaseInsensitive(originator_client_item_id).is_valid());
   fake_server::EntityBuilderFactory entity_builder_factory;
   fake_server::BookmarkEntityBuilder bookmark_builder =
       entity_builder_factory.NewBookmarkEntityBuilder(
@@ -183,33 +180,16 @@ void AddSessionToFakeSyncServer(
     sync_pb::SessionSpecifics tab = helper.BuildTabSpecifics(
         session.tag, base::UTF16ToUTF8(distant_tab->title),
         distant_tab->virtual_url.spec(), window_id, distant_tab->tab_id);
+    tab.mutable_tab()->set_last_active_time_unix_epoch_millis(
+        (distant_tab->last_active_time - base::Time::UnixEpoch())
+            .InMilliseconds());
     specifics_list.push_back(tab);
     tab_list.push_back(distant_tab->tab_id);
-  }
-  // Compute device type.
-  // TODO(crbug.com/1434959): This is a temporary workaround. Remove the switch
-  // statement and use `session.form_factor` after
-  // `BuildHeaderSpecificsWithoutWindows` is updated.
-  sync_pb::SyncEnums_DeviceType device_type =
-      sync_pb::SyncEnums::DeviceType::SyncEnums_DeviceType_TYPE_UNSET;
-  switch (session.form_factor) {
-    case syncer::DeviceInfo::FormFactor::kDesktop:
-      device_type =
-          sync_pb::SyncEnums::DeviceType::SyncEnums_DeviceType_TYPE_MAC;
-      break;
-    case syncer::DeviceInfo::FormFactor::kPhone:
-      device_type = sync_pb::SyncEnums_DeviceType_TYPE_PHONE;
-      break;
-    case syncer::DeviceInfo::FormFactor::kTablet:
-      device_type = sync_pb::SyncEnums_DeviceType_TYPE_TABLET;
-      break;
-    case syncer::DeviceInfo::FormFactor::kUnknown:
-      break;
   }
   // Header specifics.
   sync_pb::SessionSpecifics header =
       sync_sessions::SessionSyncTestHelper::BuildHeaderSpecificsWithoutWindows(
-          session.tag, device_type);
+          session.tag, session.name, session.form_factor);
   sync_sessions::SessionSyncTestHelper::AddWindowSpecifics(window_id, tab_list,
                                                            &header);
   specifics_list.push_back(header);
@@ -384,21 +364,6 @@ void AddTypedURLToClient(const GURL& url) {
                           history::SOURCE_BROWSED, false);
 }
 
-void AddTypedURLToFakeSyncServer(const std::string& url) {
-  sync_pb::EntitySpecifics entitySpecifics;
-  sync_pb::TypedUrlSpecifics* typedUrl = entitySpecifics.mutable_typed_url();
-  typedUrl->set_url(url);
-  typedUrl->set_title(url);
-  typedUrl->add_visits(base::Time::Max().ToInternalValue());
-  typedUrl->add_visit_transitions(sync_pb::SyncEnums::TYPED);
-
-  std::unique_ptr<syncer::LoopbackServerEntity> entity =
-      syncer::PersistentUniqueClientEntity::CreateFromSpecificsForTesting(
-          /*non_unique_name=*/std::string(), /*client_tag=*/url,
-          entitySpecifics, 12345, 12345);
-  gSyncFakeServer->InjectEntity(std::move(entity));
-}
-
 void AddHistoryVisitToFakeSyncServer(const GURL& url) {
   sync_pb::EntitySpecifics entitySpecifics;
   sync_pb::HistorySpecifics* history = entitySpecifics.mutable_history();
@@ -498,24 +463,6 @@ void DeleteTypedUrlFromClient(const GURL& url) {
           browser_state, ServiceAccessType::EXPLICIT_ACCESS);
 
   history_service->DeleteURLs({url});
-}
-
-void DeleteTypedUrlFromFakeSyncServer(std::string url) {
-  std::vector<sync_pb::SyncEntity> typed_urls =
-      gSyncFakeServer->GetSyncEntitiesByModelType(syncer::TYPED_URLS);
-  std::string entity_id;
-  for (const sync_pb::SyncEntity& typed_url : typed_urls) {
-    if (typed_url.specifics().typed_url().url() == url) {
-      entity_id = typed_url.id_string();
-      break;
-    }
-  }
-  if (!entity_id.empty()) {
-    std::unique_ptr<syncer::LoopbackServerEntity> entity;
-    entity =
-        syncer::PersistentTombstoneEntity::CreateNew(entity_id, std::string());
-    gSyncFakeServer->InjectEntity(std::move(entity));
-  }
 }
 
 void AddBookmarkWithSyncPassphrase(const std::string& sync_passphrase) {

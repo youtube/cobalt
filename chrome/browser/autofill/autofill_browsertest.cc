@@ -154,9 +154,9 @@ class AutofillTest : public InProcessBrowserTest {
     // Make sure to close any showing popups prior to tearing down the UI.
     ContentAutofillDriverFactory::FromWebContents(web_contents())
         ->DriverForFrame(web_contents()->GetPrimaryMainFrame())
-        ->autofill_manager()
-        ->client()
-        ->HideAutofillPopup(PopupHidingReason::kTabGone);
+        ->GetAutofillManager()
+        .client()
+        .HideAutofillPopup(PopupHidingReason::kTabGone);
     test::ReenableSystemServices();
     InProcessBrowserTest::TearDownOnMainThread();
   }
@@ -205,8 +205,8 @@ class AutofillTest : public InProcessBrowserTest {
     // Shortcut explicit save prompts and automatically accept.
     personal_data_manager()->set_auto_accept_address_imports_for_testing(true);
     WindowedPersonalDataManagerObserver observer(browser());
-    ASSERT_TRUE(content::ExecuteScript(web_contents(),
-                                       GetJSToFillForm(data) + submit_js));
+    ASSERT_TRUE(
+        content::ExecJs(web_contents(), GetJSToFillForm(data) + submit_js));
     if (simulate_click) {
       // Simulate a mouse click to submit the form because form submissions not
       // triggered by user gestures are ignored.
@@ -284,8 +284,8 @@ class AutofillTest : public InProcessBrowserTest {
   }
 
  private:
-  base::test::ScopedFeatureList feature_list_;
   test::AutofillBrowserTestEnvironment autofill_test_environment_;
+  base::test::ScopedFeatureList feature_list_;
   TestAutofillManagerInjector<TestAutofillManager> autofill_manager_injector_;
 };
 
@@ -431,12 +431,12 @@ IN_PROC_BROWSER_TEST_F(AutofillTest, ProfileSavedWithValidCountryPhone) {
   for (const AutofillProfile* profile :
        personal_data_manager()->GetProfiles()) {
     actual_phone_numbers.push_back(
-        profile->GetRawInfo(PHONE_HOME_WHOLE_NUMBER));
+        profile->GetInfo(PHONE_HOME_WHOLE_NUMBER, "en-US"));
   }
   // Two valid phone numbers are imported, two invalid ones are removed.
   EXPECT_THAT(actual_phone_numbers,
               testing::UnorderedElementsAreArray(
-                  {u"408-871-4567", u"+49 40-80-81-79-000", u"", u""}));
+                  {u"4088714567", u"+4940808179000", u"", u""}));
 }
 
 // Prepend country codes when formatting phone numbers if:
@@ -619,7 +619,7 @@ IN_PROC_BROWSER_TEST_F(AutofillTest, DynamicForm_DiscoverRemovedFormFields) {
 
   // Remove one field via JavaScript and expect that the AutofillManager learns
   // about this.
-  ASSERT_TRUE(content::ExecuteScript(web_contents(), "RemoveCity();"));
+  ASSERT_TRUE(content::ExecJs(web_contents(), "RemoveCity();"));
   EXPECT_TRUE(WaitForFormWithNFields(2))
       << "Waiting for after before field removal";
 }
@@ -669,7 +669,7 @@ IN_PROC_BROWSER_TEST_F(AutofillAccessibilityTest, DISABLED_TestAutofillState) {
   // Focus target form field.
   const std::string focus_name_first_js =
       "document.getElementById('NAME_FIRST').focus();";
-  ASSERT_TRUE(content::ExecuteScript(web_contents(), focus_name_first_js));
+  ASSERT_TRUE(content::ExecJs(web_contents(), focus_name_first_js));
 
   // Assert that autofill is not yet available for target form field.
   // Loop while criteria is not met.
@@ -707,7 +707,7 @@ IN_PROC_BROWSER_TEST_F(AutofillAccessibilityTest, DISABLED_TestAutofillState) {
   ASSERT_TRUE(layout_waiter_two.WaitForNotification());
 
   // Focus target form field.
-  ASSERT_TRUE(content::ExecuteScript(web_contents(), focus_name_first_js));
+  ASSERT_TRUE(content::ExecJs(web_contents(), focus_name_first_js));
 
   // Assert that autofill is now available for target form field.
   // Loop while criteria is not met.
@@ -740,7 +740,7 @@ IN_PROC_BROWSER_TEST_F(AutofillAccessibilityTest,
   // Focus target form field.
   const std::string focus_name_first_js =
       "document.getElementById('NAME_FIRST').focus();";
-  ASSERT_TRUE(content::ExecuteScript(web_contents(), focus_name_first_js));
+  ASSERT_TRUE(content::ExecJs(web_contents(), focus_name_first_js));
 
   // Assert that autocomplete is not yet available for target form field.
   // Loop while criteria is not met.
@@ -774,7 +774,7 @@ IN_PROC_BROWSER_TEST_F(AutofillAccessibilityTest,
   ASSERT_TRUE(layout_waiter_two.WaitForNotification());
 
   // Focus target form field.
-  ASSERT_TRUE(content::ExecuteScript(web_contents(), focus_name_first_js));
+  ASSERT_TRUE(content::ExecJs(web_contents(), focus_name_first_js));
 
   // Assert that autocomplete is now available for target form field.
   // Loop while criteria is not met.
@@ -819,7 +819,7 @@ class AutofillTestPrerendering : public InProcessBrowserTest {
   };
 
   void SetUp() override {
-    prerender_helper_.SetUp(embedded_test_server());
+    prerender_helper_.RegisterServerRequestMonitor(embedded_test_server());
     InProcessBrowserTest::SetUp();
   }
 
@@ -861,7 +861,14 @@ class AutofillTestPrerendering : public InProcessBrowserTest {
 // activation and that it does alert the browser after activation. Also ensures
 // that programmatic input on the prerendered page does not result in unexpected
 // messages prior to activation and that things work correctly post-activation.
-IN_PROC_BROWSER_TEST_F(AutofillTestPrerendering, DeferWhilePrerendering) {
+//
+// Flaky on Mac. See https://crbug.com/1484862
+#if BUILDFLAG(IS_MAC)
+#define MAYBE_DeferWhilePrerendering DISABLED_DeferWhilePrerendering
+#else
+#define MAYBE_DeferWhilePrerendering DeferWhilePrerendering
+#endif
+IN_PROC_BROWSER_TEST_F(AutofillTestPrerendering, MAYBE_DeferWhilePrerendering) {
   GURL prerender_url =
       embedded_test_server()->GetURL("/autofill/prerendered.html");
   GURL initial_url = embedded_test_server()->GetURL("/empty.html");
@@ -944,7 +951,7 @@ class AutofillTestFormSubmission
     // Simulate a mouse click to submit the form because form submissions not
     // triggered by user gestures are ignored.
     std::string onclick_js = "document.onclick = function() { " + js + "; };";
-    ASSERT_TRUE(content::ExecuteScript(web_contents(), onclick_js));
+    ASSERT_TRUE(content::ExecJs(web_contents(), onclick_js));
     content::SimulateMouseClick(web_contents(), 0,
                                 blink::WebMouseEvent::Button::kLeft);
   }

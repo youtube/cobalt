@@ -7,28 +7,24 @@
 #import <UIKit/UIKit.h>
 
 #import "base/test/task_environment.h"
-#import "components/autofill/core/common/autofill_prefs.h"
 #import "components/prefs/pref_registry_simple.h"
 #import "components/prefs/testing_pref_service.h"
+#import "components/signin/public/base/signin_metrics.h"
 #import "components/signin/public/base/signin_pref_names.h"
 #import "components/signin/public/identity_manager/identity_manager.h"
 #import "components/sync/test/mock_sync_service.h"
-#import "ios/chrome/browser/application_context/application_context.h"
-#import "ios/chrome/browser/browser_state/test_chrome_browser_state.h"
+#import "ios/chrome/browser/shared/model/application_context/application_context.h"
+#import "ios/chrome/browser/shared/model/browser_state/test_chrome_browser_state.h"
 #import "ios/chrome/browser/signin/authentication_service.h"
 #import "ios/chrome/browser/signin/authentication_service_factory.h"
 #import "ios/chrome/browser/signin/fake_authentication_service_delegate.h"
 #import "ios/chrome/browser/signin/fake_system_identity.h"
 #import "ios/chrome/browser/signin/fake_system_identity_manager.h"
 #import "ios/chrome/browser/signin/identity_manager_factory.h"
-#import "ios/chrome/browser/sync/mock_sync_service_utils.h"
-#import "ios/chrome/browser/sync/sync_service_factory.h"
+#import "ios/chrome/browser/sync/model/mock_sync_service_utils.h"
+#import "ios/chrome/browser/sync/model/sync_service_factory.h"
 #import "ios/chrome/test/ios_chrome_scoped_testing_local_state.h"
 #import "testing/platform_test.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 using syncer::MockSyncService;
 using syncer::SyncService;
@@ -76,11 +72,10 @@ class AdvancedSettingsSigninMediatorTest : public PlatformTest {
   PrefService* GetPrefService() {
     TestingPrefServiceSimple* prefs = new TestingPrefServiceSimple();
     PrefRegistrySimple* registry = prefs->registry();
-    registry->RegisterStringPref(prefs::kGoogleServicesLastUsername,
+    registry->RegisterStringPref(prefs::kGoogleServicesLastSyncingUsername,
                                  kTestEmail);
-    registry->RegisterStringPref(prefs::kGoogleServicesLastGaiaId, kTestGaiaID);
-    registry->RegisterBooleanPref(autofill::prefs::kAutofillWalletImportEnabled,
-                                  false);
+    registry->RegisterStringPref(prefs::kGoogleServicesLastSyncingGaiaId,
+                                 kTestGaiaID);
     return prefs;
   }
 
@@ -119,7 +114,8 @@ class AdvancedSettingsSigninMediatorTest : public PlatformTest {
 // interrupted.
 TEST_F(AdvancedSettingsSigninMediatorTest,
        saveUserPreferenceSigninInterruptedWithSyncDisabled) {
-  authentication_service_->SignIn(identity_);
+  authentication_service_->SignIn(
+      identity_, signin_metrics::AccessPoint::ACCESS_POINT_UNKNOWN);
   [mediator_
       saveUserPreferenceForSigninResult:SigninCoordinatorResultInterrupted
                     originalSigninState:
@@ -133,7 +129,8 @@ TEST_F(AdvancedSettingsSigninMediatorTest,
 // interrupted with IdentitySigninStateSignedOut.
 TEST_F(AdvancedSettingsSigninMediatorTest,
        saveUserPreferenceSigninInterruptedWithSignout) {
-  authentication_service_->SignIn(identity_);
+  authentication_service_->SignIn(
+      identity_, signin_metrics::AccessPoint::ACCESS_POINT_UNKNOWN);
   [mediator_
       saveUserPreferenceForSigninResult:SigninCoordinatorResultInterrupted
                     originalSigninState:IdentitySigninStateSignedOut];

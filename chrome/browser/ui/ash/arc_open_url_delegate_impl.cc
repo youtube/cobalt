@@ -11,6 +11,7 @@
 #include "ash/components/arc/mojom/intent_helper.mojom.h"
 #include "ash/constants/ash_features.h"
 #include "ash/public/cpp/new_window_delegate.h"
+#include "ash/webui/settings/public/constants/routes.mojom.h"
 #include "base/check.h"
 #include "base/containers/fixed_flat_map.h"
 #include "base/files/file_path.h"
@@ -39,9 +40,7 @@
 #include "chrome/browser/ui/ash/shelf/chrome_shelf_controller.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/settings_window_manager_chromeos.h"
-#include "chrome/browser/ui/webui/settings/chromeos/constants/routes.mojom.h"
 #include "chrome/browser/web_applications/web_app_helpers.h"
-#include "chrome/browser/web_applications/web_app_id.h"
 #include "chrome/browser/web_applications/web_app_utils.h"
 #include "chrome/browser/webshare/prepare_directory_task.h"
 #include "chrome/common/webui_url_constants.h"
@@ -54,6 +53,7 @@
 #include "components/services/app_service/public/cpp/intent_util.h"
 #include "components/services/app_service/public/cpp/types_util.h"
 #include "components/user_manager/user_manager.h"
+#include "components/webapps/common/web_app_id.h"
 #include "content/public/common/url_constants.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "net/base/filename_util.h"
@@ -83,6 +83,8 @@ constexpr auto kOSSettingsMap = base::MakeFixedFlatMap<ChromePage,
      chromeos::settings::mojom::kPrintingDetailsSubpagePath},
     {ChromePage::DATETIME, chromeos::settings::mojom::kDateAndTimeSectionPath},
     {ChromePage::DISPLAY, chromeos::settings::mojom::kDisplaySubpagePath},
+    {ChromePage::GRAPHICSTABLET,
+     chromeos::settings::mojom::kGraphicsTabletSubpagePath},
     {ChromePage::HELP, chromeos::settings::mojom::kAboutChromeOsSectionPath},
     {ChromePage::KEYBOARDOVERLAY,
      chromeos::settings::mojom::kKeyboardSubpagePath},
@@ -300,13 +302,13 @@ void ArcOpenUrlDelegateImpl::OpenUrlFromArc(const GURL& url) {
     return;
 
   GURL url_to_open = ConvertArcUrlToExternalFileUrlIfNeeded(url);
-  // If Lacros is primary browser, convert externalfile:// url into file:// url
+  // If Lacros is enabled, convert externalfile:// url into file:// url
   // managed by the FuseBox moniker system because Lacros cannot handle
   // externalfile:// urls.
   // TODO(crbug.com/1374575): Check if other externalfile:// urls can use the
   // same logic. If so, move this code into CrosapiNewWindowDelegate::OpenUrl()
   // which is only for Lacros.
-  if (crosapi::browser_util::IsLacrosPrimaryBrowser() &&
+  if (crosapi::browser_util::IsLacrosEnabled() &&
       url_to_open.SchemeIs(content::kExternalFileScheme)) {
     Profile* profile = ash::ProfileHelper::Get()->GetProfileByUser(
         user_manager::UserManager::Get()->GetPrimaryUser());
@@ -339,7 +341,7 @@ void ArcOpenUrlDelegateImpl::OpenWebAppFromArc(const GURL& url) {
   if (!profile)
     return;
 
-  absl::optional<web_app::AppId> app_id =
+  absl::optional<webapps::AppId> app_id =
       web_app::IsWebAppsCrosapiEnabled()
           ? FindWebAppForURL(profile, url)
           : web_app::FindInstalledAppWithUrlInScope(profile, url,
@@ -474,7 +476,7 @@ void ArcOpenUrlDelegateImpl::OpenAppWithIntent(
   if (!profile)
     return;
 
-  web_app::AppId app_id =
+  webapps::AppId app_id =
       web_app::GenerateAppId(/*manifest_id=*/absl::nullopt, start_url);
 
   bool app_installed = false;

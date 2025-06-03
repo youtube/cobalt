@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'chrome://webui-test/mojo_webui_test_support.js';
-
 import {DriveHandlerRemote} from 'chrome://new-tab-page/drive.mojom-webui.js';
 import {DismissModuleEvent, driveDescriptor, DriveModuleElement, DriveProxy} from 'chrome://new-tab-page/lazy_load.js';
 import {$$, CrAutoImgElement} from 'chrome://new-tab-page/new_tab_page.js';
@@ -137,7 +135,7 @@ suite('NewTabPageModulesDriveModuleTest', () => {
       ],
     };
     handler.setResultFor('getFiles', Promise.resolve(data));
-    const module = await driveDescriptor.initialize(0);
+    const module = await driveDescriptor.initialize(0) as DriveModuleElement;
     assertTrue(!!module);
     document.body.append(module);
 

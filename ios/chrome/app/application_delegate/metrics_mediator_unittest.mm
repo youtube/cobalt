@@ -14,17 +14,17 @@
 #import "ios/chrome/app/app_startup_parameters.h"
 #import "ios/chrome/app/application_delegate/metric_kit_subscriber.h"
 #import "ios/chrome/app/application_delegate/startup_information.h"
-#import "ios/chrome/browser/application_context/application_context.h"
-#import "ios/chrome/browser/browser_state/test_chrome_browser_state.h"
-#import "ios/chrome/browser/main/browser_provider_interface.h"
-#import "ios/chrome/browser/main/test_browser.h"
 #import "ios/chrome/browser/shared/coordinator/scene/connection_information.h"
 #import "ios/chrome/browser/shared/coordinator/scene/scene_state.h"
 #import "ios/chrome/browser/shared/coordinator/scene/test/fake_scene_state.h"
-#import "ios/chrome/browser/url/chrome_url_constants.h"
-#import "ios/chrome/browser/web_state_list/fake_web_state_list_delegate.h"
-#import "ios/chrome/browser/web_state_list/web_state_list.h"
-#import "ios/chrome/browser/web_state_list/web_state_opener.h"
+#import "ios/chrome/browser/shared/model/application_context/application_context.h"
+#import "ios/chrome/browser/shared/model/browser/browser_provider_interface.h"
+#import "ios/chrome/browser/shared/model/browser/test/test_browser.h"
+#import "ios/chrome/browser/shared/model/browser_state/test_chrome_browser_state.h"
+#import "ios/chrome/browser/shared/model/url/chrome_url_constants.h"
+#import "ios/chrome/browser/shared/model/web_state_list/test/fake_web_state_list_delegate.h"
+#import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
+#import "ios/chrome/browser/shared/model/web_state_list/web_state_opener.h"
 #import "ios/chrome/common/app_group/app_group_metrics.h"
 #import "ios/chrome/test/ios_chrome_scoped_testing_local_state.h"
 #import "ios/testing/scoped_block_swizzler.h"
@@ -33,10 +33,6 @@
 #import "testing/platform_test.h"
 #import "third_party/ocmock/OCMock/OCMock.h"
 #import "third_party/ocmock/gtest_support.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 // Mock class for testing MetricsMediator.
 @interface MetricsMediatorMock : MetricsMediator
@@ -128,20 +124,20 @@ class MetricsMediatorLogLaunchTest : public PlatformTest {
     } copy];
     if (coldStart) {
       tabs_uma_histogram_swizzler_.reset(new ScopedBlockSwizzler(
-          [MetricsMediator class], @selector(recordNumTabAtStartup:),
+          [MetricsMediator class], @selector(recordStartupTabCount:),
           num_tabs_swizzle_block_));
       ntp_tabs_uma_histogram_swizzler_.reset(new ScopedBlockSwizzler(
-          [MetricsMediator class], @selector(recordNumNTPTabAtStartup:),
+          [MetricsMediator class], @selector(recordStartupNTPTabCount:),
           num_ntp_tabs_swizzle_block_));
     } else {
       tabs_uma_histogram_swizzler_.reset(new ScopedBlockSwizzler(
-          [MetricsMediator class], @selector(recordNumTabAtResume:),
+          [MetricsMediator class], @selector(recordResumeTabCount:),
           num_tabs_swizzle_block_));
       ntp_tabs_uma_histogram_swizzler_.reset(new ScopedBlockSwizzler(
-          [MetricsMediator class], @selector(recordNumNTPTabAtResume:),
+          [MetricsMediator class], @selector(recordResumeNTPTabCount:),
           num_ntp_tabs_swizzle_block_));
       live_ntp_tabs_uma_histogram_swizzler_.reset(new ScopedBlockSwizzler(
-          [MetricsMediator class], @selector(recordNumLiveNTPTabAtResume:),
+          [MetricsMediator class], @selector(recordResumeLiveNTPTabCount:),
           num_live_ntp_tabs_swizzle_block_));
     }
   }
@@ -269,7 +265,7 @@ TEST_F(MetricsMediatorNoFixtureTest, logDateInUserDefaultsTest) {
   EXPECT_NE(nil, lastAppClose);
 }
 
-// Tests that +logStartupDuration:connectionInformation: calls
+// Tests that +logStartupDuration: calls
 // +endExtendedLaunchTask on cold start.
 TEST_F(MetricsMediatorNoFixtureTest, endExtendedLaunchTaskOnColdStart) {
   id startupInformation =
@@ -289,36 +285,25 @@ TEST_F(MetricsMediatorNoFixtureTest, endExtendedLaunchTaskOnColdStart) {
     [invocation setReturnValue:(void*)&time];
   }] firstSceneConnectionTime];
 
-  id connectionInformation =
-      [OCMockObject mockForProtocol:@protocol(ConnectionInformation)];
-  id startupParameters =
-      [OCMockObject mockForClass:[AppStartupParameters class]];
-  [[[connectionInformation stub] andReturn:startupParameters]
-      startupParameters];
-
   id metricKitSubscriber =
       [OCMockObject mockForClass:[MetricKitSubscriber class]];
   [[metricKitSubscriber expect] endExtendedLaunchTask];
 
-  [MetricsMediator logStartupDuration:startupInformation
-                connectionInformation:connectionInformation];
+  [MetricsMediator logStartupDuration:startupInformation];
   EXPECT_OCMOCK_VERIFY(metricKitSubscriber);
 }
 
-// Tests that +logStartupDuration:connectionInformation: does not call
+// Tests that +logStartupDuration: does not call
 // +endExtendedLaunchTask on warm start.
 TEST_F(MetricsMediatorNoFixtureTest, endExtendedLaunchTaskOnWarmStart) {
   id startupInformation =
       [OCMockObject mockForProtocol:@protocol(StartupInformation)];
   [[[startupInformation stub] andReturnValue:@NO] isColdStart];
-  id connectionInformation =
-      [OCMockObject mockForProtocol:@protocol(ConnectionInformation)];
 
   id metricKitSubscriber =
       [OCMockObject mockForClass:[MetricKitSubscriber class]];
   [[metricKitSubscriber reject] endExtendedLaunchTask];
 
-  [MetricsMediator logStartupDuration:startupInformation
-                connectionInformation:connectionInformation];
+  [MetricsMediator logStartupDuration:startupInformation];
   EXPECT_OCMOCK_VERIFY(metricKitSubscriber);
 }

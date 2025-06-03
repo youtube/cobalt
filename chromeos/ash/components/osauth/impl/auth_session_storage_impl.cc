@@ -10,6 +10,7 @@
 #include "base/check.h"
 #include "base/functional/callback.h"
 #include "base/location.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/unguessable_token.h"
 #include "chromeos/ash/components/login/auth/auth_performer.h"
 #include "chromeos/ash/components/login/auth/public/user_context.h"
@@ -19,8 +20,10 @@
 namespace ash {
 
 AuthSessionStorageImpl::AuthSessionStorageImpl(
-    UserDataAuthClient* user_data_auth) {
-  auth_performer_ = std::make_unique<AuthPerformer>(user_data_auth);
+    UserDataAuthClient* user_data_auth,
+    const base::Clock* clock)
+    : clock_(clock) {
+  auth_performer_ = std::make_unique<AuthPerformer>(user_data_auth, clock_);
 }
 
 AuthSessionStorageImpl::~AuthSessionStorageImpl() = default;
@@ -54,6 +57,12 @@ bool AuthSessionStorageImpl::IsValid(const AuthProofToken& token) {
   }
 }
 
+std::unique_ptr<UserContext> AuthSessionStorageImpl::BorrowForTests(
+    const base::Location& borrow_location,
+    const AuthProofToken& token) {
+  return Borrow(borrow_location, token);
+}
+
 std::unique_ptr<UserContext> AuthSessionStorageImpl::Borrow(
     const base::Location& borrow_location,
     const AuthProofToken& token) {
@@ -61,14 +70,53 @@ std::unique_ptr<UserContext> AuthSessionStorageImpl::Borrow(
   CHECK(data_it != std::end(tokens_));
   if (data_it->second->state == TokenState::kBorrowed) {
     LOG(ERROR) << "Context was already borrowed from "
-               << data_it->second->borrow_location.ToString();
+               << data_it->second->borrow_location.ToString()
+               << " when trying to borrow from " << borrow_location.ToString();
   }
-  CHECK(data_it->second->state == TokenState::kOwned);
+  CHECK(data_it->second->state == TokenState::kOwned)
+      << static_cast<int>(data_it->second->state);
   data_it->second->state = TokenState::kBorrowed;
   data_it->second->borrow_location = borrow_location;
 
   CHECK(data_it->second->context);
   return std::move(data_it->second->context);
+}
+
+void AuthSessionStorageImpl::BorrowAsync(const base::Location& location,
+                                         const AuthProofToken& token,
+                                         BorrowCallback callback) {
+  auto data_it = tokens_.find(token);
+  if (data_it == std::end(tokens_)) {
+    LOG(ERROR) << "Accessing expired token";
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, base::BindOnce(std::move(callback), nullptr));
+    return;
+  }
+  if (data_it->second->state == TokenState::kOwned) {
+    auto context = Borrow(location, token);
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, base::BindOnce(std::move(callback), std::move(context)));
+    return;
+  }
+  if (data_it->second->state == TokenState::kInvalidating ||
+      data_it->second->invalidate_on_return) {
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, base::BindOnce(std::move(callback), nullptr));
+    return;
+  }
+  data_it->second->borrow_queue.emplace(location, std::move(callback));
+}
+
+const UserContext* AuthSessionStorageImpl::Peek(const AuthProofToken& token) {
+  auto data_it = tokens_.find(token);
+  CHECK(data_it != std::end(tokens_));
+  if (data_it->second->state == TokenState::kBorrowed) {
+    LOG(ERROR) << "Context was already borrowed from "
+               << data_it->second->borrow_location.ToString();
+  }
+  CHECK(data_it->second->state == TokenState::kOwned);
+  CHECK(data_it->second->context);
+  return data_it->second->context.get();
 }
 
 void AuthSessionStorageImpl::Return(const AuthProofToken& token,
@@ -84,6 +132,13 @@ void AuthSessionStorageImpl::Return(const AuthProofToken& token,
   if (data_it->second->invalidate_on_return) {
     data_it->second->invalidate_on_return = false;
     Invalidate(token, std::move(data_it->second->invalidation_closure));
+    return;
+  }
+  if (!data_it->second->borrow_queue.empty()) {
+    std::pair<base::Location, BorrowCallback> pending_borrow =
+        std::move(data_it->second->borrow_queue.front());
+    data_it->second->borrow_queue.pop();
+    BorrowAsync(pending_borrow.first, token, std::move(pending_borrow.second));
   }
 }
 
@@ -94,6 +149,12 @@ void AuthSessionStorageImpl::Invalidate(const AuthProofToken& token,
   if (data_it->second->state == TokenState::kBorrowed) {
     data_it->second->invalidate_on_return = true;
     data_it->second->invalidation_closure = std::move(on_invalidated);
+    while (!data_it->second->borrow_queue.empty()) {
+      std::pair<base::Location, BorrowCallback> pending_borrow =
+          std::move(data_it->second->borrow_queue.front());
+      data_it->second->borrow_queue.pop();
+      std::move(pending_borrow.second).Run(nullptr);
+    }
     return;
   }
   CHECK(data_it->second->state == TokenState::kOwned);

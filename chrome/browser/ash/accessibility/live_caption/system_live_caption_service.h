@@ -77,6 +77,8 @@ class SystemLiveCaptionService
   void SpeechRecognitionAvailabilityChanged(
       bool is_speech_recognition_available) override;
   void SpeechRecognitionLanguageChanged(const std::string& language) override;
+  void SpeechRecognitionMaskOffensiveWordsChanged(
+      bool mask_offensive_words) override;
 
   void set_audio_system_factory_for_testing(
       base::RepeatingCallback<std::unique_ptr<media::AudioSystem>()>
@@ -103,8 +105,8 @@ class SystemLiveCaptionService
   void CreateClient();
   void StopTimeoutFinished();
 
-  const base::raw_ptr<Profile> profile_;
-  base::raw_ptr<::captions::LiveCaptionController> controller_;
+  const raw_ptr<Profile> profile_;
+  raw_ptr<::captions::LiveCaptionController> controller_;
 
   ash::captions::CaptionBubbleContextAsh context_;
 

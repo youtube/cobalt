@@ -25,6 +25,7 @@
 #include "chrome/browser/signin/signin_ui_util.h"
 #include "chrome/browser/ui/webui/signin/signin_url_utils.h"
 #include "components/account_manager_core/account_manager_facade.h"
+#include "components/google/core/common/google_util.h"
 #include "components/policy/core/common/policy_pref_names.h"
 #include "components/signin/core/browser/account_reconcilor.h"
 #include "components/signin/public/base/account_consistency_method.h"
@@ -58,8 +59,8 @@
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
-#include "chrome/browser/supervised_user/supervised_user_service.h"
 #include "chrome/browser/supervised_user/supervised_user_service_factory.h"
+#include "components/supervised_user/core/browser/supervised_user_service.h"
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
 #if BUILDFLAG(IS_CHROMEOS_LACROS)
@@ -70,8 +71,6 @@
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
 #include "chrome/browser/signin/dice_response_handler.h"
 #include "chrome/browser/signin/process_dice_header_delegate_impl.h"
-#include "chrome/browser/ui/webui/signin/login_ui_service_factory.h"
-#include "chrome/browser/ui/webui/signin/turn_sync_on_helper.h"
 #endif
 
 namespace signin {
@@ -187,7 +186,8 @@ class ManageAccountsHeaderReceivedUserData
 // opens an incognito window/tab.
 void ProcessMirrorHeader(
     ManageAccountsParams manage_accounts_params,
-    const content::WebContents::Getter& web_contents_getter) {
+    const content::WebContents::Getter& web_contents_getter,
+    const absl::optional<url::Origin>& request_initiator) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
 
   GAIAServiceType service_type = manage_accounts_params.service_type;
@@ -202,6 +202,26 @@ void ProcessMirrorHeader(
   DCHECK(AccountConsistencyModeManager::IsMirrorEnabledForProfile(profile))
       << "Gaia should not send the X-Chrome-Manage-Accounts header "
       << "when Mirror is disabled.";
+
+  // Do not allow non-Google origins to open incognito windows.
+  // TODO(crbug.com/1449357): Expand this check to all Mirror headers,
+  //                          regardless of `service_type`.
+  if (service_type == GAIA_SERVICE_TYPE_INCOGNITO &&
+      base::FeatureList::IsEnabled(kVerifyRequestInitiatorForMirrorHeaders)) {
+    GURL initiator_url =
+        request_initiator ? request_initiator->GetURL() : GURL();
+    const bool is_request_initiated_by_google_domain =
+        google_util::IsGoogleAssociatedDomainUrl(initiator_url);
+    base::UmaHistogramBoolean(
+        "Signin.ProcessMirrorHeaders.AllowedFromInitiator.GoIncognito",
+        is_request_initiated_by_google_domain);
+    if (!is_request_initiated_by_google_domain) {
+      VLOG(1) << "Mirror header with GAIA_SERVICE_TYPE_INCOGNITO from "
+              << "untrusted domain (" << initiator_url << "), ignoring";
+      return;
+    }
+  }
+
   AccountReconcilor* account_reconcilor =
       AccountReconcilorFactory::GetForProfile(profile);
   account_reconcilor->OnReceivedManageAccountsResponse(service_type);
@@ -210,21 +230,9 @@ void ProcessMirrorHeader(
   signin_metrics::LogAccountReconcilorStateOnGaiaResponse(
       account_reconcilor->GetState());
 
-  bool should_process_guest_webview_request = false;
-#if BUILDFLAG(ENABLE_EXTENSIONS)
-  // The mirror headers from some guest web views need to be processed.
-  bool is_guest = extensions::WebViewRendererState::GetInstance()->IsGuest(
-      web_contents->GetPrimaryMainFrame()->GetProcess()->GetID());
-  should_process_guest_webview_request =
-      is_guest &&
-      !HeaderModificationDelegateImpl::ShouldIgnoreGuestWebViewRequest(
-          web_contents);
-#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
-
-  Browser* browser = chrome::FindBrowserWithWebContents(web_contents);
+  Browser* browser = chrome::FindBrowserWithTab(web_contents);
   // Do not do anything if the navigation happened in the "background".
-  if ((!browser || !browser->window()->IsActive()) &&
-      !should_process_guest_webview_request) {
+  if (!browser || !browser->window()->IsActive()) {
     return;
   }
 
@@ -263,7 +271,7 @@ void ProcessMirrorHeader(
     // Do not display the re-authentication dialog if this event was triggered
     // by supervision being enabled for an account.  In this situation, a
     // complete signout is required.
-    SupervisedUserService* service =
+    supervised_user::SupervisedUserService* service =
         SupervisedUserServiceFactory::GetForProfile(profile);
     if (service && service->signout_required_after_supervision_enabled()) {
       return;
@@ -363,36 +371,6 @@ void ProcessMirrorHeader(
 
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
 
-// Creates a TurnSyncOnHelper.
-void CreateTurnSyncOnHelper(Profile* profile,
-                            signin_metrics::AccessPoint access_point,
-                            signin_metrics::PromoAction promo_action,
-                            signin_metrics::Reason reason,
-                            content::WebContents* web_contents,
-                            const CoreAccountId& account_id) {
-  DCHECK(profile);
-  Browser* browser = web_contents
-                         ? chrome::FindBrowserWithWebContents(web_contents)
-                         : chrome::FindBrowserWithProfile(profile);
-  // TurnSyncOnHelper is suicidal (it will kill itself once it finishes enabling
-  // sync).
-  new TurnSyncOnHelper(profile, browser, access_point, promo_action, reason,
-                       account_id,
-                       TurnSyncOnHelper::SigninAbortedMode::REMOVE_ACCOUNT);
-}
-
-// Shows UI for signin errors.
-void ShowDiceSigninError(Profile* profile,
-                         content::WebContents* web_contents,
-                         const SigninUIError& error) {
-  DCHECK(profile);
-  Browser* browser = web_contents
-                         ? chrome::FindBrowserWithWebContents(web_contents)
-                         : chrome::FindBrowserWithProfile(profile);
-  LoginUIServiceFactory::GetForProfile(profile)->DisplayLoginResult(
-      browser, error, /*from_profile_picker=*/false);
-}
-
 void ProcessDiceHeader(
     const DiceResponseParams& dice_params,
     const content::WebContents::Getter& web_contents_getter) {
@@ -413,9 +391,7 @@ void ProcessDiceHeader(
   DiceResponseHandler* dice_response_handler =
       DiceResponseHandler::GetForProfile(profile);
   dice_response_handler->ProcessDiceHeader(
-      dice_params, std::make_unique<ProcessDiceHeaderDelegateImpl>(
-                       web_contents, base::BindOnce(&CreateTurnSyncOnHelper),
-                       base::BindOnce(&ShowDiceSigninError)));
+      dice_params, ProcessDiceHeaderDelegateImpl::Create(web_contents));
 }
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
@@ -425,7 +401,7 @@ void ProcessDiceHeader(
 // child/route id. Must be called on IO thread.
 void ProcessMirrorResponseHeaderIfExists(ResponseAdapter* response,
                                          bool is_off_the_record) {
-  CHECK(gaia::HasGaiaSchemeHostPort(response->GetURL()));
+  CHECK(gaia::HasGaiaSchemeHostPort(response->GetUrl()));
 
   if (!response->IsOutermostMainFrame())
     return;
@@ -468,14 +444,15 @@ void ProcessMirrorResponseHeaderIfExists(ResponseAdapter* response,
   // requests while processing a throttle event.
   content::GetUIThreadTaskRunner({})->PostTask(
       FROM_HERE, base::BindOnce(ProcessMirrorHeader, params,
-                                response->GetWebContentsGetter()));
+                                response->GetWebContentsGetter(),
+                                response->GetRequestInitiator()));
 }
 #endif
 
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
 void ProcessDiceResponseHeaderIfExists(ResponseAdapter* response,
                                        bool is_off_the_record) {
-  CHECK(gaia::HasGaiaSchemeHostPort(response->GetURL()));
+  CHECK(gaia::HasGaiaSchemeHostPort(response->GetUrl()));
 
   if (is_off_the_record)
     return;
@@ -536,7 +513,7 @@ std::string ParseGaiaIdFromRemoveLocalAccountResponseHeader(
 
 void ProcessRemoveLocalAccountResponseHeaderIfExists(ResponseAdapter* response,
                                                      bool is_off_the_record) {
-  CHECK(gaia::HasGaiaSchemeHostPort(response->GetURL()));
+  CHECK(gaia::HasGaiaSchemeHostPort(response->GetUrl()));
 
   if (is_off_the_record)
     return;
@@ -651,8 +628,9 @@ void FixAccountConsistencyRequestHeader(
 void ProcessAccountConsistencyResponseHeaders(ResponseAdapter* response,
                                               const GURL& redirect_url,
                                               bool is_off_the_record) {
-  if (!gaia::HasGaiaSchemeHostPort(response->GetURL()))
+  if (!gaia::HasGaiaSchemeHostPort(response->GetUrl())) {
     return;
+  }
 
 #if BUILDFLAG(ENABLE_MIRROR)
   // See if the response contains the X-Chrome-Manage-Accounts header. If so

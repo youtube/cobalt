@@ -96,6 +96,7 @@ class CORE_EXPORT EmptyChromeClient : public ChromeClient {
   WebViewImpl* GetWebView() const override { return nullptr; }
   void ChromeDestroyed() override {}
   void SetWindowRect(const gfx::Rect&, LocalFrame&) override {}
+  void SetResizable(bool resizable, LocalFrame&) override {}
   gfx::Rect RootWindowRect(LocalFrame&) override { return gfx::Rect(); }
   void DidAccessInitialMainDocument() override {}
   void FocusPage() override {}
@@ -266,6 +267,10 @@ class EmptyWebWorkerFetchContext : public WebWorkerFetchContext {
     return nullptr;
   }
   void WillSendRequest(WebURLRequest&) override {}
+  WebVector<std::unique_ptr<URLLoaderThrottle>> CreateThrottles(
+      const WebURLRequest&) override {
+    return {};
+  }
   blink::mojom::ControllerServiceWorkerMode GetControllerServiceWorkerMode()
       const override {
     return mojom::ControllerServiceWorkerMode::kNoController;
@@ -351,8 +356,6 @@ class CORE_EXPORT EmptyLocalFrameClient : public LocalFrameClient {
 
   String UserAgentOverride() override { return ""; }
   String UserAgent() override { return ""; }
-  String FullUserAgent() override { return ""; }
-  String ReducedUserAgent() override { return ""; }
   absl::optional<blink::UserAgentMetadata> UserAgentMetadata() override {
     return blink::UserAgentMetadata();
   }
@@ -446,6 +449,11 @@ class CORE_EXPORT EmptyLocalFrameClient : public LocalFrameClient {
     return nullptr;
   }
 
+  scoped_refptr<WebBackgroundResourceFetchAssets>
+  MaybeGetBackgroundResourceFetchAssets() override {
+    return nullptr;
+  }
+
   void AnnotatedRegionsChanged() override {}
   base::UnguessableToken GetDevToolsFrameToken() const override {
     return base::UnguessableToken::Create();
@@ -458,6 +466,10 @@ class CORE_EXPORT EmptyLocalFrameClient : public LocalFrameClient {
 
   scoped_refptr<WebWorkerFetchContext> CreateWorkerFetchContext() override {
     return base::MakeRefCounted<EmptyWebWorkerFetchContext>();
+  }
+
+  blink::ChildURLLoaderFactoryBundle* GetLoaderFactoryBundle() override {
+    return nullptr;
   }
 
  protected:

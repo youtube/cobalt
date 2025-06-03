@@ -22,6 +22,7 @@
 #include "device/vr/buildflags/buildflags.h"
 #include "device/vr/public/cpp/session_mode.h"
 #include "device/vr/public/mojom/vr_service.mojom-shared.h"
+#include "device/vr/public/mojom/xr_device.mojom-shared.h"
 #include "device/vr/public/mojom/xr_session.mojom-shared.h"
 #include "ui/gfx/geometry/decomposed_transform.h"
 #include "ui/gfx/geometry/transform.h"
@@ -335,6 +336,7 @@ void BrowserXRRuntimeImpl::RequestImmersiveSession(
   DVLOG(2) << __func__ << ": id=" << id_;
   // base::Unretained is safe because we won't be called back after runtime_ is
   // destroyed.
+  has_pending_immersive_session_request_ = true;
   runtime_->RequestSession(
       options->Clone(),
       base::BindOnce(&BrowserXRRuntimeImpl::OnRequestSessionResult,
@@ -347,6 +349,7 @@ void BrowserXRRuntimeImpl::OnRequestSessionResult(
     device::mojom::XRRuntimeSessionOptionsPtr options,
     RequestSessionCallback callback,
     device::mojom::XRRuntimeSessionResultPtr session_result) {
+  has_pending_immersive_session_request_ = false;
   if (session_result && service) {
     DVLOG(2) << __func__ << ": id=" << id_;
     if (device::XRSessionModeUtils::IsImmersive(options->mode)) {
@@ -452,6 +455,11 @@ void BrowserXRRuntimeImpl::BeforeRuntimeRemoved() {
   // Since this no-ops if we don't have an active immersive session, try to end
   // any immersive session we may be currently responsible for.
   StopImmersiveSession(base::DoNothing());
+}
+
+std::vector<device::mojom::XRSessionFeature>
+BrowserXRRuntimeImpl::GetSupportedFeatures() {
+  return device_data_->supported_features;
 }
 
 #if BUILDFLAG(IS_WIN)

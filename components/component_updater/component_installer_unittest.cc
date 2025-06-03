@@ -36,6 +36,7 @@
 #include "components/update_client/crx_update_item.h"
 #include "components/update_client/patcher.h"
 #include "components/update_client/test_configurator.h"
+#include "components/update_client/test_utils.h"
 #include "components/update_client/unzipper.h"
 #include "components/update_client/update_client.h"
 #include "components/update_client/update_client_errors.h"
@@ -53,27 +54,15 @@ using ::testing::_;
 using ::testing::Invoke;
 
 namespace component_updater {
-
 namespace {
 
 // This hash corresponds to jebgalgnebhfojomionfpkfelancnnkf.crx.
-const uint8_t kSha256Hash[] = {0x94, 0x16, 0x0b, 0x6d, 0x41, 0x75, 0xe9, 0xec,
-                               0x8e, 0xd5, 0xfa, 0x54, 0xb0, 0xd2, 0xdd, 0xa5,
-                               0x6e, 0x05, 0x6b, 0xe8, 0x73, 0x47, 0xf6, 0xc4,
-                               0x11, 0x9f, 0xbc, 0xb3, 0x09, 0xb3, 0x5b, 0x40};
-
+constexpr uint8_t kSha256Hash[] = {
+    0x94, 0x16, 0x0b, 0x6d, 0x41, 0x75, 0xe9, 0xec, 0x8e, 0xd5, 0xfa,
+    0x54, 0xb0, 0xd2, 0xdd, 0xa5, 0x6e, 0x05, 0x6b, 0xe8, 0x73, 0x47,
+    0xf6, 0xc4, 0x11, 0x9f, 0xbc, 0xb3, 0x09, 0xb3, 0x5b, 0x40};
 constexpr base::FilePath::CharType relative_install_dir[] =
     FILE_PATH_LITERAL("fake");
-
-base::FilePath test_file(const char* file) {
-  base::FilePath path;
-  base::PathService::Get(base::DIR_SOURCE_ROOT, &path);
-  return path.AppendASCII("components")
-      .AppendASCII("test")
-      .AppendASCII("data")
-      .AppendASCII("update_client")
-      .AppendASCII(file);
-}
 
 class MockUpdateClient : public UpdateClient {
  public:
@@ -105,6 +94,12 @@ class MockUpdateClient : public UpdateClient {
     std::move(callback).Run(update_client::Error::NONE);
   }
 
+  MOCK_METHOD5(SendInstallPing,
+               void(const CrxComponent& crx_component,
+                    bool success,
+                    int error_code,
+                    int extra_code1,
+                    Callback callback));
   MOCK_METHOD1(AddObserver, void(Observer* observer));
   MOCK_METHOD1(RemoveObserver, void(Observer* observer));
   MOCK_METHOD2(DoInstall,
@@ -238,11 +233,11 @@ class ComponentInstallerTest : public testing::Test {
 
   scoped_refptr<TestConfigurator> config_ =
       base::MakeRefCounted<TestConfigurator>(pref_.get());
-  raw_ptr<MockUpdateScheduler> scheduler_ = nullptr;
   scoped_refptr<MockUpdateClient> update_client_ =
       base::MakeRefCounted<MockUpdateClient>();
-  std::unique_ptr<ComponentUpdateService> component_updater_;
   ComponentUnpacker::Result result_;
+  std::unique_ptr<ComponentUpdateService> component_updater_;
+  raw_ptr<MockUpdateScheduler> scheduler_ = nullptr;
 };
 
 ComponentInstallerTest::ComponentInstallerTest() {
@@ -259,7 +254,6 @@ ComponentInstallerTest::ComponentInstallerTest() {
 
 ComponentInstallerTest::~ComponentInstallerTest() {
   EXPECT_CALL(update_client(), RemoveObserver(_)).Times(1);
-  component_updater_.reset();
 }
 
 void ComponentInstallerTest::RunThreads() {
@@ -420,7 +414,8 @@ TEST_F(ComponentInstallerTest, InstallerRegister_CheckSequence) {
     base::RunLoop run_loop;
     auto installer = base::MakeRefCounted<ComponentInstaller>(
         std::make_unique<MockInstallerPolicy>());
-    Unpack(test_file("jebgalgnebhfojomionfpkfelancnnkf.crx"));
+    Unpack(
+        update_client::GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"));
     ASSERT_EQ(result().error, update_client::UnpackerError::kNone);
     base::FilePath base_dir;
     ASSERT_TRUE(base::PathService::Get(DIR_COMPONENT_USER, &base_dir));
@@ -477,7 +472,8 @@ TEST_F(ComponentInstallerTest, UnpackPathInstallSuccess) {
   auto installer = base::MakeRefCounted<ComponentInstaller>(
       std::make_unique<MockInstallerPolicy>());
 
-  Unpack(test_file("jebgalgnebhfojomionfpkfelancnnkf.crx"));
+  Unpack(
+      update_client::GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"));
 
   const auto unpack_path = result().unpack_path;
   EXPECT_TRUE(base::DirectoryExists(unpack_path));
@@ -506,7 +502,8 @@ TEST_F(ComponentInstallerTest, UnpackPathInstallError) {
   auto installer = base::MakeRefCounted<ComponentInstaller>(
       std::make_unique<MockInstallerPolicy>());
 
-  Unpack(test_file("jebgalgnebhfojomionfpkfelancnnkf.crx"));
+  Unpack(
+      update_client::GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"));
 
   const auto unpack_path = result().unpack_path;
   EXPECT_TRUE(base::DirectoryExists(unpack_path));

@@ -11,6 +11,7 @@
 #include "base/rand_util.h"
 #include "base/ranges/algorithm.h"
 #include "base/strings/escape.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/time/time.h"
@@ -60,13 +61,11 @@ std::string Escape(const std::string& url) {
   // The escaped string is larger so allocate double the length to reduce the
   // chance of the string being grown.
   escaped_str.reserve(url.length() * 2);
-  const char* kHexString = "0123456789ABCDEF";
   for (size_t i = 0; i < url.length(); i++) {
     unsigned char c = static_cast<unsigned char>(url[i]);
     if (c <= ' ' || c > '~' || c == '#' || c == '%') {
       escaped_str += '%';
-      escaped_str += kHexString[c >> 4];
-      escaped_str += kHexString[c & 0xf];
+      base::AppendHexEncodedByte(c, escaped_str);
     } else {
       escaped_str += c;
     }
@@ -81,7 +80,7 @@ V4ProtocolConfig GetV4ProtocolConfig(const std::string& client_name,
                                      bool disable_auto_update) {
   return V4ProtocolConfig(client_name, disable_auto_update,
                           google_apis::GetAPIKey(),
-                          version_info::GetVersionNumber());
+                          std::string(version_info::GetVersionNumber()));
 }
 
 void SetSbV4UrlPrefixForTesting(const char* url_prefix) {
@@ -138,10 +137,6 @@ ListIdentifier GetChromeUrlApiId() {
 
 ListIdentifier GetChromeUrlClientIncidentId() {
   return ListIdentifier(CHROME_PLATFORM, URL, CLIENT_INCIDENT);
-}
-
-ListIdentifier GetIpMalwareId() {
-  return ListIdentifier(GetCurrentPlatformType(), IP_RANGE, MALWARE_THREAT);
 }
 
 ListIdentifier GetUrlBillingId() {
@@ -616,39 +611,6 @@ void V4ProtocolManagerUtil::SetClientInfoFromConfig(
   DCHECK(client_info);
   client_info->set_client_id(config.client_name);
   client_info->set_client_version(config.version);
-}
-
-// static
-bool V4ProtocolManagerUtil::GetIPV6AddressFromString(
-    const std::string& ip_address,
-    net::IPAddress* address) {
-  DCHECK(address);
-  if (!address->AssignFromIPLiteral(ip_address))
-    return false;
-  if (address->IsIPv4())
-    *address = net::ConvertIPv4ToIPv4MappedIPv6(*address);
-  return address->IsIPv6();
-}
-
-// static
-bool V4ProtocolManagerUtil::IPAddressToEncodedIPV6Hash(
-    const std::string& ip_address,
-    FullHashStr* hashed_encoded_ip) {
-  net::IPAddress address;
-  if (!GetIPV6AddressFromString(ip_address, &address)) {
-    return false;
-  }
-  std::string packed_ip = net::IPAddressToPackedString(address);
-  if (packed_ip.empty()) {
-    return false;
-  }
-
-  const std::string hash = base::SHA1HashString(packed_ip);
-  DCHECK_EQ(20u, hash.size());
-  hashed_encoded_ip->resize(hash.size() + 1);
-  hashed_encoded_ip->replace(0, hash.size(), hash);
-  (*hashed_encoded_ip)[hash.size()] = static_cast<unsigned char>(128);
-  return true;
 }
 
 // static

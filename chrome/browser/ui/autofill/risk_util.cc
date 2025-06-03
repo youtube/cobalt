@@ -5,6 +5,7 @@
 #include "chrome/browser/ui/autofill/risk_util.h"
 
 #include <memory>
+#include <string>
 
 #include "base/base64.h"
 #include "base/functional/bind.h"
@@ -55,7 +56,7 @@ void PassRiskData(base::OnceCallback<void(const std::string&)> callback,
 // window for a platform app.
 ui::BaseWindow* GetBaseWindowForWebContents(
     content::WebContents* web_contents) {
-  Browser* browser = chrome::FindBrowserWithWebContents(web_contents);
+  Browser* browser = chrome::FindBrowserWithTab(web_contents);
   if (browser)
     return browser->window();
 
@@ -101,7 +102,7 @@ void LoadRiskDataHelper(uint64_t obfuscated_gaia_id,
 
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   risk::GetFingerprint(obfuscated_gaia_id, window_bounds, web_contents,
-                       version_info::GetVersionNumber(), charset,
+                       std::string(version_info::GetVersionNumber()), charset,
                        accept_languages, install_time,
                        g_browser_process->GetApplicationLocale(),
                        embedder_support::GetUserAgent(),

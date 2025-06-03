@@ -12,6 +12,7 @@
 #include "base/files/scoped_temp_dir.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
+#include "base/i18n/time_formatting.h"
 #include "base/logging.h"
 #include "base/no_destructor.h"
 #include "base/process/launch.h"
@@ -25,7 +26,6 @@
 #include "base/test/scoped_logging_settings.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_timeouts.h"
-#include "base/time/time_to_iso8601.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -550,6 +550,65 @@ TEST_F(TestLauncherTest, DisablePreTests) {
   EXPECT_TRUE(test_launcher.Run(command_line.get()));
 }
 
+// Test TestLauncher enforce to run tests in the exact positive filter.
+TEST_F(TestLauncherTest, EnforceRunTestsInExactPositiveFilter) {
+  AddMockedTests("Test", {"firstTest",
+                          "secondTest"
+                          "thirdTest"});
+  SetUpExpectCalls();
+
+  ASSERT_TRUE(dir.CreateUniqueTempDir());
+  FilePath path = dir.GetPath().AppendASCII("test.filter");
+  WriteFile(path, "Test.firstTest\nTest.thirdTest");
+  command_line->AppendSwitchPath("test-launcher-filter-file", path);
+  command_line->AppendSwitch("enforce-exact-positive-filter");
+  command_line->AppendSwitchASCII("test-launcher-total-shards", "2");
+  command_line->AppendSwitchASCII("test-launcher-shard-index", "0");
+
+  // Test.firstTest is in the exact positive filter, so expected to run.
+  // Test.thirdTest is launched in another shard.
+  std::vector<std::string> tests_names = {"Test.firstTest"};
+  EXPECT_CALL(test_launcher, LaunchChildGTestProcess(
+                                 _,
+                                 testing::ElementsAreArray(tests_names.cbegin(),
+                                                           tests_names.cend()),
+                                 _, _))
+      .WillOnce(::testing::DoAll(OnTestResult(&test_launcher, "Test.firstTest",
+                                              TestResult::TEST_SUCCESS)));
+  EXPECT_TRUE(test_launcher.Run(command_line.get()));
+}
+
+// Test TestLauncher should fail if enforce-exact-positive-filter and
+// gtest_filter both presented.
+TEST_F(TestLauncherTest,
+       EnforceRunTestsInExactPositiveFailWithGtestFilterFlag) {
+  command_line->AppendSwitch("enforce-exact-positive-filter");
+  command_line->AppendSwitchASCII("gtest_filter", "Test.firstTest;-Test.*");
+  EXPECT_FALSE(test_launcher.Run(command_line.get()));
+}
+
+// Test TestLauncher should fail if enforce-exact-positive-filter is set
+// with negative test filters.
+TEST_F(TestLauncherTest, EnforceRunTestsInExactPositiveFailWithNegativeFilter) {
+  command_line->AppendSwitch("enforce-exact-positive-filter");
+  ASSERT_TRUE(dir.CreateUniqueTempDir());
+  FilePath path = CreateFilterFile();
+  command_line->AppendSwitchPath("test-launcher-filter-file", path);
+  EXPECT_FALSE(test_launcher.Run(command_line.get()));
+}
+
+// Test TestLauncher should fail if enforce-exact-positive-filter is set
+// with wildcard positive filters.
+TEST_F(TestLauncherTest,
+       EnforceRunTestsInExactPositiveFailWithWildcardPositiveFilter) {
+  command_line->AppendSwitch("enforce-exact-positive-filter");
+  ASSERT_TRUE(dir.CreateUniqueTempDir());
+  FilePath path = dir.GetPath().AppendASCII("test.filter");
+  WriteFile(path, "Test.*");
+  command_line->AppendSwitchPath("test-launcher-filter-file", path);
+  EXPECT_FALSE(test_launcher.Run(command_line.get()));
+}
+
 // Tests fail if they produce too much output.
 TEST_F(TestLauncherTest, ExcessiveOutput) {
   AddMockedTests("Test", {"firstTest"});
@@ -896,16 +955,19 @@ TEST_F(ResultWatcherTest, PollCompletesQuickly) {
   ASSERT_TRUE(AppendToFile(
       result_file,
       StrCat({"    <x-teststart name=\"B\" classname=\"A\" timestamp=\"",
-              TimeToISO8601(Time::Now()).c_str(), "\" />\n",
+              TimeFormatAsIso8601(Time::Now()).c_str(), "\" />\n",
               "    <testcase name=\"B\" status=\"run\" time=\"0.500\" "
               "classname=\"A\" timestamp=\"",
-              TimeToISO8601(Time::Now()).c_str(), "\">\n", "    </testcase>\n",
+              TimeFormatAsIso8601(Time::Now()).c_str(), "\">\n",
+              "    </testcase>\n",
               "    <x-teststart name=\"C\" classname=\"A\" timestamp=\"",
-              TimeToISO8601(Time::Now() + Milliseconds(500)).c_str(), "\" />\n",
+              TimeFormatAsIso8601(Time::Now() + Milliseconds(500)).c_str(),
+              "\" />\n",
               "    <testcase name=\"C\" status=\"run\" time=\"0.500\" "
               "classname=\"A\" timestamp=\"",
-              TimeToISO8601(Time::Now() + Milliseconds(500)).c_str(), "\">\n",
-              "    </testcase>\n", "  </testsuite>\n", "</testsuites>\n"})));
+              TimeFormatAsIso8601(Time::Now() + Milliseconds(500)).c_str(),
+              "\">\n", "    </testcase>\n", "  </testsuite>\n",
+              "</testsuites>\n"})));
 
   MockResultWatcher result_watcher(result_file, 2);
   EXPECT_CALL(result_watcher, WaitWithTimeout(_))
@@ -922,12 +984,15 @@ TEST_F(ResultWatcherTest, PollCompletesQuickly) {
 // Verify that a result watcher repeatedly checks the file for a batch of slow
 // tests. Each test completes in 40s, which is just under the timeout of 45s.
 TEST_F(ResultWatcherTest, PollCompletesSlowly) {
+  SCOPED_TRACE(::testing::Message() << "Start ticks: " << TimeTicks::Now());
+
   ASSERT_TRUE(dir.CreateUniqueTempDir());
   FilePath result_file = CreateResultFile();
+  const Time start = Time::Now();
   ASSERT_TRUE(AppendToFile(
       result_file,
       StrCat({"    <x-teststart name=\"B\" classname=\"A\" timestamp=\"",
-              TimeToISO8601(Time::Now()).c_str(), "\" />\n"})));
+              TimeFormatAsIso8601(start).c_str(), "\" />\n"})));
 
   MockResultWatcher result_watcher(result_file, 10);
   size_t checks = 0;
@@ -943,7 +1008,8 @@ TEST_F(ResultWatcherTest, PollCompletesSlowly) {
                       result_file,
                       StrCat({"    <testcase name=\"B\" status=\"run\" "
                               "time=\"40.000\" classname=\"A\" timestamp=\"",
-                              TimeToISO8601(Time::Now() - Seconds(45)).c_str(),
+                              TimeFormatAsIso8601(Time::Now() - Seconds(45))
+                                  .c_str(),
                               "\">\n", "    </testcase>\n"}));
                   checks++;
                   if (checks == 10) {
@@ -959,13 +1025,13 @@ TEST_F(ResultWatcherTest, PollCompletesSlowly) {
                         result_file,
                         StrCat({"    <x-teststart name=\"B\" classname=\"A\" "
                                 "timestamp=\"",
-                                TimeToISO8601(Time::Now() - Seconds(5)).c_str(),
+                                TimeFormatAsIso8601(Time::Now() - Seconds(5))
+                                    .c_str(),
                                 "\" />\n"}));
                   }
                 }),
                 ReturnPointee(&done)));
 
-  Time start = Time::Now();
   ASSERT_TRUE(result_watcher.PollUntilDone(Seconds(45)));
   // The first check occurs 45s after the batch starts, so the sequence of
   // events looks like:
@@ -987,7 +1053,7 @@ TEST_F(ResultWatcherTest, PollTimeout) {
   ASSERT_TRUE(AppendToFile(
       result_file,
       StrCat({"    <x-teststart name=\"B\" classname=\"A\" timestamp=\"",
-              TimeToISO8601(Time::Now()).c_str(), "\" />\n"})));
+              TimeFormatAsIso8601(Time::Now()).c_str(), "\" />\n"})));
 
   MockResultWatcher result_watcher(result_file, 10);
   EXPECT_CALL(result_watcher, WaitWithTimeout(_))
@@ -1010,10 +1076,10 @@ TEST_F(ResultWatcherTest, RetryIncompleteResultRead) {
   ASSERT_TRUE(AppendToFile(
       result_file,
       StrCat({"    <x-teststart name=\"B\" classname=\"A\" timestamp=\"",
-              TimeToISO8601(Time::Now()).c_str(), "\" />\n",
+              TimeFormatAsIso8601(Time::Now()).c_str(), "\" />\n",
               "    <testcase name=\"B\" status=\"run\" time=\"40.000\" "
               "classname=\"A\" timestamp=\"",
-              TimeToISO8601(Time::Now()).c_str(), "\">\n",
+              TimeFormatAsIso8601(Time::Now()).c_str(), "\">\n",
               "      <summary>"})));
 
   MockResultWatcher result_watcher(result_file, 2);
@@ -1045,15 +1111,16 @@ TEST_F(ResultWatcherTest, PollWithClockJumpBackward) {
   Time time_before_change = Time::Now() + Hours(1);
   ASSERT_TRUE(AppendToFile(
       result_file,
-      StrCat({"    <x-teststart name=\"B\" classname=\"A\" timestamp=\"",
-              TimeToISO8601(time_before_change).c_str(), "\" />\n",
-              "    <testcase name=\"B\" status=\"run\" time=\"0.500\" "
-              "classname=\"A\" timestamp=\"",
-              TimeToISO8601(time_before_change).c_str(), "\">\n",
-              "    </testcase>\n",
-              "    <x-teststart name=\"C\" classname=\"A\" timestamp=\"",
-              TimeToISO8601(time_before_change + Milliseconds(500)).c_str(),
-              "\" />\n"})));
+      StrCat(
+          {"    <x-teststart name=\"B\" classname=\"A\" timestamp=\"",
+           TimeFormatAsIso8601(time_before_change).c_str(), "\" />\n",
+           "    <testcase name=\"B\" status=\"run\" time=\"0.500\" "
+           "classname=\"A\" timestamp=\"",
+           TimeFormatAsIso8601(time_before_change).c_str(), "\">\n",
+           "    </testcase>\n",
+           "    <x-teststart name=\"C\" classname=\"A\" timestamp=\"",
+           TimeFormatAsIso8601(time_before_change + Milliseconds(500)).c_str(),
+           "\" />\n"})));
 
   MockResultWatcher result_watcher(result_file, 2);
   EXPECT_CALL(result_watcher, WaitWithTimeout(_))
@@ -1077,12 +1144,13 @@ TEST_F(ResultWatcherTest, PollWithClockJumpForward) {
   ASSERT_TRUE(AppendToFile(
       result_file,
       StrCat({"    <x-teststart name=\"B\" classname=\"A\" timestamp=\"",
-              TimeToISO8601(Time::Now()).c_str(), "\" />\n",
+              TimeFormatAsIso8601(Time::Now()).c_str(), "\" />\n",
               "    <testcase name=\"B\" status=\"run\" time=\"0.500\" "
               "classname=\"A\" timestamp=\"",
-              TimeToISO8601(Time::Now()).c_str(), "\">\n", "    </testcase>\n",
+              TimeFormatAsIso8601(Time::Now()).c_str(), "\">\n",
+              "    </testcase>\n",
               "    <x-teststart name=\"C\" classname=\"A\" timestamp=\"",
-              TimeToISO8601(Time::Now() + Milliseconds(500)).c_str(),
+              TimeFormatAsIso8601(Time::Now() + Milliseconds(500)).c_str(),
               "\" />\n"})));
   task_environment.AdvanceClock(Hours(1));
 

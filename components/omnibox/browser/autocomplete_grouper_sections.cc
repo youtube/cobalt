@@ -5,15 +5,19 @@
 #include "components/omnibox/browser/autocomplete_grouper_sections.h"
 
 #include <algorithm>
-#include <limits>
 #include <memory>
 
 #include "base/dcheck_is_on.h"
 #include "base/ranges/algorithm.h"
 #include "components/omnibox/browser/autocomplete_grouper_groups.h"
 #include "components/omnibox/browser/autocomplete_match.h"
+#include "components/omnibox/browser/omnibox_field_trial.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/omnibox_proto/groups.pb.h"
+
+namespace {
+constexpr size_t kAndroidMostVisitedTilesLimit = 10;
+}
 
 Section::Section(size_t limit,
                  Groups groups,
@@ -103,16 +107,17 @@ void ZpsSection::InitFromMatches(ACMatches& matches) {
 }
 
 AndroidNTPZpsSection::AndroidNTPZpsSection(
-    size_t max_related_queries,
-    size_t max_trending_queries,
     omnibox::GroupConfigMap& group_configs)
     : ZpsSection(
-          15 + max_related_queries + max_trending_queries,
+          30,
           {
               {1, omnibox::GROUP_MOBILE_CLIPBOARD},
               {15, omnibox::GROUP_PERSONALIZED_ZERO_SUGGEST},
-              {max_related_queries, omnibox::GROUP_PREVIOUS_SEARCH_RELATED},
-              {max_trending_queries, omnibox::GROUP_TRENDS},
+              {OmniboxFieldTrial::kQueryTilesShowAboveTrends.Get() ? 10u : 0u,
+               omnibox::GROUP_MOBILE_QUERY_TILES},
+              {5, omnibox::GROUP_TRENDS},
+              {OmniboxFieldTrial::kQueryTilesShowAboveTrends.Get() ? 0u : 10u,
+               omnibox::GROUP_MOBILE_QUERY_TILES},
           },
           group_configs) {}
 
@@ -122,7 +127,6 @@ AndroidSRPZpsSection::AndroidSRPZpsSection(
                  {
                      {1, omnibox::GROUP_MOBILE_SEARCH_READY_OMNIBOX},
                      {1, omnibox::GROUP_MOBILE_CLIPBOARD},
-                     {1, omnibox::GROUP_MOBILE_MOST_VISITED},
                      {15, omnibox::GROUP_PREVIOUS_SEARCH_RELATED},
                      {15, omnibox::GROUP_PERSONALIZED_ZERO_SUGGEST},
                  },
@@ -130,15 +134,34 @@ AndroidSRPZpsSection::AndroidSRPZpsSection(
 
 AndroidWebZpsSection::AndroidWebZpsSection(
     omnibox::GroupConfigMap& group_configs)
-    : ZpsSection(15,
+    : ZpsSection(15,  // Excludes MV tile count (calculated at runtime).
                  {
                      {1, omnibox::GROUP_MOBILE_SEARCH_READY_OMNIBOX},
                      {1, omnibox::GROUP_MOBILE_CLIPBOARD},
-                     {1, omnibox::GROUP_MOBILE_MOST_VISITED},
+                     {kAndroidMostVisitedTilesLimit,
+                      omnibox::GROUP_MOBILE_MOST_VISITED},
                      {8, omnibox::GROUP_VISITED_DOC_RELATED},
                      {15, omnibox::GROUP_PERSONALIZED_ZERO_SUGGEST},
                  },
                  group_configs) {}
+
+void AndroidWebZpsSection::InitFromMatches(ACMatches& matches) {
+  size_t tile_count = std::count_if(
+      matches.begin(), matches.end(), [](const AutocompleteMatch& m) {
+        return m.suggestion_group_id.value_or(omnibox::GROUP_INVALID) ==
+               omnibox::GROUP_MOBILE_MOST_VISITED;
+      });
+  // In the event we find more MV tiles than we can accommodate, trim the limit.
+  limit_ += std::min(tile_count, kAndroidMostVisitedTilesLimit);
+  // Note that the horizontal render group takes a single slot in vertical list:
+  // we therefore count it as an individual item, meaning this list:
+  //     [ URL_WHAT_YOU_TYPED    ]
+  //     [ [MV] [MV] [MV] [MV]   ]
+  //     [ SEARCH_SUGGEST        ]
+  // has 3 elements built from 6 AutocompleteMatch objects.
+  limit_ -= (tile_count ? 1 : 0);
+  ZpsSection::InitFromMatches(matches);
+}
 
 DesktopNTPZpsSection::DesktopNTPZpsSection(
     omnibox::GroupConfigMap& group_configs)
@@ -216,13 +239,15 @@ void DesktopNonZpsSection::InitFromMatches(ACMatches& matches) {
   }
 }
 
-IOSNTPZpsSection::IOSNTPZpsSection(omnibox::GroupConfigMap& group_configs)
-    : ZpsSection(20,
-                 {
-                     {1, omnibox::GROUP_MOBILE_CLIPBOARD},
-                     {20, omnibox::GROUP_PERSONALIZED_ZERO_SUGGEST},
-                 },
-                 group_configs) {}
+IOSNTPZpsSection::IOSNTPZpsSection(size_t max_trending_queries,
+                                   size_t max_psuggest_queries,
+                                   omnibox::GroupConfigMap& group_configs)
+    : ZpsSection(
+          max_trending_queries + max_psuggest_queries + 1,
+          {{1, omnibox::GROUP_MOBILE_CLIPBOARD},
+           {max_psuggest_queries, omnibox::GROUP_PERSONALIZED_ZERO_SUGGEST},
+           {max_trending_queries, omnibox::GROUP_TRENDS}},
+          group_configs) {}
 
 IOSSRPZpsSection::IOSSRPZpsSection(omnibox::GroupConfigMap& group_configs)
     : ZpsSection(20,

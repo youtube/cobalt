@@ -105,7 +105,7 @@ class FakeWebPushSender : public WebPushSender {
 
  private:
   std::string fcm_token_;
-  raw_ptr<crypto::ECPrivateKey> vapid_key_;
+  raw_ptr<crypto::ECPrivateKey, DanglingUntriaged> vapid_key_;
   absl::optional<WebPushMessage> message_;
   SendWebPushMessageResult result_;
 };
@@ -186,7 +186,7 @@ class SharingFCMSenderTest : public testing::Test {
     SharingSyncPreference::RegisterProfilePrefs(prefs_.registry());
   }
 
-  raw_ptr<FakeWebPushSender> fake_web_push_sender_;
+  raw_ptr<FakeWebPushSender, DanglingUntriaged> fake_web_push_sender_;
   FakeSharingMessageBridge fake_sharing_message_bridge_;
   syncer::FakeDeviceInfoSyncService fake_device_info_sync_service_;
   SharingSyncPreference sync_prefs_;
@@ -205,7 +205,7 @@ class SharingFCMSenderTest : public testing::Test {
 
 TEST_F(SharingFCMSenderTest, NoFcmRegistration) {
   // Make sync unavailable to force using vapid.
-  test_sync_service_.SetFailedDataTypes(syncer::SHARING_MESSAGE);
+  test_sync_service_.SetFailedDataTypes({syncer::SHARING_MESSAGE});
   sync_prefs_.ClearFCMRegistration();
 
   std::unique_ptr<crypto::ECPrivateKey> vapid_key =
@@ -239,7 +239,7 @@ TEST_F(SharingFCMSenderTest, NoFcmRegistration) {
 
 TEST_F(SharingFCMSenderTest, NoVapidKey) {
   // Make sync unavailable to force using vapid.
-  test_sync_service_.SetFailedDataTypes(syncer::SHARING_MESSAGE);
+  test_sync_service_.SetFailedDataTypes({syncer::SHARING_MESSAGE});
   sync_prefs_.SetFCMRegistration(SharingSyncPreference::FCMRegistration(
       kAuthorizedEntity, base::Time::Now()));
 

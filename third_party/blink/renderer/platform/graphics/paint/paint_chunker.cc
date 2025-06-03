@@ -6,7 +6,7 @@
 
 #include "third_party/blink/renderer/platform/graphics/paint/drawing_display_item.h"
 #include "third_party/blink/renderer/platform/graphics/paint/scrollbar_display_item.h"
-#include "third_party/skia/include/core/SkColorFilter.h"
+#include "ui/gfx/color_utils.h"
 
 namespace blink {
 
@@ -81,6 +81,11 @@ void PaintChunker::AppendByMoving(PaintChunk&& chunk) {
   chunks_->emplace_back(next_chunk_begin_index, std::move(chunk));
 }
 
+bool PaintChunker::WillCreateNewChunk() const {
+  return will_force_new_chunk_ ||
+         current_properties_ != chunks_->back().properties;
+}
+
 bool PaintChunker::EnsureCurrentChunk(const PaintChunk::Id& id,
                                       const DisplayItemClient& client) {
 #if DCHECK_IS_ON()
@@ -92,8 +97,7 @@ bool PaintChunker::EnsureCurrentChunk(const PaintChunk::Id& id,
   DCHECK(current_properties_.IsInitialized());
 #endif
 
-  if (WillForceNewChunk() ||
-      current_properties_ != chunks_->back().properties) {
+  if (WillCreateNewChunk()) {
     if (!next_chunk_id_) {
       next_chunk_id_.emplace(id, client);
     }
@@ -122,7 +126,9 @@ bool PaintChunker::IncrementDisplayItemIndex(const DisplayItemClient& client,
   auto& chunk = chunks_->back();
   chunk.end_index++;
 
-  chunk.bounds.Union(item.VisualRect());
+  // Normally the display item's visual rect should be covered by previous
+  // hit test rects, or it's treated as not hit-testable.
+  UnionBounds(item.VisualRect(), cc::HitTestOpaqueness::kTransparent);
   if (item.DrawsContent())
     chunk.drawable_bounds.Union(item.VisualRect());
 
@@ -161,21 +167,40 @@ bool PaintChunker::IncrementDisplayItemIndex(const DisplayItemClient& client,
   return created_new_chunk;
 }
 
-bool PaintChunker::AddHitTestDataToCurrentChunk(const PaintChunk::Id& id,
-                                                const DisplayItemClient& client,
-                                                const gfx::Rect& rect,
-                                                TouchAction touch_action,
-                                                bool blocking_wheel) {
+bool PaintChunker::AddHitTestDataToCurrentChunk(
+    const PaintChunk::Id& id,
+    const DisplayItemClient& client,
+    const gfx::Rect& rect,
+    TouchAction touch_action,
+    bool blocking_wheel,
+    cc::HitTestOpaqueness hit_test_opaqueness) {
   bool created_new_chunk = EnsureCurrentChunk(id, client);
+  UnionBounds(rect, hit_test_opaqueness);
   auto& chunk = chunks_->back();
-  chunk.bounds.Union(rect);
   if (touch_action != TouchAction::kAuto) {
-    chunk.EnsureHitTestData().touch_action_rects.push_back(
-        TouchActionRect{rect, touch_action});
+    auto& touch_action_rects = chunk.EnsureHitTestData().touch_action_rects;
+    if (touch_action_rects.empty() ||
+        !touch_action_rects.back().rect.Contains(rect) ||
+        touch_action_rects.back().allowed_touch_action != touch_action) {
+      touch_action_rects.push_back(TouchActionRect{rect, touch_action});
+    }
   }
-  if (blocking_wheel)
-    chunk.EnsureHitTestData().wheel_event_rects.push_back(rect);
+  if (blocking_wheel) {
+    auto& wheel_event_rects = chunk.EnsureHitTestData().wheel_event_rects;
+    if (wheel_event_rects.empty() || !wheel_event_rects.back().Contains(rect)) {
+      wheel_event_rects.push_back(rect);
+    }
+  }
   return created_new_chunk;
+}
+
+bool PaintChunker::CurrentChunkIsNonEmptyAndTransparentToHitTest() const {
+  if (WillCreateNewChunk()) {
+    return false;
+  }
+  const auto& chunk = chunks_->back();
+  return !chunk.bounds.IsEmpty() &&
+         chunk.hit_test_opaqueness == cc::HitTestOpaqueness::kTransparent;
 }
 
 bool PaintChunker::AddRegionCaptureDataToCurrentChunk(
@@ -195,7 +220,8 @@ bool PaintChunker::AddRegionCaptureDataToCurrentChunk(
 
 void PaintChunker::AddSelectionToCurrentChunk(
     absl::optional<PaintedSelectionBound> start,
-    absl::optional<PaintedSelectionBound> end) {
+    absl::optional<PaintedSelectionBound> end,
+    String debug_info) {
   // We should have painted the selection when calling this method.
   DCHECK(chunks_);
   DCHECK(!chunks_->empty());
@@ -203,14 +229,25 @@ void PaintChunker::AddSelectionToCurrentChunk(
   auto& chunk = chunks_->back();
 
 #if DCHECK_IS_ON()
+  gfx::Rect bounds_rect = chunk.bounds;
+
+  // In rare cases in the wild, the bounds_rect is 1 pixel off from the
+  // edge_rect below. We were unable to find the root cause, or to reproduce
+  // this locally, so we're relaxing the DCHECK. See https://crbug.com/1441243.
+  bounds_rect.Outset(1);
+
   if (start) {
     gfx::Rect edge_rect = gfx::BoundingRect(start->edge_start, start->edge_end);
-    DCHECK(chunk.bounds.Contains(edge_rect));
+    DCHECK(bounds_rect.Contains(edge_rect))
+        << bounds_rect.ToString() << " does not contain "
+        << edge_rect.ToString() << ", original bounds: " << debug_info;
   }
 
   if (end) {
     gfx::Rect edge_rect = gfx::BoundingRect(end->edge_start, end->edge_end);
-    DCHECK(chunk.bounds.Contains(edge_rect));
+    DCHECK(bounds_rect.Contains(edge_rect))
+        << bounds_rect.ToString() << " does not contain "
+        << edge_rect.ToString() << ", original bounds: " << debug_info;
   }
 #endif
 
@@ -265,11 +302,22 @@ void PaintChunker::CreateScrollHitTestChunk(
   DCHECK(created_new_chunk);
 
   auto& chunk = chunks_->back();
-  chunk.bounds.Union(rect);
+  // Assume all scroll hit tests are opaque to hit test.
+  // TODO(crbug.com/1470484): Consider rounded corners for opaqueness of
+  // scroll hit test.
+  UnionBounds(rect, cc::HitTestOpaqueness::kOpaque);
   auto& hit_test_data = chunk.EnsureHitTestData();
   hit_test_data.scroll_translation = scroll_translation;
   hit_test_data.scroll_hit_test_rect = rect;
   SetWillForceNewChunk(true);
+}
+
+void PaintChunker::UnionBounds(const gfx::Rect& rect,
+                               cc::HitTestOpaqueness hit_test_opaqueness) {
+  auto& chunk = chunks_->back();
+  chunk.hit_test_opaqueness = cc::UnionHitTestOpaqueness(
+      chunk.bounds, chunk.hit_test_opaqueness, rect, hit_test_opaqueness);
+  chunk.bounds.Union(rect);
 }
 
 void PaintChunker::ProcessBackgroundColorCandidate(const DisplayItem& item) {
@@ -286,11 +334,10 @@ void PaintChunker::ProcessBackgroundColorCandidate(const DisplayItem& item) {
       if (chunk.background_color.area >= min_background_area &&
           !item_background_color.color.isOpaque()) {
         chunk.background_color.area = item_background_color.area;
-        if (auto filter = SkColorFilters::Blend(
-                item_background_color.color, nullptr, SkBlendMode::kSrcOver)) {
-          chunk.background_color.color = filter->filterColor4f(
-              chunk.background_color.color, nullptr, nullptr);
-        }
+        chunk.background_color.color =
+            SkColor4f::FromColor(color_utils::GetResultingPaintColor(
+                item_background_color.color.toSkColor(),
+                chunk.background_color.color.toSkColor()));
       } else {
         chunk.background_color = item_background_color;
       }

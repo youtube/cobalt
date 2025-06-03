@@ -12,6 +12,8 @@
 
 #include "base/command_line.h"
 #include "base/containers/contains.h"
+#include "base/strings/stringprintf.h"
+#include "base/trace_event/typed_macros.h"
 #include "base/win/scoped_variant.h"
 #include "base/win/windows_version.h"
 #include "content/browser/accessibility/browser_accessibility_state_impl.h"
@@ -19,7 +21,7 @@
 #include "content/browser/accessibility/web_ax_platform_tree_manager_delegate.h"
 #include "content/browser/renderer_host/legacy_render_widget_host_win.h"
 #include "content/public/common/content_switches.h"
-#include "ui/accessibility/accessibility_switches.h"
+#include "ui/accessibility/accessibility_features.h"
 #include "ui/accessibility/ax_role_properties.h"
 #include "ui/accessibility/platform/ax_fragment_root_win.h"
 #include "ui/accessibility/platform/ax_platform_node_delegate_utils_win.h"
@@ -83,7 +85,24 @@ BrowserAccessibilityManagerWin::BrowserAccessibilityManagerWin(
   Initialize(initial_tree);
 }
 
-BrowserAccessibilityManagerWin::~BrowserAccessibilityManagerWin() = default;
+BrowserAccessibilityManagerWin::~BrowserAccessibilityManagerWin() {
+  // In some cases, an iframe's HWND is destroyed before the hypertext
+  // on the parent child tree owner is destroyed. In this case, we reset
+  // the parent's hypertext to avoid API calls involving stale hypertext.
+  BrowserAccessibility* parent =
+      GetParentNodeFromParentTreeAsBrowserAccessibility();
+  if (!parent) {
+    return;
+  }
+
+  ui::AXPlatformNode* parent_ax_platform_node = parent->GetAXPlatformNode();
+  if (!parent_ax_platform_node) {
+    return;
+  }
+
+  static_cast<ui::AXPlatformNodeWin*>(parent_ax_platform_node)
+      ->ResetComputedHypertext();
+}
 
 // static
 ui::AXTreeUpdate BrowserAccessibilityManagerWin::GetEmptyDocument() {
@@ -490,6 +509,7 @@ void BrowserAccessibilityManagerWin::FireGeneratedEvent(
     case ui::AXEventGenerator::Event::FOCUS_CHANGED:
     case ui::AXEventGenerator::Event::LIVE_REGION_NODE_CHANGED:
     case ui::AXEventGenerator::Event::MENU_ITEM_SELECTED:
+    case ui::AXEventGenerator::Event::ORIENTATION_CHANGED:
     case ui::AXEventGenerator::Event::OTHER_ATTRIBUTE_CHANGED:
     case ui::AXEventGenerator::Event::PARENT_CHANGED:
     case ui::AXEventGenerator::Event::PORTAL_ACTIVATED:
@@ -504,6 +524,7 @@ void BrowserAccessibilityManagerWin::FireGeneratedEvent(
 void BrowserAccessibilityManagerWin::FireWinAccessibilityEvent(
     LONG win_event_type,
     BrowserAccessibility* node) {
+  TRACE_EVENT("accessibility", "FireWinAccessibilityEvent");
   if (!ShouldFireEventForNode(node))
     return;
   // Suppress events when |IGNORED_CHANGED| except for related SHOW / HIDE.
@@ -534,8 +555,11 @@ void BrowserAccessibilityManagerWin::FireWinAccessibilityEvent(
   // argument to NotifyWinEvent; the AT client will then call get_accChild
   // on the HWND's accessibility object and pass it that same id, which
   // we can use to retrieve the IAccessible for this node.
-  LONG child_id = -(ToBrowserAccessibilityWin(node)->GetCOM()->GetUniqueId());
-  ::NotifyWinEvent(win_event_type, hwnd, OBJID_CLIENT, child_id);
+  auto* const com = ToBrowserAccessibilityWin(node)->GetCOM();
+  TRACE_EVENT("accessibility", "NotifyWinEvent",
+              perfetto::Flow::FromPointer(com), "win_event_type",
+              base::StringPrintf("0x%04lX", win_event_type));
+  ::NotifyWinEvent(win_event_type, hwnd, OBJID_CLIENT, -(com->GetUniqueId()));
 }
 
 bool BrowserAccessibilityManagerWin::IsIgnoredChangedNode(
@@ -547,8 +571,9 @@ bool BrowserAccessibilityManagerWin::IsIgnoredChangedNode(
 void BrowserAccessibilityManagerWin::FireUiaAccessibilityEvent(
     LONG uia_event,
     BrowserAccessibility* node) {
-  if (!::switches::IsExperimentalAccessibilityPlatformUIAEnabled())
+  if (!::features::IsUiaProviderEnabled()) {
     return;
+  }
   if (!ShouldFireEventForNode(node))
     return;
 
@@ -586,8 +611,9 @@ void BrowserAccessibilityManagerWin::FireUiaAccessibilityEvent(
 void BrowserAccessibilityManagerWin::FireUiaPropertyChangedEvent(
     LONG uia_property,
     BrowserAccessibility* node) {
-  if (!::switches::IsExperimentalAccessibilityPlatformUIAEnabled())
+  if (!::features::IsUiaProviderEnabled()) {
     return;
+  }
   if (!ShouldFireEventForNode(node))
     return;
   // Suppress events when |IGNORED_CHANGED| with the exception for firing
@@ -616,8 +642,9 @@ void BrowserAccessibilityManagerWin::FireUiaPropertyChangedEvent(
 void BrowserAccessibilityManagerWin::FireUiaStructureChangedEvent(
     StructureChangeType change_type,
     BrowserAccessibility* node) {
-  if (!::switches::IsExperimentalAccessibilityPlatformUIAEnabled())
+  if (!::features::IsUiaProviderEnabled()) {
     return;
+  }
   if (!ShouldFireEventForNode(node))
     return;
   // Suppress events when |IGNORED_CHANGED| except for related structure changes
@@ -698,9 +725,9 @@ void BrowserAccessibilityManagerWin::FireUiaActiveTextPositionChangedEvent(
 
   // Create the text range contained by the target node.
   auto* target_node = ToBrowserAccessibilityWin(node)->GetCOM();
-  Microsoft::WRL::ComPtr<ITextRangeProvider> text_range =
-      ui::AXPlatformNodeTextProviderWin::CreateDegenerateRangeAtStart(
-          target_node);
+  Microsoft::WRL::ComPtr<ITextRangeProvider> text_range;
+  ui::AXPlatformNodeTextProviderWin::CreateDegenerateRangeAtStart(target_node,
+                                                                  &text_range);
 
   // Fire the UiaRaiseActiveTextPositionChangedEvent.
   active_text_position_changed_func(target_node, text_range.Get());

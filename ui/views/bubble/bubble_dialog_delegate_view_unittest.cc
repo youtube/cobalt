@@ -13,9 +13,16 @@
 #include "base/i18n/rtl.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/test/metrics/histogram_tester.h"
+#include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
 #include "ui/base/hit_test.h"
+#include "ui/base/metadata/metadata_header_macros.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/base/ui_base_features.h"
+#include "ui/compositor/compositor.h"
 #include "ui/display/test/test_screen.h"
 #include "ui/events/event_utils.h"
 #include "ui/views/animation/ink_drop.h"
@@ -46,6 +53,7 @@ constexpr gfx::Size kContentSize = gfx::Size(200, 200);
 
 class TestBubbleDialogDelegateView : public BubbleDialogDelegateView {
  public:
+  METADATA_HEADER(TestBubbleDialogDelegateView);
   explicit TestBubbleDialogDelegateView(View* anchor_view)
       : BubbleDialogDelegateView(anchor_view, BubbleBorder::TOP_LEFT) {
     view_->SetFocusBehavior(FocusBehavior::ALWAYS);
@@ -104,14 +112,21 @@ class TestBubbleDialogDelegateView : public BubbleDialogDelegateView {
   bool should_show_window_title_ = true;
 };
 
+BEGIN_METADATA(TestBubbleDialogDelegateView, views::BubbleDialogDelegateView)
+END_METADATA
+
 class TestAlertBubbleDialogDelegateView : public TestBubbleDialogDelegateView {
  public:
+  METADATA_HEADER(TestAlertBubbleDialogDelegateView);
   explicit TestAlertBubbleDialogDelegateView(View* anchor_view)
       : TestBubbleDialogDelegateView(anchor_view) {
     SetAccessibleWindowRole(ax::mojom::Role::kAlertDialog);
   }
   ~TestAlertBubbleDialogDelegateView() override = default;
 };
+
+BEGIN_METADATA(TestAlertBubbleDialogDelegateView, TestBubbleDialogDelegateView)
+END_METADATA
 
 // A Widget that returns something other than null as its ThemeProvider.  This
 // allows us to see whether the theme provider returned by some object came from
@@ -128,7 +143,9 @@ class WidgetWithNonNullThemeProvider : public Widget {
 
 class BubbleDialogDelegateViewTest : public ViewsTestBase {
  public:
-  BubbleDialogDelegateViewTest() = default;
+  BubbleDialogDelegateViewTest() {
+    feature_list_.InitAndEnableFeature(features::kBubbleMetricsApi);
+  }
 
   BubbleDialogDelegateViewTest(const BubbleDialogDelegateViewTest&) = delete;
   BubbleDialogDelegateViewTest& operator=(const BubbleDialogDelegateViewTest&) =
@@ -145,6 +162,24 @@ class BubbleDialogDelegateViewTest : public ViewsTestBase {
     widget->Show();
     return widget;
   }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+class BubbleUmaLoggerTest : public ViewsTestBase {
+ public:
+  BubbleUmaLoggerTest() {
+    feature_list_.InitAndEnableFeature(features::kBubbleMetricsApi);
+  }
+
+  BubbleUmaLoggerTest(const BubbleUmaLoggerTest&) = delete;
+  BubbleUmaLoggerTest& operator=(const BubbleUmaLoggerTest&) = delete;
+
+  ~BubbleUmaLoggerTest() override = default;
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
 };
 
 }  // namespace
@@ -609,11 +644,9 @@ TEST_F(BubbleDialogDelegateViewTest, CustomTitle) {
   bubble_frame->InvalidateLayout();
   views::test::RunScheduledLayout(bubble_frame);
 
-  Button* close_button = bubble_frame->GetCloseButtonForTesting();
+  Button* close_button = bubble_frame->close_button();
   // Title moves over for the close button.
-  EXPECT_EQ(close_button->x() - LayoutProvider::Get()->GetDistanceMetric(
-                                    DISTANCE_CLOSE_BUTTON_MARGIN),
-            title_container->bounds().right());
+  EXPECT_GT(close_button->x(), title_container->bounds().right());
 
   LayoutProvider* provider = LayoutProvider::Get();
   const gfx::Insets content_margins = provider->GetDialogInsetsForContentType(
@@ -1238,6 +1271,90 @@ TEST_F(BubbleDialogDelegateViewAnchorTest,
   Anchor(bubble, widget.get());
   Anchor(bubble2, bubble);
   bubble->Close();
+}
+
+TEST_F(BubbleDialogDelegateViewTest, BubbleMetrics) {
+  base::HistogramTester histogram;
+
+  std::unique_ptr<Widget> anchor_widget =
+      CreateTestWidget(Widget::InitParams::TYPE_WINDOW);
+  TestBubbleDialogDelegateView* bubble_delegate =
+      new TestBubbleDialogDelegateView(anchor_widget->GetContentsView());
+  Widget* bubble_widget =
+      BubbleDialogDelegateView::CreateBubble(bubble_delegate);
+
+  histogram.ExpectTotalCount("Bubble.All.CloseReason", 0);
+  histogram.ExpectTotalCount("Bubble.All.CreateToPresentationTime", 0);
+  histogram.ExpectTotalCount("Bubble.All.CreateToVisibleTime", 0);
+  histogram.ExpectTotalCount("Bubble.All.TimeVisible", 0);
+
+  bubble_widget->Show();
+
+  // Wait until the next frame after CreateToPresentationTime and
+  // CreateToVisibleTime is fired.
+  base::RunLoop run_loop;
+  bubble_delegate->GetWidget()
+      ->GetCompositor()
+      ->RequestSuccessfulPresentationTimeForNextFrame(base::BindOnce(
+          [](base::RunLoop* run_loop, base::TimeTicks bubble_created_time) {
+            run_loop->Quit();
+          },
+          &run_loop));
+  run_loop.Run();
+
+  bubble_widget->CloseNow();
+
+  histogram.ExpectTotalCount("Bubble.All.CloseReason", 1);
+  histogram.ExpectTotalCount("Bubble.All.CreateToPresentationTime", 1);
+  histogram.ExpectTotalCount("Bubble.All.CreateToVisibleTime", 1);
+  histogram.ExpectTotalCount("Bubble.All.TimeVisible", 1);
+}
+
+class TestBubbleUmaLogger : public BubbleDialogDelegate::BubbleUmaLogger {};
+
+TEST_F(BubbleUmaLoggerTest, LogMetricFromView) {
+  base::HistogramTester histogram;
+  auto label = std::make_unique<Label>();
+  TestBubbleUmaLogger logger;
+  logger.set_allowed_class_names_for_testing({"Label"});
+  logger.set_bubble_view(label.get());
+  histogram.ExpectTotalCount("Bubble.All.Metric1", 0);
+  histogram.ExpectTotalCount("Bubble.Label.Metric1", 0);
+  logger.LogMetric(base::UmaHistogramTimes, "Metric1", base::Seconds(1));
+  histogram.ExpectTotalCount("Bubble.All.Metric1", 1);
+  histogram.ExpectTotalCount("Bubble.Label.Metric1", 1);
+}
+
+TEST_F(BubbleUmaLoggerTest, LogMetricFromDelegate) {
+  base::HistogramTester histogram;
+
+  auto anchored_view = std::make_unique<View>();
+  BubbleDialogDelegate delegate(anchored_view.get(),
+                                BubbleBorder::Arrow::TOP_LEFT);
+  delegate.SetContentsView(std::make_unique<Label>());
+
+  TestBubbleUmaLogger logger;
+  logger.set_allowed_class_names_for_testing({"Label"});
+  logger.set_delegate(&delegate);
+
+  histogram.ExpectTotalCount("Bubble.All.Metric1", 0);
+  histogram.ExpectTotalCount("Bubble.Label.Metric1", 0);
+  logger.LogMetric(base::UmaHistogramTimes, "Metric1", base::Seconds(1));
+  histogram.ExpectTotalCount("Bubble.All.Metric1", 1);
+  histogram.ExpectTotalCount("Bubble.Label.Metric1", 1);
+}
+
+TEST_F(BubbleUmaLoggerTest, DoNotLogMetricNotFromAllowedClasses) {
+  base::HistogramTester histogram;
+  auto label = std::make_unique<Label>();
+  TestBubbleUmaLogger logger;
+  logger.set_bubble_view(label.get());
+
+  histogram.ExpectTotalCount("Bubble.All.Metric1", 0);
+  histogram.ExpectTotalCount("Bubble.Label.Metric1", 0);
+  logger.LogMetric(base::UmaHistogramTimes, "Metric1", base::Seconds(1));
+  histogram.ExpectTotalCount("Bubble.All.Metric1", 1);
+  histogram.ExpectTotalCount("Bubble.Label.Metric1", 0);
 }
 
 }  // namespace views

@@ -107,7 +107,7 @@ void SynchronousCompositor::SetClientForWebContents(
 std::unique_ptr<WebContentsView> CreateWebContentsView(
     WebContentsImpl* web_contents,
     std::unique_ptr<WebContentsViewDelegate> delegate,
-    RenderViewHostDelegateView** render_view_host_delegate_view) {
+    raw_ptr<RenderViewHostDelegateView>* render_view_host_delegate_view) {
   auto rv = std::make_unique<WebContentsViewAndroid>(web_contents,
                                                      std::move(delegate));
   *render_view_host_delegate_view = rv.get();
@@ -123,9 +123,17 @@ WebContentsViewAndroid::WebContentsViewAndroid(
       synchronous_compositor_client_(nullptr) {
   view_.SetLayer(cc::slim::Layer::Create());
   view_.set_event_handler(this);
+
+  // `rwhva_parent_` is a child layer of `view_`.
+  parent_for_web_page_widgets_ = cc::slim::Layer::Create();
+  view_.GetLayer()->AddChild(parent_for_web_page_widgets_);
 }
 
 WebContentsViewAndroid::~WebContentsViewAndroid() {
+  // Opposite to the construction order - disconnect the child first.
+  parent_for_web_page_widgets_->RemoveFromParent();
+  parent_for_web_page_widgets_.reset();
+
   if (view_.GetLayer())
     view_.GetLayer()->RemoveFromParent();
   view_.set_event_handler(nullptr);
@@ -213,6 +221,11 @@ DropData* WebContentsViewAndroid::GetDropData() const {
   return NULL;
 }
 
+// TODO(crbug.com/1488620): Implement this.
+void WebContentsViewAndroid::TransferDragSecurityInfo(WebContentsView*) {
+  NOTIMPLEMENTED();
+}
+
 gfx::Rect WebContentsViewAndroid::GetViewBounds() const {
   return gfx::Rect(view_.GetSize());
 }
@@ -236,7 +249,8 @@ RenderWidgetHostViewBase* WebContentsViewAndroid::CreateViewForWidget(
   // native view (i.e. ContentView) how to obtain a reference to this widget in
   // order to paint it.
   RenderWidgetHostImpl* rwhi = RenderWidgetHostImpl::From(render_widget_host);
-  auto* rwhv = new RenderWidgetHostViewAndroid(rwhi, &view_);
+  auto* rwhv = new RenderWidgetHostViewAndroid(
+      rwhi, &view_, parent_for_web_page_widgets_.get());
   rwhv->SetSynchronousCompositorClient(synchronous_compositor_client_);
   return rwhv;
 }
@@ -244,7 +258,8 @@ RenderWidgetHostViewBase* WebContentsViewAndroid::CreateViewForWidget(
 RenderWidgetHostViewBase* WebContentsViewAndroid::CreateViewForChildWidget(
     RenderWidgetHost* render_widget_host) {
   RenderWidgetHostImpl* rwhi = RenderWidgetHostImpl::From(render_widget_host);
-  return new RenderWidgetHostViewAndroid(rwhi, nullptr);
+  return new RenderWidgetHostViewAndroid(rwhi, /*parent_native_view=*/nullptr,
+                                         /*parent_layer=*/nullptr);
 }
 
 void WebContentsViewAndroid::RenderViewReady() {
@@ -263,14 +278,14 @@ void WebContentsViewAndroid::RenderViewHostChanged(RenderViewHost* old_host,
     auto* rwhv = old_host->GetWidget()->GetView();
     if (rwhv && rwhv->GetNativeView()) {
       static_cast<RenderWidgetHostViewAndroid*>(rwhv)->UpdateNativeViewTree(
-          nullptr);
+          /*parent_native_view=*/nullptr, /*parent_layer=*/nullptr);
     }
   }
 
   auto* rwhv = new_host->GetWidget()->GetView();
   if (rwhv && rwhv->GetNativeView()) {
     static_cast<RenderWidgetHostViewAndroid*>(rwhv)->UpdateNativeViewTree(
-        GetNativeView());
+        &view_, parent_for_web_page_widgets_.get());
     SetFocus(view_.HasFocus());
   }
 }
@@ -338,6 +353,7 @@ void WebContentsViewAndroid::ShowPopupMenu(
 
 void WebContentsViewAndroid::StartDragging(
     const DropData& drop_data,
+    const url::Origin& source_origin,
     blink::DragOperationsMask allowed_ops,
     const gfx::ImageSkia& image,
     const gfx::Vector2d& cursor_offset,
@@ -391,8 +407,12 @@ void WebContentsViewAndroid::StartDragging(
   }
 }
 
-void WebContentsViewAndroid::UpdateDragCursor(ui::mojom::DragOperation op) {
-  // Intentional no-op because Android does not have cursor.
+void WebContentsViewAndroid::UpdateDragOperation(
+    ui::mojom::DragOperation op,
+    bool document_is_handling_drag) {
+  // Intentional not storing `op` because Android does not support drag and
+  // drop cursor yet.
+  document_is_handling_drag_ = document_is_handling_drag;
 }
 
 bool WebContentsViewAndroid::OnDragEvent(const ui::DragEventAndroid& event) {
@@ -412,6 +432,7 @@ bool WebContentsViewAndroid::OnDragEvent(const ui::DragEventAndroid& event) {
     case JNI_DragEvent::ACTION_DROP: {
       DropData drop_data;
       drop_data.did_originate_from_renderer = false;
+      drop_data.document_is_handling_drag = document_is_handling_drag_;
       JNIEnv* env = AttachCurrentThread();
       std::u16string drop_content =
           ConvertJavaStringToUTF16(env, event.GetJavaContent());

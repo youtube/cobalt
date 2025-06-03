@@ -34,10 +34,13 @@ static_library("content") {
     "service_worker_helper.h",
     "shared_worker_helper.cc",
     "shared_worker_helper.h",
+    "shared_worker_info.cc",
+    "shared_worker_info.h",
   ]
 
   deps = [
     "//base",
+    "//components/attribution_reporting:features",
     "//components/browsing_data/core",
     "//components/content_settings/core/browser",
     "//components/content_settings/core/common",
@@ -51,6 +54,8 @@ static_library("content") {
     "//content/public/browser",
     "//net",
   ]
+
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
 }
 
 source_set("unit_tests") {
@@ -88,6 +93,8 @@ source_set("test_support") {
   sources = [
     "browsing_data_model_test_util.cc",
     "browsing_data_model_test_util.h",
+    "browsing_data_test_util.cc",
+    "browsing_data_test_util.h",
     "fake_browsing_data_model.cc",
     "fake_browsing_data_model.h",
     "mock_browsing_data_quota_helper.cc",
@@ -116,6 +123,7 @@ source_set("test_support") {
     "//base",
     "//components/services/storage",
     "//content/public/browser",
+    "//content/test:test_support",
     "//testing/gmock",
     "//testing/gtest",
     "//url",

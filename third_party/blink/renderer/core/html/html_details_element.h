@@ -21,6 +21,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_HTML_HTML_DETAILS_ELEMENT_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_HTML_HTML_DETAILS_ELEMENT_H_
 
+#include "third_party/blink/renderer/core/events/toggle_event.h"
 #include "third_party/blink/renderer/core/html/html_element.h"
 #include "third_party/blink/renderer/platform/scheduler/public/post_cancellable_task.h"
 
@@ -50,13 +51,26 @@ class HTMLDetailsElement final : public HTMLElement {
  private:
   void DispatchPendingEvent(const AttributeModificationReason);
 
+  const AtomicString& GetName() const {
+    return FastGetAttribute(html_names::kNameAttr);
+  }
+
+  // Return all the <details> elements in the group created by the name
+  // attribute, excluding |this|, in tree order.  If there is no such group
+  // (e.g., because there is no name attribute), returns an empty list.
+  HeapVector<Member<HTMLDetailsElement>> OtherElementsInNameGroup();
+  void MaybeCloseForExclusivity();
+
   LayoutObject* CreateLayoutObject(const ComputedStyle&) override;
   void ParseAttribute(const AttributeModificationParams&) override;
+  void AttributeChanged(const AttributeModificationParams&) override;
+  InsertionNotificationRequest InsertedInto(ContainerNode&) override;
   void DidAddUserAgentShadowRoot(ShadowRoot&) override;
   bool IsInteractiveContent() const override;
 
-  bool is_open_;
-  TaskHandle pending_event_;
+  bool is_open_ = false;
+  TaskHandle pending_event_task_;
+  Member<ToggleEvent> pending_toggle_event_;
   Member<HTMLSlotElement> summary_slot_;
   Member<HTMLSlotElement> content_slot_;
 };

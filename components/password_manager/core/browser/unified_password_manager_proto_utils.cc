@@ -8,7 +8,9 @@
 
 #include "base/json/json_string_value_serializer.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/types/cxx23_to_underlying.h"
 #include "base/values.h"
+#include "components/password_manager/core/browser/protos/list_affiliated_passwords_result.pb.h"
 #include "components/password_manager/core/browser/protos/list_passwords_result.pb.h"
 #include "components/password_manager/core/browser/protos/password_with_local_data.pb.h"
 #include "components/password_manager/core/browser/sync/password_proto_utils.h"
@@ -44,7 +46,8 @@ base::Value::Dict SerializeSignatureRelevantMembersInFormData(
     // Stored FormFieldData is used only for signature calculations, therefore
     // only members that are used for signature calculation are stored.
     serialized_field.Set(kNameKey, field.name);
-    serialized_field.Set(kFormControlTypeKey, field.form_control_type);
+    serialized_field.Set(kFormControlTypeKey, autofill::FormControlTypeToString(
+                                                  field.form_control_type));
     serialized_fields.Append(std::move(serialized_field));
   }
   serialized_data.Set(kFieldsKey, std::move(serialized_fields));
@@ -93,7 +96,11 @@ absl::optional<FormData> DeserializeFormData(
       return absl::nullopt;
     }
     field.name = base::UTF8ToUTF16(*field_name);
-    field.form_control_type = *field_type;
+    // TODO(crbug.com/1353392,crbug.com/1482526): Why does the Password Manager
+    // (de)serialize form control types? Remove it or migrate it to the enum
+    // values.
+    field.form_control_type = autofill::StringToFormControlTypeDiscouraged(
+        *field_type, /*fallback=*/autofill::FormControlType::kInputText);
     form_data.fields.push_back(field);
   }
   return form_data;
@@ -156,6 +163,25 @@ std::vector<PasswordForm> PasswordVectorFromListResult(
   std::vector<PasswordForm> forms;
   for (const PasswordWithLocalData& password : list_result.password_data()) {
     forms.push_back(PasswordFromProtoWithLocalData(password));
+  }
+  return forms;
+}
+
+std::vector<PasswordForm> PasswordVectorFromListResult(
+    const ListAffiliatedPasswordsResult& list_result) {
+  std::vector<PasswordForm> forms;
+  for (const auto& password : list_result.affiliated_passwords()) {
+    PasswordForm form =
+        PasswordFromProtoWithLocalData(password.password_data());
+    form.app_display_name = password.password_branding_info().display_name();
+    form.app_icon_url = GURL(password.password_branding_info().icon_url());
+    if (password.is_credential_sharing_affiliation_match()) {
+      form.match_type |= PasswordForm::MatchType::kAffiliated;
+    }
+    if (password.is_grouping_affiliation_match()) {
+      form.match_type |= PasswordForm::MatchType::kGrouped;
+    }
+    forms.push_back(std::move(form));
   }
   return forms;
 }

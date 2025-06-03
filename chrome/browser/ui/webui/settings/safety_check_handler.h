@@ -22,7 +22,7 @@
 #include "chrome/browser/extensions/extension_service.h"
 #include "chrome/browser/ui/webui/help/version_updater.h"
 #include "chrome/browser/ui/webui/settings/settings_page_ui_handler.h"
-#include "components/password_manager/core/browser/bulk_leak_check_service.h"
+#include "components/password_manager/core/browser/leak_detection/bulk_leak_check_service.h"
 #include "components/password_manager/core/browser/ui/insecure_credentials_manager.h"
 #include "components/safety_check/safety_check.h"
 #include "components/safety_check/update_check_helper.h"
@@ -129,6 +129,7 @@ class SafetyCheckHandler
   // check methods.
   using Compromised = base::StrongAlias<class CompromisedTag, int>;
   using Weak = base::StrongAlias<class WeakTag, int>;
+  using Reused = base::StrongAlias<class ReusedTag, int>;
   using Done = base::StrongAlias<class DoneTag, int>;
   using Total = base::StrongAlias<class TotalTag, int>;
   using Blocklisted = base::StrongAlias<class BlocklistedTag, int>;
@@ -160,6 +161,7 @@ class SafetyCheckHandler
   void OnPasswordsCheckResult(PasswordsStatus status,
                               Compromised compromised,
                               Weak weak,
+                              Reused reused,
                               Done done,
                               Total total);
   void OnExtensionsCheckResult(ExtensionsStatus status,
@@ -175,6 +177,7 @@ class SafetyCheckHandler
   std::u16string GetStringForPasswords(PasswordsStatus status,
                                        Compromised compromised,
                                        Weak weak,
+                                       Reused reused,
                                        Done done,
                                        Total total);
   std::u16string GetStringForExtensions(ExtensionsStatus status,

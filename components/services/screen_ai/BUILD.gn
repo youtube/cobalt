@@ -27,6 +27,8 @@ source_set("screen_ai") {
     "//skia",
     "//ui/accessibility:accessibility",
   ]
+
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
 }
 
 if (is_linux || is_chromeos) {
@@ -45,11 +47,13 @@ if (is_linux || is_chromeos) {
     ]
 
     public_deps = [ "//sandbox/policy" ]
+
+    configs += [ "//build/config/compiler:wexit_time_destructors" ]
   }
 }
 
 group("test_support_data") {
-  visibility = [ ":test_support" ]
+  visibility = [ ":unit_tests" ]
   testonly = true
 
   data = [ "$root_gen_dir/components/services/screen_ai/proto/view_hierarchy.descriptor" ]
@@ -59,32 +63,15 @@ group("test_support_data") {
   ]
 }
 
-source_set("test_support") {
-  testonly = true
-
-  sources = [
-    "proto/test_proto_loader.cc",
-    "proto/test_proto_loader.h",
-  ]
-
-  data_deps = [ ":test_support_data" ]
-
-  deps = [
-    "//base",
-    "//third_party/protobuf:protobuf_full",
-  ]
-}
-
 source_set("unit_tests") {
   testonly = true
 
   sources = [
-    "public/cpp/screen_ai_install_state_unittest.cc",
     "screen_ai_ax_tree_serializer_unittest.cc",
     "screen_ai_service_impl_unittest.cc",
   ]
 
-  # TODO(https://crbug.com/1278249): Enable after the protobuf issue is fixed.
+  # TODO(https://crbug.com/1443341): Enable after the protobuf issue is fixed.
   if (!is_win) {
     sources += [
       "proto/main_content_extractor_proto_convertor_unittest.cc",
@@ -97,13 +84,28 @@ source_set("unit_tests") {
     ":screen_ai",
     "//base/test:test_support",
     "//components/services/screen_ai/proto",
-    "//components/services/screen_ai/public/cpp:screen_ai_install_state",
     "//components/ukm:test_support",
     "//testing/gtest",
     "//ui/accessibility:test_support",
   ]
 
   if (!is_win) {
-    deps += [ ":test_support" ]
+    deps += [ "//base/test:proto_test_support" ]
+    data_deps = [ ":test_support_data" ]
   }
+}
+
+source_set("test_support") {
+  testonly = true
+
+  sources = [
+    "public/test/fake_screen_ai_annotator.cc",
+    "public/test/fake_screen_ai_annotator.h",
+  ]
+
+  deps = [
+    "//base/test:test_support",
+    "//components/services/screen_ai/public/mojom",
+    "//ui/accessibility:test_support",
+  ]
 }

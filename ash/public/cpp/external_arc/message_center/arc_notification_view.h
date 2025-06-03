@@ -7,6 +7,7 @@
 
 #include "ash/public/cpp/external_arc/message_center/arc_notification_item.h"
 #include "base/memory/raw_ptr.h"
+#include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/message_center/views/message_view.h"
 
 namespace aura {
@@ -15,10 +16,6 @@ class Window;
 
 namespace arc {
 class ArcAccessibilityHelperBridgeTest;
-}
-
-namespace views {
-class Painter;
 }
 
 namespace ash {
@@ -32,6 +29,7 @@ class ArcNotificationView : public message_center::MessageView,
  public:
   static ArcNotificationView* FromView(views::View* message_view);
 
+  METADATA_HEADER(ArcNotificationView);
   // |content_view| is a view to be hosted in this view.
   ArcNotificationView(ArcNotificationItem* item,
                       const message_center::Notification& notification,
@@ -63,7 +61,6 @@ class ArcNotificationView : public message_center::MessageView,
   void OnContainerAnimationEnded() override;
   void OnSettingsButtonPressed(const ui::Event& event) override;
   void OnSnoozeButtonPressed(const ui::Event& event) override;
-  void OnThemeChanged() override;
   void UpdateCornerRadius(int top_radius, int bottom_radius) override;
   void UpdateBackgroundPainter() override;
   base::TimeDelta GetBoundsAnimationDuration(
@@ -77,7 +74,6 @@ class ArcNotificationView : public message_center::MessageView,
   void Layout() override;
   bool HasFocus() const override;
   void RequestFocus() override;
-  void OnPaint(gfx::Canvas* canvas) override;
   bool OnKeyPressed(const ui::KeyEvent& event) override;
   void ChildPreferredSizeChanged(View* child) override;
   bool HandleAccessibleAction(const ui::AXActionData& action) override;
@@ -104,7 +100,7 @@ class ArcNotificationView : public message_center::MessageView,
 
   const bool shown_in_popup_;
 
-  std::unique_ptr<views::Painter> focus_painter_;
+  const bool is_group_child_;
 };
 
 }  // namespace ash

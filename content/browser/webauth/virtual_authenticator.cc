@@ -8,6 +8,7 @@
 
 #include "base/functional/bind.h"
 #include "base/uuid.h"
+#include "device/fido/fido_constants.h"
 #include "device/fido/fido_parsing_utils.h"
 #include "device/fido/public_key_credential_rp_entity.h"
 #include "device/fido/public_key_credential_user_entity.h"
@@ -128,7 +129,11 @@ VirtualAuthenticator::ConstructDevice() {
       config.large_blob_support = has_large_blob_;
       config.cred_protect_support = config.cred_blob_support = has_cred_blob_;
       config.min_pin_length_extension_support = has_min_pin_length_;
-      config.hmac_secret_support = has_prf_;
+      if (has_prf_) {
+        config.prf_support = true;
+        // This is required when `prf_support` is set.
+        config.internal_account_chooser = true;
+      }
 
       if (
           // Writing a large blob requires obtaining a PinUvAuthToken with
@@ -143,6 +148,11 @@ VirtualAuthenticator::ConstructDevice() {
       config.is_platform_authenticator =
           attachment_ == device::AuthenticatorAttachment::kPlatform;
       config.user_verification_succeeds = is_user_verified_;
+      config.advertised_algorithms = {
+          device::CoseAlgorithmIdentifier::kEdDSA,
+          device::CoseAlgorithmIdentifier::kEs256,
+          device::CoseAlgorithmIdentifier::kRs256,
+      };
       return std::make_unique<device::VirtualCtap2Device>(state_, config);
     }
     default:

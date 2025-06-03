@@ -4,31 +4,25 @@
 
 #include "chrome/browser/browsing_data/access_context_audit_service_factory.h"
 
-#include "base/memory/singleton.h"
+#include "base/no_destructor.h"
 #include "chrome/browser/browsing_data/access_context_audit_service.h"
-#include "chrome/browser/content_settings/host_content_settings_map_factory.h"
-#include "chrome/browser/history/history_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/common/chrome_features.h"
 #include "content/public/browser/browser_context.h"
-#include "content/public/browser/storage_partition.h"
 
 AccessContextAuditServiceFactory::AccessContextAuditServiceFactory()
     : ProfileKeyedServiceFactory(
           "AccessContextAuditService",
           ProfileSelections::Builder()
               .WithRegular(ProfileSelection::kOriginalOnly)
-              // TODO(crbug.com/1418376): Check if this service is needed in
-              // Guest mode.
-              .WithGuest(ProfileSelection::kOriginalOnly)
-              .Build()) {
-  DependsOn(HostContentSettingsMapFactory::GetInstance());
-  DependsOn(HistoryServiceFactory::GetInstance());
-}
+              .WithGuest(ProfileSelection::kNone)
+              .WithSystem(ProfileSelection::kNone)
+              .WithAshInternals(ProfileSelection::kNone)
+              .Build()) {}
 
 AccessContextAuditServiceFactory*
 AccessContextAuditServiceFactory::GetInstance() {
-  return base::Singleton<AccessContextAuditServiceFactory>::get();
+  static base::NoDestructor<AccessContextAuditServiceFactory> instance;
+  return instance.get();
 }
 
 AccessContextAuditService* AccessContextAuditServiceFactory::GetForProfile(
@@ -37,42 +31,15 @@ AccessContextAuditService* AccessContextAuditServiceFactory::GetForProfile(
       GetInstance()->GetServiceForBrowserContext(profile, true));
 }
 
-KeyedService* AccessContextAuditServiceFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+AccessContextAuditServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
-  if (context->IsOffTheRecord() ||
-      !base::FeatureList::IsEnabled(
-          features::kClientStorageAccessContextAuditing))
-    return nullptr;
-
-  auto* profile = static_cast<Profile*>(context);
-
-  // The service implementation will persist session cookies until next startup.
-  // It is only used with regular profiles, which always persist session
-  // cookies.
-  DCHECK(profile->ShouldPersistSessionCookies());
-
-  auto context_audit_service =
-      std::make_unique<AccessContextAuditService>(profile);
-  if (!context_audit_service->Init(
-          context->GetPath(),
-          context->GetDefaultStoragePartition()
-              ->GetCookieManagerForBrowserProcess(),
-          HistoryServiceFactory::GetForProfile(
-              profile, ServiceAccessType::EXPLICIT_ACCESS),
-          context->GetDefaultStoragePartition())) {
-    return nullptr;
-  }
-
-  return context_audit_service.release();
+  auto context_audit_service = std::make_unique<AccessContextAuditService>();
+  context_audit_service->Init(context->GetPath());
+  return context_audit_service;
 }
 
 bool AccessContextAuditServiceFactory::ServiceIsCreatedWithBrowserContext()
     const {
-  return true;
-}
-
-bool AccessContextAuditServiceFactory::ServiceIsNULLWhileTesting() const {
-  // Service relies on cookie manager associated with the profile storage
-  // partition which may not be present in tests.
   return true;
 }

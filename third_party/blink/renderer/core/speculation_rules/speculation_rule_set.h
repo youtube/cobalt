@@ -7,6 +7,7 @@
 
 #include "base/types/pass_key.h"
 #include "third_party/blink/renderer/core/core_export.h"
+#include "third_party/blink/renderer/core/dom/dom_node_ids.h"
 #include "third_party/blink/renderer/core/speculation_rules/speculation_rule.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_vector.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
@@ -16,7 +17,9 @@ namespace blink {
 class Document;
 class ExecutionContext;
 class KURL;
+class ScriptElementBase;
 class SpeculationRule;
+class SpeculationRulesResource;
 class StyleRule;
 
 using SpeculationRuleSetId = String;
@@ -43,21 +46,54 @@ class CORE_EXPORT SpeculationRuleSet final
   // the document's base URL) used for parsing a rule set.
   class CORE_EXPORT Source : public GarbageCollected<Source> {
    public:
-    Source(const String& source_text, Document&);
-    Source(const String& source_text, const KURL& base_url);
+    // Don't call this directly; use the factory methods below instead!
+    Source(base::PassKey<Source>,
+           const String& source_text,
+           Document*,
+           absl::optional<DOMNodeId> node_id,
+           absl::optional<KURL> base_url,
+           absl::optional<uint64_t> request_id);
+
+    static Source* FromInlineScript(const String& source_text,
+                                    Document&,
+                                    DOMNodeId node_id);
+    static Source* FromRequest(const String& source_text,
+                               const KURL& base_url,
+                               uint64_t request_id);
+    static Source* FromBrowserInjected(const String& source_text,
+                                       const KURL& base_url);
 
     const String& GetSourceText() const;
+
+    // Has a value iff IsFromInlineScript() is true.
+    const absl::optional<DOMNodeId>& GetNodeId() const;
+
+    // Have values iff IsFromRequest() is true.
+    const absl::optional<KURL> GetSourceURL() const;
+    const absl::optional<uint64_t>& GetRequestId() const;
+
+    // Has a value iff IsFromRequest() or IsFromBrowserInjected() is true.
     KURL GetBaseURL() const;
+
+    bool IsFromInlineScript() const;
+    bool IsFromRequest() const;
+    bool IsFromBrowserInjected() const;
 
     void Trace(Visitor*) const;
 
    private:
+    // Set for all types
     String source_text_;
-    // Only set when the SpeculationRuleSet was "out-of-document" (i.e. loaded
-    // by a SpeculationRuleLoader).
-    absl::optional<KURL> base_url_;
-    // Only set when the SpeculationRuleSet was loaded from inline script.
+
+    // Set by FromInlineScript()
     Member<Document> document_;
+    absl::optional<DOMNodeId> node_id_;
+
+    // Set by FromRequest() and FromBrowserInjected()
+    absl::optional<KURL> base_url_;
+
+    // Set by FromRequest()
+    absl::optional<uint64_t> request_id_;
   };
 
   SpeculationRuleSet(base::PassKey<SpeculationRuleSet>, Source* source);
@@ -83,17 +119,28 @@ class CORE_EXPORT SpeculationRuleSet final
   bool has_document_rule() const { return has_document_rule_; }
   bool requires_unfiltered_input() const { return requires_unfiltered_input_; }
 
-  Source* source() const { return source_; }
+  Source* source() const { return source_.Get(); }
 
   const HeapVector<Member<StyleRule>>& selectors() { return selectors_; }
 
   // Returns an summary and detail of an error got in `Parse`.
   // `error_message` is empty iff `error_type` is `kNoError`.
+  // An error indicates that one or more rules were skipped.
   SpeculationRuleSetErrorType error_type() const { return error_type_; }
   const String& error_message() const { return error_message_; }
+  // Returns a list of detailed warnings from the `Parse` method. Warnings
+  // indicate that there are issues with one or more rules but these rules were
+  // still accepted in contrast with rules with an error that would be skipped.
+  const Vector<String>& warning_messages() const { return warning_messages_; }
   // Shorthand to check `error_type` is not `kNoError`.
   bool HasError() const;
+  // Shorthand to check if there are any warning messages.
+  bool HasWarnings() const;
   bool ShouldReportUMAForError() const;
+
+  void AddConsoleMessageForValidation(ScriptElementBase& script_element);
+  void AddConsoleMessageForValidation(Document& element_document,
+                                      SpeculationRulesResource& resource);
 
   static mojom::blink::SpeculationTargetHint SpeculationTargetHintFromString(
       const StringView& target_hint_str);
@@ -101,7 +148,8 @@ class CORE_EXPORT SpeculationRuleSet final
   void Trace(Visitor*) const;
 
  private:
-  void SetError(SpeculationRuleSetErrorType error_type, String error_message_);
+  void SetError(SpeculationRuleSetErrorType error_type, String error_message);
+  void SetWarnings(Vector<String> warning_messages);
 
   SpeculationRuleSetId inspector_id_;
   HeapVector<Member<SpeculationRule>> prefetch_rules_;
@@ -122,6 +170,7 @@ class CORE_EXPORT SpeculationRuleSet final
   SpeculationRuleSetErrorType error_type_ =
       SpeculationRuleSetErrorType::kNoError;
   String error_message_;
+  Vector<String> warning_messages_;
 };
 
 }  // namespace blink

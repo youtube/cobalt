@@ -96,6 +96,7 @@ const int kAutocloseShortDelaySeconds = 6;
 // platforms, this improves users' ability to interact with the toasts.
 const int kAutocloseDefaultDelaySeconds = 8;
 const int kAutocloseHighPriorityDelaySeconds = 25;
+const int kAutocloseCrosHighPriorityDelaySeconds = 1800;
 
 // Buttons.
 const int kButtonHeight = 38;              // In DIPs.
@@ -136,7 +137,6 @@ constexpr int kNotificationCornerRadius = 2;
 // Animation Durations
 constexpr int kNotificationResizeAnimationDurationMs = 200;
 
-constexpr char kIdSuffixForGroupContainerNotification[] = "_copy";
 }  // namespace message_center
 
 #endif  // UI_MESSAGE_CENTER_PUBLIC_CPP_MESSAGE_CENTER_CONSTANTS_H_

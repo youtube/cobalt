@@ -8,7 +8,6 @@
 #include <memory>
 #include <vector>
 
-#include "base/supports_user_data.h"
 #include "net/base/net_export.h"
 #include "net/cert/pki/cert_errors.h"
 #include "net/cert/pki/parsed_certificate.h"
@@ -111,14 +110,14 @@ class NET_EXPORT CertPathBuilder {
  public:
   // Provides the overall result of path building. This includes the paths that
   // were attempted.
-  struct NET_EXPORT Result : public base::SupportsUserData {
+  struct NET_EXPORT Result {
     Result();
     Result(Result&&);
 
     Result(const Result&) = delete;
     Result& operator=(const Result&) = delete;
 
-    ~Result() override;
+    ~Result();
     Result& operator=(Result&&);
 
     // Returns true if there was a valid path.
@@ -222,7 +221,7 @@ class NET_EXPORT CertPathBuilder {
   Result out_result_;
 
   std::unique_ptr<CertPathIter> cert_path_iter_;
-  raw_ptr<CertPathBuilderDelegate> delegate_;
+  CertPathBuilderDelegate* delegate_;
   const der::GeneralizedTime time_;
   const KeyPurpose key_purpose_;
   const InitialExplicitPolicy initial_explicit_policy_;

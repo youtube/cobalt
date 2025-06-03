@@ -18,7 +18,6 @@
 #include "base/observer_list.h"
 #include "base/unguessable_token.h"
 #include "components/services/storage/public/cpp/buckets/bucket_locator.h"
-#include "content/browser/service_worker/embedded_worker_status.h"
 #include "content/browser/service_worker/service_worker_metrics.h"
 #include "content/common/content_export.h"
 #include "content/public/browser/content_browser_client.h"
@@ -29,6 +28,7 @@
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
 #include "services/network/public/mojom/client_security_state.mojom-forward.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
+#include "third_party/blink/public/common/service_worker/embedded_worker_status.h"
 #include "third_party/blink/public/common/service_worker/service_worker_status_code.h"
 #include "third_party/blink/public/common/tokens/tokens.h"
 #include "third_party/blink/public/mojom/cache_storage/cache_storage.mojom.h"
@@ -101,7 +101,9 @@ class CONTENT_EXPORT EmbeddedWorkerInstance
     virtual void OnScriptEvaluationStart() {}
     virtual void OnStarted(
         blink::mojom::ServiceWorkerStartStatus status,
-        blink::mojom::ServiceWorkerFetchHandlerType fetch_handler_type) {}
+        blink::mojom::ServiceWorkerFetchHandlerType fetch_handler_type,
+        bool has_hid_event_handlers,
+        bool has_usb_event_handlers) {}
 
     // Called when status changed to STOPPING. The renderer has been sent a Stop
     // IPC message and OnStopped() will be called upon successful completion.
@@ -113,11 +115,11 @@ class CONTENT_EXPORT EmbeddedWorkerInstance
     // even before the Start IPC message was sent to the renderer.  In this
     // case, OnStopping() is not called; the worker is "stopped" immediately
     // (the Start IPC is never sent).
-    virtual void OnStopped(EmbeddedWorkerStatus old_status) {}
+    virtual void OnStopped(blink::EmbeddedWorkerStatus old_status) {}
 
     // Called when the browser-side IPC endpoint for communication with the
     // worker died. When this is called, status is STOPPED.
-    virtual void OnDetached(EmbeddedWorkerStatus old_status) {}
+    virtual void OnDetached(blink::EmbeddedWorkerStatus old_status) {}
 
     virtual void OnReportException(const std::u16string& error_message,
                                    int line_number,
@@ -167,9 +169,9 @@ class CONTENT_EXPORT EmbeddedWorkerInstance
   void StopIfNotAttachedToDevTools();
 
   int embedded_worker_id() const { return embedded_worker_id_; }
-  EmbeddedWorkerStatus status() const { return status_; }
+  blink::EmbeddedWorkerStatus status() const { return status_; }
   StartingPhase starting_phase() const {
-    DCHECK_EQ(EmbeddedWorkerStatus::STARTING, status());
+    DCHECK_EQ(blink::EmbeddedWorkerStatus::kStarting, status());
     return starting_phase_;
   }
   int restart_count() const { return restart_count_; }
@@ -196,8 +198,8 @@ class CONTENT_EXPORT EmbeddedWorkerInstance
   }
 
   ServiceWorkerMetrics::StartSituation start_situation() const {
-    DCHECK(status() == EmbeddedWorkerStatus::STARTING ||
-           status() == EmbeddedWorkerStatus::RUNNING);
+    DCHECK(status() == blink::EmbeddedWorkerStatus::kStarting ||
+           status() == blink::EmbeddedWorkerStatus::kRunning);
     return start_situation_;
   }
 
@@ -210,7 +212,7 @@ class CONTENT_EXPORT EmbeddedWorkerInstance
   // Called when the worker is doomed.
   void OnWorkerVersionDoomed();
 
-  static std::string StatusToString(EmbeddedWorkerStatus status);
+  static std::string StatusToString(blink::EmbeddedWorkerStatus status);
   static std::string StartingPhaseToString(StartingPhase phase);
 
   // Forces this instance into STOPPED status and releases any state about the
@@ -257,7 +259,7 @@ class CONTENT_EXPORT EmbeddedWorkerInstance
   CreateFactoryBundle(
       RenderProcessHost* rph,
       int routing_id,
-      const url::Origin& origin,
+      const blink::StorageKey& storage_key,
       network::mojom::ClientSecurityStatePtr client_security_state,
       mojo::PendingRemote<network::mojom::CrossOriginEmbedderPolicyReporter>
           coep_reporter,
@@ -302,6 +304,8 @@ class CONTENT_EXPORT EmbeddedWorkerInstance
   void OnStarted(
       blink::mojom::ServiceWorkerStartStatus status,
       blink::mojom::ServiceWorkerFetchHandlerType fetch_handler_type,
+      bool has_hid_event_handlers,
+      bool has_usb_event_handlers,
       int thread_id,
       blink::mojom::EmbeddedWorkerStartTimingPtr start_timing) override;
   // Resets the embedded worker instance to the initial state. Changes
@@ -318,7 +322,7 @@ class CONTENT_EXPORT EmbeddedWorkerInstance
                               const GURL& source_url) override;
 
   // Resets all running state. After this function is called, |status_| is
-  // STOPPED.
+  // kStopped.
   void ReleaseProcess();
 
   // Called back from StartTask when the startup sequence failed. Calls
@@ -342,7 +346,7 @@ class CONTENT_EXPORT EmbeddedWorkerInstance
   // Unique within a ServiceWorkerContextCore.
   const int embedded_worker_id_;
 
-  EmbeddedWorkerStatus status_;
+  blink::EmbeddedWorkerStatus status_;
   StartingPhase starting_phase_;
   int restart_count_;
 

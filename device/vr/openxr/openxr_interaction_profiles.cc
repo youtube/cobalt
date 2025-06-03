@@ -62,7 +62,7 @@ GetOpenXrInputProfilesMap() {
           // Microsoft Motion Controller
           {OpenXrInteractionProfileType::kMicrosoftMotion,
            {{"",
-             {"windows-mixed-reality",
+             {"microsoft-mixed-reality", "windows-mixed-reality",
               "generic-trigger-squeeze-touchpad-thumbstick"}}}},
 
           // Khronos Simple Controller
@@ -95,7 +95,8 @@ GetOpenXrInputProfilesMap() {
           // Samsung Odyssey
           {OpenXrInteractionProfileType::kSamsungOdyssey,
            {{"",
-             {"samsung-odyssey", "windows-mixed-reality",
+             {"samsung-odyssey", "microsoft-mixed-reality",
+              "windows-mixed-reality",
               "generic-trigger-squeeze-touchpad-thumbstick"}}}},
 
           // HP Reverb G2
@@ -153,7 +154,8 @@ GetOpenXrControllerInteractionProfiles() {
           // Samsung Odyssey
           {OpenXrInteractionProfileType::kSamsungOdyssey,
            kSamsungOdysseyInteractionProfilePath,
-           /*required_extension=*/kExtSamsungOdysseyControllerExtensionName,
+           /*required_extension=*/
+           XR_EXT_SAMSUNG_ODYSSEY_CONTROLLER_EXTENSION_NAME,
            GamepadMapping::kXrStandard,
            /*common_button_maps=*/
            {
@@ -234,6 +236,8 @@ GetOpenXrControllerInteractionProfiles() {
                     {OpenXrButtonActionType::kPress, "/input/y/click"},
                     {OpenXrButtonActionType::kTouch, "/input/y/touch"},
                 }},
+               {OpenXrButtonType::kMenu,
+                {{OpenXrButtonActionType::kPress, "/input/menu/click"}}},
            },
            /*right_button_maps=*/
            {
@@ -330,7 +334,8 @@ GetOpenXrControllerInteractionProfiles() {
           // HP Reverb G2
           {OpenXrInteractionProfileType::kHPReverbG2,
            kHPReverbG2InteractionProfilePath,
-           /*required_extension=*/kExtHPMixedRealityControllerExtensionName,
+           /*required_extension=*/
+           XR_EXT_HP_MIXED_REALITY_CONTROLLER_EXTENSION_NAME,
            GamepadMapping::kXrStandard,
            /*common_button_maps=*/
            {
@@ -380,7 +385,7 @@ GetOpenXrControllerInteractionProfiles() {
           // Microsoft Hands Profile
           {OpenXrInteractionProfileType::kHandSelectGrasp,
            kHandSelectGraspInteractionProfilePath,
-           /*required_extension=*/kMSFTHandInteractionExtensionName,
+           /*required_extension=*/XR_MSFT_HAND_INTERACTION_EXTENSION_NAME,
            GamepadMapping::kXrStandard,
            /*common_button_maps=*/
            {
@@ -403,7 +408,8 @@ GetOpenXrControllerInteractionProfiles() {
           // Vive Cosmos
           {OpenXrInteractionProfileType::kViveCosmos,
            kHTCViveCosmosInteractionProfilePath,
-           /*required_extension=*/XR_HTC_VIVE_COSMOS_CONTROLLER_INTERACTION_EXTENSION_NAME,
+           /*required_extension=*/
+           XR_HTC_VIVE_COSMOS_CONTROLLER_INTERACTION_EXTENSION_NAME,
            GamepadMapping::kXrStandard,
            /*common_button_maps=*/
            {

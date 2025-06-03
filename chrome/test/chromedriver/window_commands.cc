@@ -16,25 +16,21 @@
 #include <vector>
 
 #include "base/containers/adapters.h"
-#include "base/functional/callback.h"
 #include "base/logging.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversion_utils.h"
-#include "base/strings/utf_string_conversions.h"
 #include "base/threading/platform_thread.h"
 #include "base/time/time.h"
 #include "base/values.h"
 #include "build/build_config.h"
 #include "chrome/test/chromedriver/basic_types.h"
-#include "chrome/test/chromedriver/chrome/browser_info.h"
 #include "chrome/test/chromedriver/chrome/chrome.h"
 #include "chrome/test/chromedriver/chrome/chrome_desktop_impl.h"
 #include "chrome/test/chromedriver/chrome/devtools_client.h"
 #include "chrome/test/chromedriver/chrome/geoposition.h"
 #include "chrome/test/chromedriver/chrome/javascript_dialog_manager.h"
-#include "chrome/test/chromedriver/chrome/js.h"
 #include "chrome/test/chromedriver/chrome/mobile_emulation_override_manager.h"
 #include "chrome/test/chromedriver/chrome/network_conditions.h"
 #include "chrome/test/chromedriver/chrome/status.h"
@@ -43,7 +39,6 @@
 #include "chrome/test/chromedriver/element_commands.h"
 #include "chrome/test/chromedriver/element_util.h"
 #include "chrome/test/chromedriver/key_converter.h"
-#include "chrome/test/chromedriver/keycode_text_conversion.h"
 #include "chrome/test/chromedriver/net/command_id.h"
 #include "chrome/test/chromedriver/net/timeout.h"
 #include "chrome/test/chromedriver/session.h"
@@ -683,18 +678,23 @@ Status ExecuteWindowCommand(const WindowCommand& command,
     // before returning an error, so that subsequent commands do not fail.
     const std::string& prompt_behavior = session->unhandled_prompt_behavior;
 
-    if (prompt_behavior == kAccept || prompt_behavior == kAcceptAndNotify)
+    if (prompt_behavior == ::prompt_behavior::kAccept ||
+        prompt_behavior == ::prompt_behavior::kAcceptAndNotify) {
       status = dialog_manager->HandleDialog(true, session->prompt_text.get());
-    else if (prompt_behavior == kDismiss ||
-             prompt_behavior == kDismissAndNotify)
+    } else if (prompt_behavior == ::prompt_behavior::kDismiss ||
+               prompt_behavior == ::prompt_behavior::kDismissAndNotify) {
       status = dialog_manager->HandleDialog(false, session->prompt_text.get());
+    }
     if (status.IsError())
       return status;
 
     // For backward compatibility, in legacy mode we always notify.
-    if (!session->w3c_compliant || prompt_behavior == kAcceptAndNotify ||
-        prompt_behavior == kDismissAndNotify || prompt_behavior == kIgnore)
+    if (!session->w3c_compliant ||
+        prompt_behavior == ::prompt_behavior::kAcceptAndNotify ||
+        prompt_behavior == ::prompt_behavior::kDismissAndNotify ||
+        prompt_behavior == ::prompt_behavior::kIgnore) {
       return Status(kUnexpectedAlertOpen, "{Alert text : " + alert_text + "}");
+    }
   }
 
   Status nav_status(kOk);
@@ -786,6 +786,9 @@ Status ExecuteExecuteScript(Session* session,
     return web_view->EndProfile(value);
 
   const base::Value::List* args = params.FindList("args");
+  if (args == nullptr) {
+    return Status(kInvalidArgument, "'args' must be a list");
+  }
   // Need to support line oriented comment
   if (script.find("//") != std::string::npos)
     script = script + "\n";
@@ -808,6 +811,9 @@ Status ExecuteExecuteAsyncScript(Session* session,
     return Status(kInvalidArgument, "'script' must be a string");
   std::string script = *maybe_script;
   const base::Value::List* args = params.FindList("args");
+  if (args == nullptr) {
+    return Status(kInvalidArgument, "'args' must be a list");
+  }
 
   // Need to support line oriented comment
   if (script.find("//") != std::string::npos)
@@ -1359,6 +1365,9 @@ Status ProcessInputActionSequence(Session* session,
   }
 
   const base::Value::List* actions = action_sequence.FindList("actions");
+  if (actions == nullptr) {
+    return Status(kInvalidArgument, "'actions' in the sequence must be a list");
+  }
 
   std::unique_ptr<base::Value::List> actions_result(new base::Value::List);
   for (const base::Value& action_item_value : *actions) {
@@ -1577,6 +1586,9 @@ Status ExecutePerformActions(Session* session,
                              Timeout* timeout) {
   // extract action sequence
   const base::Value::List* actions_input = params.FindList("actions");
+  if (actions_input == nullptr) {
+    return Status(kInvalidArgument, "'actions' must be a list");
+  }
 
   // the processed actions
   std::vector<std::vector<base::Value::Dict>> actions_list;
@@ -2021,6 +2033,9 @@ Status ExecuteSendKeysToActiveElement(Session* session,
                                       std::unique_ptr<base::Value>* value,
                                       Timeout* timeout) {
   const base::Value::List* key_list = params.FindList("value");
+  if (key_list == nullptr) {
+    return Status(kInvalidArgument, "'value' must be a list");
+  }
   return SendKeysOnWindow(
       web_view, key_list, false, &session->sticky_modifiers);
 }
@@ -2161,19 +2176,24 @@ Status ExecuteFullPageScreenshot(Session* session,
     return status;
 
   std::unique_ptr<base::Value> layout_metrics;
+  // TODO(crbug.com/1444533): Pass base::Value::Dict* as return param.
   status = web_view->SendCommandAndGetResult(
       "Page.getLayoutMetrics", base::Value::Dict(), &layout_metrics);
   if (status.IsError())
     return status;
 
-  const auto width = layout_metrics->FindDoublePath("contentSize.width");
+  CHECK(layout_metrics && layout_metrics->is_dict());
+  const auto& layout_metrics_dict = layout_metrics->GetDict();
+  const auto width =
+      layout_metrics_dict.FindDoubleByDottedPath("contentSize.width");
   if (!width.has_value())
     return Status(kUnknownError, "invalid width type");
   int w = ceil(width.value());
   if (w == 0)
     return Status(kUnknownError, "invalid width 0");
 
-  const auto height = layout_metrics->FindDoublePath("contentSize.height");
+  const auto height =
+      layout_metrics_dict.FindDoubleByDottedPath("contentSize.height");
   if (!height.has_value())
     return Status(kUnknownError, "invalid height type");
   int h = ceil(height.value());

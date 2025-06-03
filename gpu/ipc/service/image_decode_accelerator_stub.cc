@@ -74,7 +74,7 @@ struct CleanUpContext {
   std::unique_ptr<SkiaImageRepresentation::ScopedReadAccess> skia_scoped_access;
 };
 
-void CleanUpResource(SkImage::ReleaseContext context) {
+void CleanUpResource(SkImages::ReleaseContext context) {
   auto* clean_up_context = static_cast<CleanUpContext*>(context);
   DCHECK(clean_up_context->main_task_runner->BelongsToCurrentThread());
 
@@ -288,8 +288,9 @@ void ImageDecodeAcceleratorStub::ProcessCompletedDecode(
     const bool is_nv12_chroma_plane = completed_decode->buffer_format ==
                                           gfx::BufferFormat::YUV_420_BIPLANAR &&
                                       plane == 1u;
-    const auto plane_format = is_nv12_chroma_plane ? gfx::BufferFormat::RG_88
-                                                   : gfx::BufferFormat::R_8;
+    const auto plane_format = is_nv12_chroma_plane
+                                  ? viz::SinglePlaneFormat::kRG_88
+                                  : viz::SinglePlaneFormat::kR_8;
 
     // NOTE: The SurfaceHandle would typically be used to know what gpu adapter
     // the buffer belongs to, but here we already have the buffer handle, so it
@@ -297,9 +298,8 @@ void ImageDecodeAcceleratorStub::ProcessCompletedDecode(
     // SurfaceHandle was used to create the original buffers).
     gpu::Mailbox mailbox = gpu::Mailbox::GenerateForSharedImage();
     if (!channel_->shared_image_stub()->CreateSharedImage(
-            mailbox, std::move(plane_handle), plane_format,
-            gfx::BufferPlane::DEFAULT, plane_size, gfx::ColorSpace(),
-            kTopLeft_GrSurfaceOrigin, kOpaque_SkAlphaType,
+            mailbox, std::move(plane_handle), plane_format, plane_size,
+            gfx::ColorSpace(), kTopLeft_GrSurfaceOrigin, kOpaque_SkAlphaType,
             SHARED_IMAGE_USAGE_RASTER | SHARED_IMAGE_USAGE_OOP_RASTERIZATION,
             "ImageDecodeAccelerator")) {
       DLOG(ERROR) << "Could not create SharedImage";
@@ -351,7 +351,7 @@ void ImageDecodeAcceleratorStub::ProcessCompletedDecode(
     resource->skia_scoped_access = std::move(skia_scoped_access);
 
     plane_sk_images[plane] = resource->skia_scoped_access->CreateSkImage(
-        shared_context_state->gr_context(), CleanUpResource, resource);
+        shared_context_state.get(), CleanUpResource, resource);
     if (!plane_sk_images[plane]) {
       DLOG(ERROR) << "Could not create planar SkImage";
       return;

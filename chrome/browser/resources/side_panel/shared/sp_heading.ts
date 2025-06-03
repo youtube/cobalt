@@ -5,11 +5,18 @@
 import '//resources/cr_elements/cr_hidden_style.css.js';
 import '//resources/cr_elements/cr_icon_button/cr_icon_button.js';
 import '//resources/cr_elements/cr_shared_vars.css.js';
+import './sp_shared_style.css.js';
 
-import {assert} from '//resources/js/assert_ts.js';
+import {assert} from '//resources/js/assert.js';
 import {PolymerElement} from '//resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {getTemplate} from './sp_heading.html.js';
+
+export interface SpHeading {
+  $: {
+    backButton: HTMLElement,
+  };
+}
 
 export class SpHeading extends PolymerElement {
   static get is() {
@@ -58,6 +65,10 @@ export class SpHeading extends PolymerElement {
 
   private onBackButtonClick_() {
     this.dispatchEvent(new CustomEvent('back-button-click'));
+  }
+
+  getBackButton(): HTMLElement {
+    return this.$.backButton;
   }
 }
 

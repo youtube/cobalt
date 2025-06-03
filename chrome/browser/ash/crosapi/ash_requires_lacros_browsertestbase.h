@@ -7,10 +7,11 @@
 
 #include "chrome/test/base/in_process_browser_test.h"
 
-#include "base/test/scoped_feature_list.h"
 #include "chrome/browser/ash/crosapi/test_controller_ash.h"
 #include "chrome/test/base/chromeos/ash_browser_test_starter.h"
 #include "chromeos/crosapi/mojom/test_controller.mojom.h"
+
+class Profile;
 
 namespace crosapi {
 
@@ -20,6 +21,9 @@ class AshRequiresLacrosBrowserTestBase : public InProcessBrowserTest {
  public:
   AshRequiresLacrosBrowserTestBase();
   ~AshRequiresLacrosBrowserTestBase() override;
+
+  // Gets user profile in ash.
+  Profile* GetAshProfile() const;
 
  protected:
   void SetUpInProcessBrowserTestFixture() override;
@@ -37,7 +41,6 @@ class AshRequiresLacrosBrowserTestBase : public InProcessBrowserTest {
   mojom::StandaloneBrowserTestController* GetStandaloneBrowserTestController();
 
  private:
-  base::test::ScopedFeatureList scoped_feature_list_;
   test::AshBrowserTestStarter ash_starter_;
   std::unique_ptr<crosapi::TestControllerAsh> test_controller_ash_;
 };

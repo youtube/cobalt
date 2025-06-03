@@ -25,7 +25,6 @@
 #include "third_party/blink/renderer/core/html/html_body_element.h"
 
 #include "third_party/blink/renderer/bindings/core/v8/js_event_handler_for_content_attribute.h"
-#include "third_party/blink/renderer/core/css/css_image_value.h"
 #include "third_party/blink/renderer/core/css/css_property_value_set.h"
 #include "third_party/blink/renderer/core/css/parser/css_parser.h"
 #include "third_party/blink/renderer/core/css/style_change_reason.h"
@@ -65,17 +64,7 @@ void HTMLBodyElement::CollectStyleForPresentationAttribute(
     const AtomicString& value,
     MutableCSSPropertyValueSet* style) {
   if (name == html_names::kBackgroundAttr) {
-    AtomicString url(StripLeadingAndTrailingHTMLSpaces(value));
-    if (!url.empty()) {
-      CSSImageValue* image_value = MakeGarbageCollected<CSSImageValue>(
-          url, GetDocument().CompleteURL(url),
-          Referrer(GetExecutionContext()->OutgoingReferrer(),
-                   GetExecutionContext()->GetReferrerPolicy()),
-          OriginClean::kTrue, false /* is_ad_related */);
-      image_value->SetInitiator(localName());
-      style->SetLonghandProperty(CSSPropertyValue(
-          CSSPropertyName(CSSPropertyID::kBackgroundImage), *image_value));
-    }
+    AddHTMLBackgroundImageToStyle(style, value, localName());
   } else if (name == html_names::kMarginwidthAttr ||
              name == html_names::kLeftmarginAttr) {
     AddHTMLLengthToStyle(style, CSSPropertyID::kMarginRight, value);
@@ -292,16 +281,6 @@ bool HTMLBodyElement::IsURLAttribute(const Attribute& attribute) const {
 bool HTMLBodyElement::HasLegalLinkAttribute(const QualifiedName& name) const {
   return name == html_names::kBackgroundAttr ||
          HTMLElement::HasLegalLinkAttribute(name);
-}
-
-const QualifiedName& HTMLBodyElement::SubResourceAttributeName() const {
-  return html_names::kBackgroundAttr;
-}
-
-bool HTMLBodyElement::SupportsFocus() const {
-  // This override is needed because the inherited method bails if the parent is
-  // editable.  The <body> should be focusable even if <html> is editable.
-  return IsEditable(*this) || HTMLElement::SupportsFocus();
 }
 
 }  // namespace blink

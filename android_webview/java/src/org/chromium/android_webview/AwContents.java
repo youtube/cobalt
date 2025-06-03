@@ -23,6 +23,7 @@ import android.net.Uri;
 import android.net.http.SslCertificate;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Debug;
 import android.os.Handler;
 import android.os.Message;
 import android.os.SystemClock;
@@ -33,9 +34,11 @@ import android.util.SparseArray;
 import android.view.DragEvent;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
+import android.view.PointerIcon;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewStructure;
+import android.view.Window;
 import android.view.accessibility.AccessibilityNodeProvider;
 import android.view.animation.AnimationUtils;
 import android.view.autofill.AutofillValue;
@@ -46,11 +49,19 @@ import android.webkit.JavascriptInterface;
 
 import androidx.annotation.IntDef;
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
+
+import org.jni_zero.CalledByNative;
+import org.jni_zero.CalledByNativeUnchecked;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
 
 import org.chromium.android_webview.autofill.AndroidAutofillSafeModeAction;
 import org.chromium.android_webview.common.AwFeatures;
 import org.chromium.android_webview.common.AwSwitches;
+import org.chromium.android_webview.common.Lifetime;
+import org.chromium.android_webview.common.PlatformServiceBridge;
 import org.chromium.android_webview.gfx.AwDrawFnImpl;
 import org.chromium.android_webview.gfx.AwFunctor;
 import org.chromium.android_webview.gfx.AwGLFunctor;
@@ -61,6 +72,7 @@ import org.chromium.android_webview.metrics.AwSiteVisitLogger;
 import org.chromium.android_webview.permission.AwGeolocationCallback;
 import org.chromium.android_webview.permission.AwPermissionRequest;
 import org.chromium.android_webview.renderer_priority.RendererPriority;
+import org.chromium.base.BaseFeatures;
 import org.chromium.base.Callback;
 import org.chromium.base.CommandLine;
 import org.chromium.base.ContextUtils;
@@ -68,19 +80,25 @@ import org.chromium.base.LocaleUtils;
 import org.chromium.base.Log;
 import org.chromium.base.ObserverList;
 import org.chromium.base.ThreadUtils;
+import org.chromium.base.TimeUtils;
 import org.chromium.base.TraceEvent;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.CalledByNativeUnchecked;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
+import org.chromium.base.jank_tracker.FrameMetricsListener;
+import org.chromium.base.jank_tracker.FrameMetricsStore;
+import org.chromium.base.jank_tracker.JankReportingScheduler;
+import org.chromium.base.jank_tracker.JankScenario;
+import org.chromium.base.jank_tracker.JankTracker;
+import org.chromium.base.jank_tracker.JankTrackerImpl;
+import org.chromium.base.jank_tracker.JankTrackerStateController;
+import org.chromium.base.memory.MemoryInfoBridge;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.metrics.ScopedSysTraceEvent;
 import org.chromium.base.task.AsyncTask;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
-import org.chromium.components.autofill.AutofillActionModeCallback;
 import org.chromium.components.autofill.AutofillProvider;
+import org.chromium.components.autofill.AutofillSelectionMenuItemProvider;
 import org.chromium.components.content_capture.OnscreenContentProvider;
+import org.chromium.components.embedder_support.util.TouchEventFilter;
 import org.chromium.components.embedder_support.util.WebResourceResponseInfo;
 import org.chromium.components.navigation_interception.InterceptNavigationDelegate;
 import org.chromium.components.stylus_handwriting.StylusWritingController;
@@ -137,17 +155,18 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.WeakHashMap;
 import java.util.concurrent.Callable;
+import java.util.function.BiFunction;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Exposes the native AwContents class, and together these classes wrap the WebContents
- * and Browser components that are required to implement Android WebView API. This is the
- * primary entry point for the WebViewProvider implementation; it holds a 1:1 object
- * relationship with application WebView instances.
- * (We define this class independent of the hidden WebViewProvider interfaces, to allow
- * continuous build &amp; test in the open source SDK-based tree).
+ * Exposes the native AwContents class, and together these classes wrap the WebContents and Browser
+ * components that are required to implement Android WebView API. This is the primary entry point
+ * for the WebViewProvider implementation; it holds a 1:1 object relationship with application
+ * WebView instances. (We define this class independent of the hidden WebViewProvider interfaces, to
+ * allow continuous build &amp; test in the open source SDK-based tree).
  */
+@Lifetime.WebView
 @JNINamespace("android_webview")
 public class AwContents implements SmartClipProvider {
     private static final String TAG = "AwContents";
@@ -392,10 +411,46 @@ public class AwContents implements SmartClipProvider {
     private boolean mIsViewVisible;
     private boolean mIsWindowVisible;
     private boolean mIsAttachedToWindow;
-    // Visiblity state of |mWebContents|.
+
+    // Visibility state of |mWebContents|.
     private boolean mIsContentVisible;
     private boolean mIsUpdateVisibilityTaskPending;
     private Runnable mUpdateVisibilityRunnable;
+
+    /**
+     * Set to true if there is ever a call to {@link AwContents#getBrowserContext()}.
+     * This flag is primarily used to prevent setting a new browser context via. {@link
+     * AwContents#setBrowserContext(AwBrowserContext)} after it has been retrieved externally.
+     */
+    private boolean mBrowserContextAccessed;
+
+    /**
+     * Set to true if the browser context has ever been set explicitly via.
+     * {@link AwContents#setBrowserContext(AwBrowserContext)}.
+     */
+    private boolean mBrowserContextSetExplicitly;
+
+    /**
+     * Set to true if {@link AwContents#evaluateJavaScript(String, Callback)}
+     * has been called.
+     */
+    private boolean mHasEvaluatedJavascript;
+
+    @VisibleForTesting
+    public static final long FUNCTOR_RECLAIM_DELAY_MS = 10000;
+    @VisibleForTesting
+    public static final long METRICS_COLLECTION_DELAY_MS = 1000;
+    private static final long CURRENTLY_VISIBLE = -1;
+    private long mLastWindowVisibleTime = -1;
+    private boolean mHasPendingReclaimTask;
+    private BiFunction<Runnable, Long, Void> mPostDelayedTaskForTesting;
+    private static final long MEMORY_COLLECTION_INTERVAL_MS = 5 * 60 * 1000;
+    private static long sLastCollectionTime = -MEMORY_COLLECTION_INTERVAL_MS;
+    @VisibleForTesting
+    public static final String PSS_HISTOGRAM = "Android.WebView.Memory.FunctorReclaim.OtherPss";
+    @VisibleForTesting
+    public static final String PRIVATE_DIRTY_HISTOGRAM =
+            "Android.WebView.Memory.FunctorReclaim.OtherPrivateDirty";
 
     private @RendererPriority int mRendererPriority;
     private boolean mRendererPriorityWaivedWhenNotVisible;
@@ -477,6 +532,8 @@ public class AwContents implements SmartClipProvider {
     // The current AwWindowCoverageTracker, if any. This will be non-null when the AwContents is
     // attached to the Window and size tracking is enabled. It will be null otherwise.
     private AwWindowCoverageTracker mAwWindowCoverageTracker;
+
+    private AwFrameMetricsListener mAwFrameMetricsListener;
 
     private AwDarkMode mAwDarkMode;
     private AwWebContentsMetricsRecorder mAwWebContentsMetricsRecorder;
@@ -688,11 +745,12 @@ public class AwContents implements SmartClipProvider {
     private class InterceptNavigationDelegateImpl extends InterceptNavigationDelegate {
         @Override
         public boolean shouldIgnoreNavigation(NavigationHandle navigationHandle, GURL escapedUrl,
-                boolean crossFrame, boolean isSandboxedFrame) {
+                boolean hiddenCrossFrame, boolean isSandboxedFrame) {
             // The shouldOverrideUrlLoading call might have resulted in posting messages to the
             // UI thread. Using sendMessage here (instead of calling onPageStarted directly)
             // will allow those to run in order.
-            if (!AwFeatureList.pageStartedOnCommitEnabled(navigationHandle.isRendererInitiated())) {
+            if (!AwComputedFlags.pageStartedOnCommitEnabled(
+                        navigationHandle.isRendererInitiated())) {
                 GURL url = navigationHandle.getBaseUrlForDataUrl().isEmpty()
                         ? navigationHandle.getUrl()
                         : navigationHandle.getBaseUrlForDataUrl();
@@ -811,6 +869,16 @@ public class AwContents implements SmartClipProvider {
         @Override
         public void onScrollStarted(int scrollOffsetY, int scrollExtentY, boolean isDirectionUp) {
             mZoomControls.invokeZoomPicker();
+            if (mAwFrameMetricsListener != null) {
+                mAwFrameMetricsListener.onWebContentsScrollStateUpdate(/*isScrolling=*/true);
+            }
+        }
+
+        @Override
+        public void onScrollEnded(int scrollOffsetY, int scrollExtentY) {
+            if (mAwFrameMetricsListener != null) {
+                mAwFrameMetricsListener.onWebContentsScrollStateUpdate(/*isScrolling=*/false);
+            }
         }
 
         @Override
@@ -823,17 +891,7 @@ public class AwContents implements SmartClipProvider {
     private class AwComponentCallbacks implements ComponentCallbacks2 {
         @Override
         public void onTrimMemory(final int level) {
-            boolean visibleRectEmpty = getGlobalVisibleRect().isEmpty();
-            final boolean visible = mIsViewVisible && mIsWindowVisible && !visibleRectEmpty;
-            ThreadUtils.runOnUiThreadBlocking(() -> {
-                if (isDestroyed(NO_WARN)) return;
-                if (level >= TRIM_MEMORY_MODERATE) {
-                    if (mDrawFunctor != null) {
-                        mDrawFunctor.trimMemory();
-                    }
-                }
-                AwContentsJni.get().trimMemory(mNativeAwContents, level, visible);
-            });
+            AwContents.this.onTrimMemory(level);
         }
 
         @Override
@@ -1002,6 +1060,57 @@ public class AwContents implements SmartClipProvider {
         }
     }
 
+    // A Webview class that implements the listener part of the JankTracker requirement. It mirrors
+    // JankActivityTracker in starting and stopping the listener and collection.
+    private class AwFrameMetricsListener {
+        private boolean mAttached;
+        private JankTrackerStateController mController;
+        private JankTracker mJankTracker;
+        private WeakReference<Window> mWindow;
+
+        public AwFrameMetricsListener() {
+            FrameMetricsStore metricsStore = new FrameMetricsStore();
+            mController = new JankTrackerStateController(new FrameMetricsListener(metricsStore),
+                    new JankReportingScheduler(metricsStore));
+            mJankTracker = new JankTrackerImpl(mController);
+            mAttached = false;
+        }
+
+        public void attachListener(Window window) {
+            if (mAttached) return;
+            mWindow = new WeakReference<Window>(window);
+            mController.startMetricCollection(window);
+            mAttached = true;
+        }
+
+        public void detachListener(Window window) {
+            if (!mAttached || window != mWindow.get()) return;
+            mController.stopMetricCollection(window);
+            mAttached = false;
+        }
+
+        public void startListening() {
+            if (!mAttached) return;
+            mController.startPeriodicReporting();
+            mController.startMetricCollection(null);
+        }
+
+        public void stopListening() {
+            if (!mAttached) return;
+            mController.stopMetricCollection(null);
+            mController.stopPeriodicReporting();
+        }
+
+        public void onWebContentsScrollStateUpdate(boolean isScrolling) {
+            if (isScrolling) {
+                mJankTracker.startTrackingScenario(JankScenario.WEBVIEW_SCROLLING);
+            } else {
+                mJankTracker.finishTrackingScenario(JankScenario.WEBVIEW_SCROLLING,
+                        TimeUtils.uptimeMillis() * TimeUtils.NANOSECONDS_PER_MILLISECOND);
+            }
+        }
+    }
+
     //--------------------------------------------------------------------------------------------
     /**
      * @param browserContext the browsing context to associate this view contents with.
@@ -1024,16 +1133,24 @@ public class AwContents implements SmartClipProvider {
 
     /**
      * @param dependencyFactory an instance of the DependencyFactory used to provide instances of
-     *                          classes that this class depends on.
-     *
-     * This version of the constructor is used in test code to inject test versions of the above
-     * documented classes.
+     *     classes that this class depends on.
+     *     <p>This version of the constructor is used in test code to inject test versions of the
+     *     above documented classes.
      */
-    public AwContents(AwBrowserContext browserContext, ViewGroup containerView, Context context,
+    public AwContents(
+            AwBrowserContext browserContext,
+            ViewGroup containerView,
+            Context context,
             InternalAccessDelegate internalAccessAdapter,
-            NativeDrawFunctorFactory nativeDrawFunctorFactory, AwContentsClient contentsClient,
-            AwSettings settings, DependencyFactory dependencyFactory) {
+            NativeDrawFunctorFactory nativeDrawFunctorFactory,
+            AwContentsClient contentsClient,
+            AwSettings settings,
+            DependencyFactory dependencyFactory) {
         assert browserContext != null;
+        if (!browserContext.isDefaultAwBrowserContext()) {
+            // The browser context has been explicitly set by the application.
+            mBrowserContextSetExplicitly = true;
+        }
         try (ScopedSysTraceEvent e1 = ScopedSysTraceEvent.scoped("AwContents.constructor")) {
             mDisplayModeController =
                     new AwDisplayModeController(new AwDisplayModeController.Delegate() {
@@ -1050,7 +1167,7 @@ public class AwContents implements SmartClipProvider {
                         }
                     }, containerView);
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P
-                    && AwFeatureList.isEnabled(AwFeatures.WEBVIEW_DISPLAY_CUTOUT)) {
+                    && AwFeatureMap.isEnabled(AwFeatures.WEBVIEW_DISPLAY_CUTOUT)) {
                 mDisplayCutoutController =
                         new AwDisplayCutoutController(new AwDisplayCutoutController.Delegate() {
                             @Override
@@ -1129,7 +1246,17 @@ public class AwContents implements SmartClipProvider {
             setNewAwContents(
                     AwContentsJni.get().init(mBrowserContext.getNativeBrowserContextPointer()));
 
+            if (AwFeatureMap.isEnabled(AwFeatures.WEBVIEW_INJECT_PLATFORM_JS_APIS)) {
+                PlatformServiceBridge.getInstance()
+                        .injectPlatformJsInterfaces(
+                                mContext, new PlatformServiceBridgeAwContentsWrapper(this));
+            }
+
             onContainerViewChanged();
+        }
+
+        if (AwFeatureMap.isEnabled(BaseFeatures.COLLECT_ANDROID_FRAME_TIMELINE_METRICS)) {
+            mAwFrameMetricsListener = new AwFrameMetricsListener();
         }
     }
 
@@ -1171,8 +1298,8 @@ public class AwContents implements SmartClipProvider {
             mAutofillProvider.setWebContents(mWebContents);
         }
         SelectionPopupController.fromWebContents(mWebContents)
-                .setNonSelectionActionModeCallback(
-                        new AutofillActionModeCallback(mContext, mAutofillProvider));
+                .setNonSelectionAdditionalMenuItemProvider(
+                        new AutofillSelectionMenuItemProvider(mContext, mAutofillProvider));
         AwContentsJni.get().initializeAndroidAutofill(mNativeAwContents);
     }
 
@@ -1186,6 +1313,78 @@ public class AwContents implements SmartClipProvider {
 
     public boolean isFullScreen() {
         return mFullScreenTransitionsState.isFullScreen();
+    }
+
+    /**
+     * For multi-profile public API. For internal access to the browser context,
+     * use the member variable {@link AwContents#mBrowserContext} directly. All Exception messages
+     * should be developer friendly and refer to the browser context as a "Profile".
+     *
+     * @throws IllegalStateException if the WebView has been destroyed via. {@link
+     *         AwContents#destroy()}.
+     */
+    @NonNull
+    public AwBrowserContext getBrowserContext() {
+        if (isDestroyed(NO_WARN)) {
+            throw new IllegalStateException("Cannot get profile for destroyed WebView.");
+        }
+        mBrowserContextAccessed = true;
+        return mBrowserContext;
+    }
+
+    /**
+     * For multi-profile public API. Sets a new browser context which will
+     * cause the web contents to reinitialize. All Exception messages should
+     * be developer friendly and refer to the browser context as a "Profile".
+     *
+     * @throws IllegalStateException if the WebView has been destroyed via. {@link
+     *         AwContents#destroy()}.
+     * @throws IllegalStateException if the browser context has been accessed via. {@link
+     *         AwContents#getBrowserContext()}.
+     * @throws IllegalStateException if the browser context has already been set explicitly via.
+     *         {@link AwContents#setBrowserContext(AwBrowserContext)}.
+     * @throws IllegalStateException if the {@link AwContents#evaluateJavaScript(String, Callback)}
+     *         has been called on the WebView.
+     * @throws IllegalStateException if the WebView has previously navigated to a web page.
+     */
+    public void setBrowserContext(@NonNull AwBrowserContext browserContext) {
+        if (browserContext == mBrowserContext) {
+            return;
+        }
+        if (isDestroyed(NO_WARN)) {
+            throw new IllegalStateException(
+                    "Cannot set new profile on a WebView that has been destroyed");
+        }
+        if (mBrowserContextAccessed) {
+            throw new IllegalStateException(
+                    "Cannot set new profile after the current one has been retrieved via. "
+                    + "getProfile");
+        }
+        if (mBrowserContextSetExplicitly) {
+            throw new IllegalStateException("Cannot set new profile after one has already been set"
+                    + "via. setProfile");
+        }
+        if (mHasEvaluatedJavascript) {
+            throw new IllegalStateException(
+                    "Cannot set new profile after call to evaluateJavascript");
+        }
+
+        final NavigationHistory navigationHistory = getNavigationHistory();
+        if (navigationHistory.getEntryCount() != 0
+                && !navigationHistory.getEntryAtIndex(0).isInitialEntry()) {
+            throw new IllegalStateException(
+                    "Cannot set new profile on a WebView that has been previously navigated.");
+        }
+
+        // Save existing state and reset.
+        StateSnapshot previousState = captureStateAndResetView();
+        mBrowserContext = browserContext;
+        mBrowserContextSetExplicitly = true;
+        setNewAwContents(
+                AwContentsJni.get().init(mBrowserContext.getNativeBrowserContextPointer()));
+
+        // Finally refresh all view state.
+        restoreState(previousState);
     }
 
     /**
@@ -1337,6 +1536,44 @@ public class AwContents implements SmartClipProvider {
             if (mDisplayCutoutController != null) {
                 mDisplayCutoutController.setCurrentContainerView(mContainerView);
             }
+        }
+    }
+
+    /**
+     * Used for saving and restoring the WebView's state during a native web contents change.
+     * Currently this occurs either after receiving popup contents, or after a browser context
+     * change via. the multi-profile public API.
+     */
+    private static class StateSnapshot {
+        public final boolean wasAttached;
+        public final boolean wasViewVisible;
+        public final boolean wasWindowVisible;
+        public final boolean wasPaused;
+        public final boolean wasFocused;
+        public final boolean wasWindowFocused;
+        public final @NonNull Map<String, Pair<Object, Class>> javascriptInterfaces;
+        public final @Nullable WebMessageListenerInfo[] webMessageListenerInfo;
+        public final @Nullable StartupJavascriptInfo[] startupJavascriptInfo;
+
+        public StateSnapshot(@NonNull AwContents awContents) {
+            wasAttached = awContents.mIsAttachedToWindow;
+            wasViewVisible = awContents.mIsViewVisible;
+            wasWindowVisible = awContents.mIsWindowVisible;
+            wasPaused = awContents.mIsPaused;
+            wasFocused = awContents.mContainerViewFocused;
+            wasWindowFocused = awContents.mWindowFocused;
+
+            // Save injected JavaScript interfaces.
+            javascriptInterfaces = new HashMap<>();
+            if (awContents.mWebContents != null) {
+                javascriptInterfaces.putAll(awContents.getJavascriptInjector().getInterfaces());
+            }
+
+            // Save injected WebMessageListeners.
+            webMessageListenerInfo = AwContentsJni.get().getWebMessageListenerInfos(
+                    awContents.mNativeAwContents, WebMessageListenerInfo.class);
+            startupJavascriptInfo = AwContentsJni.get().getDocumentStartupJavascripts(
+                    awContents.mNativeAwContents, StartupJavascriptInfo.class);
         }
     }
 
@@ -1495,7 +1732,10 @@ public class AwContents implements SmartClipProvider {
         updateNativeAwGLFunctor();
 
         mWebContents = AwContentsJni.get().getWebContents(mNativeAwContents);
-        mBrowserContext = AwContentsJni.get().getBrowserContext(mNativeAwContents);
+
+        if (!mBrowserContextSetExplicitly) {
+            mBrowserContext = AwContentsJni.get().getBrowserContext(mNativeAwContents);
+        }
 
         mWindowAndroid = getWindowAndroid(mContext);
         mViewAndroidDelegate =
@@ -1559,59 +1799,44 @@ public class AwContents implements SmartClipProvider {
         newContents.receivePopupContents(popupNativeAwContents);
     }
 
-    // Recap: supplyContentsForPopup() is called on the parent window's content, this method is
-    // called on the popup window's content.
-    // See //android_webview/docs/how-does-on-create-window-work.md for more details.
-    private void receivePopupContents(long popupNativeAwContents) {
-        if (isDestroyed(WARN)) return;
-        // Save existing view state.
-        final boolean wasAttached = mIsAttachedToWindow;
-        final boolean wasViewVisible = mIsViewVisible;
-        final boolean wasWindowVisible = mIsWindowVisible;
-        final boolean wasPaused = mIsPaused;
-        final boolean wasFocused = mContainerViewFocused;
-        final boolean wasWindowFocused = mWindowFocused;
+    /**
+     * Captures the WebView's state before doing a full reset of the view state to prepare
+     * for a new native web contents.
+     */
+    private StateSnapshot captureStateAndResetView() {
+        // Save the existing state.
+        StateSnapshot state = new StateSnapshot(this);
 
-        // Properly clean up existing mNativeAwContents.
-        if (wasFocused) onFocusChanged(false, 0, null);
-        if (wasWindowFocused) onWindowFocusChanged(false);
-        if (wasViewVisible) setViewVisibilityInternal(false);
-        if (wasWindowVisible) setWindowVisibilityInternal(false);
-        if (wasAttached) onDetachedFromWindow();
-        if (!wasPaused) onPause();
+        // Reset the view state.
+        if (state.wasFocused) onFocusChanged(false, 0, null);
+        if (state.wasWindowFocused) onWindowFocusChanged(false);
+        if (state.wasViewVisible) setViewVisibilityInternal(false);
+        if (state.wasWindowVisible) setWindowVisibilityInternal(false);
+        if (state.wasAttached) onDetachedFromWindow();
+        if (!state.wasPaused) onPause();
 
-        // Save injected JavaScript interfaces.
-        Map<String, Pair<Object, Class>> javascriptInterfaces =
-                new HashMap<String, Pair<Object, Class>>();
-        if (mWebContents != null) {
-            javascriptInterfaces.putAll(getJavascriptInjector().getInterfaces());
-        }
+        return state;
+    }
 
-        // Save injected WebMessageListeners
-        WebMessageListenerInfo[] listeners = AwContentsJni.get().getJsObjectsInfo(
-                mNativeAwContents, WebMessageListenerInfo.class);
-
-        setNewAwContents(popupNativeAwContents);
-        // We defer loading any URL on the popup until it has been properly initialized (through
-        // setNewAwContents). We resume the load here.
-        AwContentsJni.get().resumeLoadingCreatedPopupWebContents(mNativeAwContents);
-
-        // Finally refresh all view state for mNativeAwContents.
-        if (!wasPaused) onResume();
-        if (wasAttached) {
+    /**
+     * Restores the WebView to its previous state before a native web contents change.
+     * @param previousState the state to restore to.
+     */
+    private void restoreState(StateSnapshot previousState) {
+        if (!previousState.wasPaused) onResume();
+        if (previousState.wasAttached) {
             onAttachedToWindow();
             mContainerView.postInvalidateOnAnimation();
         }
         onSizeChanged(mContainerView.getWidth(), mContainerView.getHeight(), 0, 0);
-        if (wasWindowVisible) setWindowVisibilityInternal(true);
-        if (wasViewVisible) setViewVisibilityInternal(true);
-        if (wasWindowFocused) onWindowFocusChanged(wasWindowFocused);
-        if (wasFocused) onFocusChanged(true, 0, null);
-
-        mIsPopupWindow = true;
+        if (previousState.wasWindowVisible) setWindowVisibilityInternal(true);
+        if (previousState.wasViewVisible) setViewVisibilityInternal(true);
+        if (previousState.wasWindowFocused) onWindowFocusChanged(true);
+        if (previousState.wasFocused) onFocusChanged(true, 0, null);
 
         // Restore injected JavaScript interfaces.
-        for (Map.Entry<String, Pair<Object, Class>> entry : javascriptInterfaces.entrySet()) {
+        for (Map.Entry<String, Pair<Object, Class>> entry :
+                previousState.javascriptInterfaces.entrySet()) {
             @SuppressWarnings("unchecked")
             Class<? extends Annotation> requiredAnnotation = entry.getValue().second;
             getJavascriptInjector().addPossiblyUnsafeInterface(
@@ -1619,18 +1844,46 @@ public class AwContents implements SmartClipProvider {
         }
 
         // Restore injected WebMessageListeners.
-        if (listeners != null) {
-            for (WebMessageListenerInfo info : listeners) {
+        WebMessageListenerInfo[] previousWebMessageListenerInfo =
+                previousState.webMessageListenerInfo;
+        if (previousWebMessageListenerInfo != null) {
+            for (WebMessageListenerInfo info : previousWebMessageListenerInfo) {
                 addWebMessageListener(
                         info.mObjectName, info.mAllowedOriginRules, info.mHolder.getListener());
             }
         }
+        StartupJavascriptInfo[] previousDocumentStartupJavascripts =
+                previousState.startupJavascriptInfo;
+        if (previousDocumentStartupJavascripts != null) {
+            for (StartupJavascriptInfo info : previousDocumentStartupJavascripts) {
+                addDocumentStartJavaScript(info.mScript, info.mAllowedOriginRules);
+            }
+        }
+    }
+
+    // Recap: supplyContentsForPopup() is called on the parent window's content, this method is
+    // called on the popup window's content.
+    // See //android_webview/docs/how-does-on-create-window-work.md for more details.
+    private void receivePopupContents(long popupNativeAwContents) {
+        if (isDestroyed(WARN)) return;
+        // Capture as reset the view state for mNativeAwContents.
+        StateSnapshot prePopupState = captureStateAndResetView();
+
+        setNewAwContents(popupNativeAwContents);
+        // We defer loading any URL on the popup until it has been properly initialized (through
+        // setNewAwContents). We resume the load here.
+        AwContentsJni.get().resumeLoadingCreatedPopupWebContents(mNativeAwContents);
+
+        // Finally refresh all view state for mNativeAwContents.
+        restoreState(prePopupState);
+
+        mIsPopupWindow = true;
     }
 
     private JavascriptInjector getJavascriptInjector() {
         if (mJavascriptInjector == null) {
             mJavascriptInjector = JavascriptInjector.fromWebContents(
-                    mWebContents, AwFeatureList.isEnabled(AwFeatures.WEBVIEW_JAVA_JS_BRIDGE_MOJO));
+                    mWebContents, AwFeatureMap.isEnabled(AwFeatures.WEBVIEW_JAVA_JS_BRIDGE_MOJO));
         }
         return mJavascriptInjector;
     }
@@ -1657,13 +1910,11 @@ public class AwContents implements SmartClipProvider {
                 crashed, AwContentsJni.get().getEffectivePriority(mNativeAwContents)));
     }
 
-    @VisibleForTesting
     public @RendererPriority int getEffectivePriorityForTesting() {
         assert !isDestroyed(NO_WARN);
         return AwContentsJni.get().getEffectivePriority(mNativeAwContents);
     }
 
-    @VisibleForTesting(otherwise = VisibleForTesting.NONE)
     public AwDarkMode getAwDarkModeForTesting() {
         return mAwDarkMode;
     }
@@ -1770,7 +2021,6 @@ public class AwContents implements SmartClipProvider {
         return mNavigationController;
     }
 
-    @VisibleForTesting(otherwise = VisibleForTesting.NONE)
     public AutofillProvider getAutofillProviderForTesting() {
         return mAutofillProvider;
     }
@@ -1845,6 +2095,9 @@ public class AwContents implements SmartClipProvider {
     }
 
     public void setOnscreenContentProvider(OnscreenContentProvider onscreenContentProvider) {
+        if (mOnscreenContentProvider != null) {
+            mOnscreenContentProvider.destroy();
+        }
         mOnscreenContentProvider = onscreenContentProvider;
     }
 
@@ -1981,7 +2234,8 @@ public class AwContents implements SmartClipProvider {
         if (url == null) {
             return;
         }
-        // TODO: We may actually want to do some sanity checks here (like filter about://chrome).
+        // TODO: We may actually want to do some preliminary checks here (like filter
+        // about://chrome).
 
         // For backwards compatibility, apps targeting less than K will have JS URLs evaluated
         // directly and any result of the evaluation will not replace the current page content.
@@ -2309,7 +2563,6 @@ public class AwContents implements SmartClipProvider {
         mAwViewMethods.setLayerType(layerType, paint);
     }
 
-    @VisibleForTesting
     public int getEffectiveBackgroundColorForTesting() {
         return getEffectiveBackgroundColor();
     }
@@ -2336,12 +2589,10 @@ public class AwContents implements SmartClipProvider {
         return mSettings.supportsMultiTouchZoom();
     }
 
-    @VisibleForTesting
     public View getZoomControlsViewForTest() {
         return mZoomControls.getZoomControlsViewForTest();
     }
 
-    @VisibleForTesting
     public AwZoomControls getZoomControlsForTest() {
         return mZoomControls;
     }
@@ -2371,12 +2622,10 @@ public class AwContents implements SmartClipProvider {
      */
     public void setScrollBarStyle(int style) {
         if (TRACE) Log.i(TAG, "%s setScrollBarStyle", this);
-        if (style == View.SCROLLBARS_INSIDE_OVERLAY
-                || style == View.SCROLLBARS_OUTSIDE_OVERLAY) {
-            mOverlayHorizontalScrollbar = mOverlayVerticalScrollbar = true;
-        } else {
-            mOverlayHorizontalScrollbar = mOverlayVerticalScrollbar = false;
-        }
+        boolean scrollbars =
+                style == View.SCROLLBARS_INSIDE_OVERLAY || style == View.SCROLLBARS_OUTSIDE_OVERLAY;
+        mOverlayHorizontalScrollbar = scrollbars;
+        mOverlayVerticalScrollbar = scrollbars;
     }
 
     /**
@@ -2549,6 +2798,9 @@ public class AwContents implements SmartClipProvider {
      */
     public void goBackOrForward(int steps) {
         if (TRACE) Log.i(TAG, "%s goBackOrForward=%d", this, steps);
+        if (!canGoBackOrForward(steps)) {
+            return;
+        }
         if (!isDestroyed(WARN)) mNavigationController.goToOffset(steps);
     }
 
@@ -3042,6 +3294,7 @@ public class AwContents implements SmartClipProvider {
             };
         }
 
+        mHasEvaluatedJavascript = true;
         mWebContents.evaluateJavaScript(script, jsCallback);
     }
 
@@ -3211,6 +3464,13 @@ public class AwContents implements SmartClipProvider {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             if (mDisplayCutoutController != null) mDisplayCutoutController.onAttachedToWindow();
         }
+
+        if (mAwFrameMetricsListener != null) {
+            Activity activity = getActivity();
+            if (activity != null && mContainerView.isHardwareAccelerated()) {
+                mAwFrameMetricsListener.attachListener(activity.getWindow());
+            }
+        }
     }
 
     private void detachWindowCoverageTracker() {
@@ -3228,6 +3488,13 @@ public class AwContents implements SmartClipProvider {
         detachWindowCoverageTracker();
         mWindowAndroid.getWindowAndroid().getDisplay().removeObserver(mDisplayObserver);
         mAwViewMethods.onDetachedFromWindow();
+
+        if (mAwFrameMetricsListener != null) {
+            Activity activity = getActivity();
+            if (activity != null && mContainerView.isHardwareAccelerated()) {
+                mAwFrameMetricsListener.detachListener(activity.getWindow());
+            }
+        }
     }
 
     /**
@@ -3284,6 +3551,13 @@ public class AwContents implements SmartClipProvider {
         mAwViewMethods.onWindowVisibilityChanged(visibility);
     }
 
+    /**
+     * @see android.view.View#onResolvePointerIcon(MotionEvent, int)
+     */
+    public PointerIcon onResolvePointerIcon(MotionEvent event, int pointerIndex) {
+        return mStylusWritingController.resolvePointerIcon();
+    }
+
     private void setViewVisibilityInternal(boolean visible) {
         mIsViewVisible = visible;
         if (!isDestroyed(NO_WARN)) {
@@ -3296,8 +3570,83 @@ public class AwContents implements SmartClipProvider {
         mIsWindowVisible = visible;
         if (!isDestroyed(NO_WARN)) {
             AwContentsJni.get().setWindowVisibility(mNativeAwContents, mIsWindowVisible);
+
+            if (mAwFrameMetricsListener != null) {
+                if (mIsWindowVisible) {
+                    mAwFrameMetricsListener.startListening();
+                } else {
+                    mAwFrameMetricsListener.stopListening();
+                }
+            }
         }
+        // Using TimeUtils to allow it being overridden in tests.
+        mLastWindowVisibleTime = visible ? CURRENTLY_VISIBLE : TimeUtils.uptimeMillis();
+        if (!visible) afterWindowHiddenTask();
         postUpdateWebContentsVisibility();
+    }
+
+    private void afterWindowHiddenTask() {
+        try (TraceEvent e = TraceEvent.scoped("afterWindowHiddenTask")) {
+            if (isDestroyed(NO_WARN)) return;
+            if (mLastWindowVisibleTime == CURRENTLY_VISIBLE) return;
+
+            long timeNotVisibleMs = TimeUtils.uptimeMillis() - mLastWindowVisibleTime;
+            // Not in background for long enough.
+            if (timeNotVisibleMs < FUNCTOR_RECLAIM_DELAY_MS) {
+                // A task has been posted. If it's not far enough into the future, it will
+                // reschedule itself, nothing to do.
+                if (mHasPendingReclaimTask) return;
+                mHasPendingReclaimTask = true;
+
+                // We may have any number of fg <-> bg transitions happen in the meantime. Make
+                // sure that we only reclaim memory when we've spent enough continuous time in
+                // background. Use a weak ref to make sure we don't prevent AwContents from being
+                // GC-eligible while this task is in the queue.
+                WeakReference<AwContents> weakAwc = new WeakReference(this);
+                Runnable task =
+                        () -> {
+                            AwContents awc = weakAwc.get();
+                            if (awc != null) {
+                                awc.mHasPendingReclaimTask = false;
+                                awc.afterWindowHiddenTask();
+                            }
+                        };
+                long delayMs = FUNCTOR_RECLAIM_DELAY_MS - timeNotVisibleMs;
+                postDelayedTaskWithOverride(task, delayMs);
+                return;
+            }
+
+            if (AwFeatureMap.isEnabled(AwFeatures.WEBVIEW_CLEAR_FUNCTOR_IN_BACKGROUND)
+                    && mDrawFunctor != null) {
+                // Clear the functor. This causes native-side resources to be freed. The functor
+                // will be re-created at the next draw.
+                setFunctor(null);
+                // Since we discarded the functor, it is a good time to reclaim resources as well.
+                AwContentsJni.get().trimMemory(
+                        mNativeAwContents, ComponentCallbacks2.TRIM_MEMORY_COMPLETE, false);
+            }
+            // Not immediately collecting memory metrics, because actual memory release can take
+            // some time, either through async tasks here, or in the driver.
+            postDelayedTaskWithOverride(this::maybeRecordMemory, METRICS_COLLECTION_DELAY_MS);
+        }
+    }
+
+    /* PostTask can be overridden for testing. */
+    private void postDelayedTaskWithOverride(Runnable task, long delayMs) {
+        if (mPostDelayedTaskForTesting != null) {
+            mPostDelayedTaskForTesting.apply(task, delayMs);
+        } else {
+            PostTask.postDelayedTask(TaskTraits.UI_DEFAULT, task, delayMs);
+        }
+    }
+
+    @VisibleForTesting
+    public boolean hasDrawFunctor() {
+        return mDrawFunctor != null;
+    }
+
+    public void setPostDelayedTaskForTesting(BiFunction<Runnable, Long, Void> fn) {
+        mPostDelayedTaskForTesting = fn;
     }
 
     private void postUpdateWebContentsVisibility() {
@@ -3346,7 +3695,6 @@ public class AwContents implements SmartClipProvider {
      * Returns true if the web contents has an associated interstitial.
      * This method is only called by tests.
      */
-    @VisibleForTesting
     public boolean isDisplayingInterstitialForTesting() {
         return AwContentsJni.get().isDisplayingInterstitialForTesting(mNativeAwContents);
     }
@@ -3447,7 +3795,7 @@ public class AwContents implements SmartClipProvider {
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             if (mAutofillProvider != null) {
-                mAutofillProvider.hidePopup();
+                mAutofillProvider.hideDatalistPopup();
             }
         }
     }
@@ -3600,10 +3948,13 @@ public class AwContents implements SmartClipProvider {
 
     @CalledByNative
     private void onReceivedHttpAuthRequest(AwHttpAuthHandler handler, String host, String realm) {
-        mContentsClient.onReceivedHttpAuthRequest(handler, host, realm);
+        try (TraceEvent event =
+                        TraceEvent.scoped("WebView.APICallback.ON_RECEIVED_HTTP_AUTH_REQUEST")) {
+            mContentsClient.onReceivedHttpAuthRequest(handler, host, realm);
 
-        AwHistogramRecorder.recordCallbackInvocation(
-                AwHistogramRecorder.WebViewCallbackType.ON_RECEIVED_HTTP_AUTH_REQUEST);
+            AwHistogramRecorder.recordCallbackInvocation(
+                    AwHistogramRecorder.WebViewCallbackType.ON_RECEIVED_HTTP_AUTH_REQUEST);
+        }
     }
 
     public AwGeolocationPermissions getGeolocationPermissions() {
@@ -3788,7 +4139,7 @@ public class AwContents implements SmartClipProvider {
      * Determine if at least one edge of the WebView extends over the edge of the window.
      */
     private boolean extendsOutOfWindow() {
-        int loc[] = new int[2];
+        int[] loc = new int[2];
         mContainerView.getLocationOnScreen(loc);
         int x = loc[0];
         int y = loc[1];
@@ -3852,7 +4203,6 @@ public class AwContents implements SmartClipProvider {
      * Return the device locale in the same format we use to populate the 'hl' query parameter for
      * Safe Browsing interstitial urls, as done in BaseUIManager::app_locale().
      */
-    @VisibleForTesting
     public static String getSafeBrowsingLocaleForTesting() {
         return AwContentsJni.get().getSafeBrowsingLocaleForTesting();
     }
@@ -3959,6 +4309,91 @@ public class AwContents implements SmartClipProvider {
             }
         }
         return false;
+    }
+
+    @VisibleForTesting
+    public void onTrimMemory(final int level) {
+        try (TraceEvent e = TraceEvent.scoped("onTrimMemory", String.valueOf(level))) {
+            boolean visibleRectEmpty = getGlobalVisibleRect().isEmpty();
+            final boolean visible = mIsViewVisible && mIsWindowVisible && !visibleRectEmpty;
+
+            boolean clearFunctor =
+                    AwFeatureMap.isEnabled(AwFeatures.WEBVIEW_CLEAR_FUNCTOR_IN_BACKGROUND);
+            int trimThreshold = clearFunctor ? ComponentCallbacks2.TRIM_MEMORY_BACKGROUND
+                                             : ComponentCallbacks2.TRIM_MEMORY_MODERATE;
+            ThreadUtils.runOnUiThreadBlocking(() -> {
+                if (isDestroyed(NO_WARN)) return;
+                // Post the task in the case where we would have cleared the functor if the feature
+                // was enabled, so that the two experiment arms have the same number of samples.
+                if (level >= ComponentCallbacks2.TRIM_MEMORY_BACKGROUND) {
+                    postDelayedTaskWithOverride(
+                            this::maybeRecordMemory, METRICS_COLLECTION_DELAY_MS);
+                }
+
+                if (level >= trimThreshold) {
+                    if (mDrawFunctor != null) {
+                        mDrawFunctor.trimMemory();
+                        if (clearFunctor) setFunctor(null);
+                    }
+                }
+                AwContentsJni.get().trimMemory(mNativeAwContents, level, visible);
+            });
+        }
+    }
+
+    private Activity getActivity() {
+        Context context = mWindowAndroid.getWindowAndroid().getContext().get();
+        return ContextUtils.activityFromContext(context);
+    }
+
+    private void maybeRecordMemory() {
+        // Note: there is a corner case here: if there are no visible WebViews, but the last one
+        // was removed too recently to have had its functor reclaimed, we still collect data.
+        // This likely doesn't matter too much, especially since as noted below, the metrics are
+        // expected to only be useful to tell whether the experiment produces a signal.
+        if (AwContentsLifecycleNotifier.getInstance().getAppState() != AppState.BACKGROUND) return;
+
+        // Comment below from base/android/meminfo_dump_provider.cc:
+        //
+        // This is best-effort, and will be wrong if there are other callers of
+        // ActivityManager#getProcessMemoryInfo(), either in this process or from another
+        // process which is allowed to do so (typically, adb).
+        //
+        // However, since the framework doesn't document throttling in any non-vague terms and
+        // the results are not timestamped, this is the best we can do. The delay and the rest
+        // of the assumptions here come from
+        // https://android.googlesource.com/platform/frameworks/base/+/refs/heads/android13-dev/services/core/java/com/android/server/am/ActivityManagerService.java#4093.
+        //
+        // We could always report the value on pre-Q devices, but that would skew reported
+        // data. Also, some OEMs may have cherry-picked the Q change, meaning that it's safer
+        // and more accurate to not report likely-stale data on all Android releases.
+        //
+        // Nevertheless, this has proved useful to detect whether an experiment is doing
+        // *something* for Chromium (the browser, not WebView), where is it collected as part of
+        // memory metrics, that are not collected in WebView.
+        long now = SystemClock.uptimeMillis();
+        if (now - sLastCollectionTime < MEMORY_COLLECTION_INTERVAL_MS) return;
+        sLastCollectionTime = now;
+
+        Runnable recordMetrics = () -> {
+            Debug.MemoryInfo info = MemoryInfoBridge.getActivityManagerMemoryInfoForSelf();
+            if (info == null) return;
+
+            RecordHistogram.recordMemoryMediumMBHistogram(PSS_HISTOGRAM, info.otherPss / 1024);
+            RecordHistogram.recordMemoryMediumMBHistogram(
+                    PRIVATE_DIRTY_HISTOGRAM, info.otherPrivateDirty / 1024);
+        };
+
+        // Record synchronously for testing, to reduce flakiness.
+        if (mPostDelayedTaskForTesting != null) {
+            recordMetrics.run();
+        } else {
+            AsyncTask.THREAD_POOL_EXECUTOR.execute(recordMetrics);
+        }
+    }
+
+    public static void resetRecordMemoryForTesting() {
+        sLastCollectionTime = -MEMORY_COLLECTION_INTERVAL_MS;
     }
 
     // --------------------------------------------------------------------------------------------
@@ -4145,6 +4580,7 @@ public class AwContents implements SmartClipProvider {
 
         @Override
         public boolean onTouchEvent(MotionEvent event) {
+            if (TouchEventFilter.hasInvalidToolType(event)) return false;
             if (isDestroyed(NO_WARN)) return false;
             if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
                 mSettings.setSpatialNavigationEnabled(false);
@@ -4164,6 +4600,14 @@ public class AwContents implements SmartClipProvider {
                 float touchMajor = Math.max(event.getTouchMajor(), event.getTouchMinor());
                 AwContentsJni.get().requestNewHitTestDataAt(
                         mNativeAwContents, eventX, eventY, touchMajor);
+                // If the stylus is above an editable element, prevent the parent element from
+                // intercepting the scroll event.
+                if (event.getPointerCount() == 1
+                        && event.getToolType(0) == MotionEvent.TOOL_TYPE_STYLUS
+                        && getLastHitTestResult().hitTestResultType
+                                == 9 /* HitTestDataType::kEditText */) {
+                    mContainerView.getParent().requestDisallowInterceptTouchEvent(true);
+                }
             }
 
             if (mOverScrollGlow != null) {
@@ -4463,7 +4907,10 @@ public class AwContents implements SmartClipProvider {
         String addWebMessageListener(long nativeAwContents, WebMessageListenerHolder listener,
                 String jsObjectName, String[] allowedOrigins);
         void removeWebMessageListener(long nativeAwContents, String jsObjectName);
-        WebMessageListenerInfo[] getJsObjectsInfo(long nativeAwContents, Class clazz);
+        WebMessageListenerInfo[] getWebMessageListenerInfos(long nativeAwContents, Class clazz);
+
+        StartupJavascriptInfo[] getDocumentStartupJavascripts(long nativeAwContents, Class clazz);
+
         void onConfigurationChanged(long nativeAwContents);
     }
 }

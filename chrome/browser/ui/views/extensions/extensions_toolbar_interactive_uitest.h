@@ -112,12 +112,15 @@ class ExtensionsToolbarUITest : public DialogBrowserTest {
   // title. Extension must use 'extensions/blocked_actions/content_scripts'.
   bool DidInjectScript(content::WebContents* web_contents);
 
+  // Navigate to `url` in the currently active web contents.
+  void NavigateTo(const GURL& url);
+
   // Waits for the extensions container to animate (on pin, unpin, pop-out,
   // etc.)
   void WaitForAnimation();
 
  private:
-  raw_ptr<Browser, DanglingUntriaged> incognito_browser_ = nullptr;
+  raw_ptr<Browser, AcrossTasksDanglingUntriaged> incognito_browser_ = nullptr;
   std::vector<scoped_refptr<const extensions::Extension>> extensions_;
 };
 

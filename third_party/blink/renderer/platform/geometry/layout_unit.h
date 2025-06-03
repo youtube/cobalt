@@ -114,19 +114,26 @@ class LayoutUnit {
   }
   constexpr explicit LayoutUnit(uint64_t value)
       : value_(base::saturated_cast<int>(value * kFixedPointDenominator)) {}
-  // A |value| is clamped by Min() and Max().
-  // A NaN |value| produces LayoutUnit(0).
+  // The specified `value` is truncated to a multiple of 1/64 near 0, and
+  // is clamped by Min() and Max().
+  // A NaN `value` produces LayoutUnit(0).
   constexpr explicit LayoutUnit(float value)
       : value_(base::saturated_cast<int>(value * kFixedPointDenominator)) {}
   constexpr explicit LayoutUnit(double value)
       : value_(base::saturated_cast<int>(value * kFixedPointDenominator)) {}
 
+  // The specified `value` is rounded up to a multiple of 1/64, and
+  // is clamped by Min() and Max().
+  // A NaN `value` produces LayoutUnit(0).
   static LayoutUnit FromFloatCeil(float value) {
     LayoutUnit v;
     v.value_ = base::saturated_cast<int>(ceilf(value * kFixedPointDenominator));
     return v;
   }
 
+  // The specified `value` is truncated to a multiple of 1/64, and is clamped
+  // by Min() and Max().
+  // A NaN `value` produces LayoutUnit(0).
   static LayoutUnit FromFloatFloor(float value) {
     LayoutUnit v;
     v.value_ =
@@ -134,6 +141,9 @@ class LayoutUnit {
     return v;
   }
 
+  // The specified `value` is rounded to a multiple of 1/64, and
+  // is clamped by Min() and Max().
+  // A NaN `value` produces LayoutUnit(0).
   static LayoutUnit FromFloatRound(float value) {
     LayoutUnit v;
     v.value_ =
@@ -702,22 +712,6 @@ inline LayoutUnit IntMod(const LayoutUnit& a, const LayoutUnit& b) {
   LayoutUnit return_val;
   return_val.SetRawValue(a.RawValue() % b.RawValue());
   return return_val;
-}
-
-// Returns the remainder after a division with LayoutUnit results.
-// This calculates the modulo so that: a = (a / b) * b + LayoutMod(a, b).
-inline LayoutUnit LayoutMod(const LayoutUnit& a, const LayoutUnit& b) {
-  LayoutUnit return_val;
-  int64_t raw_val =
-      (static_cast<int64_t>(kFixedPointDenominator) * a.RawValue()) %
-      b.RawValue();
-  return_val.SetRawValue(raw_val / kFixedPointDenominator);
-  return return_val;
-}
-
-template <typename IntegerType>
-inline LayoutUnit LayoutMod(const LayoutUnit& a, IntegerType b) {
-  return LayoutMod(a, LayoutUnit(b));
 }
 
 inline LayoutUnit& operator+=(LayoutUnit& a, const LayoutUnit& b) {

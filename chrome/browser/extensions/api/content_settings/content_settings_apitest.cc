@@ -13,7 +13,6 @@
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
-#include "chrome/browser/chrome_notification_types.h"
 #include "chrome/browser/content_settings/cookie_settings_factory.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/extensions/api/content_settings/content_settings_api.h"
@@ -24,6 +23,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/common/chrome_switches.h"
+#include "components/content_settings/core/browser/content_settings_uma_util.h"
 #include "components/content_settings/core/browser/cookie_settings.h"
 #include "components/content_settings/core/browser/host_content_settings_map.h"
 #include "components/content_settings/core/common/content_settings.h"
@@ -32,9 +32,7 @@
 #include "components/keep_alive_registry/scoped_keep_alive.h"
 #include "components/permissions/features.h"
 #include "components/permissions/permission_manager.h"
-#include "components/permissions/permission_result.h"
 #include "components/prefs/pref_service.h"
-#include "content/public/browser/notification_service.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/common/webplugininfo.h"
 #include "content/public/test/browser_test.h"
@@ -244,7 +242,7 @@ class ExtensionContentSettingsApiTest : public ExtensionApiTest {
   }
 
  private:
-  raw_ptr<Profile, DanglingUntriaged> profile_ = nullptr;
+  raw_ptr<Profile, AcrossTasksDanglingUntriaged> profile_ = nullptr;
   std::unique_ptr<ScopedKeepAlive> keep_alive_;
   std::unique_ptr<ScopedProfileKeepAlive> profile_keep_alive_;
 };
@@ -356,13 +354,15 @@ IN_PROC_BROWSER_TEST_P(ExtensionContentSettingsApiTestWithContextType,
   const char kExtensionPath[] = "content_settings/embeddedsettingsmetric";
   EXPECT_TRUE(RunExtensionTest(kExtensionPath)) << message_;
 
-  size_t num_values = 0;
-  int images_type = ContentSettingTypeToHistogramValue(
-      ContentSettingsType::IMAGES, &num_values);
-  int geolocation_type = ContentSettingTypeToHistogramValue(
-      ContentSettingsType::GEOLOCATION, &num_values);
-  int cookies_type = ContentSettingTypeToHistogramValue(
-      ContentSettingsType::COOKIES, &num_values);
+  int images_type =
+      content_settings_uma_util::ContentSettingTypeToHistogramValue(
+          ContentSettingsType::IMAGES);
+  int geolocation_type =
+      content_settings_uma_util::ContentSettingTypeToHistogramValue(
+          ContentSettingsType::GEOLOCATION);
+  int cookies_type =
+      content_settings_uma_util::ContentSettingTypeToHistogramValue(
+          ContentSettingsType::COOKIES);
 
   histogram_tester.ExpectBucketCount(
       "ContentSettings.ExtensionEmbeddedSettingSet", images_type, 1);

@@ -10,6 +10,7 @@
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
+#include "base/no_destructor.h"
 #include "base/strings/string_piece.h"
 #import "base/task/sequenced_task_runner.h"
 #include "base/task/sequenced_task_runner.h"
@@ -69,18 +70,14 @@ void TouchIdAuthenticator::GetPlatformCredentialInfoForRequest(
     return;
   }
   std::vector<DiscoverableCredentialMetadata> result;
-  if (base::FeatureList::IsEnabled(
-          kWebAuthnMacPlatformAuthenticatorOptionalUv) ||
-      request.allow_list.empty()) {
-    // With `kWebAuthnMacPlatformAuthenticatorOptionalUv`, always report the
-    // list of credentials, because the UI will show a confirmation prompt for
-    // one randomly chosen credential and run through the same pre-select flow
-    // as for empty allow lists.
-    for (const auto& credential : *credentials) {
-      result.emplace_back(
-          AuthenticatorType::kTouchID, request.rp_id, credential.credential_id,
-          credential.metadata.ToPublicKeyCredentialUserEntity());
-    }
+  // With `kWebAuthnMacPlatformAuthenticatorOptionalUv`, always report the
+  // list of credentials, because the UI will show a confirmation prompt for
+  // one randomly chosen credential and run through the same pre-select flow
+  // as for empty allow lists.
+  for (const auto& credential : *credentials) {
+    result.emplace_back(AuthenticatorType::kTouchID, request.rp_id,
+                        credential.credential_id,
+                        credential.metadata.ToPublicKeyCredentialUserEntity());
   }
   std::move(callback).Run(
       std::move(result),
@@ -146,9 +143,9 @@ AuthenticatorSupportedOptions TouchIdAuthenticatorOptions() {
 }  // namespace
 
 const AuthenticatorSupportedOptions& TouchIdAuthenticator::Options() const {
-  static const AuthenticatorSupportedOptions options =
-      TouchIdAuthenticatorOptions();
-  return options;
+  static const base::NoDestructor<AuthenticatorSupportedOptions> options(
+      TouchIdAuthenticatorOptions());
+  return *options;
 }
 
 void TouchIdAuthenticator::GetTouch(base::OnceClosure callback) {

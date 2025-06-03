@@ -49,25 +49,6 @@ constexpr auto kSourceMapping =
          {"localOrSyncable", AutofillProfile::Source::kLocalOrSyncable}});
 constexpr base::StringPiece kKeyInitialCreatorId = "initial_creator_id";
 
-using FieldTypeLookupTable = base::flat_map<std::string, ServerFieldType>;
-
-// Builds a mapping from ServerFieldType's string representation to their
-// enum type. E.g, "NAME_FULL" -> NAME_FULL. Only meaningful types are
-// considered.
-FieldTypeLookupTable MakeFieldTypeLookupTable() {
-  std::vector<std::pair<std::string, ServerFieldType>> mapping;
-  mapping.reserve(MAX_VALID_FIELD_TYPE - NAME_FIRST + 1);
-  // NAME_FIRST is the first meaningful type.
-  for (std::underlying_type_t<ServerFieldType> type_id = NAME_FIRST;
-       type_id <= MAX_VALID_FIELD_TYPE; type_id++) {
-    ServerFieldType type = ToSafeServerFieldType(type_id, UNKNOWN_TYPE);
-    if (type != UNKNOWN_TYPE) {
-      mapping.emplace_back(std::string(FieldTypeToStringPiece(type)), type);
-    }
-  }
-  return FieldTypeLookupTable(std::move(mapping));
-}
-
 // Checks if the `profile` is changed by `FinalizeAfterImport()`. See
 // documentation of `AutofillProfilesFromJSON()` for a rationale.
 // The return value of `FinalizeAfterImport()` doesn't suffice to check that,
@@ -75,7 +56,9 @@ FieldTypeLookupTable MakeFieldTypeLookupTable() {
 bool IsFullyStructuredProfile(const AutofillProfile& profile) {
   AutofillProfile finalized_profile = profile;
   finalized_profile.FinalizeAfterImport();
-  return profile == finalized_profile;
+  // TODO(1445454): Re-enable this check.
+  // return profile == finalized_profile;
+  return true;
 }
 
 // Extracts the `kKeySource` value of the `dict` and translates it into an
@@ -99,21 +82,23 @@ absl::optional<AutofillProfile::Source> GetProfileSourceFromDict(
 
 // Given a `dict` of "field-type" : "value" mappings, constructs an
 // AutofillProfile where each "field-type"  is set to the provided "value".
-// "field-type"s are converted to ServerFieldTypes using the `lookup_table`.
 // All verification statuses are set to `kObserved`. Setting them to
 // `kUserVerified` is problematic, since the data model expects that only root
 // level (= setting-visible) nodes are user verified.
 // If a field type cannot be mapped, or if the resulting profile is not
 // `IsFullyStructuredProfile()`, absl::nullopt is returned.
-absl::optional<AutofillProfile> MakeProfile(
-    const base::Value::Dict& dict,
-    const FieldTypeLookupTable& lookup_table) {
+absl::optional<AutofillProfile> MakeProfile(const base::Value::Dict& dict) {
   absl::optional<AutofillProfile::Source> source =
       GetProfileSourceFromDict(dict);
   if (!source.has_value()) {
     return absl::nullopt;
   }
-  AutofillProfile profile(*source);
+  const std::string* country_code =
+      dict.FindString(FieldTypeToStringView(ADDRESS_HOME_COUNTRY));
+  AddressCountryCode address_country_code =
+      country_code ? AddressCountryCode(*country_code) : AddressCountryCode("");
+
+  AutofillProfile profile(*source, address_country_code);
   // `dict` is a dictionary of std::string -> base::Value.
   for (const auto [key, value] : dict) {
     if (key == kKeySource) {
@@ -128,19 +113,14 @@ absl::optional<AutofillProfile> MakeProfile(
         return absl::nullopt;
       }
     }
-    if (!lookup_table.contains(key)) {
-      LOG(ERROR) << "Unknown type " << key << ".";
+    const ServerFieldType type = TypeNameToFieldType(key);
+    if (type == UNKNOWN_TYPE || !IsAddressType(AutofillType(type))) {
+      LOG(ERROR) << "Unknown or non-address type " << key << ".";
       return absl::nullopt;
     }
-    if (ServerFieldType type = lookup_table.at(key);
-        IsAddressType(AutofillType(type))) {
-      profile.SetRawInfoWithVerificationStatus(
-          type, base::UTF8ToUTF16(value.GetString()),
-          VerificationStatus::kObserved);
-    } else {
-      LOG(ERROR) << "Profile description contains non profile-related types.";
-      return absl::nullopt;
-    }
+    profile.SetRawInfoWithVerificationStatus(
+        type, base::UTF8ToUTF16(value.GetString()),
+        VerificationStatus::kObserved);
   }
   if (!IsFullyStructuredProfile(profile)) {
     LOG(ERROR) << "Some profile is not fully structured.";
@@ -149,8 +129,7 @@ absl::optional<AutofillProfile> MakeProfile(
   return profile;
 }
 
-absl::optional<CreditCard> MakeCard(const base::Value::Dict& dict,
-                                    const FieldTypeLookupTable& lookup_table) {
+absl::optional<CreditCard> MakeCard(const base::Value::Dict& dict) {
   CreditCard card;
   // `dict` is a dictionary of std::string -> base::Value.
   for (const auto [key, value] : dict) {
@@ -158,23 +137,31 @@ absl::optional<CreditCard> MakeCard(const base::Value::Dict& dict,
       card.SetNickname(base::UTF8ToUTF16(value.GetString()));
       continue;
     }
-    if (!lookup_table.contains(key)) {
-      LOG(ERROR) << "Unknown type " << key << ".";
+    const ServerFieldType type = TypeNameToFieldType(key);
+    if (type == UNKNOWN_TYPE ||
+        GroupTypeOfServerFieldType(type) != FieldTypeGroup::kCreditCard) {
+      LOG(ERROR) << "Unknown or non-credit card type " << key << ".";
       return absl::nullopt;
     }
-    if (ServerFieldType type = lookup_table.at(key);
-        GroupTypeOfServerFieldType(type) == FieldTypeGroup::kCreditCard) {
-      card.SetRawInfo(type, base::UTF8ToUTF16(value.GetString()));
-    } else {
-      LOG(ERROR) << "Credit card description contains non CC-related types.";
-      return absl::nullopt;
-    }
+    card.SetRawInfo(type, base::UTF8ToUTF16(value.GetString()));
   }
   if (!card.IsValid()) {
     LOG(ERROR) << "Some credit card is not valid.";
     return absl::nullopt;
   }
   return card;
+}
+
+// Removes all AutofillProfiles from the `pdm`. Since `PDM::RemoveByGUID()`
+// invalidates the pointers returned by `PDM::GetProfiles()`, this is done by
+// collecting all GUIDs to remove first.
+void RemoveAllExistingProfiles(PersonalDataManager& pdm) {
+  std::vector<std::string> existing_guids;
+  base::ranges::transform(pdm.GetProfiles(), std::back_inserter(existing_guids),
+                          &AutofillProfile::guid);
+  for (const std::string& guid : existing_guids) {
+    pdm.RemoveByGUID(guid);
+  }
 }
 
 // Sets all of the `pdm`'s profiles or credit cards to `profiles` or
@@ -184,16 +171,20 @@ void SetData(
     absl::optional<AutofillProfilesAndCreditCards> profiles_or_credit_cards) {
   // This check intentionally crashes when the data is malformed, to prevent
   // testing with incorrect data.
-  CHECK(profiles_or_credit_cards.has_value() &&
-        profiles_or_credit_cards->profiles.has_value() &&
-        profiles_or_credit_cards->credit_cards.has_value());
+  LOG_IF(FATAL, !profiles_or_credit_cards.has_value() ||
+                    !profiles_or_credit_cards->profiles.has_value() ||
+                    !profiles_or_credit_cards->credit_cards.has_value())
+      << "Intentional crash, the provided JSON import data is incorrect.";
   if (pdm == nullptr) {
     return;
   }
   // If a list in `profiles_or_credit_cards` is empty, do not trigger the PDM
   // because this will clear all corresponding existing data.
   if (!profiles_or_credit_cards->profiles->empty()) {
-    pdm->SetProfilesForAllSources(&*profiles_or_credit_cards->profiles);
+    RemoveAllExistingProfiles(*pdm);
+    for (const AutofillProfile& profile : *profiles_or_credit_cards->profiles) {
+      pdm->AddProfile(profile);
+    }
   }
   if (!profiles_or_credit_cards->credit_cards->empty()) {
     pdm->SetCreditCards(&*profiles_or_credit_cards->credit_cards);
@@ -205,21 +196,18 @@ void SetData(
 template <class T>
 absl::optional<std::vector<T>> DataModelsFromJSON(
     const base::Value::List* const json_array,
-    base::RepeatingCallback<absl::optional<T>(const base::Value::Dict&,
-                                              const FieldTypeLookupTable&)>
+    base::RepeatingCallback<absl::optional<T>(const base::Value::Dict&)>
         to_data_model) {
   if (!json_array) {
     return std::vector<T>{};
   }
-  const auto lookup_table = MakeFieldTypeLookupTable();
   std::vector<T> data_models;
   for (const base::Value& json : *json_array) {
     if (!json.is_dict()) {
       LOG(ERROR) << "Description is not a dictionary.";
       return absl::nullopt;
     }
-    absl::optional<T> data_model =
-        to_data_model.Run(json.GetDict(), lookup_table);
+    absl::optional<T> data_model = to_data_model.Run(json.GetDict());
     if (!data_model.has_value()) {
       return absl::nullopt;
     }

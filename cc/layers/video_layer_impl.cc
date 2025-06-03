@@ -109,16 +109,12 @@ bool VideoLayerImpl::WillDraw(DrawMode draw_mode,
 
   if (!updater_) {
     const LayerTreeSettings& settings = layer_tree_impl()->settings();
-    // TODO(sergeyu): Pass RasterContextProvider when it's available. Then
-    // remove ContextProvider parameter from VideoResourceUpdater.
     updater_ = std::make_unique<media::VideoResourceUpdater>(
         layer_tree_impl()->context_provider(),
-        /*raster_context_provider=*/nullptr,
         layer_tree_impl()->layer_tree_frame_sink(),
         layer_tree_impl()->resource_provider(),
         settings.use_stream_video_draw_quad,
-        settings.resource_settings.use_gpu_memory_buffer_resources,
-        settings.resource_settings.use_r16_texture,
+        settings.use_gpu_memory_buffer_resources,
         layer_tree_impl()->max_texture_size());
   }
   updater_->ObtainFrameResources(frame_);

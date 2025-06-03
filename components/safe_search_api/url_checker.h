@@ -51,6 +51,7 @@ class URLChecker {
  private:
   struct Check;
   struct CheckResult {
+    CheckResult() = delete;
     CheckResult(Classification classification, bool uncertain);
     Classification classification;
     bool uncertain;

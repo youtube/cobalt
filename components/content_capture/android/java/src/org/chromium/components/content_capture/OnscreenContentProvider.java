@@ -9,12 +9,14 @@ import android.os.Build;
 import android.view.View;
 import android.view.ViewStructure;
 
+import androidx.annotation.RequiresApi;
 import androidx.annotation.VisibleForTesting;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.Log;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
 import org.chromium.content_public.browser.RenderCoordinates;
 import org.chromium.content_public.browser.WebContents;
 
@@ -203,12 +205,12 @@ public class OnscreenContentProvider {
         return result;
     }
 
-    @VisibleForTesting(otherwise = VisibleForTesting.NONE)
     public List<ContentCaptureConsumer> getConsumersForTesting() {
         return mContentCaptureConsumers;
     }
 
     @VisibleForTesting(otherwise = VisibleForTesting.NONE)
+    @RequiresApi(Build.VERSION_CODES.Q)
     public void removePlatformConsumerForTesting() {
         for (ContentCaptureConsumer consumer : mContentCaptureConsumers) {
             if (consumer instanceof PlatformContentCaptureConsumer) {

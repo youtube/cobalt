@@ -65,8 +65,10 @@ void MaybeOverrideScanResult(DownloadCheckResultReason reason,
     case DownloadCheckResult::UNKNOWN:
     case DownloadCheckResult::SENSITIVE_CONTENT_WARNING:
     case DownloadCheckResult::DEEP_SCANNED_SAFE:
+    case DownloadCheckResult::DEEP_SCANNED_FAILED:
     case DownloadCheckResult::SAFE:
     case DownloadCheckResult::PROMPT_FOR_SCANNING:
+    case DownloadCheckResult::PROMPT_FOR_LOCAL_PASSWORD_SCANNING:
     case DownloadCheckResult::POTENTIALLY_UNWANTED:
     case DownloadCheckResult::UNCOMMON:
       if (reason == REASON_DOWNLOAD_DANGEROUS)
@@ -109,7 +111,8 @@ CheckClientDownloadRequest::CheckClientDownloadRequest(
     CheckDownloadRepeatingCallback callback,
     DownloadProtectionService* service,
     scoped_refptr<SafeBrowsingDatabaseManager> database_manager,
-    scoped_refptr<BinaryFeatureExtractor> binary_feature_extractor)
+    scoped_refptr<BinaryFeatureExtractor> binary_feature_extractor,
+    base::optional_ref<const std::string> password)
     : CheckClientDownloadRequestBase(
           item->GetURL(),
           item->GetTargetFilePath(),
@@ -118,8 +121,10 @@ CheckClientDownloadRequest::CheckClientDownloadRequest(
           service,
           std::move(database_manager),
           DownloadRequestMaker::CreateFromDownloadItem(binary_feature_extractor,
-                                                       item)),
+                                                       item,
+                                                       password)),
       item_(item),
+      password_(password.CopyAsOptional()),
       callback_(callback) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   item_->AddObserver(this);
@@ -236,6 +241,10 @@ void CheckClientDownloadRequest::MaybeStorePingsForDownload(
       result, upload_requested, item_, request_data, response_body);
 }
 
+void CheckClientDownloadRequest::LogDeepScanningPrompt() const {
+  LogDeepScanEvent(item_, DeepScanEvent::kPromptShown);
+}
+
 absl::optional<enterprise_connectors::AnalysisSettings>
 CheckClientDownloadRequest::ShouldUploadBinary(
     DownloadCheckResultReason reason) {
@@ -281,11 +290,11 @@ void CheckClientDownloadRequest::UploadBinary(
     service()->UploadForDeepScanning(
         item_, base::BindRepeating(&MaybeOverrideScanResult, reason, callback_),
         DeepScanningRequest::DeepScanTrigger::TRIGGER_POLICY, result,
-        std::move(settings));
+        std::move(settings), /*password=*/absl::nullopt);
   } else {
     service()->UploadForDeepScanning(
         item_, callback_, DeepScanningRequest::DeepScanTrigger::TRIGGER_POLICY,
-        result, std::move(settings));
+        result, std::move(settings), /*password=*/absl::nullopt);
   }
 }
 
@@ -323,11 +332,18 @@ bool CheckClientDownloadRequest::ShouldPromptForDeepScanning(
     return false;
 
   Profile* profile = Profile::FromBrowserContext(GetBrowserContext());
-  if (profile && IsEnhancedProtectionEnabled(*profile->GetPrefs()))
-    return true;
+  if (!profile) {
+    return false;
+  }
 
-  if (IsUnderAdvancedProtection(profile))
+  if (!AreDeepScansAllowedByPolicy(*profile->GetPrefs())) {
+    return false;
+  }
+
+  if (IsUnderAdvancedProtection(profile) ||
+      IsEnhancedProtectionEnabled(*profile->GetPrefs())) {
     return true;
+  }
 
   return false;
 }

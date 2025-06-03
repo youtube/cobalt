@@ -65,7 +65,6 @@ class OpaqueBrowserFrameView : public BrowserNonClientFrameView,
   void LayoutWebAppWindowTitle(const gfx::Rect& available_space,
                                views::Label& window_title_label) const override;
   int GetTopInset(bool restored) const override;
-  int GetThemeBackgroundXInset() const override;
   void UpdateThrobber(bool running) override;
   void WindowControlsOverlayEnabledChanged() override;
   gfx::Size GetMinimumSize() const override;
@@ -81,7 +80,6 @@ class OpaqueBrowserFrameView : public BrowserNonClientFrameView,
   void ResetWindowControls() override;
   void UpdateWindowIcon() override;
   void UpdateWindowTitle() override;
-  void SizeConstraintsChanged() override;
 
   // views::View:
   void GetAccessibleNodeData(ui::AXNodeData* node_data) override;

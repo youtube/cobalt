@@ -10,6 +10,7 @@
 #include "base/files/file_path.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
+#include "base/test/test_future.h"
 #include "chrome/browser/ash/app_mode/fake_cws.h"
 #include "chrome/browser/ash/app_mode/kiosk_app_launch_error.h"
 #include "chrome/browser/ash/app_mode/kiosk_app_manager.h"
@@ -17,12 +18,14 @@
 #include "chrome/browser/ash/login/app_mode/test/kiosk_test_helpers.h"
 #include "chrome/browser/ash/login/app_mode/test/test_app_data_load_waiter.h"
 #include "chrome/browser/ash/login/oobe_screen.h"
+#include "chrome/browser/ash/login/screens/error_screen.h"
 #include "chrome/browser/ash/login/test/device_state_mixin.h"
 #include "chrome/browser/ash/login/test/oobe_screen_waiter.h"
 #include "chrome/browser/ash/login/ui/login_display_host.h"
 #include "chrome/browser/ash/policy/core/device_local_account.h"
 #include "chrome/browser/device_identity/device_oauth2_token_service.h"
 #include "chrome/browser/device_identity/device_oauth2_token_service_factory.h"
+#include "chrome/browser/lifetime/termination_notification.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
@@ -62,6 +65,10 @@ void PressConfigureNetworkAccelerator() {
 
 void WaitForOobeScreen(OobeScreenId screen) {
   OobeScreenWaiter(screen).Wait();
+}
+
+void WaitForNetworkScreen() {
+  WaitForOobeScreen(ErrorScreenView::kScreenId);
 }
 
 }  // namespace
@@ -137,17 +144,15 @@ class KioskEnterpriseTest : public KioskBaseTest {
 
 IN_PROC_BROWSER_TEST_F(KioskEnterpriseTest, EnterpriseKioskApp) {
   // Prepare Fake CWS to serve app crx.
-  set_test_app_id(kTestEnterpriseKioskApp);
-  set_test_app_version("1.0.0");
-  set_test_crx_file(test_app_id() + ".crx");
+  SetTestApp(kTestEnterpriseKioskAppId);
   SetupTestAppUpdateCheck();
 
-  // Configure kTestEnterpriseKioskApp in device policy.
-  ConfigureKioskAppInPolicy(kTestEnterpriseAccountId, kTestEnterpriseKioskApp,
-                            "");
+  // Configure `kTestEnterpriseKioskAppId` in device policy.
+  ConfigureKioskAppInPolicy(kTestEnterpriseAccountId, kTestEnterpriseKioskAppId,
+                            /*update_url=*/"");
 
   PrepareAppLaunch();
-  EXPECT_TRUE(LaunchApp(kTestEnterpriseKioskApp));
+  EXPECT_TRUE(LaunchApp(kTestEnterpriseKioskAppId));
 
   KioskSessionInitializedWaiter().Wait();
 
@@ -159,7 +164,7 @@ IN_PROC_BROWSER_TEST_F(KioskEnterpriseTest, EnterpriseKioskApp) {
   extensions::AppWindow* window =
       apps::AppWindowWaiter(extensions::AppWindowRegistry::Get(
                                 ProfileManager::GetPrimaryUserProfile()),
-                            kTestEnterpriseKioskApp)
+                            kTestEnterpriseKioskAppId)
           .Wait();
   ASSERT_TRUE(window);
   EXPECT_TRUE(content::WaitForLoadStop(window->web_contents()));
@@ -185,7 +190,7 @@ IN_PROC_BROWSER_TEST_F(KioskEnterpriseTest, EnterpriseKioskApp) {
 }
 
 IN_PROC_BROWSER_TEST_F(KioskEnterpriseTest, PrivateStore) {
-  set_test_app_id(kTestEnterpriseKioskApp);
+  SetTestApp(kTestEnterpriseKioskAppId);
 
   const char kPrivateStoreUpdate[] = "/private_store_update";
   net::EmbeddedTestServer private_server;
@@ -198,25 +203,26 @@ IN_PROC_BROWSER_TEST_F(KioskEnterpriseTest, PrivateStore) {
 
   FakeCWS private_store;
   private_store.InitAsPrivateStore(&private_server, kPrivateStoreUpdate);
-  private_store.SetUpdateCrx(kTestEnterpriseKioskApp,
-                             std::string(kTestEnterpriseKioskApp) + ".crx",
+  private_store.SetUpdateCrx(kTestEnterpriseKioskAppId,
+                             std::string(kTestEnterpriseKioskAppId) + ".crx",
                              "1.0.0");
 
   private_server.StartAcceptingConnections();
 
-  // Configure kTestEnterpriseKioskApp in device policy.
-  ConfigureKioskAppInPolicy(kTestEnterpriseAccountId, kTestEnterpriseKioskApp,
+  // Configure `kTestEnterpriseKioskAppId` in device policy.
+  ConfigureKioskAppInPolicy(kTestEnterpriseAccountId, kTestEnterpriseKioskAppId,
                             private_server.GetURL(kPrivateStoreUpdate).spec());
 
   // Meta should be able to be extracted from crx before launching.
   KioskAppManager* manager = KioskAppManager::Get();
-  TestAppDataLoadWaiter waiter(manager, kTestEnterpriseKioskApp, std::string());
+  TestAppDataLoadWaiter waiter(manager, kTestEnterpriseKioskAppId,
+                               std::string());
   waiter.WaitForAppData();
 
   PrepareAppLaunch();
-  EXPECT_TRUE(LaunchApp(kTestEnterpriseKioskApp));
-  WaitForAppLaunchWithOptions(false /* check_launch_data */,
-                              true /* terminate_app */);
+  EXPECT_TRUE(LaunchApp(kTestEnterpriseKioskAppId));
+  WaitForAppLaunchWithOptions(/*check_launch_data=*/false,
+                              /*terminate_app=*/true);
 
   // Private store should serve crx and CWS should not.
   DCHECK_GT(private_store.GetUpdateCheckCountAndReset(), 0);
@@ -225,7 +231,7 @@ IN_PROC_BROWSER_TEST_F(KioskEnterpriseTest, PrivateStore) {
 }
 IN_PROC_BROWSER_TEST_F(KioskEnterpriseTest,
                        HittingNetworkAcceleratorShouldShowNetworkScreen) {
-  ScopedCanConfigureNetwork can_configure_network(true);
+  auto auto_reset = NetworkUiController::SetCanConfigureNetworkForTesting(true);
 
   // Block app loading until the welcome screen is shown.
   BlockAppLaunch(true);
@@ -237,9 +243,7 @@ IN_PROC_BROWSER_TEST_F(KioskEnterpriseTest,
 
   PressConfigureNetworkAccelerator();
 
-  // `ErrorScreenView` is the network screen
-  WaitForOobeScreen(ErrorScreenView::kScreenId);
-  ASSERT_TRUE(GetKioskLaunchController()->showing_network_dialog());
+  WaitForNetworkScreen();
 
   // Continue button should be visible since we are online.
   EXPECT_TRUE(test::OobeJS().IsVisible(kErrorMessageContinueButton));
@@ -255,30 +259,46 @@ IN_PROC_BROWSER_TEST_F(KioskEnterpriseTest,
 
 IN_PROC_BROWSER_TEST_F(
     KioskEnterpriseTest,
-    LaunchingAppThatRequiresNetworkWhilstOnlineShouldShowNetworkScreen) {
-  ScopedCanConfigureNetwork can_configure_network(true);
+    LaunchingAppThatRequiresNetworkWhilstOfflineShouldShowNetworkScreen) {
+  auto auto_reset = NetworkUiController::SetCanConfigureNetworkForTesting(true);
 
   // Start app launch with network portal state.
   StartAppLaunchFromLoginScreen(
       NetworkPortalDetector::CAPTIVE_PORTAL_STATUS_PORTAL);
 
-  WaitForOobeScreen(AppLaunchSplashScreenView::kScreenId);
+  WaitForNetworkScreen();
 
-  // Network error should show up automatically since this test does not
-  // require owner auth to configure network.
-  WaitForOobeScreen(ErrorScreenView::kScreenId);
-
-  ASSERT_TRUE(GetKioskLaunchController()->showing_network_dialog());
   SimulateNetworkOnline();
   WaitForAppLaunchSuccess();
+}
+
+IN_PROC_BROWSER_TEST_F(KioskEnterpriseTest, LaunchAppUserCancel) {
+  StartAppLaunchFromLoginScreen(
+      NetworkPortalDetector::CAPTIVE_PORTAL_STATUS_ONLINE);
+  // Do not let the app be run to avoid race condition.
+  BlockAppLaunch(true);
+
+  WaitForOobeScreen(AppLaunchSplashScreenView::kScreenId);
+
+  base::test::TestFuture<void> termination_future_;
+  auto subscription = browser_shutdown::AddAppTerminatingCallback(
+      termination_future_.GetCallback());
+  settings_helper_.SetBoolean(
+      kAccountsPrefDeviceLocalAccountAutoLoginBailoutEnabled, true);
+
+  LoginDisplayHost::default_host()->HandleAccelerator(
+      LoginAcceleratorAction::kAppLaunchBailout);
+  EXPECT_TRUE(termination_future_.Wait());
+
+  EXPECT_EQ(KioskAppLaunchError::Error::kUserCancel,
+            KioskAppLaunchError::Get());
 }
 
 class KioskEnterpriseEphemeralTest
     : public KioskEnterpriseTest,
       public testing::WithParamInterface<std::tuple<
-          /* ephemeral_users_enabled */ bool,
-          /* kiosk_ephemeral_mode */ policy::DeviceLocalAccount::
-              EphemeralMode>> {
+          /*ephemeral_users_enabled=*/bool,
+          /*kiosk_ephemeral_mode=*/policy::DeviceLocalAccount::EphemeralMode>> {
  public:
   KioskEnterpriseEphemeralTest(const KioskEnterpriseEphemeralTest&) = delete;
   KioskEnterpriseEphemeralTest& operator=(const KioskEnterpriseEphemeralTest&) =
@@ -334,17 +354,15 @@ INSTANTIATE_TEST_SUITE_P(
 IN_PROC_BROWSER_TEST_P(KioskEnterpriseEphemeralTest,
                        EnterpriseKioskAppEphemeral) {
   // Prepare Fake CWS to serve app crx.
-  set_test_app_id(kTestEnterpriseKioskApp);
-  set_test_app_version("1.0.0");
-  set_test_crx_file(test_app_id() + ".crx");
+  SetTestApp(kTestEnterpriseKioskAppId);
   SetupTestAppUpdateCheck();
 
   // Configure device policies.
-  ConfigureEphemeralPolicies(kTestEnterpriseAccountId, kTestEnterpriseKioskApp,
-                             "", GetKioskEphemeralMode(),
-                             GetEphemeralUsersEnabled());
+  ConfigureEphemeralPolicies(
+      kTestEnterpriseAccountId, kTestEnterpriseKioskAppId, /*update_url=*/"",
+      GetKioskEphemeralMode(), GetEphemeralUsersEnabled());
 
-  EXPECT_TRUE(LaunchApp(kTestEnterpriseKioskApp));
+  EXPECT_TRUE(LaunchApp(kTestEnterpriseKioskAppId));
 
   KioskSessionInitializedWaiter().Wait();
 

@@ -10,7 +10,6 @@ import android.provider.Settings;
 import android.text.TextUtils;
 
 import androidx.annotation.Nullable;
-import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.ApplicationState;
 import org.chromium.base.ApplicationStatus;
@@ -32,13 +31,13 @@ import org.chromium.chrome.browser.notifications.NotificationPlatformBridge;
 import org.chromium.chrome.browser.partnercustomizations.PartnerBrowserCustomizations;
 import org.chromium.chrome.browser.password_manager.PasswordManagerLifecycleHelper;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
+import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.chrome.browser.preferences.Pref;
-import org.chromium.chrome.browser.preferences.SharedPreferencesManager;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.profiles.ProfileManagerUtils;
-import org.chromium.chrome.browser.read_later.ReadingListBridge;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.translate.TranslateBridge;
+import org.chromium.components.browser_ui.accessibility.DeviceAccessibilitySettingsHandler;
 import org.chromium.components.browser_ui.accessibility.FontSizePrefs;
 import org.chromium.components.browser_ui.share.ShareImageFileUtils;
 import org.chromium.components.feature_engagement.EventConstants;
@@ -115,8 +114,7 @@ public class ChromeActivitySessionTracker {
     /**
      * @return The latest country according to the current variations state. Null if not available.
      */
-    @Nullable
-    public String getVariationsLatestCountry() {
+    public @Nullable String getVariationsLatestCountry() {
         return mVariationsSession.getLatestCountry();
     }
 
@@ -165,12 +163,13 @@ public class ChromeActivitySessionTracker {
             updatePasswordEchoState();
             FontSizePrefs.getInstance(Profile.getLastUsedRegularProfile())
                     .onSystemFontScaleChanged();
+            DeviceAccessibilitySettingsHandler.getInstance(Profile.getLastUsedRegularProfile())
+                    .updateFontWeightAdjustment();
             ChromeLocalizationUtils.recordUiLanguageStatus();
             updateAcceptLanguages();
             mVariationsSession.start();
             mOmahaServiceStartDelayer.onForegroundSessionStart();
             AppHooks.get().getChimeDelegate().startSession();
-            ReadingListBridge.onStartChromeForeground();
             PasswordManagerLifecycleHelper.getInstance().onStartForegroundSession();
 
             // Track the ratio of Chrome startups that are caused by notification clicks.
@@ -234,11 +233,11 @@ public class ChromeActivitySessionTracker {
      */
     private void updateAcceptLanguages() {
         String currentLocale = LocaleUtils.getDefaultLocaleListString();
-        String previousLocale = SharedPreferencesManager.getInstance().readString(
+        String previousLocale = ChromeSharedPreferences.getInstance().readString(
                 ChromePreferenceKeys.APP_LOCALE, null);
         ChromeLocalizationUtils.recordLocaleUpdateStatus(previousLocale, currentLocale);
         if (!TextUtils.equals(previousLocale, currentLocale)) {
-            SharedPreferencesManager.getInstance().writeString(
+            ChromeSharedPreferences.getInstance().writeString(
                     ChromePreferenceKeys.APP_LOCALE, currentLocale);
             TranslateBridge.resetAcceptLanguages(currentLocale);
             if (previousLocale != null) {
@@ -275,7 +274,6 @@ public class ChromeActivitySessionTracker {
     /**
      * @return The {@link OmahaServiceStartDelayer} for the browser process.
      */
-    @VisibleForTesting
     public OmahaServiceStartDelayer getOmahaServiceStartDelayerForTesting() {
         return mOmahaServiceStartDelayer;
     }

@@ -9,15 +9,15 @@
 
 namespace web_app {
 
-AppLockDescription::AppLockDescription(const AppId& app_id)
+AppLockDescription::AppLockDescription(const webapps::AppId& app_id)
     : LockDescription({app_id}, LockDescription::Type::kApp) {}
-AppLockDescription::AppLockDescription(base::flat_set<AppId> app_ids)
+AppLockDescription::AppLockDescription(base::flat_set<webapps::AppId> app_ids)
     : LockDescription(std::move(app_ids), LockDescription::Type::kApp) {}
 AppLockDescription::~AppLockDescription() = default;
 
 AppLock::AppLock(base::WeakPtr<WebAppLockManager> lock_manager,
                  std::unique_ptr<content::PartitionedLockHolder> holder)
-    : Lock(std::move(holder)), WithAppResources(std::move(lock_manager)) {}
+    : Lock(std::move(holder), lock_manager), WithAppResources(lock_manager) {}
 AppLock::~AppLock() = default;
 
 }  // namespace web_app

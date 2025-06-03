@@ -122,6 +122,10 @@ bool WebNode::IsNull() const {
   return private_.IsNull();
 }
 
+bool WebNode::IsConnected() const {
+  return private_->isConnected();
+}
+
 bool WebNode::IsLink() const {
   return private_->IsLink();
 }
@@ -140,7 +144,8 @@ bool WebNode::IsFocusable() const {
     return false;
   if (!private_->GetDocument().HaveRenderBlockingResourcesLoaded())
     return false;
-  private_->GetDocument().UpdateStyleAndLayoutTreeForNode(private_.Get());
+  private_->GetDocument().UpdateStyleAndLayoutTreeForNode(
+      private_.Get(), DocumentUpdateReason::kFocus);
   return element->IsFocusable();
 }
 
@@ -244,8 +249,13 @@ WebNode::operator Node*() const {
   return private_.Get();
 }
 
-int WebNode::GetDevToolsNodeId() const {
-  return DOMNodeIds::IdForNode(private_.Get());
+int WebNode::GetDomNodeId() const {
+  return private_.Get()->GetDomNodeId();
+}
+
+// static
+WebNode WebNode::FromDomNodeId(int dom_node_id) {
+  return WebNode(Node::FromDomNodeId(dom_node_id));
 }
 
 }  // namespace blink

@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "ash/ash_export.h"
+#include "ash/events/peripheral_customization_event_rewriter.h"
 #include "ash/public/cpp/event_rewriter_controller.h"
 #include "base/memory/raw_ptr.h"
 #include "ui/aura/env_observer.h"
@@ -59,17 +60,23 @@ class ASH_EXPORT EventRewriterControllerImpl : public EventRewriterController,
     return event_rewriter_ash_delegate_;
   }
 
+  PeripheralCustomizationEventRewriter*
+  peripheral_customization_event_rewriter() {
+    return peripheral_customization_event_rewriter_;
+  }
+
  private:
   // The |EventRewriter|s managed by this controller.
   std::vector<std::unique_ptr<ui::EventRewriter>> rewriters_;
 
   // Owned by |rewriters_|.
-  raw_ptr<AccessibilityEventRewriter, DanglingUntriaged | ExperimentalAsh>
+  raw_ptr<AccessibilityEventRewriter, ExperimentalAsh>
       accessibility_event_rewriter_ = nullptr;
-  raw_ptr<KeyboardDrivenEventRewriter, DanglingUntriaged | ExperimentalAsh>
+  raw_ptr<PeripheralCustomizationEventRewriter, ExperimentalAsh>
+      peripheral_customization_event_rewriter_ = nullptr;
+  raw_ptr<KeyboardDrivenEventRewriter, ExperimentalAsh>
       keyboard_driven_event_rewriter_ = nullptr;
-  raw_ptr<ui::EventRewriterAsh, DanglingUntriaged | ExperimentalAsh>
-      event_rewriter_ash_ = nullptr;
+  raw_ptr<ui::EventRewriterAsh, ExperimentalAsh> event_rewriter_ash_ = nullptr;
   raw_ptr<ui::EventRewriterAsh::Delegate, ExperimentalAsh>
       event_rewriter_ash_delegate_ = nullptr;
 };

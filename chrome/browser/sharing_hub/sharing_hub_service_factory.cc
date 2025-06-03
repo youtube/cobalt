@@ -4,7 +4,7 @@
 
 #include "chrome/browser/sharing_hub/sharing_hub_service_factory.h"
 
-#include "base/memory/singleton.h"
+#include "base/no_destructor.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/sharing_hub/sharing_hub_service.h"
 
@@ -18,7 +18,8 @@ SharingHubService* SharingHubServiceFactory::GetForProfile(Profile* profile) {
 
 // static
 SharingHubServiceFactory* SharingHubServiceFactory::GetInstance() {
-  return base::Singleton<SharingHubServiceFactory>::get();
+  static base::NoDestructor<SharingHubServiceFactory> instance;
+  return instance.get();
 }
 
 SharingHubServiceFactory::SharingHubServiceFactory()
@@ -33,9 +34,10 @@ SharingHubServiceFactory::SharingHubServiceFactory()
 
 SharingHubServiceFactory::~SharingHubServiceFactory() = default;
 
-KeyedService* SharingHubServiceFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+SharingHubServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
-  return new SharingHubService(context);
+  return std::make_unique<SharingHubService>(context);
 }
 
 }  // namespace sharing_hub

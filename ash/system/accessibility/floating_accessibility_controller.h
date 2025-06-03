@@ -46,6 +46,8 @@ class ASH_EXPORT FloatingAccessibilityController
   // Focuses on the first element in the floating menu.
   void FocusOnMenu();
 
+  FloatingAccessibilityBubbleView* bubble_view() { return bubble_view_; }
+
  private:
   friend class FloatingAccessibilityControllerTest;
   // FloatingAccessibilityView::Delegate:
@@ -57,6 +59,8 @@ class ASH_EXPORT FloatingAccessibilityController
   // TrayBubbleView::Delegate:
   void BubbleViewDestroyed() override;
   std::u16string GetAccessibleNameForBubble() override;
+  void HideBubble(const TrayBubbleView* bubble_view) override;
+
   // LocaleChangeObserver:
   void OnLocaleChanged() override;
 

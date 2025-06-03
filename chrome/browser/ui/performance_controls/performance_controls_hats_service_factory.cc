@@ -4,6 +4,7 @@
 
 #include "chrome/browser/ui/performance_controls/performance_controls_hats_service_factory.h"
 
+#include "chrome/browser/browser_process.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/ui/hats/hats_service.h"
 #include "chrome/browser/ui/hats/hats_service_factory.h"
@@ -26,16 +27,19 @@ PerformanceControlsHatsServiceFactory::PerformanceControlsHatsServiceFactory()
 
 PerformanceControlsHatsServiceFactory*
 PerformanceControlsHatsServiceFactory::GetInstance() {
-  return base::Singleton<PerformanceControlsHatsServiceFactory>::get();
+  static base::NoDestructor<PerformanceControlsHatsServiceFactory> instance;
+  return instance.get();
 }
 
 PerformanceControlsHatsService*
 PerformanceControlsHatsServiceFactory::GetForProfile(Profile* profile) {
   return static_cast<PerformanceControlsHatsService*>(
+      g_browser_process->local_state(),
       GetInstance()->GetServiceForBrowserContext(profile, /*create=*/true));
 }
 
-KeyedService* PerformanceControlsHatsServiceFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+PerformanceControlsHatsServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
   if (context->IsOffTheRecord() ||
       (!base::FeatureList::IsEnabled(
@@ -67,5 +71,6 @@ KeyedService* PerformanceControlsHatsServiceFactory::BuildServiceInstanceFor(
     return nullptr;
   }
 
-  return new PerformanceControlsHatsService(profile);
+  return std::make_unique<PerformanceControlsHatsService>(
+      g_browser_process->local_state(), profile);
 }

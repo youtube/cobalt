@@ -10,13 +10,9 @@
 #import "components/metrics/metrics_log_uploader.h"
 #import "components/prefs/pref_registry_simple.h"
 #import "components/prefs/testing_pref_service.h"
-#import "ios/chrome/browser/prefs/pref_names.h"
+#import "ios/chrome/browser/shared/model/prefs/pref_names.h"
 #import "ios/chrome/browser/ui/ntp/new_tab_page_feature.h"
 #import "testing/platform_test.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 // Tests metrics that are recorded and uploaded by
 // IOSFeedEnabledMetricsProvider.

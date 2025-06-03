@@ -12,13 +12,13 @@ import {adjust, range} from './list_selection_model_test_util.js';
 
 /**
  * @param {number} len size of the selection model.
- * @param {boolean=} dependentLeadItem inverse value for `independentLeadItem_`
+ * @param {boolean=} dependentLeadItem inverse value for `independentLeadItem`
  *     defaults to true.
  * @return {!ListSelectionModel}
  */
 function createSelectionModel(len, dependentLeadItem) {
   const sm = new ListSelectionModel(len);
-  sm.independentLeadItem_ = !dependentLeadItem;
+  sm.independentLeadItem = !dependentLeadItem;
   return sm;
 }
 
@@ -268,12 +268,15 @@ export function testSelectAll() {
 
   let changes = null;
   sm.addEventListener('change', function(e) {
+    // @ts-ignore: error TS2339: Property 'changes' does not exist on type
+    // 'Event'.
     changes = e.changes;
   });
 
   sm.selectAll();
 
   assertArrayEquals(range(0, 9), sm.selectedIndexes);
+  // @ts-ignore: error TS7006: Parameter 'change' implicitly has an 'any' type.
   assertArrayEquals(range(0, 9), changes.map(function(change) {
     return change.index;
   }));
@@ -284,6 +287,8 @@ export function testSelectAllOnEmptyList() {
 
   let changes = null;
   sm.addEventListener('change', function(e) {
+    // @ts-ignore: error TS2339: Property 'changes' does not exist on type
+    // 'Event'.
     changes = e.changes;
   });
 

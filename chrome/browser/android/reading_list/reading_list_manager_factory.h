@@ -5,7 +5,7 @@
 #ifndef CHROME_BROWSER_ANDROID_READING_LIST_READING_LIST_MANAGER_FACTORY_H_
 #define CHROME_BROWSER_ANDROID_READING_LIST_READING_LIST_MANAGER_FACTORY_H_
 
-#include "base/memory/singleton.h"
+#include "base/no_destructor.h"
 #include "chrome/browser/profiles/profile_keyed_service_factory.h"
 
 class ReadingListManager;
@@ -18,7 +18,7 @@ class ReadingListManagerFactory : public ProfileKeyedServiceFactory {
       content::BrowserContext* context);
 
  private:
-  friend struct base::DefaultSingletonTraits<ReadingListManagerFactory>;
+  friend base::NoDestructor<ReadingListManagerFactory>;
 
   ReadingListManagerFactory();
   ~ReadingListManagerFactory() override;
@@ -28,7 +28,7 @@ class ReadingListManagerFactory : public ProfileKeyedServiceFactory {
       delete;
 
   // BrowserContextKeyedServiceFactory overrides.
-  KeyedService* BuildServiceInstanceFor(
+  std::unique_ptr<KeyedService> BuildServiceInstanceForBrowserContext(
       content::BrowserContext* context) const override;
 };
 

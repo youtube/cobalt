@@ -4,16 +4,22 @@
 
 #include "ash/clipboard/clipboard_history_item.h"
 
+#include <string>
 #include <vector>
 
 #include "ash/clipboard/clipboard_history_util.h"
+#include "ash/strings/grit/ash_strings.h"
+#include "base/callback_list.h"
+#include "base/containers/contains.h"
 #include "base/notreached.h"
 #include "base/strings/escape.h"
 #include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
+#include "chromeos/constants/chromeos_features.h"
 #include "chromeos/crosapi/mojom/clipboard_history.mojom.h"
+#include "chromeos/ui/clipboard_history/clipboard_history_util.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/models/image_model.h"
@@ -30,8 +36,8 @@ crosapi::mojom::ClipboardHistoryDisplayFormat CalculateDisplayFormat(
     case ui::ClipboardInternalFormat::kPng:
       return crosapi::mojom::ClipboardHistoryDisplayFormat::kPng;
     case ui::ClipboardInternalFormat::kHtml:
-      if ((item.data().markup_data().find("<img") == std::string::npos) &&
-          (item.data().markup_data().find("<table") == std::string::npos)) {
+      if (!base::Contains(item.data().markup_data(), "<img") &&
+          !base::Contains(item.data().markup_data(), "<table")) {
         return crosapi::mojom::ClipboardHistoryDisplayFormat::kText;
       }
       return crosapi::mojom::ClipboardHistoryDisplayFormat::kHtml;
@@ -95,6 +101,13 @@ std::u16string DetermineDisplayTextForFileSystemData(
     return std::u16string();
   }
 
+  size_t file_count = source_list.size();
+  if (chromeos::features::IsClipboardHistoryRefreshEnabled() &&
+      file_count > 1u) {
+    return l10n_util::GetPluralStringFUTF16(
+        IDS_ASH_CLIPBOARD_HISTORY_FILE_COUNT, file_count);
+  }
+
   // Strip path information, so all that's left are file names.
   for (auto& source : source_list) {
     source = source.substr(source.find_last_of(u"/") + 1);
@@ -135,7 +148,28 @@ std::u16string DetermineDisplayText(const ClipboardHistoryItem& item) {
   }
 }
 
+absl::optional<gfx::ElideBehavior> DetermineDisplayTextElideBehavior(
+    const ClipboardHistoryItem& item) {
+  return chromeos::features::IsClipboardHistoryRefreshEnabled() &&
+                 chromeos::clipboard_history::IsUrl(item.display_text())
+             ? absl::make_optional(gfx::ELIDE_MIDDLE)
+             : absl::nullopt;
+}
+
+absl::optional<size_t> DetermineDisplayTextMaxLines(
+    const ClipboardHistoryItem& item) {
+  return chromeos::features::IsClipboardHistoryRefreshEnabled() &&
+                 chromeos::clipboard_history::IsUrl(item.display_text())
+             ? absl::make_optional(1u)
+             : absl::nullopt;
+}
+
 absl::optional<ui::ImageModel> DetermineIcon(const ClipboardHistoryItem& item) {
+  if (chromeos::features::IsClipboardHistoryRefreshEnabled()) {
+    return chromeos::clipboard_history::GetIconForDescriptor(
+        clipboard_history_util::ItemToDescriptor(item));
+  }
+
   if (item.display_format() !=
       crosapi::mojom::ClipboardHistoryDisplayFormat::kFile) {
     return absl::nullopt;
@@ -154,12 +188,39 @@ ClipboardHistoryItem::ClipboardHistoryItem(ui::ClipboardData data)
       display_format_(CalculateDisplayFormat(*this)),
       display_image_(DetermineDisplayImage(*this)),
       display_text_(DetermineDisplayText(*this)),
+      display_text_elide_behavior_(DetermineDisplayTextElideBehavior(*this)),
+      display_text_max_lines_(DetermineDisplayTextMaxLines(*this)),
+      file_count_(clipboard_history_util::GetCountOfCopiedFiles(data_)),
       icon_(DetermineIcon(*this)) {}
 
-ClipboardHistoryItem::ClipboardHistoryItem(const ClipboardHistoryItem&) =
-    default;
+ClipboardHistoryItem::ClipboardHistoryItem(const ClipboardHistoryItem& other)
+    : id_(other.id_),
+      data_(other.data_),
+      time_copied_(other.time_copied_),
+      main_format_(other.main_format_),
+      display_format_(other.display_format_),
+      display_image_(other.display_image_),
+      display_text_(other.display_text_),
+      display_text_elide_behavior_(other.display_text_elide_behavior_),
+      display_text_max_lines_(other.display_text_max_lines_),
+      file_count_(other.file_count_),
+      icon_(other.icon_),
+      secondary_display_text_(other.secondary_display_text_) {}
 
-ClipboardHistoryItem::ClipboardHistoryItem(ClipboardHistoryItem&&) = default;
+ClipboardHistoryItem::ClipboardHistoryItem(ClipboardHistoryItem&& other)
+    : id_(std::move(other.id_)),
+      data_(std::move(other.data_)),
+      time_copied_(std::move(other.time_copied_)),
+      main_format_(std::move(other.main_format_)),
+      display_format_(std::move(other.display_format_)),
+      display_image_(std::move(other.display_image_)),
+      display_text_(std::move(other.display_text_)),
+      display_text_elide_behavior_(
+          std::move(other.display_text_elide_behavior_)),
+      display_text_max_lines_(std::move(other.display_text_max_lines_)),
+      file_count_(std::move(other.file_count_)),
+      icon_(std::move(other.icon_)),
+      secondary_display_text_(std::move(other.secondary_display_text_)) {}
 
 ClipboardHistoryItem::~ClipboardHistoryItem() = default;
 
@@ -172,6 +233,19 @@ ui::ClipboardData ClipboardHistoryItem::ReplaceEquivalentData(
   if (data_.maybe_png() && !new_data.maybe_png())
     new_data.SetPngDataAfterEncoding(*data_.maybe_png());
   return std::exchange(data_, std::move(new_data));
+}
+
+void ClipboardHistoryItem::SetDisplayImage(
+    const ui::ImageModel& display_image) {
+  CHECK(display_image.IsImage());
+  display_image_ = display_image;
+  display_image_updated_callbacks_.Notify();
+}
+
+base::CallbackListSubscription
+ClipboardHistoryItem::AddDisplayImageUpdatedCallback(
+    base::RepeatingClosure callback) const {
+  return display_image_updated_callbacks_.Add(std::move(callback));
 }
 
 }  // namespace ash

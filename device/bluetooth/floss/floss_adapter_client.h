@@ -89,6 +89,19 @@ class DEVICE_BLUETOOTH_EXPORT FlossAdapterClient : public FlossDBusClient {
     kGeneralDiscoverable = 2,
   };
 
+  struct VendorProductInfo {
+    uint8_t vendorIdSrc;
+    uint16_t vendorId;
+    uint16_t productId;
+    uint16_t version;
+    VendorProductInfo()
+        : vendorIdSrc(
+              device::BluetoothDevice::VendorIDSource::VENDOR_ID_UNKNOWN),
+          vendorId(),
+          productId(),
+          version() {}
+  };
+
   class Observer : public base::CheckedObserver {
    public:
     Observer(const Observer&) = delete;
@@ -116,11 +129,24 @@ class DEVICE_BLUETOOTH_EXPORT FlossAdapterClient : public FlossDBusClient {
     // some amount of time ago).
     virtual void AdapterClearedDevice(const FlossDeviceId& device_cleared) {}
 
+    // Notification sent when a device property has changed.
+    virtual void AdapterDevicePropertyChanged(BtPropertyType prop_type,
+                                              const FlossDeviceId& device) {}
+
     // Notification sent for Simple Secure Pairing.
     virtual void AdapterSspRequest(const FlossDeviceId& remote_device,
                                    uint32_t cod,
                                    BluetoothSspVariant variant,
                                    uint32_t passkey) {}
+
+    // Notification sent for legacy pairing to display auto-gen pin code.
+    virtual void AdapterPinDisplay(const FlossDeviceId& remote_device,
+                                   std::string pincode) {}
+
+    // Notification sent for legacy pairing to ask user input pin code.
+    virtual void AdapterPinRequest(const FlossDeviceId& remote_device,
+                                   uint32_t cod,
+                                   bool min_16_digit) {}
 
     // Notification sent when a bonding state changes for a remote device.
     // TODO(b:202334519): Change status type to enum once Floss has the enum.
@@ -232,6 +258,10 @@ class DEVICE_BLUETOOTH_EXPORT FlossAdapterClient : public FlossDBusClient {
       ResponseCallback<device::BluetoothDevice::UUIDList> callback,
       FlossDeviceId device);
 
+  virtual void GetRemoteVendorProductInfo(
+      ResponseCallback<VendorProductInfo> callback,
+      FlossDeviceId device);
+
   // Get bonding state of a device.
   virtual void GetBondState(ResponseCallback<uint32_t> callback,
                             const FlossDeviceId& device);
@@ -290,6 +320,7 @@ class DEVICE_BLUETOOTH_EXPORT FlossAdapterClient : public FlossDBusClient {
   void Init(dbus::Bus* bus,
             const std::string& service_name,
             const int adapter_index,
+            base::Version version,
             base::OnceClosure on_ready) override;
 
  protected:
@@ -322,8 +353,21 @@ class DEVICE_BLUETOOTH_EXPORT FlossAdapterClient : public FlossDBusClient {
   void OnDeviceCleared(dbus::MethodCall* method_call,
                        dbus::ExportedObject::ResponseSender response_sender);
 
+  // Handle callback |OnDevicePropertiesChanged| on exported object path.
+  void OnDevicePropertiesChanged(
+      dbus::MethodCall* method_call,
+      dbus::ExportedObject::ResponseSender response_sender);
+
   // Handle callback |OnSspRequest| on exported object path.
   void OnSspRequest(dbus::MethodCall* method_call,
+                    dbus::ExportedObject::ResponseSender response_sender);
+
+  // Handle callback |OnPinDisplay| on exported object path.
+  void OnPinDisplay(dbus::MethodCall* method_call,
+                    dbus::ExportedObject::ResponseSender response_sender);
+
+  // Handle callback |OnPinRequest| on exported object path.
+  void OnPinRequest(dbus::MethodCall* method_call,
                     dbus::ExportedObject::ResponseSender response_sender);
 
   // Handle callback |OnBondStateChanged| on exported object path.
@@ -360,10 +404,14 @@ class DEVICE_BLUETOOTH_EXPORT FlossAdapterClient : public FlossDBusClient {
   // Handle GetDiscoverableTimeout and cache the returned value.
   void OnDiscoverableTimeout(DBusResult<uint32_t> ret);
 
-  // Handle both |RegisterCallback| and |RegisterConnectionCallback| results.
-  // We discard the DBus return value in |RegisterConnectionCallback| because
-  // we only care that the call succeeded.
-  void OnRegisterCallbacks(DBusResult<Void> ret);
+  // Handle |RegisterCallback| result and store callback ID.
+  void OnRegisterCallback(DBusResult<uint32_t> ret);
+
+  // Handle |RegisterConnectionCallback| result and store callback ID.
+  void OnRegisterConnectionCallback(DBusResult<uint32_t> ret);
+
+  // Handle both |UnregisterCallback| and |UnregisterConnectionCallback|.
+  void OnUnregisterCallbacks(DBusResult<bool> ret);
 
   // List of observers interested in event notifications from this client.
   base::ObserverList<Observer> observers_;
@@ -376,6 +424,9 @@ class DEVICE_BLUETOOTH_EXPORT FlossAdapterClient : public FlossDBusClient {
 
   // Service which implements the adapter interface.
   std::string service_name_;
+
+  // Object path for exported callbacks registered to this client.
+  std::string exported_callback_path_;
 
   // Cached discoverable timeout value (updates on init and on discoverable
   // state changes).
@@ -412,6 +463,12 @@ class DEVICE_BLUETOOTH_EXPORT FlossAdapterClient : public FlossDBusClient {
 
   // Number of callbacks pending registration before client is ready to use.
   int pending_register_calls_ = 0;
+
+  // Callback ID used for callbacks registered to this client.
+  absl::optional<uint32_t> callback_id_;
+
+  // Callback ID used for connection callbacks registered to this client.
+  absl::optional<uint32_t> connection_callback_id_;
 
   base::WeakPtrFactory<FlossAdapterClient> weak_ptr_factory_{this};
 };

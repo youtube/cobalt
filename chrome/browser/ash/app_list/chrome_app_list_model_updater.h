@@ -61,12 +61,17 @@ class ChromeAppListModelUpdater : public AppListModelUpdater,
       const std::vector<ash::AppListSearchResultCategory>& categories) override;
   void ClearSearchResults() override;
   std::vector<ChromeSearchResult*> GetPublishedSearchResultsForTest() override;
+  void SetAccessibleName(const std::string& id,
+                         const std::string& name) override;
 
   // Methods only used by ChromeAppListItem that talk to ash directly.
   void SetItemIconVersion(const std::string& id, int icon_version) override;
   void SetItemIconAndColor(const std::string& id,
                            const gfx::ImageSkia& icon,
-                           const ash::IconColor& icon_color) override;
+                           const ash::IconColor& icon_color,
+                           bool is_placeholder_icon) override;
+  void SetItemBadgeIcon(const std::string& id,
+                        const gfx::ImageSkia& badge_icon) override;
   void SetItemName(const std::string& id, const std::string& name) override;
   void SetAppStatus(const std::string& id, ash::AppStatus app_status) override;
   void SetItemPosition(const std::string& id,
@@ -86,6 +91,7 @@ class ChromeAppListModelUpdater : public AppListModelUpdater,
 
   void ActivateChromeItem(const std::string& id, int event_flags) override;
   void LoadAppIcon(const std::string& id) override;
+  void UpdateProgress(const std::string& id, float progress) override;
 
   // Methods for item querying.
   ChromeAppListItem* FindItem(const std::string& id) override;
@@ -110,7 +116,6 @@ class ChromeAppListModelUpdater : public AppListModelUpdater,
       bool update_folder) override;
 
   void OnAppListHidden() override;
-  void CommitTemporarySortOrder() override;
 
   void AddObserver(AppListModelUpdaterObserver* observer) override;
   void RemoveObserver(AppListModelUpdaterObserver* observer) override;
@@ -137,6 +142,7 @@ class ChromeAppListModelUpdater : public AppListModelUpdater,
                            const std::string& new_name) override;
   void RequestAppListSort(ash::AppListSortOrder order) override;
   void RequestAppListSortRevert() override;
+  void RequestCommitTemporarySortOrder() override;
 
   // Returns the temporary sort order.
   ash::AppListSortOrder GetTemporarySortOrderForTest() const;

@@ -20,13 +20,19 @@
 #include "build/build_config.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/media_switches.h"
-#include "media/base/mock_media_log.h"
+#include "media/base/media_util.h"
 #include "media/base/video_decoder.h"
 #include "media/base/video_encoder.h"
 #include "media/base/video_frame.h"
 #include "media/base/video_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/libyuv/include/libyuv.h"
+
+#if BUILDFLAG(USE_PROPRIETARY_CODECS)
+#include "media/filters/h264_to_annex_b_bitstream_converter.h"
+#include "media/formats/mp4/box_definitions.h"
+#include "media/video/h264_parser.h"
+#endif
 
 #if BUILDFLAG(ENABLE_OPENH264)
 #include "media/video/openh264_video_encoder.h"
@@ -91,17 +97,17 @@ class SoftwareVideoEncoderTest
         VideoColorSpace::JPEG(), VideoTransformation(), size, gfx::Rect(size),
         size, extra_data, EncryptionScheme::kUnencrypted);
 
-    if (codec_ == VideoCodec::kH264 || codec_ == VideoCodec::kVP8) {
+    if (codec_ == VideoCodec::kH264) {
 #if BUILDFLAG(ENABLE_FFMPEG_VIDEO_DECODERS)
       decoder_ = std::make_unique<FFmpegVideoDecoder>(&media_log_);
 #endif
-    } else if (codec_ == VideoCodec::kVP9) {
+    } else if (codec_ == VideoCodec::kVP8 || codec_ == VideoCodec::kVP9) {
 #if BUILDFLAG(ENABLE_LIBVPX)
       decoder_ = std::make_unique<VpxVideoDecoder>();
 #endif
     } else if (codec_ == VideoCodec::kAV1) {
 #if BUILDFLAG(ENABLE_DAV1D_DECODER)
-      decoder_ = std::make_unique<Dav1dVideoDecoder>(&media_log_);
+      decoder_ = std::make_unique<Dav1dVideoDecoder>(media_log_.Clone());
 #endif
     }
 
@@ -331,7 +337,7 @@ class SoftwareVideoEncoderTest
   VideoPixelFormat pixel_format_;
   std::vector<uint8_t> resize_buff_;
 
-  MockMediaLog media_log_;
+  NullMediaLog media_log_;
   base::test::TaskEnvironment task_environment_;
   std::unique_ptr<VideoEncoder> encoder_;
   std::unique_ptr<VideoDecoder> decoder_;
@@ -746,6 +752,44 @@ TEST_P(SVCVideoEncoderTest, ChangeLayers) {
   EXPECT_EQ(chunks.size(), total_frames_count);
 }
 
+TEST_P(SoftwareVideoEncoderTest, ReconfigureWithResizingNumberOfThreads) {
+  int outputs_count = 0;
+  VideoEncoder::Options options;
+  options.frame_size = gfx::Size(1024, 1024);
+
+  VideoEncoder::OutputCB output_cb = base::BindLambdaForTesting(
+      [&](VideoEncoderOutput output,
+          absl::optional<VideoEncoder::CodecDescription> desc) {
+        outputs_count++;
+      });
+
+  encoder_->Initialize(profile_, options, /*info_cb=*/base::DoNothing(),
+                       std::move(output_cb), ValidatingStatusCB());
+
+  auto frame0 = CreateFrame(options.frame_size, pixel_format_, {});
+  encoder_->Encode(frame0, VideoEncoder::EncodeOptions(false),
+                   ValidatingStatusCB());
+
+  options.frame_size = gfx::Size(1000, 608);
+  encoder_->ChangeOptions(options, VideoEncoder::OutputCB(),
+                          ValidatingStatusCB());
+
+  auto frame1 = CreateFrame(options.frame_size, pixel_format_, {});
+  encoder_->Encode(frame1, VideoEncoder::EncodeOptions(false),
+                   ValidatingStatusCB());
+
+  options.frame_size = gfx::Size(16, 720);
+  encoder_->ChangeOptions(options, VideoEncoder::OutputCB(),
+                          ValidatingStatusCB());
+
+  auto frame2 = CreateFrame(options.frame_size, pixel_format_, {});
+  encoder_->Encode(frame2, VideoEncoder::EncodeOptions(false),
+                   ValidatingStatusCB(/* quit_run_loop_on_call */ true));
+
+  RunUntilQuit();
+  EXPECT_EQ(outputs_count, 3);
+}
+
 TEST_P(H264VideoEncoderTest, ReconfigureWithResize) {
   VideoEncoder::Options options;
   gfx::Size size1(320, 200), size2(400, 240);
@@ -852,6 +896,21 @@ TEST_P(H264VideoEncoderTest, ReconfigureWithResize) {
 }
 #endif  // ENABLE_FFMPEG_VIDEO_DECODERS
 
+#if BUILDFLAG(USE_PROPRIETARY_CODECS)
+VideoCodecProfile ProfileIDToVideoCodecProfile(int profile) {
+  switch (profile) {
+    case H264SPS::kProfileIDCBaseline:
+      return H264PROFILE_BASELINE;
+    case H264SPS::kProfileIDCMain:
+      return H264PROFILE_MAIN;
+    case H264SPS::kProfileIDCHigh:
+      return H264PROFILE_HIGH;
+    default:
+      return VIDEO_CODEC_PROFILE_UNKNOWN;
+  }
+}
+#endif
+
 TEST_P(H264VideoEncoderTest, AvcExtraData) {
   int outputs_count = 0;
   VideoEncoder::Options options;
@@ -862,10 +921,21 @@ TEST_P(H264VideoEncoderTest, AvcExtraData) {
       [&](VideoEncoderOutput output,
           absl::optional<VideoEncoder::CodecDescription> desc) {
         switch (outputs_count) {
-          case 0:
+          case 0: {
             // First frame should have extra_data
             EXPECT_TRUE(desc.has_value());
+
+#if BUILDFLAG(USE_PROPRIETARY_CODECS)
+            H264ToAnnexBBitstreamConverter converter;
+            mp4::AVCDecoderConfigurationRecord avc_config;
+            bool parse_ok = converter.ParseConfiguration(
+                desc->data(), desc->size(), &avc_config);
+            EXPECT_TRUE(parse_ok);
+            EXPECT_EQ(profile_, ProfileIDToVideoCodecProfile(
+                                    avc_config.profile_indication));
+#endif  // BUILDFLAG(USE_PROPRIETARY_CODECS)
             break;
+          }
           case 1:
             // Regular non-key frame shouldn't have extra_data
             EXPECT_FALSE(desc.has_value());
@@ -1039,7 +1109,10 @@ std::string PrintTestParams(
 #if BUILDFLAG(ENABLE_OPENH264)
 SwVideoTestParams kH264Params[] = {
     {VideoCodec::kH264, H264PROFILE_BASELINE, PIXEL_FORMAT_I420},
-    {VideoCodec::kH264, H264PROFILE_BASELINE, PIXEL_FORMAT_XRGB}};
+    {VideoCodec::kH264, H264PROFILE_BASELINE, PIXEL_FORMAT_XRGB},
+    {VideoCodec::kH264, H264PROFILE_MAIN, PIXEL_FORMAT_I420},
+    {VideoCodec::kH264, H264PROFILE_HIGH, PIXEL_FORMAT_I420},
+};
 
 INSTANTIATE_TEST_SUITE_P(H264Specific,
                          H264VideoEncoderTest,
@@ -1058,6 +1131,10 @@ SwVideoTestParams kH264SVCParams[] = {
     {VideoCodec::kH264, H264PROFILE_BASELINE, PIXEL_FORMAT_I420,
      SVCScalabilityMode::kL1T2},
     {VideoCodec::kH264, H264PROFILE_BASELINE, PIXEL_FORMAT_I420,
+     SVCScalabilityMode::kL1T3},
+    {VideoCodec::kH264, H264PROFILE_MAIN, PIXEL_FORMAT_I420,
+     SVCScalabilityMode::kL1T3},
+    {VideoCodec::kH264, H264PROFILE_HIGH, PIXEL_FORMAT_I420,
      SVCScalabilityMode::kL1T3}};
 
 INSTANTIATE_TEST_SUITE_P(H264TemporalSvc,

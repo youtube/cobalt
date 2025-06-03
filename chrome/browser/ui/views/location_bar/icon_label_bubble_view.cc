@@ -12,6 +12,8 @@
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/layout_constants.h"
 #include "chrome/browser/ui/omnibox/omnibox_theme.h"
+#include "chrome/browser/ui/views/location_bar/location_bar_util.h"
+#include "components/omnibox/browser/omnibox_field_trial.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/compositor/layer_animator.h"
@@ -214,10 +216,15 @@ void IconLabelBubbleView::SetPaintLabelOverSolidBackground(
 }
 
 void IconLabelBubbleView::SetLabel(const std::u16string& label_text) {
+  SetLabel(label_text, label_text);
+}
+
+void IconLabelBubbleView::SetLabel(const std::u16string& label_text,
+                                   const std::u16string& accessible_name) {
   // TODO(crbug.com/1411342): Under what conditions, if any, will the text be
   // empty? Read the description of the bug and update accordingly.
-  SetAccessibleName(label_text,
-                    label_text.empty()
+  SetAccessibleName(accessible_name,
+                    accessible_name.empty()
                         ? ax::mojom::NameFrom::kAttributeExplicitlyEmpty
                         : ax::mojom::NameFrom::kAttribute);
   label()->SetText(label_text);
@@ -241,10 +248,29 @@ void IconLabelBubbleView::UpdateLabelColors() {
 void IconLabelBubbleView::UpdateBackground() {
   // If the label is showing we must ensure the icon label is painted over a
   // solid background.
-  SetBackground(paint_label_over_solid_backround_ && ShouldShowLabel()
+  const bool painted_on_solid_background =
+      paint_label_over_solid_backround_ && ShouldShowLabel();
+  const ui::ColorId background_color = use_tonal_color_when_expanded_
+                                           ? kColorPageInfoBackgroundTonal
+                                           : kColorPageInfoBackground;
+  SetBackground(painted_on_solid_background
                     ? views::CreateThemedRoundedRectBackground(
-                          kColorToolbar, GetPreferredSize().height())
+                          background_color, GetPreferredSize().height())
                     : nullptr);
+  // TODO(pbos): Consider renaming kPageInfo/kPageAction color IDs to share the
+  // same prefix. Here PageInfo assumes to have a background and PageAction
+  // assumes to not have one.
+  if (OmniboxFieldTrial::IsChromeRefreshIconsEnabled()) {
+    ConfigureInkDropForRefresh2023(this,
+                                   painted_on_solid_background
+                                       ? kColorPageInfoIconHover
+                                       : kColorPageActionIconHover,
+                                   kColorPageInfoIconPressed);
+  }
+}
+
+void IconLabelBubbleView::SetUseTonalColorsWhenExpanded(bool use_tonal_colors) {
+  use_tonal_color_when_expanded_ = use_tonal_colors;
 }
 
 bool IconLabelBubbleView::ShouldShowSeparator() const {
@@ -420,14 +446,19 @@ void IconLabelBubbleView::AnimationEnded(const gfx::Animation* animation) {
   views::InkDrop::Get(this)->GetInkDrop()->SetShowHighlightOnFocus(
       !views::FocusRing::Get(this));
   UpdateBackground();
+  UpdateBorder();
 }
 
 void IconLabelBubbleView::AnimationProgressed(const gfx::Animation* animation) {
-  if (animation != &slide_animation_)
+  if (animation != &slide_animation_) {
     return views::LabelButton::AnimationProgressed(animation);
+  }
 
-  if (!is_animation_paused_)
+  if (!is_animation_paused_) {
     PreferredSizeChanged();
+  }
+
+  UpdateBorder();
 }
 
 void IconLabelBubbleView::AnimationCanceled(const gfx::Animation* animation) {
@@ -476,7 +507,16 @@ void IconLabelBubbleView::UpdateBorder() {
 int IconLabelBubbleView::GetInternalSpacing() const {
   if (image()->GetPreferredSize().IsEmpty())
     return 0;
-  return (ui::TouchUiController::Get()->touch_ui() ? 10 : 8) +
+
+  constexpr int kDefaultInternalSpacing = 8;
+  constexpr int kDefaultInternalSpacingTouchUI = 10;
+  constexpr int kDefaultInternalSpacingChromeRefresh = 4;
+
+  return (ui::TouchUiController::Get()->touch_ui()
+              ? kDefaultInternalSpacingTouchUI
+              : (OmniboxFieldTrial::IsChromeRefreshIconsEnabled()
+                     ? kDefaultInternalSpacingChromeRefresh
+                     : kDefaultInternalSpacing)) +
          GetExtraInternalSpacing();
 }
 

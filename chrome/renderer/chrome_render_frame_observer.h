@@ -8,8 +8,10 @@
 #include <string>
 #include <vector>
 
+#include "base/memory/raw_ptr.h"
 #include "build/build_config.h"
 #include "chrome/common/chrome_render_frame.mojom.h"
+#include "chrome/renderer/companion/visual_search/visual_search_classifier_agent.h"
 #include "components/safe_browsing/buildflags.h"
 #include "content/public/renderer/render_frame_observer.h"
 #include "mojo/public/cpp/bindings/associated_receiver_set.h"
@@ -29,6 +31,7 @@ class PageTextAgent;
 
 namespace safe_browsing {
 class PhishingClassifierDelegate;
+class PhishingImageEmbedderDelegate;
 }
 
 namespace translate {
@@ -94,6 +97,8 @@ class ChromeRenderFrameObserver : public content::RenderFrameObserver,
       chrome::mojom::ImageFormat image_format,
       int32_t quality,
       RequestImageForContextNodeCallback callback) override;
+  void RequestBitmapForContextNode(
+      RequestBitmapForContextNodeCallback callback) override;
   void RequestReloadImageForContextNode() override;
 #if BUILDFLAG(IS_ANDROID)
   void SetCCTClientHeader(const std::string& header) override;
@@ -103,6 +108,9 @@ class ChromeRenderFrameObserver : public content::RenderFrameObserver,
 
   // Initialize a |phishing_classifier_delegate_|.
   void SetClientSidePhishingDetection();
+
+  // Initialize a |visual_search_classifier_agent_|.
+  void SetVisualSearchClassifierAgent();
 
   void OnRenderFrameObserverRequest(
       mojo::PendingAssociatedReceiver<chrome::mojom::ChromeRenderFrame>
@@ -140,18 +148,27 @@ class ChromeRenderFrameObserver : public content::RenderFrameObserver,
   static bool IsAnimatedWebp(const std::vector<uint8_t>& image_data);
 
   // Have the same lifetime as us.
-  translate::TranslateAgent* translate_agent_;
-  optimization_guide::PageTextAgent* page_text_agent_;
+  raw_ptr<translate::TranslateAgent, ExperimentalRenderer> translate_agent_;
+  raw_ptr<optimization_guide::PageTextAgent, ExperimentalRenderer>
+      page_text_agent_;
 #if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
-  safe_browsing::PhishingClassifierDelegate* phishing_classifier_ = nullptr;
+  raw_ptr<safe_browsing::PhishingClassifierDelegate, ExperimentalRenderer>
+      phishing_classifier_ = nullptr;
+  raw_ptr<safe_browsing::PhishingImageEmbedderDelegate, ExperimentalRenderer>
+      phishing_image_embedder_ = nullptr;
 #endif
 
   // Owned by ChromeContentRendererClient and outlive us.
-  web_cache::WebCacheImpl* web_cache_impl_;
+  raw_ptr<web_cache::WebCacheImpl, ExperimentalRenderer> web_cache_impl_;
 
 #if !BUILDFLAG(IS_ANDROID)
   // Save the JavaScript to preload if ExecuteWebUIJavaScript is invoked.
   std::vector<std::u16string> webui_javascript_;
+
+  // Add visual search agent to suggest visually relevant items on the page.
+  raw_ptr<companion::visual_search::VisualSearchClassifierAgent,
+          ExperimentalRenderer>
+      visual_classifier_ = nullptr;
 #endif
 
   mojo::AssociatedReceiverSet<chrome::mojom::ChromeRenderFrame> receivers_;

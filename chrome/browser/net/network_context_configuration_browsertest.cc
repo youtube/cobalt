@@ -53,10 +53,10 @@
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/network_service_instance.h"
+#include "content/public/browser/network_service_util.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/browser/storage_partition_config.h"
 #include "content/public/common/content_switches.h"
-#include "content/public/common/network_service_util.h"
 #include "content/public/common/url_constants.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
@@ -720,7 +720,7 @@ class NetworkContextConfigurationBrowserTest
     FlushNetworkInterface();
   }
 
-  raw_ptr<Browser, DanglingUntriaged> incognito_ = nullptr;
+  raw_ptr<Browser, AcrossTasksDanglingUntriaged> incognito_ = nullptr;
 
   net::EmbeddedTestServer https_server_;
   std::unique_ptr<net::test_server::ControllableHttpResponse>
@@ -1031,7 +1031,14 @@ IN_PROC_BROWSER_TEST_P(NetworkContextConfigurationBrowserTest, PRE_DiskCache) {
 
 // Check if the URL loaded in PRE_DiskCache is still in the cache, across a
 // browser restart.
-IN_PROC_BROWSER_TEST_P(NetworkContextConfigurationBrowserTest, DiskCache) {
+// TODO(https://crbug.com/1464367): Fix test flake and re-enable
+#if BUILDFLAG(IS_MAC)
+#define MAYBE_DiskCache DISABLED_DiskCache
+#else
+#define MAYBE_DiskCache DiskCache
+#endif
+IN_PROC_BROWSER_TEST_P(NetworkContextConfigurationBrowserTest,
+                       MAYBE_DiskCache) {
   if (IsRestartStateWithInProcessNetworkService())
     return;
   // Crashing the network service may corrupt the disk cache, so skip this phase
@@ -1275,7 +1282,7 @@ IN_PROC_BROWSER_TEST_P(NetworkContextConfigurationBrowserTest,
 }
 
 // Disabled due to flakiness. See crbug.com/1189031.
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_MAC)
 #define MAYBE_UserAgentAndLanguagePrefs DISABLED_UserAgentAndLanguagePrefs
 #else
 #define MAYBE_UserAgentAndLanguagePrefs UserAgentAndLanguagePrefs

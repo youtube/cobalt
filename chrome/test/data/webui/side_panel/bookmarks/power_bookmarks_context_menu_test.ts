@@ -2,15 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'chrome://webui-test/mojo_webui_test_support.js';
 import 'chrome://bookmarks-side-panel.top-chrome/power_bookmarks_context_menu.js';
 
 import {BookmarksApiProxyImpl} from 'chrome://bookmarks-side-panel.top-chrome/bookmarks_api_proxy.js';
 import {PowerBookmarksContextMenuElement} from 'chrome://bookmarks-side-panel.top-chrome/power_bookmarks_context_menu.js';
 import {PowerBookmarksService} from 'chrome://bookmarks-side-panel.top-chrome/power_bookmarks_service.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
-import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 import {assertEquals} from 'chrome://webui-test/chai_assert.js';
+import {flushTasks, waitAfterNextRender} from 'chrome://webui-test/polymer_test_util.js';
 
 import {TestBookmarksApiProxy} from './test_bookmarks_api_proxy.js';
 import {TestPowerBookmarksDelegate} from './test_power_bookmarks_delegate.js';
@@ -93,15 +92,15 @@ suite('SidePanelPowerBookmarksContextMenuTest', () => {
         document.createElement('power-bookmarks-context-menu');
     document.body.appendChild(powerBookmarksContextMenu);
 
-    await delegate.whenCalled('onBookmarksLoaded');
+    await flushTasks();
   });
 
-  test('ShowsMenuItemsForSingleSelectUrl', () => {
+  test('ShowsMenuItemsForSingleSelectUrl', async () => {
     const selection = [service.findBookmarkWithId('3')!];
     powerBookmarksContextMenu.showAtPosition(
         new MouseEvent('click'), selection, false, false);
 
-    flush();
+    await waitAfterNextRender(powerBookmarksContextMenu);
 
     const menuItems = powerBookmarksContextMenu.shadowRoot!.querySelectorAll(
         '.dropdown-item');
@@ -131,12 +130,12 @@ suite('SidePanelPowerBookmarksContextMenuTest', () => {
         true);
   });
 
-  test('ShowsMenuItemsForSingleSelectFolder', () => {
+  test('ShowsMenuItemsForSingleSelectFolder', async () => {
     const selection = [service.findBookmarkWithId('5')!];
     powerBookmarksContextMenu.showAtPosition(
         new MouseEvent('click'), selection, false, false);
 
-    flush();
+    await waitAfterNextRender(powerBookmarksContextMenu);
 
     const menuItems = powerBookmarksContextMenu.shadowRoot!.querySelectorAll(
         '.dropdown-item');
@@ -171,13 +170,13 @@ suite('SidePanelPowerBookmarksContextMenuTest', () => {
         true);
   });
 
-  test('ShowsMenuItemsForMultiSelect', () => {
+  test('ShowsMenuItemsForMultiSelect', async () => {
     const selection =
         [service.findBookmarkWithId('3')!, service.findBookmarkWithId('4')!];
     powerBookmarksContextMenu.showAtPosition(
         new MouseEvent('click'), selection, false, false);
 
-    flush();
+    await waitAfterNextRender(powerBookmarksContextMenu);
 
     const menuItems = powerBookmarksContextMenu.shadowRoot!.querySelectorAll(
         '.dropdown-item');
@@ -208,12 +207,12 @@ suite('SidePanelPowerBookmarksContextMenuTest', () => {
         true);
   });
 
-  test('ShowsMenuItemsForPriceTracking', () => {
+  test('ShowsMenuItemsForPriceTracking', async () => {
     const selection = [service.findBookmarkWithId('4')!];
     powerBookmarksContextMenu.showAtPosition(
         new MouseEvent('click'), selection, true, true);
 
-    flush();
+    await waitAfterNextRender(powerBookmarksContextMenu);
 
     const menuItems = powerBookmarksContextMenu.shadowRoot!.querySelectorAll(
         '.dropdown-item');
@@ -243,6 +242,46 @@ suite('SidePanelPowerBookmarksContextMenuTest', () => {
         true);
     assertEquals(
         menuItems[6]!.textContent!.includes(
+            loadTimeData.getString('tooltipDelete')),
+        true);
+  });
+
+  test('ShowsMenuItemsForUserWithIncognitoDisabled', async () => {
+    loadTimeData.overrideValues({
+      isIncognitoModeAvailable: false,
+    });
+
+    const selection = [service.findBookmarkWithId('5')!];
+    powerBookmarksContextMenu.showAtPosition(
+        new MouseEvent('click'), selection, false, false);
+
+    await waitAfterNextRender(powerBookmarksContextMenu);
+
+    const menuItems = powerBookmarksContextMenu.shadowRoot!.querySelectorAll(
+        '.dropdown-item');
+    assertEquals(menuItems.length, 6);
+    assertEquals(
+        menuItems[0]!.textContent!.includes(
+            loadTimeData.getString('menuOpenNewTab')),
+        true);
+    assertEquals(
+        menuItems[1]!.textContent!.includes(
+            loadTimeData.getString('menuOpenNewWindow')),
+        true);
+    assertEquals(
+        menuItems[2]!.textContent!.includes(
+            loadTimeData.getString('menuOpenNewTabGroup')),
+        true);
+    assertEquals(
+        menuItems[3]!.textContent!.includes(
+            loadTimeData.getString('menuMoveToBookmarksBar')),
+        true);
+    assertEquals(
+        menuItems[4]!.textContent!.includes(
+            loadTimeData.getString('menuRename')),
+        true);
+    assertEquals(
+        menuItems[5]!.textContent!.includes(
             loadTimeData.getString('tooltipDelete')),
         true);
   });

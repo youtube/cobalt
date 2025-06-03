@@ -7,15 +7,11 @@
 #import "base/metrics/histogram_functions.h"
 #import "base/notreached.h"
 #import "components/prefs/pref_service.h"
-#import "ios/chrome/browser/application_context/application_context.h"
-#import "ios/chrome/browser/prefs/pref_names.h"
+#import "ios/chrome/browser/shared/model/application_context/application_context.h"
+#import "ios/chrome/browser/shared/model/prefs/pref_names.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/public/provider/chrome/browser/lens/lens_api.h"
 #import "ui/base/device_form_factor.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 const char kIOSLensContextMenuSupportStatusHistogramName[] =
     "Mobile.ContextMenu.LensSupportStatus";
@@ -23,6 +19,10 @@ const char kIOSLensKeyboardSupportStatusHistogramName[] =
     "Mobile.Keyboard.LensSupportStatus";
 const char kIOSLensNewTabPageSupportStatusHistogramName[] =
     "Mobile.NewTabPage.LensSupportStatus";
+const char kIOSSpotlightSupportStatusHistogramName[] =
+    "Mobile.Spotlight.LensSupportStatus";
+const char kIOSPlusButtonSupportStatusHistogramName[] =
+    "Mobile.PlusButton.LensSupportStatus";
 
 namespace lens_availability {
 bool CheckAndLogAvailabilityForLensEntryPoint(
@@ -35,9 +35,6 @@ bool CheckAndLogAvailabilityForLensEntryPoint(
 
   switch (entry_point) {
     case LensEntrypoint::ContextMenu:
-      if (!base::FeatureList::IsEnabled(kUseLensToSearchForImage)) {
-        flag_enabled = NO;
-      }
       availability_metric_name = kIOSLensContextMenuSupportStatusHistogramName;
       break;
     case LensEntrypoint::Keyboard:
@@ -57,6 +54,27 @@ bool CheckAndLogAvailabilityForLensEntryPoint(
         flag_enabled = NO;
       }
       // Home screen widget cannot log availailability.
+      break;
+    case LensEntrypoint::AppIconLongPress:
+      // App icon entrypoint is controlled by the home screen widget flag.
+      if (!base::FeatureList::IsEnabled(kEnableLensInHomeScreenWidget)) {
+        flag_enabled = NO;
+      }
+      // App icon long press cannot log availailability.
+      break;
+    case LensEntrypoint::Spotlight:
+      // Spotlight entrypoint is controlled by the home screen widget flag.
+      if (!base::FeatureList::IsEnabled(kEnableLensInHomeScreenWidget)) {
+        flag_enabled = NO;
+      }
+      availability_metric_name = kIOSSpotlightSupportStatusHistogramName;
+      break;
+    case LensEntrypoint::PlusButton:
+      // Plus Button entrypoint is controlled by the ntp flag.
+      if (!base::FeatureList::IsEnabled(kEnableLensInNTP)) {
+        flag_enabled = NO;
+      }
+      availability_metric_name = kIOSPlusButtonSupportStatusHistogramName;
       break;
     default:
       NOTREACHED() << "Unsupported Lens Entry Point.";

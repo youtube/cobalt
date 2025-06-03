@@ -269,15 +269,18 @@ AppWindowGeometryCache::Factory::Factory()
 
 AppWindowGeometryCache::Factory::~Factory() = default;
 
-KeyedService* AppWindowGeometryCache::Factory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+AppWindowGeometryCache::Factory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
-  return new AppWindowGeometryCache(context, ExtensionPrefs::Get(context));
+  return std::make_unique<AppWindowGeometryCache>(context,
+                                                  ExtensionPrefs::Get(context));
 }
 
 content::BrowserContext*
 AppWindowGeometryCache::Factory::GetBrowserContextToUse(
     content::BrowserContext* context) const {
-  return ExtensionsBrowserClient::Get()->GetOriginalContext(context);
+  return ExtensionsBrowserClient::Get()->GetContextRedirectedToOriginal(
+      context, /*force_guest_profile=*/true);
 }
 
 void AppWindowGeometryCache::AddObserver(Observer* observer) {

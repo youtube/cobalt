@@ -12,6 +12,7 @@
 #include "base/files/file.h"
 #include "base/files/file_path.h"
 #include "base/functional/callback.h"
+#include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
@@ -27,6 +28,7 @@
 #include "components/prefs/pref_change_registrar.h"
 #include "components/storage_monitor/removable_storage_observer.h"
 #include "services/device/public/mojom/mtp_manager.mojom.h"
+#include "ui/base/clipboard/clipboard_observer.h"
 
 class Profile;
 
@@ -54,12 +56,13 @@ class VolumeManagerObserver;
 // - Android/Arc++ file system.
 // - File System Providers.
 class VolumeManager : public KeyedService,
-                      public arc::ArcSessionManagerObserver,
-                      public drive::DriveIntegrationServiceObserver,
-                      public ash::disks::DiskMountManager::Observer,
-                      public ash::file_system_provider::Observer,
-                      public storage_monitor::RemovableStorageObserver,
-                      public DocumentsProviderRootManager::Observer {
+                      arc::ArcSessionManagerObserver,
+                      drive::DriveIntegrationService::Observer,
+                      ash::disks::DiskMountManager::Observer,
+                      ash::file_system_provider::Observer,
+                      storage_monitor::RemovableStorageObserver,
+                      ui::ClipboardObserver,
+                      DocumentsProviderRootManager::Observer {
  public:
   // An alternate to device::mojom::MtpManager::GetStorageInfo.
   // Used for injecting fake MTP manager for testing in VolumeManagerTest.
@@ -186,7 +189,7 @@ class VolumeManager : public KeyedService,
       const std::string& drive_label = "",
       const std::string& file_system_type = "");
 
-  // drive::DriveIntegrationServiceObserver overrides.
+  // DriveIntegrationService::Observer implementation.
   void OnFileSystemMounted() override;
   void OnFileSystemBeingUnmounted() override;
 
@@ -249,6 +252,9 @@ class VolumeManager : public KeyedService,
   void OnDocumentsProviderRootRemoved(const std::string& authority,
                                       const std::string& root_id,
                                       const std::string& document_id) override;
+
+  // ui::ClipboardObserver:
+  void OnClipboardDataChanged() override;
 
   // For SmbFs.
   void AddSmbFsVolume(const base::FilePath& mount_point,
@@ -352,10 +358,13 @@ class VolumeManager : public KeyedService,
       documents_provider_root_manager_;
   io_task::IOTaskController io_task_controller_;
   bool arc_volumes_mounted_ = false;
+  bool ignore_clipboard_changed_ = false;
 
   // Note: This should remain the last member so it'll be destroyed and
   // invalidate its weak pointers before any other members are destroyed.
   base::WeakPtrFactory<VolumeManager> weak_ptr_factory_{this};
+
+  FRIEND_TEST_ALL_PREFIXES(VolumeManagerTest, OnBootDeviceDiskEvent);
 };
 
 }  // namespace file_manager

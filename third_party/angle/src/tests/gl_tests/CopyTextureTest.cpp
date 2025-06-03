@@ -107,6 +107,73 @@ class CopyTextureTest : public ANGLETest<>
         EXPECT_EQ(expectedUniqueValues[3], uniqueValues[3].size());
     }
 
+    void testSrgbToRgb(GLenum internalformat, GLenum format)
+    {
+        const size_t kTestCount                = 4;
+        const GLColor kSourceColor[kTestCount] = {
+            GLColor(89, 67, 45, 123),
+            GLColor(87, 69, 45, 123),
+            GLColor(180, 143, 93, 123),
+            GLColor(89, 67, 45, 123),
+        };
+        const GLColor kExpectedColor[kTestCount] = {
+            GLColor(89, 67, 45, 123),
+            GLColor(180, 143, 93, 123),
+            GLColor(87, 69, 45, 123),
+            GLColor(89, 67, 45, 123),
+        };
+        bool kPremultiply[kTestCount] = {false, false, true, true};
+        bool kUnmultiply[kTestCount]  = {false, true, false, true};
+
+        for (size_t test = 0; test < kTestCount; ++test)
+        {
+            // Create image as sRGB.
+            GLTexture sourceTexture;
+            glBindTexture(GL_TEXTURE_2D, sourceTexture);
+            glTexImage2D(GL_TEXTURE_2D, 0, internalformat, 1, 1, 0, format, GL_UNSIGNED_BYTE,
+                         &kSourceColor[test]);
+            ASSERT_GL_NO_ERROR();
+
+            GLTexture destTexture;
+            glBindTexture(GL_TEXTURE_2D, destTexture);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+            ASSERT_GL_NO_ERROR();
+
+            // Note: flipY is used to avoid direct transfer between textures and force a draw-based
+            // path.
+            glCopySubTextureCHROMIUM(sourceTexture, 0, GL_TEXTURE_2D, destTexture, 0,  // level,
+                                     0, 0,                                             // src x,y
+                                     0, 0,                                             // dst x,y
+                                     1, 1,                // width, height
+                                     true,                // flip-y
+                                     kPremultiply[test],  // premul
+                                     kUnmultiply[test]);  // unmul
+            ASSERT_GL_NO_ERROR();
+
+            // Verify the copy.
+            ANGLE_GL_PROGRAM(program, essl1_shaders::vs::Texture2D(),
+                             essl1_shaders::fs::Texture2D());
+            glUseProgram(program);
+
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, destTexture);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+            GLint textureLocation =
+                glGetUniformLocation(program, essl1_shaders::Texture2DUniform());
+            ASSERT_NE(-1, textureLocation);
+            glUniform1i(textureLocation, 0);
+
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+            drawQuad(program, essl1_shaders::PositionAttrib(), 0.5f);
+            ASSERT_GL_NO_ERROR();
+
+            EXPECT_PIXEL_COLOR_NEAR(0, 0, kExpectedColor[test], 2);
+        }
+    }
+
     GLuint mTextures[2] = {
         0,
         0,
@@ -1181,7 +1248,7 @@ TEST_P(CopyTextureTest, CubeMapTarget)
     }
 
     // http://anglebug.com/1932
-    ANGLE_SKIP_TEST_IF(IsOSX() && IsIntel() && IsDesktopOpenGL());
+    ANGLE_SKIP_TEST_IF(IsMac() && IsIntel() && IsDesktopOpenGL());
 
     // http://anglebug.com/3145
     ANGLE_SKIP_TEST_IF(IsFuchsia() && IsIntel() && IsVulkan());
@@ -1341,7 +1408,7 @@ TEST_P(CopyTextureTest, CubeMapTargetRGB)
     }
 
     // http://anglebug.com/1932
-    ANGLE_SKIP_TEST_IF(IsOSX() && IsIntel() && IsDesktopOpenGL());
+    ANGLE_SKIP_TEST_IF(IsMac() && IsIntel() && IsDesktopOpenGL());
 
     // http://anglebug.com/3145
     ANGLE_SKIP_TEST_IF(IsFuchsia() && IsIntel() && IsVulkan());
@@ -1413,7 +1480,7 @@ TEST_P(CopyTextureTest, CopyToMipmap)
     ANGLE_SKIP_TEST_IF(getClientMajorVersion() < 3 &&
                        !IsGLExtensionEnabled("GL_OES_fbo_render_mipmap"));
 
-    ANGLE_SKIP_TEST_IF(IsOSX() && IsIntel());
+    ANGLE_SKIP_TEST_IF(IsMac() && IsIntel());
 
     GLColor pixels[] = {GLColor::red, GLColor::red, GLColor::red, GLColor::red};
 
@@ -2689,7 +2756,7 @@ TEST_P(CopyTextureTestES3, InvalidateCopyThenBlend)
     ANGLE_GL_PROGRAM(program, essl1_shaders::vs::Simple(), essl1_shaders::fs::Red());
 
     // http://anglebug.com/5155
-    ANGLE_SKIP_TEST_IF(IsOSX() && IsIntel() && IsOpenGL());
+    ANGLE_SKIP_TEST_IF(IsMac() && IsIntel() && IsOpenGL());
 
     // http://anglebug.com/5156
     ANGLE_SKIP_TEST_IF(IsWindows() && IsIntel() && IsOpenGL());
@@ -2744,13 +2811,28 @@ TEST_P(CopyTextureTestES3, InvalidateCopyThenBlend)
     EXPECT_PIXEL_COLOR_EQ(kSize - 1, kSize - 1, GLColor::yellow);
 }
 
+// Test that sRGB-to-RGB copy does not change pixel values.
+// http://anglebug.com/7907
+TEST_P(CopyTextureTest, NoConvertSRGBToRGB)
+{
+    ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_sRGB"));
+    testSrgbToRgb(GL_SRGB_ALPHA_EXT, GL_SRGB_ALPHA_EXT);
+}
+
+// Test that sRGB-to-RGB copy does not change pixel values.
+// http://anglebug.com/7907
+TEST_P(CopyTextureTestES3, NoConvertSRGBToRGB)
+{
+    testSrgbToRgb(GL_SRGB8_ALPHA8, GL_RGBA);
+}
+
 void CopyTextureTestES3::invalidateBlitThenBlendCommon(GLsizei layerCount)
 {
     // http://anglebug.com/5152
     ANGLE_SKIP_TEST_IF(IsAndroid() && IsOpenGL());
 
     // http://anglebug.com/5155
-    ANGLE_SKIP_TEST_IF(IsOSX() && IsIntel() && IsOpenGL());
+    ANGLE_SKIP_TEST_IF(IsMac() && IsIntel() && IsOpenGL());
 
     // http://anglebug.com/5156
     ANGLE_SKIP_TEST_IF(IsWindows() && IsIntel() && IsOpenGL());

@@ -62,6 +62,7 @@ class FakeDownloadItem : public download::DownloadItem {
   bool IsTransient() const override;
   bool IsParallelDownload() const override;
   DownloadCreationType GetDownloadCreationType() const override;
+  bool IsDlpManaged() const override;
   ::network::mojom::CredentialsMode GetCredentialsMode() const override;
   const absl::optional<net::IsolationInfo>& GetIsolationInfo() const override;
   bool IsDone() const override;
@@ -74,7 +75,6 @@ class FakeDownloadItem : public download::DownloadItem {
   bool CanResume() const override;
   int64_t GetBytesWasted() const override;
   int32_t GetAutoResumeCount() const override;
-  bool IsOffTheRecord() const override;
   const GURL& GetReferrerUrl() const override;
   const std::string& GetSerializedEmbedderDownloadData() const override;
   const GURL& GetTabUrl() const override;
@@ -121,6 +121,7 @@ class FakeDownloadItem : public download::DownloadItem {
   void SetOpened(bool opened) override;
   void SetLastAccessTime(base::Time time) override;
   void SetDisplayName(const base::FilePath& name) override;
+  void SetIsDlpManaged(bool is_managed) override;
   std::string DebugString(bool verbose) const override;
   void SimulateErrorForTesting(
       download::DownloadInterruptReason reason) override;
@@ -171,7 +172,7 @@ class FakeDownloadItem : public download::DownloadItem {
       download::DownloadItem::InsecureDownloadStatus insecure_download_status);
 
  private:
-  base::ObserverList<Observer>::Unchecked observers_;
+  base::ObserverList<Observer> observers_;
   uint32_t id_ = 0;
   std::string guid_;
   GURL url_;

@@ -4,14 +4,14 @@
 
 import {Url} from 'chrome://resources/mojo/url/mojom/url.mojom-webui.js';
 
-import {AmbientModeAlbum, AmbientObserverInterface, AmbientObserverReceiver, AmbientProviderInterface, AmbientUiVisibility, AnimationTheme, TemperatureUnit, TopicSource} from '../../personalization_app.mojom-webui.js';
+import {AmbientModeAlbum, AmbientObserverInterface, AmbientObserverReceiver, AmbientProviderInterface, AmbientTheme, AmbientUiVisibility, TemperatureUnit, TopicSource} from '../../personalization_app.mojom-webui.js';
 import {isAmbientModeAllowed, isPersonalizationJellyEnabled} from '../load_time_booleans.js';
 import {logGooglePhotosPreviewsLoadTime} from '../personalization_metrics_logger.js';
 import {Paths} from '../personalization_router_element.js';
 import {PersonalizationStore} from '../personalization_store.js';
 import {isNonEmptyArray, isRecentHighlightsAlbum} from '../utils.js';
 
-import {setAlbumsAction, setAmbientModeEnabledAction, setAmbientUiVisibilityAction, setAnimationThemeAction, setPreviewsAction, setScreenSaverDurationAction, setTemperatureUnitAction, setTopicSourceAction} from './ambient_actions.js';
+import {setAlbumsAction, setAmbientModeEnabledAction, setAmbientThemeAction, setAmbientUiVisibilityAction, setPreviewsAction, setScreenSaverDurationAction, setTemperatureUnitAction, setTopicSourceAction} from './ambient_actions.js';
 import {getAmbientProvider} from './ambient_interface_provider.js';
 
 /** @fileoverview listens for updates on ambient mode changes. */
@@ -65,9 +65,9 @@ export class AmbientObserver implements AmbientObserverInterface {
     store.dispatch(setAmbientModeEnabledAction(ambientModeEnabled));
   }
 
-  onAnimationThemeChanged(animationTheme: AnimationTheme): void {
+  onAmbientThemeChanged(ambientTheme: AmbientTheme): void {
     const store = PersonalizationStore.getInstance();
-    store.dispatch(setAnimationThemeAction(animationTheme));
+    store.dispatch(setAmbientThemeAction(ambientTheme));
   }
 
   onScreenSaverDurationChanged(minutes: number): void {

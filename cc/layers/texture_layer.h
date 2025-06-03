@@ -127,10 +127,10 @@ class CC_EXPORT TextureLayer : public Layer, SharedBitmapIdRegistrar {
                                viz::ReleaseCallback release_callback);
 
   // Set or unset HDR metadata.
-  void SetHDRConfiguration(gfx::HDRMode mode,
-                           absl::optional<gfx::HDRMetadata> hdr_metadata);
+  void SetHdrMetadata(const gfx::HDRMetadata& hdr_metadata);
 
   void SetLayerTreeHost(LayerTreeHost* layer_tree_host) override;
+  bool RequiresSetNeedsDisplayOnHdrHeadroomChange() const override;
   bool Update() override;
   bool IsSnappedToPixelGridInTarget() const override;
   void PushPropertiesTo(LayerImpl* layer,
@@ -171,7 +171,10 @@ class CC_EXPORT TextureLayer : public Layer, SharedBitmapIdRegistrar {
   // compositor.
   void UnregisterSharedBitmapId(viz::SharedBitmapId id);
 
-  ProtectedSequenceForbidden<raw_ptr<TextureLayerClient>> client_;
+  // Dangling on `mac-rel` in `blink_web_tests`:
+  // `fast/events/touch/touch-handler-iframe-plugin-assert.html`
+  ProtectedSequenceForbidden<raw_ptr<TextureLayerClient, DanglingUntriaged>>
+      client_;
 
   ProtectedSequenceReadable<bool> flipped_;
   ProtectedSequenceReadable<bool> nearest_neighbor_;
@@ -181,8 +184,7 @@ class CC_EXPORT TextureLayer : public Layer, SharedBitmapIdRegistrar {
   ProtectedSequenceReadable<bool> premultiplied_alpha_;
   ProtectedSequenceReadable<bool> blend_background_color_;
   ProtectedSequenceReadable<bool> force_texture_to_opaque_;
-  ProtectedSequenceReadable<gfx::HDRMode> hdr_mode_;
-  ProtectedSequenceWritable<absl::optional<gfx::HDRMetadata>> hdr_metadata_;
+  ProtectedSequenceWritable<gfx::HDRMetadata> hdr_metadata_;
 
   ProtectedSequenceWritable<scoped_refptr<TransferableResourceHolder>>
       resource_holder_;

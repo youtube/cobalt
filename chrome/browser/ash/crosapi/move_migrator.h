@@ -47,22 +47,33 @@ constexpr char kMoveMigratorResumeCount[] =
     "Ash.BrowserDataMigrator.MoveMigrator.ResumeCount";
 constexpr char kMoveMigratorResumeStepUMA[] =
     "Ash.BrowserDataMigrator.MoveMigrator.ResumeStep";
+constexpr char kMoveMigratorMaxResumeReached[] =
+    "Ash.BrowserDataMigrator.MoveMigrator.MaxResumeReached";
 constexpr char kMoveMigratorTaskStatusUMA[] =
     "Ash.BrowserDataMigrator.MoveMigrator.TaskStatus";
 constexpr char kMoveMigratorExtraSpaceRequiredMB[] =
     "Ash.BrowserDataMigrator.MoveMigrator.ExtraSpaceRequiredMB";
 constexpr char kMoveMigratorPreMigrationCleanUpTimeUMA[] =
-    "Ash.BrowserDataMigrator.MoveMigrator.PreMigrationCleanUpTimeMS";
+    "Ash.BrowserDataMigrator.MoveMigrator.PreMigrationCleanUpTime";
 constexpr char kMoveMigratorSetupLacrosDirCopyTargetItemsTimeUMA[] =
-    "Ash.BrowserDataMigrator.MoveMigrator.SetupLacrosDirCopyTargetItemsTimeMS";
+    "Ash.BrowserDataMigrator.MoveMigrator.SetupLacrosDirCopyTargetItemsTime";
 constexpr char kMoveMigratorCancelledMigrationTimeUMA[] =
-    "Ash.BrowserDataMigrator.MoveMigrator.CancelledMigrationTimeMS";
+    "Ash.BrowserDataMigrator.MoveMigrator.CancelledMigrationTime";
 constexpr char kMoveMigratorSuccessfulMigrationTimeUMA[] =
-    "Ash.BrowserDataMigrator.MoveMigrator.SuccessfulMigrationTimeMS";
+    "Ash.BrowserDataMigrator.MoveMigrator.SuccessfulMigrationTime";
 constexpr char kMoveMigratorMoveLacrosItemsTimeUMA[] =
-    "Ash.BrowserDataMigrator.MoveMigrator.MoveLacrosItemsTimeMS";
+    "Ash.BrowserDataMigrator.MoveMigrator.MoveLacrosItemsTime";
 constexpr char kMoveMigratorPosixErrnoUMA[] =
     "Ash.BrowserDataMigrator.MoveMigrator.PosixErrno.";
+constexpr char kMoveMigratorTmpProfileDirSize[] =
+    "Ash.BrowserDataMigrator.MoveMigrator.TmpProfileDirSize";
+constexpr char kMoveMigratorTmpSplitDirSize[] =
+    "Ash.BrowserDataMigrator.MoveMigrator.TmpSplitDirSize";
+constexpr char kMoveMigratorExtraDiskSpaceOccupied[] =
+    "Ash.BrowserDataMigrator.MoveMigrator.ExtraDiskSpaceOccupied";
+constexpr char kMoveMigratorExtraDiskSpaceOccupiedDiffWithEst[] =
+    "Ash.BrowserDataMigrator.MoveMigrator.ExtraDiskSpaceOccupied."
+    "DiffWithEstimate";
 
 // This class "moves" Lacros data from Ash to Lacros. It migrates user data from
 // `original_profile_dir` (/home/user/<hash>/), denoted as <Ash PDD> from here
@@ -190,6 +201,11 @@ class MoveMigrator : public BrowserDataMigratorImpl::MigratorDelegate {
     // be carried out. Only set if `status` is
     // `kPreMigrationCleanUpNotEnoughSpace`.
     absl::optional<uint64_t> extra_bytes_required_to_be_freed;
+
+    // Extra bytes that are estimated to be created due to the migration. It
+    // will later be used to calculate the diff between this estimate and the
+    // actual value.
+    absl::optional<int64_t> estimated_extra_bytes_created;
   };
 
   // Called to determine where to start the migration. Returns
@@ -243,7 +259,8 @@ class MoveMigrator : public BrowserDataMigratorImpl::MigratorDelegate {
   // Set up a temporary directory to hold items that need to be split between
   // ash and lacros. This folder will hold ash's version of the items.
   static TaskResult SetupAshSplitDir(
-      const base::FilePath& original_profile_dir);
+      const base::FilePath& original_profile_dir,
+      const int64_t estimated_extra_bytes_created);
 
   // Called as a reply to `SetupAshSplitDir()`. Posts `MoveLacrosItemsToNewDir`
   // as the next step.
@@ -333,6 +350,9 @@ class MoveMigrator : public BrowserDataMigratorImpl::MigratorDelegate {
   // Timer to count time since the initialization of the class. Used to get UMA
   // data on how long the migration takes.
   const base::ElapsedTimer timer_;
+
+  // Extra bytes that are estimated to be created due to the migration.
+  absl::optional<int64_t> estimated_extra_bytes_created_;
 
   base::WeakPtrFactory<MoveMigrator> weak_factory_{this};
 };

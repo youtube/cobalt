@@ -3,8 +3,6 @@
 // found in the LICENSE file.
 
 #include "chrome/test/base/ui_test_utils.h"
-#include "base/memory/raw_ptr.h"
-#include "base/scoped_observation.h"
 
 #include <stddef.h>
 
@@ -18,9 +16,11 @@
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
 #include "base/logging.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
+#include "base/scoped_observation.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/bind.h"
 #include "base/test/test_timeouts.h"
@@ -28,7 +28,6 @@
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "chrome/browser/bookmarks/bookmark_model_factory.h"
-#include "chrome/browser/chrome_notification_types.h"
 #include "chrome/browser/history/history_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
@@ -51,13 +50,14 @@
 #include "components/javascript_dialogs/app_modal_dialog_queue.h"
 #include "components/omnibox/browser/autocomplete_controller.h"
 #include "components/omnibox/browser/autocomplete_controller_emitter.h"
+#include "components/omnibox/browser/omnibox_controller.h"
 #include "components/omnibox/browser/omnibox_edit_model.h"
 #include "components/omnibox/browser/omnibox_view.h"
 #include "components/prefs/pref_service.h"
 #include "content/public/browser/download_manager.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_entry.h"
-#include "content/public/browser/notification_service.h"
+#include "content/public/browser/notification_types.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/storage_partition.h"
@@ -348,8 +348,9 @@ bool GetRelativeBuildDirectory(base::FilePath* build_dir) {
   base::FilePath exe_dir =
       base::CommandLine::ForCurrentProcess()->GetProgram().DirName();
   base::FilePath src_dir;
-  if (!base::PathService::Get(base::DIR_SOURCE_ROOT, &src_dir))
+  if (!base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &src_dir)) {
     return false;
+  }
 
   // We must first generate absolute paths to SRC and EXE and from there
   // generate a relative path.
@@ -447,7 +448,7 @@ void WaitForAutocompleteDone(Browser* browser) {
   auto* controller = browser->window()
                          ->GetLocationBar()
                          ->GetOmniboxView()
-                         ->model()
+                         ->controller()
                          ->autocomplete_controller();
   while (!controller->done())
     AutocompleteChangeObserver(browser->profile()).Wait();
@@ -675,6 +676,49 @@ void BrowserChangeObserver::OnBrowserRemoved(Browser* browser) {
     browser_ = browser;
     run_loop_.Quit();
   }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// CheckWaiter:
+
+CheckWaiter::CheckWaiter(base::RepeatingCallback<bool()> callback,
+                         bool expected,
+                         const base::TimeDelta& timeout)
+    : callback_(callback),
+      expected_(expected),
+      timeout_(base::TimeTicks::Now() + timeout) {}
+
+CheckWaiter::~CheckWaiter() = default;
+
+void CheckWaiter::Wait() {
+  if (Check()) {
+    return;
+  }
+
+  base::RunLoop run_loop;
+  quit_ = run_loop.QuitClosure();
+  run_loop.Run();
+}
+
+bool CheckWaiter::Check() {
+  if (callback_.Run() != expected_ && base::TimeTicks::Now() < timeout_) {
+    // Check again after a short timeout. Important: Don't use an immediate
+    // task to check again, because the pump would be allowed to run it
+    // immediately without processing system events (system events are
+    // required for the state to change).
+    base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
+        FROM_HERE,
+        base::BindOnce(base::IgnoreResult(&CheckWaiter::Check),
+                       base::Unretained(this)),
+        TestTimeouts::tiny_timeout());
+    return false;
+  }
+
+  // Quit the run_loop to end the wait.
+  if (!quit_.is_null()) {
+    std::move(quit_).Run();
+  }
+  return true;
 }
 
 }  // namespace ui_test_utils

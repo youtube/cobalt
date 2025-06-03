@@ -6,8 +6,8 @@ package org.chromium.chrome.browser;
 
 import android.widget.ImageButton;
 
-import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.MediumTest;
+import androidx.test.platform.app.InstrumentationRegistry;
 
 import org.junit.Assert;
 import org.junit.Before;
@@ -26,33 +26,30 @@ import org.chromium.chrome.test.R;
 import org.chromium.chrome.test.util.ChromeTabUtils;
 import org.chromium.ui.test.util.UiRestriction;
 
-/**
- * Test suite for the tab count widget on the phone toolbar.
- */
-
+/** Test suite for the tab count widget on the phone toolbar. */
 @RunWith(ChromeJUnit4ClassRunner.class)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
 public class TabCountLabelTest {
-    /**
-     * Check the tabCount string against an expected value.
-     */
-
+    /** Check the tabCount string against an expected value. */
     @Rule
     public ChromeTabbedActivityTestRule mActivityTestRule = new ChromeTabbedActivityTestRule();
 
     private void tabCountLabelCheck(String stepName, int tabCountExpected) {
-        ImageButton tabSwitcherBtn = (ImageButton) mActivityTestRule.getActivity().findViewById(
-                R.id.tab_switcher_button);
+        ImageButton tabSwitcherBtn =
+                (ImageButton)
+                        mActivityTestRule.getActivity().findViewById(R.id.tab_switcher_button);
         TabSwitcherDrawable drawable = (TabSwitcherDrawable) tabSwitcherBtn.getDrawable();
         int tabCountFromDrawable = drawable.getTabCount();
-        Assert.assertTrue(stepName + ", " + tabCountExpected + " tab[s] expected, label shows "
+        Assert.assertTrue(
+                stepName
+                        + ", "
+                        + tabCountExpected
+                        + " tab[s] expected, label shows "
                         + tabCountFromDrawable,
                 tabCountExpected == tabCountFromDrawable);
     }
 
-    /**
-     * Verify displayed Tab Count matches the actual number of tabs.
-     */
+    /** Verify displayed Tab Count matches the actual number of tabs. */
     @Test
     @MediumTest
     @Feature({"Browser", "Main"})

@@ -35,6 +35,7 @@ class ScopedAllowSyncCall;
 namespace gpu {
 class CommandBufferProxyImpl;
 class GpuChannelHost;
+class SharedImageInterfaceProxy;
 }  // namespace gpu
 
 namespace ui {
@@ -46,6 +47,10 @@ class GpuHostImpl;
 class HostFrameSinkManager;
 class HostGpuMemoryBufferManager;
 }  // namespace viz
+
+namespace vr {
+class GraphicsDelegateWin;
+}
 
 namespace mojo {
 class ScopedAllowSyncCallForTesting;
@@ -115,6 +120,8 @@ class COMPONENT_EXPORT(MOJO_CPP_BINDINGS) SyncCallRestrictions {
   // the platform window is destroyed.
   friend class viz::HostFrameSinkManager;
   friend class viz::HostGpuMemoryBufferManager;
+  // For creating a GpuMemoryBufferHandle.
+  friend class vr::GraphicsDelegateWin;
   // For preventing frame swaps of wrong size during resize on Windows.
   // (https://crbug.com/811945)
   friend class ui::Compositor;
@@ -129,6 +136,7 @@ class COMPONENT_EXPORT(MOJO_CPP_BINDINGS) SyncCallRestrictions {
   // GPU client code uses a few sync IPCs, grandfathered in from legacy IPC.
   friend class gpu::GpuChannelHost;
   friend class gpu::CommandBufferProxyImpl;
+  friend class gpu::SharedImageInterfaceProxy;
   friend class content::StreamTextureFactory;
 #if BUILDFLAG(IS_WIN)
   friend class content::DCOMPTextureFactory;

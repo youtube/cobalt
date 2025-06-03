@@ -7,10 +7,10 @@
 #include <string>
 #include <utility>
 
+#include "arc_policy_util.h"
 #include "ash/components/arc/arc_browser_context_keyed_service_factory_base.h"
 #include "ash/components/arc/arc_prefs.h"
 #include "ash/components/arc/session/arc_bridge_service.h"
-#include "ash/constants/ash_switches.h"
 #include "base/command_line.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
@@ -29,6 +29,7 @@
 #include "chrome/browser/policy/developer_tools_policy_handler.h"
 #include "chrome/browser/policy/profile_policy_connector.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/common/chrome_switches.h"
 #include "chrome/common/pref_names.h"
 #include "chromeos/components/onc/onc_utils.h"
 #include "components/onc/onc_constants.h"
@@ -47,15 +48,14 @@ namespace arc {
 
 namespace {
 
-constexpr char kArcCaCerts[] = "caCerts";
 constexpr char kPolicyCompliantJson[] = "{ \"policyCompliant\": true }";
-constexpr char kArcRequiredKeyPairs[] = "requiredKeyPairs";
-constexpr char kPrivateKeySelectionEnabled[] = "privateKeySelectionEnabled";
-constexpr char kChoosePrivateKeyRules[] = "choosePrivateKeyRules";
 constexpr char kPolicyAppInstallType[] = "installType";
 constexpr char kPolicyAppInstallTypeForceInstalled[] = "FORCE_INSTALLED";
-constexpr char kPolicyAppInstallTypeAvailable[] = "AVAILABLE";
-constexpr char kPolicyAppInstallTypeOptional[] = "OPTIONAL";
+constexpr char kPolicyCaCertType[] = "X509";
+constexpr char kPolicyRequiredKeyAlias[] = "alias";
+constexpr char kPolicyPrivateKeyAlias[] = "privateKeyAlias";
+constexpr char kPolicyPrivateKeyPackageNames[] = "packageNames";
+constexpr char kPolicyPlayStoreModeSupervised[] = "SUPERVISED";
 
 // invert_bool_value: If the Chrome policy and the ARC policy with boolean value
 // have opposite semantics, set this to true so the bool is inverted before
@@ -223,13 +223,15 @@ void AddOncCaCertsToPolicies(const policy::PolicyMap& policy_map,
     }
 
     base::Value::Dict data;
-    data.Set("X509", *x509_data);
+    data.Set(kPolicyCaCertType, *x509_data);
     ca_certs.Append(std::move(data));
   }
   if (!ca_certs.empty()) {
-    filtered_policies->Set("credentialsConfigDisabled", base::Value(true));
+    filtered_policies->Set(policy_util::kArcPolicyKeyCredentialsConfigDisabled,
+                           base::Value(true));
   }
-  filtered_policies->Set(kArcCaCerts, std::move(ca_certs));
+  filtered_policies->Set(policy_util::kArcPolicyKeyCaCerts,
+                         std::move(ca_certs));
 }
 
 void AddRequiredKeyPairs(const CertStoreService* cert_store_service,
@@ -240,10 +242,11 @@ void AddRequiredKeyPairs(const CertStoreService* cert_store_service,
   base::Value::List cert_names;
   for (const auto& name : cert_store_service->get_required_cert_names()) {
     base::Value::Dict value;
-    value.Set("alias", name);
+    value.Set(kPolicyRequiredKeyAlias, name);
     cert_names.Append(std::move(value));
   }
-  filtered_policies->Set(kArcRequiredKeyPairs, std::move(cert_names));
+  filtered_policies->Set(policy_util::kArcPolicyKeyRequiredKeyPairs,
+                         std::move(cert_names));
 }
 
 bool LooksLikeAndroidPackageName(const std::string& name) {
@@ -274,13 +277,15 @@ void AddChoosePrivateKeyRuleToPolicy(
   base::Value::List rules;
   for (const auto& name : cert_store_service->get_required_cert_names()) {
     base::Value::Dict value;
-    value.Set("privateKeyAlias", name);
-    value.Set("packageNames", arc_app_ids.Clone());
+    value.Set(kPolicyPrivateKeyAlias, name);
+    value.Set(kPolicyPrivateKeyPackageNames, arc_app_ids.Clone());
     rules.Append(std::move(value));
   }
 
-  filtered_policies->Set(kPrivateKeySelectionEnabled, true);
-  filtered_policies->Set(kChoosePrivateKeyRules, std::move(rules));
+  filtered_policies->Set(policy_util::kArcPolicyKeyPrivateKeySelectionEnabled,
+                         true);
+  filtered_policies->Set(policy_util::kArcPolicyKeyChoosePrivateKeyRules,
+                         std::move(rules));
 }
 
 // Finds managed configurations of applications in |arc_policy| and replace
@@ -337,51 +342,36 @@ void MapChromeToArcPolicies(base::Value::Dict& filtered_policies,
   const PrefService* profile_prefs = profile->GetPrefs();
 
   // Keep them sorted by the ARC policy names.
-  MapBoolToBool("cameraDisabled", policy::key::kVideoCaptureAllowed, policy_map,
+  MapBoolToBool(policy_util::kArcPolicyKeyCameraDisabled,
+                policy::key::kVideoCaptureAllowed, policy_map,
                 /* invert_bool_value */ true, &filtered_policies);
   // Use the pref for "debuggingFeaturesDisabled" to avoid duplicating the
   // logic of handling DeveloperToolsDisabled / DeveloperToolsAvailability
   // policies.
   MapManagedIntPrefToBool(
-      "debuggingFeaturesDisabled", ::prefs::kDevToolsAvailability,
-      profile_prefs,
+      policy_util::kArcPolicyKeyDebuggingFeaturesDisabled,
+      ::prefs::kDevToolsAvailability, profile_prefs,
       static_cast<int>(
           policy::DeveloperToolsPolicyHandler::Availability::kDisallowed),
       &filtered_policies);
-  MapBoolToBool("printingDisabled", policy::key::kPrintingEnabled, policy_map,
+  MapBoolToBool(policy_util::kArcPolicyKeyPrintingDisabled,
+                policy::key::kPrintingEnabled, policy_map,
                 /* invert_bool_value */ true, &filtered_policies);
-  MapBoolToBool("screenCaptureDisabled", policy::key::kDisableScreenshots,
-                policy_map, false, &filtered_policies);
-  MapIntToBool("shareLocationDisabled", policy::key::kDefaultGeolocationSetting,
-               policy_map, 2 /*BlockGeolocation*/, &filtered_policies);
-  MapBoolToBool("unmuteMicrophoneDisabled", policy::key::kAudioCaptureAllowed,
-                policy_map, /* invert_bool_value */ true, &filtered_policies);
-  MapObjectToPresenceBool("setWallpaperDisabled", policy::key::kWallpaperImage,
-                          policy_map, &filtered_policies, {"url", "hash"});
-  MapBoolToBool("vpnConfigDisabled", policy::key::kVpnConfigAllowed, policy_map,
+  MapBoolToBool(policy_util::kArcPolicyKeyScreenCaptureDisabled,
+                policy::key::kDisableScreenshots, policy_map, false,
+                &filtered_policies);
+  MapIntToBool(policy_util::kArcPolicyKeyShareLocationDisabled,
+               policy::key::kDefaultGeolocationSetting, policy_map,
+               2 /*BlockGeolocation*/, &filtered_policies);
+  MapBoolToBool(policy_util::kArcPolicyKeyUnmuteMicrophoneDisabled,
+                policy::key::kAudioCaptureAllowed, policy_map,
                 /* invert_bool_value */ true, &filtered_policies);
-}
-
-static void ConvertDeprecatedAppInstallTypes(
-    base::Value::Dict& filtered_policies) {
-  base::Value::List* apps =
-      filtered_policies.FindList(policy_util::kArcPolicyKeyApplications);
-  if (apps == nullptr) {
-    return;
-  }
-
-  for (base::Value& app : *apps) {
-    if (!app.is_dict()) {
-      NOTREACHED() << "App object is not a dict.";
-      continue;
-    }
-
-    base::Value::Dict& dict = app.GetDict();
-    if (*dict.FindString(kPolicyAppInstallType) ==
-        kPolicyAppInstallTypeOptional) {
-      dict.Set(kPolicyAppInstallType, kPolicyAppInstallTypeAvailable);
-    }
-  }
+  MapObjectToPresenceBool(policy_util::kArcPolicyKeySetWallpaperDisabled,
+                          policy::key::kWallpaperImage, policy_map,
+                          &filtered_policies, {"url", "hash"});
+  MapBoolToBool(policy_util::kArcPolicyKeyVpnConfigDisabled,
+                policy::key::kVpnConfigAllowed, policy_map,
+                /* invert_bool_value */ true, &filtered_policies);
 }
 
 void OverrideArcPolicies(base::Value::Dict& filtered_policies,
@@ -395,15 +385,17 @@ void OverrideArcPolicies(base::Value::Dict& filtered_policies,
   // available for ARC as well. This must be after the initial writing of
   // "debuggingFeaturesDisabled".
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
-          ash::switches::kForceDevToolsAvailable)) {
-    filtered_policies.Set("debuggingFeaturesDisabled", false);
+          switches::kForceDevToolsAvailable)) {
+    filtered_policies.Set(policy_util::kArcPolicyKeyDebuggingFeaturesDisabled,
+                          false);
   }
 
   // Always enable APK Cache for affiliated users, and always disable it for
   // not affiliated ones.
-  filtered_policies.Set("apkCacheEnabled", is_affiliated);
+  filtered_policies.Set(policy_util::kArcPolicyKeyApkCacheEnabled,
+                        is_affiliated);
 
-  filtered_policies.Set("guid", guid);
+  filtered_policies.Set(policy_util::kArcPolicyKeyGuid, guid);
 
   // Always allow mounting physical media because mounts are controlled
   // outside of ARC based on policy in file_manager::VolumeManager. Since this
@@ -411,14 +403,15 @@ void OverrideArcPolicies(base::Value::Dict& filtered_policies,
   // policy::key::kExternalStoragePolicy before, we hard-code it to false to
   // ensure that the old policy setting does not remain on the ARC side.
   // See b/217531658 for details.
-  filtered_policies.Set("mountPhysicalMediaDisabled", false);
+  filtered_policies.Set(policy_util::kArcPolicyKeyMountPhysicalMediaDisabled,
+                        false);
 
   if (profile->IsChild() &&
       ash::ProfileHelper::Get()->IsPrimaryProfile(profile)) {
     // Adds "playStoreMode" policy. The policy value is used to restrict the
     // user from being able to toggle between different accounts in ARC++.
     filtered_policies.Set(policy_util::kArcPolicyKeyPlayStoreMode,
-                          "SUPERVISED");
+                          kPolicyPlayStoreModeSupervised);
   }
 }
 
@@ -446,7 +439,6 @@ base::Value::Dict GetFilteredDictPolicies(
 
   OverrideArcPolicies(filtered_policies, policy_map, guid, is_affiliated,
                       profile);
-  ConvertDeprecatedAppInstallTypes(filtered_policies);
   return filtered_policies;
 }
 
@@ -614,44 +606,6 @@ void ArcPolicyBridge::ReportCompliance(const std::string& request,
       request,
       base::BindOnce(&ArcPolicyBridge::OnReportComplianceParse,
                      weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
-}
-
-void ArcPolicyBridge::ReportCloudDpsRequested(
-    base::Time time,
-    const std::vector<std::string>& package_names) {
-  const std::set<std::string> packages_set(package_names.begin(),
-                                           package_names.end());
-  for (Observer& observer : observers_) {
-    observer.OnCloudDpsRequested(time, packages_set);
-  }
-}
-
-void ArcPolicyBridge::ReportCloudDpsSucceeded(
-    base::Time time,
-    const std::vector<std::string>& package_names) {
-  const std::set<std::string> packages_set(package_names.begin(),
-                                           package_names.end());
-  for (Observer& observer : observers_) {
-    observer.OnCloudDpsSucceeded(time, packages_set);
-  }
-}
-
-void ArcPolicyBridge::ReportCloudDpsFailed(base::Time time,
-                                           const std::string& package_name,
-                                           mojom::InstallErrorReason reason) {
-  for (Observer& observer : observers_) {
-    observer.OnCloudDpsFailed(time, package_name, reason);
-  }
-}
-
-void ArcPolicyBridge::ReportForceInstallMainLoopFailed(
-    base::Time time,
-    const std::vector<std::string>& package_names) {
-  const std::set<std::string> packages_set(package_names.begin(),
-                                           package_names.end());
-  for (Observer& observer : observers_) {
-    observer.OnReportForceInstallMainLoopFailed(time, packages_set);
-  }
 }
 
 void ArcPolicyBridge::ReportDPCVersion(const std::string& version) {

@@ -8,13 +8,15 @@
 #include <stdint.h>
 
 #include <ostream>
+#include <set>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/containers/span.h"
 #include "base/observer_list.h"
 #include "base/threading/sequence_bound.h"
-#include "components/aggregation_service/aggregation_service.mojom.h"
+#include "base/types/expected.h"
 #include "content/browser/aggregation_service/aggregatable_report.h"
 #include "content/browser/aggregation_service/aggregation_service.h"
 #include "content/browser/aggregation_service/aggregation_service_observer.h"
@@ -33,21 +35,39 @@ class FilePath;
 class Time;
 }  // namespace base
 
+namespace url {
+class Origin;
+}  // namespace url
+
 namespace content {
 
 class AggregationServiceStorage;
 
 namespace aggregation_service {
 
-struct TestHpkeKey {
-  // Public-private key pair.
-  EVP_HPKE_KEY full_hpke_key;
+class TestHpkeKey {
+ public:
+  // Generates a new HPKE key. Note that `key_id` is just a label.
+  explicit TestHpkeKey(std::string key_id = "example_id");
+  ~TestHpkeKey();
 
-  // Contains a copy of the public key of `full_hpke_key`.
-  PublicKey public_key;
+  // This class is move-only.
+  TestHpkeKey(TestHpkeKey&&);
+  TestHpkeKey& operator=(TestHpkeKey&&);
+  TestHpkeKey(TestHpkeKey&) = delete;
+  TestHpkeKey& operator=(TestHpkeKey&) = delete;
 
-  // Contains a base64-encoded copy of `public_key.key`
-  std::string base64_encoded_public_key;
+  std::string_view key_id() const { return key_id_; }
+  const EVP_HPKE_KEY& full_hpke_key() const { return *full_hpke_key_.get(); }
+
+  // Returns the HPKE key's corresponding public key.
+  PublicKey GetPublicKey() const;
+  // Returns the HPKE key's corresponding public key encoded in base64.
+  std::string GetPublicKeyBase64() const;
+
+ private:
+  std::string key_id_;
+  bssl::ScopedEVP_HPKE_KEY full_hpke_key_;
 };
 
 testing::AssertionResult PublicKeysEqual(const std::vector<PublicKey>& expected,
@@ -70,31 +90,22 @@ AggregatableReportRequest CreateExampleRequest(
     blink::mojom::AggregationServiceMode aggregation_mode =
         blink::mojom::AggregationServiceMode::kDefault,
     int failed_send_attempts = 0,
-    ::aggregation_service::mojom::AggregationCoordinator
-        aggregation_coordinator =
-            ::aggregation_service::mojom::AggregationCoordinator::kDefault);
+    absl::optional<url::Origin> aggregation_coordinator_origin = absl::nullopt);
 
 AggregatableReportRequest CreateExampleRequestWithReportTime(
     base::Time report_time,
     blink::mojom::AggregationServiceMode aggregation_mode =
         blink::mojom::AggregationServiceMode::kDefault,
     int failed_send_attempts = 0,
-    ::aggregation_service::mojom::AggregationCoordinator
-        aggregation_coordinator =
-            ::aggregation_service::mojom::AggregationCoordinator::kDefault);
+    absl::optional<url::Origin> aggregation_coordinator_origin = absl::nullopt);
 
 AggregatableReportRequest CloneReportRequest(
     const AggregatableReportRequest& request);
 AggregatableReport CloneAggregatableReport(const AggregatableReport& report);
 
-// Generates a public-private key pair for HPKE and also constructs a PublicKey
-// object for use in assembler methods.
-TestHpkeKey GenerateKey(std::string key_id = "example_id");
-
-absl::optional<PublicKeyset> ReadAndParsePublicKeys(
+base::expected<PublicKeyset, std::string> ReadAndParsePublicKeys(
     const base::FilePath& file,
-    base::Time now,
-    std::string* error_msg = nullptr);
+    base::Time now);
 
 // Returns empty vector in the case of an error.
 std::vector<uint8_t> DecryptPayloadWithHpke(
@@ -186,6 +197,11 @@ class MockAggregationService : public AggregationService {
               SendReportsForWebUI,
               (const std::vector<AggregationServiceStorage::RequestId>& ids,
                base::OnceClosure reports_sent_callback),
+              (override));
+
+  MOCK_METHOD(void,
+              GetPendingReportReportingOrigins,
+              (base::OnceCallback<void(std::set<url::Origin>)> callback),
               (override));
 
   void AddObserver(AggregationServiceObserver* observer) override;

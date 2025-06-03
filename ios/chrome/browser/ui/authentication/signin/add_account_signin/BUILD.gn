@@ -5,7 +5,6 @@
 import("//build/config/chrome_build.gni")
 
 source_set("add_account_signin") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   sources = [
     "add_account_signin_coordinator.h",
     "add_account_signin_coordinator.mm",
@@ -17,14 +16,17 @@ source_set("add_account_signin") {
     "//components/prefs",
     "//components/signin/public/identity_manager",
     "//components/strings",
+    "//components/sync/base:features",
     "//ios/chrome/app/strings",
-    "//ios/chrome/browser/application_context",
-    "//ios/chrome/browser/browser_state",
     "//ios/chrome/browser/main",
     "//ios/chrome/browser/shared/coordinator/alert",
+    "//ios/chrome/browser/shared/model/application_context",
+    "//ios/chrome/browser/shared/model/browser_state",
+    "//ios/chrome/browser/shared/public/features",
     "//ios/chrome/browser/signin",
     "//ios/chrome/browser/signin:system_identity_manager",
     "//ios/chrome/browser/ui/authentication",
+    "//ios/chrome/browser/ui/authentication/history_sync",
     "//ios/chrome/browser/ui/authentication/signin:signin_protected",
     "//ui/base",
   ]
@@ -35,7 +37,6 @@ source_set("add_account_signin") {
 }
 
 source_set("unit_tests") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   testonly = true
   sources = [ "add_account_signin_manager_unittest.mm" ]
   deps = [
@@ -43,8 +44,8 @@ source_set("unit_tests") {
     "//base/test:test_support",
     "//components/prefs",
     "//components/prefs:test_support",
-    "//ios/chrome/browser/application_context",
-    "//ios/chrome/browser/browser_state:test_support",
+    "//ios/chrome/browser/shared/model/application_context",
+    "//ios/chrome/browser/shared/model/browser_state:test_support",
     "//ios/chrome/browser/signin",
     "//ios/chrome/browser/signin:fake_system_identity",
     "//ios/chrome/browser/signin:fake_system_identity_manager",

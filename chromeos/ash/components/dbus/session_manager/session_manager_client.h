@@ -109,6 +109,9 @@ class COMPONENT_EXPORT(SESSION_MANAGER) SessionManagerClient {
 
     // Called when a powerwash is requested.
     virtual void PowerwashRequested(bool admin_requested) {}
+
+    // Called when session stopping signal is received
+    virtual void SessionStopping() {}
   };
 
   // Interface for performing actions on behalf of the stub implementation.
@@ -246,19 +249,9 @@ class COMPONENT_EXPORT(SESSION_MANAGER) SessionManagerClient {
 
   // Starts a remotely initiated factory reset, similar to |StartDeviceWipe|
   // above, but also performs additional checks on Chrome OS side.
-  // session_manager validates |signed_command| against |signature_type|
-  // algorithm.
-  //
-  // If the device is not managed by AD, session_manager does not expect
-  // unsigned remote commands or em::PolicyFetchRequest::NONE as
-  // |signature_type|.
-  // If managed by AD, unsigned powerwash requests and
-  // em::PolicyFetchRequest::NONE signature type are allowed, and any extra
-  // validation checks are skipped.
+  // session_manager validates |signed_command| against SHA256_RSA.
   virtual void StartRemoteDeviceWipe(
-      const enterprise_management::SignedData& signed_command,
-      enterprise_management::PolicyFetchRequest::SignatureType
-          signature_type) = 0;
+      const enterprise_management::SignedData& signed_command) = 0;
 
   // Set the block_demode and check_enrollment flags to 0 in the VPD.
   virtual void ClearForcedReEnrollmentVpd(

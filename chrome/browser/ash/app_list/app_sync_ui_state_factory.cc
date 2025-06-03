@@ -20,7 +20,8 @@ AppSyncUIState* AppSyncUIStateFactory::GetForProfile(Profile* profile) {
 
 // static
 AppSyncUIStateFactory* AppSyncUIStateFactory::GetInstance() {
-  return base::Singleton<AppSyncUIStateFactory>::get();
+  static base::NoDestructor<AppSyncUIStateFactory> instance;
+  return instance.get();
 }
 
 AppSyncUIStateFactory::AppSyncUIStateFactory()
@@ -36,11 +37,12 @@ AppSyncUIStateFactory::AppSyncUIStateFactory()
   DependsOn(SyncServiceFactory::GetInstance());
 }
 
-AppSyncUIStateFactory::~AppSyncUIStateFactory() {}
+AppSyncUIStateFactory::~AppSyncUIStateFactory() = default;
 
-KeyedService* AppSyncUIStateFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+AppSyncUIStateFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
   Profile* profile = static_cast<Profile*>(context);
   DCHECK(AppSyncUIState::ShouldObserveAppSyncForProfile(profile));
-  return new AppSyncUIState(profile);
+  return std::make_unique<AppSyncUIState>(profile);
 }

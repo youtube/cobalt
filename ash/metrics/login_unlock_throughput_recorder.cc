@@ -12,7 +12,6 @@
 #include "ash/shelf/hotseat_widget.h"
 #include "ash/shelf/scrollable_shelf_view.h"
 #include "ash/shelf/shelf.h"
-#include "ash/shelf/shelf_controller.h"
 #include "ash/shelf/shelf_view.h"
 #include "ash/shell.h"
 #include "ash/wm/tablet_mode/tablet_mode_controller.h"
@@ -21,12 +20,10 @@
 #include "base/metrics/histogram_macros.h"
 #include "base/metrics/histogram_macros_local.h"
 #include "base/ranges/algorithm.h"
-#include "base/strings/utf_string_conversions.h"
 #include "base/trace_event/trace_event.h"
 #include "chromeos/ash/components/login/login_state/login_state.h"
 #include "chromeos/ash/components/metrics/login_event_recorder.h"
 #include "components/app_constants/constants.h"
-#include "components/app_restore/window_properties.h"
 #include "ui/aura/window.h"
 #include "ui/aura/window_tree_host.h"
 #include "ui/compositor/compositor.h"
@@ -78,7 +75,7 @@ class AnimationObserver : public views::BoundsAnimatorObserver {
     delete this;
   }
 
-  base::raw_ptr<ShelfView> shelf_view_;
+  raw_ptr<ShelfView, LeakedDanglingUntriaged> shelf_view_;
   base::OnceClosure on_animation_end_;
 };
 
@@ -88,11 +85,13 @@ std::string GetDeviceModeSuffix() {
              : "ClamshellMode";
 }
 
-void RecordMetrics(const base::TimeTicks& start,
-                   const cc::FrameSequenceMetrics::CustomReportData& data,
-                   const char* smoothness_name,
-                   const char* jank_name,
-                   const char* duration_name) {
+void RecordDurationMetrics(
+    const base::TimeTicks& start,
+    const cc::FrameSequenceMetrics::CustomReportData& data,
+    const char* smoothness_name,
+    const char* jank_name,
+    const char* duration_name_short,
+    const char* duration_name_long) {
   DCHECK(data.frames_expected);
 
   // Report could happen during Shell shutdown. Early out in that case.
@@ -113,11 +112,17 @@ void RecordMetrics(const base::TimeTicks& start,
       jank_name + suffix);
   // TODO(crbug.com/1143898): Deprecate this metrics once the login/unlock
   // performance issue is resolved.
-  base::UmaHistogramCustomTimes(duration_name + suffix,
+  base::UmaHistogramCustomTimes(duration_name_short + suffix,
                                 base::Milliseconds(duration_ms),
                                 base::Milliseconds(100), base::Seconds(5), 50);
   ash::Shell::Get()->login_unlock_throughput_recorder()->AddLoginTimeMarker(
-      duration_name + suffix);
+      duration_name_short + suffix);
+
+  base::UmaHistogramCustomTimes(
+      duration_name_long + suffix, base::Milliseconds(duration_ms),
+      base::Milliseconds(100), base::Seconds(30), 100);
+  ash::Shell::Get()->login_unlock_throughput_recorder()->AddLoginTimeMarker(
+      duration_name_long + suffix);
 }
 
 void ReportLoginTotalAnimationThroughput(
@@ -133,27 +138,36 @@ void ReportLoginTotalAnimationThroughput(
                                                 /*write_to_file=*/false);
   ash::Shell::Get()->login_unlock_throughput_recorder()->AddLoginTimeMarker(
       "LoginAnimationEnd");
-  RecordMetrics(start, data, "Ash.LoginAnimation.Smoothness.",
-                "Ash.LoginAnimation.Jank.", "Ash.LoginAnimation.Duration.");
+  // TODO(b/297957283): Deprecate Ash.LoginAnimation.Duration after M122.
+  RecordDurationMetrics(
+      start, data, "Ash.LoginAnimation.Smoothness.", "Ash.LoginAnimation.Jank.",
+      "Ash.LoginAnimation.Duration.", "Ash.LoginAnimation.Duration2.");
 }
 
-void ReportLoginFinished() {
-  LoginEventRecorder::Get()->AddLoginTimeMarker("LoginFinished",
-                                                /*send_to_uma=*/false,
-                                                /*write_to_file=*/false);
+void RecordSmoothnessMetrics(
+    const cc::FrameSequenceMetrics::CustomReportData& data,
+    const char* smoothness_name) {
+  DCHECK(data.frames_expected);
+
+  // Report could happen during Shell shutdown. Early out in that case.
+  if (!Shell::HasInstance() || !Shell::Get()->tablet_mode_controller()) {
+    return;
+  }
+
+  const int smoothness = metrics_util::CalculateSmoothness(data);
+
+  const std::string suffix = GetDeviceModeSuffix();
+  base::UmaHistogramPercentage(smoothness_name + suffix, smoothness);
   ash::Shell::Get()->login_unlock_throughput_recorder()->AddLoginTimeMarker(
-      "LoginFinished");
-  LoginEventRecorder::Get()->RunScheduledWriteLoginTimes();
+      smoothness_name + suffix);
 }
 
-void ReportUnlock(base::TimeTicks start,
-                  const cc::FrameSequenceMetrics::CustomReportData& data) {
+void ReportUnlock(const cc::FrameSequenceMetrics::CustomReportData& data) {
   if (!data.frames_expected) {
     LOG(WARNING) << "Zero frames expected in unlock animation throughput data";
     return;
   }
-  RecordMetrics(start, data, "Ash.UnlockAnimation.Smoothness.",
-                "Ash.UnlockAnimation.Jank.", "Ash.UnlockAnimation.Duration.");
+  RecordSmoothnessMetrics(data, "Ash.UnlockAnimation.Smoothness.");
 }
 
 void OnRestoredWindowPresentationTimeReceived(
@@ -172,7 +186,10 @@ bool HasPendingIcon(const ShelfModel* model) {
 
 }  // namespace
 
-LoginUnlockThroughputRecorder::LoginUnlockThroughputRecorder() {
+LoginUnlockThroughputRecorder::LoginUnlockThroughputRecorder()
+    : post_login_deferred_task_runner_(
+          base::MakeRefCounted<base::DeferredSequencedTaskRunner>(
+              base::SequencedTaskRunner::GetCurrentDefault())) {
   Shell::Get()->session_controller()->AddObserver(this);
   LoginState::Get()->AddObserver(this);
 }
@@ -189,8 +206,7 @@ void LoginUnlockThroughputRecorder::OnLockStateChanged(bool locked) {
                   logged_in_user == LoginState::LOGGED_IN_USER_REGULAR)) {
     auto* primary_root = Shell::GetPrimaryRootWindow();
     new ui::TotalAnimationThroughputReporter(
-        primary_root->GetHost()->compositor(),
-        base::BindOnce(&ReportUnlock, base::TimeTicks::Now()),
+        primary_root->GetHost()->compositor(), base::BindOnce(&ReportUnlock),
         /*should_delete=*/true);
   }
 }
@@ -226,7 +242,7 @@ void LoginUnlockThroughputRecorder::LoggedInStateChanged() {
   auto* rec = new ui::TotalAnimationThroughputReporter(
       primary_root->GetHost()->compositor(),
       base::BindOnce(&LoginUnlockThroughputRecorder::OnLoginAnimationFinish,
-                     weak_ptr_factory_.GetWeakPtr(), base::TimeTicks::Now()),
+                     weak_ptr_factory_.GetWeakPtr(), primary_user_logged_in_),
       /*should_delete=*/true);
   login_animation_throughput_reporter_ = rec->GetWeakPtr();
   DCHECK(!scoped_throughput_reporter_blocker_);
@@ -234,6 +250,13 @@ void LoginUnlockThroughputRecorder::LoggedInStateChanged() {
   // were loaded.
   scoped_throughput_reporter_blocker_ =
       login_animation_throughput_reporter_->NewScopedBlocker();
+
+  constexpr base::TimeDelta kLoginAnimationDelayTimer = base::Seconds(20);
+  // login_animation_finished_timer_ is owned by this class so it's safe to
+  // use unretained pointer here.
+  login_animation_finished_timer_.Start(
+      FROM_HERE, kLoginAnimationDelayTimer, this,
+      &LoginUnlockThroughputRecorder::OnLoginAnimationFinishedTimerFired);
 }
 
 void LoginUnlockThroughputRecorder::AddScheduledRestoreWindow(
@@ -533,15 +556,17 @@ void LoginUnlockThroughputRecorder::AddLoginTimeMarker(
     REPORT_LOGIN_THROUGHPUT_EVENT("Ash.LoginAnimation.Smoothness.TabletMode");
     REPORT_LOGIN_THROUGHPUT_EVENT("Ash.LoginAnimation.Jank.ClamshellMode");
     REPORT_LOGIN_THROUGHPUT_EVENT("Ash.LoginAnimation.Jank.TabletMode");
+    // TODO(b/297957283): Deprecate
+    // Ash.LoginAnimation.Duration.{TabletMode,ClamshellMode} after M122.
     REPORT_LOGIN_THROUGHPUT_EVENT("Ash.LoginAnimation.Duration.ClamshellMode");
     REPORT_LOGIN_THROUGHPUT_EVENT("Ash.LoginAnimation.Duration.TabletMode");
+    REPORT_LOGIN_THROUGHPUT_EVENT("Ash.LoginAnimation.Duration2.ClamshellMode");
+    REPORT_LOGIN_THROUGHPUT_EVENT("Ash.LoginAnimation.Duration2.TabletMode");
+    REPORT_LOGIN_THROUGHPUT_EVENT("BootTime.Login2");
+    REPORT_LOGIN_THROUGHPUT_EVENT("BootTime.Login3");
     REPORT_LOGIN_THROUGHPUT_EVENT(
         "Ash.UnlockAnimation.Smoothness.ClamshellMode");
     REPORT_LOGIN_THROUGHPUT_EVENT("Ash.UnlockAnimation.Smoothness.TabletMode");
-    REPORT_LOGIN_THROUGHPUT_EVENT("Ash.UnlockAnimation.Jank.ClamshellMode");
-    REPORT_LOGIN_THROUGHPUT_EVENT("Ash.UnlockAnimation.Jank.TabletMode");
-    REPORT_LOGIN_THROUGHPUT_EVENT("Ash.UnlockAnimation.Duration.ClamshellMode");
-    REPORT_LOGIN_THROUGHPUT_EVENT("Ash.UnlockAnimation.Duration.TabletMode");
     REPORT_LOGIN_THROUGHPUT_EVENT("ArcUiAvailable");
     if (!reported) {
       constexpr char kFailedEvent[] = "FailedToReportEvent";
@@ -574,6 +599,9 @@ void LoginUnlockThroughputRecorder::ArcUiAvailableAfterLogin() {
   AddLoginTimeMarker("ArcUiAvailable");
   const base::TimeDelta duration =
       base::TimeTicks::Now() - primary_user_logged_in_;
+  base::UmaHistogramCustomTimes("Ash.Login.ArcUiAvailableAfterLogin.Duration",
+                                duration, base::Milliseconds(100),
+                                base::Seconds(30), 100);
   LOCAL_HISTOGRAM_TIMES("Ash.Tast.ArcUiAvailableAfterLogin.Duration", duration);
 }
 
@@ -589,7 +617,30 @@ void LoginUnlockThroughputRecorder::MaybeReportLoginFinished() {
   login_finished_reported_ = true;
 
   ui_recorder_.OnPostLoginAnimationFinish();
-  ReportLoginFinished();
+
+  AddLoginTimeMarker("LoginFinished");
+  LoginEventRecorder::Get()->AddLoginTimeMarker("LoginFinished",
+                                                /*send_to_uma=*/false,
+                                                /*write_to_file=*/false);
+
+  AddLoginTimeMarker("BootTime.Login3");
+  base::UmaHistogramCustomTimes(
+      "BootTime.Login3", base::TimeTicks::Now() - primary_user_logged_in_,
+      base::Milliseconds(100), base::Seconds(100), 100);
+
+  LoginEventRecorder::Get()->RunScheduledWriteLoginTimes();
+
+  login_animation_finished_timer_.Stop();
+  if (!post_login_deferred_task_runner_->Started()) {
+    post_login_deferred_task_runner_->Start();
+  }
+}
+
+void LoginUnlockThroughputRecorder::OnLoginAnimationFinishedTimerFired() {
+  TRACE_EVENT0(
+      "startup",
+      "LoginUnlockThroughputRecorder::OnLoginAnimationFinishedTimerFired");
+  post_login_deferred_task_runner_->Start();
 }
 
 }  // namespace ash

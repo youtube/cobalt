@@ -207,7 +207,7 @@ bool RenderViewContextMenuViews::GetAcceleratorForCommandId(
       *accel = ui::Accelerator(ui::VKEY_R, ui::EF_CONTROL_DOWN);
       return true;
 
-    case IDC_CONTENT_CONTEXT_SAVEAVAS:
+    case IDC_CONTENT_CONTEXT_SAVEPLUGINAS:
     case IDC_SAVE_PAGE:
       *accel = ui::Accelerator(ui::VKEY_S, ui::EF_CONTROL_DOWN);
       return true;
@@ -374,20 +374,6 @@ void RenderViewContextMenuViews::AppendPlatformEditableItems() {
       IDC_WRITING_DIRECTION_MENU,
       l10n_util::GetStringUTF16(IDS_CONTENT_CONTEXT_WRITING_DIRECTION_MENU),
       &bidi_submenu_model_);
-}
-
-void RenderViewContextMenuViews::ExecOpenInReadAnything() {
-  Browser* browser = GetBrowser();
-  if (!browser) {
-    return;
-  }
-  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser);
-  if (!browser_view) {
-    return;
-  }
-  browser_view->side_panel_coordinator()->Show(
-      SidePanelEntry::Id::kReadAnything,
-      SidePanelUtil::SidePanelOpenTrigger::kReadAnythingContextMenu);
 }
 
 void RenderViewContextMenuViews::Show() {

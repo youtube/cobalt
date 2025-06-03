@@ -14,12 +14,13 @@
 #include "ash/strings/grit/ash_strings.h"
 #include "ash/system/notification_center/notification_center_bubble.h"
 #include "ash/system/notification_center/notification_center_view.h"
+#include "ash/system/notification_center/notification_metrics_recorder.h"
 #include "ash/system/privacy/privacy_indicators_tray_item_view.h"
 #include "ash/system/tray/tray_background_view.h"
 #include "ash/system/tray/tray_bubble_view.h"
 #include "ash/system/tray/tray_container.h"
+#include "chromeos/constants/chromeos_features.h"
 #include "ui/base/l10n/l10n_util.h"
-#include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 
 namespace ash {
@@ -28,11 +29,16 @@ NotificationCenterTray::NotificationCenterTray(Shelf* shelf)
     : TrayBackgroundView(shelf,
                          TrayBackgroundViewCatalogName::kNotificationCenter,
                          RoundedCornerBehavior::kStartRounded),
+      notification_metrics_recorder_(
+          std::make_unique<NotificationMetricsRecorder>(this)),
       notification_icons_controller_(
           std::make_unique<NotificationIconsController>(
               shelf,
               /*model=*/nullptr,
               /*notification_center_tray=*/this)) {
+  DCHECK(features::IsQsRevampEnabled());
+  SetCallback(base::BindRepeating(&NotificationCenterTray::OnTrayButtonPressed,
+                                  base::Unretained(this)));
   SetID(VIEW_ID_SA_NOTIFICATION_TRAY);
   set_use_bounce_in_animation(false);
 
@@ -40,27 +46,22 @@ NotificationCenterTray::NotificationCenterTray(Shelf* shelf)
       /*main_axis_margin=*/kUnifiedTrayContentPadding -
           ShelfConfig::Get()->status_area_hit_region_padding(),
       0);
-
-  // TODO(b/255986529): Rewrite the `NotificationIconsController` class so that
-  // we do not have to add icon views that are owned by the
-  // `NotificationCenterTray` from the controller. We should make sure views are
-  // only added by host views.
-  notification_icons_controller_->AddNotificationTrayItems(tray_container());
-
-  if (features::IsPrivacyIndicatorsEnabled()) {
-    privacy_indicators_view_ = tray_container()->AddChildView(
-        std::make_unique<PrivacyIndicatorsTrayItemView>(shelf));
-  }
-
-  for (auto* tray_item : tray_container()->children()) {
-    static_cast<TrayItemView*>(tray_item)->AddObserver(this);
-  }
 }
 
 NotificationCenterTray::~NotificationCenterTray() {
   for (auto* tray_item : tray_container()->children()) {
     static_cast<TrayItemView*>(tray_item)->RemoveObserver(this);
   }
+}
+
+void NotificationCenterTray::AddNotificationCenterTrayObserver(
+    Observer* observer) {
+  observers_.AddObserver(observer);
+}
+
+void NotificationCenterTray::RemoveNotificationCenterTrayObserver(
+    Observer* observer) {
+  observers_.RemoveObserver(observer);
 }
 
 void NotificationCenterTray::OnTrayItemVisibilityAboutToChange(
@@ -84,6 +85,15 @@ void NotificationCenterTray::OnSystemTrayVisibilityChanged(
   UpdateVisibility();
 }
 
+void NotificationCenterTray::OnTrayButtonPressed() {
+  if (GetBubbleWidget()) {
+    CloseBubble();
+    return;
+  }
+
+  ShowBubble();
+}
+
 NotificationListView* NotificationCenterTray::GetNotificationListView() {
   return bubble_ ? bubble_->notification_center_view()->notification_list_view()
                  : nullptr;
@@ -91,6 +101,33 @@ NotificationListView* NotificationCenterTray::GetNotificationListView() {
 
 bool NotificationCenterTray::IsBubbleShown() const {
   return !!bubble_;
+}
+
+void NotificationCenterTray::Initialize() {
+  TrayBackgroundView::Initialize();
+
+  // Add all child `TrayItemView`s.
+  // TODO(b/255986529): Rewrite the `NotificationIconsController` class so that
+  // we do not have to add icon views that are owned by the
+  // `NotificationCenterTray` from the controller. We should make sure views are
+  // only added by host views.
+  notification_icons_controller_->AddNotificationTrayItems(tray_container());
+  if (features::IsPrivacyIndicatorsEnabled()) {
+    privacy_indicators_view_ = tray_container()->AddChildView(
+        std::make_unique<PrivacyIndicatorsTrayItemView>(shelf()));
+  }
+  for (auto* tray_item : tray_container()->children()) {
+    static_cast<TrayItemView*>(tray_item)->AddObserver(this);
+  }
+  for (auto& observer : observers_) {
+    observer.OnAllTrayItemsAdded();
+  }
+
+  // Update this tray's visibility as well as the visibility of all of its tray
+  // items according to the current state of notifications.
+  UpdateVisibility();
+  notification_icons_controller_->UpdateNotificationIcons();
+  notification_icons_controller_->UpdateNotificationIndicators();
 }
 
 std::u16string NotificationCenterTray::GetAccessibleNameForBubble() {
@@ -110,8 +147,20 @@ void NotificationCenterTray::HideBubbleWithView(
   }
 }
 
+void NotificationCenterTray::HideBubble(const TrayBubbleView* bubble_view) {
+  CloseBubble();
+}
+
 void NotificationCenterTray::ClickedOutsideBubble() {
   CloseBubble();
+}
+
+void NotificationCenterTray::UpdateTrayItemColor(bool is_active) {
+  DCHECK(chromeos::features::IsJellyEnabled());
+  for (auto* tray_item : tray_container()->children()) {
+    static_cast<TrayItemView*>(tray_item)->UpdateLabelOrImageViewColor(
+        is_active);
+  }
 }
 
 void NotificationCenterTray::CloseBubble() {
@@ -160,21 +209,11 @@ views::Widget* NotificationCenterTray::GetBubbleWidget() const {
   return bubble_ ? bubble_->GetBubbleWidget() : nullptr;
 }
 
-void NotificationCenterTray::OnAnyBubbleVisibilityChanged(
-    views::Widget* bubble_widget,
-    bool visible) {
-  if (!IsBubbleShown()) {
-    return;
-  }
+void NotificationCenterTray::UpdateLayout() {
+  TrayBackgroundView::UpdateLayout();
 
-  if (bubble_widget == GetBubbleWidget()) {
-    return;
-  }
-
-  if (visible) {
-    // Another bubble is becoming visible while this bubble is being shown, so
-    // hide this bubble.
-    CloseBubble();
+  if (features::IsPrivacyIndicatorsEnabled()) {
+    privacy_indicators_view_->UpdateAlignmentForShelf(shelf());
   }
 }
 
@@ -185,6 +224,9 @@ void NotificationCenterTray::UpdateVisibility() {
       message_center::MessageCenter::Get()->NotificationCount() > 0 &&
       system_tray_visible_;
   SetVisiblePreferred(new_visibility);
+  if (chromeos::features::IsJellyEnabled()) {
+    UpdateTrayItemColor(is_active());
+  }
 
   // We should close the bubble if there are no more notifications to show.
   if (!new_visibility && bubble_) {

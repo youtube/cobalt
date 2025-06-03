@@ -4,17 +4,13 @@
 
 #import "ios/chrome/browser/signin/signin_browser_state_info_updater.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 #import <string>
 
 #import "base/strings/utf_string_conversions.h"
 #import "components/signin/public/identity_manager/account_info.h"
-#import "ios/chrome/browser/application_context/application_context.h"
-#import "ios/chrome/browser/browser_state/browser_state_info_cache.h"
-#import "ios/chrome/browser/browser_state/chrome_browser_state_manager.h"
+#import "ios/chrome/browser/shared/model/application_context/application_context.h"
+#import "ios/chrome/browser/shared/model/browser_state/browser_state_info_cache.h"
+#import "ios/chrome/browser/shared/model/browser_state/chrome_browser_state_manager.h"
 
 SigninBrowserStateInfoUpdater::SigninBrowserStateInfoUpdater(
     signin::IdentityManager* identity_manager,
@@ -54,9 +50,9 @@ void SigninBrowserStateInfoUpdater::UpdateBrowserStateInfo() {
   if (index == std::string::npos)
     return;
 
-  if (identity_manager_->HasPrimaryAccount(signin::ConsentLevel::kSync)) {
+  if (identity_manager_->HasPrimaryAccount(signin::ConsentLevel::kSignin)) {
     CoreAccountInfo account_info =
-        identity_manager_->GetPrimaryAccountInfo(signin::ConsentLevel::kSync);
+        identity_manager_->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin);
     cache->SetAuthInfoOfBrowserStateAtIndex(
         index, account_info.gaia, base::UTF8ToUTF16(account_info.email));
   } else {

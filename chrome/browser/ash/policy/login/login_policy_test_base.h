@@ -8,9 +8,9 @@
 #include <memory>
 #include <string>
 
-#include "chrome/browser/ash/login/test/embedded_policy_test_server_mixin.h"
 #include "chrome/browser/ash/login/test/login_manager_mixin.h"
 #include "chrome/browser/ash/login/test/oobe_base_test.h"
+#include "chrome/browser/ash/policy/test_support/embedded_policy_test_server_mixin.h"
 #include "chrome/test/base/fake_gaia_mixin.h"
 #include "components/account_id/account_id.h"
 
@@ -64,7 +64,7 @@ class LoginPolicyTestBase : public ash::OobeBaseTest {
   ash::LoginManagerMixin login_manager_{&mixin_host_};
 
  private:
-  void SetMergeSessionParams();
+  void SetConfiguration();
 
   const AccountId account_id_;  // Test AccountId.
   std::unique_ptr<UserPolicyTestHelper> user_policy_helper_;

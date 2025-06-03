@@ -4,8 +4,11 @@
 
 #import "ios/chrome/credential_provider_extension/ui/new_password_view_controller.h"
 
-#import "base/mac/foundation_util.h"
+#import "base/apple/foundation_util.h"
 #import "base/notreached.h"
+#import "base/strings/string_number_conversions.h"
+#import "base/strings/sys_string_conversions.h"
+#import "components/password_manager/core/common/password_manager_constants.h"
 #import "ios/chrome/common/app_group/app_group_metrics.h"
 #import "ios/chrome/common/credential_provider/archivable_credential.h"
 #import "ios/chrome/common/credential_provider/constants.h"
@@ -13,16 +16,11 @@
 #import "ios/chrome/common/ui/elements/form_input_accessory_view.h"
 #import "ios/chrome/common/ui/elements/form_input_accessory_view_text_data.h"
 #import "ios/chrome/credential_provider_extension/metrics_util.h"
-#import "ios/chrome/credential_provider_extension/ui/feature_flags.h"
 #import "ios/chrome/credential_provider_extension/ui/new_password_footer_view.h"
 #import "ios/chrome/credential_provider_extension/ui/new_password_table_cell.h"
 #import "ios/chrome/credential_provider_extension/ui/password_note_cell.h"
 #import "ios/chrome/credential_provider_extension/ui/password_note_footer_view.h"
 #import "ios/chrome/credential_provider_extension/ui/ui_util.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace {
 
@@ -32,8 +30,6 @@ const CGFloat kTableViewTopSpace = 14;
 
 // Minimal amount of characters in password note to display the warning.
 const int kMinNoteCharAmountForWarning = 901;
-// Maximal amount of characters that a password note can contain.
-const int kMaxNoteCharAmount = 1000;
 
 typedef NS_ENUM(NSInteger, SectionIdentifier) {
   SectionIdentifierPassword,
@@ -85,6 +81,10 @@ typedef NS_ENUM(NSInteger, SectionIdentifier) {
   _passwordCreationType = CPEPasswordCreated::kPasswordManuallyEntered;
   _accessoryView = [[FormInputAccessoryView alloc] init];
   [_accessoryView setUpWithLeadingView:nil navigationDelegate:self];
+  _usernameText = @"";
+  _passwordText = @"";
+  _noteText = @"";
+  _isNoteFooterShown = NO;
   return self;
 }
 
@@ -123,12 +123,10 @@ typedef NS_ENUM(NSInteger, SectionIdentifier) {
          forCellReuseIdentifier:NewPasswordTableCell.reuseID];
   [self.tableView registerClass:[NewPasswordFooterView class]
       forHeaderFooterViewReuseIdentifier:NewPasswordFooterView.reuseID];
-  if (IsPasswordNotesWithBackupEnabled()) {
-    [self.tableView registerClass:[PasswordNoteCell class]
-           forCellReuseIdentifier:PasswordNoteCell.reuseID];
-    [self.tableView registerClass:[PasswordNoteFooterView class]
-        forHeaderFooterViewReuseIdentifier:PasswordNoteFooterView.reuseID];
-  }
+  [self.tableView registerClass:[PasswordNoteCell class]
+         forCellReuseIdentifier:PasswordNoteCell.reuseID];
+  [self.tableView registerClass:[PasswordNoteFooterView class]
+      forHeaderFooterViewReuseIdentifier:PasswordNoteFooterView.reuseID];
 }
 
 #pragma mark - UITableViewDataSource
@@ -150,17 +148,12 @@ typedef NS_ENUM(NSInteger, SectionIdentifier) {
 }
 
 - (NSInteger)numberOfSectionsInTableView:(UITableView*)tableView {
-  if (IsPasswordNotesWithBackupEnabled()) {
-    return SectionIdentifierNumSections;
-  }
-
-  return SectionIdentifierNumSections - 1;
+  return SectionIdentifierNumSections;
 }
 
 - (UITableViewCell*)tableView:(UITableView*)tableView
         cellForRowAtIndexPath:(NSIndexPath*)indexPath {
-  if (IsPasswordNotesWithBackupEnabled() &&
-      indexPath.section == SectionIdentifierNote) {
+  if (indexPath.section == SectionIdentifierNote) {
     DCHECK(indexPath.row == 0);
     PasswordNoteCell* cell =
         [tableView dequeueReusableCellWithIdentifier:PasswordNoteCell.reuseID];
@@ -227,7 +220,7 @@ typedef NS_ENUM(NSInteger, SectionIdentifier) {
   if (section == SectionIdentifierNote &&
       [view isKindOfClass:[PasswordNoteFooterView class]]) {
     PasswordNoteFooterView* footer =
-        base::mac::ObjCCastStrict<PasswordNoteFooterView>(view);
+        base::apple::ObjCCastStrict<PasswordNoteFooterView>(view);
     footer.textLabel.text = [self noteFooterText];
 
     [tableView beginUpdates];
@@ -295,16 +288,26 @@ typedef NS_ENUM(NSInteger, SectionIdentifier) {
 - (void)textViewDidChangeInCell:(PasswordNoteCell*)cell {
   self.noteText = cell.textView.text;
   int noteLength = cell.textView.text.length;
-  BOOL noteValid = noteLength <= kMaxNoteCharAmount;
+  BOOL noteValid =
+      noteLength <= password_manager::constants::kMaxPasswordNoteLength;
   [cell setValid:noteValid];
   [self updateSaveButtonState];
 
   // Notify that the character limit has been reached via VoiceOver.
   if (!noteValid) {
+    NSString* tooLongNoteLocalizedString = NSLocalizedString(
+        @"IDS_IOS_CREDENTIAL_PROVIDER_TOO_LONG_NOTE",
+        @"Warning about the character limit for password notes");
+    NSString* characterLimitString =
+        base::SysUTF16ToNSString(base::NumberToString16(
+            password_manager::constants::kMaxPasswordNoteLength));
     UIAccessibilityPostNotification(
         UIAccessibilityAnnouncementNotification,
-        NSLocalizedString(@"IDS_IOS_CREDENTIAL_PROVIDER_TOO_LONG_NOTE",
-                          @"Notes can save up to 1000 characters."));
+        NSLocalizedString(
+            [tooLongNoteLocalizedString
+                stringByReplacingOccurrencesOfString:@"$1"
+                                          withString:characterLimitString],
+            @"Warning about the character limit for password notes."));
   }
 
   // Update note footer based on note's length.
@@ -312,7 +315,7 @@ typedef NS_ENUM(NSInteger, SectionIdentifier) {
   UITableViewHeaderFooterView* footerView =
       [self.tableView footerViewForSection:SectionIdentifierNote];
   PasswordNoteFooterView* noteFooter =
-      base::mac::ObjCCastStrict<PasswordNoteFooterView>(footerView);
+      base::apple::ObjCCastStrict<PasswordNoteFooterView>(footerView);
   noteFooter.textLabel.text = [self noteFooterText];
 
   // Refresh the cell's height to make the note fully visible while typing or to
@@ -359,14 +362,10 @@ typedef NS_ENUM(NSInteger, SectionIdentifier) {
 // Updates the save button state based on whether there is text in the password
 // cell.
 - (void)updateSaveButtonState {
-  if (IsPasswordNotesWithBackupEnabled()) {
-    self.navigationItem.rightBarButtonItem.enabled =
-        self.passwordText.length > 0 &&
-        self.noteText.length <= kMaxNoteCharAmount;
-  } else {
-    self.navigationItem.rightBarButtonItem.enabled =
-        self.passwordCell.textField.text.length > 0;
-  }
+  self.navigationItem.rightBarButtonItem.enabled =
+      self.passwordText.length > 0 &&
+      self.noteText.length <=
+          password_manager::constants::kMaxPasswordNoteLength;
 }
 
 #pragma mark - Private
@@ -382,43 +381,13 @@ typedef NS_ENUM(NSInteger, SectionIdentifier) {
   [self saveCredential:NO];
 }
 
-- (NSString*)currentUsername {
-  NSIndexPath* usernameIndexPath =
-      [NSIndexPath indexPathForRow:NewPasswordTableCellTypeUsername
-                         inSection:SectionIdentifierPassword];
-  NewPasswordTableCell* usernameCell =
-      [self.tableView cellForRowAtIndexPath:usernameIndexPath];
-  return usernameCell.textField.text;
-}
-
-- (NSString*)currentPassword {
-  NSIndexPath* passwordIndexPath =
-      [NSIndexPath indexPathForRow:NewPasswordTableCellTypePassword
-                         inSection:SectionIdentifierPassword];
-  NewPasswordTableCell* passwordCell =
-      [self.tableView cellForRowAtIndexPath:passwordIndexPath];
-  return passwordCell.textField.text;
-}
-
-- (NSString*)currentNote {
-  NSIndexPath* noteIndexPath =
-      [NSIndexPath indexPathForRow:0 inSection:SectionIdentifierNote];
-  PasswordNoteCell* noteCell =
-      [self.tableView cellForRowAtIndexPath:noteIndexPath];
-  return noteCell.textView.text;
-}
-
 // Saves the current data as a credential. If `shouldReplace` is YES, then the
 // user has already said they are aware that they are replacing a previous
 // credential.
 - (void)saveCredential:(BOOL)shouldReplace {
-  NSString* username = IsPasswordNotesWithBackupEnabled()
-                           ? self.usernameText
-                           : [self currentUsername];
-  NSString* password = IsPasswordNotesWithBackupEnabled()
-                           ? self.passwordText
-                           : [self currentPassword];
-  NSString* note = IsPasswordNotesWithBackupEnabled() ? self.noteText : @"";
+  NSString* username = self.usernameText;
+  NSString* password = self.passwordText;
+  NSString* note = self.noteText;
 
   [self.credentialHandler saveCredentialWithUsername:username
                                             password:password
@@ -428,8 +397,15 @@ typedef NS_ENUM(NSInteger, SectionIdentifier) {
 
 - (NSString*)noteFooterText {
   if (self.isNoteFooterShown) {
-    return NSLocalizedString(@"IDS_IOS_CREDENTIAL_PROVIDER_TOO_LONG_NOTE",
-                             @"Notes can save up to 1000 characters.");
+    NSString* tooLongNoteLocalizedString = NSLocalizedString(
+        @"IDS_IOS_CREDENTIAL_PROVIDER_TOO_LONG_NOTE",
+        @"Warning about the character limit for password notes");
+    NSString* characterLimitString =
+        base::SysUTF16ToNSString(base::NumberToString16(
+            password_manager::constants::kMaxPasswordNoteLength));
+    return [tooLongNoteLocalizedString
+        stringByReplacingOccurrencesOfString:@"$1"
+                                  withString:characterLimitString];
   }
 
   return @"";
@@ -474,9 +450,7 @@ typedef NS_ENUM(NSInteger, SectionIdentifier) {
   NSString* messageBaseLocalizedString = NSLocalizedString(
       @"IDS_IOS_CREDENTIAL_PROVIDER_NEW_PASSWORD_REPLACE_MESSAGE",
       @"Message for password replace alert");
-  NSString* username = IsPasswordNotesWithBackupEnabled()
-                           ? self.usernameText
-                           : [self currentUsername];
+  NSString* username = self.usernameText;
   NSString* message = [[messageBaseLocalizedString
       stringByReplacingOccurrencesOfString:@"$2"
                                 withString:self.currentHost]
@@ -583,6 +557,11 @@ typedef NS_ENUM(NSInteger, SectionIdentifier) {
           NSLocalizedString(
               @"IDS_IOS_CREDENTIAL_PROVIDER_NEW_PASSWORD_PREVIOUS_FIELD_HINT",
               @"Previous field")];
+}
+
+- (void)fromInputAccessoryViewDidTapOmniboxTypingShield:
+    (FormInputAccessoryView*)sender {
+  NOTREACHED() << "The typing shield should only be present on web";
 }
 
 @end

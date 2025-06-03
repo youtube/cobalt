@@ -10,7 +10,7 @@ import {OncMojo} from 'chrome://resources/ash/common/network/onc_mojo.js';
 import {CrosNetworkConfigRemote, InhibitReason, MAX_NUM_CUSTOM_APNS} from 'chrome://resources/mojo/chromeos/services/network_config/public/mojom/cros_network_config.mojom-webui.js';
 import {ConnectionStateType, DeviceStateType, NetworkType, OncSource, PortalState} from 'chrome://resources/mojo/chromeos/services/network_config/public/mojom/network_types.mojom-webui.js';
 import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
-import {FakeNetworkConfig} from 'chrome://test/chromeos/fake_network_config_mojom.js';
+import {FakeNetworkConfig} from 'chrome://webui-test/chromeos/fake_network_config_mojom.js';
 import {TestBrowserProxy} from 'chrome://webui-test/test_browser_proxy.js';
 
 /** @implements {InternetDetailDialogBrowserProxy} */
@@ -64,9 +64,22 @@ suite('internet-detail-dialog', () => {
 
   setup(async () => {
     PolymerTest.clearBody();
-    InternetDetailDialogBrowserProxyImpl.instance_ =
-        new TestInternetDetailDialogBrowserProxy();
+    InternetDetailDialogBrowserProxyImpl.setInstance(
+        new TestInternetDetailDialogBrowserProxy());
     mojoApi_.resetForTest();
+  });
+
+  teardown(function() {
+    // If a previous test was run with Jelly, the css needs to be removed.
+    const old_elements =
+        document.querySelectorAll('link[href*=\'chrome://theme/colors.css\']');
+    old_elements.forEach(function(node) {
+      node.remove();
+    });
+    assertFalse(
+        !!document.querySelector('link[href*=\'chrome://theme/colors.css\']'));
+
+    document.body.classList.remove('jelly-enabled');
   });
 
   async function init() {
@@ -337,6 +350,18 @@ suite('internet-detail-dialog', () => {
         assertEquals(accessPointName, getApnSectionSublabel());
         assertFalse(isApnListShowing());
 
+        // Update the APN's name property.
+        const name = 'name';
+        await setupCellularNetwork(
+            /* isPrimary= */ true, /* isInhibited= */ false,
+            {accessPointName: accessPointName, name: name});
+
+        // Force a refresh.
+        internetDetailDialog.onDeviceStateListChanged();
+        await flushAsync();
+        assertEquals(name, getApnSectionSublabel());
+        assertFalse(isApnListShowing());
+
         // Expand the section, the sublabel should no longer show.
         apnSection.click();
         await flushAsync();
@@ -346,7 +371,7 @@ suite('internet-detail-dialog', () => {
         // Collapse the section, the sublabel should show.
         apnSection.click();
         await flushAsync();
-        assertEquals(accessPointName, getApnSectionSublabel());
+        assertEquals(name, getApnSectionSublabel());
         assertFalse(isApnListShowing());
       } else {
         assertTrue(!!legacyApnElement);
@@ -431,4 +456,42 @@ suite('internet-detail-dialog', () => {
       }
     });
   });
+
+  test('Show toast on show-error-toast event', async function() {
+    loadTimeData.overrideValues({
+      apnRevamp: true,
+    });
+    await init();
+    const getErrorToast = () =>
+        internetDetailDialog.shadowRoot.querySelector('#errorToast');
+    assertFalse(getErrorToast().open);
+
+    const message = 'Toast message';
+    const event = new CustomEvent('show-error-toast', {detail: message});
+    internetDetailDialog.dispatchEvent(event);
+    await flushAsync();
+    assertTrue(getErrorToast().open);
+    assertEquals(
+        internetDetailDialog.shadowRoot.querySelector('#errorToastMessage')
+            .innerHTML,
+        message);
+  });
+
+  test(
+      'Dont show toast on show-error-toast event when ApnRevamp false',
+      async function() {
+        loadTimeData.overrideValues({
+          apnRevamp: false,
+        });
+        await init();
+        const getErrorToast = () =>
+            internetDetailDialog.shadowRoot.querySelector('#errorToast');
+        assertFalse(!!getErrorToast());
+
+        const message = 'Toast message';
+        const event = new CustomEvent('show-error-toast', {detail: message});
+        internetDetailDialog.dispatchEvent(event);
+        await flushAsync();
+        assertFalse(!!getErrorToast());
+      });
 });

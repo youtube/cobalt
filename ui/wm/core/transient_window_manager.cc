@@ -7,7 +7,6 @@
 #include <functional>
 
 #include "base/auto_reset.h"
-#include "base/containers/adapters.h"
 #include "base/containers/contains.h"
 #include "base/memory/ptr_util.h"
 #include "base/observer_list.h"
@@ -126,6 +125,7 @@ TransientWindowManager::TransientWindowManager(Window* window)
       transient_parent_(nullptr),
       stacking_target_(nullptr),
       parent_controls_visibility_(false),
+      parent_controls_lifetime_(true),
       show_on_parent_visible_(false),
       ignore_visibility_changed_event_(false) {
   window_->AddObserver(this);
@@ -142,8 +142,10 @@ void TransientWindowManager::RestackTransientDescendants() {
   // Stack any transient children that share the same parent to be in front of
   // |window_|. The existing stacking order is preserved by iterating backwards
   // and always stacking on top.
-  Window::Windows children(parent->children());
-  for (auto* child_window : base::Reversed(children)) {
+  aura::WindowTracker tracker(
+      Window::Windows(parent->children().rbegin(), parent->children().rend()));
+  while (!tracker.windows().empty()) {
+    auto* child_window = tracker.Pop();
     if (child_window != window_ &&
         HasTransientAncestor(child_window, window_)) {
       TransientWindowManager* descendant_manager = GetOrCreate(child_window);
@@ -259,10 +261,26 @@ void TransientWindowManager::OnWindowDestroying(Window* window) {
   // Destroy transient children, only after we've removed ourselves from our
   // parent, as destroying an active transient child may otherwise attempt to
   // refocus us.
-  Windows transient_children(transient_children_);
-  for (auto* child : transient_children)
-    delete child;
-  DCHECK(transient_children_.empty());
+  // WindowTracker is used because child window could be deleted while
+  // iterating.
+  aura::WindowTracker tracker(
+      Window::Windows(transient_children_.begin(), transient_children_.end()));
+  while (!tracker.windows().empty()) {
+    aura::Window* child = tracker.Pop();
+    auto* child_transient_manager = TransientWindowManager::GetIfExists(child);
+    CHECK(child_transient_manager);
+    if (child_transient_manager->parent_controls_lifetime_) {
+      delete child;
+    } else {
+      // This transient `child` window is set to outlive its transient parent
+      // (in this case, the about-to-be destroyed `window` whose transient
+      // manager is `this`). We need to remove it as a transient child from
+      // `this`.
+      RemoveTransientChild(child);
+    }
+  }
+
+  CHECK(tracker.windows().empty());
 }
 
 }  // namespace wm

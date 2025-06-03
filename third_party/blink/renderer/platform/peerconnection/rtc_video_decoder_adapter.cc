@@ -15,6 +15,7 @@
 #include "base/location.h"
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
+#include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/synchronization/waitable_event.h"
@@ -29,6 +30,7 @@
 #include "media/base/media_switches.h"
 #include "media/base/media_util.h"
 #include "media/base/overlay_info.h"
+#include "media/base/platform_features.h"
 #include "media/base/video_decoder.h"
 #include "media/base/video_types.h"
 #include "media/video/gpu_video_accelerator_factories.h"
@@ -133,7 +135,7 @@ scoped_refptr<media::DecoderBuffer> ConvertToDecoderBuffer(
       std::make_unique<EncodedImageExternalMemory>(
           input_image.GetEncodedData()));
   DCHECK(buffer);
-  buffer->set_timestamp(base::Microseconds(input_image.Timestamp()));
+  buffer->set_timestamp(base::Microseconds(input_image.RtpTimestamp()));
   buffer->set_is_key_frame(input_image._frameType ==
                            webrtc::VideoFrameType::kVideoFrameKey);
 
@@ -153,11 +155,7 @@ scoped_refptr<media::DecoderBuffer> ConvertToDecoderBuffer(
   }
 
   if (spatial_layer_frame_size.size() > 1) {
-    const uint8_t* side_data =
-        reinterpret_cast<const uint8_t*>(spatial_layer_frame_size.data());
-    size_t side_data_size =
-        spatial_layer_frame_size.size() * sizeof(uint32_t) / sizeof(uint8_t);
-    buffer->CopySideDataFrom(side_data, side_data_size);
+    buffer->WritableSideData().spatial_layers = spatial_layer_frame_size;
   }
 
   return buffer;
@@ -169,9 +167,10 @@ absl::optional<RTCVideoDecoderFallbackReason> NeedSoftwareFallback(
     const media::VideoDecoderType decoder_type) {
   // Fall back to software decoding if there's no support for VP9 spatial
   // layers. See https://crbug.com/webrtc/9304.
-  const bool is_spatial_layer_buffer = buffer.side_data_size() > 0;
+  const bool is_spatial_layer_buffer =
+      buffer.has_side_data() && !buffer.side_data()->spatial_layers.empty();
   if (codec == media::VideoCodec::kVP9 && is_spatial_layer_buffer &&
-      !RTCVideoDecoderAdapter::Vp9HwSupportForSpatialLayers(decoder_type)) {
+      !media::IsVp9kSVCHWDecodingEnabled()) {
     return RTCVideoDecoderFallbackReason::kSpatialLayers;
   }
 
@@ -236,7 +235,8 @@ class RTCVideoDecoderAdapter::Impl {
   void OnDecodeDone(media::DecoderStatus status);
   void OnOutput(scoped_refptr<media::VideoFrame> frame);
 
-  media::GpuVideoAcceleratorFactories* const gpu_factories_;
+  const raw_ptr<media::GpuVideoAcceleratorFactories, ExperimentalRenderer>
+      gpu_factories_;
 
   // Set on Initialize().
   std::unique_ptr<media::MediaLog> media_log_;
@@ -245,7 +245,8 @@ class RTCVideoDecoderAdapter::Impl {
 
   int32_t outstanding_decode_requests_ = 0;
   absl::optional<base::TimeTicks> start_time_;
-  webrtc::DecodedImageCallback* decode_complete_callback_ = nullptr;
+  raw_ptr<webrtc::DecodedImageCallback, ExperimentalRenderer>
+      decode_complete_callback_ = nullptr;
   int32_t consecutive_error_count_ = 0;
   // Requests that have not been submitted to the decoder yet.
   WTF::Deque<scoped_refptr<media::DecoderBuffer>> pending_buffers_;
@@ -690,7 +691,7 @@ int32_t RTCVideoDecoderAdapter::Decode(const webrtc::EncodedImage& input_image,
                                        bool missing_frames,
                                        int64_t render_time_ms) {
   TRACE_EVENT1("webrtc", "RTCVideoDecoderAdapter::Decode", "timestamp",
-               base::Microseconds(input_image.Timestamp()));
+               base::Microseconds(input_image.RtpTimestamp()));
   DCHECK_CALLED_ON_VALID_SEQUENCE(decoding_sequence_checker_);
   if (!impl_)
     return WEBRTC_VIDEO_CODEC_UNINITIALIZED;
@@ -726,9 +727,15 @@ RTCVideoDecoderAdapter::DecodeInternal(const webrtc::EncodedImage& input_image,
     ChangeStatus(Status::kOk);
   }
 
-  if (ShouldReinitializeForSettingHDRColorSpace(input_image)) {
-    config_.set_color_space_info(
-        blink::WebRtcToMediaVideoColorSpace(*input_image.ColorSpace()));
+  // If color space is specified, transmit it to decoder side by
+  // ReinitializeSync, then we can use the right color space to render and
+  // overlay instead of gussing for webrtc use case on decoder side.
+
+  // This also includes reinitialization for the HDR use case, i.e.
+  // config_.profile() is media::VP9PROFILE_PROFILE2.
+  if (ShouldReinitializeForSettingColorSpace(input_image)) {
+    config_.set_color_space_info(media::VideoColorSpace::FromGfxColorSpace(
+        blink::WebRtcToGfxColorSpace(*input_image.ColorSpace())));
     if (!ReinitializeSync(config_)) {
       RecordRTCVideoDecoderFallbackReason(
           config_.codec(),
@@ -844,19 +851,25 @@ int32_t RTCVideoDecoderAdapter::Release() {
   return WEBRTC_VIDEO_CODEC_OK;
 }
 
-bool RTCVideoDecoderAdapter::ShouldReinitializeForSettingHDRColorSpace(
+bool RTCVideoDecoderAdapter::ShouldReinitializeForSettingColorSpace(
     const webrtc::EncodedImage& input_image) const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(decoding_sequence_checker_);
-
-  if (config_.profile() == media::VP9PROFILE_PROFILE2 &&
-      input_image.ColorSpace()) {
-    const media::VideoColorSpace& new_color_space =
-        blink::WebRtcToMediaVideoColorSpace(*input_image.ColorSpace());
-    if (!config_.color_space_info().IsSpecified() ||
-        new_color_space != config_.color_space_info()) {
-      return true;
-    }
+  if (!input_image.ColorSpace()) {
+    return false;
   }
+
+  const gfx::ColorSpace& new_color_space =
+      blink::WebRtcToGfxColorSpace(*input_image.ColorSpace());
+
+  if (!new_color_space.IsValid()) {
+    return false;
+  }
+
+  if (new_color_space != config_.color_space_info().ToGfxColorSpace()) {
+    DVLOG(2) << __func__ << ", new_color_space:" << new_color_space.ToString();
+    return true;
+  }
+
   return false;
 }
 
@@ -907,18 +920,6 @@ void RTCVideoDecoderAdapter::IncrementCurrentDecoderCountForTesting() {
 
 void RTCVideoDecoderAdapter::DecrementCurrentDecoderCountForTesting() {
   Impl::g_num_decoders_--;
-}
-
-bool RTCVideoDecoderAdapter::Vp9HwSupportForSpatialLayers(
-    const media::VideoDecoderType decoder_type) {
-#if BUILDFLAG(IS_WIN)
-  // D3D11 supports decoding the VP9 kSVC stream, but DXVA not.
-  if (decoder_type == media::VideoDecoderType::kD3D11 &&
-      base::FeatureList::IsEnabled(media::kD3D11Vp9kSVCHWDecoding)) {
-    return true;
-  }
-#endif
-  return base::FeatureList::IsEnabled(media::kVp9kSVCHWDecoding);
 }
 
 }  // namespace blink

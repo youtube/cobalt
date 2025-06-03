@@ -13,18 +13,21 @@ namespace content {
 // Interface for speculation-rules based prerenderer.
 class Prerenderer {
  public:
+  using PrerenderCancellationCallback =
+      base::RepeatingCallback<void(const GURL&)>;
+
   virtual ~Prerenderer() = default;
 
   virtual void ProcessCandidatesForPrerender(
-      const base::UnguessableToken& initiator_devtools_navigation_token,
       const std::vector<blink::mojom::SpeculationCandidatePtr>& candidates) = 0;
 
   virtual bool MaybePrerender(
-      const absl::optional<base::UnguessableToken>&
-          initiator_devtools_navigation_token,
       const blink::mojom::SpeculationCandidatePtr& candidate) = 0;
 
   virtual bool ShouldWaitForPrerenderResult(const GURL& url) = 0;
+
+  virtual void SetPrerenderCancellationCallback(
+      PrerenderCancellationCallback callback) = 0;
 };
 
 }  // namespace content

@@ -39,10 +39,12 @@ namespace content {
 
 PrefetchNetworkContext::PrefetchNetworkContext(
     PrefetchService* prefetch_service,
+    bool use_isolated_network_context,
     const PrefetchType& prefetch_type,
     const blink::mojom::Referrer& referrer_,
     const GlobalRenderFrameHostId& referring_render_frame_host_id)
     : prefetch_service_(prefetch_service),
+      use_isolated_network_context_(use_isolated_network_context),
       prefetch_type_(prefetch_type),
       referrer_(referrer_),
       referring_render_frame_host_id_(referring_render_frame_host_id) {}
@@ -51,16 +53,16 @@ PrefetchNetworkContext::~PrefetchNetworkContext() = default;
 
 network::mojom::NetworkContext* PrefetchNetworkContext::GetNetworkContext()
     const {
-  DCHECK(network_context_);
+  CHECK(network_context_);
   return network_context_.get();
 }
 
 network::mojom::URLLoaderFactory*
 PrefetchNetworkContext::GetURLLoaderFactory() {
   if (!url_loader_factory_) {
-    if (prefetch_type_.IsIsolatedNetworkContextRequired()) {
+    if (use_isolated_network_context_) {
       CreateIsolatedURLLoaderFactory();
-      DCHECK(network_context_);
+      CHECK(network_context_);
     } else {
       // Create new URL factory in the default network context.
       mojo::PendingRemote<network::mojom::URLLoaderFactory> url_factory_remote;
@@ -74,13 +76,13 @@ PrefetchNetworkContext::GetURLLoaderFactory() {
               std::move(url_factory_remote)));
     }
   }
-  DCHECK(url_loader_factory_);
+  CHECK(url_loader_factory_);
   return url_loader_factory_.get();
 }
 
 network::mojom::CookieManager* PrefetchNetworkContext::GetCookieManager() {
-  DCHECK(prefetch_type_.IsIsolatedNetworkContextRequired());
-  DCHECK(network_context_);
+  CHECK(use_isolated_network_context_);
+  CHECK(network_context_);
   if (!cookie_manager_)
     network_context_->GetCookieManager(
         cookie_manager_.BindNewPipeAndPassReceiver());
@@ -94,7 +96,7 @@ void PrefetchNetworkContext::CloseIdleConnections() {
 }
 
 void PrefetchNetworkContext::CreateIsolatedURLLoaderFactory() {
-  DCHECK(prefetch_type_.IsIsolatedNetworkContextRequired());
+  CHECK(use_isolated_network_context_);
 
   network_context_.reset();
   url_loader_factory_.reset();
@@ -103,6 +105,7 @@ void PrefetchNetworkContext::CreateIsolatedURLLoaderFactory() {
       prefetch_service_->GetPrefetchServiceDelegate();
 
   auto context_params = network::mojom::NetworkContextParams::New();
+  context_params->file_paths = network::mojom::NetworkContextFilePaths::New();
   context_params->user_agent =
       GetReducedUserAgent(base::CommandLine::ForCurrentProcess()->HasSwitch(
                               switches::kUseMobileUserAgent),
@@ -118,13 +121,13 @@ void PrefetchNetworkContext::CreateIsolatedURLLoaderFactory() {
   }
 
   context_params->http_cache_enabled = true;
-  DCHECK(!context_params->http_cache_directory);
+  CHECK(!context_params->file_paths->http_cache_directory);
 
-  if (prefetch_type_.IsProxyRequired() &&
+  if (prefetch_type_.IsProxyRequiredWhenCrossOrigin() &&
       !prefetch_type_.IsProxyBypassedForTesting()) {
     PrefetchProxyConfigurator* prefetch_proxy_configurator =
         prefetch_service_->GetPrefetchProxyConfigurator();
-    DCHECK(prefetch_proxy_configurator);
+    CHECK(prefetch_proxy_configurator);
 
     context_params->initial_custom_proxy_config =
         prefetch_proxy_configurator->CreateCustomProxyConfig();
@@ -148,7 +151,7 @@ void PrefetchNetworkContext::CreateIsolatedURLLoaderFactory() {
   CreateNetworkContextInNetworkService(
       network_context_.BindNewPipeAndPassReceiver(), std::move(context_params));
 
-  if (prefetch_type_.IsProxyRequired() &&
+  if (prefetch_type_.IsProxyRequiredWhenCrossOrigin() &&
       !prefetch_type_.IsProxyBypassedForTesting()) {
     // Configure a context client to ensure Web Reports and other privacy leak
     // surfaces won't be enabled.
@@ -173,7 +176,7 @@ void PrefetchNetworkContext::CreateNewURLLoaderFactory(
     network::mojom::NetworkContext* network_context,
     mojo::PendingReceiver<network::mojom::URLLoaderFactory> pending_receiver,
     absl::optional<net::IsolationInfo> isolation_info) {
-  DCHECK(network_context);
+  CHECK(network_context);
 
   auto factory_params = network::mojom::URLLoaderFactoryParams::New();
   factory_params->process_id = network::mojom::kBrowserProcessId;
@@ -183,10 +186,15 @@ void PrefetchNetworkContext::CreateNewURLLoaderFactory(
     factory_params->isolation_info = *isolation_info;
   }
 
-  // Call WillCreateURLLoaderFactory so that Extensions (and other features) can
-  // proxy the URLLoaderFactory pipe.
+  // Prerender should not trigger any prefetch. This assumption is needed to
+  // call GetPageUkmSourceId.
   RenderFrameHost* referring_render_frame_host =
       RenderFrameHost::FromID(referring_render_frame_host_id_);
+  CHECK(!referring_render_frame_host->IsInLifecycleState(
+      RenderFrameHost::LifecycleState::kPrerendering));
+
+  // Call WillCreateURLLoaderFactory so that Extensions (and other features) can
+  // proxy the URLLoaderFactory pipe.
   mojo::PendingRemote<network::mojom::TrustedURLLoaderHeaderClient>
       header_client;
   bool bypass_redirect_checks = false;
@@ -199,7 +207,8 @@ void PrefetchNetworkContext::CreateNewURLLoaderFactory(
       ukm::SourceIdObj::FromInt64(
           referring_render_frame_host->GetPageUkmSourceId()),
       &pending_receiver, &header_client, &bypass_redirect_checks,
-      /*disable_secure_dns=*/nullptr, /*factory_override=*/nullptr);
+      /*disable_secure_dns=*/nullptr, /*factory_override=*/nullptr,
+      /*navigation_response_task_runner=*/nullptr);
 
   if (header_client.is_valid()) {
     factory_params->header_client = std::move(header_client);

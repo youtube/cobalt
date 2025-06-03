@@ -43,6 +43,7 @@
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/frame/csp/content_security_policy.h"
 #include "third_party/blink/renderer/core/frame/policy_container.h"
+#include "third_party/blink/renderer/core/frame/window_or_worker_global_scope.h"
 #include "third_party/blink/renderer/core/script/script.h"
 #include "third_party/blink/renderer/core/workers/worker_classic_script_loader.h"
 #include "third_party/blink/renderer/core/workers/worker_or_worklet_global_scope.h"
@@ -76,6 +77,7 @@ class WorkerThread;
 
 class CORE_EXPORT WorkerGlobalScope
     : public WorkerOrWorkletGlobalScope,
+      public WindowOrWorkerGlobalScope,
       public ActiveScriptWrappable<WorkerGlobalScope>,
       public Supplementable<WorkerGlobalScope> {
   DEFINE_WRAPPERTYPEINFO();
@@ -101,6 +103,11 @@ class CORE_EXPORT WorkerGlobalScope
   const base::UnguessableToken& GetDevToolsToken() const override;
   bool IsInitialized() const final { return !url_.IsNull(); }
   CodeCacheHost* GetCodeCacheHost() override;
+  absl::optional<mojo::PendingRemote<network::mojom::blink::URLLoaderFactory>>
+  FindRaceNetworkRequestURLLoaderFactory(
+      const base::UnguessableToken& token) override {
+    return absl::nullopt;
+  }
 
   void ExceptionUnhandled(int exception_id);
 
@@ -146,7 +153,7 @@ class CORE_EXPORT WorkerGlobalScope
     return agent_group_scheduler_compositor_task_runner_;
   }
 
-  OffscreenFontSelector* GetFontSelector() { return font_selector_; }
+  OffscreenFontSelector* GetFontSelector() { return font_selector_.Get(); }
 
   CoreProbeSink* GetProbeSink() final;
 
@@ -215,8 +222,6 @@ class CORE_EXPORT WorkerGlobalScope
     return nullptr;
   }
 
-  // TODO(fserb): This can be removed once we WorkerGlobalScope implements
-  // FontFaceSource on the IDL.
   FontFaceSet* fonts();
 
   // https://html.spec.whatwg.org/C/#windoworworkerglobalscope-mixin

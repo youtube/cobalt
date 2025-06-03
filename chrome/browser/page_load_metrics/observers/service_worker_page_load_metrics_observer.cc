@@ -46,6 +46,10 @@ const char
     kHistogramServiceWorkerFirstContentfulPaintNonSkippableFetchHandler[] =
         "PageLoad.Clients.ServiceWorker2.PaintTiming."
         "NavigationToFirstContentfulPaint.NonSkippableFetchHandler";
+const char
+    kHistogramServiceWorkerFirstContentfulPaintRaceNetworkRequestEligible[] =
+        "PageLoad.Clients.ServiceWorker2.PaintTiming."
+        "NavigationToFirstContentfulPaint.RaceNetworkRequestEligible";
 const char kBackgroundHistogramServiceWorkerFirstContentfulPaint[] =
     "PageLoad.Clients.ServiceWorker2.PaintTiming."
     "NavigationToFirstContentfulPaint.Background";
@@ -68,6 +72,12 @@ const char
     kHistogramServiceWorkerLargestContentfulPaintNonSkippableFetchHandler[] =
         "PageLoad.Clients.ServiceWorker2.PaintTiming."
         "NavigationToLargestContentfulPaint2.NonSkippableFetchHandler";
+// Record LCP when the page is eligible for RaceNetworkRequest.
+// note: This doesn't mean RaceNetworkRequest is actually dispatched.
+const char
+    kHistogramServiceWorkerLargestContentfulPaintRaceNetworkRequestEligible[] =
+        "PageLoad.Clients.ServiceWorker2.PaintTiming."
+        "NavigationToLargestContentfulPaint2.RaceNetworkRequestEligible";
 
 const char kHistogramServiceWorkerParseStartSearch[] =
     "PageLoad.Clients.ServiceWorker2.ParseTiming.NavigationToParseStart.search";
@@ -250,6 +260,13 @@ void ServiceWorkerPageLoadMetricsObserver::OnFirstContentfulPaintInPage(
             kHistogramServiceWorkerFirstContentfulPaintNonSkippableFetchHandler,
         timing.paint_timing->first_contentful_paint.value());
   }
+
+  if (IsServiceWorkerEligibleForRaceNetworkRequest()) {
+    PAGE_LOAD_HISTOGRAM(
+        internal::
+            kHistogramServiceWorkerFirstContentfulPaintRaceNetworkRequestEligible,
+        timing.paint_timing->first_contentful_paint.value());
+  }
 }
 
 void ServiceWorkerPageLoadMetricsObserver::OnDomContentLoadedEventStart(
@@ -387,6 +404,12 @@ void ServiceWorkerPageLoadMetricsObserver::RecordTimingHistograms() {
               kHistogramServiceWorkerLargestContentfulPaintNonSkippableFetchHandler,
           all_frames_largest_contentful_paint.Time().value());
     }
+    if (IsServiceWorkerEligibleForRaceNetworkRequest()) {
+      PAGE_LOAD_HISTOGRAM(
+          internal::
+              kHistogramServiceWorkerLargestContentfulPaintRaceNetworkRequestEligible,
+          all_frames_largest_contentful_paint.Time().value());
+    }
   }
   RecordSubresourceLoad();
 }
@@ -403,6 +426,14 @@ bool ServiceWorkerPageLoadMetricsObserver::
   return (GetDelegate().GetMainFrameMetadata().behavior_flags &
           blink::LoadingBehaviorFlag::
               kLoadingBehaviorServiceWorkerFetchHandlerSkippable) != 0;
+}
+
+bool ServiceWorkerPageLoadMetricsObserver::
+    IsServiceWorkerEligibleForRaceNetworkRequest() {
+  CHECK(IsServiceWorkerControlled());
+  return (GetDelegate().GetMainFrameMetadata().behavior_flags &
+          blink::LoadingBehaviorFlag::
+              kLoadingBehaviorServiceWorkerRaceNetworkRequest);
 }
 
 void ServiceWorkerPageLoadMetricsObserver::RecordSubresourceLoad() {
@@ -501,7 +532,9 @@ void ServiceWorkerPageLoadMetricsObserver::RecordSubresourceLoad() {
         .SetManifestHandled(sw_metrics.manifest_handled)
         .SetManifestFallback(sw_metrics.manifest_fallback)
         .SetSpeculationRulesHandled(sw_metrics.speculation_rules_handled)
-        .SetSpeculationRulesFallback(sw_metrics.speculation_rules_fallback);
+        .SetSpeculationRulesFallback(sw_metrics.speculation_rules_fallback)
+        .SetDictionaryHandled(sw_metrics.dictionary_handled)
+        .SetDictionaryFallback(sw_metrics.dictionary_fallback);
   }
   builder.Record(ukm::UkmRecorder::Get());
 }

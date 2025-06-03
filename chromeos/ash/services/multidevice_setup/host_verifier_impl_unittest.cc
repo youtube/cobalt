@@ -99,7 +99,8 @@ class MultiDeviceSetupHostVerifierImplTest
     HostVerifierImpl::RegisterPrefs(test_pref_service_->registry());
 
     test_clock_ = std::make_unique<base::SimpleTestClock>();
-    test_clock_->SetNow(base::Time::FromJavaTime(kTestTimeMs));
+    test_clock_->SetNow(
+        base::Time::FromMillisecondsSinceUnixEpoch(kTestTimeMs));
   }
 
   void TearDown() override {
@@ -276,8 +277,10 @@ class MultiDeviceSetupHostVerifierImplTest
   std::unique_ptr<sync_preferences::TestingPrefServiceSyncable>
       test_pref_service_;
   std::unique_ptr<base::SimpleTestClock> test_clock_;
-  raw_ptr<base::MockOneShotTimer, ExperimentalAsh> mock_retry_timer_ = nullptr;
-  raw_ptr<base::MockOneShotTimer, ExperimentalAsh> mock_sync_timer_ = nullptr;
+  raw_ptr<base::MockOneShotTimer, DanglingUntriaged | ExperimentalAsh>
+      mock_retry_timer_ = nullptr;
+  raw_ptr<base::MockOneShotTimer, DanglingUntriaged | ExperimentalAsh>
+      mock_sync_timer_ = nullptr;
 
   std::unique_ptr<HostVerifier> host_verifier_;
 

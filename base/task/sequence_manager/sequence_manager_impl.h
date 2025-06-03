@@ -33,6 +33,7 @@
 #include "base/task/sequence_manager/enqueue_order.h"
 #include "base/task/sequence_manager/enqueue_order_generator.h"
 #include "base/task/sequence_manager/sequence_manager.h"
+#include "base/task/sequence_manager/task_queue.h"
 #include "base/task/sequence_manager/task_queue_impl.h"
 #include "base/task/sequence_manager/task_queue_selector.h"
 #include "base/task/sequence_manager/thread_controller.h"
@@ -129,12 +130,10 @@ class BASE_EXPORT SequenceManagerImpl
   void ReclaimMemory() override;
   bool GetAndClearSystemIsQuiescentBit() override;
   void SetWorkBatchSize(int work_batch_size) override;
-  void SetTimerSlack(TimerSlack timer_slack) override;
   void EnableCrashKeys(const char* async_stack_crash_key) override;
   const MetricRecordingSettings& GetMetricRecordingSettings() const override;
   size_t GetPendingTaskCountForTesting() const override;
-  scoped_refptr<TaskQueue> CreateTaskQueue(
-      const TaskQueue::Spec& spec) override;
+  TaskQueue::Handle CreateTaskQueue(const TaskQueue::Spec& spec) override;
   std::string DescribeAllPendingTasks() const override;
   void PrioritizeYieldingToNative(base::TimeTicks prioritize_until) override;
   void AddTaskObserver(TaskObserver* task_observer) override;
@@ -188,10 +187,6 @@ class BASE_EXPORT SequenceManagerImpl
   // Unregisters a TaskQueue previously created by |NewTaskQueue()|.
   // No tasks will run on this queue after this call.
   void UnregisterTaskQueueImpl(
-      std::unique_ptr<internal::TaskQueueImpl> task_queue);
-
-  // Schedule a call to UnregisterTaskQueueImpl as soon as it's safe to do so.
-  void ShutdownTaskQueueGracefully(
       std::unique_ptr<internal::TaskQueueImpl> task_queue);
 
   scoped_refptr<const AssociatedThreadId> associated_thread() const {
@@ -331,19 +326,14 @@ class BASE_EXPORT SequenceManagerImpl
     TimeTicks next_time_to_reclaim_memory;
 
     // List of task queues managed by this SequenceManager.
-    // - active_queues contains queues that are still running tasks.
-    //   Most often they are owned by relevant TaskQueues, but
-    //   queues_to_gracefully_shutdown_ are included here too.
-    // - queues_to_gracefully_shutdown contains queues which should be deleted
-    //   when they become empty.
+    // - active_queues contains queues that are still running tasks, which are
+    //   are owned by relevant TaskQueues.
     // - queues_to_delete contains soon-to-be-deleted queues, because some
     //   internal scheduling code does not expect queues to be pulled
     //   from underneath.
 
     std::set<internal::TaskQueueImpl*> active_queues;
 
-    std::map<internal::TaskQueueImpl*, std::unique_ptr<internal::TaskQueueImpl>>
-        queues_to_gracefully_shutdown;
     std::map<internal::TaskQueueImpl*, std::unique_ptr<internal::TaskQueueImpl>>
         queues_to_delete;
 
@@ -419,7 +409,7 @@ class BASE_EXPORT SequenceManagerImpl
   void ReloadEmptyWorkQueues() const;
 
   std::unique_ptr<internal::TaskQueueImpl> CreateTaskQueueImpl(
-      const TaskQueue::Spec& spec) override;
+      const TaskQueue::Spec& spec);
 
   // Periodically reclaims memory by sweeping away canceled tasks and shrinking
   // buffers.

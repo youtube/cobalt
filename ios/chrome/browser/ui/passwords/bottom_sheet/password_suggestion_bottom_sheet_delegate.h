@@ -16,18 +16,20 @@
 // selected by the user, which is expected to fill the relevant fields.
 - (void)didSelectSuggestion:(NSInteger)row;
 
-// Request to refocus the field which originally triggered the bottom sheet
-// after the bottom sheet has been dismissed.
-- (void)refocus;
+// Notification that the bottom sheet is dismissed, possibly refocusing
+// the field which originally triggered the bottom sheet after the bottom sheet
+// has been dismissed.
+- (void)dismiss;
 
 // Disables future refocus requests.
 - (void)disableRefocus;
 
-// Loads the favicon associated with the provided index path.
-// Defaults to the globe symbol if no URL is found.
-- (void)loadFaviconAtIndexPath:(NSIndexPath*)indexPath
-           faviconBlockHandler:(FaviconLoader::FaviconAttributesCompletionBlock)
-                                   faviconLoadedBlock;
+// Returns the username at a given row with the appended suffix removed.
+- (NSString*)usernameAtRow:(NSInteger)row;
+
+// Loads the favicon for cell. Defaults to the globe symbol if the URL is empty.
+- (void)loadFaviconWithBlockHandler:
+    (FaviconLoader::FaviconAttributesCompletionBlock)faviconLoadedBlock;
 @end
 
 #endif  // IOS_CHROME_BROWSER_UI_PASSWORDS_BOTTOM_SHEET_PASSWORD_SUGGESTION_BOTTOM_SHEET_DELEGATE_H_

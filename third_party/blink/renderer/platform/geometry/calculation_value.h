@@ -69,6 +69,7 @@ class PLATFORM_EXPORT CalculationValue : public RefCounted<CalculationValue> {
                             : Length::ValueRange::kAll;
   }
   bool HasAnchorQueries() const;
+  bool HasAutoAnchorPositioning() const;
 
   float Pixels() const {
     DCHECK(!IsExpression());
@@ -91,6 +92,7 @@ class PLATFORM_EXPORT CalculationValue : public RefCounted<CalculationValue> {
                                               double progress,
                                               Length::ValueRange) const;
   scoped_refptr<const CalculationValue> SubtractFromOneHundredPercent() const;
+  scoped_refptr<const CalculationValue> Add(const CalculationValue&) const;
   scoped_refptr<const CalculationValue> Zoom(double factor) const;
 
  private:

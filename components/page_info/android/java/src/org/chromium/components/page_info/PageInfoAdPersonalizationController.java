@@ -8,7 +8,8 @@ import android.view.View;
 import android.view.ViewGroup;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.VisibleForTesting;
+
+import org.chromium.base.ResettersForTesting;
 
 import java.util.List;
 
@@ -21,7 +22,7 @@ public class PageInfoAdPersonalizationController extends PageInfoPreferenceSubpa
 
     private final PageInfoMainController mMainController;
     private final PageInfoRowView mRowView;
-    private PageInfoAdPersonalizationPreference mSubPage;
+    private PageInfoAdPersonalizationSettings mSubPage;
 
     private boolean mHasJoinedUserToInterestGroup;
     private List<String> mTopics;
@@ -57,19 +58,15 @@ public class PageInfoAdPersonalizationController extends PageInfoPreferenceSubpa
     @NonNull
     @Override
     public String getSubpageTitle() {
-        var siteSettingsDelegate = getDelegate().getSiteSettingsDelegate();
-        return mRowView.getContext().getResources().getString(
-                siteSettingsDelegate.isPrivacySandboxSettings4Enabled()
-                        ? R.string.page_info_ad_privacy_header
-                        : R.string.page_info_ad_personalization_title);
+        return mRowView.getContext().getResources().getString(R.string.page_info_ad_privacy_header);
     }
 
     @Override
     public View createViewForSubpage(ViewGroup parent) {
         assert mSubPage == null;
-        mSubPage = new PageInfoAdPersonalizationPreference();
-        PageInfoAdPersonalizationPreference.Params params =
-                new PageInfoAdPersonalizationPreference.Params();
+        mSubPage = new PageInfoAdPersonalizationSettings();
+        PageInfoAdPersonalizationSettings.Params params =
+                new PageInfoAdPersonalizationSettings.Params();
         params.hasJoinedUserToInterestGroup = mHasJoinedUserToInterestGroup;
         params.topicInfo = mTopics;
         params.onManageInterestsButtonClicked = () -> {
@@ -93,8 +90,8 @@ public class PageInfoAdPersonalizationController extends PageInfoPreferenceSubpa
         mSubPage = null;
     }
 
-    @VisibleForTesting
     public static void setTopicsForTesting(List<String> topics) {
         sTopicsForTesting = topics;
+        ResettersForTesting.register(() -> sTopicsForTesting = null);
     }
 }

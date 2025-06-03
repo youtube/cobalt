@@ -60,7 +60,7 @@ class MockSuggestionsHandler
 
   void OnSuggestionsReturned(
       FieldGlobalId field_id,
-      AutoselectFirstSuggestion autoselect_first_suggestion,
+      AutofillSuggestionTriggerSource trigger_source,
       const std::vector<Suggestion>& suggestions) override {
     last_suggestions_ = suggestions;
   }
@@ -96,9 +96,9 @@ class AutofillAutocompleteTest : public InProcessBrowserTest {
     active_browser_ = nullptr;
     ContentAutofillDriverFactory::FromWebContents(web_contents)
         ->DriverForFrame(web_contents->GetPrimaryMainFrame())
-        ->autofill_manager()
-        ->client()
-        ->HideAutofillPopup(PopupHidingReason::kTabGone);
+        ->GetAutofillManager()
+        .client()
+        .HideAutofillPopup(PopupHidingReason::kTabGone);
     test::ReenableSystemServices();
   }
 
@@ -131,7 +131,7 @@ class AutofillAutocompleteTest : public InProcessBrowserTest {
     const std::string js = base::StringPrintf(
         js_format, kDefaultAutocompleteInputId, value.c_str());
 
-    ASSERT_TRUE(content::ExecuteScript(web_contents(), js));
+    ASSERT_TRUE(content::ExecJs(web_contents(), js));
 
     // Set up observer for Autocomplete form submissions.
     TestAutofillAsyncObserver observer(
@@ -206,18 +206,16 @@ class AutofillAutocompleteTest : public InProcessBrowserTest {
   void GetAutocompleteSuggestions(const std::string& input_name,
                                   const std::string& prefix,
                                   MockSuggestionsHandler& handler) {
-    FormFieldData field;
-    AutofillClient* autofill_client =
+    AutofillClient& autofill_client =
         ContentAutofillDriverFactory::FromWebContents(web_contents())
             ->DriverForFrame(web_contents()->GetPrimaryMainFrame())
-            ->autofill_manager()
-            ->client();
-    DCHECK(autofill_client);
-    test::CreateTestFormField(/*label=*/"", input_name.c_str(), prefix.c_str(),
-                              "input", &field);
+            ->GetAutofillManager()
+            .client();
     EXPECT_TRUE(autocomplete_history_manager()->OnGetSingleFieldSuggestions(
-        AutoselectFirstSuggestion(false), field, *autofill_client,
-        handler.GetWeakPtr(), SuggestionsContext()));
+        AutofillSuggestionTriggerSource::kFormControlElementClicked,
+        test::CreateTestFormField(/*label=*/"", input_name, prefix,
+                                  FormControlType::kInputText),
+        autofill_client, handler.GetWeakPtr(), SuggestionsContext()));
 
     // Make sure the DB task gets executed.
     WaitForDBTasks();

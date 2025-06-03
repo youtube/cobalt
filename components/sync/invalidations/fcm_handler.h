@@ -11,6 +11,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/observer_list.h"
 #include "base/sequence_checker.h"
+#include "base/time/time.h"
 #include "base/timer/timer.h"
 #include "components/gcm_driver/gcm_app_handler.h"
 #include "components/gcm_driver/instance_id/instance_id.h"
@@ -65,6 +66,9 @@ class FCMHandler : public gcm::GCMAppHandler {
   // previously received messages will be immediately replayed.
   void AddListener(InvalidationsListener* listener);
 
+  // Returns whether `listener` was added before.
+  bool HasListener(InvalidationsListener* listener);
+
   // Removes |listener|, does nothing if it wasn't added before. |listener| must
   // not be nullptr.
   void RemoveListener(InvalidationsListener* listener);
@@ -89,14 +93,14 @@ class FCMHandler : public gcm::GCMAppHandler {
 
  private:
   // Called when a subscription token is obtained from the GCM server.
-  void DidRetrieveToken(const std::string& subscription_token,
+  void DidRetrieveToken(base::TimeTicks fetch_time_for_metrics,
+                        bool is_validation,
+                        const std::string& subscription_token,
                         instance_id::InstanceID::Result result);
   void ScheduleNextTokenValidation();
   void StartTokenValidation();
-  void DidReceiveTokenForValidation(const std::string& new_token,
-                                    instance_id::InstanceID::Result result);
 
-  void StartTokenFetch(instance_id::InstanceID::GetTokenCallback callback);
+  void StartTokenFetch(bool is_validation);
 
   SEQUENCE_CHECKER(sequence_checker_);
 

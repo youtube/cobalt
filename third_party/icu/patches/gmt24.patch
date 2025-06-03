@@ -1,0 +1,43 @@
+diff --git a/source/i18n/calendar.cpp b/source/i18n/calendar.cpp
+index 72d5d10ed..d87a9baf0 100644
+--- a/source/i18n/calendar.cpp
++++ b/source/i18n/calendar.cpp
+@@ -654,7 +654,7 @@ static const int32_t kCalendarLimits[UCAL_FIELD_COUNT][4] = {
+     {           0,            0,            59,            59  }, // MINUTE
+     {           0,            0,            59,            59  }, // SECOND
+     {           0,            0,           999,           999  }, // MILLISECOND
+-    {-16*kOneHour, -16*kOneHour,   12*kOneHour,   30*kOneHour  }, // ZONE_OFFSET
++    {-24*kOneHour, -16*kOneHour,   12*kOneHour,   30*kOneHour  }, // ZONE_OFFSET
+     { -1*kOneHour,  -1*kOneHour,    2*kOneHour,    2*kOneHour  }, // DST_OFFSET
+     {/*N/A*/-1,       /*N/A*/-1,     /*N/A*/-1,       /*N/A*/-1}, // YEAR_WOY
+     {           1,            1,             7,             7  }, // DOW_LOCAL
+diff --git a/source/test/intltest/tztest.cpp b/source/test/intltest/tztest.cpp
+index 14f072f3c..7aa60bb1f 100644
+--- a/source/test/intltest/tztest.cpp
++++ b/source/test/intltest/tztest.cpp
+@@ -2623,4 +2623,13 @@ void TimeZoneTest::TestRawOffsetAndOffsetConsistency22041() {
+                      zone->getRawOffset(), raw);
+     }
+ }
++
++void TimeZoneTest::TestGMTMinus24ICU22526() {
++    UErrorCode status = U_ZERO_ERROR;
++    LocalPointer<TimeZone> tz(TimeZone::createTimeZone("GMT-23:59"), status);
++    U_ASSERT(U_SUCCESS(status));
++    GregorianCalendar gc(tz.orphan(), status);
++    gc.setTime(123456789, status);
++    gc.get(UCAL_MONTH, status);
++}
+ #endif /* #if !UCONFIG_NO_FORMATTING */
+diff --git a/source/test/intltest/tztest.h b/source/test/intltest/tztest.h
+index 6dcdbd3f6..68a843c92 100644
+--- a/source/test/intltest/tztest.h
++++ b/source/test/intltest/tztest.h
+@@ -105,6 +105,7 @@ public:
+     void TestGetIDForWindowsID();
+     void TestCasablancaNameAndOffset22041();
+     void TestRawOffsetAndOffsetConsistency22041();
++    void TestGMTMinus24ICU22526();
+ 
+     static const UDate INTERVAL;
+ 

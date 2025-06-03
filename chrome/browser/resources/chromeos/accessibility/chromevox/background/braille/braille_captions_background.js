@@ -17,24 +17,28 @@ import {QueueMode} from '../../common/tts_types.js';
 import {ChromeVox} from '../chromevox.js';
 import {ChromeVoxPrefs} from '../prefs.js';
 
+/**
+ * Interface that allows clients to listen for changes to the braille captions.
+ */
+export class BrailleCaptionsListener {
+  /** Called when the braille captions state changes. */
+  onBrailleCaptionsStateChanged() {}
+}
+
 export class BrailleCaptionsBackground {
-  /**
-   * @param {function()} stateCallback Called when the state of the captions
-   *     feature changes.
-   */
-  constructor(stateCallback) {
-    /** @private {function()} */
-    this.stateCallback_ = stateCallback;
+  /** @param {!BrailleCaptionsListener} listener */
+  constructor(listener) {
+    /** @private {!BrailleCaptionsListener} */
+    this.listener_ = listener;
   }
 
   /**
    * Called once to initialize the class.
-   * @param {function()} stateCallback Called when the state of the captions
-   *     feature changes.
+   * @param {!BrailleCaptionsListener} listener
    */
-  static init(stateCallback) {
+  static init(listener) {
     BrailleCaptionsBackground.instance =
-        new BrailleCaptionsBackground(stateCallback);
+        new BrailleCaptionsBackground(listener);
   }
 
   /**
@@ -42,7 +46,7 @@ export class BrailleCaptionsBackground {
    * @return {boolean}
    */
   static isEnabled() {
-    return Boolean(LocalStorage.get(BrailleCaptionsBackground.PREF_KEY));
+    return Boolean(LocalStorage.get(PREF_KEY));
   }
 
   /**
@@ -62,9 +66,9 @@ export class BrailleCaptionsBackground {
     const byteBuf = new Uint8Array(cells);
     let brailleChars = '';
 
-    for (let i = 0; i < byteBuf.length; ++i) {
-      brailleChars += String.fromCharCode(
-          BrailleCaptionsBackground.BRAILLE_UNICODE_BLOCK_START | byteBuf[i]);
+    for (const byteVal of byteBuf) {
+      brailleChars +=
+          String.fromCharCode(BRAILLE_UNICODE_BLOCK_START | byteVal);
     }
     const groups = BrailleCaptionsBackground.groupBrailleAndText(
         brailleChars, text, brailleToText, offsetsForSlices);
@@ -82,9 +86,9 @@ export class BrailleCaptionsBackground {
     const byteBuf = new Uint8Array(cells);
     let brailleChars = '';
 
-    for (let i = 0; i < byteBuf.length; ++i) {
-      brailleChars += String.fromCharCode(
-          BrailleCaptionsBackground.BRAILLE_UNICODE_BLOCK_START | byteBuf[i]);
+    for (const byteVal of byteBuf) {
+      brailleChars +=
+          String.fromCharCode(BRAILLE_UNICODE_BLOCK_START | byteVal);
     }
 
     const groups = [['Image', brailleChars]];
@@ -135,10 +139,10 @@ export class BrailleCaptionsBackground {
    */
   static setActive(newValue) {
     const oldValue = BrailleCaptionsBackground.isEnabled();
-    ChromeVoxPrefs.instance.setPref(
-        BrailleCaptionsBackground.PREF_KEY, newValue);
+    ChromeVoxPrefs.instance.setPref(PREF_KEY, newValue);
     if (oldValue !== newValue) {
-      BrailleCaptionsBackground.instance.callStateCallback_();
+      BrailleCaptionsBackground.instance.listener_
+          .onBrailleCaptionsStateChanged();
       const msg = newValue ? Msgs.getMsg('braille_captions_enabled') :
                              Msgs.getMsg('braille_captions_disabled');
       ChromeVox.tts.speak(msg, QueueMode.QUEUE);
@@ -154,27 +158,36 @@ export class BrailleCaptionsBackground {
    */
   static getVirtualDisplayState() {
     if (BrailleCaptionsBackground.isEnabled()) {
-      const rows = Number(SettingsManager.get('virtualBrailleRows'));
-      const columns = Number(SettingsManager.get('virtualBrailleColumns'));
-      return {available: true, textRowCount: rows, textColumnCount: columns};
+      const rows = SettingsManager.getNumber('virtualBrailleRows');
+      const columns = SettingsManager.getNumber('virtualBrailleColumns');
+      // TODO(accessibility) make `cellSize` customizable.
+      return {
+        available: true,
+        textRowCount: rows,
+        textColumnCount: columns,
+        cellSize: 8,
+      };
     } else {
-      return {available: false, textRowCount: 0, textColumnCount: 0};
-    }
-  }
-
-  /** @private */
-  callStateCallback_() {
-    if (this.stateCallback_) {
-      this.stateCallback_();
+      return {
+        available: false,
+        textRowCount: 0,
+        textColumnCount: 0,
+        cellSize: 0,
+      };
     }
   }
 }
+
+/** @type {BrailleCaptionsBackground} */
+BrailleCaptionsBackground.instance;
+
+// Local to module.
 
 /**
  * Key set in local storage when this feature is enabled.
  * @const
  */
-BrailleCaptionsBackground.PREF_KEY = 'brailleCaptions';
+const PREF_KEY = 'brailleCaptions';
 
 /**
  * Unicode block of braille pattern characters.  A braille pattern is formed
@@ -182,4 +195,4 @@ BrailleCaptionsBackground.PREF_KEY = 'brailleCaptions';
  * the dots as per the ISO 11548-1 standard.
  * @const
  */
-BrailleCaptionsBackground.BRAILLE_UNICODE_BLOCK_START = 0x2800;
+const BRAILLE_UNICODE_BLOCK_START = 0x2800;

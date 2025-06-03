@@ -4,8 +4,8 @@
 
 #import "ios/showcase/infobars/sc_infobar_modal_save_card_coordinator.h"
 
+#import "ios/chrome/browser/autofill/message/save_card_message_with_links.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
-#import "ios/chrome/browser/ui/autofill/save_card_message_with_links.h"
 #import "ios/chrome/browser/ui/infobars/banners/infobar_banner_delegate.h"
 #import "ios/chrome/browser/ui/infobars/banners/infobar_banner_view_controller.h"
 #import "ios/chrome/browser/ui/infobars/modals/infobar_save_card_modal_delegate.h"
@@ -14,10 +14,6 @@
 #import "ios/showcase/infobars/sc_infobar_constants.h"
 #import "ios/showcase/infobars/sc_infobar_container_view_controller.h"
 #import "url/gurl.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 class GURL;
 

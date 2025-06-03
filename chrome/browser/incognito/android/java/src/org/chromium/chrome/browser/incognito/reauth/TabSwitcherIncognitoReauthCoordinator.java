@@ -8,7 +8,6 @@ import android.content.Context;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.annotation.VisibleForTesting;
 
 import org.chromium.chrome.browser.incognito.reauth.IncognitoReauthManager.IncognitoReauthCallback;
 import org.chromium.chrome.browser.tasks.tab_management.TabSwitcherCustomViewManager;
@@ -66,7 +65,7 @@ class TabSwitcherIncognitoReauthCoordinator extends IncognitoReauthCoordinatorBa
     public void show() {
         prepareToshow(/*menuButtonDelegate= */ null, /*fullscreen= */ false);
         boolean success = mTabSwitcherCustomViewManager.requestView(
-                getIncognitoReauthView(), mBackPressRunnable);
+                getIncognitoReauthView(), mBackPressRunnable, /*clearTabList=*/true);
         assert success : "Unable to signal showing the re-auth screen to tab switcher.";
         mNewTabInteractabilityToken = mIncognitoReauthTopToolbarDelegate.disableNewTabButton();
     }
@@ -92,7 +91,6 @@ class TabSwitcherIncognitoReauthCoordinator extends IncognitoReauthCoordinatorBa
     /**
      * A test-only method for setting the new tab interactability token.
      */
-    @VisibleForTesting
     protected void setNewTabInteractabilityTokenForTesting(@NonNull Integer token) {
         mNewTabInteractabilityToken = token;
     }

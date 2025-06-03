@@ -12,6 +12,7 @@
 #include "chrome/browser/ssl/https_first_mode_settings_tracker.h"
 #include "chrome/browser/ssl/https_only_mode_tab_helper.h"
 #include "chrome/browser/ssl/https_upgrades_navigation_throttle.h"
+#include "chrome/browser/ssl/https_upgrades_util.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/pref_names.h"
 #include "components/prefs/pref_service.h"
@@ -33,6 +34,26 @@ namespace {
 // showing the HTTPS-First Mode interstitial.
 base::TimeDelta g_fallback_delay = base::Seconds(3);
 
+// Returns true if HTTPS-First Mode interstitial should be enabled by the
+// Typically Secure User heuristic. The heuristic can set the HFM pref to true,
+// but it shouldn't override user preference. If the user ever modified
+// the HFM pref by enabling or disabling it before, this will return false.
+bool IsInterstitialEnabledByTypicallySecureUserHeuristic(Profile* profile) {
+  if (!base::FeatureList::IsEnabled(
+          features::kHttpsFirstModeV2ForTypicallySecureUsers)) {
+    return false;
+  }
+  HttpsFirstModeService* hfm_service =
+      HttpsFirstModeServiceFactory::GetForProfile(profile);
+  // HttpsFirstModeService can be null in tests.
+  if (hfm_service) {
+    hfm_service->MaybeEnableHttpsFirstModeForUser(
+        /*add_fallback_entry=*/false);
+  }
+  return profile->GetPrefs()->GetBoolean(prefs::kHttpsOnlyModeAutoEnabled) &&
+         profile->GetPrefs()->GetBoolean(prefs::kHttpsOnlyModeEnabled);
+}
+
 }  // namespace
 
 // static
@@ -50,12 +71,18 @@ HttpsUpgradesNavigationThrottle::MaybeCreateThrottleFor(
     return nullptr;
   }
 
+  // Repair prefs if the user was previously affected by crbug.com/1475747. This
+  // will reset the affected prefs, before setting up the state for the Throttle
+  // for this navigation.
+  // TODO(crbug.com/1475747): Remove this after M120 (or after
+  // kHttpsFirstModeV2ForTypicallySecureUsers is enabled by default).
+  HttpsFirstModeService::FixTypicallySecureUserPrefs(profile);
+
   PrefService* prefs = profile->GetPrefs();
   security_interstitials::https_only_mode::HttpInterstitialState
       interstitial_state;
   interstitial_state.enabled_by_pref =
-      base::FeatureList::IsEnabled(features::kHttpsFirstModeV2) && prefs &&
-      prefs->GetBoolean(prefs::kHttpsOnlyModeEnabled);
+      prefs && prefs->GetBoolean(prefs::kHttpsOnlyModeEnabled);
 
   StatefulSSLHostStateDelegate* state =
       static_cast<StatefulSSLHostStateDelegate*>(
@@ -67,13 +94,16 @@ HttpsUpgradesNavigationThrottle::MaybeCreateThrottleFor(
       HttpsFirstModeServiceFactory::GetForProfile(profile);
   if (hfm_service) {
     // Can be null in some cases, e.g. when using Ash sign-in profile.
-    hfm_service->MaybeEnableHttpsFirstModeForUrl(profile, handle->GetURL());
+    hfm_service->MaybeEnableHttpsFirstModeForUrl(handle->GetURL());
   }
   // StatefulSSLHostStateDelegate can be null during tests.
   if (state && state->IsHttpsEnforcedForHost(handle->GetURL().host(),
                                              storage_partition)) {
     interstitial_state.enabled_by_engagement_heuristic = true;
   }
+
+  interstitial_state.enabled_by_typically_secure_browsing =
+      IsInterstitialEnabledByTypicallySecureUserHeuristic(profile);
 
   bool https_upgrades_enabled =
       interstitial_state.enabled_by_pref ||
@@ -90,15 +120,17 @@ HttpsUpgradesNavigationThrottle::MaybeCreateThrottleFor(
   HttpsOnlyModeTabHelper::CreateForWebContents(handle->GetWebContents());
 
   return std::make_unique<HttpsUpgradesNavigationThrottle>(
-      handle, std::move(blocking_page_factory), interstitial_state);
+      handle, profile, std::move(blocking_page_factory), interstitial_state);
 }
 
 HttpsUpgradesNavigationThrottle::HttpsUpgradesNavigationThrottle(
     content::NavigationHandle* handle,
+    Profile* profile,
     std::unique_ptr<SecurityBlockingPageFactory> blocking_page_factory,
     security_interstitials::https_only_mode::HttpInterstitialState
         interstitial_state)
     : content::NavigationThrottle(handle),
+      profile_(profile),
       blocking_page_factory_(std::move(blocking_page_factory)),
       interstitial_state_(interstitial_state) {}
 
@@ -126,16 +158,20 @@ HttpsUpgradesNavigationThrottle::WillStartRequest() {
   auto* handle = navigation_handle();
   auto* contents = handle->GetWebContents();
   auto* tab_helper = HttpsOnlyModeTabHelper::FromWebContents(contents);
+
   if ((handle->GetPageTransition() & ui::PAGE_TRANSITION_FORWARD_BACK &&
        tab_helper->has_failed_upgrade(handle->GetURL())) &&
       !handle->GetURL().SchemeIsCryptographic()) {
-    if (interstitial_state_.enabled_by_pref) {
+    if (IsInterstitialEnabled(interstitial_state_)) {
+      security_interstitials::https_only_mode::RecordInterstitialReason(
+          interstitial_state_);
+
       // Mark this as a fallback HTTP navigation and trigger the interstitial.
       tab_helper->set_is_navigation_fallback(true);
       std::unique_ptr<security_interstitials::HttpsOnlyModeBlockingPage>
           blocking_page =
               blocking_page_factory_->CreateHttpsOnlyModeBlockingPage(
-                  contents, handle->GetURL());
+                  contents, handle->GetURL(), interstitial_state_);
       std::string interstitial_html = blocking_page->GetHTMLContents();
       security_interstitials::SecurityInterstitialTabHelper::
           AssociateBlockingPage(handle, std::move(blocking_page));
@@ -148,6 +184,13 @@ HttpsUpgradesNavigationThrottle::WillStartRequest() {
     // TODO(crbug.com/1435222): Record a separate histogram for Site Engagement
     // heuristic.
   }
+
+  // TODO(crbug.com/1448371): There are some cases where the navigation may
+  // "restart", such as if we encounter an exempted transient network error on
+  // the upgraded HTTPS URL, show a net error page, and then reload the tab. In
+  // these cases the navigation will proceed with the upgrade/fallback logic,
+  // but the navigation timeout will no longer be set. Currently, re-starting
+  // the timer here would trigger a DCHECK in NavigationRequest.
 
   // Navigation is HTTPS or an initial HTTP navigation (which will get
   // upgraded by the interceptor). Fallback HTTP navigations are handled in
@@ -172,13 +215,17 @@ HttpsUpgradesNavigationThrottle::WillRedirectRequest() {
   auto* handle = navigation_handle();
   auto* contents = handle->GetWebContents();
   auto* tab_helper = HttpsOnlyModeTabHelper::FromWebContents(contents);
+
   if (tab_helper->is_navigation_fallback() &&
       !handle->GetURL().SchemeIsCryptographic()) {
-    if (interstitial_state_.enabled_by_pref) {
+    if (IsInterstitialEnabled(interstitial_state_)) {
+      security_interstitials::https_only_mode::RecordInterstitialReason(
+          interstitial_state_);
+
       std::unique_ptr<security_interstitials::HttpsOnlyModeBlockingPage>
           blocking_page =
               blocking_page_factory_->CreateHttpsOnlyModeBlockingPage(
-                  contents, handle->GetURL());
+                  contents, handle->GetURL(), interstitial_state_);
       std::string interstitial_html = blocking_page->GetHTMLContents();
       security_interstitials::SecurityInterstitialTabHelper::
           AssociateBlockingPage(handle, std::move(blocking_page));
@@ -207,13 +254,12 @@ HttpsUpgradesNavigationThrottle::WillRedirectRequest() {
   //      navigation, and will also result in the Interceptor serving an
   //      artificial redirect to upgrade the navigation.
   //
-  // HTTPS->HTTP downgrades may result in net::ERR_TOO_MANY_REDIRECTS, but these
+  // The Interceptor logs the URLs that it sees and triggers fallback if it
+  // encounters a redirect loop. Any cases that might not be caught by the
+  // Interceptor should result in net::ERR_TOO_MANY_REDIRECTS, but in general
   // redirect loops should hit the cache and not cost too much. If they go too
   // long, the fallback timer will kick in. ERR_TOO_MANY_REDIRECTS should result
-  // in the request failing and triggering fallback. Alternately, the
-  // Interceptor could log URLs seen and bail if it encounters a redirect loop,
-  // but it is simpler to rely on existing handling unless the optimization is
-  // needed.
+  // in the request failing and triggering fallback.
   if (tab_helper->is_navigation_upgraded()) {
     // Check if the timer is already started, as there may be additional
     // redirects on the navigation after the artificial upgrade redirect.

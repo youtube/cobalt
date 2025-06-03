@@ -457,6 +457,9 @@ void PictureLayerImpl::AppendQuads(viz::CompositorRenderPass* render_pass,
     bool has_draw_quad = false;
     if (*iter && iter->draw_info().IsReadyToDraw()) {
       const TileDrawInfo& draw_info = iter->draw_info();
+      // Mark the tile used for raster. This is used to reclaim old prepaint
+      // tiles in TileManager.
+      iter->mark_used();
 
       switch (draw_info.mode()) {
         case TileDrawInfo::RESOURCE_MODE: {
@@ -1054,7 +1057,7 @@ bool PictureLayerImpl::ShouldAnimate(PaintImage::Id paint_image_id) const {
   const auto& rects = raster_source_->GetDisplayItemList()
                           ->discardable_image_map()
                           .GetRectsForImage(paint_image_id);
-  for (const auto& r : rects.container()) {
+  for (const auto& r : rects) {
     if (r.Intersects(visible_layer_rect()))
       return true;
   }
@@ -1409,9 +1412,7 @@ bool PictureLayerImpl::ShouldAdjustRasterScale() const {
       float maximum_animation_scale =
           layer_tree_impl()->property_trees()->MaximumAnimationToScreenScale(
               transform_tree_index());
-      if (!base::FeatureList::IsEnabled(
-              features::kAvoidRasterDuringElasticOverscroll) ||
-          (maximum_animation_scale != raster_contents_scale_.x() ||
+      if ((maximum_animation_scale != raster_contents_scale_.x() ||
            maximum_animation_scale != raster_contents_scale_.y())) {
         return true;
       }
@@ -1708,11 +1709,19 @@ float PictureLayerImpl::MinimumRasterContentsScaleForWillChangeTransform()
   DCHECK(AffectedByWillChangeTransformHint());
   float native_scale = ideal_device_scale_ * ideal_page_scale_;
   float ideal_scale = ideal_contents_scale_key();
-  // Clamp will-change: transform layers to be at least the native scale,
-  // unless the scale is too small to avoid too many tiles using too much tile
-  // memory.
+  // We want to use the same raster scale as much as possible during the
+  // lifetime of a will-change:transform layer to avoid rerasterization.
+  // Normally, we clamp the raster scale to be at least the native scale, to
+  // make most HTML contents not too blurry (e.g. at least the texts are
+  // legible) if the ideal scale increases above the native scale in the future.
   if (ideal_scale < native_scale * kMinScaleRatioForWillChangeTransform) {
-    // Don't let the scale too small compared to the ideal scale.
+    // However, if the native scale is too big compared to the ideal scale,
+    // we want to use a smaller scale to avoid too many tiles using too much
+    // memory. This is mainly to avoid problems in SVG apps that use large
+    // integer geometries in elements under a very small overall scale to avoid
+    // floating-point errors in geometries. The return value is smaller than
+    // ideal_scale to reduce rerasterizations when the ideal scale changes to
+    // be even smaller in the future.
     return ideal_scale * kMinScaleRatioForWillChangeTransform;
   }
   return native_scale;
@@ -2043,8 +2052,9 @@ PictureLayerImpl::InvalidateRegionForImages(
     const auto& rects = raster_source_->GetDisplayItemList()
                             ->discardable_image_map()
                             .GetRectsForImage(image_id);
-    for (const auto& r : rects.container())
+    for (const auto& r : rects) {
       image_invalidation.Union(r);
+    }
   }
   Region invalidation;
   image_invalidation.Swap(&invalidation);
@@ -2066,7 +2076,7 @@ PictureLayerImpl::InvalidateRegionForImages(
 void PictureLayerImpl::SetPaintWorkletRecord(
     scoped_refptr<const PaintWorkletInput> input,
     PaintRecord record) {
-  DCHECK(paint_worklet_records_.find(input) != paint_worklet_records_.end());
+  DCHECK(base::Contains(paint_worklet_records_, input));
   paint_worklet_records_[input].second = std::move(record);
 }
 
@@ -2116,6 +2126,9 @@ void PictureLayerImpl::SetPaintWorkletInputs(
     // Attempt to re-use an existing PaintRecord if possible.
     new_records[input] = std::make_pair(
         paint_image_id, std::move(paint_worklet_records_[input].second));
+    // The move constructor of absl::optional does not clear the source to
+    // nullopt.
+    paint_worklet_records_[input].second = absl::nullopt;
   }
   paint_worklet_records_.swap(new_records);
 

@@ -3,6 +3,7 @@
 # found in the LICENSE file.
 
 import argparse
+import datetime
 import sys
 
 assert sys.version_info[0] == 3
@@ -46,12 +47,15 @@ def main() -> int:
 
     test_expectation_map = expectations_instance.CreateTestExpectationMap(
         expectations_instance.GetExpectationFilepaths(), None,
-        args.expectation_grace_period)
+        datetime.timedelta(days=args.expectation_grace_period))
     ci_builders = builders_instance.GetCiBuilders()
 
-    querier = queries.WebTestBigQueryQuerier(None, args.project,
+    querier = queries.WebTestBigQueryQuerier(None,
+                                             args.project,
                                              args.num_samples,
-                                             args.large_query_mode, args.jobs)
+                                             args.large_query_mode,
+                                             args.jobs,
+                                             use_batching=args.use_batching)
     # Unmatched results are mainly useful for script maintainers, as they don't
     # provide any additional information for the purposes of finding
     # unexpectedly passing tests or unused expectations.

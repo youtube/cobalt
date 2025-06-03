@@ -21,26 +21,24 @@
 #import "ui/base/window_open_disposition.h"
 
 @protocol ApplicationCommands;
-@protocol BrowserCommands;
 @class BrowserActionFactory;
 @class CarouselItem;
 @protocol CarouselItemConsumer;
-@class DefaultBrowserPromoNonModalScheduler;
 class FaviconLoader;
 @class OmniboxPedalAnnotator;
 @class OmniboxPopupMediator;
 @class OmniboxPopupPresenter;
+@class SceneState;
 @protocol SnackbarCommands;
-class WebStateList;
 class AutocompleteController;
 
 namespace image_fetcher {
 class ImageDataFetcher;
-}  // namespace
+}  // namespace image_fetcher
 
 namespace feature_engagement {
 class Tracker;
-}
+}  // namespace feature_engagement
 
 class OmniboxPopupMediatorDelegate {
  public:
@@ -91,7 +89,6 @@ class OmniboxPopupMediatorDelegate {
 - (void)setSemanticContentAttribute:
     (UISemanticContentAttribute)semanticContentAttribute;
 
-@property(nonatomic, weak) id<BrowserCommands> dispatcher;
 @property(nonatomic, weak) id<AutocompleteResultConsumer> consumer;
 /// Consumer for debug info.
 @property(nonatomic, weak) id<PopupDebugInfoConsumer,
@@ -99,16 +96,14 @@ class OmniboxPopupMediatorDelegate {
                               AutocompleteControllerObserver>
     debugInfoConsumer;
 @property(nonatomic, weak) id<ApplicationCommands> applicationCommandsHandler;
-/// Scheduler to notify about events happening in this popup.
-@property(nonatomic, weak) DefaultBrowserPromoNonModalScheduler* promoScheduler;
+/// Browser scene state to notify about events happening in this popup.
+@property(nonatomic, weak) SceneState* sceneState;
 @property(nonatomic, assign, getter=isIncognito) BOOL incognito;
 /// Whether the popup is open.
 @property(nonatomic, assign, getter=isOpen) BOOL open;
 /// Presenter for the popup, handling the positioning and the presentation
 /// animations.
 @property(nonatomic, strong) OmniboxPopupPresenter* presenter;
-/// The web state list this mediator is handling.
-@property(nonatomic, assign) WebStateList* webStateList;
 /// Whether the default search engine is Google impacts which icon is used in
 /// some cases
 @property(nonatomic, assign) BOOL defaultSearchEngineIsGoogle;
@@ -125,6 +120,9 @@ class OmniboxPopupMediatorDelegate {
     protocolProvider;
 @property(nonatomic, strong) BrowserActionFactory* mostVisitedActionFactory;
 @property(nonatomic, weak) id<CarouselItemConsumer> carouselItemConsumer;
+/// Pref service from the original browser state, used to retrieve preferred
+/// omnibox position.
+@property(nonatomic, assign) PrefService* originalPrefService;
 
 /// Designated initializer. Takes ownership of `imageFetcher`.
 - (instancetype)

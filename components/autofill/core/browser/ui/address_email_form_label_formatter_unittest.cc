@@ -22,7 +22,7 @@ using testing::ElementsAre;
 namespace autofill {
 namespace {
 
-std::vector<ServerFieldType> GetFieldTypes() {
+ServerFieldTypeSet GetFieldTypes() {
   return {NAME_FULL,
           EMAIL_ADDRESS,
           ADDRESS_HOME_LINE1,
@@ -35,37 +35,33 @@ std::vector<ServerFieldType> GetFieldTypes() {
 }
 
 TEST(AddressEmailFormLabelFormatterTest, GetLabelsWithMissingProfiles) {
-  const std::vector<AutofillProfile*> profiles{};
+  const std::vector<const AutofillProfile*> profiles{};
   const std::unique_ptr<LabelFormatter> formatter =
       LabelFormatter::Create(profiles, "en-US", NAME_FULL, GetFieldTypes());
   EXPECT_TRUE(formatter->GetLabels().empty());
 }
 
 TEST(AddressEmailFormLabelFormatterTest, GetLabelsForUSProfilesAndFocusedName) {
-  AutofillProfile profile1 = AutofillProfile(
-      base::Uuid::GenerateRandomV4().AsLowercaseString(), test::kEmptyOrigin);
+  AutofillProfile profile1;
   test::SetProfileInfo(&profile1, "John", "F", "Kennedy", "jfk@gmail.com", "",
                        "333 Washington St", "", "Brookline", "MA", "02445",
                        "US", "16177302000");
 
-  AutofillProfile profile2 = AutofillProfile(
-      base::Uuid::GenerateRandomV4().AsLowercaseString(), test::kEmptyOrigin);
+  AutofillProfile profile2;
   test::SetProfileInfo(&profile2, "Jackie", "", "Kennedy", "", "",
                        "151 Irving Ave", "", "Hyannis", "MA", "02601", "US",
                        "");
 
-  AutofillProfile profile3 = AutofillProfile(
-      base::Uuid::GenerateRandomV4().AsLowercaseString(), test::kEmptyOrigin);
+  AutofillProfile profile3;
   test::SetProfileInfo(&profile3, "Paul", "", "Revere", "paul1775@gmail.com",
                        "", "", "", "", "", "", "US", "");
 
-  AutofillProfile profile4 = AutofillProfile(
-      base::Uuid::GenerateRandomV4().AsLowercaseString(), test::kEmptyOrigin);
+  AutofillProfile profile4;
   test::SetProfileInfo(&profile4, "John", "", "Adams", "", "", "", "", "Quincy",
                        "MA", "02169", "US", "");
 
-  const std::vector<AutofillProfile*> profiles{&profile1, &profile2, &profile3,
-                                               &profile4};
+  const std::vector<const AutofillProfile*> profiles{&profile1, &profile2,
+                                                     &profile3, &profile4};
   const std::unique_ptr<LabelFormatter> formatter =
       LabelFormatter::Create(profiles, "en-US", NAME_FULL, GetFieldTypes());
 
@@ -77,30 +73,26 @@ TEST(AddressEmailFormLabelFormatterTest, GetLabelsForUSProfilesAndFocusedName) {
 
 TEST(AddressEmailFormLabelFormatterTest,
      GetLabelsForUSProfilesAndFocusedStreetAddress) {
-  AutofillProfile profile1 = AutofillProfile(
-      base::Uuid::GenerateRandomV4().AsLowercaseString(), test::kEmptyOrigin);
+  AutofillProfile profile1;
   test::SetProfileInfo(&profile1, "John", "F", "Kennedy", "jfk@gmail.com", "",
                        "333 Washington St", "", "Brookline", "MA", "02445",
                        "US", "16177302000");
 
-  AutofillProfile profile2 = AutofillProfile(
-      base::Uuid::GenerateRandomV4().AsLowercaseString(), test::kEmptyOrigin);
+  AutofillProfile profile2;
   test::SetProfileInfo(&profile2, "Jackie", "", "Kennedy", "", "",
                        "151 Irving Ave", "", "Hyannis", "MA", "02601", "US",
                        "");
 
-  AutofillProfile profile3 = AutofillProfile(
-      base::Uuid::GenerateRandomV4().AsLowercaseString(), test::kEmptyOrigin);
+  AutofillProfile profile3;
   test::SetProfileInfo(&profile3, "", "", "", "paul1775@gmail.com", "", "", "",
                        "", "", "", "US", "");
 
-  AutofillProfile profile4 = AutofillProfile(
-      base::Uuid::GenerateRandomV4().AsLowercaseString(), test::kEmptyOrigin);
+  AutofillProfile profile4;
   test::SetProfileInfo(&profile4, "", "", "", "", "", "141 Franklin St", "",
                        "Quincy", "MA", "02169", "US", "");
 
-  const std::vector<AutofillProfile*> profiles{&profile1, &profile2, &profile3,
-                                               &profile4};
+  const std::vector<const AutofillProfile*> profiles{&profile1, &profile2,
+                                                     &profile3, &profile4};
   const std::unique_ptr<LabelFormatter> formatter = LabelFormatter::Create(
       profiles, "en-US", ADDRESS_HOME_LINE1, GetFieldTypes());
 
@@ -112,30 +104,26 @@ TEST(AddressEmailFormLabelFormatterTest,
 
 TEST(AddressEmailFormLabelFormatterTest,
      GetLabelsForUSProfilesAndFocusedNonStreetAddress) {
-  AutofillProfile profile1 = AutofillProfile(
-      base::Uuid::GenerateRandomV4().AsLowercaseString(), test::kEmptyOrigin);
+  AutofillProfile profile1;
   test::SetProfileInfo(&profile1, "John", "F", "Kennedy", "jfk@gmail.com", "",
                        "333 Washington St", "", "Brookline", "MA", "02445",
                        "US", "16177302000");
 
-  AutofillProfile profile2 = AutofillProfile(
-      base::Uuid::GenerateRandomV4().AsLowercaseString(), test::kEmptyOrigin);
+  AutofillProfile profile2;
   test::SetProfileInfo(&profile2, "Jackie", "", "Kennedy", "", "",
                        "151 Irving Ave", "", "Hyannis", "MA", "02601", "US",
                        "");
 
-  AutofillProfile profile3 = AutofillProfile(
-      base::Uuid::GenerateRandomV4().AsLowercaseString(), test::kEmptyOrigin);
+  AutofillProfile profile3;
   test::SetProfileInfo(&profile3, "", "", "", "paul1775@gmail.com", "", "", "",
                        "", "", "", "US", "");
 
-  AutofillProfile profile4 = AutofillProfile(
-      base::Uuid::GenerateRandomV4().AsLowercaseString(), test::kEmptyOrigin);
+  AutofillProfile profile4;
   test::SetProfileInfo(&profile4, "", "", "", "", "", "", "", "Quincy", "MA",
                        "02169", "US", "");
 
-  const std::vector<AutofillProfile*> profiles{&profile1, &profile2, &profile3,
-                                               &profile4};
+  const std::vector<const AutofillProfile*> profiles{&profile1, &profile2,
+                                                     &profile3, &profile4};
   const std::unique_ptr<LabelFormatter> formatter = LabelFormatter::Create(
       profiles, "en-US", ADDRESS_HOME_ZIP, GetFieldTypes());
 
@@ -147,29 +135,25 @@ TEST(AddressEmailFormLabelFormatterTest,
 
 TEST(AddressEmailFormLabelFormatterTest,
      GetLabelsForUSProfilesAndFocusedEmail) {
-  AutofillProfile profile1 = AutofillProfile(
-      base::Uuid::GenerateRandomV4().AsLowercaseString(), test::kEmptyOrigin);
+  AutofillProfile profile1;
   test::SetProfileInfo(&profile1, "John", "F", "Kennedy", "jfk@gmail.com", "",
                        "333 Washington St", "", "Brookline", "MA", "02445",
                        "US", "16177302000");
 
-  AutofillProfile profile2 = AutofillProfile(
-      base::Uuid::GenerateRandomV4().AsLowercaseString(), test::kEmptyOrigin);
+  AutofillProfile profile2;
   test::SetProfileInfo(&profile2, "Jackie", "", "Kennedy", "jackie@outlook.com",
                        "", "", "", "Hyannis", "MA", "02601", "US", "");
 
-  AutofillProfile profile3 = AutofillProfile(
-      base::Uuid::GenerateRandomV4().AsLowercaseString(), test::kEmptyOrigin);
+  AutofillProfile profile3;
   test::SetProfileInfo(&profile3, "", "", "", "paul1775@gmail.com", "", "", "",
                        "", "", "", "US", "");
 
-  AutofillProfile profile4 = AutofillProfile(
-      base::Uuid::GenerateRandomV4().AsLowercaseString(), test::kEmptyOrigin);
+  AutofillProfile profile4;
   test::SetProfileInfo(&profile4, "", "", "", "", "", "141 Franklin St", "",
                        "Quincy", "MA", "02169", "US", "");
 
-  const std::vector<AutofillProfile*> profiles{&profile1, &profile2, &profile3,
-                                               &profile4};
+  const std::vector<const AutofillProfile*> profiles{&profile1, &profile2,
+                                                     &profile3, &profile4};
   const std::unique_ptr<LabelFormatter> formatter =
       LabelFormatter::Create(profiles, "en-US", EMAIL_ADDRESS, GetFieldTypes());
 
@@ -180,21 +164,19 @@ TEST(AddressEmailFormLabelFormatterTest,
 }
 
 TEST(AddressEmailFormLabelFormatterTest, GetLabelsForBRProfilesAndFocusedName) {
-  AutofillProfile profile1 = AutofillProfile(
-      base::Uuid::GenerateRandomV4().AsLowercaseString(), test::kEmptyOrigin);
+  AutofillProfile profile1;
   test::SetProfileInfo(&profile1, "Tarsila", "do", "Amaral", "tarsila@aol.com",
                        "", "Av. Pedro Álvares Cabral, 1301", "", "Vila Mariana",
                        "São Paulo", "SP", "04094-050", "BR",
                        "+55 11 2648-0254");
 
-  AutofillProfile profile2 = AutofillProfile(
-      base::Uuid::GenerateRandomV4().AsLowercaseString(), test::kEmptyOrigin);
+  AutofillProfile profile2;
   test::SetProfileInfo(&profile2, "Artur", "", "Avila", "aavila@uol.com.br", "",
                        "Estr. Dona Castorina, 110", "", "Jardim Botânico",
                        "Rio de Janeiro", "RJ", "22460-320", "BR",
                        "21987650000");
 
-  const std::vector<AutofillProfile*> profiles{&profile1, &profile2};
+  const std::vector<const AutofillProfile*> profiles{&profile1, &profile2};
   const std::unique_ptr<LabelFormatter> formatter =
       LabelFormatter::Create(profiles, "pt-BR", NAME_FULL, GetFieldTypes());
 
@@ -207,21 +189,19 @@ TEST(AddressEmailFormLabelFormatterTest, GetLabelsForBRProfilesAndFocusedName) {
 
 TEST(AddressEmailFormLabelFormatterTest,
      GetLabelsForBRProfilesAndFocusedStreetAddress) {
-  AutofillProfile profile1 = AutofillProfile(
-      base::Uuid::GenerateRandomV4().AsLowercaseString(), test::kEmptyOrigin);
+  AutofillProfile profile1;
   test::SetProfileInfo(&profile1, "Tarsila", "do", "Amaral", "tarsila@aol.com",
                        "", "Av. Pedro Álvares Cabral, 1301", "", "Vila Mariana",
                        "São Paulo", "SP", "04094-050", "BR",
                        "+55 11 2648-0254");
 
-  AutofillProfile profile2 = AutofillProfile(
-      base::Uuid::GenerateRandomV4().AsLowercaseString(), test::kEmptyOrigin);
+  AutofillProfile profile2;
   test::SetProfileInfo(&profile2, "Artur", "", "Avila", "aavila@uol.com.br", "",
                        "Estr. Dona Castorina, 110", "", "Jardim Botânico",
                        "Rio de Janeiro", "RJ", "22460-320", "BR",
                        "21987650000");
 
-  const std::vector<AutofillProfile*> profiles{&profile1, &profile2};
+  const std::vector<const AutofillProfile*> profiles{&profile1, &profile2};
   const std::unique_ptr<LabelFormatter> formatter = LabelFormatter::Create(
       profiles, "pt-BR", ADDRESS_HOME_LINE1, GetFieldTypes());
 
@@ -234,21 +214,19 @@ TEST(AddressEmailFormLabelFormatterTest,
 
 TEST(AddressEmailFormLabelFormatterTest,
      GetLabelsForBRProfilesAndFocusedNonStreetAddress) {
-  AutofillProfile profile1 = AutofillProfile(
-      base::Uuid::GenerateRandomV4().AsLowercaseString(), test::kEmptyOrigin);
+  AutofillProfile profile1;
   test::SetProfileInfo(&profile1, "Tarsila", "do", "Amaral", "tarsila@aol.com",
                        "", "Av. Pedro Álvares Cabral, 1301", "", "Vila Mariana",
                        "São Paulo", "SP", "04094-050", "BR",
                        "+55 11 2648-0254");
 
-  AutofillProfile profile2 = AutofillProfile(
-      base::Uuid::GenerateRandomV4().AsLowercaseString(), test::kEmptyOrigin);
+  AutofillProfile profile2;
   test::SetProfileInfo(&profile2, "Artur", "", "Avila", "aavila@uol.com.br", "",
                        "Estr. Dona Castorina, 110", "", "Jardim Botânico",
                        "Rio de Janeiro", "RJ", "22460-320", "BR",
                        "21987650000");
 
-  const std::vector<AutofillProfile*> profiles{&profile1, &profile2};
+  const std::vector<const AutofillProfile*> profiles{&profile1, &profile2};
   const std::unique_ptr<LabelFormatter> formatter = LabelFormatter::Create(
       profiles, "pt-BR", ADDRESS_HOME_DEPENDENT_LOCALITY, GetFieldTypes());
 
@@ -261,21 +239,19 @@ TEST(AddressEmailFormLabelFormatterTest,
 
 TEST(AddressEmailFormLabelFormatterTest,
      GetLabelsForBRProfilesAndFocusedEmail) {
-  AutofillProfile profile1 = AutofillProfile(
-      base::Uuid::GenerateRandomV4().AsLowercaseString(), test::kEmptyOrigin);
+  AutofillProfile profile1;
   test::SetProfileInfo(&profile1, "Tarsila", "do", "Amaral", "tarsila@aol.com",
                        "", "Av. Pedro Álvares Cabral, 1301", "", "Vila Mariana",
                        "São Paulo", "SP", "04094-050", "BR",
                        "+55 11 2648-0254");
 
-  AutofillProfile profile2 = AutofillProfile(
-      base::Uuid::GenerateRandomV4().AsLowercaseString(), test::kEmptyOrigin);
+  AutofillProfile profile2;
   test::SetProfileInfo(&profile2, "Artur", "", "Avila", "aavila@uol.com.br", "",
                        "Estr. Dona Castorina, 110", "", "Jardim Botânico",
                        "Rio de Janeiro", "RJ", "22460-320", "BR",
                        "21987650000");
 
-  const std::vector<AutofillProfile*> profiles{&profile1, &profile2};
+  const std::vector<const AutofillProfile*> profiles{&profile1, &profile2};
   const std::unique_ptr<LabelFormatter> formatter =
       LabelFormatter::Create(profiles, "pt-BR", EMAIL_ADDRESS, GetFieldTypes());
 
@@ -289,13 +265,12 @@ TEST(AddressEmailFormLabelFormatterTest,
 
 TEST(AddressEmailFormLabelFormatterTest,
      GetLabelsForFormWithAddressFieldsMinusStreetAddress) {
-  AutofillProfile profile = AutofillProfile(
-      base::Uuid::GenerateRandomV4().AsLowercaseString(), test::kEmptyOrigin);
+  AutofillProfile profile;
   test::SetProfileInfo(&profile, "John", "F", "Kennedy", "jfk@gmail.com", "",
                        "333 Washington St", "", "Brookline", "MA", "02445",
                        "US", "16177302000");
 
-  const std::vector<AutofillProfile*> profiles{&profile};
+  const std::vector<const AutofillProfile*> profiles{&profile};
   const std::unique_ptr<LabelFormatter> formatter = LabelFormatter::Create(
       profiles, "en-US", EMAIL_ADDRESS,
       {NAME_FULL, EMAIL_ADDRESS, ADDRESS_HOME_CITY, ADDRESS_HOME_STATE});
@@ -307,13 +282,12 @@ TEST(AddressEmailFormLabelFormatterTest,
 }
 
 TEST(AddressEmailFormLabelFormatterTest, GetLabelsForFormWithoutName) {
-  AutofillProfile profile = AutofillProfile(
-      base::Uuid::GenerateRandomV4().AsLowercaseString(), test::kEmptyOrigin);
+  AutofillProfile profile;
   test::SetProfileInfo(&profile, "Sarah", "", "Revere", "sarah.revere@aol.com",
                        "", "19 North Sq", "", "Boston", "MA", "02113", "US",
                        "16175232338");
 
-  const std::vector<AutofillProfile*> profiles{&profile};
+  const std::vector<const AutofillProfile*> profiles{&profile};
   const std::unique_ptr<LabelFormatter> formatter = LabelFormatter::Create(
       profiles, "en-US", ADDRESS_HOME_LINE1,
       {ADDRESS_HOME_LINE1, ADDRESS_HOME_ZIP, EMAIL_ADDRESS});

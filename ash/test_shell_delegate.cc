@@ -7,10 +7,11 @@
 #include <memory>
 #include <string>
 
+#include "ash/accelerators/test_accelerator_prefs_delegate.h"
 #include "ash/accessibility/default_accessibility_delegate.h"
 #include "ash/capture_mode/test_capture_mode_delegate.h"
+#include "ash/clipboard/test_support/test_clipboard_history_controller_delegate_impl.h"
 #include "ash/game_dashboard/test_game_dashboard_delegate.h"
-#include "ash/glanceables/test_glanceables_delegate.h"
 #include "ash/public/cpp/test/test_nearby_share_delegate.h"
 #include "ash/public/cpp/test/test_saved_desk_delegate.h"
 #include "ash/system/geolocation/test_geolocation_url_loader_factory.h"
@@ -34,15 +35,19 @@ TestShellDelegate::CreateCaptureModeDelegate() const {
   return std::make_unique<TestCaptureModeDelegate>();
 }
 
+std::unique_ptr<ClipboardHistoryControllerDelegate>
+TestShellDelegate::CreateClipboardHistoryControllerDelegate() const {
+  return std::make_unique<TestClipboardHistoryControllerDelegateImpl>();
+}
+
 std::unique_ptr<GameDashboardDelegate>
 TestShellDelegate::CreateGameDashboardDelegate() const {
   return std::make_unique<TestGameDashboardDelegate>();
 }
 
-std::unique_ptr<GlanceablesDelegate>
-TestShellDelegate::CreateGlanceablesDelegate(
-    GlanceablesController* controller) const {
-  return std::make_unique<TestGlanceablesDelegate>();
+std::unique_ptr<AcceleratorPrefsDelegate>
+TestShellDelegate::CreateAcceleratorPrefsDelegate() const {
+  return std::make_unique<TestAcceleratorPrefsDelegate>();
 }
 
 AccessibilityDelegate* TestShellDelegate::CreateAccessibilityDelegate() {

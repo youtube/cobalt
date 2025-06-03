@@ -11,8 +11,8 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/values.h"
+#include "chrome/browser/ash/login/enrollment/enrollment_launcher.h"
 #include "chrome/browser/ash/login/enrollment/enrollment_screen_view.h"
-#include "chrome/browser/ash/login/enrollment/enterprise_enrollment_helper.h"
 #include "chrome/browser/ash/policy/enrollment/enrollment_config.h"
 #include "chrome/browser/ui/webui/ash/login/base_screen_handler.h"
 #include "net/cookies/canonical_cookie.h"
@@ -31,19 +31,6 @@ enum class ActiveDirectoryErrorState {
   BAD_USERNAME = 3,
   BAD_AUTH_PASSWORD = 4,
   BAD_UNLOCK_PASSWORD = 5,
-};
-
-// These values are persisted to logs. Entries should not be renumbered and
-// numeric values should never be reused.
-enum class ActiveDirectoryDomainJoinType {
-  // Configuration is not set on the domain.
-  WITHOUT_CONFIGURATION = 0,
-  // Configuration is set but was not unlocked during domain join.
-  NOT_USING_CONFIGURATION = 1,
-  // Configuration is set and was unlocked during domain join.
-  USING_CONFIGURATION = 2,
-  // Number of elements in the enum. Should be last.
-  COUNT,
 };
 
 // WebUIMessageHandler implementation which handles events occurring on the
@@ -76,10 +63,6 @@ class EnrollmentScreenHandler : public BaseScreenHandler,
   void ShowSkipConfirmationDialog() override;
   void ShowUserError(const std::string& email) override;
   void ShowEnrollmentDuringTrialNotAllowedError() override;
-  void ShowActiveDirectoryScreen(const std::string& domain_join_config,
-                                 const std::string& machine_name,
-                                 const std::string& username,
-                                 authpolicy::ErrorType error) override;
   void ShowAttributePromptScreen(const std::string& asset_id,
                                  const std::string& location) override;
   void ShowEnrollmentSuccessScreen() override;
@@ -87,8 +70,7 @@ class EnrollmentScreenHandler : public BaseScreenHandler,
   void ShowEnrollmentTPMCheckingScreen() override;
   void ShowAuthError(const GoogleServiceAuthError& error) override;
   void ShowEnrollmentStatus(policy::EnrollmentStatus status) override;
-  void ShowOtherError(
-      EnterpriseEnrollmentHelper::OtherError error_code) override;
+  void ShowOtherError(EnrollmentLauncher::OtherError error_code) override;
   void Shutdown() override;
 
   // Implements BaseScreenHandler:
@@ -112,12 +94,6 @@ class EnrollmentScreenHandler : public BaseScreenHandler,
       int license_type,
       const net::CookieAccessResultList& cookies,
       const net::CookieAccessResultList& excluded_cookies);
-  void HandleAdCompleteLogin(const std::string& machine_name,
-                             const std::string& distinguished_name,
-                             const std::string& encryption_types,
-                             const std::string& user_name,
-                             const std::string& password);
-  void HandleAdUnlockConfiguration(const std::string& password);
   void HandleIdentifierEntered(const std::string& email);
   void HandleRetry();
   void HandleFrameLoadingCompleted();
@@ -162,11 +138,9 @@ class EnrollmentScreenHandler : public BaseScreenHandler,
   // Returns true if current visible screen is the enrollment sign-in page.
   bool IsOnEnrollmentScreen();
 
-  // Called after configuration seed was unlocked.
-  void OnAdConfigurationUnlocked(std::string unlocked_data);
-
   // Keeps the controller for this view.
-  raw_ptr<Controller, ExperimentalAsh> controller_ = nullptr;
+  raw_ptr<Controller, DanglingUntriaged | ExperimentalAsh> controller_ =
+      nullptr;
 
   bool show_on_init_ = false;
 
@@ -177,12 +151,6 @@ class EnrollmentScreenHandler : public BaseScreenHandler,
   FlowType flow_type_;
 
   GaiaButtonsType gaia_buttons_type_;
-
-  // Active Directory configuration in the form of encrypted binary data.
-  std::string active_directory_domain_join_config_;
-
-  ActiveDirectoryDomainJoinType active_directory_join_type_ =
-      ActiveDirectoryDomainJoinType::COUNT;
 
   // True if screen was not shown yet.
   bool first_show_ = true;

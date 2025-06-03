@@ -48,7 +48,7 @@ std::string DecodeHexString(const std::string& base_16) {
     return std::string();
   }
 
-  decoded.assign(reinterpret_cast<const char*>(&v[0]), v.size());
+  decoded.assign(reinterpret_cast<const char*>(v.data()), v.size());
   return decoded;
 }
 
@@ -71,7 +71,7 @@ std::string SecurityTypeStringFromProto(
     case sync_pb::WifiConfigurationSpecifics::SECURITY_TYPE_PSK:
       return shill::kSecurityClassPsk;
     case sync_pb::WifiConfigurationSpecifics::SECURITY_TYPE_WEP:
-      return shill::kSecurityWep;
+      return shill::kSecurityClassWep;
     default:
       // Only PSK and WEP secured networks are supported by sync.
       NOTREACHED();

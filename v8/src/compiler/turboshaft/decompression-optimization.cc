@@ -20,16 +20,18 @@ namespace {
 // re-visit the loop if a loop phi backedge changes something. As a performance
 // optimization, we keep track of operations (`candidates`) that need to be
 // updated potentially, so that we don't have to walk the whole graph again.
-struct DecompressionAnalyzer : AnalyzerBase {
-  using Base = AnalyzerBase;
+struct DecompressionAnalyzer {
+  const Graph& graph;
+  Zone* phase_zone;
   // We use `uint8_t` instead of `bool` here to avoid the bitvector optimization
   // of std::vector.
-  FixedSidetable<uint8_t> needs_decompression;
+  FixedOpIndexSidetable<uint8_t> needs_decompression;
   ZoneVector<OpIndex> candidates;
 
   DecompressionAnalyzer(const Graph& graph, Zone* phase_zone)
-      : AnalyzerBase(graph, phase_zone),
-        needs_decompression(graph.op_id_count(), phase_zone),
+      : graph(graph),
+        phase_zone(phase_zone),
+        needs_decompression(graph.op_id_count(), phase_zone, &graph),
         candidates(phase_zone) {
     candidates.reserve(graph.op_id_count() / 8);
   }
@@ -70,6 +72,7 @@ struct DecompressionAnalyzer : AnalyzerBase {
     }
   }
   void ProcessOperation(const Operation& op);
+  void MarkAddressingBase(OpIndex base_idx);
 };
 
 void DecompressionAnalyzer::ProcessOperation(const Operation& op) {
@@ -77,7 +80,9 @@ void DecompressionAnalyzer::ProcessOperation(const Operation& op) {
     case Opcode::kStore: {
       auto& store = op.Cast<StoreOp>();
       MarkAsNeedsDecompression(store.base());
-      if (store.index().valid()) MarkAsNeedsDecompression(store.index());
+      if (store.index().valid()) {
+        MarkAsNeedsDecompression(store.index().value());
+      }
       if (!store.stored_rep.IsTagged()) {
         MarkAsNeedsDecompression(store.value());
       }
@@ -145,18 +150,63 @@ void DecompressionAnalyzer::ProcessOperation(const Operation& op) {
       }
       break;
     }
-    case Opcode::kLoad:
     case Opcode::kConstant:
       if (!NeedsDecompression(op)) {
         candidates.push_back(graph.Index(op));
       }
-      V8_FALLTHROUGH;
+      break;
+    case Opcode::kLoad: {
+      if (!NeedsDecompression(op)) {
+        candidates.push_back(graph.Index(op));
+      }
+      const LoadOp& load = op.Cast<LoadOp>();
+      if (DECOMPRESS_POINTER_BY_ADDRESSING_MODE && !load.index().valid() &&
+          graph.Get(load.base()).saturated_use_count.IsOne()) {
+        // On x64, if the Index is invalid, we can rely on complex addressing
+        // mode to decompress the base, and can thus keep it compressed.
+        // We only do this if the use-count of the base is 1, in order to avoid
+        // having to decompress multiple time the same value.
+        MarkAddressingBase(load.base());
+      } else {
+        MarkAsNeedsDecompression(load.base());
+        if (load.index().valid()) {
+          MarkAsNeedsDecompression(load.index().value());
+        }
+      }
+      break;
+    }
     default:
       for (OpIndex input : op.inputs()) {
         MarkAsNeedsDecompression(input);
       }
       break;
   }
+}
+
+// Checks if {base_idx} (which should be the base of a LoadOp) can be kept
+// compressed and decompressed using complex addressing mode. If not, marks it
+// as needing decompressiong.
+void DecompressionAnalyzer::MarkAddressingBase(OpIndex base_idx) {
+  DCHECK(DECOMPRESS_POINTER_BY_ADDRESSING_MODE);
+  const Operation& base = graph.Get(base_idx);
+  if (const LoadOp* load = base.TryCast<LoadOp>();
+      load && load->loaded_rep.IsTagged()) {
+    // We can keep {load} (the base) as compressed and untag with complex
+    // addressing mode.
+    return;
+  }
+  if (base.Is<PhiOp>()) {
+    bool keep_compressed = true;
+    for (OpIndex input_idx : base.inputs()) {
+      const Operation& input = graph.Get(input_idx);
+      if (!input.Is<LoadOp>() || !base.IsOnlyUserOf(input, graph)) {
+        keep_compressed = false;
+        break;
+      }
+    }
+    if (keep_compressed) return;
+  }
+  MarkAsNeedsDecompression(base_idx);
 }
 
 }  // namespace

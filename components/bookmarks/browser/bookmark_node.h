@@ -46,17 +46,6 @@ class BookmarkNode : public ui::TreeNode<BookmarkNode>, public TitledUrlNode {
 
   typedef base::flat_map<std::string, std::string> MetaInfoMap;
 
-  // TODO(crbug.com/1026195): Make these constants of type base::Uuid once there
-  // exists a constexpr constructor.
-  static const char kRootNodeUuid[];
-  static const char kBookmarkBarNodeUuid[];
-  static const char kOtherBookmarksNodeUuid[];
-  static const char kMobileBookmarksNodeUuid[];
-  static const char kManagedNodeUuid[];
-
-  // A bug in sync caused some problematic UUIDs to be produced.
-  static const char kBannedUuidDueToPastSyncBug[];
-
   // Creates a new node with |id|, |uuid| and |url|.
   BookmarkNode(int64_t id, const base::Uuid& uuid, const GURL& url);
 
@@ -123,7 +112,7 @@ class BookmarkNode : public ui::TreeNode<BookmarkNode>, public TitledUrlNode {
   // representation but we may want to suppress some nodes.
   virtual bool IsVisible() const;
 
-  // Gets/sets/deletes value of |key| in the synced meta info represented by
+  // Gets/sets/deletes value of |key| in the meta info represented by
   // |meta_info_str_|. Return true if key is found in meta info for gets or
   // meta info is changed indeed for sets/deletes.
   bool GetMetaInfo(const std::string& key, std::string* value) const;
@@ -132,16 +121,6 @@ class BookmarkNode : public ui::TreeNode<BookmarkNode>, public TitledUrlNode {
   void SetMetaInfoMap(const MetaInfoMap& meta_info_map);
   // Returns NULL if there are no values in the map.
   const MetaInfoMap* GetMetaInfoMap() const;
-
-  // Gets/sets/deletes value of `key` in the local meta info represented by
-  // `meta_info_str_`. Return true if key is found in meta info for gets or
-  // meta info is changed indeed for sets/deletes.
-  bool GetUnsyncedMetaInfo(const std::string& key, std::string* value) const;
-  bool SetUnsyncedMetaInfo(const std::string& key, const std::string& value);
-  bool DeleteUnsyncedMetaInfo(const std::string& key);
-  void SetUnsyncedMetaInfoMap(const MetaInfoMap& meta_info_map);
-  // Returns NULL if there are no values in the map.
-  const MetaInfoMap* GetUnsyncedMetaInfoMap() const;
 
   // TitledUrlNode interface methods.
   const std::u16string& GetTitledUrlNodeTitle() const override;
@@ -228,12 +207,8 @@ class BookmarkNode : public ui::TreeNode<BookmarkNode>, public TitledUrlNode {
   base::CancelableTaskTracker::TaskId favicon_load_task_id_ =
       base::CancelableTaskTracker::kBadTaskId;
 
-  // A map that stores arbitrary meta information about the node. This map is
-  // synced to other devices.
+  // A map that stores arbitrary meta information about the node.
   std::unique_ptr<MetaInfoMap> meta_info_map_;
-  // A map that stores arbitrary meta information about the node. This map is
-  // local-only and won't be synced.
-  std::unique_ptr<MetaInfoMap> unsynced_meta_info_map_;
 
   const bool is_permanent_node_;
 

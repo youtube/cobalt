@@ -64,12 +64,23 @@ void SetAVStreamDiscard(AVStream* stream, AVDiscard discard) {
   stream->discard = discard;
 }
 
+int AVSeekFrame(AVFormatContext* s, int stream_index, int64_t timestamp) {
+  // Seek to a timestamp <= to the desired timestamp.
+  int result = av_seek_frame(s, stream_index, timestamp, AVSEEK_FLAG_BACKWARD);
+  if (result >= 0) {
+    return result;
+  }
+
+  // Seek to the nearest keyframe, wherever that may be.
+  return av_seek_frame(s, stream_index, timestamp, 0);
+}
+
 }  // namespace
 
 static base::Time ExtractTimelineOffset(
     container_names::MediaContainerName container,
     const AVFormatContext* format_context) {
-  if (container == container_names::CONTAINER_WEBM) {
+  if (container == container_names::MediaContainerName::kContainerWEBM) {
     const AVDictionaryEntry* entry =
         av_dict_get(format_context->metadata, "creation_time", nullptr, 0);
 
@@ -126,10 +137,10 @@ static void RecordVideoCodecStats(container_names::MediaContainerName container,
   // TODO(xhwang): Fix these misleading metric names. They should be something
   // like "Media.SRC.Xxxx". See http://crbug.com/716183.
   base::UmaHistogramEnumeration("Media.VideoCodec", video_config.codec());
-  if (container == container_names::CONTAINER_MOV) {
+  if (container == container_names::MediaContainerName::kContainerMOV) {
     base::UmaHistogramEnumeration("Media.SRC.VideoCodec.MP4",
                                   video_config.codec());
-  } else if (container == container_names::CONTAINER_WEBM) {
+  } else if (container == container_names::MediaContainerName::kContainerWEBM) {
     base::UmaHistogramEnumeration("Media.SRC.VideoCodec.WebM",
                                   video_config.codec());
   }
@@ -281,10 +292,6 @@ FFmpegDemuxerStream::FFmpegDemuxerStream(
       type_ = VIDEO;
       is_encrypted = video_config_->is_encrypted();
       break;
-    case AVMEDIA_TYPE_SUBTITLE:
-      DCHECK(!video_config_.get() && !audio_config_.get());
-      type_ = TEXT;
-      break;
     default:
       NOTREACHED();
       break;
@@ -383,23 +390,6 @@ void FFmpegDemuxerStream::EnqueuePacket(ScopedAVPacket packet) {
 
   scoped_refptr<DecoderBuffer> buffer;
 
-  if (type() == DemuxerStream::TEXT) {
-    size_t id_size = 0;
-    uint8_t* id_data = av_packet_get_side_data(
-        packet.get(), AV_PKT_DATA_WEBVTT_IDENTIFIER, &id_size);
-
-    size_t settings_size = 0;
-    uint8_t* settings_data = av_packet_get_side_data(
-        packet.get(), AV_PKT_DATA_WEBVTT_SETTINGS, &settings_size);
-
-    std::vector<uint8_t> side_data;
-    MakeSideData(id_data, id_data + id_size,
-                 settings_data, settings_data + settings_size,
-                 &side_data);
-
-    buffer = DecoderBuffer::CopyFrom(packet->data, packet->size,
-                                     side_data.data(), side_data.size());
-  } else {
     size_t side_data_size = 0;
     uint8_t* side_data = av_packet_get_side_data(
         packet.get(), AV_PKT_DATA_MATROSKA_BLOCKADDITIONAL, &side_data_size);
@@ -425,7 +415,8 @@ void FFmpegDemuxerStream::EnqueuePacket(ScopedAVPacket packet) {
     // This behavior may also occur with ADTS streams, but is rarer in practice
     // because ffmpeg's ADTS demuxer does more validation on the packets, so
     // when invalid data is received, av_read_frame() fails and playback ends.
-    if (is_audio && demuxer_->container() == container_names::CONTAINER_MP3) {
+    if (is_audio && demuxer_->container() ==
+                        container_names::MediaContainerName::kContainerMP3) {
       DCHECK(!data_offset);  // Only set for containers supporting encryption...
 
       // MP3 packets may be zero-padded according to ffmpeg, so trim until we
@@ -454,8 +445,9 @@ void FFmpegDemuxerStream::EnqueuePacket(ScopedAVPacket packet) {
     // into memory we control.
     if (side_data_size > 0) {
       buffer = DecoderBuffer::CopyFrom(packet->data + data_offset,
-                                       packet->size - data_offset, side_data,
-                                       side_data_size);
+                                       packet->size - data_offset);
+      buffer->WritableSideData().alpha_data.assign(side_data,
+                                                   side_data + side_data_size);
     } else {
       buffer = DecoderBuffer::CopyFrom(packet->data + data_offset,
                                        packet->size - data_offset);
@@ -498,7 +490,6 @@ void FFmpegDemuxerStream::EnqueuePacket(ScopedAVPacket packet) {
 
     if (decrypt_config)
       buffer->set_decrypt_config(std::move(decrypt_config));
-  }
 
   if (packet->duration >= 0) {
     buffer->set_duration(
@@ -525,7 +516,7 @@ void FFmpegDemuxerStream::EnqueuePacket(ScopedAVPacket packet) {
   // If this file has negative timestamps don't rebase any other stream types
   // against the negative starting time.
   base::TimeDelta start_time = demuxer_->start_time();
-  if (fixup_negative_timestamps_ && !is_audio && start_time.is_negative()) {
+  if (!is_audio && start_time.is_negative()) {
     start_time = base::TimeDelta();
   }
 
@@ -545,57 +536,57 @@ void FFmpegDemuxerStream::EnqueuePacket(ScopedAVPacket packet) {
       buffer->discard_padding() == DecoderBuffer::DiscardPadding()) {
     buffer->set_discard_padding(
         std::make_pair(kInfiniteDuration, base::TimeDelta()));
-    // These timestamps should never be used, but to ensure they are dropped
-    // correctly give them unique timestamps.
-    buffer->set_timestamp(last_packet_timestamp_ == kNoTimestamp
-                              ? base::TimeDelta()
-                              : last_packet_timestamp_ + base::Microseconds(1));
   }
 
-  // Fixup negative timestamps where the before-zero portion is completely
-  // discarded after decoding.
-  if (buffer->timestamp().is_negative()) {
-    // Discard padding may also remove samples after zero.
-    auto fixed_ts = buffer->discard_padding().first + buffer->timestamp();
+  if (is_audio) {
+    // Fixup negative timestamps where the before-zero portion is completely
+    // discarded after decoding.
+    if (buffer->timestamp().is_negative()) {
+      // Discard padding may also remove samples after zero.
+      auto fixed_ts = buffer->discard_padding().first + buffer->timestamp();
 
-    // Allow for rounding error in the discard padding calculations.
-    if (fixed_ts == base::Microseconds(-1))
-      fixed_ts = base::TimeDelta();
-
-    if (fixed_ts >= base::TimeDelta())
-      buffer->set_timestamp(fixed_ts);
-  }
-
-  // Only allow negative timestamps past if we know they'll be fixed up by the
-  // code paths below; otherwise they should be treated as a parse error.
-  if ((!fixup_chained_ogg_ || last_packet_timestamp_ == kNoTimestamp) &&
-      buffer->timestamp().is_negative()) {
-    MEDIA_LOG(ERROR, media_log_)
-        << "FFmpegDemuxer: unfixable negative timestamp.";
-    demuxer_->NotifyDemuxerError(DEMUXER_ERROR_COULD_NOT_PARSE);
-    return;
-  }
-
-  // If enabled, and no codec delay is present, mark audio packets with negative
-  // timestamps for post-decode discard. If codec delay is present, discard is
-  // handled by the decoder using that value.
-  if (fixup_negative_timestamps_ && is_audio &&
-      stream_timestamp.is_negative() && buffer->duration() != kNoTimestamp &&
-      !audio_decoder_config().codec_delay()) {
-    if ((stream_timestamp + buffer->duration()).is_negative()) {
-      DCHECK_EQ(buffer->discard_padding().second, base::TimeDelta());
-
-      // Discard the entire packet if it's entirely before zero, but don't
-      // override the discard padding if it refers to frames beyond this packet.
-      if (buffer->discard_padding().first <= buffer->duration()) {
-        buffer->set_discard_padding(
-            std::make_pair(kInfiniteDuration, base::TimeDelta()));
+      // Allow for rounding error in the discard padding calculations.
+      if (fixed_ts == base::Microseconds(-1)) {
+        fixed_ts = base::TimeDelta();
       }
-    } else {
-      // Only discard part of the frame if it overlaps zero.
-      buffer->set_discard_padding(std::make_pair(
-          std::max(-stream_timestamp, buffer->discard_padding().first),
-          buffer->discard_padding().second));
+
+      if (fixed_ts >= base::TimeDelta()) {
+        buffer->set_timestamp(fixed_ts);
+      }
+    }
+
+    // Only allow negative timestamps past if we know they'll be fixed up by the
+    // code paths below; otherwise they should be treated as a parse error.
+    if ((!fixup_chained_ogg_ || last_packet_timestamp_ == kNoTimestamp) &&
+        buffer->timestamp().is_negative()) {
+      MEDIA_LOG(ERROR, media_log_)
+          << "FFmpegDemuxer: unfixable negative timestamp.";
+      demuxer_->NotifyDemuxerError(DEMUXER_ERROR_COULD_NOT_PARSE);
+      return;
+    }
+
+    // If enabled, and no codec delay is present, mark audio packets with
+    // negative timestamps for post-decode discard. If codec delay is present,
+    // discard is handled by the decoder using that value.
+    if (fixup_negative_timestamps_ && stream_timestamp.is_negative() &&
+        buffer->duration() != kNoTimestamp &&
+        !audio_decoder_config().codec_delay()) {
+      if ((stream_timestamp + buffer->duration()).is_negative()) {
+        DCHECK_EQ(buffer->discard_padding().second, base::TimeDelta());
+
+        // Discard the entire packet if it's entirely before zero, but don't
+        // override the discard padding if it refers to frames beyond this
+        // packet.
+        if (buffer->discard_padding().first <= buffer->duration()) {
+          buffer->set_discard_padding(
+              std::make_pair(kInfiniteDuration, base::TimeDelta()));
+        }
+      } else {
+        // Only discard part of the frame if it overlaps zero.
+        buffer->set_discard_padding(std::make_pair(
+            std::max(-stream_timestamp, buffer->discard_padding().first),
+            buffer->discard_padding().second));
+      }
     }
   }
 
@@ -622,8 +613,10 @@ void FFmpegDemuxerStream::EnqueuePacket(ScopedAVPacket packet) {
                                  : base::Microseconds(1)));
     }
 
-    // The demuxer should always output positive timestamps.
-    DCHECK_GE(buffer->timestamp(), base::TimeDelta());
+    if (is_audio) {
+      // The demuxer should always output positive timestamps.
+      DCHECK_GE(buffer->timestamp(), base::TimeDelta());
+    }
 
     if (last_packet_timestamp_ < buffer->timestamp()) {
       buffered_ranges_.Add(last_packet_timestamp_, buffer->timestamp());
@@ -1118,11 +1111,9 @@ void FFmpegDemuxer::SeekInternal(base::TimeDelta time,
 
   blocking_task_runner_->PostTaskAndReplyWithResult(
       FROM_HERE,
-      base::BindOnce(&av_seek_frame, glue_->format_context(),
+      base::BindOnce(&AVSeekFrame, glue_->format_context(),
                      seeking_stream->index,
-                     ConvertToTimeBase(seeking_stream->time_base, seek_time),
-                     // Always seek to a timestamp <= to the desired timestamp.
-                     AVSEEK_FLAG_BACKWARD),
+                     ConvertToTimeBase(seeking_stream->time_base, seek_time)),
       std::move(seek_cb));
 }
 
@@ -1244,7 +1235,7 @@ void FFmpegDemuxer::OnOpenContextDone(bool result) {
     return;
   }
 
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(ENABLE_HLS_DEMUXER)
   if (glue_->detected_hls()) {
     MEDIA_LOG(INFO, media_log_)
         << GetDisplayName() << ": detected HLS manifest";
@@ -1354,6 +1345,14 @@ void FFmpegDemuxer::OnFindStreamInfoDone(int result) {
       continue;
     }
 
+    // Skip disabled tracks. The mov demuxer translates MOV_TKHD_FLAG_ENABLED to
+    // AV_DISPOSITION_DEFAULT.
+    if (container() == container_names::MediaContainerName::kContainerMOV &&
+        !(stream->disposition & AV_DISPOSITION_DEFAULT)) {
+      stream->discard = AVDISCARD_ALL;
+      continue;
+    }
+
     // Attempt to create a FFmpegDemuxerStream from the AVStream. This will
     // return nullptr if the AVStream is invalid. Validity checks will verify
     // things like: codec, channel layout, sample/pixel format, etc...
@@ -1384,8 +1383,10 @@ void FFmpegDemuxer::OnFindStreamInfoDone(int result) {
         MediaTrack::Language(streams_[i]->GetMetadata("language"));
 
     // Some metadata is named differently in FFmpeg for webm files.
-    if (glue_->container() == container_names::CONTAINER_WEBM)
+    if (glue_->container() ==
+        container_names::MediaContainerName::kContainerWEBM) {
       track_label = MediaTrack::Label(streams_[i]->GetMetadata("title"));
+    }
 
     if (codec_type == AVMEDIA_TYPE_AUDIO) {
       ++supported_audio_track_count;
@@ -1486,7 +1487,8 @@ void FFmpegDemuxer::OnFindStreamInfoDone(int result) {
 
   // Chained ogg is only allowed on single track audio only opus/vorbis media.
   const bool needs_chained_ogg_fixup =
-      glue_->container() == container_names::CONTAINER_OGG &&
+      glue_->container() ==
+          container_names::MediaContainerName::kContainerOgg &&
       supported_audio_track_count == 1 && !supported_video_track_count &&
       has_opus_or_vorbis_audio;
 
@@ -1523,14 +1525,18 @@ void FFmpegDemuxer::OnFindStreamInfoDone(int result) {
 
   // MPEG-4 B-frames cause grief for a simple container like AVI. Enable PTS
   // generation so we always get timestamps, see http://crbug.com/169570
-  if (glue_->container() == container_names::CONTAINER_AVI)
+  if (glue_->container() ==
+      container_names::MediaContainerName::kContainerAVI) {
     format_context->flags |= AVFMT_FLAG_GENPTS;
+  }
 
   // FFmpeg will incorrectly adjust the start time of MP3 files into the future
   // based on discard samples. We were unable to fix this upstream without
   // breaking ffmpeg functionality. https://crbug.com/1062037
-  if (glue_->container() == container_names::CONTAINER_MP3)
+  if (glue_->container() ==
+      container_names::MediaContainerName::kContainerMP3) {
     start_time_ = base::TimeDelta();
+  }
 
   // For testing purposes, don't overwrite the timeline offset if set already.
   if (timeline_offset_.is_null()) {
@@ -1653,8 +1659,7 @@ FFmpegDemuxerStream* FFmpegDemuxer::FindPreferredStreamForSeeking(
       return stream.get();
   }
 
-  NOTREACHED();
-  return nullptr;
+  NOTREACHED_NORETURN();
 }
 
 void FFmpegDemuxer::OnSeekFrameDone(int result) {

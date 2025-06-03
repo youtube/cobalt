@@ -31,12 +31,28 @@ class DIPSStorage {
 
   DIPSState Read(const GURL& url);
 
+  absl::optional<PopupsStateValue> ReadPopup(
+      const std::string& first_party_site,
+      const std::string& tracking_site);
+
+  std::vector<PopupWithTime> ReadRecentPopupsWithInteraction(
+      const base::TimeDelta& lookback);
+
+  bool WritePopup(const std::string& first_party_site,
+                  const std::string& tracking_site,
+                  const uint64_t access_id,
+                  const base::Time& popup_time,
+                  bool is_current_interaction);
+
   void RemoveEvents(base::Time delete_begin,
                     base::Time delete_end,
                     network::mojom::ClearDataFilterPtr filter,
                     const DIPSEventRemovalType type);
 
+  // Delete all DB rows for |sites|.
   void RemoveRows(const std::vector<std::string>& sites);
+  // Delete all DB rows for |sites| without eligible user interactions.
+  void RemoveRowsWithoutInteractionOrWaa(const std::set<std::string>& sites);
 
   // DIPS Helper Method Impls --------------------------------------------------
 
@@ -44,35 +60,47 @@ class DIPSStorage {
   void RecordStorage(const GURL& url, base::Time time, DIPSCookieMode mode);
   // Record that the user interacted on |url|.
   void RecordInteraction(const GURL& url, base::Time time, DIPSCookieMode mode);
+  void RecordWebAuthnAssertion(const GURL& url,
+                               base::Time time,
+                               DIPSCookieMode mode);
   // Record that |url| redirected the user and whether it was |stateful|,
   // meaning that |url| wrote to storage while redirecting.
   void RecordBounce(const GURL& url, base::Time time, bool stateful);
 
   // Storage querying Methods --------------------------------------------------
 
-  // Returns the subset of sites in |sites| WITHOUT user interaction recorded.
-  std::set<std::string> FilterSitesWithoutInteraction(
+  // Returns the subset of sites in |sites| WITHOUT user interaction or
+  // successful web authn assertion recorded.
+  std::set<std::string> FilterSitesWithoutInteractionOrWaa(
       std::set<std::string> sites) const;
 
   // Returns all sites that did a bounce that aren't protected from DIPS.
   std::vector<std::string> GetSitesThatBounced(
-      const base::TimeDelta& grace_period) const;
+      base::TimeDelta grace_period) const;
 
   // Returns all sites that did a stateful bounce that aren't protected from
   // DIPS.
   std::vector<std::string> GetSitesThatBouncedWithState(
-      const base::TimeDelta& grace_period) const;
+      base::TimeDelta grace_period) const;
 
   // Returns all sites which use storage that aren't protected from DIPS.
   std::vector<std::string> GetSitesThatUsedStorage(
-      const base::TimeDelta& grace_period) const;
+      base::TimeDelta grace_period) const;
 
   // Returns the list of sites that should have their state cleared by DIPS. How
   // these sites are determined is controlled by the value of
-  // `dips::kTriggeringAction`. Passing a non-NULL `grace_period` parameter
-  // overrides the use of `dips::kGracePeriod` when evaluating sites to clear.
+  // `features::kDIPSTriggeringAction`. Passing a non-NULL `grace_period`
+  // parameter overrides the use of `features::kDIPSGracePeriod` when
+  // evaluating sites to clear.
   std::vector<std::string> GetSitesToClear(
       absl::optional<base::TimeDelta> grace_period) const;
+
+  // Returns true if `url`'s site has had user interaction since `bound`.
+  bool DidSiteHaveInteractionSince(const GURL& url, base::Time bound);
+
+  // Returns the timestamp of the last user interaction time on `url`, or
+  // absl::nullopt if there has been no user interaction on `url`.
+  absl::optional<base::Time> LastInteractionTime(const GURL& url);
 
   // Utility Methods -----------------------------------------------------------
 

@@ -31,7 +31,6 @@
 #include "base/files/memory_mapped_file.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
-#include "base/guid.h"
 #include "base/location.h"
 #include "base/logging.h"
 #include "base/numerics/safe_conversions.h"
@@ -50,6 +49,7 @@
 #include "base/threading/scoped_blocking_call.h"
 #include "base/threading/scoped_thread_priority.h"
 #include "base/time/time.h"
+#include "base/uuid.h"
 #include "base/win/scoped_handle.h"
 #include "base/win/security_util.h"
 #include "base/win/sid.h"
@@ -61,6 +61,8 @@ namespace base {
 namespace {
 
 int g_extra_allowed_path_for_no_execute = 0;
+
+bool g_disable_secure_system_temp_for_testing = false;
 
 const DWORD kFileShareAll =
     FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE;
@@ -617,7 +619,8 @@ File CreateAndOpenTemporaryFileInDir(const FilePath& dir, FilePath* temp_file) {
   // Although it is nearly impossible to get a duplicate name with GUID, we
   // still use a loop here in case it happens.
   for (int i = 0; i < 100; ++i) {
-    temp_name = dir.Append(FormatTemporaryFileName(UTF8ToWide(GenerateGUID())));
+    temp_name = dir.Append(FormatTemporaryFileName(
+        UTF8ToWide(Uuid::GenerateRandomV4().AsLowercaseString())));
     file.Initialize(temp_name, kFlags);
     if (file.IsValid())
       break;
@@ -687,6 +690,10 @@ bool CreateTemporaryDirInDir(const FilePath& base_dir,
 }
 
 bool GetSecureSystemTemp(FilePath* temp) {
+  if (g_disable_secure_system_temp_for_testing) {
+    return false;
+  }
+
   ScopedBlockingCall scoped_blocking_call(FROM_HERE, BlockingType::MAY_BLOCK);
 
   CHECK(temp);
@@ -710,6 +717,10 @@ bool GetSecureSystemTemp(FilePath* temp) {
   return false;
 }
 
+void SetDisableSecureSystemTempForTesting(bool disabled) {
+  g_disable_secure_system_temp_for_testing = disabled;
+}
+
 // The directory is created under `GetSecureSystemTemp` for security reasons if
 // the caller is admin to avoid attacks from lower privilege processes.
 //
@@ -718,7 +729,8 @@ bool GetSecureSystemTemp(FilePath* temp) {
 // `GetSecureSystemTemp` could be because `%systemroot%\SystemTemp` does not
 // exist, or unable to resolve `DIR_WINDOWS` or `DIR_PROGRAM_FILES`, say due to
 // registry redirection, or unable to create a directory due to
-// `GetSecureSystemTemp` being read-only or having atypical ACLs.
+// `GetSecureSystemTemp` being read-only or having atypical ACLs. Tests can also
+// disable this behavior resulting in false being returned.
 bool CreateNewTempDirectory(const FilePath::StringType& prefix,
                             FilePath* new_temp_path) {
   ScopedBlockingCall scoped_blocking_call(FROM_HERE, BlockingType::MAY_BLOCK);

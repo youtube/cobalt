@@ -64,7 +64,7 @@ void BindWakeLockProvider(
   GetDeviceService().BindWakeLockProvider(std::move(receiver));
 }
 
-scoped_refptr<viz::ContextProvider> GetContextProvider() {
+scoped_refptr<viz::RasterContextProvider> GetContextProvider() {
 #if BUILDFLAG(IS_MAC) || defined(USE_AURA)
   auto* image_transport_factory = ImageTransportFactory::GetInstance();
   DCHECK(image_transport_factory);
@@ -74,7 +74,7 @@ scoped_refptr<viz::ContextProvider> GetContextProvider() {
     return nullptr;
   }
 
-  return ui_context_factory->SharedMainThreadContextProvider();
+  return ui_context_factory->SharedMainThreadRasterContextProvider();
 #else
   return nullptr;
 #endif
@@ -146,7 +146,7 @@ class ContextProviderObserver : viz::ContextLostObserver {
   const OnGpuCapabilitiesFetched on_gpu_capabilities_fetched_;
 
   // Context provider that was used to query the GPU capabilities. May be null.
-  scoped_refptr<viz::ContextProvider> context_provider_
+  scoped_refptr<viz::RasterContextProvider> context_provider_
       GUARDED_BY_CONTEXT(main_sequence_checker_);
 
   SEQUENCE_CHECKER(main_sequence_checker_);
@@ -325,7 +325,7 @@ void FrameSinkVideoCaptureDevice::AllocateCapturer(
                                       constraints.fixed_aspect_ratio);
 
   if (target_) {
-    capturer_->ChangeTarget(target_, crop_version_);
+    capturer_->ChangeTarget(target_, sub_capture_target_version_);
   }
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -389,13 +389,14 @@ void FrameSinkVideoCaptureDevice::Resume() {
 
 void FrameSinkVideoCaptureDevice::Crop(
     const base::Token& crop_id,
-    uint32_t crop_version,
-    base::OnceCallback<void(media::mojom::CropRequestResult)> callback) {
+    uint32_t sub_capture_target_version,
+    base::OnceCallback<void(media::mojom::ApplySubCaptureTargetResult)>
+        callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(callback);
 
   std::move(callback).Run(
-      media::mojom::CropRequestResult::kUnsupportedCaptureDevice);
+      media::mojom::ApplySubCaptureTargetResult::kUnsupportedCaptureDevice);
 }
 
 void FrameSinkVideoCaptureDevice::StopAndDeAllocate() {
@@ -491,24 +492,23 @@ void FrameSinkVideoCaptureDevice::OnFrameCaptured(
   // passing the shared memory buffer handle and then notifying it that a new
   // frame is ready to be read from the buffer.
   receiver_->OnNewBuffer(buffer_id, std::move(data));
-  receiver_->OnFrameReadyInBuffer(
-      media::ReadyFrameInBuffer(
-          buffer_id, buffer_id,
-          std::make_unique<media::ScopedFrameDoneHelper>(base::BindOnce(
-              &FrameSinkVideoCaptureDevice::OnFramePropagationComplete,
-              weak_factory_.GetWeakPtr(), buffer_id)),
-          std::move(info)),
-      {});
+  receiver_->OnFrameReadyInBuffer(media::ReadyFrameInBuffer(
+      buffer_id, buffer_id,
+      std::make_unique<media::ScopedFrameDoneHelper>(base::BindOnce(
+          &FrameSinkVideoCaptureDevice::OnFramePropagationComplete,
+          weak_factory_.GetWeakPtr(), buffer_id)),
+      std::move(info)));
 }
 
-void FrameSinkVideoCaptureDevice::OnNewCropVersion(uint32_t crop_version) {
+void FrameSinkVideoCaptureDevice::OnNewSubCaptureTargetVersion(
+    uint32_t sub_capture_target_version) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   if (!receiver_) {
     return;
   }
 
-  receiver_->OnNewCropVersion(crop_version);
+  receiver_->OnNewSubCaptureTargetVersion(sub_capture_target_version);
 }
 
 void FrameSinkVideoCaptureDevice::OnFrameWithEmptyRegionCapture() {
@@ -541,21 +541,21 @@ void FrameSinkVideoCaptureDevice::OnLog(const std::string& message) {
 
 void FrameSinkVideoCaptureDevice::OnTargetChanged(
     const absl::optional<viz::VideoCaptureTarget>& target,
-    uint32_t crop_version) {
+    uint32_t sub_capture_target_version) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  DCHECK_GE(crop_version, crop_version_);
+  DCHECK_GE(sub_capture_target_version, sub_capture_target_version_);
 
   target_ = target;
-  crop_version_ = crop_version;
+  sub_capture_target_version_ = sub_capture_target_version;
 
   if (capturer_) {
-    capturer_->ChangeTarget(target_, crop_version_);
+    capturer_->ChangeTarget(target_, sub_capture_target_version_);
   }
 }
 
 void FrameSinkVideoCaptureDevice::OnTargetPermanentlyLost() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  OnTargetChanged(absl::nullopt, crop_version_);
+  OnTargetChanged(absl::nullopt, sub_capture_target_version_);
   OnFatalError("Capture target has been permanently lost.");
 }
 

@@ -16,7 +16,6 @@
 #include "base/strings/strcat.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
-#include "base/time/time_to_iso8601.h"
 #include "base/values.h"
 #include "components/cbor/values.h"
 #include "components/cbor/writer.h"
@@ -40,12 +39,9 @@ namespace {
 const char kRedemptionRecordHeaderRedemptionRecordKey[] = "redemption-record";
 
 void LogOutcome(const net::NetLogWithSource& log, base::StringPiece outcome) {
-  log.EndEvent(net::NetLogEventType::TRUST_TOKEN_OPERATION_BEGIN_SIGNING,
-               [outcome]() {
-                 base::Value::Dict ret;
-                 ret.Set("outcome", outcome);
-                 return ret;
-               });
+  log.EndEvent(
+      net::NetLogEventType::TRUST_TOKEN_OPERATION_BEGIN_SIGNING,
+      [outcome]() { return base::Value::Dict().Set("outcome", outcome); });
 }
 
 }  // namespace

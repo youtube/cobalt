@@ -45,10 +45,14 @@ PermissionPromptChip::PermissionPromptChip(Browser* browser,
     PreemptivelyResolvePermissionRequest(web_contents, delegate);
 
   chip_controller_ = lbv->chip_controller();
-  chip_controller_->ShowPermissionPrompt(web_contents, delegate->GetWeakPtr());
+  chip_controller_->ShowPermissionPrompt(delegate->GetWeakPtr());
 }
 
-PermissionPromptChip::~PermissionPromptChip() = default;
+PermissionPromptChip::~PermissionPromptChip() {
+  if (chip_controller_) {
+    chip_controller_->ResetPermissionRequestChip();
+  }
+}
 
 bool PermissionPromptChip::UpdateAnchor() {
   if (UpdateBrowser()) {
@@ -88,6 +92,15 @@ PermissionPromptChip::GetPromptDisposition() const {
 
   return permissions::PermissionPromptDisposition::
       LOCATION_BAR_LEFT_CHIP_AUTO_BUBBLE;
+}
+
+absl::optional<gfx::Rect> PermissionPromptChip::GetViewBoundsInScreen() const {
+  return chip_controller_->IsPermissionPromptChipVisible() &&
+                 chip_controller_->IsBubbleShowing()
+             ? absl::make_optional<gfx::Rect>(
+                   chip_controller_->GetBubbleWidget()
+                       ->GetWindowBoundsInScreen())
+             : absl::nullopt;
 }
 
 views::Widget* PermissionPromptChip::GetPromptBubbleWidgetForTesting() {

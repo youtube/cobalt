@@ -31,7 +31,6 @@ export enum I18nString {
   CONFIRM_REVIEW_BUTTON = 'confirm_review_button',
   DELETE_PAGE_BUTTON = 'delete_page_button',
   DELETE_PAGE_MESSAGE = 'delete_page_message',
-  DIALOG_CANCEL_BUTTON = 'dialog_cancel_button',
   DIALOG_OK_BUTTON = 'dialog_ok_button',
   DOC_SCAN_MENU_BUTTON = 'doc_scan_menu_button',
   DOCUMENT_CORNER_MOVE_DESC = 'document_corner_move_desc',
@@ -53,6 +52,10 @@ export enum I18nString {
   EXPERT_ENABLE_PTZ_FOR_BUILTIN = 'expert_enable_ptz_for_builtin',
   EXPERT_MODE_BUTTON = 'expert_mode_button',
   EXPERT_MULTISTREAM_RECORDING = 'expert_multistream_recording',
+  EXPERT_MULTISTREAM_RECORDING_CHROME = 'expert_multistream_recording_chrome',
+  EXPERT_MULTISTREAM_RECORDING_DISABLED =
+      'expert_multistream_recording_disabled',
+  EXPERT_MULTISTREAM_RECORDING_HAL = 'expert_multistream_recording_hal',
   EXPERT_PREVIEW_METADATA = 'expert_preview_metadata',
   EXPERT_PRINT_PERFORMANCE_LOGS = 'expert_print_performance_logs',
   EXPERT_SAVE_METADATA = 'expert_save_metadata',
@@ -125,8 +128,9 @@ export enum I18nString {
   MOVING_IN_TOP_RIGHT_DIRECTION = 'moving_in_top_right_direction',
   MSG_DOCUMENT_DETECTED = 'msg_document_detected',
   MSG_PROCESSING_IMAGE = 'msg_processing_image',
+  MSG_PROCESSING_VIDEO = 'msg_processing_video',
   // I18nString.NAME: Bypass the presubmit check for unused strings. Used here:
-  // https://source.chromium.org/chromium/chromium/src/+/main:chrome/browser/ash/web_applications/camera_app/camera_system_web_app_info.cc
+  // https://source.chromium.org/chromium/chromium/src/+/main:chrome/browser/ash/system_web_apps/apps/camera_app/camera_system_web_app_info.cc
   // NAME = 'name',
   NEXT_PAGE_COUNT = 'next_page_count',
   NO_DOCUMENT_GUIDE_MSG = 'no_document_guide_msg',

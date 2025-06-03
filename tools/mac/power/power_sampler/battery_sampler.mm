@@ -9,10 +9,10 @@
 #include <IOKit/ps/IOPSKeys.h>
 #include <cstdint>
 
+#include "base/apple/foundation_util.h"
+#include "base/apple/mach_logging.h"
+#include "base/apple/scoped_cftyperef.h"
 #include "base/logging.h"
-#include "base/mac/foundation_util.h"
-#include "base/mac/mach_logging.h"
-#include "base/mac/scoped_cftyperef.h"
 #include "base/mac/scoped_ioobject.h"
 #include "base/memory/ptr_util.h"
 #include "base/time/time.h"
@@ -26,7 +26,7 @@ namespace {
 absl::optional<SInt64> GetValueAsSInt64(CFDictionaryRef description,
                                         CFStringRef key) {
   CFNumberRef number_ref =
-      base::mac::GetValueFromDictionary<CFNumberRef>(description, key);
+      base::apple::GetValueFromDictionary<CFNumberRef>(description, key);
 
   SInt64 value;
   if (number_ref && CFNumberGetValue(number_ref, kCFNumberSInt64Type, &value))
@@ -38,7 +38,7 @@ absl::optional<SInt64> GetValueAsSInt64(CFDictionaryRef description,
 absl::optional<bool> GetValueAsBoolean(CFDictionaryRef description,
                                        CFStringRef key) {
   CFBooleanRef boolean =
-      base::mac::GetValueFromDictionary<CFBooleanRef>(description, key);
+      base::apple::GetValueFromDictionary<CFBooleanRef>(description, key);
   if (!boolean)
     return absl::nullopt;
   return CFBooleanGetValue(boolean);
@@ -54,8 +54,9 @@ std::unique_ptr<BatterySampler> BatterySampler::Create() {
   base::mac::ScopedIOObject<io_service_t> power_source(
       IOServiceGetMatchingService(kIOMasterPortDefault,
                                   IOServiceMatching("IOPMPowerSource")));
-  if (power_source == IO_OBJECT_NULL)
+  if (!power_source) {
     return nullptr;
+  }
 
   auto get_seconds_since_epoch_fn = []() -> int64_t {
     return (base::Time::Now() - base::Time::UnixEpoch()).InSeconds();
@@ -128,7 +129,7 @@ Sampler::Sample BatterySampler::GetSample(base::TimeTicks sample_time) {
 // static
 absl::optional<BatterySampler::BatteryData> BatterySampler::MaybeGetBatteryData(
     io_service_t power_source) {
-  base::ScopedCFTypeRef<CFMutableDictionaryRef> dict;
+  base::apple::ScopedCFTypeRef<CFMutableDictionaryRef> dict;
   kern_return_t result = IORegistryEntryCreateCFProperties(
       power_source, dict.InitializeInto(), 0, 0);
   if (result != KERN_SUCCESS) {
@@ -137,15 +138,15 @@ absl::optional<BatterySampler::BatteryData> BatterySampler::MaybeGetBatteryData(
   }
 
   absl::optional<bool> external_connected =
-      GetValueAsBoolean(dict, CFSTR("ExternalConnected"));
+      GetValueAsBoolean(dict.get(), CFSTR("ExternalConnected"));
   absl::optional<SInt64> voltage_mv =
-      GetValueAsSInt64(dict, CFSTR(kIOPSVoltageKey));
+      GetValueAsSInt64(dict.get(), CFSTR(kIOPSVoltageKey));
   absl::optional<SInt64> current_capacity_mah =
-      GetValueAsSInt64(dict, CFSTR("AppleRawCurrentCapacity"));
+      GetValueAsSInt64(dict.get(), CFSTR("AppleRawCurrentCapacity"));
   absl::optional<SInt64> max_capacity_mah =
-      GetValueAsSInt64(dict, CFSTR("AppleRawMaxCapacity"));
+      GetValueAsSInt64(dict.get(), CFSTR("AppleRawMaxCapacity"));
   absl::optional<SInt64> update_time =
-      GetValueAsSInt64(dict, CFSTR("UpdateTime"));
+      GetValueAsSInt64(dict.get(), CFSTR("UpdateTime"));
 
   if (!external_connected.has_value() || !voltage_mv.has_value() ||
       !current_capacity_mah.has_value() || !max_capacity_mah.has_value()) {
@@ -169,7 +170,7 @@ BatterySampler::MaybeComputeAvgConsumption(base::TimeDelta duration,
   // The gauging hardware measures current consumed (or charged), but reports
   // the remaining capacity with respect to a load-dependent max capacity.
   // Here, however, we care about the delta capacity consumed rather than the
-  // capacity remaining. To get to capacity consumed, we flip the capcacity
+  // capacity remaining. To get to capacity consumed, we flip the capacity
   // remaining estimates to capacity consumed and work from there. It's been
   // experimentally determined that this backs out the effects of any
   // load-dependent max capacity estimates to yield the capacity consumed.

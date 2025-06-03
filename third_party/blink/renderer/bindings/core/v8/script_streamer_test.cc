@@ -87,9 +87,7 @@ class NoopLoaderFactory final : public ResourceFetcher::LoaderFactory {
       BackForwardCacheLoaderHelper*) override {
     return std::make_unique<NoopURLLoader>(std::move(freezable_task_runner));
   }
-  std::unique_ptr<WebCodeCacheLoader> CreateCodeCacheLoader() override {
-    return std::make_unique<CodeCacheLoaderMock>();
-  }
+  CodeCacheHost* GetCodeCacheHost() override { return nullptr; }
 
   class NoopURLLoader final : public URLLoader {
    public:
@@ -99,8 +97,8 @@ class NoopLoaderFactory final : public ResourceFetcher::LoaderFactory {
     ~NoopURLLoader() override = default;
     void LoadSynchronously(
         std::unique_ptr<network::ResourceRequest> request,
-        scoped_refptr<WebURLRequestExtraData> url_request_extra_data,
-        bool pass_response_pipe_to_client,
+        scoped_refptr<const SecurityOrigin> top_frame_origin,
+        bool download_to_blob,
         bool no_mime_sniffing,
         base::TimeDelta timeout_interval,
         URLLoaderClient*,
@@ -116,10 +114,11 @@ class NoopLoaderFactory final : public ResourceFetcher::LoaderFactory {
     }
     void LoadAsynchronously(
         std::unique_ptr<network::ResourceRequest> request,
-        scoped_refptr<WebURLRequestExtraData> url_request_extra_data,
+        scoped_refptr<const SecurityOrigin> top_frame_origin,
         bool no_mime_sniffing,
         std::unique_ptr<blink::ResourceLoadInfoNotifierWrapper>
             resource_load_info_notifier_wrapper,
+        CodeCacheHost* code_cache_host,
         URLLoaderClient*) override {}
     void Freeze(LoaderFreezeMode) override {}
     void DidChangePriority(WebURLRequest::Priority, int) override {
@@ -157,17 +156,22 @@ class ScriptStreamingTest : public testing::Test {
     resource_client_ =
         MakeGarbageCollected<TestResourceClient>(run_loop_.QuitClosure());
     FetchParameters params = FetchParameters::CreateForTest(std::move(request));
-    resource_ = ScriptResource::Fetch(params, fetcher, resource_client_,
-                                      ScriptResource::kAllowStreaming);
+    constexpr v8_compile_hints::V8CrowdsourcedCompileHintsProducer*
+        kNoCompileHintsProducer = nullptr;
+    constexpr v8_compile_hints::V8CrowdsourcedCompileHintsConsumer*
+        kNoCompileHintsConsumer = nullptr;
+    resource_ = ScriptResource::Fetch(
+        params, fetcher, resource_client_, ScriptResource::kAllowStreaming,
+        kNoCompileHintsProducer, kNoCompileHintsConsumer);
     resource_->AddClient(resource_client_, task_runner.get());
 
     ResourceResponse response(url_);
     response.SetHttpStatusCode(200);
     resource_->SetResponse(response);
 
-    resource_->Loader()->DidReceiveResponse(WrappedResourceResponse(response));
-    resource_->Loader()->DidStartLoadingResponseBody(
-        std::move(consumer_handle_));
+    resource_->Loader()->DidReceiveResponse(WrappedResourceResponse(response),
+                                            std::move(consumer_handle_),
+                                            /*cached_metadata=*/absl::nullopt);
   }
 
   ClassicScript* CreateClassicScript() const {

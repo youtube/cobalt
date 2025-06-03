@@ -91,8 +91,7 @@ ScriptPromise ShapeDetector::detect(ScriptState* script_state,
 
   SourceImageStatus source_image_status = kInvalidSourceImageStatus;
   scoped_refptr<Image> image = canvas_image_source->GetSourceImageForCanvas(
-      CanvasResourceProvider::FlushReason::kShapeDetector, &source_image_status,
-      size);
+      FlushReason::kShapeDetector, &source_image_status, size);
   if (!image || source_image_status != kNormalSourceImageStatus) {
     exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
                                       "Invalid element or state.");
@@ -115,8 +114,7 @@ ScriptPromise ShapeDetector::detect(ScriptState* script_state,
   SkBitmap n32_bitmap;
   if (!sk_image || !sk_image->asLegacyBitmap(&sk_bitmap) ||
       !skia::SkBitmapToN32OpaqueOrPremul(sk_bitmap, &n32_bitmap)) {
-    // TODO(mcasas): retrieve the pixels from elsewhere.
-    NOTREACHED();
+    // TODO(crbug.com/1467598): retrieve the pixels from elsewhere.
     exception_state.ThrowDOMException(
         DOMExceptionCode::kInvalidStateError,
         "Failed to get pixels for current frame.");

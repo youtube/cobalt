@@ -13,7 +13,7 @@ import './shared_style.css.js';
 
 import {CrIconButtonElement} from 'chrome://resources/cr_elements/cr_icon_button/cr_icon_button.js';
 import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
-import {assert, assertNotReached} from 'chrome://resources/js/assert_ts.js';
+import {assert, assertNotReached} from 'chrome://resources/js/assert.js';
 import {OpenWindowProxyImpl} from 'chrome://resources/js/open_window_proxy.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
@@ -105,7 +105,7 @@ export class CheckupListItemElement extends CheckupListItemElementBase {
     }));
   }
 
-  public showHidePassword() {
+  showHidePassword() {
     if (this.isPasswordVisible === true) {
       this.onShowHidePasswordButtonClick();
       this.item.password = undefined;
@@ -125,7 +125,7 @@ export class CheckupListItemElement extends CheckupListItemElementBase {
         .catch(() => {});
   }
 
-  public showEditDialog() {
+  showEditDialog() {
     PasswordManagerImpl.getInstance()
         .requestCredentialsDetails([this.item.id])
         .then(entries => {
@@ -139,7 +139,7 @@ export class CheckupListItemElement extends CheckupListItemElementBase {
         .catch(() => {});
   }
 
-  public showDeleteDialog() {
+  showDeleteDialog() {
     this.showDeletePasswordDialog_ = true;
   }
 
@@ -175,7 +175,7 @@ export class CheckupListItemElement extends CheckupListItemElementBase {
   }
 
   private onDeletePasswordClick_() {
-    PasswordManagerImpl.getInstance().removeSavedPassword(
+    PasswordManagerImpl.getInstance().removeCredential(
         this.item.id, this.item.storedIn);
     this.dispatchEvent(new CustomEvent('password-removed', {
       bubbles: true,

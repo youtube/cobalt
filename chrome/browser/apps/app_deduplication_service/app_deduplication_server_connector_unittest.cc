@@ -10,6 +10,7 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/test/bind.h"
 #include "base/test/test_future.h"
+#include "chrome/browser/apps/almanac_api_client/device_info_manager.h"
 #include "chrome/browser/apps/app_deduplication_service/proto/app_deduplication.pb.h"
 #include "chrome/browser/apps/app_deduplication_service/proto/deduplication_data.pb.h"
 #include "components/version_info/channel.h"
@@ -33,11 +34,17 @@ class AppDeduplicationServerConnectorTest : public testing::Test {
             base::MakeRefCounted<network::WeakWrapperSharedURLLoaderFactory>(
                 &url_loader_factory_)) {}
 
+  void SetUp() override {
+    device_info_.board = "brya";
+    device_info_.user_type = "unmanaged";
+  }
+
  protected:
   network::TestURLLoaderFactory url_loader_factory_;
   scoped_refptr<network::SharedURLLoaderFactory> test_shared_loader_factory_;
 
   AppDeduplicationServerConnector server_connector_;
+  DeviceInfo device_info_;
 
  private:
   content::BrowserTaskEnvironment task_environment_;
@@ -58,8 +65,8 @@ TEST_F(AppDeduplicationServerConnectorTest,
         method = request.method;
       }));
 
-  server_connector_.GetDeduplicateAppsFromServer(test_shared_loader_factory_,
-                                                 base::DoNothing());
+  server_connector_.GetDeduplicateAppsFromServer(
+      device_info_, test_shared_loader_factory_, base::DoNothing());
 
   EXPECT_EQ(method, "POST");
   EXPECT_EQ(method_override_header, "GET");
@@ -69,18 +76,18 @@ TEST_F(AppDeduplicationServerConnectorTest,
 TEST_F(AppDeduplicationServerConnectorTest,
        GetDeduplicateAppsFromServerSuccess) {
   proto::DeduplicateResponse response;
-  auto* app_group = response.add_app_group();
-  auto* app = app_group->add_app();
-  app->set_app_id("com.skype.raider");
-  app->set_platform("phonehub");
+  auto* group = response.add_app_group();
+  group->set_app_group_uuid("15ca3ac3-c8cd-4a0c-a195-2ea210ea922c");
+  group->add_package_id();
+  group->set_package_id(0, "website:https://web.skype.com/");
 
   url_loader_factory_.AddResponse(
       AppDeduplicationServerConnector::GetServerUrl().spec(),
       response.SerializeAsString());
 
   base::test::TestFuture<absl::optional<proto::DeduplicateData>> test_callback;
-  server_connector_.GetDeduplicateAppsFromServer(test_shared_loader_factory_,
-                                                 test_callback.GetCallback());
+  server_connector_.GetDeduplicateAppsFromServer(
+      device_info_, test_shared_loader_factory_, test_callback.GetCallback());
   auto observed_response = test_callback.Get();
   EXPECT_TRUE(observed_response.has_value());
   EXPECT_EQ(observed_response->app_group_size(), 1);
@@ -92,8 +99,8 @@ TEST_F(AppDeduplicationServerConnectorTest,
       AppDeduplicationServerConnector::GetServerUrl().spec(), "");
 
   base::test::TestFuture<absl::optional<proto::DeduplicateData>> response;
-  server_connector_.GetDeduplicateAppsFromServer(test_shared_loader_factory_,
-                                                 response.GetCallback());
+  server_connector_.GetDeduplicateAppsFromServer(
+      device_info_, test_shared_loader_factory_, response.GetCallback());
   EXPECT_FALSE(response.Get().has_value());
 }
 
@@ -103,8 +110,8 @@ TEST_F(AppDeduplicationServerConnectorTest, GetDeduplicateAppsFromServerError) {
       net::HTTP_INTERNAL_SERVER_ERROR);
 
   base::test::TestFuture<absl::optional<proto::DeduplicateData>> response;
-  server_connector_.GetDeduplicateAppsFromServer(test_shared_loader_factory_,
-                                                 response.GetCallback());
+  server_connector_.GetDeduplicateAppsFromServer(
+      device_info_, test_shared_loader_factory_, response.GetCallback());
   EXPECT_FALSE(response.Get().has_value());
 }
 
@@ -116,8 +123,8 @@ TEST_F(AppDeduplicationServerConnectorTest,
       network::URLLoaderCompletionStatus(net::ERR_INSUFFICIENT_RESOURCES));
 
   base::test::TestFuture<absl::optional<proto::DeduplicateData>> response;
-  server_connector_.GetDeduplicateAppsFromServer(test_shared_loader_factory_,
-                                                 response.GetCallback());
+  server_connector_.GetDeduplicateAppsFromServer(
+      device_info_, test_shared_loader_factory_, response.GetCallback());
   EXPECT_FALSE(response.Get().has_value());
 }
 

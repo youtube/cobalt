@@ -15,7 +15,7 @@
 #include "ui/views/view.h"
 
 class ReadAnythingToolbarView;
-class ReadAnythingUI;
+class ReadAnythingUntrustedUI;
 
 ///////////////////////////////////////////////////////////////////////////////
 // ReadAnythingContainerView
@@ -33,7 +33,7 @@ class ReadAnythingContainerView : public views::View,
   ReadAnythingContainerView(
       ReadAnythingCoordinator* coordinator,
       std::unique_ptr<ReadAnythingToolbarView> toolbar,
-      std::unique_ptr<SidePanelWebUIViewT<ReadAnythingUI>> content);
+      std::unique_ptr<SidePanelWebUIViewT<ReadAnythingUntrustedUI>> content);
   ReadAnythingContainerView(const ReadAnythingContainerView&) = delete;
   ReadAnythingContainerView& operator=(const ReadAnythingContainerView&) =
       delete;
@@ -48,6 +48,7 @@ class ReadAnythingContainerView : public views::View,
       ui::ColorId separator_color_id,
       ui::ColorId dropdown_color_id,
       ui::ColorId selection_color_id,
+      ui::ColorId focus_ring_color_id,
       read_anything::mojom::LineSpacing line_spacing,
       read_anything::mojom::LetterSpacing letter_spacing) override;
 
@@ -55,8 +56,6 @@ class ReadAnythingContainerView : public views::View,
   void OnCoordinatorDestroyed() override;
 
  private:
-  void LogTextStyle();
-
   raw_ptr<ReadAnythingCoordinator> coordinator_;
   raw_ptr<views::Separator> separator_;
 };

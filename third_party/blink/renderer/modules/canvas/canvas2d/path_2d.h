@@ -48,23 +48,23 @@ class MODULES_EXPORT Path2D final : public ScriptWrappable, public CanvasPath {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  static Path2D* Create(ExecutionContext* context,
+  static Path2D* Create(ScriptState* script_state,
                         const V8UnionPath2DOrString* path) {
     DCHECK(path);
     switch (path->GetContentType()) {
       case V8UnionPath2DOrString::ContentType::kPath2D:
-        return MakeGarbageCollected<Path2D>(context, path->GetAsPath2D());
+        return MakeGarbageCollected<Path2D>(script_state, path->GetAsPath2D());
       case V8UnionPath2DOrString::ContentType::kString:
-        return MakeGarbageCollected<Path2D>(context, path->GetAsString());
+        return MakeGarbageCollected<Path2D>(script_state, path->GetAsString());
     }
     NOTREACHED();
     return nullptr;
   }
-  static Path2D* Create(ExecutionContext* context) {
-    return MakeGarbageCollected<Path2D>(context);
+  static Path2D* Create(ScriptState* script_state) {
+    return MakeGarbageCollected<Path2D>(script_state);
   }
-  static Path2D* Create(ExecutionContext* context, const Path& path) {
-    return MakeGarbageCollected<Path2D>(context, path);
+  static Path2D* Create(ScriptState* script_state, const Path& path) {
+    return MakeGarbageCollected<Path2D>(script_state, path);
   }
 
   void addPath(Path2D* path,
@@ -86,22 +86,25 @@ class MODULES_EXPORT Path2D final : public ScriptWrappable, public CanvasPath {
 
   void Trace(Visitor*) const override;
 
-  ExecutionContext* GetTopExecutionContext() const override { return context_; }
+  ExecutionContext* GetTopExecutionContext() const override {
+    return context_.Get();
+  }
 
-  explicit Path2D(ExecutionContext* context) : context_(context) {
-    identifiability_study_helper_.SetExecutionContext(context);
+  explicit Path2D(ScriptState* script_state)
+      : context_(ExecutionContext::From(script_state)) {
+    identifiability_study_helper_.SetExecutionContext(context_.Get());
     GetModifiablePath().SetIsVolatile(false);
   }
-  Path2D(ExecutionContext* context, const Path& path)
-      : CanvasPath(path), context_(context) {
-    identifiability_study_helper_.SetExecutionContext(context);
+  Path2D(ScriptState* script_state, const Path& path)
+      : CanvasPath(path), context_(ExecutionContext::From(script_state)) {
+    identifiability_study_helper_.SetExecutionContext(context_.Get());
     GetModifiablePath().SetIsVolatile(false);
   }
-  Path2D(ExecutionContext* context, Path2D* path)
-      : Path2D(context, path->GetPath()) {}
-  Path2D(ExecutionContext* context, const String& path_data)
-      : context_(context) {
-    identifiability_study_helper_.SetExecutionContext(context);
+  Path2D(ScriptState* script_state, Path2D* path)
+      : Path2D(script_state, path->GetPath()) {}
+  Path2D(ScriptState* script_state, const String& path_data)
+      : context_(ExecutionContext::From(script_state)) {
+    identifiability_study_helper_.SetExecutionContext(context_.Get());
     BuildPathFromString(path_data, GetModifiablePath());
     GetModifiablePath().SetIsVolatile(false);
   }

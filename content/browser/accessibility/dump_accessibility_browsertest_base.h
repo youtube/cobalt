@@ -16,6 +16,7 @@
 #include "content/public/browser/ax_inspect_factory.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/accessibility_notification_waiter.h"
+#include "content/public/test/browser_test_utils.h"
 #include "content/public/test/content_browser_test.h"
 #include "content/public/test/content_browser_test_utils.h"
 #include "third_party/blink/public/common/features.h"
@@ -36,9 +37,9 @@ class BrowserAccessibilityManager;
 // testing accessibility in Chromium.
 //
 // See content/test/data/accessibility/readme.md for an overview.
-class DumpAccessibilityTestBase
-    : public ContentBrowserTest,
-      public ::testing::WithParamInterface<ui::AXApiType::Type> {
+class DumpAccessibilityTestBase : public ContentBrowserTest,
+                                  public ::testing::WithParamInterface<
+                                      std::pair<ui::AXApiType::Type, bool>> {
  public:
   DumpAccessibilityTestBase();
   ~DumpAccessibilityTestBase() override;
@@ -80,29 +81,41 @@ class DumpAccessibilityTestBase
     RunTest(mode, test_file, dir.c_str());
   }
 
-  template <std::vector<ui::AXApiType::Type> TestPasses(),
-            ui::AXApiType::TypeConstant type>
-  static std::vector<ui::AXApiType::Type> TestPassesExcept() {
-    std::vector<ui::AXApiType::Type> passes = TestPasses();
+  typedef std::vector<ui::AXApiType::Type> ApiTypeVector;
+  typedef std::vector<std::pair<ui::AXApiType::Type, bool>> ParamVector;
+
+  static ParamVector TestParams(const ApiTypeVector& api_types);
+  static ParamVector TreeTestPasses() {
+    return DumpAccessibilityTestBase::TestParams(
+        ui::AXInspectTestHelper::TreeTestPasses());
+  }
+  static ParamVector EventTestPasses() {
+    return DumpAccessibilityTestBase::TestParams(
+        ui::AXInspectTestHelper::EventTestPasses());
+  }
+
+  template <ApiTypeVector TestPasses(), ui::AXApiType::TypeConstant type>
+  static ParamVector TestPassesExcept() {
+    ApiTypeVector passes = TestPasses();
     base::Erase(passes, type);
-    return passes;
+    return TestParams(passes);
   }
 
   template <ui::AXApiType::TypeConstant type>
-  static std::vector<ui::AXApiType::Type> TreeTestPassesExcept() {
+  static ParamVector TreeTestPassesExcept() {
     return TestPassesExcept<ui::AXInspectTestHelper::TreeTestPasses, type>();
   }
 
   template <ui::AXApiType::TypeConstant type>
-  static std::vector<ui::AXApiType::Type> EventTestPassesExcept() {
+  static ParamVector EventTestPassesExcept() {
     return TestPassesExcept<ui::AXInspectTestHelper::EventTestPasses, type>();
   }
 
-  static std::vector<ui::AXApiType::Type> TreeTestPassesExceptUIA() {
+  static ParamVector TreeTestPassesExceptUIA() {
     return TreeTestPassesExcept<ui::AXApiType::kWinUIA>();
   }
 
-  static std::vector<ui::AXApiType::Type> EventTestPassesExceptUIA() {
+  static ParamVector EventTestPassesExceptUIA() {
     return EventTestPassesExcept<ui::AXApiType::kWinUIA>();
   }
 
@@ -110,6 +123,7 @@ class DumpAccessibilityTestBase
   void SetUpCommandLine(base::CommandLine* command_line) override;
   void SetUpOnMainThread() override;
   void SetUp() override;
+  void TearDown() override;
 
   //
   // For subclasses to override:
@@ -164,8 +178,8 @@ class DumpAccessibilityTestBase
   std::unique_ptr<ui::AXTreeFormatter> CreateFormatter() const;
 
   // Returns a list of captured events fired after the invoked action.
-  using InvokeAction = base::OnceCallback<base::Value()>;
-  std::pair<base::Value, std::vector<std::string>> CaptureEvents(
+  using InvokeAction = base::OnceCallback<EvalJsResult()>;
+  std::pair<EvalJsResult, std::vector<std::string>> CaptureEvents(
       InvokeAction invoke_action,
       ui::AXMode mode);
 

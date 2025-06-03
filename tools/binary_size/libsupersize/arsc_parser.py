@@ -13,6 +13,7 @@ https://android.googlesource.com/platform/frameworks/base/+/master/libs/androidf
 
 import argparse
 import collections
+import dataclasses
 import logging
 import functools
 import os
@@ -84,32 +85,36 @@ class _ArscStreamReader(stream_reader.StreamReader):
 
     Requires all classes in this file to be parsed, before calling.
     """
+    def MakeGeneric(type_name):
+      return lambda reader, parent: ArscGeneric(type_name, reader, parent)
+
     return {
         _RES_STRING_POOL_TYPE: ArscStringPool,
         _RES_TABLE_TYPE: ArscResTable,
-        _RES_XML_TYPE: None,
-        _RES_XML_FIRST_CHUNK_TYPE: None,
-        _RES_XML_START_NAMESPACE_TYPE: None,
-        _RES_XML_END_NAMESPACE_TYPE: None,
-        _RES_XML_START_ELEMENT_TYPE: None,
-        _RES_XML_END_ELEMENT_TYPE: None,
-        _RES_XML_CDATA_TYPE: None,
-        _RES_XML_LAST_CHUNK_TYPE: None,
-        _RES_XML_RESOURCE_MAP_TYPE: None,
+        _RES_XML_TYPE: MakeGeneric('XML'),
+        _RES_XML_FIRST_CHUNK_TYPE: MakeGeneric('XML_FIRST_CHUNK'),
+        _RES_XML_START_NAMESPACE_TYPE: MakeGeneric('XML_START_NAMESPACE'),
+        _RES_XML_END_NAMESPACE_TYPE: MakeGeneric('XML_END_NAMESPACE'),
+        _RES_XML_START_ELEMENT_TYPE: MakeGeneric('XML_START_ELEMENT'),
+        _RES_XML_END_ELEMENT_TYPE: MakeGeneric('XML_END_ELEMENT'),
+        _RES_XML_CDATA_TYPE: MakeGeneric('XML_CDATA'),
+        _RES_XML_LAST_CHUNK_TYPE: MakeGeneric('XML_LAST_CHUNK'),
+        _RES_XML_RESOURCE_MAP_TYPE: MakeGeneric('XML_RESOURCE_MAP'),
         _RES_TABLE_PACKAGE_TYPE: ArscResTablePackage,
         _RES_TABLE_TYPE_TYPE: ArscResTableType,
         _RES_TABLE_TYPE_SPEC_TYPE: ArscResTableTypeSpec,
-        _RES_TABLE_LIBRARY_TYPE: None,
-        _RES_TABLE_OVERLAYABLE_TYPE: None,
-        _RES_TABLE_OVERLAYABLE_POLICY_TYPE: None,
-        _RES_TABLE_STAGED_ALIAS_TYPE: None,
+        _RES_TABLE_LIBRARY_TYPE: MakeGeneric('LIBRARY'),
+        _RES_TABLE_OVERLAYABLE_TYPE: MakeGeneric('OVERLAYABLE'),
+        _RES_TABLE_OVERLAYABLE_POLICY_TYPE: MakeGeneric('OVERLAYABLE_POLICY'),
+        _RES_TABLE_STAGED_ALIAS_TYPE: MakeGeneric('STAGED_ALIAS'),
     }
 
   def NextArscChunk(self, parent=None):
     chunk_type = self.PeekArscHeaderType()
-    arsc_class = self.GetArscResTypeToClassMap().get(chunk_type)
-    assert arsc_class, 'Failed to get class for chunk_type = %d' % chunk_type
-    return arsc_class(self, parent=parent)
+    arsc_class = self.GetArscResTypeToClassMap().get(chunk_type) or ArscChunk
+    chunk = arsc_class(self, parent=parent)
+    self.Seek(chunk.end_addr)
+    return chunk
 
 
 def _SplitBits(value, *widths):
@@ -328,7 +333,7 @@ class ArscChunk:
     type: (In header) Chunk type specified by a _RES_*_TYPE constant.
     header_size: (In header) Byte size of the header, which is |type|-dependent.
     size: (In header) Byte size of the chunk, including header.
-    padding: Number of padding bytes.
+    placeholder: Number of placeholder bytes.
   """
   def __init__(self, reader, parent):
     # Custom additions for binary size tracking.
@@ -353,8 +358,8 @@ class ArscChunk:
     return self.addr + self.size
 
   @property
-  def padding(self):
-    """Returns type-dependent padding, overridable."""
+  def placeholder(self):
+    """Returns type-dependent placeholder, overridable."""
     return 0
 
   def StrHelper(self, name, fields):
@@ -368,7 +373,26 @@ class ArscChunk:
     return '%s: %s%s: %s' % (r, '  ' * depth, name, f)
 
   def __str__(self):
-    return self.StrHelper('UNKNOWN (type=%d)' % self.type, {})
+    return self.StrHelper('GENERIC', {'type': self.type})
+
+  def symbol_name(self):
+    return f'GENERIC: type={self.type}'
+
+  def labelled_children(self):
+    yield from ((None, child) for child in self.children)
+
+
+class ArscGeneric(ArscChunk):
+  """Generic chunk containing only name."""
+  def __init__(self, type_name, reader, parent):
+    super().__init__(reader, parent)
+    self.type_name = type_name
+
+  def __str__(self):
+    return self.StrHelper(self.type_name, {})
+
+  def symbol_name(self):
+    return self.type_name
 
 
 class ArscStringPool(ArscChunk):
@@ -394,6 +418,7 @@ class ArscStringPool(ArscChunk):
     self.is_utf8 = bool(self.flags & ArscStringPool.UTF8_FLAG)
     assert reader.Tell() == self.payload_addr
 
+    self.role = ''  # Can be modified by parent.
     base = self.addr + self.string_start
     self.string_addrs = [
         base + reader.NextUInt() for _ in range(self.string_count)
@@ -405,6 +430,9 @@ class ArscStringPool(ArscChunk):
 
   def __str__(self):
     return self.StrHelper('STRING_POOL', {'string_count': self.string_count})
+
+  def symbol_name(self):
+    return f'STRING_POOL: {self.role}' if self.role else 'STRING_POOL'
 
   @property
   @functools.lru_cache
@@ -459,6 +487,7 @@ class ArscResTable(ArscChunk):
     assert reader.PeekArscHeaderType() == _RES_STRING_POOL_TYPE
 
     self.string_pool = reader.NextArscChunk(parent=self)
+    self.string_pool.role = 'root'
     self.children.append(self.string_pool)
 
     # Save |cur_addr| since children chunks may not be fully parsed.
@@ -474,6 +503,18 @@ class ArscResTable(ArscChunk):
 
   def __str__(self):
     return self.StrHelper('TABLE', {'package_count': self.package_count})
+
+  def symbol_name(self):
+    return 'res_table'
+
+  def labelled_children(self):
+    for chunk in self.children:
+      if chunk is self.string_pool:
+        yield (None, chunk)
+      elif isinstance(chunk, ArscResTablePackage):
+        yield (chunk.name, chunk)
+      else:
+        yield (None, chunk)
 
 
 class ArscResTablePackage(ArscChunk):
@@ -516,17 +557,29 @@ class ArscResTablePackage(ArscChunk):
       reader.Seek(cur_addr)
       chunk = reader.NextArscChunk(parent=self)
       self.children.append(chunk)
-      if chunk.type == _RES_STRING_POOL_TYPE:
+      if isinstance(chunk, ArscStringPool):
         if self.type_pool is None:
           self.type_pool = chunk
+          self.type_pool.role = 'types'
         elif self.key_pool is None:
           self.key_pool = chunk
+          self.key_pool.role = 'keys'
         else:
           logging.warn('Unexpected string pool at %08X.' % t.address)
       cur_addr = chunk.end_addr
 
   def __str__(self):
     return self.StrHelper('PACKAGE', {'name': self.name})
+
+  def symbol_name(self):
+    return 'package'
+
+  def labelled_children(self):
+    for chunk in self.children:
+      if isinstance(chunk, (ArscResTableType, ArscResTableTypeSpec)):
+        yield (chunk.type_str, chunk)
+      else:
+        yield (None, chunk)
 
 
 class ArscResTableType(ArscChunk):
@@ -536,7 +589,7 @@ class ArscResTableType(ArscChunk):
   resource entries, followed by resource data (not parsed). The pointer table
   can be dense or sparse.
   * Dense tables use NO_ENTRY to mark resources unavailable for |config|. These
-    pointers are counted in |padding|.
+    pointers are counted in |placeholder|.
   * Sparse tables stores sorted (index, pointer) pairs and uses binary search.
     Currently we don't support these.
 
@@ -565,21 +618,20 @@ class ArscResTableType(ArscChunk):
     self.config = ResTableConfig(reader)
     assert reader.Tell() == self.payload_addr
 
-    self.entry_padding = 0
+    self.entry_placeholder = 0
     self.type_str = parent.type_pool.GetString(self.id - 1)
 
     entries_start_addr = self.addr + self.entries_start
     entries_offsets = [reader.NextUInt() for _ in range(self.entry_count)]
     assert entries_start_addr >= reader.Tell()
 
-    self.entry_padding += sum(4 for o in entries_offsets
-                              if o == ArscResTableType.NO_ENTRY)
+    self.entry_placeholder += sum(4 for o in entries_offsets
+                                  if o == ArscResTableType.NO_ENTRY)
     # Skip reading actual entries.
-    reader.Seek(self.end_addr)
 
   @property
-  def padding(self):
-    return self.entry_padding
+  def placeholder(self):
+    return self.entry_placeholder
 
   def __str__(self):
     return self.StrHelper(
@@ -587,9 +639,12 @@ class ArscResTableType(ArscChunk):
             'type_str': self.type_str,
             'entry_count': self.entry_count,
             'size': self.size,
-            'padding': self.entry_padding,
+            'placeholder': self.entry_placeholder,
             'config': str(self.config),
         })
+
+  def symbol_name(self):
+    return str(self.config) or 'default'
 
 
 class ArscResTableTypeSpec(ArscChunk):
@@ -622,6 +677,9 @@ class ArscResTableTypeSpec(ArscChunk):
         'entry_count': self.entry_count
     })
 
+  def symbol_name(self):
+    return 'TYPE_SPEC'
+
 
 class ArscFile:
   """Represents a single ARSC file.
@@ -637,21 +695,39 @@ class ArscFile:
     self.table = reader.NextArscChunk()
 
   def VisitPreOrder(self):
-    """Depth-first pre-order visitor of all chunks."""
-    yield self.table
-    st = [iter(self.table.children)]
-    while st:
-      chunk = next(st[-1], None)
-      if chunk:
-        yield chunk
-        st.append(iter(chunk.children))
+    """Depth-first pre-order visitor of all (path, chunk).
+
+    |path| is a string to establish context of |chunk|, consisting of non-None
+    labels of ancestral and current chunks joined by '/'.
+    """
+    @dataclasses.dataclass
+    class StackFrame:
+      prev_has_label: bool
+      child_iterator: object
+
+    label_stack = []
+    yield '', self.table
+    stack = [StackFrame(False, self.table.labelled_children())]
+    while stack:
+      frame = stack[-1]
+      if frame.prev_has_label:
+        label_stack.pop()
+        frame.prev_has_label = False
+      label_and_chunk = next(frame.child_iterator, None)
+      if label_and_chunk:
+        label, chunk = label_and_chunk
+        if label:
+          label_stack.append(label)
+          frame.prev_has_label = True
+        yield '/'.join(label_stack), chunk
+        stack.append(StackFrame(False, chunk.labelled_children()))
       else:
-        st.pop()
+        stack.pop()
 
 
 def _DumpArscChunks(arsc_data):
   arsc_file = ArscFile(arsc_data)
-  for chunk in arsc_file.VisitPreOrder():
+  for _, chunk in arsc_file.VisitPreOrder():
     print(str(chunk))
 
 

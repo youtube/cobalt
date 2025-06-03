@@ -7,7 +7,7 @@
 #include <utility>
 
 #include "base/metrics/histogram_macros.h"
-#include "components/viz/common/resources/resource_format_utils.h"
+#include "components/viz/common/resources/shared_image_format_utils.h"
 #include "components/viz/service/display/skia_output_surface.h"
 #include "gpu/command_buffer/common/shared_image_usage.h"
 
@@ -147,7 +147,7 @@ void BufferQueue::FreeBuffer(std::unique_ptr<AllocatedBuffer> buffer) {
 void BufferQueue::AllocateBuffers(size_t n) {
   DCHECK(format_);
   const SharedImageFormat format =
-      SharedImageFormat::SinglePlane(GetResourceFormat(format_.value()));
+      GetSinglePlaneSharedImageFormat(format_.value());
 
   constexpr uint32_t usage = gpu::SHARED_IMAGE_USAGE_DISPLAY_READ |
                              gpu::SHARED_IMAGE_USAGE_DISPLAY_WRITE |
@@ -156,7 +156,8 @@ void BufferQueue::AllocateBuffers(size_t n) {
   available_buffers_.reserve(available_buffers_.size() + n);
   for (size_t i = 0; i < n; ++i) {
     const gpu::Mailbox mailbox = skia_output_surface_->CreateSharedImage(
-        format, size_, color_space_, usage, "VizBufferQueue", surface_handle_);
+        format, size_, color_space_, RenderPassAlphaType::kPremul, usage,
+        "VizBufferQueue", surface_handle_);
     DCHECK(!mailbox.IsZero());
 
     available_buffers_.push_back(

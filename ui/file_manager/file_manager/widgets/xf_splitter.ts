@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {assert} from 'chrome://resources/js/assert_ts.js';
+import {assert} from 'chrome://resources/js/assert.js';
 
 import {css, customElement, html, XfBase} from './xf_base.js';
 
@@ -166,7 +166,6 @@ function getCSS() {
       --xf-splitter-tracker-offset: 0px;
       display: flex;
       flex: none;
-      justify-content: center;
       margin: 0;
       position: relative;
       width: 100%;

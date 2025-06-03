@@ -9,7 +9,6 @@
 
 #include "base/files/file_path.h"
 #include "base/functional/callback_forward.h"
-#include "base/mac/scoped_nsobject.h"
 #include "base/memory/weak_ptr.h"
 #include "ui/gfx/native_widget_types.h"
 #include "ui/shell_dialogs/select_file_dialog.h"
@@ -55,7 +54,7 @@ class SelectFileDialogImpl : public SelectFileDialog {
   ~SelectFileDialogImpl() override;
 
   bool has_multiple_file_type_choices_ = false;
-  base::scoped_nsobject<NativeFileDialog> native_file_dialog_;
+  NativeFileDialog* __strong native_file_dialog_;
   base::WeakPtrFactory<SelectFileDialogImpl> weak_factory_{this};
 };
 

@@ -27,13 +27,15 @@
 #include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/browser/web_applications/web_app_registrar.h"
 #include "chrome/browser/web_applications/web_app_utils.h"
+#include "chromeos/components/kiosk/kiosk_utils.h"
+#include "chromeos/components/mgs/managed_guest_session_utils.h"
 #include "components/app_constants/constants.h"
 #include "components/services/app_service/public/cpp/app_launch_util.h"
 #include "components/services/app_service/public/cpp/instance_registry.h"
 #include "components/services/app_service/public/cpp/instance_update.h"
 #include "components/sync/base/model_type.h"
-#include "components/sync/driver/sync_service.h"
-#include "components/sync/driver/sync_service_utils.h"
+#include "components/sync/service/sync_service.h"
+#include "components/sync/service/sync_service_utils.h"
 #include "components/user_manager/user.h"
 #include "components/user_manager/user_manager.h"
 #include "extensions/browser/extension_prefs.h"
@@ -374,6 +376,12 @@ bool ShouldRecordUkm(Profile* profile) {
   if (ash::DemoSession::IsDeviceInDemoMode()) {
     return true;
   }
+
+  // Bypass AppKM App Sync check in Kiosk and MGS to collect app metrics.
+  if (chromeos::IsKioskSession() || chromeos::IsManagedGuestSession()) {
+    return true;
+  }
+
   switch (syncer::GetUploadToGoogleState(
       SyncServiceFactory::GetForProfile(profile), syncer::ModelType::APPS)) {
     case syncer::UploadState::NOT_ACTIVE:
@@ -487,6 +495,20 @@ AppType GetAppType(Profile* profile, const std::string& app_id) {
     return AppType::kCrostini;
   }
   return AppType::kUnknown;
+}
+
+bool IsSystemWebApp(Profile* profile, const std::string& app_id) {
+  AppType app_type = GetAppType(profile, app_id);
+
+  InstallReason install_reason;
+  apps::AppServiceProxyFactory::GetForProfile(profile)
+      ->AppRegistryCache()
+      .ForOneApp(app_id, [&install_reason](const apps::AppUpdate& update) {
+        install_reason = update.InstallReason();
+      });
+
+  return app_type == AppType::kSystemWeb ||
+         install_reason == apps::InstallReason::kSystem;
 }
 
 }  // namespace apps

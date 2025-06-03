@@ -51,6 +51,22 @@ void CanvasPath::closePath() {
   if (UNLIKELY(IsEmpty())) {
     return;
   }
+  // If the current path is a zero lengthed path (ex: moveTo p1 and lineTo p1),
+  // then closePath is no op.
+  if (UNLIKELY(path_.BoundingRect().height() == 0 &&
+               path_.BoundingRect().width() == 0 &&
+               (IsLine() && line_builder_.BoundingRect().height() == 0 &&
+                line_builder_.BoundingRect().width() == 0))) {
+    if (!path_.HasCurrentPoint()) {
+      Clear();
+      return;
+    }
+    auto p = path_.CurrentPoint();
+    Clear();
+    moveTo(p.x(), p.y());
+    return;
+  }
+
   UpdatePathFromLineIfNecessaryForMutation();
   if (UNLIKELY(identifiability_study_helper_.ShouldUpdateBuilder())) {
     identifiability_study_helper_.UpdateBuilder(CanvasOps::kClosePath);
@@ -513,6 +529,11 @@ void CanvasPath::rect(double double_x,
   if (UNLIKELY(!std::isfinite(x) || !std::isfinite(y) ||
                !std::isfinite(width) || !std::isfinite(height)))
     return;
+
+  if (width == 0 && height == 0) {
+    moveTo(x, y);
+    return;
+  }
   UpdatePathFromLineIfNecessaryForMutation();
   if (UNLIKELY(identifiability_study_helper_.ShouldUpdateBuilder())) {
     identifiability_study_helper_.UpdateBuilder(

@@ -31,7 +31,6 @@
 
 namespace base {
 class CommandLine;
-class Value;
 }  // namespace base
 
 // A collection of functions designed for use with unit and browser tests.
@@ -78,13 +77,6 @@ void RunAllTasksUntilIdle();
 // RunAllPendingInMessageLoop() above).
 base::OnceClosure GetDeferredQuitTaskForRunLoop(base::RunLoop* run_loop);
 
-// Executes the specified JavaScript in the specified frame, and runs a nested
-// MessageLoop. When the result is available, it is returned.
-// This should not be used; the use of the ExecuteScript functions in
-// browser_test_utils is preferable.
-base::Value ExecuteScriptAndGetValue(RenderFrameHost* render_frame_host,
-                                     const std::string& script);
-
 // Returns true if all sites are isolated. Typically used to bail from a test
 // that is incompatible with --site-per-process.
 bool AreAllSitesIsolatedForTesting();
@@ -121,25 +113,29 @@ void IsolateAllSitesForTesting(base::CommandLine* command_line);
 // Whether same-site navigations might result in a change of RenderFrameHosts -
 // this will happen when ProactivelySwapBrowsingInstance, RenderDocument or
 // back-forward cache is enabled on same-site main frame navigations. Note that
-// not even if this returns true, not all same-site main frame navigations will
+// even if this returns true, not all same-site main frame navigations will
 // result in a change of RenderFrameHosts, e.g. if RenderDocument is disabled
 // but BFCache is enabled, this will return true but only same-site navigations
 // from pages that are BFCache-eligible will result in a RenderFrameHost change.
 bool CanSameSiteMainFrameNavigationsChangeRenderFrameHosts();
 
-// Whether same-site navigations will always result in a change of
-// RenderFrameHosts, which will happen when RenderDocument is enabled. Different
-// from `CanSameSiteMainFrameNavigationsChangeRenderFrameHosts()`, this means
-// all same-site navigations will trigger a RenderFrameHost change, instead of
-// only a subset that satisfies some conditions, e.g. BFCache eligibilty.
-bool WillSameSiteNavigationsChangeRenderFrameHosts();
+// Whether same-site navigations will result in a change of RenderFrameHosts,
+// which will happen when RenderDocument is enabled. Due to the various levels
+// of the feature, the result may differ depending on whether the
+// RenderFrameHost is a main/local root/non-local-root frame.
+bool WillSameSiteNavigationChangeRenderFrameHosts(bool is_main_frame,
+                                                  bool is_local_root = true);
 
 // Whether same-site navigations might result in a change of SiteInstances -
 // this will happen when ProactivelySwapBrowsingInstance or back-forward cache
 // is enabled on same-site main frame navigations.
-// Note that unlike CanSameSiteMainFrameNavigationsChangeRenderFrameHosts()
+// Note that unlike WillSameSiteNavigationChangeRenderFrameHosts()
 // above, this will not be true when RenderDocument for main-frame is enabled.
 bool CanSameSiteMainFrameNavigationsChangeSiteInstances();
+
+// Returns true if navigation queueing is fully enabled, where we will queue new
+// navigations that happen when there is an existing pending commit navigation.
+bool IsNavigationQueueingEnabled();
 
 // Makes sure that navigations that start in |rfh| won't result in a proactive
 // BrowsingInstance swap (note they might still result in a normal

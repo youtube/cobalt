@@ -6,18 +6,15 @@
 
 #include <utility>
 
-#include "ash/constants/ash_features.h"
 #include "base/check.h"
-#include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
 #include "base/time/default_clock.h"
+#include "base/trace_event/trace_event.h"
 #include "chrome/browser/ash/login/auth/chrome_safe_mode_delegate.h"
 #include "chrome/browser/ash/login/helper.h"
-#include "chrome/browser/ash/login/lock/screen_locker.h"
 #include "chrome/browser/ash/login/login_pref_names.h"
 #include "chrome/browser/ash/login/profile_auth_data.h"
 #include "chrome/browser/ash/login/saml/password_sync_token_fetcher.h"
-#include "chrome/browser/ash/login/screens/network_error.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/ash/settings/cros_settings.h"
 #include "chrome/browser/browser_process.h"
@@ -30,7 +27,7 @@
 #include "components/prefs/pref_service.h"
 #include "components/session_manager/core/session_manager.h"
 #include "components/user_manager/known_user.h"
-#include "components/user_manager/user_manager_base.h"
+#include "components/user_manager/user_manager.h"
 #include "content/public/browser/storage_partition.h"
 
 namespace ash {
@@ -102,6 +99,7 @@ void InSessionPasswordSyncManager::SetClockForTesting(
 void InSessionPasswordSyncManager::Shutdown() {}
 
 void InSessionPasswordSyncManager::OnSessionStateChanged() {
+  TRACE_EVENT0("login", "InSessionPasswordSyncManager::OnSessionStateChanged");
   if (!session_manager::SessionManager::Get()->IsScreenLocked()) {
     // We are unlocking the session, no further action required.
     return;
@@ -118,14 +116,10 @@ void InSessionPasswordSyncManager::OnSessionStateChanged() {
 }
 
 void InSessionPasswordSyncManager::UpdateOnlineAuth() {
-  PrefService* prefs = primary_profile_->GetPrefs();
-  const base::Time now = clock_->Now();
-  prefs->SetTime(prefs::kSAMLLastGAIASignInTime, now);
-
   user_manager::UserManager::Get()->SaveForceOnlineSignin(
       primary_user_->GetAccountId(), false);
   user_manager::KnownUser known_user(g_browser_process->local_state());
-  known_user.SetLastOnlineSignin(primary_user_->GetAccountId(), now);
+  known_user.SetLastOnlineSignin(primary_user_->GetAccountId(), clock_->Now());
 }
 
 void InSessionPasswordSyncManager::CreateTokenAsync() {
@@ -136,11 +130,8 @@ void InSessionPasswordSyncManager::CreateTokenAsync() {
 
 void InSessionPasswordSyncManager::OnTokenCreated(const std::string& token) {
   password_sync_token_fetcher_.reset();
-  PrefService* prefs = primary_profile_->GetPrefs();
 
-  // Set token value in prefs for in-session operations and ephemeral users and
-  // local settings for login screen sync.
-  prefs->SetString(prefs::kSamlPasswordSyncToken, token);
+  // Set token value in local state.
   user_manager::KnownUser known_user(g_browser_process->local_state());
   known_user.SetPasswordSyncToken(primary_user_->GetAccountId(), token);
   lock_screen_reauth_reason_ = ReauthenticationReason::kNone;
@@ -155,9 +146,7 @@ void InSessionPasswordSyncManager::FetchTokenAsync() {
 void InSessionPasswordSyncManager::OnTokenFetched(const std::string& token) {
   password_sync_token_fetcher_.reset();
   if (!token.empty()) {
-    // Set token fetched from the endpoint in prefs and local settings.
-    PrefService* prefs = primary_profile_->GetPrefs();
-    prefs->SetString(prefs::kSamlPasswordSyncToken, token);
+    // Set token fetched from the endpoint in local state.
     user_manager::KnownUser known_user(g_browser_process->local_state());
     known_user.SetPasswordSyncToken(primary_user_->GetAccountId(), token);
     lock_screen_reauth_reason_ = ReauthenticationReason::kNone;
@@ -222,8 +211,6 @@ void InSessionPasswordSyncManager::OnCookiesTransfered() {
         base::MakeRefCounted<AuthSessionAuthenticator>(
             this, std::make_unique<ChromeSafeModeDelegate>(),
             /*user_recorder=*/base::DoNothing(),
-            user_manager::UserManager::Get()->IsUserCryptohomeDataEphemeral(
-                primary_user_->GetAccountId()),
             g_browser_process->local_state());
   }
   // Perform a fast ("verify-only") check of the current password. This is an
@@ -232,6 +219,8 @@ void InSessionPasswordSyncManager::OnCookiesTransfered() {
   // changed, we'll need to start a new cryptohome AuthSession for updating
   // the password auth factor (in `password_update_flow_`).
   auth_session_authenticator_->AuthenticateToUnlock(
+      user_manager::UserManager::Get()->IsEphemeralAccountId(
+          user_context_.GetAccountId()),
       std::make_unique<UserContext>(user_context_));
 }
 

@@ -19,7 +19,7 @@
 #include "chrome/browser/profiles/profile_avatar_icon_util.h"
 #include "chrome/browser/profiles/profiles_state.h"
 #include "chrome/browser/signin/signin_util.h"
-#include "chrome/browser/ui/signin/profile_colors_util.h"
+#include "chrome/browser/ui/profiles/profile_colors_util.h"
 #include "chrome/common/pref_names.h"
 #include "components/policy/core/browser/browser_policy_connector.h"
 #include "components/prefs/pref_registry_simple.h"
@@ -36,12 +36,6 @@
 #include "ui/gfx/image/canvas_image_source.h"
 #include "ui/gfx/paint_vector_icon.h"
 #include "ui/native_theme/native_theme.h"
-
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-#include "base/feature_list.h"
-#include "chrome/browser/profiles/profile.h"
-#include "chromeos/constants/chromeos_features.h"
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
 
 #if BUILDFLAG(ENABLE_SUPERVISED_USERS)
 #include "components/supervised_user/core/common/supervised_user_constants.h"
@@ -316,7 +310,7 @@ base::FilePath ProfileAttributesEntry::GetPath() const {
 
 base::Time ProfileAttributesEntry::GetActiveTime() const {
   if (IsDouble(kActiveTimeKey)) {
-    return base::Time::FromDoubleT(GetDouble(kActiveTimeKey));
+    return base::Time::FromSecondsSinceUnixEpoch(GetDouble(kActiveTimeKey));
   } else {
     return base::Time();
   }
@@ -569,14 +563,13 @@ base::flat_set<std::string> ProfileAttributesEntry::GetGaiaIds() const {
 
 void ProfileAttributesEntry::SetGaiaIds(
     const base::flat_set<std::string>& gaia_ids) {
-  base::Value accounts(base::Value::Type::DICT);
+  base::Value::Dict accounts;
   for (const auto& gaia_id : gaia_ids) {
-    base::Value dict(base::Value::Type::DICT);
     // The dictionary is empty for now, but can hold account-specific info in
     // the future.
-    accounts.SetKey(gaia_id, std::move(dict));
+    accounts.Set(gaia_id, base::Value::Dict());
   }
-  SetValue(kAllAccountsKey, std::move(accounts));
+  SetValue(kAllAccountsKey, base::Value(std::move(accounts)));
 }
 
 void ProfileAttributesEntry::SetLocalProfileName(const std::u16string& name,
@@ -596,7 +589,7 @@ void ProfileAttributesEntry::SetActiveTimeToNow() {
       base::Time::Now() - GetActiveTime() < base::Hours(1)) {
     return;
   }
-  SetDouble(kActiveTimeKey, base::Time::Now().ToDoubleT());
+  SetDouble(kActiveTimeKey, base::Time::Now().InSecondsFSinceUnixEpoch());
 }
 
 void ProfileAttributesEntry::SetIsOmitted(bool is_omitted) {
@@ -968,15 +961,7 @@ void ProfileAttributesEntry::MigrateObsoleteProfileAttributes() {
 
 void ProfileAttributesEntry::SetIsOmittedInternal(bool is_omitted) {
   if (is_omitted) {
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-    DCHECK(IsEphemeral() ||
-           (base::FeatureList::IsEnabled(
-                chromeos::features::kExperimentalWebAppProfileIsolation) &&
-            Profile::IsWebAppProfilePath(profile_path_)))
-        << "Only ephemeral or web app profiles can be omitted.";
-#else
     DCHECK(IsEphemeral()) << "Only ephemeral profiles can be omitted.";
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
   }
 
   is_omitted_ = is_omitted;

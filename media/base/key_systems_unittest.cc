@@ -2,13 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// TODO(sandersd): Refactor to remove recomputed codec arrays, and generally
-// shorten and improve coverage.
-//   - http://crbug.com/417444
-//   - http://crbug.com/457438
-// TODO(sandersd): Add tests to cover codec vectors with empty items.
-// http://crbug.com/417461
-
 #include <string>
 #include <vector>
 
@@ -135,8 +128,7 @@ class ExternalKeySystemInfo : public TestKeySystemInfoBase {
       case EncryptionScheme::kCbcs:
         return EmeConfig{.hw_secure_codecs = EmeConfigRuleState::kNotAllowed};
     }
-    NOTREACHED();
-    return EmeConfig::UnsupportedRule();
+    NOTREACHED_NORETURN();
   }
 
   // We have hardware secure codec support for FOO_VIDEO and FOO_SECURE_VIDEO.
@@ -151,14 +143,12 @@ class ExternalKeySystemInfo : public TestKeySystemInfoBase {
       const bool* /*hw_secure_requirement*/) const override {
     if (requested_robustness == kRobustnessSupported) {
       return EmeConfig::SupportedRule();
-    } else if (requested_robustness == kRobustnessSecureCodecsRequired) {
-      return EmeConfig{.hw_secure_codecs = EmeConfigRuleState::kRequired};
-    } else if (requested_robustness == kRobustnessNotSupported) {
-      return EmeConfig::UnsupportedRule();
-    } else {
-      NOTREACHED();
-      return EmeConfig::UnsupportedRule();
     }
+    if (requested_robustness == kRobustnessSecureCodecsRequired) {
+      return EmeConfig{.hw_secure_codecs = EmeConfigRuleState::kRequired};
+    }
+    CHECK_EQ(requested_robustness, kRobustnessNotSupported);
+    return EmeConfig::UnsupportedRule();
   }
 
   EmeConfig::Rule GetPersistentLicenseSessionSupport() const override {

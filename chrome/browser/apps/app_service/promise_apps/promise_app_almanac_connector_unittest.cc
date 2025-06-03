@@ -8,12 +8,12 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/test/bind.h"
 #include "base/test/test_future.h"
-#include "chrome/browser/apps/app_service/package_id.h"
 #include "chrome/browser/apps/app_service/promise_apps/promise_app_wrapper.h"
 #include "chrome/browser/apps/app_service/promise_apps/proto/promise_app.pb.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/test/base/testing_profile.h"
 #include "chromeos/ash/components/system/fake_statistics_provider.h"
+#include "components/services/app_service/public/cpp/package_id.h"
 #include "components/user_manager/scoped_user_manager.h"
 #include "content/public/test/browser_task_environment.h"
 #include "net/http/http_request_headers.h"
@@ -50,8 +50,6 @@ class PromiseAppAlmanacConnectorTest : public testing::Test {
   network::TestURLLoaderFactory* url_loader_factory() {
     return url_loader_factory_.get();
   }
-
-  Profile* profile() { return profile_.get(); }
 
  private:
   std::unique_ptr<network::TestURLLoaderFactory> url_loader_factory_;

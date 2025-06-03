@@ -13,7 +13,7 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 
-import org.chromium.android_webview.common.crash.CrashInfo;
+import org.chromium.android_webview.nonembedded.crash.CrashInfo;
 import org.chromium.android_webview.services.CrashLoggingUtils;
 import org.chromium.android_webview.test.AwJUnit4ClassRunner;
 import org.chromium.base.test.util.Batch;
@@ -24,9 +24,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Tests for {@link CrashLoggingUtils}.
- */
+/** Tests for {@link CrashLoggingUtils}. */
 @RunWith(AwJUnit4ClassRunner.class)
 @Batch(Batch.UNIT_TESTS)
 public class CrashLoggingUtilsTest {
@@ -35,12 +33,9 @@ public class CrashLoggingUtilsTest {
             "pkg-process-" + TEST_CRASH_LOCAL_ID + ".dmp";
     private static final String TEST_CRASH_PACKAGE = "org.test.package";
 
-    @Rule
-    public TemporaryFolder mTempTestDir = new TemporaryFolder();
+    @Rule public TemporaryFolder mTempTestDir = new TemporaryFolder();
 
-    /**
-     * Test writing crash info to crash logs works correctly and logs the correct info.
-     */
+    /** Test writing crash info to crash logs works correctly and logs the correct info. */
     @Test
     @MediumTest
     public void testWriteToLogFile() throws IOException, JSONException {

@@ -40,9 +40,6 @@ class AlternativeStateNameMapUpdaterTest : public ::testing::Test {
   AlternativeStateNameMapUpdaterTest() = default;
 
   void SetUp() override {
-    feature_.InitAndEnableFeature(
-        features::kAutofillUseAlternativeStateNameMap);
-
     autofill_client_.SetPrefs(test::PrefServiceForTesting());
     ASSERT_TRUE(data_install_dir_.CreateUniqueTempDir());
     personal_data_manager_.Init(/*profile_database=*/database_,
@@ -53,8 +50,7 @@ class AlternativeStateNameMapUpdaterTest : public ::testing::Test {
                                 /*history_service=*/nullptr,
                                 /*sync_service=*/nullptr,
                                 /*strike_database=*/nullptr,
-                                /*image_fetcher=*/nullptr,
-                                /*is_off_the_record=*/false);
+                                /*image_fetcher=*/nullptr);
     alternative_state_name_map_updater_ =
         std::make_unique<AlternativeStateNameMapUpdater>(
             autofill_client_.GetPrefs(), &personal_data_manager_);
@@ -74,7 +70,6 @@ class AlternativeStateNameMapUpdaterTest : public ::testing::Test {
   std::unique_ptr<AlternativeStateNameMapUpdater>
       alternative_state_name_map_updater_;
   base::ScopedTempDir data_install_dir_;
-  base::test::ScopedFeatureList feature_;
   TestPersonalDataManager personal_data_manager_;
 };
 

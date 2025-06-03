@@ -33,6 +33,11 @@ DownloadManager* DownloadManagerForBrowser(Browser* browser) {
   return browser->profile()->GetDownloadManager();
 }
 
+void SetPromptForDownload(Browser* browser, bool prompt_for_download) {
+  browser->profile()->GetPrefs()->SetBoolean(prefs::kPromptForDownload,
+                                             prompt_for_download);
+}
+
 DownloadTestObserverResumable::DownloadTestObserverResumable(
     DownloadManager* download_manager,
     size_t transition_count)
@@ -81,7 +86,16 @@ DownloadTestBase::~DownloadTestBase() = default;
 void DownloadTestBase::SetUpOnMainThread() {
   ASSERT_TRUE(CheckTestDir());
   ASSERT_TRUE(InitialSetup());
+
+  https_test_server_ = std::make_unique<net::EmbeddedTestServer>(
+      net::EmbeddedTestServer::TYPE_HTTPS);
+  https_test_server()->SetSSLConfig(net::EmbeddedTestServer::CERT_TEST_NAMES);
+
   host_resolver()->AddRule("www.a.com", "127.0.0.1");
+  host_resolver()->AddRule("www.a.test", "127.0.0.1");
+  host_resolver()->AddRule("www.b.test", "127.0.0.1");
+  host_resolver()->AddRule("a.test", "127.0.0.1");
+  host_resolver()->AddRule("b.test", "127.0.0.1");
   host_resolver()->AddRule("foo.com", "127.0.0.1");
   host_resolver()->AddRule("bar.com", "127.0.0.1");
   content::SetupCrossSiteRedirector(embedded_test_server());
@@ -118,8 +132,7 @@ bool DownloadTestBase::InitialSetup() {
   EXPECT_EQ(1, window_count);
   EXPECT_EQ(1, browser()->tab_strip_model()->count());
 
-  browser()->profile()->GetPrefs()->SetBoolean(prefs::kPromptForDownload,
-                                               false);
+  SetPromptForDownload(browser(), false);
 
   DownloadManager* manager = DownloadManagerForBrowser(browser());
   DownloadPrefs::FromDownloadManager(manager)->ResetAutoOpenByUser();
@@ -214,10 +227,12 @@ void DownloadTestBase::DownloadAndWaitWithDisposition(
     Browser* browser,
     const GURL& url,
     WindowOpenDisposition disposition,
-    int browser_test_flags) {
+    int browser_test_flags,
+    bool prompt_for_download) {
   // Setup notification, navigate, and block.
   std::unique_ptr<content::DownloadTestObserver> observer(
       CreateWaiter(browser, 1));
+  SetPromptForDownload(browser, prompt_for_download);
   // This call will block until the condition specified by
   // |browser_test_flags|, but will not wait for the download to finish.
   ui_test_utils::NavigateToURLWithDisposition(browser, url, disposition,
@@ -229,10 +244,12 @@ void DownloadTestBase::DownloadAndWaitWithDisposition(
   EXPECT_FALSE(DidShowFileChooser());
 }
 
-void DownloadTestBase::DownloadAndWait(Browser* browser, const GURL& url) {
+void DownloadTestBase::DownloadAndWait(Browser* browser,
+                                       const GURL& url,
+                                       bool prompt_for_download) {
   DownloadAndWaitWithDisposition(
       browser, url, WindowOpenDisposition::CURRENT_TAB,
-      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP);
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP, prompt_for_download);
 }
 
 bool DownloadTestBase::CheckDownload(Browser* browser,
@@ -277,30 +294,27 @@ bool DownloadTestBase::CheckDownloadFullPaths(
   return downloaded_file_deleted;
 }
 
-content::DownloadTestObserver*
-DownloadTestBase::CreateInProgressDownloadObserver(size_t download_count) {
-  DownloadManager* manager = DownloadManagerForBrowser(browser());
-  return new content::DownloadTestObserverInProgress(manager, download_count);
-}
+DownloadItem* DownloadTestBase::CreateSlowTestDownload(Browser* browser) {
+  if (!browser) {
+    browser = DownloadTestBase::browser();
+  }
+  DownloadManager* manager = DownloadManagerForBrowser(browser);
 
-DownloadItem* DownloadTestBase::CreateSlowTestDownload() {
-  std::unique_ptr<content::DownloadTestObserver> observer(
-      CreateInProgressDownloadObserver(1));
+  std::unique_ptr<content::DownloadTestObserver> observer =
+      std::make_unique<content::DownloadTestObserverInProgress>(manager, 1);
   embedded_test_server()->RegisterRequestHandler(base::BindRepeating(
       &content::SlowDownloadHttpResponse::HandleSlowDownloadRequest));
   EXPECT_TRUE(embedded_test_server()->Start());
   GURL slow_download_url = embedded_test_server()->GetURL(
       content::SlowDownloadHttpResponse::kKnownSizeUrl);
 
-  DownloadManager* manager = DownloadManagerForBrowser(browser());
-
-  EXPECT_EQ(0, manager->NonMaliciousInProgressCount());
+  EXPECT_EQ(0, manager->BlockingShutdownCount());
   EXPECT_EQ(0, manager->InProgressCount());
   if (manager->InProgressCount() != 0) {
     return nullptr;
   }
 
-  EXPECT_TRUE(ui_test_utils::NavigateToURL(browser(), slow_download_url));
+  EXPECT_TRUE(ui_test_utils::NavigateToURL(browser, slow_download_url));
 
   observer->WaitForFinished();
   EXPECT_EQ(1u, observer->NumDownloadsSeenInState(DownloadItem::IN_PROGRESS));
@@ -309,11 +323,11 @@ DownloadItem* DownloadTestBase::CreateSlowTestDownload() {
   manager->GetAllDownloads(&items);
 
   DownloadItem* new_item = nullptr;
-  for (auto iter = items.begin(); iter != items.end(); ++iter) {
-    if ((*iter)->GetState() == DownloadItem::IN_PROGRESS) {
+  for (auto* item : items) {
+    if (item->GetState() == DownloadItem::IN_PROGRESS) {
       // There should be only one IN_PROGRESS item.
       EXPECT_FALSE(new_item);
-      new_item = *iter;
+      new_item = item;
     }
   }
   return new_item;

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<issues format="6" by="lint 8.1.0-alpha01" type="baseline" client="" dependencies="true" name="" variant="all" version="8.1.0-alpha01">
+<issues format="6" by="lint 8.3.0-alpha09" type="baseline" client="" dependencies="true" name="" variant="all" version="8.3.0-alpha09">
 
     <issue
         id="MissingClass"
@@ -7,8 +7,8 @@
         errorLine1="    &lt;activity android:name=&quot;org.chromium.test.broker.OnDeviceInstrumentationBroker&quot; android:exported=&quot;true&quot;/>"
         errorLine2="                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="gen/android_webview/tools/system_webview_shell/system_webview_shell_apk__lint/gen/android_webview/system_webview_shell_apk/AndroidManifest.xml"
-            line="187"
+            file="gen/android_webview/tools/system_webview_shell/system_webview_shell_apk__lint/AndroidManifest.xml"
+            line="185"
             column="29"/>
     </issue>
 
@@ -19,7 +19,7 @@
         errorLine2="                                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="../../android_webview/tools/system_webview_shell/apk/src/org/chromium/webview_shell/WebViewBrowserActivity.java"
-            line="750"
+            line="189"
             column="51"/>
     </issue>
 
@@ -30,7 +30,7 @@
         errorLine2="            ^">
         <location
             file="../../android_webview/tools/system_webview_shell/apk/src/org/chromium/webview_shell/WebViewBrowserActivity.java"
-            line="771"
+            line="210"
             column="13"/>
     </issue>
 
@@ -41,7 +41,7 @@
         errorLine2="            ^">
         <location
             file="../../android_webview/tools/system_webview_shell/apk/src/org/chromium/webview_shell/WebViewBrowserActivity.java"
-            line="776"
+            line="215"
             column="13"/>
     </issue>
 
@@ -52,7 +52,7 @@
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="../../android_webview/tools/system_webview_shell/apk/src/org/chromium/webview_shell/WebViewBrowserActivity.java"
-            line="781"
+            line="220"
             column="13"/>
     </issue>
 
@@ -68,46 +68,13 @@
     </issue>
 
     <issue
-        id="WrongConstant"
-        message="Must be one of: Status.PENDING, Status.RUNNING, Status.FINISHED"
-        errorLine1="                    GET_STATUS_UMA_HISTOGRAM, status, Status.NUM_ENTRIES);"
-        errorLine2="                                                             ~~~~~~~~~~~">
-        <location
-            file="../../base/android/java/src/org/chromium/base/task/AsyncTask.java"
-            line="315"
-            column="62"/>
-    </issue>
-
-    <issue
-        id="WrongConstant"
-        message="Must be one of: Status.PENDING, Status.RUNNING, Status.FINISHED"
-        errorLine1="                    GET_STATUS_UMA_HISTOGRAM, status, Status.NUM_ENTRIES);"
-        errorLine2="                                                             ~~~~~~~~~~~">
-        <location
-            file="../../base/android/java/src/org/chromium/base/task/AsyncTask.java"
-            line="353"
-            column="62"/>
-    </issue>
-
-    <issue
-        id="WrongConstant"
-        message="Must be one of: Notification.UNKNOWN_TRIM_LEVEL, Notification.TRIM_MEMORY_COMPLETE, Notification.TRIM_MEMORY_MODERATE, Notification.TRIM_MEMORY_BACKGROUND, Notification.TRIM_MEMORY_UI_HIDDEN, Notification.TRIM_MEMORY_RUNNING_CRITICAL, Notification.TRIM_MEMORY_RUNNING_LOW, Notification.TRIM_MEMORY_RUNNING_MODERATE, Notification.ON_LOW_MEMORY"
-        errorLine1="                mHistogramName, notification, Notification.NUM_ENTRIES);"
-        errorLine2="                                                           ~~~~~~~~~~~">
-        <location
-            file="../../base/android/java/src/org/chromium/base/memory/MemoryPressureUma.java"
-            line="110"
-            column="60"/>
-    </issue>
-
-    <issue
         id="AppBundleLocaleChanges"
         message="Found dynamic locale changes, but did not find corresponding Play Core library calls for downloading languages and splitting by language is not disabled in the `bundle` configuration"
         errorLine1="            config.setLocale(Locale.forLanguageTag(languageTag));"
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="../../base/android/java/src/org/chromium/base/LocaleUtils.java"
-            line="267"
+            line="242"
             column="13"/>
     </issue>
 
@@ -123,13 +90,24 @@
     </issue>
 
     <issue
+        id="UnspecifiedRegisterReceiverFlag"
+        message="`receiver` \&#xA;is missing `RECEIVER_EXPORTED` or `RECEIVER_NOT_EXPORTED` flag for unprotected \&#xA;broadcasts registered for an IntentFilter that cannot be inspected by lint"
+        errorLine1="            return context.registerReceiver(receiver, filter, permission, scheduler);"
+        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../base/android/java/src/org/chromium/base/ContextUtils.java"
+            line="305"
+            column="20"/>
+    </issue>
+
+    <issue
         id="UseCompatLoadingForDrawables"
         message="Use `ResourcesCompat.getDrawable()`"
         errorLine1="                return res.getDrawable(id, null);"
         errorLine2="                       ~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="../../base/android/java/src/org/chromium/base/ApiCompatibilityUtils.java"
-            line="214"
+            line="189"
             column="24"/>
     </issue>
 
@@ -139,20 +117,9 @@
         errorLine1="  &lt;application android:icon=&quot;@drawable/ic_launcher&quot; android:label=&quot;@string/app_name&quot; android:theme=&quot;@style/ShellTheme&quot; android:enableOnBackInvokedCallback=&quot;true&quot; android:networkSecurityConfig=&quot;@xml/network_security_config&quot; android:debuggable=&quot;true&quot;>"
         errorLine2="                                                                                                                                                                                                                               ~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="gen/android_webview/tools/system_webview_shell/system_webview_shell_apk__lint/gen/android_webview/system_webview_shell_apk/AndroidManifest.xml"
-            line="69"
+            file="gen/android_webview/tools/system_webview_shell/system_webview_shell_apk__lint/AndroidManifest.xml"
+            line="67"
             column="224"/>
-    </issue>
-
-    <issue
-        id="UnspecifiedRegisterReceiverFlag"
-        message="`receiver` \&#xA;is missing `RECEIVER_EXPORTED` or `RECEIVER_NOT_EXPORTED` flag for unprotected \&#xA;broadcasts registered for an IntentFilter that cannot be inspected by lint"
-        errorLine1="            return context.registerReceiver(receiver, filter, permission, scheduler);"
-        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="../../base/android/java/src/org/chromium/base/ContextUtils.java"
-            line="307"
-            column="20"/>
     </issue>
 
     <issue
@@ -162,7 +129,7 @@
         errorLine2="                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="../../base/android/java/src/org/chromium/base/ApplicationStatus.java"
-            line="351"
+            line="385"
             column="28"/>
     </issue>
 
@@ -173,7 +140,7 @@
         errorLine2="               ~~~~~~~~~~~~~">
         <location
             file="../../base/android/java/src/org/chromium/base/RadioUtils.java"
-            line="80"
+            line="81"
             column="16"/>
     </issue>
 
@@ -184,7 +151,7 @@
         errorLine2="               ~~~~~~~~~~~~~">
         <location
             file="../../base/android/java/src/org/chromium/base/RadioUtils.java"
-            line="105"
+            line="106"
             column="16"/>
     </issue>
 
@@ -195,7 +162,7 @@
         errorLine2="               ~~~~~~~~~~~~~">
         <location
             file="../../base/android/java/src/org/chromium/base/RadioUtils.java"
-            line="131"
+            line="132"
             column="16"/>
     </issue>
 
@@ -204,6 +171,15 @@
         message="Missing density variation folders in `../../android_webview/tools/system_webview_shell/apk/res`: drawable-hdpi, drawable-xhdpi, drawable-xxhdpi">
         <location
             file="../../android_webview/tools/system_webview_shell/apk/res"/>
+    </issue>
+
+    <issue
+        id="ForegroundServiceType"
+        message="To call Service.startForeground(), the <service> element of manifest file must have the foregroundServiceType attribute specified [ForegroundServiceType]&#xA; service.startForeground(id, notification, foregroundServiceType);">
+        <location
+            file="../../android_webview/tools/system_webview_shell/apk/AndroidManifest.xml"
+            line="162"
+            column="9"/>
     </issue>
 
 </issues>

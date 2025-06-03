@@ -112,12 +112,14 @@ ModuleResult DecodeWasmModule(
   return result;
 }
 
-ModuleResult DecodeWasmModule(WasmFeatures enabled_features,
-                              base::Vector<const uint8_t> wire_bytes,
-                              bool validate_functions, ModuleOrigin origin) {
+ModuleResult DecodeWasmModule(
+    WasmFeatures enabled_features, base::Vector<const uint8_t> wire_bytes,
+    bool validate_functions, ModuleOrigin origin,
+    PopulateExplicitRecGroups populate_explicit_rec_groups) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
                "wasm.DecodeWasmModule");
-  ModuleDecoderImpl decoder{enabled_features, wire_bytes, origin};
+  ModuleDecoderImpl decoder{enabled_features, wire_bytes, origin,
+                            populate_explicit_rec_groups};
   return decoder.DecodeModule(validate_functions);
 }
 
@@ -220,7 +222,7 @@ AsmJsOffsetsResult DecodeAsmJsOffsets(
       continue;
     }
     DCHECK(decoder.checkAvailable(size));
-    const byte* table_end = decoder.pc() + size;
+    const uint8_t* table_end = decoder.pc() + size;
     uint32_t locals_size = decoder.consume_u32v("locals size");
     int function_start_position = decoder.consume_u32v("function start pos");
     int function_end_position = function_start_position;
@@ -268,7 +270,7 @@ std::vector<CustomSectionOffset> DecodeCustomSections(
   std::vector<CustomSectionOffset> result;
 
   while (decoder.more()) {
-    byte section_code = decoder.consume_u8("section code");
+    uint8_t section_code = decoder.consume_u8("section code");
     uint32_t section_length = decoder.consume_u32v("section length");
     uint32_t section_start = decoder.pc_offset();
     if (section_code != 0) {
@@ -413,6 +415,8 @@ class ValidateFunctionsTask : public JobTask {
   void Run(JobDelegate* delegate) override {
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
                  "wasm.ValidateFunctionsTask");
+
+    Zone zone(GetWasmEngine()->allocator(), ZONE_NAME);
     do {
       // Get the index of the next function to validate.
       // {fetch_add} might overrun {after_last_function_} by a bit. Since the
@@ -427,7 +431,8 @@ class ValidateFunctionsTask : public JobTask {
       } while ((filter_ && !filter_(func_index)) ||
                module_->function_was_validated(func_index));
 
-      if (!ValidateFunction(func_index)) {
+      zone.Reset();
+      if (!ValidateFunction(func_index, &zone)) {
         // No need to validate any more functions.
         next_function_.store(after_last_function_, std::memory_order_relaxed);
         return;
@@ -441,7 +446,7 @@ class ValidateFunctionsTask : public JobTask {
   }
 
  private:
-  bool ValidateFunction(int func_index) {
+  bool ValidateFunction(int func_index, Zone* zone) {
     WasmFeatures unused_detected_features;
     const WasmFunction& function = module_->functions[func_index];
     DCHECK_LT(0, function.code.offset());
@@ -449,7 +454,7 @@ class ValidateFunctionsTask : public JobTask {
                       wire_bytes_.begin() + function.code.offset(),
                       wire_bytes_.begin() + function.code.end_offset()};
     DecodeResult validation_result = ValidateFunctionBody(
-        enabled_features_, module_, &unused_detected_features, body);
+        zone, enabled_features_, module_, &unused_detected_features, body);
     if (V8_UNLIKELY(validation_result.failed())) {
       SetError(func_index, std::move(validation_result).error());
       return false;

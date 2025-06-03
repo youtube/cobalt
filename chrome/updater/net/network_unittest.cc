@@ -25,7 +25,7 @@
 #include "build/build_config.h"
 #include "chrome/updater/net/network.h"
 #include "chrome/updater/policy/service.h"
-#include "chrome/updater/util/unittest_util.h"
+#include "chrome/updater/util/unit_test_util.h"
 #include "components/update_client/network.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "net/test/embedded_test_server/http_request.h"
@@ -108,8 +108,8 @@ class UpdaterNetworkTest : public ::testing::Test {
     return http_response;
   }
 
-  MOCK_METHOD0(DownloadToFileCompleted, void(void));
-  MOCK_METHOD0(PostRequestCompleted, void(void));
+  MOCK_METHOD(void, DownloadToFileCompleted, ());
+  MOCK_METHOD(void, PostRequestCompleted, ());
 
  protected:
   base::test::TaskEnvironment task_environment_;

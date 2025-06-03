@@ -13,6 +13,10 @@ source_set("unit_tests") {
     "web_app_launch_utils_unittest.cc",
   ]
 
+  if (is_chromeos) {
+    sources += [ "sub_apps_install_dialog_controller_unittest.cc" ]
+  }
+
   deps = [
     "//chrome/browser",
     "//chrome/browser/apps/app_service",
@@ -20,7 +24,9 @@ source_set("unit_tests") {
     "//chrome/browser/web_applications",
     "//chrome/browser/web_applications:web_applications_test_support",
     "//chrome/browser/web_applications:web_applications_unit_tests",
-    "//components/services/app_service/public/cpp:intents",
+    "//chrome/test:test_support",
+    "//components/services/app_service",
+    "//components/webapps/common",
     "//content/test:test_support",
     "//storage/browser:test_support",
   ]
@@ -34,12 +40,15 @@ source_set("browser_tests") {
     "commands/launch_web_app_command_browsertest.cc",
     "create_shortcut_browsertest.cc",
     "pwa_mixed_content_browsertest.cc",
+    "status_bar_browsertest.cc",
     "sub_apps_service_impl_browsertest.cc",
     "web_app_browsertest.cc",
     "web_app_dark_mode_browsertest.cc",
     "web_app_engagement_browsertest.cc",
     "web_app_file_handling_browsertest.cc",
     "web_app_launch_handler_browsertest.cc",
+    "web_app_launch_prevent_close_browsertest.cc",
+    "web_app_menu_model_browsertest.cc",
     "web_app_metrics_browsertest.cc",
     "web_app_navigate_browsertest.cc",
     "web_app_ui_manager_impl_browsertest.cc",
@@ -48,8 +57,9 @@ source_set("browser_tests") {
 
   if (!is_chromeos_lacros) {
     sources += [
-      # Test not valid on Lacros as WebApps is only enabled in the main
+      # Tests are not valid on Lacros as web apps are only enabled in the main
       # profile which can never be deleted.
+      "web_app_link_capturing_browsertest.cc",
       "web_app_profile_deletion_browsertest.cc",
     ]
   }
@@ -57,6 +67,7 @@ source_set("browser_tests") {
   if (is_chromeos_ash) {
     sources += [
       "app_browser_controller_browsertest_chromeos.cc",
+      "sub_apps_install_dialog_controller_browsertest.cc",
       "web_app_guest_session_browsertest_chromeos.cc",
     ]
   }
@@ -68,7 +79,9 @@ source_set("browser_tests") {
     "//chrome/browser:browser_themes",
     "//chrome/browser:theme_properties",
     "//chrome/browser/apps/app_service",
+    "//chrome/browser/apps/app_service:app_registry_cache_waiter",
     "//chrome/browser/apps/app_service:test_support",
+    "//chrome/browser/apps/link_capturing",
     "//chrome/browser/browsing_data:constants",
     "//chrome/browser/devtools",
     "//chrome/browser/web_applications:web_applications_test_support",
@@ -77,10 +90,10 @@ source_set("browser_tests") {
     "//chrome/test:test_support_ui",
     "//components/embedder_support",
     "//components/page_load_metrics/browser:test_support",
-    "//components/services/app_service/public/cpp:preferred_apps",
-    "//components/services/app_service/public/cpp:protocol_handling",
+    "//components/services/app_service",
     "//components/site_engagement/content",
     "//components/webapps/browser",
+    "//components/webapps/common",
   ]
 
   if (is_chromeos_ash) {
@@ -88,23 +101,29 @@ source_set("browser_tests") {
       "//chrome/browser/ash:test_support",
       "//chrome/browser/ash/system_web_apps/test_support",
       "//chrome/browser/ui/ash/system_web_apps",
+      "//components/session_manager/core:core",
+      "//components/user_manager:user_manager",
     ]
   }
 
   if (is_chromeos) {
-    deps += [ "//chromeos/constants" ]
+    deps += [
+      "//chrome/browser/metrics/structured:features",
+      "//chrome/browser/metrics/structured:test_support",
+      "//chromeos/constants",
+      "//components/metrics/structured:structured_events",
+    ]
   }
 }
 
 # On Lacros, these browser tests require Ash to be running, as they rely on
-# web apps being registered with the App Service.
+# web apps being registered with the App Service. Runs in the "lacros_chrome_browsertests_run_in_series" target.
 source_set("app_service_browser_tests") {
   testonly = true
 
   sources = [
     "launch_web_app_browsertest.cc",
     "web_app_badging_browsertest.cc",
-    "web_app_link_capturing_browsertest.cc",
     "web_app_protocol_handling_browsertest.cc",
     "web_app_tab_restore_browsertest.cc",
     "web_app_url_handling_browsertest.cc",
@@ -122,6 +141,8 @@ source_set("app_service_browser_tests") {
     sources += [
       "lacros_web_app_browsertest.cc",
       "lacros_web_app_shelf_browsertest.cc",
+      "sub_apps_install_dialog_controller_browsertest.cc",
+      "web_app_link_capturing_browsertest.cc",
     ]
   }
 
@@ -130,6 +151,8 @@ source_set("app_service_browser_tests") {
   deps = [
     "//chrome/app:command_ids",
     "//chrome/browser/apps/app_service",
+    "//chrome/browser/apps/app_service:app_registry_cache_waiter",
+    "//chrome/browser/apps/link_capturing",
     "//chrome/browser/browsing_data:constants",
     "//chrome/browser/ui/web_applications/diagnostics:app_service_browser_tests",
     "//chrome/browser/web_applications",
@@ -139,8 +162,9 @@ source_set("app_service_browser_tests") {
     "//components/app_constants",
     "//components/embedder_support",
     "//components/page_load_metrics/browser:test_support",
-    "//components/services/app_service/public/cpp:intents",
-    "//components/services/app_service/public/cpp:protocol_handling",
+    "//components/services/app_service",
+    "//components/webapps/browser:test_support",
+    "//components/webapps/common",
   ]
 
   if (is_chromeos_lacros) {

@@ -10,19 +10,25 @@
 #include "base/containers/contains.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
+#include "base/location.h"
 #include "base/strings/stringprintf.h"
 #include "base/test/bind.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
+#include "components/ukm/test_ukm_recorder.h"
+#include "content/browser/back_forward_cache_test_util.h"
 #include "content/browser/browsing_data/shared_storage_clear_site_data_tester.h"
+#include "content/public/browser/back_forward_cache.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/browsing_data_filter_builder.h"
 #include "content/public/browser/browsing_data_remover.h"
-#include "content/public/browser/notification_service.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_client.h"
+#include "content/public/common/content_features.h"
 #include "content/public/test/browser_test.h"
+#include "content/public/test/browser_test_utils.h"
 #include "content/public/test/browsing_data_remover_test_util.h"
 #include "content/public/test/content_browser_test.h"
 #include "content/public/test/content_browser_test_utils.h"
@@ -71,8 +77,9 @@ std::unique_ptr<net::test_server::HttpResponse> HandleHstsRequest(
 // Otherwise serves a Basic Auth challenge.
 std::unique_ptr<net::test_server::HttpResponse> HandleHttpAuthRequest(
     const net::test_server::HttpRequest& request) {
-  if (request.relative_url != kHttpAuthPath)
+  if (request.relative_url != kHttpAuthPath) {
     return nullptr;
+  }
 
   auto http_response = std::make_unique<net::test_server::BasicHttpResponse>();
   if (base::Contains(request.headers, "Authorization")) {
@@ -90,7 +97,9 @@ std::unique_ptr<net::test_server::HttpResponse> HandleHttpAuthRequest(
 
 namespace content {
 
-class BrowsingDataRemoverImplBrowserTest : public ContentBrowserTest {
+class BrowsingDataRemoverImplBrowserTest
+    : public ContentBrowserTest,
+      public BackForwardCacheMetricsTestMatcher {
  public:
   BrowsingDataRemoverImplBrowserTest()
       : ssl_server_(net::test_server::EmbeddedTestServer::TYPE_HTTPS) {
@@ -104,7 +113,10 @@ class BrowsingDataRemoverImplBrowserTest : public ContentBrowserTest {
     EXPECT_TRUE(ssl_server_.Start());
   }
 
-  void SetUpOnMainThread() override {}
+  void SetUpOnMainThread() override {
+    ukm_recorder_ = std::make_unique<ukm::TestAutoSetUkmRecorder>();
+    histogram_tester_ = std::make_unique<base::HistogramTester>();
+  }
 
   void RemoveAndWait(uint64_t remove_mask) {
     content::BrowsingDataRemover* remover =
@@ -238,8 +250,21 @@ class BrowsingDataRemoverImplBrowserTest : public ContentBrowserTest {
         ->GetNetworkContext();
   }
 
+  const ukm::TestAutoSetUkmRecorder& ukm_recorder() override {
+    return *ukm_recorder_;
+  }
+  const base::HistogramTester& histogram_tester() override {
+    return *histogram_tester_;
+  }
+
+  const net::test_server::EmbeddedTestServer& ssl_server() {
+    return ssl_server_;
+  }
+
  private:
   net::test_server::EmbeddedTestServer ssl_server_;
+  std::unique_ptr<ukm::TestAutoSetUkmRecorder> ukm_recorder_;
+  std::unique_ptr<base::HistogramTester> histogram_tester_;
 };
 
 // Verify that TransportSecurityState data is cleared for REMOVE_CACHE.
@@ -292,6 +317,164 @@ IN_PROC_BROWSER_TEST_F(BrowsingDataRemoverImplBrowserTest,
 
   RemoveAndWait(BrowsingDataRemover::DATA_TYPE_COOKIES);
   EXPECT_FALSE(IsHttpAuthCacheSet());
+}
+
+IN_PROC_BROWSER_TEST_F(BrowsingDataRemoverImplBrowserTest,
+                       ClearBackForwardCacheEntries) {
+  if (!content::BackForwardCache::IsBackForwardCacheFeatureEnabled()) {
+    return;
+  }
+
+  GURL url_1 = ssl_server().GetURL("/title1.html");
+  GURL url_2 = ssl_server().GetURL("/title2.html");
+
+  // 1) Navigate to url_1, then to url_2.
+  ASSERT_TRUE(NavigateToURL(shell(), url_1));
+  ASSERT_TRUE(NavigateToURL(shell(), url_2));
+
+  // 2) Go back, the page should be restored from BFCache.
+  ASSERT_TRUE(HistoryGoBack(shell()->web_contents()));
+  ExpectRestored(FROM_HERE);
+
+  // 3) Navigate to url_2 again.
+  ASSERT_TRUE(NavigateToURL(shell(), url_2));
+
+  // 4) Remove the browsing data with DATA_TYPE_CACHE and go back, the page
+  // should not be restored from BFCache since the BFCache entry should be
+  // flushed.
+  RemoveAndWait(BrowsingDataRemover::DATA_TYPE_CACHE);
+  ASSERT_TRUE(HistoryGoBack(shell()->web_contents()));
+  ExpectNotRestored({BackForwardCacheMetrics::NotRestoredReason::kCacheFlushed},
+                    {}, {}, {}, {}, FROM_HERE);
+}
+
+IN_PROC_BROWSER_TEST_F(BrowsingDataRemoverImplBrowserTest,
+                       ClearBackForwardCacheEntriesWithOrigin_DataTypeCache) {
+  if (!content::BackForwardCache::IsBackForwardCacheFeatureEnabled()) {
+    return;
+  }
+
+  GURL url_1 = ssl_server().GetURL("/title1.html");
+  GURL url_2 = ssl_server().GetURL("/title2.html");
+
+  // 1) Navigate to url_1, then to url_2.
+  ASSERT_TRUE(NavigateToURL(shell(), url_1));
+  ASSERT_TRUE(NavigateToURL(shell(), url_2));
+
+  // 2) Go back, the page should be restored from BFCache.
+  ASSERT_TRUE(HistoryGoBack(shell()->web_contents()));
+  ExpectRestored(FROM_HERE);
+
+  // 3) Navigate to url_2 again.
+  ASSERT_TRUE(NavigateToURL(shell(), url_2));
+
+  // 4) Remove the browsing data with DATA_TYPE_CACHE and some random domain
+  // that doesn't match the BFCached document's origin.
+  auto filter = BrowsingDataFilterBuilder::Create(
+      BrowsingDataFilterBuilder::Mode::kDelete);
+  filter->AddRegisterableDomain("foobar.com");
+  RemoveWithFilterAndWait(BrowsingDataRemover::DATA_TYPE_CACHE,
+                          std::move(filter));
+
+  // 5) Go back, the page should be restored from BFCache.
+  ASSERT_TRUE(HistoryGoBack(shell()->web_contents()));
+  ExpectRestored(FROM_HERE);
+
+  // 6) Navigate to url_2 again.
+  ASSERT_TRUE(NavigateToURL(shell(), url_2));
+
+  // 7) Remove the browsing data with DATA_TYPE_CACHE and the domain that
+  // matches the BFCached document's origin.
+  filter = BrowsingDataFilterBuilder::Create(
+      BrowsingDataFilterBuilder::Mode::kDelete);
+  filter->AddRegisterableDomain("localhost");
+  RemoveWithFilterAndWait(BrowsingDataRemover::DATA_TYPE_CACHE,
+                          std::move(filter));
+
+  // 8) Go back, and the page should not be restored from BFCache since the
+  // BFCache entry should be flushed.
+  ASSERT_TRUE(HistoryGoBack(shell()->web_contents()));
+  ExpectNotRestored({BackForwardCacheMetrics::NotRestoredReason::kCacheFlushed},
+                    {}, {}, {}, {}, FROM_HERE);
+}
+
+class BrowsingDataRemoverImplForCacheControlNoStorePageBrowserTest
+    : public BrowsingDataRemoverImplBrowserTest {
+ protected:
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    feature_list_.InitAndEnableFeatureWithParameters(
+        features::kCacheControlNoStoreEnterBackForwardCache,
+        {{"level", "store-and-evict"}});
+    BrowsingDataRemoverImplBrowserTest::SetUpCommandLine(command_line);
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(
+    BrowsingDataRemoverImplForCacheControlNoStorePageBrowserTest,
+    DoesClearNonCacheControlNoStoreBackForwardCacheEntries_DataTypeCookie) {
+  if (!content::BackForwardCache::IsBackForwardCacheFeatureEnabled()) {
+    return;
+  }
+
+  GURL url_1 = ssl_server().GetURL("/title1.html");
+  GURL url_2 = ssl_server().GetURL("/title2.html");
+
+  // 1) Navigate to url_1, then to url_2.
+  ASSERT_TRUE(NavigateToURL(shell(), url_1));
+  ASSERT_TRUE(NavigateToURL(shell(), url_2));
+
+  // 2) Go back, the page should be restored from BFCache.
+  ASSERT_TRUE(HistoryGoBack(shell()->web_contents()));
+  ExpectRestored(FROM_HERE);
+
+  // 3) Navigate to url_2 again.
+  ASSERT_TRUE(NavigateToURL(shell(), url_2));
+
+  // 4) Remove the browsing data with DATA_TYPE_COOKIES and the domain that
+  // matches the BFCached document's origin.
+  auto filter = BrowsingDataFilterBuilder::Create(
+      BrowsingDataFilterBuilder::Mode::kDelete);
+  filter->AddRegisterableDomain("localhost");
+  RemoveWithFilterAndWait(BrowsingDataRemover::DATA_TYPE_COOKIES,
+                          std::move(filter));
+
+  // 5) Go back, and the page should be restored from BFCache.
+  ASSERT_TRUE(HistoryGoBack(shell()->web_contents()));
+  ExpectRestored(FROM_HERE);
+}
+
+IN_PROC_BROWSER_TEST_F(
+    BrowsingDataRemoverImplForCacheControlNoStorePageBrowserTest,
+    ClearCacheControlNoStoreBackForwardCacheEntries_DataTypeCookie) {
+  if (!content::BackForwardCache::IsBackForwardCacheFeatureEnabled()) {
+    return;
+  }
+
+  GURL url_1 = ssl_server().GetURL("/echoall/nocache");
+  GURL url_2 = ssl_server().GetURL("/title1.html");
+
+  // 1) Navigate to url_1 with CCNS response, then to url_2.
+  ASSERT_TRUE(NavigateToURL(shell(), url_1));
+  ASSERT_TRUE(NavigateToURL(shell(), url_2));
+
+  // 2) Remove the browsing data with DATA_TYPE_COOKIES and the domain that
+  // matches the BFCached document's origin.
+  auto filter = BrowsingDataFilterBuilder::Create(
+      BrowsingDataFilterBuilder::Mode::kDelete);
+  filter->AddRegisterableDomain("localhost");
+  RemoveWithFilterAndWait(BrowsingDataRemover::DATA_TYPE_COOKIES,
+                          std::move(filter));
+
+  // 3) Go back, and the page should not be restored from BFCache since the
+  // BFCache entry should be flushed.
+  ASSERT_TRUE(HistoryGoBack(shell()->web_contents()));
+  ExpectNotRestored(
+      {BackForwardCacheMetrics::NotRestoredReason::kCookieFlushed,
+       BackForwardCacheMetrics::NotRestoredReason::kCacheControlNoStore},
+      {}, {}, {}, {}, FROM_HERE);
 }
 
 class CookiesBrowsingDataRemoverImplBrowserTest
@@ -405,6 +588,27 @@ IN_PROC_BROWSER_TEST_F(CookiesBrowsingDataRemoverImplBrowserTest,
   EXPECT_EQ("D", cookies[0].Name());
   EXPECT_EQ("E", cookies[1].Name());
   EXPECT_EQ("F", cookies[2].Name());
+}
+
+// Regression test for https://crbug.com/1457600.
+IN_PROC_BROWSER_TEST_F(CookiesBrowsingDataRemoverImplBrowserTest,
+                       ClearCookiesWithEmptyFilter) {
+  ASSERT_TRUE(SetCookie(GURL("https://a.com"), "A=0; secure",
+                        /*cookie_partition_key=*/absl::nullopt));
+  ASSERT_EQ(1u, GetAllCookies().size());
+
+  std::unique_ptr<BrowsingDataFilterBuilder> builder(
+      BrowsingDataFilterBuilder::Create(
+          BrowsingDataFilterBuilder::Mode::kDelete));
+  EXPECT_TRUE(builder->MatchesNothing());
+  // `builder` produces a malformed filter, so it fails a CHECK in
+  // `BrowsingDataRemoverImpl`.
+  EXPECT_DEATH_IF_SUPPORTED(
+      RemoveWithFilterAndWait(BrowsingDataRemover::DATA_TYPE_COOKIES,
+                              std::move(builder)),
+      "");
+
+  EXPECT_EQ(1u, GetAllCookies().size());
 }
 
 IN_PROC_BROWSER_TEST_F(CookiesBrowsingDataRemoverImplBrowserTest,
@@ -549,7 +753,7 @@ class TrustTokensTester {
   }
 
  private:
-  raw_ptr<network::mojom::NetworkContext, DanglingUntriaged> network_context_;
+  raw_ptr<network::mojom::NetworkContext> network_context_ = nullptr;
 };
 
 }  // namespace

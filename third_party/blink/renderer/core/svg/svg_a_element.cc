@@ -54,9 +54,7 @@ SVGAElement::SVGAElement(Document& document)
       SVGURIReference(this),
       svg_target_(
           MakeGarbageCollected<SVGAnimatedString>(this,
-                                                  svg_names::kTargetAttr)) {
-  AddToPropertyMap(svg_target_);
-}
+                                                  svg_names::kTargetAttr)) {}
 
 void SVGAElement::Trace(Visitor* visitor) const {
   visitor->Trace(svg_target_);
@@ -126,20 +124,29 @@ void SVGAElement::DefaultEventHandler(Event& event) {
         }
       }
 
-      AtomicString target(svg_target_->CurrentValue()->Value());
-      if (target.empty() && FastGetAttribute(xlink_names::kShowAttr) == "new")
-        target = AtomicString("_blank");
-      event.SetDefaultHandled();
-
       if (!GetDocument().GetFrame())
         return;
 
       FrameLoadRequest frame_request(
           GetDocument().domWindow(),
           ResourceRequest(GetDocument().CompleteURL(url)));
-      frame_request.SetNavigationPolicy(NavigationPolicyFromEvent(&event));
+
+      AtomicString target = frame_request.CleanNavigationTarget(
+          AtomicString(svg_target_->CurrentValue()->Value()));
+      if (target.empty() && FastGetAttribute(xlink_names::kShowAttr) == "new") {
+        target = AtomicString("_blank");
+      }
+      event.SetDefaultHandled();
+
+      NavigationPolicy navigation_policy = NavigationPolicyFromEvent(&event);
+      if (navigation_policy == kNavigationPolicyLinkPreview) {
+        // TODO(b:302649777): Support LinkPreview for SVG <a> element.
+        return;
+      }
+      frame_request.SetNavigationPolicy(navigation_policy);
       frame_request.SetClientRedirectReason(
           ClientNavigationReason::kAnchorClick);
+      frame_request.SetSourceElement(this);
       frame_request.SetTriggeringEventInfo(
           event.isTrusted()
               ? mojom::blink::TriggeringEventInfo::kFromTrustedEvent
@@ -188,18 +195,10 @@ bool SVGAElement::IsURLAttribute(const Attribute& attribute) const {
          SVGGraphicsElement::IsURLAttribute(attribute);
 }
 
-bool SVGAElement::IsMouseFocusable() const {
-  if (IsLink())
-    return SupportsFocus();
-
-  return SVGElement::IsMouseFocusable();
-}
-
 bool SVGAElement::IsKeyboardFocusable() const {
-  if (IsBaseElementFocusable() && Element::SupportsFocus())
-    return SVGElement::IsKeyboardFocusable();
-  if (IsLink() && !GetDocument().GetPage()->GetChromeClient().TabsToLinks())
+  if (IsLink() && !GetDocument().GetPage()->GetChromeClient().TabsToLinks()) {
     return false;
+  }
   return SVGElement::IsKeyboardFocusable();
 }
 
@@ -211,6 +210,28 @@ bool SVGAElement::CanStartSelection() const {
 
 bool SVGAElement::WillRespondToMouseClickEvents() {
   return IsLink() || SVGGraphicsElement::WillRespondToMouseClickEvents();
+}
+
+SVGAnimatedPropertyBase* SVGAElement::PropertyFromAttribute(
+    const QualifiedName& attribute_name) const {
+  if (attribute_name == svg_names::kTargetAttr) {
+    return svg_target_.Get();
+  } else {
+    SVGAnimatedPropertyBase* ret =
+        SVGURIReference::PropertyFromAttribute(attribute_name);
+    if (ret) {
+      return ret;
+    } else {
+      return SVGGraphicsElement::PropertyFromAttribute(attribute_name);
+    }
+  }
+}
+
+void SVGAElement::SynchronizeAllSVGAttributes() const {
+  SVGAnimatedPropertyBase* attrs[]{svg_target_.Get()};
+  SynchronizeListOfSVGAttributes(attrs);
+  SVGURIReference::SynchronizeAllSVGAttributes();
+  SVGGraphicsElement::SynchronizeAllSVGAttributes();
 }
 
 }  // namespace blink

@@ -21,8 +21,6 @@ typedef enum CurrentState {
   STATE_DOWNLOAD_COMPLETE = 8,
   STATE_EXTRACTING = 9,
   STATE_APPLYING_DIFFERENTIAL_PATCH = 10,
-  // TODO(omaha3): Should we move STATE_DOWNLOAD_COMPLETE here and eliminate
-  // STATE_READY_TO_INSTALL?
   STATE_READY_TO_INSTALL = 11,
   STATE_WAITING_TO_INSTALL = 12,
   STATE_INSTALLING = 13,
@@ -43,6 +41,15 @@ enum AppCommandStatus {
   COMMAND_STATUS_COMPLETE = 4,
 };
 
+BEGIN_INTERFACE(
+  {
+    "uuid": {
+      "user":"PLACEHOLDER-GUID-AC817E10-993C-470F-8DCA-25F53D70EA8D",
+      "system":"PLACEHOLDER-GUID-9367601E-C100-4702-8755-808D6BB385D8"
+    },
+    "tokensToSuffix": ["IAppVersionWeb"]
+  }
+)
 [
   object,
   dual,
@@ -56,13 +63,22 @@ interface IAppVersionWeb : IDispatch {
   // Returns the count of the Packages in the AppVersion.
   [propget] HRESULT packageCount([out, retval] long* count);
 
-  // TODO(omaha3): Implement this after a security review.
   // Returns an IDispatch of the Package in the AppVersion at the specified
   // 0-based index.
   [propget] HRESULT packageWeb([in] long index,
                                [out, retval] IDispatch** package);
 };
+END_INTERFACE
 
+BEGIN_INTERFACE(
+  {
+    "uuid": {
+      "user":"PLACEHOLDER-GUID-31479718-D170-467B-9274-27FC3E88CB76",
+      "system":"PLACEHOLDER-GUID-71CBC6BB-CA4B-4B5A-83C0-FC95F9CA6A30"
+    },
+    "tokensToSuffix": ["ICurrentState"]
+  }
+)
 [
   object,
   dual,
@@ -72,7 +88,6 @@ interface IAppVersionWeb : IDispatch {
 ]
 interface ICurrentState : IDispatch {
   // This interface is exposed to web clients!
-  // TODO(omaha3): Update valid comments once we settle on an implementation.
 
   // A value from the CurrentState enum. This value determines which of the
   // properties below are valid.
@@ -101,8 +116,6 @@ interface ICurrentState : IDispatch {
 
   [propget] HRESULT nextRetryTime([out, retval] ULONGLONG*);
 
-  // TODO(omaha 3): Need some way to indicate reconnecting, retrying, etc.
-
   // The following two properties are only valid when stateValue is
   // STATE_INSTALLING or STATE_INSTALL_COMPLETE.
 
@@ -128,12 +141,8 @@ interface ICurrentState : IDispatch {
 
   // The following three properties are only valid when stateValue is
   // STATE_ERROR or STATE_INSTALL_COMPLETE.
-  // TODO(omaha3): If STATE_DOWNLOAD_COMPLETE or STATE_READY_TO_INSTALL becomes
-  // a terminal state, does it support completion messages?
-
+  //
   // Completion message, localized in the specified language.
-  // TODO(omaha3): If we're going to have bundle error messages too, should the
-  // language be at bundle level? Should bundle have its own language setter?
   [propget] HRESULT completionMessage([out, retval] BSTR*);
 
   // Application installer result code. This is to be used as additional
@@ -154,7 +163,17 @@ interface ICurrentState : IDispatch {
   // client after installation.
   [propget] HRESULT postInstallAction([out, retval] LONG*);
 }
+END_INTERFACE
 
+BEGIN_INTERFACE(
+  {
+    "uuid": {
+      "user":"PLACEHOLDER-GUID-EE8EE731-C592-4A4F-9774-BB04337B8F46",
+      "system":"PLACEHOLDER-GUID-AE5F8C9D-B94D-4367-A422-D1DC4E913A52"
+    },
+    "tokensToSuffix": ["IGoogleUpdate3Web"]
+  }
+)
 [
   object,
   dual,
@@ -165,7 +184,17 @@ interface ICurrentState : IDispatch {
 interface IGoogleUpdate3Web : IDispatch {
   HRESULT createAppBundleWeb([out, retval] IDispatch** app_bundle_web);
 };
+END_INTERFACE
 
+BEGIN_INTERFACE(
+  {
+    "uuid": {
+      "user":"PLACEHOLDER-GUID-CE7A37FD-A255-460C-BAF1-708765EB76EC",
+      "system":"PLACEHOLDER-GUID-BFFD766D-A2DD-436E-89FA-BF05BC5B5958"
+    },
+    "tokensToSuffix": ["IAppBundleWeb"]
+  }
+)
 [
   object,
   dual,
@@ -204,7 +233,17 @@ interface IAppBundleWeb : IDispatch {
 
   [propget] HRESULT currentState([out, retval] VARIANT* current_state);
 };
+END_INTERFACE
 
+BEGIN_INTERFACE(
+  {
+    "uuid": {
+      "user":"PLACEHOLDER-GUID-47B9D508-CB72-4F8B-AF00-7D0143603B25",
+      "system":"PLACEHOLDER-GUID-540B227A-F442-45D5-BA52-298A05BAF1A8"
+    },
+    "tokensToSuffix": ["IAppWeb"]
+  }
+)
 [
   object,
   dual,
@@ -233,7 +272,17 @@ interface IAppWeb : IDispatch {
   [propget] HRESULT serverInstallDataIndex([out, retval] BSTR*);
   [propput] HRESULT serverInstallDataIndex([in] BSTR);
 };
+END_INTERFACE
 
+BEGIN_INTERFACE(
+  {
+    "uuid": {
+      "user":"PLACEHOLDER-GUID-5515E66F-FA6F-4D74-B5EA-4FCFDA16FE12",
+      "system":"PLACEHOLDER-GUID-C6E2C5D5-86FA-4A64-9D08-8C9B644F0E49"
+    },
+    "tokensToSuffix": ["IAppCommandWeb"]
+  }
+)
 [
   object,
   dual,
@@ -256,7 +305,17 @@ interface IAppCommandWeb : IDispatch {
                   [in, optional] VARIANT substitution8,
                   [in, optional] VARIANT substitution9);
 };
+END_INTERFACE
 
+BEGIN_INTERFACE(
+  {
+    "uuid": {
+      "user":"PLACEHOLDER-GUID-EF739C0C-40B0-478D-B76B-3659B8F2B0EB",
+      "system":"PLACEHOLDER-GUID-F3964464-A939-44D3-9244-36BD2E3630B8"
+    },
+    "tokensToSuffix": ["IPolicyStatus"]
+  }
+)
 [
   object,
   dual,
@@ -335,10 +394,20 @@ interface IPolicyStatus : IDispatch {
       [in] BSTR app_id,
       [out, retval] VARIANT_BOOL* rollback_allowed);
 };
+END_INTERFACE
 
 // IPolicyStatusValue represents the managed state of a single Google Update
 // policy. It contains the current source and value, as well as if any conflicts
 // exist with that policy.
+BEGIN_INTERFACE(
+  {
+    "uuid": {
+      "user":"PLACEHOLDER-GUID-7E0A6B39-7CEB-4944-ABFA-F419D201D6A0",
+      "system":"PLACEHOLDER-GUID-CC2CCD05-119C-44E1-852D-6DCC2DFB72EC"
+    },
+    "tokensToSuffix": ["IPolicyStatusValue"]
+  }
+)
 [
   object,
   dual,
@@ -353,6 +422,7 @@ interface IPolicyStatusValue : IDispatch {
   [propget] HRESULT conflictSource([out, retval] BSTR*);
   [propget] HRESULT conflictValue([out, retval] BSTR*);
 }
+END_INTERFACE
 
 // IPolicyStatus2 exposes the following:
 // * properties for Google Update that includes Global Update state, such as the
@@ -363,6 +433,15 @@ interface IPolicyStatusValue : IDispatch {
 //   well as if any conflicts exist with that policy.
 //   IPolicyStatusValue is implemented by an object that marshals itself by
 //   value. To get the "current" value, the policy needs to be queried fresh.
+BEGIN_INTERFACE(
+  {
+    "uuid": {
+      "user":"PLACEHOLDER-GUID-AD91C851-86AC-499F-9BA9-9A561744AA4D",
+      "system":"PLACEHOLDER-GUID-F4A0362A-3702-48B8-9896-7D8013D03AB2"
+    },
+    "tokensToSuffix": ["IPolicyStatus2", "IPolicyStatusValue"]
+  }
+)
 [
   object,
   dual,
@@ -461,9 +540,19 @@ interface IPolicyStatus2 : IDispatch {
   [propget] HRESULT targetChannel([in] BSTR app_id,
                                   [out, retval] IPolicyStatusValue** value);
 };
+END_INTERFACE
 
 // IPolicyStatus3 exposes everything IPolicyStatus2 does, and in addition,
 // exposes the forceInstallApps policy.
+BEGIN_INTERFACE(
+  {
+    "uuid": {
+      "user":"PLACEHOLDER-GUID-BC39E1E1-E8FA-4E72-903F-3BF346E7E165",
+      "system":"PLACEHOLDER-GUID-7B26CC23-B2B8-441B-AA9C-8B551ABB611B"
+    },
+    "tokensToSuffix": ["IPolicyStatus3", "IPolicyStatus2", "IPolicyStatusValue"]
+  }
+)
 [
   object,
   dual,
@@ -477,7 +566,7 @@ interface IPolicyStatus3 : IPolicyStatus2 {
   [propget] HRESULT forceInstallApps([in] VARIANT_BOOL is_machine,
                                      [out, retval] IPolicyStatusValue** value);
 };
-
+END_INTERFACE
 
 [
   object,
@@ -572,15 +661,39 @@ library UpdaterLegacyLib {
   }
 
   interface IAppVersionWeb;
+  interface IAppVersionWebUser;
+  interface IAppVersionWebSystem;
   interface ICurrentState;
+  interface ICurrentStateUser;
+  interface ICurrentStateSystem;
   interface IGoogleUpdate3Web;
+  interface IGoogleUpdate3WebUser;
+  interface IGoogleUpdate3WebSystem;
   interface IAppBundleWeb;
+  interface IAppBundleWebUser;
+  interface IAppBundleWebSystem;
   interface IAppWeb;
+  interface IAppWebUser;
+  interface IAppWebSystem;
   interface IAppCommandWeb;
+  interface IAppCommandWebUser;
+  interface IAppCommandWebSystem;
   interface IPolicyStatus;
+  interface IPolicyStatusUser;
+  interface IPolicyStatusSystem;
   interface IPolicyStatus2;
+  interface IPolicyStatus2User;
+  interface IPolicyStatus2System;
   interface IPolicyStatus3;
+  interface IPolicyStatus3User;
+  interface IPolicyStatus3System;
   interface IPolicyStatusValue;
+  interface IPolicyStatusValueUser;
+  interface IPolicyStatusValueSystem;
   interface IProcessLauncher;
+  interface IProcessLauncherUser;
+  interface IProcessLauncherSystem;
   interface IProcessLauncher2;
+  interface IProcessLauncher2User;
+  interface IProcessLauncher2System;
 };

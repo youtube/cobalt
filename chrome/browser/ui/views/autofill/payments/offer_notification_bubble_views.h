@@ -5,10 +5,12 @@
 #ifndef CHROME_BROWSER_UI_VIEWS_AUTOFILL_PAYMENTS_OFFER_NOTIFICATION_BUBBLE_VIEWS_H_
 #define CHROME_BROWSER_UI_VIEWS_AUTOFILL_PAYMENTS_OFFER_NOTIFICATION_BUBBLE_VIEWS_H_
 
+#include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/ui/autofill/autofill_bubble_base.h"
 #include "chrome/browser/ui/autofill/payments/offer_notification_bubble_controller.h"
 #include "chrome/browser/ui/views/location_bar/location_bar_bubble_delegate_view.h"
+#include "ui/base/interaction/element_tracker.h"
 #include "ui/views/controls/styled_label.h"
 
 namespace content {
@@ -18,6 +20,9 @@ class WebContents;
 namespace autofill {
 
 class PromoCodeLabelButton;
+class PromoCodeLabelView;
+
+DECLARE_ELEMENT_IDENTIFIER_VALUE(kOfferNotificationBubbleElementId);
 
 // This class implements the Desktop bubble that displays any eligible offers or
 // rewards linked to the current page domain. This can include card-linked
@@ -43,8 +48,23 @@ class OfferNotificationBubbleViews : public AutofillBubbleBase,
       ReshowOfferNotificationBubble_OfferDeletedBetweenShows);
   FRIEND_TEST_ALL_PREFIXES(OfferNotificationBubbleViewsInteractiveUiTest,
                            ShowGPayPromoCodeBubble);
+  FRIEND_TEST_ALL_PREFIXES(
+      OfferNotificationBubbleViewsInteractiveUiTest,
+      ShowGPayPromoCodeOffer_WhenGPayPromoCodeOfferAndShoppingServiceOfferAreBothAvailable);
+  FRIEND_TEST_ALL_PREFIXES(
+      OfferNotificationBubbleViewsInteractiveUiTest,
+      ShowShoppingServiceFreeListingOffer_RecordHistoryClusterUsageRelatedMetrics);
+  FRIEND_TEST_ALL_PREFIXES(
+      OfferNotificationBubbleViewsInteractiveUiTest,
+      ShowShoppingServiceFreeListingOffer_WhenGPayPromoCodeOfferNotAvailable);
   FRIEND_TEST_ALL_PREFIXES(OfferNotificationBubbleViewsInteractiveUiTest,
                            TooltipAndAccessibleName);
+  FRIEND_TEST_ALL_PREFIXES(
+      OfferNotificationBubbleViewsWithDiscountOnChromeHistoryClusterTest,
+      RecordHistoryClusterUsageRelatedMetrics);
+  FRIEND_TEST_ALL_PREFIXES(
+      OfferNotificationBubbleViewsWithDiscountOnChromeHistoryClusterTest,
+      ShowShoppingServiceFreeListingOffer_WhenNavigatedFromChromeHistoryCluster);
 
   // AutofillBubbleBase:
   void Hide() override;
@@ -73,6 +93,8 @@ class OfferNotificationBubbleViews : public AutofillBubbleBase,
   raw_ptr<OfferNotificationBubbleController> controller_;
 
   raw_ptr<PromoCodeLabelButton> promo_code_label_button_ = nullptr;
+
+  raw_ptr<PromoCodeLabelView> promo_code_label_view_ = nullptr;
 
   // TODO(crbug.com/1334806): Replace tests with Pixel tests.
   raw_ptr<views::StyledLabel> promo_code_label_ = nullptr;

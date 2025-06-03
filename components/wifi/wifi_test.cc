@@ -27,7 +27,7 @@
 #include "components/wifi/wifi_service.h"
 
 #if BUILDFLAG(IS_APPLE)
-#include "base/mac/scoped_nsautorelease_pool.h"
+#include "base/apple/scoped_nsautorelease_pool.h"
 #endif
 
 namespace wifi {
@@ -70,11 +70,6 @@ class WiFiTest {
       const WiFiService::NetworkGuidList& network_guid_list) {
     VLOG(0) << "Network List Changed: " << network_guid_list.size();
   }
-
-#if BUILDFLAG(IS_APPLE)
-  // Without this there will be a mem leak on osx.
-  base::mac::ScopedNSAutoreleasePool scoped_pool_;
-#endif
 
   std::unique_ptr<WiFiService> wifi_service_;
 
@@ -264,6 +259,11 @@ int main(int argc, const char* argv[]) {
   settings.logging_dest =
       logging::LOG_TO_SYSTEM_DEBUG_LOG | logging::LOG_TO_STDERR;
   logging::InitLogging(settings);
+
+#if BUILDFLAG(IS_APPLE)
+  // Without this there will be a memory leak on the Mac.
+  base::apple::ScopedNSAutoreleasePool pool;
+#endif
 
   wifi::WiFiTest wifi_test;
   return wifi_test.Main(argc, argv);

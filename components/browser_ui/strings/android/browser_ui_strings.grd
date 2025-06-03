@@ -324,7 +324,7 @@
       </message>
 
       <message name="IDS_ACCESSIBILITY_TOOLBAR_BTN_MENU" desc="Content description for the settings menu button.">
-        More options
+        Customize and control Google Chrome
       </message>
       <message name="IDS_ACCESSIBILITY_TOOLBAR_BTN_FORWARD" desc="Content description for the forward navigation button.">
         Go forward
@@ -352,9 +352,6 @@
       </message>
       <message name="IDS_ACCESSIBILITY_EXPAND_BUTTON" desc="Content description for the expand button in the expand_arrow_with_separator layout.">
         Expand
-      </message>
-      <message name="IDS_ACCESSIBILITY_EXPAND_BUTTON_WITH_TARGET_DESCRIPTION" desc="Content description for the expand button in the RadioButtonWithDescriptionAndAuxButton.">
-        Expand <ph name="TARGET_DESCRIPTION">%1$s<ex>Block third-party cookies</ex></ph>
       </message>
 
       <message name="IDS_SELECTED_ITEMS" desc="Content description for a number indicating how many items are selected. [ICU Syntax]">
@@ -571,6 +568,48 @@
       <message name="IDS_PAGE_INFO_COOKIES_DESCRIPTION" desc="Description in the Page Info UI explaining cookies.">
         Cookies and other site data are used to remember you, for example to sign you in or to personalize ads. To manage cookies for all sites, see <ph name="BEGIN_LINK">&lt;link&gt;</ph>Settings<ph name="END_LINK">&lt;/link&gt;</ph>.
       </message>
+      <message name="IDS_PAGE_INFO_COOKIES_BLOCKING_RESTART_TODAY_TITLE" desc="Subtitle shown on the Page Info UI when cookies are allowed temporarily, indicating how long until they are no longer allowed. Used for the Today's variation.">
+        Chrome will block cookies again today
+      </message>
+      <message name="IDS_PAGE_INFO_COOKIES_BLOCKING_RESTART_TITLE" desc="Subtitle shown on the Page Info UI when cookies are allowed temporarily, indicating how long until they are no longer allowed.">
+        {DAYS, plural,
+          =1 {Chrome will block cookies again tomorrow}
+          other {# days until Chrome blocks cookies again}}
+      </message>
+      <message name="IDS_PAGE_INFO_COOKIES_BLOCKING_RESTART_TRACKING_PROTECTION_TITLE" desc="Subtitle shown on the Page Info UI when cookies are allowed temporarily, indicating how long until they are no longer allowed.">
+        {DAYS, plural,
+          =1 {Chrome will block cookies again tomorrow}
+          other {# days until cookies are blocked again}}
+      </message>
+      <message name="IDS_PAGE_INFO_COOKIES_LIMITING_RESTART_TODAY_TITLE" desc="Subtitle shown on the Page Info UI when cookies are allowed temporarily, indicating how long until they are no longer allowed. Used for the Today's variation.">
+        Chrome will limit cookies again today
+      </message>
+      <message name="IDS_PAGE_INFO_COOKIES_LIMITING_RESTART_TITLE" desc="Subtitle shown on the Page Info UI when cookies are allowed temporarily, indicating how long until they are no longer allowed.">
+        {DAYS, plural,
+          =1 {Chrome will limit cookies again tomorrow}
+          other {# days until Chrome limits cookies again}}
+      </message>
+      <message name="IDS_PAGE_INFO_COOKIES_SEND_FEEDBACK_DESCRIPTION" desc="Text asking the user for feedback on why they allowed third-party cookies for this particular site.">
+        Help us improve Chrome by telling us why you allowed third-party cookies. <ph name="BEGIN_LINK">&lt;link&gt;</ph>Send feedback<ph name="END_LINK">&lt;/link&gt;</ph>
+      </message>
+      <message name="IDS_PAGE_INFO_COOKIES_TRACKING_PROTECTION_DESCRIPTION" desc="Text describing the consequences of allowing third-party cookies for a particular site.">
+        You temporarily allowed this site to use third-party cookies, which means less browsing protection but site features are more likely to work as expected. <ph name="BEGIN_LINK">&lt;link&gt;</ph>Send feedback<ph name="END_LINK">&lt;/link&gt;</ph>
+      </message>
+      <message name="IDS_PAGE_INFO_COOKIES_PERMANENT_ALLOWED_TITLE" desc="A subtitle in the Page Info UI if cookies were allowed by the user and they won't be automatically blocked again the future.">
+        You allowed third-party cookies for this site
+      </message>
+      <message name="IDS_PAGE_INFO_COOKIES_SITE_NOT_WORKING_TITLE" desc="Label shown on a dialog that allows users to turn off third-party cookie blocking for a specific site.">
+        Site not working?
+      </message>
+      <message name="IDS_PAGE_INFO_COOKIES_SITE_NOT_WORKING_DESCRIPTION_TEMPORARY" desc="Descriptive text in the Page Info UI explaining the trade-off of temporarily allowing third-party cookies for this site, a change that will automatically expire in the future.">
+        Try temporarily allowing third-party cookies, which means less protection but site features are more likely to work
+      </message>
+      <message name="IDS_PAGE_INFO_COOKIES_SITE_NOT_WORKING_DESCRIPTION_PERMANENT" desc="Descriptive text in the Page Info UI explaining the trade-off of allowing third-party cookies for this site, a change that will not automatically expire in the future.">
+        Try allowing third-party cookies, which means less protection but site features are more likely to work
+      </message>
+      <message name="IDS_PAGE_INFO_COOKIES_SITE_NOT_WORKING_DESCRIPTION_TRACKING_PROTECTION" desc="Descriptive text in the Page Info UI explaining the trade-off of temporarily allowing third-party cookies for this site, a change that will automatically expire in the future.">
+        Try temporarily allowing third-party cookies, which means less browsing protection but site features are more likely to work as expected.
+      </message>
       <message name="IDS_PAGE_INFO_COOKIES_BLOCK" desc="Label for a toggle to allow or block third-party cookies for a site.">
         Block third-party cookies
       </message>
@@ -581,6 +620,55 @@
         {NUM_SELECTED, plural,
           =1 {1 cookie in use}
           other {# cookies in use}}
+      </message>
+      <message name="IDS_PAGE_INFO_SITES_ALLOWED" desc="Label showing the number of sites where cookies are allowed.">
+        {NUM_SELECTED, plural,
+          =1 {1 site allowed}
+          other {# sites allowed}}
+      </message>
+      <message name="IDS_PAGE_INFO_SITES_BLOCKED" desc="Label showing the number of sites where cookies are blocked.">
+        {NUM_SELECTED, plural,
+          =1 {1 site blocked}
+          other {# sites blocked}}
+      </message>
+      <message name="IDS_PAGE_INFO_COOKIES_SUBTITLE_ALLOWED" desc="Description text in the Page Info dialog to indicate that third-party cookies are allowed on this site.">
+        Third-party cookies allowed
+      </message>
+      <message name="IDS_PAGE_INFO_COOKIES_SUBTITLE_BLOCKED" desc="Description text in the Page Info dialog to indicate that third-party cookies are blocked on this site.">
+        Third-party cookies blocked
+      </message>
+      <message name="IDS_PAGE_INFO_TRACKING_PROTECTION_TOGGLE_LIMITED" desc="Summary text in the Page Info dialog to indicate that third-party cookies are limited on this site.">
+        Limited
+      </message>
+      <message name="IDS_PAGE_INFO_TRACKING_PROTECTION_TOGGLE_BLOCKED" desc="Summary text in the Page Info dialog to indicate that third-party cookies are blocked on this site.">
+        Blocked
+      </message>
+      <message name="IDS_PAGE_INFO_TRACKING_PROTECTION_TOGGLE_ALLOWED" desc="Summary text in the Page Info dialog to indicate that third-party cookies are allowed on this site.">
+        Allowed
+      </message>
+      <message name="IDS_PAGE_INFO_COOKIES_SUBTITLE_BLOCKED_HIGH_CONFIDENCE" desc="Description text in the Page Info dialog to indicate that third-party cookies are blocked on a site that has a high breakage confidence level.">
+        Site not working? Third-party cookies blocked
+      </message>
+      <message name="IDS_PAGE_INFO_COOKIES_THIRD_PARTY_COOKIES_LABEL" desc="The label used in the Page Info dialog to label a toggle button that when enabled allows third-party cookies and when disabled blocks third-party cookies.">
+        Third-party cookies
+      </message>
+      <message name="IDS_PAGE_INFO_TRACKING_PROTECTION_TITLE" desc="The header label of Tracking Protection page.">
+        Tracking Protection
+      </message>
+      <message name="IDS_PAGE_INFO_TRACKING_PROTECTION_DESCRIPTION" desc="Description text for the Tracking Protection subpage in the page info view. Contains a link to the Tracking Protection settings page.">
+        Chrome limits most sites from using third-party cookies to track you as you browse. Visit settings to <ph name="BEGIN_LINK">&lt;link&gt;</ph>manage your tracking protections<ph name="END_LINK">&lt;/link&gt;</ph>
+      </message>
+      <message name="IDS_PAGE_INFO_TRACKING_PROTECTION_SITE_GRANT_DESCRIPTION" desc="Description text for the Tracking Protection subpage in the page info view for when a site has a TPCD grant. Contains a link to the Tracking Protection settings page.">
+        Chrome limits most sites from using third-party cookies. But third-party cookies are allowed on this site because it relies on them to provide basic services.\n\nVisit settings to <ph name="BEGIN_LINK">&lt;link&gt;</ph>manage your tracking protections<ph name="END_LINK">&lt;/link&gt;</ph>.
+      </message>
+      <message name="IDS_PAGE_INFO_TRACKING_PROTECTION_BLOCKED_COOKIES_DESCRIPTION" desc="Description text for the Tracking Protection subpage in the page info view if all cookies are blocked. Contains a link to the Tracking Protection settings page.">
+        You blocked sites from using third-party cookies to track you as you browse. Visit settings to <ph name="BEGIN_LINK">&lt;link&gt;</ph>manage your tracking protections<ph name="END_LINK">&lt;/link&gt;</ph>.
+      </message>
+      <message name="IDS_PAGE_INFO_TRACKING_PROTECTION_INCOGNITO_BLOCKED_COOKIES_DESCRIPTION" desc="Description text for the Tracking Protection subpage in the page info view in incognito mode when cookies are blocked. Contains a link to the Tracking Protection settings page.">
+        Chrome blocks sites from using third-party cookies to track you as you browse. Visit settings to <ph name="BEGIN_LINK">&lt;link&gt;</ph>manage your tracking protections<ph name="END_LINK">&lt;/link&gt;</ph>.
+      </message>
+      <message name="IDS_PAGE_INFO_TRACKING_PROTECTION_SUBTITLE_COOKIES_LIMITED" desc="Description text in the Page Info dialog to indicate that third-party cookies are limited on this site.">
+        Third-party cookies limited
       </message>
       <message name="IDS_PAGE_INFO_ANDROID_LOCATION_BLOCKED" desc="The label used in the Page Info dialog to indicate that location has been been disabled for the device in Android settings">
         Turned off for this device
@@ -599,21 +687,6 @@
       </message>
       <message name="IDS_PAGE_INFO_URL_TRUNCATED" desc="Accessibility announcement when the URL in PageInfo switches from full to truncated display">
         URL truncated
-      </message>
-      <message name="IDS_PAGE_INFO_AD_PERSONALIZATION_TITLE" desc="The title of the 'Ad personalization' section in Page Info.">
-        Ad personalization
-      </message>
-      <message name="IDS_PAGE_INFO_AD_PERSONALIZATION_TOPICS_AND_INTEREST_GROUP_DESCRIPTION" desc="The description label that explains to the user that the current site has accessed the Topics API and joined the user to an interest group. The label is located in 'Ad personalization' subpage in page info bubble.">
-        This site defines interests other sites can use to show you ads. This site also gets your interests from Chrome to show you more relevant ads.
-      </message>
-      <message name="IDS_PAGE_INFO_AD_PERSONALIZATION_TOPICS_DESCRIPTION"  desc="The description label that explains to the user that the current site has accessed the Topics API. The label is located in 'Ad personalization' subpage in page info bubble.">
-        This site gets your interests from Chrome to show you more relevant ads
-      </message>
-      <message name="IDS_PAGE_INFO_AD_PERSONALIZATION_INTEREST_GROUP_DESCRIPTION" desc="The description label that explains to the user that the current site has joined the user to an interest group. The label is located in 'Ad personalization' subpage in page info bubble.">
-        This site defines interests other sites can use to show you ads
-      </message>
-      <message name="IDS_PAGE_INFO_AD_MANAGE_INTERESTS" desc="The button label of the 'Manage interests' button in Page Info. The button opens a settings page to manage interests for the site.">
-        Manage interests
       </message>
       <message name="IDS_PAGE_INFO_AD_PRIVACY_HEADER" desc="A label that represents the new ad-related settings. 1) Navigate to any site. 2) Click the icon (often a lock) to the left of the URL in the address bar. Information about the page you're viewing appears. The 'Ad privacy' label will appear above the 'Site settings' button.">
         Ad privacy
@@ -887,6 +960,9 @@
       <message name="IDS_IMMERSIVE_FULLSCREEN_API_NOTIFICATION" desc="Notification message when a site has entered immersive fullscreen and the directions of how to exit.">
         Drag from top and touch the back button to exit full screen.
       </message>
+      <message name="IDS_IMMERSIVE_FULLSCREEN_API_NOTIFICATION_AUTOMOTIVE" desc="Notification message when a site has entered immersive fullscreen and the directions of how to exit.">
+        Press the back button to exit full screen.
+      </message>
 
       <!-- WebApk name/icon report abuse dialog -->
       <message name="IDS_WEBAPK_REPORT_ABUSE_DIALOG_TITLE" desc="The title at the top of the report abuse dialog.">
@@ -911,6 +987,9 @@
       </message>
       <message name="IDS_MESSAGE_DISMISS_AND_SHOW_NEXT" desc="Accessibility label to allow user to dismiss the current one in order to show the background message">
         Dismiss and show next available action
+      </message>
+      <message name="IDS_MESSAGE_MORE_OPTIONS" desc="Accessibility label of the more options icon in the message banner. Clicking on the options icon will enable a context menu or a dialog showing more available actions related to the message banner.">
+        More options in the <ph name="BANNER_TITLE">%1$s<ex>Title</ex></ph>
       </message>
 
       <!-- In-Product Help -->
@@ -945,17 +1024,26 @@
       <message name="IDS_READER_FOR_ACCESSIBILITY_TITLE" desc="Title of preference that allows the user to use simplified view on any articles, even if the page is mobile-friendly. Simplified view is the new user-facing name for Reader Mode, which extracts the content of an article and removes clutter from a web page and puts the result in a easier-to-read format.">
         Simplified view for web pages
       </message>
+      <message name="IDS_ZOOM_INFO_PREFERENCE_TITLE" translateable="false" desc="Summary of preference that allows the user to view the set zoom levels for all websites.">
+        Saved zoom levels
+      </message>
       <message name="IDS_READER_FOR_ACCESSIBILITY_SUMMARY" desc="Summary of preference that allows the user to use simplified view on any supported articles, even if the page is mobile-friendly.">
         Get notified when an article can be shown in simplified view
       </message>
-      <message name="IDS_ACCESSIBILITY_TAB_SWITCHER_TITLE" desc="Title of preference that allows the user to use a simplified tab switcher that is accessibility friendly. The words 'Open tabs' should match translation in TC ID 3108541343994525384, provided that 'open' is correctly used as an adjective and not a verb.">
-        Simplified view for open tabs
-      </message>
-      <message name="IDS_ACCESSIBILITY_TAB_SWITCHER_SUMMARY" desc="Summary of the preference that allows the user to use a simplified tab switcher. The simplified tab switcher is recommended for use with TalkBack and Switch Access which are accessibility services provided by Android. TalkBack does not need to be translated. 'Switch Access' translation should match TC ID 382005103867249841.">
-       Recommended when TalkBack or Switch Access are on
-      </message>
       <message name="IDS_ACCESSIBILITY_CAPTIONS_TITLE" desc="Title of the preference that allows the user to update caption settings.">
         Captions
+      </message>
+
+      <!-- Text Size Contrast -->
+      <!-- TODO(crbug.com/1446230): Add descriptions and make the strings translateable. -->
+      <message name="IDS_TEXT_SIZE_CONTRAST_TITLE" translateable="false" desc="Title of the preference that allows the user to update the accessibility smart zoom feature that applies to the web contents.">
+        Text size contrast
+      </message>
+      <message name="IDS_TEXT_SIZE_CONTRAST_SUMMARY" translateable="false" desc="Summary of the preference that allows the user to update the accessibility smart zoom feature that applies to the web contents.">
+        Adjust the contrast between large and small text
+      </message>
+      <message name="IDS_TEXT_SIZE_CONTRAST_LEVEL" translateable="false" desc="Text description of the current text size contrast level set by the user">
+        <ph name="TEXT_SIZE_CONTRAST_LEVEL">%1$d<ex>100</ex></ph>
       </message>
 
       <!-- Page Zoom -->

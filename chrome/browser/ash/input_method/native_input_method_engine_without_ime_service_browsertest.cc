@@ -203,9 +203,9 @@ class NativeInputMethodEngineWithoutImeServiceTest
   }
 
   std::unique_ptr<NativeInputMethodEngine> engine_;
-  raw_ptr<Profile, ExperimentalAsh> profile_;
-  raw_ptr<PrefService, ExperimentalAsh> prefs_;
-  raw_ptr<TestObserver, ExperimentalAsh> observer_;
+  raw_ptr<Profile, DanglingUntriaged | ExperimentalAsh> profile_;
+  raw_ptr<PrefService, DanglingUntriaged | ExperimentalAsh> prefs_;
+  raw_ptr<TestObserver, DanglingUntriaged | ExperimentalAsh> observer_;
 
  private:
   InputMethodAsh input_method_;
@@ -742,6 +742,28 @@ IN_PROC_BROWSER_TEST_F(NativeInputMethodEngineWithoutImeServiceTest,
   SetFocus(nullptr);
 }
 #endif
+
+IN_PROC_BROWSER_TEST_F(NativeInputMethodEngineWithoutImeServiceTest,
+                       ReplaceSurroundingTextPerformsAtomicInsertText) {
+  engine_->Enable(kEngineIdUs);
+
+  TextInputTestHelper helper(GetBrowserInputMethod());
+  SetUpTextInput(helper);
+  content::WebContents* tab =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_TRUE(content::ExecJs(
+      tab, "document.getElementById('text_id').value = 'original'"));
+  ASSERT_TRUE(content::ExecJs(
+      tab, "document.getElementById('text_id').setSelectionRange(4,4)"));
+
+  helper.GetTextInputClient()->ExtendSelectionAndReplace(3, 2, u"replaced");
+  helper.WaitForSurroundingTextChanged(u"oreplacedal");
+
+  EXPECT_EQ(helper.GetElementInnerText("text_events", tab),
+            "replaced;insertText;false\n");
+
+  SetFocus(nullptr);
+}
 
 }  // namespace input_method
 }  // namespace ash

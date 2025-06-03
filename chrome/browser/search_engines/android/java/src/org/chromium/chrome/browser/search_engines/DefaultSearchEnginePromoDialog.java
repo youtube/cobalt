@@ -14,6 +14,7 @@ import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.Callback;
+import org.chromium.base.ResettersForTesting;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.components.browser_ui.widget.PromoDialog;
 import org.chromium.components.browser_ui.widget.RadioButtonLayout;
@@ -24,7 +25,7 @@ public class DefaultSearchEnginePromoDialog extends PromoDialog {
     public static interface DefaultSearchEnginePromoDialogObserver {
         void onDialogShown(DefaultSearchEnginePromoDialog shownDialog);
     }
-    private static DefaultSearchEnginePromoDialogObserver sObserver;
+    private static DefaultSearchEnginePromoDialogObserver sObserverForTesting;
 
     @SuppressLint("StaticFieldLeak")
     private static DefaultSearchEnginePromoDialog sCurrentDialog;
@@ -54,6 +55,9 @@ public class DefaultSearchEnginePromoDialog extends PromoDialog {
             DefaultSearchEngineDialogHelper.Delegate delegate, int dialogType,
             @Nullable Callback<Boolean> onSuccessCallback) {
         super(activity);
+        assert dialogType == SearchEnginePromoType.SHOW_EXISTING
+                || dialogType == SearchEnginePromoType.SHOW_NEW;
+
         mDelegate = delegate;
         mDialogType = dialogType;
         mOnSuccessCallback = onSuccessCallback;
@@ -100,7 +104,7 @@ public class DefaultSearchEnginePromoDialog extends PromoDialog {
         } else if (mDialogType == SearchEnginePromoType.SHOW_EXISTING) {
             RecordUserAction.record("SearchEnginePromo.ExistingDevice.Shown.Dialog");
         }
-        if (sObserver != null) sObserver.onDialogShown(this);
+        if (sObserverForTesting != null) sObserverForTesting.onDialogShown(this);
     }
 
     @Override
@@ -118,20 +122,15 @@ public class DefaultSearchEnginePromoDialog extends PromoDialog {
         if (sCurrentDialog == this) setCurrentDialog(null);
     }
 
-    /** See {@link #sObserver}. */
-    @VisibleForTesting
+    /** See {@link #sObserverForTesting}. */
     public static void setObserverForTests(DefaultSearchEnginePromoDialogObserver observer) {
-        sObserver = observer;
-    }
-
-    /** See {@link #sObserver}. */
-    @VisibleForTesting
-    public static void setObserverForTests2(DefaultSearchEnginePromoDialogObserver observer) {
-        sObserver = observer;
+        sObserverForTesting = observer;
+        ResettersForTesting.register(() -> sObserverForTesting = null);
     }
 
     /** @return The current visible Default Search Engine dialog. */
-    static DefaultSearchEnginePromoDialog getCurrentDialog() {
+    @VisibleForTesting
+    public static DefaultSearchEnginePromoDialog getCurrentDialog() {
         return sCurrentDialog;
     }
 

@@ -32,12 +32,12 @@
 
 #include "base/allocator/partition_alloc_features.h"
 #include "base/allocator/partition_alloc_support.h"
-#include "base/allocator/partition_allocator/memory_reclaimer.h"
-#include "base/allocator/partition_allocator/oom.h"
-#include "base/allocator/partition_allocator/page_allocator.h"
-#include "base/allocator/partition_allocator/partition_alloc.h"
-#include "base/allocator/partition_allocator/partition_alloc_buildflags.h"
-#include "base/allocator/partition_allocator/partition_root.h"
+#include "base/allocator/partition_allocator/src/partition_alloc/oom.h"
+#include "base/allocator/partition_allocator/src/partition_alloc/page_allocator.h"
+#include "base/allocator/partition_allocator/src/partition_alloc/partition_alloc.h"
+#include "base/allocator/partition_allocator/src/partition_alloc/partition_alloc_buildflags.h"
+#include "base/allocator/partition_allocator/src/partition_alloc/partition_alloc_constants.h"
+#include "base/allocator/partition_allocator/src/partition_alloc/partition_root.h"
 #include "base/debug/alias.h"
 #include "base/feature_list.h"
 #include "base/no_destructor.h"
@@ -46,7 +46,6 @@
 #include "base/thread_annotations.h"
 #include "build/build_config.h"
 #include "components/crash/core/common/crash_key.h"
-#include "third_party/blink/renderer/platform/wtf/allocator/partition_allocator.h"
 #include "third_party/blink/renderer/platform/wtf/wtf.h"
 
 namespace WTF {
@@ -66,11 +65,57 @@ bool Partitions::scan_is_enabled_ = false;
 
 // These statics are inlined, so cannot be LazyInstances. We create the values,
 // and then set the pointers correctly in Initialize().
-partition_alloc::ThreadSafePartitionRoot* Partitions::fast_malloc_root_ =
-    nullptr;
-partition_alloc::ThreadSafePartitionRoot* Partitions::array_buffer_root_ =
-    nullptr;
-partition_alloc::ThreadSafePartitionRoot* Partitions::buffer_root_ = nullptr;
+partition_alloc::PartitionRoot* Partitions::fast_malloc_root_ = nullptr;
+partition_alloc::PartitionRoot* Partitions::array_buffer_root_ = nullptr;
+partition_alloc::PartitionRoot* Partitions::buffer_root_ = nullptr;
+
+namespace {
+
+// Reads feature configuration and returns a suitable
+// `PartitionOptions`.
+partition_alloc::PartitionOptions PartitionOptionsFromFeatures() {
+  using base::features::BackupRefPtrEnabledProcesses;
+  using base::features::BackupRefPtrMode;
+  using partition_alloc::PartitionOptions;
+
+#if BUILDFLAG(ENABLE_BACKUP_REF_PTR_SUPPORT)
+  const auto brp_mode = base::features::kBackupRefPtrModeParam.Get();
+  const bool process_affected_by_brp_flag =
+#if BUILDFLAG(FORCIBLY_ENABLE_BACKUP_REF_PTR_IN_ALL_PROCESSES)
+      true;
+#else
+      base::features::kBackupRefPtrEnabledProcessesParam.Get() ==
+          BackupRefPtrEnabledProcesses::kAllProcesses ||
+      base::features::kBackupRefPtrEnabledProcessesParam.Get() ==
+          BackupRefPtrEnabledProcesses::kBrowserAndRenderer;
+#endif  // BUILDFLAG(FORCIBLY_ENABLE_BACKUP_REF_PTR_IN_ALL_PROCESSES)
+  const bool enable_brp = base::FeatureList::IsEnabled(
+                              base::features::kPartitionAllocBackupRefPtr) &&
+                          (brp_mode == BackupRefPtrMode::kEnabled) &&
+                          process_affected_by_brp_flag;
+#else  // BUILDFLAG(ENABLE_BACKUP_REF_PTR_SUPPORT)
+  const bool enable_brp = false;
+#endif
+
+  const auto brp_setting =
+      enable_brp ? PartitionOptions::kEnabled : PartitionOptions::kDisabled;
+
+  const bool enable_memory_tagging = base::allocator::PartitionAllocSupport::
+      ShouldEnableMemoryTaggingInRendererProcess();
+  const auto memory_tagging =
+      enable_memory_tagging ? partition_alloc::PartitionOptions::kEnabled
+                            : partition_alloc::PartitionOptions::kDisabled;
+  // No need to call ChangeMemoryTaggingModeForAllThreadsPerProcess() as it will
+  // be handled in ReconfigureAfterFeatureListInit().
+
+  return PartitionOptions{
+      .star_scan_quarantine = PartitionOptions::kAllowed,
+      .backup_ref_ptr = brp_setting,
+      .memory_tagging = {.enabled = memory_tagging},
+  };
+}
+
+}  // namespace
 
 // static
 void Partitions::Initialize() {
@@ -80,39 +125,29 @@ void Partitions::Initialize() {
 
 // static
 bool Partitions::InitializeOnce() {
-  base::features::BackupRefPtrMode brp_mode =
-      base::features::kBackupRefPtrModeParam.Get();
-#if BUILDFLAG(ENABLE_BACKUP_REF_PTR_SUPPORT)
-  const bool process_affected_by_brp_flag =
-      base::features::kBackupRefPtrEnabledProcessesParam.Get() ==
-          base::features::BackupRefPtrEnabledProcesses::kAllProcesses ||
-      base::features::kBackupRefPtrEnabledProcessesParam.Get() ==
-          base::features::BackupRefPtrEnabledProcesses::kBrowserAndRenderer;
-  const bool enable_brp =
-      base::FeatureList::IsEnabled(
-          base::features::kPartitionAllocBackupRefPtr) &&
-      (brp_mode == base::features::BackupRefPtrMode::kEnabled ||
-       brp_mode == base::features::BackupRefPtrMode::kEnabledWithoutZapping) &&
-      process_affected_by_brp_flag;
-#else  // BUILDFLAG(ENABLE_BACKUP_REF_PTR_SUPPORT)
-  const bool process_affected_by_brp_flag = false;
-  const bool enable_brp = false;
-#endif
-  const auto brp_setting =
-      enable_brp ? partition_alloc::PartitionOptions::BackupRefPtr::kEnabled
-                 : partition_alloc::PartitionOptions::BackupRefPtr::kDisabled;
-  const auto brp_zapping_setting =
-      enable_brp && brp_mode == base::features::BackupRefPtrMode::kEnabled
-          ? partition_alloc::PartitionOptions::BackupRefPtrZapping::kEnabled
-          : partition_alloc::PartitionOptions::BackupRefPtrZapping::kDisabled;
-  const auto add_dummy_ref_count_setting =
-      process_affected_by_brp_flag &&
-              brp_mode ==
-                  base::features::BackupRefPtrMode::kDisabledButAddDummyRefCount
-          ? partition_alloc::PartitionOptions::AddDummyRefCount::kEnabled
-          : partition_alloc::PartitionOptions::AddDummyRefCount::kDisabled;
+  using partition_alloc::PartitionOptions;
+
+  partition_alloc::PartitionAllocGlobalInit(&Partitions::HandleOutOfMemory);
+
+  auto options = PartitionOptionsFromFeatures();
+
+  const auto actual_brp_setting = options.backup_ref_ptr;
+  if (base::FeatureList::IsEnabled(
+          base::features::kPartitionAllocDisableBRPInBufferPartition)) {
+    options.backup_ref_ptr = PartitionOptions::kDisabled;
+  }
+
+  static base::NoDestructor<partition_alloc::PartitionAllocator>
+      buffer_allocator(options);
+  buffer_root_ = buffer_allocator->root();
+
+  if (base::FeatureList::IsEnabled(
+          base::features::kPartitionAllocDisableBRPInBufferPartition)) {
+    options.backup_ref_ptr = actual_brp_setting;
+  }
+
   scan_is_enabled_ =
-      !enable_brp &&
+      (options.backup_ref_ptr == PartitionOptions::kDisabled) &&
 #if BUILDFLAG(USE_STARSCAN)
       (base::FeatureList::IsEnabled(base::features::kPartitionAllocPCScan) ||
        base::FeatureList::IsEnabled(kPCScanBlinkPartitions));
@@ -131,42 +166,13 @@ bool Partitions::InitializeOnce() {
   // In addition, enable the FastMalloc partition if
   // --enable-features=PartitionAllocPCScanBlinkPartitions is specified.
   if (scan_is_enabled_ || !BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)) {
-    constexpr partition_alloc::PartitionOptions::ThreadCache thread_cache =
-#if BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
-        partition_alloc::PartitionOptions::ThreadCache::kDisabled;
-#else
-        partition_alloc::PartitionOptions::ThreadCache::kEnabled;
+#if !BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
+    options.thread_cache = PartitionOptions::kEnabled;
 #endif
     static base::NoDestructor<partition_alloc::PartitionAllocator>
-        fast_malloc_allocator{};
-    fast_malloc_allocator->init({
-        partition_alloc::PartitionOptions::AlignedAlloc::kDisallowed,
-        thread_cache,
-        partition_alloc::PartitionOptions::Quarantine::kAllowed,
-        partition_alloc::PartitionOptions::Cookie::kAllowed,
-        brp_setting,
-        brp_zapping_setting,
-        partition_alloc::PartitionOptions::UseConfigurablePool::kNo,
-        add_dummy_ref_count_setting,
-    });
+        fast_malloc_allocator(options);
     fast_malloc_root_ = fast_malloc_allocator->root();
   }
-
-  partition_alloc::PartitionAllocGlobalInit(&Partitions::HandleOutOfMemory);
-
-  static base::NoDestructor<partition_alloc::PartitionAllocator>
-      buffer_allocator{};
-  buffer_allocator->init({
-      partition_alloc::PartitionOptions::AlignedAlloc::kDisallowed,
-      partition_alloc::PartitionOptions::ThreadCache::kDisabled,
-      partition_alloc::PartitionOptions::Quarantine::kAllowed,
-      partition_alloc::PartitionOptions::Cookie::kAllowed,
-      brp_setting,
-      brp_zapping_setting,
-      partition_alloc::PartitionOptions::UseConfigurablePool::kNo,
-      add_dummy_ref_count_setting,
-  });
-  buffer_root_ = buffer_allocator->root();
 
 #if BUILDFLAG(USE_STARSCAN)
   if (scan_is_enabled_) {
@@ -182,14 +188,6 @@ bool Partitions::InitializeOnce() {
   }
 #endif  // BUILDFLAG(USE_STARSCAN)
 
-  if (!base::FeatureList::IsEnabled(
-          base::features::kPartitionAllocUseAlternateDistribution)) {
-#if !BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
-    fast_malloc_root_->SwitchToDenserBucketDistribution();
-#endif
-    buffer_root_->SwitchToDenserBucketDistribution();
-  }
-
   initialized_ = true;
   return initialized_;
 }
@@ -199,26 +197,23 @@ void Partitions::InitializeArrayBufferPartition() {
   CHECK(initialized_);
   CHECK(!ArrayBufferPartitionInitialized());
 
-  static base::NoDestructor<partition_alloc::PartitionAllocator>
-      array_buffer_allocator{};
-
   // BackupRefPtr disallowed because it will prevent allocations from being 16B
   // aligned as required by ArrayBufferContents.
-  array_buffer_allocator->init({
-      partition_alloc::PartitionOptions::AlignedAlloc::kDisallowed,
-      partition_alloc::PartitionOptions::ThreadCache::kDisabled,
-      partition_alloc::PartitionOptions::Quarantine::kAllowed,
-      partition_alloc::PartitionOptions::Cookie::kAllowed,
-      partition_alloc::PartitionOptions::BackupRefPtr::kDisabled,
-      partition_alloc::PartitionOptions::BackupRefPtrZapping::kDisabled,
-      // When the V8 virtual memory cage is enabled, the ArrayBuffer partition
-      // must be placed inside of it. For that, PA's ConfigurablePool is
-      // created inside the V8 Cage during initialization. As such, here all we
-      // need to do is indicate that we'd like to use that Pool if it has been
-      // created by now (if it hasn't been created, the cage isn't enabled, and
-      // so we'll use the default Pool).
-      partition_alloc::PartitionOptions::UseConfigurablePool::kIfAvailable,
-  });
+  static base::NoDestructor<partition_alloc::PartitionAllocator>
+      array_buffer_allocator(partition_alloc::PartitionOptions{
+          .star_scan_quarantine = partition_alloc::PartitionOptions::kAllowed,
+          .backup_ref_ptr = partition_alloc::PartitionOptions::kDisabled,
+          // When the V8 virtual memory cage is enabled, the ArrayBuffer
+          // partition must be placed inside of it. For that, PA's
+          // ConfigurablePool is created inside the V8 Cage during
+          // initialization. As such, here all we need to do is indicate that
+          // we'd like to use that Pool if it has been created by now (if it
+          // hasn't been created, the cage isn't enabled, and so we'll use the
+          // default Pool).
+          .use_configurable_pool = partition_alloc::PartitionOptions::kAllowed,
+          .memory_tagging = {.enabled =
+                                 partition_alloc::PartitionOptions::kDisabled},
+      });
 
   array_buffer_root_ = array_buffer_allocator->root();
 
@@ -230,14 +225,10 @@ void Partitions::InitializeArrayBufferPartition() {
         array_buffer_root_);
   }
 #endif  // BUILDFLAG(USE_STARSCAN)
-  if (!base::FeatureList::IsEnabled(
-          base::features::kPartitionAllocUseAlternateDistribution)) {
-    array_buffer_root_->SwitchToDenserBucketDistribution();
-  }
 }
 
 // static
-void Partitions::StartPeriodicReclaim(
+void Partitions::StartMemoryReclaimer(
     scoped_refptr<base::SequencedTaskRunner> task_runner) {
   CHECK(IsMainThread());
   DCHECK(initialized_);
@@ -384,7 +375,8 @@ void* Partitions::BufferMalloc(size_t n, const char* type_name) {
 
 // static
 void* Partitions::BufferTryRealloc(void* p, size_t n, const char* type_name) {
-  return BufferPartition()->TryRealloc(p, n, type_name);
+  return BufferPartition()->Realloc<partition_alloc::AllocFlags::kReturnNull>(
+      p, n, type_name);
 }
 
 // static
@@ -404,18 +396,19 @@ size_t Partitions::BufferPotentialCapacity(size_t n) {
 // static
 void* Partitions::FastMalloc(size_t n, const char* type_name) {
   auto* fast_malloc_partition = FastMallocPartition();
-  if (UNLIKELY(fast_malloc_partition))
+  if (UNLIKELY(fast_malloc_partition)) {
     return fast_malloc_partition->Alloc(n, type_name);
-  else
+  } else {
     return malloc(n);
+  }
 }
 
 // static
 void* Partitions::FastZeroedMalloc(size_t n, const char* type_name) {
   auto* fast_malloc_partition = FastMallocPartition();
   if (UNLIKELY(fast_malloc_partition)) {
-    return fast_malloc_partition->AllocWithFlags(
-        partition_alloc::AllocFlags::kZeroFill, n, type_name);
+    return fast_malloc_partition
+        ->AllocInline<partition_alloc::AllocFlags::kZeroFill>(n, type_name);
   } else {
     return calloc(n, 1);
   }
@@ -424,10 +417,11 @@ void* Partitions::FastZeroedMalloc(size_t n, const char* type_name) {
 // static
 void Partitions::FastFree(void* p) {
   auto* fast_malloc_partition = FastMallocPartition();
-  if (UNLIKELY(fast_malloc_partition))
+  if (UNLIKELY(fast_malloc_partition)) {
     fast_malloc_partition->Free(p);
-  else
+  } else {
     free(p);
+  }
 }
 
 // static
@@ -452,22 +446,30 @@ void Partitions::HandleOutOfMemory(size_t size) {
       "page-allocator-mapped-size");
   g_page_allocator_mapped_size.Set(value);
 
-  if (total_usage >= 2UL * 1024 * 1024 * 1024)
+  if (total_usage >= 2UL * 1024 * 1024 * 1024) {
     PartitionsOutOfMemoryUsing2G(size);
-  if (total_usage >= 1UL * 1024 * 1024 * 1024)
+  }
+  if (total_usage >= 1UL * 1024 * 1024 * 1024) {
     PartitionsOutOfMemoryUsing1G(size);
-  if (total_usage >= 512 * 1024 * 1024)
+  }
+  if (total_usage >= 512 * 1024 * 1024) {
     PartitionsOutOfMemoryUsing512M(size);
-  if (total_usage >= 256 * 1024 * 1024)
+  }
+  if (total_usage >= 256 * 1024 * 1024) {
     PartitionsOutOfMemoryUsing256M(size);
-  if (total_usage >= 128 * 1024 * 1024)
+  }
+  if (total_usage >= 128 * 1024 * 1024) {
     PartitionsOutOfMemoryUsing128M(size);
-  if (total_usage >= 64 * 1024 * 1024)
+  }
+  if (total_usage >= 64 * 1024 * 1024) {
     PartitionsOutOfMemoryUsing64M(size);
-  if (total_usage >= 32 * 1024 * 1024)
+  }
+  if (total_usage >= 32 * 1024 * 1024) {
     PartitionsOutOfMemoryUsing32M(size);
-  if (total_usage >= 16 * 1024 * 1024)
+  }
+  if (total_usage >= 16 * 1024 * 1024) {
     PartitionsOutOfMemoryUsing16M(size);
+  }
   PartitionsOutOfMemoryUsingLessThan16M(size);
 }
 

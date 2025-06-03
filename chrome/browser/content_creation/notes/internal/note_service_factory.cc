@@ -4,7 +4,7 @@
 
 #include "chrome/browser/content_creation/notes/internal/note_service_factory.h"
 
-#include "base/memory/singleton.h"
+#include "base/no_destructor.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
@@ -32,7 +32,8 @@ std::string GetCountryCode() {
 
 // static
 NoteServiceFactory* NoteServiceFactory::GetInstance() {
-  return base::Singleton<NoteServiceFactory>::get();
+  static base::NoDestructor<NoteServiceFactory> instance;
+  return instance.get();
 }
 
 // static
@@ -55,11 +56,12 @@ NoteServiceFactory::NoteServiceFactory()
 
 NoteServiceFactory::~NoteServiceFactory() = default;
 
-KeyedService* NoteServiceFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+NoteServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
   Profile* profile = Profile::FromBrowserContext(context);
 
-  return new NoteService(
+  return std::make_unique<NoteService>(
       std::make_unique<TemplateStore>(profile->GetPrefs(), GetCountryCode()));
 }
 

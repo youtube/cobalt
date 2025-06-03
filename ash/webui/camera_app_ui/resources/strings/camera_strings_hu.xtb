@@ -57,6 +57,7 @@
 <translation id="3566302376254083266">Mozgatás a bal felső sarok irányába</translation>
 <translation id="3573890771273113519">Váltás a beolvasási módra</translation>
 <translation id="3583444040776960729">Dokumentum bal alsó sarka</translation>
+<translation id="3642192109456033823">Videó feldolgozása…</translation>
 <translation id="3789724198583203151">Forgatás 90 fokkal az óramutató járásával ellentétesen</translation>
 <translation id="3810838688059735925">Videó</translation>
 <translation id="3892148308691398805">Szöveg másolása</translation>
@@ -65,9 +66,10 @@
 <translation id="4118525110028899586">Felvétel szüneteltetése</translation>
 <translation id="4121305183798804752">Dokumentum észlelve</translation>
 <translation id="414641094616694804">A kamera felbontását nem lehet módosítani</translation>
+<translation id="4176463684765177261">Letiltva</translation>
 <translation id="4269820728363426813">Link másolása</translation>
-<translation id="4281620174117014503">Közepes felbontás</translation>
 <translation id="428234092390943511">Oldal indexképe</translation>
+<translation id="4349714250734879769">Keretek átméretezése Chrome-mal</translation>
 <translation id="4383571725254449280">Teljesítménynaplók nyomtatása</translation>
 <translation id="4445542136948522167">Fotókészítés leállítása</translation>
 <translation id="4570032796877367747">Elülső kamera</translation>
@@ -93,6 +95,7 @@
 <translation id="5374917190292010970">4K (2160p)</translation>
 <translation id="5662366948659129155"><ph name="COUNT" />. oldal beolvasása</translation>
 <translation id="5671277269877808209">Négyzet</translation>
+<translation id="574392208103952083">Közepes</translation>
 <translation id="5746169159649715125">Mentés PDF-ként</translation>
 <translation id="5753488212459587150">Szakértői mód bekapcsolása</translation>
 <translation id="5759254179196327752">Dokumentum beolvasása</translation>
@@ -148,6 +151,7 @@ Ha visszajelzése a kép vagy a videó minőségével kapcsolatos, kérjük, mel
 <translation id="8145038249676204903">Váltás fotókészítésre</translation>
 <translation id="8167081290930651932">Mentés fotóként</translation>
 <translation id="8239780215768881278">Pillanatkép készítése a videóból</translation>
+<translation id="8346544573713510785">Keretek átméretezése a Kamera HAL által</translation>
 <translation id="8425673304802773841">Billentés lefelé</translation>
 <translation id="8428213095426709021">Beállítások</translation>
 <translation id="8629662593426079630">360p</translation>

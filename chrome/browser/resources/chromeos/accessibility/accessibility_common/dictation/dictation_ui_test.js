@@ -213,7 +213,8 @@ AX_TEST_F(
     });
 
 AX_TEST_F(
-    'DictationUIE2ETest', 'HintsTimeoutWithChromeVox', async function() {
+    'DictationUIE2ETest', 'HintsTimeoutWithChromeVox',
+    async function() {
       // Turn on ChromeVox
       await this.setPref(Dictation.SPOKEN_FEEDBACK_PREF, true);
       // Wait for the callbacks to Dictation.

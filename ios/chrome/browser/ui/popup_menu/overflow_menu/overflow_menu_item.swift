@@ -10,7 +10,7 @@ import SwiftUI
   @Published public var name: String
 
   /// The name of the symbol to be used.
-  @Published public var symbolName: String
+  @Published public var symbolName: String?
 
   /// Whether the symbol is a system one (or a custom one).
   @Published public var systemSymbol: Bool
@@ -30,8 +30,23 @@ import SwiftUI
   /// Closure to execute when item is selected.
   @Published public var handler: () -> Void
 
+  /// Whether the item is shown or hidden in the menu overall.
+  @Published public var shown = true {
+    didSet {
+      onShownToggleCallback()
+    }
+  }
+
+  /// A callback, called whenever `shown` is changed.
+  @Published public var onShownToggleCallback: () -> Void = {}
+
+  @Published public var longPressItems: [OverflowMenuLongPressItem] = []
+
   public init(
-    name: String, symbolName: String, systemSymbol: Bool, monochromeSymbol: Bool,
+    name: String,
+    symbolName: String?,
+    systemSymbol: Bool,
+    monochromeSymbol: Bool,
     accessibilityIdentifier: String,
     enterpriseDisabled: Bool,
     displayNewLabelIcon: Bool,
@@ -46,7 +61,18 @@ import SwiftUI
     self.displayNewLabelIcon = displayNewLabelIcon
     self.handler = handler
   }
+}
 
+/// Represents the data necessary to add a long press context menu to an item.
+@objcMembers public class OverflowMenuLongPressItem: NSObject, ObservableObject {
+  @Published public var title: String
+  @Published public var symbolName: String
+  @Published public var handler: () -> Void
+  public init(title: String, symbolName: String, handler: @escaping () -> Void) {
+    self.title = title
+    self.symbolName = symbolName
+    self.handler = handler
+  }
 }
 
 // MARK: - Identifiable
@@ -54,5 +80,11 @@ import SwiftUI
 extension OverflowMenuItem: Identifiable {
   public var id: String {
     return name
+  }
+}
+
+extension OverflowMenuLongPressItem: Identifiable {
+  public var id: String {
+    return title
   }
 }

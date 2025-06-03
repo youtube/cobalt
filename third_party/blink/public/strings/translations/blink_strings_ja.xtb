@@ -16,6 +16,7 @@
 <translation id="1729654308190250600">メール アドレスを入力してください。</translation>
 <translation id="1758486001363313524">その他...</translation>
 <translation id="1787192514241997742">合計時間: <ph name="REMAINING_TIME" /></translation>
+<translation id="1800494066469288780">カメラを許可</translation>
 <translation id="1822429046913737220">AM/PM</translation>
 <translation id="1832974991323546415">リモート デバイスで再生</translation>
 <translation id="1921819250265091946">日</translation>
@@ -24,9 +25,9 @@
 <translation id="1993104285338243655">ミラーリングに切り替わりました</translation>
 <translation id="2031987842108996681">赤チャネル</translation>
 <translation id="2060505056492490888">「<ph name="INVALIDDOMAIN" />」内の「<ph name="DOT" />」の位置が間違っています。</translation>
+<translation id="2068711044993563745">最小値（<ph name="MINIMUM" />）は最大値（<ph name="MAXIMUM" />）より小さくしてください。</translation>
 <translation id="2148716181193084225">今日</translation>
 <translation id="2226276347425096477">このテキストを半角 <ph name="MAX_CHARACTERS" /> 文字以下にしてください（現時点で半角 <ph name="CURRENT_LENGTH" /> 文字です）。</translation>
-<translation id="2246498165605549352">ローカル ファイル</translation>
 <translation id="2247351761944213033"><ph name="YEAR" />年第<ph name="WEEKNUMBER" />週</translation>
 <translation id="2277199496770840904">トラック <ph name="NUMBER" /></translation>
 <translation id="2393030564806080191">16 進数色コード</translation>
@@ -45,11 +46,13 @@
 <translation id="2761667185364618470">次に進むにはこのチェックボックスをオンにしてください。</translation>
 <translation id="2908441821576996758">メール アドレスのカンマ区切りリストを入力してください。</translation>
 <translation id="3049748772180311791"><ph name="QUANTITY" /> MB</translation>
+<translation id="3053226512517284904">音声による説明メニューを表示</translation>
 <translation id="3075154866155599887">有効な値を入力してください。フィールドの入力が不完全か、日付が無効です。</translation>
 <translation id="310520048233152454">URL を入力してください。</translation>
 <translation id="3220661731597678625">現在のステップ</translation>
 <translation id="3321030238473337787">再生速度</translation>
 <translation id="3329013043687509092">彩度</translation>
+<translation id="3377518164566272702">マイクとカメラを許可</translation>
 <translation id="3450233048674729344">値は <ph name="MAXIMUM" /> 以下にする必要があります。</translation>
 <translation id="3732799496749320381">月</translation>
 <translation id="3754210790023674521">ピクチャー イン ピクチャーを終了</translation>
@@ -65,6 +68,7 @@
 <translation id="4718048029184481307">ピクチャー イン ピクチャーを再生しています</translation>
 <translation id="4748357248530471599">ディスプレイ カットアウトに合わせた全画面表示に切り替えます</translation>
 <translation id="4763480195061959176">動画</translation>
+<translation id="4792862212177489858">位置情報を共有</translation>
 <translation id="4812940957355064477">数字を入力してください。</translation>
 <translation id="4912200001568447310">現在のアイテム</translation>
 <translation id="4915360478455618802">時間選択ツールを表示します</translation>
@@ -74,6 +78,7 @@
 <translation id="4975562563186953947"><ph name="SELECTED_COUNT" /> 件選択</translation>
 <translation id="4992066212339426712">ミュートを解除</translation>
 <translation id="49969490063480558">「<ph name="INVALIDADDRESS" />」は完全なメールアドレスではありません。「<ph name="ATSIGN" />」に続く文字列を入力してください。</translation>
+<translation id="5037575921016181960">安全なパスワード</translation>
 <translation id="5090250355906949916">動画シークバー</translation>
 <translation id="509897012892853729">青チャネル</translation>
 <translation id="5117590920725113268">次の月を表示</translation>
@@ -89,6 +94,7 @@
 <translation id="5425179576310518467">現在の日付</translation>
 <translation id="5466621249238537318">1 つ以上のファイルを選択してください。</translation>
 <translation id="5468998798572797635">全画面表示を終了</translation>
+<translation id="5514612371225420585">デバイス上のファイル</translation>
 <translation id="5516235301412634559">0.75</translation>
 <translation id="5537725057119320332">キャスト</translation>
 <translation id="5546461542133609677">ミュートを解除</translation>
@@ -113,6 +119,7 @@
 <translation id="6398862346408813489">月選択パネルを表示</translation>
 <translation id="6404546809543547843">オーディオ再生バー</translation>
 <translation id="6443871981718447451">字幕メニューを表示</translation>
+<translation id="6484738902856791350">プリティ プリント</translation>
 <translation id="6550675742724504774">オプション</translation>
 <translation id="6572309429103589720">文法が無効です</translation>
 <translation id="658823671542763450">全画面表示</translation>
@@ -176,6 +183,7 @@
 <translation id="9132465097189459683">その他...</translation>
 <translation id="9155987714137265666"><ph name="WEEK_START_DATE" /> から始まる <ph name="WEEK" /></translation>
 <translation id="916607977885256133">ピクチャー イン ピクチャー</translation>
+<translation id="918430632320614861">マイクを許可</translation>
 <translation id="945780513535800434">一部オン</translation>
 <translation id="954003015749068518">ピクチャー イン ピクチャーを開始します</translation>
 </translationbundle>

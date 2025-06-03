@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/test/test_future.h"
 #include "chrome/browser/lacros/browser_test_util.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
@@ -26,8 +27,7 @@ IN_PROC_BROWSER_TEST_F(TabletModeBrowserTest, Smoke) {
   auto* lacros_service = chromeos::LacrosService::Get();
   ASSERT_TRUE(lacros_service->IsAvailable<crosapi::mojom::TestController>());
   // This test requires the tablet mode API.
-  if (lacros_service->GetInterfaceVersion(
-          crosapi::mojom::TestController::Uuid_) <
+  if (lacros_service->GetInterfaceVersion<crosapi::mojom::TestController>() <
       static_cast<int>(crosapi::mojom::TestController::MethodMinVersions::
                            kEnterTabletModeMinVersion)) {
     LOG(WARNING) << "Unsupported ash version.";
@@ -51,10 +51,14 @@ IN_PROC_BROWSER_TEST_F(TabletModeBrowserTest, Smoke) {
       incognito_window->GetRootWindow());
   ASSERT_TRUE(browser_test_util::WaitForWindowCreation(incognito_id));
 
+  auto& test_controller =
+      lacros_service->GetRemote<crosapi::mojom::TestController>();
+
   // Enter tablet mode.
-  crosapi::mojom::TestControllerAsyncWaiter waiter(
-      lacros_service->GetRemote<crosapi::mojom::TestController>().get());
-  waiter.EnterTabletMode();
+  base::test::TestFuture<void> future;
+  test_controller->EnterTabletMode(future.GetCallback());
+  EXPECT_TRUE(future.Wait());
+  future.Clear();
 
   // Close the incognito window by closing all tabs and wait for it to stop
   // existing in ash.
@@ -62,7 +66,8 @@ IN_PROC_BROWSER_TEST_F(TabletModeBrowserTest, Smoke) {
   ASSERT_TRUE(browser_test_util::WaitForWindowDestruction(incognito_id));
 
   // Exit tablet mode.
-  waiter.ExitTabletMode();
+  test_controller->ExitTabletMode(future.GetCallback());
+  EXPECT_TRUE(future.Wait());
 }
 
 }  // namespace

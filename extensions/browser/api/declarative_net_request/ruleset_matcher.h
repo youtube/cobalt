@@ -26,7 +26,7 @@ namespace extensions {
 
 namespace declarative_net_request {
 
-struct RulesCountPair;
+struct RuleCounts;
 
 namespace flat {
 struct ExtensionIndexedRuleset;
@@ -60,8 +60,12 @@ class RulesetMatcher {
 
   bool IsExtraHeadersMatcher() const;
   size_t GetRulesCount() const;
+  absl::optional<size_t> GetUnsafeRulesCount() const;
   size_t GetRegexRulesCount() const;
-  RulesCountPair GetRulesCountPair() const;
+
+  // Returns a RuleCounts object for this matcher containing the total rule
+  // count, the unsafe rule count and the regex rule count.
+  RuleCounts GetRuleCounts() const;
 
   void OnRenderFrameCreated(content::RenderFrameHost* host);
   void OnRenderFrameDeleted(content::RenderFrameHost* host);
@@ -88,6 +92,11 @@ class RulesetMatcher {
   const raw_ptr<const flat::ExtensionIndexedRuleset> root_;
 
   const RulesetID id_;
+
+  // The number of unsafe rules for this matcher. Computed only for dynamic and
+  // session scoped rulesets as all rules for static rulesets are considered
+  // "safe".
+  absl::optional<size_t> unsafe_rule_count_ = absl::nullopt;
 
   // Underlying matcher for filter-list style rules supported using the
   // |url_pattern_index| component.

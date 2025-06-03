@@ -16,8 +16,8 @@ namespace content {
 
 class MockBackgroundSyncController;
 class MockReduceAcceptLanguageControllerDelegate;
-class MockResourceContext;
 class MockSSLHostStateDelegate;
+class ResourceContext;
 class ZoomLevelDelegate;
 
 class TestBrowserContext : public BrowserContext {
@@ -79,7 +79,7 @@ class TestBrowserContext : public BrowserContext {
  private:
   // Hold a reference here because BrowserContext owns lifetime.
   base::ScopedTempDir browser_context_dir_;
-  std::unique_ptr<MockResourceContext> resource_context_;
+  std::unique_ptr<content::ResourceContext> resource_context_;
   scoped_refptr<storage::SpecialStoragePolicy> special_storage_policy_;
   std::unique_ptr<MockSSLHostStateDelegate> ssl_host_state_delegate_;
   std::unique_ptr<PermissionControllerDelegate> permission_controller_delegate_;
@@ -87,8 +87,8 @@ class TestBrowserContext : public BrowserContext {
   std::unique_ptr<PlatformNotificationService> platform_notification_service_;
   std::unique_ptr<MockReduceAcceptLanguageControllerDelegate>
       reduce_accept_language_controller_delegate_;
-  base::raw_ptr<OriginTrialsControllerDelegate>
-      origin_trials_controller_delegate_ = nullptr;
+  raw_ptr<OriginTrialsControllerDelegate> origin_trials_controller_delegate_ =
+      nullptr;
   bool is_off_the_record_ = false;
 };
 

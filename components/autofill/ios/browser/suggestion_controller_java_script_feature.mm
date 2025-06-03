@@ -12,10 +12,7 @@
 #include "base/time/time.h"
 #include "base/values.h"
 #import "components/autofill/ios/browser/autofill_java_script_feature.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
+#import "components/autofill/ios/common/javascript_feature_util.h"
 
 namespace autofill {
 
@@ -67,9 +64,7 @@ SuggestionControllerJavaScriptFeature::GetInstance() {
 
 SuggestionControllerJavaScriptFeature::SuggestionControllerJavaScriptFeature()
     : web::JavaScriptFeature(
-          // TODO(crbug.com/1175793): Move autofill code to kIsolatedWorld
-          // once all scripts are converted to JavaScriptFeatures.
-          web::ContentWorld::kPageContentWorld,
+          ContentWorldForAutofillJavascriptFeatures(),
           {FeatureScript::CreateWithFilename(
               kScriptName,
               FeatureScript::InjectionTime::kDocumentStart,
@@ -89,10 +84,9 @@ void SuggestionControllerJavaScriptFeature::SelectNextElementInFrame(
     web::WebFrame* frame,
     const std::string& form_name,
     const std::string& field_name) {
-  std::vector<base::Value> parameters;
-  parameters.push_back(base::Value(form_name));
-  parameters.push_back(base::Value(field_name));
-  CallJavaScriptFunction(frame, "suggestion.selectNextElement", parameters);
+  CallJavaScriptFunction(
+      frame, "suggestion.selectNextElement",
+      base::Value::List().Append(form_name).Append(field_name));
 }
 
 void SuggestionControllerJavaScriptFeature::SelectPreviousElementInFrame(
@@ -104,10 +98,9 @@ void SuggestionControllerJavaScriptFeature::SelectPreviousElementInFrame(
     web::WebFrame* frame,
     const std::string& form_name,
     const std::string& field_name) {
-  std::vector<base::Value> parameters;
-  parameters.push_back(base::Value(form_name));
-  parameters.push_back(base::Value(field_name));
-  CallJavaScriptFunction(frame, "suggestion.selectPreviousElement", parameters);
+  CallJavaScriptFunction(
+      frame, "suggestion.selectPreviousElement",
+      base::Value::List().Append(form_name).Append(field_name));
 }
 
 void SuggestionControllerJavaScriptFeature::
@@ -125,11 +118,9 @@ void SuggestionControllerJavaScriptFeature::
         const std::string& field_name,
         base::OnceCallback<void(bool, bool)> completion_handler) {
   DCHECK(completion_handler);
-  std::vector<base::Value> parameters;
-  parameters.push_back(base::Value(form_name));
-  parameters.push_back(base::Value(field_name));
   CallJavaScriptFunction(
-      frame, "suggestion.hasPreviousNextElements", parameters,
+      frame, "suggestion.hasPreviousNextElements",
+      base::Value::List().Append(form_name).Append(field_name),
       base::BindOnce(&ProcessPreviousAndNextElementsPresenceResult,
                      std::move(completion_handler)),
       base::Seconds(kJavaScriptExecutionTimeoutInSeconds));

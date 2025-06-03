@@ -6,18 +6,18 @@
 
 #import <CoreText/CoreText.h>
 
+#import "base/apple/foundation_util.h"
 #import "base/check_op.h"
 #import "base/command_line.h"
 #import "base/ios/ios_util.h"
-#import "base/mac/foundation_util.h"
 #import "base/notreached.h"
 #import "base/strings/sys_string_conversions.h"
 #import "components/grit/components_scaled_resources.h"
 #import "components/omnibox/browser/autocomplete_input.h"
-#import "ios/chrome/browser/application_context/application_context.h"
-#import "ios/chrome/browser/autocomplete/autocomplete_scheme_classifier_impl.h"
-#import "ios/chrome/browser/flags/system_flags.h"
+#import "ios/chrome/browser/autocomplete/model/autocomplete_scheme_classifier_impl.h"
+#import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
+#import "ios/chrome/browser/shared/public/features/system_flags.h"
 #import "ios/chrome/browser/shared/ui/util/animation_util.h"
 #import "ios/chrome/browser/shared/ui/util/dynamic_type_util.h"
 #import "ios/chrome/browser/shared/ui/util/reversed_animation.h"
@@ -38,10 +38,6 @@
 #import "ui/gfx/ios/NSString+CrStringDrawing.h"
 #import "ui/gfx/scoped_cg_context_save_gstate_mac.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace {
 
 // The default omnibox text color (used while editing).
@@ -53,7 +49,7 @@ NSString* const kOmniboxFadeAnimationKey = @"OmniboxFadeAnimation";
 
 }  // namespace
 
-@interface OmniboxTextFieldExperimental ()
+@interface OmniboxTextFieldExperimental () <UIGestureRecognizerDelegate>
 
 // Font to use in regular x regular size class. If not set, the regular font is
 // used instead.
@@ -68,6 +64,9 @@ NSString* const kOmniboxFadeAnimationKey = @"OmniboxFadeAnimation";
 
 // Length of autocomplete text.
 @property(nonatomic) size_t autocompleteTextLength;
+
+// Tap gesture recognizer for this view.
+@property(nonatomic, strong) UITapGestureRecognizer* tapGestureRecognizer;
 
 @end
 
@@ -107,11 +106,14 @@ NSString* const kOmniboxFadeAnimationKey = @"OmniboxFadeAnimation";
 
     // Force initial layout of internal text label.  Needed for omnibox
     // animations that will otherwise animate the text label from origin {0, 0}.
+    self.font = self.currentFont;
     [super setText:@" "];
 
-    [self addGestureRecognizer:[[UITapGestureRecognizer alloc]
-                                   initWithTarget:self
-                                           action:@selector(handleTap)]];
+    self.tapGestureRecognizer =
+        [[UITapGestureRecognizer alloc] initWithTarget:self
+                                                action:@selector(handleTap:)];
+    self.tapGestureRecognizer.delegate = self;
+    [self addGestureRecognizer:self.tapGestureRecognizer];
   }
   return self;
 }
@@ -479,24 +481,30 @@ NSString* const kOmniboxFadeAnimationKey = @"OmniboxFadeAnimation";
   [self setAttributedText:self.attributedText];
 }
 
+#pragma mark - UIGestureRecognizerDelegate
+
+- (BOOL)gestureRecognizer:(UIGestureRecognizer*)gestureRecognizer
+    shouldRecognizeSimultaneouslyWithGestureRecognizer:
+        (UIGestureRecognizer*)otherGestureRecognizer {
+  return YES;
+}
+
+- (BOOL)gestureRecognizerShouldBegin:(UIGestureRecognizer*)gestureRecognizer {
+  if (gestureRecognizer == self.tapGestureRecognizer) {
+    return [self isPreEditing] || [self hasAutocompleteText];
+  }
+  return YES;
+}
+
 #pragma mark - UIResponder
 
 // Triggered on tap gesture recognizer.
-- (void)handleTap {
+- (void)handleTap:(UITapGestureRecognizer*)sender {
   if ([self isPreEditing]) {
     [self exitPreEditState];
-    [super selectAll:self];
-  } else if ([self hasAutocompleteText]) {
-    // Accept selection.
+  }
+  if ([self hasAutocompleteText]) {
     [self acceptAutocompleteText];
-  } else {
-    [self becomeFirstResponder];
-    UIMenuController* menuController = [UIMenuController sharedMenuController];
-    if (menuController.isMenuVisible) {
-      [menuController hideMenu];
-    } else {
-      [menuController showMenuFromView:self rect:self.bounds];
-    }
   }
 }
 
@@ -518,6 +526,13 @@ NSString* const kOmniboxFadeAnimationKey = @"OmniboxFadeAnimation";
 }
 
 - (BOOL)canPerformAction:(SEL)action withSender:(id)sender {
+  // TODO(crbug.com/1478261): Improve this short term fix.
+  if (@available(iOS 17.0, *)) {
+    if (action == @selector(undoManager)) {
+      return YES;
+    }
+  }
+
   // If the text is not empty and there is selected text, show copy and cut.
   if ([self textInRange:self.selectedTextRange].length > 0 &&
       (action == @selector(cut:) || action == @selector(copy:))) {

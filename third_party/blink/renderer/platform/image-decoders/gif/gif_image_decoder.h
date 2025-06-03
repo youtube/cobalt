@@ -39,17 +39,15 @@ class SegmentStream;
 // This class decodes the GIF image format.
 class PLATFORM_EXPORT GIFImageDecoder final : public ImageDecoder {
  public:
-  GIFImageDecoder(AlphaOption,
-                  const ColorBehavior&,
-                  wtf_size_t max_decoded_bytes);
+  GIFImageDecoder(AlphaOption, ColorBehavior, wtf_size_t max_decoded_bytes);
   GIFImageDecoder(const GIFImageDecoder&) = delete;
   GIFImageDecoder& operator=(const GIFImageDecoder&) = delete;
   ~GIFImageDecoder() override;
 
   // ImageDecoder:
-  String FilenameExtension() const override { return "gif"; }
+  String FilenameExtension() const override;
   const AtomicString& MimeType() const override;
-  void OnSetData(SegmentReader* data) override;
+  void OnSetData(scoped_refptr<SegmentReader> data) override;
   int RepetitionCount() const override;
   bool FrameIsReceivedAtIndex(wtf_size_t) const override;
   base::TimeDelta FrameDurationAtIndex(wtf_size_t) const override;
@@ -81,7 +79,7 @@ class PLATFORM_EXPORT GIFImageDecoder final : public ImageDecoder {
   std::unique_ptr<SkCodec> codec_;
   // |codec_| owns the SegmentStream, but we need access to it to append more
   // data as it arrives.
-  SegmentStream* segment_stream_ = nullptr;
+  raw_ptr<SegmentStream> segment_stream_ = nullptr;
   mutable int repetition_count_ = kAnimationLoopOnce;
   int prior_frame_ = SkCodec::kNoFrame;
 };

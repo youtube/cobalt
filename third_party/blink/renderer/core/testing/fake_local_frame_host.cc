@@ -4,6 +4,7 @@
 
 #include "third_party/blink/renderer/core/testing/fake_local_frame_host.h"
 
+#include "services/network/public/cpp/attribution_reporting_runtime_features.h"
 #include "skia/public/mojom/skcolor.mojom-blink.h"
 #include "third_party/blink/public/mojom/choosers/popup_menu.mojom-blink.h"
 #include "third_party/blink/public/mojom/frame/frame_owner_properties.mojom-blink.h"
@@ -33,6 +34,10 @@ void FakeLocalFrameHost::ExitFullscreen() {}
 void FakeLocalFrameHost::FullscreenStateChanged(
     bool is_fullscreen,
     mojom::blink::FullscreenOptionsPtr options) {}
+
+void FakeLocalFrameHost::Maximize() {}
+void FakeLocalFrameHost::Minimize() {}
+void FakeLocalFrameHost::Restore() {}
 
 void FakeLocalFrameHost::RegisterProtocolHandler(const WTF::String& scheme,
                                                  const ::blink::KURL& url,
@@ -253,13 +258,26 @@ void FakeLocalFrameHost::ReceivedDelegatedCapability(
 void FakeLocalFrameHost::SendFencedFrameReportingBeacon(
     const WTF::String& event_data,
     const WTF::String& event_type,
-    const WTF::Vector<blink::FencedFrame::ReportingDestination>& destinations) {
-}
+    const WTF::Vector<blink::FencedFrame::ReportingDestination>& destinations,
+    network::AttributionReportingRuntimeFeatures
+        attribution_reporting_runtime_features) {}
+
+void FakeLocalFrameHost::SendFencedFrameReportingBeaconToCustomURL(
+    const blink::KURL& destination_url,
+    network::AttributionReportingRuntimeFeatures
+        attribution_reporting_runtime_features) {}
 
 void FakeLocalFrameHost::SetFencedFrameAutomaticBeaconReportEventData(
+    blink::mojom::AutomaticBeaconType event_type,
     const WTF::String& event_data,
-    const WTF::Vector<blink::FencedFrame::ReportingDestination>& destinations) {
-}
+    const WTF::Vector<blink::FencedFrame::ReportingDestination>& destinations,
+    network::AttributionReportingRuntimeFeatures
+        attribution_reporting_runtime_features,
+    bool once) {}
+
+void FakeLocalFrameHost::SendLegacyTechEvent(
+    const WTF::String& type,
+    mojom::blink::LegacyTechEventCodeLocationPtr code_location) {}
 
 void FakeLocalFrameHost::SendPrivateAggregationRequestsForFencedFrameEvent(
     const WTF::String& event_type) {}
@@ -290,5 +308,13 @@ void FakeLocalFrameHost::CreateFencedFrame(
   NOTREACHED() << "At the moment, FencedFrame is not used in any "
                   "unit tests, so this path should not be hit";
 }
+
+void FakeLocalFrameHost::StartDragging(
+    const blink::WebDragData& drag_data,
+    blink::DragOperationsMask operations_allowed,
+    const SkBitmap& bitmap,
+    const gfx::Vector2d& cursor_offset_in_dip,
+    const gfx::Rect& drag_obj_rect_in_dip,
+    mojom::blink::DragEventSourceInfoPtr event_info) {}
 
 }  // namespace blink

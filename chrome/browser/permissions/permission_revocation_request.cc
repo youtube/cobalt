@@ -14,7 +14,6 @@
 #include "components/content_settings/core/browser/host_content_settings_map.h"
 #include "components/permissions/constants.h"
 #include "components/permissions/permission_manager.h"
-#include "components/permissions/permission_result.h"
 #include "components/permissions/permission_uma_util.h"
 #include "components/permissions/permissions_client.h"
 #include "components/prefs/pref_service.h"
@@ -36,7 +35,7 @@ OriginStatus GetOriginStatus(Profile* profile, const GURL& origin) {
           ->GetSettingsMap(profile)
           ->GetWebsiteSetting(
               origin, GURL(),
-              ContentSettingsType::PERMISSION_AUTOREVOCATION_DATA, nullptr);
+              ContentSettingsType::PERMISSION_AUTOREVOCATION_DATA);
 
   OriginStatus status;
 

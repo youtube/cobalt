@@ -5,11 +5,15 @@
 import("//mojo/public/tools/bindings/mojom.gni")
 
 mojom("mojo_bindings") {
-  sources = [ "history_clusters.mojom" ]
+  sources = [
+    "history_clusters.mojom",
+    "history_clusters_layout_type.mojom",
+  ]
   webui_module_path = "/"
   use_typescript_sources = true
   public_deps = [
     "//chrome/browser/new_tab_page/modules/history_clusters/cart:mojo_bindings",
+    "//chrome/browser/new_tab_page/modules/history_clusters/discount:mojo_bindings",
     "//components/history_clusters/public/mojom:mojo_bindings",
     "//mojo/public/mojom/base",
     "//url/mojom:url_mojom_gurl",

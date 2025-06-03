@@ -7,7 +7,9 @@
 #include "base/time/time.h"
 #include "chrome/browser/devtools/devtools_window.h"
 #include "chrome/browser/download/download_ui_model.h"
+#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
+#include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "components/download/public/common/download_item.h"
 #include "components/offline_items_collection/core/offline_item.h"
 #include "components/offline_items_collection/core/offline_item_state.h"
@@ -80,14 +82,16 @@ bool IsPendingDeepScanning(const DownloadUIModel* model) {
 }
 
 bool IsItemInProgress(const download::DownloadItem* item) {
-  if (item->IsDangerous() || IsPendingDeepScanning(item)) {
+  if (item->IsDangerous() || item->IsInsecure() ||
+      IsPendingDeepScanning(item)) {
     return false;
   }
   return item->GetState() == download::DownloadItem::IN_PROGRESS;
 }
 
 bool IsItemInProgress(const offline_items_collection::OfflineItem& item) {
-  // Offline items cannot be pending deep scanning.
+  // Offline items cannot be pending deep scanning, and insecure warnings are
+  // not shown for them.
   if (item.is_dangerous) {
     return false;
   }
@@ -97,7 +101,8 @@ bool IsItemInProgress(const offline_items_collection::OfflineItem& item) {
 }
 
 bool IsModelInProgress(const DownloadUIModel* model) {
-  if (model->IsDangerous() || IsPendingDeepScanning(model)) {
+  if (model->IsDangerous() || model->IsInsecure() ||
+      IsPendingDeepScanning(model)) {
     return false;
   }
   return model->GetState() == download::DownloadItem::IN_PROGRESS;
@@ -128,7 +133,7 @@ Browser* FindBrowserToShowAnimation(download::DownloadItem* item,
     }
   }
   Browser* browser_to_show_animation =
-      web_contents ? chrome::FindBrowserWithWebContents(web_contents) : nullptr;
+      web_contents ? chrome::FindBrowserWithTab(web_contents) : nullptr;
 
   // As a last resort, use the last active browser for this profile. Not ideal,
   // but better than not showing the download at all.
@@ -136,4 +141,10 @@ Browser* FindBrowserToShowAnimation(download::DownloadItem* item,
     browser_to_show_animation = chrome::FindLastActiveWithProfile(profile);
   }
   return browser_to_show_animation;
+}
+
+const webapps::AppId* GetWebAppIdForBrowser(const Browser* browser) {
+  return web_app::AppBrowserController::IsWebApp(browser)
+             ? &browser->app_controller()->app_id()
+             : nullptr;
 }

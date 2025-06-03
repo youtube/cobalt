@@ -8,10 +8,10 @@
 #include <string>
 #include <vector>
 
+#include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "chrome/browser/devtools/devtools_toggle_action.h"
-#include "chrome/browser/devtools/devtools_window.h"
 #include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_delegate.h"
 #include "chrome/browser/ui/tabs/tab_strip_user_gesture_details.h"
@@ -25,8 +25,10 @@ class Browser;
 class CommandObserver;
 class GURL;
 class Profile;
+enum class DevToolsOpenedByAction;
 
 namespace content {
+class NavigationHandle;
 class WebContents;
 }
 
@@ -168,14 +170,18 @@ bool MarkCurrentTabAsReadInReadLater(Browser* browser);
 bool IsCurrentTabUnreadInReadLater(Browser* browser);
 void ShowOffersAndRewardsForPage(Browser* browser);
 void SaveCreditCard(Browser* browser);
-void SaveIBAN(Browser* browser);
+void SaveIban(Browser* browser);
+void ShowMandatoryReauthOptInPrompt(Browser* browser);
 void MigrateLocalCards(Browser* browser);
 void SaveAutofillAddress(Browser* browser);
 void ShowVirtualCardManualFallbackBubble(Browser* browser);
 void ShowVirtualCardEnrollBubble(Browser* browser);
-void Translate(Browser* browser);
+void StartTabOrganizationRequest(Browser* browser);
+void ShowTranslateBubble(Browser* browser);
 void ManagePasswordsForPage(Browser* browser);
+bool CanSendTabToSelf(const Browser* browser);
 void SendTabToSelfFromPageAction(Browser* browser);
+bool CanGenerateQrCode(const Browser* browser);
 void GenerateQRCodeFromPageAction(Browser* browser);
 void SharingHubFromPageAction(Browser* browser);
 void ScreenshotCaptureFromPageAction(Browser* browser);
@@ -266,8 +272,8 @@ void FollowSite(content::WebContents* web_contents);
 void UnfollowSite(content::WebContents* web_contents);
 
 #if BUILDFLAG(ENABLE_SCREEN_AI_SERVICE)
-// Triggers the Screen AI visual annotations to be run once on the |browser|.
-void RunScreenAIVisualAnnotation(Browser* browser);
+// Triggers the Screen AI layout extraction to be run once on the |browser|.
+void RunScreenAILayoutExtraction(Browser* browser);
 #endif  // BUILDFLAG(ENABLE_SCREEN_AI_SERVICE)
 
 void ExecLensRegionSearch(Browser* browser);

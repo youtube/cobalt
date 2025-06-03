@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "ash/constants/ash_features.h"
+#include "ash/webui/common/trusted_types_util.h"
 #include "ash/webui/grit/ash_os_feedback_resources.h"
 #include "ash/webui/grit/ash_os_feedback_resources_map.h"
 #include "ash/webui/os_feedback_ui/backend/feedback_service_provider.h"
@@ -22,6 +23,7 @@
 #include "content/public/common/url_constants.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "ui/resources/grit/webui_resources.h"
+#include "ui/web_dialogs/web_dialog_ui.h"
 #include "ui/webui/color_change_listener/color_change_handler.h"
 #include "ui/webui/mojo_web_ui_controller.h"
 #include "ui/webui/webui_allowlist.h"
@@ -55,6 +57,8 @@ void AddLocalizedStrings(content::WebUIDataSource* source) {
       {"feedbackHelpLinkLabel", IDS_FEEDBACK_TOOL_FEEDBACK_HELP_LINK_LABEL},
       {"pageTitle", IDS_FEEDBACK_TOOL_PAGE_TITLE},
       {"privacyNote", IDS_FEEDBACK_TOOL_PRIVACY_NOTE},
+      {"privacyNoteLoggedOut", IDS_FEEDBACK_TOOL_PRIVACY_NOTE_LOGGED_OUT},
+      {"mayBeShareWithPartnerNote", IDS_FEEDBACK_TOOL_MAY_BE_SHARED_NOTE},
       {"sendButtonLabel", IDS_FEEDBACK_TOOL_SEND_BUTTON_LABEL},
       // The help content strings are needed for browser tests.
       {"suggestedHelpContent", IDS_FEEDBACK_TOOL_SUGGESTED_HELP_CONTENT},
@@ -69,7 +73,9 @@ void AddLocalizedStrings(content::WebUIDataSource* source) {
       {"helpContentNotAvailableAltText",
        IDS_FEEDBACK_TOOL_HELP_CONTENT_NOT_AVAILABLE_ALT_TEXT},
       {"noMatchedResults", IDS_FEEDBACK_TOOL_NO_MATCHED_RESULTS},
-      {"attachFilesLabel", IDS_FEEDBACK_TOOL_ATTACH_FILES_LABEL},
+      {"attachFilesLabelLoggedIn", IDS_FEEDBACK_TOOL_ATTACH_FILES_LABEL},
+      {"attachFilesLabelLoggedOut",
+       IDS_FEEDBACK_TOOL_ATTACH_FILES_LABEL_LOGGED_OUT},
       {"attachScreenshotLabel", IDS_FEEDBACK_TOOL_SCREENSHOT_LABEL},
       {"previewScreenshotDialogLabel",
        IDS_FEEDBACK_TOOL_PREVIEW_SCREENSHOT_DIALOG_LABEL},
@@ -113,6 +119,10 @@ void AddLocalizedStrings(content::WebUIDataSource* source) {
       {"fileTooBigErrorMessage", IDS_FEEDBACK_TOOL_FILE_TOO_BIG_ERROR_MESSAGE},
       {"bluetoothLogsInfo", IDS_FEEDBACK_TOOL_BLUETOOTH_LOGS_CHECKBOX},
       {"bluetoothLogsMessage", IDS_FEEDBACK_TOOL_BLUETOOTH_LOGS_MESSAGE},
+      {"linkCrossDeviceDogfoodFeedbackInfo",
+       IDS_FEEDBACK_TOOL_LINK_CROSS_DEVICE_DOGFOOD_FEEDBACK_INFO},
+      {"linkCrossDeviceDogfoodFeedbackMessage",
+       IDS_FEEDBACK_TOOL_LINK_CROSS_DEVICE_DOGFOOD_FEEDBACK_MESSAGE},
       {"includeAssistantLogsCheckboxLabel",
        IDS_FEEDBACK_TOOL_ASSISTANT_LOGS_CHECKBOX},
       {"assistantLogsMessage", IDS_FEEDBACK_TOOL_ASSISTANT_LOGS_MESSAGE},
@@ -122,19 +132,17 @@ void AddLocalizedStrings(content::WebUIDataSource* source) {
 
   source->AddLocalizedStrings(kLocalizedStrings);
   source->UseStringsJs();
+
+  source->AddBoolean("enableLinkCrossDeviceDogfoodFeedbackFlag",
+                     features::IsLinkCrossDeviceDogfoodFeedbackEnabled());
 }
 
 }  // namespace
 
-bool OSFeedbackUIConfig::IsWebUIEnabled(
-    content::BrowserContext* browser_context) {
-  return base::FeatureList::IsEnabled(ash::features::kOsFeedback);
-}
-
 OSFeedbackUI::OSFeedbackUI(
     content::WebUI* web_ui,
     std::unique_ptr<OsFeedbackDelegate> feedback_delegate)
-    : MojoWebUIController(web_ui) {
+    : ui::MojoWebDialogUI(web_ui) {
   auto* browser_context = web_ui->GetWebContents()->GetBrowserContext();
   content::WebUIDataSource* source = content::WebUIDataSource::CreateAndAdd(
       browser_context, kChromeUIOSFeedbackHost);
@@ -151,7 +159,7 @@ OSFeedbackUI::OSFeedbackUI(
       network::mojom::CSPDirectiveName::ScriptSrc,
       "script-src chrome://resources chrome://test chrome://webui-test "
       "'self';");
-  source->DisableTrustedTypesCSP();
+  ash::EnableTrustedTypesCSP(source);
 
   const auto resources =
       base::make_span(kAshOsFeedbackResources, kAshOsFeedbackResourcesSize);

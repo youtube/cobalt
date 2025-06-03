@@ -6,6 +6,7 @@
 #define COMPONENTS_OPTIMIZATION_GUIDE_CORE_OPTIMIZATION_GUIDE_UTIL_H_
 
 #include <string>
+#include <string_view>
 
 #include "base/strings/string_split.h"
 #include "base/time/time.h"
@@ -30,6 +31,10 @@
 class OptimizationGuideLogger;
 class PrefService;
 
+namespace network {
+struct ResourceRequest;
+}  // namespace network
+
 namespace optimization_guide {
 
 enum class OptimizationGuideDecision;
@@ -47,13 +52,13 @@ absl::optional<T> ParsedAnyMetadata(const proto::Any& any_metadata) {
   // Verify type is the same - the Any type URL should be wrapped as:
   // "type.googleapis.com/com.foo.Name".
   std::vector<std::string> any_type_parts =
-      base::SplitString(any_metadata.type_url(), ".", base::TRIM_WHITESPACE,
+      base::SplitString(any_metadata.type_url(), "./", base::TRIM_WHITESPACE,
                         base::SPLIT_WANT_NONEMPTY);
   if (any_type_parts.empty())
     return absl::nullopt;
   T metadata;
   std::vector<std::string> type_parts =
-      base::SplitString(metadata.GetTypeName(), ".", base::TRIM_WHITESPACE,
+      base::SplitString(metadata.GetTypeName(), "./", base::TRIM_WHITESPACE,
                         base::SPLIT_WANT_NONEMPTY);
   if (type_parts.empty())
     return absl::nullopt;
@@ -79,6 +84,18 @@ proto::OriginInfo GetClientOriginInfo();
 void LogFeatureFlagsInfo(OptimizationGuideLogger* optimization_guide_logger,
                          bool is_off_the_record,
                          PrefService* pref_service);
+
+// Populates the authorization header for the `resource_request` in the right
+// format with the `access_token`.
+void PopulateAuthorizationRequestHeader(
+    network::ResourceRequest* resource_request,
+    std::string_view access_token);
+
+// Populates the api key header for the `resource_request` in the right
+// format with the `api_key`.
+void PopulateApiKeyRequestHeader(network::ResourceRequest* resource_request,
+                                 std::string_view api_key);
+
 }  // namespace optimization_guide
 
 #endif  // COMPONENTS_OPTIMIZATION_GUIDE_CORE_OPTIMIZATION_GUIDE_UTIL_H_

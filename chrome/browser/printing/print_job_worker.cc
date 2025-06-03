@@ -228,6 +228,13 @@ void PrintJobWorker::Cancel() {
   // context we run.
 }
 
+#if BUILDFLAG(ENABLE_PRINT_CONTENT_ANALYSIS)
+void PrintJobWorker::CleanupAfterContentAnalysisDenial() {
+  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+  DVLOG(1) << "Canceling job due to content analysis";
+}
+#endif
+
 bool PrintJobWorker::IsRunning() const {
   return thread_.IsRunning();
 }
@@ -271,6 +278,7 @@ void PrintJobWorker::OnDocumentDone() {
 }
 
 void PrintJobWorker::FinishDocumentDone(int job_id) {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
   DCHECK(document_);
   print_job_->PostTask(
       FROM_HERE, base::BindOnce(&DocDoneNotificationCallback,

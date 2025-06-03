@@ -85,6 +85,10 @@ void Increment(int* value) {
   (*value)++;
 }
 
+void IncrementWithRef(int& value) {
+  value++;
+}
+
 TEST(CallbackHelpersTest, ScopedClosureRunnerHasClosure) {
   base::ScopedClosureRunner runner1;
   EXPECT_FALSE(runner1);
@@ -182,9 +186,9 @@ TEST(CallbackHelpersTest, SplitOnceCallback_EmptyCallback) {
 
   auto split = base::SplitOnceCallback(std::move(cb));
 
-  static_assert(std::is_same<decltype(split),
-                             std::pair<base::OnceCallback<void(int*)>,
-                                       base::OnceCallback<void(int*)>>>::value,
+  static_assert(std::is_same_v<decltype(split),
+                               std::pair<base::OnceCallback<void(int*)>,
+                                         base::OnceCallback<void(int*)>>>,
                 "");
   EXPECT_FALSE(split.first);
   EXPECT_FALSE(split.second);
@@ -197,9 +201,9 @@ TEST(CallbackHelpersTest, SplitOnceCallback_FirstCallback) {
 
   auto split = base::SplitOnceCallback(std::move(cb));
 
-  static_assert(std::is_same<decltype(split),
-                             std::pair<base::OnceCallback<void(int*)>,
-                                       base::OnceCallback<void(int*)>>>::value,
+  static_assert(std::is_same_v<decltype(split),
+                               std::pair<base::OnceCallback<void(int*)>,
+                                         base::OnceCallback<void(int*)>>>,
                 "");
 
   EXPECT_EQ(0, count);
@@ -218,9 +222,9 @@ TEST(CallbackHelpersTest, SplitOnceCallback_SecondCallback) {
 
   auto split = base::SplitOnceCallback(std::move(cb));
 
-  static_assert(std::is_same<decltype(split),
-                             std::pair<base::OnceCallback<void(int*)>,
-                                       base::OnceCallback<void(int*)>>>::value,
+  static_assert(std::is_same_v<decltype(split),
+                               std::pair<base::OnceCallback<void(int*)>,
+                                         base::OnceCallback<void(int*)>>>,
                 "");
 
   EXPECT_EQ(0, count);
@@ -285,6 +289,19 @@ TEST(CallbackHelpersTest, IgnoreArgs) {
   EXPECT_EQ(2, count);
   std::move(once_int_cb).Run(42);
   EXPECT_EQ(3, count);
+
+  // Ignore only some (one) argument and forward the rest.
+  auto repeating_callback = base::BindRepeating(&Increment);
+  auto repeating_cb_with_extra_arg = base::IgnoreArgs<bool>(repeating_callback);
+  repeating_cb_with_extra_arg.Run(false, &count);
+  EXPECT_EQ(4, count);
+
+  // Ignore two arguments and forward the rest.
+  auto once_callback = base::BindOnce(&Increment);
+  auto once_cb_with_extra_arg =
+      base::IgnoreArgs<char, bool>(repeating_callback);
+  std::move(once_cb_with_extra_arg).Run('d', false, &count);
+  EXPECT_EQ(5, count);
 }
 
 TEST(CallbackHelpersTest, IgnoreArgs_EmptyCallback) {
@@ -295,6 +312,33 @@ TEST(CallbackHelpersTest, IgnoreArgs_EmptyCallback) {
   base::OnceCallback<void(int)> once_int_cb =
       base::IgnoreArgs<int>(base::OnceClosure());
   EXPECT_FALSE(once_int_cb);
+}
+
+TEST(CallbackHelpersTest, ForwardRepeatingCallbacks) {
+  int count = 0;
+  auto tie_cb =
+      base::ForwardRepeatingCallbacks({base::BindRepeating(&IncrementWithRef),
+                                       base::BindRepeating(&IncrementWithRef)});
+
+  tie_cb.Run(count);
+  EXPECT_EQ(count, 2);
+
+  tie_cb.Run(count);
+  EXPECT_EQ(count, 4);
+}
+
+TEST(CallbackHelpersTest, ReturnValueOnce) {
+  // Check that copyable types are supported.
+  auto string_factory = base::ReturnValueOnce(std::string("test"));
+  static_assert(std::is_same_v<decltype(string_factory),
+                               base::OnceCallback<std::string(void)>>);
+  EXPECT_EQ(std::move(string_factory).Run(), "test");
+
+  // Check that move-only types are supported.
+  auto unique_ptr_factory = base::ReturnValueOnce(std::make_unique<int>(42));
+  static_assert(std::is_same_v<decltype(unique_ptr_factory),
+                               base::OnceCallback<std::unique_ptr<int>(void)>>);
+  EXPECT_EQ(*std::move(unique_ptr_factory).Run(), 42);
 }
 
 }  // namespace

@@ -7,8 +7,8 @@
 
 #include "base/files/file_util.h"
 #include "base/json/json_reader.h"
-#include "base/path_service.h"
 #include "base/memory/raw_ptr.h"
+#include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
@@ -21,8 +21,8 @@
 #include "chrome/browser/password_manager/account_password_store_factory.h"
 #include "chrome/browser/password_manager/affiliation_service_factory.h"
 #include "chrome/browser/password_manager/password_manager_test_base.h"
-#include "chrome/browser/password_manager/password_store_factory.h"
 #include "chrome/browser/password_manager/passwords_navigation_observer.h"
+#include "chrome/browser/password_manager/profile_password_store_factory.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/sync/test/integration/passwords_helper.h"
 #include "chrome/browser/sync/test/integration/secondary_account_helper.h"
@@ -37,10 +37,10 @@
 #include "chrome/common/chrome_paths.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/test/base/ui_test_utils.h"
+#include "components/password_manager/core/browser/features/password_features.h"
+#include "components/password_manager/core/browser/features/password_manager_features_util.h"
 #include "components/password_manager/core/browser/password_form.h"
-#include "components/password_manager/core/browser/password_manager_features_util.h"
 #include "components/password_manager/core/browser/password_manager_test_utils.h"
-#include "components/password_manager/core/browser/password_manager_util.h"
 #include "components/password_manager/core/browser/password_store_interface.h"
 #include "components/password_manager/core/browser/password_sync_util.h"
 #include "components/password_manager/core/browser/ui/saved_passwords_presenter.h"
@@ -54,7 +54,7 @@
 #include "components/prefs/pref_service.h"
 #include "components/signin/public/identity_manager/account_info.h"
 #include "components/sync/base/model_type.h"
-#include "components/sync/driver/sync_service_impl.h"
+#include "components/sync/service/sync_service_impl.h"
 #include "components/sync/test/fake_server_nigori_helper.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/browsing_data_remover.h"
@@ -113,7 +113,10 @@ class SavedPasswordsPresenterWaiter
     return presenter_->GetSavedCredentials().size() == n_passwords_;
   }
 
-  void OnSavedPasswordsChanged() override { CheckExitCondition(); }
+  void OnSavedPasswordsChanged(
+      const password_manager::PasswordStoreChangeList& changes) override {
+    CheckExitCondition();
+  }
 
   const raw_ptr<password_manager::SavedPasswordsPresenter> presenter_;
   const size_t n_passwords_;
@@ -805,12 +808,17 @@ IN_PROC_BROWSER_TEST_F(PasswordManagerSyncTest,
   // is *not* the primary one.
   NavigateToFileHttps(web_contents, "accounts.google.com",
                       "/password/simple_password.html");
+  // The call ensures that the form wasn't submitted too quickly before the
+  // password store returned something. Otherwise, the password prompt won't be
+  // shown.
+  GetAllLoginsFromProfilePasswordStore();
+  GetAllLoginsFromAccountPasswordStore();
   FillAndSubmitPasswordForm(web_contents, "different-user@gmail.com", "pass");
 
   // Since the submitted credential is *not* for the primary account, Chrome
   // should offer to save it normally.
   BubbleObserver bubble_observer(web_contents);
-  EXPECT_TRUE(bubble_observer.IsSavePromptAvailable());
+  bubble_observer.WaitForAutomaticSavePrompt();
 }
 
 IN_PROC_BROWSER_TEST_F(PasswordManagerSyncTest,
@@ -830,13 +838,18 @@ IN_PROC_BROWSER_TEST_F(PasswordManagerSyncTest,
   // account.
   NavigateToFileHttps(web_contents, "accounts.google.com",
                       "/password/simple_password.html");
+  // The call ensures that the form wasn't submitted too quickly before the
+  // password store returned something. Otherwise, the password prompt won't be
+  // shown.
+  GetAllLoginsFromProfilePasswordStore();
+  GetAllLoginsFromAccountPasswordStore();
   FillAndSubmitPasswordForm(web_contents, kTestUserEmail, "newpass");
 
   // Since (an outdated version of) the credential is already saved, Chrome
   // should offer to update it, even though it otherwise does *not* offer to
   // save this credential.
   BubbleObserver bubble_observer(web_contents);
-  EXPECT_TRUE(bubble_observer.IsUpdatePromptAvailable());
+  bubble_observer.WaitForAutomaticUpdatePrompt();
 }
 
 // Signing out on Lacros is not possible,
@@ -977,17 +990,21 @@ IN_PROC_BROWSER_TEST_F(PasswordManagerSyncTest, SyncUtilApis) {
   ASSERT_TRUE(SetupSync());
 
   EXPECT_TRUE(
-      password_manager::sync_util::IsPasswordSyncEnabled(GetSyncService(0)));
+      password_manager::sync_util::IsSyncFeatureEnabledIncludingPasswords(
+          GetSyncService(0)));
   EXPECT_TRUE(
-      password_manager::sync_util::IsPasswordSyncActive(GetSyncService(0)));
+      password_manager::sync_util::IsSyncFeatureActiveIncludingPasswords(
+          GetSyncService(0)));
   EXPECT_NE(absl::nullopt,
             password_manager::sync_util::GetSyncingAccount(GetSyncService(0)));
-  EXPECT_EQ(password_manager::sync_util::GetSyncUsernameIfSyncingPasswords(
-                GetSyncService(0),
-                IdentityManagerFactory::GetForProfile(GetProfile(0))),
+  EXPECT_EQ(password_manager::sync_util::
+                GetAccountEmailIfSyncFeatureEnabledIncludingPasswords(
+                    GetSyncService(0),
+                    IdentityManagerFactory::GetForProfile(GetProfile(0))),
             kExpectedUsername);
-  EXPECT_EQ(password_manager_util::GetPasswordSyncState(GetSyncService(0)),
-            password_manager::SyncState::kSyncingNormalEncryption);
+  EXPECT_EQ(
+      password_manager::sync_util::GetPasswordSyncState(GetSyncService(0)),
+      password_manager::SyncState::kSyncingNormalEncryption);
 
   // Enter a persistent auth error state.
   GetClient(0)->EnterSyncPausedStateForPrimaryAccount();
@@ -995,19 +1012,23 @@ IN_PROC_BROWSER_TEST_F(PasswordManagerSyncTest, SyncUtilApis) {
   // Passwords are not sync-ing actively while sync is paused (any persistent
   // auth error).
   EXPECT_FALSE(
-      password_manager::sync_util::IsPasswordSyncActive(GetSyncService(0)));
-  EXPECT_EQ(password_manager_util::GetPasswordSyncState(GetSyncService(0)),
-            password_manager::SyncState::kNotSyncing);
+      password_manager::sync_util::IsSyncFeatureActiveIncludingPasswords(
+          GetSyncService(0)));
+  EXPECT_EQ(
+      password_manager::sync_util::GetPasswordSyncState(GetSyncService(0)),
+      password_manager::SyncState::kNotSyncing);
 
   // In the current implementation, the APIs below treat sync as enabled/active
   // even while paused.
   EXPECT_TRUE(
-      password_manager::sync_util::IsPasswordSyncEnabled(GetSyncService(0)));
+      password_manager::sync_util::IsSyncFeatureEnabledIncludingPasswords(
+          GetSyncService(0)));
   EXPECT_NE(absl::nullopt,
             password_manager::sync_util::GetSyncingAccount(GetSyncService(0)));
-  EXPECT_EQ(password_manager::sync_util::GetSyncUsernameIfSyncingPasswords(
-                GetSyncService(0),
-                IdentityManagerFactory::GetForProfile(GetProfile(0))),
+  EXPECT_EQ(password_manager::sync_util::
+                GetAccountEmailIfSyncFeatureEnabledIncludingPasswords(
+                    GetSyncService(0),
+                    IdentityManagerFactory::GetForProfile(GetProfile(0))),
             kExpectedUsername);
 }
 
@@ -1065,8 +1086,8 @@ IN_PROC_BROWSER_TEST_F(PasswordManagerSyncTest,
   ASSERT_EQ(GetAllLoginsFromAccountPasswordStore().size(), 1u);
   password_manager::SavedPasswordsPresenter presenter(
       AffiliationServiceFactory::GetForProfile(GetProfile(0)),
-      PasswordStoreFactory::GetForProfile(GetProfile(0),
-                                          ServiceAccessType::EXPLICIT_ACCESS),
+      ProfilePasswordStoreFactory::GetForProfile(
+          GetProfile(0), ServiceAccessType::EXPLICIT_ACCESS),
       AccountPasswordStoreFactory::GetForProfile(
           GetProfile(0), ServiceAccessType::EXPLICIT_ACCESS));
   presenter.Init();

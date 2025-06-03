@@ -25,9 +25,9 @@
 #include "base/metrics/histogram_macros.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
+#include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
-#include "base/time/time_to_iso8601.h"
 #include "base/values.h"
 #include "build/branding_buildflags.h"
 #include "build/build_config.h"
@@ -36,7 +36,6 @@
 #include "net/base/hash_value.h"
 #include "net/base/host_port_pair.h"
 #include "net/cert/ct_policy_status.h"
-#include "net/cert/symantec_certs.h"
 #include "net/cert/x509_certificate.h"
 #include "net/dns/dns_names_util.h"
 #include "net/extras/preload_data/decoder.h"
@@ -48,8 +47,6 @@
 namespace net {
 
 namespace {
-
-#include "net/http/transport_security_state_ct_policies.inc"
 
 #if BUILDFLAG(INCLUDE_TRANSPORT_SECURITY_STATE_PRELOAD_LIST)
 #include "net/http/transport_security_state_static.h"  // nogncheck
@@ -97,6 +94,19 @@ bool HashReportForCache(const base::Value::Dict& report,
                 "HPKP report cache key size is larger than hash size.");
   *cache_key = std::string(hashed, kReportCacheKeyLength);
   return true;
+}
+
+// Formats a time compliant to ISO 8601 in UTC, e.g. "2020-12-31T23:59:59.999Z".
+//
+// This behaves identically to the function in base/i18n/time_formatting.h. It
+// is reimplemented here since net/ cannot depend on base/i18n/.
+std::string TimeFormatAsIso8601(const base::Time& time) {
+  base::Time::Exploded exploded;
+  time.UTCExplode(&exploded);
+  return base::StringPrintf(
+      "%04d-%02d-%02dT%02d:%02d:%02d.%03dZ", exploded.year, exploded.month,
+      exploded.day_of_month, exploded.hour, exploded.minute, exploded.second,
+      exploded.millisecond);
 }
 
 bool GetHPKPReport(const HostPortPair& host_port_pair,
@@ -159,9 +169,9 @@ bool GetHPKPReport(const HostPortPair& host_port_pair,
     return false;
   }
 
-  report.Set("date-time", base::TimeToISO8601(now));
+  report.Set("date-time", TimeFormatAsIso8601(now));
   report.Set("effective-expiration-date",
-             base::TimeToISO8601(pkp_state.expiry));
+             TimeFormatAsIso8601(pkp_state.expiry));
   if (!base::JSONWriter::Write(report, serialized_report)) {
     LOG(ERROR) << "Failed to serialize HPKP violation report.";
     return false;
@@ -490,7 +500,9 @@ TransportSecurityState::CheckCTRequirements(
            ct::CTPolicyCompliance::CT_POLICY_COMPLIES_VIA_SCTS ||
        policy_compliance == ct::CTPolicyCompliance::CT_POLICY_BUILD_NOT_TIMELY);
 
-  CTRequirementLevel ct_required = CTRequirementLevel::DEFAULT;
+  CTRequirementLevel ct_required = g_ct_required_for_testing
+                                       ? CTRequirementLevel::REQUIRED
+                                       : CTRequirementLevel::NOT_REQUIRED;
   if (require_ct_delegate_) {
     // Allow the delegate to override the CT requirement state.
     ct_required = require_ct_delegate_->IsCTRequiredForHost(
@@ -501,51 +513,7 @@ TransportSecurityState::CheckCTRequirements(
       return complies ? CT_REQUIREMENTS_MET : CT_REQUIREMENTS_NOT_MET;
     case CTRequirementLevel::NOT_REQUIRED:
       return CT_NOT_REQUIRED;
-    case CTRequirementLevel::DEFAULT:
-      break;
   }
-
-  const base::Time epoch = base::Time::UnixEpoch();
-  const CTRequiredPolicies& ct_required_policies = GetCTRequiredPolicies();
-
-  bool found = false;
-  for (const auto& restricted_ca : ct_required_policies) {
-    if (!restricted_ca.effective_date.is_zero() &&
-        (epoch + restricted_ca.effective_date >
-         validated_certificate_chain->valid_start())) {
-      // The candidate cert is not subject to the CT policy, because it
-      // was issued before the effective CT date.
-      continue;
-    }
-
-    if (!IsAnySHA256HashInSortedArray(
-            public_key_hashes,
-            base::make_span(restricted_ca.roots, restricted_ca.roots_length))) {
-      // No match for this set of restricted roots.
-      continue;
-    }
-
-    // Found a match, indicating this certificate is potentially
-    // restricted. Determine if any of the hashes are on the exclusion
-    // list as exempt from the CT requirement.
-    if (restricted_ca.exceptions &&
-        IsAnySHA256HashInSortedArray(
-            public_key_hashes,
-            base::make_span(restricted_ca.exceptions,
-                            restricted_ca.exceptions_length))) {
-      // Found an excluded sub-CA; CT is not required.
-      continue;
-    }
-
-    // No exception found. This certificate must conform to the CT policy. The
-    // compliance state is treated as additive - it must comply with all
-    // stated policies.
-    found = true;
-  }
-  if (found || g_ct_required_for_testing)
-    return complies ? CT_REQUIREMENTS_MET : CT_REQUIREMENTS_NOT_MET;
-
-  return CT_NOT_REQUIRED;
 }
 
 void TransportSecurityState::SetDelegate(

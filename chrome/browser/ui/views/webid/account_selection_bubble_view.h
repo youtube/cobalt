@@ -17,6 +17,8 @@
 #include "ui/views/bubble/bubble_dialog_delegate_view.h"
 #include "ui/views/view.h"
 
+using TokenError = content::IdentityCredentialTokenError;
+
 namespace views {
 class Checkbox;
 class ImageButton;
@@ -61,8 +63,19 @@ class AccountSelectionBubbleView : public views::BubbleDialogDelegateView,
     // Called when the user clicks "close" button.
     virtual void OnCloseButtonClicked(const ui::Event& event) = 0;
 
-    // Called when the user clicks "sign in to IDP" button on failure dialog.
-    virtual void ShowModalDialogView(const GURL& url) = 0;
+    // Called when the user clicks the "continue" button on the sign-in
+    // failure dialog.
+    virtual void OnSigninToIdP(const ui::Event& event) = 0;
+
+    // Called when the user clicks "got it" button.
+    virtual void OnGotIt(const ui::Event& event) = 0;
+
+    // Called when the user clicks the "more details" button on the error
+    // dialog.
+    virtual void OnMoreDetails(const ui::Event& event) = 0;
+
+    // Called when IdentityProvider.close() is called from the renderer.
+    virtual void CloseModalDialog() = 0;
   };
 
   METADATA_HEADER(AccountSelectionBubbleView);
@@ -96,6 +109,12 @@ class AccountSelectionBubbleView : public views::BubbleDialogDelegateView,
       const absl::optional<std::u16string>& iframe_for_display,
       const std::u16string& idp_for_display,
       const content::IdentityProviderMetadata& idp_metadata) override;
+
+  void ShowErrorDialog(const std::u16string& top_frame_for_display,
+                       const absl::optional<std::u16string>& iframe_for_display,
+                       const std::u16string& idp_for_display,
+                       const content::IdentityProviderMetadata& idp_metadata,
+                       const absl::optional<TokenError>& error) override;
 
   // Populates `idp_images` when an IDP image has been fetched.
   void AddIdpImage(const GURL& image_url, gfx::ImageSkia idp_image);
@@ -154,8 +173,11 @@ class AccountSelectionBubbleView : public views::BubbleDialogDelegateView,
   // Removes all children except for `header_view_`.
   void RemoveNonHeaderChildViews();
 
-  // Opens a modal dialog view that renders the given `url`.
-  void ShowModalDialogView(const GURL& url);
+  // Opens a modal dialog webview that renders the given `url`.
+  void ShowModalDialog(const GURL& url);
+
+  // Closes the modal webview dialog, if it is shown.
+  void CloseModalDialog();
 
   // The ImageFetcher used to fetch the account pictures for FedCM.
   std::unique_ptr<image_fetcher::ImageFetcher> image_fetcher_;
@@ -199,9 +221,6 @@ class AccountSelectionBubbleView : public views::BubbleDialogDelegateView,
   // View containing the continue button.
   raw_ptr<views::MdTextButton> continue_button_ = nullptr;
 
-  // View containing the sign in to IDP button.
-  raw_ptr<views::MdTextButton> signin_to_idp_button_ = nullptr;
-
   // Auto re-authn opt-out checkbox.
   raw_ptr<views::Checkbox> auto_reauthn_checkbox_ = nullptr;
 
@@ -209,7 +228,8 @@ class AccountSelectionBubbleView : public views::BubbleDialogDelegateView,
   bool show_auto_reauthn_checkbox_{false};
 
   // Observes events on AccountSelectionBubbleView.
-  raw_ptr<Observer> observer_{nullptr};
+  // Dangling when running Chromedriver's run_py_tests.py test suite.
+  raw_ptr<Observer, DanglingUntriaged> observer_{nullptr};
 
   // Used to ensure that callbacks are not run if the AccountSelectionBubbleView
   // is destroyed.

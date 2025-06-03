@@ -4,22 +4,25 @@
 
 package org.chromium.content_public.browser.test.util;
 
+import static org.hamcrest.CoreMatchers.is;
+
 import android.app.Activity;
 import android.graphics.Rect;
 import android.util.JsonReader;
 import android.view.View;
 
 import org.hamcrest.Matchers;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
 import org.junit.Assert;
 
 import org.chromium.base.ContextUtils;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
 import org.chromium.base.test.util.Criteria;
 import org.chromium.base.test.util.CriteriaHelper;
 import org.chromium.base.test.util.CriteriaNotSatisfiedException;
 import org.chromium.content.browser.RenderCoordinatesImpl;
 import org.chromium.content.browser.webcontents.WebContentsImpl;
+import org.chromium.content_public.browser.ImeAdapter;
 import org.chromium.content_public.browser.WebContents;
 
 import java.io.IOException;
@@ -35,6 +38,8 @@ import java.util.concurrent.TimeoutException;
 public class DOMUtils {
     private static final long MEDIA_TIMEOUT_SECONDS = 10L;
     private static final long MEDIA_TIMEOUT_MILLISECONDS = MEDIA_TIMEOUT_SECONDS * 1000;
+    private static final String RESULT_OK = "RESULT_OK";
+    private static final String RESULT_ELEMENT_NOT_FOUND = "RESULT_ELEMENT_NOT_FOUND";
 
     /**
      * Plays the media with given {@code id}.
@@ -683,6 +688,78 @@ public class DOMUtils {
     private static String createScriptToClickNode(String nodeId) {
         String script = "document.getElementById('" + nodeId + "').click();";
         return script;
+    }
+
+    /**
+     * Prints the text into the text field node simulating the keyboard input. The node needs to be
+     * focused at first to bring up the keyboard.
+     *
+     * @param webContents The WebContents in which the node lives.
+     * @param inputMethodManagerWrapper The test input method manager wrapper, that will be used for
+     *         inputting.
+     * @param nodeId The id of the text input node.
+     * @param input The text to be entered into the text field.
+     */
+    public static void enterInputIntoTextField(WebContents webContents,
+            TestInputMethodManagerWrapper inputMethodManagerWrapper, String nodeId, String input)
+            throws TimeoutException {
+        Assert.assertTrue(
+                "Input should be a non-empty string", input != null && input.length() > 0);
+        // Click the text field node, so that it would get focus.
+        DOMUtils.clickNode(webContents, nodeId);
+
+        // Wait for the text field to get focused and the virtual keyboard to be activated.
+        CriteriaHelper.pollInstrumentationThread(() -> {
+            try {
+                Criteria.checkThat(DOMUtils.getFocusedNode(webContents), is(nodeId));
+            } catch (TimeoutException e) {
+                throw new CriteriaNotSatisfiedException(e);
+            }
+            Criteria.checkThat(
+                    inputMethodManagerWrapper.isActive(DOMUtils.getContainerView(webContents)),
+                    is(true));
+        });
+
+        ImeAdapter imeAdapter = WebContentsUtils.getImeAdapter(webContents);
+        // Enter the text.
+        imeAdapter.setComposingTextForTest(input, 1);
+        // Wait for the input to finish. After finishing the input, it will update the selection to
+        // move the cursor to the right position. This indicated that the input has finished.
+        waitForTextFieldValue(webContents, nodeId, input);
+    }
+
+    private static void waitForTextFieldValue(
+            WebContents webContents, String textFieldId, String value) throws TimeoutException {
+        StringBuilder func = new StringBuilder();
+        func.append("function valueCheck() {");
+        func.append("  var element = document.getElementById('" + textFieldId + "');");
+        func.append("  return element && element.value == '" + value + "';");
+        func.append("}");
+
+        func.append("new Promise(resolve => {");
+        func.append("  if (valueCheck()) {");
+        func.append("    return resolve(" + RESULT_OK + ");");
+
+        func.append("  } else {");
+        func.append("    var element = document.getElementById('" + textFieldId + "');");
+        func.append("    if (!element)");
+        func.append("      return resolve(" + RESULT_ELEMENT_NOT_FOUND + ");");
+
+        func.append("    element.oninput = function() {");
+        func.append("      if (valueCheck()) {");
+        func.append("        element.oninput = undefined;");
+        func.append("        return resolve(" + RESULT_OK + ");");
+        func.append("      }");
+        func.append("    };");
+        func.append("  }");
+        func.append("});");
+
+        String result =
+                JavaScriptUtils.executeJavaScriptAndWaitForResult(webContents, func.toString());
+        if (RESULT_ELEMENT_NOT_FOUND.equals(result)) {
+            Assert.fail("The expected value of the element with id " + textFieldId
+                    + " is different from the expected value " + value);
+        }
     }
 
     @NativeMethods

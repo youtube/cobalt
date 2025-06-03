@@ -13,11 +13,13 @@ import android.util.Pair;
 
 import androidx.annotation.Nullable;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.Log;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
 import org.chromium.blink.mojom.AttestationConveyancePreference;
+import org.chromium.blink.mojom.AuthenticationExtensionsClientOutputs;
 import org.chromium.blink.mojom.AuthenticatorAttachment;
 import org.chromium.blink.mojom.AuthenticatorTransport;
 import org.chromium.blink.mojom.CommonCredentialInfo;
@@ -35,6 +37,8 @@ import org.chromium.blink.mojom.UserVerificationRequirement;
 import org.chromium.blink.mojom.UvmEntry;
 import org.chromium.mojo_base.mojom.TimeDelta;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.concurrent.TimeUnit;
@@ -166,7 +170,7 @@ public final class Fido2Api {
      * @throws NoSuchAlgorithmException when options requests an impossible-to-satisfy public-key
      *         algorithm.
      */
-    public static void appendMakeCredentialOptionsToParcel(
+    private static void appendMakeCredentialOptionsToParcel(
             PublicKeyCredentialCreationOptions options, Parcel parcel)
             throws NoSuchAlgorithmException {
         final int a = writeHeader(OBJECT_MAGIC, parcel);
@@ -357,8 +361,15 @@ public final class Fido2Api {
             final int b = writeHeader(11, parcel);
             final int c = writeHeader(OBJECT_MAGIC, parcel);
             final int d = writeHeader(1, parcel);
-            // length of PRF inputs. None for makeCredential.
-            parcel.writeInt(0);
+            if (options.prfInput != null) {
+                // Two bytestrings for a single PRF input: the null credential ID and then the
+                // hashed salts, concatenated.
+                parcel.writeInt(2);
+                writePrfInput(options.prfInput, /* prfInputsHashed= */ false, parcel);
+            } else {
+                // No PRF inputs.
+                parcel.writeInt(0);
+            }
             writeLength(d, parcel);
             writeLength(c, parcel);
             writeLength(b, parcel);
@@ -452,18 +463,18 @@ public final class Fido2Api {
         final int a = writeHeader(OBJECT_MAGIC, parcel);
 
         // 2: appId
-        if (options.appid != null) {
+        if (options.extensions.appid != null) {
             final int b = writeHeader(2, parcel);
             final int c = writeHeader(OBJECT_MAGIC, parcel);
             final int d = writeHeader(2, parcel);
-            parcel.writeString(options.appid);
+            parcel.writeString(options.extensions.appid);
             writeLength(d, parcel);
             writeLength(c, parcel);
             writeLength(b, parcel);
         }
 
         // 4: user verification methods
-        if (options.userVerificationMethods) {
+        if (options.extensions.userVerificationMethods) {
             final int b = writeHeader(4, parcel);
             final int c = writeHeader(OBJECT_MAGIC, parcel);
             final int d = writeHeader(1, parcel);
@@ -474,7 +485,7 @@ public final class Fido2Api {
         }
 
         // 8: device public key
-        if (options.devicePublicKey != null) {
+        if (options.extensions.devicePublicKey != null) {
             final int b = writeHeader(8, parcel);
             final int c = writeHeader(OBJECT_MAGIC, parcel);
             final int d = writeHeader(1, parcel);
@@ -485,22 +496,13 @@ public final class Fido2Api {
         }
 
         // 11: PRF
-        if (options.prf) {
+        if (options.extensions.prf) {
             final int b = writeHeader(11, parcel);
             final int c = writeHeader(OBJECT_MAGIC, parcel);
             final int d = writeHeader(1, parcel);
-            parcel.writeInt(2 * options.prfInputs.length);
-            for (PrfValues input : options.prfInputs) {
-                parcel.writeByteArray(input.id);
-                if (input.second == null) {
-                    parcel.writeByteArray(input.first);
-                } else {
-                    byte[] values = new byte[input.first.length + input.second.length];
-                    System.arraycopy(input.first, 0, values, 0, input.first.length);
-                    System.arraycopy(
-                            input.second, 0, values, input.first.length, input.second.length);
-                    parcel.writeByteArray(values);
-                }
+            parcel.writeInt(2 * options.extensions.prfInputs.length);
+            for (PrfValues input : options.extensions.prfInputs) {
+                writePrfInput(input, options.extensions.prfInputsHashed, parcel);
             }
             writeLength(d, parcel);
             writeLength(c, parcel);
@@ -518,6 +520,63 @@ public final class Fido2Api {
         }
 
         writeLength(a, parcel);
+    }
+
+    private static void writePrfInput(PrfValues input, boolean prfInputsHashed, Parcel parcel) {
+        parcel.writeByteArray(input.id);
+        if (prfInputsHashed) {
+            if (input.second == null) {
+                parcel.writeByteArray(input.first);
+            } else {
+                parcel.writeByteArray(concat(input.first, input.second));
+            }
+        } else {
+            parcel.writeByteArray(hashPrfInputs(input));
+        }
+    }
+
+    /**
+     * Hash a PRF input.
+     *
+     * The WebAuthn spec says (https://w3c.github.io/webauthn/#prf-extension)
+     * that PRF inputs are hashed with a prefix to provide domain separation.
+     * This function performs that transform.
+     */
+    private static byte[] hashPrfInput(MessageDigest h, byte[] input) {
+        h.reset();
+        h.update("WebAuthn PRF\u0000".getBytes(StandardCharsets.UTF_8));
+        return h.digest(input);
+    }
+
+    /**
+     * Convert PRF inputs from renderer to Play Services form.
+     *
+     * The WebAuthn spec says (https://w3c.github.io/webauthn/#prf-extension)
+     * that PRF inputs are hashed with a prefix to provide domain separation.
+     * Additionally, Play Services wants the inputs concatenated. This function
+     * takes care of that.
+     */
+    private static byte[] hashPrfInputs(PrfValues input) {
+        MessageDigest hash;
+        try {
+            hash = MessageDigest.getInstance("SHA256");
+        } catch (NoSuchAlgorithmException e) {
+            // It is unreasonable for the runtime not to provide SHA-256.
+            throw new RuntimeException(e);
+        }
+        byte[] first = hashPrfInput(hash, input.first);
+        if (input.second == null) {
+            return first;
+        }
+        byte[] second = hashPrfInput(hash, input.second);
+        return concat(first, second);
+    }
+
+    private static byte[] concat(byte[] a, byte[] b) {
+        byte[] ret = new byte[a.length + b.length];
+        System.arraycopy(a, 0, ret, 0, a.length);
+        System.arraycopy(b, 0, ret, a.length, b.length);
+        return ret;
     }
 
     private static void appendCredentialListToParcel(
@@ -840,6 +899,7 @@ public final class Fido2Api {
                 if (extensions.prf != null) {
                     creationResponse.echoPrf = true;
                     creationResponse.prf = extensions.prf.first;
+                    creationResponse.prfResults = extensions.getPrfResults();
                 }
             }
             return creationResponse;
@@ -847,31 +907,21 @@ public final class Fido2Api {
 
         if (assertionResponse != null) {
             if (extensions != null && extensions.userVerificationMethods != null) {
-                assertionResponse.echoUserVerificationMethods = true;
-                assertionResponse.userVerificationMethods = new UvmEntry[0];
-                assertionResponse.userVerificationMethods =
+                assertionResponse.extensions.echoUserVerificationMethods = true;
+                assertionResponse.extensions.userVerificationMethods = new UvmEntry[0];
+                assertionResponse.extensions.userVerificationMethods =
                         extensions.userVerificationMethods.toArray(
-                                assertionResponse.userVerificationMethods);
+                                assertionResponse.extensions.userVerificationMethods);
             }
             if (extensions != null && extensions.devicePublicKey != null) {
-                assertionResponse.devicePublicKey = extensions.devicePublicKey;
-                assertionResponse.devicePublicKey.authenticatorOutput =
+                assertionResponse.extensions.devicePublicKey = extensions.devicePublicKey;
+                assertionResponse.extensions.devicePublicKey.authenticatorOutput =
                         Fido2ApiJni.get().getDevicePublicKeyFromAuthenticatorData(
                                 assertionResponse.info.authenticatorData);
             }
             if (extensions != null && extensions.prf != null) {
-                assertionResponse.echoPrf = true;
-                assertionResponse.prfResults = new PrfValues();
-                if (extensions.prf.second.length == 32) {
-                    assertionResponse.prfResults.first = extensions.prf.second;
-                } else {
-                    assertionResponse.prfResults.first = new byte[32];
-                    assertionResponse.prfResults.second = new byte[32];
-                    System.arraycopy(
-                            extensions.prf.second, 0, assertionResponse.prfResults.first, 0, 32);
-                    System.arraycopy(
-                            extensions.prf.second, 32, assertionResponse.prfResults.second, 0, 32);
-                }
+                assertionResponse.extensions.echoPrf = true;
+                assertionResponse.extensions.prfResults = extensions.getPrfResults();
             }
             if (attachment >= AuthenticatorAttachment.MIN_VALUE) {
                 assertionResponse.authenticatorAttachment = attachment;
@@ -1035,6 +1085,7 @@ public final class Fido2Api {
         response.info = info;
         response.signature = signature;
         response.userHandle = userHandle;
+        response.extensions = new AuthenticationExtensionsClientOutputs();
 
         return response;
     }
@@ -1082,6 +1133,24 @@ public final class Fido2Api {
         // prf contains an "enabled" flag and a bytestring that contains either
         // one or two 32-byte strings.
         public Pair<Boolean, byte[]> prf;
+
+        PrfValues getPrfResults() {
+            if (prf == null || prf.second == null) {
+                return null;
+            }
+
+            PrfValues prfResults = new PrfValues();
+            if (prf.second.length == 32) {
+                prfResults.first = prf.second;
+            } else {
+                prfResults.first = new byte[32];
+                prfResults.second = new byte[32];
+                System.arraycopy(prf.second, 0, prfResults.first, 0, 32);
+                System.arraycopy(prf.second, 32, prfResults.second, 0, 32);
+            }
+
+            return prfResults;
+        }
     }
 
     private static Extensions parseExtensionResponse(Parcel parcel)

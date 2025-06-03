@@ -44,8 +44,7 @@ std::string GetCodecName(VideoCodec codec) {
     case VideoCodec::kAV1:
       return "av1";
   }
-  NOTREACHED();
-  return "";
+  NOTREACHED_NORETURN();
 }
 
 // Reported as part of some UMA names. NEVER change existing strings!
@@ -74,8 +73,7 @@ std::string GetCodecNameForUMA(VideoCodec codec) {
     case VideoCodec::kAV1:
       return "AV1";
   }
-  NOTREACHED();
-  return "";
+  NOTREACHED_NORETURN();
 }
 
 std::string GetProfileName(VideoCodecProfile profile) {
@@ -156,9 +154,38 @@ std::string GetProfileName(VideoCodecProfile profile) {
       return "av1 profile high";
     case AV1PROFILE_PROFILE_PRO:
       return "av1 profile pro";
+    case VVCPROFILE_MAIN10:
+      return "vvc profile main10";
+    case VVCPROFILE_MAIN12:
+      return "vvc profile main12";
+    case VVCPROFILE_MAIN12_INTRA:
+      return "vvc profile main12 intra";
+    case VVCPROIFLE_MULTILAYER_MAIN10:
+      return "vvc profile multilayer main10";
+    case VVCPROFILE_MAIN10_444:
+      return "vvc profile main10 444";
+    case VVCPROFILE_MAIN12_444:
+      return "vvc profile main12 444";
+    case VVCPROFILE_MAIN16_444:
+      return "vvc profile main16 444";
+    case VVCPROFILE_MAIN12_444_INTRA:
+      return "vvc profile main12 444 intra";
+    case VVCPROFILE_MAIN16_444_INTRA:
+      return "vvc profile main16 444 intra";
+    case VVCPROFILE_MULTILAYER_MAIN10_444:
+      return "vvc profile multilayer main10 444";
+    case VVCPROFILE_MAIN10_STILL_PICTURE:
+      return "vvc profile main10 still picture";
+    case VVCPROFILE_MAIN12_STILL_PICTURE:
+      return "vvc profile main12 still picture";
+    case VVCPROFILE_MAIN10_444_STILL_PICTURE:
+      return "vvc profile main10 444 still picture";
+    case VVCPROFILE_MAIN12_444_STILL_PICTURE:
+      return "vvc profile main12 444 still picture";
+    case VVCPROFILE_MAIN16_444_STILL_PICTURE:
+      return "vvc profile main16 444 still picture";
   }
-  NOTREACHED();
-  return "";
+  NOTREACHED_NORETURN();
 }
 
 std::string BuildH264MimeSuffix(media::VideoCodecProfile profile,
@@ -653,13 +680,6 @@ bool ParseAVCCodecId(base::StringPiece codec_id,
 }
 
 #if BUILDFLAG(ENABLE_MSE_MPEG2TS_STREAM_PARSER)
-static const char kHexString[] = "0123456789ABCDEF";
-static char IntToHex(int i) {
-  DCHECK_GE(i, 0) << i << " not a hex value";
-  DCHECK_LE(i, 15) << i << " not a hex value";
-  return kHexString[i];
-}
-
 std::string TranslateLegacyAvc1CodecIds(base::StringPiece codec_id) {
   // Special handling for old, pre-RFC 6381 format avc1 strings, which are still
   // being used by some HLS apps to preserve backward compatibility with older
@@ -691,8 +711,7 @@ std::string TranslateLegacyAvc1CodecIds(base::StringPiece codec_id) {
       base::StringToUint(codec_id.substr(level_start), &level) && level < 256) {
     // This is a valid legacy avc1 codec id - return the codec id translated
     // into RFC 6381 format.
-    result.push_back(IntToHex(level >> 4));
-    result.push_back(IntToHex(level & 0xf));
+    base::AppendHexEncodedByte(static_cast<uint8_t>(level), result);
     return result;
   }
 
@@ -855,6 +874,166 @@ bool ParseHEVCCodecId(base::StringPiece codec_id,
       return false;
     }
     constraint_flags[i - 4] = constr_byte;
+  }
+
+  return true;
+}
+#endif
+
+#if BUILDFLAG(ENABLE_PLATFORM_VVC)
+// The specification for VVC codec id strings can be found in ISO/IEC 14496-15
+// 2022, annex E.6.
+// In detail it would be:
+// <sample entry FourCC>    ("vvi1: if config is inband, or "vvc1" otherwise.)
+// .<general_profile_idc>   (base10)
+// .<general_tier_flag>     ("L" or "H")
+// <op_level_idc>           (base10. <= general_level_idc in SPS)
+// .C<ptl_frame_only_constraint_flag><ptl_multi_layer_enabled_flag> (optional)
+// <general_constraint_info)  (base32 with "=" might be omitted.)
+// .S<general_sub_profile_idc1>  (Optional, base32 with "=" might be omitted.)
+// <+general_sub_profile_
+// .O<ols_idx>+<max_tid>   (Optional, base10 OlsIdx & MaxTid)
+bool ParseVVCCodecId(base::StringPiece codec_id,
+                     VideoCodecProfile* profile,
+                     uint8_t* level_idc) {
+  if (!base::StartsWith(codec_id, "vvc1.", base::CompareCase::SENSITIVE) &&
+      !base::StartsWith(codec_id, "vvi1.", base::CompareCase::SENSITIVE)) {
+    return false;
+  }
+
+  std::vector<std::string> elem = base::SplitString(
+      codec_id, ".", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
+  DCHECK(elem[0] == "vvc1" || elem[0] == "vvi1");
+
+  if (elem.size() < 3 || elem.size() > 6) {
+    DVLOG(4) << __func__ << ": invalid VVC codec id " << codec_id;
+    return false;
+  }
+
+  for (auto& item : elem) {
+    if (item.size() < 1 ||
+        ((item[0] == 'C' || item[0] == 'S' || item[0] == 'O') &&
+         item.size() < 2)) {
+      DVLOG(4) << __func__ << ": subelement of VVC codec id invalid.";
+      return false;
+    }
+    if (item[0] == 'O' && item.back() == '+') {
+      DVLOG(4) << __func__ << ": invalid OlxIdx and MaxTid string.";
+      return false;
+    }
+  }
+
+  unsigned general_profile_idc = 0;
+  if (!base::StringToUint(elem[1], &general_profile_idc) ||
+      general_profile_idc > 0x63) {
+    DVLOG(4) << __func__ << ": invalid general_profile_idc=" << elem[1];
+    return false;
+  }
+
+  VideoCodecProfile out_profile = VIDEO_CODEC_PROFILE_UNKNOWN;
+  switch (general_profile_idc) {
+    case 99:  // Spec A.3.5
+      out_profile = VVCPROFILE_MAIN16_444_STILL_PICTURE;
+      break;
+    case 98:  // Spec A.3.5
+      out_profile = VVCPROFILE_MAIN12_444_STILL_PICTURE;
+      break;
+    case 97:  // Spec A.3.2
+      out_profile = VVCPROFILE_MAIN10_444_STILL_PICTURE;
+      break;
+    case 66:  // Spec A.3.5
+      out_profile = VVCPROFILE_MAIN12_STILL_PICTURE;
+      break;
+    case 65:  // Spec A.3.1
+      out_profile = VVCPROFILE_MAIN10_STILL_PICTURE;
+      break;
+    case 49:  // Spec A.3.4
+      out_profile = VVCPROFILE_MULTILAYER_MAIN10_444;
+      break;
+    case 43:  // Spec A.3.5
+      out_profile = VVCPROFILE_MAIN16_444_INTRA;
+      break;
+    case 42:  // Spec A.3.5
+      out_profile = VVCPROFILE_MAIN12_444_INTRA;
+      break;
+    case 35:  // Spec A.3.5
+      out_profile = VVCPROFILE_MAIN16_444;
+      break;
+    case 34:  // Spec A.3.5
+      out_profile = VVCPROFILE_MAIN12_444;
+      break;
+    case 33:  // Spec A.3.2
+      out_profile = VVCPROFILE_MAIN10_444;
+      break;
+    case 17:  // Spec A.3.3
+      out_profile = VVCPROIFLE_MULTILAYER_MAIN10;
+      break;
+    case 10:  // Spec A.3.5
+      out_profile = VVCPROFILE_MAIN12_INTRA;
+      break;
+    case 2:  // Spec A.3.5
+      out_profile = VVCPROFILE_MAIN12;
+      break;
+    case 1:  // Spec A.3.1
+      out_profile = VVCPROFILE_MAIN10;
+      break;
+    default:
+      break;
+  }
+
+  if (out_profile == VIDEO_CODEC_PROFILE_UNKNOWN) {
+    DVLOG(1) << "Warning: unrecognized VVC/H.266 general_profile_idc: "
+             << general_profile_idc;
+    return false;
+  }
+
+  if (profile) {
+    *profile = out_profile;
+  }
+
+  uint8_t general_tier_flag;
+  if (elem[2][0] == 'L' || elem[2][0] == 'H') {
+    general_tier_flag = (elem[2][0] == 'L') ? 0 : 1;
+    elem[2].erase(0, 1);
+  } else {
+    DVLOG(4) << __func__ << ": invalid general_tier_flag=" << elem[2];
+    return false;
+  }
+  DCHECK(general_tier_flag == 0 || general_tier_flag == 1);
+
+  unsigned general_level_idc = 0;
+  if (!base::StringToUint(elem[2], &general_level_idc) ||
+      general_level_idc > 0xff) {
+    DVLOG(4) << __func__ << ": invalid general_level_idc=" << elem[2];
+    return false;
+  }
+
+  if (level_idc) {
+    *level_idc = static_cast<uint8_t>(general_level_idc);
+  }
+
+  // C-string, if existing, should proceed S-string and O-string.
+  // Similarly, S-string should proceed O-string.
+  bool trailing_valid = true;
+  if (elem.size() == 4) {
+    if (elem[3][0] != 'C' && elem[3][0] != 'S' && elem[3][0] != 'O') {
+      trailing_valid = false;
+    }
+  } else if (elem.size() == 5) {
+    if (!((elem[3][0] == 'C' && elem[4][0] == 'S') ||
+          (elem[3][0] == 'C' && elem[4][0] == 'O') ||
+          (elem[3][0] == 'S' && elem[4][0] == 'O'))) {
+      trailing_valid = false;
+    }
+  } else if (elem.size() == 6) {
+    if (elem[3][0] != 'C' || elem[4][0] != 'S' || elem[5][0] != 'O') {
+      trailing_valid = false;
+    }
+  }
+
+  if (!trailing_valid) {
+    DVLOG(4) << __func__ << ": invalid traing codec string.";
+    return false;
   }
 
   return true;
@@ -1083,6 +1262,25 @@ VideoCodec VideoCodecProfileToVideoCodec(VideoCodecProfile profile) {
     case AV1PROFILE_PROFILE_HIGH:
     case AV1PROFILE_PROFILE_PRO:
       return VideoCodec::kAV1;
+    // TODO(crbugs.com/1417910): Update to VideoCodec::kVVC when
+    // the production VVC decoder is enabled and corresponding
+    // enum is allowed to be added.
+    case VVCPROFILE_MAIN10:
+    case VVCPROFILE_MAIN12:
+    case VVCPROFILE_MAIN12_INTRA:
+    case VVCPROIFLE_MULTILAYER_MAIN10:
+    case VVCPROFILE_MAIN10_444:
+    case VVCPROFILE_MAIN12_444:
+    case VVCPROFILE_MAIN16_444:
+    case VVCPROFILE_MAIN12_444_INTRA:
+    case VVCPROFILE_MAIN16_444_INTRA:
+    case VVCPROFILE_MULTILAYER_MAIN10_444:
+    case VVCPROFILE_MAIN10_STILL_PICTURE:
+    case VVCPROFILE_MAIN12_STILL_PICTURE:
+    case VVCPROFILE_MAIN10_444_STILL_PICTURE:
+    case VVCPROFILE_MAIN12_444_STILL_PICTURE:
+    case VVCPROFILE_MAIN16_444_STILL_PICTURE:
+      return VideoCodec::kUnknown;
   }
 }
 

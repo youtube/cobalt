@@ -42,17 +42,19 @@ class BASE_EXPORT UncheckedObserverAdapter {
   template <class ObserverType>
   static ObserverType* Get(const UncheckedObserverAdapter& adapter) {
     static_assert(
-        !std::is_base_of<CheckedObserver, ObserverType>::value,
+        !std::is_base_of_v<CheckedObserver, ObserverType>,
         "CheckedObserver classes must not use ObserverList<T>::Unchecked.");
     return static_cast<ObserverType*>(adapter.ptr_);
   }
 
 #if DCHECK_IS_ON()
-  std::string GetCreationStackString() const { return stack_.ToString(); }
+  std::string GetCreationStackString() const {
+    return "Observer created at:\n" + stack_.ToString();
+  }
 #endif  // DCHECK_IS_ON()
 
  private:
-  raw_ptr<void, DanglingUntriaged> ptr_;
+  raw_ptr<void, AcrossTasksDanglingUntriaged> ptr_;
 #if DCHECK_IS_ON()
   base::debug::StackTrace stack_;
 #endif  // DCHECK_IS_ON()
@@ -100,7 +102,7 @@ class BASE_EXPORT CheckedObserverAdapter {
   template <class ObserverType>
   static ObserverType* Get(const CheckedObserverAdapter& adapter) {
     static_assert(
-        std::is_base_of<CheckedObserver, ObserverType>::value,
+        std::is_base_of_v<CheckedObserver, ObserverType>,
         "Observers should inherit from base::CheckedObserver. "
         "Use ObserverList<T>::Unchecked to observe with raw pointers.");
     DCHECK(adapter.weak_ptr_);

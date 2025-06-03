@@ -30,18 +30,20 @@ namespace {
 
 class MockShoppingListHandler : public ShoppingListHandler {
  public:
-  explicit MockShoppingListHandler(ShoppingService* shopping_service)
+  explicit MockShoppingListHandler(bookmarks::BookmarkModel* bookmark_model,
+                                   ShoppingService* shopping_service)
       : ShoppingListHandler(
             mojo::PendingRemote<shopping_list::mojom::Page>(),
             mojo::PendingReceiver<shopping_list::mojom::ShoppingListHandler>(),
-            nullptr,
+            bookmark_model,
             shopping_service,
             nullptr,
             nullptr,
-            "") {}
+            "",
+            nullptr) {}
 
-  MOCK_METHOD1(TrackPriceForBookmark, void(int64_t bookmark_id));
-  MOCK_METHOD1(UntrackPriceForBookmark, void(int64_t bookmark_id));
+  MOCK_METHOD(void, TrackPriceForBookmark, (int64_t bookmark_id));
+  MOCK_METHOD(void, UntrackPriceForBookmark, (int64_t bookmark_id));
 };
 
 class ShoppingListContextMenuControllerTest : public testing::Test {
@@ -58,8 +60,8 @@ class ShoppingListContextMenuControllerTest : public testing::Test {
     bookmark_ = AddProductBookmark(bookmark_model_.get(), u"product 1",
                                    GURL("http://example.com/1"), 123L, true,
                                    1230000, "usd");
-    handler_ =
-        std::make_unique<MockShoppingListHandler>(shopping_service_.get());
+    handler_ = std::make_unique<MockShoppingListHandler>(
+        bookmark_model_.get(), shopping_service_.get());
     controller_ = std::make_unique<commerce::ShoppingListContextMenuController>(
         bookmark_model_.get(), shopping_service_.get(), handler_.get());
   }
@@ -84,7 +86,7 @@ class ShoppingListContextMenuControllerTest : public testing::Test {
  protected:
   content::BrowserTaskEnvironment task_environment_;
   base::UserActionTester user_action_tester_;
-  raw_ptr<const bookmarks::BookmarkNode> bookmark_;
+  raw_ptr<const bookmarks::BookmarkNode, DanglingUntriaged> bookmark_;
 
  private:
   std::unique_ptr<bookmarks::BookmarkModel> bookmark_model_;

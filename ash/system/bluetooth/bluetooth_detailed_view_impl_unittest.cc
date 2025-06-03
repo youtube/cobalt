@@ -10,7 +10,7 @@
 #include "ash/style/rounded_container.h"
 #include "ash/style/switch.h"
 #include "ash/system/bluetooth/bluetooth_device_list_item_view.h"
-#include "ash/system/tray/detailed_view_delegate.h"
+#include "ash/system/tray/fake_detailed_view_delegate.h"
 #include "ash/system/tray/hover_highlight_view.h"
 #include "ash/test/ash_test_base.h"
 #include "base/memory/raw_ptr.h"
@@ -24,6 +24,7 @@ namespace ash {
 namespace {
 
 using bluetooth_config::mojom::BluetoothDeviceProperties;
+using bluetooth_config::mojom::BluetoothSystemState;
 using bluetooth_config::mojom::PairedBluetoothDeviceProperties;
 using bluetooth_config::mojom::PairedBluetoothDevicePropertiesPtr;
 
@@ -52,21 +53,6 @@ class FakeBluetoothDetailedViewDelegate
   bool last_toggle_state_ = false;
   int pair_new_device_requested_count_ = 0;
   PairedBluetoothDevicePropertiesPtr last_device_list_item_selected_;
-};
-
-// This class exists to stub out the CloseBubble() call. This allows tests to
-// directly construct the detailed view, without depending on the entire quick
-// settings bubble and view hierarchy.
-class FakeDetailedViewDelegate : public DetailedViewDelegate {
- public:
-  FakeDetailedViewDelegate()
-      : DetailedViewDelegate(/*tray_controller=*/nullptr) {}
-  ~FakeDetailedViewDelegate() override = default;
-
-  // DetailedViewDelegate:
-  void CloseBubble() override { ++close_bubble_count_; }
-
-  int close_bubble_count_ = 0;
 };
 
 }  // namespace
@@ -112,8 +98,8 @@ class BluetoothDetailedViewImplTest : public AshTestBase {
   std::unique_ptr<views::Widget> widget_;
   FakeBluetoothDetailedViewDelegate bluetooth_detailed_view_delegate_;
   FakeDetailedViewDelegate detailed_view_delegate_;
-  raw_ptr<BluetoothDetailedViewImpl, ExperimentalAsh> bluetooth_detailed_view_ =
-      nullptr;
+  raw_ptr<BluetoothDetailedViewImpl, DanglingUntriaged | ExperimentalAsh>
+      bluetooth_detailed_view_ = nullptr;
 };
 
 TEST_F(BluetoothDetailedViewImplTest, PressingSettingsButtonOpensSettings) {
@@ -124,14 +110,14 @@ TEST_F(BluetoothDetailedViewImplTest, PressingSettingsButtonOpensSettings) {
       session_manager::SessionState::LOCKED);
   LeftClickOn(settings_button);
   EXPECT_EQ(0, GetSystemTrayClient()->show_bluetooth_settings_count());
-  EXPECT_EQ(0, detailed_view_delegate_.close_bubble_count_);
+  EXPECT_EQ(0u, detailed_view_delegate_.close_bubble_call_count());
 
   // Clicking the button in an active user session opens OS settings.
   GetSessionControllerClient()->SetSessionState(
       session_manager::SessionState::ACTIVE);
   LeftClickOn(settings_button);
   EXPECT_EQ(1, GetSystemTrayClient()->show_bluetooth_settings_count());
-  EXPECT_EQ(1, detailed_view_delegate_.close_bubble_count_);
+  EXPECT_EQ(1u, detailed_view_delegate_.close_bubble_call_count());
 }
 
 TEST_F(BluetoothDetailedViewImplTest,
@@ -139,22 +125,41 @@ TEST_F(BluetoothDetailedViewImplTest,
   HoverHighlightView* toggle_row = GetToggleRow();
   Switch* toggle_button = GetToggleButton();
   RoundedContainer* main_container = GetMainContainer();
+  views::Button* pair_new_device_view = GetPairNewDeviceView();
 
-  bluetooth_detailed_view_->UpdateBluetoothEnabledState(true);
+  bluetooth_detailed_view_->UpdateBluetoothEnabledState(
+      BluetoothSystemState::kEnabled);
 
   EXPECT_EQ(u"On", toggle_row->text_label()->GetText());
+  EXPECT_EQ(u"Toggle Bluetooth. Bluetooth is on.",
+            toggle_row->GetTooltipText());
   EXPECT_TRUE(toggle_button->GetIsOn());
   EXPECT_EQ(u"Toggle Bluetooth. Bluetooth is on.",
             toggle_button->GetTooltipText());
   EXPECT_TRUE(main_container->GetVisible());
+  EXPECT_TRUE(pair_new_device_view->GetVisible());
 
-  bluetooth_detailed_view_->UpdateBluetoothEnabledState(false);
+  bluetooth_detailed_view_->UpdateBluetoothEnabledState(
+      BluetoothSystemState::kDisabled);
 
   EXPECT_EQ(u"Off", toggle_row->text_label()->GetText());
+  EXPECT_EQ(u"Toggle Bluetooth. Bluetooth is off.",
+            toggle_row->GetTooltipText());
   EXPECT_FALSE(toggle_button->GetIsOn());
   EXPECT_EQ(u"Toggle Bluetooth. Bluetooth is off.",
             toggle_button->GetTooltipText());
   EXPECT_FALSE(main_container->GetVisible());
+
+  bluetooth_detailed_view_->UpdateBluetoothEnabledState(
+      BluetoothSystemState::kEnabling);
+  EXPECT_EQ(u"On", toggle_row->text_label()->GetText());
+  EXPECT_EQ(u"Toggle Bluetooth. Bluetooth is on.",
+            toggle_row->GetTooltipText());
+  EXPECT_TRUE(toggle_button->GetIsOn());
+  EXPECT_EQ(u"Toggle Bluetooth. Bluetooth is on.",
+            toggle_button->GetTooltipText());
+  EXPECT_TRUE(main_container->GetVisible());
+  EXPECT_FALSE(pair_new_device_view->GetVisible());
 }
 
 TEST_F(BluetoothDetailedViewImplTest, PressingToggleRowNotifiesDelegate) {
@@ -168,17 +173,22 @@ TEST_F(BluetoothDetailedViewImplTest, PressingToggleRowNotifiesDelegate) {
 
 TEST_F(BluetoothDetailedViewImplTest, PressingToggleButtonNotifiesDelegate) {
   Switch* toggle_button = GetToggleButton();
+  views::Button* pair_new_device_view = GetPairNewDeviceView();
+
   EXPECT_FALSE(toggle_button->GetIsOn());
   EXPECT_FALSE(bluetooth_detailed_view_delegate_.last_toggle_state_);
+  EXPECT_FALSE(pair_new_device_view->GetVisible());
 
   LeftClickOn(toggle_button);
 
   EXPECT_TRUE(toggle_button->GetIsOn());
   EXPECT_TRUE(bluetooth_detailed_view_delegate_.last_toggle_state_);
+  EXPECT_FALSE(pair_new_device_view->GetVisible());
 }
 
 TEST_F(BluetoothDetailedViewImplTest, PressingPairNewDeviceNotifiesDelegate) {
-  bluetooth_detailed_view_->UpdateBluetoothEnabledState(true);
+  bluetooth_detailed_view_->UpdateBluetoothEnabledState(
+      BluetoothSystemState::kEnabled);
   views::test::RunScheduledLayout(bluetooth_detailed_view_);
 
   // Clicking the "pair new device" row notifies the delegate.
@@ -189,7 +199,8 @@ TEST_F(BluetoothDetailedViewImplTest, PressingPairNewDeviceNotifiesDelegate) {
 }
 
 TEST_F(BluetoothDetailedViewImplTest, SelectingDeviceListItemNotifiesDelegate) {
-  bluetooth_detailed_view_->UpdateBluetoothEnabledState(true);
+  bluetooth_detailed_view_->UpdateBluetoothEnabledState(
+      BluetoothSystemState::kEnabled);
 
   // Create a simulated device and add it to the list.
   PairedBluetoothDevicePropertiesPtr paired_properties =

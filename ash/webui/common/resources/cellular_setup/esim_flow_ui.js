@@ -7,16 +7,20 @@ import './setup_loading_page.js';
 import './activation_code_page.js';
 import './activation_verification_page.js';
 import './final_page.js';
+import './profile_discovery_consent_page.js';
+import './profile_discovery_list_page_legacy.js';
 import './profile_discovery_list_page.js';
+import './confirmation_code_page_legacy.js';
 import './confirmation_code_page.js';
 
+import {assert, assertNotReached} from '//resources/ash/common/assert.js';
 import {I18nBehavior} from '//resources/ash/common/i18n_behavior.js';
 import {hasActiveCellularNetwork} from '//resources/ash/common/network/cellular_utils.js';
 import {MojoInterfaceProvider, MojoInterfaceProviderImpl} from '//resources/ash/common/network/mojo_interface_provider.js';
 import {NetworkListenerBehavior} from '//resources/ash/common/network/network_listener_behavior.js';
-import {assert, assertNotReached} from '//resources/ash/common/assert.js';
 import {Polymer} from '//resources/polymer/v3_0/polymer/polymer_bundled.min.js';
-import {ESimManagerRemote, ESimOperationResult, ESimProfileRemote, EuiccRemote, ProfileInstallResult} from 'chrome://resources/mojo/chromeos/ash/services/cellular_setup/public/mojom/esim_manager.mojom-webui.js';
+import {loadTimeData} from 'chrome://resources/ash/common/load_time_data.m.js';
+import {ESimManagerRemote, ESimOperationResult, ESimProfileProperties, ESimProfileRemote, EuiccRemote, ProfileInstallMethod, ProfileInstallResult, ProfileState} from 'chrome://resources/mojo/chromeos/ash/services/cellular_setup/public/mojom/esim_manager.mojom-webui.js';
 import {FilterType, NetworkStateProperties, NO_LIMIT} from 'chrome://resources/mojo/chromeos/services/network_config/public/mojom/cros_network_config.mojom-webui.js';
 import {ConnectionStateType, NetworkType} from 'chrome://resources/mojo/chromeos/services/network_config/public/mojom/network_types.mojom-webui.js';
 
@@ -30,16 +34,20 @@ import {SubflowBehavior} from './subflow_behavior.js';
 /** @enum {string} */
 export const ESimPageName = {
   PROFILE_LOADING: 'profileLoadingPage',
+  PROFILE_DISCOVERY_CONSENT: 'profileDiscoveryConsentPage',
   PROFILE_DISCOVERY: 'profileDiscoveryPage',
+  PROFILE_DISCOVERY_LEGACY: 'profileDiscoveryPageLegacy',
   ACTIVATION_CODE: 'activationCodePage',
-  ACTIVATION_VERIFCATION: 'activationVerificationPage',
   CONFIRMATION_CODE: 'confirmationCodePage',
+  CONFIRMATION_CODE_LEGACY: 'confirmationCodePageLegacy',
+  PROFILE_INSTALLING: 'profileInstallingPage',
   FINAL: 'finalPage',
 };
 
 /** @enum {string} */
 export const ESimUiState = {
   PROFILE_SEARCH: 'profile-search',
+  PROFILE_SEARCH_CONSENT: 'profile-search-consent',
   ACTIVATION_CODE_ENTRY: 'activation-code-entry',
   ACTIVATION_CODE_ENTRY_READY: 'activation-code-entry-ready',
   ACTIVATION_CODE_ENTRY_INSTALLING: 'activation-code-entry-installing',
@@ -116,7 +124,13 @@ Polymer({
      */
     state_: {
       type: String,
-      value: ESimUiState.PROFILE_SEARCH,
+      value: function() {
+        if (loadTimeData.valueExists('isSmdsSupportEnabled') &&
+            loadTimeData.getBoolean('isSmdsSupportEnabled')) {
+          return ESimUiState.PROFILE_SEARCH_CONSENT;
+        }
+        return ESimUiState.PROFILE_SEARCH;
+      },
       observer: 'onStateChanged_',
     },
 
@@ -127,6 +141,24 @@ Polymer({
      * @private
      */
     selectedESimPageName_: String,
+
+    /**
+     * Whether the user has consented to a scan for profiles.
+     * @type {boolean}
+     */
+    hasConsentedForDiscovery_: {
+      type: Boolean,
+      value: false,
+    },
+
+    /**
+     * Whether the user is setting up the eSIM profile manually.
+     * @type {boolean}
+     */
+    shouldSkipDiscovery_: {
+      type: Boolean,
+      value: false,
+    },
 
     /**
      * Whether error state should be shown for the current page.
@@ -155,6 +187,24 @@ Polymer({
       type: Object,
     },
 
+    /**
+     * Profile properties fetched from the latest SM-DS scan.
+     * @type {!Array<!ESimProfileProperties>}
+     * @private
+     */
+    pendingProfileProperties_: {
+      type: Array,
+    },
+
+    /**
+     * Profile properties selected to be installed.
+     * @type {?ESimProfileProperties}
+     * @private
+     */
+    selectedProfileProperties_: {
+      type: Object,
+    },
+
     /** @private */
     activationCode_: {
       type: String,
@@ -177,6 +227,17 @@ Polymer({
     /** @private */
     isActivationCodeFromQrCode_: {
       type: Boolean,
+    },
+
+    /**
+     * Return true if SmdsSupportEnabled feature flag is enabled.
+     */
+    smdsSupportEnabled_: {
+      type: Boolean,
+      value() {
+        return loadTimeData.valueExists('isSmdsSupportEnabled') &&
+            loadTimeData.getBoolean('isSmdsSupportEnabled');
+      },
     },
   },
 
@@ -212,7 +273,10 @@ Polymer({
     'forward-navigation-requested': 'onForwardNavigationRequested_',
   },
 
-  observers: ['onSelectedProfileChanged_(selectedProfile_)'],
+  observers: [
+    'onSelectedProfileChanged_(selectedProfile_)',
+    'onSelectedProfilePropertiesChanged_(selectedProfileProperties_)',
+  ],
 
   /** @override */
   created() {
@@ -256,7 +320,7 @@ Polymer({
         // Handles case when no profile installation was attempted.
         if (this.hasFailedFetchingProfiles_) {
           resultCode = ESimSetupFlowResult.ERROR_FETCHING_PROFILES;
-        } else if (this.pendingProfiles_ && !this.pendingProfiles_.length) {
+        } else if (this.noProfilesFound_()) {
           resultCode = ESimSetupFlowResult.CANCELLED_NO_PROFILES;
         } else {
           resultCode = ESimSetupFlowResult.CANCELLED_WITHOUT_ERROR;
@@ -296,12 +360,35 @@ Polymer({
   },
 
   initSubflow() {
-    this.fetchProfiles_();
+    if (!this.smdsSupportEnabled_) {
+      this.fetchProfiles_();
+    } else {
+      this.getEuicc_();
+    }
     this.onNetworkStateListChanged();
   },
 
   /** @private */
   async fetchProfiles_() {
+    await this.getEuicc_();
+    if (!this.euicc_) {
+      return;
+    }
+
+    if (this.smdsSupportEnabled_) {
+      await this.getAvailableProfileProperties_();
+    } else {
+      await this.getPendingProfiles_();
+    }
+    if (this.noProfilesFound_()) {
+      this.state_ = ESimUiState.ACTIVATION_CODE_ENTRY;
+    } else {
+      this.state_ = ESimUiState.PROFILE_SELECTION;
+    }
+  },
+
+  /** @private */
+  async getEuicc_() {
     const euicc = await getEuicc();
     if (!euicc) {
       this.hasFailedFetchingProfiles_ = true;
@@ -311,20 +398,44 @@ Polymer({
       return;
     }
     this.euicc_ = euicc;
-    const requestPendingProfilesResponse = await euicc.requestPendingProfiles();
+  },
+
+  /**
+   * @private
+   */
+  async getAvailableProfileProperties_() {
+    const requestAvailableProfilesResponse =
+        await this.euicc_.requestAvailableProfiles();
+    if (requestAvailableProfilesResponse.result ===
+        ESimOperationResult.kFailure) {
+      this.hasFailedFetchingProfiles_ = true;
+      console.warn(
+          'Error requesting available profiles: ',
+          requestAvailableProfilesResponse);
+      this.pendingProfileProperties_ = [];
+    }
+    this.pendingProfileProperties_ =
+        requestAvailableProfilesResponse.profiles.filter(properties => {
+          return properties.state === ProfileState.kPending &&
+              properties.activationCode;
+        });
+  },
+
+  /**
+   * @private
+   */
+  async getPendingProfiles_() {
+    const requestPendingProfilesResponse =
+        await this.euicc_.requestPendingProfiles();
     if (requestPendingProfilesResponse.result ===
         ESimOperationResult.kFailure) {
       this.hasFailedFetchingProfiles_ = true;
       console.warn(
           'Error requesting pending profiles: ',
           requestPendingProfilesResponse);
+      this.pendingProfiles_ = [];
     }
-    this.pendingProfiles_ = await getPendingESimProfiles(euicc);
-    if (this.pendingProfiles_.length === 0) {
-      this.state_ = ESimUiState.ACTIVATION_CODE_ENTRY;
-    } else {
-      this.state_ = ESimUiState.PROFILE_SELECTION;
-    }
+    this.pendingProfiles_ = await getPendingESimProfiles(this.euicc_);
   },
 
   /**
@@ -343,7 +454,9 @@ Polymer({
       this.state_ = ESimUiState.CONFIRMATION_CODE_ENTRY_READY;
       return;
     }
-    if (response.result === ProfileInstallResult.kErrorInvalidActivationCode) {
+    if (response.result === ProfileInstallResult.kErrorInvalidActivationCode &&
+        (!this.smdsSupportEnabled_ ||
+         this.state_ !== ESimUiState.PROFILE_SELECTION_INSTALLING)) {
       this.state_ = ESimUiState.ACTIVATION_CODE_ENTRY_READY;
       return;
     }
@@ -357,6 +470,10 @@ Polymer({
   onStateChanged_(newState, oldState) {
     this.updateButtonBarState_();
     this.updateSelectedPage_();
+    if (this.hasConsentedForDiscovery_ &&
+        newState === ESimUiState.PROFILE_SEARCH) {
+      this.fetchProfiles_();
+    }
     this.initializePageState_(newState, oldState);
   },
 
@@ -367,21 +484,44 @@ Polymer({
       case ESimUiState.PROFILE_SEARCH:
         this.selectedESimPageName_ = ESimPageName.PROFILE_LOADING;
         break;
+      case ESimUiState.PROFILE_SEARCH_CONSENT:
+        this.selectedESimPageName_= ESimPageName.PROFILE_DISCOVERY_CONSENT;
+        break;
       case ESimUiState.ACTIVATION_CODE_ENTRY:
       case ESimUiState.ACTIVATION_CODE_ENTRY_READY:
         this.selectedESimPageName_ = ESimPageName.ACTIVATION_CODE;
         break;
       case ESimUiState.ACTIVATION_CODE_ENTRY_INSTALLING:
-        this.selectedESimPageName_ = ESimPageName.ACTIVATION_VERIFCATION;
+        this.selectedESimPageName_ = ESimPageName.PROFILE_INSTALLING;
         break;
       case ESimUiState.CONFIRMATION_CODE_ENTRY:
       case ESimUiState.CONFIRMATION_CODE_ENTRY_READY:
+        if (this.smdsSupportEnabled_) {
+          this.selectedESimPageName_ = ESimPageName.CONFIRMATION_CODE;
+        } else {
+          this.selectedESimPageName_ = ESimPageName.CONFIRMATION_CODE_LEGACY;
+        }
+        break;
       case ESimUiState.CONFIRMATION_CODE_ENTRY_INSTALLING:
-        this.selectedESimPageName_ = ESimPageName.CONFIRMATION_CODE;
+        if (this.smdsSupportEnabled_) {
+          this.selectedESimPageName_ = ESimPageName.PROFILE_INSTALLING;
+        } else {
+          this.selectedESimPageName_ = ESimPageName.CONFIRMATION_CODE_LEGACY;
+        }
         break;
       case ESimUiState.PROFILE_SELECTION:
+        if (this.smdsSupportEnabled_) {
+          this.selectedESimPageName_ = ESimPageName.PROFILE_DISCOVERY;
+        } else {
+          this.selectedESimPageName_ = ESimPageName.PROFILE_DISCOVERY_LEGACY;
+        }
+        break;
       case ESimUiState.PROFILE_SELECTION_INSTALLING:
-        this.selectedESimPageName_ = ESimPageName.PROFILE_DISCOVERY;
+        if (this.smdsSupportEnabled_) {
+          this.selectedESimPageName_ = ESimPageName.PROFILE_INSTALLING;
+        } else {
+          this.selectedESimPageName_ = ESimPageName.PROFILE_DISCOVERY_LEGACY;
+        }
         break;
       case ESimUiState.SETUP_FINISH:
         this.selectedESimPageName_ = ESimPageName.FINAL;
@@ -407,7 +547,7 @@ Polymer({
       enableForwardBtn, cancelButtonStateIfEnabled, isInstalling) {
     this.forwardButtonLabel = this.i18n('next');
     let backBtnState = ButtonState.HIDDEN;
-    if (this.pendingProfiles_.length > 0) {
+    if (this.profilesFound_() && !this.smdsSupportEnabled_) {
       backBtnState = isInstalling ? ButtonState.DISABLED : ButtonState.ENABLED;
     }
     return {
@@ -427,8 +567,12 @@ Polymer({
   generateButtonStateForConfirmationPage_(
       enableForwardBtn, cancelButtonStateIfEnabled, isInstalling) {
     this.forwardButtonLabel = this.i18n('confirm');
+    let backBtnState = isInstalling ? ButtonState.DISABLED : ButtonState.ENABLED;
+    if (this.smdsSupportEnabled_) {
+      backBtnState = ButtonState.HIDDEN;
+    }
     return {
-      backward: isInstalling ? ButtonState.DISABLED : ButtonState.ENABLED,
+      backward: backBtnState,
       cancel: cancelButtonStateIfEnabled,
       forward: enableForwardBtn ? ButtonState.ENABLED : ButtonState.DISABLED,
     };
@@ -450,6 +594,14 @@ Polymer({
           backward: ButtonState.HIDDEN,
           cancel: cancelButtonStateIfEnabled,
           forward: ButtonState.DISABLED,
+        };
+        break;
+      case ESimUiState.PROFILE_SEARCH_CONSENT:
+        this.forwardButtonLabel = this.i18n('profileDiscoveryConsentScan');
+        buttonState = {
+          backward: ButtonState.HIDDEN,
+          cancel: ButtonState.ENABLED,
+          forward: ButtonState.ENABLED,
         };
         break;
       case ESimUiState.ACTIVATION_CODE_ENTRY:
@@ -483,9 +635,7 @@ Polymer({
             /*isInstalling*/ true);
         break;
       case ESimUiState.PROFILE_SELECTION:
-        this.forwardButtonLabel = this.selectedProfile_ ?
-            this.i18n('next') :
-            this.i18n('skipDiscovery');
+        this.updateForwardButtonLabel_();
         buttonState = {
           backward: ButtonState.HIDDEN,
           cancel: cancelButtonStateIfEnabled,
@@ -512,6 +662,19 @@ Polymer({
         break;
     }
     this.set('buttonState', buttonState);
+  },
+
+  /** @private */
+  updateForwardButtonLabel_() {
+    if (this.smdsSupportEnabled_) {
+      this.forwardButtonLabel = this.selectedProfileProperties_ ?
+          this.i18n('next') :
+          this.i18n('skipDiscovery');
+    } else {
+      this.forwardButtonLabel = this.selectedProfile_ ?
+          this.i18n('next') :
+          this.i18n('skipDiscovery');
+    }
   },
 
   /** @private */
@@ -548,8 +711,24 @@ Polymer({
     if (this.state_ !== ESimUiState.PROFILE_SELECTION) {
       return;
     }
-    this.forwardButtonLabel =
-        this.selectedProfile_ ? this.i18n('next') : this.i18n('skipDiscovery');
+    if (this.smdsSupportEnabled_) {
+      return;
+    }
+    this.updateForwardButtonLabel_();
+  },
+
+  /** @private */
+  onSelectedProfilePropertiesChanged_() {
+    // initializePageState_() may cause this observer to fire and update the
+    // buttonState when we're not on the profile selection page. Check we're
+    // on the profile selection page before proceeding.
+    if (this.state_ !== ESimUiState.PROFILE_SELECTION) {
+      return;
+    }
+    if (!this.smdsSupportEnabled_) {
+      return;
+    }
+    this.updateForwardButtonLabel_();
   },
 
   /** @private */
@@ -570,38 +749,78 @@ Polymer({
   navigateForward() {
     this.showError_ = false;
     switch (this.state_) {
+      case ESimUiState.PROFILE_SEARCH_CONSENT:
+        if (this.shouldSkipDiscovery_) {
+          this.state_ = ESimUiState.ACTIVATION_CODE_ENTRY;
+          break;
+        }
+        // Set |this.hasConsentedForDiscovery_| to |true| since navigating
+        // forward and not setting up manually is explicitly giving consent
+        // to perform SM-DS scans.
+        this.hasConsentedForDiscovery_= true;
+        this.state_ = ESimUiState.PROFILE_SEARCH;
+        break;
       case ESimUiState.ACTIVATION_CODE_ENTRY_READY:
         // Assume installing the profile doesn't require a confirmation
-        // code, send an empty string.
+        // code.
+        const confirmationCode = '';
         this.state_ = ESimUiState.ACTIVATION_CODE_ENTRY_INSTALLING;
         this.euicc_
             .installProfileFromActivationCode(
-                this.activationCode_, /*confirmationCode=*/ '',
-                this.isActivationCodeFromQrCode_)
+                this.activationCode_, confirmationCode,
+                this.computeProfileInstallMethod_())
             .then(this.handleProfileInstallResponse_.bind(this));
         break;
       case ESimUiState.PROFILE_SELECTION:
-        if (this.selectedProfile_) {
-          this.state_ = ESimUiState.PROFILE_SELECTION_INSTALLING;
-          // Assume installing the profile doesn't require a confirmation
-          // code, send an empty string.
-          this.selectedProfile_.installProfile('').then(
-              this.handleProfileInstallResponse_.bind(this));
+        if (this.smdsSupportEnabled_) {
+          if (this.selectedProfileProperties_) {
+            this.state_ = ESimUiState.PROFILE_SELECTION_INSTALLING;
+            // Assume installing the profile doesn't require a confirmation
+            // code.
+            const confirmationCode = '';
+            this.euicc_
+                .installProfileFromActivationCode(
+                    this.selectedProfileProperties_.activationCode,
+                    confirmationCode, ProfileInstallMethod.kViaSmds)
+                .then(this.handleProfileInstallResponse_.bind(this));
+          } else {
+            this.state_ = ESimUiState.ACTIVATION_CODE_ENTRY;
+          }
         } else {
-          this.state_ = ESimUiState.ACTIVATION_CODE_ENTRY;
+          if (this.selectedProfile_) {
+            this.state_ = ESimUiState.PROFILE_SELECTION_INSTALLING;
+            // Assume installing the profile doesn't require a confirmation
+            // code, send an empty string.
+            this.selectedProfile_.installProfile('').then(
+                this.handleProfileInstallResponse_.bind(this));
+          } else {
+            this.state_ = ESimUiState.ACTIVATION_CODE_ENTRY;
+          }
         }
         break;
       case ESimUiState.CONFIRMATION_CODE_ENTRY_READY:
         this.state_ = ESimUiState.CONFIRMATION_CODE_ENTRY_INSTALLING;
-        if (this.selectedProfile_) {
-          this.selectedProfile_.installProfile(this.confirmationCode_)
-              .then(this.handleProfileInstallResponse_.bind(this));
-        } else {
+        if (this.smdsSupportEnabled_) {
+          const fromQrCode = this.selectedProfileProperties_ ? true : false;
+          const activationCode = fromQrCode ?
+              this.selectedProfileProperties_.activationCode :
+              this.activationCode_;
           this.euicc_
               .installProfileFromActivationCode(
-                  this.activationCode_, this.confirmationCode_,
-                  this.isActivationCodeFromQrCode_)
+                  activationCode, this.confirmationCode_,
+                  this.computeProfileInstallMethod_())
               .then(this.handleProfileInstallResponse_.bind(this));
+        } else {
+          if (this.selectedProfile_) {
+            this.selectedProfile_.installProfile(this.confirmationCode_)
+                .then(this.handleProfileInstallResponse_.bind(this));
+          } else {
+            this.euicc_
+                .installProfileFromActivationCode(
+                    this.activationCode_, this.confirmationCode_,
+                    this.computeProfileInstallMethod_())
+                .then(this.handleProfileInstallResponse_.bind(this));
+          }
         }
         break;
       case ESimUiState.SETUP_FINISH:
@@ -615,9 +834,9 @@ Polymer({
 
   /** SubflowBehavior override */
   navigateBackward() {
-    if ((this.state_ === ESimUiState.ACTIVATION_CODE_ENTRY ||
-         this.state_ === ESimUiState.ACTIVATION_CODE_ENTRY_READY) &&
-        this.pendingProfiles_.length > 0) {
+    if (this.profilesFound_() &&
+        (this.state_ === ESimUiState.ACTIVATION_CODE_ENTRY ||
+         this.state_ === ESimUiState.ACTIVATION_CODE_ENTRY_READY)) {
       this.state_ = ESimUiState.PROFILE_SELECTION;
       return;
     }
@@ -627,7 +846,7 @@ Polymer({
       if (this.activationCode_) {
         this.state_ = ESimUiState.ACTIVATION_CODE_ENTRY_READY;
         return;
-      } else if (this.pendingProfiles_.length > 0) {
+      } else if (this.profilesFound_()) {
         this.state_ = ESimUiState.PROFILE_SELECTION;
         return;
       }
@@ -641,7 +860,9 @@ Polymer({
   /** @private */
   onForwardNavigationRequested_() {
     if (this.state_ === ESimUiState.ACTIVATION_CODE_ENTRY_READY ||
-        this.state_ === ESimUiState.CONFIRMATION_CODE_ENTRY_READY) {
+        this.state_ === ESimUiState.CONFIRMATION_CODE_ENTRY_READY ||
+        this.state_ === ESimUiState.PROFILE_SEARCH_CONSENT ||
+        this.state_ === ESimUiState.PROFILE_SELECTION) {
       this.navigateForward();
     }
   },
@@ -667,6 +888,10 @@ Polymer({
 
   /** @private */
   getLoadingMessage_() {
+    if (this.smdsSupportEnabled_) {
+      return this.i18n('profileLoadingPageMessage');
+    }
+
     return this.hasHadActiveCellularNetwork_ ?
         this.i18n('eSimProfileDetectDuringActiveCellularConnectionMessage') :
         this.i18n('eSimProfileDetectMessage');
@@ -681,6 +906,64 @@ Polymer({
       return this.i18n('eSimFinalPageSuccessHeader');
     }
 
+    if (this.selectedESimPageName_ === ESimPageName.PROFILE_DISCOVERY_CONSENT) {
+      return this.i18n('profileDiscoveryConsentTitle');
+    }
+
+    if (this.smdsSupportEnabled_) {
+      if (this.selectedESimPageName_ === ESimPageName.PROFILE_DISCOVERY) {
+        return this.i18n('profileDiscoveryPageTitle');
+      }
+
+      if (this.selectedESimPageName_ == ESimPageName.CONFIRMATION_CODE) {
+        return this.i18n('confimationCodePageTitle');
+      }
+      if (this.selectedESimPageName_ == ESimPageName.PROFILE_LOADING) {
+        return this.i18n('profileLoadingPageTitle');
+      }
+    }
+
     return '';
+  },
+
+  /**
+   * @return {ProfileInstallMethod}
+   * @private
+   */
+  computeProfileInstallMethod_() {
+    if (this.isActivationCodeFromQrCode_) {
+      return this.hasConsentedForDiscovery_ ?
+          ProfileInstallMethod.kViaQrCodeAfterSmds :
+          ProfileInstallMethod.kViaQrCodeSkippedSmds;
+    }
+    return this.hasConsentedForDiscovery_ ?
+        ProfileInstallMethod.kViaActivationCodeAfterSmds :
+        ProfileInstallMethod.kViaActivationCodeSkippedSmds;
+  },
+
+  /**
+   * Returns true if profiles have been received and none were found.
+   * @return {boolean}
+   * @private
+   */
+  noProfilesFound_() {
+    if (this.smdsSupportEnabled_) {
+      return this.hasConsentedForDiscovery_ &&
+          !!this.pendingProfileProperties_ &&
+          this.pendingProfileProperties_.length === 0;
+    } else {
+      return (this.pendingProfiles_ && this.pendingProfiles_.length === 0);
+    }
+  },
+
+  /** @private*/
+  profilesFound_() {
+    if (this.smdsSupportEnabled_) {
+      return this.hasConsentedForDiscovery_ &&
+          !!this.pendingProfileProperties_ &&
+          this.pendingProfileProperties_.length > 0;
+    } else {
+      return (this.pendingProfiles_ && this.pendingProfiles_.length > 0);
+    }
   },
 });

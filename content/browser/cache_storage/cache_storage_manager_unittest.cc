@@ -23,6 +23,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/bind.h"
+#include "base/test/gmock_expected_support.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
@@ -133,8 +134,9 @@ class DelayedBlob : public storage::FakeBlob {
 
  private:
   void MaybeComplete() {
-    if (paused_ || !client_)
+    if (paused_ || !client_) {
       return;
+    }
     client_->OnComplete(net::OK, data_.length());
     client_.reset();
     producer_handle_.reset();
@@ -168,8 +170,9 @@ class CallbackScheduler : public CacheStorageScheduler {
  private:
   void ExecuteTask(base::OnceClosure task) {
     std::move(task).Run();
-    if (callback_)
+    if (callback_) {
       std::move(callback_).Run();
+    }
   }
 
   base::OnceClosure callback_;
@@ -199,18 +202,21 @@ bool IsIndexFileCurrent(const base::FilePath& cache_dir) {
   base::File::Info info;
   const base::FilePath index_path =
       cache_dir.AppendASCII(CacheStorage::kIndexFileName);
-  if (!GetFileInfo(index_path, &info))
+  if (!GetFileInfo(index_path, &info)) {
     return false;
+  }
   base::Time index_last_modified = info.last_modified;
 
   base::FileEnumerator enumerator(cache_dir, false,
                                   base::FileEnumerator::DIRECTORIES);
   for (base::FilePath file_path = enumerator.Next(); !file_path.empty();
        file_path = enumerator.Next()) {
-    if (!GetFileInfo(file_path, &info))
+    if (!GetFileInfo(file_path, &info)) {
       return false;
-    if (index_last_modified <= info.last_modified)
+    }
+    if (index_last_modified <= info.last_modified) {
       return false;
+    }
   }
 
   return true;
@@ -223,12 +229,13 @@ class TestCacheStorageObserver : public storage::mojom::CacheStorageObserver {
       : receiver_(this, std::move(observer)),
         loop_(std::make_unique<base::RunLoop>()) {}
 
-  void OnCacheListChanged(const blink::StorageKey& storage_key) override {
+  void OnCacheListChanged(
+      const storage::BucketLocator& bucket_locator) override {
     ++notify_list_changed_count;
     loop_->Quit();
   }
 
-  void OnCacheContentChanged(const blink::StorageKey& storage_key,
+  void OnCacheContentChanged(const storage::BucketLocator& bucket_locator,
                              const std::string& cache_name) override {
     ++notify_content_changed_count;
     loop_->Quit();
@@ -262,8 +269,9 @@ class CacheStorageManagerTest : public testing::Test {
 
   void SetUp() override {
     base::FilePath temp_dir_path;
-    if (!MemoryOnly())
+    if (!MemoryOnly()) {
       ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
+    }
 
     CreateStorageManager();
   }
@@ -362,8 +370,9 @@ class CacheStorageManagerTest : public testing::Test {
         base::MakeRefCounted<BlobStorageContextWrapper>(std::move(remote));
 
     base::FilePath temp_dir_path;
-    if (!MemoryOnly())
+    if (!MemoryOnly()) {
       temp_dir_path = temp_dir_.GetPath();
+    }
 
     quota_policy_ = base::MakeRefCounted<storage::MockSpecialStoragePolicy>();
     mock_quota_manager_ = base::MakeRefCounted<storage::MockQuotaManager>(
@@ -382,10 +391,12 @@ class CacheStorageManagerTest : public testing::Test {
 
     // These must be instantiated after `quota_manager_proxy_` has been
     // initialized.
-    bucket_locator1_ =
-        GetOrCreateBucket(storage_key1_, storage::kDefaultBucketName);
-    bucket_locator2_ =
-        GetOrCreateBucket(storage_key2_, storage::kDefaultBucketName);
+    ASSERT_OK_AND_ASSIGN(
+        bucket_locator1_,
+        GetOrCreateBucket(storage_key1_, storage::kDefaultBucketName));
+    ASSERT_OK_AND_ASSIGN(
+        bucket_locator2_,
+        GetOrCreateBucket(storage_key2_, storage::kDefaultBucketName));
 
     cache_manager_ = CacheStorageManager::Create(
         temp_dir_path, base::SingleThreadTaskRunner::GetCurrentDefault(),
@@ -546,8 +557,9 @@ class CacheStorageManagerTest : public testing::Test {
         base::BindOnce(&CacheStorageManagerTest::CacheMatchCallback,
                        base::Unretained(this), base::Unretained(&loop)));
     loop.Run();
-    if (callback_error_ == CacheStorageError::kSuccess)
+    if (callback_error_ == CacheStorageError::kSuccess) {
       CheckOpHistograms(histogram_tester, "Match");
+    }
     return callback_error_ == CacheStorageError::kSuccess;
   }
 
@@ -577,8 +589,9 @@ class CacheStorageManagerTest : public testing::Test {
         base::BindOnce(&CacheStorageManagerTest::CacheMatchCallback,
                        base::Unretained(this), base::Unretained(&loop)));
     loop.Run();
-    if (callback_error_ == CacheStorageError::kSuccess)
+    if (callback_error_ == CacheStorageError::kSuccess) {
       CheckOpHistograms(histogram_tester, "MatchAll");
+    }
     return callback_error_ == CacheStorageError::kSuccess;
   }
 
@@ -841,13 +854,15 @@ class CacheStorageManagerTest : public testing::Test {
                               blink::mojom::QuotaStatusCode status_code,
                               int64_t usage,
                               int64_t quota) {
-    if (status_code == blink::mojom::QuotaStatusCode::kOk)
+    if (status_code == blink::mojom::QuotaStatusCode::kOk) {
       *out_usage = usage;
+    }
     run_loop->Quit();
   }
 
-  storage::BucketLocator GetOrCreateBucket(const blink::StorageKey& storage_key,
-                                           const std::string& name) {
+  storage::QuotaErrorOr<storage::BucketLocator> GetOrCreateBucket(
+      const blink::StorageKey& storage_key,
+      const std::string& name) {
     base::test::TestFuture<storage::QuotaErrorOr<storage::BucketInfo>> future;
     quota_manager_proxy_->UpdateOrCreateBucket(
         name == storage::kDefaultBucketName
@@ -855,9 +870,7 @@ class CacheStorageManagerTest : public testing::Test {
             : storage::BucketInitParams(storage_key, name),
         base::SingleThreadTaskRunner::GetCurrentDefault(),
         future.GetCallback());
-    auto bucket = future.Take();
-    EXPECT_TRUE(bucket.has_value());
-    return bucket->ToBucketLocator();
+    return future.Take().transform(&storage::BucketInfo::ToBucketLocator);
   }
 
  protected:
@@ -939,21 +952,21 @@ class CacheStorageManagerStorageKeyAndBucketTestP
   void ReinitializeStorageKeysAndBucketLocators() {
     std::string bucket_name;
     switch (test_case_) {
-      case (StorageKeyAndBucketTestCase::kFirstPartyDefault):
-      case (StorageKeyAndBucketTestCase::kFirstPartyDefaultPartitionEnabled):
-      case (StorageKeyAndBucketTestCase::kThirdPartyDefault):
+      case StorageKeyAndBucketTestCase::kFirstPartyDefault:
+      case StorageKeyAndBucketTestCase::kFirstPartyDefaultPartitionEnabled:
+      case StorageKeyAndBucketTestCase::kThirdPartyDefault:
         bucket_name = storage::kDefaultBucketName;
         break;
-      case (StorageKeyAndBucketTestCase::kFirstPartyNamed):
-      case (StorageKeyAndBucketTestCase::kFirstPartyNamedPartitionEnabled):
-      case (StorageKeyAndBucketTestCase::kThirdPartyNamed):
+      case StorageKeyAndBucketTestCase::kFirstPartyNamed:
+      case StorageKeyAndBucketTestCase::kFirstPartyNamedPartitionEnabled:
+      case StorageKeyAndBucketTestCase::kThirdPartyNamed:
         bucket_name = "non-default";
         break;
     }
 
     switch (test_case_) {
-      case (StorageKeyAndBucketTestCase::kFirstPartyDefault):
-      case (StorageKeyAndBucketTestCase::kFirstPartyDefaultPartitionEnabled):
+      case StorageKeyAndBucketTestCase::kFirstPartyDefault:
+      case StorageKeyAndBucketTestCase::kFirstPartyDefaultPartitionEnabled:
         // For this case, the storage keys and bucket locators are already
         // initialized correctly.
         ASSERT_TRUE(storage_key1_.IsFirstPartyContext());
@@ -962,21 +975,24 @@ class CacheStorageManagerStorageKeyAndBucketTestP
         ASSERT_EQ(bucket_locator1_.id, storage::BucketId::FromUnsafeValue(1));
         ASSERT_EQ(bucket_locator2_.id, storage::BucketId::FromUnsafeValue(2));
         break;
-      case (StorageKeyAndBucketTestCase::kFirstPartyNamed):
-      case (StorageKeyAndBucketTestCase::kFirstPartyNamedPartitionEnabled):
+      case StorageKeyAndBucketTestCase::kFirstPartyNamed:
+      case StorageKeyAndBucketTestCase::kFirstPartyNamedPartitionEnabled: {
         // For this case, the storage keys are initialized correctly but we
         // need to create new named buckets.
         ASSERT_TRUE(storage_key1_.IsFirstPartyContext());
         ASSERT_TRUE(storage_key2_.IsFirstPartyContext());
 
-        bucket_locator1_ = GetOrCreateBucket(storage_key1_, bucket_name);
-        bucket_locator2_ = GetOrCreateBucket(storage_key2_, bucket_name);
+        ASSERT_OK_AND_ASSIGN(bucket_locator1_,
+                             GetOrCreateBucket(storage_key1_, bucket_name));
+        ASSERT_OK_AND_ASSIGN(bucket_locator2_,
+                             GetOrCreateBucket(storage_key2_, bucket_name));
         ASSERT_EQ(bucket_locator1_.id, storage::BucketId::FromUnsafeValue(3));
         ASSERT_EQ(bucket_locator2_.id, storage::BucketId::FromUnsafeValue(4));
         break;
+      }
 
-      case (StorageKeyAndBucketTestCase::kThirdPartyDefault):
-      case (StorageKeyAndBucketTestCase::kThirdPartyNamed):
+      case StorageKeyAndBucketTestCase::kThirdPartyDefault:
+      case StorageKeyAndBucketTestCase::kThirdPartyNamed:
         // Recreate storage keys and buckets.
         storage_key1_ = blink::StorageKey::Create(
             url::Origin::Create(GURL("http://example1.com")),
@@ -987,8 +1003,10 @@ class CacheStorageManagerStorageKeyAndBucketTestP
             net::SchemefulSite(GURL("http://example3.com")),
             blink::mojom::AncestorChainBit::kCrossSite);
 
-        bucket_locator1_ = GetOrCreateBucket(storage_key1_, bucket_name);
-        bucket_locator2_ = GetOrCreateBucket(storage_key2_, bucket_name);
+        ASSERT_OK_AND_ASSIGN(bucket_locator1_,
+                             GetOrCreateBucket(storage_key1_, bucket_name));
+        ASSERT_OK_AND_ASSIGN(bucket_locator2_,
+                             GetOrCreateBucket(storage_key2_, bucket_name));
         ASSERT_EQ(bucket_locator1_.id, storage::BucketId::FromUnsafeValue(3));
         ASSERT_EQ(bucket_locator2_.id, storage::BucketId::FromUnsafeValue(4));
         break;
@@ -1103,7 +1121,7 @@ TEST_P(CacheStorageManagerTestP, DeleteCacheReducesKeySize) {
   // The quota manager gets updated after the put operation runs its callback so
   // run the event loop.
   base::RunLoop().RunUntilIdle();
-  int64_t put_delta = quota_manager_proxy_->last_notified_bucket_delta();
+  int64_t put_delta = *quota_manager_proxy_->last_notified_bucket_delta();
   EXPECT_LT(0, put_delta);
   EXPECT_TRUE(Delete(bucket_locator1_, "foo"));
 
@@ -1111,7 +1129,7 @@ TEST_P(CacheStorageManagerTestP, DeleteCacheReducesKeySize) {
   callback_cache_handle_ = CacheStorageCacheHandle();
   base::RunLoop().RunUntilIdle();
 
-  EXPECT_EQ(-1 * quota_manager_proxy_->last_notified_bucket_delta(), put_delta);
+  EXPECT_EQ(*quota_manager_proxy_->last_notified_bucket_delta(), -put_delta);
 }
 
 TEST_P(CacheStorageManagerTestP, EmptyKeys) {
@@ -1365,11 +1383,11 @@ TEST_F(CacheStorageManagerTest, BadKeyName) {
   const blink::StorageKey bad_key =
       blink::StorageKey::CreateFromStringForTesting(
           "http://../../../../../../../../../../../../../../foo");
-  storage::BucketLocator bad_bucket_locator =
-      GetOrCreateBucket(bad_key, storage::kDefaultBucketName);
+  ASSERT_OK_AND_ASSIGN(storage::BucketLocator bad_bucket_locator,
+                       GetOrCreateBucket(bad_key, storage::kDefaultBucketName));
   EXPECT_TRUE(Open(bad_bucket_locator, "foo"));
   EXPECT_EQ(1u, Keys(bad_bucket_locator));
-  EXPECT_STREQ("foo", GetFirstIndexName().c_str());
+  EXPECT_EQ("foo", GetFirstIndexName());
 }
 
 // Dropping a reference to a cache should not immediately destroy it.  These
@@ -1562,8 +1580,9 @@ TEST_F(CacheStorageManagerTest, DeletedCacheIgnoredInIndex) {
 }
 
 TEST_F(CacheStorageManagerTest, TestErrorInitializingCache) {
-  if (MemoryOnly())
+  if (MemoryOnly()) {
     return;
+  }
   const GURL kFooURL("http://example.com/foo");
   const std::string kCacheName = "foo";
 
@@ -1666,16 +1685,14 @@ TEST_F(CacheStorageManagerTest, CacheSizePaddedAfterReopen) {
   const GURL kFooURL = storage_key1_.origin().GetURL().Resolve("foo");
   const std::string kCacheName = "foo";
 
-  int64_t put_delta = quota_manager_proxy_->last_notified_bucket_delta();
-  EXPECT_EQ(0, put_delta);
+  EXPECT_FALSE(quota_manager_proxy_->last_notified_bucket_delta().has_value());
   EXPECT_EQ(0, quota_manager_proxy_->notify_bucket_modified_count());
 
   EXPECT_TRUE(Open(bucket_locator1_, kCacheName));
   CacheStorageCacheHandle original_handle = std::move(callback_cache_handle_);
 
   base::RunLoop().RunUntilIdle();
-  put_delta += quota_manager_proxy_->last_notified_bucket_delta();
-  EXPECT_EQ(0, put_delta);
+  EXPECT_FALSE(quota_manager_proxy_->last_notified_bucket_delta().has_value());
   EXPECT_EQ(0, quota_manager_proxy_->notify_bucket_modified_count());
 
   EXPECT_TRUE(
@@ -1690,7 +1707,8 @@ TEST_F(CacheStorageManagerTest, CacheSizePaddedAfterReopen) {
   EXPECT_EQ(cache_size_before_close, GetQuotaKeyUsage(storage_key1_));
 
   base::RunLoop().RunUntilIdle();
-  put_delta = quota_manager_proxy_->last_notified_bucket_delta();
+  const int64_t put_delta =
+      quota_manager_proxy_->last_notified_bucket_delta().value_or(0);
   EXPECT_GT(put_delta, 0);
   EXPECT_EQ(1, quota_manager_proxy_->notify_bucket_modified_count());
 
@@ -1706,8 +1724,7 @@ TEST_F(CacheStorageManagerTest, CacheSizePaddedAfterReopen) {
   EXPECT_TRUE(Open(bucket_locator1_, kCacheName));
 
   base::RunLoop().RunUntilIdle();
-  put_delta = quota_manager_proxy_->last_notified_bucket_delta();
-  EXPECT_EQ(0, put_delta);
+  EXPECT_FALSE(quota_manager_proxy_->last_notified_bucket_delta().has_value());
   EXPECT_EQ(0, quota_manager_proxy_->notify_bucket_modified_count());
 
   EXPECT_EQ(cache_size_before_close, Size(bucket_locator1_));
@@ -2126,11 +2143,11 @@ TEST_F(CacheStorageManagerTest, GetAllStorageKeysUsageWithOldIndex) {
 }
 
 TEST_P(CacheStorageManagerTestP, GetAllStorageKeysUsageAggregateBucketUsages) {
-  const storage::BucketLocator bucket_locator3 =
-      GetOrCreateBucket(storage_key1_, "non-default");
+  ASSERT_OK_AND_ASSIGN(const storage::BucketLocator bucket_locator3,
+                       GetOrCreateBucket(storage_key1_, "non-default"));
 
-  const storage::BucketLocator bucket_locator4 =
-      GetOrCreateBucket(storage_key2_, "non-default");
+  ASSERT_OK_AND_ASSIGN(const storage::BucketLocator bucket_locator4,
+                       GetOrCreateBucket(storage_key2_, "non-default"));
 
   ASSERT_EQ(0ULL, GetAllStorageKeysUsage().size());
 
@@ -2202,11 +2219,11 @@ TEST_P(CacheStorageManagerTestP, GetStorageKeysIgnoresKeysFromNamedBuckets) {
         test_origin, net::SchemefulSite(GURL("http://example5.com")),
         blink::mojom::AncestorChainBit::kCrossSite);
 
-    const storage::BucketLocator bucket_locator3 =
-        GetOrCreateBucket(storage_key3, "non-default");
+    ASSERT_OK_AND_ASSIGN(const storage::BucketLocator bucket_locator3,
+                         GetOrCreateBucket(storage_key3, "non-default"));
 
-    const storage::BucketLocator bucket_locator4 =
-        GetOrCreateBucket(storage_key4, "non-default");
+    ASSERT_OK_AND_ASSIGN(const storage::BucketLocator bucket_locator4,
+                         GetOrCreateBucket(storage_key4, "non-default"));
 
     ASSERT_EQ(0ULL, GetAllStorageKeysUsage().size());
 
@@ -2854,8 +2871,9 @@ TEST_P(CacheStorageManagerTestP, BatchDeleteOriginData) {
       net::SchemefulSite(GURL("http://example3.com")),
       blink::mojom::AncestorChainBit::kCrossSite);
 
-  const auto partitioned_default_bucket_locator1 =
-      GetOrCreateBucket(partitioned_storage_key1, storage::kDefaultBucketName);
+  ASSERT_OK_AND_ASSIGN(
+      const auto partitioned_default_bucket_locator1,
+      GetOrCreateBucket(partitioned_storage_key1, storage::kDefaultBucketName));
 
   GURL test_url = GURL("http://example.com/foo");
 
@@ -2889,18 +2907,20 @@ TEST_P(CacheStorageManagerTestP, DeleteStorageKeyData) {
   scoped_feature_list.InitAndEnableFeature(
       net::features::kThirdPartyStoragePartitioning);
 
-  const auto named_bucket_locator1 =
-      GetOrCreateBucket(storage_key1_, "non-default");
+  ASSERT_OK_AND_ASSIGN(const auto named_bucket_locator1,
+                       GetOrCreateBucket(storage_key1_, "non-default"));
 
   const auto partitioned_storage_key1 = blink::StorageKey::Create(
       url::Origin::Create(GURL("http://example1.com")),
       net::SchemefulSite(GURL("http://example3.com")),
       blink::mojom::AncestorChainBit::kCrossSite);
 
-  const auto partitioned_default_bucket_locator1 =
-      GetOrCreateBucket(partitioned_storage_key1, storage::kDefaultBucketName);
-  const auto partitioned_named_bucket_locator1 =
-      GetOrCreateBucket(partitioned_storage_key1, "non-default");
+  ASSERT_OK_AND_ASSIGN(
+      const auto partitioned_default_bucket_locator1,
+      GetOrCreateBucket(partitioned_storage_key1, storage::kDefaultBucketName));
+  ASSERT_OK_AND_ASSIGN(
+      const auto partitioned_named_bucket_locator1,
+      GetOrCreateBucket(partitioned_storage_key1, "non-default"));
 
   GURL test_url = GURL("http://example.com/foo");
 
@@ -3206,7 +3226,8 @@ TEST_P(CacheStorageQuotaClientTestP, QuotaDeleteBucketData) {
 }
 
 TEST_P(CacheStorageQuotaClientTestP, QuotaNonDefaultBucket) {
-  auto bucket = GetOrCreateBucket(storage_key1_, "logs_bucket");
+  ASSERT_OK_AND_ASSIGN(auto bucket,
+                       GetOrCreateBucket(storage_key1_, "logs_bucket"));
   EXPECT_EQ(0, QuotaGetBucketUsage(bucket));
   EXPECT_TRUE(QuotaDeleteBucketData(bucket));
 }
@@ -3265,7 +3286,7 @@ class CacheStorageIndexMigrationTest : public CacheStorageManagerTest {
     // Determine the location of the old, frozen copy of the cache_storage
     // files in the test data.
     base::FilePath root_path;
-    base::PathService::Get(base::DIR_SOURCE_ROOT, &root_path);
+    base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &root_path);
     base::FilePath test_data_path =
         root_path.AppendASCII(test_index_path).Append(storage_dir.BaseName());
 

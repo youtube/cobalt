@@ -10,7 +10,9 @@
 #include <memory>
 #include <string>
 
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "extensions/common/mojom/message_port.mojom.h"
 #include "extensions/renderer/bindings/api_binding_types.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "v8/include/v8-forward.h"
@@ -24,7 +26,11 @@ class Arguments;
 }
 
 namespace extensions {
+
+namespace mojom {
 enum class ChannelType;
+}
+
 class NativeExtensionBindingsSystem;
 class ScriptContext;
 struct Message;
@@ -78,13 +84,18 @@ class OneTimeMessageHandler {
   // Initiates a flow to send a message from the given |script_context|. Returns
   // the associated promise if this is a promise based request, otherwise
   // returns an empty promise.
-  v8::Local<v8::Promise> SendMessage(ScriptContext* script_context,
-                                     const PortId& new_port_id,
-                                     const MessageTarget& target_id,
-                                     ChannelType channel_type,
-                                     const Message& message,
-                                     binding::AsyncResponseType async_type,
-                                     v8::Local<v8::Function> response_callback);
+  v8::Local<v8::Promise> SendMessage(
+      ScriptContext* script_context,
+      const PortId& new_port_id,
+      const MessageTarget& target_id,
+      mojom::ChannelType channel_type,
+      const Message& message,
+      binding::AsyncResponseType async_type,
+      v8::Local<v8::Function> response_callback,
+      mojom::MessagePortHost* message_port_host,
+      mojo::PendingAssociatedRemote<mojom::MessagePort> message_port,
+      mojo::PendingAssociatedReceiver<mojom::MessagePortHost>
+          message_port_host_receiver);
 
   // Adds a receiving port port to the given |script_context| in preparation
   // for receiving a message to post to the onMessage event.
@@ -92,6 +103,15 @@ class OneTimeMessageHandler {
                    const PortId& target_port_id,
                    v8::Local<v8::Object> sender,
                    const std::string& event_name);
+
+  void AddReceiverForTesting(
+      ScriptContext* script_context,
+      const PortId& target_port_id,
+      v8::Local<v8::Object> sender,
+      const std::string& event_name,
+      mojo::PendingAssociatedRemote<mojom::MessagePort>& message_port_remote,
+      mojo::PendingAssociatedReceiver<mojom::MessagePortHost>&
+          message_port_host_receiver);
 
   // Delivers a message to the port, either the event listener or in response
   // to the sender, if one exists with the specified |target_port_id|. Returns
@@ -152,7 +172,8 @@ class OneTimeMessageHandler {
                     absl::optional<base::Value> result);
 
   // The associated bindings system. Outlives this object.
-  NativeExtensionBindingsSystem* const bindings_system_;
+  const raw_ptr<NativeExtensionBindingsSystem, ExperimentalRenderer>
+      bindings_system_;
 
   base::WeakPtrFactory<OneTimeMessageHandler> weak_factory_{this};
 };

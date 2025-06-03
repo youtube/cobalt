@@ -255,7 +255,7 @@ class UserCloudPolicyManagerAsh
   void ShutdownRemoteCommands();
 
   // Profile associated with the current user.
-  const raw_ptr<Profile, ExperimentalAsh> profile_;
+  const raw_ptr<Profile, DanglingUntriaged | ExperimentalAsh> profile_;
 
   // Owns the store, note that CloudPolicyManager just keeps a plain pointer.
   std::unique_ptr<CloudPolicyStore> store_;
@@ -288,7 +288,7 @@ class UserCloudPolicyManagerAsh
   base::OneShotTimer policy_refresh_timeout_;
 
   // The pref service to pass to the refresh scheduler on initialization.
-  base::raw_ptr<PrefService> local_state_ = nullptr;
+  raw_ptr<PrefService> local_state_ = nullptr;
 
   // Used to fetch the policy OAuth token, when necessary. This object holds
   // a callback with an unretained reference to the manager, when it exists.

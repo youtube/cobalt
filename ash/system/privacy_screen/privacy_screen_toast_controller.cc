@@ -45,16 +45,13 @@ void PrivacyScreenToastController::ShowToast() {
 
   tray_->CloseSecondaryBubbles();
 
-  TrayBubbleView::InitParams init_params;
-  init_params.shelf_alignment = tray_->shelf()->alignment();
+  TrayBubbleView::InitParams init_params =
+      CreateInitParamsForTrayBubble(tray_, /*anchor_to_shelf_corner=*/true);
+  init_params.type = TrayBubbleView::TrayBubbleType::kSecondaryBubble;
   init_params.preferred_width = kPrivacyScreenToastMinWidth;
+
+  // Use this controller as the delegate rather than the tray.
   init_params.delegate = GetWeakPtr();
-  init_params.parent_window = tray_->GetBubbleWindowContainer();
-  init_params.anchor_view = nullptr;
-  init_params.anchor_mode = TrayBubbleView::AnchorMode::kRect;
-  init_params.anchor_rect = tray_->shelf()->GetSystemTrayAnchorRect();
-  init_params.insets = GetTrayBubbleInsets();
-  init_params.translucent = true;
 
   bubble_view_ = new TrayBubbleView(init_params);
   toast_view_ = new PrivacyScreenToastView(
@@ -109,6 +106,9 @@ std::u16string PrivacyScreenToastController::GetAccessibleNameForBubble() {
   return toast_view_->GetAccessibleName();
 }
 
+void PrivacyScreenToastController::HideBubble(
+    const TrayBubbleView* bubble_view) {}
+
 void PrivacyScreenToastController::OnPrivacyScreenSettingChanged(
     bool enabled,
     bool notify_ui) {
@@ -128,12 +128,12 @@ void PrivacyScreenToastController::StartAutoCloseTimer() {
   if (toast_view_ && toast_view_->IsButtonFocused())
     return;
 
-  int autoclose_delay = kTrayPopupAutoCloseDelayInSeconds;
-  if (Shell::Get()->accessibility_controller()->spoken_feedback().enabled())
-    autoclose_delay = kTrayPopupAutoCloseDelayInSecondsWithSpokenFeedback;
-
-  close_timer_.Start(FROM_HERE, base::Seconds(autoclose_delay), this,
-                     &PrivacyScreenToastController::HideToast);
+  close_timer_.Start(
+      FROM_HERE,
+      Shell::Get()->accessibility_controller()->spoken_feedback().enabled()
+          ? kSecondaryBubbleWithSpokenFeedbackDuration
+          : kSecondaryBubbleDuration,
+      this, &PrivacyScreenToastController::HideToast);
 }
 
 void PrivacyScreenToastController::UpdateToastView() {
@@ -152,8 +152,7 @@ void PrivacyScreenToastController::UpdateToastView() {
 void PrivacyScreenToastController::ButtonPressed() {
   auto* privacy_screen_controller = Shell::Get()->privacy_screen_controller();
   privacy_screen_controller->SetEnabled(
-      !privacy_screen_controller->GetEnabled(),
-      PrivacyScreenController::kToggleUISurfaceToastButton);
+      !privacy_screen_controller->GetEnabled());
 }
 
 void PrivacyScreenToastController::StopAutocloseTimer() {

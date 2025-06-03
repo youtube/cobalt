@@ -225,6 +225,9 @@ extern const char kDevOverrideKeyServerKeepAliveSeconds[];
 extern const char kDevOverrideKeyCrxVerifierFormat[];
 extern const char kDevOverrideKeyGroupPolicies[];
 extern const char kDevOverrideKeyOverinstallTimeout[];
+extern const char kDevOverrideKeyIdleCheckPeriodSeconds[];
+extern const char kDevOverrideKeyManagedDevice[];
+extern const char kDevOverrideKeyEnableDiffUpdates[];
 
 // Timing constants.
 // How long to wait for an application installer (such as chrome_installer.exe)
@@ -365,19 +368,19 @@ inline constexpr int kErrorDMRegistrationFailed = 33;
 inline constexpr int kErrorFailedToInstallLegacyUpdater = 34;
 
 // A Mojo remote was unexpectedly disconnected.
-inline constexpr int kErrorMojoDisconnect = 35;
+inline constexpr int kErrorIpcDisconnect = 35;
 
 // Failed to copy the updater binary.
 inline constexpr int kErrorFailedToCopyBinary = 36;
 
-// Failed to delete a socket file
+// Failed to delete a socket file.
 inline constexpr int kErrorFailedToDeleteSocket = 37;
 
-// Failed to create a hard link to the launcher.
-inline constexpr int kErrorFailedToLinkLauncher = 38;
+// Failed to create a symlink to the current version.
+inline constexpr int kErrorFailedToLinkCurrent = 38;
 
-// Failed to rename the old launcher to the new one during activation.
-inline constexpr int kErrorFailedToRenameLauncher = 39;
+// Failed to rename the current symlink during activation.
+inline constexpr int kErrorFailedToRenameCurrent = 39;
 
 // Failed to install one or more Systemd units.
 inline constexpr int kErrorFailedToInstallSystemdUnit = 40;
@@ -393,6 +396,9 @@ inline constexpr int kErrorFailedToGetSetupFiles = 43;
 
 // Failed to run install list.
 inline constexpr int kErrorFailedToRunInstallList = 44;
+
+// The server was running but had no tasks to do.
+inline constexpr int kErrorIdle = 45;
 
 inline constexpr int kErrorTagParsing = 50;
 

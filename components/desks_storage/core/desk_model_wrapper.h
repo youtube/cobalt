@@ -49,13 +49,14 @@ class DeskModelWrapper : public DeskModel {
   size_t GetDeskTemplateEntryCount() const override;
   size_t GetMaxSaveAndRecallDeskEntryCount() const override;
   size_t GetMaxDeskTemplateEntryCount() const override;
-  std::vector<base::Uuid> GetAllEntryUuids() const override;
+  std::set<base::Uuid> GetAllEntryUuids() const override;
   bool IsReady() const override;
   bool IsSyncing() const override;
   ash::DeskTemplate* FindOtherEntryWithName(
       const std::u16string& name,
       ash::DeskTemplateType type,
       const base::Uuid& uuid) const override;
+  std::string GetCacheGuid() override;
 
   // Setter method to set `desk_template_model_` to the correct `bridge`.
   void SetDeskSyncBridge(desks_storage::DeskSyncBridge* bridge) {

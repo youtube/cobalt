@@ -2,29 +2,12 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-source_set("infobar_modal") {
-  public = [ "infobar_modal_supported_overlay_coordinator_classes.h" ]
-  sources = [ "infobar_modal_supported_overlay_coordinator_classes.mm" ]
-
-  configs += [ "//build/config/compiler:enable_arc" ]
-
-  deps = [
-    "//ios/chrome/browser/ui/overlays/infobar_modal/autofill_address_profile",
-    "//ios/chrome/browser/ui/overlays/infobar_modal/passwords",
-    "//ios/chrome/browser/ui/overlays/infobar_modal/permissions",
-    "//ios/chrome/browser/ui/overlays/infobar_modal/save_card",
-    "//ios/chrome/browser/ui/overlays/infobar_modal/translate",
-  ]
-}
-
 source_set("coordinators") {
   sources = [
     "infobar_modal_overlay_coordinator+modal_configuration.h",
     "infobar_modal_overlay_coordinator.h",
     "infobar_modal_overlay_coordinator.mm",
   ]
-
-  configs += [ "//build/config/compiler:enable_arc" ]
 
   deps = [
     ":mediators",
@@ -44,8 +27,6 @@ source_set("mediators") {
     "infobar_modal_overlay_mediator.mm",
   ]
 
-  configs += [ "//build/config/compiler:enable_arc" ]
-
   deps = [
     "//base",
     "//components/infobars/core",
@@ -64,23 +45,21 @@ source_set("unit_tests") {
     "infobar_modal_overlay_mediator_unittest.mm",
   ]
 
-  configs += [ "//build/config/compiler:enable_arc" ]
-
   deps = [
     ":coordinators",
     ":mediators",
     "//base/test:test_support",
     "//components/infobars/core",
-    "//ios/chrome/browser/browser_state:test_support",
     "//ios/chrome/browser/infobars/test",
-    "//ios/chrome/browser/main:test_support",
     "//ios/chrome/browser/overlays",
     "//ios/chrome/browser/overlays/public/infobar_modal",
     "//ios/chrome/browser/overlays/test",
+    "//ios/chrome/browser/shared/model/browser/test:test_support",
+    "//ios/chrome/browser/shared/model/browser_state:test_support",
+    "//ios/chrome/browser/shared/model/web_state_list",
+    "//ios/chrome/browser/shared/model/web_state_list/test:test_support",
     "//ios/chrome/browser/ui/overlays:coordinators",
     "//ios/chrome/browser/ui/overlays/test",
-    "//ios/chrome/browser/web_state_list",
-    "//ios/chrome/browser/web_state_list:test_support",
     "//ios/chrome/test:test_support",
     "//ios/web/public/test",
     "//testing/gmock",

@@ -50,7 +50,7 @@ class ASH_EXPORT WorkspaceLayoutManager : public aura::LayoutManager,
     return backdrop_controller_.get();
   }
 
-  bool is_fullscreen() { return is_fullscreen_; }
+  bool is_fullscreen() const { return is_fullscreen_; }
 
   // aura::LayoutManager:
   void OnWindowResized() override;
@@ -70,10 +70,6 @@ class ASH_EXPORT WorkspaceLayoutManager : public aura::LayoutManager,
                                intptr_t old) override;
   void OnWindowStackingChanged(aura::Window* window) override;
   void OnWindowDestroying(aura::Window* window) override;
-  void OnWindowBoundsChanged(aura::Window* window,
-                             const gfx::Rect& old_bounds,
-                             const gfx::Rect& new_bounds,
-                             ui::PropertyChangeReason reason) override;
 
   // wm::ActivationChangeObserver:
   void OnWindowActivating(ActivationReason reason,
@@ -115,7 +111,8 @@ class ASH_EXPORT WorkspaceLayoutManager : public aura::LayoutManager,
   typedef std::set<aura::Window*> WindowSet;
 
   // Observes changes in windows in the FloatingWindowObserver, and
-  // notifies WorkspaceLayoutManager to send out system ui area change events.
+  // notifies WorkspaceLayoutManager to update the accessibility panels and pip
+  // window bounds if needed.
   // This class currently observes windows in |settings_bubble_container_|,
   // |accessibility_bubble_container_|, and |shelf_container_|.
   class FloatingWindowObserver : public aura::WindowObserver {
@@ -170,16 +167,10 @@ class ASH_EXPORT WorkspaceLayoutManager : public aura::LayoutManager,
   // manager.
   void UpdateAlwaysOnTop(aura::Window* active_desk_fullscreen_window);
 
-  // Notifies windows about a change in a system ui area. This could be
-  // the keyboard or any window in the SettingsBubbleContainer or
-  // |accessibility_bubble_container_|. Windows will only be notified about
-  // changes to system ui areas on the display they are on.
-  void NotifySystemUiAreaChanged() const;
-
-  // Notifies the accessibility controller about a workspace event. If autoclick
-  // or stick keys is enabled, the autoclick bubble or sticky keys overlay may
-  // need to move in response to that event.
-  void NotifyAccessibilityWorkspaceChanged() const;
+  // Updates the bounds of the a11y floating panels (including autoclick menu
+  // and stick keys) and pip window when needed. E.g, work area changes,
+  // visibility of the windows observed by `FloatingWindowObserver` changes.
+  void MaybeUpdateA11yFloatingPanelOrPipBounds() const;
 
   // Updates the window workspace.
   void UpdateWindowWorkspace(aura::Window* window);
@@ -189,7 +180,6 @@ class ASH_EXPORT WorkspaceLayoutManager : public aura::LayoutManager,
   raw_ptr<aura::Window, ExperimentalAsh> window_;
   raw_ptr<aura::Window, ExperimentalAsh> root_window_;
   raw_ptr<RootWindowController, ExperimentalAsh> root_window_controller_;
-  FloatingWindowObserver floating_window_observer_;
   raw_ptr<aura::Window, ExperimentalAsh> settings_bubble_container_;
   raw_ptr<aura::Window, ExperimentalAsh> accessibility_bubble_container_;
   raw_ptr<aura::Window, ExperimentalAsh> shelf_container_;
@@ -198,9 +188,6 @@ class ASH_EXPORT WorkspaceLayoutManager : public aura::LayoutManager,
 
   // Set of windows we're listening to.
   WindowSet windows_;
-
-  // The work area in the coordinates of |window_|.
-  gfx::Rect work_area_in_parent_;
 
   // True if this workspace is currently in fullscreen mode. Tracks the
   // fullscreen state of the container |window_| associated with this workspace
@@ -214,6 +201,12 @@ class ASH_EXPORT WorkspaceLayoutManager : public aura::LayoutManager,
   // A window which covers the full container and which gets inserted behind the
   // topmost visible window.
   std::unique_ptr<BackdropController> backdrop_controller_;
+
+  std::unique_ptr<FloatingWindowObserver> floating_window_observer_;
+
+  // Indicator that the `Shell` is being destroyed and we should not
+  // `NotifyAccessibilityWorkspaceChanged` in this case.
+  bool is_shell_destroying_ = false;
 };
 
 }  // namespace ash

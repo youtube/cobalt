@@ -15,7 +15,6 @@ import org.chromium.chrome.R;
 import org.chromium.chrome.browser.ChromeStringConstants;
 import org.chromium.chrome.browser.autofill.AutofillUiUtils;
 import org.chromium.components.autofill.VirtualCardEnrollmentLinkType;
-import org.chromium.ui.modaldialog.DialogDismissalCause;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.modaldialog.ModalDialogProperties;
 import org.chromium.ui.modaldialog.SimpleModalDialogController;
@@ -70,10 +69,6 @@ public class AutofillVirtualCardEnrollmentDialog {
         mModalDialogManager.showDialog(mDialogModel, ModalDialogManager.ModalDialogType.APP);
     }
 
-    public void dismiss(@DialogDismissalCause int dismissalCause) {
-        mModalDialogManager.dismissDialog(mDialogModel, dismissalCause);
-    }
-
     private View getCustomViewForModalDialog() {
         View customView = LayoutInflater.from(mContext).inflate(
                 R.layout.virtual_card_enrollment_dialog, null);
@@ -122,13 +117,13 @@ public class AutofillVirtualCardEnrollmentDialog {
                 mContext.getString(
                         R.string.autofill_virtual_card_enrollment_dialog_card_container_title),
                 mVirtualCardEnrollmentFields.getCardArtUrl(),
-                mVirtualCardEnrollmentFields.getNetworkIconId(),
-                R.dimen.virtual_card_enrollment_dialog_card_art_width,
-                R.dimen.virtual_card_enrollment_dialog_card_art_height,
+                mVirtualCardEnrollmentFields.getNetworkIconId(), AutofillUiUtils.CardIconSize.LARGE,
                 R.dimen.virtual_card_enrollment_dialog_card_container_issuer_icon_margin_end,
                 /* cardNameAndNumberTextAppearance= */ R.style.TextAppearance_TextLarge_Primary,
                 /* cardLabelTextAppearance= */ R.style.TextAppearance_TextMedium_Secondary,
-                /* showCustomIcon= */ true);
+                /* showCustomIcon= */
+                AutofillUiUtils.shouldShowCustomIcon(
+                        mVirtualCardEnrollmentFields.getCardArtUrl(), /* isVirtualCard= */ true));
 
         return customView;
     }

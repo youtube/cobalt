@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import {Context} from './context_checker.js';
 import {FocusHandler} from './focus_handler.js';
 import {InputController} from './input_controller.js';
 import {LocaleInfo} from './locale_info.js';
@@ -16,9 +17,11 @@ const ResultEvent =
     chrome.speechRecognitionPrivate.SpeechRecognitionResultEvent;
 const StartOptions = chrome.speechRecognitionPrivate.StartOptions;
 const StopEvent = chrome.speechRecognitionPrivate.SpeechRecognitionStopEvent;
+const StreamType = chrome.audio.StreamType;
 const SpeechRecognitionType =
     chrome.speechRecognitionPrivate.SpeechRecognitionType;
 const PrefObject = chrome.settingsPrivate.PrefObject;
+const ToastType = chrome.accessibilityPrivate.ToastType;
 
 /** Main class for the Chrome OS dictation feature. */
 export class Dictation {
@@ -201,8 +204,36 @@ export class Dictation {
     }
     this.setStopTimeout_(
         Dictation.Timeouts.NO_FOCUSED_IME_MS,
-        'Dictation stopped automatically: No focused IME');
-    this.inputController_.connect(() => this.maybeStartSpeechRecognition_());
+        Dictation.StopReason.NO_FOCUSED_IME);
+    this.inputController_.connect(() => this.verifyMicrophoneNotMuted_());
+  }
+
+  /**
+   * Checks if the microphone is muted. If it is, then we stop Dictation and
+   * show a notification to the user. If the microphone isn't muted, then we
+   * proceed to start speech recognition. Because this is async, this method
+   * checks that startup state is still correct before proceeding.
+   * @private
+   */
+  verifyMicrophoneNotMuted_() {
+    if (!this.active_) {
+      this.stopDictation_(/*notify=*/ true);
+      return;
+    }
+
+    // TODO(b:299677121): Determine if it's possible for no mics to be
+    // available. If that scenario is possible, we may have to use
+    // `chrome.audio.getDevices` and verify that there's at least one input
+    // device.
+    chrome.audio.getMute(StreamType.INPUT, muted => {
+      if (muted) {
+        this.stopDictation_(/*notify=*/ true);
+        chrome.accessibilityPrivate.showToast(ToastType.DICTATION_MIC_MUTED);
+        return;
+      }
+
+      this.maybeStartSpeechRecognition_();
+    });
   }
 
   /**
@@ -245,7 +276,7 @@ export class Dictation {
     }
 
     // Clear any timeouts.
-    this.clearTimeoutIds_();
+    this.clearStopTimeout_();
 
     this.inputController_.commitText(this.interimText_);
     this.hideCommandsUI_();
@@ -261,18 +292,20 @@ export class Dictation {
   /**
    * Sets the timeout to stop Dictation.
    * @param {number} durationMs
-   * @param {string=} debugInfo Optional debugging information for why Dictation
+   * @param {Dictation.StopReason=} reason Optional reason for why Dictation
    *     stopped automatically.
    * @private
    */
-  setStopTimeout_(durationMs, debugInfo) {
+  setStopTimeout_(durationMs, reason) {
     if (this.stopTimeoutId_ !== null) {
       clearTimeout(this.stopTimeoutId_);
     }
     this.stopTimeoutId_ = setTimeout(() => {
       this.stopDictation_(/*notify=*/ true);
-      if (debugInfo) {
-        console.log(debugInfo);
+
+      if (reason === Dictation.StopReason.NO_FOCUSED_IME) {
+        chrome.accessibilityPrivate.showToast(
+            ToastType.DICTATION_NO_FOCUSED_TEXT_FIELD);
       }
     }, durationMs);
   }
@@ -319,7 +352,8 @@ export class Dictation {
     const checkContextResult = macro.checkContext();
     if (!checkContextResult.canTryAction &&
         this.isContextCheckingFeatureEnabled_) {
-      this.showMacroExecutionFailed_(macro, transcript);
+      this.showMacroExecutionFailed_(
+          macro, transcript, checkContextResult.failedContext);
       return;
     }
 
@@ -489,15 +523,25 @@ export class Dictation {
    * @param {string} transcript The user's spoken transcript, shown so they
    *     understand the final speech recognized which might be helpful in
    *     understanding why the command failed.
+   * @param {!Context=} failedContext
    * @private
    */
-  showMacroExecutionFailed_(macro, transcript) {
+  showMacroExecutionFailed_(macro, transcript, failedContext) {
     MetricsUtils.recordMacroFailed(macro);
 
     this.interimText_ = '';
-    // TODO(crbug.com/1288964): Finalize string and internationalization.
+    let text = '';
+    if (!failedContext) {
+      text = chrome.i18n.getMessage(
+          'dictation_command_failed_generic', [transcript]);
+    } else {
+      const reason = Dictation.getFailedContextReason(failedContext);
+      text = chrome.i18n.getMessage(
+          'dictation_command_failed_with_reason', [transcript, reason]);
+    }
+
     this.uiController_.setState(UIState.MACRO_FAIL, {
-      text: `Failed to run command: ${transcript}`,
+      text,
       context: HintContext.STANDBY,
     });
   }
@@ -512,7 +556,7 @@ export class Dictation {
   }
 
   /** @private */
-  clearTimeoutIds_() {
+  clearStopTimeout_() {
     if (this.stopTimeoutId_ !== null) {
       clearTimeout(this.stopTimeoutId_);
       this.stopTimeoutId_ = null;
@@ -528,12 +572,9 @@ export class Dictation {
         InputController.IME_ENGINE_ID);
   }
 
-  /**
-   * Used to increase the NO_FOCUSED_IME_MS timeout to reduce the flakiness of
-   * Dictation tests on slower builds. For testing purposes only.
-   */
-  increaseNoFocusedImeTimeoutForTesting() {
-    Dictation.Timeouts.NO_FOCUSED_IME_MS = 20 * 1000;
+  /** Used to set the NO_FOCUSED_IME_MS timeout for testing purposes only. */
+  setNoFocusedImeTimeoutForTesting(duration) {
+    Dictation.Timeouts.NO_FOCUSED_IME_MS = duration;
   }
 
   /**
@@ -542,20 +583,53 @@ export class Dictation {
    * @private
    */
   handleRepeat_(macro) {
-    let newMacro = macro;
-    if (newMacro.getName() === MacroName.REPEAT && this.prevMacro_) {
-      // If this is the REPEAT macro, then we actually want the previously
-      // executed macro.
-      newMacro = this.prevMacro_;
+    if (macro.getName() !== MacroName.REPEAT) {
+      // If this macro is not the RepeatMacro, save it and return the existing
+      // macro.
+      this.prevMacro_ = macro;
+      return macro;
     }
 
-    this.prevMacro_ = newMacro;
-    return newMacro;
+    // Handle cases where `macro` is the RepeatMacro.
+    if (!this.prevMacro_) {
+      // If there is no previous macro, return the RepeatMacro.
+      return macro;
+    }
+
+    // Otherwise, return the previous macro.
+    return this.prevMacro_;
   }
 
   /** Disables Pumpkin for tests that use regex-based command parsing. */
   disablePumpkinForTesting() {
     this.speechParser_.disablePumpkinForTesting();
+  }
+
+  /**
+   * @param {!Context} context
+   * @return {string}
+   */
+  static getFailedContextReason(context) {
+    switch (context) {
+      case Context.INACTIVE_INPUT_CONTROLLER:
+        return chrome.i18n.getMessage(
+            'dictation_context_error_reason_inactive_input_controller');
+      case Context.EMPTY_EDITABLE:
+        return chrome.i18n.getMessage(
+            'dictation_context_error_reason_empty_editable');
+      case Context.NO_SELECTION:
+        return chrome.i18n.getMessage(
+            'dictation_context_error_reason_no_selection');
+      case Context.INVALID_INPUT:
+        return chrome.i18n.getMessage(
+            'dictation_context_error_reason_invalid_input');
+      case Context.NO_PREVIOUS_MACRO:
+        return chrome.i18n.getMessage(
+            'dictation_context_error_reason_no_previous_macro');
+    }
+
+    throw new Error(
+        'Cannot get error message for unsupported context: ' + context);
   }
 }
 
@@ -582,4 +656,9 @@ Dictation.Timeouts = {
   NO_SPEECH_ONDEVICE_MS: 20 * 1000,
   NO_NEW_SPEECH_MS: 5 * 1000,
   NO_FOCUSED_IME_MS: 1000,
+};
+
+/** @enum {string} */
+Dictation.StopReason = {
+  NO_FOCUSED_IME: 'Dictation stopped automatically: No focused IME',
 };

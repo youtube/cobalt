@@ -53,31 +53,17 @@ class KSInstallApp : public App {
 
 void KSInstallApp::Uninstall(base::OnceCallback<void(int)> callback) {
   base::ThreadPool::PostTaskAndReplyWithResult(
-      FROM_HERE, {base::MayBlock()}, base::BindOnce([]() {
-        UpdaterScope scope =
-            (geteuid() == 0) ? UpdaterScope::kSystem : UpdaterScope::kUser;
+      FROM_HERE, {base::MayBlock()}, base::BindOnce([] {
         const absl::optional<base::FilePath>& keystone_path =
-            GetKeystoneFolderPath(scope);
-
+            GetKeystoneFolderPath((geteuid() == 0) ? UpdaterScope::kSystem
+                                                   : UpdaterScope::kUser);
         if (!keystone_path ||
             !base::DeletePathRecursively(
                 keystone_path->AppendASCII(KEYSTONE_NAME ".bundle"))) {
           PLOG(ERROR) << "Couldn't find/delete Keystone path.";
           return false;
         }
-        if (IsSystemInstall(scope)) {
-          return base::DeleteFile(
-              GetLibraryFolderPath(scope)
-                  ->Append("LaunchDaemons")
-                  .Append("com.google.keystone.daemon.plist"));
-        } else {
-          base::FilePath launch_agent_dir =
-              GetLibraryFolderPath(scope)->Append("LaunchAgents");
-          return base::DeleteFile(launch_agent_dir.Append(
-                     "com.google.keystone.agent.plist")) &&
-                 base::DeleteFile(launch_agent_dir.Append(
-                     "com.google.keystone.xpcservice.plist"));
-        }
+        return true;
       }),
       base::BindOnce(
           [](base::OnceCallback<void(int)> cb, bool result) {
@@ -135,7 +121,7 @@ int KSInstallMain(int argc, char* argv[]) {
   updater::InitLogging(GetUpdaterScope());
   InitializeThreadPool("keystone");
   const base::ScopedClosureRunner shutdown_thread_pool(
-      base::BindOnce([]() { base::ThreadPoolInstance::Get()->Shutdown(); }));
+      base::BindOnce([] { base::ThreadPoolInstance::Get()->Shutdown(); }));
   base::SingleThreadTaskExecutor main_task_executor(base::MessagePumpType::UI);
   return MakeKSInstallApp(argc, argv)->Run();
 }

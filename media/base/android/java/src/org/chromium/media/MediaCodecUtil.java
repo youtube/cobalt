@@ -17,11 +17,11 @@ import android.os.Build;
 import androidx.annotation.IntDef;
 import androidx.annotation.Nullable;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+
 import org.chromium.base.Log;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
 import org.chromium.base.compat.ApiHelperForN;
-import org.chromium.build.annotations.MainDex;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -33,7 +33,6 @@ import java.util.NoSuchElementException;
  * A collection of MediaCodec utility functions.
  */
 @JNINamespace("media")
-@MainDex
 class MediaCodecUtil {
     private static final String TAG = "MediaCodecUtil";
 
@@ -128,15 +127,21 @@ class MediaCodecUtil {
      * Return true if and only if info is a software codec.
      */
     public static boolean isSoftwareCodec(MediaCodecInfo info) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) return !info.isHardwareAccelerated();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            if (!info.isHardwareAccelerated() || info.isSoftwareOnly()) return true;
+        }
 
         String name = info.getName().toLowerCase(Locale.ROOT);
+
         // This is taken from libstagefright/OMXCodec.cpp for pre codec2.
         if (name.startsWith("omx.google.")) return true;
 
         // Codec2 names sw decoders this way.
         // See hardware/google/av/codec2/vndk/C2Store.cpp.
-        if (name.startsWith("c2.google.") || name.startsWith("c2.android.")) return true;
+        if (name.startsWith("c2.android.")) return true;
+
+        // Some Samsung devices have software codecs which don't report as software.
+        if (name.contains(".sw.dec") || name.contains(".sw.enc")) return true;
 
         return false;
     }

@@ -99,6 +99,19 @@ VideoEncodeAccelerator::Config SetUpVeaConfig(
       VideoEncodeAccelerator::Config(format, opts.frame_size, profile, bitrate,
                                      initial_framerate, opts.keyframe_interval);
 
+  if (opts.content_hint) {
+    switch (*opts.content_hint) {
+      case media::VideoEncoder::ContentHint::Camera:
+        config.content_type =
+            VideoEncodeAccelerator::Config::ContentType::kCamera;
+        break;
+      case media::VideoEncoder::ContentHint::Screen:
+        config.content_type =
+            VideoEncodeAccelerator::Config::ContentType::kDisplay;
+        break;
+    }
+  }
+
   size_t num_temporal_layers = 1;
   if (opts.scalability_mode) {
     switch (opts.scalability_mode.value()) {
@@ -381,14 +394,6 @@ void VideoEncodeAcceleratorAdapter::InitializeOnAcceleratorThread(
     return;
   }
 
-  if (options.bitrate.has_value() &&
-      options.bitrate->mode() == Bitrate::Mode::kExternal) {
-    std::move(done_cb).Run(
-        EncoderStatus(EncoderStatus::Codes::kEncoderUnsupportedConfig,
-                      "Unsupported bitrate mode"));
-    return;
-  }
-
   if (!options.frame_size.GetCheckedArea().IsValid()) {
     std::move(done_cb).Run(
         EncoderStatus(EncoderStatus::Codes::kEncoderUnsupportedConfig,
@@ -511,7 +516,7 @@ void VideoEncodeAcceleratorAdapter::Encode(scoped_refptr<VideoFrame> frame,
 
 void VideoEncodeAcceleratorAdapter::EncodeOnAcceleratorThread(
     scoped_refptr<VideoFrame> frame,
-    const EncodeOptions& encode_options,
+    EncodeOptions encode_options,
     EncoderStatusCB done_cb) {
   TRACE_EVENT1("media",
                "VideoEncodeAcceleratorAdapter::EncodeOnAcceleratorThread",
@@ -571,10 +576,9 @@ void VideoEncodeAcceleratorAdapter::EncodeOnAcceleratorThread(
 
   frame = std::move(result).value();
 
-  bool key_frame = encode_options.key_frame;
   if (last_frame_color_space_ != frame->ColorSpace()) {
     last_frame_color_space_ = frame->ColorSpace();
-    key_frame = true;
+    encode_options.key_frame = true;
   }
 
   auto active_encode = std::make_unique<PendingOp>();
@@ -582,7 +586,7 @@ void VideoEncodeAcceleratorAdapter::EncodeOnAcceleratorThread(
   active_encode->timestamp = frame->timestamp();
   active_encode->color_space = frame->ColorSpace();
   active_encodes_.push_back(std::move(active_encode));
-  accelerator_->Encode(frame, key_frame);
+  accelerator_->Encode(frame, encode_options);
 }
 
 void VideoEncodeAcceleratorAdapter::ChangeOptions(const Options& options,
@@ -889,9 +893,9 @@ void VideoEncodeAcceleratorAdapter::BitstreamBufferReady(
 void VideoEncodeAcceleratorAdapter::NotifyErrorStatus(
     const EncoderStatus& status) {
   CHECK(!status.is_ok());
-  LOG(ERROR) << "NotifyErrorStatus() is called, code="
-             << static_cast<int32_t>(status.code())
-             << ", message=" << status.message();
+  MEDIA_LOG(ERROR, media_log_)
+      << "VEA adapter error. Code: " << static_cast<int32_t>(status.code())
+      << ". Message: " << status.message();
   if (state_ == State::kInitializing) {
     InitCompleted(
         EncoderStatus(EncoderStatus::Codes::kEncoderInitializationError,

@@ -518,7 +518,7 @@ TYPED_TEST(CommonStringPieceTest, CheckCustom) {
   std::basic_string<TypeParam> s1(TestFixture::as_string("123"));
   s1 += static_cast<TypeParam>('\0');
   s1 += TestFixture::as_string("456");
-  BasicStringPiece<TypeParam> b(s1);
+  [[maybe_unused]] BasicStringPiece<TypeParam> b(s1);
   BasicStringPiece<TypeParam> e;
   std::basic_string<TypeParam> s2;
 
@@ -565,7 +565,7 @@ TEST(StringPieceTest, CheckCustom) {
   std::string s1("123");
   s1 += '\0';
   s1 += "456";
-  StringPiece b(s1);
+  [[maybe_unused]] StringPiece b(s1);
   StringPiece e;
   std::string s2;
 
@@ -684,6 +684,14 @@ TEST(StringPieceTest, ConstexprCtor) {
   }
 }
 
+// Chromium development assumes StringPiece (which is std::string_view) is
+// implemented with an STL that enables hardening checks. We treat bugs that
+// trigger one of these conditions as functional rather than security bugs. If
+// this test fails on some embedder, it should not be disabled. Instead, the
+// embedder should fix their STL or build configuration to enable corresponding
+// hardening checks.
+//
+// See https://chromium.googlesource.com/chromium/src/+/main/docs/security/faq.md#indexing-a-container-out-of-bounds-hits-a-libcpp_verbose_abort_is-this-a-security-bug
 TEST(StringPieceTest, OutOfBoundsDeath) {
   {
     constexpr StringPiece piece;

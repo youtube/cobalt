@@ -481,6 +481,45 @@ typedef void(
 #endif
 #endif /* GL_ANGLE_clip_cull_distance */
 
+/* GL_ANGLE_polygon_mode */
+#ifndef GL_ANGLE_polygon_mode
+#define GL_ANGLE_polygon_mode 1
+
+#ifndef GL_POLYGON_MODE_ANGLE
+#define GL_POLYGON_MODE_ANGLE 0x0B40
+#endif
+
+#ifndef GL_POLYGON_OFFSET_LINE_ANGLE
+#define GL_POLYGON_OFFSET_LINE_ANGLE 0x2A02
+#endif
+
+#ifndef GL_LINE_ANGLE
+#define GL_LINE_ANGLE 0x1B01
+#endif
+
+#ifndef GL_FILL_ANGLE
+#define GL_FILL_ANGLE 0x1B02
+#endif
+
+#ifdef GL_GLEXT_PROTOTYPES
+GL_APICALL void GL_APIENTRY glPolygonModeANGLE(GLenum face, GLenum mode);
+#endif
+typedef void(GL_APIENTRYP PFNGLPOLYGONMODEANGLEPROC)(GLenum face, GLenum mode);
+#endif /* GL_ANGLE_polygon_mode */
+
+/* GL_ANGLE_stencil_texturing */
+#ifndef GL_ANGLE_stencil_texturing
+#define GL_ANGLE_stencil_texturing 1
+
+#ifndef GL_DEPTH_STENCIL_TEXTURE_MODE_ANGLE
+#define GL_DEPTH_STENCIL_TEXTURE_MODE_ANGLE 0x90EA
+#endif
+
+#ifndef GL_STENCIL_INDEX_ANGLE
+#define GL_STENCIL_INDEX_ANGLE 0x1901
+#endif
+#endif /* GL_ANGLE_stencil_texturing */
+
 /* GL_CHROMIUM_async_pixel_transfers */
 #ifndef GL_CHROMIUM_async_pixel_transfers
 #define GL_CHROMIUM_async_pixel_transfers 1
@@ -596,16 +635,6 @@ GL_APICALL GLboolean GL_APIENTRY glEnableFeatureCHROMIUM(const char* feature);
 typedef GLboolean (GL_APIENTRYP PFNGLENABLEFEATURECHROMIUMPROC) (
     const char* feature);
 #endif  /* GL_CHROMIUM_enable_feature */
-
-/* GL_CHROMIUM_command_buffer_latency_query */
-#ifndef GL_CHROMIUM_command_buffer_latency_query
-#define GL_CHROMIUM_command_buffer_latency_query 1
-
-#ifndef GL_LATENCY_QUERY_CHROMIUM
-// TODO(gman): Get official numbers for these constants.
-#define GL_LATENCY_QUERY_CHROMIUM 0x6007
-#endif
-#endif  /* GL_CHROMIUM_command_buffer_latency_query */
 
 /* GL_ARB_robustness */
 #ifndef GL_ARB_robustness

@@ -100,30 +100,12 @@ suite('TextDefaults', function() {
   });
 
   test('text_defaults_md.css', function() {
+    let expectingSystemFont = true;
+    // <if expr="is_linux">
+    expectingSystemFont = false;
+    // </if>
+
     return testFontFamily(
-        'chrome://resources/css/text_defaults_md.css',
-        false /*expectingSystemFont*/);
+        'chrome://resources/css/text_defaults_md.css', expectingSystemFont);
   });
 });
-
-// <if expr="not is_linux">
-// Test that text_defaults_md.css reverts back to the text_defaults.css
-// behavior when the WebUiSystemFont flag is enabled.
-suite('TextDefaultsSystemFont', function() {
-  setup(function() {
-    document.body.innerHTML = window.trustedTypes!.emptyHTML;
-  });
-
-  test('text_defaults.css', function() {
-    return testFontFamily(
-        'chrome://resources/css/text_defaults.css',
-        true /*expectingSystemFont*/);
-  });
-
-  test('text_defaults_md.css', function() {
-    return testFontFamily(
-        'chrome://resources/css/text_defaults_md.css',
-        true /*expectingSystemFont*/);
-  });
-});
-// </if>

@@ -9,8 +9,8 @@
 #include <utility>
 
 #include "base/gtest_prod_util.h"
-#include "ui/base/layout.h"
 #include "ui/base/models/image_model.h"
+#include "ui/base/resource/resource_scale_factor.h"
 #include "ui/gfx/image/image_skia.h"
 #include "ui/views/controls/button/button.h"
 #include "ui/views/metadata/view_factory.h"
@@ -83,7 +83,8 @@ class VIEWS_EXPORT ImageButton : public Button {
       PressedCallback callback,
       const gfx::VectorIcon& icon,
       const std::u16string& accessible_name,
-      MaterialIconStyle icon_style = MaterialIconStyle::kLarge);
+      MaterialIconStyle icon_style = MaterialIconStyle::kLarge,
+      absl::optional<gfx::Insets> insets = absl::nullopt);
 
  protected:
   // Overridden from Button:

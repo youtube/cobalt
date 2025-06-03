@@ -9,6 +9,7 @@
 #include <stdint.h>
 
 #include <memory>
+#include <string>
 
 #include "base/json/json_reader.h"
 #include "base/mac/scoped_aedesc.h"

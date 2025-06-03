@@ -15,7 +15,6 @@
 #include "build/chromeos_buildflags.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/browser_process.h"
-#include "chrome/browser/chrome_notification_types.h"
 #include "chrome/browser/net/system_network_context_manager.h"
 #include "chrome/browser/renderer_context_menu/render_view_context_menu.h"
 #include "chrome/browser/renderer_context_menu/render_view_context_menu_browsertest_util.h"
@@ -30,7 +29,6 @@
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_entry.h"
-#include "content/public/browser/notification_service.h"
 #include "content/public/browser/render_view_host.h"
 #include "content/public/browser/render_widget_host.h"
 #include "content/public/browser/storage_partition.h"
@@ -659,7 +657,7 @@ IN_PROC_BROWSER_TEST_F(ReferrerPolicyTest, IFrame) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
       browser(),
       https_server_.GetURL("/referrer_policy/referrer-policy-iframe.html")));
-  EXPECT_TRUE(content::ExecuteScript(
+  EXPECT_TRUE(content::ExecJs(
       tab,
       std::string("var frame = document.createElement('iframe');frame.src ='") +
           embedded_test_server()
@@ -680,7 +678,7 @@ IN_PROC_BROWSER_TEST_F(ReferrerPolicyTest, IFrame) {
   // Reload the iframe.
   expected_title = u"reset";
   title_watcher = std::make_unique<content::TitleWatcher>(tab, expected_title);
-  EXPECT_TRUE(content::ExecuteScript(tab, "document.title = 'reset'"));
+  EXPECT_TRUE(content::ExecJs(tab, "document.title = 'reset'"));
   EXPECT_EQ(expected_title, title_watcher->WaitAndGetTitle());
   frame = content::FrameMatchingPredicate(
       tab->GetPrimaryPage(),
@@ -688,7 +686,7 @@ IN_PROC_BROWSER_TEST_F(ReferrerPolicyTest, IFrame) {
 
   expected_title = u"loaded";
   title_watcher = std::make_unique<content::TitleWatcher>(tab, expected_title);
-  EXPECT_TRUE(content::ExecuteScript(frame, "location.reload()"));
+  EXPECT_TRUE(content::ExecJs(frame, "location.reload()"));
   EXPECT_EQ(expected_title, title_watcher->WaitAndGetTitle());
   frame = content::FrameMatchingPredicate(
       tab->GetPrimaryPage(),

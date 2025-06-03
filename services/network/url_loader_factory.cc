@@ -31,6 +31,7 @@
 #include "services/network/public/mojom/devtools_observer.mojom.h"
 #include "services/network/public/mojom/network_context.mojom.h"
 #include "services/network/resource_scheduler/resource_scheduler_client.h"
+#include "services/network/shared_dictionary/shared_dictionary_access_checker.h"
 #include "services/network/trust_tokens/trust_token_request_helper_factory.h"
 #include "services/network/url_loader.h"
 #include "services/network/web_bundle/web_bundle_url_loader_factory.h"
@@ -45,25 +46,26 @@ namespace {
 // The interval to send load updates.
 constexpr auto kUpdateLoadStatesInterval = base::Milliseconds(250);
 
-bool LoadInfoIsMoreInteresting(uint32_t a_load_state,
-                               uint64_t a_upload_size,
-                               uint32_t b_load_state,
-                               uint64_t b_upload_size) {
+bool LoadInfoIsMoreInteresting(const URLLoader::PartialLoadInfo& a,
+                               const URLLoader::PartialLoadInfo& b) {
   // Set |*_uploading_size| to be the size of the corresponding upload body if
   // it's currently being uploaded.
 
   uint64_t a_uploading_size = 0;
-  if (a_load_state == net::LOAD_STATE_SENDING_REQUEST)
-    a_uploading_size = a_upload_size;
+  if (a.load_state.state == net::LOAD_STATE_SENDING_REQUEST) {
+    a_uploading_size = a.upload_progress.size();
+  }
 
   uint64_t b_uploading_size = 0;
-  if (b_load_state == net::LOAD_STATE_SENDING_REQUEST)
-    b_uploading_size = b_upload_size;
+  if (b.load_state.state == net::LOAD_STATE_SENDING_REQUEST) {
+    b_uploading_size = b.upload_progress.size();
+  }
 
-  if (a_uploading_size != b_uploading_size)
+  if (a_uploading_size != b_uploading_size) {
     return a_uploading_size > b_uploading_size;
+  }
 
-  return a_load_state > b_load_state;
+  return a.load_state.state > b.load_state.state;
 }
 
 }  // namespace
@@ -84,8 +86,6 @@ URLLoaderFactory::URLLoaderFactory(
       cors_url_loader_factory_(cors_url_loader_factory),
       cookie_observer_(std::move(params_->cookie_observer)),
       trust_token_observer_(std::move(params_->trust_token_observer)),
-      url_loader_network_service_observer_(
-          std::move(params_->url_loader_network_observer)),
       devtools_observer_(std::move(params_->devtools_observer)) {
   DCHECK(context);
   DCHECK_NE(mojom::kInvalidProcessId, params_->process_id);
@@ -150,8 +150,8 @@ mojom::CrossOriginEmbedderPolicyReporter* URLLoaderFactory::GetCoepReporter()
   return cors_url_loader_factory_->coep_reporter();
 }
 
-bool URLLoaderFactory::ShouldRequireNetworkIsolationKey() const {
-  return context_->require_network_isolation_key();
+bool URLLoaderFactory::ShouldRequireIsolationInfo() const {
+  return context_->require_network_anonymization_key();
 }
 
 scoped_refptr<ResourceSchedulerClient>
@@ -308,6 +308,24 @@ void URLLoaderFactory::CreateLoaderAndStartWithSyncClient(
             params_->isolation_info));
   }
 
+  std::unique_ptr<SharedDictionaryAccessChecker> shared_dictionary_checker;
+  if (context_->GetSharedDictionaryManager()) {
+    if (resource_request.trusted_params &&
+        resource_request.trusted_params->shared_dictionary_observer) {
+      shared_dictionary_checker =
+          std::make_unique<SharedDictionaryAccessChecker>(
+              *context_, std::move(const_cast<mojo::PendingRemote<
+                                       mojom::SharedDictionaryAccessObserver>&>(
+                             resource_request.trusted_params
+                                 ->shared_dictionary_observer)));
+    } else {
+      shared_dictionary_checker =
+          std::make_unique<SharedDictionaryAccessChecker>(
+              *context_,
+              cors_url_loader_factory_->GetSharedDictionaryAccessObserver());
+    }
+  }
+
   mojo::PendingRemote<mojom::CookieAccessObserver> cookie_observer;
   if (resource_request.trusted_params &&
       resource_request.trusted_params->cookie_observer) {
@@ -348,13 +366,6 @@ void URLLoaderFactory::CreateLoaderAndStartWithSyncClient(
             resource_request.trusted_params->accept_ch_frame_observer));
   }
 
-  // Check for third party cookies being disabled. This will also be false if
-  // all cookies are disabled.
-  const bool third_party_cookies_enabled =
-      !context_->cookie_manager()
-           ->cookie_settings()
-           .are_third_party_cookies_blocked();
-
   std::unique_ptr<AttributionRequestHelper> attribution_request_helper;
   if (context_->network_service()) {
     attribution_request_helper = AttributionRequestHelper::CreateIfNeeded(
@@ -371,12 +382,11 @@ void URLLoaderFactory::CreateLoaderAndStartWithSyncClient(
       static_cast<net::NetworkTrafficAnnotationTag>(traffic_annotation),
       request_id, keepalive_request_size,
       std::move(keepalive_statistics_recorder), std::move(trust_token_factory),
-      std::move(cookie_observer), std::move(trust_token_observer),
-      std::move(url_loader_network_observer), std::move(devtools_observer),
-      std::move(accept_ch_frame_observer), third_party_cookies_enabled,
-      params_->cookie_setting_overrides,
-      context_->cache_transparency_settings(),
-      std::move(attribution_request_helper));
+      std::move(shared_dictionary_checker), std::move(cookie_observer),
+      std::move(trust_token_observer), std::move(url_loader_network_observer),
+      std::move(devtools_observer), std::move(accept_ch_frame_observer),
+      params_->cookie_setting_overrides, std::move(attribution_request_helper),
+      resource_request.shared_storage_writable_eligible);
 
   if (context_->GetMemoryCache())
     loader->SetMemoryCache(context_->GetMemoryCache()->GetWeakPtr());
@@ -406,8 +416,9 @@ mojom::TrustTokenAccessObserver* URLLoaderFactory::GetTrustTokenAccessObserver()
 
 mojom::URLLoaderNetworkServiceObserver*
 URLLoaderFactory::GetURLLoaderNetworkServiceObserver() const {
-  if (url_loader_network_service_observer_)
-    return url_loader_network_service_observer_.get();
+  if (cors_url_loader_factory_->url_loader_network_service_observer()) {
+    return cors_url_loader_factory_->url_loader_network_service_observer();
+  }
   if (!context_->network_service())
     return nullptr;
   return context_->network_service()
@@ -433,25 +444,26 @@ void URLLoaderFactory::MaybeStartUpdateLoadInfoTimer() {
 void URLLoaderFactory::UpdateLoadInfo() {
   DCHECK(!waiting_on_load_state_ack_);
 
-  mojom::LoadInfoPtr most_interesting;
   URLLoader* most_interesting_url_loader = nullptr;
+  URLLoader::PartialLoadInfo most_interesting_load_info;
 
   SCOPED_UMA_HISTOGRAM_TIMER("NetworkService.URLLoaderFactory.UpdateLoadInfo");
 
   for (auto& loader : cors_url_loader_factory_->url_loaders()) {
-    if (!most_interesting ||
-        LoadInfoIsMoreInteresting(
-            loader->GetLoadState(), loader->GetUploadProgress().size(),
-            most_interesting->load_state, most_interesting->upload_size)) {
-      most_interesting = loader->CreateLoadInfo();
+    URLLoader::PartialLoadInfo load_info = loader->GetPartialLoadInfo();
+
+    if (!most_interesting_url_loader ||
+        LoadInfoIsMoreInteresting(load_info, most_interesting_load_info)) {
       most_interesting_url_loader = loader.get();
+      most_interesting_load_info = std::move(load_info);
     }
   }
 
   if (most_interesting_url_loader) {
     most_interesting_url_loader->GetURLLoaderNetworkServiceObserver()
         ->OnLoadingStateUpdate(
-            std::move(most_interesting),
+            most_interesting_url_loader->CreateLoadInfo(
+                most_interesting_load_info),
             base::BindOnce(&URLLoaderFactory::AckUpdateLoadInfo,
                            base::Unretained(this)));
     waiting_on_load_state_ack_ = true;

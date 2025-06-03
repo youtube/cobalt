@@ -5,10 +5,12 @@
 #include "ui/linux/fake_linux_ui.h"
 
 #include "base/time/time.h"
+#include "ui/base/ime/linux/linux_input_method_context.h"
 #include "ui/gfx/color_palette.h"
 #include "ui/gfx/font_render_params.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/image/image.h"
+#include "ui/linux/nav_button_provider.h"
 #include "ui/shell_dialogs/select_file_policy.h"
 
 namespace ui {
@@ -89,13 +91,11 @@ LinuxUi::WindowFrameAction FakeLinuxUi::GetWindowFrameAction(
   return WindowFrameAction::kNone;
 }
 
-float FakeLinuxUi::GetDeviceScaleFactor() const {
-  return 1.0f;
-}
-
 bool FakeLinuxUi::PreferDarkTheme() const {
   return false;
 }
+
+void FakeLinuxUi::SetDarkTheme(bool dark) {}
 
 bool FakeLinuxUi::AnimationsEnabled() const {
   return true;
@@ -133,6 +133,7 @@ ui::NativeTheme* FakeLinuxUi::GetNativeTheme() const {
 
 bool FakeLinuxUi::GetTextEditCommandsForEvent(
     const ui::Event& event,
+    int text_falgs,
     std::vector<ui::TextEditCommandAuraLinux>* commands) {
   return false;
 }

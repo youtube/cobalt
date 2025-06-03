@@ -16,9 +16,12 @@ struct CONTENT_EXPORT StoreSourceResult {
   explicit StoreSourceResult(
       attribution_reporting::mojom::StoreSourceResult status,
       absl::optional<base::Time> min_fake_report_time = absl::nullopt,
-      absl::optional<int> max_destinations_per_source_site_reporting_origin =
+      absl::optional<int> max_destinations_per_source_site_reporting_site =
           absl::nullopt,
-      absl::optional<int> max_sources_per_origin = absl::nullopt);
+      absl::optional<int> max_sources_per_origin = absl::nullopt,
+      absl::optional<int>
+          max_destinations_per_rate_limit_window_reporting_origin =
+              absl::nullopt);
 
   ~StoreSourceResult();
 
@@ -36,11 +39,17 @@ struct CONTENT_EXPORT StoreSourceResult {
 
   // Only populated in case of
   // `attribution_reporting::mojom::StoreSourceResult::kInsufficientUniqueDestinationCapacity`.
-  absl::optional<int> max_destinations_per_source_site_reporting_origin;
+  absl::optional<int> max_destinations_per_source_site_reporting_site;
 
   // Only populated in case of
   // `attribution_reporting::mojom::StoreSourceResult::kInsufficientSourceCapacity`.
   absl::optional<int> max_sources_per_origin;
+
+  // Populated in the cases of either
+  // `attribution_reporting::mojom::StoreSourceResult::kDestinationReportingLimitReached`
+  // or
+  // `attribution_reporting::mojom::StoreSourceResult::kDestinationBothLimitsReached`
+  absl::optional<int> max_destinations_per_rate_limit_window_reporting_origin;
 };
 
 }  // namespace content

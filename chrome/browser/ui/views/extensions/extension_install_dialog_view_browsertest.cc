@@ -95,8 +95,8 @@ class ExtensionInstallDialogViewTestBase
   content::WebContents* web_contents() { return web_contents_; }
 
  private:
-  raw_ptr<const extensions::Extension, DanglingUntriaged> extension_;
-  raw_ptr<content::WebContents, DanglingUntriaged> web_contents_;
+  raw_ptr<const extensions::Extension, AcrossTasksDanglingUntriaged> extension_;
+  raw_ptr<content::WebContents, AcrossTasksDanglingUntriaged> web_contents_;
 };
 
 ExtensionInstallDialogViewTestBase::ExtensionInstallDialogViewTestBase()
@@ -308,8 +308,9 @@ IN_PROC_BROWSER_TEST_F(ExtensionInstallDialogViewTest,
     int tab1_idx = tab_strip_model->GetIndexOfWebContents(originator_contents);
     content::WebContentsDestroyedWatcher tab_destroyed_watcher(
         tab_strip_model->GetWebContentsAt(tab1_idx));
-    EXPECT_TRUE(tab_strip_model->CloseWebContentsAt(tab1_idx,
-                                                    TabCloseTypes::CLOSE_NONE));
+    int previous_tab_count = tab_strip_model->count();
+    tab_strip_model->CloseWebContentsAt(tab1_idx, TabCloseTypes::CLOSE_NONE);
+    EXPECT_EQ(previous_tab_count - 1, tab_strip_model->count());
     tab_destroyed_watcher.Wait();
   }
 
@@ -397,8 +398,6 @@ class ExtensionInstallDialogViewInteractiveBrowserTest
       prompt->AddPermissionSet(*permission_set_);
     else
       prompt->AddPermissionMessages(permission_messages_);
-    prompt->set_retained_files(retained_files_);
-    prompt->set_retained_device_messages(retained_devices_);
 
     if (from_webstore_)
       prompt->SetWebstoreData("69,420", true, 2.5, 37);
@@ -426,14 +425,6 @@ class ExtensionInstallDialogViewInteractiveBrowserTest
         PermissionMessage(base::ASCIIToUTF16(permission), PermissionIDSet()));
   }
 
-  void AddRetainedFile(const base::FilePath& path) {
-    retained_files_.push_back(path);
-  }
-
-  void AddRetainedDevice(const std::string& device) {
-    retained_devices_.push_back(base::ASCIIToUTF16(device));
-  }
-
   void AddPermissionWithDetails(
       std::string main_permission,
       std::vector<std::u16string> detailed_permissions) {
@@ -448,8 +439,6 @@ class ExtensionInstallDialogViewInteractiveBrowserTest
   bool from_webstore_ = false;
   std::unique_ptr<PermissionSet> permission_set_;
   PermissionMessages permission_messages_;
-  std::vector<base::FilePath> retained_files_;
-  std::vector<std::u16string> retained_devices_;
 
   base::test::ScopedFeatureList feature_list_;
 };
@@ -516,28 +505,6 @@ IN_PROC_BROWSER_TEST_F(ExtensionInstallDialogViewInteractiveBrowserTest,
   ShowAndVerifyUi();
 }
 
-// TODO(crbug.com/1164575): Flaky on all platforms.
-IN_PROC_BROWSER_TEST_F(ExtensionInstallDialogViewInteractiveBrowserTest,
-                       DISABLED_InvokeUi_WithRetainedFiles) {
-  AddRetainedFile(base::FilePath(FILE_PATH_LITERAL("/dev/null")));
-  AddRetainedFile(base::FilePath(FILE_PATH_LITERAL("/dev/zero")));
-  AddRetainedFile(base::FilePath(FILE_PATH_LITERAL("/dev/random")));
-  AddRetainedFile(base::FilePath(FILE_PATH_LITERAL(
-      "/some/very/very/very/very/very/long/path/longer/than/the/"
-      "line/length/file_with_long_name_too.txt")));
-  ShowAndVerifyUi();
-}
-
-IN_PROC_BROWSER_TEST_F(ExtensionInstallDialogViewInteractiveBrowserTest,
-                       InvokeUi_WithRetainedDevices) {
-  AddRetainedDevice("USB Device");
-  AddRetainedDevice("USB Device With Longer Name");
-  AddRetainedDevice(
-      "Another USB Device With A Very Very Very Very Very Very "
-      "Long Name So That It Hopefully Wraps to A New Line");
-  ShowAndVerifyUi();
-}
-
 // TODO(https://crbug.com/1126741): Flaky on Win10.
 #if BUILDFLAG(IS_WIN)
 #define MAYBE_InvokeUi_WithWithholdingOption \
@@ -559,14 +526,18 @@ IN_PROC_BROWSER_TEST_F(ExtensionInstallDialogViewInteractiveBrowserTest,
   ShowAndVerifyUi();
 }
 
+// TODO(crbug.com/1445932): Flaky on Win10.
+#if BUILDFLAG(IS_WIN)
+#define MAYBE_InvokeUi_AllInfoTypes DISABLED_InvokeUi_AllInfoTypes
+#else
+#define MAYBE_InvokeUi_AllInfoTypes InvokeUi_AllInfoTypes
+#endif
 IN_PROC_BROWSER_TEST_F(ExtensionInstallDialogViewInteractiveBrowserTest,
-                       InvokeUi_AllInfoTypes) {
+                       MAYBE_InvokeUi_AllInfoTypes) {
   AddPermission("Example permission");
   AddPermissionWithDetails(
       "This permission has details",
       {u"Detailed permission 1", u"Detailed permission 2"});
-  AddRetainedDevice("USB Device");
-  AddRetainedFile(base::FilePath(FILE_PATH_LITERAL("/dev/null")));
   ShowAndVerifyUi();
 }
 

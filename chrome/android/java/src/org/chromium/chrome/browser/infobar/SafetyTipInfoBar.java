@@ -11,7 +11,8 @@ import android.text.Spanned;
 
 import androidx.annotation.ColorRes;
 
-import org.chromium.base.annotations.CalledByNative;
+import org.jni_zero.CalledByNative;
+
 import org.chromium.components.infobars.ConfirmInfoBar;
 import org.chromium.components.infobars.InfoBarLayout;
 import org.chromium.ui.text.NoUnderlineClickableSpan;
@@ -21,7 +22,6 @@ import org.chromium.ui.text.NoUnderlineClickableSpan;
  * a description as well as a title.
  */
 public class SafetyTipInfoBar extends ConfirmInfoBar {
-    private static final String TAG = "SafetyTipInfoBar";
     private String mDescription;
     private String mLearnMoreLinkText;
 

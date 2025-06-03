@@ -4,6 +4,7 @@
 
 module blink.mojom;
 
+import "third_party/blink/public/mojom/credentialmanagement/credential_manager.mojom";
 import "url/mojom/url.mojom";
 import "url/mojom/origin.mojom";
 
@@ -29,7 +30,6 @@ enum RequestTokenStatus {
 // the error message of such exception should say.
 enum RequestUserInfoStatus {
   kSuccess,
-  kErrorTooManyRequests,
   kError,
 };
 
@@ -37,6 +37,15 @@ enum LogoutRpsStatus {
   kSuccess,
   kErrorTooManyRequests,
   kError,
+};
+
+// Represents the fetch result from a IdentityProvider.revoke() request.
+// It is used to determine whether a JavaScript exception should be
+// thrown, and what the error message of such exception should say.
+enum RevokeStatus {
+  kSuccess,
+  kErrorTooManyRequests,
+  kError
 };
 
 enum IdpSigninStatus {
@@ -49,6 +58,11 @@ enum RpContext {
   kSignUp,
   kUse,
   kContinue
+};
+
+enum RpMode {
+  kButton,
+  kWidget
 };
 
 // The details of a single logout request from an identity provider.
@@ -65,30 +79,33 @@ struct LogoutRpsRequest {
 
 // The details of different mechanisms that allows the browser
 // to intermediate the exchange of the user's entities.
-// Currently, federated identities are supported, and mobile driver's license
+// Currently, federated identities are supported, and digital credentials
 // are being prototyped.
 union IdentityProvider {
-  IdentityProviderConfig federated;
-  MDocProvider mdoc;
+  IdentityProviderRequestOptions federated;
+  DigitalCredentialProvider holder;
 };
 
-// The details of an mdoc provider.
-struct MDocProvider {
-  // base64-encoded reader HPKE public key.
-  string reader_public_key;
-
-  // The type of the document (e.g. a passport, a driver's license, etc).
-  string document_type;
-
-  // The attributes requested.
-  array<MDocElement> requested_elements;
+// The specification of the query to digital credentials.
+struct DigitalCredentialProvider {
+  map<string, string> params;
+  DigitalCredentialSelector selector;
 };
 
-// The details of MDocElement.
-struct MDocElement {
-  // The namespace of the element (e.g. a "name" in a passport vs a "name" in a driver's license).
-  string element_namespace;
+// The requirements of the credentials that are being requested.
+struct DigitalCredentialSelector {
+  array<string> format;
+  string? doctype;
+  array<DigitalCredentialFieldRequirement> fields;
+};
+
+// The requirements that the verifier needs on specific fields.
+struct DigitalCredentialFieldRequirement {
+  // The name of the field (e.g. "org.iso.18013.5.1.family_name").
   string name;
+
+  // Optionally, whether the field's value is equal to a specific value or not.
+  string? equals;
 };
 
 // The details of a federated identity provider.
@@ -97,6 +114,11 @@ struct IdentityProviderConfig {
 
   // Can be an empty string to be omitted in the request sent to the provider.
   string client_id;
+};
+
+// The request parameters for a navigator.credentials.get() FedCM call.
+struct IdentityProviderRequestOptions {
+  IdentityProviderConfig config;
 
   // Can be an empty string to be omitted in the request sent to the provider.
   string nonce;
@@ -105,6 +127,11 @@ struct IdentityProviderConfig {
   // specify which user account they would like to show in the FedCM dialog.
   // This field is not sent to the provider, but rather used by the user agent.
   string login_hint;
+
+  // The domain hint for this identity provider. Used by the relying party to
+  // specify the domain hint they require an account to belong to. The field
+  // is not sent to the provider, but rather used by the user agent.
+  string domain_hint;
 
   // The scope of the federated identity request: name/email/photo or
   // custom ones (e.g. "access to calendar", "access to social graph", etc).
@@ -121,6 +148,14 @@ struct IdentityProviderConfig {
   map<string, string> params;
 };
 
+// The information passed in an IdentityProvider.revoke() call.
+struct IdentityCredentialRevokeOptions {
+  IdentityProviderConfig config;
+
+  // The account hint for which the revocation ought to happen.
+  string account_hint;
+};
+
 // The list of user information that can be returned to an identity provider during a UserInfo API call.
 struct IdentityUserInfo {
   string email;
@@ -134,13 +169,21 @@ struct IdentityProviderGetParameters {
   // Details of identity provider(s).
   array<IdentityProvider> providers;
 
-  // Whether auto re-authn is enabled by the caller.
-  bool auto_reauthn;
-
   // Controls the wording of the FedCM prompt.
-  // TODO(crbug.com/1335237): consider moving this up to IdentityProviderConfig
-  // when/if we support the Context API for Multiple IdPs at a time.
   RpContext context;
+
+  // Controls the UX of the FedCM prompt: modality, behavior when the
+  // user is signed-out, etc.
+  RpMode mode;
+};
+
+// The error which occurred during the retrieval of a token.
+struct TokenError {
+  // Type of error which resulted in an IdentityCredential not being created.
+  string? code;
+
+  // String URL where the user can learn more information about the error.
+  string? url;
 };
 
 // Create a federated sign-in request using the specified provider.
@@ -155,10 +198,15 @@ interface FederatedAuthRequest {
   //   A null URL is returned if the token request failed or did not occur due
   //   to an error earlier in the flow.
   // - Raw content of the token.
-  RequestToken(array<IdentityProviderGetParameters> idp_get_params) =>
+  // - The error which occurred during the retrieval of a token.
+  // - Whether the account was automatically selected.
+  RequestToken(array<IdentityProviderGetParameters> idp_get_params,
+      CredentialMediationRequirement requirement) =>
       (RequestTokenStatus status,
       url.mojom.Url? selected_identity_provider_config_url,
-      string? token);
+      string? token,
+      TokenError? error,
+      bool is_auto_selected);
 
   // Requests user info to be generated, given an IDP config.
   // Returns an IdentityUserInfo for each of the user's accounts.
@@ -167,6 +215,11 @@ interface FederatedAuthRequest {
 
   // Cancels the pending token request, if any.
   CancelTokenRequest();
+
+  // Resolve the token request from a JS call from a WebView dialog,
+  // when the id_assertion_endpoint returns a continue_on rather than the
+  // actual token.
+  ResolveTokenRequest(string token) => (bool success);
 
   // Contact the list of Relying Party logout endpoints and account IDs to
   // attempt to initiate user logout.
@@ -180,4 +233,19 @@ interface FederatedAuthRequest {
 
   // Unregisters the url as an IdP's configURL of the user's preference.
   UnregisterIdP(url.mojom.Url url) => (bool success);
+
+  // Closes the modal dialog view, if any.
+  CloseModalDialogView();
+
+  // Require user mediation with navigator.credentials.preventSilentAccess() as
+  // defined in https://w3c.github.io/webappsec-credential-management/#user-mediation
+  // TODO(https://crbug.com/1441075): There's `PreventSilentAccess` in
+  // credential_manager.mojom but that's specific to PasswordManager and it's
+  // hard to reuse it as-is. We should unify the implementation for different
+  // CredentialTypes and avoid the duplication eventually.
+  PreventSilentAccess() => ();
+
+  // Revokes the sharing permission for the specified |account_id| from
+  // |provider| for the RP identified by |client_id|.
+  Revoke(IdentityCredentialRevokeOptions options) => (RevokeStatus status);
 };

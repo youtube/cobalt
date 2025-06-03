@@ -27,6 +27,37 @@
 
 import {KeyCode} from '../../common/key_code.js';
 
+import {Command} from './command.js';
+
+/**
+ * @typedef {{
+ *     command: !Command,
+ *     sequence: !KeySequence,
+ *     keySeq: (string|undefined),
+ *     title: (string|undefined),
+ * }}
+ */
+export let KeyBinding;
+
+/**
+ * @typedef {{
+ *   cvoxModifier: (boolean|undefined),
+ *   doubleTap: (boolean|undefined),
+ *   prefixKey: (boolean|undefined),
+ *   stickyMode: (boolean|undefined),
+ *   keys: {
+ *     keyCode: !Array<!KeyCode>,
+ *     altKey: (!Array<boolean>|undefined),
+ *     altGraphKey: (!Array<boolean>|undefined),
+ *     ctrlKey: (!Array<boolean>|undefined),
+ *     metaKey: (!Array<boolean>|undefined),
+ *     searchKeyHeld: (!Array<boolean>|undefined),
+ *     shiftKey: (!Array<boolean>|undefined),
+ *   },
+ * }}
+ */
+export let SerializedKeySequence;
+
 export class KeySequence {
   /**
    * @param {Event|Object} originalEvent The original key event entered by a
@@ -382,7 +413,7 @@ export class KeySequence {
 
   /**
    * Creates a KeySequence event from a generic object.
-   * @param {Object} sequenceObject The object.
+   * @param {!SerializedKeySequence} sequenceObject The object.
    * @return {!KeySequence} The created KeySequence object.
    */
   static deserialize(sequenceObject) {

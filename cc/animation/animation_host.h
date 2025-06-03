@@ -33,7 +33,7 @@ class ScrollOffsetAnimations;
 class ScrollOffsetAnimationsImpl;
 class WorkletAnimation;
 
-enum class ThreadInstance { MAIN, IMPL };
+enum class ThreadInstance { kMain, kImpl };
 
 // An AnimationHost contains all the state required to play animations.
 // Specifically, it owns all the AnimationTimelines objects.
@@ -212,6 +212,7 @@ class CC_ANIMATION_EXPORT AnimationHost : public MutatorHost,
   bool HasSmilAnimation() const override;
   bool HasViewTransition() const override;
   bool HasScrollLinkedAnimation(ElementId for_scroller) const override;
+  bool IsAutoScrolling() const override;
 
   // Starts/stops throughput tracking represented by |sequence_id|.
   void StartThroughputTracking(TrackedAnimationSequenceId sequence_id);

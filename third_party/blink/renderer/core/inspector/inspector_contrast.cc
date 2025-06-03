@@ -58,7 +58,7 @@ void BlendWithColorsFromGradient(cssvalue::CSSGradientValue* gradient,
     colors.clear();
     for (auto stop_color : stop_colors) {
       found_non_transparent_color =
-          found_non_transparent_color || (stop_color.Alpha() != 0);
+          found_non_transparent_color || !stop_color.IsFullyTransparent();
       colors.push_back(existing_color.Blend(stop_color));
     }
   }
@@ -150,13 +150,13 @@ void InspectorContrast::CollectNodesAndBuildRTreeIfNeeded() {
       WTF::BindRepeating(&NodeIsElementWithLayoutObject), &elements_);
   SortElementsByPaintOrder(elements_, document_);
   rtree_.Build(
-      elements_,
-      [](const HeapVector<Member<Node>>& items, size_t index) {
+      elements_.size(),
+      [this](size_t index) {
         return ToPixelSnappedRect(
-            GetNodeRect(items[static_cast<wtf_size_t>(index)]));
+            GetNodeRect(elements_[static_cast<wtf_size_t>(index)]));
       },
-      [](const HeapVector<Member<Node>>& items, size_t index) {
-        return items[static_cast<wtf_size_t>(index)];
+      [this](size_t index) {
+        return elements_[static_cast<wtf_size_t>(index)];
       });
 
   rtree_built_ = true;
@@ -228,7 +228,7 @@ ContrastInfo InspectorContrast::GetContrast(Element* top_element) {
   Color text_color =
       static_cast<const cssvalue::CSSColor*>(text_color_value)->Value();
 
-  text_color.SetAlpha(text_opacity * text_color.FloatAlpha());
+  text_color.SetAlpha(text_opacity * text_color.Alpha());
 
   float contrast_ratio = color_utils::GetContrastRatio(
       bgcolors.at(0).Blend(text_color).toSkColor4f(),
@@ -288,11 +288,16 @@ Vector<Color> InspectorContrast::GetBackgroundColors(Element* element,
 }
 
 // Get the elements which overlap the given rectangle.
-std::vector<Node*> InspectorContrast::ElementsFromRect(const PhysicalRect& rect,
-                                                       Document& document) {
+HeapVector<Member<Node>> InspectorContrast::ElementsFromRect(
+    const PhysicalRect& rect,
+    Document& document) {
   CollectNodesAndBuildRTreeIfNeeded();
-  std::vector<Node*> overlapping_elements;
-  rtree_.Search(ToPixelSnappedRect(rect), &overlapping_elements);
+  HeapVector<Member<Node>> overlapping_elements;
+  rtree_.Search(ToPixelSnappedRect(rect),
+                [&overlapping_elements](const Member<Node>& payload,
+                                        const gfx::Rect& rect) {
+                  overlapping_elements.push_back(payload);
+                });
   return overlapping_elements;
 }
 
@@ -301,16 +306,19 @@ bool InspectorContrast::GetColorsFromRect(PhysicalRect rect,
                                           Element* top_element,
                                           Vector<Color>& colors,
                                           float* text_opacity) {
-  std::vector<Node*> elements_under_rect = ElementsFromRect(rect, document);
+  HeapVector<Member<Node>> elements_under_rect =
+      ElementsFromRect(rect, document);
 
   bool found_opaque_color = false;
   bool found_top_element = false;
 
   *text_opacity = 1.0f;
 
-  for (auto e = elements_under_rect.begin();
-       !found_top_element && e != elements_under_rect.end(); ++e) {
-    const Element* element = To<Element>(*e);
+  for (const Member<Node>& node : elements_under_rect) {
+    if (found_top_element) {
+      break;
+    }
+    const Element* element = To<Element>(node.Get());
     if (element == top_element)
       found_top_element = true;
 
@@ -338,8 +346,7 @@ bool InspectorContrast::GetColorsFromRect(PhysicalRect rect,
 
     // Opacity applies to the entire element so mix it with the alpha channel.
     if (style->HasOpacity()) {
-      background_color.SetAlpha(background_color.FloatAlpha() *
-                                style->Opacity());
+      background_color.SetAlpha(background_color.Alpha() * style->Opacity());
       // If the background element is the ancestor of the top element or is the
       // top element, the opacity affects the text color of the top element.
       if (element == top_element ||
@@ -349,9 +356,9 @@ bool InspectorContrast::GetColorsFromRect(PhysicalRect rect,
     }
 
     bool found_non_transparent_color = false;
-    if (background_color.Alpha() != 0) {
+    if (!background_color.IsFullyTransparent()) {
       found_non_transparent_color = true;
-      if (background_color.HasAlpha()) {
+      if (!background_color.IsOpaque()) {
         if (colors.empty()) {
           colors.push_back(background_color);
         } else {
@@ -368,7 +375,7 @@ bool InspectorContrast::GetColorsFromRect(PhysicalRect rect,
     AddColorsFromImageStyle(*style, *layout_object, colors, found_opaque_color,
                             found_non_transparent_color);
 
-    bool contains = found_top_element || GetNodeRect(*e).Contains(rect);
+    bool contains = found_top_element || GetNodeRect(node).Contains(rect);
     if (!contains && found_non_transparent_color) {
       // Only return colors if some opaque element covers up this one.
       colors.clear();

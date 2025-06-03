@@ -37,7 +37,11 @@ std::vector<RasterTestConfig> const kTestCases = {
 #endif  // BUILDFLAG(ENABLE_GL_BACKEND_TESTS)
 #if BUILDFLAG(ENABLE_VULKAN_BACKEND_TESTS)
     {viz::RendererType::kSkiaVk, TestRasterType::kGpu},
+#if !BUILDFLAG(IS_FUCHSIA)
+    // TODO(crbug.com/1485883): Fix NativePixmap creation when running GPU
+    // service in process and re-enable these tests.
     {viz::RendererType::kSkiaVk, TestRasterType::kZeroCopy},
+#endif
 #endif  // BUILDFLAG(ENABLE_VULKAN_BACKEND_TESTS)
 };
 
@@ -323,7 +327,8 @@ TEST_P(LayerTreeHostMaskPixelTestWithLayerList, MaskWithEffectDifferentSize) {
 TEST_P(LayerTreeHostMaskPixelTestWithLayerList, ImageMaskWithEffect) {
   MaskContentLayerClient mask_client(mask_bounds_);
 
-  sk_sp<SkSurface> surface = SkSurface::MakeRasterN32Premul(50, 50);
+  sk_sp<SkSurface> surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(50, 50));
   SkCanvas* canvas = surface->getCanvas();
   scoped_refptr<DisplayItemList> mask_display_list =
       mask_client.PaintContentsToDisplayList();
@@ -349,7 +354,8 @@ TEST_P(LayerTreeHostMasksPixelTest, ImageMaskOfLayer) {
 
   gfx::Size mask_bounds(50, 50);
 
-  sk_sp<SkSurface> surface = SkSurface::MakeRasterN32Premul(50, 50);
+  sk_sp<SkSurface> surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(50, 50));
   SkCanvas* canvas = surface->getCanvas();
   MaskContentLayerClient client(mask_bounds);
   scoped_refptr<DisplayItemList> mask_display_list =
@@ -845,7 +851,7 @@ class LayerTreeHostMaskAsBlendingPixelTest
   std::unique_ptr<TestLayerTreeFrameSink> CreateLayerTreeFrameSink(
       const viz::RendererSettings& renderer_settings,
       double refresh_rate,
-      scoped_refptr<viz::ContextProvider> compositor_context_provider,
+      scoped_refptr<viz::RasterContextProvider> compositor_context_provider,
       scoped_refptr<viz::RasterContextProvider> worker_context_provider)
       override {
     viz::RendererSettings modified_renderer_settings = renderer_settings;
@@ -873,9 +879,13 @@ MaskTestConfig const kTestConfigs[] = {
                    kUseAntialiasing | kForceShaders},
 #endif  // BUILDFLAG(ENABLE_GL_BACKEND_TESTS)
 #if BUILDFLAG(ENABLE_VULKAN_BACKEND_TESTS)
+#if !BUILDFLAG(IS_FUCHSIA)
+    // TODO(crbug.com/1485883): Fix NativePixmap creation when running GPU
+    // service in process and re-enable these tests.
     MaskTestConfig{{viz::RendererType::kSkiaVk, TestRasterType::kZeroCopy}, 0},
     MaskTestConfig{{viz::RendererType::kSkiaVk, TestRasterType::kZeroCopy},
                    kUseAntialiasing},
+#endif
 #endif  // BUILDFLAG(ENABLE_VULKAN_BACKEND_TESTS)
 };
 

@@ -10,8 +10,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "anstyle"
+version = "1.0.4"
+
+[[package]]
+name = "anyhow"
+version = "1.0.70"
+
+[[package]]
 name = "autocfg"
 version = "1.1.0"
+
+[[package]]
+name = "base64"
+version = "0.13.1"
 
 [[package]]
 name = "bitflags"
@@ -25,39 +37,58 @@ version = "1.0.0"
 name = "chromium"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "bitflags",
+ "cfg-if",
  "cxx",
  "cxxbridge-cmd",
+ "font-types",
+ "hex",
+ "hex-literal",
  "lazy_static",
+ "log",
  "memoffset",
  "proc-macro2",
+ "qr_code",
  "quote",
+ "rand",
+ "rand_pcg",
+ "read-fonts",
+ "regex",
  "rstest",
+ "rstest_reuse",
+ "rustc-demangle-capi",
  "rustversion",
  "serde",
  "serde_json",
  "serde_json_lenient",
+ "skrifa",
  "small_ctor",
  "static_assertions",
- "syn",
+ "syn 2.0.29",
  "unicode-linebreak",
+ "wycheproof",
 ]
 
 [[package]]
 name = "clap"
-version = "4.0.26"
+version = "4.4.6"
 dependencies = [
- "bitflags",
+ "clap_builder",
+]
+
+[[package]]
+name = "clap_builder"
+version = "4.4.6"
+dependencies = [
+ "anstyle",
  "clap_lex",
  "strsim",
 ]
 
 [[package]]
 name = "clap_lex"
-version = "0.3.0"
-dependencies = [
- "os_str_bytes",
-]
+version = "0.5.1"
 
 [[package]]
 name = "codespan-reporting"
@@ -69,7 +100,7 @@ dependencies = [
 
 [[package]]
 name = "cxx"
-version = "1.0.82"
+version = "1.0.107"
 dependencies = [
  "cxxbridge-macro",
  "link-cplusplus",
@@ -77,27 +108,44 @@ dependencies = [
 
 [[package]]
 name = "cxxbridge-cmd"
-version = "1.0.82"
+version = "1.0.107"
 dependencies = [
  "clap",
  "codespan-reporting",
  "proc-macro2",
  "quote",
- "syn",
+ "syn 2.0.29",
 ]
 
 [[package]]
 name = "cxxbridge-macro"
-version = "1.0.82"
+version = "1.0.107"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn",
+ "syn 2.0.29",
 ]
 
 [[package]]
-name = "itoa"
-version = "0.4.8"
+name = "font-types"
+version = "0.4.0"
+
+[[package]]
+name = "getrandom"
+version = "0.2.9"
+dependencies = [
+ "cfg-if",
+ "libc",
+ "wasi",
+]
+
+[[package]]
+name = "hex"
+version = "0.4.3"
+
+[[package]]
+name = "hex-literal"
+version = "0.4.1"
 
 [[package]]
 name = "itoa"
@@ -109,11 +157,18 @@ version = "1.4.0"
 
 [[package]]
 name = "libc"
-version = "0.2.132"
+version = "0.2.144"
 
 [[package]]
 name = "link-cplusplus"
-version = "1.0.5"
+version = "1.0.9"
+
+[[package]]
+name = "log"
+version = "0.4.17"
+dependencies = [
+ "cfg-if",
+]
 
 [[package]]
 name = "memchr"
@@ -127,21 +182,63 @@ dependencies = [
 ]
 
 [[package]]
-name = "os_str_bytes"
-version = "6.0.0"
+name = "ppv-lite86"
+version = "0.2.17"
 
 [[package]]
 name = "proc-macro2"
-version = "1.0.43"
+version = "1.0.66"
 dependencies = [
  "unicode-ident",
 ]
 
 [[package]]
+name = "qr_code"
+version = "2.0.0"
+
+[[package]]
 name = "quote"
-version = "1.0.10"
+version = "1.0.33"
 dependencies = [
  "proc-macro2",
+]
+
+[[package]]
+name = "rand"
+version = "0.8.5"
+dependencies = [
+ "libc",
+ "rand_chacha",
+ "rand_core",
+]
+
+[[package]]
+name = "rand_chacha"
+version = "0.3.1"
+dependencies = [
+ "ppv-lite86",
+ "rand_core",
+]
+
+[[package]]
+name = "rand_core"
+version = "0.6.4"
+dependencies = [
+ "getrandom",
+]
+
+[[package]]
+name = "rand_pcg"
+version = "0.3.1"
+dependencies = [
+ "rand_core",
+]
+
+[[package]]
+name = "read-fonts"
+version = "0.11.0"
+dependencies = [
+ "font-types",
 ]
 
 [[package]]
@@ -159,13 +256,43 @@ version = "0.6.27"
 
 [[package]]
 name = "rstest"
-version = "0.12.0"
+version = "0.17.0"
+dependencies = [
+ "rstest_macros",
+ "rustc_version",
+]
+
+[[package]]
+name = "rstest_macros"
+version = "0.17.0"
 dependencies = [
  "cfg-if",
  "proc-macro2",
  "quote",
  "rustc_version",
- "syn",
+ "syn 1.0.99",
+ "unicode-ident",
+]
+
+[[package]]
+name = "rstest_reuse"
+version = "0.5.0"
+dependencies = [
+ "quote",
+ "rand",
+ "rustc_version",
+ "syn 1.0.99",
+]
+
+[[package]]
+name = "rustc-demangle"
+version = "0.1.23"
+
+[[package]]
+name = "rustc-demangle-capi"
+version = "0.1.0"
+dependencies = [
+ "rustc-demangle",
 ]
 
 [[package]]
@@ -189,41 +316,48 @@ version = "1.0.4"
 
 [[package]]
 name = "serde"
-version = "1.0.147"
+version = "1.0.188"
 dependencies = [
  "serde_derive",
 ]
 
 [[package]]
 name = "serde_derive"
-version = "1.0.147"
+version = "1.0.188"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn",
+ "syn 2.0.29",
 ]
 
 [[package]]
 name = "serde_json"
 version = "1.0.78"
 dependencies = [
- "itoa 1.0.1",
+ "itoa",
  "ryu",
  "serde",
 ]
 
 [[package]]
 name = "serde_json_lenient"
-version = "0.1.4"
+version = "0.1.8"
 dependencies = [
- "itoa 0.4.8",
+ "itoa",
  "ryu",
  "serde",
 ]
 
 [[package]]
+name = "skrifa"
+version = "0.10.0"
+dependencies = [
+ "read-fonts",
+]
+
+[[package]]
 name = "small_ctor"
-version = "0.1.0"
+version = "0.1.1"
 
 [[package]]
 name = "static_assertions"
@@ -243,6 +377,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "syn"
+version = "2.0.29"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "unicode-ident",
+]
+
+[[package]]
 name = "termcolor"
 version = "1.1.2"
 dependencies = [
@@ -251,7 +394,7 @@ dependencies = [
 
 [[package]]
 name = "unicode-ident"
-version = "1.0.3"
+version = "1.0.8"
 
 [[package]]
 name = "unicode-linebreak"
@@ -263,6 +406,12 @@ dependencies = [
 [[package]]
 name = "unicode-width"
 version = "0.1.9"
+
+[[package]]
+name = "wasi"
+version = "0.11.0+wasi-snapshot-preview1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9c8d87e72b64a3b4db28d11ce29237c246188f4f51057d65a7eab63b7987e423"
 
 [[package]]
 name = "winapi"
@@ -290,3 +439,13 @@ name = "winapi-x86_64-pc-windows-gnu"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
+
+[[package]]
+name = "wycheproof"
+version = "0.4.0"
+dependencies = [
+ "base64",
+ "hex",
+ "serde",
+ "serde_json",
+]

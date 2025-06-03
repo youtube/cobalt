@@ -142,9 +142,9 @@ SupportedVideoDecoderConfigs Dav1dVideoDecoder::SupportedConfigs() {
            /*require_encrypted=*/false}};
 }
 
-Dav1dVideoDecoder::Dav1dVideoDecoder(MediaLog* media_log,
+Dav1dVideoDecoder::Dav1dVideoDecoder(std::unique_ptr<MediaLog> media_log,
                                      OffloadState offload_state)
-    : media_log_(media_log),
+    : media_log_(std::move(media_log)),
       bind_callbacks_(offload_state == OffloadState::kNormal) {
   DETACH_FROM_SEQUENCE(sequence_checker_);
 }
@@ -355,10 +355,12 @@ bool Dav1dVideoDecoder::DecodeBuffer(scoped_refptr<DecoderBuffer> buffer) {
                                 : gfx::ColorSpace::RangeID::LIMITED);
 
     // If the frame doesn't specify a color space, use the container's.
-    if (!color_space.IsSpecified())
-      color_space = config_.color_space_info();
+    auto gfx_cs = color_space.ToGfxColorSpace();
+    if (!gfx_cs.IsValid()) {
+      gfx_cs = config_.color_space_info().ToGfxColorSpace();
+    }
 
-    frame->set_color_space(color_space.ToGfxColorSpace());
+    frame->set_color_space(gfx_cs);
     frame->metadata().power_efficient = false;
     frame->set_hdr_metadata(config_.hdr_metadata());
 

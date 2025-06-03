@@ -16,9 +16,6 @@
   <message name="IDS_ALL_SITES" desc='Title of the "All sites" settings screen that allows the user to see permissions for all websites. [CHAR_LIMIT=32]'>
     All sites
   </message>
-  <message name="IDS_ADS_PERMISSION_TITLE" desc="Title for the ads permission [CHAR_LIMIT=32]">
-    Ads
-  </message>
   <message name="IDS_ANTI_ABUSE_PERMISSION_TITLE" desc="Title for the anti-abuse permission [CHAR_LIMIT=32]">
     Auto-verify
   </message>
@@ -63,6 +60,9 @@
   </message>
   <message name="IDS_THIRD_PARTY_COOKIES_LINK_ROW_SUB_LABEL_DISABLED" desc="3 of 3 possible states for the Third-party cookies setting. This text appears beneath the 'Third-party cookies' button label." >
     Third-party cookies are blocked
+  </message>
+  <message name="IDS_THIRD_PARTY_COOKIES_LINK_ROW_SUB_LABEL_LIMITED" desc="1 of 2 possible states for the Tracking Protection cookies setting. This text appears beneath the 'Tracking Protection' button label.">
+    Third-party cookies are limited
   </message>
   <message name="IDS_WEBSITE_SETTINGS_IDLE_DETECTION" desc="Title of the permission to detect user activity [CHAR_LIMIT=32]">
     Your device use
@@ -112,6 +112,12 @@
   <message name="IDS_DESKTOP_SITE_TITLE" desc="Title of the permission to request the desktop view of a site by default [CHAR_LIMIT=32]">
     Desktop site
   </message>
+  <message name="IDS_STORAGE_ACCESS_PERMISSION_TITLE" desc="Title of the permission to allow embedded content to access cookies and site data [CHAR_LIMIT=32]">
+    Embedded content
+  </message>
+  <message name="IDS_TRACKING_PROTECTION_SETTINGS_TITLE" desc="Title of the Tracking Protection category in Site Settings [CHAR_LIMIT=32]">
+    Tracking Protection
+  </message>
 
   <!-- Site settings global toggles -->
 
@@ -123,6 +129,12 @@
   </message>
   <message name="IDS_WEBSITE_SETTINGS_CATEGORY_ALLOWED_RECOMMENDED" desc="Summary text explaining that a permission is allowed, which is the recommended setting.">
     Allowed (recommended)
+  </message>
+  <message name="IDS_WEBSITE_SETTINGS_SITE_ALLOWED" desc="Summary text explaining that a permission is allowed for a site, e.g. google.com allowed.">
+    <ph name="SITE_NAME">%1$s<ex>google.com</ex></ph> allowed
+  </message>
+  <message name="IDS_WEBSITE_SETTINGS_SITE_BLOCKED" desc="Summary text explaining that a permission is blocked for a site, e.g. google.com blocked.">
+    <ph name="SITE_NAME">%1$s<ex>google.com</ex></ph> blocked
   </message>
   <message name="IDS_WEBSITE_SETTINGS_CATEGORY_ASK" desc="Summary text explaining that Chrome will ask the user before allowing a site to use a certain permission, e.g. JavaScript: ask first.">
     Ask first
@@ -152,6 +164,9 @@
   </message>
   <message name="IDS_ENABLE_DESKTOP_SITE_EXTERNAL_DISPLAY_SUMMARY" translateable="false" desc="Summary for the preference to enable display setting for request desktop site">
     Always request desktop site if a monitor is connected
+  </message>
+  <message name="IDS_ENABLE_DESKTOP_SITE_WINDOW_SETTING_TITLE" desc="Title for the preference to enable window setting for request desktop site">
+    When the window is narrow, request mobile view
   </message>
 
   <!-- Site settings: general category strings -->
@@ -236,6 +251,15 @@
   <message name="IDS_WEBSITE_SETTINGS_DOMAIN_EXCEPTION_LABEL" desc="The label for site exceptions that apply to the entire domain.">
     All sites under <ph name="DOMAIN">%1$s<ex>google.com</ex></ph>
   </message>
+  <message name="IDS_SITE_SETTINGS_EXPIRES_TODAY_LABEL" desc="Third party cookies exception label, shown in the Third-Party cookies site settings exceptions list. Shown when an exceptions expires today.">
+    Expires today
+  </message>
+  <message name="IDS_SITE_SETTINGS_EXPIRES_LABEL" desc="Third party cookies exception label, shown in the Third-Party cookies site settings exception list.">
+    {COUNT, plural, 
+      =1 {Expires tomorrow} 
+      other {Expires in # days}
+    }
+  </message>
 
   <!-- Site settings Add Exception dialog -->
 
@@ -269,32 +293,32 @@
 
   <!-- Site settings Clear Data Dialog and other ways of resetting permissions -->
 
-  <message name="IDS_WEBSTORAGE_CLEAR_DATA_DIALOG_TITLE" desc="Title of the confirmation dialog when the user ask to clear all data for an origin">
-    Clear site data?
+  <message name="IDS_WEBSTORAGE_DELETE_DATA_DIALOG_TITLE" desc="Title of the confirmation dialog when the user ask to delete all data for an origin">
+    Delete site data?
   </message>
-  <message name="IDS_WEBSTORAGE_CLEAR_DATA_DIALOG_OK_BUTTON" desc="Button confirming site data cleanup [CHAR_LIMIT=20]">
-    Clear
+  <message name="IDS_WEBSTORAGE_DELETE_DATA_DIALOG_OK_BUTTON" desc="Button confirming site data cleanup [CHAR_LIMIT=20]">
+    Delete
   </message>
-  <message name="IDS_WEBSTORAGE_CLEAR_DATA_DIALOG_MESSAGE_SINGLE" desc="Text of the confirmation dialog when the user asks to clear all data (and app) for a single origin">
-    This will clear all data and cookies stored by <ph name="ORIGIN">%1$s<ex>google.com</ex></ph>.
+  <message name="IDS_WEBSTORAGE_DELETE_DATA_DIALOG_MESSAGE_SINGLE" desc="Text of the confirmation dialog when the user asks to delete all data (and app) for a single origin">
+    This will delete all data and cookies stored by <ph name="ORIGIN">%1$s<ex>google.com</ex></ph>.
   </message>
-  <message name="IDS_WEBSTORAGE_CLEAR_DATA_DIALOG_MESSAGE_SINGLE_WITH_APP" desc="Text of the confirmation dialog when the user asks to clear all data (and app) for a single origin, when there's an app associated with it.">
-    This will clear all data and cookies stored by <ph name="ORIGIN">%1$s<ex>google.com</ex></ph> or by its app on your Home screen.
+  <message name="IDS_WEBSTORAGE_DELETE_DATA_DIALOG_MESSAGE_SINGLE_WITH_APP" desc="Text of the confirmation dialog when the user asks to delete all data (and app) for a single origin, when there's an app associated with it.">
+    This will delete all data and cookies stored by <ph name="ORIGIN">%1$s<ex>google.com</ex></ph> or by its app on your Home screen.
   </message>
-  <message name="IDS_WEBSTORAGE_CLEAR_DATA_DIALOG_MESSAGE_GROUP" desc="Text of the confirmation dialog when the user asks to clear all data (and app) for a group of sites">
-    This action will clear all data and cookies for <ph name="ORIGIN">%1$s<ex>google.com</ex></ph> and all sites under it
+  <message name="IDS_WEBSTORAGE_DELETE_DATA_DIALOG_MESSAGE_GROUP" desc="Text of the confirmation dialog when the user asks to delete all data (and app) for a group of sites">
+    This action will delete all data and cookies for <ph name="ORIGIN">%1$s<ex>google.com</ex></ph> and all sites under it
   </message>
-  <message name="IDS_WEBSTORAGE_CLEAR_DATA_DIALOG_MESSAGE_GROUP_WITH_APP" desc="Text of the confirmation dialog when the user asks to clear all data (and app) for a group of sites, when there's an app associated with it.">
-    This action will clear all data and cookies stored by all sites under <ph name="ORIGIN">%1$s<ex>google.com</ex></ph> or by its app on your Home screen
+  <message name="IDS_WEBSTORAGE_DELETE_DATA_DIALOG_MESSAGE_GROUP_WITH_APP" desc="Text of the confirmation dialog when the user asks to delete all data (and app) for a group of sites, when there's an app associated with it.">
+    This action will delete all data and cookies stored by all sites under <ph name="ORIGIN">%1$s<ex>google.com</ex></ph> or by its app on your Home screen
   </message>
-  <message name="IDS_WEBSTORAGE_CLEAR_DATA_DIALOG_OFFLINE_MESSAGE" desc="Text of the confirmation dialog, explaining that all offline data will be cleared (when clearing a site/sites).">
-    Any offline data will be cleared
+  <message name="IDS_WEBSTORAGE_DELETE_DATA_DIALOG_OFFLINE_MESSAGE" desc="Text of the confirmation dialog, explaining that all offline data will be deleted (when clearing a site/sites).">
+    Any offline data will be deleted
   </message>
-  <message name="IDS_WEBSTORAGE_CLEAR_DATA_DIALOG_MESSAGE" desc="Text of the confirmation dialog when the user ask to clear all data for multiple origins">
-    This will clear <ph name="DATASIZE">%1$s<ex>1 GB</ex></ph> of data and cookies stored by sites.
+  <message name="IDS_WEBSTORAGE_DELETE_DATA_DIALOG_MESSAGE" desc="Text of the confirmation dialog when the user ask to delete all data for multiple origins">
+    This will delete <ph name="DATASIZE">%1$s<ex>1 GB</ex></ph> of data and cookies stored by sites.
   </message>
-  <message name="IDS_WEBSTORAGE_CLEAR_DATA_DIALOG_MESSAGE_WITH_APP" desc="Text of the confirmation dialog when the user ask to clear all data for multiple origins, some of which have an app associated with them.">
-    This will clear <ph name="DATASIZE">%1$s<ex>1 GB</ex></ph> of data and cookies stored by sites or by apps on your Home screen.
+  <message name="IDS_WEBSTORAGE_DELETE_DATA_DIALOG_MESSAGE_WITH_APP" desc="Text of the confirmation dialog when the user ask to delete all data for multiple origins, some of which have an app associated with them.">
+    This will delete <ph name="DATASIZE">%1$s<ex>1 GB</ex></ph> of data and cookies stored by sites or by apps on your Home screen.
   </message>
   <message name="IDS_WEBSTORAGE_CLEAR_DATA_DIALOG_SIGN_OUT_MESSAGE" desc="Text of the confirmation dialog, explaining that the user will be signed out of the site being cleared.">
     You may be signed out of this site
@@ -308,26 +332,33 @@
   <message name="IDS_WEBSTORAGE_CLEAR_DATA_DIALOG_SITE_SETTINGS_REMOVE_SITE_AD_PERSONALIZATION" desc="A bullet in a list of data that gets deleted from the user's device when they choose 'Clear data' for a specific site. 1) Go to chrome://settings/content. 2) From the 'Recent activity' list, choose a site. 3) Click the 'Clear data' button. The 'Clear site data?' dialog appears. This string will appear as a new bullet at the bottom of the dialog.">
     Data that affects ad personalization is deleted
   </message>
-  <message name="IDS_STORAGE_CLEAR_SITE_STORAGE_TITLE" desc="Title of clear storage dialogs used in a couple different places to confirm clearing site storage data. [CHAR_LIMIT=24]">
-    Clear site data?
+  <message name="IDS_STORAGE_DELETE_SITE_STORAGE_TITLE" desc="Title of delete storage dialogs used in a couple different places to confirm deleting site storage data. [CHAR_LIMIT=24]">
+    Delete site data?
   </message>
-  <message name="IDS_STORAGE_CLEAR_DIALOG_CLEAR_STORAGE_OPTION" desc="Text of the button that will clear website storage.">
-    Clear
+  <!-- TODO(crbug.com/1459631): Add proper strings and make them translateable. -->
+  <message name="IDS_ZOOM_CLEAR_ALL_ZOOMS_DIALOG_TITLE" translateable="false" desc="Title of clear all zoom dialog used when a user decides to clear all zooms. [CHAR_LIMIT=24]">
+    Clear all zoom levels?
   </message>
-  <message name="IDS_STORAGE_CLEAR_DIALOG_TEXT" desc="Text of the clear storage dialog which give the user a choice to reset the app or delete site storage data.">
-    This will clear all <ph name="SIZE_IN_KB">%1$s<ex>101kb</ex></ph> of website storage.
+  <message name="IDS_STORAGE_DELETE_DIALOG_CLEAR_STORAGE_OPTION" desc="Text of the button that will delete website storage.">
+    Delete
   </message>
-  <message name="IDS_WEBSITE_RESET" desc="The label for the button allowing users to clear all data and reset the permissions for a website.">
-    Clear &amp; reset
+  <message name="IDS_WEBSITE_RESET" desc="The label for the button allowing users to delete all data and reset the permissions for a website.">
+    Delete &amp; reset
   </message>
-  <message name="IDS_WEBSITE_RESET_FULL" desc="The label for the button allowing users to clear all data and reset the permissions for a website.">
-    Clear data &amp; reset permissions
+  <message name="IDS_WEBSITE_RESET_FULL" desc="The label for the button allowing users to delete all data and reset the permissions for a website.">
+    Delete data &amp; reset permissions
   </message>
-  <message name="IDS_WEBSITE_RESET_CONFIRMATION_TITLE" desc="The title of the confirmation dialog for clearing all site data and resetting the permissions.">
-    Clear &amp; reset?
+  <message name="IDS_WEBSITE_RESET_CONFIRMATION_TITLE" desc="The title of the confirmation dialog for deleting all site data and resetting the permissions.">
+    Delete &amp; reset?
   </message>
-  <message name="IDS_WEBSITE_RESET_CONFIRMATION" desc="The confirmation text asking if the user is sure about clearing all data and reset the permissions for a site.">
-    Are you sure you want to clear all local data, including cookies, and reset all permissions for this website?
+  <message name="IDS_WEBSITE_RESET_CONFIRMATION" desc="The confirmation text asking if the user is sure about deleting all data and resetting the permissions for a site.">
+    Are you sure you want to delete all local data, including cookies, and reset all permissions for this website?
+  </message>
+  <message name="IDS_WEBSITE_SINGLE_RESET_CONFIRMATION" desc="The confirmation text asking if the user is sure about deleting all data and resetting the permissions for a single origin.">
+    This action will delete all local data, including cookies, and reset all permissions for <ph name="ORIGIN">%1$s<ex>mail.google.com</ex></ph>
+  </message>
+  <message name="IDS_WEBSITE_GROUP_RESET_CONFIRMATION" desc="The confirmation text asking if the user is sure about deleting all data and resetting the permissions for a group of sites.">
+    This action will delete all local data, including cookies, and reset all permissions for <ph name="DOMAIN">%1$s<ex>google.com</ex></ph> and all sites under it
   </message>
   <message name="IDS_CHOSEN_OBJECT_WEBSITE_RESET_CONFIRMATION_FOR" desc="The confirmation asking if the user is sure about clearing all site permissions for the chosen object">
     Are you sure you want to reset all site permissions for <ph name="CHOSEN_OBJECT_NAME">%1$s<ex>Weblight</ex></ph>?
@@ -339,9 +370,6 @@
 
   <message name="IDS_INTRUSIVE_ADS_INFORMATION" desc="The extra information at the top of the Site Details page when the site tends to show intrusive ads">
     This site shows intrusive or misleading ads
-  </message>
-  <message name="IDS_WEBSITE_SETTINGS_CATEGORY_ADS_BLOCKED" desc="A setting that, if turned on, will block intrusive or misleading ads on sites that have a history of showing such ads.">
-    Block ads on sites that show intrusive or misleading ads
   </message>
   <message name="IDS_WEBSITE_SETTINGS_CATEGORY_ADS_BLOCKED_LIST" desc="Summary text explaining that the Ads permission is set to block ads on some sites. To be shown in the list of permission categories.">
     Blocked on some sites
@@ -472,9 +500,6 @@
   <message name="IDS_WEBSITE_SETTINGS_CATEGORY_COOKIE_BLOCK_ADDITION" desc="Additional text used to explain the block cookies option in settings">
     Features on many sites may not work
   </message>
-  <message name="IDS_WEBSITE_SETTINGS_CATEGORY_COOKIE_ALLOWED" desc="Summary text explaining that sites are allowed to use cookies and that it is the recommended setting.">
-    Allow sites to save and read cookie data (recommended)
-  </message>
   <message name="IDS_WEBSITE_SETTINGS_ADD_SITE_DESCRIPTION_COOKIES_ALLOW" desc="The description for the allow Cookies for website dialog.">
     Allow cookies for a specific site.
   </message>
@@ -484,7 +509,7 @@
 
   <!-- Site data page -->
   <message name="IDS_WEBSITE_SETTINGS_SITE_DATA_PAGE_DESCRIPTION" desc="A paragraph that appear beneath the page title: 'On-device site data'. It defines what on-device site data is. What is 'On-device site data'? When you interact with a site, that site can remember things about what you do. For example, you might place a pair of shoes in a shopping cart, close down your browser, and find those same shoes in your shopping cart when you visit the same site a week later. Sometimes that info is saved in the Cloud. Sometimes that info is saved on the user's device. There are several ways a site can save info to the user's device—for example, with cookies (text files saved to your device), small JavaScript databases, and even Chrome's new ad settings that are part of the Privacy Sandbox project (see details below). This page introduces the concept of on-device site data, allows the user to see which sites are using it, and allows the user to delete all saved data or just data from specific sites.  **** CONTEXT PRIVACY SANDBOX **** Chrome’s Privacy Sandbox initiative 1) deprecates third-party cookies in Chrome, 2) supports free and open content on the web (by finding better ways to support ads online), 3) while providing stronger privacy protections for users. You can see a high-level description of this public project at www.privacysanbox.com.">
-    A site you visit can save info about what you’re doing so that it works as you would expect — for example, to keep you signed in to a site or to save items in your shopping cart. Often sites save this info temporarily on your device.
+    A site you visit can save info about what you’re doing so that it works as expected — for example, to keep you signed in to a site or to save items in your shopping cart. Often sites save this info temporarily on your device.
   </message>
   <message name="IDS_WEBSITE_SETTINGS_SITE_DATA_PAGE_TOGGLE_SUB_LABEL_ALLOW" desc="A description of the 'On-device site data' setting. This text also reflects the state of the setting (on).">
     Sites can save data on your device
@@ -771,8 +796,21 @@
   <message name="IDS_ORIGIN_SETTINGS_STORAGE_USAGE_BRIEF" desc="Explanation of how much local storage a website is using">
     <ph name="STORAGE_AMOUNT">%1$s<ex>2 MB</ex></ph> stored data
   </message>
-  <message name="IDS_STORAGE_CLEAR_BUTTON_TITLE" desc="Title of a button in the storage UI used to clear all storage data. [CHAR_LIMIT=24]">
-    Clear all data
+  <message name="IDS_STORAGE_DELETE_BUTTON_TITLE" desc="Title of a button in the storage UI used to delete all storage data. [CHAR_LIMIT=24]">
+    Delete all data
+  </message>
+
+  <!-- ZOOM -->
+
+  <!-- TODO(crbug.com/1459631): Add proper strings and make them translateable. -->
+  <message name="IDS_SITE_SETTINGS_EMPTY_ZOOM_LEVELS_MESSAGE" translateable="false" desc="Text to display when there are no saved zooms">
+    Websites with a saved zoom appear here
+  </message>
+  <message name="IDS_SITE_SETTINGS_CLEAR_ALL_ZOOM_LEVELS_BUTTON_TEXT" translateable="false" desc="Title of a button in the storage UI used to clear all zoom data. [CHAR_LIMIT=24]">
+    Clear all zooms
+  </message>
+  <message name="IDS_SITE_SETTINGS_CLEAR_ALL_ZOOM_LEVELS_WARNING" translateable="false" desc="Explanation of the sites that zoom is being cleared for">
+    This will clear all the zoom levels listed on this page.
   </message>
 
   <!-- USB -->
@@ -813,4 +851,14 @@
     Don’t apply dark theme for a specific site
   </message>
 
+  <!-- Storage access -->
+  <message name="IDS_WEBSITE_SETTINGS_CATEGORY_STORAGE_ACCESS_ALLOWED" desc="One of two radio buttons on the Embedded content settings page. If a user chooses this option, they're allowing a new permission prompt that may get shown as the user browses sites. In the description below, “Google Docs” is just used as an example. 1) “use info” means retrieve existing info and save additional info. 2) “they've' saved about you”: Google Docs can only prompt the user for permission on www.myfavoritesite.com if the user has previously used Google Docs.">
+    Sites can ask to use info they've saved about you
+  </message>
+  <message name="IDS_WEBSITE_SETTINGS_CATEGORY_STORAGE_ACCESS_BLOCKED" desc="The second of two radio buttons on the Embedded content settings page. If a user chooses this option, they're not allowing a new permission prompt that may get shown as the user browses sites. In the description below, “www.myfavoritesite.com” and “Google Docs” are just used as examples. 1) “use info” means retrieve existing info and save additional info. 2) “they've' saved about you”: Google Docs can only prompt the user for permission on www.myfavoritesite.com if the user has previously used Google Docs.">
+    Sites are blocked from asking you to use info they've saved about you
+  </message>
+  <message name="IDS_WEBSITE_SETTINGS_STORAGE_ACCESS_PAGE_DESCRIPTION" desc="The body description on the Embedded content settings page.">
+    Sites you visit can embed content from other sites, for example images, ads, and text. These other sites can ask for permission to use info they've saved about you as you browse the site. <ph name="BEGIN_LINK">&lt;link&gt;</ph>Learn more about embedded content<ph name="END_LINK">&lt;/link&gt;</ph>
+  </message>
 </grit-part>

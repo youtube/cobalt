@@ -18,6 +18,7 @@
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
+#include "base/sanitizer_buildflags.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/bind.h"
@@ -57,12 +58,12 @@
 #include "content/browser/site_instance_group.h"
 #include "content/browser/web_contents/web_contents_impl.h"
 #include "content/browser/web_contents/web_contents_view_aura.h"
+#include "content/common/features.h"
 #include "content/public/browser/context_menu_params.h"
 #include "content/public/browser/keyboard_event_processing_result.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_view_delegate.h"
-#include "content/public/common/content_features.h"
 #include "content/public/test/fake_frame_widget.h"
 #include "content/public/test/mock_render_process_host.h"
 #include "content/public/test/test_browser_context.h"
@@ -152,6 +153,15 @@ using viz::FrameEvictionManager;
   }
 
 namespace content {
+
+void ParentHostView(RenderWidgetHostView* host_view,
+                    RenderWidgetHostView* parent_host_view,
+                    const gfx::Rect& bounds = gfx::Rect()) {
+  aura::client::ParentWindowWithContext(
+      host_view->GetNativeView(),
+      parent_host_view->GetNativeView()->GetRootWindow(), bounds,
+      display::kInvalidDisplayId);
+}
 
 void InstallDelegatedFrameHostClient(
     RenderWidgetHostViewAura* render_widget_host_view);
@@ -412,14 +422,16 @@ class MockRenderWidgetHostImpl : public RenderWidgetHostImpl {
                            base::SafeRef<SiteInstanceGroup> site_instance_group,
                            int32_t routing_id,
                            bool hidden)
-      : RenderWidgetHostImpl(frame_tree,
-                             /*self_owned=*/true,
-                             delegate,
-                             std::move(site_instance_group),
-                             routing_id,
-                             hidden,
-                             /*renderer_initiated_creation=*/false,
-                             std::make_unique<FrameTokenMessageQueue>()) {
+      : RenderWidgetHostImpl(
+            frame_tree,
+            /*self_owned=*/true,
+            DefaultFrameSinkId(*site_instance_group, routing_id),
+            delegate,
+            site_instance_group,
+            routing_id,
+            hidden,
+            /*renderer_initiated_creation=*/false,
+            std::make_unique<FrameTokenMessageQueue>()) {
     BindWidgetInterfaces(mojo::AssociatedRemote<blink::mojom::WidgetHost>()
                              .BindNewEndpointAndPassDedicatedReceiver(),
                          widget_.GetNewRemote());
@@ -553,11 +565,12 @@ class RenderWidgetHostViewAuraTest : public testing::Test {
         site_instance_group_->GetSafeRef(), routing_id, /*hidden = */ false);
     delegates_.back()->set_widget_host(parent_host_);
 
+    // This is an owning pointer. Released manually in TearDownEnvironment().
     parent_view_ = new RenderWidgetHostViewAura(parent_host_);
     parent_view_->InitAsChild(nullptr);
-    aura::client::ParentWindowWithContext(parent_view_->GetNativeView(),
-                                          aura_test_helper_->GetContext(),
-                                          gfx::Rect());
+    aura::client::ParentWindowWithContext(
+        parent_view_->GetNativeView(), aura_test_helper_->GetContext(),
+        gfx::Rect(), display::kInvalidDisplayId);
 
     parent_host_->BindFrameWidgetInterfaces(
         mojo::AssociatedRemote<blink::mojom::FrameWidgetHost>()
@@ -612,10 +625,14 @@ class RenderWidgetHostViewAuraTest : public testing::Test {
   }
 
   void TearDownEnvironment() {
+    parent_host_ = nullptr;  // Owned indirectly by `view_`, destroyed below.
+
     sink_ = nullptr;
-    if (view_)
-      DestroyView(view_);
-    parent_view_->Destroy();
+    widget_host_ = nullptr;  // Owned by `view_` destroyed below:
+    if (view_) {
+      DestroyView(view_.ExtractAsDangling());
+    }
+    parent_view_.ExtractAsDangling()->Destroy();
 
     process_host_->Cleanup();
     site_instance_group_.reset();
@@ -659,6 +676,10 @@ class RenderWidgetHostViewAuraTest : public testing::Test {
 
   bool HasTouchEventHandlers(bool has_handlers) { return has_handlers; }
   bool HasHitTestableScrollbar(bool has_scrollbar) { return has_scrollbar; }
+
+  ui::InputMethod* GetInputMethod() const {
+    return parent_view_->GetInputMethod();
+  }
 
  protected:
   BrowserContext* browser_context() { return browser_context_.get(); }
@@ -718,13 +739,15 @@ class RenderWidgetHostViewAuraTest : public testing::Test {
 
   // Tests should set these to nullptr if they've already triggered their
   // destruction.
-  raw_ptr<RenderWidgetHostImpl> parent_host_;
-  raw_ptr<RenderWidgetHostViewAura> parent_view_;
+  raw_ptr<RenderWidgetHostImpl> parent_host_ = nullptr;
+  // The `parent_view_` owns the object.
+  // Note: It would be great turning this into a std::unique_ptr<>.
+  raw_ptr<RenderWidgetHostViewAura> parent_view_ = nullptr;
 
-  // Tests should set these to nullptr if they've already triggered their
+  // Tests should set `view` to nullptr if they've already triggered their
   // destruction.
-  raw_ptr<MockRenderWidgetHostImpl> widget_host_;
   raw_ptr<FakeRenderWidgetHostViewAura> view_;
+  raw_ptr<MockRenderWidgetHostImpl> widget_host_ = nullptr;  // Owned by `view_`
 
   raw_ptr<IPC::TestSink> sink_ = nullptr;
   base::test::ScopedFeatureList mojo_feature_list_;
@@ -1188,12 +1211,11 @@ TEST_F(RenderWidgetHostViewAuraTest, DestroyPopupClickOutsidePopup) {
 
   TestWindowObserver observer(window);
   ui::test::EventGenerator generator(window->GetRootWindow(), click_point);
+  widget_host_ = nullptr;  // Owned by `view_`.
+  view_ = nullptr;         // Self destroying during `ClickLeftButton`.
   generator.ClickLeftButton();
   ASSERT_TRUE(parent_view_->HasFocus());
   ASSERT_TRUE(observer.destroyed());
-
-  widget_host_ = nullptr;
-  view_ = nullptr;
 }
 
 // Checks that a popup view is destroyed when a user taps outside of the popup
@@ -1215,12 +1237,11 @@ TEST_F(RenderWidgetHostViewAuraTest, DestroyPopupTapOutsidePopup) {
 
   TestWindowObserver observer(window);
   ui::test::EventGenerator generator(window->GetRootWindow(), tap_point);
+  widget_host_ = nullptr;  // Owned by `view_`.
+  view_ = nullptr;         // Self destroying during `GestureTapAt`.
   generator.GestureTapAt(tap_point);
   ASSERT_TRUE(parent_view_->HasFocus());
   ASSERT_TRUE(observer.destroyed());
-
-  widget_host_ = nullptr;
-  view_ = nullptr;
 }
 #endif
 
@@ -1262,17 +1283,17 @@ TEST_F(RenderWidgetHostViewAuraTest, PopupClosesWhenParentLosesFocus) {
   aura::test::TestWindowDelegate delegate;
   std::unique_ptr<aura::Window> dialog_window(new aura::Window(&delegate));
   dialog_window->Init(ui::LAYER_TEXTURED);
-  aura::client::ParentWindowWithContext(
-      dialog_window.get(), popup_window, gfx::Rect());
+  aura::client::ParentWindowWithContext(dialog_window.get(), popup_window,
+                                        gfx::Rect(),
+                                        display::kInvalidDisplayId);
   dialog_window->Show();
   wm::ActivateWindow(dialog_window.get());
+  widget_host_ = nullptr;  // Owned by `view_`.
+  view_ = nullptr;         // Self destroying during `Focus` below:
   dialog_window->Focus();
 
   ASSERT_TRUE(wm::IsActiveWindow(dialog_window.get()));
   EXPECT_TRUE(observer.destroyed());
-
-  widget_host_ = nullptr;
-  view_ = nullptr;
 }
 
 // Checks that IME-composition-event state is maintained correctly.
@@ -2581,10 +2602,7 @@ TEST_F(RenderWidgetHostViewAuraTest, TouchEventSyncAsync) {
 
 TEST_F(RenderWidgetHostViewAuraTest, CompositorViewportPixelSizeWithScale) {
   InitViewForFrame(nullptr);
-  aura::client::ParentWindowWithContext(
-      view_->GetNativeView(),
-      parent_view_->GetNativeView()->GetRootWindow(),
-      gfx::Rect());
+  ParentHostView(view_, parent_view_);
 
   widget_host_->ClearVisualProperties();
 
@@ -2666,9 +2684,7 @@ TEST_F(RenderWidgetHostViewAuraTest, CompositorViewportPixelSizeWithScale) {
 // changes and that message contains the latest ScreenInfo.
 TEST_F(RenderWidgetHostViewAuraTest, AutoResizeWithScale) {
   InitViewForFrame(nullptr);
-  aura::client::ParentWindowWithContext(
-      view_->GetNativeView(), parent_view_->GetNativeView()->GetRootWindow(),
-      gfx::Rect());
+  ParentHostView(view_, parent_view_);
 
   viz::LocalSurfaceId host_local_surface_id = view_->GetLocalSurfaceId();
   EXPECT_TRUE(host_local_surface_id.is_valid());
@@ -2739,9 +2755,7 @@ TEST_F(RenderWidgetHostViewAuraTest, AutoResizeWithScale) {
 TEST_F(RenderWidgetHostViewAuraTest,
        VerifyVisualPropertiesWhenDisablingAutoResize) {
   InitViewForFrame(nullptr);
-  aura::client::ParentWindowWithContext(
-      view_->GetNativeView(), parent_view_->GetNativeView()->GetRootWindow(),
-      gfx::Rect());
+  ParentHostView(view_, parent_view_);
 
   // Enable the auto resize.
   widget_host_->ClearVisualProperties();
@@ -2766,9 +2780,7 @@ TEST_F(RenderWidgetHostViewAuraTest,
 // changes.
 TEST_F(RenderWidgetHostViewAuraTest, AutoResizeWithBrowserInitiatedResize) {
   InitViewForFrame(nullptr);
-  aura::client::ParentWindowWithContext(
-      view_->GetNativeView(), parent_view_->GetNativeView()->GetRootWindow(),
-      gfx::Rect());
+  ParentHostView(view_, parent_view_);
   viz::LocalSurfaceId host_local_surface_id(view_->GetLocalSurfaceId());
   EXPECT_TRUE(host_local_surface_id.is_valid());
 
@@ -2832,9 +2844,7 @@ TEST_F(RenderWidgetHostViewAuraTest, AutoResizeWithBrowserInitiatedResize) {
 // viz::LocalSurfaceId will be properly routed and stored in the parent.
 TEST_F(RenderWidgetHostViewAuraTest, ChildAllocationAcceptedInParent) {
   InitViewForFrame(nullptr);
-  aura::client::ParentWindowWithContext(
-      view_->GetNativeView(), parent_view_->GetNativeView()->GetRootWindow(),
-      gfx::Rect());
+  ParentHostView(view_, parent_view_);
   sink_->ClearMessages();
   viz::LocalSurfaceId local_surface_id1(view_->GetLocalSurfaceId());
   EXPECT_TRUE(local_surface_id1.is_valid());
@@ -2865,9 +2875,7 @@ TEST_F(RenderWidgetHostViewAuraTest, ChildAllocationAcceptedInParent) {
 TEST_F(RenderWidgetHostViewAuraTest,
        ChildAllocationAcceptedInParentWhileHidden) {
   InitViewForFrame(nullptr);
-  aura::client::ParentWindowWithContext(
-      view_->GetNativeView(), parent_view_->GetNativeView()->GetRootWindow(),
-      gfx::Rect());
+  ParentHostView(view_, parent_view_);
   widget_host_->ClearVisualProperties();
   viz::LocalSurfaceId local_surface_id1(view_->GetLocalSurfaceId());
   EXPECT_TRUE(local_surface_id1.is_valid());
@@ -2902,9 +2910,7 @@ TEST_F(RenderWidgetHostViewAuraTest,
 // viz::LocalSurfaceId the resulting conflict is resolved.
 TEST_F(RenderWidgetHostViewAuraTest, ConflictingAllocationsResolve) {
   InitViewForFrame(nullptr);
-  aura::client::ParentWindowWithContext(
-      view_->GetNativeView(), parent_view_->GetNativeView()->GetRootWindow(),
-      gfx::Rect());
+  ParentHostView(view_, parent_view_);
   sink_->ClearMessages();
   viz::LocalSurfaceId local_surface_id1(view_->GetLocalSurfaceId());
   EXPECT_TRUE(local_surface_id1.is_valid());
@@ -2939,10 +2945,7 @@ TEST_F(RenderWidgetHostViewAuraTest, ConflictingAllocationsResolve) {
 // dispatched to the renderer at the correct times.
 TEST_F(RenderWidgetHostViewAuraTest, CursorVisibilityChange) {
   InitViewForFrame(nullptr);
-  aura::client::ParentWindowWithContext(
-      view_->GetNativeView(),
-      parent_view_->GetNativeView()->GetRootWindow(),
-      gfx::Rect());
+  ParentHostView(view_, parent_view_);
   view_->SetSize(gfx::Size(100, 100));
 
   aura::test::TestCursorClient cursor_client(
@@ -3027,11 +3030,7 @@ TEST_F(RenderWidgetHostViewAuraTest, CursorVisibilityChange) {
 
 TEST_F(RenderWidgetHostViewAuraTest, UpdateCursorIfOverSelf) {
   InitViewForFrame(nullptr);
-  aura::client::ParentWindowWithContext(
-      view_->GetNativeView(),
-      parent_view_->GetNativeView()->GetRootWindow(),
-      gfx::Rect());
-
+  ParentHostView(view_, parent_view_);
   // Note that all coordinates in this test are screen coordinates.
   view_->SetBounds(gfx::Rect(60, 60, 100, 100));
   view_->Show();
@@ -3077,10 +3076,7 @@ TEST_F(RenderWidgetHostViewAuraTest, ZeroSizeStillGetsLocalSurfaceId) {
   ASSERT_EQ(1u, widget_host_->visual_properties().size());
 
   // Set an empty size.
-  aura::client::ParentWindowWithContext(
-      view_->GetNativeView(), parent_view_->GetNativeView()->GetRootWindow(),
-      gfx::Rect());
-
+  ParentHostView(view_, parent_view_);
   // It's set on the layer.
   ui::Layer* parent_layer = view_->GetNativeView()->layer();
   EXPECT_EQ(gfx::Rect(), parent_layer->bounds());
@@ -3106,9 +3102,7 @@ TEST_F(RenderWidgetHostViewAuraTest, BackgroundColorMatchesCompositorFrame) {
   parent_local_surface_id_allocator_.GenerateId();
 
   InitViewForFrame(nullptr);
-  aura::client::ParentWindowWithContext(
-      view_->GetNativeView(), parent_view_->GetNativeView()->GetRootWindow(),
-      gfx::Rect());
+  ParentHostView(view_, parent_view_);
   view_->SetSize(frame_size);
   view_->Show();
   cc::RenderFrameMetadata metadata;
@@ -3150,8 +3144,9 @@ TEST_F(RenderWidgetHostViewAuraTest, Resize) {
 
   aura::Window* root_window = parent_view_->GetNativeView()->GetRootWindow();
   InitViewForFrame(nullptr);
-  aura::client::ParentWindowWithContext(
-      view_->GetNativeView(), root_window, gfx::Rect(size1));
+  aura::client::ParentWindowWithContext(view_->GetNativeView(), root_window,
+                                        gfx::Rect(size1),
+                                        display::kInvalidDisplayId);
   view_->Show();
   view_->SetSize(size1);
   EXPECT_EQ(size1.ToString(), view_->GetRequestedRendererSize().ToString());
@@ -3193,10 +3188,7 @@ TEST_F(RenderWidgetHostViewAuraTest, Resize) {
 // This test verifies that the primary SurfaceId is populated on resize.
 TEST_F(RenderWidgetHostViewAuraTest, SurfaceChanges) {
   InitViewForFrame(nullptr);
-  aura::client::ParentWindowWithContext(
-      view_->GetNativeView(), parent_view_->GetNativeView()->GetRootWindow(),
-      gfx::Rect());
-
+  ParentHostView(view_, parent_view_);
   ASSERT_TRUE(view_->delegated_frame_host_);
 
   view_->SetSize(gfx::Size(300, 300));
@@ -3210,10 +3202,7 @@ TEST_F(RenderWidgetHostViewAuraTest, SurfaceChanges) {
 // factor changes.
 TEST_F(RenderWidgetHostViewAuraTest, DeviceScaleFactorChanges) {
   InitViewForFrame(nullptr);
-  aura::client::ParentWindowWithContext(
-      view_->GetNativeView(), parent_view_->GetNativeView()->GetRootWindow(),
-      gfx::Rect());
-
+  ParentHostView(view_, parent_view_);
   view_->SetSize(gfx::Size(300, 300));
   ASSERT_TRUE(view_->HasPrimarySurface());
   EXPECT_EQ(gfx::Size(300, 300), view_->window_->layer()->size());
@@ -3263,9 +3252,7 @@ TEST_F(RenderWidgetHostViewAuraTest, DiscardDelegatedFrames) {
     // to release its resize lock once it receives a frame of the expected
     // size.
     views[i]->InitAsChild(nullptr);
-    aura::client::ParentWindowWithContext(
-        views[i]->GetNativeView(),
-        parent_view_->GetNativeView()->GetRootWindow(), gfx::Rect());
+    ParentHostView(views[i], parent_view_);
 
     // The blink::mojom::Widget interfaces are bound during
     // MockRenderWidgetHostImpl construction.
@@ -3391,10 +3378,7 @@ TEST_F(RenderWidgetHostViewAuraTest, DiscardDelegatedFramesWithMemoryPressure) {
 
     views[i] = new FakeRenderWidgetHostViewAura(hosts[i]);
     views[i]->InitAsChild(nullptr);
-    aura::client::ParentWindowWithContext(
-        views[i]->GetNativeView(),
-        parent_view_->GetNativeView()->GetRootWindow(),
-        gfx::Rect());
+    ParentHostView(views[i], parent_view_);
     views[i]->SetSize(view_rect.size());
     views[i]->Show();
     EXPECT_HAS_FRAME(views[i]);
@@ -3454,11 +3438,7 @@ TEST_F(RenderWidgetHostViewAuraTest, VisibleViewportTest) {
   gfx::Rect view_rect(100, 100);
 
   InitViewForFrame(nullptr);
-  aura::client::ParentWindowWithContext(
-      view_->GetNativeView(),
-      parent_view_->GetNativeView()->GetRootWindow(),
-      gfx::Rect());
-
+  ParentHostView(view_, parent_view_);
   widget_host_->ClearVisualProperties();
   view_->SetSize(view_rect.size());
   view_->Show();
@@ -4230,9 +4210,16 @@ TEST_F(RenderWidgetHostViewAuraOverscrollTest,
 
 // Tests that the gesture debounce timer plays nice with the overscroll
 // controller.
-// TODO(crbug.com/776424): Disabled due to flakiness on Fuchsia and Linux tsan.
+// TODO(crbug.com/776424): Disabled due to flakiness on Linux tsan.
+#if BUILDFLAG(USING_SANITIZER)
+#define MAYBE_GestureScrollDebounceTimerOverscroll \
+  DISABLED_GestureScrollDebounceTimerOverscroll
+#else
+#define MAYBE_GestureScrollDebounceTimerOverscroll \
+  GestureScrollDebounceTimerOverscroll
+#endif
 TEST_F(RenderWidgetHostViewAuraOverscrollTest,
-       DISABLED_GestureScrollDebounceTimerOverscroll) {
+       MAYBE_GestureScrollDebounceTimerOverscroll) {
   SetUpOverscrollEnvironmentWithDebounce(10);
 
   PressAndSetTouchActionAuto();
@@ -4952,7 +4939,8 @@ TEST_F(RenderWidgetHostViewAuraTest, VirtualKeyboardFocusEnsureCaretInRect) {
   InitViewForFrame(nullptr);
   aura::Window* root_window = parent_view_->GetNativeView()->GetRootWindow();
   aura::client::ParentWindowWithContext(view_->GetNativeView(), root_window,
-                                        gfx::Rect());
+                                        gfx::Rect(),
+                                        display::kInvalidDisplayId);
 
   const gfx::Rect orig_view_bounds = gfx::Rect(0, 300, 400, 200);
   const gfx::Rect shifted_view_bounds = gfx::Rect(0, 200, 400, 200);
@@ -4988,7 +4976,8 @@ TEST_F(RenderWidgetHostViewAuraTest, UpdateInsetsWithVirtualKeyboardEnabled) {
   InitViewForFrame(nullptr);
   aura::Window* root_window = parent_view_->GetNativeView()->GetRootWindow();
   aura::client::ParentWindowWithContext(view_->GetNativeView(), root_window,
-                                        gfx::Rect());
+                                        gfx::Rect(),
+                                        display::kInvalidDisplayId);
 
   const gfx::Rect orig_view_bounds = gfx::Rect(0, 300, 400, 200);
   const gfx::Rect shifted_view_bounds = gfx::Rect(0, 200, 400, 200);
@@ -5431,9 +5420,7 @@ TEST_F(RenderWidgetHostViewAuraTest, OcclusionHidesTooltip) {
 
   // Initialize the view.
   InitViewForFrame(nullptr);
-  aura::client::ParentWindowWithContext(
-      view_->GetNativeView(), parent_view_->GetNativeView()->GetRootWindow(),
-      gfx::Rect());
+  ParentHostView(view_, parent_view_);
   view_->Show();
   EXPECT_TRUE(view_->UsesNativeWindowFrame());
 
@@ -5639,10 +5626,7 @@ TEST_F(RenderWidgetHostViewAuraTest, MAYBE_NewContentRenderingTimeout) {
   constexpr base::TimeDelta kTimeout = base::Microseconds(10);
 
   InitViewForFrame(nullptr);
-  aura::client::ParentWindowWithContext(
-      view_->GetNativeView(), parent_view_->GetNativeView()->GetRootWindow(),
-      gfx::Rect());
-
+  ParentHostView(view_, parent_view_);
   widget_host_->set_new_content_rendering_delay_for_testing(kTimeout);
 
   viz::LocalSurfaceId id0 = view_->GetLocalSurfaceId();
@@ -5691,9 +5675,7 @@ TEST_F(RenderWidgetHostViewAuraTest, AllocateLocalSurfaceIdOnEviction) {
   InitViewForFrame(nullptr);
   // View has to not be empty in order for frame eviction to be invoked.
   view_->SetSize(gfx::Size(54, 32));
-  aura::client::ParentWindowWithContext(
-      view_->GetNativeView(), parent_view_->GetNativeView()->GetRootWindow(),
-      gfx::Rect());
+  ParentHostView(view_, parent_view_);
   view_->Show();
   viz::LocalSurfaceId id1 = view_->GetLocalSurfaceId();
   view_->Hide();
@@ -5709,9 +5691,7 @@ TEST_F(RenderWidgetHostViewAuraTest, AllocateLocalSurfaceIdOnEviction) {
 // visible we show blank.
 TEST_F(RenderWidgetHostViewAuraTest, DropFallbackIfResizedWhileHidden) {
   InitViewForFrame(nullptr);
-  aura::client::ParentWindowWithContext(
-      view_->GetNativeView(), parent_view_->GetNativeView()->GetRootWindow(),
-      gfx::Rect());
+  ParentHostView(view_, parent_view_);
   view_->SetSize(gfx::Size(50, 30));
   view_->Show();
   view_->Hide();
@@ -5726,9 +5706,7 @@ TEST_F(RenderWidgetHostViewAuraTest, DropFallbackIfResizedWhileHidden) {
 // fallback SurfaceId has to be preserved.
 TEST_F(RenderWidgetHostViewAuraTest, DontDropFallbackIfNotResizedWhileHidden) {
   InitViewForFrame(nullptr);
-  aura::client::ParentWindowWithContext(
-      view_->GetNativeView(), parent_view_->GetNativeView()->GetRootWindow(),
-      gfx::Rect());
+  ParentHostView(view_, parent_view_);
   view_->Show();
   // Force fallback being set.
   view_->DidNavigate();
@@ -5747,17 +5725,13 @@ TEST_F(RenderWidgetHostViewAuraTest, DontDropFallbackIfNotResizedWhileHidden) {
 TEST_F(RenderWidgetHostViewAuraTest, TakeFallbackContent) {
   // Initialize the first view.
   InitViewForFrame(nullptr);
-  aura::client::ParentWindowWithContext(
-      view_->GetNativeView(), parent_view_->GetNativeView()->GetRootWindow(),
-      gfx::Rect());
+  ParentHostView(view_, parent_view_);
   view_->Show();
 
   // Create and initialize the second view.
   FakeRenderWidgetHostViewAura* view2 = CreateView();
   view2->InitAsChild(nullptr);
-  aura::client::ParentWindowWithContext(
-      view2->GetNativeView(), parent_view_->GetNativeView()->GetRootWindow(),
-      gfx::Rect());
+  ParentHostView(view2, parent_view_);
 
   // Call TakeFallbackContentFrom(). The second view should obtain a fallback
   // from the first view.
@@ -5774,9 +5748,7 @@ TEST_F(RenderWidgetHostViewAuraTest, TakeFallbackContent) {
 TEST_F(RenderWidgetHostViewAuraTest, TakeFallbackContentForPrerender) {
   FakeRenderWidgetHostViewAura* old_view = CreateView(/*hidden = */ false);
   old_view->InitAsChild(nullptr);
-  aura::client::ParentWindowWithContext(
-      old_view->GetNativeView(), parent_view_->GetNativeView()->GetRootWindow(),
-      gfx::Rect());
+  ParentHostView(old_view, parent_view_);
   old_view->Show();
   ASSERT_TRUE(old_view->IsShowing());
   ASSERT_TRUE(
@@ -5786,9 +5758,8 @@ TEST_F(RenderWidgetHostViewAuraTest, TakeFallbackContentForPrerender) {
   // Initialize the view as hidden.
   FakeRenderWidgetHostViewAura* prerender_view = CreateView(/*hidden = */ true);
   prerender_view->InitAsChild(nullptr);
-  aura::client::ParentWindowWithContext(
-      prerender_view->GetNativeView(),
-      parent_view_->GetNativeView()->GetRootWindow(), gfx::Rect());
+  ParentHostView(prerender_view, parent_view_);
+
   ASSERT_FALSE(prerender_view->IsShowing());
   ASSERT_FALSE(prerender_view->delegated_frame_host_client_
                    ->DelegatedFrameHostIsVisible());
@@ -5832,15 +5803,15 @@ class RenderWidgetHostViewAuraWithViewHarnessTest
   }
 
   void TearDown() override {
-    view_->Destroy();
+    view_.ExtractAsDangling()->Destroy();
     RenderViewHostImplTestHarness::TearDown();
   }
 
-  RenderWidgetHostViewAura* view() {
-    return view_;
-  }
+  RenderWidgetHostViewAura* view() { return view_; }
 
  private:
+  // The `view_` pointer owns the object.
+  // Note: It would be great turning this into a std::unique_ptr<>.
   raw_ptr<RenderWidgetHostViewAura> view_;
 };
 
@@ -5963,52 +5934,64 @@ class InputMethodAuraTestBase : public RenderWidgetHostViewAuraTest {
     RenderWidgetHostViewAuraTest::SetUp();
     InitializeAura();
 
-    widget_host_for_first_process_ =
+    MockRenderWidgetHostImpl* widget_host_for_process_1 =
         CreateRenderWidgetHostForSiteInstanceGroup(tab_site_instance_group());
-    view_for_first_process_ =
-        CreateViewForProcess(widget_host_for_first_process_);
+    widget_hosts_to_cleanup_.push_back(widget_host_for_process_1);
+
+    view_for_first_process_ = CreateViewForProcess(widget_host_for_process_1);
 
     second_process_host_ = CreateNewProcessHost();
     second_site_instance_group_ =
         base::WrapRefCounted(SiteInstanceGroup::CreateForTesting(
             tab_site_instance_group(), second_process_host_.get()));
-    widget_host_for_second_process_ =
+    MockRenderWidgetHostImpl* widget_host_for_process_2 =
         CreateRenderWidgetHostForSiteInstanceGroup(
             second_site_instance_group_.get());
-    view_for_second_process_ =
-        CreateViewForProcess(widget_host_for_second_process_);
+    widget_hosts_to_cleanup_.push_back(widget_host_for_process_2);
+    view_for_second_process_ = CreateViewForProcess(widget_host_for_process_2);
 
     third_process_host_ = CreateNewProcessHost();
     third_site_instance_group_ =
         base::WrapRefCounted(SiteInstanceGroup::CreateForTesting(
             tab_site_instance_group(), third_process_host_.get()));
-    widget_host_for_third_process_ = CreateRenderWidgetHostForSiteInstanceGroup(
-        third_site_instance_group_.get());
-    view_for_third_process_ =
-        CreateViewForProcess(widget_host_for_third_process_);
+    MockRenderWidgetHostImpl* widget_host_for_process_3 =
+        CreateRenderWidgetHostForSiteInstanceGroup(
+            third_site_instance_group_.get());
+    widget_hosts_to_cleanup_.push_back(widget_host_for_process_3);
+    view_for_third_process_ = CreateViewForProcess(widget_host_for_process_3);
 
-    views_.insert(views_.begin(),
-                  {tab_view(), view_for_first_process_,
-                   view_for_second_process_, view_for_third_process_});
-    widget_hosts_.insert(
-        widget_hosts_.begin(),
-        {tab_widget_host(), widget_host_for_first_process_,
-         widget_host_for_second_process_, widget_host_for_third_process_});
+    views_.insert(views_.begin(), {
+                                      tab_view(),
+                                      view_for_first_process_.get(),
+                                      view_for_second_process_.get(),
+                                      view_for_third_process_.get(),
+                                  });
+    widget_hosts_.insert(widget_hosts_.begin(), {
+                                                    tab_widget_host(),
+                                                    widget_host_for_process_1,
+                                                    widget_host_for_process_2,
+                                                    widget_host_for_process_3,
+                                                });
     active_view_sequence_.insert(active_view_sequence_.begin(),
                                  {0, 1, 2, 1, 1, 3, 0, 3, 1});
   }
 
   void TearDown() override {
-    view_for_first_process_->Destroy();
+    view_for_first_process_.ExtractAsDangling()->Destroy();
+    view_for_second_process_.ExtractAsDangling()->Destroy();
+    view_for_third_process_.ExtractAsDangling()->Destroy();
 
-    view_for_second_process_->Destroy();
+    for (auto* host : widget_hosts_to_cleanup_) {
+      host->ShutdownAndDestroyWidget(true);
+    }
+
     second_process_host_->Cleanup();
-    second_site_instance_group_.reset();
-    second_process_host_.reset();
-
-    view_for_third_process_->Destroy();
     third_process_host_->Cleanup();
+
+    second_site_instance_group_.reset();
     third_site_instance_group_.reset();
+
+    second_process_host_.reset();
     third_process_host_.reset();
 
     RenderWidgetHostViewAuraTest::TearDown();
@@ -6060,6 +6043,7 @@ class InputMethodAuraTestBase : public RenderWidgetHostViewAuraTest {
 
   std::vector<RenderWidgetHostViewBase*> views_;
   std::vector<MockRenderWidgetHostImpl*> widget_hosts_;
+  std::vector<MockRenderWidgetHostImpl*> widget_hosts_to_cleanup_;
   // A sequence of indices in [0, 3] which determines the index of a RWHV in
   // |views_|. This sequence is used in the tests to sequentially make a RWHV
   // active for a subsequent IME result method call.
@@ -6072,17 +6056,15 @@ class InputMethodAuraTestBase : public RenderWidgetHostViewAuraTest {
     InitViewForFrame(nullptr);
     view_->Show();
   }
-
-  raw_ptr<MockRenderWidgetHostImpl> widget_host_for_first_process_;
-  raw_ptr<TestRenderWidgetHostView> view_for_first_process_;
   std::unique_ptr<MockRenderProcessHost> second_process_host_;
-  scoped_refptr<SiteInstanceGroup> second_site_instance_group_;
-  raw_ptr<MockRenderWidgetHostImpl> widget_host_for_second_process_;
-  raw_ptr<TestRenderWidgetHostView> view_for_second_process_;
   std::unique_ptr<MockRenderProcessHost> third_process_host_;
-  scoped_refptr<SiteInstanceGroup> third_site_instance_group_;
-  raw_ptr<MockRenderWidgetHostImpl> widget_host_for_third_process_;
+
+  raw_ptr<TestRenderWidgetHostView> view_for_first_process_;
+  raw_ptr<TestRenderWidgetHostView> view_for_second_process_;
   raw_ptr<TestRenderWidgetHostView> view_for_third_process_;
+
+  scoped_refptr<SiteInstanceGroup> second_site_instance_group_;
+  scoped_refptr<SiteInstanceGroup> third_site_instance_group_;
 };
 
 // A group of tests which verify that the IME method results are routed to the
@@ -6356,8 +6338,8 @@ TEST_F(InputMethodStateAuraTest, GetCompositionCharacterBounds) {
   for (auto index : active_view_sequence_) {
     ActivateViewForTextInputManager(views_[index], ui::TEXT_INPUT_TYPE_TEXT);
     // Simulate an IPC to set character bounds for the view.
-    views_[index]->ImeCompositionRangeChanged(gfx::Range(),
-                                              {gfx::Rect(1, 2, 3, 4 + index)});
+    views_[index]->ImeCompositionRangeChanged(
+        gfx::Range(), {{gfx::Rect(1, 2, 3, 4 + index)}}, absl::nullopt);
 
     // No bounds at index 1.
     EXPECT_FALSE(text_input_client()->GetCompositionCharacterBounds(1, &bound));
@@ -6622,9 +6604,8 @@ class RenderWidgetHostViewAuraInputMethodTest
 
   ~RenderWidgetHostViewAuraInputMethodTest() override {}
   void SetUp() override {
-    input_method_ = new ui::MockInputMethod(nullptr);
-    // transfers ownership.
-    ui::SetUpInputMethodForTesting(input_method_);
+    // TODO(https://crbug.com/1463412) Pass as unique_ptr<>.
+    ui::SetUpInputMethodForTesting(new ui::MockInputMethod(nullptr));
     SetUpEnvironment();
     text_input_client_ = nullptr;
   }
@@ -6639,21 +6620,14 @@ class RenderWidgetHostViewAuraInputMethodTest
   void OnInputMethodDestroyed(const ui::InputMethod* input_method) override {}
 
  protected:
-  // Not owned.
-  raw_ptr<ui::MockInputMethod> input_method_ = nullptr;
-  raw_ptr<const ui::TextInputClient> text_input_client_;
+  raw_ptr<const ui::TextInputClient, DanglingUntriaged> text_input_client_;
 };
 
 // This test is for notifying InputMethod for surrounding text changes.
 TEST_F(RenderWidgetHostViewAuraInputMethodTest, OnCaretBoundsChanged) {
-  ui::InputMethod* input_method = parent_view_->GetInputMethod();
-  if (input_method != input_method_) {
-    // Some platforms don't support mocking input method. In that case, ignore this test.
-    return;
-  }
   ActivateViewForTextInputManager(parent_view_, ui::TEXT_INPUT_TYPE_TEXT);
-  input_method->SetFocusedTextInputClient(parent_view_);
-  input_method->AddObserver(this);
+  GetInputMethod()->SetFocusedTextInputClient(parent_view_);
+  GetInputMethod()->AddObserver(this);
 
   parent_view_->SelectionChanged(std::u16string(), 0, gfx::Range());
   EXPECT_EQ(parent_view_, text_input_client_);
@@ -6666,22 +6640,16 @@ TEST_F(RenderWidgetHostViewAuraInputMethodTest, OnCaretBoundsChanged) {
       /*bounding_box=*/gfx::Rect(), true);
   EXPECT_EQ(parent_view_, text_input_client_);
 
-  input_method->RemoveObserver(this);
+  GetInputMethod()->RemoveObserver(this);
 }
 
 // The input method should still receive caret bounds changes even if inputmode
 // is NONE. See crbug.com/1114559.
 TEST_F(RenderWidgetHostViewAuraInputMethodTest,
        OnCaretBoundsChangedInputModeNone) {
-  ui::InputMethod* input_method = parent_view_->GetInputMethod();
-  if (input_method != input_method_) {
-    // Some platforms don't support mocking input method. In that case, ignore
-    // this test.
-    return;
-  }
   ActivateViewForTextInputManager(parent_view_, ui::TEXT_INPUT_TYPE_TEXT);
-  input_method->SetFocusedTextInputClient(parent_view_);
-  input_method->AddObserver(this);
+  GetInputMethod()->SetFocusedTextInputClient(parent_view_);
+  GetInputMethod()->AddObserver(this);
 
   text_input_client_ = nullptr;
 
@@ -6695,7 +6663,7 @@ TEST_F(RenderWidgetHostViewAuraInputMethodTest,
 
   EXPECT_EQ(parent_view_, text_input_client_);
 
-  input_method->RemoveObserver(this);
+  GetInputMethod()->RemoveObserver(this);
 }
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
@@ -6777,21 +6745,23 @@ class RenderWidgetHostViewAuraKeyboardTest
 
   ~RenderWidgetHostViewAuraKeyboardTest() override {}
   void SetUp() override {
-    input_method_ = new RenderWidgetHostViewAuraKeyboardMockInputMethod();
-    // transfers ownership.
-    ui::SetUpInputMethodForTesting(input_method_);
+    // TODO(https://crbug.com/1463412) Pass as unique_ptr<>.
+    ui::SetUpInputMethodForTesting(
+        new RenderWidgetHostViewAuraKeyboardMockInputMethod());
     SetUpEnvironment();
   }
 
-  size_t keyboard_controller_observer_count() const {
-    return input_method_->keyboard_controller_observer_count();
+  RenderWidgetHostViewAuraKeyboardMockInputMethod* GetMockInputMethod() const {
+    return static_cast<RenderWidgetHostViewAuraKeyboardMockInputMethod*>(
+        GetInputMethod());
   }
-  bool IsKeyboardVisible() const { return input_method_->IsKeyboardVisible(); }
 
- private:
-  // Not owned.
-  raw_ptr<RenderWidgetHostViewAuraKeyboardMockInputMethod> input_method_ =
-      nullptr;
+  size_t keyboard_controller_observer_count() const {
+    return GetMockInputMethod()->keyboard_controller_observer_count();
+  }
+  bool IsKeyboardVisible() const {
+    return GetMockInputMethod()->IsKeyboardVisible();
+  }
 };
 #endif
 

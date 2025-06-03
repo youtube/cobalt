@@ -10,9 +10,8 @@
 #include <string>
 #include <tuple>
 
-#include "base/allocator/buildflags.h"
 #include "base/allocator/partition_alloc_support.h"
-#include "base/allocator/partition_allocator/partition_alloc_buildflags.h"
+#include "base/allocator/partition_allocator/src/partition_alloc/partition_alloc_buildflags.h"
 #include "base/debug/crash_logging.h"
 #include "base/feature_list.h"
 #include "base/functional/callback_helpers.h"
@@ -22,6 +21,7 @@
 #include "base/rand_util.h"
 #include "build/build_config.h"
 #include "components/gwp_asan/client/guarded_page_allocator.h"
+#include "components/gwp_asan/client/gwp_asan_features.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
 #if BUILDFLAG(USE_ALLOCATOR_SHIM)
@@ -29,6 +29,7 @@
 #endif  // BUILDFLAG(USE_ALLOCATOR_SHIM)
 
 #if BUILDFLAG(USE_PARTITION_ALLOC)
+#include "components/gwp_asan/client/lightweight_detector_shims.h"
 #include "components/gwp_asan/client/sampling_partitionalloc_shims.h"
 #endif  // BUILDFLAG(USE_PARTITION_ALLOC)
 
@@ -37,40 +38,73 @@ namespace gwp_asan {
 namespace internal {
 namespace {
 
+constexpr bool kCpuIs64Bit =
+#if defined(ARCH_CPU_64_BITS)
+    true;
+#else
+    false;
+#endif
+
+// GWP-ASAN's default parameters are as follows:
+// MaxAllocations determines the maximum number of simultaneous allocations
+// allocated from the GWP-ASAN region.
+//
+// MaxMetadata determines the number of slots in the GWP-ASAN region that have
+// associated metadata (e.g. alloc/dealloc stack traces).
+//
+// TotalPages determines the maximum number of slots used for allocations in the
+// GWP-ASAN region. The defaults below use MaxMetadata * 2 on 32-bit builds
+// (where OOMing due to lack of address space is a concern.)
+//
+// The allocation sampling frequency is calculated using the formula:
+// SamplingMultiplier * AllocationSamplingRange**rand
+// where rand is a random real number in the range [0,1).
+//
+// ProcessSamplingProbability is the probability of enabling GWP-ASAN in a new
+// process.
+//
+// ProcessSamplingBoost is the multiplier to increase the
+// ProcessSamplingProbability in scenarios where we want to perform additional
+// testing (e.g., on canary/dev builds).
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_FUCHSIA)
+constexpr int kDefaultMaxAllocations = 50;
+constexpr int kDefaultMaxMetadata = 210;
+constexpr int kDefaultTotalPages = kCpuIs64Bit ? 2048 : kDefaultMaxMetadata * 2;
+constexpr int kDefaultAllocationSamplingMultiplier = 1500;
+constexpr int kDefaultAllocationSamplingRange = 16;
+constexpr double kDefaultProcessSamplingProbability = 0.01;
+constexpr int kDefaultProcessSamplingBoost2 = 10;
+#else  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_FUCHSIA)
 constexpr int kDefaultMaxAllocations = 70;
 constexpr int kDefaultMaxMetadata = 255;
-
-#if defined(ARCH_CPU_64_BITS)
-constexpr int kDefaultTotalPages = 2048;
-#else
-// Use much less virtual memory on 32-bit builds (where OOMing due to lack of
-// address space is a concern.)
-constexpr int kDefaultTotalPages = kDefaultMaxMetadata * 2;
-#endif
-
-// The allocation sampling frequency is calculated using the formula:
-// multiplier * range**rand
-// where rand is a random real number in the range [0,1).
+constexpr int kDefaultTotalPages = kCpuIs64Bit ? 2048 : kDefaultMaxMetadata * 2;
 constexpr int kDefaultAllocationSamplingMultiplier = 1000;
 constexpr int kDefaultAllocationSamplingRange = 16;
-
 constexpr double kDefaultProcessSamplingProbability = 0.015;
-// The multiplier to increase the ProcessSamplingProbability in scenarios where
-// we want to perform additional testing (e.g., on canary/dev builds).
 constexpr int kDefaultProcessSamplingBoost2 = 10;
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) ||
+        // BUILDFLAG(IS_FUCHSIA)
 
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_APPLE)
-constexpr base::FeatureState kDefaultEnabled = base::FEATURE_ENABLED_BY_DEFAULT;
-#else
-constexpr base::FeatureState kDefaultEnabled =
-    base::FEATURE_DISABLED_BY_DEFAULT;
-#endif
+// The aim is to have the same memory overhead as the default GWP-ASan mode,
+// which is:
+//   sizeof(SlotMetadata) * kDefaultMaxMetadata +
+//     sizeof(SystemPage) * kDefaultMaxAllocations
+// The memory overhead of Lightweight UAF detector is:
+//   sizeof(LightweightSlotMetadata) * kDefaultMaxLightweightMetadata
+constexpr int kDefaultMaxLightweightMetadata = 3000;
 
-[[maybe_unused]] constexpr bool kDefaultEnableLightweightDetector = false;
-constexpr int kDefaultMaxLightweightMetadata = 255;
+BASE_FEATURE(kLightweightUafDetector,
+             "LightweightUafDetector",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kGwpAsanMalloc, "GwpAsanMalloc", kDefaultEnabled);
-BASE_FEATURE(kGwpAsanPartitionAlloc, "GwpAsanPartitionAlloc", kDefaultEnabled);
+constexpr base::FeatureParam<LightweightDetectorMode>::Option
+    kLightweightUafDetectorModeOptions[] = {
+        {LightweightDetectorMode::kBrpQuarantine, "BrpQuarantine"}};
+
+const base::FeatureParam<LightweightDetectorMode>
+    kLightweightUafDetectorModeParam{&kLightweightUafDetector, "Mode",
+                                     LightweightDetectorMode::kBrpQuarantine,
+                                     &kLightweightUafDetectorModeOptions};
 
 // Returns whether this process should be sampled to enable GWP-ASan.
 bool SampleProcess(const base::Feature& feature, bool boost_sampling) {
@@ -152,14 +186,8 @@ GWP_ASAN_EXPORT absl::optional<AllocatorSettings> GetAllocatorSettings(
       static_cast<int>(AllocatorState::kMaxRequestedSlots);
 
   static_assert(AllocatorState::kMaxMetadata <= std::numeric_limits<int>::max(),
-                "kMaxMetadata out of range");
+                "AllocatorState::kMaxMetadata out of range");
   constexpr int kMaxMetadata = static_cast<int>(AllocatorState::kMaxMetadata);
-
-  static_assert(AllocatorState::kMaxLightweightMetadata <=
-                    std::numeric_limits<int>::max(),
-                "kMaxMetadata out of range");
-  constexpr int kMaxLightweightMetadata =
-      static_cast<int>(AllocatorState::kMaxLightweightMetadata);
 
   int total_pages = GetFieldTrialParamByFeatureAsInt(feature, "TotalPages",
                                                      kDefaultTotalPages);
@@ -184,33 +212,6 @@ GWP_ASAN_EXPORT absl::optional<AllocatorSettings> GetAllocatorSettings(
     return absl::nullopt;
   }
 
-  LightweightDetector::State lightweight_detector_state =
-// The detector is not used on 32-bit systems because pointers there aren't big
-// enough to safely store metadata IDs.
-#if defined(ARCH_CPU_64_BITS)
-      // At the moment, BRP is the only client of the detector, and this extra
-      // check allows us to reduce the memory usage in BRP-disabled processes.
-      (base::allocator::PartitionAllocSupport::GetBrpConfiguration(process_type)
-           .enable_brp &&
-       GetFieldTrialParamByFeatureAsBool(feature, "EnableLightweightDetector",
-                                         kDefaultEnableLightweightDetector))
-          ? LightweightDetector::State::kEnabled
-          :
-#endif  // defined(ARCH_CPU_64_BITS)
-          LightweightDetector::State::kDisabled;
-
-  int max_lightweight_metadata = 0;
-  if (lightweight_detector_state == LightweightDetector::State::kEnabled) {
-    max_lightweight_metadata = GetFieldTrialParamByFeatureAsInt(
-        feature, "MaxLightweightMetadata", kDefaultMaxLightweightMetadata);
-    if (max_lightweight_metadata < 1 ||
-        max_lightweight_metadata > kMaxLightweightMetadata) {
-      DLOG(ERROR) << "GWP-ASan MaxLightweightMetadata is out-of-range: "
-                  << max_lightweight_metadata;
-      return absl::nullopt;
-    }
-  }
-
   size_t alloc_sampling_freq = AllocationSamplingFrequency(feature);
   if (!alloc_sampling_freq)
     return absl::nullopt;
@@ -218,12 +219,55 @@ GWP_ASAN_EXPORT absl::optional<AllocatorSettings> GetAllocatorSettings(
   if (!SampleProcess(feature, boost_sampling))
     return absl::nullopt;
 
-  return AllocatorSettings{static_cast<size_t>(max_allocations),
-                           static_cast<size_t>(max_metadata),
-                           static_cast<size_t>(total_pages),
-                           alloc_sampling_freq,
-                           lightweight_detector_state,
-                           static_cast<size_t>(max_lightweight_metadata)};
+  return AllocatorSettings{
+      static_cast<size_t>(max_allocations), static_cast<size_t>(max_metadata),
+      static_cast<size_t>(total_pages), alloc_sampling_freq};
+}
+
+bool MaybeEnableLightweightDetectorInternal(bool boost_sampling,
+                                            const char* process_type) {
+// The detector is not used on 32-bit systems because pointers there aren't big
+// enough to safely store metadata IDs.
+#if defined(ARCH_CPU_64_BITS)
+  if (!base::FeatureList::IsEnabled(kLightweightUafDetector)) {
+    return false;
+  }
+
+  // At the moment, BRP is the only client of the detector, and this extra
+  // check allows us to reduce the memory usage in BRP-disabled processes.
+  if (!base::allocator::PartitionAllocSupport::GetBrpConfiguration(process_type)
+           .enable_brp) {
+    return false;
+  }
+
+  if (!SampleProcess(kLightweightUafDetector, boost_sampling)) {
+    return false;
+  }
+
+  static_assert(
+      LightweightDetectorState::kMaxMetadata <= std::numeric_limits<int>::max(),
+      "LightweightDetectorState::kMaxMetadata out of range");
+  constexpr int kMaxMetadata =
+      static_cast<int>(LightweightDetectorState::kMaxMetadata);
+
+  int max_metadata = GetFieldTrialParamByFeatureAsInt(
+      kLightweightUafDetector, "MaxMetadata", kDefaultMaxLightweightMetadata);
+  if (max_metadata < 1 || max_metadata > kMaxMetadata) {
+    DLOG(ERROR) << "Lightweight UAF Detector MaxMetadata is out-of-range: "
+                << max_metadata;
+    return false;
+  }
+
+  InstallLightweightDetectorHooks(kLightweightUafDetectorModeParam.Get(),
+                                  max_metadata);
+  return true;
+#else   // defined(ARCH_CPU_64_BITS)
+  std::ignore = boost_sampling;
+  std::ignore = process_type;
+  std::ignore = kDefaultMaxLightweightMetadata;
+  std::ignore = kLightweightUafDetectorModeParam;
+  return false;
+#endif  // defined(ARCH_CPU_64_BITS)
 }
 
 }  // namespace internal
@@ -258,15 +302,25 @@ void EnableForPartitionAlloc(bool boost_sampling, const char* process_type) {
 
     internal::InstallPartitionAllocHooks(
         settings->max_allocated_pages, settings->num_metadata,
-        settings->total_pages, settings->sampling_frequency, base::DoNothing(),
-        settings->lightweight_detector_state,
-        settings->num_lightweight_metadata);
+        settings->total_pages, settings->sampling_frequency, base::DoNothing());
     return true;
   }();
   std::ignore = init_once;
 #else
   std::ignore = internal::kGwpAsanPartitionAlloc;
   DLOG(WARNING) << "PartitionAlloc hooks are unavailable for GWP-ASan.";
+#endif  // BUILDFLAG(USE_PARTITION_ALLOC)
+}
+
+void MaybeEnableLightweightDetector(bool boost_sampling,
+                                    const char* process_type) {
+#if BUILDFLAG(USE_PARTITION_ALLOC)
+  [[maybe_unused]] static bool init_once =
+      internal::MaybeEnableLightweightDetectorInternal(boost_sampling,
+                                                       process_type);
+#else
+  DLOG(WARNING)
+      << "PartitionAlloc hooks are unavailable for Lightweight UAF Detector.";
 #endif  // BUILDFLAG(USE_PARTITION_ALLOC)
 }
 

@@ -31,13 +31,16 @@ class HelpAppPageHandler : public help_app::mojom::PageHandler {
   // help_app::mojom::PageHandler:
   void OpenFeedbackDialog(OpenFeedbackDialogCallback callback) override;
   void ShowParentalControls() override;
+  void TriggerWelcomeTipCallToAction(
+      help_app::mojom::ActionTypeId action_type_id) override;
   void IsLssEnabled(IsLssEnabledCallback callback) override;
   void IsLauncherSearchEnabled(
       IsLauncherSearchEnabledCallback callback) override;
+  void LaunchMicrosoft365Setup() override;
   void MaybeShowDiscoverNotification() override;
   void MaybeShowReleaseNotesNotification() override;
   void GetDeviceInfo(GetDeviceInfoCallback callback) override;
-  void OpenUrlInBrowser(const GURL& url) override;
+  void OpenUrlInBrowserAndTriggerInstallDialog(const GURL& url) override;
 
  private:
   mojo::Receiver<help_app::mojom::PageHandler> receiver_;

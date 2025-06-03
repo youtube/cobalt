@@ -10,7 +10,7 @@ load("//lib/consoles.star", "consoles")
 load("//project.star", "settings")
 
 # crbug/1408581 - The code coverage CI builders are expected to be triggered
-# off the same ref every 12 hours. This poller is configured with a schedule
+# off the same ref every 24 hours. This poller is configured with a schedule
 # to ensure this - setting schedules on the builder configuration does not
 # guarantee that they are triggered off the same ref.
 luci.gitiles_poller(
@@ -18,7 +18,8 @@ luci.gitiles_poller(
     bucket = "ci",
     repo = "https://chromium.googlesource.com/chromium/src",
     refs = [settings.ref],
-    schedule = "with 12h interval",
+    # Trigger coverage jobs once a day at 4 am UTC(8 pm PST)
+    schedule = "0 4 * * *",
 )
 
 ci.defaults.set(
@@ -32,6 +33,7 @@ ci.defaults.set(
     reclient_instance = reclient.instance.DEFAULT_TRUSTED,
     reclient_jobs = reclient.jobs.DEFAULT,
     service_account = ci.DEFAULT_SERVICE_ACCOUNT,
+    shadow_service_account = ci.DEFAULT_SHADOW_SERVICE_ACCOUNT,
 )
 
 consoles.console_view(
@@ -61,7 +63,7 @@ coverage_builder(
         chromium_config = builder_config.chromium_config(
             config = "android",
             apply_configs = [
-                "download_vr_test_apks",
+                "download_xr_test_apks",
                 "mb",
             ],
             build_config = builder_config.build_config.RELEASE,
@@ -90,7 +92,13 @@ coverage_builder(
     builder_spec = builder_config.builder_spec(
         gclient_config = builder_config.gclient_config(
             config = "chromium",
-            apply_configs = ["android", "enable_wpr_tests"],
+            apply_configs = [
+                "android",
+                # This is necessary due to this builder running the
+                # telemetry_perf_unittests suite.
+                "chromium_with_telemetry_dependencies",
+                "enable_wpr_tests",
+            ],
         ),
         chromium_config = builder_config.chromium_config(
             config = "android",
@@ -129,7 +137,7 @@ coverage_builder(
         chromium_config = builder_config.chromium_config(
             config = "android",
             apply_configs = [
-                "download_vr_test_apks",
+                "download_xr_test_apks",
                 "mb",
             ],
             build_config = builder_config.build_config.RELEASE,
@@ -181,7 +189,7 @@ coverage_builder(
         consoles.console_view_entry(
             branch_selector = branches.selector.MAIN,
             console_view = "sheriff.fuchsia",
-            category = "fyi|x64",
+            category = "gardener|fuchsia ci|x64",
             short_name = "cov",
         ),
     ],
@@ -208,6 +216,7 @@ coverage_builder(
         ),
         build_gs_bucket = "chromium-fyi-archive",
     ),
+    builderless = True,
     cores = None,
     os = os.MAC_DEFAULT,
     console_view_entry = [
@@ -220,7 +229,7 @@ coverage_builder(
     coverage_test_types = ["overall", "unit"],
     export_coverage_to_zoss = True,
     use_clang_coverage = True,
-    xcode = xcode.x14main,
+    xcode = xcode.x15main,
 )
 
 coverage_builder(
@@ -319,7 +328,7 @@ coverage_builder(
 # Experimental builder. Does not export_coverage_to_zoss.
 coverage_builder(
     name = "linux-fuzz-coverage",
-    executable = "recipe:chromium_fuzz_coverage",
+    executable = "recipe:chromium/fuzz",
     builderless = True,
     os = os.LINUX_DEFAULT,
     console_view_entry = [
@@ -335,7 +344,12 @@ coverage_builder(
     builder_spec = builder_config.builder_spec(
         gclient_config = builder_config.gclient_config(
             config = "chromium",
-            apply_configs = ["use_clang_coverage"],
+            apply_configs = [
+                # This is necessary due to this builder running the
+                # telemetry_perf_unittests suite.
+                "chromium_with_telemetry_dependencies",
+                "use_clang_coverage",
+            ],
         ),
         chromium_config = builder_config.chromium_config(
             config = "chromium",
@@ -403,7 +417,7 @@ coverage_builder(
         build_gs_bucket = "chromium-fyi-archive",
     ),
     builderless = True,
-    cores = 24,
+    cores = 12,
     os = os.MAC_ANY,
     console_view_entry = [
         consoles.console_view_entry(

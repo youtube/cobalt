@@ -5,6 +5,7 @@
 #include "ash/webui/media_app_ui/media_app_guest_ui.h"
 
 #include "ash/webui/grit/ash_media_app_resources.h"
+#include "ash/webui/media_app_ui/media_app_untrusted_page_handler.h"
 #include "ash/webui/media_app_ui/url_constants.h"
 #include "ash/webui/web_applications/webui_test_prod_util.h"
 #include "base/files/file_util.h"
@@ -159,10 +160,10 @@ content::WebUIDataSource* CreateAndAddMediaAppUntrustedDataSource(
   // Required to successfully load PDFs in the `<embed>` element.
   source->OverrideContentSecurityPolicy(
       network::mojom::CSPDirectiveName::FrameSrc, "frame-src blob:;");
-  // Allow wasm.
+  // Allow wasm and mojo.
   source->OverrideContentSecurityPolicy(
       network::mojom::CSPDirectiveName::ScriptSrc,
-      "script-src 'self' 'wasm-eval';");
+      "script-src 'self' 'wasm-eval' chrome-untrusted://resources;");
   // Allow calls to Maps reverse geocoding API for loading metadata.
   source->OverrideContentSecurityPolicy(
       network::mojom::CSPDirectiveName::ConnectSrc,
@@ -255,8 +256,33 @@ void MediaAppGuestUI::StartFontDataRequestAfterPathExists(
   }
 }
 
+void MediaAppGuestUI::BindInterface(
+    mojo::PendingReceiver<color_change_listener::mojom::PageHandler> receiver) {
+  color_provider_handler_ = std::make_unique<ui::ColorChangeHandler>(
+      web_ui()->GetWebContents(), std::move(receiver));
+}
+
+void MediaAppGuestUI::BindInterface(
+    mojo::PendingReceiver<media_app_ui::mojom::UntrustedPageHandlerFactory>
+        factory) {
+  if (untrusted_page_factory_.is_bound()) {
+    untrusted_page_factory_.reset();
+  }
+
+  untrusted_page_factory_.Bind(std::move(factory));
+}
+
+void MediaAppGuestUI::CreateUntrustedPageHandler(
+    mojo::PendingReceiver<media_app_ui::mojom::UntrustedPageHandler> receiver,
+    mojo::PendingRemote<media_app_ui::mojom::UntrustedPage> page) {
+  untrusted_page_handler_ = std::make_unique<MediaAppUntrustedPageHandler>(
+      *this, std::move(receiver), std::move(page));
+}
+
 MediaAppUserActions GetMediaAppUserActionsForHappinessTracking() {
   return MediaAppMetricsHelper::actions;
 }
+
+WEB_UI_CONTROLLER_TYPE_IMPL(MediaAppGuestUI)
 
 }  // namespace ash

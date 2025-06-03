@@ -57,10 +57,12 @@ void SelectToSpeakSpeedBubbleController::Show(views::View* anchor_view,
     init_params.translucent = true;
     init_params.close_on_deactivate = false;
     init_params.preferred_width = kPreferredWidth;
+    init_params.type = TrayBubbleView::TrayBubbleType::kAccessibilityBubble;
+
     bubble_view_ = new TrayBubbleView(init_params);
     bubble_view_->SetArrow(views::BubbleBorder::BOTTOM_RIGHT);
     bubble_view_->SetCanActivate(true);
-    bubble_view_->SetFocusBehavior(ActionableView::FocusBehavior::ALWAYS);
+    bubble_view_->SetFocusBehavior(views::View::FocusBehavior::ALWAYS);
 
     speed_view_ = new SelectToSpeakSpeedView(this, speech_rate);
     bubble_view_->AddChildView(speed_view_.get());
@@ -98,6 +100,9 @@ void SelectToSpeakSpeedBubbleController::BubbleViewDestroyed() {
   bubble_view_ = nullptr;
   bubble_widget_ = nullptr;
 }
+
+void SelectToSpeakSpeedBubbleController::HideBubble(
+    const TrayBubbleView* bubble_view) {}
 
 void SelectToSpeakSpeedBubbleController::OnWindowActivated(
     ActivationReason reason,

@@ -33,10 +33,20 @@ std::unique_ptr<FlossAdminClient> FlossAdminClient::Create() {
 }
 
 constexpr char FlossAdminClient::kExportedCallbacksPath[] =
-    "/org/chromium/bluetooth/adminclient";
+#if BUILDFLAG(IS_CHROMEOS_LACROS)
+    "/org/chromium/bluetooth/admin/callback/lacros";
+#else
+    "/org/chromium/bluetooth/admin/callback";
+#endif
 
 FlossAdminClient::FlossAdminClient() = default;
 FlossAdminClient::~FlossAdminClient() {
+  if (callback_id_) {
+    CallAdminMethod<bool>(
+        base::BindOnce(&FlossAdminClient::HandleCallbackUnregistered,
+                       weak_ptr_factory_.GetWeakPtr()),
+        admin::kUnregisterCallback, callback_id_.value());
+  }
   if (bus_) {
     exported_callback_manager_.UnexportCallback(
         dbus::ObjectPath(kExportedCallbacksPath));
@@ -63,10 +73,17 @@ void FlossAdminClient::HandleCallbackRegistered(DBusResult<uint32_t> result) {
   }
 
   client_registered_ = true;
+  callback_id_ = *result;
   while (!initialized_callbacks_.empty()) {
     auto& cb = initialized_callbacks_.front();
     std::move(cb).Run();
     initialized_callbacks_.pop();
+  }
+}
+
+void FlossAdminClient::HandleCallbackUnregistered(DBusResult<bool> result) {
+  if (!result.has_value() || *result == false) {
+    LOG(WARNING) << __func__ << "Failed to unregister callback";
   }
 }
 
@@ -85,10 +102,12 @@ void FlossAdminClient::HandleGetAllowedServices(
 void FlossAdminClient::Init(dbus::Bus* bus,
                             const std::string& service_name,
                             const int adapter_index,
+                            base::Version version,
                             base::OnceClosure on_ready) {
   bus_ = bus;
   admin_path_ = FlossDBusClient::GenerateAdminPath(adapter_index);
   service_name_ = service_name;
+  version_ = version;
 
   dbus::ObjectProxy* object_proxy =
       bus_->GetObjectProxy(service_name_, admin_path_);

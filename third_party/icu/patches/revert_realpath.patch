@@ -1,0 +1,84 @@
+diff --git a/source/common/putil.cpp b/source/common/putil.cpp
+index ab904af2..42e8be11 100644
+--- a/source/common/putil.cpp
++++ b/source/common/putil.cpp
+@@ -722,7 +722,7 @@ extern U_IMPORT char *U_TZNAME[];
+ #include <dirent.h>  /* Needed to search through system timezone files */
+ #endif
+ static char gTimeZoneBuffer[PATH_MAX];
+-static const char *gTimeZoneBufferPtr = nullptr;
++static char *gTimeZoneBufferPtr = nullptr;
+ #endif
+ 
+ #if !U_PLATFORM_USES_ONLY_WIN32_API
+@@ -1171,16 +1171,15 @@ uprv_tzname(int n)
+         because the tzfile contents is underspecified.
+         This isn't guaranteed to work because it may not be a symlink.
+         */
+-        char *ret = realpath(TZDEFAULT, gTimeZoneBuffer);
+-        if (ret != nullptr && uprv_strcmp(TZDEFAULT, gTimeZoneBuffer) != 0) {
++        int32_t ret = (int32_t)readlink(TZDEFAULT, gTimeZoneBuffer, sizeof(gTimeZoneBuffer)-1);
++        if (0 < ret) {
+             int32_t tzZoneInfoTailLen = uprv_strlen(TZZONEINFOTAIL);
+-            const char *tzZoneInfoTailPtr = uprv_strstr(gTimeZoneBuffer, TZZONEINFOTAIL);
+-            if (tzZoneInfoTailPtr != nullptr) {
+-                tzZoneInfoTailPtr += tzZoneInfoTailLen;
+-                skipZoneIDPrefix(&tzZoneInfoTailPtr);
+-                if (isValidOlsonID(tzZoneInfoTailPtr)) {
+-                    return (gTimeZoneBufferPtr = tzZoneInfoTailPtr);
+-                }
++            char *  tzZoneInfoTailPtr = uprv_strstr(gTimeZoneBuffer, TZZONEINFOTAIL);
++
++            if (tzZoneInfoTailPtr != nullptr
++                && isValidOlsonID(tzZoneInfoTailPtr + tzZoneInfoTailLen))
++            {
++                return (gTimeZoneBufferPtr = tzZoneInfoTailPtr + tzZoneInfoTailLen);
+             }
+         } else {
+ #if defined(SEARCH_TZFILE)
+diff --git a/source/common/uposixdefs.h b/source/common/uposixdefs.h
+index 7c008fdd..3770a335 100644
+--- a/source/common/uposixdefs.h
++++ b/source/common/uposixdefs.h
+@@ -48,7 +48,7 @@
+ #endif
+ 
+ /*
+- * Make sure things like realpath and such functions work.
++ * Make sure things like readlink and such functions work.
+  * Poorly upgraded Solaris machines can't have this defined.
+  * Cleanly installed Solaris can use this #define.
+  *
+diff --git a/source/test/depstest/dependencies.txt b/source/test/depstest/dependencies.txt
+index d95e4de3..28a2dc70 100644
+--- a/source/test/depstest/dependencies.txt
++++ b/source/test/depstest/dependencies.txt
+@@ -22,7 +22,7 @@ system_symbols:
+     exp_and_tanhf
+     stdlib_qsort
+     system_locale
+-    stdio_input stdio_output file_io realpath_function dir_io mmap_functions dlfcn
++    stdio_input stdio_output file_io readlink_function dir_io mmap_functions dlfcn
+     # C++
+     cplusplus iostream
+     std_mutex
+@@ -110,8 +110,8 @@ group: file_io
+     # Additional symbols in an optimized build.
+     __xstat
+ 
+-group: realpath_function
+-    realpath  # putil.cpp uprv_tzname() calls this in a hack to get the time zone name
++group: readlink_function
++    readlink  # putil.cpp uprv_tzname() calls this in a hack to get the time zone name
+ 
+ group: dir_io
+     opendir closedir readdir  # for a hack to get the time zone name
+@@ -869,7 +869,7 @@ group: platform
+     PIC system_misc system_debug malloc_functions ubsan
+     c_strings c_string_formatting
+     floating_point system_locale
+-    stdio_input realpath_function dir_io
++    stdio_input readlink_function dir_io
+     dlfcn  # Move related code into icuplug.c?
+     cplusplus
+     std_mutex

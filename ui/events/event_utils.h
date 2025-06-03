@@ -40,7 +40,7 @@ namespace ui {
 
 class Event;
 class MouseEvent;
-enum class DomCode;
+enum class DomCode : uint32_t;
 
 // Key used to store keyboard 'state' values in Event::Properties.
 constexpr char kPropertyKeyboardState[] = "_keyevent_kbd_state_";
@@ -126,12 +126,14 @@ EVENTS_EXPORT gfx::Vector2d GetMouseWheelOffset(
 EVENTS_EXPORT gfx::Vector2d GetMouseWheelTick120ths(
     const PlatformEvent& native_event);
 
-// Returns a copy of |native_event|. Depending on the platform, this copy may
-// need to be deleted with ReleaseCopiedNativeEvent().
-PlatformEvent CopyNativeEvent(const PlatformEvent& native_event);
+// Returns whether platform events should be copied when ui::Events are copied.
+EVENTS_EXPORT bool ShouldCopyPlatformEvents();
 
-// Delete a |native_event| previously created by CopyNativeEvent().
-void ReleaseCopiedNativeEvent(const PlatformEvent& native_event);
+// Creates a new, invalid event.
+EVENTS_EXPORT PlatformEvent CreateInvalidPlatformEvent();
+
+// Returns if the platform event is valid.
+EVENTS_EXPORT bool IsPlatformEventValid(const PlatformEvent& platform_event);
 
 // Returns the detailed pointer information for touch events.
 EVENTS_EXPORT PointerDetails

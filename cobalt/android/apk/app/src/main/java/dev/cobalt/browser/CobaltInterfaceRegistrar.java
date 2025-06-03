@@ -15,7 +15,9 @@
 package dev.cobalt.browser;
 
 import dev.cobalt.browser.crashannotator.CrashAnnotatorImplFactory;
-import org.chromium.base.annotations.CalledByNative;
+
+import org.jni_zero.CalledByNative;
+
 import org.chromium.content_public.browser.InterfaceRegistrar;
 import org.chromium.content_public.browser.RenderFrameHost;
 import org.chromium.crashannotator.mojom.CrashAnnotator;

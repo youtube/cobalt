@@ -246,6 +246,12 @@ message Study {
     KIOSK = 3;
     // Chrome OS running on Meet Hardware devices e.g. Chromebox For Meetings.
     MEET_DEVICE = 4;
+    // Chrome running on Android TV.
+    TV = 5;
+    // Chrome running on Android Auto.
+    AUTOMOTIVE = 6;
+    // Chrome running on Android Foldable.
+    FOLDABLE = 7;
   }
 
   // Possible CPU architectures Chrome is running on. Only supported on M90+.

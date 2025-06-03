@@ -9,13 +9,14 @@ import android.text.TextUtils;
 import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.Callback;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.ObserverList;
 import org.chromium.base.ThreadUtils;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.profiles.ProfileKey;
 import org.chromium.chrome.browser.tab.Tab;
@@ -521,8 +522,7 @@ public class OfflinePageBridge {
      * @param webContents Web contents used to find the offline page.
      * @return The offline page if tab currently displays it, null otherwise.
      */
-    @Nullable
-    public OfflinePageItem getOfflinePage(WebContents webContents) {
+    public @Nullable OfflinePageItem getOfflinePage(WebContents webContents) {
         return org.chromium.chrome.browser.offlinepages.OfflinePageBridgeJni.get().getOfflinePage(
                 mNativeOfflinePageBridge, OfflinePageBridge.this, webContents);
     }

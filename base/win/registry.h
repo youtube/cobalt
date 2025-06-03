@@ -13,10 +13,10 @@
 
 #include "base/base_export.h"
 #include "base/functional/callback_forward.h"
-#include "base/gtest_prod_util.h"
+#include "base/types/expected.h"
+#include "base/types/strong_alias.h"
 #include "base/win/windows_types.h"
-
-class ShellUtil;
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace base {
 namespace win {
@@ -30,47 +30,43 @@ namespace win {
 //    is not touched in case of failure.
 //  * Functions returning LONG indicate success as ERROR_SUCCESS or an
 //    error as a (non-zero) win32 error code.
-//
-// Most developers should use base::win::RegKey subclass below.
-namespace internal {
-
-class Standard;
-class ExportDerived;
-template <typename T>
-class RegTestTraits;
-
-template <typename Reg>
-class GenericRegKey {
+class BASE_EXPORT RegKey {
  public:
   // Called from the MessageLoop when the key changes.
   using ChangeCallback = OnceCallback<void()>;
 
-  GenericRegKey();
-  explicit GenericRegKey(HKEY key);
-  GenericRegKey(HKEY rootkey, const wchar_t* subkey, REGSAM access);
-  GenericRegKey(GenericRegKey&& other) noexcept;
-  GenericRegKey& operator=(GenericRegKey&& other);
+  RegKey();
+  explicit RegKey(HKEY key);
+  RegKey(HKEY rootkey, const wchar_t* subkey, REGSAM access);
+  RegKey(RegKey&& other) noexcept;
+  RegKey& operator=(RegKey&& other);
 
-  GenericRegKey(const GenericRegKey&) = delete;
-  GenericRegKey& operator=(const GenericRegKey&) = delete;
+  RegKey(const RegKey&) = delete;
+  RegKey& operator=(const RegKey&) = delete;
 
-  virtual ~GenericRegKey();
+  ~RegKey();
 
-  LONG Create(HKEY rootkey, const wchar_t* subkey, REGSAM access);
+  // Creates a new reg key, replacing `this` with a reference to the
+  // newly-opened key. In case of error, `this` is unchanged.
+  [[nodiscard]] LONG Create(HKEY rootkey, const wchar_t* subkey, REGSAM access);
 
-  LONG CreateWithDisposition(HKEY rootkey,
-                             const wchar_t* subkey,
-                             DWORD* disposition,
-                             REGSAM access);
+  // Creates a new reg key, replacing `this` with a reference to the
+  // newly-opened key. In case of error, `this` is unchanged.
+  [[nodiscard]] LONG CreateWithDisposition(HKEY rootkey,
+                                           const wchar_t* subkey,
+                                           DWORD* disposition,
+                                           REGSAM access);
 
-  // Creates a subkey or open it if it already exists.
-  LONG CreateKey(const wchar_t* name, REGSAM access);
+  // Creates a subkey or opens it if it already exists. In case of error, `this`
+  // is unchanged.
+  [[nodiscard]] LONG CreateKey(const wchar_t* name, REGSAM access);
 
-  // Opens an existing reg key.
-  LONG Open(HKEY rootkey, const wchar_t* subkey, REGSAM access);
+  // Opens an existing reg key, replacing `this` with a reference to the
+  // newly-opened key. In case of error, `this` is unchanged.
+  [[nodiscard]] LONG Open(HKEY rootkey, const wchar_t* subkey, REGSAM access);
 
   // Opens an existing reg key, given the relative key name.
-  LONG OpenKey(const wchar_t* relative_key_name, REGSAM access);
+  [[nodiscard]] LONG OpenKey(const wchar_t* relative_key_name, REGSAM access);
 
   // Closes this reg key.
   void Close();
@@ -85,12 +81,9 @@ class GenericRegKey {
   // occurrs while attempting to access it.
   bool HasValue(const wchar_t* value_name) const;
 
-  // Returns the number of values for this key, or 0 if the number cannot be
-  // determined.
-  DWORD GetValueCount() const;
-
-  // Returns the last write time or 0 on failure.
-  FILETIME GetLastWriteTime() const;
+  // Returns the number of values for this key, or an error code if the number
+  // cannot be determined.
+  base::expected<DWORD, LONG> GetValueCount() const;
 
   // Determines the nth value's name.
   LONG GetValueNameAt(DWORD index, std::wstring* name) const;
@@ -98,13 +91,12 @@ class GenericRegKey {
   // True while the key is valid.
   bool Valid() const { return key_ != nullptr; }
 
-  // Kills a key and everything that lives below it; please be careful when
-  // using it.
-  LONG DeleteKey(const wchar_t* name);
-
-  // Deletes an empty subkey.  If the subkey has subkeys or values then this
-  // will fail.
-  LONG DeleteEmptyKey(const wchar_t* name);
+  // Kills a key and, by default, everything that lives below it; please be
+  // careful when using it. `recursive` = false may be used to prevent
+  // recursion, in which case the key is only deleted if it has no subkeys.
+  using RecursiveDelete = base::StrongAlias<class RecursiveDeleteTag, bool>;
+  LONG DeleteKey(const wchar_t* name,
+                 RecursiveDelete recursive = RecursiveDelete(true));
 
   // Deletes a single value within the key.
   LONG DeleteValue(const wchar_t* name);
@@ -152,8 +144,8 @@ class GenericRegKey {
   // Starts watching the key to see if any of its values have changed.
   // The key must have been opened with the KEY_NOTIFY access privilege.
   // Returns true on success.
-  // To stop watching, delete this GenericRegKey object. To continue watching
-  // the object after the callback is invoked, call StartWatching again.
+  // To stop watching, delete this RegKey object. To continue watching the
+  // object after the callback is invoked, call StartWatching again.
   bool StartWatching(ChangeCallback callback);
 
   HKEY Handle() const { return key_; }
@@ -161,53 +153,32 @@ class GenericRegKey {
  private:
   class Watcher;
 
+  // Opens the key `subkey` under `rootkey` with the given options and
+  // access rights. `options` may be 0 or `REG_OPTION_OPEN_LINK`. Returns
+  // ERROR_SUCCESS or a Windows error code.
+  [[nodiscard]] LONG Open(HKEY rootkey,
+                          const wchar_t* subkey,
+                          DWORD options,
+                          REGSAM access);
+
+  // Returns true if the key is a symbolic link, false if it is not, or a
+  // Windows error code in case of a failure to determine. `this` *MUST* have
+  // been opened via at least `Open(..., REG_OPTION_OPEN_LINK,
+  // REG_QUERY_VALUE);`.
+  expected<bool, LONG> IsLink() const;
+
+  // Deletes the key if it is a symbolic link. Returns ERROR_SUCCESS if the key
+  // was a link and was deleted, a Windows error code if checking the key or
+  // deleting it failed, or `nullopt` if the key exists and is not a symbolic
+  // link.
+  absl::optional<LONG> DeleteIfLink();
+
   // Recursively deletes a key and all of its subkeys.
   static LONG RegDelRecurse(HKEY root_key, const wchar_t* name, REGSAM access);
 
   HKEY key_ = nullptr;  // The registry key being iterated.
   REGSAM wow64access_ = 0;
   std::unique_ptr<Watcher> key_watcher_;
-};
-
-}  // namespace internal
-
-// The Windows registry utility class most developers should use.
-class BASE_EXPORT RegKey : public internal::GenericRegKey<internal::Standard> {
- public:
-  RegKey();
-  explicit RegKey(HKEY key);
-  RegKey(HKEY rootkey, const wchar_t* subkey, REGSAM access);
-  RegKey(RegKey&& other) noexcept;
-  RegKey& operator=(RegKey&& other);
-
-  RegKey(const RegKey&) = delete;
-  RegKey& operator=(const RegKey&) = delete;
-
-  ~RegKey() override;
-};
-
-// A Windows registry class that derives its calls directly from advapi32.dll.
-// Generally, you should use RegKey above. Note that use of this API will pin
-// advapi32.dll. If you need to use this class, please reach out to the
-// base/win/OWNERS first.
-class BASE_EXPORT ExportDerivedRegKey
-    : public internal::GenericRegKey<internal::ExportDerived> {
- public:
-  ExportDerivedRegKey(ExportDerivedRegKey&& other) noexcept;
-  ExportDerivedRegKey& operator=(ExportDerivedRegKey&& other);
-
-  ExportDerivedRegKey(const ExportDerivedRegKey&) = delete;
-  ExportDerivedRegKey& operator=(const ExportDerivedRegKey&) = delete;
-
-  ~ExportDerivedRegKey() override;
-
- private:
-  friend class ::ShellUtil;
-  friend class internal::RegTestTraits<ExportDerivedRegKey>;
-
-  ExportDerivedRegKey();
-  explicit ExportDerivedRegKey(HKEY key);
-  ExportDerivedRegKey(HKEY rootkey, const wchar_t* subkey, REGSAM access);
 };
 
 // Iterates the entries found in a particular folder on the registry.

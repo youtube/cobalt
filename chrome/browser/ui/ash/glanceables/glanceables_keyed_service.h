@@ -12,6 +12,7 @@
 #include "base/memory/raw_ptr.h"
 #include "components/account_id/account_id.h"
 #include "components/keyed_service/core/keyed_service.h"
+#include "components/prefs/pref_change_registrar.h"
 
 class Profile;
 
@@ -29,7 +30,8 @@ class IdentityManager;
 
 namespace ash {
 
-class GlanceablesTasksClientImpl;
+class GlanceablesClassroomClientImpl;
+class TasksClientImpl;
 
 // Browser context keyed service that owns implementations of interfaces from
 // ash/ needed to communicate with different Google services as part of
@@ -51,6 +53,10 @@ class GlanceablesKeyedService : public KeyedService {
   void Shutdown() override;
 
  private:
+  // Returns whether glanceables are enabled for the profile that owns the
+  // GlanceablesKeyedService.
+  bool AreGlanceablesEnabled() const;
+
   // Helper method that creates a `google_apis::RequestSender` instance.
   // `scopes` - OAuth 2 scopes needed for a client.
   // `traffic_annotation_tag` - describes requests issued by a client (for more
@@ -60,23 +66,36 @@ class GlanceablesKeyedService : public KeyedService {
       const std::vector<std::string>& scopes,
       const net::NetworkTrafficAnnotationTag& traffic_annotation_tag) const;
 
-  // Creates clients needed to communicate with different Google services.
-  void CreateClients();
+  // Creates clients needed to communicate with different Google services, and
+  // registers them with glanceables v2 controller in ash.
+  void RegisterClients();
 
-  // Notifies `ash/` about created clients for `account_id_`.
-  void UpdateRegistrationInAsh() const;
+  // Resets clients needed to communicate with different Google services, and
+  // clears any existing registrations with glanceables v2 controller in ash.
+  void ClearClients();
+
+  // Creates or clear clients that communicated with Google services, and
+  // notifies `ash/` about created clients for `account_id_`.
+  void UpdateRegistration();
 
   // The profile for which this keyed service was created.
   const raw_ptr<Profile, ExperimentalAsh> profile_;
 
   // Identity manager associated with `profile_`.
-  const raw_ptr<signin::IdentityManager, ExperimentalAsh> identity_manager_;
+  const raw_ptr<signin::IdentityManager, DanglingUntriaged | ExperimentalAsh>
+      identity_manager_;
 
   // Account id associated with the primary profile.
   const AccountId account_id_;
 
-  // Instance of the `GlanceablesTasksClient` interface implementation.
-  std::unique_ptr<GlanceablesTasksClientImpl> tasks_client_;
+  // Instance of the `GlanceablesClassroomClient` interface implementation.
+  std::unique_ptr<GlanceablesClassroomClientImpl> classroom_client_;
+
+  // Instance of the `api::TasksClient` interface implementation.
+  std::unique_ptr<TasksClientImpl> tasks_client_;
+
+  // The registrar used to watch prefs changes.
+  PrefChangeRegistrar pref_change_registrar_;
 };
 
 }  // namespace ash

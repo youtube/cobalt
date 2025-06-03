@@ -110,7 +110,7 @@ class TranslateFrameBinderPrerenderBrowserTest
   ~TranslateFrameBinderPrerenderBrowserTest() override = default;
 
   void SetUp() override {
-    prerender_helper_.SetUp(embedded_test_server());
+    prerender_helper_.RegisterServerRequestMonitor(embedded_test_server());
     TranslateFrameBinderBrowserTest::SetUp();
   }
 
@@ -176,8 +176,9 @@ class TranslateFrameBinderFencedFrameBrowserTest
   content::test::FencedFrameTestHelper fenced_frame_helper_;
 };
 
+// TODO(crbug.com/1443415): Flaky on multiple platforms.
 IN_PROC_BROWSER_TEST_F(TranslateFrameBinderFencedFrameBrowserTest,
-                       NotBindingInFencedFrame) {
+                       DISABLED_NotBindingInFencedFrame) {
   TestTranslateDriverBindingContentBrowserClient test_browser_client;
   auto* old_browser_client = SetBrowserClientForTesting(&test_browser_client);
 

@@ -17,7 +17,8 @@ PhotosService* PhotosServiceFactory::GetForProfile(Profile* profile) {
 }
 
 PhotosServiceFactory* PhotosServiceFactory::GetInstance() {
-  return base::Singleton<PhotosServiceFactory>::get();
+  static base::NoDestructor<PhotosServiceFactory> instance;
+  return instance.get();
 }
 
 PhotosServiceFactory::PhotosServiceFactory()
@@ -34,12 +35,13 @@ PhotosServiceFactory::PhotosServiceFactory()
 
 PhotosServiceFactory::~PhotosServiceFactory() = default;
 
-KeyedService* PhotosServiceFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+PhotosServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
   auto url_loader_factory = context->GetDefaultStoragePartition()
                                 ->GetURLLoaderFactoryForBrowserProcess();
   auto* profile = Profile::FromBrowserContext(context);
-  return new PhotosService(url_loader_factory,
-                           IdentityManagerFactory::GetForProfile(profile),
-                           profile->GetPrefs());
+  return std::make_unique<PhotosService>(
+      url_loader_factory, IdentityManagerFactory::GetForProfile(profile),
+      profile->GetPrefs());
 }

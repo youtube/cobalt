@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "base/callback_list.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/test/bind.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/simple_test_tick_clock.h"
@@ -15,12 +16,16 @@
 #include "chrome/browser/resource_coordinator/utils.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/recently_audible_helper.h"
+#include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
 #include "chrome/browser/ui/views/page_action/page_action_icon_controller.h"
 #include "chrome/browser/ui/views/performance_controls/high_efficiency_bubble_view.h"
 #include "chrome/browser/ui/views/performance_controls/high_efficiency_chip_view.h"
+#include "chrome/browser/ui/views/performance_controls/high_efficiency_resource_view.h"
+#include "chrome/browser/ui/views/tabs/tab_icon.h"
 #include "chrome/browser/ui/views/tabs/tab_strip.h"
 #include "chrome/common/webui_url_constants.h"
+#include "chrome/grit/generated_resources.h"
 #include "chrome/test/base/interactive_test_utils.h"
 #include "chrome/test/interaction/interactive_browser_test.h"
 #include "components/content_settings/core/browser/host_content_settings_map.h"
@@ -31,6 +36,8 @@
 #include "components/performance_manager/public/decorators/process_metrics_decorator.h"
 #include "components/performance_manager/public/features.h"
 #include "components/performance_manager/public/performance_manager.h"
+#include "components/performance_manager/public/user_tuning/prefs.h"
+#include "components/prefs/pref_service.h"
 #include "components/user_education/test/feature_promo_test_util.h"
 #include "components/user_education/views/help_bubble_view.h"
 #include "content/public/test/browser_test.h"
@@ -38,7 +45,11 @@
 #include "third_party/blink/public/common/switches.h"
 #include "ui/base/interaction/element_identifier.h"
 #include "ui/base/interaction/element_tracker.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/base/text/bytes_formatting.h"
+#include "ui/gfx/animation/animation.h"
+#include "ui/views/controls/button/button.h"
+#include "ui/views/controls/button/label_button.h"
 #include "ui/views/controls/styled_label.h"
 #include "ui/views/interaction/element_tracker_views.h"
 #include "url/gurl.h"
@@ -50,6 +61,7 @@ DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kPerformanceSettingsTab);
 DEFINE_LOCAL_CUSTOM_ELEMENT_EVENT_TYPE(kAudioIsAudible);
 
 constexpr base::TimeDelta kShortDelay = base::Seconds(1);
+constexpr char kSkipPixelTestsReason[] = "Should only run in pixel_tests.";
 
 class QuitRunLoopOnMemoryMetricsRefreshObserver
     : public performance_manager::user_tuning::UserPerformanceTuningManager::
@@ -118,7 +130,34 @@ class HighEfficiencyInteractiveTest : public InteractiveBrowserTest {
     }));
   }
 
-  // Attepmpts to discard the tab at discard_tab_index and navigates to that
+  auto ForceRefreshMemoryMetrics() {
+    return Do(base::BindLambdaForTesting([]() {
+      performance_manager::user_tuning::UserPerformanceTuningManager* manager =
+          performance_manager::user_tuning::UserPerformanceTuningManager::
+              GetInstance();
+
+      base::RunLoop run_loop(base::RunLoop::Type::kNestableTasksAllowed);
+      QuitRunLoopOnMemoryMetricsRefreshObserver observer(
+          run_loop.QuitClosure());
+      base::ScopedObservation<
+          performance_manager::user_tuning::UserPerformanceTuningManager,
+          QuitRunLoopOnMemoryMetricsRefreshObserver>
+          memory_metrics_observer(&observer);
+      memory_metrics_observer.Observe(manager);
+
+      performance_manager::PerformanceManager::CallOnGraph(
+          FROM_HERE,
+          base::BindLambdaForTesting([](performance_manager::Graph* graph) {
+            auto* metrics_decorator = graph->GetRegisteredObjectAs<
+                performance_manager::ProcessMetricsDecorator>();
+            metrics_decorator->RequestImmediateMetrics();
+          }));
+
+      run_loop.Run();
+    }));
+  }
+
+  // Attempts to discard the tab at discard_tab_index and navigates to that
   // tab and waits for it to reload
   auto DiscardAndSelectTab(int discard_tab_index,
                            const ui::ElementIdentifier& contents_id) {
@@ -132,6 +171,10 @@ class HighEfficiencyInteractiveTest : public InteractiveBrowserTest {
 
   GURL GetURL(base::StringPiece path) {
     return embedded_test_server()->GetURL("example.com", path);
+  }
+
+  GURL GetURL(base::StringPiece hostname, base::StringPiece path) {
+    return embedded_test_server()->GetURL(hostname, path);
   }
 
  private:
@@ -185,7 +228,6 @@ IN_PROC_BROWSER_TEST_F(HighEfficiencyDiscardPolicyInteractiveTest,
   StateChange video_is_playing;
   video_is_playing.event = kVideoIsPlaying;
   video_is_playing.where = video;
-  video_is_playing.type = StateChange::Type::kConditionTrue;
   video_is_playing.test_function = kMediaIsPlaying;
 
   RunTestSequence(
@@ -279,6 +321,13 @@ class HighEfficiencyChipInteractiveTest : public HighEfficiencyInteractiveTest {
   HighEfficiencyChipInteractiveTest() = default;
   ~HighEfficiencyChipInteractiveTest() override = default;
 
+  void SetUp() override {
+    scoped_feature_list_.InitAndEnableFeature(
+        performance_manager::features::kDiscardExceptionsImprovements);
+
+    HighEfficiencyInteractiveTest::SetUp();
+  }
+
   void SetUpOnMainThread() override {
     HighEfficiencyInteractiveTest::SetUpOnMainThread();
 
@@ -313,7 +362,7 @@ class HighEfficiencyChipInteractiveTest : public HighEfficiencyInteractiveTest {
       size_t non_discard_tab_index,
       const ui::ElementIdentifier& contents_id) {
     MultiStep result;
-    for (int i = 0; i < HighEfficiencyChipView::kChipAnimationCount; i++) {
+    for (int i = 0; i < HighEfficiencyChipTabHelper::kChipAnimationCount; i++) {
       MultiStep temp = std::move(result);
       result = Steps(std::move(temp),
                      SelectTab(kTabStripElementId, non_discard_tab_index),
@@ -332,32 +381,8 @@ class HighEfficiencyChipInteractiveTest : public HighEfficiencyInteractiveTest {
                        index));
   }
 
-  auto ForceRefreshMemoryMetrics() {
-    return Do(base::BindLambdaForTesting([]() {
-      performance_manager::user_tuning::UserPerformanceTuningManager* manager =
-          performance_manager::user_tuning::UserPerformanceTuningManager::
-              GetInstance();
-
-      base::RunLoop run_loop(base::RunLoop::Type::kNestableTasksAllowed);
-      QuitRunLoopOnMemoryMetricsRefreshObserver observer(
-          run_loop.QuitClosure());
-      base::ScopedObservation<
-          performance_manager::user_tuning::UserPerformanceTuningManager,
-          QuitRunLoopOnMemoryMetricsRefreshObserver>
-          memory_metrics_observer(&observer);
-      memory_metrics_observer.Observe(manager);
-
-      performance_manager::PerformanceManager::CallOnGraph(
-          FROM_HERE,
-          base::BindLambdaForTesting([](performance_manager::Graph* graph) {
-            auto* metrics_decorator = graph->GetRegisteredObjectAs<
-                performance_manager::ProcessMetricsDecorator>();
-            metrics_decorator->RefreshMetricsForTesting();
-          }));
-
-      run_loop.Run();
-    }));
-  }
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 // Page Action Chip should appear expanded the first three times a tab is
@@ -479,11 +504,10 @@ IN_PROC_BROWSER_TEST_F(HighEfficiencyChipInteractiveTest,
       PressButton(kHighEfficiencyChipElementId),
       WaitForShow(HighEfficiencyBubbleView::kHighEfficiencyDialogBodyElementId),
       NameView(kDialogCloseButton, base::BindLambdaForTesting([&]() {
-                 return static_cast<views::View*>(
-                     GetPageActionIconView()
-                         ->GetBubble()
-                         ->GetBubbleFrameView()
-                         ->GetCloseButtonForTesting());
+                 return static_cast<views::View*>(GetPageActionIconView()
+                                                      ->GetBubble()
+                                                      ->GetBubbleFrameView()
+                                                      ->close_button());
                })),
       PressButton(kDialogCloseButton),
       EnsureNotPresent(
@@ -557,4 +581,220 @@ IN_PROC_BROWSER_TEST_F(HighEfficiencyChipInteractiveTest,
                            memory_estimate * 1024)) != std::string::npos;
               },
               browser())));
+}
+
+// High Efficiency Dialog bubble should add the site it is currently on
+// to the exceptions list if the cancel button of the dialog bubble is clicked.
+// Opening the dialog button again will cause the cancel button to give users
+// the option to go to settings instead.
+IN_PROC_BROWSER_TEST_F(HighEfficiencyChipInteractiveTest,
+                       ModifyExceptionsListOnCancelButtonClick) {
+  RunTestSequence(
+      InstrumentTab(kFirstTabContents, 0),
+      NavigateWebContents(kFirstTabContents, GetURL("/title1.html")),
+      AddInstrumentedTab(kSecondTabContents, GURL(chrome::kChromeUINewTabURL)),
+      DiscardAndSelectTab(0, kFirstTabContents),
+      PressButton(kHighEfficiencyChipElementId),
+      WaitForShow(HighEfficiencyBubbleView::kHighEfficiencyDialogBodyElementId),
+      CheckViewProperty(
+          HighEfficiencyBubbleView::kHighEfficiencyDialogCancelButton,
+          &views::LabelButton::GetText,
+          l10n_util::GetStringUTF16(
+              IDS_HIGH_EFFICIENCY_DIALOG_BUTTON_ADD_TO_EXCLUSION_LIST)),
+      // Clicking the dialog's cancel button should add the site to the
+      // exception list
+      PressButton(HighEfficiencyBubbleView::kHighEfficiencyDialogCancelButton),
+      WaitForHide(HighEfficiencyBubbleView::kHighEfficiencyDialogBodyElementId),
+      Do(base::BindLambdaForTesting([=]() {
+        PrefService* const pref_service = browser()->profile()->GetPrefs();
+        const base::Value::List& discard_exception = pref_service->GetList(
+            performance_manager::user_tuning::prefs::kTabDiscardingExceptions);
+        EXPECT_EQ(1u, discard_exception.size());
+        std::string current_site_host = browser()
+                                            ->tab_strip_model()
+                                            ->GetActiveWebContents()
+                                            ->GetURL()
+                                            .host();
+        std::string added_exception = discard_exception.front().GetString();
+        EXPECT_EQ(current_site_host, added_exception);
+      })),
+      FlushEvents(),
+      // Dialog's cancel button should now allow users to navigate to the
+      // performance settings page
+      PressButton(kHighEfficiencyChipElementId),
+      WaitForShow(HighEfficiencyBubbleView::kHighEfficiencyDialogBodyElementId),
+      CheckViewProperty(
+          HighEfficiencyBubbleView::kHighEfficiencyDialogCancelButton,
+          &views::LabelButton::GetText,
+          l10n_util::GetStringUTF16(IDS_HIGH_EFFICIENCY_DIALOG_BODY_LINK_TEXT)),
+      PressButton(HighEfficiencyBubbleView::kHighEfficiencyDialogCancelButton),
+      WaitForHide(HighEfficiencyBubbleView::kHighEfficiencyDialogBodyElementId),
+      Check(base::BindLambdaForTesting(
+          [&]() { return browser()->tab_strip_model()->GetTabCount() == 3; })),
+      InstrumentTab(kPerformanceSettingsTab, 2),
+      WaitForWebContentsReady(kPerformanceSettingsTab,
+                              GURL(chrome::kChromeUIPerformanceSettingsURL)));
+}
+
+// High Efficiency Dialog bubble's cancel button's state should be preserved
+// for that tab even when navigating to another tab.
+IN_PROC_BROWSER_TEST_F(HighEfficiencyChipInteractiveTest,
+                       CancelButtonStatePreseveredWhenSwitchingTabs) {
+  RunTestSequence(
+      InstrumentTab(kFirstTabContents, 0),
+      NavigateWebContents(kFirstTabContents, GetURL("a.test", "/title1.html")),
+      AddInstrumentedTab(kSecondTabContents, GetURL("b.test", "/title1.html")),
+      DiscardAndSelectTab(0, kFirstTabContents), TryDiscardTab(1),
+      PressButton(kHighEfficiencyChipElementId),
+      WaitForShow(HighEfficiencyBubbleView::kHighEfficiencyDialogBodyElementId),
+      // Add site to the exceptions list
+      PressButton(HighEfficiencyBubbleView::kHighEfficiencyDialogCancelButton),
+      WaitForHide(HighEfficiencyBubbleView::kHighEfficiencyDialogBodyElementId),
+      FlushEvents(),
+      // Check that the cancel button can go to settings page
+      PressButton(kHighEfficiencyChipElementId),
+      WaitForShow(HighEfficiencyBubbleView::kHighEfficiencyDialogBodyElementId),
+      CheckViewProperty(
+          HighEfficiencyBubbleView::kHighEfficiencyDialogCancelButton,
+          &views::LabelButton::GetText,
+          l10n_util::GetStringUTF16(IDS_HIGH_EFFICIENCY_DIALOG_BODY_LINK_TEXT)),
+      PressButton(kHighEfficiencyChipElementId),
+      WaitForHide(HighEfficiencyBubbleView::kHighEfficiencyDialogBodyElementId),
+      // Second tab's cancel button should allow users to exclude the site
+      // since this tab's site wasn't excluded yet
+      SelectTab(kTabStripElementId, 1),
+      PressButton(kHighEfficiencyChipElementId),
+      WaitForShow(HighEfficiencyBubbleView::kHighEfficiencyDialogBodyElementId),
+      CheckViewProperty(
+          HighEfficiencyBubbleView::kHighEfficiencyDialogCancelButton,
+          &views::LabelButton::GetText,
+          l10n_util::GetStringUTF16(
+              IDS_HIGH_EFFICIENCY_DIALOG_BUTTON_ADD_TO_EXCLUSION_LIST)),
+      PressButton(kHighEfficiencyChipElementId),
+      WaitForHide(HighEfficiencyBubbleView::kHighEfficiencyDialogBodyElementId),
+      // Ensure that the first tab's cancel button continues to allow users
+      // to navigate to the settings page even after we selected another tab
+      SelectTab(kTabStripElementId, 0),
+      PressButton(kHighEfficiencyChipElementId),
+      WaitForShow(HighEfficiencyBubbleView::kHighEfficiencyDialogBodyElementId),
+      CheckViewProperty(
+          HighEfficiencyBubbleView::kHighEfficiencyDialogCancelButton,
+          &views::LabelButton::GetText,
+          l10n_util::GetStringUTF16(
+              IDS_HIGH_EFFICIENCY_DIALOG_BODY_LINK_TEXT)));
+}
+
+struct FaviconScreenShotTestConfig {
+  performance_manager::features::DiscardTabTreatmentOptions treatment_option;
+  std::string screenshot_name;
+  std::string cl_number;
+};
+
+class HighEfficiencyFaviconTreatmentTest
+    : public HighEfficiencyInteractiveTest,
+      public testing::WithParamInterface<FaviconScreenShotTestConfig> {
+ public:
+  HighEfficiencyFaviconTreatmentTest() = default;
+  ~HighEfficiencyFaviconTreatmentTest() override = default;
+
+  void SetUp() override {
+    scoped_feature_list_.InitAndEnableFeatureWithParameters(
+        performance_manager::features::kDiscardedTabTreatment,
+        {{"discard_tab_treatment_option", base::NumberToString(static_cast<int>(
+                                              GetParam().treatment_option))}});
+
+    HighEfficiencyInteractiveTest::SetUp();
+  }
+
+  TabStrip* GetTabStrip() {
+    return BrowserView::GetBrowserViewForBrowser(browser())->tabstrip();
+  }
+
+  TabIcon* GetTabIcon(int tab_index) {
+    return GetTabStrip()->tab_at(tab_index)->GetTabIconForTesting();
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_P(HighEfficiencyFaviconTreatmentTest,
+                       FaviconTreatmentOnDiscard) {
+  constexpr char kFirstTabFavicon[] = "first_tab_favicon";
+
+  RunTestSequence(
+      SetOnIncompatibleAction(OnIncompatibleAction::kSkipTest,
+                              kSkipPixelTestsReason),
+      InstrumentTab(kFirstTabContents, 0),
+      NavigateWebContents(kFirstTabContents, GetURL("/title1.html")),
+      AddInstrumentedTab(kSecondTabContents, GURL(chrome::kChromeUINewTabURL)),
+      Do(base::BindLambdaForTesting(
+          [=]() { GetTabStrip()->StopAnimating(true); })),
+      TryDiscardTab(0), CheckTabIsDiscarded(0),
+      NameView(kFirstTabFavicon, base::BindLambdaForTesting([&]() {
+                 return views::AsViewClass<views::View>(GetTabIcon(0));
+               })),
+      WaitForEvent(kFirstTabFavicon, kDiscardAnimationFinishes), FlushEvents(),
+      Screenshot(kFirstTabFavicon, GetParam().screenshot_name,
+                 GetParam().cl_number));
+}
+
+std::vector<FaviconScreenShotTestConfig> HighEfficiencyTestConfig() {
+  return {{performance_manager::features::DiscardTabTreatmentOptions::
+               kFadeFullsizedFavicon,
+           "FadeFullSizedFaviconOnDiscard", "4786929"},
+          {performance_manager::features::DiscardTabTreatmentOptions::
+               kFadeSmallFaviconWithRing,
+           "FadeSmallFaviconOnDiscard", "4786929"}};
+}
+
+INSTANTIATE_TEST_SUITE_P(All,
+                         HighEfficiencyFaviconTreatmentTest,
+                         testing::ValuesIn(HighEfficiencyTestConfig()));
+
+// Tests the new memory savings reporting improvements on the high efficiency
+// dialog.
+class HighEfficiencyMemorySavingsReportingImprovementsTest
+    : public HighEfficiencyInteractiveTest {
+ public:
+  HighEfficiencyMemorySavingsReportingImprovementsTest() = default;
+  ~HighEfficiencyMemorySavingsReportingImprovementsTest() override = default;
+
+  void SetUp() override {
+    scoped_feature_list_.InitAndEnableFeature(
+        performance_manager::features::kMemorySavingsReportingImprovements);
+
+    HighEfficiencyInteractiveTest::SetUp();
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+// The high efficiency chip dialog renders a gauge style visualization that
+// must be rendered correctly.
+IN_PROC_BROWSER_TEST_F(HighEfficiencyMemorySavingsReportingImprovementsTest,
+                       RenderVisualizationInDialog) {
+  RunTestSequence(
+      SetOnIncompatibleAction(OnIncompatibleAction::kSkipTest,
+                              kSkipPixelTestsReason),
+      InstrumentTab(kFirstTabContents, 0),
+      NavigateWebContents(kFirstTabContents, GetURL("/title1.html")),
+      AddInstrumentedTab(kSecondTabContents, GURL(chrome::kChromeUINewTabURL)),
+      ForceRefreshMemoryMetrics(), DiscardAndSelectTab(0, kFirstTabContents),
+      Do(base::BindLambdaForTesting([&]() {
+        content::WebContents* web_contents =
+            browser()->tab_strip_model()->GetWebContentsAt(0);
+        auto* pre_discard_resource_usage =
+            performance_manager::user_tuning::UserPerformanceTuningManager::
+                PreDiscardResourceUsage::FromWebContents(web_contents);
+        pre_discard_resource_usage->SetMemoryFootprintEstimateKbForTesting(
+            135 * 1024);
+      })),
+      PressButton(kHighEfficiencyChipElementId),
+      WaitForShow(
+          HighEfficiencyBubbleView::kHighEfficiencyDialogResourceViewElementId),
+      Screenshot(
+          HighEfficiencyBubbleView::kHighEfficiencyDialogResourceViewElementId,
+          "HighEfficiencyResourceView", "4546555"));
 }

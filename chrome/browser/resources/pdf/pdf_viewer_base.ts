@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {assert} from 'chrome://resources/js/assert_ts.js';
+import {assert} from 'chrome://resources/js/assert.js';
 import {EventTracker} from 'chrome://resources/js/event_tracker.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {PromiseResolver} from 'chrome://resources/js/promise_resolver.js';
@@ -117,15 +117,16 @@ export abstract class PdfViewerBaseElement extends PolymerElement {
       plugin.toggleAttribute('pdf-viewer-update-enabled', true);
     }
 
-    // Pass the attributes for loading PDF plugin through the
-    // `mimeHandlerPrivate` API.
-    const attributesForLoading:
-        chrome.mimeHandlerPrivate.PdfPluginAttributes = {
-      backgroundColor: this.getBackgroundColor(),
-      allowJavascript: javascript === 'allow',
-    };
-    if (chrome.mimeHandlerPrivate &&
-        chrome.mimeHandlerPrivate.setPdfPluginAttributes) {
+    // PDF viewer only, as Print Preview doesn't use
+    // `chrome.mimeHandlerPrivate`.
+    if (chrome.mimeHandlerPrivate) {
+      // Pass the attributes for loading PDF plugin through the
+      // `mimeHandlerPrivate` API.
+      const attributesForLoading:
+          chrome.mimeHandlerPrivate.PdfPluginAttributes = {
+        backgroundColor: this.getBackgroundColor(),
+        allowJavascript: javascript === 'allow',
+      };
       chrome.mimeHandlerPrivate.setPdfPluginAttributes(attributesForLoading);
     }
 
@@ -359,6 +360,7 @@ export abstract class PdfViewerBaseElement extends PolymerElement {
     this.documentDimensions = documentDimensions;
     this.isUserInitiatedEvent = false;
     this.viewport_!.setDocumentDimensions(this.documentDimensions);
+    this.paramsParser!.setPageCount(documentDimensions.pageDimensions.length);
     this.paramsParser!.setViewportDimensions(this.viewport_!.size);
     this.isUserInitiatedEvent = true;
   }
@@ -438,34 +440,22 @@ export abstract class PdfViewerBaseElement extends PolymerElement {
     if (params.position) {
       this.viewport_.goToPageAndXy(
           params.page || 0, params.position.x, params.position.y);
-    } else if (params.page) {
-      this.viewport_.goToPage(params.page);
     }
 
     if (params.view) {
       this.isUserInitiatedEvent = false;
-      let fittingTypeParams;
-      if (params.view === FittingType.FIT_TO_BOUNDING_BOX) {
-        assert(params.boundingBox);
-        fittingTypeParams = {
-          page: params.page || 0,
-          boundingBox: params.boundingBox,
-        };
-      }
+      const fittingTypeParams = {
+        boundingBox: params.boundingBox,
+        page: params.page || 0,
+        viewPosition: params.viewPosition,
+        fitToWidth: params.view === FittingType.FIT_TO_BOUNDING_BOX_WIDTH,
+      };
       this.viewport_.setFittingType(params.view, fittingTypeParams);
       this.forceFit(params.view);
-      if (params.viewPosition) {
-        const zoomedPositionShift =
-            params.viewPosition * this.viewport_.getZoom();
-        const currentViewportPosition = this.viewport_.position;
-        if (params.view === FittingType.FIT_TO_WIDTH) {
-          currentViewportPosition.y += zoomedPositionShift;
-        } else if (params.view === FittingType.FIT_TO_HEIGHT) {
-          currentViewportPosition.x += zoomedPositionShift;
-        }
-        this.viewport_.setPosition(currentViewportPosition);
-      }
       this.isUserInitiatedEvent = true;
+    } else if (!params.position && params.page) {
+      // No fitting type provided, so just go to page.
+      this.viewport_.goToPage(params.page);
     }
   }
 

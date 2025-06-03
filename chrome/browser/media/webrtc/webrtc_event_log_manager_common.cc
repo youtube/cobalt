@@ -4,15 +4,16 @@
 
 #include "chrome/browser/media/webrtc/webrtc_event_log_manager_common.h"
 
-#include <cctype>
 #include <limits>
 
 #include "base/files/file_util.h"
 #include "base/logging.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/ranges/algorithm.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_piece.h"
+#include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/unguessable_token.h"
@@ -23,6 +24,7 @@
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/render_process_host.h"
+#include "third_party/abseil-cpp/absl/strings/ascii.h"
 #include "third_party/zlib/zlib.h"
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
@@ -450,8 +452,7 @@ bool GzippedLogFileWriter::Write(const std::string& input) {
     }
   }
 
-  NOTREACHED();
-  return false;  // Appease compiler.
+  NOTREACHED_NORETURN();
 }
 
 bool GzippedLogFileWriter::Finalize() {
@@ -583,8 +584,7 @@ LogCompressor::Result GzipLogCompressor::Compress(const std::string& input,
       return result;
   }
 
-  NOTREACHED();
-  return Result::ERROR_ENCOUNTERED;  // Appease compiler.
+  NOTREACHED_NORETURN();
 }
 
 bool GzipLogCompressor::CreateFooter(std::string* output) {
@@ -740,10 +740,8 @@ size_t ExtractWebAppId(base::StringPiece str) {
   DCHECK_EQ(str.length(), kWebAppIdLength);
 
   // Avoid leading '+', etc.
-  for (size_t i = 0; i < str.length(); i++) {
-    if (!std::isdigit(str[i])) {
-      return kInvalidWebRtcEventLogWebAppId;
-    }
+  if (!base::ranges::all_of(str, absl::ascii_isdigit)) {
+    return kInvalidWebRtcEventLogWebAppId;
   }
 
   size_t result;
@@ -969,12 +967,7 @@ bool IsValidRemoteBoundLogFilename(const std::string& filename) {
   // Expect log ID.
   const std::string log_id = filename.substr(index);
   DCHECK_EQ(log_id.length(), kWebRtcEventLogIdLength);
-  const char* const log_id_chars = "0123456789ABCDEF";
-  if (filename.find_first_not_of(log_id_chars, index) != std::string::npos) {
-    return false;
-  }
-
-  return true;
+  return base::ContainsOnlyChars(log_id, "0123456789ABCDEF");
 }
 
 bool IsValidRemoteBoundLogFilePath(const base::FilePath& path) {

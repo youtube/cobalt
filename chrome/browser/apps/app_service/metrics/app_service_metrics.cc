@@ -15,7 +15,9 @@
 #include "extensions/common/constants.h"
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
+#include "ash/constants/ash_features.h"
 #include "ash/public/cpp/app_list/internal_app_id_constants.h"
+#include "ash/user_education/welcome_tour/welcome_tour_metrics.h"
 #include "ash/webui/projector_app/public/cpp/projector_app_constants.h"
 #include "chrome/browser/ash/app_list/arc/arc_app_utils.h"
 #include "chrome/browser/ash/file_manager/app_id.h"
@@ -160,6 +162,34 @@ void RecordDefaultAppLaunch(apps::DefaultAppName default_app_name,
   }
 }
 
+#if BUILDFLAG(IS_CHROMEOS_ASH)
+void RecordWelcomeTourInteraction(apps::DefaultAppName default_app_name,
+                                  apps::LaunchSource launch_source) {
+  // This metric is intended to capture user actions. Do not log automatically
+  // launched apps.
+  if (launch_source == apps::LaunchSource::kFromChromeInternal) {
+    return;
+  }
+
+  switch (default_app_name) {
+    case apps::DefaultAppName::kFiles:
+      ash::welcome_tour_metrics::RecordInteraction(
+          ash::welcome_tour_metrics::Interaction::kFilesApp);
+      break;
+    case apps::DefaultAppName::kHelpApp:
+      ash::welcome_tour_metrics::RecordInteraction(
+          ash::welcome_tour_metrics::Interaction::kExploreApp);
+      break;
+    case apps::DefaultAppName::kSettings:
+      ash::welcome_tour_metrics::RecordInteraction(
+          ash::welcome_tour_metrics::Interaction::kSettingsApp);
+      break;
+    default:
+      break;
+  }
+}
+#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+
 }  // namespace
 
 namespace apps {
@@ -176,6 +206,11 @@ void RecordAppLaunch(const std::string& app_id,
   if (const absl::optional<apps::DefaultAppName> app_name =
           SystemWebAppIdToName(app_id)) {
     RecordDefaultAppLaunch(app_name.value(), launch_source);
+
+    if (ash::features::IsWelcomeTourEnabled()) {
+      RecordWelcomeTourInteraction(app_name.value(), launch_source);
+    }
+
     return;
   }
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
@@ -233,32 +268,6 @@ void RecordAppLaunch(const std::string& app_id,
     RecordDefaultAppLaunch(DefaultAppName::kGoogleTv, launch_source);
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
   }
-}
-
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-void RecordBuiltInAppSearchResult(const std::string& app_id) {
-  if (app_id == ash::kInternalAppIdKeyboardShortcutViewer) {
-    base::UmaHistogramEnumeration("Apps.AppListSearchResultInternalApp.Show",
-                                  BuiltInAppName::kKeyboardShortcutViewer);
-  } else if (app_id == ash::kInternalAppIdSettings) {
-    base::UmaHistogramEnumeration("Apps.AppListSearchResultInternalApp.Show",
-                                  BuiltInAppName::kSettings);
-  } else if (app_id == ash::kInternalAppIdContinueReading) {
-    base::UmaHistogramEnumeration("Apps.AppListSearchResultInternalApp.Show",
-                                  BuiltInAppName::kContinueReading);
-  } else if (app_id == plugin_vm::kPluginVmShelfAppId) {
-    base::UmaHistogramEnumeration("Apps.AppListSearchResultInternalApp.Show",
-                                  BuiltInAppName::kPluginVm);
-  }
-}
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
-
-void RecordAppsPerNotification(int count) {
-  if (count <= 0) {
-    return;
-  }
-  base::UmaHistogramBoolean("ChromeOS.Apps.NumberOfAppsForNotification",
-                            (count > 1));
 }
 
 const absl::optional<apps::DefaultAppName> PreinstalledWebAppIdToName(
@@ -329,7 +338,7 @@ const absl::optional<apps::DefaultAppName> SystemWebAppIdToName(
     return apps::DefaultAppName::kSettings;
   } else if (app_id == web_app::kPrintManagementAppId) {
     return apps::DefaultAppName::kPrintManagementApp;
-  } else if (app_id == ash::kChromeUITrustedProjectorSwaAppId) {
+  } else if (app_id == ash::kChromeUIUntrustedProjectorSwaAppId) {
     return apps::DefaultAppName::kProjector;
   } else if (app_id == web_app::kScanningAppId) {
     return apps::DefaultAppName::kScanningApp;

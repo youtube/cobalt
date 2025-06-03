@@ -94,7 +94,7 @@ std::string GetStringFromDataElements(
     // Provide the length of the bytes explicitly, not to rely on the null
     // termination.
     const auto piece = e.As<network::DataElementBytes>().AsStringPiece();
-    result.append(piece.data(), piece.size());
+    result.append(piece);
   }
   return result;
 }
@@ -161,7 +161,6 @@ class AutofillDownloadManagerWithCustomPayloadSize
                                                size_t length)
       : AutofillDownloadManager(client,
                                 api_key,
-                                /*is_raw_metadata_uploading_enabled=*/false,
                                 /*log_manager=*/nullptr),
         length_(length) {}
   ~AutofillDownloadManagerWithCustomPayloadSize() override = default;
@@ -204,14 +203,10 @@ class AutofillDownloadManagerTest : public AutofillDownloadManager::Observer,
 
   class TestAutofillDownloadManager : public AutofillDownloadManager {
    public:
-    explicit TestAutofillDownloadManager(
-        AutofillClient* client,
-        std::string api_key = "",
-        bool is_raw_metadata_uploading_enabled = false)
+    explicit TestAutofillDownloadManager(AutofillClient* client,
+                                         std::string api_key = "")
         : AutofillDownloadManager(client,
                                   /*api_key=*/std::move(api_key),
-                                  /*is_raw_metadata_uploading_enabled=*/
-                                  is_raw_metadata_uploading_enabled,
                                   /*log_manager=*/nullptr) {}
   };
 
@@ -221,7 +216,6 @@ class AutofillDownloadManagerTest : public AutofillDownloadManager::Observer,
                 &test_url_loader_factory_)),
         download_manager_(&client_,
                           /*api_key=*/"",
-                          /*is_raw_metadata_uploading_enabled=*/false,
                           /*log_manager=*/nullptr),
         pref_service_(test::PrefServiceForTesting()) {
     client_.set_shared_url_loader_factory(test_shared_loader_factory_);
@@ -293,37 +287,37 @@ TEST_F(AutofillDownloadManagerTest, QueryAndUploadTest) {
   FormFieldData field;
   field.label = u"username";
   field.name = u"username";
-  field.form_control_type = "text";
+  field.form_control_type = FormControlType::kInputText;
   form.fields.push_back(field);
 
   field.label = u"First Name";
   field.name = u"firstname";
-  field.form_control_type = "text";
+  field.form_control_type = FormControlType::kInputText;
   form.fields.push_back(field);
 
   field.label = u"Last Name";
   field.name = u"lastname";
-  field.form_control_type = "text";
+  field.form_control_type = FormControlType::kInputText;
   form.fields.push_back(field);
 
   field.label = u"email";
   field.name = u"email";
-  field.form_control_type = "text";
+  field.form_control_type = FormControlType::kInputText;
   form.fields.push_back(field);
 
   field.label = u"email2";
   field.name = u"email2";
-  field.form_control_type = "text";
+  field.form_control_type = FormControlType::kInputText;
   form.fields.push_back(field);
 
   field.label = u"password";
   field.name = u"password";
-  field.form_control_type = "password";
+  field.form_control_type = FormControlType::kInputPassword;
   form.fields.push_back(field);
 
   field.label = std::u16string();
   field.name = u"Submit";
-  field.form_control_type = "submit";
+  field.form_control_type = FormControlType::kInputText;
   form.fields.push_back(field);
 
   std::vector<std::unique_ptr<FormStructure>> form_structures;
@@ -333,22 +327,22 @@ TEST_F(AutofillDownloadManagerTest, QueryAndUploadTest) {
 
   field.label = u"address";
   field.name = u"address";
-  field.form_control_type = "text";
+  field.form_control_type = FormControlType::kInputText;
   form.fields.push_back(field);
 
   field.label = u"address2";
   field.name = u"address2";
-  field.form_control_type = "text";
+  field.form_control_type = FormControlType::kInputText;
   form.fields.push_back(field);
 
   field.label = u"city";
   field.name = u"city";
-  field.form_control_type = "text";
+  field.form_control_type = FormControlType::kInputText;
   form.fields.push_back(field);
 
   field.label = std::u16string();
   field.name = u"Submit";
-  field.form_control_type = "submit";
+  field.form_control_type = FormControlType::kInputText;
   form.fields.push_back(field);
 
   form_structures.push_back(std::make_unique<FormStructure>(form));
@@ -357,17 +351,17 @@ TEST_F(AutofillDownloadManagerTest, QueryAndUploadTest) {
 
   field.label = u"username";
   field.name = u"username";
-  field.form_control_type = "text";
+  field.form_control_type = FormControlType::kInputText;
   form.fields.push_back(field);
 
   field.label = u"password";
   field.name = u"password";
-  field.form_control_type = "password";
+  field.form_control_type = FormControlType::kInputPassword;
   form.fields.push_back(field);
 
   field.label = std::u16string();
   field.name = u"Submit";
-  field.form_control_type = "submit";
+  field.form_control_type = FormControlType::kInputText;
   form.fields.push_back(field);
 
   form_structures.push_back(std::make_unique<FormStructure>(form));
@@ -379,7 +373,6 @@ TEST_F(AutofillDownloadManagerTest, QueryAndUploadTest) {
   // Make download manager.
   AutofillDownloadManager download_manager(
       &client_, "dummykey",
-      /*is_raw_metadata_uploading_enabled=*/false,
       /*log_manager=*/nullptr);
 
   // Request with id 0.
@@ -484,7 +477,7 @@ TEST_F(AutofillDownloadManagerTest, QueryAndUploadTest) {
   // Modify form structures to miss the cache.
   field.label = u"Address line 2";
   field.name = u"address2";
-  field.form_control_type = "text";
+  field.form_control_type = FormControlType::kInputText;
   form.fields.push_back(field);
   form_structures.push_back(std::make_unique<FormStructure>(form));
 
@@ -539,12 +532,12 @@ TEST_F(AutofillDownloadManagerTest, QueryAPITest) {
 
   field.label = u"First Name";
   field.name = u"firstname";
-  field.form_control_type = "text";
+  field.form_control_type = FormControlType::kInputText;
   form.fields.push_back(field);
 
   field.label = u"Last Name";
   field.name = u"lastname";
-  field.form_control_type = "text";
+  field.form_control_type = FormControlType::kInputText;
   form.fields.push_back(field);
 
   std::vector<std::unique_ptr<FormStructure>> form_structures;
@@ -636,7 +629,7 @@ TEST_F(AutofillDownloadManagerTest, QueryAPITestWhenTooLongUrl) {
   FormFieldData field;
   field.label = u"First Name";
   field.name = u"firstname";
-  field.form_control_type = "text";
+  field.form_control_type = FormControlType::kInputText;
   form.fields.push_back(field);
 
   std::vector<std::unique_ptr<FormStructure>> form_structures;
@@ -745,12 +738,12 @@ TEST_F(AutofillDownloadManagerTest, UploadToAPITest) {
 
   field.label = u"First Name";
   field.name = u"firstname";
-  field.form_control_type = "text";
+  field.form_control_type = FormControlType::kInputText;
   form.fields.push_back(field);
 
   field.label = u"Last Name";
   field.name = u"lastname";
-  field.form_control_type = "text";
+  field.form_control_type = FormControlType::kInputText;
   form.fields.push_back(field);
 
   FormStructure form_structure(form);
@@ -805,102 +798,27 @@ TEST_F(AutofillDownloadManagerTest, UploadToAPITest) {
                               net::HTTP_OK, 1);
 }
 
-TEST_F(AutofillDownloadManagerTest, UploadWithRawMetadata) {
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitWithFeatures(
-      // Enabled
-      {},
-      // Disabled
-      // We don't want upload throttling for testing purpose.
-      {features::test::kAutofillUploadThrottling});
-
-  for (bool is_raw_metadata_uploading_enabled : {false, true}) {
-    SCOPED_TRACE(testing::Message() << "is_raw_metadata_uploading_enabled = "
-                                    << is_raw_metadata_uploading_enabled);
-    // Build the form structures that we want to upload.
-    FormData form;
-    form.name = u"form1";
-    FormFieldData field;
-
-    field.name = u"firstname";
-    field.form_control_type = "text";
-    form.fields.push_back(field);
-
-    field.name = u"lastname";
-    field.form_control_type = "text";
-    form.fields.push_back(field);
-    FormStructure form_structure(form);
-    form_structure.set_submission_source(SubmissionSource::FORM_SUBMISSION);
-    for (auto& fs_field : form_structure)
-      fs_field->host_form_signature = form_structure.form_signature();
-
-    std::unique_ptr<PrefService> pref_service = test::PrefServiceForTesting();
-    TestAutofillDownloadManager download_manager(
-        &client_, "dummykey",
-        /*is_raw_metadata_uploading_enabled=*/
-        is_raw_metadata_uploading_enabled);
-    EXPECT_TRUE(download_manager.StartUploadRequest(
-        form_structure, true, ServerFieldTypeSet(), "", true,
-        pref_service.get(), GetWeakPtr()));
-
-    // Inspect the request that the test URL loader sent.
-    ASSERT_EQ(1, test_url_loader_factory_.NumPending());
-    network::TestURLLoaderFactory::PendingRequest* request =
-        test_url_loader_factory_.GetPendingRequest(0);
-
-    // Assert some of the fields within the uploaded proto to make sure it was
-    // filled with something else than default data.
-    AutofillUploadRequest autofill_upload_request;
-    EXPECT_TRUE(
-        GetUploadRequestProtoFromRequest(request, &autofill_upload_request));
-    AutofillUploadContents upload = autofill_upload_request.upload();
-    EXPECT_GT(upload.client_version().size(), 0U);
-    EXPECT_EQ(FormSignature(upload.form_signature()),
-              form_structure.form_signature());
-    // Only a few strings are tested, full testing happens in FormStructure's
-    // tests.
-    ASSERT_EQ(is_raw_metadata_uploading_enabled, upload.has_form_name());
-    ASSERT_EQ(is_raw_metadata_uploading_enabled, upload.field()[0].has_name());
-    ASSERT_EQ(is_raw_metadata_uploading_enabled, upload.field()[1].has_type());
-    if (is_raw_metadata_uploading_enabled) {
-      EXPECT_EQ(form.name, UTF8ToUTF16(upload.form_name()));
-      EXPECT_EQ(form.fields[0].name, UTF8ToUTF16(upload.field()[0].name()));
-      EXPECT_EQ(form.fields[1].form_control_type, upload.field()[1].type());
-    }
-
-    test_url_loader_factory_.SimulateResponseForPendingRequest(
-        request->request.url.spec(), "");
-    EXPECT_EQ(1U, responses_.size());
-    EXPECT_EQ(AutofillDownloadManagerTest::UPLOAD_SUCCESSFULL,
-              responses_.front().type_of_response);
-
-    ASSERT_EQ(0, test_url_loader_factory_.NumPending());
-    test_url_loader_factory_.ClearResponses();
-    responses_.clear();
-  }
-}
-
 TEST_F(AutofillDownloadManagerTest, BackoffLogic_Query) {
   FormData form;
   FormFieldData field;
   field.label = u"address";
   field.name = u"address";
-  field.form_control_type = "text";
+  field.form_control_type = FormControlType::kInputText;
   form.fields.push_back(field);
 
   field.label = u"address2";
   field.name = u"address2";
-  field.form_control_type = "text";
+  field.form_control_type = FormControlType::kInputText;
   form.fields.push_back(field);
 
   field.label = u"city";
   field.name = u"city";
-  field.form_control_type = "text";
+  field.form_control_type = FormControlType::kInputText;
   form.fields.push_back(field);
 
   field.label = std::u16string();
   field.name = u"Submit";
-  field.form_control_type = "submit";
+  field.form_control_type = FormControlType::kInputText;
   form.fields.push_back(field);
 
   std::vector<std::unique_ptr<FormStructure>> form_structures;
@@ -958,22 +876,22 @@ TEST_F(AutofillDownloadManagerTest, BackoffLogic_Upload) {
   FormFieldData field;
   field.label = u"address";
   field.name = u"address";
-  field.form_control_type = "text";
+  field.form_control_type = FormControlType::kInputText;
   form.fields.push_back(field);
 
   field.label = u"address2";
   field.name = u"address2";
-  field.form_control_type = "text";
+  field.form_control_type = FormControlType::kInputText;
   form.fields.push_back(field);
 
   field.label = u"city";
   field.name = u"city";
-  field.form_control_type = "text";
+  field.form_control_type = FormControlType::kInputText;
   form.fields.push_back(field);
 
   field.label = std::u16string();
   field.name = u"Submit";
-  field.form_control_type = "submit";
+  field.form_control_type = FormControlType::kInputText;
   form.fields.push_back(field);
 
   auto form_structure = std::make_unique<FormStructure>(form);
@@ -1047,22 +965,22 @@ TEST_F(AutofillDownloadManagerTest, RetryLimit_Query) {
   FormFieldData field;
   field.label = u"address";
   field.name = u"address";
-  field.form_control_type = "text";
+  field.form_control_type = FormControlType::kInputText;
   form.fields.push_back(field);
 
   field.label = u"address2";
   field.name = u"address2";
-  field.form_control_type = "text";
+  field.form_control_type = FormControlType::kInputText;
   form.fields.push_back(field);
 
   field.label = u"city";
   field.name = u"city";
-  field.form_control_type = "text";
+  field.form_control_type = FormControlType::kInputText;
   form.fields.push_back(field);
 
   field.label = std::u16string();
   field.name = u"Submit";
-  field.form_control_type = "submit";
+  field.form_control_type = FormControlType::kInputText;
   form.fields.push_back(field);
 
   std::vector<std::unique_ptr<FormStructure>> form_structures;
@@ -1123,22 +1041,22 @@ TEST_F(AutofillDownloadManagerTest, RetryLimit_Upload) {
   FormFieldData field;
   field.label = u"address";
   field.name = u"address";
-  field.form_control_type = "text";
+  field.form_control_type = FormControlType::kInputText;
   form.fields.push_back(field);
 
   field.label = u"address2";
   field.name = u"address2";
-  field.form_control_type = "text";
+  field.form_control_type = FormControlType::kInputText;
   form.fields.push_back(field);
 
   field.label = u"city";
   field.name = u"city";
-  field.form_control_type = "text";
+  field.form_control_type = FormControlType::kInputText;
   form.fields.push_back(field);
 
   field.label = std::u16string();
   field.name = u"Submit";
-  field.form_control_type = "submit";
+  field.form_control_type = FormControlType::kInputText;
   form.fields.push_back(field);
 
   base::HistogramTester histogram;
@@ -1209,7 +1127,7 @@ TEST_F(AutofillDownloadManagerTest, QueryTooManyFieldsTest) {
       FormFieldData field;
       field.label = base::NumberToString16(i);
       field.name = base::NumberToString16(i);
-      field.form_control_type = "text";
+      field.form_control_type = FormControlType::kInputText;
       form.fields.push_back(field);
     }
     form_structures.push_back(std::make_unique<FormStructure>(form));
@@ -1229,7 +1147,7 @@ TEST_F(AutofillDownloadManagerTest, QueryNotTooManyFieldsTest) {
       FormFieldData field;
       field.label = base::NumberToString16(i);
       field.name = base::NumberToString16(i);
-      field.form_control_type = "text";
+      field.form_control_type = FormControlType::kInputText;
       form.fields.push_back(field);
     }
     form_structures.push_back(std::make_unique<FormStructure>(form));
@@ -1243,7 +1161,7 @@ TEST_F(AutofillDownloadManagerTest, CacheQueryTest) {
   FormData form;
 
   FormFieldData field;
-  field.form_control_type = "text";
+  field.form_control_type = FormControlType::kInputText;
 
   field.label = u"username";
   field.name = u"username";
@@ -1596,7 +1514,7 @@ TEST_P(AutofillServerCommunicationTest, Query) {
 
   field.label = u"First Name:";
   field.name = u"firstname";
-  field.form_control_type = "text";
+  field.form_control_type = FormControlType::kInputText;
   form.fields.push_back(field);
 
   std::vector<std::unique_ptr<FormStructure>> form_structures;
@@ -1611,17 +1529,17 @@ TEST_P(AutofillServerCommunicationTest, Upload) {
 
   field.label = u"First Name:";
   field.name = u"firstname";
-  field.form_control_type = "text";
+  field.form_control_type = FormControlType::kInputText;
   form.fields.push_back(field);
 
   field.label = u"Last Name:";
   field.name = u"lastname";
-  field.form_control_type = "text";
+  field.form_control_type = FormControlType::kInputText;
   form.fields.push_back(field);
 
   field.label = u"Email:";
   field.name = u"email";
-  field.form_control_type = "text";
+  field.form_control_type = FormControlType::kInputText;
   form.fields.push_back(field);
 
   AutofillDownloadManager download_manager(
@@ -1644,7 +1562,7 @@ TEST_P(AutofillQueryTest, CacheableResponse) {
   FormFieldData field;
   field.label = u"First Name:";
   field.name = u"firstname";
-  field.form_control_type = "text";
+  field.form_control_type = FormControlType::kInputText;
 
   FormData form;
   form.fields.push_back(field);
@@ -1684,7 +1602,7 @@ TEST_P(AutofillQueryTest, SendsExperiment) {
   FormFieldData field;
   field.label = u"First Name:";
   field.name = u"firstname";
-  field.form_control_type = "text";
+  field.form_control_type = FormControlType::kInputText;
 
   FormData form;
   form.fields.push_back(field);
@@ -1755,7 +1673,7 @@ TEST_P(AutofillQueryTest, SendsExperimentFromFeatureParam) {
   FormFieldData field;
   field.label = u"First Name:";
   field.name = u"firstname";
-  field.form_control_type = "text";
+  field.form_control_type = FormControlType::kInputText;
 
   FormData form;
   form.fields.push_back(field);
@@ -1800,7 +1718,7 @@ TEST_P(AutofillQueryTest, ExpiredCacheInResponse) {
   FormFieldData field;
   field.label = u"First Name:";
   field.name = u"firstname";
-  field.form_control_type = "text";
+  field.form_control_type = FormControlType::kInputText;
 
   FormData form;
   form.fields.push_back(field);
@@ -1862,7 +1780,7 @@ TEST_P(AutofillQueryTest, Metadata) {
   field.label = u"field-label";
   field.aria_label = u"field-aria-label";
   field.aria_description = u"field-aria-description";
-  field.form_control_type = "text";
+  field.form_control_type = FormControlType::kInputText;
   field.css_classes = u"field-css-classes";
   field.placeholder = u"field-placeholder";
   form.fields.push_back(field);
@@ -1874,7 +1792,7 @@ TEST_P(AutofillQueryTest, Metadata) {
   field.label = u"field-label";
   field.aria_label = u"field-aria-label";
   field.aria_description = u"field-aria-description";
-  field.form_control_type = "text";
+  field.form_control_type = FormControlType::kInputText;
   field.css_classes = u"field-css-classes";
   field.placeholder = u"field-placeholder";
   form.fields.push_back(field);
@@ -1886,7 +1804,7 @@ TEST_P(AutofillQueryTest, Metadata) {
   field.label = u"field-label";
   field.aria_label = u"field-aria-label";
   field.aria_description = u"field-aria-description";
-  field.form_control_type = "text";
+  field.form_control_type = FormControlType::kInputText;
   field.css_classes = u"field-css-classes";
   field.placeholder = u"field-placeholder";
   form.fields.push_back(field);
@@ -1949,7 +1867,7 @@ TEST_P(AutofillUploadTest, RichMetadata) {
   field.label = u"field-label";
   field.aria_label = u"field-aria-label";
   field.aria_description = u"field-aria-descriptionm";
-  field.form_control_type = "text";
+  field.form_control_type = FormControlType::kInputText;
   field.css_classes = u"field-css-classes";
   field.placeholder = u"field-placeholder";
   form.fields.push_back(field);
@@ -1960,7 +1878,7 @@ TEST_P(AutofillUploadTest, RichMetadata) {
   field.label = u"field-label";
   field.aria_label = u"field-aria-label";
   field.aria_description = u"field-aria-descriptionm";
-  field.form_control_type = "text";
+  field.form_control_type = FormControlType::kInputText;
   field.css_classes = u"field-css-classes";
   field.placeholder = u"field-placeholder";
   form.fields.push_back(field);
@@ -1971,7 +1889,7 @@ TEST_P(AutofillUploadTest, RichMetadata) {
   field.label = u"field-label";
   field.aria_label = u"field-aria-label";
   field.aria_description = u"field-aria-descriptionm";
-  field.form_control_type = "text";
+  field.form_control_type = FormControlType::kInputText;
   field.css_classes = u"field-css-classes";
   field.placeholder = u"field-placeholder";
   form.fields.push_back(field);
@@ -2045,17 +1963,17 @@ TEST_P(AutofillUploadTest, Throttling) {
 
   field.label = u"First Name:";
   field.name = u"firstname";
-  field.form_control_type = "text";
+  field.form_control_type = FormControlType::kInputText;
   form.fields.push_back(field);
 
   field.label = u"Last Name:";
   field.name = u"lastname";
-  field.form_control_type = "text";
+  field.form_control_type = FormControlType::kInputText;
   form.fields.push_back(field);
 
   field.label = u"Email:";
   field.name = u"email";
-  field.form_control_type = "text";
+  field.form_control_type = FormControlType::kInputText;
   form.fields.push_back(field);
 
   AutofillDownloadManager download_manager(
@@ -2103,19 +2021,19 @@ TEST_P(AutofillUploadTest, ThrottlingDisabled) {
 
   field.label = u"First Name:";
   field.name = u"firstname";
-  field.form_control_type = "text";
+  field.form_control_type = FormControlType::kInputText;
   form.fields.push_back(field);
   small_form.fields.push_back(field);
 
   field.label = u"Last Name:";
   field.name = u"lastname";
-  field.form_control_type = "text";
+  field.form_control_type = FormControlType::kInputText;
   form.fields.push_back(field);
   small_form.fields.push_back(field);
 
   field.label = u"Email:";
   field.name = u"email";
-  field.form_control_type = "text";
+  field.form_control_type = FormControlType::kInputText;
   form.fields.push_back(field);
 
   AutofillDownloadManager download_manager(
@@ -2192,17 +2110,17 @@ TEST_P(AutofillUploadTest, PeriodicReset) {
 
   field.label = u"First Name:";
   field.name = u"firstname";
-  field.form_control_type = "text";
+  field.form_control_type = FormControlType::kInputText;
   form.fields.push_back(field);
 
   field.label = u"Last Name:";
   field.name = u"lastname";
-  field.form_control_type = "text";
+  field.form_control_type = FormControlType::kInputText;
   form.fields.push_back(field);
 
   field.label = u"Email:";
   field.name = u"email";
-  field.form_control_type = "text";
+  field.form_control_type = FormControlType::kInputText;
   form.fields.push_back(field);
 
   AutofillDownloadManager download_manager(
@@ -2251,17 +2169,17 @@ TEST_P(AutofillUploadTest, ResetOnClearUploadHisotry) {
 
   field.label = u"First Name:";
   field.name = u"firstname";
-  field.form_control_type = "text";
+  field.form_control_type = FormControlType::kInputText;
   form.fields.push_back(field);
 
   field.label = u"Last Name:";
   field.name = u"lastname";
-  field.form_control_type = "text";
+  field.form_control_type = FormControlType::kInputText;
   form.fields.push_back(field);
 
   field.label = u"Email:";
   field.name = u"email";
-  field.form_control_type = "text";
+  field.form_control_type = FormControlType::kInputText;
   form.fields.push_back(field);
 
   AutofillDownloadManager download_manager(

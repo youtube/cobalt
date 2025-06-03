@@ -26,9 +26,9 @@
 #include "third_party/blink/renderer/core/dom/element_traversal.h"
 #include "third_party/blink/renderer/core/layout/hit_test_result.h"
 #include "third_party/blink/renderer/core/layout/layout_box_model_object.h"
-#include "third_party/blink/renderer/core/layout/svg/svg_layout_support.h"
 #include "third_party/blink/renderer/core/layout/svg/svg_resources.h"
 #include "third_party/blink/renderer/core/layout/svg/transformed_hit_test_location.h"
+#include "third_party/blink/renderer/core/paint/clip_path_clipper.h"
 #include "third_party/blink/renderer/core/paint/paint_info.h"
 #include "third_party/blink/renderer/core/svg/svg_clip_path_element.h"
 #include "third_party/blink/renderer/core/svg/svg_geometry_element.h"
@@ -65,7 +65,7 @@ ClipStrategy DetermineClipStrategy(const SVGGraphicsElement& element) {
   // Only shapes, paths and texts are allowed for clipping.
   if (layout_object->IsSVGShape()) {
     strategy = ClipStrategy::kPath;
-  } else if (layout_object->IsNGSVGText()) {
+  } else if (layout_object->IsSVGText()) {
     // Text requires masking.
     strategy = ClipStrategy::kMask;
   }
@@ -244,15 +244,18 @@ AffineTransform LayoutSVGResourceClipper::CalculateClipTransform(
 }
 
 bool LayoutSVGResourceClipper::HitTestClipContent(
-    const gfx::RectF& object_bounding_box,
+    const gfx::RectF& reference_box,
+    const LayoutObject& reference_box_object,
     const HitTestLocation& location) const {
   NOT_DESTROYED();
-  if (!SVGLayoutSupport::IntersectsClipPath(*this, object_bounding_box,
-                                            location))
+  if (HasClipPath() &&
+      !ClipPathClipper::HitTest(*this, reference_box, reference_box_object,
+                                location)) {
     return false;
+  }
 
   TransformedHitTestLocation local_location(
-      location, CalculateClipTransform(object_bounding_box));
+      location, CalculateClipTransform(reference_box));
   if (!local_location)
     return false;
 
@@ -276,7 +279,7 @@ bool LayoutSVGResourceClipper::HitTestClipContent(
 gfx::RectF LayoutSVGResourceClipper::ResourceBoundingBox(
     const gfx::RectF& reference_box) {
   NOT_DESTROYED();
-  DCHECK(!SelfNeedsLayout());
+  DCHECK(!SelfNeedsFullLayout());
 
   if (local_clip_bounds_.IsEmpty())
     CalculateLocalClipBounds();

@@ -18,6 +18,8 @@
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
+#include "gpu/config/gpu_finch_features.h"
+#include "gpu/ipc/common/client_gmb_interface.mojom.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "services/service_manager/public/cpp/connector.h"
 #include "services/viz/public/cpp/gpu/client_gpu_memory_buffer_manager.h"
@@ -40,7 +42,9 @@ class Gpu::GpuPtrIO {
 
   void Initialize(mojo::PendingRemote<mojom::Gpu> gpu_remote,
                   mojo::PendingReceiver<mojom::GpuMemoryBufferFactory>
-                      memory_buffer_factory_receiver) {
+                      memory_buffer_factory_receiver,
+                  mojo::PendingReceiver<gpu::mojom::ClientGmbInterface>
+                      client_gmb_interface_receiver) {
     DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
     gpu_remote_.Bind(std::move(gpu_remote));
@@ -48,6 +52,10 @@ class Gpu::GpuPtrIO {
         base::BindOnce(&GpuPtrIO::ConnectionError, base::Unretained(this)));
     gpu_remote_->CreateGpuMemoryBufferFactory(
         std::move(memory_buffer_factory_receiver));
+    if (base::FeatureList::IsEnabled(features::kUseClientGmbInterface)) {
+      gpu_remote_->CreateClientGpuMemoryBufferFactory(
+          std::move(client_gmb_interface_receiver));
+    }
   }
 
   void EstablishGpuChannel(scoped_refptr<EstablishRequest> establish_request) {
@@ -81,10 +89,12 @@ class Gpu::GpuPtrIO {
 
  private:
   void ConnectionError();
-  void OnEstablishedGpuChannel(int client_id,
-                               mojo::ScopedMessagePipeHandle channel_handle,
-                               const gpu::GPUInfo& gpu_info,
-                               const gpu::GpuFeatureInfo& gpu_feature_info);
+  void OnEstablishedGpuChannel(
+      int client_id,
+      mojo::ScopedMessagePipeHandle channel_handle,
+      const gpu::GPUInfo& gpu_info,
+      const gpu::GpuFeatureInfo& gpu_feature_info,
+      const gpu::SharedImageCapabilities& shared_image_capabilities);
 
   mojo::Remote<mojom::Gpu> gpu_remote_;
 
@@ -169,10 +179,12 @@ class Gpu::EstablishRequest
     parent_->OnEstablishedGpuChannel();
   }
 
-  void OnEstablishedGpuChannel(int client_id,
-                               mojo::ScopedMessagePipeHandle channel_handle,
-                               const gpu::GPUInfo& gpu_info,
-                               const gpu::GpuFeatureInfo& gpu_feature_info) {
+  void OnEstablishedGpuChannel(
+      int client_id,
+      mojo::ScopedMessagePipeHandle channel_handle,
+      const gpu::GPUInfo& gpu_info,
+      const gpu::GpuFeatureInfo& gpu_feature_info,
+      const gpu::SharedImageCapabilities& shared_image_capabilities) {
     DCHECK(!main_task_runner_->BelongsToCurrentThread());
     base::AutoLock lock(lock_);
 
@@ -184,7 +196,8 @@ class Gpu::EstablishRequest
     received_ = true;
     if (channel_handle.is_valid()) {
       gpu_channel_ = base::MakeRefCounted<gpu::GpuChannelHost>(
-          client_id, gpu_info, gpu_feature_info, std::move(channel_handle));
+          client_id, gpu_info, gpu_feature_info, shared_image_capabilities,
+          std::move(channel_handle));
     }
 
     if (establish_event_) {
@@ -203,7 +216,10 @@ class Gpu::EstablishRequest
 
   virtual ~EstablishRequest() = default;
 
-  const raw_ptr<Gpu> parent_;
+  // This dangling raw_ptr occurred in:
+  // services_unittests: GpuTest.DestroyGpuWithPendingRequest
+  // https://ci.chromium.org/ui/p/chromium/builders/try/linux-rel/1425109/test-results?q=ExactID%3Aninja%3A%2F%2Fservices%3Aservices_unittests%2FGpuTest.DestroyGpuWithPendingRequest+VHash%3A90ed0003bfc678b9&sortby=&groupby=
+  const raw_ptr<Gpu, FlakyDanglingUntriaged> parent_;
   scoped_refptr<base::SingleThreadTaskRunner> main_task_runner_;
   raw_ptr<base::WaitableEvent> establish_event_ = nullptr;
 
@@ -223,8 +239,8 @@ void Gpu::GpuPtrIO::ConnectionError() {
   // Make sure |establish_request_| fails so the main thread doesn't block
   // forever after calling Gpu::EstablishGpuChannelSync().
   establish_request_->OnEstablishedGpuChannel(
-      0, mojo::ScopedMessagePipeHandle(), gpu::GPUInfo(),
-      gpu::GpuFeatureInfo());
+      0, mojo::ScopedMessagePipeHandle(), gpu::GPUInfo(), gpu::GpuFeatureInfo(),
+      gpu::SharedImageCapabilities());
   establish_request_.reset();
 }
 
@@ -232,13 +248,14 @@ void Gpu::GpuPtrIO::OnEstablishedGpuChannel(
     int client_id,
     mojo::ScopedMessagePipeHandle channel_handle,
     const gpu::GPUInfo& gpu_info,
-    const gpu::GpuFeatureInfo& gpu_feature_info) {
+    const gpu::GpuFeatureInfo& gpu_feature_info,
+    const gpu::SharedImageCapabilities& shared_image_capabilities) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(establish_request_);
 
   establish_request_->OnEstablishedGpuChannel(
       client_id, std::move(channel_handle), std::move(gpu_info),
-      std::move(gpu_feature_info));
+      std::move(gpu_feature_info), std::move(shared_image_capabilities));
   establish_request_.reset();
 }
 
@@ -253,8 +270,15 @@ Gpu::Gpu(mojo::PendingRemote<mojom::Gpu> gpu_remote,
   mojo::PendingRemote<mojom::GpuMemoryBufferFactory> gpu_memory_buffer_factory;
   auto gpu_memory_buffer_factory_receiver =
       gpu_memory_buffer_factory.InitWithNewPipeAndPassReceiver();
+
+  mojo::PendingRemote<gpu::mojom::ClientGmbInterface> client_gmb_interface;
+  auto client_gmb_interface_receiver =
+      client_gmb_interface.InitWithNewPipeAndPassReceiver();
+
+  // Note that since |gpu_memory_buffer_manager_| is a owned by this object, it
+  // is safe to provide a |this| pointer to it.
   gpu_memory_buffer_manager_ = std::make_unique<ClientGpuMemoryBufferManager>(
-      std::move(gpu_memory_buffer_factory));
+      std::move(gpu_memory_buffer_factory), std::move(client_gmb_interface));
   // Initialize mojo::Remote<mojom::Gpu> on the IO thread. |gpu_| can only be
   // used on the IO thread after this point. It is safe to use base::Unretained
   // with |gpu_| for IO thread tasks as |gpu_| is destroyed by an IO thread task
@@ -263,7 +287,8 @@ Gpu::Gpu(mojo::PendingRemote<mojom::Gpu> gpu_remote,
       FROM_HERE,
       base::BindOnce(&GpuPtrIO::Initialize, base::Unretained(gpu_.get()),
                      std::move(gpu_remote),
-                     std::move(gpu_memory_buffer_factory_receiver)));
+                     std::move(gpu_memory_buffer_factory_receiver),
+                     std::move(client_gmb_interface_receiver)));
 }
 
 Gpu::~Gpu() {

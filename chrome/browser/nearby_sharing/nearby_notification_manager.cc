@@ -9,6 +9,7 @@
 #include "ash/constants/notifier_catalogs.h"
 #include "ash/public/cpp/holding_space/holding_space_item.h"
 #include "ash/public/cpp/notification_utils.h"
+#include "ash/webui/settings/public/constants/routes.mojom.h"
 #include "base/files/file_util.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
@@ -28,8 +29,7 @@
 #include "chrome/browser/nearby_sharing/common/nearby_share_enums.h"
 #include "chrome/browser/nearby_sharing/common/nearby_share_features.h"
 #include "chrome/browser/nearby_sharing/common/nearby_share_prefs.h"
-#include "chrome/browser/nearby_sharing/logging/logging.h"
-#include "chrome/browser/nearby_sharing/nearby_share_metrics_logger.h"
+#include "chrome/browser/nearby_sharing/nearby_share_metrics.h"
 #include "chrome/browser/nearby_sharing/nearby_sharing_service.h"
 #include "chrome/browser/notifications/notification_display_service.h"
 #include "chrome/browser/platform_util.h"
@@ -37,9 +37,9 @@
 #include "chrome/browser/ui/ash/holding_space/holding_space_keyed_service.h"
 #include "chrome/browser/ui/ash/holding_space/holding_space_keyed_service_factory.h"
 #include "chrome/browser/ui/settings_window_manager_chromeos.h"
-#include "chrome/browser/ui/webui/settings/chromeos/constants/routes.mojom.h"
 #include "chrome/grit/generated_resources.h"
 #include "chromeos/constants/chromeos_features.h"
+#include "components/cross_device/logging/logging.h"
 #include "components/prefs/pref_service.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/download_manager.h"
@@ -65,7 +65,7 @@ constexpr char kNearbyNotifier[] = "nearby";
 
 std::string CreateNotificationIdForShareTarget(
     const ShareTarget& share_target) {
-  if (base::FeatureList::IsEnabled(features::kNearbySharingSelfShareUI)) {
+  if (base::FeatureList::IsEnabled(features::kNearbySharingSelfShare)) {
     return std::string(kNearbyTransferResultNotificationIdPrefix) +
            share_target.id.ToString();
   } else {
@@ -89,7 +89,7 @@ message_center::Notification CreateNearbyNotification(const std::string& id) {
       /*delegate=*/nullptr);
 
   if (chromeos::features::IsJellyEnabled()) {
-    notification.set_accent_color_id(cros_tokens::kCrosSysOnPrimary);
+    notification.set_accent_color_id(cros_tokens::kCrosSysPrimary);
   } else {
     notification.set_accent_color(ash::kSystemNotificationColorNormal);
   }
@@ -336,6 +336,17 @@ std::u16string GetConnectionRequestNotificationMessage(
   return message;
 }
 
+absl::optional<std::u16string> GetReceivedNotificationTextMessage(
+    const ShareTarget& share_target) {
+  size_t text_count = share_target.text_attachments.size();
+  if (text_count < 1) {
+    return absl::nullopt;
+  }
+
+  const TextAttachment& attachment = share_target.text_attachments[0];
+  return base::UTF8ToUTF16(attachment.GetDescription());
+}
+
 ui::ImageModel GetImageFromShareTarget(const ShareTarget& share_target) {
   // TODO(crbug.com/1102348): Create or get profile picture of |share_target|.
   return ui::ImageModel();
@@ -482,7 +493,7 @@ class ReceivedImageDecoder : public ImageDecoder::ImageRequest {
   void OnFileRead(std::unique_ptr<std::string> contents,
                   bool is_contents_read) {
     if (!is_contents_read || !contents || contents->empty()) {
-      NS_LOG(VERBOSE) << __func__ << ": Image contents not found.";
+      CD_LOG(VERBOSE, Feature::NS) << __func__ << ": Image contents not found.";
       OnDecodeImageFailed();
       return;
     }
@@ -711,8 +722,9 @@ bool ShouldShowNearbyDeviceTryingToShareNotification(
   base::TimeDelta last_dismissed_delta = base::Time::Now() - last_dismissed;
   if (last_dismissed_delta <
       NearbyNotificationManager::kNearbyDeviceTryingToShareDismissedTimeout) {
-    NS_LOG(VERBOSE) << "Not showing onboarding notification: the user recently "
-                       "dismissed the notification.";
+    CD_LOG(VERBOSE, Feature::NS)
+        << "Not showing onboarding notification: the user recently "
+           "dismissed the notification.";
     return false;
   }
 
@@ -828,12 +840,12 @@ void NearbyNotificationManager::OnTransferUpdate(
         ShowProgress(share_target, transfer_metadata);
       break;
     case TransferMetadata::Status::kAwaitingLocalConfirmation:
-      if (base::FeatureList::IsEnabled(
-              features::kNearbySharingSelfShareAutoAccept)) {
+      if (base::FeatureList::IsEnabled(features::kNearbySharingSelfShare)) {
         // Only incoming transfers are handled via notifications.
-        // Don't show notification for self shares since we will auto-accept.
-        if (share_target.is_incoming && !share_target.for_self_share)
+        // Don't show notification for auto-accept self shares.
+        if (share_target.is_incoming && !share_target.CanAutoAccept()) {
           ShowConnectionRequest(share_target, transfer_metadata);
+        }
       } else {
         // Only incoming transfers are handled via notifications.
         if (share_target.is_incoming)
@@ -1073,10 +1085,16 @@ void NearbyNotificationManager::ShowIncomingSuccess(
 
   std::vector<message_center::ButtonInfo> notification_actions;
   switch (type) {
-    case ReceivedContentType::kText:
+    case ReceivedContentType::kText: {
       notification_actions.emplace_back(l10n_util::GetStringUTF16(
           IDS_NEARBY_NOTIFICATION_ACTION_COPY_TO_CLIPBOARD));
+      absl::optional<std::u16string> message =
+          GetReceivedNotificationTextMessage(share_target);
+      if (message) {
+        notification.set_message(message.value());
+      }
       break;
+    }
     case ReceivedContentType::kSingleUrl:
       notification_actions.emplace_back(
           l10n_util::GetStringUTF16(IDS_NEARBY_NOTIFICATION_ACTION_OPEN_URL));

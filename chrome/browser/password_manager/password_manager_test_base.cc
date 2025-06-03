@@ -18,8 +18,8 @@
 #include "base/task/single_thread_task_runner.h"
 #include "chrome/browser/password_manager/account_password_store_factory.h"
 #include "chrome/browser/password_manager/chrome_password_manager_client.h"
-#include "chrome/browser/password_manager/password_store_factory.h"
 #include "chrome/browser/password_manager/passwords_navigation_observer.h"
+#include "chrome/browser/password_manager/profile_password_store_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/sync/sync_service_factory.h"
 #include "chrome/browser/ui/autofill/chrome_autofill_client.h"
@@ -29,9 +29,9 @@
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/autofill/content/browser/content_autofill_client.h"
 #include "components/autofill/core/browser/autofill_test_utils.h"
+#include "components/password_manager/core/browser/features/password_features.h"
 #include "components/password_manager/core/browser/password_manager_test_utils.h"
 #include "components/password_manager/core/browser/test_password_store.h"
-#include "components/password_manager/core/common/password_manager_features.h"
 #include "components/sync/test/test_sync_service.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/navigation_details.h"
@@ -470,9 +470,7 @@ void PasswordManagerBrowserTestBase::GetNewTab(
 
   // ManagePasswordsUIController needs ChromePasswordManagerClient for logging.
   autofill::ChromeAutofillClient::CreateForWebContents(*web_contents);
-  ChromePasswordManagerClient::CreateForWebContentsWithAutofillClient(
-      *web_contents,
-      autofill::ContentAutofillClient::FromWebContents(*web_contents));
+  ChromePasswordManagerClient::CreateForWebContents(*web_contents);
   ASSERT_TRUE(ChromePasswordManagerClient::FromWebContents(*web_contents));
   CustomManagePasswordsUIController* controller =
       new CustomManagePasswordsUIController(*web_contents);
@@ -491,7 +489,7 @@ void PasswordManagerBrowserTestBase::GetNewTab(
 // static
 void PasswordManagerBrowserTestBase::WaitForPasswordStore(Browser* browser) {
   scoped_refptr<password_manager::PasswordStoreInterface>
-      profile_password_store = PasswordStoreFactory::GetForProfile(
+      profile_password_store = ProfilePasswordStoreFactory::GetForProfile(
           browser->profile(), ServiceAccessType::IMPLICIT_ACCESS);
   PasswordStoreResultsObserver profile_syncer;
   profile_password_store->GetAllLoginsWithAffiliationAndBrandingInformation(
@@ -696,7 +694,7 @@ void PasswordManagerBrowserTestBase::SetUpInProcessBrowserTestFixture() {
                 SyncServiceFactory::GetInstance()->SetTestingFactory(
                     context, base::BindRepeating(&BuildTestSyncService));
 
-                PasswordStoreFactory::GetInstance()->SetTestingFactory(
+                ProfilePasswordStoreFactory::GetInstance()->SetTestingFactory(
                     context,
                     base::BindRepeating(&password_manager::BuildPasswordStore<
                                         content::BrowserContext,
@@ -742,7 +740,7 @@ void PasswordManagerBrowserTestBase::CheckThatCredentialsStored(
   SCOPED_TRACE(::testing::Message() << username << ", " << password);
   scoped_refptr<password_manager::TestPasswordStore> password_store =
       static_cast<password_manager::TestPasswordStore*>(
-          PasswordStoreFactory::GetForProfile(
+          ProfilePasswordStoreFactory::GetForProfile(
               browser()->profile(), ServiceAccessType::IMPLICIT_ACCESS)
               .get());
   auto& passwords_map = password_store->stored_passwords();

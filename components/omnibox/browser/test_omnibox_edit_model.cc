@@ -8,12 +8,10 @@
 #include "components/omnibox/browser/test_omnibox_edit_model.h"
 
 TestOmniboxEditModel::TestOmniboxEditModel(
+    OmniboxController* omnibox_controller,
     OmniboxView* view,
-    OmniboxEditModelDelegate* edit_model_delegate,
     PrefService* pref_service)
-    : OmniboxEditModel(view,
-                       edit_model_delegate,
-                       std::make_unique<TestOmniboxClient>()),
+    : OmniboxEditModel(omnibox_controller, view),
       popup_is_open_(false),
       pref_service_(pref_service) {}
 

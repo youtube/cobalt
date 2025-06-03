@@ -6,13 +6,14 @@ include_rules = [
   "+net/filter/source_stream.h",
   "+net/http/http_response_info.h",
   "+net/ssl/ssl_info.h",
-  "+services/network/public/cpp/fetch_api_utils.h",
-  "+services/network/public/cpp/optional_trust_token_params.h",
   "+third_party/blink/renderer/platform/mojo",
 ]
 
 specific_include_rules = {
   "resource_request.cc": [
     "+net/base/request_priority.h",
+  ],
+  "fetch_utils.h": [
+    "+net/traffic_annotation/network_traffic_annotation.h",
   ]
 }

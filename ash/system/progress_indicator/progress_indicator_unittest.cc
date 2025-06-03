@@ -17,8 +17,9 @@ namespace {
 class TestProgressIndicator : public ProgressIndicator {
  public:
   TestProgressIndicator()
-      : ProgressIndicator(/*animation_registry=*/nullptr,
-                          /*animation_key=*/this) {}
+      : ProgressIndicator(
+            /*animation_registry=*/nullptr,
+            ProgressIndicatorAnimationRegistry::AsAnimationKey(this)) {}
 
   void SetProgress(const absl::optional<float>& progress) {
     progress_ = progress;
@@ -41,7 +42,7 @@ using ProgressIndicatorTest = AshTestBase;
 // It should delegate progress calculation to a constructor provided callback
 // and manage progress animations as needed.
 TEST_F(ProgressIndicatorTest, CreateDefaultInstance) {
-  absl::optional<float> progress;
+  absl::optional<float> progress = ProgressIndicator::kProgressComplete;
 
   // Create a default instance of `ProgressIndicator` that paints `progress`
   // whenever visual state is updated.
@@ -54,7 +55,7 @@ TEST_F(ProgressIndicatorTest, CreateDefaultInstance) {
       static_cast<ui::LayerDelegate*>(progress_indicator.get());
 
   // Cache animation `key` and `registry` associated with `progress_indicator`.
-  auto* key = progress_indicator.get();
+  auto key = progress_indicator->animation_key();
   auto* registry = progress_indicator->animation_registry();
 
   // Verify initial progress and animation states.

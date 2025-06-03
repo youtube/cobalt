@@ -10,7 +10,7 @@
 #include "chrome/browser/ui/omnibox/omnibox_theme.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_popup_view_views.h"
 #include "chrome/test/views/chrome_views_test_base.h"
-#include "components/omnibox/browser/omnibox_edit_model.h"
+#include "components/omnibox/browser/omnibox_controller.h"
 #include "components/omnibox/browser/test_omnibox_client.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/accessibility/ax_enums.mojom.h"
@@ -36,11 +36,10 @@ static constexpr size_t kTestResultViewIndex = 4;
 
 class TestOmniboxPopupViewViews : public OmniboxPopupViewViews {
  public:
-  explicit TestOmniboxPopupViewViews(OmniboxEditModel* edit_model)
-      : OmniboxPopupViewViews(
-            /*omnibox_view=*/nullptr,
-            edit_model,
-            /*location_bar_view=*/nullptr),
+  explicit TestOmniboxPopupViewViews(OmniboxController* controller)
+      : OmniboxPopupViewViews(/*omnibox_view=*/nullptr,
+                              controller,
+                              /*location_bar_view=*/nullptr),
         selection_(OmniboxPopupSelection(0, OmniboxPopupSelection::NORMAL)) {}
 
   TestOmniboxPopupViewViews(const TestOmniboxPopupViewViews&) = delete;
@@ -71,12 +70,12 @@ class OmniboxResultViewTest : public ChromeViewsTestBase {
     // Create a widget and assign bounds to support calls to HitTestPoint.
     widget_ = CreateTestWidget();
 
-    edit_model_ = std::make_unique<OmniboxEditModel>(
-        nullptr, nullptr, std::make_unique<TestOmniboxClient>());
+    omnibox_controller_ = std::make_unique<OmniboxController>(
+        /*view=*/nullptr, std::make_unique<TestOmniboxClient>());
     popup_view_ =
-        std::make_unique<TestOmniboxPopupViewViews>(edit_model_.get());
-    result_view_ = new OmniboxResultView(popup_view_.get(), edit_model_.get(),
-                                         kTestResultViewIndex);
+        std::make_unique<TestOmniboxPopupViewViews>(omnibox_controller_.get());
+    result_view_ =
+        new OmniboxResultView(popup_view_.get(), kTestResultViewIndex);
 
     views::View* root_view = widget_->GetRootView();
     root_view->SetBoundsRect(gfx::Rect(0, 0, 500, 500));
@@ -113,13 +112,14 @@ class OmniboxResultViewTest : public ChromeViewsTestBase {
                           ui::EventTimeForNow(), flags, 0);
   }
 
+  OmniboxEditModel* edit_model() { return omnibox_controller_->edit_model(); }
   OmniboxPopupViewViews* popup_view() { return popup_view_.get(); }
   OmniboxResultView* result_view() { return result_view_; }
 
  private:
-  std::unique_ptr<OmniboxEditModel> edit_model_;
+  std::unique_ptr<OmniboxController> omnibox_controller_;
   std::unique_ptr<TestOmniboxPopupViewViews> popup_view_;
-  raw_ptr<OmniboxResultView> result_view_;
+  raw_ptr<OmniboxResultView, DanglingUntriaged> result_view_;
   std::unique_ptr<views::Widget> widget_;
 
   std::unique_ptr<display::test::TestScreen> test_screen_;

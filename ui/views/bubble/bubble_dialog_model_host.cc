@@ -16,6 +16,7 @@
 #include "ui/base/models/dialog_model.h"
 #include "ui/base/models/dialog_model_field.h"
 #include "ui/base/ui_base_types.h"
+#include "ui/gfx/color_utils.h"
 #include "ui/gfx/geometry/insets.h"
 #include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/border.h"
@@ -364,12 +365,12 @@ BubbleDialogModelHost::BubbleDialogModelHost(
   // Dialog callbacks can safely refer to |model_|, they can't be called after
   // Widget::Close() calls WidgetWillClose() synchronously so there shouldn't
   // be any dangling references after model removal.
-  SetAcceptCallback(base::BindOnce(&ui::DialogModel::OnDialogAcceptAction,
-                                   base::Unretained(model_.get()),
-                                   GetPassKey()));
-  SetCancelCallback(base::BindOnce(&ui::DialogModel::OnDialogCancelAction,
-                                   base::Unretained(model_.get()),
-                                   GetPassKey()));
+  SetAcceptCallbackWithClose(
+      base::BindRepeating(&ui::DialogModel::OnDialogAcceptAction,
+                          base::Unretained(model_.get()), GetPassKey()));
+  SetCancelCallbackWithClose(
+      base::BindRepeating(&ui::DialogModel::OnDialogCancelAction,
+                          base::Unretained(model_.get()), GetPassKey()));
   SetCloseCallback(base::BindOnce(&ui::DialogModel::OnDialogCloseAction,
                                   base::Unretained(model_.get()),
                                   GetPassKey()));
@@ -385,16 +386,28 @@ BubbleDialogModelHost::BubbleDialogModelHost(
   auto* ok_button = model_->ok_button(GetPassKey());
   if (ok_button) {
     button_mask |= ui::DIALOG_BUTTON_OK;
-    if (!ok_button->label(GetPassKey()).empty())
+    if (!ok_button->label(GetPassKey()).empty()) {
       SetButtonLabel(ui::DIALOG_BUTTON_OK, ok_button->label(GetPassKey()));
+    }
+    if (ok_button->style(GetPassKey())) {
+      SetButtonStyle(ui::DIALOG_BUTTON_OK, ok_button->style(GetPassKey()));
+    }
+    SetButtonEnabled(ui::DIALOG_BUTTON_OK, ok_button->is_enabled(GetPassKey()));
   }
 
   auto* cancel_button = model_->cancel_button(GetPassKey());
   if (cancel_button) {
     button_mask |= ui::DIALOG_BUTTON_CANCEL;
-    if (!cancel_button->label(GetPassKey()).empty())
+    if (!cancel_button->label(GetPassKey()).empty()) {
       SetButtonLabel(ui::DIALOG_BUTTON_CANCEL,
                      cancel_button->label(GetPassKey()));
+    }
+    if (cancel_button->style(GetPassKey())) {
+      SetButtonStyle(ui::DIALOG_BUTTON_CANCEL,
+                     cancel_button->style(GetPassKey()));
+    }
+    SetButtonEnabled(ui::DIALOG_BUTTON_CANCEL,
+                     cancel_button->is_enabled(GetPassKey()));
   }
 
   // TODO(pbos): Consider refactoring ::SetExtraView() so it can be called after
@@ -403,10 +416,16 @@ BubbleDialogModelHost::BubbleDialogModelHost(
   if (ui::DialogModelButton* extra_button =
           model_->extra_button(GetPassKey())) {
     DCHECK(!model_->extra_link(GetPassKey()));
-    SetExtraView(std::make_unique<MdTextButton>(
-        base::BindRepeating(&ui::DialogModelButton::OnPressed,
-                            base::Unretained(extra_button), GetPassKey()),
-        extra_button->label(GetPassKey())));
+    auto builder = views::Builder<MdTextButton>()
+                       .SetCallback(base::BindRepeating(
+                           &ui::DialogModelButton::OnPressed,
+                           base::Unretained(extra_button), GetPassKey()))
+                       .SetText(extra_button->label(GetPassKey()));
+    if (extra_button->style(GetPassKey())) {
+      builder.SetStyle(extra_button->style(GetPassKey()).value());
+    }
+    builder.SetEnabled(extra_button->is_enabled(GetPassKey()));
+    SetExtraView(std::move(builder).Build());
   } else if (ui::DialogModelLabel::TextReplacement* extra_link =
                  model_->extra_link(GetPassKey())) {
     DCHECK(extra_link->callback().has_value());
@@ -601,8 +620,24 @@ void BubbleDialogModelHost::OnFieldAdded(ui::DialogModelField* field) {
   }
   UpdateSpacingAndMargins();
 
+  UpdateFieldVisibility(field);
+
   if (GetBubbleFrameView())
     SizeToContents();
+}
+
+void BubbleDialogModelHost::OnFieldChanged(ui::DialogModelField* field) {
+  CHECK(field);
+
+  UpdateFieldVisibility(field);
+
+  if (field->type(GetPassKey()) == ui::DialogModelField::kButton) {
+    UpdateButton(field->AsButton(GetPassKey()));
+  }
+
+  // If the contents of the dialog change (text, field visitiblity, etc.), the
+  // dialog may need to be resized.
+  SizeToContents();
 }
 
 void BubbleDialogModelHost::AddInitialFields() {
@@ -620,6 +655,15 @@ void BubbleDialogModelHost::UpdateSpacingAndMargins() {
       layout_provider->GetInsetsMetric(InsetsMetric::INSETS_DIALOG);
   dialog_side_insets.set_top(0);
   dialog_side_insets.set_bottom(0);
+
+  // If there is a Main Image, the left dialog inset value is no longer the
+  // correct metric. Use the related control metric instead.
+  // TODO(kylixrd): Investigate whether this should be a unique distance metric
+  // or if the related control metric is valid.
+  if (!GetMainImage().IsEmpty()) {
+    dialog_side_insets.set_left(layout_provider->GetDistanceMetric(
+        DISTANCE_RELATED_CONTROL_HORIZONTAL));
+  }
 
   ui::DialogModelField* first_field = nullptr;
   ui::DialogModelField* last_field = nullptr;
@@ -672,6 +716,14 @@ void BubbleDialogModelHost::UpdateSpacingAndMargins() {
                                 bottom_margin >= 0 ? bottom_margin : 0, 0));
 }
 
+void BubbleDialogModelHost::UpdateFieldVisibility(ui::DialogModelField* field) {
+  DialogModelHostField host_field = FindDialogModelHostField(field);
+
+  if (host_field.field_view) {
+    host_field.field_view->SetVisible(field->is_visible());
+  }
+}
+
 void BubbleDialogModelHost::OnWindowClosing() {
   // If the model has been removed we have already notified it of closing on the
   // ::Close() stack.
@@ -684,6 +736,7 @@ void BubbleDialogModelHost::OnWindowClosing() {
 void BubbleDialogModelHost::AddOrUpdateParagraph(
     ui::DialogModelParagraph* model_field) {
   // TODO(pbos): Handle updating existing field.
+
   std::unique_ptr<View> view =
       model_field->header(GetPassKey()).empty()
           ? CreateViewForLabel(model_field->label(GetPassKey()))
@@ -827,6 +880,21 @@ void BubbleDialogModelHost::AddOrUpdateTextfield(
   const gfx::FontList& font_list = textfield->GetFontList();
   AddViewForLabelAndField(model_field, model_field->label(GetPassKey()),
                           std::move(textfield), font_list);
+}
+
+void BubbleDialogModelHost::UpdateButton(ui::DialogModelButton* model_field) {
+  std::u16string label = model_field->label(GetPassKey());
+  if (model_field == model_->ok_button(GetPassKey())) {
+    SetButtonLabel(ui::DIALOG_BUTTON_OK, label);
+  } else if (model_field == model_->cancel_button(GetPassKey())) {
+    SetButtonLabel(ui::DIALOG_BUTTON_CANCEL, label);
+  } else if (model_field == model_->extra_button(GetPassKey())) {
+    static_cast<MdTextButton*>(
+        GetTargetView(FindDialogModelHostField(model_field)))
+        ->SetText(label);
+  } else {
+    NOTIMPLEMENTED();
+  }
 }
 
 void BubbleDialogModelHost::AddViewForLabelAndField(

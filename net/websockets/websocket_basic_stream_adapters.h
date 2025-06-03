@@ -5,23 +5,34 @@
 #ifndef NET_WEBSOCKETS_WEBSOCKET_BASIC_STREAM_ADAPTERS_H_
 #define NET_WEBSOCKETS_WEBSOCKET_BASIC_STREAM_ADAPTERS_H_
 
+#include <stddef.h>
+
 #include <memory>
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "net/base/completion_once_callback.h"
+#include "net/base/net_errors.h"
 #include "net/base/net_export.h"
+#include "net/log/net_log_source.h"
+#include "net/log/net_log_with_source.h"
 #include "net/spdy/spdy_read_queue.h"
 #include "net/spdy/spdy_stream.h"
+#include "net/third_party/quiche/src/quiche/spdy/core/http2_header_block.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
 #include "net/websockets/websocket_basic_stream.h"
 #include "net/websockets/websocket_quic_spdy_stream.h"
+
+namespace quic {
+class QuicHeaderList;
+}  // namespace quic
 
 namespace net {
 
 class ClientSocketHandle;
 class IOBuffer;
 class SpdyBuffer;
+struct NetworkTrafficAnnotationTag;
 
 // Trivial adapter to make WebSocketBasicStream use a TCP/IP or TLS socket.
 class NET_EXPORT_PRIVATE WebSocketClientSocketHandleAdapter
@@ -98,8 +109,7 @@ class NET_EXPORT_PRIVATE WebSocketSpdyStreamAdapter
   void OnHeadersSent() override;
   void OnEarlyHintsReceived(const spdy::Http2HeaderBlock& headers) override;
   void OnHeadersReceived(
-      const spdy::Http2HeaderBlock& response_headers,
-      const spdy::Http2HeaderBlock* pushed_request_headers) override;
+      const spdy::Http2HeaderBlock& response_headers) override;
   void OnDataReceived(std::unique_ptr<SpdyBuffer> buffer) override;
   void OnDataSent() override;
   void OnTrailers(const spdy::Http2HeaderBlock& trailers) override;
@@ -131,7 +141,7 @@ class NET_EXPORT_PRIVATE WebSocketSpdyStreamAdapter
 
   // Read buffer and length used for both synchronous and asynchronous
   // read operations.
-  raw_ptr<IOBuffer> read_buffer_ = nullptr;
+  raw_ptr<IOBuffer, DanglingUntriaged> read_buffer_ = nullptr;
   size_t read_length_ = 0u;
 
   // Read callback saved for asynchronous reads.

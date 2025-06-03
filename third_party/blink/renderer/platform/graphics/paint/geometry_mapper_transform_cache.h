@@ -7,6 +7,7 @@
 
 #include "base/check_op.h"
 #include "base/dcheck_is_on.h"
+#include "base/memory/raw_ptr_exclusion.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
@@ -115,8 +116,8 @@ class PLATFORM_EXPORT GeometryMapperTransformCache {
            plane_root_transform_->has_animation;
   }
 
-  bool has_sticky_or_anchor_scroll() const {
-    return has_sticky_or_anchor_scroll_;
+  bool has_sticky_or_anchor_position() const {
+    return has_sticky_or_anchor_position_;
   }
 
   bool is_backface_hidden() const { return is_backface_hidden_; }
@@ -124,6 +125,10 @@ class PLATFORM_EXPORT GeometryMapperTransformCache {
   const TransformPaintPropertyNode& nearest_scroll_translation() const {
     DCHECK(nearest_scroll_translation_);
     return *nearest_scroll_translation_;
+  }
+  const TransformPaintPropertyNode& scroll_translation_state() const {
+    DCHECK(scroll_translation_state_);
+    return *scroll_translation_state_;
   }
 
   const TransformPaintPropertyNode* nearest_directly_composited_ancestor()
@@ -144,7 +149,10 @@ class PLATFORM_EXPORT GeometryMapperTransformCache {
   // The parent of the root of consecutive identity or 2d translations from the
   // transform node, or the root of the tree if the whole path from the
   // transform node to the root contains identity or 2d translations only.
-  const TransformPaintPropertyNode* root_of_2d_translation_;
+  //
+  // Excluded from being a `raw_ptr` for visible regression in
+  // MotionMark (crbug.com/1495275#c116).
+  RAW_PTR_EXCLUSION const TransformPaintPropertyNode* root_of_2d_translation_;
 
   // The cached values here can be categorized in two logical groups:
   //
@@ -221,11 +229,13 @@ class PLATFORM_EXPORT GeometryMapperTransformCache {
   absl::optional<ScreenTransform> screen_transform_;
 
   const TransformPaintPropertyNode* nearest_scroll_translation_ = nullptr;
+  const TransformPaintPropertyNode* scroll_translation_state_ = nullptr;
   const TransformPaintPropertyNode* nearest_directly_composited_ancestor_ =
       nullptr;
 
-  // Whether or not there is a sticky or anchor-scroll translation to the root.
-  bool has_sticky_or_anchor_scroll_ = false;
+  // Whether or not there is a sticky or anchor position scroll translation to
+  // the root.
+  bool has_sticky_or_anchor_position_ = false;
 
   bool is_backface_hidden_ = false;
 

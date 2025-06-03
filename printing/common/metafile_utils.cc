@@ -4,26 +4,30 @@
 
 #include "printing/common/metafile_utils.h"
 
+#include "base/check.h"
 #include "base/strings/string_piece.h"
 #include "base/strings/stringprintf.h"
 #include "base/time/time.h"
 #include "printing/buildflags/buildflags.h"
+#include "third_party/skia/include/codec/SkPngDecoder.h"
 #include "third_party/skia/include/core/SkCanvas.h"
+#include "third_party/skia/include/core/SkImage.h"
 #include "third_party/skia/include/core/SkPicture.h"
 #include "third_party/skia/include/core/SkPictureRecorder.h"
 #include "third_party/skia/include/core/SkStream.h"
 #include "third_party/skia/include/core/SkString.h"
-#include "third_party/skia/include/core/SkTime.h"
 #include "third_party/skia/include/core/SkTypeface.h"
 #include "third_party/skia/include/docs/SkPDFDocument.h"
+#include "third_party/skia/include/encode/SkPngEncoder.h"
+#include "third_party/skia/include/private/chromium/SkImageChromium.h"
 #include "ui/accessibility/ax_node.h"
 #include "ui/accessibility/ax_role_properties.h"
 #include "ui/accessibility/ax_tree.h"
 #include "ui/accessibility/ax_tree_update.h"
 
-namespace {
+#include <variant>
 
-#if BUILDFLAG(ENABLE_TAGGED_PDF)
+namespace {
 
 // Table 333 in PDF 32000-1:2008 spec, section 14.8.4.2
 const char kPDFStructureTypeDocument[] = "Document";
@@ -64,21 +68,18 @@ SkString GetHeadingStructureType(int heading_level) {
   return SkString(kPDFStructureTypeHeading);
 }
 
-#endif  // BUILDFLAG(ENABLE_TAGGED_PDF)
-
-SkTime::DateTime TimeToSkTime(base::Time time) {
+SkPDF::DateTime TimeToSkTime(base::Time time) {
   base::Time::Exploded exploded;
   time.UTCExplode(&exploded);
-  SkTime::DateTime skdate;
-  skdate.fTimeZoneMinutes = 0;
-  skdate.fYear = exploded.year;
-  skdate.fMonth = exploded.month;
-  skdate.fDayOfWeek = exploded.day_of_week;
-  skdate.fDay = exploded.day_of_month;
-  skdate.fHour = exploded.hour;
-  skdate.fMinute = exploded.minute;
-  skdate.fSecond = exploded.second;
-  return skdate;
+  return SkPDF::DateTime{
+      .fTimeZoneMinutes = 0,
+      .fYear = static_cast<uint16_t>(exploded.year),
+      .fMonth = static_cast<uint8_t>(exploded.month),
+      .fDayOfWeek = static_cast<uint8_t>(exploded.day_of_week),
+      .fDay = static_cast<uint8_t>(exploded.day_of_month),
+      .fHour = static_cast<uint8_t>(exploded.hour),
+      .fMinute = static_cast<uint8_t>(exploded.minute),
+      .fSecond = static_cast<uint8_t>(exploded.second)};
 }
 
 sk_sp<SkPicture> GetEmptyPicture() {
@@ -95,7 +96,6 @@ sk_sp<SkPicture> GetEmptyPicture() {
 // have enough data to build a valid tree.
 bool RecursiveBuildStructureTree(const ui::AXNode* ax_node,
                                  SkPDF::StructureElementNode* tag) {
-#if BUILDFLAG(ENABLE_TAGGED_PDF)
   bool valid = false;
 
   tag->fNodeId = ax_node->GetIntAttribute(ax::mojom::IntAttribute::kDOMNodeId);
@@ -212,9 +212,6 @@ bool RecursiveBuildStructureTree(const ui::AXNode* ax_node,
   }
 
   return valid;
-#else  // BUILDFLAG(ENABLE_TAGGED_PDF)
-  return false;
-#endif
 }
 
 }  // namespace
@@ -225,7 +222,7 @@ sk_sp<SkDocument> MakePdfDocument(base::StringPiece creator,
                                   const ui::AXTreeUpdate& accessibility_tree,
                                   SkWStream* stream) {
   SkPDF::Metadata metadata;
-  SkTime::DateTime now = TimeToSkTime(base::Time::Now());
+  SkPDF::DateTime now = TimeToSkTime(base::Time::Now());
   metadata.fCreation = now;
   metadata.fModified = now;
   // TODO(crbug.com/691162): Switch to SkString's string_view constructor when
@@ -325,9 +322,32 @@ sk_sp<SkTypeface> DeserializeOopTypeface(const void* data,
   return typeface;
 }
 
+sk_sp<SkData> SerializeRasterImage(SkImage* img, void*) {
+  if (!img) {
+    return nullptr;
+  }
+  // TODO(crbug.com/1486503) Convert texture-backed images to raster
+  // *before* they get this far if possible.
+  if (img->isTextureBacked()) {
+    GrDirectContext* ctx = SkImages::GetContext(img);
+    return SkPngEncoder::Encode(ctx, img, SkPngEncoder::Options{});
+  }
+  return SkPngEncoder::Encode(nullptr, img, SkPngEncoder::Options{});
+}
+
+sk_sp<SkImage> DeserializeRasterImage(const void* bytes, size_t length, void*) {
+  auto data = SkData::MakeWithoutCopy(bytes, length);
+  auto codec = SkPngDecoder::Decode(data, nullptr);
+  if (codec) {
+    return std::get<0>(codec->getImage());
+  }
+  return nullptr;
+}
+
 SkSerialProcs SerializationProcs(PictureSerializationContext* picture_ctx,
                                  TypefaceSerializationContext* typeface_ctx) {
   SkSerialProcs procs;
+  procs.fImageProc = SerializeRasterImage;
   procs.fPictureProc = SerializeOopPicture;
   procs.fPictureCtx = picture_ctx;
   procs.fTypefaceProc = SerializeOopTypeface;
@@ -339,6 +359,7 @@ SkDeserialProcs DeserializationProcs(
     PictureDeserializationContext* picture_ctx,
     TypefaceDeserializationContext* typeface_ctx) {
   SkDeserialProcs procs;
+  procs.fImageProc = DeserializeRasterImage;
   procs.fPictureProc = DeserializeOopPicture;
   procs.fPictureCtx = picture_ctx;
   procs.fTypefaceProc = DeserializeOopTypeface;

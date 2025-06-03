@@ -381,17 +381,17 @@ TEST_F(TemplateURLTest, SetPrepopulatedAndReplace) {
   const SearchTermsData& stdata = search_terms_data_;
 
   TemplateURL url(data);
-  EXPECT_EQ("http://foo%7Bfhqwhgads%7Dsearch/?q=X",
+  EXPECT_EQ("http://foo{fhqwhgads}search/?q=X",
             url.url_ref().ReplaceSearchTerms(args, stdata));
-  EXPECT_EQ("http://foo%7Bfhqwhgads%7Dalternate/?q=X",
+  EXPECT_EQ("http://foo{fhqwhgads}alternate/?q=X",
             url.url_refs()[0].ReplaceSearchTerms(args, stdata));
-  EXPECT_EQ("http://foo%7Bfhqwhgads%7Dsearch/?q=X",
+  EXPECT_EQ("http://foo{fhqwhgads}search/?q=X",
             url.url_refs()[1].ReplaceSearchTerms(args, stdata));
-  EXPECT_EQ("http://foo%7Bfhqwhgads%7Dsuggest/?q=X",
+  EXPECT_EQ("http://foo{fhqwhgads}suggest/?q=X",
             url.suggestions_url_ref().ReplaceSearchTerms(args, stdata));
   EXPECT_EQ("http://foo{fhqwhgads}image/",
             url.image_url_ref().ReplaceSearchTerms(args, stdata));
-  EXPECT_EQ("http://foo%7Bfhqwhgads%7Dimage/?translate",
+  EXPECT_EQ("http://foo{fhqwhgads}image/?translate",
             url.image_translate_url_ref().ReplaceSearchTerms(args, stdata));
   EXPECT_EQ("http://foo{fhqwhgads}newtab/",
             url.new_tab_url_ref().ReplaceSearchTerms(args, stdata));
@@ -936,14 +936,16 @@ TEST_F(TemplateURLTest, ReplaceOmniboxFocusType) {
 TEST_F(TemplateURLTest, ReplaceIsPrefetch) {
   struct TestData {
     const std::u16string search_term;
-    bool is_prefetch;
+    std::string prefetch_param;
     const std::string url;
     const std::string expected_result;
   } test_data[] = {
-      {u"foo", false, "{google:baseURL}?{searchTerms}&{google:prefetchSource}",
+      {u"foo", "", "{google:baseURL}?{searchTerms}&{google:prefetchSource}",
        "http://www.google.com/?foo&"},
-      {u"foo", true, "{google:baseURL}?{searchTerms}&{google:prefetchSource}",
+      {u"foo", "cs", "{google:baseURL}?{searchTerms}&{google:prefetchSource}",
        "http://www.google.com/?foo&pf=cs&"},
+      {u"foo", "op", "{google:baseURL}?{searchTerms}&{google:prefetchSource}",
+       "http://www.google.com/?foo&pf=op&"},
   };
   TemplateURLData data;
   data.input_encodings.push_back("UTF-8");
@@ -953,7 +955,7 @@ TEST_F(TemplateURLTest, ReplaceIsPrefetch) {
     EXPECT_TRUE(url.url_ref().IsValid(search_terms_data_));
     ASSERT_TRUE(url.url_ref().SupportsReplacement(search_terms_data_));
     TemplateURLRef::SearchTermsArgs search_terms_args(entry.search_term);
-    search_terms_args.is_prefetch = entry.is_prefetch;
+    search_terms_args.prefetch_param = entry.prefetch_param;
     GURL result(url.url_ref().ReplaceSearchTerms(search_terms_args,
                                                  search_terms_data_));
     ASSERT_TRUE(result.is_valid());
@@ -2100,7 +2102,7 @@ TEST_F(TemplateURLTest, GenerateKeyword) {
   // stores TemplateURLs in maps using keyword as key.
   EXPECT_TRUE(IsLowerCase(TemplateURL::GenerateKeyword(GURL("http://BLAH/"))));
   EXPECT_TRUE(IsLowerCase(
-      TemplateURL::GenerateKeyword(GURL("http://embeddedhtml.<head>/"))));
+      TemplateURL::GenerateKeyword(GURL("http://embeddedhtml.-head-/"))));
 }
 
 TEST_F(TemplateURLTest, KeepSearchTermsInURL) {

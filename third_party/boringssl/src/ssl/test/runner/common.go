@@ -122,7 +122,8 @@ const (
 	extensionQUICTransportParams        uint16 = 57
 	extensionCustom                     uint16 = 1234  // not IANA assigned
 	extensionNextProtoNeg               uint16 = 13172 // not IANA assigned
-	extensionApplicationSettings        uint16 = 17513 // not IANA assigned
+	extensionApplicationSettingsOld     uint16 = 17513 // not IANA assigned
+	extensionApplicationSettings        uint16 = 17613 // not IANA assigned
 	extensionRenegotiationInfo          uint16 = 0xff01
 	extensionQUICTransportParamsLegacy  uint16 = 0xffa5 // draft-ietf-quic-tls-32 and earlier
 	extensionChannelID                  uint16 = 30032  // not IANA assigned
@@ -222,9 +223,13 @@ const (
 // algorithms.
 var supportedSignatureAlgorithms = []signatureAlgorithm{
 	signatureRSAPSSWithSHA256,
+	signatureRSAPSSWithSHA384,
 	signatureRSAPKCS1WithSHA256,
 	signatureECDSAWithP256AndSHA256,
+	signatureECDSAWithP384AndSHA384,
 	signatureRSAPKCS1WithSHA1,
+	signatureRSAPKCS1WithSHA256,
+	signatureRSAPKCS1WithSHA384,
 	signatureECDSAWithSHA1,
 	signatureEd25519,
 }
@@ -273,6 +278,8 @@ type ConnectionState struct {
 	QUICTransportParamsLegacy  []byte                // the legacy QUIC transport params received from the peer
 	HasApplicationSettings     bool                  // whether ALPS was negotiated
 	PeerApplicationSettings    []byte                // application settings received from the peer
+	HasApplicationSettingsOld  bool                  // whether ALPS old codepoint was negotiated
+	PeerApplicationSettingsOld []byte                // the old application settings received from the peer
 	ECHAccepted                bool                  // whether ECH was accepted on this connection
 }
 
@@ -291,25 +298,28 @@ const (
 // ClientSessionState contains the state needed by clients to resume TLS
 // sessions.
 type ClientSessionState struct {
-	sessionID                []uint8             // Session ID supplied by the server. nil if the session has a ticket.
-	sessionTicket            []uint8             // Encrypted ticket used for session resumption with server
-	vers                     uint16              // SSL/TLS version negotiated for the session
-	wireVersion              uint16              // Wire SSL/TLS version negotiated for the session
-	cipherSuite              *cipherSuite        // Ciphersuite negotiated for the session
-	secret                   []byte              // Secret associated with the session
-	handshakeHash            []byte              // Handshake hash for Channel ID purposes.
-	serverCertificates       []*x509.Certificate // Certificate chain presented by the server
-	extendedMasterSecret     bool                // Whether an extended master secret was used to generate the session
-	sctList                  []byte
-	ocspResponse             []byte
-	earlyALPN                string
-	ticketCreationTime       time.Time
-	ticketExpiration         time.Time
-	ticketAgeAdd             uint32
-	maxEarlyDataSize         uint32
-	hasApplicationSettings   bool
-	localApplicationSettings []byte
-	peerApplicationSettings  []byte
+	sessionID                   []uint8             // Session ID supplied by the server. nil if the session has a ticket.
+	sessionTicket               []uint8             // Encrypted ticket used for session resumption with server
+	vers                        uint16              // SSL/TLS version negotiated for the session
+	wireVersion                 uint16              // Wire SSL/TLS version negotiated for the session
+	cipherSuite                 *cipherSuite        // Ciphersuite negotiated for the session
+	secret                      []byte              // Secret associated with the session
+	handshakeHash               []byte              // Handshake hash for Channel ID purposes.
+	serverCertificates          []*x509.Certificate // Certificate chain presented by the server
+	extendedMasterSecret        bool                // Whether an extended master secret was used to generate the session
+	sctList                     []byte
+	ocspResponse                []byte
+	earlyALPN                   string
+	ticketCreationTime          time.Time
+	ticketExpiration            time.Time
+	ticketAgeAdd                uint32
+	maxEarlyDataSize            uint32
+	hasApplicationSettings      bool
+	localApplicationSettings    []byte
+	peerApplicationSettings     []byte
+	hasApplicationSettingsOld   bool
+	localApplicationSettingsOld []byte
+	peerApplicationSettingsOld  []byte
 }
 
 // ClientSessionCache is a cache of ClientSessionState objects that can be used
@@ -385,6 +395,35 @@ func (c QUICUseCodepoint) String() string {
 	panic("unknown value")
 }
 
+// ALPSUseCodepoint controls which TLS extension codepoint is used to convey the
+// ApplicationSettings. ALPSUseCodepointNew means use 17613,
+// ALPSUseCodepointOld means use old value 17513.
+type ALPSUseCodepoint int
+
+const (
+	ALPSUseCodepointNew ALPSUseCodepoint = iota
+	ALPSUseCodepointOld
+	NumALPSUseCodepoints
+)
+
+func (c ALPSUseCodepoint) IncludeNew() bool {
+	return c == ALPSUseCodepointNew
+}
+
+func (c ALPSUseCodepoint) IncludeOld() bool {
+	return c == ALPSUseCodepointOld
+}
+
+func (c ALPSUseCodepoint) String() string {
+	switch c {
+	case ALPSUseCodepointNew:
+		return "New"
+	case ALPSUseCodepointOld:
+		return "Old"
+	}
+	panic("unknown value")
+}
+
 // A Config structure is used to configure a TLS client or server.
 // After one has been passed to a TLS function it must not be
 // modified. A Config may be reused; the tls package will also not
@@ -424,6 +463,10 @@ type Config struct {
 	// ApplicationSettings is a set of application settings to use which each
 	// application protocol.
 	ApplicationSettings map[string][]byte
+
+	// ALPSUseNewCodepoint controls which TLS extension codepoint is used to
+	// convey the ApplicationSettings.
+	ALPSUseNewCodepoint ALPSUseCodepoint
 
 	// ServerName is used to verify the hostname on the returned
 	// certificates unless InsecureSkipVerify is given. It is also included
@@ -992,10 +1035,20 @@ type ProtocolBugs struct {
 	// return.
 	ALPNProtocol *string
 
-	// AlwaysNegotiateApplicationSettings, if true, causes the server to
-	// negotiate ALPS for a protocol even if the client did not support it or
-	// the version is wrong.
-	AlwaysNegotiateApplicationSettings bool
+	// AlwaysNegotiateApplicationSettingsBoth, if true, causes the server to
+	// negotiate ALPS using both codepoint for a protocol even if the client did
+	// not support it or the version is wrong.
+	AlwaysNegotiateApplicationSettingsBoth bool
+
+	// AlwaysNegotiateApplicationSettingsNew, if true, causes the server to
+	// negotiate ALPS using new codepoint for a protocol even if the client did
+	// not support it or the version is wrong.
+	AlwaysNegotiateApplicationSettingsNew bool
+
+	// AlwaysNegotiateApplicationSettingsOld, if true, causes the server to
+	// negotiate ALPS using old codepoint for a protocol even if the client did
+	// not support it or the version is wrong.
+	AlwaysNegotiateApplicationSettingsOld bool
 
 	// SendApplicationSettingsWithEarlyData, if true, causes the client and
 	// server to send the application_settings extension with early data,
@@ -1996,7 +2049,7 @@ func (c *Config) maxVersion(isDTLS bool) uint16 {
 	return ret
 }
 
-var defaultCurvePreferences = []CurveID{CurveX25519, CurveP256, CurveP384, CurveP521}
+var defaultCurvePreferences = []CurveID{CurveX25519Kyber768, CurveX25519, CurveP256, CurveP384, CurveP521}
 
 func (c *Config) curvePreferences() []CurveID {
 	if c == nil || len(c.CurvePreferences) == 0 {
@@ -2187,11 +2240,11 @@ type lruSessionCache struct {
 
 type lruSessionCacheEntry struct {
 	sessionKey string
-	state      interface{}
+	state      any
 }
 
 // Put adds the provided (sessionKey, cs) pair to the cache.
-func (c *lruSessionCache) Put(sessionKey string, cs interface{}) {
+func (c *lruSessionCache) Put(sessionKey string, cs any) {
 	c.Lock()
 	defer c.Unlock()
 
@@ -2219,7 +2272,7 @@ func (c *lruSessionCache) Put(sessionKey string, cs interface{}) {
 
 // Get returns the value associated with a given key. It returns (nil,
 // false) if no value is found.
-func (c *lruSessionCache) Get(sessionKey string) (interface{}, bool) {
+func (c *lruSessionCache) Get(sessionKey string) (any, bool) {
 	c.Lock()
 	defer c.Unlock()
 
@@ -2333,7 +2386,7 @@ func initDefaultCipherSuites() {
 	}
 }
 
-func unexpectedMessageError(wanted, got interface{}) error {
+func unexpectedMessageError(wanted, got any) error {
 	return fmt.Errorf("tls: received unexpected handshake message of type %T when waiting for %T", got, wanted)
 }
 

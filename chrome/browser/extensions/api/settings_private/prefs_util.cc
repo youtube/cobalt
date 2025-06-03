@@ -14,6 +14,7 @@
 #include "chrome/browser/browser_process_platform_part.h"
 #include "chrome/browser/content_settings/generated_cookie_prefs.h"
 #include "chrome/browser/content_settings/generated_notification_pref.h"
+#include "chrome/browser/content_settings/generated_permission_prompting_behavior_pref.h"
 #include "chrome/browser/extensions/api/settings_private/generated_prefs.h"
 #include "chrome/browser/extensions/api/settings_private/generated_prefs_factory.h"
 #include "chrome/browser/extensions/settings_api_helpers.h"
@@ -42,14 +43,17 @@
 #include "components/password_manager/core/common/password_manager_pref_names.h"
 #include "components/payments/core/payment_prefs.h"
 #include "components/performance_manager/public/user_tuning/prefs.h"
+#include "components/permissions/pref_names.h"
 #include "components/prefs/pref_service.h"
 #include "components/privacy_sandbox/privacy_sandbox_prefs.h"
+#include "components/privacy_sandbox/tracking_protection_prefs.h"
 #include "components/proxy_config/proxy_config_pref_names.h"
 #include "components/safe_browsing/core/common/safe_browsing_prefs.h"
 #include "components/search_engines/default_search_manager.h"
 #include "components/services/screen_ai/buildflags/buildflags.h"
 #include "components/signin/public/base/signin_pref_names.h"
 #include "components/spellcheck/browser/pref_names.h"
+#include "components/supervised_user/core/common/features.h"
 #include "components/supervised_user/core/common/pref_names.h"
 #include "components/translate/core/browser/translate_pref_names.h"
 #include "components/translate/core/browser/translate_prefs.h"
@@ -150,11 +154,6 @@ bool IsSettingReadOnly(const std::string& pref_name) {
     return true;
   }
 #endif
-#if BUILDFLAG(IS_WIN)
-  // Don't allow user to change sw_reporter preferences.
-  if (pref_name == prefs::kSwReporterEnabled)
-    return true;
-#endif
   return false;
 }
 
@@ -187,6 +186,8 @@ const PrefsUtil::TypedPrefMap& PrefsUtil::GetAllowlistedKeys() {
   (*s_allowlist)[autofill::prefs::kAutofillPaymentMethodsMandatoryReauth] =
       settings_api::PrefType::PREF_TYPE_BOOLEAN;
 #endif
+  (*s_allowlist)[autofill::prefs::kAutofillPaymentCvcStorage] =
+      settings_api::PrefType::PREF_TYPE_BOOLEAN;
   (*s_allowlist)[payments::kCanMakePaymentEnabled] =
       settings_api::PrefType::PREF_TYPE_BOOLEAN;
   (*s_allowlist)[bookmarks::prefs::kShowBookmarkBar] =
@@ -194,9 +195,7 @@ const PrefsUtil::TypedPrefMap& PrefsUtil::GetAllowlistedKeys() {
   (*s_allowlist)[::prefs::kSidePanelHorizontalAlignment] =
       settings_api::PrefType::PREF_TYPE_BOOLEAN;
 
-// TODO(crbug.com/1052397): Revisit the macro expression once build flag switch
-// of lacros-chrome is complete.
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_LACROS)
+#if BUILDFLAG(IS_LINUX)
   (*s_allowlist)[::prefs::kUseCustomChromeFrame] =
       settings_api::PrefType::PREF_TYPE_BOOLEAN;
 #endif
@@ -209,8 +208,6 @@ const PrefsUtil::TypedPrefMap& PrefsUtil::GetAllowlistedKeys() {
   (*s_allowlist)[::prefs::kPolicyThemeColor] =
       settings_api::PrefType::PREF_TYPE_NUMBER;
 #if BUILDFLAG(IS_LINUX)
-  (*s_allowlist)[::prefs::kUsesSystemThemeDeprecated] =
-      settings_api::PrefType::PREF_TYPE_BOOLEAN;
   (*s_allowlist)[::prefs::kSystemTheme] =
       settings_api::PrefType::PREF_TYPE_NUMBER;
 #endif
@@ -243,6 +240,8 @@ const PrefsUtil::TypedPrefMap& PrefsUtil::GetAllowlistedKeys() {
 #endif
   (*s_allowlist)[dom_distiller::prefs::kOfferReaderMode] =
       settings_api::PrefType::PREF_TYPE_BOOLEAN;
+  (*s_allowlist)[prefs::kHoverCardImagesEnabled] =
+      settings_api::PrefType::PREF_TYPE_BOOLEAN;
 
   // On startup.
   (*s_allowlist)[::prefs::kRestoreOnStartup] =
@@ -264,6 +263,8 @@ const PrefsUtil::TypedPrefMap& PrefsUtil::GetAllowlistedKeys() {
       settings_api::PrefType::PREF_TYPE_STRING;
   (*s_allowlist)[drive::prefs::kDriveFsBulkPinningEnabled] =
       settings_api::PrefType::PREF_TYPE_BOOLEAN;
+  (*s_allowlist)[drive::prefs::kDisableDriveOverCellular] =
+      settings_api::PrefType::PREF_TYPE_BOOLEAN;
 #endif
   (*s_allowlist)[::prefs::kDownloadBubblePartialViewEnabled] =
       settings_api::PrefType::PREF_TYPE_BOOLEAN;
@@ -281,6 +282,8 @@ const PrefsUtil::TypedPrefMap& PrefsUtil::GetAllowlistedKeys() {
       settings_api::PrefType::PREF_TYPE_BOOLEAN;
   (*s_allowlist)[password_manager::prefs::kCredentialsEnableAutosignin] =
       settings_api::PrefType::PREF_TYPE_BOOLEAN;
+  (*s_allowlist)[password_manager::prefs::kPasswordSharingEnabled] =
+      settings_api::PrefType::PREF_TYPE_BOOLEAN;
   (*s_allowlist)[password_manager::prefs::kPasswordLeakDetectionEnabled] =
       settings_api::PrefType::PREF_TYPE_BOOLEAN;
   (*s_allowlist)
@@ -290,6 +293,10 @@ const PrefsUtil::TypedPrefMap& PrefsUtil::GetAllowlistedKeys() {
   (*s_allowlist)
       [password_manager::prefs::kBiometricAuthenticationBeforeFilling] =
           settings_api::PrefType::PREF_TYPE_BOOLEAN;
+#endif
+#if BUILDFLAG(IS_MAC)
+  (*s_allowlist)[::prefs::kCreatePasskeysInICloudKeychain] =
+      settings_api::PrefType::PREF_TYPE_BOOLEAN;
 #endif
 
   // Privacy page
@@ -349,8 +356,12 @@ const PrefsUtil::TypedPrefMap& PrefsUtil::GetAllowlistedKeys() {
       settings_api::PrefType::PREF_TYPE_NUMBER;
   (*s_allowlist)[::content_settings::kCookieSessionOnly] =
       settings_api::PrefType::PREF_TYPE_BOOLEAN;
-  (*s_allowlist)[::prefs::kPrivacySandboxFirstPartySetsEnabled] =
+  (*s_allowlist)[::prefs::kPrivacySandboxRelatedWebsiteSetsEnabled] =
       settings_api::PrefType::PREF_TYPE_BOOLEAN;
+  (*s_allowlist)[::prefs::kBlockAll3pcToggleEnabled] =
+      settings_api::PrefType::PREF_TYPE_BOOLEAN;
+  (*s_allowlist)[::prefs::kTrackingProtectionLevel] =
+      settings_api::PrefType::PREF_TYPE_NUMBER;
 
   // Sync and personalization page.
   (*s_allowlist)[::prefs::kSearchSuggestEnabled] =
@@ -358,6 +369,8 @@ const PrefsUtil::TypedPrefMap& PrefsUtil::GetAllowlistedKeys() {
   (*s_allowlist)
       [::unified_consent::prefs::kUrlKeyedAnonymizedDataCollectionEnabled] =
           settings_api::PrefType::PREF_TYPE_BOOLEAN;
+  (*s_allowlist)[unified_consent::prefs::kPageContentCollectionEnabled] =
+      settings_api::PrefType::PREF_TYPE_BOOLEAN;
   (*s_allowlist)[::omnibox::kDocumentSuggestEnabled] =
       settings_api::PrefType::PREF_TYPE_BOOLEAN;
   (*s_allowlist)[::commerce::kPriceEmailNotificationsEnabled] =
@@ -396,6 +409,8 @@ const PrefsUtil::TypedPrefMap& PrefsUtil::GetAllowlistedKeys() {
   (*s_allowlist)[ash::prefs::kAssistPersonalInfoEnabled] =
       settings_api::PrefType::PREF_TYPE_BOOLEAN;
   (*s_allowlist)[ash::prefs::kAssistPredictiveWritingEnabled] =
+      settings_api::PrefType::PREF_TYPE_BOOLEAN;
+  (*s_allowlist)[ash::prefs::kOrcaEnabled] =
       settings_api::PrefType::PREF_TYPE_BOOLEAN;
   (*s_allowlist)[ash::prefs::kEmojiSuggestionEnabled] =
       settings_api::PrefType::PREF_TYPE_BOOLEAN;
@@ -443,12 +458,17 @@ const PrefsUtil::TypedPrefMap& PrefsUtil::GetAllowlistedKeys() {
   // Site Settings prefs.
   (*s_allowlist)[::content_settings::kGeneratedNotificationPref] =
       settings_api::PrefType::PREF_TYPE_NUMBER;
+  (*s_allowlist)[::content_settings::kGeneratedGeolocationPref] =
+      settings_api::PrefType::PREF_TYPE_NUMBER;
   (*s_allowlist)[::prefs::kPluginsAlwaysOpenPdfExternally] =
       settings_api::PrefType::PREF_TYPE_BOOLEAN;
   (*s_allowlist)[::prefs::kProtectedContentDefault] =
       settings_api::PrefType::PREF_TYPE_NUMBER;
   (*s_allowlist)[::prefs::kEnableQuietNotificationPermissionUi] =
       settings_api::PrefType::PREF_TYPE_BOOLEAN;
+  (*s_allowlist)
+      [::permissions::prefs::kUnusedSitePermissionsRevocationEnabled] =
+          settings_api::PrefType::PREF_TYPE_BOOLEAN;
 
   // Clear browsing data settings.
   (*s_allowlist)[browsing_data::prefs::kDeleteBrowsingHistory] =
@@ -477,6 +497,10 @@ const PrefsUtil::TypedPrefMap& PrefsUtil::GetAllowlistedKeys() {
       settings_api::PrefType::PREF_TYPE_NUMBER;
   (*s_allowlist)[browsing_data::prefs::kDeleteTimePeriodBasic] =
       settings_api::PrefType::PREF_TYPE_NUMBER;
+  (*s_allowlist)[browsing_data::prefs::kDeleteTimePeriodV2] =
+      settings_api::PrefType::PREF_TYPE_NUMBER;
+  (*s_allowlist)[browsing_data::prefs::kDeleteTimePeriodV2Basic] =
+      settings_api::PrefType::PREF_TYPE_NUMBER;
   (*s_allowlist)[browsing_data::prefs::kLastClearBrowsingDataTab] =
       settings_api::PrefType::PREF_TYPE_NUMBER;
 
@@ -502,6 +526,8 @@ const PrefsUtil::TypedPrefMap& PrefsUtil::GetAllowlistedKeys() {
       settings_api::PrefType::PREF_TYPE_BOOLEAN;
   (*s_allowlist)[::prefs::kLiveCaptionLanguageCode] =
       settings_api::PrefType::PREF_TYPE_STRING;
+  (*s_allowlist)[::prefs::kLiveCaptionMaskOffensiveWords] =
+      settings_api::PrefType::PREF_TYPE_BOOLEAN;
   (*s_allowlist)[::prefs::kLiveTranslateEnabled] =
       settings_api::PrefType::PREF_TYPE_BOOLEAN;
   (*s_allowlist)[::prefs::kLiveTranslateTargetLanguageCode] =
@@ -509,6 +535,10 @@ const PrefsUtil::TypedPrefMap& PrefsUtil::GetAllowlistedKeys() {
 #endif
 #if BUILDFLAG(ENABLE_SCREEN_AI_SERVICE)
   (*s_allowlist)[::prefs::kAccessibilityPdfOcrAlwaysActive] =
+      settings_api::PrefType::PREF_TYPE_BOOLEAN;
+#endif
+#if defined(USE_AURA)
+  (*s_allowlist)[::prefs::kOverscrollHistoryNavigationEnabled] =
       settings_api::PrefType::PREF_TYPE_BOOLEAN;
 #endif
 
@@ -548,19 +578,11 @@ const PrefsUtil::TypedPrefMap& PrefsUtil::GetAllowlistedKeys() {
       settings_api::PrefType::PREF_TYPE_BOOLEAN;
   (*s_allowlist)[ash::prefs::kAccessibilityAutoclickMovementThreshold] =
       settings_api::PrefType::PREF_TYPE_NUMBER;
-  (*s_allowlist)[ash::prefs::kAccessibilityColorFiltering] =
+  (*s_allowlist)[ash::prefs::kAccessibilityColorCorrectionEnabled] =
       settings_api::PrefType::PREF_TYPE_BOOLEAN;
-  (*s_allowlist)[ash::prefs::kAccessibilityGreyscaleAmount] =
-      settings_api::PrefType::PREF_TYPE_NUMBER;
-  (*s_allowlist)[ash::prefs::kAccessibilitySaturationAmount] =
-      settings_api::PrefType::PREF_TYPE_NUMBER;
-  (*s_allowlist)[ash::prefs::kAccessibilitySepiaAmount] =
-      settings_api::PrefType::PREF_TYPE_NUMBER;
-  (*s_allowlist)[ash::prefs::kAccessibilityHueRotationAmount] =
-      settings_api::PrefType::PREF_TYPE_NUMBER;
   (*s_allowlist)[ash::prefs::kAccessibilityColorVisionCorrectionAmount] =
       settings_api::PrefType::PREF_TYPE_NUMBER;
-  (*s_allowlist)[ash::prefs::kAccessibilityColorVisionDeficiencyType] =
+  (*s_allowlist)[ash::prefs::kAccessibilityColorVisionCorrectionType] =
       settings_api::PrefType::PREF_TYPE_NUMBER;
   (*s_allowlist)[ash::prefs::kShouldAlwaysShowAccessibilityMenu] =
       settings_api::PrefType::PREF_TYPE_BOOLEAN;
@@ -681,6 +703,8 @@ const PrefsUtil::TypedPrefMap& PrefsUtil::GetAllowlistedKeys() {
       settings_api::PrefType::PREF_TYPE_BOOLEAN;
   (*s_allowlist)[ash::prefs::kAccessibilitySelectToSpeakWordHighlight] =
       settings_api::PrefType::PREF_TYPE_BOOLEAN;
+  (*s_allowlist)[ash::prefs::kAccessibilityFaceTrackingEnabled] =
+      settings_api::PrefType::PREF_TYPE_BOOLEAN;
 
   // Text to Speech.
   (*s_allowlist)[::prefs::kTextToSpeechLangToVoiceName] =
@@ -720,6 +744,10 @@ const PrefsUtil::TypedPrefMap& PrefsUtil::GetAllowlistedKeys() {
 
   // App Notifications
   (*s_allowlist)[::ash::prefs::kAppNotificationBadgingEnabled] =
+      settings_api::PrefType::PREF_TYPE_BOOLEAN;
+
+  // App - Enable Isolated Web Apps
+  (*s_allowlist)[::ash::prefs::kIsolatedWebAppsEnabled] =
       settings_api::PrefType::PREF_TYPE_BOOLEAN;
 
   // Ambient Mode.
@@ -935,7 +963,13 @@ const PrefsUtil::TypedPrefMap& PrefsUtil::GetAllowlistedKeys() {
       settings_api::PrefType::PREF_TYPE_LIST;
   (*s_allowlist)[ash::prefs::kPowerAdaptiveChargingEnabled] =
       settings_api::PrefType::PREF_TYPE_BOOLEAN;
+  (*s_allowlist)[ash::prefs::kPowerBatterySaver] =
+      settings_api::PrefType::PREF_TYPE_BOOLEAN;
   (*s_allowlist)[::prefs::kConsumerAutoUpdateToggle] =
+      settings_api::PrefType::PREF_TYPE_BOOLEAN;
+  (*s_allowlist)[::ash::prefs::kChargingSoundsEnabled] =
+      settings_api::PrefType::PREF_TYPE_BOOLEAN;
+  (*s_allowlist)[::ash::prefs::kLowBatterySoundEnabled] =
       settings_api::PrefType::PREF_TYPE_BOOLEAN;
 
   // Native Printing settings.
@@ -955,6 +989,8 @@ const PrefsUtil::TypedPrefMap& PrefsUtil::GetAllowlistedKeys() {
   (*s_allowlist)[ash::prefs::kUserCameraAllowed] =
       settings_api::PrefType::PREF_TYPE_BOOLEAN;
   (*s_allowlist)[ash::prefs::kUserMicrophoneAllowed] =
+      settings_api::PrefType::PREF_TYPE_BOOLEAN;
+  (*s_allowlist)[ash::prefs::kUserSpeakOnMuteDetectionEnabled] =
       settings_api::PrefType::PREF_TYPE_BOOLEAN;
   (*s_allowlist)[ash::prefs::kUserGeolocationAllowed] =
       settings_api::PrefType::PREF_TYPE_BOOLEAN;
@@ -1048,18 +1084,13 @@ const PrefsUtil::TypedPrefMap& PrefsUtil::GetAllowlistedKeys() {
   (*s_allowlist)[media_router::prefs::kMediaRouterMediaRemotingEnabled] =
       settings_api::PrefType::PREF_TYPE_BOOLEAN;
 
-#if BUILDFLAG(IS_WIN)
-  // SwReporter settings.
-  (*s_allowlist)[::prefs::kSwReporterEnabled] =
-      settings_api::PrefType::PREF_TYPE_BOOLEAN;
-  (*s_allowlist)[::prefs::kSwReporterReportingEnabled] =
-      settings_api::PrefType::PREF_TYPE_BOOLEAN;
-#endif
-
   // Performance settings.
   (*s_allowlist)
-      [performance_manager::user_tuning::prefs::kHighEfficiencyModeEnabled] =
-          settings_api::PrefType::PREF_TYPE_BOOLEAN;
+      [performance_manager::user_tuning::prefs::kHighEfficiencyModeState] =
+          settings_api::PrefType::PREF_TYPE_NUMBER;
+  (*s_allowlist)[performance_manager::user_tuning::prefs::
+                     kHighEfficiencyModeTimeBeforeDiscardInMinutes] =
+      settings_api::PrefType::PREF_TYPE_NUMBER;
   (*s_allowlist)
       [performance_manager::user_tuning::prefs::kBatterySaverModeState] =
           settings_api::PrefType::PREF_TYPE_NUMBER;
@@ -1173,19 +1204,38 @@ absl::optional<settings_api::PrefObject> PrefsUtil::GetPref(
     return pref_object;
   }
 #endif
-
-  if (pref && pref->IsManaged()) {
-    if (profile_->IsChild()) {
-      pref_object->controlled_by =
-          settings_api::ControlledBy::CONTROLLED_BY_CHILD_RESTRICTION;
-    } else {
+  if (base::FeatureList::IsEnabled(
+          supervised_user::kSupervisedPrefsControlledBySupervisedStore)) {
+    if (pref && pref->IsManaged()) {
       pref_object->controlled_by =
           settings_api::ControlledBy::CONTROLLED_BY_USER_POLICY;
     }
-    pref_object->enforcement = settings_api::Enforcement::ENFORCEMENT_ENFORCED;
-    return pref_object;
-  }
 
+    if (pref && pref->IsManagedByCustodian()) {
+      pref_object->controlled_by =
+          settings_api::ControlledBy::CONTROLLED_BY_CHILD_RESTRICTION;
+    }
+
+    if (pref_object->controlled_by !=
+        settings_api::ControlledBy::CONTROLLED_BY_NONE) {
+      pref_object->enforcement =
+          settings_api::Enforcement::ENFORCEMENT_ENFORCED;
+      return pref_object;
+    }
+  } else {
+    if (pref && pref->IsManaged()) {
+      if (profile_->IsChild()) {
+        pref_object->controlled_by =
+            settings_api::ControlledBy::CONTROLLED_BY_CHILD_RESTRICTION;
+      } else {
+        pref_object->controlled_by =
+            settings_api::ControlledBy::CONTROLLED_BY_USER_POLICY;
+      }
+      pref_object->enforcement =
+          settings_api::Enforcement::ENFORCEMENT_ENFORCED;
+      return pref_object;
+    }
+  }
   // A pref is recommended if it has a recommended value, regardless of whether
   // the current value is set by policy. The UI will test to see whether the
   // current value matches the recommended value and inform the user.

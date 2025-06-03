@@ -116,6 +116,11 @@ angle::Result RenderbufferVk::setStorageImpl(const gl::Context *context,
         createFlags |= VK_IMAGE_CREATE_MULTISAMPLED_RENDER_TO_SINGLE_SAMPLED_BIT_EXT;
     }
 
+    if (contextVk->getFeatures().limitSampleCountTo2.enabled)
+    {
+        samples = std::min(samples, 2);
+    }
+
     const uint32_t imageSamples = isRenderToTexture ? 1 : samples;
 
     bool robustInit = contextVk->isRobustResourceInitEnabled();
@@ -127,8 +132,8 @@ angle::Result RenderbufferVk::setStorageImpl(const gl::Context *context,
                                    gl::LevelIndex(0), 1, 1, robustInit, false));
 
     VkMemoryPropertyFlags flags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-    ANGLE_TRY(mImage->initMemory(contextVk, false, renderer->getMemoryProperties(), flags,
-                                 vk::MemoryAllocationType::RenderBufferStorageImage));
+    ANGLE_TRY(contextVk->initImageAllocation(mImage, false, renderer->getMemoryProperties(), flags,
+                                             vk::MemoryAllocationType::RenderBufferStorageImage));
 
     // If multisampled render to texture, an implicit multisampled image is created which is used as
     // the color or depth/stencil attachment.  At the end of the render pass, this image is

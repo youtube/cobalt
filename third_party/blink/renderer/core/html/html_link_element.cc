@@ -86,10 +86,8 @@ void HTMLLinkElement::ParseAttribute(
     }
     rel_list_->DidUpdateAttributeValue(params.old_value, value);
     Process();
-  } else if (name == html_names::kBlockingAttr &&
-             RuntimeEnabledFeatures::BlockingAttributeEnabled()) {
-    blocking_attribute_->DidUpdateAttributeValue(params.old_value, value);
-    blocking_attribute_->CountTokenUsage();
+  } else if (name == html_names::kBlockingAttr) {
+    blocking_attribute_->OnAttributeValueChanged(params.old_value, value);
     if (!IsPotentiallyRenderBlocking()) {
       if (GetLinkStyle() && GetLinkStyle()->StyleSheetIsLoading())
         GetLinkStyle()->UnblockRenderingForPendingSheet();
@@ -124,9 +122,7 @@ void HTMLLinkElement::ParseAttribute(
     Process(LinkLoadParameters::Reason::kMediaChange);
   } else if (name == html_names::kIntegrityAttr) {
     integrity_ = value;
-  } else if (name == html_names::kFetchpriorityAttr &&
-             RuntimeEnabledFeatures::PriorityHintsEnabled(
-                 GetExecutionContext())) {
+  } else if (name == html_names::kFetchpriorityAttr) {
     UseCounter::Count(GetDocument(), WebFeature::kPriorityHints);
     fetch_priority_hint_ = value;
   } else if (name == html_names::kDisabledAttr) {
@@ -352,17 +348,6 @@ bool HTMLLinkElement::IsURLAttribute(const Attribute& attribute) const {
 bool HTMLLinkElement::HasLegalLinkAttribute(const QualifiedName& name) const {
   return name == html_names::kHrefAttr ||
          HTMLElement::HasLegalLinkAttribute(name);
-}
-
-const QualifiedName& HTMLLinkElement::SubResourceAttributeName() const {
-  // If the link element is not css, ignore it.
-  if (EqualIgnoringASCIICase(FastGetAttribute(html_names::kTypeAttr),
-                             "text/css")) {
-    // FIXME: Add support for extracting links of sub-resources which
-    // are inside style-sheet such as @import, @font-face, url(), etc.
-    return html_names::kHrefAttr;
-  }
-  return HTMLElement::SubResourceAttributeName();
 }
 
 KURL HTMLLinkElement::Href() const {

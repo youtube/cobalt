@@ -55,7 +55,7 @@ using testing::Not;
     specifics.mutable_##Key();                                      \
     base::Value value = EntitySpecificsToValue(specifics);          \
     ASSERT_TRUE(value.is_dict());                                   \
-    EXPECT_EQ(1, static_cast<int>(value.DictSize()));               \
+    EXPECT_EQ(1u, value.GetDict().size());                          \
   }
 
 // We'd also like to check if we changed any field in our messages. However,
@@ -65,7 +65,7 @@ using testing::Not;
 
 DEFINE_SPECIFICS_TO_VALUE_TEST(encrypted)
 
-static_assert(46 == syncer::GetNumModelTypes(),
+static_assert(47 == syncer::GetNumModelTypes(),
               "When adding a new field, add a DEFINE_SPECIFICS_TO_VALUE_TEST "
               "for your field below, and optionally a test for the specific "
               "conversions.");
@@ -78,6 +78,7 @@ DEFINE_SPECIFICS_TO_VALUE_TEST(autofill)
 DEFINE_SPECIFICS_TO_VALUE_TEST(autofill_offer)
 DEFINE_SPECIFICS_TO_VALUE_TEST(autofill_profile)
 DEFINE_SPECIFICS_TO_VALUE_TEST(autofill_wallet)
+DEFINE_SPECIFICS_TO_VALUE_TEST(autofill_wallet_credential)
 DEFINE_SPECIFICS_TO_VALUE_TEST(autofill_wallet_usage)
 DEFINE_SPECIFICS_TO_VALUE_TEST(bookmark)
 DEFINE_SPECIFICS_TO_VALUE_TEST(contact_info)
@@ -87,10 +88,12 @@ DEFINE_SPECIFICS_TO_VALUE_TEST(extension)
 DEFINE_SPECIFICS_TO_VALUE_TEST(extension_setting)
 DEFINE_SPECIFICS_TO_VALUE_TEST(history)
 DEFINE_SPECIFICS_TO_VALUE_TEST(history_delete_directive)
+DEFINE_SPECIFICS_TO_VALUE_TEST(incoming_password_sharing_invitation)
 DEFINE_SPECIFICS_TO_VALUE_TEST(managed_user_setting)
 DEFINE_SPECIFICS_TO_VALUE_TEST(nigori)
 DEFINE_SPECIFICS_TO_VALUE_TEST(os_preference)
 DEFINE_SPECIFICS_TO_VALUE_TEST(os_priority_preference)
+DEFINE_SPECIFICS_TO_VALUE_TEST(outgoing_password_sharing_invitation)
 DEFINE_SPECIFICS_TO_VALUE_TEST(password)
 DEFINE_SPECIFICS_TO_VALUE_TEST(power_bookmark)
 DEFINE_SPECIFICS_TO_VALUE_TEST(preference)

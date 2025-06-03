@@ -13,7 +13,6 @@ try_.defaults.set(
     pool = try_.DEFAULT_POOL,
     builderless = True,
     cores = 8,
-    check_for_flakiness = True,
     execution_timeout = try_.DEFAULT_EXECUTION_TIMEOUT,
     reclient_instance = reclient.instance.DEFAULT_UNTRUSTED,
     reclient_jobs = reclient.jobs.LOW_JOBS_FOR_CQ,
@@ -22,6 +21,14 @@ try_.defaults.set(
 
 consoles.list_view(
     name = "tryserver.chromium.cft",
+)
+
+try_.builder(
+    name = "linux-arm64-rel-cft",
+    mirrors = [
+        "ci/linux-arm64-rel-cft",
+    ],
+    os = os.LINUX_DEFAULT,
 )
 
 try_.builder(

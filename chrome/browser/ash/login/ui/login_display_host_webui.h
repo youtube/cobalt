@@ -19,7 +19,6 @@
 #include "base/timer/timer.h"
 #include "chrome/browser/ash/login/existing_user_controller.h"
 #include "chrome/browser/ash/login/oobe_configuration.h"
-#include "chrome/browser/ash/login/ui/login_display.h"
 #include "chrome/browser/ash/login/ui/login_display_host_common.h"
 #include "chrome/browser/ash/login/wizard_controller.h"
 #include "chrome/browser/ui/webui/ash/login/oobe_ui.h"
@@ -37,7 +36,6 @@
 
 namespace ash {
 class FocusRingController;
-class LoginDisplayWebUI;
 class WebUILoginView;
 
 // An implementation class for OOBE and user adding screen host via WebUI.
@@ -67,7 +65,6 @@ class LoginDisplayHostWebUI : public LoginDisplayHostCommon,
   ~LoginDisplayHostWebUI() override;
 
   // LoginDisplayHost:
-  LoginDisplay* GetLoginDisplay() override;
   ExistingUserController* GetExistingUserController() override;
   gfx::NativeWindow GetNativeWindow() const override;
   views::Widget* GetLoginWindowWidget() const override;
@@ -156,6 +153,7 @@ class LoginDisplayHostWebUI : public LoginDisplayHostCommon,
   // OobeUI::Observer:
   void OnCurrentScreenChanged(OobeScreenId current_screen,
                               OobeScreenId new_screen) override;
+  void OnBackdropLoaded() override;
   void OnDestroyingOobeUI() override;
 
   // LoginDisplayHostCommon:
@@ -211,6 +209,13 @@ class LoginDisplayHostWebUI : public LoginDisplayHostCommon,
   // Show OOBE WebUI if signal from javascript side never came.
   void OnShowWebUITimeout();
 
+  // Callback that is called once booting animation in views has finished
+  // running, but the last frame is still shown.
+  void OnViewsBootingAnimationPlayed();
+
+  // Finishes booting animation in views and triggers the WebUI part.
+  void FinishBootingAnimation();
+
   // Sign in screen controller.
   std::unique_ptr<ExistingUserController> existing_user_controller_;
 
@@ -222,9 +227,6 @@ class LoginDisplayHostWebUI : public LoginDisplayHostCommon,
 
   // Container of the view we are displaying.
   raw_ptr<WebUILoginView, ExperimentalAsh> login_view_ = nullptr;
-
-  // Login display we are using.
-  std::unique_ptr<LoginDisplayWebUI> login_display_;
 
   // Stores status area current visibility to be applied once login WebUI
   // is shown.
@@ -261,6 +263,13 @@ class LoginDisplayHostWebUI : public LoginDisplayHostCommon,
 
   // True if we need to play startup sound when audio device becomes available.
   bool need_to_play_startup_sound_ = false;
+
+  // True if WebUI has loaded the minimum UI that can be shown. It is used to
+  // synchronize the booting animation between views and WebUI.
+  bool webui_ready_to_take_over_ = false;
+
+  // True if booting animation has finished playing.
+  bool booting_animation_finished_playing_ = false;
 
   // Measures OOBE WebUI load time.
   absl::optional<base::ElapsedTimer> oobe_load_timer_;

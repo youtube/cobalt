@@ -8,6 +8,7 @@
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/frame/web_feature.h"
+#include "third_party/blink/renderer/core/highlight/highlight_style_utils.h"
 #include "third_party/blink/renderer/core/layout/layout_replaced.h"
 #include "third_party/blink/renderer/core/layout/layout_theme.h"
 #include "third_party/blink/renderer/core/layout/layout_view.h"
@@ -18,7 +19,6 @@
 #include "third_party/blink/renderer/core/paint/box_model_object_painter.h"
 #include "third_party/blink/renderer/core/paint/box_painter.h"
 #include "third_party/blink/renderer/core/paint/box_painter_base.h"
-#include "third_party/blink/renderer/core/paint/highlight_painting_utils.h"
 #include "third_party/blink/renderer/core/paint/object_painter.h"
 #include "third_party/blink/renderer/core/paint/paint_auto_dark_mode.h"
 #include "third_party/blink/renderer/core/paint/paint_info.h"
@@ -124,36 +124,31 @@ void ReplacedPainter::Paint(const PaintInfo& paint_info) {
 
   if (ShouldPaintBoxDecorationBackground(local_paint_info)) {
     bool should_paint_background = false;
-    if (layout_replaced_.StyleRef().Visibility() == EVisibility::kVisible) {
-      if (layout_replaced_.HasBoxDecorationBackground()) {
+    if (RuntimeEnabledFeatures::HitTestOpaquenessEnabled() &&
+        // TODO(crbug.com/1477914): Without this condition, scaled canvas
+        // would become pixelated on Linux.
+        !layout_replaced_.IsCanvas()) {
+      should_paint_background = true;
+    } else if (layout_replaced_.HasBoxDecorationBackground()) {
+      should_paint_background = true;
+    } else if (layout_replaced_.HasEffectiveAllowedTouchAction() ||
+               layout_replaced_.InsideBlockingWheelEventHandler()) {
+      should_paint_background = true;
+    } else {
+      Element* element = DynamicTo<Element>(layout_replaced_.GetNode());
+      if (element && element->GetRegionCaptureCropId()) {
         should_paint_background = true;
-      } else if (layout_replaced_.HasEffectiveAllowedTouchAction() ||
-                 layout_replaced_.InsideBlockingWheelEventHandler()) {
-        should_paint_background = true;
-      } else {
-        Element* element = DynamicTo<Element>(layout_replaced_.GetNode());
-        if (element && element->GetRegionCaptureCropId()) {
-          should_paint_background = true;
-        }
       }
     }
     if (should_paint_background) {
-      if (layout_replaced_.DrawsBackgroundOntoContentLayer()) {
-        // If the background paints into the content layer, we can skip painting
-        // the background but still need to paint the hit test rects.
-        BoxPainter(layout_replaced_)
-            .RecordHitTestData(local_paint_info, border_rect, layout_replaced_);
-        BoxPainter(layout_replaced_)
-            .RecordRegionCaptureData(local_paint_info, border_rect,
-                                     layout_replaced_);
-        return;
-      }
-
       PaintBoxDecorationBackground(local_paint_info, paint_offset);
     }
+
     // We're done. We don't bother painting any children.
-    if (local_paint_info.phase == PaintPhase::kSelfBlockBackgroundOnly)
+    if (layout_replaced_.DrawsBackgroundOntoContentLayer() ||
+        local_paint_info.phase == PaintPhase::kSelfBlockBackgroundOnly) {
       return;
+    }
   }
 
   if (local_paint_info.phase == PaintPhase::kMask) {
@@ -236,7 +231,7 @@ void ReplacedPainter::Paint(const PaintInfo& paint_info) {
     DrawingRecorder recorder(local_paint_info.context, layout_replaced_,
                              DisplayItem::kSelectionTint,
                              selection_painting_int_rect);
-    Color selection_bg = HighlightPaintingUtils::HighlightBackgroundColor(
+    Color selection_bg = HighlightStyleUtils::HighlightBackgroundColor(
         layout_replaced_.GetDocument(), layout_replaced_.StyleRef(),
         layout_replaced_.GetNode(), absl::nullopt, kPseudoIdSelection);
     local_paint_info.context.FillRect(
@@ -266,7 +261,7 @@ bool ReplacedPainter::ShouldPaint(const ScopedPaintState& paint_state) const {
       layout_replaced_.StyleRef().Visibility() != EVisibility::kVisible)
     return false;
 
-  PhysicalRect local_rect = layout_replaced_.PhysicalVisualOverflowRect();
+  PhysicalRect local_rect = layout_replaced_.VisualOverflowRect();
   local_rect.Unite(layout_replaced_.LocalSelectionVisualRect());
   if (!paint_state.LocalRectIntersectsCullRect(local_rect))
     return false;
@@ -281,11 +276,11 @@ void ReplacedPainter::MeasureOverflowMetrics() const {
     return;
   }
 
-  auto overflow_size = layout_replaced_.PhysicalVisualOverflowRect().size;
+  auto overflow_size = layout_replaced_.VisualOverflowRect().size;
   auto overflow_area = overflow_size.width * overflow_size.height;
 
   auto content_size = layout_replaced_.Size();
-  auto content_area = content_size.Width() * content_size.Height();
+  auto content_area = content_size.width * content_size.height;
 
   DCHECK_GE(overflow_area, content_area);
   if (overflow_area == content_area)
@@ -311,7 +306,8 @@ void ReplacedPainter::MeasureOverflowMetrics() const {
 void ReplacedPainter::PaintBoxDecorationBackground(
     const PaintInfo& paint_info,
     const PhysicalOffset& paint_offset) {
-  if (layout_replaced_.StyleRef().Visibility() != EVisibility::kVisible) {
+  const ComputedStyle& style = layout_replaced_.StyleRef();
+  if (style.Visibility() != EVisibility::kVisible) {
     return;
   }
 
@@ -325,13 +321,14 @@ void ReplacedPainter::PaintBoxDecorationBackground(
     // For the case where we are painting the background in the contents space,
     // we need to include the entire overflow rect.
     paint_rect = layout_replaced_.PhysicalLayoutOverflowRect();
-    contents_paint_state.emplace(paint_info, paint_offset, layout_replaced_);
+    contents_paint_state.emplace(paint_info, paint_offset, layout_replaced_,
+                                 paint_info.FragmentDataOverride());
     paint_rect.Move(contents_paint_state->PaintOffset());
 
     // The background painting code assumes that the borders are part of the
     // paint_rect so we expand the paint_rect by the border size when painting
     // the background into the scrolling contents layer.
-    paint_rect.Expand(layout_replaced_.BorderBoxOutsets());
+    paint_rect.Expand(layout_replaced_.BorderOutsets());
 
     background_client = &layout_replaced_.GetScrollableArea()
                              ->GetScrollingBackgroundDisplayItemClient();
@@ -345,19 +342,17 @@ void ReplacedPainter::PaintBoxDecorationBackground(
     visual_rect = BoxPainter(layout_replaced_).VisualRect(paint_offset);
   }
 
-  // Paint the background if we're visible and this block has a box decoration
-  // (background, border, appearance, or box shadow).
-  const ComputedStyle& style = layout_replaced_.StyleRef();
-  if (style.Visibility() == EVisibility::kVisible &&
-      layout_replaced_.HasBoxDecorationBackground()) {
+  if (layout_replaced_.HasBoxDecorationBackground() &&
+      !layout_replaced_.DrawsBackgroundOntoContentLayer()) {
     PaintBoxDecorationBackgroundWithRect(
         contents_paint_state ? contents_paint_state->GetPaintInfo()
                              : paint_info,
         visual_rect, paint_rect, *background_client);
   }
 
-  BoxPainter(layout_replaced_)
-      .RecordHitTestData(paint_info, paint_rect, *background_client);
+  ObjectPainter(layout_replaced_)
+      .RecordHitTestData(paint_info, ToPixelSnappedRect(paint_rect),
+                         *background_client);
   BoxPainter(layout_replaced_)
       .RecordRegionCaptureData(paint_info, paint_rect, *background_client);
 
@@ -366,7 +361,8 @@ void ReplacedPainter::PaintBoxDecorationBackground(
   // if this were immediately before the non-scrolling background.
   if (!painting_background_in_contents_space) {
     BoxPainter(layout_replaced_)
-        .RecordScrollHitTestData(paint_info, *background_client);
+        .RecordScrollHitTestData(paint_info, *background_client,
+                                 paint_info.FragmentDataOverride());
   }
 }
 

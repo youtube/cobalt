@@ -41,9 +41,11 @@
 #include "components/omnibox/browser/autocomplete_provider.h"
 #include "components/omnibox/browser/autocomplete_provider_client.h"
 #include "components/omnibox/browser/autocomplete_result.h"
+#include "components/omnibox/browser/history_fuzzy_provider.h"
 #include "components/omnibox/browser/omnibox_event_global_tracker.h"
 #include "components/omnibox/browser/omnibox_field_trial.h"
 #include "components/omnibox/browser/omnibox_log.h"
+#include "components/omnibox/browser/omnibox_popup_selection.h"
 #include "components/omnibox/browser/page_classification_functions.h"
 #include "components/omnibox/browser/suggestion_answer.h"
 #include "components/omnibox/browser/voice_suggest_provider.h"
@@ -115,7 +117,6 @@ AutocompleteControllerAndroid::AutocompleteControllerAndroid(
     std::unique_ptr<ChromeAutocompleteProviderClient> client)
     : profile_{profile},
       java_controller_{env, jcontroller.obj()},
-      provider_client_{client.get()},
       autocomplete_controller_{std::make_unique<AutocompleteController>(
           std::move(client),
           AutocompleteClassifier::DefaultOmniboxProviders())} {
@@ -200,14 +201,12 @@ void AutocompleteControllerAndroid::StartPrefetch(
 
 ScopedJavaLocalRef<jobject> AutocompleteControllerAndroid::Classify(
     JNIEnv* env,
-    const JavaParamRef<jstring>& j_text,
-    bool focused_from_fakebox) {
+    const JavaParamRef<jstring>& j_text) {
   // The old AutocompleteResult is about to be invalidated.
   autocomplete_controller_->result().DestroyJavaObject();
 
   inside_synchronous_start_ = true;
-  Start(env, j_text, -1, nullptr, nullptr, true, false, false, false,
-        focused_from_fakebox);
+  Start(env, j_text, -1, nullptr, nullptr, true, false, false, false, false);
   inside_synchronous_start_ = false;
   DCHECK(autocomplete_controller_->done());
   const AutocompleteResult& result = autocomplete_controller_->result();
@@ -295,7 +294,8 @@ void AutocompleteControllerAndroid::ResetSession(JNIEnv* env) {
 
 void AutocompleteControllerAndroid::OnSuggestionSelected(
     JNIEnv* env,
-    jint match_index,
+    uintptr_t match_ptr,
+    int suggestion_line,
     const jint j_window_open_disposition,
     const JavaParamRef<jstring>& j_current_url,
     jint j_page_classification,
@@ -308,7 +308,7 @@ void AutocompleteControllerAndroid::OnSuggestionSelected(
   content::WebContents* web_contents =
       content::WebContents::FromJavaWebContents(j_web_contents);
 
-  const auto& match = autocomplete_controller_->result().match_at(match_index);
+  const auto& match = *reinterpret_cast<AutocompleteMatch*>(match_ptr);
   SuggestionAnswer::LogAnswerUsed(match.answer);
   TemplateURLService* template_url_service =
       TemplateURLServiceFactory::GetForProfile(profile_);
@@ -320,6 +320,8 @@ void AutocompleteControllerAndroid::OnSuggestionSelected(
   }
 
   RecordClipboardMetrics(match.type);
+  HistoryFuzzyProvider::RecordOpenMatchMetrics(
+      autocomplete_controller_->result(), match);
 
   // The following histogram should be recorded for both TYPED and pasted
   // URLs, but should still exclude reloads.
@@ -341,7 +343,7 @@ void AutocompleteControllerAndroid::OnSuggestionSelected(
           : input_.text(),
       false,                /* don't know */
       input_.type(), false, /* not keyword mode */
-      OmniboxEventProto::INVALID, true, match_index,
+      OmniboxEventProto::INVALID, true, OmniboxPopupSelection(suggestion_line),
       static_cast<WindowOpenDisposition>(j_window_open_disposition), false,
       sessions::SessionTabHelper::IdForTab(web_contents),
       OmniboxEventProto::PageClassification(j_page_classification),
@@ -374,60 +376,56 @@ void AutocompleteControllerAndroid::OnSuggestionSelected(
       ->OnOmniboxOpenedUrl(log);
 }
 
-void AutocompleteControllerAndroid::DeleteMatch(JNIEnv* env, jint match_index) {
-  const auto& match = autocomplete_controller_->result().match_at(match_index);
-  if (match.SupportsDeletion())
-    autocomplete_controller_->DeleteMatch(match);
+jboolean AutocompleteControllerAndroid::OnSuggestionTouchDown(
+    JNIEnv* env,
+    uintptr_t match_ptr,
+    int match_index,
+    const base::android::JavaParamRef<jobject>& j_web_contents) {
+  const auto& match = *reinterpret_cast<AutocompleteMatch*>(match_ptr);
+
+  if (SearchPrefetchService* search_prefetch_service =
+          SearchPrefetchServiceFactory::GetForProfile(profile_)) {
+    return search_prefetch_service->OnNavigationLikely(
+        match_index, match, omnibox::mojom::NavigationPredictor::kTouchDown,
+        content::WebContents::FromJavaWebContents(j_web_contents));
+  }
+  return false;
+}
+
+void AutocompleteControllerAndroid::DeleteMatch(JNIEnv* env,
+                                                uintptr_t match_ptr) {
+  const auto* match = reinterpret_cast<AutocompleteMatch*>(match_ptr);
+  if (match->SupportsDeletion()) {
+    autocomplete_controller_->DeleteMatch(*match);
+  }
 }
 
 void AutocompleteControllerAndroid::DeleteMatchElement(JNIEnv* env,
-                                                       jint match_index,
+                                                       uintptr_t match_ptr,
                                                        jint element_index) {
-  const auto& match = autocomplete_controller_->result().match_at(match_index);
-  if (match.SupportsDeletion())
-    autocomplete_controller_->DeleteMatchElement(match, element_index);
+  const auto* match = reinterpret_cast<AutocompleteMatch*>(match_ptr);
+  if (match->SupportsDeletion()) {
+    autocomplete_controller_->DeleteMatchElement(*match, element_index);
+  }
 }
 
 ScopedJavaLocalRef<jobject> AutocompleteControllerAndroid::
     UpdateMatchDestinationURLWithAdditionalAssistedQueryStats(
         JNIEnv* env,
-        jint match_index,
-        jlong elapsed_time_since_input_change,
-        const JavaParamRef<jstring>& jnew_query_text,
-        const JavaParamRef<jobjectArray>& jnew_query_params) {
-  AutocompleteMatch match(
-      autocomplete_controller_->result().match_at(match_index));
-
-  if (!jnew_query_text.is_null()) {
-    std::u16string query = ConvertJavaStringToUTF16(env, jnew_query_text);
-    if (!match.search_terms_args) {
-      match.search_terms_args =
-          std::make_unique<TemplateURLRef::SearchTermsArgs>(query);
-    } else {
-      match.search_terms_args->search_terms = query;
-    }
-  }
-
-  if (!jnew_query_params.is_null() && match.search_terms_args) {
-    std::vector<std::string> params;
-    base::android::AppendJavaStringArrayToStringVector(env, jnew_query_params,
-                                                       &params);
-    // The query params are from the query tiles server and doesn't need to be
-    // escaped.
-    match.search_terms_args->additional_query_params =
-        base::JoinString(params, "&");
-  }
+        uintptr_t match_ptr,
+        jlong elapsed_time_since_input_change) {
+  auto* match = reinterpret_cast<AutocompleteMatch*>(match_ptr);
   autocomplete_controller_
       ->UpdateMatchDestinationURLWithAdditionalAssistedQueryStats(
-          base::Milliseconds(elapsed_time_since_input_change), &match);
-  return url::GURLAndroid::FromNativeGURL(env, match.destination_url);
+          base::Milliseconds(elapsed_time_since_input_change), match);
+  return url::GURLAndroid::FromNativeGURL(env, match->destination_url);
 }
 
 ScopedJavaLocalRef<jobject>
-AutocompleteControllerAndroid::GetMatchingTabForSuggestion(JNIEnv* env,
-                                                           jint match_index) {
-  const AutocompleteMatch& match =
-      autocomplete_controller_->result().match_at(match_index);
+AutocompleteControllerAndroid::GetMatchingTabForSuggestion(
+    JNIEnv* env,
+    uintptr_t match_ptr) {
+  const auto& match = *reinterpret_cast<AutocompleteMatch*>(match_ptr);
   return match.GetMatchingJavaTab().get(env);
 }
 

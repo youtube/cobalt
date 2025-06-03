@@ -71,44 +71,15 @@ function check_PointerEvent(event, testNamePrefix) {
     "boolean": function (v) { return typeof v === "boolean" },
     "object": function (v) { return typeof v === "object" }
   };
-  [
-    ["long", "pointerId"],
-    ["float", "width"],
-    ["float", "height"],
-    ["float", "pressure"],
-    ["long", "tiltX"],
-    ["long", "tiltY"],
-    ["string", "pointerType"],
-    ["boolean", "isPrimary"],
-    ["long", "detail", 0],
-    ["object", "fromElement"],
-    ["object", "toElement"],
-    ["boolean", "isTrusted"],
-    ["boolean", "composed"],
-    ["boolean", "bubbles"]
-  ].forEach(function (attr) {
-    var type = attr[0];
-    var name = attr[1];
-
-    test(function () {
-      // Existence check.
-      assert_true(name in event, "attribute exists");
-
-      // Readonly check.
-      assert_readonly(event.type, name, "attribute is readonly");
-
-      // Type check.
-      assert_true(idl_type_check[type](event[name]),
-        "attribute type " + type + " (JS type was " + typeof event[name] + ")");
-    }, pointerTestName + "." + name + " conforms to WebIDL");
-  });
 
   // Check values for inherited attributes.
   // https://w3c.github.io/pointerevents/#attributes-and-default-actions
   test(function () {
+    assert_implements_optional("fromElement" in event);
     assert_equals(event.fromElement, null);
   }, pointerTestName + ".fromElement value is null");
   test(function () {
+    assert_implements_optional("toElement" in event);
     assert_equals(event.toElement, null);
   }, pointerTestName + ".toElement value is null");
   test(function () {
@@ -122,6 +93,12 @@ function check_PointerEvent(event, testNamePrefix) {
     let expected = (event.type != 'pointerenter' && event.type != 'pointerleave');
     assert_equals(event.bubbles, expected);
   }, pointerTestName + ".bubbles value is valid");
+  test(function () {
+    let cancelable_events = [
+      'pointerdown', 'pointermove', 'pointerup', 'pointerover', 'pointerout'
+    ];
+    assert_equals(event.cancelable, cancelable_events.includes(event.type));
+  }, pointerTestName + ".cancelable value is valid");
 
   // Check the pressure value.
   // https://w3c.github.io/pointerevents/#dom-pointerevent-pressure
@@ -504,33 +481,56 @@ function arePointerEventsBeforeCompatMouseEvents(events) {
 
 // Returns a |Promise| that gets resolved with the event object when |target|
 // receives an event of type |event_type|.
-function getEvent(event_type, target) {
+//
+// The optional |test| parameter adds event handler cleanup for the case |test|
+// terminates before the event is received.
+function getEvent(event_type, target, test) {
   return new Promise(resolve => {
-    target.addEventListener(event_type, e => resolve(e), { once: true });
+    const listener = e => resolve(e);
+    target.addEventListener(event_type, listener, { once: true });
+    if (test) {
+      test.add_cleanup(() =>
+          target.removeEventListener(event_type, listener, { once: true }));
+    }
   });
 }
 
 // Returns a |Promise| that gets resolved with |event.data| when |window|
-// receives from |source| a "message" event whose |event.data.type| matches the string
-// |message_data_type|.
-function getMessageData(message_data_type, source) {
+// receives from |source| a "message" event whose |event.data.type| matches the
+// string |message_data_type|.
+//
+// The optional |test| parameter adds event handler cleanup for the case |test|
+// terminates before a matching event is received.
+function getMessageData(message_data_type, source, test) {
   return new Promise(resolve => {
-    function waitAndRemove(e) {
+    const listener = e => {
       if (e.source != source || !e.data || e.data.type != message_data_type)
         return;
-      window.removeEventListener("message", waitAndRemove);
+      window.removeEventListener("message", listener);
       resolve(e.data);
     }
-    window.addEventListener("message", waitAndRemove);
+
+    window.addEventListener("message", listener);
+    if (test) {
+      test.add_cleanup(() =>
+          window.removeEventListener("message", listener));
+    }
   });
 }
 
-function preventDefaultPointerdownOnce(target) {
-  return new Promise(
-    (resolve) => {
-      target.addEventListener("pointerdown", (event) => {
-        event.preventDefault();
-        resolve();
-      }, { once: true });
-    });
+// The optional |test| parameter adds event handler cleanup for the case |test|
+// terminates before the event is received.
+function preventDefaultPointerdownOnce(target, test) {
+  return new Promise((resolve) => {
+    const listener = e => {
+      e.preventDefault();
+      resolve();
+    }
+
+    target.addEventListener("pointerdown", listener, { once: true });
+    if (test) {
+      test.add_cleanup(() =>
+          target.removeEventListener("pointerdown", listener, { once: true }));
+    }
+  });
 }

@@ -15,9 +15,9 @@
 #include <limits>
 #include <string>
 
+#include "base/apple/foundation_util.h"
 #include "base/containers/fixed_flat_set.h"
 #include "base/logging.h"
-#include "base/mac/foundation_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "device/gamepad/gamepad_id_list.h"
@@ -131,8 +131,8 @@ void XboxDataFetcher::DeviceRemoved(void* context, io_iterator_t iterator) {
   io_service_t ref;
   while ((ref = IOIteratorNext(iterator))) {
     base::mac::ScopedIOObject<io_service_t> scoped_ref(ref);
-    base::ScopedCFTypeRef<CFNumberRef> number(
-        base::mac::CFCastStrict<CFNumberRef>(IORegistryEntryCreateCFProperty(
+    base::apple::ScopedCFTypeRef<CFNumberRef> number(
+        base::apple::CFCastStrict<CFNumberRef>(IORegistryEntryCreateCFProperty(
             ref, CFSTR(kUSBDevicePropertyLocationID), kCFAllocatorDefault,
             kNilOptions)));
     UInt32 location_id = 0;
@@ -210,11 +210,11 @@ bool XboxDataFetcher::RegisterForNotifications() {
 
 bool XboxDataFetcher::RegisterForDeviceNotifications(int vendor_id,
                                                      int product_id) {
-  base::ScopedCFTypeRef<CFNumberRef> vendor_cf(
+  base::apple::ScopedCFTypeRef<CFNumberRef> vendor_cf(
       CFNumberCreate(kCFAllocatorDefault, kCFNumberSInt32Type, &vendor_id));
-  base::ScopedCFTypeRef<CFNumberRef> product_cf(
+  base::apple::ScopedCFTypeRef<CFNumberRef> product_cf(
       CFNumberCreate(kCFAllocatorDefault, kCFNumberSInt32Type, &product_id));
-  base::ScopedCFTypeRef<CFMutableDictionaryRef> matching_dict(
+  base::apple::ScopedCFTypeRef<CFMutableDictionaryRef> matching_dict(
       IOServiceMatching(kIOUSBDeviceClassName));
   if (!matching_dict)
     return false;

@@ -27,6 +27,7 @@
 
 #include <memory>
 #include "base/location.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
@@ -117,16 +118,16 @@ class DeferredImageDecoderTest : public testing::Test,
   gfx::Size DecodedSize() const override { return decoded_size_; }
 
   PaintImage CreatePaintImage(
-      PaintImage::CompletionState state = PaintImage::CompletionState::DONE) {
+      PaintImage::CompletionState state = PaintImage::CompletionState::kDone) {
     return CreatePaintImage(lazy_decoder_.get(), state);
   }
 
   PaintImage CreatePaintImage(
       DeferredImageDecoder* decoder,
-      PaintImage::CompletionState state = PaintImage::CompletionState::DONE) {
+      PaintImage::CompletionState state = PaintImage::CompletionState::kDone) {
     PaintImage::AnimationType type = FrameCount() > 1
-                                         ? PaintImage::AnimationType::ANIMATED
-                                         : PaintImage::AnimationType::STATIC;
+                                         ? PaintImage::AnimationType::kAnimated
+                                         : PaintImage::AnimationType::kStatic;
 
     return PaintImageBuilder::WithDefault()
         .set_id(paint_image_id_)
@@ -144,7 +145,7 @@ class DeferredImageDecoderTest : public testing::Test,
 
   // Don't own this but saves the pointer to query states.
   PaintImage::Id paint_image_id_;
-  MockImageDecoder* actual_decoder_;
+  raw_ptr<MockImageDecoder, ExperimentalRenderer> actual_decoder_;
   std::unique_ptr<DeferredImageDecoder> lazy_decoder_;
   SkBitmap bitmap_;
   std::unique_ptr<cc::PaintCanvas> canvas_;
@@ -184,7 +185,7 @@ TEST_F(DeferredImageDecoderTest, drawIntoPaintRecordProgressive) {
   PaintRecorder recorder;
   cc::PaintCanvas* temp_canvas = recorder.beginRecording();
   PaintImage image =
-      CreatePaintImage(PaintImage::CompletionState::PARTIALLY_DONE);
+      CreatePaintImage(PaintImage::CompletionState::kPartiallyDone);
   ASSERT_TRUE(image);
   temp_canvas->drawImage(image, 0, 0);
   canvas_->drawPicture(recorder.finishRecordingAsPicture());
@@ -231,7 +232,7 @@ TEST_F(DeferredImageDecoderTest, notAllDataReceivedPriorToDecode) {
       SharedBuffer::Create(data_->Data(), data_->size() - 10);
   lazy_decoder_->SetData(partial_data, false /* all_data_received */);
   PaintImage image =
-      CreatePaintImage(PaintImage::CompletionState::PARTIALLY_DONE);
+      CreatePaintImage(PaintImage::CompletionState::kPartiallyDone);
   ASSERT_TRUE(image);
   ASSERT_TRUE(image.GetImageHeaderMetadata());
   EXPECT_FALSE(
@@ -381,7 +382,7 @@ TEST_F(DeferredImageDecoderTest, frameOpacity) {
     std::unique_ptr<DeferredImageDecoder> decoder =
         DeferredImageDecoder::Create(data_, true,
                                      ImageDecoder::kAlphaPremultiplied,
-                                     ColorBehavior::TransformToSRGB());
+                                     ColorBehavior::kTransformToSRGB);
 
     SkImageInfo pix_info = SkImageInfo::MakeN32Premul(1, 1);
 

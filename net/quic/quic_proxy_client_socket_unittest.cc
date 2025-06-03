@@ -17,6 +17,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/default_tick_clock.h"
+#include "net/base/proxy_chain.h"
 #include "net/base/proxy_server.h"
 #include "net/base/proxy_string_util.h"
 #include "net/base/test_proxy_delegate.h"
@@ -256,8 +257,7 @@ class QuicProxyClientSocketTest
             kQuicYieldAfterDurationMilliseconds),
         /*cert_verify_flags=*/0, quic::test::DefaultQuicConfig(),
         std::make_unique<TestQuicCryptoClientConfigHandle>(&crypto_config_),
-        "CONNECTION_UNKNOWN", dns_start, dns_end,
-        std::make_unique<quic::QuicClientPushPromiseIndex>(), nullptr,
+        dns_start, dns_end,
         base::DefaultTickClock::GetInstance(),
         base::SingleThreadTaskRunner::GetCurrentDefault().get(),
         /*socket_performance_watcher=*/nullptr, HostResolverEndpointResult(),
@@ -286,11 +286,11 @@ class QuicProxyClientSocketTest
 
     sock_ = std::make_unique<QuicProxyClientSocket>(
         std::move(stream_handle), std::move(session_handle_),
-        // TODO(crbug.com/1206799) Construct `ProxyServer` with plain
+        // TODO(crbug.com/1206799) Construct `ProxyChain` with plain
         // `proxy_endpoint_` once it supports `url::SchemeHostPort`.
-        ProxyServer(ProxyServer::SCHEME_HTTPS,
-                    HostPortPair::FromSchemeHostPort(proxy_endpoint_)),
-        user_agent_,
+        ProxyChain(ProxyServer::SCHEME_HTTPS,
+                   HostPortPair::FromSchemeHostPort(proxy_endpoint_)),
+        /*proxy_chain_index=*/0, user_agent_,
         // TODO(crbug.com/1206799) Construct `QuicProxyClientSocket` with plain
         // `proxy_endpoint_` once it supports `url::SchemeHostPort`.
         HostPortPair::FromSchemeHostPort(destination_endpoint_),
@@ -324,8 +324,8 @@ class QuicProxyClientSocketTest
       uint64_t largest_received,
       uint64_t smallest_received) {
     return client_maker_.MakeAckAndRstPacket(
-        packet_number, !kIncludeVersion, client_data_stream_id1_, error_code,
-        largest_received, smallest_received,
+        packet_number, client_data_stream_id1_, error_code, largest_received,
+        smallest_received,
         /*include_stop_sending_if_v99=*/false);
   }
 
@@ -335,16 +335,16 @@ class QuicProxyClientSocketTest
       uint64_t largest_received,
       uint64_t smallest_received) {
     return client_maker_.MakeAckAndRstPacket(
-        packet_number, !kIncludeVersion, client_data_stream_id1_, error_code,
-        largest_received, smallest_received,
+        packet_number, client_data_stream_id1_, error_code, largest_received,
+        smallest_received,
         /*include_stop_sending_if_v99=*/true);
   }
 
   std::unique_ptr<quic::QuicReceivedPacket> ConstructRstPacket(
       uint64_t packet_number,
       quic::QuicRstStreamErrorCode error_code) {
-    return client_maker_.MakeRstPacket(packet_number, !kIncludeVersion,
-                                       client_data_stream_id1_, error_code,
+    return client_maker_.MakeRstPacket(packet_number, client_data_stream_id1_,
+                                       error_code,
                                        /*include_stop_sending_if_v99=*/true);
   }
 
@@ -354,7 +354,7 @@ class QuicProxyClientSocketTest
     spdy::Http2HeaderBlock block;
     PopulateConnectRequestIR(&block);
     return client_maker_.MakeRequestHeadersPacket(
-        packet_number, client_data_stream_id1_, kIncludeVersion, !kFin,
+        packet_number, client_data_stream_id1_, !kFin,
         ConvertRequestPriorityToQuicPriority(request_priority),
         std::move(block), nullptr);
   }
@@ -372,7 +372,7 @@ class QuicProxyClientSocketTest
       block[header.first] = header.second;
     }
     return client_maker_.MakeRequestHeadersPacket(
-        packet_number, client_data_stream_id1_, kIncludeVersion, !kFin,
+        packet_number, client_data_stream_id1_, !kFin,
         ConvertRequestPriorityToQuicPriority(request_priority),
         std::move(block), nullptr);
   }
@@ -384,26 +384,26 @@ class QuicProxyClientSocketTest
     PopulateConnectRequestIR(&block);
     block["proxy-authorization"] = "Basic Zm9vOmJhcg==";
     return client_maker_.MakeRequestHeadersPacket(
-        packet_number, client_data_stream_id1_, kIncludeVersion, !kFin,
+        packet_number, client_data_stream_id1_, !kFin,
         ConvertRequestPriorityToQuicPriority(request_priority),
         std::move(block), nullptr);
   }
 
   std::unique_ptr<quic::QuicReceivedPacket> ConstructDataPacket(
       uint64_t packet_number,
-      absl::string_view data) {
+      std::string_view data) {
     return client_maker_.MakeDataPacket(packet_number, client_data_stream_id1_,
-                                        !kIncludeVersion, !kFin, data);
+                                        !kFin, data);
   }
 
   std::unique_ptr<quic::QuicReceivedPacket> ConstructAckAndDataPacket(
       uint64_t packet_number,
       uint64_t largest_received,
       uint64_t smallest_received,
-      absl::string_view data) {
+      std::string_view data) {
     return client_maker_.MakeAckAndDataPacket(
-        packet_number, !kIncludeVersion, client_data_stream_id1_,
-        largest_received, smallest_received, !kFin, data);
+        packet_number, client_data_stream_id1_, largest_received,
+        smallest_received, !kFin, data);
   }
 
   std::unique_ptr<quic::QuicReceivedPacket> ConstructAckPacket(
@@ -419,23 +419,23 @@ class QuicProxyClientSocketTest
   std::unique_ptr<quic::QuicReceivedPacket> ConstructServerRstPacket(
       uint64_t packet_number,
       quic::QuicRstStreamErrorCode error_code) {
-    return server_maker_.MakeRstPacket(packet_number, !kIncludeVersion,
-                                       client_data_stream_id1_, error_code,
+    return server_maker_.MakeRstPacket(packet_number, client_data_stream_id1_,
+                                       error_code,
                                        /*include_stop_sending_if_v99=*/true);
   }
 
   std::unique_ptr<quic::QuicReceivedPacket> ConstructServerDataPacket(
       uint64_t packet_number,
-      absl::string_view data) {
+      std::string_view data) {
     return server_maker_.MakeDataPacket(packet_number, client_data_stream_id1_,
-                                        !kIncludeVersion, !kFin, data);
+                                        !kFin, data);
   }
 
   std::unique_ptr<quic::QuicReceivedPacket> ConstructServerDataFinPacket(
       uint64_t packet_number,
-      absl::string_view data) {
+      std::string_view data) {
     return server_maker_.MakeDataPacket(packet_number, client_data_stream_id1_,
-                                        !kIncludeVersion, kFin, data);
+                                        kFin, data);
   }
 
   std::unique_ptr<quic::QuicReceivedPacket> ConstructServerConnectReplyPacket(
@@ -446,8 +446,8 @@ class QuicProxyClientSocketTest
     block[":status"] = "200";
 
     return server_maker_.MakeResponseHeadersPacket(
-        packet_number, client_data_stream_id1_, !kIncludeVersion, fin,
-        std::move(block), header_length);
+        packet_number, client_data_stream_id1_, fin, std::move(block),
+        header_length);
   }
 
   std::unique_ptr<quic::QuicReceivedPacket>
@@ -462,8 +462,7 @@ class QuicProxyClientSocketTest
     }
 
     return server_maker_.MakeResponseHeadersPacket(
-        packet_number, client_data_stream_id1_, !kIncludeVersion, fin,
-        std::move(block), nullptr);
+        packet_number, client_data_stream_id1_, fin, std::move(block), nullptr);
   }
 
   std::unique_ptr<quic::QuicReceivedPacket>
@@ -472,8 +471,7 @@ class QuicProxyClientSocketTest
     block[":status"] = "407";
     block["proxy-authenticate"] = "Basic realm=\"MyRealm1\"";
     return server_maker_.MakeResponseHeadersPacket(
-        packet_number, client_data_stream_id1_, !kIncludeVersion, fin,
-        std::move(block), nullptr);
+        packet_number, client_data_stream_id1_, fin, std::move(block), nullptr);
   }
 
   std::unique_ptr<quic::QuicReceivedPacket>
@@ -483,8 +481,7 @@ class QuicProxyClientSocketTest
     block["location"] = kRedirectUrl;
     block["set-cookie"] = "foo=bar";
     return server_maker_.MakeResponseHeadersPacket(
-        packet_number, client_data_stream_id1_, !kIncludeVersion, fin,
-        std::move(block), nullptr);
+        packet_number, client_data_stream_id1_, fin, std::move(block), nullptr);
   }
 
   std::unique_ptr<quic::QuicReceivedPacket>
@@ -493,8 +490,7 @@ class QuicProxyClientSocketTest
     block[":status"] = "500";
 
     return server_maker_.MakeResponseHeadersPacket(
-        packet_number, client_data_stream_id1_, !kIncludeVersion, fin,
-        std::move(block), nullptr);
+        packet_number, client_data_stream_id1_, fin, std::move(block), nullptr);
   }
 
   void AssertConnectSucceeds() {
@@ -656,24 +652,26 @@ TEST_P(QuicProxyClientSocketTest, ConnectSendsCorrectRequest) {
 }
 
 TEST_P(QuicProxyClientSocketTest, ProxyDelegateExtraHeaders) {
+  // TODO(https://crbug.com/1491092): Add a version of this test for multi-hop.
   proxy_delegate_ = std::make_unique<TestProxyDelegate>();
-  // TODO(crbug.com/1206799) Construct `ProxyServer` with plain
+  // TODO(crbug.com/1206799) Construct `proxy_chain` with plain
   // `proxy_endpoint_` once it supports `url::SchemeHostPort`.
-  ProxyServer proxy_server(ProxyServer::SCHEME_HTTPS,
-                           HostPortPair::FromSchemeHostPort(proxy_endpoint_));
+  ProxyChain proxy_chain(ProxyServer::SCHEME_HTTPS,
+                         HostPortPair::FromSchemeHostPort(proxy_endpoint_));
 
-  const char kResponseHeaderName[] = "foo";
+  const char kResponseHeaderName[] = "bar";
   const char kResponseHeaderValue[] = "testing";
 
   int packet_number = 1;
   mock_quic_data_.AddWrite(SYNCHRONOUS,
                            ConstructSettingsPacket(packet_number++));
-  mock_quic_data_.AddWrite(SYNCHRONOUS,
-                           ConstructConnectRequestPacketWithExtraHeaders(
-                               packet_number++,
-                               // Order matters! Keep these alphabetical.
-                               {{"foo", ProxyServerToProxyUri(proxy_server)},
-                                {"user-agent", kUserAgent}}));
+  mock_quic_data_.AddWrite(
+      SYNCHRONOUS, ConstructConnectRequestPacketWithExtraHeaders(
+                       packet_number++,
+                       // Order matters! Keep these alphabetical.
+                       {{TestProxyDelegate::kTestSpdyHeaderName,
+                         ProxyServerToProxyUri(proxy_chain.proxy_server())},
+                        {"user-agent", kUserAgent}}));
   mock_quic_data_.AddRead(
       ASYNC, ConstructServerConnectReplyPacketWithExtraHeaders(
                  1, !kFin, {{kResponseHeaderName, kResponseHeaderValue}}));
@@ -691,8 +689,11 @@ TEST_P(QuicProxyClientSocketTest, ProxyDelegateExtraHeaders) {
   const HttpResponseInfo* response = sock_->GetConnectResponseInfo();
   ASSERT_TRUE(response != nullptr);
   ASSERT_EQ(200, response->headers->response_code());
-  proxy_delegate_->VerifyOnTunnelHeadersReceived(
-      proxy_server, kResponseHeaderName, kResponseHeaderValue);
+
+  ASSERT_EQ(proxy_delegate_->on_tunnel_headers_received_call_count(), 1u);
+  proxy_delegate_->VerifyOnTunnelHeadersReceived(proxy_chain, /*chain_index=*/0,
+                                                 kResponseHeaderName,
+                                                 kResponseHeaderValue);
 }
 
 TEST_P(QuicProxyClientSocketTest, ConnectWithAuthRequested) {

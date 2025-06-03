@@ -6,6 +6,7 @@
  * @fileoverview guest tos screen implementation.
  */
 
+import '//resources/cr_elements/chromeos/cros_color_overrides.css.js';
 import '//resources/cr_elements/cr_shared_style.css.js';
 import '//resources/cr_elements/cr_toggle/cr_toggle.js';
 import '//resources/js/action_link.js';
@@ -17,6 +18,7 @@ import '../../components/dialogs/oobe_loading_dialog.js';
 import '../../components/dialogs/oobe_modal_dialog.js';
 
 import {html, mixinBehaviors, Polymer, PolymerElement} from '//resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import {sanitizeInnerHtml} from 'chrome://resources/js/parse_html_subset.js';
 
 import {LoginScreenBehavior, LoginScreenBehaviorInterface} from '../../components/behaviors/login_screen_behavior.js';
 import {MultiStepBehavior, MultiStepBehaviorInterface} from '../../components/behaviors/multi_step_behavior.js';
@@ -58,7 +60,7 @@ const GUEST_TOS_ONLINE_LOAD_TIMEOUT_IN_MS = 10000;
  * @implements {MultiStepBehaviorInterface}
  */
 const GuestTosScreenElementBase = mixinBehaviors(
-    [OobeI18nBehavior, MultiStepBehavior, LoginScreenBehavior], PolymerElement);
+    [OobeI18nBehavior, LoginScreenBehavior, MultiStepBehavior], PolymerElement);
 
 /**
  * @polymer
@@ -149,7 +151,8 @@ class GuestTos extends GuestTosScreenElementBase {
     crosEulaLink.setAttribute('is', 'action-link');
     crosEulaLink.classList.add('oobe-local-link');
 
-    return terms.innerHTML;
+    return sanitizeInnerHtml(
+        terms.innerHTML, {tags: ['a'], attrs: ['id', 'is', 'class']});
   }
 
   getUsageLearnMoreText_(locale) {

@@ -36,6 +36,7 @@
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/element.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
+#include "third_party/blink/renderer/core/execution_context/security_context.h"
 #include "third_party/blink/renderer/core/fullscreen/fullscreen_request_type.h"
 #include "third_party/blink/renderer/platform/geometry/layout_rect.h"
 #include "third_party/blink/renderer/platform/supplementable.h"
@@ -86,7 +87,9 @@ class CORE_EXPORT Fullscreen final : public GarbageCollected<Fullscreen>,
                                       ExceptionState* exception_state = nullptr,
                                       bool ua_originated = false);
 
-  static bool FullscreenEnabled(Document&);
+  static bool FullscreenEnabled(
+      Document&,
+      ReportOptions report_on_failure = ReportOptions::kDoNotReport);
 
   // Called by FullscreenController to notify that we've entered or exited
   // fullscreen. All frames are notified, so there may be no pending request.
@@ -133,10 +136,10 @@ class CORE_EXPORT Fullscreen final : public GarbageCollected<Fullscreen>,
     virtual ~PendingRequest();
     virtual void Trace(Visitor* visitor) const;
 
-    Element* element() { return element_; }
+    Element* element() { return element_.Get(); }
     FullscreenRequestType type() { return type_; }
-    const FullscreenOptions* options() { return options_; }
-    ScriptPromiseResolver* resolver() { return resolver_; }
+    const FullscreenOptions* options() { return options_.Get(); }
+    ScriptPromiseResolver* resolver() { return resolver_.Get(); }
 
    private:
     Member<Element> element_;

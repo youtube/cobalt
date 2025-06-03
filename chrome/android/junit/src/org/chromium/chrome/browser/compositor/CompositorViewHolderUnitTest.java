@@ -42,12 +42,15 @@ import org.chromium.base.ActivityState;
 import org.chromium.base.ApplicationStatus;
 import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.ActivityTabProvider;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsUtils;
 import org.chromium.chrome.browser.compositor.layouts.LayoutManagerImpl;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.fullscreen.BrowserControlsManager;
+import org.chromium.chrome.browser.layouts.EventFilter.EventType;
+import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tabmodel.TabModelSelectorTabObserver;
 import org.chromium.chrome.browser.toolbar.top.ToolbarControlContainer;
@@ -67,9 +70,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-/**
- * Unit tests for {@link CompositorViewHolder}.
- */
+/** Unit tests for {@link CompositorViewHolder}. */
 @RunWith(BaseRobolectricTestRunner.class)
 public class CompositorViewHolderUnitTest {
     // Since these tests don't depend on the heights being pixels, we can use these as dpi directly.
@@ -82,38 +83,30 @@ public class CompositorViewHolderUnitTest {
     private static final MotionEvent MOTION_EVENT_UP =
             MotionEvent.obtain(TOUCH_TIME, TOUCH_TIME, MotionEvent.ACTION_UP, 1, 1, 0);
 
+    private static final MotionEvent MOTION_ACTION_HOVER_ENTER =
+            MotionEvent.obtain(TOUCH_TIME, TOUCH_TIME, MotionEvent.ACTION_HOVER_ENTER, 1, 1, 0);
+
     enum EventSource {
         IN_MOTION,
         TOUCH_EVENT_OBSERVER;
     }
 
-    @Rule
-    public TestRule mProcessor = new Features.JUnitProcessor();
+    @Rule public TestRule mProcessor = new Features.JUnitProcessor();
 
-    @Mock
-    private Activity mActivity;
-    @Mock
-    private ToolbarControlContainer mControlContainer;
-    @Mock
-    private View mContainerView;
-    @Mock
-    private ActivityTabProvider mActivityTabProvider;
-    @Mock
-    private android.content.res.Resources mResources;
-    @Mock
-    private Tab mTab;
-    @Mock
-    private WebContents mWebContents;
-    @Mock
-    private ContentView mContentView;
-    @Mock
-    private CompositorView mCompositorView;
-    @Mock
-    private ResourceManager mResourceManager;
-    @Mock
-    private LayoutManagerImpl mLayoutManager;
-    @Mock
-    private KeyboardVisibilityDelegate mMockKeyboard;
+    @Mock private Activity mActivity;
+    @Mock private Profile mProfile;
+    @Mock private Profile mIncognitoProfile;
+    @Mock private ToolbarControlContainer mControlContainer;
+    @Mock private View mContainerView;
+    @Mock private ActivityTabProvider mActivityTabProvider;
+    @Mock private android.content.res.Resources mResources;
+    @Mock private Tab mTab;
+    @Mock private WebContents mWebContents;
+    @Mock private ContentView mContentView;
+    @Mock private CompositorView mCompositorView;
+    @Mock private ResourceManager mResourceManager;
+    @Mock private LayoutManagerImpl mLayoutManager;
+    @Mock private KeyboardVisibilityDelegate mMockKeyboard;
 
     private Context mContext;
     private MockTabModelSelector mTabModelSelector;
@@ -138,8 +131,10 @@ public class CompositorViewHolderUnitTest {
         mKeyboardAccessoryInsetSupplier = new ObservableSupplierImpl<>();
         mViewportInsets.setKeyboardAccessoryInsetSupplier(mKeyboardAccessoryInsetSupplier);
 
+        when(mIncognitoProfile.isOffTheRecord()).thenReturn(true);
+
         // Setup the TabModelSelector.
-        mTabModelSelector = new MockTabModelSelector(0, 0, null);
+        mTabModelSelector = new MockTabModelSelector(mProfile, mIncognitoProfile, 0, 0, null);
 
         // Setup for BrowserControlsManager which initiates content/control offset changes
         // for CompositorViewHolder.
@@ -152,16 +147,21 @@ public class CompositorViewHolderUnitTest {
         BrowserControlsManager browserControlsManager =
                 new BrowserControlsManager(mActivity, BrowserControlsManager.ControlsPosition.TOP);
         mBrowserControlsManager = spy(browserControlsManager);
-        mBrowserControlsManager.initialize(mControlContainer, mActivityTabProvider,
-                mTabModelSelector, R.dimen.control_container_height);
+        mBrowserControlsManager.initialize(
+                mControlContainer,
+                mActivityTabProvider,
+                mTabModelSelector,
+                R.dimen.control_container_height);
         when(mBrowserControlsManager.getTab()).thenReturn(mTab);
 
-        mContext = new ContextThemeWrapper(
-                ApplicationProvider.getApplicationContext(), R.style.Theme_BrowserUI_DayNight);
+        mContext =
+                new ContextThemeWrapper(
+                        ApplicationProvider.getApplicationContext(),
+                        R.style.Theme_BrowserUI_DayNight);
 
         when(mCompositorView.getResourceManager()).thenReturn(mResourceManager);
 
-        mCompositorViewHolder = spy(new CompositorViewHolder(mContext));
+        mCompositorViewHolder = spy(new CompositorViewHolder(mContext, null));
         mCompositorViewHolder.setLayoutManager(mLayoutManager);
         mCompositorViewHolder.setControlContainer(mControlContainer);
         mCompositorViewHolder.setCompositorViewForTesting(mCompositorView);
@@ -180,20 +180,24 @@ public class CompositorViewHolderUnitTest {
 
     private List<EventSource> observeTouchAndMotionEvents() {
         List<EventSource> eventSequence = new ArrayList<>();
-        mCompositorViewHolder.getInMotionSupplier().addObserver(
-                (inMotion) -> eventSequence.add(EventSource.IN_MOTION));
+        mCompositorViewHolder
+                .getInMotionSupplier()
+                .addObserver((inMotion) -> eventSequence.add(EventSource.IN_MOTION));
         // This touch observer is used as a proxy for when ViewGroup#dispatchTouchEvent is called,
         // which is when the touch is propagated to children.
-        mCompositorViewHolder.addTouchEventObserver(new TouchEventObserver() {
-            @Override
-            public boolean shouldInterceptTouchEvent(MotionEvent e) {
-                return false;
-            }
-            @Override
-            public void handleTouchEvent(MotionEvent e) {
-                eventSequence.add(EventSource.TOUCH_EVENT_OBSERVER);
-            }
-        });
+        mCompositorViewHolder.addTouchEventObserver(
+                new TouchEventObserver() {
+                    @Override
+                    public boolean onInterceptTouchEvent(MotionEvent e) {
+                        return false;
+                    }
+
+                    @Override
+                    public boolean dispatchTouchEvent(MotionEvent e) {
+                        eventSequence.add(EventSource.TOUCH_EVENT_OBSERVER);
+                        return false;
+                    }
+                });
         return eventSequence;
     }
 
@@ -217,33 +221,49 @@ public class CompositorViewHolderUnitTest {
         mBrowserControlsManager.setTopControlsHeight(topHeight, topMinHeight);
 
         // Send initial offsets.
-        tabControlsObserver.onBrowserControlsOffsetChanged(mTab, /*topControlsOffsetY*/ 0,
-                /*bottomControlsOffsetY*/ 0, /*contentOffsetY*/ 100,
-                /*topControlsMinHeightOffsetY*/ 0, /*bottomControlsMinHeightOffsetY*/ 0);
+        tabControlsObserver.onBrowserControlsOffsetChanged(
+                mTab,
+                /* topControlsOffsetY= */ 0,
+                /* bottomControlsOffsetY= */ 0,
+                /* contentOffsetY= */ 100,
+                /* topControlsMinHeightOffsetY= */ 0,
+                /* bottomControlsMinHeightOffsetY= */ 0);
         // Initially, the controls should be fully visible.
-        assertTrue("Browser controls aren't fully visible.",
+        assertTrue(
+                "Browser controls aren't fully visible.",
                 BrowserControlsUtils.areBrowserControlsFullyVisible(mBrowserControlsManager));
         // ControlsResizeView is false, but it should be true when the controls are fully visible.
         verify(mCompositorView).onControlsResizeViewChanged(any(), eq(true));
         reset(mCompositorView);
 
         // Scroll to fully hidden.
-        tabControlsObserver.onBrowserControlsOffsetChanged(mTab, /*topControlsOffsetY*/ -100,
-                /*bottomControlsOffsetY*/ 0, /*contentOffsetY*/ 0,
-                /*topControlsMinHeightOffsetY*/ 0, /*bottomControlsMinHeightOffsetY*/ 0);
-        assertTrue("Browser controls aren't at min-height.",
+        tabControlsObserver.onBrowserControlsOffsetChanged(
+                mTab,
+                /* topControlsOffsetY= */ -100,
+                /* bottomControlsOffsetY= */ 0,
+                /* contentOffsetY= */ 0,
+                /* topControlsMinHeightOffsetY= */ 0,
+                /* bottomControlsMinHeightOffsetY= */ 0);
+        assertTrue(
+                "Browser controls aren't at min-height.",
                 mBrowserControlsManager.areBrowserControlsAtMinHeight());
         // ControlsResizeView is true, but it should be false when the controls are hidden.
         verify(mCompositorView).onControlsResizeViewChanged(any(), eq(false));
         reset(mCompositorView);
 
         // Now, scroll back to fully visible.
-        tabControlsObserver.onBrowserControlsOffsetChanged(mTab, /*topControlsOffsetY*/ 0,
-                /*bottomControlsOffsetY*/ 0, /*contentOffsetY*/ 100,
-                /*topControlsMinHeightOffsetY*/ 0, /*bottomControlsMinHeightOffsetY*/ 0);
-        assertFalse("Browser controls are hidden when they should be fully visible.",
+        tabControlsObserver.onBrowserControlsOffsetChanged(
+                mTab,
+                /* topControlsOffsetY= */ 0,
+                /* bottomControlsOffsetY= */ 0,
+                /* contentOffsetY= */ 100,
+                /* topControlsMinHeightOffsetY= */ 0,
+                /* bottomControlsMinHeightOffsetY= */ 0);
+        assertFalse(
+                "Browser controls are hidden when they should be fully visible.",
                 mBrowserControlsManager.areBrowserControlsAtMinHeight());
-        assertTrue("Browser controls aren't fully visible.",
+        assertTrue(
+                "Browser controls aren't fully visible.",
                 BrowserControlsUtils.areBrowserControlsFullyVisible(mBrowserControlsManager));
         // #controlsResizeView should be flipped back to true.
         // ControlsResizeView is false, but it should be true when the controls are fully visible.
@@ -269,33 +289,49 @@ public class CompositorViewHolderUnitTest {
         mBrowserControlsManager.setBottomControlsHeight(bottomHeight, bottomMinHeight);
 
         // Send initial offsets.
-        tabControlsObserver.onBrowserControlsOffsetChanged(mTab, /*topControlsOffsetY*/ 0,
-                /*bottomControlsOffsetY*/ 0, /*contentOffsetY*/ 100,
-                /*topControlsMinHeightOffsetY*/ 25, /*bottomControlsMinHeightOffsetY*/ 0);
+        tabControlsObserver.onBrowserControlsOffsetChanged(
+                mTab,
+                /* topControlsOffsetY= */ 0,
+                /* bottomControlsOffsetY= */ 0,
+                /* contentOffsetY= */ 100,
+                /* topControlsMinHeightOffsetY= */ 25,
+                /* bottomControlsMinHeightOffsetY= */ 0);
         // Initially, the controls should be fully visible.
-        assertTrue("Browser controls aren't fully visible.",
+        assertTrue(
+                "Browser controls aren't fully visible.",
                 BrowserControlsUtils.areBrowserControlsFullyVisible(mBrowserControlsManager));
         // ControlsResizeView is false, but it should be true when the controls are fully visible.
         verify(mCompositorView).onControlsResizeViewChanged(any(), eq(true));
         reset(mCompositorView);
 
         // Scroll all the way to the min-height.
-        tabControlsObserver.onBrowserControlsOffsetChanged(mTab, /*topControlsOffsetY*/ -75,
-                /*bottomControlsOffsetY*/ 60, /*contentOffsetY*/ 25,
-                /*topControlsMinHeightOffsetY*/ 25, /*bottomControlsMinHeightOffsetY*/ 0);
-        assertTrue("Browser controls aren't at min-height.",
+        tabControlsObserver.onBrowserControlsOffsetChanged(
+                mTab,
+                /* topControlsOffsetY= */ -75,
+                /* bottomControlsOffsetY= */ 60,
+                /* contentOffsetY= */ 25,
+                /* topControlsMinHeightOffsetY= */ 25,
+                /* bottomControlsMinHeightOffsetY= */ 0);
+        assertTrue(
+                "Browser controls aren't at min-height.",
                 mBrowserControlsManager.areBrowserControlsAtMinHeight());
         // ControlsResizeView is true but it should be false when the controls are at min-height.
         verify(mCompositorView).onControlsResizeViewChanged(any(), eq(false));
         reset(mCompositorView);
 
         // Now, scroll back to fully visible.
-        tabControlsObserver.onBrowserControlsOffsetChanged(mTab, /*topControlsOffsetY*/ 0,
-                /*bottomControlsOffsetY*/ 0, /*contentOffsetY*/ 100,
-                /*topControlsMinHeightOffsetY*/ 25, /*bottomControlsMinHeightOffsetY*/ 0);
-        assertFalse("Browser controls are at min-height when they should be fully visible.",
+        tabControlsObserver.onBrowserControlsOffsetChanged(
+                mTab,
+                /* topControlsOffsetY= */ 0,
+                /* bottomControlsOffsetY= */ 0,
+                /* contentOffsetY= */ 100,
+                /* topControlsMinHeightOffsetY= */ 25,
+                /* bottomControlsMinHeightOffsetY= */ 0);
+        assertFalse(
+                "Browser controls are at min-height when they should be fully visible.",
                 mBrowserControlsManager.areBrowserControlsAtMinHeight());
-        assertTrue("Browser controls aren't fully visible.",
+        assertTrue(
+                "Browser controls aren't fully visible.",
                 BrowserControlsUtils.areBrowserControlsFullyVisible(mBrowserControlsManager));
         // #controlsResizeView should be flipped back to true.
         verify(mCompositorView).onControlsResizeViewChanged(any(), eq(true));
@@ -320,35 +356,51 @@ public class CompositorViewHolderUnitTest {
         mBrowserControlsManager.setBottomControlsHeight(bottomHeight, bottomMinHeight);
 
         // Send initial offsets.
-        tabControlsObserver.onBrowserControlsOffsetChanged(mTab, /*topControlsOffsetY*/ 0,
-                /*bottomControlsOffsetY*/ 0, /*contentOffsetY*/ 100,
-                /*topControlsMinHeightOffsetY*/ 25, /*bottomControlsMinHeightOffsetY*/ 0);
+        tabControlsObserver.onBrowserControlsOffsetChanged(
+                mTab,
+                /* topControlsOffsetY= */ 0,
+                /* bottomControlsOffsetY= */ 0,
+                /* contentOffsetY= */ 100,
+                /* topControlsMinHeightOffsetY= */ 25,
+                /* bottomControlsMinHeightOffsetY= */ 0);
         // ControlsResizeView is false but it should be true when the controls are fully visible.
         verify(mCompositorView).onControlsResizeViewChanged(any(), eq(true));
         reset(mCompositorView);
 
         // Scroll a little hide the controls partially.
-        tabControlsObserver.onBrowserControlsOffsetChanged(mTab, /*topControlsOffsetY*/ -25,
-                /*bottomControlsOffsetY*/ 20, /*contentOffsetY*/ 75,
-                /*topControlsMinHeightOffsetY*/ 25, /*bottomControlsMinHeightOffsetY*/ 0);
+        tabControlsObserver.onBrowserControlsOffsetChanged(
+                mTab,
+                /* topControlsOffsetY= */ -25,
+                /* bottomControlsOffsetY= */ 20,
+                /* contentOffsetY= */ 75,
+                /* topControlsMinHeightOffsetY= */ 25,
+                /* bottomControlsMinHeightOffsetY= */ 0);
         // ControlsResizeView is false, but it should still be true. No-op updates won't trigger a
         // changed event.
         verify(mCompositorView, times(0)).onControlsResizeViewChanged(any(), eq(true));
         reset(mCompositorView);
 
         // Scroll controls all the way to the min-height.
-        tabControlsObserver.onBrowserControlsOffsetChanged(mTab, /*topControlsOffsetY*/ -75,
-                /*bottomControlsOffsetY*/ 60, /*contentOffsetY*/ 25,
-                /*topControlsMinHeightOffsetY*/ 25, /*bottomControlsMinHeightOffsetY*/ 0);
+        tabControlsObserver.onBrowserControlsOffsetChanged(
+                mTab,
+                /* topControlsOffsetY= */ -75,
+                /* bottomControlsOffsetY= */ 60,
+                /* contentOffsetY= */ 25,
+                /* topControlsMinHeightOffsetY= */ 25,
+                /* bottomControlsMinHeightOffsetY= */ 0);
         // ControlsResizeView is true but it should've flipped to false since the controls are idle
         // now.
         verify(mCompositorView).onControlsResizeViewChanged(any(), eq(false));
         reset(mCompositorView);
 
         // Scroll controls to show a little more.
-        tabControlsObserver.onBrowserControlsOffsetChanged(mTab, /*topControlsOffsetY*/ -50,
-                /*bottomControlsOffsetY*/ 40, /*contentOffsetY*/ 50,
-                /*topControlsMinHeightOffsetY*/ 25, /*bottomControlsMinHeightOffsetY*/ 0);
+        tabControlsObserver.onBrowserControlsOffsetChanged(
+                mTab,
+                /* topControlsOffsetY= */ -50,
+                /* bottomControlsOffsetY= */ 40,
+                /* contentOffsetY= */ 50,
+                /* topControlsMinHeightOffsetY= */ 25,
+                /* bottomControlsMinHeightOffsetY= */ 0);
         // ControlsResizeView is true, but it should still be false. No-op updates won't trigger a
         // changed event.
         verify(mCompositorView, times(0)).onControlsResizeViewChanged(any(), eq(false));
@@ -554,13 +606,40 @@ public class CompositorViewHolderUnitTest {
     }
 
     @Test
+    public void testOnInterceptHoverEvent() {
+        when(mMockKeyboard.isKeyboardShowing(any(), any())).thenReturn(false);
+        when(mLayoutManager.onInterceptMotionEvent(
+                        MOTION_ACTION_HOVER_ENTER, false, EventType.HOVER))
+                .thenReturn(true);
+        boolean intercepted =
+                mCompositorViewHolder.onInterceptHoverEvent(MOTION_ACTION_HOVER_ENTER);
+        verify(mLayoutManager)
+                .onInterceptMotionEvent(MOTION_ACTION_HOVER_ENTER, false, EventType.HOVER);
+        Assert.assertTrue(
+                "#onInterceptHoverEvent should return true if the LayoutManager intercepts the"
+                        + " event.",
+                intercepted);
+    }
+
+    @Test
+    public void testOnHoverEvent() {
+        when(mLayoutManager.onHoverEvent(MOTION_ACTION_HOVER_ENTER)).thenReturn(true);
+        boolean consumed = mCompositorViewHolder.onHoverEvent(MOTION_ACTION_HOVER_ENTER);
+        verify(mLayoutManager).onHoverEvent(MOTION_ACTION_HOVER_ENTER);
+        Assert.assertTrue(
+                "#onHoverEvent should return true if the LayoutManager consumes the event.",
+                consumed);
+    }
+
+    @Test
     @DisableFeatures(ChromeFeatureList.DEFER_NOTIFY_IN_MOTION)
     public void testInMotionOrdering_NoDefer() {
         // With the 'defer in motion' experiment disabled, touch events are routed to android UI
         // before being sent to native/web content.
         List<EventSource> eventSequence = observeTouchAndMotionEvents();
         mCompositorViewHolder.dispatchTouchEvent(MOTION_EVENT_DOWN);
-        assertEquals(Arrays.asList(EventSource.IN_MOTION, EventSource.TOUCH_EVENT_OBSERVER),
+        assertEquals(
+                Arrays.asList(EventSource.IN_MOTION, EventSource.TOUCH_EVENT_OBSERVER),
                 eventSequence);
     }
 
@@ -571,7 +650,8 @@ public class CompositorViewHolderUnitTest {
         // after being sent to native/web content.
         List<EventSource> eventSequence = observeTouchAndMotionEvents();
         mCompositorViewHolder.dispatchTouchEvent(MOTION_EVENT_DOWN);
-        assertEquals(Arrays.asList(EventSource.TOUCH_EVENT_OBSERVER, EventSource.IN_MOTION),
+        assertEquals(
+                Arrays.asList(EventSource.TOUCH_EVENT_OBSERVER, EventSource.IN_MOTION),
                 eventSequence);
     }
 
@@ -582,6 +662,9 @@ public class CompositorViewHolderUnitTest {
         int pendingFrameCount = 0;
         int framesUntilHideBackground = 1;
         boolean swappedCurrentSize = true;
+        HistogramWatcher histogramWatcher =
+                HistogramWatcher.newSingleRecordWatcher(
+                        "Android.TabStrip.TimeToInitializeTabStateAfterBufferSwap");
 
         // Mark that a frame has swapped, and the buffer has swapped once (still waiting on one).
         mCompositorViewHolder.didSwapFrame(pendingFrameCount);
@@ -592,6 +675,11 @@ public class CompositorViewHolderUnitTest {
         framesUntilHideBackground = 0;
         mCompositorViewHolder.didSwapBuffers(swappedCurrentSize, framesUntilHideBackground);
         verifyBackgroundRemoved();
+
+        // Verify the relevant histogram is recorded.
+        mTabModelSelector.markTabStateInitialized();
+        histogramWatcher.assertExpected(
+                "Should have recorded time to initialize tab state after buffer swap.");
     }
 
     @Test
@@ -601,6 +689,9 @@ public class CompositorViewHolderUnitTest {
         int pendingFrameCount = 0;
         int framesUntilHideBackground = 0;
         boolean swappedCurrentSize = true;
+        HistogramWatcher histogramWatcher =
+                HistogramWatcher.newSingleRecordWatcher(
+                        "Android.TabStrip.TimeToInitializeTabStateAfterBufferSwap");
 
         // Mark a tab has restored, a frame has swapped, and the buffer has swapped enough times.
         notifyTabRestored();
@@ -611,6 +702,10 @@ public class CompositorViewHolderUnitTest {
         // Mark the tab state as initialized and verify that the temp background is now removed.
         mTabModelSelector.markTabStateInitialized();
         verifyBackgroundRemoved();
+
+        // Verify the relevant histogram is recorded.
+        histogramWatcher.assertExpected(
+                "Should have recorded time to initialize tab state after buffer swap.");
     }
 
     @Test
@@ -620,6 +715,9 @@ public class CompositorViewHolderUnitTest {
         int pendingFrameCount = 0;
         int framesUntilHideBackground = 0;
         boolean swappedCurrentSize = true;
+        HistogramWatcher histogramWatcher =
+                HistogramWatcher.newSingleRecordWatcher(
+                        "Android.TabStrip.TimeToInitializeTabStateAfterBufferSwap");
 
         // Mark a tab has restored, a frame has swapped, and the buffer has swapped enough times.
         notifyTabRestored();
@@ -630,6 +728,11 @@ public class CompositorViewHolderUnitTest {
         // Fake the timeout and verify that the temp background is now removed.
         timeoutRunnable();
         verifyBackgroundRemoved();
+
+        // Verify the relevant histogram is recorded.
+        mTabModelSelector.markTabStateInitialized();
+        histogramWatcher.assertExpected(
+                "Should have recorded time to initialize tab state after buffer swap.");
     }
 
     @Test
@@ -639,6 +742,9 @@ public class CompositorViewHolderUnitTest {
         int pendingFrameCount = 0;
         int framesUntilHideBackground = 1;
         boolean swappedCurrentSize = true;
+        HistogramWatcher histogramWatcher =
+                HistogramWatcher.newSingleRecordWatcher(
+                        "Android.TabStrip.TimeToBufferSwapAfterInitializeTabState");
 
         // Mark the tab state as initialized and one frame has been swapped.
         notifyTabRestored();
@@ -652,6 +758,10 @@ public class CompositorViewHolderUnitTest {
         framesUntilHideBackground = 0;
         mCompositorViewHolder.didSwapBuffers(swappedCurrentSize, framesUntilHideBackground);
         verifyBackgroundRemoved();
+
+        // Verify the relevant histogram is recorded.
+        histogramWatcher.assertExpected(
+                "Should have recorded time to buffer swap after initializing tab state.");
     }
 
     private void notifyTabRestored() {

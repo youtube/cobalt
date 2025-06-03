@@ -14,8 +14,11 @@ namespace blink {
 class AXObject;
 
 // Friendly output of a subtree, useful for debugging.
-std::string TreeToStringHelper(const AXObject* obj, int indent, bool verbose);
-
+std::string TreeToStringHelper(const AXObject* obj, bool verbose = true);
+std::string TreeToStringWithMarkedObjectHelper(const AXObject* obj,
+                                               const AXObject* marked_object,
+                                               bool verbose = true);
+std::string ParentChainToStringHelper(const AXObject* obj);
 }  // namespace blink
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_ACCESSIBILITY_AX_DEBUG_UTILS_H_

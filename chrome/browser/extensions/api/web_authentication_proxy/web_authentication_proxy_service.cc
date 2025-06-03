@@ -226,7 +226,12 @@ WebAuthenticationProxyRegistrarFactory::WebAuthenticationProxyRegistrarFactory()
           // as Guest. So while we do return a `WebAuthenticationProxyRegistrar`
           // for those profile types `IsActive()` will always return false
           // there.
-          ProfileSelections::BuildRedirectedToOriginal()) {
+          ProfileSelections::Builder()
+              .WithRegular(ProfileSelection::kRedirectedToOriginal)
+              // TODO(crbug.com/1418376): Check if this service is needed in
+              // Guest mode.
+              .WithGuest(ProfileSelection::kRedirectedToOriginal)
+              .Build()) {
   DependsOn(ExtensionRegistryFactory::GetInstance());
 }
 
@@ -241,9 +246,10 @@ WebAuthenticationProxyRegistrarFactory::GetForBrowserContext(
           ->GetServiceForBrowserContext(context, true));
 }
 
-KeyedService* WebAuthenticationProxyRegistrarFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+WebAuthenticationProxyRegistrarFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
-  return new WebAuthenticationProxyRegistrar(
+  return std::make_unique<WebAuthenticationProxyRegistrar>(
       Profile::FromBrowserContext(context));
 }
 
@@ -451,8 +457,8 @@ void WebAuthenticationProxyService::OnParseCreateResponse(
         .Run("Parsing responseJson failed: " + value_or_error.error());
     return;
   }
-  auto [response, error] =
-      webauthn::MakeCredentialResponseFromValue(*value_or_error);
+  auto [response, error] = webauthn::MakeCredentialResponseFromValue(
+      *value_or_error, webauthn::JSONUser::kRemoteDesktop);
   if (!response) {
     std::move(respond_callback).Run("Invalid responseJson: " + error);
     return;
@@ -484,8 +490,8 @@ void WebAuthenticationProxyService::OnParseGetResponse(
         .Run("Parsing responseJson failed: " + value_or_error.error());
     return;
   }
-  auto [response, error] =
-      webauthn::GetAssertionResponseFromValue(*value_or_error);
+  auto [response, error] = webauthn::GetAssertionResponseFromValue(
+      *value_or_error, webauthn::JSONUser::kRemoteDesktop);
   if (!response) {
     std::move(respond_callback).Run("Invalid responseJson: " + error);
     return;
@@ -602,7 +608,12 @@ WebAuthenticationProxyServiceFactory::GetInstance() {
 WebAuthenticationProxyServiceFactory::WebAuthenticationProxyServiceFactory()
     : ProfileKeyedServiceFactory(
           "WebAuthenticationProxyService",
-          ProfileSelections::BuildForRegularAndIncognito()) {
+          ProfileSelections::Builder()
+              .WithRegular(ProfileSelection::kOwnInstance)
+              // TODO(crbug.com/1418376): Check if this service is needed in
+              // Guest mode.
+              .WithGuest(ProfileSelection::kOwnInstance)
+              .Build()) {
   DependsOn(EventRouterFactory::GetInstance());
   DependsOn(ExtensionRegistryFactory::GetInstance());
 }

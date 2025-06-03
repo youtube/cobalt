@@ -20,12 +20,12 @@ import androidx.recyclerview.widget.RecyclerView;
 import org.chromium.base.Callback;
 import org.chromium.base.TraceEvent;
 import org.chromium.base.library_loader.LibraryLoader;
+import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider;
 import org.chromium.chrome.browser.compositor.layouts.content.TabContentManager;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.tasks.pseudotab.PseudoTab;
 import org.chromium.chrome.browser.tasks.tab_management.TabListCoordinator.TabListMode;
-import org.chromium.chrome.browser.tasks.tab_management.TabListRecyclerView.RecyclerViewPosition;
 import org.chromium.chrome.browser.tasks.tab_management.TabUiMetricsHelper.TabSelectionEditorExitMetricGroups;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.chrome.tab_ui.R;
@@ -136,6 +136,7 @@ class TabSelectionEditorCoordinator {
 
     private final Activity mActivity;
     private final ViewGroup mParentView;
+    private final BrowserControlsStateProvider mBrowserControlsStateProvider;
     private final TabModelSelector mTabModelSelector;
     private final TabSelectionEditorLayout mTabSelectionEditorLayout;
     private final TabListCoordinator mTabListCoordinator;
@@ -147,6 +148,7 @@ class TabSelectionEditorCoordinator {
     private MultiThumbnailCardProvider mMultiThumbnailCardProvider;
 
     public TabSelectionEditorCoordinator(Activity activity, ViewGroup parentView,
+            BrowserControlsStateProvider browserControlsStateProvider,
             TabModelSelector tabModelSelector, TabContentManager tabContentManager,
             Callback<RecyclerViewPosition> clientTabListRecyclerViewPositionSetter,
             @TabListMode int mode, ViewGroup rootView, boolean displayGroups,
@@ -154,6 +156,7 @@ class TabSelectionEditorCoordinator {
         try (TraceEvent e = TraceEvent.scoped("TabSelectionEditorCoordinator.constructor")) {
             mActivity = activity;
             mParentView = parentView;
+            mBrowserControlsStateProvider = browserControlsStateProvider;
             mTabModelSelector = tabModelSelector;
             mClientTabListRecyclerViewPositionSetter = clientTabListRecyclerViewPositionSetter;
             assert mode == TabListCoordinator.TabListMode.GRID
@@ -164,17 +167,18 @@ class TabSelectionEditorCoordinator {
                             .inflate(R.layout.tab_selection_editor_layout, parentView, false)
                             .findViewById(R.id.selectable_list);
 
-            TabListMediator.ThumbnailProvider thumbnailProvider =
+            ThumbnailProvider thumbnailProvider =
                     initThumbnailProvider(displayGroups, tabContentManager);
             PseudoTab.TitleProvider titleProvider = displayGroups ? this::getTitle : null;
 
             // TODO(ckitagawa): Lazily instantiate the TabSelectionEditorCoordinator. When doing so,
             // the Coordinator hosting the TabSelectionEditorCoordinator could share and reconfigure
             // its TabListCoordinator to work with the editor as an optimization.
-            mTabListCoordinator = new TabListCoordinator(mode, activity, mTabModelSelector,
-                    thumbnailProvider, titleProvider, displayGroups, null, null,
-                    TabProperties.UiType.SELECTABLE, this::getSelectionDelegate, null,
-                    mTabSelectionEditorLayout, false, COMPONENT_NAME, rootView, null);
+            mTabListCoordinator =
+                    new TabListCoordinator(mode, activity, mBrowserControlsStateProvider,
+                            mTabModelSelector, thumbnailProvider, titleProvider, displayGroups,
+                            null, null, TabProperties.UiType.SELECTABLE, this::getSelectionDelegate,
+                            null, mTabSelectionEditorLayout, false, COMPONENT_NAME, rootView, null);
 
             // Note: The TabSelectionEditorCoordinator is always created after native is
             // initialized.
@@ -184,8 +188,9 @@ class TabSelectionEditorCoordinator {
                 mMultiThumbnailCardProvider.initWithNative();
             }
 
-            mTabListCoordinator.registerItemType(TabProperties.UiType.DIVIDER,
-                    new LayoutViewBuilder(R.layout.divider_preference),
+            mTabListCoordinator.registerItemType(
+                    TabProperties.UiType.DIVIDER,
+                    new LayoutViewBuilder(R.layout.horizontal_divider),
                     (model, view, propertyKey) -> {});
             RecyclerView.LayoutManager layoutManager =
                     mTabListCoordinator.getContainerView().getLayoutManager();
@@ -287,11 +292,11 @@ class TabSelectionEditorCoordinator {
         return TabGroupTitleEditor.getDefaultTitle(context, numRelatedTabs);
     }
 
-    private TabListMediator.ThumbnailProvider initThumbnailProvider(
+    private ThumbnailProvider initThumbnailProvider(
             boolean displayGroups, TabContentManager tabContentManager) {
         if (displayGroups) {
-            mMultiThumbnailCardProvider =
-                    new MultiThumbnailCardProvider(mActivity, tabContentManager, mTabModelSelector);
+            mMultiThumbnailCardProvider = new MultiThumbnailCardProvider(
+                    mActivity, mBrowserControlsStateProvider, tabContentManager, mTabModelSelector);
             return mMultiThumbnailCardProvider;
         }
         return (tabId, thumbnailSize, callback, forceUpdate, writeBack, isSelected) -> {

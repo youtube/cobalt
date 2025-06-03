@@ -41,8 +41,10 @@ class Euicc : public mojom::Euicc {
   void InstallProfileFromActivationCode(
       const std::string& activation_code,
       const std::string& confirmation_code,
-      bool is_install_via_qr_code,
+      mojom::ProfileInstallMethod install_method,
       InstallProfileFromActivationCodeCallback callback) override;
+  void RequestAvailableProfiles(
+      RequestAvailableProfilesCallback callback) override;
   void RequestPendingProfiles(RequestPendingProfilesCallback callback) override;
   void GetEidQRCode(GetEidQRCodeCallback callback) override;
 
@@ -64,10 +66,10 @@ class Euicc : public mojom::Euicc {
   const mojom::EuiccPropertiesPtr& properties() { return properties_; }
 
  private:
-  FRIEND_TEST_ALL_PREFIXES(EuiccTest,
-                           RequestPendingProfiles_DBusMigrationDisabled);
-  FRIEND_TEST_ALL_PREFIXES(EuiccTest,
-                           RequestPendingProfiles_DBusMigrationEnabled);
+  FRIEND_TEST_ALL_PREFIXES(EuiccTest_SmdsSupportDisabled,
+                           RequestPendingProfiles);
+  FRIEND_TEST_ALL_PREFIXES(EuiccTest_SmdsSupportEnabled,
+                           RequestPendingProfiles);
 
   // These values are persisted to logs. Entries should not be renumbered and
   // numeric values should never be reused.
@@ -88,6 +90,10 @@ class Euicc : public mojom::Euicc {
   void PerformRequestPendingProfiles(
       RequestPendingProfilesCallback callback,
       std::unique_ptr<CellularInhibitor::InhibitLock> inhibit_lock);
+  void OnRequestAvailableProfiles(
+      RequestAvailableProfilesCallback callback,
+      mojom::ESimOperationResult result,
+      std::vector<CellularESimProfile> profile_list);
   void OnRefreshSmdxProfilesResult(
       RequestPendingProfilesCallback callback,
       std::unique_ptr<CellularInhibitor::InhibitLock> inhibit_lock,

@@ -11,7 +11,7 @@
 #include "third_party/blink/renderer/bindings/core/v8/script_value.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_core.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_string_trustedscript.h"
-#include "third_party/blink/renderer/bindings/core/v8/v8_union_stringtreatnullasemptystring_trustedscript.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_union_stringlegacynulltoemptystring_trustedscript.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_trustedhtml_trustedscript_trustedscripturl.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/frame/csp/content_security_policy.h"
@@ -116,7 +116,7 @@ const char* GetMessage(TrustedTypeViolationKind kind) {
 String GetSamplePrefix(const ExceptionContext& exception_context,
                        const String& value) {
   const char* interface_name = exception_context.GetClassName();
-  const char* property_name = exception_context.GetPropertyName();
+  const String& property_name = exception_context.GetPropertyName();
 
   // We have two sample formats, one for eval and one for assignment.
   // If we don't have the required values being passed in, just leave the
@@ -130,11 +130,11 @@ String GetSamplePrefix(const ExceptionContext& exception_context,
                                                             : "eval");
   } else if ((strcmp("Worker", interface_name) == 0 ||
               strcmp("SharedWorker", interface_name) == 0) &&
-             !property_name) {
+             property_name.IsNull()) {
     // Worker/SharedWorker constructor has nullptr as property_name.
     sample_prefix.Append(interface_name);
     sample_prefix.Append(" constructor");
-  } else if (interface_name && property_name) {
+  } else if (interface_name && !property_name.IsNull()) {
     sample_prefix.Append(interface_name);
     sample_prefix.Append(" ");
     sample_prefix.Append(property_name);
@@ -271,7 +271,7 @@ String GetStringFromScriptHelper(
   ScriptState::Scope script_state_scope(
       ToScriptState(context, DOMWrapperWorld::MainWorld()));
   ExceptionState exception_state(
-      context->GetIsolate(), ExceptionState::kUnknownContext,
+      context->GetIsolate(), ExceptionContextType::kUnknown,
       element_name_for_exception, attribute_name_for_exception);
 
   TrustedTypePolicy* default_policy = GetDefaultPolicy(context);
@@ -518,7 +518,7 @@ String TrustedTypesCheckForScript(const V8UnionStringOrTrustedScript* value,
 }
 
 String TrustedTypesCheckForScript(
-    const V8UnionStringTreatNullAsEmptyStringOrTrustedScript* value,
+    const V8UnionStringLegacyNullToEmptyStringOrTrustedScript* value,
     const ExecutionContext* execution_context,
     ExceptionState& exception_state) {
   // To remain compatible with legacy behaviour, HTMLElement uses extended IDL
@@ -531,12 +531,12 @@ String TrustedTypesCheckForScript(
   }
 
   switch (value->GetContentType()) {
-    case V8UnionStringTreatNullAsEmptyStringOrTrustedScript::ContentType::
-        kStringTreatNullAsEmptyString:
+    case V8UnionStringLegacyNullToEmptyStringOrTrustedScript::ContentType::
+        kStringLegacyNullToEmptyString:
       return TrustedTypesCheckForScript(
-          value->GetAsStringTreatNullAsEmptyString(), execution_context,
+          value->GetAsStringLegacyNullToEmptyString(), execution_context,
           exception_state);
-    case V8UnionStringTreatNullAsEmptyStringOrTrustedScript::ContentType::
+    case V8UnionStringLegacyNullToEmptyStringOrTrustedScript::ContentType::
         kTrustedScript:
       return value->GetAsTrustedScript()->toString();
   }

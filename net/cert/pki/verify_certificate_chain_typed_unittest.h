@@ -5,7 +5,6 @@
 #ifndef NET_CERT_PKI_VERIFY_CERTIFICATE_CHAIN_TYPED_UNITTEST_H_
 #define NET_CERT_PKI_VERIFY_CERTIFICATE_CHAIN_TYPED_UNITTEST_H_
 
-#include "net/cert/pem.h"
 #include "net/cert/pki/parsed_certificate.h"
 #include "net/cert/pki/simple_path_builder_delegate.h"
 #include "net/cert/pki/test_helpers.h"
@@ -87,6 +86,11 @@ TYPED_TEST_P(VerifyCertificateChainSingleRootTest, UnknownExtension) {
   this->RunTest("target-unknown-critical-extension/main.test");
   this->RunTest(
       "target-unknown-critical-extension/target_only-trusted_leaf.test");
+}
+
+TYPED_TEST_P(VerifyCertificateChainSingleRootTest, MSApplicationPolicies) {
+  this->RunTest("target-msapplicationpolicies-no-eku/main.test");
+  this->RunTest("target-msapplicationpolicies-and-eku/main.test");
 }
 
 TYPED_TEST_P(VerifyCertificateChainSingleRootTest, WeakSignature) {
@@ -319,6 +323,7 @@ REGISTER_TYPED_TEST_SUITE_P(VerifyCertificateChainSingleRootTest,
                             BasicConstraintsCa,
                             BasicConstraintsPathlen,
                             UnknownExtension,
+                            MSApplicationPolicies,
                             WeakSignature,
                             WrongSignature,
                             LastCertificateNotTrusted,

@@ -19,10 +19,6 @@
 #import "third_party/ocmock/OCMock/OCMock.h"
 #import "ui/base/test/ios/ui_image_test_utils.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace {
 
 class ContentSuggestionsTileSaverControllerTest : public BlockCleanupTest {
@@ -213,7 +209,9 @@ TEST_F(ContentSuggestionsTileSaverControllerTest, SaveMostVisitedToDisk) {
   VerifyWithImage(image_saved_tile, image_title, image_url);
 }
 
-TEST_F(ContentSuggestionsTileSaverControllerTest, UpdateSingleFaviconFallback) {
+// TODO(crbug.com/1478989): reenable this test.
+TEST_F(ContentSuggestionsTileSaverControllerTest,
+       DISABLED_UpdateSingleFaviconFallback) {
   // Set up test with 3 saved sites, 2 of which have a favicon.
   ntp_tiles::NTPTile image_tile1 = ntp_tiles::NTPTile();
   image_tile1.title = u"Title1";

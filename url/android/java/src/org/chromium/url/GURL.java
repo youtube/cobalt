@@ -8,20 +8,19 @@ import android.os.SystemClock;
 import android.text.TextUtils;
 
 import androidx.annotation.Nullable;
-import androidx.annotation.VisibleForTesting;
 
 import com.google.errorprone.annotations.DoNotMock;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.Log;
 import org.chromium.base.ThreadUtils;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
 import org.chromium.base.library_loader.LibraryLoader;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
-import org.chromium.build.annotations.MainDex;
 import org.chromium.url.mojom.Url;
 import org.chromium.url.mojom.UrlConstants;
 
@@ -39,8 +38,7 @@ import java.util.Random;
  * reconstruct a GURL in Java, allowing it to be much faster in the common case and easier to use.
  */
 @JNINamespace("url")
-@MainDex
-@DoNotMock("Create a real instance instead. For Robolectric, see JUnitTestGURLs.java")
+@DoNotMock("Create a real instance instead.")
 public class GURL {
     private static final String TAG = "GURL";
     /* package */ static final int SERIALIZER_VERSION = 1;
@@ -138,8 +136,6 @@ public class GURL {
     @CalledByNative
     private void init(String spec, boolean isValid, Parsed parsed) {
         mSpec = spec;
-        // Ensure that the spec only contains US-ASCII or the parsed indices will be wrong.
-        assert mSpec.matches("\\A\\p{ASCII}*\\z");
         mIsValid = isValid;
         mParsed = parsed;
     }
@@ -270,6 +266,36 @@ public class GURL {
         return getNatives().domainIs(mSpec, mIsValid, mParsed.toNativeParsed(), domain);
     }
 
+    /**
+     * Returns a copy of the URL with components replaced. See native GURL::ReplaceComponents().
+     *
+     * <p>Rules for replacement: 1. If a `clear*` boolean param is true, the component will be
+     * removed from the result. 2. Otherwise if the corresponding string param is non-null, its
+     * value will be used to replace the component. 3. If the string is null and the `clear*`
+     * boolean is false, the component will not be modified.
+     *
+     * @param username Username replacement.
+     * @param clearUsername True if the result should not contain a username.
+     * @param password Password replacement.
+     * @param clearPassword True if the result should not contain a password.
+     * @return Copy of the URL with replacements applied.
+     */
+    public GURL replaceComponents(
+            String username, boolean clearUsername, String password, boolean clearPassword) {
+        GURL result = new GURL();
+        getNatives()
+                .replaceComponents(
+                        mSpec,
+                        mIsValid,
+                        mParsed.toNativeParsed(),
+                        username,
+                        clearUsername,
+                        password,
+                        clearPassword,
+                        result);
+        return result;
+    }
+
     @Override
     public final int hashCode() {
         return mSpec.hashCode();
@@ -371,7 +397,6 @@ public class GURL {
     }
 
     /** Inits this GURL with the internal state of another GURL. */
-    @VisibleForTesting
     /* package */ void initForTesting(GURL gurl) {
         init(gurl.mSpec, gurl.mIsValid, gurl.mParsed);
     }
@@ -409,5 +434,19 @@ public class GURL {
          * Reconstructs the native GURL for this Java GURL, returning its native pointer.
          */
         long createNative(String spec, boolean isValid, long nativeParsed);
+
+        /**
+         * Reconstructs the native GURL for this Java GURL and initializes |result| with the result
+         * of ReplaceComponents.
+         */
+        void replaceComponents(
+                String spec,
+                boolean isValid,
+                long nativeParsed,
+                String username,
+                boolean clearUsername,
+                String password,
+                boolean clearPassword,
+                GURL result);
     }
 }

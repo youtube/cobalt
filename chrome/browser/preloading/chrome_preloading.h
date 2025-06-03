@@ -87,6 +87,29 @@ static constexpr content::PreloadingPredictor kMouseHoverOnBookmarkBar(
     108,
     "MouseHoverOnBookmarkBar");
 
+// When a pointerdown (e.g. mousedown or touchstart) event happens on a
+// new tab page link to an HTTPS origin, we may attempt to preload the link.
+static constexpr content::PreloadingPredictor kPointerDownOnNewTabPage(
+    109,
+    "PointerDownOnNewTabPage");
+
+// When a mousehover event happens on a new tab page link to an HTTPS origin,
+// we may attempt to preload the link.
+static constexpr content::PreloadingPredictor kMouseHoverOnNewTabPage(
+    110,
+    "MouseHoverOnNewTabPage");
+
+// When the preloading URL is predicted from the default search suggest due to
+// the user touching down on a Omnibox Search suggestion.
+static constexpr content::PreloadingPredictor kOmniboxTouchDownPredictor(
+    111,
+    "OmniboxTouchDownPredirector");
+
+// When the Link-Preview loads a page with prerendering infrastractures.
+// TODO(b:291867362): This is not used by the current implementation, but might
+// be reused in the future.
+static constexpr content::PreloadingPredictor kLinkPreview(112, "LinkPreview");
+
 // TODO(crbug.com/1309934): Integrate more Preloading predictors with
 // Preloading logging APIs.
 }  // namespace chrome_preloading_predictor

@@ -4,18 +4,19 @@
 
 #include "chrome/browser/supervised_user/supervised_user_extensions_delegate_impl.h"
 
-#include <memory>
 #include <utility>
 
 #include "base/functional/bind.h"
 #include "base/task/single_thread_task_runner.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/supervised_user/extension_icon_loader.h"
+#include "chrome/browser/supervised_user/supervised_user_browser_utils.h"
+#include "chrome/browser/supervised_user/supervised_user_extensions_manager.h"
 #include "chrome/browser/supervised_user/supervised_user_extensions_metrics_recorder.h"
-#include "chrome/browser/supervised_user/supervised_user_service.h"
 #include "chrome/browser/supervised_user/supervised_user_service_factory.h"
 #include "chrome/browser/ui/extensions/extensions_dialogs.h"
 #include "chrome/browser/ui/supervised_user/parent_permission_dialog.h"
+#include "components/supervised_user/core/browser/supervised_user_service.h"
 #include "components/supervised_user/core/common/features.h"
 #include "content/public/browser/web_contents.h"
 #include "extensions/browser/extension_dialog_auto_confirm.h"
@@ -51,13 +52,18 @@ void OnParentPermissionDialogComplete(
 namespace extensions {
 
 SupervisedUserExtensionsDelegateImpl::SupervisedUserExtensionsDelegateImpl(
-    content::BrowserContext* context)
-    : context_(context) {
+    content::BrowserContext* browser_context)
+    : context_(browser_context), extensions_manager_(context_) {
   CHECK(context_);
 }
 
 SupervisedUserExtensionsDelegateImpl::~SupervisedUserExtensionsDelegateImpl() =
     default;
+
+void SupervisedUserExtensionsDelegateImpl::
+    UpdateManagementPolicyRegistration() {
+  extensions_manager_.UpdateManagementPolicyRegistration();
+}
 
 bool SupervisedUserExtensionsDelegateImpl::IsChild() const {
   return SupervisedUserServiceFactory::GetForBrowserContext(context_)
@@ -66,8 +72,7 @@ bool SupervisedUserExtensionsDelegateImpl::IsChild() const {
 
 bool SupervisedUserExtensionsDelegateImpl::IsExtensionAllowedByParent(
     const Extension& extension) const {
-  return SupervisedUserServiceFactory::GetForBrowserContext(context_)
-      ->IsExtensionAllowed(extension);
+  return extensions_manager_.IsExtensionAllowed(extension);
 }
 
 void SupervisedUserExtensionsDelegateImpl::RequestToAddExtensionOrShowError(
@@ -102,26 +107,22 @@ void SupervisedUserExtensionsDelegateImpl::RequestToEnableExtensionOrShowError(
 }
 
 bool SupervisedUserExtensionsDelegateImpl::CanInstallExtensions() const {
-  return SupervisedUserServiceFactory::GetForBrowserContext(context_)
-      ->CanInstallExtensions();
+  return extensions_manager_.CanInstallExtensions();
 }
 
 void SupervisedUserExtensionsDelegateImpl::AddExtensionApproval(
     const extensions::Extension& extension) {
-  return SupervisedUserServiceFactory::GetForBrowserContext(context_)
-      ->AddExtensionApproval(extension);
+  extensions_manager_.AddExtensionApproval(extension);
 }
 
 void SupervisedUserExtensionsDelegateImpl::RemoveExtensionApproval(
     const extensions::Extension& extension) {
-  return SupervisedUserServiceFactory::GetForBrowserContext(context_)
-      ->RemoveExtensionApproval(extension);
+  extensions_manager_.RemoveExtensionApproval(extension);
 }
 
 void SupervisedUserExtensionsDelegateImpl::RecordExtensionEnablementUmaMetrics(
     bool enabled) const {
-  return SupervisedUserServiceFactory::GetForBrowserContext(context_)
-      ->RecordExtensionEnablementUmaMetrics(enabled);
+  extensions_manager_.RecordExtensionEnablementUmaMetrics(enabled);
 }
 
 void SupervisedUserExtensionsDelegateImpl::
@@ -181,13 +182,19 @@ void SupervisedUserExtensionsDelegateImpl::RequestExtensionApproval(
     web_contents = contents_weak_ptr.get();
   }
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-  if (supervised_user::IsLocalExtensionApprovalsV2Enabled()) {
+#if BUILDFLAG(IS_CHROMEOS)
+  if (ParentAccessExtensionApprovalsManager::ShouldShowExtensionApprovalsV2()) {
     // Parent Access Dialog handles blocked use case in V2.
     extension_approvals_manager_ =
         std::make_unique<ParentAccessExtensionApprovalsManager>();
     extension_approvals_manager_->ShowParentAccessDialog(
-        extension, context_, icon, std::move(done_callback_));
+        extension, context_, icon,
+        CanInstallExtensions()
+            ? ParentAccessExtensionApprovalsManager::ExtensionInstallMode::
+                  kInstallationPermitted
+            : ParentAccessExtensionApprovalsManager::ExtensionInstallMode::
+                  kInstallationDenied,
+        std::move(done_callback_));
     return;
   }
 #endif

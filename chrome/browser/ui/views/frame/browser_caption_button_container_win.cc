@@ -11,6 +11,7 @@
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/windows_caption_button.h"
 #include "chrome/browser/ui/views/frame/windows_tab_search_caption_button.h"
+#include "chrome/browser/win/titlebar_config.h"
 #include "chrome/grit/generated_resources.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
@@ -65,7 +66,7 @@ BrowserCaptionButtonContainer::BrowserCaptionButtonContainer(
           frame_view_,
           VIEW_ID_CLOSE_BUTTON,
           IDS_APP_ACCNAME_CLOSE))) {
-  if (WindowFrameUtil::IsWin10TabSearchCaptionButtonEnabled(
+  if (WindowFrameUtil::IsWindowsTabSearchCaptionButtonEnabled(
           frame_view_->browser_view()->browser())) {
     tab_search_button_ =
         AddChildViewAt(std::make_unique<WindowsTabSearchCaptionButton>(
@@ -78,7 +79,7 @@ BrowserCaptionButtonContainer::BrowserCaptionButtonContainer(
   auto* const layout = SetLayoutManager(std::make_unique<views::FlexLayout>());
   layout->SetOrientation(views::LayoutOrientation::kHorizontal)
       .SetMainAxisAlignment(views::LayoutAlignment::kEnd)
-      .SetCrossAxisAlignment(views::LayoutAlignment::kStart)
+      .SetCrossAxisAlignment(views::LayoutAlignment::kStretch)
       .SetDefault(
           views::kFlexBehaviorKey,
           views::FlexSpecification(views::LayoutOrientation::kHorizontal,
@@ -195,6 +196,14 @@ void BrowserCaptionButtonContainer::OnWidgetBoundsChanged(
 }
 
 void BrowserCaptionButtonContainer::UpdateButtons() {
+  if (!ShouldBrowserCustomDrawTitlebar(frame_view_->browser_view())) {
+    minimize_button_->SetVisible(false);
+    maximize_button_->SetVisible(false);
+    restore_button_->SetVisible(false);
+    close_button_->SetVisible(false);
+    return;
+  }
+
   minimize_button_->SetVisible(frame_view_->browser_view()->CanMinimize());
 
   const bool is_maximized = frame_view_->IsMaximized();
@@ -202,13 +211,14 @@ void BrowserCaptionButtonContainer::UpdateButtons() {
   restore_button_->SetVisible(is_maximized && can_maximize);
   maximize_button_->SetVisible(!is_maximized && can_maximize);
 
+  close_button_->SetVisible(true);
+
   // In touch mode, windows cannot be taken out of fullscreen or tiled mode, so
   // the maximize/restore button should be disabled, unless the window is not
   // maximized. TODO(crbug.com/1338572): Also check if the window is tiled.
   const bool is_touch = ui::TouchUiController::Get()->touch_ui();
   restore_button_->SetEnabled(!is_touch);
   maximize_button_->SetEnabled(!is_touch || !is_maximized);
-  InvalidateLayout();
 }
 
 void BrowserCaptionButtonContainer::

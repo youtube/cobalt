@@ -5,9 +5,6 @@
 #ifndef COMPONENTS_SEGMENTATION_PLATFORM_INTERNAL_EXECUTION_OPTIMIZATION_GUIDE_OPTIMIZATION_GUIDE_SEGMENTATION_MODEL_HANDLER_H_
 #define COMPONENTS_SEGMENTATION_PLATFORM_INTERNAL_EXECUTION_OPTIMIZATION_GUIDE_OPTIMIZATION_GUIDE_SEGMENTATION_MODEL_HANDLER_H_
 
-#include <memory>
-#include <vector>
-
 #include "base/task/sequenced_task_runner.h"
 #include "components/optimization_guide/core/model_handler.h"
 #include "components/optimization_guide/proto/models.pb.h"
@@ -33,8 +30,10 @@ class OptimizationGuideSegmentationModelHandler
     : public optimization_guide::ModelHandler<ModelProvider::Response,
                                               const ModelProvider::Request&> {
  public:
-  using ModelUpdatedCallback = base::RepeatingCallback<
-      void(proto::SegmentId, proto::SegmentationModelMetadata, int64_t)>;
+  using ModelUpdatedCallback = base::RepeatingCallback<void(
+      proto::SegmentId,
+      absl::optional<proto::SegmentationModelMetadata>,
+      int64_t)>;
 
   explicit OptimizationGuideSegmentationModelHandler(
       optimization_guide::OptimizationGuideModelProvider* model_provider,
@@ -52,8 +51,10 @@ class OptimizationGuideSegmentationModelHandler
       const OptimizationGuideSegmentationModelHandler&) = delete;
 
   // optimization_guide::ModelHandler overrides.
-  void OnModelUpdated(optimization_guide::proto::OptimizationTarget segment_id,
-                      const optimization_guide::ModelInfo& model_info) override;
+  void OnModelUpdated(
+      optimization_guide::proto::OptimizationTarget optimization_target,
+      base::optional_ref<const optimization_guide::ModelInfo> model_info)
+      override;
 
  private:
   // Callback to invoke whenever the model file has been updated. If there is

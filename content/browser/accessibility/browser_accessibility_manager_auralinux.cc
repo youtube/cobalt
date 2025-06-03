@@ -42,7 +42,18 @@ BrowserAccessibilityManagerAuraLinux::BrowserAccessibilityManagerAuraLinux(
   Initialize(initial_tree);
 }
 
-BrowserAccessibilityManagerAuraLinux::~BrowserAccessibilityManagerAuraLinux() {}
+BrowserAccessibilityManagerAuraLinux::~BrowserAccessibilityManagerAuraLinux() {
+  if (IsRootFrameManager()) {
+    DCHECK(GetBrowserAccessibilityRoot());
+    gfx::NativeViewAccessible obj =
+        GetBrowserAccessibilityRoot()->GetNativeViewAccessible();
+    // We don't fire state:changed:defunct on every object in order to reduce
+    // event noise, but it is useful for the root node of a document.
+    if (ATK_IS_OBJECT(obj)) {
+      atk_object_notify_state_change(obj, ATK_STATE_DEFUNCT, TRUE);
+    }
+  }
+}
 
 // static
 ui::AXTreeUpdate BrowserAccessibilityManagerAuraLinux::GetEmptyDocument() {
@@ -53,6 +64,20 @@ ui::AXTreeUpdate BrowserAccessibilityManagerAuraLinux::GetEmptyDocument() {
   update.root_id = empty_document.id;
   update.nodes.push_back(empty_document);
   return update;
+}
+
+void BrowserAccessibilityManagerAuraLinux::SetPrimaryWebContentsForWindow(
+    ui::AXNodeID node_id) {
+  DCHECK_NE(node_id, ui::kInvalidAXNodeID);
+  DCHECK(GetFromID(node_id));
+  DCHECK(primary_web_contents_for_window_id_ == node_id ||
+         primary_web_contents_for_window_id_ == ui::kInvalidAXNodeID);
+  primary_web_contents_for_window_id_ = node_id;
+}
+
+ui::AXNodeID
+BrowserAccessibilityManagerAuraLinux::GetPrimaryWebContentsForWindow() const {
+  return primary_web_contents_for_window_id_;
 }
 
 void BrowserAccessibilityManagerAuraLinux::FireFocusEvent(ui::AXNode* node) {
@@ -340,6 +365,7 @@ void BrowserAccessibilityManagerAuraLinux::FireGeneratedEvent(
     case ui::AXEventGenerator::Event::MULTILINE_STATE_CHANGED:
     case ui::AXEventGenerator::Event::MULTISELECTABLE_STATE_CHANGED:
     case ui::AXEventGenerator::Event::OBJECT_ATTRIBUTE_CHANGED:
+    case ui::AXEventGenerator::Event::ORIENTATION_CHANGED:
     case ui::AXEventGenerator::Event::OTHER_ATTRIBUTE_CHANGED:
     case ui::AXEventGenerator::Event::PLACEHOLDER_CHANGED:
     case ui::AXEventGenerator::Event::PORTAL_ACTIVATED:
@@ -359,6 +385,14 @@ void BrowserAccessibilityManagerAuraLinux::FireGeneratedEvent(
     case ui::AXEventGenerator::Event::WIN_IACCESSIBLE_STATE_CHANGED:
       break;
   }
+}
+
+void BrowserAccessibilityManagerAuraLinux::OnNodeDeleted(ui::AXTree* tree,
+                                                         int32_t node_id) {
+  if (primary_web_contents_for_window_id_ == node_id) {
+    primary_web_contents_for_window_id_ = ui::kInvalidAXNodeID;
+  }
+  BrowserAccessibilityManager::OnNodeDeleted(tree, node_id);
 }
 
 void BrowserAccessibilityManagerAuraLinux::OnIgnoredWillChange(
@@ -387,10 +421,6 @@ void BrowserAccessibilityManagerAuraLinux::OnIgnoredWillChange(
 void BrowserAccessibilityManagerAuraLinux::OnSubtreeWillBeDeleted(
     ui::AXTree* tree,
     ui::AXNode* node) {
-  // Sending events on load/destruction would create a lot of spam, avoid that.
-  if (!GetTreeData().loaded)
-    return;
-
   BrowserAccessibility* obj = GetFromAXNode(node);
   if (!CanEmitChildrenChanged(obj))
     return;

@@ -4,14 +4,42 @@
 
 #import "ios/web/content/js_messaging/content_web_frame.h"
 
+#import "base/json/json_writer.h"
+#import "base/strings/string_util.h"
+#import "base/strings/stringprintf.h"
+#import "base/strings/utf_string_conversions.h"
 #import "content/public/browser/render_frame_host.h"
 #import "ios/web/content/web_state/content_web_state.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace web {
+
+namespace {
+
+void WebToContentJavaScriptCallbackAdapter(
+    base::OnceCallback<void(const base::Value*)> web_callback,
+    base::Value value) {
+  std::move(web_callback).Run(&value);
+}
+
+void WebWithErrorToContentJavaScriptCallbackAdapter(
+    WebFrame::ExecuteJavaScriptCallbackWithError web_callback,
+    base::Value value) {
+  std::move(web_callback).Run(&value, /*error=*/nil);
+}
+
+std::u16string CreateFunctionCallWithParameters(
+    const std::string& name,
+    const base::Value::List& parameters) {
+  std::vector<std::string> parameter_strings(parameters.size());
+  for (size_t i = 0; i < parameters.size(); ++i) {
+    base::JSONWriter::Write(parameters[i], &parameter_strings[i]);
+  }
+  std::string joined_paramters = base::JoinString(parameter_strings, ",");
+  return base::UTF8ToUTF16(base::StringPrintf("__gCrWeb.%s(%s)", name.c_str(),
+                                              joined_paramters.c_str()));
+}
+
+}  // namespace
 
 ContentWebFrame::ContentWebFrame(const std::string& web_frame_id,
                                  content::RenderFrameHost* render_frame_host,
@@ -20,6 +48,7 @@ ContentWebFrame::ContentWebFrame(const std::string& web_frame_id,
       content_web_state_(content_web_state),
       render_frame_host_(render_frame_host) {
   content_web_state->AddObserver(this);
+  render_frame_host_->AllowInjectingJavaScript();
 }
 
 ContentWebFrame::~ContentWebFrame() {
@@ -41,7 +70,7 @@ bool ContentWebFrame::IsMainFrame() const {
 GURL ContentWebFrame::GetSecurityOrigin() const {
   // TODO(crbug.com/1423501):  Once GetSecurityOrigin is changed to return an
   // Origin instead of a URL, this should use GetLastCommittedOrigin().
-  return render_frame_host_->GetLastCommittedURL();
+  return render_frame_host_->GetLastCommittedURL().DeprecatedGetOriginAsURL();
 }
 
 BrowserState* ContentWebFrame::GetBrowserState() {
@@ -51,55 +80,62 @@ BrowserState* ContentWebFrame::GetBrowserState() {
 
 bool ContentWebFrame::CallJavaScriptFunction(
     const std::string& name,
-    const std::vector<base::Value>& parameters) {
-  // TODO(crbug.com/1423527): Implement this.
-  return false;
+    const base::Value::List& parameters) {
+  return ExecuteJavaScript(CreateFunctionCallWithParameters(name, parameters));
 }
 
 bool ContentWebFrame::CallJavaScriptFunction(
     const std::string& name,
-    const std::vector<base::Value>& parameters,
+    const base::Value::List& parameters,
     base::OnceCallback<void(const base::Value*)> callback,
     base::TimeDelta timeout) {
-  // TODO(crbug.com/1423527): Implement this.
-  return false;
+  // TODO(crbug.com/1423527): Handle timeouts.
+  return ExecuteJavaScript(CreateFunctionCallWithParameters(name, parameters),
+                           std::move(callback));
 }
 
 bool ContentWebFrame::CallJavaScriptFunctionInContentWorld(
     const std::string& name,
-    const std::vector<base::Value>& parameters,
+    const base::Value::List& parameters,
     JavaScriptContentWorld* content_world) {
-  // TODO(crbug.com/1423527): Implement this.
-  return false;
+  // TODO(crbug.com/1423527): Handle injecting into an isolated world.
+  return ExecuteJavaScript(CreateFunctionCallWithParameters(name, parameters));
 }
 
 bool ContentWebFrame::CallJavaScriptFunctionInContentWorld(
     const std::string& name,
-    const std::vector<base::Value>& parameters,
+    const base::Value::List& parameters,
     JavaScriptContentWorld* content_world,
     base::OnceCallback<void(const base::Value*)> callback,
     base::TimeDelta timeout) {
-  // TODO(crbug.com/1423527): Implement this.
-  return false;
+  // TODO(crbug.com/1423527): Handle timeouts and injecting into an isolated
+  // world.
+  return ExecuteJavaScript(CreateFunctionCallWithParameters(name, parameters),
+                           std::move(callback));
 }
 
 bool ContentWebFrame::ExecuteJavaScript(const std::u16string& script) {
-  // TODO(crbug.com/1423527): Implement this.
-  return false;
+  render_frame_host_->ExecuteJavaScript(
+      script, content::RenderFrameHost::JavaScriptResultCallback());
+  return true;
 }
 
 bool ContentWebFrame::ExecuteJavaScript(
     const std::u16string& script,
     base::OnceCallback<void(const base::Value*)> callback) {
-  // TODO(crbug.com/1423527): Implement this.
-  return false;
+  render_frame_host_->ExecuteJavaScript(
+      script, base::BindOnce(&WebToContentJavaScriptCallbackAdapter,
+                             std::move(callback)));
+  return true;
 }
 
 bool ContentWebFrame::ExecuteJavaScript(
     const std::u16string& script,
     ExecuteJavaScriptCallbackWithError callback) {
-  // TODO(crbug.com/1423527): Implement this.
-  return false;
+  render_frame_host_->ExecuteJavaScript(
+      script, base::BindOnce(&WebWithErrorToContentJavaScriptCallbackAdapter,
+                             std::move(callback)));
+  return true;
 }
 
 void ContentWebFrame::DetachFromWebState() {

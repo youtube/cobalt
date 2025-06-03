@@ -1,13 +1,13 @@
 {
   "layers": [
     {
-      "name": "Scrolling background of LayoutNGView #document",
+      "name": "Scrolling background of LayoutView #document",
       "bounds": [800, 600],
       "contentsOpaque": true,
       "backgroundColor": "#FF0000"
     },
     {
-      "name": "LayoutNGTableCell (relative positioned) TD id='cellToScroll' class='relative'",
+      "name": "LayoutTableCell (relative positioned) TD id='cellToScroll' class='relative'",
       "position": [2, 2],
       "bounds": [435, 450],
       "drawsContent": false,

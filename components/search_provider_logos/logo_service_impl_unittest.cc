@@ -364,7 +364,8 @@ class LogoServiceImplTest : public ::testing::Test {
                     GURL("https://example.com/logo.json"),
                     /*make_default=*/true);
 
-    test_clock_.SetNow(base::Time::FromJsTime(INT64_C(1388686828000)));
+    test_clock_.SetNow(
+        base::Time::FromMillisecondsSinceUnixEpoch(INT64_C(1388686828000)));
     logo_service_ = std::make_unique<LogoServiceImpl>(
         base::FilePath(), signin_helper_.identity_manager(),
         &template_url_service_, std::make_unique<FakeImageDecoder>(),
@@ -421,7 +422,7 @@ class LogoServiceImplTest : public ::testing::Test {
   base::test::TaskEnvironment task_environment_;
   TemplateURLService template_url_service_;
   base::SimpleTestClock test_clock_;
-  raw_ptr<NiceMock<MockLogoCache>> logo_cache_;
+  raw_ptr<NiceMock<MockLogoCache>, AcrossTasksDanglingUntriaged> logo_cache_;
 
   // Used for mocking |logo_service_| URLs.
   network::TestURLLoaderFactory test_url_loader_factory_;

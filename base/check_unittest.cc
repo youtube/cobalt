@@ -5,6 +5,7 @@
 #include <tuple>
 
 #include "base/check_deref.h"
+#include "base/features.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/logging.h"
@@ -69,6 +70,57 @@ MATCHER_P2(LogErrorMatches, line, expected_msg, "") {
     }                                                                          \
   } while (0)
 
+#define EXPECT_LOG_ERROR_WITH_FILENAME(expected_file, expected_line, expr,     \
+                                       msg)                                    \
+  do {                                                                         \
+    static bool got_log_message = false;                                       \
+    ASSERT_EQ(logging::GetLogMessageHandler(), nullptr);                       \
+    logging::SetLogMessageHandler([](int severity, const char* file, int line, \
+                                     size_t message_start,                     \
+                                     const std::string& str) {                 \
+      EXPECT_FALSE(got_log_message);                                           \
+      got_log_message = true;                                                  \
+      EXPECT_EQ(severity, logging::LOG_ERROR);                                 \
+      EXPECT_EQ(str.substr(message_start), (msg));                             \
+      if (base::StringPiece(expected_file) != "") {                            \
+        EXPECT_STREQ(expected_file, file);                                     \
+      }                                                                        \
+      if (expected_line != -1) {                                               \
+        EXPECT_EQ(expected_line, line);                                        \
+      }                                                                        \
+      return true;                                                             \
+    });                                                                        \
+    expr;                                                                      \
+    EXPECT_TRUE(got_log_message);                                              \
+    logging::SetLogMessageHandler(nullptr);                                    \
+  } while (0)
+
+#define EXPECT_LOG_ERROR(expected_line, expr, msg) \
+  EXPECT_LOG_ERROR_WITH_FILENAME(__FILE__, expected_line, expr, msg)
+
+#define EXPECT_NO_LOG(expr)                                                    \
+  do {                                                                         \
+    ASSERT_EQ(logging::GetLogMessageHandler(), nullptr);                       \
+    logging::SetLogMessageHandler([](int severity, const char* file, int line, \
+                                     size_t message_start,                     \
+                                     const std::string& str) {                 \
+      EXPECT_TRUE(false) << "Unexpected log: " << str;                         \
+      return true;                                                             \
+    });                                                                        \
+    expr;                                                                      \
+    logging::SetLogMessageHandler(nullptr);                                    \
+  } while (0)
+
+#if DCHECK_IS_ON()
+#define EXPECT_DUMP_WILL_BE_CHECK EXPECT_DCHECK
+#else
+// TODO(pbos): Update this to expect a crash dump outside DCHECK builds.
+#define EXPECT_DUMP_WILL_BE_CHECK(expected_string, statement)             \
+  EXPECT_LOG_ERROR_WITH_FILENAME(base::Location::Current().file_name(),   \
+                                 base::Location::Current().line_number(), \
+                                 statement, expected_string "\n")
+#endif  // DCHECK_IS_ON()
+
 TEST(CheckDeathTest, Basics) {
   EXPECT_CHECK("Check failed: false. ", CHECK(false));
 
@@ -129,6 +181,19 @@ TEST(CheckDeathTest, CheckOp) {
   EXPECT_DCHECK("Check failed: a >= b (1 vs. 2)", DCHECK_GE(a, b));
   EXPECT_DCHECK("Check failed: a > b (1 vs. 2)",  DCHECK_GT(a, b));
   // clang-format on
+
+  EXPECT_DUMP_WILL_BE_CHECK("Check failed: a == b (1 vs. 2)",
+                            DUMP_WILL_BE_CHECK_EQ(a, b));
+  EXPECT_DUMP_WILL_BE_CHECK("Check failed: a != a (1 vs. 1)",
+                            DUMP_WILL_BE_CHECK_NE(a, a));
+  EXPECT_DUMP_WILL_BE_CHECK("Check failed: b <= a (2 vs. 1)",
+                            DUMP_WILL_BE_CHECK_LE(b, a));
+  EXPECT_DUMP_WILL_BE_CHECK("Check failed: b < a (2 vs. 1)",
+                            DUMP_WILL_BE_CHECK_LT(b, a));
+  EXPECT_DUMP_WILL_BE_CHECK("Check failed: a >= b (1 vs. 2)",
+                            DUMP_WILL_BE_CHECK_GE(a, b));
+  EXPECT_DUMP_WILL_BE_CHECK("Check failed: a > b (1 vs. 2)",
+                            DUMP_WILL_BE_CHECK_GT(a, b));
 }
 
 TEST(CheckTest, CheckStreamsAreLazy) {
@@ -408,47 +473,6 @@ TEST(CheckDeathTest, OstreamVsToString) {
                CHECK_EQ(g, h));
 }
 
-#define EXPECT_LOG_ERROR_WITH_FILENAME(expected_file, expected_line, expr,     \
-                                       msg)                                    \
-  do {                                                                         \
-    static bool got_log_message = false;                                       \
-    ASSERT_EQ(logging::GetLogMessageHandler(), nullptr);                       \
-    logging::SetLogMessageHandler([](int severity, const char* file, int line, \
-                                     size_t message_start,                     \
-                                     const std::string& str) {                 \
-      EXPECT_FALSE(got_log_message);                                           \
-      got_log_message = true;                                                  \
-      EXPECT_EQ(severity, logging::LOG_ERROR);                                 \
-      EXPECT_EQ(str.substr(message_start), (msg));                             \
-      if (std::string(expected_file) != "") {                                  \
-        EXPECT_STREQ(expected_file, file);                                     \
-      }                                                                        \
-      if (expected_line != -1) {                                               \
-        EXPECT_EQ(expected_line, line);                                        \
-      }                                                                        \
-      return true;                                                             \
-    });                                                                        \
-    expr;                                                                      \
-    EXPECT_TRUE(got_log_message);                                              \
-    logging::SetLogMessageHandler(nullptr);                                    \
-  } while (0)
-
-#define EXPECT_LOG_ERROR(expected_line, expr, msg) \
-  EXPECT_LOG_ERROR_WITH_FILENAME(__FILE__, expected_line, expr, msg)
-
-#define EXPECT_NO_LOG(expr)                                                    \
-  do {                                                                         \
-    ASSERT_EQ(logging::GetLogMessageHandler(), nullptr);                       \
-    logging::SetLogMessageHandler([](int severity, const char* file, int line, \
-                                     size_t message_start,                     \
-                                     const std::string& str) {                 \
-      EXPECT_TRUE(false) << "Unexpected log: " << str;                         \
-      return true;                                                             \
-    });                                                                        \
-    expr;                                                                      \
-    logging::SetLogMessageHandler(nullptr);                                    \
-  } while (0)
-
 // This non-void function is here to make sure that NOTREACHED_NORETURN() is
 // properly annotated as [[noreturn]] and does not require a return statement.
 int NotReachedNoreturnInFunction() {
@@ -490,10 +514,29 @@ TEST(CheckDeathTest, NotReached) {
   // logging::NotReachedError::TriggerNotReached() but we have no good way of
   // asserting what that filename or line number is from here.
   EXPECT_LOG_ERROR_WITH_FILENAME("", -1, NOTREACHED() << "foo",
-                                 "Check failed: false. \n");
+                                 "Check failed: false. NOTREACHED log messages "
+                                 "are omitted in official builds. Sorry!\n");
 #endif
   EXPECT_DEATH_IF_SUPPORTED(NotReachedNoreturnInFunction(),
                             CHECK_WILL_STREAM() ? "NOTREACHED hit. " : "");
+}
+
+TEST(CheckDeathTest, NotReachedFatalExperiment) {
+  base::test::ScopedFeatureList feature_list(
+      base::features::kNotReachedIsFatal);
+  EXPECT_CHECK_DEATH(NOTREACHED());
+}
+
+TEST(CheckDeathTest, DumpWillBeCheck) {
+  DUMP_WILL_BE_CHECK(true);
+
+  EXPECT_DUMP_WILL_BE_CHECK("Check failed: false. foo",
+                            DUMP_WILL_BE_CHECK(false) << "foo");
+}
+
+TEST(CheckDeathTest, DumpWillBeNotReachedNoreturn) {
+  EXPECT_DUMP_WILL_BE_CHECK("NOTREACHED hit. foo",
+                            DUMP_WILL_BE_NOTREACHED_NORETURN() << "foo");
 }
 
 TEST(CheckTest, NotImplemented) {
@@ -502,7 +545,10 @@ TEST(CheckTest, NotImplemented) {
 
 #if DCHECK_IS_ON()
   // Expect LOG(ERROR) with streamed params intact.
-  EXPECT_LOG_ERROR(__LINE__, NOTIMPLEMENTED() << "foo", expected_msg + "foo\n");
+  EXPECT_LOG_ERROR_WITH_FILENAME(base::Location::Current().file_name(),
+                                 base::Location::Current().line_number(),
+                                 NOTIMPLEMENTED() << "foo",
+                                 expected_msg + "foo\n");
 #else
   // Expect nothing.
   EXPECT_NO_LOG(NOTIMPLEMENTED() << "foo");
@@ -518,7 +564,9 @@ TEST(CheckTest, NotImplementedLogOnce) {
       "Not implemented reached in void (anonymous namespace)::NiLogOnce()\n";
 
 #if DCHECK_IS_ON()
-  EXPECT_LOG_ERROR(__LINE__ - 8, NiLogOnce(), expected_msg);
+  EXPECT_LOG_ERROR_WITH_FILENAME(base::Location::Current().file_name(),
+                                 base::Location::Current().line_number() - 10,
+                                 NiLogOnce(), expected_msg);
   EXPECT_NO_LOG(NiLogOnce());
 #else
   EXPECT_NO_LOG(NiLogOnce());

@@ -10,6 +10,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "cc/layers/video_frame_provider.h"
 #include "gpu/GLES2/gl2extchromium.h"
+#include "gpu/command_buffer/client/client_shared_image.h"
 #include "gpu/command_buffer/client/shared_image_interface.h"
 #include "gpu/command_buffer/common/shared_image_usage.h"
 #include "gpu/ipc/common/gpu_memory_buffer_impl_dxgi.h"
@@ -181,7 +182,7 @@ void DCOMPTextureWrapperImpl::CreateVideoFrame(
   }
 
   auto frame = media::VideoFrame::WrapNativeTextures(
-      media::PIXEL_FORMAT_ARGB, holders,
+      media::PIXEL_FORMAT_BGRA, holders,
       base::BindPostTask(
           media_task_runner_,
           base::BindOnce(&OnReleaseVideoFrame, dcomp_texture_resources_)),
@@ -208,7 +209,7 @@ void DCOMPTextureWrapperImpl::CreateVideoFrame(
 
   std::unique_ptr<gfx::GpuMemoryBuffer> gmb =
       gpu::GpuMemoryBufferImplDXGI::CreateFromHandle(
-          std::move(dx_handle), natural_size, gfx::BufferFormat::RGBA_8888,
+          std::move(dx_handle), natural_size, gfx::BufferFormat::BGRA_8888,
           gfx::BufferUsage::GPU_READ, base::NullCallback(), nullptr, nullptr);
 
   // The VideoFrame object requires a 4 array mailbox holder because some
@@ -217,9 +218,12 @@ void DCOMPTextureWrapperImpl::CreateVideoFrame(
   // still need to provide the video frame creation with a 4 array mailbox
   // holder.
   gpu::MailboxHolder holder[media::VideoFrame::kMaxPlanes];
-  gpu::Mailbox mailbox = sii->CreateSharedImage(
-      gmb.get(), nullptr, gfx::ColorSpace(), kTopLeft_GrSurfaceOrigin,
-      kPremul_SkAlphaType, usage, "DCOMPTextureWrapperImpl");
+  auto client_shared_image = sii->CreateSharedImage(
+      viz::SinglePlaneFormat::kBGRA_8888, natural_size, gfx::ColorSpace(),
+      kTopLeft_GrSurfaceOrigin, kPremul_SkAlphaType, usage,
+      "DCOMPTextureWrapperImpl", gmb->CloneHandle());
+  CHECK(client_shared_image);
+  gpu::Mailbox mailbox = client_shared_image->mailbox();
   gpu::SyncToken sync_token = sii->GenVerifiedSyncToken();
   holder[0] = gpu::MailboxHolder(mailbox, sync_token, GL_TEXTURE_2D);
 
@@ -236,7 +240,7 @@ void DCOMPTextureWrapperImpl::CreateVideoFrame(
                      weak_factory_.GetWeakPtr(), sync_token, mailbox),
       FROM_HERE));
 
-  std::move(create_video_frame_cb).Run(video_frame_texture);
+  std::move(create_video_frame_cb).Run(video_frame_texture, mailbox);
 }
 
 void DCOMPTextureWrapperImpl::OnDXVideoFrameDestruction(

@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "chrome/browser/extensions/service_worker_apitest.h"
+
 #include <stdint.h>
 
 #include <utility>
@@ -19,6 +21,7 @@
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/threading/thread_restrictions.h"
+#include "base/values.h"
 #include "build/build_config.h"
 #include "chrome/browser/extensions/api/permissions/permissions_api.h"
 #include "chrome/browser/extensions/browsertest_util.h"
@@ -55,7 +58,6 @@
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/service_worker_context.h"
 #include "content/public/browser/service_worker_context_observer.h"
-#include "content/public/browser/storage_partition.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/common/page_type.h"
@@ -69,7 +71,6 @@
 #include "extensions/browser/extension_function_histogram_value.h"
 #include "extensions/browser/extension_host.h"
 #include "extensions/browser/extension_registry.h"
-#include "extensions/browser/process_manager.h"
 #include "extensions/browser/process_map.h"
 #include "extensions/browser/service_worker/service_worker_test_utils.h"
 #include "extensions/browser/service_worker_task_queue.h"
@@ -79,7 +80,6 @@
 #include "extensions/common/manifest_handlers/background_info.h"
 #include "extensions/common/mojom/event_dispatcher.mojom.h"
 #include "extensions/common/permissions/permissions_data.h"
-#include "extensions/common/value_builder.h"
 #include "extensions/common/verifier_formats.h"
 #include "extensions/test/extension_background_page_waiter.h"
 #include "extensions/test/extension_test_message_listener.h"
@@ -99,12 +99,6 @@ namespace extensions {
 namespace {
 
 using ::testing::HasSubstr;
-
-content::ServiceWorkerContext* GetServiceWorkerContext(
-    content::BrowserContext* browser_context) {
-  return browser_context->GetDefaultStoragePartition()
-      ->GetServiceWorkerContext();
-}
 
 class WebContentsLoadStopObserver : content::WebContentsObserver {
  public:
@@ -140,132 +134,98 @@ constexpr char kTestExtensionId[] = "ogdbpbegnmindpdjfafpmpicikegejdj";
 
 }  // namespace
 
-class ServiceWorkerTest : public ExtensionApiTest {
- public:
-  ServiceWorkerTest(const ServiceWorkerTest&) = delete;
-  ServiceWorkerTest& operator=(const ServiceWorkerTest&) = delete;
+void ServiceWorkerTest::SetUpOnMainThread() {
+  ExtensionApiTest::SetUpOnMainThread();
+  host_resolver()->AddRule("*", "127.0.0.1");
+}
 
- protected:
-  ServiceWorkerTest() = default;
-  ~ServiceWorkerTest() override = default;
+const Extension* ServiceWorkerTest::StartTestFromBackgroundPage(
+    const char* script_name) {
+  ExtensionTestMessageListener ready_listener("ready");
+  const Extension* extension =
+      LoadExtension(test_data_dir_.AppendASCII("service_worker/background"));
+  CHECK(extension);
+  CHECK(ready_listener.WaitUntilSatisfied());
 
-  void SetUpOnMainThread() override {
-    ExtensionApiTest::SetUpOnMainThread();
-    host_resolver()->AddRule("*", "127.0.0.1");
-  }
+  ExtensionHost* background_host =
+      process_manager()->GetBackgroundHostForExtension(extension->id());
+  CHECK(background_host);
 
-  // Returns the ProcessManager for the test's profile.
-  ProcessManager* process_manager() { return ProcessManager::Get(profile()); }
+  EXPECT_EQ(
+      "", content::EvalJs(background_host->host_contents(),
+                          base::StringPrintf("test.registerServiceWorker('%s')",
+                                             script_name)));
+  return extension;
+}
 
-  // Starts running a test from the background page test extension.
-  //
-  // This registers a service worker with |script_name|, and fetches the
-  // registration result.
-  const Extension* StartTestFromBackgroundPage(const char* script_name) {
-    ExtensionTestMessageListener ready_listener("ready");
-    const Extension* extension =
-        LoadExtension(test_data_dir_.AppendASCII("service_worker/background"));
-    CHECK(extension);
-    CHECK(ready_listener.WaitUntilSatisfied());
+content::WebContents* ServiceWorkerTest::Navigate(const GURL& url) {
+  ui_test_utils::NavigateToURLWithDisposition(
+      browser(), url, WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP);
+  content::WebContents* web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  content::WaitForLoadStop(web_contents);
+  return web_contents;
+}
 
-    ExtensionHost* background_host =
-        process_manager()->GetBackgroundHostForExtension(extension->id());
-    CHECK(background_host);
+content::PageType ServiceWorkerTest::NavigateAndGetPageType(const GURL& url) {
+  return Navigate(url)->GetController().GetLastCommittedEntry()->GetPageType();
+}
 
-    EXPECT_EQ("", content::EvalJs(
-                      background_host->host_contents(),
-                      base::StringPrintf("test.registerServiceWorker('%s')",
-                                         script_name)));
-    return extension;
-  }
+std::string ServiceWorkerTest::ExtractInnerText(
+    content::WebContents* contents) {
+  return content::EvalJs(contents, "document.body.innerText").ExtractString();
+}
 
-  // Navigates the browser to a new tab at |url|, waits for it to load, then
-  // returns it.
-  content::WebContents* Navigate(const GURL& url) {
-    ui_test_utils::NavigateToURLWithDisposition(
-        browser(), url, WindowOpenDisposition::NEW_FOREGROUND_TAB,
-        ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP);
-    content::WebContents* web_contents =
-        browser()->tab_strip_model()->GetActiveWebContents();
-    content::WaitForLoadStop(web_contents);
-    return web_contents;
-  }
+std::string ServiceWorkerTest::NavigateAndExtractInnerText(const GURL& url) {
+  return ExtractInnerText(Navigate(url));
+}
 
-  // Navigates the browser to |url| and returns the new tab's page type.
-  content::PageType NavigateAndGetPageType(const GURL& url) {
-    return Navigate(url)
-        ->GetController()
-        .GetLastCommittedEntry()
-        ->GetPageType();
-  }
+size_t ServiceWorkerTest::GetWorkerRefCount(const blink::StorageKey& key) {
+  content::ServiceWorkerContext* sw_context = GetServiceWorkerContext();
+  return sw_context->CountExternalRequestsForTest(key);
+}
 
-  // Extracts the innerText from |contents|.
-  std::string ExtractInnerText(content::WebContents* contents) {
-    return content::EvalJs(contents, "document.body.innerText").ExtractString();
-  }
+void ServiceWorkerBasedBackgroundTest::SetUpOnMainThread() {
+  host_resolver()->AddRule("*", "127.0.0.1");
+  ASSERT_TRUE(embedded_test_server()->Start());
+  ServiceWorkerTest::SetUpOnMainThread();
+}
 
-  // Navigates the browser to |url|, then returns the innerText of the new
-  // tab's WebContents' main frame.
-  std::string NavigateAndExtractInnerText(const GURL& url) {
-    return ExtractInnerText(Navigate(url));
-  }
-
-  size_t GetWorkerRefCount(const blink::StorageKey& key) {
-    content::ServiceWorkerContext* sw_context =
-        GetServiceWorkerContext(browser()->profile());
-    return sw_context->CountExternalRequestsForTest(key);
-  }
-};
-
-class ServiceWorkerBasedBackgroundTest : public ServiceWorkerTest {
- public:
-  ServiceWorkerBasedBackgroundTest() = default;
-
-  ServiceWorkerBasedBackgroundTest(const ServiceWorkerBasedBackgroundTest&) =
-      delete;
-  ServiceWorkerBasedBackgroundTest& operator=(
-      const ServiceWorkerBasedBackgroundTest&) = delete;
-
-  ~ServiceWorkerBasedBackgroundTest() override {}
-
-  void SetUpOnMainThread() override {
-    host_resolver()->AddRule("*", "127.0.0.1");
-    ASSERT_TRUE(embedded_test_server()->Start());
-    ServiceWorkerTest::SetUpOnMainThread();
-  }
-
-  // Returns the only running worker id for |extension_id|.
-  // Returns absl::nullopt if there isn't any worker running or more than one
-  // worker is running for |extension_id|.
-  absl::optional<WorkerId> GetUniqueRunningWorkerId(
-      const ExtensionId& extension_id) {
-    ProcessManager* process_manager = ProcessManager::Get(profile());
-    std::vector<WorkerId> all_workers =
-        process_manager->GetAllWorkersIdsForTesting();
-    absl::optional<WorkerId> running_worker_id;
-    for (const WorkerId& worker_id : all_workers) {
-      if (worker_id.extension_id == extension_id) {
-        if (running_worker_id)  // More than one worker present.
-          return absl::nullopt;
-        running_worker_id = worker_id;
+// Returns the only running worker id for |extension_id|.
+// Returns absl::nullopt if there isn't any worker running or more than one
+// worker is running for |extension_id|.
+absl::optional<WorkerId>
+ServiceWorkerBasedBackgroundTest::GetUniqueRunningWorkerId(
+    const ExtensionId& extension_id) {
+  ProcessManager* process_manager = ProcessManager::Get(profile());
+  std::vector<WorkerId> all_workers =
+      process_manager->GetAllWorkersIdsForTesting();
+  absl::optional<WorkerId> running_worker_id;
+  for (const WorkerId& worker_id : all_workers) {
+    if (worker_id.extension_id == extension_id) {
+      if (running_worker_id) {  // More than one worker present.
+        return absl::nullopt;
       }
+      running_worker_id = worker_id;
     }
-    return running_worker_id;
   }
+  return running_worker_id;
+}
 
-  bool ExtensionHasRenderProcessHost(const ExtensionId& extension_id) {
-    ProcessMap* process_map = ProcessMap::Get(browser()->profile());
-    content::RenderProcessHost::iterator it =
-        content::RenderProcessHost::AllHostsIterator();
-    while (!it.IsAtEnd()) {
-      if (process_map->Contains(extension_id, it.GetCurrentValue()->GetID())) {
-        return true;
-      }
-      it.Advance();
+bool ServiceWorkerBasedBackgroundTest::ExtensionHasRenderProcessHost(
+    const ExtensionId& extension_id) {
+  ProcessMap* process_map = ProcessMap::Get(browser()->profile());
+  content::RenderProcessHost::iterator it =
+      content::RenderProcessHost::AllHostsIterator();
+  while (!it.IsAtEnd()) {
+    if (process_map->Contains(extension_id, it.GetCurrentValue()->GetID())) {
+      return true;
     }
-    return false;
+    it.Advance();
   }
-};
+  return false;
+}
 
 class ServiceWorkerBasedBackgroundTestWithNotification
     : public ServiceWorkerBasedBackgroundTest {
@@ -677,9 +637,19 @@ using ServiceWorkerOnStartupEventTest =
 
 // Tests "runtime.onStartup" for extension SW.
 IN_PROC_BROWSER_TEST_F(ServiceWorkerOnStartupEventTest, PRE_Event) {
+  base::HistogramTester histograms;
   ASSERT_TRUE(RunExtensionTest(
       "service_worker/worker_based_background/on_startup_event"))
       << message_;
+  histograms.ExpectUniqueSample(
+      "Extensions.ServiceWorkerBackground.StartWorkerStatus", /*sample=*/true,
+      /*expected_bucket_count=*/1);
+  histograms.ExpectTotalCount(
+      "Extensions.ServiceWorkerBackground.StartWorkerTime",
+      /*expected_count=*/1);
+  histograms.ExpectTotalCount(
+      "Extensions.ServiceWorkerBackground.StartWorkerTime_Fail",
+      /*expected_count=*/0);
 }
 
 IN_PROC_BROWSER_TEST_F(ServiceWorkerOnStartupEventTest, Event) {
@@ -1751,15 +1721,14 @@ IN_PROC_BROWSER_TEST_F(ServiceWorkerBasedBackgroundTest, VerifyNoApiBindings) {
   // succeed.
   ExtensionTestMessageListener worker_start_listener("WORKER STARTED");
   worker_start_listener.set_failure_message("FAILURE");
-  ASSERT_TRUE(
-      content::ExecuteScript(web_contents, "window.runServiceWorker()"));
+  ASSERT_TRUE(content::ExecJs(web_contents, "window.runServiceWorker()"));
   ASSERT_TRUE(worker_start_listener.WaitUntilSatisfied());
 
   // Kick off the test, which will check the available bindings and fail if
   // there is anything unexpected.
   ExtensionTestMessageListener worker_listener("SUCCESS");
   worker_listener.set_failure_message("FAILURE");
-  ASSERT_TRUE(content::ExecuteScript(web_contents, "window.testSendMessage()"));
+  ASSERT_TRUE(content::ExecJs(web_contents, "window.testSendMessage()"));
   EXPECT_TRUE(worker_listener.WaitUntilSatisfied());
 }
 
@@ -1822,8 +1791,7 @@ IN_PROC_BROWSER_TEST_F(ServiceWorkerPushMessagingTest, OnPush) {
   ExtensionTestMessageListener ready_listener("SERVICE_WORKER_READY");
   ready_listener.set_failure_message("SERVICE_WORKER_FAILURE");
   const char* kScript = "window.runServiceWorker()";
-  EXPECT_TRUE(
-      content::ExecuteScript(web_contents->GetPrimaryMainFrame(), kScript));
+  EXPECT_TRUE(content::ExecJs(web_contents->GetPrimaryMainFrame(), kScript));
   EXPECT_TRUE(ready_listener.WaitUntilSatisfied());
 
   PushMessagingAppIdentifier app_identifier =
@@ -1924,8 +1892,7 @@ IN_PROC_BROWSER_TEST_F(ServiceWorkerBasedBackgroundTest,
   // Stop the service worker.
   {
     base::RunLoop run_loop;
-    content::ServiceWorkerContext* context =
-        GetServiceWorkerContext(browser()->profile());
+    content::ServiceWorkerContext* context = GetServiceWorkerContext();
     // The service worker is registered at the root scope.
     content::StopServiceWorkerForScope(context, extension->url(),
                                        run_loop.QuitClosure());
@@ -2295,8 +2262,7 @@ IN_PROC_BROWSER_TEST_F(ServiceWorkerBasedBackgroundTest,
 // Regression test for https://crbug.com/1019161.
 IN_PROC_BROWSER_TEST_F(ServiceWorkerBasedBackgroundTest,
                        WorkerStartFailureClearsPendingTasks) {
-  content::ServiceWorkerContext* context =
-      GetServiceWorkerContext(browser()->profile());
+  content::ServiceWorkerContext* context = GetServiceWorkerContext();
 
   const ExtensionId test_extension_id("iegclhlplifhodhkoafiokenjoapiobj");
   // Set up an observer to wait for worker to start and then stop.
@@ -2342,6 +2308,7 @@ IN_PROC_BROWSER_TEST_F(ServiceWorkerBasedBackgroundTest,
 
   ServiceWorkerTaskQueue* service_worker_task_queue =
       ServiceWorkerTaskQueue::Get(browser()->profile());
+  base::HistogramTester histograms;
   // Adding a pending task to ServiceWorkerTaskQueue will try to start the
   // worker that failed during installation before. This enables us to ensure
   // that this pending task is cleared on failure.
@@ -2354,6 +2321,22 @@ IN_PROC_BROWSER_TEST_F(ServiceWorkerBasedBackgroundTest,
       0u);
   // Ensure DidStartWorkerFail finished clearing tasks.
   base::RunLoop().RunUntilIdle();
+
+  histograms.ExpectUniqueSample(
+      "Extensions.ServiceWorkerBackground.StartWorkerStatus", /*sample=*/false,
+      /*expected_bucket_count=*/1);
+  histograms.ExpectUniqueSample(
+      "Extensions.ServiceWorkerBackground.StartWorker_FailStatus",
+      // TODO(crbug.com/1441221): Shouldn't this be kErrorInstallWorkerFailed
+      // since failure is due to throwing error in oninstall?
+      /*sample=*/blink::ServiceWorkerStatusCode::kErrorNotFound,
+      /*expected_bucket_count=*/1);
+  histograms.ExpectTotalCount(
+      "Extensions.ServiceWorkerBackground.StartWorkerTime_Fail",
+      /*expected_count=*/1);
+  histograms.ExpectTotalCount(
+      "Extensions.ServiceWorkerBackground.StartWorkerTime",
+      /*expected_count=*/0);
 
   // And the task count will be reset to zero afterwards.
   EXPECT_EQ(0u,
@@ -2444,7 +2427,7 @@ IN_PROC_BROWSER_TEST_F(ServiceWorkerBasedBackgroundTest, WorkerRefCount) {
   ExtensionTestMessageListener worker_listener("CHECK_REF_COUNT",
                                                ReplyBehavior::kWillReply);
   worker_listener.set_failure_message("FAILURE");
-  ASSERT_TRUE(content::ExecuteScript(web_contents, "window.testSendMessage()"));
+  ASSERT_TRUE(content::ExecJs(web_contents, "window.testSendMessage()"));
   ASSERT_TRUE(worker_listener.WaitUntilSatisfied());
 
   // Service worker should have exactly one pending request because
@@ -2456,8 +2439,7 @@ IN_PROC_BROWSER_TEST_F(ServiceWorkerBasedBackgroundTest, WorkerRefCount) {
     ExtensionTestMessageListener listener("CHECK_REF_COUNT",
                                           ReplyBehavior::kWillReply);
     listener.set_failure_message("FAILURE");
-    ASSERT_TRUE(
-        content::ExecuteScript(web_contents, "window.testSendMessage()"));
+    ASSERT_TRUE(content::ExecJs(web_contents, "window.testSendMessage()"));
     ASSERT_TRUE(listener.WaitUntilSatisfied());
 
     // Service worker currently has two extension API requests in-flight.
@@ -2690,7 +2672,9 @@ IN_PROC_BROWSER_TEST_F(ServiceWorkerBasedBackgroundTest, PermissionsAPI) {
   EXPECT_FALSE(extension->permissions_data()->HasAPIPermission(
       mojom::APIPermissionID::kStorage));
 
-  PermissionsRequestFunction::SetAutoConfirmForTests(true);
+  auto dialog_action_reset =
+      PermissionsRequestFunction::SetDialogActionForTests(
+          PermissionsRequestFunction::DialogAction::kAutoConfirm);
 
   ResultCatcher catcher;
   // Click on browser action to start the test.
@@ -2820,7 +2804,7 @@ IN_PROC_BROWSER_TEST_F(ServiceWorkerTestWithEarlyReadyMesssage,
     // we largely prevent this, it could still happen by means of e.g.
     // disk or pref corruption.
     base::RunLoop run_loop;
-    content::ServiceWorkerContext* context = GetServiceWorkerContext(profile());
+    content::ServiceWorkerContext* context = GetServiceWorkerContext();
     // The service worker is registered at the root scope.
     const GURL& scope = extension->url();
     base::AutoReset<const GURL*> allow_worker_unregistration =

@@ -1,11 +1,24 @@
 <style include="os-feedback-shared">
+  :host-context(body.jelly-enabled) #descriptionEmptyError {
+    font: var(--cros-annotation-2-font);
+  }
+
   :host-context(body.jelly-enabled) #descriptionText {
-    background-color: var(--cros-sys-input_field_on_base);
+    background-color: var(--cros-sys-input_field_on_shaded);
+    font: var(--cros-body-2-font);
+  }
+
+  :host-context(body.jelly-enabled) #descriptionText::placeholder {
+    font: var(--cros-body-2-font);
   }
 
   :host-context(body.jelly-enabled) #descriptionText.has-error {
     color: var(--cros-sys-error);
     outline: 2px solid var(--cros-sys-error);
+  }
+
+  :host-context(body.jelly-enabled) #feedbackWritingGuidance {
+    font: var(--cros-body-2-font);
   }
 
   :host-context(body.jelly-enabled) #emptyErrorIcon {
@@ -106,7 +119,8 @@
       <div id="descriptionHeader">
         <h2 id="descriptionTitle">[[i18n('descriptionLabel')]]</h2>
         <a id="feedbackWritingGuidance" href="[[feedbackWritingGuidanceUrl_()]]"
-            target="_blank">
+            target="_blank"
+            hidden$="[[!isUserLoggedIn_(feedbackContext)]]">
             [[i18n('feedbackHelpLinkLabel')]]
         </a>
       </div>
@@ -127,7 +141,7 @@
     <div>
       <iframe on-load="resolveIframeLoaded_"
           src="chrome-untrusted://os-feedback/untrusted_index.html"
-          scrolling="no">
+          scrolling="no" hidden$="[[!isUserLoggedIn_(feedbackContext)]]">
       </iframe>
     </div>
     <div id="shadowShield"></div>

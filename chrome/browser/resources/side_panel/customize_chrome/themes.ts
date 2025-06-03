@@ -1,6 +1,9 @@
 // Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+
+import 'chrome://customize-chrome-side-panel.top-chrome/shared/sp_heading.js';
+import 'chrome://customize-chrome-side-panel.top-chrome/shared/sp_shared_style.css.js';
 import 'chrome://resources/cr_elements/cr_auto_img/cr_auto_img.js';
 import 'chrome://resources/cr_elements/cr_hidden_style.css.js';
 import 'chrome://resources/cr_elements/cr_grid/cr_grid.js';
@@ -9,15 +12,17 @@ import 'chrome://resources/cr_elements/cr_icon_button/cr_icon_button.js';
 import 'chrome://resources/cr_elements/cr_toggle/cr_toggle.js';
 import './check_mark_wrapper.js';
 
+import {SpHeading} from 'chrome://customize-chrome-side-panel.top-chrome/shared/sp_heading.js';
 import {HelpBubbleMixin, HelpBubbleMixinInterface} from 'chrome://resources/cr_components/help_bubble/help_bubble_mixin.js';
 import {CrToggleElement} from 'chrome://resources/cr_elements/cr_toggle/cr_toggle.js';
-import {assert} from 'chrome://resources/js/assert_ts.js';
+import {assert} from 'chrome://resources/js/assert.js';
 import {FocusOutlineManager} from 'chrome://resources/js/focus_outline_manager.js';
 import {DomRepeatEvent, PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {BackgroundCollection, CollectionImage, CustomizeChromePageCallbackRouter, CustomizeChromePageHandlerInterface, Theme} from './customize_chrome.mojom-webui.js';
 import {CustomizeChromeApiProxy} from './customize_chrome_api_proxy.js';
 import {getTemplate} from './themes.html.js';
+import {WindowProxy} from './window_proxy.js';
 
 export const CHROME_THEME_ELEMENT_ID =
     'CustomizeChromeUI::kChromeThemeElementId';
@@ -29,9 +34,8 @@ const ThemesElementBase = HelpBubbleMixin(PolymerElement) as
 
 export interface ThemesElement {
   $: {
-    backButton: HTMLButtonElement,
-    header: HTMLElement,
     refreshDailyToggle: CrToggleElement,
+    heading: SpHeading,
   };
 }
 
@@ -51,6 +55,7 @@ export class ThemesElement extends ThemesElementBase {
         value: null,
         observer: 'onCollectionChange_',
       },
+      header_: String,
       isRefreshToggleChecked_: {
         type: Boolean,
         computed: `computeIsRefreshToggleChecked_(theme_, selectedCollection)`,
@@ -60,20 +65,20 @@ export class ThemesElement extends ThemesElementBase {
         value: undefined,
       },
       themes_: Array,
-      header_: String,
     };
   }
 
-  public selectedCollection: BackgroundCollection|null;
+  selectedCollection: BackgroundCollection|null;
 
   private header_: string;
   private isRefreshToggleChecked_: boolean;
   private theme_: Theme|undefined;
   private themes_: CollectionImage[];
-  private setThemeListenerId_: number|null = null;
 
   private callbackRouter_: CustomizeChromePageCallbackRouter;
   private pageHandler_: CustomizeChromePageHandlerInterface;
+  private previewImageLoadStartEpoch_: number;
+  private setThemeListenerId_: number|null = null;
 
   constructor() {
     super();
@@ -99,11 +104,12 @@ export class ThemesElement extends ThemesElementBase {
 
   override ready() {
     super.ready();
-    this.registerHelpBubble(CHROME_THEME_BACK_ELEMENT_ID, this.$.backButton);
+    this.registerHelpBubble(
+        CHROME_THEME_BACK_ELEMENT_ID, this.$.heading.getBackButton());
   }
 
   focusOnBackButton() {
-    this.$.backButton.focus();
+    this.$.heading.getBackButton().focus();
   }
 
   private onThemesRendered_() {
@@ -113,10 +119,25 @@ export class ThemesElement extends ThemesElementBase {
     }
   }
 
+  private onPreviewImageLoad_() {
+    chrome.metricsPrivate.recordValue(
+        {
+          metricName: 'NewTabPage.Images.ShownTime.ThemePreviewImage',
+          type: chrome.metricsPrivate.MetricTypeType.HISTOGRAM_LOG,
+          min: 1,
+          max: 60000,  // 60 seconds.
+          buckets: 100,
+        },
+        Math.floor(
+            WindowProxy.getInstance().now() -
+            this.previewImageLoadStartEpoch_));
+  }
+
   private onCollectionChange_() {
     this.header_ = '';
     this.themes_ = [];
     if (this.selectedCollection) {
+      this.previewImageLoadStartEpoch_ = WindowProxy.getInstance().now();
       this.pageHandler_.getBackgroundImages(this.selectedCollection!.id)
           .then(({images}) => {
             this.themes_ = images;

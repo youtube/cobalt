@@ -266,7 +266,7 @@ class FolderItemTitleAnimation : public AppListFolderView::Animation {
 
   const raw_ptr<AppListFolderView, ExperimentalAsh> folder_view_;  // Not owned.
 
-  const raw_ptr<views::View, ExperimentalAsh> folder_title_;
+  const raw_ptr<views::View, DanglingUntriaged | ExperimentalAsh> folder_title_;
 
   base::OnceClosure completion_callback_;
 
@@ -436,6 +436,7 @@ class TopIconAnimation : public AppListFolderView::Animation,
     // Items grid view has to be visible in case an item is being reparented, so
     // only set the opacity here.
     folder_view_->items_grid_view()->layer()->SetOpacity(visible ? 1.0f : 0.0f);
+    SetViewIgnoredForAccessibility(folder_view_->items_grid_view(), !visible);
   }
 
   // Get the bounds of the items in the first page of the opened folder relative
@@ -664,7 +665,7 @@ AppListFolderView::AppListFolderView(AppListFolderController* folder_controller,
 
   // Create a shadow under `background_view_`.
   shadow_ = SystemShadow::CreateShadowOnNinePatchLayer(
-      SystemShadow::Type::kElevation8);
+      SystemShadow::Type::kElevation12);
   background_view_->AddLayerToRegion(shadow_->GetLayer(),
                                      views::LayerRegion::kBelow);
 
@@ -832,6 +833,10 @@ void AppListFolderView::ScheduleShowHideAnimation(bool show,
 
   for (auto& animation : folder_visibility_animations_)
     animation->ScheduleAnimation(animation_completion_callback);
+}
+
+void AppListFolderView::AddedToWidget() {
+  shadow_->ObserveColorProviderSource(GetWidget());
 }
 
 void AppListFolderView::Layout() {

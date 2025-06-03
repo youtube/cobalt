@@ -28,6 +28,7 @@
 #include "third_party/blink/renderer/core/testing/page_test_base.h"
 #include "third_party/blink/renderer/platform/testing/runtime_enabled_features_test_helpers.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
+#include "ui/base/ui_base_types.h"
 #include "ui/gfx/display_color_spaces.h"
 
 namespace blink {
@@ -118,6 +119,31 @@ MediaQueryEvaluatorTestCase g_screen_test_cases[] = {
     {"(max-device-aspect-ratio: 0.6/0.5)", true},
     {"(min-device-aspect-ratio: 1/2)", true},
     {"(max-device-aspect-ratio: 1.5)", true},
+    {nullptr, false}  // Do not remove the terminator line.
+};
+
+MediaQueryEvaluatorTestCase g_display_state_test_cases[] = {
+    {"(display-state)", true},
+    {"(display-state: fullscreen)", false},
+    {"(display-state: minimized)", false},
+    {"(display-state: maximized)", false},
+    {"(display-state: normal)", true},
+    {"(display-state: #normal)", false},
+    {"(display-state: @normal)", false},
+    {"(display-state: 'normal')", false},
+    {"(display-state: @junk normal)", false},
+    {nullptr, false}  // Do not remove the terminator line.
+};
+
+MediaQueryEvaluatorTestCase g_resizable_test_cases[] = {
+    {"(resizable)", true},
+    {"(resizable: true)", true},
+    {"(resizable: false)", false},
+    {"(resizable: #true)", false},
+    {"(resizable: @true)", false},
+    {"(resizable: 'true')", false},
+    {"(resizable: \"true\")", false},
+    {"(resizable: @junk true)", false},
     {nullptr, false}  // Do not remove the terminator line.
 };
 
@@ -275,6 +301,21 @@ MediaQueryEvaluatorTestCase g_preferscontrast_custom_cases[] = {
     {nullptr, false}  // Do not remove the terminator line.
 };
 
+MediaQueryEvaluatorTestCase g_prefersreducedtransparency_nopreference_cases[] =
+    {
+        {"(prefers-reduced-transparency)", false},
+        {"(prefers-reduced-transparency: reduce)", false},
+        {"(prefers-reduced-transparency: no-preference)", true},
+        {nullptr, false}  // Do not remove the terminator line.
+};
+
+MediaQueryEvaluatorTestCase g_prefersreducedtransparency_reduce_cases[] = {
+    {"(prefers-reduced-transparency)", true},
+    {"(prefers-reduced-transparency: reduce)", true},
+    {"(prefers-reduced-transparency: no-preference)", false},
+    {nullptr, false}  // Do not remove the terminator line.
+};
+
 MediaQueryEvaluatorTestCase g_navigationcontrols_back_button_cases[] = {
     {"(navigation-controls: back-button)", true},
     {"(navigation-controls: none)", false},
@@ -414,6 +455,44 @@ MediaQueryEvaluatorTestCase g_overflow_with_scrollable_device_test_cases[] = {
     {nullptr, false}  // Do not remove the terminator line.
 };
 
+MediaQueryEvaluatorTestCase g_invertedcolors_none_cases[] = {
+    {"(inverted-colors)", false},
+    {"(inverted-colors: inverted)", false},
+    {"(inverted-colors: none)", true},
+    {nullptr, false}  // Do not remove the terminator line.
+};
+
+MediaQueryEvaluatorTestCase g_invertedcolors_inverted_cases[] = {
+    {"(inverted-colors)", true},
+    {"(inverted-colors: inverted)", true},
+    {"(inverted-colors: none)", false},
+    {nullptr, false}  // Do not remove the terminator line.
+};
+
+MediaQueryEvaluatorTestCase g_scripting_none_cases[] = {
+    {"(scripting)", false},
+    {"(scripting: none)", true},
+    {"(scripting: initial-only)", false},
+    {"(scripting: enabled)", false},
+    {nullptr, false}  // Do not remove the terminator line.
+};
+
+MediaQueryEvaluatorTestCase g_scripting_initial_only_cases[] = {
+    {"(scripting)", false},
+    {"(scripting: none)", false},
+    {"(scripting: initial-only)", true},
+    {"(scripting: enabled)", false},
+    {nullptr, false}  // Do not remove the terminator line.
+};
+
+MediaQueryEvaluatorTestCase g_scripting_enabled_cases[] = {
+    {"(scripting)", true},
+    {"(scripting: none)", false},
+    {"(scripting: initial-only)", false},
+    {"(scripting: enabled)", true},
+    {nullptr, false}  // Do not remove the terminator line.
+};
+
 void TestMQEvaluator(MediaQueryEvaluatorTestCase* test_cases,
                      const MediaQueryEvaluator& media_query_evaluator,
                      CSSParserMode mode) {
@@ -464,6 +543,23 @@ TEST(MediaQueryEvaluatorTest, Cached) {
     MediaQueryEvaluator media_query_evaluator(media_values);
     TestMQEvaluator(g_screen_test_cases, media_query_evaluator);
     TestMQEvaluator(g_viewport_test_cases, media_query_evaluator);
+  }
+
+  // Default display-state values.
+  {
+    data.window_show_state = ui::SHOW_STATE_DEFAULT;
+    ScopedDesktopPWAsAdditionalWindowingControlsForTest scoped_feature(true);
+    auto* media_values = MakeGarbageCollected<MediaValuesCached>(data);
+    MediaQueryEvaluator media_query_evaluator(media_values);
+    TestMQEvaluator(g_display_state_test_cases, media_query_evaluator);
+  }
+
+  // Default resizable values.
+  {
+    ScopedDesktopPWAsAdditionalWindowingControlsForTest scoped_feature(true);
+    auto* media_values = MakeGarbageCollected<MediaValuesCached>(data);
+    MediaQueryEvaluator media_query_evaluator(media_values);
+    TestMQEvaluator(g_resizable_test_cases, media_query_evaluator);
   }
 
   // Print values.
@@ -647,8 +743,30 @@ TEST(MediaQueryEvaluatorTest, CachedPrefersContrast) {
   }
 }
 
+TEST(MediaQueryEvaluatorTest, CachedPrefersReducedTransparency) {
+  MediaValuesCached::MediaValuesCachedData data;
+
+  // Prefers-reduced-transparency - no-preference.
+  {
+    data.prefers_reduced_transparency = false;
+    MediaValues* media_values = MakeGarbageCollected<MediaValuesCached>(data);
+    MediaQueryEvaluator media_query_evaluator(media_values);
+    TestMQEvaluator(g_prefersreducedtransparency_nopreference_cases,
+                    media_query_evaluator);
+  }
+
+  // Prefers-reduced-transparency - reduce.
+  {
+    data.prefers_reduced_transparency = true;
+    MediaValues* media_values = MakeGarbageCollected<MediaValuesCached>(data);
+    MediaQueryEvaluator media_query_evaluator(media_values);
+    TestMQEvaluator(g_prefersreducedtransparency_reduce_cases,
+                    media_query_evaluator);
+  }
+}
+
 TEST(MediaQueryEvaluatorTest, CachedViewportSegments) {
-  ScopedCSSFoldablesForTest scoped_feature(true);
+  ScopedViewportSegmentsForTest scoped_feature(true);
 
   MediaValuesCached::MediaValuesCachedData data;
   {
@@ -798,6 +916,54 @@ TEST(MediaQueryEvaluatorTest, CachedDynamicRange) {
         false};
     TestMQEvaluator(g_video_dynamic_range_feature_disabled_cases,
                     media_query_evaluator);
+  }
+}
+
+TEST(MediaQueryEvaluatorTest, CachedInvertedColors) {
+  MediaValuesCached::MediaValuesCachedData data;
+
+  // inverted-colors - none
+  {
+    data.inverted_colors = false;
+    MediaValues* media_values = MakeGarbageCollected<MediaValuesCached>(data);
+    MediaQueryEvaluator media_query_evaluator(media_values);
+    TestMQEvaluator(g_invertedcolors_none_cases, media_query_evaluator);
+  }
+
+  // inverted-colors - inverted
+  {
+    data.inverted_colors = true;
+    MediaValues* media_values = MakeGarbageCollected<MediaValuesCached>(data);
+    MediaQueryEvaluator media_query_evaluator(media_values);
+    TestMQEvaluator(g_invertedcolors_inverted_cases, media_query_evaluator);
+  }
+}
+
+TEST(MediaQueryEvaluatorTest, CachedScripting) {
+  MediaValuesCached::MediaValuesCachedData data;
+
+  // scripting - none
+  {
+    data.scripting = Scripting::kNone;
+    MediaValues* media_values = MakeGarbageCollected<MediaValuesCached>(data);
+    MediaQueryEvaluator media_query_evaluator(media_values);
+    TestMQEvaluator(g_scripting_none_cases, media_query_evaluator);
+  }
+
+  // scripting - initial-only
+  {
+    data.scripting = Scripting::kInitialOnly;
+    MediaValues* media_values = MakeGarbageCollected<MediaValuesCached>(data);
+    MediaQueryEvaluator media_query_evaluator(media_values);
+    TestMQEvaluator(g_scripting_initial_only_cases, media_query_evaluator);
+  }
+
+  // scripting - enabled
+  {
+    data.scripting = Scripting::kEnabled;
+    MediaValues* media_values = MakeGarbageCollected<MediaValuesCached>(data);
+    MediaQueryEvaluator media_query_evaluator(media_values);
+    TestMQEvaluator(g_scripting_enabled_cases, media_query_evaluator);
   }
 }
 
@@ -1304,6 +1470,33 @@ TEST_F(MediaQueryEvaluatorIdentifiabilityTest,
 }
 
 TEST_F(MediaQueryEvaluatorIdentifiabilityTest,
+       MediaFeatureIdentifiableSurfacePrefersReducedTransparency) {
+  GetDocument().body()->setInnerHTML(R"HTML(
+    <style>
+      @media (prefers-reduced-transparency: reduce) {
+        div { color: green }
+      }
+    </style>
+    <div id="green"></div>
+    <span></span>
+  )HTML");
+
+  UpdateAllLifecyclePhases();
+  EXPECT_TRUE(GetDocument().WasMediaFeatureEvaluated(static_cast<int>(
+      IdentifiableSurface::MediaFeatureName::kPrefersReducedTransparency)));
+  EXPECT_EQ(collector()->entries().size(), 1u);
+
+  auto& entry = collector()->entries().front();
+  EXPECT_EQ(entry.metrics.size(), 1u);
+  EXPECT_EQ(entry.metrics.begin()->surface,
+            IdentifiableSurface::FromTypeAndToken(
+                IdentifiableSurface::Type::kMediaFeature,
+                IdentifiableToken(IdentifiableSurface::MediaFeatureName::
+                                      kPrefersReducedTransparency)));
+  EXPECT_EQ(entry.metrics.begin()->value, IdentifiableToken(false));
+}
+
+TEST_F(MediaQueryEvaluatorIdentifiabilityTest,
        MediaFeatureIdentifiableSurfaceOrientation) {
   GetDocument().body()->setInnerHTML(R"HTML(
     <style>
@@ -1387,6 +1580,61 @@ TEST_F(MediaQueryEvaluatorIdentifiabilityTest,
                     IdentifiableSurface::MediaFeatureName::kDisplayMode)));
   EXPECT_EQ(entry.metrics.begin()->value,
             IdentifiableToken(blink::mojom::DisplayMode::kBrowser));
+}
+
+TEST_F(MediaQueryEvaluatorIdentifiabilityTest,
+       MediaFeatureIdentifiableSurfaceDisplayState) {
+  GetDocument().body()->setInnerHTML(R"HTML(
+    <style>
+      @media all and (display-state: normal) {
+        div { color: green }
+      }
+    </style>
+    <div id="green"></div>
+    <span></span>
+  )HTML");
+
+  UpdateAllLifecyclePhases();
+  EXPECT_TRUE(GetDocument().WasMediaFeatureEvaluated(
+      static_cast<int>(IdentifiableSurface::MediaFeatureName::kDisplayState)));
+  EXPECT_EQ(collector()->entries().size(), 1u);
+
+  auto& entry = collector()->entries().front();
+  EXPECT_EQ(entry.metrics.size(), 1u);
+  EXPECT_EQ(entry.metrics.begin()->surface,
+            IdentifiableSurface::FromTypeAndToken(
+                IdentifiableSurface::Type::kMediaFeature,
+                IdentifiableToken(
+                    IdentifiableSurface::MediaFeatureName::kDisplayState)));
+  EXPECT_EQ(entry.metrics.begin()->value,
+            IdentifiableToken(ui::SHOW_STATE_DEFAULT));
+}
+
+TEST_F(MediaQueryEvaluatorIdentifiabilityTest,
+       MediaFeatureIdentifiableSurfaceResizable) {
+  GetDocument().body()->setInnerHTML(R"HTML(
+    <style>
+      @media all and (resizable: true) {
+        div { color: green }
+      }
+    </style>
+    <div id="green"></div>
+    <span></span>
+  )HTML");
+
+  UpdateAllLifecyclePhases();
+  EXPECT_TRUE(GetDocument().WasMediaFeatureEvaluated(
+      static_cast<int>(IdentifiableSurface::MediaFeatureName::kResizable)));
+  EXPECT_EQ(collector()->entries().size(), 1u);
+
+  auto& entry = collector()->entries().front();
+  EXPECT_EQ(entry.metrics.size(), 1u);
+  EXPECT_EQ(entry.metrics.begin()->surface,
+            IdentifiableSurface::FromTypeAndToken(
+                IdentifiableSurface::Type::kMediaFeature,
+                IdentifiableToken(
+                    IdentifiableSurface::MediaFeatureName::kResizable)));
+  EXPECT_EQ(entry.metrics.begin()->value, IdentifiableToken(true));
 }
 
 TEST_F(MediaQueryEvaluatorIdentifiabilityTest,
@@ -1485,6 +1733,60 @@ TEST_F(MediaQueryEvaluatorIdentifiabilityTest,
                 IdentifiableSurface::Type::kMediaFeature,
                 IdentifiableToken(
                     IdentifiableSurface::MediaFeatureName::kResolution)));
+}
+
+TEST_F(MediaQueryEvaluatorIdentifiabilityTest,
+       MediaFeatureIdentifiableSurfaceInvertedColors) {
+  GetDocument().body()->setInnerHTML(R"HTML(
+    <style>
+      @media (inverted-colors: inverted) {
+        div { color: green }
+      }
+    </style>
+    <div id="green"></div>
+    <span></span>
+  )HTML");
+
+  UpdateAllLifecyclePhases();
+  EXPECT_TRUE(GetDocument().WasMediaFeatureEvaluated(static_cast<int>(
+      IdentifiableSurface::MediaFeatureName::kInvertedColors)));
+  EXPECT_EQ(collector()->entries().size(), 1u);
+
+  auto& entry = collector()->entries().front();
+  EXPECT_EQ(entry.metrics.size(), 1u);
+  EXPECT_EQ(entry.metrics.begin()->surface,
+            IdentifiableSurface::FromTypeAndToken(
+                IdentifiableSurface::Type::kMediaFeature,
+                IdentifiableToken(
+                    IdentifiableSurface::MediaFeatureName::kInvertedColors)));
+  EXPECT_EQ(entry.metrics.begin()->value, IdentifiableToken(false));
+}
+
+TEST_F(MediaQueryEvaluatorIdentifiabilityTest,
+       MediaFeatureIdentifiableSurfaceScripting) {
+  GetDocument().body()->setInnerHTML(R"HTML(
+    <style>
+      @media (scripting: enabled) {
+        div { color: green }
+      }
+    </style>
+    <div id="green"></div>
+    <span></span>
+  )HTML");
+
+  UpdateAllLifecyclePhases();
+  EXPECT_TRUE(GetDocument().WasMediaFeatureEvaluated(
+      static_cast<int>(IdentifiableSurface::MediaFeatureName::kScripting)));
+  EXPECT_EQ(collector()->entries().size(), 1u);
+
+  auto& entry = collector()->entries().front();
+  EXPECT_EQ(entry.metrics.size(), 1u);
+  EXPECT_EQ(entry.metrics.begin()->surface,
+            IdentifiableSurface::FromTypeAndToken(
+                IdentifiableSurface::Type::kMediaFeature,
+                IdentifiableToken(
+                    IdentifiableSurface::MediaFeatureName::kScripting)));
+  EXPECT_EQ(entry.metrics.begin()->value, IdentifiableToken(Scripting::kNone));
 }
 
 }  // namespace blink

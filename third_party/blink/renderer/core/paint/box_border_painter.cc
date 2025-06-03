@@ -283,7 +283,7 @@ void DrawBleedAdjustedDRRect(GraphicsContext& context,
       path.setFillType(SkPathFillType::kInverseWinding);
 
       cc::PaintFlags flags;
-      flags.setColor(color.Rgb());
+      flags.setColor(color.toSkColor4f());
       flags.setStyle(cc::PaintFlags::kFill_Style);
       flags.setAntiAlias(true);
       context.DrawPath(path, flags, auto_dark_mode);
@@ -367,11 +367,11 @@ struct OpacityGroup {
   DISALLOW_NEW();
 
  public:
-  explicit OpacityGroup(unsigned alpha) : edge_flags(0), alpha(alpha) {}
+  explicit OpacityGroup(float alpha) : edge_flags(0), alpha(alpha) {}
 
   Vector<BoxSide, 4> sides;
   BorderEdgeFlags edge_flags;
-  unsigned alpha;
+  float alpha;
 };
 
 void ClipPolygon(GraphicsContext& context,
@@ -666,7 +666,7 @@ void FillQuad(GraphicsContext& context,
   path.lineTo(gfx::PointFToSkPoint(quad[3]));
   cc::PaintFlags flags(context.FillFlags());
   flags.setAntiAlias(antialias);
-  flags.setColor(color.Rgb());
+  flags.setColor(color.toSkColor4f());
 
   context.DrawPath(path.detach(), flags, auto_dark_mode);
 }
@@ -839,8 +839,8 @@ struct BoxBorderPainter::ComplexBorderInfo {
                 const BorderEdge& edge_a = border_painter.Edge(a);
                 const BorderEdge& edge_b = border_painter.Edge(b);
 
-                const unsigned alpha_a = edge_a.GetColor().Alpha();
-                const unsigned alpha_b = edge_b.GetColor().Alpha();
+                const float alpha_a = edge_a.GetColor().Alpha();
+                const float alpha_b = edge_b.GetColor().Alpha();
                 if (alpha_a != alpha_b)
                   return alpha_a < alpha_b;
 
@@ -870,13 +870,17 @@ struct BoxBorderPainter::ComplexBorderInfo {
  private:
   void BuildOpacityGroups(const BoxBorderPainter& border_painter,
                           const Vector<BoxSide, 4>& sorted_sides) {
-    unsigned current_alpha = 0;
+    float current_alpha = 0.0f;
     for (BoxSide side : sorted_sides) {
       const BorderEdge& edge = border_painter.Edge(side);
-      const unsigned edge_alpha = edge.GetColor().Alpha();
+      const float edge_alpha = edge.GetColor().Alpha();
 
-      DCHECK_GT(edge_alpha, 0u);
+      DCHECK_GT(edge_alpha, 0.0f);
       DCHECK_GE(edge_alpha, current_alpha);
+      // TODO(crbug.com/1434423): This float comparison looks very brittle. We
+      // need to deduce the original intention of the code here. Also, this path
+      // is clearly un-tested and caused some serious regressions when touched.
+      // See crbug.com/1445288
       if (edge_alpha != current_alpha) {
         opacity_groups.push_back(OpacityGroup(edge_alpha));
         current_alpha = edge_alpha;
@@ -906,7 +910,7 @@ void BoxBorderPainter::DrawDoubleBorder() const {
   AutoDarkMode auto_dark_mode(PaintAutoDarkMode(style_, element_role_));
 
   // outer stripe
-  const NGPhysicalBoxStrut outer_third_outsets =
+  const PhysicalBoxStrut outer_third_outsets =
       DoubleStripeOutsets(BorderEdge::kDoubleBorderStripeOuter);
   FloatRoundedRect outer_third_rect =
       RoundedBorderGeometry::PixelSnappedRoundedBorderWithOutsets(
@@ -917,7 +921,7 @@ void BoxBorderPainter::DrawDoubleBorder() const {
                           color, auto_dark_mode);
 
   // inner stripe
-  const NGPhysicalBoxStrut inner_third_outsets =
+  const PhysicalBoxStrut inner_third_outsets =
       DoubleStripeOutsets(BorderEdge::kDoubleBorderStripeInner);
   FloatRoundedRect inner_third_rect =
       RoundedBorderGeometry::PixelSnappedRoundedBorderWithOutsets(
@@ -960,7 +964,7 @@ bool BoxBorderPainter::PaintBorderFastPath() const {
   // This is faster than the normal complex border path only if it avoids
   // creating transparency layers (when the border is translucent).
   if (FirstEdge().BorderStyle() == EBorderStyle::kSolid &&
-      !outer_.IsRounded() && has_alpha_) {
+      !outer_.IsRounded() && has_transparency_) {
     DCHECK(visible_edge_set_ != kAllBorderEdges);
     // solid, rectangular border => one drawPath()
     Path path;
@@ -999,7 +1003,7 @@ BoxBorderPainter::BoxBorderPainter(GraphicsContext& context,
       is_uniform_width_(true),
       is_uniform_color_(true),
       is_rounded_(false),
-      has_alpha_(false) {
+      has_transparency_(false) {
   style.GetBorderEdgeInfo(edges_, sides_to_include);
   ComputeBorderProperties();
 
@@ -1030,10 +1034,10 @@ BoxBorderPainter::BoxBorderPainter(GraphicsContext& context,
                                    const ComputedStyle& style,
                                    const PhysicalRect& border_rect,
                                    int width,
-                                   const NGPhysicalBoxStrut& inner_outsets)
+                                   const PhysicalBoxStrut& inner_outsets)
     : context_(context),
       border_rect_(border_rect),
-      outer_outsets_(inner_outsets + NGPhysicalBoxStrut(LayoutUnit(width))),
+      outer_outsets_(inner_outsets + PhysicalBoxStrut(LayoutUnit(width))),
       style_(style),
       bleed_avoidance_(kBackgroundBleedNone),
       sides_to_include_(PhysicalBoxSides()),
@@ -1044,7 +1048,7 @@ BoxBorderPainter::BoxBorderPainter(GraphicsContext& context,
       is_uniform_width_(true),
       is_uniform_color_(true),
       is_rounded_(false),
-      has_alpha_(false) {
+      has_transparency_(false) {
   DCHECK(style.HasOutline());
 
   BorderEdge edge(width,
@@ -1077,12 +1081,14 @@ void BoxBorderPainter::ComputeBorderProperties() {
       continue;
     }
 
-    DCHECK_GT(edge.GetColor().Alpha(), 0);
+    DCHECK(!edge.GetColor().IsFullyTransparent());
 
     visible_edge_count_++;
     visible_edge_set_ |= EdgeFlagForSide(static_cast<BoxSide>(i));
 
-    has_alpha_ |= edge.GetColor().HasAlpha();
+    if (!edge.GetColor().IsOpaque()) {
+      has_transparency_ = true;
+    }
 
     if (visible_edge_count_ == 1) {
       first_visible_edge_ = i;
@@ -1182,26 +1188,25 @@ BorderEdgeFlags BoxBorderPainter::PaintOpacityGroup(
 
   // Adjust this group's paint opacity to account for ancestor transparency
   // layers (needed in case we avoid creating a layer below).
-  unsigned paint_alpha = group.alpha / effective_opacity;
-  DCHECK_LE(paint_alpha, 255u);
+  float paint_alpha = group.alpha / effective_opacity;
+  DCHECK_LE(paint_alpha, 1.0f);
 
   // For the last (bottom) group, we can skip the layer even in the presence of
   // opacity iff it contains no adjecent edges (no in-group overdraw
   // possibility).
   bool needs_layer =
-      group.alpha != 255 && (IncludesAdjacentEdges(group.edge_flags) ||
-                             (index + 1 < border_info.opacity_groups.size()));
+      group.alpha != 1.0f && (IncludesAdjacentEdges(group.edge_flags) ||
+                              (index + 1 < border_info.opacity_groups.size()));
 
   if (needs_layer) {
-    const float group_opacity = static_cast<float>(group.alpha) / 255;
-    DCHECK_LT(group_opacity, effective_opacity);
+    DCHECK_LT(group.alpha, effective_opacity);
 
-    context_.BeginLayer(group_opacity / effective_opacity);
-    effective_opacity = group_opacity;
+    context_.BeginLayer(group.alpha / effective_opacity);
+    effective_opacity = group.alpha;
 
     // Group opacity is applied via a layer => we draw the members using opaque
     // paint.
-    paint_alpha = 255;
+    paint_alpha = 1.0f;
   }
 
   // Recursion may seem unpalatable here, but
@@ -1226,12 +1231,13 @@ BorderEdgeFlags BoxBorderPainter::PaintOpacityGroup(
 
 void BoxBorderPainter::PaintSide(const ComplexBorderInfo& border_info,
                                  BoxSide side,
-                                 unsigned alpha,
+                                 float alpha,
                                  BorderEdgeFlags completed_edges) const {
   const BorderEdge& edge = Edge(side);
   DCHECK(edge.ShouldRender());
-  const Color color(edge.GetColor().Red(), edge.GetColor().Green(),
-                    edge.GetColor().Blue(), alpha);
+  const Color color = Color::FromColorSpace(
+      edge.GetColor().GetColorSpace(), edge.GetColor().Param0(),
+      edge.GetColor().Param1(), edge.GetColor().Param2(), alpha);
 
   gfx::Rect side_rect = gfx::ToRoundedRect(outer_.Rect());
   const Path* path = nullptr;
@@ -1511,7 +1517,7 @@ void BoxBorderPainter::DrawDoubleBoxSideFromPath(const Path& border_path,
   // Draw inner border line
   {
     GraphicsContextStateSaver state_saver(context_);
-    const NGPhysicalBoxStrut inner_outsets =
+    const PhysicalBoxStrut inner_outsets =
         DoubleStripeOutsets(BorderEdge::kDoubleBorderStripeInner);
     FloatRoundedRect inner_clip =
         RoundedBorderGeometry::PixelSnappedRoundedBorderWithOutsets(
@@ -1526,7 +1532,7 @@ void BoxBorderPainter::DrawDoubleBoxSideFromPath(const Path& border_path,
   {
     GraphicsContextStateSaver state_saver(context_);
     PhysicalRect used_border_rect = border_rect_;
-    NGPhysicalBoxStrut outer_outsets =
+    PhysicalBoxStrut outer_outsets =
         DoubleStripeOutsets(BorderEdge::kDoubleBorderStripeOuter);
 
     if (BleedAvoidanceIsClipping(bleed_avoidance_)) {
@@ -2018,22 +2024,22 @@ void BoxBorderPainter::ClipBorderSidePolygon(BoxSide side,
   }
 }
 
-NGPhysicalBoxStrut BoxBorderPainter::DoubleStripeOutsets(
+PhysicalBoxStrut BoxBorderPainter::DoubleStripeOutsets(
     BorderEdge::DoubleBorderStripe stripe) const {
   return outer_outsets_ -
-         NGPhysicalBoxStrut(
+         PhysicalBoxStrut(
              Edge(BoxSide::kTop).GetDoubleBorderStripeWidth(stripe),
              Edge(BoxSide::kRight).GetDoubleBorderStripeWidth(stripe),
              Edge(BoxSide::kBottom).GetDoubleBorderStripeWidth(stripe),
              Edge(BoxSide::kLeft).GetDoubleBorderStripeWidth(stripe));
 }
 
-NGPhysicalBoxStrut BoxBorderPainter::CenterOutsets() const {
+PhysicalBoxStrut BoxBorderPainter::CenterOutsets() const {
   return outer_outsets_ -
-         NGPhysicalBoxStrut(Edge(BoxSide::kTop).UsedWidth() * 0.5,
-                            Edge(BoxSide::kRight).UsedWidth() * 0.5,
-                            Edge(BoxSide::kBottom).UsedWidth() * 0.5,
-                            Edge(BoxSide::kLeft).UsedWidth() * 0.5);
+         PhysicalBoxStrut(Edge(BoxSide::kTop).UsedWidth() * 0.5,
+                          Edge(BoxSide::kRight).UsedWidth() * 0.5,
+                          Edge(BoxSide::kBottom).UsedWidth() * 0.5,
+                          Edge(BoxSide::kLeft).UsedWidth() * 0.5);
 }
 
 bool BoxBorderPainter::ColorsMatchAtCorner(BoxSide side,

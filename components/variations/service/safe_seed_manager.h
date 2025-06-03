@@ -8,15 +8,9 @@
 #include <memory>
 #include <string>
 
-#include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
-#include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
-#include "build/chromeos_buildflags.h"
-
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-#include "components/variations/cros/featured.pb.h"
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#include "components/variations/service/safe_seed_manager_interface.h"
 
 class PrefRegistrySimple;
 class PrefService;
@@ -45,14 +39,8 @@ class VariationsSeedStore;
 constexpr int kCrashStreakSafeSeedThreshold = 3;
 constexpr int kCrashStreakNullSeedThreshold = 6;
 
-enum class SeedType {
-  kRegularSeed,
-  kSafeSeed,
-  kNullSeed,
-};
-
 // The primary class that encapsulates state for managing the safe seed.
-class SafeSeedManager {
+class SafeSeedManager : public SafeSeedManagerInterface {
  public:
   // Creates a SafeSeedManager instance and updates a safe mode pref,
   // kVariationsFailedToFetchSeedStreak, for bookkeeping.
@@ -61,7 +49,7 @@ class SafeSeedManager {
   SafeSeedManager(const SafeSeedManager&) = delete;
   SafeSeedManager& operator=(const SafeSeedManager&) = delete;
 
-  virtual ~SafeSeedManager();
+  ~SafeSeedManager() override;
 
   // Registers safe mode prefs in Local State.
   static void RegisterPrefs(PrefRegistrySimple* registry);
@@ -69,32 +57,28 @@ class SafeSeedManager {
   // Returns the type of seed the client should use.  Uses Regular seed by
   // default, but will use Safe seed, and Null seed after continual crashes or
   // network fetch failures.
-  // Virtual for testing.
-  virtual SeedType GetSeedType() const;
+  SeedType GetSeedType() const override;
 
   // Stores the combined server and client state that control the active
   // variations state. May be called at most once per Chrome app launch. As an
   // optimization, should not be called when running in safe mode.
-  // Virtual for testing.
-  virtual void SetActiveSeedState(
+  void SetActiveSeedState(
       const std::string& seed_data,
       const std::string& base64_seed_signature,
       int seed_milestone,
       std::unique_ptr<ClientFilterableState> client_filterable_state,
-      base::Time seed_fetch_time);
+      base::Time seed_fetch_time) override;
 
   // Records that a fetch has started: pessimistically increments the
   // corresponding failure streak for safe mode.
-  void RecordFetchStarted();
+  void RecordFetchStarted() override;
 
   // Records a successful fetch: resets the failure streaks for safe mode.
   // Writes the currently active seed to the |seed_store| as a safe seed, if
   // appropriate.
-  void RecordSuccessfulFetch(VariationsSeedStore* seed_store);
+  void RecordSuccessfulFetch(VariationsSeedStore* seed_store) override;
 
  private:
-  FRIEND_TEST_ALL_PREFIXES(SafeSeedManagerTest, GetSafeSeedStateForPlatform);
-
   // The combined server and client state needed to save an active seed as a
   // safe seed. Not set when running in safe mode.
   struct ActiveSeedState {
@@ -130,28 +114,6 @@ class SafeSeedManager {
   // The pref service used to persist the variations seed. Weak reference; must
   // outlive |this| instance.
   raw_ptr<PrefService> local_state_;
-
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-  // Gets the combined server and client state used for early boot variations
-  // platform disaster recovery.
-  featured::SeedDetails GetSafeSeedStateForPlatform();
-
-  // Retries sending the safe seed to platform. Does not retry after two failed
-  // attempts.
-  void MaybeRetrySendSafeSeed(const featured::SeedDetails& safe_seed,
-                              bool success);
-
-  // Sends the safe seed to the platform.
-  void SendSafeSeedToPlatform(const featured::SeedDetails& safe_seed);
-
-  // A counter that keeps track of how many times the current safe seed is sent
-  // to platform.
-  size_t send_seed_to_platform_attempts_ = 0;
-
-  // Note: This should remain the last member so it'll be destroyed and
-  // invalidate its weak pointers before any other members are destroyed.
-  base::WeakPtrFactory<SafeSeedManager> weak_ptr_factory_{this};
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 };
 
 }  // namespace variations

@@ -39,7 +39,7 @@
 #include "cc/trees/tree_synchronizer.h"
 #include "components/viz/common/quads/solid_color_draw_quad.h"
 #include "components/viz/test/test_context_provider.h"
-#include "components/viz/test/test_gles2_interface.h"
+#include "components/viz/test/test_raster_interface.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -109,7 +109,7 @@ class BaseScrollbarLayerTest : public testing::Test {
     layer_tree_settings_.scrollbar_fade_delay = base::Milliseconds(20);
     layer_tree_settings_.scrollbar_fade_duration = base::Milliseconds(20);
 
-    animation_host_ = AnimationHost::CreateForTesting(ThreadInstance::MAIN);
+    animation_host_ = AnimationHost::CreateForTesting(ThreadInstance::kMain);
 
     LayerTreeHost::InitParams params;
     params.client = &fake_client_;
@@ -134,7 +134,8 @@ class BaseScrollbarLayerTest : public testing::Test {
   }
 
  protected:
-  raw_ptr<FakeResourceTrackingUIResourceManager> fake_ui_resource_manager_;
+  raw_ptr<FakeResourceTrackingUIResourceManager, DanglingUntriaged>
+      fake_ui_resource_manager_;
   FakeLayerTreeHostClient fake_client_;
   StubLayerTreeHostSingleThreadClient single_thread_client_;
   TestTaskGraphRunner task_graph_runner_;
@@ -317,7 +318,7 @@ TEST_F(ScrollbarLayerTest, ScrollElementIdPushedAcrossCommit) {
           base::MakeRefCounted<FakeNinePatchScrollbar>());
   painted_overlay_scrollbar_layer->SetScrollElementId(layer_a->element_id());
   scoped_refptr<SolidColorScrollbarLayer> solid_color_scrollbar_layer =
-      SolidColorScrollbarLayer::Create(ScrollbarOrientation::VERTICAL, 1, 1,
+      SolidColorScrollbarLayer::Create(ScrollbarOrientation::kVertical, 1, 1,
                                        false);
   solid_color_scrollbar_layer->SetScrollElementId(layer_a->element_id());
 
@@ -569,7 +570,7 @@ TEST_F(ScrollbarLayerTest, ThumbRectForOverlayLeftSideVerticalScrollbar) {
   // Create an overlay left side vertical scrollbar.
   scoped_refptr<FakePaintedScrollbarLayer> scrollbar_layer =
       FakePaintedScrollbarLayer::Create(false, true,
-                                        ScrollbarOrientation::VERTICAL, true,
+                                        ScrollbarOrientation::kVertical, true,
                                         true, root_layer->element_id());
   root_layer->SetScrollable(gfx::Size(20, 50));
   root_layer->SetBounds(gfx::Size(50, 100));
@@ -619,7 +620,7 @@ TEST_F(ScrollbarLayerTest, SolidColorDrawQuads) {
     scoped_refptr<Layer> root = Layer::Create();
     scoped_refptr<Layer> child = Layer::Create();
     scoped_refptr<ScrollbarLayerBase> scrollbar_layer =
-        SolidColorScrollbarLayer::Create(ScrollbarOrientation::HORIZONTAL,
+        SolidColorScrollbarLayer::Create(ScrollbarOrientation::kHorizontal,
                                          kThumbThickness, kTrackStart, false);
     root->AddChild(child);
     root->AddChild(scrollbar_layer);
@@ -689,7 +690,7 @@ TEST_F(ScrollbarLayerTest, LayerDrivenSolidColorDrawQuads) {
   scoped_refptr<Layer> child1 = Layer::Create();
   const bool kIsLeftSideVerticalScrollbar = false;
   scoped_refptr<SolidColorScrollbarLayer> child2 =
-      SolidColorScrollbarLayer::Create(ScrollbarOrientation::HORIZONTAL,
+      SolidColorScrollbarLayer::Create(ScrollbarOrientation::kHorizontal,
                                        kThumbThickness, kTrackStart,
                                        kIsLeftSideVerticalScrollbar);
   child2->SetScrollElementId(scroll_layer->element_id());
@@ -745,7 +746,7 @@ TEST_F(ScrollbarLayerTest, ScrollbarLayerOpacity) {
   scoped_refptr<SolidColorScrollbarLayer> scrollbar_layer;
   const bool kIsLeftSideVerticalScrollbar = false;
   scrollbar_layer = SolidColorScrollbarLayer::Create(
-      ScrollbarOrientation::HORIZONTAL, kThumbThickness, kTrackStart,
+      ScrollbarOrientation::kHorizontal, kThumbThickness, kTrackStart,
       kIsLeftSideVerticalScrollbar);
   scrollbar_layer->SetScrollElementId(scroll_layer->element_id());
   scrollbar_layer->SetElementId(ElementId(300));
@@ -821,7 +822,7 @@ TEST_F(AuraScrollbarLayerTest, ScrollbarLayerPushProperties) {
   scoped_refptr<Layer> child1 = Layer::Create();
   const bool kIsLeftSideVerticalScrollbar = false;
   scoped_refptr<SolidColorScrollbarLayer> scrollbar_layer =
-      SolidColorScrollbarLayer::Create(ScrollbarOrientation::HORIZONTAL,
+      SolidColorScrollbarLayer::Create(ScrollbarOrientation::kHorizontal,
                                        kThumbThickness, kTrackStart,
                                        kIsLeftSideVerticalScrollbar);
   scrollbar_layer->SetScrollElementId(scroll_layer->element_id());
@@ -867,7 +868,7 @@ TEST_F(ScrollbarLayerTest, SubPixelCanScrollOrientation) {
 
   SolidColorScrollbarLayerImpl* scrollbar_layer =
       impl.AddLayer<SolidColorScrollbarLayerImpl>(
-          ScrollbarOrientation::HORIZONTAL, kThumbThickness, kTrackStart,
+          ScrollbarOrientation::kHorizontal, kThumbThickness, kTrackStart,
           kIsLeftSideVerticalScrollbar);
 
   scrollbar_layer->SetScrollElementId(scroll_layer->element_id());
@@ -907,7 +908,7 @@ TEST_F(ScrollbarLayerTest, LayerChangesAffectingScrollbarGeometries) {
   const bool kIsLeftSideVerticalScrollbar = false;
   SolidColorScrollbarLayerImpl* scrollbar_layer =
       impl.AddLayer<SolidColorScrollbarLayerImpl>(
-          ScrollbarOrientation::HORIZONTAL, kThumbThickness, kTrackStart,
+          ScrollbarOrientation::kHorizontal, kThumbThickness, kTrackStart,
           kIsLeftSideVerticalScrollbar);
   scrollbar_layer->SetScrollElementId(scroll_layer->element_id());
   EXPECT_TRUE(impl.host_impl()->active_tree()->ScrollbarGeometriesNeedUpdate());
@@ -1010,7 +1011,7 @@ TEST_F(AuraScrollbarLayerTest, ScrollbarLayerCreateAfterSetScrollable) {
   host_impl->ActivateSyncTree();
 
   scoped_refptr<SolidColorScrollbarLayer> scrollbar_layer =
-      SolidColorScrollbarLayer::Create(ScrollbarOrientation::HORIZONTAL,
+      SolidColorScrollbarLayer::Create(ScrollbarOrientation::kHorizontal,
                                        kThumbThickness, kTrackStart,
                                        kIsLeftSideVerticalScrollbar);
   scrollbar_layer->SetScrollElementId(scroll_layer->element_id());
@@ -1041,10 +1042,10 @@ class ScrollbarLayerSolidColorThumbTest : public testing::Test {
     const bool kIsLeftSideVerticalScrollbar = false;
 
     horizontal_scrollbar_layer_ = SolidColorScrollbarLayerImpl::Create(
-        host_impl_->active_tree(), 1, ScrollbarOrientation::HORIZONTAL,
+        host_impl_->active_tree(), 1, ScrollbarOrientation::kHorizontal,
         kThumbThickness, kTrackStart, kIsLeftSideVerticalScrollbar);
     vertical_scrollbar_layer_ = SolidColorScrollbarLayerImpl::Create(
-        host_impl_->active_tree(), 2, ScrollbarOrientation::VERTICAL,
+        host_impl_->active_tree(), 2, ScrollbarOrientation::kVertical,
         kThumbThickness, kTrackStart, kIsLeftSideVerticalScrollbar);
   }
 
@@ -1136,7 +1137,7 @@ class ScrollbarLayerTestResourceCreationAndRelease : public ScrollbarLayerTest {
       const int kTrackStart = 0;
       const bool kIsLeftSideVerticalScrollbar = false;
       scrollbar_layer = SolidColorScrollbarLayer::Create(
-          ScrollbarOrientation::HORIZONTAL, kThumbThickness, kTrackStart,
+          ScrollbarOrientation::kHorizontal, kThumbThickness, kTrackStart,
           kIsLeftSideVerticalScrollbar);
     } else {
       auto scrollbar = base::MakeRefCounted<FakeScrollbar>();
@@ -1420,14 +1421,13 @@ TEST_F(ScaledScrollbarLayerTestResourceCreation, ScaledResourceUpload) {
   // Try something extreme to be larger than max texture size, and make it a
   // non-integer for funsies.
   scoped_refptr<viz::TestContextProvider> context =
-      viz::TestContextProvider::Create();
+      viz::TestContextProvider::CreateRaster();
   // Keep the max texture size reasonable so we don't OOM on low end devices
   // (crbug.com/642333).
-  context->UnboundTestContextGL()->set_max_texture_size(512);
+  constexpr int max_texture_size = 512;
+
+  context->UnboundTestRasterInterface()->set_max_texture_size(max_texture_size);
   context->BindToCurrentSequence();
-  int max_texture_size = 0;
-  context->ContextGL()->GetIntegerv(GL_MAX_TEXTURE_SIZE, &max_texture_size);
-  EXPECT_EQ(512, max_texture_size);
   TestResourceUpload(max_texture_size / 9.9f);
 }
 

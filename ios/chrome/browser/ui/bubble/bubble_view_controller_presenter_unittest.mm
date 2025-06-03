@@ -4,7 +4,8 @@
 
 #import <UIKit/UIKit.h>
 
-#import "base/mac/foundation_util.h"
+#import "base/apple/foundation_util.h"
+#import "ios/chrome/browser/ui/bubble/bubble_constants.h"
 #import "ios/chrome/browser/ui/bubble/bubble_unittest_util.h"
 #import "ios/chrome/browser/ui/bubble/bubble_view.h"
 #import "ios/chrome/browser/ui/bubble/bubble_view_controller.h"
@@ -13,10 +14,6 @@
 #import "testing/gtest/include/gtest/gtest.h"
 #import "testing/platform_test.h"
 #import "third_party/abseil-cpp/absl/types/optional.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 // Test fixture to test the BubbleViewControllerPresenter.
 class BubbleViewControllerPresenterTest : public PlatformTest {
@@ -30,6 +27,7 @@ class BubbleViewControllerPresenterTest : public PlatformTest {
                     alignment:BubbleAlignmentCenter
                    bubbleType:BubbleViewTypeRichWithSnooze
             dismissalCallback:^(
+                IPHDismissalReasonType reason,
                 feature_engagement::Tracker::SnoozeAction action) {
               dismissalCallbackCount_++;
               dismissalCallbackAction_ = action;
@@ -198,7 +196,7 @@ TEST_F(BubbleViewControllerPresenterTest,
       presentInViewController:parentViewController_
                          view:parentViewController_.view
                   anchorPoint:anchorPoint_];
-  BubbleView* bubbleView = base::mac::ObjCCastStrict<BubbleView>(
+  BubbleView* bubbleView = base::apple::ObjCCastStrict<BubbleView>(
       bubbleViewControllerPresenter_.bubbleViewController.view);
   EXPECT_TRUE(bubbleView);
   UIButton* closeButton = GetCloseButtonFromBubbleView(bubbleView);
@@ -218,7 +216,7 @@ TEST_F(BubbleViewControllerPresenterTest,
       presentInViewController:parentViewController_
                          view:parentViewController_.view
                   anchorPoint:anchorPoint_];
-  BubbleView* bubbleView = base::mac::ObjCCastStrict<BubbleView>(
+  BubbleView* bubbleView = base::apple::ObjCCastStrict<BubbleView>(
       bubbleViewControllerPresenter_.bubbleViewController.view);
   EXPECT_TRUE(bubbleView);
   UIButton* snoozeButton = GetSnoozeButtonFromBubbleView(bubbleView);

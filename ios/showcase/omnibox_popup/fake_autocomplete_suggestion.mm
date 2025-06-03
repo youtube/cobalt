@@ -4,14 +4,11 @@
 
 #import "ios/showcase/omnibox_popup/fake_autocomplete_suggestion.h"
 #import "ios/chrome/browser/net/crurl.h"
+#import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/browser/ui/omnibox/omnibox_suggestion_icon_util.h"
 #import "ios/chrome/browser/ui/omnibox/popup/simple_omnibox_icon.h"
 
 #import "url/gurl.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace {
 // Spacer attributed string for dividing parts of an autocomplete suggestion's
@@ -289,8 +286,7 @@ NSAttributedString* calculatorText() {
     _text = [[NSAttributedString alloc] initWithString:@""];
     _detailText = [[NSAttributedString alloc] initWithString:@""];
     _numberOfLines = 1;
-    _suggestionTypeIcon = [[UIImage imageNamed:@"favicon_fallback"]
-        imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
+    _suggestionTypeIcon = DefaultSymbolWithPointSize(kGlobeAmericasSymbol, 18);
     _icon = [[SimpleOmniboxIcon alloc] init];
   }
   return self;

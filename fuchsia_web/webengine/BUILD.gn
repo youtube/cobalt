@@ -9,8 +9,8 @@ import("//build/config/fuchsia/generate_runner_scripts.gni")
 import("//build/config/fuchsia/packaged_content_embedder_excluded_dirs.gni")
 import("//build/config/locales.gni")
 import("//testing/test.gni")
-import("//third_party/fuchsia-sdk/sdk/build/component.gni")
-import("//third_party/fuchsia-sdk/sdk/build/package.gni")
+import("//third_party/fuchsia-gn-sdk/src/component.gni")
+import("//third_party/fuchsia-gn-sdk/src/package.gni")
 import("//third_party/widevine/cdm/widevine.gni")
 import("//tools/grit/repack.gni")
 
@@ -117,6 +117,11 @@ _disallowed_deps =
       # Ensure WebEngine is not communicating with the Finch service until it
       # is explicitly supported. See crbug.com/1155712.
       "//components/variations/service",
+
+      # WebEngine should use Perfetto instead of libtrace. Vulkan depends on
+      # trace-engine, but there should be no dependencies on trace-provider.
+      "//third_party/fuchsia-sdk/sdk/pkg/trace",
+      "//third_party/fuchsia-sdk/sdk/pkg/trace-provider-so",
     ]
 
 source_set("web_engine_export_from_implementation") {
@@ -129,7 +134,6 @@ repack("web_engine_pak") {
     "$root_gen_dir/components/components_resources.pak",
     "$root_gen_dir/content/browser/tracing/tracing_resources.pak",
     "$root_gen_dir/content/content_resources.pak",
-    "$root_gen_dir/content/dev_ui_content_resources.pak",
     "$root_gen_dir/content/gpu_resources.pak",
     "$root_gen_dir/mojo/public/js/mojo_bindings_resources.pak",
     "$root_gen_dir/net/net_resources.pak",
@@ -141,7 +145,6 @@ repack("web_engine_pak") {
   deps = [
     "//components/resources:components_resources",
     "//content:content_resources",
-    "//content:dev_ui_content_resources",
     "//content/browser/resources/gpu:resources",
     "//content/browser/tracing:resources",
     "//gpu/command_buffer/service",
@@ -244,10 +247,9 @@ component("web_engine_core") {
     "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.mem:fuchsia.mem_hlcpp",
     "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.settings:fuchsia.settings_hlcpp",
     "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.ui.gfx:fuchsia.ui.gfx_hlcpp",
-    "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.ui.scenic:fuchsia.ui.scenic_hlcpp",
+    "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.ui.views:fuchsia.ui.views_cpp_hlcpp_conversion",
     "//third_party/fuchsia-sdk/sdk/pkg/component_incoming_cpp",
     "//third_party/fuchsia-sdk/sdk/pkg/fit-promise",
-    "//third_party/fuchsia-sdk/sdk/pkg/scenic_cpp",
     "//third_party/fuchsia-sdk/sdk/pkg/sys_cpp",
     "//third_party/fuchsia-sdk/sdk/pkg/sys_inspect_cpp",
     "//third_party/widevine/cdm:buildflags",
@@ -468,11 +470,14 @@ fuchsia_component("web_instance_with_svc_directory_component") {
 }
 
 # Component definition for the legacy fuchsia.web.ContextProvider service.
-# TODO(crbug.com/1010222): Remove once all callers have migrated to launching
+# TODO(crbug.com/1443560): Remove once all callers have migrated to launching
 # instances directly as Components.
 fuchsia_component("context_provider_component") {
   manifest = "context_provider.cml"
   data_deps = [ ":web_engine_exe" ]
+
+  # Context Provider launches Web Instances from the same package.
+  deps = [ ":web_instance_with_svc_directory_component" ]
 }
 
 fuchsia_package("web_engine") {
@@ -480,7 +485,6 @@ fuchsia_package("web_engine") {
   deps = [
     ":context_provider_component",
     ":web_instance_component",
-    ":web_instance_with_svc_directory_component",
   ]
   excluded_files = _web_engine_excluded_files
   excluded_dirs = FUCHSIA_PACKAGED_CONTENT_EMBEDDER_EXCLUDED_DIRS
@@ -542,7 +546,6 @@ source_set("browsertest_core") {
     "//net:test_support",
     "//testing/gtest",
     "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.web:fuchsia.web_hlcpp",
-    "//third_party/fuchsia-sdk/sdk/pkg/scenic_cpp",
     "//ui/ozone",
   ]
 }
@@ -590,6 +593,7 @@ test("web_engine_browsertests") {
     ":browsertest_core",
     ":switches",
     ":web_engine_core",
+    "//components/fuchsia_component_support:annotations_manager",
     "//components/policy/content:safe_sites_navigation_throttle",
     "//components/safe_search_api:safe_search_api",
     "//components/safe_search_api:test_support",
@@ -598,7 +602,6 @@ test("web_engine_browsertests") {
     "//content/test:test_support",
     "//fuchsia_web/common",
     "//fuchsia_web/common/test:test_support",
-    "//media/fuchsia/codec:test_support",
     "//net:test_support",
     "//testing/gmock",
     "//testing/gtest",
@@ -608,17 +611,14 @@ test("web_engine_browsertests") {
     "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.mediacodec:fuchsia.mediacodec_hlcpp",
     "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.mem:fuchsia.mem_hlcpp",
     "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.ui.input3:fuchsia.ui.input3_cpp",
-    "//third_party/fuchsia-sdk/sdk/pkg/scenic_cpp",
-    "//ui/gfx",
     "//ui/ozone",
   ]
 
-  test_runner_shard =
-      "//build/config/fuchsia/test/elf_test_ambient_exec_runner.shard.test-cml"
   additional_manifest_fragments = [
     "//build/config/fuchsia/test/fonts.shard.test-cml",
+    "//build/config/fuchsia/test/mark_vmo_executable.shard.test-cml",
     "//build/config/fuchsia/test/network.shard.test-cml",
-    "//build/config/fuchsia/test/gfx_test_ui_stack.shard.test-cml",
+    "//build/config/fuchsia/test/test_ui_stack.shard.test-cml",
     "//third_party/fuchsia-sdk/sdk/pkg/vulkan/client.shard.cml",
   ]
 
@@ -668,7 +668,6 @@ test("web_engine_unittests") {
     "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.media.sessions2:fuchsia.media.sessions2_cpp",
     "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.web:fuchsia.web_hlcpp",
     "//third_party/fuchsia-sdk/sdk/pkg/fdio",
-    "//third_party/fuchsia-sdk/sdk/pkg/scenic_cpp",
     "//third_party/fuchsia-sdk/sdk/pkg/vfs_cpp",
     "//third_party/widevine/cdm:buildflags",
     "//ui/events:test_support",
@@ -722,6 +721,7 @@ test("web_engine_integration_tests") {
     "//build/config/fuchsia/test/archivist.shard.test-cml",
     "//build/config/fuchsia/test/audio_output.shard.test-cml",
     "//build/config/fuchsia/test/fonts.shard.test-cml",
+    "//build/config/fuchsia/test/mark_vmo_executable.shard.test-cml",
     "//build/config/fuchsia/test/network.shard.test-cml",
     "//fuchsia_web/webengine/web_engine_integration_tests.shard.test-cml",
     "//third_party/fuchsia-sdk/sdk/pkg/sys/component/realm_builder_absolute.shard.cml",

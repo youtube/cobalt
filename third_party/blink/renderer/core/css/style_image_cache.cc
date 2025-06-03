@@ -4,8 +4,6 @@
 
 #include "third_party/blink/renderer/core/css/style_image_cache.h"
 
-#include <sstream>
-
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/loader/resource/image_resource_content.h"
 #include "third_party/blink/renderer/core/style/style_fetched_image.h"
@@ -19,6 +17,7 @@ StyleFetchedImage* StyleImageCache::CacheStyleImage(
     OriginClean origin_clean,
     bool is_ad_related,
     const float override_image_resolution) {
+  CHECK(!params.Url().IsNull());
   // TODO: Investigate key/val change to
   // "URL (sans fragment) -> ImageResourceContent"
   // see https://crbug.com/1417158
@@ -28,7 +27,8 @@ StyleFetchedImage* StyleImageCache::CacheStyleImage(
 
   auto result = fetched_image_map_.insert(key, nullptr);
 
-  if (result.is_new_entry || !result.stored_value->value) {
+  if (result.is_new_entry || !result.stored_value->value ||
+      result.stored_value->value->ErrorOccurred()) {
     result.stored_value->value = MakeGarbageCollected<StyleFetchedImage>(
         ImageResourceContent::Fetch(params, document.Fetcher()), document,
         params.GetImageRequestBehavior() ==
@@ -37,7 +37,7 @@ StyleFetchedImage* StyleImageCache::CacheStyleImage(
         override_image_resolution);
   }
 
-  return result.stored_value->value;
+  return result.stored_value->value.Get();
 }
 
 void StyleImageCache::Trace(Visitor* visitor) const {

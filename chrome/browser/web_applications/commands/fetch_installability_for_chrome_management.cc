@@ -15,10 +15,10 @@
 #include "chrome/browser/web_applications/locks/web_app_lock_manager.h"
 #include "chrome/browser/web_applications/web_app_command_manager.h"
 #include "chrome/browser/web_applications/web_app_helpers.h"
-#include "chrome/browser/web_applications/web_app_id.h"
 #include "chrome/browser/web_applications/web_contents/web_app_data_retriever.h"
 #include "chrome/browser/web_applications/web_contents/web_app_url_loader.h"
 #include "components/webapps/browser/installable/installable_logging.h"
+#include "components/webapps/common/web_app_id.h"
 #include "content/public/browser/web_contents.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
@@ -72,11 +72,6 @@ void FetchInstallabilityForChromeManagement::StartWithLock(
                                       weak_factory_.GetWeakPtr()));
 }
 
-void FetchInstallabilityForChromeManagement::OnSyncSourceRemoved() {
-  // No action needed. Any changes to installation status will correctly be read
-  // & reflected in the command result.
-}
-
 void FetchInstallabilityForChromeManagement::OnShutdown() {
   Abort(InstallableCheckResult::kNotInstallable);
 }
@@ -120,7 +115,7 @@ void FetchInstallabilityForChromeManagement::OnUrlLoadedCheckInstallability(
   }
 
   data_retriever_->CheckInstallabilityAndRetrieveManifest(
-      web_contents_.get(), /*bypass_service_worker_check=*/true,
+      web_contents_.get(),
       base::BindOnce(&FetchInstallabilityForChromeManagement::
                          OnWebAppInstallabilityChecked,
                      weak_factory_.GetWeakPtr()));

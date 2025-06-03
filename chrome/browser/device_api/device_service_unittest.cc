@@ -154,7 +154,8 @@ class DeviceAPIServiceRegularUserTest : public DeviceAPIServiceTest {
   }
 
  private:
-  raw_ptr<user_manager::FakeUserManager, ExperimentalAsh> fake_user_manager_;
+  raw_ptr<user_manager::FakeUserManager, DanglingUntriaged | ExperimentalAsh>
+      fake_user_manager_;
   user_manager::ScopedUserManager scoped_user_manager_;
 };
 
@@ -172,6 +173,26 @@ TEST_F(DeviceAPIServiceRegularUserTest, ReportErrorForDisallowedOrigin) {
 
   VerifyErrorMessageResultForAllDeviceAttributesAPIs();
   ASSERT_TRUE(remote()->is_connected());
+}
+
+TEST_F(DeviceAPIServiceRegularUserTest, ConnectsForTrustedApps) {
+  TryCreatingService(GURL(kTrustedUrl));
+  remote()->FlushForTesting();
+  ASSERT_TRUE(remote()->is_connected());
+}
+
+TEST_F(DeviceAPIServiceRegularUserTest, DoesNotConnectForUntrustedApps) {
+  TryCreatingService(GURL(kUntrustedUrl));
+  remote()->FlushForTesting();
+  ASSERT_FALSE(remote()->is_connected());
+}
+
+TEST_F(DeviceAPIServiceRegularUserTest, DisconnectWhenTrustRevoked) {
+  TryCreatingService(GURL(kTrustedUrl));
+  remote()->FlushForTesting();
+  RemoveTrustedApp();
+  remote()->FlushForTesting();
+  ASSERT_FALSE(remote()->is_connected());
 }
 
 class DeviceAPIServiceWithKioskUserTest : public DeviceAPIServiceTest {
@@ -205,7 +226,8 @@ class DeviceAPIServiceWithKioskUserTest : public DeviceAPIServiceTest {
   ash::WebKioskAppManager* app_manager() const { return app_manager_.get(); }
 
  private:
-  raw_ptr<ash::FakeChromeUserManager, ExperimentalAsh> fake_user_manager_;
+  raw_ptr<ash::FakeChromeUserManager, DanglingUntriaged | ExperimentalAsh>
+      fake_user_manager_;
   user_manager::ScopedUserManager scoped_user_manager_;
   std::unique_ptr<ash::WebKioskAppManager> app_manager_;
   base::test::ScopedCommandLine command_line_;
@@ -234,54 +256,6 @@ TEST_F(DeviceAPIServiceWithKioskUserTest, DisableServiceForInvalidOrigin) {
 TEST_F(DeviceAPIServiceWithKioskUserTest,
        DisableServiceForNonKioskTrustedOrigin) {
   LoginKioskUser();
-  TryCreatingService(GURL(kTrustedUrl));
-  remote()->FlushForTesting();
-  ASSERT_FALSE(remote()->is_connected());
-}
-
-class DeviceAPIServiceWithFeatureFlagTest
-    : public DeviceAPIServiceRegularUserTest {
- public:
-  DeviceAPIServiceWithFeatureFlagTest() {
-    scoped_feature_list_.InitAndEnableFeature(
-        features::kEnableRestrictedWebApis);
-  }
-
-  base::test::ScopedFeatureList scoped_feature_list_;
-};
-
-TEST_F(DeviceAPIServiceWithFeatureFlagTest, ConnectsForTrustedApps) {
-  TryCreatingService(GURL(kTrustedUrl));
-  remote()->FlushForTesting();
-  ASSERT_TRUE(remote()->is_connected());
-}
-
-TEST_F(DeviceAPIServiceWithFeatureFlagTest, DoesNotConnectForUntrustedApps) {
-  TryCreatingService(GURL(kUntrustedUrl));
-  remote()->FlushForTesting();
-  ASSERT_FALSE(remote()->is_connected());
-}
-
-TEST_F(DeviceAPIServiceWithFeatureFlagTest, DisconnectWhenTrustRevoked) {
-  TryCreatingService(GURL(kTrustedUrl));
-  remote()->FlushForTesting();
-  RemoveTrustedApp();
-  remote()->FlushForTesting();
-  ASSERT_FALSE(remote()->is_connected());
-}
-
-class DeviceAPIServiceWithoutFeatureFlagTest
-    : public DeviceAPIServiceRegularUserTest {
- public:
-  DeviceAPIServiceWithoutFeatureFlagTest() {
-    scoped_feature_list_.InitAndDisableFeature(
-        features::kEnableRestrictedWebApis);
-  }
-
-  base::test::ScopedFeatureList scoped_feature_list_;
-};
-
-TEST_F(DeviceAPIServiceWithoutFeatureFlagTest, DoesNotConnectWhenFlagOff) {
   TryCreatingService(GURL(kTrustedUrl));
   remote()->FlushForTesting();
   ASSERT_FALSE(remote()->is_connected());

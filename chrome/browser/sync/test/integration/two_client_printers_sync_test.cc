@@ -5,7 +5,6 @@
 #include <stdio.h>
 
 #include "base/run_loop.h"
-#include "base/test/metrics/histogram_tester.h"
 #include "build/build_config.h"
 #include "chrome/browser/ash/printing/printers_sync_bridge.h"
 #include "chrome/browser/sync/test/integration/printers_helper.h"
@@ -159,7 +158,7 @@ IN_PROC_BROWSER_TEST_F(TwoClientPrintersSyncTest, ConflictResolution) {
   // We must wait until the sync cycle is completed before client 0 resumes in
   // order to make the outcome of conflict resolution deterministic (needed due
   // to lack of a strong consistency model on the server).
-  SyncServiceImplHarness::AwaitQuiescence({GetClient(1)});
+  ASSERT_TRUE(SyncServiceImplHarness::AwaitQuiescence({GetClient(1)}));
 
   ASSERT_EQ(GetPrinterStore(0)->GetSavedPrinters()[0].description(),
             kLatestDescription);
@@ -237,7 +236,6 @@ IN_PROC_BROWSER_TEST_F(TwoClientPrintersSyncTest, SimpleMerge) {
 
 IN_PROC_BROWSER_TEST_F(TwoClientPrintersSyncTest, MakeAndModelMigration) {
   ASSERT_TRUE(SetupClients());
-  base::HistogramTester histograms;
   const char kMake[] = "make";
   const char kModel[] = "model";
 
@@ -264,8 +262,6 @@ IN_PROC_BROWSER_TEST_F(TwoClientPrintersSyncTest, MakeAndModelMigration) {
   EXPECT_THAT(make_and_model, Not(IsEmpty()));
   EXPECT_THAT(make_and_model, StartsWith(kMake));
   EXPECT_THAT(make_and_model, EndsWith(kModel));
-  histograms.ExpectBucketCount("Printing.CUPS.MigratedMakeAndModel",
-                               1 /* kMigrated */, 1);
 }
 
 IN_PROC_BROWSER_TEST_F(TwoClientPrintersSyncTest,

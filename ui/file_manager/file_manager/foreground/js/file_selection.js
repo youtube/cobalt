@@ -2,17 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {assert} from 'chrome://resources/ash/common/assert.js';
 import {dispatchSimpleEvent} from 'chrome://resources/ash/common/cr_deprecated.js';
 import {NativeEventTarget as EventTarget} from 'chrome://resources/ash/common/event_target.js';
 
 import {FileType} from '../../common/js/file_type.js';
-import {util} from '../../common/js/util.js';
+import {isDlpEnabled} from '../../common/js/flags.js';
 import {AllowedPaths} from '../../common/js/volume_manager_types.js';
 import {FileOperationManager} from '../../externs/background/file_operation_manager.js';
+// @ts-ignore: error TS6133: 'Store' is declared but its value is never read.
 import {Store} from '../../externs/ts/store.js';
 import {VolumeManager} from '../../externs/volume_manager.js';
-import {updateSelection} from '../../state/actions/current_directory.js';
+import {updateSelection} from '../../state/ducks/current_directory.js';
 import {getStore} from '../../state/store.js';
 
 import {constants} from './constants.js';
@@ -31,58 +31,61 @@ export class FileSelection {
    */
   constructor(indexes, entries, volumeManager) {
     /**
-     * @public {!Array<number>}
+     * @type {!Array<number>}
      * @const
      */
     this.indexes = indexes;
 
     /**
-     * @public {!Array<!Entry>}
+     * @public @type {!Array<!Entry>}
      * @const
      */
     this.entries = entries;
 
     /**
-     * @public {!Array<string>}
+     * @type {!Array<string>}
      */
     this.mimeTypes = [];
 
     /**
-     * @public {number}
+     * @type {number}
      */
     this.totalCount = 0;
 
     /**
-     * @public {number}
+     * @type {number}
      */
     this.fileCount = 0;
 
     /**
-     * @public {number}
+     * @type {number}
      */
     this.directoryCount = 0;
 
     /**
-     * @public {boolean}
+     * @type {boolean}
      */
     this.anyFilesNotInCache = true;
 
     /**
-     * @public {boolean}
+     * @type {boolean}
      */
     this.anyFilesHosted = true;
 
     /**
-     * @public {boolean}
+     * @type {boolean}
      */
     this.anyFilesEncrypted = true;
 
     /**
-     * @private {Promise<boolean>}
+     * @private @type {?Promise<boolean>}
      */
     this.additionalPromise_ = null;
 
-    /** @private {boolean} If the current selection has any read-only entry. */
+    /**
+     * @private @type {boolean} If the current selection has any read-only
+     *     entry.
+     */
     this.hasReadOnlyEntry_ = false;
 
     entries.forEach(entry => {
@@ -112,6 +115,10 @@ export class FileSelection {
     return this.hasReadOnlyEntry_;
   }
 
+  /**
+   * @param {!MetadataModel} metadataModel
+   * @return {!Promise<boolean>}
+   */
   computeAdditional(metadataModel) {
     if (!this.additionalPromise_) {
       this.additionalPromise_ =
@@ -119,19 +126,32 @@ export class FileSelection {
               .get(
                   this.entries,
                   constants.FILE_SELECTION_METADATA_PREFETCH_PROPERTY_NAMES)
+              // @ts-ignore: error TS7006: Parameter 'props' implicitly has an
+              // 'any' type.
               .then(props => {
+                // @ts-ignore: error TS7006: Parameter 'p' implicitly has an
+                // 'any' type.
                 this.anyFilesNotInCache = props.some(p => {
                   // If no availableOffline property, then assume it's
                   // available.
                   return ('availableOffline' in p) && !p.availableOffline;
                 });
+                // @ts-ignore: error TS7006: Parameter 'p' implicitly has an
+                // 'any' type.
                 this.anyFilesHosted = props.some(p => {
                   return p.hosted;
                 });
+                // @ts-ignore: error TS7006: Parameter 'i' implicitly has an
+                // 'any' type.
                 this.anyFilesEncrypted = props.some((p, i) => {
                   return FileType.isEncrypted(
+                      // @ts-ignore: error TS2345: Argument of type
+                      // 'FileSystemEntry | undefined' is not assignable to
+                      // parameter of type 'FileSystemEntry | FilesAppEntry'.
                       this.entries[i], p.contentMimeType);
                 });
+                // @ts-ignore: error TS7006: Parameter 'value' implicitly has an
+                // 'any' type.
                 this.mimeTypes = props.map(value => {
                   return value.contentMimeType || '';
                 });
@@ -155,30 +175,32 @@ export class FileSelectionHandler extends EventTarget {
    * @param {!AllowedPaths} allowedPaths
    */
   constructor(
+      // @ts-ignore: error TS6133: 'fileOperationManager' is declared but its
+      // value is never read.
       directoryModel, fileOperationManager, listContainer, metadataModel,
       volumeManager, allowedPaths) {
     super();
 
     /**
-     * @private {DirectoryModel}
+     * @private @type {DirectoryModel}
      * @const
      */
     this.directoryModel_ = directoryModel;
 
     /**
-     * @private {ListContainer}
+     * @private @type {ListContainer}
      * @const
      */
     this.listContainer_ = listContainer;
 
     /**
-     * @private {MetadataModel}
+     * @private @type {MetadataModel}
      * @const
      */
     this.metadataModel_ = metadataModel;
 
     /**
-     * @private {!VolumeManager}
+     * @private @type {!VolumeManager}
      * @const
      */
     this.volumeManager_ = volumeManager;
@@ -189,22 +211,22 @@ export class FileSelectionHandler extends EventTarget {
     this.selection = new FileSelection([], [], volumeManager);
 
     /**
-     * @private {?number}
+     * @private @type {?number}
      */
     this.selectionUpdateTimer_ = 0;
 
-    /** @private {!Store} */
+    /** @private @type {!Store} */
     this.store_ = getStore();
 
     /**
      * The time, in ms since the epoch, when it is OK to post next throttled
      * selection event. Can be directly compared with Date.now().
-     * @private {number}
+     * @private @type {number}
      */
     this.nextThrottledEventTime_ = 0;
 
     /**
-     * @private {AllowedPaths}
+     * @private @type {AllowedPaths}
      * @const
      */
     this.allowedPaths_ = allowedPaths;
@@ -235,6 +257,8 @@ export class FileSelectionHandler extends EventTarget {
 
     if (this.selectionUpdateTimer_) {
       clearTimeout(this.selectionUpdateTimer_);
+      // @ts-ignore: error TS2322: Type 'null' is not assignable to type
+      // 'number'.
       this.selectionUpdateTimer_ = null;
     }
 
@@ -257,6 +281,8 @@ export class FileSelectionHandler extends EventTarget {
 
     const selection = this.selection;
     this.selectionUpdateTimer_ = setTimeout(() => {
+      // @ts-ignore: error TS2322: Type 'null' is not assignable to type
+      // 'number'.
       this.selectionUpdateTimer_ = null;
       this.updateFileSelectionAsync_(selection);
     }, updateDelay);
@@ -355,7 +381,7 @@ export class FileSelectionHandler extends EventTarget {
    * @return {boolean}
    */
   isDlpBlocked() {
-    if (!util.isDlpEnabled()) {
+    if (!isDlpEnabled()) {
       return false;
     }
 
@@ -404,7 +430,7 @@ FileSelectionHandler.EventType = {
  * Delay in milliseconds before recalculating the selection in case the
  * selection is changed fast, or there are many items. Used to avoid freezing
  * the UI.
- * @const {number}
+ * @const @type {number}
  */
 FileSelectionHandler.UPDATE_DELAY = 200;
 
@@ -412,6 +438,6 @@ FileSelectionHandler.UPDATE_DELAY = 200;
  * Number of items in the selection which triggers the update delay. Used to
  * let the Material Design animations complete before performing a heavy task
  * which would cause the UI freezing.
- * @const {number}
+ * @const @type {number}
  */
 FileSelectionHandler.NUMBER_OF_ITEMS_HEAVY_TO_COMPUTE = 100;

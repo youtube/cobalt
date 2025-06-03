@@ -25,6 +25,7 @@ class CancelableTaskTracker;
 }
 
 namespace desks_storage {
+class AdminTemplateService;
 class DeskModel;
 }
 
@@ -62,8 +63,13 @@ class ASH_PUBLIC_EXPORT SavedDeskDelegate {
   // backend depending on the feature flag DeskTemplateSync.
   virtual desks_storage::DeskModel* GetDeskModel() = 0;
 
-  // Returns whether `window` is an incognito browser.
-  virtual bool IsIncognitoWindow(aura::Window* window) const = 0;
+  // returns the appropriate AdminTemplateService for the active profile.
+  virtual desks_storage::AdminTemplateService* GetAdminTemplateService() = 0;
+
+  // Returns whether `window` is persistable.  If true the window should be
+  // tracked and saved as part of the desk.  If false, this window should
+  // be ignored.
+  virtual bool IsWindowPersistable(aura::Window* window) const = 0;
 
   // Returns the corresponding icon for `icon_identifier` if it's a special
   // identifier. I.e. NTP or incognito window. If `icon_identifier` is not a

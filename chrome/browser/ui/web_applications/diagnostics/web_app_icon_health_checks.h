@@ -1,4 +1,4 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,8 +11,8 @@
 #include "chrome/browser/ui/web_applications/diagnostics/app_type_initialized_event.h"
 #include "chrome/browser/ui/web_applications/diagnostics/web_app_icon_diagnostic.h"
 #include "chrome/browser/web_applications/web_app_constants.h"
-#include "chrome/browser/web_applications/web_app_id.h"
 #include "chrome/browser/web_applications/web_app_install_manager.h"
+#include "components/webapps/common/web_app_id.h"
 
 class Profile;
 
@@ -31,21 +31,21 @@ class WebAppIconHealthChecks : public WebAppInstallManagerObserver {
   base::WeakPtr<WebAppIconHealthChecks> GetWeakPtr();
 
   // WebAppInstallManagerObserver:
-  void OnWebAppWillBeUninstalled(const AppId& app_id) override;
+  void OnWebAppWillBeUninstalled(const webapps::AppId& app_id) override;
   void OnWebAppInstallManagerDestroyed() override;
 
  private:
   void RunDiagnostics();
   void SaveDiagnosticForApp(
-      AppId app_id,
+      webapps::AppId app_id,
       absl::optional<WebAppIconDiagnostic::Result> result);
   void RecordDiagnosticResults();
 
-  raw_ptr<Profile> profile_;
+  raw_ptr<Profile> profile_ = nullptr;
   apps::AppType app_type_;
   AppTypeInitializedEvent web_apps_published_event_;
 
-  base::flat_map<AppId, std::unique_ptr<WebAppIconDiagnostic>>
+  base::flat_map<webapps::AppId, std::unique_ptr<WebAppIconDiagnostic>>
       running_diagnostics_;
   base::RepeatingClosure run_complete_callback_;
   std::vector<WebAppIconDiagnostic::Result> results_;

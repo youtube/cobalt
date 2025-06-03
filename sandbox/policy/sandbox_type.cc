@@ -34,7 +34,6 @@ bool IsUnsandboxedSandboxType(Sandbox sandbox_type) {
     case Sandbox::kIconReader:
     case Sandbox::kMediaFoundationCdm:
     case Sandbox::kWindowsSystemProxyResolver:
-    case Sandbox::kFileUtil:
       return false;
 #endif
     case Sandbox::kAudio:
@@ -44,6 +43,8 @@ bool IsUnsandboxedSandboxType(Sandbox sandbox_type) {
       return false;
 #endif
     case Sandbox::kNetwork:
+      return false;
+    case Sandbox::kOnDeviceModelExecution:
       return false;
     case Sandbox::kRenderer:
     case Sandbox::kService:
@@ -122,6 +123,7 @@ void SetCommandLineFlagsForSandboxType(base::CommandLine* command_line,
     case Sandbox::kServiceWithJit:
     case Sandbox::kUtility:
     case Sandbox::kNetwork:
+    case Sandbox::kOnDeviceModelExecution:
     case Sandbox::kCdm:
 #if BUILDFLAG(ENABLE_OOP_PRINTING)
     case Sandbox::kPrintBackend:
@@ -138,7 +140,6 @@ void SetCommandLineFlagsForSandboxType(base::CommandLine* command_line,
     case Sandbox::kIconReader:
     case Sandbox::kMediaFoundationCdm:
     case Sandbox::kWindowsSystemProxyResolver:
-    case Sandbox::kFileUtil:
 #endif  // BUILDFLAG(IS_WIN)
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_ASH)
     case Sandbox::kHardwareVideoDecoding:
@@ -215,9 +216,6 @@ sandbox::mojom::Sandbox SandboxTypeFromCommandLine(
 #endif
   }
 
-  if (process_type == switches::kNaClBrokerProcess)
-    return Sandbox::kNoSandbox;
-
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
   // Intermediate process gains a sandbox later.
   if (process_type == switches::kZygoteProcessType)
@@ -246,6 +244,8 @@ std::string StringFromUtilitySandboxType(Sandbox sandbox_type) {
 #endif  // BUILDFLAG(IS_WIN)
     case Sandbox::kNetwork:
       return switches::kNetworkSandbox;
+    case Sandbox::kOnDeviceModelExecution:
+      return switches::kOnDeviceModelExecutionSandbox;
 #if BUILDFLAG(ENABLE_PPAPI)
     case Sandbox::kPpapi:
       return switches::kPpapiSandbox;
@@ -310,10 +310,6 @@ std::string StringFromUtilitySandboxType(Sandbox sandbox_type) {
       return switches::kLibassistantSandbox;
 #endif  // BUILDFLAG(ENABLE_CROS_LIBASSISTANT)
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
-#if BUILDFLAG(IS_WIN)
-    case Sandbox::kFileUtil:
-      return switches::kFileUtilSandbox;
-#endif
       // The following are not utility processes so should not occur.
     case Sandbox::kRenderer:
     case Sandbox::kGpu:
@@ -350,8 +346,12 @@ sandbox::mojom::Sandbox UtilitySandboxTypeFromString(
     return Sandbox::kNoSandbox;
 #endif
   }
-  if (sandbox_string == switches::kNetworkSandbox)
+  if (sandbox_string == switches::kNetworkSandbox) {
     return Sandbox::kNetwork;
+  }
+  if (sandbox_string == switches::kOnDeviceModelExecutionSandbox) {
+    return Sandbox::kOnDeviceModelExecution;
+  }
 #if BUILDFLAG(ENABLE_PPAPI)
   if (sandbox_string == switches::kPpapiSandbox)
     return Sandbox::kPpapi;
@@ -375,9 +375,6 @@ sandbox::mojom::Sandbox UtilitySandboxTypeFromString(
     return Sandbox::kMediaFoundationCdm;
   if (sandbox_string == switches::kWindowsSystemProxyResolverSandbox)
     return Sandbox::kWindowsSystemProxyResolver;
-  if (sandbox_string == switches::kFileUtilSandbox) {
-    return Sandbox::kFileUtil;
-  }
 #endif
 #if BUILDFLAG(IS_MAC)
   if (sandbox_string == switches::kMirroringSandbox)

@@ -79,10 +79,6 @@ static_library("utility") {
     ]
   }
 
-  if (!is_ios && !is_android) {
-    deps += [ "//components/password_manager/services/password_strength:lib" ]
-  }
-
   if (is_mac) {
     deps += [ "//chrome/services/mac_notifications" ]
   }
@@ -196,8 +192,11 @@ static_library("utility") {
       "//chromeos/ash/services/ime:lib",
       "//chromeos/ash/services/ime/public/mojom",
       "//chromeos/ash/services/nearby/public/mojom:mojom",
+      "//chromeos/ash/services/orca",
+      "//chromeos/ash/services/orca/public/mojom",
       "//chromeos/ash/services/quick_pair",
       "//chromeos/ash/services/recording",
+      "//chromeos/constants:constants",
       "//chromeos/services/tts",
       "//chromeos/services/tts/public/mojom",
     ]
@@ -249,10 +248,10 @@ static_library("utility") {
   }
 
   if (safe_browsing_mode == 1) {
-    deps += [ "//chrome/services/file_util" ]
-    if (is_mac) {
-      deps += [ "//chrome/utility/safe_browsing/mac" ]
-    }
+    deps += [
+      "//chrome/services/file_util",
+      "//chrome/utility/safe_browsing",
+    ]
   }
 
   if (is_android || enable_extensions) {

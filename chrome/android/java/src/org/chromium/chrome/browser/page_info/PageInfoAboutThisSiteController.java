@@ -13,18 +13,17 @@ import android.widget.TextView;
 
 import androidx.annotation.Nullable;
 
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.Log;
-import org.chromium.base.annotations.NativeMethods;
 import org.chromium.base.supplier.Supplier;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.compositor.bottombar.ephemeraltab.EphemeralTabCoordinator;
 import org.chromium.chrome.browser.compositor.bottombar.ephemeraltab.EphemeralTabObserver;
 import org.chromium.chrome.browser.compositor.bottombar.ephemeraltab.EphemeralTabSheetContent;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.chrome.browser.tab.TabUtils;
-import org.chromium.chrome.browser.tabmodel.document.TabDelegate;
-import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
+import org.chromium.chrome.browser.tabmodel.TabCreator;
 import org.chromium.components.page_info.PageInfoAction;
 import org.chromium.components.page_info.PageInfoControllerDelegate;
 import org.chromium.components.page_info.PageInfoMainController;
@@ -51,8 +50,9 @@ public class PageInfoAboutThisSiteController {
     private final PageInfoControllerDelegate mDelegate;
     private final WebContents mWebContents;
     private @Nullable SiteInfo mSiteInfo;
-
+    private EphemeralTabCoordinator mEphemeralTabCoordinator;
     private EphemeralTabObserver mEphemeralTabObserver;
+    private final TabCreator mTabCreator;
 
     static boolean isFeatureEnabled() {
         return PageInfoAboutThisSiteControllerJni.get().isFeatureEnabled();
@@ -60,40 +60,37 @@ public class PageInfoAboutThisSiteController {
 
     public PageInfoAboutThisSiteController(PageInfoMainController mainController,
             Supplier<EphemeralTabCoordinator> ephemeralTabCoordinatorSupplier,
-            PageInfoRowView rowView, PageInfoControllerDelegate delegate, WebContents webContents) {
+            PageInfoRowView rowView, PageInfoControllerDelegate delegate, WebContents webContents,
+            TabCreator tabCreator) {
         mMainController = mainController;
         mEphemeralTabCoordinatorSupplier = ephemeralTabCoordinatorSupplier;
         mRowView = rowView;
         mDelegate = delegate;
         mWebContents = webContents;
+        mTabCreator = tabCreator;
         setupRow();
     }
 
     private void openUrl(String url, @PageInfoAction int action) {
         mMainController.recordAction(action);
-        if (mEphemeralTabCoordinatorSupplier != null
-                && mEphemeralTabCoordinatorSupplier.get() != null) {
+        mEphemeralTabCoordinator =
+                mEphemeralTabCoordinatorSupplier != null
+                        ? mEphemeralTabCoordinatorSupplier.get()
+                        : null;
+        if (mEphemeralTabCoordinator != null) {
             // Append parameter to open the page with reduced UI elements in the bottomsheet.
             Uri.Builder builder = Uri.parse(url).buildUpon();
             if (mSiteInfo.hasMoreAbout() && url.equals(mSiteInfo.getMoreAbout().getUrl())) {
-                if (ChromeFeatureList.isEnabled(
-                            ChromeFeatureList.PAGE_INFO_ABOUT_THIS_SITE_IMPROVED_BOTTOMSHEET)) {
                     builder.appendQueryParameter("ilrm", "minimal,nohead");
-                } else {
-                    builder.appendQueryParameter("ilrm", "minimal");
-                }
             }
             GURL bottomSheetUrl = new GURL(builder.toString());
             GURL fullPageUrl = new GURL(url);
 
-            if (ChromeFeatureList.isEnabled(
-                        ChromeFeatureList.PAGE_INFO_ABOUT_THIS_SITE_IMPROVED_BOTTOMSHEET)) {
-                createEphemeralTabObserver(bottomSheetUrl);
-                mEphemeralTabCoordinatorSupplier.get().addObserver(mEphemeralTabObserver);
-            }
+            createEphemeralTabObserver(bottomSheetUrl);
+            mEphemeralTabCoordinator.addObserver(mEphemeralTabObserver);
 
-            mEphemeralTabCoordinatorSupplier.get().requestOpenSheetWithFullPageUrl(
-                    bottomSheetUrl, fullPageUrl, getTitle(), /*isIncognito=*/false);
+            mEphemeralTabCoordinator.requestOpenSheetWithFullPageUrl(
+                    bottomSheetUrl, fullPageUrl, getTitle(), /* isIncognito= */ false);
 
             mMainController.dismiss();
         } else {
@@ -101,45 +98,44 @@ public class PageInfoAboutThisSiteController {
         }
     }
 
-    public void createEphemeralTabObserver(GURL originUrl) {
-        mEphemeralTabObserver = new EphemeralTabObserver() {
-            @Override
-            public void onToolbarCreated(ViewGroup toolbarView) {
-                TextView origin = toolbarView.findViewById(R.id.origin);
-                origin.setVisibility(View.GONE);
+    private void createEphemeralTabObserver(GURL originUrl) {
+        assert mEphemeralTabCoordinator != null;
+        mEphemeralTabObserver =
+                new EphemeralTabObserver() {
+                    @Override
+                    public void onToolbarCreated(ViewGroup toolbarView) {
+                        TextView origin = toolbarView.findViewById(R.id.origin);
+                        origin.setVisibility(View.GONE);
 
-                ImageView securityIcon = toolbarView.findViewById(R.id.security_icon);
-                securityIcon.setVisibility(View.GONE);
+                        ImageView securityIcon = toolbarView.findViewById(R.id.security_icon);
+                        securityIcon.setVisibility(View.GONE);
 
-                TextView title = toolbarView.findViewById(R.id.title);
-                title.setTextAppearance(R.style.TextAppearance_TextLarge_Primary);
-                // Style change affects the toolbar height. Requests layout again.
-                ViewUtils.requestLayout(
-                        toolbarView, "PageInfoAboutThisSiteController.onToolbarCreated");
-            }
+                        TextView title = toolbarView.findViewById(R.id.title);
+                        title.setTextAppearance(R.style.TextAppearance_TextLarge_Primary);
+                        // Style change affects the toolbar height. Requests layout again.
+                        ViewUtils.requestLayout(
+                                toolbarView, "PageInfoAboutThisSiteController.onToolbarCreated");
+                    }
 
-            @Override
-            public void onNavigationStarted(GURL clickedUrl,
-                    BottomSheetController bottomSheetController,
-                    EphemeralTabSheetContent ephemeralTabSheetContent) {
-                if (!clickedUrl.equals(originUrl)) {
-                    bottomSheetController.hideContent(ephemeralTabSheetContent, /* animate= */ true,
-                            BottomSheetController.StateChangeReason.PROMOTE_TAB);
-                    openInNewTab(clickedUrl.getSpec());
-                }
-            }
+                    @Override
+                    public void onNavigationStarted(GURL clickedUrl) {
+                        if (!clickedUrl.equals(originUrl)) {
+                            mEphemeralTabCoordinator.close();
+                            mEphemeralTabCoordinator.removeObserver(this);
+                            openInNewTab(clickedUrl.getSpec());
+                        }
+                    }
 
-            @Override
-            public void onTitleSet(EphemeralTabSheetContent sheetContent, String title) {
-                sheetContent.updateTitle(getTitle());
-            }
-        };
+                    @Override
+                    public void onTitleSet(EphemeralTabSheetContent sheetContent, String title) {
+                        sheetContent.updateTitle(getTitle());
+                    }
+                };
     }
 
     private void openInNewTab(String url) {
-        new TabDelegate(/*incognito=*/false)
-                .createNewTab(new LoadUrlParams(url, PageTransition.LINK), TabLaunchType.FROM_LINK,
-                        TabUtils.fromWebContents(mWebContents));
+        mTabCreator.createNewTab(new LoadUrlParams(url, PageTransition.LINK),
+                TabLaunchType.FROM_LINK, TabUtils.fromWebContents(mWebContents));
     }
 
     private void setupRow() {
@@ -165,16 +161,10 @@ public class PageInfoAboutThisSiteController {
         rowParams.subtitle = subtitle;
         rowParams.singleLineSubTitle = true;
         rowParams.visible = true;
-        rowParams.iconResId = isNewIconFeatureEnabled()
-                ? PageInfoAboutThisSiteControllerJni.get().getJavaDrawableIconId()
-                : R.drawable.ic_info_outline_grey_24dp;
+        rowParams.iconResId = PageInfoAboutThisSiteControllerJni.get().getJavaDrawableIconId();
         rowParams.decreaseIconSize = true;
         rowParams.clickCallback = this::onAboutThisSiteRowClicked;
         mRowView.setParams(rowParams);
-    }
-
-    private boolean isNewIconFeatureEnabled() {
-        return ChromeFeatureList.isEnabled(ChromeFeatureList.PAGE_INFO_ABOUT_THIS_SITE_NEW_ICON);
     }
 
     private String getTitle() {

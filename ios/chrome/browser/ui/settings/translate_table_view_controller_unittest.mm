@@ -6,8 +6,8 @@
 
 #import <memory>
 
+#import "base/apple/foundation_util.h"
 #import "base/files/file_path.h"
-#import "base/mac/foundation_util.h"
 #import "base/task/single_thread_task_runner.h"
 #import "base/test/task_environment.h"
 #import "components/language/core/browser/language_prefs.h"
@@ -19,17 +19,13 @@
 #import "components/translate/core/browser/translate_pref_names.h"
 #import "components/translate/core/browser/translate_prefs.h"
 #import "ios/chrome/browser/shared/ui/table_view/chrome_table_view_controller_test.h"
-#import "ios/chrome/browser/translate/chrome_ios_translate_client.h"
+#import "ios/chrome/browser/translate/model/chrome_ios_translate_client.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "testing/gtest/include/gtest/gtest.h"
 #import "testing/gtest_mac.h"
 #import "testing/platform_test.h"
 #import "ui/base/l10n/l10n_util.h"
 #import "ui/base/l10n/l10n_util_mac.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 using user_prefs::PrefRegistrySyncable;
 
@@ -68,7 +64,7 @@ class TranslateTableViewControllerTest : public ChromeTableViewControllerTest {
   }
 
   void TearDown() override {
-    [base::mac::ObjCCastStrict<TranslateTableViewController>(controller())
+    [base::apple::ObjCCastStrict<TranslateTableViewController>(controller())
         settingsWillBeDismissed];
     ChromeTableViewControllerTest::TearDown();
   }

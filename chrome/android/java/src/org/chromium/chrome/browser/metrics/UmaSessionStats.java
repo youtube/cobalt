@@ -8,11 +8,13 @@ import android.Manifest;
 import android.content.ComponentCallbacks;
 import android.content.Context;
 import android.content.res.Configuration;
+import android.view.InputDevice;
+
+import org.jni_zero.CalledByNative;
+import org.jni_zero.NativeMethods;
 
 import org.chromium.base.ApplicationStatus;
 import org.chromium.base.Log;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.NativeMethods;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.chrome.browser.DefaultBrowserInfo;
 import org.chromium.chrome.browser.omnibox.voice.VoiceRecognitionHandler.AudioPermissionState;
@@ -23,6 +25,7 @@ import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.tabmodel.TabModelSelectorTabObserver;
 import org.chromium.components.variations.SyntheticTrialAnnotationMode;
 import org.chromium.content_public.browser.BrowserStartupController;
+import org.chromium.content_public.browser.DeviceUtils;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.permissions.AndroidPermissionDelegate;
 import org.chromium.url.GURL;
@@ -34,7 +37,6 @@ import org.chromium.url.GURL;
  */
 public class UmaSessionStats {
     private static final String TAG = "UmaSessionStats";
-    private static final String SAMSUNG_MULTWINDOW_PACKAGE = "com.sec.feature.multiwindow";
 
     private static long sNativeUmaSessionStats;
 
@@ -57,8 +59,15 @@ public class UmaSessionStats {
         boolean isDesktopUserAgent = webContents != null
                 && webContents.getNavigationController().getUseDesktopUserAgent();
         UmaSessionStatsJni.get().recordPageLoaded(isDesktopUserAgent);
+        var connectedDevices = DeviceUtils.getConnectedDevices();
+        if (!connectedDevices.isEmpty()) {
+            UmaSessionStatsJni.get().recordPageLoadedWithAccessory();
+        }
         if (mKeyboardConnected) {
             UmaSessionStatsJni.get().recordPageLoadedWithKeyboard();
+        }
+        if (connectedDevices.contains(InputDevice.SOURCE_MOUSE)) {
+            UmaSessionStatsJni.get().recordPageLoadedWithMouse();
         }
 
         // If the session has ended (i.e. chrome is in the background), escape early. Ideally we
@@ -286,5 +295,9 @@ public class UmaSessionStats {
         void recordTabCountPerLoad(int numTabsOpen);
         void recordPageLoaded(boolean isDesktopUserAgent);
         void recordPageLoadedWithKeyboard();
+
+        void recordPageLoadedWithMouse();
+
+        void recordPageLoadedWithAccessory();
     }
 }

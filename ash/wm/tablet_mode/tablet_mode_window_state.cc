@@ -23,19 +23,17 @@
 #include "ash/wm/tablet_mode/tablet_mode_window_manager.h"
 #include "ash/wm/window_positioning_utils.h"
 #include "ash/wm/window_properties.h"
-#include "ash/wm/window_state.h"
 #include "ash/wm/window_state_delegate.h"
 #include "ash/wm/window_state_util.h"
 #include "ash/wm/window_util.h"
 #include "ash/wm/wm_event.h"
+#include "base/notreached.h"
 #include "chromeos/ui/base/window_state_type.h"
-#include "chromeos/ui/wm/features.h"
 #include "chromeos/ui/wm/window_util.h"
 #include "ui/aura/client/aura_constants.h"
 #include "ui/aura/window.h"
 #include "ui/aura/window_delegate.h"
 #include "ui/compositor/layer.h"
-#include "ui/gfx/geometry/rect.h"
 #include "ui/wm/core/ime_util_chromeos.h"
 #include "ui/wm/core/window_util.h"
 
@@ -121,22 +119,15 @@ bool ShouldAnimateWindowForTransition(aura::Window* window) {
   return window == first_mru_window;
 }
 
-bool IsSnapped(WindowStateType state) {
-  return state == WindowStateType::kPrimarySnapped ||
-         state == WindowStateType::kSecondarySnapped;
-}
-
 // Returns true if the bounds change of |window| is from VK request and can be
 // allowed by the current window's state.
 bool BoundsChangeIsFromVKAndAllowed(aura::Window* window) {
   WindowStateType state_type = WindowState::Get(window)->GetStateType();
-  if (state_type == WindowStateType::kNormal ||
-      state_type == WindowStateType::kDefault) {
+  if (chromeos::IsNormalWindowStateType(state_type)) {
     return window->GetProperty(wm::kVirtualKeyboardRestoreBoundsKey) != nullptr;
   }
 
-  if (state_type == WindowStateType::kPrimarySnapped ||
-      state_type == WindowStateType::kSecondarySnapped) {
+  if (chromeos::IsSnappedWindowStateType(state_type)) {
     return SplitViewController::Get(window)->BoundsChangeIsFromVKAndAllowed(
         window);
   }
@@ -162,7 +153,7 @@ TabletModeWindowState::TabletModeWindowState(aura::Window* window,
   // maximized if possible, centered with a backdrop if not possible.
   state_type_on_attach_ = snap || state->IsFloated()
                               ? current_state_type_
-                              : state->GetMaximizedOrCenteredWindowType();
+                              : state->GetWindowTypeOnMaximizable();
   // TODO(oshima|sammiequon): consider SplitView scenario.
   WindowState::ScopedBoundsChangeAnimation bounds_animation(
       window, entering_tablet_mode && !ShouldAnimateWindowForTransition(window)
@@ -231,9 +222,8 @@ gfx::Rect TabletModeWindowState::GetBoundsInTabletMode(
             state_object->snap_ratio().value_or(chromeos::kDefaultSnapRatio));
   }
 
-  if (chromeos::wm::features::IsWindowLayoutMenuEnabled() &&
-      state_object->IsFloated()) {
-    return FloatController::GetPreferredFloatWindowTabletBounds(window);
+  if (state_object->IsFloated()) {
+    return FloatController::GetFloatWindowTabletBounds(window);
   }
 
   gfx::Rect bounds_in_parent;
@@ -304,9 +294,10 @@ void TabletModeWindowState::OnWMEvent(WindowState* window_state,
       }
       break;
     case WM_EVENT_PIP:
-      if (!window_state->IsPip()) {
-        UpdateWindow(window_state, WindowStateType::kPip, /*animate=*/true);
-      }
+      // PIP windows are not managed by TabletModeWindowManager even if the
+      // window is in tablet mode. PIP window uses DefaultState instead, not
+      // TabletModeWindowState.
+      NOTREACHED();
       break;
     case WM_EVENT_TRUSTED_PIN:
       if (!Shell::Get()->screen_pinning_controller()->IsPinned()) {
@@ -318,22 +309,19 @@ void TabletModeWindowState::OnWMEvent(WindowState* window_state,
     case WM_EVENT_TOGGLE_VERTICAL_MAXIMIZE:
     case WM_EVENT_TOGGLE_HORIZONTAL_MAXIMIZE:
     case WM_EVENT_TOGGLE_MAXIMIZE:
-    case WM_EVENT_CENTER:
     case WM_EVENT_MAXIMIZE:
-      UpdateWindow(window_state,
-                   window_state->GetMaximizedOrCenteredWindowType(),
+      UpdateWindow(window_state, window_state->GetWindowTypeOnMaximizable(),
                    /*animate=*/true);
-      return;
+      break;
     case WM_EVENT_NORMAL: {
       // `WM_EVENT_NORMAL` may be restoring state from minimized.
       if (window_state->window()->GetProperty(aura::client::kIsRestoringKey)) {
         DoRestore(window_state);
       } else {
-        UpdateWindow(window_state,
-                     window_state->GetMaximizedOrCenteredWindowType(),
+        UpdateWindow(window_state, window_state->GetWindowTypeOnMaximizable(),
                      /*animate=*/true);
       }
-      return;
+      break;
     }
     case WM_EVENT_RESTORE: {
       // We special handle `WM_EVENT_RESTORE` event here.
@@ -343,35 +331,37 @@ void TabletModeWindowState::OnWMEvent(WindowState* window_state,
     case WM_EVENT_FLOAT:
       // Not all windows can be floated.
       if (!chromeos::wm::CanFloatWindow(window_state->window()))
-        return;
+        break;
 
       UpdateWindow(window_state, WindowStateType::kFloated,
                    /*=animate=*/true);
       break;
     case WM_EVENT_SNAP_PRIMARY:
     case WM_EVENT_SNAP_SECONDARY:
-      DoTabletSnap(window_state, event->type(), event->snap_ratio());
-      return;
+      CHECK(event->AsSnapEvent());
+      DoTabletSnap(window_state, event->type(),
+                   event->AsSnapEvent()->snap_ratio(),
+                   event->AsSnapEvent()->snap_action_source());
+      break;
     case WM_EVENT_CYCLE_SNAP_PRIMARY:
       CycleTabletSnap(window_state,
                       SplitViewController::SnapPosition::kPrimary);
-      return;
+      break;
     case WM_EVENT_CYCLE_SNAP_SECONDARY:
       CycleTabletSnap(window_state,
                       SplitViewController::SnapPosition::kSecondary);
-      return;
+      break;
     case WM_EVENT_MINIMIZE:
       UpdateWindow(window_state, WindowStateType::kMinimized,
                    /*=animate=*/true);
-      return;
+      break;
     case WM_EVENT_SHOW_INACTIVE:
-    case WM_EVENT_SYSTEM_UI_AREA_CHANGED:
-      return;
+      break;
     case WM_EVENT_SET_BOUNDS: {
       gfx::Rect bounds_in_parent =
-          (static_cast<const SetBoundsWMEvent*>(event))->requested_bounds();
+          event->AsSetBoundsWMEvent()->requested_bounds();
       if (bounds_in_parent.IsEmpty())
-        return;
+        break;
 
       if (window_state->is_dragged() ||
           TabDragDropDelegate::IsSourceWindowForDrag(window_state->window()) ||
@@ -396,37 +386,39 @@ void TabletModeWindowState::OnWMEvent(WindowState* window_state,
         // requested bounds and center it to a fully visible area on the screen.
         bounds_in_parent = GetCenteredBounds(bounds_in_parent, window_state);
         if (bounds_in_parent != window_state->window()->bounds()) {
-          const SetBoundsWMEvent* bounds_event =
-              static_cast<const SetBoundsWMEvent*>(event);
-          if (window_state->window()->IsVisible() && bounds_event->animate())
+          if (window_state->window()->IsVisible() &&
+              event->AsSetBoundsWMEvent()->animate()) {
             window_state->SetBoundsDirectAnimated(bounds_in_parent);
-          else
+          } else {
             window_state->SetBoundsDirect(bounds_in_parent);
+          }
         }
       }
       break;
     }
     case WM_EVENT_ADDED_TO_WORKSPACE:
-      if (current_state_type_ != WindowStateType::kMaximized &&
-          current_state_type_ != WindowStateType::kFullscreen &&
-          current_state_type_ != WindowStateType::kMinimized) {
-        // If an already snapped window gets added to the workspace it should
-        // not be maximized, rather retain its previous state.
-        const WindowStateType new_state =
-            IsSnapped(current_state_type_)
-                ? window_state->GetStateType()
-                : window_state->GetMaximizedOrCenteredWindowType();
-        UpdateWindow(window_state, new_state, /*animate=*/true);
+      // Update the window to maximized or centered if it cannot maximize.
+      // If an already snapped window or floated or pinned window gets added to
+      // the workspace, the window should not be forced maximized, rather retain
+      // its previous state.
+      UpdateWindow(window_state,
+                   AdjustStateForTabletMode(window_state, current_state_type_),
+                   /*animate=*/true);
+      break;
+    case WM_EVENT_DISPLAY_METRICS_CHANGED:
+      if (current_state_type_ == WindowStateType::kMinimized) {
+        break;
       }
-      break;
-    case WM_EVENT_WORKAREA_BOUNDS_CHANGED:
-      if (current_state_type_ != WindowStateType::kMinimized)
-        UpdateBounds(window_state, previous_state_type, /*animate=*/true);
-      break;
-    case WM_EVENT_DISPLAY_BOUNDS_CHANGED:
-      // Don't animate on a screen rotation - just snap to new size.
-      if (current_state_type_ != WindowStateType::kMinimized)
-        UpdateBounds(window_state, previous_state_type, /*animate=*/false);
+      const DisplayMetricsChangedWMEvent* display_event =
+          event->AsDisplayMetricsChangedWMEvent();
+      const bool display_bounds_changed =
+          display_event->display_bounds_changed();
+      const bool work_area_changed = display_event->work_area_changed();
+      if (display_bounds_changed || work_area_changed) {
+        // Don't animate on a screen rotation - just snap to new size.
+        UpdateBounds(window_state, previous_state_type,
+                     /*animate=*/work_area_changed);
+      }
       break;
   }
 }
@@ -539,7 +531,19 @@ WindowStateType TabletModeWindowState::GetSnappedWindowStateType(
   return SplitViewController::Get(Shell::GetPrimaryRootWindow())
                  ->CanSnapWindow(window_state->window())
              ? target_state
-             : window_state->GetMaximizedOrCenteredWindowType();
+             : window_state->GetWindowTypeOnMaximizable();
+}
+
+WindowStateType TabletModeWindowState::AdjustStateForTabletMode(
+    WindowState* window_state,
+    WindowStateType current_state_type) {
+  if (chromeos::IsSnappedWindowStateType(current_state_type) ||
+      chromeos::IsPinnedWindowStateType(current_state_type) ||
+      current_state_type == chromeos::WindowStateType::kFloated) {
+    return window_state->GetStateType();
+  }
+
+  return window_state->GetWindowTypeOnMaximizable();
 }
 
 void TabletModeWindowState::UpdateBounds(
@@ -596,7 +600,7 @@ void TabletModeWindowState::CycleTabletSnap(
   SplitViewController* split_view_controller = SplitViewController::Get(window);
   // If |window| is already snapped in |snap_position|, then unsnap |window|.
   if (window == split_view_controller->GetSnappedWindow(snap_position)) {
-    UpdateWindow(window_state, window_state->GetMaximizedOrCenteredWindowType(),
+    UpdateWindow(window_state, window_state->GetWindowTypeOnMaximizable(),
                  /*animate=*/true);
     window_state->ReadOutWindowCycleSnapAction(
         IDS_WM_RESTORE_SNAPPED_WINDOW_ON_SHORTCUT);
@@ -604,7 +608,8 @@ void TabletModeWindowState::CycleTabletSnap(
   }
   // If |window| can snap in split view, then snap |window| in |snap_position|.
   if (split_view_controller->CanSnapWindow(window)) {
-    split_view_controller->SnapWindow(window, snap_position);
+    split_view_controller->SnapWindow(
+        window, snap_position, WindowSnapActionSource::kKeyboardShortcutToSnap);
     window_state->ReadOutWindowCycleSnapAction(
         snap_position == SplitViewController::SnapPosition::kPrimary
             ? IDS_WM_SNAP_WINDOW_TO_LEFT_ON_SHORTCUT
@@ -615,9 +620,11 @@ void TabletModeWindowState::CycleTabletSnap(
   ShowAppCannotSnapToast();
 }
 
-void TabletModeWindowState::DoTabletSnap(WindowState* window_state,
-                                         WMEventType snap_event_type,
-                                         float snap_ratio) {
+void TabletModeWindowState::DoTabletSnap(
+    WindowState* window_state,
+    WMEventType snap_event_type,
+    float snap_ratio,
+    WindowSnapActionSource snap_action_source) {
   DCHECK(snap_event_type == WM_EVENT_SNAP_PRIMARY ||
          snap_event_type == WM_EVENT_SNAP_SECONDARY);
 
@@ -633,11 +640,11 @@ void TabletModeWindowState::DoTabletSnap(WindowState* window_state,
       snap_event_type == WM_EVENT_SNAP_PRIMARY
           ? WindowStateType::kPrimarySnapped
           : WindowStateType::kSecondarySnapped;
-  window_state->RecordAndResetWindowSnapActionSource(
-      window_state->GetStateType(), new_state_type);
+  window_state->RecordWindowSnapActionSource(snap_action_source);
 
   // A snap WMEvent will put the window in tablet split view.
-  split_view_controller->OnWMEvent(window, snap_event_type);
+  split_view_controller->OnSnapEvent(window, snap_event_type,
+                                     snap_action_source);
 
   // Change window state and bounds to the snapped window state and bounds.
   UpdateWindow(window_state, new_state_type, /*animate=*/false);
@@ -646,13 +653,12 @@ void TabletModeWindowState::DoTabletSnap(WindowState* window_state,
 void TabletModeWindowState::DoRestore(WindowState* window_state) {
   WindowStateType restore_state = window_state->GetRestoreWindowState();
   if (chromeos::IsSnappedWindowStateType(restore_state)) {
-    window_state->set_snap_action_source(
-        WindowSnapActionSource::kSnapByWindowStateRestore);
     DoTabletSnap(window_state,
                  restore_state == WindowStateType::kPrimarySnapped
                      ? WM_EVENT_SNAP_PRIMARY
                      : WM_EVENT_SNAP_SECONDARY,
-                 chromeos::kDefaultSnapRatio);
+                 chromeos::kDefaultSnapRatio,
+                 WindowSnapActionSource::kSnapByWindowStateRestore);
     return;
   }
 

@@ -39,6 +39,7 @@
 #include "components/infobars/content/content_infobar_manager.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
+#include "content/public/browser/notification_service.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/service_worker_context.h"
 #include "content/public/browser/storage_partition.h"
@@ -301,11 +302,9 @@ class ExternallyConnectableMessagingTest : public MessagingApiTest {
   };
 
   bool AppendIframe(const GURL& src) {
-    bool result;
-    CHECK(content::ExecuteScriptAndExtractBool(
-        browser()->tab_strip_model()->GetActiveWebContents(),
-        "actions.appendIframe('" + src.spec() + "');", &result));
-    return result;
+    return content::EvalJs(browser()->tab_strip_model()->GetActiveWebContents(),
+                           "actions.appendIframe('" + src.spec() + "');")
+        .ExtractBool();
   }
 
   Result CanConnectAndSendMessagesToMainFrame(const Extension* extension,
@@ -333,6 +332,18 @@ class ExternallyConnectableMessagingTest : public MessagingApiTest {
         extension->id().c_str(),
         extension->is_platform_app() ? "true" : "false",
         message ? base::StringPrintf("'%s'", message).c_str() : "undefined");
+    int result = content::EvalJs(frame, command).ExtractInt();
+    return static_cast<Result>(result);
+  }
+
+  Result CanUseSendMessagePromise(const Extension* extension) {
+    content::RenderFrameHost* frame = browser()
+                                          ->tab_strip_model()
+                                          ->GetActiveWebContents()
+                                          ->GetPrimaryMainFrame();
+    std::string command =
+        content::JsReplace("assertions.canUseSendMessagePromise($1, $2)",
+                           extension->id(), extension->is_platform_app());
     int result = content::EvalJs(frame, command).ExtractInt();
     return static_cast<Result>(result);
   }
@@ -386,11 +397,10 @@ class ExternallyConnectableMessagingTest : public MessagingApiTest {
     }
     as_js_array += "]";
 
-    bool any_defined;
-    CHECK(content::ExecuteScriptAndExtractBool(
-        frame,
-        "assertions.areAnyRuntimePropertiesDefined(" + as_js_array + ")",
-        &any_defined));
+    bool any_defined =
+        content::EvalJs(frame, "assertions.areAnyRuntimePropertiesDefined(" +
+                                   as_js_array + ")")
+            .ExtractBool();
     return any_defined ?
         testing::AssertionSuccess() : testing::AssertionFailure();
   }
@@ -656,6 +666,18 @@ IN_PROC_BROWSER_TEST_F(ExternallyConnectableMessagingTest,
   EXPECT_EQ(NAMESPACE_NOT_DEFINED,
             CanConnectAndSendMessagesToMainFrame(not_connectable.get()));
   EXPECT_FALSE(AreAnyNonWebApisDefinedForMainFrame());
+}
+
+// Tests that an externally connectable web page context can use the promise
+// based form of sendMessage.
+IN_PROC_BROWSER_TEST_F(ExternallyConnectableMessagingTest,
+                       SendMessagePromiseSignatureExposed) {
+  // Install the web connectable extension.
+  scoped_refptr<const Extension> chromium_connectable =
+      LoadChromiumConnectableExtension();
+
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), chromium_org_url()));
+  EXPECT_EQ(OK, CanUseSendMessagePromise(chromium_connectable.get()));
 }
 
 // See http://crbug.com/297866
@@ -999,16 +1021,16 @@ IN_PROC_BROWSER_TEST_F(ExternallyConnectableMessagingTest,
   // Trigger a infobars in both tabs by trying to send messages.
   std::string script =
       base::StringPrintf("assertions.trySendMessage('%s')", app->id().c_str());
-  CHECK(content::ExecuteScript(incognito_frame1, script));
-  CHECK(content::ExecuteScript(incognito_frame2, script));
-  EXPECT_EQ(1U, infobar_manager1->infobar_count());
-  EXPECT_EQ(1U, infobar_manager2->infobar_count());
+  CHECK(content::ExecJs(incognito_frame1, script));
+  CHECK(content::ExecJs(incognito_frame2, script));
+  EXPECT_EQ(1U, infobar_manager1->infobars().size());
+  EXPECT_EQ(1U, infobar_manager2->infobars().size());
 
   // Navigating away will dismiss the infobar on the active tab only.
   ASSERT_TRUE(
       ui_test_utils::NavigateToURL(incognito_browser, google_com_url()));
-  EXPECT_EQ(1U, infobar_manager1->infobar_count());
-  EXPECT_EQ(0U, infobar_manager2->infobar_count());
+  EXPECT_EQ(1U, infobar_manager1->infobars().size());
+  EXPECT_EQ(0U, infobar_manager2->infobars().size());
 
   // Navigate back and accept the infobar this time. Both should be dismissed.
   {
@@ -1022,11 +1044,11 @@ IN_PROC_BROWSER_TEST_F(ExternallyConnectableMessagingTest,
                            ->GetPrimaryMainFrame();
     EXPECT_NE(incognito_frame1, incognito_frame2);
 
-    EXPECT_EQ(1U, infobar_manager1->infobar_count());
+    EXPECT_EQ(1U, infobar_manager1->infobars().size());
     EXPECT_EQ(OK, CanConnectAndSendMessagesToFrame(incognito_frame2, app.get(),
                                                    nullptr));
     EXPECT_EQ(1, alert_tracker.GetAndResetAlertCount());
-    EXPECT_EQ(0U, infobar_manager1->infobar_count());
+    EXPECT_EQ(0U, infobar_manager1->infobars().size());
   }
 }
 
@@ -1035,11 +1057,9 @@ IN_PROC_BROWSER_TEST_F(ExternallyConnectableMessagingTest, IllegalArguments) {
   // Regression test for crbug.com/472700.
   LoadChromiumConnectableExtension();
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), chromium_org_url()));
-  bool result;
-  CHECK(content::ExecuteScriptAndExtractBool(
-      browser()->tab_strip_model()->GetActiveWebContents(),
-      "assertions.tryIllegalArguments()", &result));
-  EXPECT_TRUE(result);
+  EXPECT_EQ(true, content::EvalJs(
+                      browser()->tab_strip_model()->GetActiveWebContents(),
+                      "assertions.tryIllegalArguments()"));
 }
 
 IN_PROC_BROWSER_TEST_F(ExternallyConnectableMessagingTest,
@@ -1668,9 +1688,9 @@ IN_PROC_BROWSER_TEST_F(ServiceWorkerMessagingApiTest,
             web_contents->GetPrimaryMainFrame()->GetLastCommittedOrigin());
   // This is a hack to make sure messaging IPCs are finished. Since IPCs
   // are sent synchronously, anything started prior to this method will finish
-  // before this method returns (as content::ExecuteScript() blocks until
+  // before this method returns (as content::ExecJs() blocks until
   // completion).
-  ASSERT_TRUE(content::ExecuteScript(web_contents, "1 == 1;"));
+  ASSERT_TRUE(content::ExecJs(web_contents, "1 == 1;"));
 
   content::RunAllTasksUntilIdle();
 
@@ -1686,6 +1706,7 @@ class MessagingApiFencedFrameTest : public MessagingApiTest {
     feature_list_.InitWithFeaturesAndParameters(
         {{blink::features::kFencedFrames, {}},
          {blink::features::kFencedFramesAPIChanges, {}},
+         {blink::features::kFencedFramesDefaultMode, {}},
          {features::kPrivacySandboxAdsAPIsOverride, {}}},
         {/* disabled_features */});
   }

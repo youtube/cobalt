@@ -10,6 +10,7 @@
 
 #include "test_utils/ANGLETest.h"
 #include "test_utils/angle_test_configs.h"
+#include "test_utils/gl_raii.h"
 #include "util/EGLWindow.h"
 
 using namespace angle;
@@ -233,6 +234,57 @@ TEST_P(EGLSyncTest, BasicOperations)
     }
 
     EXPECT_EGL_TRUE(eglDestroySyncKHR(display, sync));
+}
+
+// Test that eglClientWaitSync* APIs work.
+TEST_P(EGLSyncTest, EglClientWaitSync)
+{
+    ANGLE_SKIP_TEST_IF(!hasFenceSyncExtension());
+
+    EGLDisplay display = getEGLWindow()->getDisplay();
+    ANGLE_GL_PROGRAM(greenProgram, essl1_shaders::vs::Simple(), essl1_shaders::fs::Green());
+
+    // Test eglClientWaitSyncKHR
+    for (size_t i = 0; i < 5; i++)
+    {
+        glClearColor(1.0f, 0.0f, 1.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+        drawQuad(greenProgram, std::string(essl1_shaders::PositionAttrib()), 0.0f);
+        ASSERT_GL_NO_ERROR();
+
+        // Don't wait forever to make sure the test terminates
+        constexpr GLuint64 kTimeout = 1'000'000'000;  // 1 second
+        EGLSyncKHR clientWaitSync   = eglCreateSyncKHR(display, EGL_SYNC_FENCE_KHR, nullptr);
+        EXPECT_NE(clientWaitSync, EGL_NO_SYNC_KHR);
+
+        ASSERT_EQ(EGL_CONDITION_SATISFIED_KHR,
+                  eglClientWaitSyncKHR(display, clientWaitSync, EGL_SYNC_FLUSH_COMMANDS_BIT_KHR,
+                                       kTimeout));
+
+        EXPECT_EGL_TRUE(eglDestroySyncKHR(display, clientWaitSync));
+        ASSERT_EGL_SUCCESS();
+    }
+
+    // Test eglClientWaitSync
+    for (size_t i = 0; i < 5; i++)
+    {
+        glClearColor(1.0f, 0.0f, 1.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+        drawQuad(greenProgram, std::string(essl1_shaders::PositionAttrib()), 0.0f);
+        ASSERT_GL_NO_ERROR();
+
+        // Don't wait forever to make sure the test terminates
+        constexpr GLuint64 kTimeout = 1'000'000'000;  // 1 second
+        EGLSyncKHR clientWaitSync   = eglCreateSync(display, EGL_SYNC_FENCE, nullptr);
+        EXPECT_NE(clientWaitSync, EGL_NO_SYNC);
+
+        ASSERT_EQ(
+            EGL_CONDITION_SATISFIED,
+            eglClientWaitSync(display, clientWaitSync, EGL_SYNC_FLUSH_COMMANDS_BIT, kTimeout));
+
+        EXPECT_EGL_TRUE(eglDestroySync(display, clientWaitSync));
+        ASSERT_EGL_SUCCESS();
+    }
 }
 
 // Test eglWaitClient api
@@ -523,7 +575,7 @@ TEST_P(EGLSyncTest, AndroidNativeFence_VkSemaphoreDestroyBug)
 {
     ANGLE_SKIP_TEST_IF(!IsVulkan());
     ANGLE_SKIP_TEST_IF(!hasFenceSyncExtension());
-    ANGLE_SKIP_TEST_IF(!hasFenceSyncExtension() || !hasGLSyncExtension());
+    ANGLE_SKIP_TEST_IF(!hasWaitSyncExtension() || !hasGLSyncExtension());
     ANGLE_SKIP_TEST_IF(!hasAndroidNativeFenceSyncExtension());
 
     EGLDisplay display = getEGLWindow()->getDisplay();
@@ -541,6 +593,40 @@ TEST_P(EGLSyncTest, AndroidNativeFence_VkSemaphoreDestroyBug)
     glClearColor(0.0f, 1.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
     glFinish();  // Will submit destroyed Semaphores.
+}
+
+// Verify that no VVL errors are generated when External Fence Handle is used to track submissions
+TEST_P(EGLSyncTest, AndroidNativeFence_ExternalFenceWaitVVLBug)
+{
+    ANGLE_SKIP_TEST_IF(!IsVulkan());
+    ANGLE_SKIP_TEST_IF(!hasFenceSyncExtension() || !hasGLSyncExtension());
+    ANGLE_SKIP_TEST_IF(!hasAndroidNativeFenceSyncExtension());
+
+    EGLint value       = 0;
+    EGLDisplay display = getEGLWindow()->getDisplay();
+
+    // Create work to do
+    ANGLE_GL_PROGRAM(program, essl1_shaders::vs::Simple(), essl1_shaders::fs::Red());
+    drawQuad(program, essl1_shaders::PositionAttrib(), 0.0f);
+    ASSERT_GL_NO_ERROR();
+
+    // We can ClientWait on this
+    EGLSyncKHR syncWithGeneratedFD =
+        eglCreateSyncKHR(display, EGL_SYNC_NATIVE_FENCE_ANDROID, nullptr);
+    EXPECT_NE(syncWithGeneratedFD, EGL_NO_SYNC_KHR);
+
+    // Wait for draw to complete
+    EXPECT_EQ(EGL_CONDITION_SATISFIED,
+              eglClientWaitSyncKHR(display, syncWithGeneratedFD, EGL_SYNC_FLUSH_COMMANDS_BIT_KHR,
+                                   1'000'000'000));
+    EXPECT_EGL_TRUE(eglGetSyncAttribKHR(display, syncWithGeneratedFD, EGL_SYNC_STATUS_KHR, &value));
+    EXPECT_EQ(value, EGL_SIGNALED_KHR);
+
+    // Clean up created objects.
+    EXPECT_EGL_TRUE(eglDestroySyncKHR(display, syncWithGeneratedFD));
+
+    // Finish to cleanup internal garbage in the backend.
+    glFinish();
 }
 
 ANGLE_INSTANTIATE_TEST_ES2_AND_ES3(EGLSyncTest);

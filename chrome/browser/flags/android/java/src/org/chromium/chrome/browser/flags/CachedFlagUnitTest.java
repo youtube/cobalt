@@ -19,13 +19,10 @@ import org.junit.runner.RunWith;
 import org.chromium.base.FeatureList;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 
-/**
- * Unit Tests for {@link CachedFlag}.
- */
+/** Unit Tests for {@link CachedFlag}. */
 @RunWith(BaseRobolectricTestRunner.class)
 public class CachedFlagUnitTest {
-    @Rule
-    public final BaseFlagTestRule baseFlagTestRule = new BaseFlagTestRule();
+    @Rule public final BaseFlagTestRule baseFlagTestRule = new BaseFlagTestRule();
 
     @Test(expected = AssertionError.class)
     public void testDuplicateFeature_throwsException() {
@@ -78,7 +75,7 @@ public class CachedFlagUnitTest {
         assertIsEnabledMatches(A_OFF_B_ON, featureA, featureB);
 
         // Pretend the app was restarted. The SharedPrefs should remain.
-        CachedFeatureFlags.resetFlagsForTesting();
+        CachedFlagUtils.resetFlagsForTesting();
 
         // Simulate ChromeFeatureList retrieving new, different values for the flags.
         FeatureList.setTestFeatures(A_ON_B_ON);
@@ -96,7 +93,7 @@ public class CachedFlagUnitTest {
         assertIsEnabledMatches(A_OFF_B_ON, featureA, featureB);
 
         // Pretend the app was restarted again.
-        CachedFeatureFlags.resetFlagsForTesting();
+        CachedFlagUtils.resetFlagsForTesting();
 
         // The SharedPrefs should retain the latest values.
         assertIsEnabledMatches(A_ON_B_ON, featureA, featureB);

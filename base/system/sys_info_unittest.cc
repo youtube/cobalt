@@ -67,17 +67,21 @@ TEST_F(SysInfoTest, NumProcs) {
 
 #if BUILDFLAG(IS_MAC)
 TEST_F(SysInfoTest, NumProcsWithSecurityMitigationEnabled) {
+  // Reset state so that the call to SetCpuSecurityMitigationsEnabled() below
+  // succeeds even if SysInfo::NumberOfProcessors() was previously called.
+  SysInfo::ResetCpuSecurityMitigationsEnabledForTesting();
+
   // Verify that the number of number of available processors available when CPU
   // security mitigation is enabled is the number of available "physical"
   // processors.
   test::ScopedFeatureList feature_list_;
   feature_list_.InitAndEnableFeature(kNumberOfCoresWithCpuSecurityMitigation);
-  SysInfo::SetIsCpuSecurityMitigationsEnabled(true);
-  EXPECT_EQ(internal::NumberOfProcessors(),
+  SysInfo::SetCpuSecurityMitigationsEnabled();
+  EXPECT_EQ(SysInfo::NumberOfProcessors(),
             internal::NumberOfPhysicalProcessors());
 
-  // Reset to default value
-  SysInfo::SetIsCpuSecurityMitigationsEnabled(false);
+  // Reset state set by this test.
+  SysInfo::ResetCpuSecurityMitigationsEnabledForTesting();
 }
 #endif  // BUILDFLAG(IS_MAC)
 
@@ -372,11 +376,11 @@ TEST_F(SysInfoTest, GoogleChromeOSNoVersionNumbers) {
 TEST_F(SysInfoTest, GoogleChromeOSLsbReleaseTime) {
   const char kLsbRelease[] = "CHROMEOS_RELEASE_VERSION=1.2.3.4";
   // Use a fake time that can be safely displayed as a string.
-  const Time lsb_release_time(Time::FromDoubleT(12345.6));
+  const Time lsb_release_time(Time::FromSecondsSinceUnixEpoch(12345.6));
   test::ScopedChromeOSVersionInfo version(kLsbRelease, lsb_release_time);
   Time parsed_lsb_release_time = SysInfo::GetLsbReleaseTime();
-  EXPECT_DOUBLE_EQ(lsb_release_time.ToDoubleT(),
-                   parsed_lsb_release_time.ToDoubleT());
+  EXPECT_DOUBLE_EQ(lsb_release_time.InSecondsFSinceUnixEpoch(),
+                   parsed_lsb_release_time.InSecondsFSinceUnixEpoch());
 }
 
 TEST_F(SysInfoTest, IsRunningOnChromeOS) {

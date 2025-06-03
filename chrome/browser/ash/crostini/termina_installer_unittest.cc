@@ -16,6 +16,7 @@
 #include "chromeos/ash/components/dbus/dlcservice/fake_dlcservice_client.h"
 #include "services/network/test/test_network_connection_tracker.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/cros_system_api/dbus/dlcservice/dbus-constants.h"
 #include "third_party/cros_system_api/dbus/service_constants.h"
 
 using base::test::TestFuture;
@@ -99,7 +100,8 @@ class TerminaInstallTest : public testing::Test {
  protected:
   scoped_refptr<component_updater::FakeCrOSComponentManager> component_manager_;
   BrowserProcessPlatformPartTestApi browser_part_;
-  raw_ptr<ash::FakeDlcserviceClient, ExperimentalAsh> fake_dlc_client_;
+  raw_ptr<ash::FakeDlcserviceClient, DanglingUntriaged | ExperimentalAsh>
+      fake_dlc_client_;
   TerminaInstaller termina_installer_;
   base::test::TaskEnvironment task_env_{
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
@@ -186,8 +188,7 @@ TEST_F(TerminaInstallTest, UninstallWithBothInstalled) {
 
 TEST_F(TerminaInstallTest, InstallDlc) {
   TestFuture<TerminaInstaller::InstallResult> result_future;
-  termina_installer_.Install(result_future.GetCallback(),
-                             /*is_initial_install=*/true);
+  termina_installer_.Install(result_future.GetCallback());
   EXPECT_EQ(TerminaInstaller::InstallResult::Success, result_future.Get());
 
   CheckDlcInstallCalledTimes(1);
@@ -195,21 +196,27 @@ TEST_F(TerminaInstallTest, InstallDlc) {
 }
 
 TEST_F(TerminaInstallTest, InstallDlcCancell) {
-  TestFuture<TerminaInstaller::InstallResult> result_future;
-  termina_installer_.Install(result_future.GetCallback(),
-                             /*is_initial_install=*/true);
-  termina_installer_.CancelInstall();
-  EXPECT_EQ(TerminaInstaller::InstallResult::Cancelled, result_future.Get());
+  fake_dlc_client_->set_install_error(dlcservice::kErrorBusy);
 
-  CheckDlcInstallCalledTimes(1);
+  TestFuture<TerminaInstaller::InstallResult> result_future;
+  termina_installer_.Install(result_future.GetCallback());
+
+  // The installer should *not* complete until dlcservice stops being busy.
+  task_env_.RunUntilIdle();
+  termina_installer_.CancelInstall();
+  task_env_.RunUntilIdle();
+  EXPECT_FALSE(result_future.IsReady());
+
+  task_env_.FastForwardBy(base::Seconds(10));
+  EXPECT_TRUE(result_future.IsReady());
+  EXPECT_EQ(TerminaInstaller::InstallResult::Cancelled, result_future.Get());
 }
 
 TEST_F(TerminaInstallTest, InstallDlcError) {
   fake_dlc_client_->set_install_error("An error");
 
   TestFuture<TerminaInstaller::InstallResult> result_future;
-  termina_installer_.Install(result_future.GetCallback(),
-                             /*is_initial_install=*/true);
+  termina_installer_.Install(result_future.GetCallback());
   EXPECT_EQ(TerminaInstaller::InstallResult::Failure, result_future.Get());
 }
 
@@ -217,8 +224,7 @@ TEST_F(TerminaInstallTest, InstallDlcNeedsReboot) {
   fake_dlc_client_->set_install_error(dlcservice::kErrorNeedReboot);
 
   TestFuture<TerminaInstaller::InstallResult> result_future;
-  termina_installer_.Install(result_future.GetCallback(),
-                             /*is_initial_install=*/true);
+  termina_installer_.Install(result_future.GetCallback());
   EXPECT_EQ(TerminaInstaller::InstallResult::NeedUpdate, result_future.Get());
 }
 
@@ -226,8 +232,7 @@ TEST_F(TerminaInstallTest, InstallDlcNoImageFound) {
   fake_dlc_client_->set_install_error(dlcservice::kErrorNoImageFound);
 
   TestFuture<TerminaInstaller::InstallResult> result_future;
-  termina_installer_.Install(result_future.GetCallback(),
-                             /*is_initial_install=*/true);
+  termina_installer_.Install(result_future.GetCallback());
   EXPECT_EQ(TerminaInstaller::InstallResult::NeedUpdate, result_future.Get());
 }
 
@@ -235,8 +240,7 @@ TEST_F(TerminaInstallTest, InstallDlcBusyTriggersRetry) {
   fake_dlc_client_->set_install_error(dlcservice::kErrorBusy);
 
   TestFuture<TerminaInstaller::InstallResult> result_future;
-  termina_installer_.Install(result_future.GetCallback(),
-                             /*is_initial_install=*/true);
+  termina_installer_.Install(result_future.GetCallback());
   task_env_.FastForwardBy(base::Seconds(0));
 
   fake_dlc_client_->set_install_error(dlcservice::kErrorNone);
@@ -250,8 +254,7 @@ TEST_F(TerminaInstallTest, InstallDlcBusyRetryIsCancelable) {
   fake_dlc_client_->set_install_error(dlcservice::kErrorBusy);
 
   TestFuture<TerminaInstaller::InstallResult> result_future;
-  termina_installer_.Install(result_future.GetCallback(),
-                             /*is_initial_install=*/true);
+  termina_installer_.Install(result_future.GetCallback());
   task_env_.FastForwardBy(base::Seconds(0));
 
   CheckDlcInstallCalledTimes(1);
@@ -260,17 +263,6 @@ TEST_F(TerminaInstallTest, InstallDlcBusyRetryIsCancelable) {
   EXPECT_EQ(TerminaInstaller::InstallResult::Cancelled, result_future.Get());
 
   task_env_.FastForwardBy(base::Days(1));
-
-  CheckDlcInstallCalledTimes(1);
-}
-
-TEST_F(TerminaInstallTest, InstallDlcBusyDoesntTriggerRetry) {
-  fake_dlc_client_->set_install_error(dlcservice::kErrorBusy);
-
-  TestFuture<TerminaInstaller::InstallResult> result_future;
-  termina_installer_.Install(result_future.GetCallback(),
-                             /*is_initial_install=*/false);
-  EXPECT_EQ(TerminaInstaller::InstallResult::Failure, result_future.Get());
 
   CheckDlcInstallCalledTimes(1);
 }
@@ -284,8 +276,7 @@ TEST_F(TerminaInstallTest, InstallDlcOffline) {
       network::mojom::ConnectionType::CONNECTION_NONE);
 
   TestFuture<TerminaInstaller::InstallResult> result_future;
-  termina_installer_.Install(result_future.GetCallback(),
-                             /*is_initial_install=*/true);
+  termina_installer_.Install(result_future.GetCallback());
   EXPECT_EQ(TerminaInstaller::InstallResult::Offline, result_future.Get());
 }
 
@@ -294,8 +285,7 @@ TEST_F(TerminaInstallTest, InstallDlcWithComponentInstalled) {
       {imageloader::kTerminaComponentName});
 
   TestFuture<TerminaInstaller::InstallResult> result_future;
-  termina_installer_.Install(result_future.GetCallback(),
-                             /*is_initial_install=*/true);
+  termina_installer_.Install(result_future.GetCallback());
   EXPECT_EQ(TerminaInstaller::InstallResult::Success, result_future.Get());
 
   CheckDlcInstallCalledTimes(1);
@@ -312,8 +302,7 @@ TEST_F(TerminaInstallTest, InstallDlcWithComponentInstalledUninstallError) {
   component_manager_->set_unload_component_result(false);
 
   TestFuture<TerminaInstaller::InstallResult> result_future;
-  termina_installer_.Install(result_future.GetCallback(),
-                             /*is_initial_install=*/true);
+  termina_installer_.Install(result_future.GetCallback());
   EXPECT_EQ(TerminaInstaller::InstallResult::Success, result_future.Get());
 
   CheckDlcInstallCalledTimes(1);
@@ -322,8 +311,7 @@ TEST_F(TerminaInstallTest, InstallDlcWithComponentInstalledUninstallError) {
 
 TEST_F(TerminaInstallTest, InstallDlcFallback) {
   TestFuture<TerminaInstaller::InstallResult> result_future;
-  termina_installer_.Install(result_future.GetCallback(),
-                             /*is_initial_install=*/false);
+  termina_installer_.Install(result_future.GetCallback());
   EXPECT_EQ(TerminaInstaller::InstallResult::Success, result_future.Get());
 
   CheckDlcInstallCalledTimes(1);
@@ -335,8 +323,7 @@ TEST_F(TerminaInstallTest, InstallDlcFallbackError) {
   PrepareComponentForLoad();
 
   TestFuture<TerminaInstaller::InstallResult> result_future;
-  termina_installer_.Install(result_future.GetCallback(),
-                             /*is_initial_install=*/false);
+  termina_installer_.Install(result_future.GetCallback());
   EXPECT_EQ(TerminaInstaller::InstallResult::Failure, result_future.Get());
 
   CheckDlcInstallCalledTimes(1);
@@ -354,8 +341,7 @@ TEST_F(TerminaInstallTest, InstallDlcFallbackOffline) {
       network::mojom::ConnectionType::CONNECTION_NONE);
 
   TestFuture<TerminaInstaller::InstallResult> result_future;
-  termina_installer_.Install(result_future.GetCallback(),
-                             /*is_initial_install=*/false);
+  termina_installer_.Install(result_future.GetCallback());
   EXPECT_EQ(TerminaInstaller::InstallResult::Offline, result_future.Get());
 
   EXPECT_FALSE(component_manager_->IsRegisteredMayBlock(
@@ -365,8 +351,10 @@ TEST_F(TerminaInstallTest, InstallDlcFallbackOffline) {
 TEST_F(TerminaInstallTest, InstallDlcFallbackOfflineComponentAlreadyInstalled) {
   fake_dlc_client_->set_install_error("An error");
   PrepareComponentForLoad();
-  component_manager_->RegisterCompatiblePath(imageloader::kTerminaComponentName,
-                                             component_install_path_);
+  component_manager_->RegisterCompatiblePath(
+      imageloader::kTerminaComponentName,
+      component_updater::CompatibleComponentInfo(component_install_path_,
+                                                 /* version= */ absl::nullopt));
 
   auto* network_connection_tracker =
       network::TestNetworkConnectionTracker::GetInstance();
@@ -374,8 +362,7 @@ TEST_F(TerminaInstallTest, InstallDlcFallbackOfflineComponentAlreadyInstalled) {
       network::mojom::ConnectionType::CONNECTION_NONE);
 
   TestFuture<TerminaInstaller::InstallResult> result_future;
-  termina_installer_.Install(result_future.GetCallback(),
-                             /*is_initial_install=*/false);
+  termina_installer_.Install(result_future.GetCallback());
   EXPECT_EQ(TerminaInstaller::InstallResult::Offline, result_future.Get());
 
   EXPECT_FALSE(component_manager_->IsRegisteredMayBlock(

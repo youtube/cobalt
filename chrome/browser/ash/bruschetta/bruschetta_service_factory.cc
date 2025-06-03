@@ -29,26 +29,22 @@ BruschettaServiceFactory* BruschettaServiceFactory::GetInstance() {
 BruschettaServiceFactory::BruschettaServiceFactory()
     : ProfileKeyedServiceFactory(
           "BruschettaService",
-          // Takes care of not creating the service for OTR and non user
-          // profiles.
+          // Only create one instance per login session. For OTR profiles,
+          // we use the same instance as their parent profile.
           ProfileSelections::Builder()
-              .WithGuest(ProfileSelections::kRegularProfileDefault)
+              .WithRegular(ProfileSelection::kRedirectedToOriginal)
+              .WithGuest(ProfileSelection::kNone)
               .WithAshInternals(ProfileSelection::kNone)
+              .WithSystem(ProfileSelection::kNone)
               .Build()) {}
 
 BruschettaServiceFactory::~BruschettaServiceFactory() = default;
 
-KeyedService* BruschettaServiceFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+BruschettaServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
   auto* profile = Profile::FromBrowserContext(context);
-
-  // Don't create a BruschettaService for anything except the primary user
-  // profile for the session.
-  if (!ash::ProfileHelper::Get()->IsPrimaryProfile(profile) ||
-      ash::ProfileHelper::Get()->IsEphemeralUserProfile(profile))
-    return nullptr;
-
-  return new BruschettaService(profile);
+  return std::make_unique<BruschettaService>(profile);
 }
 
 // Force BruschettaService to be set up when a BrowserContext is
@@ -56,26 +52,6 @@ KeyedService* BruschettaServiceFactory::BuildServiceInstanceFor(
 // session (e.g. registering existing Bruschetta VMs with other services).
 bool BruschettaServiceFactory::ServiceIsCreatedWithBrowserContext() const {
   return true;
-}
-
-// Most tests don't set up the dependencies (e.g. user_manager::UserManager) for
-// the ash::ProfileHelper calls in ::BuildServiceInstanceFor we use to check if
-// we should create a BruschettaService for a given BrowserContext. Since they
-// probably don't actually want a BruschettaService anyway, we use this to
-// default to not creating one for test BrowserContexts.
-bool BruschettaServiceFactory::ServiceIsNULLWhileTesting() const {
-  return true;
-}
-
-// Static helper function for tests that do use BruschettaService. This bypasses
-// the checks we normally use, so it doesn't introduce a dependency on
-// user_manager::UserManager etc.
-void BruschettaServiceFactory::EnableForTesting(Profile* profile) {
-  GetInstance()->SetTestingFactory(
-      profile, base::BindRepeating([](content::BrowserContext* context) {
-        return base::WrapUnique<KeyedService>(
-            new BruschettaService(Profile::FromBrowserContext(context)));
-      }));
 }
 
 }  // namespace bruschetta

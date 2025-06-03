@@ -13,6 +13,7 @@ try_.defaults.set(
     os = os.LINUX_DEFAULT,
     cpu = cpu.X86_64,
     build_numbers = True,
+    contact_team_email = "chrome-gpu-infra@google.com",
     cq_group = "cq",
     execution_timeout = 6 * time.hour,
     # Max. pending time for builds. CQ considers builds pending >2h as timed
@@ -115,22 +116,6 @@ gpu_chromeos_builder(
         "ci/ChromeOS FYI Release (amd64-generic)",
     ],
     pool = "luci.chromium.gpu.chromeos.amd64.generic.try",
-)
-
-gpu_chromeos_builder(
-    name = "gpu-fyi-try-chromeos-kevin",
-    mirrors = [
-        "ci/ChromeOS FYI Release (kevin)",
-    ],
-    pool = "luci.chromium.gpu.chromeos.kevin.try",
-)
-
-gpu_chromeos_builder(
-    name = "gpu-fyi-try-chromeos-skylab-kevin",
-    mirrors = [
-        "ci/ChromeOS FYI Release Skylab (kevin)",
-    ],
-    pool = "luci.chromium.gpu.chromeos.kevin.try",
 )
 
 def gpu_linux_builder(*, name, **kwargs):
@@ -317,6 +302,17 @@ gpu_mac_builder(
 )
 
 gpu_mac_builder(
+    name = "gpu-fyi-try-mac-arm64-apple-m2-retina-rel",
+    mirrors = [
+        "ci/GPU FYI Mac arm64 Builder",
+        "ci/Mac FYI Retina Release (Apple M2)",
+    ],
+    # TODO(crbug.com/1435476): Switch to a dedicated M2 pool once we have
+    # allocated machines.
+    pool = "luci.chromium.gpu.mac.arm64.apple.m1.try",
+)
+
+gpu_mac_builder(
     name = "gpu-fyi-try-mac-intel-asan",
     mirrors = [
         "ci/GPU FYI Mac Builder (asan)",
@@ -361,7 +357,6 @@ gpu_mac_builder(
     pool = "luci.chromium.gpu.mac.retina.nvidia.try",
     # This bot has one machine backing its tests at the moment.
     # If it gets more, the modified execution_timeout should be removed.
-    # See crbug.com/853307 for more context.
     execution_timeout = 12 * time.hour,
 )
 
@@ -481,6 +476,15 @@ gpu_win_builder(
     mirrors = [
         "ci/GPU FYI Win x64 Builder",
         "ci/Win10 FYI x64 Release (NVIDIA)",
+    ],
+    pool = "luci.chromium.gpu.win10.nvidia.try",
+)
+
+gpu_win_builder(
+    name = "gpu-try-win-nvidia-dbg",
+    mirrors = [
+        "ci/GPU Win x64 Builder (dbg)",
+        "ci/Win10 x64 Debug (NVIDIA)",
     ],
     pool = "luci.chromium.gpu.win10.nvidia.try",
 )

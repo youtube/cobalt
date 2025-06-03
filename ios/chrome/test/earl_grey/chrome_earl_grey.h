@@ -76,6 +76,11 @@ id<GREYAction> grey_longPressWithDuration(base::TimeDelta duration);
 // cleared within a timeout.
 - (void)clearBrowsingHistory;
 
+// Shuts down the network process. Uses a
+// private WebKit API and should be refactored or removed in the event that
+// there's a different way to address hanging.
+- (void)killWebKitNetworkProcess;
+
 // Gets the number of entries in the browsing history database. GREYAssert is
 // induced on error.
 - (NSInteger)browsingHistoryEntryCount;
@@ -166,9 +171,13 @@ id<GREYAction> grey_longPressWithDuration(base::TimeDelta duration);
 - (void)waitForUIElementToDisappearWithMatcher:(id<GREYMatcher>)matcher
                                        timeout:(base::TimeDelta)timeout;
 
-// Waits for there to be `count` number of non-incognito tabs within a timeout,
-// or a GREYAssert is induced.
+// Waits for there to be `count` number of non-incognito, active, tabs within a
+// timeout, or a GREYAssert is induced.
 - (void)waitForMainTabCount:(NSUInteger)count;
+
+// Waits for there to be `count` number of inactive tabs within a timeout, or a
+// GREYAssert is induced.
+- (void)waitForInactiveTabCount:(NSUInteger)count;
 
 // Waits for there to be `count` number of incognito tabs within a timeout, or a
 // GREYAssert is induced.
@@ -239,9 +248,6 @@ id<GREYAction> grey_longPressWithDuration(base::TimeDelta duration);
                      originator_client_item_id:
                          (const std::string&)originator_client_item_id;
 
-// Injects a typed URL to the sync FakeServer.
-- (void)addFakeSyncServerTypedURL:(const GURL&)URL;
-
 // Injects a HISTORY visit to the sync FakeServer.
 - (void)addFakeSyncServerHistoryVisit:(const GURL&)URL;
 
@@ -284,6 +290,9 @@ id<GREYAction> grey_longPressWithDuration(base::TimeDelta duration);
 // server.
 - (void)waitForSyncInvalidationFields;
 
+// Returns whether UserSelectableType::kHistory is among the selected types.
+- (BOOL)isSyncHistoryDataTypeSelected;
+
 #pragma mark - Tab Utilities (EG2)
 
 // Opens a new tab and waits for the new tab animation to complete within a
@@ -298,6 +307,9 @@ id<GREYAction> grey_longPressWithDuration(base::TimeDelta duration);
 
 // Closes the current tab and waits for the UI to complete.
 - (void)closeCurrentTab;
+
+// Pins the current tab and waits for the UI to complete.
+- (void)pinCurrentTab;
 
 // Opens a new incognito tab and waits for the new tab animation to complete.
 - (void)openNewIncognitoTab;
@@ -334,11 +346,17 @@ id<GREYAction> grey_longPressWithDuration(base::TimeDelta duration);
 // Returns the number of main (non-incognito) tabs.
 - (NSUInteger)mainTabCount [[nodiscard]];
 
+// Returns the number of inactive tabs.
+- (NSUInteger)inactiveTabCount [[nodiscard]];
+
 // Returns the number of incognito tabs.
 - (NSUInteger)incognitoTabCount [[nodiscard]];
 
 // Returns the number of browsers.
 - (NSUInteger)browserCount [[nodiscard]];
+
+// Returns the number of the realized web states from the existing web states.
+- (NSInteger)realizedWebStatesCount [[nodiscard]];
 
 // Returns the index of active tab in normal (non-incognito) mode.
 - (NSUInteger)indexOfActiveNormalTab;
@@ -372,6 +390,11 @@ id<GREYAction> grey_longPressWithDuration(base::TimeDelta duration);
 
 // Returns a unique identifier for the next Tab.
 - (NSString*)nextTabID;
+
+// Perform a tap with a timeout, or a GREYAssert is induced. Occasionally EG
+// doesn't sync up properly to the animations of tab switcher, so it is
+// necessary to poll.
+- (void)waitForAndTapButton:(id<GREYMatcher>)button;
 
 // Shows the tab switcher by tapping the switcher button.  Works on both phone
 // and tablet.
@@ -475,9 +498,24 @@ id<GREYAction> grey_longPressWithDuration(base::TimeDelta duration);
 
 #pragma mark - SignIn Utilities (EG2)
 
+// Signs the user out, clears the known accounts & browsing data, and wait for
+// the completion of those steps. Induces a GREYAssert if the operation fails or
+// timeouts.
+// TODO(crbug.com/1451733): When the browser data cleaning will always have an
+// acceptable delay, this method should be merged with
+// `signOutAndClearIdentities` and the whole sign-out operation completion
+// should always be ensured before executing next steps.
+- (void)signOutAndClearIdentitiesAndWaitForCompletion;
+
 // Signs the user out, clears the known accounts entirely and checks whether the
 // accounts were correctly removed from the keychain. Induces a GREYAssert if
-// the operation fails.
+// the operation fails. This will block the UI with a spinner until all
+// identities are cleared. In order to interact with the UI again call
+// `WaitForActivityOverlayToDisappear()`.
+// TODO(crbug.com/1451733): When the browser data cleaning will always have an
+// acceptable delay, this method should be merged with
+// `signOutAndClearIdentitiesAndWaitForCompletion` and the whole sign-out
+// operation completion should always be ensured before executing next steps.
 - (void)signOutAndClearIdentities;
 
 #pragma mark - Sync Utilities (EG2)
@@ -598,16 +636,6 @@ id<GREYAction> grey_longPressWithDuration(base::TimeDelta duration);
 // `ForceRelaunchByKilling.
 - (void)clearAllWebStateBrowsingData:(AppLaunchConfiguration)config;
 
-#pragma mark - Bookmarks Utilities (EG2)
-
-// Waits for the bookmark internal state to be done loading.
-// If the condition is not met within a timeout a GREYAssert is induced.
-- (void)waitForBookmarksToFinishLoading;
-
-// Clears bookmarks if any bookmark still presents. A GREYAssert is induced if
-// bookmarks can not be cleared.
-- (void)clearBookmarks;
-
 #pragma mark - URL Utilities (EG2)
 
 // Returns the title string to be used for a page with `URL` if that page
@@ -655,17 +683,14 @@ id<GREYAction> grey_longPressWithDuration(base::TimeDelta duration);
 // Returns YES if UKM feature is enabled.
 - (BOOL)isUKMEnabled [[nodiscard]];
 
-// Returns YES if kSynthesizedRestoreSessionEnabled feature is enabled.
-- (BOOL)isSynthesizedRestoreSessionEnabled [[nodiscard]];
-
 // Returns YES if kTestFeature is enabled.
 - (BOOL)isTestFeatureEnabled;
 
 // Returns YES if DemographicMetricsReporting feature is enabled.
 - (BOOL)isDemographicMetricsReportingEnabled [[nodiscard]];
 
-// Returns YES if the SyncEnableHistoryDataType feature is enabled.
-- (BOOL)isSyncHistoryDataTypeEnabled [[nodiscard]];
+// Returns YES if the ReplaceSyncPromosWithSignInPromos feature is enabled.
+- (BOOL)isReplaceSyncWithSigninEnabled [[nodiscard]];
 
 // Returns YES if the `launchSwitch` is found in host app launch switches.
 - (BOOL)appHasLaunchSwitch:(const std::string&)launchSwitch;
@@ -691,15 +716,17 @@ id<GREYAction> grey_longPressWithDuration(base::TimeDelta duration);
 // Returns whether the UseLensToSearchForImage feature is enabled;
 - (BOOL)isUseLensToSearchForImageEnabled;
 
-// Returns whether the Thumbstrip feature is enabled for window with given
-// number.
-- (BOOL)isThumbstripEnabledForWindowWithNumber:(int)windowNumber;
-
 // Returns whether the Web Channels feature is enabled.
 - (BOOL)isWebChannelsEnabled;
 
 // Returns whether UIButtonConfiguration changes are enabled.
 - (BOOL)isUIButtonConfigurationEnabled;
+
+// Returns whether the bottom omnibox steady state feature is enabled.
+- (BOOL)isBottomOmniboxSteadyStateEnabled;
+
+// Returns whether the unfocused omnibox is at the bottom.
+- (BOOL)isUnfocusedOmniboxAtBottom;
 
 #pragma mark - ContentSettings
 
@@ -730,10 +757,13 @@ id<GREYAction> grey_longPressWithDuration(base::TimeDelta duration);
 #pragma mark - Default Utilities (EG2)
 
 // Stores a value for the provided key in NSUserDefaults.
-- (void)setUserDefaultObject:(id)value forKey:(NSString*)defaultName;
+- (void)setUserDefaultsObject:(id)value forKey:(NSString*)defaultName;
 
 // Removes the object for `key` in NSUserDefault.
-- (void)removeUserDefaultObjectForKey:(NSString*)key;
+- (void)removeUserDefaultsObjectForKey:(NSString*)key;
+
+// Returns the object for `key` in NSUserDefault.
+- (id)userDefaultsObjectForKey:(NSString*)key;
 
 #pragma mark - Pref Utilities (EG2)
 
@@ -742,11 +772,25 @@ id<GREYAction> grey_longPressWithDuration(base::TimeDelta duration);
 - (int)localStateIntegerPref:(const std::string&)prefName;
 - (std::string)localStateStringPref:(const std::string&)prefName;
 
-// Sets the integer values for the local state pref with `prefName`. `value`
+// Sets the integer value for the local state pref with `prefName`. `value`
 // can be either a casted enum or any other numerical value. Local State
 // contains the preferences that are shared between all browser states.
 - (void)setIntegerValue:(int)value
       forLocalStatePref:(const std::string&)prefName;
+
+// Sets the time value for the local state pref with `prefName`. `value` Local
+// State contains the preferences that are shared between all browser states.
+- (void)setTimeValue:(base::Time)value
+    forLocalStatePref:(const std::string&)prefName;
+
+// Sets the string value for the local state pref with `prefName`. `value` Local
+// State contains the preferences that are shared between all browser states.
+- (void)setStringValue:(const std::string&)value
+     forLocalStatePref:(const std::string&)prefName;
+
+// Sets the bool value for the local state pref with `prefName`. Local
+// State contains the preferences that are shared between all browser states.
+- (void)setBoolValue:(BOOL)value forLocalStatePref:(const std::string&)prefName;
 
 // Gets the value of a user pref in the original browser state.
 - (bool)userBooleanPref:(const std::string&)prefName;
@@ -827,6 +871,29 @@ id<GREYAction> grey_longPressWithDuration(base::TimeDelta duration);
 
 // Clear the watcher list, stopping monitoring.
 - (void)stopWatcher;
+
+#pragma mark - ActivitySheet utilities
+
+// Induces a GREYAssert if the activity sheet is not visible.
+- (void)verifyActivitySheetVisible;
+
+// Induces a GREYAssert if the activity sheet is visible.
+- (void)verifyActivitySheetNotVisible;
+
+// Induces a GREYAssert if `text` is visible the activity sheet.
+- (void)verifyTextNotVisibleInActivitySheetWithID:(NSString*)text;
+
+// Induces a GREYAssert if `text` is not visible the activity sheet.
+- (void)verifyTextVisibleInActivitySheetWithID:(NSString*)text;
+
+// Closes the activity sheet. Induces a GREYAssert if the activity sheet cannot
+// be closed, either if the 'Close' button is not visible on a phone, or if the
+// share button cannot be tapped on a tablet.
+- (void)closeActivitySheet;
+
+// Taps the element with `buttonText` within the activity sheet. A GREYAssert
+// is induced on failure.
+- (void)tapButtonInActivitySheetWithID:(NSString*)buttonText;
 
 @end
 

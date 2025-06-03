@@ -11,7 +11,7 @@
  * browser_tests --gtest_filter=ScanningAppActionToolbar.All
  */
 
-GEN_INCLUDE(['//chrome/test/data/webui/polymer_browser_test_base.js']);
+GEN_INCLUDE(['//chrome/test/data/webui/chromeos/polymer_browser_test_base.js']);
 
 GEN('#include "ash/constants/ash_features.h"');
 GEN('#include "content/public/test/browser_test.h"');
@@ -50,7 +50,7 @@ function registerTest(testName, module, caseName) {
     /** @override */
     get browsePreload() {
       return `chrome://scanning/test_loader.html` +
-          `?module=chromeos/scanning/${module}&host=test`;
+          `?module=chromeos/scanning/${module}`;
     }
   };
   TEST_F(className, caseName || 'All', () => mocha.run());

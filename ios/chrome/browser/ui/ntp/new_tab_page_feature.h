@@ -25,20 +25,10 @@ BASE_DECLARE_FEATURE(kEnableDiscoverFeedDiscoFeedEndpoint);
 // Feature flag to enable the sync promo on top of the discover feed.
 BASE_DECLARE_FEATURE(kEnableDiscoverFeedTopSyncPromo);
 
-// Feature flag to enable a default Following feed sort type.
-BASE_DECLARE_FEATURE(kEnableFollowingFeedDefaultSortType);
-
 // Feature flag to fix the NTP view hierarchy if it is broken before applying
 // constraints.
 // TODO(crbug.com/1262536): Remove this when it is fixed.
 BASE_DECLARE_FEATURE(kEnableNTPViewHierarchyRepair);
-
-// Feature flag to enable checking feed visibility on attention log start.
-BASE_DECLARE_FEATURE(kEnableCheckVisibilityOnAttentionLogStart);
-
-// Feature flag to enable refining data source reload reporting when having a
-// very short attention log.
-BASE_DECLARE_FEATURE(kEnableRefineDataSourceReloadReporting);
 
 // Flag to modify the feed header through the server. Enabling this feature on
 // its own does nothing; relies on feature parameters.
@@ -47,9 +37,6 @@ BASE_DECLARE_FEATURE(kFeedHeaderSettings);
 // Flag to override feed settings through the server. Enabling this feature on
 // its own does nothing; relies on feature parameters.
 BASE_DECLARE_FEATURE(kOverrideFeedSettings);
-
-// Feature flag to enable image caching when loading the Feed.
-BASE_DECLARE_FEATURE(kEnableFeedImageCaching);
 
 // Feature flag to enable synthentic capabilities.
 BASE_DECLARE_FEATURE(kEnableFeedSyntheticCapabilities);
@@ -60,6 +47,9 @@ BASE_DECLARE_FEATURE(kWebFeedFeedbackReroute);
 // Feature flag to enable follow management page instant reload when being
 // opened.
 BASE_DECLARE_FEATURE(kEnableFollowManagementInstantReload);
+
+// Feature flag to enable signed out user view demotion.
+BASE_DECLARE_FEATURE(kEnableSignedOutViewDemotion);
 
 #pragma mark - Feature parameters
 
@@ -79,13 +69,6 @@ extern const char kDiscoverFeedTopSyncPromoStyle[];
 // Feature parameters for the feed header settings.
 extern const char kDisableStickyHeaderForFollowingFeed[];
 extern const char kOverrideFeedHeaderHeight[];
-
-// A parameter value for the default Following sort type to be Sort by Latest.
-extern const char kFollowingFeedDefaultSortTypeSortByLatest[];
-
-// A parameter value for the default Following sort type to be Grouped by
-// Publisher.
-extern const char kFollowingFeedDefaultSortTypeGroupedByPublisher[];
 
 // A parameter value for the feed's refresh threshold when the feed has already
 // been seen by the user.
@@ -112,7 +95,7 @@ bool IsDiscoverFeedPreviewEnabled();
 // Whether the NTP view hierarchy repair is enabled.
 bool IsNTPViewHierarchyRepairEnabled();
 
-// Whether the Discover feed top sync promotion is enabled.
+// Whether the sync promo should be shown on top of the feed.
 bool IsDiscoverFeedTopSyncPromoEnabled();
 
 // Returns the feed top sync promo's UI style.
@@ -125,21 +108,8 @@ bool ShouldIgnoreFeedEngagementConditionForTopSyncPromo();
 // Returns the number of impressions before autodismissing the feed sync promo.
 int FeedSyncPromoAutodismissCount();
 
-// Whether the Following feed default sort type experiment is enabled.
-bool IsFollowingFeedDefaultSortTypeEnabled();
-
-// Whether the default Following feed sort type is Grouped by Publisher.
-bool IsDefaultFollowingFeedSortTypeGroupedByPublisher();
-
 // Whether content suggestions are enabled for supervised users.
 bool IsContentSuggestionsForSupervisedUserEnabled(PrefService* pref_service);
-
-// YES if enabled checking feed visibility on attention log start.
-bool IsCheckVisibilityOnAttentionLogStartEnabled();
-
-// YES if enabled refining data source reload reporting when having a very short
-// attention log.
-bool IsRefineDataSourceReloadReportingEnabled();
 
 // YES if the Following feed header should not be sticky.
 bool IsStickyHeaderDisabledForFollowingFeed();
@@ -147,9 +117,6 @@ bool IsStickyHeaderDisabledForFollowingFeed();
 // YES if a dot should appear to indicate that there is new content in the
 // Following feed.
 bool IsDotEnabledForNewFollowedContent();
-
-// YES if images in the Feed will be cached.
-bool IsFeedImageCachingEnabled();
 
 // YES if synthetic capabilities will be used to inform the server of client
 // capabilities.
@@ -164,5 +131,8 @@ bool IsWebFeedFeedbackRerouteEnabled();
 
 // Yes when enabling follow management page instant reload when being opened.
 bool IsFollowManagementInstantReloadEnabled();
+
+// Yes if the signed out user view demotion is enabled.
+bool IsSignedOutViewDemotionEnabled();
 
 #endif  // IOS_CHROME_BROWSER_UI_NTP_NEW_TAB_PAGE_FEATURE_H_

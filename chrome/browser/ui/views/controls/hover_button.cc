@@ -30,6 +30,7 @@
 #include "ui/views/layout/box_layout.h"
 #include "ui/views/layout/flex_layout.h"
 #include "ui/views/style/typography.h"
+#include "ui/views/style/typography_provider.h"
 #include "ui/views/view_class_properties.h"
 
 namespace {
@@ -103,8 +104,9 @@ HoverButton::HoverButton(PressedCallback callback, const std::u16string& text)
   views::InkDrop::UseInkDropForFloodFillRipple(views::InkDrop::Get(this),
                                                /*highlight_on_hover=*/false,
                                                /*highlight_on_focus=*/true);
-  views::InkDrop::Get(this)->SetBaseColorId(views::style::GetColorId(
-      views::style::CONTEXT_BUTTON, views::style::STYLE_SECONDARY));
+  views::InkDrop::Get(this)->SetBaseColorId(
+      views::TypographyProvider::Get().GetColorId(
+          views::style::CONTEXT_BUTTON, views::style::STYLE_SECONDARY));
 
   SetTriggerableEventFlags(ui::EF_LEFT_MOUSE_BUTTON |
                            ui::EF_RIGHT_MOUSE_BUTTON);
@@ -124,8 +126,7 @@ HoverButton::HoverButton(PressedCallback callback,
                          const std::u16string& title,
                          const std::u16string& subtitle,
                          std::unique_ptr<views::View> secondary_view,
-                         bool resize_row_for_secondary_view,
-                         bool secondary_view_can_process_events)
+                         bool add_vertical_label_spacing)
     : HoverButton(std::move(callback), std::u16string()) {
   label()->SetHandlesTooltips(false);
 
@@ -175,16 +176,16 @@ HoverButton::HoverButton(PressedCallback callback,
       views::FlexSpecification(views::MinimumFlexSizeRule::kScaleToZero,
                                views::MaximumFlexSizeRule::kUnbounded));
   label_wrapper->SetCanProcessEventsWithinSubtree(false);
-  label_wrapper->SetProperty(views::kMarginsKey,
-                             gfx::Insets::VH(vertical_spacing, 0));
+  label_wrapper->SetProperty(
+      views::kMarginsKey,
+      gfx::Insets::VH(add_vertical_label_spacing ? vertical_spacing : 0, 0));
   label_wrapper_ = AddChildView(std::move(label_wrapper));
   // Observe |label_wrapper_| bounds changes to ensure the HoverButton tooltip
   // is kept in sync with the size.
   label_observation_.Observe(label_wrapper_.get());
 
   if (secondary_view) {
-    secondary_view->SetCanProcessEventsWithinSubtree(
-        secondary_view_can_process_events);
+    secondary_view->SetCanProcessEventsWithinSubtree(false);
     // |secondary_view| needs a layer otherwise it's obscured by the layer
     // used in drawing ink drops.
     secondary_view->SetPaintToLayer();
@@ -193,17 +194,12 @@ HoverButton::HoverButton(PressedCallback callback,
         ChromeLayoutProvider::Get()->GetDistanceMetric(
             views::DISTANCE_RELATED_LABEL_HORIZONTAL);
 
-    // If |resize_row_for_secondary_view| is true set vertical margins such that
-    // the vertical distance between HoverButtons is maintained.
-    // Otherwise set vertical margins to 0 and allow the secondary view to grow
-    // into the vertical margins that would otherwise exist due to |icon_view_|
-    // and the |label_wrapper_|.
-    const int secondary_spacing =
-        resize_row_for_secondary_view ? vertical_spacing : 0;
+    // Set vertical margins such that the vertical distance between HoverButtons
+    // is maintained.
     secondary_view->SetProperty(
         views::kMarginsKey,
-        gfx::Insets::TLBR(secondary_spacing, icon_label_spacing,
-                          secondary_spacing, 0));
+        gfx::Insets::TLBR(vertical_spacing, icon_label_spacing,
+                          vertical_spacing, 0));
     secondary_view_ = AddChildView(std::move(secondary_view));
   }
 
@@ -235,10 +231,25 @@ void HoverButton::OnViewBoundsChanged(View* observed_view) {
     SetTooltipAndAccessibleName();
 }
 
+void HoverButton::SetTitleText(const std::u16string& text) {
+  title_->SetText(text);
+  // Allow the styled label to assume its preferred size since the text size may
+  // have changed.
+  PreferredSizeChanged();
+}
+
 void HoverButton::SetTitleTextStyle(views::style::TextStyle text_style,
-                                    SkColor background_color) {
-  title_->SetDisplayedOnBackgroundColor(background_color);
+                                    SkColor background_color,
+                                    absl::optional<ui::ColorId> color_id) {
+  if (!title()) {
+    return;
+  }
+
   title_->SetDefaultTextStyle(text_style);
+  title_->SetDisplayedOnBackgroundColor(background_color);
+  if (color_id) {
+    title_->SetDefaultEnabledColorId(color_id);
+  }
 }
 
 void HoverButton::SetSubtitleTextStyle(int text_context,

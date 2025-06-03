@@ -13,8 +13,14 @@
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
 #include "base/timer/timer.h"
+#include "chrome/browser/ash/login/oobe_quick_start/target_device_bootstrap_controller.h"
+#include "chrome/browser/ash/login/quickstart_controller.h"
 #include "chrome/browser/ash/login/screens/base_screen.h"
 #include "chromeos/ash/components/network/network_state_handler_observer.h"
+#include "chromeos/ash/services/nearby/public/mojom/quick_start_decoder_types.mojom.h"
+#include "chromeos/services/network_config/public/mojom/cros_network_config.mojom-shared.h"
+#include "chromeos/services/network_config/public/mojom/cros_network_config.mojom.h"
+#include "mojo/public/cpp/bindings/remote.h"
 
 namespace ash {
 
@@ -26,13 +32,16 @@ class NetworkStateHelper;
 }
 
 // Controls network selection screen shown during OOBE.
-class NetworkScreen : public BaseScreen, public NetworkStateHandlerObserver {
+class NetworkScreen : public BaseScreen,
+                      public NetworkStateHandlerObserver,
+                      public quick_start::QuickStartController::UiDelegate {
  public:
   using TView = NetworkScreenView;
 
   enum class Result {
     CONNECTED,
     BACK,
+    QUICK_START,
     NOT_APPLICABLE,
   };
 
@@ -80,6 +89,10 @@ class NetworkScreen : public BaseScreen, public NetworkStateHandlerObserver {
   void NetworkConnectionStateChanged(const NetworkState* network) override;
   void DefaultNetworkChanged(const NetworkState* network) override;
 
+  // quick_start::QuickStartController::UiDelegate:
+  void OnUiUpdateRequested(
+      quick_start::QuickStartController::UiState state) final;
+
   // Subscribes NetworkScreen to the network change notification, forces refresh
   // of current network state.
   void Refresh();
@@ -115,6 +128,27 @@ class NetworkScreen : public BaseScreen, public NetworkStateHandlerObserver {
   // Called when continue button is clicked.
   void OnContinueButtonClicked();
 
+  // Called when quick start button is clicked.
+  void OnQuickStartButtonClicked();
+  void SetQuickStartButtonVisibility(bool visible);
+
+  // Does an async call to add WiFi network with given credentials collected
+  // from the Quick Start process.
+  void ConfigureWifiNetwork(
+      const quick_start::mojom::WifiCredentials& wifi_credentials);
+
+  // Callback of AddWifiNetworkFromQuickStart async call.
+  void OnConfigureWifiNetworkResult(
+      const absl::optional<std::string>& network_guid,
+      const std::string& error_message);
+
+  void OnStartConnectCompleted(
+      chromeos::network_config::mojom::StartConnectResult result,
+      const std::string& message);
+
+  void ExitQuickStartFlow();
+  void ShowStepsWhenQuickStartOngoing();
+
   // Skip this screen or automatically continue if the device is connected to
   // Ethernet for the first time in this session.
   bool UpdateStatusIfConnectedToEthernet();
@@ -148,6 +182,9 @@ class NetworkScreen : public BaseScreen, public NetworkStateHandlerObserver {
 
   base::ScopedObservation<NetworkStateHandler, NetworkStateHandlerObserver>
       network_state_handler_observer_{this};
+
+  mojo::Remote<chromeos::network_config::mojom::CrosNetworkConfig>
+      remote_cros_network_config_;
 
   base::WeakPtrFactory<NetworkScreen> weak_ptr_factory_{this};
 };

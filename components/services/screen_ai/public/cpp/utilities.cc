@@ -24,10 +24,8 @@ const base::FilePath::CharType kScreenAIComponentBinaryName[] =
     FILE_PATH_LITERAL("libchromescreenai.so");
 #endif
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 // The path to the Screen AI DLC directory.
-// TODO(https://crbug.com/1278249): Replace by get it from  DlcServiceClient
-// after installation.
 constexpr char kScreenAIDlcRootPath[] =
     "/run/imageloader/screen-ai/package/root/";
 #endif
@@ -55,7 +53,7 @@ base::FilePath GetComponentDir() {
 
 base::FilePath GetLatestComponentBinaryPath() {
   base::FilePath latest_version_dir;
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   latest_version_dir = base::FilePath::FromASCII(kScreenAIDlcRootPath);
 #else
   base::FilePath screen_ai_dir = GetComponentDir();

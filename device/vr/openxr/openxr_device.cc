@@ -14,9 +14,9 @@
 #include "build/build_config.h"
 #include "device/vr/openxr/openxr_api_wrapper.h"
 #include "device/vr/openxr/openxr_render_loop.h"
-#include "device/vr/openxr/openxr_statics.h"
 #include "device/vr/public/cpp/features.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
+#include "third_party/openxr/src/include/openxr/openxr.h"
 
 namespace device {
 
@@ -48,7 +48,7 @@ bool AreAllRequiredFeaturesSupported(
                 XR_MSFT_SPATIAL_ANCHOR_EXTENSION_NAME);
           case device::mojom::XRSessionFeature::HAND_INPUT:
             return extension_enum->ExtensionSupported(
-                kMSFTHandInteractionExtensionName);
+                XR_MSFT_HAND_INTERACTION_EXTENSION_NAME);
           case device::mojom::XRSessionFeature::HIT_TEST:
             return extension_enum->ExtensionSupported(
                 XR_MSFT_SCENE_UNDERSTANDING_EXTENSION_NAME);
@@ -67,40 +67,37 @@ bool AreAllRequiredFeaturesSupported(
 
 }  // namespace
 
-// OpenXrDevice must not take ownership of the OpenXrStatics passed in.
-// The OpenXrStatics object is owned by IsolatedXRRuntimeProvider.
 OpenXrDevice::OpenXrDevice(
-    VizContextProviderFactoryAsync context_provider_factory_async)
+    VizContextProviderFactoryAsync context_provider_factory_async,
+    OpenXrPlatformHelper* platform_helper)
     : VRDeviceBase(device::mojom::XRDeviceId::OPENXR_DEVICE_ID),
-      instance_(OpenXrStatics::GetInstance()->GetXrInstance()),
-      extension_helper_(
-          instance_,
-          OpenXrStatics::GetInstance()->GetExtensionEnumeration()),
       context_provider_factory_async_(
           std::move(context_provider_factory_async)),
-      weak_ptr_factory_(this) {
-  SetArBlendModeSupported(IsArBlendModeSupported());
-#if BUILDFLAG(IS_WIN)
-  SetLuid(OpenXrStatics::GetInstance()->GetLuid(extension_helper_));
-#endif
+      platform_helper_(platform_helper) {
+  CHECK(platform_helper_);
+  CHECK(platform_helper_->EnsureInitialized());
 
-  std::vector<mojom::XRSessionFeature> device_features(
-        GetSupportedFeatures());
+  device::mojom::XRDeviceData device_data = platform_helper_->GetXRDeviceData();
+
+  device_data.supported_features = GetSupportedFeatures();
 
   // Only support hand input if the feature flag is enabled.
   if (base::FeatureList::IsEnabled(features::kWebXrHandInput))
-    device_features.emplace_back(mojom::XRSessionFeature::HAND_INPUT);
+    device_data.supported_features.emplace_back(
+        mojom::XRSessionFeature::HAND_INPUT);
 
   // Only support layers if the feature flag is enabled.
   if (base::FeatureList::IsEnabled(features::kWebXrLayers))
-    device_features.emplace_back(mojom::XRSessionFeature::LAYERS);
+    device_data.supported_features.emplace_back(
+        mojom::XRSessionFeature::LAYERS);
 
   // Only support hit test if the feature flag is enabled.
   if (base::FeatureList::IsEnabled(features::kOpenXrExtendedFeatureSupport)) {
-    device_features.emplace_back(mojom::XRSessionFeature::HIT_TEST);
+    device_data.supported_features.emplace_back(
+        mojom::XRSessionFeature::HIT_TEST);
   }
 
-  SetSupportedFeatures(device_features);
+  SetDeviceData(std::move(device_data));
 }
 
 OpenXrDevice::~OpenXrDevice() {
@@ -109,6 +106,10 @@ OpenXrDevice::~OpenXrDevice() {
   // any requests.
   if (render_loop_ && render_loop_->IsRunning()) {
     render_loop_->Stop();
+  }
+
+  if (instance_ != XR_NULL_HANDLE) {
+    platform_helper_->DestroyInstance(instance_);
   }
 
   // request_session_callback_ may still be active if we're tearing down the
@@ -127,26 +128,51 @@ OpenXrDevice::BindCompositorHost() {
 void OpenXrDevice::EnsureRenderLoop() {
   if (!render_loop_) {
     render_loop_ = std::make_unique<OpenXrRenderLoop>(
-        context_provider_factory_async_, instance_, extension_helper_);
+        context_provider_factory_async_, instance_, *extension_helper_,
+        platform_helper_);
   }
 }
 
 void OpenXrDevice::RequestSession(
     mojom::XRRuntimeSessionOptionsPtr options,
     mojom::XRRuntime::RequestSessionCallback callback) {
-  // TODO(https://crbug.com/1450707): Strengthen the guarantees from the browser
-  // process that we will not get a session request while one is pending.
-  if (request_session_callback_ || HasExclusiveSession()) {
-    LOG(ERROR) << __func__
-               << " New session request while processing previous request.";
-    std::move(callback).Run(nullptr);
+  CHECK(!request_session_callback_);
+  CHECK(!HasExclusiveSession());
+
+  request_session_callback_ = std::move(callback);
+
+  OpenXrCreateInfo create_info;
+  create_info.render_process_id = options->render_process_id;
+  create_info.render_frame_id = options->render_frame_id;
+  platform_helper_->CreateInstanceWithCreateInfo(
+      create_info,
+      base::BindOnce(&OpenXrDevice::OnCreateInstanceResult,
+                     weak_ptr_factory_.GetWeakPtr(), std::move(options)));
+}
+
+void OpenXrDevice::OnCreateInstanceResult(
+    mojom::XRRuntimeSessionOptionsPtr options,
+    XrResult result,
+    XrInstance instance) {
+  if (XR_FAILED(result)) {
+    DVLOG(1) << __func__ << " Failed to create an XrInstance";
+    instance_ = XR_NULL_HANDLE;
+    std::move(request_session_callback_).Run(nullptr);
     return;
   }
 
+  instance_ = instance;
+
+  extension_helper_ = std::make_unique<OpenXrExtensionHelper>(
+      instance_, platform_helper_->GetExtensionEnumeration());
+
   if (!AreAllRequiredFeaturesSupported(options->required_features,
-                                       extension_helper_)) {
-    // Reject session request
-    std::move(callback).Run(nullptr);
+                                       *extension_helper_)) {
+    DVLOG(1) << __func__ << " Missing a required feature";
+    // Reject session request, and call ForceEndSession to ensure that we clean
+    // up any objects that were already created.
+    ForceEndSession(ExitXrPresentReason::kOpenXrStartFailed);
+    std::move(request_session_callback_).Run(nullptr);
     return;
   }
 
@@ -156,7 +182,11 @@ void OpenXrDevice::RequestSession(
     render_loop_->Start();
 
     if (!render_loop_->IsRunning()) {
-      std::move(callback).Run(nullptr);
+      DVLOG(1) << __func__ << " Could not start RenderLoop";
+      // Reject session request, and call ForceEndSession to ensure that we
+      // clean up any objects that were already created.
+      ForceEndSession(ExitXrPresentReason::kOpenXrStartFailed);
+      std::move(request_session_callback_).Run(nullptr);
       return;
     }
 
@@ -179,8 +209,6 @@ void OpenXrDevice::RequestSession(
                                 base::Unretained(render_loop_.get()),
                                 std::move(on_visibility_state_changed),
                                 std::move(options), std::move(my_callback)));
-
-  request_session_callback_ = std::move(callback);
 }
 
 void OpenXrDevice::OnRequestSessionResult(
@@ -189,6 +217,9 @@ void OpenXrDevice::OnRequestSessionResult(
   DCHECK(request_session_callback_);
 
   if (!result) {
+    // Reject session request, and call ForceEndSession to ensure that we clean
+    // up any objects that were already created.
+    ForceEndSession(ExitXrPresentReason::kOpenXrStartFailed);
     std::move(request_session_callback_).Run(nullptr);
     return;
   }
@@ -211,15 +242,22 @@ void OpenXrDevice::OnRequestSessionResult(
 
 void OpenXrDevice::ForceEndSession(ExitXrPresentReason reason) {
   // This method is called when the rendering process exit presents.
-
-  if (render_loop_) {
+  if (render_loop_ && render_loop_->IsRunning()) {
     render_loop_->task_runner()->PostTask(
         FROM_HERE,
         base::BindOnce(&XRCompositorCommon::ExitPresent,
                        base::Unretained(render_loop_.get()), reason));
+    render_loop_->Stop();
+    render_loop_.reset();
   }
+
   OnExitPresent();
   exclusive_controller_receiver_.reset();
+
+  extension_helper_.reset();
+  if (instance_ != XR_NULL_HANDLE) {
+    platform_helper_->DestroyInstance(instance_);
+  }
 }
 
 void OpenXrDevice::OnPresentingControllerMojoConnectionError() {
@@ -239,8 +277,8 @@ void OpenXrDevice::SetFrameDataRestricted(bool restricted) {
 
 void OpenXrDevice::CreateImmersiveOverlay(
     mojo::PendingReceiver<mojom::ImmersiveOverlay> overlay_receiver) {
-  EnsureRenderLoop();
-  if (render_loop_->IsRunning()) {
+  // This should only be triggered if we have a session
+  if (render_loop_ && render_loop_->IsRunning()) {
     render_loop_->task_runner()->PostTask(
         FROM_HERE, base::BindOnce(&XRCompositorCommon::RequestOverlay,
                                   base::Unretained(render_loop_.get()),
@@ -248,22 +286,6 @@ void OpenXrDevice::CreateImmersiveOverlay(
   } else {
     overlay_receiver_ = std::move(overlay_receiver);
   }
-}
-
-bool OpenXrDevice::IsArBlendModeSupported() {
-  XrSystemId system;
-  if (XR_FAILED(
-          GetSystem(OpenXrStatics::GetInstance()->GetXrInstance(), &system)))
-    return false;
-
-  std::vector<XrEnvironmentBlendMode> environment_blend_modes =
-      GetSupportedBlendModes(OpenXrStatics::GetInstance()->GetXrInstance(),
-                             system);
-
-  return base::Contains(environment_blend_modes,
-                        XR_ENVIRONMENT_BLEND_MODE_ADDITIVE) ||
-         base::Contains(environment_blend_modes,
-                        XR_ENVIRONMENT_BLEND_MODE_ALPHA_BLEND);
 }
 
 }  // namespace device

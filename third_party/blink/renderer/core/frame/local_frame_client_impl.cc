@@ -43,9 +43,11 @@
 #include "third_party/blink/public/common/scheduler/task_attribution_id.h"
 #include "third_party/blink/public/common/user_agent/user_agent_metadata.h"
 #include "third_party/blink/public/mojom/frame/user_activation_update_types.mojom-blink-forward.h"
+#include "third_party/blink/public/mojom/loader/fetch_later.mojom-blink.h"
 #include "third_party/blink/public/platform/modules/service_worker/web_service_worker_provider.h"
 #include "third_party/blink/public/platform/modules/service_worker/web_service_worker_provider_client.h"
 #include "third_party/blink/public/platform/platform.h"
+#include "third_party/blink/public/platform/web_background_resource_fetch_assets.h"
 #include "third_party/blink/public/platform/web_media_player_source.h"
 #include "third_party/blink/public/platform/web_security_origin.h"
 #include "third_party/blink/public/platform/web_url.h"
@@ -91,7 +93,6 @@
 #include "third_party/blink/renderer/core/loader/frame_load_request.h"
 #include "third_party/blink/renderer/core/loader/frame_loader.h"
 #include "third_party/blink/renderer/core/loader/history_item.h"
-#include "third_party/blink/renderer/core/mobile_metrics/mobile_friendliness_checker.h"
 #include "third_party/blink/renderer/core/origin_trials/origin_trial_context.h"
 #include "third_party/blink/renderer/core/page/page.h"
 #include "third_party/blink/renderer/core/page/plugin_data.h"
@@ -200,7 +201,6 @@ void LocalFrameClientImpl::DispatchDidClearWindowObjectInMainWorld(
     // Do not run microtasks while invoking the callback.
     {
       v8::MicrotasksScope microtasks(isolate, microtask_queue,
-
                                      v8::MicrotasksScope::kDoNotRunMicrotasks);
       web_frame_->Client()->DidClearWindowObject();
     }
@@ -647,9 +647,10 @@ void LocalFrameClientImpl::BeginNavigation(
         source_location->ColumnNumber();
   }
 
-  std::unique_ptr<Vector<OriginTrialFeature>> initiator_origin_trial_features =
-      OriginTrialContext::GetEnabledNavigationFeatures(
-          web_frame_->GetFrame()->DomWindow());
+  std::unique_ptr<Vector<mojom::blink::OriginTrialFeature>>
+      initiator_origin_trial_features =
+          OriginTrialContext::GetEnabledNavigationFeatures(
+              web_frame_->GetFrame()->DomWindow());
   if (initiator_origin_trial_features) {
     navigation_info->initiator_origin_trial_features.reserve(
         initiator_origin_trial_features->size());
@@ -739,17 +740,12 @@ void LocalFrameClientImpl::DidChangePerformanceTiming() {
     web_frame_->Client()->DidChangePerformanceTiming();
 }
 
-void LocalFrameClientImpl::DidObserveInputDelay(base::TimeDelta input_delay) {
-  if (web_frame_->Client()) {
-    web_frame_->Client()->DidObserveInputDelay(input_delay);
-  }
-}
-
 void LocalFrameClientImpl::DidObserveUserInteraction(
-    base::TimeDelta max_event_duration,
+    base::TimeTicks max_event_start,
+    base::TimeTicks max_event_end,
     UserInteractionType interaction_type) {
-  web_frame_->Client()->DidObserveUserInteraction(max_event_duration,
-                                                  interaction_type);
+  web_frame_->Client()->DidObserveUserInteraction(
+      max_event_start, max_event_end, interaction_type);
 }
 
 void LocalFrameClientImpl::DidChangeCpuTiming(base::TimeDelta time) {
@@ -761,6 +757,11 @@ void LocalFrameClientImpl::DidObserveLoadingBehavior(
     LoadingBehaviorFlag behavior) {
   if (web_frame_->Client())
     web_frame_->Client()->DidObserveLoadingBehavior(behavior);
+}
+
+void LocalFrameClientImpl::DidObserveJavaScriptFrameworks(
+    const JavaScriptFrameworkDetectionResult& result) {
+  web_frame_->Client()->DidObserveJavaScriptFrameworks(result);
 }
 
 void LocalFrameClientImpl::DidObserveSubresourceLoad(
@@ -777,9 +778,10 @@ void LocalFrameClientImpl::DidObserveNewFeatureUsage(
 }
 
 // A new soft navigation was observed.
-void LocalFrameClientImpl::DidObserveSoftNavigation(uint32_t count) {
+void LocalFrameClientImpl::DidObserveSoftNavigation(
+    SoftNavigationMetrics metrics) {
   if (WebLocalFrameClient* client = web_frame_->Client()) {
-    client->DidObserveSoftNavigation(count);
+    client->DidObserveSoftNavigation(metrics);
   }
 }
 
@@ -829,28 +831,6 @@ String LocalFrameClientImpl::UserAgent() {
   if (user_agent_.empty())
     user_agent_ = Platform::Current()->UserAgent();
   return user_agent_;
-}
-
-String LocalFrameClientImpl::ReducedUserAgent() {
-  String override = UserAgentOverride();
-  if (!override.empty()) {
-    return override;
-  }
-
-  if (reduced_user_agent_.empty())
-    reduced_user_agent_ = Platform::Current()->ReducedUserAgent();
-  return reduced_user_agent_;
-}
-
-String LocalFrameClientImpl::FullUserAgent() {
-  String override = UserAgentOverride();
-  if (!override.empty()) {
-    return override;
-  }
-
-  if (full_user_agent_.empty())
-    full_user_agent_ = Platform::Current()->FullUserAgent();
-  return full_user_agent_;
 }
 
 absl::optional<UserAgentMetadata> LocalFrameClientImpl::UserAgentMetadata() {
@@ -1021,6 +1001,16 @@ std::unique_ptr<URLLoader> LocalFrameClientImpl::CreateURLLoaderForTesting() {
   return web_frame_->Client()->CreateURLLoaderForTesting();
 }
 
+blink::ChildURLLoaderFactoryBundle*
+LocalFrameClientImpl::GetLoaderFactoryBundle() {
+  return web_frame_->Client()->GetLoaderFactoryBundle();
+}
+
+scoped_refptr<WebBackgroundResourceFetchAssets>
+LocalFrameClientImpl::MaybeGetBackgroundResourceFetchAssets() {
+  return web_frame_->Client()->MaybeGetBackgroundResourceFetchAssets();
+}
+
 blink::BrowserInterfaceBrokerProxy&
 LocalFrameClientImpl::GetBrowserInterfaceBroker() {
   return *web_frame_->Client()->GetBrowserInterfaceBroker();
@@ -1159,12 +1149,6 @@ void LocalFrameClientImpl::BindDevToolsAgent(
     mojo::PendingAssociatedReceiver<mojom::blink::DevToolsAgent> receiver) {
   if (WebDevToolsAgentImpl* devtools = DevToolsAgent())
     devtools->BindReceiver(std::move(host), std::move(receiver));
-}
-
-void LocalFrameClientImpl::UpdateSubresourceFactory(
-    std::unique_ptr<blink::PendingURLLoaderFactoryBundle> pending_factory) {
-  DCHECK(web_frame_->Client());
-  web_frame_->Client()->UpdateSubresourceFactory(std::move(pending_factory));
 }
 
 }  // namespace blink

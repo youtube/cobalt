@@ -43,6 +43,10 @@ const char kOptimizationGuideServiceGetHintsURL[] =
 const char kOptimizationGuideServiceGetModelsURL[] =
     "optimization-guide-service-get-models-url";
 
+// Overrides the Optimization Guide model execution URL.
+const char kOptimizationGuideServiceModelExecutionURL[] =
+    "optimization-guide-service-model-execution-url";
+
 // Overrides the Optimization Guide Service API Key for remote requests to be
 // made.
 const char kOptimizationGuideServiceAPIKey[] =
@@ -79,6 +83,10 @@ const char kDebugLoggingEnabled[] = "enable-optimization-guide-debug-logs";
 // accessible on Android, but may work.
 const char kModelOverride[] = "optimization-guide-model-override";
 
+// Overrides the on-device model file paths for on-device model execution.
+const char kOnDeviceModelExecutionOverride[] =
+    "optimization-guide-ondevice-model-execution-override";
+
 // Triggers validation of the model. Used for manual testing.
 const char kModelValidate[] = "optimization-guide-model-validate";
 
@@ -94,12 +102,12 @@ const char kPageContentAnnotationsValidationBatchSizeOverride[] =
 // Enables the specific annotation type to run validation at startup after a
 // delay. A comma separated list of inputs can be given as a value which will be
 // used as input for the validation job.
-const char kPageContentAnnotationsValidationPageTopics[] =
-    "page-content-annotations-validation-page-topics";
 const char kPageContentAnnotationsValidationPageEntities[] =
     "page-content-annotations-validation-page-entities";
 const char kPageContentAnnotationsValidationContentVisibility[] =
     "page-content-annotations-validation-content-visibility";
+const char kPageContentAnnotationsValidationTextEmbedding[] =
+    "page-content-annotations-validation-text-embedding";
 
 // Writes the output of page content annotation validations to the given file.
 const char kPageContentAnnotationsValidationWriteToFile[] =
@@ -211,6 +219,14 @@ absl::optional<std::string> GetModelOverride() {
   return command_line->GetSwitchValueASCII(kModelOverride);
 }
 
+absl::optional<std::string> GetOnDeviceModelExecutionOverride() {
+  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+  if (!command_line->HasSwitch(kOnDeviceModelExecutionOverride)) {
+    return absl::nullopt;
+  }
+  return command_line->GetSwitchValueASCII(kOnDeviceModelExecutionOverride);
+}
+
 bool ShouldLogPageContentAnnotationsInput() {
   static bool enabled = base::CommandLine::ForCurrentProcess()->HasSwitch(
       kPageContentAnnotationsLoggingEnabled);
@@ -253,11 +269,12 @@ absl::optional<size_t> PageContentAnnotationsValidationBatchSize() {
 
 bool LogPageContentAnnotationsValidationToConsole() {
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
-  return command_line->HasSwitch(kPageContentAnnotationsValidationPageTopics) ||
-         command_line->HasSwitch(
+  return command_line->HasSwitch(
              kPageContentAnnotationsValidationPageEntities) ||
          command_line->HasSwitch(
-             kPageContentAnnotationsValidationContentVisibility);
+             kPageContentAnnotationsValidationContentVisibility) ||
+         command_line->HasSwitch(
+             kPageContentAnnotationsValidationTextEmbedding);
 }
 
 absl::optional<std::vector<std::string>>
@@ -266,10 +283,6 @@ PageContentAnnotationsValidationInputForType(AnnotationType type) {
 
   std::string value;
   switch (type) {
-    case AnnotationType::kPageTopics:
-      value = command_line->GetSwitchValueASCII(
-          kPageContentAnnotationsValidationPageTopics);
-      break;
     case AnnotationType::kPageEntities:
       value = command_line->GetSwitchValueASCII(
           kPageContentAnnotationsValidationPageEntities);
@@ -277,6 +290,10 @@ PageContentAnnotationsValidationInputForType(AnnotationType type) {
     case AnnotationType::kContentVisibility:
       value = command_line->GetSwitchValueASCII(
           kPageContentAnnotationsValidationContentVisibility);
+      break;
+    case AnnotationType::kTextEmbedding:
+      value = command_line->GetSwitchValueASCII(
+          kPageContentAnnotationsValidationTextEmbedding);
       break;
     default:
       break;

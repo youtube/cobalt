@@ -13,10 +13,6 @@
 #import "ios/public/provider/chrome/browser/branded_images/branded_images_api.h"
 #import "url/gurl.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 @interface SimpleOmniboxIcon ()
 
 @property(nonatomic, assign) OmniboxIconType iconType;
@@ -50,20 +46,12 @@
 }
 
 - (UIImage*)iconImage {
-  if (UseSymbolsInOmnibox()) {
 #if BUILDFLAG(IOS_USE_BRANDED_SYMBOLS)
-    if (self.suggestionIconType == OmniboxSuggestionIconType::kFallbackAnswer &&
-        self.defaultSearchEngineIsGoogle) {
-      return GetBrandedGoogleIcon();
-    }
-#endif  // BUILDFLAG(IOS_USE_BRANDED_SYMBOLS)
-  } else {
-    if (self.suggestionIconType == OmniboxSuggestionIconType::kFallbackAnswer &&
-        self.defaultSearchEngineIsGoogle && [self fallbackAnswerBrandedIcon]) {
-      return [[self fallbackAnswerBrandedIcon]
-          imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
-    }
+  if (self.suggestionIconType == OmniboxSuggestionIconType::kFallbackAnswer &&
+      self.defaultSearchEngineIsGoogle) {
+    return GetBrandedGoogleIconForOmnibox();
   }
+#endif  // BUILDFLAG(IOS_USE_BRANDED_SYMBOLS)
   return GetOmniboxSuggestionIcon(self.suggestionIconType);
 }
 
@@ -72,6 +60,7 @@
     case OmniboxSuggestionIconType::kDefaultFavicon:
     case OmniboxSuggestionIconType::kSearch:
     case OmniboxSuggestionIconType::kSearchHistory:
+    case OmniboxSuggestionIconType::kSearchTrend:
       return NO;
     case OmniboxSuggestionIconType::kCalculator:
     case OmniboxSuggestionIconType::kConversion:

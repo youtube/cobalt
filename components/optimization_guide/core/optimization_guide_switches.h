@@ -27,6 +27,7 @@ extern const char kFetchHintsOverride[];
 extern const char kFetchHintsOverrideTimer[];
 extern const char kOptimizationGuideServiceGetHintsURL[];
 extern const char kOptimizationGuideServiceGetModelsURL[];
+extern const char kOptimizationGuideServiceModelExecutionURL[];
 extern const char kOptimizationGuideServiceAPIKey[];
 extern const char kPurgeHintsStore[];
 extern const char kPurgeModelAndFeaturesStore[];
@@ -34,14 +35,15 @@ extern const char kDisableFetchingHintsAtNavigationStartForTesting[];
 extern const char kDisableCheckingUserPermissionsForTesting[];
 extern const char kDisableModelDownloadVerificationForTesting[];
 extern const char kModelOverride[];
+extern const char kOnDeviceModelExecutionOverride[];
 extern const char kDebugLoggingEnabled[];
 extern const char kModelValidate[];
 extern const char kPageContentAnnotationsLoggingEnabled[];
 extern const char kPageContentAnnotationsValidationStartupDelaySeconds[];
 extern const char kPageContentAnnotationsValidationBatchSizeOverride[];
-extern const char kPageContentAnnotationsValidationPageTopics[];
 extern const char kPageContentAnnotationsValidationPageEntities[];
 extern const char kPageContentAnnotationsValidationContentVisibility[];
+extern const char kPageContentAnnotationsValidationTextEmbedding[];
 extern const char kPageContentAnnotationsValidationWriteToFile[];
 
 // Returns whether the hint component should be processed.
@@ -93,6 +95,9 @@ bool ShouldValidateModel();
 
 // Returns the model override command line switch.
 absl::optional<std::string> GetModelOverride();
+
+// Returns the on-device model execution override command line switch.
+absl::optional<std::string> GetOnDeviceModelExecutionOverride();
 
 // Returns true if debug logs are enabled for the optimization guide.
 bool IsDebugLogsEnabled();

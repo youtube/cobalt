@@ -4,7 +4,6 @@
 
 #import "chrome/browser/ui/cocoa/applescript/bookmark_folder_applescript.h"
 
-#import "base/mac/scoped_nsobject.h"
 #include "base/strings/sys_string_conversions.h"
 #import "chrome/browser/ui/cocoa/applescript/bookmark_item_applescript.h"
 #import "chrome/browser/ui/cocoa/applescript/constants_applescript.h"
@@ -86,8 +85,8 @@ using bookmarks::BookmarkNode;
       continue;
     }
 
-    base::scoped_nsobject<BookmarkFolderAppleScript> bookmarkFolder(
-        [[BookmarkFolderAppleScript alloc] initWithBookmarkNode:node.get()]);
+    BookmarkFolderAppleScript* bookmarkFolder =
+        [[BookmarkFolderAppleScript alloc] initWithBookmarkNode:node.get()];
     [bookmarkFolder setContainer:self
                         property:AppleScript::kBookmarkFoldersProperty];
     [bookmarkFolders addObject:bookmarkFolder];
@@ -105,8 +104,8 @@ using bookmarks::BookmarkNode;
       continue;
     }
 
-    base::scoped_nsobject<BookmarkItemAppleScript> bookmarkItem(
-        [[BookmarkItemAppleScript alloc] initWithBookmarkNode:node.get()]);
+    BookmarkItemAppleScript* bookmarkItem =
+        [[BookmarkItemAppleScript alloc] initWithBookmarkNode:node.get()];
     [bookmarkItem setContainer:self
                       property:AppleScript::kBookmarkItemsProperty];
     [bookmarkItems addObject:bookmarkItem];

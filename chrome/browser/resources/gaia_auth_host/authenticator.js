@@ -4,9 +4,9 @@
 
 // clang-format off
 // <if expr="not chromeos_ash">
-import {assert} from 'chrome://resources/js/assert_ts.js';
+import {assert} from 'chrome://resources/js/assert.js';
 import {sendWithPromise} from 'chrome://resources/js/cr.js';
-import {$, appendParam} from 'chrome://resources/js/util_ts.js';
+import {$, appendParam} from 'chrome://resources/js/util.js';
 // </if>
 // <if expr="chromeos_ash">
 import {assert} from 'chrome://resources/ash/common/assert.js';
@@ -107,24 +107,24 @@ export let AuthCompletedCredentials;
  *   isSupervisedUser: boolean,
  *   isDeviceOwner: boolean,
  *   ssoProfile: string,
- *   urlParameterToAutofillSAMLUsername: string
+ *   urlParameterToAutofillSAMLUsername: string,
+ *   frameUrl: URL,
+ *   isFirstUser : (boolean|undefined),
+ *   recordAccountCreation : (boolean|undefined),
  * }}
  */
 export let AuthParams;
 
-// TODO(rogerta): should use gaia URL from GaiaUrls::gaia_url() instead
-// of hardcoding the prod URL here.  As is, this does not work with staging
-// environments.
-const IDP_ORIGIN = 'https://accounts.google.com/';
 const SIGN_IN_HEADER = 'google-accounts-signin';
 const EMBEDDED_FORM_HEADER = 'google-accounts-embedded';
 const LOCATION_HEADER = 'location';
 const SERVICE_ID = 'chromeoslogin';
-const EMBEDDED_SETUP_CHROMEOS_ENDPOINT_V2 = 'embedded/setup/v2/chromeos';
 const SAML_REDIRECTION_PATH = 'samlredirect';
 const BLANK_PAGE_URL = 'about:blank';
 
 const GAIA_DONE_ELAPSED_TIME = 'ChromeOS.Gaia.Done.ElapsedTime';
+const GAIA_CREATE_ACCOUNT_FIRST_USER =
+      'ChromeOS.Gaia.CreateAccount.IsFirstUser';
 
 // Metric names for messages we get from Gaia.
 const GAIA_MESSAGE_SAML_USER_INFO = 'ChromeOS.Gaia.Message.Saml.UserInfo';
@@ -204,23 +204,16 @@ export const SUPPORTED_PARAMS = [
   'ssoProfile',  // An identifier for the device's managing OU's
                  // SAML SSO setting. Used by the login screen to
                  // pass to Gaia.
-
-  // The email fields allow for the following possibilities:
-  //
-  // 1/ If 'email' is not supplied, then the email text field is blank and the
-  // user must type an email to proceed.
-  //
-  // 2/ If 'email' is supplied, and 'readOnlyEmail' is truthy, then the email
-  // is hardcoded and the user cannot change it.  The user is asked for
-  // password.  This is useful for re-auth scenarios, where chrome needs the
-  // user to authenticate for a specific account and only that account.
-  //
-  // 3/ If 'email' is supplied, and 'readOnlyEmail' is falsy, gaia will
-  // prefill the email text field using the given email address, but the user
-  // can still change it and then proceed.  This is used on desktop when the
-  // user disconnects their profile then reconnects, to encourage them to use
-  // the same account.
+  // The email can be passed to Gaia to let it know which user is trying to
+  // sign in. Gaia behavior can be different depending on the `gaiaPath`: it
+  // can either simply prefill the email field, but still allow modifying it,
+  // or it can proceed straight to the authentication challenge for the
+  // corresponding account, not allowing the user to modify the email.
   'email',
+   // Determines which URL parameter will be used to pass the email to Gaia.
+   // TODO(b/292087570): misleading name, should be either renamed or
+   // removed completely (need to confirm if email_hint URL parameter
+   // is still relevant for some flows).
   'readOnlyEmail',
   'realm',
   // If the authentication is done via external IdP, 'startsOnSamlPage'
@@ -237,6 +230,11 @@ export const SUPPORTED_PARAMS = [
   // username.
   'urlParameterToAutofillSAMLUsername',
   'forceDarkMode',
+  // A tri-state value which indicates the support level for passwordless login.
+  // Refer to `GaiaView::PasswordlessSupportLevel` for details.
+  'pwl',
+  // Control if the account creation during sign in flow should be handled.
+  'recordAccountCreation',
 ];
 
 // Timeout in ms to wait for the message from Gaia indicating end of the flow.
@@ -412,6 +410,7 @@ export class Authenticator extends EventTarget {
     /** @type {AuthMode} */
     this.authMode = AuthMode.DEFAULT;
     this.dontResizeNonEmbeddedPages = false;
+    this.isFirstUser_ = false;
 
     /**
      * @type {!SamlHandler|undefined}
@@ -604,6 +603,9 @@ export class Authenticator extends EventTarget {
         this.samlHandler_, 'apiPasswordAdded',
         e => this.onSamlApiPasswordAdded_(e));
     this.webviewEventManager_.addEventListener(
+          this.samlHandler_, 'apiAccountCreated',
+          e => this.onSamlApiAccountCreated_(e));
+    this.webviewEventManager_.addEventListener(
         this.samlHandler_, 'apiPasswordConfirmed',
         e => this.onSamlApiPasswordConfirmed_(e));
     this.webviewEventManager_.addEventListener(
@@ -719,9 +721,7 @@ export class Authenticator extends EventTarget {
     this.authMode = authMode;
     this.resetStates();
     this.authCompletedFired_ = false;
-    // gaiaUrl parameter is used for testing. Once defined, it is never
-    // changed.
-    this.idpOrigin_ = data.gaiaUrl || IDP_ORIGIN;
+    this.idpOrigin_ = data.gaiaUrl;
     this.isConstrainedWindow_ = data.constrained === '1';
     this.clientId_ = data.clientId;
     this.dontResizeNonEmbeddedPages = data.dontResizeNonEmbeddedPages;
@@ -735,6 +735,14 @@ export class Authenticator extends EventTarget {
     if (data.startsOnSamlPage) {
       this.samlHandler_.startsOnSamlPage = true;
     }
+
+    // True if this is non-enterprise device and there are no users yet.
+    this.isFirstUser_ = !!data.isFirstUser;
+
+    // Enable or disable handling account create message from Gaia.
+    this.samlHandler_.shouldHandleAccountCreationMessage =
+        !!data.recordAccountCreation;
+
     // Don't block insecure content for desktop flow because it lands on
     // http. Otherwise, block insecure content as long as gaia is https.
     this.samlHandler_.blockInsecureContent =
@@ -752,10 +760,6 @@ export class Authenticator extends EventTarget {
 
     this.webview_.src = this.reloadUrl_;
     this.isLoaded_ = true;
-  }
-
-  constructChromeOSAPIUrl_() {
-    return this.idpOrigin_ + EMBEDDED_SETUP_CHROMEOS_ENDPOINT_V2;
   }
 
   /**
@@ -789,16 +793,16 @@ export class Authenticator extends EventTarget {
               '&scope=https%3A%2F%2Fwww.google.com%2Faccounts%2FOAuthLogin&' +
               'client_id=' + encodeURIComponent(data.clientId) +
               '&access_type=offline');
+      if (data.rart) {
+        url = appendParam(url, 'rart', data.rart);
+      }
 
       return url;
     }
 
-    let url;
-    if (data.gaiaPath) {
-      url = this.idpOrigin_ + data.gaiaPath;
-    } else {
-      url = this.constructChromeOSAPIUrl_();
-    }
+    assert(this.idpOrigin_ !== undefined, "this.idpOrigin_ must be defined");
+    assert(data.gaiaPath !== undefined, "data.gaiaPath must be defined");
+    let url = this.idpOrigin_ + data.gaiaPath;
 
     if (data.chromeType) {
       url = appendParam(url, 'chrometype', data.chromeType);
@@ -877,6 +881,9 @@ export class Authenticator extends EventTarget {
     }
     if (data.forceDarkMode) {
       url = appendParam(url, 'color_scheme', 'dark');
+    }
+    if (data.pwl) {
+      url = appendParam(url, 'pwl', data.pwl);
     }
 
     return url;
@@ -1324,6 +1331,14 @@ export class Authenticator extends EventTarget {
   }
 
   /**
+   * Invoked when |samlHandler_| fires 'apiAccountCreated' event.
+   * @private
+   */
+  onSamlApiAccountCreated_(e) {
+    this.recordAccountCreated_();
+  }
+
+  /**
    * Invoked when |samlHandler_| fires 'apiPasswordConfirmed' event. Could be
    * from 3rd-party SAML IdP or Gaia which also uses the API.
    * @private
@@ -1493,6 +1508,21 @@ export class Authenticator extends EventTarget {
       Date.now() - this.gaiaStartTime,
     ]);
     this.gaiaStartTime = null;
+  }
+
+  /**
+   * Record new account creation.
+   * @private
+   */
+  recordAccountCreated_() {
+    // Record true account is created during the first sign in event
+    // and false if another account existed.
+    // TODO (b/307591058): add metric to track if account is created
+    // during login or not.
+    chrome.send('metricsHandler:recordBooleanHistogram',[
+      GAIA_CREATE_ACCOUNT_FIRST_USER,
+      this.isFirstUser_
+    ]);
   }
 
   /**

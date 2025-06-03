@@ -18,6 +18,7 @@
 #include "chrome/browser/history/history_test_utils.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
+#include "chrome/browser/sync/test/integration/sync_test.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
@@ -27,7 +28,9 @@
 #include "chrome/test/base/search_test_utils.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/history/core/browser/history_service.h"
+#include "components/history/core/browser/history_service_observer.h"
 #include "components/history/core/common/pref_names.h"
+#include "components/history/core/test/history_service_test_util.h"
 #include "components/prefs/pref_service.h"
 #include "components/search_engines/template_url_service.h"
 #include "content/public/browser/navigation_handle.h"
@@ -45,6 +48,33 @@
 #include "url/gurl.h"
 
 using content::BrowserThread;
+using ::testing::_;
+
+namespace {
+
+// Used to test if the History Service Observer gets called for both
+// `OnURLVisited()` and `OnURLVisitedWithNavigationId()`.
+class MockHistoryServiceObserver : public history::HistoryServiceObserver {
+ public:
+  MockHistoryServiceObserver() = default;
+
+  MOCK_METHOD(void,
+              OnURLVisited,
+              (history::HistoryService*,
+               const history::URLRow&,
+               const history::VisitRow&),
+              (override));
+
+  MOCK_METHOD(void,
+              OnURLVisitedWithNavigationId,
+              (history::HistoryService*,
+               const history::URLRow&,
+               const history::VisitRow&,
+               absl::optional<int64_t>),
+              (override));
+};
+
+}  // namespace
 
 class HistoryBrowserTest : public InProcessBrowserTest {
  protected:
@@ -142,6 +172,7 @@ class HistoryBrowserTest : public InProcessBrowserTest {
     base::RunLoop run_loop;
     history_service->GetAnnotatedVisits(
         options,
+        /*compute_redirect_chain_start_properties=*/true,
         base::BindLambdaForTesting(
             [&](std::vector<history::AnnotatedVisit> visits) {
               annotated_visits = std::move(visits);
@@ -570,7 +601,7 @@ IN_PROC_BROWSER_TEST_F(HistoryBrowserTest, Subframe) {
   // history.
   std::string script = "location.replace('form.html')";
   content::TestFrameNavigationObserver observer(frame);
-  EXPECT_TRUE(ExecuteScript(frame, script));
+  EXPECT_TRUE(ExecJs(frame, script));
   observer.Wait();
   GURL auto_subframe =
       ui_test_utils::GetTestUrl(base::FilePath().AppendASCII("History"),
@@ -696,8 +727,8 @@ IN_PROC_BROWSER_TEST_F(HistoryBrowserTest, PushStateSetsTitle) {
   std::u16string title = web_contents->GetTitle();
 
   // Do a pushState to create a new navigation entry and a new history entry.
-  ASSERT_TRUE(content::ExecuteScript(web_contents,
-                                     "history.pushState({},'','test.html')"));
+  ASSERT_TRUE(
+      content::ExecJs(web_contents, "history.pushState({},'','test.html')"));
   EXPECT_TRUE(content::WaitForLoadStop(web_contents));
 
   // This should result in two history entries.
@@ -726,10 +757,10 @@ IN_PROC_BROWSER_TEST_F(HistoryBrowserTest, BeforeUnloadCommitDuringPending) {
 
   // Create a beforeunload handler that does a replaceState during navigation,
   // unrelated to the destination URL (similar to Twitter).
-  ASSERT_TRUE(content::ExecuteScript(web_contents,
-                                     "window.onbeforeunload = function() {"
-                                     "history.replaceState({},'','test.html');"
-                                     "};"));
+  ASSERT_TRUE(content::ExecJs(web_contents,
+                              "window.onbeforeunload = function() {"
+                              "history.replaceState({},'','test.html');"
+                              "};"));
   GURL url2(embedded_test_server()->GetURL("foo.com", "/test.html"));
 
   // Start a cross-site navigation to trigger the beforeunload, but don't let
@@ -788,8 +819,8 @@ IN_PROC_BROWSER_TEST_F(HistoryBrowserTest, SubmitFormAddsTargetPage) {
   std::u16string expected_title(u"Target Page");
   content::TitleWatcher title_watcher(
       browser()->tab_strip_model()->GetActiveWebContents(), expected_title);
-  ASSERT_TRUE(content::ExecuteScript(
-      web_contents, "document.getElementById('form').submit()"));
+  ASSERT_TRUE(content::ExecJs(web_contents,
+                              "document.getElementById('form').submit()"));
   EXPECT_EQ(expected_title, title_watcher.WaitAndGetTitle());
 
   std::vector<GURL> urls(GetHistoryContents());
@@ -842,8 +873,8 @@ IN_PROC_BROWSER_TEST_F(HistoryBrowserTest, ReplaceStateSamePageIsNotRecorded) {
       browser()->tab_strip_model()->GetActiveWebContents();
 
   // Do a replaceState() to create a new navigation entry.
-  ASSERT_TRUE(content::ExecuteScript(web_contents,
-                                     "history.replaceState({foo: 'bar'},'')"));
+  ASSERT_TRUE(
+      content::ExecJs(web_contents, "history.replaceState({foo: 'bar'},'')"));
   content::WaitForLoadStop(web_contents);
 
   // Because there was no user gesture and the url did not change, there should
@@ -897,6 +928,63 @@ IN_PROC_BROWSER_TEST_F(HistoryBrowserTest, VisitAnnotations) {
             base::Seconds(0));
 }
 
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_CHROMEOS)
+#define MAYBE_ObserversCallBothOnURLVisitedForLocalVisits \
+  DISABLED_ObserversCallBothOnURLVisitedForLocalVisits
+#else
+#define MAYBE_ObserversCallBothOnURLVisitedForLocalVisits \
+  ObserversCallBothOnURLVisitedForLocalVisits
+#endif
+IN_PROC_BROWSER_TEST_F(HistoryBrowserTest,
+                       MAYBE_ObserversCallBothOnURLVisitedForLocalVisits) {
+  history::HistoryService* history_service =
+      HistoryServiceFactory::GetForProfile(browser()->profile(),
+                                           ServiceAccessType::EXPLICIT_ACCESS);
+  ui_test_utils::WaitForHistoryToLoad(history_service);
+
+  // Load a page and wait for the history service to finish all its background
+  // tasks before actually running the test.
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), GetTestFileURL("landing.html?first=load")));
+  history::BlockUntilHistoryProcessesPendingRequests(history_service);
+
+  MockHistoryServiceObserver observer;
+  history_service->AddObserver(&observer);
+
+  // Navigate to some URLs and check that the observer gets called for the local
+  // visit.
+  history::URLRow url_row;
+  history::URLRow url_row2;
+  EXPECT_CALL(observer, OnURLVisited(history_service, _, _))
+      .WillOnce(testing::SaveArg<1>(&url_row));
+  EXPECT_CALL(observer, OnURLVisitedWithNavigationId(
+                            history_service, _, _,
+                            testing::Not(testing::Eq(absl::nullopt))))
+      .WillOnce(testing::SaveArg<1>(&url_row2));
+
+  GURL url = GetTestFileURL("landing.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
+
+  // Both observer calls should have received the same url as the local visit.
+  EXPECT_EQ(url_row.url(), url);
+  EXPECT_EQ(url_row2.url(), url);
+
+  EXPECT_CALL(observer, OnURLVisited(history_service, _, _))
+      .WillOnce(testing::SaveArg<1>(&url_row));
+  EXPECT_CALL(observer, OnURLVisitedWithNavigationId(
+                            history_service, _, _,
+                            testing::Not(testing::Eq(absl::nullopt))))
+      .WillOnce(testing::SaveArg<1>(&url_row2));
+
+  GURL url2 = GetTestFileURL("target.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url2));
+
+  EXPECT_EQ(url_row.url(), url2);
+  EXPECT_EQ(url_row2.url(), url2);
+
+  history_service->RemoveObserver(&observer);
+}
+
 // MPArch means Multiple Page Architecture, each WebContents may have additional
 // FrameTrees which will have their own associated Page.
 class HistoryMPArchBrowserTest : public HistoryBrowserTest {
@@ -921,7 +1009,7 @@ class HistoryPrerenderBrowserTest : public HistoryMPArchBrowserTest {
                                 base::Unretained(this))) {}
 
   void SetUp() override {
-    prerender_helper_.SetUp(embedded_test_server());
+    prerender_helper_.RegisterServerRequestMonitor(embedded_test_server());
     HistoryMPArchBrowserTest::SetUp();
   }
 

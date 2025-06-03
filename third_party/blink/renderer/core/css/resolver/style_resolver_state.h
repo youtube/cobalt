@@ -78,8 +78,8 @@ class CORE_EXPORT StyleResolverState {
   Element* GetStyledElement() const { return styled_element_; }
   // These are all just pass-through methods to ElementResolveContext.
   Element& GetElement() const { return element_context_.GetElement(); }
-  const ContainerNode* ParentNode() const {
-    return element_context_.ParentNode();
+  const Element* ParentElement() const {
+    return element_context_.ParentElement();
   }
   const ComputedStyle* RootElementStyle() const {
     return element_context_.RootElementStyle();
@@ -87,6 +87,9 @@ class CORE_EXPORT StyleResolverState {
   EInsideLink ElementLinkState() const {
     return element_context_.ElementLinkState();
   }
+
+  // See inside_link_.
+  EInsideLink InsideLink() const;
 
   const ElementResolveContext& ElementContext() const {
     return element_context_;
@@ -97,9 +100,19 @@ class CORE_EXPORT StyleResolverState {
     style_builder_.emplace(style);
     UpdateLengthConversionData();
   }
+  void CreateNewStyle(
+      const ComputedStyle& source_for_noninherited,
+      const ComputedStyle& inherit_parent,
+      ComputedStyleBuilderBase::IsAtShadowBoundary is_at_shadow_boundary =
+          ComputedStyleBuilderBase::kNotAtShadowBoundary) {
+    // FIXME: Improve RAII of StyleResolverState to remove this function.
+    style_builder_.emplace(source_for_noninherited, inherit_parent,
+                           is_at_shadow_boundary);
+    UpdateLengthConversionData();
+  }
   ComputedStyleBuilder& StyleBuilder() { return *style_builder_; }
   const ComputedStyleBuilder& StyleBuilder() const { return *style_builder_; }
-  scoped_refptr<const ComputedStyle> TakeStyle();
+  const ComputedStyle* TakeStyle();
 
   const CSSToLengthConversionData& CssToLengthConversionData() const {
     return css_to_length_conversion_data_;
@@ -132,18 +145,16 @@ class CORE_EXPORT StyleResolverState {
   // element, null otherwise.
   PseudoElement* GetPseudoElement() const;
 
-  void SetParentStyle(scoped_refptr<const ComputedStyle>);
-  const ComputedStyle* ParentStyle() const { return parent_style_.get(); }
+  void SetParentStyle(const ComputedStyle*);
+  const ComputedStyle* ParentStyle() const { return parent_style_; }
 
-  void SetLayoutParentStyle(scoped_refptr<const ComputedStyle>);
+  void SetLayoutParentStyle(const ComputedStyle*);
   const ComputedStyle* LayoutParentStyle() const {
-    return layout_parent_style_.get();
+    return layout_parent_style_;
   }
 
-  void SetOldStyle(scoped_refptr<const ComputedStyle> old_style) {
-    old_style_ = std::move(old_style);
-  }
-  const ComputedStyle* OldStyle() const { return old_style_.get(); }
+  void SetOldStyle(const ComputedStyle* old_style) { old_style_ = old_style; }
+  const ComputedStyle* OldStyle() const { return old_style_; }
 
   ElementStyleResources& GetElementStyleResources() {
     return element_style_resources_;
@@ -180,12 +191,13 @@ class CORE_EXPORT StyleResolverState {
   const CSSValue& ResolveLightDarkPair(const CSSValue&);
 
   const ComputedStyle* OriginatingElementStyle() const {
-    return originating_element_style_.get();
+    return originating_element_style_;
   }
   bool IsForHighlight() const { return is_for_highlight_; }
   bool UsesHighlightPseudoInheritance() const {
     return uses_highlight_pseudo_inheritance_;
   }
+  bool IsOutsideFlatTree() const { return is_outside_flat_tree_; }
 
   bool CanTriggerAnimations() const { return can_trigger_animations_; }
 
@@ -225,6 +237,25 @@ class CORE_EXPORT StyleResolverState {
 
   void UpdateLengthConversionData();
 
+  void SetIsResolvingPositionFallbackStyle() {
+    is_resolving_position_fallback_style_ = true;
+  }
+  bool IsResolvingPositionFallbackStyle() const {
+    return is_resolving_position_fallback_style_;
+  }
+
+  float TextAutosizingMultiplier() const {
+    const ComputedStyle* old_style = GetElement().GetComputedStyle();
+    if (element_type_ != ElementType::kPseudoElement && old_style) {
+      return old_style->TextAutosizingMultiplier();
+    } else {
+      return 1.0f;
+    }
+  }
+
+  void SetHasTreeScopedReference() { has_tree_scoped_reference_ = true; }
+  bool HasTreeScopedReference() const { return has_tree_scoped_reference_; }
+
  private:
   CSSToLengthConversionData UnzoomedLengthConversionData(const FontSizeStyle&);
 
@@ -239,14 +270,14 @@ class CORE_EXPORT StyleResolverState {
 
   // parent_style_ is not always just ElementResolveContext::ParentStyle(),
   // so we keep it separate.
-  scoped_refptr<const ComputedStyle> parent_style_;
+  const ComputedStyle* parent_style_;
   // This will almost-always be the same that parent_style_, except in the
   // presence of display: contents. This is the style against which we have to
   // do adjustment.
-  scoped_refptr<const ComputedStyle> layout_parent_style_;
+  const ComputedStyle* layout_parent_style_;
   // The ComputedStyle stored on the element before the current lifecycle update
   // started.
-  scoped_refptr<const ComputedStyle> old_style_;
+  const ComputedStyle* old_style_;
 
   CSSAnimationUpdate animation_update_;
   StyleRequest::RequestType pseudo_request_type_;
@@ -263,12 +294,25 @@ class CORE_EXPORT StyleResolverState {
   ElementType element_type_;
   Element* container_unit_context_;
 
-  scoped_refptr<const ComputedStyle> originating_element_style_;
+  // Whether this element is inside a link or not. Note that this is different
+  // from ElementLinkState() if the element is not a link itself but is inside
+  // one. It may also be overridden from non-visited to visited by devtools.
+  // This will eventually get stored on ComputedStyle, but since we do not have
+  // a ComputedStyle until pretty late in the process, keep it here until
+  // we have one.
+  //
+  // This is computed only once, lazily (thus the absl::optional).
+  mutable absl::optional<EInsideLink> inside_link_;
+
+  const ComputedStyle* originating_element_style_;
   // True if we are resolving styles for a highlight pseudo-element.
   const bool is_for_highlight_;
   // True if this is a highlight style request, and highlight inheritance
   // should be used for this highlight pseudo.
   const bool uses_highlight_pseudo_inheritance_;
+  // See StyleRecalcContext::is_outside_flat_tree. Set to false if there is no
+  // StyleRecalcContext.
+  const bool is_outside_flat_tree_;
 
   // True if this style resolution can start or stop animations and transitions.
   // One case where animations and transitions can not be triggered is when we
@@ -279,7 +323,8 @@ class CORE_EXPORT StyleResolverState {
   bool can_trigger_animations_ = false;
 
   // Set to true if a given style resolve produced an empty MatchResult.
-  // This is used to return a nullptr style for pseudo-element style resolves.
+  // This is used to return a nullptr style for pseudo-element style
+  // resolves.
   bool had_no_matched_properties_ = false;
 
   // True whenever a matching rule in a non-matching container query contains
@@ -292,6 +337,13 @@ class CORE_EXPORT StyleResolverState {
   // True if the cascade rejected any properties with the kLegacyOverlapping
   // flag.
   bool rejected_legacy_overlapping_ = false;
+
+  // True if we are currently resolving a position fallback style by applying
+  // rules in a `@try` block.
+  bool is_resolving_position_fallback_style_ = false;
+
+  // True if the resolved ComputedStyle depends on tree-scoped references.
+  bool has_tree_scoped_reference_ = false;
 };
 
 }  // namespace blink

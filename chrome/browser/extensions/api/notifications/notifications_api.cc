@@ -40,7 +40,7 @@
 #include "extensions/browser/extensions_browser_client.h"
 #include "extensions/common/extension.h"
 #include "third_party/skia/include/core/SkBitmap.h"
-#include "ui/base/layout.h"
+#include "ui/base/resource/resource_scale_factor.h"
 #include "ui/gfx/geometry/skia_conversions.h"
 #include "ui/gfx/image/image.h"
 #include "ui/gfx/image/image_skia.h"
@@ -219,8 +219,7 @@ bool NotificationsApiFunction::CreateNotification(
 
   NotificationBitmapSizes bitmap_sizes = GetNotificationBitmapSizes();
 
-  float image_scale = ui::GetScaleForResourceScaleFactor(
-      ui::GetMaxSupportedResourceScaleFactor());
+  const float image_scale = ui::GetScaleForMaxSupportedResourceScaleFactor();
 
   // Extract required fields: type, title, message, and icon.
   message_center::NotificationType type =
@@ -255,7 +254,8 @@ bool NotificationsApiFunction::CreateNotification(
     optional_fields.priority = *options->priority;
 
   if (options->event_time)
-    optional_fields.timestamp = base::Time::FromJsTime(*options->event_time);
+    optional_fields.timestamp =
+        base::Time::FromMillisecondsSinceUnixEpoch(*options->event_time);
 
   if (options->silent)
     optional_fields.silent = *options->silent;
@@ -377,8 +377,7 @@ bool NotificationsApiFunction::UpdateNotification(
 #endif
 
   NotificationBitmapSizes bitmap_sizes = GetNotificationBitmapSizes();
-  float image_scale = ui::GetScaleForResourceScaleFactor(
-      ui::GetMaxSupportedResourceScaleFactor());
+  const float image_scale = ui::GetScaleForMaxSupportedResourceScaleFactor();
 
   // Update optional fields if provided.
   if (options->type != api::notifications::TEMPLATE_TYPE_NONE)
@@ -415,7 +414,8 @@ bool NotificationsApiFunction::UpdateNotification(
     notification->set_priority(*options->priority);
 
   if (options->event_time)
-    notification->set_timestamp(base::Time::FromJsTime(*options->event_time));
+    notification->set_timestamp(
+        base::Time::FromMillisecondsSinceUnixEpoch(*options->event_time));
 
   if (options->silent)
     notification->set_silent(*options->silent);

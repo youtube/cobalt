@@ -1,4 +1,4 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -16,14 +16,16 @@ import androidx.preference.Preference;
 import androidx.preference.PreferenceCategory;
 
 import org.chromium.base.Callback;
+import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.components.browser_ui.settings.CustomDividerFragment;
 import org.chromium.components.browser_ui.settings.SettingsUtils;
 import org.chromium.components.browser_ui.settings.TextMessagePreference;
+import org.chromium.components.browsing_data.DeleteBrowsingDataAction;
 
 /**
  * Shows the permissions and other settings for a group of websites.
  */
-public class GroupedWebsitesSettings extends SiteSettingsPreferenceFragment
+public class GroupedWebsitesSettings extends BaseSiteSettingsFragment
         implements Preference.OnPreferenceClickListener, CustomDividerFragment {
     public static final String EXTRA_GROUP = "org.chromium.chrome.preferences.site_group";
 
@@ -89,7 +91,9 @@ public class GroupedWebsitesSettings extends SiteSettingsPreferenceFragment
     public boolean onPreferenceTreeClick(Preference preference) {
         if (preference instanceof WebsiteRowPreference) {
             // Handle a click on one of the sites in this group.
-            ((WebsiteRowPreference) preference).handleClick(getArguments());
+            // Save the current activity, so it's accessible from the SingleWebsiteSettings.
+            GroupedWebsitesActivityHolder.getInstance().setActivity(getActivity());
+            ((WebsiteRowPreference) preference).handleClick(getArguments(), /*fromGrouped=*/true);
         }
         return super.onPreferenceTreeClick(preference);
     }
@@ -100,15 +104,12 @@ public class GroupedWebsitesSettings extends SiteSettingsPreferenceFragment
         View dialogView =
                 getActivity().getLayoutInflater().inflate(R.layout.clear_reset_dialog, null);
         TextView mainMessage = dialogView.findViewById(R.id.main_message);
-        mainMessage.setText(R.string.website_reset_confirmation);
+        mainMessage.setText(getString(
+                R.string.website_group_reset_confirmation, mSiteGroup.getDomainAndRegistry()));
         TextView signedOutText = dialogView.findViewById(R.id.signed_out_text);
-        signedOutText.setText(R.string.webstorage_clear_data_dialog_sign_out_message);
+        signedOutText.setText(R.string.webstorage_clear_data_dialog_sign_out_group_message);
         TextView offlineText = dialogView.findViewById(R.id.offline_text);
-        offlineText.setText(R.string.webstorage_clear_data_dialog_offline_message);
-        if (getSiteSettingsDelegate().isPrivacySandboxSettings4Enabled()) {
-            TextView adPersonalizationText = dialogView.findViewById(R.id.ad_personalization_text);
-            adPersonalizationText.setVisibility(View.VISIBLE);
-        }
+        offlineText.setText(R.string.webstorage_delete_data_dialog_offline_message);
         mConfirmationDialog =
                 new AlertDialog.Builder(getContext(), R.style.ThemeOverlay_BrowserUI_AlertDialog)
                         .setView(dialogView)
@@ -130,13 +131,16 @@ public class GroupedWebsitesSettings extends SiteSettingsPreferenceFragment
             }
             Callback<Boolean> onDialogClosed = (Boolean confirmed) -> {
                 if (confirmed) {
+                    RecordHistogram.recordEnumeratedHistogram("Privacy.DeleteBrowsingData.Action",
+                            DeleteBrowsingDataAction.SITES_SETTINGS_PAGE,
+                            DeleteBrowsingDataAction.MAX_VALUE);
+
                     SiteDataCleaner.clearData(getSiteSettingsDelegate().getBrowserContextHandle(),
                             mSiteGroup, mDataClearedCallback);
                 }
             };
             ClearWebsiteStorageDialog dialogFragment =
                     ClearWebsiteStorageDialog.newInstance(preference, onDialogClosed,
-                            getSiteSettingsDelegate().isPrivacySandboxSettings4Enabled(),
                             /*isGroup=*/true);
             dialogFragment.setTargetFragment(this, 0);
             dialogFragment.show(getFragmentManager(), ClearWebsiteStorageDialog.TAG);
@@ -163,6 +167,10 @@ public class GroupedWebsitesSettings extends SiteSettingsPreferenceFragment
         if (getActivity() == null) return;
         SiteDataCleaner.resetPermissions(
                 getSiteSettingsDelegate().getBrowserContextHandle(), mSiteGroup);
+
+        RecordHistogram.recordEnumeratedHistogram("Privacy.DeleteBrowsingData.Action",
+                DeleteBrowsingDataAction.SITES_SETTINGS_PAGE, DeleteBrowsingDataAction.MAX_VALUE);
+
         SiteDataCleaner.clearData(getSiteSettingsDelegate().getBrowserContextHandle(), mSiteGroup,
                 mDataClearedCallback);
     }

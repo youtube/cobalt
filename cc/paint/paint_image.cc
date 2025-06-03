@@ -260,8 +260,8 @@ bool PaintImage::DecodeFromSkImage(SkPixmap pixmap,
   auto image = GetSkImageForFrame(frame_index, client_id);
   DCHECK(image);
   if (color_space) {
-    image = image->makeColorSpace(color_space,
-                                  static_cast<GrDirectContext*>(nullptr));
+    image = image->makeColorSpace(static_cast<GrDirectContext*>(nullptr),
+                                  color_space);
     if (!image)
       return false;
   }
@@ -269,7 +269,7 @@ bool PaintImage::DecodeFromSkImage(SkPixmap pixmap,
 }
 
 bool PaintImage::ShouldAnimate() const {
-  return animation_type_ == AnimationType::ANIMATED &&
+  return animation_type_ == AnimationType::kAnimated &&
          repetition_count_ != kAnimationNone && FrameCount() > 1;
 }
 
@@ -369,7 +369,7 @@ bool PaintImage::IsYuv(
 }
 
 const std::vector<FrameMetadata>& PaintImage::GetFrameMetadata() const {
-  DCHECK_EQ(animation_type_, AnimationType::ANIMATED);
+  DCHECK_EQ(animation_type_, AnimationType::kAnimated);
   DCHECK(paint_image_generator_);
 
   return paint_image_generator_->GetFrameMetadata();

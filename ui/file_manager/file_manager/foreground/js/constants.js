@@ -9,7 +9,7 @@
 export const constants = {};
 
 /**
- * @const {!Array<string>}
+ * @const @type {!Array<string>}
  */
 constants.ACTIONS_MODEL_METADATA_PREFETCH_PROPERTY_NAMES = [
   'canPin',
@@ -23,6 +23,8 @@ constants.ACTIONS_MODEL_METADATA_PREFETCH_PROPERTY_NAMES = [
  * @const
  * @type {Array<string>}
  */
+// @ts-ignore: error TS4104: The type 'readonly string[]' is 'readonly' and
+// cannot be assigned to the mutable type 'string[]'.
 constants.EXECUTABLE_EXTENSIONS = Object.freeze([
   '.exe',
   '.lnk',
@@ -35,7 +37,7 @@ constants.EXECUTABLE_EXTENSIONS = Object.freeze([
 /**
  * These metadata is expected to be cached to accelerate computeAdditional.
  * See: crbug.com/458915.
- * @const {!Array<string>}
+ * @const @type {!Array<string>}
  */
 constants.FILE_SELECTION_METADATA_PREFETCH_PROPERTY_NAMES = [
   'availableOffline',
@@ -50,7 +52,7 @@ constants.FILE_SELECTION_METADATA_PREFETCH_PROPERTY_NAMES = [
  * TODO(sashab): Store capabilities as a set of flags to save memory. See
  * https://crbug.com/849997
  *
- * @const {!Array<string>}
+ * @const @type {!Array<string>}
  */
 constants.LIST_CONTAINER_METADATA_PREFETCH_PROPERTY_NAMES = [
   'availableOffline',
@@ -77,7 +79,7 @@ constants.LIST_CONTAINER_METADATA_PREFETCH_PROPERTY_NAMES = [
  * Metadata properties used to inform the user about DLP (Data Leak Prevention)
  * Files restrictions. These metadata is expected to be cached.
  *
- * @const {!Array<string>}
+ * @const @type {!Array<string>}
  */
 constants.DLP_METADATA_PREFETCH_PROPERTY_NAMES = [
   'isDlpRestricted',
@@ -105,23 +107,31 @@ constants.DEFAULT_BRUSCHETTA_VM = 'bru';
 
 /**
  * DOMError type for crostini connection failure.
- * @const {string}
+ * @const @type {string}
  */
 constants.CROSTINI_CONNECT_ERR = 'CrostiniConnectErr';
 
 /**
  * ID of the fake fileSystemProvider custom action containing OneDrive document
  * URLs.
- * @const {string}
+ * @const @type {string}
  */
 constants.FSP_ACTION_HIDDEN_ONEDRIVE_URL = 'HIDDEN_ONEDRIVE_URL';
 
 /**
  * ID of the fake fileSystemProvider custom action containing OneDrive document
  * User Emails.
- * @const {string}
+ * @const @type {string}
  */
 constants.FSP_ACTION_HIDDEN_ONEDRIVE_USER_EMAIL = 'HIDDEN_ONEDRIVE_USER_EMAIL';
+
+/**
+ * ID of the fake fileSystemProvider custom action containing OneDrive document
+ * Reauthentication Required state.
+ * @const @type {string}
+ */
+constants.FSP_ACTION_HIDDEN_ONEDRIVE_REAUTHENTICATION_REQUIRED =
+    'HIDDEN_ONEDRIVE_REAUTHENTICATION_REQUIRED';
 
 /**
  * All icon types.
@@ -130,25 +140,34 @@ constants.ICON_TYPES = {
   ANDROID_FILES: 'android_files',
   ARCHIVE: 'archive',
   AUDIO: 'audio',
+  // Explicitly request the icon to be 0x0. Used to avoid the scenario where a
+  // `type` is not specifically supplied vs. actually wanting a blank icon.
+  BLANK: 'blank',
   BRUSCHETTA: 'bruschetta',
+  BULK_PINNING_BATTERY_SAVER: 'bulk_pinning_battery_saver',
+  BULK_PINNING_DONE: 'bulk_pinning_done',
+  BULK_PINNING_OFFLINE: 'bulk_pinning_offline',
   CAMERA_FOLDER: 'camera-folder',
+  CANT_PIN: 'cant-pin',
   CHECK: 'check',
   CLOUD_DONE: 'cloud_done',
   CLOUD_ERROR: 'cloud_error',
   CLOUD_OFFLINE: 'cloud_offline',
+  CLOUD_PAUSED: 'cloud_paused',
   CLOUD_SYNC: 'cloud_sync',
   CLOUD: 'cloud',
   COMPUTER: 'computer',
   COMPUTERS_GRAND_ROOT: 'computers_grand_root',
   CROSTINI: 'crostini',
   DOWNLOADS: 'downloads',
+  DRIVE_BULK_PINNING: 'drive_bulk_pinning',
   DRIVE_LOGO: 'drive_logo',
   DRIVE_OFFLINE: 'drive_offline',
   DRIVE_RECENT: 'drive_recent',
   DRIVE_SHARED_WITH_ME: 'drive_shared_with_me',
   DRIVE: 'drive',
-  ENCRYPTED: 'encrypted',
   ERROR: 'error',
+  ERROR_BANNER: 'error_banner',
   EXCEL: 'excel',
   EXTERNAL_MEDIA: 'external_media',
   FOLDER: 'folder',
@@ -191,3 +210,10 @@ constants.ICON_TYPES = {
   VIDEO: 'video',
   WORD: 'word',
 };
+
+/**
+ * Extension ID for OneDrive FSP, also used as ProviderId.
+ * @const
+ * @type {string}
+ */
+constants.ODFS_EXTENSION_ID = 'gnnndjlaomemikopnjhhnoombakkkkdg';

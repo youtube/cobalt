@@ -9,12 +9,12 @@
 #include <string>
 
 #include "base/files/file_path.h"
+#include "base/macros/concat.h"
+#include "base/memory/raw_ptr_exclusion.h"
 #include "base/strings/stringize_macros.h"
 
 #ifdef __OBJC__
 @class NSString;
-#else
-class NSString;
 #endif
 
 // This file contains constants, interfaces, etc. which are common to the
@@ -22,14 +22,13 @@ class NSString;
 
 // The version of the ChromeAppModeInfo struct below. If the format of the
 // struct ever changes, be sure to update the APP_SHIM_VERSION_NUMBER here and
-// the corresponding line in //chrome/app/framework.order .
+// the corresponding lines in //chrome/app/framework.order and
+// //chrome/app/framework.exports .
 #define APP_SHIM_VERSION_NUMBER 7
 
 // All the other macro magic to make APP_SHIM_VERSION_NUMBER usable.
-#define APP_MODE_CONCAT(a, b) a##b
-#define APP_MODE_CONCAT2(a, b) APP_MODE_CONCAT(a, b)
 #define APP_SHIM_ENTRY_POINT_NAME \
-  APP_MODE_CONCAT2(ChromeAppModeStart_v, APP_SHIM_VERSION_NUMBER)
+  BASE_CONCAT(ChromeAppModeStart_v, APP_SHIM_VERSION_NUMBER)
 #define APP_SHIM_ENTRY_POINT_NAME_STRING STRINGIZE(APP_SHIM_ENTRY_POINT_NAME)
 
 namespace app_mode {
@@ -76,6 +75,13 @@ extern const char kLaunchedAfterRebuild[];
 // launched it, while still making sure it connects to the correct chrome
 // process.
 extern const char kIsNormalLaunch[];
+
+// Normally when running tests app shims are not supposed to try to launch
+// Chrome. Pass this flag to specify the executable to launch when the app shim
+// would normally launch Chrome.
+extern const char kLaunchChromeForTest[];
+
+#ifdef __OBJC__
 
 // Keys for specifying the file types handled by an app.
 extern NSString* const kCFBundleDocumentTypesKey;
@@ -152,6 +158,8 @@ extern NSString* const kShortcutURLPlaceholder;
 // Bundle ID of the Chrome browser bundle.
 extern NSString* const kShortcutBrowserBundleIDPlaceholder;
 
+#endif  // __OBJC__
+
 // Indicates the MojoIpcz feature configuration for a launched shim process.
 enum class MojoIpczConfig {
   // MojoIpcz is enabled.
@@ -179,7 +187,9 @@ enum class MojoIpczConfig {
 struct ChromeAppModeInfo {
   // Original |argc| and |argv| of the App Mode shortcut.
   int argc;
-  char** argv;
+  // This field is not a raw_ptr<> because this struct is part of separate
+  // binary and must be a POD.
+  RAW_PTR_EXCLUSION char** argv;
 
   // Path of the Chromium Framework, as UTF-8. This will be the input to
   // SetOverrideFrameworkBundlePath().

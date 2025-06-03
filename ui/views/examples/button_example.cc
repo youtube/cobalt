@@ -9,6 +9,8 @@
 
 #include "base/strings/utf_string_conversions.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/metadata/metadata_header_macros.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/gfx/geometry/insets.h"
 #include "ui/gfx/image/image.h"
@@ -133,6 +135,7 @@ class SolidRoundRectPainterWithShadow : public Painter {
 // by overriding the hover effect to draw a new background with a shadow.
 class FabButton : public views::MdTextButton {
  public:
+  METADATA_HEADER(FabButton);
   using MdTextButton::MdTextButton;
   FabButton(const FabButton&) = delete;
   FabButton& operator=(const FabButton&) = delete;
@@ -165,28 +168,8 @@ class FabButton : public views::MdTextButton {
   bool use_shadow_ = false;
 };
 
-class IconAndTextButton : public views::MdTextButton {
- public:
-  IconAndTextButton(PressedCallback callback,
-                    const std::u16string& text,
-                    const gfx::VectorIcon& icon)
-      : MdTextButton(callback, text), icon_(icon) {}
-  IconAndTextButton(const IconAndTextButton&) = delete;
-  IconAndTextButton& operator=(const IconAndTextButton&) = delete;
-  ~IconAndTextButton() override = default;
-
-  void OnThemeChanged() override {
-    views::MdTextButton::OnThemeChanged();
-
-    // Use the text color for the associated vector image.
-    SetImageModel(
-        views::Button::ButtonState::STATE_NORMAL,
-        ui::ImageModel::FromVectorIcon(*icon_, label()->GetEnabledColor()));
-  }
-
- private:
-  const raw_ref<const gfx::VectorIcon> icon_;
-};
+BEGIN_METADATA(FabButton, views::MdTextButton)
+END_METADATA
 
 ButtonExample::ButtonExample() : ExampleBase("Button") {
   ui::ResourceBundle& rb = ui::ResourceBundle::GetSharedInstance();
@@ -224,12 +207,15 @@ void ButtonExample::CreateExampleView(View* container) {
                                    .SetIsDefault(true),
                                Builder<MdTextButton>()
                                    .CopyAddressTo(&md_tonal_button_)
-                                   .SetStyle(MdTextButton::Style::kTonal)
+                                   .SetStyle(ui::ButtonStyle::kTonal)
                                    .SetText(u"Tonal"),
                                Builder<MdTextButton>()
                                    .CopyAddressTo(&md_text_button_)
-                                   .SetStyle(MdTextButton::Style::kText)
+                                   .SetStyle(ui::ButtonStyle::kText)
                                    .SetText(u"Material Text"),
+                               Builder<MdTextButton>()
+                                   .CopyAddressTo(&md_icon_text_button_)
+                                   .SetText(u"Material Text with Icon"),
                                Builder<ImageButton>()
                                    .CopyAddressTo(&image_button_)
                                    .SetAccessibleName(l10n_util::GetStringUTF16(
@@ -239,12 +225,9 @@ void ButtonExample::CreateExampleView(View* container) {
                                        &ButtonExample::ImageButtonPressed,
                                        base::Unretained(this))))
                   .Build();
-
-  view->AddChildView(std::make_unique<IconAndTextButton>(
-      base::BindRepeating(&ButtonExample::ImageButtonPressed,
-                          base::Unretained(this)),
-      l10n_util::GetStringUTF16(IDS_COLORED_DIALOG_CHOOSER_BUTTON),
-      views::kInfoIcon));
+  md_icon_text_button_->SetImageModel(
+      views::Button::ButtonState::STATE_NORMAL,
+      ui::ImageModel::FromVectorIcon(views::kInfoIcon));
   view->AddChildView(std::make_unique<FabButton>(
       base::BindRepeating(&ButtonExample::ImageButtonPressed,
                           base::Unretained(this)),

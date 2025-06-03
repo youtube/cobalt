@@ -11,6 +11,7 @@
 #include "chrome/browser/sync/test/integration/sync_service_impl_harness.h"
 #include "chrome/browser/sync/test/integration/web_apps_sync_test_base.h"
 #include "chrome/browser/ui/web_applications/test/web_app_browsertest_util.h"
+#include "chrome/browser/web_applications/generated_icon_fix_util.h"
 #include "chrome/browser/web_applications/manifest_update_manager.h"
 #include "chrome/browser/web_applications/os_integration/os_integration_manager.h"
 #include "chrome/browser/web_applications/test/web_app_test_observers.h"
@@ -19,6 +20,7 @@
 #include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/browser/web_applications/web_app_registrar.h"
 #include "chrome/common/chrome_features.h"
+#include "components/sync/base/features.h"
 #include "content/public/test/browser_test.h"
 
 namespace web_app {
@@ -66,12 +68,20 @@ class SingleClientWebAppsSyncGeneratedIconFixSyncTest
 
   void SetUpOnMainThread() override {
     SyncTest::SetUpOnMainThread();
+    ASSERT_TRUE(SetupClients());
+#if BUILDFLAG(IS_CHROMEOS_LACROS)
+    // Apps sync is controlled by a dedicated preference on Lacros,
+    // corresponding to the Apps toggle in OS Sync settings.
+    if (base::FeatureList::IsEnabled(syncer::kSyncChromeOSAppsToggleSharing)) {
+      GetSyncService(0)->GetUserSettings()->SetAppsSyncEnabledByOs(true);
+    }
+#endif
     ASSERT_TRUE(SetupSync());
-
     embedded_test_server()->RegisterRequestHandler(base::BindLambdaForTesting(
         [this](const net::test_server::HttpRequest& request)
             -> std::unique_ptr<net::test_server::HttpResponse> {
-          if (!serve_pngs_ && base::EndsWith(request.GetURL().spec(), ".png")) {
+          if (!serve_pngs_.load() &&
+              base::EndsWith(request.GetURL().spec(), ".png")) {
             auto http_response =
                 std::make_unique<net::test_server::BasicHttpResponse>();
             http_response->set_code(net::HTTP_NOT_FOUND);
@@ -84,7 +94,7 @@ class SingleClientWebAppsSyncGeneratedIconFixSyncTest
   }
 
  protected:
-  bool serve_pngs_ = true;
+  std::atomic<bool> serve_pngs_ = true;
 
  private:
   OsIntegrationManager::ScopedSuppressForTesting os_hooks_suppress_;
@@ -100,13 +110,14 @@ IN_PROC_BROWSER_TEST_P(SingleClientWebAppsSyncGeneratedIconFixSyncTest,
 
   if (sync_broken_icons()) {
     // Cause icon downloading to fail.
-    serve_pngs_ = false;
+    serve_pngs_.store(false);
   }
 
   // Insert web app into sync profile.
   // Fields copied from chrome/test/data/web_apps/basic.json.
   GURL start_url = embedded_test_server()->GetURL("/web_apps/basic.html");
-  AppId app_id = GenerateAppId(/*manifest_id=*/absl::nullopt, start_url);
+  webapps::AppId app_id =
+      GenerateAppId(/*manifest_id=*/absl::nullopt, start_url);
   sync_pb::EntitySpecifics specifics;
   sync_pb::WebAppSpecifics& web_app_specifics = *specifics.mutable_web_app();
   web_app_specifics.set_start_url(start_url.spec());
@@ -134,12 +145,12 @@ IN_PROC_BROWSER_TEST_P(SingleClientWebAppsSyncGeneratedIconFixSyncTest,
   }
 
   // Re-enable icons if disabled.
-  serve_pngs_ = true;
+  serve_pngs_.store(true);
 
   if (wait_8_days()) {
     // Advance time beyond the fix time window.
-    provider(0).manifest_update_manager().set_time_override_for_testing(
-        base::Time::Now() + base::Days(8));
+    generated_icon_fix_util::SetNowForTesting(base::Time::Now() +
+                                              base::Days(8));
   }
 
   // Trigger manifest update.

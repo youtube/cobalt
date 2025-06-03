@@ -3,8 +3,9 @@
 // found in the LICENSE file.
 
 import './cluster_menu.js';
-import './search_query.js';
 import './history_clusters_shared_style.css.js';
+import './horizontal_carousel.js';
+import './search_query.js';
 import './shared_vars.css.js';
 import './url_visit.js';
 import 'chrome://resources/cr_elements/cr_icons.css.js';
@@ -12,7 +13,7 @@ import 'chrome://resources/polymer/v3_0/iron-collapse/iron-collapse.js';
 import 'chrome://resources/cr_elements/cr_auto_img/cr_auto_img.js';
 
 import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
-import {assert} from 'chrome://resources/js/assert_ts.js';
+import {assert} from 'chrome://resources/js/assert.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
@@ -69,7 +70,7 @@ class HistoryClusterElement extends HistoryClusterElementBase {
       /**
        * Whether the cluster is in the side panel.
        */
-      inSidePanel_: {
+      inSidePanel: {
         type: Boolean,
         value: () => loadTimeData.getBoolean('inSidePanel'),
         reflectToAttribute: true,
@@ -118,7 +119,7 @@ class HistoryClusterElement extends HistoryClusterElementBase {
   query: string;
   private callbackRouter_: PageCallbackRouter;
 
-  private inSidePanel_: boolean;
+  inSidePanel: boolean;
   private onVisitsHiddenListenerId_: number|null = null;
   private onVisitsRemovedListenerId_: number|null = null;
   private unusedLabel_: string;
@@ -191,10 +192,18 @@ class HistoryClusterElement extends HistoryClusterElementBase {
 
   private onOpenAllVisits_() {
     BrowserProxyImpl.getInstance().handler.openVisitUrlsInTabGroup(
-        this.cluster.visits);
+        this.cluster.visits, this.cluster.tabGroupName ?? null);
 
     MetricsProxyImpl.getInstance().recordClusterAction(
         ClusterAction.kOpenedInTabGroup, this.index);
+  }
+
+  private onHideAllVisits_() {
+    this.dispatchEvent(new CustomEvent('hide-visits', {
+      bubbles: true,
+      composed: true,
+      detail: this.cluster.visits,
+    }));
   }
 
   private onRemoveAllVisits_() {
@@ -239,7 +248,7 @@ class HistoryClusterElement extends HistoryClusterElementBase {
    */
   private onBrowserIdle_(): Promise<void> {
     return new Promise(resolve => {
-      window.requestIdleCallback(() => {
+      requestIdleCallback(() => {
         resolve();
       });
     });
@@ -310,7 +319,7 @@ class HistoryClusterElement extends HistoryClusterElementBase {
   private computeRelatedSearches_(): SearchQuery[] {
     return this.cluster.relatedSearches.filter(
         (query: SearchQuery, index: number) => {
-          return query && !(this.inSidePanel_ && index > 2);
+          return query && !(this.inSidePanel && index > 2);
         });
   }
 
@@ -322,7 +331,7 @@ class HistoryClusterElement extends HistoryClusterElementBase {
     // iron-list can't handle our size changing because of loading an image
     // without an explicit event. But we also can't send this until we have
     // updated the image property, so send it on the next idle.
-    window.requestIdleCallback(() => {
+    requestIdleCallback(() => {
       this.dispatchEvent(new CustomEvent('iron-resize', {
         bubbles: true,
         composed: true,

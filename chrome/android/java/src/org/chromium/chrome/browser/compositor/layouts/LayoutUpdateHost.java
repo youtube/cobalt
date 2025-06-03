@@ -30,9 +30,10 @@ public interface LayoutUpdateHost {
     default void requestUpdate(Runnable onUpdateEffective) {}
 
     /**
-     * Tells its host {@link android.view.View} that the hide will be an animation away.
-     * This is to be called from a {@link Layout}.
-     * @param nextTabId          The id of the next tab.
+     * Tells its host {@link android.view.View} that the hide will be an animation away. This is to
+     * be called from a {@link Layout}.
+     *
+     * @param nextTabId The id of the next tab.
      * @param hintAtTabSelection Whether or not to hint about a new tab being selected.
      */
     void startHiding(int nextTabId, boolean hintAtTabSelection);

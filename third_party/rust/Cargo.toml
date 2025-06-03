@@ -9,44 +9,72 @@ edition = "2021"
 members = ["cxxbridge_cmd/v1/crate"]
 
 [dependencies]
+anyhow = "1"
 bitflags = "1"
+cfg-if = "1"
 cxx = "1"
 cxxbridge-cmd = "1"
+font-types = "0.4"
+hex = "0.4"
+hex-literal = "0.4"
 lazy_static = "1"
+log = "0.4"
 proc-macro2 = "1"
+qr_code = "2"
 quote = "1"
-rstest = "0.12"
+rand = "0.8"
+rand_pcg = "0.3"
+read-fonts = "0.11"
+regex = "1"
+rstest_reuse = "0.5"
+rustc-demangle-capi = "0.1"
 serde = "1"
 serde_json = "1"
+skrifa = "0.10"
 small_ctor = "0.1"
 static_assertions = "1"
+wycheproof = "0.4"
 
 [dependencies.memoffset]
 version = "0.6"
 features = ["unstable_const"]
 
+[dependencies.rstest]
+default-features = false
+version = "0.17"
+
 [dependencies.rustversion]
 version = "1"
-build-script-outputs = ["version.rs"]
 
 [dependencies.serde_json_lenient]
 version = "0.1"
 features = ["unbounded_depth", "float_roundtrip"]
 
 [dependencies.syn]
-version = "1"
+version = "2"
 features = ["full"]
 
 [dependencies.unicode-linebreak]
 version = "0.1"
-build-script-outputs = ["tables.rs"]
 [patch.crates-io.aho-corasick_v0_7]
 path = "aho_corasick/v0_7/crate"
 package = "aho-corasick"
 
+[patch.crates-io.anstyle_v1]
+path = "anstyle/v1/crate"
+package = "anstyle"
+
+[patch.crates-io.anyhow_v1]
+path = "anyhow/v1/crate"
+package = "anyhow"
+
 [patch.crates-io.autocfg_v1]
 path = "autocfg/v1/crate"
 package = "autocfg"
+
+[patch.crates-io.base64_v0_13]
+path = "base64/v0_13/crate"
+package = "base64"
 
 [patch.crates-io.bitflags_v1]
 path = "bitflags/v1/crate"
@@ -56,8 +84,12 @@ package = "bitflags"
 path = "cfg_if/v1/crate"
 package = "cfg-if"
 
-[patch.crates-io.clap_lex_v0_3]
-path = "clap_lex/v0_3/crate"
+[patch.crates-io.clap_builder_v4]
+path = "clap_builder/v4/crate"
+package = "clap_builder"
+
+[patch.crates-io.clap_lex_v0_5]
+path = "clap_lex/v0_5/crate"
 package = "clap_lex"
 
 [patch.crates-io.clap_v4]
@@ -80,9 +112,21 @@ package = "cxxbridge-cmd"
 path = "cxxbridge_macro/v1/crate"
 package = "cxxbridge-macro"
 
-[patch.crates-io.itoa_v0_4]
-path = "itoa/v0_4/crate"
-package = "itoa"
+[patch.crates-io.font-types_v0_4]
+path = "font_types/v0_4/crate"
+package = "font-types"
+
+[patch.crates-io.getrandom_v0_2]
+path = "getrandom/v0_2/crate"
+package = "getrandom"
+
+[patch.crates-io.hex-literal_v0_4]
+path = "hex_literal/v0_4/crate"
+package = "hex-literal"
+
+[patch.crates-io.hex_v0_4]
+path = "hex/v0_4/crate"
+package = "hex"
 
 [patch.crates-io.itoa_v1]
 path = "itoa/v1/crate"
@@ -100,6 +144,10 @@ package = "libc"
 path = "link_cplusplus/v1/crate"
 package = "link-cplusplus"
 
+[patch.crates-io.log_v0_4]
+path = "log/v0_4/crate"
+package = "log"
+
 [patch.crates-io.memchr_v2]
 path = "memchr/v2/crate"
 package = "memchr"
@@ -108,17 +156,41 @@ package = "memchr"
 path = "memoffset/v0_6/crate"
 package = "memoffset"
 
-[patch.crates-io.os_str_bytes_v6]
-path = "os_str_bytes/v6/crate"
-package = "os_str_bytes"
+[patch.crates-io.ppv-lite86_v0_2]
+path = "ppv_lite86/v0_2/crate"
+package = "ppv-lite86"
 
 [patch.crates-io.proc-macro2_v1]
 path = "proc_macro2/v1/crate"
 package = "proc-macro2"
 
+[patch.crates-io.qr_code_v2]
+path = "qr_code/v2/crate"
+package = "qr_code"
+
 [patch.crates-io.quote_v1]
 path = "quote/v1/crate"
 package = "quote"
+
+[patch.crates-io.rand_chacha_v0_3]
+path = "rand_chacha/v0_3/crate"
+package = "rand_chacha"
+
+[patch.crates-io.rand_core_v0_6]
+path = "rand_core/v0_6/crate"
+package = "rand_core"
+
+[patch.crates-io.rand_pcg_v0_3]
+path = "rand_pcg/v0_3/crate"
+package = "rand_pcg"
+
+[patch.crates-io.rand_v0_8]
+path = "rand/v0_8/crate"
+package = "rand"
+
+[patch.crates-io.read-fonts_v0_11]
+path = "read_fonts/v0_11/crate"
+package = "read-fonts"
 
 [patch.crates-io.regex-syntax_v0_6]
 path = "regex_syntax/v0_6/crate"
@@ -128,9 +200,25 @@ package = "regex-syntax"
 path = "regex/v1/crate"
 package = "regex"
 
-[patch.crates-io.rstest_v0_12]
-path = "rstest/v0_12/crate"
+[patch.crates-io.rstest_macros_v0_17]
+path = "rstest_macros/v0_17/crate"
+package = "rstest_macros"
+
+[patch.crates-io.rstest_reuse_v0_5]
+path = "rstest_reuse/v0_5/crate"
+package = "rstest_reuse"
+
+[patch.crates-io.rstest_v0_17]
+path = "rstest/v0_17/crate"
 package = "rstest"
+
+[patch.crates-io.rustc-demangle-capi_v0_1]
+path = "rustc_demangle_capi/v0_1/crate"
+package = "rustc-demangle-capi"
+
+[patch.crates-io.rustc-demangle_v0_1]
+path = "rustc_demangle/v0_1/crate"
+package = "rustc-demangle"
 
 [patch.crates-io.rustc_version_v0_4]
 path = "rustc_version/v0_4/crate"
@@ -164,6 +252,10 @@ package = "serde_json"
 path = "serde/v1/crate"
 package = "serde"
 
+[patch.crates-io.skrifa_v0_10]
+path = "skrifa/v0_10/crate"
+package = "skrifa"
+
 [patch.crates-io.small_ctor_v0_1]
 path = "small_ctor/v0_1/crate"
 package = "small_ctor"
@@ -178,6 +270,10 @@ package = "strsim"
 
 [patch.crates-io.syn_v1]
 path = "syn/v1/crate"
+package = "syn"
+
+[patch.crates-io.syn_v2]
+path = "syn/v2/crate"
 package = "syn"
 
 [patch.crates-io.termcolor_v1]
@@ -203,3 +299,7 @@ package = "winapi-util"
 [patch.crates-io.winapi_v0_3]
 path = "winapi/v0_3/crate"
 package = "winapi"
+
+[patch.crates-io.wycheproof_v0_4]
+path = "wycheproof/v0_4/crate"
+package = "wycheproof"

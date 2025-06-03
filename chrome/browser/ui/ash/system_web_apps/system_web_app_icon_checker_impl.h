@@ -21,7 +21,7 @@ class SystemWebAppIconCheckerImpl : public SystemWebAppIconChecker {
   ~SystemWebAppIconCheckerImpl() override;
 
   // SystemWebAppIconChecker:
-  void StartCheck(const std::vector<web_app::AppId>& app_ids,
+  void StartCheck(const std::vector<webapps::AppId>& app_ids,
                   base::OnceCallback<void(IconState)> callback) override;
   void StopCheck() override;
 
@@ -31,7 +31,7 @@ class SystemWebAppIconCheckerImpl : public SystemWebAppIconChecker {
       std::vector<absl::optional<web_app::WebAppIconDiagnostic::Result>>
           results);
 
-  base::raw_ptr<Profile> profile_;
+  raw_ptr<Profile> profile_;
   std::vector<std::unique_ptr<web_app::WebAppIconDiagnostic>> checkers_;
   base::WeakPtrFactory<SystemWebAppIconCheckerImpl> weak_ptr_factory_{this};
 };

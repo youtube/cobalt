@@ -4,16 +4,15 @@
 
 package org.chromium.components.signin.identitymanager;
 
-import android.accounts.Account;
-
 import androidx.annotation.MainThread;
 import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.Promise;
 import org.chromium.base.ThreadUtils;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.NativeMethods;
 import org.chromium.components.signin.AccessTokenData;
 import org.chromium.components.signin.AccountManagerFacade;
 import org.chromium.components.signin.AccountManagerFacadeProvider;
@@ -21,6 +20,10 @@ import org.chromium.components.signin.AccountUtils;
 import org.chromium.components.signin.AuthException;
 import org.chromium.components.signin.ConnectionRetry;
 import org.chromium.components.signin.ConnectionRetry.AuthTask;
+import org.chromium.components.signin.SigninFeatureMap;
+import org.chromium.components.signin.SigninFeatures;
+import org.chromium.components.signin.base.CoreAccountId;
+import org.chromium.components.signin.base.CoreAccountInfo;
 
 import java.util.List;
 
@@ -82,9 +85,10 @@ final class ProfileOAuth2TokenServiceDelegate {
     private void getAccessTokenFromNative(
             String accountEmail, String scope, final long nativeCallback) {
         assert accountEmail != null : "Account email cannot be null!";
-        mAccountManagerFacade.getAccounts().then(accounts -> {
-            final Account account = AccountUtils.findAccountByName(accounts, accountEmail);
-            if (account == null) {
+        mAccountManagerFacade.getCoreAccountInfos().then(coreAccountInfos -> {
+            final CoreAccountInfo coreAccountInfo =
+                    AccountUtils.findCoreAccountInfoByEmail(coreAccountInfos, accountEmail);
+            if (coreAccountInfo == null) {
                 ThreadUtils.postOnUiThread(() -> {
                     ProfileOAuth2TokenServiceDelegateJni.get().onOAuth2TokenFetched(
                             null, AccessTokenData.NO_KNOWN_EXPIRATION_TIME, false, nativeCallback);
@@ -92,7 +96,7 @@ final class ProfileOAuth2TokenServiceDelegate {
                 return;
             }
             String oauth2Scope = OAUTH2_SCOPE_PREFIX + scope;
-            getAccessToken(account, oauth2Scope, new GetAccessTokenCallback() {
+            getAccessToken(coreAccountInfo, oauth2Scope, new GetAccessTokenCallback() {
                 @Override
                 public void onGetTokenSuccess(AccessTokenData token) {
                     ProfileOAuth2TokenServiceDelegateJni.get().onOAuth2TokenFetched(
@@ -117,11 +121,12 @@ final class ProfileOAuth2TokenServiceDelegate {
      * @param callback called on successful and unsuccessful fetching of auth token.
      */
     @MainThread
-    void getAccessToken(Account account, String scope, GetAccessTokenCallback callback) {
+    void getAccessToken(
+            CoreAccountInfo coreAccountInfo, String scope, GetAccessTokenCallback callback) {
         ConnectionRetry.runAuthTask(new AuthTask<AccessTokenData>() {
             @Override
             public AccessTokenData run() throws AuthException {
-                return mAccountManagerFacade.getAccessToken(account, scope);
+                return mAccountManagerFacade.getAccessToken(coreAccountInfo, scope);
             }
             @Override
             public void onSuccess(AccessTokenData token) {
@@ -155,27 +160,55 @@ final class ProfileOAuth2TokenServiceDelegate {
      * Called by the native method
      * ProfileOAuth2TokenServiceDelegate::RefreshTokenIsAvailable
      * to check whether the account has an OAuth2 refresh token.
+     * TODO(crbug.com/1477628): Use CoreAccountId instead of string email.
      */
     @VisibleForTesting
     @CalledByNative
-    boolean hasOAuth2RefreshToken(String accountName) {
-        Promise<List<Account>> promise = mAccountManagerFacade.getAccounts();
+    boolean hasOAuth2RefreshToken(String accountEmail) {
+        Promise<List<CoreAccountInfo>> promise = mAccountManagerFacade.getCoreAccountInfos();
         return promise.isFulfilled()
-                && AccountUtils.findAccountByName(promise.getResult(), accountName) != null;
+                && AccountUtils.findCoreAccountInfoByEmail(promise.getResult(), accountEmail)
+                != null;
     }
 
     @VisibleForTesting
     @CalledByNative
-    void seedAndReloadAccountsWithPrimaryAccount(@Nullable String primaryAccountId) {
+    void legacySeedAndReloadAccountsWithPrimaryAccount(@Nullable String primaryAccountId) {
+        if (SigninFeatureMap.isEnabled(SigninFeatures.SEED_ACCOUNTS_REVAMP)) {
+            throw new IllegalStateException(
+                    "This method should never be called when SeedAccountsRevamp is enabled");
+        }
         ThreadUtils.assertOnUiThread();
-        mAccountTrackerService.seedAccountsIfNeeded(() -> {
-            final List<Account> accounts = AccountUtils.getAccountsIfFulfilledOrEmpty(
-                    AccountManagerFacadeProvider.getInstance().getAccounts());
-            ProfileOAuth2TokenServiceDelegateJni.get()
-                    .reloadAllAccountsWithPrimaryAccountAfterSeeding(
-                            mNativeProfileOAuth2TokenServiceDelegate, primaryAccountId,
-                            AccountUtils.toAccountNames(accounts).toArray(new String[0]));
-        });
+        mAccountTrackerService.legacySeedAccountsIfNeeded(
+                () -> {
+                    final List<CoreAccountInfo> fetchedCoreAccountInfos =
+                            AccountUtils.getCoreAccountInfosIfFulfilledOrEmpty(
+                                    AccountManagerFacadeProvider.getInstance()
+                                            .getCoreAccountInfos());
+                    ProfileOAuth2TokenServiceDelegateJni.get()
+                            .reloadAllAccountsWithPrimaryAccountAfterSeeding(
+                                    mNativeProfileOAuth2TokenServiceDelegate,
+                                    primaryAccountId,
+                                    AccountUtils.toAccountEmails(fetchedCoreAccountInfos)
+                                            .toArray(new String[0]));
+                });
+    }
+
+    @VisibleForTesting
+    // TODO(crbug/1491005): Implement the native call to this method and then remove if from the
+    // Java layer.
+    void seedAndReloadAccountsWithPrimaryAccount(
+            List<CoreAccountInfo> coreAccountInfos, @Nullable CoreAccountId primaryAccountId) {
+        ThreadUtils.assertOnUiThread();
+        if (!SigninFeatureMap.isEnabled(SigninFeatures.SEED_ACCOUNTS_REVAMP)) {
+            throw new IllegalStateException(
+                    "This method should never be called when SeedAccountsRevamp is disabled");
+        }
+        ProfileOAuth2TokenServiceDelegateJni.get()
+                .seedAccountsThenReloadAllAccountsWithPrimaryAccount(
+                        mNativeProfileOAuth2TokenServiceDelegate,
+                        coreAccountInfos.toArray(new CoreAccountInfo[0]),
+                        primaryAccountId);
     }
 
     @NativeMethods
@@ -192,8 +225,15 @@ final class ProfileOAuth2TokenServiceDelegate {
          */
         void onOAuth2TokenFetched(String authToken, long expirationTimeSecs,
                 boolean isTransientError, long nativeCallback);
+
         void reloadAllAccountsWithPrimaryAccountAfterSeeding(
-                long nativeProfileOAuth2TokenServiceDelegateAndroid, @Nullable String accountId,
-                String[] deviceAccountNames);
+                long nativeProfileOAuth2TokenServiceDelegateAndroid,
+                @Nullable String accountId,
+                String[] deviceAccountEmails);
+
+        void seedAccountsThenReloadAllAccountsWithPrimaryAccount(
+                long nativeProfileOAuth2TokenServiceDelegateAndroid,
+                CoreAccountInfo[] coreAccountInfos,
+                @Nullable CoreAccountId primaryAccountId);
     }
 }

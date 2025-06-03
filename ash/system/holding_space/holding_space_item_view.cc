@@ -7,6 +7,7 @@
 #include "ash/public/cpp/holding_space/holding_space_client.h"
 #include "ash/public/cpp/holding_space/holding_space_constants.h"
 #include "ash/public/cpp/holding_space/holding_space_controller.h"
+#include "ash/public/cpp/holding_space/holding_space_file.h"
 #include "ash/public/cpp/holding_space/holding_space_item.h"
 #include "ash/public/cpp/holding_space/holding_space_progress.h"
 #include "ash/public/cpp/holding_space/holding_space_util.h"
@@ -17,6 +18,7 @@
 #include "ash/system/holding_space/holding_space_util.h"
 #include "ash/system/holding_space/holding_space_view_delegate.h"
 #include "base/functional/bind.h"
+#include "chromeos/constants/chromeos_features.h"
 #include "ui/base/class_property.h"
 #include "ui/base/dragdrop/drag_drop_types.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
@@ -148,7 +150,10 @@ HoldingSpaceItemView::HoldingSpaceItemView(HoldingSpaceViewDelegate* delegate,
 
   // Background.
   SetBackground(views::CreateThemedRoundedRectBackground(
-      kColorAshControlBackgroundColorInactive, kHoldingSpaceCornerRadius));
+      chromeos::features::IsJellyEnabled()
+          ? static_cast<ui::ColorId>(cros_tokens::kCrosSysSystemOnBase)
+          : kColorAshControlBackgroundColorInactive,
+      kHoldingSpaceCornerRadius));
 
   // Layer.
   SetPaintToLayer();
@@ -337,6 +342,7 @@ HoldingSpaceItemView::CreateCheckmarkBuilder() {
 }
 
 views::Builder<views::View> HoldingSpaceItemView::CreatePrimaryActionBuilder(
+    bool apply_accent_colors,
     const gfx::Size& min_size) {
   DCHECK(!primary_action_container_);
   DCHECK(!primary_action_cancel_);
@@ -373,14 +379,28 @@ views::Builder<views::View> HoldingSpaceItemView::CreatePrimaryActionBuilder(
           views::Builder<views::ToggleImageButton>()
               .CopyAddressTo(&primary_action_pin_)
               .SetID(kHoldingSpaceItemPinButtonId)
+              .SetBackground(
+                  apply_accent_colors
+                      ? holding_space_util::CreateCircleBackground(
+                            cros_tokens::kCrosSysSystemPrimaryContainer)
+                      : nullptr)
               .SetCallback(base::BindRepeating(
                   &HoldingSpaceItemView::OnPrimaryActionPressed,
                   base::Unretained(this)))
               .SetFocusBehavior(views::View::FocusBehavior::NEVER)
-              .SetImageModel(views::Button::STATE_NORMAL,
-                             ui::ImageModel::FromVectorIcon(
-                                 views::kUnpinIcon, kColorAshButtonIconColor,
-                                 kHoldingSpaceIconSize))
+              .SetImageModel(
+                  views::Button::STATE_NORMAL,
+                  ui::ImageModel::FromVectorIcon(
+                      views::kUnpinIcon,
+                      apply_accent_colors
+                          ? static_cast<ui::ColorId>(
+                                cros_tokens::kCrosSysSystemOnPrimaryContainer)
+                          : static_cast<ui::ColorId>(kColorAshButtonIconColor),
+                      kHoldingSpaceIconSize))
+              .SetToggledBackground(
+                  apply_accent_colors
+                      ? views::CreateSolidBackground(SK_ColorTRANSPARENT)
+                      : nullptr)
               .SetToggledImageModel(
                   views::Button::STATE_NORMAL,
                   ui::ImageModel::FromVectorIcon(views::kPinIcon,
@@ -455,7 +475,7 @@ void HoldingSpaceItemView::OnPrimaryActionPressed() {
   // Pin.
   const bool is_item_pinned =
       HoldingSpaceController::Get()->model()->ContainsItem(
-          HoldingSpaceItem::Type::kPinnedFile, item()->file_path());
+          HoldingSpaceItem::Type::kPinnedFile, item()->file().file_path);
 
   // Unpinning `item()` may result in the destruction of this view.
   auto weak_ptr = weak_factory_.GetWeakPtr();
@@ -490,7 +510,7 @@ void HoldingSpaceItemView::UpdatePrimaryAction() {
   // Pin.
   const bool is_item_pinned =
       HoldingSpaceController::Get()->model()->ContainsItem(
-          HoldingSpaceItem::Type::kPinnedFile, item()->file_path());
+          HoldingSpaceItem::Type::kPinnedFile, item()->file().file_path);
   primary_action_pin_->SetToggled(!is_item_pinned);
   primary_action_pin_->SetVisible(!is_item_in_progress);
 

@@ -65,10 +65,9 @@ declare_args() {
   angle_glesv2_extension = ""
 
   # Enable share context lock. If it is false, the client need to use gl calls in a threadsafe way.
-  # Chromium only uses share contexts on the GPU thread.
-  # angle_deqp_tests contains threading related tests.
+  # Chrome DrDC needs thread safe ANGLE on Android
   angle_enable_share_context_lock =
-      !build_with_chromium || build_angle_deqp_tests
+      is_android || !build_with_chromium || build_angle_deqp_tests
 
   if (is_android) {
     # Use Android TLS slot to store current context.
@@ -76,6 +75,23 @@ declare_args() {
   }
 
   angle_enable_global_mutex_recursion = is_android && angle_enable_vulkan
+
+  # Potentially can be enabled for other platforms, but limiting to Android platform for now.
+  # Chromium may have problems (requires verification), disabled for safety.
+  angle_enable_global_mutex_load_time_allocate =
+      is_android && !build_with_chromium
+
+  angle_enable_context_mutex = true
+}
+
+declare_args() {
+  # May need to enable to fix recursion when vkAcquireNextImageKHR() returns back to ANGLE from
+  # eglClientWaitSyncKHR(). May happen if Android Presentation Engine uses
+  # EGL_KHR_fence_sync instead of EGL_ANDROID_native_fence_sync for synchronization.
+  # To check call: adb shell "dumpsys SurfaceFlinger | grep 'Sync configuration'"
+  # The Android's "testDrawingHardwareBitmapNotLeaking" test may be used for testing.
+  # Disable this option to save performance on platforms that does not require recursion.
+  angle_enable_context_mutex_recursion = angle_enable_global_mutex_recursion
 }
 
 if (angle_build_all) {
@@ -167,6 +183,19 @@ config("internal_config") {
     defines += [ "ANGLE_ENABLE_GLOBAL_MUTEX_RECURSION=1" ]
   }
 
+  if (angle_enable_global_mutex_load_time_allocate) {
+    defines += [ "ANGLE_ENABLE_GLOBAL_MUTEX_LOAD_TIME_ALLOCATE=1" ]
+  }
+
+  if (angle_enable_context_mutex && angle_enable_share_context_lock &&
+      !angle_force_context_check_every_call) {
+    defines += [ "ANGLE_ENABLE_CONTEXT_MUTEX=1" ]
+  }
+
+  if (angle_enable_context_mutex_recursion) {
+    defines += [ "ANGLE_ENABLE_CONTEXT_MUTEX_RECURSION=1" ]
+  }
+
   # Enables debug/trace-related functionality, including logging every GLES/EGL API command to the
   # "angle_debug.txt" file on desktop.  Enables debug markers for AGI, but must also set
   # angle_enable_annotator_run_time_checks to improve performance.
@@ -216,6 +245,10 @@ config("internal_config") {
       defines += [ "ANGLE_VULKAN_DISPLAY_MODE_SIMPLE" ]
     } else if (angle_vulkan_display_mode == "headless") {
       defines += [ "ANGLE_VULKAN_DISPLAY_MODE_HEADLESS" ]
+    } else if (angle_vulkan_display_mode == "offscreen") {
+      defines += [ "ANGLE_VULKAN_DISPLAY_MODE_OFFSCREEN" ]
+    } else {
+      assert(false)
     }
   }
 
@@ -411,7 +444,7 @@ config("angle_common_config") {
 
   defines = []
   if (angle_delegate_workers) {
-    defines += [ "ANGLE_DELEGATE_WORKERS" ]
+    defines += [ "ANGLE_DELEGATE_WORKERS=1" ]
   }
 }
 
@@ -696,14 +729,12 @@ template("translator_lib") {
     }
 
     if (!invoker.gl_d3d_only) {
-      if (angle_enable_vulkan || use_fuzzing_engine ||
-          angle_enable_msl_through_spirv) {
+      if (angle_enable_vulkan || use_fuzzing_engine) {
         _needs_glsl_base = true
         _needs_glsl_and_vulkan_base = true
         _uses_spirv = true
 
-        # This translator is needed by metal backend also.
-        sources += angle_translator_lib_vulkan_sources
+        sources += angle_translator_lib_spirv_sources
       }
 
       if (angle_enable_vulkan || use_fuzzing_engine) {
@@ -711,11 +742,8 @@ template("translator_lib") {
       }
 
       if (angle_enable_metal) {
-        sources += angle_translator_lib_metal_sources
+        sources += angle_translator_lib_msl_sources
         defines += [ "ANGLE_ENABLE_METAL" ]
-        if (angle_enable_msl_through_spirv) {
-          defines += [ "ANGLE_ENABLE_METAL_SPIRV" ]
-        }
       }
     }
 
@@ -796,6 +824,7 @@ action("angle_program_version_id") {
   visibility = [ ":angle_version" ]
 
   inputs = angle_code_affecting_program_serialize
+  deps = angle_dependencies_affecting_program_serialize
 
   args = [
     rebase_path(_program_version_header, root_build_dir),
@@ -967,6 +996,13 @@ config("libANGLE_config") {
   if (angle_enable_perf_counter_output) {
     defines += [ "ANGLE_ENABLE_PERF_COUNTER_OUTPUT=1" ]
   }
+
+  if (!is_android) {
+    # b/283233503
+    # Only export the ANGLE platform methods on Android, the EGL loader depends on them for
+    # detecting ANGLE. Normally, users are expected to load them through eglGetProcAddress.
+    defines += [ "ANGLE_PLATFORM_EXPORT=" ]
+  }
 }
 
 angle_source_set("libANGLE_headers") {
@@ -1011,6 +1047,7 @@ angle_source_set("libANGLE_no_vulkan") {
   defines = []
   if (angle_enable_gl_desktop_frontend) {
     defines += [ "ANGLE_ENABLE_GL_DESKTOP_FRONTEND" ]
+    sources += libangle_gl_sources
   }
 
   include_dirs = []

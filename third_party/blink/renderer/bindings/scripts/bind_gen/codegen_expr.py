@@ -112,9 +112,10 @@ def expr_and(terms):
     terms = list(filter(lambda x: not x.is_always_true, terms))
     if not terms:
         return _Expr(True)
+    terms = expr_uniq(terms)
     if len(terms) == 1:
         return terms[0]
-    return _binary_op(" && ", expr_uniq(terms))
+    return _binary_op(" && ", terms)
 
 
 def expr_or(terms):
@@ -127,9 +128,10 @@ def expr_or(terms):
     terms = list(filter(lambda x: not x.is_always_false, terms))
     if not terms:
         return _Expr(False)
+    terms = expr_uniq(terms)
     if len(terms) == 1:
         return terms[0]
-    return _binary_op(" || ", expr_uniq(terms))
+    return _binary_op(" || ", terms)
 
 
 def expr_uniq(terms):
@@ -161,11 +163,13 @@ def expr_from_exposure(exposure,
     assert (global_names is None
             or (isinstance(global_names, (list, tuple))
                 and all(isinstance(name, str) for name in global_names)))
+    assert isinstance(may_use_feature_selector, bool)
 
     # The property exposures are categorized into three.
     # - Unconditional: Always exposed.
     # - Context-independent: Enabled per v8::Isolate.
-    # - Context-dependent: Enabled per v8::Context, e.g. origin trials.
+    # - Context-dependent: Enabled per v8::Context, e.g. origin trials, browser
+    #   controlled features.
     #
     # Context-dependent properties can be installed in two phases.
     # - The first phase installs all the properties that are associated with the
@@ -215,14 +219,23 @@ def expr_from_exposure(exposure,
 
     def ref_selected(features):
         feature_tokens = map(
-            lambda feature: "OriginTrialFeature::k{}".format(feature),
-            features)
+            lambda feature: "mojom::blink::OriginTrialFeature::k{}".format(
+                feature), features)
         return _Expr("${{feature_selector}}.IsAnyOf({})".format(
             ", ".join(feature_tokens)))
 
-    # [CrossOriginIsolated]
+    # [CrossOriginIsolated], [CrossOriginIsolatedOrRuntimeEnabled]
     if exposure.only_in_coi_contexts:
         cross_origin_isolated_term = _Expr("${is_cross_origin_isolated}")
+    elif exposure.only_in_coi_contexts_or_runtime_enabled_features:
+        cross_origin_isolated_term = expr_or([
+            _Expr("${is_cross_origin_isolated}"),
+            expr_or(
+                list(
+                    map(
+                        ref_enabled, exposure.
+                        only_in_coi_contexts_or_runtime_enabled_features)))
+        ])
     else:
         cross_origin_isolated_term = _Expr(True)
 
@@ -272,7 +285,7 @@ def expr_from_exposure(exposure,
             matched_global_count += 1
             if entry.feature:
                 cond_exposed_terms.append(ref_enabled(entry.feature))
-                if entry.feature.is_context_dependent:
+                if entry.feature.is_origin_trial:
                     feature_selector_names.append(entry.feature)
         assert (not exposure.global_names_and_features
                 or matched_global_count > 0)
@@ -303,7 +316,7 @@ def expr_from_exposure(exposure,
             else:
                 cond_exposed_terms.append(
                     expr_and([pred_term, ref_enabled(entry.feature)]))
-                if entry.feature.is_context_dependent:
+                if entry.feature.is_origin_trial:
                     exposed_selector_terms.append(
                         expr_and([pred_term,
                                   ref_selected([entry.feature])]))
@@ -312,8 +325,8 @@ def expr_from_exposure(exposure,
     if exposure.runtime_enabled_features:
         feature_enabled_terms.extend(
             map(ref_enabled, exposure.runtime_enabled_features))
-        feature_selector_names.extend(
-            exposure.context_dependent_runtime_enabled_features)
+        if exposure.origin_trial_features:
+            feature_selector_names.extend(exposure.origin_trial_features)
 
     # [ContextEnabled]
     if exposure.context_enabled_features:

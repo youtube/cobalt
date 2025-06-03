@@ -45,6 +45,11 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
+#include "components/signin/internal/identity_manager/token_binding_helper.h"  // nogncheck
+#include "components/unexportable_keys/fake_unexportable_key_service.h"  // nogncheck
+#endif  // BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
+
 class MutableProfileOAuth2TokenServiceDelegateTest
     : public testing::Test,
       public OAuth2AccessTokenConsumer,
@@ -98,19 +103,34 @@ class MutableProfileOAuth2TokenServiceDelegateTest
     token_web_data_->Init(base::NullCallback());
   }
 
-  void AddSuccessfulOAuhTokenResponse() {
+  void AddSuccessfulOAuthTokenResponse() {
     client_->GetTestURLLoaderFactory()->AddResponse(
         GaiaUrls::GetInstance()->oauth2_token_url().spec(),
         GetValidTokenResponse("token", 3600));
   }
 
+  void AddSuccessfulBoundTokenResponse() {
+    client_->GetTestURLLoaderFactory()->AddResponse(
+        GaiaUrls::GetInstance()->oauth2_issue_token_url().spec(),
+        GetValidBoundTokenResponse("access_token", base::Seconds(3600),
+                                   {"scope"}));
+  }
+
   std::unique_ptr<MutableProfileOAuth2TokenServiceDelegate>
   CreateOAuth2ServiceDelegate(
-      signin::AccountConsistencyMethod account_consistency) {
+      signin::AccountConsistencyMethod account_consistency
+#if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
+      ,
+      std::unique_ptr<TokenBindingHelper> token_binding_helper = nullptr
+#endif  // BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
+  ) {
     return std::make_unique<MutableProfileOAuth2TokenServiceDelegate>(
         client_.get(), &account_tracker_service_,
         network::TestNetworkConnectionTracker::GetInstance(), token_web_data_,
         account_consistency, revoke_all_tokens_on_load_,
+#if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
+        std::move(token_binding_helper),
+#endif  // BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
         MutableProfileOAuth2TokenServiceDelegate::FixRequestErrorCallback());
   }
 
@@ -816,7 +836,7 @@ TEST_F(MutableProfileOAuth2TokenServiceDelegateTest, FetchPersistentError) {
             oauth2_service_delegate_->GetAuthError(account_id));
 
   // Create a "success" fetch we don't expect to get called.
-  AddSuccessfulOAuhTokenResponse();
+  AddSuccessfulOAuthTokenResponse();
 
   EXPECT_EQ(0, access_token_success_count_);
   EXPECT_EQ(0, access_token_failure_count_);
@@ -845,7 +865,7 @@ TEST_F(MutableProfileOAuth2TokenServiceDelegateTest, RetryBackoff) {
             oauth2_service_delegate_->GetAuthError(account_id));
 
   // Create a "success" fetch we don't expect to get called just yet.
-  AddSuccessfulOAuhTokenResponse();
+  AddSuccessfulOAuthTokenResponse();
 
   // Transient error will repeat until backoff period expires.
   EXPECT_EQ(0, access_token_success_count_);
@@ -888,7 +908,7 @@ TEST_F(MutableProfileOAuth2TokenServiceDelegateTest, ResetBackoff) {
             oauth2_service_delegate_->GetAuthError(account_id));
 
   // Create a "success" fetch we don't expect to get called just yet.
-  AddSuccessfulOAuhTokenResponse();
+  AddSuccessfulOAuthTokenResponse();
 
   // Transient error will repeat until backoff period expires.
   EXPECT_EQ(0, access_token_success_count_);
@@ -914,200 +934,6 @@ TEST_F(MutableProfileOAuth2TokenServiceDelegateTest, ResetBackoff) {
   EXPECT_EQ(1, access_token_success_count_);
   EXPECT_EQ(1, access_token_failure_count_);
 }
-
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-TEST_F(MutableProfileOAuth2TokenServiceDelegateTest, CanonicalizeAccountId) {
-  pref_service_.SetInteger(prefs::kAccountIdMigrationState,
-                           AccountTrackerService::MIGRATION_NOT_STARTED);
-  pref_service_.SetBoolean(prefs::kTokenServiceDiceCompatible, true);
-  InitializeOAuth2ServiceDelegate(signin::AccountConsistencyMethod::kDice);
-  std::map<std::string, std::string> tokens;
-  tokens["AccountId-user@gmail.com"] = "refresh_token";
-  tokens["AccountId-Foo.Bar@gmail.com"] = "refresh_token";
-  tokens["AccountId-12345"] = "refresh_token";
-
-  oauth2_service_delegate_->LoadAllCredentialsIntoMemory(tokens);
-
-  EXPECT_TRUE(oauth2_service_delegate_->RefreshTokenIsAvailable(
-      CoreAccountId::FromEmail("user@gmail.com")));
-  EXPECT_TRUE(oauth2_service_delegate_->RefreshTokenIsAvailable(
-      CoreAccountId::FromEmail("foobar@gmail.com")));
-  EXPECT_TRUE(oauth2_service_delegate_->RefreshTokenIsAvailable(
-      CoreAccountId::FromGaiaId("12345")));
-}
-
-TEST_F(MutableProfileOAuth2TokenServiceDelegateTest,
-       CanonAndNonCanonAccountId) {
-  pref_service_.SetBoolean(prefs::kTokenServiceDiceCompatible, true);
-  pref_service_.SetInteger(prefs::kAccountIdMigrationState,
-                           AccountTrackerService::MIGRATION_NOT_STARTED);
-  InitializeOAuth2ServiceDelegate(signin::AccountConsistencyMethod::kDice);
-  std::map<std::string, std::string> tokens;
-  tokens["AccountId-Foo.Bar@gmail.com"] = "bad_token";
-  tokens["AccountId-foobar@gmail.com"] = "good_token";
-
-  oauth2_service_delegate_->LoadAllCredentialsIntoMemory(tokens);
-
-  EXPECT_EQ(1u, oauth2_service_delegate_->GetAccounts().size());
-  EXPECT_TRUE(oauth2_service_delegate_->RefreshTokenIsAvailable(
-      CoreAccountId::FromEmail("foobar@gmail.com")));
-  EXPECT_STREQ(
-      "good_token",
-      oauth2_service_delegate_
-          ->GetRefreshToken(CoreAccountId::FromEmail("foobar@gmail.com"))
-          .c_str());
-}
-
-TEST_F(MutableProfileOAuth2TokenServiceDelegateTest, ShutdownService) {
-  InitializeOAuth2ServiceDelegate(signin::AccountConsistencyMethod::kDice);
-  EXPECT_TRUE(oauth2_service_delegate_->GetAccounts().empty());
-  const CoreAccountId account_id1("account_id1");
-  const CoreAccountId account_id2("account_id2");
-
-  oauth2_service_delegate_->UpdateCredentials(account_id1, "refresh_token1");
-  oauth2_service_delegate_->UpdateCredentials(account_id2, "refresh_token2");
-  std::vector<CoreAccountId> accounts = oauth2_service_delegate_->GetAccounts();
-  EXPECT_EQ(2u, accounts.size());
-  EXPECT_EQ(1, count(accounts.begin(), accounts.end(), account_id1));
-  EXPECT_EQ(1, count(accounts.begin(), accounts.end(), account_id2));
-  oauth2_service_delegate_->LoadCredentials(account_id1, /*is_syncing=*/false);
-  oauth2_service_delegate_->UpdateCredentials(account_id1, "refresh_token3");
-  oauth2_service_delegate_->Shutdown();
-  EXPECT_TRUE(oauth2_service_delegate_->server_revokes_.empty());
-  EXPECT_TRUE(oauth2_service_delegate_->refresh_tokens_.empty());
-  EXPECT_EQ(0, oauth2_service_delegate_->web_data_service_request_);
-}
-
-TEST_F(MutableProfileOAuth2TokenServiceDelegateTest, GaiaIdMigration) {
-  InitializeOAuth2ServiceDelegate(signin::AccountConsistencyMethod::kDice);
-  if (account_tracker_service_.GetMigrationState() !=
-      AccountTrackerService::MIGRATION_NOT_STARTED) {
-    std::string email = "foo@gmail.com";
-    std::string gaia_id = "foo's gaia id";
-    const CoreAccountId acc_id_email(email);
-    const CoreAccountId acc_id_gaia_id(gaia_id);
-
-    pref_service_.SetInteger(prefs::kAccountIdMigrationState,
-                             AccountTrackerService::MIGRATION_NOT_STARTED);
-
-    ScopedListPrefUpdate update(&pref_service_, prefs::kAccountInfo);
-    update->clear();
-    base::Value dict(base::Value::Type::DICT);
-    dict.SetStringKey("account_id", email);
-    dict.SetStringKey("email", email);
-    dict.SetStringKey("gaia", gaia_id);
-    update->Append(std::move(dict));
-    account_tracker_service_.ResetForTesting();
-
-    AddAuthTokenManually("AccountId-" + email, "refresh_token");
-    oauth2_service_delegate_->LoadCredentials(acc_id_gaia_id,
-                                              /*is_syncing=*/false);
-    base::RunLoop().RunUntilIdle();
-
-    EXPECT_EQ(1, tokens_loaded_count_);
-    EXPECT_EQ(1, token_available_count_);
-    EXPECT_EQ(1, end_batch_changes_);
-
-    std::vector<CoreAccountId> accounts =
-        oauth2_service_delegate_->GetAccounts();
-    EXPECT_EQ(1u, accounts.size());
-
-    EXPECT_FALSE(
-        oauth2_service_delegate_->RefreshTokenIsAvailable(acc_id_email));
-    EXPECT_TRUE(
-        oauth2_service_delegate_->RefreshTokenIsAvailable(acc_id_gaia_id));
-
-    account_tracker_service_.SetMigrationDone();
-    oauth2_service_delegate_->Shutdown();
-    ResetObserverCounts();
-
-    oauth2_service_delegate_->LoadCredentials(acc_id_gaia_id,
-                                              /*is_syncing=*/false);
-    base::RunLoop().RunUntilIdle();
-
-    EXPECT_EQ(1, tokens_loaded_count_);
-    EXPECT_EQ(1, token_available_count_);
-    EXPECT_EQ(1, end_batch_changes_);
-
-    EXPECT_FALSE(
-        oauth2_service_delegate_->RefreshTokenIsAvailable(acc_id_email));
-    EXPECT_TRUE(
-        oauth2_service_delegate_->RefreshTokenIsAvailable(acc_id_gaia_id));
-    accounts = oauth2_service_delegate_->GetAccounts();
-    EXPECT_EQ(1u, accounts.size());
-  }
-}
-
-TEST_F(MutableProfileOAuth2TokenServiceDelegateTest,
-       GaiaIdMigrationCrashInTheMiddle) {
-  InitializeOAuth2ServiceDelegate(signin::AccountConsistencyMethod::kDice);
-  if (account_tracker_service_.GetMigrationState() !=
-      AccountTrackerService::MIGRATION_NOT_STARTED) {
-    std::string email1 = "foo@gmail.com";
-    std::string gaia_id1 = "foo's gaia id";
-    std::string email2 = "bar@gmail.com";
-    std::string gaia_id2 = "bar's gaia id";
-    const CoreAccountId acc_email1(email1);
-    const CoreAccountId acc_email2(email2);
-    const CoreAccountId acc_gaia1(gaia_id1);
-    const CoreAccountId acc_gaia2(gaia_id2);
-
-    pref_service_.SetInteger(prefs::kAccountIdMigrationState,
-                             AccountTrackerService::MIGRATION_NOT_STARTED);
-
-    ScopedListPrefUpdate update(&pref_service_, prefs::kAccountInfo);
-    update->clear();
-    base::Value::Dict account1;
-    account1.Set("account_id", email1);
-    account1.Set("email", email1);
-    account1.Set("gaia", gaia_id1);
-    update->Append(std::move(account1));
-    base::Value::Dict account2;
-    account2.Set("account_id", email2);
-    account2.Set("email", email2);
-    account2.Set("gaia", gaia_id2);
-    update->Append(std::move(account2));
-    account_tracker_service_.ResetForTesting();
-
-    AddAuthTokenManually("AccountId-" + email1, "refresh_token");
-    AddAuthTokenManually("AccountId-" + email2, "refresh_token");
-    AddAuthTokenManually("AccountId-" + gaia_id1, "refresh_token");
-    oauth2_service_delegate_->LoadCredentials(acc_gaia1, /*is_syncing=*/false);
-    base::RunLoop().RunUntilIdle();
-
-    EXPECT_EQ(1, tokens_loaded_count_);
-    EXPECT_EQ(2, token_available_count_);
-    EXPECT_EQ(1, end_batch_changes_);
-
-    std::vector<CoreAccountId> accounts =
-        oauth2_service_delegate_->GetAccounts();
-    EXPECT_EQ(2u, accounts.size());
-
-    EXPECT_FALSE(oauth2_service_delegate_->RefreshTokenIsAvailable(acc_email1));
-    EXPECT_TRUE(oauth2_service_delegate_->RefreshTokenIsAvailable(acc_gaia1));
-    EXPECT_FALSE(oauth2_service_delegate_->RefreshTokenIsAvailable(acc_email2));
-    EXPECT_TRUE(oauth2_service_delegate_->RefreshTokenIsAvailable(acc_gaia2));
-
-    account_tracker_service_.SetMigrationDone();
-    oauth2_service_delegate_->Shutdown();
-    ResetObserverCounts();
-
-    oauth2_service_delegate_->LoadCredentials(acc_gaia1, /*is_syncing=*/false);
-    base::RunLoop().RunUntilIdle();
-
-    EXPECT_EQ(1, tokens_loaded_count_);
-    EXPECT_EQ(2, token_available_count_);
-    EXPECT_EQ(1, end_batch_changes_);
-
-    EXPECT_FALSE(oauth2_service_delegate_->RefreshTokenIsAvailable(acc_email1));
-    EXPECT_TRUE(oauth2_service_delegate_->RefreshTokenIsAvailable(acc_gaia1));
-    EXPECT_FALSE(oauth2_service_delegate_->RefreshTokenIsAvailable(acc_email2));
-    EXPECT_TRUE(oauth2_service_delegate_->RefreshTokenIsAvailable(acc_gaia2));
-    accounts = oauth2_service_delegate_->GetAccounts();
-    EXPECT_EQ(2u, accounts.size());
-  }
-}
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
 TEST_F(MutableProfileOAuth2TokenServiceDelegateTest,
        LoadPrimaryAccountOnlyWhenAccountConsistencyDisabled) {
@@ -1440,3 +1266,84 @@ TEST_F(MutableProfileOAuth2TokenServiceDelegateTest, ExtractCredentials) {
   EXPECT_TRUE(other_delegate->RefreshTokenIsAvailable(account_id));
   EXPECT_EQ("token", other_delegate->GetRefreshToken(account_id));
 }
+
+#if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
+TEST_F(MutableProfileOAuth2TokenServiceDelegateTest, UpdateBoundToken) {
+  unexportable_keys::FakeUnexportableKeyService fake_unexportable_key_service;
+  auto token_binding_helper =
+      std::make_unique<TokenBindingHelper>(fake_unexportable_key_service);
+  std::unique_ptr<MutableProfileOAuth2TokenServiceDelegate> delegate =
+      CreateOAuth2ServiceDelegate(signin::AccountConsistencyMethod::kDisabled,
+                                  std::move(token_binding_helper));
+  const CoreAccountId account_id = CoreAccountId::FromGaiaId("account_id");
+  EXPECT_TRUE(delegate->GetWrappedBindingKey(account_id).empty());
+
+  // Set bound refresh token.
+  const std::vector<uint8_t> kFakeWrappedBindingKey = {1, 2, 3};
+  delegate->UpdateCredentials(account_id, "refresh_token",
+                              kFakeWrappedBindingKey);
+  EXPECT_EQ(delegate->GetWrappedBindingKey(account_id), kFakeWrappedBindingKey);
+
+  // Update bound refresh token.
+  const std::vector<uint8_t> kFakeWrappedBindingKey2 = {4, 5, 6};
+  delegate->UpdateCredentials(account_id, "refresh_token2",
+                              kFakeWrappedBindingKey2);
+  EXPECT_EQ(delegate->GetWrappedBindingKey(account_id),
+            kFakeWrappedBindingKey2);
+
+  // Invalidate bound refresh token.
+  delegate->UpdateCredentials(account_id, GaiaConstants::kInvalidRefreshToken);
+  EXPECT_TRUE(delegate->GetWrappedBindingKey(account_id).empty());
+  delegate->Shutdown();
+}
+
+TEST_F(MutableProfileOAuth2TokenServiceDelegateTest, RevokeBoundToken) {
+  unexportable_keys::FakeUnexportableKeyService fake_unexportable_key_service;
+  auto token_binding_helper =
+      std::make_unique<TokenBindingHelper>(fake_unexportable_key_service);
+  std::unique_ptr<MutableProfileOAuth2TokenServiceDelegate> delegate =
+      CreateOAuth2ServiceDelegate(signin::AccountConsistencyMethod::kDisabled,
+                                  std::move(token_binding_helper));
+  const CoreAccountId account_id = CoreAccountId::FromGaiaId("account_id");
+  const CoreAccountId account_id2 = CoreAccountId::FromGaiaId("account_id2");
+  const std::vector<uint8_t> kFakeWrappedBindingKey = {1, 2, 3};
+  const std::vector<uint8_t> kFakeWrappedBindingKey2 = {4, 5, 6};
+  delegate->UpdateCredentials(account_id, "refresh_token",
+                              kFakeWrappedBindingKey);
+  delegate->UpdateCredentials(account_id2, "refresh_token2",
+                              kFakeWrappedBindingKey2);
+
+  delegate->RevokeCredentials(account_id);
+  EXPECT_TRUE(delegate->GetWrappedBindingKey(account_id).empty());
+  EXPECT_EQ(delegate->GetWrappedBindingKey(account_id2),
+            kFakeWrappedBindingKey2);
+  delegate->Shutdown();
+}
+
+TEST_F(MutableProfileOAuth2TokenServiceDelegateTest, FetchWithBoundToken) {
+  ProfileOAuth2TokenService::RegisterProfilePrefs(pref_service_.registry());
+  unexportable_keys::FakeUnexportableKeyService fake_unexportable_key_service;
+  auto token_binding_helper =
+      std::make_unique<TokenBindingHelper>(fake_unexportable_key_service);
+  std::unique_ptr<MutableProfileOAuth2TokenServiceDelegate> delegate =
+      CreateOAuth2ServiceDelegate(signin::AccountConsistencyMethod::kDisabled,
+                                  std::move(token_binding_helper));
+  const CoreAccountId account_id = CoreAccountId::FromGaiaId("account_id");
+  const std::vector<uint8_t> kFakeWrappedBindingKey = {1, 2, 3};
+
+  delegate->UpdateCredentials(account_id, "refresh_token",
+                              kFakeWrappedBindingKey);
+
+  AddSuccessfulBoundTokenResponse();
+
+  EXPECT_EQ(0, access_token_success_count_);
+  EXPECT_EQ(0, access_token_failure_count_);
+  std::unique_ptr<OAuth2AccessTokenFetcher> fetcher =
+      delegate->CreateAccessTokenFetcher(account_id,
+                                         delegate->GetURLLoaderFactory(), this);
+  fetcher->Start("foo", "bar", {"scope"});
+  base::RunLoop().RunUntilIdle();
+  EXPECT_EQ(1, access_token_success_count_);
+  EXPECT_EQ(0, access_token_failure_count_);
+}
+#endif  // BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)

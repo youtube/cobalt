@@ -4,10 +4,19 @@
 
 #include "ui/views/controls/menu/menu_config.h"
 
+#include "ui/base/ui_base_features.h"
+
 namespace views {
 
 void MenuConfig::Init() {
-  arrow_to_edge_padding = 6;
+  if (!features::IsChromeRefresh2023()) {
+    arrow_to_edge_padding = 6;
+  }
+}
+
+void MenuConfig::InitPlatformCR2023() {
+  context_menu_font_list = font_list;
+  use_bubble_border = true;
 }
 
 }  // namespace views

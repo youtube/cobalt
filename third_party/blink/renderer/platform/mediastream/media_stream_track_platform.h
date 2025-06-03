@@ -60,6 +60,12 @@ class PLATFORM_EXPORT MediaStreamTrackPlatform {
     absl::optional<bool> suppress_local_audio_playback;
   };
 
+  struct VideoFrameStats {
+    size_t deliverable_frames = 0u;
+    size_t discarded_frames = 0u;
+    size_t dropped_frames = 0u;
+  };
+
   struct CaptureHandle {
     bool IsEmpty() const { return origin.empty() && handle.empty(); }
 
@@ -99,15 +105,25 @@ class PLATFORM_EXPORT MediaStreamTrackPlatform {
 
   // TODO(hta): Make method pure virtual when all tracks have the method.
   virtual void GetSettings(Settings& settings) const {}
+
+  virtual VideoFrameStats GetVideoFrameStats() const {
+    // This method is only callable on video tracks.
+    NOTREACHED();
+    return {};
+  }
+
   virtual CaptureHandle GetCaptureHandle();
 
   // Adds a one off callback that will be invoked when observing the first frame
-  // where |metadata.crop_version >= crop_version|.
-  virtual void AddCropVersionCallback(uint32_t crop_version,
-                                      base::OnceClosure callback) {}
+  // where |metadata.sub_capture_target_version >= sub_capture_target_version|.
+  virtual void AddSubCaptureTargetVersionCallback(
+      uint32_t sub_capture_target_version,
+      base::OnceClosure callback) {}
 
-  // Removes the callback that was associated with this |crop_version|, if any.
-  virtual void RemoveCropVersionCallback(uint32_t crop_version) {}
+  // Removes the callback that was associated with this
+  // |sub_capture_target_version|, if any.
+  virtual void RemoveSubCaptureTargetVersionCallback(
+      uint32_t sub_capture_target_version) {}
 
   bool is_local_track() const { return is_local_track_; }
 

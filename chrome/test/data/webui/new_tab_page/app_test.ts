@@ -2,11 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'chrome://webui-test/mojo_webui_test_support.js';
-
 import {counterfactualLoad, LensUploadDialogElement, Module, ModuleDescriptor, ModuleRegistry} from 'chrome://new-tab-page/lazy_load.js';
 import {$$, AppElement, BackgroundManager, BrowserCommandProxy, CUSTOMIZE_CHROME_BUTTON_ELEMENT_ID, CustomizeDialogPage, NewTabPageProxy, NtpCustomizeChromeEntryPoint, NtpElement, VoiceAction, WindowProxy} from 'chrome://new-tab-page/new_tab_page.js';
 import {CustomizeChromeSection, NtpBackgroundImageSource, PageCallbackRouter, PageHandlerRemote, PageRemote} from 'chrome://new-tab-page/new_tab_page.mojom-webui.js';
+import {CrToastElement} from 'chrome://resources/cr_elements/cr_toast/cr_toast.js';
 import {Command, CommandHandlerRemote} from 'chrome://resources/js/browser_command.mojom-webui.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {isMac} from 'chrome://resources/js/platform.js';
@@ -30,6 +29,7 @@ suite('NewTabPageAppTest', () => {
   let moduleResolver: PromiseResolver<Module[]>;
 
   const url: URL = new URL(location.href);
+  const backgroundImageLoadTime: number = 123;
 
   setup(async () => {
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
@@ -51,7 +51,9 @@ suite('NewTabPageAppTest', () => {
     handler.setResultFor('getModulesIdNames', Promise.resolve({data: []}));
     windowProxy.setResultMapperFor('matchMedia', () => ({
                                                    addListener() {},
+                                                   addEventListener() {},
                                                    removeListener() {},
+                                                   removeEventListener() {},
                                                  }));
     windowProxy.setResultFor('waitForLazyRender', Promise.resolve());
     windowProxy.setResultFor('createIframeSrc', '');
@@ -60,7 +62,7 @@ suite('NewTabPageAppTest', () => {
                                .callbackRouter.$.bindNewPipeAndPassRemote();
     backgroundManager = installMock(BackgroundManager);
     backgroundManager.setResultFor(
-        'getBackgroundImageLoadTime', Promise.resolve(0));
+        'getBackgroundImageLoadTime', Promise.resolve(backgroundImageLoadTime));
     moduleRegistry = installMock(ModuleRegistry);
     moduleResolver = new PromiseResolver();
     moduleRegistry.setResultFor('initializeModules', moduleResolver.promise);
@@ -71,7 +73,7 @@ suite('NewTabPageAppTest', () => {
     await flushTasks();
   });
 
-  suite('misc', () => {
+  suite('Misc', () => {
     test('customize dialog closed on start', () => {
       // Assert.
       assertFalse(!!app.shadowRoot!.querySelector('ntp-customize-dialog'));
@@ -160,48 +162,109 @@ suite('NewTabPageAppTest', () => {
           ],
       );
     });
-  });
 
-  [true, false].forEach((removeScrim) => {
-    suite(`ogb theming removeScrim is ${removeScrim}`, () => {
-      suiteSetup(() => {
-        loadTimeData.overrideValues({removeScrim});
-      });
+    test('Webstore toast works correctly', async () => {
+      const webstoreToast = $$<CrToastElement>(app, '#webstoreToast')!;
+      assertTrue(webstoreToast.hidden);
 
-      test('Ogb updates on ntp load', async () => {
-        // Act.
+      // Try to show webstore toast without opening side panel.
+      callbackRouterRemote.showWebstoreToast();
+      await callbackRouterRemote.$.flushForTesting();
 
-        // Create a dark mode theme with a custom background.
-        const theme = createTheme(true);
-        theme.backgroundImage = createBackgroundImage('https://foo.com');
-        callbackRouterRemote.setTheme(theme);
-        await callbackRouterRemote.$.flushForTesting();
+      // The webstore toast should still be hidden.
+      assertTrue(webstoreToast.hidden);
+      assertFalse(webstoreToast.open);
 
-        // Notify the NTP that the ogb has loaded.
-        window.dispatchEvent(new MessageEvent('message', {
-          data: {
-            frameType: 'one-google-bar',
-            messageType: 'loaded',
-          },
-          source: window,
-          origin: window.origin,
-        }));
+      // Open the side panel.
+      callbackRouterRemote.setCustomizeChromeSidePanelVisibility(true);
+      await callbackRouterRemote.$.flushForTesting();
 
-        // Assert.
+      // Try to show webstore toast again.
+      callbackRouterRemote.showWebstoreToast();
+      await callbackRouterRemote.$.flushForTesting();
 
-        // Dark mode themes with background images and removeScrim set should
-        // apply background protection to the ogb.
-        assertEquals(1, windowProxy.getCallCount('postMessage'));
-        const [_, {type, applyLightTheme, applyBackgroundProtection}] =
-            windowProxy.getArgs('postMessage')[0];
-        assertEquals('updateAppearance', type);
-        assertEquals(true, applyLightTheme);
-        assertEquals(removeScrim, applyBackgroundProtection);
-      });
+      // The webstore toast should be open.
+      assertFalse(webstoreToast.hidden);
+      assertTrue(webstoreToast.open);
+      assertTrue(!!webstoreToast.firstChild!.textContent);
     });
   });
 
-  suite('theming', () => {
+  suite(`OgbThemingRemoveScrim`, () => {
+    test('Ogb updates on ntp load', async () => {
+      // Act.
+
+      // Create a dark mode theme with a custom background.
+      const theme = createTheme(true);
+      theme.backgroundImage = createBackgroundImage('https://foo.com');
+      callbackRouterRemote.setTheme(theme);
+      await callbackRouterRemote.$.flushForTesting();
+
+      // Notify the NTP that the ogb has loaded.
+      window.dispatchEvent(new MessageEvent('message', {
+        data: {
+          frameType: 'one-google-bar',
+          messageType: 'loaded',
+        },
+        source: window,
+        origin: window.origin,
+      }));
+
+      // Assert.
+
+      // Dark mode themes with background images and removeScrim set should
+      // apply background protection to the ogb.
+      assertEquals(1, windowProxy.getCallCount('postMessage'));
+      const [_, {type, applyLightTheme}] =
+          windowProxy.getArgs('postMessage')[0];
+      assertEquals('updateAppearance', type);
+      assertEquals(true, applyLightTheme);
+      assertNotStyle($$(app, '#oneGoogleBarScrim')!, 'display', 'none');
+    });
+  });
+
+  suite('OgbScrim', () => {
+    test('scroll bounce', async () => {
+      // Arrange.
+
+      // Set theme that triggers the scrim.
+      const theme = createTheme(true);
+      theme.backgroundImage = createBackgroundImage('https://foo.com');
+      callbackRouterRemote.setTheme(theme);
+      await callbackRouterRemote.$.flushForTesting();
+
+      // Make sure page is scrollable.
+      const spacer = document.createElement('div');
+      spacer.style.width = '100%';
+      spacer.style.height = '10000px';
+      spacer.style.flexShrink = '0';
+      $$(app, '#content')!.append(spacer);
+
+      // Simulates a vertical scroll.
+      const scrollY = async (y: number) => {
+        window.scroll(0, y);
+        // `window.scroll` doesn't automatically trigger scroll event.
+        window.dispatchEvent(new Event('scroll'));
+        // Wait for position update to propagate.
+        await new Promise<void>(
+            resolve => requestAnimationFrame(() => resolve()));
+      };
+
+      // Act (no bounce).
+      await scrollY(0);
+
+      // Assert (no bounce).
+      assertStyle($$(app, '#oneGoogleBarScrim')!, 'position', 'fixed');
+
+      // Act (scroll).
+      await scrollY(10);
+
+      // Assert (scroll).
+      assertStyle($$(app, '#oneGoogleBarScrim')!, 'position', 'absolute');
+    });
+  });
+
+  suite('Theming', () => {
     test('setting theme updates ntp', async () => {
       // Act.
       callbackRouterRemote.setTheme(createTheme());
@@ -256,19 +319,11 @@ suite('NewTabPageAppTest', () => {
 
       // Scrim removal will remove text shadows as background protection is
       // applied to the background element instead.
-      if (loadTimeData.getBoolean('removeScrim')) {
-        assertNotStyle(
-            $$(app, '#backgroundImageAttribution')!, 'background-color',
-            'rgba(0, 0, 0, 0)');
-        assertStyle(
-            $$(app, '#backgroundImageAttribution')!, 'text-shadow', 'none');
-      } else {
-        assertStyle(
-            $$(app, '#backgroundImageAttribution')!, 'background-color',
-            'rgba(0, 0, 0, 0)');
-        assertNotStyle(
-            $$(app, '#backgroundImageAttribution')!, 'text-shadow', 'none');
-      }
+      assertNotStyle(
+          $$(app, '#backgroundImageAttribution')!, 'background-color',
+          'rgba(0, 0, 0, 0)');
+      assertStyle(
+          $$(app, '#backgroundImageAttribution')!, 'text-shadow', 'none');
 
       assertEquals(1, backgroundManager.getCallCount('setBackgroundImage'));
       assertEquals(
@@ -327,17 +382,6 @@ suite('NewTabPageAppTest', () => {
       assertTrue(mostVisited.hasAttribute('use-white-tile-icon_'));
     });
 
-    test('theme updates use title pill', async () => {
-      const theme = createTheme();
-      theme.mostVisited.useTitlePill = true;
-      callbackRouterRemote.setTheme(theme);
-      const mostVisited = $$(app, '#mostVisited');
-      assertTrue(!!mostVisited);
-      assertFalse(mostVisited.hasAttribute('use-title-pill_'));
-      await callbackRouterRemote.$.flushForTesting();
-      assertTrue(mostVisited.hasAttribute('use-title-pill_'));
-    });
-
     test('theme updates is dark', async () => {
       const theme = createTheme();
       theme.mostVisited.isDark = true;
@@ -382,7 +426,7 @@ suite('NewTabPageAppTest', () => {
     });
 
     suite('theming metrics', () => {
-      test('having no theme produces correct metric', async () => {
+      test('having no theme produces correct metrics', async () => {
         // Arrange.
         const theme = createTheme();
         theme.isCustomBackground = false;
@@ -392,7 +436,9 @@ suite('NewTabPageAppTest', () => {
         await callbackRouterRemote.$.flushForTesting();
 
         // Assert.
+        assertEquals(1, metrics.count('NewTabPage.Collections.IdOnLoad'));
         assertEquals(1, metrics.count('NewTabPage.Collections.IdOnLoad', ''));
+        assertEquals(1, metrics.count('NewTabPage.BackgroundImageSource'));
         assertEquals(
             1,
             metrics.count(
@@ -400,7 +446,7 @@ suite('NewTabPageAppTest', () => {
                 NtpBackgroundImageSource.kNoImage));
       });
 
-      test('having first party theme produces correct metric', async () => {
+      test('having first party theme produces correct metrics', async () => {
         // Arrange.
         const theme = createTheme();
         theme.backgroundImage = createBackgroundImage('https://foo.com');
@@ -413,9 +459,11 @@ suite('NewTabPageAppTest', () => {
         await callbackRouterRemote.$.flushForTesting();
 
         // Assert.
+        assertEquals(1, metrics.count('NewTabPage.Collections.IdOnLoad'));
         assertEquals(
             1,
             metrics.count('NewTabPage.Collections.IdOnLoad', 'foo_collection'));
+        assertEquals(1, metrics.count('NewTabPage.BackgroundImageSource'));
         assertEquals(
             1,
             metrics.count(
@@ -423,7 +471,7 @@ suite('NewTabPageAppTest', () => {
                 NtpBackgroundImageSource.kFirstPartyThemeWithoutDailyRefresh));
       });
 
-      test('having third party theme produces correct metric', async () => {
+      test('having third party theme produces correct metrics', async () => {
         // Arrange.
         const theme = createTheme();
         theme.backgroundImage = createBackgroundImage('https://foo.com');
@@ -435,7 +483,9 @@ suite('NewTabPageAppTest', () => {
         await callbackRouterRemote.$.flushForTesting();
 
         // Assert.
+        assertEquals(1, metrics.count('NewTabPage.Collections.IdOnLoad'));
         assertEquals(1, metrics.count('NewTabPage.Collections.IdOnLoad', ''));
+        assertEquals(1, metrics.count('NewTabPage.BackgroundImageSource'));
         assertEquals(
             1,
             metrics.count(
@@ -443,28 +493,32 @@ suite('NewTabPageAppTest', () => {
                 NtpBackgroundImageSource.kThirdPartyTheme));
       });
 
-      test('having refresh daily enabled produces correct metric', async () => {
-        // Arrange.
-        const theme = createTheme();
-        theme.backgroundImage = createBackgroundImage('https://foo.com');
-        theme.backgroundImage.imageSource =
-            NtpBackgroundImageSource.kFirstPartyThemeWithDailyRefresh;
-        theme.backgroundImageCollectionId = 'foo_collection';
+      test(
+          'having refresh daily enabled produces correct metrics', async () => {
+            // Arrange.
+            const theme = createTheme();
+            theme.backgroundImage = createBackgroundImage('https://foo.com');
+            theme.backgroundImage.imageSource =
+                NtpBackgroundImageSource.kFirstPartyThemeWithDailyRefresh;
+            theme.backgroundImageCollectionId = 'foo_collection';
 
-        // Act.
-        callbackRouterRemote.setTheme(theme);
-        await callbackRouterRemote.$.flushForTesting();
+            // Act.
+            callbackRouterRemote.setTheme(theme);
+            await callbackRouterRemote.$.flushForTesting();
 
-        // Assert.
-        assertEquals(
-            1,
-            metrics.count('NewTabPage.Collections.IdOnLoad', 'foo_collection'));
-        assertEquals(
-            1,
-            metrics.count(
-                'NewTabPage.BackgroundImageSource',
-                NtpBackgroundImageSource.kFirstPartyThemeWithDailyRefresh));
-      });
+            // Assert.
+            assertEquals(1, metrics.count('NewTabPage.Collections.IdOnLoad'));
+            assertEquals(
+                1,
+                metrics.count(
+                    'NewTabPage.Collections.IdOnLoad', 'foo_collection'));
+            assertEquals(1, metrics.count('NewTabPage.BackgroundImageSource'));
+            assertEquals(
+                1,
+                metrics.count(
+                    'NewTabPage.BackgroundImageSource',
+                    NtpBackgroundImageSource.kFirstPartyThemeWithDailyRefresh));
+          });
 
       test('setting uploaded background produces correct metrics', async () => {
         // Arrange.
@@ -478,17 +532,38 @@ suite('NewTabPageAppTest', () => {
         await callbackRouterRemote.$.flushForTesting();
 
         // Assert.
+        assertEquals(1, metrics.count('NewTabPage.Collections.IdOnLoad'));
         assertEquals(1, metrics.count('NewTabPage.Collections.IdOnLoad', ''));
+        assertEquals(1, metrics.count('NewTabPage.BackgroundImageSource'));
         assertEquals(
             1,
             metrics.count(
                 'NewTabPage.BackgroundImageSource',
                 NtpBackgroundImageSource.kUploadedImage));
       });
+
+      suite('background image load', () => {
+        suiteSetup(() => {
+          loadTimeData.overrideValues({backgroundImageUrl: 'https://foo.com'});
+        });
+
+        test('background image load time is logged', async () => {
+          // Assert.
+          assertEquals(
+              1, metrics.count('NewTabPage.Images.ShownTime.BackgroundImage'));
+          assertEquals(
+              1,
+              metrics.count(
+                  'NewTabPage.Images.ShownTime.BackgroundImage',
+                  Math.floor(
+                      backgroundImageLoadTime -
+                      window.performance.timeOrigin)));
+        });
+      });
     });
   });
 
-  suite('promo', () => {
+  suite('Promo', () => {
     test('can show promo with browser command', async () => {
       const promoBrowserCommandHandler = installMock(
           CommandHandlerRemote,
@@ -557,7 +632,7 @@ suite('NewTabPageAppTest', () => {
     });
   });
 
-  suite('clicks', () => {
+  suite('Clicks', () => {
     suiteSetup(() => {
       loadTimeData.overrideValues({
         modulesEnabled: true,
@@ -570,7 +645,7 @@ suite('NewTabPageAppTest', () => {
       ['ntp-realbox', NtpElement.REALBOX],
       ['cr-most-visited', NtpElement.MOST_VISITED],
       ['ntp-middle-slot-promo', NtpElement.MIDDLE_SLOT_PROMO],
-      ['ntp-modules', NtpElement.MODULE],
+      ['#modules', NtpElement.MODULE],
       ['#customizeButton', NtpElement.CUSTOMIZE_BUTTON],
     ] as Array<[string, NtpElement]>)
         .forEach(([selector, element]) => {
@@ -600,10 +675,43 @@ suite('NewTabPageAppTest', () => {
     });
   });
 
-  suite('modules', () => {
+  function modulesCommonTests(modulesElementTag: string) {
+    test('promo and modules coordinate', async () => {
+      // Arrange.
+      loadTimeData.overrideValues({navigationStartTime: 0.0});
+      windowProxy.setResultFor('now', 123.0);
+      const middleSlotPromo = $$(app, 'ntp-middle-slot-promo');
+      assertTrue(!!middleSlotPromo);
+      const modules = $$(app, modulesElementTag)!;
+      assertTrue(!!modules);
+
+      // Assert.
+      assertStyle(middleSlotPromo, 'display', 'none');
+      assertStyle(modules, 'display', 'none');
+
+      // Act.
+      middleSlotPromo.dispatchEvent(new Event('ntp-middle-slot-promo-loaded'));
+
+      // Assert.
+      assertStyle(middleSlotPromo, 'display', 'none');
+      assertStyle(modules, 'display', 'none');
+
+      // Act.
+      modules.dispatchEvent(new Event('modules-loaded'));
+
+      // Assert.
+      assertNotStyle(middleSlotPromo, 'display', 'none');
+      assertNotStyle(modules, 'display', 'none');
+      assertEquals(1, metrics.count('NewTabPage.Modules.ShownTime'));
+      assertEquals(1, metrics.count('NewTabPage.Modules.ShownTime', 123));
+    });
+  }
+
+  suite('Modules', () => {
     suiteSetup(() => {
       loadTimeData.overrideValues({
         modulesEnabled: true,
+        modulesRedesignedEnabled: false,
         wideModulesEnabled: false,
       });
     });
@@ -645,38 +753,64 @@ suite('NewTabPageAppTest', () => {
       assertStyle(modules, 'width', `${sampleMaxWidthPx}px`);
     });
 
-    test('promo and modules coordinate', async () => {
-      // Arrange.
-      loadTimeData.overrideValues({navigationStartTime: 0.0});
-      windowProxy.setResultFor('now', 123.0);
-      const middleSlotPromo = $$(app, 'ntp-middle-slot-promo');
-      assertTrue(!!middleSlotPromo);
-      const modules = $$(app, 'ntp-modules');
+    modulesCommonTests('ntp-modules');
+  });
+
+  suite('V2Modules', () => {
+    suiteSetup(() => {
+      loadTimeData.overrideValues({
+        modulesEnabled: true,
+        modulesRedesignedEnabled: true,
+      });
+    });
+
+    test('container is hidden', async () => {
+      const modules = $$(app, 'ntp-modules-v2')!;
       assertTrue(!!modules);
-
-      // Assert.
-      assertStyle(middleSlotPromo, 'display', 'none');
       assertStyle(modules, 'display', 'none');
+    });
 
+    test('modules redesigned attribute applied', async () => {
+      assertTrue(app.hasAttribute('modules-redesigned-enabled_'));
+    });
+
+    test(`clicking records click`, () => {
       // Act.
-      middleSlotPromo.dispatchEvent(new Event('ntp-middle-slot-promo-loaded'));
+      $$<HTMLElement>(app, 'ntp-modules-v2')!.click();
 
       // Assert.
-      assertStyle(middleSlotPromo, 'display', 'none');
+      assertEquals(1, metrics.count('NewTabPage.Click'));
+      assertEquals(1, metrics.count('NewTabPage.Click', NtpElement.MODULE));
+    });
+
+    modulesCommonTests('ntp-modules-v2');
+  });
+
+  suite('v2 modules', () => {
+    suiteSetup(() => {
+      loadTimeData.overrideValues({
+        modulesEnabled: true,
+        modulesRedesignedEnabled: true,
+      });
+    });
+
+    test('container is hidden', async () => {
+      const modules = $$(app, 'ntp-modules-v2')!;
+      assertTrue(!!modules);
       assertStyle(modules, 'display', 'none');
+    });
 
+    test(`clicking records click`, () => {
       // Act.
-      modules.dispatchEvent(new Event('modules-loaded'));
+      $$<HTMLElement>(app, 'ntp-modules-v2')!.click();
 
       // Assert.
-      assertNotStyle(middleSlotPromo, 'display', 'none');
-      assertNotStyle(modules, 'display', 'none');
-      assertEquals(1, metrics.count('NewTabPage.Modules.ShownTime'));
-      assertEquals(1, metrics.count('NewTabPage.Modules.ShownTime', 123));
+      assertEquals(1, metrics.count('NewTabPage.Click'));
+      assertEquals(1, metrics.count('NewTabPage.Click', NtpElement.MODULE));
     });
   });
 
-  suite('counterfactual modules', () => {
+  suite('CounterfactualModules', () => {
     suiteSetup(() => {
       loadTimeData.overrideValues({
         modulesEnabled: false,
@@ -692,12 +826,12 @@ suite('NewTabPageAppTest', () => {
         {
           descriptor:
               new ModuleDescriptor('foo', () => Promise.resolve(fooElement)),
-          element: fooElement,
+          elements: [fooElement],
         },
         {
           descriptor:
               new ModuleDescriptor('bar', () => Promise.resolve(barElement)),
-          element: barElement,
+          elements: [barElement],
         },
       ]);
       await counterfactualLoad();
@@ -711,7 +845,7 @@ suite('NewTabPageAppTest', () => {
     });
   });
 
-  suite('customize dialog', () => {
+  suite('CustomizeDialog', () => {
     suiteSetup(() => {
       loadTimeData.overrideValues({
         customizeChromeEnabled: false,
@@ -785,7 +919,7 @@ suite('NewTabPageAppTest', () => {
       });
       test('modules can open customize dialog', async () => {
         // Act.
-        $$(app, 'ntp-modules')!.dispatchEvent(new Event('customize-module'));
+        $$(app, '#modules')!.dispatchEvent(new Event('customize-module'));
         app.$.customizeDialogIf.render();
 
         // Assert.
@@ -816,7 +950,7 @@ suite('NewTabPageAppTest', () => {
     });
   });
 
-  suite('customize chrome side panel', () => {
+  suite('CustomizeChromeSidePanel', () => {
     suiteSetup(() => {
       loadTimeData.overrideValues({
         customizeChromeEnabled: true,
@@ -824,8 +958,7 @@ suite('NewTabPageAppTest', () => {
     });
 
     test('customize chrome in product help might show on startup'), () => {
-      assertEquals(
-          1, handler.getCallCount('maybeShowCustomizeChromeFeaturePromo'));
+      assertEquals(1, handler.getCallCount('maybeShowFeaturePromo'));
     };
 
     test('clicking customize button opens side panel', () => {
@@ -893,7 +1026,7 @@ suite('NewTabPageAppTest', () => {
 
       test('modules can open side panel', async () => {
         // Act.
-        $$(app, 'ntp-modules')!.dispatchEvent(new Event('customize-module'));
+        $$(app, '#modules')!.dispatchEvent(new Event('customize-module'));
 
         // Assert.
         assertDeepEquals(
@@ -928,7 +1061,7 @@ suite('NewTabPageAppTest', () => {
     });
   });
 
-  suite('Lens upload dialog', () => {
+  suite('LensUploadDialog', () => {
     suiteSetup(() => {
       loadTimeData.overrideValues({
         realboxLensSearch: true,

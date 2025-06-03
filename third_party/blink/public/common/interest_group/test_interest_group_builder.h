@@ -67,6 +67,12 @@ class TestInterestGroupBuilder {
   TestInterestGroupBuilder& SetSizeGroups(
       absl::optional<base::flat_map<std::string, std::vector<std::string>>>
           size_groups);
+  TestInterestGroupBuilder& SetAuctionServerRequestFlags(
+      AuctionServerRequestFlags flags);
+  TestInterestGroupBuilder& SetAdditionalBidKey(
+      absl::optional<blink::InterestGroup::AdditionalBidKey> key);
+  TestInterestGroupBuilder& SetAggregationCoordinatorOrigin(
+      absl::optional<url::Origin> agg_coordinator_origin);
 
  private:
   InterestGroup interest_group_;

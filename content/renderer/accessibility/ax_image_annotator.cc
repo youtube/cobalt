@@ -4,7 +4,6 @@
 
 #include "content/renderer/accessibility/ax_image_annotator.h"
 
-#include <ctype.h>
 #include <utility>
 #include <vector>
 
@@ -15,6 +14,7 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
+#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
 #include "content/public/common/content_client.h"
@@ -210,12 +210,8 @@ void AXImageAnnotator::OnImageUpdated(blink::WebAXObject& image) {
 
 void AXImageAnnotator::OnImageRemoved(blink::WebAXObject& image) {
   DCHECK(!image.IsDetached());
-  auto lookup = image_annotations_.find(image.AxID());
-  if (lookup == image_annotations_.end()) {
-    NOTREACHED() << "Removing an image that has not been added.";
-    return;
-  }
-  image_annotations_.erase(lookup);
+  DCHECK(base::Contains(image_annotations_, image.AxID()));
+  image_annotations_.erase(image.AxID());
 }
 
 // static
@@ -229,11 +225,13 @@ int AXImageAnnotator::GetLengthAfterRemovingStopwords(
       image_name, separators, base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
   int remaining_codepoints = 0;
   for (const std::string& word : words) {
-    if (AXImageStopwords::GetInstance().IsImageStopword(word.c_str()))
+    if (AXImageStopwords::GetInstance().IsImageStopword(word.c_str())) {
       continue;
+    }
 
-    for (base::i18n::UTF8CharIterator iter(word); !iter.end(); iter.Advance())
+    for (base::i18n::UTF8CharIterator iter(word); !iter.end(); iter.Advance()) {
       remaining_codepoints++;
+    }
   }
 
   return remaining_codepoints;
@@ -519,10 +517,11 @@ void AXImageAnnotator::OnImageAnnotated(
     int last_meaningful_char = annotation->text.length() - 1;
     while (last_meaningful_char >= 0) {
       bool is_whitespace_or_punct =
-          isspace(annotation->text[last_meaningful_char]) ||
-          ispunct(annotation->text[last_meaningful_char]);
-      if (!is_whitespace_or_punct)
+          base::IsAsciiWhitespace(annotation->text[last_meaningful_char]) ||
+          base::IsAsciiPunctuation(annotation->text[last_meaningful_char]);
+      if (!is_whitespace_or_punct) {
         break;
+      }
       last_meaningful_char--;
     }
 

@@ -15,7 +15,6 @@
 #include "base/unguessable_token.h"
 #include "build/build_config.h"
 #include "content/browser/browsing_data/clear_site_data_handler.h"
-#include "content/browser/buildflags.h"
 #include "content/browser/ssl/ssl_manager.h"
 #include "content/browser/webrtc/webrtc_connections_observer.h"
 #include "content/public/browser/browser_context.h"
@@ -26,9 +25,9 @@
 #include "content/public/browser/global_request_id.h"
 #include "content/public/browser/global_routing_id.h"
 #include "content/public/browser/network_service_instance.h"
+#include "content/public/browser/network_service_util.h"
 #include "content/public/common/content_client.h"
 #include "content/public/common/content_features.h"
-#include "content/public/common/network_service_util.h"
 #include "mojo/public/cpp/bindings/associated_remote.h"
 #include "mojo/public/cpp/bindings/pending_associated_receiver.h"
 #include "mojo/public/cpp/bindings/pending_associated_remote.h"
@@ -118,8 +117,7 @@ NetworkServiceClient::NetworkServiceClient()
 {
 
 #if BUILDFLAG(IS_MAC)
-  if (base::CurrentUIThread::IsSet())  // Not set in some unit tests.
-    net::CertDatabase::GetInstance()->StartListeningForKeychainEvents();
+  net::CertDatabase::StartListeningForKeychainEvents();
 #endif
 
   if (IsOutOfProcessNetworkService()) {
@@ -153,8 +151,12 @@ NetworkServiceClient::~NetworkServiceClient() {
   }
 }
 
-void NetworkServiceClient::OnCertDBChanged() {
-  GetNetworkService()->OnCertDBChanged();
+void NetworkServiceClient::OnTrustStoreChanged() {
+  GetNetworkService()->OnTrustStoreChanged();
+}
+
+void NetworkServiceClient::OnClientCertStoreChanged() {
+  GetNetworkService()->OnClientCertStoreChanged();
 }
 
 void NetworkServiceClient::OnMemoryPressure(
@@ -209,12 +211,12 @@ void NetworkServiceClient::OnIPAddressChanged() {
 }
 #endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 
-#if BUILDFLAG(USE_SOCKET_BROKER)
+#if BUILDFLAG(IS_WIN)
 mojo::PendingRemote<network::mojom::SocketBroker>
 NetworkServiceClient::BindSocketBroker() {
   return socket_broker_.BindNewRemote();
 }
-#endif  // BUILDFLAG(USE_SOCKET_BROKER)
+#endif  // BUILDFLAG(IS_WIN)
 
 mojo::PendingRemote<network::mojom::URLLoaderNetworkServiceObserver>
 NetworkServiceClient::BindURLLoaderNetworkServiceObserver() {
@@ -269,7 +271,7 @@ void NetworkServiceClient::OnSSLCertificateError(
     const net::SSLInfo& ssl_info,
     bool fatal,
     OnSSLCertificateErrorCallback response) {
-  std::move(response).Run(net::ERR_INSECURE_RESPONSE);
+  std::move(response).Run(net_error);
 }
 
 void NetworkServiceClient::OnCertificateRequested(
@@ -302,6 +304,15 @@ void NetworkServiceClient::OnAuthRequired(
   auth_challenge_responder_remote->OnAuthCredentials(absl::nullopt);
 }
 
+void NetworkServiceClient::OnPrivateNetworkAccessPermissionRequired(
+    const GURL& url,
+    const net::IPAddress& ip_address,
+    const absl::optional<std::string>& private_network_device_id,
+    const absl::optional<std::string>& private_network_device_name,
+    OnPrivateNetworkAccessPermissionRequiredCallback callback) {
+  std::move(callback).Run(false);
+}
+
 void NetworkServiceClient::OnClearSiteData(
     const GURL& url,
     const std::string& header_value,
@@ -325,6 +336,13 @@ void NetworkServiceClient::OnDataUseUpdate(
   GetContentClient()->browser()->OnNetworkServiceDataUseUpdate(
       GlobalRenderFrameHostId(), network_traffic_annotation_id_hash, recv_bytes,
       sent_bytes);
+}
+
+void NetworkServiceClient::OnSharedStorageHeaderReceived(
+    const url::Origin& request_origin,
+    std::vector<network::mojom::SharedStorageOperationPtr> operations,
+    OnSharedStorageHeaderReceivedCallback callback) {
+  std::move(callback).Run();
 }
 
 void NetworkServiceClient::Clone(

@@ -4,7 +4,8 @@
 
 #include "media/gpu/v4l2/v4l2_video_decoder_delegate_av1.h"
 
-#include <linux/media/av1-ctrls.h>
+#include <linux/v4l2-controls.h>
+#include <linux/videodev2.h>
 
 #include "media/gpu/macros.h"
 #include "media/gpu/v4l2/v4l2_decode_surface.h"
@@ -522,8 +523,6 @@ struct v4l2_ctrl_av1_frame SetupFrameParams(
     v4l2_frame_params.flags |= V4L2_AV1_FRAME_FLAG_USE_REF_FRAME_MVS;
   if (frame_header.enable_frame_end_update_cdf == false)
     v4l2_frame_params.flags |= V4L2_AV1_FRAME_FLAG_DISABLE_FRAME_END_UPDATE_CDF;
-  if (frame_header.tile_info.uniform_spacing)
-    v4l2_frame_params.flags |= V4L2_AV1_FRAME_FLAG_UNIFORM_TILE_SPACING;
   if (frame_header.allow_warped_motion)
     v4l2_frame_params.flags |= V4L2_AV1_FRAME_FLAG_ALLOW_WARPED_MOTION;
   if (frame_header.reference_mode_select)
@@ -796,6 +795,7 @@ DecodeStatus V4L2VideoDecoderDelegateAV1::SubmitDecode(
   const auto* v4l2_pic = static_cast<const V4L2AV1Picture*>(&pic);
   v4l2_pic->dec_surface()->PrepareSetCtrls(&ext_ctrls);
   if (device_->Ioctl(VIDIOC_S_EXT_CTRLS, &ext_ctrls) != 0) {
+    RecordVidiocIoctlErrorUMA(VidiocIoctlRequests::kVidiocSExtCtrls);
     VPLOGF(1) << "ioctl() failed: VIDIOC_S_EXT_CTRLS";
     return DecodeStatus::kFail;
   }

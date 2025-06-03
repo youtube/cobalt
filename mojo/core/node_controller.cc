@@ -7,6 +7,7 @@
 #include <limits>
 #include <vector>
 
+#include "base/containers/contains.h"
 #include "base/containers/queue.h"
 #include "base/functional/bind.h"
 #include "base/location.h"
@@ -336,7 +337,8 @@ int NodeController::MergeLocalPorts(const ports::PortRef& port0,
 
 base::WritableSharedMemoryRegion NodeController::CreateSharedBuffer(
     size_t num_bytes) {
-#if !BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_FUCHSIA)
+#if !BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_FUCHSIA) && \
+    !BUILDFLAG(IS_ANDROID)
   // Shared buffer creation failure is fatal, so always use the broker when we
   // have one; unless of course the embedder forces us not to.
   if (!GetConfiguration().force_direct_shared_memory_allocation && broker_)
@@ -644,7 +646,7 @@ void NodeController::AddPeer(const ports::NodeName& name,
   OutgoingMessageQueue pending_messages;
   {
     base::AutoLock lock(peers_lock_);
-    if (peers_.find(name) != peers_.end()) {
+    if (base::Contains(peers_, name)) {
       // This can happen normally if two nodes race to be introduced to each
       // other. The losing pipe will be silently closed and introduction should
       // not be affected.
@@ -1517,10 +1519,12 @@ void BoundedPeerSet::Insert(const ports::NodeName& name) {
 }
 
 bool BoundedPeerSet::Contains(const ports::NodeName& name) {
-  if (old_set_.find(name) != old_set_.end())
+  if (base::Contains(old_set_, name)) {
     return true;
-  if (new_set_.find(name) != new_set_.end())
+  }
+  if (base::Contains(new_set_, name)) {
     return true;
+  }
   return false;
 }
 

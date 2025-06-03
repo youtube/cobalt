@@ -21,7 +21,6 @@ import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabCreationState;
 import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.chrome.browser.tab.TabSelectionType;
-import org.chromium.chrome.browser.tab.state.CriticalPersistedTabData;
 import org.chromium.chrome.browser.tabmodel.NextTabPolicy.NextTabPolicySupplier;
 import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.content_public.browser.WebContents;
@@ -112,26 +111,37 @@ public class TabModelImpl extends TabModelJniBridge {
                         @Override
                         public void insertUndoneTabClosureAt(Tab tab, int insertIndex) {
                             if (mIndex >= insertIndex) mIndex++;
+                            assert !tab.isDestroyed() : "Attempting to undo tab that is destroyed.";
                             mTabs.add(insertIndex, tab);
 
                             WebContents webContents = tab.getWebContents();
                             if (webContents != null) webContents.setAudioMuted(false);
 
-                            boolean activeModel = isActiveModel();
-
-                            if (mIndex == INVALID_TAB_INDEX) {
-                                // If we're the active model call setIndex to actually select this
-                                // tab, otherwise just set mIndex but don't kick off everything that
-                                // happens when calling setIndex().
-                                if (activeModel) {
-                                    TabModelUtils.setIndex(TabModelImpl.this, insertIndex, false,
-                                            TabSelectionType.FROM_UNDO);
-                                } else {
-                                    mIndex = insertIndex;
-                                }
+                            // Start by setting a valid index to the restored tab if not already
+                            // valid. This ensures getting the current index is valid for any
+                            // observers.
+                            boolean wasInvalidIndex = mIndex == INVALID_TAB_INDEX;
+                            if (wasInvalidIndex) {
+                                mIndex = insertIndex;
                             }
 
+                            // Alert observers the tab closure was undone before calling
+                            // setIndex if necessary as
+                            // * Observers may rely on this signal to re-introduce the tab to
+                            //   their visibility if it is selected before this it may not exist
+                            //   for those observers.
+                            // * UndoRefocusHelper may update the index out-of-band.
                             for (TabModelObserver obs : mObservers) obs.tabClosureUndone(tab);
+
+                            // If the mIndex we set earlier is still in use then trigger a proper
+                            // index update and notify any observers.
+                            if (wasInvalidIndex && isActiveModel() && mIndex == insertIndex) {
+                                // Reset the index first so the event is raised properly as a index
+                                // change and not re-using the current index.
+                                mIndex = INVALID_TAB_INDEX;
+                                TabModelUtils.setIndex(TabModelImpl.this, insertIndex, false,
+                                        TabSelectionType.FROM_UNDO);
+                            }
                         }
 
                         @Override
@@ -230,6 +240,9 @@ public class TabModelImpl extends TabModelJniBridge {
             Tab tab, int index, @TabLaunchType int type, @TabCreationState int creationState) {
         try {
             TraceEvent.begin("TabModelImpl.addTab");
+            // TODO(crbug/1466235): Technically this should trigger NPEs downstream. Adding out of
+            // an abundance of caution.
+            assert tab != null : "Attempting to add a tab that is null to TabModel.";
 
             for (TabModelObserver obs : mObservers) obs.willAddTab(tab, type);
 
@@ -296,6 +309,7 @@ public class TabModelImpl extends TabModelJniBridge {
         Tab tab = mTabs.remove(curIndex);
         if (curIndex < newIndex) --newIndex;
 
+        assert tab != null : "Attempting to move a tab that is null.";
         mTabs.add(newIndex, tab);
 
         if (curIndex == mIndex) {
@@ -368,8 +382,7 @@ public class TabModelImpl extends TabModelJniBridge {
         if (tabCloseType != TabCloseType.ALL && !useCurrentTab) {
             nearbyTab = findNearbyNotClosingTab(closingTabIndex);
         }
-        Tab parentTab =
-                findTabInAllTabModels(CriticalPersistedTabData.from(tabToClose).getParentId());
+        Tab parentTab = findTabInAllTabModels(tabToClose.getParentId());
         Tab nextMostRecentTab = null;
         if (uponExit) {
             nextMostRecentTab = TabModelUtils.getMostRecentTab(this, id);

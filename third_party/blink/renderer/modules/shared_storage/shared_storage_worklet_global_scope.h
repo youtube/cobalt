@@ -94,8 +94,6 @@ class MODULES_EXPORT SharedStorageWorkletGlobalScope final
   // reset, thus we cannot rely on observer method like `Dispose()`.
   void NotifyContextDestroyed() override;
 
-  bool FeatureEnabled(OriginTrialFeature feature) const override;
-
   void Trace(Visitor*) const override;
 
   // mojom::blink::SharedStorageWorkletService implementation:
@@ -110,12 +108,12 @@ class MODULES_EXPORT SharedStorageWorkletGlobalScope final
   void RunURLSelectionOperation(
       const String& name,
       const Vector<KURL>& urls,
-      const Vector<uint8_t>& serialized_data,
+      BlinkCloneableMessage serialized_data,
       mojo::PendingRemote<mojom::blink::PrivateAggregationHost>
           private_aggregation_host,
       RunURLSelectionOperationCallback callback) override;
   void RunOperation(const String& name,
-                    const Vector<uint8_t>& serialized_data,
+                    BlinkCloneableMessage serialized_data,
                     mojo::PendingRemote<mojom::blink::PrivateAggregationHost>
                         private_aggregation_host,
                     RunOperationCallback callback) override;

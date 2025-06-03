@@ -11,9 +11,9 @@ import './shared_style.css.js';
 import {WebUIListenerBehavior} from 'chrome://resources/ash/common/web_ui_listener_behavior.js';
 import {Polymer} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
+import {NearbyLogsBrowserProxy} from './cross_device_logs_browser_proxy.js';
 import {getTemplate} from './logging_tab.html.js';
-import {NearbyLogsBrowserProxy} from './nearby_logs_browser_proxy.js';
-import {LogMessage, LogProvider, Severity} from './types.js';
+import {LogMessage, LogProvider, SelectOption, Severity} from './types.js';
 
 /**
  * Converts log message to string format for saved download file.
@@ -95,9 +95,39 @@ Polymer({
       value: [],
     },
 
+    /**
+     * @private {!Array<!LogMessage>}
+     */
+    filteredLogList_: {
+      type: Array,
+      value: [],
+    },
+
     /** @private {!string} */
     feature: {
       type: String,
+    },
+
+    /** @private {!string} */
+    currentFilter: {
+      type: String,
+    },
+
+    /** @private {!Severity} */
+    currentSeverity: {
+      type: Severity,
+      value: Severity.VERBOSE,
+    },
+
+    /** @private {!Array<!SelectOption>} */
+    logLevelList: {
+      type: Array,
+      value: [
+        {name: 'VERBOSE', value: Severity.VERBOSE},
+        {name: 'INFO', value: Severity.INFO},
+        {name: 'WARNING', value: Severity.WARNING},
+        {name: 'ERROR', value: Severity.ERROR},
+      ],
     },
   },
 
@@ -130,12 +160,37 @@ Polymer({
   },
 
   /**
-   * Saves and downloads javascript logs that appear on the page.
+   * Saves and downloads all javascript logs.
    * @private
    */
-  onSaveLogsButtonClicked_() {
-    const blob = new Blob(
-        this.getSerializedLogStrings_(), {type: 'text/plain;charset=utf-8'});
+  onSaveUnfilteredLogsButtonClicked_() {
+    this.onSaveLogsButtonClicked_(false);
+  },
+
+  /**
+   * Saves and downloads javascript logs that currently appear on the page.
+   * @private
+   */
+  onSaveFilteredLogsButtonClicked_() {
+    this.onSaveLogsButtonClicked_(true);
+  },
+
+  /**
+   * Saves and downloads javascript logs.
+   * @param {!boolean} filtered
+   * @private
+   */
+  onSaveLogsButtonClicked_(filtered) {
+    let blob;
+    if (filtered) {
+      blob = new Blob(
+          this.filteredLogList_.map(logToSavedString_),
+          {type: 'text/plain;charset=utf-8'});
+    } else {
+      blob = new Blob(
+          this.logList_.map(logToSavedString_),
+          {type: 'text/plain;charset=utf-8'});
+    }
     const url = URL.createObjectURL(blob);
 
     const anchorElement = document.createElement('a');
@@ -152,24 +207,55 @@ Polymer({
   },
 
   /**
-   * Iterates through log messages in |logList_| and prepares them for download.
-   * @private
-   * @return {!Array<string>}
-   */
-  getSerializedLogStrings_() {
-    // Reverse the logs so that the oldest logs appear first and the newest logs
-    // appear last.
-    return this.logList_.map(logToSavedString_).reverse();
-  },
-
-  /**
    * Adds a log message to the javascript log list displayed. Called from the
    * C++ WebUI handler when a log message is added to the log buffer.
-   * @param {!Array<!LogMessage>} log
+   * @param {!LogMessage} log
    * @private
    */
   onLogMessageAdded_(log) {
-    this.unshift('logList_', log);
+    this.push('logList_', log);
+    if ((log.text.match(this.currentFilter) ||
+         log.file.match(this.currentFilter)) &&
+        log.severity >= this.currentSeverity) {
+      this.push('filteredLogList_', log);
+    }
+  },
+
+  addLogFilter() {
+    switch (Number(this.$.logLevelSelector.value)) {
+      case Severity.VERBOSE:
+        this.set(
+            'filteredLogList_',
+            this.logList_.filter((log) => log.severity >= Severity.VERBOSE));
+        this.currentSeverity = Severity.VERBOSE;
+        break;
+      case Severity.INFO:
+        this.set(
+            'filteredLogList_',
+            this.logList_.filter((log) => log.severity >= Severity.INFO));
+        this.currentSeverity = Severity.INFO;
+        break;
+      case Severity.WARNING:
+        this.set(
+            'filteredLogList_',
+            this.logList_.filter((log) => log.severity >= Severity.WARNING));
+        this.currentSeverity = Severity.WARNING;
+        break;
+      case Severity.ERROR:
+        this.set(
+            'filteredLogList_',
+            this.logList_.filter((log) => log.severity >= Severity.ERROR));
+        this.currentSeverity = Severity.ERROR;
+        break;
+    }
+
+    this.currentFilter = this.$.logSearch.value;
+    this.set(
+        'filteredLogList_',
+        this.filteredLogList_.filter(
+            (log) =>
+                (log.text.match(this.currentFilter) ||
+                 log.file.match(this.currentFilter))));
   },
 
   /**
@@ -187,7 +273,8 @@ Polymer({
    * @private
    */
   onGetLogMessages_(logs) {
-    this.logList_ = logs.reverse().concat(this.logList_);
+    this.logList_ = logs.concat(this.logList_);
+    this.filteredLogList_ = logs.concat(this.filteredLogList_);
   },
 
   /**
@@ -196,5 +283,6 @@ Polymer({
    */
   clearLogBuffer_() {
     this.logList_ = [];
+    this.filteredLogList_ = [];
   },
 });

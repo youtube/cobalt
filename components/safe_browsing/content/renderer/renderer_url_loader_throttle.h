@@ -7,10 +7,13 @@
 
 #include <memory>
 
+#include "base/gtest_prod_util.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
 #include "components/safe_browsing/content/common/safe_browsing.mojom.h"
 #include "components/safe_browsing/core/common/safe_browsing_url_checker.mojom.h"
+#include "extensions/buildflags/buildflags.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver_set.h"
@@ -32,6 +35,14 @@ class RendererURLLoaderThrottle : public blink::URLLoaderThrottle,
   // |render_frame_id| is used for displaying SafeBrowsing UI when necessary.
   RendererURLLoaderThrottle(mojom::SafeBrowsing* safe_browsing,
                             int render_frame_id);
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+  // |extension_web_request_reporter_pending_remote| is used for sending
+  // extension web requests to the browser.
+  RendererURLLoaderThrottle(
+      mojom::SafeBrowsing* safe_browsing,
+      int render_frame_id,
+      mojom::ExtensionWebRequestReporter* extension_web_request_reporter);
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
   ~RendererURLLoaderThrottle() override;
 
  private:
@@ -39,21 +50,26 @@ class RendererURLLoaderThrottle : public blink::URLLoaderThrottle,
   FRIEND_TEST_ALL_PREFIXES(SBRendererUrlLoaderThrottleTest,
                            DoesNotDeferHttpsImageUrl);
   FRIEND_TEST_ALL_PREFIXES(SBRendererUrlLoaderThrottleTest,
+                           DoesNotDeferHttpsScriptUrl);
+  FRIEND_TEST_ALL_PREFIXES(SBRendererUrlLoaderThrottleTest,
                            DoesNotDeferChromeUrl);
   FRIEND_TEST_ALL_PREFIXES(SBRendererUrlLoaderThrottleTest,
                            VerifyTotalDelayHistograms_DoesNotDefer);
   FRIEND_TEST_ALL_PREFIXES(SBRendererUrlLoaderThrottleTest,
                            VerifyTotalDelayHistograms_DoesNotDeferFromCache);
   FRIEND_TEST_ALL_PREFIXES(SBRendererUrlLoaderThrottleTest,
-                           VerifyTotalDelayHistograms_Defer);
-  FRIEND_TEST_ALL_PREFIXES(SBRendererUrlLoaderThrottleTest,
-                           VerifyTotalDelayHistograms_DeferFromCache);
-  FRIEND_TEST_ALL_PREFIXES(SBRendererUrlLoaderThrottleTest,
                            VerifyTotalDelayHistograms_SkipChromeUrl);
   FRIEND_TEST_ALL_PREFIXES(SBRendererUrlLoaderThrottleTest,
                            VerifyTotalDelayHistograms_SkipImageUrl);
+  FRIEND_TEST_ALL_PREFIXES(SBRendererUrlLoaderThrottleTest,
+                           VerifyTotalDelayHistograms_SkipScriptUrl);
+  FRIEND_TEST_ALL_PREFIXES(SBRendererUrlLoaderThrottleTest,
+                           VerifyTotalDelayHistograms_SkipIframeUrl);
   FRIEND_TEST_ALL_PREFIXES(
-      SBRendererUrlLoaderThrottleDisableSkipImageCssFontTest,
+      SBRendererUrlLoaderThrottleDisableSkipSubresourcesTest,
+      DefersHttpsScriptUrl);
+  FRIEND_TEST_ALL_PREFIXES(
+      SBRendererUrlLoaderThrottleDisableSkipSubresourcesTest,
       DefersHttpsImageUrl);
 
   // blink::URLLoaderThrottle implementation.
@@ -73,17 +89,12 @@ class RendererURLLoaderThrottle : public blink::URLLoaderThrottle,
   const char* NameForLoggingWillProcessResponse() override;
 
   // mojom::UrlCheckNotifier implementation.
-  void OnCompleteCheck(bool proceed,
-                       bool showed_interstitial,
-                       bool did_perform_real_time_check,
-                       bool did_check_allowlist) override;
+  void OnCompleteCheck(bool proceed, bool showed_interstitial) override;
 
   void OnCheckUrlResult(
       mojo::PendingReceiver<mojom::UrlCheckNotifier> slow_check_notifier,
       bool proceed,
-      bool showed_interstitial,
-      bool did_perform_real_time_check,
-      bool did_check_allowlist);
+      bool showed_interstitial);
 
   // Called by the two methods above.
   // |slow_check| indicates whether it reports the result of a slow check.
@@ -94,7 +105,7 @@ class RendererURLLoaderThrottle : public blink::URLLoaderThrottle,
 
   void OnMojoDisconnect();
 
-  mojom::SafeBrowsing* safe_browsing_;
+  raw_ptr<mojom::SafeBrowsing, ExperimentalRenderer> safe_browsing_;
   const int render_frame_id_;
 
   // These fields hold the connection to this instance's private connection to
@@ -125,6 +136,27 @@ class RendererURLLoaderThrottle : public blink::URLLoaderThrottle,
       notifier_receivers_;
 
   GURL original_url_;
+
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+  // Bind the pipe created in DetachFromCurrentSequence to the current
+  // sequence.
+  void BindExtensionWebRequestReporterPipeIfDetached();
+
+  // Send web request data to the browser if the request
+  // originated from an extension and destination is HTTP/HTTPS scheme only.
+  void MaybeSendExtensionWebRequestData(network::ResourceRequest* request);
+
+  raw_ptr<mojom::ExtensionWebRequestReporter, ExperimentalRenderer>
+      extension_web_request_reporter_;
+  mojo::PendingRemote<mojom::ExtensionWebRequestReporter>
+      extension_web_request_reporter_pending_remote_;
+  mojo::Remote<mojom::ExtensionWebRequestReporter>
+      extension_web_request_reporter_remote_;
+  // Tracks if the request originated from an extension, used during redirects
+  // to send web request data to the telemetry service.
+  std::string origin_extension_id_;
+  bool initiated_from_content_script_ = false;
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
   base::WeakPtrFactory<RendererURLLoaderThrottle> weak_factory_{this};
 };

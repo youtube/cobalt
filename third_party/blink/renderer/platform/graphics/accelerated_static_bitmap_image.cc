@@ -9,7 +9,7 @@
 
 #include "base/task/single_thread_task_runner.h"
 #include "components/viz/common/resources/release_callback.h"
-#include "components/viz/common/resources/resource_format_utils.h"
+#include "components/viz/common/resources/shared_image_format_utils.h"
 #include "gpu/GLES2/gl2extchromium.h"
 #include "gpu/command_buffer/client/gles2_interface.h"
 #include "gpu/command_buffer/client/raster_interface.h"
@@ -27,9 +27,18 @@
 #include "third_party/blink/renderer/platform/graphics/unaccelerated_static_bitmap_image.h"
 #include "third_party/blink/renderer/platform/scheduler/public/thread_scheduler.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
+#include "third_party/skia/include/core/SkBlendMode.h"
+#include "third_party/skia/include/core/SkColorSpace.h"
+#include "third_party/skia/include/core/SkColorType.h"
 #include "third_party/skia/include/core/SkImage.h"
+#include "third_party/skia/include/core/SkImageInfo.h"
+#include "third_party/skia/include/core/SkSamplingOptions.h"
+#include "third_party/skia/include/gpu/GrBackendSurface.h"
 #include "third_party/skia/include/gpu/GrDirectContext.h"
+#include "third_party/skia/include/gpu/GrTypes.h"
 #include "third_party/skia/include/gpu/ganesh/SkImageGanesh.h"
+#include "third_party/skia/include/gpu/ganesh/gl/GrGLBackendSurface.h"
+#include "third_party/skia/include/gpu/gl/GrGLTypes.h"
 
 namespace blink {
 
@@ -272,7 +281,7 @@ PaintImage AcceleratedStaticBitmapImage::PaintImageForCurrentFrame() {
 
   return CreatePaintImageBuilder()
       .set_texture_backing(texture_backing_, paint_image_content_id_)
-      .set_completion_state(PaintImage::CompletionState::DONE)
+      .set_completion_state(PaintImage::CompletionState::kDone)
       .TakePaintImage();
 }
 
@@ -376,12 +385,13 @@ void AcceleratedStaticBitmapImage::InitializeTextureBacking(
   GrGLTextureInfo texture_info;
   texture_info.fTarget = texture_target_;
   texture_info.fID = shared_context_texture_id;
-  texture_info.fFormat = viz::TextureStorageFormat(
-      viz::SkColorTypeToResourceFormat(sk_image_info_.colorType()),
-      capabilities.angle_rgbx_internal_format);
-  GrBackendTexture backend_texture(sk_image_info_.width(),
-                                   sk_image_info_.height(), GrMipMapped::kNo,
-                                   texture_info);
+  texture_info.fFormat =
+      context_provider_wrapper->ContextProvider()->GetGrGLTextureFormat(
+          viz::SkColorTypeToSinglePlaneSharedImageFormat(
+              sk_image_info_.colorType()));
+  auto backend_texture =
+      GrBackendTextures::MakeGL(sk_image_info_.width(), sk_image_info_.height(),
+                                skgpu::Mipmapped::kNo, texture_info);
 
   GrSurfaceOrigin origin = IsOriginTopLeft() ? kTopLeft_GrSurfaceOrigin
                                              : kBottomLeft_GrSurfaceOrigin;
@@ -470,14 +480,14 @@ AcceleratedStaticBitmapImage::ConvertToColorSpace(
                    .makeColorType(color_type)
                    .makeWH(Size().width(), Size().height());
 
-  auto usage_flags = ContextProviderWrapper()
-                         ->ContextProvider()
-                         ->SharedImageInterface()
-                         ->UsageForMailbox(mailbox_);
+  const auto usage_flags = ContextProviderWrapper()
+                               ->ContextProvider()
+                               ->SharedImageInterface()
+                               ->UsageForMailbox(mailbox_);
   auto provider = CanvasResourceProvider::CreateSharedImageProvider(
       image_info, cc::PaintFlags::FilterQuality::kLow,
       CanvasResourceProvider::ShouldInitialize::kNo, ContextProviderWrapper(),
-      RasterMode::kGPU, IsOriginTopLeft(), usage_flags);
+      RasterMode::kGPU, usage_flags);
   if (!provider) {
     return nullptr;
   }
@@ -486,8 +496,7 @@ AcceleratedStaticBitmapImage::ConvertToColorSpace(
   paint.setBlendMode(SkBlendMode::kSrc);
   provider->Canvas()->drawImage(PaintImageForCurrentFrame(), 0, 0,
                                 SkSamplingOptions(), &paint);
-  return provider->Snapshot(CanvasResourceProvider::FlushReason::kNon2DCanvas,
-                            orientation_);
+  return provider->Snapshot(FlushReason::kNon2DCanvas, orientation_);
 }
 
 uint32_t AcceleratedStaticBitmapImage::GetUsage() const {

@@ -4,15 +4,15 @@
 
 #include "base/trace_event/memory_infra_background_allowlist.h"
 
-#include <ctype.h>
 #include <string.h>
 
 #include <string>
 
-#include "base/allocator/partition_allocator/partition_alloc_buildflags.h"
+#include "base/allocator/partition_allocator/src/partition_alloc/partition_alloc_buildflags.h"
 #include "base/containers/fixed_flat_set.h"
 #include "base/strings/string_util.h"
 #include "build/build_config.h"
+#include "third_party/abseil-cpp/absl/strings/ascii.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/meminfo_dump_provider.h"
@@ -35,6 +35,7 @@ constexpr auto kDumpProviderAllowlist =
         "android::ResourceManagerImpl",
 #endif
         "AutocompleteController",
+        "AXPlatformNode",
         "BlinkGC",
         "BlinkObjectCounters",
         "BlobStorageContext",
@@ -49,6 +50,7 @@ constexpr auto kDumpProviderAllowlist =
         "DownloadService",
         "ExtensionFunctions",
         "FontCaches",
+        "FrameEvictionManager",
         "GrShaderCache",
         "HistoryReport",
         "cc::ResourcePool",
@@ -101,6 +103,7 @@ constexpr auto kAllocatorDumpNameAllowlist = base::MakeFixedFlatSet<
 #if BUILDFLAG(IS_ANDROID)
         base::android::MeminfoDumpProvider::kDumpName,
 #endif
+        "accessibility/ax_platform_node",
         "blink_gc/main/allocated_objects",
         "blink_gc/main/heap",
         "blink_gc/workers/heap/worker_0x?",
@@ -109,6 +112,7 @@ constexpr auto kAllocatorDumpNameAllowlist = base::MakeFixedFlatSet<
         "blink_objects/AdSubframe",
         "blink_objects/ArrayBufferContents",
         "blink_objects/AudioHandler",
+        "blink_objects/AudioWorkletProcessor",
         "blink_objects/ContextLifecycleStateObserver",
         "blink_objects/DetachedScriptState",
         "blink_objects/Document",
@@ -135,16 +139,18 @@ constexpr auto kAllocatorDumpNameAllowlist = base::MakeFixedFlatSet<
         "discardable/madv_free_allocated",
         "discardable/child_0x?",
         "extensions/functions",
-        "extensions/value_store/Extensions.Database.Open.Settings/0x?",
+        "extensions/value_store/Extensions.Database.Open.OriginManagedConfiguration/0x?",
         "extensions/value_store/Extensions.Database.Open.Rules/0x?",
-        "extensions/value_store/Extensions.Database.Open.State/0x?",
         "extensions/value_store/Extensions.Database.Open.Scripts/0x?",
+        "extensions/value_store/Extensions.Database.Open.Settings/0x?",
+        "extensions/value_store/Extensions.Database.Open.State/0x?",
         "extensions/value_store/Extensions.Database.Open.WebAppsLockScreen/0x?",
         "extensions/value_store/Extensions.Database.Open/0x?",
         "extensions/value_store/Extensions.Database.Restore/0x?",
         "extensions/value_store/Extensions.Database.Value.Restore/0x?",
         "font_caches/font_platform_data_cache",
         "font_caches/shape_caches",
+        "frame_evictor",
         "gpu/discardable_cache/cache_0x?",
         "gpu/discardable_cache/cache_0x?/avg_image_size",
         "gpu/gl/buffers/context_group_0x?",
@@ -246,6 +252,8 @@ constexpr auto kAllocatorDumpNameAllowlist = base::MakeFixedFlatSet<
         "v8/main/heap/read_only_space",
         "v8/main/heap/shared_large_object_space",
         "v8/main/heap/shared_space",
+        "v8/main/heap/trusted_space",
+        "v8/main/heap/trusted_large_object_space",
         "v8/main/malloc",
         "v8/main/zapped_for_debug",
         "v8/utility/code_stats",
@@ -262,6 +270,8 @@ constexpr auto kAllocatorDumpNameAllowlist = base::MakeFixedFlatSet<
         "v8/utility/heap/read_only_space",
         "v8/utility/heap/shared_large_object_space",
         "v8/utility/heap/shared_space",
+        "v8/utility/heap/trusted_space",
+        "v8/utility/heap/trusted_large_object_space",
         "v8/utility/malloc",
         "v8/utility/zapped_for_debug",
         "v8/workers/code_stats/isolate_0x?",
@@ -278,6 +288,8 @@ constexpr auto kAllocatorDumpNameAllowlist = base::MakeFixedFlatSet<
         "v8/workers/heap/read_only_space/isolate_0x?",
         "v8/workers/heap/shared_large_object_space/isolate_0x?",
         "v8/workers/heap/shared_space/isolate_0x?",
+        "v8/workers/heap/trusted_space/isolate_0x?",
+        "v8/workers/heap/trusted_large_object_space/isolate_0x?",
         "v8/workers/malloc/isolate_0x?",
         "v8/workers/zapped_for_debug/isolate_0x?",
         "site_storage/index_db/db_0x?",
@@ -342,8 +354,10 @@ bool IsMemoryAllocatorDumpNameInAllowlist(const std::string& name) {
   stripped_str.reserve(length);
   bool parsing_hex = false;
   for (size_t i = 0; i < length; ++i) {
-    if (parsing_hex && isxdigit(name[i]))
+    if (parsing_hex &&
+        absl::ascii_isxdigit(static_cast<unsigned char>(name[i]))) {
       continue;
+    }
     parsing_hex = false;
     if (i + 1 < length && name[i] == '0' && name[i + 1] == 'x') {
       parsing_hex = true;

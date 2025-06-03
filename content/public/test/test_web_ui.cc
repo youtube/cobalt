@@ -49,7 +49,7 @@ WebUIController* TestWebUI::GetController() {
 }
 
 RenderFrameHost* TestWebUI::GetRenderFrameHost() {
-  return nullptr;
+  return render_frame_host_.get();
 }
 
 void TestWebUI::SetController(std::unique_ptr<WebUIController> controller) {
@@ -145,7 +145,7 @@ TestWebUI::CallData::~CallData() {
 }
 
 void TestWebUI::CallData::AppendArgument(base::Value arg) {
-  args_.push_back(std::move(arg));
+  args_.Append(std::move(arg));
 }
 
 }  // namespace content

@@ -61,4 +61,12 @@ bool TestAshWebView::HasFocus() const {
   return focused_;
 }
 
+const GURL& TestAshWebView::GetVisibleURL() {
+  return current_url_;
+}
+
+bool TestAshWebView::IsErrorDocument() {
+  return is_error_document_;
+}
+
 }  // namespace ash

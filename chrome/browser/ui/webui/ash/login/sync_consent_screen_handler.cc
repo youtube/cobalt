@@ -65,6 +65,10 @@ std::string Sanitize(const std::u16string& raw_string) {
   std::string sanitized_string = base::UTF16ToUTF8(raw_string);
   base::ReplaceSubstringsAfterOffset(&sanitized_string, 0, "\u00A0" /* NBSP */,
                                      "&nbsp;");
+  // When the strings are passed to the HTML, the symbol "&gt;"
+  // will be automatically replaced with ">". This change must
+  // be mirrored in the string-to-ids map.
+  base::ReplaceSubstringsAfterOffset(&sanitized_string, 0, ">", "&gt;");
   return sanitized_string;
 }
 
@@ -195,9 +199,9 @@ void SyncConsentScreenHandler::DeclareLocalizedValues(
       IDS_LOGIN_OS_SYNC_CONSENT_SCREEN_TOOLTIP_ADDITIONAL_TEXT, builder);
 }
 
-void SyncConsentScreenHandler::Show(bool is_arc_restricted) {
+void SyncConsentScreenHandler::Show(bool is_lacros_enabled) {
   base::Value::Dict data;
-  data.Set("isArcRestricted", is_arc_restricted);
+  data.Set("isLacrosEnabled", is_lacros_enabled);
   ShowInWebUI(std::move(data));
 }
 

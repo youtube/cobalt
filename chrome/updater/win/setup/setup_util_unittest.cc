@@ -6,16 +6,44 @@
 
 #include <memory>
 #include <string>
+#include <utility>
 
 #include "base/command_line.h"
+#include "chrome/updater/app/server/win/updater_legacy_idl.h"
 #include "chrome/updater/test_scope.h"
 #include "chrome/updater/updater_scope.h"
-#include "chrome/updater/util/unittest_util.h"
+#include "chrome/updater/util/unit_test_util.h"
+#include "chrome/updater/util/win_util.h"
 #include "chrome/updater/win/task_scheduler.h"
 #include "chrome/updater/win/test/test_executables.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace updater {
+
+TEST(SetupUtilTest, DeleteLegacyEntriesPerUser) {
+  if (IsSystemInstall(GetTestScope())) {
+    return;
+  }
+
+  ASSERT_TRUE(DeleteLegacyEntriesPerUser());
+
+  std::unique_ptr<WorkItemList> list(WorkItem::CreateWorkItemList());
+
+#define INTERFACE_PAIR(interface) \
+  std::make_pair(__uuidof(interface), L#interface)
+
+  for (const auto& [iid, interface_name] :
+       {INTERFACE_PAIR(IProcessLauncher), INTERFACE_PAIR(IProcessLauncher2)}) {
+    AddInstallComInterfaceWorkItems(HKEY_CURRENT_USER,
+                                    base::FilePath(L"C:\\foo.exe"), iid,
+                                    interface_name, list.get());
+  }
+#undef INTERFACE_PAIR
+
+  ASSERT_TRUE(list->Do());
+
+  ASSERT_TRUE(DeleteLegacyEntriesPerUser());
+}
 
 class SetupUtilRegisterWakeTaskWorkItemTests : public ::testing::Test {
  public:

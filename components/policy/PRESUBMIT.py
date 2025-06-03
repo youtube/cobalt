@@ -6,7 +6,6 @@
 # chromium-policy-owners@google.com.
 
 PRESUBMIT_VERSION = '2.0.0'
-USE_PYTHON3 = True
 
 import glob
 import os
@@ -586,6 +585,10 @@ def CheckPolicyChangeVersionPlatformCompatibility(input_api, output_api):
 
       if not new_policy_platforms[platform]['to']:
         continue
+      # These warnings fire inappropriately in presubmit --all/--files runs, so
+      # disable them in these cases to reduce the noise.
+      if input_api.no_diffs:
+        continue
       # Support for policies can only be removed for past version until we have
       # a better reminder process to cleanup the code related to deprecated
       # policies.
@@ -635,7 +638,8 @@ def CheckPoliciesYamlOrdering(input_api, output_api):
     return results
 
   root = input_api.change.RepositoryRoot()
-  with open(os.path.join(root, _POLICIES_YAML_PATH), 'r', encoding='utf-8') as f:
+  with open(os.path.join(root, _POLICIES_YAML_PATH),
+            'r', encoding='utf-8') as f:
     policies_yaml_lines = f.readlines()
 
   previous_id = 0
@@ -762,7 +766,7 @@ def CheckDevicePolicies(input_api, output_api):
   root = input_api.change.RepositoryRoot()
   policy_changelist = _GetPolicyChangeList(input_api)
   if not any(policy_change['new_policy'].get('device_only', False)
-             and policy_change['new_policy']['type'] == 'external'
+             or policy_change['new_policy']['type'] == 'external'
              for policy_change in policy_changelist
              if policy_change['new_policy'] != None):
     return results

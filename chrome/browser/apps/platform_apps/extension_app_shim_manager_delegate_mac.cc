@@ -38,6 +38,7 @@
 #include "extensions/browser/extension_prefs.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/common/constants.h"
+#include "extensions/common/extension_id.h"
 
 using extensions::AppWindowRegistry;
 using extensions::Extension;
@@ -56,7 +57,7 @@ typedef AppWindowRegistry::AppWindowList AppWindowList;
 class EnableViaPrompt : public ExtensionEnableFlowDelegate {
  public:
   EnableViaPrompt(Profile* profile,
-                  const std::string& extension_id,
+                  const extensions::ExtensionId& extension_id,
                   base::OnceCallback<void()> callback)
       : profile_(profile),
         extension_id_(extension_id),
@@ -78,13 +79,14 @@ class EnableViaPrompt : public ExtensionEnableFlowDelegate {
   void ExtensionEnableFlowAborted(bool user_initiated) override { delete this; }
 
   raw_ptr<Profile> profile_;
-  std::string extension_id_;
+  extensions::ExtensionId extension_id_;
   base::OnceCallback<void()> callback_;
   std::unique_ptr<ExtensionEnableFlow> flow_;
 };
 
-const Extension* MaybeGetAppExtension(content::BrowserContext* context,
-                                      const std::string& extension_id) {
+const Extension* MaybeGetAppExtension(
+    content::BrowserContext* context,
+    const extensions::ExtensionId& extension_id) {
   if (!context)
     return nullptr;
 
@@ -104,7 +106,7 @@ ExtensionAppShimManagerDelegate::~ExtensionAppShimManagerDelegate() = default;
 
 bool ExtensionAppShimManagerDelegate::ShowAppWindows(
     Profile* profile,
-    const web_app::AppId& app_id) {
+    const webapps::AppId& app_id) {
   AppWindowList windows =
       AppWindowRegistry::Get(profile)->GetAppWindowsForApp(app_id);
   for (extensions::AppWindow* window : base::Reversed(windows)) {
@@ -116,7 +118,7 @@ bool ExtensionAppShimManagerDelegate::ShowAppWindows(
 
 void ExtensionAppShimManagerDelegate::CloseAppWindows(
     Profile* profile,
-    const web_app::AppId& app_id) {
+    const webapps::AppId& app_id) {
   AppWindowList windows =
       AppWindowRegistry::Get(profile)->GetAppWindowsForApp(app_id);
   for (auto it = windows.begin(); it != windows.end(); ++it) {
@@ -127,14 +129,14 @@ void ExtensionAppShimManagerDelegate::CloseAppWindows(
 
 bool ExtensionAppShimManagerDelegate::AppIsInstalled(
     Profile* profile,
-    const web_app::AppId& app_id) {
+    const webapps::AppId& app_id) {
   const Extension* extension = MaybeGetAppExtension(profile, app_id);
   return profile && extension;
 }
 
 bool ExtensionAppShimManagerDelegate::AppCanCreateHost(
     Profile* profile,
-    const web_app::AppId& app_id) {
+    const webapps::AppId& app_id) {
   const Extension* extension = MaybeGetAppExtension(profile, app_id);
   if (!profile || !extension)
     return false;
@@ -150,13 +152,13 @@ bool ExtensionAppShimManagerDelegate::AppCanCreateHost(
 
 bool ExtensionAppShimManagerDelegate::AppIsMultiProfile(
     Profile* profile,
-    const web_app::AppId& app_id) {
+    const webapps::AppId& app_id) {
   return false;
 }
 
 bool ExtensionAppShimManagerDelegate::AppUsesRemoteCocoa(
     Profile* profile,
-    const web_app::AppId& app_id) {
+    const webapps::AppId& app_id) {
   const Extension* extension = MaybeGetAppExtension(profile, app_id);
   if (!profile || !extension)
     return false;
@@ -171,7 +173,7 @@ bool ExtensionAppShimManagerDelegate::AppUsesRemoteCocoa(
 
 void ExtensionAppShimManagerDelegate::EnableExtension(
     Profile* profile,
-    const web_app::AppId& app_id,
+    const webapps::AppId& app_id,
     base::OnceCallback<void()> callback) {
   const Extension* extension = MaybeGetAppExtension(profile, app_id);
   if (extension)
@@ -182,7 +184,7 @@ void ExtensionAppShimManagerDelegate::EnableExtension(
 
 void ExtensionAppShimManagerDelegate::LaunchApp(
     Profile* profile,
-    const web_app::AppId& app_id,
+    const webapps::AppId& app_id,
     const std::vector<base::FilePath>& files,
     const std::vector<GURL>& urls,
     const GURL& override_url,
@@ -221,8 +223,9 @@ void ExtensionAppShimManagerDelegate::LaunchApp(
 
 void ExtensionAppShimManagerDelegate::LaunchShim(
     Profile* profile,
-    const web_app::AppId& app_id,
-    bool recreate_shims,
+    const webapps::AppId& app_id,
+    web_app::LaunchShimUpdateBehavior update_behavior,
+    web_app::ShimLaunchMode launch_mode,
     apps::ShimLaunchedCallback launched_callback,
     apps::ShimTerminatedCallback terminated_callback) {
   const Extension* extension = MaybeGetAppExtension(profile, app_id);
@@ -230,18 +233,18 @@ void ExtensionAppShimManagerDelegate::LaunchShim(
   // Only force recreation of shims when RemoteViews is in use (that is, for
   // PWAs). Otherwise, shims may be created unexpectedly.
   // https://crbug.com/941160
-  if (recreate_shims && AppUsesRemoteCocoa(profile, app_id)) {
+  if (web_app::RecreateShimsRequested(update_behavior) &&
+      AppUsesRemoteCocoa(profile, app_id)) {
     // Load the resources needed to build the app shim (icons, etc), and then
     // recreate the shim and launch it.
     web_app::GetShortcutInfoForApp(
         extension, profile,
-        base::BindOnce(
-            &web_app::LaunchShim,
-            web_app::LaunchShimUpdateBehavior::RECREATE_UNCONDITIONALLY,
-            std::move(launched_callback), std::move(terminated_callback)));
+        base::BindOnce(&web_app::LaunchShim, update_behavior, launch_mode,
+                       std::move(launched_callback),
+                       std::move(terminated_callback)));
   } else {
     web_app::LaunchShim(
-        web_app::LaunchShimUpdateBehavior::DO_NOT_RECREATE,
+        web_app::LaunchShimUpdateBehavior::kDoNotRecreate, launch_mode,
         std::move(launched_callback), std::move(terminated_callback),
         web_app::ShortcutInfoForExtensionAndProfile(extension, profile));
   }
@@ -254,7 +257,7 @@ bool ExtensionAppShimManagerDelegate::HasNonBookmarkAppWindowsOpen() {
 std::vector<chrome::mojom::ApplicationDockMenuItemPtr>
 ExtensionAppShimManagerDelegate::GetAppShortcutsMenuItemInfos(
     Profile* profile,
-    const web_app::AppId& app_id) {
+    const webapps::AppId& app_id) {
   return std::vector<chrome::mojom::ApplicationDockMenuItemPtr>();
 }
 

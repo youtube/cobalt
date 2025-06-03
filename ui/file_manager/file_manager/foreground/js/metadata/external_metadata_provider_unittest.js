@@ -10,7 +10,7 @@ import {reportPromise} from '../../../common/js/test_error_reporting.js';
 import {ExternalMetadataProvider} from './external_metadata_provider.js';
 import {MetadataRequest} from './metadata_request.js';
 
-/** @const {!Entry} */
+/** @const @type {!Entry} */
 const entryA = /** @type {!Entry} */ ({
   toURL: function() {
     return 'filesystem://A';
@@ -18,7 +18,7 @@ const entryA = /** @type {!Entry} */ ({
   isFile: true,
 });
 
-/** @const {!Entry} */
+/** @const @type {!Entry} */
 const entryB = /** @type {!Entry} */ ({
   toURL: function() {
     return 'filesystem://B';
@@ -32,14 +32,20 @@ const entryB = /** @type {!Entry} */ ({
  */
 let mockChrome;
 
+/** @param {()=>void} callback */
 export function testExternalMetadataProviderBasic(callback) {
   // Setup mock chrome APIs.
   mockChrome = {
     fileManagerPrivate: {
+      /**
+       * @param {!Array<!Entry>} entries
+       * @param {!Array<string>} names
+       * @param {function(Array<Object>):void} callback
+       */
       getEntryProperties: function(entries, names, callback) {
         assertEquals(2, entries.length);
-        assertEquals('filesystem://A', entries[0].toURL());
-        assertEquals('filesystem://B', entries[1].toURL());
+        assertEquals('filesystem://A', entries[0]?.toURL());
+        assertEquals('filesystem://B', entries[1]?.toURL());
         assertEquals(2, names.length);
         assertEquals('modificationTime', names[0]);
         assertEquals('size', names[1]);

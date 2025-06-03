@@ -1,4 +1,20 @@
 <style include="os-feedback-shared">
+  :host-context(body.jelly-enabled) #privacyNote {
+    font: var(--cros-body-2-font);
+  }
+
+  :host-context(body.jelly-enabled) #screenshotCheckLabel {
+    font: var(--cros-button-2-font);
+  }
+
+  :host-context(body.jelly-enabled) .checkbox-label {
+    font: var(--cros-body-2-font);
+  }
+
+  :host-context(body.jelly-enabled) cr-dialog [slot=body] {
+    font: var(--cros-body-1-font);
+  }
+
   ::-webkit-scrollbar {
     background-color: transparent;
     border-radius: 4px;
@@ -10,14 +26,27 @@
     border-radius: 4px;
   }
 
-  #privacyNote {
+  :host-context(body.jelly-enabled) .card-frame {
+    background-color: var(--cros-sys-app_base);
+    border: none;
+    border-radius: 12px;
+  }
+
+  :host-context(body.jelly-enabled) #screenshotContainer {
+    margin-inline-end: 16px;
+  }
+
+  :host-context(body.jelly-enabled) #screenshotImage {
+    border-radius: 0 12px 12px 0;
+  }
+
+  .privacy-note {
     color: var(--cros-color-secondary);
     font-size: 13px;
     font-weight: 400;
     line-height: 18px;
     margin-bottom: 20px;
-    text-align: justify;
-    text-justify: inter-word;
+    text-align: left;
   }
 
   #attachFilesLabelContainer {
@@ -195,10 +224,11 @@
     <!-- Attach files -->
     <div id="attachFiles">
       <div id="attachFilesLabelContainer">
-        <h2 id="attachFilesLabel">[[i18n('attachFilesLabel')]]</h2>
+        <h2 id="attachFilesLabel">[[getAttachFilesLabel_(feedbackContext)]]</h2>
         <iron-icon icon="os-feedback:info" id="attachFilesIcon"
             class="focusable" tabindex="0"
-            aria-labelledby="attachFilesTooltipContent">
+            aria-labelledby="attachFilesTooltipContent"
+            hidden$="[[!isUserLoggedIn_(feedbackContext)]]">
         </iron-icon>
         <paper-tooltip for="attachFilesIcon" position="top" offset="0" fit-to-visible-bounds>
           <div id="attachFilesTooltipContent">
@@ -218,7 +248,8 @@
           </button>
         </div>
         <!-- Attach a file -->
-        <div id="addFileContainer" class="card-frame">
+        <div id="addFileContainer" class="card-frame"
+            hidden$="[[!isUserLoggedIn_(feedbackContext)]]">
           <file-attachment></file-attachment>
         </div>
       </div>
@@ -293,6 +324,14 @@
               inner-h-t-m-l="[[bluetoothLogsCheckboxLabel_]]"></div>
         </cr-checkbox>
       </div>
+      <!-- Link Cross Device Doogfood Feedback (Googler Internal Only) -->
+      <div id="linkCrossDeviceDogfoodFeedbackCheckboxContainer" class="checkbox-field-container"
+          hidden="[[!shouldShowLinkCrossDeviceDogfoodFeedbackCheckbox]]">
+        <cr-checkbox id="linkCrossDeviceDogfoodFeedbackCheckbox" aria-labelledby="linkCrossDeviceDogfoodFeedbackInfoLabel" checked>
+          <div id="linkCrossDeviceDogfoodFeedbackInfoLabel" class="checkbox-label"
+              inner-h-t-m-l="[[linkCrossDeviceDogfoodFeedbackCheckboxLabel_]]"></div>
+        </cr-checkbox>
+      </div>
       <!-- Performance trace -->
       <div id="performanceTraceContainer" class="checkbox-field-container"
           hidden="[[!shouldShowPerformanceTraceCheckbox_(feedbackContext)]]">
@@ -305,7 +344,11 @@
       </div>
     </div>
     <!-- Privacy note -->
-    <div id="privacyNote" inner-h-t-m-l="[[privacyNote_]]"></div>
+    <div id="privacyNote" inner-h-t-m-l="[[privacyNote_]]"
+        class="privacy-note">
+    </div>
+    <div id="shareWithPartnerNote" class="privacy-note">
+      [[i18n('mayBeShareWithPartnerNote')]]</div>
     <div id="shadowShield"></div>
   </div>
   <div id="separator"></div>
@@ -345,6 +388,17 @@
   <div slot="button-container">
     <cr-button id="bluetoothDialogDoneButton" class="action-button"
         on-click="handleCloseBluetoothDialogClicked_">
+      [[i18n('buttonDone')]]
+    </cr-button>
+  </div>
+</cr-dialog>
+<cr-dialog id="linkCrossDeviceDogfoodFeedbackDialog">
+  <div slot="body">
+    [[i18n('linkCrossDeviceDogfoodFeedbackMessage')]]
+  </div>
+  <div slot="button-container">
+    <cr-button id="linkCrossDeviceDogfoodFeedbackDialogDoneButton" class="action-button"
+        on-click="handleCloseLinkCrossDeviceDogfoodFeedbackDialogClicked_">
       [[i18n('buttonDone')]]
     </cr-button>
   </div>

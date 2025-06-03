@@ -22,6 +22,7 @@
 // code size.
 #include "base/check.h"
 #include "base/command_line.h"
+#include "base/files/file_enumerator.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
@@ -31,12 +32,13 @@
 #include "base/strings/sys_string_conversions.h"
 #include "base/threading/platform_thread.h"
 #include "base/time/time.h"
+#include "base/types/expected_macros.h"
 #include "base/win/scoped_com_initializer.h"
 #include "base/win/scoped_localalloc.h"
 #include "base/win/windows_version.h"
 #include "chrome/installer/util/lzma_util.h"
-#include "chrome/installer/util/util_constants.h"
 #include "chrome/updater/constants.h"
+#include "chrome/updater/tag.h"
 #include "chrome/updater/updater_branding.h"
 #include "chrome/updater/updater_scope.h"
 #include "chrome/updater/util/util.h"
@@ -44,7 +46,6 @@
 #include "chrome/updater/win/installer/configuration.h"
 #include "chrome/updater/win/installer/installer_constants.h"
 #include "chrome/updater/win/installer/pe_resource.h"
-#include "chrome/updater/win/tag_extractor.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace updater {
@@ -54,15 +55,13 @@ using PathString = StackString<MAX_PATH>;
 namespace {
 
 // Returns the tag if the tag can be extracted. The tag is read from the
-// program file image used to create this process. Google is using UTF8 tags but
-// other embedders could use UTF16. The UTF16 tag not only uses a different
-// character width, but the tag is inserted in a different way.]
-// The implementation of this function only handles UTF8 tags.
+// program file image used to create this process. The implementation of this
+// function only handles UTF8 tags.
 std::string ExtractTag() {
   PathString path;
   return (::GetModuleFileName(nullptr, path.get(), path.capacity()) > 0 &&
           ::GetLastError() == ERROR_SUCCESS)
-             ? ExtractTagFromFile(path.get(), TagEncoding::kUtf8)
+             ? tagging::ExeReadTag(base::FilePath(path.get()))
              : std::string();
 }
 
@@ -161,6 +160,24 @@ BOOL CALLBACK OnResourceFound(HMODULE module,
   }
 
   return TRUE;
+}
+
+absl::optional<base::FilePath> FindOfflineDir(
+    const base::FilePath& unpack_path) {
+  const base::FilePath base_offline_dir =
+      unpack_path.Append(L"bin").Append(L"Offline");
+  if (!base::PathExists(base_offline_dir)) {
+    return absl::nullopt;
+  }
+  base::FileEnumerator file_enumerator(base_offline_dir, false,
+                                       base::FileEnumerator::DIRECTORIES);
+  for (base::FilePath path = file_enumerator.Next(); !path.empty();
+       path = file_enumerator.Next()) {
+    if (IsGuid(path.BaseName().value())) {
+      return path;
+    }
+  }
+  return absl::nullopt;
 }
 
 // Finds and writes to disk resources of type 'B7' (7zip archive). Returns false
@@ -286,13 +303,14 @@ ProcessExitResult HandleRunElevated(const base::CommandLine& command_line) {
   // updater.exe must happen from a secure directory.
   base::CommandLine elevated_command_line = command_line;
   elevated_command_line.AppendSwitchASCII(kCmdLineExpectElevated, {});
-  HResultOr<DWORD> result = RunElevated(
-      command_line.GetProgram(), elevated_command_line.GetArgumentsString());
-
-  return result.has_value()
-             ? ProcessExitResult(result.value())
-             : ProcessExitResult(RUN_SETUP_FAILED_COULD_NOT_CREATE_PROCESS,
-                                 result.error());
+  ASSIGN_OR_RETURN(DWORD result,
+                   RunElevated(command_line.GetProgram(),
+                               elevated_command_line.GetArgumentsString()),
+                   [](HRESULT error) {
+                     return ProcessExitResult(
+                         RUN_SETUP_FAILED_COULD_NOT_CREATE_PROCESS, error);
+                   });
+  return ProcessExitResult(result);
 }
 
 ProcessExitResult HandleRunDeElevated(const base::CommandLine& command_line) {
@@ -368,8 +386,6 @@ ProcessExitResult InstallerMain(HMODULE module) {
     return HandleRunDeElevated(command_line);
   }
 
-  // TODO(crbug.com/1379164) - simplify the command line handling to avoid
-  // mutating the command line of the process to make logging work.
   base::CommandLine::Init(0, nullptr);
   *base::CommandLine::ForCurrentProcess() = command_line;
   InitLogging(scope);
@@ -392,7 +408,7 @@ ProcessExitResult InstallerMain(HMODULE module) {
   // a compressed LZMA archive of a single file.
   absl::optional<base::ScopedTempDir> base_path_owner = CreateSecureTempDir();
   if (!base_path_owner) {
-    return ProcessExitResult(static_cast<DWORD>(installer::TEMP_DIR_FAILED));
+    return ProcessExitResult(TEMP_DIR_FAILED);
   }
 
   PathString base_path;
@@ -408,7 +424,7 @@ ProcessExitResult InstallerMain(HMODULE module) {
   // Create a temp folder where the archives are unpacked.
   absl::optional<base::ScopedTempDir> temp_path = CreateSecureTempDir();
   if (!temp_path) {
-    return ProcessExitResult(static_cast<DWORD>(installer::TEMP_DIR_FAILED));
+    return ProcessExitResult(TEMP_DIR_FAILED);
   }
 
   const base::FilePath unpack_path = temp_path->GetPath();
@@ -418,7 +434,7 @@ ProcessExitResult InstallerMain(HMODULE module) {
       UnPackArchive(base::FilePath(compressed_archive.get()), unpack_path,
                     /*output_file=*/nullptr);
   if (unpack_status != UNPACK_NO_ERROR) {
-    return ProcessExitResult(static_cast<DWORD>(installer::UNPACKING_FAILED));
+    return ProcessExitResult(UNPACKING_FAILED);
   }
 
   // Unpack the uncompressed archive to extract the updater files.
@@ -427,7 +443,7 @@ ProcessExitResult InstallerMain(HMODULE module) {
   unpack_status =
       UnPackArchive(uncompressed_archive, unpack_path, /*output_file=*/nullptr);
   if (unpack_status != UNPACK_NO_ERROR) {
-    return ProcessExitResult(static_cast<DWORD>(installer::UNPACKING_FAILED));
+    return ProcessExitResult(UNPACKING_FAILED);
   }
 
   // While unpacking the binaries, we paged in a whole bunch of memory that
@@ -435,6 +451,20 @@ ProcessExitResult InstallerMain(HMODULE module) {
   // setup.
   ::SetProcessWorkingSetSize(::GetCurrentProcess(), static_cast<SIZE_T>(-1),
                              static_cast<SIZE_T>(-1));
+
+  // Determine if an offlinedir is embedded and, if it is, add an
+  // --offlinedir={GUID} switch to indicate that an offline install should
+  // be performed.
+  const absl::optional<base::FilePath> offline_dir =
+      FindOfflineDir(unpack_path);
+  if (offline_dir.has_value()) {
+    if (!cmd_line_args.append(L" --") ||
+        !cmd_line_args.append(base::SysUTF8ToWide(kOfflineDirSwitch).c_str()) ||
+        !cmd_line_args.append(L"=") ||
+        !cmd_line_args.append(offline_dir->BaseName().value().c_str())) {
+      return ProcessExitResult(COMMAND_STRING_OVERFLOW);
+    }
+  }
 
   PathString setup_path;
   if (!setup_path.assign(unpack_path.value().c_str()) ||

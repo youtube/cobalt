@@ -8,13 +8,15 @@ import 'chrome://settings/settings.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 import {AutofillManagerImpl, CountryDetailManagerImpl, CrInputElement, CrTextareaElement} from 'chrome://settings/lazy_load.js';
-import {assertArrayEquals, assertEquals, assertFalse, assertGT, assertTrue} from 'chrome://webui-test/chai_assert.js';
+import {assertEquals, assertFalse, assertGT, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {eventToPromise, whenAttributeIs, isVisible} from 'chrome://webui-test/test_util.js';
 import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
 
-import {AutofillManagerExpectations, createAddressEntry, createEmptyAddressEntry, STUB_USER_ACCOUNT_INFO, TestAutofillManager} from './passwords_and_autofill_fake_data.js';
-import {createAutofillSection, initiateRemoving, initiateEditing, CountryDetailManagerTestImpl, createAddressDialog, createRemoveAddressDialog, expectEvent, openAddressDialog} from './autofill_section_test_utils.js';
+import {AutofillManagerExpectations, createAddressEntry, createEmptyAddressEntry, STUB_USER_ACCOUNT_INFO, TestAutofillManager} from './autofill_fake_data.js';
+import {createAutofillSection, initiateRemoving, initiateEditing, CountryDetailManagerTestImpl, createAddressDialog, createRemoveAddressDialog, expectEvent, openAddressDialog, deleteAddress, getAddressFieldValue} from './autofill_section_test_utils.js';
 // clang-format on
+
+const ServerFieldType = chrome.autofillPrivate.ServerFieldType;
 
 suite('AutofillSectionUiTest', function() {
   test('testAutofillExtensionIndicator', function() {
@@ -189,6 +191,44 @@ suite('AutofillSectionUiTest', function() {
   });
 });
 
+suite('AutofillSectionFocusTest', function() {
+  // TODO(crbug.com/1473847): Fix the flakiness.
+  test.skip('verifyFocusLocationAfterRemoving', async () => {
+    const section = await createAutofillSection(
+        [
+          createAddressEntry(),
+          createAddressEntry(),
+          createAddressEntry(),
+        ],
+        {profile_enabled: {value: true}});
+    const manager = AutofillManagerImpl.getInstance() as TestAutofillManager;
+
+    await deleteAddress(section, manager, 1);
+    const addressesAfterRemovingInTheMiddle =
+        section.$.addressList.querySelectorAll('.list-item');
+    assertTrue(
+        addressesAfterRemovingInTheMiddle[1]!.matches(':focus-within'),
+        'The focus should remain on the same index on the list (but next ' +
+            'to the removed address).');
+
+    await deleteAddress(section, manager, 1);
+    const addressesAfterRemovingLastInTheList =
+        section.$.addressList.querySelectorAll('.list-item');
+    assertTrue(
+        addressesAfterRemovingLastInTheList[0]!.matches(':focus-within'),
+        'After removing the last address on the list the focus should go ' +
+            'to the preivous address.');
+
+    await deleteAddress(section, manager, 0);
+    assertTrue(
+        section.$.addAddress.matches(':focus-within'),
+        'If there are no addresses remaining after removal the focus should ' +
+            'go to the Add button.');
+
+    document.body.removeChild(section);
+  });
+});
+
 suite('AutofillSectionAddressTests', function() {
   suiteSetup(function() {
     CountryDetailManagerImpl.setInstance(new CountryDetailManagerTestImpl());
@@ -264,6 +304,11 @@ suite('AutofillSectionAddressTests', function() {
   });
 
   test('verifyAddressLocalIndication', async () => {
+    loadTimeData.overrideValues({
+      autofillAccountProfileStorage: false,
+      syncEnableContactInfoDataTypeInTransportMode: false,
+    });
+
     const autofillManager = new TestAutofillManager();
     autofillManager.data.addresses = [createAddressEntry()];
     autofillManager.data.accountInfo = {
@@ -288,15 +333,27 @@ suite('AutofillSectionAddressTests', function() {
         autofillManager.lastCallback.setPersonalDataManagerListener!;
 
     changeListener(autofillManager.data.addresses, [], [], STUB_USER_ACCOUNT_INFO);
-    assertTrue(
+    assertFalse(
         isVisible(addressList.children[0]!.querySelector('[icon*=cloud-off]')),
-        'Sync is disabled, the local indicator should be visible.');
+        'Sync is disabled but the feature is off, the icon should be hidden.');
 
     changeListener(autofillManager.data.addresses, [], [], undefined);
-    assertTrue(
+    assertFalse(
         isVisible(section.$.addressList.children[0]!.querySelector(
             '[icon*=cloud-off]')),
-        'The user is logged-out, the local indicator should be visible.');
+        'The local indicator should not be shown to logged-out users');
+
+
+    loadTimeData.overrideValues({
+      autofillAccountProfileStorage: true,
+      syncEnableContactInfoDataTypeInTransportMode: true,
+    });
+    changeListener(
+        autofillManager.data.addresses, [], [], STUB_USER_ACCOUNT_INFO);
+    assertTrue(
+        isVisible(addressList.children[0]!.querySelector('[icon*=cloud-off]')),
+        'Sync is disabled but the feature is on, the icon should be visible.');
+
 
     document.body.removeChild(section);
   });
@@ -323,7 +380,9 @@ suite('AutofillSectionAddressTests', function() {
       assertEquals(
           loadTimeData.getString('addAddressTitle'), title.textContent);
       // A country is preselected.
-      assertTrue(!!address.countryCode);
+      const countrySelect = dialog.$.country;
+      assertTrue(!!countrySelect);
+      assertTrue(!!countrySelect.value);
     });
   });
 
@@ -391,31 +450,31 @@ suite('AutofillSectionAddressTests', function() {
   test('verifyCountryIsSaved', function() {
     const address = createEmptyAddressEntry();
     return createAddressDialog(address).then(function(dialog) {
-      const countrySelect = dialog.shadowRoot!.querySelector('select')!;
+      const countrySelect = dialog.$.country;
+      assertTrue(!!countrySelect);
       // The country should be pre-selected.
       assertEquals('US', countrySelect.value);
-      assertEquals('US', address.countryCode);
       countrySelect.value = 'GB';
       countrySelect.dispatchEvent(new CustomEvent('change'));
       flush();
       assertEquals('GB', countrySelect.value);
-      assertEquals('GB', address.countryCode);
     });
   });
 
   test('verifyLanguageCodeIsSaved', function() {
     const address = createEmptyAddressEntry();
     return createAddressDialog(address).then(function(dialog) {
-      const countrySelect = dialog.shadowRoot!.querySelector('select')!;
+      const countrySelect = dialog.$.country;
+      assertTrue(!!countrySelect);
       // The first country is pre-selected.
-      assertEquals('US', address.countryCode);
+      assertEquals('US', countrySelect.value);
       assertEquals('en', address.languageCode);
       countrySelect.value = 'IL';
       countrySelect.dispatchEvent(new CustomEvent('change'));
       flush();
       return eventToPromise('on-update-address-wrapper', dialog)
           .then(function() {
-            assertEquals('IL', address.countryCode);
+            assertEquals('IL', countrySelect.value);
             assertEquals('iw', address.languageCode);
           });
     });
@@ -437,10 +496,12 @@ suite('AutofillSectionAddressTests', function() {
       assertTrue(!!emailInput, 'email element should be the second cr-input');
 
       assertEquals(undefined, phoneInput.value);
-      assertFalse(!!(address.phoneNumbers && address.phoneNumbers[0]));
+      assertFalse(!!getAddressFieldValue(
+          address, ServerFieldType.PHONE_HOME_WHOLE_NUMBER));
 
       assertEquals(undefined, emailInput.value);
-      assertFalse(!!(address.emailAddresses && address.emailAddresses[0]));
+      assertFalse(
+          !!getAddressFieldValue(address, ServerFieldType.EMAIL_ADDRESS));
 
       const phoneNumber = '(555) 555-5555';
       const emailAddress = 'no-reply@chromium.org';
@@ -452,10 +513,15 @@ suite('AutofillSectionAddressTests', function() {
                dialog.$.saveButton.click();
              }).then(function() {
         assertEquals(phoneNumber, phoneInput.value);
-        assertEquals(phoneNumber, address.phoneNumbers![0]);
+        assertEquals(
+            phoneNumber,
+            getAddressFieldValue(
+                address, ServerFieldType.PHONE_HOME_WHOLE_NUMBER));
 
         assertEquals(emailAddress, emailInput.value);
-        assertEquals(emailAddress, address.emailAddresses![0]);
+        assertEquals(
+            emailAddress,
+            getAddressFieldValue(address, ServerFieldType.EMAIL_ADDRESS));
       });
     });
   });
@@ -468,7 +534,8 @@ suite('AutofillSectionAddressTests', function() {
         dialog.$.dialog.querySelectorAll<CrTextareaElement|CrInputElement>(
             'cr-textarea, cr-input')[0]!;
     assertEquals(undefined, honorificElement.value);
-    assertFalse(!!address.honorific);
+    assertFalse(
+        !!getAddressFieldValue(address, ServerFieldType.NAME_HONORIFIC_PREFIX));
 
     const honorific = 'Lord';
     honorificElement.value = honorific;
@@ -476,18 +543,28 @@ suite('AutofillSectionAddressTests', function() {
     await expectEvent(
         dialog, 'save-address', () => dialog.$.saveButton.click());
     assertEquals(honorific, honorificElement.value);
-    assertEquals(honorific, address.honorific);
+    assertEquals(
+        honorific,
+        getAddressFieldValue(address, ServerFieldType.NAME_HONORIFIC_PREFIX));
   });
 
-  test('verifyPhoneAndEmailAreRemoved', function() {
+  // TODO(crbug.com/1473847): Fix the flakiness.
+  test.skip('verifyPhoneAndEmailAreRemoved', function() {
     const address = createEmptyAddressEntry();
 
     const phoneNumber = '(555) 555-5555';
     const emailAddress = 'no-reply@chromium.org';
 
-    address.countryCode = 'US';  // Set to allow save to be active.
-    address.phoneNumbers = [phoneNumber];
-    address.emailAddresses = [emailAddress];
+    address.fields.push({
+      type: ServerFieldType.ADDRESS_HOME_COUNTRY,
+      value: 'US',
+    });  // Set to allow save to be active.
+    address.fields.push({
+      type: ServerFieldType.PHONE_HOME_WHOLE_NUMBER,
+      value: phoneNumber,
+    });
+    address.fields.push(
+        {type: ServerFieldType.EMAIL_ADDRESS, value: emailAddress});
 
     return createAddressDialog(address).then(function(dialog) {
       const rows = dialog.$.dialog.querySelectorAll('.address-row');
@@ -511,8 +588,10 @@ suite('AutofillSectionAddressTests', function() {
       return expectEvent(dialog, 'save-address', function() {
                dialog.$.saveButton.click();
              }).then(function() {
-        assertArrayEquals([], address.phoneNumbers!);
-        assertArrayEquals([], address.emailAddresses!);
+        assertFalse(!!getAddressFieldValue(
+            address, ServerFieldType.PHONE_HOME_WHOLE_NUMBER));
+        assertFalse(
+            !!getAddressFieldValue(address, ServerFieldType.EMAIL_ADDRESS));
       });
     });
   });
@@ -530,7 +609,8 @@ suite('AutofillSectionAddressTests', function() {
 
     // The country can be preselected. Clear it to ensure the form is empty.
     await expectEvent(dialog, 'on-update-can-save', function() {
-      const countrySelect = dialog.shadowRoot!.querySelector('select')!;
+      const countrySelect = dialog.$.country;
+      assertTrue(!!countrySelect);
       countrySelect.value = '';
       countrySelect.dispatchEvent(new CustomEvent('change'));
     });
@@ -556,15 +636,18 @@ suite('AutofillSectionAddressTests', function() {
   // Setting the country should allow the address to be saved.
   test('verifySaveIsNotClickableIfCountryNotSet', async function() {
     function simulateCountryChange(countryCode: string) {
-      const countrySelect = dialog.shadowRoot!.querySelector('select')!;
+      const countrySelect = dialog.$.country;
+      assertTrue(!!countrySelect);
       countrySelect.value = countryCode;
       countrySelect.dispatchEvent(new CustomEvent('change'));
     }
 
     const dialog = await createAddressDialog(createEmptyAddressEntry());
+    const countrySelect = dialog.$.country;
+    assertTrue(!!countrySelect);
     // A country code is preselected.
     assertFalse(dialog.$.saveButton.disabled);
-    assertEquals(dialog.address.countryCode, 'US');
+    assertEquals(countrySelect.value, 'US');
 
     await expectEvent(
         dialog, 'on-update-can-save', simulateCountryChange.bind(null, 'GB'));
@@ -578,15 +661,20 @@ suite('AutofillSectionAddressTests', function() {
   // Test will timeout if save-address event is not fired.
   test('verifyDefaultCountryIsAppliedWhenSaving', function() {
     const address = createEmptyAddressEntry();
-    address.fullNames = ['Name'];
+    address.fields.push({type: ServerFieldType.NAME_FULL, value: 'Name'});
     return createAddressDialog(address).then(function(dialog) {
       return expectEvent(dialog, 'save-address', function() {
                // Verify |countryCode| is not set.
-               assertEquals(undefined, address.countryCode);
+               assertEquals(
+                   undefined,
+                   getAddressFieldValue(
+                       address, ServerFieldType.ADDRESS_HOME_COUNTRY));
                dialog.$.saveButton.click();
-             }).then(function(event) {
+             }).then(function(_event) {
         // 'US' is the default country for these tests.
-        assertEquals('US', event.detail.countryCode);
+        const countrySelect = dialog.$.country;
+        assertTrue(!!countrySelect);
+        assertEquals('US', countrySelect.value);
       });
     });
   });
@@ -609,7 +697,8 @@ suite('AutofillSectionAddressTests', function() {
     });
   });
 
-  test('verifySyncSourceNoticeForNewAddress', async () => {
+  // TODO(crbug.com/1473847): Fix the flakiness.
+  test.skip('verifySyncSourceNoticeForNewAddress', async () => {
     const section = await createAutofillSection([], {}, {
       email: 'stub-user@example.com',
       isSyncEnabledForAutofillProfiles: true,
@@ -661,16 +750,25 @@ suite('AutofillSectionAddressLocaleTests', function() {
     loadTimeData.overrideValues({showHonorific: true});
     const address = createEmptyAddressEntry();
 
-    address.honorific = 'Honorific';
-    address.fullNames = ['Name'];
-    address.companyName = 'Organization';
-    address.addressLines = 'Street address';
-    address.addressLevel1 = 'State';
-    address.addressLevel2 = 'City';
-    address.postalCode = 'ZIP code';
-    address.countryCode = 'US';
-    address.phoneNumbers = ['Phone'];
-    address.emailAddresses = ['Email'];
+    address.fields = [
+      {
+        type: ServerFieldType.NAME_HONORIFIC_PREFIX,
+        value: 'Honorific',
+      },
+      {type: ServerFieldType.NAME_FULL, value: 'Name'},
+      {type: ServerFieldType.COMPANY_NAME, value: 'Organization'},
+      {
+        type: ServerFieldType.ADDRESS_HOME_STREET_ADDRESS,
+        value: 'Street address',
+      },
+      {type: ServerFieldType.ADDRESS_HOME_STATE, value: 'State'},
+      {type: ServerFieldType.ADDRESS_HOME_CITY, value: 'City'},
+      {type: ServerFieldType.ADDRESS_HOME_ZIP, value: 'ZIP code'},
+      {type: ServerFieldType.ADDRESS_HOME_COUNTRY, value: 'US'},
+      {type: ServerFieldType.PHONE_HOME_WHOLE_NUMBER, value: 'Phone'},
+      {type: ServerFieldType.EMAIL_ADDRESS, value: 'Email'},
+    ];
+
 
     return createAddressDialog(address).then(function(dialog) {
       const rows = dialog.$.dialog.querySelectorAll('.address-row');
@@ -690,45 +788,65 @@ suite('AutofillSectionAddressLocaleTests', function() {
       let cols = row.querySelectorAll<CrTextareaElement|CrInputElement>(
           '.address-column');
       assertEquals(1, cols.length);
-      assertEquals(address.honorific, cols[0]!.value);
+      assertEquals(
+          getAddressFieldValue(address, ServerFieldType.NAME_HONORIFIC_PREFIX),
+          cols[0]!.value);
       index++;
       // Name
       row = rows[index]!;
       cols = row.querySelectorAll<CrTextareaElement|CrInputElement>(
           '.address-column');
       assertEquals(1, cols.length);
-      assertEquals(address.fullNames![0], cols[0]!.value);
+      assertEquals(
+          getAddressFieldValue(address, ServerFieldType.NAME_FULL),
+          cols[0]!.value);
       index++;
       // Organization
       row = rows[index]!;
       cols = row.querySelectorAll<CrTextareaElement|CrInputElement>(
           '.address-column');
       assertEquals(1, cols.length);
-      assertEquals(address.companyName, cols[0]!.value);
+      assertEquals(
+          getAddressFieldValue(address, ServerFieldType.COMPANY_NAME),
+          cols[0]!.value);
       index++;
       // Street address
       row = rows[index]!;
       cols = row.querySelectorAll<CrTextareaElement|CrInputElement>(
           '.address-column');
       assertEquals(1, cols.length);
-      assertEquals(address.addressLines, cols[0]!.value);
+      assertEquals(
+          getAddressFieldValue(
+              address, ServerFieldType.ADDRESS_HOME_STREET_ADDRESS),
+          cols[0]!.value);
       index++;
       // City, State, ZIP code
       row = rows[index]!;
       cols = row.querySelectorAll<CrTextareaElement|CrInputElement>(
           '.address-column');
       assertEquals(3, cols.length);
-      assertEquals(address.addressLevel2, cols[0]!.value);
-      assertEquals(address.addressLevel1, cols[1]!.value);
-      assertEquals(address.postalCode, cols[2]!.value);
+      assertEquals(
+          getAddressFieldValue(address, ServerFieldType.ADDRESS_HOME_CITY),
+          cols[0]!.value);
+      assertEquals(
+          getAddressFieldValue(address, ServerFieldType.ADDRESS_HOME_STATE),
+          cols[1]!.value);
+      assertEquals(
+          getAddressFieldValue(address, ServerFieldType.ADDRESS_HOME_ZIP),
+          cols[2]!.value);
       index++;
       // Phone, Email
       row = rows[index]!;
       cols = row.querySelectorAll<CrTextareaElement|CrInputElement>(
           '.address-column');
       assertEquals(2, cols.length);
-      assertEquals(address.phoneNumbers![0], cols[0]!.value);
-      assertEquals(address.emailAddresses![0], cols[1]!.value);
+      assertEquals(
+          getAddressFieldValue(
+              address, ServerFieldType.PHONE_HOME_WHOLE_NUMBER),
+          cols[0]!.value);
+      assertEquals(
+          getAddressFieldValue(address, ServerFieldType.EMAIL_ADDRESS),
+          cols[1]!.value);
     });
   });
 
@@ -737,16 +855,21 @@ suite('AutofillSectionAddressLocaleTests', function() {
     loadTimeData.overrideValues({showHonorific: true});
     const address = createEmptyAddressEntry();
 
-    address.honorific = 'Lord';
-    address.fullNames = ['Name'];
-    address.companyName = 'Organization';
-    address.addressLines = 'Street address';
-    address.addressLevel1 = 'County';
-    address.addressLevel2 = 'Post town';
-    address.postalCode = 'Postal code';
-    address.countryCode = 'GB';
-    address.phoneNumbers = ['Phone'];
-    address.emailAddresses = ['Email'];
+    address.fields = [
+      {type: ServerFieldType.NAME_HONORIFIC_PREFIX, value: 'Lord'},
+      {type: ServerFieldType.NAME_FULL, value: 'Name'},
+      {type: ServerFieldType.COMPANY_NAME, value: 'Organization'},
+      {
+        type: ServerFieldType.ADDRESS_HOME_STREET_ADDRESS,
+        value: 'Street address',
+      },
+      {type: ServerFieldType.ADDRESS_HOME_STATE, value: 'County'},
+      {type: ServerFieldType.ADDRESS_HOME_CITY, value: 'Post town'},
+      {type: ServerFieldType.ADDRESS_HOME_ZIP, value: 'Postal code'},
+      {type: ServerFieldType.ADDRESS_HOME_COUNTRY, value: 'GB'},
+      {type: ServerFieldType.PHONE_HOME_WHOLE_NUMBER, value: 'Phone'},
+      {type: ServerFieldType.EMAIL_ADDRESS, value: 'Email'},
+    ];
 
     return createAddressDialog(address).then(function(dialog) {
       const rows = dialog.$.dialog.querySelectorAll('.address-row');
@@ -766,57 +889,77 @@ suite('AutofillSectionAddressLocaleTests', function() {
       let cols = row.querySelectorAll<CrTextareaElement|CrInputElement>(
           '.address-column');
       assertEquals(1, cols.length);
-      assertEquals(address.honorific, cols[0]!.value);
+      assertEquals(
+          getAddressFieldValue(address, ServerFieldType.NAME_HONORIFIC_PREFIX),
+          cols[0]!.value);
       index++;
       // Name
       row = rows[index]!;
       cols = row.querySelectorAll<CrTextareaElement|CrInputElement>(
           '.address-column');
       assertEquals(1, cols.length);
-      assertEquals(address.fullNames![0], cols[0]!.value);
+      assertEquals(
+          getAddressFieldValue(address, ServerFieldType.NAME_FULL),
+          cols[0]!.value);
       index++;
       // Organization
       row = rows[index]!;
       cols = row.querySelectorAll<CrTextareaElement|CrInputElement>(
           '.address-column');
       assertEquals(1, cols.length);
-      assertEquals(address.companyName, cols[0]!.value);
+      assertEquals(
+          getAddressFieldValue(address, ServerFieldType.COMPANY_NAME),
+          cols[0]!.value);
       index++;
       // Street address
       row = rows[index]!;
       cols = row.querySelectorAll<CrTextareaElement|CrInputElement>(
           '.address-column');
       assertEquals(1, cols.length);
-      assertEquals(address.addressLines, cols[0]!.value);
+      assertEquals(
+          getAddressFieldValue(
+              address, ServerFieldType.ADDRESS_HOME_STREET_ADDRESS),
+          cols[0]!.value);
       index++;
       // Post Town
       row = rows[index]!;
       cols = row.querySelectorAll<CrTextareaElement|CrInputElement>(
           '.address-column');
       assertEquals(1, cols.length);
-      assertEquals(address.addressLevel2, cols[0]!.value);
+      assertEquals(
+          getAddressFieldValue(address, ServerFieldType.ADDRESS_HOME_CITY),
+          cols[0]!.value);
       index++;
       // Postal code
       row = rows[index]!;
       cols = row.querySelectorAll<CrTextareaElement|CrInputElement>(
           '.address-column');
       assertEquals(1, cols.length);
-      assertEquals(address.postalCode, cols[0]!.value);
+      assertEquals(
+          getAddressFieldValue(address, ServerFieldType.ADDRESS_HOME_ZIP),
+          cols[0]!.value);
       index++;
       // County
       row = rows[index]!;
       cols = row.querySelectorAll<CrTextareaElement|CrInputElement>(
           '.address-column');
       assertEquals(1, cols.length);
-      assertEquals(address.addressLevel1, cols[0]!.value);
+      assertEquals(
+          getAddressFieldValue(address, ServerFieldType.ADDRESS_HOME_STATE),
+          cols[0]!.value);
       index++;
       // Phone, Email
       row = rows[index]!;
       cols = row.querySelectorAll<CrTextareaElement|CrInputElement>(
           '.address-column');
       assertEquals(2, cols.length);
-      assertEquals(address.phoneNumbers![0], cols[0]!.value);
-      assertEquals(address.emailAddresses![0], cols[1]!.value);
+      assertEquals(
+          getAddressFieldValue(
+              address, ServerFieldType.PHONE_HOME_WHOLE_NUMBER),
+          cols[0]!.value);
+      assertEquals(
+          getAddressFieldValue(address, ServerFieldType.EMAIL_ADDRESS),
+          cols[1]!.value);
     });
   });
 
@@ -826,15 +969,24 @@ suite('AutofillSectionAddressLocaleTests', function() {
     loadTimeData.overrideValues({showHonorific: true});
     const address = createEmptyAddressEntry();
 
-    address.honorific = 'Honorific';
-    address.fullNames = ['Name'];
-    address.companyName = 'Organization';
-    address.addressLines = 'Street address';
-    address.addressLevel2 = 'City';
-    address.postalCode = 'Postal code';
-    address.countryCode = 'IL';
-    address.phoneNumbers = ['Phone'];
-    address.emailAddresses = ['Email'];
+    address.fields = [
+      {
+        type: ServerFieldType.NAME_HONORIFIC_PREFIX,
+        value: 'Honorific',
+      },
+      {type: ServerFieldType.NAME_FULL, value: 'Name'},
+      {type: ServerFieldType.COMPANY_NAME, value: 'Organization'},
+      {
+        type: ServerFieldType.ADDRESS_HOME_STREET_ADDRESS,
+        value: 'Street address',
+      },
+      {type: ServerFieldType.ADDRESS_HOME_STATE, value: 'State'},
+      {type: ServerFieldType.ADDRESS_HOME_CITY, value: 'City'},
+      {type: ServerFieldType.ADDRESS_HOME_ZIP, value: 'Postal code'},
+      {type: ServerFieldType.ADDRESS_HOME_COUNTRY, value: 'IL'},
+      {type: ServerFieldType.PHONE_HOME_WHOLE_NUMBER, value: 'Phone'},
+      {type: ServerFieldType.EMAIL_ADDRESS, value: 'Email'},
+    ];
 
     return createAddressDialog(address).then(function(dialog) {
       const rows = dialog.$.dialog.querySelectorAll('.address-row');
@@ -853,44 +1005,62 @@ suite('AutofillSectionAddressLocaleTests', function() {
       let cols = row.querySelectorAll<CrTextareaElement|CrInputElement>(
           '.address-column');
       assertEquals(1, cols.length);
-      assertEquals(address.honorific, cols[0]!.value);
+      assertEquals(
+          getAddressFieldValue(address, ServerFieldType.NAME_HONORIFIC_PREFIX),
+          cols[0]!.value);
       index++;
       // Name
       row = rows[index]!;
       cols = row.querySelectorAll<CrTextareaElement|CrInputElement>(
           '.address-column');
       assertEquals(1, cols.length);
-      assertEquals(address.fullNames![0], cols[0]!.value);
+      assertEquals(
+          getAddressFieldValue(address, ServerFieldType.NAME_FULL)!,
+          cols[0]!.value);
       index++;
       // Organization
       row = rows[index]!;
       cols = row.querySelectorAll<CrTextareaElement|CrInputElement>(
           '.address-column');
       assertEquals(1, cols.length);
-      assertEquals(address.companyName, cols[0]!.value);
+      assertEquals(
+          getAddressFieldValue(address, ServerFieldType.COMPANY_NAME),
+          cols[0]!.value);
       index++;
       // Street address
       row = rows[index]!;
       cols = row.querySelectorAll<CrTextareaElement|CrInputElement>(
           '.address-column');
       assertEquals(1, cols.length);
-      assertEquals(address.addressLines, cols[0]!.value);
+      assertEquals(
+          getAddressFieldValue(
+              address, ServerFieldType.ADDRESS_HOME_STREET_ADDRESS),
+          cols[0]!.value);
       index++;
       // City, Postal code
       row = rows[index]!;
       cols = row.querySelectorAll<CrTextareaElement|CrInputElement>(
           '.address-column');
       assertEquals(2, cols.length);
-      assertEquals(address.addressLevel2, cols[0]!.value);
-      assertEquals(address.postalCode, cols[1]!.value);
+      assertEquals(
+          getAddressFieldValue(address, ServerFieldType.ADDRESS_HOME_CITY),
+          cols[0]!.value);
+      assertEquals(
+          getAddressFieldValue(address, ServerFieldType.ADDRESS_HOME_ZIP),
+          cols[1]!.value);
       index++;
       // Phone, Email
       row = rows[index]!;
       cols = row.querySelectorAll<CrTextareaElement|CrInputElement>(
           '.address-column');
       assertEquals(2, cols.length);
-      assertEquals(address.phoneNumbers![0], cols[0]!.value);
-      assertEquals(address.emailAddresses![0], cols[1]!.value);
+      assertEquals(
+          getAddressFieldValue(
+              address, ServerFieldType.PHONE_HOME_WHOLE_NUMBER),
+          cols[0]!.value);
+      assertEquals(
+          getAddressFieldValue(address, ServerFieldType.EMAIL_ADDRESS),
+          cols[1]!.value);
     });
   });
 
@@ -900,13 +1070,15 @@ suite('AutofillSectionAddressLocaleTests', function() {
     loadTimeData.overrideValues({showHonorific: true});
     const address = createEmptyAddressEntry();
     const experimental_fields_count = 2;
-    address.countryCode = 'US';
+    address.fields.push(
+        {type: ServerFieldType.ADDRESS_HOME_COUNTRY, value: 'US'});
 
     return createAddressDialog(address).then(function(dialog) {
       const city = 'Los Angeles';
       const state = 'CA';
       const zip = '90291';
-      const countrySelect = dialog.shadowRoot!.querySelector('select')!;
+      const countrySelect = dialog.$.country;
+      assertTrue(!!countrySelect);
 
       return expectEvent(
                  dialog, 'on-update-address-wrapper',

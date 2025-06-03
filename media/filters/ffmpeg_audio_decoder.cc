@@ -20,6 +20,7 @@
 #include "media/base/audio_discard_helper.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/limits.h"
+#include "media/base/media_switches.h"
 #include "media/base/timestamp_constants.h"
 #include "media/ffmpeg/ffmpeg_common.h"
 #include "media/ffmpeg/ffmpeg_decoding_loop.h"
@@ -119,11 +120,6 @@ void FFmpegAudioDecoder::Decode(scoped_refptr<DecoderBuffer> buffer,
   DecodeCB decode_cb_bound =
       base::BindPostTaskToCurrentDefault(std::move(decode_cb));
 
-  if (!DecoderBuffer::DoSubsamplesMatch(*buffer)) {
-    std::move(decode_cb_bound).Run(DecoderStatus::Codes::kFailed);
-    return;
-  }
-
   if (state_ == DecoderState::kError) {
     std::move(decode_cb_bound).Run(DecoderStatus::Codes::kFailed);
     return;
@@ -159,6 +155,12 @@ void FFmpegAudioDecoder::DecodeBuffer(const DecoderBuffer& buffer,
   if (!buffer.end_of_stream() && buffer.timestamp() == kNoTimestamp) {
     DVLOG(1) << "Received a buffer without timestamps!";
     std::move(decode_cb).Run(DecoderStatus::Codes::kFailed);
+    return;
+  }
+
+  if (!buffer.end_of_stream() && buffer.is_encrypted()) {
+    DLOG(ERROR) << "Encrypted buffer not supported";
+    std::move(decode_cb).Run(DecoderStatus::Codes::kUnsupportedEncryptionMode);
     return;
   }
 
@@ -326,6 +328,12 @@ bool FFmpegAudioDecoder::ConfigureDecoder(const AudioDecoderConfig& config) {
 
   codec_context_->opaque = this;
   codec_context_->get_buffer2 = GetAudioBufferImpl;
+
+  if (base::FeatureList::IsEnabled(kFFmpegAllowLists)) {
+    // Note: FFmpeg will try to free this string, so we must duplicate it.
+    codec_context_->codec_whitelist =
+        av_strdup(FFmpegGlue::GetAllowedAudioDecoders());
+  }
 
   if (!config.should_discard_decoder_delay())
     codec_context_->flags2 |= AV_CODEC_FLAG2_SKIP_MANUAL;

@@ -87,12 +87,62 @@ void SafeBrowsingMetricsCollector::StartLogging() {
 void SafeBrowsingMetricsCollector::LogMetricsAndScheduleNextLogging() {
   LogDailyOptInMetrics();
   LogDailyEventMetrics();
+  MaybeLogDailyEsbProtegoPingSentLast24Hours();
   RemoveOldEventsFromPref();
 
   pref_service_->SetInt64(
       prefs::kSafeBrowsingMetricsLastLogTime,
       base::Time::Now().ToDeltaSinceWindowsEpoch().InSeconds());
   ScheduleNextLoggingAfterInterval(base::Days(kMetricsLoggingIntervalDay));
+}
+
+void SafeBrowsingMetricsCollector::
+    MaybeLogDailyEsbProtegoPingSentLast24Hours() {
+  if (GetSafeBrowsingState(*pref_service_) !=
+      SafeBrowsingState::ENHANCED_PROTECTION) {
+    return;
+  }
+
+  auto last_ping_with_token = pref_service_->GetTime(
+      prefs::kSafeBrowsingEsbProtegoPingWithTokenLastLogTime);
+  auto last_ping_without_token = pref_service_->GetTime(
+      prefs::kSafeBrowsingEsbProtegoPingWithoutTokenLastLogTime);
+  auto most_recent_ping_type = last_ping_with_token > last_ping_without_token
+                                   ? ProtegoPingType::kWithToken
+                                   : ProtegoPingType::kWithoutToken;
+  auto most_recent_ping_time =
+      std::max(last_ping_with_token, last_ping_without_token);
+
+  auto most_recent_collector_run_time = PrefValueToTime(
+      pref_service_->GetValue(prefs::kSafeBrowsingMetricsLastLogTime));
+
+  bool sent_ping_since_last_collector_run =
+      most_recent_ping_time > most_recent_collector_run_time;
+  base::UmaHistogramEnumeration(
+      "SafeBrowsing.Enhanced.ProtegoRequestSentInLast24Hours",
+      sent_ping_since_last_collector_run ? most_recent_ping_type
+                                         : ProtegoPingType::kNone);
+
+  auto logged_ping_type = ProtegoPingType::kNone;
+
+  if (base::Time::Now() - last_ping_with_token < base::Hours(24)) {
+    // If a ping with token was sent within the last 24 hours,
+    // the most recent ping type is kWithToken.
+    // If both last_ping_with_token and last_ping_without_token are present,
+    // we log kWithToken instead of kWithoutToken because if a token has been
+    // sent before, we are certain that this account is a signed in account
+    // and the server has received the token.
+    // The kWithoutToken ping could be sent after the account logged out.
+    logged_ping_type = ProtegoPingType::kWithToken;
+  } else if (base::Time::Now() - last_ping_without_token < base::Hours(24)) {
+    // If no ping with token was sent but a ping without token was sent within
+    // the last 24 hours, the most recent ping type is kWithoutToken.
+    // Otherwise, it is the default value, kNone.
+    logged_ping_type = ProtegoPingType::kWithoutToken;
+  }
+  base::UmaHistogramEnumeration(
+      "SafeBrowsing.Enhanced.ProtegoRequestSentInLast24Hours2",
+      logged_ping_type);
 }
 
 void SafeBrowsingMetricsCollector::ScheduleNextLoggingAfterInterval(
@@ -187,8 +237,17 @@ void SafeBrowsingMetricsCollector::AddBypassEventToPref(
     case ThreatSource::CLIENT_SIDE_DETECTION:
       event = EventType::CSD_INTERSTITIAL_BYPASS;
       break;
-    case ThreatSource::REAL_TIME_CHECK:
-      event = EventType::REAL_TIME_INTERSTITIAL_BYPASS;
+    case ThreatSource::URL_REAL_TIME_CHECK:
+      event = EventType::URL_REAL_TIME_INTERSTITIAL_BYPASS;
+      break;
+    case ThreatSource::NATIVE_PVER5_REAL_TIME:
+      event = EventType::HASH_PREFIX_REAL_TIME_INTERSTITIAL_BYPASS;
+      break;
+    case ThreatSource::ANDROID_SAFEBROWSING_REAL_TIME:
+      event = EventType::ANDROID_SAFEBROWSING_REAL_TIME_INTERSTITIAL_BYPASS;
+      break;
+    case ThreatSource::ANDROID_SAFEBROWSING:
+      event = EventType::ANDROID_SAFEBROWSING_INTERSTITIAL_BYPASS;
       break;
     default:
       NOTREACHED() << "Unexpected threat source.";
@@ -424,11 +483,14 @@ bool SafeBrowsingMetricsCollector::IsBypassEventType(const EventType& type) {
       return false;
     case EventType::DATABASE_INTERSTITIAL_BYPASS:
     case EventType::CSD_INTERSTITIAL_BYPASS:
-    case EventType::REAL_TIME_INTERSTITIAL_BYPASS:
+    case EventType::URL_REAL_TIME_INTERSTITIAL_BYPASS:
     case EventType::DANGEROUS_DOWNLOAD_BYPASS:
     case EventType::PASSWORD_REUSE_MODAL_BYPASS:
     case EventType::EXTENSION_ALLOWLIST_INSTALL_BYPASS:
     case EventType::NON_ALLOWLISTED_EXTENSION_RE_ENABLED:
+    case EventType::HASH_PREFIX_REAL_TIME_INTERSTITIAL_BYPASS:
+    case EventType::ANDROID_SAFEBROWSING_REAL_TIME_INTERSTITIAL_BYPASS:
+    case EventType::ANDROID_SAFEBROWSING_INTERSTITIAL_BYPASS:
       return true;
   }
 }
@@ -440,11 +502,14 @@ bool SafeBrowsingMetricsCollector::IsSecuritySensitiveEventType(
     case EventType::USER_STATE_ENABLED:
     case EventType::DATABASE_INTERSTITIAL_BYPASS:
     case EventType::CSD_INTERSTITIAL_BYPASS:
-    case EventType::REAL_TIME_INTERSTITIAL_BYPASS:
+    case EventType::URL_REAL_TIME_INTERSTITIAL_BYPASS:
     case EventType::DANGEROUS_DOWNLOAD_BYPASS:
     case EventType::PASSWORD_REUSE_MODAL_BYPASS:
     case EventType::EXTENSION_ALLOWLIST_INSTALL_BYPASS:
     case EventType::NON_ALLOWLISTED_EXTENSION_RE_ENABLED:
+    case EventType::HASH_PREFIX_REAL_TIME_INTERSTITIAL_BYPASS:
+    case EventType::ANDROID_SAFEBROWSING_REAL_TIME_INTERSTITIAL_BYPASS:
+    case EventType::ANDROID_SAFEBROWSING_INTERSTITIAL_BYPASS:
       return false;
     case EventType::SECURITY_SENSITIVE_SAFE_BROWSING_INTERSTITIAL:
     case EventType::SECURITY_SENSITIVE_SSL_INTERSTITIAL:
@@ -463,38 +528,6 @@ std::string SafeBrowsingMetricsCollector::GetUserStateMetricSuffix(
       return "EnhancedProtection";
     case UserState::kManaged:
       return "Managed";
-  }
-}
-
-std::string SafeBrowsingMetricsCollector::GetEventTypeMetricSuffix(
-    const EventType& event_type) {
-  switch (event_type) {
-    case EventType::USER_STATE_DISABLED:
-      return "UserStateDisabled";
-    case EventType::USER_STATE_ENABLED:
-      return "UserStateEnabled";
-    case EventType::DATABASE_INTERSTITIAL_BYPASS:
-      return "DatabaseInterstitialBypass";
-    case EventType::CSD_INTERSTITIAL_BYPASS:
-      return "CsdInterstitialBypass";
-    case EventType::REAL_TIME_INTERSTITIAL_BYPASS:
-      return "RealTimeInterstitialBypass";
-    case EventType::DANGEROUS_DOWNLOAD_BYPASS:
-      return "DangerousDownloadBypass";
-    case EventType::PASSWORD_REUSE_MODAL_BYPASS:
-      return "PasswordReuseModalBypass";
-    case EventType::EXTENSION_ALLOWLIST_INSTALL_BYPASS:
-      return "ExtensionAllowlistInstallBypass";
-    case EventType::NON_ALLOWLISTED_EXTENSION_RE_ENABLED:
-      return "NonAllowlistedExtensionReEnabled";
-    case EventType::SECURITY_SENSITIVE_SAFE_BROWSING_INTERSTITIAL:
-      return "SafeBrowsingInterstitial";
-    case EventType::SECURITY_SENSITIVE_SSL_INTERSTITIAL:
-      return "SSLInterstitial";
-    case EventType::SECURITY_SENSITIVE_PASSWORD_PROTECTION:
-      return "PasswordProtection";
-    case EventType::SECURITY_SENSITIVE_DOWNLOAD:
-      return "Download";
   }
 }
 

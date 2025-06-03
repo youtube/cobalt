@@ -56,10 +56,10 @@ TEST(PersistedDataTest, Simple) {
   EXPECT_TRUE(base::Contains(app_ids, "appid1"));
   EXPECT_FALSE(base::Contains(app_ids, "appid2-nopv"));  // No valid pv.
 
-  const base::Time time1 = base::Time::FromJsTime(10000);
+  const base::Time time1 = base::Time::FromSecondsSinceUnixEpoch(10);
   metadata->SetLastChecked(time1);
   EXPECT_EQ(metadata->GetLastChecked(), time1);
-  const base::Time time2 = base::Time::FromJsTime(20000);
+  const base::Time time2 = base::Time::FromSecondsSinceUnixEpoch(20);
   metadata->SetLastStarted(time2);
   EXPECT_EQ(metadata->GetLastStarted(), time2);
 }
@@ -96,6 +96,9 @@ TEST(PersistedDataTest, RegistrationRequest) {
   data.version = base::Version("1.0");
   data.existence_checker_path =
       base::FilePath(FILE_PATH_LITERAL("some/file/path"));
+  data.cohort = "testcohort";
+  data.cohort_name = "testcohortname";
+  data.cohort_hint = "testcohorthint";
 
   metadata->RegisterApp(data);
   EXPECT_TRUE(metadata->GetProductVersion("someappid").IsValid());
@@ -105,6 +108,9 @@ TEST(PersistedDataTest, RegistrationRequest) {
             metadata->GetExistenceCheckerPath("someappid").value());
   EXPECT_STREQ("arandom-ap=likethis", metadata->GetAP("someappid").c_str());
   EXPECT_STREQ("somebrand", metadata->GetBrandCode("someappid").c_str());
+  EXPECT_STREQ("testcohort", metadata->GetCohort("someappid").c_str());
+  EXPECT_STREQ("testcohortname", metadata->GetCohortName("someappid").c_str());
+  EXPECT_STREQ("testcohorthint", metadata->GetCohortHint("someappid").c_str());
 
 #if BUILDFLAG(IS_WIN)
   base::win::RegKey key;

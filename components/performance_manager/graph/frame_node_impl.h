@@ -87,6 +87,7 @@ class FrameNodeImpl
   const blink::LocalFrameToken& frame_token() const;
   content::BrowsingInstanceId browsing_instance_id() const;
   content::SiteInstanceId site_instance_id() const;
+  resource_attribution::FrameContext resource_context() const;
   const RenderFrameHostProxy& render_frame_host_proxy() const;
 
   // Getters for non-const properties. These are not thread safe.
@@ -106,7 +107,8 @@ class FrameNodeImpl
   bool had_form_interaction() const;
   bool had_user_edits() const;
   bool is_audible() const;
-  const absl::optional<gfx::Rect>& viewport_intersection() const;
+  bool is_capturing_video_stream() const;
+  absl::optional<bool> intersects_viewport() const;
   Visibility visibility() const;
   uint64_t resident_set_kb_estimate() const;
   uint64_t private_footprint_kb_estimate() const;
@@ -116,7 +118,9 @@ class FrameNodeImpl
   void SetIsHoldingWebLock(bool is_holding_weblock);
   void SetIsHoldingIndexedDBLock(bool is_holding_indexeddb_lock);
   void SetIsAudible(bool is_audible);
-  void SetViewportIntersection(const gfx::Rect& viewport_intersection);
+  void SetIsCapturingVideoStream(bool is_capturing_video_stream);
+  void SetIntersectsViewport(bool intersects_viewport);
+  void SetInitialVisibility(Visibility visibility);
   void SetVisibility(Visibility visibility);
   void SetResidentSetKbEstimate(uint64_t rss_estimate);
   void SetPrivateFootprintKbEstimate(uint64_t private_footprint_estimate);
@@ -172,6 +176,7 @@ class FrameNodeImpl
   const blink::LocalFrameToken& GetFrameToken() const override;
   content::BrowsingInstanceId GetBrowsingInstanceId() const override;
   content::SiteInstanceId GetSiteInstanceId() const override;
+  resource_attribution::FrameContext GetResourceContext() const override;
   bool VisitChildFrameNodes(const FrameNodeVisitor& visitor) const override;
   const base::flat_set<const FrameNode*> GetChildFrameNodes() const override;
   bool VisitOpenedPageNodes(const PageNodeVisitor& visitor) const override;
@@ -189,14 +194,15 @@ class FrameNodeImpl
   const base::flat_set<const WorkerNode*> GetChildWorkerNodes() const override;
   bool VisitChildDedicatedWorkers(
       const WorkerNodeVisitor& visitor) const override;
-  const PriorityAndReason& GetPriorityAndReason() const override;
   bool HadFormInteraction() const override;
   bool HadUserEdits() const override;
   bool IsAudible() const override;
-  const absl::optional<gfx::Rect>& GetViewportIntersection() const override;
+  bool IsCapturingVideoStream() const override;
+  absl::optional<bool> IntersectsViewport() const override;
   Visibility GetVisibility() const override;
   uint64_t GetResidentSetKbEstimate() const override;
   uint64_t GetPrivateFootprintKbEstimate() const override;
+  const PriorityAndReason& GetPriorityAndReason() const override;
 
   // Properties associated with a Document, which are reset when a
   // different-document navigation is committed in the frame.
@@ -260,10 +266,6 @@ class FrameNodeImpl
   bool HasFrameNodeInAncestors(FrameNodeImpl* frame_node) const;
   bool HasFrameNodeInDescendants(FrameNodeImpl* frame_node) const;
   bool HasFrameNodeInTree(FrameNodeImpl* frame_node) const;
-
-  // Returns the initial visibility of this frame. Should only be called when
-  // the frame node joins the graph.
-  Visibility GetInitialFrameVisibility() const;
 
   mojo::Receiver<mojom::DocumentCoordinationUnit> receiver_{this};
 
@@ -353,19 +355,24 @@ class FrameNodeImpl
       NotifiesOnlyOnChanges<bool, &FrameNodeObserver::OnIsAudibleChanged>
           is_audible_{false};
 
-  // Tracks the intersection of this frame with the viewport.
-  //
-  // Note that the viewport intersection for the main frame is always invalid.
-  // This is because the main frame always occupies the entirety of the viewport
-  // so there is no point in tracking it. To avoid programming mistakes, it is
-  // forbidden to query this property for the main frame.
+  // Indicates if the frame is capturing a video stream.
   ObservedProperty::NotifiesOnlyOnChanges<
-      absl::optional<gfx::Rect>,
-      &FrameNodeObserver::OnViewportIntersectionChanged>
-      viewport_intersection_;
+      bool,
+      &FrameNodeObserver::OnIsCapturingVideoStreamChanged>
+      is_capturing_video_stream_{false};
 
-  // Indicates if the frame is visible. This is initialized in
-  // FrameNodeImpl::OnJoiningGraph() and then maintained by
+  // Indicates if the frame intersects with the viewport.
+  //
+  // Note that this property is always invalid for a main frame. This is because
+  // the main frame always occupies the entirety of the viewport so there is no
+  // point in tracking it. To avoid programming mistakes, it is forbidden to
+  // query this property for the main frame.
+  ObservedProperty::NotifiesOnlyOnChanges<
+      absl::optional<bool>,
+      &FrameNodeObserver::OnIntersectsViewportChanged>
+      intersects_viewport_;
+
+  // Indicates if the frame is visible. This is maintained by the
   // FrameVisibilityDecorator.
   ObservedProperty::NotifiesOnlyOnChangesWithPreviousValue<
       Visibility,

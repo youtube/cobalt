@@ -17,16 +17,14 @@
 #include "url/gurl.h"
 
 namespace base {
-class Value;
-}
+class ValueView;
+}  // namespace base
 
-namespace net {
-namespace test_server {
+namespace net::test_server {
 class BasicHttpResponse;
 struct HttpRequest;
 class HttpResponse;
-}
-}
+}  // namespace net::test_server
 
 // This is a test helper that implements a fake GAIA service for use in browser
 // tests. It's mainly intended for use with EmbeddedTestServer, for which it can
@@ -54,13 +52,13 @@ class FakeGaia {
     std::string id_token;
   };
 
-  // Cookies and tokens for /MergeSession call seqeunce.
-  struct MergeSessionParams {
-    MergeSessionParams();
-    ~MergeSessionParams();
+  // Server configuration: account cookies and tokens.
+  struct Configuration {
+    Configuration();
+    ~Configuration();
 
     // Updates params with non-empty values from |params|.
-    void Update(const MergeSessionParams& params);
+    void Update(const Configuration& params);
 
     // Values of SID and LSID cookie that are set by /ServiceLoginAuth or its
     // equivalent at the end of the SAML login flow.
@@ -76,10 +74,7 @@ class FakeGaia {
     std::string access_token;
     std::string id_token;
 
-    // Uber token response from /OAuthLogin call.
-    std::string gaia_uber_token;
-
-    // Values of SID and LSID cookie generated from /MergeSession call.
+    // Values of SID and LSID cookie generated from multilogin call.
     std::string session_sid_cookie;
     std::string session_lsid_cookie;
 
@@ -106,15 +101,15 @@ class FakeGaia {
 
   virtual ~FakeGaia();
 
-  void SetFakeMergeSessionParams(const std::string& email,
-                                 const std::string& auth_sid_cookie,
-                                 const std::string& auth_lsid_cookie);
+  void SetConfigurationHelper(const std::string& email,
+                              const std::string& auth_sid_cookie,
+                              const std::string& auth_lsid_cookie);
 
   // Sets the initial value of tokens and cookies.
-  void SetMergeSessionParams(const MergeSessionParams& params);
+  void SetConfiguration(const Configuration& params);
 
   // Updates various params with non-empty values from |params|.
-  void UpdateMergeSessionParams(const MergeSessionParams& params);
+  void UpdateConfiguration(const Configuration& params);
 
   // Sets the specified |gaia_id| as corresponding to the given |email|
   // address when setting GAIA response headers.  If no mapping is given for
@@ -225,12 +220,6 @@ class FakeGaia {
     fake_saml_continue_response_ = fake_saml_continue_response;
   }
 
- protected:
-  // HTTP handler for /MergeSession.
-  virtual void HandleMergeSession(
-      const net::test_server::HttpRequest& request,
-      net::test_server::BasicHttpResponse* http_response);
-
  private:
   using AccessTokenInfoMap = std::multimap<std::string, AccessTokenInfo>;
   using EmailToGaiaIdMap = std::map<std::string, std::string>;
@@ -256,13 +245,13 @@ class FakeGaia {
 
   // Formats a JSON response with the data in |value|, setting the http status
   // to |status|.
-  void FormatJSONResponse(const base::Value& value,
+  void FormatJSONResponse(const base::ValueView& value,
                           net::HttpStatusCode status,
                           net::test_server::BasicHttpResponse* http_response);
 
   // Formats a JSON response with the data in |value|, setting the http status
   // to net::HTTP_OK.
-  void FormatOkJSONResponse(const base::Value& value,
+  void FormatOkJSONResponse(const base::ValueView& value,
                             net::test_server::BasicHttpResponse* http_response);
 
   using HttpRequestHandlerCallback = base::RepeatingCallback<void(
@@ -291,8 +280,6 @@ class FakeGaia {
   void HandleEmbeddedReauthChromeos(
       const net::test_server::HttpRequest& request,
       net::test_server::BasicHttpResponse* http_response);
-  void HandleOAuthLogin(const net::test_server::HttpRequest& request,
-                        net::test_server::BasicHttpResponse* http_response);
   void HandleEmbeddedLookupAccountLookup(
       const net::test_server::HttpRequest& request,
       net::test_server::BasicHttpResponse* http_response);
@@ -354,7 +341,7 @@ class FakeGaia {
   // it fails to determine appropriate redirect url.
   absl::optional<GURL> GetSamlRedirectUrl(const GURL& request_url) const;
 
-  MergeSessionParams merge_session_params_;
+  Configuration configuration_;
   EmailToGaiaIdMap email_to_gaia_id_map_;
   AccessTokenInfoMap access_token_info_map_;
   RequestHandlerMap request_handlers_;

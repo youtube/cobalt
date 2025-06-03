@@ -186,18 +186,11 @@ class CORE_EXPORT EventHandler final : public GarbageCollected<EventHandler> {
   WebInputEventResult HandleGestureScrollEvent(const WebGestureEvent&);
   bool IsScrollbarHandlingGestures() const;
 
-  bool BestClickableNodeForHitTestResult(const HitTestLocation& location,
-                                         const HitTestResult&,
-                                         gfx::Point& target_point,
-                                         Node*& target_node);
-  bool BestContextMenuNodeForHitTestResult(const HitTestLocation& location,
-                                           const HitTestResult&,
-                                           gfx::Point& target_point,
-                                           Node*& target_node);
-  bool BestStylusWritableNodeForHitTestResult(const HitTestLocation& location,
-                                              const HitTestResult&,
-                                              gfx::Point& target_point,
-                                              Node*& target_node);
+  bool BestNodeForHitTestResult(TouchAdjustmentCandidateType candidate_type,
+                                const HitTestLocation& location,
+                                const HitTestResult&,
+                                gfx::Point& adjusted_point,
+                                Node*& adjusted_node);
   void CacheTouchAdjustmentResult(uint32_t, gfx::PointF);
 
   // Dispatch a context menu event. If |override_target_element| is provided,
@@ -259,7 +252,9 @@ class CORE_EXPORT EventHandler final : public GarbageCollected<EventHandler> {
 
   GestureManager& GetGestureManager() const { return *gesture_manager_; }
 
-  void AnimateSnapFling(base::TimeTicks monotonic_time);
+  KeyboardEventManager& GetKeyboardEventManager() const {
+    return *keyboard_event_manager_;
+  }
 
   void RecomputeMouseHoverStateIfNeeded();
 
@@ -273,9 +268,20 @@ class CORE_EXPORT EventHandler final : public GarbageCollected<EventHandler> {
 
   void UpdateCursor();
 
+  float cursor_accessibility_scale_factor() const {
+    return cursor_accessibility_scale_factor_;
+  }
+  void set_cursor_accessibility_scale_factor(float scale) {
+    cursor_accessibility_scale_factor_ = scale;
+  }
+
   Element* GetElementUnderMouse();
 
   Element* CurrentTouchDownElement();
+
+  void SetDelayedNavigationTaskHandle(TaskHandle task_handle);
+
+  TaskHandle& GetDelayedNavigationTaskHandle();
 
  private:
   WebInputEventResult HandleMouseMoveOrLeaveEvent(
@@ -286,7 +292,7 @@ class CORE_EXPORT EventHandler final : public GarbageCollected<EventHandler> {
       HitTestLocation* hit_test_location = nullptr);
 
   // Updates the event, location and result to the adjusted target.
-  void ApplyTouchAdjustment(WebGestureEvent*, HitTestLocation&, HitTestResult*);
+  void ApplyTouchAdjustment(WebGestureEvent*, HitTestLocation&, HitTestResult&);
 
   void PerformHitTest(const HitTestLocation& location,
                       HitTestResult&,
@@ -304,7 +310,7 @@ class CORE_EXPORT EventHandler final : public GarbageCollected<EventHandler> {
   bool GestureCorrespondsToAdjustedTouch(const WebGestureEvent&);
   bool IsSelectingLink(const HitTestResult&);
   bool ShouldShowIBeamForNode(const Node*, const HitTestResult&);
-  bool ShouldShowResizeForNode(const Node*, const HitTestLocation&);
+  bool ShouldShowResizeForNode(const LayoutObject&, const HitTestLocation&);
   absl::optional<ui::Cursor> SelectCursor(const HitTestLocation& location,
                                           const HitTestResult&);
   absl::optional<ui::Cursor> SelectAutoCursor(const HitTestResult&,
@@ -318,6 +324,21 @@ class CORE_EXPORT EventHandler final : public GarbageCollected<EventHandler> {
   ScrollableArea* AssociatedScrollableArea(const PaintLayer*) const;
 
   Element* EffectiveMouseEventTargetElement(Element*);
+
+  // Task handle used to distinguish single/double click with some modifiers.
+  //
+  // When single click with some modifiers occurred, this task handle is set.
+  // If double click follows, this is cancelled and renderer emit double click
+  // event. (By default, it is handled by renderer as text selection.) If not,
+  // the delayed navigation is emitted.
+  //
+  // Currently, the target navigations are the followings:
+  //
+  // - Download (Alt-click with/without some other modifiers.)
+  // - Link Preview (Alt-click)
+  //
+  // For more details, see https://crbug.com/1428816.
+  TaskHandle delayed_navigation_task_handle_;
 
   // Dispatches ME after corresponding PE provided the PE has not been
   // canceled. The |mouse_event_type| arg must be one of {mousedown,
@@ -412,6 +433,8 @@ class CORE_EXPORT EventHandler final : public GarbageCollected<EventHandler> {
 
   double max_mouse_moved_duration_;
 
+  float cursor_accessibility_scale_factor_ = 1.f;
+
   HeapTaskRunnerTimer<EventHandler> active_interval_timer_;
 
   // last_show_press_timestamp_ prevents the active state rewrited by
@@ -428,6 +451,13 @@ class CORE_EXPORT EventHandler final : public GarbageCollected<EventHandler> {
   // Stored the last touch type primary pointer down adjustment result.
   // This is used in gesture event hit test.
   TouchAdjustmentResult touch_adjustment_result_;
+
+  struct {
+    DOMNodeId mouse_down_target = kInvalidDOMNodeId;
+    DOMNodeId tap_target = kInvalidDOMNodeId;
+    base::TimeTicks mouse_down_time;
+    base::TimeTicks tap_time;
+  } discarded_events_;
 
   // ShouldShowIBeamForNode's unit tests:
   FRIEND_TEST_ALL_PREFIXES(EventHandlerTest, HitOnNothingDoesNotShowIBeam);

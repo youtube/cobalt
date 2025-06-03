@@ -40,6 +40,7 @@
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "chromeos/constants/chromeos_features.h"
+#include "ui/chromeos/styles/cros_tokens_color_mappings.h"
 #include "ui/compositor/layer.h"
 #include "ui/compositor/layer_delegate.h"
 #include "ui/compositor/layer_owner.h"
@@ -97,7 +98,7 @@ class HideAnimationObserver : public ui::ImplicitAnimationObserver {
 
  private:
   // Unowned.
-  const raw_ptr<ui::Layer, ExperimentalAsh> layer_;
+  const raw_ptr<ui::Layer, DanglingUntriaged | ExperimentalAsh> layer_;
 };
 
 class ShelfBackgroundLayerDelegate : public ui::LayerOwner,
@@ -458,13 +459,20 @@ void ShelfWidget::DelegateView::ShowOpaqueBackground() {
 
 void ShelfWidget::DelegateView::OnThemeChanged() {
   views::AccessiblePaneView::OnThemeChanged();
-  animating_background_.SetColor(
-      ShelfConfig::Get()->GetMaximizedShelfColor(GetWidget()));
   shelf_widget_->background_animator_.PaintBackground(
-      shelf_widget_->shelf_layout_manager()->GetShelfBackgroundType(),
+      shelf_widget_->shelf_layout_manager()->ComputeShelfBackgroundType(),
       AnimationChangeType::IMMEDIATE);
-  animating_drag_handle_.SetColor(
-      GetColorProvider()->GetColor(kColorAshShelfHandleColor));
+  if (chromeos::features::IsJellyEnabled()) {
+    animating_background_.SetColor(
+        GetColorProvider()->GetColor(cros_tokens::kCrosSysSystemBase));
+    animating_drag_handle_.SetColor(
+        GetColorProvider()->GetColor(cros_tokens::kCrosSysOnSurface));
+  } else {
+    animating_background_.SetColor(
+        ShelfConfig::Get()->GetMaximizedShelfColor(GetWidget()));
+    animating_drag_handle_.SetColor(
+        GetColorProvider()->GetColor(kColorAshShelfHandleColor));
+  }
 }
 
 bool ShelfWidget::DelegateView::CanActivate() const {
@@ -516,7 +524,7 @@ void ShelfWidget::DelegateView::UpdateOpaqueBackground() {
 
   const Shelf* shelf = shelf_widget_->shelf();
   const ShelfBackgroundType background_type =
-      shelf_widget_->GetBackgroundType();
+      shelf_widget_->shelf_layout_manager()->shelf_background_type();
   const bool tablet_mode = Shell::Get()->IsInTabletMode();
   const bool in_app = ShelfConfig::Get()->is_in_app();
 
@@ -778,7 +786,7 @@ void ShelfWidget::Initialize(aura::Window* shelf_container) {
   shelf_layout_manager_->InitObservers();
   background_animator_.Init(ShelfBackgroundType::kDefaultBg);
   background_animator_.PaintBackground(
-      shelf_layout_manager_->GetShelfBackgroundType(),
+      shelf_layout_manager_->ComputeShelfBackgroundType(),
       AnimationChangeType::IMMEDIATE);
 
   background_animator_.AddObserver(delegate_view_);
@@ -800,6 +808,9 @@ void ShelfWidget::Shutdown() {
   Shell::Get()->focus_cycler()->RemoveWidget(shelf_->status_area_widget());
   Shell::Get()->focus_cycler()->RemoveWidget(navigation_widget());
   Shell::Get()->focus_cycler()->RemoveWidget(hotseat_widget());
+  if (features::IsDeskButtonEnabled()) {
+    Shell::Get()->focus_cycler()->RemoveWidget(desk_button_widget());
+  }
 
   // Don't need to update the shelf background during shutdown.
   background_animator_.RemoveObserver(delegate_view_);
@@ -808,10 +819,6 @@ void ShelfWidget::Shutdown() {
   // Don't need to observe focus/activation during shutdown.
   Shell::Get()->focus_cycler()->RemoveWidget(this);
   SetFocusCycler(nullptr);
-}
-
-ShelfBackgroundType ShelfWidget::GetBackgroundType() const {
-  return background_animator_.target_background_type();
 }
 
 void ShelfWidget::RegisterHotseatWidget(HotseatWidget* hotseat_widget) {
@@ -830,6 +837,9 @@ void ShelfWidget::PostCreateShelf() {
 
   // Add widgets to |focus_cycler| in the desired focus order in LTR.
   focus_cycler->AddWidget(navigation_widget());
+  if (features::IsDeskButtonEnabled()) {
+    focus_cycler->AddWidget(desk_button_widget());
+  }
   hotseat_widget()->SetFocusCycler(focus_cycler);
   focus_cycler->AddWidget(status_area_widget());
 

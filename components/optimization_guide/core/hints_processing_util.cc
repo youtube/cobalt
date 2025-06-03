@@ -49,8 +49,6 @@ std::string GetStringNameForOptimizationType(
       return "LinkPerformance";
     case proto::OptimizationType::SHOPPING_PAGE_PREDICTOR:
       return "ShoppingPagePredictor";
-    case proto::OptimizationType::LOGIN_DETECTION:
-      return "LoginDetection";
     case proto::OptimizationType::MERCHANT_TRUST_SIGNALS:
       return "MerchantTrustSignals";
     case proto::OptimizationType::PRICE_TRACKING:
@@ -75,6 +73,18 @@ std::string GetStringNameForOptimizationType(
       return "AutofillSamplingRate";
     case proto::OptimizationType::VCN_MERCHANT_OPT_OUT_VISA:
       return "VcnMerchantOptOutVisa";
+    case proto::OptimizationType::PRICE_INSIGHTS:
+      return "PriceInsights";
+    case proto::OptimizationType::V8_COMPILE_HINTS:
+      return "V8CompileHints";
+    case proto::OptimizationType::PAGE_INSIGHTS:
+      return "PageInsights";
+    case proto::OptimizationType::SHOPPING_PAGE_TYPES:
+      return "ShoppingPageTypes";
+    case proto::OptimizationType::SHOPPING_DISCOUNTS:
+      return "ShoppingDiscounts";
+    case proto::OptimizationType::COMPOSE:
+      return "Compose";
   }
 
   // The returned string is used to record histograms for the optimization type.

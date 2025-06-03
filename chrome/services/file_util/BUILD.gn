@@ -14,6 +14,8 @@ source_set("file_util") {
     "file_util_service.h",
   ]
 
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
+
   deps = [
     ":buildflags",
     "//base",
@@ -21,6 +23,7 @@ source_set("file_util") {
     "//components/safe_browsing:buildflags",
     "//extensions/buildflags:buildflags",
     "//mojo/public/cpp/bindings",
+    "//third_party/zlib",
   ]
 
   public_deps = [
@@ -40,7 +43,7 @@ source_set("file_util") {
   }
 
   if (is_mac) {
-    deps += [ "//chrome/utility/safe_browsing/mac" ]
+    deps += [ "//chrome/utility/safe_browsing" ]
   }
 
   if (safe_browsing_mode == 1) {
@@ -61,13 +64,13 @@ source_set("file_util") {
     deps += [
       "//chrome/common/safe_browsing",
       "//chrome/common/safe_browsing:archive_analyzer_results",
-      "//chrome/common/safe_browsing:safe_browsing",
+      "//chrome/utility/safe_browsing",
     ]
 
     if (is_linux || is_win) {
       deps += [
-        "//chrome/common/safe_browsing:document_analyzer",
         "//chrome/common/safe_browsing:document_analyzer_results",
+        "//chrome/utility/safe_browsing:document_analyzer",
       ]
     }
   }
@@ -131,6 +134,7 @@ source_set("test_support") {
     "//extensions/buildflags:buildflags",
     "//mojo/public/cpp/bindings",
     "//testing/gmock",
+    "//third_party/abseil-cpp:absl",
   ]
 }
 

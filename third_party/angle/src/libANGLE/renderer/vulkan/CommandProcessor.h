@@ -28,6 +28,9 @@ class CommandProcessor;
 
 namespace vk
 {
+class ExternalFence;
+using SharedExternalFence = std::shared_ptr<ExternalFence>;
+
 constexpr size_t kMaxCommandProcessorTasksLimit = 16u;
 constexpr size_t kInFlightCommandsLimit         = 50u;
 constexpr size_t kMaxFinishedCommandsLimit      = 64u;
@@ -36,6 +39,14 @@ enum class SubmitPolicy
 {
     AllowDeferred,
     EnsureSubmitted,
+};
+
+struct Error
+{
+    VkResult errorCode;
+    const char *file;
+    const char *function;
+    uint32_t line;
 };
 
 class FenceRecycler;
@@ -118,6 +129,12 @@ class CommandProcessorTask
 {
   public:
     CommandProcessorTask() { initTask(); }
+    ~CommandProcessorTask()
+    {
+        // Render passes are cached in RenderPassCache.  The handle stored in the task references a
+        // render pass that is managed by that cache.
+        mRenderPass.release();
+    }
 
     void initTask();
 
@@ -140,6 +157,7 @@ class CommandProcessorTask
                      SwapchainStatus *swapchainStatus);
 
     void initFlushAndQueueSubmit(VkSemaphore semaphore,
+                                 SharedExternalFence &&externalFence,
                                  ProtectionType protectionType,
                                  egl::ContextPriority priority,
                                  const QueueSerial &submitQueueSerial);
@@ -149,7 +167,6 @@ class CommandProcessorTask
                                egl::ContextPriority priority,
                                VkSemaphore waitSemaphore,
                                VkPipelineStageFlags waitSemaphoreStageMask,
-                               VkFence fence,
                                const QueueSerial &submitQueueSerial);
 
     CommandProcessorTask &operator=(CommandProcessorTask &&rhs);
@@ -167,6 +184,7 @@ class CommandProcessorTask
         return mWaitSemaphoreStageMasks;
     }
     VkSemaphore getSemaphore() const { return mSemaphore; }
+    SharedExternalFence &getExternalFence() { return mExternalFence; }
     egl::ContextPriority getPriority() const { return mPriority; }
     ProtectionType getProtectionType() const { return mProtectionType; }
     VkCommandBuffer getOneOffCommandBuffer() const { return mOneOffCommandBuffer; }
@@ -175,10 +193,9 @@ class CommandProcessorTask
     {
         return mOneOffWaitSemaphoreStageMask;
     }
-    VkFence getOneOffFence() const { return mOneOffFence; }
     const VkPresentInfoKHR &getPresentInfo() const { return mPresentInfo; }
     SwapchainStatus *getSwapchainStatus() const { return mSwapchainStatus; }
-    const RenderPass *getRenderPass() const { return mRenderPass; }
+    const RenderPass &getRenderPass() const { return mRenderPass; }
     OutsideRenderPassCommandBufferHelper *getOutsideRenderPassCommandBuffer() const
     {
         return mOutsideRenderPassCommandBuffer;
@@ -200,10 +217,11 @@ class CommandProcessorTask
     // ProcessCommands
     OutsideRenderPassCommandBufferHelper *mOutsideRenderPassCommandBuffer;
     RenderPassCommandBufferHelper *mRenderPassCommandBuffer;
-    const RenderPass *mRenderPass;
+    RenderPass mRenderPass;
 
     // Flush data
     VkSemaphore mSemaphore;
+    SharedExternalFence mExternalFence;
 
     // Flush command data
     QueueSerial mSubmitQueueSerial;
@@ -230,14 +248,12 @@ class CommandProcessorTask
     VkCommandBuffer mOneOffCommandBuffer;
     VkSemaphore mOneOffWaitSemaphore;
     VkPipelineStageFlags mOneOffWaitSemaphoreStageMask;
-    VkFence mOneOffFence;
 
     // Flush, Present & QueueWaitIdle data
     egl::ContextPriority mPriority;
     ProtectionType mProtectionType;
 };
-using CommandProcessorTaskQueue =
-    angle::FixedQueue<CommandProcessorTask, kMaxCommandProcessorTasksLimit>;
+using CommandProcessorTaskQueue = angle::FixedQueue<CommandProcessorTask>;
 
 struct CommandBatch final : angle::NonCopyable
 {
@@ -248,13 +264,24 @@ struct CommandBatch final : angle::NonCopyable
 
     void destroy(VkDevice device);
 
+    bool hasFence() const;
+    void releaseFence();
+    void destroyFence(VkDevice device);
+    VkFence getFenceHandle() const;
+    VkResult getFenceStatus(VkDevice device) const;
+    VkResult waitFence(VkDevice device, uint64_t timeout) const;
+    VkResult waitFenceUnlocked(VkDevice device,
+                               uint64_t timeout,
+                               std::unique_lock<std::mutex> *lock) const;
+
     PrimaryCommandBuffer primaryCommands;
     SecondaryCommandBufferCollector secondaryCommands;
     SharedFence fence;
+    SharedExternalFence externalFence;
     QueueSerial queueSerial;
     ProtectionType protectionType;
 };
-using CommandBatchQueue = angle::FixedQueue<CommandBatch, kInFlightCommandsLimit>;
+using CommandBatchQueue = angle::FixedQueue<CommandBatch>;
 
 class DeviceQueueMap;
 
@@ -380,6 +407,7 @@ class CommandQueue : angle::NonCopyable
                                  ProtectionType protectionType,
                                  egl::ContextPriority priority,
                                  VkSemaphore signalSemaphore,
+                                 SharedExternalFence &&externalFence,
                                  const QueueSerial &submitQueueSerial);
 
     angle::Result queueSubmitOneOff(Context *context,
@@ -388,7 +416,6 @@ class CommandQueue : angle::NonCopyable
                                     VkCommandBuffer commandBufferHandle,
                                     VkSemaphore waitSemaphore,
                                     VkPipelineStageFlags waitSemaphoreStageMask,
-                                    VkFence fence,
                                     SubmitPolicy submitPolicy,
                                     const QueueSerial &submitQueueSerial);
 
@@ -444,13 +471,19 @@ class CommandQueue : angle::NonCopyable
     }
     angle::Result postSubmitCheck(Context *context);
 
+    // Similar to finishOneCommandBatchAndCleanupImpl(), but returns if no command exists in the
+    // queue.
+    angle::Result finishOneCommandBatchAndCleanup(Context *context,
+                                                  uint64_t timeout,
+                                                  bool *anyFinished);
+
     // All these private APIs are called with mutex locked, so we must not take lock again.
   private:
     // Check the first command buffer in mInFlightCommands and update mLastCompletedSerials if
     // finished
     angle::Result checkOneCommandBatch(Context *context, bool *finished);
     // Similar to checkOneCommandBatch, except we will wait for it to finish
-    angle::Result finishOneCommandBatchAndCleanup(Context *context, uint64_t timeout);
+    angle::Result finishOneCommandBatchAndCleanupImpl(Context *context, uint64_t timeout);
     // Walk mFinishedCommands, reset and recycle all command buffers.
     angle::Result retireFinishedCommandsLocked(Context *context);
     // Walk mInFlightCommands, check and update mLastCompletedSerials for all commands that are
@@ -461,7 +494,6 @@ class CommandQueue : angle::NonCopyable
                               std::unique_lock<std::mutex> &&dequeueLock,
                               egl::ContextPriority contextPriority,
                               const VkSubmitInfo &submitInfo,
-                              VkFence fence,
                               DeviceScoped<CommandBatch> &commandBatch,
                               const QueueSerial &submitQueueSerial);
 
@@ -488,7 +520,7 @@ class CommandQueue : angle::NonCopyable
     std::mutex mQueueSubmitMutex;
     CommandBatchQueue mInFlightCommands;
     // Temporary storage for finished command batches that should be reset.
-    angle::FixedQueue<CommandBatch, kMaxFinishedCommandsLimit> mFinishedCommandBatches;
+    CommandBatchQueue mFinishedCommandBatches;
 
     CommandsStateMap mCommandsStateMap;
     // Keeps a free list of reusable primary command buffers.
@@ -536,6 +568,7 @@ class CommandProcessor : public Context
                                         ProtectionType protectionType,
                                         egl::ContextPriority priority,
                                         VkSemaphore signalSemaphore,
+                                        SharedExternalFence &&externalFence,
                                         const QueueSerial &submitQueueSerial);
 
     void requestCommandsAndGarbageCleanup();
@@ -546,7 +579,6 @@ class CommandProcessor : public Context
                                               VkCommandBuffer commandBufferHandle,
                                               VkSemaphore waitSemaphore,
                                               VkPipelineStageFlags waitSemaphoreStageMask,
-                                              VkFence fence,
                                               SubmitPolicy submitPolicy,
                                               const QueueSerial &submitQueueSerial);
     void enqueuePresent(egl::ContextPriority contextPriority,
@@ -622,9 +654,9 @@ class CommandProcessor : public Context
     // Command processor thread, process a task
     angle::Result processTask(CommandProcessorTask *task);
 
-    void present(egl::ContextPriority priority,
-                 const VkPresentInfoKHR &presentInfo,
-                 SwapchainStatus *swapchainStatus);
+    VkResult present(egl::ContextPriority priority,
+                     const VkPresentInfoKHR &presentInfo,
+                     SwapchainStatus *swapchainStatus);
 
     // The mutex lock that serializes dequeue from mTask and submit to mCommandQueue so that only
     // one mTaskQueue consumer at a time

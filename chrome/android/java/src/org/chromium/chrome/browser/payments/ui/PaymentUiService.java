@@ -10,20 +10,18 @@ import android.os.Handler;
 import android.text.TextUtils;
 
 import androidx.annotation.Nullable;
-import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.Callback;
 import org.chromium.chrome.R;
+import org.chromium.chrome.browser.autofill.AddressNormalizerFactory;
+import org.chromium.chrome.browser.autofill.AutofillAddress;
 import org.chromium.chrome.browser.autofill.PersonalDataManager;
-import org.chromium.chrome.browser.autofill.PersonalDataManager.AutofillProfile;
-import org.chromium.chrome.browser.autofill.PersonalDataManager.NormalizedAddressRequestDelegate;
 import org.chromium.chrome.browser.layouts.LayoutManagerProvider;
 import org.chromium.chrome.browser.layouts.LayoutStateProvider;
 import org.chromium.chrome.browser.layouts.LayoutStateProvider.LayoutStateObserver;
 import org.chromium.chrome.browser.layouts.LayoutType;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
 import org.chromium.chrome.browser.payments.AddressEditor;
-import org.chromium.chrome.browser.payments.AutofillAddress;
 import org.chromium.chrome.browser.payments.AutofillContact;
 import org.chromium.chrome.browser.payments.ChromePaymentRequestService;
 import org.chromium.chrome.browser.payments.ContactEditor;
@@ -42,6 +40,8 @@ import org.chromium.chrome.browser.tabmodel.TabModelObserver;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.tabmodel.TabModelSelectorObserver;
 import org.chromium.chrome.browser.ui.favicon.FaviconHelper;
+import org.chromium.components.autofill.AddressNormalizer.NormalizedAddressRequestDelegate;
+import org.chromium.components.autofill.AutofillProfile;
 import org.chromium.components.autofill.Completable;
 import org.chromium.components.autofill.EditableOption;
 import org.chromium.components.browser_ui.settings.SettingsLauncher;
@@ -305,7 +305,7 @@ public class PaymentUiService
 
     // Implements LayoutStateObserver:
     @Override
-    public void onStartedShowing(int layoutType, boolean showToolbar) {
+    public void onStartedShowing(int layoutType) {
         mDelegate.onLeavingCurrentTab(ErrorStrings.TAB_OVERVIEW_MODE);
     }
 
@@ -353,8 +353,7 @@ public class PaymentUiService
      * Returns the selected payment app, if any.
      * @return The selected payment app or null if none selected.
      */
-    @Nullable
-    public PaymentApp getSelectedPaymentApp() {
+    public @Nullable PaymentApp getSelectedPaymentApp() {
         return mPaymentMethodsSection == null
                 ? null
                 : (PaymentApp) mPaymentMethodsSection.getSelectedItem();
@@ -390,8 +389,7 @@ public class PaymentUiService
     }
 
     /** @return The selected contact, can be null. */
-    @Nullable
-    public AutofillContact getSelectedContact() {
+    public @Nullable AutofillContact getSelectedContact() {
         return mContactSection != null ? (AutofillContact) mContactSection.getSelectedItem() : null;
     }
 
@@ -589,8 +587,7 @@ public class PaymentUiService
     }
 
     /** @return The first modifier that matches the given app, or null. */
-    @Nullable
-    private PaymentDetailsModifier getModifier(@Nullable PaymentApp app) {
+    private @Nullable PaymentDetailsModifier getModifier(@Nullable PaymentApp app) {
         if (mParams.hasClosed()) return null;
         Map<String, PaymentDetailsModifier> modifiers = mParams.getUnmodifiableModifiers();
         if (modifiers.isEmpty() || app == null) return null;
@@ -833,8 +830,7 @@ public class PaymentUiService
      * @return The WebContents of the payment handler that's just opened when the opening is
      *         successful; null if failed.
      */
-    @Nullable
-    public WebContents showPaymentHandlerUI(GURL url, boolean isOffTheRecord) {
+    public @Nullable WebContents showPaymentHandlerUI(GURL url, boolean isOffTheRecord) {
         if (mPaymentHandlerUi != null) return null;
         PaymentHandlerCoordinator paymentHandlerUi = new PaymentHandlerCoordinator();
         WebContents paymentHandlerWebContents = paymentHandlerUi.show(
@@ -851,7 +847,6 @@ public class PaymentUiService
 
     // Implements PaymentUiServiceTestInterface:
     @Override
-    @VisibleForTesting(otherwise = VisibleForTesting.NONE)
     public WebContents getPaymentHandlerWebContentsForTest() {
         if (mPaymentHandlerUi == null) return null;
         return mPaymentHandlerUi.getWebContentsForTest();
@@ -859,7 +854,6 @@ public class PaymentUiService
 
     // Implements PaymentUiServiceTestInterface:
     @Override
-    @VisibleForTesting(otherwise = VisibleForTesting.NONE)
     public boolean clickPaymentHandlerSecurityIconForTest() {
         if (mPaymentHandlerUi == null) return false;
         mPaymentHandlerUi.clickSecurityIconForTest();
@@ -868,7 +862,6 @@ public class PaymentUiService
 
     // Implements PaymentUiServiceTestInterface:
     @Override
-    @VisibleForTesting(otherwise = VisibleForTesting.NONE)
     public boolean clickPaymentHandlerCloseButtonForTest() {
         if (mPaymentHandlerUi == null) return false;
         mPaymentHandlerUi.clickCloseButtonForTest();
@@ -877,7 +870,6 @@ public class PaymentUiService
 
     // Implements PaymentUiServiceTestInterface:
     @Override
-    @VisibleForTesting(otherwise = VisibleForTesting.NONE)
     public boolean closeDialogForTest() {
         if (!mHasClosed) close();
         return true;
@@ -1033,8 +1025,7 @@ public class PaymentUiService
      * @param tabModel The tab model of the current tab.
      * @return The error message if built unsuccessfully; null otherwise.
      */
-    @Nullable
-    public String buildPaymentRequestUI(boolean isWebContentsActive, Activity activity,
+    public @Nullable String buildPaymentRequestUI(boolean isWebContentsActive, Activity activity,
             TabModelSelector tabModelSelector, TabModel tabModel) {
         // Payment methods section must be ready before building the rest of the UI. This is because
         // shipping and contact sections (when requested by merchant) are populated depending on
@@ -1146,7 +1137,8 @@ public class PaymentUiService
             String countryCode = AutofillAddress.getCountryCode(addresses.get(i).getProfile());
             if (!uniqueCountryCodes.contains(countryCode)) {
                 uniqueCountryCodes.add(countryCode);
-                PersonalDataManager.getInstance().loadRulesForAddressNormalization(countryCode);
+                AddressNormalizerFactory.getInstance().loadRulesForAddressNormalization(
+                        countryCode);
             }
         }
 
@@ -1441,7 +1433,8 @@ public class PaymentUiService
     private void startShippingAddressChangeNormalization(AutofillAddress address) {
         // Will call back into either onAddressNormalized or onCouldNotNormalize which will send the
         // result to the merchant.
-        PersonalDataManager.getInstance().normalizeAddress(address.getProfile(), /*delegate=*/this);
+        AddressNormalizerFactory.getInstance().normalizeAddress(
+                address.getProfile(), /*delegate=*/this);
     }
 
     /** @return Whether at least one payment app is available. */

@@ -8,8 +8,8 @@
 
 #include "ash/constants/notifier_catalogs.h"
 #include "ash/public/cpp/shelf_config.h"
+#include "ash/public/cpp/system/scoped_toast_pause.h"
 #include "ash/public/cpp/system/toast_data.h"
-#include "ash/resources/vector_icons/vector_icons.h"
 #include "ash/root_window_controller.h"
 #include "ash/screen_util.h"
 #include "ash/session/session_controller_impl.h"
@@ -19,7 +19,6 @@
 #include "ash/shelf/shelf_widget.h"
 #include "ash/shell.h"
 #include "ash/strings/grit/ash_strings.h"
-#include "ash/style/system_toast_style.h"
 #include "ash/test/ash_test_base.h"
 #include "ash/wm/tablet_mode/tablet_mode_controller.h"
 #include "ash/wm/work_area_insets.h"
@@ -40,7 +39,6 @@
 #include "ui/compositor/test/layer_animation_stopped_waiter.h"
 #include "ui/compositor/test/test_utils.h"
 #include "ui/display/manager/display_manager.h"
-#include "ui/gfx/vector_icon_types.h"
 #include "ui/views/controls/button/label_button.h"
 #include "ui/views/widget/widget.h"
 #include "ui/wm/core/window_util.h"
@@ -137,39 +135,20 @@ class ToastManagerImplTest : public AshTestBase,
     return overlay ? overlay->widget_for_testing() : nullptr;
   }
 
-  views::LabelButton* GetDismissButton(
-      aura::Window* root_window = Shell::GetRootWindowForNewWindows()) {
-    ToastOverlay* overlay = GetCurrentOverlay(root_window);
-    DCHECK(overlay);
-    return overlay->dismiss_button_for_testing();
-  }
-
   std::u16string GetCurrentText(
       aura::Window* root_window = Shell::GetRootWindowForNewWindows()) {
     ToastOverlay* overlay = GetCurrentOverlay(root_window);
     return overlay ? overlay->text_ : std::u16string();
   }
 
-  std::u16string GetCurrentDismissText(
-      aura::Window* root_window = Shell::GetRootWindowForNewWindows()) {
-    ToastOverlay* overlay = GetCurrentOverlay(root_window);
-    return overlay ? overlay->dismiss_text_ : std::u16string();
-  }
-
-  bool CurrentToastHasLeadingIcon() {
-    ToastOverlay* overlay =
-        GetCurrentOverlay(Shell::GetRootWindowForNewWindows());
-    return overlay && overlay->overlay_view_ &&
-           !overlay->overlay_view_->leading_icon_->is_empty();
-  }
-
   void ClickDismissButton(
       aura::Window* root_window = Shell::GetRootWindowForNewWindows()) {
-    views::LabelButton* dismiss_button = GetDismissButton(root_window);
-    const gfx::Point button_center =
-        dismiss_button->GetBoundsInScreen().CenterPoint();
+    views::LabelButton* dismiss_button =
+        GetCurrentOverlay(root_window)->dismiss_button_for_testing();
+
     auto* event_generator = GetEventGenerator();
-    event_generator->MoveMouseTo(button_center);
+    event_generator->MoveMouseTo(
+        dismiss_button->GetBoundsInScreen().CenterPoint());
     event_generator->ClickLeftButton();
   }
 
@@ -177,7 +156,7 @@ class ToastManagerImplTest : public AshTestBase,
                         base::TimeDelta duration,
                         bool visible_on_lock_screen = false,
                         const ToastCatalogName catalog_name =
-                            ToastCatalogName::kToastManagerUnittest) {
+                            ToastCatalogName::kTestCatalogName) {
     std::string id = "TOAST_ID_" + base::NumberToString(serial_++);
     manager()->Show(ToastData(id, catalog_name, base::ASCIIToUTF16(text),
                               duration, visible_on_lock_screen));
@@ -189,19 +168,11 @@ class ToastManagerImplTest : public AshTestBase,
       base::TimeDelta duration,
       const std::u16string& dismiss_text = std::u16string()) {
     std::string id = "TOAST_ID_" + base::NumberToString(serial_++);
-    manager()->Show(ToastData(id, ToastCatalogName::kToastManagerUnittest,
+    manager()->Show(ToastData(id, ToastCatalogName::kTestCatalogName,
                               base::ASCIIToUTF16(text), duration,
                               /*visible_on_lock_screen=*/false,
                               /*has_dismiss_button=*/true, dismiss_text));
     return id;
-  }
-
-  void ShowToastWithLeadingIcon(const gfx::VectorIcon& icon) {
-    manager()->Show(ToastData(
-        "id", ToastCatalogName::kToastManagerUnittest, u"text",
-        ToastData::kDefaultToastDuration, /*visible_on_lock_screen=*/false,
-        /*has_dismiss_button=*/false, /*custom_dismiss_text=*/u"",
-        /*dismiss_callback=*/base::DoNothing(), icon));
   }
 
   void CancelToast(const std::string& id) { manager()->Cancel(id); }
@@ -211,7 +182,7 @@ class ToastManagerImplTest : public AshTestBase,
                     base::TimeDelta duration,
                     bool visible_on_lock_screen = false,
                     const ToastCatalogName catalog_name =
-                        ToastCatalogName::kToastManagerUnittest) {
+                        ToastCatalogName::kTestCatalogName) {
     manager()->Show(ToastData(id, catalog_name, base::ASCIIToUTF16(text),
                               duration, visible_on_lock_screen));
   }
@@ -223,8 +194,13 @@ class ToastManagerImplTest : public AshTestBase,
     Shell::Get()->session_controller()->SetSessionInfo(info);
   }
 
+  bool IsToastShown(const std::string& id) {
+    return manager()->IsToastShown(id);
+  }
+
  private:
-  raw_ptr<ToastManagerImpl, ExperimentalAsh> manager_ = nullptr;
+  raw_ptr<ToastManagerImpl, DanglingUntriaged | ExperimentalAsh> manager_ =
+      nullptr;
   unsigned int serial_ = 0;
   base::test::ScopedFeatureList scoped_feature_list_;
 };
@@ -274,27 +250,50 @@ TEST_P(ToastManagerImplTest, ShowAndCloseManuallyDuringAnimation) {
   base::RunLoop().RunUntilIdle();
 }
 
-TEST_P(ToastManagerImplTest, QueueMessage) {
+TEST_P(ToastManagerImplTest, ShowToastWithScopedToastPause) {
+  auto scoped_toast_pause = manager()->CreateScopedPause();
+
+  // If a `ScopedToastPause` exists, the toast should not be shown.
+  ShowToast("DUMMY", base::Milliseconds(10));
+  EXPECT_EQ(0, GetToastSerial());
+  EXPECT_FALSE(GetCurrentOverlay());
+
+  // Even if the `ScopedToastPause` is destroyed, the toast doesn't exist.
+  scoped_toast_pause.reset();
+  EXPECT_EQ(0, GetToastSerial());
+  EXPECT_FALSE(GetCurrentOverlay());
+}
+
+TEST_P(ToastManagerImplTest, CancelToastWithScopedToastPause) {
+  ShowToast("DUMMY", base::Milliseconds(10));
+  EXPECT_EQ(1, GetToastSerial());
+
+  // Creates a `ScopedToastPause` and all toasts will be cleared immediately.
+  manager()->CreateScopedPause();
+  EXPECT_FALSE(GetCurrentOverlay());
+}
+
+TEST_P(ToastManagerImplTest, QueueToasts) {
   const base::TimeDelta kDelay = ToastData::kMinimumDuration;
 
-  ShowToast("DUMMY1", kDelay);
-  ShowToast("DUMMY2", kDelay);
-  ShowToast("DUMMY3", kDelay);
+  std::string id1 = ShowToast("TEXT1", kDelay);
+  std::string id2 = ShowToast("TEXT2", kDelay);
+  std::string id3 = ShowToast("TEXT3", kDelay);
 
   EXPECT_EQ(1, GetToastSerial());
-  EXPECT_EQ(u"DUMMY1", GetCurrentText());
+  EXPECT_TRUE(IsToastShown(id1));
 
   task_environment()->FastForwardBy(kDelay);
-  while (GetToastSerial() != 2)
+  while (GetToastSerial() != 2) {
     base::RunLoop().RunUntilIdle();
-
-  EXPECT_EQ(u"DUMMY2", GetCurrentText());
+  }
+  EXPECT_TRUE(IsToastShown(id2));
 
   task_environment()->FastForwardBy(kDelay);
-  while (GetToastSerial() != 3)
+  while (GetToastSerial() != 3) {
     base::RunLoop().RunUntilIdle();
-
-  EXPECT_EQ(u"DUMMY3", GetCurrentText());
+  }
+  EXPECT_TRUE(IsToastShown(id3));
 }
 
 TEST_P(ToastManagerImplTest, PositionWithVisibleBottomShelf) {
@@ -431,14 +430,14 @@ TEST_P(ToastManagerImplTest, ToastsOnMultipleMonitors) {
   std::string toast_id = "TOAST_ID_" + base::NumberToString(GetToastSerial());
 
   // Create a basic toast with `ToastData::kDefaultToastDuration` as duration.
-  ToastData toast_data(toast_id, ToastCatalogName::kToastManagerUnittest,
+  ToastData toast_data(toast_id, ToastCatalogName::kTestCatalogName,
                        /*text=*/u"");
 
   // Indicate that the toast will show on all root windows.
   toast_data.show_on_all_root_windows = true;
 
   toast_manager->Show(std::move(toast_data));
-  ASSERT_TRUE(toast_manager->IsRunning(toast_id));
+  ASSERT_TRUE(toast_manager->IsToastShown(toast_id));
   for (auto* root_window : Shell::GetAllRootWindows()) {
     ASSERT_TRUE(GetCurrentOverlay(root_window));
   }
@@ -449,7 +448,7 @@ TEST_P(ToastManagerImplTest, ToastsOnMultipleMonitors) {
   // Remove a display to trigger the destruction of a toast overlay.
   UpdateDisplay("800x700");
   ASSERT_EQ(1u, Shell::GetAllRootWindows().size());
-  ASSERT_TRUE(toast_manager->IsRunning(toast_id));
+  ASSERT_TRUE(toast_manager->IsToastShown(toast_id));
 
   // No crash should happen.
 }
@@ -562,6 +561,15 @@ TEST_P(ToastManagerImplTest, PositionWithAutoHiddenBottomShelf) {
                 ShelfConfig::Get()->hidden_shelf_in_screen_portion() -
                 ToastOverlay::kOffset,
             toast_bounds.bottom());
+
+  // Hide the window so the shelf is shown, the toast baseline should update.
+  window->Hide();
+  toast_bounds = GetToastBounds();
+
+  EXPECT_EQ(SHELF_AUTO_HIDE_SHOWN, shelf->GetAutoHideState());
+  EXPECT_EQ(root_bounds.bottom() - ShelfConfig::Get()->shelf_size() -
+                ToastOverlay::kOffset,
+            toast_bounds.bottom());
 }
 
 TEST_P(ToastManagerImplTest, PositionWithHiddenBottomShelf) {
@@ -668,20 +676,28 @@ TEST_P(ToastManagerImplTest, CancelToast) {
   std::string id3 = ShowToast("TEXT3", ToastData::kInfiniteDuration);
 
   // Confirm that the first toast is shown.
-  EXPECT_EQ(u"TEXT1", GetCurrentText());
-  // Cancel the queued toast.
+  EXPECT_TRUE(IsToastShown(id1));
+
+  // Cancel the queued toast and confirm the first toast is still visible.
   CancelToast(id2);
-  // Confirm that the shown toast is still visible.
-  EXPECT_EQ(u"TEXT1", GetCurrentText());
-  // Cancel the shown toast.
+  EXPECT_TRUE(IsToastShown(id1));
+  EXPECT_FALSE(IsToastShown(id2));
+  EXPECT_FALSE(IsToastShown(id3));
+
+  // Cancel the shown toast and confirm the next toast is visible.
   CancelToast(id1);
-  // Confirm that the next toast is visible.
-  EXPECT_EQ(u"TEXT3", GetCurrentText());
-  // Cancel the shown toast.
+  EXPECT_FALSE(IsToastShown(id1));
+  EXPECT_FALSE(IsToastShown(id2));
+  EXPECT_TRUE(IsToastShown(id3));
+
+  // Cancel the shown toast and confirm there are no more toasts.
   CancelToast(id3);
-  // Confirm that the shown toast disappears.
+  EXPECT_FALSE(IsToastShown(id1));
+  EXPECT_FALSE(IsToastShown(id2));
+  EXPECT_FALSE(IsToastShown(id3));
   EXPECT_FALSE(GetCurrentOverlay());
-  // Confirm that only 1 toast is shown.
+
+  // Confirm that 2 toasts were shown.
   EXPECT_EQ(2, GetToastSerial());
 }
 
@@ -775,113 +791,64 @@ TEST_P(ToastManagerImplTest,
   EXPECT_EQ(3, GetToastSerial());
 }
 
-TEST_P(ToastManagerImplTest, ShowToastOnLockScreen) {
-  // Simulate device lock.
+TEST_P(ToastManagerImplTest, ToastSupportedOnLockScreen) {
+  // Show a toast supported on the lock screen in the unlocked screen.
+  std::string id1 = ShowToast("TEXT1", ToastData::kInfiniteDuration,
+                              /*visible_on_lock_screen=*/true);
+  EXPECT_TRUE(GetCurrentOverlay());
+
+  // Simulate device lock, overlay should be visible.
   ChangeLockState(true);
+  EXPECT_TRUE(GetCurrentOverlay());
 
-  // Trying to show a toast.
-  std::string id1 = ShowToast("TEXT1", ToastData::kInfiniteDuration);
-  // Confirm that it's not visible because it's queued.
-  EXPECT_EQ(nullptr, GetCurrentOverlay());
-
-  // Simulate device unlock.
+  // Simulate device unlock, overlay should still be visible.
   ChangeLockState(false);
   EXPECT_TRUE(GetCurrentOverlay());
-  EXPECT_EQ(u"TEXT1", GetCurrentText());
-}
 
-TEST_P(ToastManagerImplTest, ShowSupportedToastOnLockScreen) {
-  // Simulate device lock.
+  // Cancel toast.
+  CancelToast(id1);
+  EXPECT_FALSE(GetCurrentOverlay());
+
+  // Try to show a new toast from within the lock screen, toast should be
+  // immediately shown.
   ChangeLockState(true);
-
-  // Trying to show a toast.
-  std::string id1 = ShowToast("TEXT1", ToastData::kInfiniteDuration,
+  std::string id2 = ShowToast("TEXT1", ToastData::kInfiniteDuration,
                               /*visible_on_lock_screen=*/true);
-  // Confirm it's visible and not queued.
-  EXPECT_NE(nullptr, GetCurrentOverlay());
-  EXPECT_EQ(u"TEXT1", GetCurrentText());
+  EXPECT_TRUE(GetCurrentOverlay());
 
-  // Simulate device unlock.
-  ChangeLockState(false);
-  // Confirm that the toast is still visible.
-  EXPECT_NE(nullptr, GetCurrentOverlay());
-  EXPECT_EQ(u"TEXT1", GetCurrentText());
-}
-
-TEST_P(ToastManagerImplTest, DeferToastByLockScreen) {
-  // Show a toast.
-  std::string id1 = ShowToast("TEXT1", ToastData::kInfiniteDuration,
-                              /*visible_on_lock_screen=*/true);
-  EXPECT_NE(nullptr, GetCurrentOverlay());
-  EXPECT_EQ(u"TEXT1", GetCurrentText());
-
-  // Simulate device lock.
+  // Unlock, overlay should still be visible.
   ChangeLockState(true);
-  // Confirm that it gets hidden.
-  EXPECT_NE(nullptr, GetCurrentOverlay());
-  EXPECT_EQ(u"TEXT1", GetCurrentText());
-
-  // Simulate device unlock.
-  ChangeLockState(false);
-  // Confirm that it gets visible again.
-  EXPECT_NE(nullptr, GetCurrentOverlay());
-  EXPECT_EQ(u"TEXT1", GetCurrentText());
+  EXPECT_TRUE(GetCurrentOverlay());
 }
 
-TEST_P(ToastManagerImplTest, NotDeferToastForLockScreen) {
-  // Show a toast.
+TEST_P(ToastManagerImplTest, ToastNotSupportedOnLockScreen) {
+  // Show a toast that is not supported on the lock screen.
   std::string id1 = ShowToast("TEXT1", ToastData::kInfiniteDuration,
                               /*visible_on_lock_screen=*/false);
-  EXPECT_NE(nullptr, GetCurrentOverlay());
-  EXPECT_EQ(u"TEXT1", GetCurrentText());
+  EXPECT_TRUE(GetCurrentOverlay());
 
-  // Simulate device lock.
+  // Simulate device lock, overlay should be hidden.
   ChangeLockState(true);
-  // Confirm that it gets hidden.
-  EXPECT_EQ(nullptr, GetCurrentOverlay());
+  EXPECT_FALSE(GetCurrentOverlay());
 
-  // Simulate device unlock.
+  // Simulate device unlock, overlay should be shown again.
   ChangeLockState(false);
-  // Confirm that it gets visible again.
-  EXPECT_NE(nullptr, GetCurrentOverlay());
-  EXPECT_EQ(u"TEXT1", GetCurrentText());
-}
+  EXPECT_TRUE(GetCurrentOverlay());
 
-TEST_P(ToastManagerImplTest, DismissButton) {
-  // Show a toast without dismiss button.
-  std::string id1 = ShowToast("TEXT1", ToastData::kInfiniteDuration);
-
-  // Queue a toast with custom dismiss button.
-  std::string id2 =
-      ShowToastWithDismiss("TEXT2", ToastData::kInfiniteDuration, u"Stop");
-
-  // Queue a toast with default dismiss button.
-  std::string id3 = ShowToastWithDismiss("TEXT3", ToastData::kInfiniteDuration);
-
-  // Confirm that the first toast is shown.
-  EXPECT_EQ(u"TEXT1", GetCurrentText());
-
-  // Expect current toast to not have a dismiss button.
-  EXPECT_EQ(std::u16string(), GetCurrentDismissText());
-
-  // Cancel the current toast.
+  // Cancel toast.
   CancelToast(id1);
+  EXPECT_FALSE(GetCurrentOverlay());
 
-  // Confirm that the next toast is visible.
-  EXPECT_EQ(u"TEXT2", GetCurrentText());
+  // Try to show a new toast from within the lock screen, toast should be hidden
+  // but queued.
+  ChangeLockState(true);
+  std::string id2 = ShowToast("TEXT1", ToastData::kInfiniteDuration,
+                              /*visible_on_lock_screen=*/false);
+  EXPECT_FALSE(GetCurrentOverlay());
 
-  // Expect toast to have a dismiss button with custom text.
-  EXPECT_EQ(u"Stop", GetCurrentDismissText());
-
-  // Cancel the current toast.
-  CancelToast(id2);
-
-  // Confirm that the next toast is visible.
-  EXPECT_EQ(u"TEXT3", GetCurrentText());
-
-  // Expect toast to have a dismiss button with default text.
-  EXPECT_EQ(l10n_util::GetStringUTF16(IDS_ASH_TOAST_DISMISS_BUTTON),
-            GetCurrentDismissText());
+  // Unlock, overlay should now be visible.
+  ChangeLockState(false);
+  EXPECT_TRUE(GetCurrentOverlay());
 }
 
 TEST_P(ToastManagerImplTest, ShownCountMetric) {
@@ -956,7 +923,7 @@ TEST_P(ToastManagerImplTest, TimeInQueueMetric) {
 TEST_P(ToastManagerImplTest, UserJourneyTimeMetric) {
   base::HistogramTester histogram_tester;
 
-  const ToastCatalogName catalog_name = ToastCatalogName::kToastManagerUnittest;
+  const ToastCatalogName catalog_name = ToastCatalogName::kTestCatalogName;
   const base::TimeDelta duration = base::Seconds(6);
   constexpr char text[] = "sample text";
 
@@ -1017,7 +984,7 @@ TEST_P(ToastManagerImplTest, ExpiredCallbackRunsWhenToastOverlayClosed) {
     // is not `kDismissButton` then we do not need a dismiss button on the
     // toast.
     ToastData toast_data(
-        toast_id, ToastCatalogName::kToastManagerUnittest,
+        toast_id, ToastCatalogName::kTestCatalogName,
         /*text=*/u"",
         /*duration=*/test_case.source == CancellationSource::kToastDuration
             ? ToastData::kDefaultToastDuration
@@ -1057,13 +1024,13 @@ TEST_P(ToastManagerImplTest, ExpiredCallbackRunsWhenToastOverlayClosed) {
 TEST_P(ToastManagerImplTest, ToastsCanPersistOnHover) {
   std::string toast_id = "TOAST_ID_" + base::NumberToString(GetToastSerial());
 
-  ToastData toast_data(toast_id, ToastCatalogName::kToastManagerUnittest,
+  ToastData toast_data(toast_id, ToastCatalogName::kTestCatalogName,
                        /*text=*/u"");
   toast_data.persist_on_hover = true;
 
   auto* toast_manager = manager();
   toast_manager->Show(std::move(toast_data));
-  EXPECT_TRUE(toast_manager->IsRunning(toast_id));
+  EXPECT_TRUE(toast_manager->IsToastShown(toast_id));
 
   // Wait for half of the toast duration to elapse.
   WaitForTimeDelta(ToastData::kDefaultToastDuration / 2);
@@ -1080,7 +1047,7 @@ TEST_P(ToastManagerImplTest, ToastsCanPersistOnHover) {
   // toast would normally expire, but because the mouse is hovered over it, it
   // will not.
   WaitForTimeDelta(ToastData::kDefaultToastDuration / 2);
-  ASSERT_TRUE(toast_manager->IsRunning(toast_id));
+  ASSERT_TRUE(toast_manager->IsToastShown(toast_id));
 
   // Move the mouse away to resume the expiration countdown timer.
   event_generator->MoveMouseTo(gfx::Point(0, 0));
@@ -1088,7 +1055,7 @@ TEST_P(ToastManagerImplTest, ToastsCanPersistOnHover) {
 
   // Wait for the toast to expire now that the toast is no longer hovered.
   WaitForTimeDelta(ToastData::kDefaultToastDuration / 2);
-  EXPECT_FALSE(toast_manager->IsRunning(toast_id));
+  EXPECT_FALSE(toast_manager->IsToastShown(toast_id));
 }
 
 // Table-driven test that checks that toasts designated to show on all windows
@@ -1127,7 +1094,7 @@ TEST_P(ToastManagerImplTest, ShowAndCloseToastsOnAllRootWindows) {
     // is not `kDismissButton` then we do not need a dismiss button on the
     // toast.
     ToastData toast_data(
-        toast_id, ToastCatalogName::kToastManagerUnittest,
+        toast_id, ToastCatalogName::kTestCatalogName,
         /*text=*/u"",
         /*duration=*/test_case.source == CancellationSource::kToastDuration
             ? ToastData::kDefaultToastDuration
@@ -1140,8 +1107,9 @@ TEST_P(ToastManagerImplTest, ShowAndCloseToastsOnAllRootWindows) {
     toast_data.show_on_all_root_windows = true;
     toast_manager->Show(std::move(toast_data));
 
-    for (auto* root_window : root_windows)
+    for (auto* root_window : root_windows) {
       EXPECT_TRUE(GetCurrentOverlay(root_window));
+    }
 
     switch (test_case.source) {
       case CancellationSource::kToastManager: {
@@ -1162,8 +1130,9 @@ TEST_P(ToastManagerImplTest, ShowAndCloseToastsOnAllRootWindows) {
       }
     }
 
-    for (auto* root_window : root_windows)
+    for (auto* root_window : root_windows) {
       EXPECT_FALSE(GetCurrentOverlay(root_window));
+    }
   }
 }
 
@@ -1177,17 +1146,18 @@ TEST_P(ToastManagerImplTest, ToastsThatPersistOnHoverOnAllRootWindows) {
   std::string toast_id = "TOAST_ID_" + base::NumberToString(GetToastSerial());
 
   // Create a basic toast with `ToastData::kDefaultToastDuration` as duration.
-  ToastData toast_data(toast_id, ToastCatalogName::kToastManagerUnittest,
+  ToastData toast_data(toast_id, ToastCatalogName::kTestCatalogName,
                        /*text=*/u"");
 
   // Indicate that the toast will show on all root windows and persist on hover.
   toast_data.show_on_all_root_windows = true;
   toast_data.persist_on_hover = true;
   toast_manager->Show(std::move(toast_data));
-  ASSERT_TRUE(toast_manager->IsRunning(toast_id));
+  ASSERT_TRUE(toast_manager->IsToastShown(toast_id));
 
-  for (auto* root_window : root_windows)
+  for (auto* root_window : root_windows) {
     ASSERT_TRUE(GetCurrentOverlay(root_window));
+  }
 
   // Wait for half of the toast duration to elapse.
   WaitForTimeDelta(ToastData::kDefaultToastDuration / 2);
@@ -1207,8 +1177,9 @@ TEST_P(ToastManagerImplTest, ToastsThatPersistOnHoverOnAllRootWindows) {
   // remain open after this time.
   WaitForTimeDelta(ToastData::kDefaultToastDuration / 2);
 
-  for (auto* root_window : root_windows)
+  for (auto* root_window : root_windows) {
     EXPECT_TRUE(GetCurrentOverlay(root_window));
+  }
 
   // Move the mouse away to resume the expiration countdown timer.
   event_generator->MoveMouseTo(gfx::Point(0, 0));
@@ -1219,8 +1190,9 @@ TEST_P(ToastManagerImplTest, ToastsThatPersistOnHoverOnAllRootWindows) {
   // gone.
   WaitForTimeDelta(ToastData::kDefaultToastDuration / 2);
 
-  for (auto* root_window : root_windows)
+  for (auto* root_window : root_windows) {
     EXPECT_FALSE(GetCurrentOverlay(root_window));
+  }
 }
 
 // This tests that multi-monitor toast instances do not call the
@@ -1232,7 +1204,7 @@ TEST_P(ToastManagerImplTest, ExpiredCallbackNotCalledOnRootWindowRemoved) {
   std::string toast_id = "TOAST_ID_" + base::NumberToString(GetToastSerial());
 
   // Create a basic toast with `ToastData::kDefaultToastDuration` as duration.
-  ToastData toast_data(toast_id, ToastCatalogName::kToastManagerUnittest,
+  ToastData toast_data(toast_id, ToastCatalogName::kTestCatalogName,
                        /*text=*/u"");
 
   // Indicate that the toast will show on all root windows.
@@ -1244,10 +1216,11 @@ TEST_P(ToastManagerImplTest, ExpiredCallbackNotCalledOnRootWindowRemoved) {
   toast_data.expired_callback = base::BindLambdaForTesting(
       [&expired_callback_ran]() { expired_callback_ran = true; });
   toast_manager->Show(std::move(toast_data));
-  ASSERT_TRUE(toast_manager->IsRunning(toast_id));
+  ASSERT_TRUE(toast_manager->IsToastShown(toast_id));
 
-  for (auto* root_window : Shell::GetAllRootWindows())
+  for (auto* root_window : Shell::GetAllRootWindows()) {
     ASSERT_TRUE(GetCurrentOverlay(root_window));
+  }
 
   // Wait for half of the toast duration to elapse.
   WaitForTimeDelta(ToastData::kDefaultToastDuration / 2);
@@ -1256,12 +1229,47 @@ TEST_P(ToastManagerImplTest, ExpiredCallbackNotCalledOnRootWindowRemoved) {
   // `expired_callback_ran` should still be false.
   UpdateDisplay("800x700");
   ASSERT_EQ(1u, Shell::GetAllRootWindows().size());
-  ASSERT_TRUE(toast_manager->IsRunning(toast_id));
+  ASSERT_TRUE(toast_manager->IsToastShown(toast_id));
   EXPECT_FALSE(expired_callback_ran);
 
   // Wait for the other half of the toast duration to elapse.
   WaitForTimeDelta(ToastData::kDefaultToastDuration / 2);
-  EXPECT_FALSE(toast_manager->IsRunning(toast_id));
+  EXPECT_FALSE(toast_manager->IsToastShown(toast_id));
+  EXPECT_TRUE(expired_callback_ran);
+}
+
+// Tests that toasts are properly closed if they only exist in a secondary
+// display that gets removed e.g. by monitor disconnecteded.
+TEST_P(ToastManagerImplTest, SingleDisplayToastDestroyedOnRootWindowRemoved) {
+  // Add a secondary display, and set it to be the active display so toasts are
+  // added here.
+  UpdateDisplay("800x700,800x700");
+  display::Screen::GetScreen()->SetDisplayForNewWindows(
+      GetSecondaryDisplay().id());
+
+  auto* toast_manager = manager();
+  std::string toast_id = "TOAST_ID_" + base::NumberToString(GetToastSerial());
+
+  // Create a basic toast with `ToastData::kDefaultToastDuration` as duration.
+  ToastData toast_data(toast_id, ToastCatalogName::kTestCatalogName,
+                       /*text=*/u"");
+
+  // Indicate that the toast will not show on all root windows.
+  toast_data.show_on_all_root_windows = false;
+
+  // Bind a lambda that will change a value to tell us whether the expired
+  // callback ran.
+  bool expired_callback_ran = false;
+  toast_data.expired_callback = base::BindLambdaForTesting(
+      [&expired_callback_ran]() { expired_callback_ran = true; });
+  toast_manager->Show(std::move(toast_data));
+  ASSERT_TRUE(toast_manager->IsToastShown(toast_id));
+
+  // Remove a display to trigger the destruction of a toast overlay. Since this
+  // is the only instance of the toast, `expired_callback_ran` should be true.
+  UpdateDisplay("800x700");
+  ASSERT_EQ(1u, Shell::GetAllRootWindows().size());
+  EXPECT_FALSE(toast_manager->IsToastShown(toast_id));
   EXPECT_TRUE(expired_callback_ran);
 }
 
@@ -1277,14 +1285,14 @@ TEST_P(ToastManagerImplTest,
   std::string toast_id = "TOAST_ID_" + base::NumberToString(GetToastSerial());
 
   // Create a basic toast with `ToastData::kDefaultToastDuration` as duration.
-  ToastData toast_data(toast_id, ToastCatalogName::kToastManagerUnittest,
+  ToastData toast_data(toast_id, ToastCatalogName::kTestCatalogName,
                        /*text=*/u"");
 
   // Indicate that the toast will show on all root windows and persist on hover.
   toast_data.show_on_all_root_windows = true;
   toast_data.persist_on_hover = true;
   toast_manager->Show(std::move(toast_data));
-  ASSERT_TRUE(toast_manager->IsRunning(toast_id));
+  ASSERT_TRUE(toast_manager->IsToastShown(toast_id));
 
   // Wait for half of the toast duration to elapse.
   WaitForTimeDelta(ToastData::kDefaultToastDuration / 2);
@@ -1306,8 +1314,9 @@ TEST_P(ToastManagerImplTest,
   // instance should be destroyed.
   WaitForTimeDelta(ToastData::kDefaultToastDuration / 2);
 
-  for (auto* root_window : Shell::GetAllRootWindows())
+  for (auto* root_window : Shell::GetAllRootWindows()) {
     EXPECT_TRUE(GetCurrentOverlay(root_window));
+  }
 
   // Unhover the mouse an add a third root window.
   event_generator->MoveMouseTo(gfx::Point(0, 0));
@@ -1319,16 +1328,9 @@ TEST_P(ToastManagerImplTest,
   WaitForTimeDelta(ToastData::kDefaultToastDuration / 2);
   base::RunLoop().RunUntilIdle();
 
-  for (auto* root_window : Shell::GetAllRootWindows())
+  for (auto* root_window : Shell::GetAllRootWindows()) {
     EXPECT_FALSE(GetCurrentOverlay(root_window));
-}
-
-// Tests that toasts add a leading icon when one is provided.
-TEST_P(ToastManagerImplTest, ToastWithLeadingIcon) {
-  ShowToastWithLeadingIcon(gfx::kNoneIcon);
-  EXPECT_FALSE(CurrentToastHasLeadingIcon());
-  ShowToastWithLeadingIcon(kSystemMenuBusinessIcon);
-  EXPECT_TRUE(CurrentToastHasLeadingIcon());
+  }
 }
 
 // Tests that an offset is added to shift the overlay baseline up when
@@ -1342,9 +1344,10 @@ TEST_P(ToastManagerImplTest, BaselineUpdatesAfterSliderBubbleShown) {
   // slider bubble should be the slider bubble height + a default spacing
   // offset. Baseline remains unchanged with center aligned toasts.
   GetPrimaryUnifiedSystemTray()->ShowVolumeSliderBubble();
+  auto* slider_view = GetPrimaryUnifiedSystemTray()->GetSliderView();
+  ASSERT_TRUE(slider_view);
   if (AreSideAlignedToastsEnabled()) {
-    EXPECT_EQ(GetPrimaryUnifiedSystemTray()->GetSliderBubbleHeight() +
-                  ToastOverlay::kOffset,
+    EXPECT_EQ(slider_view->height() + ToastOverlay::kOffset,
               previous_baseline - GetToastBounds().bottom());
   } else {
     EXPECT_EQ(GetToastBounds().bottom(), previous_baseline);

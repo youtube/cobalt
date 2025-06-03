@@ -7,10 +7,11 @@
 #include <AppKit/AppKit.h>
 #include <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
 
-#include "base/mac/bundle_locations.h"
-#include "base/mac/foundation_util.h"
+#include "base/apple/bridging.h"
+#include "base/apple/bundle_locations.h"
+#include "base/apple/foundation_util.h"
+#include "base/apple/scoped_cftyperef.h"
 #include "base/mac/mac_util.h"
-#include "base/mac/scoped_cftyperef.h"
 #include "base/strings/sys_string_conversions.h"
 #include "build/branding_buildflags.h"
 #include "chrome/common/channel_info.h"
@@ -43,7 +44,7 @@ bool SetAsDefaultBrowser() {
   if (@available(macOS 12, *)) {
     // We really do want the outer bundle here, not the main bundle since
     // setting a shortcut to Chrome as the default browser doesn't make sense.
-    NSURL* app_bundle = base::mac::OuterBundleURL();
+    NSURL* app_bundle = base::apple::OuterBundleURL();
     if (!app_bundle) {
       return false;
     }
@@ -67,7 +68,7 @@ bool SetAsDefaultBrowser() {
     // We really do want the outer bundle here, not the main bundle since
     // setting a shortcut to Chrome as the default browser doesn't make sense.
     CFStringRef identifier =
-        base::mac::NSToCFCast(base::mac::OuterBundle().bundleIdentifier);
+        base::apple::NSToCFPtrCast(base::apple::OuterBundle().bundleIdentifier);
     if (!identifier) {
       return false;
     }
@@ -116,7 +117,7 @@ bool SetAsDefaultClientForScheme(const std::string& scheme) {
   if (@available(macOS 12, *)) {
     // We really do want the main bundle here since it makes sense to set an
     // app shortcut as a default scheme handler.
-    NSURL* app_bundle = base::mac::MainBundleURL();
+    NSURL* app_bundle = base::apple::MainBundleURL();
     if (!app_bundle) {
       return false;
     }
@@ -134,14 +135,15 @@ bool SetAsDefaultClientForScheme(const std::string& scheme) {
   } else {
     // We really do want the main bundle here since it makes sense to set an
     // app shortcut as a default scheme handler.
-    NSString* identifier = base::mac::MainBundle().bundleIdentifier;
+    NSString* identifier = base::apple::MainBundle().bundleIdentifier;
     if (!identifier) {
       return false;
     }
 
     NSString* scheme_ns = base::SysUTF8ToNSString(scheme);
-    OSStatus return_code = LSSetDefaultHandlerForURLScheme(
-        base::mac::NSToCFCast(scheme_ns), base::mac::NSToCFCast(identifier));
+    OSStatus return_code =
+        LSSetDefaultHandlerForURLScheme(base::apple::NSToCFPtrCast(scheme_ns),
+                                        base::apple::NSToCFPtrCast(identifier));
     return return_code == noErr;
   }
 }
@@ -174,9 +176,8 @@ std::vector<base::FilePath> GetAllApplicationPathsForURL(const GURL& url) {
     app_urls =
         [NSWorkspace.sharedWorkspace URLsForApplicationsToOpenURL:ns_url];
   } else {
-    CFArrayRef urls =
-        LSCopyApplicationURLsForURL(base::mac::NSToCFCast(ns_url), kLSRolesAll);
-    app_urls = [base::mac::CFToNSCast(urls) autorelease];
+    app_urls = base::apple::CFToNSOwnershipCast(LSCopyApplicationURLsForURL(
+        base::apple::NSToCFPtrCast(ns_url), kLSRolesAll));
   }
 
   if (app_urls.count == 0) {
@@ -186,17 +187,17 @@ std::vector<base::FilePath> GetAllApplicationPathsForURL(const GURL& url) {
   std::vector<base::FilePath> app_paths;
   app_paths.reserve(app_urls.count);
   for (NSURL* app_url in app_urls) {
-    app_paths.push_back(base::mac::NSURLToFilePath(app_url));
+    app_paths.push_back(base::apple::NSURLToFilePath(app_url));
   }
   return app_paths;
 }
 
 bool CanApplicationHandleURL(const base::FilePath& app_path, const GURL& url) {
   NSURL* ns_item_url = net::NSURLWithGURL(url);
-  NSURL* ns_app_url = base::mac::FilePathToNSURL(app_path);
+  NSURL* ns_app_url = base::apple::FilePathToNSURL(app_path);
   Boolean result = FALSE;
-  LSCanURLAcceptURL(base::mac::NSToCFCast(ns_item_url),
-                    base::mac::NSToCFCast(ns_app_url), kLSRolesAll,
+  LSCanURLAcceptURL(base::apple::NSToCFPtrCast(ns_item_url),
+                    base::apple::NSToCFPtrCast(ns_app_url), kLSRolesAll,
                     kLSAcceptDefault, &result);
   return result;
 }
@@ -208,7 +209,7 @@ bool CanApplicationHandleURL(const base::FilePath& app_path, const GURL& url) {
 DefaultWebClientState GetDefaultBrowser() {
   // We really do want the outer bundle here, since this we want to know the
   // status of the main Chrome bundle and not a shortcut.
-  NSString* my_identifier = base::mac::OuterBundle().bundleIdentifier;
+  NSString* my_identifier = base::apple::OuterBundle().bundleIdentifier;
   if (!my_identifier) {
     return UNKNOWN_DEFAULT;
   }
@@ -257,7 +258,7 @@ DefaultWebClientState IsDefaultClientForScheme(const std::string& scheme) {
 
   // We really do want the main bundle here since it makes sense to set an
   // app shortcut as a default scheme handler.
-  NSString* my_identifier = base::mac::MainBundle().bundleIdentifier;
+  NSString* my_identifier = base::apple::MainBundle().bundleIdentifier;
   if (!my_identifier) {
     return UNKNOWN_DEFAULT;
   }

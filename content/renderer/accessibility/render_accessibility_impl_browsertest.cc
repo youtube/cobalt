@@ -12,6 +12,7 @@
 
 #include "base/containers/adapters.h"
 #include "base/functional/bind.h"
+#include "base/memory/raw_ptr.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
@@ -64,18 +65,6 @@ namespace content {
 using blink::WebAXObject;
 using blink::WebDocument;
 using testing::ElementsAre;
-
-namespace {
-
-#if !BUILDFLAG(IS_ANDROID)
-bool IsSelected(const WebAXObject& obj) {
-  ui::AXNodeData node_data;
-  obj.Serialize(&node_data, ui::kAXModeComplete);
-  return node_data.GetBoolAttribute(ax::mojom::BoolAttribute::kSelected);
-}
-#endif  // !BUILDFLAG(IS_ANDROID)
-
-}  // namespace
 
 class TestAXImageAnnotator : public AXImageAnnotator {
  public:
@@ -182,7 +171,7 @@ class RenderAccessibilityHostInterceptor
   }
 
   void HandleAXEvents(blink::mojom::AXUpdatesAndEventsPtr updates_and_events,
-                      int32_t reset_token,
+                      uint32_t reset_token,
                       HandleAXEventsCallback callback) override {
     handled_updates_.insert(handled_updates_.end(),
                             updates_and_events->updates.begin(),
@@ -191,7 +180,8 @@ class RenderAccessibilityHostInterceptor
   }
 
   void HandleAXLocationChanges(
-      std::vector<blink::mojom::LocationChangesPtr> changes) override {
+      std::vector<blink::mojom::LocationChangesPtr> changes,
+      uint32_t reset_token) override {
     for (auto& change : changes)
       location_changes_.emplace_back(std::move(change));
   }
@@ -326,7 +316,7 @@ class RenderAccessibilityImplTest : public RenderViewTest {
   }
 
   void SetMode(ui::AXMode mode) {
-    frame()->GetRenderAccessibilityManager()->SetMode(mode);
+    frame()->GetRenderAccessibilityManager()->SetMode(mode, 1);
   }
 
   ui::AXTreeUpdate GetLastAccUpdate() {
@@ -367,7 +357,7 @@ class RenderAccessibilityImplTest : public RenderViewTest {
   }
 
  private:
-  IPC::TestSink* sink_;
+  raw_ptr<IPC::TestSink, ExperimentalRenderer> sink_;
 };
 
 TEST_F(RenderAccessibilityImplTest, SendFullAccessibilityTreeOnReload) {
@@ -416,15 +406,20 @@ TEST_F(RenderAccessibilityImplTest, SendFullAccessibilityTreeOnReload) {
   // Even if the first event is sent on an element other than
   // the root, the whole tree should be updated because we know
   // the browser doesn't have the root element.
+  // When the entire page is reloaded like this, all of the nodes are sent.
   LoadHTML(html);
   document = GetMainFrame()->GetDocument();
   root_obj = WebAXObject::FromWebDocument(document);
+  SendPendingAccessibilityEvents();
+  EXPECT_EQ(6, CountAccessibilityNodesSentToBrowser());
   ClearHandledUpdates();
+
+  // Now fire a single event and ensure that only one update is sent.
   const WebAXObject& first_child = root_obj.ChildAt(0);
   GetRenderAccessibilityImpl()->HandleAXEvent(
       ui::AXEvent(first_child.AxID(), ax::mojom::Event::kFocus));
   SendPendingAccessibilityEvents();
-  EXPECT_EQ(6, CountAccessibilityNodesSentToBrowser());
+  EXPECT_EQ(1, CountAccessibilityNodesSentToBrowser());
 }
 
 TEST_F(RenderAccessibilityImplTest, HideAccessibilityObject) {
@@ -927,6 +922,56 @@ TEST_F(RenderAccessibilityImplTest, TestAXActionTargetFromNodeId) {
   EXPECT_EQ(ui::AXActionTarget::Type::kNull, null_action_target->GetType());
 }
 
+TEST_F(RenderAccessibilityImplTest, SendPendingAccessibilityEventsPostLoad) {
+  LoadHTMLAndRefreshAccessibilityTree(R"HTML(
+      <body>
+        <input id="text" value="Hello, World">
+      </body>
+      )HTML");
+
+  // No logs initially.
+  base::HistogramTester histogram_tester;
+  histogram_tester.ExpectTotalCount(
+      "Accessibility.Performance.SendPendingAccessibilityEvents", 0);
+  histogram_tester.ExpectTotalCount(
+      "Accessibility.Performance.SendPendingAccessibilityEvents.PostLoad", 0);
+
+  // A load started event pauses logging.
+  WebDocument document = GetMainFrame()->GetDocument();
+  WebAXObject root_obj = WebAXObject::FromWebDocument(document);
+  GetRenderAccessibilityImpl()->HandleAXEvent(
+      ui::AXEvent(root_obj.AxID(), ax::mojom::Event::kLoadStart));
+  SendPendingAccessibilityEvents();
+  histogram_tester.ExpectTotalCount(
+      "Accessibility.Performance.SendPendingAccessibilityEvents", 1);
+  histogram_tester.ExpectTotalCount(
+      "Accessibility.Performance.SendPendingAccessibilityEvents.PostLoad", 0);
+
+  // Do not log in the serialization immediately following load completion.
+  GetRenderAccessibilityImpl()->HandleAXEvent(
+      ui::AXEvent(root_obj.AxID(), ax::mojom::Event::kLoadComplete));
+  SendPendingAccessibilityEvents();
+  histogram_tester.ExpectTotalCount(
+      "Accessibility.Performance.SendPendingAccessibilityEvents", 2);
+  histogram_tester.ExpectTotalCount(
+      "Accessibility.Performance.SendPendingAccessibilityEvents.PostLoad", 0);
+
+  // Now we start logging.
+  GetRenderAccessibilityImpl()->MarkWebAXObjectDirty(root_obj, false);
+  SendPendingAccessibilityEvents();
+  histogram_tester.ExpectTotalCount(
+      "Accessibility.Performance.SendPendingAccessibilityEvents", 3);
+  histogram_tester.ExpectTotalCount(
+      "Accessibility.Performance.SendPendingAccessibilityEvents.PostLoad", 1);
+
+  GetRenderAccessibilityImpl()->MarkWebAXObjectDirty(root_obj, false);
+  SendPendingAccessibilityEvents();
+  histogram_tester.ExpectTotalCount(
+      "Accessibility.Performance.SendPendingAccessibilityEvents", 4);
+  histogram_tester.ExpectTotalCount(
+      "Accessibility.Performance.SendPendingAccessibilityEvents.PostLoad", 2);
+}
+
 class BlinkAXActionTargetTest : public RenderAccessibilityImplTest {
  protected:
   void SetUp() override {
@@ -1110,6 +1155,7 @@ TEST_F(BlinkAXActionTargetTest, TestMethods) {
   // and the keyup event is delayed 100ms to look more natural. We need to wait
   // for them to happen to finish the test cleanly in the TearDown phase.
   task_environment_.FastForwardBy(base::Seconds(1));
+  GetRenderAccessibilityImpl()->GetAXContext()->UpdateAXForAllDocuments();
 
   gfx::RectF expected_bounds;
   blink::WebAXObject offset_container;
@@ -1127,15 +1173,6 @@ TEST_F(BlinkAXActionTargetTest, TestMethods) {
   EXPECT_EQ(offset_to_set, scroller_action_target->GetScrollOffset());
   EXPECT_EQ(gfx::Point(0, 0), scroller_action_target->MinimumScrollOffset());
   EXPECT_GE(scroller_action_target->MaximumScrollOffset().y(), 900);
-
-  // Android does not produce accessible items for option elements.
-#if !BUILDFLAG(IS_ANDROID)
-  EXPECT_FALSE(IsSelected(option));
-  EXPECT_TRUE(option_action_target->SetSelected(true));
-  // Selecting option requires layout to be clean.
-  GetRenderAccessibilityImpl()->GetAXContext()->UpdateAXForAllDocuments();
-  EXPECT_TRUE(IsSelected(option));
-#endif
 
   std::string value_to_set("test-value");
   {
@@ -1229,7 +1266,14 @@ class AXImageAnnotatorTest : public RenderAccessibilityImplTest {
   MockAnnotationService mock_annotator_;
 };
 
-TEST_F(AXImageAnnotatorTest, OnImageAdded) {
+// TODO(crbug.com/1477047, fuchsia:132924): Reenable test on Fuchsia once
+// post-lifecycle serialization is turned on.
+#if BUILDFLAG(IS_FUCHSIA)
+#define MAYBE_OnImageAdded DISABLED_OnImageAdded
+#else
+#define MAYBE_OnImageAdded OnImageAdded
+#endif
+TEST_F(AXImageAnnotatorTest, MAYBE_OnImageAdded) {
   LoadHTMLAndRefreshAccessibilityTree(R"HTML(
       <body>
         <p>Test document</p>
@@ -1268,12 +1312,13 @@ TEST_F(AXImageAnnotatorTest, OnImageAdded) {
   task_environment_.RunUntilIdle();
 
   EXPECT_THAT(mock_annotator().image_ids_,
-              ElementsAre("test1.jpg", "test1.jpg", "test2.jpg"));
-  ASSERT_EQ(3u, mock_annotator().image_processors_.size());
+              ElementsAre("test1.jpg", "test2.jpg", "test1.jpg", "test2.jpg"));
+  ASSERT_EQ(4u, mock_annotator().image_processors_.size());
   EXPECT_TRUE(mock_annotator().image_processors_[0].is_bound());
   EXPECT_TRUE(mock_annotator().image_processors_[1].is_bound());
   EXPECT_TRUE(mock_annotator().image_processors_[2].is_bound());
-  EXPECT_EQ(3u, mock_annotator().callbacks_.size());
+  EXPECT_TRUE(mock_annotator().image_processors_[3].is_bound());
+  EXPECT_EQ(4u, mock_annotator().callbacks_.size());
 }
 
 TEST_F(AXImageAnnotatorTest, OnImageUpdated) {

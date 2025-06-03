@@ -119,8 +119,8 @@ class _TargetHost(object):
         # the host.
 
         self._host_port_pair = run_ffx_command(
-            ('target', 'get-ssh-address'),
-            self._target_id,
+            cmd=('target', 'get-ssh-address'),
+            target_id=self._target_id,
             capture_output=True).stdout.strip()
         self._proxy = self._port_forward_list(ports_to_forward)
 
@@ -218,8 +218,8 @@ class FuchsiaPort(base.Port):
     def _driver_class(self):
         return ChromiumFuchsiaDriver
 
-    def _path_to_driver(self, target=None):
-        return self._build_path_with_target(target, CONTENT_SHELL_PACKAGE_PATH)
+    def path_to_driver(self, target=None):
+        return self.build_path(CONTENT_SHELL_PACKAGE_PATH, target=target)
 
     def __del__(self):
         if self._zircon_logger:
@@ -295,7 +295,7 @@ class FuchsiaPort(base.Port):
         return self._target_host
 
     def get_build_ids_path(self):
-        package_path = self._path_to_driver()
+        package_path = self.path_to_driver()
         return os.path.join(os.path.dirname(package_path), 'ids.txt')
 
 

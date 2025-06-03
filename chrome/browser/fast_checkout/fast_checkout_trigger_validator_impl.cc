@@ -12,6 +12,9 @@
 #include "components/autofill/core/common/autofill_internals/logging_scope.h"
 #include "components/autofill/core/common/logging/log_macros.h"
 
+using ::autofill::FastCheckoutTriggerOutcome;
+using ::autofill::FastCheckoutUIState;
+
 FastCheckoutTriggerValidatorImpl::FastCheckoutTriggerValidatorImpl(
     autofill::AutofillClient* autofill_client,
     FastCheckoutCapabilitiesFetcher* capabilities_fetcher,
@@ -55,6 +58,11 @@ FastCheckoutTriggerOutcome FastCheckoutTriggerValidatorImpl::ShouldRun(
   // Trigger only if the form is a trigger form for Fast Checkout.
   if (!IsTriggerForm(form, field)) {
     return FastCheckoutTriggerOutcome::kUnsupportedFieldType;
+  }
+
+  if (autofill_client_->GetVariationConfigCountryCode() !=
+      GeoIpCountryCode("US")) {
+    return FastCheckoutTriggerOutcome::kUnsupportedCountry;
   }
 
   // UMA drop out metrics are recorded after this point only to avoid collecting
@@ -127,7 +135,7 @@ FastCheckoutTriggerValidatorImpl::HasValidPersonalData() const {
     return FastCheckoutTriggerOutcome::kFailureAutofillProfileDisabled;
   }
 
-  if (!pdm->IsAutofillCreditCardEnabled()) {
+  if (!pdm->IsAutofillPaymentMethodsEnabled()) {
     LogAutofillInternals(
         "not triggered because Autofill credit card is disabled.");
     return FastCheckoutTriggerOutcome::kFailureAutofillCreditCardDisabled;

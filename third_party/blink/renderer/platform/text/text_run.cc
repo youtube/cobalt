@@ -25,6 +25,7 @@
 
 #include "third_party/blink/renderer/platform/text/text_run.h"
 
+#include "base/memory/raw_ptr.h"
 #include "third_party/blink/renderer/platform/text/bidi_paragraph.h"
 #include "third_party/blink/renderer/platform/text/character.h"
 #include "third_party/blink/renderer/platform/wtf/size_assertions.h"
@@ -34,11 +35,9 @@ namespace blink {
 
 struct SameSizeAsTextRun {
   DISALLOW_NEW();
-  const void* pointer;
-  int integers[2];
-  float floats[2];
-  uint32_t bitfields : 10;
-  TabSize tab_size;
+  raw_ptr<const void, ExperimentalRenderer> pointer;
+  int integer;
+  uint32_t bitfields : 4;
 };
 
 ASSERT_SIZE(TextRun, SameSizeAsTextRun);

@@ -8,6 +8,7 @@
 #include <stddef.h>
 
 #include <memory>
+#include <set>
 
 #include "ash/app_list/app_list_model_provider.h"
 #include "ash/app_list/app_list_view_provider.h"
@@ -118,6 +119,13 @@ class ASH_EXPORT AppsContainerView
   void OnBoundsChanged(const gfx::Rect& old_bounds) override;
   void AddedToWidget() override;
   void RemovedFromWidget() override;
+  bool GetDropFormats(int* formats,
+                      std::set<ui::ClipboardFormatType>* format_types) override;
+  bool CanDrop(const OSExchangeData& data) override;
+  int OnDragUpdated(const ui::DropTargetEvent& event) override;
+  void OnDragEntered(const ui::DropTargetEvent& event) override;
+  void OnDragExited() override;
+  DropCallback GetDropCallback(const ui::DropTargetEvent& event) override;
 
   // views::FocusChangeListener overrides:
   void OnWillChangeFocus(View* focused_before, View* focused_now) override {}
@@ -337,8 +345,10 @@ class ASH_EXPORT AppsContainerView
   raw_ptr<AppListToastContainerView, ExperimentalAsh> toast_container_ =
       nullptr;
   raw_ptr<PagedAppsGridView, ExperimentalAsh> apps_grid_view_ = nullptr;
-  raw_ptr<AppListFolderView, ExperimentalAsh> app_list_folder_view_ = nullptr;
-  raw_ptr<PageSwitcher, ExperimentalAsh> page_switcher_ = nullptr;
+  raw_ptr<AppListFolderView, DanglingUntriaged | ExperimentalAsh>
+      app_list_folder_view_ = nullptr;
+  raw_ptr<PageSwitcher, DanglingUntriaged | ExperimentalAsh> page_switcher_ =
+      nullptr;
   raw_ptr<FolderBackgroundView, ExperimentalAsh> folder_background_view_ =
       nullptr;
 

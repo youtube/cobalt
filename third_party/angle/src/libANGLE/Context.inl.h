@@ -77,6 +77,9 @@ ANGLE_INLINE void MarkShaderStorageUsage(const Context *context)
 //  have a valid primitive for this mode (0 for points, 0-1 for lines, 0-2 for tris).
 ANGLE_INLINE bool Context::noopDraw(PrimitiveMode mode, GLsizei count) const
 {
+    // Make sure any pending link is done before checking whether draw is allowed.
+    mState.ensureNoPendingLink(this);
+
     if (!mStateCache.getCanDraw())
     {
         return true;
@@ -90,22 +93,25 @@ ANGLE_INLINE bool Context::noopMultiDraw(GLsizei drawcount) const
     return drawcount == 0 || !mStateCache.getCanDraw();
 }
 
-ANGLE_INLINE angle::Result Context::syncDirtyBits(Command command)
+ANGLE_INLINE angle::Result Context::syncAllDirtyBits(Command command)
 {
-    const State::DirtyBits &dirtyBits                 = mState.getDirtyBits();
-    const State::ExtendedDirtyBits &extendedDirtyBits = mState.getExtendedDirtyBits();
-    ANGLE_TRY(mImplementation->syncState(this, dirtyBits, mAllDirtyBits, extendedDirtyBits,
-                                         mAllExtendedDirtyBits, command));
+    constexpr state::DirtyBits kAllDirtyBits                 = state::DirtyBits().set();
+    constexpr state::ExtendedDirtyBits kAllExtendedDirtyBits = state::ExtendedDirtyBits().set();
+    const state::DirtyBits dirtyBits                         = mState.getDirtyBits();
+    const state::ExtendedDirtyBits extendedDirtyBits         = mState.getExtendedDirtyBits();
+    ANGLE_TRY(mImplementation->syncState(this, dirtyBits, kAllDirtyBits, extendedDirtyBits,
+                                         kAllExtendedDirtyBits, command));
     mState.clearDirtyBits();
+    mState.clearExtendedDirtyBits();
     return angle::Result::Continue;
 }
 
-ANGLE_INLINE angle::Result Context::syncDirtyBits(const State::DirtyBits &bitMask,
-                                                  const State::ExtendedDirtyBits &extendedBitMask,
+ANGLE_INLINE angle::Result Context::syncDirtyBits(const state::DirtyBits bitMask,
+                                                  const state::ExtendedDirtyBits extendedBitMask,
                                                   Command command)
 {
-    const State::DirtyBits &dirtyBits = (mState.getDirtyBits() & bitMask);
-    const State::ExtendedDirtyBits &extendedDirtyBits =
+    const state::DirtyBits dirtyBits = (mState.getDirtyBits() & bitMask);
+    const state::ExtendedDirtyBits extendedDirtyBits =
         (mState.getExtendedDirtyBits() & extendedBitMask);
     ANGLE_TRY(mImplementation->syncState(this, dirtyBits, bitMask, extendedDirtyBits,
                                          extendedBitMask, command));
@@ -114,7 +120,7 @@ ANGLE_INLINE angle::Result Context::syncDirtyBits(const State::DirtyBits &bitMas
     return angle::Result::Continue;
 }
 
-ANGLE_INLINE angle::Result Context::syncDirtyObjects(const State::DirtyObjects &objectMask,
+ANGLE_INLINE angle::Result Context::syncDirtyObjects(const state::DirtyObjects &objectMask,
                                                      Command command)
 {
     return mState.syncDirtyObjects(this, objectMask, command);
@@ -124,13 +130,13 @@ ANGLE_INLINE angle::Result Context::prepareForDraw(PrimitiveMode mode)
 {
     if (mGLES1Renderer)
     {
-        ANGLE_TRY(mGLES1Renderer->prepareForDraw(mode, this, &mState));
+        ANGLE_TRY(mGLES1Renderer->prepareForDraw(mode, this, &mState, getMutableGLES1State()));
     }
 
     ANGLE_TRY(syncDirtyObjects(mDrawDirtyObjects, Command::Draw));
     ASSERT(!isRobustResourceInitEnabled() ||
            !mState.getDrawFramebuffer()->hasResourceThatNeedsInit());
-    return syncDirtyBits(Command::Draw);
+    return syncAllDirtyBits(Command::Draw);
 }
 
 ANGLE_INLINE void Context::drawArrays(PrimitiveMode mode, GLint first, GLsizei count)

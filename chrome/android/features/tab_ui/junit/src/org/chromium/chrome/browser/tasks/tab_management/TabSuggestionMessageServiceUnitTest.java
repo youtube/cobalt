@@ -36,7 +36,6 @@ import org.chromium.base.Callback;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.JniMocker;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.profiles.ProfileJni;
 import org.chromium.chrome.browser.tab.Tab;
@@ -56,9 +55,7 @@ import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 
-/**
- * Unit tests for {@link TabSuggestionMessageService}.
- */
+/** Unit tests for {@link TabSuggestionMessageService}. */
 @SuppressWarnings({"ResultOfMethodCallIgnored", "ArraysAsListWithZeroOrOneArgument"})
 @RunWith(BaseRobolectricTestRunner.class)
 public class TabSuggestionMessageServiceUnitTest {
@@ -78,33 +75,21 @@ public class TabSuggestionMessageServiceUnitTest {
 
     private TabSuggestionMessageService mMessageService;
 
-    @Rule
-    public JniMocker mocker = new JniMocker();
-    @Mock
-    public Profile.Natives mMockProfileNatives;
+    @Rule public JniMocker mocker = new JniMocker();
+    @Mock public Profile.Natives mMockProfileNatives;
 
     Context mContext;
-    @Mock
-    TabModelSelector mTabModelSelector;
-    @Mock
-    TabModel mTabModel;
-    @Mock
-    TabModelFilterProvider mTabModelFilterProvider;
-    @Mock
-    TabGroupModelFilter mTabGroupModelFilter;
-    @Mock
-    TabSelectionEditorCoordinator.TabSelectionEditorController mTabSelectionEditorController;
-    @Mock
-    Callback<TabSuggestionFeedback> mTabSuggestionFeedbackCallback;
-    @Mock
-    MessageService.MessageObserver mMessageObserver;
-    @Mock
-    SelectionDelegate<Integer> mSelectionDelegate;
-    @Mock
-    ActionDelegate mActionDelegate;
+    @Mock TabModelSelector mTabModelSelector;
+    @Mock TabModel mTabModel;
+    @Mock TabModelFilterProvider mTabModelFilterProvider;
+    @Mock TabGroupModelFilter mTabGroupModelFilter;
+    @Mock TabSelectionEditorCoordinator.TabSelectionEditorController mTabSelectionEditorController;
+    @Mock Callback<TabSuggestionFeedback> mTabSuggestionFeedbackCallback;
+    @Mock MessageService.MessageObserver mMessageObserver;
+    @Mock SelectionDelegate<Integer> mSelectionDelegate;
+    @Mock ActionDelegate mActionDelegate;
 
-    @Captor
-    ArgumentCaptor<TabSuggestionFeedback> mTabSuggestionFeedbackCallbackArgumentCaptor;
+    @Captor ArgumentCaptor<TabSuggestionFeedback> mTabSuggestionFeedbackCallbackArgumentCaptor;
 
     @Before
     public void setUp() {
@@ -141,24 +126,27 @@ public class TabSuggestionMessageServiceUnitTest {
         doNothing().when(mMessageObserver).messageReady(anyInt(), any());
         doNothing().when(mMessageObserver).messageInvalidate(anyInt());
 
-        mMessageService = new TabSuggestionMessageService(
-                mContext, mTabModelSelector, () -> mTabSelectionEditorController);
+        mMessageService =
+                new TabSuggestionMessageService(
+                        mContext, mTabModelSelector, () -> mTabSelectionEditorController);
         mMessageService.addObserver(mMessageObserver);
     }
 
     // Tests for Close suggestions.
     @Test
     public void testReviewHandler_closeSuggestion() {
-        TabSuggestion tabSuggestion = prepareTabSuggestion(
-                Arrays.asList(mTab1, mTab2), TabSuggestion.TabSuggestionAction.CLOSE);
+        TabSuggestion tabSuggestion =
+                prepareTabSuggestion(
+                        Arrays.asList(mTab1, mTab2), TabSuggestion.TabSuggestionAction.CLOSE);
 
         mMessageService.review(tabSuggestion, mTabSuggestionFeedbackCallback);
         verify(mTabSelectionEditorController).configureToolbarWithMenuItems(any(), any());
         verify(mTabSelectionEditorController)
                 .show(eq(Arrays.asList(mTab1, mTab2, mTab3)), eq(2), eq(null));
 
-        tabSuggestion = prepareTabSuggestion(
-                Arrays.asList(mTab1, mTab3), TabSuggestion.TabSuggestionAction.CLOSE);
+        tabSuggestion =
+                prepareTabSuggestion(
+                        Arrays.asList(mTab1, mTab3), TabSuggestion.TabSuggestionAction.CLOSE);
         mMessageService.review(tabSuggestion, mTabSuggestionFeedbackCallback);
         verify(mTabSelectionEditorController)
                 .show(eq(Arrays.asList(mTab1, mTab3, mTab2)), eq(2), eq(null));
@@ -179,8 +167,11 @@ public class TabSuggestionMessageServiceUnitTest {
         doReturn(tabSet).when(mSelectionDelegate).getSelectedItems();
         TabSelectionEditorAction action =
                 mMessageService.getAction(tabSuggestion, mTabSuggestionFeedbackCallback);
-        action.configure(mTabModelSelector, mSelectionDelegate, mActionDelegate,
-                /*editorSupportsActionOnRelatedTabs=*/false);
+        action.configure(
+                mTabModelSelector,
+                mSelectionDelegate,
+                mActionDelegate,
+                /* editorSupportsActionOnRelatedTabs= */ false);
         action.perform();
 
         verify(mTabModel).closeMultipleTabs(eq(suggestedTabs), eq(true));
@@ -197,8 +188,6 @@ public class TabSuggestionMessageServiceUnitTest {
 
     @Test
     public void testClosingSuggestionNavigationHandler() {
-        ChromeFeatureList.sTabGroupsAndroid.setForTesting(true);
-        ChromeFeatureList.sTabGroupsContinuationAndroid.setForTesting(true);
         List<Tab> suggestedTabs = Arrays.asList(mTab1, mTab2);
         TabSuggestion tabSuggestion =
                 prepareTabSuggestion(suggestedTabs, TabSuggestion.TabSuggestionAction.CLOSE);
@@ -214,23 +203,23 @@ public class TabSuggestionMessageServiceUnitTest {
                 mTabSuggestionFeedbackCallbackArgumentCaptor.getValue();
         assertEquals(tabSuggestion, capturedFeedback.tabSuggestion);
         assertEquals(DISMISSED, capturedFeedback.tabSuggestionResponse);
-        ChromeFeatureList.sTabGroupsAndroid.setForTesting(null);
-        ChromeFeatureList.sTabGroupsContinuationAndroid.setForTesting(null);
     }
 
     // Tests for grouping suggestion
     @Test
     public void testReviewHandler_groupSuggestion() {
-        TabSuggestion tabSuggestion = prepareTabSuggestion(
-                Arrays.asList(mTab1, mTab2), TabSuggestion.TabSuggestionAction.GROUP);
+        TabSuggestion tabSuggestion =
+                prepareTabSuggestion(
+                        Arrays.asList(mTab1, mTab2), TabSuggestion.TabSuggestionAction.GROUP);
 
         mMessageService.review(tabSuggestion, mTabSuggestionFeedbackCallback);
         verify(mTabSelectionEditorController).configureToolbarWithMenuItems(any(), any());
         verify(mTabSelectionEditorController)
                 .show(eq(Arrays.asList(mTab1, mTab2, mTab3)), eq(2), eq(null));
 
-        tabSuggestion = prepareTabSuggestion(
-                Arrays.asList(mTab1, mTab3), TabSuggestion.TabSuggestionAction.GROUP);
+        tabSuggestion =
+                prepareTabSuggestion(
+                        Arrays.asList(mTab1, mTab3), TabSuggestion.TabSuggestionAction.GROUP);
         mMessageService.review(tabSuggestion, mTabSuggestionFeedbackCallback);
         verify(mTabSelectionEditorController)
                 .show(eq(Arrays.asList(mTab1, mTab3, mTab2)), eq(2), eq(null));
@@ -251,8 +240,11 @@ public class TabSuggestionMessageServiceUnitTest {
         doReturn(tabSet).when(mSelectionDelegate).getSelectedItems();
         TabSelectionEditorAction action =
                 mMessageService.getAction(tabSuggestion, mTabSuggestionFeedbackCallback);
-        action.configure(mTabModelSelector, mSelectionDelegate, mActionDelegate,
-                /*editorSupportsActionOnRelatedTabs=*/false);
+        action.configure(
+                mTabModelSelector,
+                mSelectionDelegate,
+                mActionDelegate,
+                /* editorSupportsActionOnRelatedTabs= */ false);
         action.perform();
 
         verify(mTabSuggestionFeedbackCallback)
@@ -297,22 +289,26 @@ public class TabSuggestionMessageServiceUnitTest {
         mMessageService.onNewSuggestion(Collections.EMPTY_LIST, mTabSuggestionFeedbackCallback);
         inOrder.verify(mMessageObserver, never()).messageReady(anyInt(), any());
 
-        TabSuggestion tabSuggestion = prepareTabSuggestion(
-                Arrays.asList(mTab1, mTab2), TabSuggestion.TabSuggestionAction.CLOSE);
+        TabSuggestion tabSuggestion =
+                prepareTabSuggestion(
+                        Arrays.asList(mTab1, mTab2), TabSuggestion.TabSuggestionAction.CLOSE);
         mMessageService.onNewSuggestion(
                 Arrays.asList(tabSuggestion), mTabSuggestionFeedbackCallback);
         inOrder.verify(mMessageObserver).messageReady(anyInt(), any());
 
-        TabSuggestion tabSuggestion2 = prepareTabSuggestion(
-                Arrays.asList(mTab1, mTab2), TabSuggestion.TabSuggestionAction.CLOSE);
-        TabSuggestion tabSuggestion3 = prepareTabSuggestion(
-                Arrays.asList(mTab1, mTab2), TabSuggestion.TabSuggestionAction.GROUP);
+        TabSuggestion tabSuggestion2 =
+                prepareTabSuggestion(
+                        Arrays.asList(mTab1, mTab2), TabSuggestion.TabSuggestionAction.CLOSE);
+        TabSuggestion tabSuggestion3 =
+                prepareTabSuggestion(
+                        Arrays.asList(mTab1, mTab2), TabSuggestion.TabSuggestionAction.GROUP);
 
         mMessageService.onNewSuggestion(
                 Arrays.asList(tabSuggestion, tabSuggestion2, tabSuggestion3),
                 mTabSuggestionFeedbackCallback);
         inOrder.verify(mMessageObserver, times(3))
-                .messageReady(eq(MessageService.MessageType.TAB_SUGGESTION),
+                .messageReady(
+                        eq(MessageService.MessageType.TAB_SUGGESTION),
                         any(TabSuggestionMessageService.TabSuggestionMessageData.class));
     }
 

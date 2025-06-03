@@ -15,6 +15,7 @@
 #include "media/base/bitrate.h"
 #include "media/base/bitstream_buffer.h"
 #include "media/base/media_util.h"
+#include "media/base/video_encoder_metrics_provider.h"
 #include "media/base/video_frame.h"
 #include "media/video/gpu_video_accelerator_factories.h"
 #include "third_party/blink/public/platform/platform.h"
@@ -34,8 +35,6 @@ const int kVEADefaultBitratePerPixel = 2;
 // Number of output buffers used to copy the encoded data coming from HW
 // encoders.
 const int kVEAEncoderOutputBufferCount = 4;
-// Force a keyframe in regular intervals.
-const uint32_t kMaxKeyframeInterval = 100;
 
 }  // anonymous namespace
 
@@ -52,7 +51,8 @@ VEAEncoder::VEAEncoder(
     media::VideoCodecProfile codec,
     absl::optional<uint8_t> level,
     const gfx::Size& size,
-    bool use_native_input)
+    bool use_native_input,
+    bool is_screencast)
     : Encoder(std::move(encoding_task_runner),
               on_encoded_video_cb,
               bits_per_second > 0
@@ -64,9 +64,8 @@ VEAEncoder::VEAEncoder(
       bitrate_mode_(bitrate_mode),
       size_(size),
       use_native_input_(use_native_input),
+      is_screencast_(is_screencast),
       error_notified_(false),
-      num_frames_after_keyframe_(0),
-      force_next_frame_to_be_keyframe_(false),
       on_error_cb_(on_error_cb) {
   DCHECK(gpu_factories_);
 }
@@ -102,13 +101,6 @@ void VEAEncoder::BitstreamBufferReady(
     const media::BitstreamBufferMetadata& metadata) {
   DVLOG(3) << __func__;
 
-  num_frames_after_keyframe_ =
-      metadata.key_frame ? 0 : num_frames_after_keyframe_ + 1;
-  if (num_frames_after_keyframe_ > kMaxKeyframeInterval) {
-    force_next_frame_to_be_keyframe_ = true;
-    num_frames_after_keyframe_ = 0;
-  }
-
   OutputBuffer* output_buffer = output_buffers_[bitstream_buffer_id].get();
   base::span<char> data_span =
       output_buffer->mapping.GetMemoryAsSpan<char>(metadata.payload_size_bytes);
@@ -122,7 +114,8 @@ void VEAEncoder::BitstreamBufferReady(
   }
 
   on_encoded_video_cb_.Run(front_frame.first, std::move(data), std::string(),
-                           front_frame.second, metadata.key_frame);
+                           absl::nullopt, front_frame.second,
+                           metadata.key_frame);
 
   UseOutputBitstreamBufferId(bitstream_buffer_id);
 }
@@ -130,16 +123,17 @@ void VEAEncoder::BitstreamBufferReady(
 void VEAEncoder::NotifyErrorStatus(const media::EncoderStatus& status) {
   DVLOG(3) << __func__;
   CHECK(!status.is_ok());
-  UMA_HISTOGRAM_ENUMERATION(
-      "Media.MediaRecorder.VEAError",
-      media::ConvertStatusToVideoEncodeAcceleratorError(status),
-      media::VideoEncodeAccelerator::kErrorMax + 1);
+  DLOG(ERROR) << "NotifyErrorStatus() is called with code="
+              << static_cast<int>(status.code())
+              << ", message=" << status.message();
+  metrics_provider_->SetError(status);
   on_error_cb_.Run();
   error_notified_ = true;
 }
 
 void VEAEncoder::UseOutputBitstreamBufferId(int32_t bitstream_buffer_id) {
   DVLOG(3) << __func__;
+  metrics_provider_->IncrementEncodedFrameCount();
 
   video_encoder_->UseOutputBitstreamBuffer(media::BitstreamBuffer(
       bitstream_buffer_id,
@@ -154,7 +148,8 @@ void VEAEncoder::FrameFinished(
 }
 
 void VEAEncoder::EncodeFrame(scoped_refptr<media::VideoFrame> frame,
-                             base::TimeTicks capture_timestamp) {
+                             base::TimeTicks capture_timestamp,
+                             bool request_keyframe) {
   TRACE_EVENT0("media", "VEAEncoder::EncodeFrame");
   DVLOG(3) << __func__;
 
@@ -179,16 +174,17 @@ void VEAEncoder::EncodeFrame(scoped_refptr<media::VideoFrame> frame,
   if (output_buffers_.empty() || vea_requested_input_coded_size_.IsEmpty()) {
     // TODO(emircan): Investigate if resetting encoder would help.
     DVLOG(3) << "Might drop frame.";
-    last_frame_ = std::make_unique<
-        std::pair<scoped_refptr<media::VideoFrame>, base::TimeTicks>>(
-        frame, capture_timestamp);
+    last_frame_ = std::make_unique<VideoFrameAndMetadata>(
+        std::move(frame), capture_timestamp, request_keyframe);
     return;
   }
 
   // If first frame hasn't been encoded, do it first.
   if (last_frame_) {
-    std::unique_ptr<VideoFrameAndTimestamp> last_frame(last_frame_.release());
-    EncodeFrame(last_frame->first, last_frame->second);
+    std::unique_ptr<VideoFrameAndMetadata> last_frame = std::move(last_frame_);
+    last_frame_ = nullptr;
+    EncodeFrame(last_frame->frame, last_frame->timestamp,
+                last_frame->request_keyframe);
   }
 
   // Lower resolutions may fall back to SW encoder in some platforms, i.e. Mac.
@@ -260,8 +256,7 @@ void VEAEncoder::EncodeFrame(scoped_refptr<media::VideoFrame> frame,
   frames_in_encode_.emplace(media::Muxer::VideoParameters(*frame),
                             capture_timestamp);
 
-  video_encoder_->Encode(video_frame, force_next_frame_to_be_keyframe_);
-  force_next_frame_to_be_keyframe_ = false;
+  video_encoder_->Encode(video_frame, request_keyframe);
 }
 
 void VEAEncoder::Initialize() {
@@ -304,13 +299,17 @@ void VEAEncoder::ConfigureEncoder(const gfx::Size& size,
         base::strict_cast<uint32_t>(peak_bps.ValueOrDefault(max_peak_bps)));
   }
 
+  metrics_provider_->Initialize(codec_, input_visible_size_,
+                                /*is_hardware_encoder=*/true);
   // TODO(b/181797390): Use VBR bitrate mode.
   // TODO(crbug.com/1289907): remove the cast to uint32_t once
   // |bits_per_second_| is stored as uint32_t.
   const media::VideoEncodeAccelerator::Config config(
       pixel_format, input_visible_size_, codec_, bitrate, absl::nullopt,
       absl::nullopt, level_, false, storage_type,
-      media::VideoEncodeAccelerator::Config::ContentType::kCamera);
+      is_screencast_
+          ? media::VideoEncodeAccelerator::Config::ContentType::kDisplay
+          : media::VideoEncodeAccelerator::Config::ContentType::kCamera);
   if (!video_encoder_ ||
       !video_encoder_->Initialize(config, this,
                                   std::make_unique<media::NullMediaLog>())) {

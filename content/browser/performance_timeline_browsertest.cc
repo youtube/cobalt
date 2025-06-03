@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/base_paths.h"
 #include "base/command_line.h"
+#include "base/path_service.h"
 #include "content/browser/web_contents/web_contents_impl.h"
 #include "content/common/content_navigation_policy.h"
 #include "content/public/common/content_switches.h"
@@ -15,7 +17,7 @@
 #include "net/dns/mock_host_resolver.h"
 
 namespace content {
-  
+
 class PerformanceTimelineBrowserTest : public ContentBrowserTest {
  protected:
   void SetUpOnMainThread() override {
@@ -34,7 +36,74 @@ class PerformanceTimelineBrowserTest : public ContentBrowserTest {
   RenderFrameHostImpl* current_frame_host() {
     return web_contents()->GetPrimaryFrameTree().root()->current_frame_host();
   }
+
+  [[nodiscard]] EvalJsResult GetNavigationId(const std::string& name) {
+    const char kGetPerformanceEntryTemplate[] = R"(
+        (() => {performance.mark($1);
+        return performance.getEntriesByName($1)[0].navigationId;})();
+    )";
+    std::string script = JsReplace(kGetPerformanceEntryTemplate, name);
+    return EvalJs(shell(), script);
+  }
 };
+
+IN_PROC_BROWSER_TEST_F(PerformanceTimelineBrowserTest,
+                       NoResourceTimingEntryForFileProtocol) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  base::FilePath file_path;
+  CHECK(base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &file_path));
+
+  file_path = file_path.Append(GetTestDataFilePath())
+                  .AppendASCII(
+                      "performance_timeline/"
+                      "resource-timing-not-for-file-protocol.html");
+
+  EXPECT_TRUE(NavigateToURL(shell(), GetFileUrlWithQuery(file_path, "")));
+
+  // The test html page references 2 css file. One is present and would be
+  // loaded via file protocol and the other is not present and would have load
+  // failure. Both should not emit a resource timing entry.
+  EXPECT_EQ(
+      0, EvalJs(shell(),
+                "window.performance.getEntriesByType('resource').filter(e=>e."
+                "name.includes('css')).length;"));
+
+  std::string applied_style_color = "rgb(0, 128, 0)";
+
+  // Verify that style.css is fetched by verifying color green is applied.
+  EXPECT_EQ(applied_style_color, EvalJs(shell(), "getTextColor()"));
+
+  // If the same page is loaded via http protocol, both the successful load nad
+  // failure load should emit a resource timing entry.
+  const GURL url(embedded_test_server()->GetURL(
+      "a.com",
+      "/performance_timeline/"
+      "resource-timing-not-for-file-protocol.html"));
+
+  EXPECT_TRUE(NavigateToURL(shell(), url));
+
+  EXPECT_EQ(
+      2, EvalJs(shell(),
+                "window.performance.getEntriesByType('resource').filter(e=>e."
+                "name.includes('css')).length;"));
+
+  // Verify that style.css is fetched by verifying color green is applied.
+  EXPECT_EQ(applied_style_color, EvalJs(shell(), "getTextColor()"));
+
+  // Verify that style.css that is fetched has its resource timing entry.
+  EXPECT_EQ(
+      1, EvalJs(shell(),
+                "window.performance.getEntriesByType('resource').filter(e=>e."
+                "name.includes('resources/style.css')).length;"));
+
+  // Verify that non_exist.css that is not fetched has its resource timing
+  // entry.
+  EXPECT_EQ(
+      1, EvalJs(shell(),
+                "window.performance.getEntriesByType('resource').filter(e=>e."
+                "name.includes('resources/non_exist_style.css')).length;"));
+}
 
 class PerformanceTimelineLCPStartTimePrecisionBrowserTest
     : public PerformanceTimelineBrowserTest {
@@ -70,15 +139,6 @@ class PerformanceTimelineNavigationIdBrowserTest
     base::CommandLine::ForCurrentProcess()->AppendSwitch(
         "--enable-blink-test-features");
   }
-
-  [[nodiscard]] EvalJsResult GetNavigationId(const std::string& name) {
-    const char kGetPerformanceEntryTemplate[] = R"(
-        (() => {performance.mark($1);
-        return performance.getEntriesByName($1)[0].navigationId;})();
-    )";
-    std::string script = content::JsReplace(kGetPerformanceEntryTemplate, name);
-    return EvalJs(shell(), script);
-  }
 };
 
 // This test case is to verify PerformanceEntry.navigationId gets incremented
@@ -91,12 +151,15 @@ IN_PROC_BROWSER_TEST_F(PerformanceTimelineNavigationIdBrowserTest,
 
   EXPECT_TRUE(NavigateToURL(shell(), url1));
 
-  EXPECT_EQ(1, GetNavigationId("first_nav"));
+  const std::string initial_navigation_id =
+      GetNavigationId("first_nav").ExtractString();
   // Navigate away and back 3 times. The 1st time is to verify the
   // navigation id is incremented. The 2nd time is to verify that the id is
   // incremented on the same restored document. The 3rd time is to
   // verify the increment does not stop at 2.
   RenderFrameHostImplWrapper rfh_a(current_frame_host());
+  std::string prev_navigation_id = initial_navigation_id;
+
   for (int i = 1; i <= 3; i++) {
     // Navigate away
     ASSERT_TRUE(NavigateToURL(shell(), url2));
@@ -114,43 +177,17 @@ IN_PROC_BROWSER_TEST_F(PerformanceTimelineNavigationIdBrowserTest,
     // Navigate back.
     ASSERT_TRUE(HistoryGoBack(web_contents()));
 
-    // Verify navigation id is incremented each time in case back/forward
-    // cache feature is enabled. Verify navigation id is always 0 in case
+    // Verify navigation id is re-generated each time in case back/forward
+    // cache feature is enabled. Verify navigation id is not changed in case
     // back/forward cache feature is not enabled.
-    EXPECT_EQ(IsBackForwardCacheEnabled() ? i + 1 : 1,
-              GetNavigationId("subsequent_nav" + base::NumberToString(i)));
+    std::string curr_navigation_id =
+        GetNavigationId("subsequent_nav" + base::NumberToString(i))
+            .ExtractString();
+    EXPECT_NE(curr_navigation_id, prev_navigation_id);
+    EXPECT_NE(curr_navigation_id, initial_navigation_id);
+
+    prev_navigation_id = curr_navigation_id;
   }
-}
-
-// This test case is to verify the navigation id of a frame does not increment
-// if the page load is not a back/forward cache restore, even with the
-// back/forward cache feature enabled.
-IN_PROC_BROWSER_TEST_F(PerformanceTimelineNavigationIdBrowserTest,
-                       NonBackForwardCacheRestore) {
-  ASSERT_TRUE(embedded_test_server()->Start());
-  const GURL url1(embedded_test_server()->GetURL("a.com", "/title1.html"));
-  const GURL url2(embedded_test_server()->GetURL("b.com", "/title1.html"));
-
-  EXPECT_TRUE(NavigateToURL(shell(), url1));
-
-  EXPECT_EQ(1, GetNavigationId("first_nav"));
-
-  // Make `rfh_a`ineligible for back/forward cache so that the subsequent page
-  // load is not a back/forward restore.
-  RenderFrameHostImplWrapper rfh_a(current_frame_host());
-  DisableBFCacheForRFHForTesting(rfh_a.get());
-
-  // Navigate away.
-  ASSERT_TRUE(NavigateToURL(shell(), url2));
-
-  // Verify `rfh_a` is not in the back/forward cache.
-  ASSERT_TRUE(rfh_a.WaitUntilRenderFrameDeleted());
-
-  // Navigate back.
-  ASSERT_TRUE(HistoryGoBack(web_contents()));
-
-  // Verify navigation id is not incremented.
-  EXPECT_EQ(1, GetNavigationId("subsequent_nav"));
 }
 
 class PerformanceTimelinePrefetchTransferSizeBrowserTest
@@ -271,17 +308,27 @@ class PerformanceTimelineBackForwardCacheRestorationBrowserTest
     return EvalJs(shell(), script);
   }
 
-  void CheckEntry(const base::Value::List lst, int num_of_loops) const {
-    for (int i = 0; i < num_of_loops; i++) {
-      auto* dict = lst[i].GetIfDict();
+  // This method checks a list of performance entries of the
+  // back-forward-cache-restoration type. Each entry is created when there is
+  // a back/forward cache restoration.
+  void CheckEntries(const base::Value::List lst,
+                    const std::string& initial_navigation_id) const {
+    std::string prev_navigation_id = initial_navigation_id;
+
+    for (const auto& i : lst) {
+      auto* dict = i.GetIfDict();
       EXPECT_TRUE(dict);
       EXPECT_EQ("", *dict->FindString("name"));
       EXPECT_EQ("back-forward-cache-restoration",
                 *dict->FindString("entryType"));
-      int expected_navigation_id =
-          i + 2;  // Navigation id starts from 1. It get incremented before a
-                  // BackForwardCacheRestoration instance is created.
-      EXPECT_EQ(expected_navigation_id, dict->FindInt("navigationId").value());
+
+      const std::string* curr_navigation_id = dict->FindString("navigationId");
+      // This verifies the navigation id changes each time a back/forward
+      // restoration happens.
+      EXPECT_NE(prev_navigation_id, *curr_navigation_id);
+
+      prev_navigation_id = *curr_navigation_id;
+
       EXPECT_LE(dict->FindDouble("pageshowEventStart").value(),
                 dict->FindDouble("pageshowEventEnd").value());
     }
@@ -307,6 +354,8 @@ IN_PROC_BROWSER_TEST_F(
   SetBackForwardCacheRestorationBufferSize(buffer_size);
   RegisterPerformanceObservers(num_of_loops);
 
+  std::string initial_navigation_id =
+      GetNavigationId("initial_navigation_id").ExtractString();
   for (int i = 0; i < num_of_loops; i++) {
     // Navigate away
     ASSERT_TRUE(NavigateToURL(shell(), url2));
@@ -320,13 +369,13 @@ IN_PROC_BROWSER_TEST_F(
   auto result = std::move(GetBackForwardCacheRestorationEntriesByObserver()
                               .ExtractList()
                               .GetList());
-  CheckEntry(std::move(result[0]).TakeList(), num_of_loops);
-  CheckEntry(std::move(result[1]).TakeList(), num_of_loops);
+  CheckEntries(std::move(result[0]).TakeList(), initial_navigation_id);
+  CheckEntries(std::move(result[1]).TakeList(), initial_navigation_id);
 
   // Size of back forward restoration buffer is smaller than the number of back
   // forward restoration instances expected by 2. Therefore the
   // droppedEntriesCount is expected to be 2.
   EXPECT_EQ(2, GetDroppedEntriesCount().ExtractInt());
 }
-  
+
 }  // namespace content

@@ -9,10 +9,10 @@
 
 #include "ash/ash_export.h"
 #include "ash/style/system_shadow.h"
-#include "ash/wm/overview/overview_highlightable_view.h"
+#include "ash/wm/overview/overview_focusable_view.h"
 #include "base/memory/raw_ptr.h"
 #include "ui/aura/window_occlusion_tracker.h"
-#include "ui/compositor/layer.h"
+#include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/views/controls/button/button.h"
 
 namespace ui {
@@ -23,7 +23,6 @@ namespace ash {
 
 class DeskMiniView;
 class WallpaperBaseView;
-class WmHighlightItemBorder;
 
 // A view that shows the contents of the corresponding desk in its mini_view.
 // This view has the following layer hierarchy:
@@ -69,8 +68,10 @@ class WmHighlightItemBorder;
 // rather than one being a descendant of the other. Otherwise, this will trigger
 // a render surface.
 class ASH_EXPORT DeskPreviewView : public views::Button,
-                                   public OverviewHighlightableView {
+                                   public OverviewFocusableView {
  public:
+  METADATA_HEADER(DeskPreviewView);
+
   DeskPreviewView(PressedCallback callback, DeskMiniView* mini_view);
 
   DeskPreviewView(const DeskPreviewView&) = delete;
@@ -102,8 +103,15 @@ class ASH_EXPORT DeskPreviewView : public views::Button,
   // we can recreate the mirrored layer tree.
   void RecreateDeskContentsMirrorLayers();
 
+  // Performs close action for this preview. when `primary_action` is true, it's
+  // merge-desk action; otherwise it's close-all action.
+  void Close(bool primary_action);
+
+  // Performs swap action for this preview. When `right` is true, it swaps with
+  // its right preview; otherwise it swaps with its left preview.
+  void Swap(bool right);
+
   // views::View:
-  const char* GetClassName() const override;
   void GetAccessibleNodeData(ui::AXNodeData* node_data) override;
   void Layout() override;
   bool OnMousePressed(const ui::MouseEvent& event) override;
@@ -113,21 +121,23 @@ class ASH_EXPORT DeskPreviewView : public views::Button,
   void OnThemeChanged() override;
   void OnFocus() override;
   void OnBlur() override;
+  void AboutToRequestFocusFromTabTraversal(bool reverse) override;
 
-  // OverviewHighlightableView:
+  // OverviewFocusableView:
   views::View* GetView() override;
-  void MaybeActivateHighlightedView() override;
-  void MaybeCloseHighlightedView(bool primary_action) override;
-  void MaybeSwapHighlightedView(bool right) override;
-  bool MaybeActivateHighlightedViewOnOverviewExit(
+  void MaybeActivateFocusedView() override;
+  void MaybeCloseFocusedView(bool primary_action) override;
+  void MaybeSwapFocusedView(bool right) override;
+  bool MaybeActivateFocusedViewOnOverviewExit(
       OverviewSession* overview_session) override;
-  void OnViewHighlighted() override;
-  void OnViewUnhighlighted() override;
+  void OnFocusableViewFocused() override;
+  void OnFocusableViewBlurred() override;
 
  private:
   friend class DesksTestApi;
 
-  const raw_ptr<DeskMiniView, ExperimentalAsh> mini_view_;
+  const raw_ptr<DeskMiniView, LeakedDanglingUntriaged | ExperimentalAsh>
+      mini_view_;
 
   // A view that paints the wallpaper in the mini_view. It avoids the dimming
   // and blur overview mode adds to the original wallpaper. Owned by the views
@@ -143,10 +153,6 @@ class ASH_EXPORT DeskPreviewView : public views::Button,
   // `desk_mirrored_contents_view_` when the `mini_view_`'s
   // `DeskActionContextMenu` is active. Owned by the views hierarchy.
   raw_ptr<views::View, ExperimentalAsh> highlight_overlay_ = nullptr;
-
-  // Owned by this View via `View::border_`. This is just a convenient pointer
-  // to it.
-  raw_ptr<WmHighlightItemBorder, ExperimentalAsh> border_ptr_;
 
   // Owns the layer tree of the desk's contents mirrored layers.
   std::unique_ptr<ui::LayerTreeOwner> desk_mirrored_contents_layer_tree_owner_;

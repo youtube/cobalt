@@ -57,6 +57,7 @@
 <translation id="3566302376254083266">উপরে বাঁদিকে সরানো হচ্ছে</translation>
 <translation id="3573890771273113519">স্ক্যান মোডে বদল করুন</translation>
 <translation id="3583444040776960729">নিচে-বাঁদিকের কোণার ডকুমেন্ট</translation>
+<translation id="3642192109456033823">ভিডিও প্রসেস করা হচ্ছে...</translation>
 <translation id="3789724198583203151">ঘড়ির কাঁটার বিপরীতে ৯০ ডিগ্রি ঘোরান</translation>
 <translation id="3810838688059735925">ভিডিও</translation>
 <translation id="3892148308691398805">টেক্সট কপি করুন</translation>
@@ -65,9 +66,10 @@
 <translation id="4118525110028899586">রেকর্ডিং পজ করুন</translation>
 <translation id="4121305183798804752">ডকুমেন্ট শনাক্ত হয়েছে</translation>
 <translation id="414641094616694804">এই ক্যামেরা রেজোলিউশন পরিবর্তন করতে পারে না</translation>
+<translation id="4176463684765177261">অক্ষম হয়েছে</translation>
 <translation id="4269820728363426813">লিঙ্ক অ্যাড্রেস কপি করুন</translation>
-<translation id="4281620174117014503">মাঝারি রেজোলিউশন</translation>
 <translation id="428234092390943511">পৃষ্ঠা থাম্বনেল</translation>
+<translation id="4349714250734879769">Chrome-এর মাধ্যমে ফ্রেম স্কেল করুন</translation>
 <translation id="4383571725254449280">প্রিন্ট পারফর্ম্যান্স লগ</translation>
 <translation id="4445542136948522167">ফটো তোলা বন্ধ করুন</translation>
 <translation id="4570032796877367747">সামনের ক্যামেরা</translation>
@@ -93,6 +95,7 @@
 <translation id="5374917190292010970">4K (2160p)</translation>
 <translation id="5662366948659129155"><ph name="COUNT" /> নম্বর পৃষ্ঠা স্ক্যান করা হচ্ছে</translation>
 <translation id="5671277269877808209">চৌকো</translation>
+<translation id="574392208103952083">মাঝারি</translation>
 <translation id="5746169159649715125">পিডিএফ হিসেবে সেভ করুন</translation>
 <translation id="5753488212459587150">এক্সপার্ট মোড চালু করুন</translation>
 <translation id="5759254179196327752">ডকুমেন্ট স্ক্যান করুন</translation>
@@ -148,6 +151,7 @@
 <translation id="8145038249676204903">ফটো মোডে পাল্টান</translation>
 <translation id="8167081290930651932">ফটো ফর্ম্যাটে সেভ করুন</translation>
 <translation id="8239780215768881278">ভিডিও স্ন্যাপশট নিন</translation>
+<translation id="8346544573713510785">Camera HAL-এর মাধ্যমে ফ্রেম স্কেল করুন</translation>
 <translation id="8425673304802773841">নীচের দিকে টিল্ট করুন</translation>
 <translation id="8428213095426709021">সেটিংস</translation>
 <translation id="8629662593426079630">360p</translation>

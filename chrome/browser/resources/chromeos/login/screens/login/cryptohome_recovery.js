@@ -1,4 +1,4 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -174,15 +174,6 @@ class CryptohomeRecovery extends CryptohomeRecoveryBase {
     }
     this.disabled_ = true;
     this.userActed('reauth');
-  }
-
-  /**
-   * Returns the src of the illustration.
-   * @private
-   */
-  getImageSource_() {
-    return this.isDarkModeActive_ ? 'images/security_lock_dark.svg' :
-                                    'images/security_lock_light.svg';
   }
 }
 

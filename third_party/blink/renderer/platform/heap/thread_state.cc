@@ -56,6 +56,14 @@ class BlinkRootsHandler final : public v8::EmbedderRootsHandler {
     // remove it.
     CHECK(success);
   }
+
+  bool TryResetRoot(const v8::TracedReference<v8::Value>& handle) final {
+    DCHECK(handle.WrapperClassId() == WrapperTypeInfo::kNodeClassId ||
+           handle.WrapperClassId() == WrapperTypeInfo::kObjectClassId);
+    const v8::TracedReference<v8::Object>& traced = handle.As<v8::Object>();
+    return DOMWrapperWorld::UnsetMainWorldWrapperIfSet(
+        ToScriptWrappable(traced), traced);
+  }
 };
 
 }  // namespace
@@ -156,7 +164,7 @@ void ThreadState::NotifyGarbageCollection(v8::GCType type,
     // required for testing code that cannot use GC internals but rather has
     // to rely on window.gc(). Only schedule additional GCs if the last GC was
     // using conservative stack scanning.
-    if (type == v8::kGCTypeScavenge || type == v8::kGCTypeMinorMarkCompact) {
+    if (type == v8::kGCTypeScavenge || type == v8::kGCTypeMinorMarkSweep) {
       forced_scheduled_gc_for_testing_ = true;
     } else if (type == v8::kGCTypeMarkSweepCompact) {
       forced_scheduled_gc_for_testing_ =
@@ -263,7 +271,7 @@ class BufferedStream final : public v8::OutputStream {
 }  // namespace
 
 void ThreadState::TakeHeapSnapshotForTesting(const char* filename) const {
-  CHECK(IsAttachedToIsolate());
+  CHECK(isolate_);
   v8::HeapProfiler* profiler = isolate_->GetHeapProfiler();
   CHECK(profiler);
 

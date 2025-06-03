@@ -134,9 +134,17 @@ interface DriveFs {
   GetMetadataByStableId(int64 stable_id) => (
       FileError error, FileMetadata? metadata);
 
-  // Attempts to cancel an in progress upload. `path` must be made absolute
+  // Indicates what CelloFS should do after the upload is cancelled.
+  enum CancelUploadMode {
+    kTrashAfterCancellation,
+    kDeleteAfterCancellation,
+  };
+
+  // Attempts to cancel an in progress upload and either trash or delete the
+  // file afterwards, depending on `cancel_mode`. `path` must be made absolute
   // from the drive mount point.
-  CancelUploadByPath(mojo_base.mojom.FilePath path);
+  CancelUploadByPath(mojo_base.mojom.FilePath path,
+                      CancelUploadMode cancel_mode);
 
   // Enable Docs offline explicitly.
   SetDocsOfflineEnabled(bool enabled) => (FileError error);
@@ -147,6 +155,20 @@ interface DriveFs {
   // Unpins all currently pinned items and force evicts them from the cache.
   // NOTE: Force eviction does not work for hosted documents.
   ClearOfflineFiles() => (FileError error);
+
+  // Uploads a file by skipping any remaining queue time, if possible.
+  ImmediatelyUpload(mojo_base.mojom.FilePath path) => (FileError error);
+
+  // Forces the server to export any pending paired doc content into a new
+  // revision.
+  UpdateFromPairedDoc(mojo_base.mojom.FilePath path) => (FileError error);
+
+  // Pulls the updated file content from the server into the cache, if a newer
+  // revision is available.
+  GetItemFromCloudStore(mojo_base.mojom.FilePath path) => (FileError error);
+
+  // Gets counts of files in docs offline extension.
+  GetDocsOfflineStats() => (FileError error, DocsOfflineStats counts);
 };
 
 // Implemented by Chrome, used from DriveFS.
@@ -216,6 +238,14 @@ interface DriveFsDelegate {
   // Invoked when the syncing status changes for items that are being tracked by
   // the mirror stack.
   OnMirrorSyncingStatusUpdate(SyncingStatus status);
+
+  // Invoked when the syncing status changes for items that are being tracked by
+  // either the streaming or the mirror stack - with the guarantee that if an
+  // event is dispatched for a given path, then a "completed" event will also
+  // eventually be dispatched for the same path (i.e., paths never linger in an
+  // incompleted state).
+  // For more details, see: b/269694669
+  OnItemProgress(ProgressEvent progress_event);
 };
 
 [Extensible]
@@ -325,6 +355,7 @@ enum FileError {
   kNoConnection = -16,
   kNoLocalSpace = -17,
   kServiceUnavailable = -18,
+  kOkWithMoreResults = -19,
 };
 
 // Errors received from DriveFS to be forwarded to the file manager UI.
@@ -440,6 +471,7 @@ struct FileMetadata {
 };
 
 // Details relating to the target item that a shortcut refers to.
+// Next MinVersion: 2
 struct ShortcutDetails {
   int64 target_stable_id = 0;
 
@@ -454,6 +486,9 @@ struct ShortcutDetails {
   // In the case the target the shortcut points to can't be found or doesn't
   // have permission, relay that information back.
   LookupStatus target_lookup_status;
+
+  // The absolute path on disk of the target this shortcut points to.
+  [MinVersion=1] mojo_base.mojom.FilePath? target_path;
 };
 
 struct ImageMetadata {
@@ -519,6 +554,8 @@ struct ItemEvent {
     kInProgress,
     kCompleted,
     kFailed,
+    kCancelledAndDeleted,
+    kCancelledAndTrashed,
   };
 
   // The stable ID used by DriveFS.
@@ -540,6 +577,26 @@ struct ItemEvent {
 
   // True if it's a download event, else it's an upload event.
   [MinVersion=2] bool is_download = false;
+};
+
+// A report of a change in the Sync Progress of a file or folder.
+// Next MinVersion: 1
+struct ProgressEvent {
+  // The stable ID used by DriveFS.
+  int64 stable_id;
+
+  // Absolute path of the file or directory.
+  string path;
+
+  // Progress given by signed byte, ranging from 0 to 100.
+  // * 0 progress is considered "queued";
+  // * 100 progress is considered "completed";
+  // * Anything in between is considered "in progress";
+  // * Other values are not defined.
+  uint8 progress;
+
+  // Absolute path of the file or directory.
+  [MinVersion=1] mojo_base.mojom.FilePath? file_path;
 };
 
 struct SyncingStatus {
@@ -571,6 +628,7 @@ struct QueryParameters {
   enum QuerySource {
     kLocalOnly = 0,
     kCloudOnly = 1,
+    kLocalAndCloud = 2,
   };
 
   // Which field should be used for sorting the results.
@@ -779,4 +837,13 @@ interface HttpDelegate {
   // should be deferred until all data is read.
   // See |URLLoaderClient::OnComplete|
   OnRequestComplete(HttpCompletionStatus status);
+};
+
+// Counts of files in docs offline extension.
+struct DocsOfflineStats {
+  // The total number of files. -1 when extension is not available.
+  int32 total;
+
+  // The number of files available offline. -1 when extension is not available.
+  int32 available_offline;
 };

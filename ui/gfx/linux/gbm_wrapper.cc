@@ -11,6 +11,7 @@
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ptr_exclusion.h"
+#include "base/numerics/safe_conversions.h"
 #include "base/posix/eintr_wrapper.h"
 #include "skia/ext/legacy_display_globals.h"
 #include "third_party/skia/include/core/SkSurface.h"
@@ -18,6 +19,10 @@
 #include "ui/gfx/linux/drm_util_linux.h"
 #include "ui/gfx/linux/gbm_buffer.h"
 #include "ui/gfx/linux/gbm_device.h"
+
+#if BUILDFLAG(IS_CHROMEOS)
+#include "ui/gfx/linux/gbm_util.h"  // nogncheck
+#endif
 
 #if !defined(MINIGBM)
 #include <dlfcn.h>
@@ -47,9 +52,9 @@ int GetPlaneCount(struct gbm_bo* bo) {
   return gbm_bo_get_plane_count(bo);
 }
 
-int GetPlaneFdForBo(gbm_bo* bo, size_t plane) {
+base::ScopedFD GetPlaneFdForBo(gbm_bo* bo, size_t plane) {
 #if defined(MINIGBM)
-  return gbm_bo_get_plane_fd(bo, plane);
+  return base::ScopedFD(gbm_bo_get_plane_fd(bo, plane));
 #else
   const int plane_count = GetPlaneCount(bo);
   DCHECK(plane_count > 0 && plane < static_cast<size_t>(plane_count));
@@ -67,13 +72,15 @@ int GetPlaneFdForBo(gbm_bo* bo, size_t plane) {
   int ret;
   // Use DRM_RDWR to allow the fd to be mappable in another process.
   ret = drmPrimeHandleToFD(dev_fd, plane_handle, DRM_CLOEXEC | DRM_RDWR, &fd);
+  PLOG_IF(ERROR, ret != 0) << "Failed to get fd for plane.";
 
   // Older DRM implementations blocked DRM_RDWR, but gave a read/write mapping
   // anyways
-  if (ret)
+  if (ret) {
     ret = drmPrimeHandleToFD(dev_fd, plane_handle, DRM_CLOEXEC, &fd);
+  }
 
-  return ret ? ret : fd;
+  return ret ? base::ScopedFD() : base::ScopedFD(fd);
 #endif
 }
 
@@ -195,22 +202,16 @@ class Buffer final : public ui::GbmBuffer {
     DCHECK(!mmap_data_);
     uint32_t stride;
     void* addr;
-    addr =
-#if defined(MINIGBM)
-        gbm_bo_map2(bo_, 0, 0, gbm_bo_get_width(bo_), gbm_bo_get_height(bo_),
-                    GBM_BO_TRANSFER_READ_WRITE, &stride, &mmap_data_, 0);
-#else
-        gbm_bo_map(bo_, 0, 0, gbm_bo_get_width(bo_), gbm_bo_get_height(bo_),
-                   GBM_BO_TRANSFER_READ_WRITE, &stride, &mmap_data_);
-#endif
+    addr = gbm_bo_map(bo_, 0, 0, gbm_bo_get_width(bo_), gbm_bo_get_height(bo_),
+                      GBM_BO_TRANSFER_READ_WRITE, &stride, &mmap_data_);
 
     if (!addr)
       return nullptr;
     SkImageInfo info =
         SkImageInfo::MakeN32Premul(size_.width(), size_.height());
     SkSurfaceProps props = skia::LegacyDisplayGlobals::GetSkSurfaceProps();
-    return SkSurface::MakeRasterDirectReleaseProc(
-        info, addr, stride, &Buffer::UnmapGbmBo, this, &props);
+    return SkSurfaces::WrapPixels(info, addr, stride, &Buffer::UnmapGbmBo, this,
+                                  &props);
   }
 
  private:
@@ -252,8 +253,7 @@ std::unique_ptr<Buffer> CreateBufferForBO(struct gbm_bo* bo,
   for (size_t i = 0; i < static_cast<size_t>(plane_count); ++i) {
     // The fd returned by gbm_bo_get_fd is not ref-counted and need to be
     // kept open for the lifetime of the buffer.
-    base::ScopedFD fd(GetPlaneFdForBo(bo, i));
-
+    auto fd = GetPlaneFdForBo(bo, i);
     if (!fd.is_valid()) {
       PLOG(ERROR) << "Failed to export buffer to dma_buf";
       gbm_bo_destroy(bo);
@@ -303,58 +303,82 @@ class Device final : public ui::GbmDevice {
 
   std::unique_ptr<ui::GbmBuffer> CreateBufferWithModifiers(
       uint32_t format,
-      const gfx::Size& size,
+      const gfx::Size& requested_size,
       uint32_t flags,
       const std::vector<uint64_t>& modifiers) override {
-    if (modifiers.empty())
-      return CreateBuffer(format, size, flags);
+    if (modifiers.empty()) {
+      return CreateBuffer(format, requested_size, flags);
+    }
 
-    std::vector<uint64_t> filtered_modifiers =
-        GetFilteredModifiers(format, flags, modifiers);
-    struct gbm_bo* bo = nullptr;
-    while (filtered_modifiers.size() > 0) {
-      bo = gbm_bo_create_with_modifiers(device_, size.width(), size.height(),
-                                        format, filtered_modifiers.data(),
-                                        filtered_modifiers.size());
-      if (!bo) {
+    // Buggy drivers prevent us from getting plane FDs from a BO which had its
+    // previously imported BO destroyed. E.g: Nvidia. Thus, on Linux Desktop, we
+    // do the create/import modifiers validation loop below using a separate set
+    // of 1x1 BOs which are destroyed before creating the final BO creation used
+    // to instantiate the returned GbmBuffer.
+    gfx::Size size =
+#if BUILDFLAG(IS_LINUX)
+        gfx::Size(1, 1);
+#else
+        requested_size;
+#endif
+    auto filtered_modifiers = GetFilteredModifiers(format, flags, modifiers);
+    struct gbm_bo* created_bo = nullptr;
+    bool valid_modifiers = false;
+
+    while (!valid_modifiers && !filtered_modifiers.empty()) {
+      created_bo = gbm_bo_create_with_modifiers(
+          device_, size.width(), size.height(), format,
+          filtered_modifiers.data(), filtered_modifiers.size());
+      if (!created_bo) {
         return nullptr;
       }
 
-      struct gbm_import_fd_modifier_data fd_data;
-      fd_data.width = size.width();
-      fd_data.height = size.height();
-      fd_data.format = format;
-      fd_data.num_fds = gbm_bo_get_plane_count(bo);
-      fd_data.modifier = gbm_bo_get_modifier(bo);
-
-      // Store fds in the vector of base::ScopedFDs. Will be released
-      // automatically.
+      const int planes_count = gbm_bo_get_plane_count(created_bo);
+      struct gbm_import_fd_modifier_data fd_data = {
+          .width = base::checked_cast<uint32_t>(size.width()),
+          .height = base::checked_cast<uint32_t>(size.height()),
+          .format = format,
+          .num_fds = base::checked_cast<uint32_t>(planes_count),
+          .modifier = gbm_bo_get_modifier(created_bo)};
+      // Store fds in a base::ScopedFDs vector. Will be released automatically.
       std::vector<base::ScopedFD> fds;
       for (size_t i = 0; i < static_cast<size_t>(fd_data.num_fds); ++i) {
-        fds.emplace_back(GetPlaneFdForBo(bo, i));
+        fds.emplace_back(GetPlaneFdForBo(created_bo, i));
         fd_data.fds[i] = fds.back().get();
-        fd_data.strides[i] = gbm_bo_get_stride_for_plane(bo, i);
-        fd_data.offsets[i] = gbm_bo_get_offset(bo, i);
+        fd_data.strides[i] = gbm_bo_get_stride_for_plane(created_bo, i);
+        fd_data.offsets[i] = gbm_bo_get_offset(created_bo, i);
       }
 
-      struct gbm_bo* bo_import =
+      struct gbm_bo* imported_bo =
           gbm_bo_import(device_, GBM_BO_IMPORT_FD_MODIFIER, &fd_data, flags);
-      if (bo_import) {
-        gbm_bo_destroy(bo_import);
-        break;
+
+      if (imported_bo) {
+        valid_modifiers = true;
+        gbm_bo_destroy(imported_bo);
       } else {
-        gbm_bo_destroy(bo);
-        bo = nullptr;
         AddModifierToBlocklist(format, flags, fd_data.modifier);
         filtered_modifiers =
             GetFilteredModifiers(format, flags, filtered_modifiers);
       }
-    }
-    if (!bo) {
-      return nullptr;
+
+      if (!valid_modifiers || size != requested_size) {
+        gbm_bo_destroy(created_bo);
+        created_bo = nullptr;
+      }
     }
 
-    return CreateBufferForBO(bo, format, size, flags);
+    // If modifiers were successfully verified though `created_bo` is null here,
+    // it it means that the buffer created for verification could not be reused,
+    // ie: different size, so create it now with the `requested_size`.
+    if (valid_modifiers && !created_bo) {
+      created_bo = gbm_bo_create_with_modifiers(
+          device_, requested_size.width(), requested_size.height(), format,
+          filtered_modifiers.data(), filtered_modifiers.size());
+      PLOG_IF(ERROR, !created_bo) << "Failed to create BO with modifiers.";
+    }
+
+    return created_bo ? CreateBufferForBO(created_bo, format, size, flags)
+                      : nullptr;
   }
 
   std::unique_ptr<ui::GbmBuffer> CreateBufferFromHandle(
@@ -462,6 +486,10 @@ class Device final : public ui::GbmDevice {
 namespace ui {
 
 std::unique_ptr<GbmDevice> CreateGbmDevice(int fd) {
+#if BUILDFLAG(IS_CHROMEOS)
+  CHECK(ui::IntelMediaCompressionEnvVarIsSet());
+#endif
+
   gbm_device* device = gbm_create_device(fd);
   if (!device)
     return nullptr;

@@ -466,6 +466,7 @@ export class AutomationPredicate {
         Role.GENERIC_CONTAINER,
         Role.DOCUMENT,
         Role.GROUP,
+        Role.PDF_ROOT,
         Role.LIST,
         Role.LIST_ITEM,
         Role.TAB,
@@ -595,6 +596,12 @@ export class AutomationPredicate {
     // Don't ignore math nodes.
     if (AutomationPredicate.math(node)) {
       return false;
+    }
+
+    // AXTreeSourceAndroid computes names for clickables.
+    // Ignore nodes for which this computation is not done
+    if (node.clickable && !node.name && !node.value && !node.description) {
+      return true;
     }
 
     // Ignore some roles.

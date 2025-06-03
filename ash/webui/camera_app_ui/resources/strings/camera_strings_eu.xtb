@@ -57,6 +57,7 @@
 <translation id="3566302376254083266">Gora eta ezkerrera mugitzen ari da</translation>
 <translation id="3573890771273113519">Aldatu bilatzeko modura</translation>
 <translation id="3583444040776960729">Dokumentuaren beheko ezkerraldeko ertza</translation>
+<translation id="3642192109456033823">Bideoa prozesatzen…</translation>
 <translation id="3789724198583203151">Biratu 90 gradu ezkerretara</translation>
 <translation id="3810838688059735925">Bideoa</translation>
 <translation id="3892148308691398805">Kopiatu testua</translation>
@@ -65,9 +66,10 @@
 <translation id="4118525110028899586">Pausatu grabaketa</translation>
 <translation id="4121305183798804752">Hauteman egin da dokumentua</translation>
 <translation id="414641094616694804">Kamerak ezin du aldatu bereizmena</translation>
+<translation id="4176463684765177261">Desgaituta</translation>
 <translation id="4269820728363426813">Kopiatu estekaren helbidea</translation>
-<translation id="4281620174117014503">Tarteko bereizmena</translation>
 <translation id="428234092390943511">Orriaren irudi txikia</translation>
+<translation id="4349714250734879769">Egokitu Chrome-ko fotogramak</translation>
 <translation id="4383571725254449280">Inprimatu errendimendu-erregistroak</translation>
 <translation id="4445542136948522167">Utzi argazkia ateratzeari</translation>
 <translation id="4570032796877367747">Aurreko kamera</translation>
@@ -93,6 +95,7 @@
 <translation id="5374917190292010970">4K (2160p)</translation>
 <translation id="5662366948659129155"><ph name="COUNT" />. orria eskaneatzen</translation>
 <translation id="5671277269877808209">Karratua</translation>
+<translation id="574392208103952083">Ertaina</translation>
 <translation id="5746169159649715125">Gorde PDF gisa</translation>
 <translation id="5753488212459587150">Gaitu adituen modua</translation>
 <translation id="5759254179196327752">Eskaneatu dokumentua</translation>
@@ -148,6 +151,7 @@ Irudi edo bideoaren kalitateari buruzko iritzia eman nahi baduzu, erantsi argazk
 <translation id="8145038249676204903">Aldatu argazkiak ateratzeko modura</translation>
 <translation id="8167081290930651932">Gorde argazki gisa</translation>
 <translation id="8239780215768881278">Atera bideoaren argazkia</translation>
+<translation id="8346544573713510785">Egokitu kameraren HAL-eko fotogramak</translation>
 <translation id="8425673304802773841">Okertu beherantz</translation>
 <translation id="8428213095426709021">Ezarpenak</translation>
 <translation id="8629662593426079630">360p</translation>

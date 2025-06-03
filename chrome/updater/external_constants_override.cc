@@ -31,7 +31,7 @@
 #include "url/gurl.h"
 
 #if BUILDFLAG(IS_MAC)
-#include "base/mac/foundation_util.h"
+#include "base/apple/foundation_util.h"
 #elif BUILDFLAG(IS_WIN)
 #include "base/path_service.h"
 #endif
@@ -111,7 +111,7 @@ GURL ExternalConstantsOverrider::DeviceManagementURL() const {
   const base::Value* device_management_url_value =
       override_values_.Find(kDevOverrideKeyDeviceManagementUrl);
   CHECK(device_management_url_value->is_string())
-      << "Unexpected type of override[" << kDevOverrideKeyCrashUploadUrl
+      << "Unexpected type of override[" << kDevOverrideKeyDeviceManagementUrl
       << "]: " << base::Value::GetTypeName(device_management_url_value->type());
   return {GURL(device_management_url_value->GetString())};
 }
@@ -194,6 +194,44 @@ base::TimeDelta ExternalConstantsOverrider::OverinstallTimeout() const {
                          << kDevOverrideKeyOverinstallTimeout
                          << "]: " << base::Value::GetTypeName(value->type());
   return base::Seconds(value->GetInt());
+}
+
+base::TimeDelta ExternalConstantsOverrider::IdleCheckPeriod() const {
+  if (!override_values_.contains(kDevOverrideKeyIdleCheckPeriodSeconds)) {
+    return next_provider_->IdleCheckPeriod();
+  }
+
+  const base::Value* value =
+      override_values_.Find(kDevOverrideKeyIdleCheckPeriodSeconds);
+  CHECK(value->is_int()) << "Unexpected type of override["
+                         << kDevOverrideKeyIdleCheckPeriodSeconds
+                         << "]: " << base::Value::GetTypeName(value->type());
+  return base::Seconds(value->GetInt());
+}
+
+absl::optional<bool> ExternalConstantsOverrider::IsMachineManaged() const {
+  if (!override_values_.contains(kDevOverrideKeyManagedDevice)) {
+    return next_provider_->IsMachineManaged();
+  }
+  const base::Value* is_managed =
+      override_values_.Find(kDevOverrideKeyManagedDevice);
+  CHECK(is_managed->is_bool())
+      << "Unexpected type of override[" << kDevOverrideKeyManagedDevice
+      << "]: " << base::Value::GetTypeName(is_managed->type());
+
+  return absl::make_optional(is_managed->GetBool());
+}
+
+bool ExternalConstantsOverrider::EnableDiffUpdates() const {
+  if (!override_values_.contains(kDevOverrideKeyEnableDiffUpdates)) {
+    return next_provider_->EnableDiffUpdates();
+  }
+  const base::Value* value =
+      override_values_.Find(kDevOverrideKeyEnableDiffUpdates);
+  CHECK(value->is_bool()) << "Unexpected type of override["
+                          << kDevOverrideKeyEnableDiffUpdates
+                          << "]: " << base::Value::GetTypeName(value->type());
+  return value->GetBool();
 }
 
 // static

@@ -6,10 +6,11 @@
 #define BASE_TYPES_OPTIONAL_REF_H_
 
 #include <memory>
+#include <optional>
 #include <type_traits>
 
 #include "base/check.h"
-#include "base/memory/raw_ptr_exclusion.h"
+#include "base/memory/raw_ptr.h"
 #include "third_party/abseil-cpp/absl/base/attributes.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
@@ -184,9 +185,7 @@ class optional_ref {
   }
 
  private:
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #constexpr-ctor-field-initializer
-  RAW_PTR_EXCLUSION T* const ptr_ = nullptr;
+  raw_ptr<T> const ptr_ = nullptr;
 };
 
 template <typename T>
@@ -201,6 +200,16 @@ optional_ref(absl::optional<T>&) -> optional_ref<T>;
 
 template <typename T>
 optional_ref(T*) -> optional_ref<T>;
+
+template <typename T>
+constexpr bool operator==(std::nullopt_t, optional_ref<T> x) {
+  return !x.has_value();
+}
+
+template <typename T>
+constexpr bool operator==(optional_ref<T> x, std::nullopt_t) {
+  return !x.has_value();
+}
 
 }  // namespace base
 

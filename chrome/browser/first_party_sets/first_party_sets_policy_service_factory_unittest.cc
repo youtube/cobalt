@@ -53,14 +53,14 @@ TEST_F(FirstPartySetsPolicyServiceFactoryTest,
                                 .value();
   base::Value expected_policy = empty_lists.Clone();
   disabled_profile->GetPrefs()->SetBoolean(
-      prefs::kPrivacySandboxFirstPartySetsEnabled, false);
+      prefs::kPrivacySandboxRelatedWebsiteSetsEnabled, false);
   disabled_profile->GetPrefs()->SetDict(
-      first_party_sets::kFirstPartySetsOverrides,
+      first_party_sets::kRelatedWebsiteSetsOverrides,
       std::move(empty_lists.Clone().GetDict()));
   enabled_profile->GetPrefs()->SetBoolean(
-      prefs::kPrivacySandboxFirstPartySetsEnabled, true);
+      prefs::kPrivacySandboxRelatedWebsiteSetsEnabled, true);
   enabled_profile->GetPrefs()->SetDict(
-      first_party_sets::kFirstPartySetsOverrides,
+      first_party_sets::kRelatedWebsiteSetsOverrides,
       std::move(empty_lists.GetDict()));
 
   // Ensure that the Service creation isn't reliant on the enabled pref.
@@ -73,7 +73,7 @@ TEST_F(FirstPartySetsPolicyServiceFactoryTest,
 }
 
 TEST_F(FirstPartySetsPolicyServiceFactoryTest,
-       OffTheRecordProfile_SameServiceAsOriginalProfile) {
+       OffTheRecordProfile_DistinctAndDisabled) {
   base::test::ScopedFeatureList features;
   features.InitAndEnableFeature(features::kFirstPartySets);
   TestingProfile* profile =
@@ -82,13 +82,17 @@ TEST_F(FirstPartySetsPolicyServiceFactoryTest,
   FirstPartySetsPolicyService* service =
       FirstPartySetsPolicyServiceFactory::GetForBrowserContext(
           profile->GetOriginalProfile());
-
-  auto otr_profile_id = Profile::OTRProfileID::CreateUniqueForTesting();
   ASSERT_NE(service, nullptr);
-  EXPECT_EQ(service,
-            FirstPartySetsPolicyServiceFactory::GetForBrowserContext(
-                profile->GetOffTheRecordProfile(otr_profile_id,
-                                                /*create_if_needed=*/true)));
+  ASSERT_TRUE(service->is_enabled());
+
+  FirstPartySetsPolicyService* otr_service =
+      FirstPartySetsPolicyServiceFactory::GetForBrowserContext(
+          profile->GetOffTheRecordProfile(
+              Profile::OTRProfileID::CreateUniqueForTesting(),
+              /*create_if_needed=*/true));
+  EXPECT_NE(service, otr_service);
+
+  EXPECT_FALSE(otr_service->is_enabled());
 }
 
 }  // namespace first_party_sets

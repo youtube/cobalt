@@ -6,13 +6,16 @@
 #define CONTENT_BROWSER_SERVICE_WORKER_SERVICE_WORKER_REGISTRY_H_
 
 #include <memory>
+#include <tuple>
 
 #include "base/containers/flat_set.h"
+#include "base/containers/lru_cache.h"
 #include "base/containers/unique_ptr_adapters.h"
 #include "base/feature_list.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/metrics/field_trial_params.h"
 #include "base/threading/sequence_bound.h"
 #include "components/services/storage/public/cpp/buckets/bucket_info.h"
 #include "components/services/storage/public/cpp/quota_error_or.h"
@@ -43,6 +46,16 @@ FORWARD_DECLARE_TEST(ServiceWorkerRegistryTest, StoragePolicyChange);
 
 CONTENT_EXPORT BASE_DECLARE_FEATURE(
     kServiceWorkerMergeFindRegistrationForClientUrl);
+
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kServiceWorkerRegistrationCache);
+
+CONTENT_EXPORT extern const base::FeatureParam<int>
+    kServiceWorkerRegistrationCacheSize;
+
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kServiceWorkerScopeCacheLimit);
+
+CONTENT_EXPORT extern const base::FeatureParam<int>
+    kServiceWorkerScopeCacheLimitSize;
 
 // Manages in-memory representation of service worker registrations
 // (i.e., ServiceWorkerRegistration) including installing and uninstalling
@@ -375,6 +388,11 @@ class CONTENT_EXPORT ServiceWorkerRegistry {
       StatusCallback callback,
       storage::mojom::ServiceWorkerDatabaseStatus database_status,
       uint64_t deleted_resources_size);
+  void NotifyRegistrationStored(int64_t stored_registration_id,
+                                uint64_t stored_resources_total_size_bytes,
+                                const GURL& stored_scope,
+                                const blink::StorageKey& key,
+                                StatusCallback callback);
   void DidDeleteRegistration(
       int64_t registration_id,
       const GURL& stored_scope,
@@ -383,6 +401,12 @@ class CONTENT_EXPORT ServiceWorkerRegistry {
       storage::mojom::ServiceWorkerDatabaseStatus database_status,
       uint64_t deleted_resources_size,
       storage::mojom::ServiceWorkerStorageStorageKeyState storage_key_state);
+  void NotifyRegistrationDeletedForStorageKey(
+      int64_t registration_id,
+      const GURL& stored_scope,
+      const blink::StorageKey& key,
+      storage::mojom::ServiceWorkerStorageStorageKeyState storage_key_state,
+      StatusCallback callback);
   void DidUpdateRegistration(
       StatusCallback callback,
       storage::mojom::ServiceWorkerDatabaseStatus status);
@@ -524,7 +548,12 @@ class CONTENT_EXPORT ServiceWorkerRegistry {
 
   // ServiceWorker registration scope cache to skip calling
   // FindRegistrationForClientUrl mojo function (https://crbug.com/1411197).
-  std::map<blink::StorageKey, std::set<GURL>> registration_scope_cache_;
+  base::LRUCache<blink::StorageKey, std::set<GURL>> registration_scope_cache_;
+
+  // Live registration's `registration_id` cache to skip calling
+  // FindRegistrationForClientUrl mojo function (https://crbug.com/1446216).
+  base::LRUCache<std::tuple<GURL, blink::StorageKey>, int64_t>
+      registration_id_cache_;
 
   enum class ConnectionState {
     kNormal,

@@ -18,6 +18,7 @@
 #include "content/browser/renderer_host/media/media_devices_manager.h"
 #include "content/common/content_export.h"
 #include "media/base/scoped_async_trace.h"
+#include "media/capture/mojom/video_capture_types.mojom.h"
 #include "media/capture/video/video_capture_device_descriptor.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "third_party/blink/public/mojom/mediastream/media_devices.mojom.h"
@@ -73,7 +74,9 @@ class CONTENT_EXPORT MediaDevicesDispatcherHost
       blink::mojom::CaptureHandleConfigPtr config) override;
 #if !BUILDFLAG(IS_ANDROID)
   void CloseFocusWindowOfOpportunity(const std::string& label) override;
-  void ProduceCropId(ProduceCropIdCallback callback) override;
+  void ProduceSubCaptureTargetId(
+      media::mojom::SubCaptureTargetType type,
+      ProduceSubCaptureTargetIdCallback callback) override;
 #endif
 
  private:
@@ -84,11 +87,11 @@ class CONTENT_EXPORT MediaDevicesDispatcherHost
 
   void GetDefaultVideoInputDeviceID(
       GetVideoInputCapabilitiesCallback client_callback,
-      MediaDeviceSaltAndOrigin salt_and_origin);
+      const MediaDeviceSaltAndOrigin& salt_and_origin);
 
   void GotDefaultVideoInputDeviceID(
       GetVideoInputCapabilitiesCallback client_callback,
-      MediaDeviceSaltAndOrigin salt_and_origin,
+      const MediaDeviceSaltAndOrigin& salt_and_origin,
       const std::string& default_device_id);
 
   void FinalizeGetVideoInputCapabilities(

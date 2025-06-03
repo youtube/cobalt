@@ -5,7 +5,7 @@
 #ifndef CHROME_BROWSER_CONTENT_CREATION_NOTES_INTERNAL_NOTE_SERVICE_FACTORY_H_
 #define CHROME_BROWSER_CONTENT_CREATION_NOTES_INTERNAL_NOTE_SERVICE_FACTORY_H_
 
-#include "base/memory/singleton.h"
+#include "base/no_destructor.h"
 #include "chrome/browser/profiles/profile_keyed_service_factory.h"
 
 class KeyedService;
@@ -22,13 +22,13 @@ class NoteServiceFactory : public ProfileKeyedServiceFactory {
   static content_creation::NoteService* GetForProfile(Profile* profile);
 
  private:
-  friend struct base::DefaultSingletonTraits<NoteServiceFactory>;
+  friend base::NoDestructor<NoteServiceFactory>;
 
   NoteServiceFactory();
   ~NoteServiceFactory() override;
 
   // BrowserContextKeyedServiceFactory implementation:
-  KeyedService* BuildServiceInstanceFor(
+  std::unique_ptr<KeyedService> BuildServiceInstanceForBrowserContext(
       content::BrowserContext* context) const override;
 };
 

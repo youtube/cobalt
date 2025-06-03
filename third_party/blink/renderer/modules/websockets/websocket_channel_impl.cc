@@ -47,6 +47,7 @@
 #include "third_party/blink/public/mojom/websockets/websocket_connector.mojom-blink.h"
 #include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/public/platform/task_type.h"
+#include "third_party/blink/public/platform/web_security_origin.h"
 #include "third_party/blink/public/platform/web_url.h"
 #include "third_party/blink/public/platform/websocket_handshake_throttle.h"
 #include "third_party/blink/renderer/bindings/core/v8/capture_source_location.h"
@@ -276,8 +277,17 @@ bool WebSocketChannelImpl::Connect(const KURL& url, const String& protocol) {
   }
 
   if (auto* scheduler = execution_context_->GetScheduler()) {
+    // Two features are registered here:
+    // - `kWebSocket`: a non-sticky feature that will disable BFCache for any
+    // page. It will be reset after the `WebSocketChannel` is closed.
+    // - `kWebSocketSticky`: a sticky feature that will only disable BFCache for
+    // the page containing "Cache-Control: no-store" header. It won't be reset
+    // even if the `WebSocketChannel` is closed.
     feature_handle_for_scheduler_ = scheduler->RegisterFeature(
         SchedulingPolicy::Feature::kWebSocket,
+        SchedulingPolicy{SchedulingPolicy::DisableBackForwardCache()});
+    scheduler->RegisterStickyFeature(
+        SchedulingPolicy::Feature::kWebSocketSticky,
         SchedulingPolicy{SchedulingPolicy::DisableBackForwardCache()});
   }
 
@@ -344,7 +354,7 @@ bool WebSocketChannelImpl::Connect(const KURL& url, const String& protocol) {
 
   connector->Connect(
       url, protocols, GetBaseFetchContext()->GetSiteForCookies(),
-      execution_context_->UserAgent(),
+      execution_context_->UserAgent(), execution_context_->HasStorageAccess(),
       handshake_client_receiver_.BindNewPipeAndPassRemote(
           execution_context_->GetTaskRunner(TaskType::kWebSocket)),
       /*throttling_profile_id=*/devtools_token);
@@ -358,8 +368,9 @@ bool WebSocketChannelImpl::Connect(const KURL& url, const String& protocol) {
     // the WebSocket is no longer referenced, there's no point in keeping it
     // alive just to receive the throttling result.
     handshake_throttle_->ThrottleHandshake(
-        url, WTF::BindOnce(&WebSocketChannelImpl::OnCompletion,
-                           WrapWeakPersistent(this)));
+        url, WebSecurityOrigin(execution_context_->GetSecurityOrigin()),
+        WTF::BindOnce(&WebSocketChannelImpl::OnCompletion,
+                      WrapWeakPersistent(this)));
   } else {
     // Treat no throttle as success.
     throttle_passed_ = true;
@@ -367,7 +378,7 @@ bool WebSocketChannelImpl::Connect(const KURL& url, const String& protocol) {
 
   DEVTOOLS_TIMELINE_TRACE_EVENT_INSTANT(
       "WebSocketCreate", InspectorWebSocketCreateEvent::Data,
-      execution_context_, identifier_, url, protocol);
+      execution_context_.Get(), identifier_, url, protocol);
   return true;
 }
 
@@ -494,16 +505,19 @@ void WebSocketChannelImpl::Fail(const String& reason,
       std::move(location)));
   // |reason| is only for logging and should not be provided for scripts,
   // hence close reason must be empty in tearDownFailedConnection.
-  TearDownFailedConnection();
+  execution_context_->GetTaskRunner(TaskType::kNetworking)
+      ->PostTask(FROM_HERE,
+                 WTF::BindOnce(&WebSocketChannelImpl::TearDownFailedConnection,
+                               WrapPersistent(this)));
 }
 
 void WebSocketChannelImpl::Disconnect() {
   DVLOG(1) << this << " disconnect()";
   if (identifier_) {
-    DEVTOOLS_TIMELINE_TRACE_EVENT_INSTANT("WebSocketDestroy",
-                                          InspectorWebSocketEvent::Data,
-                                          execution_context_, identifier_);
-    probe::DidCloseWebSocket(execution_context_, identifier_);
+    DEVTOOLS_TIMELINE_TRACE_EVENT_INSTANT(
+        "WebSocketDestroy", InspectorWebSocketEvent::Data,
+        execution_context_.Get(), identifier_);
+    probe::DidCloseWebSocket(execution_context_.Get(), identifier_);
   }
 
   AbortAsyncOperations();

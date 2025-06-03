@@ -4,6 +4,7 @@
 
 #include "components/password_manager/core/browser/import/password_importer.h"
 
+#include <string>
 #include <utility>
 
 #include "base/barrier_closure.h"
@@ -14,17 +15,16 @@
 #include "base/metrics/histogram_macros.h"
 #include "base/task/thread_pool.h"
 #include "base/types/expected.h"
+#include "base/types/expected_macros.h"
 #include "components/password_manager/core/browser/import/csv_password.h"
 #include "components/password_manager/core/browser/import/csv_password_sequence.h"
+#include "components/password_manager/core/browser/import/import_results.h"
 #include "components/password_manager/core/browser/password_form.h"
-#include "components/password_manager/core/browser/password_manager_util.h"
-#include "components/password_manager/core/browser/password_ui_utils.h"
 #include "components/password_manager/core/browser/ui/credential_ui_entry.h"
-#include "components/password_manager/core/browser/ui/import_results.h"
+#include "components/password_manager/core/browser/ui/credential_utils.h"
 #include "components/password_manager/core/browser/ui/saved_passwords_presenter.h"
 #include "components/password_manager/core/common/password_manager_features.h"
 #include "components/password_manager/services/csv_password/csv_password_parser_service.h"
-#include "components/sync/base/bind_to_task_runner.h"
 #include "components/sync/base/features.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
@@ -111,7 +111,7 @@ ImportEntry::Status GetConflictType(
 ImportEntry CreateFailedImportEntry(const CredentialUIEntry& credential,
                                     const ImportEntry::Status status) {
   ImportEntry result;
-  result.url = password_manager::GetShownOrigin(credential);
+  result.url = credential.GetAffiliatedDomains()[0].name;
   result.username = base::UTF16ToUTF8(credential.username);
   result.status = status;
   return result;
@@ -121,7 +121,7 @@ ImportEntry CreateValidImportEntry(const CredentialUIEntry& credential,
                                    int id) {
   ImportEntry result;
   result.id = id;
-  result.url = password_manager::GetShownOrigin(credential);
+  result.url = credential.GetAffiliatedDomains()[0].name;
   result.username = base::UTF16ToUTF8(credential.username);
   result.password = base::UTF16ToUTF8(credential.password);
   result.status = ImportEntry::VALID;
@@ -143,61 +143,49 @@ bool IsURLMissing(const ImportEntry& entry) {
 base::expected<password_manager::CredentialUIEntry, ImportEntry>
 CSVPasswordToCredentialUIEntry(const CSVPassword& csv_password,
                                password_manager::PasswordForm::Store store) {
-  auto MakeError = [&](ImportEntry::Status status) {
+  auto with_status = [&](ImportEntry::Status status) {
     ImportEntry entry;
     entry.status = status;
     // TODO(crbug/1417650): Use password_manager::GetShownOrigin.
-    if (csv_password.GetURL().has_value()) {
-      entry.url = csv_password.GetURL().value().spec();
-    } else {
-      entry.url = csv_password.GetURL().error();
-    }
-
+    auto url = csv_password.GetURL();
+    entry.url = url.has_value() ? url.value().spec() : url.error();
     entry.username = csv_password.GetUsername();
-    return base::unexpected(entry);
+    return entry;
   };
 
-  base::expected<GURL, std::string> url = csv_password.GetURL();
-
   if (csv_password.GetParseStatus() != CSVPassword::Status::kOK) {
-    return MakeError(ImportEntry::Status::UNKNOWN_ERROR);
+    return base::unexpected(with_status(ImportEntry::Status::UNKNOWN_ERROR));
   }
 
-  if (csv_password.GetPassword().empty()) {
-    return MakeError(ImportEntry::Status::MISSING_PASSWORD);
+  const std::string& password = csv_password.GetPassword();
+  if (password.empty()) {
+    return base::unexpected(with_status(ImportEntry::Status::MISSING_PASSWORD));
   }
-
-  if (!url.has_value() && url.error().empty()) {
-    return MakeError(ImportEntry::Status::MISSING_URL);
-  }
-
-  if (url.has_value() && url.value().spec().length() > 2048) {
-    return MakeError(ImportEntry::Status::LONG_URL);
-  }
-
-  if (!url.has_value() && !base::IsStringASCII(url.error())) {
-    return MakeError(ImportEntry::Status::NON_ASCII_URL);
-  }
-
-  if (!url.has_value() ||
-      !password_manager_util::IsValidPasswordURL(url.value())) {
-    return MakeError(ImportEntry::Status::INVALID_URL);
-  }
-
-  if (csv_password.GetPassword().length() > 1000) {
-    return MakeError(ImportEntry::Status::LONG_PASSWORD);
+  if (password.length() > 1000) {
+    return base::unexpected(with_status(ImportEntry::Status::LONG_PASSWORD));
   }
 
   if (csv_password.GetUsername().length() > 1000) {
-    return MakeError(ImportEntry::Status::LONG_USERNAME);
+    return base::unexpected(with_status(ImportEntry::Status::LONG_USERNAME));
   }
 
   if (base::FeatureList::IsEnabled(syncer::kPasswordNotesWithBackup) &&
       csv_password.GetNote().length() > 1000) {
-    return MakeError(ImportEntry::Status::LONG_NOTE);
+    return base::unexpected(with_status(ImportEntry::Status::LONG_NOTE));
   }
 
-  CHECK(url.has_value());
+  ASSIGN_OR_RETURN(
+      GURL url, csv_password.GetURL(), [&](const std::string& error) {
+        return with_status(error.empty() ? ImportEntry::Status::MISSING_URL
+                                         : ImportEntry::Status::INVALID_URL);
+      });
+  if (url.spec().length() > 2048) {
+    return base::unexpected(with_status(ImportEntry::Status::LONG_URL));
+  }
+  if (!IsValidPasswordURL(url)) {
+    return base::unexpected(with_status(ImportEntry::Status::INVALID_URL));
+  }
+
   return password_manager::CredentialUIEntry(csv_password, store);
 }
 
@@ -465,18 +453,18 @@ void PasswordImporter::ParseCSVPasswordsInSandbox(
     ImportResultsCallback results_callback,
     base::expected<std::string, ImportResults::Status> result) {
   // Currently, CSV is the only supported format.
-  if (!result.has_value()) {
-    ImportResults results;
-    results.status = result.error();
-    // Importer is reset to the initial state, due to the error.
-    state_ = kNotStarted;
-    std::move(results_callback).Run(std::move(results));
-  } else {
+  if (result.has_value()) {
     GetParser()->ParseCSV(
         std::move(result.value()),
         base::BindOnce(&PasswordImporter::ConsumePasswords,
                        weak_ptr_factory_.GetWeakPtr(), to_store,
                        std::move(results_callback)));
+  } else {
+    ImportResults results;
+    results.status = result.error();
+    // Importer is reset to the initial state, due to the error.
+    state_ = kNotStarted;
+    std::move(results_callback).Run(std::move(results));
   }
 }
 
@@ -597,9 +585,7 @@ void PasswordImporter::ConsumePasswords(
   base::UmaHistogramCounts1M("PasswordManager.Import.PerFile.Duplicates",
                              duplicates_count);
 
-  if (!base::FeatureList::IsEnabled(
-          password_manager::features::kPasswordsImportM2) ||
-      conflicts.empty()) {
+  if (conflicts.empty()) {
     for (const std::vector<PasswordForm>& forms : conflicts) {
       results.displayed_entries.push_back(CreateFailedImportEntry(
           CredentialUIEntry(forms), GetConflictType(to_store)));
@@ -651,9 +637,7 @@ void PasswordImporter::ImportFinished(ImportResultsCallback results_callback,
                                       size_t conflicts_count) {
   ReportImportResultsMetrics(results, start_time, conflicts_count);
 
-  if (base::FeatureList::IsEnabled(
-          password_manager::features::kPasswordsImportM2) &&
-      results.displayed_entries.empty()) {
+  if (results.displayed_entries.empty()) {
     // After successful import with no errors, the user has an option to delete
     // the imported file.
     state_ = kFinished;

@@ -6,8 +6,9 @@ package org.chromium.components.embedder_support.delegate;
 
 import android.view.KeyEvent;
 
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+
 import org.chromium.blink.mojom.DisplayMode;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.content_public.common.ResourceRequestBody;
@@ -136,7 +137,7 @@ public class WebContentsDelegateAndroid {
     }
 
     /**
-     * @return The height of the top controls in DIP.
+     * @return The height of the top controls in physical pixels (not DIPs).
      */
     @CalledByNative
     public int getTopControlsHeight() {
@@ -144,7 +145,7 @@ public class WebContentsDelegateAndroid {
     }
 
     /**
-     * @return The minimum visible height the top controls can have in DIP.
+     * @return The minimum visible height the top controls can have in physical pixels (not DIPs).
      */
     @CalledByNative
     public int getTopControlsMinHeight() {
@@ -152,7 +153,7 @@ public class WebContentsDelegateAndroid {
     }
 
     /**
-     * @return The height of the bottom controls in DIP.
+     * @return The height of the bottom controls in physical pixels (not DIPs).
      */
     @CalledByNative
     public int getBottomControlsHeight() {
@@ -160,7 +161,8 @@ public class WebContentsDelegateAndroid {
     }
 
     /**
-     * @return The minimum visible height the bottom controls can have in DIP.
+     * @return The minimum visible height the bottom controls can have in physical pixels (not
+     *         DIPs).
      */
     @CalledByNative
     public int getBottomControlsMinHeight() {
@@ -210,4 +212,15 @@ public class WebContentsDelegateAndroid {
     public int getDisplayMode() {
         return DisplayMode.UNDEFINED;
     }
+
+    /**
+     * CloseWatcher web API support. If the currently focused frame has a
+     * CloseWatcher registered in JavaScript, the CloseWatcher should receive
+     * the next "close" operation, based on what the OS convention for
+     * closing is. This function is called when the focused frame changes or a
+     * CloseWatcher registered/unregistered to update whether the CloseWatcher
+     * should intercept.
+     */
+    @CalledByNative
+    public void didChangeCloseSignalInterceptStatus() {}
 }

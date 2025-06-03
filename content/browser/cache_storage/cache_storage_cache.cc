@@ -14,7 +14,6 @@
 
 #include "base/barrier_closure.h"
 #include "base/containers/flat_map.h"
-#include "base/containers/stack_container.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
@@ -56,6 +55,7 @@
 #include "services/network/public/mojom/fetch_api.mojom.h"
 #include "storage/browser/quota/quota_manager_proxy.h"
 #include "storage/common/quota/padding_key.h"
+#include "third_party/abseil-cpp/absl/container/inlined_vector.h"
 #include "third_party/blink/public/common/cache_storage/cache_storage_utils.h"
 #include "third_party/blink/public/common/fetch/fetch_api_request_headers_map.h"
 #include "third_party/blink/public/mojom/loader/referrer.mojom.h"
@@ -280,17 +280,17 @@ bool VaryMatches(const blink::FetchAPIRequestHeadersMap& request,
   return true;
 }
 
-// Check a batch operation list for duplicate entries.  A StackVector
-// must be passed to store any resulting duplicate URL strings.  Returns
-// true if any duplicates were found.
-bool FindDuplicateOperations(
-    const std::vector<blink::mojom::BatchOperationPtr>& operations,
-    std::vector<std::string>* duplicate_url_list_out) {
+// Checks a batch operation list for duplicate entries. Returns any duplicate
+// URL strings that were found. If the return value is empty, then there were no
+// duplicates.
+std::vector<std::string> FindDuplicateOperations(
+    const std::vector<blink::mojom::BatchOperationPtr>& operations) {
   using blink::mojom::BatchOperation;
-  DCHECK(duplicate_url_list_out);
+
+  std::vector<std::string> duplicate_url_list;
 
   if (operations.size() < 2) {
-    return false;
+    return duplicate_url_list;
   }
 
   // Create a temporary sorted vector of the operations to support quickly
@@ -301,12 +301,12 @@ bool FindDuplicateOperations(
   // Note, this will use 512 bytes of stack space on 64-bit devices.  The
   // static size attempts to accommodate most typical Cache.addAll() uses in
   // service worker install events while not blowing up the stack too much.
-  base::StackVector<BatchOperation*, 64> sorted;
-  sorted->reserve(operations.size());
+  absl::InlinedVector<BatchOperation*, 64> sorted;
+  sorted.reserve(operations.size());
   for (const auto& op : operations) {
-    sorted->push_back(op.get());
+    sorted.push_back(op.get());
   }
-  std::sort(sorted->begin(), sorted->end(),
+  std::sort(sorted.begin(), sorted.end(),
             [](BatchOperation* left, BatchOperation* right) {
               return left->request->url < right->request->url;
             });
@@ -316,7 +316,8 @@ bool FindDuplicateOperations(
   // have the same URL.  This results in an average complexity of O(n log n).
   // If the entire list has entries with the same URL and different VARY
   // headers then this devolves into O(n^2).
-  for (auto outer = sorted->cbegin(); outer != sorted->cend(); ++outer) {
+  for (BatchOperation* const* outer = sorted.cbegin(); outer != sorted.cend();
+       ++outer) {
     const BatchOperation* outer_op = *outer;
 
     // Note, the spec checks CacheQueryOptions like ignoreSearch, etc, but
@@ -329,12 +330,13 @@ bool FindDuplicateOperations(
 
     // If this entry already matches a duplicate we found, then just skip
     // ahead to find any remaining duplicates.
-    if (!duplicate_url_list_out->empty() &&
-        outer_op->request->url.spec() == duplicate_url_list_out->back()) {
+    if (!duplicate_url_list.empty() &&
+        outer_op->request->url.spec() == duplicate_url_list.back()) {
       continue;
     }
 
-    for (auto inner = std::next(outer); inner != sorted->cend(); ++inner) {
+    for (BatchOperation* const* inner = std::next(outer);
+         inner != sorted.cend(); ++inner) {
       const BatchOperation* inner_op = *inner;
       // Since the list is sorted we can stop looking at neighbors after
       // the first different URL.
@@ -352,13 +354,13 @@ bool FindDuplicateOperations(
           VaryMatches(outer_op->request->headers, inner_op->request->headers,
                       outer_op->response->response_type,
                       outer_op->response->headers)) {
-        duplicate_url_list_out->push_back(inner_op->request->url.spec());
+        duplicate_url_list.push_back(inner_op->request->url.spec());
         break;
       }
     }
   }
 
-  return !duplicate_url_list_out->empty();
+  return duplicate_url_list;
 }
 
 GURL RemoveQueryParam(const GURL& url) {
@@ -730,14 +732,14 @@ void CacheStorageCache::WriteSideData(ErrorCallback callback,
     return;
   }
 
-  // GetUsageAndQuota is called before entering a scheduled operation since it
-  // can call Size, another scheduled operation.
-  quota_manager_proxy_->GetUsageAndQuota(
-      bucket_locator_.storage_key, blink::mojom::StorageType::kTemporary,
-      scheduler_task_runner_,
-      base::BindOnce(&CacheStorageCache::WriteSideDataDidGetQuota,
-                     weak_ptr_factory_.GetWeakPtr(), std::move(callback), url,
-                     expected_response_time, trace_id, buffer, buf_len));
+  // GetBucketSpaceRemaining is called before entering a scheduled operation
+  // since it can call Size, another scheduled operation.
+  quota_manager_proxy_->GetBucketSpaceRemaining(
+      bucket_locator_, scheduler_task_runner_,
+      base::BindOnce(
+          &CacheStorageCache::WriteSideDataDidGetBucketSpaceRemaining,
+          weak_ptr_factory_.GetWeakPtr(), std::move(callback), url,
+          expected_response_time, trace_id, buffer, buf_len));
 }
 
 void CacheStorageCache::BatchOperation(
@@ -768,11 +770,13 @@ void CacheStorageCache::BatchOperation(
   // "If the result of running Query Cache with operation’s request,
   //  operation’s options, and addedItems is not empty, throw an
   //  InvalidStateError DOMException."
-  std::vector<std::string> duplicate_url_list;
-  if (FindDuplicateOperations(operations, &duplicate_url_list)) {
+
+  if (const auto duplicate_url_list = FindDuplicateOperations(operations);
+      !duplicate_url_list.empty()) {
     // If we found any duplicates we need to at least warn the user.  Format
     // the URL list into a comma-separated list.
-    std::string url_list_string = base::JoinString(duplicate_url_list, ", ");
+    const std::string url_list_string =
+        base::JoinString(duplicate_url_list, ", ");
 
     // Place the duplicate list into an error message.
     message.emplace(
@@ -815,15 +819,9 @@ void CacheStorageCache::BatchOperation(
   uint64_t space_required = safe_space_required.ValueOrDie();
   uint64_t side_data_size = safe_side_data_size.ValueOrDie();
   if (space_required || side_data_size) {
-    // GetUsageAndQuota is called before entering a scheduled operation since it
-    // can call Size, another scheduled operation. This is racy. The decision
-    // to commit is made before the scheduled Put operation runs. By the time
-    // Put runs, the cache might already be full and the usage will be larger
-    // than it's supposed to be.
-    quota_manager_proxy_->GetUsageAndQuota(
-        bucket_locator_.storage_key, blink::mojom::StorageType::kTemporary,
-        scheduler_task_runner_,
-        base::BindOnce(&CacheStorageCache::BatchDidGetUsageAndQuota,
+    quota_manager_proxy_->GetBucketSpaceRemaining(
+        bucket_locator_, scheduler_task_runner_,
+        base::BindOnce(&CacheStorageCache::BatchDidGetBucketSpaceRemaining,
                        weak_ptr_factory_.GetWeakPtr(), std::move(operations),
                        trace_id, std::move(callback),
                        std::move(bad_message_callback), std::move(message),
@@ -831,14 +829,13 @@ void CacheStorageCache::BatchOperation(
     return;
   }
 
-  BatchDidGetUsageAndQuota(std::move(operations), trace_id, std::move(callback),
-                           std::move(bad_message_callback), std::move(message),
-                           0 /* space_required */, 0 /* side_data_size */,
-                           blink::mojom::QuotaStatusCode::kOk, 0 /* usage */,
-                           0 /* quota */);
+  BatchDidGetBucketSpaceRemaining(
+      std::move(operations), trace_id, std::move(callback),
+      std::move(bad_message_callback), std::move(message),
+      0 /* space_required */, 0 /* side_data_size */, 0 /* space_remaining */);
 }
 
-void CacheStorageCache::BatchDidGetUsageAndQuota(
+void CacheStorageCache::BatchDidGetBucketSpaceRemaining(
     std::vector<blink::mojom::BatchOperationPtr> operations,
     int64_t trace_id,
     VerboseErrorCallback callback,
@@ -846,17 +843,15 @@ void CacheStorageCache::BatchDidGetUsageAndQuota(
     absl::optional<std::string> message,
     uint64_t space_required,
     uint64_t side_data_size,
-    blink::mojom::QuotaStatusCode status_code,
-    int64_t usage,
-    int64_t quota) {
+    storage::QuotaErrorOr<int64_t> space_remaining) {
   TRACE_EVENT_WITH_FLOW1("CacheStorage",
-                         "CacheStorageCache::BatchDidGetUsageAndQuota",
+                         "CacheStorageCache::BatchDidGetBucketSpaceRemaining",
                          TRACE_ID_GLOBAL(trace_id),
                          TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT,
                          "operations", CacheStorageTracedValue(operations));
+
   base::CheckedNumeric<uint64_t> safe_space_required = space_required;
   base::CheckedNumeric<uint64_t> safe_space_required_with_side_data;
-  safe_space_required += usage;
   safe_space_required_with_side_data = safe_space_required + side_data_size;
   if (!safe_space_required.IsValid() ||
       !safe_space_required_with_side_data.IsValid()) {
@@ -872,8 +867,8 @@ void CacheStorageCache::BatchDidGetUsageAndQuota(
                 std::move(message))));
     return;
   }
-  if (status_code != blink::mojom::QuotaStatusCode::kOk ||
-      safe_space_required.ValueOrDie() > quota) {
+  if (!space_remaining.has_value() ||
+      safe_space_required.ValueOrDie() > space_remaining.value()) {
     scheduler_task_runner_->PostTask(
         FROM_HERE, base::BindOnce(std::move(callback),
                                   CacheStorageVerboseError::New(
@@ -881,7 +876,8 @@ void CacheStorageCache::BatchDidGetUsageAndQuota(
                                       std::move(message))));
     return;
   }
-  bool skip_side_data = safe_space_required_with_side_data.ValueOrDie() > quota;
+  bool skip_side_data = safe_space_required_with_side_data.ValueOrDie() >
+                        static_cast<uint64_t>(space_remaining.value());
 
   auto completion_callback = base::BindRepeating(
       &CacheStorageCache::BatchDidOneOperation, weak_ptr_factory_.GetWeakPtr(),
@@ -1522,8 +1518,8 @@ void CacheStorageCache::MatchAllDidQueryCache(
 void CacheStorageCache::WriteMetadata(disk_cache::Entry* entry,
                                       const proto::CacheMetadata& metadata,
                                       WriteMetadataCallback callback) {
-  std::unique_ptr<std::string> serialized = std::make_unique<std::string>();
-  if (!metadata.SerializeToString(serialized.get())) {
+  std::string serialized;
+  if (!metadata.SerializeToString(&serialized)) {
     std::move(callback).Run(0, -1);
     return;
   }
@@ -1549,23 +1545,21 @@ void CacheStorageCache::WriteMetadata(disk_cache::Entry* entry,
     std::move(split_callback.second).Run(rv);
 }
 
-void CacheStorageCache::WriteSideDataDidGetQuota(
+void CacheStorageCache::WriteSideDataDidGetBucketSpaceRemaining(
     ErrorCallback callback,
     const GURL& url,
     base::Time expected_response_time,
     int64_t trace_id,
     scoped_refptr<net::IOBuffer> buffer,
     int buf_len,
-    blink::mojom::QuotaStatusCode status_code,
-    int64_t usage,
-    int64_t quota) {
-  TRACE_EVENT_WITH_FLOW0("CacheStorage",
-                         "CacheStorageCache::WriteSideDataDidGetQuota",
-                         TRACE_ID_GLOBAL(trace_id),
-                         TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
+    storage::QuotaErrorOr<int64_t> space_remaining) {
+  TRACE_EVENT_WITH_FLOW0(
+      "CacheStorage",
+      "CacheStorageCache::WriteSideDataDidGetBucketSpaceRemaining",
+      TRACE_ID_GLOBAL(trace_id),
+      TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
 
-  if (status_code != blink::mojom::QuotaStatusCode::kOk ||
-      (buf_len > quota - usage)) {
+  if (!space_remaining.has_value() || space_remaining.value() < buf_len) {
     scheduler_task_runner_->PostTask(
         FROM_HERE, base::BindOnce(std::move(callback),
                                   CacheStorageError::kErrorQuotaExceeded));

@@ -216,4 +216,13 @@ public interface FeedActionsHandler {
      * @param type Type of the info card.
      */
     default void resetInfoCardStates(int type) {}
+
+    /**
+     * Reports that a piece of content was viewed.
+     * @param docid Uniquely identifies the content.
+     */
+    default void contentViewed(long docid) {}
+
+    /** Triggers a manual refresh of the feed. */
+    default void triggerManualRefresh() {}
 }

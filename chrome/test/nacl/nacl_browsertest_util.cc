@@ -14,6 +14,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/values.h"
 #include "build/build_config.h"
+#include "chrome/browser/chrome_browser_main_extra_parts_nacl_deprecation.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/common/chrome_paths.h"
@@ -208,6 +209,7 @@ static void AddPnaclParm(const base::FilePath::StringType& url,
 }
 
 NaClBrowserTestBase::NaClBrowserTestBase() {
+  feature_list_.InitAndEnableFeature(kNaclAllow);
 }
 
 NaClBrowserTestBase::~NaClBrowserTestBase() {
@@ -309,6 +311,10 @@ bool NaClBrowserTestPnacl::IsAPnaclTest() {
   return true;
 }
 
+base::FilePath::StringType NaClBrowserTestIrt::Variant() {
+  return FILE_PATH_LITERAL("test_irt");
+}
+
 void NaClBrowserTestPnaclSubzero::SetUpCommandLine(
     base::CommandLine* command_line) {
   NaClBrowserTestPnacl::SetUpCommandLine(command_line);
@@ -328,7 +334,7 @@ void NaClBrowserTestNewlibExtension::SetUpCommandLine(
     base::CommandLine* command_line) {
   NaClBrowserTestBase::SetUpCommandLine(command_line);
   base::FilePath src_root;
-  ASSERT_TRUE(base::PathService::Get(base::DIR_SOURCE_ROOT, &src_root));
+  ASSERT_TRUE(base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &src_root));
 
   // Extension-based tests should specialize the GetDocumentRoot() / Variant()
   // to point at the isolated the test extension directory.
@@ -346,7 +352,7 @@ void NaClBrowserTestGLibcExtension::SetUpCommandLine(
     base::CommandLine* command_line) {
   NaClBrowserTestBase::SetUpCommandLine(command_line);
   base::FilePath src_root;
-  ASSERT_TRUE(base::PathService::Get(base::DIR_SOURCE_ROOT, &src_root));
+  ASSERT_TRUE(base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &src_root));
 
   // Extension-based tests should specialize the GetDocumentRoot() / Variant()
   // to point at the isolated the test extension directory.

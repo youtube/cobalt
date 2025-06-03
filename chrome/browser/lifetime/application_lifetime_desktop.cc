@@ -40,7 +40,7 @@
 #include "chrome/browser/ash/boot_times_recorder.h"
 #include "chrome/browser/lifetime/application_lifetime_chromeos.h"
 #else  // !BUILDFLAG(IS_CHROMEOS_ASH)
-#include "chrome/browser/ui/profile_picker.h"
+#include "chrome/browser/ui/profiles/profile_picker.h"
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
 #if BUILDFLAG(IS_CHROMEOS_LACROS)
@@ -113,8 +113,8 @@ void AttemptRestartInternal(IgnoreUnloadHandlers ignore_unload_handlers) {
   // does not work on Lacros.
   auto* lacros_service = chromeos::LacrosService::Get();
   if (lacros_service->IsAvailable<crosapi::mojom::BrowserServiceHost>() &&
-      lacros_service->GetInterfaceVersion(
-          crosapi::mojom::BrowserServiceHost::Uuid_) >=
+      lacros_service
+              ->GetInterfaceVersion<crosapi::mojom::BrowserServiceHost>() >=
           static_cast<int>(
               crosapi::mojom::BrowserServiceHost::kRequestRelaunchMinVersion)) {
     lacros_service->GetRemote<crosapi::mojom::BrowserServiceHost>()
@@ -240,6 +240,10 @@ void SessionEnding() {
   // Write important data first.
   g_browser_process->EndSession();
 
+  // Emit the shutdown metric for the end-session case. The process will exit
+  // after this point.
+  browser_shutdown::RecordShutdownMetrics();
+
 #if BUILDFLAG(IS_WIN)
   base::win::SetShouldCrashOnProcessDetach(false);
 #endif  // BUILDFLAG(IS_WIN)
@@ -308,8 +312,9 @@ bool AreAllBrowsersCloseable() {
 
   // If there are any downloads active, all browsers are not closeable.
   // However, this does not block for malicious downloads.
-  if (DownloadCoreService::NonMaliciousDownloadCountAllProfiles() > 0)
+  if (DownloadCoreService::BlockingShutdownCountAllProfiles() > 0) {
     return false;
+  }
 
   // Check TabsNeedBeforeUnloadFired().
   for (auto* browser : *BrowserList::GetInstance()) {

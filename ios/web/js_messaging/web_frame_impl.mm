@@ -20,17 +20,13 @@
 #import "ios/web/public/thread/web_thread.h"
 #import "url/gurl.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace {
 
 // Creates a JavaScript string for executing the function __gCrWeb.`name` with
 // `parameters`.
 NSString* CreateFunctionCallWithParamaters(
     const std::string& name,
-    const std::vector<base::Value>& parameters) {
+    const base::Value::List& parameters) {
   NSMutableArray* parameter_strings = [[NSMutableArray alloc] init];
   for (const auto& value : parameters) {
     std::string string_value;
@@ -57,8 +53,7 @@ WebFrameImpl::WebFrameImpl(WKFrameInfo* frame_info,
       frame_id_(frame_id),
       is_main_frame_(is_main_frame),
       security_origin_(security_origin),
-      web_state_(web_state),
-      weak_ptr_factory_(this) {
+      web_state_(web_state) {
   DCHECK(frame_info_);
   DCHECK(web_state_);
   web_state->AddObserver(this);
@@ -95,7 +90,7 @@ BrowserState* WebFrameImpl::GetBrowserState() {
 
 bool WebFrameImpl::CallJavaScriptFunctionInContentWorld(
     const std::string& name,
-    const std::vector<base::Value>& parameters,
+    const base::Value::List& parameters,
     JavaScriptContentWorld* content_world,
     bool reply_with_result) {
   int message_id = next_message_id_;
@@ -109,9 +104,8 @@ bool WebFrameImpl::CallJavaScriptFunctionInContentWorld(
   return false;
 }
 
-bool WebFrameImpl::CallJavaScriptFunction(
-    const std::string& name,
-    const std::vector<base::Value>& parameters) {
+bool WebFrameImpl::CallJavaScriptFunction(const std::string& name,
+                                          const base::Value::List& parameters) {
   JavaScriptContentWorld* content_world =
       JavaScriptFeatureManager::GetPageContentWorldForBrowserState(
           GetBrowserState());
@@ -122,7 +116,7 @@ bool WebFrameImpl::CallJavaScriptFunction(
 
 bool WebFrameImpl::CallJavaScriptFunctionInContentWorld(
     const std::string& name,
-    const std::vector<base::Value>& parameters,
+    const base::Value::List& parameters,
     JavaScriptContentWorld* content_world) {
   return CallJavaScriptFunctionInContentWorld(name, parameters, content_world,
                                               /*reply_with_result=*/false);
@@ -130,7 +124,7 @@ bool WebFrameImpl::CallJavaScriptFunctionInContentWorld(
 
 bool WebFrameImpl::CallJavaScriptFunction(
     const std::string& name,
-    const std::vector<base::Value>& parameters,
+    const base::Value::List& parameters,
     base::OnceCallback<void(const base::Value*)> callback,
     base::TimeDelta timeout) {
   JavaScriptContentWorld* content_world =
@@ -142,7 +136,7 @@ bool WebFrameImpl::CallJavaScriptFunction(
 
 bool WebFrameImpl::CallJavaScriptFunctionInContentWorld(
     const std::string& name,
-    const std::vector<base::Value>& parameters,
+    const base::Value::List& parameters,
     JavaScriptContentWorld* content_world,
     base::OnceCallback<void(const base::Value*)> callback,
     base::TimeDelta timeout) {
@@ -225,13 +219,16 @@ void WebFrameImpl::LogScriptWarning(NSString* script, NSError* error) {
   DLOG(WARNING) << "Script execution of:" << base::SysNSStringToUTF16(script)
                 << "\nfailed with error: "
                 << base::SysNSStringToUTF16(
-                       error.userInfo[NSLocalizedDescriptionKey]);
+                       error.userInfo[NSLocalizedDescriptionKey])
+                << "\nand exception: "
+                << base::SysNSStringToUTF16(
+                       error.userInfo[@"WKJavaScriptExceptionMessage"]);
 }
 
 bool WebFrameImpl::ExecuteJavaScriptFunction(
     JavaScriptContentWorld* content_world,
     const std::string& name,
-    const std::vector<base::Value>& parameters,
+    const base::Value::List& parameters,
     int message_id,
     bool reply_with_result) {
   DCHECK(content_world);
@@ -241,14 +238,10 @@ bool WebFrameImpl::ExecuteJavaScriptFunction(
 
   void (^completion_handler)(id, NSError*) = nil;
   if (reply_with_result) {
-    base::WeakPtr<WebFrameImpl> weak_frame = weak_ptr_factory_.GetWeakPtr();
+    base::WeakPtr<WebFrameImpl> weak_frame = base::AsWeakPtr(this);
     completion_handler = ^void(id value, NSError* error) {
       if (error) {
-        DLOG(WARNING) << "Script execution of:"
-                      << base::SysNSStringToUTF16(script)
-                      << "\nfailed with error: "
-                      << base::SysNSStringToUTF16(
-                             error.userInfo[NSLocalizedDescriptionKey]);
+        LogScriptWarning(script, error);
       }
       if (weak_frame) {
         weak_frame->CompleteRequest(message_id,

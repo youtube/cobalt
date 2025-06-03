@@ -16,7 +16,7 @@ void LayoutSubtreeRootList::ClearAndMarkContainingBlocksForLayout() {
 
 LayoutObject* LayoutSubtreeRootList::RandomRoot() {
   DCHECK(!IsEmpty());
-  return *Unordered().begin();
+  return *Unordered().begin().Get();
 }
 
 void LayoutSubtreeRootList::CountObjectsNeedingLayoutInRoot(
@@ -26,8 +26,9 @@ void LayoutSubtreeRootList::CountObjectsNeedingLayoutInRoot(
   for (const LayoutObject* o = object; o;) {
     ++total_objects;
     bool display_locked = o->ChildLayoutBlockedByDisplayLock();
-    if (o->SelfNeedsLayout() || (!display_locked && o->NeedsLayout()))
+    if (o->SelfNeedsFullLayout() || (!display_locked && o->NeedsLayout())) {
       ++needs_layout_objects;
+    }
 
     if (display_locked)
       o = o->NextInPreOrderAfterChildren(object);

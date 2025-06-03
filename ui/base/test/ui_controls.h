@@ -13,6 +13,8 @@
 
 namespace ui_controls {
 
+enum KeyEventType { kKeyPress = 1 << 0, kKeyRelease = 1 << 1 };
+
 // A set of utility functions to generate native events in platform
 // independent way. Note that since the implementations depend on a window being
 // top level, these can only be called from test suites that are not sharded.
@@ -62,15 +64,15 @@ bool SendKeyPress(gfx::NativeWindow window,
                   bool shift,
                   bool alt,
                   bool command);
-bool SendKeyPressNotifyWhenDone(gfx::NativeWindow window,
-                                ui::KeyboardCode key,
-                                bool control,
-                                bool shift,
-                                bool alt,
-                                bool command,
-                                base::OnceClosure task);
-
-enum KeyEventType { kKeyPress = 1 << 0, kKeyRelease = 1 << 1 };
+bool SendKeyPressNotifyWhenDone(
+    gfx::NativeWindow window,
+    ui::KeyboardCode key,
+    bool control,
+    bool shift,
+    bool alt,
+    bool command,
+    base::OnceClosure task,
+    KeyEventType wait_for = KeyEventType::kKeyRelease);
 
 // The keys that may be held down while generating a keyboard/mouse event.
 enum AcceleratorState {
@@ -100,7 +102,7 @@ bool SendKeyEventsNotifyWhenDone(gfx::NativeWindow window,
 
 // This value specifies that no window hint is given and an appropriate target
 // window should be deduced from the target or current mouse position.
-constexpr gfx::NativeWindow kNoWindowHint = gfx::kNullNativeWindow;
+constexpr gfx::NativeWindow kNoWindowHint = gfx::NativeWindow();
 
 // Simulate a mouse move.
 //
@@ -181,7 +183,16 @@ bool SendTouchEventsNotifyWhenDone(int action,
                                    base::OnceClosure task);
 #endif
 
-#if defined(USE_AURA)
+#if BUILDFLAG(IS_LINUX)
+// Forces the platform implementation to use screen coordinates, even if they're
+// not really available, the next time that ui_controls::SendMouseMove() or
+// ui_controls::SendMouseMoveNotifyWhenDone() is called, or some other method
+// using these methods internally, e.g. ui_test_utils::SendMouseMoveSync(). All
+// following calls will behave normally (unless this method is called again).
+void ForceUseScreenCoordinatesOnce();
+#endif
+
+#if BUILDFLAG(IS_CHROMEOS_ASH) || BUILDFLAG(IS_WIN)
 class UIControlsAura;
 void InstallUIControlsAura(UIControlsAura* instance);
 #endif

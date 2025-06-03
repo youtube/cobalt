@@ -24,15 +24,35 @@ CookieControlsBridge::CookieControlsBridge(
     const base::android::JavaParamRef<jobject>&
         joriginal_browser_context_handle)
     : jobject_(obj) {
+  UpdateWebContents(env, jweb_contents_android,
+                    joriginal_browser_context_handle);
+}
+
+void CookieControlsBridge::UpdateWebContents(
+    JNIEnv* env,
+    const base::android::JavaParamRef<jobject>& jweb_contents_android,
+    const base::android::JavaParamRef<jobject>&
+        joriginal_browser_context_handle) {
   content::WebContents* web_contents =
       content::WebContents::FromJavaWebContents(jweb_contents_android);
+
   content::BrowserContext* original_context =
       content::BrowserContextFromJavaHandle(joriginal_browser_context_handle);
+
+  content::BrowserContext* context = web_contents->GetBrowserContext();
   auto* permissions_client = permissions::PermissionsClient::Get();
+
+  old_observation_.Reset();
+  observation_.Reset();
+
   controller_ = std::make_unique<CookieControlsController>(
-      permissions_client->GetCookieSettings(web_contents->GetBrowserContext()),
+      permissions_client->GetCookieSettings(context),
       original_context ? permissions_client->GetCookieSettings(original_context)
-                       : nullptr);
+                       : nullptr,
+      permissions_client->GetSettingsMap(context),
+      permissions_client->GetTrackingProtectionSettings(context));
+
+  old_observation_.Observe(controller_.get());
   observation_.Observe(controller_.get());
   controller_->Update(web_contents);
 }
@@ -60,14 +80,67 @@ void CookieControlsBridge::OnCookiesCountChanged(int allowed_cookies,
   // The cookie counts change quite frequently, so avoid unnecessary
   // UI updates if possible.
   if (allowed_cookies_ == allowed_cookies &&
-      blocked_cookies_ == blocked_cookies)
+      blocked_cookies_ == blocked_cookies) {
     return;
+  }
 
   allowed_cookies_ = allowed_cookies;
   blocked_cookies_ = blocked_cookies;
   JNIEnv* env = base::android::AttachCurrentThread();
   Java_CookieControlsBridge_onCookiesCountChanged(
       env, jobject_, allowed_cookies, blocked_cookies);
+}
+
+// This is a no-op for Android.
+void CookieControlsBridge::OnStatefulBounceCountChanged(int bounce_count) {}
+
+void CookieControlsBridge::OnStatusChanged(
+    CookieControlsStatus status,
+    CookieControlsEnforcement enforcement,
+    CookieBlocking3pcdStatus blocking_status,
+    base::Time expiration) {
+  // Only invoke the callback when there is a change.
+  if (status_ == status && enforcement_ == enforcement &&
+      expiration_ == expiration) {
+    return;
+  }
+  status_ = status;
+  enforcement_ = enforcement;
+  expiration_ = expiration;
+  JNIEnv* env = base::android::AttachCurrentThread();
+  Java_CookieControlsBridge_onStatusChanged(
+      env, jobject_, static_cast<int>(status_), static_cast<int>(enforcement_),
+      static_cast<int>(blocking_status),
+      expiration.InMillisecondsSinceUnixEpoch());
+}
+
+void CookieControlsBridge::OnSitesCountChanged(
+    int allowed_third_party_sites_count,
+    int blocked_third_party_sites_count) {
+  // The site counts change quite frequently, so avoid unnecessary
+  // UI updates if possible.
+  if (allowed_third_party_sites_count_ == allowed_third_party_sites_count &&
+      blocked_third_party_sites_count_ == blocked_third_party_sites_count) {
+    return;
+  }
+  allowed_third_party_sites_count_ = allowed_third_party_sites_count;
+  blocked_third_party_sites_count_ = blocked_third_party_sites_count;
+  JNIEnv* env = base::android::AttachCurrentThread();
+  Java_CookieControlsBridge_onSitesCountChanged(
+      env, jobject_, allowed_third_party_sites_count,
+      blocked_third_party_sites_count);
+}
+
+void CookieControlsBridge::OnBreakageConfidenceLevelChanged(
+    CookieControlsBreakageConfidenceLevel level) {
+  if (level_ == level) {
+    return;
+  }
+
+  level_ = level;
+  JNIEnv* env = base::android::AttachCurrentThread();
+  Java_CookieControlsBridge_onBreakageConfidenceLevelChanged(
+      env, jobject_, static_cast<int>(level));
 }
 
 void CookieControlsBridge::SetThirdPartyCookieBlockingEnabledForSite(
@@ -78,6 +151,18 @@ void CookieControlsBridge::SetThirdPartyCookieBlockingEnabledForSite(
 
 void CookieControlsBridge::OnUiClosing(JNIEnv* env) {
   controller_->OnUiClosing();
+}
+
+void CookieControlsBridge::OnEntryPointAnimated(JNIEnv* env) {
+  controller_->OnEntryPointAnimated();
+}
+
+int CookieControlsBridge::GetCookieControlsStatus(JNIEnv* env) {
+  return static_cast<int>(controller_->GetCookieControlsStatus());
+}
+
+int CookieControlsBridge::GetBreakageConfidenceLevel(JNIEnv* env) {
+  return static_cast<int>(controller_->GetBreakageConfidenceLevel());
 }
 
 CookieControlsBridge::~CookieControlsBridge() = default;

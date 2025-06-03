@@ -5,6 +5,8 @@
 #ifndef GPU_IPC_CLIENT_SHARED_IMAGE_INTERFACE_PROXY_H_
 #define GPU_IPC_CLIENT_SHARED_IMAGE_INTERFACE_PROXY_H_
 
+#include <unordered_map>
+
 #include "base/containers/flat_map.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/read_only_shared_memory_region.h"
@@ -13,6 +15,8 @@
 #include "build/build_config.h"
 #include "gpu/command_buffer/client/shared_image_interface.h"
 #include "gpu/command_buffer/common/buffer.h"
+#include "gpu/command_buffer/common/shared_image_capabilities.h"
+#include "gpu/ipc/common/gpu_memory_buffer_handle_info.h"
 
 namespace viz {
 class SharedImageFormat;
@@ -24,8 +28,28 @@ class GpuChannelHost;
 // Proxy that sends commands over GPU channel IPCs for managing shared images.
 class SharedImageInterfaceProxy {
  public:
-  explicit SharedImageInterfaceProxy(GpuChannelHost* host, int32_t route_id);
+  explicit SharedImageInterfaceProxy(
+      GpuChannelHost* host,
+      int32_t route_id,
+      const gpu::SharedImageCapabilities& capabilities);
   ~SharedImageInterfaceProxy();
+
+  struct SharedImageInfo {
+    SharedImageInfo();
+    ~SharedImageInfo();
+
+    SharedImageInfo(SharedImageInfo&&);
+    SharedImageInfo& operator=(SharedImageInfo&&);
+
+    SharedImageInfo(const SharedImageInfo&) = delete;
+    SharedImageInfo& operator=(const SharedImageInfo&) = delete;
+
+    int ref_count = 0;
+    uint32_t usage = 0;
+    std::vector<SyncToken> destruction_sync_tokens;
+    std::unique_ptr<gfx::GpuMemoryBuffer> gpu_memory_buffer;
+  };
+
   Mailbox CreateSharedImage(viz::SharedImageFormat format,
                             const gfx::Size& size,
                             const gfx::ColorSpace& color_space,
@@ -33,6 +57,14 @@ class SharedImageInterfaceProxy {
                             SkAlphaType alpha_type,
                             uint32_t usage,
                             base::StringPiece debug_label);
+  Mailbox CreateSharedImage(viz::SharedImageFormat format,
+                            const gfx::Size& size,
+                            const gfx::ColorSpace& color_space,
+                            GrSurfaceOrigin surface_origin,
+                            SkAlphaType alpha_type,
+                            uint32_t usage,
+                            base::StringPiece debug_label,
+                            gfx::BufferUsage buffer_usage);
   Mailbox CreateSharedImage(viz::SharedImageFormat format,
                             const gfx::Size& size,
                             const gfx::ColorSpace& color_space,
@@ -101,22 +133,13 @@ class SharedImageInterfaceProxy {
   uint32_t UsageForMailbox(const Mailbox& mailbox);
   void NotifyMailboxAdded(const Mailbox& mailbox, uint32_t usage);
 
+  gfx::GpuMemoryBuffer* GetGpuMemoryBuffer(const Mailbox& mailbox);
+
+  const gpu::SharedImageCapabilities& GetCapabilities() {
+    return capabilities_;
+  }
+
  private:
-  struct SharedImageInfo {
-    SharedImageInfo();
-    ~SharedImageInfo();
-
-    SharedImageInfo(SharedImageInfo&&);
-    SharedImageInfo& operator=(SharedImageInfo&&);
-
-    SharedImageInfo(const SharedImageInfo&) = delete;
-    SharedImageInfo& operator=(const SharedImageInfo&) = delete;
-
-    int ref_count = 0;
-    uint32_t usage = 0;
-    std::vector<SyncToken> destruction_sync_tokens;
-  };
-
   bool GetSHMForPixelData(base::span<const uint8_t> pixel_data,
                           size_t* shm_offset,
                           bool* done_with_shm) EXCLUSIVE_LOCKS_REQUIRED(lock_);
@@ -141,6 +164,8 @@ class SharedImageInterfaceProxy {
   size_t upload_buffer_offset_ GUARDED_BY(lock_) = 0;
 
   base::flat_map<Mailbox, SharedImageInfo> mailbox_infos_ GUARDED_BY(lock_);
+
+  const gpu::SharedImageCapabilities capabilities_;
 };
 
 }  // namespace gpu

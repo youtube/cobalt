@@ -10,6 +10,7 @@ import androidx.annotation.GuardedBy;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import org.chromium.android_webview.common.Lifetime;
 import org.chromium.android_webview.safe_browsing.AwSafeBrowsingConfigHelper;
 import org.chromium.build.annotations.DoNotInline;
 import org.chromium.components.embedder_support.util.WebResourceResponseInfo;
@@ -17,6 +18,7 @@ import org.chromium.components.embedder_support.util.WebResourceResponseInfo;
 /**
  * Manages clients and settings for Service Workers.
  */
+@Lifetime.Profile
 public class AwServiceWorkerController {
     @GuardedBy("mAwServiceWorkerClientLock")
     private AwServiceWorkerClient mServiceWorkerClient;
@@ -40,8 +42,7 @@ public class AwServiceWorkerController {
         mServiceWorkerSettings = new AwServiceWorkerSettings(applicationContext, mBrowserContext);
         mServiceWorkerBackgroundThreadClient = new ServiceWorkerBackgroundThreadClientImpl();
         mServiceWorkerIoThreadClient = new ServiceWorkerIoThreadClientImpl();
-        AwContentsStatics.setServiceWorkerIoThreadClient(
-                mServiceWorkerIoThreadClient, mBrowserContext);
+        mBrowserContext.setServiceWorkerIoThreadClient(mServiceWorkerIoThreadClient);
     }
 
     /**

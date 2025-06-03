@@ -43,10 +43,10 @@
 #include "chrome/browser/web_applications/web_app.h"
 #include "chrome/browser/web_applications/web_app_chromeos_data.h"
 #include "chrome/browser/web_applications/web_app_constants.h"
+#include "chrome/browser/web_applications/web_app_helpers.h"
 #include "chrome/browser/web_applications/web_app_icon_generator.h"
 #include "chrome/browser/web_applications/web_app_install_info.h"
 #include "chrome/browser/web_applications/web_app_install_params.h"
-#include "chrome/browser/web_applications/web_app_sources.h"
 #include "chrome/browser/web_applications/web_app_utils.h"
 #include "chrome/common/chrome_features.h"
 #include "components/services/app_service/public/cpp/file_handler.h"
@@ -55,6 +55,7 @@
 #include "components/services/app_service/public/cpp/share_target.h"
 #include "components/services/app_service/public/cpp/url_handler_info.h"
 #include "components/webapps/browser/banners/app_banner_settings_helper.h"
+#include "components/webapps/browser/installable/installable_evaluator.h"
 #include "components/webapps/browser/installable/installable_manager.h"
 #include "components/webapps/browser/installable/installable_metrics.h"
 #include "content/public/common/content_features.h"
@@ -87,7 +88,7 @@ namespace {
 // value can change overtime as new features are added.
 constexpr int kMaxIcons = 20;
 constexpr SquareSizePx kMaxIconSize =
-    webapps::InstallableManager::kMaximumIconSizeInPx;
+    webapps::InstallableEvaluator::kMaximumIconSizeInPx;
 
 // Returns whether the home tab icons exist.
 bool HomeTabIconsExistInTabStrip(const WebAppInstallInfo* web_app_info) {
@@ -221,7 +222,22 @@ std::vector<SquareSizePx> GetSquareSizePxs(
   return sizes;
 }
 
-std::vector<IconSizes> GetDownloadedShortcutsMenuIconsSizes(
+std::vector<SquareSizePx> GetSquareSizePxs(const IconBitmaps& icon_bitmaps,
+                                           IconPurpose purpose) {
+  switch (purpose) {
+    case IconPurpose::ANY:
+      return GetSquareSizePxs(icon_bitmaps.any);
+    case IconPurpose::MASKABLE:
+      return GetSquareSizePxs(icon_bitmaps.maskable);
+    case IconPurpose::MONOCHROME:
+      return GetSquareSizePxs(icon_bitmaps.monochrome);
+  }
+}
+
+// Returns a new vector of item infos with `downloaded_icon_sizes` set from
+// `shortcuts_menu_icon_bitmaps` and other info copied from
+// `shortcuts_menu_items`.
+std::vector<WebAppShortcutsMenuItemInfo> GetShortcutsMenuInfoWithIconSizes(
     const std::vector<WebAppShortcutsMenuItemInfo>& shortcuts_menu_items,
     const ShortcutsMenuIconBitmaps& shortcuts_menu_icon_bitmaps) {
   // Due to the bitmaps possibly being not populated (see
@@ -229,8 +245,8 @@ std::vector<IconSizes> GetDownloadedShortcutsMenuIconsSizes(
   // continue to check to make sure that there aren't MORE bitmaps than
   // items.
   CHECK_LE(shortcuts_menu_icon_bitmaps.size(), shortcuts_menu_items.size());
-  std::vector<IconSizes> shortcuts_menu_icons_sizes;
-  shortcuts_menu_icons_sizes.reserve(shortcuts_menu_items.size());
+  std::vector<WebAppShortcutsMenuItemInfo> items_with_sizes;
+  items_with_sizes.reserve(shortcuts_menu_items.size());
   IconBitmaps empty_icon_bitmaps;
   for (size_t i = 0; i < shortcuts_menu_items.size(); ++i) {
     const IconBitmaps* shortcut_icon_bitmaps;
@@ -239,18 +255,16 @@ std::vector<IconSizes> GetDownloadedShortcutsMenuIconsSizes(
     } else {
       shortcut_icon_bitmaps = &empty_icon_bitmaps;
     }
-    IconSizes icon_sizes;
-    icon_sizes.SetSizesForPurpose(IconPurpose::ANY,
-                                  GetSquareSizePxs(shortcut_icon_bitmaps->any));
-    icon_sizes.SetSizesForPurpose(
-        IconPurpose::MASKABLE,
-        GetSquareSizePxs(shortcut_icon_bitmaps->maskable));
-    icon_sizes.SetSizesForPurpose(
-        IconPurpose::MONOCHROME,
-        GetSquareSizePxs(shortcut_icon_bitmaps->monochrome));
-    shortcuts_menu_icons_sizes.push_back(std::move(icon_sizes));
+
+    WebAppShortcutsMenuItemInfo item_info = shortcuts_menu_items[i];
+    for (IconPurpose purpose : kIconPurposes) {
+      item_info.downloaded_icon_sizes.SetSizesForPurpose(
+          purpose, GetSquareSizePxs(*shortcut_icon_bitmaps, purpose));
+    }
+
+    items_with_sizes.push_back(std::move(item_info));
   }
-  return shortcuts_menu_icons_sizes;
+  return items_with_sizes;
 }
 
 apps::ShareTarget::Method ToAppsShareTargetMethod(
@@ -627,9 +641,8 @@ void UpdateWebAppInfoFromManifest(const blink::mojom::Manifest& manifest,
   else if (manifest.short_name)
     web_app_info->title = *manifest.short_name;
 
-  if (manifest.id.has_value()) {
-    web_app_info->manifest_id =
-        absl::optional<std::string>(base::UTF16ToUTF8(manifest.id.value()));
+  if (manifest.id.is_valid()) {
+    web_app_info->manifest_id = manifest.id;
   }
 
   // Set the url based on the manifest value, if any.
@@ -757,6 +770,14 @@ void UpdateWebAppInfoFromManifest(const blink::mojom::Manifest& manifest,
     home_tab.icons = FilterWebAppHomeTabIcons(home_tab.icons);
     web_app_info->tab_strip->home_tab = home_tab;
   }
+}
+
+WebAppInstallInfo CreateWebAppInfoFromManifest(
+    const blink::mojom::Manifest& manifest,
+    const GURL& manifest_url) {
+  WebAppInstallInfo info(manifest.id);
+  UpdateWebAppInfoFromManifest(manifest, manifest_url, &info);
+  return info;
 }
 
 namespace {
@@ -917,13 +938,6 @@ void PopulateProductIcons(WebAppInstallInfo* web_app_info,
   }
 }
 
-void RecordAppBanner(content::WebContents* contents, const GURL& app_url) {
-  webapps::AppBannerSettingsHelper::RecordBannerEvent(
-      contents, app_url, app_url.spec(),
-      webapps::AppBannerSettingsHelper::APP_BANNER_EVENT_DID_ADD_TO_HOMESCREEN,
-      base::Time::Now());
-}
-
 void RecordDownloadedIconsResultAndHttpStatusCodes(
     IconsDownloadedResult result,
     const DownloadedIconsHttpResults& icons_http_results) {
@@ -996,8 +1010,6 @@ webapps::WebappInstallSource ConvertExternalInstallSourceToInstallSource(
       return webapps::WebappInstallSource::EXTERNAL_POLICY;
     case ExternalInstallSource::kSystemInstalled:
       return webapps::WebappInstallSource::SYSTEM_DEFAULT;
-    case ExternalInstallSource::kArc:
-      return webapps::WebappInstallSource::ARC;
     case ExternalInstallSource::kKiosk:
       return webapps::WebappInstallSource::KIOSK;
     case ExternalInstallSource::kExternalLockScreen:
@@ -1018,15 +1030,13 @@ webapps::WebappUninstallSource ConvertExternalInstallSourceToUninstallSource(
       return webapps::WebappUninstallSource::kExternalPolicy;
     case ExternalInstallSource::kSystemInstalled:
       return webapps::WebappUninstallSource::kSystemPreinstalled;
-    case ExternalInstallSource::kArc:
-      return webapps::WebappUninstallSource::kArc;
     case ExternalInstallSource::kKiosk:
       NOTREACHED() << "Kiosk apps should not be uninstalled";
       return webapps::WebappUninstallSource::kUnknown;
     case ExternalInstallSource::kExternalLockScreen:
       return webapps::WebappUninstallSource::kExternalLockScreen;
     case ExternalInstallSource::kInternalMicrosoft365Setup:
-      NOTREACHED() << "Microsoft 365 apps should not be unistalled externally";
+      NOTREACHED() << "Microsoft 365 apps should not be uninstalled externally";
       return webapps::WebappUninstallSource::kUnknown;
   }
 }
@@ -1045,6 +1055,7 @@ WebAppManagement::Type ConvertInstallSurfaceToWebAppSource(
     case webapps::WebappInstallSource::AMBIENT_BADGE_BROWSER_TAB:
     case webapps::WebappInstallSource::AMBIENT_BADGE_CUSTOM_TAB:
     case webapps::WebappInstallSource::RICH_INSTALL_UI_WEBLAYER:
+    case webapps::WebappInstallSource::ML_PROMOTION:
     case webapps::WebappInstallSource::OMNIBOX_INSTALL_ICON:
     case webapps::WebappInstallSource::SYNC:
     case webapps::WebappInstallSource::MENU_CREATE_SHORTCUT:
@@ -1058,6 +1069,9 @@ WebAppManagement::Type ConvertInstallSurfaceToWebAppSource(
     case webapps::WebappInstallSource::INTERNAL_DEFAULT:
     case webapps::WebappInstallSource::EXTERNAL_DEFAULT:
       return WebAppManagement::kDefault;
+
+    case webapps::WebappInstallSource::PRELOADED_DEFAULT:
+      return WebAppManagement::kApsDefault;
 
     case webapps::WebappInstallSource::PRELOADED_OEM:
       return WebAppManagement::kOem;
@@ -1102,10 +1116,10 @@ void MaybeRegisterOsUninstall(const WebApp* web_app,
   // |web_app| object will remove target |source_uninstalling| type.
   // If the remaining source types and they happen to be user
   // uninstallable, then it should register OsSettings.
-  WebAppSources sources = web_app->GetSources();
-  DCHECK(sources.test(source_uninstalling));
+  WebAppManagementTypes sources = web_app->GetSources();
+  DCHECK(sources.Has(source_uninstalling));
   bool user_installable_before_uninstall = CanUserUninstallWebApp(sources);
-  sources[source_uninstalling] = false;
+  sources.Remove(source_uninstalling);
   bool user_installable_after_uninstall = CanUserUninstallWebApp(sources);
 
   if (!user_installable_before_uninstall && user_installable_after_uninstall) {
@@ -1132,9 +1146,9 @@ void MaybeUnregisterOsUninstall(const WebApp* web_app,
   // |web_app| object will add target |source_installing| type.
   // If the old source types are user installable, but new type is not, then
   // it should unregister OsSettings.
-  WebAppSources sources = web_app->GetSources();
+  WebAppManagementTypes sources = web_app->GetSources();
   bool user_installable_before_install = CanUserUninstallWebApp(sources);
-  sources[source_installing] = true;
+  sources.Put(source_installing);
   bool user_installable_after_install = CanUserUninstallWebApp(sources);
 
   if (user_installable_before_install && !user_installable_after_install) {
@@ -1156,7 +1170,13 @@ void SetWebAppManifestFields(const WebAppInstallInfo& web_app_info,
   web_app.SetName(base::UTF16ToUTF8(web_app_info.title));
 
   web_app.SetStartUrl(web_app_info.start_url);
-  web_app.SetManifestId(web_app_info.manifest_id);
+
+  // TODO(b/280862254): CHECK that the manifest_id isn't empty after the empty
+  // constructor is removed. Currently, `SetStartUrl` sets a default manifest_id
+  // based on the start_url.
+  if (web_app_info.manifest_id.is_valid()) {
+    web_app.SetManifestId(web_app_info.manifest_id);
+  }
 
   web_app.SetDisplayMode(web_app_info.display_mode);
   web_app.SetDisplayModeOverride(web_app_info.display_override);
@@ -1189,21 +1209,10 @@ void SetWebAppManifestFields(const WebAppInstallInfo& web_app_info,
   web_app.SetSyncFallbackData(std::move(sync_fallback_data));
 
   if (!skip_icons_on_download_failure) {
-    web_app.SetManifestIcons(web_app_info.manifest_icons);
-    web_app.SetDownloadedIconSizes(
-        IconPurpose::ANY, GetSquareSizePxs(web_app_info.icon_bitmaps.any));
-    web_app.SetDownloadedIconSizes(
-        IconPurpose::MASKABLE,
-        GetSquareSizePxs(web_app_info.icon_bitmaps.maskable));
-    web_app.SetDownloadedIconSizes(
-        IconPurpose::MONOCHROME,
-        GetSquareSizePxs(web_app_info.icon_bitmaps.monochrome));
-    web_app.SetIsGeneratedIcon(web_app_info.is_generated_icon);
-    web_app.SetShortcutsMenuItemInfos(web_app_info.shortcuts_menu_item_infos);
-    web_app.SetDownloadedShortcutsMenuIconsSizes(
-        GetDownloadedShortcutsMenuIconsSizes(
-            web_app_info.shortcuts_menu_item_infos,
-            web_app_info.shortcuts_menu_icon_bitmaps));
+    SetWebAppProductIconFields(web_app_info, web_app);
+    web_app.SetShortcutsMenuInfo(GetShortcutsMenuInfoWithIconSizes(
+        web_app_info.shortcuts_menu_item_infos,
+        web_app_info.shortcuts_menu_icon_bitmaps));
   }
 
   web_app.SetPermissionsPolicy(web_app_info.permissions_policy);
@@ -1231,10 +1240,25 @@ void SetWebAppManifestFields(const WebAppInstallInfo& web_app_info,
   web_app.SetLaunchHandler(web_app_info.launch_handler);
 
   web_app.SetTabStrip(web_app_info.tab_strip);
+
+  if (web_app_info.validated_scope_extensions.has_value()) {
+    web_app.SetValidatedScopeExtensions(
+        web_app_info.validated_scope_extensions.value());
+  }
+}
+
+void SetWebAppProductIconFields(const WebAppInstallInfo& web_app_info,
+                                WebApp& web_app) {
+  web_app.SetManifestIcons(web_app_info.manifest_icons);
+  for (IconPurpose purpose : kIconPurposes) {
+    web_app.SetDownloadedIconSizes(
+        purpose, GetSquareSizePxs(web_app_info.icon_bitmaps, purpose));
+  }
+  web_app.SetIsGeneratedIcon(web_app_info.is_generated_icon);
 }
 
 void MaybeDisableOsIntegration(const WebAppRegistrar* app_registrar,
-                               const AppId& app_id,
+                               const webapps::AppId& app_id,
                                InstallOsHooksOptions* options) {
 #if !BUILDFLAG(IS_CHROMEOS)  // Deeper OS integration is expected on ChromeOS.
   DCHECK(app_registrar);
@@ -1268,16 +1292,14 @@ bool CanWebAppUpdateIdentity(const WebApp* web_app) {
   // WebAppChromeOsData::oem_installed will be migrated to
   // WebAppManagement::kOem eventually.
   return web_app->IsPreinstalledApp() || web_app->IsKioskInstalledApp() ||
-         web_app->GetSources().test(WebAppManagement::kOem);
+         web_app->GetSources().HasAny(
+             {WebAppManagement::kOem, WebAppManagement::kApsDefault});
 }
 
 void ApplyParamsToWebAppInstallInfo(const WebAppInstallParams& install_params,
                                     WebAppInstallInfo& web_app_info) {
   if (install_params.user_display_mode.has_value())
     web_app_info.user_display_mode = install_params.user_display_mode;
-
-  if (install_params.override_manifest_id.has_value())
-    web_app_info.manifest_id = install_params.override_manifest_id;
 
   // If `additional_search_terms` was a manifest property, it would be
   // sanitized while parsing the manifest. Since it's not, we sanitize it

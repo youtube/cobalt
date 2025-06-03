@@ -349,6 +349,13 @@ class CONTENT_EXPORT ServiceWorkerContainerHost final
   mojo::Remote<blink::mojom::ControllerServiceWorker>
   GetRemoteControllerServiceWorker();
 
+  // Get an associated cache storage interface.
+  mojo::PendingRemote<blink::mojom::CacheStorage> GetRemoteCacheStorage();
+
+  // Create a receiver to notice on ServiceWorker running status change.
+  mojo::PendingReceiver<blink::mojom::ServiceWorkerRunningStatusCallback>
+  GetRunningStatusCallbackReceiver();
+
   // |registration| claims the client (document, dedicated worker when
   // PlzDedicatedWorker is enabled, or shared worker) to be controlled.
   void ClaimedByRegistration(
@@ -519,6 +526,7 @@ class CONTENT_EXPORT ServiceWorkerContainerHost final
   ukm::SourceId ukm_source_id() const { return ukm_source_id_; }
 
  private:
+  class ServiceWorkerRunningStatusObserver;
   friend class ServiceWorkerContainerHostTest;
   friend class service_worker_object_host_unittest::ServiceWorkerObjectHostTest;
   FRIEND_TEST_ALL_PREFIXES(ServiceWorkerJobTest, Unregister);
@@ -721,6 +729,11 @@ class CONTENT_EXPORT ServiceWorkerContainerHost final
   // The URL used for service worker scope matching. It is empty except in the
   // case of a service worker client with a blob URL.
   GURL scope_match_url_for_blob_client_;
+
+  // The observer for the running status change.
+  // It is used for notifying the ServiceWorker running status change to
+  // the ServiceWorkerContainerHost in the renderer.
+  std::unique_ptr<ServiceWorkerRunningStatusObserver> running_status_observer_;
 
   // For worker clients only ---------------------------------------------------
 

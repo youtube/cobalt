@@ -16,6 +16,7 @@
 <translation id="1729654308190250600">Fut një adresë mail-i jo boshe.</translation>
 <translation id="1758486001363313524">Tjetër...</translation>
 <translation id="1787192514241997742">koha totale: <ph name="REMAINING_TIME" /></translation>
+<translation id="1800494066469288780">Lejo kamerën</translation>
 <translation id="1822429046913737220">Paradite/Pasdite</translation>
 <translation id="1832974991323546415">luaje në pajisjen në distancë</translation>
 <translation id="1921819250265091946">ditë</translation>
@@ -24,9 +25,9 @@
 <translation id="1993104285338243655">U kalua te pasqyrimi</translation>
 <translation id="2031987842108996681">Kanali i kuq</translation>
 <translation id="2060505056492490888">"<ph name="DOT" />" përdoret në një pozicion të gabuar në "<ph name="INVALIDDOMAIN" />".</translation>
+<translation id="2068711044993563745">Vlera minimale (<ph name="MINIMUM" />) duhet të jetë më e vogël se vlera maksimale (<ph name="MAXIMUM" />).</translation>
 <translation id="2148716181193084225">Sot</translation>
 <translation id="2226276347425096477">Shkurtoje këtë tekst në <ph name="MAX_CHARACTERS" /> karaktere ose më pak (aktualisht po përdor <ph name="CURRENT_LENGTH" /> karaktere).</translation>
-<translation id="2246498165605549352">Skedari lokal</translation>
 <translation id="2247351761944213033">Java <ph name="WEEKNUMBER" />, <ph name="YEAR" /></translation>
 <translation id="2277199496770840904">Kënga <ph name="NUMBER" /></translation>
 <translation id="2393030564806080191">Vlera e ngjyrave heksadecimale</translation>
@@ -45,11 +46,13 @@
 <translation id="2761667185364618470">Verifikoje këtë kuti, nëse do të vazhdosh.</translation>
 <translation id="2908441821576996758">Fut një listë të ndarë me presje me adresa mail-i.</translation>
 <translation id="3049748772180311791"><ph name="QUANTITY" /> MB</translation>
+<translation id="3053226512517284904">shfaq menynë e përshkrimeve të audios</translation>
 <translation id="3075154866155599887">Fut një atribut të vlefshëm. Fusha nuk është e plotë ose ka datë të pavlefshme.</translation>
 <translation id="310520048233152454">Fut një URL.</translation>
 <translation id="3220661731597678625">hapi aktual</translation>
 <translation id="3321030238473337787">Shpejtësia e luajtjes</translation>
 <translation id="3329013043687509092">Ngopje</translation>
+<translation id="3377518164566272702">Lejo mikrofonin dhe kamerën</translation>
 <translation id="3450233048674729344">Vlera duhet të jetë më e vogël ose e barabartë me <ph name="MAXIMUM" />.</translation>
 <translation id="3732799496749320381">mm</translation>
 <translation id="3754210790023674521">Dil nga "Figura brenda figurës"</translation>
@@ -65,6 +68,7 @@
 <translation id="4718048029184481307">Po luhet në "Figura brenda figurës"</translation>
 <translation id="4748357248530471599">kalo tek ekrani i plotë tek prerja e ekranit</translation>
 <translation id="4763480195061959176">video</translation>
+<translation id="4792862212177489858">Ndaj vendndodhjen</translation>
 <translation id="4812940957355064477">Fut një numër.</translation>
 <translation id="4912200001568447310">artikulli aktual</translation>
 <translation id="4915360478455618802">Shfaq zgjedhësin e datës</translation>
@@ -74,6 +78,7 @@
 <translation id="4975562563186953947"><ph name="SELECTED_COUNT" /> të përzgjedhur</translation>
 <translation id="4992066212339426712">Aktivizo zërin</translation>
 <translation id="49969490063480558">Fut një pjesë pas "<ph name="ATSIGN" />". "<ph name="INVALIDADDRESS" />" është e paplotë.</translation>
+<translation id="5037575921016181960">Fjalëkalim i fortë</translation>
 <translation id="5090250355906949916">shiriti kohor i videos</translation>
 <translation id="509897012892853729">Kanali blu</translation>
 <translation id="5117590920725113268">Trego muajin e ardhshëm</translation>
@@ -89,6 +94,7 @@
 <translation id="5425179576310518467">data aktuale</translation>
 <translation id="5466621249238537318">Përzgjidh një ose më shumë skedarë.</translation>
 <translation id="5468998798572797635">dil nga ekrani i plotë</translation>
+<translation id="5514612371225420585">Skedar në pajisjen tënde</translation>
 <translation id="5516235301412634559">0,75</translation>
 <translation id="5537725057119320332">Transmeto</translation>
 <translation id="5546461542133609677">aktivizo zërin</translation>
@@ -113,6 +119,7 @@
 <translation id="6398862346408813489">Trego panelin e zgjedhjes mujore</translation>
 <translation id="6404546809543547843">shiriti kohor i audios</translation>
 <translation id="6443871981718447451">shfaq menynë e titrave</translation>
+<translation id="6484738902856791350">Formatimi elegant</translation>
 <translation id="6550675742724504774">Opsionet</translation>
 <translation id="6572309429103589720">Gramatikë e pavlefshme</translation>
 <translation id="658823671542763450">hyr në ekranin e plotë</translation>
@@ -176,6 +183,7 @@
 <translation id="9132465097189459683">Tjetër...</translation>
 <translation id="9155987714137265666"><ph name="WEEK" />, fillon në <ph name="WEEK_START_DATE" /></translation>
 <translation id="916607977885256133">Figura brenda figurës</translation>
+<translation id="918430632320614861">Lejo mikrofonin</translation>
 <translation id="945780513535800434">Pjesërisht e zgjedhur</translation>
 <translation id="954003015749068518">hyr në "figurë brenda figurës"</translation>
 </translationbundle>

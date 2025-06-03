@@ -191,8 +191,8 @@ bool FontFaceSetDocument::ResolveFontStyle(const String& font_string,
 
   FontFamily font_family;
   font_family.SetFamily(
-      FontFaceSet::kDefaultFontFamily,
-      FontFamily::InferredTypeFor(FontFaceSet::kDefaultFontFamily));
+      FontFaceSet::DefaultFontFamily(),
+      FontFamily::InferredTypeFor(FontFaceSet::DefaultFontFamily()));
 
   FontDescription default_font_description;
   default_font_description.SetFamily(font_family);
@@ -200,7 +200,7 @@ bool FontFaceSetDocument::ResolveFontStyle(const String& font_string,
   default_font_description.SetComputedSize(FontFaceSet::kDefaultFontSize);
 
   builder.SetFontDescription(default_font_description);
-  scoped_refptr<const ComputedStyle> style = builder.TakeStyle();
+  const ComputedStyle* style = builder.TakeStyle();
 
   font = GetDocument()->GetStyleEngine().ComputeFont(
       *GetDocument()->documentElement(), *style, *parsed_style);

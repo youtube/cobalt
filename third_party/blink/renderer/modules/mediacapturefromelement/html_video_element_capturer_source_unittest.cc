@@ -37,7 +37,7 @@ namespace {
 // An almost empty WebMediaPlayer to override paint() method.
 class MockWebMediaPlayer : public WebMediaPlayer {
  public:
-  MockWebMediaPlayer() {}
+  MockWebMediaPlayer() = default;
   ~MockWebMediaPlayer() override = default;
 
   LoadTiming Load(LoadType,
@@ -109,6 +109,7 @@ class MockWebMediaPlayer : public WebMediaPlayer {
 
   bool IsOpaque() const override { return is_video_opaque_; }
   bool HasAvailableVideoFrame() const override { return true; }
+  bool HasReadableVideoFrame() const override { return true; }
 
   base::WeakPtr<WebMediaPlayer> AsWeakPtr() override {
     return weak_factory_.GetWeakPtr();
@@ -137,7 +138,6 @@ class HTMLVideoElementCapturerSourceTest : public testing::TestWithParam<bool> {
                void(scoped_refptr<media::VideoFrame>, base::TimeTicks));
   void OnDeliverFrame(
       scoped_refptr<media::VideoFrame> video_frame,
-      std::vector<scoped_refptr<media::VideoFrame>> scaled_video_frames,
       base::TimeTicks estimated_capture_time) {
     DoOnDeliverFrame(std::move(video_frame), estimated_capture_time);
   }
@@ -173,7 +173,7 @@ TEST_F(HTMLVideoElementCapturerSourceTest, EmptyWebMediaPlayerFailsCapture) {
       media::VideoCaptureParams(),
       WTF::BindRepeating(&HTMLVideoElementCapturerSourceTest::OnDeliverFrame,
                          base::Unretained(this)),
-      base::DoNothing(),
+      base::DoNothing(), base::DoNothing(),
       WTF::BindRepeating(&HTMLVideoElementCapturerSourceTest::OnRunning,
                          base::Unretained(this)));
 }
@@ -210,7 +210,7 @@ TEST_P(HTMLVideoElementCapturerSourceTest, GetFormatsAndStartAndStop) {
       params,
       WTF::BindRepeating(&HTMLVideoElementCapturerSourceTest::OnDeliverFrame,
                          base::Unretained(this)),
-      base::DoNothing(),
+      base::DoNothing(), base::DoNothing(),
       WTF::BindRepeating(&HTMLVideoElementCapturerSourceTest::OnRunning,
                          base::Unretained(this)));
 
@@ -252,7 +252,7 @@ TEST_F(HTMLVideoElementCapturerSourceTest,
       params,
       WTF::BindRepeating(&HTMLVideoElementCapturerSourceTest::OnDeliverFrame,
                          base::Unretained(this)),
-      base::DoNothing(),
+      base::DoNothing(), base::DoNothing(),
       WTF::BindRepeating(&HTMLVideoElementCapturerSourceTest::OnRunning,
                          base::Unretained(this)));
   html_video_capturer_->StopCapture();
@@ -284,7 +284,7 @@ TEST_F(HTMLVideoElementCapturerSourceTest, AlphaAndNot) {
         params,
         WTF::BindRepeating(&HTMLVideoElementCapturerSourceTest::OnDeliverFrame,
                            base::Unretained(this)),
-        base::DoNothing(),
+        base::DoNothing(), base::DoNothing(),
         WTF::BindRepeating(&HTMLVideoElementCapturerSourceTest::OnRunning,
                            base::Unretained(this)));
     run_loop.Run();
@@ -346,7 +346,7 @@ TEST_F(HTMLVideoElementCapturerSourceTest, SizeChange) {
         params,
         WTF::BindRepeating(&HTMLVideoElementCapturerSourceTest::OnDeliverFrame,
                            base::Unretained(this)),
-        base::DoNothing(),
+        base::DoNothing(), base::DoNothing(),
         WTF::BindRepeating(&HTMLVideoElementCapturerSourceTest::OnRunning,
                            base::Unretained(this)));
     run_loop.Run();
@@ -389,7 +389,7 @@ TEST_F(HTMLVideoElementCapturerSourceTest, TaintedPlayerDoesNotDeliverFrames) {
       params,
       WTF::BindRepeating(&HTMLVideoElementCapturerSourceTest::OnDeliverFrame,
                          base::Unretained(this)),
-      base::DoNothing(),
+      base::DoNothing(), base::DoNothing(),
       WTF::BindRepeating(&HTMLVideoElementCapturerSourceTest::OnRunning,
                          base::Unretained(this)));
 

@@ -97,6 +97,10 @@ BLINK_EXPORT void DecommitFreeableMemory();
 BLINK_EXPORT void MemoryPressureNotificationToWorkerThreadIsolates(
     v8::MemoryPressureLevel);
 
+// Send isolate background/foreground notification to worker thread isolates.
+BLINK_EXPORT void IsolateInBackgroundNotification();
+BLINK_EXPORT void IsolateInForegroundNotification();
+
 // Logs stats. Intended to be called during shutdown.
 BLINK_EXPORT void LogStatsDuringShutdown();
 
@@ -122,6 +126,10 @@ BLINK_EXPORT void ForceNextDrawingBufferCreationToFailForTest();
 // agents, not both.
 // This is called at most once. This is called earlier than any frame commit.
 BLINK_EXPORT void SetIsCrossOriginIsolated(bool value);
+
+// Allows disabling web security. One example of this is that it enables APIs
+// that would otherwise require cross-origin-isolated contexts.
+BLINK_EXPORT void SetIsWebSecurityDisabled(bool value);
 
 // Set whether this renderer process is allowed to use Isolated Context APIs.
 // Similarly to the `SetIsCrossOriginIsolated()` method above, this flag is

@@ -7,36 +7,19 @@
 //    ../../third_party/xcbproto/src \
 //    gen/ui/gfx/x \
 //    bigreq \
-//    composite \
-//    damage \
-//    dpms \
-//    dri2 \
 //    dri3 \
-//    ge \
 //    glx \
-//    present \
 //    randr \
-//    record \
 //    render \
-//    res \
 //    screensaver \
 //    shape \
 //    shm \
 //    sync \
-//    xc_misc \
-//    xevie \
-//    xf86dri \
-//    xf86vidmode \
 //    xfixes \
-//    xinerama \
 //    xinput \
 //    xkb \
-//    xprint \
 //    xproto \
-//    xselinux \
-//    xtest \
-//    xv \
-//    xvmc
+//    xtest
 
 #include "shm.h"
 
@@ -94,7 +77,7 @@ void ReadEvent<Shm::CompletionEvent>(Shm::CompletionEvent* event_,
   // offset
   Read(&offset, &buf);
 
-  DCHECK_LE(buf.offset, 32ul);
+  DUMP_WILL_BE_CHECK_LE(buf.offset, 32ul);
 }
 
 std::string Shm::BadSegError::ToString() const {
@@ -140,8 +123,9 @@ void ReadError<Shm::BadSegError>(Shm::BadSegError* error_, ReadBuffer* buffer) {
   // pad0
   Pad(&buf, 1);
 
-  DCHECK_LE(buf.offset, 32ul);
+  DUMP_WILL_BE_CHECK_LE(buf.offset, 32ul);
 }
+
 Future<Shm::QueryVersionReply> Shm::QueryVersion(
     const Shm::QueryVersionRequest& request) {
   if (!connection_->Ready() || !present())
@@ -219,7 +203,7 @@ std::unique_ptr<Shm::QueryVersionReply> detail::ReadReply<
   Pad(&buf, 15);
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  DUMP_WILL_BE_CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -520,7 +504,7 @@ std::unique_ptr<Shm::GetImageReply> detail::ReadReply<Shm::GetImageReply>(
   Read(&size, &buf);
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  DUMP_WILL_BE_CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -715,7 +699,7 @@ std::unique_ptr<Shm::CreateSegmentReply> detail::ReadReply<
   Pad(&buf, 24);
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  DUMP_WILL_BE_CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }

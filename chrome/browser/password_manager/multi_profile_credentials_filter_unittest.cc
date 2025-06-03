@@ -34,14 +34,14 @@ namespace {
 
 // Dummy DiceWebSigninInterceptor::Delegate that does nothing.
 class TestDiceWebSigninInterceptorDelegate
-    : public DiceWebSigninInterceptor::Delegate {
+    : public WebSigninInterceptor::Delegate {
  public:
   bool IsSigninInterceptionSupported(
       const content::WebContents& web_contents) override {
     return true;
   }
 
-  std::unique_ptr<ScopedDiceWebSigninInterceptionBubbleHandle>
+  std::unique_ptr<ScopedWebSigninInterceptionBubbleHandle>
   ShowSigninInterceptionBubble(
       content::WebContents* web_contents,
       const BubbleParameters& bubble_parameters,
@@ -51,8 +51,8 @@ class TestDiceWebSigninInterceptorDelegate
   void ShowFirstRunExperienceInNewProfile(
       Browser* browser,
       const CoreAccountId& account_id,
-      DiceWebSigninInterceptor::SigninInterceptionType interception_type)
-      override {}
+      WebSigninInterceptor::SigninInterceptionType interception_type) override {
+  }
 };
 
 class TestPasswordManagerClient
@@ -142,6 +142,7 @@ class MultiProfileCredentialsFilterTest : public BrowserWithTestWindowTest {
   }
 
   void TearDown() override {
+    test_password_manager_client_.set_identity_manager(nullptr);
     dice_web_signin_interceptor_->Shutdown();
     identity_test_env_profile_adaptor_.reset();
     BrowserWithTestWindowTest::TearDown();

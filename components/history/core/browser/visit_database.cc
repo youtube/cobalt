@@ -149,6 +149,7 @@ bool VisitDatabase::InitVisitTable() {
             "visit_time INTEGER NOT NULL,"
             // Although NULLable, our code writes 0 to visits without referrers.
             "from_visit INTEGER,"
+            "external_referrer_url TEXT,"
             "transition INTEGER DEFAULT 0 NOT NULL,"
             "segment_id INTEGER,"
             // Some old DBs may have an "is_indexed" field here, but this is no
@@ -189,7 +190,12 @@ bool VisitDatabase::InitVisitTable() {
             // (most common case) doesn't guarantee it's relevant for Most
             // Visited, since other requirements exist (e.g. certain page
             // transition types).
-            "consider_for_ntp_most_visited BOOLEAN DEFAULT FALSE NOT NULL)")) {
+            "consider_for_ntp_most_visited BOOLEAN DEFAULT FALSE NOT NULL,"
+            // VisitedLinkID this visit corresponds to (if any). If this visit
+            // does not has a transition type of `LINK` or `MANUAL_SUBFRAME`, it
+            // will not be stored in the VisitedLinkDatabase and the code will
+            // write its `visited_link_id` as 0 (kInvalidVisitedLinkID).
+            "visited_link_id INTEGER DEFAULT 0 NOT NULL)")) {
       return false;
     }
   }
@@ -250,17 +256,19 @@ void VisitDatabase::FillVisitRow(sql::Statement& statement, VisitRow* visit) {
   visit->url_id = statement.ColumnInt64(1);
   visit->visit_time = statement.ColumnTime(2);
   visit->referring_visit = statement.ColumnInt64(3);
-  visit->transition = PageTransitionFromIntWithFallback(statement.ColumnInt(4));
-  visit->segment_id = statement.ColumnInt64(5);
-  visit->visit_duration = statement.ColumnTimeDelta(6);
-  visit->incremented_omnibox_typed_score = statement.ColumnBool(7);
-  visit->opener_visit = statement.ColumnInt64(8);
-  visit->originator_cache_guid = statement.ColumnString(9);
-  visit->originator_visit_id = statement.ColumnInt64(10);
-  visit->originator_referring_visit = statement.ColumnInt64(11);
-  visit->originator_opener_visit = statement.ColumnInt64(12);
-  visit->is_known_to_sync = statement.ColumnBool(13);
-  visit->consider_for_ntp_most_visited = statement.ColumnBool(14);
+  visit->external_referrer_url = GURL(statement.ColumnString(4));
+  visit->transition = PageTransitionFromIntWithFallback(statement.ColumnInt(5));
+  visit->segment_id = statement.ColumnInt64(6);
+  visit->visit_duration = statement.ColumnTimeDelta(7);
+  visit->incremented_omnibox_typed_score = statement.ColumnBool(8);
+  visit->opener_visit = statement.ColumnInt64(9);
+  visit->originator_cache_guid = statement.ColumnString(10);
+  visit->originator_visit_id = statement.ColumnInt64(11);
+  visit->originator_referring_visit = statement.ColumnInt64(12);
+  visit->originator_opener_visit = statement.ColumnInt64(13);
+  visit->is_known_to_sync = statement.ColumnBool(14);
+  visit->consider_for_ntp_most_visited = statement.ColumnBool(15);
+  visit->visited_link_id = statement.ColumnInt64(16);
 }
 
 // static
@@ -319,27 +327,30 @@ VisitID VisitDatabase::AddVisit(VisitRow* visit, VisitSource source) {
   sql::Statement statement(GetDB().GetCachedStatement(
       SQL_FROM_HERE,
       "INSERT INTO visits "
-      "(url, visit_time, from_visit, transition, segment_id, "
-      "visit_duration, incremented_omnibox_typed_score, opener_visit,"
-      "originator_cache_guid,originator_visit_id,originator_from_visit,"
-      "originator_opener_visit,is_known_to_sync,consider_for_ntp_most_visited) "
-      "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)"));
+      "(url, visit_time, from_visit, external_referrer_url, transition, "
+      "segment_id, visit_duration, incremented_omnibox_typed_score,"
+      "opener_visit, originator_cache_guid, originator_visit_id, "
+      "originator_from_visit, originator_opener_visit, is_known_to_sync, "
+      "consider_for_ntp_most_visited, visited_link_id) "
+      "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"));
   // Although some columns are NULLable, we never write NULL. We write 0 or ""
   // instead for simplicity. See the CREATE TABLE comments for details.
   statement.BindInt64(0, visit->url_id);
   statement.BindTime(1, visit->visit_time);
   statement.BindInt64(2, visit->referring_visit);
-  statement.BindInt64(3, visit->transition);
-  statement.BindInt64(4, visit->segment_id);
-  statement.BindTimeDelta(5, visit->visit_duration);
-  statement.BindBool(6, visit->incremented_omnibox_typed_score);
-  statement.BindInt64(7, visit->opener_visit);
-  statement.BindString(8, visit->originator_cache_guid);
-  statement.BindInt64(9, visit->originator_visit_id);
-  statement.BindInt64(10, visit->originator_referring_visit);
-  statement.BindInt64(11, visit->originator_opener_visit);
-  statement.BindBool(12, visit->is_known_to_sync);
-  statement.BindBool(13, visit->consider_for_ntp_most_visited);
+  statement.BindString(3, visit->external_referrer_url.spec());
+  statement.BindInt64(4, visit->transition);
+  statement.BindInt64(5, visit->segment_id);
+  statement.BindTimeDelta(6, visit->visit_duration);
+  statement.BindBool(7, visit->incremented_omnibox_typed_score);
+  statement.BindInt64(8, visit->opener_visit);
+  statement.BindString(9, visit->originator_cache_guid);
+  statement.BindInt64(10, visit->originator_visit_id);
+  statement.BindInt64(11, visit->originator_referring_visit);
+  statement.BindInt64(12, visit->originator_opener_visit);
+  statement.BindBool(13, visit->is_known_to_sync);
+  statement.BindBool(14, visit->consider_for_ntp_most_visited);
+  statement.BindInt64(15, visit->visited_link_id);
 
   if (!statement.Run()) {
     DVLOG(0) << "Failed to execute visit insert statement:  "
@@ -462,26 +473,28 @@ bool VisitDatabase::UpdateVisitRow(const VisitRow& visit) {
   sql::Statement statement(GetDB().GetCachedStatement(
       SQL_FROM_HERE,
       "UPDATE visits SET "
-      "url=?,visit_time=?,from_visit=?,transition=?,segment_id=?,"
-      "visit_duration=?,incremented_omnibox_typed_score=?,opener_visit=?,"
-      "originator_cache_guid=?,originator_visit_id=?,is_known_to_sync=?,"
-      "consider_for_ntp_most_visited=? "
+      "url=?,visit_time=?,from_visit=?,external_referrer_url=?,transition=?,"
+      "segment_id=?,visit_duration=?,incremented_omnibox_typed_score=?,"
+      "opener_visit=?,originator_cache_guid=?,originator_visit_id=?,"
+      "is_known_to_sync=?,consider_for_ntp_most_visited=?,visited_link_id=? "
       "WHERE id=?"));
   // Although some columns are NULLable, we never write NULL. We write 0 or ""
   // instead for simplicity. See the CREATE TABLE comments for details.
   statement.BindInt64(0, visit.url_id);
   statement.BindTime(1, visit.visit_time);
   statement.BindInt64(2, visit.referring_visit);
-  statement.BindInt64(3, visit.transition);
-  statement.BindInt64(4, visit.segment_id);
-  statement.BindTimeDelta(5, visit.visit_duration);
-  statement.BindBool(6, visit.incremented_omnibox_typed_score);
-  statement.BindInt64(7, visit.opener_visit);
-  statement.BindString(8, visit.originator_cache_guid);
-  statement.BindInt64(9, visit.originator_visit_id);
-  statement.BindInt64(10, visit.is_known_to_sync);
-  statement.BindInt64(11, visit.consider_for_ntp_most_visited);
-  statement.BindInt64(12, visit.visit_id);
+  statement.BindString(3, visit.external_referrer_url.spec());
+  statement.BindInt64(4, visit.transition);
+  statement.BindInt64(5, visit.segment_id);
+  statement.BindTimeDelta(6, visit.visit_duration);
+  statement.BindBool(7, visit.incremented_omnibox_typed_score);
+  statement.BindInt64(8, visit.opener_visit);
+  statement.BindString(9, visit.originator_cache_guid);
+  statement.BindInt64(10, visit.originator_visit_id);
+  statement.BindInt64(11, visit.is_known_to_sync);
+  statement.BindInt64(12, visit.consider_for_ntp_most_visited);
+  statement.BindInt64(13, visit.visited_link_id);
+  statement.BindInt64(14, visit.visit_id);
 
   return statement.Run();
 }
@@ -1375,6 +1388,36 @@ bool VisitDatabase::MigrateVisitsAddConsiderForNewTabPageMostVisitedColumn() {
     }
   }
 
+  return true;
+}
+
+bool VisitDatabase::MigrateVisitsAddExternalReferrerUrlColumn() {
+  if (!GetDB().DoesTableExist("visits")) {
+    NOTREACHED() << " Visits table should exist before migration";
+    return false;
+  }
+
+  if (!GetDB().DoesColumnExist("visits", "external_referrer_url")) {
+    if (!GetDB().Execute("ALTER TABLE visits "
+                         "ADD COLUMN external_referrer_url TEXT")) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+bool VisitDatabase::MigrateVisitsAddVisitedLinkIdColumn() {
+  if (!GetDB().DoesTableExist("visits")) {
+    NOTREACHED() << " Visits table should exist before migration";
+    return false;
+  }
+  if (!GetDB().DoesColumnExist("visits", "visited_link_id")) {
+    if (!GetDB().Execute(
+            "ALTER TABLE visits ADD COLUMN visited_link_id INTEGER")) {
+      return false;
+    }
+  }
   return true;
 }
 

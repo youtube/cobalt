@@ -20,8 +20,11 @@
 #include "ash/system/tray/tray_container.h"
 #include "ash/system/tray/tray_popup_utils.h"
 #include "ash/system/tray/tray_utils.h"
+#include "chromeos/constants/chromeos_features.h"
 #include "components/prefs/pref_service.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/models/image_model.h"
+#include "ui/chromeos/styles/cros_tokens_color_mappings.h"
 #include "ui/compositor/layer.h"
 #include "ui/events/event.h"
 #include "ui/gfx/paint_vector_icon.h"
@@ -59,16 +62,15 @@ constexpr SkColor kPenColors[] = {
 // TODO(b/201664243): Use AnnotatorToolType.
 enum ProjectorTool { kToolNone, kToolPen };
 
-ProjectorTool GetCurrentTool() {
+bool IsAnnotatorEnabled() {
   auto* controller = Shell::Get()->projector_controller();
   // `controller` may not be available yet as the `ProjectorAnnotationTray`
   // is created before it.
-  if (!controller)
-    return kToolNone;
+  return controller ? controller->IsAnnotatorEnabled() : false;
+}
 
-  if (controller->IsAnnotatorEnabled())
-    return kToolPen;
-  return kToolNone;
+ProjectorTool GetCurrentTool() {
+  return IsAnnotatorEnabled() ? kToolPen : kToolNone;
 }
 
 const gfx::VectorIcon& GetIconForTool(ProjectorTool tool, SkColor color) {
@@ -100,20 +102,9 @@ ProjectorAnnotationTray::ProjectorAnnotationTray(Shelf* shelf)
       image_view_(
           tray_container()->AddChildView(std::make_unique<views::ImageView>())),
       pen_view_(nullptr) {
-  SetPressedCallback(base::BindRepeating(
-      [](ProjectorAnnotationTray* projector_annotation_tray,
-         const ui::Event& event) {
-        // NOTE: Long press not supported via the `views::Button` callback, it
-        // is handled via OnGestureEvent override.
-        if (event.IsMouseEvent() &&
-            event.AsMouseEvent()->IsRightMouseButton()) {
-          projector_annotation_tray->ShowBubble();
-          return;
-        }
+  SetCallback(base::BindRepeating(&ProjectorAnnotationTray::OnTrayButtonPressed,
+                                  base::Unretained(this)));
 
-        projector_annotation_tray->ToggleAnnotator();
-      },
-      base::Unretained(this)));
   // Right click should show the bubble. In tablet mode, long press is
   // synonymous with right click, gesture long press must be intercepted via
   // `OnGestureEvent()` override, as `views::Button` forces long press to show a
@@ -150,6 +141,10 @@ void ProjectorAnnotationTray::ClickedOutsideBubble() {
   CloseBubble();
 }
 
+void ProjectorAnnotationTray::UpdateTrayItemColor(bool is_active) {
+  SetIconImage(is_active);
+}
+
 std::u16string ProjectorAnnotationTray::GetAccessibleNameForTray() {
   std::u16string enabled_state = l10n_util::GetStringUTF16(
       GetCurrentTool() == kToolNone
@@ -171,7 +166,9 @@ void ProjectorAnnotationTray::HideBubbleWithView(
 void ProjectorAnnotationTray::CloseBubble() {
   pen_view_ = nullptr;
   bubble_.reset();
-
+  // Annotator can be enabled after closing the bubble so set the activity state
+  // according to it.
+  SetIsActive(IsAnnotatorEnabled());
   shelf()->UpdateAutoHideState();
 }
 
@@ -181,23 +178,11 @@ void ProjectorAnnotationTray::ShowBubble() {
 
   DCHECK(tray_container());
 
-  TrayBubbleView::InitParams init_params;
-  init_params.delegate = GetWeakPtr();
-  init_params.parent_window = GetBubbleWindowContainer();
-  init_params.anchor_view = nullptr;
-  init_params.anchor_mode = TrayBubbleView::AnchorMode::kRect;
-  init_params.anchor_rect = GetBubbleAnchor()->GetAnchorBoundsInScreen();
-  init_params.anchor_rect.Inset(GetBubbleAnchorInsets());
-  init_params.shelf_alignment = shelf()->alignment();
+  TrayBubbleView::InitParams init_params = CreateInitParamsForTrayBubble(this);
   init_params.preferred_width = kBubbleWidth;
-  init_params.close_on_deactivate = true;
-  init_params.translucent = true;
-  init_params.corner_radius = kTrayItemCornerRadius;
-  init_params.reroute_event_handler = true;
 
   // Create and customize bubble view.
   auto bubble_view = std::make_unique<TrayBubbleView>(init_params);
-  bubble_view->set_margins(GetSecondaryBubbleInsets());
   bubble_view->SetBorder(views::CreateEmptyBorder(
       gfx::Insets::TLBR(0, 0, kPaddingBetweenBottomAndLastTrayItem, 0)));
 
@@ -244,6 +229,10 @@ void ProjectorAnnotationTray::OnThemeChanged() {
   UpdateIcon();
 }
 
+void ProjectorAnnotationTray::HideBubble(const TrayBubbleView* bubble_view) {
+  CloseBubble();
+}
+
 void ProjectorAnnotationTray::OnActiveUserPrefServiceChanged(
     PrefService* pref_service) {
   const uint64_t color =
@@ -259,6 +248,17 @@ void ProjectorAnnotationTray::HideAnnotationTray() {
   pref_service->SetUint64(prefs::kProjectorAnnotatorLastUsedMarkerColor,
                           current_pen_color_);
   ResetTray();
+}
+
+void ProjectorAnnotationTray::OnTrayButtonPressed(const ui::Event& event) {
+  // NOTE: Long press not supported via the `views::Button` callback, it
+  // is handled via OnGestureEvent override.
+  if (event.IsMouseEvent() && event.AsMouseEvent()->IsRightMouseButton()) {
+    ShowBubble();
+    return;
+  }
+
+  ToggleAnnotator();
 }
 
 void ProjectorAnnotationTray::SetTrayEnabled(bool enabled) {
@@ -305,13 +305,23 @@ void ProjectorAnnotationTray::DeactivateActiveTool() {
 }
 
 void ProjectorAnnotationTray::UpdateIcon() {
-  const ProjectorTool tool = GetCurrentTool();
-  image_view_->SetImage(gfx::CreateVectorIcon(
-      GetIconForTool(tool, current_pen_color_),
-      AshColorProvider::Get()->GetContentLayerColor(
-          AshColorProvider::ContentLayerType::kIconColorPrimary)));
+  bool annotator_toggled = false;
+  if (is_active() != IsAnnotatorEnabled()) {
+    SetIsActive(IsAnnotatorEnabled());
+    annotator_toggled = true;
+  }
+  // Only sets the image if Jelly is not enabled or if the annotator was not
+  // toggled, since `UpdateTrayItemColor()` will be called in `SetIsActive()` to
+  // set the image for Jelly only when active state changes.
+  if (!chromeos::features::IsJellyEnabled()) {
+    image_view_->SetImage(gfx::CreateVectorIcon(
+        GetIconForTool(GetCurrentTool(), current_pen_color_),
+        AshColorProvider::Get()->GetContentLayerColor(
+            AshColorProvider::ContentLayerType::kIconColorPrimary)));
+  } else if (!annotator_toggled) {
+    SetIconImage(is_active());
+  }
   image_view_->SetTooltipText(GetTooltip());
-  SetIsActive(tool != kToolNone);
 }
 
 void ProjectorAnnotationTray::OnPenColorPressed(SkColor color) {
@@ -348,6 +358,14 @@ std::u16string ProjectorAnnotationTray::GetTooltip() {
           : IDS_ASH_STATUS_AREA_PROJECTOR_ANNOTATION_TRAY_ON_STATE);
   return l10n_util::GetStringFUTF16(
       IDS_ASH_STATUS_AREA_PROJECTOR_ANNOTATION_TRAY_TOOLTIP, enabled_state);
+}
+
+void ProjectorAnnotationTray::SetIconImage(bool is_active) {
+  DCHECK(chromeos::features::IsJellyEnabled());
+  image_view_->SetImage(ui::ImageModel::FromVectorIcon(
+      GetIconForTool(GetCurrentTool(), current_pen_color_),
+      is_active ? cros_tokens::kCrosSysSystemOnPrimaryContainer
+                : cros_tokens::kCrosSysOnSurface));
 }
 
 }  // namespace ash

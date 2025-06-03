@@ -19,10 +19,11 @@ import android.os.Build;
 
 import androidx.annotation.RequiresApi;
 
+import org.jni_zero.CalledByNative;
+
 import org.chromium.base.ApiCompatibilityUtils;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.Log;
-import org.chromium.base.annotations.CalledByNative;
 import org.chromium.components.browser_ui.widget.RoundedIconGenerator;
 import org.chromium.ui.base.ViewUtils;
 import org.chromium.url.GURL;
@@ -95,7 +96,6 @@ public class WebappsIconUtils {
      * @param maskable Whether the icon is suitable for creating an adaptive icon.
      * @return Bitmap Either the touch-icon or the newly created favicon.
      */
-    @CalledByNative
     public static Bitmap createHomeScreenIconFromWebIcon(Bitmap webIcon, boolean maskable) {
         // getLauncherLargeIconSize() is just a guess at the launcher icon size, and is often
         // wrong -- the launcher can show icons at any size it pleases. Instead of resizing the

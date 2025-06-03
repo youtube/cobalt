@@ -8,6 +8,7 @@
 #include "base/feature_list.h"
 #include "build/build_config.h"
 #include "components/reading_list/features/reading_list_buildflags.h"
+#include "components/sync/base/features.h"
 
 namespace reading_list {
 namespace switches {
@@ -16,25 +17,11 @@ BASE_FEATURE(kReadLaterBackendMigration,
              "ReadLaterBackendMigration",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-#if BUILDFLAG(IS_ANDROID)
-// Feature flag used for enabling read later reminder notification.
-BASE_FEATURE(kReadLaterReminderNotification,
-             "ReadLaterReminderNotification",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-#endif
-
-BASE_FEATURE(kReadingListEnableDualReadingListModel,
-             "ReadingListEnableDualReadingListModel",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kReadingListEnableSyncTransportModeUponSignIn,
-             "ReadingListEnableSyncTransportModeUponSignIn",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 bool IsReadingListAccountStorageUIEnabled() {
-  return base::FeatureList::IsEnabled(kReadingListEnableDualReadingListModel) &&
+  return base::FeatureList::IsEnabled(
+             syncer::kReadingListEnableDualReadingListModel) &&
          base::FeatureList::IsEnabled(
-             kReadingListEnableSyncTransportModeUponSignIn);
+             syncer::kReadingListEnableSyncTransportModeUponSignIn);
 }
 
 }  // namespace switches

@@ -12,21 +12,21 @@
 #include "base/feature_list.h"
 #include "base/functional/callback_forward.h"
 #include "base/functional/callback_helpers.h"
+#include "build/branding_buildflags.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
-#include "chrome/browser/apps/intent_helper/apps_navigation_types.h"
+#include "chrome/browser/apps/link_capturing/intent_picker_info.h"
 #include "chrome/browser/lifetime/browser_close_manager.h"
 #include "chrome/browser/share/share_attempt.h"
 #include "chrome/browser/signin/chrome_signin_helper.h"
 #include "chrome/browser/translate/chrome_translate_client.h"
 #include "chrome/browser/ui/bookmarks/bookmark_bar.h"
 #include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_dialogs.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_bubble_type.h"
 #include "chrome/browser/ui/hats/hats_service.h"
 #include "chrome/browser/ui/page_action/page_action_icon_type.h"
 #include "chrome/browser/ui/side_panel/side_panel_entry_id.h"
-#include "chrome/browser/ui/side_panel/side_panel_open_trigger.h"
+#include "chrome/browser/ui/side_panel/side_panel_enums.h"
 #include "chrome/browser/ui/translate/partial_translate_bubble_model.h"
 #include "chrome/common/buildflags.h"
 #include "components/content_settings/core/common/content_settings_types.h"
@@ -45,16 +45,16 @@
 #endif
 
 class Browser;
-class SharingDialog;
-struct SharingDialogData;
+class DownloadBubbleUIController;
 class DownloadShelf;
 class ExclusiveAccessContext;
 class ExtensionsContainer;
 class FindBar;
 class GURL;
 class LocationBar;
+class SharingDialog;
 class StatusBubble;
-class DownloadBubbleUIController;
+struct SharingDialogData;
 
 namespace autofill {
 class AutofillBubbleHandler;
@@ -74,10 +74,6 @@ namespace qrcode_generator {
 class QRCodeGeneratorBubbleView;
 }  // namespace qrcode_generator
 
-namespace signin_metrics {
-enum class AccessPoint;
-}
-
 namespace send_tab_to_self {
 class SendTabToSelfBubbleView;
 }  // namespace send_tab_to_self
@@ -86,6 +82,10 @@ namespace sharing_hub {
 class ScreenshotCapturedBubble;
 class SharingHubBubbleView;
 }  // namespace sharing_hub
+
+namespace signin_metrics {
+enum class AccessPoint;
+}
 
 namespace ui {
 class ColorProvider;
@@ -267,11 +267,6 @@ class BrowserWindow : public ui::BaseWindow {
   virtual void OnTabDetached(content::WebContents* contents,
                              bool was_active) = 0;
 
-  // Called when the user restores a tab. |command_id| may be IDC_RESTORE_TAB or
-  // the menu command, depending on whether the tab was restored via keyboard or
-  // main menu.
-  virtual void OnTabRestored(int command_id) = 0;
-
   // Called to force the zoom state to for the active tab to be recalculated.
   // |can_show_bubble| is true when a user presses the zoom up or down keyboard
   // shortcuts and will be false in other cases (e.g. switching tabs, "clicking"
@@ -415,6 +410,14 @@ class BrowserWindow : public ui::BaseWindow {
   // Shows the Bookmark bubble. |url| is the URL being bookmarked,
   // |already_bookmarked| is true if the url is already bookmarked.
   virtual void ShowBookmarkBubble(const GURL& url, bool already_bookmarked) = 0;
+
+#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
+  // Checks if the user is eligible for the iOS Password Promo Bubble. If they
+  // are, make a final eligibility check with a call to the segmentation
+  // platform with `MaybeShowIOSPasswordPromoBubble` passed as callback. That
+  // method may create/show a bubble to the user.
+  virtual void VerifyUserEligibilityIOSPasswordPromoBubble() = 0;
+#endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
 
   // Shows the Screenshot bubble.
   virtual sharing_hub::ScreenshotCapturedBubble* ShowScreenshotCapturedBubble(
@@ -583,17 +586,25 @@ class BrowserWindow : public ui::BaseWindow {
   // background.
   virtual bool IsFeaturePromoActive(const base::Feature& iph_feature) const = 0;
 
+  // Returns whether `MaybeShowFeaturePromo()` would succeed if called now.
+  //
+  // USAGE NOTE: Only call this method if figuring out whether to try to show an
+  // IPH would involve significant expense. This method may itself have
+  // non-trivial cost.
+  virtual user_education::FeaturePromoResult CanShowFeaturePromo(
+      const base::Feature& iph_feature) const = 0;
+
   // Maybe shows an in-product help promo. Returns true if the promo is shown.
   // In cases where there is no promo controller, immediately returns false.
   //
   // If this feature promo is likely to be shown at browser startup, prefer
-  // calling MaybeShowStartupFeaturePromo() instead.
-  virtual bool MaybeShowFeaturePromo(
-      const base::Feature& iph_feature,
-      user_education::FeaturePromoSpecification::StringReplacements
-          body_text_replacements = {},
-      user_education::FeaturePromoController::BubbleCloseCallback
-          close_callback = base::DoNothing()) = 0;
+  // calling `MaybeShowStartupFeaturePromo()` instead.
+  //
+  // If determining whether to call this method would involve significant
+  // expense, you *may* first call `CanShowFeaturePromo()` before doing the
+  // required computation; otherwise just call this method.
+  virtual user_education::FeaturePromoResult MaybeShowFeaturePromo(
+      user_education::FeaturePromoParams params) = 0;
 
   // Maybe shows an in-product help promo at startup, whenever the Feature
   // Engagement system is fully initialized. If the promo cannot be queued for
@@ -610,18 +621,15 @@ class BrowserWindow : public ui::BaseWindow {
   // If your promo is not likely to be shown at browser startup, prefer using
   // MaybeShowFeaturePromo() - which always runs synchronously - instead.
   virtual bool MaybeShowStartupFeaturePromo(
-      const base::Feature& iph_feature,
-      user_education::FeaturePromoSpecification::StringReplacements
-          body_text_replacements = {},
-      user_education::FeaturePromoController::StartupPromoCallback
-          promo_callback = base::DoNothing(),
-      user_education::FeaturePromoController::BubbleCloseCallback
-          close_callback = base::DoNothing()) = 0;
+      user_education::FeaturePromoParams params) = 0;
 
   // Closes the in-product help promo for `iph_feature` if it is showing or
   // cancels a pending startup promo; returns true if a promo bubble was
   // actually closed.
-  virtual bool CloseFeaturePromo(const base::Feature& iph_feature) = 0;
+  virtual bool CloseFeaturePromo(
+      const base::Feature& iph_feature,
+      user_education::FeaturePromoCloseReason close_reason =
+          user_education::FeaturePromoCloseReason::kFeatureEngaged) = 0;
 
   // Closes the bubble for a feature promo but continues the promo; returns a
   // handle that can be used to end the promo when it is destructed. The handle
@@ -633,7 +641,16 @@ class BrowserWindow : public ui::BaseWindow {
   // Records that the user has engaged with a particular feature that has an
   // associated promo; this information is used to determine whether to show
   // specific promos in the future.
+  //
+  // If `event_name` corresponds to the "used" event for an IPH, prefer using
+  // `NotifyFeaturePromoFeatureUsed()` for clarity instead.
   virtual void NotifyFeatureEngagementEvent(const char* event_name) = 0;
+
+  // Records that the user has engaged the specific feature associated with
+  // the promo `iph_feature`; this information is used to determine whether to
+  // show the promo in the future. Prefer this to
+  // `NotifyFeatureEngagementEvent()` where possible.
+  virtual void NotifyPromoFeatureUsed(const base::Feature& iph_feature) = 0;
 
   // Shows an Incognito clear browsing data dialog.
   virtual void ShowIncognitoClearBrowsingDataDialog() = 0;
@@ -645,11 +662,14 @@ class BrowserWindow : public ui::BaseWindow {
   // of a full titlebar. This is only supported for desktop web apps.
   virtual bool IsBorderlessModeEnabled() const = 0;
 
-  // Shows the side panel. If `entry_id` is not provided, shows the last active
-  // entry.
-  virtual void ShowSidePanel(
-      absl::optional<SidePanelEntryId> entry_id = absl::nullopt,
-      absl::optional<SidePanelOpenTrigger> open_trigger = absl::nullopt) = 0;
+  // Sends the resizable boolean set via `window.setResizable(bool)` API to
+  // `BrowserView`. Passing std::nullopt will reset the resizable state to the
+  // default.
+  virtual void SetCanResizeFromWebAPI(absl::optional<bool> can_resize) = 0;
+  virtual bool GetCanResize() = 0;
+
+  // Shows the Chrome Labs bubble if enabled.
+  virtual void ShowChromeLabs() = 0;
 
  protected:
   friend class BrowserCloseManager;

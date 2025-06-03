@@ -20,8 +20,11 @@ if (enable_av1_decoder && (use_v4l2_codec || use_vaapi)) {
       ":test_helpers",
       ":video_player",
       ":video_player_test_environment",
+      "//base/test:test_support",
       "//media:test_support",
       "//media/gpu:buildflags",
+      "//media/gpu/chromeos:common",
+      "//testing/gmock",
       "//testing/gtest",
     ]
   }
@@ -85,8 +88,10 @@ source_set("helpers") {
     "image.h",
     "image_quality_metrics.cc",
     "image_quality_metrics.h",
-    "video.cc",
-    "video.h",
+    "raw_video.cc",
+    "raw_video.h",
+    "video_bitstream.cc",
+    "video_bitstream.h",
     "video_frame_helpers.cc",
     "video_frame_helpers.h",
   ]
@@ -101,6 +106,10 @@ source_set("helpers") {
     "//third_party/libyuv",
   ]
   public_deps = [ "//testing/gtest" ]
+
+  if (use_v4l2_codec || use_vaapi) {
+    deps += [ "//media/gpu/chromeos:common" ]
+  }
 }
 
 source_set("frame_validator") {
@@ -115,6 +124,10 @@ source_set("frame_validator") {
     "//build:chromeos_buildflags",
     "//media/gpu",
   ]
+
+  if (use_v4l2_codec || use_vaapi) {
+    deps += [ "//media/gpu/chromeos:common" ]
+  }
 }
 
 source_set("frame_file_writer") {
@@ -129,6 +142,10 @@ source_set("frame_file_writer") {
     "//media/gpu",
     "//ui/gfx/codec:codec",
   ]
+
+  if (use_v4l2_codec || use_vaapi) {
+    deps += [ "//media/gpu/chromeos:common" ]
+  }
 }
 
 source_set("test_helpers") {
@@ -194,6 +211,10 @@ static_library("video_test_environment") {
   ]
   if (use_ozone) {
     public_deps += [ "//ui/ozone" ]
+  }
+
+  if (is_chromeos) {
+    deps += [ "//ui/gfx/linux:gbm" ]
   }
 }
 

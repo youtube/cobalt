@@ -6,24 +6,12 @@
 
 #import "components/password_manager/core/common/password_manager_features.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 BASE_FEATURE(kNewOverflowMenu,
              "NewOverflowMenu",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kSmartSortingPriceTrackingDestination,
-             "kSmartSortingPriceTrackingDestination",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kNewOverflowMenuShareChromeAction,
-             "kNewOverflowMenuShareChromeAction",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kNewOverflowMenuAlternateIPH,
-             "NewOverflowMenuAlternateIPH",
+BASE_FEATURE(kOverflowMenuCustomization,
+             "OverflowMenuCustomization",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsNewOverflowMenuEnabled() {
@@ -35,16 +23,7 @@ bool IsNewOverflowMenuEnabled() {
   return false;
 }
 
-bool IsSmartSortingPriceTrackingDestinationEnabled() {
-  return base::FeatureList::IsEnabled(kSmartSortingPriceTrackingDestination);
-}
-
-bool IsNewOverflowMenuShareChromeActionEnabled() {
+bool IsOverflowMenuCustomizationEnabled() {
   return IsNewOverflowMenuEnabled() &&
-         base::FeatureList::IsEnabled(kNewOverflowMenuShareChromeAction);
-}
-
-bool IsNewOverflowMenuAlternateIPHEnabled() {
-  return IsNewOverflowMenuEnabled() &&
-         base::FeatureList::IsEnabled(kNewOverflowMenuAlternateIPH);
+         base::FeatureList::IsEnabled(kOverflowMenuCustomization);
 }

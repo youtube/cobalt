@@ -106,8 +106,9 @@ public class Features {
             "SAFE_BROWSING_RESPONSE_SHOW_INTERSTITIAL";
 
     /**
-     * Feature was renamed to WEB_MESSAGE_ARRAY_BUFFER.
+     * @deprecated Feature was renamed to WEB_MESSAGE_ARRAY_BUFFER. Do not reuse feature name.
      */
+    @Deprecated()
     public static final String WEB_MESSAGE_GET_MESSAGE_PAYLOAD = "WEB_MESSAGE_GET_MESSAGE_PAYLOAD";
 
     // JsReplyProxy.postMessageWithPayload
@@ -196,9 +197,6 @@ public class Features {
     // WebViewCompat.removeWebMessageListener
     public static final String WEB_MESSAGE_LISTENER = "WEB_MESSAGE_LISTENER";
 
-    // WebViewProviderFactoryAdapter.setSupportLibraryVersion
-    public static final String SET_SUPPORT_LIBRARY_VERSION = "SET_SUPPORT_LIBRARY_VERSION";
-
     // WebViewCompat.addDocumentStartJavascript
     public static final String DOCUMENT_START_SCRIPT = "DOCUMENT_START_SCRIPT:1";
 
@@ -245,6 +243,27 @@ public class Features {
     // DropDataContentProvider.call
     public static final String IMAGE_DRAG_DROP = "IMAGE_DRAG_DROP";
 
+    // ProfileStore.getInstance
+    // ProfileStore.getOrCreateProfile
+    // ProfileStore.getProfile
+    // ProfileStore.getAllProfileNames
+    // ProfileStore.deleteProfile
+    // Profile.getName
+    // Profile.getCookieManager
+    // Profile.getWebStorage
+    // Profile.getGeolocationPermissions
+    // Profile.getServiceWorkerController
+    public static final String MULTI_PROFILE = "MULTI_PROFILE";
+
     // WebSettingsCompat.enableRestrictSensitiveWebContent
+    @Deprecated()
     public static final String RESTRICT_SENSITIVE_WEB_CONTENT = "RESTRICT_SENSITIVE_WEB_CONTENT";
+
+    // WebSettingsCompat.setUserAgentMetadataFromMap
+    // WebSettingsCompat.getUserAgentMetadataMap
+    public static final String USER_AGENT_METADATA = "USER_AGENT_METADATA";
+
+    // WebSettingsCompat.setAttributionBehavior
+    // WebSettingsCompat.getAttributionBehavior
+    public static final String ATTRIBUTION_BEHAVIOR = "ATTRIBUTION_BEHAVIOR";
 }

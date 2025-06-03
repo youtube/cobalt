@@ -4,11 +4,14 @@
 
 package org.chromium.net.smoke;
 
+import static com.google.common.truth.Truth.assertThat;
+
+import static org.chromium.net.truth.UrlResponseInfoSubject.assertThat;
+
 import android.content.Context;
 
 import androidx.test.core.app.ApplicationProvider;
 
-import org.junit.Assert;
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
@@ -77,28 +80,28 @@ public class CronetSmokeTestRule implements TestRule {
             throw new RuntimeException(
                     "The request failed with an error", callback.getFailureError());
         }
-        Assert.assertEquals(SmokeTestRequestCallback.State.Succeeded, callback.getFinalState());
+        assertThat(callback.getFinalState()).isEqualTo(SmokeTestRequestCallback.State.Succeeded);
 
         // Check the response info
         UrlResponseInfo responseInfo = callback.getResponseInfo();
-        Assert.assertNotNull(responseInfo);
-        Assert.assertFalse(responseInfo.wasCached());
-        Assert.assertEquals(url, responseInfo.getUrl());
-        Assert.assertEquals(
-                url, responseInfo.getUrlChain().get(responseInfo.getUrlChain().size() - 1));
-        Assert.assertEquals(200, responseInfo.getHttpStatusCode());
-        Assert.assertTrue(responseInfo.toString().length() > 0);
+        assertThat(responseInfo).isNotNull();
+        assertThat(responseInfo).wasNotCached();
+        assertThat(responseInfo).hasUrlThat().isEqualTo(url);
+        assertThat(responseInfo.getUrlChain().get(responseInfo.getUrlChain().size() - 1))
+                .isEqualTo(url);
+        assertThat(responseInfo).hasHttpStatusCodeThat().isEqualTo(200);
+        assertThat(responseInfo.toString()).isNotEmpty();
     }
 
     static void assertJavaEngine(CronetEngine engine) {
-        Assert.assertNotNull(engine);
-        Assert.assertEquals("org.chromium.net.impl.JavaCronetEngine", engine.getClass().getName());
+        assertThat(engine).isNotNull();
+        assertThat(engine.getClass().getName()).isEqualTo("org.chromium.net.impl.JavaCronetEngine");
     }
 
     static void assertNativeEngine(CronetEngine engine) {
-        Assert.assertNotNull(engine);
-        Assert.assertEquals(
-                "org.chromium.net.impl.CronetUrlRequestContext", engine.getClass().getName());
+        assertThat(engine).isNotNull();
+        assertThat(engine.getClass().getName())
+                .isEqualTo("org.chromium.net.impl.CronetUrlRequestContext");
     }
 
     /**

@@ -12,7 +12,7 @@ import {loadTimeData} from '//resources/js/load_time_data.js';
 import {MetricsReporterImpl} from '//resources/js/metrics_reporter/metrics_reporter.js';
 import {PolymerElement} from '//resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
-import {AutocompleteMatch, AutocompleteResult, PageHandlerInterface, SideType} from './omnibox.mojom-webui.js';
+import {AutocompleteMatch, AutocompleteResult, OmniboxPopupSelection, PageHandlerInterface, SelectionLineState, SideType} from './omnibox.mojom-webui.js';
 import {RealboxBrowserProxy} from './realbox_browser_proxy.js';
 import {getTemplate} from './realbox_dropdown.html.js';
 import {RealboxMatchElement} from './realbox_match.js';
@@ -23,6 +23,12 @@ const remainder = (lhs: number, rhs: number) => ((lhs % rhs) + rhs) % rhs;
 
 const CHAR_TYPED_TO_PAINT = 'Realbox.CharTypedToRepaintLatency.ToPaint';
 const RESULT_CHANGED_TO_PAINT = 'Realbox.ResultChangedToRepaintLatency.ToPaint';
+
+export interface RealboxDropdownElement {
+  $: {
+    content: HTMLElement,
+  };
+}
 
 // A dropdown element that contains autocomplete matches. Provides an API for
 // the embedder (i.e., <ntp-realbox>) to change the selection.
@@ -72,13 +78,6 @@ export class RealboxDropdownElement extends PolymerElement {
         type: Object,
       },
 
-      /** Whether the dropdown should have rounded corners. */
-      roundCorners: {
-        type: Boolean,
-        value: () => loadTimeData.getBoolean('roundCorners'),
-        reflectToAttribute: true,
-      },
-
       /** Index of the selected match. */
       selectedMatchIndex: {
         type: Number,
@@ -121,17 +120,34 @@ export class RealboxDropdownElement extends PolymerElement {
   hadSecondarySide: boolean;
   hasSecondarySide: boolean;
   result: AutocompleteResult;
-  roundCorners: boolean;
   selectedMatchIndex: number;
   private hiddenGroupIds_: number[];
   private selectableMatchElements_: RealboxMatchElement[];
   private showSecondarySide_: boolean;
-
+  private resizeObserver_: ResizeObserver|null = null;
   private pageHandler_: PageHandlerInterface;
 
   constructor() {
     super();
     this.pageHandler_ = RealboxBrowserProxy.getInstance().handler;
+  }
+
+  override connectedCallback() {
+    super.connectedCallback();
+    this.resizeObserver_ = new ResizeObserver(
+        (entries: ResizeObserverEntry[]) =>
+            this.pageHandler_.popupElementSizeChanged({
+              width: entries[0].contentRect.width,
+              height: entries[0].contentRect.height,
+            }));
+    this.resizeObserver_.observe(this.$.content);
+  }
+
+  override disconnectedCallback() {
+    if (this.resizeObserver_) {
+      this.resizeObserver_.disconnect();
+    }
+    super.disconnectedCallback();
   }
 
   //============================================================================
@@ -163,6 +179,18 @@ export class RealboxDropdownElement extends PolymerElement {
   /** Selects the match at the given index. */
   selectIndex(index: number) {
     this.selectedMatchIndex = index;
+  }
+
+  updateSelection(selection: OmniboxPopupSelection) {
+    if (selection.state === SelectionLineState.kFocusedButtonHeader) {
+      // TODO: Focus group header.
+      this.unselect();
+      return;
+    }
+
+    this.selectIndex(selection.line);
+    this.selectableMatchElements[this.selectedMatchIndex]?.updateSelection(
+        selection);
   }
 
   /**
@@ -219,6 +247,10 @@ export class RealboxDropdownElement extends PolymerElement {
     }));
   }
 
+  private onHeaderMousedown_(e: Event) {
+    e.preventDefault();  // Prevents default browser action (focus).
+  }
+
   private onResultRepaint_() {
     const metricsReporter = MetricsReporterImpl.getInstance();
     metricsReporter.measure('CharTyped')
@@ -242,10 +274,6 @@ export class RealboxDropdownElement extends PolymerElement {
     // Update the list of selectable match elements.
     this.selectableMatchElements_ =
         [...this.shadowRoot!.querySelectorAll('cr-realbox-match')];
-  }
-
-  private onToggleButtonMouseDown_(e: Event) {
-    e.preventDefault();  // Prevents default browser action (focus).
   }
 
   //============================================================================

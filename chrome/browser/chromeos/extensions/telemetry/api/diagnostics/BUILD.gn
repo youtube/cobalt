@@ -2,11 +2,8 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//build/config/chromeos/ui_mode.gni")
 import("//chrome/common/chromeos/extensions/api/api_sources.gni")
-import("//chrome/common/features.gni")
 import("//extensions/buildflags/buildflags.gni")
-import("//tools/json_schema_compiler/json_schema_api.gni")
 
 assert(enable_extensions,
        "Cannot depend on extensions because enable_extensions=false.")
@@ -25,14 +22,16 @@ source_set("diagnostics") {
     "//base",
     "//build:chromeos_buildflags",
     "//chrome/browser/chromeos/extensions/telemetry/api/common",
+    "//chrome/browser/chromeos/extensions/telemetry/api/routines:routine_manager",
     "//chrome/common/chromeos/extensions/api",
     "//chromeos/crosapi/mojom",
     "//extensions/browser",
+    "//extensions/common",
     "//mojo/public/cpp/bindings",
   ]
 
   if (is_chromeos_ash) {
-    deps += [ "//chrome/browser/ash/telemetry_extension" ]
+    deps += [ "//chrome/browser/ash/telemetry_extension/diagnostics" ]
   }
 
   if (is_chromeos_lacros) {
@@ -40,26 +39,12 @@ source_set("diagnostics") {
   }
 }
 
-function_registration("api_registration") {
-  sources = chromeos_system_extensions_api_schema_sources
-  impl_dir = "//chrome/browser/chromeos/extensions/telemetry/api/diagnostics"
-  configs = [ "//build/config:precompiled_headers" ]
-  bundle_name = "ChromeOS"
-  root_namespace = chromeos_system_extensions_api_root_namespace
-  schema_include_rules = chromeos_system_extensions_api_schema_include_rules
-
-  deps = [
-    ":diagnostics",
-    "//base",
-    "//extensions/common",
-  ]
-}
-
 source_set("browser_tests") {
   testonly = true
   defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
   sources = [
     "diagnostics_api_browsertest.cc",
+    "diagnostics_api_v2_browsertest.cc",
     "fake_diagnostics_service.cc",
     "fake_diagnostics_service.h",
   ]
@@ -69,8 +54,11 @@ source_set("browser_tests") {
     "//base",
     "//build:chromeos_buildflags",
     "//chrome/browser/chromeos/extensions/telemetry/api/common:test_support",
+    "//chrome/browser/chromeos/extensions/telemetry/api/routines:test_support",
+    "//chrome/test:test_support_ui",
     "//chromeos/crosapi/mojom",
     "//content/test:test_support",
+    "//extensions/common",
     "//testing/gtest",
     "//third_party/abseil-cpp:absl",
   ]
@@ -83,7 +71,7 @@ source_set("browser_tests") {
       "fake_diagnostics_service_factory.h",
     ]
 
-    deps += [ "//chrome/browser/ash/telemetry_extension" ]
+    deps += [ "//chrome/browser/ash/telemetry_extension/diagnostics" ]
   }
 
   if (is_chromeos_lacros) {

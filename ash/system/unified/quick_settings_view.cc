@@ -6,10 +6,13 @@
 
 #include <numeric>
 
+#include "ash/ash_element_identifiers.h"
+#include "ash/style/pagination_view.h"
 #include "ash/system/media/quick_settings_media_view_container.h"
 #include "ash/system/media/unified_media_controls_container.h"
 #include "ash/system/tray/interacted_by_tap_recorder.h"
 #include "ash/system/tray/tray_constants.h"
+#include "ash/system/tray/tray_detailed_view.h"
 #include "ash/system/unified/detailed_view_controller.h"
 #include "ash/system/unified/feature_pod_button.h"
 #include "ash/system/unified/feature_tile.h"
@@ -30,42 +33,19 @@
 #include "ui/views/controls/scroll_view.h"
 #include "ui/views/focus/focus_manager.h"
 #include "ui/views/layout/box_layout.h"
+#include "ui/views/layout/box_layout_view.h"
 #include "ui/views/layout/fill_layout.h"
+#include "ui/views/layout/flex_layout.h"
 #include "ui/views/layout/flex_layout_view.h"
 #include "ui/views/view_class_properties.h"
+#include "ui/views/view_utils.h"
 
 namespace ash {
 
 namespace {
 
-constexpr auto kPageIndicatorMargin = gfx::Insets::TLBR(0, 0, 8, 0);
+constexpr auto kPaginationViewMargin = gfx::Insets::TLBR(0, 0, 8, 0);
 constexpr auto kSlidersContainerMargin = gfx::Insets::TLBR(4, 0, 0, 0);
-
-class DetailedViewContainer : public views::View {
- public:
-  METADATA_HEADER(DetailedViewContainer);
-
-  DetailedViewContainer() {
-    SetLayoutManager(std::make_unique<views::BoxLayout>(
-        views::BoxLayout::Orientation::kVertical));
-  }
-
-  DetailedViewContainer(const DetailedViewContainer&) = delete;
-  DetailedViewContainer& operator=(const DetailedViewContainer&) = delete;
-
-  ~DetailedViewContainer() override = default;
-
-  // views::View:
-  void Layout() override {
-    for (auto* child : children()) {
-      child->SetBoundsRect(GetContentsBounds());
-    }
-    views::View::Layout();
-  }
-};
-
-BEGIN_METADATA(DetailedViewContainer, views::View)
-END_METADATA
 
 class AccessibilityFocusHelperView : public views::View {
  public:
@@ -128,6 +108,8 @@ QuickSettingsView::QuickSettingsView(UnifiedSystemTrayController* controller)
   DCHECK(controller_);
   controller_->model()->pagination_model()->AddObserver(this);
 
+  SetProperty(views::kElementIdentifierKey, kQuickSettingsViewElementId);
+
   SetLayoutManager(std::make_unique<views::FillLayout>());
 
   auto* scroll_view = AddChildView(std::make_unique<views::ScrollView>());
@@ -145,18 +127,25 @@ QuickSettingsView::QuickSettingsView(UnifiedSystemTrayController* controller)
       std::make_unique<QuickSettingsHeader>(controller_));
   feature_tiles_container_ = system_tray_container_->AddChildView(
       std::make_unique<FeatureTilesContainerView>(controller_));
-  page_indicator_view_ =
-      system_tray_container_->AddChildView(std::make_unique<PageIndicatorView>(
-          controller_, /*initially_expanded=*/controller_->model()
-                               ->pagination_model()
-                               ->total_pages() > 1));
-  page_indicator_view_->SetProperty(views::kMarginsKey, kPageIndicatorMargin);
+
+  // Creates a container for `PaginationView`. This is needed to align the view
+  // in the center.
+  auto* pagination_view_container = system_tray_container_->AddChildView(
+      std::make_unique<views::BoxLayoutView>());
+  pagination_view_container->SetOrientation(
+      views::BoxLayout::Orientation::kHorizontal);
+  pagination_view_container->SetMainAxisAlignment(
+      views::BoxLayout::MainAxisAlignment::kCenter);
+  pagination_view_container->SetProperty(views::kMarginsKey,
+                                         kPaginationViewMargin);
+  pagination_view_ =
+      pagination_view_container->AddChildView(std::make_unique<PaginationView>(
+          controller_->model()->pagination_model()));
 
   if (base::FeatureList::IsEnabled(media::kGlobalMediaControlsCrOSUpdatedUI)) {
     media_view_container_ = system_tray_container_->AddChildView(
         std::make_unique<QuickSettingsMediaViewContainer>(controller_));
-  } else if (base::FeatureList::IsEnabled(
-                 media::kGlobalMediaControlsForChromeOS)) {
+  } else {
     media_controls_container_ = system_tray_container_->AddChildView(
         std::make_unique<UnifiedMediaControlsContainer>());
     media_controls_container_->SetExpandedAmount(1.0f);
@@ -170,8 +159,8 @@ QuickSettingsView::QuickSettingsView(UnifiedSystemTrayController* controller)
   footer_ = system_tray_container_->AddChildView(
       std::make_unique<QuickSettingsFooter>(controller_));
 
-  detailed_view_container_ =
-      AddChildView(std::make_unique<DetailedViewContainer>());
+  detailed_view_container_ = AddChildView(std::make_unique<views::View>());
+  detailed_view_container_->SetUseDefaultFillLayout(true);
   detailed_view_container_->SetVisible(false);
 
   system_tray_container_->AddChildView(
@@ -208,6 +197,7 @@ void QuickSettingsView::AddMediaControlsView(views::View* media_controls) {
 }
 
 void QuickSettingsView::ShowMediaControls() {
+  DCHECK(media_controls_container_);
   media_controls_container_->SetShouldShowMediaControls(true);
 
   if (detailed_view_container_->GetVisible()) {
@@ -218,8 +208,8 @@ void QuickSettingsView::ShowMediaControls() {
     PreferredSizeChanged();
   }
 
-  feature_tiles_container_->SetRowsFromHeight(
-      CalculateHeightForFeatureTilesContainer());
+  feature_tiles_container_->AdjustRowsForMediaViewVisibility(
+      true, CalculateHeightForFeatureTilesContainer());
 }
 
 void QuickSettingsView::AddMediaView(std::unique_ptr<views::View> media_view) {
@@ -231,6 +221,8 @@ void QuickSettingsView::AddMediaView(std::unique_ptr<views::View> media_view) {
 void QuickSettingsView::SetShowMediaView(bool show_media_view) {
   DCHECK(media_view_container_);
   media_view_container_->SetShowMediaView(show_media_view);
+  feature_tiles_container_->AdjustRowsForMediaViewVisibility(
+      show_media_view, CalculateHeightForFeatureTilesContainer());
   PreferredSizeChanged();
 }
 
@@ -291,8 +283,7 @@ int QuickSettingsView::CalculateHeightForFeatureTilesContainer() {
       media_view_container_ ? media_view_container_->GetExpandedHeight() : 0;
 
   return max_height_ - header_->GetPreferredSize().height() -
-         footer_->GetPreferredSize().height() -
-         page_indicator_view_->GetPreferredSize().height() -
+         pagination_view_->GetPreferredSize().height() -
          sliders_container_->GetPreferredSize().height() -
          media_controls_container_height - media_view_container_height -
          footer_->GetPreferredSize().height();
@@ -308,7 +299,7 @@ bool QuickSettingsView::IsDetailedViewShown() const {
 
 void QuickSettingsView::TotalPagesChanged(int previous_page_count,
                                           int new_page_count) {
-  page_indicator_view_->SetVisible(new_page_count > 1);
+  pagination_view_->SetVisible(new_page_count > 1);
 }
 
 void QuickSettingsView::OnGestureEvent(ui::GestureEvent* event) {

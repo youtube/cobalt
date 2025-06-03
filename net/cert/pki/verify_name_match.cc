@@ -10,6 +10,7 @@
 #include "net/der/input.h"
 #include "net/der/parser.h"
 #include "net/der/tag.h"
+#include "third_party/boringssl/src/include/openssl/base.h"
 #include "third_party/boringssl/src/include/openssl/bytestring.h"
 
 namespace net {
@@ -114,7 +115,7 @@ enum CharsetEnforcement {
 [[nodiscard]] bool NormalizeValue(X509NameAttribute attribute,
                                   std::string* output,
                                   CertErrors* errors) {
-  DCHECK(errors);
+  BSSL_CHECK(errors);
 
   if (!attribute.ValueAsStringUnsafe(output)) {
     errors->AddError(kFailedConvertingAttributeValue,
@@ -301,7 +302,7 @@ bool VerifyNameMatchInternal(const der::Input& a,
 bool NormalizeName(const der::Input& name_rdn_sequence,
                    std::string* normalized_rdn_sequence,
                    CertErrors* errors) {
-  DCHECK(errors);
+  BSSL_CHECK(errors);
 
   // RFC 5280 section 4.1.2.4
   // RDNSequence ::= SEQUENCE OF RelativeDistinguishedName
@@ -387,10 +388,12 @@ bool VerifyNameInSubtree(const der::Input& name_rdn_sequence,
                                  SUBTREE_MATCH);
 }
 
-bool NameContainsEmailAddress(const der::Input& name_rdn_sequence,
-                              bool* contained_email_address) {
-  der::Parser rdn_sequence_parser(name_rdn_sequence);
+bool FindEmailAddressesInName(
+    const der::Input& name_rdn_sequence,
+    std::vector<std::string>* contained_email_addresses) {
+  contained_email_addresses->clear();
 
+  der::Parser rdn_sequence_parser(name_rdn_sequence);
   while (rdn_sequence_parser.HasMore()) {
     der::Parser rdn_parser;
     if (!rdn_sequence_parser.ReadConstructed(der::kSet, &rdn_parser))
@@ -402,13 +405,15 @@ bool NameContainsEmailAddress(const der::Input& name_rdn_sequence,
 
     for (const auto& type_and_value : type_and_values) {
       if (type_and_value.type == der::Input(kTypeEmailAddressOid)) {
-        *contained_email_address = true;
-        return true;
+        std::string email_address;
+        if (!type_and_value.ValueAsString(&email_address)) {
+          return false;
+        }
+        contained_email_addresses->push_back(std::move(email_address));
       }
     }
   }
 
-  *contained_email_address = false;
   return true;
 }
 

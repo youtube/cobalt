@@ -10,6 +10,7 @@
 #include "ash/ash_export.h"
 #include "ash/style/pill_button.h"
 #include "base/memory/raw_ptr.h"
+#include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/views/controls/button/button.h"
 #include "ui/views/view.h"
 
@@ -44,18 +45,13 @@ class ASH_EXPORT AppListToastView : public views::View {
 
     std::unique_ptr<AppListToastView> Build();
 
-    // Methods for setting vector icons for the toast.
-    // Vector icons would change appearance with theming by default.
-    // Nevertheless there might be a case when different icons need to be used
-    // with dark/light mode (i.e. non-monochromatic icons) and a single icon is
-    // not enough. For this case, use SetThemingIcons().
-    Builder& SetIcon(const gfx::VectorIcon* icon);
-    Builder& SetThemingIcons(const gfx::VectorIcon* dark_icon,
-                             const gfx::VectorIcon* light_icon);
+    // Method for setting image model for the toast.
+    Builder& SetIcon(const ui::ImageModel& icon);
     Builder& SetIconSize(int icon_size);
     Builder& SetIconBackground(bool has_icon_background);
 
     Builder& SetSubtitle(const std::u16string subtitle);
+    Builder& SetSubtitleMultiline(bool multiline);
     Builder& SetButton(std::u16string button_text,
                        views::Button::PressedCallback button_callback);
     Builder& SetCloseButton(
@@ -67,10 +63,9 @@ class ASH_EXPORT AppListToastView : public views::View {
    private:
     std::u16string title_;
     absl::optional<std::u16string> subtitle_;
+    bool is_subtitle_multiline_ = false;
     absl::optional<std::u16string> button_text_;
-    raw_ptr<const gfx::VectorIcon, ExperimentalAsh> icon_ = nullptr;
-    raw_ptr<const gfx::VectorIcon, ExperimentalAsh> dark_icon_ = nullptr;
-    raw_ptr<const gfx::VectorIcon, ExperimentalAsh> light_icon_ = nullptr;
+    absl::optional<ui::ImageModel> icon_;
     absl::optional<int> icon_size_;
     views::Button::PressedCallback button_callback_;
     views::Button::PressedCallback close_button_callback_;
@@ -91,19 +86,16 @@ class ASH_EXPORT AppListToastView : public views::View {
   gfx::Size GetMaximumSize() const override;
   gfx::Size GetMinimumSize() const override;
   gfx::Size CalculatePreferredSize() const override;
-  void OnThemeChanged() override;
 
   void SetButton(std::u16string button_text,
                  views::Button::PressedCallback button_callback);
   void SetCloseButton(views::Button::PressedCallback close_button_callback);
 
-  void SetIcon(const gfx::VectorIcon* icon);
-  void SetThemingIcons(const gfx::VectorIcon* dark_icon,
-                       const gfx::VectorIcon* light_icon);
+  void SetIcon(const ui::ImageModel& icon);
   void SetIconSize(int icon_size);
   void SetTitle(const std::u16string title);
   void SetSubtitle(const std::u16string subtitle);
-
+  void SetSubtitleMultiline(bool multiline);
   void UpdateInteriorMargins(const gfx::Insets& margins);
 
   void SetViewDelegate(AppListViewDelegate* delegate);
@@ -111,6 +103,7 @@ class ASH_EXPORT AppListToastView : public views::View {
   // Sets whether the icon for the toast should have a background.
   void AddIconBackground();
 
+  views::ImageView* icon() const { return icon_; }
   views::LabelButton* toast_button() const { return toast_button_; }
   views::Button* close_button() const { return close_button_; }
 
@@ -127,6 +120,8 @@ class ASH_EXPORT AppListToastView : public views::View {
  private:
   class ToastPillButton : public PillButton {
    public:
+    METADATA_HEADER(ToastPillButton);
+
     ToastPillButton(AppListViewDelegate* view_delegate,
                     PressedCallback callback,
                     const std::u16string& text,
@@ -148,12 +143,8 @@ class ASH_EXPORT AppListToastView : public views::View {
   // Get the available space for `title_label_` width.
   int GetExpandedTitleLabelWidth();
 
-  // Vector icons to use with dark/light mode.
-  raw_ptr<const gfx::VectorIcon, ExperimentalAsh> dark_icon_ = nullptr;
-  raw_ptr<const gfx::VectorIcon, ExperimentalAsh> light_icon_ = nullptr;
-
-  // Vector icon to use if there are not dark or light mode specific icons.
-  raw_ptr<const gfx::VectorIcon, ExperimentalAsh> default_icon_ = nullptr;
+  // The icon for the toast.
+  absl::optional<ui::ImageModel> default_icon_;
 
   absl::optional<int> icon_size_;
 

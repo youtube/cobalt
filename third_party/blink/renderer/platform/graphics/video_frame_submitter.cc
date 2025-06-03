@@ -17,13 +17,11 @@
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 #include "cc/metrics/video_playback_roughness_reporter.h"
-#include "components/power_scheduler/power_mode.h"
-#include "components/power_scheduler/power_mode_arbiter.h"
-#include "components/power_scheduler/power_mode_voter.h"
 #include "components/viz/common/features.h"
 #include "components/viz/common/resources/resource_id.h"
 #include "components/viz/common/resources/returned_resource.h"
 #include "components/viz/common/surfaces/frame_sink_bundle_id.h"
+#include "gpu/command_buffer/client/raster_interface.h"
 #include "media/base/video_frame.h"
 #include "media/base/video_types.h"
 #include "mojo/public/cpp/bindings/remote.h"
@@ -98,6 +96,7 @@ class VideoFrameSubmitter::FrameSinkBundleProxy
   // Not used by VideoFrameSubmitter.
   void SetWantsAnimateOnlyBeginFrames() override { NOTREACHED(); }
   void SetWantsBeginFrameAcks() override { NOTREACHED(); }
+  void SetAutoNeedsBeginFrame() override { NOTREACHED(); }
 
   void SubmitCompositorFrame(
       const viz::LocalSurfaceId& local_surface_id,
@@ -181,10 +180,7 @@ VideoFrameSubmitter::VideoFrameSubmitter(
       frame_trackers_(false, nullptr),
       frame_sorter_(base::BindRepeating(
           &cc::FrameSequenceTrackerCollection::AddSortedFrame,
-          base::Unretained(&frame_trackers_))),
-      power_mode_voter_(
-          power_scheduler::PowerModeArbiter::GetInstance()->NewVoter(
-              "PowerModeVoter.VideoPlayback")) {
+          base::Unretained(&frame_trackers_))) {
   DETACH_FROM_THREAD(thread_checker_);
 }
 
@@ -212,7 +208,6 @@ void VideoFrameSubmitter::StartRendering() {
 
   if (compositor_frame_sink_) {
     compositor_frame_sink_->SetNeedsBeginFrame(IsDrivingFrameUpdates());
-    power_mode_voter_->VoteFor(power_scheduler::PowerMode::kVideoPlayback);
   }
 
   frame_trackers_.StartSequence(cc::FrameSequenceTrackerType::kVideo);
@@ -530,7 +525,7 @@ bool VideoFrameSubmitter::MaybeAcceptContextProvider(
     return false;
   }
 
-  return context_provider_->ContextGL()->GetGraphicsResetStatusKHR() ==
+  return context_provider_->RasterInterface()->GetGraphicsResetStatusKHR() ==
          GL_NO_ERROR;
 }
 
@@ -586,14 +581,11 @@ void VideoFrameSubmitter::UpdateSubmissionState() {
     return;
   const auto is_driving_frame_updates = IsDrivingFrameUpdates();
   compositor_frame_sink_->SetNeedsBeginFrame(is_driving_frame_updates);
-  power_mode_voter_->VoteFor(power_scheduler::PowerMode::kVideoPlayback);
   // If we're not driving frame updates, then we're paused / off-screen / etc.
   // Roughness reporting should stop until we resume.  Since the current frame
   // might be on-screen for a long time, we also discard the current window.
   if (!is_driving_frame_updates) {
     roughness_reporter_->Reset();
-    power_mode_voter_->ResetVoteAfterTimeout(
-        power_scheduler::PowerModeVoter::kVideoTimeout);
   }
 
   // These two calls are very important; they are responsible for significant

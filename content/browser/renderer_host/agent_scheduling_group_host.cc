@@ -23,6 +23,7 @@
 #include "ipc/ipc_channel_mojo.h"
 #include "ipc/ipc_message.h"
 #include "third_party/blink/public/mojom/shared_storage/shared_storage_worklet_service.mojom.h"
+#include "third_party/blink/public/mojom/worker/worklet_global_scope_creation_params.mojom.h"
 
 namespace content {
 
@@ -241,12 +242,11 @@ void AgentSchedulingGroupHost::AddFilter(BrowserMessageFilter* filter) {
 }
 
 RenderProcessHost* AgentSchedulingGroupHost::GetProcess() {
-  // TODO(crbug.com/1111231): Make the condition below hold.
-  // Currently the DCHECK doesn't hold, since RenderViewHostImpl outlives
-  // its associated AgentSchedulingGroupHost, and the dtor queries the
-  // associated RenderProcessHost to remove itself from the
-  // PerProcessRenderViewHostSet and RemoveObserver() itself.
-  // DCHECK_NE(state_, LifecycleState::kRenderProcessHostDestroyed);
+  // `process_` can still be accessed here even if `state_` has been set to
+  // `kRenderProcessHostDestroyed`. This is because a `RenderProcessHostImpl` is
+  // scheduled to be destroyed asynchronously after the
+  // `RenderProcessHostDestroyed()` observer notification is dispatched, so
+  // `process_` and `this` may still be around within that gap.
   return &*process_;
 }
 
@@ -332,11 +332,14 @@ void AgentSchedulingGroupHost::CreateView(mojom::CreateViewParamsPtr params) {
 }
 
 void AgentSchedulingGroupHost::CreateSharedStorageWorkletService(
-    mojo::PendingReceiver<blink::mojom::SharedStorageWorkletService> receiver) {
+    mojo::PendingReceiver<blink::mojom::SharedStorageWorkletService> receiver,
+    blink::mojom::WorkletGlobalScopeCreationParamsPtr
+        global_scope_creation_params) {
   DCHECK_EQ(state_, LifecycleState::kBound);
   DCHECK(process_->IsInitializedAndNotDead());
   DCHECK(mojo_remote_.is_bound());
-  mojo_remote_.get()->CreateSharedStorageWorkletService(std::move(receiver));
+  mojo_remote_.get()->CreateSharedStorageWorkletService(
+      std::move(receiver), std::move(global_scope_creation_params));
 }
 
 void AgentSchedulingGroupHost::ReportNoBinderForInterface(

@@ -18,7 +18,6 @@
 #include "ui/aura/client/screen_position_client.h"
 #include "ui/aura/env.h"
 #include "ui/aura/test/aura_test_utils.h"
-#include "ui/aura/test/ui_controls_factory_aura.h"
 #include "ui/aura/window_event_dispatcher.h"
 #include "ui/base/test/ui_controls.h"
 #include "ui/gfx/native_widget_types.h"
@@ -36,7 +35,6 @@ using ui_controls::LEFT;
 using ui_controls::MIDDLE;
 using ui_controls::MouseButton;
 using ui_controls::RIGHT;
-using ui_controls::UIControlsAura;
 using ui_controls::UP;
 
 aura::Window* RootWindowForPoint(const gfx::Point& point,
@@ -113,7 +111,11 @@ bool SendKeyPressNotifyWhenDone(gfx::NativeWindow window,
                                 bool shift,
                                 bool alt,
                                 bool command,
-                                base::OnceClosure closure) {
+                                base::OnceClosure closure,
+                                KeyEventType wait_for) {
+  // This doesn't time out if `window` is deleted before the key release events
+  // are dispatched, so it's fine to ignore `wait_for` and always wait for key
+  // release events.
   DCHECK(!command);  // No command key on Aura
   return SendKeyEventsNotifyWhenDone(
       window, key, kKeyPress | kKeyRelease, std::move(closure),
@@ -184,8 +186,8 @@ bool SendMouseMoveNotifyWhenDone(int screen_x,
 
 #if !BUILDFLAG(IS_CHROMEOS_LACROS)
   if (root_location != root_current_location &&
-      g_ozone_ui_controls_test_helper->ButtonDownMask() == 0 &&
-      !g_ozone_ui_controls_test_helper->MustUseUiControlsForMoveCursorTo()) {
+      !g_ozone_ui_controls_test_helper->MustUseUiControlsForMoveCursorTo() &&
+      g_ozone_ui_controls_test_helper->ButtonDownMask() == 0) {
     // Move the cursor because EnterNotify/LeaveNotify are generated with the
     // current mouse position as a result of XGrabPointer()
     root_window->MoveCursorTo(root_location);
@@ -279,6 +281,13 @@ bool SendTouchEventsNotifyWhenDone(int action,
       screen_location, std::move(task));
 
   return true;
+}
+#endif
+
+#if BUILDFLAG(IS_LINUX)
+// static
+void ForceUseScreenCoordinatesOnce() {
+  g_ozone_ui_controls_test_helper->ForceUseScreenCoordinatesOnce();
 }
 #endif
 

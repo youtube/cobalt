@@ -10,6 +10,7 @@
 
 #include "base/functional/callback.h"
 #include "base/memory/weak_ptr.h"
+#include "build/branding_buildflags.h"
 #include "components/password_manager/core/browser/manage_passwords_referrer.h"
 #include "components/password_manager/core/browser/ui/password_check_referrer.h"
 #include "components/password_manager/core/common/credential_manager_types.h"
@@ -56,8 +57,8 @@ class PasswordsModelDelegate {
   virtual password_manager::ui::State GetState() const = 0;
 
   // Returns the pending password in PENDING_PASSWORD_STATE and
-  // PENDING_PASSWORD_UPDATE_STATE, the saved password in CONFIRMATION_STATE,
-  // the returned credential in AUTO_SIGNIN_STATE.
+  // PENDING_PASSWORD_UPDATE_STATE, the saved password in
+  // SAVE_CONFIRMATION_STATE, the returned credential in AUTO_SIGNIN_STATE.
   virtual const password_manager::PasswordForm& GetPendingPassword() const = 0;
 
   // Returns unsynced credentials being deleted upon signout.
@@ -137,9 +138,6 @@ class PasswordsModelDelegate {
       const password_manager::PasswordForm& form,
       password_manager::CredentialType credential_type) = 0;
 
-  // Open a new tab, pointing to passwords.google.com.
-  virtual void NavigateToPasswordManagerAccountDashboard(
-      password_manager::ManagePasswordsReferrer referrer) = 0;
   // Open a new tab, pointing to the password manager settings page.
   virtual void NavigateToPasswordManagerSettingsPage(
       password_manager::ManagePasswordsReferrer referrer) = 0;
@@ -189,6 +187,13 @@ class PasswordsModelDelegate {
   // Called when user clicked "No thanks" button on Biometric Authentication
   // before filling promo dialog.
   virtual void OnBiometricAuthBeforeFillingDeclined() = 0;
+
+  // Called when user clicked "Add username" button in AddUsername bubble.
+  virtual void OnAddUsernameSaveClicked(const std::u16string& username) = 0;
+
+  // Called from the Save/Update bubble controller to decide whether or not we
+  // should show the user the Chrome for iOS promo.
+  virtual void MaybeShowIOSPasswordPromo() = 0;
 
  protected:
   virtual ~PasswordsModelDelegate() = default;

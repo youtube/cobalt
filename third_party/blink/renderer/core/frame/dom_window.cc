@@ -9,9 +9,9 @@
 
 #include "base/metrics/histogram_macros.h"
 #include "services/network/public/mojom/web_sandbox_flags.mojom-blink.h"
-#include "third_party/blink/public/common/action_after_pagehide.h"
 #include "third_party/blink/renderer/bindings/core/v8/capture_source_location.h"
 #include "third_party/blink/renderer/bindings/core/v8/serialization/post_message_helper.h"
+#include "third_party/blink/renderer/bindings/core/v8/to_v8_traits.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_core.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_window.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_window_post_message_options.h"
@@ -26,6 +26,7 @@
 #include "third_party/blink/renderer/core/frame/frame.h"
 #include "third_party/blink/renderer/core/frame/frame_client.h"
 #include "third_party/blink/renderer/core/frame/frame_console.h"
+#include "third_party/blink/renderer/core/frame/frame_owner.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/frame/location.h"
 #include "third_party/blink/renderer/core/frame/report.h"
@@ -163,11 +164,13 @@ DOMWindow* DOMWindow::frames() const {
   return GetFrame()->DomWindow();
 }
 
-DOMWindow* DOMWindow::OpenerWithMetrics() const {
+ScriptValue DOMWindow::openerForBindings(v8::Isolate* isolate) const {
   RecordWindowProxyAccessMetrics(
       WebFeature::kWindowProxyCrossOriginAccessOpener,
       WebFeature::kWindowProxyCrossOriginAccessFromOtherPageOpener);
-  return opener();
+  ScriptState* script_state = ScriptState::From(isolate->GetCurrentContext());
+  return ScriptValue(isolate, ToV8Traits<IDLNullable<DOMWindow>>::ToV8(
+                                  script_state, opener()));
 }
 
 DOMWindow* DOMWindow::opener() const {
@@ -177,6 +180,51 @@ DOMWindow* DOMWindow::opener() const {
 
   Frame* opener = GetFrame()->Opener();
   return opener ? opener->DomWindow() : nullptr;
+}
+
+void DOMWindow::setOpenerForBindings(v8::Isolate* isolate,
+                                     ScriptValue opener,
+                                     ExceptionState& exception_state) {
+  ReportCoopAccess("opener");
+  if (!GetFrame()) {
+    return;
+  }
+
+  // https://html.spec.whatwg.org/C/#dom-opener
+  // 7.1.2.1. Navigating related browsing contexts in the DOM
+  // The opener attribute's setter must run these steps:
+  // step 1. If the given value is null and this Window object's browsing
+  //     context is non-null, then set this Window object's browsing context's
+  //     disowned to true.
+  //
+  // Opener can be shadowed if it is in the same domain.
+  // Have a special handling of null value to behave
+  // like Firefox. See bug http://b/1224887 & http://b/791706.
+  if (opener.IsNull()) {
+    To<LocalFrame>(GetFrame())->SetOpener(nullptr);
+  }
+
+  // step 2. If the given value is non-null, then return
+  //     ? OrdinaryDefineOwnProperty(this Window object, "opener",
+  //     { [[Value]]: the given value, [[Writable]]: true,
+  //       [[Enumerable]]: true, [[Configurable]]: true }).
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  v8::Local<v8::Object> this_wrapper =
+      ToV8Traits<DOMWindow>::ToV8(ScriptState::From(context), this)
+          .ToLocalChecked()
+          .As<v8::Object>();
+  v8::PropertyDescriptor desc(opener.V8Value(), /*writable=*/true);
+  desc.set_enumerable(true);
+  desc.set_configurable(true);
+  bool result = false;
+  if (!this_wrapper
+           ->DefineProperty(context, V8AtomicString(isolate, "opener"), desc)
+           .To(&result)) {
+    return;
+  }
+  if (!result) {
+    exception_state.ThrowTypeError("Cannot redefine the property.");
+  }
 }
 
 DOMWindow* DOMWindow::parent() const {
@@ -464,16 +512,15 @@ void DOMWindow::focus(v8::Isolate* isolate) {
   if (!page)
     return;
 
-  if (!frame->AllowFocusWithoutUserActivation()) {
+  bool allow_focus_without_user_activation =
+      frame->AllowFocusWithoutUserActivation();
+
+  if (!allow_focus_without_user_activation &&
+      !frame->HasTransientUserActivation()) {
     // Disallow script focus that crosses a fenced frame boundary on a
     // frame that doesn't have transient user activation. Note: all calls to
     // DOMWindow::focus come from JavaScript calls in the web platform
-    if (!frame->HasTransientUserActivation())
-      return;
-    // Fenced frames should consume user activation when attempting to pull
-    // focus across a fenced boundary into itself.
-    if (frame->IsInFencedFrameTree())
-      LocalFrame::ConsumeTransientUserActivation(DynamicTo<LocalFrame>(frame));
+    return;
   }
 
   RecordWindowProxyAccessMetrics(
@@ -514,6 +561,14 @@ void DOMWindow::focus(v8::Isolate* isolate) {
 
   page->GetFocusController().FocusDocumentView(GetFrame(),
                                                true /* notifyEmbedder */);
+
+  // TODO(crbug.com/1458985) Remove the IsInFencedFrameTree condition once
+  // fenced frames are enabled by default.
+  if (!allow_focus_without_user_activation && frame->IsInFencedFrameTree()) {
+    // Fenced frames should consume user activation when attempting to pull
+    // focus across a fenced boundary into itself.
+    LocalFrame::ConsumeTransientUserActivation(DynamicTo<LocalFrame>(frame));
+  }
 }
 
 void DOMWindow::blur() {
@@ -527,7 +582,7 @@ InputDeviceCapabilitiesConstants* DOMWindow::GetInputDeviceCapabilities() {
     input_capabilities_ =
         MakeGarbageCollected<InputDeviceCapabilitiesConstants>();
   }
-  return input_capabilities_;
+  return input_capabilities_.Get();
 }
 
 void DOMWindow::PostMessageForTesting(
@@ -544,7 +599,8 @@ void DOMWindow::PostMessageForTesting(
 void DOMWindow::InstallCoopAccessMonitor(
     LocalFrame* accessing_frame,
     network::mojom::blink::CrossOriginOpenerPolicyReporterParamsPtr
-        coop_reporter_params) {
+        coop_reporter_params,
+    bool is_in_same_virtual_coop_related_group) {
   CoopAccessMonitor monitor;
 
   DCHECK(accessing_frame->IsMainFrame());
@@ -554,6 +610,8 @@ void DOMWindow::InstallCoopAccessMonitor(
   monitor.endpoint_defined = coop_reporter_params->endpoint_defined;
   monitor.reported_window_url =
       std::move(coop_reporter_params->reported_window_url);
+  monitor.is_in_same_virtual_coop_related_group =
+      is_in_same_virtual_coop_related_group;
 
   monitor.reporter.Bind(std::move(coop_reporter_params->reporter));
   // CoopAccessMonitor are cleared when their reporter are gone. This avoids
@@ -633,6 +691,14 @@ void DOMWindow::ReportCoopAccess(const char* property_name) {
       continue;
     }
 
+    String property_name_as_string = property_name;
+    if (it->is_in_same_virtual_coop_related_group &&
+        (property_name_as_string == "postMessage" ||
+         property_name_as_string == "closed")) {
+      ++it;
+      continue;
+    }
+
     // TODO(arthursonzogni): Send the blocked-window-url.
 
     auto location = CaptureSourceLocation(
@@ -689,17 +755,6 @@ void DOMWindow::DoPostMessage(scoped_refptr<SerializedScriptValue> message,
       source_frame->GetDocument()->UnloadEventInProgress();
   if (!unload_event_in_progress && source_frame && source_frame->GetPage() &&
       source_frame->GetPage()->DispatchedPagehideAndStillHidden()) {
-    // The postMessage call is done after the pagehide event got dispatched
-    // and the page is still hidden, which is not normally possible (this
-    // might happen if we're doing a same-site cross-RenderFrame navigation
-    // where we dispatch pagehide during the new RenderFrame's commit but
-    // won't unload/freeze the page after the new RenderFrame finished
-    // committing). We should track this case to measure how often this is
-    // happening, except for when the unload event is currently in progress,
-    // which means the page is not actually stored in the back-forward cache and
-    // this behavior is ok.
-    UMA_HISTOGRAM_ENUMERATION("BackForwardCache.SameSite.ActionAfterPagehide2",
-                              ActionAfterPagehide::kSentPostMessage);
   }
   if (!IsCurrentlyDisplayedInFrame())
     return;
@@ -878,6 +933,43 @@ void DOMWindow::RecordWindowProxyAccessMetrics(
   }
 }
 
+bool DOMWindow::IsAccessBlockedByCoopRestrictProperties(
+    v8::Isolate* isolate) const {
+  if (!GetFrame()) {
+    return false;
+  }
+
+  LocalDOMWindow* accessing_window = CurrentDOMWindow(isolate);
+  CHECK(accessing_window);
+
+  LocalFrame* accessing_frame = accessing_window->GetFrame();
+  if (!accessing_frame) {
+    return false;
+  }
+
+  // If the two windows are not in the same CoopRelatedGroup, we should not
+  // restrict window proxy access here. This prevents restricting things that
+  // were not meant to. These are the cross browsing context group  accesses
+  // that already existed before COOP: restrict-properties.
+  // TODO(https://crbug.com/1464618): Is there actually any scenario where
+  // cross browsing context group was allowed before COOP: restrict-properties?
+  // Verify that we need to have this check.
+  if (accessing_frame->GetPage()->CoopRelatedGroupToken() !=
+      GetFrame()->GetPage()->CoopRelatedGroupToken()) {
+    return false;
+  }
+
+  // If we're dealing with an actual COOP: restrict-properties case, then
+  // compare the BrowsingInstance tokens. If they are different, the access
+  // should be restricted.
+  if (accessing_frame->GetPage()->BrowsingContextGroupToken() !=
+      GetFrame()->GetPage()->BrowsingContextGroupToken()) {
+    return true;
+  }
+
+  return false;
+}
+
 void DOMWindow::PostedMessage::Trace(Visitor* visitor) const {
   visitor->Trace(source);
   visitor->Trace(user_activation);
@@ -909,7 +1001,7 @@ void DOMWindow::Trace(Visitor* visitor) const {
   visitor->Trace(window_proxy_manager_);
   visitor->Trace(input_capabilities_);
   visitor->Trace(location_);
-  EventTargetWithInlineData::Trace(visitor);
+  EventTarget::Trace(visitor);
 }
 
 void DOMWindow::DisconnectCoopAccessMonitor(

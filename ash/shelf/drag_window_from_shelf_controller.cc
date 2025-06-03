@@ -20,9 +20,9 @@
 #include "ash/shelf/shelf.h"
 #include "ash/shelf/window_scale_animation.h"
 #include "ash/shell.h"
+#include "ash/wallpaper/views/wallpaper_view.h"
+#include "ash/wallpaper/views/wallpaper_widget_controller.h"
 #include "ash/wallpaper/wallpaper_constants.h"
-#include "ash/wallpaper/wallpaper_view.h"
-#include "ash/wallpaper/wallpaper_widget_controller.h"
 #include "ash/wm/desks/desks_util.h"
 #include "ash/wm/float/float_controller.h"
 #include "ash/wm/mru_window_tracker.h"
@@ -41,7 +41,6 @@
 #include "base/functional/callback_helpers.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/ranges/algorithm.h"
-#include "chromeos/constants/chromeos_features.h"
 #include "ui/aura/window_tree_host.h"
 #include "ui/base/hit_test.h"
 #include "ui/compositor/layer.h"
@@ -200,7 +199,7 @@ class DragWindowFromShelfController::WindowsHider
   }
 
  private:
-  raw_ptr<aura::Window, ExperimentalAsh> dragged_window_;
+  raw_ptr<aura::Window, DanglingUntriaged | ExperimentalAsh> dragged_window_;
   std::vector<aura::Window*> hidden_windows_;
 };
 
@@ -476,15 +475,6 @@ void DragWindowFromShelfController::OnDragStarted(
   // Hide the home launcher until it's eligible to show it.
   Shell::Get()->app_list_controller()->OnWindowDragStarted();
 
-  // Use the same dim and blur as in overview during dragging. If the feature
-  // `kJellyroll` is enabled, there's no wallpaper blur in overview mode, thus
-  // we don't need to set it here neither.
-  if (!chromeos::features::IsJellyrollEnabled()) {
-    RootWindowController::ForWindow(window_->GetRootWindow())
-        ->wallpaper_widget_controller()
-        ->SetWallpaperBlur(wallpaper_constants::kOverviewBlur);
-  }
-
   // If the dragged window is one of the snapped window in splitview, it needs
   // to be detached from splitview before start dragging.
   SplitViewController* split_view_controller =
@@ -528,26 +518,14 @@ void DragWindowFromShelfController::OnDragEnded(
       SplitViewController::Get(Shell::GetPrimaryRootWindow());
   if (split_view_controller->InSplitViewMode() ||
       snap_position != SplitViewController::SnapPosition::kNone) {
-    WindowState::Get(window_)->set_snap_action_source(
-        WindowSnapActionSource::kDragUpFromShelfToSnap);
     split_view_controller->OnWindowDragEnded(
-        window_, snap_position, gfx::ToRoundedPoint(location_in_screen));
+        window_, snap_position, gfx::ToRoundedPoint(location_in_screen),
+        WindowSnapActionSource::kDragUpFromShelfToSnap);
   }
 
   // Scale-in-to-show home screen if home screen should be shown after drag
   // ends.
   Shell::Get()->app_list_controller()->OnWindowDragEnded(/*animate=*/true);
-
-  // Clear the wallpaper dim and blur if not in overview after drag ends.
-  // If in overview, the dim and blur will be cleared after overview ends.
-  // If the feature `kJellyroll` is enabled, no need to clear the wallpaper
-  // dim and blur since the background is set to clear in overview mode.
-  if (!chromeos::features::IsJellyrollEnabled() &&
-      !overview_controller->InOverviewSession()) {
-    RootWindowController::ForWindow(window_->GetRootWindow())
-        ->wallpaper_widget_controller()
-        ->SetWallpaperBlur(wallpaper_constants::kClear);
-  }
 
   DCHECK(window_drag_result_.has_value());
   switch (*window_drag_result_) {

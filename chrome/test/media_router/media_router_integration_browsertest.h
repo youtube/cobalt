@@ -171,6 +171,13 @@ class MediaRouterIntegrationBrowserTest
 
   void WaitUntilNoRoutes(content::WebContents* web_contents);
 
+  // Get the full path of the resource file.
+  // |relative_path|: The relative path to
+  //                  <chromium src>/out/<build config>/media_router/
+  //                  browser_test_resources/
+  base::FilePath GetResourceFile(
+      base::FilePath::StringPieceType relative_path) const;
+
   // Returns whether actual media route providers (as opposed to
   // TestMediaRouteProvider) should be loaded.
   virtual bool RequiresMediaRouteProviders() const;
@@ -186,32 +193,14 @@ class MediaRouterIntegrationBrowserTest
 
   std::unique_ptr<TestMediaRouteProvider> test_provider_;
 
-  bool is_incognito() { return browser()->profile()->IsOffTheRecord(); }
-
   // Returns the superclass' browser(). Marked virtual so that it can
   // be overridden by MediaRouterIntegrationIncognitoBrowserTest.
   virtual Browser* browser();
 
  private:
-  // Get the full path of the resource file.
-  // |relative_path|: The relative path to
-  //                  <chromium src>/out/<build config>/media_router/
-  //                  browser_test_resources/
-  base::FilePath GetResourceFile(
-      base::FilePath::StringPieceType relative_path) const;
-
   std::unique_ptr<content::TestNavigationObserver> test_navigation_observer_;
   policy::MockConfigurationPolicyProvider provider_;
   base::test::ScopedFeatureList feature_list_;
-};
-
-class MediaRouterIntegrationIncognitoBrowserTest
-    : public MediaRouterIntegrationBrowserTest {
- protected:
-  Browser* browser() override;
-
- private:
-  raw_ptr<Browser, DanglingUntriaged> incognito_browser_ = nullptr;
 };
 
 }  // namespace media_router

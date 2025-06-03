@@ -12,11 +12,15 @@
   }
 
   .title-container {
+    /* TODO(crbug.com/1441029): dedupe with |--tangible-sync-style-banner-width|
+     * from |tangible_sync_style_shared.css| */
+    --banner-width: 17vw;
+
     flex: 0 1 auto;
     margin: 30px auto 0 auto;
     max-width: 490px;
-    padding-inline-end: calc(var(--banner-img-width) - 10px);
-    padding-inline-start: calc(var(--banner-img-width) - 10px);
+    padding-inline-end: var(--banner-width);
+    padding-inline-start: var(--banner-width);
     text-align: center;
   }
 
@@ -137,7 +141,7 @@
 </style>
 
 <div class="flex-container">
-  <div class$="title-container [[getTangibleSyncStyleClass_()]]">
+  <div class="title-container">
     <img id="product-logo" on-click="onProductLogoClick_"
         srcset="chrome://theme/current-channel-logo@1x 1x,
                 chrome://theme/current-channel-logo@2x 2x"
@@ -148,8 +152,10 @@
   <div id="wrapper">
     <div id="profilesContainer" class="custom-scrollbar"
         hidden$="[[!profilesListLoaded_]]">
-      <template is="dom-repeat" items="[[profilesList_]]">
+      <template id="profiles" is="dom-repeat" items="[[profilesList_]]"
+          index-as="idx">
         <profile-card
+            id="profile-[[idx]]"
             class="profile-item" profile-state="[[item]]">
         </profile-card>
       </template>
@@ -175,3 +181,18 @@
     $i18n{askOnStartupCheckboxText}
   </cr-checkbox>
 </div>
+
+<cr-dialog id="forceSigninErrorDialog">
+  <div slot="title" class="key-text">
+    $i18n{forceSigninErrorDialogTitle}
+  </div>
+  <div slot="body" class="warning-message">
+    $i18n{forceSigninErrorDialogBody}
+  </div>
+  <div slot="button-container">
+    <cr-button class="action-button"
+        on-click="onForceSigninErrorDialogOkButtonClicked_">
+    $i18n{ok}
+    </cr-button>
+  </div>
+</cr-dialog>

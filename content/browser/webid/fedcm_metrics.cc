@@ -7,6 +7,7 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/types/pass_key.h"
 #include "content/browser/webid/flags.h"
+#include "net/base/net_errors.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_status_code.h"
 #include "services/metrics/public/cpp/metrics_utils.h"
@@ -80,6 +81,52 @@ void FedCmMetrics::RecordCancelOnDialogTime(base::TimeDelta duration) {
   base::UmaHistogramMediumTimes("Blink.FedCm.Timing.CancelOnDialog", duration);
 }
 
+void FedCmMetrics::RecordAccountsDialogShownDuration(base::TimeDelta duration) {
+  if (is_disabled_) {
+    return;
+  }
+  auto RecordUkm = [&](auto& ukm_builder) {
+    ukm_builder.SetTiming_AccountsDialogShownDuration(
+        ukm::GetExponentialBucketMinForUserTiming(duration.InMilliseconds()));
+    ukm_builder.SetFedCmSessionID(session_id_);
+    ukm_builder.Record(ukm::UkmRecorder::Get());
+  };
+  ukm::builders::Blink_FedCm fedcm_builder(page_source_id_);
+  RecordUkm(fedcm_builder);
+  ukm::builders::Blink_FedCmIdp fedcm_idp_builder(provider_source_id_);
+  RecordUkm(fedcm_idp_builder);
+
+  // Samples are at most 10 minutes. This metric is used to determine a
+  // reasonable minimum duration for the accounts dialog to be shown to
+  // prevent abuse through flashing UI so a higher maximum is not needed.
+  base::UmaHistogramCustomTimes(
+      "Blink.FedCm.Timing.AccountsDialogShownDuration2", duration,
+      base::Milliseconds(1), base::Minutes(10), 50);
+}
+
+void FedCmMetrics::RecordMismatchDialogShownDuration(base::TimeDelta duration) {
+  if (is_disabled_) {
+    return;
+  }
+  auto RecordUkm = [&](auto& ukm_builder) {
+    ukm_builder.SetTiming_MismatchDialogShownDuration(
+        ukm::GetExponentialBucketMinForUserTiming(duration.InMilliseconds()));
+    ukm_builder.SetFedCmSessionID(session_id_);
+    ukm_builder.Record(ukm::UkmRecorder::Get());
+  };
+  ukm::builders::Blink_FedCm fedcm_builder(page_source_id_);
+  RecordUkm(fedcm_builder);
+  ukm::builders::Blink_FedCmIdp fedcm_idp_builder(provider_source_id_);
+  RecordUkm(fedcm_idp_builder);
+
+  // Samples are at most 10 minutes. This metric is used to determine a
+  // reasonable minimum duration for the mismatch dialog to be shown to
+  // prevent abuse through flashing UI so a higher maximum is not needed.
+  base::UmaHistogramCustomTimes(
+      "Blink.FedCm.Timing.MismatchDialogShownDuration", duration,
+      base::Milliseconds(1), base::Minutes(10), 50);
+}
+
 void FedCmMetrics::RecordCancelReason(
     IdentityRequestDialogController::DismissReason dismiss_reason) {
   if (is_disabled_)
@@ -113,7 +160,8 @@ void FedCmMetrics::RecordTokenResponseAndTurnaroundTime(
                                 turnaround_time);
 }
 
-void FedCmMetrics::RecordRequestTokenStatus(FedCmRequestIdTokenStatus status) {
+void FedCmMetrics::RecordRequestTokenStatus(FedCmRequestIdTokenStatus status,
+                                            MediationRequirement requirement) {
   if (is_disabled_)
     return;
   // If the request has failed but we have not yet rejected the promise,
@@ -128,6 +176,7 @@ void FedCmMetrics::RecordRequestTokenStatus(FedCmRequestIdTokenStatus status) {
 
   auto RecordUkm = [&](auto& ukm_builder) {
     ukm_builder.SetStatus_RequestIdToken(static_cast<int>(status));
+    ukm_builder.SetStatus_MediationRequirement(static_cast<int>(requirement));
     ukm_builder.SetFedCmSessionID(session_id_);
     ukm_builder.Record(ukm::UkmRecorder::Get());
   };
@@ -138,6 +187,8 @@ void FedCmMetrics::RecordRequestTokenStatus(FedCmRequestIdTokenStatus status) {
   RecordUkm(fedcm_idp_builder);
 
   base::UmaHistogramEnumeration("Blink.FedCm.Status.RequestIdToken", status);
+  base::UmaHistogramEnumeration("Blink.FedCm.Status.MediationRequirement",
+                                requirement);
 }
 
 void FedCmMetrics::RecordSignInStateMatchStatus(
@@ -215,27 +266,33 @@ void FedCmMetrics::RecordWebContentsVisibilityUponReadyToShowDialog(
 }
 
 void FedCmMetrics::RecordAutoReauthnMetrics(
-    bool has_single_returning_account,
+    absl::optional<bool> has_single_returning_account,
     const IdentityRequestAccount* auto_signin_account,
     bool auto_reauthn_success,
     bool is_auto_reauthn_setting_blocked,
     bool is_auto_reauthn_embargoed,
-    absl::optional<base::TimeDelta> time_from_embargo) {
-  NumReturningAccounts num_returning_accounts = NumReturningAccounts::kZero;
-  if (has_single_returning_account) {
-    num_returning_accounts = NumReturningAccounts::kOne;
-  } else if (auto_signin_account) {
-    num_returning_accounts = NumReturningAccounts::kMultiple;
-  }
+    absl::optional<base::TimeDelta> time_from_embargo,
+    bool requires_user_mediation) {
+  NumAccounts num_returning_accounts = NumAccounts::kZero;
+  if (has_single_returning_account.has_value()) {
+    if (*has_single_returning_account) {
+      num_returning_accounts = NumAccounts::kOne;
+    } else if (auto_signin_account) {
+      num_returning_accounts = NumAccounts::kMultiple;
+    }
 
-  base::UmaHistogramEnumeration("Blink.FedCm.AutoReauthn.ReturningAccounts",
-                                num_returning_accounts);
+    base::UmaHistogramEnumeration("Blink.FedCm.AutoReauthn.ReturningAccounts",
+                                  num_returning_accounts);
+  }
   base::UmaHistogramBoolean("Blink.FedCm.AutoReauthn.Succeeded",
                             auto_reauthn_success);
   base::UmaHistogramBoolean("Blink.FedCm.AutoReauthn.BlockedByContentSettings",
                             is_auto_reauthn_setting_blocked);
   base::UmaHistogramBoolean("Blink.FedCm.AutoReauthn.BlockedByEmbargo",
                             is_auto_reauthn_embargoed);
+  base::UmaHistogramBoolean(
+      "Blink.FedCm.AutoReauthn.BlockedByPreventSilentAccess",
+      requires_user_mediation);
   ukm::builders::Blink_FedCm ukm_builder(page_source_id_);
   if (time_from_embargo) {
     // Use a custom histogram with the default number of buckets so that we set
@@ -250,13 +307,195 @@ void FedCmMetrics::RecordAutoReauthnMetrics(
             time_from_embargo->InMilliseconds()));
   }
 
-  ukm_builder.SetAutoReauthn_ReturningAccounts(
-      static_cast<int>(num_returning_accounts));
+  if (has_single_returning_account.has_value()) {
+    ukm_builder.SetAutoReauthn_ReturningAccounts(
+        static_cast<int>(num_returning_accounts));
+  }
   ukm_builder.SetAutoReauthn_Succeeded(auto_reauthn_success);
   ukm_builder.SetAutoReauthn_BlockedByContentSettings(
       is_auto_reauthn_setting_blocked);
   ukm_builder.SetAutoReauthn_BlockedByEmbargo(is_auto_reauthn_embargoed);
+  ukm_builder.SetAutoReauthn_BlockedByPreventSilentAccess(
+      requires_user_mediation);
   ukm_builder.SetFedCmSessionID(session_id_);
+  ukm_builder.Record(ukm::UkmRecorder::Get());
+}
+
+void FedCmMetrics::RecordAccountsDialogShown() {
+  if (is_disabled_) {
+    return;
+  }
+  auto RecordUkm = [&](auto& ukm_builder) {
+    ukm_builder.SetAccountsDialogShown(true);
+    ukm_builder.SetFedCmSessionID(session_id_);
+    ukm_builder.Record(ukm::UkmRecorder::Get());
+  };
+  ukm::builders::Blink_FedCm fedcm_builder(page_source_id_);
+  RecordUkm(fedcm_builder);
+
+  ukm::builders::Blink_FedCmIdp fedcm_idp_builder(provider_source_id_);
+  RecordUkm(fedcm_idp_builder);
+
+  base::UmaHistogramBoolean("Blink.FedCm.AccountsDialogShown", true);
+}
+
+void FedCmMetrics::RecordMismatchDialogShown() {
+  if (is_disabled_) {
+    return;
+  }
+  auto RecordUkm = [&](auto& ukm_builder) {
+    ukm_builder.SetMismatchDialogShown(true);
+    ukm_builder.SetFedCmSessionID(session_id_);
+    ukm_builder.Record(ukm::UkmRecorder::Get());
+  };
+  ukm::builders::Blink_FedCm fedcm_builder(page_source_id_);
+  RecordUkm(fedcm_builder);
+
+  ukm::builders::Blink_FedCmIdp fedcm_idp_builder(provider_source_id_);
+  RecordUkm(fedcm_idp_builder);
+
+  base::UmaHistogramBoolean("Blink.FedCm.MismatchDialogShown", true);
+}
+
+void FedCmMetrics::RecordAccountsRequestSent() {
+  if (is_disabled_) {
+    return;
+  }
+  auto RecordUkm = [&](auto& ukm_builder) {
+    ukm_builder.SetAccountsRequestSent(true);
+    ukm_builder.SetFedCmSessionID(session_id_);
+    ukm_builder.Record(ukm::UkmRecorder::Get());
+  };
+  ukm::builders::Blink_FedCm fedcm_builder(page_source_id_);
+  RecordUkm(fedcm_builder);
+
+  ukm::builders::Blink_FedCmIdp fedcm_idp_builder(provider_source_id_);
+  RecordUkm(fedcm_idp_builder);
+
+  base::UmaHistogramBoolean("Blink.FedCm.AccountsRequestSent", true);
+}
+
+void FedCmMetrics::RecordNumRequestsPerDocument(const int num_requests) {
+  if (is_disabled_) {
+    return;
+  }
+  auto RecordUkm = [&](auto& ukm_builder) {
+    ukm_builder.SetNumRequestsPerDocument(num_requests);
+    ukm_builder.SetFedCmSessionID(session_id_);
+    ukm_builder.Record(ukm::UkmRecorder::Get());
+  };
+  ukm::builders::Blink_FedCm fedcm_builder(page_source_id_);
+  RecordUkm(fedcm_builder);
+
+  base::UmaHistogramCounts100("Blink.FedCm.NumRequestsPerDocument",
+                              num_requests);
+}
+
+void FedCmMetrics::RecordRevokeStatus(FedCmRevokeStatus status) {
+  if (is_disabled_) {
+    return;
+  }
+  auto RecordUkm = [&](auto& ukm_builder) {
+    ukm_builder.SetStatus_Revoke2(static_cast<int>(status));
+    ukm_builder.SetFedCmSessionID(session_id_);
+    ukm_builder.Record(ukm::UkmRecorder::Get());
+  };
+  ukm::builders::Blink_FedCm fedcm_builder(page_source_id_);
+  RecordUkm(fedcm_builder);
+
+  ukm::builders::Blink_FedCmIdp fedcm_idp_builder(provider_source_id_);
+  RecordUkm(fedcm_idp_builder);
+
+  base::UmaHistogramEnumeration("Blink.FedCm.Status.Revoke2", status);
+}
+
+void FedCmMetrics::RecordErrorDialogResult(FedCmErrorDialogResult result) {
+  if (is_disabled_) {
+    return;
+  }
+  auto RecordUkm = [&](auto& ukm_builder) {
+    ukm_builder.SetError_ErrorDialogResult(static_cast<int>(result));
+    ukm_builder.SetFedCmSessionID(session_id_);
+    ukm_builder.Record(ukm::UkmRecorder::Get());
+  };
+  ukm::builders::Blink_FedCm fedcm_builder(page_source_id_);
+  RecordUkm(fedcm_builder);
+
+  ukm::builders::Blink_FedCmIdp fedcm_idp_builder(provider_source_id_);
+  RecordUkm(fedcm_idp_builder);
+
+  base::UmaHistogramEnumeration("Blink.FedCm.Error.ErrorDialogResult", result);
+}
+
+void FedCmMetrics::RecordErrorDialogType(
+    IdpNetworkRequestManager::FedCmErrorDialogType type) {
+  if (is_disabled_) {
+    return;
+  }
+  auto RecordUkm = [&](auto& ukm_builder) {
+    ukm_builder.SetError_ErrorDialogType(static_cast<int>(type));
+    ukm_builder.SetFedCmSessionID(session_id_);
+    ukm_builder.Record(ukm::UkmRecorder::Get());
+  };
+  ukm::builders::Blink_FedCm fedcm_builder(page_source_id_);
+  RecordUkm(fedcm_builder);
+
+  ukm::builders::Blink_FedCmIdp fedcm_idp_builder(provider_source_id_);
+  RecordUkm(fedcm_idp_builder);
+
+  base::UmaHistogramEnumeration("Blink.FedCm.Error.ErrorDialogType", type);
+}
+
+void FedCmMetrics::RecordTokenResponseTypeMetrics(
+    IdpNetworkRequestManager::FedCmTokenResponseType type) {
+  if (is_disabled_) {
+    return;
+  }
+  auto RecordUkm = [&](auto& ukm_builder) {
+    ukm_builder.SetError_TokenResponseType(static_cast<int>(type));
+    ukm_builder.SetFedCmSessionID(session_id_);
+    ukm_builder.Record(ukm::UkmRecorder::Get());
+  };
+  ukm::builders::Blink_FedCm fedcm_builder(page_source_id_);
+  RecordUkm(fedcm_builder);
+
+  ukm::builders::Blink_FedCmIdp fedcm_idp_builder(provider_source_id_);
+  RecordUkm(fedcm_idp_builder);
+
+  base::UmaHistogramEnumeration("Blink.FedCm.Error.TokenResponseType", type);
+}
+
+void FedCmMetrics::RecordErrorUrlTypeMetrics(
+    IdpNetworkRequestManager::FedCmErrorUrlType type) {
+  if (is_disabled_) {
+    return;
+  }
+  auto RecordUkm = [&](auto& ukm_builder) {
+    ukm_builder.SetError_ErrorUrlType(static_cast<int>(type));
+    ukm_builder.SetFedCmSessionID(session_id_);
+    ukm_builder.Record(ukm::UkmRecorder::Get());
+  };
+  // We do not record the RP-keyed equivalent because the error URL is passed by
+  // the IDP.
+  ukm::builders::Blink_FedCmIdp fedcm_idp_builder(provider_source_id_);
+  RecordUkm(fedcm_idp_builder);
+
+  base::UmaHistogramEnumeration("Blink.FedCm.Error.ErrorUrlType", type);
+}
+
+void RecordPreventSilentAccess(RenderFrameHost& rfh,
+                               PreventSilentAccessFrameType frame_type) {
+  base::UmaHistogramEnumeration("Blink.FedCm.PreventSilentAccessFrameType",
+                                frame_type);
+
+  // Ensure the lifecycle state as GetPageUkmSourceId doesn't support the
+  // prerendering page. As FederatedAithRequest runs behind the
+  // BrowserInterfaceBinders, the service doesn't receive any request while
+  // prerendering, and the CHECK should always meet the condition.
+  CHECK(
+      !rfh.IsInLifecycleState(RenderFrameHost::LifecycleState::kPrerendering));
+  ukm::builders::Blink_FedCm ukm_builder(rfh.GetPageUkmSourceId());
+  ukm_builder.SetPreventSilentAccessFrameType(static_cast<int>(frame_type));
   ukm_builder.Record(ukm::UkmRecorder::Get());
 }
 
@@ -281,6 +520,17 @@ void RecordIdpSignOutNetError(int response_code) {
   }
   base::UmaHistogramSparse("Blink.FedCm.SignInStatusSetToSignout.NetError",
                            -net_error);
+}
+
+void RecordAccountsResponseInvalidReason(
+    IdpNetworkRequestManager::AccountsResponseInvalidReason reason) {
+  base::UmaHistogramEnumeration(
+      "Blink.FedCm.Status.AccountsResponseInvalidReason", reason);
+}
+
+void RecordSetLoginStatusIgnoredReason(
+    FedCmSetLoginStatusIgnoredReason reason) {
+  base::UmaHistogramEnumeration("Blink.FedCm.SetLoginStatusIgnored", reason);
 }
 
 }  // namespace content

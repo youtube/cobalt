@@ -8,9 +8,10 @@
 #include <string>
 
 #include "base/functional/callback_forward.h"
-#include "chrome/browser/extensions/extension_context_menu_model.h"
 #include "chrome/browser/ui/extensions/extension_popup_types.h"
 #include "chrome/browser/ui/toolbar/toolbar_action_hover_card_types.h"
+#include "extensions/common/extension_id.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 class ToolbarActionViewController;
 class ToolbarActionsBarBubbleDelegate;
@@ -23,10 +24,11 @@ class ExtensionsContainer {
   virtual ToolbarActionViewController* GetActionForId(
       const std::string& action_id) = 0;
 
-  // Get the currently popped out action if any.
+  // Get the currently popped out action id, if any.
   // TODO(pbos): Consider supporting multiple popped out actions for bubbles
   // that relate to more than one extension.
-  virtual ToolbarActionViewController* GetPoppedOutAction() const = 0;
+  virtual absl::optional<extensions::ExtensionId> GetPoppedOutActionId()
+      const = 0;
 
   // Called when a context menu is shown so the container can perform any
   // necessary setup.
@@ -36,16 +38,9 @@ class ExtensionsContainer {
   // necessary cleanup.
   virtual void OnContextMenuClosed() {}
 
-  // Whether the container supports showing extensions on the toolbar.
-  virtual bool CanShowActionsInToolbar() const = 0;
-
   // Returns true if the action pointed by `action_id` is visible on the
   // toolbar.
   virtual bool IsActionVisibleOnToolbar(const std::string& action_id) const = 0;
-
-  // Returns the action's toolbar button visibility.
-  virtual extensions::ExtensionContextMenuModel::ButtonVisibility
-  GetActionVisibility(const std::string& action_id) const = 0;
 
   // Undoes the current "pop out"; i.e., moves the popped out action back into
   // overflow.
@@ -61,9 +56,9 @@ class ExtensionsContainer {
   // overflow menu was closed.
   virtual bool CloseOverflowMenuIfOpen() = 0;
 
-  // Pops out a given |action|, ensuring it is visible.
-  // |closure| will be called once any animation is complete.
-  virtual void PopOutAction(ToolbarActionViewController* action,
+  // Pops out `action_id`, ensuring it is visible. `closure` will be called once
+  // any animation is complete.
+  virtual void PopOutAction(const extensions::ExtensionId& action_id,
                             base::OnceClosure closure) = 0;
 
   // Shows the popup for the action with |id| as the result of an API call,
@@ -85,6 +80,11 @@ class ExtensionsContainer {
   virtual void UpdateToolbarActionHoverCard(
       ToolbarActionView* action_view,
       ToolbarActionHoverCardUpdateType update_type) = 0;
+
+  // Collapses the confirmation on the request access button, effectively
+  // hiding the button. Does nothing if the confirmation is not showing
+  // anymore.
+  virtual void CollapseConfirmation() = 0;
 };
 
 #endif  // CHROME_BROWSER_UI_EXTENSIONS_EXTENSIONS_CONTAINER_H_

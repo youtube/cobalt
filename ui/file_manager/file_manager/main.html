@@ -7,9 +7,10 @@ found in the LICENSE file.
 <html dir="$i18n{textdirection}" lang="$i18n{language}">
   <head>
     <title>$i18n{FILEMANAGER_APP_NAME}</title>
+    <script src="chrome://file-manager/init_globals.js"></script>
 
-    <meta name="google" value="notranslate">
-    <meta name="color-scheme" content="light dark">
+    <meta charset="utf-8" name="google" value="notranslate">
+    <meta charset="utf-8" name="color-scheme" content="light dark">
 
     <link rel="stylesheet" href="chrome://resources/css/text_defaults.css">
     <link rel="stylesheet" href="chrome://resources/chromeos/colors/cros_styles.css">
@@ -24,7 +25,7 @@ found in the LICENSE file.
     <link rel="stylesheet" href="foreground/css/file_types.css">
     <link rel="stylesheet" href="foreground/css/common.css">
 
-    <script type="module" src="foreground/js/main.js" defer></script>
+    <script type="module" src="chrome://file-manager/foreground/js/main.js"></script>
   </head>
 
   <body aria-label="$i18n{FILEMANAGER_APP_NAME}" tabindex="-1" class="files-ng">
@@ -66,7 +67,7 @@ found in the LICENSE file.
                label="$i18n{SELECT_ALL_COMMAND_LABEL}"
                shortcut="a|Ctrl">
       <command id="drive-sync-settings"
-               label="$i18n{DRIVE_MOBILE_CONNECTION_OPTION}">
+               label="$i18n{DRIVE_METERED_CONNECTION_OPTION}">
       <command id="search" shortcut="f|Ctrl /">
 
       <!-- Shortcuts for toggling between volumes (CTRL-1..CTRL-9). -->
@@ -353,9 +354,20 @@ found in the LICENSE file.
           <div id="action-bar">
             <div id="pinned-toggle-wrapper" hidden>
               <span id="pinned-toggle-label">$i18n{OFFLINE_COLUMN_LABEL}</span>
-              <cr-toggle id="pinned-toggle" command="#toggle-pinned"
-                         aria-labelledby="pinned-toggle-label">
-              </cr-toggle>
+              <xf-jellybean>
+                <cros-switch
+                    slot="jelly"
+                    id="pinned-toggle-jelly"
+                    command="#toggle-pinned"
+                    aria-labelledby="pinned-toggle-label">
+                </cros-switch>
+                <cr-toggle
+                    slot="old"
+                    id="pinned-toggle"
+                    command="#toggle-pinned"
+                    aria-labelledby="pinned-toggle-label">
+                </cr-toggle>
+              </xf-jellybean>
             </div>
             <cr-button id="tasks" class="combobutton menu-button" menu="#tasks-menu"
                     tabindex="0" hidden
@@ -402,10 +414,14 @@ found in the LICENSE file.
                 </cr-input>
               </div>
             </div>
-            <cr-button id="cloud-button" class="icon-button menu-button" tabindex="0" hidden
+            <cr-button id="cloud-button" class="icon-button menu-button"
+                    hidden
+                    tabindex="0"
+                    aria-haspopup="true"
                     aria-label="Cloud Placeholder"
-                    command="#cloud" has-tooltip>
-              <xf-icon type="cloud"></xf-icon>
+                    has-tooltip>
+              <xf-icon type="cloud" size="small" slot="prefix-icon"></xf-icon>
+              <xf-icon type="blank" slot="suffix-icon"></xf-icon>
             </cr-button>
             <cr-button id="refresh-button" class="icon-button menu-button" tabindex="0" hidden
                     aria-label="$i18n{REFRESH_BUTTON_LABEL}"
@@ -485,6 +501,7 @@ found in the LICENSE file.
         <!-- TODO(fukino): Turn this button into paper-button when the CommandButton supports paper-button. -->
         <button id="new-folder-button" class="primary"
                 visibleif="saveas-file folder" tabindex="0" disabled>
+          <div class="hover-layer"></div>
           <paper-ripple fit></paper-ripple>
           <span>$i18n{NEW_FOLDER_BUTTON_LABEL}</span>
         </button>
@@ -505,10 +522,12 @@ found in the LICENSE file.
       </div>
       <div class="right buttonbar">
         <button id="cancel-button" class="cancel secondary" tabindex="0">
+          <div class="hover-layer"></div>
           <paper-ripple fit></paper-ripple>
           <span>$i18n{CANCEL_LABEL}</span>
         </button>
         <button id="ok-button" class="ok primary" disabled tabindex="0">
+          <div class="hover-layer"></div>
           <paper-ripple fit></paper-ripple>
           <span></span>
         </button>

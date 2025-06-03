@@ -170,3 +170,18 @@ export function processDeviceState(type, devices, deviceState) {
   }
   return {deviceState, shouldGetNetworkDetails};
 }
+
+/**
+ * Returns the display name for |apn|.
+ * @param {function(string)} i18nFunction
+ * @param {!ApnProperties} apn
+ */
+export function getApnDisplayName(i18nFunction, apn) {
+  const name = apn.name || apn.accessPointName;
+  if (name) {
+    return name;
+  }
+
+  // If APN has no name, it's an APN detected by the modem (b/295588352).
+  return i18nFunction('apnNameModem');
+}

@@ -111,6 +111,8 @@ class TabModel {
     // Opened from the Restore Tabs UI. When restoring synced tabs the first
     // tab is opened but not brought to the foreground.
     FROM_RESTORE_TABS_UI,
+    // Opened to load an omnibox search query in a new tab.
+    FROM_OMNIBOX,
     // Must be last.
     SIZE
   };
@@ -227,6 +229,10 @@ class TabModel {
   // unique within the current session, and is not guaranteed to be unique
   // across sessions.
   SessionID session_id_;
+
+  // Records metrics about which percentage of syncable tabs are actually
+  // synced.
+  void RecordActualSyncedTabsHistogram();
 };
 
 #endif  // CHROME_BROWSER_UI_ANDROID_TAB_MODEL_TAB_MODEL_H_

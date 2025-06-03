@@ -14,6 +14,7 @@
 #include "ash/test/pixel/ash_pixel_differ.h"
 #include "ash/test_shell_delegate.h"
 #include "base/test/scoped_feature_list.h"
+#include "chromeos/constants/chromeos_features.h"
 #include "components/version_info/channel.h"
 #include "ui/views/widget/widget.h"
 
@@ -33,7 +34,10 @@ class ChannelIndicatorQuickSettingsViewPixelTest
 
   // AshTestBase:
   void SetUp() override {
-    feature_list_.InitWithFeatureState(features::kQsRevamp, GetParam());
+    // TODO(b/305075031) clean up after the flag is removed.
+    feature_list_.InitWithFeatureStates(
+        {{features::kQsRevamp, /*enabled=*/true},
+         {chromeos::features::kJelly, /*enabled=*/true}});
 
     // Install a test delegate to allow overriding channel version.
     auto delegate = std::make_unique<TestShellDelegate>();
@@ -46,7 +50,7 @@ class ChannelIndicatorQuickSettingsViewPixelTest
     // Place the view in a large views::Widget so the buttons are clickable.
     widget_ = CreateFramelessTestWidget();
     widget_->SetFullscreen(true);
-    if (IsQsRevampEnabled()) {
+    if (IsQsRevampAndJellyEnabled()) {
       // Implicitly instantiate the view by creating the quick settings header.
       model_ = base::MakeRefCounted<UnifiedSystemTrayModel>(nullptr);
       controller_ = std::make_unique<UnifiedSystemTrayController>(model_.get());
@@ -75,22 +79,27 @@ class ChannelIndicatorQuickSettingsViewPixelTest
     AshTestBase::TearDown();
   }
 
-  bool IsQsRevampEnabled() const { return GetParam(); }
+  // TODO(b/305075031) clean up after the flag is removed.
+  bool IsQsRevampAndJellyEnabled() const { return true; }
 
   QuickSettingsHeader* header() { return header_; }
   ChannelIndicatorQuickSettingsView* view() {
-    return IsQsRevampEnabled() ? header()->channel_view_for_test()
-                               : view_.get();
+    return IsQsRevampAndJellyEnabled() ? header()->channel_view_for_test()
+                                       : view_.get();
   }
 
  private:
   base::test::ScopedFeatureList feature_list_;
-  raw_ptr<TestSystemTrayClient, ExperimentalAsh> system_tray_client_ = nullptr;
+  raw_ptr<TestSystemTrayClient, DanglingUntriaged | ExperimentalAsh>
+      system_tray_client_ = nullptr;
   scoped_refptr<UnifiedSystemTrayModel> model_;
   std::unique_ptr<UnifiedSystemTrayController> controller_;
   std::unique_ptr<views::Widget> widget_;
-  raw_ptr<ChannelIndicatorQuickSettingsView, ExperimentalAsh> view_ = nullptr;
-  raw_ptr<QuickSettingsHeader, ExperimentalAsh> header_ = nullptr;
+  raw_ptr<ChannelIndicatorQuickSettingsView,
+          DanglingUntriaged | ExperimentalAsh>
+      view_ = nullptr;
+  raw_ptr<QuickSettingsHeader, DanglingUntriaged | ExperimentalAsh> header_ =
+      nullptr;
 };
 
 INSTANTIATE_TEST_SUITE_P(QsRevampEnabled,
@@ -100,7 +109,7 @@ INSTANTIATE_TEST_SUITE_P(QsRevampEnabled,
 // Verifies the UI when the feedback button is visible.
 TEST_P(ChannelIndicatorQuickSettingsViewPixelTest, FeedbackButtonVisible) {
   // Basic verification that buttons are visible before taking screenshot.
-  if (IsQsRevampEnabled()) {
+  if (IsQsRevampAndJellyEnabled()) {
     ASSERT_TRUE(header()->GetVisible());
   }
   ASSERT_TRUE(view());
@@ -113,7 +122,7 @@ TEST_P(ChannelIndicatorQuickSettingsViewPixelTest, FeedbackButtonVisible) {
   // `ChannelIndicatorQuickSettingsView`.
   EXPECT_TRUE(GetPixelDiffer()->CompareUiComponentsOnPrimaryScreen(
       "feedback_button_visible",
-      /*revision_number=*/0, view()));
+      /*revision_number=*/7, view()));
 }
 
 }  // namespace ash

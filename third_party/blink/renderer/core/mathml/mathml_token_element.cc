@@ -5,7 +5,7 @@
 #include "third_party/blink/renderer/core/mathml/mathml_token_element.h"
 
 #include "third_party/blink/renderer/core/dom/character_data.h"
-#include "third_party/blink/renderer/core/layout/ng/mathml/layout_ng_mathml_block_flow.h"
+#include "third_party/blink/renderer/core/layout/mathml/layout_mathml_block_flow.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
 
 namespace blink {
@@ -91,11 +91,10 @@ void MathMLTokenElement::ChildrenChanged(
 
 LayoutObject* MathMLTokenElement::CreateLayoutObject(
     const ComputedStyle& style) {
-  if (!RuntimeEnabledFeatures::MathMLCoreEnabled() ||
-      !style.IsDisplayMathType()) {
+  if (!style.IsDisplayMathType()) {
     return MathMLElement::CreateLayoutObject(style);
   }
-  return MakeGarbageCollected<LayoutNGMathMLBlockFlow>(this);
+  return MakeGarbageCollected<LayoutMathMLBlockFlow>(this);
 }
 
 }  // namespace blink

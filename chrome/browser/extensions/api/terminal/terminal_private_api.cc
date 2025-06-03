@@ -12,6 +12,7 @@
 
 #include "ash/constants/ash_features.h"
 #include "ash/constants/ash_pref_names.h"
+#include "ash/webui/settings/public/constants/routes.mojom.h"
 #include "base/command_line.h"
 #include "base/containers/contains.h"
 #include "base/containers/flat_set.h"
@@ -46,7 +47,6 @@
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/settings_window_manager_chromeos.h"
-#include "chrome/browser/ui/webui/settings/chromeos/constants/routes.mojom.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/common/extensions/api/terminal_private.h"
 #include "chromeos/ash/components/dbus/cicerone/cicerone_client.h"
@@ -344,6 +344,14 @@ TerminalPrivateOpenTerminalProcessFunction::OpenProcess(
     if (!container_features.empty())
       cmdline.AppendSwitchASCII(kSwitchContainerFeatures, container_features);
 
+    // Append trailing passthrough args if any.  E.g. `-- vim file.txt`
+    auto passthrough_args = params_args.GetArgs();
+    if (!passthrough_args.empty()) {
+      cmdline.AppendArg("--");
+      for (const auto& arg : passthrough_args) {
+        cmdline.AppendArg(arg);
+      }
+    }
     VLOG(1) << "Starting " << *guest_id_
             << ", cmdline=" << cmdline.GetCommandLineString();
 
@@ -693,7 +701,7 @@ ExtensionFunction::ResponseAction TerminalPrivateOpenWindowFunction::Run() {
   }
 
   if (as_tab) {
-    auto* browser = chrome::FindBrowserWithWebContents(GetSenderWebContents());
+    auto* browser = chrome::FindBrowserWithTab(GetSenderWebContents());
     if (browser) {
       chrome::AddTabAt(browser, GURL(*url), -1, true);
     } else {
@@ -702,7 +710,7 @@ ExtensionFunction::ResponseAction TerminalPrivateOpenWindowFunction::Run() {
   } else {
     guest_os::LaunchTerminalWithUrl(
         Profile::FromBrowserContext(browser_context()),
-        display::kInvalidDisplayId, GURL(*url));
+        display::kInvalidDisplayId, /*restore_id=*/0, GURL(*url));
   }
 
   return RespondNow(NoArguments());
@@ -737,14 +745,9 @@ ExtensionFunction::ResponseAction TerminalPrivateGetOSInfoFunction::Run() {
   info.Set("alternative_emulator",
            base::FeatureList::IsEnabled(
                ash::features::kTerminalAlternativeEmulator));
-  info.Set("multi_profile",
-           base::FeatureList::IsEnabled(ash::features::kTerminalMultiProfile));
-  info.Set("sftp", base::FeatureList::IsEnabled(ash::features::kTerminalSftp));
   info.Set("tast", extensions::ExtensionRegistry::Get(browser_context())
                        ->enabled_extensions()
                        .Contains(extension_misc::kGuestModeTestExtensionId));
-  info.Set("tmux_integration", base::FeatureList::IsEnabled(
-                                   ash::features::kTerminalTmuxIntegration));
   return RespondNow(WithArguments(std::move(info)));
 }
 

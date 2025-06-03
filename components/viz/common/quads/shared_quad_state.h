@@ -37,8 +37,6 @@ class VIZ_COMMON_EXPORT SharedQuadState {
 
   void SetAll(const SharedQuadState& other);
 
-  // TODO(kylechar): Remove default value for `layer_id` after updating all
-  // callers.
   void SetAll(const gfx::Transform& transform,
               const gfx::Rect& layer_rect,
               const gfx::Rect& visible_layer_rect,
@@ -48,7 +46,8 @@ class VIZ_COMMON_EXPORT SharedQuadState {
               float opacity_f,
               SkBlendMode blend,
               int sorting_context,
-              uint32_t layer_id = 0);
+              uint32_t layer_id,
+              bool fast_rounded_corner);
   void AsValueInto(base::trace_event::TracedValue* dict) const;
 
   // Transforms quad rects into the target content space.
@@ -87,6 +86,8 @@ class VIZ_COMMON_EXPORT SharedQuadState {
   // and the OverlayProcessor. Do not set the value in CompositorRenderPass.
   // This index points to the damage rect in the surface damage rect list where
   // the overlay quad belongs to. SetAll() doesn't update this data.
+  // TODO(crbug.com/1482361): Consider moving this member out of this struct and
+  // into the quads themselves.
   absl::optional<size_t> overlay_damage_index;
 };
 

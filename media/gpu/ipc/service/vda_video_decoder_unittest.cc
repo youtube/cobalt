@@ -108,7 +108,7 @@ class VdaVideoDecoderTest : public testing::TestWithParam<bool> {
         base::BindRepeating(&VdaVideoDecoderTest::CreateAndInitializeVda,
                             base::Unretained(this)),
         GetCapabilities(),
-        VideoDecodeAccelerator::Config::OutputMode::ALLOCATE);
+        VideoDecodeAccelerator::Config::OutputMode::kAllocate);
     vdavd_ = std::make_unique<AsyncDestroyVideoDecoder<VdaVideoDecoder>>(
         base::WrapUnique(vdavd));
     client_ = vdavd;
@@ -308,12 +308,14 @@ class VdaVideoDecoderTest : public testing::TestWithParam<bool> {
   testing::StrictMock<base::MockCallback<base::OnceClosure>> reset_cb_;
 
   scoped_refptr<FakeCommandBufferHelper> cbh_;
-  raw_ptr<testing::StrictMock<MockVideoDecodeAccelerator>> vda_;
+  raw_ptr<testing::StrictMock<MockVideoDecodeAccelerator>,
+          AcrossTasksDanglingUntriaged>
+      vda_;
   std::unique_ptr<VideoDecodeAccelerator> owned_vda_;
   scoped_refptr<PictureBufferManager> pbm_;
   std::unique_ptr<AsyncDestroyVideoDecoder<VdaVideoDecoder>> vdavd_;
 
-  raw_ptr<VideoDecodeAccelerator::Client> client_;
+  raw_ptr<VideoDecodeAccelerator::Client, AcrossTasksDanglingUntriaged> client_;
   uint64_t next_release_count_ = 1;
 };
 
@@ -387,6 +389,9 @@ TEST_P(VdaVideoDecoderTest, Decode_NotifyError) {
   NotifyError(VideoDecodeAccelerator::PLATFORM_FAILURE);
 }
 
+// The below tests rely on creation of video frames from GL textures, which is
+// not supported on Apple platforms.
+#if !BUILDFLAG(IS_APPLE)
 TEST_P(VdaVideoDecoderTest, Decode_OutputAndReuse) {
   Initialize();
   int32_t bitstream_id = Decode(base::TimeDelta());
@@ -453,6 +458,7 @@ TEST_P(VdaVideoDecoderTest, Decode_Output_MaintainsAspect) {
   EXPECT_EQ(frame->coded_size(), gfx::Size(1920, 1088));
   EXPECT_EQ(frame->visible_rect(), gfx::Rect(320, 240));
 }
+#endif  // !BUILDFLAG(IS_APPLE)
 
 TEST_P(VdaVideoDecoderTest, Flush) {
   Initialize();

@@ -49,8 +49,16 @@
   }
 
   function setLocalStorage() {
-    localStorage.setItem('foo', 'bar');
-    return true;
+    try{
+      localStorage.setItem('foo', 'bar');
+      return true;
+    } catch(e){
+      // Expect false for storage access denied.
+      if(e.code == DOMException.SECURITY_ERR){
+        return false;
+      }
+      throw e;
+    }
   }
   function setLocalStorageAsync() {
     // Provided for Java.
@@ -70,8 +78,16 @@
   }
 
   function setSessionStorage() {
-    sessionStorage.setItem('foo', 'bar');
-    return true;
+    try {
+      sessionStorage.setItem('foo', 'bar');
+      return true;
+    } catch (e) {
+      // Expect false for storage access denied.
+      if(e.code == DOMException.SECURITY_ERR){
+        return false;
+      }
+      throw e;
+    }
   }
 
   function hasSessionStorage() {
@@ -339,6 +355,24 @@
     return navigator.locks.query()
     .then(locks => !!locks.held.length && locks.held[0].name === "foo")
     .catch(() => false);
+  }
+
+  async function setSharedDictionary() {
+    await (await fetch('../shared_dictionary/test.dict')).text();
+    // Need the polling because writing the dictionary to the storage and the
+    // database may take time.
+    while (!await hasSharedDictionary()) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    return true;
+  }
+
+  async function hasSharedDictionary() {
+    const path = '../shared_dictionary/path/compressed.data';
+    const expectedResult =
+        'This is compressed test data using a test dictionary';
+    const result = await (await fetch(path)).text();
+    return result === expectedResult;
   }
 </script>
 

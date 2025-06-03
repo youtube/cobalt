@@ -3,7 +3,6 @@
 # found in the LICENSE file.
 
 source_set("gcm") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   sources = [
     "ios_chrome_gcm_profile_service_factory.h",
     "ios_chrome_gcm_profile_service_factory.mm",
@@ -13,8 +12,8 @@ source_set("gcm") {
     "//build:branding_buildflags",
     "//components/gcm_driver",
     "//components/keyed_service/ios",
-    "//ios/chrome/browser/application_context",
-    "//ios/chrome/browser/browser_state",
+    "//ios/chrome/browser/shared/model/application_context",
+    "//ios/chrome/browser/shared/model/browser_state",
     "//ios/chrome/browser/signin",
     "//ios/chrome/common",
     "//ios/web",

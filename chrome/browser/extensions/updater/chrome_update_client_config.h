@@ -15,7 +15,6 @@
 #include "base/memory/ref_counted.h"
 #include "base/time/time.h"
 #include "components/component_updater/configurator_impl.h"
-#include "components/update_client/buildflags.h"
 #include "components/update_client/configurator.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
@@ -37,10 +36,6 @@ class ProtocolHandlerFactory;
 }  // namespace update_client
 
 namespace extensions {
-
-#if BUILDFLAG(ENABLE_PUFFIN_PATCHES)
-inline constexpr const char* kExtensionsCrxCachePath = "extensions_crx_cache";
-#endif
 
 class ExtensionUpdateClientBaseTest;
 
@@ -89,9 +84,7 @@ class ChromeUpdateClientConfig : public update_client::Configurator {
   GetProtocolHandlerFactory() const override;
   absl::optional<bool> IsMachineExternallyManaged() const override;
   update_client::UpdaterStateProvider GetUpdaterStateProvider() const override;
-#if BUILDFLAG(ENABLE_PUFFIN_PATCHES)
   absl::optional<base::FilePath> GetCrxCachePath() const override;
-#endif
 
  protected:
   friend class base::RefCountedThreadSafe<ChromeUpdateClientConfig>;
@@ -105,9 +98,9 @@ class ChromeUpdateClientConfig : public update_client::Configurator {
       FactoryCallback factory);
 
  private:
-  raw_ptr<content::BrowserContext> context_ = nullptr;
+  raw_ptr<content::BrowserContext, LeakedDanglingUntriaged> context_ = nullptr;
   component_updater::ConfiguratorImpl impl_;
-  raw_ptr<PrefService> pref_service_;
+  raw_ptr<PrefService, LeakedDanglingUntriaged> pref_service_;
   std::unique_ptr<update_client::ActivityDataService> activity_data_service_;
   scoped_refptr<update_client::NetworkFetcherFactory> network_fetcher_factory_;
   scoped_refptr<update_client::CrxDownloaderFactory> crx_downloader_factory_;

@@ -137,7 +137,7 @@ class TestAdTracker : public AdTracker {
     if (!execution_context_)
       return AdTracker::GetCurrentExecutionContext();
 
-    return execution_context_;
+    return execution_context_.Get();
   }
 
   bool CalculateIfAdSubresource(ExecutionContext* execution_context,
@@ -722,9 +722,9 @@ TEST_F(AdTrackerSimTest, InlineAdScriptRunningInNonAdContext) {
     )HTML");
 
   // The new sibling frame should also be identified as created by ad script.
-  EXPECT_TRUE(
-      To<LocalFrame>(GetDocument().GetFrame()->Tree().ScopedChild("ad_sibling"))
-          ->IsFrameCreatedByAdScript());
+  EXPECT_TRUE(To<LocalFrame>(GetDocument().GetFrame()->Tree().ScopedChild(
+                                 AtomicString("ad_sibling")))
+                  ->IsFrameCreatedByAdScript());
 }
 
 // Image loaded by ad script is tagged as ad.

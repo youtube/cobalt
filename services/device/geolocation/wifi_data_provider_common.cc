@@ -6,24 +6,22 @@
 
 #include "base/functional/bind.h"
 #include "base/location.h"
-#include "base/metrics/histogram_macros.h"
 #include "base/strings/stringprintf.h"
-#include "base/strings/utf_string_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "components/device_event_log/device_event_log.h"
 
 namespace device {
 
-std::u16string MacAddressAsString16(const uint8_t mac_as_int[6]) {
+std::string MacAddressAsString(const uint8_t mac_as_int[6]) {
   // |mac_as_int| is big-endian. Write in byte chunks.
   // Format is XX-XX-XX-XX-XX-XX.
-  static const char* const kMacFormatString = "%02x-%02x-%02x-%02x-%02x-%02x";
-  return base::ASCIIToUTF16(base::StringPrintf(
-      kMacFormatString, mac_as_int[0], mac_as_int[1], mac_as_int[2],
-      mac_as_int[3], mac_as_int[4], mac_as_int[5]));
+  static constexpr char kMacFormatString[] = "%02x-%02x-%02x-%02x-%02x-%02x";
+  return base::StringPrintf(kMacFormatString, mac_as_int[0], mac_as_int[1],
+                            mac_as_int[2], mac_as_int[3], mac_as_int[4],
+                            mac_as_int[5]);
 }
 
-WifiDataProviderCommon::WifiDataProviderCommon() {}
+WifiDataProviderCommon::WifiDataProviderCommon() = default;
 
 WifiDataProviderCommon::~WifiDataProviderCommon() = default;
 
@@ -68,9 +66,6 @@ void WifiDataProviderCommon::DoWifiScanTask() {
   // Abort the wifi scan if the provider is already being torn down.
   if (!wlan_api_)
     return;
-
-  SCOPED_UMA_HISTOGRAM_TIMER(
-      "Geolocation.WifiDataProviderCommon.WifiScanTaskTime");
 
   bool update_available = false;
   WifiData new_data;

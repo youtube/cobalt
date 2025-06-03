@@ -8,6 +8,7 @@
 
 #include <utility>
 
+#include "base/containers/contains.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/json/json_writer.h"
@@ -26,7 +27,7 @@ const char kPathSeparator = '.';
 // Determines if a key passed to Register() is valid. No path separators can
 // be present in the key and it must not be empty.
 bool IsValidRegisterKey(const std::string& key) {
-  return !key.empty() && key.find(kPathSeparator) == std::string::npos;
+  return !key.empty() && !base::Contains(key, kPathSeparator);
 }
 
 // Determines if a path is valid. This is true if there are no empty keys
@@ -277,10 +278,9 @@ void DeviceCapabilitiesImpl::SetCapability(const std::string& path,
   SetPublicValidatedValue(path, std::move(proposed_value));
 }
 
-void DeviceCapabilitiesImpl::MergeDictionary(const base::Value& dict_value) {
-  DCHECK(dict_value.is_dict());
-  for (const auto kv : dict_value.GetDict()) {
-    SetCapability(kv.first, kv.second.Clone());
+void DeviceCapabilitiesImpl::MergeDictionary(const base::Value::Dict& dict) {
+  for (const auto [key, value] : dict) {
+    SetCapability(key, value.Clone());
   }
 }
 

@@ -5,10 +5,13 @@
 #ifndef ASH_CLIPBOARD_CLIPBOARD_HISTORY_UTIL_H_
 #define ASH_CLIPBOARD_CLIPBOARD_HISTORY_UTIL_H_
 
+#include <list>
 #include <string>
+#include <vector>
 
 #include "ash/ash_export.h"
 #include "base/strings/string_piece_forward.h"
+#include "chromeos/crosapi/mojom/clipboard_history.mojom.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/base/models/image_model.h"
 
@@ -55,9 +58,14 @@ enum class Action {
 // IDs for the views used by the clipboard history menu.
 enum MenuViewID {
   // We start at 1 because 0 is not a valid view ID.
-  kDeleteButtonViewID = 1,
-
-  kMainButtonViewID
+  kContentsViewID = 1,
+  kCtrlVLabelID,
+  kDeleteButtonViewID,
+  kDisplayTextLabelID,
+  kFooterContentViewID,
+  kFooterContentV2LabelID,
+  kFooterContentV2ViewID,
+  kSecondaryDisplayTextLabelID,
 };
 
 // Modes for specifying a clipboard history pause's semantics.
@@ -140,6 +148,13 @@ ASH_EXPORT size_t GetCountOfCopiedFiles(const ui::ClipboardData& data);
 // file system sources, an empty string is returned.
 ASH_EXPORT std::u16string GetFileSystemSources(const ui::ClipboardData& data);
 
+// Returns the icon representation of the shortcut modifier key based on
+// keyboard layout and whether the Assistant feature is enabled.
+ASH_EXPORT const gfx::VectorIcon& GetShortcutKeyIcon();
+
+// Returns the name of the shortcut modifier key based on keyboard layout.
+ASH_EXPORT std::u16string GetShortcutKeyName();
+
 // Returns true if `data` is supported by clipboard history.
 ASH_EXPORT bool IsSupported(const ui::ClipboardData& data);
 
@@ -153,6 +168,13 @@ ASH_EXPORT ui::ImageModel GetIconForFileClipboardItem(
 // Returns a placeholder image to display for HTML items while their previews
 // render.
 ASH_EXPORT ui::ImageModel GetHtmlPreviewPlaceholder();
+
+// Returns an item descriptor based on `item`.
+crosapi::mojom::ClipboardHistoryItemDescriptor ItemToDescriptor(
+    const ClipboardHistoryItem& item);
+
+// Calculates the preferred width for clipboard history menu item views.
+int GetPreferredItemViewWidth();
 
 }  // namespace clipboard_history_util
 }  // namespace ash

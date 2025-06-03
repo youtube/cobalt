@@ -117,10 +117,13 @@ class BookmarkBarView : public views::AccessiblePaneView,
   void GetAnchorPositionForButton(views::MenuButton* button,
                                   views::MenuAnchorPosition* anchor);
 
+  // Returns the size of the leading margin of the bookmarks bar.
+  int GetLeadingMargin() const;
+
   // Returns the button responsible for showing bookmarks in the
   // "Other Bookmarks" folder.
-  views::MenuButton* other_bookmarks_button() const {
-    return other_bookmarks_button_;
+  views::MenuButton* all_bookmarks_button() const {
+    return all_bookmarks_button_;
   }
 
   // Returns the button used when not all the items on the bookmark bar fit.
@@ -230,7 +233,11 @@ class BookmarkBarView : public views::AccessiblePaneView,
   friend class BookmarkBarViewEventTestBase;
 
   // Used to identify what the user is dropping onto.
-  enum DropButtonType { DROP_BOOKMARK, DROP_OTHER_FOLDER, DROP_OVERFLOW };
+  enum DropButtonType {
+    DROP_BOOKMARK,
+    DROP_ALL_BOOKMARKS_FOLDER,
+    DROP_OVERFLOW
+  };
 
   // Creates recent bookmark button and when visible button as well as
   // calculating the preferred height.
@@ -253,8 +260,8 @@ class BookmarkBarView : public views::AccessiblePaneView,
   // visible, this returns GetBookmarkButtonCount().
   size_t GetFirstHiddenNodeIndex() const;
 
-  // Creates the button showing the "Other Bookmarks" folder.
-  std::unique_ptr<views::MenuButton> CreateOtherBookmarksButton();
+  // Creates the button showing the "All Bookmarks" folder.
+  std::unique_ptr<views::MenuButton> CreateAllBookmarksButton();
 
   // Creates the button showing the "Managed Bookmarks" folder.
   std::unique_ptr<views::MenuButton> CreateManagedBookmarksButton();
@@ -273,6 +280,10 @@ class BookmarkBarView : public views::AccessiblePaneView,
   // and icon.
   void ConfigureButton(const bookmarks::BookmarkNode* node,
                        views::LabelButton* button);
+
+  // Returns true when the TabGroupsSave feature should be added to the
+  // bookmarks bar.
+  bool IsSavedTabGroupsEnabled();
 
   // Implementation for BookmarkNodeAddedImpl. Returns true if LayoutAndPaint()
   // is required.
@@ -367,7 +378,8 @@ class BookmarkBarView : public views::AccessiblePaneView,
   PrefChangeRegistrar profile_pref_registrar_;
 
   // Used for opening urls.
-  raw_ptr<content::PageNavigator, DanglingUntriaged> page_navigator_ = nullptr;
+  raw_ptr<content::PageNavigator, AcrossTasksDanglingUntriaged>
+      page_navigator_ = nullptr;
 
   // BookmarkModel that owns the entries and folders that are shown in this
   // view. This is owned by the Profile.
@@ -393,7 +405,7 @@ class BookmarkBarView : public views::AccessiblePaneView,
   raw_ptr<SavedTabGroupBar> saved_tab_group_bar_ = nullptr;
 
   // Shows the "Other Bookmarks" folder button.
-  raw_ptr<views::MenuButton> other_bookmarks_button_ = nullptr;
+  raw_ptr<views::MenuButton> all_bookmarks_button_ = nullptr;
 
   // Shows the managed bookmarks entries.
   raw_ptr<views::MenuButton> managed_bookmarks_button_ = nullptr;

@@ -148,9 +148,18 @@ enum class AXRangeExpandBehavior {
 // `AXPlatformNodeTextRangeProvider` methods. Since an "embedded object
 // character" is the only character in a node, we also treat this character as a
 // word.
+//
+// However, there is a special case for UIA. kExposeCharacterForHypertext is
+// used mainly to enable the hypertext logic and calculation for cases where the
+// embedded object character is not needed. This logic is IA2 and ATK specific,
+// and should not be used for UIA relevant calls and calculations. As a result,
+// we have the kUIAExposeCharacterForTextContent which avoids the IA2/ATK
+// specific logic for the text calculation but also keeps the same embedded
+// object character behavior for cases when it is needed.
 enum class AXEmbeddedObjectBehavior {
-  kExposeCharacter,
+  kExposeCharacterForHypertext,
   kSuppressCharacter,
+  kUIAExposeCharacterForTextContent,
 };
 
 // Controls whether embedded objects are represented by a replacement
@@ -477,6 +486,14 @@ class AXPosition {
     // have an unignored generic container inside it.
     if (!node.IsEmptyLeaf())
       return false;
+
+    // While atomic text fields from web content have a text node descendant,
+    // atomic text fields from Views don't. Their text value is set in the value
+    // attribute of the text field node directly.
+    if (node.IsView() && node.data().IsAtomicTextField() &&
+        !node.GetValueForControl().empty()) {
+      return false;
+    }
 
     // One exception to the above rule that all empty leaf nodes are empty
     // objects in AXPosition are <embed> and <object> elements that have
@@ -2755,11 +2772,12 @@ class AXPosition {
   //
   // We can only create character stops around generated newline characters
   // when empty objects are represented in the accessible text (ie. when the
-  // behavior is set to `AXEmbeddedObjectBehavior::kExposeCharacter`).
-  // Otherwise, there's a risk that `CreateParentPosition` will create a
-  // position that doesn't point to the same character. This is because a
-  // position located right before a generated newline character will be
-  // represented in the parent ancestor with an upstream affinity.
+  // behavior is set to
+  // `AXEmbeddedObjectBehavior::kExposeCharacterForHypertext`). Otherwise,
+  // there's a risk that `CreateParentPosition` will create a position that
+  // doesn't point to the same character. This is because a position located
+  // right before a generated newline character will be represented in the
+  // parent ancestor with an upstream affinity.
   //
   // Let's consider this AXTree:
   // 1 root
@@ -2804,7 +2822,7 @@ class AXPosition {
   // even know they are there.
   bool AllowsCharacterStopsOnGeneratedNewline() const {
     return g_ax_embedded_object_behavior ==
-               AXEmbeddedObjectBehavior::kExposeCharacter ||
+               AXEmbeddedObjectBehavior::kExposeCharacterForHypertext ||
            !IsInUnignoredEmptyObject();
   }
 
@@ -4295,10 +4313,12 @@ class AXPosition {
     if (IsNullPosition())
       return base::EmptyString16();
 
+    static const base::NoDestructor<std::u16string> embedded_character_str(
+        AXNode::kEmbeddedObjectCharacterUTF16);
     switch (embedded_object_behavior) {
       case AXEmbeddedObjectBehavior::kSuppressCharacter:
         return GetAnchor()->GetTextContentUTF16();
-      case AXEmbeddedObjectBehavior::kExposeCharacter:
+      case AXEmbeddedObjectBehavior::kExposeCharacterForHypertext:
         // Special case, if a position's anchor node has only ignored
         // descendants, i.e., it appears to be empty to assistive software, on
         // some platforms we need to still treat it as a character and a word
@@ -4306,11 +4326,23 @@ class AXPosition {
         // the text representation used by this class, but we don't expose that
         // character to assistive software that tries to retrieve the node's
         // text content.
-        static const base::NoDestructor<std::u16string> embedded_character_str(
-            AXNode::kEmbeddedObjectCharacterUTF16);
-        if (IsInUnignoredEmptyObject())
+        if (IsInUnignoredEmptyObject()) {
           return *embedded_character_str;
+        }
         return GetAnchor()->GetHypertext();
+      case AXEmbeddedObjectBehavior::kUIAExposeCharacterForTextContent:
+        // For UIA, we still have the notion of embedded object characters for
+        // text navigation purposes. I.e. when AT's need to navigate around
+        // nodes and elements which are empty and should then be exposed as
+        // embedded object characters.
+        if (IsInUnignoredEmptyObject()) {
+          return *embedded_character_str;
+        }
+        // However, for UIA, we don't want to expose the Hypertext like the
+        // kExposeCharacterForHypertext case does, since that computation for
+        // Hypertext is IA2-specific. Instead, UIA needs the text contents of
+        // the node, which is what GetTextContentUTF16() returns.
+        return GetAnchor()->GetTextContentUTF16();
     }
   }
 
@@ -4390,7 +4422,7 @@ class AXPosition {
         // TODO(nektar): Switch to anchor->GetTextContentLengthUTF8() after
         // AXPosition switches to using UTF8.
         return GetAnchor()->GetTextContentLengthUTF16();
-      case AXEmbeddedObjectBehavior::kExposeCharacter:
+      case AXEmbeddedObjectBehavior::kExposeCharacterForHypertext:
         // Special case: If a node has only ignored descendants, i.e., it
         // appears to be empty to assistive software, on some platforms we need
         // to still treat it as a character and a word boundary. We achieve this
@@ -4401,6 +4433,22 @@ class AXPosition {
         if (IsInUnignoredEmptyObject())
           return AXNode::kEmbeddedObjectCharacterLengthUTF16;
         return static_cast<int>(GetAnchor()->GetHypertext().length());
+      case AXEmbeddedObjectBehavior::kUIAExposeCharacterForTextContent:
+        // For UIA, we still have the notion of embedded object characters for
+        // text navigation purposes. I.e. when AT's need to navigate around
+        // nodes and elements which are empty and should then be exposed as
+        // embedded object characters, and as such we need to return the length
+        // of the embedded object character when calculating the `MaxTextOffset`
+        // for these nodes.
+        if (IsInUnignoredEmptyObject()) {
+          return AXNode::kEmbeddedObjectCharacterLengthUTF16;
+        }
+        // However, for UIA, we don't want to expose the Hypertext like the
+        // kExposeCharacterForHypertext case does, since that computation for
+        // Hypertext is IA2-specific. Instead, UIA needs the text contents of
+        // the node, so for `MaxTextOffset()` we should return the length of the
+        // text content.
+        return GetAnchor()->GetTextContentLengthUTF16();
     }
   }
 
@@ -4653,7 +4701,7 @@ class AXPosition {
     switch (g_ax_embedded_object_behavior) {
       case AXEmbeddedObjectBehavior::kSuppressCharacter:
         return false;
-      case AXEmbeddedObjectBehavior::kExposeCharacter:
+      case AXEmbeddedObjectBehavior::kExposeCharacterForHypertext:
         // We expose an "object replacement character" for all nodes except:
         // A) Textual nodes, such as static text, inline text boxes and line
         // breaks, and B) Nodes that are invisible to platform APIs.
@@ -4683,6 +4731,9 @@ class AXPosition {
         // `AXPosition::IsInUnignoredEmptyObject()`.
         return !IsNullPosition() && !GetAnchor()->IsIgnored() &&
                !GetAnchor()->IsText() && !GetAnchor()->IsChildOfLeaf();
+      case AXEmbeddedObjectBehavior::kUIAExposeCharacterForTextContent:
+        return !IsNullPosition() && !GetAnchor()->IsIgnored() &&
+               GetAnchor()->IsLeaf() && IsInUnignoredEmptyObject();
     }
   }
 
@@ -4717,7 +4768,7 @@ class AXPosition {
     // `ax::mojom::IntListAttribute::kWordStarts` attribute, so we need to
     // special case them here.
     if (g_ax_embedded_object_behavior ==
-            AXEmbeddedObjectBehavior::kExposeCharacter &&
+            AXEmbeddedObjectBehavior::kExposeCharacterForHypertext &&
         IsInUnignoredEmptyObject()) {
       // Using braces ensures that the vector will contain the given value, and
       // not create a vector of size 0.
@@ -4749,7 +4800,7 @@ class AXPosition {
     // characters as ordinary characters, it wouldn't be consistent to assume
     // they have no length and return 0 instead of 1.
     if (g_ax_embedded_object_behavior ==
-            AXEmbeddedObjectBehavior::kExposeCharacter &&
+            AXEmbeddedObjectBehavior::kExposeCharacterForHypertext &&
         IsInUnignoredEmptyObject()) {
       // Using braces ensures that the vector will contain the given value, and
       // not create a vector of size 1.

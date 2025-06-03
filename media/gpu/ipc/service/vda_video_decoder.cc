@@ -33,7 +33,6 @@
 #include "media/gpu/gpu_video_decode_accelerator_factory.h"
 #include "media/video/picture.h"
 #include "ui/gfx/geometry/rect.h"
-#include "ui/gl/gl_image.h"
 
 namespace media {
 
@@ -58,26 +57,6 @@ scoped_refptr<CommandBufferHelper> CreateCommandBufferHelper(
   return CommandBufferHelper::Create(stub);
 }
 
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_APPLE)
-bool BindDecoderManagedImage(
-    scoped_refptr<CommandBufferHelper> command_buffer_helper,
-    uint32_t client_texture_id,
-    uint32_t texture_target,
-    const scoped_refptr<gl::GLImage>& image) {
-  return command_buffer_helper->BindDecoderManagedImage(client_texture_id,
-                                                        image.get());
-}
-#else
-bool BindClientManagedImage(
-    scoped_refptr<CommandBufferHelper> command_buffer_helper,
-    uint32_t client_texture_id,
-    uint32_t texture_target,
-    const scoped_refptr<gl::GLImage>& image) {
-  return command_buffer_helper->BindClientManagedImage(client_texture_id,
-                                                       image.get());
-}
-#endif
-
 std::unique_ptr<VideoDecodeAccelerator> CreateAndInitializeVda(
     const gpu::GpuPreferences& gpu_preferences,
     const gpu::GpuDriverBugWorkarounds& gpu_workarounds,
@@ -93,16 +72,6 @@ std::unique_ptr<VideoDecodeAccelerator> CreateAndInitializeVda(
         &CommandBufferHelper::GetGLContext, command_buffer_helper);
     gl_client.make_context_current = base::BindRepeating(
         &CommandBufferHelper::MakeContextCurrent, command_buffer_helper);
-    // The semantics of |bind_image| vary per-platform: On Windows and Mac it
-    // must mark the image as needing binding by the decoder, while on other
-    // platforms it must mark the image as *not* needing binding by the decoder.
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_APPLE)
-    gl_client.bind_image =
-        base::BindRepeating(&BindDecoderManagedImage, command_buffer_helper);
-#else
-    gl_client.bind_image =
-        base::BindRepeating(&BindClientManagedImage, command_buffer_helper);
-#endif
     gl_client.is_passthrough = command_buffer_helper->IsPassthrough();
     gl_client.supports_arb_texture_rectangle =
         command_buffer_helper->SupportsTextureRectangle();
@@ -151,8 +120,8 @@ std::unique_ptr<VideoDecoder> VdaVideoDecoder::Create(
       std::move(media_log), target_color_space,
       base::BindOnce(&PictureBufferManager::Create,
                      /*allocate_gpu_memory_buffers=*/output_mode ==
-                         VideoDecodeAccelerator::Config::OutputMode::IMPORT),
-      output_mode == VideoDecodeAccelerator::Config::OutputMode::ALLOCATE
+                         VideoDecodeAccelerator::Config::OutputMode::kImport),
+      output_mode == VideoDecodeAccelerator::Config::OutputMode::kAllocate
           ? base::BindOnce(&CreateCommandBufferHelper, std::move(get_stub_cb))
           : base::NullCallback(),
       base::BindRepeating(&CreateAndInitializeVda, gpu_preferences,
@@ -375,7 +344,7 @@ void VdaVideoDecoder::InitializeOnGpuThread() {
 
   // Set up |command_buffer_helper_|.
   if (!reinitializing_) {
-    if (output_mode_ == VideoDecodeAccelerator::Config::OutputMode::ALLOCATE) {
+    if (output_mode_ == VideoDecodeAccelerator::Config::OutputMode::kAllocate) {
       command_buffer_helper_ =
           std::move(create_command_buffer_helper_cb_).Run();
       if (!command_buffer_helper_) {
@@ -548,7 +517,7 @@ bool VdaVideoDecoder::FramesHoldExternalResources() const {
   DVLOG(3) << __func__;
   DCHECK(parent_task_runner_->RunsTasksInCurrentSequence());
 
-  return output_mode_ == VideoDecodeAccelerator::Config::OutputMode::IMPORT;
+  return output_mode_ == VideoDecodeAccelerator::Config::OutputMode::kImport;
 }
 
 void VdaVideoDecoder::NotifyInitializationComplete(DecoderStatus status) {
@@ -584,7 +553,7 @@ void VdaVideoDecoder::ProvidePictureBuffersWithVisibleRect(
     const gfx::Size& dimensions,
     const gfx::Rect& visible_rect,
     uint32_t texture_target) {
-  if (output_mode_ == VideoDecodeAccelerator::Config::OutputMode::IMPORT) {
+  if (output_mode_ == VideoDecodeAccelerator::Config::OutputMode::kImport) {
     // In IMPORT mode, we (as the client of the underlying VDA) are responsible
     // for buffer allocation with no textures (i.e., |texture_target| is
     // irrelevant). Therefore, the logic in the base version of
@@ -617,7 +586,7 @@ void VdaVideoDecoder::ProvidePictureBuffersAsync(uint32_t count,
   std::vector<std::pair<PictureBuffer, gfx::GpuMemoryBufferHandle>>
       picture_buffers_and_gmbs = picture_buffer_manager_->CreatePictureBuffers(
           count, pixel_format, planes, texture_size, texture_target,
-          output_mode_ == VideoDecodeAccelerator::Config::OutputMode::IMPORT
+          output_mode_ == VideoDecodeAccelerator::Config::OutputMode::kImport
               ? VideoDecodeAccelerator::TextureAllocationMode::
                     kDoNotAllocateGLTextures
               : vda_->GetSharedImageTextureAllocationMode());
@@ -635,7 +604,7 @@ void VdaVideoDecoder::ProvidePictureBuffersAsync(uint32_t count,
   }
   vda_->AssignPictureBuffers(std::move(picture_buffers));
 
-  if (output_mode_ == VideoDecodeAccelerator::Config::OutputMode::IMPORT) {
+  if (output_mode_ == VideoDecodeAccelerator::Config::OutputMode::kImport) {
     for (auto& picture_buffer_and_gmb : picture_buffers_and_gmbs) {
       vda_->ImportBufferForPicture(picture_buffer_and_gmb.first.id(),
                                    pixel_format,
@@ -856,12 +825,12 @@ void VdaVideoDecoder::NotifyError(VideoDecodeAccelerator::Error error) {
 }
 
 gpu::SharedImageStub* VdaVideoDecoder::GetSharedImageStub() const {
-  DCHECK_EQ(output_mode_, VideoDecodeAccelerator::Config::OutputMode::ALLOCATE);
+  DCHECK_EQ(output_mode_, VideoDecodeAccelerator::Config::OutputMode::kAllocate);
   return command_buffer_helper_->GetSharedImageStub();
 }
 
 CommandBufferHelper* VdaVideoDecoder::GetCommandBufferHelper() const {
-  DCHECK_EQ(output_mode_, VideoDecodeAccelerator::Config::OutputMode::ALLOCATE);
+  DCHECK_EQ(output_mode_, VideoDecodeAccelerator::Config::OutputMode::kAllocate);
   return command_buffer_helper_.get();
 }
 

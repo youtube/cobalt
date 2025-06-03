@@ -9,6 +9,8 @@
 
 #include <stddef.h>
 
+#include "base/observer_list_types.h"
+
 class GURL;
 
 namespace bookmarks {
@@ -17,7 +19,7 @@ class BookmarkModel;
 class BookmarkNode;
 
 // Observer for the BookmarkModel.
-class BookmarkModelObserver {
+class BookmarkModelObserver : public base::CheckedObserver {
  public:
   BookmarkModelObserver(const BookmarkModelObserver&) = delete;
   BookmarkModelObserver& operator=(const BookmarkModelObserver&) = delete;
@@ -37,9 +39,14 @@ class BookmarkModelObserver {
                                  const BookmarkNode* new_parent,
                                  size_t new_index) = 0;
 
-  // Invoked when a node has been added. `added_by_user` is true when a new
-  // bookmark was added by the user and false when a node is added by sync
-  // or duplicated.
+  // Invoked when a node has been added. If the added node has any descendants,
+  // BookmarkModel` will invoke `BookmarkNodeAdded` recursively for all these
+  // descendants.
+  // TODO(crbug.com/1440384): See if this should send only one notification,
+  //                          for consistency with `BookmarkNodeRemoved`.
+  //
+  // `added_by_user` is true when a new bookmark was added by the user and false
+  // when a node is added by sync or duplicated.
   virtual void BookmarkNodeAdded(BookmarkModel* model,
                                  const BookmarkNode* parent,
                                  size_t index,
@@ -146,7 +153,7 @@ class BookmarkModelObserver {
 
  protected:
   BookmarkModelObserver() = default;
-  virtual ~BookmarkModelObserver() = default;
+  ~BookmarkModelObserver() override = default;
 };
 
 }  // namespace bookmarks

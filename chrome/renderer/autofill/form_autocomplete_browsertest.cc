@@ -14,8 +14,10 @@
 #include "chrome/test/base/chrome_render_view_test.h"
 #include "components/autofill/content/renderer/autofill_agent.h"
 #include "components/autofill/content/renderer/focus_test_utils.h"
+#include "components/autofill/content/renderer/form_autofill_util.h"
 #include "components/autofill/core/common/autofill_features.h"
 #include "components/autofill/core/common/form_data.h"
+#include "components/autofill/core/common/mojom/autofill_types.mojom-shared.h"
 #include "content/public/renderer/render_frame.h"
 #include "mojo/public/cpp/bindings/associated_receiver_set.h"
 #include "mojo/public/cpp/bindings/pending_associated_receiver.h"
@@ -43,7 +45,7 @@ class FakeContentAutofillDriver : public mojom::AutofillDriver {
  public:
   FakeContentAutofillDriver() = default;
 
-  ~FakeContentAutofillDriver() override {}
+  ~FakeContentAutofillDriver() override = default;
 
   void BindReceiver(
       mojo::PendingAssociatedReceiver<mojom::AutofillDriver> receiver) {
@@ -104,8 +106,7 @@ class FakeContentAutofillDriver : public mojom::AutofillDriver {
       const FormData& form,
       const FormFieldData& field,
       const gfx::RectF& bounding_box,
-      AutoselectFirstSuggestion autoselect_first_field,
-      FormElementWasClicked form_element_was_clicked) override {}
+      AutofillSuggestionTriggerSource trigger_source) override {}
 
   void HidePopup() override {}
 
@@ -121,11 +122,10 @@ class FakeContentAutofillDriver : public mojom::AutofillDriver {
   void DidFillAutofillFormData(const FormData& form,
                                base::TimeTicks timestamp) override {}
 
-  void DidPreviewAutofillFormData() override {}
-
   void DidEndTextFieldEditing() override {}
 
-  void SelectFieldOptionsDidChange(const autofill::FormData& form) override {}
+  void SelectOrSelectListFieldOptionsDidChange(
+      const autofill::FormData& form) override {}
 
   // Records whether FocusNoLongerOnForm() get called.
   bool did_unfocus_form_{false};
@@ -212,18 +212,17 @@ FormData CreateAutofillFormData(blink::WebLocalFrame* main_frame) {
   field_data.name = u"fname";
   field_data.value = u"John";
   field_data.is_autofilled = true;
-  field_data.unique_renderer_id =
-      FieldRendererId(fname_element.UniqueRendererFormControlId());
+  field_data.unique_renderer_id = form_util::GetFieldRendererId(fname_element);
   data.fields.push_back(field_data);
 
-  field_data.name = u"lname";
-  field_data.value = u"Smith";
-  field_data.is_autofilled = true;
   if (!lname_element.IsNull()) {
+    field_data.name = u"lname";
+    field_data.value = u"Smith";
+    field_data.is_autofilled = true;
     field_data.unique_renderer_id =
-        FieldRendererId(lname_element.UniqueRendererFormControlId());
+        form_util::GetFieldRendererId(lname_element);
+    data.fields.push_back(field_data);
   }
-  data.fields.push_back(field_data);
 
   return data;
 }
@@ -242,8 +241,8 @@ void SimulateFillForm(const FormData& form_data,
   autofill_agent->FormControlElementClicked(
       fname_element.To<WebInputElement>());
 
-  autofill_agent->FillOrPreviewForm(form_data,
-                                    mojom::RendererFormDataAction::kFill);
+  autofill_agent->ApplyFormAction(mojom::ActionType::kFill,
+                                  mojom::ActionPersistence::kFill, form_data);
 }
 
 // Simulates receiving a message from the browser to fill a form.
@@ -282,23 +281,20 @@ void SimulateFillFormWithNonFillableFields(
   field_data.name = u"fname";
   field_data.value = u"John";
   field_data.is_autofilled = true;
-  field_data.unique_renderer_id =
-      FieldRendererId(fname_element.UniqueRendererFormControlId());
+  field_data.unique_renderer_id = form_util::GetFieldRendererId(fname_element);
   data.fields.push_back(field_data);
 
   field_data.name = u"lname";
   field_data.value = u"Smith";
   field_data.is_autofilled = true;
-  field_data.unique_renderer_id =
-      FieldRendererId(lname_element.UniqueRendererFormControlId());
+  field_data.unique_renderer_id = form_util::GetFieldRendererId(lname_element);
   data.fields.push_back(field_data);
 
   // Additional non-autofillable field.
   field_data.name = u"mname";
   field_data.value = u"James";
   field_data.is_autofilled = false;
-  field_data.unique_renderer_id =
-      FieldRendererId(mname_element.UniqueRendererFormControlId());
+  field_data.unique_renderer_id = form_util::GetFieldRendererId(mname_element);
   data.fields.push_back(field_data);
 
   // This call is necessary to setup the autofill agent appropriate for the
@@ -306,7 +302,8 @@ void SimulateFillFormWithNonFillableFields(
   autofill_agent->FormControlElementClicked(
       fname_element.To<WebInputElement>());
 
-  autofill_agent->FillOrPreviewForm(data, mojom::RendererFormDataAction::kFill);
+  autofill_agent->ApplyFormAction(mojom::ActionType::kFill,
+                                  mojom::ActionPersistence::kFill, data);
 }
 
 }  // end namespace
@@ -875,11 +872,11 @@ TEST_F(FormAutocompleteTest, AcceptDataListSuggestion) {
     WebElement element = document.GetElementById(WebString::FromUTF8(c.id));
     ASSERT_FALSE(element.IsNull());
     WebInputElement input_element = element.To<WebInputElement>();
-    FieldRendererId field_id(input_element.UniqueRendererFormControlId());
     // Select this element in |autofill_agent_|.
     autofill_agent_->FormControlElementClicked(input_element);
 
-    autofill_agent_->AcceptDataListSuggestion(field_id, kSuggestion);
+    autofill_agent_->AcceptDataListSuggestion(
+        form_util::GetFieldRendererId(input_element), kSuggestion);
     EXPECT_EQ(c.expected, input_element.Value().Utf8()) << "Case id: " << c.id;
   }
 }

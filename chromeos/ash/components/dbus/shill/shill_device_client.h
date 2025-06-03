@@ -44,6 +44,8 @@ class COMPONENT_EXPORT(SHILL_CLIENT) ShillDeviceClient {
                            const std::string& name) = 0;
     virtual void RemoveDevice(const std::string& device_path) = 0;
     virtual void ClearDevices() = 0;
+    virtual base::Value* GetDeviceProperty(const std::string& device_path,
+                                           const std::string& name) = 0;
     virtual void SetDeviceProperty(const std::string& device_path,
                                    const std::string& name,
                                    const base::Value& value,
@@ -67,6 +69,10 @@ class COMPONENT_EXPORT(SHILL_CLIENT) ShillDeviceClient {
     // change.
     virtual void SetPropertyChangeDelay(
         absl::optional<base::TimeDelta> time_delay) = 0;
+    // Sets a SetProperty error. If set, the next SetProperty call will
+    // fail with the given |error_name|
+    virtual void SetErrorForNextSetPropertyAttempt(
+        const std::string& error_name) = 0;
 
    protected:
     virtual ~TestInterface() = default;

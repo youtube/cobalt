@@ -8,10 +8,12 @@ import android.text.format.DateUtils;
 
 import androidx.annotation.VisibleForTesting;
 
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.NativeMethods;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.NativeMethods;
+
+import org.chromium.base.ResettersForTesting;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
-import org.chromium.chrome.browser.preferences.SharedPreferencesManager;
+import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 
 /**
  * The {@link NotificationTriggerScheduler} singleton is responsible for scheduling notification
@@ -40,9 +42,9 @@ public class NotificationTriggerScheduler {
 
     private static NotificationTriggerScheduler sInstanceForTests;
 
-    @VisibleForTesting
     protected static void setInstanceForTests(NotificationTriggerScheduler instance) {
         sInstanceForTests = instance;
+        ResettersForTesting.register(() -> sInstanceForTests = null);
     }
 
     @CalledByNative
@@ -53,33 +55,6 @@ public class NotificationTriggerScheduler {
     @VisibleForTesting
     protected NotificationTriggerScheduler(Clock clock) {
         mClock = clock;
-    }
-
-    /**
-     * Schedules a one-off background task to wake the browser up and call into native code to
-     * display pending notifications. If there is already a trigger scheduled earlier, this is a
-     * nop. Otherwise the existing trigger is overwritten.
-     * @param timestamp The timestamp of the next trigger.
-     */
-    @CalledByNative
-    @VisibleForTesting
-    protected void schedule(long timestamp) {
-        // Check if there is already a trigger scheduled earlier. Also check for the case where
-        // Android did not execute our task and reschedule.
-        long now = mClock.currentTimeMillis();
-        long nextTrigger = getNextTrigger();
-
-        if (timestamp < nextTrigger) {
-            // New timestamp is earlier than existing one -> schedule new task.
-            setNextTrigger(timestamp);
-            nextTrigger = timestamp;
-        } else if (nextTrigger >= now) {
-            // Existing timestamp is earlier than new one and still in future -> do nothing.
-            return;
-        } // else: Existing timestamp is earlier than new one and overdue -> schedule task again.
-
-        long delay = Math.max(nextTrigger - now, 0);
-        NotificationTriggerBackgroundTask.schedule(nextTrigger, delay);
     }
 
     /**
@@ -102,17 +77,17 @@ public class NotificationTriggerScheduler {
     }
 
     private long getNextTrigger() {
-        return SharedPreferencesManager.getInstance().readLong(
+        return ChromeSharedPreferences.getInstance().readLong(
                 ChromePreferenceKeys.NOTIFICATIONS_NEXT_TRIGGER, Long.MAX_VALUE);
     }
 
     private void removeNextTrigger() {
-        SharedPreferencesManager.getInstance().removeKey(
+        ChromeSharedPreferences.getInstance().removeKey(
                 ChromePreferenceKeys.NOTIFICATIONS_NEXT_TRIGGER);
     }
 
     private void setNextTrigger(long timestamp) {
-        SharedPreferencesManager.getInstance().writeLong(
+        ChromeSharedPreferences.getInstance().writeLong(
                 ChromePreferenceKeys.NOTIFICATIONS_NEXT_TRIGGER, timestamp);
     }
 

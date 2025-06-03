@@ -174,8 +174,14 @@ std::string BaseBlockingPage::GetExtraMetricsSuffix(
       return "from_device_v4";
     case safe_browsing::ThreatSource::CLIENT_SIDE_DETECTION:
       return "from_client_side_detection";
-    case safe_browsing::ThreatSource::REAL_TIME_CHECK:
+    case safe_browsing::ThreatSource::URL_REAL_TIME_CHECK:
       return "from_real_time_check";
+    case safe_browsing::ThreatSource::NATIVE_PVER5_REAL_TIME:
+      return "from_hash_prefix_real_time_check_v5";
+    case safe_browsing::ThreatSource::ANDROID_SAFEBROWSING_REAL_TIME:
+      return "from_android_safebrowsing_real_time";
+    case safe_browsing::ThreatSource::ANDROID_SAFEBROWSING:
+      return "from_android_safebrowsing";
     case safe_browsing::ThreatSource::UNKNOWN:
       break;
   }

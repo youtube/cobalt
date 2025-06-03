@@ -35,18 +35,10 @@ struct CC_PAINT_EXPORT TargetColorParams {
   // luminance (a non-HDR-capable display will have a value of 1).
   float hdr_max_luminance_relative = 1.f;
 
-  // Whether or not tone mapping should be applied.
-  bool enable_tone_mapping = true;
-
-  // The HDR metadata to use in tone mapping.
-  absl::optional<gfx::HDRMetadata> hdr_metadata;
-
   bool operator==(const TargetColorParams& other) const {
     return color_space == other.color_space &&
            sdr_max_luminance_nits == other.sdr_max_luminance_nits &&
-           hdr_max_luminance_relative == other.hdr_max_luminance_relative &&
-           enable_tone_mapping == other.enable_tone_mapping &&
-           hdr_metadata == other.hdr_metadata;
+           hdr_max_luminance_relative == other.hdr_max_luminance_relative;
   }
   bool operator!=(const TargetColorParams& other) const {
     return !(*this == other);

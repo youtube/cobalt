@@ -8,6 +8,7 @@
 #include <stdint.h>
 
 #include <algorithm>
+#include <string_view>
 #include <utility>
 
 #include "base/containers/contains.h"
@@ -123,6 +124,8 @@ base::Value::Dict Validator::MapObject(const OncValueSignature& signature,
       valid = ValidateToplevelConfiguration(&repaired);
     } else if (&signature == &kNetworkConfigurationSignature) {
       valid = ValidateNetworkConfiguration(&repaired);
+    } else if (&signature == &kCellularSignature) {
+      valid = ValidateCellular(&repaired);
     } else if (&signature == &kEthernetSignature) {
       valid = ValidateEthernet(&repaired);
     } else if (&signature == &kIPConfigSignature ||
@@ -373,7 +376,7 @@ std::string JoinStringRange(const std::vector<const char*>& strings,
 }  // namespace
 
 bool Validator::IsInDevicePolicy(base::Value::Dict* result,
-                                 const std::string& field_name) {
+                                 std::string_view field_name) {
   if (result->contains(field_name)) {
     if (onc_source_ != ::onc::ONC_SOURCE_DEVICE_POLICY) {
       std::ostringstream msg;
@@ -714,6 +717,17 @@ bool Validator::ValidateNetworkConfiguration(base::Value::Dict* result) {
   }
 
   return !error_on_missing_field_ || all_required_exist;
+}
+
+bool Validator::ValidateCellular(base::Value::Dict* result) {
+  if (result->contains(::onc::cellular::kSMDPAddress) &&
+      result->contains(::onc::cellular::kSMDSAddress)) {
+    AddValidationIssue(
+        /*is_error=*/true,
+        R"(The "SMDPAddress" and "SMDSAddress" fields are mutually exclusive.)");
+    return false;
+  }
+  return true;
 }
 
 bool Validator::ValidateEthernet(base::Value::Dict* result) {
@@ -1068,24 +1082,23 @@ bool Validator::ValidateGlobalNetworkConfiguration(base::Value::Dict* result) {
     }
   }
 
-  // Validate that kAllowCellularSimLock, kDisableNetworkTypes,
-  // kAllowOnlyPolicyWiFiToConnect, kAllowOnlyPolicyCellularNetworks and
-  // kBlockedHexSSIDs are only allowed in device policy.
-  if (!IsInDevicePolicy(result,
-                        ::onc ::global_network_config::kAllowCellularSimLock) ||
-      !IsInDevicePolicy(result,
-                        ::onc::global_network_config::kDisableNetworkTypes) ||
-      !IsInDevicePolicy(
-          result,
-          ::onc::global_network_config::kAllowOnlyPolicyCellularNetworks) ||
-      !IsInDevicePolicy(
-          result,
-          ::onc::global_network_config::kAllowOnlyPolicyWiFiToConnect) ||
-      !IsInDevicePolicy(result, ::onc::global_network_config::
-                                    kAllowOnlyPolicyWiFiToConnectIfAvailable) ||
-      !IsInDevicePolicy(result,
-                        ::onc::global_network_config::kBlockedHexSSIDs)) {
-    return false;
+  // Validate that these are only allowed in device policy.
+  const std::string_view kDevicePolicyOnlyKeys[] = {
+      ::onc::global_network_config::kAllowTextMessages,
+      ::onc::global_network_config::kAllowCellularSimLock,
+      ::onc::global_network_config::kAllowCellularHotspot,
+      ::onc::global_network_config::kDisableNetworkTypes,
+      ::onc::global_network_config::kAllowOnlyPolicyCellularNetworks,
+      ::onc::global_network_config::kAllowOnlyPolicyWiFiToConnect,
+      ::onc::global_network_config::kAllowOnlyPolicyWiFiToConnectIfAvailable,
+      ::onc::global_network_config::kBlockedHexSSIDs,
+      ::onc::global_network_config::kRecommendedValuesAreEphemeral,
+      ::onc::global_network_config::
+          kUserCreatedNetworkConfigurationsAreEphemeral};
+  for (std::string_view key : kDevicePolicyOnlyKeys) {
+    if (!IsInDevicePolicy(result, key)) {
+      return false;
+    }
   }
 
   // Ensure the list contains only legitimate network type identifiers.
@@ -1099,6 +1112,18 @@ bool Validator::ValidateGlobalNetworkConfiguration(base::Value::Dict* result) {
           valid_network_type_values)) {
     return false;
   }
+
+  // Ensure that AllowTextMessages contains valid types
+  const std::vector<const char*> valid_allow_text_messages_types = {
+      ::onc::cellular::kTextMessagesAllow,
+      ::onc::cellular::kTextMessagesSuppress,
+      ::onc::cellular::kTextMessagesUnset};
+  if (FieldExistsAndHasNoValidValue(
+          *result, ::onc::global_network_config::kAllowTextMessages,
+          valid_allow_text_messages_types)) {
+    return false;
+  }
+
   return true;
 }
 

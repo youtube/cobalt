@@ -11,10 +11,10 @@
 #include <memory>
 #include <utility>
 
+#include "base/apple/scoped_cftyperef.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/logging.h"
-#include "base/mac/scoped_cftyperef.h"
 #include "base/memory/weak_ptr.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/sequenced_task_runner.h"
@@ -106,8 +106,8 @@ void KeyboardLayoutMonitorMac::Start() {
   // Store the callback context pointer in a local variable so the block
   // captures it directly instead of capturing this.
   CallbackContext* callback_context = callback_context_.get();
-  base::ScopedCFTypeRef<CFRunLoopRef> main_loop(CFRunLoopGetMain(),
-                                                base::scoped_policy::RETAIN);
+  base::apple::ScopedCFTypeRef<CFRunLoopRef> main_loop(
+      CFRunLoopGetMain(), base::scoped_policy::RETAIN);
   CFRunLoopPerformBlock(main_loop, kCFRunLoopCommonModes, ^(void) {
     QueryLayoutOnMainLoop(callback_context);
   });
@@ -133,9 +133,9 @@ void KeyboardLayoutMonitorMac::SelectedKeyboardInputSourceChangedCallback(
 // static
 void KeyboardLayoutMonitorMac::QueryLayoutOnMainLoop(
     KeyboardLayoutMonitorMac::CallbackContext* callback_context) {
-  base::ScopedCFTypeRef<TISInputSourceRef> input_source(
+  base::apple::ScopedCFTypeRef<TISInputSourceRef> input_source(
       TISCopyCurrentKeyboardLayoutInputSource());
-  base::ScopedCFTypeRef<CFDataRef> layout_data(
+  base::apple::ScopedCFTypeRef<CFDataRef> layout_data(
       static_cast<CFDataRef>(TISGetInputSourceProperty(
           input_source, kTISPropertyUnicodeKeyLayoutData)),
       base::scoped_policy::RETAIN);

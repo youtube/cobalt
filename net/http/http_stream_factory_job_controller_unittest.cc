@@ -122,6 +122,19 @@ class MockPrefDelegate : public HttpServerProperties::PrefDelegate {
   base::Value::Dict empty_dict_;
 };
 
+// A `TestProxyDelegate` which always sets `is_for_ip_protection` on the
+// `ProxyInfo` it receives in `OnResolveProxy()`.
+class TestProxyDelegateForIpProtection : public TestProxyDelegate {
+ public:
+  void OnResolveProxy(const GURL& url,
+                      const NetworkAnonymizationKey& network_anonymization_key,
+                      const std::string& method,
+                      const ProxyRetryInfoMap& proxy_retry_info,
+                      ProxyInfo* result) override {
+    result->set_is_for_ip_protection(true);
+  }
+};
+
 }  // anonymous namespace
 
 class HttpStreamFactoryJobPeer {
@@ -201,10 +214,13 @@ class HttpStreamFactoryJobControllerTestBase : public TestWithTaskEnvironment {
       : TestWithTaskEnvironment(
             base::test::TaskEnvironment::TimeSource::MOCK_TIME),
         dns_https_alpn_enabled_(dns_https_alpn_enabled) {
+    std::vector<base::test::FeatureRef> disabled_features;
     if (dns_https_alpn_enabled_) {
       enabled_features.push_back(features::kUseDnsHttpsSvcbAlpn);
+    } else {
+      disabled_features.push_back(features::kUseDnsHttpsSvcbAlpn);
     }
-    feature_list_.InitWithFeatures(enabled_features, {});
+    feature_list_.InitWithFeatures(enabled_features, disabled_features);
     FLAGS_quic_enable_http3_grease_randomness = false;
     CreateSessionDeps();
   }
@@ -344,6 +360,22 @@ class HttpStreamFactoryJobControllerTestBase : public TestWithTaskEnvironment {
                   NetworkAnonymizationKey()));
   }
 
+  void SetAsyncQuicSession(bool async_quic_session) {
+    std::vector<base::test::FeatureRef> enabled_features = {};
+    if (dns_https_alpn_enabled_) {
+      enabled_features.push_back(features::kUseDnsHttpsSvcbAlpn);
+    }
+    if (async_quic_session) {
+      feature_list_.Reset();
+      enabled_features.push_back(features::kAsyncQuicSession);
+      feature_list_.InitWithFeatures(enabled_features, {});
+    } else {
+      feature_list_.Reset();
+      feature_list_.InitWithFeatures(enabled_features,
+                                     {features::kAsyncQuicSession});
+    }
+  }
+
   void TestAltJobSucceedsAfterMainJobFailed(
       bool alt_job_retried_on_non_default_network,
       bool async_quic_session);
@@ -379,6 +411,7 @@ class HttpStreamFactoryJobControllerTestBase : public TestWithTaskEnvironment {
   void TestDoNotDelayMainJobIfQuicWasRecentlyBroken(bool async_quic_session);
   void TestDelayMainJobAfterRecentlyBrokenQuicWasConfirmed(
       bool async_quic_session);
+  void TestDoNotDelayMainJobIfHasAvailableSpdySession(bool async_quic_session);
 
   bool dns_https_alpn_enabled() const { return dns_https_alpn_enabled_; }
 
@@ -392,7 +425,8 @@ class HttpStreamFactoryJobControllerTestBase : public TestWithTaskEnvironment {
   SpdySessionDependencies session_deps_;
   std::unique_ptr<HttpNetworkSession> session_;
   raw_ptr<HttpStreamFactory> factory_ = nullptr;
-  raw_ptr<HttpStreamFactory::JobController> job_controller_ = nullptr;
+  raw_ptr<HttpStreamFactory::JobController, AcrossTasksDanglingUntriaged>
+      job_controller_ = nullptr;
   std::unique_ptr<HttpStreamRequest> request_;
   std::unique_ptr<SequencedSocketData> tcp_data_;
   std::unique_ptr<SequencedSocketData> tcp_data2_;
@@ -742,7 +776,7 @@ TEST_F(JobControllerReconsiderProxyAfterErrorTest,
         // it, so the next loop iteration creates a new socket instead of
         // reusing the idle one.
         auto* socket_pool = session_->GetSocketPool(
-            HttpNetworkSession::NORMAL_SOCKET_POOL, ProxyServer::Direct());
+            HttpNetworkSession::NORMAL_SOCKET_POOL, ProxyChain::Direct());
         EXPECT_EQ(1, socket_pool->IdleSocketCount());
         socket_pool->CloseIdleSockets("Close socket reason");
       }
@@ -960,13 +994,80 @@ TEST_F(JobControllerReconsiderProxyAfterErrorTest,
         // it, so the next loop iteration creates a new socket instead of
         // reusing the idle one.
         auto* socket_pool = session_->GetSocketPool(
-            HttpNetworkSession::NORMAL_SOCKET_POOL, ProxyServer::Direct());
+            HttpNetworkSession::NORMAL_SOCKET_POOL, ProxyChain::Direct());
         EXPECT_EQ(1, socket_pool->IdleSocketCount());
         socket_pool->CloseIdleSockets("Close socket reason");
       }
       EXPECT_TRUE(HttpStreamFactoryPeer::IsJobControllerDeleted(factory_));
     }
   }
+}
+
+// Test proxy fallback logic for an IP Protection request.
+TEST_F(JobControllerReconsiderProxyAfterErrorTest,
+       ReconsiderProxyForIpProtection) {
+  GURL dest_url = GURL("https://www.example.com");
+
+  CreateSessionDeps();
+
+  std::unique_ptr<ConfiguredProxyResolutionService> proxy_resolution_service =
+      ConfiguredProxyResolutionService::CreateFixedFromPacResultForTest(
+          "HTTPS badproxy:99; DIRECT", TRAFFIC_ANNOTATION_FOR_TESTS);
+  auto test_proxy_delegate =
+      std::make_unique<TestProxyDelegateForIpProtection>();
+
+  // Before starting the test, verify that there are no proxies marked as
+  // bad.
+  ASSERT_TRUE(proxy_resolution_service->proxy_retry_info().empty());
+
+  constexpr char kTunnelRequest[] =
+      "CONNECT www.example.com:443 HTTP/1.1\r\n"
+      "Host: www.example.com:443\r\n"
+      "Proxy-Connection: keep-alive\r\n\r\n";
+  const MockWrite kTunnelWrites[] = {{ASYNC, kTunnelRequest}};
+  std::vector<MockRead> reads;
+
+  // Generate errors for both the main proxy.
+  std::unique_ptr<StaticSocketDataProvider> socket_data_proxy_main_job;
+  std::unique_ptr<SSLSocketDataProvider> ssl_data_proxy_main_job;
+  reads.emplace_back(ASYNC, ERR_TUNNEL_CONNECTION_FAILED);
+  socket_data_proxy_main_job =
+      std::make_unique<StaticSocketDataProvider>(reads, kTunnelWrites);
+  ssl_data_proxy_main_job = std::make_unique<SSLSocketDataProvider>(ASYNC, OK);
+
+  session_deps_.socket_factory->AddSocketDataProvider(
+      socket_data_proxy_main_job.get());
+  session_deps_.socket_factory->AddSSLSocketDataProvider(
+      ssl_data_proxy_main_job.get());
+
+  // After the proxy fails, the request should fall back to using DIRECT,
+  // and succeed.
+  SSLSocketDataProvider ssl_data_first_request(ASYNC, OK);
+  StaticSocketDataProvider socket_data_direct_first_request;
+  socket_data_direct_first_request.set_connect_data(MockConnect(ASYNC, OK));
+  session_deps_.socket_factory->AddSocketDataProvider(
+      &socket_data_direct_first_request);
+  session_deps_.socket_factory->AddSSLSocketDataProvider(
+      &ssl_data_first_request);
+
+  HttpRequestInfo request_info;
+  request_info.method = "GET";
+  request_info.url = dest_url;
+
+  proxy_resolution_service->SetProxyDelegate(test_proxy_delegate.get());
+  Initialize(std::move(proxy_resolution_service));
+
+  ProxyInfo used_proxy_info;
+  EXPECT_CALL(request_delegate_, OnStreamReadyImpl(_, _, _))
+      .Times(1)
+      .WillOnce(::testing::SaveArg<1>(&used_proxy_info));
+
+  std::unique_ptr<HttpStreamRequest> request =
+      CreateJobController(request_info);
+  RunUntilIdle();
+
+  // Verify that request was fetched without proxy.
+  EXPECT_TRUE(used_proxy_info.is_direct());
 }
 
 // Test proxy fallback logic in the case connecting through socks5 proxy.
@@ -1108,7 +1209,7 @@ TEST_F(JobControllerReconsiderProxyAfterErrorTest,
       // it, so the next loop iteration creates a new socket instead of reusing
       // the idle one.
       auto* socket_pool = session_->GetSocketPool(
-          HttpNetworkSession::NORMAL_SOCKET_POOL, ProxyServer::Direct());
+          HttpNetworkSession::NORMAL_SOCKET_POOL, ProxyChain::Direct());
       EXPECT_EQ(1, socket_pool->IdleSocketCount());
       socket_pool->CloseIdleSockets("Close socket reason");
     }
@@ -1322,15 +1423,7 @@ TEST_P(HttpStreamFactoryJobControllerTest,
 
 void HttpStreamFactoryJobControllerTestBase::
     TestDoNotDelayMainJobIfQuicWasRecentlyBroken(bool async_quic_session) {
-  if (async_quic_session) {
-    feature_list_.Reset();
-    std::vector<base::test::FeatureRef> enabled_features = {
-        features::kAsyncQuicSession};
-    if (dns_https_alpn_enabled_) {
-      enabled_features.push_back(features::kUseDnsHttpsSvcbAlpn);
-    }
-    feature_list_.InitWithFeatures(enabled_features, {});
-  }
+  SetAsyncQuicSession(async_quic_session);
   crypto_client_stream_factory_.set_handshake_mode(
       MockCryptoClientStream::COLD_START);
   quic_data_ = std::make_unique<MockQuicData>(version_);
@@ -1406,15 +1499,7 @@ TEST_P(HttpStreamFactoryJobControllerTest,
 void HttpStreamFactoryJobControllerTestBase::
     TestDelayMainJobAfterRecentlyBrokenQuicWasConfirmed(
         bool async_quic_session) {
-  if (async_quic_session) {
-    feature_list_.Reset();
-    std::vector<base::test::FeatureRef> enabled_features = {
-        features::kAsyncQuicSession};
-    if (dns_https_alpn_enabled_) {
-      enabled_features.push_back(features::kUseDnsHttpsSvcbAlpn);
-    }
-    feature_list_.InitWithFeatures(enabled_features, {});
-  }
+  SetAsyncQuicSession(async_quic_session);
   crypto_client_stream_factory_.set_handshake_mode(
       MockCryptoClientStream::COLD_START);
   quic_data_ = std::make_unique<MockQuicData>(version_);
@@ -1497,15 +1582,7 @@ TEST_P(HttpStreamFactoryJobControllerTest,
 void HttpStreamFactoryJobControllerTestBase::TestOnStreamFailedForBothJobs(
     bool alt_job_retried_on_non_default_network,
     bool async_quic_session) {
-  if (async_quic_session) {
-    feature_list_.Reset();
-    std::vector<base::test::FeatureRef> enabled_features = {
-        features::kAsyncQuicSession};
-    if (dns_https_alpn_enabled_) {
-      enabled_features.push_back(features::kUseDnsHttpsSvcbAlpn);
-    }
-    feature_list_.InitWithFeatures(enabled_features, {});
-  }
+  SetAsyncQuicSession(async_quic_session);
   quic_data_ = std::make_unique<MockQuicData>(version_);
   quic_data_->AddConnect(ASYNC, ERR_FAILED);
   tcp_data_ = std::make_unique<SequencedSocketData>();
@@ -1581,15 +1658,7 @@ void HttpStreamFactoryJobControllerTestBase::
     TestAltJobFailsAfterMainJobSucceeded(
         bool alt_job_retried_on_non_default_network,
         bool async_quic_session) {
-  if (async_quic_session) {
-    feature_list_.Reset();
-    std::vector<base::test::FeatureRef> enabled_features = {
-        features::kAsyncQuicSession};
-    if (dns_https_alpn_enabled_) {
-      enabled_features.push_back(features::kUseDnsHttpsSvcbAlpn);
-    }
-    feature_list_.InitWithFeatures(enabled_features, {});
-  }
+  SetAsyncQuicSession(async_quic_session);
   quic_data_ = std::make_unique<MockQuicData>(version_);
   quic_data_->AddRead(ASYNC, ERR_FAILED);
   crypto_client_stream_factory_.set_handshake_mode(
@@ -1683,15 +1752,7 @@ TEST_P(HttpStreamFactoryJobControllerTest,
 
 void HttpStreamFactoryJobControllerTestBase::TestAltJobSucceedsMainJobDestroyed(
     bool async_quic_session) {
-  if (async_quic_session) {
-    feature_list_.Reset();
-    std::vector<base::test::FeatureRef> enabled_features = {
-        features::kAsyncQuicSession};
-    if (dns_https_alpn_enabled_) {
-      enabled_features.push_back(features::kUseDnsHttpsSvcbAlpn);
-    }
-    feature_list_.InitWithFeatures(enabled_features, {});
-  }
+  SetAsyncQuicSession(async_quic_session);
   quic_data_ = std::make_unique<MockQuicData>(version_);
   quic_data_->AddRead(SYNCHRONOUS, ERR_IO_PENDING);
   // Use cold start and complete alt job manually.
@@ -1830,15 +1891,7 @@ TEST_P(HttpStreamFactoryJobControllerTest,
 
 void HttpStreamFactoryJobControllerTestBase::
     TestOrphanedJobCompletesControllerDestroyed(bool async_quic_session) {
-  if (async_quic_session) {
-    feature_list_.Reset();
-    std::vector<base::test::FeatureRef> enabled_features = {
-        features::kAsyncQuicSession};
-    if (dns_https_alpn_enabled_) {
-      enabled_features.push_back(features::kUseDnsHttpsSvcbAlpn);
-    }
-    feature_list_.InitWithFeatures(enabled_features, {});
-  }
+  SetAsyncQuicSession(async_quic_session);
   quic_data_ = std::make_unique<MockQuicData>(version_);
   quic_data_->AddRead(SYNCHRONOUS, ERR_IO_PENDING);
   // Use cold start and complete alt job manually.
@@ -1913,15 +1966,7 @@ void HttpStreamFactoryJobControllerTestBase::
     TestAltJobSucceedsAfterMainJobFailed(
         bool alt_job_retried_on_non_default_network,
         bool async_quic_session) {
-  if (async_quic_session) {
-    feature_list_.Reset();
-    std::vector<base::test::FeatureRef> enabled_features = {
-        features::kAsyncQuicSession};
-    if (dns_https_alpn_enabled_) {
-      enabled_features.push_back(features::kUseDnsHttpsSvcbAlpn);
-    }
-    feature_list_.InitWithFeatures(enabled_features, {});
-  }
+  SetAsyncQuicSession(async_quic_session);
   quic_data_ = std::make_unique<MockQuicData>(version_);
   quic_data_->AddRead(SYNCHRONOUS, ERR_IO_PENDING);
   // Use cold start and complete alt job manually.
@@ -2016,15 +2061,7 @@ void HttpStreamFactoryJobControllerTestBase::
     TestAltJobSucceedsAfterMainJobSucceeded(
         bool alt_job_retried_on_non_default_network,
         bool async_quic_session) {
-  if (async_quic_session) {
-    feature_list_.Reset();
-    std::vector<base::test::FeatureRef> enabled_features = {
-        features::kAsyncQuicSession};
-    if (dns_https_alpn_enabled_) {
-      enabled_features.push_back(features::kUseDnsHttpsSvcbAlpn);
-    }
-    feature_list_.InitWithFeatures(enabled_features, {});
-  }
+  SetAsyncQuicSession(async_quic_session);
   quic_data_ = std::make_unique<MockQuicData>(version_);
   quic_data_->AddRead(SYNCHRONOUS, ERR_IO_PENDING);
   // Use cold start and complete alt job manually.
@@ -2133,15 +2170,7 @@ void HttpStreamFactoryJobControllerTestBase::
     TestMainJobSucceedsAfterAltJobSucceeded(
         bool alt_job_retried_on_non_default_network,
         bool async_quic_session) {
-  if (async_quic_session) {
-    feature_list_.Reset();
-    std::vector<base::test::FeatureRef> enabled_features = {
-        features::kAsyncQuicSession};
-    if (dns_https_alpn_enabled_) {
-      enabled_features.push_back(features::kUseDnsHttpsSvcbAlpn);
-    }
-    feature_list_.InitWithFeatures(enabled_features, {});
-  }
+  SetAsyncQuicSession(async_quic_session);
   quic_data_ = std::make_unique<MockQuicData>(version_);
   quic_data_->AddRead(SYNCHRONOUS, ERR_IO_PENDING);
   // Use cold start and complete alt job manually.
@@ -2248,15 +2277,7 @@ void HttpStreamFactoryJobControllerTestBase::
     TestMainJobFailsAfterAltJobSucceeded(
         bool alt_job_retried_on_non_default_network,
         bool async_quic_session) {
-  if (async_quic_session) {
-    feature_list_.Reset();
-    std::vector<base::test::FeatureRef> enabled_features = {
-        features::kAsyncQuicSession};
-    if (dns_https_alpn_enabled_) {
-      enabled_features.push_back(features::kUseDnsHttpsSvcbAlpn);
-    }
-    feature_list_.InitWithFeatures(enabled_features, {});
-  }
+  SetAsyncQuicSession(async_quic_session);
   quic_data_ = std::make_unique<MockQuicData>(version_);
   quic_data_->AddRead(SYNCHRONOUS, ERR_IO_PENDING);
   // Use cold start and complete alt job manually.
@@ -2349,15 +2370,7 @@ void HttpStreamFactoryJobControllerTestBase::
     TestMainJobSucceedsAfterAltJobFailed(
         bool alt_job_retried_on_non_default_network,
         bool async_quic_session) {
-  if (async_quic_session) {
-    feature_list_.Reset();
-    std::vector<base::test::FeatureRef> enabled_features = {
-        features::kAsyncQuicSession};
-    if (dns_https_alpn_enabled_) {
-      enabled_features.push_back(features::kUseDnsHttpsSvcbAlpn);
-    }
-    feature_list_.InitWithFeatures(enabled_features, {});
-  }
+  SetAsyncQuicSession(async_quic_session);
   quic_data_ = std::make_unique<MockQuicData>(version_);
   quic_data_->AddConnect(SYNCHRONOUS, ERR_FAILED);
 
@@ -2448,15 +2461,7 @@ void HttpStreamFactoryJobControllerTestBase::
                                          bool async_quic_session,
                                          bool expect_broken,
                                          std::string alternate_host) {
-  if (async_quic_session) {
-    feature_list_.Reset();
-    std::vector<base::test::FeatureRef> enabled_features = {
-        features::kAsyncQuicSession};
-    if (dns_https_alpn_enabled_) {
-      enabled_features.push_back(features::kUseDnsHttpsSvcbAlpn);
-    }
-    feature_list_.InitWithFeatures(enabled_features, {});
-  }
+  SetAsyncQuicSession(async_quic_session);
   quic_data_ = std::make_unique<MockQuicData>(version_);
   quic_data_->AddConnect(SYNCHRONOUS, net_error);
   tcp_data_ = std::make_unique<SequencedSocketData>();
@@ -2617,15 +2622,7 @@ TEST_P(HttpStreamFactoryJobControllerTest, GetLoadStateAfterMainJobFailed) {
 
 void HttpStreamFactoryJobControllerTestBase::TestResumeMainJobWhenAltJobStalls(
     bool async_quic_session) {
-  if (async_quic_session) {
-    feature_list_.Reset();
-    std::vector<base::test::FeatureRef> enabled_features = {
-        features::kAsyncQuicSession};
-    if (dns_https_alpn_enabled_) {
-      enabled_features.push_back(features::kUseDnsHttpsSvcbAlpn);
-    }
-    feature_list_.InitWithFeatures(enabled_features, {});
-  }
+  SetAsyncQuicSession(async_quic_session);
   // Use COLD_START to stall alt job.
   quic_data_ = std::make_unique<MockQuicData>(version_);
   quic_data_->AddRead(SYNCHRONOUS, ERR_IO_PENDING);
@@ -3142,8 +3139,10 @@ TEST_P(HttpStreamFactoryJobControllerTest,
   }
 }
 
-TEST_P(HttpStreamFactoryJobControllerTest,
-       DoNotDelayMainJobIfHasAvailableSpdySession) {
+void HttpStreamFactoryJobControllerTestBase::
+    TestDoNotDelayMainJobIfHasAvailableSpdySession(bool async_quic_session) {
+  SetAsyncQuicSession(async_quic_session);
+
   SetNotDelayMainJobWithAvailableSpdySession();
   HttpRequestInfo request_info;
   request_info.method = "GET";
@@ -3152,7 +3151,7 @@ TEST_P(HttpStreamFactoryJobControllerTest,
   Initialize(request_info);
   // Put a SpdySession in the pool.
   HostPortPair host_port_pair("www.google.com", 443);
-  SpdySessionKey key(host_port_pair, ProxyServer::Direct(),
+  SpdySessionKey key(host_port_pair, ProxyChain::Direct(),
                      PRIVACY_MODE_DISABLED,
                      SpdySessionKey::IsProxySession::kFalse, SocketTag(),
                      NetworkAnonymizationKey(), SecureDnsPolicy::kAllow);
@@ -3189,11 +3188,36 @@ TEST_P(HttpStreamFactoryJobControllerTest,
   EXPECT_TRUE(job_controller_->main_job());
   EXPECT_TRUE(job_controller_->alternative_job());
   // The main job shouldn't have any delay since request can be sent on
-  // available SPDY session. Main job should still be blocked as alt job has not
-  // succeeded or failed at least once yet.
+  // available SPDY session. When QUIC session creation is async, the main job
+  // should still be blocked as alt job has not succeeded or failed at least
+  // once yet. Otherwise the main job should not be blocked
   EXPECT_EQ(job_controller_->get_main_job_wait_time_for_tests(),
             base::TimeDelta());
-  EXPECT_FALSE(JobControllerPeer::main_job_is_blocked(job_controller_));
+  if (async_quic_session) {
+    EXPECT_TRUE(JobControllerPeer::main_job_is_blocked(job_controller_));
+    // The main job should have a SPDY session available.
+    EXPECT_TRUE(job_controller_->main_job()->HasAvailableSpdySession());
+    // Wait for QUIC session creation attempt to resume and unblock the main
+    // job.
+    FastForwardBy(base::Milliseconds(1));
+    // Main job should still have no delay and should be unblocked now.
+    EXPECT_EQ(job_controller_->get_main_job_wait_time_for_tests(),
+              base::TimeDelta());
+    EXPECT_FALSE(JobControllerPeer::main_job_is_blocked(job_controller_));
+  } else {
+    EXPECT_FALSE(JobControllerPeer::main_job_is_blocked(job_controller_));
+    EXPECT_TRUE(job_controller_->main_job()->HasAvailableSpdySession());
+  }
+}
+
+TEST_P(HttpStreamFactoryJobControllerTest,
+       DoNotDelayMainJobIfHasAvailableSpdySession) {
+  TestDoNotDelayMainJobIfHasAvailableSpdySession(false);
+}
+
+TEST_P(HttpStreamFactoryJobControllerTest,
+       DoNotDelayMainJobIfHasAvailableSpdySessionAsyncQuicSession) {
+  TestDoNotDelayMainJobIfHasAvailableSpdySession(true);
 }
 
 // Check the case that while a preconnect is waiting in the H2 request queue,
@@ -3253,7 +3277,7 @@ TEST_P(HttpStreamFactoryJobControllerTest, SpdySessionInterruptsPreconnect) {
   base::WeakPtr<SpdySession> spdy_session =
       session_->spdy_session_pool()->FindAvailableSession(
           SpdySessionKey(
-              HostPortPair::FromURL(request_info.url), ProxyServer::Direct(),
+              HostPortPair::FromURL(request_info.url), ProxyChain::Direct(),
               request_info.privacy_mode, SpdySessionKey::IsProxySession::kFalse,
               request_info.socket_tag, request_info.network_anonymization_key,
               request_info.secure_dns_policy),
@@ -3332,7 +3356,7 @@ TEST_P(HttpStreamFactoryJobControllerTest,
     base::WeakPtr<SpdySession> spdy_session =
         session_->spdy_session_pool()->FindAvailableSession(
             SpdySessionKey(HostPortPair::FromURL(request_info.url),
-                           ProxyServer::Direct(), request_info.privacy_mode,
+                           ProxyChain::Direct(), request_info.privacy_mode,
                            SpdySessionKey::IsProxySession::kFalse,
                            request_info.socket_tag,
                            request_info.network_anonymization_key,
@@ -3366,7 +3390,7 @@ TEST_P(HttpStreamFactoryJobControllerTest,
   // has finished.
   {
     const SpdySessionKey spdy_session_key = SpdySessionKey(
-        HostPortPair::FromURL(other_request_info.url), ProxyServer::Direct(),
+        HostPortPair::FromURL(other_request_info.url), ProxyChain::Direct(),
         other_request_info.privacy_mode, SpdySessionKey::IsProxySession::kFalse,
         other_request_info.socket_tag,
         other_request_info.network_anonymization_key,
@@ -3562,7 +3586,7 @@ TEST_F(JobControllerLimitMultipleH2Requests,
   }
   TransportClientSocketPool* socket_pool =
       reinterpret_cast<TransportClientSocketPool*>(session_->GetSocketPool(
-          HttpNetworkSession::NORMAL_SOCKET_POOL, ProxyServer::Direct()));
+          HttpNetworkSession::NORMAL_SOCKET_POOL, ProxyChain::Direct()));
   ClientSocketPool::GroupId group_id0(
       url::SchemeHostPort(request_info.url), request_info.privacy_mode,
       NetworkAnonymizationKey(), SecureDnsPolicy::kAllow);
@@ -4157,30 +4181,28 @@ TEST_P(HttpStreamFactoryJobControllerTest,
       "h3-Q050=\":443\"; ma=2592000,"
       "h3-Q049=\":443\"; ma=2592000,"
       "h3-Q048=\":443\"; ma=2592000,"
-      "h3-Q046=\":443\"; ma=2592000,"
-      "h3-Q043=\":443\"; ma=2592000,",
+      "h3-Q046=\":443\"; ma=2592000,",
       quic::ParsedQuicVersion::Q050(), quic::AllSupportedVersions());
 }
 
 TEST_P(HttpStreamFactoryJobControllerTest,
        AltSvcVersionSelectionFindsFirstMatchInverse) {
   TestAltSvcVersionSelection(
-      "h3-Q043=\":443\"; ma=2592000,"
       "h3-Q046=\":443\"; ma=2592000,"
       "h3-Q048=\":443\"; ma=2592000,"
       "h3-Q049=\":443\"; ma=2592000,",
-      quic::ParsedQuicVersion::Q043(), quic::AllSupportedVersions());
+      quic::ParsedQuicVersion::Q046(), quic::AllSupportedVersions());
 }
 
 TEST_P(HttpStreamFactoryJobControllerTest,
        AltSvcVersionSelectionWithInverseOrderingNewFormat) {
-  // Server prefers Q043 but client prefers Q046.
+  // Server prefers Q046 but client prefers Q050.
   TestAltSvcVersionSelection(
-      "h3-Q043=\":443\"; ma=2592000,"
-      "h3-Q046=\":443\"; ma=2592000",
-      quic::ParsedQuicVersion::Q043(),
-      quic::ParsedQuicVersionVector{quic::ParsedQuicVersion::Q046(),
-                                    quic::ParsedQuicVersion::Q043()});
+      "h3-Q046=\":443\"; ma=2592000,"
+      "h3-Q050=\":443\"; ma=2592000",
+      quic::ParsedQuicVersion::Q046(),
+      quic::ParsedQuicVersionVector{quic::ParsedQuicVersion::Q050(),
+                                    quic::ParsedQuicVersion::Q046()});
 }
 
 // Tests that if HttpNetworkSession has a non-empty QUIC host allowlist,
@@ -4411,7 +4433,8 @@ class HttpStreamFactoryJobControllerDnsHttpsAlpnTest
         NetworkAnonymizationKey());
   }
 
-  raw_ptr<HttpStreamFactory::JobController> job_controller2_ = nullptr;
+  raw_ptr<HttpStreamFactory::JobController, AcrossTasksDanglingUntriaged>
+      job_controller2_ = nullptr;
 
   MockHttpStreamRequestDelegate request_delegate2_;
 
@@ -4425,7 +4448,8 @@ class HttpStreamFactoryJobControllerDnsHttpsAlpnTest
   }
 
   void CreateJobControllerImpl(
-      raw_ptr<HttpStreamFactory::JobController>* job_controller,
+      raw_ptr<HttpStreamFactory::JobController, AcrossTasksDanglingUntriaged>*
+          job_controller,
       MockHttpStreamRequestDelegate* request_delegate,
       const HttpRequestInfo& request_info) {
     auto controller = std::make_unique<HttpStreamFactory::JobController>(
@@ -4438,7 +4462,8 @@ class HttpStreamFactoryJobControllerDnsHttpsAlpnTest
   }
 
   std::unique_ptr<HttpStreamRequest> CreateJobControllerAndStartImpl(
-      raw_ptr<HttpStreamFactory::JobController>* job_controller,
+      raw_ptr<HttpStreamFactory::JobController, AcrossTasksDanglingUntriaged>*
+          job_controller,
       MockHttpStreamRequestDelegate* request_delegate,
       const HttpRequestInfo& request_info) {
     CreateJobControllerImpl(job_controller, request_delegate, request_info);
@@ -4811,7 +4836,7 @@ TEST_F(HttpStreamFactoryJobControllerDnsHttpsAlpnTest,
 
   // Put a SpdySession in the pool.
   SpdySessionKey key(HostPortPair::FromURL(request_info.url),
-                     ProxyServer::Direct(), PRIVACY_MODE_DISABLED,
+                     ProxyChain::Direct(), PRIVACY_MODE_DISABLED,
                      SpdySessionKey::IsProxySession::kFalse, SocketTag(),
                      NetworkAnonymizationKey(), SecureDnsPolicy::kAllow);
   std::ignore = CreateFakeSpdySession(session_->spdy_session_pool(), key);
@@ -5056,7 +5081,7 @@ TEST_F(HttpStreamFactoryJobControllerDnsHttpsAlpnTest,
 
   // Put a SpdySession in the pool.
   SpdySessionKey key(HostPortPair::FromURL(request_info.url),
-                     ProxyServer::Direct(), PRIVACY_MODE_DISABLED,
+                     ProxyChain::Direct(), PRIVACY_MODE_DISABLED,
                      SpdySessionKey::IsProxySession::kFalse, SocketTag(),
                      NetworkAnonymizationKey(), SecureDnsPolicy::kAllow);
   std::ignore = CreateFakeSpdySession(session_->spdy_session_pool(), key);

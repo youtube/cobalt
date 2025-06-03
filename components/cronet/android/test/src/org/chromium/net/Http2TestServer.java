@@ -5,6 +5,7 @@
 package org.chromium.net;
 
 import android.content.Context;
+import android.os.Build;
 import android.os.ConditionVariable;
 
 import org.chromium.base.Log;
@@ -42,11 +43,27 @@ public final class Http2TestServer {
     private static Channel sServerChannel;
     private static final String TAG = Http2TestServer.class.getSimpleName();
 
-    private static final String HOST = "127.0.0.1";
+    private static final String HOST = "localhost";
     // Server port.
     private static final int PORT = 8443;
 
     private static ReportingCollector sReportingCollector;
+
+    public static final String SERVER_CERT_PEM;
+    private static final String SERVER_KEY_PKCS8_PEM;
+
+    static {
+        // TODO(crbug/1490552): Fallback to MockCertVerifier when custom CAs are not supported.
+        // Currently, MockCertVerifier uses different certificates, so make the server also use
+        // those.
+        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.M) {
+            SERVER_CERT_PEM = "quic-chain.pem";
+            SERVER_KEY_PKCS8_PEM = "quic-leaf-cert.key.pkcs8.pem";
+        } else {
+            SERVER_CERT_PEM = "cronet-quic-chain.pem";
+            SERVER_KEY_PKCS8_PEM = "cronet-quic-leaf-cert.key.pkcs8.pem";
+        }
+    }
 
     public static boolean shutdownHttp2TestServer() throws Exception {
         if (sServerChannel != null) {
@@ -138,12 +155,19 @@ public final class Http2TestServer {
         return getServerUrl() + Http2TestHandler.COMBINED_HEADERS_PATH;
     }
 
-    public static boolean startHttp2TestServer(
-            Context context, String certFileName, String keyFileName) throws Exception {
-        return startHttp2TestServer(context, certFileName, keyFileName, null);
+    public static boolean startHttp2TestServer(Context context) throws Exception {
+        TestFilesInstaller.installIfNeeded(context);
+        return startHttp2TestServer(context, SERVER_CERT_PEM, SERVER_KEY_PKCS8_PEM, null);
     }
 
-    public static boolean startHttp2TestServer(Context context, String certFileName,
+    public static boolean startHttp2TestServer(Context context, CountDownLatch hangingUrlLatch)
+            throws Exception {
+        TestFilesInstaller.installIfNeeded(context);
+        return startHttp2TestServer(
+                context, SERVER_CERT_PEM, SERVER_KEY_PKCS8_PEM, hangingUrlLatch);
+    }
+
+    private static boolean startHttp2TestServer(Context context, String certFileName,
             String keyFileName, CountDownLatch hangingUrlLatch) throws Exception {
         sReportingCollector = new ReportingCollector();
         Http2TestServerRunnable http2TestServerRunnable =

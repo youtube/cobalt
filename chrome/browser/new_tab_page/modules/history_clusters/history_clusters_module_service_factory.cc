@@ -23,7 +23,8 @@ HistoryClustersModuleServiceFactory::GetForProfile(Profile* profile) {
 
 HistoryClustersModuleServiceFactory*
 HistoryClustersModuleServiceFactory::GetInstance() {
-  return base::Singleton<HistoryClustersModuleServiceFactory>::get();
+  static base::NoDestructor<HistoryClustersModuleServiceFactory> instance;
+  return instance.get();
 }
 
 HistoryClustersModuleServiceFactory::HistoryClustersModuleServiceFactory()
@@ -43,7 +44,8 @@ HistoryClustersModuleServiceFactory::HistoryClustersModuleServiceFactory()
 HistoryClustersModuleServiceFactory::~HistoryClustersModuleServiceFactory() =
     default;
 
-KeyedService* HistoryClustersModuleServiceFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+HistoryClustersModuleServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
   // HistoryClustersModule cannot operate without the HistoryClustersService or
   // the TemplateURLService.
@@ -56,7 +58,7 @@ KeyedService* HistoryClustersModuleServiceFactory::BuildServiceInstanceFor(
   if (!tus) {
     return nullptr;
   }
-  return new HistoryClustersModuleService(
+  return std::make_unique<HistoryClustersModuleService>(
       hcs, CartServiceFactory::GetForProfile(profile), tus,
       OptimizationGuideKeyedServiceFactory::GetForProfile(profile));
 }

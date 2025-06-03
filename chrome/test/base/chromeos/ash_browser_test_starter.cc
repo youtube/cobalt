@@ -2,14 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "ash_browser_test_starter.h"
+#include "chrome/test/base/chromeos/ash_browser_test_starter.h"
+
+#include <memory>
 
 #include "ash/constants/ash_features.h"
 #include "ash/constants/ash_switches.h"
 #include "base/command_line.h"
 #include "base/environment.h"
 #include "base/files/file_util.h"
-#include "base/strings/string_number_conversions.h"
+#include "base/strings/stringprintf.h"
 #include "base/task/thread_pool.h"
 #include "base/test/bind.h"
 #include "base/test/test_switches.h"
@@ -18,21 +20,66 @@
 #include "chrome/browser/ash/crosapi/browser_manager.h"
 #include "chrome/browser/ash/crosapi/browser_manager_observer.h"
 #include "chrome/browser/ash/crosapi/browser_util.h"
+#include "chrome/browser/ash/crosapi/fake_device_ownership_waiter.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/test/base/in_process_browser_test.h"
+#include "chromeos/ash/components/standalone_browser/feature_refs.h"
+#include "components/network_session_configurator/common/network_switches.h"
+#include "google_apis/gaia/gaia_switches.h"
+#include "net/test/embedded_test_server/http_response.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/views/views_switches.h"
 
 namespace test {
 
-AshBrowserTestStarter::AshBrowserTestStarter() = default;
-AshBrowserTestStarter::~AshBrowserTestStarter() = default;
+namespace {
+
+using ::net::test_server::HungResponse;
+
+std::unique_ptr<net::test_server::HttpResponse> HandleGaiaURL(
+    const GURL& base_url,
+    const net::test_server::HttpRequest& request) {
+  // Simulate failure for Gaia url request.
+  return std::make_unique<HungResponse>();
+}
+
+}  // namespace
+
+AshBrowserTestStarter::~AshBrowserTestStarter() {
+  // Clean up the directories that tests were passed. This is
+  // to save bot collect results time and faster CQ runtime.
+  if (!ash_user_data_dir_for_cleanup_.empty() &&
+      !::testing::Test::HasFailure() &&
+      base::CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kTestLauncherBotMode)) {
+    // Intentionally not check return value.
+    base::DeletePathRecursively(ash_user_data_dir_for_cleanup_);
+  }
+}
+
+AshBrowserTestStarter::AshBrowserTestStarter()
+    : https_server_(net::EmbeddedTestServer::TYPE_HTTPS) {
+  https_server()->RegisterRequestHandler(
+      base::BindRepeating(&HandleGaiaURL, base_url()));
+
+  bool success = https_server()->InitializeAndListen();
+  CHECK(success);
+  https_server()->StartAcceptingConnections();
+}
 
 bool AshBrowserTestStarter::HasLacrosArgument() const {
   return base::CommandLine::ForCurrentProcess()->HasSwitch(
       ash::switches::kLacrosChromePath);
+}
+
+net::EmbeddedTestServer* AshBrowserTestStarter::https_server() {
+  return &https_server_;
+}
+
+GURL AshBrowserTestStarter::base_url() {
+  return https_server()->base_url();
 }
 
 bool AshBrowserTestStarter::PrepareEnvironmentForLacros() {
@@ -69,6 +116,7 @@ bool AshBrowserTestStarter::PrepareEnvironmentForLacros() {
     if (!base::PathExists(test_output_folder)) {
       command_line->AppendSwitchPath(switches::kUserDataDir,
                                      test_output_folder);
+      ash_user_data_dir_for_cleanup_ = test_output_folder;
     }
   } else {
     LOG(WARNING)
@@ -80,17 +128,34 @@ bool AshBrowserTestStarter::PrepareEnvironmentForLacros() {
   }
 
   scoped_feature_list_.InitWithFeatures(
-      {ash::features::kLacrosSupport, ash::features::kLacrosPrimary,
-       ash::features::kLacrosOnly},
-      {});
+      ash::standalone_browser::GetFeatureRefs(), {});
   command_line->AppendSwitch(ash::switches::kAshEnableWaylandServer);
   command_line->AppendSwitch(
       views::switches::kDisableInputEventActivationProtectionForTesting);
   command_line->AppendSwitch(ash::switches::kDisableLacrosKeepAliveForTesting);
   command_line->AppendSwitch(ash::switches::kDisableLoginLacrosOpening);
   command_line->AppendSwitch(switches::kNoStartupWindow);
+
+  std::vector<std::string> lacros_args;
+  lacros_args.emplace_back(base::StringPrintf("--%s", switches::kNoFirstRun));
+  lacros_args.emplace_back(
+      base::StringPrintf("--%s", switches::kIgnoreCertificateErrors));
+  // Override Gaia url in Lacros so that the gaia requests will NOT be handled
+  // with the real internet connection, but with the embedded test server. The
+  // embedded test server will simulate failure of the Gaia url requests which
+  // is expected in testing environment for Gaia authentication flow. This is a
+  // workaround for fixing crbug/1371655.
+  lacros_args.emplace_back(base::StringPrintf("--%s=%s", switches::kGaiaUrl,
+                                              base_url().spec().c_str()));
+  // Disable gpu process in Lacros since hardware accelerated rendering is
+  // not possible yet in Ash X11 backend. See details in crbug/1478369.
+  lacros_args.emplace_back("--disable-gpu");
+  // Disable gpu sandbox in Lacros since it fails in Linux emulator environment.
+  // See details in crbug/1483530.
+  lacros_args.emplace_back("--disable-gpu-sandbox");
   command_line->AppendSwitchASCII(ash::switches::kLacrosChromeAdditionalArgs,
-                                  "--no-first-run");
+                                  base::JoinString(lacros_args, "####"));
+
   return true;
 }
 
@@ -139,6 +204,9 @@ void WaitForExoStarted(const base::FilePath& xdg_path) {
 void AshBrowserTestStarter::StartLacros(InProcessBrowserTest* test_class_obj) {
   DCHECK(HasLacrosArgument());
 
+  crosapi::BrowserManager::Get()->set_device_ownership_waiter_for_testing(
+      std::make_unique<crosapi::FakeDeviceOwnershipWaiter>());
+
   WaitForExoStarted(scoped_temp_dir_xdg_.GetPath());
 
   crosapi::BrowserManager::Get()->NewWindow(
@@ -150,11 +218,6 @@ void AshBrowserTestStarter::StartLacros(InProcessBrowserTest* test_class_obj) {
   crosapi::BrowserManager::Get()->RemoveObserver(&observer);
 
   CHECK(crosapi::BrowserManager::Get()->IsRunning());
-
-  // Create a new ash browser window so browser() can work.
-  Profile* profile = ProfileManager::GetActiveUserProfile();
-  chrome::NewEmptyWindow(profile);
-  test_class_obj->SelectFirstBrowser();
 }
 
 }  // namespace test

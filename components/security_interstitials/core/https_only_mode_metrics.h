@@ -36,6 +36,10 @@ extern const char kSiteEngagementHeuristicAccumulatedHostCountHistogram[];
 // Recorded at the time of navigation when HFM upgrades trigger.
 extern const char kSiteEngagementHeuristicEnforcementDurationHistogram[];
 
+// Histogram that records why HTTPS-First Mode interstitial was shown. Only one
+// reason is recorded per interstitial.
+extern const char kInterstitialReasonHistogram[];
+
 // Recorded by HTTPS-First Mode and HTTPS-Upgrade logic when a navigation is
 // upgraded, or is eligible to be upgraded but wasn't.
 //
@@ -51,9 +55,9 @@ enum class Event {
   // Navigation failed after being upgraded to HTTPS.
   kUpgradeFailed = 2,
 
-  // kUpgradeCertError, kUpgradeNetError, and kUpgradeTimedOut are subsets of
-  // kUpgradeFailed. kUpgradeFailed should also be recorded whenever these
-  // events are recorded.
+  // kUpgradeCertError, kUpgradeNetError, kUpgradeTimedOut, and
+  // kUpgradeRedirectLoop are subsets of kUpgradeFailed. kUpgradeFailed should
+  // also be recorded whenever these events are recorded.
 
   // Navigation failed due to a cert error.
   kUpgradeCertError = 3,
@@ -69,7 +73,10 @@ enum class Event {
   // Mode nor HTTPS Upgrading were enabled.
   kUpgradeNotAttempted = 7,
 
-  kMaxValue = kUpgradeNotAttempted,
+  // Upgrade failed due to encountering a redirect loop and failing early.
+  kUpgradeRedirectLoop = 8,
+
+  kMaxValue = kUpgradeRedirectLoop,
 };
 
 // Recorded by HTTPS-Upgrade logic when each step in a navigation request is
@@ -115,7 +122,11 @@ enum class NavigationRequestSecurityLevel {
   // This bucket is recorded IN ADDITION to kInsecure/kAllowlisted.
   kNonUniqueHostname = 8,
 
-  kMaxValue = kNonUniqueHostname,
+  // Request was insecure (HTTP), but was to a URL that was fully typed (as
+  // opposed to autocompleted) that included an explicit http scheme.
+  kExplicitHttpScheme = 9,
+
+  kMaxValue = kExplicitHttpScheme,
 };
 
 // Recorded by the Site Engagement Heuristic logic, recording whether HFM should
@@ -146,6 +157,14 @@ struct HttpInterstitialState {
   // Whether HTTPS-First Mode is enabled for the current site due to the
   // site engagement heuristic.
   bool enabled_by_engagement_heuristic = false;
+
+  // Whether HTTPS-First Mode is enabled because the user is in the Advanced
+  // Protection program.
+  bool enabled_by_advanced_protection = false;
+
+  // Whether HTTPS-First Mode is enabled because the user's browsing pattern
+  // is typically secure, i.e. they mainly visit HTTPS sites.
+  bool enabled_by_typically_secure_browsing = false;
 };
 
 // Helper to record an HTTPS-First Mode navigation event.
@@ -169,6 +188,31 @@ void RecordSiteEngagementHeuristicCurrentHostCounts(size_t current_count,
 
 void RecordSiteEngagementHeuristicEnforcementDuration(
     base::TimeDelta enforcement_duration);
+
+// Recorded by the HTTPS-First Mode logic when showing the HTTPS-First Mode
+// interstitial. Only one reason is recorded even though multiple flags may be
+// true for the given navigation (e.g. Site Engagement + Advanced Protection).
+//
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused. Values may be added to offer greater
+// specificity in the future. Keep in sync with SiteEngagementHeuristicState
+// in enums.xml.
+enum class InterstitialReason {
+  kUnknown = 0,
+  // The interstitial was shown because the user enabled the UI pref.
+  kPref = 1,
+  // The interstitial was shown because the user is enrolled in Advanced
+  // Protection, which enables HTTPS-First Mode.
+  kAdvancedProtection = 2,
+  // The interstitial was shown because of the Site Engagement heuristic.
+  kSiteEngagementHeuristic = 3,
+  // The interstitial was shown because of the Typically Secure User heuristic.
+  kTypicallySecureUserHeuristic = 3,
+
+  kMaxValue = kTypicallySecureUserHeuristic,
+};
+
+void RecordInterstitialReason(const HttpInterstitialState& interstitial_state);
 
 }  // namespace security_interstitials::https_only_mode
 

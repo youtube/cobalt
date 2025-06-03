@@ -17,6 +17,7 @@
 #include "cc/paint/scoped_raster_flags.h"
 #include "skia/ext/legacy_display_globals.h"
 #include "third_party/skia/include/core/SkColorSpace.h"
+#include "third_party/skia/include/utils/SkNoDrawCanvas.h"
 #include "ui/gfx/geometry/skia_conversions.h"
 
 namespace cc {
@@ -63,8 +64,6 @@ PaintOpBufferSerializer::~PaintOpBufferSerializer() = default;
 void PaintOpBufferSerializer::Serialize(const PaintOpBuffer& buffer,
                                         const std::vector<size_t>* offsets,
                                         const Preamble& preamble) {
-  TRACE_EVENT_BEGIN1("cc", "PaintOpBufferSerializer::Serialize",
-                     "total_op_count", buffer.total_op_count());
   DCHECK_EQ(serialized_op_count_, 0u);
 
   std::unique_ptr<SkCanvas> canvas = MakeAnalysisCanvas(options_);
@@ -80,8 +79,6 @@ void PaintOpBufferSerializer::Serialize(const PaintOpBuffer& buffer,
   SerializePreamble(canvas.get(), preamble, params);
   SerializeBuffer(canvas.get(), buffer, offsets);
   RestoreToCount(canvas.get(), save_count, params);
-  TRACE_EVENT_END1("cc", "PaintOpBufferSerializer::Serialize",
-                   "serialized_op_count", serialized_op_count_);
 }
 
 void PaintOpBufferSerializer::Serialize(const PaintOpBuffer& buffer) {
@@ -203,11 +200,11 @@ bool PaintOpBufferSerializer::WillSerializeNextOp(const PaintOp& op,
                  PaintOp::QuickRejectDraw(op, canvas);
   // Skip text ops if there is no SkStrikeServer.
   skip_op |=
-      op.GetType() == PaintOpType::DrawTextBlob && !options_.strike_server;
+      op.GetType() == PaintOpType::kDrawtextblob && !options_.strike_server;
   if (skip_op)
     return true;
 
-  if (op.GetType() == PaintOpType::DrawRecord) {
+  if (op.GetType() == PaintOpType::kDrawrecord) {
     int save_count = canvas->getSaveCount();
     Save(canvas, params);
     SerializeBuffer(
@@ -216,7 +213,7 @@ bool PaintOpBufferSerializer::WillSerializeNextOp(const PaintOp& op,
     return true;
   }
 
-  if (op.GetType() == PaintOpType::DrawImageRect &&
+  if (op.GetType() == PaintOpType::kDrawimagerect &&
       static_cast<const DrawImageRectOp&>(op).image.IsPaintWorklet()) {
     DCHECK(options_.image_provider);
     const DrawImageRectOp& draw_op = static_cast<const DrawImageRectOp&>(op);
@@ -285,14 +282,26 @@ bool PaintOpBufferSerializer::SerializeOpWithFlags(
     const PaintOpWithFlags& flags_op,
     const PlaybackParams& params,
     float alpha) {
+  if (alpha == 1.0f && flags_op.flags.isAntiAlias()) {
+    // There's no need to spend CPU time on copying and restoring the flags
+    // struct below (verified by the DCHECK). Note that this if test depends
+    // on the internal logic of ScopedRasterFlags not calling MutableFlags().
+    DCHECK_EQ(
+        &flags_op.flags,
+        ScopedRasterFlags(&flags_op.flags, nullptr, canvas->getTotalMatrix(),
+                          options_.max_texture_size, alpha)
+            .flags());
+    return SerializeOp(canvas, flags_op, &flags_op.flags, params);
+  }
   // We use a null |image_provider| here because images are decoded during
   // serialization.
   const ScopedRasterFlags scoped_flags(&flags_op.flags, nullptr,
                                        canvas->getTotalMatrix(),
                                        options_.max_texture_size, alpha);
   const PaintFlags* flags_to_serialize = scoped_flags.flags();
-  if (!flags_to_serialize)
+  if (!flags_to_serialize) {
     return true;
+  }
 
   return SerializeOp(canvas, flags_op, flags_to_serialize, params);
 }
@@ -301,9 +310,6 @@ bool PaintOpBufferSerializer::SerializeOp(SkCanvas* canvas,
                                           const PaintOp& op,
                                           const PaintFlags* flags_to_serialize,
                                           const PlaybackParams& params) {
-  TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("cc.debug"),
-               "PaintOpBufferSerializer::SerializeOp", "op",
-               PaintOpTypeToString(op.GetType()));
   if (!valid_)
     return false;
 
@@ -333,10 +339,12 @@ void PaintOpBufferSerializer::PlaybackOnAnalysisCanvas(
   //    we need the correct ctm at which text and images will be rasterized, and
   //    the clip rect so we can skip sending data for ops which will not be
   //    rasterized.
-  // 2) DrawTextBlob ops since they need to be analyzed by the cache diff canvas
+  // 2) kDrawtextblob ops since they need to be analyzed by the cache diff
+  // canvas
   //    to serialize/lock the requisite glyphs for this op.
-  if (op.IsDrawOp() && op.GetType() != PaintOpType::DrawTextBlob)
+  if (op.IsDrawOp() && op.GetType() != PaintOpType::kDrawtextblob) {
     return;
+  }
 
   if (op.IsPaintOpWithFlags() && flags_to_serialize) {
     static_cast<const PaintOpWithFlags&>(op).RasterWithFlags(

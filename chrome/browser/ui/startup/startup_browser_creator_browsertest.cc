@@ -16,13 +16,13 @@
 #include "base/json/json_writer.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
-#include "base/memory/raw_ptr_exclusion.h"
 #include "base/path_service.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/mock_callback.h"
+#include "base/test/mock_log.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
 #include "build/branding_buildflags.h"
@@ -33,7 +33,7 @@
 #include "chrome/browser/browser_features.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/buildflags.h"
-#include "chrome/browser/chrome_notification_types.h"
+#include "chrome/browser/chrome_browser_main.h"
 #include "chrome/browser/extensions/extension_browsertest.h"
 #include "chrome/browser/extensions/launch_util.h"
 #include "chrome/browser/first_run/first_run.h"
@@ -49,6 +49,7 @@
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/profiles/profile_test_util.h"
 #include "chrome/browser/profiles/profile_window.h"
+#include "chrome/browser/profiles/profiles_state.h"
 #include "chrome/browser/search/search.h"
 #include "chrome/browser/sessions/app_session_service.h"
 #include "chrome/browser/sessions/app_session_service_factory.h"
@@ -66,7 +67,7 @@
 #include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/browser_list_observer.h"
 #include "chrome/browser/ui/browser_window.h"
-#include "chrome/browser/ui/profile_ui_test_utils.h"
+#include "chrome/browser/ui/profiles/profile_ui_test_utils.h"
 #include "chrome/browser/ui/search/ntp_test_utils.h"
 #include "chrome/browser/ui/startup/launch_mode_recorder.h"
 #include "chrome/browser/ui/startup/startup_browser_creator.h"
@@ -99,6 +100,7 @@
 #include "components/infobars/content/content_infobar_manager.h"
 #include "components/infobars/core/infobar.h"
 #include "components/infobars/core/infobar_delegate.h"
+#include "components/keep_alive_registry/keep_alive_registry.h"
 #include "components/keep_alive_registry/keep_alive_types.h"
 #include "components/keep_alive_registry/scoped_keep_alive.h"
 #include "components/metrics/metrics_pref_names.h"
@@ -123,6 +125,7 @@
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/abseil-cpp/absl/strings/ascii.h"
 #include "ui/views/controls/webview/webview.h"
 #include "url/gurl.h"
 
@@ -132,7 +135,7 @@
 #include "base/run_loop.h"
 #include "base/values.h"
 #include "chrome/browser/first_run/scoped_relaunch_chrome_browser_override.h"
-#include "chrome/browser/ui/profile_picker.h"
+#include "chrome/browser/ui/profiles/profile_picker.h"
 #include "chrome/browser/ui/webui/signin/profile_picker_handler.h"
 #include "chrome/browser/ui/webui/signin/profile_picker_ui.h"
 #include "components/policy/core/common/external_data_fetcher.h"
@@ -171,8 +174,8 @@ using testing::Return;
 
 #if BUILDFLAG(ENABLE_SUPERVISED_USERS)
 #include "chrome/browser/supervised_user/supervised_user_navigation_observer.h"
-#include "chrome/browser/supervised_user/supervised_user_service.h"
 #include "chrome/browser/supervised_user/supervised_user_service_factory.h"
+#include "components/supervised_user/core/browser/supervised_user_service.h"
 #include "components/supervised_user/core/common/supervised_user_constants.h"
 #endif
 
@@ -231,14 +234,8 @@ Browser* CloseBrowserAndOpenNew(Browser* browser, Profile* profile) {
 
 bool HasInfoBar(infobars::ContentInfoBarManager* infobar_manager,
                 const infobars::InfoBarDelegate::InfoBarIdentifier identifier) {
-  for (size_t i = 0; i < infobar_manager->infobar_count(); i++) {
-    infobars::InfoBar* infobar = infobar_manager->infobar_at(i);
-    if (infobar->delegate()->GetIdentifier() == identifier) {
-      return true;
-    }
-  }
-
-  return false;
+  return base::Contains(infobar_manager->infobars(), identifier,
+                        &infobars::InfoBar::GetIdentifier);
 }
 
 struct StartupBrowserCreatorFlagTypeValue {
@@ -337,7 +334,7 @@ class StartupBrowserCreatorTest : public extensions::ExtensionBrowserTest {
 #if BUILDFLAG(IS_MAC)
     infobars::ContentInfoBarManager* infobar_manager =
         infobars::ContentInfoBarManager::FromWebContents(web_contents);
-    EXPECT_EQ(1U, infobar_manager->infobar_count());
+    EXPECT_EQ(1U, infobar_manager->infobars().size());
 #endif  // BUILDFLAG(IS_MAC)
   }
 };
@@ -350,9 +347,7 @@ class OpenURLsPopupObserver : public BrowserListObserver {
 
   void OnBrowserRemoved(Browser* browser) override {}
 
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #constexpr-ctor-field-initializer
-  RAW_PTR_EXCLUSION Browser* added_browser_ = nullptr;
+  raw_ptr<Browser> added_browser_ = nullptr;
 };
 
 // Test that when there is a popup as the active browser any requests to
@@ -549,6 +544,21 @@ IN_PROC_BROWSER_TEST_F(StartupBrowserCreatorTest, OpenAppUrlIncognitoShortcut) {
   observer.Wait();
   EXPECT_EQ("title2.html",
             web_contents->GetLastCommittedURL().ExtractFileName());
+}
+
+IN_PROC_BROWSER_TEST_F(StartupBrowserCreatorTest,
+                       LaunchWebAppWhileKeepAliveRegistryIsShutdown) {
+  // Command line to simulate app launch.
+  base::CommandLine command_line(base::CommandLine::NO_PROGRAM);
+  command_line.AppendSwitchASCII(switches::kAppId, "app_id_1");
+
+  // Simulate keep alive registry shutdown and try to launch the app and verify
+  // that we don't crash.
+  KeepAliveRegistry::GetInstance()->SetIsShuttingDown(true);
+  web_app::startup::MaybeHandleWebAppLaunch(
+      command_line, base::FilePath(FILE_PATH_LITERAL("\\path")),
+      browser()->profile(), chrome::startup::IsFirstRun::kNo);
+  base::RunLoop().RunUntilIdle();
 }
 
 namespace {
@@ -1188,7 +1198,7 @@ IN_PROC_BROWSER_TEST_F(StartupBrowserCreatorTest, ValidNotificationLaunchId) {
   base::CommandLine command_line(base::CommandLine::NO_PROGRAM);
   command_line.AppendSwitchNative(
       switches::kNotificationLaunchId,
-      L"1|1|0|Default|0|https://example.com/|notification_id");
+      L"1|1|0|Default|aumi|0|https://example.com/|notification_id");
 
   ASSERT_TRUE(StartupBrowserCreator().ProcessCmdLineImpl(
       command_line, base::FilePath(), chrome::startup::IsProcessStartup::kNo,
@@ -1927,10 +1937,10 @@ IN_PROC_BROWSER_TEST_F(StartupBrowserCreatorTest,
 }
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
-web_app::AppId InstallPWAWithName(Profile* profile,
+webapps::AppId InstallPWAWithName(Profile* profile,
                                   const GURL& start_url,
                                   const std::string& app_name) {
-  auto web_app_info = std::make_unique<WebAppInstallInfo>();
+  auto web_app_info = std::make_unique<web_app::WebAppInstallInfo>();
   web_app_info->start_url = start_url;
   web_app_info->scope = start_url.GetWithoutFilename();
   web_app_info->user_display_mode =
@@ -1963,19 +1973,19 @@ IN_PROC_BROWSER_TEST_F(StartupBrowserWithListAppsFeature,
   // Install web apps for the two profiles.
   auto example_url1 = GURL("http://www.example_one.com");
   std::string app_name1 = "A Test Web App1";
-  web_app::AppId app_id1 =
+  webapps::AppId app_id1 =
       InstallPWAWithName(profile1, example_url1, app_name1);
   auto example_url2 = GURL("http://www.example_two.com");
   std::string app_name2 = "A Test Web App2";
-  web_app::AppId app_id2 =
+  webapps::AppId app_id2 =
       InstallPWAWithName(profile1, example_url2, app_name2);
   auto example_url3 = GURL("http://www.example_three.com");
   std::string app_name3 = "A Test Web App3";
-  web_app::AppId app_id3 =
+  webapps::AppId app_id3 =
       InstallPWAWithName(&profile2, example_url3, app_name3);
   auto example_url4 = GURL("http://www.example_four.com");
   std::string app_name4 = "A Test Web App4";
-  web_app::AppId app_id4 =
+  webapps::AppId app_id4 =
       InstallPWAWithName(&profile2, example_url4, app_name4);
 
   // Launch web apps for the two profiles.
@@ -1988,11 +1998,11 @@ IN_PROC_BROWSER_TEST_F(StartupBrowserWithListAppsFeature,
 
   // List web apps for all profiles.
   std::vector<Profile*> expected_profiles = {&profile2, profile1};
-  std::vector<web_app::AppId*> expected_installed_apps_id = {
+  std::vector<webapps::AppId*> expected_installed_apps_id = {
       &app_id4, &app_id3, &app_id2, &app_id1};
   std::vector<std::string*> expected_installed_apps_name = {
       &app_name4, &app_name3, &app_name2, &app_name1};
-  std::vector<web_app::AppId*> expected_open_apps_id = {&app_id1, &app_id3};
+  std::vector<webapps::AppId*> expected_open_apps_id = {&app_id1, &app_id3};
   std::vector<std::string*> expected_open_apps_name = {&app_name1, &app_name3};
   base::Value::Dict apps_for_all_profiles;
   base::Value::List installed_apps_for_all_profile;
@@ -2068,19 +2078,19 @@ IN_PROC_BROWSER_TEST_F(StartupBrowserWithListAppsFeature,
   // Install web apps for the two profiles.
   auto example_url1 = GURL("http://www.example_one.com");
   std::string app_name1 = "A Test Web App1";
-  web_app::AppId app_id1 =
+  webapps::AppId app_id1 =
       InstallPWAWithName(profile1, example_url1, app_name1);
   auto example_url2 = GURL("http://www.example_two.com");
   std::string app_name2 = "A Test Web App2";
-  web_app::AppId app_id2 =
+  webapps::AppId app_id2 =
       InstallPWAWithName(profile1, example_url2, app_name2);
   auto example_url3 = GURL("http://www.example_three.com");
   std::string app_name3 = "A Test Web App3";
-  web_app::AppId app_id3 =
+  webapps::AppId app_id3 =
       InstallPWAWithName(&profile2, example_url3, app_name3);
   auto example_url4 = GURL("http://www.example_four.com");
   std::string app_name4 = "A Test Web App4";
-  web_app::AppId app_id4 =
+  webapps::AppId app_id4 =
       InstallPWAWithName(&profile2, example_url4, app_name4);
 
   // Launch web apps for the two profiles.
@@ -2155,8 +2165,8 @@ IN_PROC_BROWSER_TEST_F(StartupBrowserWithListAppsFeature,
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
 
 #if !BUILDFLAG(IS_CHROMEOS)
-web_app::AppId InstallPWA(Profile* profile, const GURL& start_url) {
-  auto web_app_info = std::make_unique<WebAppInstallInfo>();
+webapps::AppId InstallPWA(Profile* profile, const GURL& start_url) {
+  auto web_app_info = std::make_unique<web_app::WebAppInstallInfo>();
   web_app_info->start_url = start_url;
   web_app_info->scope = start_url.GetWithoutFilename();
   web_app_info->user_display_mode =
@@ -2225,7 +2235,7 @@ IN_PROC_BROWSER_TEST_F(StartupBrowserCreatorRestartTest,
 
   // Install web app
   auto example_url = GURL("http://www.example.com");
-  web_app::AppId app_id = InstallPWA(test_profile, example_url);
+  webapps::AppId app_id = InstallPWA(test_profile, example_url);
   Browser* app_browser =
       web_app::LaunchWebAppBrowserAndWait(test_profile, app_id);
 
@@ -2369,19 +2379,19 @@ IN_PROC_BROWSER_TEST_F(StartupBrowserWithWebAppTest,
 
   // Install web app set to open as a tab.
   {
-    std::unique_ptr<WebAppInstallInfo> info =
-        std::make_unique<WebAppInstallInfo>();
+    std::unique_ptr<web_app::WebAppInstallInfo> info =
+        std::make_unique<web_app::WebAppInstallInfo>();
     info->start_url = GURL(kStartUrl);
     info->title = kAppName;
     info->user_display_mode = web_app::mojom::UserDisplayMode::kStandalone;
-    base::test::TestFuture<const web_app::AppId&, webapps::InstallResultCode>
+    base::test::TestFuture<const webapps::AppId&, webapps::InstallResultCode>
         result;
     provider->scheduler().InstallFromInfoWithParams(
         std::move(info), /*overwrite_existing_manifest_fields=*/true,
         webapps::WebappInstallSource::OMNIBOX_INSTALL_ICON,
         result.GetCallback(), web_app::WebAppInstallParams());
 
-    EXPECT_EQ(result.Get<web_app::AppId>(), kAppId);
+    EXPECT_EQ(result.Get<webapps::AppId>(), kAppId);
     EXPECT_EQ(result.Get<webapps::InstallResultCode>(),
               webapps::InstallResultCode::kSuccessNewInstall);
     EXPECT_EQ(provider->registrar_unsafe().GetAppUserDisplayMode(kAppId),
@@ -2443,6 +2453,120 @@ IN_PROC_BROWSER_TEST_F(StartupBrowserWithWebAppTest,
 }
 
 #if !BUILDFLAG(IS_CHROMEOS_LACROS)
+class StartupBrowserCreatorTestWithGuestParam
+    : public StartupBrowserCreatorTest,
+      public testing::WithParamInterface<bool> {
+ public:
+  bool IsGuest() const { return GetParam(); }
+
+  GURL GetTestURL() const { return GURL("https://www.youtube.com"); }
+
+  // Creates a browser for a new profile (which may be Guest, based on
+  // `IsGuest()`).
+  Browser* CreateBrowser() {
+    if (IsGuest()) {
+      profiles::SwitchToGuestProfile();
+    } else {
+      base::FilePath profile_path = g_browser_process->profile_manager()
+                                        ->GenerateNextProfileDirectoryPath();
+      profiles::SwitchToProfile(profile_path, /*always_create=*/true);
+    }
+    Browser* test_browser = ui_test_utils::WaitForBrowserToOpen();
+    profiles::SetLastUsedProfile(test_browser->profile()->GetBaseName());
+    return test_browser;
+  }
+
+  void OpenTabAlreadyRunning() {
+    base::CommandLine command_line(base::CommandLine::NO_PROGRAM);
+    command_line.AppendArg(GetTestURL().spec());
+    ChromeBrowserMainParts::ProcessSingletonNotificationCallback(
+        command_line, /*current_directory=*/{});
+  }
+};
+
+// Tests that receiving a launch notification while Chrome is already running
+// opens the URL in the current browser window.
+IN_PROC_BROWSER_TEST_P(StartupBrowserCreatorTestWithGuestParam,
+                       ProcessCommandLineAlreadyRunning) {
+  ScopedKeepAlive keep_alive(KeepAliveOrigin::BACKGROUND_MODE_MANAGER,
+                             KeepAliveRestartOption::DISABLED);
+  CloseBrowserSynchronously(browser());
+
+  // Create a browser for a new profile.
+  Browser* test_browser = CreateBrowser();
+  ASSERT_TRUE(test_browser);
+  ASSERT_EQ(test_browser->profile()->IsGuestSession(), IsGuest());
+  TabStripModel* tab_strip = test_browser->tab_strip_model();
+  int initial_tab_count = tab_strip->count();
+
+  // Open a URL while a browser is already open.
+  ui_test_utils::AllBrowserTabAddedWaiter tab_waiter;
+  OpenTabAlreadyRunning();
+  content::WebContents* contents = tab_waiter.Wait();
+
+  EXPECT_EQ(initial_tab_count + 1, tab_strip->count());
+  EXPECT_EQ(contents, tab_strip->GetWebContentsAt(tab_strip->count() - 1));
+  EXPECT_EQ(GetTestURL(), contents->GetVisibleURL());
+}
+
+// Tests that receiving a launch notification while Chrome is already running,
+// but there was no browser window, reopens the last profile if it was regular,
+// and opens the profile picker if it was guest.
+IN_PROC_BROWSER_TEST_P(StartupBrowserCreatorTestWithGuestParam,
+                       ProcessCommandLineAlreadyRunningAfterBrowserClose) {
+  ScopedKeepAlive keep_alive(KeepAliveOrigin::BACKGROUND_MODE_MANAGER,
+                             KeepAliveRestartOption::DISABLED);
+  CloseBrowserSynchronously(browser());
+
+  ProfileManager* profile_manager = g_browser_process->profile_manager();
+  // Create a browser for a new profile.
+  Browser* test_browser = CreateBrowser();
+  Profile* last_profile = test_browser->profile();
+  ASSERT_TRUE(test_browser);
+  ASSERT_EQ(last_profile->IsGuestSession(), IsGuest());
+
+  std::unique_ptr<ScopedProfileKeepAlive> profile_keep_alive;
+  if (!IsGuest()) {
+    // Keep the profile alive to avoid unloading and immediately reloading it,
+    // which causes some flakiness within the HistoryService.
+    // This is not done for the guest profile because:
+    // - the test scenario does not involve reloading the guest profile,
+    // - it is not allowed to take a keep alive on a OTR profile.
+    profile_keep_alive = std::make_unique<ScopedProfileKeepAlive>(
+        last_profile, ProfileKeepAliveOrigin::kBackgroundMode);
+  }
+
+  CloseBrowserSynchronously(test_browser);
+  // Closing the browser did not change the last used profile.
+  EXPECT_EQ(profile_manager->GetLastUsedProfileDir(), last_profile->GetPath());
+  ASSERT_FALSE(ProfilePicker::IsOpen());
+
+  // Open a URL after the last active browser was closed.
+  OpenTabAlreadyRunning();
+
+  if (IsGuest()) {
+    // The profile picker opens. There is no browser, the URL is not loaded.
+    profiles::testing::WaitForPickerWidgetCreated();
+    EXPECT_EQ(0u, BrowserList::GetInstance()->size());
+  } else {
+    // The last used profile is reopened and the URL is loaded.
+    Browser* browser = ui_test_utils::WaitForBrowserToOpen();
+    Profile* profile = browser->profile();
+    EXPECT_FALSE(profile->IsGuestSession());
+    TabStripModel* tab_strip = browser->tab_strip_model();
+    EXPECT_EQ(
+        tab_strip->GetWebContentsAt(tab_strip->count() - 1)->GetVisibleURL(),
+        GetTestURL());
+    EXPECT_FALSE(ProfilePicker::IsOpen());
+    EXPECT_EQ(1u, BrowserList::GetInstance()->size());
+    EXPECT_EQ(last_profile, profile);
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(,
+                         StartupBrowserCreatorTestWithGuestParam,
+                         testing::Bool());
+
 class StartupBrowserWithRealWebAppTest : public StartupBrowserCreatorTest {
  protected:
   StartupBrowserWithRealWebAppTest() = default;
@@ -2498,7 +2622,7 @@ IN_PROC_BROWSER_TEST_F(StartupBrowserWithRealWebAppTest,
       profile_manager, dest_path.Append(FILE_PATH_LITERAL("New Profile 1")));
 
   auto example_url = GURL("http://www.example.com");
-  web_app::AppId new_app_id = InstallPWA(&profile1, example_url);
+  webapps::AppId new_app_id = InstallPWA(&profile1, example_url);
   Browser* app = web_app::LaunchWebAppBrowserAndWait(&profile1, new_app_id);
   ASSERT_TRUE(app);
 
@@ -2619,17 +2743,17 @@ class StartupBrowserWebAppProtocolHandlingTest : public InProcessBrowserTest {
   // Install a web app with `protocol_handlers` (and optionally `file_handlers`)
   // then register it with the ProtocolHandlerRegistry. This is sufficient for
   // testing URL translation and launch at startup.
-  web_app::AppId InstallWebAppWithProtocolHandlers(
+  webapps::AppId InstallWebAppWithProtocolHandlers(
       const std::vector<apps::ProtocolHandlerInfo>& protocol_handlers,
       const std::vector<apps::FileHandler>& file_handlers = {}) {
-    std::unique_ptr<WebAppInstallInfo> info =
-        std::make_unique<WebAppInstallInfo>();
+    std::unique_ptr<web_app::WebAppInstallInfo> info =
+        std::make_unique<web_app::WebAppInstallInfo>();
     info->start_url = GURL(kStartUrl);
     info->title = kAppName;
     info->user_display_mode = web_app::mojom::UserDisplayMode::kStandalone;
     info->protocol_handlers = protocol_handlers;
     info->file_handlers = file_handlers;
-    web_app::AppId app_id =
+    webapps::AppId app_id =
         web_app::test::InstallWebApp(browser()->profile(), std::move(info));
 
     auto& protocol_handler_manager =
@@ -2649,7 +2773,7 @@ class StartupBrowserWebAppProtocolHandlingTest : public InProcessBrowserTest {
   }
 
   void SetUpCommandlineAndStart(const std::string& url,
-                                const web_app::AppId& app_id) {
+                                const webapps::AppId& app_id) {
     base::CommandLine command_line(base::CommandLine::NO_PROGRAM);
     command_line.AppendArg(url);
     command_line.AppendSwitchASCII(switches::kAppId, app_id);
@@ -2676,7 +2800,7 @@ IN_PROC_BROWSER_TEST_F(
   const std::string handler_url = std::string(kStartUrl) + "/testing=%s";
   protocol_handler.url = GURL(handler_url);
   protocol_handler.protocol = "web+test";
-  web_app::AppId app_id = InstallWebAppWithProtocolHandlers({protocol_handler});
+  webapps::AppId app_id = InstallWebAppWithProtocolHandlers({protocol_handler});
 
   // Launch the browser via a command line with a handled protocol URL param.
   SetUpCommandlineAndStart("web+test://parameterString", app_id);
@@ -2700,7 +2824,7 @@ IN_PROC_BROWSER_TEST_F(
   const std::string handler_url = std::string(kStartUrl) + "/testing=%s";
   protocol_handler.url = GURL(handler_url);
   protocol_handler.protocol = "web+test";
-  web_app::AppId app_id = InstallWebAppWithProtocolHandlers({protocol_handler});
+  webapps::AppId app_id = InstallWebAppWithProtocolHandlers({protocol_handler});
   bool allowed_protocols_notified = false;
   web_app::WebAppTestRegistryObserverAdapter observer(browser()->profile());
   observer.SetWebAppProtocolSettingsChangedDelegate(
@@ -2750,7 +2874,7 @@ IN_PROC_BROWSER_TEST_F(
   const std::string handler_url = std::string(kStartUrl) + "/testing=%s";
   protocol_handler.url = GURL(handler_url);
   protocol_handler.protocol = "web+test";
-  web_app::AppId app_id = InstallWebAppWithProtocolHandlers({protocol_handler});
+  webapps::AppId app_id = InstallWebAppWithProtocolHandlers({protocol_handler});
 
   // Launch the browser via a command line with an unhandled protocol URL param.
   SetUpCommandlineAndStart("web+unhandled://parameterString", app_id);
@@ -2783,7 +2907,7 @@ IN_PROC_BROWSER_TEST_F(
   const std::string handler_url = std::string(kStartUrl) + "/testing=%s";
   protocol_handler.url = GURL(handler_url);
   protocol_handler.protocol = "web+test";
-  web_app::AppId app_id = InstallWebAppWithProtocolHandlers({protocol_handler});
+  webapps::AppId app_id = InstallWebAppWithProtocolHandlers({protocol_handler});
 
   web_app::ProtocolHandlerLaunchDialogView::
       SetDefaultRememberSelectionForTesting(true);
@@ -2846,7 +2970,7 @@ IN_PROC_BROWSER_TEST_F(StartupBrowserWebAppProtocolHandlingTest,
   const std::string handler_url = std::string(kStartUrl) + "/testing=%s";
   protocol_handler.url = GURL(handler_url);
   protocol_handler.protocol = "web+test";
-  web_app::AppId app_id = InstallWebAppWithProtocolHandlers({protocol_handler});
+  webapps::AppId app_id = InstallWebAppWithProtocolHandlers({protocol_handler});
 
   {
     views::NamedWidgetShownWaiter waiter(views::test::AnyWidgetTestPasskey{},
@@ -2918,7 +3042,7 @@ IN_PROC_BROWSER_TEST_F(
   const std::string handler_url = std::string(kStartUrl) + "/testing=%s";
   protocol_handler.url = GURL(handler_url);
   protocol_handler.protocol = "web+test";
-  web_app::AppId app_id = InstallWebAppWithProtocolHandlers({protocol_handler});
+  webapps::AppId app_id = InstallWebAppWithProtocolHandlers({protocol_handler});
 
   web_app::ProtocolHandlerLaunchDialogView::
       SetDefaultRememberSelectionForTesting(true);
@@ -2950,7 +3074,7 @@ IN_PROC_BROWSER_TEST_F(
   const std::string handler_url = std::string(kStartUrl) + "/testing=%s";
   protocol_handler.url = GURL(handler_url);
   protocol_handler.protocol = "web+test";
-  web_app::AppId app_id = InstallWebAppWithProtocolHandlers({protocol_handler});
+  webapps::AppId app_id = InstallWebAppWithProtocolHandlers({protocol_handler});
 
   {
     views::NamedWidgetShownWaiter waiter(views::test::AnyWidgetTestPasskey{},
@@ -3007,7 +3131,7 @@ IN_PROC_BROWSER_TEST_F(StartupBrowserWebAppProtocolAndFileHandlingTest,
   file_handler.accept.push_back({});
   file_handler.accept.back().mime_type = "text/plain";
   file_handler.accept.back().file_extensions = {".txt"};
-  web_app::AppId app_id =
+  webapps::AppId app_id =
       InstallWebAppWithProtocolHandlers({protocol_handler}, {file_handler});
 
   // Skip the file handler dialog by simulating prior user approval of the API.
@@ -3554,7 +3678,7 @@ IN_PROC_BROWSER_TEST_P(StartupBrowserCreatorInfobarsTest,
   Profile* test_profile = browser()->profile();
   // Install web app
   GURL example_url("http://www.example.com");
-  web_app::AppId app_id = InstallPWA(test_profile, example_url);
+  webapps::AppId app_id = InstallPWA(test_profile, example_url);
 
   base::CommandLine command_line(base::CommandLine::NO_PROGRAM);
   command_line.AppendSwitchASCII(switches::kAppId, app_id);
@@ -3650,8 +3774,8 @@ INSTANTIATE_TEST_SUITE_P(
 
       std::string name = std::get<0>(info.param).flag + " " + policyState;
       std::replace_if(
-          name.begin(), name.end(), [](char c) { return !std::isalnum(c); },
-          '_');
+          name.begin(), name.end(),
+          [](unsigned char c) { return !absl::ascii_isalnum(c); }, '_');
       return name;
     });
 
@@ -3731,8 +3855,8 @@ INSTANTIATE_TEST_SUITE_P(
            info) {
       std::string name = info.param.flag;
       std::replace_if(
-          name.begin(), name.end(), [](char c) { return !std::isalnum(c); },
-          '_');
+          name.begin(), name.end(),
+          [](unsigned char c) { return !absl::ascii_isalnum(c); }, '_');
       return name;
     });
 
@@ -3909,9 +4033,6 @@ class StartupBrowserCreatorPickerTest
   // Prevent the browser from automatically relaunching in the PRE_ test. The
   // browser will be relaunched by the main test.
   upgrade_util::ScopedRelaunchChromeBrowserOverride relaunch_chrome_override_;
-
-  base::test::ScopedFeatureList scoped_feature_list_{
-      features::kObserverBasedPostProfileInit};
 };
 
 // Create a secondary profile in a separate PRE run because the existence of
@@ -4228,10 +4349,64 @@ INSTANTIATE_TEST_SUITE_P(
         StartupBrowserCreatorPickerInfobarTest::ParamType>& info) {
       std::string name = info.param.flag;
       std::replace_if(
-          name.begin(), name.end(), [](char c) { return !std::isalnum(c); },
-          '_');
+          name.begin(), name.end(),
+          [](unsigned char c) { return !absl::ascii_isalnum(c); }, '_');
       return name;
     });
+
+// TODO(crbug.com/1439821): Mocking the logger appears to not work correctly on
+// Windows. Investigate why it is not working and enable the test on Windows.
+#if !BUILDFLAG(IS_WIN)
+class StartupBrowserCreatorIwaCommandLineInstallProfilePickerErrorTest
+    : public StartupBrowserCreatorPickerTestBase {
+ protected:
+  void SetUp() override {
+    if (!content::IsPreTest()) {
+      EXPECT_CALL(mock_log_, Log(testing::_, testing::_, testing::_, testing::_,
+                                 testing::_))
+          .Times(testing::AnyNumber());
+      EXPECT_CALL(
+          mock_log_,
+          Log(::logging::LOGGING_ERROR, testing::_, testing::_, testing::_,
+              testing::HasSubstr("Command line switches to install IWAs are "
+                                 "incompatible with the Profile Picker")));
+      mock_log_.StartCapturingLogs();
+    }
+
+    StartupBrowserCreatorPickerTestBase::SetUp();
+  }
+
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    if (!content::IsPreTest()) {
+      command_line->AppendSwitchASCII("install-isolated-web-app-from-url",
+                                      "http://localhost");
+    }
+
+    StartupBrowserCreatorPickerTestBase::SetUpCommandLine(command_line);
+  }
+
+  base::test::MockLog mock_log_;
+};
+
+// Create a secondary profile in a separate PRE run because the existence of
+// profiles is checked during startup in the actual test.
+IN_PROC_BROWSER_TEST_F(
+    StartupBrowserCreatorIwaCommandLineInstallProfilePickerErrorTest,
+    PRE_DoesNotInstallIwaIfProfilePickerOpens) {
+  CreateMultipleProfiles();
+  // Need to close the browser window manually so that the real test does not
+  // treat it as session restore.
+  CloseAllBrowsers();
+}
+
+IN_PROC_BROWSER_TEST_F(
+    StartupBrowserCreatorIwaCommandLineInstallProfilePickerErrorTest,
+    DoesNotInstallIwaIfProfilePickerOpens) {
+  EXPECT_EQ(0u, chrome::GetTotalBrowserCount());
+  // The `EXPECT_CALL` call in `SetUp()` will check that an error message about
+  // the IWA not being installable is logged.
+}
+#endif  // !BUILDFLAG(IS_WIN)
 
 #endif  // !BUILDFLAG(IS_CHROMEOS)
 

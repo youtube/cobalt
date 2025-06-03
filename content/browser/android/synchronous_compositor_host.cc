@@ -10,6 +10,7 @@
 #include <utility>
 
 #include "base/command_line.h"
+#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
@@ -24,11 +25,11 @@
 #include "content/browser/renderer_host/render_widget_host_view_android.h"
 #include "content/browser/web_contents/web_contents_impl.h"
 #include "content/common/android/sync_compositor_statics.h"
+#include "content/common/features.h"
 #include "content/public/browser/android/synchronous_compositor_client.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/render_view_host.h"
-#include "content/public/common/content_features.h"
 #include "content/public/common/content_switches.h"
 #include "gpu/ipc/client/gpu_channel_host.h"
 #include "ipc/ipc_sender.h"
@@ -202,6 +203,20 @@ bool SynchronousCompositorHost::IsReadyForSynchronousCall() {
   return res;
 }
 
+void SynchronousCompositorHost::OnCompositorVisible() {
+  if (base::FeatureList::IsEnabled(
+          features::kSynchronousCompositorBackgroundSignal)) {
+    CompositorDependenciesAndroid::Get().OnSynchronousCompositorVisible();
+  }
+}
+
+void SynchronousCompositorHost::OnCompositorHidden() {
+  if (base::FeatureList::IsEnabled(
+          features::kSynchronousCompositorBackgroundSignal)) {
+    CompositorDependenciesAndroid::Get().OnSynchronousCompositorHidden();
+  }
+}
+
 scoped_refptr<SynchronousCompositor::FrameFuture>
 SynchronousCompositorHost::DemandDrawHwAsync(
     const gfx::Size& viewport_size,
@@ -337,7 +352,6 @@ bool SynchronousCompositorHost::DemandDrawSwInProc(SkCanvas* canvas) {
       blink::mojom::SyncCompositorDemandDrawSwParams::New();  // Unused.
   uint32_t metadata_version = 0u;
   invalidate_needs_draw_ = false;
-  num_invalidates_since_last_draw_ = 0u;
   if (!IsReadyForSynchronousCall() ||
       !GetSynchronousCompositor()->DemandDrawSw(std::move(params),
                                                 &common_renderer_params,
@@ -377,6 +391,7 @@ struct SynchronousCompositorHost::SharedMemoryWithSize {
 
 bool SynchronousCompositorHost::DemandDrawSw(SkCanvas* canvas,
                                              bool software_canvas) {
+  num_invalidates_since_last_draw_ = 0u;
   if (use_in_process_zero_copy_software_draw_)
     return DemandDrawSwInProc(canvas);
 

@@ -17,7 +17,6 @@
 #include "cc/paint/paint_op_buffer_serializer.h"
 #include "cc/paint/transfer_cache_entry.h"
 #include "cc/paint/transfer_cache_serialize_helper.h"
-#include "components/viz/common/resources/resource_format_utils.h"
 #include "gpu/GLES2/gl2extchromium.h"
 #include "gpu/command_buffer/client/gl_helper.h"
 #include "gpu/command_buffer/client/gles2_implementation.h"
@@ -39,9 +38,17 @@ GLenum SkColorTypeToGLDataFormat(SkColorType color_type, bool supports_rg) {
     case kBGRA_8888_SkColorType:
       return GL_BGRA_EXT;
     case kR8G8_unorm_SkColorType:
+    case kR16G16_unorm_SkColorType:
       return GL_RG_EXT;
     case kGray_8_SkColorType:
       return supports_rg ? GL_RED : GL_LUMINANCE;
+    case kAlpha_8_SkColorType:
+    case kA16_unorm_SkColorType:
+      return supports_rg ? GL_RED : GL_ALPHA;
+    // kA16_float_SkColorType is only used by LUMINANCE_F16 format and hence
+    // should only support GL_LUMINANCE.
+    case kA16_float_SkColorType:
+      return GL_LUMINANCE;
     default:
       DLOG(ERROR) << "Unknown SkColorType " << color_type;
   }
@@ -55,7 +62,13 @@ GLenum SkColorTypeToGLDataType(SkColorType color_type) {
     case kBGRA_8888_SkColorType:
     case kR8G8_unorm_SkColorType:
     case kGray_8_SkColorType:
+    case kAlpha_8_SkColorType:
       return GL_UNSIGNED_BYTE;
+    case kA16_unorm_SkColorType:
+    case kR16G16_unorm_SkColorType:
+      return GL_UNSIGNED_SHORT;
+    case kA16_float_SkColorType:
+      return GL_HALF_FLOAT_OES;
     default:
       DLOG(ERROR) << "Unknown SkColorType " << color_type;
   }
@@ -221,8 +234,33 @@ void RasterImplementationGLES::WritePixels(const gpu::Mailbox& dest_mailbox,
   DeleteGpuRasterTexture(texture_id);
 }
 
+void RasterImplementationGLES::WritePixelsYUV(
+    const gpu::Mailbox& dest_mailbox,
+    const SkYUVAPixmaps& src_yuv_pixmap) {
+  const auto& src_yuv_info = src_yuv_pixmap.yuvaInfo();
+  const auto& src_yuv_pixmap_info = src_yuv_pixmap.pixmapsInfo();
+  const std::array<SkPixmap, SkYUVAInfo::kMaxPlanes>& src_sk_pixmaps =
+      src_yuv_pixmap.planes();
+
+  gl_->WritePixelsYUVINTERNAL(
+      dest_mailbox.name, src_sk_pixmaps[0].computeByteSize(),
+      src_sk_pixmaps[1].computeByteSize(), src_sk_pixmaps[2].computeByteSize(),
+      src_sk_pixmaps[3].computeByteSize(), src_yuv_info.width(),
+      src_yuv_info.height(), static_cast<int>(src_yuv_info.planeConfig()),
+      static_cast<int>(src_yuv_info.subsampling()),
+      static_cast<int>(src_yuv_pixmap_info.dataType()),
+      src_sk_pixmaps[0].rowBytes(), src_sk_pixmaps[1].rowBytes(),
+      src_sk_pixmaps[2].rowBytes(), src_sk_pixmaps[3].rowBytes(),
+      src_sk_pixmaps[0].addr(), src_sk_pixmaps[1].addr(),
+      src_sk_pixmaps[2].addr(), src_sk_pixmaps[3].addr());
+}
+
 void RasterImplementationGLES::ConvertYUVAMailboxesToRGB(
     const gpu::Mailbox& dest_mailbox,
+    GLint src_x,
+    GLint src_y,
+    GLsizei width,
+    GLsizei height,
     SkYUVColorSpace planes_yuv_color_space,
     const SkColorSpace* planes_rgb_color_space,
     SkYUVAInfo::PlaneConfig plane_config,
@@ -261,8 +299,9 @@ void RasterImplementationGLES::ConvertYUVAMailboxesToRGB(
   DCHECK_EQ(offset, kByteSize);
 
   gl_->ConvertYUVAMailboxesToRGBINTERNAL(
-      planes_yuv_color_space, static_cast<GLenum>(plane_config),
-      static_cast<GLenum>(subsampling), reinterpret_cast<GLbyte*>(bytes));
+      src_x, src_y, width, height, planes_yuv_color_space,
+      static_cast<GLenum>(plane_config), static_cast<GLenum>(subsampling),
+      reinterpret_cast<GLbyte*>(bytes));
 }
 
 void RasterImplementationGLES::ConvertRGBAToYUVAMailboxes(
@@ -289,6 +328,7 @@ void RasterImplementationGLES::BeginRasterCHROMIUM(
     GLboolean can_use_lcd_text,
     GLboolean visible,
     const gfx::ColorSpace& color_space,
+    float hdr_headroom,
     const GLbyte* mailbox) {
   NOTREACHED();
 }

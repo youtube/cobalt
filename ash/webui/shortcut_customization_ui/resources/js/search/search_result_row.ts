@@ -9,16 +9,14 @@ import '../text_accelerator.js';
 import {getInstance as getAnnouncerInstance} from 'chrome://resources/cr_elements/cr_a11y_announcer/cr_a11y_announcer.js';
 import {FocusRowMixin} from 'chrome://resources/cr_elements/focus_row_mixin.js';
 import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
-import {assert} from 'chrome://resources/js/assert_ts.js';
+import {assert} from 'chrome://resources/js/assert.js';
+import {mojoString16ToString} from 'chrome://resources/js/mojo_type_util.js';
 import {PolymerElementProperties} from 'chrome://resources/polymer/v3_0/polymer/interfaces.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
-import {keyToIconNameMap} from '../input_key.js';
-import {mojoString16ToString} from '../mojo_utils.js';
 import {Router} from '../router.js';
-import {LayoutStyle, MojoAcceleratorInfo, MojoSearchResult, StandardAcceleratorInfo, TextAcceleratorInfo, TextAcceleratorPart} from '../shortcut_types.js';
-import {getModifiersForAcceleratorInfo, getURLForSearchResult, isStandardAcceleratorInfo, isTextAcceleratorInfo} from '../shortcut_utils.js';
-import {TextAcceleratorElement} from '../text_accelerator.js';
+import {AcceleratorState, LayoutStyle, MojoAcceleratorInfo, MojoSearchResult, StandardAcceleratorInfo, TextAcceleratorInfo, TextAcceleratorPart} from '../shortcut_types.js';
+import {getAriaLabelForStandardAccelerators, getAriaLabelForTextAccelerators, getModifiersForAcceleratorInfo, getTextAcceleratorParts, getURLForSearchResult, isStandardAcceleratorInfo, isTextAcceleratorInfo} from '../shortcut_utils.js';
 
 import {getBoldedDescription} from './search_result_bolding.js';
 import {getTemplate} from './search_result_row.html.js';
@@ -75,18 +73,28 @@ export class SearchResultRowElement extends SearchResultRowElementBase {
     return getTemplate();
   }
 
+  private isNoShortcutAssigned(): boolean {
+    // Check if every accelerators are disabled due to unavailable keys or by
+    // the user, or if there are no accelerators, display "No shortcut assigned"
+    // as result.
+    return this.searchResult.acceleratorInfos.every(
+               a => a.state === AcceleratorState.kDisabledByUnavailableKeys ||
+                   a.state === AcceleratorState.kDisabledByUser) ||
+        this.searchResult.acceleratorInfos.length === 0;
+  }
+
   private isStandardLayout(): boolean {
-    return this.searchResult.acceleratorLayoutInfo.style ===
-        LayoutStyle.kDefault;
+    return !this.isNoShortcutAssigned() &&
+        this.searchResult.acceleratorLayoutInfo.style === LayoutStyle.kDefault;
   }
 
   private isTextLayout(): boolean {
-    return !this.isStandardLayout();
+    return !this.isNoShortcutAssigned() && !this.isStandardLayout();
   }
 
   private getTextAcceleratorParts(): TextAcceleratorPart[] {
     assert(isTextAcceleratorInfo(this.searchResult.acceleratorInfos[0]));
-    return TextAcceleratorElement.getTextAcceleratorParts(
+    return getTextAcceleratorParts(
         this.searchResult.acceleratorInfos as TextAcceleratorInfo[]);
   }
 
@@ -153,7 +161,7 @@ export class SearchResultRowElement extends SearchResultRowElementBase {
         'navigated-to-result-route', {bubbles: true, composed: true}));
   }
 
-  private getSearchResultDescriptionInnerHtml(): string {
+  private getSearchResultDescriptionInnerHtml(): TrustedHTML {
     return getBoldedDescription(
         mojoString16ToString(
             this.searchResult.acceleratorLayoutInfo.description),
@@ -167,60 +175,23 @@ export class SearchResultRowElement extends SearchResultRowElementBase {
     const description = mojoString16ToString(
         this.searchResult.acceleratorLayoutInfo.description);
     let searchResultText;
-    if (this.isStandardLayout()) {
-      searchResultText =
-          `${description}, ${this.getAriaLabelForStandardLayoutSearchResult()}`;
+
+    if (this.isNoShortcutAssigned()) {
+      searchResultText = `${description}, ${this.i18n('noShortcutAssigned')}`;
+    } else if (this.isStandardLayout()) {
+      searchResultText = `${description}, ${
+          getAriaLabelForStandardAccelerators(
+              this.getStandardAcceleratorInfos(),
+              this.i18n('acceleratorTextDivider'))}`;
     } else {
-      searchResultText =
-          `${description}, ${this.getAriaLabelForTextLayoutSearchResult()}`;
+      searchResultText = `${description}, ${
+          getAriaLabelForTextAccelerators(
+              this.searchResult.acceleratorInfos as TextAcceleratorInfo[])}`;
     }
 
     return this.i18n(
         'searchResultSelectedAriaLabel', this.focusRowIndex + 1,
         this.listLength, searchResultText);
-  }
-
-  /**
-   * @returns the Aria label for the accelerators of this search result.
-   */
-  private getAriaLabelForStandardLayoutSearchResult(): string {
-    return this.getStandardAcceleratorInfos()
-        .map(
-            acceleratorInfo =>
-                this.getAriaLabelForStandardAcceleratorInfo(acceleratorInfo))
-        .join(` ${this.i18n('searchAcceleratorTextDivider')} `);
-  }
-
-  /**
-   * @returns the Aria label for the given StandardAcceleratorInfo.
-   */
-  private getAriaLabelForStandardAcceleratorInfo(
-      acceleratorInfo: StandardAcceleratorInfo): string {
-    const keyOrIcon =
-        acceleratorInfo.layoutProperties.standardAccelerator.keyDisplay;
-    return getModifiersForAcceleratorInfo(acceleratorInfo)
-        .join(' ')
-        .concat(` ${this.getKeyDisplay(keyOrIcon)}`);
-  }
-
-  /**
-   *
-   * @param keyOrIcon the text for an individual accelerator key.
-   * @returns the associated icon name for the given `keyOrIcon` text if it
-   *     exists, otherwise returns `keyOrIcon` itself.
-   */
-  private getKeyDisplay(keyOrIcon: string): string {
-    const iconName = keyToIconNameMap[keyOrIcon];
-    return iconName ? iconName : keyOrIcon;
-  }
-
-  /**
-   * @returns the Aria label for the accelerators of this search result.
-   */
-  private getAriaLabelForTextLayoutSearchResult(): string {
-    return this.getTextAcceleratorParts()
-        .map(part => this.getKeyDisplay(mojoString16ToString(part.text)))
-        .join('');
   }
 
   private makeA11yAnnouncementIfSelectedAndUnfocused(): void {

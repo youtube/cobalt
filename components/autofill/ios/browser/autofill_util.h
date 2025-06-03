@@ -47,10 +47,10 @@ bool ExtractFormsData(NSString* form_json,
 
 // Converts |form| into |form_data|.
 // Returns false if a form can not be extracted.
-// Returns false if |filtered| == true and |form["name"]| != |formName|.
-// Returns false if |form["origin"]| != |form_frame_origin|.
-// Returns true if the conversion succeeds.
-bool ExtractFormData(const base::Value& form,
+// Returns false if |filtered| == true and |form["name"]| !=
+// |formName|. Returns false if |form["origin"]| !=
+// |form_frame_origin|. Returns true if the conversion succeeds.
+bool ExtractFormData(const base::Value::Dict& form,
                      bool filtered,
                      const std::u16string& form_name,
                      const GURL& main_frame_url,
@@ -81,7 +81,7 @@ JavaScriptResultCallback CreateBoolCallback(base::OnceCallback<void(BOOL)>);
 // If |callback| is not null, it will be called when the result of the
 // command is received, or immediately if the command cannot be executed.
 void ExecuteJavaScriptFunction(const std::string& name,
-                               const std::vector<base::Value>& parameters,
+                               const base::Value::List& parameters,
                                web::WebFrame* frame,
                                JavaScriptResultCallback callback);
 

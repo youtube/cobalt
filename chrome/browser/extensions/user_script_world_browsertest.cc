@@ -16,10 +16,25 @@
 #include "extensions/browser/renderer_startup_helper.h"
 #include "extensions/browser/script_executor.h"
 #include "extensions/common/extension_builder.h"
+#include "extensions/test/result_catcher.h"
+#include "extensions/test/test_extension_dir.h"
 #include "net/dns/mock_host_resolver.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace extensions {
+
+namespace {
+
+constexpr char kCheckIfEvalAllowedScriptSource[] =
+    R"(var result;
+       try {
+         eval('result = "allowed eval"');
+       } catch (e) {
+         result = 'disallowed eval';
+       }
+       result;)";
+
+}  // namespace
 
 class UserScriptWorldBrowserTest : public ExtensionApiTest {
  public:
@@ -113,6 +128,15 @@ class UserScriptWorldBrowserTest : public ExtensionApiTest {
     return extension.get();
   }
 
+  // Sets the user script world properties in the renderer(s).
+  void SetUserScriptWorldProperties(const Extension& extension,
+                                    absl::optional<std::string> csp,
+                                    bool enable_messaging) {
+    RendererStartupHelperFactory::GetForBrowserContext(profile())
+        ->SetUserScriptWorldProperties(extension, std::move(csp),
+                                       enable_messaging);
+  }
+
   content::WebContents* GetActiveWebContents() {
     return browser()->tab_strip_model()->GetActiveWebContents();
   }
@@ -125,6 +149,11 @@ IN_PROC_BROWSER_TEST_F(UserScriptWorldBrowserTest,
   const Extension* extension =
       LoadExtensionWithHostPermission("http://example.com/*");
 
+  // Enable messaging to get the full suite of possible APIs exposed to
+  // user script worlds.
+  SetUserScriptWorldProperties(*extension, absl::nullopt,
+                               /*enable_messaging=*/true);
+
   GURL example_com =
       embedded_test_server()->GetURL("example.com", "/simple.html");
 
@@ -136,9 +165,8 @@ IN_PROC_BROWSER_TEST_F(UserScriptWorldBrowserTest,
   // Set a flag in the main world of the page. This will allow us to verify
   // the new script is running in an isolated world.
   constexpr char kSetFlagScript[] = "window.mainWorldFlag = 'executionFlag';";
-  // NOTE: We use ExecuteScript() (and not EvalJs or ExecJs) because we
-  // explicitly *need* this to happen in the main world for the test.
-  EXPECT_TRUE(content::ExecuteScript(main_frame, kSetFlagScript));
+  // NOTE: We *need* this to happen in the main world for the test.
+  EXPECT_TRUE(content::ExecJs(main_frame, kSetFlagScript));
 
   // Inject a script into a user script world. The script will return the
   // values of both the main world flag (set above) and all properties exposed
@@ -161,7 +189,7 @@ IN_PROC_BROWSER_TEST_F(UserScriptWorldBrowserTest,
   static constexpr char kExpectedJson[] =
       R"({
            "mainWorldFlag": "<no flag>",
-           "chromeKeys": ["csi", "loadTimes", "runtime"],
+           "chromeKeys": ["csi", "loadTimes", "runtime", "test"],
            "runtimeKeys": ["ContextType", "OnInstalledReason",
                            "OnRestartRequiredReason", "PlatformArch",
                            "PlatformNaclArch", "PlatformOs",
@@ -173,9 +201,9 @@ IN_PROC_BROWSER_TEST_F(UserScriptWorldBrowserTest,
 }
 
 // Tests that, by default, the user script world's CSP is the same as the
-// extension's CSP.
+// extension's CSP, but it can be updated to a more relaxed value.
 IN_PROC_BROWSER_TEST_F(UserScriptWorldBrowserTest,
-                       DefaultCspIsExtensionDefault) {
+                       UserScriptWorldCspDefaultsToExtensionsAndCanBeUpdated) {
   // Load a simple extension with permission to example.com and navigate a new
   // tab to example.com.
   const Extension* extension =
@@ -183,33 +211,56 @@ IN_PROC_BROWSER_TEST_F(UserScriptWorldBrowserTest,
 
   NavigateToURL(embedded_test_server()->GetURL("example.com", "/simple.html"));
 
-  // Execute a script that attempts to eval() some code. This should fail, since
-  // by default the user script world CSP is the same as the extension's CSP
-  // (which prevents eval).
-  static constexpr char kScriptSource[] =
-      R"(var result;
-         try {
-           eval('result = "allowed eval"');
-         } catch (e) {
-           result = 'disallowed eval';
-         }
-         result;)";
-  base::Value script_result =
-      ExecuteScriptInUserScriptWorld(kScriptSource, *extension);
+  // Execute a script that attempts to eval() some code.
+  base::Value script_result = ExecuteScriptInUserScriptWorld(
+      kCheckIfEvalAllowedScriptSource, *extension);
 
+  // This should fail, since by default the user script world CSP is the same
+  // as the extension's CSP (which prevents eval).
+  EXPECT_EQ(script_result, "disallowed eval");
+
+  // Update the user script world CSP to allow unsafe eval.
+  SetUserScriptWorldProperties(*extension, "script-src 'unsafe-eval'",
+                               /*enable_messaging=*/true);
+  // Navigate to create a new isolated world.
+  NavigateToURL(embedded_test_server()->GetURL("example.com", "/simple.html"));
+
+  // Now, eval should be allowed.
+  script_result = ExecuteScriptInUserScriptWorld(
+      kCheckIfEvalAllowedScriptSource, *extension);
+  EXPECT_EQ(script_result, "allowed eval");
+}
+
+// Tests that an update to the user script world's CSP does not apply to any
+// already-created user script worlds.
+IN_PROC_BROWSER_TEST_F(UserScriptWorldBrowserTest,
+                       CspUpdatesDoNotApplyToExistingUserScriptWorlds) {
+  // Load a simple extension with permission to example.com and navigate a new
+  // tab to example.com.
+  const Extension* extension =
+      LoadExtensionWithHostPermission("http://example.com/*");
+
+  NavigateToURL(embedded_test_server()->GetURL("example.com", "/simple.html"));
+
+  base::Value script_result = ExecuteScriptInUserScriptWorld(
+      kCheckIfEvalAllowedScriptSource, *extension);
+  EXPECT_EQ(script_result, "disallowed eval");
+
+  // Update the user script world CSP to allow unsafe eval.
+  SetUserScriptWorldProperties(*extension, "script-src 'unsafe-eval'",
+                               /*enable_messaging=*/true);
+
+  // Re-evaluate the script. Eval should still be disallowed since CSP updates
+  // do not apply to existing isolated worlds (by design).
+  script_result = ExecuteScriptInUserScriptWorld(
+      kCheckIfEvalAllowedScriptSource, *extension);
   EXPECT_EQ(script_result, "disallowed eval");
 }
 
-// Tests that the user script world CSP can be updated to allow unsafe
-// directives, like `unsafe-eval`.
-// TODO(https://crbug.com/1429408): This is currently a separate test than the
-// above because re-setting the isolated world CSP in blink doesn't work. This
-// is due to the caching code here [1], which prevents a lookup if a world has
-// already been created. We'll need to fix this, since otherwise isolated world
-// CSP would be sticky per renderer process.
-// [1]:
-// https://source.chromium.org/chromium/chromium/src/+/refs/heads/main:third_party/blink/renderer/core/frame/local_dom_window.cc;l=374-391;drc=8ce14ef97f8607b1b57f8d02da575ed5150eea9e
-IN_PROC_BROWSER_TEST_F(UserScriptWorldBrowserTest, CanSetCustomCsp) {
+// Tests that newly-created documents may greedily initialize isolated world CSP
+// values.
+IN_PROC_BROWSER_TEST_F(UserScriptWorldBrowserTest,
+                       CspMayBeGreedilyInitializedOnDocumentCreation) {
   // Load a simple extension with permission to example.com and navigate a new
   // tab to example.com.
   const Extension* extension =
@@ -217,24 +268,275 @@ IN_PROC_BROWSER_TEST_F(UserScriptWorldBrowserTest, CanSetCustomCsp) {
 
   NavigateToURL(embedded_test_server()->GetURL("example.com", "/simple.html"));
 
-  // Update the user script world CSP to allow unsafe eval.
-  RendererStartupHelperFactory::GetForBrowserContext(profile())
-      ->SetUserScriptWorldCsp(*extension, "script-src 'unsafe-eval'");
+  base::Value script_result = ExecuteScriptInUserScriptWorld(
+      kCheckIfEvalAllowedScriptSource, *extension);
+  EXPECT_EQ(script_result, "disallowed eval");
 
-  // Execute a script that attempts to eval() some code. This should succeed,
-  // since the CSP has been updated.
+  // Navigate to create a new document. At this point, no user script code has
+  // injected in this new document.
+  NavigateToURL(embedded_test_server()->GetURL("example.com", "/simple.html"));
+  // Update the user script world CSP to allow unsafe eval.
+  SetUserScriptWorldProperties(*extension, "script-src 'unsafe-eval'",
+                               /*enable_messaging=*/true);
+
+  // Re-evaluate the script. Somewhat surprisingly, eval is still disallowed.
+  // This is because the new document greedily instantiates CSP for the current
+  // execution world, which, in this case, is the isolated world. This results
+  // in the isolated world CSP for the document being set when we navigate,
+  // which is before the new CSP is set. While not necessarily desirable, this
+  // is largely okay -- the proper CSP will be set whenever a new world is
+  // created, and we document that setting the CSP doesn't affect any existing
+  // isolated worlds. This test is mostly here for documentation and to
+  // highlight behavior changes.
+  script_result = ExecuteScriptInUserScriptWorld(
+      kCheckIfEvalAllowedScriptSource, *extension);
+  EXPECT_EQ(script_result, "disallowed eval");
+}
+
+// Tests sending a message from a user script. This is sent via
+// runtime.sendMessage from the user script, and should be received via
+// runtime.onUserScriptMessage in the background script.
+IN_PROC_BROWSER_TEST_F(UserScriptWorldBrowserTest, SendMessageAPI) {
+  static constexpr char kManifest[] =
+      R"({
+           "name": "User Script Extension",
+           "manifest_version": 3,
+           "version": "0.1",
+           "background": {"service_worker": "background.js"},
+           "host_permissions": ["http://example.com/*"]
+         })";
+  // The background script will listen for a message from a user script.
+  // Upon receiving one, it will validate the message and sender and respond
+  // with 'pong'.
+  static constexpr char kBackgroundJs[] =
+      R"(chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+           chrome.test.fail(`Unexpected message received: ${msg}`);
+         });
+         chrome.runtime.onMessageExternal.addListener(
+             (msg, sender, sendResponse) => {
+               chrome.test.fail(`Unexpected external message received: ${msg}`);
+             });
+         chrome.runtime.onUserScriptMessage.addListener(
+             (msg, sender, sendResponse) => {
+               chrome.test.assertEq('ping', msg);
+               const url = new URL(sender.url);
+               chrome.test.assertEq('example.com', url.hostname);
+               chrome.test.assertEq('/simple.html', url.pathname);
+               chrome.test.assertEq(0, sender.frameId);
+               chrome.test.assertTrue(!!sender.tab);
+               sendResponse('pong');
+               chrome.test.succeed();
+             });)";
+
+  TestExtensionDir test_dir;
+  test_dir.WriteManifest(kManifest);
+  test_dir.WriteFile(FILE_PATH_LITERAL("background.js"), kBackgroundJs);
+  const Extension* extension = LoadExtension(test_dir.UnpackedPath());
+  ASSERT_TRUE(extension);
+
+  // Enable messaging.
+  SetUserScriptWorldProperties(*extension, absl::nullopt,
+                               /*enable_messaging=*/true);
+
+  NavigateToURL(embedded_test_server()->GetURL("example.com", "/simple.html"));
+
+  // A bit overly nifty: here, we execute a user script that sends a message.
+  // Because this an MV3 extension, sendMessage() will return a promise that
+  // resolves when the other end responds. The ScriptExecutor will wait for
+  // that promise to resolve, so the end value of this script is the response
+  // from the background script.
   static constexpr char kScriptSource[] =
-      R"(var result;
-         try {
-           eval('result = "allowed eval"');
-         } catch (e) {
-           result = 'disallowed eval';
-         }
-         result;)";
+      R"(chrome.runtime.sendMessage('ping');)";
+
+  // The ResultCatcher validates the background script checks...
+  ResultCatcher result_catcher;
+
   base::Value script_result =
       ExecuteScriptInUserScriptWorld(kScriptSource, *extension);
 
-  EXPECT_EQ(script_result, "allowed eval");
+  // ...And the script result validates the user script expectation.
+  EXPECT_EQ(script_result, "pong");
+  EXPECT_TRUE(result_catcher.GetNextResult()) << result_catcher.message();
+}
+
+// Tests opening a message port from a user script. This is sent via
+// runtime.connect() from the user script, and should be received via
+// runtime.onUserScriptConnect in the background script.
+IN_PROC_BROWSER_TEST_F(UserScriptWorldBrowserTest, ConnectAPI) {
+  static constexpr char kManifest[] =
+      R"({
+           "name": "User Script Extension",
+           "manifest_version": 3,
+           "version": "0.1",
+           "background": {"service_worker": "background.js"},
+           "host_permissions": ["http://example.com/*"]
+         })";
+  // The background script will listen for a new connection from a user script.
+  // Upon one opening, it validates the opener and waits for a new message,
+  // then validating the message and responding with 'pong', and then
+  // succeeds when the port is disconnected (after having received the message).
+  static constexpr char kBackgroundJs[] =
+      R"(chrome.runtime.onConnect.addListener((port) => {
+           chrome.test.fail(`Unexpected connection received`);
+         });
+         chrome.runtime.onConnectExternal.addListener((port) => {
+           chrome.test.fail(`Unexpected external connection received`);
+         });
+         chrome.runtime.onUserScriptConnect.addListener((port) => {
+           chrome.test.assertEq('myport', port.name);
+           const sender = port.sender;
+           chrome.test.assertTrue(!!sender);
+           const url = new URL(sender.url);
+           chrome.test.assertEq('example.com', url.hostname);
+           chrome.test.assertEq('/simple.html', url.pathname);
+           chrome.test.assertEq(0, sender.frameId);
+           chrome.test.assertTrue(!!sender.tab);
+           let receivedMsg = false;
+           port.onMessage.addListener((msg) => {
+             receivedMsg = true;
+             chrome.test.assertEq('ping', msg);
+             port.postMessage('pong');
+           });
+           port.onDisconnect.addListener(() => {
+             chrome.test.assertTrue(receivedMsg);
+             chrome.test.succeed();
+           });
+         });)";
+
+  TestExtensionDir test_dir;
+  test_dir.WriteManifest(kManifest);
+  test_dir.WriteFile(FILE_PATH_LITERAL("background.js"), kBackgroundJs);
+  const Extension* extension = LoadExtension(test_dir.UnpackedPath());
+  ASSERT_TRUE(extension);
+
+  // Enable messaging.
+  SetUserScriptWorldProperties(*extension, absl::nullopt,
+                               /*enable_messaging=*/true);
+
+  NavigateToURL(embedded_test_server()->GetURL("example.com", "/simple.html"));
+
+  // The user script will open a port, post 'ping', wait for the responding
+  // 'pong', and then disconnect the port. We execute this in a promise with
+  // the expected resolved value of 'success'.
+  static constexpr char kScriptSource[] =
+      R"(new Promise((resolve) => {
+           let port = chrome.runtime.connect({name: 'myport'});
+           port.onMessage.addListener((msg) => {
+             if (msg != 'pong') {
+               resolve(`Unexpected message: ${msg}`);
+               return;
+             }
+             port.disconnect();
+             resolve('success');
+           });
+           port.postMessage('ping');
+         });)";
+
+  // The ResultCatcher validates the background script checks...
+  ResultCatcher result_catcher;
+
+  base::Value script_result =
+      ExecuteScriptInUserScriptWorld(kScriptSource, *extension);
+
+  // ...And the script result validates the user script expectation.
+  EXPECT_EQ(script_result, "success");
+  EXPECT_TRUE(result_catcher.GetNextResult()) << result_catcher.message();
+}
+
+// Tests that attempting to message another extension from a user script throws
+// an error.
+IN_PROC_BROWSER_TEST_F(UserScriptWorldBrowserTest,
+                       TryingToSendMessageToOtherExtensionTriggersError) {
+  static constexpr char kManifest[] =
+      R"({
+           "name": "User Script Extension",
+           "manifest_version": 3,
+           "version": "0.1",
+           "host_permissions": ["http://example.com/*"]
+         })";
+
+  TestExtensionDir test_dir;
+  test_dir.WriteManifest(kManifest);
+  const Extension* extension = LoadExtension(test_dir.UnpackedPath());
+  ASSERT_TRUE(extension);
+
+  // Enable messaging.
+  SetUserScriptWorldProperties(*extension, absl::nullopt,
+                               /*enable_messaging=*/true);
+
+  NavigateToURL(embedded_test_server()->GetURL("example.com", "/simple.html"));
+
+  static constexpr char kTrySendMessage[] =
+      R"(let targetId = 'a'.repeat(32);
+         let errorMsg = /User scripts may not message external extensions./;
+         chrome.test.runTests([
+           function sendMessageToExternalExtensionThrowsError() {
+             chrome.test.assertThrows(chrome.runtime.sendMessage, null,
+                                      [targetId, 'test message'], errorMsg);
+             chrome.test.succeed();
+           },
+           function connectToExternalExtensionThrowsError() {
+             chrome.test.assertThrows(chrome.runtime.connect, null,
+                                      [targetId], errorMsg);
+             chrome.test.succeed();
+           },
+         ]);
+         // Eval the script to a non-null value.
+         'success';)";
+
+  ResultCatcher result_catcher;
+  base::Value script_result =
+      ExecuteScriptInUserScriptWorld(kTrySendMessage, *extension);
+  EXPECT_EQ(script_result, "success");
+  EXPECT_TRUE(result_catcher.GetNextResult()) << result_catcher.message();
+}
+
+// Verifies that messaging APIs are exposed if and only if the user script world
+// is configured to allow them.
+IN_PROC_BROWSER_TEST_F(UserScriptWorldBrowserTest,
+                       MessagingAPIsAreNotExposedIfEnableMessagingIsFalse) {
+  const Extension* extension =
+      LoadExtensionWithHostPermission("http://example.com/*");
+
+  GURL example_com =
+      embedded_test_server()->GetURL("example.com", "/simple.html");
+
+  NavigateToURL(example_com);
+
+  static constexpr char kGetMessagingProperties[] =
+      R"(let messagingProperties = [
+             'sendMessage', 'onMessage', 'connect', 'onConnect'
+         ];
+         let runtimeProperties =
+             chrome && chrome.runtime
+                 ? Object.keys(chrome.runtime)
+                 : [];
+         messagingProperties =
+             messagingProperties.filter((prop) => {
+               return runtimeProperties.includes(prop);
+             });
+         messagingProperties;)";
+
+  // By default, messaging APIs are not allowed.
+  {
+    base::Value script_result =
+        ExecuteScriptInUserScriptWorld(kGetMessagingProperties, *extension);
+    EXPECT_THAT(script_result, base::test::IsJson("[]"));
+  }
+
+  // Flip the bit to allow messaging APIs and refresh the page.
+  SetUserScriptWorldProperties(*extension, absl::nullopt,
+                               /*enable_messaging=*/true);
+  NavigateToURL(example_com);
+
+  // Now, all messaging APIs should be exposed.
+  {
+    base::Value script_result =
+        ExecuteScriptInUserScriptWorld(kGetMessagingProperties, *extension);
+    EXPECT_THAT(script_result,
+                base::test::IsJson(
+                    R"(["sendMessage","onMessage","connect","onConnect"])"));
+  }
 }
 
 }  // namespace extensions

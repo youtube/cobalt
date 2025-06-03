@@ -12,6 +12,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import org.chromium.base.UserDataHost;
+import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.ui.native_page.NativePage;
 import org.chromium.components.embedder_support.view.ContentView;
 import org.chromium.content_public.browser.LoadUrlParams;
@@ -29,6 +30,7 @@ import java.lang.annotation.RetentionPolicy;
  */
 public interface Tab extends TabLifecycle {
     public static final int INVALID_TAB_ID = -1;
+    public static final long INVALID_TIMESTAMP = -1;
 
     @IntDef({TabLoadStatus.PAGE_LOAD_FAILED, TabLoadStatus.DEFAULT_PAGE_LOAD})
     @Retention(RetentionPolicy.SOURCE)
@@ -58,6 +60,10 @@ public interface Tab extends TabLifecycle {
      *         object having to know about them directly.
      */
     UserDataHost getUserDataHost();
+
+    /** Returns the Profile this tab is associated with. */
+    @NonNull
+    Profile getProfile();
 
     /**
      * @return The web contents associated with this tab.
@@ -280,14 +286,55 @@ public interface Tab extends TabLifecycle {
     void goForward();
 
     /**
-     * Set whether {@link Tab} metadata (specifically all {@link PersistedTabData})
-     * will be saved. Not all Tabs need to be persisted across restarts.
-     * The default value when a Tab is initialized is false.
-     */
-    void setIsTabSaveEnabled(boolean isSaveEnabled);
-
-    /**
      * @return true if the {@link Tab} is a custom tab.
      */
     boolean isCustomTab();
+
+    /**
+     * @return the last time this tab was shown or the time of its initialization if it wasn't yet
+     *         shown.
+     */
+    long getTimestampMillis();
+
+    /**
+     * @return parent identifier for the {@link Tab}
+     */
+    int getParentId();
+
+    /**
+     * @return root identifier for the {@link Tab}
+     */
+    int getRootId();
+
+    /**
+     * Set the root identifier for the {@link Tab}
+     */
+    void setRootId(int rootId);
+
+    /**
+     * @return user agent type for the {@link Tab}
+     */
+    @TabUserAgent
+    int getUserAgent();
+    /**
+     * Set user agent type for the {@link Tab}
+     */
+    void setUserAgent(@TabUserAgent int userAgent);
+
+    /**
+     * @return content state bytes for the {@link Tab}
+     */
+    WebContentsState getWebContentsState();
+
+    /**
+     * @return timestamp in milliseconds when the tab was last interacted.
+     */
+    long getLastNavigationCommittedTimestampMillis();
+
+    /**
+     * @return launch type at creation
+     */
+    @Nullable
+    @TabLaunchType
+    Integer getTabLaunchTypeAtCreation();
 }

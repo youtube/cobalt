@@ -19,6 +19,7 @@
 namespace net {
 
 class NetLogWithSource;
+class ProxyChain;
 
 // This object holds proxy information returned by ResolveProxy.
 class NET_EXPORT ProxyInfo {
@@ -45,7 +46,11 @@ class NET_EXPORT ProxyInfo {
   void UseNamedProxy(const std::string& proxy_uri_list);
 
   // Sets the proxy list to a single entry, |proxy_server|.
+  // TODO(crbug.com/1491092): Remove this method, as it is only used in a test.
   void UseProxyServer(const ProxyServer& proxy_server);
+
+  // Sets the proxy list to a single entry, |proxy_chain|.
+  void UseProxyChain(const ProxyChain& proxy_chain);
 
   // Parses from the given PAC result.
   void UsePacString(const std::string& pac_string);
@@ -56,6 +61,11 @@ class NET_EXPORT ProxyInfo {
   // Uses the proxies from the given list, but does not otherwise reset the
   // proxy configuration.
   void OverrideProxyList(const ProxyList& proxy_list);
+
+  // Indicates that this is a proxy for IP Protection.
+  void set_is_for_ip_protection(bool is_for_ip_protection) {
+    is_for_ip_protection_ = is_for_ip_protection;
+  }
 
   // Returns true if this proxy info specifies a direct connection.
   bool is_direct() const {
@@ -123,9 +133,17 @@ class NET_EXPORT ProxyInfo {
     return did_bypass_proxy_;
   }
 
-  // Returns the first valid proxy server. is_empty() must be false to be able
-  // to call this function.
+  // Returns true if this proxy info is for IP Protection.
+  bool is_for_ip_protection() const { return is_for_ip_protection_; }
+
+  // Returns the first valid proxy server. `is_empty()` must be false to be able
+  // to call this function, and the first chain must not be multi-proxy.
+  // TODO(crbug.com/1491092): Remove this method.
   const ProxyServer& proxy_server() const { return proxy_list_.Get(); }
+
+  // Returns the first valid proxy chain. is_empty() must be false to be able
+  // to call this function.
+  const ProxyChain& proxy_chain() const { return proxy_list_.First(); }
 
   // Returns the full list of proxies to use.
   const ProxyList& proxy_list() const { return proxy_list_; }
@@ -142,7 +160,7 @@ class NET_EXPORT ProxyInfo {
 
   // De-prioritizes the proxies that we have cached as not working, by moving
   // them to the end of the proxy list.
-  void DeprioritizeBadProxies(const ProxyRetryInfoMap& proxy_retry_info);
+  void DeprioritizeBadProxyChains(const ProxyRetryInfoMap& proxy_retry_info);
 
   // Deletes any entry which doesn't have one of the specified proxy schemes.
   void RemoveProxiesWithoutScheme(int scheme_bit_field);
@@ -194,6 +212,9 @@ class NET_EXPORT ProxyInfo {
 
   // Whether the proxy result represent a proxy bypass.
   bool did_bypass_proxy_ = false;
+
+  // Whether this proxy is for IP Protection.
+  bool is_for_ip_protection_ = false;
 
   // How long it took to resolve the proxy.  Times are both null if proxy was
   // determined synchronously without running a PAC.

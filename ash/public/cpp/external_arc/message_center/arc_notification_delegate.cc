@@ -39,12 +39,33 @@ void ArcNotificationDelegate::Click(
     const absl::optional<int>& button_index,
     const absl::optional<std::u16string>& reply) {
   DCHECK(item_);
-  item_->Click();
+
+  if (button_index) {
+    item_->ClickButton(button_index.value(),
+                       base::UTF16ToUTF8(reply.value_or(std::u16string())));
+  } else {
+    item_->Click();
+  }
 }
 
 void ArcNotificationDelegate::SettingsClick() {
   DCHECK(item_);
   item_->OpenSettings();
+}
+
+void ArcNotificationDelegate::ExpandStateChanged(bool expanded) {
+  DCHECK(item_);
+  item_->SetExpandState(expanded);
+}
+
+void ArcNotificationDelegate::SnoozeButtonClicked() {
+  DCHECK(item_);
+  item_->OpenSnooze();
+}
+
+message_center::NotificationDelegate*
+ArcNotificationDelegate::GetDelegateForParentCopy() {
+  return nullptr;
 }
 
 }  // namespace ash

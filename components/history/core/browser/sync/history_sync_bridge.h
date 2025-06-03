@@ -15,8 +15,8 @@
 #include "components/history/core/browser/history_backend_observer.h"
 #include "components/history/core/browser/history_types.h"
 #include "components/history/core/browser/sync/history_backend_for_sync.h"
-#include "components/sync/driver/sync_service.h"
 #include "components/sync/model/model_type_sync_bridge.h"
+#include "components/sync/service/sync_service.h"
 
 namespace syncer {
 class MetadataChangeList;
@@ -74,7 +74,8 @@ class HistorySyncBridge : public syncer::ModelTypeSyncBridge,
                      bool expired,
                      const URLRows& deleted_rows,
                      const std::set<GURL>& favicon_urls) override;
-  void OnVisitUpdated(const VisitRow& visit_row) override;
+  void OnVisitUpdated(const VisitRow& visit_row,
+                      VisitUpdateReason reason) override;
   void OnVisitDeleted(const VisitRow& visit_row) override;
 
   void SetSyncTransportState(syncer::SyncService::TransportState state);
@@ -153,7 +154,7 @@ class HistorySyncBridge : public syncer::ModelTypeSyncBridge,
 
   // A non-owning pointer to the database, which is for storing sync metadata
   // and state. Can be null in case of unrecoverable database errors.
-  raw_ptr<HistorySyncMetadataDatabase, DanglingUntriaged>
+  raw_ptr<HistorySyncMetadataDatabase, AcrossTasksDanglingUntriaged>
       sync_metadata_database_;
 
   // HistoryBackend uses SequencedTaskRunner, so this makes sure

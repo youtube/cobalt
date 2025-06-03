@@ -88,7 +88,7 @@ struct PLATFORM_EXPORT WrapperTypeInfo final {
     kIdlCallbackInterface,
     kIdlBufferSourceType,
     kIdlObservableArray,
-    kIdlSyncIterator,
+    kIdlAsyncOrSyncIterator,
     kCustomWrappableKind,
   };
 
@@ -121,7 +121,8 @@ struct PLATFORM_EXPORT WrapperTypeInfo final {
   // - kIdlNamespace: v8::ObjectTemplate of namespace object
   // - kIdlCallbackInterface: v8::FunctionTemplate of legacy callback
   //       interface object
-  // - kIdlSyncIterator: v8::FunctionTemplate of default iterator object
+  // - kIdlAsyncOrSyncIterator: v8::FunctionTemplate of default (asynchronous
+  //       or synchronous) iterator object
   // - kCustomWrappableKind: v8::FunctionTemplate
   v8::Local<v8::Template> GetV8ClassTemplate(
       v8::Isolate* isolate,
@@ -162,6 +163,13 @@ struct PLATFORM_EXPORT WrapperTypeInfo final {
   unsigned                              // ActiveScriptWrappableInheritance
       active_script_wrappable_inheritance : 1;
   unsigned idl_definition_kind : 3;  // IdlDefinitionKind
+
+  // This is a special case only used by V8WindowProperties::WrapperTypeInfo().
+  // WindowProperties is part of Window's prototype object's prototype chain,
+  // but not part of Window's interface object prototype chain. When this bit is
+  // set, V8PerContextData::ConstructorForTypeSlowCase() skips over this type
+  // when constructing the interface object's prototype chain.
+  bool is_skipped_in_interface_object_prototype_chain : 1;
 };
 
 template <typename T, int offset>

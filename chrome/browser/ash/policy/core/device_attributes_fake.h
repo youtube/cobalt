@@ -33,8 +33,6 @@ class FakeDeviceAttributes : public DeviceAttributes {
 
   std::string GetSSOProfile() const override;
 
-  std::string GetRealm() const override;
-
   std::string GetDeviceAssetID() const override;
 
   std::string GetDeviceSerialNumber() const override;
@@ -61,8 +59,6 @@ class FakeDeviceAttributes : public DeviceAttributes {
 
   void SetFakeSsoProfile(const std::string& sso_profile);
 
-  void SetFakeRealm(const std::string& realm);
-
   void SetFakeDeviceAssetId(const std::string& device_asset_id);
 
   void SetFakeDeviceSerialNumber(const std::string& device_serial_number);
@@ -87,7 +83,6 @@ class FakeDeviceAttributes : public DeviceAttributes {
   std::string fake_enterprise_enrollment_domain_;
   std::string fake_enterprise_domain_manager_;
   std::string fake_sso_profile_;
-  std::string fake_realm_;
   std::string fake_device_asset_id_;
   std::string fake_device_serial_number_;
   std::string fake_machine_name_;

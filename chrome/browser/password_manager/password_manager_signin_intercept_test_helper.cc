@@ -83,8 +83,8 @@ void PasswordManagerSigninInterceptTestHelper::NavigateToGaiaSigninPage(
   DCHECK(gaia::HasGaiaSchemeHostPort(https_url));
 
   PasswordsNavigationObserver navigation_observer(contents);
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(
-      chrome::FindBrowserWithWebContents(contents), https_url));
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(chrome::FindBrowserWithTab(contents),
+                                           https_url));
   ASSERT_TRUE(navigation_observer.Wait());
 }
 
@@ -123,6 +123,7 @@ CoreAccountId PasswordManagerSigninInterceptTestHelper::AddGaiaAccountToProfile(
   return accounts_mutator->AddOrUpdateAccount(
       gaia_id, email, "refresh_token",
       /*is_under_advanced_protection=*/false,
+      signin_metrics::AccessPoint::ACCESS_POINT_UNKNOWN,
       signin_metrics::SourceForRefreshTokenOperation::kUnknown);
 }
 

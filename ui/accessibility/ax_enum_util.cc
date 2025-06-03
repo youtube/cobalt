@@ -17,8 +17,8 @@ const char* ToString(ax::mojom::Event event) {
       return "activedescendantchanged";
     case ax::mojom::Event::kAlert:
       return "alert";
-    case ax::mojom::Event::kAriaAttributeChanged:
-      return "ariaAttributeChanged";
+    case ax::mojom::Event::kAriaAttributeChangedDeprecated:
+      return "ariaAttributeChangedDeprecated";
     case ax::mojom::Event::kAutocorrectionOccured:
       return "autocorrectionOccured";
     case ax::mojom::Event::kBlur:
@@ -460,8 +460,8 @@ const char* ToString(ax::mojom::Role role) {
       return "popUpButton";
     case ax::mojom::Role::kPortal:
       return "portal";
-    case ax::mojom::Role::kPre:
-      return "pre";
+    case ax::mojom::Role::kPreDeprecated:
+      return "preDeprecated";
     case ax::mojom::Role::kProgressIndicator:
       return "progressIndicator";
     case ax::mojom::Role::kRadioButton:
@@ -886,8 +886,8 @@ ax::mojom::Role StringToRole(const std::string& role) {
     return ax::mojom::Role::kPopUpButton;
   } else if (role == "kPortal") {
     return ax::mojom::Role::kPortal;
-  } else if (role == "kPre") {
-    return ax::mojom::Role::kPre;
+  } else if (role == "kPreDeprecated") {
+    return ax::mojom::Role::kPreDeprecated;
   } else if (role == "kProgressIndicator") {
     return ax::mojom::Role::kProgressIndicator;
   } else if (role == "kRadioButton") {
@@ -1154,6 +1154,8 @@ const char* ToString(ax::mojom::Action action) {
       return "hideTooltip";
     case ax::mojom::Action::kInternalInvalidateTree:
       return "internalInvalidateTree";
+    case ax::mojom::Action::kStitchChildTree:
+      return "stitchChildTree";
     case ax::mojom::Action::kStartDuckingMedia:
       return "startDuckingMedia";
     case ax::mojom::Action::kStopDuckingMedia:
@@ -1255,7 +1257,7 @@ const char* ToString(ax::mojom::StringAttribute string_attribute) {
       return "none";
     case ax::mojom::StringAttribute::kAccessKey:
       return "accessKey";
-    case ax::mojom::StringAttribute::kAriaInvalidValue:
+    case ax::mojom::StringAttribute::kAriaInvalidValueDeprecated:
       return "ariaInvalidValue";
     case ax::mojom::StringAttribute::kAutoComplete:
       return "autoComplete";
@@ -1297,6 +1299,8 @@ const char* ToString(ax::mojom::StringAttribute string_attribute) {
       return "keyShortcuts";
     case ax::mojom::StringAttribute::kLanguage:
       return "language";
+    case ax::mojom::StringAttribute::kLinkTarget:
+      return "linkTarget";
     case ax::mojom::StringAttribute::kName:
       return "name";
     case ax::mojom::StringAttribute::kLiveRelevant:
@@ -1332,8 +1336,8 @@ ax::mojom::StringAttribute StringToStringAttribute(
     return ax::mojom::StringAttribute::kNone;
   } else if (string_attribute == "kAccessKey") {
     return ax::mojom::StringAttribute::kAccessKey;
-  } else if (string_attribute == "kAriaInvalidValue") {
-    return ax::mojom::StringAttribute::kAriaInvalidValue;
+  } else if (string_attribute == "kAriaInvalidValueDeprecated") {
+    return ax::mojom::StringAttribute::kAriaInvalidValueDeprecated;
   } else if (string_attribute == "kAutoComplete") {
     return ax::mojom::StringAttribute::kAutoComplete;
   } else if (string_attribute == "kAriaBrailleLabel") {
@@ -1411,7 +1415,7 @@ const char* ToString(ax::mojom::IntAttribute int_attribute) {
       return "none";
     case ax::mojom::IntAttribute::kDefaultActionVerb:
       return "defaultActionVerb";
-    case ax::mojom::IntAttribute::kDropeffect:
+    case ax::mojom::IntAttribute::kDropeffectDeprecated:
       return "dropeffect";
     case ax::mojom::IntAttribute::kScrollX:
       return "scrollX";
@@ -1473,7 +1477,7 @@ const char* ToString(ax::mojom::IntAttribute int_attribute) {
       return "descriptionFrom";
     case ax::mojom::IntAttribute::kActivedescendantId:
       return "activedescendantId";
-    case ax::mojom::IntAttribute::kErrormessageId:
+    case ax::mojom::IntAttribute::kErrormessageIdDeprecated:
       return "errormessageId";
     case ax::mojom::IntAttribute::kInPageLinkTargetId:
       return "inPageLinkTargetId";
@@ -1545,8 +1549,8 @@ ax::mojom::IntAttribute StringToIntAttribute(const std::string& int_attribute) {
     return ax::mojom::IntAttribute::kNone;
   } else if (int_attribute == "kDefaultActionVerb") {
     return ax::mojom::IntAttribute::kDefaultActionVerb;
-  } else if (int_attribute == "kDropeffect") {
-    return ax::mojom::IntAttribute::kDropeffect;
+  } else if (int_attribute == "kDropeffectDeprecated") {
+    return ax::mojom::IntAttribute::kDropeffectDeprecated;
   } else if (int_attribute == "kScrollX") {
     return ax::mojom::IntAttribute::kScrollX;
   } else if (int_attribute == "kScrollXMin") {
@@ -1608,7 +1612,7 @@ ax::mojom::IntAttribute StringToIntAttribute(const std::string& int_attribute) {
   } else if (int_attribute == "kActivedescendantId") {
     return ax::mojom::IntAttribute::kActivedescendantId;
   } else if (int_attribute == "kErrormessageId") {
-    return ax::mojom::IntAttribute::kErrormessageId;
+    return ax::mojom::IntAttribute::kErrormessageIdDeprecated;
   } else if (int_attribute == "kInPageLinkTargetId") {
     return ax::mojom::IntAttribute::kInPageLinkTargetId;
   } else if (int_attribute == "kMemberOfId") {
@@ -1712,7 +1716,7 @@ const char* ToString(ax::mojom::BoolAttribute bool_attribute) {
       return "containerLiveAtomic";
     case ax::mojom::BoolAttribute::kContainerLiveBusy:
       return "containerLiveBusy";
-    case ax::mojom::BoolAttribute::kGrabbed:
+    case ax::mojom::BoolAttribute::kGrabbedDeprecated:
       return "grabbed";
     case ax::mojom::BoolAttribute::kLiveAtomic:
       return "liveAtomic";
@@ -1742,10 +1746,12 @@ const char* ToString(ax::mojom::BoolAttribute bool_attribute) {
       return "isPageBreakingObject";
     case ax::mojom::BoolAttribute::kHasAriaAttribute:
       return "hasAriaAttribute";
-    case ax::mojom::BoolAttribute::kTouchPassthrough:
+    case ax::mojom::BoolAttribute::kTouchPassthroughDeprecated:
       return "touchPassthrough";
     case ax::mojom::BoolAttribute::kLongClickable:
       return "longClickable";
+    case ax::mojom::BoolAttribute::kHasHiddenOffscreenNodes:
+      return "hasHiddenOffscreenNodes";
   }
 
   return "";
@@ -1763,8 +1769,8 @@ ax::mojom::BoolAttribute StringToBoolAttribute(
     return ax::mojom::BoolAttribute::kContainerLiveAtomic;
   } else if (bool_attribute == "kContainerLiveBusy") {
     return ax::mojom::BoolAttribute::kContainerLiveBusy;
-  } else if (bool_attribute == "kGrabbed") {
-    return ax::mojom::BoolAttribute::kGrabbed;
+  } else if (bool_attribute == "kGrabbedDeprecated") {
+    return ax::mojom::BoolAttribute::kGrabbedDeprecated;
   } else if (bool_attribute == "kLiveAtomic") {
     return ax::mojom::BoolAttribute::kLiveAtomic;
   } else if (bool_attribute == "kModal") {
@@ -1793,8 +1799,8 @@ ax::mojom::BoolAttribute StringToBoolAttribute(
     return ax::mojom::BoolAttribute::kIsPageBreakingObject;
   } else if (bool_attribute == "kHasAriaAttribute") {
     return ax::mojom::BoolAttribute::kHasAriaAttribute;
-  } else if (bool_attribute == "kTouchPassthrough") {
-    return ax::mojom::BoolAttribute::kTouchPassthrough;
+  } else if (bool_attribute == "kTouchPassthroughDeprecated") {
+    return ax::mojom::BoolAttribute::kTouchPassthroughDeprecated;
   } else if (bool_attribute == "kLongClickable") {
     return ax::mojom::BoolAttribute::kLongClickable;
   } else {
@@ -1815,6 +1821,8 @@ const char* ToString(ax::mojom::IntListAttribute int_list_attribute) {
       return "detailsIds";
     case ax::mojom::IntListAttribute::kDescribedbyIds:
       return "describedbyIds";
+    case ax::mojom::IntListAttribute::kErrormessageIds:
+      return "errorMessageIds";
     case ax::mojom::IntListAttribute::kFlowtoIds:
       return "flowtoIds";
     case ax::mojom::IntListAttribute::kLabelledbyIds:
@@ -1847,6 +1855,16 @@ const char* ToString(ax::mojom::IntListAttribute int_list_attribute) {
       return "wordEnds";
     case ax::mojom::IntListAttribute::kCustomActionIds:
       return "customActionIds";
+    case ax::mojom::IntListAttribute::kTextOperationStartOffsets:
+      return "textOperationStartOffsets";
+    case ax::mojom::IntListAttribute::kTextOperationEndOffsets:
+      return "textOperationEndOffsets";
+    case ax::mojom::IntListAttribute::kTextOperationStartAnchorIds:
+      return "textOperationStartAnchorIds";
+    case ax::mojom::IntListAttribute::kTextOperationEndAnchorIds:
+      return "textOperationEndAnchorIds";
+    case ax::mojom::IntListAttribute::kTextOperations:
+      return "textOperations";
   }
 
   return "";

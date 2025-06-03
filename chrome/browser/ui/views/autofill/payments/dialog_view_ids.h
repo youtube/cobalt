@@ -22,6 +22,8 @@ enum DialogViewId : int {
                              // save bubble
   FOOTNOTE_VIEW,             // The footnote view of either an upload
                              // save bubble or a manage cards view.
+  LEGAL_MESSAGE_VIEW,        // The view containing terms of service and
+                             // the privacy notice
   SIGN_IN_PROMO_VIEW,        // Contains the sign-in promo view
   MANAGE_CARDS_VIEW,         // The manage cards view
   MANAGE_IBANS_VIEW,         // The manage IBANs view
@@ -66,6 +68,10 @@ enum DialogViewId : int {
   EXPIRATION_DATE_LABEL,  // Appears during save offer bubble
   IBAN_VALUE_LABEL,       // Shows or hides during IBAN offer bubble
   NICKNAME_LABEL,         // Appears during manage saved IBAN bubble.
+
+  // The following are views::StyledLabel objects.
+  SETTINGS_LABEL,  // Appears in the mandatory reauth opt-in confirmation
+                   // bubble.
 };
 
 }  // namespace autofill
