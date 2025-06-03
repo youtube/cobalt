@@ -94,7 +94,8 @@ DrmSystem::SessionUpdateRequest::SessionUpdateRequest(
     int initialization_data_size)
     : ticket_(ticket),
       init_data_(static_cast<const uint8_t*>(initialization_data),
-                 static_cast<const uint8_t*>(initialization_data) + initialization_data_size),
+                 static_cast<const uint8_t*>(initialization_data) +
+                     initialization_data_size),
       mime_(type) {}
 
 void DrmSystem::SessionUpdateRequest::Generate(
