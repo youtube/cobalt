@@ -19,11 +19,11 @@
 #include <limits>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "starboard/common/mutex.h"
-#include "starboard/common/optional.h"
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
 #include "starboard/shared/starboard/thread_checker.h"
 #include "starboard/thread.h"
@@ -190,7 +190,7 @@ class DrmSystemWidevine : public SbDrmSystemPrivate,
   volatile bool quitting_ = false;
 
   Mutex unblock_key_retry_mutex_;
-  optional<int64_t> unblock_key_retry_start_time_;
+  std::optional<int64_t> unblock_key_retry_start_time_;
 
 #if !defined(COBALT_BUILD_TYPE_GOLD)
   int number_of_session_updates_sent_ = 0;

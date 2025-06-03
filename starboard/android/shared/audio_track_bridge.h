@@ -16,10 +16,10 @@
 #define STARBOARD_ANDROID_SHARED_AUDIO_TRACK_BRIDGE_H_
 
 #include <jni.h>
+#include <optional>
 
 #include "base/android/jni_android.h"
 #include "starboard/android/shared/jni_env_ext.h"
-#include "starboard/common/optional.h"
 #include "starboard/media.h"
 #include "starboard/types.h"
 
@@ -41,7 +41,7 @@ class AudioTrackBridge {
   static constexpr int kAudioTrackErrorDeadObject = -6;
 
   AudioTrackBridge(SbMediaAudioCodingType coding_type,
-                   optional<SbMediaAudioSampleType> sample_type,
+                   std::optional<SbMediaAudioSampleType> sample_type,
                    int channels,
                    int sampling_frequency_hz,
                    int preferred_buffer_size_in_bytes,

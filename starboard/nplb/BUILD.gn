@@ -99,7 +99,6 @@ test("nplb") {
     "microphone_open_test.cc",
     "microphone_read_test.cc",
     "murmurhash2_test.cc",
-    "optional_test.cc",
     "player_creation_param_helpers.cc",
     "player_creation_param_helpers.h",
     "player_get_preferred_output_mode_test.cc",
