@@ -41,6 +41,7 @@ public class AudioTrackBridge {
   private AudioTrack audioTrack;
   private AudioTimestamp audioTimestamp = new AudioTimestamp();
   private long maxFramePositionSoFar = 0;
+  private int defaultBufferSize = 0;
 
   private final boolean tunnelModeEnabled;
   // The following variables are used only when |tunnelModeEnabled| is true.
@@ -135,7 +136,7 @@ public class AudioTrackBridge {
             .setChannelMask(channelConfig)
             .build();
 
-    int audioTrackBufferSize = preferredBufferSizeInBytes * 2; // Multiplied by 2 due to setPlaybackParams needing more buffer size for faster playbacks
+    int audioTrackBufferSize = preferredBufferSizeInBytes; // Multiplied by 2 due to setPlaybackParams needing more buffer size for faster playbacks
     // TODO: Investigate if this implementation could be refined.
     // It is not necessary to loop until 0 since there is new implementation based on
     // AudioTrack.getMinBufferSize(). Especially for tunnel mode, it would fail if audio HAL does
@@ -146,7 +147,7 @@ public class AudioTrackBridge {
             new AudioTrack(
                 attributes,
                 format,
-                audioTrackBufferSize,
+                audioTrackBufferSize * 2,
                 AudioTrack.MODE_STREAM,
                 tunnelModeEnabled
                     ? tunnelModeAudioSessionId
@@ -165,6 +166,10 @@ public class AudioTrackBridge {
       audioTrackBufferSize /= 2;
     }
 
+    // set the |defaultBufferSize| to half of what was set in the creation of the
+    // AudioTrack. This will be used as a base when we have to dynamically change the buffer size
+    // based on the selected playback rate.
+    defaultBufferSize = (int) (audioTrack.getBufferSizeInFrames() / 2);
     String sampleTypeString = "ENCODING_INVALID";
     if (isAudioTrackValid()) {
       // If the AudioTrack encoding indicates compressed data,
@@ -228,20 +233,21 @@ public class AudioTrackBridge {
 
   @SuppressWarnings("unused")
   @UsedByNative
-  public int setPlaybackRate(float playback_rate) {
+  public int setPlaybackRate(float playbackRate) {
     if (audioTrack == null) {
       Log.e(TAG, "Unable to setPlaybackRate with NULL audio track.");
       return 0;
     }
     try {
+      audioTrack.setBufferSizeInFrames((int) (defaultBufferSize * playbackRate));
       PlaybackParams params = audioTrack.getPlaybackParams();
-      params.setSpeed(playback_rate);
+      params.setSpeed(playbackRate);
       audioTrack.setPlaybackParams(params);
     } catch (IllegalArgumentException e){
-      Log.e(TAG, String.format("Unable to set playback_rate, error: %s.", e.toString()));
+      Log.e(TAG, String.format("Unable to set playbackRate, error: %s.", e.toString()));
       return 0;
     } catch (IllegalStateException e) {
-      Log.e(TAG, String.format("Unable to set playback_rate, error: %s", e.toString()));
+      Log.e(TAG, String.format("Unable to set playbackRate, error: %s", e.toString()));
       return 0;
     }
     return 1;

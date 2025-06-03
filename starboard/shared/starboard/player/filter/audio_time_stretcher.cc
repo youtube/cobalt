@@ -231,8 +231,7 @@ scoped_refptr<DecodedAudio> AudioTimeStretcher::Read(int requested_frames,
   do {
     rendered_frames += WriteCompletedFramesTo(
         requested_frames - rendered_frames, rendered_frames, dest);
-  } while (rendered_frames < requested_frames &&
-           RunOneWsolaIteration(playback_rate < 1 ? playback_rate : 1));
+  } while (rendered_frames < requested_frames && RunOneWsolaIteration(1));
   dest->ShrinkTo(rendered_frames * bytes_per_frame_);
   return dest;
 }
