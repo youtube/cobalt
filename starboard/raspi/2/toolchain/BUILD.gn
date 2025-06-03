@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import("//build/toolchain/gcc_toolchain.gni")
+import("//cobalt/build/configs/hacks.gni")
 import("//starboard/build/toolchain/cobalt_toolchains.gni")
 import("//starboard/raspi/shared/toolchain/raspi_shared_toolchain.gni")
 
@@ -32,7 +33,7 @@ gcc_toolchain("starboard") {
     sysroot = "$raspi_home/busterroot"
     use_cxx17 = true
   }
-  propagates_configs = true
+  propagates_configs = !enable_cobalt_hermetic_hacks
 }
 
 gcc_toolchain("native_target") {

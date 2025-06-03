@@ -334,6 +334,7 @@ if (current_toolchain == starboard_toolchain) {
     configs += [ "//starboard/build/config:starboard_implementation" ]
 
     deps = [
+      ":starboard_platform",
       "//starboard:starboard_with_main",
       "//starboard/shared/starboard/player/filter/testing:test_util",
       "//testing/gmock",
