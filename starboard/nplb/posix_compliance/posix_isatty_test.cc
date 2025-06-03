@@ -83,8 +83,8 @@ TEST_F(PosixIsattyTest, HandlesOpenFile) {
   remove(kTestFileName);
 }
 
-// Tests that isatty() doesn't recognize non-terminal devices as ttys.
-TEST_F(PosixIsattyTest, HandlesDevices) {
+// Tests that isatty() doesn't recognize non-tty devices as ttys.
+TEST_F(PosixIsattyTest, HandlesNonTtyDevices) {
   int fd = open("/dev/null", O_RDWR);
   ASSERT_NE(-1, fd) << "Failed to open /dev/null: " << strerror(errno);
 
@@ -102,9 +102,9 @@ TEST_F(PosixIsattyTest, HandlesDevices) {
   close(fd);
 }
 
-// Tests that isatty() does not recognize a duplicate of an invalid file
-// descriptor as a tty.
-TEST_F(PosixIsattyTest, HandlesInvalidDuplicateFd) {
+// Tests that isatty() does not recognize a duplicate of a non tty
+// device as a tty.
+TEST_F(PosixIsattyTest, HandlesDuplicatesOfNonTtyDevices) {
   int fd = open("/dev/null", O_RDWR);
   ASSERT_NE(-1, fd) << "Failed to open /dev/null: " << strerror(errno);
   ASSERT_FALSE(isatty(fd));
@@ -113,6 +113,7 @@ TEST_F(PosixIsattyTest, HandlesInvalidDuplicateFd) {
   errno = 0;
 
   int fd_copy = dup(fd);
+  ASSERT_NE(-1, fd_copy) << "Failed to create duplicate fd: " << strerror(errno);
   EXPECT_FALSE(isatty(fd_copy));
   EXPECT_EQ(ENOTTY, errno) << "Expected ENOTTY, got " << strerror(errno);
 
