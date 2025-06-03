@@ -93,7 +93,7 @@ SbPlayerPrivate* SbPlayerPrivateImpl::CreateInstance(
 void SbPlayerPrivateImpl::Seek(int64_t seek_to_time, int ticket) {
   {
     ScopedLock lock(mutex_);
-    SB_DCHECK_NE(ticket_, ticket);
+    SB_DCHECK(ticket_ != ticket);
     media_time_ = seek_to_time;
     media_time_updated_at_ = CurrentMonotonicTime();
     is_progressing_ = false;
@@ -144,7 +144,7 @@ void SbPlayerPrivateImpl::SetBounds(int z_index,
 }
 
 void SbPlayerPrivateImpl::GetInfo(SbPlayerInfo* out_player_info) {
-  SB_DCHECK_NE(out_player_info, nullptr);
+  SB_DCHECK(out_player_info != NULL);
 
   ScopedLock lock(mutex_);
   out_player_info->duration = SB_PLAYER_NO_DURATION;

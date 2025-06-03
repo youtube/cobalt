@@ -55,7 +55,7 @@ JobThread::JobThread(const char* thread_name,
                  &thread_param);
   pthread_attr_destroy(&attributes);
 
-  SB_DCHECK_NE(thread_, 0);
+  SB_DCHECK(thread_ != 0);
   ScopedLock scoped_lock(thread_param.mutex);
   while (!job_queue_) {
     thread_param.condition_variable.Wait();
@@ -76,7 +76,7 @@ JobThread::~JobThread() {
 // static
 void* JobThread::ThreadEntryPoint(void* context) {
   ThreadParam* param = static_cast<ThreadParam*>(context);
-  SB_DCHECK_NE(param, nullptr);
+  SB_DCHECK(param != nullptr);
 
   pthread_setname_np(pthread_self(), param->thread_name.c_str());
   shared::pthread::ThreadSetPriority(param->thread_priority);
