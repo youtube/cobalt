@@ -139,7 +139,6 @@ TEST(PosixPipeTest, Pipe2WithNonBlockSetsThisFlagOnBothEndsOfPipe) {
   EXPECT_NE(descriptor_flags_write_end, -1);
   EXPECT_FALSE(descriptor_flags_write_end & FD_CLOEXEC);
 
-
   close(pipe_fds[0]);
   close(pipe_fds[1]);
 }
