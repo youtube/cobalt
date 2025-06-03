@@ -34,11 +34,11 @@ class PosixIsattyTest : public ::testing::Test {
 // terminal, isatty(STDIN_FILENO) should return 1. It should return 0 in all
 // other cases, e.g., running from a Github Action.
 TEST_F(PosixIsattyTest, HandlesStdin) {
-  if (!isatty(STDIN_FILENO)) {
-    SB_DLOG(WARNING) << "isatty(STD_FILENO) 0 false with errno "
-                     << strerror(errno)
-                     << ". This should only occur when this test is not run "
-                        "from a terminal.";
+  if (isatty(STDIN_FILENO)) {
+    GTEST_SKIP() << "isatty(STD_FILENO) returns true. This should only happen "
+                    "when the test is run directly from a terminal.";
+  } else {
+    EXPECT_EQ(ENOTTY, errno) << "Expected ENOTTY, got " << strerror(errno);
   }
 }
 
