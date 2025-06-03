@@ -18,9 +18,7 @@
 #include "starboard/common/once.h"
 #include "starboard/shared/libfdkaac/libfdkaac_library_loader.h"
 
-namespace starboard {
-namespace shared {
-namespace libfdkaac {
+namespace starboard::shared::libfdkaac {
 
 namespace {
 const char kLibfdkaacLibraryName[] = "libfdk-aac.so";
@@ -100,6 +98,4 @@ AAC_DECODER_ERROR(*aacDecoder_DecodeFrame)
  const INT timeDataSize,
  const UINT flags);
 
-}  // namespace libfdkaac
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::libfdkaac
