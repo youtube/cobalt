@@ -78,7 +78,7 @@ source_set("browser") {
     "//starboard:starboard_group",
 
     # TODO(b/390021478): Do not depend on content_shell_lib here.
-    "//content/shell:content_shell_lib",
+    "//cobalt/shell:content_shell_lib",
   ]
 
   if (is_androidtv) {
@@ -150,13 +150,13 @@ source_set("metrics") {
   ]
   deps = [
     "//cobalt/browser/h5vcc_metrics/public/mojom",
+    "//cobalt/shell:content_shell_lib",
     "//components/metrics",
     "//components/metrics_services_manager",
     "//components/prefs",
     "//components/variations",
     "//components/variations/service",
     "//content/public/browser",
-    "//content/shell:content_shell_lib",
     "//third_party/metrics_proto",
     "//url",
   ]

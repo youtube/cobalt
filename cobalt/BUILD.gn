@@ -56,9 +56,9 @@ if (!is_android) {
     deps = [
       ":common",
       "//base",
+      "//cobalt/shell:content_shell_app",
       "//cobalt/shell:content_shell_lib",
       "//content/public/app",
-      "//content/shell:content_shell_app",
       "//starboard:starboard_headers_only",
     ]
 
@@ -102,10 +102,10 @@ source_set("common") {
     "//chrome/common:non_code_constants",
     "//cobalt/gpu",
     "//cobalt/renderer",
+    "//cobalt/shell:content_shell_app",
     "//cobalt/shell:content_shell_lib",
     "//components/memory_system:memory_system",
     "//content/public/app",
-    "//content/shell:content_shell_app",
     "//content/shell:pak",
     "//gpu/command_buffer/service",
     "//media",
