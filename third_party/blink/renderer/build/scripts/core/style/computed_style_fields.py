@@ -140,7 +140,7 @@ class Field(object):
 
     def __init__(self, field_role, name_for_methods, property_name, type_name,
                  wrapper_pointer_name, field_template, size, default_value,
-                 derived_from, custom_copy, custom_compare, mutable,
+                 derived_from, reset_on_new_style, custom_compare, mutable,
                  getter_method_name, setter_method_name, initial_method_name,
                  computed_style_custom_functions,
                  computed_style_protected_functions, **kwargs):
@@ -150,11 +150,12 @@ class Field(object):
         self.type_name = type_name
         self.wrapper_pointer_name = wrapper_pointer_name
         self.alignment_type = self.wrapper_pointer_name or self.type_name
+        self.requires_tracing = wrapper_pointer_name == 'Member'
         self.field_template = field_template
         self.size = size
         self.default_value = default_value
         self.derived_from = derived_from
-        self.custom_copy = custom_copy
+        self.reset_on_new_style = reset_on_new_style
         self.custom_compare = custom_compare
         self.mutable = mutable
         self.group = None

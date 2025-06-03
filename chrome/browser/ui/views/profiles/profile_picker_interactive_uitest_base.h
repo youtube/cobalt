@@ -6,19 +6,16 @@
 #define CHROME_BROWSER_UI_VIEWS_PROFILES_PROFILE_PICKER_INTERACTIVE_UITEST_BASE_H_
 
 #include "chrome/browser/ui/views/profiles/profile_picker_test_base.h"
-
-namespace ui {
-enum KeyboardCode;
-}
+#include "ui/base/accelerators/accelerator.h"
 
 // Mixin adding helpers to write interactive ui tests focused on
 // `ProfilePickerView`.
 class WithProfilePickerInteractiveUiTestHelpers
     : public WithProfilePickerTestHelpers {
  public:
-  void SendCloseWindowKeyboardCommand();
+  ui::Accelerator GetAccelerator(int command_id);
 
-  void SendBackKeyboardCommand();
+  void SendCloseWindowKeyboardCommand();
 
   void SendToggleFullscreenKeyboardCommand();
 
@@ -26,6 +23,8 @@ class WithProfilePickerInteractiveUiTestHelpers
   void SendQuitAppKeyboardCommand();
 #endif
 
+  // Sends the provided keyboard command to the profile picker window.
+  void SendKeyPress(ui::Accelerator accelerator);
   void SendKeyPress(ui::KeyboardCode key,
                     bool control,
                     bool shift,

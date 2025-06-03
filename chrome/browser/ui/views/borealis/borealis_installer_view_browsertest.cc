@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "chrome/browser/ash/borealis/borealis_window_manager.h"
 #include "chrome/browser/ui/views/borealis/borealis_installer_view.h"
 
 #include <memory>
@@ -20,6 +21,7 @@
 #include "chrome/browser/ash/borealis/borealis_service.h"
 #include "chrome/browser/ash/borealis/borealis_service_fake.h"
 #include "chrome/browser/ash/borealis/borealis_task.h"
+#include "chrome/browser/ash/borealis/borealis_types.mojom.h"
 #include "chrome/browser/ash/borealis/borealis_util.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
@@ -36,22 +38,22 @@
 #include "ui/strings/grit/ui_strings.h"
 
 using ::testing::_;
-using InstallationResult = borealis::BorealisInstallResult;
+using InstallationResult = borealis::mojom::InstallResult;
 
 namespace borealis {
 namespace {
 
 class BorealisInstallerMock : public borealis::BorealisInstaller {
  public:
-  MOCK_METHOD0(IsProcessing, bool());
-  MOCK_METHOD0(Start, void());
-  MOCK_METHOD0(Cancel, void());
+  MOCK_METHOD(bool, IsProcessing, (), (override));
+  MOCK_METHOD(void, Start, (), (override));
+  MOCK_METHOD(void, Cancel, (), (override));
   MOCK_METHOD(void,
               Uninstall,
               (base::OnceCallback<void(BorealisUninstallResult)>),
               ());
-  MOCK_METHOD1(AddObserver, void(Observer*));
-  MOCK_METHOD1(RemoveObserver, void(Observer*));
+  MOCK_METHOD(void, AddObserver, (Observer*), (override));
+  MOCK_METHOD(void, RemoveObserver, (Observer*), (override));
 };
 
 class BorealisInstallerViewBrowserTest : public DialogBrowserTest {
@@ -72,6 +74,8 @@ class BorealisInstallerViewBrowserTest : public DialogBrowserTest {
     app_launcher_ =
         std::make_unique<BorealisAppLauncherImpl>(browser()->profile());
     features_ = std::make_unique<BorealisFeatures>(browser()->profile());
+    window_manager_ =
+        std::make_unique<BorealisWindowManager>(browser()->profile());
 
     BorealisServiceFake* fake_service =
         BorealisServiceFake::UseFakeForTesting(browser()->profile());
@@ -79,6 +83,7 @@ class BorealisInstallerViewBrowserTest : public DialogBrowserTest {
     fake_service->SetInstallerForTesting(&mock_installer_);
     fake_service->SetAppLauncherForTesting(app_launcher_.get());
     fake_service->SetFeaturesForTesting(features_.get());
+    fake_service->SetWindowManagerForTesting(window_manager_.get());
   }
 
   void ShowUi(const std::string& name) override {
@@ -99,7 +104,6 @@ class BorealisInstallerViewBrowserTest : public DialogBrowserTest {
     EXPECT_EQ(
         view_->GetPrimaryMessage(),
         l10n_util::GetStringUTF16(IDS_BOREALIS_INSTALLER_CONFIRMATION_TITLE));
-    EXPECT_EQ(view_->GetProgressMessage(), u"");
   }
 
   void ExpectInstallationInProgress() {
@@ -110,7 +114,6 @@ class BorealisInstallerViewBrowserTest : public DialogBrowserTest {
     EXPECT_EQ(
         view_->GetSecondaryMessage(),
         l10n_util::GetStringUTF16(IDS_BOREALIS_INSTALLER_ONGOING_MESSAGE));
-    EXPECT_NE(view_->GetProgressMessage(), u"");
   }
 
   void ExpectInstallationFailed() {
@@ -124,10 +127,9 @@ class BorealisInstallerViewBrowserTest : public DialogBrowserTest {
               l10n_util::GetStringUTF16(IDS_BOREALIS_INSTALLER_LAUNCH_BUTTON));
     EXPECT_TRUE(HasCancelButton());
     EXPECT_EQ(view_->GetDialogButtonLabel(ui::DIALOG_BUTTON_CANCEL),
-              l10n_util::GetStringUTF16(IDS_APP_CLOSE));
+              l10n_util::GetStringUTF16(IDS_APP_CANCEL));
     EXPECT_EQ(view_->GetPrimaryMessage(),
               l10n_util::GetStringUTF16(IDS_BOREALIS_INSTALLER_FINISHED_TITLE));
-    EXPECT_EQ(view_->GetProgressMessage(), u"");
   }
 
   void AcceptInstallation() {
@@ -149,7 +151,8 @@ class BorealisInstallerViewBrowserTest : public DialogBrowserTest {
   ::testing::NiceMock<BorealisContextManagerMock> mock_context_manager_;
   std::unique_ptr<BorealisAppLauncher> app_launcher_;
   std::unique_ptr<BorealisFeatures> features_;
-  raw_ptr<BorealisInstallerView, ExperimentalAsh> view_;
+  std::unique_ptr<BorealisWindowManager> window_manager_;
+  raw_ptr<BorealisInstallerView, DanglingUntriaged | ExperimentalAsh> view_;
 };
 
 // Test that the dialog can be launched.

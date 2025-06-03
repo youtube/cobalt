@@ -74,8 +74,9 @@ class ReportingServiceProxyImpl : public blink::mojom::ReportingServiceProxy {
     base::Value::Dict body;
     body.Set("id", id);
     if (anticipated_removal) {
-      body.Set("anticipatedRemoval",
-               anticipated_removal->ToJsTimeIgnoringNull());
+      body.Set(
+          "anticipatedRemoval",
+          anticipated_removal->InMillisecondsFSinceUnixEpochIgnoringNull());
     }
     body.Set("message", message);
     if (source_file)
@@ -123,6 +124,7 @@ class ReportingServiceProxyImpl : public blink::mojom::ReportingServiceProxy {
 
   void QueuePermissionsPolicyViolationReport(
       const GURL& url,
+      const std::string& endpoint,
       const std::string& policy_id,
       const std::string& disposition,
       const absl::optional<std::string>& message,
@@ -140,8 +142,7 @@ class ReportingServiceProxyImpl : public blink::mojom::ReportingServiceProxy {
       body.Set("lineNumber", line_number);
     if (column_number)
       body.Set("columnNumber", column_number);
-    QueueReport(url, "default", "permissions-policy-violation",
-                std::move(body));
+    QueueReport(url, endpoint, "permissions-policy-violation", std::move(body));
   }
 
   void QueueDocumentPolicyViolationReport(

@@ -38,18 +38,16 @@ class ExtensionMenuItemViewTest : public ExtensionsToolbarUnitTest {
   const std::u16string initial_extension_name_;
   const std::u16string initial_tooltip_;
   std::unique_ptr<views::Widget> widget_;
-  raw_ptr<ExtensionsMenuButton> primary_button_ = nullptr;
-  raw_ptr<HoverButton> pin_button_ = nullptr;
-  raw_ptr<HoverButton> context_menu_button_ = nullptr;
-  raw_ptr<TestToolbarActionViewController> controller_ = nullptr;
+  raw_ptr<ExtensionsMenuButton, DanglingUntriaged> primary_button_ = nullptr;
+  raw_ptr<HoverButton, DanglingUntriaged> pin_button_ = nullptr;
+  raw_ptr<HoverButton, DanglingUntriaged> context_menu_button_ = nullptr;
+  raw_ptr<TestToolbarActionViewController, DanglingUntriaged> controller_ =
+      nullptr;
 };
 
 void ExtensionMenuItemViewTest::SetUp() {
   ExtensionsToolbarUnitTest::SetUp();
 
-  // TODO(crbug.com/1263310): This widget only tests behavior of
-  // MenuItemType::kExtensions. Once MenuItemType::kSiteAccess is implemented,
-  // add a separate widget and test accordingly.
   widget_ = std::make_unique<views::Widget>();
   views::Widget::InitParams init_params(views::Widget::InitParams::TYPE_POPUP);
   init_params.ownership = views::Widget::InitParams::WIDGET_OWNS_NATIVE_WIDGET;
@@ -82,7 +80,7 @@ void ExtensionMenuItemViewTest::TearDown() {
   // All windows need to be closed before tear down.
   widget_.reset();
 
-  TestWithBrowserView::TearDown();
+  ExtensionsToolbarUnitTest::TearDown();
 }
 
 TEST_F(ExtensionMenuItemViewTest, UpdatesToDisplayCorrectActionTitle) {

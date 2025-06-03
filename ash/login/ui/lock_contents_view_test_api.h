@@ -34,6 +34,7 @@ class ASH_EXPORT LockContentsViewTestApi {
   AccountId focused_user() const;
   ScrollableUsersListView* users_list() const;
   LockScreenMediaControlsView* media_controls_view() const;
+  LockScreenMediaView* media_view() const;
   views::View* note_action() const;
   views::View* tooltip_bubble() const;
   views::View* management_bubble() const;
@@ -58,7 +59,7 @@ class ASH_EXPORT LockContentsViewTestApi {
   FingerprintState GetFingerPrintState(const AccountId& account_id) const;
 
  private:
-  const raw_ptr<LockContentsView, ExperimentalAsh> view_;
+  const raw_ptr<LockContentsView, DanglingUntriaged | ExperimentalAsh> view_;
 };
 
 }  // namespace ash

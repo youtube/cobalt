@@ -315,7 +315,9 @@ void main()
         std::vector<GLint> firsts(kTriCount);
         std::vector<GLsizei> counts(kTriCount, 3);
         for (uint32_t i = 0; i < kTriCount; ++i)
+        {
             firsts[i] = i * 3;
+        }
 
         if (IsInstancedTest())
         {
@@ -344,7 +346,9 @@ void main()
         std::vector<GLsizei> counts(kTriCount, 3);
         std::vector<const GLvoid *> indices(kTriCount);
         for (uint32_t i = 0; i < kTriCount; ++i)
+        {
             indices[i] = reinterpret_cast<GLvoid *>(static_cast<uintptr_t>(i * 3 * 2));
+        }
 
         if (IsInstancedTest())
         {
@@ -363,15 +367,24 @@ void main()
         }
     }
 
-    void CheckDrawResult()
+    enum class DrawIDOptionOverride
+    {
+        Default,
+        NoDrawID,
+        UseDrawID,
+    };
+
+    void CheckDrawResult(DrawIDOptionOverride overrideDrawID)
     {
         for (uint32_t y = 0; y < kCountY; ++y)
         {
             for (uint32_t x = 0; x < kCountX; ++x)
             {
-                uint32_t center_x             = x * kTilePixelSize[0] + kTilePixelSize[0] / 2;
-                uint32_t center_y             = y * kTilePixelSize[1] + kTilePixelSize[1] / 2;
-                uint32_t quadID               = IsDrawIDTest() ? y * kCountX + x : 0;
+                uint32_t center_x = x * kTilePixelSize[0] + kTilePixelSize[0] / 2;
+                uint32_t center_y = y * kTilePixelSize[1] + kTilePixelSize[1] / 2;
+                uint32_t quadID = IsDrawIDTest() && overrideDrawID != DrawIDOptionOverride::NoDrawID
+                                      ? y * kCountX + x
+                                      : 0;
                 uint32_t colorID              = quadID % 3u;
                 std::array<GLColor, 3> colors = {GLColor(255, 0, 0, 255), GLColor(0, 255, 0, 255),
                                                  GLColor(0, 0, 255, 255)};
@@ -457,6 +470,9 @@ void main()
     GLint mPositionLoc;
     GLint mInstanceLoc;
 };
+
+class MultiDrawTestES3 : public MultiDrawTest
+{};
 
 class MultiDrawNoInstancingSupportTest : public MultiDrawTest
 {
@@ -589,13 +605,38 @@ TEST_P(MultiDrawTest, MultiDrawArrays)
     ANGLE_SKIP_TEST_IF(!requestExtensions());
 
     // http://anglebug.com/5265
-    ANGLE_SKIP_TEST_IF(IsInstancedTest() && IsOSX() && IsIntelUHD630Mobile() && IsDesktopOpenGL());
+    ANGLE_SKIP_TEST_IF(IsInstancedTest() && IsMac() && IsIntelUHD630Mobile() && IsDesktopOpenGL());
 
     SetupBuffers();
     SetupProgram();
     DoDrawArrays();
     EXPECT_GL_NO_ERROR();
-    CheckDrawResult();
+    CheckDrawResult(DrawIDOptionOverride::Default);
+}
+
+// Tests basic functionality of glMultiDrawArraysANGLE after a failed program relink
+TEST_P(MultiDrawTestES3, MultiDrawArraysAfterFailedRelink)
+{
+    ANGLE_SKIP_TEST_IF(!requestExtensions());
+
+    // http://anglebug.com/5265
+    ANGLE_SKIP_TEST_IF(IsInstancedTest() && IsMac() && IsIntelUHD630Mobile() && IsDesktopOpenGL());
+
+    SetupBuffers();
+    SetupProgram();
+
+    // mProgram is already installed.  Destroy its state by a failed relink.
+    const char *tfVaryings = "invalidvaryingname";
+    glTransformFeedbackVaryings(mProgram, 1, &tfVaryings, GL_SEPARATE_ATTRIBS);
+    glLinkProgram(mProgram);
+    GLint linkStatus = 0;
+    glGetProgramiv(mProgram, GL_LINK_STATUS, &linkStatus);
+    ASSERT_GL_NO_ERROR();
+    ASSERT_EQ(linkStatus, GL_FALSE);
+
+    DoDrawArrays();
+    EXPECT_GL_NO_ERROR();
+    CheckDrawResult(DrawIDOptionOverride::Default);
 }
 
 // Tests basic functionality of glMultiDrawElementsANGLE
@@ -606,7 +647,44 @@ TEST_P(MultiDrawTest, MultiDrawElements)
     SetupProgram();
     DoDrawElements();
     EXPECT_GL_NO_ERROR();
-    CheckDrawResult();
+    CheckDrawResult(DrawIDOptionOverride::Default);
+}
+
+// Tests that glMultiDrawArraysANGLE followed by glDrawArrays works.  gl_DrawID in the second call
+// must be 0.
+TEST_P(MultiDrawTest, MultiDrawArraysThenDrawArrays)
+{
+    ANGLE_SKIP_TEST_IF(!requestExtensions());
+
+    // http://anglebug.com/5265
+    ANGLE_SKIP_TEST_IF(IsInstancedTest() && IsMac() && IsIntelUHD630Mobile() && IsDesktopOpenGL());
+
+    SetupBuffers();
+    SetupProgram();
+    DoDrawArrays();
+    EXPECT_GL_NO_ERROR();
+    CheckDrawResult(DrawIDOptionOverride::Default);
+
+    if (IsInstancedTest())
+    {
+        ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_instanced_arrays") &&
+                           !IsGLExtensionEnabled("GL_ANGLE_instanced_arrays"));
+        if (IsGLExtensionEnabled("GL_EXT_instanced_arrays"))
+        {
+            glDrawArraysInstancedEXT(GL_TRIANGLES, 0, 3 * kTriCount, 4);
+        }
+        else
+        {
+            glDrawArraysInstancedANGLE(GL_TRIANGLES, 0, 3 * kTriCount, 4);
+        }
+        ASSERT_GL_NO_ERROR();
+    }
+    else
+    {
+        glDrawArrays(GL_TRIANGLES, 0, 3 * kTriCount);
+        ASSERT_GL_NO_ERROR();
+    }
+    CheckDrawResult(DrawIDOptionOverride::NoDrawID);
 }
 
 // Tests basic functionality of glMultiDrawArraysIndirectEXT
@@ -812,6 +890,121 @@ TEST_P(MultiDrawIndirectTest, MultiDrawElementsIndirect)
     EXPECT_PIXEL_COLOR_EQ(0, kHeight - 1, GLColor::magenta);
     EXPECT_PIXEL_COLOR_EQ(kWidth - 1, 0, GLColor::transparentBlack);
     EXPECT_PIXEL_COLOR_EQ(kWidth - 1, kHeight - 1, GLColor::magenta);
+    EXPECT_PIXEL_COLOR_EQ(kWidth / 2, kHeight / 2, GLColor::transparentBlack);
+}
+
+// Test functionality glMultiDrawElementsIndirectEXT with unsigned short
+// indices and instanced attributes.
+TEST_P(MultiDrawIndirectTest, MultiDrawElementsIndirectInstancedUshort)
+{
+    ANGLE_SKIP_TEST_IF(!EnsureGLExtensionEnabled("GL_EXT_multi_draw_indirect"));
+
+    // Set up the vertex array
+    const GLint triangleCount           = 4;
+    const std::vector<GLfloat> vertices = {
+        -1, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, -1, 0, 0, -1, 0, -1, -1, 0, -1, 0, 0,
+    };
+    const std::vector<GLushort> indices = {
+        1, 2, 3, 3, 4, 5, 5, 6, 7, 7, 0, 1,
+    };
+    const std::vector<GLuint> instancedColor = {GLColor::white.asUint(), GLColor::red.asUint(),
+                                                GLColor::green.asUint(), GLColor::blue.asUint()};
+
+    // Generate program
+    SetupProgramIndirect(true);
+
+    // Set up the vertex and index buffers
+    GLVertexArray vao;
+    glBindVertexArray(vao);
+
+    glGenBuffers(1, &mVertexBuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, mVertexBuffer);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * vertices.size(), vertices.data(),
+                 GL_STATIC_DRAW);
+    glEnableVertexAttribArray(mPositionLoc);
+    glVertexAttribPointer(mPositionLoc, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
+
+    GLBuffer instanceBuffer;
+    glBindBuffer(GL_ARRAY_BUFFER, instanceBuffer);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(GLuint) * instancedColor.size(), instancedColor.data(),
+                 GL_STATIC_DRAW);
+    glEnableVertexAttribArray(mColorLoc);
+    glVertexAttribPointer(mColorLoc, 4, GL_UNSIGNED_BYTE, GL_TRUE, 0, nullptr);
+    glVertexAttribDivisor(mColorLoc, 1);
+
+    glGenBuffers(1, &mIndexBuffer);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mIndexBuffer);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(GLushort) * indices.size(), indices.data(),
+                 GL_STATIC_DRAW);
+    EXPECT_GL_NO_ERROR();
+
+    // Set up the indirect data array
+    std::array<DrawElementsIndirectCommand, triangleCount> indirectData;
+    const GLsizei icSize = sizeof(DrawElementsIndirectCommand);
+    for (auto i = 0; i < triangleCount; i++)
+    {
+        indirectData[i] = DrawElementsIndirectCommand(3, 1, 3 * i, 0, i);
+    }
+
+    glGenBuffers(1, &mIndirectBuffer);
+    glBindBuffer(GL_DRAW_INDIRECT_BUFFER, mIndirectBuffer);
+    glBufferData(GL_DRAW_INDIRECT_BUFFER, icSize * indirectData.size(), indirectData.data(),
+                 GL_STATIC_DRAW);
+    EXPECT_GL_NO_ERROR();
+
+    // Invalid value check for drawcount and stride
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glMultiDrawElementsIndirectEXT(GL_TRIANGLES, GL_UNSIGNED_SHORT, nullptr, 0, 0);
+    EXPECT_GL_ERROR(GL_INVALID_VALUE);
+    glMultiDrawElementsIndirectEXT(GL_TRIANGLES, GL_UNSIGNED_SHORT, nullptr, -1, 0);
+    EXPECT_GL_ERROR(GL_INVALID_VALUE);
+    glMultiDrawElementsIndirectEXT(GL_TRIANGLES, GL_UNSIGNED_SHORT, nullptr, 1, 2);
+    EXPECT_GL_ERROR(GL_INVALID_VALUE);
+
+    // Check the error from sourcing beyond the allocated buffer size
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glMultiDrawElementsIndirectEXT(
+        GL_TRIANGLES, GL_UNSIGNED_SHORT,
+        reinterpret_cast<const void *>(static_cast<uintptr_t>(icSize * triangleCount)), 1, 0);
+    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
+
+    // Draw all triangles using glMultiDrawElementsIndirect
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glMultiDrawElementsIndirectEXT(GL_TRIANGLES, GL_UNSIGNED_SHORT, nullptr, triangleCount, 0);
+    EXPECT_GL_NO_ERROR();
+
+    EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::green);
+    EXPECT_PIXEL_COLOR_EQ(0, kHeight - 1, GLColor::blue);
+    EXPECT_PIXEL_COLOR_EQ(kWidth - 1, 0, GLColor::red);
+    EXPECT_PIXEL_COLOR_EQ(kWidth - 1, kHeight - 1, GLColor::white);
+    EXPECT_PIXEL_COLOR_EQ(kWidth / 2, kHeight / 2, GLColor::transparentBlack);
+
+    // Draw the triangles in a different order
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glMultiDrawElementsIndirectEXT(GL_TRIANGLES, GL_UNSIGNED_SHORT, nullptr, 1, 0);
+    glMultiDrawElementsIndirectEXT(GL_TRIANGLES, GL_UNSIGNED_SHORT,
+                                   reinterpret_cast<const void *>(static_cast<uintptr_t>(icSize)),
+                                   triangleCount - 2, 0);
+    glMultiDrawElementsIndirectEXT(
+        GL_TRIANGLES, GL_UNSIGNED_SHORT,
+        reinterpret_cast<const void *>(static_cast<uintptr_t>(icSize * 3)), 1, 0);
+    EXPECT_GL_NO_ERROR();
+
+    EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::green);
+    EXPECT_PIXEL_COLOR_EQ(0, kHeight - 1, GLColor::blue);
+    EXPECT_PIXEL_COLOR_EQ(kWidth - 1, 0, GLColor::red);
+    EXPECT_PIXEL_COLOR_EQ(kWidth - 1, kHeight - 1, GLColor::white);
+    EXPECT_PIXEL_COLOR_EQ(kWidth / 2, kHeight / 2, GLColor::transparentBlack);
+
+    // Draw the triangles partially using stride
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glMultiDrawElementsIndirectEXT(GL_TRIANGLES, GL_UNSIGNED_SHORT, nullptr, 2, icSize * 3);
+    EXPECT_GL_NO_ERROR();
+
+    EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::transparentBlack);
+    EXPECT_PIXEL_COLOR_EQ(0, kHeight - 1, GLColor::blue);
+    EXPECT_PIXEL_COLOR_EQ(kWidth - 1, 0, GLColor::transparentBlack);
+    EXPECT_PIXEL_COLOR_EQ(kWidth - 1, kHeight - 1, GLColor::white);
     EXPECT_PIXEL_COLOR_EQ(kWidth / 2, kHeight / 2, GLColor::transparentBlack);
 }
 
@@ -1055,15 +1248,16 @@ TEST_P(MultiDrawNoInstancingSupportTest, InvalidOperation)
 }
 
 const angle::PlatformParameters platforms[] = {
-    ES2_D3D9(),  ES2_OPENGL(), ES2_OPENGLES(), ES2_VULKAN(),
-    ES3_D3D11(), ES3_OPENGL(), ES3_OPENGLES(),
+    ES2_D3D9(),     ES2_OPENGL(), ES2_OPENGLES(),           ES2_VULKAN(), ES3_D3D11(), ES3_OPENGL(),
+    ES3_OPENGLES(), ES3_VULKAN(), ES3_VULKAN_SWIFTSHADER(),
 };
 
 const angle::PlatformParameters es2_platforms[] = {
-    ES2_D3D9(),
-    ES2_OPENGL(),
-    ES2_OPENGLES(),
-    ES2_VULKAN(),
+    ES2_D3D9(), ES2_OPENGL(), ES2_OPENGLES(), ES2_VULKAN(), ES2_VULKAN_SWIFTSHADER(),
+};
+
+const angle::PlatformParameters es3_platforms[] = {
+    ES3_D3D11(), ES3_OPENGL(), ES3_OPENGLES(), ES3_VULKAN(), ES3_VULKAN_SWIFTSHADER(),
 };
 
 INSTANTIATE_TEST_SUITE_P(
@@ -1086,8 +1280,17 @@ INSTANTIATE_TEST_SUITE_P(
         testing::Values(BufferDataUsageOption::StaticDraw, BufferDataUsageOption::DynamicDraw)),
     PrintToStringParamName());
 
-GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(MultiDrawIndirectTest);
+INSTANTIATE_TEST_SUITE_P(
+    ,
+    MultiDrawTestES3,
+    testing::Combine(
+        testing::ValuesIn(::angle::FilterTestParams(es3_platforms, ArraySize(es3_platforms))),
+        testing::Values(DrawIDOption::NoDrawID, DrawIDOption::UseDrawID),
+        testing::Values(InstancingOption::NoInstancing, InstancingOption::UseInstancing),
+        testing::Values(BufferDataUsageOption::StaticDraw, BufferDataUsageOption::DynamicDraw)),
+    PrintToStringParamName());
 
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(MultiDrawIndirectTest);
 ANGLE_INSTANTIATE_TEST_ES31_AND(MultiDrawIndirectTest,
                                 ES31_VULKAN().disable(Feature::SupportsMultiDrawIndirect));
 }  // namespace

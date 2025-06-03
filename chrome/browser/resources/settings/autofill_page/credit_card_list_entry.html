@@ -15,60 +15,47 @@
         margin-top: 8px;
       }
 
-      #creditCardExpiration {
-        flex: 1;
-      }
-
       .sub-label {
         color: var(--cr-secondary-text-color);
-      }
-
-      #paymentsLabel {
-        margin-inline-start: 16px;
       }
 
       #paymentsIcon {
         vertical-align: middle;
       }
 
-      #virtualCardLabel {
-        margin-inline-start: 8px;
-      }
-
       #cardImage {
         margin-inline-end: 16px;
         vertical-align: middle;
       }
+
+      .screen-reader-only-substituted-parent {
+        position: relative;
+      }
+      .screen-reader-only-visually-hidden {
+        clip-path: inset(100%);
+        height: 100%;
+        position: absolute;
+        width: 100%;
+      }
     </style>
     <div class="list-item" role="row">
       <div class="type-column" role="cell">
-        <template is="dom-if" if="[[showExpirationAsSecondaryLabelEnabled_]]">
-          <img id="cardImage" src="[[creditCard.imageSrc]]" alt="">
-        </template>
-        <div class="summary-column">
-          <div id="summaryLabel" class="ellipses">
+        <img id="cardImage" src="[[creditCard.imageSrc]]" alt="">
+        <div class="summary-column screen-reader-only-substituted-parent">
+          <div class="screen-reader-only-visually-hidden">
+            [[getSummaryAriaLabel_(creditCard)]],
+            [[getSummaryAriaSublabel_(creditCard)]]
+          </div>
+          <div id="summaryLabel" class="ellipses" aria-hidden="true">
             [[creditCard.metadata.summaryLabel]]
           </div>
           <div id="summarySublabel"
-              hidden$="[[!showExpirationAsSecondaryLabelEnabled_]]"
-              class="ellipses sub-label">
-            [[getSummarySublabel_(creditCard, virtualCardEnrollmentEnabled_)]]
+              class="ellipses sub-label" aria-hidden="true">
+            [[getSummarySublabel_(creditCard)]]
           </div>
         </div>
-        <span id="virtualCardLabel"
-            hidden$="[[!shouldShowVirtualCardLabel_(creditCard.metadata)]]">
-          $i18n{virtualCardEnabled}
-        </span>
-        <span id="paymentsLabel" class="sub-label"
-            hidden$="[[!shouldShowPaymentsLabel_(creditCard.metadata)]]">
-            [[getPaymentsLabel_(creditCard.metadata)]]
-        </span>
       </div>
       <div class="expiration-column">
-        <div id="creditCardExpiration" role="cell"
-            hidden$="[[showExpirationAsSecondaryLabelEnabled_]]">
-          [[creditCard.expirationMonth]]/[[creditCard.expirationYear]]
-        </div>
         <div role="cell" class="misc-column">
           <div id="paymentsIndicator"
               hidden$="[[!shouldShowPaymentsIndicator_(creditCard.metadata)]]">
@@ -94,7 +81,7 @@
           </template>
           <template is="dom-if" if="[[!showDots_(creditCard.metadata)]]">
             <cr-icon-button class="icon-external" id="remoteCreditCardLink"
-                title="$i18n{remoteCreditCardLinkLabel}" role="link"
+                title="$i18n{remotePaymentMethodsLinkLabel}" role="link"
                 on-click="onRemoteEditClick_"></cr-icon-button>
           </template>
         </div>

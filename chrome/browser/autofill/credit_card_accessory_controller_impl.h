@@ -32,6 +32,7 @@ class CreditCardAccessoryControllerImpl
   absl::optional<AccessorySheetData> GetSheetData() const override;
   void OnFillingTriggered(FieldGlobalId focused_field_id,
                           const AccessorySheetField& selection) override;
+  void OnPasskeySelected(const std::vector<uint8_t>& passkey_id) override;
   void OnOptionSelected(AccessoryAction selected_action) override;
   void OnToggleChanged(AccessoryAction toggled_action, bool enabled) override;
 
@@ -43,8 +44,7 @@ class CreditCardAccessoryControllerImpl
 
   // CreditCardAccessManager::Accessor:
   void OnCreditCardFetched(CreditCardFetchResult result,
-                           const CreditCard* credit_card,
-                           const std::u16string& cvc) override;
+                           const CreditCard* credit_card) override;
 
   static void CreateForWebContentsForTesting(
       content::WebContents* web_contents,

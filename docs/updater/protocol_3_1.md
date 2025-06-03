@@ -897,13 +897,14 @@ For `type == 3` events:
 
 For `type == 14` events:
  *   `download_time_ms`: The time elapsed between the start of the download and
-     the end of the download, in milliseconds. -1 if unavailable or irrelevant.
+     the end of the download, in milliseconds. -1 if unavailable.
      Default: -1.
  *   `downloaded_bytes`: The number of bytes successfully received from the
      download server. Default: 0.
  *   `downloader`: A string identifying the download algorithm / stack. Known
      values:
      *   "" (empty string): Unknown downloader.
+     *   "nsurlsession_background": MacOS background NSURLSession.
      *   "bits": Microsoft BITS.
      *   "direct": The Chromium network stack.
  *   `expected_bytes`: The number of bytes expected to be downloaded. Default:

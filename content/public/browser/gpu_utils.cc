@@ -24,6 +24,7 @@
 #include "gpu/config/gpu_finch_features.h"
 #include "gpu/config/gpu_switches.h"
 #include "media/base/media_switches.h"
+#include "media/gpu/buildflags.h"
 #include "media/media_buildflags.h"
 #include "ui/gfx/switches.h"
 
@@ -132,20 +133,29 @@ const gpu::GpuPreferences GetGpuPreferencesFromCommandLine() {
 #if BUILDFLAG(USE_CHROMEOS_MEDIA_ACCELERATION)
   // The direct VideoDecoder is disallowed on some particular SoC/platforms.
   const bool should_use_direct_video_decoder =
+#if BUILDFLAG(USE_VAAPI)
+      true;
+#else
       !command_line->HasSwitch(
           switches::kPlatformDisallowsChromeOSDirectVideoDecoder) &&
       base::FeatureList::IsEnabled(media::kUseChromeOSDirectVideoDecoder);
+#endif  // BUILDFLAG(USE_VAAPI)
 
-  // For testing purposes, the following flag allows using the "other" video
-  // decoder implementation.
-  if (base::FeatureList::IsEnabled(
-          media::kUseAlternateVideoDecoderImplementation)) {
-    gpu_preferences.enable_chromeos_direct_video_decoder =
-        !should_use_direct_video_decoder;
-  } else {
-    gpu_preferences.enable_chromeos_direct_video_decoder =
-        should_use_direct_video_decoder;
-  }
+  gpu_preferences.enable_chromeos_direct_video_decoder =
+#if BUILDFLAG(USE_VAAPI)
+      should_use_direct_video_decoder;
+#else
+      // For testing purposes, the following flag allows using the "other" video
+      // decoder implementation.
+      base::FeatureList::IsEnabled(
+          media::kUseAlternateVideoDecoderImplementation)
+          ? !should_use_direct_video_decoder
+          : should_use_direct_video_decoder;
+#endif  // BUILDFLAG(USE_VAAPI)
+
+#if BUILDFLAG(USE_VAAPI)
+  CHECK(gpu_preferences.enable_chromeos_direct_video_decoder);
+#endif  // BUILDFLAG(USE_VAAPI)
 #else   // !BUILDFLAG(USE_CHROMEOS_MEDIA_ACCELERATION)
   gpu_preferences.enable_chromeos_direct_video_decoder = false;
 #endif  // BUILDFLAG(USE_CHROMEOS_MEDIA_ACCELERATION)
@@ -175,7 +185,7 @@ const gpu::GpuPreferences GetGpuPreferencesFromCommandLine() {
 }
 
 void KillGpuProcess() {
-  GpuProcessHost::CallOnIO(FROM_HERE, GPU_PROCESS_KIND_SANDBOXED,
+  GpuProcessHost::CallOnUI(FROM_HERE, GPU_PROCESS_KIND_SANDBOXED,
                            false /* force_create */,
                            base::BindOnce(&KillGpuProcessImpl));
 }
@@ -186,12 +196,17 @@ gpu::GpuChannelEstablishFactory* GetGpuChannelEstablishFactory() {
 
 #if BUILDFLAG(CLANG_PROFILING_INSIDE_SANDBOX)
 void DumpGpuProfilingData(base::OnceClosure callback) {
-  content::GpuProcessHost::CallOnIO(
+  content::GpuProcessHost::CallOnUI(
       FROM_HERE, content::GPU_PROCESS_KIND_SANDBOXED, false /* force_create */,
       base::BindOnce(
           [](base::OnceClosure callback, content::GpuProcessHost* host) {
-            host->gpu_service()->WriteClangProfilingProfile(
-                std::move(callback));
+            if (host) {
+              host->gpu_service()->WriteClangProfilingProfile(
+                  std::move(callback));
+            } else {
+              LOG(ERROR) << "DumpGpuProfilingData() failed to dump.";
+              std::move(callback).Run();
+            }
           },
           std::move(callback)));
 }

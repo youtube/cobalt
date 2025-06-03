@@ -316,7 +316,7 @@ TEST_F(SVGImageSimTest, PageVisibilityHiddenToVisible) {
   Compositor().BeginFrame();
   test::RunPendingTasks();
 
-  Element* element = GetDocument().getElementById("image");
+  Element* element = GetDocument().getElementById(AtomicString("image"));
   ASSERT_TRUE(IsA<HTMLImageElement>(element));
 
   ImageResourceContent* image_content =
@@ -366,10 +366,6 @@ const char kSmilAnimatedDocument[] = R"SVG(
 )SVG";
 
 TEST_F(SVGImageSimTest, AnimationsPausedWhenImageScrolledOutOfView) {
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndEnableFeature(
-      features::kThrottleOffscreenAnimatingSvgImages);
-
   SimRequest main_resource("https://example.com/", "text/html");
   SimSubresourceRequest image_resource("https://example.com/image.svg",
                                        "image/svg+xml");
@@ -384,7 +380,7 @@ TEST_F(SVGImageSimTest, AnimationsPausedWhenImageScrolledOutOfView) {
   Compositor().BeginFrame();
   test::RunPendingTasks();
 
-  Element* element = GetDocument().getElementById("image");
+  Element* element = GetDocument().getElementById(AtomicString("image"));
   ASSERT_TRUE(IsA<HTMLImageElement>(element));
 
   ImageResourceContent* image_content =
@@ -510,7 +506,7 @@ size_t CountPaintOpType(const cc::PaintRecord& record, cc::PaintOpType type) {
     }
     if (op.GetType() == type) {
       ++count;
-    } else if (op.GetType() == cc::PaintOpType::DrawRecord) {
+    } else if (op.GetType() == cc::PaintOpType::kDrawrecord) {
       const auto& record_op = static_cast<const cc::DrawRecordOp&>(op);
       count += CountPaintOpType(record_op.record, type);
     }
@@ -549,23 +545,24 @@ TEST_F(SVGImageSimTest, SpriteSheetCulling) {
 
   // Initially, only the green circle should be recorded.
   PaintRecord record = GetDocument().View()->GetPaintRecord();
-  EXPECT_EQ(1U, CountPaintOpType(record, cc::PaintOpType::DrawOval));
+  EXPECT_EQ(1U, CountPaintOpType(record, cc::PaintOpType::kDrawoval));
 
   // Adjust the height so one green circle and three blue circles are visible,
   // and ensure four circles are recorded.
-  Element* div = GetDocument().getElementById("div");
-  div->setAttribute(html_names::kStyleAttr, "height: 200px;");
+  Element* div = GetDocument().getElementById(AtomicString("div"));
+  div->setAttribute(html_names::kStyleAttr, AtomicString("height: 200px;"));
   Compositor().BeginFrame();
   record = GetDocument().View()->GetPaintRecord();
-  EXPECT_EQ(4U, CountPaintOpType(record, cc::PaintOpType::DrawOval));
+  EXPECT_EQ(4U, CountPaintOpType(record, cc::PaintOpType::kDrawoval));
 
   // Adjust the background position so only the three blue circles are visible,
   // and ensure three circles are recorded.
-  div->setAttribute(html_names::kStyleAttr,
-                    "height: 200px; background-position-y: -200px;");
+  div->setAttribute(
+      html_names::kStyleAttr,
+      AtomicString("height: 200px; background-position-y: -200px;"));
   Compositor().BeginFrame();
   record = GetDocument().View()->GetPaintRecord();
-  EXPECT_EQ(3U, CountPaintOpType(record, cc::PaintOpType::DrawOval));
+  EXPECT_EQ(3U, CountPaintOpType(record, cc::PaintOpType::kDrawoval));
 }
 
 // Tests the culling of invisible sprites from a larger sprite sheet where the
@@ -600,17 +597,17 @@ TEST_F(SVGImageSimTest, SpriteSheetCullingBorderRadius) {
 
   // Initially, only the green circle should be recorded.
   PaintRecord record = GetDocument().View()->GetPaintRecord();
-  EXPECT_EQ(1U, CountPaintOpType(record, cc::PaintOpType::DrawRRect));
-  EXPECT_EQ(1U, CountPaintOpType(record, cc::PaintOpType::DrawOval));
+  EXPECT_EQ(1U, CountPaintOpType(record, cc::PaintOpType::kDrawrrect));
+  EXPECT_EQ(1U, CountPaintOpType(record, cc::PaintOpType::kDrawoval));
 
   // Adjust the height so one green circle and three blue circles are visible,
   // and ensure four circles are recorded.
-  Element* div = GetDocument().getElementById("div");
-  div->setAttribute(html_names::kStyleAttr, "height: 200px;");
+  Element* div = GetDocument().getElementById(AtomicString("div"));
+  div->setAttribute(html_names::kStyleAttr, AtomicString("height: 200px;"));
   Compositor().BeginFrame();
   record = GetDocument().View()->GetPaintRecord();
-  EXPECT_EQ(1U, CountPaintOpType(record, cc::PaintOpType::DrawRRect));
-  EXPECT_EQ(4U, CountPaintOpType(record, cc::PaintOpType::DrawOval));
+  EXPECT_EQ(1U, CountPaintOpType(record, cc::PaintOpType::kDrawrrect));
+  EXPECT_EQ(4U, CountPaintOpType(record, cc::PaintOpType::kDrawoval));
 }
 
 // Similar to `SpriteSheetCulling` but using a full-sized sprite sheet <img>
@@ -652,23 +649,25 @@ TEST_F(SVGImageSimTest, ClippedAbsoluteImageSpriteSheetCulling) {
 
   // Initially, only the green circle should be recorded.
   PaintRecord record = GetDocument().View()->GetPaintRecord();
-  EXPECT_EQ(1U, CountPaintOpType(record, cc::PaintOpType::DrawOval));
+  EXPECT_EQ(1U, CountPaintOpType(record, cc::PaintOpType::kDrawoval));
 
   // Adjust the div's height so one green circle and three blue circles are
   // visible, and ensure four circles are recorded.
-  Element* div_element = GetDocument().getElementById("div");
-  div_element->setAttribute(html_names::kStyleAttr, "height: 200px;");
+  Element* div_element = GetDocument().getElementById(AtomicString("div"));
+  div_element->setAttribute(html_names::kStyleAttr,
+                            AtomicString("height: 200px;"));
   Compositor().BeginFrame();
   record = GetDocument().View()->GetPaintRecord();
-  EXPECT_EQ(4U, CountPaintOpType(record, cc::PaintOpType::DrawOval));
+  EXPECT_EQ(4U, CountPaintOpType(record, cc::PaintOpType::kDrawoval));
 
   // Adjust the image's position so only the three blue circles are visible,
   // and ensure three circles are recorded.
-  Element* image_element = GetDocument().getElementById("image");
-  image_element->setAttribute(html_names::kStyleAttr, "top: -200px;");
+  Element* image_element = GetDocument().getElementById(AtomicString("image"));
+  image_element->setAttribute(html_names::kStyleAttr,
+                              AtomicString("top: -200px;"));
   Compositor().BeginFrame();
   record = GetDocument().View()->GetPaintRecord();
-  EXPECT_EQ(3U, CountPaintOpType(record, cc::PaintOpType::DrawOval));
+  EXPECT_EQ(3U, CountPaintOpType(record, cc::PaintOpType::kDrawoval));
 }
 
 // Similar to `SpriteSheetCulling` but using a full-sized sprite sheet <img>
@@ -709,31 +708,33 @@ TEST_F(SVGImageSimTest, ClippedStaticImageSpriteSheetCulling) {
 
   // Initially, only the green circle should be recorded.
   PaintRecord record = GetDocument().View()->GetPaintRecord();
-  EXPECT_EQ(1U, CountPaintOpType(record, cc::PaintOpType::DrawOval));
+  EXPECT_EQ(1U, CountPaintOpType(record, cc::PaintOpType::kDrawoval));
 
   // Adjust the div's height so one green circle and three blue circles are
   // visible, and ensure four circles are recorded.
-  Element* div_element = GetDocument().getElementById("div");
-  div_element->setAttribute(html_names::kStyleAttr, "height: 200px;");
+  Element* div_element = GetDocument().getElementById(AtomicString("div"));
+  div_element->setAttribute(html_names::kStyleAttr,
+                            AtomicString("height: 200px;"));
   Compositor().BeginFrame();
   record = GetDocument().View()->GetPaintRecord();
-  EXPECT_EQ(4U, CountPaintOpType(record, cc::PaintOpType::DrawOval));
+  EXPECT_EQ(4U, CountPaintOpType(record, cc::PaintOpType::kDrawoval));
 
   // Adjust the image's position so only the three blue circles are visible,
   // and ensure three circles are recorded.
-  Element* image_element = GetDocument().getElementById("image");
-  image_element->setAttribute(html_names::kStyleAttr, "margin-top: -200px;");
+  Element* image_element = GetDocument().getElementById(AtomicString("image"));
+  image_element->setAttribute(html_names::kStyleAttr,
+                              AtomicString("margin-top: -200px;"));
   Compositor().BeginFrame();
   record = GetDocument().View()->GetPaintRecord();
-  EXPECT_EQ(3U, CountPaintOpType(record, cc::PaintOpType::DrawOval));
+  EXPECT_EQ(3U, CountPaintOpType(record, cc::PaintOpType::kDrawoval));
 
   // Adjust the div's position to be fractional and ensure only three blue
   // circles are still recorded.
   div_element->setAttribute(html_names::kStyleAttr,
-                            "margin-left: 0.5px; height: 200px;");
+                            AtomicString("margin-left: 0.5px; height: 200px;"));
   Compositor().BeginFrame();
   record = GetDocument().View()->GetPaintRecord();
-  EXPECT_EQ(3U, CountPaintOpType(record, cc::PaintOpType::DrawOval));
+  EXPECT_EQ(3U, CountPaintOpType(record, cc::PaintOpType::kDrawoval));
 }
 
 // Similar to `SpriteSheetCulling` but using a regular scrolling interest rect
@@ -777,16 +778,16 @@ TEST_F(SVGImageSimTest, InterestRectDoesNotCullImageSpriteSheet) {
   // apply because the scrolling interest rect is not for a specific sprite
   // within the image, and all circles should be recorded.
   PaintRecord record = GetDocument().View()->GetPaintRecord();
-  EXPECT_EQ(4U, CountPaintOpType(record, cc::PaintOpType::DrawOval));
+  EXPECT_EQ(4U, CountPaintOpType(record, cc::PaintOpType::kDrawoval));
 
   // Adjust the div's width and height so that it creates a cull rect that clips
   // to just a single circle, and ensure just one circle is recorded.
-  Element* div_element = GetDocument().getElementById("div");
+  Element* div_element = GetDocument().getElementById(AtomicString("div"));
   div_element->setAttribute(html_names::kStyleAttr,
-                            "width: 100px; height: 200px;");
+                            AtomicString("width: 100px; height: 200px;"));
   Compositor().BeginFrame();
   record = GetDocument().View()->GetPaintRecord();
-  EXPECT_EQ(1U, CountPaintOpType(record, cc::PaintOpType::DrawOval));
+  EXPECT_EQ(1U, CountPaintOpType(record, cc::PaintOpType::kDrawoval));
 
   // Adjust the div's width and height so that it no longer creates a cull rect
   // that clips to a sprite within the image, so the optimization in
@@ -795,7 +796,7 @@ TEST_F(SVGImageSimTest, InterestRectDoesNotCullImageSpriteSheet) {
   div_element->removeAttribute(html_names::kStyleAttr);
   Compositor().BeginFrame();
   record = GetDocument().View()->GetPaintRecord();
-  EXPECT_EQ(4U, CountPaintOpType(record, cc::PaintOpType::DrawOval));
+  EXPECT_EQ(4U, CountPaintOpType(record, cc::PaintOpType::kDrawoval));
 }
 
 // Tests the culling of non-drawing items from a larger sprite sheet.
@@ -843,8 +844,8 @@ TEST_F(SVGImageSimTest, SpriteSheetNonDrawingCulling) {
   // translation paint ops from the <g> elements used to position the red
   // circles.
   PaintRecord record = GetDocument().View()->GetPaintRecord();
-  EXPECT_EQ(1U, CountPaintOpType(record, cc::PaintOpType::DrawOval));
-  EXPECT_EQ(0U, CountPaintOpType(record, cc::PaintOpType::Translate));
+  EXPECT_EQ(1U, CountPaintOpType(record, cc::PaintOpType::kDrawoval));
+  EXPECT_EQ(0U, CountPaintOpType(record, cc::PaintOpType::kTranslate));
 }
 
 }  // namespace blink

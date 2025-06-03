@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {sendWithPromise} from 'chrome://resources/ash/common/cr.m.js';
-import {addSingletonGetter} from 'chrome://resources/ash/common/cr_deprecated.js';
-
-import {NearbyShareStates, StatusCode} from './types.js';
-
 export class NearbyPresenceBrowserProxy {
   /**
    * Initializes web contents in the WebUI handler.
@@ -23,6 +18,14 @@ export class NearbyPresenceBrowserProxy {
   }
 
   /**
+   * Triggers NearbyPresenceService to stop a scan if a scan is currently
+   * running.
+   */
+  SendStopScan() {
+    chrome.send('StopPresenceScan');
+  }
+
+  /**
    * Tells NearbyPresenceService to sync Presence credentials.
    */
   SendSyncCredentials() {
@@ -36,6 +39,16 @@ export class NearbyPresenceBrowserProxy {
   SendFirstTimeFlow() {
     chrome.send('FirstTimePresenceFlow');
   }
+
+  ConnectToPresenceDevice(endpointId) {
+    chrome.send('ConnectToPresenceDevice', [endpointId]);
+  }
+
+  /** @return {!NearbyPresenceBrowserProxy} */
+  static getInstance() {
+    return instance || (instance = new NearbyPresenceBrowserProxy());
+  }
 }
 
-addSingletonGetter(NearbyPresenceBrowserProxy);
+/** @type {?NearbyPresenceBrowserProxy} */
+let instance = null;

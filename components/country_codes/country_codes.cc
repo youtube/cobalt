@@ -18,7 +18,7 @@
 #include <windows.h>
 #undef IN  // On Windows, windef.h defines this, which screws up "India" cases.
 #elif BUILDFLAG(IS_APPLE)
-#include "base/mac/scoped_cftyperef.h"
+#include "base/apple/scoped_cftyperef.h"
 #endif
 
 #if BUILDFLAG(IS_ANDROID)
@@ -157,7 +157,7 @@ int GetCurrentCountryID() {
 #elif BUILDFLAG(IS_APPLE)
 
 int GetCurrentCountryID() {
-  base::ScopedCFTypeRef<CFLocaleRef> locale(CFLocaleCopyCurrent());
+  base::apple::ScopedCFTypeRef<CFLocaleRef> locale(CFLocaleCopyCurrent());
   CFStringRef country =
       (CFStringRef)CFLocaleGetValue(locale.get(), kCFLocaleCountryCode);
   if (!country)

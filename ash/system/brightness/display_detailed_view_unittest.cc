@@ -46,7 +46,8 @@ class DisplayDetailedViewTest : public AshTestBase {
   base::test::ScopedFeatureList feature_list_;
   std::unique_ptr<views::Widget> widget_;
   std::unique_ptr<DetailedViewDelegate> delegate_;
-  raw_ptr<DisplayDetailedView, ExperimentalAsh> detailed_view_ = nullptr;
+  raw_ptr<DisplayDetailedView, DanglingUntriaged | ExperimentalAsh>
+      detailed_view_ = nullptr;
 };
 
 TEST_F(DisplayDetailedViewTest, ScrollContentChildren) {
@@ -71,6 +72,28 @@ TEST_F(DisplayDetailedViewTest, ScrollContentChildren) {
       scroll_content->GetViewByID(VIEW_ID_QS_DISPLAY_BRIGHTNESS_SLIDER);
   EXPECT_STREQ(unified_brightness_view->GetClassName(),
                "UnifiedBrightnessView");
+}
+
+TEST_F(DisplayDetailedViewTest, FeatureTileVisibility) {
+  GetSessionControllerClient()->SetSessionState(
+      session_manager::SessionState::ACTIVE);
+
+  views::View* scroll_content =
+      detailed_view_->GetViewByID(VIEW_ID_QS_DISPLAY_SCROLL_CONTENT);
+  views::View* tile_container =
+      scroll_content->GetViewByID(VIEW_ID_QS_DISPLAY_TILE_CONTAINER);
+  ASSERT_TRUE(tile_container);
+  ASSERT_EQ(tile_container->children().size(), 2u);
+
+  // Both tiles are visible in the active user session
+  EXPECT_TRUE(tile_container->children()[0]->GetVisible());
+  EXPECT_TRUE(tile_container->children()[1]->GetVisible());
+
+  // Locks the screen and the feature tiles are still visible.
+  GetSessionControllerClient()->SetSessionState(
+      session_manager::SessionState::LOCKED);
+  EXPECT_TRUE(tile_container->children()[0]->GetVisible());
+  EXPECT_TRUE(tile_container->children()[1]->GetVisible());
 }
 
 }  // namespace

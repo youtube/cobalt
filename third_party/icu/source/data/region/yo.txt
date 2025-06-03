@@ -304,6 +304,5 @@ yo{
         NZ{"Sílándì Titun ti Atìríà"}
         SZ{"Síwásìlandì"}
         TL{"Ìlà Òòrùn Tímọ̀"}
-        TR{"Èdè Tọọki"}
     }
 }

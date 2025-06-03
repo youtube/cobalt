@@ -30,6 +30,7 @@
 #include "content/public/test/browser_test.h"
 #include "extensions/browser/api/automation_internal/automation_event_router.h"
 #include "extensions/common/api/automation_internal.h"
+#include "extensions/common/switches.h"
 #include "extensions/test/extension_test_message_listener.h"
 #include "net/dns/mock_host_resolver.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
@@ -48,6 +49,7 @@
 #include "ash/public/cpp/accelerators.h"
 #include "ash/public/cpp/test/shell_test_api.h"
 #include "chrome/browser/ui/aura/accessibility/automation_manager_aura.h"
+#include "ui/accessibility/ax_action_handler_registry.h"
 #include "ui/display/manager/display_manager.h"
 #include "ui/display/screen.h"
 #include "ui/display/test/display_manager_test_api.h"  // nogncheck
@@ -55,13 +57,20 @@
 
 namespace extensions {
 
-namespace {
-static const char kDomain[] = "a.com";
-static const char kSitesDir[] = "automation/sites";
-static const char kGotTree[] = "got_tree";
-}  // anonymous namespace
-
 class AutomationApiTest : public ExtensionApiTest {
+ public:
+  void SetUpOnMainThread() override {
+    ExtensionApiTest::SetUpOnMainThread();
+    host_resolver()->AddRule("*", "127.0.0.1");
+  }
+
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    extensions::ExtensionApiTest::SetUpCommandLine(command_line);
+    command_line->AppendSwitchASCII(
+        extensions::switches::kAllowlistedExtensionID,
+        "ddchlicdkolnonkihahngkmmmjnjlkkf");
+  }
+
  protected:
   GURL GetURLForPath(const std::string& host, const std::string& path) {
     std::string port = base::NumberToString(embedded_test_server()->port());
@@ -74,17 +83,12 @@ class AutomationApiTest : public ExtensionApiTest {
   }
 
   void StartEmbeddedTestServer() {
+    static const char kSitesDir[] = "automation/sites";
     base::FilePath test_data;
     ASSERT_TRUE(base::PathService::Get(chrome::DIR_TEST_DATA, &test_data));
     embedded_test_server()->ServeFilesFromDirectory(
         test_data.AppendASCII("extensions/api_test").AppendASCII(kSitesDir));
     ASSERT_TRUE(ExtensionApiTest::StartEmbeddedTestServer());
-  }
-
- public:
-  void SetUpOnMainThread() override {
-    ExtensionApiTest::SetUpOnMainThread();
-    host_resolver()->AddRule("*", "127.0.0.1");
   }
 
   base::test::ScopedFeatureList scoped_feature_list_;
@@ -100,6 +104,13 @@ class AutomationApiCanvasTest : public AutomationApiTest {
   }
 };
 
+#if defined(USE_AURA)
+
+namespace {
+static const char kDomain[] = "a.com";
+static const char kGotTree[] = "got_tree";
+}  // anonymous namespace
+
 IN_PROC_BROWSER_TEST_F(AutomationApiTest, TestRendererAccessibilityEnabled) {
   StartEmbeddedTestServer();
   const GURL url = GetURLForPath(kDomain, "/index.html");
@@ -113,6 +124,27 @@ IN_PROC_BROWSER_TEST_F(AutomationApiTest, TestRendererAccessibilityEnabled) {
 
   base::FilePath extension_path =
       test_data_dir_.AppendASCII("automation/tests/basic");
+  ExtensionTestMessageListener got_tree(kGotTree);
+  LoadExtension(extension_path);
+  ASSERT_TRUE(got_tree.WaitUntilSatisfied());
+
+  ASSERT_FALSE(tab->IsFullAccessibilityModeForTesting());
+  ASSERT_TRUE(tab->IsWebContentsOnlyAccessibilityModeForTesting());
+}
+
+IN_PROC_BROWSER_TEST_F(AutomationApiTest, ServiceWorker) {
+  StartEmbeddedTestServer();
+  const GURL url = GetURLForPath(kDomain, "/index.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
+
+  ASSERT_EQ(1, browser()->tab_strip_model()->count());
+  content::WebContents* const tab =
+      browser()->tab_strip_model()->GetWebContentsAt(0);
+  ASSERT_FALSE(tab->IsFullAccessibilityModeForTesting());
+  ASSERT_FALSE(tab->IsWebContentsOnlyAccessibilityModeForTesting());
+
+  base::FilePath extension_path =
+      test_data_dir_.AppendASCII("automation/tests/service_worker");
   ExtensionTestMessageListener got_tree(kGotTree);
   LoadExtension(extension_path);
   ASSERT_TRUE(got_tree.WaitUntilSatisfied());
@@ -160,19 +192,6 @@ IN_PROC_BROWSER_TEST_F(AutomationApiTest, ImageLabels) {
   // Strip off kNativeAPIs, which may be set in some situations.
   accessibility_mode.set_mode(ui::AXMode::kNativeAPIs, false);
   EXPECT_EQ(expected_mode, accessibility_mode);
-}
-
-// Flaky on Mac: crbug.com/1248445
-#if BUILDFLAG(IS_MAC)
-#define MAYBE_GetTreeByTabId DISABLED_GetTreeByTabId
-#else
-#define MAYBE_GetTreeByTabId GetTreeByTabId
-#endif
-IN_PROC_BROWSER_TEST_F(AutomationApiTest, MAYBE_GetTreeByTabId) {
-  StartEmbeddedTestServer();
-  ASSERT_TRUE(RunExtensionTest("automation/tests/tabs",
-                               {.extension_url = "tab_id.html"}))
-      << message_;
 }
 
 IN_PROC_BROWSER_TEST_F(AutomationApiTest, Events) {
@@ -239,50 +258,6 @@ IN_PROC_BROWSER_TEST_F(AutomationApiTest, TableProperties) {
 
 // Flaky on Mac and Windows: crbug.com/1235249
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
-#define MAYBE_TabsAutomationBooleanPermissions \
-  DISABLED_TabsAutomationBooleanPermissions
-#else
-#define MAYBE_TabsAutomationBooleanPermissions TabsAutomationBooleanPermissions
-#endif
-IN_PROC_BROWSER_TEST_F(AutomationApiTest,
-                       MAYBE_TabsAutomationBooleanPermissions) {
-  StartEmbeddedTestServer();
-  ASSERT_TRUE(RunExtensionTest("automation/tests/tabs_automation_boolean",
-                               {.extension_url = "permissions.html"}))
-      << message_;
-}
-
-// Flaky on Mac and Windows: crbug.com/1235249
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
-#define MAYBE_TabsAutomationBooleanActions \
-  DISABLED_TabsAutomationBooleanActions
-#else
-#define MAYBE_TabsAutomationBooleanActions TabsAutomationBooleanActions
-#endif
-IN_PROC_BROWSER_TEST_F(AutomationApiTest, MAYBE_TabsAutomationBooleanActions) {
-  StartEmbeddedTestServer();
-  ASSERT_TRUE(RunExtensionTest("automation/tests/tabs_automation_boolean",
-                               {.extension_url = "actions.html"}))
-      << message_;
-}
-
-// Flaky on Mac and Windows: crbug.com/1202710
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
-#define MAYBE_TabsAutomationHostsPermissions \
-  DISABLED_TabsAutomationHostsPermissions
-#else
-#define MAYBE_TabsAutomationHostsPermissions TabsAutomationHostsPermissions
-#endif
-IN_PROC_BROWSER_TEST_F(AutomationApiTest,
-                       MAYBE_TabsAutomationHostsPermissions) {
-  StartEmbeddedTestServer();
-  ASSERT_TRUE(RunExtensionTest("automation/tests/tabs_automation_hosts",
-                               {.extension_url = "permissions.html"}))
-      << message_;
-}
-
-// Flaky on Mac and Windows: crbug.com/1235249
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
 #define MAYBE_CloseTab DISABLED_CloseTab
 #else
 #define MAYBE_CloseTab CloseTab
@@ -291,13 +266,6 @@ IN_PROC_BROWSER_TEST_F(AutomationApiTest, MAYBE_CloseTab) {
   StartEmbeddedTestServer();
   ASSERT_TRUE(RunExtensionTest("automation/tests/tabs",
                                {.extension_url = "close_tab.html"}))
-      << message_;
-}
-
-IN_PROC_BROWSER_TEST_F(AutomationApiTest, QuerySelector) {
-  StartEmbeddedTestServer();
-  ASSERT_TRUE(RunExtensionTest("automation/tests/tabs",
-                               {.extension_url = "queryselector.html"}))
       << message_;
 }
 
@@ -410,12 +378,6 @@ IN_PROC_BROWSER_TEST_F(AutomationApiTest, EnumValidity) {
       << message_;
 }
 
-#if defined(USE_AURA)
-IN_PROC_BROWSER_TEST_F(AutomationApiTest, DesktopNotRequested) {
-  ASSERT_TRUE(RunExtensionTest("automation/tests/tabs",
-                               {.extension_url = "desktop_not_requested.html"}))
-      << message_;
-}
 #endif  // defined(USE_AURA)
 
 #if !defined(USE_AURA)
@@ -433,7 +395,8 @@ class AutomationApiFencedFrameTest : public AutomationApiTest {
     feature_list_.InitWithFeaturesAndParameters(
         /*enabled_features=*/{{blink::features::kFencedFrames, {}},
                               {features::kPrivacySandboxAdsAPIsOverride, {}},
-                              {blink::features::kFencedFramesAPIChanges, {}}},
+                              {blink::features::kFencedFramesAPIChanges, {}},
+                              {blink::features::kFencedFramesDefaultMode, {}}},
         /*disabled_features=*/{features::kSpareRendererForSitePerProcess});
   }
 
@@ -487,8 +450,8 @@ IN_PROC_BROWSER_TEST_F(AutomationApiTest, DesktopHitTestIframe) {
 IN_PROC_BROWSER_TEST_F(AutomationApiTest, DesktopFocusViews) {
   AutomationManagerAura::GetInstance()->Enable();
   // Trigger the shelf subtree to be computed.
-  ash::AcceleratorController::Get()->PerformActionIfEnabled(ash::FOCUS_SHELF,
-                                                            {});
+  ash::AcceleratorController::Get()->PerformActionIfEnabled(
+      ash::AcceleratorAction::kFocusShelf, {});
 
   ASSERT_TRUE(RunExtensionTest("automation/tests/desktop",
                                {.extension_url = "focus_views.html"}))
@@ -512,8 +475,8 @@ IN_PROC_BROWSER_TEST_F(AutomationApiTest, LocationInWebView) {
 IN_PROC_BROWSER_TEST_F(AutomationApiTest, DesktopActions) {
   AutomationManagerAura::GetInstance()->Enable();
   // Trigger the shelf subtree to be computed.
-  ash::AcceleratorController::Get()->PerformActionIfEnabled(ash::FOCUS_SHELF,
-                                                            {});
+  ash::AcceleratorController::Get()->PerformActionIfEnabled(
+      ash::AcceleratorAction::kFocusShelf, {});
 
   ASSERT_TRUE(RunExtensionTest("automation/tests/desktop",
                                {.extension_url = "actions.html"}))
@@ -528,11 +491,11 @@ IN_PROC_BROWSER_TEST_F(AutomationApiTest, DesktopHitTestOneDisplay) {
 
 IN_PROC_BROWSER_TEST_F(AutomationApiTest, DesktopHitTestPrimaryDisplay) {
   ash::ShellTestApi shell_test_api;
-  // Create two displays, both 800x800px, next to each other. The primary
+  // Create two displays, both 800x750px, next to each other. The primary
   // display has top left corner at (0, 0), and the secondary display has
   // top left corner at (801, 0).
   display::test::DisplayManagerTestApi(shell_test_api.display_manager())
-      .UpdateDisplay("800x800,801+0-800x800");
+      .UpdateDisplay("800x750,801+0-800x750");
   // Ensure it worked. By default InProcessBrowserTest uses just one display.
   ASSERT_EQ(2u, shell_test_api.display_manager()->GetNumDisplays());
   display::test::DisplayManagerTestApi display_manager_test_api(
@@ -545,11 +508,11 @@ IN_PROC_BROWSER_TEST_F(AutomationApiTest, DesktopHitTestPrimaryDisplay) {
 
 IN_PROC_BROWSER_TEST_F(AutomationApiTest, DesktopHitTestSecondaryDisplay) {
   ash::ShellTestApi shell_test_api;
-  // Create two displays, both 800x800px, next to each other. The primary
+  // Create two displays, both 800x750px, next to each other. The primary
   // display has top left corner at (0, 0), and the secondary display has
   // top left corner at (801, 0).
   display::test::DisplayManagerTestApi(shell_test_api.display_manager())
-      .UpdateDisplay("800x800,801+0-800x800");
+      .UpdateDisplay("800x750,801+0-800x750");
   // Ensure it worked. By default InProcessBrowserTest uses just one display.
   ASSERT_EQ(2u, shell_test_api.display_manager()->GetNumDisplays());
   display::test::DisplayManagerTestApi display_manager_test_api(
@@ -582,7 +545,7 @@ class AutomationApiTestWithDeviceScaleFactor : public AutomationApiTest {
  protected:
   void SetUpCommandLine(base::CommandLine* command_line) override {
     AutomationApiTest::SetUpCommandLine(command_line);
-    command_line->AppendSwitchASCII(switches::kForceDeviceScaleFactor, "2.0");
+    command_line->AppendSwitchASCII(::switches::kForceDeviceScaleFactor, "2.0");
   }
 };
 
@@ -693,6 +656,47 @@ IN_PROC_BROWSER_TEST_F(AutomationApiTest, MAYBE_AddRemoveEventListeners) {
   ASSERT_TRUE(
       RunExtensionTest("automation/tests/desktop",
                        {.extension_url = "add_remove_event_listeners.html"}))
+      << message_;
+}
+
+class AutomationApiTestWithMockedSourceRenderer
+    : public AutomationApiTest,
+      public ui::AXActionHandlerObserver {
+ protected:
+  // This method is used to intercept AXActions dispatched from extensions.
+  // Because `DispatchActionResult`, from the automation API, is only used in
+  // specific source renderers (e.g. arc++), we mock the behavior here so we can
+  // test that the behavior in the automation api works correctly.
+  void InterceptAXActions() {
+    ui::AXActionHandlerRegistry* registry =
+        ui::AXActionHandlerRegistry ::GetInstance();
+    ASSERT_TRUE(registry);
+    registry->AddObserver(this);
+  }
+
+ private:
+  // ui::AXActionHandlerObserver :
+  void PerformAction(const ui::AXActionData& action_data) override {
+    extensions::AutomationEventRouter* router =
+        extensions::AutomationEventRouter::GetInstance();
+    ASSERT_TRUE(router);
+    EXPECT_EQ(action_data.action, ax::mojom::Action::kScrollBackward);
+    router->DispatchActionResult(action_data, /*result=*/true);
+  }
+};
+
+IN_PROC_BROWSER_TEST_F(AutomationApiTestWithMockedSourceRenderer,
+                       ActionResult) {
+  StartEmbeddedTestServer();
+
+  // Intercept AXActions for this test in order to test the behavior of
+  // DispatchActionResult. Here, we mock the action logic to always return true
+  // to return to the extension test that the action was handled and that the
+  // result is true. This will make sure that the passing of messages between
+  // processes is correct.
+  InterceptAXActions();
+  ASSERT_TRUE(RunExtensionTest("automation/tests/desktop",
+                               {.extension_url = "action_result.html"}))
       << message_;
 }
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)

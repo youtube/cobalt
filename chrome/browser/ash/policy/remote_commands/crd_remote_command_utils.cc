@@ -14,6 +14,7 @@
 #include "chrome/browser/ash/policy/remote_commands/crd_logging.h"
 #include "chromeos/ash/services/network_config/in_process_instance.h"
 #include "components/user_manager/user_manager.h"
+#include "remoting/protocol/errors.h"
 #include "ui/base/user_activity/user_activity_detector.h"
 
 namespace policy {
@@ -27,6 +28,7 @@ using chromeos::network_config::mojom::NetworkFilter;
 using chromeos::network_config::mojom::NetworkStatePropertiesPtr;
 using chromeos::network_config::mojom::NetworkType;
 using chromeos::network_config::mojom::OncSource;
+using remoting::protocol::ErrorCode;
 
 const ash::KioskAppManagerBase* GetKioskAppManager(
     const user_manager::UserManager& user_manager) {
@@ -115,9 +117,62 @@ void CloseMojomConnection(
 
 }  // namespace
 
+ResultCode ConvertErrorCodeToResultCode(ErrorCode error_code) {
+  switch (error_code) {
+    case ErrorCode::OK:
+      return ResultCode::SUCCESS;
+    case ErrorCode::PEER_IS_OFFLINE:
+      return ResultCode::FAILURE_PEER_IS_OFFLINE;
+    case ErrorCode::SESSION_REJECTED:
+      return ResultCode::FAILURE_SESSION_REJECTED;
+    case ErrorCode::INCOMPATIBLE_PROTOCOL:
+      return ResultCode::FAILURE_INCOMPATIBLE_PROTOCOL;
+    case ErrorCode::AUTHENTICATION_FAILED:
+      return ResultCode::FAILURE_AUTHENTICATION_FAILED;
+    case ErrorCode::INVALID_ACCOUNT:
+      return ResultCode::FAILURE_INVALID_ACCOUNT;
+    case ErrorCode::CHANNEL_CONNECTION_ERROR:
+      return ResultCode::FAILURE_CHANNEL_CONNECTION_ERROR;
+    case ErrorCode::SIGNALING_ERROR:
+      return ResultCode::FAILURE_SIGNALING_ERROR;
+    case ErrorCode::SIGNALING_TIMEOUT:
+      return ResultCode::FAILURE_SIGNALING_TIMEOUT;
+    case ErrorCode::HOST_OVERLOAD:
+      return ResultCode::FAILURE_HOST_OVERLOAD;
+    case ErrorCode::MAX_SESSION_LENGTH:
+      return ResultCode::FAILURE_MAX_SESSION_LENGTH;
+    case ErrorCode::HOST_CONFIGURATION_ERROR:
+      return ResultCode::FAILURE_HOST_CONFIGURATION_ERROR;
+    case ErrorCode::HOST_CERTIFICATE_ERROR:
+      return ResultCode::FAILURE_HOST_CERTIFICATE_ERROR;
+    case ErrorCode::HOST_REGISTRATION_ERROR:
+      return ResultCode::FAILURE_HOST_REGISTRATION_ERROR;
+    case ErrorCode::EXISTING_ADMIN_SESSION:
+      return ResultCode::FAILURE_EXISTING_ADMIN_SESSION;
+    case ErrorCode::AUTHZ_POLICY_CHECK_FAILED:
+      return ResultCode::FAILURE_AUTHZ_POLICY_CHECK_FAILED;
+    case ErrorCode::LOCATION_AUTHZ_POLICY_CHECK_FAILED:
+      return ResultCode::FAILURE_LOCATION_AUTHZ_POLICY_CHECK_FAILED;
+    case ErrorCode::DISALLOWED_BY_POLICY:
+      return ResultCode::FAILURE_DISABLED_BY_POLICY;
+    case ErrorCode::UNAUTHORIZED_ACCOUNT:
+      return ResultCode::FAILURE_UNAUTHORIZED_ACCOUNT;
+    case ErrorCode::UNKNOWN_ERROR:
+    // This error can only take place for windows builds which is not a part for
+    // commercial CRD.
+    case ErrorCode::ELEVATION_ERROR:
+      return ResultCode::FAILURE_UNKNOWN_ERROR;
+  }
+}
+
 base::TimeDelta GetDeviceIdleTime() {
-  return base::TimeTicks::Now() -
-         ui::UserActivityDetector::Get()->last_activity_time();
+  base::TimeTicks last_activity =
+      CHECK_DEREF(ui::UserActivityDetector::Get()).last_activity_time();
+  if (last_activity.is_null()) {
+    // No activity since booting.
+    return base::TimeDelta::Max();
+  }
+  return base::TimeTicks::Now() - last_activity;
 }
 
 UserSessionType GetCurrentUserSessionType() {
@@ -135,7 +190,7 @@ UserSessionType GetCurrentUserSessionType() {
     }
   }
 
-  if (user_manager.IsLoggedInAsPublicAccount()) {
+  if (user_manager.IsLoggedInAsManagedGuestSession()) {
     return UserSessionType::MANAGED_GUEST_SESSION;
   }
 

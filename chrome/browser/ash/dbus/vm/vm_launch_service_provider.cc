@@ -34,55 +34,51 @@ void OnExported(const std::string& interface_name,
                           << method_name;
 }
 
+std::unique_ptr<dbus::Response> AllowStatusToResponse(
+    borealis::BorealisFeatures::AllowStatus status,
+    dbus::MethodCall* method_call) {
+  if (status != borealis::BorealisFeatures::AllowStatus::kAllowed) {
+    return dbus::ErrorResponse::FromMethodCall(method_call, DBUS_ERROR_FAILED,
+                                               "");
+  }
+
+  std::unique_ptr<dbus::Response> response =
+      dbus::Response::FromMethodCall(method_call);
+  dbus::MessageWriter writer(response.get());
+  writer.AppendString("");
+  return response;
+}
+
 void OnTokenChecked(Profile* profile,
                     dbus::MethodCall* method_call,
                     dbus::ExportedObject::ResponseSender response_sender,
                     bool launch,
                     borealis::BorealisFeatures::AllowStatus new_allowed) {
-  // TODO(b/218403711): Remove these messages. These messages are shown to users
-  // of the Borealis Alpha based on the status of their device, however they are
-  // not translated, because this API is only a temporary measure put in place
-  // until borealis' installer UX is finalized.
-  if (new_allowed == borealis::BorealisFeatures::AllowStatus::kAllowed) {
-    if (launch) {
-      // When requested, setting the correct token should have the effect of
-      // running the client app, which will bring up the installer or launch the
-      // client as needed.
-      borealis::BorealisService::GetForProfile(profile)->AppLauncher().Launch(
-          borealis::kClientAppId, base::DoNothing());
-    }
-    std::unique_ptr<dbus::Response> response =
-        dbus::Response::FromMethodCall(method_call);
-    dbus::MessageWriter writer(response.get());
-    writer.AppendString(borealis::kInsertCoinSuccessMessage);
-    std::move(response_sender).Run(std::move(response));
-    return;
-  }
-  std::stringstream ss;
-  if (new_allowed == borealis::BorealisFeatures::AllowStatus::kIncorrectToken) {
-    ss << borealis::kInsertCoinRejectMessage;
-  } else {
-    ss << new_allowed;
+  if (launch) {
+    // When requested, setting the correct token should have the effect of
+    // running the client app, which will bring up the installer or launch the
+    // client as needed.
+    borealis::BorealisService::GetForProfile(profile)->AppLauncher().Launch(
+        borealis::kClientAppId, base::DoNothing());
   }
   std::move(response_sender)
-      .Run(dbus::ErrorResponse::FromMethodCall(method_call, DBUS_ERROR_FAILED,
-                                               ss.str()));
+      .Run(AllowStatusToResponse(new_allowed, method_call));
 }
 
 template <typename T>
 void HandleReturn(dbus::MethodCall* method_call,
                   dbus::ExportedObject::ResponseSender response_sender,
-                  borealis::Expected<T, std::string> response) {
-  if (!response) {
+                  base::expected<T, std::string> response) {
+  if (!response.has_value()) {
     std::move(response_sender)
         .Run(dbus::ErrorResponse::FromMethodCall(method_call, DBUS_ERROR_FAILED,
-                                                 response.Error()));
+                                                 response.error()));
     return;
   }
   std::unique_ptr<dbus::Response> dbus_response =
       dbus::Response::FromMethodCall(method_call);
   dbus::MessageWriter writer(dbus_response.get());
-  writer.AppendProtoAsArrayOfBytes(response.Value());
+  writer.AppendProtoAsArrayOfBytes(response.value());
   std::move(response_sender).Run(std::move(dbus_response));
 }
 

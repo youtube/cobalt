@@ -2,13 +2,32 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-if (!is_android) {
-  static_library("trusted_vault") {
-    sources = [
+import("//build/config/chromeos/ui_mode.gni")
+
+static_library("trusted_vault") {
+  sources = [
+    "trusted_vault_client.h",
+    "trusted_vault_service.cc",
+    "trusted_vault_service.h",
+  ]
+  public_deps = [
+    "//base",
+    "//components/keyed_service/core",
+  ]
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
+
+  if (!is_android) {
+    sources += [
+      "command_line_switches.cc",
+      "command_line_switches.h",
       "download_keys_response_handler.cc",
       "download_keys_response_handler.h",
+      "features.cc",
+      "features.h",
       "proto_string_bytes_conversion.cc",
       "proto_string_bytes_conversion.h",
+      "proto_time_conversion.cc",
+      "proto_time_conversion.h",
       "securebox.cc",
       "securebox.h",
       "standalone_trusted_vault_backend.cc",
@@ -37,14 +56,9 @@ if (!is_android) {
       "trusted_vault_server_constants.cc",
       "trusted_vault_server_constants.h",
     ]
-    public_deps = [
-      "//base",
-      "//components/sync/driver",
-    ]
     deps = [
       "//components/os_crypt/sync",
       "//components/signin/public/identity_manager",
-      "//components/sync/base",
       "//components/trusted_vault/proto",
       "//crypto",
       "//google_apis",
@@ -53,12 +67,15 @@ if (!is_android) {
       "//third_party/boringssl",
     ]
   }
+}
 
+if (!is_android) {
   source_set("unit_tests") {
     testonly = true
     sources = [
       "download_keys_response_handler_unittest.cc",
       "proto_string_bytes_conversion_unittest.cc",
+      "proto_time_conversion_unittest.cc",
       "securebox_unittest.cc",
       "standalone_trusted_vault_backend_unittest.cc",
       "trusted_vault_access_token_fetcher_frontend_unittest.cc",
@@ -83,5 +100,48 @@ if (!is_android) {
       "//testing/gmock",
       "//testing/gtest",
     ]
+  }
+}
+
+static_library("test_support") {
+  testonly = true
+
+  sources = [
+    "test/fake_trusted_vault_client.cc",
+    "test/fake_trusted_vault_client.h",
+  ]
+
+  deps = [ "//components/signin/public/identity_manager" ]
+
+  public_deps = [
+    ":trusted_vault",
+    "//base",
+  ]
+
+  if (!is_android) {
+    sources += [
+      "test/fake_security_domains_server.cc",
+      "test/fake_security_domains_server.h",
+    ]
+
+    public_deps += [
+      "//components/trusted_vault/proto",
+      "//net:test_support",
+      "//url",
+    ]
+  }
+
+  if (is_chromeos_lacros) {
+    sources += [
+      "test/fake_crosapi_trusted_vault_backend.cc",
+      "test/fake_crosapi_trusted_vault_backend.h",
+    ]
+
+    public_deps += [
+      "//chromeos/crosapi/mojom",
+      "//mojo/public/cpp/bindings",
+    ]
+
+    deps += [ "//components/account_manager_core" ]
   }
 }

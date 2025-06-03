@@ -5,6 +5,8 @@
 #ifndef ASH_SYSTEM_MESSAGE_CENTER_ASH_NOTIFICATION_EXPAND_BUTTON_H_
 #define ASH_SYSTEM_MESSAGE_CENTER_ASH_NOTIFICATION_EXPAND_BUTTON_H_
 
+#include <string>
+
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "ui/views/controls/button/button.h"
@@ -22,8 +24,7 @@ namespace ash {
 class AshNotificationExpandButton : public views::Button {
  public:
   METADATA_HEADER(AshNotificationExpandButton);
-  explicit AshNotificationExpandButton(
-      PressedCallback callback = PressedCallback());
+  AshNotificationExpandButton();
   AshNotificationExpandButton(const AshNotificationExpandButton&) = delete;
   AshNotificationExpandButton& operator=(const AshNotificationExpandButton&) =
       delete;
@@ -52,6 +53,9 @@ class AshNotificationExpandButton : public views::Button {
   void OnThemeChanged() override;
   gfx::Size CalculatePreferredSize() const override;
 
+  void SetNotificationTitleForButtonTooltip(
+      const std::u16string& notification_title);
+
   void set_label_fading_out(bool label_fading_out) {
     label_fading_out_ = label_fading_out;
   }
@@ -68,6 +72,10 @@ class AshNotificationExpandButton : public views::Button {
   void AnimateBoundsChange(int duration_in_ms,
                            gfx::Tween::Type tween_type,
                            const std::string& animation_histogram_name);
+
+  void UpdateBackgroundColor();
+
+  void UpdateTooltip();
 
   // Owned by views hierarchy.
   raw_ptr<views::Label, ExperimentalAsh> label_;
@@ -88,6 +96,10 @@ class AshNotificationExpandButton : public views::Button {
 
   // True if `label_` is in its fade out animation.
   bool label_fading_out_ = false;
+
+  // Cache of the notification title. Used this to display in the button
+  // tooltip.
+  std::u16string notification_title_;
 
   base::WeakPtrFactory<AshNotificationExpandButton> weak_factory_{this};
 };

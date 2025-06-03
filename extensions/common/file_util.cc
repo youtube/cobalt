@@ -13,6 +13,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/containers/contains.h"
 #include "base/files/file_enumerator.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
@@ -186,26 +187,40 @@ base::FilePath InstallExtension(const base::FilePath& unpacked_source_dir,
 }
 
 void UninstallExtension(const base::FilePath& profile_dir,
-                        const base::FilePath& extensions_dir,
-                        const std::string& id) {
+                        const base::FilePath& extensions_install_dir,
+                        const base::FilePath& extension_dir_to_delete) {
+  // The below conditions are asserting that we should only be deleting
+  // directories that are inside the `extensions_install_dir` which should be
+  // inside the profile directory. Anything outside of that would be considered
+  // invalid and dangerous since this is effectively an `rm -rf
+  // <extension_delete_path>`.
+
+  // Confirm that all the directories involved are not empty and are absolute so
+  // that the subsequent comparisons have some value.
+  if (profile_dir.empty() || extensions_install_dir.empty() ||
+      extension_dir_to_delete.empty() || !profile_dir.IsAbsolute() ||
+      !extensions_install_dir.IsAbsolute() ||
+      !extension_dir_to_delete.IsAbsolute()) {
+    return;
+  }
+
+  // Confirm the directory where we install extensions is a direct subdir of the
+  // profile dir.
+  if (extensions_install_dir.DirName() != profile_dir) {
+    return;
+  }
+
+  // Confirm the directory we are obliterating is a direct subdir of the
+  // extensions install directory.
+  if (extension_dir_to_delete.DirName() != extensions_install_dir) {
+    return;
+  }
+
+  base::DeletePathRecursively(extension_dir_to_delete);
+
   // We don't care about the return value. If this fails (and it can, due to
   // plugins that aren't unloaded yet), it will get cleaned up by
   // ExtensionGarbageCollector::GarbageCollectExtensions.
-
-  // Confirm the profile directory, extensions directory, and the id are not
-  // empty and that the directories are absolute so that the subsequent
-  // comparison has some value.
-  if (profile_dir.empty() || extensions_dir.empty() || id.empty() ||
-      !profile_dir.IsAbsolute() || !extensions_dir.IsAbsolute()) {
-    return;
-  }
-  // Confirm the directory we are deleting from is a direct subdirectory of
-  // the extensions's subdirectory inside the profile directory.
-  if (extensions_dir.DirName() != profile_dir) {
-    return;
-  }
-
-  base::DeletePathRecursively(extensions_dir.AppendASCII(id));
 }
 
 scoped_refptr<Extension> LoadExtension(const base::FilePath& extension_path,
@@ -313,14 +328,15 @@ bool ValidateExtension(const Extension* extension,
   // not on the reserved list. We only warn, and do not block the loading of the
   // extension.
   std::string warning;
-  if (!CheckForIllegalFilenames(extension->path(), &warning))
-    warnings->push_back(InstallWarning(warning));
+  if (!CheckForIllegalFilenames(extension->path(), &warning)) {
+    warnings->emplace_back(warning);
+  }
 
   // Check that the extension does not include any Windows reserved filenames.
   std::string windows_reserved_warning;
   if (!CheckForWindowsReservedFilenames(extension->path(),
                                         &windows_reserved_warning)) {
-    warnings->push_back(InstallWarning(windows_reserved_warning));
+    warnings->emplace_back(windows_reserved_warning);
   }
 
   // Check that extensions don't include private key files.
@@ -336,10 +352,9 @@ bool ValidateExtension(const Extension* extension,
       return false;
     }
   } else {
-    for (size_t i = 0; i < private_keys.size(); ++i) {
-      warnings->push_back(InstallWarning(
-          l10n_util::GetStringFUTF8(IDS_EXTENSION_CONTAINS_PRIVATE_KEY,
-                                    private_keys[i].LossyDisplayName())));
+    for (const auto& private_key : private_keys) {
+      warnings->emplace_back(l10n_util::GetStringFUTF8(
+          IDS_EXTENSION_CONTAINS_PRIVATE_KEY, private_key.LossyDisplayName()));
     }
     // Only warn; don't block loading the extension.
   }
@@ -538,7 +553,7 @@ MessageBundle* LoadMessageBundle(
 
   base::FilePath default_locale_path = locale_path.AppendASCII(default_locale);
   if (default_locale.empty() ||
-      chrome_locales.find(default_locale) == chrome_locales.end() ||
+      !base::Contains(chrome_locales, default_locale) ||
       !base::PathExists(default_locale_path)) {
     *error = l10n_util::GetStringUTF8(
         IDS_EXTENSION_LOCALES_NO_DEFAULT_LOCALE_SPECIFIED);

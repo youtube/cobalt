@@ -38,6 +38,7 @@ class UkmDataManagerImpl : public UkmDataManager {
   void PauseOrResumeObservation(bool pause) override;
   UrlSignalHandler* GetOrCreateUrlHandler() override;
   UkmDatabase* GetUkmDatabase() override;
+  bool HasUkmDatabase() override;
   void OnEntryAdded(ukm::mojom::UkmEntryPtr entry) override;
   void OnUkmSourceUpdated(ukm::SourceId source_id,
                           const std::vector<GURL>& urls) override;
@@ -52,7 +53,7 @@ class UkmDataManagerImpl : public UkmDataManager {
   void RunCleanupTask();
 
   int ref_count_ = 0;
-  raw_ptr<UkmObserver> ukm_observer_ = nullptr;
+  raw_ptr<UkmObserver, DanglingUntriaged> ukm_observer_ = nullptr;
   std::unique_ptr<UkmDatabase> ukm_database_;
   std::unique_ptr<UrlSignalHandler> url_signal_handler_;
   std::unique_ptr<UkmConfig> pending_ukm_config_;

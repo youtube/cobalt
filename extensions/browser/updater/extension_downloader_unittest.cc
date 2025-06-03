@@ -4,6 +4,7 @@
 
 #include "extensions/browser/updater/extension_downloader.h"
 
+#include "base/containers/contains.h"
 #include "base/functional/callback_helpers.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/test/bind.h"
@@ -430,6 +431,11 @@ TEST_F(ExtensionDownloaderTest, TestUpdateURLHandle) {
       CreateDownloaderTask(kTestExtensionId, GURL("http://?invalid=url")));
   EXPECT_EQ(0u, tasks.size());
 
+  // data: URL, shouldn't be added at all.
+  helper.downloader().AddPendingExtension(
+      CreateDownloaderTask(kTestExtensionId, GURL("data:,")));
+  EXPECT_EQ(0u, tasks.size());
+
   // Clear pending queue to check it.
   helper.downloader().StartAllPending(nullptr);
   // HTTP Webstore URL, should be replaced with HTTPS.
@@ -566,13 +572,13 @@ TEST_F(ExtensionDownloaderTest, TestMultipleRequests) {
       base::BindLambdaForTesting([&](const network::ResourceRequest& request) {
         std::vector<std::tuple<ExtensionId, std::string, std::string>>
             extensions;
-        if (request.url.spec().find(std::string("%3D") + kTestExtensionId +
-                                    "%26") != std::string::npos) {
+        if (base::Contains(request.url.spec(),
+                           std::string("%3D") + kTestExtensionId + "%26")) {
           extensions.emplace_back(kTestExtensionId, "1.0",
                                   "https://example.com/extension1.crx");
         }
-        if (request.url.spec().find(std::string("%3D") + kTestExtensionId2 +
-                                    "%26") != std::string::npos) {
+        if (base::Contains(request.url.spec(),
+                           std::string("%3D") + kTestExtensionId2 + "%26")) {
           extensions.emplace_back(kTestExtensionId2, "1.0",
                                   "https://example.com/extension2.crx");
         }
@@ -629,9 +635,8 @@ TEST_F(ExtensionDownloaderTest, TestMultipleRequestsSameExtension) {
                                                        net::HTTP_OK);
           return;
         }
-        ASSERT_NE(request.url.spec().find(std::string("%3D") +
-                                          kTestExtensionId + "%26"),
-                  std::string::npos);
+        ASSERT_TRUE(base::Contains(
+            request.url.spec(), std::string("%3D") + kTestExtensionId + "%26"));
         std::vector<std::tuple<ExtensionId, std::string, std::string>>
             extensions;
         extensions.emplace_back(kTestExtensionId, "1.0",

@@ -12,7 +12,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/password_manager/password_manager_test_base.h"
-#include "chrome/browser/password_manager/password_store_factory.h"
+#include "chrome/browser/password_manager/profile_password_store_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/sync/sync_service_factory.h"
@@ -65,6 +65,7 @@ void ManagePasswordsTest::SetUpOnMainThread() {
   password_form_.url = test_url;
   password_form_.username_value = kTestUsername;
   password_form_.password_value = u"test_password";
+  password_form_.match_type = password_manager::PasswordForm::MatchType::kExact;
 
   ASSERT_TRUE(AddTabAtIndex(0, test_url, ui::PAGE_TRANSITION_TYPED));
 }
@@ -77,7 +78,7 @@ void ManagePasswordsTest::SetUpInProcessBrowserTestFixture() {
               base::BindRepeating([](content::BrowserContext* context) {
                 // Overwrite the password store early before it's accessed by
                 // safe browsing.
-                PasswordStoreFactory::GetInstance()->SetTestingFactory(
+                ProfilePasswordStoreFactory::GetInstance()->SetTestingFactory(
                     context,
                     base::BindRepeating(&password_manager::BuildPasswordStore<
                                         content::BrowserContext,
@@ -110,6 +111,7 @@ void ManagePasswordsTest::SetupManagingPasswords() {
   federated_form.federation_origin =
       url::Origin::Create(GURL("https://somelongeroriginurl.com/"));
   federated_form.username_value = u"test_federation_username";
+  federated_form.match_type = password_manager::PasswordForm::MatchType::kExact;
   std::vector<const password_manager::PasswordForm*> forms = {&password_form_,
                                                               &federated_form};
   GetController()->OnPasswordAutofilled(
@@ -121,7 +123,8 @@ void ManagePasswordsTest::SetupPendingPassword() {
 }
 
 void ManagePasswordsTest::SetupAutomaticPassword() {
-  GetController()->OnAutomaticPasswordSave(CreateFormManager());
+  GetController()->OnAutomaticPasswordSave(CreateFormManager(),
+                                           /*is_update_confirmation=*/false);
 }
 
 void ManagePasswordsTest::SetupAutoSignin(
@@ -135,11 +138,11 @@ void ManagePasswordsTest::SetupAutoSignin(
 void ManagePasswordsTest::SetupSafeState() {
   browser()->profile()->GetPrefs()->SetDouble(
       password_manager::prefs::kLastTimePasswordCheckCompleted,
-      (base::Time::Now() - base::Minutes(1)).ToDoubleT());
+      (base::Time::Now() - base::Minutes(1)).InSecondsFSinceUnixEpoch());
   SetupPendingPassword();
   scoped_refptr<password_manager::PasswordStoreInterface> password_store =
-      PasswordStoreFactory::GetForProfile(browser()->profile(),
-                                          ServiceAccessType::IMPLICIT_ACCESS);
+      ProfilePasswordStoreFactory::GetForProfile(
+          browser()->profile(), ServiceAccessType::IMPLICIT_ACCESS);
   password_store->AddLogin(password_form_);
   GetController()->SavePassword(password_form_.username_value,
                                 password_form_.password_value);
@@ -153,10 +156,10 @@ void ManagePasswordsTest::SetupSafeState() {
 void ManagePasswordsTest::SetupMoreToFixState() {
   browser()->profile()->GetPrefs()->SetDouble(
       password_manager::prefs::kLastTimePasswordCheckCompleted,
-      (base::Time::Now() - base::Minutes(1)).ToDoubleT());
+      (base::Time::Now() - base::Minutes(1)).InSecondsFSinceUnixEpoch());
   scoped_refptr<password_manager::PasswordStoreInterface> password_store =
-      PasswordStoreFactory::GetForProfile(browser()->profile(),
-                                          ServiceAccessType::IMPLICIT_ACCESS);
+      ProfilePasswordStoreFactory::GetForProfile(
+          browser()->profile(), ServiceAccessType::IMPLICIT_ACCESS);
   // This is an unrelated insecure credential that should still be fixed.
   password_manager::PasswordForm to_be_fixed = password_form_;
   to_be_fixed.signon_realm = "https://somesite.com/";
@@ -210,15 +213,11 @@ void ManagePasswordsTest::ConfigurePasswordSync(bool is_enabled) {
 
   if (is_enabled) {
     sync_service->SetHasSyncConsent(true);
-    sync_service->SetDisableReasons({});
     sync_service->GetUserSettings()->SetSelectedTypes(
         /*sync_everything=*/false,
-        /*types=*/syncer::UserSelectableTypeSet(
-            syncer::UserSelectableType::kPasswords));
+        /*types=*/{syncer::UserSelectableType::kPasswords});
   } else {
     sync_service->SetHasSyncConsent(false);
-    sync_service->SetDisableReasons(
-        syncer::SyncService::DISABLE_REASON_USER_CHOICE);
     sync_service->GetUserSettings()->SetSelectedTypes(
         /*sync_everything=*/false,
         /*types=*/syncer::UserSelectableTypeSet());
@@ -241,9 +240,9 @@ std::unique_ptr<PasswordFormManager> ManagePasswordsTest::CreateFormManager() {
   autofill::FormData observed_form;
   observed_form.url = password_form_.url;
   autofill::FormFieldData field;
-  field.form_control_type = "text";
+  field.form_control_type = autofill::FormControlType::kInputText;
   observed_form.fields.push_back(field);
-  field.form_control_type = "password";
+  field.form_control_type = autofill::FormControlType::kInputPassword;
   observed_form.fields.push_back(field);
 
   auto form_manager = std::make_unique<PasswordFormManager>(

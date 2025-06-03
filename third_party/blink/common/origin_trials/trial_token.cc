@@ -257,9 +257,10 @@ std::unique_ptr<TrialToken> TrialToken::Parse(const std::string& token_payload,
     }
   }
 
-  return base::WrapUnique(new TrialToken(
-      origin, is_subdomain, *feature_name,
-      base::Time::FromDoubleT(expiry_timestamp), is_third_party, usage));
+  return base::WrapUnique(
+      new TrialToken(origin, is_subdomain, *feature_name,
+                     base::Time::FromSecondsSinceUnixEpoch(expiry_timestamp),
+                     is_third_party, usage));
 }
 
 bool TrialToken::ValidateOrigin(const url::Origin& origin) const {
@@ -272,6 +273,10 @@ bool TrialToken::ValidateOrigin(const url::Origin& origin) const {
     return true;
   }
 
+  // TODO(crbug.com/1227440): `OriginTrials::MatchesTokenOrigin()` is meant to
+  // mirror the logic used in this method (below). Find a way to share/reuse
+  // this logic. Otherwise, the logic could change in one place and not the
+  // other.
   if (match_subdomains_) {
     return origin.scheme() == origin_.scheme() &&
            origin.DomainIs(origin_.host()) && origin.port() == origin_.port();

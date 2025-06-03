@@ -8,7 +8,7 @@
 #include <atomic>
 
 #include "base/gtest_prod_util.h"
-#include "base/memory/raw_ptr.h"
+#include "base/memory/raw_ptr_exclusion.h"
 #include "base/observer_list.h"
 #include "base/sequence_checker.h"
 #include "base/synchronization/lock.h"
@@ -88,7 +88,11 @@ class CONTENT_EXPORT JankMonitorImpl : public content::JankMonitor,
       ~TaskMetadata();
 
       base::TimeTicks execution_start_time;
-      raw_ptr<const void, DanglingUntriaged> identifier;
+      // Not a raw_ptr<...> for performance reasons: based on analysis of
+      // sampling profiler data (JankMonitorImpl::WillRunTaskOrEvent ->
+      // JankMonitorImpl::ThreadExecutionState::WillRunTaskOrEvent -> emplaces
+      // TaskMetadata in a vector).
+      RAW_PTR_EXCLUSION const void* identifier;
     };
     std::vector<TaskMetadata> task_execution_metadata_;
 
@@ -114,7 +118,7 @@ class CONTENT_EXPORT JankMonitorImpl : public content::JankMonitor,
 
   // Sends out notifications.
   void OnJankStarted(const void* opaque_identifier);
-  void OnJankStopped(const void* opaque_identifier);
+  void OnJankStopped(MayBeDangling<const void> opaque_identifier);
 
   // Call in DidRunTaskOrEvent() to for notification of jank stops.
   void NotifyJankStopIfNecessary(const void* opaque_identifier);

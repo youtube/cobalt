@@ -57,14 +57,6 @@ try_.builder(
     ),
     os = os.LINUX_DEFAULT,
     main_list_view = "try",
-    tryjob = try_.job(
-        location_filters = [
-            "cc/.+",
-            "third_party/blink/renderer/core/paint/.+",
-            "third_party/blink/renderer/core/svg/.+",
-            "third_party/blink/renderer/platform/graphics/.+",
-        ],
-    ),
 )
 
 try_.builder(
@@ -92,7 +84,7 @@ try_.builder(
 )
 
 try_.builder(
-    name = "win11-blink-rel",
+    name = "win11-arm64-blink-rel",
     branch_selector = branches.selector.WINDOWS_BRANCHES,
     builder_spec = builder_config.builder_spec(
         gclient_config = builder_config.gclient_config(
@@ -114,8 +106,9 @@ try_.builder(
     os = os.WINDOWS_ANY,
 )
 
-blink_mac_builder(
-    name = "mac10.13-blink-rel",
+try_.builder(
+    name = "win11-blink-rel",
+    branch_selector = branches.selector.WINDOWS_BRANCHES,
     builder_spec = builder_config.builder_spec(
         gclient_config = builder_config.gclient_config(
             config = "chromium",
@@ -132,26 +125,8 @@ blink_mac_builder(
     try_settings = builder_config.try_settings(
         retry_failed_shards = True,
     ),
-)
-
-blink_mac_builder(
-    name = "mac10.14-blink-rel",
-    builder_spec = builder_config.builder_spec(
-        gclient_config = builder_config.gclient_config(
-            config = "chromium",
-        ),
-        chromium_config = builder_config.chromium_config(
-            config = "chromium",
-            apply_configs = [
-                "mb",
-            ],
-            build_config = builder_config.build_config.RELEASE,
-            target_bits = 64,
-        ),
-    ),
-    try_settings = builder_config.try_settings(
-        retry_failed_shards = True,
-    ),
+    builderless = True,
+    os = os.WINDOWS_ANY,
 )
 
 blink_mac_builder(

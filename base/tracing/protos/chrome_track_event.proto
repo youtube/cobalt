@@ -46,10 +46,16 @@ message BlinkTaskScope {
 }
 
 message ChromeTaskAnnotator {
+  enum DelayPolicy {
+    FLEXIBLE_NO_SOONER = 0;
+    FLEXIBLE_PREFER_EARLY = 1;
+    PRECISE = 2;
+  }
   optional uint32 ipc_hash = 1;
   // The delay in microseconds that was specified, if any, when this task was
   // posted. This is only valid for delayed tasks.
   optional uint64 task_delay_us = 2;
+  optional DelayPolicy delay_policy = 3;
 }
 
 message ChromeBrowserContext {
@@ -512,6 +518,12 @@ message BrowsingContextState {
   // The ID of the BrowsingInstance that the BrowsingContextState belongs to.
   optional int32 browsing_instance_id = 1;
 
+  // The ID of the CoopRelatedGroup that the BrowsingContextState belongs to.
+  optional int32 coop_related_group_id = 2 [deprecated = true];
+
+  // The token of the CoopRelatedGroup that the BrowsingContextState belongs to.
+  optional string coop_related_group_token = 3;
+
   // Additional untyped debug information associated with this
   // FrameTreeNode, populated via TracedProto::AddDebugAnnotations API.
   repeated DebugAnnotation debug_annotations = 99;
@@ -644,6 +656,9 @@ message BackForwardCacheCanStoreDocumentResult {
     ACTIVATION_NAVIGATION_DISALLOWED_FOR_BUG_1234857 = 53;
     ERROR_DOCUMENT = 54;
     FENCED_FRAMES_EMBEDDER = 55;
+    COOKIE_DISABLED = 56;
+    HTTP_AUTH_REQUIRED = 57;
+    COOKIE_FLUSHED = 58;
   }
 
   optional BackForwardCacheNotRestoredReason
@@ -734,6 +749,8 @@ message RendererMainThreadTaskExecution {
     TASK_TYPE_INTERNAL_NAVIGATION_CANCELLATION = 80;
     TASK_TYPE_LOW_PRIORITY_SCRIPT_EXECUTION = 81;
     TASK_TYPE_STORAGE = 82;
+    TASK_TYPE_NETWORKING_UNFREEZABLE_IMAGE_LOADING = 83;
+    TASK_TYPE_MAIN_THREAD_TASK_QUEUE_V8_LOW_PRIORITY = 84;
   }
 
   enum FrameType {
@@ -781,11 +798,18 @@ message EventLatency {
     GESTURE_PINCH_END = 24;
     GESTURE_PINCH_UPDATE = 25;
     INERTIAL_GESTURE_SCROLL_UPDATE = 26;
+    MOUSE_MOVED_EVENT = 27;
   }
 
   optional EventType event_type = 1;
   optional bool has_high_latency = 2;
   repeated string high_latency_stage = 3;
+  // This is same as LatencyInfo's trace_id, using the name event_latency_id to
+  // move away from the generic trace_id name used at other places as well.
+  optional int64 event_latency_id = 4;
+  // This is set only for scroll updates and is based on the
+  // Event.ScrollJank.DelayedFramesPercentage.FixedWindow metric.
+  optional bool is_janky_scrolled_frame = 5;
 }
 
 message ProcessSingleton {
@@ -863,6 +887,7 @@ message SequenceManagerTask {
     HIGH_PRIORITY_CONTINUATION = 8;
     NORMAL_PRIORITY_CONTINUATION = 9;
     LOW_PRIORITY_CONTINUATION = 10;
+    EXTREMELY_HIGH_PRIORITY = 11;
   }
 
   enum QueueName {
@@ -926,6 +951,11 @@ message SequenceManagerTask {
 
     UI_USER_BLOCKING_DEFERRABLE_TQ = 52;
     IO_USER_BLOCKING_DEFERRABLE_TQ = 53;
+
+    UI_BEFORE_UNLOAD_BROWSER_RESPONSE_TQ = 54;
+    IO_BEFORE_UNLOAD_BROWSER_RESPONSE_TQ = 55;
+
+    V8_LOW_PRIORITY_TQ = 56;
   }
 
   optional Priority priority = 1;
@@ -947,6 +977,7 @@ message AndroidToolbar {
     BLOCKED_TAB_SWITCHER_MODE = 10;
     BLOCKED_COMPOSITOR_IN_MOTION = 11;
     BLOCKED_NTP_Y_TRANSLATION = 12;
+    BLOCKED_FULLSCREEN = 13;
   }
   enum AllowCaptureReason {
     ALLOWED_UNKNOWN = 0;
@@ -1094,8 +1125,9 @@ message BlinkHighEntropyAPI {
     optional string identifier = 1;
     repeated JSFunctionArgument func_arguments = 2;
 
-    // Deprecated in favour of outer source_location.
-    optional BlinkSourceLocation source_location = 3;
+    // Deprecated in favour of outer source_location. Not filled anymore in
+    // newer versions of chrome.
+    optional BlinkSourceLocation source_location = 3 [deprecated = true];
   }
   optional BlinkExecutionContext execution_context = 1;
   optional CalledJsApi called_api = 2;
@@ -1194,9 +1226,237 @@ message ScrollDeltas {
   repeated float segregated_predicted_deltas_in_gpu_frame_y = 14;
 }
 
+// Debug information for system layer of audio rendering on Windows.
+message WinRenderAudioFromSource {
+  // Buffer size used by the platform.
+  optional uint32 iaudioclient_buffer_size_frames = 1;
+  // Number of available frames in the platform buffer.
+  optional uint32 iaudioclient_buffer_unfilled_frames = 2;
+  // Number of frames requested from the audio stream client.
+  optional uint32 packet_size_frames = 3;
+  // Total number of frames requested from the client and written to the
+  // platform buffer during the stream lifetime.
+  optional uint64 num_written_frames = 4;
+  // Total number of frames played by the platform during the stream lifetime.
+  optional uint64 num_played_out_frames = 5;
+  // Device frequency reported by the platform; used to convert the stream
+  // position to frames.
+  optional uint64 iaudioclock_device_frequency = 6;
+  // Stream position reported by the platform.
+  optional uint64 iaudioclock_stream_position = 7;
+  // Performance counter position reported by the platform.
+  optional uint64 iaudioclock_qpc_position = 8;
+  // Stream position increase since the last call, converted to milliseconds.
+  optional int64 iaudioclock_stream_position_increase_ms = 9;
+  // Performance counter position since the last call, converted to
+  // milliseconds.
+  optional int64 iaudioclock_qpc_position_increase_ms = 10;
+  // Estimated playout delay, milliseconds.
+  optional int64 playout_delay_ms = 11;
+};
+
+// Debug information for system layer of audio rendering on Mac.
+message MacAUHALStream {
+  // The number of frames that the stream requests from the audio source.
+  optional int32 input_buffer_size = 1;
+  // The number of frames that the OS requests for playout.
+  optional uint32 output_buffer_size = 2;
+  // Sample rate of the stream.
+  optional int32 sample_rate = 3;
+  // The time that the audio requested by the OS is expected to play out.
+  optional int64 os_request_playout_timeticks_us = 4;
+  // Total number of frames requested from the audio source.
+  optional int32 source_request_frames = 5;
+  // The delay between the request for audio from the source and when the audio
+  // is expected to be played out.
+  optional int64 source_request_playout_delay_us = 6;
+  // The time when the audio that is requested from the source is expected to
+  // play out.
+  optional int64 source_request_playout_timeticks_us = 7;
+  // The time when audio audio is requested from the source.
+  optional int64 source_request_current_timeticks_us = 8;
+  // The audio playout latency that comes from hardware, in milliseconds.
+  optional int64 hardware_latency_us = 9;
+  // Whether the kAudioTimeStampHostTimeValid is set on the output
+  // AudioTimeStamp.
+  optional bool audiotimestamp_host_time_valid = 10;
+  // The playout time based on the machine time from AudioTimeStamp.
+  optional int64 audiotimestamp_mach_timeticks_us = 11;
+  // The time that the audio requested by the os is expected to be consumed by
+  // the hardware. Measured in frames since the start of playout.
+  optional double audiotimestamp_sample_time_frames = 12;
+  // The time that the previous audio requested by the os was expected to be
+  // consumed by the hardware. Measured in frames since the start of playout.
+  optional double audiotimestamp_last_sample_time_frames = 13;
+  // The duration of audio that was estimated to be lost in the case of a
+  // glitch.
+  optional int64 lost_audio_duration_us = 14;
+};
+
+// Debug information for system layer of audio rendering using ALSA on Linux.
+message LinuxAlsaOutput {
+  // The delay between the request for audio from the source and when the audio
+  // is expected to be played out.
+  optional int64 source_request_playout_delay_us = 1;
+  // The number of bytes that are already present in the buffer on a call to
+  // BufferPacket.
+  optional int32 forward_bytes = 2;
+  // Sample rate of the stream.
+  optional int32 sample_rate = 3;
+  // Delay obtained by the OS in frames.
+  optional int32 getcurrentdelay_pcm_delay_frames = 4;
+  // The number of frames in ALSA's buffer.
+  optional int32 getcurrentdelay_alsa_buffer_frames = 5;
+  // The number of frames that can be written to in ALSA's buffer.
+  optional int32 getcurrentdelay_available_frames = 6;
+  // The final delay that GetCurrentDelay arrives on, in frames.
+  optional int32 getcurrentdelay_final_delay_frames = 7;
+};
+
+// Debug information for system layer of audio rendering using Pulse on Linux.
+message LinuxPulseOutput {
+  // The delay between the request for audio from the source and when the audio
+  // is expected to be played out.
+  optional int64 source_request_playout_delay_us = 1;
+  // Sample rate of the stream.
+  optional int32 sample_rate = 2;
+  // The number of frames that the stream requests from the audio source.
+  optional int32 input_buffer_size_frames = 3;
+  // The number of bytes that the OS requests.
+  optional uint32 stream_request_bytes = 4;
+  // The number of bytes in a single frame.
+  optional uint32 frame_size_bytes = 5;
+};
+
+// Debug information for system layer of audio rendering on ChromeOS.
+message CrasUnified {
+  // The total duration of silence due to missing samples during the stream.
+  optional int64 underrun_duration_us = 1;
+  // Previous underrun duration, used for calculating the length of silence
+  // since the last callback.
+  optional int64 last_underrun_duration_us = 2;
+  // Difference in total underrun duration since the last callback. Logged only
+  // when positive, which is when a glitch occurs.
+  optional int64 underrun_glitch_duration_us = 3;
+  // OS playout latency reported by cras.
+  optional int64 latency_us = 4;
+  // The number of frames that the stream requests from the audio source.
+  optional int32 requested_frames = 5;
+  // The number of frames that the source provided.
+  optional uint32 filled_frames = 6;
+  // Sample rate of the stream.
+  optional int32 sample_rate = 7;
+};
+
+message ChromeUnguessableToken {
+  optional uint64 low_token = 1;
+  optional uint64 high_token = 2;
+}
+
+message FrameSinkId {
+  optional uint32 frame_sink_client_id = 1;
+  optional uint32 frame_sink_id = 2;
+}
+
+message LocalSurfaceId {
+  optional uint32 parent_sequence_number = 1;
+  optional uint32 child_sequence_number = 2;
+  optional ChromeUnguessableToken unguessable_token = 3;
+}
+
+message ChromeGraphicsPipeline {
+  enum StepName {
+    STEP_UNKNOWN = 0;
+    STEP_DID_NOT_PRODUCE_FRAME = 1;
+    STEP_GENERATE_COMPOSITOR_FRAME = 2;
+    STEP_GENERATE_RENDER_PASS = 3;
+    STEP_ISSUE_BEGIN_FRAME = 4;
+    STEP_RECEIVE_COMPOSITOR_FRAME = 5;
+    STEP_RECEIVE_BEGIN_FRAME = 6;
+    STEP_RECEIVE_BEGIN_FRAME_DISCARD = 7;
+    STEP_SEND_BEGIN_MAIN_FRAME = 8;
+    STEP_SUBMIT_COMPOSITOR_FRAME = 9;
+    STEP_SURFACE_AGGREGATION = 10;
+    STEP_SEND_BUFFER_SWAP = 11;
+    STEP_BUFFER_SWAP_POST_SUBMIT = 12;
+    STEP_FINISH_BUFFER_SWAP = 13;
+    STEP_SWAP_BUFFERS_ACK = 14;
+  }
+  enum FrameSkippedReason {
+    SKIPPED_REASON_UNKNOWN = 0;
+    SKIPPED_REASON_RECOVER_LATENCY = 1;
+    SKIPPED_REASON_NO_DAMAGE = 2;
+    SKIPPED_REASON_WAITING_ON_MAIN = 3;
+    SKIPPED_REASON_DRAW_THROTTLED = 4;
+  }
+  optional StepName step = 1;
+  optional FrameSinkId frame_sink_id = 2;
+  optional int64 display_trace_id = 3;
+  optional LocalSurfaceId local_surface_id = 4;
+  optional int64 frame_sequence = 5;
+  optional FrameSkippedReason frame_skipped_reason = 6;
+};
+
+message LibunwindstackUnwinder {
+  // The enum is a copy of ErrorCode enum inside third_party/libunwindstack,
+  // ideally this should be in sync with that.
+  enum ErrorCode {
+    ERROR_NONE = 0;            // No error.
+    ERROR_MEMORY_INVALID = 1;  // Memory read failed.
+    ERROR_UNWIND_INFO = 2;     // Unable to use unwind information to unwind.
+    ERROR_UNSUPPORTED = 3;     // Encountered unsupported feature.
+    ERROR_INVALID_MAP = 4;     // Unwind in an invalid map.
+    ERROR_MAX_FRAMES_EXCEEDED = 5;  // The number of frames exceed the total
+                                    // allowed.
+    ERROR_REPEATED_FRAME = 6;  // The last frame has the same pc/sp as the next.
+    ERROR_INVALID_ELF = 7;     // Unwind in an invalid elf.
+    ERROR_THREAD_DOES_NOT_EXIST = 8;  // Attempt to unwind a local thread that
+                                      // does not exist.
+    ERROR_THREAD_TIMEOUT = 9;  // Timeout trying to unwind a local thread.
+    ERROR_SYSTEM_CALL = 10;    // System call failed while unwinding.
+    ERROR_BAD_ARCH = 11;       // Arch invalid (none, or mismatched).
+    ERROR_MAPS_PARSE = 12;     // Failed to parse maps data.
+    ERROR_INVALID_PARAMETER_LIBUNWINDSTACK =
+        13;                  // Invalid parameter passed to function.
+    ERROR_PTRACE_CALL = 14;  // Ptrace call failed while unwinding.
+  }
+  optional ErrorCode error_code = 1;
+  optional int32 num_frames = 2;
+};
+
+message ScrollPredictorMetrics {
+  message EventFrameValue {
+    optional int64 event_trace_id = 1;
+    // The fractional pixels (can be fractional after the predictor adjusts in
+    // resampling of input) that the page was scrolled by this frame.
+    optional float delta_value_pixels = 2;
+  };
+  // Data from the previous, current, and next frame used to determine the
+  // values below as according to the metric doc:
+  // http://doc/1Y0u0Tq5eUZff75nYUzQVw6JxmbZAW9m64pJidmnGWsY.
+  optional EventFrameValue prev_event_frame_value = 1;
+  optional EventFrameValue cur_event_frame_value = 2;
+  optional EventFrameValue next_event_frame_value = 3;
+  // This is the amount of delta processed in this frame that was above the
+  // janky threshold (as defined by
+  // http://doc/1Y0u0Tq5eUZff75nYUzQVw6JxmbZAW9m64pJidmnGWsY)
+  optional float janky_value_pixels = 4;
+  // True if we are also missing frames (so multiple frames are being presented
+  // at once).
+  optional bool has_missed_vsyncs = 5;
+  // True if we're moving less than the slow scroll threshold as defined by the
+  // doc above.
+  optional bool is_slow_scroll = 6;
+};
+
+message PageLoad {
+  optional int64 navigation_id = 1;
+  optional string url = 2;
+}
+
 message ChromeTrackEvent {
   // Extension range for Chrome: 1000-1999
-  // Next ID: 1048
+  // Next ID: 1057
   extend TrackEvent {
     optional ChromeAppState chrome_app_state = 1000;
 
@@ -1298,5 +1558,23 @@ message ChromeTrackEvent {
     optional TabSwitchMeasurement tab_switch_measurement = 1046;
 
     optional ScrollDeltas scroll_deltas = 1047;
+
+    optional WinRenderAudioFromSource win_render_audio_from_source = 1048;
+
+    optional MacAUHALStream mac_auhal_stream = 1049;
+
+    optional LinuxAlsaOutput linux_alsa_output = 1050;
+
+    optional LinuxPulseOutput linux_pulse_output = 1051;
+
+    optional ChromeGraphicsPipeline chrome_graphics_pipeline = 1052;
+
+    optional CrasUnified chromeos_cras_unified = 1053;
+
+    optional LibunwindstackUnwinder libunwindstack_unwinder = 1054;
+
+    optional ScrollPredictorMetrics scroll_predictor_metrics = 1055;
+
+    optional PageLoad page_load = 1056;
   }
 }

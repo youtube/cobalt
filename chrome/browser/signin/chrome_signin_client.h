@@ -11,29 +11,24 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
-#include "base/memory/weak_ptr.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
 #include "components/signin/public/base/signin_client.h"
+#include "extensions/buildflags/buildflags.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
-#include "services/network/public/mojom/network_change_manager.mojom-forward.h"
 
-#if !BUILDFLAG(IS_CHROMEOS_ASH)
-#include "services/network/public/cpp/network_connection_tracker.h"
-#endif
+class WaitForNetworkCallbackHelper;
 
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS_ASH)
 class ForceSigninVerifier;
 #endif
 class Profile;
 
-class ChromeSigninClient
-    : public SigninClient
-#if !BUILDFLAG(IS_CHROMEOS_ASH)
-    ,
-      public network::NetworkConnectionTracker::NetworkConnectionObserver
-#endif
-{
+namespace version_info {
+enum class Channel;
+}
+
+class ChromeSigninClient : public SigninClient {
  public:
   explicit ChromeSigninClient(Profile* profile);
 
@@ -81,12 +76,11 @@ class ChromeSigninClient
   std::unique_ptr<GaiaAuthFetcher> CreateGaiaAuthFetcher(
       GaiaAuthConsumer* consumer,
       gaia::GaiaSource source) override;
-
-#if !BUILDFLAG(IS_CHROMEOS_ASH)
-  // network::NetworkConnectionTracker::NetworkConnectionObserver
-  // implementation.
-  void OnConnectionChanged(network::mojom::ConnectionType type) override;
-#endif
+  version_info::Channel GetClientChannel() override;
+  void OnPrimaryAccountChangedWithEventSource(
+      signin::PrimaryAccountChangeEvent event_details,
+      absl::variant<signin_metrics::AccessPoint, signin_metrics::ProfileSignout>
+          event_source) override;
 
 #if BUILDFLAG(IS_CHROMEOS_LACROS)
   absl::optional<account_manager::Account> GetInitialPrimaryAccount() override;
@@ -116,18 +110,33 @@ class ChromeSigninClient
   void VerifySyncToken();
   void OnCloseBrowsersSuccess(
       const signin_metrics::ProfileSignout signout_source_metric,
+      bool should_sign_out,
       bool has_sync_account,
       const base::FilePath& profile_path);
   void OnCloseBrowsersAborted(const base::FilePath& profile_path);
 
-  raw_ptr<Profile> profile_;
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS_ASH)
+  // Used as the `on_token_fetch_complete` callback in the
+  // `ForceSigninVerifier`.
+  void OnTokenFetchComplete(bool token_is_valid);
+#endif
+
+  // virtual for unit testing: cut down dependency on `BookmarkModel`.
+  // The following two functions will return `absl::nullopt` if the
+  // `BookmarkModel` is nullptr.
+  virtual absl::optional<size_t> GetAllBookmarksCount();
+  virtual absl::optional<size_t> GetBookmarkBarBookmarksCount();
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+  // Returns `absl::nullopt` if the `ExtensionRegistry` is nullptr.
+  virtual absl::optional<size_t> GetExtensionsCount();
+#endif
+
+  const std::unique_ptr<WaitForNetworkCallbackHelper>
+      wait_for_network_callback_helper_;
+  raw_ptr<Profile, DanglingUntriaged> profile_;
 
   // Stored callback from PreSignOut();
   base::OnceCallback<void(SignoutDecision)> on_signout_decision_reached_;
-
-#if !BUILDFLAG(IS_CHROMEOS_ASH)
-  std::list<base::OnceClosure> delayed_callbacks_;
-#endif
 
   bool should_display_user_manager_ = true;
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS_ASH)
@@ -136,8 +145,6 @@ class ChromeSigninClient
 
   scoped_refptr<network::SharedURLLoaderFactory>
       url_loader_factory_for_testing_;
-
-  base::WeakPtrFactory<ChromeSigninClient> weak_ptr_factory_{this};
 };
 
 #endif  // CHROME_BROWSER_SIGNIN_CHROME_SIGNIN_CLIENT_H_

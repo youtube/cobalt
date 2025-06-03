@@ -26,10 +26,6 @@
 #import "ios/web/public/test/http_server/http_server.h"
 #import "ios/web/public/test/http_server/http_server_util.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 using base::test::ios::kWaitForActionTimeout;
 using chrome_test_util::ButtonWithAccessibilityLabelId;
 using chrome_test_util::OmniboxText;
@@ -41,16 +37,16 @@ using testing::ElementToDismissAlert;
 namespace {
 
 // Response shown on the page of `GetDestinationUrl`.
-const char kDestinationText[] = "bar!";
+constexpr char kDestinationText[] = "bar!";
 
 // Response shown on the page of `GetGenericUrl`.
-const char kGenericText[] = "A generic page";
+constexpr char kGenericText[] = "A generic page";
 
 // Label for the button in the form.
 NSString* kSubmitButtonLabel = @"submit";
 
 // Html form template with a submission button named "submit".
-const char* kFormHtmlTemplate =
+constexpr char kFormHtmlTemplate[] =
     "<form method='post' action='%s'> submit: "
     "<input value='textfield' id='textfield' type='text'></label>"
     "<input type='submit' value='submit' id='submit'>"
@@ -343,7 +339,7 @@ id<GREYMatcher> ResendPostButtonMatcher() {
   NSString* title =
       base::SysUTF16ToNSString(url_formatter::FormatUrl(destinationURL));
   id<GREYMatcher> historyItem =
-      chrome_test_util::ButtonWithAccessibilityLabel(title);
+      chrome_test_util::ContextMenuItemWithAccessibilityLabel(title);
   [[EarlGrey selectElementWithMatcher:historyItem]
       assertWithMatcher:grey_sufficientlyVisible()];
 

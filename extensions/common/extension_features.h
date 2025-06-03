@@ -34,7 +34,11 @@ namespace extensions_features {
 // NOTE(devlin): If there are consistently enough of these in flux, it might
 // make sense to have their own file.
 
+BASE_DECLARE_FEATURE(kApiReadingList);
 BASE_DECLARE_FEATURE(kApiRuntimeGetContexts);
+BASE_DECLARE_FEATURE(kApiSidePanelOpen);
+BASE_DECLARE_FEATURE(kApiUserScripts);
+BASE_DECLARE_FEATURE(kRestrictFileURLNavigation);
 
 ///////////////////////////////////////////////////////////////////////////////
 // Other Features
@@ -68,6 +72,8 @@ BASE_DECLARE_FEATURE(kExtensionsMenuAccessControlWithPermittedSites);
 
 BASE_DECLARE_FEATURE(kForceWebRequestProxyForTest);
 
+BASE_DECLARE_FEATURE(kLaunchWindowsNativeHostsDirectly);
+
 BASE_DECLARE_FEATURE(kNewExtensionFaviconHandling);
 
 BASE_DECLARE_FEATURE(kNewWebstoreDomain);
@@ -84,6 +90,8 @@ BASE_DECLARE_FEATURE(kStructuredCloningForMV3Messaging);
 
 BASE_DECLARE_FEATURE(kTelemetryExtensionPendingApprovalApi);
 
+BASE_DECLARE_FEATURE(kUsePerBrowserContextWebRequestEventRouter);
+
 BASE_DECLARE_FEATURE(kWebviewTagMPArchBehavior);
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -91,6 +99,14 @@ BASE_DECLARE_FEATURE(kWebviewTagMPArchBehavior);
 // Please don't just add your new feature down here.
 // See the guidance at the top of this file.
 ///////////////////////////////////////////////////////////////////////////////
+
+BASE_DECLARE_FEATURE(kExtensionsZipFileInstalledInProfileDir);
+
+BASE_DECLARE_FEATURE(kExtensionsServiceWorkerOptimizedEventDispatch);
+
+BASE_DECLARE_FEATURE(kNewWebstoreURL);
+
+BASE_DECLARE_FEATURE(kDeclarativeNetRequestSafeRuleLimits);
 
 }  // namespace extensions_features
 

@@ -88,7 +88,7 @@ void ManagedBookmarkService::BookmarkModelCreated(
   DCHECK(bookmark_model);
   DCHECK(!bookmark_model_);
   bookmark_model_ = bookmark_model;
-  bookmark_model_->AddObserver(this);
+  bookmark_model_observation_.Observe(bookmark_model_);
 
   managed_bookmarks_tracker_ = std::make_unique<ManagedBookmarksTracker>(
       bookmark_model_, prefs_, managed_domain_callback_);
@@ -121,12 +121,8 @@ bool ManagedBookmarkService::CanSetPermanentNodeTitle(
   return !IsDescendantOf(node, managed_node_);
 }
 
-bool ManagedBookmarkService::CanSyncNode(const BookmarkNode* node) {
-  return !IsDescendantOf(node, managed_node_);
-}
-
-bool ManagedBookmarkService::CanBeEditedByUser(const BookmarkNode* node) {
-  return !IsDescendantOf(node, managed_node_);
+bool ManagedBookmarkService::IsNodeManaged(const BookmarkNode* node) {
+  return IsDescendantOf(node, managed_node_);
 }
 
 void ManagedBookmarkService::Shutdown() {
@@ -151,8 +147,8 @@ void ManagedBookmarkService::BookmarkModelBeingDeleted(
 }
 
 void ManagedBookmarkService::Cleanup() {
+  bookmark_model_observation_.Reset();
   if (bookmark_model_) {
-    bookmark_model_->RemoveObserver(this);
     bookmark_model_ = nullptr;
   }
 

@@ -16,6 +16,9 @@ import android.os.SystemClock;
 
 import androidx.annotation.VisibleForTesting;
 
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.android_webview.AwBrowserProcess;
 import org.chromium.android_webview.common.AwSwitches;
 import org.chromium.android_webview.common.services.IVariationsSeedServer;
@@ -26,8 +29,6 @@ import org.chromium.android_webview.common.variations.VariationsServiceMetricsHe
 import org.chromium.android_webview.common.variations.VariationsUtils;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.Log;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.components.variations.LoadSeedResult;
 
@@ -155,6 +156,14 @@ public class VariationsSeedLoader {
         return true;
     }
 
+    public static void maybeRecordSeedFileTime(long seedFileTime) {
+        if (seedFileTime != 0) {
+            long freshnessMinutes =
+                    TimeUnit.MILLISECONDS.toMinutes(new Date().getTime() - seedFileTime);
+            recordAppSeedFreshness(freshnessMinutes);
+        }
+    }
+
     // Loads our local copy of the seed, if any, and then renames our local copy and/or requests a
     // new seed, if necessary.
     private class SeedLoadAndUpdateRunnable implements Runnable {
@@ -233,11 +242,7 @@ public class VariationsSeedLoader {
         public boolean get(long timeout, TimeUnit unit)
                 throws InterruptedException, ExecutionException, TimeoutException {
             boolean success = mLoadTask.get(timeout, unit);
-            if (mSeedFileTime != 0) {
-                long freshnessMinutes =
-                        TimeUnit.MILLISECONDS.toMinutes(getCurrentTimeMillis() - mSeedFileTime);
-                recordAppSeedFreshness(freshnessMinutes);
-            }
+            maybeRecordSeedFileTime(mSeedFileTime);
             return success;
         }
 

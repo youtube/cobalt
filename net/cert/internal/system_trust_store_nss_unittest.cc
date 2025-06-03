@@ -13,6 +13,7 @@
 #include "crypto/scoped_nss_types.h"
 #include "crypto/scoped_test_nss_db.h"
 #include "net/cert/internal/system_trust_store_nss.h"
+#include "net/cert/internal/trust_store_chrome.h"
 #include "net/cert/internal/trust_store_features.h"
 #include "net/cert/pki/cert_errors.h"
 #include "net/cert/pki/parsed_certificate.h"
@@ -104,14 +105,14 @@ TEST_F(SystemTrustStoreNSSTest, UserSlotRestrictionAllows) {
   ScopedLocalAnchorConstraintsEnforcementForTesting
       scoped_enforce_local_anchor_constraints(true);
   std::unique_ptr<SystemTrustStore> system_trust_store =
-      CreateSslSystemTrustStoreNSSWithUserSlotRestriction(
+      CreateSslSystemTrustStoreChromeRootWithUserSlotRestriction(
+          std::make_unique<TrustStoreChrome>(),
           crypto::ScopedPK11Slot(PK11_ReferenceSlot(test_nssdb_.slot())));
 
   ASSERT_NO_FATAL_FAILURE(ImportRootCertAsTrusted(test_nssdb_.slot()));
 
   CertificateTrust trust =
-      system_trust_store->GetTrustStore()->GetTrust(parsed_root_cert_.get(),
-                                                    /*debug_data=*/nullptr);
+      system_trust_store->GetTrustStore()->GetTrust(parsed_root_cert_.get());
   EXPECT_EQ(CertificateTrust::ForTrustAnchor()
                 .WithEnforceAnchorConstraints()
                 .WithEnforceAnchorExpiry()
@@ -124,14 +125,14 @@ TEST_F(SystemTrustStoreNSSTest,
   ScopedLocalAnchorConstraintsEnforcementForTesting
       scoped_enforce_local_anchor_constraints(false);
   std::unique_ptr<SystemTrustStore> system_trust_store =
-      CreateSslSystemTrustStoreNSSWithUserSlotRestriction(
+      CreateSslSystemTrustStoreChromeRootWithUserSlotRestriction(
+          std::make_unique<TrustStoreChrome>(),
           crypto::ScopedPK11Slot(PK11_ReferenceSlot(test_nssdb_.slot())));
 
   ASSERT_NO_FATAL_FAILURE(ImportRootCertAsTrusted(test_nssdb_.slot()));
 
   CertificateTrust trust =
-      system_trust_store->GetTrustStore()->GetTrust(parsed_root_cert_.get(),
-                                                    /*debug_data=*/nullptr);
+      system_trust_store->GetTrustStore()->GetTrust(parsed_root_cert_.get());
   EXPECT_EQ(CertificateTrust::ForTrustAnchor().ToDebugString(),
             trust.ToDebugString());
 }
@@ -141,14 +142,14 @@ TEST_F(SystemTrustStoreNSSTest,
 // specified to be trusted.
 TEST_F(SystemTrustStoreNSSTest, UserSlotRestrictionDisallows) {
   std::unique_ptr<SystemTrustStore> system_trust_store =
-      CreateSslSystemTrustStoreNSSWithUserSlotRestriction(
+      CreateSslSystemTrustStoreChromeRootWithUserSlotRestriction(
+          std::make_unique<TrustStoreChrome>(),
           crypto::ScopedPK11Slot(PK11_ReferenceSlot(test_nssdb_.slot())));
 
   ASSERT_NO_FATAL_FAILURE(ImportRootCertAsTrusted(other_test_nssdb_.slot()));
 
   CertificateTrust trust =
-      system_trust_store->GetTrustStore()->GetTrust(parsed_root_cert_.get(),
-                                                    /*debug_data=*/nullptr);
+      system_trust_store->GetTrustStore()->GetTrust(parsed_root_cert_.get());
   EXPECT_EQ(CertificateTrust::ForUnspecified().ToDebugString(),
             trust.ToDebugString());
 }
@@ -157,13 +158,13 @@ TEST_F(SystemTrustStoreNSSTest, UserSlotRestrictionDisallows) {
 // certificate stored on user slots.
 TEST_F(SystemTrustStoreNSSTest, NoUserSlots) {
   std::unique_ptr<SystemTrustStore> system_trust_store =
-      CreateSslSystemTrustStoreNSSWithUserSlotRestriction(nullptr);
+      CreateSslSystemTrustStoreChromeRootWithUserSlotRestriction(
+          std::make_unique<TrustStoreChrome>(), nullptr);
 
   ASSERT_NO_FATAL_FAILURE(ImportRootCertAsTrusted(test_nssdb_.slot()));
 
   CertificateTrust trust =
-      system_trust_store->GetTrustStore()->GetTrust(parsed_root_cert_.get(),
-                                                    /*debug_data=*/nullptr);
+      system_trust_store->GetTrustStore()->GetTrust(parsed_root_cert_.get());
   EXPECT_EQ(CertificateTrust::ForUnspecified().ToDebugString(),
             trust.ToDebugString());
 }

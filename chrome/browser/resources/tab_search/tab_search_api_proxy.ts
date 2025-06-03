@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {PageCallbackRouter, PageHandlerFactory, PageHandlerRemote, ProfileData, SwitchToTabInfo} from './tab_search.mojom-webui.js';
+import {PageCallbackRouter, PageHandlerFactory, PageHandlerRemote, ProfileData, SwitchToTabInfo, Tab, TabOrganizationSession} from './tab_search.mojom-webui.js';
 
 /**
  * These values are persisted to logs and should not be renumbered or re-used.
@@ -16,16 +16,30 @@ export enum RecentlyClosedItemOpenAction {
 export interface TabSearchApiProxy {
   closeTab(tabId: number): void;
 
+  acceptTabOrganization(
+      sessionId: number, organizationId: number, name: string,
+      tabs: Tab[]): void;
+
+  rejectTabOrganization(sessionId: number, organizationId: number): void;
+
   getProfileData(): Promise<{profileData: ProfileData}>;
+
+  getTabOrganizationSession(): Promise<{session: TabOrganizationSession}>;
 
   openRecentlyClosedEntry(
       id: number, withSearch: boolean, isTab: boolean, index: number): void;
+
+  requestTabOrganization(): void;
 
   switchToTab(info: SwitchToTabInfo): void;
 
   getCallbackRouter(): PageCallbackRouter;
 
   saveRecentlyClosedExpandedPref(expanded: boolean): void;
+
+  setTabIndex(index: number): void;
+
+  startTabGroupTutorial(): void;
 
   showUi(): void;
 }
@@ -45,8 +59,21 @@ export class TabSearchApiProxyImpl implements TabSearchApiProxy {
     this.handler.closeTab(tabId);
   }
 
+  acceptTabOrganization(
+      sessionId: number, organizationId: number, name: string, tabs: Tab[]) {
+    this.handler.acceptTabOrganization(sessionId, organizationId, name, tabs);
+  }
+
+  rejectTabOrganization(sessionId: number, organizationId: number) {
+    this.handler.rejectTabOrganization(sessionId, organizationId);
+  }
+
   getProfileData() {
     return this.handler.getProfileData();
+  }
+
+  getTabOrganizationSession() {
+    return this.handler.getTabOrganizationSession();
   }
 
   openRecentlyClosedEntry(
@@ -65,6 +92,10 @@ export class TabSearchApiProxyImpl implements TabSearchApiProxy {
     this.handler.openRecentlyClosedEntry(id);
   }
 
+  requestTabOrganization() {
+    this.handler.requestTabOrganization();
+  }
+
   switchToTab(info: SwitchToTabInfo) {
     this.handler.switchToTab(info);
   }
@@ -75,6 +106,14 @@ export class TabSearchApiProxyImpl implements TabSearchApiProxy {
 
   saveRecentlyClosedExpandedPref(expanded: boolean) {
     this.handler.saveRecentlyClosedExpandedPref(expanded);
+  }
+
+  setTabIndex(index: number) {
+    this.handler.setTabIndex(index);
+  }
+
+  startTabGroupTutorial() {
+    this.handler.startTabGroupTutorial();
   }
 
   showUi() {

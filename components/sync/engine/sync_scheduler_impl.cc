@@ -19,6 +19,7 @@
 #include "components/sync/base/features.h"
 #include "components/sync/base/model_type.h"
 #include "components/sync/engine/backoff_delay_provider.h"
+#include "components/sync/engine/sync_protocol_error.h"
 #include "components/sync/protocol/sync_enums.pb.h"
 
 using base::TimeTicks;
@@ -58,7 +59,6 @@ bool ShouldRequestEarlyExit(const SyncProtocolError& error) {
       return false;
     case NOT_MY_BIRTHDAY:
     case CLIENT_DATA_OBSOLETE:
-    case CLEAR_PENDING:
     case DISABLED_BY_ADMIN:
     case ENCRYPTION_OBSOLETE:
       // If we send terminate sync early then |sync_cycle_ended| notification
@@ -67,11 +67,13 @@ bool ShouldRequestEarlyExit(const SyncProtocolError& error) {
       // waiting forever. So assert we would send something.
       DCHECK_NE(error.action, UNKNOWN_ACTION);
       return true;
-    // Make UNKNOWN_ERROR a NOTREACHED. All the other error should be explicitly
-    // handled.
     case UNKNOWN_ERROR:
       // TODO(crbug.com/1081266): This NOTREACHED is questionable because the
       // sync server can cause it.
+      NOTREACHED();
+      return false;
+    case CONFLICT:
+    case INVALID_MESSAGE:
       NOTREACHED();
       return false;
   }
@@ -91,7 +93,8 @@ SyncSchedulerImpl::SyncSchedulerImpl(
     std::unique_ptr<BackoffDelayProvider> delay_provider,
     SyncCycleContext* context,
     std::unique_ptr<Syncer> syncer,
-    bool ignore_auth_credentials)
+    bool ignore_auth_credentials,
+    bool sync_poll_immediately_on_every_startup)
     : name_(name),
       started_(false),
       syncer_poll_interval_seconds_(context->poll_interval()),
@@ -100,7 +103,9 @@ SyncSchedulerImpl::SyncSchedulerImpl(
       syncer_(std::move(syncer)),
       cycle_context_(context),
       next_sync_cycle_job_priority_(NORMAL_PRIORITY),
-      ignore_auth_credentials_(ignore_auth_credentials) {}
+      ignore_auth_credentials_(ignore_auth_credentials),
+      sync_poll_immediately_on_every_startup_(
+          sync_poll_immediately_on_every_startup) {}
 
 SyncSchedulerImpl::~SyncSchedulerImpl() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
@@ -176,9 +181,11 @@ void SyncSchedulerImpl::Start(Mode mode, base::Time last_poll_time) {
     // actually have miss the real poll, unless the client is restarted.
     // Fixing that would require using an AlarmTimer though, which is only
     // supported on certain platforms.
+    // TODO(crbug.com/1448012): introduce a helper to deal with poll times.
     last_poll_reset_ =
         TimeTicks::Now() -
-        (now - ComputeLastPollOnStart(last_poll_time, GetPollInterval(), now));
+        (now - ComputeLastPollOnStart(last_poll_time, GetPollInterval(), now,
+                                      sync_poll_immediately_on_every_startup_));
   }
 
   if (old_mode != mode_ && mode_ == NORMAL_MODE) {
@@ -200,25 +207,26 @@ void SyncSchedulerImpl::Start(Mode mode, base::Time last_poll_time) {
 base::Time SyncSchedulerImpl::ComputeLastPollOnStart(
     base::Time last_poll,
     base::TimeDelta poll_interval,
-    base::Time now) {
-  if (base::FeatureList::IsEnabled(kSyncResetPollIntervalOnStart)) {
-    return now;
-  }
-  if (base::FeatureList::IsEnabled(kSyncPollImmediatelyOnEveryStartup)) {
+    base::Time now,
+    bool sync_poll_immediately_on_every_startup) {
+  if (sync_poll_immediately_on_every_startup) {
     // Hack: Pretend the last poll happened sufficiently long ago to trigger a
     // poll.
     return now - (poll_interval + base::Seconds(1));
   }
   // Handle immediate polls on start-up separately.
-  if (last_poll + poll_interval <= now) {
+  if (last_poll + poll_interval <= now &&
+      !base::FeatureList::IsEnabled(kSyncPollWithoutDelayOnStartup)) {
     // Doing polls on start-up is generally a risk as other bugs in Chrome
     // might cause start-ups -- potentially synchronized to a specific time.
     // (think about a system timer waking up Chrome).
     // To minimize that risk, we randomly delay polls on start-up to a max
     // of 1% of the poll interval. Assuming a poll rate of 4h, that's at
     // most 2.4 mins.
-    base::TimeDelta random_delay = base::RandDouble() * 0.01 * poll_interval;
-    return now - (poll_interval - random_delay);
+    return poll_interval.is_zero()
+               ? now
+               : (now - poll_interval +
+                  base::RandTimeDeltaUpTo(0.01 * poll_interval));
   }
   return last_poll;
 }

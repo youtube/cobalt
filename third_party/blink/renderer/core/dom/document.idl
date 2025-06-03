@@ -50,15 +50,15 @@ typedef (HTMLScriptElement or SVGScriptElement) HTMLOrSVGScriptElement;
     [Affects=Nothing] HTMLCollection getElementsByTagNameNS(DOMString? namespaceURI, DOMString localName);
     [Affects=Nothing] HTMLCollection getElementsByClassName(DOMString classNames);
 
-    [NewObject, DoNotTestNewObject, PerWorldBindings, RaisesException, ImplementedAs=CreateElementForBinding] Element createElement(DOMString localName);
-    [NewObject, DoNotTestNewObject, RaisesException] Element createElementNS(DOMString? namespaceURI, DOMString qualifiedName);
+    [NewObject, PerWorldBindings, RaisesException, ImplementedAs=CreateElementForBinding] Element createElement(DOMString localName);
+    [NewObject, RaisesException] Element createElementNS(DOMString? namespaceURI, DOMString qualifiedName);
     [NewObject] DocumentFragment createDocumentFragment();
     [NewObject] Text createTextNode(DOMString data);
     [NewObject, RaisesException] CDATASection createCDATASection(DOMString data);
     [NewObject] Comment createComment(DOMString data);
     [NewObject, RaisesException] ProcessingInstruction createProcessingInstruction(DOMString target, DOMString data);
 
-    [NewObject, DoNotTestNewObject, CEReactions, RaisesException] Node importNode(Node node, optional boolean deep = false);
+    [NewObject, CEReactions, RaisesException] Node importNode(Node node, optional boolean deep = false);
     [RaisesException, CEReactions] Node adoptNode(Node node);
 
     [NewObject, RaisesException, MeasureAs=DocumentCreateAttribute] Attr createAttribute(DOMString localName);
@@ -79,6 +79,9 @@ typedef (HTMLScriptElement or SVGScriptElement) HTMLOrSVGScriptElement;
 
     // HTML
     // https://html.spec.whatwg.org/C/#the-document-object
+
+    // https://github.com/whatwg/html/pull/9538
+    [RuntimeEnabled=HTMLUnsafeMethods,CallWith=ExecutionContext,MeasureAs=ParseHTMLUnsafe] static Document parseHTMLUnsafe(DOMString html);
 
     // resource metadata management
 
@@ -139,11 +142,11 @@ typedef (HTMLScriptElement or SVGScriptElement) HTMLOrSVGScriptElement;
     [Measure] readonly attribute HTMLCollection anchors;
     [Measure] readonly attribute HTMLCollection applets;
 
-    [CEReactions] attribute [TreatNullAs=EmptyString] DOMString fgColor;
-    [CEReactions] attribute [TreatNullAs=EmptyString] DOMString linkColor;
-    [CEReactions] attribute [TreatNullAs=EmptyString] DOMString vlinkColor;
-    [CEReactions] attribute [TreatNullAs=EmptyString] DOMString alinkColor;
-    [CEReactions] attribute [TreatNullAs=EmptyString] DOMString bgColor;
+    [CEReactions] attribute [LegacyNullToEmptyString] DOMString fgColor;
+    [CEReactions] attribute [LegacyNullToEmptyString] DOMString linkColor;
+    [CEReactions] attribute [LegacyNullToEmptyString] DOMString vlinkColor;
+    [CEReactions] attribute [LegacyNullToEmptyString] DOMString alinkColor;
+    [CEReactions] attribute [LegacyNullToEmptyString] DOMString bgColor;
 
     [MeasureAs=DocumentClear] void clear();
     [MeasureAs=DocumentCaptureEvents] void captureEvents();
@@ -207,6 +210,9 @@ typedef (HTMLScriptElement or SVGScriptElement) HTMLOrSVGScriptElement;
     // https://github.com/WICG/aom/blob/gh-pages/notification-api.md
     [RuntimeEnabled=ConfirmationOfAction] void ariaNotify(HTMLString announcement, optional AriaNotificationOptions options = {});
 
+    // The (experimental) DOM Parts API.
+    [RuntimeEnabled=DOMPartsAPI] DocumentPartRoot getPartRoot();
+
     // Event handler attributes
     attribute EventHandler onbeforecopy;
     attribute EventHandler onbeforecut;
@@ -216,6 +222,10 @@ typedef (HTMLScriptElement or SVGScriptElement) HTMLOrSVGScriptElement;
     attribute EventHandler onresume;
     attribute EventHandler onsearch;
     attribute EventHandler onvisibilitychange;
+
+    // Proposed setter for focus navigation starting point
+    // https://github.com/whatwg/html/issues/5326
+    [RuntimeEnabled=SetSequentialFocusStartingPoint, ImplementedAs=SetSequentialFocusNavigationStartingPoint] void setSequentialFocusStartingPoint(Element element);
 };
 
 Document includes GlobalEventHandlers;

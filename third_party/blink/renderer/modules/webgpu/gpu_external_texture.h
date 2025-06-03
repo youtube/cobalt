@@ -49,8 +49,7 @@ class ExternalTextureCache : public GarbageCollected<ExternalTextureCache> {
   ExternalTextureCache& operator=(const ExternalTextureCache&) = delete;
 
   // Implement importExternalTexture() auto expiry mechanism.
-  GPUExternalTexture* Import(ExecutionContext* execution_context,
-                             const GPUExternalTextureDescriptor* descriptor,
+  GPUExternalTexture* Import(const GPUExternalTextureDescriptor* descriptor,
                              ExceptionState& exception_state);
 
   // Destroy all cached GPUExternalTexture and clear all lists.
@@ -116,16 +115,10 @@ class GPUExternalTexture : public DawnObject<WGPUExternalTexture> {
   void Expire();
   void Refresh();
 
-  void ListenToHTMLVideoElement(HTMLVideoElement* video);
-  void ListenToVideoFrame(VideoFrame* frame);
+  void SetVideo(HTMLVideoElement* video);
 
-  // Check whether current VideoFrame is outdated informs
-  // ScriptAnimationController.
-  // Return true if current VideoFrame is latest and still need to trigger next
-  // check.
-  // Return false if current VideoFrame is outdated and the no need to trigger
-  // future checks.
-  bool ContinueCheckingCurrentVideoFrame();
+  // Returns true iff the video frame is still available
+  bool ListenToVideoFrame(VideoFrame* frame);
 
   // Check whether current VideoFrame is outdated from HTMLVideoElement. Pure
   // video playback might not trigger any script animation work. Check video

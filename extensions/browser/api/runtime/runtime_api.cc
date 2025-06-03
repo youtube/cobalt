@@ -379,7 +379,7 @@ RuntimeAPI::RestartAfterDelayStatus RuntimeAPI::RestartDeviceAfterDelay(
                                false);
     }
 
-    last_delayed_restart_time_ = base::Time::FromDoubleT(
+    last_delayed_restart_time_ = base::Time::FromSecondsSinceUnixEpoch(
         pref_service->GetDouble(kPrefLastRestartAfterDelayTime));
 
     if (!allow_non_kiosk_apps_restart_api_for_test) {
@@ -447,7 +447,7 @@ void RuntimeAPI::OnDelayedRestartTimerTimeout() {
   // unit tests).
   // This assumption is important, since once restart is requested, we might not
   // have enough time to persist the data to disk.
-  double now = base::Time::NowFromSystemTime().ToDoubleT();
+  double now = base::Time::NowFromSystemTime().InSecondsFSinceUnixEpoch();
   PrefService* pref_service =
       ExtensionsBrowserClient::Get()->GetPrefServiceForContext(
           browser_context_);
@@ -875,7 +875,6 @@ RuntimeGetContextsFunction::GetFrameContexts() {
       case mojom::ViewType::kBackgroundContents:
       case mojom::ViewType::kComponent:
       case mojom::ViewType::kExtensionBackgroundPage:
-      case mojom::ViewType::kExtensionDialog:
         NOTREACHED();
         break;
 
@@ -885,11 +884,16 @@ RuntimeGetContextsFunction::GetFrameContexts() {
         return api::runtime::ContextType::kTab;
       case mojom::ViewType::kOffscreenDocument:
         return api::runtime::ContextType::kOffscreenDocument;
-
       case mojom::ViewType::kExtensionSidePanel:
+        return api::runtime::ContextType::kSidePanel;
+
       case mojom::ViewType::kExtensionGuest:
         // Skip these view types for now.
         break;
+
+        // Adding a new mojom::ViewType? Consider whether it should be exposed
+        // to extension developers via `chrome.runtime.getContexts()` and, if
+        // so, add a new entry in the runtime API.
     }
 
     return api::runtime::ContextType::kNone;

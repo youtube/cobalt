@@ -16,7 +16,6 @@
 
 namespace content {
 class WebContents;
-class WebUIMessageHandler;
 }  // namespace content
 
 namespace gfx {
@@ -49,8 +48,6 @@ class DialogDelegate : public ui::WebDialogDelegate {
   GURL GetDialogContentURL() const override;
   void GetDialogSize(gfx::Size* size) const override;
   bool OnDialogCloseRequested() override;
-  void GetWebUIMessageHandlers(
-      std::vector<content::WebUIMessageHandler*>* handlers) const override;
   std::string GetDialogArgs() const override;
   // NOTE: This function deletes this object at the end.
   void OnDialogClosed(const std::string& json_retval) override;
@@ -68,7 +65,7 @@ class DialogDelegate : public ui::WebDialogDelegate {
 
   base::OnceClosure close_callback_;
 
-  gfx::NativeWindow native_window_ = nullptr;
+  gfx::NativeWindow native_window_ = gfx::NativeWindow();
 };
 
 }  // namespace login_screen_extension_ui

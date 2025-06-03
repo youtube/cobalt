@@ -107,7 +107,7 @@ bool AutoscrollController::SelectionAutoscrollInProgress() const {
 }
 
 bool AutoscrollController::AutoscrollInProgress() const {
-  return autoscroll_layout_object_;
+  return autoscroll_layout_object_ != nullptr;
 }
 
 bool AutoscrollController::AutoscrollInProgressFor(
@@ -260,9 +260,9 @@ void AutoscrollController::HandleMouseMoveForMiddleClickAutoscroll(
       vertical_autoscroll_layout_box_ &&
       vertical_autoscroll_layout_box_->GetNode();
   if (horizontal_autoscroll_possible &&
-      !horizontal_autoscroll_layout_box_->CanBeScrolledAndHasScrollableArea() &&
+      !horizontal_autoscroll_layout_box_->IsUserScrollable() &&
       vertical_autoscroll_possible &&
-      !vertical_autoscroll_layout_box_->CanBeScrolledAndHasScrollableArea()) {
+      !vertical_autoscroll_layout_box_->IsUserScrollable()) {
     StopMiddleClickAutoscroll(frame);
     return;
   }

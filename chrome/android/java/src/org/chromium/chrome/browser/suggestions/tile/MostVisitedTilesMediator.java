@@ -6,8 +6,12 @@ package org.chromium.chrome.browser.suggestions.tile;
 
 import static org.chromium.chrome.browser.suggestions.tile.MostVisitedTilesProperties.HORIZONTAL_EDGE_PADDINGS;
 import static org.chromium.chrome.browser.suggestions.tile.MostVisitedTilesProperties.HORIZONTAL_INTERVAL_PADDINGS;
+import static org.chromium.chrome.browser.suggestions.tile.MostVisitedTilesProperties.IS_CONTAINER_VISIBLE;
 import static org.chromium.chrome.browser.suggestions.tile.MostVisitedTilesProperties.IS_MVT_LAYOUT_VISIBLE;
+import static org.chromium.chrome.browser.suggestions.tile.MostVisitedTilesProperties.IS_NTP_AS_HOME_SURFACE_ON_TABLET;
+import static org.chromium.chrome.browser.suggestions.tile.MostVisitedTilesProperties.IS_SURFACE_POLISH_ENABLED;
 import static org.chromium.chrome.browser.suggestions.tile.MostVisitedTilesProperties.PLACEHOLDER_VIEW;
+import static org.chromium.chrome.browser.suggestions.tile.MostVisitedTilesProperties.UPDATE_INTERVAL_PADDINGS_TABLET;
 
 import android.content.res.Configuration;
 import android.content.res.Resources;
@@ -18,6 +22,7 @@ import androidx.annotation.Nullable;
 
 import org.chromium.base.Log;
 import org.chromium.chrome.R;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.native_page.ContextMenuManager;
 import org.chromium.chrome.browser.offlinepages.OfflinePageBridge;
 import org.chromium.chrome.browser.profiles.Profile;
@@ -43,7 +48,7 @@ public class MostVisitedTilesMediator implements TileGroup.Observer, TemplateUrl
     private static final String TAG = "TopSites";
 
     // There's a limit of 12 in {@link MostVisitedSitesBridge#setObserver}.
-    private static final int MAX_RESULTS = 12;
+    static final int MAX_RESULTS = 12;
 
     private final Resources mResources;
     private final UiConfig mUiConfig;
@@ -52,6 +57,8 @@ public class MostVisitedTilesMediator implements TileGroup.Observer, TemplateUrl
     private final PropertyModel mModel;
     private final boolean mIsScrollableMVTEnabled;
     private final boolean mIsTablet;
+    private final boolean mIsNtpAsHomeSurfaceOnTablet;
+    private final boolean mIsSurfacePolishEnabled;
     private final int mTileViewLandscapePadding;
     private final int mTileViewPortraitEdgePadding;
     private final Runnable mSnapshotTileGridChangedRunnable;
@@ -64,11 +71,15 @@ public class MostVisitedTilesMediator implements TileGroup.Observer, TemplateUrl
     private boolean mSearchProviderHasLogo = true;
     private TemplateUrlService mTemplateUrlService;
 
+    private int mTileCarouselLayoutLateralMarginSumForPolish;
+    private final int mTileViewEdgePaddingForTabletPolish;
+    private int mTileViewIntervalPaddingForTabletPolish;
+
     public MostVisitedTilesMediator(Resources resources, UiConfig uiConfig, ViewGroup mvTilesLayout,
             ViewStub noMvPlaceholderStub, TileRenderer renderer, PropertyModel propertyModel,
             boolean shouldShowSkeletonUIPreNative, boolean isScrollableMVTEnabled, boolean isTablet,
             @Nullable Runnable snapshotTileGridChangedRunnable,
-            @Nullable Runnable tileCountChangedRunnable) {
+            @Nullable Runnable tileCountChangedRunnable, boolean isNtpAsHomeSurfaceEnabled) {
         mResources = resources;
         mUiConfig = uiConfig;
         mRenderer = renderer;
@@ -79,15 +90,29 @@ public class MostVisitedTilesMediator implements TileGroup.Observer, TemplateUrl
         mTileCountChangedRunnable = tileCountChangedRunnable;
         mMvTilesLayout = mvTilesLayout;
         mNoMvPlaceholderStub = noMvPlaceholderStub;
+        mIsSurfacePolishEnabled = ChromeFeatureList.sSurfacePolish.isEnabled();
 
         mTileViewLandscapePadding =
                 mResources.getDimensionPixelSize(R.dimen.tile_view_padding_landscape);
         mTileViewPortraitEdgePadding =
                 mResources.getDimensionPixelSize(R.dimen.tile_view_padding_edge_portrait);
+        mTileCarouselLayoutLateralMarginSumForPolish =
+                mResources.getDimensionPixelSize(R.dimen.mvt_container_lateral_margin_polish) * 2;
+
+        mTileViewEdgePaddingForTabletPolish =
+                mResources.getDimensionPixelSize(R.dimen.tile_view_padding_edge_tablet_polish);
+        mTileViewIntervalPaddingForTabletPolish =
+                mResources.getDimensionPixelSize(R.dimen.tile_view_padding_interval_tablet_polish);
 
         maybeSetPortraitIntervalPaddingsForCarousel();
 
         if (shouldShowSkeletonUIPreNative) maybeShowMvTilesPreNative();
+
+        mIsNtpAsHomeSurfaceOnTablet = isNtpAsHomeSurfaceEnabled && mIsTablet;
+        mModel.set(IS_NTP_AS_HOME_SURFACE_ON_TABLET, mIsNtpAsHomeSurfaceOnTablet);
+        if (mIsScrollableMVTEnabled) {
+            mModel.set(IS_SURFACE_POLISH_ENABLED, mIsSurfacePolishEnabled);
+        }
     }
 
     /**
@@ -135,6 +160,10 @@ public class MostVisitedTilesMediator implements TileGroup.Observer, TemplateUrl
     public void onTileCountChanged() {
         if (mTileCountChangedRunnable != null) mTileCountChangedRunnable.run();
         updateTilePlaceholderVisibility();
+
+        if (mIsSurfacePolishEnabled) {
+            mModel.set(IS_CONTAINER_VISIBLE, !mTileGroup.isEmpty());
+        }
     }
 
     @Override
@@ -224,6 +253,9 @@ public class MostVisitedTilesMediator implements TileGroup.Observer, TemplateUrl
         } else {
             boolean isSmallDevice = mUiConfig.getCurrentDisplayStyle().isSmall();
             int screenWidth = mResources.getDisplayMetrics().widthPixels;
+            if (mIsSurfacePolishEnabled) {
+                screenWidth -= mTileCarouselLayoutLateralMarginSumForPolish;
+            }
             int tileViewWidth = mResources.getDimensionPixelOffset(
                     isSmallDevice ? R.dimen.tile_view_width_condensed : R.dimen.tile_view_width);
             // We want to show four and a half tile view to make users know the MV tiles are
@@ -239,6 +271,20 @@ public class MostVisitedTilesMediator implements TileGroup.Observer, TemplateUrl
         // If it's gird layout (mIsScrollableMVTEnabled is false), the paddings are handled in
         // {@link MostVisitedTilesGridLayout}
         if (!mIsScrollableMVTEnabled || mMvTilesLayout.getChildCount() < 1) return;
+
+        if (mIsNtpAsHomeSurfaceOnTablet && !mIsSurfacePolishEnabled) {
+            mModel.set(HORIZONTAL_EDGE_PADDINGS, 0);
+            mModel.set(UPDATE_INTERVAL_PADDINGS_TABLET,
+                    mResources.getConfiguration().orientation
+                            == Configuration.ORIENTATION_LANDSCAPE);
+            return;
+        }
+
+        if (mIsNtpAsHomeSurfaceOnTablet && mIsSurfacePolishEnabled) {
+            mModel.set(HORIZONTAL_EDGE_PADDINGS, mTileViewEdgePaddingForTabletPolish);
+            mModel.set(HORIZONTAL_INTERVAL_PADDINGS, mTileViewIntervalPaddingForTabletPolish);
+            return;
+        }
 
         if (mResources.getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE) {
             mModel.set(HORIZONTAL_EDGE_PADDINGS, mTileViewLandscapePadding);

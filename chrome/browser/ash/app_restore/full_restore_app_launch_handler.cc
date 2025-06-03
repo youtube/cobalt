@@ -53,6 +53,8 @@ constexpr char kSessionRestoreExitResultPrefix[] =
     "Apps.SessionRestoreExitResult";
 constexpr char kSessionRestoreWindowCountPrefix[] =
     "Apps.SessionRestoreWindowCount";
+constexpr char kFullRestoreTabCountPrefix[] = "Apps.FullRestoreTabCount";
+constexpr char kFullRestoreWindowCountPrefix[] = "Apps.FullRestoreWindowCount";
 
 }  // namespace
 
@@ -85,7 +87,7 @@ void FullRestoreAppLaunchHandler::LaunchBrowserWhenReady(
             profile())) {
       auto* cache = &apps::AppServiceProxyFactory::GetForProfile(profile())
                          ->AppRegistryCache();
-      Observe(cache);
+      ObserveCache(cache);
 
       for (const auto app_type : cache->InitializedAppTypes()) {
         OnAppTypeInitialized(app_type);
@@ -103,11 +105,13 @@ void FullRestoreAppLaunchHandler::LaunchBrowserWhenReady(
 
     // OS Setting should be launched after browser to have OS setting window in
     // front.
-    UserSessionManager::GetInstance()->MaybeLaunchSettings(profile());
+    UserSessionManager::GetInstance()->PerformPostBrowserLaunchOOBEActions(
+        profile());
     return;
   }
 
-  UserSessionManager::GetInstance()->MaybeLaunchSettings(profile());
+  UserSessionManager::GetInstance()->PerformPostBrowserLaunchOOBEActions(
+      profile());
 
   // If the restore data hasn't been loaded, or the user hasn't chosen to
   // restore, set `should_launch_browser_` as true, and wait the restore data
@@ -186,7 +190,8 @@ void FullRestoreAppLaunchHandler::OnStateChanged() {
 void FullRestoreAppLaunchHandler::ForceLaunchBrowserForTesting() {
   ::full_restore::AddChromeBrowserLaunchInfoForTesting(profile()->GetPath());
   UserSessionManager::GetInstance()->LaunchBrowser(profile());
-  UserSessionManager::GetInstance()->MaybeLaunchSettings(profile());
+  UserSessionManager::GetInstance()->PerformPostBrowserLaunchOOBEActions(
+      profile());
 }
 
 void FullRestoreAppLaunchHandler::OnExtensionLaunching(
@@ -238,6 +243,10 @@ void FullRestoreAppLaunchHandler::MaybeRestore() {
       profile()->GetPath());
   ::full_restore::FullRestoreReadHandler::GetInstance()->SetCheckRestoreData(
       profile()->GetPath());
+
+  auto [window_count, tab_count, total_count] =
+      ::app_restore::GetWindowAndTabCount(*restore_data());
+  base::UmaHistogramCounts100(kFullRestoreWindowCountPrefix, window_count);
 
   if (should_launch_browser_ && CanLaunchBrowser()) {
     LaunchBrowser();
@@ -337,7 +346,8 @@ void FullRestoreAppLaunchHandler::LaunchBrowserForFirstRunFullRestore() {
                                    SessionRestore::RESTORE_APPS, startup_tabs);
   }
 
-  UserSessionManager::GetInstance()->MaybeLaunchSettings(profile());
+  UserSessionManager::GetInstance()->PerformPostBrowserLaunchOOBEActions(
+      profile());
 }
 
 void FullRestoreAppLaunchHandler::MaybeRestoreLacros() {
@@ -397,6 +407,7 @@ void FullRestoreAppLaunchHandler::RecordLaunchBrowserResult() {
   VLOG(1) << "Browser is restored (windows=" << window_count
           << " tabs=" << tab_count << ").";
   base::UmaHistogramEnumeration(kRestoreBrowserResultHistogramPrefix, result);
+  base::UmaHistogramCounts100(kFullRestoreTabCountPrefix, tab_count);
 
   if (result != RestoreTabResult::kNoTabs)
     return;

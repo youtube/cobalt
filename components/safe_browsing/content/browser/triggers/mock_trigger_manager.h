@@ -42,13 +42,16 @@ class MockTriggerManager : public TriggerManager {
            const SBErrorOptions& error_display_options,
            TriggerManagerReason* out_reason));
 
-  MOCK_METHOD6(FinishCollectingThreatDetails,
-               bool(TriggerType trigger_type,
-                    WebContentsKey web_contents_key,
-                    const base::TimeDelta& delay,
-                    bool did_proceed,
-                    int num_visits,
-                    const SBErrorOptions& error_display_options));
+  MOCK_METHOD8(FinishCollectingThreatDetails,
+               FinishCollectingThreatDetailsResult(
+                   TriggerType trigger_type,
+                   WebContentsKey web_contents_key,
+                   const base::TimeDelta& delay,
+                   bool did_proceed,
+                   int num_visits,
+                   const SBErrorOptions& error_display_options,
+                   absl::optional<int64_t> warning_shown_ts,
+                   bool is_hats_candidate));
 };
 
 }  // namespace safe_browsing

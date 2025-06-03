@@ -17,6 +17,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/scoped_generic.h"
+#include "base/strings/string_util.h"
 #include "base/strings/sys_string_conversions.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/task/sequenced_task_runner.h"
@@ -25,6 +26,7 @@
 #include "base/values.h"
 #include "base/win/registry.h"
 #include "chrome/updater/win/win_constants.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace updater {
 
@@ -90,7 +92,8 @@ base::Value::Dict LoadGroupPolicies(bool should_take_policy_critical_section) {
   for (base::win::RegistryValueIterator it(HKEY_LOCAL_MACHINE,
                                            UPDATER_POLICIES_KEY);
        it.Valid(); ++it) {
-    const std::string key_name = base::SysWideToUTF8(it.Name());
+    const std::string key_name =
+        base::ToLowerASCII(base::SysWideToUTF8(it.Name()));
     switch (it.Type()) {
       case REG_SZ:
         policies.Set(key_name, base::SysWideToUTF8(it.Value()));
@@ -111,13 +114,22 @@ base::Value::Dict LoadGroupPolicies(bool should_take_policy_critical_section) {
 
 }  // namespace
 
-GroupPolicyManager::GroupPolicyManager(bool should_take_policy_critical_section)
-    : PolicyManager(LoadGroupPolicies(should_take_policy_critical_section)) {}
+GroupPolicyManager::GroupPolicyManager(
+    bool should_take_policy_critical_section,
+    const absl::optional<bool>& override_is_managed_device)
+    : PolicyManager(LoadGroupPolicies(should_take_policy_critical_section)),
+      is_managed_device_(override_is_managed_device.value_or(
+          base::IsManagedOrEnterpriseDevice())) {}
 
 GroupPolicyManager::~GroupPolicyManager() = default;
 
+bool GroupPolicyManager::CloudPolicyOverridesPlatformPolicy() const {
+  return GetIntegerPolicy("CloudPolicyOverridesPlatformPolicy").value_or(0) !=
+         0;
+}
+
 bool GroupPolicyManager::HasActiveDevicePolicies() const {
-  return PolicyManager::HasActiveDevicePolicies() && base::IsManagedDevice();
+  return is_managed_device_ && PolicyManager::HasActiveDevicePolicies();
 }
 
 std::string GroupPolicyManager::source() const {

@@ -85,6 +85,9 @@ class COMPONENT_EXPORT(UI_BASE_IME_ASH) InputMethodAsh
                              bool visible) override;
   void DeleteSurroundingText(uint32_t num_char16s_before_cursor,
                              uint32_t num_char16s_after_cursor) override;
+  void ReplaceSurroundingText(uint32_t length_before_selection,
+                              uint32_t length_after_selection,
+                              base::StringPiece16 replacement_text) override;
   SurroundingTextInfo GetSurroundingTextInfo() override;
   void SendKeyEvent(ui::KeyEvent* event) override;
   ui::InputMethod* GetInputMethod() override;
@@ -224,6 +227,11 @@ class COMPONENT_EXPORT(UI_BASE_IME_ASH) InputMethodAsh
   // when IME engine's `ProcessKeyEvent` invokes `ProcessKeyEventDone`
   // synchronously.
   absl::optional<ui::EventDispatchDetails> dispatch_details_;
+
+  // The URL that hosts the currently focused input field.
+  // This can be invalid if the URL is not known (e.g. when using an
+  // ARC++ app) or there's no focused input field.
+  GURL focused_url_;
 
   // Used for making callbacks.
   base::WeakPtrFactory<InputMethodAsh> weak_ptr_factory_{this};

@@ -398,131 +398,6 @@
   </event>
 </project>
 
-<project name="NeutrinoDevices">
-  <owner>pdyson@chromium.org</owner>
-  <id>per-project</id>
-  <scope>device</scope>
-  <key-rotation>90</key-rotation>
-  <summary>
-    Project for recording events to monitor the creation of Neutrino Devices.
-  </summary>
-
-  <event name="ClientIdChanged">
-    <summary>
-      Records the client id being changed to a new value. This does not include
-      when the client id is cleared (see ClientIdCleared below).
-    </summary>
-    <metric name="InitialClientId" type="hmac-string">
-      <summary>
-        The client id before it is changed.
-      </summary>
-    </metric>
-    <metric name="FinalClientId" type="hmac-string">
-      <summary>
-        The client id after it is changed.
-      </summary>
-    </metric>
-    <metric name="Log2TimeSinceInstallation" type="int">
-      <summary>
-        The time since installation. Recorded as the integer floor of the log
-        base 2 of the time duration measured in days. Negative values indicate
-        periods shorter than one day.
-      </summary>
-    </metric>
-    <metric name="Log2TimeSinceMetricsEnabled" type="int">
-      <summary>
-        The time since metrics enabled. Recorded as the integer floor of the log
-        base 2 of the time duration measured in days. Negative values indicate
-        periods shorter than one day.
-      </summary>
-    </metric>
-    <metric name="Location" type="int">
-      <summary>
-        An integer indicating the location in the code. This can be used to perform
-        a partial stack trace to see which code was executed in the lead up to the
-        client id being changed.
-      </summary>
-    </metric>
-    <metric name="DaysSinceKeyRotation" type="int">
-      <summary>
-        The number of days since the key was rotated.
-      </summary>
-    </metric>
-  </event>
-
-  <event name="ClientIdCleared">
-    <summary>
-      Records when the client id is cleared.
-    </summary>
-    <metric name="InitialClientId" type="hmac-string">
-      <summary>
-        The client id before it is changed.
-      </summary>
-    </metric>
-    <metric name="Log2TimeSinceInstallation" type="int">
-      <summary>
-        The time since installation. Recorded as the integer floor of the log
-        base 2 of the time duration measured in days. Negative values indicate
-        periods shorter than one day.
-      </summary>
-    </metric>
-    <metric name="Log2TimeSinceMetricsEnabled" type="int">
-      <summary>
-        The time since metrics enabled. Recorded as the integer floor of the log
-        base 2 of the time duration measured in days. Negative values indicate
-        periods shorter than one day.
-      </summary>
-    </metric>
-  </event>
-
-  <event name="Enrollment">
-    <summary>
-      Records the enrollment status, either managed or unmanaged.
-    </summary>
-    <metric name="ClientId" type="hmac-string">
-      <summary>
-        The client id.
-      </summary>
-    </metric>
-    <metric name="Location" type="int">
-      <summary>
-        An integer indicating the location in the code. This can be used to perform
-        a partial stack trace to see which code was executed in the lead up to the
-        client id being changed.
-      </summary>
-    </metric>
-    <metric name="IsManagedDevice" type="int">
-      <summary>
-        Whether the device is managed. 1: Managed, 0: Unmanaged.
-      </summary>
-    </metric>
-    <metric name="IsManagedPolicy" type="int">
-      <summary>
-        Whether the metrics reporting policy is managed. 1: Managed, 0:
-        Unmanaged.
-      </summary>
-    </metric>
-  </event>
-
-  <event name="CodePoint">
-    <summary>
-      Records that execution reached a particular point in the code.
-    </summary>
-    <metric name="ClientId" type="hmac-string">
-      <summary>
-        The client id.
-      </summary>
-    </metric>
-    <metric name="Location" type="int">
-      <summary>
-        An integer indicating the location in the code. This can be used to perform
-        a partial stack trace to see which code was executed in the lead up to the
-        client id being changed.
-      </summary>
-    </metric>
-  </event>
-</project>
-
 <project name="StructuredMetrics">
   <owner>jongahn@chromium.org</owner>
   <owner>tby@chromium.org</owner>
@@ -675,6 +550,70 @@
       <summary>
         Enum representing the category of app the result is. This enum should map to
         ash::SearchResultType.
+      </summary>
+    </metric>
+  </event>
+
+  <event name="AppDiscovery.Browser.OmniboxInstallIconClicked">
+    <summary>
+      Event recorded when the PWA Install Icon is clicked.
+    </summary>
+    <metric name="IPHShown" type="int">
+      <summary>
+        Boolean if the IPH (In-product help) was shown when the icon was clicked.
+        1 if the IPH was shown 0 otherwise.
+      </summary>
+    </metric>
+  </event>
+
+  <event name="AppDiscovery.Browser.AppInstallDialogShown">
+    <summary>
+      Event recorded when the PWA confirmation dialog is shown.
+    </summary>
+    <metric name="AppId" type="raw-string">
+      <summary>
+        Identifier of the app for which the bubble view is shown.
+      </summary>
+    </metric>
+  </event>
+
+  <event name="AppDiscovery.Browser.AppInstallDialogResult">
+    <summary>
+      Event capturing the result of the app install dialog shown in the browser.
+      This event will be captured if the install is accepted or cancelled. If a
+      user switches to a different tab, this will result in a "cancel".
+    </summary>
+    <metric name="WebAppInstallStatus" type="int">
+      <summary>
+        1 if accepted. 0 if cancelled. The status is considered cancelled if the
+        bubble dialog is closed before an "Accept" status has been detected.
+      </summary>
+    </metric>
+    <metric name="AppId" type="raw-string">
+      <summary>
+        Identifier of the app for which the bubble view is shown.
+      </summary>
+    </metric>
+  </event>
+
+  <event name="AppDiscovery.Browser.ClickInstallAppFromMenu">
+    <summary>
+      Event recorded when a PWA is installed from the browser menu.
+    </summary>
+    <metric name="AppId" type="raw-string">
+      <summary>
+        Identifier of the app that is being installed.
+      </summary>
+    </metric>
+  </event>
+
+  <event name="AppDiscovery.Browser.CreateShortcut">
+    <summary>
+      Event recorded when a web app or PWA is installed by creating a shortcut.
+    </summary>
+    <metric name="AppId" type="raw-string">
+      <summary>
+        Identifier of the app that is being installed.
       </summary>
     </metric>
   </event>
@@ -859,6 +798,27 @@
       Event for unit testing, do not use.
     </summary>
     <metric name="TestMetricSeven" type="double">
+      <summary>
+        A floating point value.
+      </summary>
+    </metric>
+  </event>
+</project>
+
+<project name="TestProjectSeven">
+  <owner>andrewbregger@google.com</owner>
+  <id>none</id>
+  <scope>profile</scope>
+  <key-rotation>90</key-rotation>
+  <summary>
+    Project for unit testing, do not use.
+  </summary>
+
+  <event name="TestEventEight" force_record="true">
+    <summary>
+      Event for unit testing, do not use.
+    </summary>
+    <metric name="TestMetricEight" type="double">
       <summary>
         A floating point value.
       </summary>

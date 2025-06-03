@@ -28,8 +28,8 @@ import org.chromium.net.test.EmbeddedTestServer;
 /** Test suite for navigator.getInstalledRelatedApps functionality. */
 @RunWith(ChromeJUnit4ClassRunner.class)
 @CommandLineFlags.Add({
-        ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE,
-        "enable-blink-features=InstalledApp",
+    ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE,
+    "enable-blink-features=InstalledApp",
 })
 public class InstalledAppTest {
     @Rule
@@ -72,8 +72,9 @@ public class InstalledAppTest {
     public void setUp() throws Exception {
         mActivityTestRule.startMainActivityOnBlankPage();
 
-        mTestServer = EmbeddedTestServer.createAndStartServer(
-                ApplicationProvider.getApplicationContext());
+        mTestServer =
+                EmbeddedTestServer.createAndStartServer(
+                        ApplicationProvider.getApplicationContext());
 
         mUrl = mTestServer.getURL(TEST_FILE);
 
@@ -85,13 +86,12 @@ public class InstalledAppTest {
     @After
     public void tearDown() {
         TestThreadUtils.runOnUiThreadBlocking(() -> mTab.removeObserver(mUpdateWaiter));
-        mTestServer.stopAndDestroyServer();
     }
 
     /**
      * Verify that InstalledApp succeeds.
      *
-     * Note this isn't a very thorough test; it just expects an empty response. Testing any real
+     * <p>Note this isn't a very thorough test; it just expects an empty response. Testing any real
      * response would require setting up (or mocking) a real APK. There are extremely thorough
      * layout tests and Java unit tests for this feature. This end-to-end test just ensures that the
      * Mojo bridge between Blink and Java is working (regression: https://crbug.com/750348).

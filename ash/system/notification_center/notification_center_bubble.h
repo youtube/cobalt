@@ -7,6 +7,7 @@
 
 #include <memory>
 
+#include "ash/ash_export.h"
 #include "ash/system/screen_layout_observer.h"
 #include "base/memory/raw_ptr.h"
 
@@ -23,7 +24,7 @@ class TrayBubbleWrapper;
 
 // Manages the bubble that contains NotificationCenterView.
 // Shows the bubble on `ShowBubble()`, and closes the bubble on the destructor.
-class NotificationCenterBubble : public ScreenLayoutObserver {
+class ASH_EXPORT NotificationCenterBubble : public ScreenLayoutObserver {
  public:
   explicit NotificationCenterBubble(
       NotificationCenterTray* notification_center_tray);
@@ -65,6 +66,7 @@ class NotificationCenterBubble : public ScreenLayoutObserver {
   raw_ptr<NotificationCenterView, ExperimentalAsh> notification_center_view_ =
       nullptr;
 
+  std::unique_ptr<TrayBubbleView> bubble_view_;
   std::unique_ptr<TrayBubbleWrapper> bubble_wrapper_;
 };
 

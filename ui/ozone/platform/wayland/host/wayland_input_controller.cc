@@ -97,6 +97,9 @@ class WaylandInputController : public InputController {
                         GetTouchEventLogReply reply) override {
     std::move(reply).Run(std::vector<base::FilePath>());
   }
+  void DescribeForLog(DescribeForLogReply reply) const override {
+    std::move(reply).Run(std::string());
+  }
   void SetInternalTouchpadEnabled(bool enabled) override {}
   bool IsInternalTouchpadEnabled() const override { return false; }
   void SetTouchscreensEnabled(bool enabled) override {}
@@ -125,6 +128,9 @@ class WaylandInputController : public InputController {
     // TODO(b:205702807) Implement after adding to wayland protocol
     NOTIMPLEMENTED_LOG_ONCE();
   }
+  bool AreAnyKeysPressed() override { return false; }
+
+  void DisableKeyboardImposterCheck() override {}
 
  private:
   const raw_ptr<WaylandConnection> connection_;

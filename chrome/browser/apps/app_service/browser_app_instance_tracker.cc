@@ -113,19 +113,7 @@ bool IsWebContentsActive(Browser* browser, content::WebContents* contents) {
 }
 
 std::string GetAppIdForTab(content::WebContents* contents, Profile* profile) {
-  std::string app_id = GetInstanceAppIdForWebContents(contents).value_or("");
-
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-  if (!app_id.empty()) {
-    auto* registry = extensions::ExtensionRegistry::Get(profile);
-    auto* extension = registry->GetInstalledExtension(app_id);
-    // Return muxed app_id for Lacros hosted app.
-    if (extension && extension->is_hosted_app())
-      return lacros_extensions_util::MuxId(profile, extension);
-  }
-#endif
-
-  return app_id;
+  return GetInstanceAppIdForWebContents(contents).value_or("");
 }
 
 std::string GetAppIdForBrowser(Browser* browser) {
@@ -137,16 +125,9 @@ std::string GetAppIdForBrowser(Browser* browser) {
   if (!extension)
     return app_id;
 
-  if (extension->is_hosted_app()) {
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-    return lacros_extensions_util::MuxId(browser->profile(), extension);
-#else
+  if (extension->is_hosted_app() || extension->is_legacy_packaged_app()) {
     return app_id;
-#endif
   }
-
-  if (extension->is_legacy_packaged_app())
-    return app_id;
 
   return "";
 }
@@ -207,11 +188,10 @@ class BrowserAppInstanceTracker::WebContentsObserver
 BrowserAppInstanceTracker::BrowserAppInstanceTracker(
     Profile* profile,
     AppRegistryCache& app_registry_cache)
-    : AppRegistryCache::Observer(&app_registry_cache),
-      profile_(profile),
-      browser_tab_strip_tracker_(this, this) {
+    : profile_(profile), browser_tab_strip_tracker_(this, this) {
   BrowserList::GetInstance()->AddObserver(this);
   browser_tab_strip_tracker_.Init();
+  app_registry_cache_observer_.Observe(&app_registry_cache);
 }
 
 BrowserAppInstanceTracker::~BrowserAppInstanceTracker() {
@@ -232,7 +212,7 @@ const BrowserAppInstance* BrowserAppInstanceTracker::GetAppInstance(
   // Then app window instance, which should be at most one per WebContents,
   // although multiple WebContents can map to a single app window instance, in
   // case of app windows with tab strips.
-  Browser* browser = chrome::FindBrowserWithWebContents(contents);
+  Browser* browser = chrome::FindBrowserWithTab(contents);
   if (!browser) {
     return nullptr;
   }
@@ -253,7 +233,7 @@ void BrowserAppInstanceTracker::ActivateTabInstance(base::UnguessableToken id) {
   for (const auto& pair : app_tab_instances_) {
     const BrowserAppInstance& instance = *pair.second;
     if (instance.id == id) {
-      Browser* browser = chrome::FindBrowserWithWebContents(pair.first);
+      Browser* browser = chrome::FindBrowserWithTab(pair.first);
       TabStripModel* tab_strip = browser->tab_strip_model();
       int index = tab_strip->GetIndexOfWebContents(pair.first);
       DCHECK_NE(TabStripModel::kNoTab, index);
@@ -272,7 +252,7 @@ void BrowserAppInstanceTracker::StopInstancesOfApp(const std::string& app_id) {
     }
   }
   for (content::WebContents* web_contents : web_contents_to_close) {
-    Browser* browser = chrome::FindBrowserWithWebContents(web_contents);
+    Browser* browser = chrome::FindBrowserWithTab(web_contents);
     if (!browser) {
       continue;
     }
@@ -364,7 +344,7 @@ void BrowserAppInstanceTracker::OnAppUpdate(const AppUpdate& update) {
 
 void BrowserAppInstanceTracker::OnAppRegistryCacheWillBeDestroyed(
     AppRegistryCache* cache) {
-  Observe(nullptr);
+  app_registry_cache_observer_.Reset();
 }
 
 void BrowserAppInstanceTracker::OnTabStripModelChangeInsert(
@@ -566,7 +546,7 @@ void BrowserAppInstanceTracker::OnTabClosing(Browser* browser,
 
 void BrowserAppInstanceTracker::OnWebContentsUpdated(
     content::WebContents* contents) {
-  Browser* browser = chrome::FindBrowserWithWebContents(contents);
+  Browser* browser = chrome::FindBrowserWithTab(contents);
   if (browser) {
     OnTabUpdated(browser, contents);
   }

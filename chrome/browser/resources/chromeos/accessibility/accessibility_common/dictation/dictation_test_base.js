@@ -4,6 +4,7 @@
 
 GEN_INCLUDE(['../../common/testing/e2e_test_base.js']);
 GEN_INCLUDE(['../../common/testing/mock_accessibility_private.js']);
+GEN_INCLUDE(['../../common/testing/mock_audio.js']);
 GEN_INCLUDE(['../../common/testing/mock_input_ime.js']);
 GEN_INCLUDE(['../../common/testing/mock_input_method_private.js']);
 GEN_INCLUDE(['../../common/testing/mock_language_settings_private.js']);
@@ -63,6 +64,9 @@ DictationE2ETestBase = class extends E2ETestBase {
     this.mockSpeechRecognitionPrivate = new MockSpeechRecognitionPrivate();
     chrome.speechRecognitionPrivate = this.mockSpeechRecognitionPrivate;
 
+    this.mockAudio = new MockAudio();
+    chrome.audio = this.mockAudio;
+
     this.dictationEngineId =
         '_ext_ime_egfdjlfmgnehecnclamagfafdccgfndpdictation';
 
@@ -101,21 +105,22 @@ DictationE2ETestBase = class extends E2ETestBase {
     await super.setUpDeferred();
 
     // Wait for the Dictation module to load and set the Dictation locale.
-    await importModule(
-        'Dictation', '/accessibility_common/dictation/dictation.js');
+    await Promise.all([
+      importModule('Dictation', '/accessibility_common/dictation/dictation.js'),
+      importModule(
+          'LocaleInfo', '/accessibility_common/dictation/locale_info.js'),
+      new Promise(
+          resolve => chrome.accessibilityFeatures.dictation.set(
+              {value: true}, resolve)),
+    ]);
     assertNotNullNorUndefined(Dictation);
-    await importModule(
-        'LocaleInfo', '/accessibility_common/dictation/locale_info.js');
-    await new Promise(resolve => {
-      chrome.accessibilityFeatures.dictation.set({value: true}, resolve);
-    });
     await this.setPref(Dictation.DICTATION_LOCALE_PREF, 'en-US');
 
     // By default, Dictation JS tests should use regex parsing.
     accessibilityCommon.dictation_.disablePumpkinForTesting();
     // Increase Dictation's NO_FOCUSED_IME timeout to reduce flakiness on slower
     // builds.
-    accessibilityCommon.dictation_.increaseNoFocusedImeTimeoutForTesting();
+    accessibilityCommon.dictation_.setNoFocusedImeTimeoutForTesting(20 * 1000);
   }
 
   /** @override */
@@ -139,7 +144,7 @@ DictationE2ETestBase = class extends E2ETestBase {
     super.testGenPreamble();
 
     GEN(`
-  browser()->profile()->GetPrefs()->SetBoolean(
+  GetProfile()->GetPrefs()->SetBoolean(
         ash::prefs::kDictationAcceleratorDialogHasBeenAccepted, true);
 
   base::OnceClosure load_cb =
@@ -268,7 +273,7 @@ DictationE2ETestBase = class extends E2ETestBase {
 
   /** @return {boolean} */
   getDictationActive() {
-    return this.mockAccessibilityPrivate.getDictationActive();
+    return accessibilityCommon.dictation_.active_;
   }
 
   /**

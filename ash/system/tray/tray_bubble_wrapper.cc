@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "ash/system/tray/tray_bubble_wrapper.h"
+#include <memory>
 
 #include "ash/app_list/app_list_controller_impl.h"
 #include "ash/shell.h"
@@ -13,8 +14,6 @@
 #include "ui/views/bubble/bubble_dialog_delegate_view.h"
 #include "ui/views/widget/widget.h"
 #include "ui/wm/core/transient_window_manager.h"
-#include "ui/wm/core/window_util.h"
-#include "ui/wm/public/activation_client.h"
 
 namespace ash {
 
@@ -23,10 +22,6 @@ TrayBubbleWrapper::TrayBubbleWrapper(TrayBackgroundView* tray,
     : tray_(tray), event_handling_(event_handling) {}
 
 TrayBubbleWrapper::~TrayBubbleWrapper() {
-  if (event_handling_) {
-    Shell::Get()->activation_client()->RemoveObserver(this);
-    tray_->tray_event_filter()->RemoveBubble(this);
-  }
   if (bubble_widget_) {
     auto* transient_manager = ::wm::TransientWindowManager::GetOrCreate(
         bubble_widget_->GetNativeWindow());
@@ -58,8 +53,8 @@ void TrayBubbleWrapper::ShowBubble(
     Shell::Get()->app_list_controller()->DismissAppList();
 
   if (event_handling_) {
-    tray_->tray_event_filter()->AddBubble(this);
-    Shell::Get()->activation_client()->AddObserver(this);
+    tray_event_filter_ = std::make_unique<TrayEventFilter>(
+        bubble_widget_, bubble_view_, /*tray_button=*/tray_);
   }
 }
 
@@ -87,36 +82,6 @@ void TrayBubbleWrapper::OnWidgetDestroying(views::Widget* widget) {
   tray_->GetWidget()->GetNativeWindow()->ReleaseCapture();
 
   tray_->HideBubbleWithView(bubble_view_);  // May destroy |bubble_view_|
-}
-
-void TrayBubbleWrapper::OnWidgetBoundsChanged(views::Widget* widget,
-                                              const gfx::Rect& new_bounds) {
-  DCHECK_EQ(bubble_widget_, widget);
-  tray_->BubbleResized(bubble_view_);
-}
-
-void TrayBubbleWrapper::OnWindowActivated(ActivationReason reason,
-                                          aura::Window* gained_active,
-                                          aura::Window* lost_active) {
-  if (!gained_active)
-    return;
-
-  // Check for the CloseBubble() lock.
-  if (!TrayBackgroundView::ShouldCloseBubbleOnWindowActivated())
-    return;
-
-  views::Widget* bubble_widget = bubble_view()->GetWidget();
-  // Don't close the bubble if a transient child is gaining or losing
-  // activation.
-  if (bubble_widget == views::Widget::GetWidgetForNativeView(gained_active) ||
-      ::wm::HasTransientAncestor(gained_active,
-                                 bubble_widget->GetNativeWindow()) ||
-      (lost_active && ::wm::HasTransientAncestor(
-                          lost_active, bubble_widget->GetNativeWindow()))) {
-    return;
-  }
-
-  tray_->CloseBubble();
 }
 
 }  // namespace ash

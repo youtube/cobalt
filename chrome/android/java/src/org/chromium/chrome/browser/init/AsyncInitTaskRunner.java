@@ -6,6 +6,7 @@ package org.chromium.chrome.browser.init;
 
 import androidx.annotation.VisibleForTesting;
 
+import org.chromium.base.BuildInfo;
 import org.chromium.base.Callback;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.ThreadUtils;
@@ -15,7 +16,6 @@ import org.chromium.base.library_loader.ProcessInitException;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
 import org.chromium.chrome.browser.ChromeActivitySessionTracker;
-import org.chromium.chrome.browser.flags.CachedFeatureFlags;
 import org.chromium.components.variations.firstrun.VariationsSeedFetcher;
 import org.chromium.components.version_info.VersionInfo;
 import org.chromium.content_public.browser.ChildProcessLauncherHelper;
@@ -75,6 +75,10 @@ public abstract class AsyncInitTaskRunner {
             }
             if (VersionInfo.isDevBuild()) {
                 return "dev";
+            }
+            // TODO(crbug.com/1493502): Remove this if block after automotive beta ends.
+            if (VersionInfo.isBetaBuild() && BuildInfo.getInstance().isAutomotive) {
+                return "stable";
             }
             if (VersionInfo.isBetaBuild()) {
                 return "beta";
@@ -167,9 +171,6 @@ public abstract class AsyncInitTaskRunner {
             --mNumPendingSuccesses;
             if (mNumPendingSuccesses == 0) {
                 // All tasks succeeded: Finish tasks, call onSuccess(), and reach terminal state.
-                if (CachedFeatureFlags.isNetworkServiceWarmUpEnabled()) {
-                    ChildProcessLauncherHelper.warmUp(ContextUtils.getApplicationContext(), false);
-                }
                 if (mAllocateChildConnection) {
                     ChildProcessLauncherHelper.warmUp(ContextUtils.getApplicationContext(), true);
                 }

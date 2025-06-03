@@ -76,6 +76,8 @@ class AppListClientImpl
 
   // ash::AppListClient:
   void OnAppListControllerDestroyed() override;
+  std::vector<ash::AppListSearchControlCategory> GetToggleableCategories()
+      const override;
   void StartZeroStateSearch(base::OnceClosure on_done,
                             base::TimeDelta timeout) override;
   void StartSearch(const std::u16string& trimmed_query) override;
@@ -107,7 +109,6 @@ class AppListClientImpl
   void RecalculateWouldTriggerLauncherSearchIph() override;
   std::unique_ptr<ash::ScopedIphSession> CreateLauncherSearchIphSession()
       override;
-  void OpenSearchBoxIphUrl() override;
   void LoadIcon(int profile_id, const std::string& app_id) override;
   ash::AppListSortOrder GetPermanentSortingOrder() const override;
 
@@ -129,7 +130,6 @@ class AppListClientImpl
                const GURL& url,
                ui::PageTransition transition,
                WindowOpenDisposition disposition) override;
-  void CommitTemporarySortOrder() override;
 
   // Associates this client with the current active user, called when this
   // client is accessed or active user is changed.

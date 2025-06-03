@@ -9,6 +9,7 @@
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "extensions/common/constants.h"
+#include "extensions/common/extension_features.h"
 #include "extensions/common/extensions_client.h"
 #include "net/base/url_util.h"
 #include "url/gurl.h"
@@ -32,6 +33,8 @@ const char kChromeWebstoreUpdateURL[] =
     "https://clients2.google.com/service/update2/crx";
 
 const char kAppMenuUtmSource[] = "ext_app_menu";
+const char kExtensionsMenuUtmSource[] = "ext_extensions_menu";
+const char kExtensionsSidebarUtmSource[] = "ext_sidebar";
 
 GURL GetWebstoreLaunchURL() {
   extensions::ExtensionsClient* client = extensions::ExtensionsClient::Get();
@@ -57,6 +60,11 @@ GURL AppendUtmSource(const GURL& url,
 // TODO(devlin): Try to use GURL methods like Resolve instead of string
 // concatenation.
 std::string GetWebstoreExtensionsCategoryURL() {
+  // TODO(crbug.com/1488136): Refactor this check into
+  // extension_urls::GetWebstoreLaunchURL() and fix tests relying on it.
+  if (base::FeatureList::IsEnabled(extensions_features::kNewWebstoreURL)) {
+    return GetNewWebstoreLaunchURL().spec() + "category/extensions";
+  }
   return GetWebstoreLaunchURL().spec() + "/category/extensions";
 }
 

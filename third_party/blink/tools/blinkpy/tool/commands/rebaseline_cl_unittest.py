@@ -66,22 +66,34 @@ class RebaselineCLTest(BaseTestCase, LoggingTestCase):
                 'port_name': 'test-win-win7',
                 'specifiers': ['Win7', 'Release'],
                 'is_try_builder': True,
+                'steps': {
+                    'blink_web_tests (with patch)': {},
+                },
             },
             'MOCK Try Linux': {
                 'port_name': 'test-linux-trusty',
                 'specifiers': ['Trusty', 'Release'],
                 'is_try_builder': True,
+                'steps': {
+                    'blink_web_tests (with patch)': {},
+                },
             },
             'MOCK Try Mac': {
                 'port_name': 'test-mac-mac10.11',
                 'specifiers': ['Mac10.11', 'Release'],
                 'is_try_builder': True,
+                'steps': {
+                    'blink_web_tests (with patch)': {},
+                },
             },
             'MOCK Try Linux (CQ duplicate)': {
                 'port_name': 'test-linux-trusty',
                 'specifiers': ['Trusty', 'Release'],
                 'is_try_builder': True,
                 'is_cq_builder': True,
+                'steps': {
+                    'blink_web_tests (with patch)': {},
+                },
             },
         })
 
@@ -219,7 +231,6 @@ class RebaselineCLTest(BaseTestCase, LoggingTestCase):
             'dry_run': False,
             'only_changed_tests': False,
             'trigger_jobs': True,
-            'fill_missing': None,
             'optimize': True,
             'results_directory': None,
             'test_name_file': None,
@@ -281,7 +292,7 @@ class RebaselineCLTest(BaseTestCase, LoggingTestCase):
             # one/slow-fail.html
             #
 
-            one/does-not-exist.html
+            one/not-a-test.html
             one/text-fail.html
                 two/   '''))
         exit_code = self.command.execute(
@@ -291,6 +302,8 @@ class RebaselineCLTest(BaseTestCase, LoggingTestCase):
             'INFO: All builds finished.\n',
             'INFO: Reading list of tests to rebaseline from %s\n' %
             test_name_file,
+            "WARNING: 'one/not-a-test.html' does not represent any tests "
+            'and may be misspelled.\n',
             'INFO: Rebaselining one/flaky-fail.html\n',
             'INFO: Rebaselining one/missing.html\n',
             'INFO: Rebaselining one/text-fail.html\n',
@@ -416,28 +429,12 @@ class RebaselineCLTest(BaseTestCase, LoggingTestCase):
             'WARNING: Some builders have no results:\n',
             'WARNING:   MOCK Try Linux\n',
             'WARNING:   MOCK Try Mac\n',
-            'INFO: Would you like to continue?\n',
-            'INFO: Aborting.\n',
-        ])
-
-    def test_execute_with_canceled_job(self):
-        builds = {
-            Build('MOCK Try Win', 5000, 'Build-1'):
-            TryJobStatus('COMPLETED', 'FAILURE'),
-            Build('MOCK Try Mac', 4000, 'Build-2'):
-            TryJobStatus('COMPLETED', 'FAILURE'),
-            Build('MOCK Try Linux', 6000, 'Build-3'):
-            TryJobStatus('COMPLETED', 'CANCELED'),
-        }
-        self.command.git_cl = MockGitCL(self.tool, builds)
-        exit_code = self.command.execute(self.command_options(), [], self.tool)
-        self.assertEqual(exit_code, 1)
-        self.assertLog([
-            'INFO: All builds finished.\n',
-            'WARNING: Some builders have no results:\n',
-            'WARNING:   MOCK Try Linux\n',
-            'INFO: Would you like to continue?\n',
-            'INFO: Aborting.\n',
+            'INFO: Would you like to continue?\n'
+            'Note: This will try to fill in missing results '
+            'with available results.\n'
+            'This is generally not suggested unless the results are '
+            'platform agnostic.\n',
+            'INFO: Aborting. Please retry builders with no results.\n',
         ])
 
     def test_execute_with_passing_jobs(self):
@@ -461,6 +458,33 @@ class RebaselineCLTest(BaseTestCase, LoggingTestCase):
             'INFO: Rebaselining two/image-fail.html\n'
         ])
 
+    def test_execute_with_only_unrelated_failing_suites(self):
+        """A build without web test failures should not be treated as missing.
+
+        The build may still fail because of other non-web test suites.
+
+        See Also:
+            crbug.com/1475247#c1
+        """
+        builds = {
+            Build('MOCK Try Win', 5000, 'Build-1'):
+            TryJobStatus('COMPLETED', 'FAILURE'),
+            Build('MOCK Try Mac', 4000, 'Build-2'):
+            TryJobStatus('COMPLETED', 'FAILURE'),
+            Build('MOCK Try Linux', 6000, 'Build-3'):
+            TryJobStatus('COMPLETED', 'FAILURE'),
+        }
+        for build in builds:
+            self.tool.results_fetcher.set_results(
+                build,
+                WebTestResults([], step_name='blink_web_tests (with patch)'))
+        self.command.git_cl = MockGitCL(self.tool, builds)
+        exit_code = self.command.execute(self.command_options(), [], self.tool)
+        self.assertEqual(exit_code, 0)
+        self.assertLog([
+            'INFO: All builds finished.\n',
+        ])
+
     def test_execute_with_no_trigger_jobs_option(self):
         builds = {
             Build('MOCK Try Win', 5000, 'Build-1'):
@@ -479,8 +503,12 @@ class RebaselineCLTest(BaseTestCase, LoggingTestCase):
             'INFO:   MOCK Try Win         5000    FAILURE   try   \n',
             'WARNING: Some builders have no results:\n',
             'WARNING:   MOCK Try Linux\n',
-            'INFO: Would you like to continue?\n',
-            'INFO: Aborting.\n',
+            'INFO: Would you like to continue?\n'
+            'Note: This will try to fill in missing results '
+            'with available results.\n'
+            'This is generally not suggested unless the results are '
+            'platform agnostic.\n',
+            'INFO: Aborting. Please retry builders with no results.\n',
         ])
         self.assertEqual(self.command.git_cl.calls, [])
 
@@ -604,30 +632,14 @@ class RebaselineCLTest(BaseTestCase, LoggingTestCase):
         ])
 
     def test_execute_missing_results_with_no_fill_missing_prompts(self):
-        self.tool.results_fetcher.set_results(
-            Build('MOCK Try Win', 5000, 'Build-1'), WebTestResults([]),
-            'blink_web_tests (with patch)')
+        build = Build('MOCK Try Win', 5000, 'Build-1')
+        self.builds[build] = TryJobStatus.from_bb_status('CANCELED')
         exit_code = self.command.execute(self.command_options(), [], self.tool)
         self.assertEqual(exit_code, 1)
         self.assertLog([
-            'INFO: All builds finished.\n',
-            'WARNING: Some builders have no results:\n',
-            'WARNING:   MOCK Try Win\n',
-            'INFO: Would you like to continue?\n',
-            'INFO: Aborting.\n',
-        ])
-
-    def test_execute_interrupted_results_with_fill_missing(self):
-        build = Build('MOCK Try Win', 5000, 'Build-1')
-        self.builds[build] = TryJobStatus.from_bb_status('INFRA_FAILURE')
-        self.tool.user.set_canned_responses(['y', 'n'])
-        exit_code = self.command.execute(self.command_options(),
-                                         ['one/flaky-fail.html'], self.tool)
-        self.assertEqual(exit_code, 0)
-        self.assertLog([
-            'WARNING: Some builds have infrastructure failures:\n',
+            'WARNING: Some builds have incomplete results:\n',
             'WARNING:   "MOCK Try Win" build 5000\n',
-            'WARNING: Examples of infrastructure failures include:\n',
+            'WARNING: Examples of incomplete results include:\n',
             'WARNING:   * Shard terminated the harness after timing out.\n',
             'WARNING:   * Harness exited early due to excessive unexpected failures.\n',
             'WARNING:   * Build failed on a non-test step.\n',
@@ -636,13 +648,40 @@ class RebaselineCLTest(BaseTestCase, LoggingTestCase):
             'WARNING: See https://chromium.googlesource.com/chromium/src/+/'
             'HEAD/docs/testing/web_test_expectations.md#handle-bot-timeouts\n',
             'INFO: All builds finished.\n',
-            'INFO: Would you like to continue?\n',
-            'INFO: Would you like to try to fill in missing results '
-            'with available results?\n'
-            'Note: This is generally not suggested unless the results '
-            'are platform agnostic.\n',
-            'INFO: Please rebaseline again for builders '
-            'with incomplete results later.\n',
+            'INFO: Would you like to continue?\n'
+            'Note: This will try to fill in missing results '
+            'with available results.\n'
+            'This is generally not suggested unless the results are '
+            'platform agnostic.\n',
+            'INFO: Aborting. Please retry builders with no results.\n',
+        ])
+
+    def test_execute_interrupted_results_with_fill_missing(self):
+        build = Build('MOCK Try Win', 5000, 'Build-1')
+        self.builds[build] = TryJobStatus.from_bb_status('INFRA_FAILURE')
+        self.tool.user.set_canned_responses(['y'])
+        exit_code = self.command.execute(self.command_options(),
+                                         ['one/flaky-fail.html'], self.tool)
+        self.assertEqual(exit_code, 0)
+        self.assertLog([
+            'WARNING: Some builds have incomplete results:\n',
+            'WARNING:   "MOCK Try Win" build 5000\n',
+            'WARNING: Examples of incomplete results include:\n',
+            'WARNING:   * Shard terminated the harness after timing out.\n',
+            'WARNING:   * Harness exited early due to excessive unexpected failures.\n',
+            'WARNING:   * Build failed on a non-test step.\n',
+            'WARNING: Please consider retrying the failed builders or '
+            'giving the builders more shards.\n',
+            'WARNING: See https://chromium.googlesource.com/chromium/src/+/'
+            'HEAD/docs/testing/web_test_expectations.md#handle-bot-timeouts\n',
+            'INFO: All builds finished.\n',
+            'INFO: Would you like to continue?\n'
+            'Note: This will try to fill in missing results '
+            'with available results.\n'
+            'This is generally not suggested unless the results are '
+            'platform agnostic.\n',
+            'INFO: For one/flaky-fail.html:\n',
+            'INFO: Using "MOCK Try Linux" build 6000 for test-win-win7.\n',
             'INFO: Rebaselining one/flaky-fail.html\n',
         ])
 
@@ -659,10 +698,8 @@ class RebaselineCLTest(BaseTestCase, LoggingTestCase):
             'TestExpectations instead of being rebaselined.\n',
             'WARNING: Consider adding the following lines to '
             '/mock-checkout/third_party/blink/web_tests/TestExpectations:\n'
-            '[ Trusty ] two/image-fail.html [ Failure ]  # Reftest failure\n',
+            '[ Trusty ] two/image-fail.html [ Failure ]  # Reftest image failure\n',
         ])
-        self._mock_copier.find_baselines_to_copy.assert_not_called()
-        self.tool.main.assert_not_called()
         self.assertFalse(
             self.tool.filesystem.exists(
                 self._expand('platform/test-linux-trusty/'
@@ -797,22 +834,6 @@ class RebaselineCLTest(BaseTestCase, LoggingTestCase):
         }
         return b'diff', stats, None
 
-    def test_execute_missing_results_with_fill_missing_continues(self):
-        self.tool.results_fetcher.set_results(
-            Build('MOCK Try Win', 5000, 'Build-1'), WebTestResults([]),
-            'blink_web_tests (with patch)')
-        exit_code = self.command.execute(
-            self.command_options(fill_missing=True), ['one/flaky-fail.html'],
-            self.tool)
-        self.assertEqual(exit_code, 0)
-        self.assertLog([
-            'INFO: All builds finished.\n',
-            'WARNING: Some builders have no results:\n',
-            'WARNING:   MOCK Try Win\n', 'INFO: For one/flaky-fail.html:\n',
-            'INFO: Using "MOCK Try Linux" build 6000 for test-win-win7.\n',
-            'INFO: Rebaselining one/flaky-fail.html\n'
-        ])
-
     def test_fill_in_missing_results(self):
         test_baseline_set = TestBaselineSet(self.tool.builders)
         test_baseline_set.add('one/flaky-fail.html',
@@ -839,26 +860,40 @@ class RebaselineCLTest(BaseTestCase, LoggingTestCase):
                 'port_name': 'foo-foo12',
                 'specifiers': ['Foo12', 'Release'],
                 'is_try_builder': True,
+                'steps': {
+                    'blink_web_tests (with patch)': {},
+                },
             },
             'MOCK Foo45': {
                 'port_name': 'foo-foo45',
                 'specifiers': ['Foo45', 'Release'],
                 'is_try_builder': True,
+                'steps': {
+                    'blink_web_tests (with patch)': {},
+                },
             },
             'MOCK Bar3': {
                 'port_name': 'bar-bar3',
                 'specifiers': ['Bar3', 'Release'],
                 'is_try_builder': True,
+                'steps': {
+                    'blink_web_tests (with patch)': {},
+                },
             },
             'MOCK Bar4': {
                 'port_name': 'bar-bar4',
                 'specifiers': ['Bar4', 'Release'],
                 'is_try_builder': True,
+                'steps': {
+                    'blink_web_tests (with patch)': {},
+                },
             },
         })
         test_baseline_set = TestBaselineSet(self.tool.builders)
-        test_baseline_set.add('one/flaky-fail.html', Build('MOCK Foo12', 100))
-        test_baseline_set.add('one/flaky-fail.html', Build('MOCK Bar4', 200))
+        test_baseline_set.add('one/flaky-fail.html', Build('MOCK Foo12', 100),
+                              'blink_web_tests (with patch)')
+        test_baseline_set.add('one/flaky-fail.html', Build('MOCK Bar4', 200),
+                              'blink_web_tests (with patch)')
         self.command.fill_in_missing_results(test_baseline_set)
         self.assertEqual(
             sorted(test_baseline_set.build_port_pairs('one/flaky-fail.html')),
@@ -872,6 +907,58 @@ class RebaselineCLTest(BaseTestCase, LoggingTestCase):
             'INFO: For one/flaky-fail.html:\n',
             'INFO: Using "MOCK Bar4" build 200 for bar-bar3.\n',
             'INFO: Using "MOCK Foo12" build 100 for foo-foo45.\n',
+        ])
+
+    def test_fill_in_missing_results_partition_by_steps(self):
+        self.tool.builders = BuilderList({
+            'MOCK Foo12': {
+                'port_name': 'foo-foo12',
+                'specifiers': ['Foo12', 'Release'],
+                'is_try_builder': True,
+                'steps': {
+                    'blink_web_tests (with patch)': {},
+                    'blink_wpt_tests (with patch)': {},
+                },
+            },
+            'MOCK Foo45': {
+                'port_name': 'foo-foo45',
+                'specifiers': ['Foo45', 'Release'],
+                'is_try_builder': True,
+                'steps': {
+                    'blink_web_tests (with patch)': {},
+                    'blink_wpt_tests (with patch)': {},
+                },
+            },
+        })
+        test_baseline_set = TestBaselineSet(self.tool.builders)
+        test_baseline_set.add('one/flaky-fail.html', Build('MOCK Foo12', 100),
+                              'blink_web_tests (with patch)')
+        test_baseline_set.add('two/image-fail.html', Build('MOCK Foo45', 200),
+                              'blink_wpt_tests (with patch)')
+        self.command.fill_in_missing_results(test_baseline_set)
+        self.assertEqual(
+            sorted(test_baseline_set.runs_for_test('one/flaky-fail.html')),
+            [
+                # Do not add this test to `blink_wpt_tests`.
+                (Build('MOCK Foo12',
+                       100), 'blink_web_tests (with patch)', 'foo-foo12'),
+                (Build('MOCK Foo12',
+                       100), 'blink_web_tests (with patch)', 'foo-foo45'),
+            ])
+        self.assertEqual(
+            sorted(test_baseline_set.runs_for_test('two/image-fail.html')),
+            [
+                # Do not add this test to `blink_web_tests`.
+                (Build('MOCK Foo45',
+                       200), 'blink_wpt_tests (with patch)', 'foo-foo12'),
+                (Build('MOCK Foo45',
+                       200), 'blink_wpt_tests (with patch)', 'foo-foo45'),
+            ])
+        self.assertLog([
+            'INFO: For one/flaky-fail.html:\n',
+            'INFO: Using "MOCK Foo12" build 100 for foo-foo45.\n',
+            'INFO: For two/image-fail.html:\n',
+            'INFO: Using "MOCK Foo45" build 200 for foo-foo12.\n',
         ])
 
     def test_explicit_builder_list(self):

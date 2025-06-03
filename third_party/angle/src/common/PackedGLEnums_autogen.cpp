@@ -1351,6 +1351,58 @@ std::ostream &operator<<(std::ostream &os, PointParameter value)
 }
 
 template <>
+PolygonMode FromGLenum<PolygonMode>(GLenum from)
+{
+    switch (from)
+    {
+        case GL_POINT_NV:
+            return PolygonMode::Point;
+        case GL_LINE_NV:
+            return PolygonMode::Line;
+        case GL_FILL_NV:
+            return PolygonMode::Fill;
+        default:
+            return PolygonMode::InvalidEnum;
+    }
+}
+
+GLenum ToGLenum(PolygonMode from)
+{
+    switch (from)
+    {
+        case PolygonMode::Point:
+            return GL_POINT_NV;
+        case PolygonMode::Line:
+            return GL_LINE_NV;
+        case PolygonMode::Fill:
+            return GL_FILL_NV;
+        default:
+            UNREACHABLE();
+            return 0;
+    }
+}
+
+std::ostream &operator<<(std::ostream &os, PolygonMode value)
+{
+    switch (value)
+    {
+        case PolygonMode::Point:
+            os << "GL_POINT_NV";
+            break;
+        case PolygonMode::Line:
+            os << "GL_LINE_NV";
+            break;
+        case PolygonMode::Fill:
+            os << "GL_FILL_NV";
+            break;
+        default:
+            os << "GL_INVALID_ENUM";
+            break;
+    }
+    return os;
+}
+
+template <>
 ProvokingVertexConvention FromGLenum<ProvokingVertexConvention>(GLenum from)
 {
     switch (from)
@@ -2403,6 +2455,51 @@ std::ostream &operator<<(std::ostream &os, TextureType value)
             break;
         case TextureType::Buffer:
             os << "GL_TEXTURE_BUFFER";
+            break;
+        default:
+            os << "GL_INVALID_ENUM";
+            break;
+    }
+    return os;
+}
+
+template <>
+TilingMode FromGLenum<TilingMode>(GLenum from)
+{
+    switch (from)
+    {
+        case GL_OPTIMAL_TILING_EXT:
+            return TilingMode::Optimal;
+        case GL_LINEAR_TILING_EXT:
+            return TilingMode::Linear;
+        default:
+            return TilingMode::InvalidEnum;
+    }
+}
+
+GLenum ToGLenum(TilingMode from)
+{
+    switch (from)
+    {
+        case TilingMode::Optimal:
+            return GL_OPTIMAL_TILING_EXT;
+        case TilingMode::Linear:
+            return GL_LINEAR_TILING_EXT;
+        default:
+            UNREACHABLE();
+            return 0;
+    }
+}
+
+std::ostream &operator<<(std::ostream &os, TilingMode value)
+{
+    switch (value)
+    {
+        case TilingMode::Optimal:
+            os << "GL_OPTIMAL_TILING_EXT";
+            break;
+        case TilingMode::Linear:
+            os << "GL_LINEAR_TILING_EXT";
             break;
         default:
             os << "GL_INVALID_ENUM";

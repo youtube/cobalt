@@ -55,10 +55,9 @@ public class AutocompleteMatchBuilder {
     public static AutocompleteMatchBuilder searchWithType(@OmniboxSuggestionType int type) {
         return new AutocompleteMatchBuilder(type)
                 .setIsSearch(true)
-                .setDisplayText("Dummy Suggestion")
-                .setDescription("Dummy Description")
-                // Use either JUnitTest or actual GURL (depends on whether ShadowGURL is applied).
-                .setUrl(new GURL(JUnitTestGURLs.SEARCH_URL));
+                .setDisplayText("Placeholder Suggestion")
+                .setDescription("Placeholder Description")
+                .setUrl(JUnitTestGURLs.SEARCH_URL);
     }
 
     public AutocompleteMatchBuilder(@OmniboxSuggestionType int type) {
@@ -70,9 +69,7 @@ public class AutocompleteMatchBuilder {
         this(AutocompleteMatch.INVALID_TYPE);
     }
 
-    /**
-     * Reset the Builder to its default state.
-     */
+    /** Reset the Builder to its default state. */
     public void reset() {
         mType = AutocompleteMatch.INVALID_TYPE;
         mSubtypes = new ArraySet<>();
@@ -105,17 +102,36 @@ public class AutocompleteMatchBuilder {
     }
 
     /**
-     * Construct AutocompleteMatch from user set parameters.
-     * Default/fallback values for not explicitly initialized fields are supplied by the builder.
+     * Construct AutocompleteMatch from user set parameters. Default/fallback values for not
+     * explicitly initialized fields are supplied by the builder.
      *
      * @return New AutocompleteMatch.
      */
     public AutocompleteMatch build() {
-        return new AutocompleteMatch(mType, mSubtypes, mIsSearchType, mRelevance, mTransition,
-                mDisplayText, mDisplayTextClassifications, mDescription,
-                mDescriptionClassifications, mAnswer, mFillIntoEdit, mUrl, mImageUrl,
-                mImageDominantColor, mIsDeletable, mPostContentType, mPostData, mGroupId,
-                mQueryTiles, mClipboardImageData, mHasTabMatch, mSuggestTiles, mActions);
+        return new AutocompleteMatch(
+                mType,
+                mSubtypes,
+                mIsSearchType,
+                mRelevance,
+                mTransition,
+                mDisplayText,
+                mDisplayTextClassifications,
+                mDescription,
+                mDescriptionClassifications,
+                mAnswer,
+                mFillIntoEdit,
+                mUrl,
+                mImageUrl,
+                mImageDominantColor,
+                mIsDeletable,
+                mPostContentType,
+                mPostData,
+                mGroupId,
+                mQueryTiles,
+                mClipboardImageData,
+                mHasTabMatch,
+                mSuggestTiles,
+                mActions);
     }
 
     /**
@@ -133,6 +149,15 @@ public class AutocompleteMatchBuilder {
      */
     public AutocompleteMatchBuilder setDescription(String text) {
         mDescription = text;
+        return this;
+    }
+
+    /**
+     * @param text The text to replace the Omnibox content with.
+     * @return Omnibox suggestion builder.
+     */
+    public AutocompleteMatchBuilder setFillIntoEdit(String text) {
+        mFillIntoEdit = text;
         return this;
     }
 

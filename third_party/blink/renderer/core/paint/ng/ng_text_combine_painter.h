@@ -5,29 +5,28 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_PAINT_NG_NG_TEXT_COMBINE_PAINTER_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_PAINT_NG_NG_TEXT_COMBINE_PAINTER_H_
 
-#include "third_party/blink/renderer/core/paint/ng/ng_text_painter_base.h"
-#include "third_party/blink/renderer/platform/graphics/dom_node_id.h"
+#include "third_party/blink/renderer/core/paint/text_painter_base.h"
 
 namespace blink {
 
 class ComputedStyle;
-class Document;
-class LayoutNGTextCombine;
+class LayoutTextCombine;
+struct LineRelativeRect;
 
 // The painter for painting text decorations and emphasis marks for
 // LayoutNGTextCombine.
-class NGTextCombinePainter final : public NGTextPainterBase {
+class NGTextCombinePainter final : public TextPainterBase {
  public:
   NGTextCombinePainter(GraphicsContext& context,
                        const ComputedStyle& style,
-                       const PhysicalRect& text_frame_rect);
+                       const LineRelativeRect& text_frame_rect);
   ~NGTextCombinePainter();
 
   static void Paint(const PaintInfo& paint_info,
                     const PhysicalOffset& paint_offset,
-                    const LayoutNGTextCombine& text_combine);
+                    const LayoutTextCombine& text_combine);
 
-  static bool ShouldPaint(const LayoutNGTextCombine& text_combine);
+  static bool ShouldPaint(const LayoutTextCombine& text_combine);
 
  protected:
   void ClipDecorationsStripe(const NGTextFragmentPaintInfo&,
@@ -38,9 +37,13 @@ class NGTextCombinePainter final : public NGTextPainterBase {
  private:
   void PaintDecorations(const PaintInfo& paint_info,
                         const TextPaintStyle& text_style);
+  // Paints emphasis mark as for ideographic full stop character. Callers of
+  // this function should rotate canvas to paint emphasis mark at left/right
+  // side instead of top/bottom side.
+  // `emphasis_mark_font` is used for painting emphasis mark because `font_`
+  // may be compressed font (width variants).
   void PaintEmphasisMark(const TextPaintStyle& text_style,
-                         const Font& emphasis_mark_font,
-                         const Document& document);
+                         const Font& emphasis_mark_font);
 
   const ComputedStyle& style_;
 };

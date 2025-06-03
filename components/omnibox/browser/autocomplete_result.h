@@ -99,6 +99,12 @@ class AutocompleteResult {
   // Adds a new set of matches to the result set.  Does not re-sort.
   void AppendMatches(const ACMatches& matches);
 
+  // Modifies |matches| such that any duplicate matches are coalesced into
+  // representative "best" matches. The erased matches are moved into the
+  // |duplicate_matches| members of their representative matches.
+  void DeduplicateMatches(const AutocompleteInput& input,
+                          TemplateURLService* template_url_service);
+
   // Removes duplicates, puts the list in sorted order and culls to leave only
   // the best GetMaxMatches() matches. Sets the default match to the best match
   // and updates the alternate nav URL.
@@ -142,7 +148,10 @@ class AutocompleteResult {
   void GroupAndDemoteMatchesInGroups();
 
   // Filter and remove OmniboxActions according to Platform-specific rules.
-  void TrimOmniboxActions();
+  void TrimOmniboxActions(bool is_zero_suggest);
+
+  // Split some `actions` on matches out to become their own matches.
+  void SplitActionsToSuggestions();
 
   // Sets |action| in matches that have Pedal-triggering text.
   void AttachPedalsToMatches(const AutocompleteInput& input,
@@ -269,6 +278,12 @@ class AutocompleteResult {
   omnibox::GroupConfig_SideType GetSideTypeForSuggestionGroup(
       omnibox::GroupId suggestion_group_id) const;
 
+  // Returns the render type associated with `suggestion_group_id`.
+  // Returns omnibox::DEFAULT_VERTICAL if `suggestion_group_id` is not found in
+  // `suggestion_groups_map_`.
+  omnibox::GroupConfig_RenderType GetRenderTypeForSuggestionGroup(
+      omnibox::GroupId suggestion_group_id) const;
+
   // Updates |suggestion_groups_map_| with the suggestion groups information
   // from |suggeston_groups_map|. Followed by GroupAndDemoteMatchesInGroups()
   // which sorts the matches based on the order in which their groups should
@@ -294,6 +309,7 @@ class AutocompleteResult {
   friend class AutocompleteProviderTest;
   friend class HistoryURLProviderTest;
   FRIEND_TEST_ALL_PREFIXES(AutocompleteResultTest, Desktop_TwoColumnRealbox);
+  FRIEND_TEST_ALL_PREFIXES(AutocompleteResultTest, Android_TrimOmniboxActions);
 
   typedef std::map<AutocompleteProvider*, ACMatches> ProviderToMatches;
 
@@ -312,7 +328,9 @@ class AutocompleteResult {
   // Modifies |matches| such that any duplicate matches are coalesced into
   // representative "best" matches. The erased matches are moved into the
   // |duplicate_matches| members of their representative matches.
-  static void DeduplicateMatches(ACMatches* matches);
+  static void DeduplicateMatches(ACMatches* matches,
+                                 const AutocompleteInput& input,
+                                 TemplateURLService* template_url_service);
 
   // Returns true if |matches| contains a match with the same destination as
   // |match|.

@@ -18,7 +18,7 @@
  *
  */
 
-GEN_INCLUDE(['//chrome/test/data/webui/polymer_browser_test_base.js']);
+GEN_INCLUDE(['//chrome/test/data/webui/chromeos/polymer_browser_test_base.js']);
 
 GEN('#include "ash/constants/ash_features.h"');
 GEN('#include "content/public/test/browser_test.h"');
@@ -28,16 +28,13 @@ this.OSFeedbackBrowserTest = class extends PolymerTest {
   /** @override */
   get browsePreload() {
     return 'chrome://os-feedback/test_loader.html?module=chromeos/' +
-        'os_feedback_ui/os_feedback_unified_test.js&host=test';
+        'os_feedback_ui/os_feedback_unified_test.js';
   }
 
   /** @override */
   get featureList() {
     return {
-      enabled: [
-        'ash::features::kOsFeedback', 'ash::features::kOsFeedbackJelly',
-        'chromeos::features::kJelly'
-      ]
+      enabled: ['ash::features::kOsFeedbackJelly', 'chromeos::features::kJelly']
     };
   }
 };

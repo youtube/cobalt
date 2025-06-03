@@ -15,6 +15,7 @@ import android.view.inputmethod.InputMethodSubtype;
 
 import androidx.annotation.WorkerThread;
 
+import org.chromium.base.BuildInfo;
 import org.chromium.base.CommandLine;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.Log;
@@ -23,6 +24,8 @@ import org.chromium.base.ThreadUtils;
 import org.chromium.base.TraceEvent;
 import org.chromium.base.compat.ApiHelperForR;
 import org.chromium.base.metrics.RecordHistogram;
+import org.chromium.base.shared_preferences.SharedPreferencesManager;
+import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.task.AsyncTask;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
@@ -37,7 +40,6 @@ import org.chromium.chrome.browser.DevToolsServer;
 import org.chromium.chrome.browser.app.bluetooth.BluetoothNotificationService;
 import org.chromium.chrome.browser.app.feature_guide.notifications.FeatureNotificationGuideDelegate;
 import org.chromium.chrome.browser.app.usb.UsbNotificationService;
-import org.chromium.chrome.browser.app.video_tutorials.VideoTutorialShareHelper;
 import org.chromium.chrome.browser.bluetooth.BluetoothNotificationManager;
 import org.chromium.chrome.browser.bookmarkswidget.BookmarkWidgetProvider;
 import org.chromium.chrome.browser.contacts_picker.ChromePickerAdapter;
@@ -66,12 +68,11 @@ import org.chromium.chrome.browser.metrics.WebApkUninstallUmaTracker;
 import org.chromium.chrome.browser.notifications.channels.ChannelsUpdater;
 import org.chromium.chrome.browser.ntp.FeedPositionUtils;
 import org.chromium.chrome.browser.offlinepages.measurements.OfflineMeasurementsBackgroundTask;
-import org.chromium.chrome.browser.omnibox.voice.AssistantVoiceSearchService;
 import org.chromium.chrome.browser.optimization_guide.OptimizationGuideBridgeFactory;
 import org.chromium.chrome.browser.partnercustomizations.PartnerBrowserCustomizations;
 import org.chromium.chrome.browser.photo_picker.DecoderService;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
-import org.chromium.chrome.browser.preferences.SharedPreferencesManager;
+import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.chrome.browser.price_tracking.PriceTrackingFeatures;
 import org.chromium.chrome.browser.privacy.settings.PrivacyPreferencesManagerImpl;
 import org.chromium.chrome.browser.profiles.Profile;
@@ -83,6 +84,8 @@ import org.chromium.chrome.browser.searchwidget.SearchWidgetProvider;
 import org.chromium.chrome.browser.signin.SigninCheckerProvider;
 import org.chromium.chrome.browser.tab.state.PersistedTabData;
 import org.chromium.chrome.browser.tab.state.ShoppingPersistedTabData;
+import org.chromium.chrome.browser.ui.cars.DrivingRestrictionsManager;
+import org.chromium.chrome.browser.ui.hats.SurveyClientFactory;
 import org.chromium.chrome.browser.ui.searchactivityutils.SearchActivityPreferencesManager;
 import org.chromium.chrome.browser.usb.UsbNotificationManager;
 import org.chromium.chrome.browser.util.AfterStartupTaskUtils;
@@ -101,19 +104,19 @@ import org.chromium.components.minidump_uploader.CrashFileManager;
 import org.chromium.components.optimization_guide.proto.HintsProto;
 import org.chromium.components.signin.AccountManagerFacadeImpl;
 import org.chromium.components.signin.AccountManagerFacadeProvider;
-import org.chromium.components.version_info.Channel;
-import org.chromium.components.version_info.VersionConstants;
 import org.chromium.components.version_info.VersionInfo;
 import org.chromium.components.webapps.AppBannerManager;
 import org.chromium.content_public.browser.ChildProcessLauncherHelper;
 import org.chromium.content_public.browser.ContactsPicker;
 import org.chromium.content_public.browser.ContactsPickerListener;
 import org.chromium.content_public.common.ContentSwitches;
+import org.chromium.ui.accessibility.AccessibilityState;
 import org.chromium.ui.base.Clipboard;
 import org.chromium.ui.base.PhotoPicker;
 import org.chromium.ui.base.PhotoPickerListener;
 import org.chromium.ui.base.SelectFileDialog;
 import org.chromium.ui.base.WindowAndroid;
+import org.chromium.url.GURL;
 
 import java.io.File;
 import java.nio.charset.StandardCharsets;
@@ -175,8 +178,6 @@ public class ProcessInitializationHandler {
      * Performs the shared class initialization.
      */
     protected void handlePreNativeInitialization() {
-        Context application = ContextUtils.getApplicationContext();
-
         // Initialize the AccountManagerFacade with the correct AccountManagerDelegate. Must be done
         // only once and before AccountManagerFacadeProvider.getInstance() is invoked.
         AccountManagerFacadeProvider.setInstance(
@@ -256,6 +257,21 @@ public class ProcessInitializationHandler {
         PrivacyPreferencesManagerImpl.getInstance().onNativeInitialized();
         refreshCachedSegmentationResult();
         setProcessStateSummaryForAnrs(true);
+
+        AccessibilityState.registerObservers();
+
+        if (BuildInfo.getInstance().isAutomotive) {
+            DrivingRestrictionsManager.initialize();
+        }
+
+        // Initialize UMA settings for survey component.
+        // TODO(crbug/1481316): Observe PrivacyPreferencesManagerImpl from SurveyClientFactory.
+        ObservableSupplierImpl<Boolean> crashUploadPermissionSupplier =
+                new ObservableSupplierImpl<>();
+        crashUploadPermissionSupplier.set(
+                PrivacyPreferencesManagerImpl.getInstance().isUsageAndCrashReportingPermitted());
+        PrivacyPreferencesManagerImpl.getInstance().addObserver(crashUploadPermissionSupplier::set);
+        SurveyClientFactory.initialize(crashUploadPermissionSupplier);
     }
 
     /**
@@ -321,10 +337,10 @@ public class ProcessInitializationHandler {
                         new Runnable() {
                             @Override
                             public void run() {
-                                String homepageUrl = HomepageManager.getHomepageUri();
+                                GURL homepageGurl = HomepageManager.getHomepageGurl();
                                 LaunchMetrics.recordHomePageLaunchMetrics(
                                         HomepageManager.isHomepageEnabled(),
-                                        UrlUtilities.isNTPUrl(homepageUrl), homepageUrl);
+                                        UrlUtilities.isNTPUrl(homepageGurl), homepageGurl);
                             }
                         });
 
@@ -431,35 +447,34 @@ public class ProcessInitializationHandler {
         deferredStartupHandler.addDeferredTask(
                 () -> EnterpriseInfo.getInstance().logDeviceEnterpriseInfo());
         deferredStartupHandler.addDeferredTask(
-                () -> VideoTutorialShareHelper.saveUrlsToSharedPrefs());
-        deferredStartupHandler.addDeferredTask(
                 () -> TosDialogBehaviorSharedPrefInvalidator.refreshSharedPreferenceIfTosSkipped());
         deferredStartupHandler.addDeferredTask(
                 () -> OfflineMeasurementsBackgroundTask.clearPersistedDataFromPrefs());
         deferredStartupHandler.addDeferredTask(() -> QueryTileUtils.isQueryTilesEnabledOnNTP());
-        deferredStartupHandler.addDeferredTask(
-                ()
-                        -> AssistantVoiceSearchService.reportStartupUserEligibility(
-                                ContextUtils.getApplicationContext()));
         deferredStartupHandler.addDeferredTask(() -> {
             GlobalAppLocaleController.getInstance().maybeSetupLocaleManager();
             GlobalAppLocaleController.getInstance().recordOverrideLanguageMetrics();
         });
-        deferredStartupHandler.addDeferredTask(() -> {
-            // OptimizationTypes which we give a guarantee will be registered when we pass the
-            // onDeferredStartup() signal to OptimizationGuide.
-            List<HintsProto.OptimizationType> registeredTypesAllowList = new ArrayList<>();
-            registeredTypesAllowList.addAll(
-                    ShoppingPersistedTabData.getShoppingHintsToRegisterOnDeferredStartup());
-            new OptimizationGuideBridgeFactory(registeredTypesAllowList)
-                    .create()
-                    .onDeferredStartup();
-            // TODO(crbug.com/1355893) Move to PersistedTabData.onDeferredStartup
-            if (PriceTrackingFeatures.isPriceTrackingEligible()
-                    && ShoppingPersistedTabData.isPriceTrackingWithOptimizationGuideEnabled()) {
-                ShoppingPersistedTabData.onDeferredStartup();
-            }
-        });
+        deferredStartupHandler.addDeferredTask(
+                () -> {
+                    // OptimizationTypes which we give a guarantee will be registered when we pass
+                    // the
+                    // onDeferredStartup() signal to OptimizationGuide.
+                    Profile profile = Profile.getLastUsedRegularProfile();
+                    List<HintsProto.OptimizationType> registeredTypesAllowList = new ArrayList<>();
+                    registeredTypesAllowList.addAll(
+                            ShoppingPersistedTabData.getShoppingHintsToRegisterOnDeferredStartup(
+                                    profile));
+                    new OptimizationGuideBridgeFactory(registeredTypesAllowList)
+                            .create()
+                            .onDeferredStartup();
+                    // TODO(crbug.com/1355893) Move to PersistedTabData.onDeferredStartup
+                    if (PriceTrackingFeatures.isPriceTrackingEligible(profile)
+                            && ShoppingPersistedTabData.isPriceTrackingWithOptimizationGuideEnabled(
+                                    profile)) {
+                        ShoppingPersistedTabData.onDeferredStartup();
+                    }
+                });
         deferredStartupHandler.addDeferredTask(() -> {
             if (ChromeFeatureList.isEnabled(ChromeFeatureList.FEATURE_NOTIFICATION_GUIDE)) {
                 FeatureNotificationGuideServiceFactory.getForProfile(
@@ -467,6 +482,9 @@ public class ProcessInitializationHandler {
             }
         });
         deferredStartupHandler.addDeferredTask(() -> { PersistedTabData.onDeferredStartup(); });
+
+        // Asynchronously query system accessibility state so it is ready for clients.
+        deferredStartupHandler.addDeferredTask(AccessibilityState::initializeOnStartup);
     }
 
     private void initChannelsAsync() {
@@ -545,10 +563,8 @@ public class ProcessInitializationHandler {
                         new CrashFileManager(ContextUtils.getApplicationContext().getCacheDir());
                 crashFileManager.cleanOutAllNonFreshMinidumpFiles();
 
-                // Restricting ANR collection to Canary until we are totally happy with it.
                 // ANR collection is only available on R+.
-                if (VersionConstants.CHANNEL == Channel.CANARY
-                        && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                     crashFileManager.collectAndWriteAnrs();
                 }
                 // Next, identify any minidumps that lack logcat output, and are too old to add
@@ -653,7 +669,7 @@ public class ProcessInitializationHandler {
     @WorkerThread
     private void removeSnapshotDatabase() {
         synchronized (SNAPSHOT_DATABASE_LOCK) {
-            SharedPreferencesManager prefs = SharedPreferencesManager.getInstance();
+            SharedPreferencesManager prefs = ChromeSharedPreferences.getInstance();
             if (!prefs.readBoolean(ChromePreferenceKeys.SNAPSHOT_DATABASE_REMOVED, false)) {
                 ContextUtils.getApplicationContext().deleteDatabase(SNAPSHOT_DATABASE_NAME);
                 prefs.writeBoolean(ChromePreferenceKeys.SNAPSHOT_DATABASE_REMOVED, true);

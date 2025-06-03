@@ -52,5 +52,9 @@
 	<string>Allow content_shell access to microphone</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Allow content_shell access to camera</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Allow content_shell access to Bluetooth</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Allow content_shell access to location</string>
 </dict>
 </plist>

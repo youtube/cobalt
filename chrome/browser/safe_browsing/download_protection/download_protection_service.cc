@@ -10,9 +10,14 @@
 #include "base/command_line.h"
 #include "base/functional/bind.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/strings/string_split.h"
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
 #include "chrome/browser/browser_process.h"
+#include "chrome/browser/download/chrome_download_manager_delegate.h"
+#include "chrome/browser/download/download_core_service.h"
+#include "chrome/browser/download/download_core_service_factory.h"
+#include "chrome/browser/download/download_item_warning_data.h"
 #include "chrome/browser/enterprise/connectors/connectors_manager.h"
 #include "chrome/browser/extensions/api/safe_browsing_private/safe_browsing_private_event_router.h"
 #include "chrome/browser/extensions/api/safe_browsing_private/safe_browsing_private_event_router_factory.h"
@@ -53,6 +58,7 @@
 #include "net/base/url_util.h"
 #include "net/cert/x509_util.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 using content::BrowserThread;
 using ReportThreatDetailsResult =
@@ -78,7 +84,8 @@ void AddEventUrlToReferrerChain(const download::DownloadItem& item,
   event_url_entry->set_referrer_url(
       render_frame_host->GetLastCommittedURL().spec());
   event_url_entry->set_is_retargeting(false);
-  event_url_entry->set_navigation_time_msec(base::Time::Now().ToJavaTime());
+  event_url_entry->set_navigation_time_msec(
+      base::Time::Now().InMillisecondsSinceUnixEpoch());
   for (const GURL& url : item.GetUrlChain())
     event_url_entry->add_server_redirect_chain()->set_url(url.spec());
 }
@@ -111,6 +118,7 @@ bool IsDownloadSecuritySensitive(safe_browsing::DownloadCheckResult result) {
     case Result::DANGEROUS_HOST:
     case Result::POTENTIALLY_UNWANTED:
     case Result::DANGEROUS_ACCOUNT_COMPROMISE:
+    case Result::DEEP_SCANNED_FAILED:
       return true;
     case Result::SAFE:
     case Result::ALLOWLISTED_BY_POLICY:
@@ -121,6 +129,7 @@ bool IsDownloadSecuritySensitive(safe_browsing::DownloadCheckResult result) {
     case Result::SENSITIVE_CONTENT_WARNING:
     case Result::DEEP_SCANNED_SAFE:
     case Result::PROMPT_FOR_SCANNING:
+    case Result::PROMPT_FOR_LOCAL_PASSWORD_SCANNING:
     case Result::BLOCKED_UNSUPPORTED_FILE_TYPE:
       return false;
   }
@@ -211,10 +220,11 @@ bool DownloadProtectionService::IsHashManuallyBlocklisted(
 
 void DownloadProtectionService::CheckClientDownload(
     download::DownloadItem* item,
-    CheckDownloadRepeatingCallback callback) {
+    CheckDownloadRepeatingCallback callback,
+    base::optional_ref<const std::string> password) {
   auto request = std::make_unique<CheckClientDownloadRequest>(
       item, std::move(callback), this, database_manager_,
-      binary_feature_extractor_);
+      binary_feature_extractor_, password);
   CheckClientDownloadRequest* request_copy = request.get();
   context_download_requests_[content::DownloadItemUtils::GetBrowserContext(
       item)][request_copy] = std::move(request);
@@ -245,15 +255,16 @@ bool DownloadProtectionService::MaybeCheckClientDownload(
     UploadForDeepScanning(
         item,
         base::BindRepeating(
-            &DownloadProtectionService::MaybeCheckMetdataAfterDeepScanning,
+            &DownloadProtectionService::MaybeCheckMetadataAfterDeepScanning,
             weak_ptr_factory_.GetWeakPtr(), item, std::move(callback)),
         DeepScanningRequest::DeepScanTrigger::TRIGGER_POLICY,
-        DownloadCheckResult::UNKNOWN, std::move(settings.value()));
+        DownloadCheckResult::UNKNOWN, std::move(settings.value()),
+        /*password=*/absl::nullopt);
     return true;
   }
 
   if (safe_browsing_enabled && real_time_download_protection_request_allowed) {
-    CheckClientDownload(item, std::move(callback));
+    CheckClientDownload(item, std::move(callback), /*password=*/absl::nullopt);
     return true;
   }
 
@@ -266,7 +277,8 @@ bool DownloadProtectionService::MaybeCheckClientDownload(
     UploadForDeepScanning(item, std::move(callback),
                           DeepScanningRequest::DeepScanTrigger::TRIGGER_POLICY,
                           DownloadCheckResult::UNKNOWN,
-                          std::move(settings.value()));
+                          std::move(settings.value()),
+                          /*password=*/absl::nullopt);
     return true;
   }
 
@@ -442,6 +454,7 @@ void DownloadProtectionService::ShowDetailsForDownload(
                              ui::PAGE_TRANSITION_LINK, false));
 }
 
+// static
 void DownloadProtectionService::SetDownloadProtectionData(
     download::DownloadItem* item,
     const std::string& token,
@@ -454,6 +467,7 @@ void DownloadProtectionService::SetDownloadProtectionData(
   }
 }
 
+// static
 std::string DownloadProtectionService::GetDownloadPingToken(
     const download::DownloadItem* item) {
   base::SupportsUserData::Data* protection_data =
@@ -465,6 +479,13 @@ std::string DownloadProtectionService::GetDownloadPingToken(
     return std::string();
 }
 
+// static
+bool DownloadProtectionService::HasDownloadProtectionVerdict(
+    const download::DownloadItem* item) {
+  return item->GetUserData(kDownloadProtectionDataKey) != nullptr;
+}
+
+// static
 ClientDownloadResponse::Verdict
 DownloadProtectionService::GetDownloadProtectionVerdict(
     const download::DownloadItem* item) {
@@ -476,6 +497,7 @@ DownloadProtectionService::GetDownloadProtectionVerdict(
     return ClientDownloadResponse::SAFE;
 }
 
+// static
 ClientDownloadResponse::TailoredVerdict
 DownloadProtectionService::GetDownloadProtectionTailoredVerdict(
     const download::DownloadItem* item) {
@@ -700,8 +722,8 @@ void DownloadProtectionService::OnDangerousDownloadOpened(
           continue;
 
         router->OnAnalysisConnectorWarningBypassed(
-            item->GetURL(), "", "", metadata.filename, metadata.sha256,
-            metadata.mime_type,
+            item->GetURL(), item->GetTabUrl(), "", "", metadata.filename,
+            metadata.sha256, metadata.mime_type,
             extensions::SafeBrowsingPrivateEventRouter::kTriggerFileDownload,
             metadata.scan_response.request_token(),
             DeepScanAccessPoint::DOWNLOAD, result, metadata.size,
@@ -714,14 +736,15 @@ void DownloadProtectionService::OnDangerousDownloadOpened(
     }
   } else if (scan_result) {
     for (const auto& metadata : scan_result->file_metadata) {
-      router->OnDangerousDownloadOpened(item->GetURL(), metadata.filename,
-                                        metadata.sha256, metadata.mime_type,
-                                        metadata.scan_response.request_token(),
-                                        item->GetDangerType(), metadata.size);
+      router->OnDangerousDownloadOpened(
+          item->GetURL(), item->GetTabUrl(), metadata.filename, metadata.sha256,
+          metadata.mime_type, metadata.scan_response.request_token(),
+          item->GetDangerType(), metadata.size);
     }
   } else {
     router->OnDangerousDownloadOpened(
-        item->GetURL(), item->GetTargetFilePath().AsUTF8Unsafe(),
+        item->GetURL(), item->GetTabUrl(),
+        item->GetTargetFilePath().AsUTF8Unsafe(),
         base::HexEncode(raw_digest_sha256.data(), raw_digest_sha256.size()),
         item->GetMimeType(), /*scan_id*/ "", item->GetDangerType(),
         item->GetTotalBytes());
@@ -756,16 +779,97 @@ void DownloadProtectionService::UploadForDeepScanning(
     CheckDownloadRepeatingCallback callback,
     DeepScanningRequest::DeepScanTrigger trigger,
     DownloadCheckResult download_check_result,
-    enterprise_connectors::AnalysisSettings analysis_settings) {
+    enterprise_connectors::AnalysisSettings analysis_settings,
+    base::optional_ref<const std::string> password) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   auto request = std::make_unique<DeepScanningRequest>(
       item, trigger, download_check_result, callback, this,
-      std::move(analysis_settings));
+      std::move(analysis_settings), password);
   DeepScanningRequest* request_raw = request.get();
   auto insertion_result = deep_scanning_requests_.insert(
       std::make_pair(request_raw, std::move(request)));
   DCHECK(insertion_result.second);
   insertion_result.first->second->Start();
+}
+
+// static
+void DownloadProtectionService::UploadForConsumerDeepScanning(
+    download::DownloadItem* item,
+    base::optional_ref<const std::string> password) {
+  if (!item) {
+    return;
+  }
+  safe_browsing::SafeBrowsingService* sb_service =
+      g_browser_process->safe_browsing_service();
+  if (!sb_service) {
+    return;
+  }
+  safe_browsing::DownloadProtectionService* protection_service =
+      sb_service->download_protection_service();
+  if (!protection_service) {
+    return;
+  }
+  DownloadCoreService* download_core_service =
+      DownloadCoreServiceFactory::GetForBrowserContext(
+          content::DownloadItemUtils::GetBrowserContext(item));
+  DCHECK(download_core_service);
+  ChromeDownloadManagerDelegate* delegate =
+      download_core_service->GetDownloadManagerDelegate();
+  DCHECK(delegate);
+
+  // Create an analysis settings object for UploadForDeepScanning().
+  // Make sure it specifies a cloud analysis is required and does not
+  // specify a DM token, which is what triggers an APP scan.
+  enterprise_connectors::AnalysisSettings settings;
+  settings.cloud_or_local_settings =
+      enterprise_connectors::CloudOrLocalAnalysisSettings(
+          enterprise_connectors::CloudAnalysisSettings());
+  settings.tags = {{"malware", enterprise_connectors::TagSettings()}};
+  protection_service->UploadForDeepScanning(
+      item,
+      base::BindRepeating(
+          &ChromeDownloadManagerDelegate::CheckClientDownloadDone,
+          delegate->GetWeakPtr(), item->GetId()),
+      safe_browsing::DeepScanningRequest::DeepScanTrigger::
+          TRIGGER_CONSUMER_PROMPT,
+      safe_browsing::DownloadCheckResult::UNKNOWN, std::move(settings),
+      password);
+  LogDeepScanEvent(item, safe_browsing::DeepScanEvent::kPromptAccepted);
+}
+
+// static
+void DownloadProtectionService::CheckDownloadWithLocalDecryption(
+    download::DownloadItem* item,
+    base::optional_ref<const std::string> password) {
+  if (!item) {
+    return;
+  }
+  safe_browsing::SafeBrowsingService* sb_service =
+      g_browser_process->safe_browsing_service();
+  if (!sb_service) {
+    return;
+  }
+  safe_browsing::DownloadProtectionService* protection_service =
+      sb_service->download_protection_service();
+  if (!protection_service) {
+    return;
+  }
+  DownloadCoreService* download_core_service =
+      DownloadCoreServiceFactory::GetForBrowserContext(
+          content::DownloadItemUtils::GetBrowserContext(item));
+  DCHECK(download_core_service);
+  ChromeDownloadManagerDelegate* delegate =
+      download_core_service->GetDownloadManagerDelegate();
+  DCHECK(delegate);
+
+  delegate->CheckClientDownloadDone(
+      item->GetId(), safe_browsing::DownloadCheckResult::ASYNC_SCANNING);
+  protection_service->CheckClientDownload(
+      item,
+      base::BindRepeating(
+          &ChromeDownloadManagerDelegate::CheckClientDownloadDone,
+          delegate->GetWeakPtr(), item->GetId()),
+      password);
 }
 
 void DownloadProtectionService::UploadSavePackageForDeepScanning(
@@ -824,12 +928,12 @@ DownloadProtectionService::GetNavigationObserverManager(
       web_contents->GetBrowserContext());
 }
 
-void DownloadProtectionService::MaybeCheckMetdataAfterDeepScanning(
+void DownloadProtectionService::MaybeCheckMetadataAfterDeepScanning(
     download::DownloadItem* item,
     CheckDownloadRepeatingCallback callback,
     DownloadCheckResult result) {
   if (result == DownloadCheckResult::UNKNOWN) {
-    CheckClientDownload(item, callback);
+    CheckClientDownload(item, callback, /*password=*/absl::nullopt);
   } else {
     std::move(callback).Run(result);
   }

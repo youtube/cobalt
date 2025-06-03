@@ -260,6 +260,11 @@ void DrmThread::IsDeviceAtomic(gfx::AcceleratedWidget widget, bool* is_atomic) {
   *is_atomic = drm_device && drm_device->is_atomic();
 }
 
+void DrmThread::SetDrmModifiersFilter(
+    std::unique_ptr<DrmModifiersFilter> filter) {
+  screen_manager_->SetDrmModifiersFilter(std::move(filter));
+}
+
 void DrmThread::CreateWindow(gfx::AcceleratedWidget widget,
                              const gfx::Rect& initial_bounds) {
   TRACE_EVENT0("drm", "DrmThread::CreateWindow");
@@ -290,7 +295,7 @@ void DrmThread::SetWindowBounds(gfx::AcceleratedWidget widget,
 
 void DrmThread::SetCursor(gfx::AcceleratedWidget widget,
                           const std::vector<SkBitmap>& bitmaps,
-                          const gfx::Point& location,
+                          const absl::optional<gfx::Point>& location,
                           base::TimeDelta frame_delay) {
   TRACE_EVENT0("drm", "DrmThread::SetCursor");
   screen_manager_->GetWindow(widget)->SetCursor(bitmaps, location, frame_delay);

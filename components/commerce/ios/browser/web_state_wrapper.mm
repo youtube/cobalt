@@ -11,20 +11,26 @@
 #include "ios/web/public/js_messaging/web_frames_manager.h"
 #include "ios/web/public/web_state.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace commerce {
 
 WebStateWrapper::WebStateWrapper(web::WebState* web_state)
     : web_state_(web_state) {}
+
+WebStateWrapper::~WebStateWrapper() = default;
 
 const GURL& WebStateWrapper::GetLastCommittedURL() {
   if (!web_state_)
     return GURL::EmptyGURL();
 
   return web_state_->GetLastCommittedURL();
+}
+
+bool WebStateWrapper::IsFirstLoadForNavigationFinished() {
+  return is_first_load_for_nav_finished_;
+}
+
+void WebStateWrapper::SetIsFirstLoadForNavigationFinished(bool finished) {
+  is_first_load_for_nav_finished_ = finished;
 }
 
 bool WebStateWrapper::IsOffTheRecord() {

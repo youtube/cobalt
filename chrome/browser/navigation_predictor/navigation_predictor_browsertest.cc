@@ -30,6 +30,7 @@
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/fenced_frame_test_util.h"
 #include "content/public/test/prerender_test_util.h"
+#include "content/public/test/test_navigation_observer.h"
 #include "net/base/features.h"
 #include "net/dns/mock_host_resolver.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
@@ -79,6 +80,7 @@ class NavigationPredictorBrowserTest
   void SetUpOnMainThread() override {
     subresource_filter::SubresourceFilterBrowserTest::SetUpOnMainThread();
     host_resolver()->ClearRules();
+    host_resolver()->AddRule("a.test", "127.0.0.1");
     ukm_recorder_ = std::make_unique<ukm::TestAutoSetUkmRecorder>();
   }
 
@@ -90,8 +92,8 @@ class NavigationPredictorBrowserTest
     return https_server_->GetURL(hostname, file);
   }
 
-  const GURL GetHttpTestURL(const char* file) const {
-    return http_server_->GetURL(file);
+  const GURL GetHttpTestURL(const char* hostname, const char* file) const {
+    return http_server_->GetURL(hostname, file);
   }
 
   // Wait until at least |num_links| are reported as having entered the viewport
@@ -223,9 +225,9 @@ IN_PROC_BROWSER_TEST_F(NavigationPredictorBrowserTest, PipelineOffTheRecord) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(incognito, url));
   base::RunLoop().RunUntilIdle();
 
-  EXPECT_TRUE(content::ExecuteScript(
-      incognito->tab_strip_model()->GetActiveWebContents(),
-      "document.getElementById('google').click();"));
+  EXPECT_TRUE(
+      content::ExecJs(incognito->tab_strip_model()->GetActiveWebContents(),
+                      "document.getElementById('google').click();"));
   base::RunLoop().RunUntilIdle();
 
   auto entries = test_ukm_recorder->GetMergedEntriesByName(
@@ -245,13 +247,17 @@ IN_PROC_BROWSER_TEST_F(NavigationPredictorBrowserTest, PipelineHttp) {
   auto test_ukm_recorder = std::make_unique<ukm::TestAutoSetUkmRecorder>();
   ResetUKM();
 
-  const GURL& url = GetHttpTestURL("/simple_page_with_anchors.html");
+  // We don't use localhost for this test, as http localhost is trusted.
+  const GURL& url = GetHttpTestURL("a.test", "/simple_page_with_anchors.html");
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
   base::RunLoop().RunUntilIdle();
 
-  EXPECT_TRUE(content::ExecuteScript(
-      browser()->tab_strip_model()->GetActiveWebContents(),
-      "document.getElementById('google').click();"));
+  content::WebContents* web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  content::TestNavigationObserver click_nav_observer(web_contents);
+  EXPECT_TRUE(content::ExecJs(web_contents,
+                              "document.getElementById('google').click();"));
+  click_nav_observer.Wait();
   base::RunLoop().RunUntilIdle();
 
   auto entries = test_ukm_recorder->GetMergedEntriesByName(
@@ -308,8 +314,9 @@ IN_PROC_BROWSER_TEST_F(NavigationPredictorBrowserTest,
 }
 
 // Tests that anchors from iframes are reported.
-// TODO(crbug.com/1427913): Flaky on Windows ASAN and ChromeOS dbg.
-#if BUILDFLAG(IS_WIN) || (BUILDFLAG(IS_CHROMEOS) && !defined(NDEBUG))
+// TODO(crbug.com/1427913): Flaky on Windows ASAN, ChromeOS debug, and lacros.
+// Failing on ChromeOS MSAN.
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
 #define MAYBE_PageWithIframe DISABLED_PageWithIframe
 #else
 #define MAYBE_PageWithIframe PageWithIframe
@@ -421,9 +428,13 @@ IN_PROC_BROWSER_TEST_F(NavigationPredictorBrowserTest, ClickAnchorElement) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
   WaitLinkEnteredViewport(1);
 
-  EXPECT_TRUE(content::ExecuteScript(
-      browser()->tab_strip_model()->GetActiveWebContents(),
-      "document.getElementById('google').click();"));
+  EXPECT_TRUE(
+      content::ExecJs(browser()->tab_strip_model()->GetActiveWebContents(),
+                      "document.getElementById('google').click();"));
+  base::RunLoop().RunUntilIdle();
+
+  // Navigate to another page.
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GetTestURL("/1.html")));
   base::RunLoop().RunUntilIdle();
 
   // Make sure the click has been logged.
@@ -465,9 +476,9 @@ IN_PROC_BROWSER_TEST_F(NavigationPredictorBrowserTest,
   ASSERT_TRUE(ui_test_utils::NavigateToURL(incognito, url));
   base::RunLoop().RunUntilIdle();
 
-  EXPECT_TRUE(content::ExecuteScript(
-      incognito->tab_strip_model()->GetActiveWebContents(),
-      "document.getElementById('google').click();"));
+  EXPECT_TRUE(
+      content::ExecJs(incognito->tab_strip_model()->GetActiveWebContents(),
+                      "document.getElementById('google').click();"));
   content::WaitForLoadStop(
       incognito->tab_strip_model()->GetActiveWebContents());
 
@@ -482,8 +493,10 @@ IN_PROC_BROWSER_TEST_F(NavigationPredictorBrowserTest,
 }
 
 // Tests that the browser counts anchors from anywhere on the page.
-// TODO(crbug.com/1415981): Flaky on Windows ASAN.
-#if BUILDFLAG(IS_WIN)
+// TODO(crbug.com/1415981,crbug.com/1444797): Flaky on Windows, Linux, ASAN and
+// LSAN and linux-chromeos-dbg.
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || defined(ADDRESS_SANITIZER) || \
+    defined(LEAK_SANITIZER) || (BUILDFLAG(IS_CHROMEOS) && !defined(NDEBUG))
 #define MAYBE_ViewportOnlyAndUrlIncrementByOne \
   DISABLED_ViewportOnlyAndUrlIncrementByOne
 #else
@@ -591,8 +604,9 @@ IN_PROC_BROWSER_TEST_F(NavigationPredictorBrowserTest,
 }
 
 // Same as NavigationScoreSingleObserver test but with more than one observer.
-// TODO(crbug.com/1416900): Flaky on Linux and Chrome OS.
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+// TODO(crbug.com/1416900): Flaky on Linux, Chrome OS and win-asan.
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX) || \
+    (BUILDFLAG(IS_WIN) && defined(ADDRESS_SANITIZER))
 #define MAYBE_TwoObservers DISABLED_TwoObservers
 #else
 #define MAYBE_TwoObservers TwoObservers
@@ -691,7 +705,7 @@ class NavigationPredictorPrerenderBrowserTest
       const NavigationPredictorPrerenderBrowserTest&) = delete;
 
   void SetUp() override {
-    prerender_test_helper_.SetUp(test_server());
+    prerender_test_helper_.RegisterServerRequestMonitor(test_server());
     NavigationPredictorMPArchBrowserTest::SetUp();
   }
 

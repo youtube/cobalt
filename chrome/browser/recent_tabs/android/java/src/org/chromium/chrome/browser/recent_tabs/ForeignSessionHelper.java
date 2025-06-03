@@ -6,13 +6,15 @@ package org.chromium.chrome.browser.recent_tabs;
 
 import androidx.annotation.VisibleForTesting;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.CollectionUtil;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.NativeMethods;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.chrome.browser.tabmodel.TabCreatorManager;
+import org.chromium.components.sync_device_info.FormFactor;
 import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.content_public.common.ContentUrlConstants;
 import org.chromium.url.GURL;
@@ -44,24 +46,29 @@ public class ForeignSessionHelper {
 
     /**
      * Represents synced foreign session.
+     * Form factor value correlations can be found in the components/sync_device_info/device_info.h
+     * file or its Java generated counterpart.
      */
     public static class ForeignSession {
         public final String tag;
         public final String name;
         public final long modifiedTime;
         public final List<ForeignSessionWindow> windows = new ArrayList<ForeignSessionWindow>();
+        public final @FormFactor int formFactor;
 
-        private ForeignSession(String tag, String name, long modifiedTime) {
-            this(tag, name, modifiedTime, new ArrayList<>());
+        private ForeignSession(
+                String tag, String name, long modifiedTime, @FormFactor int formFactor) {
+            this(tag, name, modifiedTime, new ArrayList<>(), formFactor);
         }
 
         @VisibleForTesting
-        public ForeignSession(
-                String tag, String name, long modifiedTime, List<ForeignSessionWindow> windows) {
+        public ForeignSession(String tag, String name, long modifiedTime,
+                List<ForeignSessionWindow> windows, @FormFactor int formFactor) {
             this.tag = tag;
             this.name = name;
             this.modifiedTime = modifiedTime;
             this.windows.addAll(windows);
+            this.formFactor = formFactor;
         }
     }
 
@@ -105,9 +112,9 @@ public class ForeignSessionHelper {
     }
 
     @CalledByNative
-    private static ForeignSession pushSession(
-            List<ForeignSession> sessions, String tag, String name, long modifiedTime) {
-        ForeignSession session = new ForeignSession(tag, name, modifiedTime);
+    private static ForeignSession pushSession(List<ForeignSession> sessions, String tag,
+            String name, long modifiedTime, @FormFactor int formFactor) {
+        ForeignSession session = new ForeignSession(tag, name, modifiedTime, formFactor);
         sessions.add(session);
         return session;
     }
@@ -260,7 +267,7 @@ public class ForeignSessionHelper {
 
         return ForeignSessionHelperJni.get().openForeignSessionTabsAsBackgroundTabs(
                 mNativeForeignSessionHelper, newForegroundTab,
-                CollectionUtil.integerListToIntArray(tabIds), session.tag);
+                CollectionUtil.integerCollectionToIntArray(tabIds), session.tag);
     }
 
     @NativeMethods

@@ -16,6 +16,7 @@
 <translation id="1729654308190250600">Introduceți o adresă de e-mail concretă.</translation>
 <translation id="1758486001363313524">Altele...</translation>
 <translation id="1787192514241997742">Durată totală: <ph name="REMAINING_TIME" /></translation>
+<translation id="1800494066469288780">Permite accesul la cameră</translation>
 <translation id="1822429046913737220">AM/PM</translation>
 <translation id="1832974991323546415">redă pe dispozitiv la distanță</translation>
 <translation id="1921819250265091946">zz</translation>
@@ -24,9 +25,9 @@
 <translation id="1993104285338243655">S-a comutat la oglindire</translation>
 <translation id="2031987842108996681">Canalul roșu</translation>
 <translation id="2060505056492490888">Semnul „<ph name="DOT" />” apare poziționat greșit în „<ph name="INVALIDDOMAIN" />”.</translation>
+<translation id="2068711044993563745">Valoarea minimă (<ph name="MINIMUM" />) trebuie să fie mai mică decât valoarea maximă (<ph name="MAXIMUM" />).</translation>
 <translation id="2148716181193084225">Astăzi</translation>
 <translation id="2226276347425096477">Micșorează acest text la cel mult <ph name="MAX_CHARACTERS" /> caractere (în prezent utilizezi <ph name="CURRENT_LENGTH" /> caractere).</translation>
-<translation id="2246498165605549352">Fișier local</translation>
 <translation id="2247351761944213033">Săptămâna <ph name="WEEKNUMBER" />, <ph name="YEAR" /></translation>
 <translation id="2277199496770840904">Melodia <ph name="NUMBER" /></translation>
 <translation id="2393030564806080191">Valoarea hexazecimală a culorii</translation>
@@ -45,11 +46,13 @@
 <translation id="2761667185364618470">Bifeză caseta dacă vrei să continui.</translation>
 <translation id="2908441821576996758">Introdu o listă de adrese de e-mail separate prin virgulă.</translation>
 <translation id="3049748772180311791"><ph name="QUANTITY" /> MB</translation>
+<translation id="3053226512517284904">afișează meniul cu descrieri audio</translation>
 <translation id="3075154866155599887">Introduceți o valoare validă. Câmpul este incomplet sau conține o dată nevalidă.</translation>
 <translation id="310520048233152454">Introdu o adresă URL.</translation>
 <translation id="3220661731597678625">pasul actual</translation>
 <translation id="3321030238473337787">Viteza de redare</translation>
 <translation id="3329013043687509092">Saturație</translation>
+<translation id="3377518164566272702">Permite folosirea microfonului și a camerei</translation>
 <translation id="3450233048674729344">Valoarea trebuie să fie mai mică sau egală cu <ph name="MAXIMUM" />.</translation>
 <translation id="3732799496749320381">ll</translation>
 <translation id="3754210790023674521">Ieși din modul picture-in-picture</translation>
@@ -65,6 +68,7 @@
 <translation id="4718048029184481307">Se redă în modul picture-in-picture</translation>
 <translation id="4748357248530471599">decupaj inclus în ecranul complet</translation>
 <translation id="4763480195061959176">video</translation>
+<translation id="4792862212177489858">Afișează locația</translation>
 <translation id="4812940957355064477">Introduceți un număr.</translation>
 <translation id="4912200001568447310">elementul actual</translation>
 <translation id="4915360478455618802">Afișează selectorul pentru oră</translation>
@@ -74,6 +78,7 @@
 <translation id="4975562563186953947"><ph name="SELECTED_COUNT" /> selectate</translation>
 <translation id="4992066212339426712">Activează sunetul</translation>
 <translation id="49969490063480558">Introduceți o valoare după semnul „<ph name="ATSIGN" />”. Adresa „<ph name="INVALIDADDRESS" />” nu este completă.</translation>
+<translation id="5037575921016181960">Parolă puternică</translation>
 <translation id="5090250355906949916">glisor pentru redare video</translation>
 <translation id="509897012892853729">Canalul albastru</translation>
 <translation id="5117590920725113268">Afișează luna următoare</translation>
@@ -89,6 +94,7 @@
 <translation id="5425179576310518467">data actuală</translation>
 <translation id="5466621249238537318">Selectează unul sau mai multe fișiere.</translation>
 <translation id="5468998798572797635">ieșiți din ecranul complet</translation>
+<translation id="5514612371225420585">Fișier de pe dispozitiv</translation>
 <translation id="5516235301412634559">0,75</translation>
 <translation id="5537725057119320332">Proiectează</translation>
 <translation id="5546461542133609677">activați sunetul</translation>
@@ -113,6 +119,7 @@
 <translation id="6398862346408813489">Afișează panoul de selectare a lunii</translation>
 <translation id="6404546809543547843">glisor redare audio</translation>
 <translation id="6443871981718447451">afișează meniul de subtitrări</translation>
+<translation id="6484738902856791350">Aplică o formatare stilizată</translation>
 <translation id="6550675742724504774">Opțiuni</translation>
 <translation id="6572309429103589720">Gramatică nevalidă</translation>
 <translation id="658823671542763450">deschideți în ecran complet</translation>
@@ -176,6 +183,7 @@
 <translation id="9132465097189459683">Altele...</translation>
 <translation id="9155987714137265666"><ph name="WEEK" />, începând de pe <ph name="WEEK_START_DATE" /></translation>
 <translation id="916607977885256133">Picture-in-Picture</translation>
+<translation id="918430632320614861">Permite accesul la microfon</translation>
 <translation id="945780513535800434">Bifate parțial</translation>
 <translation id="954003015749068518">intră în modul picture-in-picture</translation>
 </translationbundle>

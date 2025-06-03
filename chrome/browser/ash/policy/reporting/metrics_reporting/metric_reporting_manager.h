@@ -7,21 +7,23 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/feature_list.h"
 #include "base/scoped_observation.h"
 #include "base/sequence_checker.h"
-#include "base/strings/string_piece_forward.h"
 #include "base/thread_annotations.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
-#include "chrome/browser/ash/policy/reporting/metrics_reporting/apps/app_usage_collector.h"
+#include "chrome/browser/ash/policy/reporting/metrics_reporting/apps/app_usage_observer.h"
 #include "chrome/browser/ash/policy/reporting/metrics_reporting/cros_healthd_sampler_handlers/cros_healthd_sampler_handler.h"
 #include "chrome/browser/ash/policy/reporting/metrics_reporting/cros_reporting_settings.h"
 #include "chrome/browser/ash/policy/status_collector/managed_session_service.h"
 #include "chrome/browser/ash/settings/device_settings_service.h"
 #include "chrome/browser/chromeos/reporting/metric_reporting_manager_delegate_base.h"
+#include "chrome/browser/chromeos/reporting/user_reporting_settings.h"
+#include "chrome/browser/chromeos/reporting/websites/website_usage_observer.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chromeos/ash/services/cros_healthd/public/mojom/cros_healthd_probe.mojom.h"
 #include "components/reporting/metrics/event_driven_telemetry_collector_pool.h"
@@ -36,8 +38,9 @@ class MetricReportQueue;
 class CollectorBase;
 class Sampler;
 
-// Feature flag that can be set to facilitate app metrics reporting.
-BASE_DECLARE_FEATURE(kEnableAppMetricsReporting);
+BASE_DECLARE_FEATURE(kEnableAppEventsObserver);
+BASE_DECLARE_FEATURE(kEnableFatalCrashEventsObserver);
+BASE_DECLARE_FEATURE(kEnableRuntimeCountersTelemetry);
 
 // Class to initialize and start info, event, and telemetry collection and
 // reporting.
@@ -56,7 +59,7 @@ class MetricReportingManager : public policy::ManagedSessionService::Observer,
 
     ~Delegate() override = default;
 
-    bool IsAffiliated(Profile* profile) const override;
+    bool IsUserAffiliated(Profile& profile) const override;
 
     virtual bool IsDeprovisioned() const;
 
@@ -113,10 +116,34 @@ class MetricReportingManager : public policy::ManagedSessionService::Observer,
   // user login with a delay, should only be scheduled once on login.
   void DelayedInitOnAffiliatedLogin(Profile* profile);
 
+  // Initializes an info data collector. An info data collector is always
+  // one-shot, i.e., only collects once. The report queue is always
+  // `info_report_queue_`.
+  //
+  // `sampler` is the sampler that collects info.
+  //
+  // `enable_setting_path` is the name of the setting that enables or disables
+  // the collection.
+  //
+  // `enable_default_value` indicates whether the setting is enabled by default.
   void InitInfoCollector(std::unique_ptr<Sampler> sampler,
                          const std::string& enable_setting_path,
                          bool setting_enabled_default_value);
 
+  // Initializes a telemetry data collector that collects once.
+  //
+  // `collector_name` is the name of the collector.
+  //
+  // `sampler` is the sampler that collects telemetry.
+  //
+  // `metric_report_queue` is the report queue to use.
+  //
+  // `enable_setting_path` is the name of the setting that enables or disables
+  // the collection.
+  //
+  // `enable_default_value` indicates whether the setting is enabled by default.
+  //
+  // `init_delay` is the initial delay before the first collection occurs.
   void InitOneShotTelemetryCollector(const std::string& collector_name,
                                      Sampler* sampler,
                                      MetricReportQueue* metric_report_queue,
@@ -124,22 +151,83 @@ class MetricReportingManager : public policy::ManagedSessionService::Observer,
                                      bool enable_default_value,
                                      base::TimeDelta init_delay);
 
+  // Initializes a telemetry data collector that is manually triggered. See
+  // `ManualCollector`.
+  //
+  // `collector_name` is the name of the collector.
+  //
+  // `sampler` is the sampler that collects telemetry.
+  //
+  // `metric_report_queue` is the report queue to use.
+  //
+  // `enable_setting_path` is the name of the setting that enables or disables
+  // the collection.
+  //
+  // `enable_default_value` indicates whether the setting is enabled by default.
   void InitManualTelemetryCollector(const std::string& collector_name,
                                     Sampler* sampler,
                                     MetricReportQueue* metric_report_queue,
                                     const std::string& enable_setting_path,
                                     bool enable_default_value);
 
-  void InitPeriodicCollector(const std::string& collector_name,
-                             Sampler* sampler,
-                             MetricReportQueue* metric_report_queue,
-                             const std::string& enable_setting_path,
-                             bool enable_default_value,
-                             const std::string& rate_setting_path,
-                             base::TimeDelta default_rate,
-                             int rate_unit_to_ms,
-                             base::TimeDelta init_delay);
+  // Initializes a telemetry data collector that collects periodically.
+  //
+  // `collector_name is the name of the collector.
+  //
+  // `sampler is the sampler that collects telemetry.
+  //
+  // `metric_report_queue is the report queue to use.
+  //
+  // `enable_setting_path` is the name of the setting that enables or disables
+  // the collection.
+  //
+  // `enable_default_value` indicates whether the setting is enabled by default.
+  //
+  // `rate_setting_path` is the name of the setting that controls the rate. Rate
+  // refers to the time between two consecutive periodic metric collections,
+  // i.e., the period of the repeated metric collections. See
+  // `MetricRateController`.
+  //
+  // `default_rate` is the default rate.
+  //
+  // `rate_unit_to_ms` multiplied with the rate in the rate setting results in
+  // the rate in milliseconds.
+  //
+  // `init_delay` is the initial delay before the first collection occurs.
+  void InitPeriodicTelemetryCollector(const std::string& collector_name,
+                                      Sampler* sampler,
+                                      MetricReportQueue* metric_report_queue,
+                                      const std::string& enable_setting_path,
+                                      bool enable_default_value,
+                                      const std::string& rate_setting_path,
+                                      base::TimeDelta default_rate,
+                                      int rate_unit_to_ms,
+                                      base::TimeDelta init_delay);
 
+  // Initializes an event data collector that collects periodically.
+  //
+  // `sampler` is the sampler that collects events.
+  //
+  // `event_detector` is the event detector.
+  //
+  // `metric_report_queue` is the report queue to use.
+  //
+  // `enable_setting_path` is the name of the setting that enables or disables
+  // the collection.
+  //
+  // `enable_default_value` indicates whether the setting is enabled by default.
+  //
+  // `rate_setting_path is the name of the setting that controls the rate. Rate
+  // refers to the time between two consecutive periodic metric collections,
+  // i.e., the period of the repeated metric collections. See
+  // `MetricRateController`.
+  //
+  // `default_rate` is the default rate.
+  //
+  // `rate_unit_to_ms` multiplied with the rate in the rate setting results in
+  // the rate in milliseconds.
+  //
+  // `init_delay` is the initial delay before the first collection occurs.
   void InitPeriodicEventCollector(
       Sampler* sampler,
       std::unique_ptr<PeriodicEventCollector::EventDetector> event_detector,
@@ -154,6 +242,7 @@ class MetricReportingManager : public policy::ManagedSessionService::Observer,
   void InitEventObserverManager(
       std::unique_ptr<MetricEventObserver> event_observer,
       MetricReportQueue* report_queue,
+      ReportingSettings* reporting_settings,
       const std::string& enable_setting_path,
       bool setting_enabled_default_value,
       base::TimeDelta init_delay);
@@ -179,7 +268,15 @@ class MetricReportingManager : public policy::ManagedSessionService::Observer,
 
   void InitAudioCollectors();
 
+  void InitBootPerformanceCollector();
+
+  void InitFatalCrashCollectors();
+
   void InitPeripheralsCollectors();
+
+  void InitRuntimeCountersCollectors();
+
+  void InitWebsiteMetricCollectors(Profile* profile);
 
   void InitDisplayCollectors();
 
@@ -189,9 +286,10 @@ class MetricReportingManager : public policy::ManagedSessionService::Observer,
   base::TimeDelta GetUploadDelay() const;
 
   std::vector<CollectorBase*> GetTelemetryCollectorsFromSetting(
-      base::StringPiece setting_name);
+      std::string_view setting_name);
 
   CrosReportingSettings reporting_settings_;
+  std::unique_ptr<UserReportingSettings> user_reporting_settings_;
 
   SEQUENCE_CHECKER(sequence_checker_);
 
@@ -209,6 +307,7 @@ class MetricReportingManager : public policy::ManagedSessionService::Observer,
   std::unique_ptr<MetricReportQueue> user_telemetry_report_queue_;
   std::unique_ptr<MetricReportQueue> event_report_queue_;
   std::unique_ptr<MetricReportQueue> user_event_report_queue_;
+  std::unique_ptr<MetricReportQueue> app_event_report_queue_;
   std::unique_ptr<MetricReportQueue>
       user_peripheral_events_and_telemetry_report_queue_;
 
@@ -236,9 +335,14 @@ class MetricReportingManager : public policy::ManagedSessionService::Observer,
   std::vector<std::unique_ptr<MetricEventObserverManager>>
       event_observer_managers_ GUARDED_BY_CONTEXT(sequence_checker_);
 
-  // App usage collector used to collect app usage reports from the
+  // App usage observer used to observe and collect app usage reports from the
   // `AppPlatformMetrics` component.
-  std::unique_ptr<AppUsageCollector> app_usage_collector_
+  std::unique_ptr<AppUsageObserver> app_usage_observer_
+      GUARDED_BY_CONTEXT(sequence_checker_);
+
+  // Website usage observer used to observe and collect website usage reports
+  // from the `WebsiteMetrics` component.
+  std::unique_ptr<WebsiteUsageObserver> website_usage_observer_
       GUARDED_BY_CONTEXT(sequence_checker_);
 
   std::unique_ptr<Delegate> delegate_;

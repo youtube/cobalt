@@ -34,7 +34,7 @@
 #include "third_party/blink/renderer/core/layout/layout_object_inlines.h"
 #include "third_party/blink/renderer/core/layout/layout_text.h"
 #include "third_party/blink/renderer/core/layout/layout_text_fragment.h"
-#include "third_party/blink/renderer/core/layout/ng/list/layout_ng_list_item.h"
+#include "third_party/blink/renderer/core/layout/list/layout_list_item.h"
 #include "third_party/blink/renderer/platform/text/text_break_iterator.h"
 #include "third_party/blink/renderer/platform/wtf/text/unicode.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
@@ -54,11 +54,33 @@ static inline bool IsPunctuationForFirstLetter(UChar32 c) {
          char_category == WTF::unicode::kPunctuation_Other;
 }
 
-static inline bool IsSpaceForFirstLetter(UChar c) {
-  return IsSpaceOrNewline(c) || c == WTF::unicode::kNoBreakSpaceCharacter;
+static inline bool IsNewLine(UChar c) {
+  if (c == 0xA || c == 0xD) {
+    return true;
+  }
+
+  return false;
 }
 
-unsigned FirstLetterPseudoElement::FirstLetterLength(const String& text) {
+static inline bool IsSpace(UChar c) {
+  if (IsNewLine(c)) {
+    return false;
+  }
+
+  return IsSpaceOrNewline(c);
+}
+
+static inline bool IsSpaceForFirstLetter(UChar c, bool preserve_breaks) {
+  return (RuntimeEnabledFeatures::
+                      CSSFirstLetterNoNewLineAsPrecedingCharEnabled() &&
+                  preserve_breaks
+              ? IsSpace(c)
+              : IsSpaceOrNewline(c)) ||
+         c == WTF::unicode::kNoBreakSpaceCharacter;
+}
+
+unsigned FirstLetterPseudoElement::FirstLetterLength(const String& text,
+                                                     bool preserve_breaks) {
   unsigned length = 0;
   unsigned text_length = text.length();
 
@@ -66,17 +88,23 @@ unsigned FirstLetterPseudoElement::FirstLetterLength(const String& text) {
     return length;
 
   // Account for leading spaces first.
-  while (length < text_length && IsSpaceForFirstLetter(text[length]))
+  while (length < text_length &&
+         IsSpaceForFirstLetter(text[length], preserve_breaks)) {
     length++;
+  }
+
   // Now account for leading punctuation.
   while (length < text_length &&
-         IsPunctuationForFirstLetter(text.CharacterStartingAt(length)))
+         IsPunctuationForFirstLetter(text.CharacterStartingAt(length))) {
     length += LengthOfGraphemeCluster(text, length);
+  }
 
   // Bail if we didn't find a letter before the end of the text or before a
   // space.
-  if (IsSpaceForFirstLetter(text[length]) || length == text_length)
+  if (IsSpaceForFirstLetter(text[length], preserve_breaks) ||
+      IsNewLine(text[length]) || length == text_length) {
     return 0;
+  }
 
   // Account the next character for first letter.
   length += LengthOfGraphemeCluster(text, length);
@@ -153,7 +181,9 @@ LayoutText* FirstLetterPseudoElement::FirstLetterTextLayoutObject(
                        ? To<LayoutTextFragment>(first_letter_text_layout_object)
                              ->CompleteText()
                        : layout_text->OriginalText();
-      if (FirstLetterLength(str.Impl()) ||
+      bool preserve_breaks = ShouldPreserveBreaks(
+          first_letter_text_layout_object->StyleRef().GetWhiteSpaceCollapse());
+      if (FirstLetterLength(str.Impl(), preserve_breaks) ||
           IsInvalidFirstLetterLayoutObject(first_letter_text_layout_object)) {
         break;
       }
@@ -192,8 +222,8 @@ LayoutText* FirstLetterPseudoElement::FirstLetterTextLayoutObject(
                first_letter_text_layout_object->IsButton() ||
                IsMenuList(first_letter_text_layout_object)) {
       return nullptr;
-    } else if (first_letter_text_layout_object->IsFlexibleBoxIncludingNG() ||
-               first_letter_text_layout_object->IsLayoutNGGrid()) {
+    } else if (first_letter_text_layout_object->IsFlexibleBox() ||
+               first_letter_text_layout_object->IsLayoutGrid()) {
       first_letter_text_layout_object =
           first_letter_text_layout_object->NextSibling();
     } else if (!first_letter_text_layout_object->IsInline() &&
@@ -248,7 +278,10 @@ void FirstLetterPseudoElement::UpdateTextFragments() {
   String old_text(remaining_text_layout_object_->CompleteText());
   DCHECK(old_text.Impl());
 
-  unsigned length = FirstLetterPseudoElement::FirstLetterLength(old_text);
+  bool preserve_breaks = ShouldPreserveBreaks(
+      remaining_text_layout_object_->StyleRef().GetWhiteSpaceCollapse());
+  unsigned length =
+      FirstLetterPseudoElement::FirstLetterLength(old_text, preserve_breaks);
   remaining_text_layout_object_->SetTextFragment(
       old_text.Impl()->Substring(length, old_text.length()), length,
       old_text.length() - length);
@@ -342,8 +375,7 @@ LayoutObject* FirstLetterPseudoElement::CreateLayoutObject(
   return PseudoElement::CreateLayoutObject(style);
 }
 
-scoped_refptr<const ComputedStyle>
-FirstLetterPseudoElement::CustomStyleForLayoutObject(
+const ComputedStyle* FirstLetterPseudoElement::CustomStyleForLayoutObject(
     const StyleRecalcContext& style_recalc_context) {
   LayoutObject* first_letter_text =
       FirstLetterPseudoElement::FirstLetterTextLayoutObject(*this);
@@ -372,7 +404,10 @@ void FirstLetterPseudoElement::AttachFirstLetterTextLayoutObjects(
 
   // FIXME: This would already have been calculated in firstLetterLayoutObject.
   // Can we pass the length through?
-  unsigned length = FirstLetterPseudoElement::FirstLetterLength(old_text);
+  bool preserve_breaks = ShouldPreserveBreaks(
+      first_letter_text->StyleRef().GetWhiteSpaceCollapse());
+  unsigned length =
+      FirstLetterPseudoElement::FirstLetterLength(old_text, preserve_breaks);
 
   // In case of inline level content made of punctuation, we use
   // first_letter_text length instead of FirstLetterLength.
@@ -418,7 +453,7 @@ void FirstLetterPseudoElement::AttachFirstLetterTextLayoutObjects(
     // compute initial-letter font during layout to take proper effective style.
     const ComputedStyle& paragraph_style =
         paragraph.EffectiveStyle(NGStyleVariant::kFirstLine);
-    scoped_refptr<const ComputedStyle> initial_letter_text_style =
+    const ComputedStyle* initial_letter_text_style =
         GetDocument().GetStyleResolver().StyleForInitialLetterText(
             *letter_style, paragraph_style);
     letter->SetStyle(std::move(initial_letter_text_style));

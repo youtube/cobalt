@@ -19,6 +19,7 @@
 #import "ios/chrome/browser/ui/omnibox/omnibox_ui_features.h"
 #import "ios/chrome/browser/ui/omnibox/popup/autocomplete_suggestion.h"
 #import "ios/chrome/browser/ui/omnibox/popup/omnibox_icon_view.h"
+#import "ios/chrome/browser/ui/omnibox/popup/omnibox_popup_accessibility_identifier_constants.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/elements/gradient_view.h"
 #import "ios/chrome/common/ui/util/pointer_interaction_util.h"
@@ -26,10 +27,6 @@
 #import "ios/chrome/grit/ios_theme_resources.h"
 #import "ui/base/l10n/l10n_util.h"
 #import "url/gurl.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace {
 const CGFloat kTextTopMargin = 6.0;
@@ -48,23 +45,17 @@ const CGFloat kTextSpacing = 2.0f;
 /// omnibox image. If Variation 2 becomes default, probably we don't need the
 /// fancy layout guide setup and can get away with simple margins.
 const CGFloat kTrailingButtonPointSize = 17.0f;
-/// Maximum number of lines displayed for search suggestion when
-/// `kOmniboxMultilineSearchSuggest` is enabled.
+/// Maximum number of lines displayed.
 const NSInteger kSearchSuggestNumberOfLines = 2;
-
-NSString* const kOmniboxPopupRowSwitchTabAccessibilityIdentifier =
-    @"OmniboxPopupRowSwitchTabAccessibilityIdentifier";
 
 /// Name of the histogram recording the number of lines in search suggestions.
 const char kOmniboxSearchSuggestionNumberOfLines[] =
     "IOS.Omnibox.SearchSuggestionNumberOfLines";
 
-/// Returns `YES` if `kOmniboxMultilineSearchSuggest` is enabled.
-BOOL IsMultilineSearchSuggestionEnabled() {
-  return base::FeatureList::IsEnabled(kOmniboxMultilineSearchSuggest);
-}
-
 }  // namespace
+
+NSString* const OmniboxPopupRowCellReuseIdentifier = @"OmniboxPopupRowCell";
+const CGFloat kOmniboxPopupCellMinimumHeight = 58;
 
 @interface OmniboxPopupRowCell ()
 
@@ -505,7 +496,6 @@ BOOL IsMultilineSearchSuggestionEnabled() {
   if (suggestion.isWrapping) {
     [self logNumberOfLinesSearchSuggestions:self.textTruncatingLabel
                                                 .attributedText];
-    if (base::FeatureList::IsEnabled(kOmniboxMultilineSearchSuggest)) {
       self.textTruncatingLabel.numberOfLines = kSearchSuggestNumberOfLines;
       base::i18n::TextDirection textDirection = base::i18n::GetStringDirection(
           base::SysNSStringToUTF16(self.textTruncatingLabel.text));
@@ -514,7 +504,6 @@ BOOL IsMultilineSearchSuggestionEnabled() {
             UISemanticContentAttributeForceRightToLeft;
         self.textTruncatingLabel.truncateMode = FadeTruncatingHead;
       }
-    }
   } else {
     // Default values for FadeTruncatingLabel.
     self.textTruncatingLabel.lineBreakMode = NSLineBreakByClipping;
@@ -541,8 +530,7 @@ BOOL IsMultilineSearchSuggestionEnabled() {
   if (suggestion.isAppendable || suggestion.isTabMatch) {
     [self setupTrailingButton];
   }
-  [self updateTextConstraints:IsMultilineSearchSuggestionEnabled() &&
-                              suggestion.isWrapping];
+  [self updateTextConstraints:suggestion.isWrapping];
 
   self.leadingIconView.highlighted = self.highlighted;
   self.trailingButton.tintColor =
@@ -570,29 +558,14 @@ BOOL IsMultilineSearchSuggestionEnabled() {
 
   self.accessibilityCustomActions = @[ trailingButtonAction ];
 
-  UIImage* trailingButtonImage = nil;
-
-  if (UseSymbolsInOmnibox()) {
-    trailingButtonImage =
-        self.suggestion.isTabMatch
-            ? DefaultSymbolWithPointSize(kNavigateToTabSymbol,
-                                         kTrailingButtonPointSize)
-            : DefaultSymbolWithPointSize(kRefineQuerySymbol,
-                                         kTrailingButtonPointSize);
-    trailingButtonImage =
-        trailingButtonImage.imageFlippedForRightToLeftLayoutDirection;
-  } else {
-    if (self.suggestion.isTabMatch) {
-      trailingButtonImage = [UIImage imageNamed:@"omnibox_popup_tab_match"];
-      trailingButtonImage =
-          trailingButtonImage.imageFlippedForRightToLeftLayoutDirection;
-    } else {
-      int trailingButtonResourceID = 0;
-      trailingButtonResourceID = IDR_IOS_OMNIBOX_KEYBOARD_VIEW_APPEND;
-      trailingButtonImage =
-          NativeReversibleImage(trailingButtonResourceID, YES);
-    }
-  }
+  UIImage* trailingButtonImage =
+      self.suggestion.isTabMatch
+          ? DefaultSymbolWithPointSize(kNavigateToTabSymbol,
+                                       kTrailingButtonPointSize)
+          : DefaultSymbolWithPointSize(kRefineQuerySymbol,
+                                       kTrailingButtonPointSize);
+  trailingButtonImage =
+      trailingButtonImage.imageFlippedForRightToLeftLayoutDirection;
 
   trailingButtonImage = [trailingButtonImage
       imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
@@ -600,10 +573,11 @@ BOOL IsMultilineSearchSuggestionEnabled() {
   [self.trailingButton setImage:trailingButtonImage
                        forState:UIControlStateNormal];
   self.trailingButton.tintColor = [UIColor colorNamed:kBlueColor];
-  if (self.suggestion.isTabMatch) {
-    self.trailingButton.accessibilityIdentifier =
-        kOmniboxPopupRowSwitchTabAccessibilityIdentifier;
-  }
+
+  self.trailingButton.accessibilityIdentifier =
+      self.suggestion.isTabMatch
+          ? kOmniboxPopupRowSwitchTabAccessibilityIdentifier
+          : kOmniboxPopupRowAppendAccessibilityIdentifier;
 }
 
 - (NSString*)accessibilityLabel {

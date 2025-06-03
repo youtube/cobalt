@@ -31,6 +31,8 @@
 
 namespace {
 
+constexpr uint32_t kFullPageMimeHandlerDataPipeSize = 512U;
+
 void ClearAllButFrameAncestors(network::mojom::URLResponseHead* response_head) {
   response_head->headers->RemoveHeader("Content-Security-Policy");
   response_head->headers->RemoveHeader("Content-Security-Policy-Report-Only");
@@ -97,16 +99,17 @@ void PluginResponseInterceptorURLLoaderThrottle::WillProcessResponse(
     network::mojom::URLResponseHead* response_head,
     bool* defer) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
-  if (content::download_utils::MustDownload(response_url,
-                                            response_head->headers.get(),
-                                            response_head->mime_type)) {
-    return;
-  }
 
   content::WebContents* web_contents =
       content::WebContents::FromFrameTreeNodeId(frame_tree_node_id_);
   if (!web_contents)
     return;
+
+  if (content::download_utils::MustDownload(
+          web_contents->GetBrowserContext(), response_url,
+          response_head->headers.get(), response_head->mime_type)) {
+    return;
+  }
 
   std::string extension_id = PluginUtils::GetExtensionIdForMimeType(
       web_contents->GetBrowserContext(), response_head->mime_type);
@@ -145,24 +148,22 @@ void PluginResponseInterceptorURLLoaderThrottle::WillProcessResponse(
   mojo::PendingReceiver<network::mojom::URLLoaderClient> new_client_receiver =
       new_client.BindNewPipeAndPassReceiver();
 
-  uint32_t data_pipe_size = 64U;
-  // The string passed down to the original client with the response body.
-  std::string payload;
-  // Provide the MimeHandlerView code a chance to override the payload. This is
-  // the case where the resource is handled by frame-based MimeHandlerView.
-  *defer = extensions::MimeHandlerViewAttachHelper::
+  // The resource is handled by frame-based MimeHandlerView, so let the
+  // MimeHandlerView code set the payload.
+  const std::string payload = extensions::MimeHandlerViewAttachHelper::
       OverrideBodyForInterceptedResponse(
           frame_tree_node_id_, response_url, response_head->mime_type,
-          stream_id, &payload, &data_pipe_size,
+          stream_id,
           base::BindOnce(
               &PluginResponseInterceptorURLLoaderThrottle::ResumeLoad,
               weak_factory_.GetWeakPtr()));
+  *defer = true;
 
   mojo::ScopedDataPipeProducerHandle producer_handle;
   mojo::ScopedDataPipeConsumerHandle consumer_handle;
-  CHECK_EQ(
-      mojo::CreateDataPipe(data_pipe_size, producer_handle, consumer_handle),
-      MOJO_RESULT_OK);
+  CHECK_EQ(mojo::CreateDataPipe(kFullPageMimeHandlerDataPipeSize,
+                                producer_handle, consumer_handle),
+           MOJO_RESULT_OK);
 
   uint32_t len = static_cast<uint32_t>(payload.size());
   CHECK_EQ(MOJO_RESULT_OK,

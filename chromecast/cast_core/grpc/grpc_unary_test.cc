@@ -4,7 +4,6 @@
 
 #include "base/files/scoped_temp_dir.h"
 #include "base/functional/bind.h"
-#include "base/guid.h"
 #include "base/strings/strcat.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/task/bind_post_task.h"
@@ -14,6 +13,7 @@
 #include "base/test/task_environment.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/time/time.h"
+#include "base/uuid.h"
 #include "chromecast/cast_core/grpc/grpc_server.h"
 #include "chromecast/cast_core/grpc/status_matchers.h"
 #include "chromecast/cast_core/grpc/test_service.castcore.pb.h"
@@ -36,10 +36,13 @@ class GrpcUnaryTest : public ::testing::Test {
  protected:
   GrpcUnaryTest() {
     CHECK(temp_dir_.CreateUniqueTempDir());
-    endpoint_ = "unix:" +
-                temp_dir_.GetPath()
-                    .AppendASCII("cast-uds-" + base::GenerateGUID().substr(24))
-                    .value();
+    endpoint_ =
+        "unix:" +
+        temp_dir_.GetPath()
+            .AppendASCII(
+                "cast-uds-" +
+                base::Uuid::GenerateRandomV4().AsLowercaseString().substr(24))
+            .value();
   }
 
   base::test::TaskEnvironment task_environment_{
@@ -59,7 +62,7 @@ TEST_F(GrpcUnaryTest, SyncUnaryCallSucceeds) {
             response.set_bar("test_bar");
             reactor->Write(std::move(response));
           }));
-  server.Start(endpoint_);
+  ASSERT_THAT(server.Start(endpoint_), StatusIs(grpc::StatusCode::OK));
 
   SimpleServiceStub stub(endpoint_);
   auto call = stub.CreateCall<SimpleServiceStub::SimpleCall>();
@@ -81,7 +84,7 @@ TEST_F(GrpcUnaryTest, SyncUnaryCallReturnsErrorStatus) {
             reactor->Write(
                 grpc::Status(grpc::StatusCode::NOT_FOUND, "Not found"));
           }));
-  server.Start(endpoint_);
+  ASSERT_THAT(server.Start(endpoint_), StatusIs(grpc::StatusCode::OK));
 
   SimpleServiceStub stub(endpoint_);
   auto call = stub.CreateCall<SimpleServiceStub::SimpleCall>();
@@ -105,7 +108,7 @@ TEST_F(GrpcUnaryTest, SyncUnaryCallCancelledIfServerIsStopped) {
                         base::BindLambdaForTesting(
                             [&]() { server_stopped_event.Signal(); }));
           }));
-  server.Start(endpoint_);
+  ASSERT_THAT(server.Start(endpoint_), StatusIs(grpc::StatusCode::OK));
 
   SimpleServiceStub stub(endpoint_);
   auto call = stub.CreateCall<SimpleServiceStub::SimpleCall>();
@@ -128,7 +131,7 @@ TEST_F(GrpcUnaryTest, AsyncUnaryCallSucceeds) {
             response.set_bar("test_bar");
             reactor->Write(std::move(response));
           }));
-  server.Start(endpoint_);
+  ASSERT_THAT(server.Start(endpoint_), StatusIs(grpc::StatusCode::OK));
 
   SimpleServiceStub stub(endpoint_);
   auto call = stub.CreateCall<SimpleServiceStub::SimpleCall>();
@@ -155,7 +158,7 @@ TEST_F(GrpcUnaryTest, AsyncUnaryCallReturnsErrorStatus) {
             reactor->Write(
                 grpc::Status(grpc::StatusCode::NOT_FOUND, "Not Found"));
           }));
-  server.Start(endpoint_);
+  ASSERT_THAT(server.Start(endpoint_), StatusIs(grpc::StatusCode::OK));
 
   SimpleServiceStub stub(endpoint_);
   auto call = stub.CreateCall<SimpleServiceStub::SimpleCall>();
@@ -184,7 +187,7 @@ TEST_F(GrpcUnaryTest, AsyncUnaryCallCancelledIfServerIsStopped) {
                         base::BindLambdaForTesting(
                             [&]() { server_stopped_event.Signal(); }));
           }));
-  server.Start(endpoint_);
+  ASSERT_THAT(server.Start(endpoint_), StatusIs(grpc::StatusCode::OK));
 
   SimpleServiceStub stub(endpoint_);
   auto call = stub.CreateCall<SimpleServiceStub::SimpleCall>();
@@ -212,7 +215,7 @@ TEST_F(GrpcUnaryTest, SyncUnaryCallSucceedsExtra) {
             response.set_bar("test_bar");
             reactor->Write(std::move(response));
           }));
-  server.Start(endpoint_);
+  ASSERT_THAT(server.Start(endpoint_), StatusIs(grpc::StatusCode::OK));
 
   SimpleServiceExtraStub stub(endpoint_);
   auto call = stub.CreateCall<SimpleServiceExtraStub::SimpleCall>();
@@ -242,7 +245,7 @@ TEST_F(GrpcUnaryTest, DISABLED_AsyncUnaryCallCancelledByClient) {
             EXPECT_EQ(request.foo(), "test_foo");
             request_received_event.Signal();
           }));
-  server.Start(endpoint_);
+  ASSERT_THAT(server.Start(endpoint_), StatusIs(grpc::StatusCode::OK));
 
   SimpleServiceStub stub(endpoint_);
   auto call = stub.CreateCall<SimpleServiceStub::SimpleCall>();

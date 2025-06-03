@@ -66,7 +66,7 @@ std::string GetDisplayTypeName(DisplayType type) {
 }  // namespace
 
 // Pixel tests for Chrome OS Notification views.
-class AshNotificationViewPixelTestBase : public AshTestBase {
+class AshNotificationViewPixelTest : public AshTestBase {
  public:
   // AshTestBase:
   absl::optional<pixel_test::InitParams> CreatePixelTestInitParams()
@@ -91,7 +91,7 @@ class AshNotificationViewPixelTestBase : public AshTestBase {
 };
 
 // Tests that a notification's close button is visible when it is focused.
-TEST_F(AshNotificationViewPixelTestBase, CloseButtonFocused) {
+TEST_F(AshNotificationViewPixelTest, CloseButtonFocused) {
   // Create a notification and open the notification center bubble to view it.
   const auto id = test_api()->AddNotification();
   test_api()->ToggleBubble();
@@ -118,14 +118,108 @@ TEST_F(AshNotificationViewPixelTestBase, CloseButtonFocused) {
   EXPECT_TRUE(close_button->HasFocus());
   EXPECT_EQ(control_buttons_layer->opacity(), 1);
   EXPECT_TRUE(GetPixelDiffer()->CompareUiComponentsOnPrimaryScreen(
-      "close_button_focused", 0u, notification_view));
+      "close_button_focused", /*revision_number=*/2, notification_view));
+}
+
+// Regression test for http://b/267195370. Tests that a notification with no
+// message has its title vertically centered in the collapsed state.
+TEST_F(AshNotificationViewPixelTest, CollapsedNoMessage) {
+  // Create a notification with no message, and open the notification center
+  // bubble to view it.
+  const std::string id = test_api()->AddCustomNotification(
+      u"Notification title", u"",
+      ui::ImageModel::FromImageSkia(CreateSolidColorTestImage(
+          gfx::Size(/*width=*/45, /*height=*/45), SK_ColorGREEN)));
+  test_api()->ToggleBubble();
+
+  // Make sure the notification is collapsed.
+  auto* notification_view = static_cast<AshNotificationView*>(
+      test_api()->GetNotificationViewForId(id));
+  notification_view->SetExpanded(false);
+  ASSERT_FALSE(notification_view->IsExpanded());
+
+  // Verify with a pixel test that the notification's title is vertically
+  // centered.
+  EXPECT_TRUE(GetPixelDiffer()->CompareUiComponentsOnPrimaryScreen(
+      "collapsed_no_message", /*revision_number=*/2, notification_view));
+}
+
+// Tests that a progress notification does not have its title vertically
+// centered in the collapsed state.
+TEST_F(AshNotificationViewPixelTest, ProgressCollapsed) {
+  // Create a progress notification and open the notification center bubble to
+  // view it. Also add a second notification so that the progress notification
+  // is automatically in its collapsed state when the bubble is toggled.
+  const std::string id = test_api()->AddProgressNotification();
+  test_api()->AddNotification();
+  test_api()->ToggleBubble();
+
+  // Verify that the notification is collapsed.
+  auto* notification_view = static_cast<AshNotificationView*>(
+      test_api()->GetNotificationViewForId(id));
+  ASSERT_FALSE(notification_view->IsExpanded());
+
+  // Verify with a pixel test that the notification's title is not vertically
+  // centered.
+  EXPECT_TRUE(GetPixelDiffer()->CompareUiComponentsOnPrimaryScreen(
+      "progress_collapsed", /*revision_number=*/1, notification_view));
+}
+
+// Tests the control buttons UI for the case of a notification with just the
+// close button.
+TEST_F(AshNotificationViewPixelTest, CloseControlButton) {
+  // Generate a notification that should show just the close control button.
+  // Also toggle the notification bubble so that the notification doesn't
+  // disappear during the test.
+  const std::string id = test_api()->AddNotification();
+  test_api()->ToggleBubble();
+
+  // Hover the mouse over the notification so that the close control button is
+  // visible when taking a screenshot.
+  auto* notification_view = static_cast<AshNotificationView*>(
+      test_api()->GetNotificationViewForId(id));
+  GetEventGenerator()->MoveMouseTo(
+      notification_view->GetBoundsInScreen().CenterPoint(), /*count=*/10);
+
+  // Verify with a pixel test that the close control button is visible and has
+  // the proper placement.
+  EXPECT_TRUE(GetPixelDiffer()->CompareUiComponentsOnPrimaryScreen(
+      "close_control_button", /*revision_number=*/1, notification_view));
+}
+
+// Tests the control buttons UI for the case of a notification with both the
+// settings and close buttons.
+TEST_F(AshNotificationViewPixelTest, SettingsAndCloseControlButtons) {
+  // Generate a notification that should show both the settings and close
+  // control buttons. Also toggle the notification bubble so that the
+  // notification doesn't disappear during the test.
+  const std::string id = test_api()->AddNotificationWithSettingsButton();
+  test_api()->ToggleBubble();
+
+  // Hover the mouse over the notification so that the control buttons are
+  // visible when taking a screenshot.
+  auto* notification_view = static_cast<AshNotificationView*>(
+      test_api()->GetNotificationViewForId(id));
+  GetEventGenerator()->MoveMouseTo(
+      notification_view->GetBoundsInScreen().CenterPoint(), /*count=*/10);
+
+  // Verify with a pixel test that the control buttons are visible and have
+  // proper spacing between them.
+  EXPECT_TRUE(GetPixelDiffer()->CompareUiComponentsOnPrimaryScreen(
+      "settings_and_close_control_buttons", /*revision_number=*/1,
+      notification_view));
 }
 
 class AshNotificationViewTitlePixelTest
-    : public AshNotificationViewPixelTestBase,
+    : public AshNotificationViewPixelTest,
       public testing::WithParamInterface<
           std::pair<const char* /*notification title string*/,
-                    const char* /*screenshot name*/>> {};
+                    const char* /*screenshot name*/>> {
+ public:
+  const std::string GetTitle() { return GetParam().first; }
+
+  const std::string GetScreenshotName() { return GetParam().second; }
+};
 
 INSTANTIATE_TEST_SUITE_P(
     TitleTest,
@@ -141,7 +235,7 @@ INSTANTIATE_TEST_SUITE_P(
 // not be displayed properly without the workaround implemented for b/251686063.
 TEST_P(AshNotificationViewTitlePixelTest, NotificationTitleTest) {
   // Create a notification with a multiline title and an icon.
-  const std::string title = GetParam().first;
+  const std::string title = GetTitle();
 
   const std::string id = test_api()->AddCustomNotification(
       base::UTF8ToUTF16(title), u"Notification Content",
@@ -157,21 +251,21 @@ TEST_P(AshNotificationViewTitlePixelTest, NotificationTitleTest) {
   EXPECT_TRUE(notification_view->GetVisible());
 
   // Compare pixels.
-  const std::string screenshot = GetParam().second;
+  const std::string screenshot_name = GetScreenshotName();
   EXPECT_TRUE(GetPixelDiffer()->CompareUiComponentsOnPrimaryScreen(
-      screenshot, /*revision_number=*/2, notification_view));
+      screenshot_name, /*revision_number=*/6, notification_view));
 }
 
 class ScreenCaptureNotificationPixelTest
-    : public AshNotificationViewPixelTestBase,
+    : public AshNotificationViewPixelTest,
       public testing::WithParamInterface<DisplayType> {
  public:
   // AshNotificationViewPixelTestBase:
   void SetUp() override {
-    AshNotificationViewPixelTestBase::SetUp();
+    AshNotificationViewPixelTest::SetUp();
 
     // Change the display size depending on the test param.
-    switch (GetParam()) {
+    switch (GetDisplayType()) {
       case DisplayType::kNormal:
         break;
       case DisplayType::kUltraWidth:
@@ -193,8 +287,10 @@ class ScreenCaptureNotificationPixelTest
   void TearDown() override {
     window2_.reset();
     window1_.reset();
-    AshNotificationViewPixelTestBase::TearDown();
+    AshNotificationViewPixelTest::TearDown();
   }
+
+  const DisplayType& GetDisplayType() const { return GetParam(); }
 
  private:
   std::unique_ptr<aura::Window> window1_;
@@ -207,8 +303,9 @@ INSTANTIATE_TEST_SUITE_P(DisplaySize,
                                             DisplayType::kUltraWidth,
                                             DisplayType::kUltraHeight}));
 
+// TODO(https://crbug.com/1490722): This test is failing on Chrome OS.
 // Verifies the notification popup of a full screenshot.
-TEST_P(ScreenCaptureNotificationPixelTest, VerifyPopup) {
+TEST_P(ScreenCaptureNotificationPixelTest, DISABLED_VerifyPopup) {
   // Take a full screenshot then wait for the file path to the saved image.
   ash::CaptureModeController* controller = StartCaptureSession(
       CaptureModeSource::kFullscreen, CaptureModeType::kImage);
@@ -223,8 +320,8 @@ TEST_P(ScreenCaptureNotificationPixelTest, VerifyPopup) {
   // Get the notification view.
   EXPECT_TRUE(GetPixelDiffer()->CompareUiComponentsOnPrimaryScreen(
       base::StrCat({"screen_capture_popup_notification_",
-                    GetDisplayTypeName(GetParam())}),
-      /*revision_number=*/1,
+                    GetDisplayTypeName(GetDisplayType())}),
+      /*revision_number=*/10,
       test_api()->GetPopupViewForId(kScreenCaptureNotificationId)));
 }
 

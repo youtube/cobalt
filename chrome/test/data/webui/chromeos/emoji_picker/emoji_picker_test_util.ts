@@ -6,7 +6,7 @@ import {EmojiGroupComponent} from 'chrome://emoji-picker/emoji_group.js';
 import {EmojiPicker} from 'chrome://emoji-picker/emoji_picker.js';
 import {EmojiPickerApiProxyImpl} from 'chrome://emoji-picker/emoji_picker_api_proxy.js';
 import {EMOJI_PICKER_READY} from 'chrome://emoji-picker/events.js';
-import {assert} from 'chrome://resources/js/assert_ts.js';
+import {assert} from 'chrome://resources/js/assert.js';
 import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 import {assertTrue} from 'chrome://webui-test/chai_assert.js';
 
@@ -168,6 +168,14 @@ export function initialiseEmojiPickerForTest(
   const findInEmojiPicker = (...path: string[]) =>
       deepQuerySelector(emojiPicker, path);
 
+  const waitUntilFindInEmojiPicker = async(...path: string[]):
+      Promise<HTMLElement> => {
+        await waitForCondition(
+            () => findInEmojiPicker(...path) !== null,
+            'element should not be null');
+        return findInEmojiPicker(...path)!;
+      };
+
   const findEmojiFirstButton = (...path: string[]) => {
     const emojiElement = findInEmojiPicker(...path);
     return (emojiElement as EmojiGroupComponent | null)?.firstEmojiButton();
@@ -203,6 +211,7 @@ export function initialiseEmojiPickerForTest(
   return {
     emojiPicker,
     findInEmojiPicker,
+    waitUntilFindInEmojiPicker,
     findEmojiFirstButton,
     readyPromise,
     scrollDown,

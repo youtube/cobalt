@@ -25,6 +25,7 @@
 #include "base/time/time.h"
 #include "base/values.h"
 #include "build/build_config.h"
+#include "components/content_settings/core/browser/content_settings_pref_provider.h"
 #include "components/content_settings/core/browser/host_content_settings_map.h"
 #include "components/content_settings/core/common/content_settings_types.h"
 #include "components/pref_registry/pref_registry_syncable.h"
@@ -84,7 +85,7 @@ void UpdateRecurrentInterstitialPref(PrefService* pref_service,
                                      base::Clock* clock,
                                      int error,
                                      int threshold) {
-  double now = clock->Now().ToJsTime();
+  double now = clock->Now().InMillisecondsFSinceUnixEpoch();
 
   ScopedDictPrefUpdate pref_update(pref_service,
                                    prefs::kRecurrentSSLInterstitial);
@@ -144,8 +145,10 @@ bool DoesRecurrentInterstitialPrefMeetThreshold(PrefService* pref_service,
   // are more than |threshold| values after the cutoff time.
   const base::Value::List& error_list = *list_value;
   for (size_t i = 0; i < error_list.size(); i++) {
-    if (base::Time::FromJsTime(error_list[i].GetDouble()) >= cutoff_time)
+    if (base::Time::FromMillisecondsSinceUnixEpoch(error_list[i].GetDouble()) >=
+        cutoff_time) {
       return base::MakeStrictNum(error_list.size() - i) >= threshold;
+    }
   }
   return false;
 }
@@ -397,6 +400,10 @@ bool StatefulSSLHostStateDelegate::IsHttpsEnforcedForHost(
                                                         is_nondefault_storage);
 }
 
+void StatefulSSLHostStateDelegate::ClearHttpsOnlyModeAllowlist() {
+  https_only_mode_allowlist_.ClearAllowlist(base::Time(), base::Time::Max());
+}
+
 void StatefulSSLHostStateDelegate::RevokeUserAllowExceptions(
     const std::string& host) {
   GURL url = GetSecureGURLForHost(host);
@@ -415,6 +422,35 @@ bool StatefulSSLHostStateDelegate::HasAllowException(
     content::StoragePartition* storage_partition) {
   return HasCertAllowException(host, storage_partition) ||
          IsHttpAllowedForHost(host, storage_partition);
+}
+
+bool StatefulSSLHostStateDelegate::HasAllowExceptionForAnyHost(
+    content::StoragePartition* storage_partition) {
+  return HasCertAllowExceptionForAnyHost(storage_partition) ||
+         IsHttpAllowedForAnyHost(storage_partition);
+}
+
+bool StatefulSSLHostStateDelegate::HasCertAllowExceptionForAnyHost(
+    content::StoragePartition* storage_partition) {
+  if (!storage_partition ||
+      storage_partition != browser_context_->GetDefaultStoragePartition()) {
+    return !allowed_certs_for_non_default_storage_partitions_.empty();
+  }
+
+  ContentSettingsForOneType content_settings_list =
+      host_content_settings_map_->GetSettingsForOneType(
+          ContentSettingsType::SSL_CERT_DECISIONS);
+  return !content_settings_list.empty();
+}
+
+bool StatefulSSLHostStateDelegate::IsHttpAllowedForAnyHost(
+    content::StoragePartition* storage_partition) {
+  bool is_nondefault_storage =
+      !storage_partition ||
+      storage_partition != browser_context_->GetDefaultStoragePartition();
+
+  return https_only_mode_allowlist_.IsHttpAllowedForAnyHost(
+      is_nondefault_storage);
 }
 
 // TODO(jww): This will revoke all of the decisions in the browser context.
@@ -494,9 +530,14 @@ void StatefulSSLHostStateDelegate::ResetRecurrentErrorCountForTesting() {
 
 void StatefulSSLHostStateDelegate::SetClockForTesting(
     std::unique_ptr<base::Clock> clock) {
+  // Pointers to the existing Clock object must be reset before swapping the
+  // underlying Clock object, otherwise they are dangling (briefly).
+  https_only_mode_allowlist_.SetClockForTesting(nullptr);    // IN-TEST
+  https_only_mode_enforcelist_.SetClockForTesting(nullptr);  // IN-TEST
+
   clock_ = std::move(clock);
-  https_only_mode_allowlist_.SetClockForTesting(clock_.get());
-  https_only_mode_enforcelist_.SetClockForTesting(clock_.get());
+  https_only_mode_allowlist_.SetClockForTesting(clock_.get());    // IN-TEST
+  https_only_mode_enforcelist_.SetClockForTesting(clock_.get());  // IN-TEST
 }
 
 void StatefulSSLHostStateDelegate::SetRecurrentInterstitialThresholdForTesting(

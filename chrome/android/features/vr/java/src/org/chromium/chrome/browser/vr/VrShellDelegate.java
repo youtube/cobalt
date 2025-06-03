@@ -21,14 +21,15 @@ import com.google.vr.ndk.base.AndroidCompat;
 import com.google.vr.ndk.base.DaydreamApi;
 import com.google.vr.ndk.base.GvrUiLayout;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.ActivityState;
 import org.chromium.base.ApplicationStatus;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.Log;
 import org.chromium.base.ThreadUtils;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
 import org.chromium.base.library_loader.LibraryLoader;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.supplier.ObservableSupplier;
@@ -458,8 +459,7 @@ public class VrShellDelegate implements View.OnSystemUiVisibilityChangeListener 
     /**
      * Enters VR Shell if necessary, displaying browser UI and tab contents in VR.
      */
-    @EnterVRResult
-    private int enterVrInternal() {
+    private @EnterVRResult int enterVrInternal() {
         if (mPaused) return EnterVRResult.CANCELLED;
         if (mInVr) return EnterVRResult.NOT_NECESSARY;
         if (!canEnterVr()) return EnterVRResult.CANCELLED;

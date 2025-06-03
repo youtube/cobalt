@@ -702,7 +702,7 @@ TNode<JSFunction> InterpreterAssembler::LoadFunctionClosure() {
 }
 
 TNode<HeapObject> InterpreterAssembler::LoadFeedbackVector() {
-  return CodeStubAssembler::LoadFeedbackVector(LoadFunctionClosure());
+  return CAST(LoadRegister(Register::feedback_vector()));
 }
 
 void InterpreterAssembler::CallPrologue() {
@@ -737,7 +737,7 @@ void InterpreterAssembler::CallJSAndDispatch(
 
   Callable callable = CodeFactory::InterpreterPushArgsThenCall(
       isolate(), receiver_mode, InterpreterPushArgsMode::kOther);
-  TNode<Code> code_target = HeapConstant(callable.code());
+  TNode<Code> code_target = HeapConstantNoHole(callable.code());
 
   TailCallStubThenBytecodeDispatch(callable.descriptor(), code_target, context,
                                    args_count, args.base_reg_location(),
@@ -758,7 +758,7 @@ void InterpreterAssembler::CallJSAndDispatch(TNode<Object> function,
          bytecode_ == Bytecode::kInvokeIntrinsic);
   DCHECK_EQ(Bytecodes::GetReceiverMode(bytecode_), receiver_mode);
   Callable callable = CodeFactory::Call(isolate());
-  TNode<Code> code_target = HeapConstant(callable.code());
+  TNode<Code> code_target = HeapConstantNoHole(callable.code());
 
   arg_count = JSParameterCount(arg_count);
   if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
@@ -808,7 +808,7 @@ void InterpreterAssembler::CallJSWithSpreadAndDispatch(
   Callable callable = CodeFactory::InterpreterPushArgsThenCall(
       isolate(), ConvertReceiverMode::kAny,
       InterpreterPushArgsMode::kWithFinalSpread);
-  TNode<Code> code_target = HeapConstant(callable.code());
+  TNode<Code> code_target = HeapConstantNoHole(callable.code());
 
   TNode<Word32T> args_count = args.reg_count();
   TailCallStubThenBytecodeDispatch(callable.descriptor(), code_target, context,
@@ -826,13 +826,26 @@ TNode<Object> InterpreterAssembler::Construct(
   DCHECK(Bytecodes::MakesCallAlongCriticalPath(bytecode_));
   TVARIABLE(Object, var_result);
   TVARIABLE(AllocationSite, var_site);
-  Label return_result(this), construct_generic(this),
+  Label return_result(this), try_fast_construct(this), construct_generic(this),
       construct_array(this, &var_site);
 
   TNode<Word32T> args_count = JSParameterCount(args.reg_count());
   CollectConstructFeedback(context, target, new_target, maybe_feedback_vector,
                            slot_id, UpdateFeedbackMode::kOptionalFeedback,
-                           &construct_generic, &construct_array, &var_site);
+                           &try_fast_construct, &construct_array, &var_site);
+
+  BIND(&try_fast_construct);
+  {
+    Comment("call using FastConstruct builtin");
+    GotoIf(TaggedIsSmi(target), &construct_generic);
+    GotoIfNot(IsJSFunction(CAST(target)), &construct_generic);
+    Callable callable = Builtins::CallableFor(
+        isolate(), Builtin::kInterpreterPushArgsThenFastConstructFunction);
+    var_result =
+        CallStub(callable, context, args_count, args.base_reg_location(),
+                 target, new_target, UndefinedConstant());
+    Goto(&return_result);
+  }
 
   BIND(&construct_generic);
   {
@@ -893,7 +906,8 @@ TNode<Object> InterpreterAssembler::ConstructWithSpread(
     // Check if it is a megamorphic {new_target}.
     Comment("check if megamorphic");
     TNode<BoolT> is_megamorphic = TaggedEqual(
-        feedback, HeapConstant(FeedbackVector::MegamorphicSentinel(isolate())));
+        feedback,
+        HeapConstantNoHole(FeedbackVector::MegamorphicSentinel(isolate())));
     GotoIf(is_megamorphic, &construct);
 
     Comment("check if weak reference");
@@ -969,7 +983,7 @@ TNode<Object> InterpreterAssembler::ConstructWithSpread(
       DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kmegamorphic_symbol));
       StoreFeedbackVectorSlot(
           feedback_vector, slot_id,
-          HeapConstant(FeedbackVector::MegamorphicSentinel(isolate())),
+          HeapConstantNoHole(FeedbackVector::MegamorphicSentinel(isolate())),
           SKIP_WRITE_BARRIER);
       ReportFeedbackUpdate(feedback_vector, slot_id,
                            "ConstructWithSpread:TransitionMegamorphic");
@@ -995,7 +1009,7 @@ TNode<T> InterpreterAssembler::CallRuntimeN(TNode<Uint32T> function_id,
   DCHECK(Bytecodes::MakesCallAlongCriticalPath(bytecode_));
   DCHECK(Bytecodes::IsCallRuntime(bytecode_));
   Callable callable = CodeFactory::InterpreterCEntry(isolate(), return_count);
-  TNode<Code> code_target = HeapConstant(callable.code());
+  TNode<Code> code_target = HeapConstantNoHole(callable.code());
 
   // Get the function entry from the function id.
   TNode<RawPtrT> function_table = ReinterpretCast<RawPtrT>(ExternalConstant(
@@ -1023,7 +1037,7 @@ InterpreterAssembler::CallRuntimeN(TNode<Uint32T> function_id,
 
 TNode<Int32T> InterpreterAssembler::UpdateInterruptBudget(
     TNode<Int32T> weight) {
-  TNode<JSFunction> function = CAST(LoadRegister(Register::function_closure()));
+  TNode<JSFunction> function = LoadFunctionClosure();
   TNode<FeedbackCell> feedback_cell =
       LoadObjectField<FeedbackCell>(function, JSFunction::kFeedbackCellOffset);
   TNode<Int32T> old_budget = LoadObjectField<Int32T>(
@@ -1053,7 +1067,7 @@ void InterpreterAssembler::DecreaseInterruptBudget(
          &interrupt_check);
 
   BIND(&interrupt_check);
-  TNode<JSFunction> function = CAST(LoadRegister(Register::function_closure()));
+  TNode<JSFunction> function = LoadFunctionClosure();
   CallRuntime(stack_check_behavior == kEnableStackCheck
                   ? Runtime::kBytecodeBudgetInterruptWithStackCheck_Ignition
                   : Runtime::kBytecodeBudgetInterrupt_Ignition,
@@ -1360,13 +1374,13 @@ void InterpreterAssembler::OnStackReplacement(
     OnStackReplacementParams params) {
   // Three cases may cause us to attempt OSR, in the following order:
   //
-  // 1) Presence of cached OSR Turbofan code.
+  // 1) Presence of cached OSR Turbofan/Maglev code.
   // 2) Presence of cached OSR Sparkplug code.
   // 3) The OSR urgency exceeds the current loop depth - in that case, trigger
   //    a Turbofan OSR compilation.
 
   TVARIABLE(Object, maybe_target_code, SmiConstant(0));
-  Label osr_to_turbofan(this), osr_to_sparkplug(this);
+  Label osr_to_opt(this), osr_to_sparkplug(this);
 
   // Case 1).
   {
@@ -1378,7 +1392,7 @@ void InterpreterAssembler::OnStackReplacement(
 
     // Is it marked_for_deoptimization? If yes, clear the slot.
     GotoIfNot(IsMarkedForDeoptimization(CAST(maybe_target_code.value())),
-              &osr_to_turbofan);
+              &osr_to_opt);
     StoreFeedbackVectorSlot(feedback_vector, Unsigned(feedback_slot),
                             ClearedValue(), UNSAFE_SKIP_WRITE_BARRIER);
     maybe_target_code = SmiConstant(0);
@@ -1404,22 +1418,21 @@ void InterpreterAssembler::OnStackReplacement(
       static_assert(FeedbackVector::OsrUrgencyBits::kShift == 0);
       TNode<Int32T> osr_urgency = Word32And(
           osr_state, Int32Constant(FeedbackVector::OsrUrgencyBits::kMask));
-      GotoIf(Uint32LessThan(loop_depth, osr_urgency), &osr_to_turbofan);
+      GotoIf(Uint32LessThan(loop_depth, osr_urgency), &osr_to_opt);
       JumpBackward(relative_jump);
     }
   }
 
-  BIND(&osr_to_turbofan);
+  BIND(&osr_to_opt);
   {
-    TNode<IntPtrT> length =
-        LoadAndUntagFixedArrayBaseLength(BytecodeArrayTaggedPointer());
-    TNode<IntPtrT> weight =
-        IntPtrMul(length, IntPtrConstant(v8_flags.osr_to_tierup));
-    DecreaseInterruptBudget(TruncateWordToInt32(weight), kDisableStackCheck);
+    TNode<Uint32T> length =
+        LoadAndUntagBytecodeArrayLength(BytecodeArrayTaggedPointer());
+    TNode<Uint32T> weight =
+        Uint32Mul(length, Uint32Constant(v8_flags.osr_to_tierup));
+    DecreaseInterruptBudget(Signed(weight), kDisableStackCheck);
     Callable callable = CodeFactory::InterpreterOnStackReplacement(isolate());
     CallStub(callable, context, maybe_target_code.value());
-    UpdateInterruptBudget(
-        Int32Mul(TruncateWordToInt32(weight), Int32Constant(-1)));
+    UpdateInterruptBudget(Int32Mul(Signed(weight), Int32Constant(-1)));
     JumpBackward(relative_jump);
   }
 
@@ -1481,7 +1494,7 @@ bool InterpreterAssembler::TargetSupportsUnalignedAccess() {
 }
 
 void InterpreterAssembler::AbortIfRegisterCountInvalid(
-    TNode<FixedArrayBase> parameters_and_registers,
+    TNode<FixedArray> parameters_and_registers,
     TNode<IntPtrT> formal_parameter_count, TNode<UintPtrT> register_count) {
   TNode<IntPtrT> array_size =
       LoadAndUntagFixedArrayBaseLength(parameters_and_registers);

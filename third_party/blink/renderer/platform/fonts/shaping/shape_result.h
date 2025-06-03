@@ -62,6 +62,7 @@ template <typename TextContainerType>
 class PLATFORM_EXPORT ShapeResultSpacing;
 class TextRun;
 class ShapeResultView;
+struct TabSize;
 
 enum class AdjustMidCluster {
   // Adjust the middle of a grapheme cluster to the logical end boundary.
@@ -72,10 +73,31 @@ enum class AdjustMidCluster {
 
 struct ShapeResultCharacterData {
   DISALLOW_NEW();
-  float x_position;
+
+  ShapeResultCharacterData()
+      : is_cluster_base(false),
+        safe_to_break_before(false),
+        has_auto_spacing_after(false) {}
+
+  void SetCachedData(float new_x_position,
+                     bool new_is_cluster_base,
+                     bool new_safe_to_break_before) {
+    x_position = new_x_position;
+    is_cluster_base = new_is_cluster_base;
+    safe_to_break_before = new_safe_to_break_before;
+  }
+
+  float x_position = 0;
   // Set for the logical first character of a cluster.
   unsigned is_cluster_base : 1;
   unsigned safe_to_break_before : 1;
+  unsigned has_auto_spacing_after : 1;
+};
+
+// A space should be appended after `offset` with the width of `spacing`.
+struct OffsetWithSpacing {
+  wtf_size_t offset;
+  float spacing;
 };
 
 // There are two options for how OffsetForPosition behaves:
@@ -128,11 +150,6 @@ class PLATFORM_EXPORT ShapeResult : public RefCounted<ShapeResult> {
     return base::AdoptRef(new ShapeResult(other));
   }
   static scoped_refptr<ShapeResult> CreateForTabulationCharacters(
-      const Font*,
-      const TextRun&,
-      float position_offset,
-      unsigned length);
-  static scoped_refptr<ShapeResult> CreateForTabulationCharacters(
       const Font* font,
       TextDirection direction,
       const TabSize& tab_size,
@@ -163,6 +180,7 @@ class PLATFORM_EXPORT ShapeResult : public RefCounted<ShapeResult> {
   unsigned NumCharacters() const { return num_characters_; }
   unsigned NumGlyphs() const { return num_glyphs_; }
   const SimpleFontData* PrimaryFont() const { return primary_font_.get(); }
+  bool HasFallbackFonts() const;
 
   // TODO(eae): Remove start_x and return value once ShapeResultBuffer has been
   // removed.
@@ -246,8 +264,8 @@ class PLATFORM_EXPORT ShapeResult : public RefCounted<ShapeResult> {
   // Computes and caches a position data object as needed.
   void EnsurePositionData() const;
 
-  // Discards cached position data, freeing up memory.
-  void DiscardPositionData() const;
+  const ShapeResultCharacterData& CharacterData(unsigned offset) const;
+  ShapeResultCharacterData& CharacterData(unsigned offset);
 
   // Fast versions of OffsetForPosition and PositionForOffset that operates on
   // a cache (that needs to be pre-computed using EnsurePositionData) and that
@@ -272,6 +290,24 @@ class PLATFORM_EXPORT ShapeResult : public RefCounted<ShapeResult> {
   scoped_refptr<ShapeResult> ApplySpacingToCopy(ShapeResultSpacing<TextRun>&,
                                          const TextRun&) const;
 
+  // Adds spacing between ideograph character and non-ideograph character for
+  // the property of text-autospace.
+  void ApplyTextAutoSpacing(
+      const Vector<OffsetWithSpacing, 16>& offsets_with_spacing);
+
+  // True if the auto-spacing is applied. See `ApplyTextAutoSpacing`.
+  bool HasAutoSpacingAfter(unsigned offset) const;
+  bool HasAutoSpacingBefore(unsigned offset) const;
+
+  // Returns a line-end `ShapeResult` when breaking at `break_offset`, and the
+  // glyph before `break_offset` has auto-spacing.
+  scoped_refptr<ShapeResult> UnapplyAutoSpacing(unsigned start_offset,
+                                                unsigned break_offset) const;
+
+  // Adjust the offset from `OffsetForPosition` when the offset has
+  // `HasAutoSpacingAfter`.
+  unsigned AdjustOffsetForAutoSpacing(unsigned offset, float position) const;
+
   // Append a copy of a range within an existing result to another result.
   //
   // For sequential copies the vector version below is prefered as it avoid a
@@ -284,6 +320,8 @@ class PLATFORM_EXPORT ShapeResult : public RefCounted<ShapeResult> {
 
     unsigned start;
     unsigned end;
+    // TODO(crbug.com/1489080): When this member was given MiraclePtr
+    // protection, it was found dangling.
     ShapeResult* target;
   };
 
@@ -424,6 +462,13 @@ class PLATFORM_EXPORT ShapeResult : public RefCounted<ShapeResult> {
     CharacterPositionData(unsigned num_characters, float width)
         : data_(num_characters), width_(width) {}
 
+    ShapeResultCharacterData& operator[](unsigned index) {
+      return data_[index];
+    }
+    const ShapeResultCharacterData& operator[](unsigned index) const {
+      return data_[index];
+    }
+
     // Returns the next or previous offsets respectively at which it is safe to
     // break without reshaping.
     unsigned NextSafeToBreakOffset(unsigned offset) const;
@@ -459,6 +504,7 @@ class PLATFORM_EXPORT ShapeResult : public RefCounted<ShapeResult> {
 
   template <bool>
   void ComputePositionData() const;
+  void RecalcCharacterPositions() const;
 
   template <typename TextContainerType>
   void ApplySpacingImpl(ShapeResultSpacing<TextContainerType>&,
@@ -539,6 +585,12 @@ class PLATFORM_EXPORT ShapeResult : public RefCounted<ShapeResult> {
                          GlyphCallback,
                          void* context,
                          const RunInfo& run) const;
+
+  // Internal implementation of `ApplyTextAutoSpacing`. The iterator can be
+  // Vector::iterator or Vector::reverse_iterator, depending on the text
+  // direction.
+  template <TextDirection direction, class Iterator>
+  void ApplyTextAutoSpacingCore(Iterator offset_begin, Iterator offset_end);
 };
 
 PLATFORM_EXPORT std::ostream& operator<<(std::ostream&, const ShapeResult&);

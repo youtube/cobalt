@@ -32,7 +32,7 @@ import org.chromium.chrome.browser.init.ChromeBrowserInitializer;
 import org.chromium.chrome.browser.init.EmptyBrowserParts;
 import org.chromium.chrome.browser.notifications.channels.SiteChannelsManager;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
-import org.chromium.chrome.browser.preferences.SharedPreferencesManager;
+import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.settings.SettingsLauncherImpl;
 import org.chromium.chrome.browser.ui.searchactivityutils.SearchActivityPreferencesManager;
@@ -78,6 +78,7 @@ public class ManageSpaceActivity extends AppCompatActivity implements View.OnCli
         Resources r = getResources();
         setTitle(String.format(r.getString(R.string.storage_management_activity_label),
                 r.getString(R.string.app_name)));
+        getSupportActionBar().setDisplayHomeAsUpEnabled(true);
 
         mSiteDataSizeText = (TextView) findViewById(R.id.site_data_storage_size_text);
         mSiteDataSizeText.setText(R.string.storage_management_computing_size);
@@ -114,7 +115,7 @@ public class ManageSpaceActivity extends AppCompatActivity implements View.OnCli
 
         String productVersion =
                 AboutChromeSettings.getApplicationVersion(this, VersionInfo.getProductVersion());
-        String failedVersion = SharedPreferencesManager.getInstance().readString(
+        String failedVersion = ChromeSharedPreferences.getInstance().readString(
                 ChromePreferenceKeys.SETTINGS_WEBSITE_FAILED_BUILD_VERSION, null);
         if (TextUtils.equals(failedVersion, productVersion)) {
             parts.onStartupFailure(null);
@@ -125,7 +126,7 @@ public class ManageSpaceActivity extends AppCompatActivity implements View.OnCli
         // java-side the pref will be written before the process dies. We want to make sure we
         // don't attempt to start the browser process and have it kill chrome. This activity is
         // used to clear data for the chrome app, so it must be particularly error resistant.
-        SharedPreferencesManager.getInstance().writeStringSync(
+        ChromeSharedPreferences.getInstance().writeStringSync(
                 ChromePreferenceKeys.SETTINGS_WEBSITE_FAILED_BUILD_VERSION, productVersion);
 
         try {
@@ -158,8 +159,14 @@ public class ManageSpaceActivity extends AppCompatActivity implements View.OnCli
     protected void onStop() {
         super.onStop();
 
-        SharedPreferencesManager.getInstance().writeString(
+        ChromeSharedPreferences.getInstance().writeString(
                 ChromePreferenceKeys.SETTINGS_WEBSITE_FAILED_BUILD_VERSION, null);
+    }
+
+    @Override
+    public boolean onSupportNavigateUp() {
+        finish();
+        return true;
     }
 
     @VisibleForTesting
@@ -210,7 +217,7 @@ public class ManageSpaceActivity extends AppCompatActivity implements View.OnCli
                     }
                 });
                 builder.setNegativeButton(R.string.cancel, null);
-                builder.setTitle(R.string.storage_clear_site_storage_title);
+                builder.setTitle(R.string.storage_delete_site_storage_title);
                 builder.setMessage(R.string.storage_management_clear_unimportant_dialog_text);
                 mUnimportantDialog = builder.create();
             }

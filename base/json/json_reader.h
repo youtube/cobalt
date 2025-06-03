@@ -40,6 +40,7 @@
 
 #include "base/base_export.h"
 #include "base/json/json_common.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/string_piece.h"
 #include "base/types/expected.h"
 #include "base/values.h"
@@ -90,6 +91,11 @@ class BASE_EXPORT JSONReader {
     std::string message;
     int line = 0;
     int column = 0;
+
+    std::string ToString() const {
+      return "line " + base::NumberToString(line) + ", column " +
+             base::NumberToString(column) + ": " + message;
+    }
   };
 
   using Result = base::expected<Value, Error>;
@@ -106,6 +112,13 @@ class BASE_EXPORT JSONReader {
       int options = JSON_PARSE_CHROMIUM_EXTENSIONS,
       size_t max_depth = internal::kAbsoluteMaxDepth);
 
+  // Reads and parses |json|, returning a Value::Dict.
+  // If |json| is not a properly formed JSON dict string, returns absl::nullopt.
+  static absl::optional<Value::Dict> ReadDict(
+      StringPiece json,
+      int options = JSON_PARSE_CHROMIUM_EXTENSIONS,
+      size_t max_depth = internal::kAbsoluteMaxDepth);
+
   // Reads and parses |json| like Read(). On success returns a Value as the
   // expected value. Otherwise, it returns an Error instance, populated with a
   // formatted error message, an error code, and the error location if
@@ -113,6 +126,9 @@ class BASE_EXPORT JSONReader {
   static Result ReadAndReturnValueWithError(
       StringPiece json,
       int options = JSON_PARSE_CHROMIUM_EXTENSIONS);
+
+  // Determine whether the Rust parser is in use.
+  static bool UsingRust();
 };
 
 }  // namespace base

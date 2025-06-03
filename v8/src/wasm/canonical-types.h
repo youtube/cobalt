@@ -30,7 +30,11 @@ namespace wasm {
 //   rec. group.
 class TypeCanonicalizer {
  public:
-  TypeCanonicalizer() = default;
+  static constexpr uint32_t kPredefinedArrayI8Index = 0;
+  static constexpr uint32_t kPredefinedArrayI16Index = 1;
+  static constexpr uint32_t kNumberOfPredefinedTypes = 2;
+
+  TypeCanonicalizer();
 
   // Singleton class; no copying or moving allowed.
   TypeCanonicalizer(const TypeCanonicalizer& other) = delete;
@@ -46,6 +50,14 @@ class TypeCanonicalizer {
 
   // Same as above, except it registers the last {size} types in the module.
   V8_EXPORT_PRIVATE void AddRecursiveGroup(WasmModule* module, uint32_t size);
+
+  // Same as above, but for a group of size 1 (using the last type in the
+  // module).
+  V8_EXPORT_PRIVATE void AddRecursiveSingletonGroup(WasmModule* module);
+
+  // Same as above, but receives an explicit start index.
+  V8_EXPORT_PRIVATE void AddRecursiveSingletonGroup(WasmModule* module,
+                                                    uint32_t start_index);
 
   // Adds a module-independent signature as a recursive group, and canonicalizes
   // it if an identical is found. Returns the canonical index of the added
@@ -64,8 +76,9 @@ class TypeCanonicalizer {
                                             const WasmModule* sub_module,
                                             const WasmModule* super_module);
 
+  size_t EstimateCurrentMemoryConsumption() const;
+
  private:
-  using TypeInModule = std::pair<const WasmModule*, uint32_t>;
   struct CanonicalType {
     TypeDefinition type_def;
     bool is_relative_supertype;
@@ -76,16 +89,22 @@ class TypeCanonicalizer {
     }
 
     bool operator!=(const CanonicalType& other) const {
-      return type_def != other.type_def ||
-             is_relative_supertype != other.is_relative_supertype;
+      return !operator==(other);
     }
 
-    // TODO(manoskouk): Improve this.
     size_t hash_value() const {
-      return base::hash_combine(base::hash_value(type_def.kind),
-                                base::hash_value(type_def.supertype),
-                                base::hash_value(type_def.is_final),
-                                base::hash_value(is_relative_supertype));
+      uint32_t metadata = (type_def.supertype << 2) |
+                          (type_def.is_final ? 2 : 0) |
+                          (is_relative_supertype ? 1 : 0);
+      size_t hash = base::hash_value(metadata);
+      if (type_def.kind == TypeDefinition::kFunction) {
+        return base::hash_combine(hash, *type_def.function_sig);
+      }
+      if (type_def.kind == TypeDefinition::kStruct) {
+        return base::hash_combine(hash, *type_def.struct_type);
+      }
+      DCHECK_EQ(TypeDefinition::kArray, type_def.kind);
+      return base::hash_combine(hash, *type_def.array_type);
     }
   };
   struct CanonicalGroup {
@@ -94,6 +113,9 @@ class TypeCanonicalizer {
         return group.hash_value();
       }
     };
+
+    CanonicalGroup(Zone* zone, size_t size)
+        : types(zone->AllocateVector<CanonicalType>(size)) {}
 
     bool operator==(const CanonicalGroup& other) const {
       return types == other.types;
@@ -111,10 +133,29 @@ class TypeCanonicalizer {
       return result;
     }
 
-    std::vector<CanonicalType> types;
+    // The storage of this vector is the TypeCanonicalizer's zone_.
+    base::Vector<CanonicalType> types;
+  };
+  struct CanonicalSingletonGroup {
+    struct hash {
+      size_t operator()(const CanonicalSingletonGroup& group) const {
+        return group.hash_value();
+      }
+    };
+
+    bool operator==(const CanonicalSingletonGroup& other) const {
+      return type == other.type;
+    }
+
+    size_t hash_value() const { return type.hash_value(); }
+
+    CanonicalType type;
   };
 
-  int FindCanonicalGroup(CanonicalGroup&) const;
+  void AddPredefinedArrayType(uint32_t index, ValueType element_type);
+
+  int FindCanonicalGroup(const CanonicalGroup&) const;
+  int FindCanonicalGroup(const CanonicalSingletonGroup&) const;
 
   // Canonicalize all types present in {type} (including supertype) according to
   // {CanonicalizeValueType}.
@@ -128,10 +169,16 @@ class TypeCanonicalizer {
   ValueType CanonicalizeValueType(const WasmModule* module, ValueType type,
                                   uint32_t recursive_group_start) const;
 
+  void CheckMaxCanonicalIndex() const;
+
   std::vector<uint32_t> canonical_supertypes_;
-  // group -> canonical id of first type
+  // Maps groups of size >=2 to the canonical id of the first type.
   std::unordered_map<CanonicalGroup, uint32_t, CanonicalGroup::hash>
       canonical_groups_;
+  // Maps group of size 1 to the canonical id of the type.
+  std::unordered_map<CanonicalSingletonGroup, uint32_t,
+                     CanonicalSingletonGroup::hash>
+      canonical_singleton_groups_;
   AccountingAllocator allocator_;
   Zone zone_{&allocator_, "canonical type zone"};
   base::Mutex mutex_;

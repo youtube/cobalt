@@ -35,11 +35,12 @@ import zlib
 # https://chromium.googlesource.com/chromium/src/+/main/docs/updating_clang.md
 # Reverting problematic clang rolls is safe, though.
 # This is the output of `git describe` and is usable as a commit-ish.
-CLANG_REVISION = 'llvmorg-17-init-8029-g27f27d15'
-CLANG_SUB_REVISION = 3
+CLANG_REVISION = 'llvmorg-18-init-9505-g10664813'
+CLANG_SUB_REVISION = 1
 
 PACKAGE_VERSION = '%s-%s' % (CLANG_REVISION, CLANG_SUB_REVISION)
-RELEASE_VERSION = '17'
+RELEASE_VERSION = '18'
+# TODO(crbug.com/1467585): Bump to 18 in next Clang roll.
 
 CDS_URL = os.environ.get('CDS_CLANG_BUCKET_OVERRIDE',
     'https://commondatastorage.googleapis.com/chromium-browser-clang')
@@ -60,11 +61,12 @@ FORCE_HEAD_REVISION_FILE = os.path.normpath(os.path.join(LLVM_BUILD_DIR, '..',
 
 def RmTree(dir):
   """Delete dir."""
+  if sys.platform == 'win32':
+    # Avoid problems with paths longer than MAX_PATH
+    # https://learn.microsoft.com/en-us/windows/win32/fileio/maximum-file-path-limitation
+    dir = f'\\\\?\\{dir}'
+
   def ChmodAndRetry(func, path, _):
-    # Windows can fail here with file does not exist. Since we're deleting
-    # everything, we can just ignore this and continue.
-    if not os.path.exists(path):
-      return
     # Subversion can leave read-only files around.
     if not os.access(path, os.W_OK):
       os.chmod(path, stat.S_IWUSR)
@@ -332,6 +334,11 @@ def main():
   parser.add_argument('--verify-version',
                       help='Verify that clang has the passed-in version.')
   args = parser.parse_args()
+
+  # TODO(crbug.com/1467585): Remove in next Clang roll.
+  if args.llvm_force_head_revision:
+    global RELEASE_VERSION
+    RELEASE_VERSION = '18'
 
   if args.verify_version and args.verify_version != RELEASE_VERSION:
     print('RELEASE_VERSION is %s but --verify-version argument was %s.' % (

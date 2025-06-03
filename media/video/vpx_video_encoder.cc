@@ -90,9 +90,13 @@ EncoderStatus SetUpVpxConfig(const VideoEncoder::Options& opts,
     config->kf_max_dist = opts.keyframe_interval.value();
   }
 
+  uint32_t default_bitrate = GetDefaultVideoEncodeBitrate(
+      opts.frame_size, opts.framerate.value_or(30));
+  config->rc_end_usage = VPX_VBR;
+  // The unit of rc_target_bitrate is kilobits per second.
+  config->rc_target_bitrate = default_bitrate / 1000;
   if (opts.bitrate.has_value()) {
-    auto& bitrate = opts.bitrate.value();
-    config->rc_target_bitrate = bitrate.target_bps() / 1000;
+    const auto& bitrate = opts.bitrate.value();
     switch (bitrate.mode()) {
       case Bitrate::Mode::kVariable:
         config->rc_end_usage = VPX_VBR;
@@ -110,9 +114,9 @@ EncoderStatus SetUpVpxConfig(const VideoEncoder::Options& opts,
         config->rc_min_quantizer = 0;
         break;
     }
-  } else {
-    config->rc_target_bitrate = GetDefaultVideoEncodeBitrate(
-        opts.frame_size, opts.framerate.value_or(30));
+    if (bitrate.target_bps() != 0) {
+      config->rc_target_bitrate = bitrate.target_bps() / 1000;
+    }
   }
 
   config->g_w = opts.frame_size.width();
@@ -267,7 +271,7 @@ void VpxVideoEncoder::Initialize(VideoCodecProfile profile,
       options.bitrate->mode() == Bitrate::Mode::kExternal && !is_vp9) {
     std::move(done_cb).Run(
         EncoderStatus(EncoderStatus::Codes::kEncoderUnsupportedConfig,
-                      "Unsupported bitrate mode"));
+                      "VP8 doesn't support per-frame quantizer"));
     return;
   }
 
@@ -282,7 +286,7 @@ void VpxVideoEncoder::Initialize(VideoCodecProfile profile,
   }
 
   vpx_img_fmt img_fmt = VPX_IMG_FMT_NONE;
-  unsigned int bits_for_storage = 8;
+  unsigned int bits_for_storage = 0;
   switch (profile) {
     case VP9PROFILE_PROFILE1:
       codec_config_.g_profile = 1;
@@ -327,8 +331,8 @@ void VpxVideoEncoder::Initialize(VideoCodecProfile profile,
 
   // For VP9 the values used for real-time encoding mode are 5, 6, 7,
   // 8, 9. Higher means faster encoding, but lower quality.
-  // For VP8 typical values used for real-time encoding are -4, -6,
-  // -8, -10. Again larger magnitude means faster encoding but lower
+  // For VP8 typical values used for real-time encoding are -4, -6, -8,
+  // -10, -12. Again larger magnitude means faster encoding but lower
   // quality.
   int cpu_used = is_vp9 ? 7 : -6;
   vpx_error = vpx_codec_control(codec.get(), VP8E_SET_CPUUSED, cpu_used);
@@ -377,9 +381,16 @@ void VpxVideoEncoder::Initialize(VideoCodecProfile profile,
       }
     }
 
-    // In CBR mode use aq-mode=3 is enabled for quality improvement
+    // In CBR mode aq-mode=3 (cyclic refresh) is enabled for quality
+    // improvement. Note: For VP8, cyclic refresh is internally done as
+    // default.
     if (codec_config_.rc_end_usage == VPX_CBR) {
       vpx_codec_control(codec.get(), VP9E_SET_AQ_MODE, 3);
+    }
+
+    if (options.content_hint == ContentHint::Screen) {
+      vpx_codec_control(codec.get(), VP9E_SET_TUNE_CONTENT,
+                        VP9E_CONTENT_SCREEN);
     }
   }
 
@@ -388,10 +399,12 @@ void VpxVideoEncoder::Initialize(VideoCodecProfile profile,
   output_cb_ = BindCallbackToCurrentLoopIfNeeded(std::move(output_cb));
   codec_ = std::move(codec);
 
-  VideoEncoderInfo info;
-  info.implementation_name = "VpxVideoEncoder";
-  info.is_hardware_accelerated = false;
-  BindCallbackToCurrentLoopIfNeeded(std::move(info_cb)).Run(info);
+  if (info_cb) {
+    VideoEncoderInfo info;
+    info.implementation_name = "VpxVideoEncoder";
+    info.is_hardware_accelerated = false;
+    BindCallbackToCurrentLoopIfNeeded(std::move(info_cb)).Run(info);
+  }
 
   std::move(done_cb).Run(EncoderStatus::Codes::kOk);
 }
@@ -541,7 +554,7 @@ void VpxVideoEncoder::Encode(scoped_refptr<VideoFrame> frame,
     key_frame = true;
     UpdateEncoderColorSpace();
   }
-  auto deadline = VPX_DL_REALTIME;
+  const unsigned long deadline = VPX_DL_REALTIME;
   vpx_codec_flags_t flags = key_frame ? VPX_EFLAG_FORCE_KF : 0;
 
   int temporal_id = 0;
@@ -630,7 +643,7 @@ void VpxVideoEncoder::ChangeOptions(const Options& options,
         options.frame_size.height() > originally_configured_size_.height()) {
       auto status = EncoderStatus(
           EncoderStatus::Codes::kEncoderUnsupportedConfig,
-          "libvpx/VP9 doesn't support dynamically increasing frame dimentions");
+          "libvpx/VP9 doesn't support dynamically increasing frame dimensions");
       std::move(done_cb).Run(std::move(status));
       return;
     }
@@ -781,22 +794,33 @@ void VpxVideoEncoder::UpdateEncoderColorSpace() {
   };
 
   if (vpx_cs != VPX_CS_UNKNOWN) {
-    auto vpx_error =
-        vpx_codec_control(codec_.get(), VP9E_SET_COLOR_SPACE, vpx_cs);
-    if (vpx_error != VPX_CODEC_OK)
-      LogVpxErrorMessage(codec_.get(), "Failed to set color space", vpx_error);
+    vpx_image_.cs = vpx_cs;
+    if (profile_ != VP8PROFILE_ANY) {
+      auto vpx_error =
+          vpx_codec_control(codec_.get(), VP9E_SET_COLOR_SPACE, vpx_cs);
+      if (vpx_error != VPX_CODEC_OK) {
+        LogVpxErrorMessage(codec_.get(), "Failed to set color space",
+                           vpx_error);
+      }
+    }
   }
 
   if (last_frame_color_space_.GetRangeID() == gfx::ColorSpace::RangeID::FULL ||
       last_frame_color_space_.GetRangeID() ==
           gfx::ColorSpace::RangeID::LIMITED) {
-    auto vpx_error = vpx_codec_control(
-        codec_.get(), VP9E_SET_COLOR_RANGE,
+    const auto vpx_range =
         last_frame_color_space_.GetRangeID() == gfx::ColorSpace::RangeID::FULL
             ? VPX_CR_FULL_RANGE
-            : VPX_CR_STUDIO_RANGE);
-    if (vpx_error != VPX_CODEC_OK)
-      LogVpxErrorMessage(codec_.get(), "Failed to set color range", vpx_error);
+            : VPX_CR_STUDIO_RANGE;
+    vpx_image_.range = vpx_range;
+    if (profile_ != VP8PROFILE_ANY) {
+      auto vpx_error =
+          vpx_codec_control(codec_.get(), VP9E_SET_COLOR_RANGE, vpx_range);
+      if (vpx_error != VPX_CODEC_OK) {
+        LogVpxErrorMessage(codec_.get(), "Failed to set color range",
+                           vpx_error);
+      }
+    }
   }
 }
 

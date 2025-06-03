@@ -7,6 +7,7 @@
 #include "base/ranges/algorithm.h"
 #include "base/test/bind.h"
 #include "base/test/gmock_callback_support.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/mock_callback.h"
 #include "base/test/test_mock_time_task_runner.h"
 #include "base/test/test_simple_task_runner.h"
@@ -75,6 +76,8 @@ class MockPage : public access_code_cast::mojom::Page {
 };
 
 const char kEmail[] = "mock_email@gmail.com";
+constexpr char histogram[] =
+    "AccessCodeCast.Session.NewDeviceRouteCreationDuration";
 
 }  // namespace
 
@@ -216,7 +219,7 @@ class AccessCodeCastHandlerTest : public ChromeRenderViewHostTestHarness {
 
     EXPECT_CALL(*router(),
                 CreateRouteInternal(source.id(), cast_sink_1().sink().id(), _,
-                                    web_contents(), _, timeout, false));
+                                    web_contents(), _, timeout));
 
     handler()->CastToSink(mock_callback.Get());
   }
@@ -237,7 +240,7 @@ class AccessCodeCastHandlerTest : public ChromeRenderViewHostTestHarness {
     EXPECT_CALL(*router(),
                 CreateRouteInternal(source.id(), cast_sink_1().sink().id(),
                                     request.frame_origin, web_contents(), _,
-                                    base::Seconds(20), false));
+                                    base::Seconds(20)));
     handler()->CastToSink(mock_callback.Get());
   }
 
@@ -296,13 +299,13 @@ class AccessCodeCastHandlerTest : public ChromeRenderViewHostTestHarness {
     // Handler so MockMediaRouter will respond to requests to create a route.
     // Will construct a RouteRequestResult based on the set result code and
     // then call the handler's callback, which should call the page's callback.
-    ON_CALL(*router(), CreateRouteInternal(_, _, _, _, _, _, _))
+    ON_CALL(*router(), CreateRouteInternal(_, _, _, _, _, _))
         .WillByDefault([this](const MediaSource::Id& source_id,
                               const MediaSink::Id& sink_id,
                               const url::Origin& origin,
                               content::WebContents* web_contents,
                               MediaRouteResponseCallback& callback,
-                              base::TimeDelta timeout, bool incognito) {
+                              base::TimeDelta timeout) {
           std::unique_ptr<RouteRequestResult> result;
           if (result_code_ == mojom::RouteRequestResultCode::OK) {
             MediaSource source(source_id);
@@ -320,7 +323,7 @@ class AccessCodeCastHandlerTest : public ChromeRenderViewHostTestHarness {
 
   scoped_refptr<base::TestMockTimeTaskRunner> mock_time_task_runner_;
 
-  raw_ptr<MockMediaRouter> router_;
+  raw_ptr<MockMediaRouter, AcrossTasksDanglingUntriaged> router_;
   std::unique_ptr<LoggerImpl> logger_;
   signin::IdentityTestEnvironment identity_test_env_;
 
@@ -345,7 +348,7 @@ class AccessCodeCastHandlerTest : public ChromeRenderViewHostTestHarness {
   NiceMock<cast_channel::MockCastMessageHandler> message_handler_;
   std::unique_ptr<StrictMock<MockPage>> page_;
   std::unique_ptr<TestingProfileManager> profile_manager_;
-  raw_ptr<Profile> profile_;
+  raw_ptr<Profile, AcrossTasksDanglingUntriaged> profile_;
   std::unique_ptr<MockCastMediaSinkServiceImpl>
       mock_cast_media_sink_service_impl_;
   std::unique_ptr<MockWebContentsPresentationManager> presentation_manager_;
@@ -583,6 +586,20 @@ TEST_F(AccessCodeCastHandlerTest, ProfileSyncSuccess) {
       "foo_code",
       access_code_cast::mojom::CastDiscoveryMethod::INPUT_ACCESS_CODE,
       mock_callback_success.Get());
+}
+
+// Demonstrates that adding a sink and successfully casting to it will trigger a
+// histogram.
+TEST_F(AccessCodeCastHandlerTest, SuccessfulAddAndCastMetric) {
+  base::HistogramTester histogram_tester;
+  histogram_tester.ExpectTotalCount(histogram, 0);
+
+  set_expected_cast_result(mojom::RouteRequestResultCode::OK);
+  MockCastToSinkCallback mock_cast_sink_callback;
+  EXPECT_CALL(mock_cast_sink_callback, Run(RouteRequestResultCode::OK));
+  StartDesktopMirroring(MediaSource::ForUnchosenDesktop(),
+                        mock_cast_sink_callback);
+  histogram_tester.ExpectTotalCount(histogram, 1);
 }
 
 }  // namespace media_router

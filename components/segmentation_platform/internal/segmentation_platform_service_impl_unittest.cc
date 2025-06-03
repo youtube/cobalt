@@ -14,6 +14,7 @@
 #include "base/run_loop.h"
 #include "base/test/gmock_callback_support.h"
 #include "base/test/metrics/histogram_tester.h"
+#include "base/test/mock_callback.h"
 #include "base/test/task_environment.h"
 #include "components/prefs/scoped_user_pref_update.h"
 #include "components/segmentation_platform/internal/constants.h"
@@ -92,8 +93,6 @@ class SegmentationPlatformServiceImplTest
     SegmentationPlatformServiceTestBase::InitPlatform(
         ukm_data_manager_.get(), /*history_service=*/nullptr);
 
-    SetUpDefaultModelProviders();
-
     segmentation_platform_service_impl_->GetServiceProxy()->AddObserver(
         &observer_);
   }
@@ -111,13 +110,10 @@ class SegmentationPlatformServiceImplTest
               SegmentId::OPTIMIZATION_TARGET_SEGMENTATION_SHOPPING_USER))
              .second;
 
-    EXPECT_CALL(model_provider, InitAndFetchModel(_))
-        .WillRepeatedly(RunOnceCallback<0>(
-            SegmentId::OPTIMIZATION_TARGET_SEGMENTATION_SHOPPING_USER, metadata,
-            1));
+    model_provider_data_.default_provider_metadata
+        [SegmentId::OPTIMIZATION_TARGET_SEGMENTATION_SHOPPING_USER] = metadata;
     EXPECT_CALL(model_provider, ExecuteModelWithInput(_, _))
         .WillRepeatedly(RunOnceCallback<1>(ModelProvider::Response(1, 1)));
-    EXPECT_CALL(model_provider, ModelAvailable()).WillRepeatedly(Return(true));
   }
 
   void OnGetSelectedSegment(base::RepeatingClosure closure,
@@ -157,27 +153,10 @@ class SegmentationPlatformServiceImplTest
                   segmentation_key));
   }
 
-  void AssertSelectedSegmentOnDemand(
-      const std::string& segmentation_key,
-      bool is_ready,
-      SegmentId expected = SegmentId::OPTIMIZATION_TARGET_UNKNOWN) {
-    SegmentSelectionResult result;
-    result.is_ready = is_ready;
-    if (is_ready)
-      result.segment = expected;
-    base::RunLoop loop;
-    segmentation_platform_service_impl_->GetSelectedSegmentOnDemand(
-        segmentation_key, nullptr,
-        base::BindOnce(
-            &SegmentationPlatformServiceImplTest::OnGetSelectedSegment,
-            base::Unretained(this), loop.QuitClosure(), result));
-    loop.Run();
-  }
-
  protected:
   void TestInitializationFlow() {
     // ServiceProxy will load new segment infos from the DB.
-    EXPECT_CALL(observer_, OnClientInfoAvailable(_)).Times(3);
+    EXPECT_CALL(observer_, OnClientInfoAvailable(_)).Times(5);
 
     // Let the DB loading complete successfully.
     EXPECT_CALL(observer_, OnServiceStatusChanged(true, 7));
@@ -185,6 +164,7 @@ class SegmentationPlatformServiceImplTest
     signal_db_->InitStatusCallback(leveldb_proto::Enums::InitStatus::kOK);
     segment_storage_config_db_->InitStatusCallback(
         leveldb_proto::Enums::InitStatus::kOK);
+    signal_db_->LoadCallback(true);
     segment_storage_config_db_->LoadCallback(true);
 
     // If initialization is succeeded, model execution scheduler should start
@@ -192,7 +172,7 @@ class SegmentationPlatformServiceImplTest
     segment_db_->LoadCallback(true);
 
     // If we build with TF Lite, we need to also inspect whether the
-    // ModelExecutionManagerImpl is publishing the correct data and whether that
+    // ModelManagerImpl is publishing the correct data and whether that
     // leads to the SegmentationPlatformServiceImpl doing the right thing.
     base::HistogramTester histogram_tester;
     proto::SegmentationModelMetadata metadata;
@@ -272,6 +252,10 @@ class SegmentationPlatformServiceImplTest
                         SegmentId::OPTIMIZATION_TARGET_SEGMENTATION_SHARE);
     AssertCachedSegment(kTestSegmentationKey2, false);
     AssertCachedSegment(kTestSegmentationKey3, false);
+
+    ASSERT_TRUE(
+        model_provider_data_.default_provider_metadata.count(
+            SegmentId::OPTIMIZATION_TARGET_SEGMENTATION_SHOPPING_USER) == 1);
   }
 
   void FailInitializationFlow() {
@@ -314,37 +298,6 @@ TEST_F(SegmentationPlatformServiceImplTest,
   loop.Run();
 }
 
-TEST_F(SegmentationPlatformServiceImplTest,
-       GetSelectedSegmentOnDemandIfDbInitialized) {
-  EXPECT_FALSE(segmentation_platform_service_impl_->IsPlatformInitialized());
-  int pending_queue_size = GetPendingActionsQueueSize();
-  // Initialize the platform
-  TestInitializationFlow();
-  // Platform is initialized, so the API call to get the selected
-  // segment on demand is executed.
-  EXPECT_TRUE(segmentation_platform_service_impl_->IsPlatformInitialized());
-  EXPECT_EQ(pending_queue_size, GetPendingActionsQueueSize());
-  AssertSelectedSegmentOnDemand(
-      kTestSegmentationKey4, /*is_ready=*/true,
-      SegmentId::OPTIMIZATION_TARGET_SEGMENTATION_SHOPPING_USER);
-  EXPECT_EQ(pending_queue_size, GetPendingActionsQueueSize());
-}
-
-TEST_F(SegmentationPlatformServiceImplTest,
-       GetSelectedSegmentOnDemandIfDbFailed) {
-  EXPECT_FALSE(segmentation_platform_service_impl_->IsPlatformInitialized());
-  int pending_queue_size = GetPendingActionsQueueSize();
-  // Initialize the platform
-  FailInitializationFlow();
-  // Platform failed to initialize, so the API call to get the selected
-  // segment on demand is executed with a null result.
-  EXPECT_FALSE(segmentation_platform_service_impl_->IsPlatformInitialized());
-  EXPECT_EQ(pending_queue_size, GetPendingActionsQueueSize());
-  AssertSelectedSegmentOnDemand(kTestSegmentationKey4, /*is_ready=*/false,
-                                SegmentId::OPTIMIZATION_TARGET_UNKNOWN);
-  EXPECT_EQ(pending_queue_size, GetPendingActionsQueueSize());
-}
-
 class SegmentationPlatformServiceImplEmptyConfigTest
     : public SegmentationPlatformServiceImplTest {
   std::vector<std::unique_ptr<Config>> CreateConfigs() override {
@@ -360,6 +313,7 @@ TEST_F(SegmentationPlatformServiceImplEmptyConfigTest, InitializationFlow) {
   segment_storage_config_db_->InitStatusCallback(
       leveldb_proto::Enums::InitStatus::kOK);
   segment_storage_config_db_->LoadCallback(true);
+  signal_db_->LoadCallback(true);
 
   // If initialization is succeeded, model execution scheduler should start
   // querying segment db.
@@ -389,6 +343,7 @@ TEST_F(SegmentationPlatformServiceImplMultiClientTest, InitializationFlow) {
   EXPECT_CALL(observer_, OnServiceStatusChanged(true, 7));
   segment_db_->InitStatusCallback(leveldb_proto::Enums::InitStatus::kOK);
   signal_db_->InitStatusCallback(leveldb_proto::Enums::InitStatus::kOK);
+  signal_db_->LoadCallback(true);
   segment_storage_config_db_->InitStatusCallback(
       leveldb_proto::Enums::InitStatus::kOK);
   segment_storage_config_db_->LoadCallback(true);

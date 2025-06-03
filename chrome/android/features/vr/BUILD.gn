@@ -6,6 +6,7 @@ import("//build/config/android/rules.gni")
 import("//build/config/locales.gni")
 import("//chrome/common/features.gni")
 import("//device/vr/buildflags/buildflags.gni")
+import("//third_party/jni_zero/jni_zero.gni")
 import("//tools/grit/grit_rule.gni")
 
 assert(enable_vr)
@@ -32,23 +33,29 @@ android_resources("java_resources") {
 }
 
 android_library("java") {
-  sources = [
-    "java/src/org/chromium/chrome/browser/vr/AndroidVSyncHelper.java",
-    "java/src/org/chromium/chrome/browser/vr/OnDispatchTouchEventCallback.java",
-    "java/src/org/chromium/chrome/browser/vr/VrCoreInstallUtils.java",
-    "java/src/org/chromium/chrome/browser/vr/VrCoreVersionChecker.java",
-    "java/src/org/chromium/chrome/browser/vr/VrDaydreamApi.java",
-    "java/src/org/chromium/chrome/browser/vr/VrDelegateImpl.java",
-    "java/src/org/chromium/chrome/browser/vr/VrDelegateProviderImpl.java",
-    "java/src/org/chromium/chrome/browser/vr/VrShell.java",
-    "java/src/org/chromium/chrome/browser/vr/VrShellDelegate.java",
-    "java/src/org/chromium/chrome/browser/vr/VrWindowAndroid.java",
-  ]
+  srcjar_deps = [ ":split_jni_headers" ]
+  sources = []
+  if (enable_gvr_services) {
+    sources += [
+      "java/src/org/chromium/chrome/browser/vr/AndroidVSyncHelper.java",
+      "java/src/org/chromium/chrome/browser/vr/OnDispatchTouchEventCallback.java",
+      "java/src/org/chromium/chrome/browser/vr/VrCoreInstallUtils.java",
+      "java/src/org/chromium/chrome/browser/vr/VrCoreVersionChecker.java",
+      "java/src/org/chromium/chrome/browser/vr/VrDaydreamApi.java",
+      "java/src/org/chromium/chrome/browser/vr/VrDelegateImpl.java",
+      "java/src/org/chromium/chrome/browser/vr/VrDelegateProviderImpl.java",
+      "java/src/org/chromium/chrome/browser/vr/VrShell.java",
+      "java/src/org/chromium/chrome/browser/vr/VrShellDelegate.java",
+      "java/src/org/chromium/chrome/browser/vr/VrWindowAndroid.java",
+    ]
+  } else {
+    sources +=
+        [ "dummy/java/src/org/chromium/chrome/browser/vr/VrShellDelegate.java" ]
+  }
 
   deps = [
     ":java_resources",
     "//base:base_java",
-    "//base:jni_java",
     "//build/android:build_java",
     "//cc:cc_java",
     "//chrome/android:chrome_java",
@@ -73,16 +80,19 @@ android_library("java") {
     "//components/page_info/android:java",
     "//components/policy/android:policy_java",
     "//content/public/android:content_java",
-    "//device/vr:java",
     "//third_party/androidx:androidx_annotation_annotation_java",
     "//third_party/androidx:androidx_lifecycle_lifecycle_runtime_java",
     "//third_party/gvr-android-sdk:gvr_common_java",
+    "//third_party/jni_zero:jni_zero_java",
     "//ui/android:ui_full_java",
     "//ui/android:ui_utils_java",
     "//url:gurl_java",
   ]
 
-  annotation_processor_deps = [ "//base/android/jni_generator:jni_processor" ]
+  if (enable_gvr_services) {
+    deps += [ "//device/vr:java" ]
+  }
+
   resources_package = "org.chromium.chrome.vr"
 }
 
@@ -94,8 +104,4 @@ generate_jni("split_jni_headers") {
     "java/src/org/chromium/chrome/browser/vr/VrShellDelegate.java",
   ]
   split_name = "vr"
-}
-
-generate_jni("base_jni_headers") {
-  sources = [ "java/src/org/chromium/chrome/browser/vr/VrModuleProvider.java" ]
 }

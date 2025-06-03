@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "ash/ash_export.h"
+#include "ash/drag_drop/scoped_drag_drop_observer.h"
 #include "ash/public/cpp/app_list/app_list_controller_observer.h"
 #include "ash/public/cpp/session/session_observer.h"
 #include "ash/public/cpp/shelf_config.h"
@@ -29,6 +30,7 @@
 #include "ash/wm/wm_default_layout_manager.h"
 #include "ash/wm/workspace/workspace_types.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/raw_ptr_exclusion.h"
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
 #include "base/scoped_observation.h"
@@ -57,7 +59,6 @@ class DragWindowFromShelfController;
 class HomeToOverviewNudgeController;
 class InAppToHomeNudgeController;
 class PanelLayoutManagerTest;
-class ScopedDragDropObserver;
 class Shelf;
 class ShelfLayoutManagerObserver;
 class ShelfLayoutManagerTestBase;
@@ -110,7 +111,9 @@ class ASH_EXPORT ShelfLayoutManager : public AppListControllerObserver,
     ~ScopedSuspendWorkAreaUpdate();
 
    private:
-    ShelfLayoutManager* const manager_;
+    // This field is not a raw_ptr<> because it was filtered by the rewriter
+    // for: #union
+    RAW_PTR_EXCLUSION ShelfLayoutManager* const manager_;
   };
 
   // Used to maintain a lock for the shelf visibility state. If locked, then we
@@ -233,8 +236,9 @@ class ASH_EXPORT ShelfLayoutManager : public AppListControllerObserver,
   // Contains logic that is the same between mouse wheel and gesture scrolling.
   void ProcessScrollOffset(int offset, const ui::LocatedEvent& event);
 
-  // Returns how the shelf background should be painted.
-  ShelfBackgroundType GetShelfBackgroundType() const;
+  // Computes how the shelf background should be painted based on the current
+  // state.
+  ShelfBackgroundType ComputeShelfBackgroundType() const;
 
   // Updates the background of the shelf if it has changed.
   void MaybeUpdateShelfBackground(AnimationChangeType change_type);
@@ -317,6 +321,10 @@ class ASH_EXPORT ShelfLayoutManager : public AppListControllerObserver,
     return state_.visibility_state.value_or(SHELF_VISIBLE);
   }
 
+  ShelfBackgroundType shelf_background_type() const {
+    return shelf_background_type_;
+  }
+
   bool is_active_session_state() const { return state_.IsActiveSessionState(); }
 
   bool is_shelf_auto_hidden() const { return state_.IsShelfAutoHidden(); }
@@ -375,6 +383,9 @@ class ASH_EXPORT ShelfLayoutManager : public AppListControllerObserver,
       const gfx::Insets& shelf_insets,
       const gfx::Insets& in_session_shelf_insets);
 
+  // Called from the scrollable shelf container when it updates its bounds.
+  void HandleScrollableShelfContainerBoundsChange() const;
+
  private:
   void UpdateWorkAreaInsetsAndNotifyObserversInternal(
       const gfx::Rect& shelf_bounds_for_workarea_calculation,
@@ -382,6 +393,7 @@ class ASH_EXPORT ShelfLayoutManager : public AppListControllerObserver,
       const gfx::Insets& in_session_shelf_insets);
 
   class UpdateShelfObserver;
+  friend class AshMessagePopupCollectionTest;
   friend class DimShelfLayoutManagerTestBase;
   friend class NotificationTrayTest;
   friend class PanelLayoutManagerTest;
@@ -480,7 +492,8 @@ class ASH_EXPORT ShelfLayoutManager : public AppListControllerObserver,
   void UpdateTargetBoundsForGesture(HotseatState target_hotseat_state);
 
   // Updates the auto-hide state for drag-drop actions.
-  void UpdateAutoHideForDragDrop(const ui::DropTargetEvent* event);
+  void UpdateAutoHideForDragDrop(ScopedDragDropObserver::EventType event_type,
+                                 const ui::DropTargetEvent* event);
 
   // Updates the auto-hide state immediately.
   void UpdateAutoHideStateNow();

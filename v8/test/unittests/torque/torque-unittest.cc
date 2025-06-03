@@ -42,7 +42,7 @@ namespace torque_internal {
 
 type Tagged generates 'TNode<MaybeObject>' constexpr 'MaybeObject';
 type StrongTagged extends Tagged
-    generates 'TNode<Object>' constexpr 'ObjectPtr';
+    generates 'TNode<Object>' constexpr 'Object';
 type Smi extends StrongTagged generates 'TNode<Smi>' constexpr 'Smi';
 type WeakHeapObject extends Tagged;
 type Weak<T : type extends HeapObject> extends WeakHeapObject;
@@ -84,6 +84,8 @@ type string constexpr 'const char*';
 type RawPtr generates 'TNode<RawPtrT>' constexpr 'void*';
 type ExternalPointer
     generates 'TNode<ExternalPointerT>' constexpr 'ExternalPointer_t';
+type IndirectPointer
+    generates 'TNode<IndirectPointerHandle>' constexpr 'IndirectPointerHandle';
 type InstructionStream extends HeapObject generates 'TNode<InstructionStream>';
 type BuiltinPtr extends Smi generates 'TNode<BuiltinPtr>';
 type Context extends HeapObject generates 'TNode<Context>';

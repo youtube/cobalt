@@ -167,7 +167,7 @@ class HttpStreamParser::SeekableIOBuffer : public IOBuffer {
   }
 
   // DanglingUntriaged because it is assigned a DanglingUntriaged pointer.
-  raw_ptr<char, DanglingUntriaged | AllowPtrArithmetic> real_data_;
+  raw_ptr<char, AcrossTasksDanglingUntriaged | AllowPtrArithmetic> real_data_;
   const int capacity_;
   int size_ = 0;
   int used_ = 0;
@@ -278,10 +278,11 @@ int HttpStreamParser::SendRequest(
   if (!did_merge) {
     // If we didn't merge the body with the headers, then |request_headers_|
     // contains just the HTTP headers.
+    size_t request_size = request.size();
     scoped_refptr<StringIOBuffer> headers_io_buf =
-        base::MakeRefCounted<StringIOBuffer>(request);
+        base::MakeRefCounted<StringIOBuffer>(std::move(request));
     request_headers_ = base::MakeRefCounted<DrainableIOBuffer>(
-        std::move(headers_io_buf), request.size());
+        std::move(headers_io_buf), request_size);
   }
 
   result = DoLoop(OK);

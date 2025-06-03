@@ -9,16 +9,17 @@
 #include <vector>
 
 #include "base/check.h"
+#include "base/memory/weak_ptr.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/types/optional_util.h"
 #include "chrome/browser/autofill/personal_data_manager_factory.h"
+#include "chrome/browser/autofill/ui/ui_util.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/ui/autofill/autofill_bubble_handler.h"
 #include "chrome/browser/ui/autofill/edit_address_profile_dialog_controller_impl.h"
-#include "chrome/browser/ui/autofill/ui_util.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window.h"
@@ -139,7 +140,7 @@ void SaveUpdateAddressProfileBubbleControllerImpl::OfferSave(
   if (bubble_view()) {
     std::move(address_profile_save_prompt_callback)
         .Run(AutofillClient::SaveAddressProfileOfferUserDecision::kAutoDeclined,
-             profile);
+             std::nullopt);
     return;
   }
   // If the user closed the bubble of the previous import process using the
@@ -152,7 +153,7 @@ void SaveUpdateAddressProfileBubbleControllerImpl::OfferSave(
   if (address_profile_save_prompt_callback_) {
     std::move(address_profile_save_prompt_callback_)
         .Run(AutofillClient::SaveAddressProfileOfferUserDecision::kIgnored,
-             address_profile_);
+             std::nullopt);
   }
 
   address_profile_ = profile;
@@ -215,7 +216,7 @@ std::u16string SaveUpdateAddressProfileBubbleControllerImpl::GetBodyText()
         GetPrimaryAccountInfoFromBrowserContext(
             web_contents()->GetBrowserContext());
 
-    int string_id = pdm->IsSyncEnabledFor(syncer::UserSelectableType::kAutofill)
+    int string_id = pdm->IsSyncFeatureEnabledForAutofill()
                         ? IDS_AUTOFILL_SYNCABLE_PROFILE_MIGRATION_PROMPT_NOTICE
                         : IDS_AUTOFILL_LOCAL_PROFILE_MIGRATION_PROMPT_NOTICE;
 
@@ -323,10 +324,17 @@ SaveUpdateAddressProfileBubbleControllerImpl::GetOriginalProfile() const {
 }
 
 void SaveUpdateAddressProfileBubbleControllerImpl::OnUserDecision(
-    AutofillClient::SaveAddressProfileOfferUserDecision decision) {
+    AutofillClient::SaveAddressProfileOfferUserDecision decision,
+    base::optional_ref<const AutofillProfile> profile) {
+  if (decision ==
+      AutofillClient::SaveAddressProfileOfferUserDecision::kEditDeclined) {
+    // Reopen this bubble if the user canceled editing.
+    shown_by_user_gesture_ = false;
+    Show();
+    return;
+  }
   if (address_profile_save_prompt_callback_) {
-    std::move(address_profile_save_prompt_callback_)
-        .Run(decision, address_profile_);
+    std::move(address_profile_save_prompt_callback_).Run(decision, profile);
   }
 }
 
@@ -334,10 +342,11 @@ void SaveUpdateAddressProfileBubbleControllerImpl::OnEditButtonClicked() {
   EditAddressProfileDialogControllerImpl::CreateForWebContents(web_contents());
   EditAddressProfileDialogControllerImpl* controller =
       EditAddressProfileDialogControllerImpl::FromWebContents(web_contents());
-  controller->OfferEdit(address_profile_, GetOriginalProfile(),
-                        GetEditorFooterMessage(),
-                        std::move(address_profile_save_prompt_callback_),
-                        is_migration_to_account_);
+  controller->OfferEdit(
+      address_profile_, GetOriginalProfile(), GetEditorFooterMessage(),
+      base::BindOnce(&SaveUpdateAddressProfileBubbleController::OnUserDecision,
+                     GetWeakPtr()),
+      is_migration_to_account_);
   HideBubble();
 }
 
@@ -375,7 +384,8 @@ bool SaveUpdateAddressProfileBubbleControllerImpl::IsSaveBubble() const {
 void SaveUpdateAddressProfileBubbleControllerImpl::WebContentsDestroyed() {
   AutofillBubbleControllerBase::WebContentsDestroyed();
 
-  OnUserDecision(AutofillClient::SaveAddressProfileOfferUserDecision::kIgnored);
+  OnUserDecision(AutofillClient::SaveAddressProfileOfferUserDecision::kIgnored,
+                 std::nullopt);
 }
 
 PageActionIconType
@@ -385,7 +395,7 @@ SaveUpdateAddressProfileBubbleControllerImpl::GetPageActionIconType() {
 
 void SaveUpdateAddressProfileBubbleControllerImpl::DoShowBubble() {
   DCHECK(!bubble_view());
-  Browser* browser = chrome::FindBrowserWithWebContents(web_contents());
+  Browser* browser = chrome::FindBrowserWithTab(web_contents());
   if (IsSaveBubble()) {
     set_bubble_view(browser->window()
                         ->GetAutofillBubbleHandler()
@@ -413,6 +423,11 @@ SaveUpdateAddressProfileBubbleControllerImpl::GetEditorFooterMessage() const {
   }
 
   return GetFooterMessage();
+}
+
+base::WeakPtr<SaveUpdateAddressProfileBubbleController>
+SaveUpdateAddressProfileBubbleControllerImpl::GetWeakPtr() {
+  return weak_ptr_factory_.GetWeakPtr();
 }
 
 WEB_CONTENTS_USER_DATA_KEY_IMPL(SaveUpdateAddressProfileBubbleControllerImpl);

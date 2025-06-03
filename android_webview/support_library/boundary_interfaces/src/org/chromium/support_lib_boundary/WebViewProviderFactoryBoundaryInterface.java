@@ -18,6 +18,6 @@ public interface WebViewProviderFactoryBoundaryInterface {
     /* SupportLibraryServiceWorkerController */ InvocationHandler getServiceWorkerController();
     /* SupportLibraryTracingController */ InvocationHandler getTracingController();
     /* SupportLibraryProxyController */ InvocationHandler getProxyController();
-    void setSupportLibraryVersion(String version);
     /* DropDataContentProviderBoundaryInterface*/ InvocationHandler getDropDataProvider();
+    /* ProfileStoreBoundaryInterface */ InvocationHandler getProfileStore();
 }

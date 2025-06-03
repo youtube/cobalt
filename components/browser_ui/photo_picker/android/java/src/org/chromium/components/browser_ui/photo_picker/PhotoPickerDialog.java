@@ -8,9 +8,8 @@ import android.content.ContentResolver;
 import android.net.Uri;
 
 import androidx.activity.OnBackPressedCallback;
-import androidx.annotation.VisibleForTesting;
-import androidx.appcompat.app.AlertDialog;
 
+import org.chromium.components.browser_ui.widget.FullscreenAlertDialog;
 import org.chromium.ui.base.PhotoPicker;
 import org.chromium.ui.base.PhotoPickerListener;
 import org.chromium.ui.base.WindowAndroid;
@@ -21,8 +20,8 @@ import java.util.List;
  * UI for the photo chooser that shows on the Android platform as a result of
  * &lt;input type=file accept=image &gt; form element.
  */
-public class PhotoPickerDialog
-        extends AlertDialog implements PhotoPickerToolbar.PhotoPickerToolbarDelegate, PhotoPicker {
+public class PhotoPickerDialog extends FullscreenAlertDialog
+        implements PhotoPickerToolbar.PhotoPickerToolbarDelegate, PhotoPicker {
     // Our window.
     private WindowAndroid mWindowAndroid;
 
@@ -89,7 +88,7 @@ public class PhotoPickerDialog
      */
     public PhotoPickerDialog(WindowAndroid windowAndroid, ContentResolver contentResolver,
             PhotoPickerListener listener, boolean multiSelectionAllowed, List<String> mimeTypes) {
-        super(windowAndroid.getContext().get(), R.style.ThemeOverlay_BrowserUI_Fullscreen);
+        super(windowAndroid.getContext().get());
 
         mWindowAndroid = windowAndroid;
         mListenerWrapper = new PhotoPickerListenerWrapper(listener);
@@ -137,7 +136,6 @@ public class PhotoPickerDialog
         dismiss();
     }
 
-    @VisibleForTesting
     public PickerCategoryView getCategoryViewForTesting() {
         return mCategoryView;
     }

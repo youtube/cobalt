@@ -47,26 +47,26 @@ FullRestoreService* FullRestoreServiceFactory::GetForProfile(Profile* profile) {
 }
 
 FullRestoreServiceFactory::FullRestoreServiceFactory()
-    : ProfileKeyedServiceFactory(
-          "FullRestoreService",
-          ProfileSelections::Builder()
-              .WithGuest(ProfileSelections::kRegularProfileDefault)
-              .WithSystem(ProfileSelection::kNone)
-              .WithAshInternals(ProfileSelection::kNone)
-              .Build()) {
+    : ProfileKeyedServiceFactory("FullRestoreService",
+                                 ProfileSelections::Builder()
+                                     .WithGuest(ProfileSelection::kOriginalOnly)
+                                     .WithSystem(ProfileSelection::kNone)
+                                     .WithAshInternals(ProfileSelection::kNone)
+                                     .Build()) {
   DependsOn(NotificationDisplayServiceFactory::GetInstance());
   DependsOn(apps::AppServiceProxyFactory::GetInstance());
 }
 
 FullRestoreServiceFactory::~FullRestoreServiceFactory() = default;
 
-KeyedService* FullRestoreServiceFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+FullRestoreServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
   Profile* profile = Profile::FromBrowserContext(context);
   if (!IsFullRestoreAvailableForProfile(profile))
     return nullptr;
 
-  return new FullRestoreService(profile);
+  return std::make_unique<FullRestoreService>(profile);
 }
 
 }  // namespace ash::full_restore

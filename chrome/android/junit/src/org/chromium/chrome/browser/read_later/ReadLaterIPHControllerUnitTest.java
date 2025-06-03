@@ -28,35 +28,24 @@ import org.robolectric.annotation.Config;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.chrome.R;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.ui.appmenu.AppMenuHandler;
 import org.chromium.chrome.browser.user_education.IPHCommand;
 import org.chromium.chrome.browser.user_education.UserEducationHelper;
-import org.chromium.chrome.test.util.browser.Features.DisableFeatures;
 import org.chromium.chrome.test.util.browser.Features.JUnitProcessor;
 
 /** Unit test for {@link ReadLaterIPHController}. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
-@DisableFeatures({ChromeFeatureList.ANDROID_SCROLL_OPTIMIZATIONS})
 public class ReadLaterIPHControllerUnitTest {
-    @Rule
-    public TestRule mFeaturesProcessor = new JUnitProcessor();
+    @Rule public TestRule mFeaturesProcessor = new JUnitProcessor();
 
-    @Mock
-    Activity mActivity;
-    @Mock
-    View mToolbarMenuButton;
-    @Mock
-    AppMenuHandler mAppMenuHandler;
-    @Mock
-    UserEducationHelper mUserEducationHelper;
-    @Mock
-    Context mContext;
-    @Mock
-    Resources mResources;
-    @Captor
-    ArgumentCaptor<IPHCommand> mIPHCommandCaptor;
+    @Mock Activity mActivity;
+    @Mock View mToolbarMenuButton;
+    @Mock AppMenuHandler mAppMenuHandler;
+    @Mock UserEducationHelper mUserEducationHelper;
+    @Mock Context mContext;
+    @Mock Resources mResources;
+    @Captor ArgumentCaptor<IPHCommand> mIPHCommandCaptor;
 
     ReadLaterIPHController mController;
 
@@ -66,8 +55,9 @@ public class ReadLaterIPHControllerUnitTest {
         doReturn(mResources).when(mContext).getResources();
         doReturn(mContext).when(mToolbarMenuButton).getContext();
 
-        mController = new ReadLaterIPHController(
-                mActivity, mToolbarMenuButton, mAppMenuHandler, mUserEducationHelper);
+        mController =
+                new ReadLaterIPHController(
+                        mActivity, mToolbarMenuButton, mAppMenuHandler, mUserEducationHelper);
     }
 
     @Test

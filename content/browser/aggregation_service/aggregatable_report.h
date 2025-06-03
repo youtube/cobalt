@@ -18,7 +18,6 @@
 #include "base/time/time.h"
 #include "base/uuid.h"
 #include "base/values.h"
-#include "components/aggregation_service/aggregation_service.mojom.h"
 #include "content/browser/aggregation_service/public_key.h"
 #include "content/common/content_export.h"
 #include "third_party/abseil-cpp/absl/numeric/int128.h"
@@ -41,13 +40,17 @@ struct CONTENT_EXPORT AggregationServicePayloadContents {
     kHistogram,
   };
 
+  // The default aggregation coordinator origin will be used if
+  // `aggregation_coordinator_origin` is `absl::nullopt`.
+  // `max_contributions_allowed` specifies the maximum number of contributions
+  // per report for use in padding.
   AggregationServicePayloadContents(
       Operation operation,
       std::vector<blink::mojom::AggregatableReportHistogramContribution>
           contributions,
       blink::mojom::AggregationServiceMode aggregation_mode,
-      ::aggregation_service::mojom::AggregationCoordinator
-          aggregation_coordinator);
+      absl::optional<url::Origin> aggregation_coordinator_origin,
+      int max_contributions_allowed);
 
   AggregationServicePayloadContents(
       const AggregationServicePayloadContents& other);
@@ -62,7 +65,8 @@ struct CONTENT_EXPORT AggregationServicePayloadContents {
   std::vector<blink::mojom::AggregatableReportHistogramContribution>
       contributions;
   blink::mojom::AggregationServiceMode aggregation_mode;
-  ::aggregation_service::mojom::AggregationCoordinator aggregation_coordinator;
+  absl::optional<url::Origin> aggregation_coordinator_origin;
+  int max_contributions_allowed;
 };
 
 // Represents the information that will be provided to both the reporting
@@ -186,12 +190,12 @@ class CONTENT_EXPORT AggregatableReport {
   static constexpr base::StringPiece kDomainSeparationPrefix =
       "aggregation_service";
 
-  AggregatableReport(std::vector<AggregationServicePayload> payloads,
-                     std::string shared_info,
-                     absl::optional<uint64_t> debug_key,
-                     base::flat_map<std::string, std::string> additional_fields,
-                     ::aggregation_service::mojom::AggregationCoordinator
-                         aggregation_coordinator);
+  AggregatableReport(
+      std::vector<AggregationServicePayload> payloads,
+      std::string shared_info,
+      absl::optional<uint64_t> debug_key,
+      base::flat_map<std::string, std::string> additional_fields,
+      absl::optional<url::Origin> aggregation_coordinator_origin);
   AggregatableReport(const AggregatableReport& other);
   AggregatableReport& operator=(const AggregatableReport& other);
   AggregatableReport(AggregatableReport&& other);
@@ -206,9 +210,8 @@ class CONTENT_EXPORT AggregatableReport {
   const base::flat_map<std::string, std::string>& additional_fields() const {
     return additional_fields_;
   }
-  ::aggregation_service::mojom::AggregationCoordinator aggregation_coordinator()
-      const {
-    return aggregation_coordinator_;
+  const absl::optional<url::Origin>& aggregation_coordinator_origin() const {
+    return aggregation_coordinator_origin_;
   }
 
   // Returns the JSON representation of this report of the form
@@ -274,7 +277,7 @@ class CONTENT_EXPORT AggregatableReport {
 
   base::flat_map<std::string, std::string> additional_fields_;
 
-  ::aggregation_service::mojom::AggregationCoordinator aggregation_coordinator_;
+  absl::optional<url::Origin> aggregation_coordinator_origin_;
 };
 
 // Represents a request for an AggregatableReport. Contains all the data
@@ -288,7 +291,9 @@ class CONTENT_EXPORT AggregatableReportRequest {
   // `absl::nullopt` if any contribution has a negative value, if
   // `shared_info.report_id` is not valid, or if `debug_key.has_value()` but
   // `shared_info.debug_mode` is `kDisabled`. Also returns `absl::nullopt` if
-  // `failed_send_attempts` is negative.
+  // `failed_send_attempts` is negative or if
+  // `payload_contents.max_contributions_allowed` is less than the number of
+  // contributions.
   // TODO(alexmt): Add validation for scheduled_report_time being non-null/inf.
   static absl::optional<AggregatableReportRequest> Create(
       AggregationServicePayloadContents payload_contents,
@@ -387,6 +392,8 @@ class CONTENT_EXPORT AggregatableReportRequest {
   // fails (until a new object is requested from storage)
   int failed_send_attempts_ = 0;
 };
+
+CONTENT_EXPORT GURL GetAggregationServiceProcessingUrl(const url::Origin&);
 
 }  // namespace content
 

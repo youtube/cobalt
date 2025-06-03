@@ -19,6 +19,7 @@
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
+#include "base/memory/raw_ptr.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "build/build_config.h"
@@ -50,7 +51,7 @@
 #include "third_party/blink/public/common/input/web_coalesced_input_event.h"
 #include "third_party/blink/public/common/input/web_mouse_event.h"
 #include "third_party/blink/public/mojom/page/page_visibility_state.mojom.h"
-#include "third_party/blink/public/web/blink.h"
+#include "third_party/blink/public/platform/scheduler/web_agent_group_scheduler.h"
 #include "third_party/blink/public/web/modules/canvas/canvas_test_utils.h"
 #include "third_party/blink/public/web/web_frame_widget.h"
 #include "third_party/blink/public/web/web_image_cache.h"
@@ -62,13 +63,16 @@
 #include "third_party/skia/include/core/SkPicture.h"
 #include "third_party/skia/include/core/SkPictureRecorder.h"
 #include "third_party/skia/include/core/SkRefCnt.h"
+#include "third_party/skia/include/core/SkSerialProcs.h"
 #include "third_party/skia/include/core/SkStream.h"
 #include "third_party/skia/include/docs/SkXPSDocument.h"
+#include "third_party/skia/include/encode/SkPngEncoder.h"
 // Note that headers in third_party/skia/src are fragile.  This is
 // an experimental, fragile, and diagnostic-only document type.
 #include "third_party/skia/src/utils/SkMultiPictureDocument.h"
 #include "ui/events/base_event_utils.h"
 #include "ui/gfx/ca_layer_result.h"
+#include "ui/gfx/geometry/size_f.h"
 #include "v8/include/v8-context.h"
 #include "v8/include/v8-exception.h"
 #include "v8/include/v8-function.h"
@@ -119,10 +123,10 @@ class GpuBenchmarkingContext {
   }
 
  private:
-  WebLocalFrame* web_frame_;
-  WebView* web_view_;
-  WebFrameWidget* frame_widget_;
-  cc::LayerTreeHost* layer_tree_host_;
+  raw_ptr<WebLocalFrame, ExperimentalRenderer> web_frame_;
+  raw_ptr<WebView, ExperimentalRenderer> web_view_;
+  raw_ptr<WebFrameWidget, ExperimentalRenderer> frame_widget_;
+  raw_ptr<cc::LayerTreeHost, ExperimentalRenderer> layer_tree_host_;
 };
 
 }  // namespace blink
@@ -130,7 +134,6 @@ class GpuBenchmarkingContext {
 using blink::GpuBenchmarkingContext;
 using blink::WebImageCache;
 using blink::WebLocalFrame;
-using blink::WebPrivatePtr;
 using blink::WebView;
 
 namespace content {
@@ -182,7 +185,14 @@ class SkPictureSerializer {
       SkFILEWStream file(filepath.c_str());
       DCHECK(file.isValid());
 
-      auto data = picture->serialize();
+      SkSerialProcs procs{
+          .fImageProc = [](SkImage* img, void*) -> sk_sp<SkData> {
+            // Note: if the picture contains texture-backed (gpu) images, they
+            // will fail to be read-back and therefore fail to be encoded unless
+            // we can thread the correct GrDirectContext through to here.
+            return SkPngEncoder::Encode(nullptr, img, SkPngEncoder::Options{});
+          }};
+      auto data = picture->serialize(&procs);
       file.write(data->data(), data->size());
       file.fsync();
     }
@@ -252,7 +262,7 @@ class CallbackAndContext : public base::RefCounted<CallbackAndContext> {
     context_.Reset();
   }
 
-  v8::Isolate* isolate_;
+  raw_ptr<v8::Isolate, ExperimentalRenderer> isolate_;
   v8::Persistent<v8::Function> callback_;
   v8::Persistent<v8::Context> context_;
 };
@@ -511,7 +521,7 @@ static void PrintDocument(blink::WebLocalFrame* frame, SkDocument* doc) {
   const float kMarginLeft = 29.0f;   // 0.40 inch
   const int kContentWidth = 555;     // 7.71 inch
   const int kContentHeight = 735;    // 10.21 inch
-  blink::WebPrintParams params(gfx::Size(kContentWidth, kContentHeight));
+  blink::WebPrintParams params(gfx::SizeF(kContentWidth, kContentHeight));
   params.printer_dpi = 300;
   uint32_t page_count = frame->PrintBegin(params, blink::WebNode());
   for (uint32_t i = 0; i < page_count; ++i) {
@@ -519,13 +529,6 @@ static void PrintDocument(blink::WebLocalFrame* frame, SkDocument* doc) {
     cc::SkiaPaintCanvas canvas(sk_canvas);
     cc::PaintCanvasAutoRestore auto_restore(&canvas, true);
     canvas.translate(kMarginLeft, kMarginTop);
-
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
-    float page_shrink = frame->GetPrintPageShrink(i);
-    DCHECK_GT(page_shrink, 0);
-    canvas.scale(page_shrink, page_shrink);
-#endif
-
     frame->PrintPage(i, &canvas);
   }
   frame->PrintEnd();
@@ -588,7 +591,8 @@ gin::WrapperInfo GpuBenchmarking::kWrapperInfo = {gin::kEmbedderNativeGin};
 
 // static
 void GpuBenchmarking::Install(base::WeakPtr<RenderFrameImpl> frame) {
-  v8::Isolate* isolate = blink::MainThreadIsolate();
+  v8::Isolate* isolate =
+      frame->GetWebFrame()->GetAgentGroupScheduler()->Isolate();
   v8::HandleScope handle_scope(isolate);
   v8::Local<v8::Context> context =
       frame->GetWebFrame()->MainWorldScriptContext();
@@ -1283,19 +1287,17 @@ bool GpuBenchmarking::PointerActionSequence(gin::Arguments* args) {
       new CallbackAndContext(args->isolate(), callback,
                              context.web_frame()->MainWorldScriptContext());
   EnsureRemoteInterface();
-  if (actions_parser.gesture_params().GetGestureType() ==
+  if (actions_parser.parsed_gesture_type() ==
       SyntheticGestureParams::SMOOTH_SCROLL_GESTURE) {
     input_injector_->QueueSyntheticSmoothScroll(
-        static_cast<const SyntheticSmoothScrollGestureParams&>(
-            actions_parser.gesture_params()),
+        actions_parser.smooth_scroll_params(),
         base::BindOnce(&OnSyntheticGestureCompleted,
                        base::RetainedRef(callback_and_context)));
   } else {
-    DCHECK(actions_parser.gesture_params().GetGestureType() ==
-           SyntheticGestureParams::POINTER_ACTION_LIST);
+    CHECK_EQ(actions_parser.parsed_gesture_type(),
+             SyntheticGestureParams::POINTER_ACTION_LIST);
     input_injector_->QueueSyntheticPointerAction(
-        static_cast<const SyntheticPointerActionListParams&>(
-            actions_parser.gesture_params()),
+        actions_parser.pointer_action_params(),
         base::BindOnce(&OnSyntheticGestureCompleted,
                        base::RetainedRef(callback_and_context)));
   }
@@ -1454,7 +1456,7 @@ bool GpuBenchmarking::AddSwapCompletionEventListener(gin::Arguments* args) {
 
   auto callback_and_context = base::MakeRefCounted<CallbackAndContext>(
       args->isolate(), callback, context.web_frame()->MainWorldScriptContext());
-  context.web_frame()->FrameWidget()->NotifyPresentationTime(base::BindOnce(
+  context.frame_widget()->NotifyPresentationTime(base::BindOnce(
       &OnSwapCompletedHelper, base::RetainedRef(callback_and_context)));
   // Request a begin frame explicitly, as the test-api expects a 'swap' to
   // happen for the above queued swap promise even if there is no actual update.
@@ -1471,7 +1473,7 @@ int GpuBenchmarking::AddCoreAnimationStatusEventListener(gin::Arguments* args) {
 
   auto callback_and_context = base::MakeRefCounted<CallbackAndContext>(
       args->isolate(), callback, context.web_frame()->MainWorldScriptContext());
-  context.web_frame()->FrameWidget()->NotifyCoreAnimationErrorCode(
+  context.frame_widget()->NotifyCoreAnimationErrorCode(
       base::BindOnce(&OnSwapCompletedWithCoreAnimationErrorCode,
                      base::RetainedRef(callback_and_context)));
   // Request a begin frame explicitly, as the test-api expects a 'swap' to

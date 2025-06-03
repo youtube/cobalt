@@ -4,14 +4,18 @@
 
 #import "ios/chrome/browser/ui/authentication/signed_in_accounts/signed_in_accounts_view_controller.h"
 
+#import "base/feature_list.h"
 #import "base/ios/ios_util.h"
+#import "base/memory/raw_ptr.h"
+#import "components/signin/public/base/signin_switches.h"
 #import "components/signin/public/identity_manager/identity_manager.h"
 #import "components/signin/public/identity_manager/objc/identity_manager_observer_bridge.h"
-#import "ios/chrome/browser/browser_state/chrome_browser_state.h"
+#import "ios/chrome/browser/shared/model/browser_state/chrome_browser_state.h"
 #import "ios/chrome/browser/shared/public/commands/application_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/signin/authentication_service.h"
 #import "ios/chrome/browser/signin/authentication_service_factory.h"
+#import "ios/chrome/browser/signin/chrome_account_manager_service_factory.h"
 #import "ios/chrome/browser/signin/identity_manager_factory.h"
 #import "ios/chrome/browser/ui/authentication/signed_in_accounts/signed_in_accounts_presentation_controller.h"
 #import "ios/chrome/browser/ui/authentication/signed_in_accounts/signed_in_accounts_table_view_controller.h"
@@ -19,13 +23,9 @@
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/util/button_util.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
-#import "ios/chrome/grit/ios_chromium_strings.h"
+#import "ios/chrome/grit/ios_branded_strings.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "ui/base/l10n/l10n_util_mac.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace {
 
@@ -41,15 +41,17 @@ constexpr CGFloat kViewControllerHorizontalPadding = 20;
 constexpr CGFloat kDialogMaxWidth = 328;
 constexpr CGFloat kDefaultCellHeight = 54;
 
-// Whether the Signed In Accounts view is currently being shown.
-BOOL gSignedInAccountsViewControllerIsShown = NO;
-
 }  // namespace
 
 @interface SignedInAccountsViewController () <
     IdentityManagerObserverBridgeDelegate,
-    UIViewControllerTransitioningDelegate> {
+    UIViewControllerTransitioningDelegate>
+@end
+
+@implementation SignedInAccountsViewController {
   ChromeBrowserState* _browserState;  // Weak.
+  id<ApplicationSettingsCommands> _dispatcher;
+  raw_ptr<signin::IdentityManager> _identityManager;
   std::unique_ptr<signin::IdentityManagerObserverBridge>
       _identityManagerObserver;
 
@@ -59,20 +61,17 @@ BOOL gSignedInAccountsViewControllerIsShown = NO;
   UIButton* _primaryButton;
   UIButton* _secondaryButton;
 }
-@property(nonatomic, readonly, weak) id<ApplicationSettingsCommands> dispatcher;
-@end
-
-@implementation SignedInAccountsViewController
-@synthesize dispatcher = _dispatcher;
 
 + (BOOL)shouldBePresentedForBrowserState:(ChromeBrowserState*)browserState {
+  if (base::FeatureList::IsEnabled(switches::kRemoveSignedInAccountsDialog)) {
+    return NO;
+  }
   if (!browserState || browserState->IsOffTheRecord()) {
     return NO;
   }
   AuthenticationService* authService =
       AuthenticationServiceFactory::GetForBrowserState(browserState);
-  return !gSignedInAccountsViewControllerIsShown &&
-         authService->HasPrimaryIdentity(signin::ConsentLevel::kSignin) &&
+  return authService->HasPrimaryIdentity(signin::ConsentLevel::kSignin) &&
          !authService->IsAccountListApprovedByUser();
 }
 
@@ -81,10 +80,16 @@ BOOL gSignedInAccountsViewControllerIsShown = NO;
 - (instancetype)initWithBrowserState:(ChromeBrowserState*)browserState
                           dispatcher:
                               (id<ApplicationSettingsCommands>)dispatcher {
+  CHECK(!base::FeatureList::IsEnabled(switches::kRemoveSignedInAccountsDialog));
+
   self = [super initWithNibName:nil bundle:nil];
   if (self) {
+    CHECK(browserState);
+    CHECK(dispatcher);
     _browserState = browserState;
     _dispatcher = dispatcher;
+    _identityManager =
+        IdentityManagerFactory::GetForBrowserState(_browserState);
     _identityManagerObserver =
         std::make_unique<signin::IdentityManagerObserverBridge>(
             IdentityManagerFactory::GetForBrowserState(_browserState), self);
@@ -103,18 +108,36 @@ BOOL gSignedInAccountsViewControllerIsShown = NO;
   if (authService->HasPrimaryIdentity(signin::ConsentLevel::kSignin)) {
     authService->ApproveAccountList();
   }
-
-  [self.presentingViewController dismissViewControllerAnimated:YES
-                                                    completion:completion];
+  __weak __typeof(self) weakSelf = self;
+  [self.presentingViewController
+      dismissViewControllerAnimated:YES
+                         completion:^{
+                           [weakSelf.delegate
+                               signedInAccountsViewControllerIsDismissed:
+                                   weakSelf];
+                           if (completion) {
+                             completion();
+                           }
+                         }];
 }
 
-- (void)dealloc {
+- (void)teardownUI {
+  if (!_browserState) {
+    return;
+  }
+  [_accountTableView teardownUI];
   [_primaryButton removeTarget:self
                         action:@selector(onPrimaryButtonPressed:)
               forControlEvents:UIControlEventTouchDown];
   [_secondaryButton removeTarget:self
                           action:@selector(onSecondaryButtonPressed:)
                 forControlEvents:UIControlEventTouchDown];
+  _primaryButton = nil;
+  _secondaryButton = nil;
+  _identityManager = nullptr;
+  _identityManagerObserver.reset();
+  _dispatcher = nil;
+  _browserState = nullptr;
 }
 
 #pragma mark UIViewController
@@ -123,11 +146,14 @@ BOOL gSignedInAccountsViewControllerIsShown = NO;
   CGFloat width = std::min(
       kDialogMaxWidth, self.presentingViewController.view.bounds.size.width -
                            2 * kViewControllerHorizontalPadding);
-  signin::IdentityManager* identityManager =
-      IdentityManagerFactory::GetForBrowserState(_browserState);
+  // Note (crbug.com/1472236#c2): |preferredContentSize| may be called by UIKit when
+  // |_identityManger| is null (which from the code corresponds to a call after |teardownUI|).
+  // Check if it is non-null before using it to avoid the crash.
   int shownAccounts =
-      std::min(kMaxShownAccounts,
-               identityManager->GetAccountsWithRefreshTokens().size());
+      _identityManager
+          ? std::min(kMaxShownAccounts,
+                     _identityManager->GetAccountsWithRefreshTokens().size())
+          : kMaxShownAccounts;
   CGSize maxSize = CGSizeMake(width - 2 * kHorizontalPadding, CGFLOAT_MAX);
   CGSize buttonSize = [_primaryButton sizeThatFits:maxSize];
   CGSize infoSize = [_infoLabel sizeThatFits:maxSize];
@@ -154,9 +180,11 @@ BOOL gSignedInAccountsViewControllerIsShown = NO;
                                        weight:kHeadlineFontWeight];
   _titleLabel.translatesAutoresizingMaskIntoConstraints = NO;
   [self.view addSubview:_titleLabel];
-
+  ChromeAccountManagerService* accountManagerService =
+      ChromeAccountManagerServiceFactory::GetForBrowserState(_browserState);
   _accountTableView = [[SignedInAccountsTableViewController alloc]
-      initWithBrowserState:_browserState];
+      initWithIdentityManager:_identityManager
+        accountManagerService:accountManagerService];
   _accountTableView.view.translatesAutoresizingMaskIntoConstraints = NO;
   [self addChildViewController:_accountTableView];
   [self.view addSubview:_accountTableView.view];
@@ -174,70 +202,75 @@ BOOL gSignedInAccountsViewControllerIsShown = NO;
   _infoLabel.translatesAutoresizingMaskIntoConstraints = NO;
   [self.view addSubview:_infoLabel];
 
-  // TODO(crbug.com/1418068): Simplify after minimum version required is >=
-  // iOS 15.
-  if (base::ios::IsRunningOnIOS15OrLater() &&
-      IsUIButtonConfigurationEnabled()) {
-    if (@available(iOS 15, *)) {
-      UIButtonConfiguration* buttonConfiguration =
-          [UIButtonConfiguration plainButtonConfiguration];
-      buttonConfiguration.contentInsets =
-          NSDirectionalEdgeInsetsMake(8, 16, 8, 16);
-      _primaryButton = [UIButton buttonWithConfiguration:buttonConfiguration
-                                           primaryAction:nil];
-    }
+  _primaryButton = [[UIButton alloc] init];
+  NSString* primaryButtonString =
+      l10n_util::GetNSString(IDS_IOS_SIGNED_IN_ACCOUNTS_VIEW_OK_BUTTON);
+  _primaryButton.accessibilityLabel = primaryButtonString;
+
+  if (IsUIButtonConfigurationEnabled()) {
+    UIButtonConfiguration* buttonConfiguration =
+        [UIButtonConfiguration plainButtonConfiguration];
+    buttonConfiguration.contentInsets =
+        NSDirectionalEdgeInsetsMake(8, 16, 8, 16);
+    UIFont* font = [UIFont systemFontOfSize:14 weight:UIFontWeightSemibold];
+    NSDictionary* attributes = @{NSFontAttributeName : font};
+    NSAttributedString* attributedTitle = [[NSAttributedString alloc]
+        initWithString:primaryButtonString.uppercaseString
+            attributes:attributes];
+    buttonConfiguration.attributedTitle = attributedTitle;
+    buttonConfiguration.baseForegroundColor =
+        [UIColor colorNamed:kSolidButtonTextColor];
+    _primaryButton.configuration = buttonConfiguration;
   } else {
-    _primaryButton = [[UIButton alloc] init];
     UIEdgeInsets contentEdgeInsets = UIEdgeInsetsMake(8, 16, 8, 16);
     SetContentEdgeInsets(_primaryButton, contentEdgeInsets);
+    [_primaryButton setTitle:primaryButtonString.uppercaseString
+                    forState:UIControlStateNormal];
+    [_primaryButton setTitleColor:[UIColor colorNamed:kSolidButtonTextColor]
+                         forState:UIControlStateNormal];
+    _primaryButton.titleLabel.font =
+        [UIFont systemFontOfSize:14 weight:UIFontWeightSemibold];
   }
 
   [_primaryButton addTarget:self
                      action:@selector(onPrimaryButtonPressed:)
            forControlEvents:UIControlEventTouchUpInside];
-  NSString* primaryButtonString =
-      l10n_util::GetNSString(IDS_IOS_SIGNED_IN_ACCOUNTS_VIEW_OK_BUTTON);
-  [_primaryButton setTitle:primaryButtonString.uppercaseString
-                  forState:UIControlStateNormal];
-  _primaryButton.accessibilityLabel = primaryButtonString;
   _primaryButton.backgroundColor = [UIColor colorNamed:kBlueColor];
-  [_primaryButton setTitleColor:[UIColor colorNamed:kSolidButtonTextColor]
-                       forState:UIControlStateNormal];
-  _primaryButton.titleLabel.font =
-      [UIFont systemFontOfSize:14 weight:UIFontWeightSemibold];
   _primaryButton.translatesAutoresizingMaskIntoConstraints = NO;
   [self.view addSubview:_primaryButton];
 
-  // TODO(crbug.com/1418068): Simplify after minimum version required is >=
-  // iOS 15.
-  if (base::ios::IsRunningOnIOS15OrLater() &&
-      IsUIButtonConfigurationEnabled()) {
-    if (@available(iOS 15, *)) {
-      UIButtonConfiguration* buttonConfiguration =
-          [UIButtonConfiguration plainButtonConfiguration];
-      buttonConfiguration.contentInsets =
-          NSDirectionalEdgeInsetsMake(8, 16, 8, 16);
-      _secondaryButton = [UIButton buttonWithConfiguration:buttonConfiguration
-                                             primaryAction:nil];
-    }
+  _secondaryButton = [[UIButton alloc] init];
+  NSString* secondaryButtonString =
+      l10n_util::GetNSString(IDS_IOS_SIGNED_IN_ACCOUNTS_VIEW_SETTINGS_BUTTON);
+  _secondaryButton.accessibilityLabel = secondaryButtonString;
+
+  if (IsUIButtonConfigurationEnabled()) {
+    UIButtonConfiguration* buttonConfiguration =
+        [UIButtonConfiguration plainButtonConfiguration];
+    buttonConfiguration.contentInsets =
+        NSDirectionalEdgeInsetsMake(8, 16, 8, 16);
+    UIFont* font = [UIFont systemFontOfSize:14 weight:UIFontWeightSemibold];
+    NSDictionary* attributes = @{NSFontAttributeName : font};
+    NSAttributedString* attributedTitle = [[NSAttributedString alloc]
+        initWithString:secondaryButtonString.uppercaseString
+            attributes:attributes];
+    buttonConfiguration.attributedTitle = attributedTitle;
+    buttonConfiguration.baseForegroundColor = [UIColor colorNamed:kBlueColor];
+    _secondaryButton.configuration = buttonConfiguration;
   } else {
-    _secondaryButton = [[UIButton alloc] init];
     UIEdgeInsets contentEdgeInsets = UIEdgeInsetsMake(8, 16, 8, 16);
     SetContentEdgeInsets(_secondaryButton, contentEdgeInsets);
+    [_secondaryButton setTitle:secondaryButtonString.uppercaseString
+                      forState:UIControlStateNormal];
+    [_secondaryButton setTitleColor:[UIColor colorNamed:kBlueColor]
+                           forState:UIControlStateNormal];
+    _secondaryButton.titleLabel.font =
+        [UIFont systemFontOfSize:14 weight:UIFontWeightSemibold];
   }
 
   [_secondaryButton addTarget:self
                        action:@selector(onSecondaryButtonPressed:)
              forControlEvents:UIControlEventTouchUpInside];
-  NSString* secondaryButtonString =
-      l10n_util::GetNSString(IDS_IOS_SIGNED_IN_ACCOUNTS_VIEW_SETTINGS_BUTTON);
-  [_secondaryButton setTitle:secondaryButtonString.uppercaseString
-                    forState:UIControlStateNormal];
-  _secondaryButton.accessibilityLabel = secondaryButtonString;
-  [_secondaryButton setTitleColor:[UIColor colorNamed:kBlueColor]
-                         forState:UIControlStateNormal];
-  _secondaryButton.titleLabel.font =
-      [UIFont systemFontOfSize:14 weight:UIFontWeightSemibold];
   _secondaryButton.translatesAutoresizingMaskIntoConstraints = NO;
   [self.view addSubview:_secondaryButton];
 
@@ -275,17 +308,7 @@ BOOL gSignedInAccountsViewControllerIsShown = NO;
 
 - (void)viewWillAppear:(BOOL)animated {
   [super viewWillAppear:animated];
-  if ([self isBeingPresented] || [self isMovingToParentViewController]) {
-    gSignedInAccountsViewControllerIsShown = YES;
-  }
   [_accountTableView loadModel];
-}
-
-- (void)viewWillDisappear:(BOOL)animated {
-  [super viewWillDisappear:animated];
-  if ([self isBeingDismissed] || [self isMovingFromParentViewController]) {
-    gSignedInAccountsViewControllerIsShown = NO;
-  }
 }
 
 #pragma mark Events
@@ -295,21 +318,20 @@ BOOL gSignedInAccountsViewControllerIsShown = NO;
 }
 
 - (void)onSecondaryButtonPressed:(id)sender {
-  __weak id<ApplicationSettingsCommands> weakDispatcher = self.dispatcher;
+  __weak id<ApplicationSettingsCommands> weakDispatcher = _dispatcher;
   __weak UIViewController* weakPresentingViewController =
       self.presentingViewController;
   [self dismissWithCompletion:^{
     [weakDispatcher
-        showAccountsSettingsFromViewController:weakPresentingViewController];
+        showAccountsSettingsFromViewController:weakPresentingViewController
+                          skipIfUINotAvailable:NO];
   }];
 }
 
 #pragma mark IdentityManagerObserverBridgeDelegate
 
 - (void)onEndBatchOfRefreshTokenStateChanges {
-  signin::IdentityManager* identityManager =
-      IdentityManagerFactory::GetForBrowserState(_browserState);
-  if (identityManager->GetAccountsWithRefreshTokens().empty()) {
+  if (_identityManager->GetAccountsWithRefreshTokens().empty()) {
     [self dismissWithCompletion:nil];
     return;
   }

@@ -7,9 +7,7 @@
 #include "base/functional/bind.h"
 #include "base/memory/ptr_util.h"
 
-namespace device {
-namespace fido {
-namespace mac {
+namespace device::fido::mac {
 
 FakeTouchIdContext::FakeTouchIdContext() = default;
 FakeTouchIdContext::~FakeTouchIdContext() = default;
@@ -27,6 +25,4 @@ void FakeTouchIdContext::PromptTouchId(const std::u16string& reason,
   // destroyed, so no members should be used beyond this point.
 }
 
-}  // namespace mac
-}  // namespace fido
-}  // namespace device
+}  // namespace device::fido::mac

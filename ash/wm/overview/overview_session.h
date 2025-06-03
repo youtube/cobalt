@@ -47,8 +47,9 @@ namespace ash {
 
 class OverviewDelegate;
 class OverviewGrid;
-class OverviewHighlightController;
+class OverviewFocusCycler;
 class OverviewItem;
+class OverviewItemBase;
 class OverviewWindowDragController;
 class SavedDeskDialogController;
 class SavedDeskPresenter;
@@ -89,8 +90,8 @@ class ASH_EXPORT OverviewSession : public display::DisplayObserver,
   // false otherwise.
   bool AcceptSelection();
 
-  // Activates |item's| window.
-  void SelectWindow(OverviewItem* item);
+  // Activates the window or window group associated with the `item`.
+  void SelectWindow(OverviewItemBase* item);
 
   // Sets the dragged window on the split view drag indicators.
   void SetSplitViewDragIndicatorsDraggedWindow(aura::Window* dragged_window);
@@ -108,12 +109,12 @@ class ASH_EXPORT OverviewSession : public display::DisplayObserver,
   void ResetSplitViewDragIndicatorsWindowDraggingStates();
 
   // See |OverviewGrid::RearrangeDuringDrag|.
-  void RearrangeDuringDrag(OverviewItem* dragged_item);
+  void RearrangeDuringDrag(OverviewItemBase* dragged_item);
 
   // Updates the appearance of each drop target to visually indicate when the
   // dragged window is being dragged over it.
   void UpdateDropTargetsBackgroundVisibilities(
-      OverviewItem* dragged_item,
+      OverviewItemBase* dragged_item,
       const gfx::PointF& location_in_screen);
 
   // Retrieves the window grid whose root window matches |root_window|. Returns
@@ -129,7 +130,7 @@ class ASH_EXPORT OverviewSession : public display::DisplayObserver,
   void AddItem(aura::Window* window,
                bool reposition,
                bool animate,
-               const base::flat_set<OverviewItem*>& ignored_items,
+               const base::flat_set<OverviewItemBase*>& ignored_items,
                size_t index);
 
   // Similar to the above function, but adds the window at the end of the grid.
@@ -149,20 +150,21 @@ class ASH_EXPORT OverviewSession : public display::DisplayObserver,
                          bool use_spawn_animation);
 
   // Removes |overview_item| from the corresponding grid.
-  void RemoveItem(OverviewItem* overview_item);
-  void RemoveItem(OverviewItem* overview_item,
+  void RemoveItem(OverviewItemBase* overview_item);
+  void RemoveItem(OverviewItemBase* overview_item,
                   bool item_destroying,
                   bool reposition);
 
   void RemoveDropTargets();
 
-  void InitiateDrag(OverviewItem* item,
+  void InitiateDrag(OverviewItemBase* item,
                     const gfx::PointF& location_in_screen,
                     bool is_touch_dragging);
-  void Drag(OverviewItem* item, const gfx::PointF& location_in_screen);
-  void CompleteDrag(OverviewItem* item, const gfx::PointF& location_in_screen);
+  void Drag(OverviewItemBase* item, const gfx::PointF& location_in_screen);
+  void CompleteDrag(OverviewItemBase* item,
+                    const gfx::PointF& location_in_screen);
   void StartNormalDragMode(const gfx::PointF& location_in_screen);
-  void Fling(OverviewItem* item,
+  void Fling(OverviewItemBase* item,
              const gfx::PointF& location_in_screen,
              float velocity_x,
              float velocity_y);
@@ -196,15 +198,16 @@ class ASH_EXPORT OverviewSession : public display::DisplayObserver,
   void MergeWindowIntoOverviewForWebUITabStrip(aura::Window* dragged_window);
 
   // Positions all overview items except those in |ignored_items|.
-  void PositionWindows(bool animate,
-                       const base::flat_set<OverviewItem*>& ignored_items = {});
+  void PositionWindows(
+      bool animate,
+      const base::flat_set<OverviewItemBase*>& ignored_items = {});
 
   // Returns true if |window| is currently showing in overview.
   bool IsWindowInOverview(const aura::Window* window);
 
-  // Returns the overview item for |window|, or nullptr if |window| doesn't have
-  // a corresponding item in overview mode.
-  OverviewItem* GetOverviewItemForWindow(const aura::Window* window);
+  // Returns the `OverviewItemBase` for the given `window`, or nullptr if
+  // `window` doesn't have a corresponding item in overview mode.
+  OverviewItemBase* GetOverviewItemForWindow(const aura::Window* window);
 
   // Set the window grid that's displaying in |root_window| not animate when
   // exiting overview mode, i.e., all window items in the grid will not animate
@@ -239,10 +242,11 @@ class ASH_EXPORT OverviewSession : public display::DisplayObserver,
   bool IsSavedDeskUiLosingActivation(aura::Window* lost_active);
 
   // Gets the window which keeps focus for the duration of overview mode.
-  aura::Window* GetOverviewFocusWindow();
+  aura::Window* GetOverviewFocusWindow() const;
 
-  // Returns the window highlighted by the selector widget.
-  aura::Window* GetHighlightedWindow();
+  // Returns the window associated with the focused item. Returns null if no
+  // item has focus (i.e. desk mini view is focused, or nothing is focused).
+  aura::Window* GetFocusedWindow() const;
 
   // Suspends/Resumes window re-positiong in overview.
   void SuspendReposition();
@@ -258,9 +262,9 @@ class ASH_EXPORT OverviewSession : public display::DisplayObserver,
   // activation will not be restore when overview is ended.
   void RestoreWindowActivation(bool restore);
 
-  // Handles requests to active or close the currently highlighted |item|.
-  void OnHighlightedItemActivated(OverviewItem* item);
-  void OnHighlightedItemClosed(OverviewItem* item);
+  // Handles requests to active or close the currently focused `item`.
+  void OnFocusedItemActivated(OverviewItemBase* item);
+  void OnFocusedItemClosed(OverviewItemBase* item);
 
   // Called explicitly (with no list of observers) by the |RootWindowController|
   // of |root|, so that the associated grid is properly removed and destroyed.
@@ -273,7 +277,7 @@ class ASH_EXPORT OverviewSession : public display::DisplayObserver,
   // Returns the current dragged overview item if any. Note that windows that
   // are dragged into overview from the shelf don't have an OverviewItem while
   // dragging.
-  OverviewItem* GetCurrentDraggedOverviewItem() const;
+  OverviewItemBase* GetCurrentDraggedOverviewItem() const;
 
   // Overview objects which handle events (OverviewItemView,
   // OverviewGridEventHandler) should call this function to check if they can
@@ -286,11 +290,17 @@ class ASH_EXPORT OverviewSession : public display::DisplayObserver,
   // OverviewGridEventHandler). When |sender| is nullptr, |from_touch_gesture|
   // does not matter.
   bool CanProcessEvent() const;
-  bool CanProcessEvent(OverviewItem* sender, bool from_touch_gesture) const;
+  bool CanProcessEvent(OverviewItemBase* sender, bool from_touch_gesture) const;
 
   // Returns true if |window| is not nullptr and equals
   // |active_window_before_overview_|.
   bool IsWindowActiveWindowBeforeOverview(aura::Window* window) const;
+
+  // Used when feature ContinuousOverviewScrollAnimation is enabled. If a
+  // continuous scroll is in progress, position windows and desk bar
+  // continuously based on the y-distance of the scroll. If the scroll is
+  // ending, animate windows and desk bar to their final positions.
+  bool HandleContinuousScrollIntoOverview(float y_offset);
 
   // Shows the saved desk library. Creates the widget if needed. The desks bar
   // will be expanded if it isn't already. Focuses the item which matches
@@ -305,9 +315,6 @@ class ASH_EXPORT OverviewSession : public display::DisplayObserver,
 
   // True if the saved desk library is shown.
   bool IsShowingSavedDeskLibrary() const;
-
-  // True if the saved desk library will be shown shortly.
-  bool WillShowSavedDeskLibrary() const;
 
   // True if we want to enter overview without animations.
   bool ShouldEnterWithoutAnimations() const;
@@ -367,12 +374,20 @@ class ASH_EXPORT OverviewSession : public display::DisplayObserver,
   }
 
   size_t num_items() const { return num_items_; }
+  void set_num_items(size_t num_items) { num_items_ = num_items; }
 
   OverviewEnterExitType enter_exit_overview_type() const {
     return enter_exit_overview_type_;
   }
+
   void set_enter_exit_overview_type(OverviewEnterExitType val) {
     enter_exit_overview_type_ = val;
+  }
+
+  OverviewEndAction overview_end_action() const { return overview_end_action_; }
+
+  void set_overview_end_action(OverviewEndAction overview_end_action) {
+    overview_end_action_ = overview_end_action;
   }
 
   OverviewWindowDragController* window_drag_controller() {
@@ -383,9 +398,7 @@ class ASH_EXPORT OverviewSession : public display::DisplayObserver,
     return hide_windows_for_saved_desks_grid_.get();
   }
 
-  OverviewHighlightController* highlight_controller() {
-    return highlight_controller_.get();
-  }
+  OverviewFocusCycler* focus_cycler() { return focus_cycler_.get(); }
 
   SavedDeskPresenter* saved_desk_presenter() {
     return saved_desk_presenter_.get();
@@ -414,7 +427,7 @@ class ASH_EXPORT OverviewSession : public display::DisplayObserver,
   // Called when tablet mode changes.
   void OnTabletModeChanged();
 
-  // Helper function that moves the highlight forward or backward on the
+  // Helper function that moves the focus ring forward or backward on the
   // corresponding window grid.
   void Move(bool reverse);
 
@@ -426,23 +439,17 @@ class ASH_EXPORT OverviewSession : public display::DisplayObserver,
   // initialization.
   void RemoveAllObservers();
 
-  // Updates the no windows widget on each OverviewGrid.
-  void UpdateNoWindowsWidgetOnEachGrid();
+  // Updates the no windows widget on each `OverviewGrid`.
+  void UpdateNoWindowsWidgetOnEachGrid(bool animate, bool is_continuous_enter);
 
   // Refreshes the bounds of the no windows widget on each OverviewGrid.
   void RefreshNoWindowsWidgetBoundsOnEachGrid(bool animate);
 
   void OnItemAdded(aura::Window* window);
 
-  // Called when a window is activated or deactivated and the saved desk feature
-  // is enabled. Returns true if we should keep overview open. Overview should
-  // be kept open if `gained_active` or `lost_active` is a saved desk dialog.
-  bool ShouldKeepOverviewOpenForSavedDeskDialog(aura::Window* gained_active,
-                                                aura::Window* lost_active);
-
   // Weak pointer to the overview delegate which will be called when a selection
   // is made.
-  raw_ptr<OverviewDelegate, ExperimentalAsh> delegate_;
+  raw_ptr<OverviewDelegate, DanglingUntriaged | ExperimentalAsh> delegate_;
 
   // A weak pointer to the window which was active on starting overview. If
   // overview is canceled the activation should be restored to this window.
@@ -489,9 +496,13 @@ class ASH_EXPORT OverviewSession : public display::DisplayObserver,
   OverviewEnterExitType enter_exit_overview_type_ =
       OverviewEnterExitType::kNormal;
 
+  // Stores the action that ends the overview mode.
+  OverviewEndAction overview_end_action_ = OverviewEndAction::kMaxValue;
+
   // The selected item when exiting overview mode. nullptr if no window
   // selected.
-  raw_ptr<OverviewItem, ExperimentalAsh> selected_item_ = nullptr;
+  raw_ptr<OverviewItemBase, DanglingUntriaged | ExperimentalAsh>
+      selected_item_ = nullptr;
 
   // The drag controller for a window in the overview mode.
   std::unique_ptr<OverviewWindowDragController> window_drag_controller_;
@@ -503,7 +514,7 @@ class ASH_EXPORT OverviewSession : public display::DisplayObserver,
   // windows are not shown via other events for saved desks grid.
   std::unique_ptr<ScopedOverviewHideWindows> hide_windows_for_saved_desks_grid_;
 
-  std::unique_ptr<OverviewHighlightController> highlight_controller_;
+  std::unique_ptr<OverviewFocusCycler> focus_cycler_;
 
   // The object responsible to talking to the desk model.
   std::unique_ptr<SavedDeskPresenter> saved_desk_presenter_;
@@ -523,7 +534,8 @@ class ASH_EXPORT OverviewSession : public display::DisplayObserver,
   bool chromevox_enabled_;
 
   // When non-null, windows changes on this desk are observed.
-  raw_ptr<const Desk, ExperimentalAsh> observing_desk_ = nullptr;
+  raw_ptr<const Desk, DanglingUntriaged | ExperimentalAsh> observing_desk_ =
+      nullptr;
 
   // This is true *while* an overview item is being dynamically added. It is
   // used to avoid recursively adding overview items.

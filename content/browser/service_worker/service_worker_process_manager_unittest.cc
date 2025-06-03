@@ -56,13 +56,13 @@ class SiteInstanceRenderProcessHostFactory : public RenderProcessHostFactory {
     return processes_.back().get();
   }
 
-  SiteInstance* last_site_instance_used() const {
-    return last_site_instance_used_;
+  SiteInstance* last_site_instance_used() {
+    return last_site_instance_used_.get();
   }
 
  private:
-  mutable std::vector<std::unique_ptr<MockRenderProcessHost>> processes_;
-  mutable raw_ptr<SiteInstance> last_site_instance_used_;
+  std::vector<std::unique_ptr<MockRenderProcessHost>> processes_;
+  scoped_refptr<SiteInstance> last_site_instance_used_;
 };
 
 }  // namespace
@@ -78,8 +78,7 @@ class ServiceWorkerProcessManagerTest : public testing::Test {
 
   void SetUp() override {
     browser_context_ = std::make_unique<TestBrowserContext>();
-    process_manager_ =
-        std::make_unique<ServiceWorkerProcessManager>(browser_context_.get());
+    process_manager_ = std::make_unique<ServiceWorkerProcessManager>();
     process_manager_->set_storage_partition(static_cast<StoragePartitionImpl*>(
         browser_context_->GetDefaultStoragePartition()));
     script_url_ = GURL("http://www.example.com/sw.js");

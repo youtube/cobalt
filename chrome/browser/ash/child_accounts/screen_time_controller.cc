@@ -16,6 +16,7 @@
 #include "base/time/clock.h"
 #include "base/time/default_clock.h"
 #include "base/timer/timer.h"
+#include "base/trace_event/trace_event.h"
 #include "chrome/browser/ash/child_accounts/child_status_reporting_service.h"
 #include "chrome/browser/ash/child_accounts/child_status_reporting_service_factory.h"
 #include "chrome/browser/ash/child_accounts/time_limit_override.h"
@@ -344,13 +345,13 @@ void ScreenTimeController::SaveCurrentStateToPref(
       kScreenStateRemainingUsage,
       base::checked_cast<int>(state.remaining_usage.InMilliseconds()));
   state_dict.Set(kScreenStateUsageLimitStarted,
-                 state.time_usage_limit_started.ToDoubleT());
+                 state.time_usage_limit_started.InSecondsFSinceUnixEpoch());
   state_dict.Set(kScreenStateNextStateChangeTime,
-                 state.next_state_change_time.ToDoubleT());
+                 state.next_state_change_time.InSecondsFSinceUnixEpoch());
   state_dict.Set(kScreenStateNextPolicyType,
                  static_cast<int>(state.next_state_active_policy));
   state_dict.Set(kScreenStateNextUnlockTime,
-                 state.next_unlock_time.ToDoubleT());
+                 state.next_unlock_time.InSecondsFSinceUnixEpoch());
 
   pref_service_->SetDict(prefs::kScreenTimeLastState, std::move(state_dict));
   pref_service_->CommitPendingWrite();
@@ -403,16 +404,16 @@ ScreenTimeController::GetLastStateFromPref() {
       last_state.Find(kScreenStateUsageLimitStarted);
   if (!time_usage_limit_started || !time_usage_limit_started->is_double())
     return absl::nullopt;
-  result.time_usage_limit_started =
-      base::Time::FromDoubleT(time_usage_limit_started->GetDouble());
+  result.time_usage_limit_started = base::Time::FromSecondsSinceUnixEpoch(
+      time_usage_limit_started->GetDouble());
 
   // Verify next_state_change_time from the pref is a double value.
   const base::Value* next_state_change_time =
       last_state.Find(kScreenStateNextStateChangeTime);
   if (!next_state_change_time || !next_state_change_time->is_double())
     return absl::nullopt;
-  result.next_state_change_time =
-      base::Time::FromDoubleT(next_state_change_time->GetDouble());
+  result.next_state_change_time = base::Time::FromSecondsSinceUnixEpoch(
+      next_state_change_time->GetDouble());
 
   // Verify next policy type is a value of usage_time_limit::PolicyType.
   const base::Value* next_active_policy =
@@ -432,7 +433,7 @@ ScreenTimeController::GetLastStateFromPref() {
   if (!next_unlock_time || !next_unlock_time->is_double())
     return absl::nullopt;
   result.next_unlock_time =
-      base::Time::FromDoubleT(next_unlock_time->GetDouble());
+      base::Time::FromSecondsSinceUnixEpoch(next_unlock_time->GetDouble());
   return result;
 }
 
@@ -478,6 +479,7 @@ ScreenTimeController::ConvertPolicyType(
 }
 
 void ScreenTimeController::OnSessionStateChanged() {
+  TRACE_EVENT0("ui", "ScreenTimeController::OnSessionStateChanged");
   session_manager::SessionState session_state =
       session_manager::SessionManager::Get()->session_state();
   absl::optional<usage_time_limit::State> last_state = GetLastStateFromPref();

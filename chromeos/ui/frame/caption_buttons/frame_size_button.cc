@@ -15,7 +15,7 @@
 #include "chromeos/ui/frame/frame_utils.h"
 #include "chromeos/ui/frame/multitask_menu/multitask_menu.h"
 #include "chromeos/ui/frame/multitask_menu/multitask_menu_nudge_controller.h"
-#include "chromeos/ui/wm/features.h"
+#include "ui/aura/client/cursor_client.h"
 #include "ui/aura/window.h"
 #include "ui/aura/window_observer.h"
 #include "ui/base/hit_test.h"
@@ -41,8 +41,8 @@ constexpr base::TimeDelta kSetButtonsToSnapModeDelay = base::Milliseconds(150);
 
 // The amount that a user can overshoot one of the caption buttons while in
 // "snap mode" and keep the button hovered/pressed.
-const int kMaxOvershootX = 200;
-const int kMaxOvershootY = 50;
+constexpr int kMaxOvershootX = 200;
+constexpr int kMaxOvershootY = 50;
 
 // TODO(b/277770052): Adjust the press duration to reflect the shorter overall
 // time to activate the multitask menu.
@@ -236,10 +236,7 @@ FrameSizeButton::FrameSizeButton(PressedCallback callback,
       long_tap_delay_(kSetButtonsToSnapModeDelay) {
   display_observer_.emplace(this);
 
-  if (chromeos::wm::features::IsWindowLayoutMenuEnabled()) {
-    pie_animation_view_ =
-        AddChildView(std::make_unique<PieAnimationView>(this));
-  }
+  pie_animation_view_ = AddChildView(std::make_unique<PieAnimationView>(this));
 }
 
 FrameSizeButton::~FrameSizeButton() = default;
@@ -249,29 +246,24 @@ bool FrameSizeButton::IsMultitaskMenuShown() const {
 }
 
 void FrameSizeButton::ShowMultitaskMenu(MultitaskMenuEntryType entry_type) {
-  // Show Multitask Menu if float is enabled. Note here float flag is also used
-  // to represent other relatable UI/UX changes.
-  if (chromeos::wm::features::IsWindowLayoutMenuEnabled()) {
-    DCHECK(!chromeos::TabletState::Get()->InTabletMode());
-    RecordMultitaskMenuEntryType(entry_type);
-    // Owned by the bubble which contains this view. If there is an existing
-    // bubble, it will be deactivated and then close and destroy itself.
-    auto menu_delegate = std::make_unique<MultitaskMenu>(
-        /*anchor=*/this, GetWidget(),
-        /*close_on_move_out=*/entry_type ==
-            MultitaskMenuEntryType::kFrameSizeButtonHover);
-    multitask_menu_widget_ =
-        base::WrapUnique(views::BubbleDialogDelegateView::CreateBubble(
-            std::move(menu_delegate)));
-    multitask_menu_widget_->Show();
-    delegate_->GetMultitaskMenuNudgeController()->OnMenuOpened(
-        /*tablet_mode=*/false);
-  }
+  CHECK(!chromeos::TabletState::Get()->InTabletMode());
+  RecordMultitaskMenuEntryType(entry_type);
+  // Owned by the bubble which contains this view. If there is an existing
+  // bubble, it will be deactivated and then close and destroy itself.
+  auto menu_delegate = std::make_unique<MultitaskMenu>(
+      /*anchor=*/this, GetWidget(),
+      /*close_on_move_out=*/entry_type ==
+          MultitaskMenuEntryType::kFrameSizeButtonHover);
+  multitask_menu_ = menu_delegate->GetWeakPtr();
+  multitask_menu_widget_ = base::WrapUnique(
+      views::BubbleDialogDelegateView::CreateBubble(std::move(menu_delegate)));
+  multitask_menu_widget_->Show();
+  delegate_->GetMultitaskMenuNudgeController()->OnMenuOpened(
+      /*tablet_mode=*/false);
 }
 
 void FrameSizeButton::ToggleMultitaskMenu() {
-  DCHECK(chromeos::wm::features::IsWindowLayoutMenuEnabled());
-  DCHECK(!chromeos::TabletState::Get()->InTabletMode());
+  CHECK(!chromeos::TabletState::Get()->InTabletMode());
   if (!multitask_menu_widget_) {
     ShowMultitaskMenu(MultitaskMenuEntryType::kAccel);
   } else {
@@ -294,12 +286,24 @@ bool FrameSizeButton::OnMouseDragged(const ui::MouseEvent& event) {
   // |in_snap_mode_| == true because we want different behavior.
   if (!in_snap_mode_)
     views::FrameCaptionButton::OnMouseDragged(event);
+
+  if (multitask_menu_) {
+    multitask_menu_->multitask_menu_view()->OnSizeButtonDrag(
+        views::View::ConvertPointToScreen(this, event.location()));
+  }
+
   return true;
 }
 
 void FrameSizeButton::OnMouseReleased(const ui::MouseEvent& event) {
-  if (IsTriggerableEvent(event))
+  if (IsTriggerableEvent(event)) {
     CommitSnap(event);
+
+    if (multitask_menu_) {
+      multitask_menu_->multitask_menu_view()->OnSizeButtonRelease(
+          views::View::ConvertPointToScreen(this, event.location()));
+    }
+  }
 
   if (pie_animation_view_) {
     pie_animation_view_->Stop();
@@ -336,6 +340,12 @@ void FrameSizeButton::OnGestureEvent(ui::GestureEvent* event) {
   if (event->type() == ui::ET_GESTURE_SCROLL_BEGIN ||
       event->type() == ui::ET_GESTURE_SCROLL_UPDATE) {
     UpdateSnapPreview(*event);
+
+    if (multitask_menu_) {
+      multitask_menu_->multitask_menu_view()->OnSizeButtonDrag(
+          views::View::ConvertPointToScreen(this, event->location()));
+    }
+
     event->SetHandled();
     return;
   }
@@ -344,6 +354,13 @@ void FrameSizeButton::OnGestureEvent(ui::GestureEvent* event) {
       event->type() == ui::ET_GESTURE_SCROLL_END ||
       event->type() == ui::ET_SCROLL_FLING_START ||
       event->type() == ui::ET_GESTURE_END) {
+    if (multitask_menu_ &&
+        multitask_menu_->multitask_menu_view()->OnSizeButtonRelease(
+            views::View::ConvertPointToScreen(this, event->location()))) {
+      event->SetHandled();
+      return;
+    }
+
     if (CommitSnap(*event)) {
       event->SetHandled();
       return;
@@ -356,12 +373,17 @@ void FrameSizeButton::OnGestureEvent(ui::GestureEvent* event) {
 void FrameSizeButton::StateChanged(views::Button::ButtonState old_state) {
   views::FrameCaptionButton::StateChanged(old_state);
 
-  if (!chromeos::wm::features::IsWindowLayoutMenuEnabled()) {
+  // Ignore if there is no native window, which can happen during widget
+  // shutdown.
+  if (!GetWidget()->GetNativeWindow()) {
     return;
   }
 
   // Pie animation will start on both active/inactive window.
-  if (GetState() == views::Button::STATE_HOVERED) {
+  if (aura::client::CursorClient* cursor_client = aura::client::GetCursorClient(
+          GetWidget()->GetNativeWindow()->GetRootWindow());
+      cursor_client && cursor_client->IsCursorVisible() &&
+      GetState() == views::Button::STATE_HOVERED) {
     // On animation end we should show the multitask menu.
     // Note that if the window is not active, after the pie animation this will
     // activate the window.
@@ -410,12 +432,11 @@ void FrameSizeButton::StartLongTapDelayTimer(const ui::LocatedEvent& event) {
 
 void FrameSizeButton::StartPieAnimation(base::TimeDelta duration,
                                         MultitaskMenuEntryType entry_type) {
-  if (!chromeos::wm::features::IsWindowLayoutMenuEnabled() ||
-      chromeos::TabletState::Get()->InTabletMode() || IsMultitaskMenuShown()) {
+  if (chromeos::TabletState::Get()->InTabletMode() || IsMultitaskMenuShown()) {
     return;
   }
 
-  DCHECK(pie_animation_view_);
+  CHECK(pie_animation_view_);
   pie_animation_view_->Start(duration, entry_type);
 }
 

@@ -7,6 +7,7 @@
 #include "build/build_config.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
+#include "chrome/browser/ui/frame/window_frame_util.h"
 #include "chrome/browser/ui/layout_constants.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/tabs/new_tab_button.h"
@@ -14,6 +15,7 @@
 #include "chrome/browser/ui/views/tabs/tab_strip.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "content/public/test/browser_test.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/views/layout/flex_layout.h"
 
 class TabStripRegionViewBrowserTest : public InProcessBrowserTest {
@@ -46,8 +48,12 @@ class TabStripRegionViewBrowserTest : public InProcessBrowserTest {
 
   TabStrip* tab_strip() { return browser_view()->tabstrip(); }
 
+  TabSearchContainer* tab_search_container() {
+    return tab_strip_region_view()->tab_search_container();
+  }
+
   TabSearchButton* tab_search_button() {
-    return tab_strip_region_view()->tab_search_button();
+    return tab_search_container()->tab_search_button();
   }
 
   views::View* new_tab_button() {
@@ -96,7 +102,12 @@ IN_PROC_BROWSER_TEST_F(TabStripRegionViewBrowserTest, TestForwardFocus) {
 #if !BUILDFLAG(IS_WIN)
   press_right();
   EXPECT_TRUE(tab_search_button()->HasFocus());
-#endif  // !BUILDFLAG(IS_WIN)
+#else
+  if (features::IsChromeRefresh2023()) {
+    press_right();
+    EXPECT_TRUE(tab_search_button()->HasFocus());
+  }
+#endif
 
   // Focus should cycle back around to tab_0.
   press_right();
@@ -134,7 +145,13 @@ IN_PROC_BROWSER_TEST_F(TabStripRegionViewBrowserTest, TestReverseFocus) {
 #if !BUILDFLAG(IS_WIN)
   press_left();
   EXPECT_TRUE(tab_search_button()->HasFocus());
-#endif  // !BUILDFLAG(IS_WIN)
+#else
+  if (features::IsChromeRefresh2023()) {
+    press_left();
+    EXPECT_TRUE(tab_search_button()->HasFocus());
+  }
+#endif
+
   press_left();
   EXPECT_TRUE(new_tab_button()->HasFocus());
 
@@ -159,8 +176,22 @@ IN_PROC_BROWSER_TEST_F(TabStripRegionViewBrowserTest, TestBeginEndFocus) {
   tab_strip_region_view()->RequestFocus();
   EXPECT_TRUE(tab_strip_region_view()->pane_has_focus());
 
-  // The first tab should be active.
-  EXPECT_TRUE(tab_0->HasFocus());
+  if (TabSearchBubbleHost::ShouldTabSearchRenderBeforeTabStrip()) {
+    EXPECT_TRUE(tab_0->HasFocus());
+
+#if !BUILDFLAG(IS_WIN)
+    EXPECT_TRUE(tab_strip_region_view()->AcceleratorPressed(
+        tab_strip_region_view()->end_key()));
+    EXPECT_TRUE(new_tab_button()->HasFocus());
+#endif  // !BUILDFLAG(IS_WIN)
+
+    EXPECT_TRUE(tab_strip_region_view()->AcceleratorPressed(
+        tab_strip_region_view()->home_key()));
+    EXPECT_TRUE(tab_search_button()->HasFocus());
+
+  } else {
+    // The first tab should be active.
+    EXPECT_TRUE(tab_0->HasFocus());
 
 #if !BUILDFLAG(IS_WIN)
   EXPECT_TRUE(tab_strip_region_view()->AcceleratorPressed(
@@ -171,14 +202,38 @@ IN_PROC_BROWSER_TEST_F(TabStripRegionViewBrowserTest, TestBeginEndFocus) {
   EXPECT_TRUE(tab_strip_region_view()->AcceleratorPressed(
       tab_strip_region_view()->home_key()));
   EXPECT_TRUE(tab_0->HasFocus());
+  }
 }
 
-#if !BUILDFLAG(IS_WIN)
 IN_PROC_BROWSER_TEST_F(TabStripRegionViewBrowserTest,
-                       TestSearchButtonIsEndAligned) {
-  const int kRightMargin =
-      GetLayoutConstant(TABSTRIP_REGION_VIEW_CONTROL_PADDING);
-  EXPECT_EQ(tab_strip_region_view()->GetLocalBounds().right() - kRightMargin,
-            tab_search_button()->bounds().right());
+                       TestSearchContainerIsEndAligned) {
+  if (WindowFrameUtil::IsWindowsTabSearchCaptionButtonEnabled(browser())) {
+    EXPECT_EQ(tab_search_container(), nullptr);
+  } else {
+    if (TabSearchBubbleHost::ShouldTabSearchRenderBeforeTabStrip()) {
+      // The TabSearchContainer is calculated as controls padding away from the
+      // first tab (not including bottom corner radius)
+      const int tab_search_container_expected_end =
+          tab_strip_region_view()->GetTabStripContainerForTesting()->x() +
+          TabStyle::Get()->GetBottomCornerRadius() -
+          GetLayoutConstant(TAB_STRIP_PADDING);
+
+      EXPECT_EQ(tab_search_container()->bounds().right(),
+                tab_search_container_expected_end);
+    } else {
+      if (features::IsChromeRefresh2023()) {
+        const int tab_search_container_expected_end =
+            tab_strip_region_view()->GetLocalBounds().right() -
+            GetLayoutConstant(TAB_STRIP_PADDING);
+        EXPECT_EQ(tab_search_container()->bounds().right(),
+                  tab_search_container_expected_end);
+      } else {
+        const int tab_search_container_expected_end =
+            tab_strip_region_view()->GetLocalBounds().right() -
+            GetLayoutConstant(TABSTRIP_REGION_VIEW_CONTROL_PADDING);
+        EXPECT_EQ(tab_search_container()->bounds().right(),
+                  tab_search_container_expected_end);
+      }
+    }
+  }
 }
-#endif  // !BUILDFLAG(IS_WIN)

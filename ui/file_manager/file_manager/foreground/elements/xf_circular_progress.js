@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {assert} from 'chrome://resources/ash/common/assert.js';
-
 import {html} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 /** @type {!HTMLTemplateElement} */
@@ -25,8 +23,12 @@ export class CircularProgress extends HTMLElement {
     const fragment = htmlTemplate.content.cloneNode(true);
     this.attachShadow({mode: 'open'}).appendChild(fragment);
 
-    /** @private {number} */
+    /** @private @type {number} */
     this.progress_ = 0.0;
+
+    if (!this.shadowRoot) {
+      return;
+    }
 
     /**
      * The visual indicator for the progress is accomplished by changing the
@@ -34,29 +36,31 @@ export class CircularProgress extends HTMLElement {
      * is calculated by using the circumference of the circle as the 100%
      * length and then setting the dash length to match the percentage of
      * the set 'progress_' value.
-     * @private {Element}
+     * @private @type {SVGElement}
      */
-    this.indicator_ = this.shadowRoot.querySelector('.top');
+    this.indicator_ =
+        /** @type {SVGElement}*/ (this.shadowRoot.querySelector('.top'));
 
-    /** @private {Element} */
-    this.errormark_ = assert(this.shadowRoot.querySelector('.errormark'));
+    /** @private @type {SVGElement} */
+    this.errormark_ =
+        /** @type {SVGElement}*/ (this.shadowRoot.querySelector('.errormark'));
 
-    /** @private {Element} */
-    this.label_ = this.shadowRoot.querySelector('.label');
+    /** @private @type {SVGElement} */
+    this.label_ =
+        /** @type {SVGElement}*/ (this.shadowRoot.querySelector('.label'));
 
-    /** @private {number} */
+    /** @private @type {number} */
     this.maxProgress_ = 100.0;
 
     /**
      * The circumference for the circle (default 63 for radius r='10').
-     * @private {number}
+     * @private @type {number}
      */
     this.fullCircle_ = 63;
   }
 
   /**
    * Registers this instance to listen to these attribute changes.
-   * @private
    */
   static get observedAttributes() {
     return [
@@ -77,7 +81,7 @@ export class CircularProgress extends HTMLElement {
     // Clamp progress to 0 .. maxProgress_.
     progress = Math.min(Math.max(progress, 0), this.maxProgress_);
     const value = (progress / this.maxProgress_) * this.fullCircle_;
-    this.indicator_.setAttribute(
+    this.indicator_?.setAttribute(
         'stroke-dasharray', value + ' ' + this.fullCircle_);
     return progress;
   }
@@ -94,8 +98,8 @@ export class CircularProgress extends HTMLElement {
     const center = 18;
     const x = center + radius + (strokeWidth / 2) - 4;
     const y = center - radius - (strokeWidth / 2) + 4;
-    this.errormark_.setAttribute('cx', x);
-    this.errormark_.setAttribute('cy', y);
+    this.errormark_.setAttribute('cx', x.toString());
+    this.errormark_.setAttribute('cy', y.toString());
   }
 
   /**
@@ -104,7 +108,6 @@ export class CircularProgress extends HTMLElement {
    * @param {string} name Attribute that's changed.
    * @param {?string} oldValue Old value of the attribute.
    * @param {?string} newValue New value of the attribute.
-   * @private
    */
   attributeChangedCallback(name, oldValue, newValue) {
     if (oldValue === newValue) {
@@ -128,16 +131,16 @@ export class CircularProgress extends HTMLElement {
         }
         let strokeWidth = 3;
         if (radius > 10) {
-          const circles = this.shadowRoot.querySelector('#circles');
-          circles.setAttribute('stroke-width', '4');
+          const circles = this.shadowRoot?.querySelector('#circles');
+          circles?.setAttribute('stroke-width', '4');
           strokeWidth = 4;
         }
         // Position the error indicator relative to the progress circle.
         this.setErrorPosition_(radius, strokeWidth);
         // Calculate the circumference for the progress dash length.
         this.fullCircle_ = Math.PI * 2 * radius;
-        const bottom = this.shadowRoot.querySelector('.bottom');
-        bottom.setAttribute('r', radius.toString());
+        const bottom = this.shadowRoot?.querySelector('.bottom');
+        bottom?.setAttribute('r', radius.toString());
         this.indicator_.setAttribute('r', radius.toString());
         this.setProgress(this.progress_);
         break;
@@ -154,7 +157,7 @@ export class CircularProgress extends HTMLElement {
    * @return {string}
    */
   get errorMarkerVisibility() {
-    return this.errormark_.getAttribute('visibility');
+    return this.errormark_.getAttribute('visibility') || '';
   }
 
   /**

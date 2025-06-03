@@ -8,6 +8,7 @@
 #include "ash/constants/ash_pref_names.h"
 #include "base/containers/fixed_flat_set.h"
 #include "base/feature_list.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/no_destructor.h"
 #include "base/strings/string_piece.h"
 #include "chrome/browser/ash/input_method/autocorrect_enums.h"
@@ -29,7 +30,7 @@ constexpr char kJapaneseEngineId[] = "nacl_mozc_jp";
 
 // This should be kept in sync with the values on the settings page's
 // InputMethodOptions. This should match
-// https://source.chromium.org/chromium/chromium/src/+/main:chrome/browser/resources/settings/chromeos/os_languages_page/input_method_util.js;l=71-88;drc=6c88edbfe6096489ccac66b3ef5c84d479892181.
+// https://source.chromium.org/chromium/chromium/src/+/main:chrome/browser/resources/ash/settings/os_languages_page/input_method_util.js;l=71-88;drc=6c88edbfe6096489ccac66b3ef5c84d479892181.
 constexpr char kJapaneseAutomaticallySwitchToHalfwidth[] =
     "AutomaticallySwitchToHalfwidth";
 constexpr char kJapaneseShiftKeyModeStyle[] = "ShiftKeyModeStyle";
@@ -48,7 +49,7 @@ constexpr char kJapaneseAutomaticallySendStatisticsToGoogle[] =
     "AutomaticallySendStatisticsToGoogle";
 
 // This should match the strings listed here:
-// https://crsrc.org/c/chrome/browser/resources/settings/chromeos/os_languages_page/input_method_types.js;l=8-71;drc=7df206933530e6ac65a7e17a88757cbb780c829e
+// https://crsrc.org/c/chrome/browser/resources/ash/settings/os_languages_page/input_method_types.js;l=8-71;drc=7df206933530e6ac65a7e17a88757cbb780c829e
 // These are possible values for their corresponding enum type.
 constexpr char kJapaneseInputModeKana[] = "Kana";
 constexpr char kJapaneseInputModeRomaji[] = "Romaji";
@@ -79,7 +80,7 @@ constexpr char kJapaneseShiftKeyModeStyleAlphanumeric[] = "Alphanumeric";
 constexpr char kJapaneseShiftKeyModeStyleKatakana[] = "Katakana";
 
 // The values here should be kept in sync with
-// chrome/browser/resources/settings/chromeos/os_languages_page/input_method_util.js
+// chrome/browser/resources/ash/settings/os_languages_page/input_method_util.js
 // Although these strings look like UI strings, they are the actual internal
 // values stored inside prefs. Therefore, it is important to make sure these
 // strings match the settings page exactly.
@@ -95,19 +96,19 @@ constexpr char kKoreanPrefsLayoutSebeolsikOldHangeul[] =
     "3 Set (Old Hangul) / 세벌식 (옛글)";
 
 // The values here should be kept in sync with
-// chrome/browser/resources/settings/chromeos/os_languages_page/input_method_util.js
+// chrome/browser/resources/ash/settings/os_languages_page/input_method_util.js
 constexpr char kPinyinPrefsLayoutUsQwerty[] = "US";
 constexpr char kPinyinPrefsLayoutDvorak[] = "Dvorak";
 constexpr char kPinyinPrefsLayoutColemak[] = "Colemak";
 
 // The values here should be kept in sync with
-// chrome/browser/resources/settings/chromeos/os_languages_page/input_method_util.js
+// chrome/browser/resources/ash/settings/os_languages_page/input_method_util.js
 constexpr char kZhuyinPrefsLayoutStandard[] = "Default";
 constexpr char kZhuyinPrefsLayoutIbm[] = "IBM";
 constexpr char kZhuyinPrefsLayoutEten[] = "Eten";
 
 // The values here should be kept in sync with
-// chrome/browser/resources/settings/chromeos/os_languages_page/input_method_util.js
+// chrome/browser/resources/ash/settings/os_languages_page/input_method_util.js
 constexpr char kZhuyinPrefsSelectionKeys1234567890[] = "1234567890";
 constexpr char kZhuyinPrefsSelectionKeysAsdfghjkl[] = "asdfghjkl;";
 constexpr char kZhuyinPrefsSelectionKeysAsdfzxcv89[] = "asdfzxcv89";
@@ -115,7 +116,7 @@ constexpr char kZhuyinPrefsSelectionKeysAsdfjkl789[] = "asdfjkl789";
 constexpr char kZhuyinPrefsSelectionKeys1234Qweras[] = "1234qweras";
 
 // The values here should be kept in sync with
-// chrome/browser/resources/settings/chromeos/os_languages_page/input_method_util.js
+// chrome/browser/resources/ash/settings/os_languages_page/input_method_util.js
 constexpr char kZhuyinPrefsPageSize10[] = "10";
 constexpr char kZhuyinPrefsPageSize9[] = "9";
 constexpr char kZhuyinPrefsPageSize8[] = "8";
@@ -163,6 +164,84 @@ bool IsVietnameseVniEngine(base::StringPiece engine_id) {
   return engine_id == "vkd_vi_vni";
 }
 
+void RecordSettingsMetrics(const mojom::VietnameseTelexSettings& settings) {
+  base::UmaHistogramBoolean(
+      "InputMethod.PhysicalKeyboard.VietnameseTelex.FlexibleTyping",
+      settings.allow_flexible_diacritics);
+  base::UmaHistogramBoolean(
+      "InputMethod.PhysicalKeyboard.VietnameseTelex.ModernToneMark",
+      settings.new_style_tone_mark_placement);
+  base::UmaHistogramBoolean(
+      "InputMethod.PhysicalKeyboard.VietnameseTelex.UODoubleHorn",
+      settings.enable_insert_double_horn_on_uo);
+  base::UmaHistogramBoolean(
+      "InputMethod.PhysicalKeyboard.VietnameseTelex.WForUHorn",
+      settings.enable_w_for_u_horn_shortcut);
+  base::UmaHistogramBoolean(
+      "InputMethod.PhysicalKeyboard.VietnameseTelex.ShowUnderline",
+      settings.show_underline_for_composition_text);
+}
+
+void RecordSettingsMetrics(const mojom::VietnameseVniSettings& settings) {
+  base::UmaHistogramBoolean(
+      "InputMethod.PhysicalKeyboard.VietnameseVNI.FlexibleTyping",
+      settings.allow_flexible_diacritics);
+  base::UmaHistogramBoolean(
+      "InputMethod.PhysicalKeyboard.VietnameseVNI.ModernToneMark",
+      settings.new_style_tone_mark_placement);
+  base::UmaHistogramBoolean(
+      "InputMethod.PhysicalKeyboard.VietnameseVNI.UODoubleHorn",
+      settings.enable_insert_double_horn_on_uo);
+  base::UmaHistogramBoolean(
+      "InputMethod.PhysicalKeyboard.VietnameseVNI.ShowUnderline",
+      settings.show_underline_for_composition_text);
+}
+
+mojom::VietnameseVniSettingsPtr CreateVietnameseVniSettings(
+    const base::Value::Dict& input_method_specific_pref) {
+  auto settings = mojom::VietnameseVniSettings::New();
+  settings->allow_flexible_diacritics =
+      input_method_specific_pref
+          .FindBool("vietnameseVniAllowFlexibleDiacritics")
+          .value_or(true);
+  settings->new_style_tone_mark_placement =
+      input_method_specific_pref
+          .FindBool("vietnameseVniNewStyleToneMarkPlacement")
+          .value_or(false);
+  settings->enable_insert_double_horn_on_uo =
+      input_method_specific_pref.FindBool("vietnameseVniInsertDoubleHornOnUo")
+          .value_or(false);
+  settings->show_underline_for_composition_text =
+      input_method_specific_pref.FindBool("vietnameseVniShowUnderline")
+          .value_or(true);
+  RecordSettingsMetrics(*settings);
+  return settings;
+}
+
+mojom::VietnameseTelexSettingsPtr CreateVietnameseTelexSettings(
+    const base::Value::Dict& input_method_specific_pref) {
+  auto settings = mojom::VietnameseTelexSettings::New();
+  settings->allow_flexible_diacritics =
+      input_method_specific_pref
+          .FindBool("vietnameseTelexAllowFlexibleDiacritics")
+          .value_or(true);
+  settings->new_style_tone_mark_placement =
+      input_method_specific_pref
+          .FindBool("vietnameseTelexNewStyleToneMarkPlacement")
+          .value_or(false);
+  settings->enable_insert_double_horn_on_uo =
+      input_method_specific_pref.FindBool("vietnameseTelexInsertDoubleHornOnUo")
+          .value_or(false);
+  settings->enable_w_for_u_horn_shortcut =
+      input_method_specific_pref.FindBool("vietnameseTelexInsertUHornOnW")
+          .value_or(true);
+  settings->show_underline_for_composition_text =
+      input_method_specific_pref.FindBool("vietnameseTelexShowUnderline")
+          .value_or(true);
+  RecordSettingsMetrics(*settings);
+  return settings;
+}
+
 mojom::LatinSettingsPtr CreateLatinSettings(
     const base::Value::Dict& input_method_specific_pref,
     const PrefService& prefs,
@@ -175,25 +254,31 @@ mojom::LatinSettingsPtr CreateLatinSettings(
       base::FeatureList::IsEnabled(features::kAutocorrectParamsTuning) ||
       autocorrect_pref == AutocorrectPreference::kEnabled;
   settings->predictive_writing =
-      features::IsAssistiveMultiWordEnabled() &&
+      base::FeatureList::IsEnabled(features::kAssistMultiWord) &&
       prefs.GetBoolean(prefs::kAssistPredictiveWritingEnabled) &&
       IsUsEnglishEngine(engine_id);
   return settings;
 }
 
 mojom::KoreanLayout KoreanLayoutToMojom(const std::string& layout) {
-  if (layout == kKoreanPrefsLayoutDubeolsik)
+  if (layout == kKoreanPrefsLayoutDubeolsik) {
     return mojom::KoreanLayout::kDubeolsik;
-  if (layout == kKoreanPrefsLayoutDubeolsikOldHangeul)
+  }
+  if (layout == kKoreanPrefsLayoutDubeolsikOldHangeul) {
     return mojom::KoreanLayout::kDubeolsikOldHangeul;
-  if (layout == kKoreanPrefsLayoutSebeolsik390)
+  }
+  if (layout == kKoreanPrefsLayoutSebeolsik390) {
     return mojom::KoreanLayout::kSebeolsik390;
-  if (layout == kKoreanPrefsLayoutSebeolsikFinal)
+  }
+  if (layout == kKoreanPrefsLayoutSebeolsikFinal) {
     return mojom::KoreanLayout::kSebeolsikFinal;
-  if (layout == kKoreanPrefsLayoutSebeolsikNoShift)
+  }
+  if (layout == kKoreanPrefsLayoutSebeolsikNoShift) {
     return mojom::KoreanLayout::kSebeolsikNoShift;
-  if (layout == kKoreanPrefsLayoutSebeolsikOldHangeul)
+  }
+  if (layout == kKoreanPrefsLayoutSebeolsikOldHangeul) {
     return mojom::KoreanLayout::kSebeolsikOldHangeul;
+  }
   return mojom::KoreanLayout::kDubeolsik;
 }
 
@@ -229,12 +314,15 @@ mojom::FuzzyPinyinSettingsPtr CreateFuzzyPinyinSettings(
 }
 
 mojom::PinyinLayout PinyinLayoutToMojom(const std::string& layout) {
-  if (layout == kPinyinPrefsLayoutUsQwerty)
+  if (layout == kPinyinPrefsLayoutUsQwerty) {
     return mojom::PinyinLayout::kUsQwerty;
-  if (layout == kPinyinPrefsLayoutDvorak)
+  }
+  if (layout == kPinyinPrefsLayoutDvorak) {
     return mojom::PinyinLayout::kDvorak;
-  if (layout == kPinyinPrefsLayoutColemak)
+  }
+  if (layout == kPinyinPrefsLayoutColemak) {
     return mojom::PinyinLayout::kColemak;
+  }
   return mojom::PinyinLayout::kUsQwerty;
 }
 
@@ -266,37 +354,48 @@ mojom::PinyinSettingsPtr CreatePinyinSettings(
 }
 
 mojom::ZhuyinLayout ZhuyinLayoutToMojom(const std::string& layout) {
-  if (layout == kZhuyinPrefsLayoutStandard)
+  if (layout == kZhuyinPrefsLayoutStandard) {
     return mojom::ZhuyinLayout::kStandard;
-  if (layout == kZhuyinPrefsLayoutIbm)
+  }
+  if (layout == kZhuyinPrefsLayoutIbm) {
     return mojom::ZhuyinLayout::kIbm;
-  if (layout == kZhuyinPrefsLayoutEten)
+  }
+  if (layout == kZhuyinPrefsLayoutEten) {
     return mojom::ZhuyinLayout::kEten;
+  }
   return mojom::ZhuyinLayout::kStandard;
 }
 
 mojom::ZhuyinSelectionKeys ZhuyinSelectionKeysToMojom(
     const std::string& selection_keys) {
-  if (selection_keys == kZhuyinPrefsSelectionKeys1234567890)
+  if (selection_keys == kZhuyinPrefsSelectionKeys1234567890) {
     return mojom::ZhuyinSelectionKeys::k1234567890;
-  if (selection_keys == kZhuyinPrefsSelectionKeysAsdfghjkl)
+  }
+  if (selection_keys == kZhuyinPrefsSelectionKeysAsdfghjkl) {
     return mojom::ZhuyinSelectionKeys::kAsdfghjkl;
-  if (selection_keys == kZhuyinPrefsSelectionKeysAsdfzxcv89)
+  }
+  if (selection_keys == kZhuyinPrefsSelectionKeysAsdfzxcv89) {
     return mojom::ZhuyinSelectionKeys::kAsdfzxcv89;
-  if (selection_keys == kZhuyinPrefsSelectionKeysAsdfjkl789)
+  }
+  if (selection_keys == kZhuyinPrefsSelectionKeysAsdfjkl789) {
     return mojom::ZhuyinSelectionKeys::kAsdfjkl789;
-  if (selection_keys == kZhuyinPrefsSelectionKeys1234Qweras)
+  }
+  if (selection_keys == kZhuyinPrefsSelectionKeys1234Qweras) {
     return mojom::ZhuyinSelectionKeys::k1234Qweras;
+  }
   return mojom::ZhuyinSelectionKeys::k1234567890;
 }
 
 uint32_t ZhuyinPageSizeToInt(const std::string& page_size) {
-  if (page_size == kZhuyinPrefsPageSize10)
+  if (page_size == kZhuyinPrefsPageSize10) {
     return 10;
-  if (page_size == kZhuyinPrefsPageSize9)
+  }
+  if (page_size == kZhuyinPrefsPageSize9) {
     return 9;
-  if (page_size == kZhuyinPrefsPageSize8)
+  }
+  if (page_size == kZhuyinPrefsPageSize8) {
     return 8;
+  }
   return 10;
 }
 
@@ -339,7 +438,7 @@ const base::Value::Dict& GetPrefsDictionaryForEngineId(
 
 // Port the Prefs settings onto a Dict object for setting the user Prefs.
 // This converts the code in the corresponding pages:
-// https://crsrc.org/c/chrome/browser/resources/settings/chromeos/os_languages_page/input_method_util.js;drc=6c88edbfe6096489ccac66b3ef5c84d479892181;l=72
+// https://crsrc.org/c/chrome/browser/resources/ash/settings/os_languages_page/input_method_util.js;drc=6c88edbfe6096489ccac66b3ef5c84d479892181;l=72
 // https://crsrc.org/c/chromeos/ash/services/ime/public/mojom/japanese_settings.mojom;drc=e250164fc5bdefca32cb94157e9835ff8c2c9ee6;l=73
 base::Value::Dict ConvertConfigToJapaneseSettings(
     const ime::mojom::JapaneseConfig config) {
@@ -517,11 +616,11 @@ mojom::InputMethodSettingsPtr CreateSettingsFromPrefs(
   }
   if (IsVietnameseTelexEngine(engine_id)) {
     return mojom::InputMethodSettings::NewVietnameseTelexSettings(
-        mojom::VietnameseTelexSettings::New());
+        CreateVietnameseTelexSettings(input_method_specific_pref));
   }
   if (IsVietnameseVniEngine(engine_id)) {
     return mojom::InputMethodSettings::NewVietnameseVniSettings(
-        mojom::VietnameseVniSettings::New());
+        CreateVietnameseVniSettings(input_method_specific_pref));
   }
   // TODO(b/232341104): Add the code to send the Japanese settings to
   // the engine if the engine_id is nacl_mozc_jp or nacl_mozc_us.
@@ -622,6 +721,23 @@ bool IsAutocorrectSupported(const std::string& engine_id) {
       });
 
   return enabledInputMethods->find(engine_id) != enabledInputMethods->end();
+}
+
+bool IsPhysicalKeyboardAutocorrectAllowed(const PrefService& prefs) {
+  if (!prefs.FindPreference(
+          prefs::kManagedPhysicalKeyboardAutocorrectAllowed)) {
+    return true;
+  }
+  return prefs.GetBoolean(prefs::kManagedPhysicalKeyboardAutocorrectAllowed);
+}
+
+bool IsPhysicalKeyboardPredictiveWritingAllowed(const PrefService& prefs) {
+  if (!prefs.FindPreference(
+          prefs::kManagedPhysicalKeyboardPredictiveWritingAllowed)) {
+    return true;
+  }
+  return prefs.GetBoolean(
+      prefs::kManagedPhysicalKeyboardPredictiveWritingAllowed);
 }
 
 }  // namespace input_method

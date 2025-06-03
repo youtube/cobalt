@@ -24,7 +24,6 @@
 #include "base/gtest_prod_util.h"
 #include "base/memory/memory_pressure_listener.h"
 #include "base/memory/raw_ptr.h"
-#include "base/memory/raw_ptr_exclusion.h"
 #include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/template_util.h"
@@ -99,9 +98,7 @@ class BASE_EXPORT [[maybe_unused, nodiscard]] WatchHangsInScope {
 
 #if DCHECK_IS_ON()
   // The previous WatchHangsInScope created on this thread.
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #union
-  RAW_PTR_EXCLUSION WatchHangsInScope* previous_watch_hangs_in_scope_;
+  raw_ptr<WatchHangsInScope> previous_watch_hangs_in_scope_;
 #endif
 };
 
@@ -159,7 +156,8 @@ class BASE_EXPORT HangWatcher : public DelegateSimpleThread::Delegate {
 
   // Initializes HangWatcher. Must be called once on the main thread during
   // startup while single-threaded.
-  static void InitializeOnMainThread(ProcessType process_type);
+  static void InitializeOnMainThread(ProcessType process_type,
+                                     bool is_zygote_child);
 
   // Returns the values that were set through InitializeOnMainThread() to their
   // default value. Used for testing since in prod initialization should happen
@@ -252,6 +250,10 @@ class BASE_EXPORT HangWatcher : public DelegateSimpleThread::Delegate {
 
   // Begin executing the monitoring loop on the HangWatcher thread.
   void Start();
+
+  // Returns true if Start() has been called and Stop() has not been called
+  // since.
+  bool IsStarted() const { return thread_started_; }
 
   // Returns the value of the crash key with the time since last system power
   // resume.
@@ -386,6 +388,7 @@ class BASE_EXPORT HangWatcher : public DelegateSimpleThread::Delegate {
       GUARDED_BY_CONTEXT(hang_watcher_thread_checker_);
 
   base::DelegateSimpleThread thread_;
+  bool thread_started_ = false;
 
   RepeatingClosure after_monitor_closure_for_testing_;
   RepeatingClosure on_hang_closure_for_testing_;
@@ -502,7 +505,7 @@ class BASE_EXPORT HangWatchDeadline {
   using TimeTicksInternalRepresentation =
       std::invoke_result<decltype(&TimeTicks::ToInternalValue),
                          TimeTicks>::type;
-  static_assert(std::is_same<TimeTicksInternalRepresentation, int64_t>::value,
+  static_assert(std::is_same_v<TimeTicksInternalRepresentation, int64_t>,
                 "Bit manipulations made by HangWatchDeadline need to be"
                 "adapted if internal representation of TimeTicks changes.");
 
@@ -538,7 +541,7 @@ class BASE_EXPORT HangWatchDeadline {
   // necessary to run the proper checks to insure correctness of the conversion
   // that has to go through int_64t. (See DeadlineFromBits()).
   using BitsType = uint64_t;
-  static_assert(std::is_same<std::underlying_type<Flag>::type, BitsType>::value,
+  static_assert(std::is_same_v<std::underlying_type<Flag>::type, BitsType>,
                 "Flag should have the same underlying type as bits_ to "
                 "simplify thinking about bit operations");
 

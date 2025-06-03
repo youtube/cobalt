@@ -9,26 +9,13 @@
 
 #include "base/debug/crash_logging.h"
 #include "extensions/common/extension_id.h"
+#include "extensions/common/mojom/message_port.mojom-shared.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace extensions {
 
 struct MessagingEndpoint {
-  // Type of the messaging source or destination - i.e., the type of the
-  // component which talks to a messaging channel.
-  enum class Type {
-    // An extension.
-    kExtension = 0,
-    // A web page or a hosted app.
-    kWebPage = 1,
-    // A content script.
-    kContentScript = 2,
-    // A native application.
-    kNativeApp = 3,
-
-    // This item must be equal to the last actual enum item.
-    kLast = kNativeApp,
-  };
+  using Type = mojom::MessagingEndpointType;
 
   // The relationship between two messaging endpoints.
   enum class Relationship {
@@ -46,12 +33,18 @@ struct MessagingEndpoint {
   // Creation methods for different endpoint types.
   static MessagingEndpoint ForExtension(ExtensionId extension_id);
   static MessagingEndpoint ForContentScript(ExtensionId extension_id);
+  static MessagingEndpoint ForUserScript(ExtensionId extension_id);
   static MessagingEndpoint ForWebPage();
   static MessagingEndpoint ForNativeApp(std::string native_app_name);
 
   // Returns the `Relationship` between two endpoints.
   static Relationship GetRelationship(const MessagingEndpoint& source_endpoint,
                                       const std::string& target_id);
+
+  // Returns true if the channel between `source_endpoint` and `target_id` is
+  // considered external to the target.
+  static bool IsExternal(const MessagingEndpoint& source_endpoint,
+                         const std::string& target_id);
 
   MessagingEndpoint();
   MessagingEndpoint(const MessagingEndpoint&);

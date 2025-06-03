@@ -43,10 +43,12 @@ export class EmojiSearch extends PolymerElement {
       searchResults: {type: Array},
       needIndexing: {type: Boolean, value: false},
       gifSupport: {type: Boolean, value: false},
+      jellySupport: {type: Boolean, value: false},
       status: {type: Status, value: null},
       searchQuery: {type: String, value: ''},
       nextGifPos: {type: String, value: ''},
       errorMessage: {type: String, value: NO_INTERNET_SEARCH_ERROR_MSG},
+      closeGifNudgeOverlay: {type: Object},
     };
   }
   categoriesData: EmojiGroupData;
@@ -56,6 +58,8 @@ export class EmojiSearch extends PolymerElement {
   private needIndexing: boolean;
   private gifSupport: boolean;
   private status: Status|null;
+  private closeGifNudgeOverlay: () => void;
+
   // TODO(b/235419647): Update the config to use extended search.
   private fuseConfig: Fuse.IFuseOptions<EmojiVariants> = {
     threshold: 0.0,        // Exact match only.
@@ -89,12 +93,33 @@ export class EmojiSearch extends PolymerElement {
   }
 
   private onSearch(newSearch: string): void {
-    this.set('searchResults', this.computeLocalSearchResults(newSearch));
-    if (this.gifSupport) {
+    const localSearchResults = this.computeLocalSearchResults(newSearch);
+    if (!this.gifSupport) {
+      this.set('searchResults', localSearchResults);
+    } else {
+      // With GIF support, we will progressively show local search results first
+      // and more online GIFs after. To avoid displaying a "no results" screen in
+      // the middle, we only do this update when local search results are not
+      // empty.
+      if (localSearchResults.length > 0) {
+        this.set('searchResults', localSearchResults);
+      }
       this.computeInitialGifSearchResults(newSearch).then((searchResults) => {
-        this.push('searchResults', ...searchResults);
+        this.set('searchResults', [...localSearchResults, ...searchResults]);
       });
     }
+
+    // If the user is searching, to ensure emoji tooltip or variants popup can
+    // be full displayed, we need to specify the minimum height as 100%.
+    this.updateStyles({
+      '--min-height': (newSearch.length > 0 ? '100%' : 'unset'),
+    });
+  }
+
+  // TODO(b/281609806): Remove this compatibility logic once gif support is
+  // turned on by default
+  private getSearchPlaceholderLabel(gifSupport: boolean): string {
+    return gifSupport ? 'Search' : 'Search emojis';
   }
 
   /**
@@ -126,6 +151,10 @@ export class EmojiSearch extends PolymerElement {
    * results list on down arrow or enter key presses.
    */
   onSearchKeyDown(ev: KeyboardEvent): void {
+    // If GIF support is enabled, we may have an overlay for the GIF nudge. Need
+    // to ensure the overlay is closed before searching for anything.
+    this.closeGifNudgeOverlay();
+
     const resultsCount = this.getNumSearchResults();
     // if not searching or no results, do nothing.
     if (!this.$.search.getValue() || resultsCount === 0) {
@@ -313,12 +342,16 @@ export class EmojiSearch extends PolymerElement {
     const {status, searchGifs} = await apiProxy.searchGifs(search);
     this.status = status;
     this.nextGifPos = searchGifs.next;
-    searchResults.push({
-      'category': CategoryEnum.GIF,
-      'group': '',
-      'emoji': apiProxy.convertTenorGifsToEmoji(searchGifs),
-      'searchOnly': false,
-    });
+
+    if (searchGifs.results.length > 0) {
+      searchResults.push({
+        'category': CategoryEnum.GIF,
+        'group': '',
+        'emoji': apiProxy.convertTenorGifsToEmoji(searchGifs),
+        'searchOnly': false,
+      });
+    }
+
     return searchResults;
   }
 
@@ -381,12 +414,9 @@ export class EmojiSearch extends PolymerElement {
     return this.$.search.getValue() !== '';
   }
 
-  /**
-   * Display no results if `gifSupport` flag is off and `searchResults` are
-   * empty. If `gifSupport` flag is on it will always have gifs to display.
-   */
-  noResults(searchResults: EmojiGroupData): boolean {
-    return !this.gifSupport && searchResults.length === 0;
+  noResults(status: Status, searchResults: EmojiGroupData): boolean {
+    return (!this.gifSupport || status === Status.kHttpOk) &&
+        searchResults.length === 0;
   }
 
   isGifInErrorState(status: Status, searchResults: EmojiGroupData): boolean {
@@ -403,6 +433,10 @@ export class EmojiSearch extends PolymerElement {
    */
   setSearchQuery(value: string): void {
     this.$.search.setValue(value);
+  }
+
+  computeCrSearchFieldClass(jellySupport: boolean): string {
+    return jellySupport ? 'jelly' : '';
   }
 }
 

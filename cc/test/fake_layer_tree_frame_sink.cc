@@ -21,7 +21,7 @@
 namespace cc {
 
 FakeLayerTreeFrameSink::Builder::Builder()
-    : compositor_context_provider_(viz::TestContextProvider::Create()),
+    : compositor_context_provider_(viz::TestContextProvider::CreateRaster()),
       worker_context_provider_(viz::TestContextProvider::CreateWorker()) {}
 
 FakeLayerTreeFrameSink::Builder::~Builder() = default;
@@ -36,7 +36,7 @@ FakeLayerTreeFrameSink::Builder::Build() {
 }
 
 FakeLayerTreeFrameSink::FakeLayerTreeFrameSink(
-    scoped_refptr<viz::ContextProvider> context_provider,
+    scoped_refptr<viz::RasterContextProvider> context_provider,
     scoped_refptr<viz::RasterContextProvider> worker_context_provider)
     : LayerTreeFrameSink(
           std::move(context_provider),
@@ -48,7 +48,8 @@ FakeLayerTreeFrameSink::FakeLayerTreeFrameSink(
                         /*for_renderer=*/false))
               : nullptr,
           base::SingleThreadTaskRunner::GetCurrentDefault(),
-          nullptr) {
+          nullptr,
+          /*shared_image_interface=*/nullptr) {
   gpu_memory_buffer_manager_ =
       context_provider_ ? &test_gpu_memory_buffer_manager_ : nullptr;
 }

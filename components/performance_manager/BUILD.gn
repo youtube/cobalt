@@ -12,6 +12,8 @@ static_library("performance_manager") {
   sources = [
     "binders.cc",
     "browser_child_process_host_proxy.cc",
+    "browser_child_process_watcher.cc",
+    "browser_child_process_watcher.h",
     "decorators/frame_visibility_decorator.cc",
     "decorators/frame_visibility_decorator.h",
     "decorators/freezing_vote_decorator.cc",
@@ -23,6 +25,10 @@ static_library("performance_manager") {
     "decorators/process_hosted_content_types_aggregator.cc",
     "decorators/process_hosted_content_types_aggregator.h",
     "decorators/process_metrics_decorator.cc",
+    "decorators/process_priority_aggregator.cc",
+    "decorators/process_priority_aggregator.h",
+    "decorators/tab_connectedness_decorator.cc",
+    "decorators/tab_page_decorator.cc",
     "embedder/binders.h",
     "embedder/graph_features.h",
     "embedder/performance_manager_lifetime.h",
@@ -40,6 +46,8 @@ static_library("performance_manager") {
     "execution_context_priority/execution_context_priority_decorator.h",
     "execution_context_priority/frame_audible_voter.cc",
     "execution_context_priority/frame_audible_voter.h",
+    "execution_context_priority/frame_capturing_video_stream_voter.cc",
+    "execution_context_priority/frame_capturing_video_stream_voter.h",
     "execution_context_priority/frame_visibility_voter.cc",
     "execution_context_priority/frame_visibility_voter.h",
     "execution_context_priority/inherit_client_priority_voter.cc",
@@ -67,6 +75,8 @@ static_library("performance_manager") {
     "graph/graph_impl_util.h",
     "graph/graph_operations.cc",
     "graph/graph_registered.cc",
+    "graph/initializing_frame_node_observer.cc",
+    "graph/initializing_frame_node_observer.h",
     "graph/node.cc",
     "graph/node_attached_data.cc",
     "graph/node_attached_data.h",
@@ -121,6 +131,8 @@ static_library("performance_manager") {
     "public/decorators/page_live_state_decorator.h",
     "public/decorators/page_load_tracker_decorator_helper.h",
     "public/decorators/process_metrics_decorator.h",
+    "public/decorators/tab_connectedness_decorator.h",
+    "public/decorators/tab_page_decorator.h",
     "public/execution_context/execution_context.h",
     "public/execution_context/execution_context_attached_data.h",
     "public/execution_context/execution_context_registry.h",
@@ -142,7 +154,6 @@ static_library("performance_manager") {
     "public/graph/process_node.h",
     "public/graph/system_node.h",
     "public/graph/worker_node.h",
-    "public/metrics/background_metrics_reporter.h",
     "public/metrics/metrics_collector.h",
     "public/performance_manager.h",
     "public/performance_manager_main_thread_mechanism.h",
@@ -153,7 +164,18 @@ static_library("performance_manager") {
     "public/render_frame_host_proxy.h",
     "public/render_process_host_id.h",
     "public/render_process_host_proxy.h",
+    "public/resource_attribution/attribution_helpers.h",
+    "public/resource_attribution/cpu_measurement_delegate.h",
+    "public/resource_attribution/frame_context.h",
+    "public/resource_attribution/page_context.h",
+    "public/resource_attribution/process_context.h",
+    "public/resource_attribution/query_results.h",
+    "public/resource_attribution/resource_contexts.h",
+    "public/resource_attribution/scoped_cpu_query.h",
+    "public/resource_attribution/type_helpers.h",
+    "public/resource_attribution/worker_context.h",
     "public/user_tuning/prefs.h",
+    "public/user_tuning/tab_revisit_tracker.h",
     "public/v8_memory/v8_detailed_memory.h",
     "public/v8_memory/v8_detailed_memory_any_seq.h",
     "public/v8_memory/web_memory.h",
@@ -164,6 +186,18 @@ static_library("performance_manager") {
     "render_process_host_proxy.cc",
     "render_process_user_data.cc",
     "render_process_user_data.h",
+    "resource_attribution/attribution_impl_helpers.h",
+    "resource_attribution/cpu_measurement_delegate.cc",
+    "resource_attribution/cpu_measurement_monitor.cc",
+    "resource_attribution/cpu_measurement_monitor.h",
+    "resource_attribution/frame_context.cc",
+    "resource_attribution/graph_change.h",
+    "resource_attribution/page_context.cc",
+    "resource_attribution/process_context.cc",
+    "resource_attribution/query_scheduler.cc",
+    "resource_attribution/query_scheduler.h",
+    "resource_attribution/scoped_cpu_query.cc",
+    "resource_attribution/worker_context.cc",
     "service_worker_client.cc",
     "service_worker_client.h",
     "service_worker_context_adapter.cc",
@@ -171,6 +205,7 @@ static_library("performance_manager") {
     "tab_helper_frame_node_source.cc",
     "tab_helper_frame_node_source.h",
     "user_tuning/prefs.cc",
+    "user_tuning/tab_revisit_tracker.cc",
     "v8_memory/v8_context_tracker.cc",
     "v8_memory/v8_context_tracker.h",
     "v8_memory/v8_context_tracker_helpers.cc",
@@ -211,6 +246,8 @@ static_library("performance_manager") {
     "//third_party/blink/public/common",
     "//url",
   ]
+
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
 
   if (!is_android) {
     sources += [
@@ -273,12 +310,16 @@ source_set("unit_tests") {
     "decorators/page_load_tracker_decorator_unittest.cc",
     "decorators/process_hosted_content_types_aggregator_unittest.cc",
     "decorators/process_metrics_decorator_unittest.cc",
+    "decorators/process_priority_aggregator_unittest.cc",
+    "decorators/tab_connectedness_decorator_unittest.cc",
+    "decorators/tab_page_decorator_unittest.cc",
     "execution_context/execution_context_attached_data_unittest.cc",
     "execution_context/execution_context_registry_impl_unittest.cc",
     "execution_context_priority/ad_frame_voter_unittest.cc",
     "execution_context_priority/boosting_vote_aggregator_unittest.cc",
     "execution_context_priority/execution_context_priority_unittest.cc",
     "execution_context_priority/frame_audible_voter_unittest.cc",
+    "execution_context_priority/frame_capturing_video_stream_voter_unittest.cc",
     "execution_context_priority/frame_visibility_voter_unittest.cc",
     "execution_context_priority/inherit_client_priority_voter_unittest.cc",
     "execution_context_priority/max_vote_aggregator_unittest.cc",
@@ -308,7 +349,16 @@ source_set("unit_tests") {
     "performance_manager_unittest.cc",
     "registered_objects_unittest.cc",
     "render_process_host_id_unittest.cc",
+    "resource_attribution/cpu_measurement_monitor_unittest.cc",
+    "resource_attribution/frame_context_unittest.cc",
+    "resource_attribution/page_context_unittest.cc",
+    "resource_attribution/process_context_unittest.cc",
+    "resource_attribution/query_scheduler_unittest.cc",
+    "resource_attribution/resource_contexts_unittest.cc",
+    "resource_attribution/worker_context_unittest.cc",
+    "test_support/mock_graphs_unittest.cc",
     "user_tuning/prefs_unittest.cc",
+    "user_tuning/tab_revisit_tracker_unittest.cc",
     "v8_memory/v8_context_tracker_helpers_unittest.cc",
     "v8_memory/v8_context_tracker_internal_unittest.cc",
     "v8_memory/v8_context_tracker_unittest.cc",
@@ -335,6 +385,10 @@ source_set("unit_tests") {
     "//testing/gmock",
     "//testing/gtest",
   ]
+
+  if (is_ios) {
+    deps += [ "//components/test:performance_manager_test_bundle_data" ]
+  }
 
   # The site data database isn't supported on Android.
   if (!is_android) {
@@ -389,4 +443,8 @@ source_set("browser_tests") {
     "//testing/gmock",
     "//testing/gtest",
   ]
+
+  if (is_ios) {
+    deps += [ "//components/test:performance_manager_test_bundle_data" ]
+  }
 }

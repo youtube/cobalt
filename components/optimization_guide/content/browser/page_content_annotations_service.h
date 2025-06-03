@@ -28,11 +28,14 @@
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/omnibox/browser/autocomplete_provider_client.h"
 #include "components/omnibox/browser/zero_suggest_cache_service.h"
+#include "components/optimization_guide/content/browser/in_memory_text_embedding_manager.h"
 #include "components/optimization_guide/content/browser/page_content_annotator.h"
 #include "components/optimization_guide/core/entity_metadata_provider.h"
 #include "components/optimization_guide/core/model_info.h"
+#include "components/optimization_guide/core/optimization_guide_decision.h"
 #include "components/optimization_guide/core/page_content_annotations_common.h"
 #include "components/optimization_guide/machine_learning_tflite_buildflags.h"
+#include "components/optimization_guide/proto/hints.pb.h"
 #include "components/optimization_guide/proto/page_entities_metadata.pb.h"
 #include "components/optimization_guide/proto/salient_image_metadata.pb.h"
 #include "components/search_engines/template_url_service.h"
@@ -51,7 +54,9 @@ class ProtoDatabaseProvider;
 
 namespace optimization_guide {
 
+class OptimizationGuideDecider;
 class OptimizationGuideModelProvider;
+class OptimizationMetadata;
 class PageContentAnnotationsModelManager;
 class PageContentAnnotationsServiceBrowserTest;
 class PageContentAnnotationsValidator;
@@ -60,7 +65,7 @@ class PageContentAnnotationsWebContentsObserver;
 // The information used by HistoryService to identify a visit to a URL.
 struct HistoryVisit {
   HistoryVisit();
-  HistoryVisit(base::Time nav_entry_timestamp, GURL url, int64_t navigation_id);
+  HistoryVisit(base::Time nav_entry_timestamp, GURL url);
   explicit HistoryVisit(history::VisitID visit_id);
   ~HistoryVisit();
   HistoryVisit(const HistoryVisit&);
@@ -125,6 +130,7 @@ class PageContentAnnotationsService : public KeyedService,
   PageContentAnnotationsService(
       std::unique_ptr<AutocompleteProviderClient> autocomplete_provider_client,
       const std::string& application_locale,
+      const std::string& country_code,
       OptimizationGuideModelProvider* optimization_guide_model_provider,
       history::HistoryService* history_service,
       TemplateURLService* template_url_service,
@@ -132,6 +138,7 @@ class PageContentAnnotationsService : public KeyedService,
       leveldb_proto::ProtoDatabaseProvider* database_provider,
       const base::FilePath& database_dir,
       OptimizationGuideLogger* optimization_guide_logger,
+      OptimizationGuideDecider* optimization_guide_decider,
       scoped_refptr<base::SequencedTaskRunner> background_task_runner);
   ~PageContentAnnotationsService() override;
   PageContentAnnotationsService(const PageContentAnnotationsService&) = delete;
@@ -162,14 +169,15 @@ class PageContentAnnotationsService : public KeyedService,
   void GetMetadataForEntityId(
       const std::string& entity_id,
       EntityMetadataRetrievedCallback callback) override;
-  void GetMetadataForEntityIds(
-      const base::flat_set<std::string>& entity_ids,
-      BatchEntityMetadataRetrievedCallback callback) override;
 
   // history::HistoryServiceObserver:
-  void OnURLVisited(history::HistoryService* history_service,
-                    const history::URLRow& url_row,
-                    const history::VisitRow& visit_row) override;
+  void OnURLsModified(history::HistoryService* history_service,
+                      const history::URLRows& changed_urls) override;
+  void OnURLVisitedWithNavigationId(
+      history::HistoryService* history_service,
+      const history::URLRow& url_row,
+      const history::VisitRow& visit_row,
+      absl::optional<int64_t> local_navigation_id) override;
 
   // Overrides the PageContentAnnotator for testing. See
   // test_page_content_annotator.h for an implementation designed for testing.
@@ -178,6 +186,14 @@ class PageContentAnnotationsService : public KeyedService,
   // Specifies whether PageContentAnnotationsService should extract "related
   // searches" data from the ZPS response cache.
   bool ShouldExtractRelatedSearchesFromZPSCache();
+
+  // Queries text embeddings for all the visits in
+  // |InMemoryTextEmbeddingManager|. |callback_to_history_page| will be invoked
+  // to write the results to |history_service| once the visits related to the
+  // given search text have returned.
+  void QueryEmbeddings(
+      base::OnceCallback<void(history::QueryResults&)> callback_to_history_page,
+      const std::string& query);
 
   // ZeroSuggestCacheService::Observer:
   void OnZeroSuggestResponseUpdated(
@@ -198,6 +214,14 @@ class PageContentAnnotationsService : public KeyedService,
   OptimizationGuideLogger* optimization_guide_logger() const {
     return optimization_guide_logger_;
   }
+
+ protected:
+  // Callback invoked when related searches have been extracted for |visit|.
+  // protected instead of private for testing purposes.
+  void OnRelatedSearchesExtracted(
+      const HistoryVisit& visit,
+      continuous_search::SearchResultExtractorClientStatus status,
+      continuous_search::mojom::CategoryResultsPtr results);
 
  private:
 #if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
@@ -224,6 +248,8 @@ class PageContentAnnotationsService : public KeyedService,
       AnnotationType type,
       std::vector<absl::optional<history::VisitContentModelAnnotations>>*
           merge_to_output,
+      std::vector<absl::optional<std::vector<float>>>*
+          merge_embeddings_to_output,
       base::OnceClosure signal_merge_complete_callback,
       const std::vector<BatchAnnotationResult>& batch_result);
 
@@ -232,7 +258,9 @@ class PageContentAnnotationsService : public KeyedService,
   void OnBatchVisitsAnnotated(
       std::unique_ptr<
           std::vector<absl::optional<history::VisitContentModelAnnotations>>>
-          merged_annotation_outputs);
+          merged_annotation_outputs,
+      std::unique_ptr<std::vector<absl::optional<std::vector<float>>>>
+          merged_embedding_outputs);
 
   std::unique_ptr<PageContentAnnotationsModelManager> model_manager_;
 
@@ -264,11 +292,13 @@ class PageContentAnnotationsService : public KeyedService,
   virtual void ExtractRelatedSearches(const HistoryVisit& visit,
                                       content::WebContents* web_contents);
 
-  // Callback invoked when related searches have been extracted for |visit|.
-  void OnRelatedSearchesExtracted(
+  // Annotates the provided `visit` in the history DB with the given list of
+  // `related_searches`.
+  //
+  // Virtualized for testing.
+  virtual void AddRelatedSearchesForVisit(
       const HistoryVisit& visit,
-      continuous_search::SearchResultExtractorClientStatus status,
-      continuous_search::mojom::CategoryResultsPtr results);
+      const std::vector<std::string>& related_searches);
 
   // Persist |page_entities_metadata| for |visit| in |history_service_|.
   //
@@ -309,12 +339,31 @@ class PageContentAnnotationsService : public KeyedService,
                     PageContentAnnotationsType annotation_type,
                     history::QueryURLResult url_result);
 
+  // Callback invoked when |InMemoryTextEmbeddingManager| has returned results
+  // for the visits to a URL. In turn invokes |callback_to_history_page| to
+  // write the QueryResults to |history_service|.
+  void OnQueryEmbedded(
+      base::OnceCallback<void(history::QueryResults&)> callback_to_history_page,
+      const std::vector<BatchAnnotationResult>& result);
+
   // Notifies the PageContentAnnotationsResult to the observers for
   // |annotation_type|.
   void NotifyPageContentAnnotatedObservers(
       AnnotationType annotation_type,
       const GURL& url,
       const PageContentAnnotationsResult& page_content_annotations_result);
+
+  // Callback invoked when a response for |optimization_type| has been received
+  // from |optimization_guide_decider_| for |visit|.
+  void OnOptimizationGuideResponseReceived(
+      const HistoryVisit& visit,
+      proto::OptimizationType optimization_type,
+      OptimizationGuideDecision decision,
+      const OptimizationMetadata& metadata);
+
+  // Sends the page for annotation from |OnURLVisitedWithNavigationId| and
+  // |OnURLsModified|.
+  void OnWaitForTitleDone(const GURL& url);
 
   // Provider client instance used when parsing cached ZPS response data.
   std::unique_ptr<AutocompleteProviderClient> autocomplete_provider_client_;
@@ -340,8 +389,15 @@ class PageContentAnnotationsService : public KeyedService,
   base::ScopedObservation<ZeroSuggestCacheService,
                           PageContentAnnotationsService>
       zero_suggest_cache_service_observation_{this};
-  // The client of continuous_search::mojom::SearchResultExtractor interface
-  // used for extracting data from the main frame of Google SRP |web_contents|.
+  // A LRU cache mapping each SRP URL to the associated set of "related
+  // searches" which were obtained via ZPS prefetch logic. This cache is used to
+  // coordinate the SRP DOM extraction and ZPS prefetch flows to ensure that the
+  // appropriate history visit is targeted for annotation.
+  base::HashingLRUCache<std::string, std::vector<std::string>>
+      prefetched_related_searches_;
+  // The client of continuous_search::mojom::SearchResultExtractor
+  // interface used for extracting data from the main frame of Google SRP
+  // |web_contents|.
   continuous_search::SearchResultExtractorClient
       search_result_extractor_client_;
   // A LRU Cache keeping track of the visits that have been requested for
@@ -349,6 +405,13 @@ class PageContentAnnotationsService : public KeyedService,
   // requested for another annotation on the same visit.
   base::LRUCache<HistoryVisit, bool, HistoryVisit::Comp>
       last_annotated_history_visits_;
+
+  // A LRU cache containing a set of unique |HistoryVisit|'s for any url.
+  // In OnURLVisited, the HistoryVisit will be added to the map with its
+  // corresponding url and we'll either wait (5 seconds) for the title to be
+  // populated in OnURLsModified or call annotate with the title we already
+  // have.
+  base::LRUCache<GURL, std::vector<HistoryVisit>> missing_title_visits_by_url_;
 
   // A LRU cache of the annotation results for visits. If the text of the visit
   // is in the cache, the cached model annotations will be used.
@@ -373,10 +436,23 @@ class PageContentAnnotationsService : public KeyedService,
 
   raw_ptr<OptimizationGuideLogger> optimization_guide_logger_ = nullptr;
 
+  // Whether fetching for remote page metadata enabled.
+  bool is_remote_page_metadata_fetching_enabled_ = false;
+
+  // Whether fetching for salient image metadata is enabled.
+  bool is_salient_image_metadata_fetching_enabled_ = false;
+
+  // Not owned and must outlive |this|.
+  raw_ptr<OptimizationGuideDecider> optimization_guide_decider_;
+
   // Observers of PageContentAnnotations that have been registered per
   // AnnotationType.
   std::map<AnnotationType, base::ObserverList<PageContentAnnotationsObserver>>
       page_content_annotations_observers_;
+
+  // An instance of InMemoryTextEmbeddingManager which will hold embeddings for
+  // history visits.
+  std::unique_ptr<InMemoryTextEmbeddingManager> text_embeddings_for_visits_;
 
   base::WeakPtrFactory<PageContentAnnotationsService> weak_ptr_factory_{this};
 };

@@ -15,7 +15,6 @@
 #include "chrome/common/chromeos/extensions/chromeos_system_extension_info.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "content/public/test/browser_test.h"
-#include "content/public/test/content_mock_cert_verifier.h"
 #include "extensions/common/extension_features.h"
 #include "net/base/net_errors.h"
 #include "net/cert/x509_certificate.h"
@@ -67,6 +66,14 @@ std::string GetServiceWorkerForError(const std::string& error) {
             chrome.os.telemetry.getCpuInfo(),
             'Error: Unauthorized access to chrome.os.telemetry.getCpuInfo.' +
             ' %s'
+        );
+        chrome.test.succeed();
+      },
+      async function getDisplayInfo() {
+        await chrome.test.assertPromiseRejects(
+            chrome.os.telemetry.getDisplayInfo(),
+            'Error: Unauthorized access to chrome.os.telemetry.' +
+            'getDisplayInfo. %s'
         );
         chrome.test.succeed();
       },
@@ -155,6 +162,40 @@ std::string GetServiceWorkerForError(const std::string& error) {
       },
 
       // Diagnostics APIs.
+      async function cancelRoutine() {
+        await chrome.test.assertPromiseRejects(
+            chrome.os.diagnostics.cancelRoutine({
+              uuid: '123',
+            }),
+            'Error: Unauthorized access to ' +
+            'chrome.os.diagnostics.cancelRoutine. ' +
+            '%s'
+        );
+        chrome.test.succeed();
+      },
+      async function createMemoryRoutine() {
+        await chrome.test.assertPromiseRejects(
+            chrome.os.diagnostics.createMemoryRoutine({
+              maxTestingMemKib: 42,
+            }),
+            'Error: Unauthorized access to ' +
+            'chrome.os.diagnostics.createMemoryRoutine. ' +
+            '%s'
+        );
+        chrome.test.succeed();
+      },
+      async function createVolumeButtonRoutine() {
+        await chrome.test.assertPromiseRejects(
+            chrome.os.diagnostics.createVolumeButtonRoutine({
+              button_type: "volume_up",
+              timeout_seconds: 10,
+            }),
+            'Error: Unauthorized access to ' +
+            'chrome.os.diagnostics.createVolumeButtonRoutine. ' +
+            '%s'
+        );
+        chrome.test.succeed();
+      },
       async function getAvailableRoutines() {
         await chrome.test.assertPromiseRejects(
             chrome.os.diagnostics.getAvailableRoutines(),
@@ -178,6 +219,29 @@ std::string GetServiceWorkerForError(const std::string& error) {
         );
         chrome.test.succeed();
       },
+      async function isMemoryRoutineArgumentSupported() {
+        await chrome.test.assertPromiseRejects(
+            chrome.os.diagnostics.isMemoryRoutineArgumentSupported({
+              maxTestingMemKib: 42,
+            }),
+            'Error: Unauthorized access to ' +
+            'chrome.os.diagnostics.isMemoryRoutineArgumentSupported. ' +
+            '%s'
+        );
+        chrome.test.succeed();
+      },
+      async function isVolumeButtonRoutineArgumentSupported() {
+        await chrome.test.assertPromiseRejects(
+            chrome.os.diagnostics.isVolumeButtonRoutineArgumentSupported({
+              button_type: "volume_up",
+              timeout_seconds: 10,
+            }),
+            'Error: Unauthorized access to ' +
+            'chrome.os.diagnostics.isVolumeButtonRoutineArgumentSupported. ' +
+            '%s'
+        );
+        chrome.test.succeed();
+      },
       async function runAcPowerRoutine() {
         await chrome.test.assertPromiseRejects(
             chrome.os.diagnostics.runAcPowerRoutine(
@@ -188,6 +252,15 @@ std::string GetServiceWorkerForError(const std::string& error) {
             ),
             'Error: Unauthorized access to ' +
             'chrome.os.diagnostics.runAcPowerRoutine. ' +
+            '%s'
+        );
+        chrome.test.succeed();
+      },
+      async function runAudioDriverRoutine() {
+        await chrome.test.assertPromiseRejects(
+            chrome.os.diagnostics.runAudioDriverRoutine(),
+            'Error: Unauthorized access to ' +
+            'chrome.os.diagnostics.runAudioDriverRoutine. ' +
             '%s'
         );
         chrome.test.succeed();
@@ -234,6 +307,50 @@ std::string GetServiceWorkerForError(const std::string& error) {
             chrome.os.diagnostics.runBatteryHealthRoutine(),
             'Error: Unauthorized access to ' +
             'chrome.os.diagnostics.runBatteryHealthRoutine. ' +
+            '%s'
+        );
+        chrome.test.succeed();
+      },
+      async function runBluetoothDiscoveryRoutine() {
+        await chrome.test.assertPromiseRejects(
+            chrome.os.diagnostics.runBluetoothDiscoveryRoutine(),
+            'Error: Unauthorized access to ' +
+            'chrome.os.diagnostics.runBluetoothDiscoveryRoutine. ' +
+            '%s'
+        );
+        chrome.test.succeed();
+      },
+      async function runBluetoothPairingRoutine() {
+        await chrome.test.assertPromiseRejects(
+            chrome.os.diagnostics.runBluetoothPairingRoutine(
+              {
+                peripheral_id: "HEALTHD_TEST_ID"
+              }
+            ),
+            'Error: Unauthorized access to ' +
+            'chrome.os.diagnostics.runBluetoothPairingRoutine. ' +
+            '%s'
+        );
+        chrome.test.succeed();
+      },
+      async function runBluetoothPowerRoutine() {
+        await chrome.test.assertPromiseRejects(
+            chrome.os.diagnostics.runBluetoothPowerRoutine(),
+            'Error: Unauthorized access to ' +
+            'chrome.os.diagnostics.runBluetoothPowerRoutine. ' +
+            '%s'
+        );
+        chrome.test.succeed();
+      },
+      async function runBluetoothScanningRoutine() {
+        await chrome.test.assertPromiseRejects(
+            chrome.os.diagnostics.runBluetoothScanningRoutine(
+              {
+                length_seconds: 10
+              }
+            ),
+            'Error: Unauthorized access to ' +
+            'chrome.os.diagnostics.runBluetoothScanningRoutine. ' +
             '%s'
         );
         chrome.test.succeed();
@@ -332,6 +449,15 @@ std::string GetServiceWorkerForError(const std::string& error) {
         );
         chrome.test.succeed();
       },
+      async function runFanRoutine() {
+        await chrome.test.assertPromiseRejects(
+            chrome.os.diagnostics.runFanRoutine(),
+            'Error: Unauthorized access to ' +
+            'chrome.os.diagnostics.runFanRoutine. ' +
+            '%s'
+        );
+        chrome.test.succeed();
+      },
       async function runFingerprintAliveRoutine() {
         await chrome.test.assertPromiseRejects(
             chrome.os.diagnostics.runFingerprintAliveRoutine(),
@@ -394,6 +520,19 @@ std::string GetServiceWorkerForError(const std::string& error) {
         );
         chrome.test.succeed();
       },
+      async function runPowerButtonRoutine() {
+        await chrome.test.assertPromiseRejects(
+            chrome.os.diagnostics.runPowerButtonRoutine(
+              {
+                timeout_seconds: 10
+              }
+            ),
+            'Error: Unauthorized access to ' +
+            'chrome.os.diagnostics.runPowerButtonRoutine. ' +
+            '%s'
+        );
+        chrome.test.succeed();
+      },
       async function runSensitiveSensorRoutine() {
         await chrome.test.assertPromiseRejects(
             chrome.os.diagnostics.runSensitiveSensorRoutine(),
@@ -417,6 +556,26 @@ std::string GetServiceWorkerForError(const std::string& error) {
             chrome.os.diagnostics.runSmartctlCheckRoutine(),
             'Error: Unauthorized access to ' +
             'chrome.os.diagnostics.runSmartctlCheckRoutine. ' +
+            '%s'
+        );
+        chrome.test.succeed();
+      },
+      async function runUfsLifetimeRoutine() {
+        await chrome.test.assertPromiseRejects(
+            chrome.os.diagnostics.runUfsLifetimeRoutine(),
+            'Error: Unauthorized access to ' +
+            'chrome.os.diagnostics.runUfsLifetimeRoutine. ' +
+            '%s'
+        );
+        chrome.test.succeed();
+      },
+      async function startRoutine() {
+        await chrome.test.assertPromiseRejects(
+            chrome.os.diagnostics.startRoutine({
+              uuid: '123',
+            }),
+            'Error: Unauthorized access to ' +
+            'chrome.os.diagnostics.startRoutine. ' +
             '%s'
         );
         chrome.test.succeed();
@@ -488,36 +647,6 @@ class TelemetryExtensionApiGuardBrowserTest
         extensions_features::kTelemetryExtensionPendingApprovalApi);
   }
 
- protected:
-  std::string GetManifestFile(const std::string& matches_origin) override {
-    return base::StringPrintf(R"(
-      {
-        "key": "%s",
-        "name": "Test Telemetry Extension",
-        "version": "1",
-        "manifest_version": 3,
-        "chromeos_system_extension": {},
-        "background": {
-          "service_worker": "sw.js"
-        },
-        "permissions": [
-          "os.diagnostics",
-          "os.events",
-          "os.telemetry",
-          "os.telemetry.serial_number",
-          "os.telemetry.network_info"
-        ],
-        "externally_connectable": {
-          "matches": [
-            "%s"
-          ]
-        },
-        "options_page": "options.html"
-      }
-    )",
-                              public_key().c_str(), matches_origin.c_str());
-  }
-
  private:
   base::test::ScopedFeatureList feature_list_;
 };
@@ -554,6 +683,7 @@ class TelemetryExtensionApiGuardRealDelegateBrowserTest
 
   // BaseTelemetryExtensionBrowserTest:
   void SetUp() override {
+    https_server_.SetSSLConfig(net::EmbeddedTestServer::CERT_OK);
     ASSERT_TRUE(https_server_.InitializeAndListen());
 
     BaseTelemetryExtensionBrowserTest::SetUp();
@@ -565,15 +695,12 @@ class TelemetryExtensionApiGuardRealDelegateBrowserTest
     command_line->AppendSwitchASCII(
         chromeos::switches::kTelemetryExtensionPwaOriginOverrideForTesting,
         pwa_page_url());
-    mock_cert_verifier_.SetUpCommandLine(command_line);
   }
 
   void SetUpOnMainThread() override {
     // Skip BaseTelemetryExtensionBrowserTest::SetUpOnMainThread() as it sets up
     // a FakeApiGuardDelegate instance.
     extensions::ExtensionBrowserTest::SetUpOnMainThread();
-
-    mock_cert_verifier()->set_default_result(net::OK);
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
     // Must be initialized before dealing with UserManager.
@@ -589,8 +716,9 @@ class TelemetryExtensionApiGuardRealDelegateBrowserTest
     // changes will be disabled afterwards.
     host_resolver()->AddRule("*", "127.0.0.1");
   }
-  void TearDownOnMainThread() override {
+
 #if BUILDFLAG(IS_CHROMEOS_ASH)
+  void TearDownOnMainThread() override {
     // Explicitly removing the user is required; otherwise ProfileHelper keeps
     // a dangling pointer to the User.
     // TODO(b/208629291): Consider removing all users from ProfileHelper in the
@@ -598,28 +726,8 @@ class TelemetryExtensionApiGuardRealDelegateBrowserTest
     GetFakeUserManager()->RemoveUserFromList(
         GetFakeUserManager()->GetActiveUser()->GetAccountId());
     user_manager_enabler_.reset();
+  }
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
-
-    ASSERT_TRUE(https_server_.ShutdownAndWaitUntilComplete());
-
-    BaseTelemetryExtensionBrowserTest::TearDownOnMainThread();
-  }
-
-  void SetUpInProcessBrowserTestFixture() override {
-    BaseTelemetryExtensionBrowserTest::SetUpInProcessBrowserTestFixture();
-
-    mock_cert_verifier_.SetUpInProcessBrowserTestFixture();
-  }
-
-  void TearDownInProcessBrowserTestFixture() override {
-    mock_cert_verifier_.TearDownInProcessBrowserTestFixture();
-
-    BaseTelemetryExtensionBrowserTest::TearDownInProcessBrowserTestFixture();
-  }
-
-  content::ContentMockCertVerifier::CertVerifier* mock_cert_verifier() {
-    return mock_cert_verifier_.mock_cert_verifier();
-  }
 
  protected:
 #if BUILDFLAG(IS_CHROMEOS_ASH)
@@ -647,7 +755,6 @@ class TelemetryExtensionApiGuardRealDelegateBrowserTest
 
   FakeHardwareInfoDelegate::Factory fake_hardware_info_delegate_factory_;
   net::EmbeddedTestServer https_server_;
-  content::ContentMockCertVerifier mock_cert_verifier_;
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
   std::unique_ptr<user_manager::ScopedUserManager> user_manager_enabler_;

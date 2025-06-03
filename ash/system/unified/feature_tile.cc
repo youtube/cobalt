@@ -13,14 +13,26 @@
 #include "chromeos/constants/chromeos_features.h"
 #include "components/vector_icons/vector_icons.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/base/models/image_model.h"
+#include "ui/chromeos/styles/cros_tokens_color_mappings.h"
 #include "ui/gfx/paint_vector_icon.h"
+#include "ui/gfx/text_constants.h"
+#include "ui/views/animation/ink_drop.h"
+#include "ui/views/animation/ink_drop_highlight.h"
 #include "ui/views/background.h"
+#include "ui/views/controls/button/image_button.h"
+#include "ui/views/controls/focus_ring.h"
 #include "ui/views/controls/highlight_path_generator.h"
+#include "ui/views/controls/image_view.h"
+#include "ui/views/controls/label.h"
 #include "ui/views/layout/flex_layout.h"
 #include "ui/views/layout/flex_layout_view.h"
+#include "ui/views/layout/layout_types.h"
+#include "ui/views/view_class_properties.h"
 
 using views::FlexLayout;
 using views::FlexLayoutView;
+using views::InkDropHost;
 
 namespace ash {
 
@@ -29,25 +41,41 @@ namespace {
 // Tile constants
 constexpr int kIconSize = 20;
 constexpr int kButtonRadius = 16;
-constexpr int kFocusRingPadding = 2;
+constexpr float kFocusRingPadding = 3.0f;
 
 // Primary tile constants
-constexpr int kPrimarySubtitleLineHeight = 18;
 constexpr gfx::Size kDefaultSize(180, kFeatureTileHeight);
-constexpr gfx::Size kIconContainerSize(48, kFeatureTileHeight);
-constexpr gfx::Size kTitlesContainerSize(92, kFeatureTileHeight);
-constexpr gfx::Size kDrillContainerSize(40, kFeatureTileHeight);
+constexpr gfx::Size kIconButtonSize(36, 52);
+constexpr int kIconButtonCornerRadius = 12;
+constexpr gfx::Insets kIconButtonMargins = gfx::Insets::VH(6, 6);
+constexpr gfx::Size kTitlesContainerSize(98, kFeatureTileHeight);
+constexpr gfx::Insets kDrillInArrowMargins = gfx::Insets::TLBR(0, 4, 0, 10);
 
 // Compact tile constants
 constexpr int kCompactWidth = 86;
 constexpr int kCompactTitleLineHeight = 14;
 constexpr gfx::Size kCompactSize(kCompactWidth, kFeatureTileHeight);
-constexpr gfx::Size kCompactIconContainerSize(kCompactWidth, 30);
-constexpr gfx::Size kCompactTitleContainerSize(kCompactWidth, 34);
-constexpr gfx::Size kCompactTitleLabelSize(kCompactWidth - 32,
-                                           kCompactTitleLineHeight * 2);
-constexpr gfx::Insets kCompactIconContainerInteriorMargin(
-    gfx::Insets::TLBR(0, 0, 4, 0));
+constexpr gfx::Size kCompactIconButtonSize(kIconSize, kIconSize);
+constexpr gfx::Insets kCompactIconButtonMargins =
+    gfx::Insets::TLBR(6, 22, 4, 22);
+constexpr gfx::Size kCompactOneRowTitleLabelSize(kCompactWidth - 24,
+                                                 kCompactTitleLineHeight);
+constexpr gfx::Size kCompactTwoRowTitleLabelSize(kCompactWidth - 24,
+                                                 kCompactTitleLineHeight * 2);
+constexpr gfx::Insets kCompactTitlesContainerMargins =
+    gfx::Insets::TLBR(0, 12, 6, 12);
+
+// Creates an ink drop hover highlight for `host` with `color_id`.
+std::unique_ptr<views::InkDropHighlight> CreateInkDropHighlight(
+    views::View* host,
+    ui::ColorId color_id) {
+  SkColor color = host->GetColorProvider()->GetColor(color_id);
+  auto highlight = std::make_unique<views::InkDropHighlight>(
+      gfx::SizeF(host->size()), color);
+  // The color has the opacity baked in.
+  highlight->set_visible_opacity(1.0f);
+  return highlight;
+}
 
 }  // namespace
 
@@ -55,24 +83,40 @@ FeatureTile::FeatureTile(base::RepeatingCallback<void()> callback,
                          bool is_togglable,
                          TileType type)
     : Button(callback), is_togglable_(is_togglable), type_(type) {
-  views::InstallRoundRectHighlightPathGenerator(
-      this, gfx::Insets(-kFocusRingPadding), kButtonRadius + kFocusRingPadding);
+  // Set up ink drop on click. The corner radius must match the button
+  // background corner radius, see UpdateColors().
+  // TODO(jamescook): Consider adding support for highlight-path-based
+  // backgrounds so we don't have to match the shape manually. For example, add
+  // something like CreateThemedHighlightPathBackground() to
+  // ui/views/background.h.
+  views::InstallRoundRectHighlightPathGenerator(this, gfx::Insets(),
+                                                kButtonRadius);
+  auto* ink_drop = views::InkDrop::Get(this);
+  ink_drop->SetMode(InkDropHost::InkDropMode::ON);
+  ink_drop->GetInkDrop()->SetShowHighlightOnHover(false);
+  ink_drop->SetVisibleOpacity(1.0f);  // The colors already contain opacity.
+
+  // The focus ring appears slightly outside the tile bounds.
+  views::FocusRing::Get(this)->SetHaloInset(-kFocusRingPadding);
+
   CreateChildViews();
   UpdateColors();
 
   enabled_changed_subscription_ = AddEnabledChangedCallback(base::BindRepeating(
       [](FeatureTile* feature_tile) {
         feature_tile->UpdateColors();
-        if (!feature_tile->drill_in_button_) {
-          return;
+        if (feature_tile->is_icon_clickable_) {
+          feature_tile->icon_button_->SetEnabled(feature_tile->GetEnabled());
         }
-        feature_tile->drill_in_button_->SetEnabled(feature_tile->GetEnabled());
-        feature_tile->drill_in_arrow_->SetEnabled(feature_tile->GetEnabled());
       },
       base::Unretained(this)));
 }
 
-FeatureTile::~FeatureTile() = default;
+FeatureTile::~FeatureTile() {
+  // Remove the InkDrop explicitly so FeatureTile::RemoveLayerFromRegions() is
+  // called before views::View teardown.
+  views::InkDrop::Remove(this);
+}
 
 void FeatureTile::CreateChildViews() {
   const bool is_compact = type_ == TileType::kCompact;
@@ -81,6 +125,10 @@ void FeatureTile::CreateChildViews() {
   layout_manager->SetOrientation(is_compact
                                      ? views::LayoutOrientation::kVertical
                                      : views::LayoutOrientation::kHorizontal);
+
+  ink_drop_container_ =
+      AddChildView(std::make_unique<views::InkDropContainerView>());
+  layout_manager->SetChildViewIgnoredByLayout(ink_drop_container_, true);
 
   auto* focus_ring = views::FocusRing::Get(this);
   focus_ring->SetColorId(cros_tokens::kCrosSysFocusRing);
@@ -92,70 +140,95 @@ void FeatureTile::CreateChildViews() {
 
   SetPreferredSize(is_compact ? kCompactSize : kDefaultSize);
 
-  auto* icon_container = AddChildView(std::make_unique<FlexLayoutView>());
-  icon_container->SetCanProcessEventsWithinSubtree(false);
-  icon_container->SetMainAxisAlignment(views::LayoutAlignment::kCenter);
-  icon_container->SetCrossAxisAlignment(is_compact
-                                            ? views::LayoutAlignment::kEnd
-                                            : views::LayoutAlignment::kCenter);
-  icon_container->SetPreferredSize(is_compact ? kCompactIconContainerSize
-                                              : kIconContainerSize);
-  if (is_compact)
-    icon_container->SetInteriorMargin(kCompactIconContainerInteriorMargin);
-  icon_ = icon_container->AddChildView(std::make_unique<views::ImageView>());
+  icon_button_ = AddChildView(std::make_unique<views::ImageButton>());
+  icon_button_->SetImageHorizontalAlignment(views::ImageButton::ALIGN_CENTER);
+  icon_button_->SetImageVerticalAlignment(views::ImageButton::ALIGN_MIDDLE);
+  icon_button_->SetPreferredSize(is_compact ? kCompactIconButtonSize
+                                            : kIconButtonSize);
+  icon_button_->SetProperty(views::kMarginsKey, is_compact
+                                                    ? kCompactIconButtonMargins
+                                                    : kIconButtonMargins);
+  // By default the icon button is not separately clickable.
+  icon_button_->SetEnabled(false);
+  icon_button_->SetCanProcessEventsWithinSubtree(false);
 
   auto* title_container = AddChildView(std::make_unique<FlexLayoutView>());
   title_container->SetCanProcessEventsWithinSubtree(false);
-  title_container->SetOrientation(is_compact
-                                      ? views::LayoutOrientation::kHorizontal
-                                      : views::LayoutOrientation::kVertical);
+  title_container->SetOrientation(views::LayoutOrientation::kVertical);
   title_container->SetMainAxisAlignment(views::LayoutAlignment::kCenter);
-  title_container->SetCrossAxisAlignment(views::LayoutAlignment::kStart);
-  title_container->SetPreferredSize(is_compact ? kCompactTitleContainerSize
-                                               : kTitlesContainerSize);
+  title_container->SetCrossAxisAlignment(views::LayoutAlignment::kStretch);
 
   label_ = title_container->AddChildView(std::make_unique<views::Label>());
   label_->SetAutoColorReadabilityEnabled(false);
-  label_->SetFontList(ash::TypographyProvider::Get()->ResolveTypographyToken(
-      ash::TypographyToken::kCrosButton2));
+
+  sub_label_ = title_container->AddChildView(std::make_unique<views::Label>());
+  sub_label_->SetHorizontalAlignment(is_compact ? gfx::ALIGN_CENTER
+                                                : gfx::ALIGN_LEFT);
+  sub_label_->SetAutoColorReadabilityEnabled(false);
 
   if (is_compact) {
-    label_->SetPreferredSize(kCompactTitleLabelSize);
-    // TODO(b/259459827): verify multi-line text is rendering correctly, not
-    // clipping and center aligned.
-    label_->SetMultiLine(true);
+    title_container->SetProperty(views::kMarginsKey,
+                                 kCompactTitlesContainerMargins);
+    label_->SetVerticalAlignment(gfx::ALIGN_MIDDLE);
+    label_->SetHorizontalAlignment(gfx::ALIGN_CENTER);
+
+    // By default, assume compact tiles will not support sub-labels.
+    SetCompactTileLabelPreferences(/*add_sub_label=*/false);
+
+    // Compact labels use kCrosAnnotation2 with a shorter custom line height.
+    const auto font_list = TypographyProvider::Get()->ResolveTypographyToken(
+        TypographyToken::kCrosAnnotation2);
+    label_->SetFontList(font_list);
     label_->SetLineHeight(kCompactTitleLineHeight);
-    label_->SetFontList(ash::TypographyProvider::Get()->ResolveTypographyToken(
-        ash::TypographyToken::kCrosAnnotation2));
+    sub_label_->SetFontList(font_list);
+    sub_label_->SetLineHeight(kCompactTitleLineHeight);
+    sub_label_->SetVisible(false);
   } else {
-    sub_label_ =
-        title_container->AddChildView(std::make_unique<views::Label>());
-    sub_label_->SetAutoColorReadabilityEnabled(false);
-    sub_label_->SetFontList(
-        ash::TypographyProvider::Get()->ResolveTypographyToken(
-            ash::TypographyToken::kCrosAnnotation1));
-    sub_label_->SetLineHeight(kPrimarySubtitleLineHeight);
-    if (chromeos::features::IsJellyEnabled()) {
-      TypographyProvider::Get()->StyleLabel(TypographyToken::kCrosAnnotation1,
-                                            *sub_label_);
-    }
-  }
-  if (chromeos::features::IsJellyEnabled()) {
-    TypographyProvider::Get()->StyleLabel(
-        is_compact ? TypographyToken::kCrosAnnotation2
-                   : TypographyToken::kCrosButton2,
-        *label_);
+    title_container->SetPreferredSize(kTitlesContainerSize);
+    label_->SetHorizontalAlignment(gfx::ALIGN_LEFT);
+    TypographyProvider::Get()->StyleLabel(TypographyToken::kCrosButton2,
+                                          *label_);
+    TypographyProvider::Get()->StyleLabel(TypographyToken::kCrosAnnotation1,
+                                          *sub_label_);
   }
 }
 
-void FeatureTile::CreateDrillInButton(base::RepeatingClosure callback,
-                                      const std::u16string& tooltip_text) {
-  CreateDrillInButtonView(callback, tooltip_text);
+void FeatureTile::SetIconClickable(bool clickable) {
+  CHECK_EQ(type_, TileType::kPrimary);
+  is_icon_clickable_ = clickable;
+  icon_button_->SetCanProcessEventsWithinSubtree(clickable);
+  icon_button_->SetEnabled(clickable);
+
+  if (clickable) {
+    views::InstallRoundRectHighlightPathGenerator(icon_button_, gfx::Insets(),
+                                                  kIconButtonCornerRadius);
+    UpdateIconButtonFocusRingColor();
+
+    views::InkDrop::Get(icon_button_)->SetMode(InkDropHost::InkDropMode::ON);
+    icon_button_->SetHasInkDropActionOnClick(true);
+    UpdateIconButtonRippleColors();
+  } else {
+    views::HighlightPathGenerator::Install(icon_button_, nullptr);
+    views::InkDrop::Get(icon_button_)->SetMode(InkDropHost::InkDropMode::OFF);
+  }
 }
 
-void FeatureTile::CreateDecorativeDrillInButton(
-    const std::u16string& tooltip_text) {
-  CreateDrillInButtonView(base::RepeatingClosure(), tooltip_text);
+void FeatureTile::SetIconClickCallback(
+    base::RepeatingCallback<void()> callback) {
+  icon_button_->SetCallback(std::move(callback));
+}
+
+void FeatureTile::CreateDecorativeDrillInArrow() {
+  CHECK_EQ(type_, TileType::kPrimary);
+
+  drill_in_arrow_ = AddChildView(std::make_unique<views::ImageView>());
+  // The icon is set in UpdateDrillArrowColor().
+  drill_in_arrow_->SetPreferredSize(gfx::Size(kIconSize, kIconSize));
+  drill_in_arrow_->SetProperty(views::kMarginsKey, kDrillInArrowMargins);
+  // Allow hover events to fall through to show tooltips from the main view.
+  drill_in_arrow_->SetCanProcessEventsWithinSubtree(false);
+  drill_in_arrow_->SetFlipCanvasOnPaintForRTLUI(true);
+  UpdateDrillInArrowColor();
 }
 
 void FeatureTile::UpdateColors() {
@@ -164,10 +237,15 @@ void FeatureTile::UpdateColors() {
   ui::ColorId foreground_optional_color;
 
   if (GetEnabled()) {
-    background_color = toggled_ ? cros_tokens::kCrosSysSystemPrimaryContainer
-                                : cros_tokens::kCrosSysSystemOnBase;
-    foreground_color = toggled_ ? cros_tokens::kCrosSysSystemOnPrimaryContainer
-                                : cros_tokens::kCrosSysOnSurface;
+    background_color =
+        toggled_
+            ? background_toggled_color_.value_or(
+                  cros_tokens::kCrosSysSystemPrimaryContainer)
+            : background_color_.value_or(cros_tokens::kCrosSysSystemOnBase);
+    foreground_color =
+        toggled_ ? foreground_toggled_color_.value_or(
+                       cros_tokens::kCrosSysSystemOnPrimaryContainer)
+                 : foreground_color_.value_or(cros_tokens::kCrosSysOnSurface);
     foreground_optional_color =
         toggled_ ? cros_tokens::kCrosSysSystemOnPrimaryContainer
                  : cros_tokens::kCrosSysOnSurfaceVariant;
@@ -179,27 +257,37 @@ void FeatureTile::UpdateColors() {
 
   SetBackground(views::CreateThemedRoundedRectBackground(background_color,
                                                          kButtonRadius));
-  icon_->SetImage(ui::ImageModel::FromVectorIcon(*vector_icon_,
-                                                 foreground_color, kIconSize));
+  auto* ink_drop = views::InkDrop::Get(this);
+  ink_drop->SetBaseColorId(toggled_
+                               ? cros_tokens::kCrosSysRipplePrimary
+                               : cros_tokens::kCrosSysRippleNeutralOnSubtle);
+
+  auto icon_image_model = ui::ImageModel::FromVectorIcon(
+      *vector_icon_, foreground_color, kIconSize);
+  icon_button_->SetImageModel(views::Button::STATE_NORMAL, icon_image_model);
+  icon_button_->SetImageModel(views::Button::STATE_DISABLED, icon_image_model);
+  if (is_icon_clickable_) {
+    UpdateIconButtonRippleColors();
+    UpdateIconButtonFocusRingColor();
+  }
+
   label_->SetEnabledColorId(foreground_color);
   if (sub_label_) {
     sub_label_->SetEnabledColorId(foreground_optional_color);
   }
   if (drill_in_arrow_) {
-    UpdateDrillInButtonFocusRingColor();
+    UpdateDrillInArrowColor();
   }
 }
 
 void FeatureTile::SetToggled(bool toggled) {
-  if (!is_togglable_ || toggled_ == toggled)
+  if (!is_togglable_ || toggled_ == toggled) {
     return;
-
-  toggled_ = toggled;
-  if (drill_in_arrow_) {
-    drill_in_arrow_->SetToggled(toggled_);
   }
 
+  toggled_ = toggled;
   UpdateColors();
+  views::InkDrop::Get(this)->GetInkDrop()->SnapToHidden();
 }
 
 bool FeatureTile::IsToggled() const {
@@ -208,107 +296,170 @@ bool FeatureTile::IsToggled() const {
 
 void FeatureTile::SetVectorIcon(const gfx::VectorIcon& icon) {
   vector_icon_ = &icon;
-  ui::ColorId color_id;
-  if (GetEnabled()) {
-    color_id = toggled_ ? cros_tokens::kCrosSysSystemOnPrimaryContainer
-                        : cros_tokens::kCrosSysOnSurface;
-  } else {
-    color_id = cros_tokens::kCrosSysDisabled;
+  ui::ColorId color_id = GetIconColorId();
+  auto image_model = ui::ImageModel::FromVectorIcon(icon, color_id, kIconSize);
+  icon_button_->SetImageModel(views::Button::STATE_NORMAL, image_model);
+  icon_button_->SetImageModel(views::Button::STATE_DISABLED, image_model);
+}
+
+void FeatureTile::SetBackgroundColorId(ui::ColorId background_color_id) {
+  if (background_color_ == background_color_id) {
+    return;
   }
-  icon_->SetImage(ui::ImageModel::FromVectorIcon(icon, color_id, kIconSize));
+  background_color_ = background_color_id;
+  if (!toggled_) {
+    UpdateColors();
+  }
+}
+void FeatureTile::SetBackgroundToggledColorId(
+    ui::ColorId background_toggled_color_id) {
+  if (background_toggled_color_ == background_toggled_color_id) {
+    return;
+  }
+  background_toggled_color_ = background_toggled_color_id;
+  if (toggled_) {
+    UpdateColors();
+  }
+}
+
+void FeatureTile::SetForegroundColorId(ui::ColorId foreground_color_id) {
+  if (foreground_color_ == foreground_color_id) {
+    return;
+  }
+  foreground_color_ = foreground_color_id;
+  if (!toggled_) {
+    UpdateColors();
+  }
+}
+
+void FeatureTile::SetForegroundToggledColorId(
+    ui::ColorId foreground_toggled_color_id) {
+  if (foreground_toggled_color_ == foreground_toggled_color_id) {
+    return;
+  }
+  foreground_toggled_color_ = foreground_toggled_color_id;
+  if (toggled_) {
+    UpdateColors();
+  }
 }
 
 void FeatureTile::SetImage(gfx::ImageSkia image) {
-  icon_->SetImage(ui::ImageModel::FromImageSkia(image));
+  auto image_model = ui::ImageModel::FromImageSkia(image);
+  icon_button_->SetImageModel(views::Button::STATE_NORMAL, image_model);
+  icon_button_->SetImageModel(views::Button::STATE_DISABLED, image_model);
+}
+
+void FeatureTile::SetIconButtonTooltipText(const std::u16string& tooltip_text) {
+  CHECK(is_icon_clickable_);
+  icon_button_->SetTooltipText(tooltip_text);
 }
 
 void FeatureTile::SetLabel(const std::u16string& label) {
   label_->SetText(label);
 }
 
+int FeatureTile::GetSubLabelMaxWidth() const {
+  return kTitlesContainerSize.width();
+}
+
 void FeatureTile::SetSubLabel(const std::u16string& sub_label) {
+  DCHECK(!sub_label.empty())
+      << "Attempting to set an empty sub-label. Did you mean to call "
+         "SubLabelVisibility(false) instead?";
   sub_label_->SetText(sub_label);
 }
 
 void FeatureTile::SetSubLabelVisibility(bool visible) {
-  // Only primary tiles have a sub-label.
-  DCHECK(sub_label_);
+  const bool is_compact = type_ == TileType::kCompact;
+  DCHECK(!(is_compact && visible && sub_label_->GetText().empty()))
+      << "Attempting to make the compact tile's sub-label visible when it "
+         "wasn't set.";
   sub_label_->SetVisible(visible);
-}
-
-void FeatureTile::SetDrillInButtonTooltipText(const std::u16string& text) {
-  // Only primary tiles have a drill-in button.
-  DCHECK(drill_in_button_);
-  drill_in_button_->SetTooltipText(text);
-}
-
-void FeatureTile::OnThemeChanged() {
-  views::View::OnThemeChanged();
-  if (drill_in_arrow_) {
-    UpdateDrillInButtonFocusRingColor();
+  if (is_compact) {
+    // When updating a compact tile's `sub_label_` visibility, `label_` needs to
+    // also be changed to make room for the sub-label. If making a sub-label
+    // visible, the primary label and sub-label have one line each to display
+    // text. If disabling sub-label visibility, reset `label_` to allow its text
+    // to display on two lines.
+    SetCompactTileLabelPreferences(/*add_sub_label=*/visible);
   }
 }
 
-void FeatureTile::UpdateDrillInButtonFocusRingColor() {
-  views::FocusRing::Get(drill_in_arrow_)
+void FeatureTile::GetAccessibleNodeData(ui::AXNodeData* node_data) {
+  views::Button::GetAccessibleNodeData(node_data);
+  // If the icon is clickable then the main feature tile usually takes the user
+  // to a detailed page (like Network or Bluetooth). Those tiles act more like a
+  // regular button than a toggle button.
+  if (is_togglable_ && !is_icon_clickable_) {
+    node_data->role = ax::mojom::Role::kToggleButton;
+    node_data->SetCheckedState(toggled_ ? ax::mojom::CheckedState::kTrue
+                                        : ax::mojom::CheckedState::kFalse);
+  } else {
+    node_data->role = ax::mojom::Role::kButton;
+  }
+}
+
+void FeatureTile::AddLayerToRegion(ui::Layer* layer,
+                                   views::LayerRegion region) {
+  // This routes background layers to `ink_drop_container_` instead of `this` to
+  // avoid painting effects underneath our background.
+  ink_drop_container_->AddLayerToRegion(layer, region);
+}
+
+void FeatureTile::RemoveLayerFromRegions(ui::Layer* layer) {
+  // This routes background layers to `ink_drop_container_` instead of `this` to
+  // avoid painting effects underneath our background.
+  ink_drop_container_->RemoveLayerFromRegions(layer);
+}
+
+ui::ColorId FeatureTile::GetIconColorId() const {
+  if (!GetEnabled()) {
+    return cros_tokens::kCrosSysDisabled;
+  }
+  return toggled_ ? foreground_toggled_color_.value_or(
+                        cros_tokens::kCrosSysSystemOnPrimaryContainer)
+                  : foreground_color_.value_or(cros_tokens::kCrosSysOnSurface);
+}
+
+void FeatureTile::UpdateIconButtonRippleColors() {
+  CHECK(is_icon_clickable_);
+  auto* ink_drop = views::InkDrop::Get(icon_button_);
+  // Set up the hover highlight.
+  ink_drop->SetCreateHighlightCallback(
+      base::BindRepeating(&CreateInkDropHighlight, icon_button_,
+                          toggled_ ? cros_tokens::kCrosSysHighlightShape
+                                   : cros_tokens::kCrosSysHoverOnSubtle));
+  // Set up the ripple color.
+  ink_drop->SetBaseColorId(toggled_
+                               ? cros_tokens::kCrosSysRipplePrimary
+                               : cros_tokens::kCrosSysRippleNeutralOnSubtle);
+  // The ripple base color includes opacity.
+  ink_drop->SetVisibleOpacity(1.0f);
+
+  // Ensure the new color applies even if the hover highlight or ripple is
+  // already showing.
+  ink_drop->GetInkDrop()->HostViewThemeChanged();
+}
+
+void FeatureTile::UpdateIconButtonFocusRingColor() {
+  CHECK(is_icon_clickable_);
+  views::FocusRing::Get(icon_button_)
       ->SetColorId(toggled_ ? cros_tokens::kCrosSysFocusRingOnPrimaryContainer
                             : cros_tokens::kCrosSysFocusRing);
 }
 
-void FeatureTile::CreateDrillInButtonView(
-    base::RepeatingCallback<void()> callback,
-    const std::u16string& tooltip_text) {
-  DCHECK_EQ(type_, TileType::kPrimary);
+void FeatureTile::UpdateDrillInArrowColor() {
+  CHECK(drill_in_arrow_);
+  drill_in_arrow_->SetImage(ui::ImageModel::FromVectorIcon(
+      kQuickSettingsRightArrowIcon, GetIconColorId()));
+}
 
-  const bool has_callback = callback != base::RepeatingClosure();
-
-  auto drill_in_button = std::make_unique<views::LabelButton>(callback);
-  drill_in_button->SetLayoutManager(std::make_unique<FlexLayout>())
-      ->SetMainAxisAlignment(views::LayoutAlignment::kCenter)
-      .SetCrossAxisAlignment(views::LayoutAlignment::kCenter);
-  drill_in_button->SetPreferredSize(kDrillContainerSize);
-  drill_in_button->SetFocusBehavior(FocusBehavior::NEVER);
-  drill_in_button->SetTooltipText(tooltip_text);
-
-  auto drill_in_arrow = std::make_unique<IconButton>(
-      callback,
-      has_callback ? IconButton::Type::kXSmall
-                   : IconButton::Type::kXSmallFloating,
-      &kQuickSettingsRightArrowIcon, tooltip_text,
-      /*togglable=*/is_togglable_,
-      /*has_border=*/true);
-
-  // Focus behavior is set on this view, but we let its parent view
-  // `drill_in_button_` handle the button events.
-  drill_in_arrow->SetCanProcessEventsWithinSubtree(false);
-
-  drill_in_arrow->SetIconColorId(cros_tokens::kCrosSysSecondary);
-  drill_in_arrow->SetIconToggledColorId(
-      cros_tokens::kCrosSysSystemOnPrimaryContainer);
-
-  if (has_callback) {
-    // Buttons with a drill-in callback set a background color for the icon
-    // button.
-    drill_in_arrow->SetBackgroundColorId(cros_tokens::kCrosSysHoverOnSubtle);
-    drill_in_arrow->SetBackgroundToggledColorId(
-        cros_tokens::kCrosSysHighlightShape);
-
-    // TODO(b/262615213): Delete when Jelly launches.
-    if (!chromeos::features::IsJellyEnabled()) {
-      drill_in_arrow->SetBackgroundColorId(
-          kColorAshControlBackgroundColorInactive);
-      drill_in_arrow->SetBackgroundToggledColorId(
-          static_cast<ui::ColorId>(kColorAshTileSmallCircle));
-    }
-  } else {
-    // Decorative drill-in buttons do not focus the drill-in arrow nor process
-    // drill-in button events.
-    drill_in_button->SetCanProcessEventsWithinSubtree(false);
-    drill_in_arrow->SetFocusBehavior(FocusBehavior::NEVER);
-  }
-
-  drill_in_button_ = AddChildView(std::move(drill_in_button));
-  drill_in_arrow_ = drill_in_button_->AddChildView(std::move(drill_in_arrow));
+void FeatureTile::SetCompactTileLabelPreferences(bool has_sub_label) {
+  label_->SetPreferredSize(has_sub_label ? kCompactOneRowTitleLabelSize
+                                         : kCompactTwoRowTitleLabelSize);
+  label_->SetMultiLine(!has_sub_label);
+  // Elide after 2 lines if there's no sub-label. Otherwise, 1 line.
+  label_->SetMaxLines(has_sub_label ? 1 : 2);
 }
 
 BEGIN_METADATA(FeatureTile, views::Button)

@@ -5,6 +5,7 @@
 module blink.mojom;
 
 import "cc/mojom/browser_controls_state.mojom";
+import "mojo/public/mojom/base/shared_memory.mojom";
 import "mojo/public/mojom/base/string16.mojom";
 import "mojo/public/mojom/base/text_direction.mojom";
 import "mojo/public/mojom/base/time.mojom";
@@ -17,6 +18,8 @@ import "services/network/public/mojom/load_timing_info.mojom";
 import "services/network/public/mojom/network_types.mojom";
 import "services/network/public/mojom/source_location.mojom";
 import "services/network/public/mojom/url_loader_completion_status.mojom";
+import "services/network/public/mojom/attribution.mojom";
+import "skia/public/mojom/bitmap.mojom";
 import "skia/public/mojom/skcolor.mojom";
 import "skia/public/mojom/skcolor4f.mojom";
 import "third_party/blink/public/mojom/blob/blob.mojom";
@@ -28,6 +31,7 @@ import "third_party/blink/public/mojom/css/preferred_color_scheme.mojom";
 import "third_party/blink/public/mojom/devtools/console_message.mojom";
 import "third_party/blink/public/mojom/devtools/devtools_agent.mojom";
 import "third_party/blink/public/mojom/devtools/inspector_issue.mojom";
+import "third_party/blink/public/mojom/drag/drag.mojom";
 import "third_party/blink/public/mojom/favicon/favicon_url.mojom";
 import "third_party/blink/public/mojom/fenced_frame/fenced_frame.mojom";
 import "third_party/blink/public/mojom/fenced_frame/fenced_frame_config.mojom";
@@ -189,6 +193,8 @@ struct IframeAttributes {
   bool credentialless;
   // 'browsingtopics' attribute of the iframe.
   bool browsing_topics;
+  // 'sharedstoragewritable' attribute of the iframe.
+  bool shared_storage_writable;
   // 'id' attribute of the iframe. This can be optional because id might not be set.
   string? id;
   // 'name' attribute of the iframe. This is different from window.name, which is
@@ -196,6 +202,15 @@ struct IframeAttributes {
   string? name;
   // 'src' attribute of the iframe. Optional because it might not be set.
   string? src;
+};
+
+// Code location for an enterprise legacy technology event. The data will be
+// uploaded to the enterprise management server without being parsed by the
+// browser process.
+struct LegacyTechEventCodeLocation {
+  string filename;
+  uint64 line;
+  uint64 column;
 };
 
 // Implemented in Browser, this interface defines frame-specific methods that
@@ -220,6 +235,18 @@ interface LocalFrameHost {
   // Notifies the browser that the current frame has either become or is no
   // longer fullscreen. |options| is only provided if |is_fullscreen == true|.
   FullscreenStateChanged(bool is_fullscreen, FullscreenOptions? options);
+
+  // Request browser to maximize window. Link to I2P:
+  // https://groups.google.com/a/chromium.org/g/blink-dev/c/oCxWg8q_OQY/m/LUTw0T5cCQAJ
+  Maximize();
+
+  // Request browser to minimize window. Link to I2P:
+  // https://groups.google.com/a/chromium.org/g/blink-dev/c/oCxWg8q_OQY/m/LUTw0T5cCQAJ
+  Minimize();
+
+  // Request browser to restore window. Link to I2P:
+  // https://groups.google.com/a/chromium.org/g/blink-dev/c/oCxWg8q_OQY/m/LUTw0T5cCQAJ
+  Restore();
 
   // Register a new handler for URL requests with the given scheme. |scheme|
   // and |url| are provided directly from javascript. See
@@ -606,18 +633,72 @@ interface LocalFrameHost {
   // For the list of available reporting destinations, see enum
   // ReportingDestination defined in:
   // third_party/blink/public/mojom/fenced_frame/fenced_frame_config.mojom
-  SendFencedFrameReportingBeacon(string event_data,
-                                 string event_type,
-                                 array<ReportingDestination> destinations);
+  // `attribution_reporting_runtime_features` indicates whether Attribution
+  // Reporting API related runtime features are enabled and is needed for
+  // integration with Attribution Reporting API.
+  //
+  // TODO(crbug.com/1443561): Get rid of
+  // `attribution_reporting_runtime_features` when Runtime Feature State fully
+  // supports runtime feature access from the browser process.
+  SendFencedFrameReportingBeacon(
+      string event_data,
+      string event_type,
+      array<ReportingDestination> destinations,
+      network.mojom.AttributionReportingRuntimeFeatures
+          attribution_reporting_runtime_features);
+
+  // See:
+  // https://github.com/WICG/turtledove/blob/main/Fenced_Frames_Ads_Reporting.md
+  //
+  // This implements the API:
+  // window.fence.reportEvent({destinationURL})
+  //
+  // A document in a fenced frame can invoke the reportEvent API to request the
+  // browser to send a beacon to the https URL `destinationURL`, where macros
+  // in `destinationURL` will be substituted using the values specified by
+  // registerAdMacro in the Protected Audience auction's buyer worklet.
+  //
+  // TODO(crbug.com/1443561): Get rid of
+  // `attribution_reporting_runtime_features` when Runtime Feature State fully
+  // supports runtime feature access from the browser process.
+  SendFencedFrameReportingBeaconToCustomURL(
+      url.mojom.Url destination_url,
+      network.mojom.AttributionReportingRuntimeFeatures
+          attribution_reporting_runtime_features);
+
+  // Notify the browser that there is a legacy technology used by the page.
+  // The event contains the technology `type` and code location from the
+  // ExecutionContext.
+  // The event will only be sent when legacy tech report feature is turned on by
+  // the browser.
+  // All data will be later uploaded to the enterprise management service as is.
+  // Note that we don't guarantee any data here is valid, data will be valided
+  // by the server.
+  SendLegacyTechEvent(
+    string type,
+    LegacyTechEventCodeLocation code_location);
 
   // Fenced frames can send beacons automatically when an event happens.
   //
-  // For now, only "reserved.top_navigation" is supported. The `event_data` is
-  // installed in the RenderFrameHost and will be sent toward `destinations` on
-  // the next cross-document top-frame navigation.
+  // For now, only "reserved.top_navigation_start" and
+  // "reserved.top_navigation_commit" is supported ("reserved.top_navigation"
+  // will still work, but is deprecated). The `event_data` is installed in the
+  // RenderFrameHost and will be sent toward `destinations` on the next
+  // cross-document top-frame navigation.
+  // `attribution_reporting_runtime_features` indicates whether Attribution
+  // Reporting API related runtime features are enabled and is needed for
+  // integration with Attribution Reporting API.
+  //
+  // TODO(crbug.com/1443561): Get rid of
+  // `attribution_reporting_runtime_features` when Runtime Feature State fully
+  // supports runtime feature access from the browser process.
   SetFencedFrameAutomaticBeaconReportEventData(
+      AutomaticBeaconType event_type,
       string event_data,
-      array<ReportingDestination> destinations);
+      array<ReportingDestination> destinations,
+      network.mojom.AttributionReportingRuntimeFeatures
+          attribution_reporting_runtime_features,
+      bool once);
 
   // See:
   // https://github.com/WICG/turtledove/blob/main/FLEDGE_extended_PA_reporting.md
@@ -681,26 +762,43 @@ interface LocalFrameHost {
   // See https://github.com/WICG/view-transitions/blob/main/explainer.md#declarative-opt-in-to-transitions.
   OnViewTransitionOptInChanged(
     ViewTransitionSameOriginOptIn view_transition_opt_in);
+
+  // Used to tell the browser the user started dragging in the content area.
+  // |drag_data| contains contextual information about the pieces of the page
+  // the user dragged. The browser uses this notification to initiate a drag
+  // session at the OS level.
+  StartDragging(DragData drag_data,
+                AllowedDragOperations operations_allowed,
+                skia.mojom.BitmapN32? image,
+                gfx.mojom.Vector2d cursor_offset_in_dip,
+                gfx.mojom.Rect drag_obj_rect_in_dip,
+                DragEventSourceInfo event_info);
 };
 
 // Implemented in Browser, this interface defines frame-specific methods
 // that will be invoked from the renderer process
-// (e.g. blink::LocalFrame) but processed at a higher priority than
-// methods invoked on the LocalFrameHost interface.
+// (e.g. blink::LocalFrame).
 //
 // Note this interface is not a channel-associated interface and as such
 // there are no ordering guarantees for messages sent on this interface
-// against the messages sent on LocalFrameHost. This interface is for
-// experimental purposes (https://crbug.com/1377753).
+// against messages sent to LocalFrameHost. These messages are only
+// meaningful if they arrive before navigation because these messages
+// are intended to prepare for navigation. This is why this interface is
+// not a channel-associated interface. This interface is for
+// experimental purposes (https://crbug.com/1377753,
+// https://crbug.com/1431792).
 interface NonAssociatedLocalFrameHost {
-  // Notifies that a renderer-initiated navigation to |url| will
-  // potentially start soon. This is fired before the beforeunload event
-  // (if it's needed) gets dispatched in the renderer, so that the
-  // browser can speculatively start service worker before processing
-  // beforeunload event, which might take a long time. Note that the
-  // navigation might not actually start, e.g. if it gets canceled by
-  // beforeunload.
-  WillPotentiallyStartOutermostMainFrameNavigation(url.mojom.Url url);
+  // Notifies that a renderer-initiated navigation to `urls` will
+  // potentially start.
+  // This is fired in the following situations so that the browser can
+  // speculatively start or warm-up service workers, which might take a
+  // long time to start.
+  // - The anchor tag is in the viewport.
+  // - The mouse hovered the anchor tag.
+  // - The mousedown event gets dispatched on the anchor tag.
+  // - The beforeunload event gets dispatched.
+  // Note that the navigation might not actually start.
+  MaybeStartOutermostMainFrameNavigation(array<url.mojom.Url> urls);
 };
 
 // Implemented in Blink, this interface defines frame-specific methods that will
@@ -1080,7 +1178,8 @@ interface LocalMainFrame {
   //
   InstallCoopAccessMonitor(
       blink.mojom.FrameToken accessed_window,
-      network.mojom.CrossOriginOpenerPolicyReporterParams coop_reporter_info);
+      network.mojom.CrossOriginOpenerPolicyReporterParams coop_reporter_info,
+      bool is_in_same_virtual_coop_related_group);
 
   // Called on the main frame of a page embedded in a Portal when it is
   // activated. The frame has the option to adopt the previous page as a portal
@@ -1108,6 +1207,11 @@ interface LocalMainFrame {
   UpdateBrowserControlsState(cc.mojom.BrowserControlsState constraints,
                              cc.mojom.BrowserControlsState current,
                              bool animate);
+
+  // Transmits data to V8CrowdsourcedCompileHintsConsumer in the renderer. The
+  // data is a Bloom filter describing which JavaScript functions on the page
+  // should be eagerly parsed & compiled by the JS engine.
+  SetV8CompileHints(mojo_base.mojom.ReadOnlySharedMemoryRegion data);
 };
 
 // Implemented in Browser, this interface defines local-main-frame-specific
@@ -1164,4 +1268,8 @@ interface LocalMainFrameHost {
   // document of a main frame. After this, it is no longer safe to show a
   // pending navigation's URL, because a URL spoof is possible.
   DidAccessInitialMainDocument();
+
+  // Set the browser window to resizable or not. Link to I2P:
+  // https://groups.google.com/a/chromium.org/g/blink-dev/c/oCxWg8q_OQY/m/LUTw0T5cCQAJ
+  SetResizable(bool resizable);
 };

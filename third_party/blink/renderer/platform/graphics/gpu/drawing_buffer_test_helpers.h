@@ -5,6 +5,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_GRAPHICS_GPU_DRAWING_BUFFER_TEST_HELPERS_H_
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_GRAPHICS_GPU_DRAWING_BUFFER_TEST_HELPERS_H_
 
+#include "base/memory/raw_ptr.h"
 #include "build/build_config.h"
 #include "cc/test/stub_decode_cache.h"
 #include "components/viz/test/test_context_provider.h"
@@ -77,6 +78,10 @@ class WebGraphicsContext3DProviderForTests
                       cc::PaintCanvas* canvas) override {}
   viz::RasterContextProvider* RasterContextProvider() const override {
     return nullptr;
+  }
+  unsigned int GetGrGLTextureFormat(
+      viz::SharedImageFormat format) const override {
+    return 0;
   }
 
  private:
@@ -306,7 +311,14 @@ class GLES2InterfaceForTests : public gpu::gles2::GLES2InterfaceStub,
     // Not unit tested yet. Tested with end-to-end tests.
     return false;
   }
-  void DrawingBufferClientForceLostContextWithAutoRecovery() override {
+  void DrawingBufferClientForceLostContextWithAutoRecovery(
+      const char* reason) override {
+    // Not unit tested yet. Tested with end-to-end tests.
+  }
+  void DrawingBufferClientInterruptPixelLocalStorage() override {
+    // Not unit tested yet. Tested with end-to-end tests.
+  }
+  void DrawingBufferClientRestorePixelLocalStorage() override {
     // Not unit tested yet. Tested with end-to-end tests.
   }
 
@@ -434,6 +446,7 @@ class DrawingBufferForTests : public DrawingBuffer {
             std::move(extensions_util),
             client,
             false /* discardFramebufferSupported */,
+            false /* textureStorageEnabled */,
             true /* wantAlphaChannel */,
             true /* premultipliedAlpha */,
             preserve,
@@ -460,7 +473,7 @@ class DrawingBufferForTests : public DrawingBuffer {
         ContextProvider()->SharedImageInterface());
   }
 
-  bool* live_;
+  raw_ptr<bool, ExperimentalRenderer> live_;
 
   int RecycledBitmapCount() { return recycled_bitmaps_.size(); }
 };

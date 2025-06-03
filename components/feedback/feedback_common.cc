@@ -18,6 +18,10 @@
 #include "components/feedback/proto/math.pb.h"
 #include "google_apis/gaia/gaia_auth_util.h"
 
+#if BUILDFLAG(IS_CHROMEOS_ASH)
+#include "ash/constants/ash_features.h"
+#endif
+
 namespace {
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
@@ -40,6 +44,17 @@ constexpr char kZipExt[] = ".zip";
 
 constexpr char kPngMimeType[] = "image/png";
 constexpr char kArbitraryMimeType[] = "application/octet-stream";
+
+#if BUILDFLAG(IS_CHROMEOS_ASH)
+// Keep in sync with
+// google3/java/com/google/wireless/android/tools/betterbug/protos/uploadfeedbackreport.proto.
+constexpr char kIsCrossDeviceIssueKey[] = "is_cross_device_issue";
+constexpr char kIsCrossDeviceIssueTrueValue[] = "true";
+constexpr char kTargetDeviceIdKey[] = "target_device_id";
+constexpr char kTargetDeviceIdTypeKey[] = "target_device_id_type";
+// Enum value for MAC_ADDRESS type.
+constexpr char kTargetDeviceIdTypeMacAddressValue[] = "1";
+#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
 // Determine if the given feedback value is small enough to not need to
 // be compressed.
@@ -144,7 +159,11 @@ void FeedbackCommon::PrepareReport(
   *(chrome_data.mutable_chrome_browser_data()) = chrome_browser_data;
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
   chrome_data.set_chrome_platform(chrome_platform);
-  *(feedback_data->mutable_chrome_data()) = chrome_data;
+  // TODO(b/301518187): Investigate if this line is needed in order for custom
+  // product IDs to work. Remove `include_chrome_platform_` if it's not needed.
+  if (include_chrome_platform_) {
+    *(feedback_data->mutable_chrome_data()) = chrome_data;
+  }
 
   feedback_data->set_product_id(HasProductId() ? product_id_
                                                : default_product_id);
@@ -157,7 +176,9 @@ void FeedbackCommon::PrepareReport(
   common_data->set_source_description_language(locale());
 
   userfeedback::WebData* web_data = feedback_data->mutable_web_data();
-  web_data->set_url(page_url());
+  if (!page_url().empty()) {
+    web_data->set_url(page_url());
+  }
   web_data->mutable_navigator()->set_user_agent(user_agent());
 
   AddFilesAndLogsToReport(feedback_data);
@@ -180,6 +201,17 @@ void FeedbackCommon::PrepareReport(
 
   if (category_tag().size())
     feedback_data->set_bucket(category_tag());
+#if BUILDFLAG(IS_CHROMEOS_ASH)
+  if (ash::features::IsLinkCrossDeviceDogfoodFeedbackEnabled() &&
+      gaia::IsGoogleInternalAccountEmail(user_email()) &&
+      mac_address_.has_value()) {
+    AddFeedbackData(feedback_data, kIsCrossDeviceIssueKey,
+                    kIsCrossDeviceIssueTrueValue);
+    AddFeedbackData(feedback_data, kTargetDeviceIdKey, mac_address_.value());
+    AddFeedbackData(feedback_data, kTargetDeviceIdTypeKey,
+                    kTargetDeviceIdTypeMacAddressValue);
+  }
+#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 }
 
 void FeedbackCommon::RedactDescription(redaction::RedactionTool& redactor) {

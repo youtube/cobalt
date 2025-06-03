@@ -612,8 +612,9 @@ ProgramInfoManager::ProgramInfoManager() = default;
 ProgramInfoManager::~ProgramInfoManager() = default;
 
 ProgramInfoManager::Program* ProgramInfoManager::GetProgramInfo(
-    GLES2Implementation* gl, GLuint program, ProgramInfoType type) {
-  lock_.AssertAcquired();
+    GLES2Implementation* gl,
+    GLuint program,
+    ProgramInfoType type) {
   ProgramInfoMap::iterator it = program_infos_.find(program);
   if (it == program_infos_.end()) {
     return nullptr;
@@ -962,7 +963,7 @@ bool ProgramInfoManager::GetActiveUniformBlockiv(
 void ProgramInfoManager::UniformBlockBinding(
     GLES2Implementation* gl, GLuint program, GLuint index, GLuint binding) {
   GLuint max_bindings =
-      static_cast<GLuint>(gl->capabilities().max_uniform_buffer_bindings);
+      static_cast<GLuint>(gl->gl_capabilities().max_uniform_buffer_bindings);
   if (binding < max_bindings) {
     base::AutoLock auto_lock(lock_);
     // If UniformBlock info haven't been cached yet, skip updating the binding.

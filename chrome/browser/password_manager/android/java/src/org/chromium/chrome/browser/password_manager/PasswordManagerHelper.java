@@ -5,8 +5,6 @@
 package org.chromium.chrome.browser.password_manager;
 
 import static org.chromium.chrome.browser.flags.ChromeFeatureList.PASSKEY_MANAGEMENT_USING_ACCOUNT_SETTINGS_ANDROID;
-import static org.chromium.chrome.browser.flags.ChromeFeatureList.UNIFIED_PASSWORD_MANAGER_ANDROID;
-import static org.chromium.chrome.browser.flags.ChromeFeatureList.UNIFIED_PASSWORD_MANAGER_ANDROID_BRANDING;
 
 import android.app.PendingIntent;
 import android.app.PendingIntent.CanceledException;
@@ -26,7 +24,7 @@ import com.google.android.gms.common.api.ApiException;
 
 import org.chromium.base.Callback;
 import org.chromium.base.metrics.RecordHistogram;
-import org.chromium.base.supplier.ObservableSupplier;
+import org.chromium.base.supplier.Supplier;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.loading_modal.LoadingModalDialogCoordinator;
 import org.chromium.chrome.browser.password_manager.CredentialManagerLauncher.CredentialManagerBackendException;
@@ -34,11 +32,12 @@ import org.chromium.chrome.browser.password_manager.CredentialManagerLauncher.Cr
 import org.chromium.chrome.browser.password_manager.PasswordCheckupClientHelper.PasswordCheckBackendException;
 import org.chromium.chrome.browser.preferences.Pref;
 import org.chromium.chrome.browser.profiles.Profile;
-import org.chromium.chrome.browser.sync.SyncService;
+import org.chromium.chrome.browser.sync.SyncServiceFactory;
 import org.chromium.components.browser_ui.settings.SettingsLauncher;
 import org.chromium.components.prefs.PrefService;
 import org.chromium.components.signin.base.CoreAccountInfo;
 import org.chromium.components.sync.ModelType;
+import org.chromium.components.sync.SyncService;
 import org.chromium.components.sync.UserSelectableType;
 import org.chromium.components.user_prefs.UserPrefs;
 import org.chromium.ui.modaldialog.ModalDialogManager;
@@ -148,8 +147,7 @@ public class PasswordManagerHelper {
      */
     public static void showPasswordSettings(Context context, @ManagePasswordsReferrer int referrer,
             SettingsLauncher settingsLauncher, SyncService syncService,
-            ObservableSupplier<ModalDialogManager> modalDialogManagerSupplier,
-            boolean managePasskeys) {
+            Supplier<ModalDialogManager> modalDialogManagerSupplier, boolean managePasskeys) {
         RecordHistogram.recordEnumeratedHistogram("PasswordManager.ManagePasswordsReferrer",
                 referrer, ManagePasswordsReferrer.MAX_VALUE + 1);
 
@@ -204,10 +202,10 @@ public class PasswordManagerHelper {
      * @return True if Unified Password Manager can be used, false otherwise.
      */
     public static boolean canUseUpm() {
-        SyncService syncService = SyncService.get();
-        PrefService prefService = UserPrefs.get(Profile.getLastUsedRegularProfile());
-        return PasswordManagerHelper.usesUnifiedPasswordManagerUI() && syncService != null
-                && hasChosenToSyncPasswords(syncService)
+        Profile profile = Profile.getLastUsedRegularProfile();
+        SyncService syncService = SyncServiceFactory.getForProfile(profile);
+        PrefService prefService = UserPrefs.get(profile);
+        return syncService != null && hasChosenToSyncPasswords(syncService)
                 && !prefService.getBoolean(
                         Pref.UNENROLLED_FROM_GOOGLE_MOBILE_SERVICES_DUE_TO_ERRORS)
                 && PasswordManagerBackendSupportHelper.getInstance().isBackendPresent();
@@ -224,9 +222,7 @@ public class PasswordManagerHelper {
      * @return True if the AccountSettings intent is available for use, false otherwise.
      */
     public static boolean canUseAccountSettings() {
-        PrefService prefService = UserPrefs.get(Profile.getLastUsedRegularProfile());
-        return PasswordManagerHelper.usesUnifiedPasswordManagerUI()
-                && ChromeFeatureList.isEnabled(PASSKEY_MANAGEMENT_USING_ACCOUNT_SETTINGS_ANDROID)
+        return ChromeFeatureList.isEnabled(PASSKEY_MANAGEMENT_USING_ACCOUNT_SETTINGS_ANDROID)
                 && PasswordManagerBackendSupportHelper.getInstance().isBackendPresent();
     }
 
@@ -240,8 +236,7 @@ public class PasswordManagerHelper {
      *         loading dialog.
      */
     public static void showPasswordCheckup(Context context, @PasswordCheckReferrer int referrer,
-            SyncService syncService,
-            ObservableSupplier<ModalDialogManager> modalDialogManagerSupplier) {
+            SyncService syncService, Supplier<ModalDialogManager> modalDialogManagerSupplier) {
         assert canUseUpm();
 
         Optional<String> account = hasChosenToSyncPasswords(syncService)
@@ -377,35 +372,9 @@ public class PasswordManagerHelper {
         return true;
     }
 
-    public static boolean usesUnifiedPasswordManagerUI() {
-        if (!ChromeFeatureList.isEnabled(UNIFIED_PASSWORD_MANAGER_ANDROID)) return false;
-        @UpmExperimentVariation
-        int variation = ChromeFeatureList.getFieldTrialParamByFeatureAsInt(
-                UNIFIED_PASSWORD_MANAGER_ANDROID, UPM_VARIATION_FEATURE_PARAM,
-                UpmExperimentVariation.ENABLE_FOR_SYNCING_USERS);
-        switch (variation) {
-            case UpmExperimentVariation.ENABLE_FOR_SYNCING_USERS:
-            case UpmExperimentVariation.ENABLE_FOR_ALL_USERS:
-                return true;
-            case UpmExperimentVariation.SHADOW_SYNCING_USERS:
-            case UpmExperimentVariation.ENABLE_ONLY_BACKEND_FOR_SYNCING_USERS:
-                return false;
-        }
-        assert false : "Whether to use UI is undefined for variation: " + variation;
-        return false;
-    }
-
-    public static boolean usesUnifiedPasswordManagerBranding() {
-        return usesUnifiedPasswordManagerUI()
-                || ChromeFeatureList.isEnabled(UNIFIED_PASSWORD_MANAGER_ANDROID_BRANDING);
-    }
-
     // TODO(http://crbug.com/1371422): Remove method and manage eviction from native code
     // as this is covered by chrome://password-manager-internals page.
     public static void resetUpmUnenrollment() {
-        // Exit early if Chrome doesn't need UPM UI. Assumes the unenroll pref isn't included in
-        // the usesUnifiedPasswordManagementUI check.
-        if (!PasswordManagerHelper.usesUnifiedPasswordManagerUI()) return;
         PrefService prefs = UserPrefs.get(Profile.getLastUsedRegularProfile());
 
         // Exit early if the user is not unenrolled.
@@ -437,7 +406,7 @@ public class PasswordManagerHelper {
     @VisibleForTesting
     static void launchTheCredentialManager(@ManagePasswordsReferrer int referrer,
             SyncService syncService, LoadingModalDialogCoordinator loadingDialogCoordinator,
-            ObservableSupplier<ModalDialogManager> modalDialogManagerSupplier, Context context) {
+            Supplier<ModalDialogManager> modalDialogManagerSupplier, Context context) {
         assert canUseUpm();
         assert syncService != null;
 
@@ -468,7 +437,7 @@ public class PasswordManagerHelper {
     @VisibleForTesting
     static void launchPasswordCheckup(@PasswordCheckReferrer int referrer, Optional<String> account,
             LoadingModalDialogCoordinator loadingDialogCoordinator,
-            ObservableSupplier<ModalDialogManager> modalDialogManagerSupplier, Context context) {
+            Supplier<ModalDialogManager> modalDialogManagerSupplier, Context context) {
         assert canUseUpm();
 
         PasswordCheckupClientHelper checkupClient;
@@ -629,7 +598,7 @@ public class PasswordManagerHelper {
     }
 
     private static void showGmsUpdateDialog(
-            ObservableSupplier<ModalDialogManager> modalDialogManagerSupplier, Context context) {
+            Supplier<ModalDialogManager> modalDialogManagerSupplier, Context context) {
         ModalDialogManager modalDialogManager = modalDialogManagerSupplier.get();
         if (modalDialogManager == null) return;
 

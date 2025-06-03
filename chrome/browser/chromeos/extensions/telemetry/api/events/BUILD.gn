@@ -2,9 +2,9 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("//build/config/chromeos/ui_mode.gni")
 import("//chrome/common/chromeos/extensions/api/api_sources.gni")
 import("//extensions/buildflags/buildflags.gni")
-import("//tools/json_schema_compiler/json_schema_api.gni")
 
 assert(enable_extensions,
        "Cannot depend on extensions because enable_extensions=false.")
@@ -25,7 +25,15 @@ source_set("events") {
     "//chrome/common/chromeos/extensions/api",
     "//chromeos/crosapi/mojom",
     "//extensions/browser",
+    "//url",
   ]
+
+  if (is_chromeos_ash) {
+    deps += [
+      "//chrome/browser/profiles:profile",
+      "//chrome/browser/ui",
+    ]
+  }
 
   if (is_chromeos_lacros) {
     deps += [ "//chromeos/lacros" ]
@@ -53,7 +61,7 @@ source_set("event_router") {
   ]
 
   if (is_chromeos_ash) {
-    deps += [ "//chrome/browser/ash/telemetry_extension" ]
+    deps += [ "//chrome/browser/ash/telemetry_extension/events" ]
   }
 
   if (is_chromeos_lacros) {
@@ -72,15 +80,17 @@ source_set("event_manager") {
   deps = [
     ":event_router",
     "//base",
-    "//chrome/browser/profiles:profile",
-    "//chrome/browser/ui",
+    "//chrome/browser/chromeos/extensions/telemetry/api/common",
+    "//chrome/browser/chromeos/extensions/telemetry/api/common:util",
     "//chrome/common/chromeos/extensions",
     "//chromeos/crosapi/mojom",
     "//content/public/browser",
-    "//extensions/common",
   ]
 
-  public_deps = [ "//extensions/browser" ]
+  public_deps = [
+    "//extensions/browser",
+    "//extensions/common",
+  ]
 }
 
 source_set("event_converters") {
@@ -93,45 +103,23 @@ source_set("event_converters") {
     "//base",
     "//chrome/common/chromeos/extensions/api",
     "//chromeos/crosapi/mojom",
+    "//third_party/abseil-cpp:absl",
   ]
 }
 
-function_registration("api_registration") {
-  sources = chromeos_system_extensions_api_schema_sources
-  impl_dir = "//chrome/browser/chromeos/extensions/telemetry/api/events"
-  configs = [ "//build/config:precompiled_headers" ]
-  bundle_name = "ChromeOS"
-  root_namespace = chromeos_system_extensions_api_root_namespace
-  schema_include_rules = chromeos_system_extensions_api_schema_include_rules
-
-  deps = [
-    ":events",
-    "//base",
-    "//extensions/common",
-  ]
-}
-
-source_set("browser_tests") {
+source_set("test_support") {
   testonly = true
-  defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
   sources = [
-    "events_api_browsertests.cc",
     "fake_events_service.cc",
     "fake_events_service.h",
   ]
 
-  deps = [
-    ":events",
-    "//chrome/browser/chromeos/extensions/telemetry/api/common:test_support",
-    "//chrome/test:test_support_ui",
-    "//chromeos/crosapi/mojom",
-    "//content/test:test_support",
-    "//extensions/common",
-    "//mojo/public/cpp/bindings",
-    "//testing/gtest",
-  ]
+  deps = [ "//base/test:test_support" ]
 
-  data = [ "//chrome/test/data" ]
+  public_deps = [
+    "//chromeos/crosapi/mojom",
+    "//mojo/public/cpp/bindings",
+  ]
 
   if (is_chromeos_ash) {
     sources += [
@@ -139,7 +127,35 @@ source_set("browser_tests") {
       "fake_events_service_factory.h",
     ]
 
-    deps += [ "//chrome/browser/ash/telemetry_extension" ]
+    public_deps += [ "//chrome/browser/ash/telemetry_extension/events" ]
+  }
+}
+
+source_set("browser_tests") {
+  testonly = true
+  defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+  sources = [ "events_api_browsertest.cc" ]
+
+  deps = [
+    ":events",
+    ":test_support",
+    "//chrome/browser/chromeos/extensions/telemetry/api/common:test_support",
+    "//chrome/test:test_support_ui",
+    "//chromeos/crosapi/mojom",
+    "//content/test:test_support",
+    "//extensions/common",
+    "//mojo/public/cpp/bindings",
+    "//testing/gtest",
+    "//url",
+  ]
+
+  data = [ "//chrome/test/data" ]
+
+  if (is_chromeos_ash) {
+    deps += [
+      "//chrome/browser/profiles:profile",
+      "//chrome/browser/ui",
+    ]
   }
 
   if (is_chromeos_lacros) {
@@ -149,14 +165,39 @@ source_set("browser_tests") {
 
 source_set("unit_tests") {
   testonly = true
-  sources = [ "events_api_converters_unittest.cc" ]
+  sources = [
+    "event_manager_unittest.cc",
+    "events_api_converters_unittest.cc",
+  ]
 
   deps = [
     ":event_converters",
+    ":event_manager",
+    ":event_router",
+    ":test_support",
+    "//chrome/browser/chromeos/extensions/telemetry/api/common:common",
+    "//chrome/browser/ui",
+    "//chrome/common/chromeos/extensions",
     "//chrome/common/chromeos/extensions/api",
+    "//chrome/test:test_support",
     "//chromeos/crosapi/mojom",
+    "//content/public/browser",
+    "//net",
+    "//net:test_support",
+    "//testing/gmock",
     "//testing/gtest",
   ]
+
+  if (is_chromeos_ash) {
+    deps += [
+      "//chrome/common",
+      "//chromeos/constants",
+    ]
+  }
+
+  if (is_chromeos_lacros) {
+    deps += [ "//chromeos/lacros" ]
+  }
 }
 
 source_set("extensions_unittests") {

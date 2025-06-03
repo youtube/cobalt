@@ -156,7 +156,9 @@ SBOX_TESTS_COMMAND int IntegrationTestsTest_memory(int argc, wchar_t** argv) {
 
   volatile void* ptr = nullptr;
   do {
-    ptr = malloc(32 * 1000 * 1000);
+    // Avoiding malloc as PA will throw an unrecoverable exception that races
+    // with job memory limit notification.
+    ptr = ::VirtualAlloc(nullptr, 32 * 1000 * 1000, MEM_COMMIT, PAGE_READWRITE);
     base::debug::Alias(&ptr);
   } while (ptr);
 
@@ -303,8 +305,9 @@ TEST(IntegrationTestsTest, GetPolicyDiagnosticsReflectsActiveChildren) {
 
   runner.GetPolicy()->AddHandleToShare(handle_started.Get());
   runner.GetPolicy()->AddHandleToShare(handle_done.Get());
-  auto cmd_line = base::StringPrintf(L"IntegrationTestsTest_event %p %p",
-                                     handle_started.Get(), handle_done.Get());
+  auto cmd_line = base::ASCIIToWide(
+      base::StringPrintf("IntegrationTestsTest_event %p %p",
+                         handle_started.Get(), handle_done.Get()));
 
   ASSERT_EQ(SBOX_TEST_SUCCEEDED, runner.RunTest(cmd_line.c_str()));
   ASSERT_EQ(WAIT_OBJECT_0,
@@ -348,8 +351,8 @@ TEST(IntegrationTestsTest, JobMemoryLimitCounted) {
 
   runner.GetPolicy()->AddHandleToShare(handle_started.Get());
   runner.GetPolicy()->GetConfig()->SetJobMemoryLimit(256 * 1000 * 1000);
-  auto cmd_line = base::StringPrintf(L"IntegrationTestsTest_memory %p",
-                                     handle_started.Get());
+  auto cmd_line = base::ASCIIToWide(base::StringPrintf(
+      "IntegrationTestsTest_memory %p", handle_started.Get()));
 
   ASSERT_EQ(SBOX_TEST_SUCCEEDED, runner.RunTest(cmd_line.c_str()));
   ASSERT_EQ(WAIT_OBJECT_0,

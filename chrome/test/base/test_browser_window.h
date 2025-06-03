@@ -21,10 +21,11 @@
 #include "chrome/browser/ui/location_bar/location_bar.h"
 #include "chrome/browser/ui/translate/partial_translate_bubble_model.h"
 #include "chrome/common/buildflags.h"
+#include "components/user_education/common/feature_promo_controller.h"
 #include "ui/base/interaction/element_identifier.h"
 
 #if !BUILDFLAG(IS_ANDROID)
-#include "chrome/browser/apps/intent_helper/apps_navigation_types.h"
+#include "chrome/browser/apps/link_capturing/intent_picker_info.h"
 #endif  //  !BUILDFLAG(IS_ANDROID)
 
 class LocationBarTesting;
@@ -96,7 +97,6 @@ class TestBrowserWindow : public BrowserWindow {
                           int reason) override {}
   void OnTabDetached(content::WebContents* contents, bool was_active) override {
   }
-  void OnTabRestored(int command_id) override {}
   void ZoomChangedForActiveTab(bool can_show_bubble) override {}
   gfx::Rect GetRestoredBounds() const override;
   ui::WindowShowState GetRestoredState() const override;
@@ -108,6 +108,8 @@ class TestBrowserWindow : public BrowserWindow {
   void Maximize() override {}
   void Minimize() override {}
   void Restore() override {}
+  void SetCanResizeFromWebAPI(absl::optional<bool> can_resize) override {}
+  bool GetCanResize() override;
   bool ShouldHideUIForFullscreen() const override;
   bool IsFullscreen() const override;
   bool IsFullscreenBubbleVisible() const override;
@@ -145,9 +147,7 @@ class TestBrowserWindow : public BrowserWindow {
   bool IsLocationBarVisible() const override;
   bool IsToolbarShowing() const override;
   bool IsBorderlessModeEnabled() const override;
-  void ShowSidePanel(
-      absl::optional<SidePanelEntryId> entry_id,
-      absl::optional<SidePanelOpenTrigger> open_trigger) override {}
+  void ShowChromeLabs() override {}
   SharingDialog* ShowSharingDialog(content::WebContents* contents,
                                    SharingDialogData data) override;
   void ShowUpdateChromeDialog() override {}
@@ -168,6 +168,9 @@ class TestBrowserWindow : public BrowserWindow {
       const absl::optional<url::Origin>& initiating_origin,
       IntentPickerResponse callback) override {}
 #endif  //  !define(OS_ANDROID)
+#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
+  void VerifyUserEligibilityIOSPasswordPromoBubble() override;
+#endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
   send_tab_to_self::SendTabToSelfBubbleView*
   ShowSendTabToSelfDevicePickerBubble(content::WebContents* contents) override;
   send_tab_to_self::SendTabToSelfBubbleView* ShowSendTabToSelfPromoBubble(
@@ -239,24 +242,19 @@ class TestBrowserWindow : public BrowserWindow {
 
   user_education::FeaturePromoController* GetFeaturePromoController() override;
   bool IsFeaturePromoActive(const base::Feature& iph_feature) const override;
-  bool MaybeShowFeaturePromo(
-      const base::Feature& iph_feature,
-      user_education::FeaturePromoSpecification::StringReplacements
-          body_text_replacements = {},
-      user_education::FeaturePromoController::BubbleCloseCallback
-          close_callback = base::DoNothing()) override;
+  user_education::FeaturePromoResult CanShowFeaturePromo(
+      const base::Feature& iph_feature) const override;
+  user_education::FeaturePromoResult MaybeShowFeaturePromo(
+      user_education::FeaturePromoParams params) override;
   bool MaybeShowStartupFeaturePromo(
+      user_education::FeaturePromoParams params) override;
+  bool CloseFeaturePromo(
       const base::Feature& iph_feature,
-      user_education::FeaturePromoSpecification::StringReplacements
-          body_text_replacements = {},
-      user_education::FeaturePromoController::StartupPromoCallback
-          promo_callback = base::DoNothing(),
-      user_education::FeaturePromoController::BubbleCloseCallback
-          close_callback = base::DoNothing()) override;
-  bool CloseFeaturePromo(const base::Feature& iph_feature) override;
+      user_education::FeaturePromoCloseReason close_reason) override;
   user_education::FeaturePromoHandle CloseFeaturePromoAndContinue(
       const base::Feature& iph_feature) override;
   void NotifyFeatureEngagementEvent(const char* event_name) override;
+  void NotifyPromoFeatureUsed(const base::Feature& iph_feature) override;
 
   // Sets the controller returned by GetFeaturePromoController().
   // Deletes the existing one, if any.
@@ -283,17 +281,12 @@ class TestBrowserWindow : public BrowserWindow {
  private:
   class TestLocationBar : public LocationBar {
    public:
-    TestLocationBar() = default;
+    TestLocationBar() : LocationBar(/*command_updater=*/nullptr) {}
     TestLocationBar(const TestLocationBar&) = delete;
     TestLocationBar& operator=(const TestLocationBar&) = delete;
     ~TestLocationBar() override = default;
 
     // LocationBar:
-    GURL GetDestinationURL() const override;
-    bool IsInputTypedUrlWithoutScheme() const override;
-    WindowOpenDisposition GetWindowOpenDisposition() const override;
-    ui::PageTransition GetPageTransition() const override;
-    base::TimeTicks GetMatchSelectionTimestamp() const override;
     void FocusLocation(bool select_all) override {}
     void FocusSearch() override {}
     void UpdateContentSettingsIcons() override {}
@@ -302,12 +295,17 @@ class TestBrowserWindow : public BrowserWindow {
     const OmniboxView* GetOmniboxView() const override;
     OmniboxView* GetOmniboxView() override;
     LocationBarTesting* GetLocationBarForTesting() override;
+    LocationBarModel* GetLocationBarModel() override;
+    content::WebContents* GetWebContents() override;
+    void OnChanged() override {}
+    void OnPopupVisibilityChanged() override {}
+    void UpdateWithoutTabRestore() override {}
   };
 
   autofill::TestAutofillBubbleHandler autofill_bubble_handler_;
   TestDownloadShelf download_shelf_{nullptr};
   TestLocationBar location_bar_;
-  gfx::NativeWindow native_window_ = nullptr;
+  gfx::NativeWindow native_window_ = gfx::NativeWindow();
 
   std::string workspace_;
   bool visible_on_all_workspaces_ = false;

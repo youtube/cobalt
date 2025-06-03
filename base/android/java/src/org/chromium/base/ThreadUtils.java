@@ -8,9 +8,8 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.Process;
 
-import androidx.annotation.VisibleForTesting;
+import org.jni_zero.CalledByNative;
 
-import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
 
@@ -29,7 +28,7 @@ public class ThreadUtils {
 
     private static volatile Handler sUiThreadHandler;
 
-    private static boolean sThreadAssertsDisabled;
+    private static boolean sThreadAssertsDisabledForTesting;
 
     /**
      * A helper object to ensure that interactions with a particular object only happens on a
@@ -71,7 +70,7 @@ public class ThreadUtils {
          * on.
          */
         public void assertOnValidThread() {
-            assert sThreadAssertsDisabled
+            assert sThreadAssertsDisabledForTesting
                     || mThreadId == Process.myTid() : "Must only be used on a single thread.";
         }
     }
@@ -81,7 +80,6 @@ public class ThreadUtils {
         assert sUiThreadHandler == null;
     }
 
-    @VisibleForTesting
     public static void clearUiThreadForTesting() {
         sWillOverride = false;
         PostTask.resetUiThreadForTesting(); // IN-TEST
@@ -236,7 +234,7 @@ public class ThreadUtils {
      * Can be disabled by setThreadAssertsDisabledForTesting(true).
      */
     public static void assertOnUiThread() {
-        if (sThreadAssertsDisabled) return;
+        if (sThreadAssertsDisabledForTesting) return;
 
         assert runningOnUiThread() : "Must be called on the UI thread.";
     }
@@ -249,7 +247,7 @@ public class ThreadUtils {
      * @see #assertOnUiThread()
      */
     public static void checkUiThread() {
-        if (!sThreadAssertsDisabled && !runningOnUiThread()) {
+        if (!sThreadAssertsDisabledForTesting && !runningOnUiThread()) {
             throw new IllegalStateException("Must be called on the UI thread.");
         }
     }
@@ -260,7 +258,7 @@ public class ThreadUtils {
      * Can be disabled by setThreadAssertsDisabledForTesting(true).
      */
     public static void assertOnBackgroundThread() {
-        if (sThreadAssertsDisabled) return;
+        if (sThreadAssertsDisabledForTesting) return;
 
         assert !runningOnUiThread() : "Must be called on a thread other than UI.";
     }
@@ -273,7 +271,8 @@ public class ThreadUtils {
      * those tests).
      */
     public static void setThreadAssertsDisabledForTesting(boolean disabled) {
-        sThreadAssertsDisabled = disabled;
+        sThreadAssertsDisabledForTesting = disabled;
+        ResettersForTesting.register(() -> sThreadAssertsDisabledForTesting = false);
     }
 
     /**

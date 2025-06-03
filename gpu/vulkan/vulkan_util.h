@@ -15,12 +15,15 @@
 #include "base/component_export.h"
 #include "base/containers/span.h"
 #include "gpu/vulkan/semaphore_handle.h"
+#include "gpu/vulkan/vulkan_device_queue.h"
 
 namespace gpu {
 
 constexpr uint32_t kVendorARM = 0x13b5;
 constexpr uint32_t kVendorQualcomm = 0x5143;
 constexpr uint32_t kVendorImagination = 0x1010;
+constexpr uint32_t kVendorGoogle = 0x1AE0;
+constexpr uint32_t kDeviceSwiftShader = 0xC0DE;
 
 struct GPUInfo;
 class VulkanInfo;
@@ -114,6 +117,32 @@ VkImageLayout GLImageLayoutToVkImageLayout(uint32_t layout);
 
 COMPONENT_EXPORT(VULKAN)
 uint32_t VkImageLayoutToGLImageLayout(VkImageLayout layout);
+
+COMPONENT_EXPORT(VULKAN)
+bool IsVkExternalSemaphoreHandleTypeSupported(
+    VulkanDeviceQueue* device_queue,
+    VkExternalSemaphoreHandleTypeFlagBits handle_type);
+
+COMPONENT_EXPORT(VULKAN)
+VkResult QueryVkExternalMemoryProperties(
+    VkPhysicalDevice physical_device,
+    VkFormat format,
+    VkImageType type,
+    VkImageTiling tiling,
+    VkImageUsageFlags usage,
+    VkImageCreateFlags flags,
+    VkExternalMemoryHandleTypeFlagBits handle_type,
+    VkExternalMemoryProperties* external_memory_properties);
+
+COMPONENT_EXPORT(VULKAN)
+bool IsVkOpaqueExternalSemaphoreSupported(VulkanDeviceQueue* device_queue);
+
+COMPONENT_EXPORT(VULKAN)
+VkSemaphore CreateVkOpaqueExternalSemaphore(VkDevice vk_device);
+
+COMPONENT_EXPORT(VULKAN)
+SemaphoreHandle ExportVkOpaqueExternalSemaphore(VkDevice vk_device,
+                                                VkSemaphore vk_semaphore);
 
 }  // namespace gpu
 

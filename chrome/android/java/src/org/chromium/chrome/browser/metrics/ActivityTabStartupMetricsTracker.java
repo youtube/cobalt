@@ -9,6 +9,7 @@ import android.os.SystemClock;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.chrome.browser.flags.ActivityType;
+import org.chromium.chrome.browser.page_load_metrics.PageLoadMetrics;
 import org.chromium.chrome.browser.paint_preview.StartupPaintPreviewHelper;
 import org.chromium.chrome.browser.paint_preview.StartupPaintPreviewMetrics.PaintPreviewMetricsObserver;
 import org.chromium.chrome.browser.tab.Tab;
@@ -56,6 +57,8 @@ public class ActivityTabStartupMetricsTracker {
         }
     };
 
+    // The time of the activity onCreate(). All metrics (such as time to first visible content) are
+    // reported in milliseconds relative to this value.
     private final long mActivityStartTimeMs;
 
     // Event duration recorded from the |mActivityStartTimeMs|.
@@ -75,18 +78,34 @@ public class ActivityTabStartupMetricsTracker {
     // foreground. Used for investigating crbug.com/1273097.
     private boolean mRegisteredFirstPaintPreForeground;
 
-    // The time it took for SafeBrowsing to respond for the first time. The SB request is on the
-    // critical path to navigation commit, and the response may be severely delayed by GmsCore
-    // (see http://crbug.com/1296097). The value is recorded only when the navigation commits
-    // successfully. Updating the value atomically from another thread to provide a simpler
-    // guarantee that the value is not lost after posting a few tasks.
+    // The time it took for SafetyNet API to return a Safe Browsing response for the first time. The
+    // SB request is on the critical path to navigation commit, and the response may be severely
+    // delayed by GmsCore (see http://crbug.com/1296097). The value is recorded only when the
+    // navigation commits successfully and the URL of first navigation is checked by SafetyNet API.
+    // Updating the value atomically from another thread to provide a simpler guarantee that the
+    // value is not lost after posting a few tasks.
+    private final AtomicLong mFirstSafetyNetResponseTimeMicros = new AtomicLong();
+
+    // The time it took for SafeBrowsing API to return a Safe Browsing response for the first time.
+    // The SB request is on the critical path to navigation commit, and the response may be severely
+    // delayed by GmsCore (see http://crbug.com/1296097). The value is recorded only when the
+    // navigation commits successfully and the URL of first navigation is checked by SafeBrowsing
+    // API. Updating the value atomically from another thread to provide a simpler guarantee that
+    // the value is not lost after posting a few tasks.
     private final AtomicLong mFirstSafeBrowsingResponseTimeMicros = new AtomicLong();
 
     public ActivityTabStartupMetricsTracker(
             ObservableSupplier<TabModelSelector> tabModelSelectorSupplier) {
         mActivityStartTimeMs = SystemClock.uptimeMillis();
         tabModelSelectorSupplier.addObserver(this::registerObservers);
-        SafeBrowsingApiBridge.setOneTimeUrlCheckObserver(this::updateSafeBrowsingCheckTime);
+        SafeBrowsingApiBridge.setOneTimeSafetyNetApiUrlCheckObserver(
+                this::updateSafetyNetCheckTime);
+        SafeBrowsingApiBridge.setOneTimeSafeBrowsingApiUrlCheckObserver(
+                this::updateSafeBrowsingCheckTime);
+    }
+
+    private void updateSafetyNetCheckTime(long urlCheckTimeDeltaMicros) {
+        mFirstSafetyNetResponseTimeMicros.compareAndSet(0, urlCheckTimeDeltaMicros);
     }
 
     private void updateSafeBrowsingCheckTime(long urlCheckTimeDeltaMicros) {
@@ -103,18 +122,6 @@ public class ActivityTabStartupMetricsTracker {
         mShouldTrackStartupMetrics = true;
     }
 
-    // Note: In addition to returning false when startup metrics are not being tracked at all, this
-    // method will also return false after first navigation commit has occurred.
-    public boolean isTrackingStartupMetrics() {
-        return mShouldTrackStartupMetrics;
-    }
-
-    // Returns the time since the activity was started (relative to which metrics such as time to
-    // first visible content are calculated).
-    public long getActivityStartTimeMs() {
-        return mActivityStartTimeMs;
-    }
-
     private void registerObservers(TabModelSelector tabModelSelector) {
         if (!mShouldTrackStartupMetrics) return;
         mTabModelSelectorTabObserver =
@@ -125,19 +132,21 @@ public class ActivityTabStartupMetricsTracker {
                     public void onPageLoadStarted(Tab tab, GURL url) {
                         // Discard startup navigation measurements when the user interfered and
                         // started the 2nd navigation (in activity lifetime) in parallel.
-                        if (!mIsFirstPageLoadStart) {
-                            mShouldTrackStartupMetrics = false;
-                        } else {
+                        if (mIsFirstPageLoadStart) {
                             mIsFirstPageLoadStart = false;
+                        } else {
+                            mShouldTrackStartupMetrics = false;
                         }
                     }
 
                     @Override
                     public void onDidFinishNavigationInPrimaryMainFrame(
                             Tab tab, NavigationHandle navigation) {
-                        boolean isTrackedPage = navigation.hasCommitted()
-                                && !navigation.isErrorPage() && !navigation.isSameDocument()
-                                && UrlUtilities.isHttpOrHttps(navigation.getUrl());
+                        boolean isTrackedPage =
+                                navigation.hasCommitted()
+                                        && !navigation.isErrorPage()
+                                        && !navigation.isSameDocument()
+                                        && UrlUtilities.isHttpOrHttps(navigation.getUrl());
                         registerFinishNavigation(isTrackedPage);
                     }
                 };
@@ -271,10 +280,18 @@ public class ActivityTabStartupMetricsTracker {
     }
 
     private void recordFirstSafeBrowsingResponseTime() {
-        long deltaMicros = mFirstSafeBrowsingResponseTimeMicros.getAndSet(0);
-        if (deltaMicros == 0) return;
-        RecordHistogram.recordMediumTimesHistogram(
-                "Startup.Android.Cold.FirstSafeBrowsingResponseTime.Tabbed", deltaMicros / 1000);
+        long safetyNetDeltaMicros = mFirstSafetyNetResponseTimeMicros.getAndSet(0);
+        if (safetyNetDeltaMicros != 0) {
+            RecordHistogram.recordMediumTimesHistogram(
+                    "Startup.Android.Cold.FirstSafeBrowsingResponseTime.Tabbed",
+                    safetyNetDeltaMicros / 1000);
+        }
+        long safeBrowsingDeltaMicros = mFirstSafeBrowsingResponseTimeMicros.getAndSet(0);
+        if (safeBrowsingDeltaMicros != 0) {
+            RecordHistogram.recordMediumTimesHistogram(
+                    "Startup.Android.Cold.FirstSafeBrowsingApiResponseTime.Tabbed",
+                    safeBrowsingDeltaMicros / 1000);
+        }
     }
 
     /**

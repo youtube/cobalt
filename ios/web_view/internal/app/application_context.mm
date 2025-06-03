@@ -40,10 +40,6 @@
 #include "ui/base/device_form_factor.h"
 #include "ui/base/l10n/l10n_util_mac.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace ios_web_view {
 namespace {
 
@@ -140,9 +136,9 @@ PrefService* ApplicationContext::GetLocalState() {
     int max_normal_socket_pool_count =
         net::ClientSocketPoolManager::max_sockets_per_group(
             net::HttpNetworkSession::NORMAL_SOCKET_POOL);
-    int socket_count = std::max<int>(net::kDefaultMaxSocketsPerProxyServer,
+    int socket_count = std::max<int>(net::kDefaultMaxSocketsPerProxyChain,
                                      max_normal_socket_pool_count);
-    net::ClientSocketPoolManager::set_max_sockets_per_proxy_server(
+    net::ClientSocketPoolManager::set_max_sockets_per_proxy_chain(
         net::HttpNetworkSession::NORMAL_SOCKET_POOL, socket_count);
   }
   return local_state_.get();

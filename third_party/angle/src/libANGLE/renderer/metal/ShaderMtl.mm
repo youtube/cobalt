@@ -52,7 +52,7 @@ class TranslateTask : public angle::Closure
 class MTLWaitableCompileEventImpl final : public WaitableCompileEvent
 {
   public:
-    MTLWaitableCompileEventImpl(ShaderMtl *shader,
+    MTLWaitableCompileEventImpl(const SharedCompiledShaderStateMtl &shader,
                                 std::shared_ptr<angle::WaitableEvent> waitableEvent,
                                 std::shared_ptr<TranslateTask> translateTask)
         : WaitableCompileEvent(waitableEvent), mTranslateTask(translateTask), mShader(shader)
@@ -63,7 +63,7 @@ class MTLWaitableCompileEventImpl final : public WaitableCompileEvent
     bool postTranslate(std::string *infoLog) override
     {
         sh::TShHandleBase *base    = static_cast<sh::TShHandleBase *>(mTranslateTask->getHandle());
-        auto translatorMetalDirect = base->getAsTranslatorMetalDirect();
+        auto translatorMetalDirect = base->getAsTranslatorMSL();
         if (translatorMetalDirect != nullptr)
         {
             // Copy reflection from translation.
@@ -76,7 +76,7 @@ class MTLWaitableCompileEventImpl final : public WaitableCompileEvent
 
   private:
     std::shared_ptr<TranslateTask> mTranslateTask;
-    ShaderMtl *mShader;
+    SharedCompiledShaderStateMtl mShader;
 };
 
 std::shared_ptr<WaitableCompileEvent> ShaderMtl::compileImplMtl(
@@ -91,12 +91,12 @@ std::shared_ptr<WaitableCompileEvent> ShaderMtl::compileImplMtl(
     compileOptions->validateAst = true;
 #endif
 
-    auto workerThreadPool = context->getWorkerThreadPool();
+    auto workerThreadPool = context->getShaderCompileThreadPool();
     auto translateTask =
         std::make_shared<TranslateTask>(compilerInstance->getHandle(), *compileOptions, source);
 
     return std::make_shared<MTLWaitableCompileEventImpl>(
-        this, workerThreadPool->postWorkerTask(translateTask), translateTask);
+        mCompiledState, workerThreadPool->postWorkerTask(translateTask), translateTask);
 }
 
 std::shared_ptr<WaitableCompileEvent> ShaderMtl::compile(const gl::Context *context,
@@ -106,6 +106,10 @@ std::shared_ptr<WaitableCompileEvent> ShaderMtl::compile(const gl::Context *cont
     ContextMtl *contextMtl = mtl::GetImpl(context);
     DisplayMtl *displayMtl = contextMtl->getDisplay();
 
+    // Create a new compiled shader state.  Currently running program link jobs will use the
+    // previous state.
+    mCompiledState = std::make_shared<CompiledShaderStateMtl>();
+
     options->initializeUninitializedLocals = true;
 
     if (context->isWebGL() && mState.getShaderType() != gl::ShaderType::Compute)
@@ -113,7 +117,11 @@ std::shared_ptr<WaitableCompileEvent> ShaderMtl::compile(const gl::Context *cont
         options->initOutputVariables = true;
     }
 
-    if (displayMtl->getFeatures().intelExplicitBoolCastWorkaround.enabled)
+    options->metal.generateShareableShaders =
+        displayMtl->getFeatures().generateShareableShaders.enabled;
+
+    if (displayMtl->getFeatures().intelExplicitBoolCastWorkaround.enabled ||
+        options->metal.generateShareableShaders)
     {
         options->addExplicitBoolCasts = true;
     }
@@ -139,17 +147,14 @@ std::shared_ptr<WaitableCompileEvent> ShaderMtl::compile(const gl::Context *cont
         options->pls = displayMtl->getNativePixelLocalStorageOptions();
     }
 
+    options->rescopeGlobalVariables = displayMtl->getFeatures().rescopeGlobalVariables.enabled;
+
     return compileImplMtl(context, compilerInstance, getState().getSource(), options);
 }
 
 std::string ShaderMtl::getDebugInfo() const
 {
-    std::string debugInfo = mState.getTranslatedSource();
-    if (debugInfo.empty())
-    {
-        return mState.getCompiledBinary().empty() ? "" : "<binary blob>";
-    }
-    return debugInfo;
+    return mState.getCompiledState()->translatedSource;
 }
 
 }  // namespace rx

@@ -37,7 +37,6 @@
 #include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
 #include "services/network/public/mojom/clear_data_filter.mojom.h"
 #include "services/network/public/mojom/host_resolver.mojom.h"
-#include "services/network/public/mojom/mdns_responder.mojom.h"
 #include "services/network/public/mojom/network_context.mojom.h"
 #include "services/network/public/mojom/tcp_socket.mojom.h"
 #include "testing/gmock/include/gmock/gmock-matchers.h"
@@ -229,17 +228,6 @@ class DirectSocketsTcpBrowserTest : public ContentBrowserTest {
     return browser_context()->GetDefaultStoragePartition()->GetNetworkContext();
   }
 
-  std::string CreateMDNSHostName() {
-    DCHECK(!mdns_responder_.is_bound());
-    GetNetworkContext()->CreateMdnsResponder(
-        mdns_responder_.BindNewPipeAndPassReceiver());
-
-    base::test::TestFuture<const std::string&, bool> future;
-    mdns_responder_->CreateNameForAddress(net::IPAddress::IPv4Localhost(),
-                                          future.GetCallback());
-    return future.Get<std::string>();
-  }
-
   // Returns the port listening for TCP connections.
   uint16_t StartTcpServer() {
     base::test::TestFuture<int32_t, const absl::optional<net::IPEndPoint>&>
@@ -302,7 +290,6 @@ class DirectSocketsTcpBrowserTest : public ContentBrowserTest {
 
  private:
   base::test::ScopedFeatureList feature_list_{features::kIsolatedWebApps};
-  mojo::Remote<network::mojom::MdnsResponder> mdns_responder_;
   mojo::Remote<network::mojom::TCPServerSocket> tcp_server_socket_;
 
   std::unique_ptr<test::IsolatedWebAppContentBrowserClient> client_;
@@ -331,31 +318,6 @@ IN_PROC_BROWSER_TEST_F(DirectSocketsTcpBrowserTest, OpenTcp_Success_Global) {
 
   EXPECT_THAT(EvalJs(shell(), script).ExtractString(),
               StartsWith("openTcp succeeded"));
-}
-
-#if BUILDFLAG(IS_MAC)
-// https://crbug.com/1211492 Keep failing on Mac11.3
-#define MAYBE_OpenTcp_MDNS DISABLED_OpenTcp_MDNS
-#else
-#define MAYBE_OpenTcp_MDNS OpenTcp_MDNS
-#endif
-IN_PROC_BROWSER_TEST_F(DirectSocketsTcpBrowserTest, MAYBE_OpenTcp_MDNS) {
-  ASSERT_TRUE(NavigateToURL(shell(), GetTestOpenPageURL()));
-
-  const int listening_port = StartTcpServer();
-  const std::string name = CreateMDNSHostName();
-  EXPECT_TRUE(base::EndsWith(name, ".local"));
-
-  const std::string script =
-      JsReplace("openTcp($1, $2)", name.c_str(), listening_port);
-
-#if BUILDFLAG(ENABLE_MDNS)
-  EXPECT_THAT(EvalJs(shell(), script).ExtractString(),
-              StartsWith("openTcp succeeded"));
-#else
-  EXPECT_EQ("openTcp failed: NotAllowedError: Permission denied",
-            EvalJs(shell(), script));
-#endif  // BUILDFLAG(ENABLE_MDNS)
 }
 
 IN_PROC_BROWSER_TEST_F(DirectSocketsTcpBrowserTest, CloseTcp) {
@@ -768,6 +730,80 @@ IN_PROC_BROWSER_TEST_F(DirectSocketsTcpServerBrowserTest, Ipv6Only) {
   EXPECT_EQ(
       true,
       EvalJs(shell(), "connectToServerWithIPv6Only(/*ipv6Only=*/true, '::1')"));
+}
+
+// A ContentBrowserClient that grants Isolated Web Apps the "direct-sockets"
+// permission, but not "cross-origin-isolated", which should result in Direct
+// Sockets being disabled.
+class NoCoiPermissionIsolatedWebAppContentBrowserClient
+    : public test::IsolatedWebAppContentBrowserClient {
+ public:
+  explicit NoCoiPermissionIsolatedWebAppContentBrowserClient(
+      const url::Origin& isolated_app_origin)
+      : IsolatedWebAppContentBrowserClient(isolated_app_origin) {}
+
+  absl::optional<blink::ParsedPermissionsPolicy>
+  GetPermissionsPolicyForIsolatedWebApp(
+      content::BrowserContext* browser_context,
+      const url::Origin& app_origin) override {
+    return {{blink::ParsedPermissionsPolicyDeclaration(
+        blink::mojom::PermissionsPolicyFeature::kDirectSockets,
+        /*allowed_origins=*/{},
+        /*self_if_matches=*/app_origin,
+        /*matches_all_origins=*/false, /*matches_opaque_src=*/false)}};
+  }
+};
+
+IN_PROC_BROWSER_TEST_F(DirectSocketsTcpBrowserTest, NoCoiPermission) {
+  NoCoiPermissionIsolatedWebAppContentBrowserClient client(
+      url::Origin::Create(GetTestPageURL()));
+
+  ASSERT_TRUE(NavigateToURL(shell(), GetTestOpenPageURL()));
+
+  EXPECT_EQ(false, EvalJs(shell(), "self.crossOriginIsolated"));
+
+  const int listening_port = StartTcpServer();
+  const std::string script =
+      JsReplace("openTcp($1, $2)", net::IPAddress::IPv4Localhost().ToString(),
+                listening_port);
+
+  EXPECT_THAT(EvalJs(shell(), script).ExtractString(),
+              StartsWith("openTcp failed: NotAllowedError"));
+}
+
+IN_PROC_BROWSER_TEST_F(DirectSocketsTcpBrowserTest, NotInCrossOriginIframe) {
+  net::EmbeddedTestServer test_server2{net::EmbeddedTestServer::TYPE_HTTPS};
+  test_server2.AddDefaultHandlers();
+  net::test_server::EmbeddedTestServerHandle server_handle =
+      test_server2.StartAndReturnHandle();
+
+  ASSERT_TRUE(NavigateToURL(shell(), GetTestOpenPageURL()));
+
+  EXPECT_EQ(true, EvalJs(shell(), "self.crossOriginIsolated"));
+  EXPECT_TRUE(ExecJs(shell(), "TCPSocket !== undefined"));
+
+  constexpr const char kCreateIframeJs[] = R"(
+      new Promise(resolve => {
+        let f = document.createElement('iframe');
+        f.src = $1;
+        f.allow = 'cross-origin-isolated';
+        f.addEventListener('load', () => resolve());
+        document.body.appendChild(f);
+      });
+  )";
+  GURL cross_origin_corp_url = test_server2.GetURL(
+      "/set-header?"
+      "Cross-Origin-Opener-Policy: same-origin&"
+      "Cross-Origin-Embedder-Policy: require-corp&"
+      "Cross-Origin-Resource-Policy: cross-origin&");
+  ASSERT_TRUE(content::ExecJs(
+      shell(), content::JsReplace(kCreateIframeJs, cross_origin_corp_url)));
+
+  content::RenderFrameHost* iframe_rfh = content::ChildFrameAt(shell(), 0);
+  EXPECT_FALSE(iframe_rfh->IsErrorDocument());
+  EXPECT_EQ(cross_origin_corp_url, iframe_rfh->GetLastCommittedURL());
+  EXPECT_EQ(true, EvalJs(iframe_rfh, "self.crossOriginIsolated"));
+  EXPECT_TRUE(ExecJs(shell(), "TCPSocket === undefined"));
 }
 
 }  // namespace content

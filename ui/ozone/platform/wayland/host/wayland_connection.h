@@ -7,6 +7,7 @@
 
 #include <time.h>
 #include <memory>
+#include <ostream>
 #include <string>
 #include <vector>
 
@@ -18,6 +19,8 @@
 #include "ui/display/tablet_state.h"
 #include "ui/events/event.h"
 #include "ui/ozone/platform/wayland/common/wayland_object.h"
+#include "ui/ozone/platform/wayland/host/single_pixel_buffer.h"
+#include "ui/ozone/platform/wayland/host/wayland_buffer_manager_host.h"
 #include "ui/ozone/platform/wayland/host/wayland_clipboard.h"
 #include "ui/ozone/platform/wayland/host/wayland_data_drag_controller.h"
 #include "ui/ozone/platform/wayland/host/wayland_data_source.h"
@@ -40,6 +43,7 @@ namespace ui {
 struct InputDevice;
 class OrgKdeKwinIdle;
 class SurfaceAugmenter;
+struct KeyboardDevice;
 struct TouchscreenDevice;
 class WaylandBufferFactory;
 class WaylandBufferManagerHost;
@@ -93,7 +97,7 @@ class WaylandConnection {
   WaylandConnection& operator=(const WaylandConnection&) = delete;
   ~WaylandConnection();
 
-  bool Initialize();
+  bool Initialize(bool use_threaded_polling = false);
 
   // Immediately flushes the Wayland display.
   void Flush();
@@ -267,6 +271,10 @@ class WaylandConnection {
     return surface_augmenter_.get();
   }
 
+  SinglePixelBuffer* single_pixel_buffer() const {
+    return single_pixel_buffer_.get();
+  }
+
   // Returns whether protocols that support setting window geometry are
   // available.
   bool SupportsSetWindowGeometry() const;
@@ -338,6 +346,13 @@ class WaylandConnection {
   const gfx::PointF MaybeConvertLocation(const gfx::PointF& location,
                                          const WaylandWindow* window) const;
 
+  void DumpState(std::ostream& out) const;
+
+  bool UseImplicitSyncInterop() const {
+    return !linux_explicit_synchronization_v1() &&
+           WaylandBufferManagerHost::SupportsImplicitSyncInterop();
+  }
+
  private:
   friend class WaylandConnectionTestApi;
 
@@ -352,6 +367,7 @@ class WaylandConnection {
   friend class GtkShell1;
   friend class OrgKdeKwinIdle;
   friend class OverlayPrioritizer;
+  friend class SinglePixelBuffer;
   friend class SurfaceAugmenter;
   friend class WaylandDataDeviceManager;
   friend class WaylandOutput;
@@ -380,7 +396,7 @@ class WaylandConnection {
   // how to model these input devices.
   void UpdateInputDevices();
   std::vector<InputDevice> CreateMouseDevices() const;
-  std::vector<InputDevice> CreateKeyboardDevices() const;
+  std::vector<KeyboardDevice> CreateKeyboardDevices() const;
   std::vector<TouchscreenDevice> CreateTouchscreenDevices() const;
 
   // Updates cursor related objects in this instance.
@@ -390,21 +406,26 @@ class WaylandConnection {
   // in place, i.e: wl_seat and wl_data_device_manager.
   void CreateDataObjectsIfReady();
 
-  // wl_registry_listener
-  static void Global(void* data,
-                     wl_registry* registry,
-                     uint32_t name,
-                     const char* interface,
-                     uint32_t version);
-  static void GlobalRemove(void* data, wl_registry* registry, uint32_t name);
+  // wl_registry_listener callbacks:
+  static void OnGlobal(void* data,
+                       wl_registry* registry,
+                       uint32_t name,
+                       const char* interface,
+                       uint32_t version);
+  static void OnGlobalRemove(void* data, wl_registry* registry, uint32_t name);
 
-  // xdg_wm_base_listener
-  static void Ping(void* data, xdg_wm_base* shell, uint32_t serial);
+  // xdg_wm_base_listener callbacks:
+  static void OnPing(void* data, xdg_wm_base* shell, uint32_t serial);
 
-  // xdg_wm_base_listener
-  static void ClockId(void* data,
-                      wp_presentation* presentation,
-                      uint32_t clk_id);
+  // wp_presentation_listener callbacks:
+  static void OnClockId(void* data,
+                        wp_presentation* presentation,
+                        uint32_t clk_id);
+
+  void HandleGlobal(wl_registry* registry,
+                    uint32_t name,
+                    const char* interface,
+                    uint32_t version);
 
   base::flat_map<std::string, wl::GlobalObjectFactory> global_object_factories_;
 
@@ -464,6 +485,7 @@ class WaylandConnection {
   std::unique_ptr<ZwpIdleInhibitManager> zwp_idle_inhibit_manager_;
   std::unique_ptr<OverlayPrioritizer> overlay_prioritizer_;
   std::unique_ptr<SurfaceAugmenter> surface_augmenter_;
+  std::unique_ptr<SinglePixelBuffer> single_pixel_buffer_;
 
   // Clipboard-related objects. |clipboard_| must be declared after all
   // DeviceManager instances it depends on, otherwise tests may crash with
@@ -514,8 +536,6 @@ class WaylandConnection {
   // Global Wayland interfaces available in the current session, with their
   // versions.
   std::vector<std::pair<std::string, uint32_t>> available_globals_;
-
-  base::RepeatingClosure roundtrip_closure_for_testing_;
 };
 
 }  // namespace ui

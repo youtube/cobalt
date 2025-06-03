@@ -30,7 +30,7 @@ class ScriptState;
 
 // The implementation of a service worker registration object in Blink.
 class ServiceWorkerRegistration final
-    : public EventTargetWithInlineData,
+    : public EventTarget,
       public ActiveScriptWrappable<ServiceWorkerRegistration>,
       public ExecutionContextLifecycleObserver,
       public Supplementable<ServiceWorkerRegistration>,
@@ -69,9 +69,9 @@ class ServiceWorkerRegistration final
     return ExecutionContextLifecycleObserver::GetExecutionContext();
   }
 
-  ServiceWorker* installing() { return installing_; }
-  ServiceWorker* waiting() { return waiting_; }
-  ServiceWorker* active() { return active_; }
+  ServiceWorker* installing() { return installing_.Get(); }
+  ServiceWorker* waiting() { return waiting_.Get(); }
+  ServiceWorker* active() { return active_.Get(); }
   NavigationPreloadManager* navigationPreload();
 
   String scope() const;

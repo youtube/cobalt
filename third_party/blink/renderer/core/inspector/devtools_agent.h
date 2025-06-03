@@ -68,6 +68,8 @@ class CORE_EXPORT DevToolsAgent : public GarbageCollected<DevToolsAgent>,
 
   void Dispose();
   void FlushProtocolNotifications();
+  void DebuggerPaused();
+  void DebuggerResumed();
   // For workers, we use the IO thread similar to DevToolsSession::IOSession to
   // ensure that we can always interrupt a worker that is stuck in JS. We don't
   // use an associated channel for workers, meaning we don't have the ordering
@@ -103,6 +105,8 @@ class CORE_EXPORT DevToolsAgent : public GarbageCollected<DevToolsAgent>,
   void ReportChildTargets(bool report,
                           bool wait_for_debugger,
                           base::OnceClosure callback) override;
+  void GetUniqueFormControlId(int nodeId,
+                              GetUniqueFormControlIdCallback callback) override;
 
   void ReportChildTargetsPostCallbackToIO(bool report,
                                           bool wait_for_debugger,
@@ -135,7 +139,6 @@ class CORE_EXPORT DevToolsAgent : public GarbageCollected<DevToolsAgent>,
   void ReportChildTargetsImpl(bool report,
                               bool wait_for_debugger,
                               base::OnceClosure callback);
-
   Client* client_;
   // DevToolsAgent is not tied to ExecutionContext
   HeapMojoAssociatedReceiver<mojom::blink::DevToolsAgent, DevToolsAgent>

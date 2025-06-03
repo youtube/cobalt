@@ -102,6 +102,7 @@ class StatsTable {
 class StatsCounter {
  public:
   void Set(int value) { GetPtr()->store(value, std::memory_order_relaxed); }
+  int Get() { return GetPtr()->load(); }
 
   void Increment(int value = 1) {
     GetPtr()->fetch_add(value, std::memory_order_relaxed);
@@ -609,10 +610,6 @@ class Counters : public std::enable_shared_from_this<Counters> {
 #define COUNTER_ID(name) kCountOfCODE_TYPE_##name, \
     kSizeOfCODE_TYPE_##name,
     CODE_KIND_LIST(COUNTER_ID)
-#undef COUNTER_ID
-#define COUNTER_ID(name) kCountOfFIXED_ARRAY__##name, \
-    kSizeOfFIXED_ARRAY__##name,
-    FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(COUNTER_ID)
 #undef COUNTER_ID
     stats_counter_count
   };

@@ -7,6 +7,7 @@
 #include "chrome/browser/extensions/extension_action_runner.h"
 #include "chrome/browser/extensions/extension_util.h"
 #include "chrome/browser/extensions/scripting_permissions_modifier.h"
+#include "chrome/browser/extensions/tab_helper.h"
 #include "chrome/browser/profiles/profile.h"
 #include "components/sessions/content/session_tab_helper.h"
 #include "content/public/browser/web_contents.h"
@@ -134,22 +135,29 @@ void SitePermissionsHelper::UpdateSiteAccess(
     return;
   }
 
-  // This is to determine when to show the reload page dialog if revoking
-  // permissions, or increasing permissions with pending actions that mandate a
-  // page refresh. While revoking permissions doesn't necessarily mandate a page
-  // refresh, it is complicated to determine when an extension has affected the
-  // page. Showing a reload page bubble after the user blocks the extension re
-  // enforces the user confidence on blocking the extension. Also, this
-  // scenario should not be that common and therefore hopefully is not too
-  // noisy.
+  // Clear extension's tab permission when revoking user site permissions.
   bool revoking_current_site_permissions =
       new_access == PermissionsManager::UserSiteAccess::kOnClick;
-  int blocked_actions = runner->GetBlockedActions(extension.id());
-  bool reload_needed = revoking_current_site_permissions ||
-                       PageNeedsRefreshToRun(blocked_actions);
+  if (revoking_current_site_permissions) {
+    TabHelper::FromWebContents(web_contents)
+        ->active_tab_permission_granter()
+        ->ClearActiveExtensionAndNotify(extension.id());
+    // While revoking permissions doesn't necessarily mandate a page
+    // refresh, it is complicated to determine when an extension has affected
+    // the page. Showing a reload page bubble after the user blocks the
+    // extension re enforces the user confidence on blocking the extension.
+    // Also, this scenario should not be that common and therefore hopefully is
+    // not too noisy.
+    runner->ShowReloadPageBubble({extension.id()});
+    return;
+  }
 
-  if (reload_needed) {
-    runner->ShowReloadPageBubbleWithReloadPageCallback(extension.id());
+  // Run blocked actions when granting user site permissions.
+  int blocked_actions = runner->GetBlockedActions(extension.id());
+  if (PageNeedsRefreshToRun(blocked_actions)) {
+    // Show reload bubble when blocked actions mandate a page refresh.
+    // Refreshing the page will run them.
+    runner->ShowReloadPageBubble({extension.id()});
   } else if (blocked_actions != BLOCKED_ACTION_NONE) {
     runner->RunBlockedActions(&extension);
   }
@@ -157,23 +165,6 @@ void SitePermissionsHelper::UpdateSiteAccess(
 
 bool SitePermissionsHelper::PageNeedsRefreshToRun(int blocked_actions) {
   return blocked_actions & kRefreshRequiredActionsMask;
-}
-
-void SitePermissionsHelper::UpdateUserSiteSettings(
-    const base::flat_set<ToolbarActionsModel::ActionId>& action_ids,
-    content::WebContents* web_contents,
-    extensions::PermissionsManager::UserSiteSetting site_setting) {
-  DCHECK(web_contents);
-
-  ExtensionActionRunner* runner =
-      ExtensionActionRunner::GetForWebContents(web_contents);
-  if (!runner) {
-    return;
-  }
-
-  runner->HandleUserSiteSettingModified(
-      action_ids, web_contents->GetPrimaryMainFrame()->GetLastCommittedOrigin(),
-      site_setting);
 }
 
 bool SitePermissionsHelper::HasBeenBlocked(

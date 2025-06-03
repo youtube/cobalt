@@ -7,8 +7,8 @@
 #import "base/feature_list.h"
 #import "base/functional/bind.h"
 #import "base/functional/callback_helpers.h"
-#import "base/guid.h"
 #import "base/strings/sys_string_conversions.h"
+#import "base/uuid.h"
 #import "components/autofill/core/browser/autofill_client.h"
 #import "components/autofill/core/browser/autofill_save_update_address_profile_delegate_ios.h"
 #import "components/autofill/core/browser/autofill_test_utils.h"
@@ -21,10 +21,6 @@
 #import "ios/chrome/browser/ui/infobars/banners/test/fake_infobar_banner_consumer.h"
 #import "testing/gtest_mac.h"
 #import "testing/platform_test.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 using autofill_address_profile_infobar_overlays::
     SaveAddressProfileBannerRequestConfig;
@@ -45,13 +41,12 @@ class SaveAddressProfileInfobarBannerOverlayMediatorTest : public PlatformTest {
 // Tests that a SaveAddressProfileInfobarBannerOverlayMediator correctly sets up
 // its consumer.
 TEST_F(SaveAddressProfileInfobarBannerOverlayMediatorTest, SetUpConsumer) {
-  autofill::AutofillProfile profile(base::GenerateGUID(),
-                                    "https://www.example.com/");
+  autofill::AutofillProfile profile;
   std::unique_ptr<autofill::AutofillSaveUpdateAddressProfileDelegateIOS>
       passed_delegate = std::make_unique<
           autofill::AutofillSaveUpdateAddressProfileDelegateIOS>(
           profile, /*original_profile=*/nullptr,
-          /*syncing_user_email=*/absl::nullopt,
+          /*user_email=*/absl::nullopt,
           /*locale=*/"en-US",
           autofill::AutofillClient::SaveAddressProfilePromptOptions{},
           base::DoNothing());
@@ -86,13 +81,12 @@ TEST_F(SaveAddressProfileInfobarBannerOverlayMediatorTest, SetUpConsumer) {
 // Tests that the modal is shown when infobar button is pressed.
 TEST_F(SaveAddressProfileInfobarBannerOverlayMediatorTest,
        PresentModalWhenInfobarButtonIsPressed) {
-  autofill::AutofillProfile profile(base::GenerateGUID(),
-                                    "https://www.example.com/");
+  autofill::AutofillProfile profile;
   std::unique_ptr<autofill::AutofillSaveUpdateAddressProfileDelegateIOS>
       passed_delegate = std::make_unique<
           autofill::AutofillSaveUpdateAddressProfileDelegateIOS>(
           profile, /*original_profile=*/nullptr,
-          /*syncing_user_email=*/absl::nullopt,
+          /*user_email=*/absl::nullopt,
           /*locale=*/"en-US",
           autofill::AutofillClient::SaveAddressProfilePromptOptions{},
           base::DoNothing());

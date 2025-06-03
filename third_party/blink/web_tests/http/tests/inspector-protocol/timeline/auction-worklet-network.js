@@ -7,6 +7,7 @@
   const testStart = Date.now();
   const testLimit = 5 * 60 * 1000;  // Way longer than the test may take.
 
+  dp.Target.setAutoAttach({autoAttach: true, flatten: true, waitForDebuggerOnStart: false});
   const TracingHelper =
       await testRunner.loadScript('../resources/tracing-test.js');
   const tracingHelper = new TracingHelper(testRunner, session);
@@ -37,7 +38,7 @@
 
   const auctionJs = `
     navigator.runAdAuction({
-      decisionLogicUrl: "${base}fledge_decision_logic.js.php",
+      decisionLogicURL: "${base}fledge_decision_logic.js.php",
       seller: "https://a.test:8443",
       interestGroupBuyers: ["https://a.test:8443"]})`;
 
@@ -89,6 +90,7 @@
         validateRelativeMs(data.timing, 'connectStart');
         validateRelativeMs(data.timing, 'dnsEnd');
         validateRelativeMs(data.timing, 'dnsStart');
+        validateRelativeMs(data.timing, 'receiveHeadersStart');
         validateRelativeMs(data.timing, 'receiveHeadersEnd');
         validateRelativeMs(data.timing, 'sendEnd');
         validateRelativeMs(data.timing, 'sendStart');

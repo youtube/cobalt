@@ -17,7 +17,7 @@
 #include "chrome/browser/ui/webui/signin/signin_utils.h"
 #include "chrome/browser/ui/webui/webui_util.h"
 #include "chrome/common/webui_url_constants.h"
-#include "chrome/grit/chromium_strings.h"
+#include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/grit/signin_resources.h"
 #include "components/signin/public/base/signin_switches.h"
@@ -53,9 +53,6 @@ EnterpriseProfileWelcomeUI::EnterpriseProfileWelcomeUI(content::WebUI* web_ui)
       source, base::make_span(kResources),
       IDR_SIGNIN_ENTERPRISE_PROFILE_WELCOME_ENTERPRISE_PROFILE_WELCOME_HTML);
 
-  source->AddResourcePath(
-      "images/enterprise_profile_welcome_illustration.svg",
-      IDR_SIGNIN_ENTERPRISE_PROFILE_WELCOME_IMAGES_ENTERPRISE_PROFILE_WELCOME_ILLUSTRATION_SVG);
   source->AddResourcePath("images/left-banner.svg",
                           IDR_SIGNIN_IMAGES_SHARED_LEFT_BANNER_SVG);
   source->AddResourcePath("images/left-banner-dark.svg",
@@ -64,10 +61,10 @@ EnterpriseProfileWelcomeUI::EnterpriseProfileWelcomeUI(content::WebUI* web_ui)
                           IDR_SIGNIN_IMAGES_SHARED_RIGHT_BANNER_SVG);
   source->AddResourcePath("images/right-banner-dark.svg",
                           IDR_SIGNIN_IMAGES_SHARED_RIGHT_BANNER_DARK_SVG);
-  source->AddResourcePath("images/tangible_sync_style_dialog_illustration.svg",
+  source->AddResourcePath("images/dialog_illustration.svg",
                           IDR_SIGNIN_IMAGES_SHARED_DIALOG_ILLUSTRATION_SVG);
   source->AddResourcePath(
-      "images/tangible_sync_style_dialog_illustration_dark.svg",
+      "images/dialog_illustration_dark.svg",
       IDR_SIGNIN_IMAGES_SHARED_DIALOG_ILLUSTRATION_DARK_SVG);
   source->AddLocalizedString("enterpriseProfileWelcomeTitle",
                              IDS_ENTERPRISE_PROFILE_WELCOME_TITLE);
@@ -78,10 +75,6 @@ EnterpriseProfileWelcomeUI::EnterpriseProfileWelcomeUI(content::WebUI* web_ui)
                              IDS_ENTERPRISE_PROFILE_WELCOME_LINK_DATA_CHECKBOX);
   source->AddBoolean("showLinkDataCheckbox", false);
   source->AddBoolean("isModalDialog", false);
-  source->AddBoolean(
-      "isTangibleSyncStyleEnabled",
-      base::FeatureList::IsEnabled(kEnterpriseWelcomeTangibleSyncStyle) &&
-          base::FeatureList::IsEnabled(switches::kTangibleSync));
   webui::SetupChromeRefresh2023(source);
 }
 
@@ -93,11 +86,10 @@ void EnterpriseProfileWelcomeUI::Initialize(
     const AccountInfo& account_info,
     bool profile_creation_required_by_policy,
     bool show_link_data_option,
-    absl::optional<SkColor> profile_color,
     signin::SigninChoiceCallback proceed_callback) {
   auto handler = std::make_unique<EnterpriseProfileWelcomeHandler>(
       browser, type, profile_creation_required_by_policy, show_link_data_option,
-      account_info, profile_color, std::move(proceed_callback));
+      account_info, std::move(proceed_callback));
   handler_ = handler.get();
 
   if (type ==

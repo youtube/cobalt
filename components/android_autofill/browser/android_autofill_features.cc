@@ -14,10 +14,32 @@ namespace autofill::features {
 namespace {
 
 const base::Feature* kFeaturesExposedToJava[] = {
+    &kAndroidAutofillFormSubmissionCheckById,
+    &kAndroidAutofillSupportVisibilityChanges,
     &kAndroidAutofillViewStructureWithFormHierarchyLayer,
 };
 
 }  // namespace
+
+// If enabled, form submissions are reported to Android Autofill iff the
+// `FormGlobalId` of the submitted form matches that of the current Autofill
+// session.
+// If disabled, a similarity check is used that requires most (see
+// `FormDataAndroid::SimilarAs` for details) members variables of the forms and
+// their fields to be identical.
+BASE_FEATURE(kAndroidAutofillFormSubmissionCheckById,
+             "AndroidAutofillFormSubmissionCheckById",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// If enabled, visibility changes of form fields of the form of an ongoing
+// Autofill session are communicated to Android's `AutofillManager` by calling
+// `AutofillManager.notifyViewVisibilityChanged()`.
+// See
+// https://developer.android.com/reference/android/view/autofill/AutofillManager#notifyViewVisibilityChanged(android.view.View,%20int,%20boolean)
+// for more details on the API.
+BASE_FEATURE(kAndroidAutofillSupportVisibilityChanges,
+             "AndroidAutofillSupportVisibilityChanges",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Adds an additional hierarchy layer for forms into the `ViewStructure` that
 // is passed to Android's `AutofillManager`.

@@ -14,6 +14,9 @@
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/dom/dom_node_ids.h"
 #include "third_party/blink/renderer/core/frame/csp/content_security_policy_violation_type.h"
+#include "third_party/blink/renderer/core/inspector/protocol/audits.h"
+#include "third_party/blink/renderer/platform/loader/fetch/fetch_initiator_info.h"
+#include "third_party/blink/renderer/platform/wtf/text/text_position.h"
 
 namespace WTF {
 class String;
@@ -58,6 +61,7 @@ enum class AttributionReportingIssueType {
   kInvalidRegisterOsTriggerHeader,
   kWebAndOsHeaders,
   kNoWebOrOsSupport,
+  kNavigationRegistrationWithoutTransientUserActivation,
 };
 
 enum class SharedArrayBufferIssueType {
@@ -123,10 +127,6 @@ class CORE_EXPORT AuditsIssue {
                                      const String& request_id,
                                      const String& invalid_parameter);
 
-  static void ReportNavigatorUserAgentAccess(
-      ExecutionContext* execution_context,
-      WTF::String url);
-
   static void ReportSharedArrayBufferIssue(
       ExecutionContext* execution_context,
       bool shared_buffer_transfer_allowed,
@@ -154,7 +154,7 @@ class CORE_EXPORT AuditsIssue {
       const mojom::blink::RequestContextType request_context,
       LocalFrame* frame,
       const MixedContentResolutionStatus resolution_status,
-      const absl::optional<String>& devtools_id);
+      const String& devtools_id);
 
   static AuditsIssue CreateContentSecurityPolicyIssue(
       const blink::SecurityPolicyViolationEventInit& violation_data,
@@ -165,6 +165,10 @@ class CORE_EXPORT AuditsIssue {
       SourceLocation* source_location,
       absl::optional<base::UnguessableToken> issue_id);
 
+  static protocol::Audits::GenericIssueErrorType
+  GenericIssueErrorTypeToProtocol(
+      mojom::blink::GenericIssueErrorType error_type);
+
   static void ReportGenericIssue(LocalFrame* frame,
                                  mojom::blink::GenericIssueErrorType error_type,
                                  int violating_node_id);
@@ -172,6 +176,28 @@ class CORE_EXPORT AuditsIssue {
                                  mojom::blink::GenericIssueErrorType error_type,
                                  int violating_node_id,
                                  const String& violating_node_attribute);
+
+  static void ReportStylesheetLoadingLateImportIssue(Document* document,
+                                                     const KURL& url,
+                                                     WTF::OrdinalNumber line,
+                                                     WTF::OrdinalNumber column);
+
+  static void ReportPropertyRuleIssue(
+      Document* document,
+      const KURL& url,
+      WTF::OrdinalNumber line,
+      WTF::OrdinalNumber column,
+      protocol::Audits::PropertyRuleIssueReason reason,
+      const String& propertyValue);
+
+  static void ReportStylesheetLoadingRequestFailedIssue(
+      Document* document,
+      const KURL& url,
+      const String& request_id,
+      const KURL& initiator_url,
+      WTF::OrdinalNumber initiator_line,
+      WTF::OrdinalNumber initiator_column,
+      const String& failureMessage);
 
  private:
   explicit AuditsIssue(std::unique_ptr<protocol::Audits::InspectorIssue> issue);

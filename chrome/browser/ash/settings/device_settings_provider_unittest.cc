@@ -109,12 +109,14 @@ class DeviceSettingsProviderTest : public DeviceSettingsTestBase {
     proto->set_report_print_jobs(enable_reporting);
     proto->set_report_login_logout(enable_reporting);
     proto->set_report_crd_sessions(enable_reporting);
+    proto->set_report_runtime_counters(enable_reporting);
     proto->set_device_activity_heartbeat_enabled(enable_reporting);
     proto->set_report_network_events(enable_reporting);
     proto->set_report_network_telemetry_collection_rate_ms(frequency);
     proto->set_report_network_telemetry_event_checking_rate_ms(frequency);
     proto->set_device_status_frequency(frequency);
     proto->set_report_device_audio_status_checking_rate_ms(frequency);
+    proto->set_device_report_runtime_counters_checking_rate_ms(frequency);
     proto->set_device_activity_heartbeat_collection_rate_ms(frequency);
     BuildAndInstallDevicePolicy();
   }
@@ -176,9 +178,9 @@ class DeviceSettingsProviderTest : public DeviceSettingsTestBase {
   void VerifyReportingSettings(bool expected_enable_state,
                                int expected_frequency) {
     const char* reporting_settings[] = {
-        kReportDeviceVersionInfo, kReportDeviceActivityTimes,
-        kReportDeviceAudioStatus, kReportDeviceBoardStatus,
-        kReportDeviceBootMode,
+        kDeviceReportRuntimeCounters, kReportDeviceVersionInfo,
+        kReportDeviceActivityTimes, kReportDeviceAudioStatus,
+        kReportDeviceBoardStatus, kReportDeviceBootMode,
         // Device location reporting is not currently supported.
         // kReportDeviceLocation,
         kReportDeviceNetworkConfiguration, kReportDeviceNetworkStatus,
@@ -197,9 +199,11 @@ class DeviceSettingsProviderTest : public DeviceSettingsTestBase {
     }
 
     const char* const reporting_frequency_settings[] = {
-        kReportUploadFrequency, kReportDeviceNetworkTelemetryCollectionRateMs,
+        kReportUploadFrequency,
+        kReportDeviceNetworkTelemetryCollectionRateMs,
         kReportDeviceNetworkTelemetryEventCheckingRateMs,
         kReportDeviceAudioStatusCheckingRateMs,
+        kDeviceReportRuntimeCountersCheckingRateMs,
         kDeviceActivityHeartbeatCollectionRateMs};
     const base::Value expected_frequency_value(expected_frequency);
     for (auto* frequency_setting : reporting_frequency_settings) {
@@ -218,15 +222,22 @@ class DeviceSettingsProviderTest : public DeviceSettingsTestBase {
   void VerifyPolicyValue(const char* policy_key,
                          const base::Value* ptr_to_expected_value) {
     // The pointer might be null, so check before dereferencing.
-    if (ptr_to_expected_value)
-      EXPECT_EQ(*ptr_to_expected_value, *provider_->Get(policy_key));
-    else
-      EXPECT_EQ(nullptr, provider_->Get(policy_key));
+    const base::Value* value = provider_->Get(policy_key);
+    if (ptr_to_expected_value) {
+      // This prevents tests from crashing if provider returns nullptr.
+      ASSERT_TRUE(value);
+      EXPECT_EQ(*ptr_to_expected_value, *value);
+    } else {
+      EXPECT_EQ(nullptr, value);
+    }
   }
 
   void VerifyPolicyList(const char* policy_key,
                         const base::Value::List& expected_value) {
-    EXPECT_TRUE(provider_->Get(policy_key)->is_list());
+    const base::Value* value = provider_->Get(policy_key);
+    // This prevents tests from crashing if provider returns nullptr.
+    ASSERT_TRUE(value);
+    EXPECT_TRUE(value->is_list());
     EXPECT_EQ(expected_value, provider_->Get(policy_key)->GetList());
   }
 
@@ -805,7 +816,7 @@ TEST_F(DeviceSettingsProviderTest, DecodeDeviceState) {
 TEST_F(DeviceSettingsProviderTest, DecodeReportingSettings) {
   // Turn on all reporting and verify that the reporting settings have been
   // decoded correctly.
-  const int status_frequency = 50000;
+  constexpr int status_frequency = 500000000;
   SetReportingSettings(true, status_frequency);
   VerifyReportingSettings(true, status_frequency);
 
@@ -1356,6 +1367,73 @@ TEST_F(DeviceSettingsProviderTest, DeviceSystemAecDisabled) {
       ->set_device_system_aec_enabled(false);
   BuildAndInstallDevicePolicy();
   EXPECT_EQ(base::Value(false), *provider_->Get(kDeviceSystemAecEnabled));
+}
+
+TEST_F(DeviceSettingsProviderTest, DeviceHindiInscriptLayoutEnabled) {
+  device_policy_->payload()
+      .mutable_device_hindi_inscript_layout_enabled()
+      ->set_enabled(true);
+  BuildAndInstallDevicePolicy();
+  EXPECT_EQ(base::Value(true),
+            *provider_->Get(kDeviceHindiInscriptLayoutEnabled));
+}
+
+TEST_F(DeviceSettingsProviderTest, DeviceDlcPredownloadListUnset) {
+  // Device setting must be unset if the policy is not set.
+  VerifyPolicyValue(kDeviceDlcPredownloadList, nullptr);
+}
+
+TEST_F(DeviceSettingsProviderTest, DeviceDlcPredownloadListEmpty) {
+  // Device setting must be unset if there are no DLCs to pre download.
+  device_policy_->payload().clear_device_dlc_predownload_list();
+  BuildAndInstallDevicePolicy();
+  VerifyPolicyValue(kDeviceDlcPredownloadList, nullptr);
+}
+
+TEST_F(DeviceSettingsProviderTest, DeviceDlcPredownloadListNonempty) {
+  device_policy_->payload()
+      .mutable_device_dlc_predownload_list()
+      ->mutable_value()
+      ->add_entries("scanner_drivers");
+
+  BuildAndInstallDevicePolicy();
+
+  VerifyPolicyList(kDeviceDlcPredownloadList,
+                   base::Value::List().Append("sane-backends-extras-dlc"));
+}
+
+TEST_F(DeviceSettingsProviderTest, DeviceDlcPredownloadListInvalidDlc) {
+  device_policy_->payload()
+      .mutable_device_dlc_predownload_list()
+      ->mutable_value()
+      ->add_entries("scanner_drivers");
+  device_policy_->payload()
+      .mutable_device_dlc_predownload_list()
+      ->mutable_value()
+      ->add_entries("invalid_dlc_name");
+
+  BuildAndInstallDevicePolicy();
+
+  // Device setting must contain only the valid DLCs that can be pre downloaded.
+  VerifyPolicyList(kDeviceDlcPredownloadList,
+                   base::Value::List().Append("sane-backends-extras-dlc"));
+}
+
+TEST_F(DeviceSettingsProviderTest, DeviceDlcPredownloadListDuplicateDlc) {
+  device_policy_->payload()
+      .mutable_device_dlc_predownload_list()
+      ->mutable_value()
+      ->add_entries("scanner_drivers");
+  device_policy_->payload()
+      .mutable_device_dlc_predownload_list()
+      ->mutable_value()
+      ->add_entries("scanner_drivers");
+
+  BuildAndInstallDevicePolicy();
+
+  // Device setting must not contain any duplicate values.
+  VerifyPolicyList(kDeviceDlcPredownloadList,
+                   base::Value::List().Append("sane-backends-extras-dlc"));
 }
 
 }  // namespace ash

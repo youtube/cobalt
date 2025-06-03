@@ -4,15 +4,12 @@
 
 #import "ios/chrome/browser/sessions/session_window_ios.h"
 
+#import "base/apple/foundation_util.h"
 #import "base/check.h"
 #import "base/format_macros.h"
-#import "base/mac/foundation_util.h"
 #import "base/strings/sys_string_conversions.h"
 #import "ios/chrome/browser/sessions/NSCoder+Compatibility.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
+#import "ios/web/public/session/crw_session_storage.h"
 
 namespace {
 // Serialization keys.
@@ -54,12 +51,19 @@ BOOL IsIndexValidForSessionCount(NSUInteger index, NSUInteger session_count) {
   return self;
 }
 
+#pragma mark - NSObject
+
+- (BOOL)isEqual:(NSObject*)object {
+  SessionWindowIOS* other = base::apple::ObjCCast<SessionWindowIOS>(object);
+  return [other cr_isEqualSameClass:self];
+}
+
 #pragma mark - NSCoding
 
 - (instancetype)initWithCoder:(NSCoder*)aDecoder {
   NSUInteger selectedIndex = [aDecoder cr_decodeIndexForKey:kSelectedIndexKey];
   NSArray<CRWSessionStorage*>* sessions =
-      base::mac::ObjCCast<NSArray<CRWSessionStorage*>>(
+      base::apple::ObjCCast<NSArray<CRWSessionStorage*>>(
           [aDecoder decodeObjectForKey:kSessionsKey]);
 
   if (!sessions) {
@@ -88,6 +92,20 @@ BOOL IsIndexValidForSessionCount(NSUInteger index, NSUInteger session_count) {
   return [NSString stringWithFormat:@"selected index: %" PRIuNS
                                      "\nsessions:\n%@\n",
                                     _selectedIndex, _sessions];
+}
+
+#pragma mark Private
+
+- (BOOL)cr_isEqualSameClass:(SessionWindowIOS*)other {
+  if (_selectedIndex != other.selectedIndex) {
+    return NO;
+  }
+
+  if (_sessions != other.sessions && ![_sessions isEqual:other.sessions]) {
+    return NO;
+  }
+
+  return YES;
 }
 
 @end

@@ -139,10 +139,7 @@ class NET_EXPORT_PRIVATE QuicChromiumClientStream
       return headers_received_start_time_;
     }
 
-    // TODO(rch): Move these test-only methods to a peer, or else remove.
-    void OnPromiseHeaderList(quic::QuicStreamId promised_id,
-                             size_t frame_len,
-                             const quic::QuicHeaderList& header_list);
+    // TODO(rch): Move this test-only method to a peer, or else remove.
     bool can_migrate_to_cellular_network();
 
     const NetLogWithSource& net_log() const;
@@ -191,7 +188,7 @@ class NET_EXPORT_PRIVATE QuicChromiumClientStream
 
     // Callback to be invoked when ReadBody completes asynchronously.
     CompletionOnceCallback read_body_callback_;
-    raw_ptr<IOBuffer> read_body_buffer_;
+    raw_ptr<IOBuffer, DanglingUntriaged> read_body_buffer_;
     int read_body_buffer_len_ = 0;
 
     // Callback to be invoked when WriteStreamData or WritevStreamData completes
@@ -248,9 +245,6 @@ class NET_EXPORT_PRIVATE QuicChromiumClientStream
       bool fin,
       size_t frame_len,
       const quic::QuicHeaderList& header_list) override;
-  void OnPromiseHeaderList(quic::QuicStreamId promised_id,
-                           size_t frame_len,
-                           const quic::QuicHeaderList& header_list) override;
   void OnBodyAvailable() override;
   void OnClose() override;
   void OnCanWrite() override;
@@ -267,7 +261,7 @@ class NET_EXPORT_PRIVATE QuicChromiumClientStream
   // Writes |data| to the peer and closes the write side if |fin| is true.
   // Returns true if the data have been fully written. If the data was not fully
   // written, returns false and OnCanWrite() will be invoked later.
-  bool WriteStreamData(absl::string_view data, bool fin);
+  bool WriteStreamData(std::string_view data, bool fin);
   // Same as WriteStreamData except it writes data from a vector of IOBuffers,
   // with the length of each buffer at the corresponding index in |lengths|.
   bool WritevStreamData(const std::vector<scoped_refptr<IOBuffer>>& buffers,

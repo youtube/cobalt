@@ -70,11 +70,9 @@ class LayoutMedia : public LayoutImage {
     return "LayoutMedia";
   }
 
-  LayoutUnit ComputePanelWidth(const LayoutRect& media_width) const;
+  LayoutUnit ComputePanelWidth(const PhysicalRect& media_width) const;
 
  protected:
-  void UpdateLayout() override;
-
   bool IsOfType(LayoutObjectType type) const override {
     NOT_DESTROYED();
     return type == kLayoutObjectMedia || LayoutImage::IsOfType(type);

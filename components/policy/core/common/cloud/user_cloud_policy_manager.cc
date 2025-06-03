@@ -87,12 +87,19 @@ void UserCloudPolicyManager::Shutdown() {
 }
 
 void UserCloudPolicyManager::SetSigninAccountId(const AccountId& account_id) {
+  if (account_id.is_valid()) {
+    // Start the recorder as it is assumed that there is now a valid managed
+    // account.
+    StartRecordingMetric();
+  }
+
   store_->SetSigninAccountId(account_id);
 }
 
-void UserCloudPolicyManager::SetPoliciesRequired(bool required) {
+void UserCloudPolicyManager::SetPoliciesRequired(bool required,
+                                                 PolicyFetchReason reason) {
   policies_required_ = required;
-  RefreshPolicies();
+  RefreshPolicies(reason);
 }
 
 bool UserCloudPolicyManager::ArePoliciesRequired() const {
@@ -132,7 +139,7 @@ void UserCloudPolicyManager::DisconnectAndRemovePolicy() {
   // all external data references have been removed, causing the
   // |external_data_manager_| to clear its cache as well.
   store_->Clear();
-  SetPoliciesRequired(false);
+  SetPoliciesRequired(false, PolicyFetchReason::kUnspecified);
 }
 
 void UserCloudPolicyManager::GetChromePolicy(PolicyMap* policy_map) {
@@ -163,6 +170,11 @@ bool UserCloudPolicyManager::IsFirstPolicyLoadComplete(
     PolicyDomain domain) const {
   return !policies_required_ ||
          CloudPolicyManager::IsFirstPolicyLoadComplete(domain);
+}
+
+void UserCloudPolicyManager::StartRecordingMetric() {
+  // Starts a recording session by creating the recorder.
+  metrics_recorder_ = std::make_unique<UserPolicyMetricsRecorder>(this);
 }
 
 }  // namespace policy

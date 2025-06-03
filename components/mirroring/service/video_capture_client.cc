@@ -164,18 +164,9 @@ void VideoCaptureClient::OnNewBuffer(
   DCHECK(insert_result.second);
 }
 
-void VideoCaptureClient::OnBufferReady(
-    media::mojom::ReadyBufferPtr buffer,
-    std::vector<media::mojom::ReadyBufferPtr> scaled_buffers) {
+void VideoCaptureClient::OnBufferReady(media::mojom::ReadyBufferPtr buffer) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DVLOG(3) << __func__ << ": buffer_id=" << buffer->buffer_id;
-
-  // Scaled buffers are currently ignored by VideoCaptureClient.
-  for (media::mojom::ReadyBufferPtr& scaled_buffer : scaled_buffers) {
-    video_capture_host_->ReleaseBuffer(DeviceId(), scaled_buffer->buffer_id,
-                                       media::VideoCaptureFeedback());
-  }
-  scaled_buffers.clear();
 
   bool consume_buffer = !frame_deliver_callback_.is_null();
   if (buffer->info->pixel_format != media::PIXEL_FORMAT_NV12 &&
@@ -250,13 +241,11 @@ void VideoCaptureClient::OnBufferReady(
     const size_t frame_allocation_size = media::VideoFrame::AllocationSize(
         buffer->info->pixel_format, buffer->info->coded_size);
     if (mapping.IsValid() && mapping.size() >= frame_allocation_size) {
-      // TODO(https://crbug.com/1316810): This code should not be casting
-      // const-ness away from ReadOnlySharedMemoryRegion...
       frame = media::VideoFrame::WrapExternalData(
           buffer->info->pixel_format, buffer->info->coded_size,
           buffer->info->visible_rect, buffer->info->visible_rect.size(),
-          const_cast<uint8_t*>(mapping.GetMemoryAs<uint8_t>()),
-          frame_allocation_size, buffer->info->timestamp);
+          mapping.GetMemoryAs<uint8_t>(), frame_allocation_size,
+          buffer->info->timestamp);
     }
     buffer_finished_callback =
         base::BindPostTaskToCurrentDefault(base::BindOnce(
@@ -299,8 +288,7 @@ void VideoCaptureClient::OnBufferReady(
   }
 
   frame->set_metadata(buffer->info->metadata);
-  if (buffer->info->color_space)
-    frame->set_color_space(*buffer->info->color_space);
+  frame->set_color_space(buffer->info->color_space);
 
   frame->set_timestamp(frame->timestamp() + accumulated_time_);
   last_timestamp_ = frame->timestamp();
@@ -317,7 +305,11 @@ void VideoCaptureClient::OnBufferDestroyed(int32_t buffer_id) {
     client_buffers_.erase(buffer_iter);
 }
 
-void VideoCaptureClient::OnNewCropVersion(uint32_t crop_version) {}
+void VideoCaptureClient::OnFrameDropped(
+    media::VideoCaptureFrameDropReason reason) {}
+
+void VideoCaptureClient::OnNewSubCaptureTargetVersion(
+    uint32_t sub_capture_target_version) {}
 
 void VideoCaptureClient::OnClientBufferFinished(int buffer_id,
                                                 MappingKeepAlive mapping) {

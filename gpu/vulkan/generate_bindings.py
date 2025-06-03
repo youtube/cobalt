@@ -45,6 +45,7 @@ VULKAN_INSTANCE_FUNCTIONS = [
       'vkEnumerateDeviceLayerProperties',
       'vkEnumeratePhysicalDevices',
       'vkGetDeviceProcAddr',
+      'vkGetPhysicalDeviceExternalSemaphoreProperties',
       'vkGetPhysicalDeviceFeatures2',
       'vkGetPhysicalDeviceFormatProperties',
       'vkGetPhysicalDeviceFormatProperties2',
@@ -123,13 +124,20 @@ VULKAN_DEVICE_FUNCTIONS = [
       'vkBindImageMemory',
       'vkBindImageMemory2',
       'vkCmdBeginRenderPass',
+      'vkCmdBindDescriptorSets',
+      'vkCmdBindPipeline',
+      'vkCmdBindVertexBuffers',
       'vkCmdCopyBuffer',
       'vkCmdCopyBufferToImage',
       'vkCmdCopyImageToBuffer',
+      'vkCmdDraw',
       'vkCmdEndRenderPass',
       'vkCmdExecuteCommands',
       'vkCmdNextSubpass',
       'vkCmdPipelineBarrier',
+      'vkCmdPushConstants',
+      'vkCmdSetScissor',
+      'vkCmdSetViewport',
       'vkCreateBuffer',
       'vkCreateCommandPool',
       'vkCreateDescriptorPool',
@@ -139,6 +147,7 @@ VULKAN_DEVICE_FUNCTIONS = [
       'vkCreateGraphicsPipelines',
       'vkCreateImage',
       'vkCreateImageView',
+      'vkCreatePipelineLayout',
       'vkCreateRenderPass',
       'vkCreateSampler',
       'vkCreateSemaphore',
@@ -152,6 +161,8 @@ VULKAN_DEVICE_FUNCTIONS = [
       'vkDestroyFramebuffer',
       'vkDestroyImage',
       'vkDestroyImageView',
+      'vkDestroyPipeline',
+      'vkDestroyPipelineLayout',
       'vkDestroyRenderPass',
       'vkDestroySampler',
       'vkDestroySemaphore',
@@ -282,6 +293,18 @@ LICENSE_AND_HEADER = """\
 
 """
 
+def WriteReset(out_file, functions):
+ for group in functions:
+    if 'ifdef' in group:
+      out_file.write('#if %s\n' % group['ifdef'])
+
+    for func in group['functions']:
+      out_file.write('%s = nullptr;\n' % func)
+
+    if 'ifdef' in group:
+      out_file.write('#endif  // %s\n' % group['ifdef'])
+    out_file.write('\n')
+
 def WriteFunctionsInternal(out_file, functions, gen_content,
                            check_extension=False):
   for group in functions:
@@ -355,9 +378,14 @@ def WriteMacros(out_file, functions):
 
     callstat = ''
     if func in ('vkQueueSubmit', 'vkQueueWaitIdle', 'vkQueuePresentKHR'):
-        callstat = '''base::AutoLockMaybe auto_lock
-        (gpu::GetVulkanFunctionPointers()->per_queue_lock_map[queue].get());
-        \n'''
+        callstat = 'base::Lock* lock = nullptr;\n'
+        callstat += '''auto it = gpu::GetVulkanFunctionPointers()->
+        per_queue_lock_map.find(queue);\n'''
+        callstat += '''if (it != gpu::GetVulkanFunctionPointers()->
+        per_queue_lock_map.end()) {\n'''
+        callstat += '\tlock = it->second.get();\n'
+        callstat += '}\n'
+        callstat += 'base::AutoLockMaybe auto_lock(lock);\n'
 
     callstat += 'return gpu::GetVulkanFunctionPointers()->%s(' % func
     paramdecl = '('
@@ -448,6 +476,8 @@ struct COMPONENT_EXPORT(VULKAN) VulkanFunctionPointers {
       uint32_t api_version,
       const gfx::ExtensionSet& enabled_extensions);
 
+  void ResetForTesting();
+
   // This is used to allow thread safe access to a given vulkan queue when
   // multiple gpu threads are accessing it. Note that this map will be only
   // accessed by multiple gpu threads concurrently to read the data, so it
@@ -471,6 +501,8 @@ struct COMPONENT_EXPORT(VULKAN) VulkanFunctionPointers {
     }
 
     Fn get() const { return fn_; }
+
+    void OverrideForTesting(Fn fn) { fn_ = fn; }
 
    private:
     friend VulkanFunctionPointers;
@@ -661,6 +693,25 @@ bool VulkanFunctionPointers::BindDeviceFunctionPointers(
   out_file.write("""\
 
   return true;
+}
+
+void VulkanFunctionPointers::ResetForTesting() {
+  base::AutoLock lock(write_lock_);
+
+  per_queue_lock_map.clear();
+  loader_library_ = nullptr;
+  vkGetInstanceProcAddr = nullptr;
+
+""")
+
+  WriteReset(
+      out_file, VULKAN_UNASSOCIATED_FUNCTIONS)
+  WriteReset(
+      out_file, VULKAN_INSTANCE_FUNCTIONS)
+  WriteReset(
+      out_file, VULKAN_DEVICE_FUNCTIONS)
+
+  out_file.write("""\
 }
 
 }  // namespace gpu

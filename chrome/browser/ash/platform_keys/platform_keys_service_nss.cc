@@ -30,9 +30,9 @@
 #include "chrome/browser/ash/net/client_cert_store_ash.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/browser_process_platform_part_ash.h"
-#include "chrome/browser/chromeos/platform_keys/chaps_util.h"
 #include "chrome/browser/chromeos/platform_keys/platform_keys.h"
 #include "chrome/browser/extensions/api/enterprise_platform_keys/enterprise_platform_keys_api.h"
+#include "chromeos/ash/components/chaps_util/chaps_util.h"
 #include "components/policy/core/common/cloud/cloud_policy_constants.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/browser_task_traits.h"
@@ -54,6 +54,18 @@
 
 namespace ash::platform_keys {
 
+void RunCallBackIfCallableElseRunCleanUp(base::OnceCallback<void()> callback,
+                                         base::OnceCallback<void()> cleanup) {
+  if (!callback.IsCancelled()) {
+    return std::move(callback).Run();
+  }
+  if (!cleanup.IsCancelled()) {
+    return std::move(cleanup).Run();
+  }
+  // else: TODO(b/280048774): Handle RemoveKey case when PlatformService
+  // is not here.
+}
+
 namespace {
 
 using ServiceWeakPtr = ::base::WeakPtr<PlatformKeysServiceImpl>;
@@ -74,10 +86,6 @@ const unsigned int kMaxRSAModulusLengthBits = 2048;
 std::vector<uint8_t> ScopedSECItemToBytes(const crypto::ScopedSECItem& value) {
   return value ? std::vector<uint8_t>(value->data, value->data + value->len)
                : std::vector<uint8_t>();
-}
-
-std::vector<uint8_t> StrToBytes(const std::string& val) {
-  return std::vector<uint8_t>(val.begin(), val.end());
 }
 
 // Base class to store state that is common to all NSS database operations and
@@ -102,7 +110,6 @@ class NSSOperationState {
       std::move(callback).Run();
     }
   }
-
   crypto::ScopedPK11Slot slot_;
 
   // Weak pointer to the PlatformKeysServiceImpl that created this state. Used
@@ -167,10 +174,12 @@ class GenerateRSAKeyState : public NSSOperationState {
   GenerateRSAKeyState(ServiceWeakPtr weak_ptr,
                       unsigned int modulus_length_bits,
                       bool sw_backed,
+                      TokenId token_id,
                       GenerateKeyCallback callback)
       : NSSOperationState(weak_ptr),
         modulus_length_bits_(modulus_length_bits),
         sw_backed_(sw_backed),
+        token_id_(token_id),
         callback_(std::move(callback)) {}
 
   ~GenerateRSAKeyState() override = default;
@@ -186,16 +195,23 @@ class GenerateRSAKeyState : public NSSOperationState {
 
   const unsigned int modulus_length_bits_;
   const bool sw_backed_;
+  TokenId token_id_;
 
  private:
   void CallBack(const base::Location& from,
                 std::vector<uint8_t> public_key_spki_der,
                 Status status) {
-    auto bound_callback = base::BindOnce(
-        std::move(callback_), std::move(public_key_spki_der), status);
+    auto success_callback =
+        base::BindOnce(std::move(callback_), public_key_spki_der, status);
+    // cleanup_callback will be called in case the main callback (callback_) is
+    // canceled.
+    auto cleanup_callback =
+        base::BindOnce(&PlatformKeysServiceImpl::RemoveKey, service_weak_ptr_,
+                       token_id_, public_key_spki_der, base::DoNothing());
     content::GetUIThreadTaskRunner({})->PostTask(
-        from, base::BindOnce(&NSSOperationState::RunCallback,
-                             std::move(bound_callback), service_weak_ptr_));
+        from, base::BindOnce(&RunCallBackIfCallableElseRunCleanUp,
+                             std::move(success_callback),
+                             std::move(cleanup_callback)));
   }
 
   // Must be called on origin thread, therefore use CallBack().
@@ -206,9 +222,11 @@ class GenerateECKeyState : public NSSOperationState {
  public:
   GenerateECKeyState(ServiceWeakPtr weak_ptr,
                      const std::string& named_curve,
+                     TokenId token_id,
                      GenerateKeyCallback callback)
       : NSSOperationState(weak_ptr),
         named_curve_(named_curve),
+        token_id_(token_id),
         callback_(std::move(callback)) {}
 
   ~GenerateECKeyState() override = default;
@@ -223,16 +241,23 @@ class GenerateECKeyState : public NSSOperationState {
   }
 
   const std::string named_curve_;
+  TokenId token_id_;
 
  private:
   void CallBack(const base::Location& from,
                 std::vector<uint8_t> public_key_spki_der,
                 Status status) {
-    auto bound_callback = base::BindOnce(
-        std::move(callback_), std::move(public_key_spki_der), status);
+    auto success_callback =
+        base::BindOnce(std::move(callback_), public_key_spki_der, status);
+    // cleanup_callback will be called in case the main callback (callback_) is
+    // canceled.
+    auto cleanup_callback =
+        base::BindOnce(&PlatformKeysServiceImpl::RemoveKey, service_weak_ptr_,
+                       token_id_, public_key_spki_der, base::DoNothing());
     content::GetUIThreadTaskRunner({})->PostTask(
-        from, base::BindOnce(&NSSOperationState::RunCallback,
-                             std::move(bound_callback), service_weak_ptr_));
+        from, base::BindOnce(&RunCallBackIfCallableElseRunCleanUp,
+                             std::move(success_callback),
+                             std::move(cleanup_callback)));
   }
 
   // Must be called on origin thread, therefore use CallBack().
@@ -511,18 +536,16 @@ class GetTokensState : public NSSOperationState {
   ~GetTokensState() override = default;
 
   void OnError(const base::Location& from, Status status) override {
-    CallBack(from, std::unique_ptr<std::vector<TokenId>>() /* no token ids */,
-             status);
+    CallBack(from, std::vector<TokenId>() /* no token ids */, status);
   }
 
-  void OnSuccess(const base::Location& from,
-                 std::unique_ptr<std::vector<TokenId>> token_ids) {
+  void OnSuccess(const base::Location& from, std::vector<TokenId> token_ids) {
     CallBack(from, std::move(token_ids), Status::kSuccess);
   }
 
  private:
   void CallBack(const base::Location& from,
-                std::unique_ptr<std::vector<TokenId>> token_ids,
+                std::vector<TokenId> token_ids,
                 Status status) {
     auto bound_callback =
         base::BindOnce(std::move(callback_), std::move(token_ids), status);
@@ -576,7 +599,7 @@ class GetKeyLocationsState : public NSSOperationState {
 class SetAttributeForKeyState : public NSSOperationState {
  public:
   SetAttributeForKeyState(ServiceWeakPtr weak_ptr,
-                          const std::string& public_key_spki_der,
+                          std::vector<uint8_t> public_key_spki_der,
                           CK_ATTRIBUTE_TYPE attribute_type,
                           std::vector<uint8_t> attribute_value,
                           SetAttributeForKeyCallback callback)
@@ -597,7 +620,7 @@ class SetAttributeForKeyState : public NSSOperationState {
   }
 
   // Must be a DER encoding of a SubjectPublicKeyInfo.
-  const std::string public_key_spki_der_;
+  const std::vector<uint8_t> public_key_spki_der_;
   const CK_ATTRIBUTE_TYPE attribute_type_;
   const std::vector<uint8_t> attribute_value_;
 
@@ -616,7 +639,7 @@ class SetAttributeForKeyState : public NSSOperationState {
 class GetAttributeForKeyState : public NSSOperationState {
  public:
   GetAttributeForKeyState(ServiceWeakPtr weak_ptr,
-                          const std::string& public_key_spki_der,
+                          std::vector<uint8_t> public_key_spki_der,
                           CK_ATTRIBUTE_TYPE attribute_type,
                           GetAttributeForKeyCallback callback)
       : NSSOperationState(weak_ptr),
@@ -636,7 +659,7 @@ class GetAttributeForKeyState : public NSSOperationState {
   }
 
   // Must be a DER encoding of a SubjectPublicKeyInfo.
-  const std::string public_key_spki_der_;
+  const std::vector<uint8_t> public_key_spki_der_;
   const CK_ATTRIBUTE_TYPE attribute_type_;
 
  private:
@@ -717,7 +740,7 @@ void GenerateRSAKeyOnWorkerThread(std::unique_ptr<GenerateRSAKeyState> state) {
 
   bool key_gen_success;
   if (state->sw_backed_) {
-    auto chaps_util = chromeos::platform_keys::ChapsUtil::Create();
+    auto chaps_util = chromeos::ChapsUtil::Create();
     key_gen_success = chaps_util->GenerateSoftwareBackedRSAKey(
         state->slot_.get(), state->modulus_length_bits_, &public_key,
         &private_key);
@@ -1111,10 +1134,9 @@ void GetAllKeysOnWorkerThread(std::unique_ptr<GetAllKeysState> state) {
 
   std::vector<std::vector<uint8_t>> public_key_spki_der_list;
 
-  // This assumes that all public keys on the slots are actually key pairs with
-  // private + public keys, so it's sufficient to get the public keys (and also
-  // not necessary to check that a private key for that public key really
-  // exists).
+  // This assumes that there might be a public key on a slot that
+  // does not have a corresponding private key. The key is then considered
+  // partially deleted and should be treated as deleted (it eventually will be).
   crypto::ScopedSECKEYPublicKeyList public_keys(
       PK11_ListPublicKeysInSlot(state->slot_.get(), /*nickname=*/nullptr));
 
@@ -1135,10 +1157,15 @@ void GetAllKeysOnWorkerThread(std::unique_ptr<GetAllKeysState> state) {
       LOG(WARNING) << "Could not encode subject public key info.";
       continue;
     }
-
-    if (subject_public_key_info->len > 0) {
-      public_key_spki_der_list.push_back(
-          ScopedSECItemToBytes(subject_public_key_info));
+    if (subject_public_key_info->len == 0) {
+      continue;
+    }
+    const std::vector<uint8_t> pubkey =
+        ScopedSECItemToBytes(subject_public_key_info);
+    crypto::ScopedSECKEYPrivateKey rsa_key =
+        crypto::FindNSSKeyFromPublicKeyInfoInSlot(pubkey, state->slot_.get());
+    if (rsa_key) {
+      public_key_spki_der_list.push_back(pubkey);
     }
   }
 
@@ -1297,19 +1324,19 @@ void RemoveKeyWithDb(std::unique_ptr<RemoveKeyState> state,
 void GetTokensWithDB(std::unique_ptr<GetTokensState> state,
                      net::NSSCertDatabase* cert_db) {
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
-  auto token_ids = std::make_unique<std::vector<TokenId>>();
+  std::vector<TokenId> token_ids;
 
   // The user token will be unavailable in case of no logged in user in this
   // profile.
   if (cert_db->GetPrivateSlot()) {
-    token_ids->push_back(TokenId::kUser);
+    token_ids.push_back(TokenId::kUser);
   }
 
   if (cert_db->GetSystemSlot()) {
-    token_ids->push_back(TokenId::kSystem);
+    token_ids.push_back(TokenId::kSystem);
   }
 
-  DCHECK(!token_ids->empty());
+  DCHECK(!token_ids.empty());
 
   state->OnSuccess(FROM_HERE, std::move(token_ids));
 }
@@ -1392,9 +1419,8 @@ void SetAttributeForKeyWithDbOnWorkerThread(
     std::unique_ptr<SetAttributeForKeyState> state) {
   DCHECK(state->slot_.get());
 
-  crypto::ScopedSECKEYPrivateKey private_key = GetPrivateKey(
-      StrToBytes(state->public_key_spki_der_), state->slot_.get());
-
+  crypto::ScopedSECKEYPrivateKey private_key =
+      GetPrivateKey(state->public_key_spki_der_, state->slot_.get());
   if (!private_key) {
     state->OnError(FROM_HERE, Status::kErrorKeyNotFound);
     return;
@@ -1437,8 +1463,8 @@ void GetAttributeForKeyWithDbOnWorkerThread(
     std::unique_ptr<GetAttributeForKeyState> state) {
   DCHECK(state->slot_.get());
 
-  crypto::ScopedSECKEYPrivateKey private_key = GetPrivateKey(
-      StrToBytes(state->public_key_spki_der_), state->slot_.get());
+  crypto::ScopedSECKEYPrivateKey private_key =
+      GetPrivateKey(state->public_key_spki_der_, state->slot_.get());
 
   if (!private_key) {
     state->OnError(FROM_HERE, Status::kErrorKeyNotFound);
@@ -1511,7 +1537,7 @@ void PlatformKeysServiceImpl::GenerateRSAKey(TokenId token_id,
                                              GenerateKeyCallback callback) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   auto state = std::make_unique<GenerateRSAKeyState>(
-      weak_factory_.GetWeakPtr(), modulus_length_bits, sw_backed,
+      weak_factory_.GetWeakPtr(), modulus_length_bits, sw_backed, token_id,
       std::move(callback));
   if (delegate_->IsShutDown()) {
     state->OnError(FROM_HERE, Status::kErrorShutDown);
@@ -1535,7 +1561,7 @@ void PlatformKeysServiceImpl::GenerateECKey(TokenId token_id,
                                             GenerateKeyCallback callback) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   auto state = std::make_unique<GenerateECKeyState>(
-      weak_factory_.GetWeakPtr(), named_curve, std::move(callback));
+      weak_factory_.GetWeakPtr(), named_curve, token_id, std::move(callback));
   if (delegate_->IsShutDown()) {
     state->OnError(FROM_HERE, Status::kErrorShutDown);
     return;
@@ -1548,7 +1574,7 @@ void PlatformKeysServiceImpl::GenerateECKey(TokenId token_id,
                   delegate_.get(), state_ptr);
 }
 
-void PlatformKeysServiceImpl::SignRSAPKCS1Digest(
+void PlatformKeysServiceImpl::SignRsaPkcs1(
     absl::optional<TokenId> token_id,
     std::vector<uint8_t> data,
     std::vector<uint8_t> public_key_spki_der,
@@ -1601,7 +1627,7 @@ void PlatformKeysServiceImpl::SignRSAPKCS1Raw(
                   delegate_.get(), state_ptr);
 }
 
-void PlatformKeysServiceImpl::SignECDSADigest(
+void PlatformKeysServiceImpl::SignEcdsa(
     absl::optional<TokenId> token_id,
     std::vector<uint8_t> data,
     std::vector<uint8_t> public_key_spki_der,
@@ -1801,7 +1827,7 @@ void PlatformKeysServiceImpl::GetKeyLocations(
 
 void PlatformKeysServiceImpl::SetAttributeForKey(
     TokenId token_id,
-    const std::string& public_key_spki_der,
+    std::vector<uint8_t> public_key_spki_der,
     KeyAttributeType attribute_type,
     std::vector<uint8_t> attribute_value,
     SetAttributeForKeyCallback callback) {
@@ -1812,8 +1838,8 @@ void PlatformKeysServiceImpl::SetAttributeForKey(
       /*map_to_softoken_attrs=*/IsSetMapToSoftokenAttrsForTesting());
 
   auto state = std::make_unique<SetAttributeForKeyState>(
-      weak_factory_.GetWeakPtr(), public_key_spki_der, ck_attribute_type,
-      std::move(attribute_value), std::move(callback));
+      weak_factory_.GetWeakPtr(), std::move(public_key_spki_der),
+      ck_attribute_type, std::move(attribute_value), std::move(callback));
   if (delegate_->IsShutDown()) {
     state->OnError(FROM_HERE, Status::kErrorShutDown);
     return;
@@ -1832,7 +1858,7 @@ void PlatformKeysServiceImpl::SetAttributeForKey(
 
 void PlatformKeysServiceImpl::GetAttributeForKey(
     TokenId token_id,
-    const std::string& public_key_spki_der,
+    std::vector<uint8_t> public_key_spki_der,
     KeyAttributeType attribute_type,
     GetAttributeForKeyCallback callback) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
@@ -1842,8 +1868,8 @@ void PlatformKeysServiceImpl::GetAttributeForKey(
       /*map_to_softoken_attrs=*/IsSetMapToSoftokenAttrsForTesting());
 
   auto state = std::make_unique<GetAttributeForKeyState>(
-      weak_factory_.GetWeakPtr(), public_key_spki_der, ck_attribute_type,
-      std::move(callback));
+      weak_factory_.GetWeakPtr(), std::move(public_key_spki_der),
+      ck_attribute_type, std::move(callback));
   if (delegate_->IsShutDown()) {
     state->OnError(FROM_HERE, Status::kErrorShutDown);
     return;

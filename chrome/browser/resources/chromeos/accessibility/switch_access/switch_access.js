@@ -6,10 +6,8 @@ import {AsyncUtil} from '../common/async_util.js';
 import {EventHandler} from '../common/event_handler.js';
 import {FlagName, Flags} from '../common/flags.js';
 
-import {SACommands} from './commands.js';
 import {Navigator} from './navigator.js';
 import {KeyboardRootNode} from './nodes/keyboard_node.js';
-import {PreferenceManager} from './preference_manager.js';
 import {ErrorType, Mode} from './switch_access_constants.js';
 
 const AutomationNode = chrome.automation.AutomationNode;
@@ -17,27 +15,35 @@ const EventType = chrome.automation.EventType;
 const FindParams = chrome.automation.FindParams;
 const RoleType = chrome.automation.RoleType;
 
+let readyCallback;
+const readyPromise = new Promise(resolve => readyCallback = resolve);
+
 /**
  * The top-level class for the Switch Access accessibility feature. Handles
  * initialization and small matters that don't fit anywhere else in the
  * codebase.
  */
 export class SwitchAccess {
-  static async initialize() {
-    await Flags.init();
+  /** @param {!AutomationNode} desktop */
+  static async init(desktop) {
+    if (SwitchAccess.instance) {
+      throw new Error('Cannot create two SwitchAccess.instances');
+    }
     SwitchAccess.instance = new SwitchAccess();
 
-    const desktop = await AsyncUtil.getDesktop();
     const currentFocus = await AsyncUtil.getFocus();
+    await SwitchAccess.instance.waitForFocus_(desktop, currentFocus);
+  }
 
-    await SwitchAccess.waitForFocus_(desktop, currentFocus);
-
-    // Navigator must be initialized first.
-    Navigator.initializeSingletonInstances(desktop);
-
-    SwitchAccess.commands = new SACommands();
+  /** Starts Switch Access behavior. */
+  static start() {
     KeyboardRootNode.startWatchingVisibility();
-    PreferenceManager.initialize();
+    readyCallback();
+  }
+
+  /** @return {!Promise} */
+  static async ready() {
+    return readyPromise;
   }
 
   /**
@@ -45,7 +51,7 @@ export class SwitchAccess {
    * @param {AutomationNode} currentFocus
    * @private
    */
-  static async waitForFocus_(desktop, currentFocus) {
+  async waitForFocus_(desktop, currentFocus) {
     return new Promise(resolve => {
       // Focus is available. Finish init without waiting for further events.
       // Disallow web view nodes, which indicate a root web area is still
@@ -91,13 +97,13 @@ export class SwitchAccess {
   }
 
   /** @return {!Mode} */
-  get mode() {
-    return this.mode_;
+  static get mode() {
+    return SwitchAccess.instance.mode_;
   }
 
   /** @param {!Mode} newMode */
-  set mode(newMode) {
-    this.mode_ = newMode;
+  static set mode(newMode) {
+    SwitchAccess.instance.mode_ = newMode;
   }
 
   /**
@@ -157,3 +163,6 @@ export class SwitchAccess {
     return new Error(errorString);
   }
 }
+
+/** @type {SwitchAccess} */
+SwitchAccess.instance;

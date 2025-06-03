@@ -81,10 +81,6 @@ std::unique_ptr<ResultHelper> DoVerifyOnWorkerThread(
   verify_result->error = verify_proc->Verify(
       cert.get(), hostname, ocsp_response, sct_list, flags,
       additional_trust_anchors, &verify_result->result, net_log);
-  // The CertVerifyResult is created and populated on the worker thread and
-  // then returned to the network thread. Detach now before returning the
-  // result, since any further access will be on the network thread.
-  verify_result->result.DetachFromSequence();
   return verify_result;
 }
 
@@ -218,6 +214,7 @@ int MultiThreadedCertVerifier::Verify(const RequestParams& params,
                                       CompletionOnceCallback callback,
                                       std::unique_ptr<Request>* out_req,
                                       const NetLogWithSource& net_log) {
+  CHECK(params.certificate());
   out_req->reset();
 
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
@@ -239,6 +236,7 @@ void MultiThreadedCertVerifier::UpdateVerifyProcData(
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   verify_proc_ = verify_proc_factory_->CreateCertVerifyProc(
       std::move(cert_net_fetcher), impl_params);
+  CHECK(verify_proc_);
   NotifyCertVerifierChanged();
 }
 

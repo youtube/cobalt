@@ -22,9 +22,9 @@
 #include "ui/display/display_switches.h"
 #include "ui/display/manager/content_protection_manager.h"
 #include "ui/display/manager/display_layout_manager.h"
-#include "ui/display/manager/display_manager_util.h"
 #include "ui/display/manager/managed_display_info.h"
 #include "ui/display/manager/update_display_configuration_task.h"
+#include "ui/display/manager/util/display_manager_util.h"
 #include "ui/display/types/display_constants.h"
 #include "ui/display/types/display_mode.h"
 #include "ui/display/types/display_snapshot.h"
@@ -608,7 +608,7 @@ DisplayConfigurator::DisplayConfigurator()
           base::BindRepeating(&DisplayConfigurator::configurator_disabled,
                               base::Unretained(this)))),
       has_unassociated_display_(false),
-      pending_vrr_state_(::features::IsVariableRefreshRateEnabled()) {
+      pending_vrr_state_(::features::IsVariableRefreshRateAlwaysOn()) {
   AddObserver(content_protection_manager_.get());
 }
 
@@ -929,6 +929,9 @@ void DisplayConfigurator::OnConfigurationChanged() {
 void DisplayConfigurator::OnDisplaySnapshotsInvalidated() {
   VLOG(1) << "Display snapshots invalidated.";
   cached_displays_.clear();
+  for (Observer& observer : observers_) {
+    observer.OnDisplaySnapshotsInvalidated();
+  }
 }
 
 void DisplayConfigurator::AddObserver(Observer* observer) {

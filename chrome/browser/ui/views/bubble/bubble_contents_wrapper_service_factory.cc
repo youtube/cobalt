@@ -4,7 +4,6 @@
 
 #include "chrome/browser/ui/views/bubble/bubble_contents_wrapper_service_factory.h"
 
-#include "base/memory/singleton.h"
 #include "base/no_destructor.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/views/bubble/bubble_contents_wrapper_service.h"
@@ -34,9 +33,11 @@ BubbleContentsWrapperServiceFactory::BubbleContentsWrapperServiceFactory()
               .WithGuest(ProfileSelection::kOriginalOnly)
               .Build()) {}
 
-KeyedService* BubbleContentsWrapperServiceFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+BubbleContentsWrapperServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
-  return new BubbleContentsWrapperService(Profile::FromBrowserContext(context));
+  return std::make_unique<BubbleContentsWrapperService>(
+      Profile::FromBrowserContext(context));
 }
 
 BubbleContentsWrapperServiceFactory::~BubbleContentsWrapperServiceFactory() =

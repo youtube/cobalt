@@ -37,11 +37,12 @@ inline bool InlineLengthMayChange(const ComputedStyle& style,
   // Percentage inline margins will affect the size if the size is unspecified
   // (auto and similar).
   if (is_unspecified && style.MayHaveMargin() &&
-      (style.MarginStart().IsPercentOrCalc() ||
-       style.MarginEnd().IsPercentOrCalc()) &&
+      (style.MarginInlineStart().IsPercentOrCalc() ||
+       style.MarginInlineEnd().IsPercentOrCalc()) &&
       (new_space.PercentageResolutionInlineSize() !=
-       old_space.PercentageResolutionInlineSize()))
+       old_space.PercentageResolutionInlineSize())) {
     return true;
+  }
 
   if (is_unspecified) {
     if (new_space.AvailableSize().inline_size !=
@@ -176,7 +177,7 @@ bool SizeMayChange(const NGBlockNode& node,
 //  - |NGLayoutCacheStatus::kHit| otherwise.
 NGLayoutCacheStatus CalculateSizeBasedLayoutCacheStatusWithGeometry(
     const NGBlockNode& node,
-    const NGFragmentGeometry& fragment_geometry,
+    const FragmentGeometry& fragment_geometry,
     const NGLayoutResult& layout_result,
     const NGConstraintSpace& new_space,
     const NGConstraintSpace& old_space) {
@@ -279,8 +280,9 @@ NGLayoutCacheStatus CalculateSizeBasedLayoutCacheStatusWithGeometry(
 
   if (!is_block_size_equal) {
     // Only block-flow supports changing the block-size for simplified layout.
-    if (!node.IsBlockFlow() || node.IsLayoutNGCustom())
+    if (!node.IsBlockFlow() || node.IsCustom()) {
       return NGLayoutCacheStatus::kNeedsLayout;
+    }
 
     // Fieldsets stretch their content to the final block-size, which might
     // affect scrollbars.
@@ -290,9 +292,6 @@ NGLayoutCacheStatus CalculateSizeBasedLayoutCacheStatusWithGeometry(
     if (node.IsBlockFlow() && style.AlignContentBlockCenter()) {
       return NGLayoutCacheStatus::kNeedsLayout;
     }
-
-    if (layout_result.DisableSimplifiedLayout())
-      return NGLayoutCacheStatus::kNeedsLayout;
 
     // If we are the document or body element in quirks mode, changing our size
     // means that a scrollbar was added/removed. Require full layout.
@@ -423,7 +422,7 @@ bool IntrinsicSizeWillChange(
     const NGBlockBreakToken* break_token,
     const NGLayoutResult& cached_layout_result,
     const NGConstraintSpace& new_space,
-    absl::optional<NGFragmentGeometry>* fragment_geometry) {
+    absl::optional<FragmentGeometry>* fragment_geometry) {
   const ComputedStyle& style = node.Style();
   if (new_space.IsInlineAutoBehaviorStretch() && !NeedMinMaxSize(style))
     return false;
@@ -450,7 +449,7 @@ NGLayoutCacheStatus CalculateSizeBasedLayoutCacheStatus(
     const NGBlockBreakToken* break_token,
     const NGLayoutResult& cached_layout_result,
     const NGConstraintSpace& new_space,
-    absl::optional<NGFragmentGeometry>* fragment_geometry) {
+    absl::optional<FragmentGeometry>* fragment_geometry) {
   DCHECK_EQ(cached_layout_result.Status(), NGLayoutResult::kSuccess);
 
   const NGConstraintSpace& old_space =
@@ -491,7 +490,7 @@ bool MaySkipLayoutWithinBlockFormattingContext(
     const NGConstraintSpace& new_space,
     absl::optional<LayoutUnit>* bfc_block_offset,
     LayoutUnit* block_offset_delta,
-    NGMarginStrut* end_margin_strut) {
+    MarginStrut* end_margin_strut) {
   DCHECK_EQ(cached_layout_result.Status(), NGLayoutResult::kSuccess);
   DCHECK(bfc_block_offset);
   DCHECK(block_offset_delta);
@@ -501,7 +500,7 @@ bool MaySkipLayoutWithinBlockFormattingContext(
       cached_layout_result.GetConstraintSpaceForCaching();
 
   bool is_margin_strut_equal =
-      old_space.MarginStrut() == new_space.MarginStrut();
+      old_space.GetMarginStrut() == new_space.GetMarginStrut();
 
   LayoutUnit old_clearance_offset = old_space.ClearanceOffset();
   LayoutUnit new_clearance_offset = new_space.ClearanceOffset();
@@ -533,8 +532,8 @@ bool MaySkipLayoutWithinBlockFormattingContext(
     // TODO(layout-dev): If we track if any margins affected this calculation
     // (with an additional bit on the layout result) we could potentially skip
     // this check.
-    if (old_clearance_offset - old_space.BfcOffset().block_offset >
-        new_clearance_offset - new_space.BfcOffset().block_offset) {
+    if (old_clearance_offset - old_space.GetBfcOffset().block_offset >
+        new_clearance_offset - new_space.GetBfcOffset().block_offset) {
       return false;
     }
   }
@@ -577,13 +576,15 @@ bool MaySkipLayoutWithinBlockFormattingContext(
     if (physical_fragment.HasAdjoiningObjectDescendants()) {
       // Check if the previous position intersects with any floats.
       if (old_expected <
-          old_space.ExclusionSpace().ClearanceOffset(EClear::kBoth))
+          old_space.GetExclusionSpace().ClearanceOffset(EClear::kBoth)) {
         return false;
+      }
 
       // Check if the new position intersects with any floats.
       if (new_expected <
-          new_space.ExclusionSpace().ClearanceOffset(EClear::kBoth))
+          new_space.GetExclusionSpace().ClearanceOffset(EClear::kBoth)) {
         return false;
+      }
     }
 
     *block_offset_delta = new_expected - old_expected;
@@ -596,7 +597,7 @@ bool MaySkipLayoutWithinBlockFormattingContext(
     // the new "start" margin-strut becomes the new "end" margin-strut (as we
     // are self-collapsing).
     if (!cached_layout_result.SubtreeModifiedMarginStrut()) {
-      *end_margin_strut = new_space.MarginStrut();
+      *end_margin_strut = new_space.GetMarginStrut();
     } else {
       DCHECK(is_margin_strut_equal);
     }
@@ -630,8 +631,9 @@ bool MaySkipLayoutWithinBlockFormattingContext(
 
   // Check if the previous position intersects with any floats.
   if (**bfc_block_offset <
-      old_space.ExclusionSpace().ClearanceOffset(EClear::kBoth))
+      old_space.GetExclusionSpace().ClearanceOffset(EClear::kBoth)) {
     return false;
+  }
 
   if (is_pushed_by_floats || ancestor_has_clearance_past_adjoining_floats) {
     // If we've been pushed by floats, we assume the new clearance offset.
@@ -641,29 +643,30 @@ bool MaySkipLayoutWithinBlockFormattingContext(
   } else if (is_margin_strut_equal) {
     // If our incoming margin-strut is equal, we are just shifted by the BFC
     // block-offset amount.
-    *block_offset_delta =
-        new_space.BfcOffset().block_offset - old_space.BfcOffset().block_offset;
+    *block_offset_delta = new_space.GetBfcOffset().block_offset -
+                          old_space.GetBfcOffset().block_offset;
     *bfc_block_offset = **bfc_block_offset + *block_offset_delta;
   } else {
     // If our incoming margin-strut isn't equal, we need to account for the
     // difference in the incoming margin-struts.
 #if DCHECK_IS_ON()
     DCHECK(!cached_layout_result.SubtreeModifiedMarginStrut());
-    LayoutUnit old_bfc_block_offset =
-        old_space.BfcOffset().block_offset + old_space.MarginStrut().Sum();
+    LayoutUnit old_bfc_block_offset = old_space.GetBfcOffset().block_offset +
+                                      old_space.GetMarginStrut().Sum();
     DCHECK_EQ(old_bfc_block_offset, **bfc_block_offset);
 #endif
 
-    LayoutUnit new_bfc_block_offset =
-        new_space.BfcOffset().block_offset + new_space.MarginStrut().Sum();
+    LayoutUnit new_bfc_block_offset = new_space.GetBfcOffset().block_offset +
+                                      new_space.GetMarginStrut().Sum();
     *block_offset_delta = new_bfc_block_offset - **bfc_block_offset;
     *bfc_block_offset = **bfc_block_offset + *block_offset_delta;
   }
 
   // Check if the new position intersects with any floats.
   if (**bfc_block_offset <
-      new_space.ExclusionSpace().ClearanceOffset(EClear::kBoth))
+      new_space.GetExclusionSpace().ClearanceOffset(EClear::kBoth)) {
     return false;
+  }
 
   return true;
 }

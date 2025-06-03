@@ -23,6 +23,7 @@
 #include "components/viz/service/display/display_resource_provider.h"
 #include "components/viz/service/display/overlay_candidate.h"
 #include "components/viz/service/display/overlay_processor_interface.h"
+#include "components/viz/service/display/render_pass_alpha_type.h"
 #include "components/viz/service/viz_service_export.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/gfx/ca_layer_result.h"
@@ -79,6 +80,7 @@ class VIZ_SERVICE_EXPORT DirectRenderer {
 
   bool use_partial_swap() const { return use_partial_swap_; }
 
+  void SetOutputSurfaceClipRect(const gfx::Rect& clip_rect);
   void SetVisible(bool visible);
   void ReallocatedFrameBuffers();
   void DecideRenderPassAllocationsForFrame(
@@ -112,6 +114,7 @@ class VIZ_SERVICE_EXPORT DirectRenderer {
     gfx::CALayerResult ca_layer_error_code = gfx::kCALayerSuccess;
 #endif
     absl::optional<int64_t> choreographer_vsync_id;
+    int64_t swap_trace_id = -1;
   };
   virtual void SwapBuffers(SwapFrameData swap_frame_data) = 0;
   virtual void SwapBuffersSkipped() {}
@@ -207,6 +210,7 @@ class VIZ_SERVICE_EXPORT DirectRenderer {
     bool generate_mipmap = false;
     SharedImageFormat format;
     gfx::ColorSpace color_space;
+    RenderPassAlphaType alpha_type = RenderPassAlphaType::kPremul;
     // Render pass wants scanout
     bool is_scanout = false;
     // Render pass wants to synchronize updates with other overlays, on Windows
@@ -308,6 +312,7 @@ class VIZ_SERVICE_EXPORT DirectRenderer {
       const copy_output::RenderPassGeometry& geometry,
       std::unique_ptr<CopyOutputRequest> request) = 0;
   virtual void GenerateMipmap() = 0;
+  virtual bool SupportsBGRA() const;
 
   gfx::Size surface_size_for_swap_buffers() const {
     return reshape_params_ ? reshape_params_->size : gfx::Size();
@@ -404,6 +409,10 @@ class VIZ_SERVICE_EXPORT DirectRenderer {
     DCHECK(reshape_params_);
     return reshape_params_->color_space;
   }
+  RenderPassAlphaType reshape_alpha_type() const {
+    DCHECK(reshape_params_);
+    return reshape_params_->alpha_type;
+  }
 
   // Sets a DelegatedInkPointRendererSkiaForTest to be used for testing only, in
   // order to save delegated ink metadata values that would otherwise be reset.
@@ -434,6 +443,10 @@ class VIZ_SERVICE_EXPORT DirectRenderer {
   // to prevent use of uninitialized values. The size in these parameters
   // may be larger than the `device_viewport_size_` that users see.
   absl::optional<OutputSurface::ReshapeParams> reshape_params_;
+
+  // If present additionally restricts drawing to the OutputSurface. WebView
+  // gets this rect from the HWUI.
+  absl::optional<gfx::Rect> output_surface_clip_rect_;
   gfx::Size device_viewport_size_;
   gfx::OverlayTransform reshape_display_transform_ =
       gfx::OVERLAY_TRANSFORM_INVALID;

@@ -14,7 +14,6 @@
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "chromeos/ash/services/secure_channel/public/cpp/client/connection_manager.h"
-#include "eche_app_manager.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
@@ -70,10 +69,10 @@ class EcheSignaler : public mojom::SignalingMessageExchanger,
   FRIEND_TEST_ALL_PREFIXES(EcheSignalerTest,
                            TestConnectionFailWhenRemoteDeviceOnCellular);
   FRIEND_TEST_ALL_PREFIXES(EcheSignalerTest,
-                           OnRequestCloseConnnectionDoesNotStreamEventFailures);
+                           OnRequestCloseConnectionDoesNotStreamEventFailures);
 
   // EcheConnectionStatusHandler::Observer
-  void OnRequestCloseConnnection() override;
+  void OnConnectionClosed() override;
 
   void RecordSignalingTimeout();
   void ProcessAndroidNetworkInfo(const proto::ExoMessage& message);
@@ -90,7 +89,8 @@ class EcheSignaler : public mojom::SignalingMessageExchanger,
   raw_ptr<EcheConnector, ExperimentalAsh> eche_connector_ = nullptr;
   raw_ptr<AppsLaunchInfoProvider, ExperimentalAsh> apps_launch_info_provider_ =
       nullptr;
-  EcheConnectionStatusHandler* eche_connection_status_handler_ = nullptr;
+  raw_ptr<EcheConnectionStatusHandler, ExperimentalAsh>
+      eche_connection_status_handler_ = nullptr;
   raw_ptr<secure_channel::ConnectionManager, ExperimentalAsh>
       connection_manager_ = nullptr;
   mojo::Remote<mojom::SignalingMessageObserver> observer_;

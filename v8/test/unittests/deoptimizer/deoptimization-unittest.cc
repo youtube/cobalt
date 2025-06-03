@@ -37,6 +37,7 @@
 #include "src/execution/isolate.h"
 #include "src/init/v8.h"
 #include "src/objects/objects-inl.h"
+#include "test/unittests/heap/heap-utils.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -149,7 +150,7 @@ TEST_F(DeoptimizationTest, DeoptimizeSimple) {
         "function f() { g(); };"
         "f();");
   }
-  CollectAllGarbage();
+  InvokeMajorGC();
   CheckJsInt32(1, "count", context());
 
   CHECK(!GetJSFunction("f")->HasAttachedOptimizedCode());
@@ -164,7 +165,7 @@ TEST_F(DeoptimizationTest, DeoptimizeSimple) {
         "function f(x) { if (x) { g(); } else { return } };"
         "f(true);");
   }
-  CollectAllGarbage();
+  InvokeMajorGC();
 
   CheckJsInt32(1, "count", context());
   CHECK(!GetJSFunction("f")->HasAttachedOptimizedCode());
@@ -184,7 +185,7 @@ TEST_F(DeoptimizationTest, DeoptimizeSimpleWithArguments) {
         "function f(x, y, z) { g(1,x); y+z; };"
         "f(1, \"2\", false);");
   }
-  CollectAllGarbage();
+  InvokeMajorGC();
 
   CheckJsInt32(1, "count", context());
   CHECK(!GetJSFunction("f")->HasAttachedOptimizedCode());
@@ -200,7 +201,7 @@ TEST_F(DeoptimizationTest, DeoptimizeSimpleWithArguments) {
         "function f(x, y, z) { if (x) { g(x, y); } else { return y + z; } };"
         "f(true, 1, \"2\");");
   }
-  CollectAllGarbage();
+  InvokeMajorGC();
 
   CheckJsInt32(1, "count", context());
   CHECK(!GetJSFunction("f")->HasAttachedOptimizedCode());
@@ -221,7 +222,7 @@ TEST_F(DeoptimizationTest, DeoptimizeSimpleNested) {
         "function g(z) { count++; %DeoptimizeFunction(f); return z;}"
         "function f(x,y,z) { return h(x, y, g(z)); };"
         "result = f(1, 2, 3);");
-    CollectAllGarbage();
+    InvokeMajorGC();
 
     CheckJsInt32(1, "count", context());
     CheckJsInt32(6, "result", context());
@@ -244,7 +245,7 @@ TEST_F(DeoptimizationTest, DeoptimizeRecursive) {
         "function f(x) { calls++; if (x > 0) { f(x - 1); } else { g(); } };"
         "f(10);");
   }
-  CollectAllGarbage();
+  InvokeMajorGC();
 
   CheckJsInt32(1, "count", context());
   CheckJsInt32(11, "calls", context());
@@ -274,7 +275,7 @@ TEST_F(DeoptimizationTest, DeoptimizeMultiple) {
         "function f1(x) { return f2(x + 1, x + 1) + x; };"
         "result = f1(1);");
   }
-  CollectAllGarbage();
+  InvokeMajorGC();
 
   CheckJsInt32(1, "count", context());
   CheckJsInt32(14, "result", context());
@@ -293,7 +294,7 @@ TEST_F(DeoptimizationTest, DeoptimizeConstructor) {
         "function f() {  g(); };"
         "result = new f() instanceof f;");
   }
-  CollectAllGarbage();
+  InvokeMajorGC();
 
   CheckJsInt32(1, "count", context());
   CHECK(context()
@@ -313,7 +314,7 @@ TEST_F(DeoptimizationTest, DeoptimizeConstructor) {
         "result = new f(1, 2);"
         "result = result.x + result.y;");
   }
-  CollectAllGarbage();
+  InvokeMajorGC();
 
   CheckJsInt32(1, "count", context());
   CheckJsInt32(3, "result", context());
@@ -340,7 +341,7 @@ TEST_F(DeoptimizationTest, DeoptimizeConstructorMultiple) {
         "function f1(x) { this.result = new f2(x + 1, x + 1).result + x; };"
         "result = new f1(1).result;");
   }
-  CollectAllGarbage();
+  InvokeMajorGC();
 
   CheckJsInt32(1, "count", context());
   CheckJsInt32(14, "result", context());
@@ -389,7 +390,7 @@ class DeoptimizationDisableConcurrentRecompilationTest
     RunJS(
         "deopt = true;"
         "var result = f(7, new X());");
-    CollectAllGarbage();
+    InvokeMajorGC();
     CHECK(!GetJSFunction("f")->HasAttachedOptimizedCode());
   }
 };
@@ -433,7 +434,7 @@ TEST_F(DeoptimizationDisableConcurrentRecompilationTest,
         "deopt = true;"
         "var result = f('a+', new X());");
   }
-  CollectAllGarbage();
+  InvokeMajorGC();
 
   CHECK(!GetJSFunction("f")->HasAttachedOptimizedCode());
   CheckJsInt32(1, "count", context());
@@ -537,7 +538,7 @@ TEST_F(DeoptimizationDisableConcurrentRecompilationTest, DeoptimizeCompare) {
         "deopt = true;"
         "var result = f('a', new X());");
   }
-  CollectAllGarbage();
+  InvokeMajorGC();
 
   CHECK(!GetJSFunction("f")->HasAttachedOptimizedCode());
   CheckJsInt32(1, "count", context());
@@ -621,7 +622,7 @@ TEST_F(DeoptimizationDisableConcurrentRecompilationTest,
         "f2(new X(), 'z');"
         "g2(new X(), 'z');");
   }
-  CollectAllGarbage();
+  InvokeMajorGC();
 
   CHECK(!GetJSFunction("f1")->HasAttachedOptimizedCode());
   CHECK(!GetJSFunction("g1")->HasAttachedOptimizedCode());
@@ -704,7 +705,7 @@ TEST_F(DeoptimizationDisableConcurrentRecompilationTest,
         "deopt = true;"
         "var result = f1(new X());");
   }
-  CollectAllGarbage();
+  InvokeMajorGC();
 
   CHECK(!GetJSFunction("f1")->HasAttachedOptimizedCode());
   CHECK(!GetJSFunction("g1")->HasAttachedOptimizedCode());

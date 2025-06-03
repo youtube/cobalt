@@ -17,7 +17,6 @@ import android.view.ViewGroup;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.annotation.VisibleForTesting;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.recyclerview.widget.RecyclerView.OnScrollListener;
@@ -25,6 +24,7 @@ import androidx.recyclerview.widget.RecyclerView.ViewHolder;
 
 import org.chromium.base.ContextUtils;
 import org.chromium.base.IntentUtils;
+import org.chromium.base.ResettersForTesting;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.Supplier;
 import org.chromium.chrome.R;
@@ -39,7 +39,7 @@ import org.chromium.chrome.browser.signin.services.IdentityServicesProvider;
 import org.chromium.chrome.browser.signin.services.SigninManager.SignInStateObserver;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabLaunchType;
-import org.chromium.chrome.browser.tabmodel.document.TabDelegate;
+import org.chromium.chrome.browser.tabmodel.document.ChromeAsyncTabLauncher;
 import org.chromium.chrome.browser.util.ChromeAccessibilityUtil;
 import org.chromium.components.browser_ui.util.ConversionUtils;
 import org.chromium.components.browser_ui.widget.selectable_list.SelectableItemViewHolder;
@@ -48,6 +48,7 @@ import org.chromium.components.embedder_support.util.UrlConstants;
 import org.chromium.components.favicon.LargeIconBridge;
 import org.chromium.components.user_prefs.UserPrefs;
 import org.chromium.content_public.browser.LoadUrlParams;
+import org.chromium.ui.UiUtils;
 import org.chromium.ui.base.PageTransition;
 import org.chromium.url.GURL;
 
@@ -108,6 +109,7 @@ public class HistoryContentManager implements SignInStateObserver, PrefObserver 
     private final Observer mObserver;
     private final boolean mIsSeparateActivity;
     private final boolean mIsIncognito;
+    private final Profile mProfile;
     private final boolean mIsScrollToLoadDisabled;
     private final boolean mShouldShowClearDataIfAvailable;
     private final String mHostName;
@@ -125,7 +127,7 @@ public class HistoryContentManager implements SignInStateObserver, PrefObserver 
      * @param observer The Observer to receive updates from this manager.
      * @param isSeparateActivity Whether the history UI will be shown in a separate activity than
      *                           the main Chrome activity.
-     * @param isIncognito Whether the incognito tab model is currently selected.
+     * @param profile The Profile associated with this history.
      * @param shouldShowPrivacyDisclaimers Whether the privacy disclaimers should be shown, if
      *         available.
      * @param shouldShowClearDataIfAvailable Whether the the clear history data button should be
@@ -143,7 +145,7 @@ public class HistoryContentManager implements SignInStateObserver, PrefObserver 
      * @param historyProvider Provider of methods for querying and managing browsing history.
      */
     public HistoryContentManager(@NonNull Activity activity, @NonNull Observer observer,
-            boolean isSeparateActivity, boolean isIncognito, boolean shouldShowPrivacyDisclaimers,
+            boolean isSeparateActivity, Profile profile, boolean shouldShowPrivacyDisclaimers,
             boolean shouldShowClearDataIfAvailable, @Nullable String hostName,
             @Nullable SelectionDelegate<HistoryItem> selectionDelegate,
             @Nullable Supplier<Tab> tabSupplier,
@@ -152,13 +154,13 @@ public class HistoryContentManager implements SignInStateObserver, PrefObserver 
         mActivity = activity;
         mObserver = observer;
         mIsSeparateActivity = isSeparateActivity;
-        mIsIncognito = isIncognito;
+        mIsIncognito = profile.isOffTheRecord();
+        mProfile = profile;
         mShouldShowPrivacyDisclaimers = shouldShowPrivacyDisclaimers;
         mShouldShowClearDataIfAvailable = shouldShowClearDataIfAvailable;
         mHostName = hostName;
         mIsScrollToLoadDisabled = ChromeAccessibilityUtil.get().isAccessibilityEnabled()
-                || ChromeAccessibilityUtil.isHardwareKeyboardAttached(
-                        mActivity.getResources().getConfiguration());
+                || UiUtils.isHardwareKeyboardAttached();
         mSelectionDelegate = selectionDelegate != null
                 ? selectionDelegate
                 : new SelectionDelegate<HistoryItem>() {
@@ -181,7 +183,6 @@ public class HistoryContentManager implements SignInStateObserver, PrefObserver 
 
         // History service is not keyed for Incognito profiles and {@link HistoryServiceFactory}
         // explicitly redirects to use regular profile for Incognito case.
-        Profile profile = Profile.getLastUsedRegularProfile();
         mHistoryAdapter = new HistoryAdapter(this,
                 sProviderForTests != null ? sProviderForTests : historyProvider,
                 showHistoryToggleSupplier, toggleViewFactory);
@@ -230,9 +231,7 @@ public class HistoryContentManager implements SignInStateObserver, PrefObserver 
         mHistoryAdapter.generateFooterItems();
 
         // Listen to changes in sign in state.
-        IdentityServicesProvider.get()
-                .getSigninManager(Profile.getLastUsedRegularProfile())
-                .addSignInStateObserver(this);
+        IdentityServicesProvider.get().getSigninManager(profile).addSignInStateObserver(this);
 
         // Create PrefChangeRegistrar to receive notifications on preference changes.
         mPrefChangeRegistrar = new PrefChangeRegistrar();
@@ -267,9 +266,7 @@ public class HistoryContentManager implements SignInStateObserver, PrefObserver 
         mHistoryAdapter.onDestroyed();
         mLargeIconBridge.destroy();
         mLargeIconBridge = null;
-        IdentityServicesProvider.get()
-                .getSigninManager(Profile.getLastUsedRegularProfile())
-                .removeSignInStateObserver(this);
+        IdentityServicesProvider.get().getSigninManager(mProfile).removeSignInStateObserver(this);
         mPrefChangeRegistrar.destroy();
     }
 
@@ -299,9 +296,14 @@ public class HistoryContentManager implements SignInStateObserver, PrefObserver 
         selectableHolder.displayItem(item);
     }
 
-    /** @return Whether to show the remove button in a HistoryItemView. */
-    boolean shouldShowRemoveItemButton() {
-        return !mSelectionDelegate.isSelectionEnabled();
+    /**
+     * @return Whether to show the remove button in a HistoryItemView.
+     */
+    int getRemoveItemButtonVisibility() {
+        if (!UserPrefs.get(mProfile).getBoolean(Pref.ALLOW_DELETING_BROWSER_HISTORY)) {
+            return View.GONE;
+        }
+        return !mSelectionDelegate.isSelectionEnabled() ? View.VISIBLE : View.INVISIBLE;
     }
 
     /**
@@ -355,8 +357,7 @@ public class HistoryContentManager implements SignInStateObserver, PrefObserver 
      */
     boolean getShouldShowClearData() {
         return mShouldShowClearDataIfAvailable
-                && UserPrefs.get(Profile.getLastUsedRegularProfile())
-                           .getBoolean(Pref.ALLOW_DELETING_BROWSER_HISTORY);
+                && UserPrefs.get(mProfile).getBoolean(Pref.ALLOW_DELETING_BROWSER_HISTORY);
     }
 
     /**
@@ -399,9 +400,11 @@ public class HistoryContentManager implements SignInStateObserver, PrefObserver 
         assert tab != null;
 
         if (createNewTab) {
-            new TabDelegate(isIncognito != null ? isIncognito : mIsIncognito)
-                    .createNewTab(new LoadUrlParams(url, PAGE_TRANSITION_TYPE),
-                            TabLaunchType.FROM_LINK, tab);
+            new ChromeAsyncTabLauncher(isIncognito != null ? isIncognito : mIsIncognito)
+                    .launchNewTab(
+                            new LoadUrlParams(url, PAGE_TRANSITION_TYPE),
+                            TabLaunchType.FROM_LINK,
+                            tab);
         } else {
             tab.loadUrl(new LoadUrlParams(url, PAGE_TRANSITION_TYPE));
         }
@@ -545,14 +548,14 @@ public class HistoryContentManager implements SignInStateObserver, PrefObserver 
     }
 
     /** @param provider The {@link HistoryProvider} that is used in place of a real one. */
-    @VisibleForTesting
     public static void setProviderForTests(HistoryProvider provider) {
         sProviderForTests = provider;
+        ResettersForTesting.register(() -> sProviderForTests = null);
     }
 
     /** @param isScrollToLoadDisabled Whether scrolling to load is disabled for tests. */
-    @VisibleForTesting
     public static void setScrollToLoadDisabledForTesting(boolean isScrollToLoadDisabled) {
         sIsScrollToLoadDisabledForTests = isScrollToLoadDisabled;
+        ResettersForTesting.register(() -> sIsScrollToLoadDisabledForTests = null);
     }
 }

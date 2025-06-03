@@ -15,6 +15,7 @@
 #include "base/check_op.h"
 #include "base/files/file_path.h"
 #include "base/notreached.h"
+#include "base/rand_util.h"
 #include "base/scoped_native_library.h"
 #include "base/win/access_token.h"
 #include "base/win/windows_version.h"
@@ -22,7 +23,6 @@
 #include "sandbox/win/src/interception.h"
 #include "sandbox/win/src/nt_internals.h"
 #include "sandbox/win/src/restricted_token_utils.h"
-#include "sandbox/win/src/sandbox_rand.h"
 #include "sandbox/win/src/win_utils.h"
 
 // These are missing in 10.0.19551.0 but are in 10.0.19041.0 and 10.0.20226.0.
@@ -31,6 +31,13 @@
   (0x00000003ui64 << 28)
 #define PROCESS_CREATION_MITIGATION_POLICY2_CET_DYNAMIC_APIS_OUT_OF_PROC_ONLY_ALWAYS_OFF \
   (0x00000002ui64 << 48)
+#endif
+
+// From insider SDK 10.0.25295.0 and also from MSDN.
+// TODO: crbug.com/1414570 Remove after updating SDK
+#ifndef PROCESS_CREATION_MITIGATION_POLICY2_FSCTL_SYSTEM_CALL_DISABLE_ALWAYS_ON
+#define PROCESS_CREATION_MITIGATION_POLICY2_FSCTL_SYSTEM_CALL_DISABLE_ALWAYS_ON \
+  (0x00000001ui64 << 56)
 #endif
 
 namespace sandbox {
@@ -513,6 +520,17 @@ void ConvertProcessMitigationsToPolicy(MitigationFlags flags,
     }
   }
 
+  // Mitigations >= Win10 22H2
+  //----------------------------------------------------------------------------
+  if (version >= base::win::Version::WIN10_22H2) {
+    // Note that this mitigation requires not only Win10 22H2, but also a
+    // servicing update [TBD].
+    if (flags & MITIGATION_FSCTL_DISABLED) {
+      *policy_value_2 |=
+          PROCESS_CREATION_MITIGATION_POLICY2_FSCTL_SYSTEM_CALL_DISABLE_ALWAYS_ON;
+    }
+  }
+
   // When done setting policy flags, sanity check supported policies on this
   // machine, and then update |size|.
 
@@ -547,12 +565,11 @@ bool ApplyProcessMitigationsToSuspendedProcess(HANDLE process,
 // This is a hack to fake a weak bottom-up ASLR on 32-bit Windows.
 #if !defined(_WIN64)
   if (flags & MITIGATION_BOTTOM_UP_ASLR) {
-    unsigned int limit;
-    GetRandom(&limit);
     char* ptr = 0;
     const size_t kMask64k = 0xFFFF;
     // Random range (512k-16.5mb) in 64k steps.
-    const char* end = ptr + ((((limit % 16384) + 512) * 1024) & ~kMask64k);
+    auto limit = static_cast<unsigned int>(base::RandInt(512, 512 + 16384 - 1));
+    const char* end = ptr + ((limit * 1024) & ~kMask64k);
     while (ptr < end) {
       MEMORY_BASIC_INFORMATION memory_info;
       if (!::VirtualQueryEx(process, ptr, &memory_info, sizeof(memory_info)))

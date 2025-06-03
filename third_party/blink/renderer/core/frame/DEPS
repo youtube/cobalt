@@ -4,8 +4,9 @@ specific_include_rules = {
   ],
   "attribution_src_loader(\.cc|\.h|_test\.cc)": [
     "+components/attribution_reporting",
+    "+services/network/public/cpp/attribution_reporting_runtime_features.h",
     "+services/network/public/cpp/attribution_utils.h",
-    "+services/network/public/cpp/trigger_attestation.h",
+    "+services/network/public/cpp/trigger_verification.h",
   ],
   "child_frame_compositing_helper\.h": [
     "+components/viz/common/surfaces/surface_id.h",
@@ -25,6 +26,9 @@ specific_include_rules = {
   ],
   "frame_test_helpers\.h": [
     "+components/viz/common/surfaces/frame_sink_id.h"
+  ],
+  "history_util\.cc": [
+    "+url/url_util.h"
   ],
   "local_frame_back_forward_cache_test\.cc": [
     "+base/run_loop.h",
@@ -62,9 +66,6 @@ specific_include_rules = {
     "+printing/buildflags/buildflags.h",
     "+printing/metafile_skia.h",
     "+ui/gfx/transform_util.h",
-  ],
-  "root_frame_viewport\.cc": [
-    "+base/barrier_callback.h",
   ],
   "visual_viewport\.cc": [
     "+cc/layers/solid_color_scrollbar_layer.h",

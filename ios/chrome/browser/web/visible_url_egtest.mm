@@ -11,7 +11,7 @@
 #import "base/strings/sys_string_conversions.h"
 #import "base/strings/utf_string_conversions.h"
 #import "components/version_info/version_info.h"
-#import "ios/chrome/browser/url/chrome_url_constants.h"
+#import "ios/chrome/browser/shared/model/url/chrome_url_constants.h"
 #import "ios/chrome/browser/web/features.h"
 #import "ios/chrome/test/earl_grey/chrome_earl_grey.h"
 #import "ios/chrome/test/earl_grey/chrome_earl_grey_ui.h"
@@ -24,10 +24,6 @@
 #import "ios/web/public/test/http_server/http_server.h"
 #import "ios/web/public/test/http_server/http_server_util.h"
 #import "url/gurl.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 using chrome_test_util::OmniboxText;
 
@@ -227,9 +223,9 @@ class PausableResponseProvider : public HtmlResponseProvider {
   [[EarlGrey selectElementWithMatcher:chrome_test_util::BackButton()]
       performAction:grey_longPress()];
   NSString* URL1Title = base::SysUTF8ToNSString(kTestPage1);
-  [[EarlGrey
-      selectElementWithMatcher:chrome_test_util::ButtonWithAccessibilityLabel(
-                                   URL1Title)] performAction:grey_tap()];
+  [[EarlGrey selectElementWithMatcher:
+                 chrome_test_util::ContextMenuItemWithAccessibilityLabel(
+                     URL1Title)] performAction:grey_tap()];
 
   {
     // Disables EG synchronization.
@@ -278,20 +274,10 @@ class PausableResponseProvider : public HtmlResponseProvider {
     [self setServerPaused:NO];
   }
 
-  if (![ChromeEarlGrey isSynthesizedRestoreSessionEnabled] ||
-      !base::ios::IsRunningOnIOS15OrLater()) {
-    // In this case, legacy restore will commit page1 with the pushState
-    // empty page (see restore_session.html). With legacy restore check that
-    // page1 was reloaded, not page2.
-    [ChromeEarlGrey waitForWebStateContainingText:kTestPage1];
-    [[EarlGrey selectElementWithMatcher:OmniboxText(_testURL1.GetContent())]
-        assertWithMatcher:grey_notNil()];
-  } else {
-    // Verifies that page2 was reloaded.
-    [ChromeEarlGrey waitForWebStateContainingText:kTestPage2];
-    [[EarlGrey selectElementWithMatcher:OmniboxText(_testURL2.GetContent())]
-        assertWithMatcher:grey_notNil()];
-  }
+  // Verifies that page2 was reloaded.
+  [ChromeEarlGrey waitForWebStateContainingText:kTestPage2];
+  [[EarlGrey selectElementWithMatcher:OmniboxText(_testURL2.GetContent())]
+      assertWithMatcher:grey_notNil()];
 }
 
 // Tests that visible URL is always the same as last pending URL during
@@ -416,7 +402,7 @@ class PausableResponseProvider : public HtmlResponseProvider {
   [ChromeEarlGrey goForward];
   [ChromeEarlGrey goForward];
 
-  const std::string version = version_info::GetVersionNumber();
+  const std::string version(version_info::GetVersionNumber());
   [ChromeEarlGrey waitForWebStateContainingText:version];
 
   // Make sure that kChromeUIVersionURL URL is displayed in the omnibox.
@@ -485,26 +471,6 @@ class PausableResponseProvider : public HtmlResponseProvider {
 
 - (AppLaunchConfiguration)appConfigurationForTestCase {
   AppLaunchConfiguration config = [super appConfigurationForTestCase];
-  config.features_disabled.push_back(web::kRestoreSessionFromCache);
-  return config;
-}
-
-// This is currently needed to prevent this test case from being ignored.
-- (void)testEmpty {
-}
-
-@end
-
-// Test using legacy restore.
-@interface VisibleURLWithWithLegacyRestoreTestCase
-    : VisibleURLWithCachedRestoreTestCase
-@end
-
-@implementation VisibleURLWithWithLegacyRestoreTestCase
-
-- (AppLaunchConfiguration)appConfigurationForTestCase {
-  AppLaunchConfiguration config = [super appConfigurationForTestCase];
-  config.features_disabled.push_back(web::features::kSynthesizedRestoreSession);
   config.features_disabled.push_back(web::kRestoreSessionFromCache);
   return config;
 }

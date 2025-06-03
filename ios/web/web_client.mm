@@ -10,10 +10,6 @@
 #import "ios/web/public/init/web_main_parts.h"
 #import "url/gurl.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace web {
 
 static WebClient* g_client;
@@ -45,10 +41,6 @@ bool WebClient::IsAppSpecificURL(const GURL& url) const {
   return false;
 }
 
-std::u16string WebClient::GetPluginNotSupportedText() const {
-  return std::u16string();
-}
-
 std::string WebClient::GetUserAgent(UserAgentType type) const {
   return std::string();
 }
@@ -72,16 +64,6 @@ std::vector<JavaScriptFeature*> WebClient::GetJavaScriptFeatures(
   return std::vector<JavaScriptFeature*>();
 }
 
-NSString* WebClient::GetDocumentStartScriptForAllFrames(
-    BrowserState* browser_state) const {
-  return @"";
-}
-
-NSString* WebClient::GetDocumentStartScriptForMainFrame(
-    BrowserState* browser_state) const {
-  return @"";
-}
-
 void WebClient::PrepareErrorPage(WebState* web_state,
                                  const GURL& url,
                                  NSError* error,
@@ -98,16 +80,20 @@ UIView* WebClient::GetWindowedContainer() {
   return nullptr;
 }
 
+bool WebClient::EnableFullscreenAPI() const {
+  return false;
+}
+
 bool WebClient::EnableLongPressUIContextMenu() const {
   return false;
 }
 
-bool WebClient::EnableWebInspector() const {
+bool WebClient::EnableWebInspector(BrowserState* browser_state) const {
   return false;
 }
 
-bool WebClient::RestoreSessionFromCache(web::WebState* web_state) const {
-  return false;
+NSData* WebClient::FetchSessionFromCache(web::WebState* web_state) const {
+  return nil;
 }
 
 void WebClient::CleanupNativeRestoreURLs(web::WebState* web_state) const {}
@@ -128,23 +114,6 @@ bool WebClient::IsPointingToSameDocument(const GURL& url1,
   return url1 == url2;
 }
 
-id<CRWFindSession> WebClient::CreateFindSessionForWebState(
-    web::WebState* web_state) const API_AVAILABLE(ios(16)) {
-  // Subclasses need to provide their own implementation to use this method.
-  NOTREACHED();
-  return nil;
-}
-
-void WebClient::StartTextSearchInWebState(web::WebState* web_state) {
-  // Subclasses need to provide their own implementation to use this method.
-  NOTREACHED();
-}
-
-void WebClient::StopTextSearchInWebState(web::WebState* web_state) {
-  // Subclasses need to provide their own implementation to use this method.
-  NOTREACHED();
-}
-
 bool WebClient::IsMixedContentAutoupgradeEnabled(
     web::BrowserState* browser_state) const {
   return true;
@@ -153,5 +122,8 @@ bool WebClient::IsMixedContentAutoupgradeEnabled(
 bool WebClient::IsBrowserLockdownModeEnabled(web::BrowserState* browser_state) {
   return false;
 }
+
+void WebClient::SetOSLockdownModeEnabled(web::BrowserState* browser_state,
+                                         bool enabled) {}
 
 }  // namespace web

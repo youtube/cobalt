@@ -15,6 +15,7 @@ import android.text.TextUtils;
 import androidx.annotation.Nullable;
 
 import org.chromium.base.ApplicationStatus;
+import org.chromium.base.BuildInfo;
 import org.chromium.base.IntentUtils;
 import org.chromium.chrome.browser.AppHooks;
 import org.chromium.chrome.browser.LaunchIntentDispatcher;
@@ -34,12 +35,10 @@ public class FreIntentCreator {
      *
      * @param caller               Activity instance that is requesting the first run.
      * @param fromIntent           Intent used to launch the caller.
-     * @param requiresBroadcast    Whether or not the Intent triggers a BroadcastReceiver.
      * @param preferLightweightFre Whether to prefer the Lightweight First Run Experience.
      * @return Intent to launch First Run Experience.
      */
-    public Intent create(Context caller, Intent fromIntent, boolean requiresBroadcast,
-            boolean preferLightweightFre) {
+    public Intent create(Context caller, Intent fromIntent, boolean preferLightweightFre) {
         @Nullable
         BrowserServicesIntentDataProvider webApkIntentDataProvider =
                 WebappLauncherActivity.maybeSlowlyGenerateWebApkIntentDataProviderFromIntent(
@@ -58,7 +57,7 @@ public class FreIntentCreator {
         }
 
         Intent result = createInternal(caller, fromIntent, preferLightweightFre, associatedAppName);
-        addPendingIntent(caller, result, intentToLaunchAfterFreComplete, requiresBroadcast);
+        addPendingIntent(caller, result, intentToLaunchAfterFreComplete);
         return result;
     }
 
@@ -136,20 +135,13 @@ public class FreIntentCreator {
      * @param context                        The context that corresponds to the Intent.
      * @param firstRunIntent                 The intent that will be used to start first run.
      * @param intentToLaunchAfterFreComplete The intent to launch when the user completes the FRE.
-     * @param requiresBroadcast              Whether or not the fromIntent must be broadcasted.
      */
-    private static void addPendingIntent(Context context, Intent firstRunIntent,
-            Intent intentToLaunchAfterFreComplete, boolean requiresBroadcast) {
-        final PendingIntent pendingIntent;
+    private static void addPendingIntent(
+            Context context, Intent firstRunIntent, Intent intentToLaunchAfterFreComplete) {
         int pendingIntentFlags = PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_ONE_SHOT
                 | IntentUtils.getPendingIntentMutabilityFlag(false);
-        if (requiresBroadcast) {
-            pendingIntent = PendingIntent.getBroadcast(
-                    context, 0, intentToLaunchAfterFreComplete, pendingIntentFlags);
-        } else {
-            pendingIntent = PendingIntent.getActivity(
-                    context, 0, intentToLaunchAfterFreComplete, pendingIntentFlags);
-        }
+        PendingIntent pendingIntent = PendingIntent.getActivity(
+                context, 0, intentToLaunchAfterFreComplete, pendingIntentFlags);
         firstRunIntent.putExtra(FirstRunActivity.EXTRA_FRE_COMPLETE_LAUNCH_INTENT, pendingIntent);
     }
 
@@ -179,6 +171,9 @@ public class FreIntentCreator {
     private static boolean shouldSwitchToTabbedMode(Context caller) {
         // Caller must be an activity.
         if (!(caller instanceof Activity)) return false;
+
+        // Always show TabbedMode on automotive devices.
+        if (BuildInfo.getInstance().isAutomotive) return true;
 
         // We must be on a tablet (where FRE is a dialog).
         if (!DeviceFormFactor.isNonMultiDisplayContextOnTablet(caller)) return false;

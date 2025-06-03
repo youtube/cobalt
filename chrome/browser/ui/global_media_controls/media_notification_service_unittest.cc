@@ -17,9 +17,10 @@
 #include "build/build_config.h"
 #include "chrome/browser/media/router/chrome_media_router_factory.h"
 #include "chrome/browser/media/router/media_router_feature.h"
+#include "chrome/browser/ui/global_media_controls/cast_device_list_host.h"
 #include "chrome/browser/ui/global_media_controls/cast_media_notification_producer.h"
 #include "chrome/browser/ui/global_media_controls/test_helper.h"
-#include "chrome/browser/ui/media_router/cast_dialog_controller.h"
+#include "chrome/browser/ui/media_router/cast_dialog_model.h"
 #include "chrome/browser/ui/media_router/media_route_starter.h"
 #include "chrome/browser/ui/media_router/query_result_manager.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
@@ -120,6 +121,7 @@ class MediaNotificationServiceTest : public ChromeRenderViewHostTestHarness {
     content::MediaSession::Get(contents);
     auto id = content::MediaSession::GetRequestIdFromWebContents(contents);
     SimulatePlayingControllableMedia(id);
+    base::RunLoop().RunUntilIdle();
     return id;
   }
 
@@ -165,10 +167,12 @@ class MediaNotificationServiceTest : public ChromeRenderViewHostTestHarness {
   void SimulateDialogOpened(
       global_media_controls::test::MockMediaDialogDelegate* delegate) {
     service_->media_item_manager()->SetDialogDelegate(delegate);
+    base::RunLoop().RunUntilIdle();
   }
 
   void SimulateCloseDialog() {
     service_->media_item_manager()->SetDialogDelegate(nullptr);
+    base::RunLoop().RunUntilIdle();
   }
 
   void SimulateDialogOpenedForPresentationRequest(
@@ -250,18 +254,21 @@ class MediaNotificationServiceCastTest : public MediaNotificationServiceTest {
   std::string SimulateSupplementalNotification() {
     auto presentation_request = CreatePresentationRequest();
 
-    // Create a PresentationRequestNotificationItem.
+    // Create a SupplementalDevicePickerItem.
     service()->OnStartPresentationContextCreated(
         CreateStartPresentationContext(presentation_request));
-    auto notification_id = GetSupplementalNotification()->id();
+    base::RunLoop().RunUntilIdle();
+    auto notification_id =
+        service()
+            ->supplemental_device_picker_producer_
+            ->GetOrCreateNotificationItem(base::UnguessableToken::Create())
+            .id();
     EXPECT_FALSE(notification_id.empty());
-    auto item =
-        service()->presentation_request_notification_producer_->GetMediaItem(
-            notification_id);
+    auto item = service()
+                    ->presentation_request_notification_producer_
+                    ->GetNotificationItem();
     EXPECT_TRUE(item);
-    auto* pr_item =
-        static_cast<PresentationRequestNotificationItem*>(item.get());
-    EXPECT_EQ(pr_item->request(), presentation_request);
+    EXPECT_EQ(item->request(), presentation_request);
     return notification_id;
   }
 
@@ -328,6 +335,9 @@ class MediaNotificationServiceCastTest : public MediaNotificationServiceTest {
   base::MockCallback<base::OnceClosure> receiver_disconnect_handler_;
 };
 
+// CastMediaNotificationProducer is owned by
+// CastMediaNotificationProducerKeyedService in Ash.
+#if !BUILDFLAG(IS_CHROMEOS_ASH)
 TEST_F(MediaNotificationServiceCastTest,
        ShowCastSessionsForPresentationRequest) {
   NiceMock<global_media_controls::test::MockMediaDialogDelegate>
@@ -366,6 +376,7 @@ TEST_F(MediaNotificationServiceCastTest,
   testing::Mock::VerifyAndClearExpectations(&dialog_delegate);
   SimulateCloseDialog();
 }
+#endif
 
 TEST_F(MediaNotificationServiceCastTest, ShowMediaItemsForPresentationRequest) {
   std::unique_ptr<content::WebContents> web_contents_1(
@@ -398,6 +409,9 @@ TEST_F(MediaNotificationServiceCastTest, ShowMediaItemsForPresentationRequest) {
   SimulateCloseDialog();
 }
 
+// SupplementalDevicePickerProducer is not owned by MediaNotificationService
+// on Chrome OS.
+#if !BUILDFLAG(IS_CHROMEOS)
 TEST_F(MediaNotificationServiceCastTest, ShowSupplementalNotifications) {
   NiceMock<global_media_controls::test::MockMediaDialogDelegate>
       dialog_delegate;
@@ -409,7 +423,7 @@ TEST_F(MediaNotificationServiceCastTest, ShowSupplementalNotifications) {
   testing::Mock::VerifyAndClearExpectations(&dialog_delegate);
   SimulateCloseDialog();
 
-  // Create a PresentationRequestNotificationItem.
+  // Create a SupplementalDevicePickerItem.
   auto supplemental_notification_id = SimulateSupplementalNotification();
 
   // Open the dialog and a supplemental notification should show up.
@@ -418,6 +432,8 @@ TEST_F(MediaNotificationServiceCastTest, ShowSupplementalNotifications) {
   testing::Mock::VerifyAndClearExpectations(&dialog_delegate);
   SimulateCloseDialog();
 
+  // Closing the dialog has deleted the notification. Create another one.
+  supplemental_notification_id = SimulateSupplementalNotification();
   EXPECT_CALL(dialog_delegate, ShowMediaItem(supplemental_notification_id, _));
   SimulateDialogOpenedForPresentationRequest(&dialog_delegate, web_contents());
   testing::Mock::VerifyAndClearExpectations(&dialog_delegate);
@@ -429,6 +445,7 @@ TEST_F(MediaNotificationServiceCastTest, ShowSupplementalNotifications) {
       content::RenderViewHostTestHarness::CreateTestWebContents());
   auto media_session_id =
       SimulatePlayingControllableMediaForWebContents(test_web_contents.get());
+  supplemental_notification_id = SimulateSupplementalNotification();
   // Create a cast session not associated with any WebContents.
   const std::string route_id = "route_id";
   SimulateMediaRoutesUpdate({CreateMediaRoute(route_id)});
@@ -477,13 +494,14 @@ TEST_F(MediaNotificationServiceCastTest, HideSupplementalNotifications) {
 TEST_F(MediaNotificationServiceCastTest,
        OnStartPresentationContextCreated_ForPresentationRequestNotifications) {
   // If there does not exist an active notification, pass the
-  // StartPresentationContext to PresentationRequestNotificationProducer.
+  // StartPresentationContext to SupplementalDevicePickerProducer.
   service()->OnStartPresentationContextCreated(
       CreateStartPresentationContext(CreatePresentationRequest()));
   auto supplemental_notification = GetSupplementalNotification();
   EXPECT_TRUE(supplemental_notification);
   EXPECT_FALSE(supplemental_notification->is_default_presentation_request());
 }
+#endif  // !BUILDFLAG(IS_CHROMEOS)
 
 TEST_F(MediaNotificationServiceCastTest,
        OnStartPresentationContextCreated_ForMediaSessionNotifications) {
@@ -634,4 +652,24 @@ TEST_F(MediaNotificationServiceCastTest, RequestMediaRemoting) {
   SimulatePlayingControllableMedia(id);
   // TODO(takumif): Confirm that this calls the MediaNotificationItem.
   service()->OnMediaRemotingRequested(id.ToString());
+}
+
+TEST_F(MediaNotificationServiceCastTest, OnSinksDiscoveredForLocalMedia) {
+  // Playing the media.
+  auto id = SimulatePlayingControllableMediaForWebContents(web_contents());
+
+  NiceMock<global_media_controls::test::MockMediaDialogDelegate>
+      dialog_delegate;
+
+  // Opening the dialog.
+  SimulateDialogOpened(&dialog_delegate);
+
+  service()->OnSinksDiscovered(id.ToString());
+  EXPECT_FALSE(service()->should_show_cast_local_media_iph());
+
+  // Navigating to a page with local media.
+  NavigateAndCommit(GURL("file:///example.mp4"));
+
+  service()->OnSinksDiscovered(id.ToString());
+  EXPECT_TRUE(service()->should_show_cast_local_media_iph());
 }

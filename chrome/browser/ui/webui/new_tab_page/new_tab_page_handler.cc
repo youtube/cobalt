@@ -30,7 +30,7 @@
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
-#include "chrome/browser/new_tab_page/customize_chrome/customize_chrome_feature_promo_helper.h"
+#include "chrome/browser/new_tab_page/feature_promo_helper/new_tab_page_feature_promo_helper.h"
 #include "chrome/browser/new_tab_page/modules/new_tab_page_modules.h"
 #include "chrome/browser/new_tab_page/promos/promo_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
@@ -40,6 +40,9 @@
 #include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/browser/themes/custom_theme_supplier.h"
 #include "chrome/browser/themes/theme_properties.h"
+#include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_finder.h"
+#include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/chrome_select_file_policy.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/hats/hats_service.h"
@@ -54,6 +57,8 @@
 #include "chrome/common/url_constants.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/grit/theme_resources.h"
+#include "components/feature_engagement/public/event_constants.h"
+#include "components/feature_engagement/public/feature_constants.h"
 #include "components/keyed_service/core/service_access_type.h"
 #include "components/omnibox/browser/omnibox.mojom.h"
 #include "components/prefs/pref_service.h"
@@ -70,6 +75,7 @@
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/theme_provider.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/color/color_provider.h"
 #include "ui/gfx/color_palette.h"
 #include "ui/gfx/color_utils.h"
@@ -90,53 +96,17 @@ std::vector<std::string> GetSurveyEligibleModuleIds() {
       base::SplitResult::SPLIT_WANT_NONEMPTY);
 }
 
-// Returns true if the scrim (dark gradient overlay) should be hidden for the
-// NTP's background image. This is done to fix specific GWS themes where the
-// visual impact of the scrim does not align with the artistic intent of
-// partnered artists (see crbug.com/1329556).
-// TODO(crbug.com/1320107): Remove the scrim for all GWS and custom background
-// image configurations on the NTP.
-bool ShouldHideScrim(const ThemeService* theme_service) {
-  DCHECK(theme_service);
-  const auto* theme_supplier = theme_service->GetThemeSupplier();
-  if (!theme_supplier ||
-      theme_supplier->get_theme_type() !=
-          ui::ColorProviderManager::ThemeInitializerSupplier::ThemeType::
-              kExtension) {
-    return false;
-  }
-
-  static constexpr auto kPrideThemeExtensionIdsNoScrim = base::MakeFixedFlatSet<
-      base::StringPiece>({
-      "kkdpcclippggiadgghfmkggpemadbfcj", "jogkmkalhlbppkpmjdpncmpdcinbkekh",
-      "gfkcjfbbpmldkajnebkophpelmcimglf", "mchijkgkaabamaokgcnbmjpfoagkpjfc",
-      "cdabkdaechplopdfoahhjgkbjgillcme", "depfhkphmnoonikdokgpejilanmcdonk",
-      "efiamifmcbajfehbkjemggiafognbljk", "iclkbhippclhfamkdoigedgnnfbhefpl",
-      "ckfehdejjppobbllbkjgcpaockgdigen", "figmdifbokklifinmmjcjdkkopjflhnj",
-      "nkgiaofmleojhehacfognclpmoolihko", "npkdokffjmnleabnfihminmikibdhmfa",
-      "klnkeldihpjnjoopojllmnpepbpljico", "iffdmpenldeofnlfjmbjcdmafhoekmka",
-      "mckialangcdpcdcflekinnpamfkmkobo", "gpgkmnadnanefkpfkmdeijfiobhjagfk",
-      "hhdddgombcggoeedkgelollagijjgnmo", "inneonpkbfaipkmpldnhnpefjkacjlcl",
-      "inmnnmkfonobaklbnnfgekapnhnhlnnk",
-  });
-
-  const std::string& extension_id = theme_supplier->extension_id();
-  return base::Contains(kPrideThemeExtensionIdsNoScrim, extension_id);
-}
-
 // Returns true if we should force dark foreground colors for the Google logo
 // and the One Google Bar. This is done to fix specific GWS themes where the
 // always-light logo and OGB colors do not sufficiently contrast with lighter
 // image backgrounds (see crbug.com/1329552).
 // TODO(crbug.com/1328918): Address this in a general way and extend support to
 // custom background images, not just CWS themes.
-bool ShouldForceDarkForegroundColorsForLogoAndOGB(
-    const ThemeService* theme_service) {
+bool ShouldForceDarkForegroundColorsForLogo(const ThemeService* theme_service) {
   const auto* theme_supplier = theme_service->GetThemeSupplier();
-  if (!theme_supplier ||
-      theme_supplier->get_theme_type() !=
-          ui::ColorProviderManager::ThemeInitializerSupplier::ThemeType::
-              kExtension) {
+  if (!theme_supplier || theme_supplier->get_theme_type() !=
+                             ui::ColorProviderKey::ThemeInitializerSupplier::
+                                 ThemeType::kExtension) {
     return false;
   }
   static constexpr auto kPrideThemeExtensionIdsDarkForeground =
@@ -166,8 +136,6 @@ new_tab_page::mojom::ThemePtr MakeTheme(
           ? ntp_custom_background_service->GetCustomBackground()
           : absl::nullopt;
   theme->background_color = color_provider.GetColor(kColorNewTabPageBackground);
-  const bool remove_scrim =
-      base::FeatureList::IsEnabled(ntp_features::kNtpRemoveScrim);
   const bool theme_has_custom_image =
       theme_provider->HasCustomImage(IDR_THEME_NTP_BACKGROUND);
   SkColor text_color;
@@ -175,28 +143,31 @@ new_tab_page::mojom::ThemePtr MakeTheme(
     text_color = color_provider.GetColor(kColorNewTabPageTextUnthemed);
     theme->logo_color =
         color_provider.GetColor(kColorNewTabPageLogoUnthemedLight);
-    most_visited->background_color = color_provider.GetColor(
-        base::FeatureList::IsEnabled(ntp_features::kNtpComprehensiveTheming)
-            ? kColorNewTabPageMostVisitedTileBackground
-            : kColorNewTabPageMostVisitedTileBackgroundUnthemed);
+    most_visited->background_color =
+        color_provider.GetColor(kColorNewTabPageMostVisitedTileBackground);
   } else if (theme_provider->HasCustomImage(IDR_THEME_NTP_BACKGROUND)) {
-    text_color = color_provider.GetColor(
-        remove_scrim ? kColorNewTabPageTextUnthemed : kColorNewTabPageText);
-    if (remove_scrim) {
-      theme->logo_color =
-          color_provider.GetColor(kColorNewTabPageLogoUnthemedLight);
-    } else if (theme_provider->GetDisplayProperty(
-                   ThemeProperties::NTP_LOGO_ALTERNATE) == 1) {
-      theme->logo_color = color_provider.GetColor(kColorNewTabPageLogo);
-    }
-    most_visited->background_color = color_provider.GetColor(
-        kColorNewTabPageMostVisitedTileBackgroundUnthemed);
+    text_color = color_provider.GetColor(kColorNewTabPageTextUnthemed);
+    theme->logo_color =
+        color_provider.GetColor(kColorNewTabPageLogoUnthemedLight);
+
+    // TODO(crbug.com/1375760): Post GM3 launch, we can remove the
+    // kColorNewTabPageMostVisitedTileBackgroundUnthemed color and related
+    // logic.
+    most_visited->background_color =
+        features::IsChromeWebuiRefresh2023()
+            ? color_provider.GetColor(kColorNewTabPageMostVisitedTileBackground)
+            : color_provider.GetColor(
+                  kColorNewTabPageMostVisitedTileBackgroundUnthemed);
   } else {
     text_color = color_provider.GetColor(kColorNewTabPageText);
     if (theme_provider->GetDisplayProperty(
-            ThemeProperties::NTP_LOGO_ALTERNATE) == 1) {
+            ThemeProperties::NTP_LOGO_ALTERNATE) == 1 ||
+        (features::IsChromeWebuiRefresh2023() &&
+         !theme_service->GetIsGrayscale() &&
+         theme_service->GetUserColor().has_value())) {
       theme->logo_color = color_provider.GetColor(kColorNewTabPageLogo);
     }
+
     most_visited->background_color =
         color_provider.GetColor(kColorNewTabPageMostVisitedTileBackground);
   }
@@ -204,11 +175,9 @@ new_tab_page::mojom::ThemePtr MakeTheme(
   most_visited->use_white_tile_icon =
       color_utils::IsDark(most_visited->background_color);
   most_visited->is_dark = !color_utils::IsDark(text_color);
-  most_visited->use_title_pill = false;
   theme->text_color = text_color;
   theme->is_dark = !color_utils::IsDark(text_color);
   theme->theme_realbox_icons =
-      base::FeatureList::IsEnabled(ntp_features::kNtpComprehensiveTheming) &&
       base::FeatureList::IsEnabled(
           ntp_features::kNtpComprehensiveThemeRealbox) &&
       theme_service->UsingAutogeneratedTheme() &&
@@ -222,7 +191,6 @@ new_tab_page::mojom::ThemePtr MakeTheme(
           new_tab_page::mojom::NtpBackgroundImageSource::kThirdPartyTheme;
     }
     theme->is_custom_background = false;
-    most_visited->use_title_pill = !remove_scrim;
     auto theme_id = theme_service->GetThemeID();
     background_image->url = GURL(base::StrCat(
         {"chrome-untrusted://theme/IDR_THEME_NTP_BACKGROUND?", theme_id}));
@@ -285,27 +253,16 @@ new_tab_page::mojom::ThemePtr MakeTheme(
     background_image = nullptr;
   }
 
-  if (remove_scrim && background_image) {
-    // If a background image is defined and the scrim removal flag is active
-    // disable the scrim.
-    background_image->scrim_display = "none";
-  }
-
-  // The special case handling that removes the scrim and forces dark foreground
-  // colors should only be applied when the user does not have a custom
-  // background selected and has installed a GWS theme with a bundled background
-  // image. The first condition is necessary as a custom background image can be
-  // set while a GWS theme with a bundled image is concurrently enabled (see
-  // crbug.com/1329556 and crbug.com/1329552).
-  if (base::FeatureList::IsEnabled(ntp_features::kCwsScrimRemoval) &&
-      !custom_background.has_value() && theme_has_custom_image) {
-    if (ShouldForceDarkForegroundColorsForLogoAndOGB(theme_service)) {
-      theme->is_dark = false;
-      theme->logo_color =
-          color_provider.GetColor(kColorNewTabPageLogoUnthemedDark);
-    }
-    if (ShouldHideScrim(theme_service))
-      background_image->scrim_display = "none";
+  // The special case handling that forces a dark Google logo should only be
+  // applied when the user does not have a custom background selected and has
+  // installed a CWS theme with a bundled background image. The first condition
+  // is necessary as a custom background image can be set while a CWS theme with
+  // a bundled image is concurrently enabled (see crbug.com/1329552).
+  if (base::FeatureList::IsEnabled(ntp_features::kCwsDarkLogo) &&
+      !custom_background.has_value() && theme_has_custom_image &&
+      ShouldForceDarkForegroundColorsForLogo(theme_service)) {
+    theme->logo_color =
+        color_provider.GetColor(kColorNewTabPageLogoUnthemedDark);
   }
 
   theme->background_image = std::move(background_image);
@@ -461,7 +418,7 @@ NewTabPageHandler::NewTabPageHandler(
     ThemeService* theme_service,
     search_provider_logos::LogoService* logo_service,
     content::WebContents* web_contents,
-    std::unique_ptr<CustomizeChromeFeaturePromoHelper>
+    std::unique_ptr<NewTabPageFeaturePromoHelper>
         customize_chrome_feature_promo_helper,
     const base::Time& ntp_navigation_start_time,
     const std::vector<std::pair<const std::string, int>> module_id_names)
@@ -473,8 +430,7 @@ NewTabPageHandler::NewTabPageHandler(
       theme_service_(theme_service),
       profile_(profile),
       web_contents_(web_contents),
-      customize_chrome_feature_promo_helper_(
-          std::move(customize_chrome_feature_promo_helper)),
+      feature_promo_helper_(std::move(customize_chrome_feature_promo_helper)),
       ntp_navigation_start_time_(ntp_navigation_start_time),
       module_id_names_(module_id_names),
       logger_(profile,
@@ -489,14 +445,19 @@ NewTabPageHandler::NewTabPageHandler(
   CHECK(theme_service_);
   CHECK(promo_service_);
   CHECK(web_contents_);
-  CHECK(customize_chrome_feature_promo_helper_);
+  CHECK(feature_promo_helper_);
   ntp_background_service_->AddObserver(this);
   native_theme_observation_.Observe(ui::NativeTheme::GetInstanceForNativeUi());
   theme_service_observation_.Observe(theme_service_.get());
   ntp_custom_background_service_observation_.Observe(
       ntp_custom_background_service_.get());
   promo_service_observation_.Observe(promo_service_.get());
-  OnThemeChanged();
+  if (base::FeatureList::IsEnabled(
+          ntp_features::kNtpBackgroundImageErrorDetection)) {
+    ntp_custom_background_service_->VerifyCustomBackgroundImageURL();
+  } else {
+    OnThemeChanged();
+  }
 
   pref_change_registrar_.Init(profile_->GetPrefs());
   pref_change_registrar_.Add(
@@ -506,6 +467,11 @@ NewTabPageHandler::NewTabPageHandler(
   pref_change_registrar_.Add(
       prefs::kNtpDisabledModules,
       base::BindRepeating(&NewTabPageHandler::UpdateDisabledModules,
+                          base::Unretained(this)));
+
+  pref_change_registrar_.Add(
+      prefs::kSeedColorChangeCount,
+      base::BindRepeating(&NewTabPageHandler::MaybeShowWebstoreToast,
                           base::Unretained(this)));
 
   if (customize_chrome::IsSidePanelEnabled()) {
@@ -883,9 +849,12 @@ void NewTabPageHandler::SetCustomizeChromeSidePanelVisible(
   if (visible) {
     // Record usage for customize chrome promo.
     auto* tab = web_contents_.get();
-    customize_chrome_feature_promo_helper_->RecordCustomizeChromeFeatureUsage(
-        tab);
-    customize_chrome_feature_promo_helper_->CloseCustomizeChromeFeaturePromo(
+    feature_promo_helper_->RecordFeatureUsage(
+        feature_engagement::events::kCustomizeChromeOpened, tab);
+    feature_promo_helper_->CloseFeaturePromo(
+        features::IsChromeRefresh2023() && features::IsChromeWebuiRefresh2023()
+            ? feature_engagement::kIPHDesktopCustomizeChromeRefreshFeature
+            : feature_engagement::kIPHDesktopCustomizeChromeFeature,
         tab);
   }
 }
@@ -900,15 +869,46 @@ void NewTabPageHandler::IncrementCustomizeChromeButtonOpenCount() {
           1);
 }
 
-void NewTabPageHandler::MaybeShowCustomizeChromeFeaturePromo() {
+void NewTabPageHandler::MaybeShowFeaturePromo(
+    new_tab_page::mojom::IphFeature iph_feature) {
   CHECK(profile_);
   CHECK(profile_->GetPrefs());
-  const auto customize_chrome_button_open_count =
-      profile_->GetPrefs()->GetInteger(
-          prefs::kNtpCustomizeChromeButtonOpenCount);
-  if (customize_chrome_button_open_count == 0) {
-    customize_chrome_feature_promo_helper_
-        ->MaybeShowCustomizeChromeFeaturePromo(web_contents_.get());
+
+  // If a sign-in dialog is being currently displayed, the promo should not be
+  // shown to avoid conflict. The sign-in dialog would be shown as soon as the
+  // browser is opened, before the promo.
+  bool is_signin_modal_dialog_open =
+      feature_promo_helper_->IsSigninModalDialogOpen(web_contents_.get());
+  if (is_signin_modal_dialog_open) {
+    return;
+  }
+
+  switch (iph_feature) {
+    case new_tab_page::mojom::IphFeature::kCustomizeChrome: {
+      if (features::IsChromeRefresh2023() &&
+          features::IsChromeWebuiRefresh2023()) {
+        feature_promo_helper_->MaybeShowFeaturePromo(
+            feature_engagement::kIPHDesktopCustomizeChromeRefreshFeature,
+            web_contents_.get());
+      } else {
+        const auto customize_chrome_button_open_count =
+            profile_->GetPrefs()->GetInteger(
+                prefs::kNtpCustomizeChromeButtonOpenCount);
+
+        if (customize_chrome_button_open_count == 0) {
+          feature_promo_helper_->MaybeShowFeaturePromo(
+              feature_engagement::kIPHDesktopCustomizeChromeFeature,
+              web_contents_.get());
+        }
+      }
+    } break;
+    case new_tab_page::mojom::IphFeature::kCustomizeModules: {
+      feature_promo_helper_->MaybeShowFeaturePromo(
+          feature_engagement::kIPHDesktopNewTabPageModulesCustomizeFeature,
+          web_contents_.get());
+    } break;
+    default:
+      NOTREACHED();
   }
 }
 
@@ -952,18 +952,21 @@ void NewTabPageHandler::OnPromoServiceShuttingDown() {
 
 void NewTabPageHandler::OnAppRendered(double time) {
   logger_.LogEvent(NTP_APP_RENDERED,
-                   base::Time::FromJsTime(time) - ntp_navigation_start_time_);
+                   base::Time::FromMillisecondsSinceUnixEpoch(time) -
+                       ntp_navigation_start_time_);
 }
 
 void NewTabPageHandler::OnOneGoogleBarRendered(double time) {
   logger_.LogEvent(NTP_ONE_GOOGLE_BAR_SHOWN,
-                   base::Time::FromJsTime(time) - ntp_navigation_start_time_);
+                   base::Time::FromMillisecondsSinceUnixEpoch(time) -
+                       ntp_navigation_start_time_);
 }
 
 void NewTabPageHandler::OnPromoRendered(double time,
                                         const absl::optional<GURL>& log_url) {
   logger_.LogEvent(NTP_MIDDLE_SLOT_PROMO_SHOWN,
-                   base::Time::FromJsTime(time) - ntp_navigation_start_time_);
+                   base::Time::FromMillisecondsSinceUnixEpoch(time) -
+                       ntp_navigation_start_time_);
   if (log_url.has_value() && log_url->is_valid()) {
     Fetch(*log_url, base::BindOnce([](bool, std::unique_ptr<std::string>) {}));
   }
@@ -1059,7 +1062,8 @@ void NewTabPageHandler::OnDoodleImageRendered(
     logger_.LogEvent(type == new_tab_page::mojom::DoodleImageType::kCta
                          ? NTP_CTA_LOGO_SHOWN_FROM_CACHE
                          : NTP_STATIC_LOGO_SHOWN_FROM_CACHE,
-                     base::Time::FromJsTime(time) - ntp_navigation_start_time_);
+                     base::Time::FromMillisecondsSinceUnixEpoch(time) -
+                         ntp_navigation_start_time_);
   }
   Fetch(log_url,
         base::BindOnce(&NewTabPageHandler::OnLogFetchResult,
@@ -1104,6 +1108,14 @@ void NewTabPageHandler::OnDoodleShared(
 
 void NewTabPageHandler::OnPromoLinkClicked() {
   LogEvent(NTP_MIDDLE_SLOT_PROMO_LINK_CLICKED);
+}
+
+void NewTabPageHandler::OnModulesUsed() {
+  auto* tab = web_contents_.get();
+  feature_promo_helper_->RecordFeatureUsage(
+      feature_engagement::events::kDesktopNTPModuleUsed, tab);
+  feature_promo_helper_->CloseFeaturePromo(
+      feature_engagement::kIPHDesktopNewTabPageModulesCustomizeFeature, tab);
 }
 
 void NewTabPageHandler::OnNativeThemeUpdated(ui::NativeTheme* observed_theme) {
@@ -1390,4 +1402,10 @@ bool NewTabPageHandler::IsShortcutsVisible() const {
 void NewTabPageHandler::NotifyCustomizeChromeSidePanelVisibilityChanged(
     bool is_open) {
   page_->SetCustomizeChromeSidePanelVisibility(is_open);
+}
+
+void NewTabPageHandler::MaybeShowWebstoreToast() {
+  if (profile_->GetPrefs()->GetInteger(prefs::kSeedColorChangeCount) <= 3) {
+    page_->ShowWebstoreToast();
+  }
 }

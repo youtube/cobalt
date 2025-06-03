@@ -20,10 +20,6 @@
 #import "net/test/embedded_test_server/http_response.h"
 #import "net/test/embedded_test_server/request_handler_util.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace {
 // Returns ERR_CONNECTION_CLOSED error message.
 std::string GetErrorMessage() {
@@ -189,6 +185,13 @@ std::unique_ptr<net::test_server::HttpResponse> StandardResponse(
 // Loads a URL which redirect to a data URL and check that the navigation is
 // blocked on the first URL.
 - (void)testRedirectToData {
+  // Disable the test on iOS 16.4 as WKWebView handles this internally now as of
+  // https://bugs.webkit.org/show_bug.cgi?id=230158
+  // TODO(crbug.com/1442647): Remove redirect logic completely when dropping iOS
+  // 16.
+  if (@available(iOS 16.4, *)) {
+    EARL_GREY_TEST_DISABLED(@"Test disabled on iOS 16.4.");
+  }
   self.serverRespondsWithContent = YES;
   [ChromeEarlGrey loadURL:self.testServer->GetURL(kRedirectPage)];
   [ChromeEarlGrey waitForWebStateContainingText:net::ErrorToShortString(

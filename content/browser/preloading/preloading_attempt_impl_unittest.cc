@@ -11,8 +11,8 @@
 #include "components/ukm/test_ukm_recorder.h"
 #include "content/browser/preloading/preloading.h"
 #include "content/browser/preloading/preloading_config.h"
+#include "content/common/features.h"
 #include "content/public/browser/preloading.h"
-#include "content/public/common/content_features.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
 #include "testing/gtest/include/gtest/gtest-param-test.h"
@@ -35,7 +35,8 @@ const PreloadingType kTypes[] = {
     PreloadingType::kNoStatePrefetch,
 };
 
-const char* kUmaTriggerOutcome = "Preloading.%s.Attempt.%s.TriggeringOutcome";
+constexpr char kUmaTriggerOutcome[] =
+    "Preloading.%s.Attempt.%s.TriggeringOutcome";
 
 }  // namespace
 

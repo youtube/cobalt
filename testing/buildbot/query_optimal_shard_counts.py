@@ -18,228 +18,35 @@ import sys
 
 _CLOUD_PROJECT_ID = 'chrome-trooper-analytics'
 
-# TODO(crbug.com/1418199): Replace with queried, per-suite overheads, once
+# TODO(crbug.com/1480065): Replace with queried, per-suite overheads, once
 # infra is set up to support automated overhead measurements.
 # See go/nplus1shardsproposal
 DEFAULT_OVERHEAD_SEC = 60
 ANDROID_OVERHEAD_SEC = 60 * 2
 
-# Builders that should currently not be autosharded because they don't use GCE
-# swarming bots and have capacity issues.
-BUILDER_EXCLUDE_LIST = (
+# ===========================================================================
+# Excluding a builder and/or test suite from autosharding means:
+# - If it was already autosharded before and exists in the
+# autoshard_exceptions.json file, don't change the shard value any further.
+# - If it was never autosharded, never add it to autoshard_exceptions.json
+# ===========================================================================
+
+# All suites triggered by the builder will not be autosharded.
+BUILDER_EXCLUDE_SET = set([
     'mac-rel',
     'ios-simulator',
     'ios-simulator-full-configs',
     'android-arm64-rel',
-)
+])
 
-QUERY = """
-  WITH
-    # Get swarming task IDs of builds that occurred between lookback dates.
-    build_task_ids AS (
-      SELECT
-        b.infra.swarming.task_id build_task_id,
-        b.builder.builder try_builder,
-        b.start_time,
-      FROM
-        `cr-buildbucket.chromium.builds` b
-      INNER JOIN `chrome-trooper-analytics.metrics.cq_builders` cq_builders
-        ON b.builder.builder = cq_builders.builder
-      WHERE
-        b.start_time > '{lookback_start_date}'
-        AND b.start_time <= '{lookback_end_date}'
-        AND b.builder.bucket = 'try'
-        AND JSON_QUERY(b.output.properties, '$.rts_was_used') IS NULL
-        AND b.status = 'SUCCESS'
-    ),
-    # Get quantity of builds that started at 1PM M-F MTV timezone,
-    # grouped by try_builder and day
-    builds_per_1pm_day_count AS (
-      SELECT
-        try_builder,
-        TIMESTAMP_TRUNC(b.start_time, DAY, 'America/Los_Angeles') day,
-        COUNT(*) count,
-      FROM build_task_ids b
-      WHERE
-        EXTRACT(HOUR FROM b.start_time AT TIME ZONE 'America/Los_Angeles') = 13
-        AND EXTRACT(
-          DAYOFWEEK FROM b.start_time AT TIME ZONE 'America/Los_Angeles') > 1
-        AND EXTRACT(
-          DAYOFWEEK FROM b.start_time AT TIME ZONE 'America/Los_Angeles') < 7
-      GROUP BY try_builder, day
-    ),
-    # Get average 1PM M-F builds per hour, grouped by try_builder
-    # This is the "peak hour" build count estimate for each try_builder and will
-    # be used at the end to estimate bot cost per hour.
-    avg_builds_per_hour_count AS (
-      SELECT
-        try_builder,
-        ROUND(avg(count)) avg_count
-      FROM builds_per_1pm_day_count
-      GROUP BY try_builder
-    ),
-    # Now get the test swarming tasks triggered by each build from
-    # build_task_ids.
-    tasks AS (
-      SELECT
-        p.*,
-        (
-          SELECT
-            SPLIT(tag, ':')[offset(1)]
-          FROM UNNEST(c.request.tags) tag
-          WHERE REGEXP_CONTAINS(tag, 'waterfall_builder_group:')
-        ) AS waterfall_builder_group,
-        (
-          SELECT
-            SPLIT(tag, ':')[offset(1)]
-          FROM UNNEST(c.request.tags) tag
-          WHERE REGEXP_CONTAINS(tag, 'waterfall_buildername:')
-        ) AS waterfall_builder_name,
-        (
-          SELECT
-            SPLIT(tag, ':')[offset(1)]
-          FROM UNNEST(c.request.tags) tag
-          WHERE REGEXP_CONTAINS(tag, 'test_suite:')
-        ) AS test_suite,
-        # Excludes task setup overhead
-        c.duration running_duration_sec,
-        # This is the time it takes for the swarming bot to get ready to run
-        # the swarming task. This is different from the test harness overhead,
-        # which occurs after the bot has started running the task.
-        TIMESTAMP_DIFF(
-          c.end_time, c.start_time, SECOND)-c.duration task_setup_overhead_sec,
-        TIMESTAMP_DIFF(
-          c.start_time, c.create_time, SECOND) pending_time_sec,
-      FROM build_task_ids p
-      JOIN `chromium-swarm.swarming.task_results_summary_flat` c
-        ON p.build_task_id = c.request.parent_task_id
-      # Ignore all retry and flakiness step level runs
-      WHERE
-        c.request.name NOT LIKE '%retry shards%'
-        AND c.request.name NOT LIKE '%without patch%'
-        AND c.request.name NOT LIKE '%check flakiness%'
-        AND c.try_number != 0
-    ),
-    # Get a variety of durations and shard counts for each build's triggered
-    # suites.
-    suite_durations AS (
-      SELECT
-        build_task_id,
-        test_suite,
-        waterfall_builder_group,
-        waterfall_builder_name,
-        try_builder,
-        MAX(running_duration_sec) max_shard_duration_sec,
-        MAX(task_setup_overhead_sec) max_task_setup_overhead_sec,
-        MAX(pending_time_sec) max_pending_time_sec,
-        COUNT(*) shard_count
-      FROM tasks
-      GROUP BY
-        build_task_id,
-        test_suite,
-        waterfall_builder_group,
-        waterfall_builder_name,
-        try_builder
-    ),
-    # Group suite_durations by test suite, builder, and shard count
-    # Calculate percentiles for a variety of durations.
-    # Filter out rows that don't exceed the duration threshold and don't satisfy
-    # the sample size requirement.
-    long_poles AS (
-      SELECT
-        test_suite,
-        waterfall_builder_group,
-        waterfall_builder_name,
-        try_builder,
-        shard_count,
-        COUNT(*) sample_size,
-        ROUND(
-          APPROX_QUANTILES(
-            max_shard_duration_sec, 100)[OFFSET({percentile})] / 60, 2)
-          AS percentile_duration_minutes,
-        AVG(max_task_setup_overhead_sec) avg_task_setup_overhead_sec,
-        ROUND(AVG(max_pending_time_sec), 1) avg_pending_time_sec,
-        ROUND(
-          APPROX_QUANTILES(
-            max_pending_time_sec, 100)[OFFSET(50)], 1) AS p50_pending_time_sec,
-        ROUND(
-          APPROX_QUANTILES(
-            max_pending_time_sec, 100)[OFFSET(90)], 1) AS p90_pending_time_sec,
-        IF(
-          try_builder LIKE 'android%',
-          {android_overhead_sec}/60,
-          {default_overhead_sec}/60
-        ) test_overhead_min
-      FROM suite_durations
-      WHERE
-        waterfall_builder_group IS NOT NULL
-        AND try_builder NOT IN {builder_exclude_list}
-      GROUP BY
-        test_suite,
-        waterfall_builder_group,
-        waterfall_builder_name,
-        try_builder,
-        shard_count
-      HAVING
-        # Filters out suites that obviously don't need to be sharded more
-        # and prevents optimal_shard_count from being 0, causing a division
-        # by 0 error.
-        percentile_duration_minutes > 5
-        AND sample_size > {min_sample_size}
-      ORDER BY sample_size DESC, percentile_duration_minutes DESC
-    ),
-    # If a suite had its shards updated within the past lookback_days, there
-    # will be multiple rows for multiple shard counts. To be able to know which
-    # one to use, we'll attach a "most_used_shard_count" to indicate what
-    # shard_count is currently being used (a best guess).
-    most_used_shard_counts AS (
-        SELECT
-        ARRAY_AGG(
-          shard_count ORDER BY sample_size DESC)[OFFSET(0)]
-          AS most_used_shard_count,
-        test_suite,
-        try_builder
-      FROM long_poles
-      GROUP BY test_suite, try_builder
-    ),
-    # Using the percentile and estimated test overhead durations from the
-    # long_poles query above, calculate the optimal shard_count per suite and
-    # builder.
-    optimal_shard_counts AS (
-      SELECT
-        l.*,
-        CAST(CEILING(
-          (percentile_duration_minutes * shard_count -
-          (test_overhead_min * shard_count))
-          / ({desired_runtime_min} - test_overhead_min))
-        AS INT64) optimal_shard_count,
-        (
-          SELECT
-            avg_count
-          FROM avg_builds_per_hour_count a
-          WHERE a.try_builder = l.try_builder
-        ) avg_num_builds_per_peak_hour
-      FROM long_poles l
-    )
-    # Return optimal_shard_counts with a simulated shard duration and estimated
-    # bot hour cost.
-    SELECT
-      o.*,
-      m.most_used_shard_count,
-      ROUND(
-        percentile_duration_minutes * shard_count / optimal_shard_count, 2)
-        AS simulated_max_shard_duration,
-      ROUND(
-        (optimal_shard_count - shard_count)
-        * (avg_task_setup_overhead_sec / 60 + test_overhead_min) /
-        60 * avg_num_builds_per_peak_hour,
-        2) estimated_bot_hour_cost
-    FROM
-      optimal_shard_counts o
-      INNER JOIN most_used_shard_counts m
-      ON o.try_builder = m.try_builder AND
-      o.test_suite = m.test_suite
-"""
+# Test suites will not be autosharded on all builders that run the test suite.
+# Example: 'browser_tests' -> turns of browser_tests on linux-rel and win-rel
+TEST_SUITE_EXCLUDE_SET = set([])
+
+# Test suite and try builder dicts that should not be autosharded any further.
+# Maps try builder to set of test suite
+# Example: {'linux-rel': {'browser_tests'}}
+BUILDER_TEST_SUITE_EXCLUDE_DICT = {}
 
 _BQ_SETUP_INSTRUCTION = """
 ** NOTE: this script is only for Googlers to use. **
@@ -264,14 +71,17 @@ def _run_query(lookback_start_date, lookback_end_date, desired_runtime,
     subprocess.check_call(['which', 'bq'])
   except subprocess.CalledProcessError as e:
     raise RuntimeError(_BQ_SETUP_INSTRUCTION) from e
-  query = QUERY.format(
+  query_file = os.path.join(os.path.dirname(__file__),
+                            'query_optimal_shard_counts.sql')
+  with open(query_file, 'r') as f:
+    query_str = f.read()
+  query = query_str.format(
       desired_runtime_min=desired_runtime,
       default_overhead_sec=DEFAULT_OVERHEAD_SEC,
       android_overhead_sec=ANDROID_OVERHEAD_SEC,
       lookback_start_date=lookback_start_date,
       lookback_end_date=lookback_end_date,
       percentile=percentile,
-      builder_exclude_list=BUILDER_EXCLUDE_LIST,
       min_sample_size=min_sample_size,
   )
   args = [
@@ -279,7 +89,11 @@ def _run_query(lookback_start_date, lookback_end_date, desired_runtime,
       "--max_rows=100000", "--nouse_legacy_sql", query
   ]
 
-  output = subprocess.check_output(args)
+  try:
+    output = subprocess.check_output(args)
+  except subprocess.CalledProcessError as e:
+    print(e.output)
+    raise (e)
   return json.loads(output)
 
 
@@ -383,6 +197,12 @@ def main(args):
     builder_name = r['waterfall_builder_name']
     test_suite = r['test_suite']
 
+    excluded_tests = BUILDER_TEST_SUITE_EXCLUDE_DICT.get(r['try_builder'])
+    if (test_suite in TEST_SUITE_EXCLUDE_SET
+        or (excluded_tests and test_suite in excluded_tests)
+        or r['try_builder'] in BUILDER_EXCLUDE_SET):
+      continue
+
     current_autoshard_val = data.get(builder_group,
                                      {}).get(builder_name,
                                              {}).get(test_suite,
@@ -390,6 +210,23 @@ def main(args):
 
     # No autosharding needed.
     if int(r['optimal_shard_count']) == int(r['shard_count']):
+      continue
+
+    runtime_diff = abs(
+        float(opts.desired_runtime) - float(r['percentile_duration_minutes']))
+    # Don't bother resharding suites that are running < 1 minute faster
+    # than desired.
+    if runtime_diff < 1:
+      continue
+
+    # Throw out any attempt to shard to 1. This will lock the test suite
+    # and prevent go/nplus1shardsproposal from running new shardings
+    if int(r['optimal_shard_count']) == 1:
+      continue
+
+    # Don't bother resharding if the simulated runtime is greater than the
+    # desired runtime.
+    if (float(r['simulated_max_shard_duration']) > opts.desired_runtime):
       continue
 
     # Shard values may have changed over the lookback period, so the query
@@ -414,7 +251,8 @@ def main(args):
       if int(r['shard_count']) != int(r['most_used_shard_count']):
         continue
 
-      # Query suggests we should decrease shard count
+      # Query suggests we should decrease shard count for suite that has
+      # never been autosharded
       if int(r['optimal_shard_count']) < int(r['shard_count']):
         # Only use lower shard count value if the suite was previously
         # autosharded.
@@ -445,6 +283,7 @@ def main(args):
           'prev_shard_count': r['shard_count'],
           'simulated_max_shard_duration': r['simulated_max_shard_duration'],
           'try_builder': r['try_builder'],
+          'test_overhead_min': r['test_overhead_min'],
       }
       shard_dict[r['test_suite']]['debug'] = debug_dict
     data.setdefault(builder_group, {}).setdefault(builder_name,

@@ -119,6 +119,8 @@ class BufferVk : public BufferImpl
         return mBuffer;
     }
 
+    vk::BufferSerial getBufferSerial() { return mBuffer.getBufferSerial(); }
+
     bool isBufferValid() const { return mBuffer.valid(); }
     bool isCurrentlyInUse(RendererVk *renderer) const;
 
@@ -182,7 +184,7 @@ class BufferVk : public BufferImpl
                               size_t updateSize,
                               size_t updateOffset,
                               BufferUpdateType updateType);
-    void release(ContextVk *context);
+    angle::Result release(ContextVk *context);
     void dataUpdated();
 
     angle::Result acquireBufferHelper(ContextVk *contextVk,

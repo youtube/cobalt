@@ -9,12 +9,13 @@ import androidx.annotation.VisibleForTesting;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GoogleApiAvailability;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.ContextUtils;
 import org.chromium.base.Log;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNIAdditionalImport;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
+import org.chromium.base.ResettersForTesting;
 import org.chromium.ui.base.WindowAndroid;
 
 /**
@@ -29,7 +30,6 @@ import org.chromium.ui.base.WindowAndroid;
  *
  */
 @JNINamespace("content")
-@JNIAdditionalImport(Wrappers.class)
 public class SmsProviderGms {
     private static final String TAG = "SmsProviderGms";
     private static final int MIN_GMS_VERSION_NUMBER_WITH_CODE_BROWSER_BACKEND = 202990000;
@@ -63,22 +63,22 @@ public class SmsProviderGms {
         Log.i(TAG, "construction successfull %s, %s", mVerificationReceiver, mUserConsentReceiver);
     }
 
-    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
     public void setUserConsentReceiverForTesting(SmsUserConsentReceiver userConsentReceiver) {
+        var oldValue = mUserConsentReceiver;
         mUserConsentReceiver = userConsentReceiver;
+        ResettersForTesting.register(() -> mUserConsentReceiver = oldValue);
     }
 
-    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
     public void setVerificationReceiverForTesting(SmsVerificationReceiver verificationReceiver) {
+        var oldValue = mVerificationReceiver;
         mVerificationReceiver = verificationReceiver;
+        ResettersForTesting.register(() -> mVerificationReceiver = oldValue);
     }
 
-    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
     public SmsUserConsentReceiver getUserConsentReceiverForTesting() {
         return mUserConsentReceiver;
     }
 
-    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
     public SmsVerificationReceiver getVerificationReceiverForTesting() {
         return mVerificationReceiver;
     }

@@ -170,6 +170,10 @@ class COMPONENT_EXPORT(CHROMEOS_PRINTING) Printer {
   // Everywhere.  Computed using information from |ppd_reference_| and |uri_|.
   bool IsIppEverywhere() const;
 
+  // Returns true if the printer should use driverless autoconfiguration through
+  // IPP-USB instead of the USB printer class.
+  bool RequiresDriverlessUsb() const;
+
   // Returns the hostname and port for |uri_|.  Assumes that the uri is
   // well formed.  Returns an empty string if |uri_| is not set.
   net::HostPortPair GetHostAndPort() const;
@@ -208,6 +212,15 @@ class COMPONENT_EXPORT(CHROMEOS_PRINTING) Printer {
   const CupsPrinterStatus& printer_status() const { return printer_status_; }
   void set_printer_status(const chromeos::CupsPrinterStatus& printer_status) {
     printer_status_ = printer_status;
+  }
+
+  // Setter and getter for flag marking that the printer is used in the finch
+  // experiment created for b:184293121.
+  bool AffectedByIppUsbMigration() const {
+    return experimental_setup_of_usb_printer_with_ipp_and_ppd_;
+  }
+  void SetAffectedByIppUsbMigration(bool flag) {
+    experimental_setup_of_usb_printer_with_ipp_and_ppd_ = flag;
   }
 
  private:
@@ -250,6 +263,10 @@ class COMPONENT_EXPORT(CHROMEOS_PRINTING) Printer {
 
   // The current status of the printer
   chromeos::CupsPrinterStatus printer_status_;
+
+  // This flag is set for printers that take part in the finch experiment
+  // created for b/184293121.
+  bool experimental_setup_of_usb_printer_with_ipp_and_ppd_ = false;
 };
 
 }  // namespace chromeos

@@ -22,7 +22,6 @@
 #include "extensions/common/extension_builder.h"
 #include "extensions/common/manifest.h"
 #include "extensions/common/manifest_handlers/background_info.h"
-#include "extensions/common/value_builder.h"
 
 namespace utils = extensions::api_test_utils;
 
@@ -49,8 +48,9 @@ void ApiUnitTest::TearDown() {
 void ApiUnitTest::CreateBackgroundPage() {
   if (!contents_) {
     GURL url = BackgroundInfo::GetBackgroundURL(extension());
-    if (url.is_empty())
+    if (url.is_empty()) {
       url = GURL(url::kAboutBlankURL);
+    }
     contents_ = content::WebContents::Create(content::WebContents::CreateParams(
         browser_context(),
         content::SiteInstance::CreateForURL(browser_context(), url)));
@@ -59,25 +59,29 @@ void ApiUnitTest::CreateBackgroundPage() {
 
 absl::optional<base::Value> ApiUnitTest::RunFunctionAndReturnValue(
     ExtensionFunction* function,
-    const std::string& args) {
+    api_test_utils::ArgsType args) {
   function->set_extension(extension());
-  if (contents_)
+  if (contents_) {
     function->SetRenderFrameHost(contents_->GetPrimaryMainFrame());
-  return utils::RunFunctionAndReturnSingleResult(function, args,
+  }
+  return utils::RunFunctionAndReturnSingleResult(function, std::move(args),
                                                  browser_context());
 }
 
-std::string ApiUnitTest::RunFunctionAndReturnError(ExtensionFunction* function,
-                                                   const std::string& args) {
+std::string ApiUnitTest::RunFunctionAndReturnError(
+    ExtensionFunction* function,
+    api_test_utils::ArgsType args) {
   function->set_extension(extension());
-  if (contents_)
+  if (contents_) {
     function->SetRenderFrameHost(contents_->GetPrimaryMainFrame());
-  return utils::RunFunctionAndReturnError(function, args, browser_context());
+  }
+  return utils::RunFunctionAndReturnError(function, std::move(args),
+                                          browser_context());
 }
 
 void ApiUnitTest::RunFunction(ExtensionFunction* function,
-                              const std::string& args) {
-  RunFunctionAndReturnValue(function, args);
+                              api_test_utils::ArgsType args) {
+  RunFunctionAndReturnValue(function, std::move(args));
 }
 
 }  // namespace extensions

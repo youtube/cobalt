@@ -23,7 +23,7 @@
 #ifndef ABSL_LOG_INTERNAL_CONDITIONS_H_
 #define ABSL_LOG_INTERNAL_CONDITIONS_H_
 
-#ifdef _WIN32
+#if defined(_WIN32) || defined(__hexagon__)
 #include <cstdlib>
 #else
 #include <unistd.h>
@@ -56,9 +56,15 @@
 // the ternary expression does a better job avoiding spurious diagnostics
 // (dangling else, missing switch case) and preserving noreturn semantics (e.g.
 // on `LOG(FATAL)`) without requiring braces.
+//
+// The `switch` ensures that this expansion is the begnning of a statement (as
+// opposed to an expression) and prevents shenanigans like
+// `AFunction(LOG(INFO))` and `decltype(LOG(INFO))`.  The apparently-redundant
+// `default` case makes the condition more amenable to Clang dataflow analysis.
 #define ABSL_LOG_INTERNAL_STATELESS_CONDITION(condition) \
   switch (0)                                             \
   case 0:                                                \
+  default:                                               \
     !(condition) ? (void)0 : ::absl::log_internal::Voidify()&&
 
 // `ABSL_LOG_INTERNAL_STATEFUL_CONDITION` applies a condition like
@@ -131,6 +137,15 @@
                   ? true                                                   \
                   : (::absl::log_internal::ExitQuietly(), false))          \
            : false))
+#define ABSL_LOG_INTERNAL_CONDITION_DFATAL(type, condition)             \
+  ABSL_LOG_INTERNAL_##type##_CONDITION(                                 \
+      (ABSL_ASSUME(absl::kLogDebugFatal == absl::LogSeverity::kError || \
+                   absl::kLogDebugFatal == absl::LogSeverity::kFatal),  \
+       (condition) &&                                                   \
+           (::absl::kLogDebugFatal >=                                   \
+                static_cast<::absl::LogSeverity>(ABSL_MIN_LOG_LEVEL) || \
+            (::absl::kLogDebugFatal == ::absl::LogSeverity::kFatal &&   \
+             (::absl::log_internal::AbortQuietly(), false)))))
 
 #define ABSL_LOG_INTERNAL_CONDITION_LEVEL(severity)                    \
   for (int log_internal_severity_loop = 1; log_internal_severity_loop; \
@@ -156,6 +171,8 @@
 #define ABSL_LOG_INTERNAL_CONDITION_FATAL(type, condition) \
   ABSL_LOG_INTERNAL_##type##_CONDITION(condition)
 #define ABSL_LOG_INTERNAL_CONDITION_QFATAL(type, condition) \
+  ABSL_LOG_INTERNAL_##type##_CONDITION(condition)
+#define ABSL_LOG_INTERNAL_CONDITION_DFATAL(type, condition) \
   ABSL_LOG_INTERNAL_##type##_CONDITION(condition)
 #define ABSL_LOG_INTERNAL_CONDITION_LEVEL(severity)                    \
   for (int log_internal_severity_loop = 1; log_internal_severity_loop; \

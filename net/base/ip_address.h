@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "base/check_op.h"
+#include "base/containers/span.h"
 #include "base/strings/string_piece.h"
 #include "base/values.h"
 #include "net/base/net_export.h"
@@ -75,6 +76,9 @@ class NET_EXPORT IPAddressBytes {
     bytes_[size_++] = val;
   }
 
+  // Appends the range [`first`, `last`) to the end and increments the size.
+  void Append(const uint8_t* first, const uint8_t* last);
+
   // Returns a reference to the byte at index |pos|.
   uint8_t& operator[](size_t pos) {
     DCHECK_LT(pos, size_);
@@ -121,8 +125,8 @@ class NET_EXPORT IPAddress {
 
   // Copies the input address to |ip_address_|. The input is expected to be in
   // network byte order.
-  template <size_t N>
-  explicit IPAddress(const uint8_t (&address)[N]) : IPAddress(address, N) {}
+  explicit IPAddress(base::span<const uint8_t> address)
+      : IPAddress(address.data(), address.size()) {}
 
   // Copies the input address to |ip_address_| taking an additional length
   // parameter. The input is expected to be in network byte order.
@@ -180,6 +184,9 @@ class NET_EXPORT IPAddress {
   // Returns true if |ip_address_| is 169.254.0.0/16 or fe80::/10, or
   // ::ffff:169.254.0.0/112 (IPv4 mapped IPv6 link-local).
   bool IsLinkLocal() const;
+
+  // Returns true if `ip_address_` is a unique local IPv6 address (fc00::/7).
+  bool IsUniqueLocalIPv6() const;
 
   // The size in bytes of |ip_address_|.
   size_t size() const { return ip_address_.size(); }

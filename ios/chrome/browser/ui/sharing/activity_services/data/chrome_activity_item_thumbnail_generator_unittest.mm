@@ -6,15 +6,11 @@
 
 #import "base/task/thread_pool.h"
 #import "base/test/task_environment.h"
-#import "ios/chrome/browser/snapshots/fake_snapshot_generator_delegate.h"
-#import "ios/chrome/browser/snapshots/snapshot_tab_helper.h"
+#import "ios/chrome/browser/snapshots/model/fake_snapshot_generator_delegate.h"
+#import "ios/chrome/browser/snapshots/model/snapshot_tab_helper.h"
 #import "ios/web/public/test/fakes/fake_web_state.h"
 #import "testing/platform_test.h"
 #import "ui/base/test/ios/ui_image_test_utils.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace {
 

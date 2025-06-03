@@ -22,8 +22,8 @@
 #include "media/video/h265_nalu_parser.h"
 
 namespace gfx {
-struct HDRMetadata;
-struct ColorVolumeMetadata;
+struct HdrMetadataCta861_3;
+struct HdrMetadataSmpteSt2086;
 }  // namespace gfx
 
 namespace media {
@@ -150,7 +150,9 @@ struct MEDIA_EXPORT H265VPS {
   int vps_max_latency_increase_plus1[kMaxSubLayers];
   int vps_max_layer_id;
   int vps_num_layer_sets_minus1;
-  bool vps_timing_info_present_flag;
+
+  // Computed from ScalabilityId
+  int aux_alpha_layer_id;
 
   // skipped the rest
 };
@@ -177,7 +179,7 @@ struct MEDIA_EXPORT H265SPS {
   int log2_max_pic_order_cnt_lsb_minus4;
   int sps_max_dec_pic_buffering_minus1[kMaxSubLayers];
   int sps_max_num_reorder_pics[kMaxSubLayers];
-  int sps_max_latency_increase_plus1[kMaxSubLayers];
+  uint32_t sps_max_latency_increase_plus1[kMaxSubLayers];
   int log2_min_luma_coding_block_size_minus3;
   int log2_diff_max_min_luma_coding_block_size;
   int log2_min_luma_transform_block_size_minus2;
@@ -235,6 +237,7 @@ struct MEDIA_EXPORT H265SPS {
   int pic_size_in_ctbs_y;
   int wp_offset_half_range_y;
   int wp_offset_half_range_c;
+  uint32_t sps_max_latency_pictures[kMaxSubLayers];
 
   // Helpers to compute frequently-used values. They do not verify that the
   // results are in-spec for the given profile or level.
@@ -442,7 +445,7 @@ struct MEDIA_EXPORT H265SEIContentLightLevelInfo {
   uint16_t max_content_light_level;
   uint16_t max_picture_average_light_level;
 
-  void PopulateHDRMetadata(gfx::HDRMetadata& hdr_metadata) const;
+  gfx::HdrMetadataCta861_3 ToGfx() const;
 };
 
 struct MEDIA_EXPORT H265SEIMasteringDisplayInfo {
@@ -456,8 +459,7 @@ struct MEDIA_EXPORT H265SEIMasteringDisplayInfo {
   uint32_t max_luminance;
   uint32_t min_luminance;
 
-  void PopulateColorVolumeMetadata(
-      gfx::ColorVolumeMetadata& color_volume_metadata) const;
+  gfx::HdrMetadataSmpteSt2086 ToGfx() const;
 };
 
 struct MEDIA_EXPORT H265SEIMessage {
@@ -541,15 +543,6 @@ class MEDIA_EXPORT H265Parser : public H265NaluParser {
   static VideoCodecProfile ProfileIDCToVideoCodecProfile(int profile_idc);
 
  private:
-  // Exp-Golomb code parsing as specified in chapter 9.2 of the spec.
-  // Read one unsigned exp-Golomb code from the stream and return in |*val|
-  // with total bits read return in |*num_bits_read|.
-  Result ReadUE(int* val, int* num_bits_read);
-
-  // Read one signed exp-Golomb code from the stream and return in |*val|
-  // with total bits read return in |*num_bits_read|.
-  Result ReadSE(int* val, int* num_bits_read);
-
   Result ParseProfileTierLevel(bool profile_present,
                                int max_num_sub_layers_minus1,
                                H265ProfileTierLevel* profile_tier_level);

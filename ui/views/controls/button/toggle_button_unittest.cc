@@ -70,9 +70,7 @@ class ToggleButtonTest : public ViewsTestBase {
     params.bounds = gfx::Rect(0, 0, 650, 650);
     widget_->Init(std::move(params));
     widget_->Show();
-
-    button_ =
-        widget_->SetContentsView(std::make_unique<TestToggleButton>(&counter_));
+    widget_->SetContentsView(std::make_unique<TestToggleButton>(&counter_));
   }
 
   void TearDown() override {
@@ -83,11 +81,12 @@ class ToggleButtonTest : public ViewsTestBase {
  protected:
   int counter() const { return counter_; }
   Widget* widget() { return widget_.get(); }
-  TestToggleButton* button() { return button_; }
+  TestToggleButton* button() {
+    return static_cast<TestToggleButton*>(widget_->GetContentsView());
+  }
 
  private:
   std::unique_ptr<Widget> widget_;
-  raw_ptr<TestToggleButton> button_ = nullptr;
   int counter_ = 0;
 };
 
@@ -95,7 +94,6 @@ class ToggleButtonTest : public ViewsTestBase {
 // The test verifies that the ink drop layer is removed properly when the
 // ToggleButton gets destroyed.
 TEST_F(ToggleButtonTest, ToggleButtonDestroyed) {
-  EXPECT_EQ(0, counter());
   gfx::Point center(10, 10);
   button()->OnMousePressed(ui::MouseEvent(
       ui::ET_MOUSE_PRESSED, center, center, ui::EventTimeForNow(),
@@ -109,7 +107,6 @@ TEST_F(ToggleButtonTest, ToggleButtonDestroyed) {
 // ToggleButton has focus (and is showing a ripple).
 TEST_F(ToggleButtonTest, ShutdownWithFocus) {
   button()->RequestFocus();
-  EXPECT_EQ(1, counter());
 }
 
 // Verify that ToggleButton::accepts_events_ works as expected.

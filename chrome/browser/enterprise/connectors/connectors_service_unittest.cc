@@ -14,9 +14,9 @@
 #include "chrome/browser/enterprise/connectors/connectors_manager.h"
 #include "chrome/browser/enterprise/connectors/reporting/browser_crash_event_router.h"
 #include "chrome/browser/enterprise/connectors/service_provider_config.h"
+#include "chrome/browser/enterprise/connectors/test/deep_scanning_test_utils.h"
 #include "chrome/browser/policy/dm_token_utils.h"
 #include "chrome/browser/profiles/profile_testing_helper.h"
-#include "chrome/browser/safe_browsing/cloud_content_scanning/deep_scanning_test_utils.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile_manager.h"
 #include "components/enterprise/common/proto/connectors.pb.h"
@@ -55,7 +55,6 @@ constexpr char kNormalReportingSettingsPref[] = R"([
 
 constexpr char kCustomMessage[] = "Custom Admin Message";
 constexpr char kCustomUrl[] = "https://learn.more.com";
-constexpr char kDlpTag[] = "dlp";
 
 std::string CreateCustomUIPref(const char* custom_message,
                                const char* custom_url,
@@ -105,7 +104,7 @@ class ConnectorsServiceTest : public testing::Test {
     EXPECT_TRUE(profile_manager_.SetUp());
     profile_ = profile_manager_.CreateTestingProfile("test-user");
     policy::SetDMTokenForTesting(
-        policy::DMToken::CreateValidTokenForTesting("fake-token"));
+        policy::DMToken::CreateValidToken("fake-token"));
   }
 
  protected:
@@ -127,8 +126,7 @@ class ConnectorsServiceHasExtraUiTest
 };
 
 TEST_P(ConnectorsServiceHasExtraUiTest, AnalysisConnectors) {
-  safe_browsing::SetAnalysisConnector(profile_->GetPrefs(), FILE_DOWNLOADED,
-                                      pref());
+  test::SetAnalysisConnector(profile_->GetPrefs(), FILE_DOWNLOADED, pref());
   auto* service = ConnectorsServiceFactory::GetForBrowserContext(profile_);
   bool show_extra_ui = service->HasExtraUiToDisplay(FILE_DOWNLOADED, kDlpTag);
   ASSERT_EQ(show_extra_ui, has_extra_ui());
@@ -230,7 +228,7 @@ TEST_F(ConnectorsServiceTest, RealtimeURLCheck) {
   EXPECT_TRUE(maybe_dm_token.has_value());
   EXPECT_EQ("fake-token", maybe_dm_token.value());
 
-  policy::SetDMTokenForTesting(policy::DMToken::CreateEmptyTokenForTesting());
+  policy::SetDMTokenForTesting(policy::DMToken::CreateEmptyToken());
 
   maybe_dm_token = ConnectorsServiceFactory::GetForBrowserContext(profile_)
                        ->GetDMTokenForRealTimeUrlCheck();

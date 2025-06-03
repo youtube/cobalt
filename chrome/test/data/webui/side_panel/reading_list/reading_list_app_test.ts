@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'chrome://webui-test/mojo_webui_test_support.js';
 import 'chrome://read-later.top-chrome/app.js';
 
 import {ReadingListAppElement} from 'chrome://read-later.top-chrome/app.js';
@@ -211,24 +210,23 @@ suite('ReadingListAppTest', () => {
       'https://www.bing.com',
       'https://www.yahoo.com',
     ];
-    const selector = readingListApp.shadowRoot!.querySelector('iron-selector')!;
 
     // Select first item.
-    selector.selected =
+    readingListApp.selected =
         readingListApp.shadowRoot!.querySelector(
                                       'reading-list-item')!.dataset['url']!;
 
-    keyDownOn(selector, 0, [], 'ArrowUp');
-    assertEquals(urls[3], selector.selected);
+    keyDownOn(readingListApp.$.readingListList, 0, [], 'ArrowUp');
+    assertEquals(urls[3], readingListApp.selected);
 
-    keyDownOn(selector, 0, [], 'ArrowDown');
-    assertEquals(urls[0], selector.selected);
+    keyDownOn(readingListApp.$.readingListList, 0, [], 'ArrowDown');
+    assertEquals(urls[0], readingListApp.selected);
 
-    keyDownOn(selector, 0, [], 'ArrowDown');
-    assertEquals(urls[1], selector.selected);
+    keyDownOn(readingListApp.$.readingListList, 0, [], 'ArrowDown');
+    assertEquals(urls[1], readingListApp.selected);
 
-    keyDownOn(selector, 0, [], 'ArrowUp');
-    assertEquals(urls[0], selector.selected);
+    keyDownOn(readingListApp.$.readingListList, 0, [], 'ArrowUp');
+    assertEquals(urls[0], readingListApp.selected);
   });
 
   test(
@@ -263,15 +261,6 @@ suite('ReadingListAppTest', () => {
         keyDownOn(firstItem, 0, [], 'ArrowLeft');
         assertEquals(firstItem, readingListApp.shadowRoot!.activeElement);
       });
-
-  test('Favicons present in the dom', async () => {
-    const readingListItems =
-        readingListApp.shadowRoot!.querySelectorAll('reading-list-item');
-
-    readingListItems.forEach((readingListItem) => {
-      assertTrue(!!readingListItem.shadowRoot!.querySelector('.favicon'));
-    });
-  });
 
   test('Verify visibilitychange triggers data fetch', async () => {
     assertEquals(1, testProxy.getCallCount('getReadLaterEntries'));

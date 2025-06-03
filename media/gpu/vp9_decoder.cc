@@ -9,11 +9,11 @@
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
-#include "base/metrics/histogram_functions.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
 #include "media/base/limits.h"
 #include "media/base/media_switches.h"
+#include "media/base/platform_features.h"
 #include "media/gpu/vp9_decoder.h"
 
 namespace media {
@@ -23,36 +23,32 @@ bool GetSpatialLayerFrameSize(const DecoderBuffer& decoder_buffer,
                               std::vector<uint32_t>& frame_sizes) {
   frame_sizes.clear();
 
-  const uint32_t* cue_data =
-      reinterpret_cast<const uint32_t*>(decoder_buffer.side_data());
-  if (!cue_data)
+  if (!decoder_buffer.has_side_data() ||
+      decoder_buffer.side_data()->spatial_layers.empty()) {
     return true;
+  }
 
   bool enable_vp9_ksvc =
-// On windows, currently only d3d11 supports decoding VP9 kSVC stream, we
-// shouldn't combine the switch kD3D11Vp9kSVCHWDecoding to kVp9kSVCHWDecoding
-// due to we want keep returning false to MediaCapability.
-#if BUILDFLAG(IS_WIN)
-      base::FeatureList::IsEnabled(media::kD3D11Vp9kSVCHWDecoding);
-#elif BUILDFLAG(IS_CHROMEOS) && defined(ARCH_CPU_ARM_FAMILY)
-      // V4L2 stateless API decoder is not capable of decoding VP9 k-SVC stream.
+  // V4L2 stateless decoder does not support VP9 kSVC streams.
+  // See comments in media::IsVp9kSVCHWDecodingEnabled().
+#if BUILDFLAG(IS_CHROMEOS) && defined(ARCH_CPU_ARM_FAMILY)
       false;
 #else
-      base::FeatureList::IsEnabled(media::kVp9kSVCHWDecoding);
-#endif
+      media::IsVp9kSVCHWDecodingEnabled();
+#endif  // BUILDFLAG(IS_CHROMEOS) && defined(ARCH_CPU_ARM_FAMILY)
 
   if (!enable_vp9_ksvc) {
-    DLOG(ERROR) << "Vp9 k-SVC hardware decoding is disabled";
+    DLOG(ERROR) << "VP9 k-SVC hardware decoding is disabled";
     return false;
   }
 
-  size_t num_of_layers = decoder_buffer.side_data_size() / sizeof(uint32_t);
+  size_t num_of_layers = decoder_buffer.side_data()->spatial_layers.size();
   if (num_of_layers > 3u) {
     DLOG(WARNING) << "The maximum number of spatial layers in VP9 is three";
     return false;
   }
 
-  frame_sizes = std::vector<uint32_t>(cue_data, cue_data + num_of_layers);
+  frame_sizes = decoder_buffer.side_data()->spatial_layers;
   return true;
 }
 
@@ -81,8 +77,7 @@ bool IsValidBitDepth(uint8_t bit_depth, VideoCodecProfile profile) {
     case VP9PROFILE_PROFILE3:
       return bit_depth == 10u || bit_depth == 12u;
     default:
-      NOTREACHED();
-      return false;
+      NOTREACHED_NORETURN();
   }
 }
 
@@ -239,18 +234,13 @@ VP9Decoder::DecodeResult VP9Decoder::Decode() {
       // correct timestamp.
       scoped_refptr<VP9Picture> pic =
           ref_frames_.GetFrame(frame_to_show)->Duplicate();
-      if (pic == nullptr) {
-        DVLOG(1) << "Failed to duplicate the VP9Picture.";
-        SetError();
-        return kDecodeError;
-      }
       pic->set_bitstream_id(stream_id_);
+      pic->frame_hdr = std::move(curr_frame_hdr_);
       if (!accelerator_->OutputPicture(std::move(pic))) {
         SetError();
         return kDecodeError;
       }
 
-      curr_frame_hdr_.reset();
       decrypt_config_.reset();
       continue;
     }
@@ -281,8 +271,6 @@ VP9Decoder::DecodeResult VP9Decoder::Decode() {
         GetVP9ChromaSampling(*curr_frame_hdr_);
     if (new_chroma_sampling != chroma_sampling_) {
       chroma_sampling_ = new_chroma_sampling;
-      base::UmaHistogramEnumeration(
-          "Media.PlatformVideoDecoding.ChromaSampling", chroma_sampling_);
     }
 
     if (chroma_sampling_ != VideoChromaSampling::k420) {
@@ -290,7 +278,21 @@ VP9Decoder::DecodeResult VP9Decoder::Decode() {
       return kDecodeError;
     }
 
+    VideoColorSpace new_color_space;
+    // For VP9, container color spaces override video stream color spaces.
+    if (container_color_space_.IsSpecified()) {
+      new_color_space = container_color_space_;
+    } else if (curr_frame_hdr_->GetColorSpace().IsSpecified()) {
+      new_color_space = curr_frame_hdr_->GetColorSpace();
+    }
+
     DCHECK(!new_pic_size.IsEmpty());
+
+    bool is_color_space_change = false;
+    if (base::FeatureList::IsEnabled(kAVDColorSpaceChanges)) {
+      is_color_space_change = new_color_space.IsSpecified() &&
+                              new_color_space != picture_color_space_;
+    }
 
     const bool is_pic_size_different = new_pic_size != pic_size_;
     const bool is_pic_size_larger = new_pic_size.width() > pic_size_.width() ||
@@ -299,13 +301,15 @@ VP9Decoder::DecodeResult VP9Decoder::Decode() {
         (ignore_resolution_changes_to_smaller_for_testing_
              ? is_pic_size_larger
              : is_pic_size_different) ||
-        new_profile != profile_ || curr_frame_hdr_->bit_depth != bit_depth_;
+        new_profile != profile_ || curr_frame_hdr_->bit_depth != bit_depth_ ||
+        is_color_space_change;
 
     if (is_new_configuration_different_enough) {
       DVLOG(1) << "New profile: " << GetProfileName(new_profile)
                << ", new resolution: " << new_pic_size.ToString()
                << ", new bit depth: "
-               << base::strict_cast<int>(curr_frame_hdr_->bit_depth);
+               << base::strict_cast<int>(curr_frame_hdr_->bit_depth)
+               << ", new color space: " << new_color_space.ToString();
 
       if (!curr_frame_hdr_->IsKeyframe() &&
           !(curr_frame_hdr_->IsIntra() && pic_size_.IsEmpty())) {
@@ -335,6 +339,7 @@ VP9Decoder::DecodeResult VP9Decoder::Decode() {
       visible_rect_ = new_render_rect;
       profile_ = new_profile;
       bit_depth_ = curr_frame_hdr_->bit_depth;
+      picture_color_space_ = new_color_space;
       size_change_failure_counter_ = 0;
       return kConfigChange;
     }
@@ -350,11 +355,8 @@ VP9Decoder::DecodeResult VP9Decoder::Decode() {
 
     pic->set_decrypt_config(std::move(decrypt_config_));
 
-    // For VP9, container color spaces override video stream color spaces.
-    if (container_color_space_.IsSpecified())
-      pic->set_colorspace(container_color_space_);
-    else if (curr_frame_hdr_)
-      pic->set_colorspace(curr_frame_hdr_->GetColorSpace());
+    // Set the color space for the picture.
+    pic->set_colorspace(picture_color_space_);
 
     pic->frame_hdr = std::move(curr_frame_hdr_);
 
@@ -439,6 +441,10 @@ uint8_t VP9Decoder::GetBitDepth() const {
 
 VideoChromaSampling VP9Decoder::GetChromaSampling() const {
   return chroma_sampling_;
+}
+
+VideoColorSpace VP9Decoder::GetVideoColorSpace() const {
+  return picture_color_space_;
 }
 
 absl::optional<gfx::HDRMetadata> VP9Decoder::GetHDRMetadata() const {

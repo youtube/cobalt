@@ -62,9 +62,12 @@ class MockPage : public tab_search::mojom::Page {
   }
   mojo::Receiver<tab_search::mojom::Page> receiver_{this};
 
-  MOCK_METHOD1(TabsChanged, void(tab_search::mojom::ProfileDataPtr));
-  MOCK_METHOD1(TabUpdated, void(tab_search::mojom::TabUpdateInfoPtr));
-  MOCK_METHOD1(TabsRemoved, void(tab_search::mojom::TabsRemovedInfoPtr));
+  MOCK_METHOD(void,
+              TabOrganizationSessionUpdated,
+              (tab_search::mojom::TabOrganizationSessionPtr));
+  MOCK_METHOD(void, TabsChanged, (tab_search::mojom::ProfileDataPtr));
+  MOCK_METHOD(void, TabUpdated, (tab_search::mojom::TabUpdateInfoPtr));
+  MOCK_METHOD(void, TabsRemoved, (tab_search::mojom::TabsRemovedInfoPtr));
 };
 
 void ExpectNewTab(const tab_search::mojom::Tab* tab,
@@ -222,7 +225,7 @@ class TabSearchPageHandlerTest : public BrowserWithTestWindowTest {
 
   std::unique_ptr<content::WebContents> web_contents_;
   content::TestWebUI web_ui_;
-  raw_ptr<Profile> profile2_;
+  raw_ptr<Profile, DanglingUntriaged> profile2_;
   std::unique_ptr<Browser> browser2_;
   std::unique_ptr<Browser> browser3_;
   std::unique_ptr<Browser> browser4_;

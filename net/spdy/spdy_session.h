@@ -40,9 +40,7 @@
 #include "net/socket/stream_socket.h"
 #include "net/spdy/buffered_spdy_framer.h"
 #include "net/spdy/http2_priority_dependencies.h"
-#include "net/spdy/http2_push_promise_index.h"
 #include "net/spdy/multiplexed_session.h"
-#include "net/spdy/server_push_delegate.h"
 #include "net/spdy/spdy_buffer.h"
 #include "net/spdy/spdy_session_pool.h"
 #include "net/spdy/spdy_stream.h"
@@ -192,34 +190,6 @@ SpdyProtocolErrorDetails NET_EXPORT_PRIVATE
 MapRstStreamStatusToProtocolError(spdy::SpdyErrorCode error_code);
 spdy::SpdyErrorCode NET_EXPORT_PRIVATE MapNetErrorToGoAwayStatus(Error err);
 
-// There is an enum of the same name in tools/metrics/histograms/enums.xml.
-// Be sure to add new values there also.
-enum class SpdyPushedStreamFate {
-  kTooManyPushedStreams = 0,
-  kTimeout = 1,
-  kPromisedStreamIdParityError = 2,
-  kAssociatedStreamIdParityError = 3,
-  kStreamIdOutOfOrder = 4,
-  kGoingAway = 5,
-  kInvalidUrl = 6,
-  kInactiveAssociatedStream = 7,
-  kNonHttpSchemeFromTrustedProxy = 8,
-  kNonHttpsPushedScheme = 9,
-  kNonHttpsAssociatedScheme = 10,
-  kCertificateMismatch = 11,
-  kDuplicateUrl = 12,
-  kClientRequestNotRange = 13,
-  kPushedRequestNotRange = 14,
-  kRangeMismatch = 15,
-  kVaryMismatch = 16,
-  kAcceptedNoVary = 17,
-  kAcceptedMatchingVary = 18,
-  kPushDisabled = 19,
-  kAlreadyInCache = 20,
-  kUnsupportedStatusCode = 21,
-  kMaxValue = kUnsupportedStatusCode
-};
-
 // If these compile asserts fail then SpdyProtocolErrorDetails needs
 // to be updated with new values, as do the mapping functions above.
 static_assert(28 == http2::Http2DecoderAdapter::LAST_ERROR,
@@ -332,8 +302,7 @@ class NET_EXPORT SpdySession
       public spdy::SpdyFramerDebugVisitorInterface,
       public MultiplexedSession,
       public HigherLayeredPool,
-      public NetworkChangeNotifier::DefaultNetworkActiveObserver,
-      public Http2PushPromiseIndex::Delegate {
+      public NetworkChangeNotifier::DefaultNetworkActiveObserver {
  public:
   // TODO(akalin): Use base::TickClock when it becomes available.
   typedef base::TimeTicks (*TimeFunc)();
@@ -370,7 +339,6 @@ class NET_EXPORT SpdySession
               bool http2_end_stream_with_data_frame,
               bool enable_priority_update,
               TimeFunc time_func,
-              ServerPushDelegate* push_delegate,
               NetworkQualityEstimator* network_quality_estimator,
               NetLog* net_log);
 
@@ -383,25 +351,6 @@ class NET_EXPORT SpdySession
     return spdy_session_key_.host_port_proxy_pair();
   }
   const SpdySessionKey& spdy_session_key() const { return spdy_session_key_; }
-
-  // Get a pushed stream for a given |url| with stream ID |pushed_stream_id|.
-  // The caller must have already claimed the stream from Http2PushPromiseIndex.
-  // |pushed_stream_id| must not be kNoPushedStreamFound.
-  //
-  // Returns ERR_CONNECTION_CLOSED if the connection is being closed.
-  // Returns ERR_HTTP2_PUSHED_STREAM_NOT_AVAILABLE if the pushed stream is not
-  //   available any longer, for example, if the server has reset it.
-  // Returns OK if the stream is still available, and returns the stream in
-  //   |*spdy_stream|.  If the stream is still open, updates its priority to
-  //   |priority|.
-  int GetPushedStream(const GURL& url,
-                      spdy::SpdyStreamId pushed_stream_id,
-                      RequestPriority priority,
-                      raw_ptr<SpdyStream>* spdy_stream);
-
-  // Called when the pushed stream should be cancelled. If the pushed stream is
-  // not claimed and active, sends RST to the server to cancel the stream.
-  void CancelPush(const GURL& url);
 
   // Initialize the session with the given connection.
   //
@@ -649,26 +598,17 @@ class NET_EXPORT SpdySession
   // standards for TLS.
   bool HasAcceptableTransportSecurity() const;
 
-  // Must be used only by |pool_| (including |pool_.push_promise_index_|).
+  // Must be used only by |pool_|.
   base::WeakPtr<SpdySession> GetWeakPtr();
 
   // HigherLayeredPool implementation:
   bool CloseOneIdleConnection() override;
-
-  // Http2PushPromiseIndex::Delegate implementation:
-  bool ValidatePushedStream(spdy::SpdyStreamId stream_id,
-                            const GURL& url,
-                            const HttpRequestInfo& request_info,
-                            const SpdySessionKey& key) const override;
-  base::WeakPtr<SpdySession> GetWeakPtrToSession() override;
 
   // Change this session's socket tag to |new_tag|. Returns true on success.
   bool ChangeSocketTag(const SocketTag& new_tag);
 
   // Whether connection status monitoring is active or not.
   bool IsBrokenConnectionDetectionEnabled() const;
-
-  static void RecordSpdyPushedStreamFateHistogram(SpdyPushedStreamFate value);
 
  private:
   friend class test::SpdyStreamTest;
@@ -681,8 +621,6 @@ class NET_EXPORT SpdySession
   friend class SpdySessionPoolTest;
   friend class SpdySessionTest;
   friend class SpdyStreamRequest;
-
-  FRIEND_TEST_ALL_PREFIXES(RecordPushedStreamHistogramTest, VaryResponseHeader);
 
   using PendingStreamRequestQueue =
       base::circular_deque<base::WeakPtr<SpdyStreamRequest>>;
@@ -750,10 +688,6 @@ class NET_EXPORT SpdySession
   // was closed). Processes as many pending stream requests as
   // possible.
   void ProcessPendingStreamRequests();
-
-  void TryCreatePushStream(spdy::SpdyStreamId stream_id,
-                           spdy::SpdyStreamId associated_stream_id,
-                           spdy::Http2HeaderBlock headers);
 
   // Close the stream pointed to by the given iterator. Note that that
   // stream may hold the last reference to the session.
@@ -899,8 +833,6 @@ class NET_EXPORT SpdySession
 
   void RecordHistograms();
   void RecordProtocolErrorHistogram(SpdyProtocolErrorDetails details);
-  static void RecordPushedStreamVaryResponseHeaderHistogram(
-      const spdy::Http2HeaderBlock& headers);
 
   // DCHECKs that |availability_state_| >= STATE_GOING_AWAY, that
   // there are no pending stream creation requests, and that there are
@@ -908,8 +840,7 @@ class NET_EXPORT SpdySession
   void DcheckGoingAway() const;
 
   // Calls DcheckGoingAway(), then DCHECKs that |availability_state_|
-  // == STATE_DRAINING, |error_on_close_| has a valid value, and that there
-  // are no active streams or unclaimed pushed streams.
+  // == STATE_DRAINING and |error_on_close_| has a valid value.
   void DcheckDraining() const;
 
   // If the session is already draining, does nothing. Otherwise, moves
@@ -929,12 +860,6 @@ class NET_EXPORT SpdySession
   // can be deferred to the MessageLoop, so we avoid re-entrancy problems.
   void CompleteStreamRequest(
       const base::WeakPtr<SpdyStreamRequest>& pending_request);
-
-  // Cancel pushed stream with |stream_id|, if still unclaimed.  Identifying a
-  // pushed stream by GURL instead of stream ID could result in incorrect
-  // behavior if a pushed stream was claimed but later another stream was pushed
-  // for the same GURL.
-  void CancelPushedStreamIfUnclaimed(spdy::SpdyStreamId stream_id);
 
   // BufferedSpdyFramerVisitorInterface:
   void OnError(
@@ -1113,18 +1038,15 @@ class NET_EXPORT SpdySession
 
   spdy::SpdyStreamId stream_hi_water_mark_;  // The next stream id to use.
 
-  // Used to ensure the server increments push stream ids correctly.
-  spdy::SpdyStreamId last_accepted_push_stream_id_ = 0;
-
   // Queue, for each priority, of pending stream requests that have
   // not yet been satisfied.
   PendingStreamRequestQueue pending_create_stream_queues_[NUM_PRIORITIES];
 
   // Map from stream id to all active streams.  Streams are active in the sense
-  // that they have a consumer (typically SpdyNetworkTransaction and regardless
-  // of whether or not there is currently any ongoing IO [might be waiting for
-  // the server to start pushing the stream]) or there are still network events
-  // incoming even though the consumer has already gone away (cancellation).
+  // that they have a consumer (typically HttpNetworkTransaction and regardless
+  // of whether or not there is currently any ongoing IO) or there are still
+  // network events incoming even though the consumer has already gone away
+  // (cancellation).
   //
   // |active_streams_| owns all its SpdyStream objects.
   //
@@ -1133,30 +1055,10 @@ class NET_EXPORT SpdySession
   // them?
   ActiveStreamMap active_streams_;
 
-  // Not owned. |push_delegate_| outlives the session and handles server pushes
-  // received by session.
-  raw_ptr<ServerPushDelegate> push_delegate_;
-
   // Set of all created streams but that have not yet sent any frames.
   //
   // |created_streams_| owns all its SpdyStream objects.
   CreatedStreamSet created_streams_;
-
-  // Number of pushed streams. All active streams are stored in
-  // |active_streams_|, but it's better to know the number of push streams
-  // without traversing the whole collection.
-  size_t num_pushed_streams_ = 0u;
-
-  // Number of active pushed streams in |active_streams_|, i.e. not in reserved
-  // remote state. Streams in reserved state are not counted towards any
-  // concurrency limits.
-  size_t num_active_pushed_streams_ = 0u;
-
-  // Number of bytes that has been pushed by the server.
-  uint64_t bytes_pushed_count_ = 0u;
-
-  // Number of bytes that has been pushed by the server but never claimed.
-  uint64_t bytes_pushed_and_unclaimed_count_ = 0u;
 
   // The write queue.
   SpdyWriteQueue write_queue_;
@@ -1239,15 +1141,9 @@ class NET_EXPORT SpdySession
 
   // Limits
   size_t max_concurrent_streams_;
-  // TODO(https://crbug.com/1426477): Remove.
-  size_t max_concurrent_pushed_streams_;
 
   // Some statistics counters for the session.
   int streams_initiated_count_ = 0;
-
-  // TODO(https://crbug.com/1426477): Remove.
-  int streams_pushed_count_ = 0;
-  int streams_pushed_and_claimed_count_ = 0;
 
   int streams_abandoned_count_ = 0;
 
@@ -1343,11 +1239,6 @@ class NET_EXPORT SpdySession
 
   const bool is_http2_enabled_;
   const bool is_quic_enabled_;
-
-  // TODO(https://crbug.com/1426477): Remove.
-  // If true, accept pushed streams from server.
-  // If false, reset pushed streams immediately.
-  const bool enable_push_;
 
   // True if the server has advertised WebSocket support via
   // spdy::SETTINGS_ENABLE_CONNECT_PROTOCOL, see

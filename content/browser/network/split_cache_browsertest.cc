@@ -11,6 +11,7 @@
 #include "build/build_config.h"
 #include "content/browser/renderer_host/back_forward_cache_disable.h"
 #include "content/browser/web_contents/web_contents_impl.h"
+#include "content/common/renderer.mojom.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/storage_partition.h"
@@ -19,9 +20,9 @@
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/content_browser_test.h"
 #include "content/public/test/content_browser_test_utils.h"
+#include "content/public/test/resource_load_observer.h"
 #include "content/shell/browser/shell.h"
 #include "content/test/content_browser_test_utils_internal.h"
-#include "content/test/resource_load_observer.h"
 #include "net/base/features.h"
 #include "net/base/network_isolation_key.h"
 #include "net/dns/mock_host_resolver.h"
@@ -197,7 +198,7 @@ class SplitCacheContentBrowserTest : public ContentBrowserTest {
                               bool use_popup = false) {
     DCHECK(url.is_valid());
 
-    // Clear the in-memory cache held by the current process:
+    // Allocate a new process to prevent using the in-memory cache.
     // 1) Prevent the old page from entering the back-forward cache. Otherwise
     //    the old process will be kept alive, because it is still being used.
     // 2) Navigate to a WebUI URL, which uses a new process.
@@ -231,6 +232,16 @@ class SplitCacheContentBrowserTest : public ContentBrowserTest {
       }
     }
 
+    // `shell_to_observe` may still contain responses depending on process reuse
+    // policies. Clear the in-memory cache in `shell_to_observe` to make sure
+    // the following ResourceLoadObserver can observe network requests.
+    base::RunLoop loop;
+    shell_to_observe->web_contents()
+        ->GetPrimaryMainFrame()
+        ->GetProcess()
+        ->GetRendererInterface()
+        ->PurgeResourceCache(loop.QuitClosure());
+    loop.Run();
     // Observe network requests.
     ResourceLoadObserver observer(shell_to_observe);
 
@@ -409,13 +420,22 @@ class SplitCacheRegistrableDomainContentBrowserTestP
 
     switch (GetParam()) {
       case net::NetworkIsolationKey::Mode::kFrameSiteEnabled:
-        enabled_features.push_back(
-            net::features::kEnableCrossSiteFlagNetworkIsolationKey);
-        break;
-      case net::NetworkIsolationKey::Mode::kCrossSiteFlagEnabled:
         disabled_features.push_back(
             net::features::kEnableCrossSiteFlagNetworkIsolationKey);
+        disabled_features.push_back(
+            net::features::kEnableFrameSiteSharedOpaqueNetworkIsolationKey);
         break;
+      case net::NetworkIsolationKey::Mode::kCrossSiteFlagEnabled:
+        enabled_features.push_back(
+            net::features::kEnableCrossSiteFlagNetworkIsolationKey);
+        disabled_features.push_back(
+            net::features::kEnableFrameSiteSharedOpaqueNetworkIsolationKey);
+        break;
+      case net::NetworkIsolationKey::Mode::kFrameSiteWithSharedOpaqueEnabled:
+        enabled_features.push_back(
+            net::features::kEnableFrameSiteSharedOpaqueNetworkIsolationKey);
+        disabled_features.push_back(
+            net::features::kEnableCrossSiteFlagNetworkIsolationKey);
     }
     feature_list_.InitWithFeatures(enabled_features, disabled_features);
   }
@@ -457,7 +477,13 @@ class SplitCacheContentBrowserTestDisabled
   base::test::ScopedFeatureList feature_list_;
 };
 
-IN_PROC_BROWSER_TEST_P(SplitCacheContentBrowserTestEnabled, SplitCache) {
+// TODO(crbug.com/1486165): Times out on Mac.
+#if BUILDFLAG(IS_MAC)
+#define MAYBE_SplitCache DISABLED_SplitCache
+#else
+#define MAYBE_SplitCache SplitCache
+#endif
+IN_PROC_BROWSER_TEST_P(SplitCacheContentBrowserTestEnabled, MAYBE_SplitCache) {
   // Load a cacheable resource for the first time, and it's not cached.
   EXPECT_FALSE(TestResourceLoad(GenURL("a.com", "/title1.html"), GURL()));
 
@@ -551,6 +577,7 @@ IN_PROC_BROWSER_TEST_P(SplitCacheRegistrableDomainContentBrowserTestP,
   // is triple-keyed.
   switch (net::NetworkIsolationKey::GetMode()) {
     case net::NetworkIsolationKey::Mode::kFrameSiteEnabled:
+    case net::NetworkIsolationKey::Mode::kFrameSiteWithSharedOpaqueEnabled:
       EXPECT_FALSE(TestResourceLoad(GenURL("a.com", "/title1.html"),
                                     GenURL("e.com", "/title1.html")));
       EXPECT_TRUE(TestResourceLoad(GenURL("a.com", "/title1.html"),
@@ -594,6 +621,7 @@ IN_PROC_BROWSER_TEST_P(SplitCacheRegistrableDomainContentBrowserTestP,
       EXPECT_FALSE(TestResourceLoad(GenURL("a.com", "/title1.html"), data_url));
       break;
     case net::NetworkIsolationKey::Mode::kCrossSiteFlagEnabled:
+    case net::NetworkIsolationKey::Mode::kFrameSiteWithSharedOpaqueEnabled:
       EXPECT_TRUE(TestResourceLoad(GenURL("a.com", "/title1.html"), data_url));
       break;
   }
@@ -1024,12 +1052,19 @@ INSTANTIATE_TEST_SUITE_P(All,
 INSTANTIATE_TEST_SUITE_P(
     All,
     SplitCacheRegistrableDomainContentBrowserTestP,
-    testing::ValuesIn({net::NetworkIsolationKey::Mode::kFrameSiteEnabled,
-                       net::NetworkIsolationKey::Mode::kCrossSiteFlagEnabled}),
+    testing::ValuesIn(
+        {net::NetworkIsolationKey::Mode::kFrameSiteEnabled,
+         net::NetworkIsolationKey::Mode::kCrossSiteFlagEnabled,
+         net::NetworkIsolationKey::Mode::kFrameSiteWithSharedOpaqueEnabled}),
     [](const testing::TestParamInfo<net::NetworkIsolationKey::Mode>& info) {
-      return info.param == net::NetworkIsolationKey::Mode::kFrameSiteEnabled
-                 ? "FrameSiteEnabled"
-                 : "CrossSiteFlagEnabled";
+      switch (info.param) {
+        case net::NetworkIsolationKey::Mode::kFrameSiteEnabled:
+          return "FrameSiteEnabled";
+        case net::NetworkIsolationKey::Mode::kCrossSiteFlagEnabled:
+          return "CrossSiteFlagEnabled";
+        case net::NetworkIsolationKey::Mode::kFrameSiteWithSharedOpaqueEnabled:
+          return "FrameSiteSharedOpaqueEnabled";
+      }
     });
 
 class ScopeBlinkMemoryCachePerContext : public SplitCacheContentBrowserTest {

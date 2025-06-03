@@ -7,6 +7,7 @@
 #include <stdint.h>
 #include <string>
 
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/run_loop.h"
 #include "base/task/bind_post_task.h"
@@ -31,11 +32,13 @@
 #include "mojo/public/cpp/bindings/unique_receiver_set.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/thread_safe_browser_interface_broker_proxy.h"
 #include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/public/platform/scheduler/test/renderer_scheduler_test_support.h"
 #include "third_party/blink/public/web/web_heap.h"
 #include "third_party/blink/renderer/modules/mediarecorder/audio_track_mojo_encoder.h"
+#include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/heap/persistent.h"
 #include "third_party/blink/renderer/platform/mediastream/media_stream_audio_source.h"
 #include "third_party/blink/renderer/platform/mediastream/media_stream_audio_track.h"
@@ -65,6 +68,7 @@
 using base::TimeTicks;
 using base::test::RunOnceClosure;
 using ::testing::_;
+using ::testing::Invoke;
 
 namespace {
 
@@ -299,12 +303,31 @@ std::string ParamsToString(
   return test_suffix.str();
 }
 
+class MockAudioTrackRecorderCallbackInterface
+    : public GarbageCollected<MockAudioTrackRecorderCallbackInterface>,
+      public AudioTrackRecorder::CallbackInterface {
+ public:
+  virtual ~MockAudioTrackRecorderCallbackInterface() = default;
+  MOCK_METHOD(
+      void,
+      OnEncodedAudio,
+      (const media::AudioParameters& params,
+       std::string encoded_data,
+       absl::optional<media::AudioEncoder::CodecDescription> codec_description,
+       base::TimeTicks capture_time),
+      (override));
+  MOCK_METHOD(void, OnSourceReadyStateChanged, (), (override));
+  void Trace(Visitor*) const override {}
+};
+
 class AudioTrackRecorderTest : public testing::TestWithParam<ATRTestParams> {
  public:
   // Initialize `first_params_` based on test parameters, and `second_params_`
   // to always be different than `first_params_`.
   AudioTrackRecorderTest()
-      : codec_(GetParam().codec),
+      : mock_callback_interface_(
+            MakeGarbageCollected<MockAudioTrackRecorderCallbackInterface>()),
+        codec_(GetParam().codec),
         first_params_(media::AudioParameters::AUDIO_PCM_LOW_LATENCY,
                       GetParam().channel_layout,
                       GetParam().sample_rate,
@@ -321,13 +344,16 @@ class AudioTrackRecorderTest : public testing::TestWithParam<ATRTestParams> {
                       first_params_.sample_rate()),
         second_source_(second_params_.channels(),
                        /*freq=*/440,
-                       second_params_.sample_rate()) {}
+                       second_params_.sample_rate()) {
+    CHECK(mock_callback_interface_);
+  }
 
   AudioTrackRecorderTest(const AudioTrackRecorderTest&) = delete;
   AudioTrackRecorderTest& operator=(const AudioTrackRecorderTest&) = delete;
 
   ~AudioTrackRecorderTest() override {
     media_stream_component_ = nullptr;
+    mock_callback_interface_ = nullptr;
     WebHeap::CollectAllGarbageForTesting();
     audio_track_recorder_.reset();
     // Let the message loop run to finish destroying the recorder properly.
@@ -341,6 +367,16 @@ class AudioTrackRecorderTest : public testing::TestWithParam<ATRTestParams> {
     CalculateBufferInformation();
     PrepareTrack();
     InitializeRecorder();
+    EXPECT_CALL(*mock_callback_interface_, OnEncodedAudio)
+        .WillRepeatedly(
+            Invoke([this](const media::AudioParameters& params,
+                          std::string encoded_data,
+                          absl::optional<media::AudioEncoder::CodecDescription>
+                              codec_description,
+                          base::TimeTicks capture_time) {
+              OnEncodedAudio(params, encoded_data, std::move(codec_description),
+                             capture_time);
+            }));
   }
 
   void TearDown() override {
@@ -364,12 +400,8 @@ class AudioTrackRecorderTest : public testing::TestWithParam<ATRTestParams> {
     // class.
     encoder_task_runner_ = base::ThreadPool::CreateSequencedTaskRunner({});
     audio_track_recorder_ = std::make_unique<AudioTrackRecorder>(
-        codec_, media_stream_component_,
-        base::BindPostTask(
-            scheduler::GetSingleThreadTaskRunnerForTesting(),
-            WTF::BindRepeating(&AudioTrackRecorderTest::OnEncodedAudio,
-                               WTF::Unretained(this))),
-        ConvertToBaseOnceCallback(CrossThreadBindOnce([] {})),
+        scheduler::GetSingleThreadTaskRunnerForTesting(), codec_,
+        media_stream_component_, mock_callback_interface_,
         0u /* bits_per_second */, GetParam().bitrate_mode,
         encoder_task_runner_);
 
@@ -621,9 +653,11 @@ class AudioTrackRecorderTest : public testing::TestWithParam<ATRTestParams> {
                std::string encoded_data,
                base::TimeTicks timestamp));
 
-  void OnEncodedAudio(const media::AudioParameters& params,
-                      std::string encoded_data,
-                      base::TimeTicks timestamp) {
+  void OnEncodedAudio(
+      const media::AudioParameters& params,
+      std::string encoded_data,
+      absl::optional<media::AudioEncoder::CodecDescription> codec_description,
+      base::TimeTicks timestamp) {
     EXPECT_TRUE(!encoded_data.empty());
     switch (codec_) {
       case AudioTrackRecorder::CodecId::kOpus:
@@ -741,6 +775,8 @@ class AudioTrackRecorderTest : public testing::TestWithParam<ATRTestParams> {
   ::testing::Sequence s2_;
   base::RunLoop run_loop_;
 
+  Persistent<MockAudioTrackRecorderCallbackInterface> mock_callback_interface_;
+
   // AudioTrackRecorder and MediaStreamComponent for fooling it.
   std::unique_ptr<AudioTrackRecorder> audio_track_recorder_;
   Persistent<MediaStreamComponent> media_stream_component_;
@@ -771,7 +807,7 @@ class AudioTrackRecorderTest : public testing::TestWithParam<ATRTestParams> {
   int excess_input_ = 0;
 
   // Decoder for verifying data was properly encoded.
-  OpusDecoder* opus_decoder_ = nullptr;
+  raw_ptr<OpusDecoder, DanglingUntriaged> opus_decoder_ = nullptr;
   std::unique_ptr<float[]> opus_buffer_;
   int opus_buffer_size_;
 

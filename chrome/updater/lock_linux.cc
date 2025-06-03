@@ -31,6 +31,10 @@ constexpr char kSharedMemNameSuffix[] = ".lock";
 
 namespace updater {
 
+// A global preferences lock for Linux implemented with pthread mutexes in
+// shared memory. Note that the shared memory region is leaked once per lock
+// name for reasons described in `//docs/updater/design_doc.md`. The size of the
+// leaked region is ~40 bytes.
 class ScopedLockImpl {
  public:
   ScopedLockImpl(const ScopedLockImpl&) = delete;
@@ -42,10 +46,10 @@ class ScopedLockImpl {
                                                    base::TimeDelta timeout);
 
  private:
-  ScopedLockImpl(base::raw_ptr<pthread_mutex_t> mutex, int shm_fd)
+  ScopedLockImpl(raw_ptr<pthread_mutex_t> mutex, int shm_fd)
       : mutex_(mutex), shm_fd_(shm_fd) {}
 
-  base::raw_ptr<pthread_mutex_t> mutex_;
+  raw_ptr<pthread_mutex_t> mutex_;
   int shm_fd_;
 };
 
@@ -138,10 +142,9 @@ std::unique_ptr<ScopedLockImpl> ScopedLockImpl::TryCreate(
 }
 
 ScopedLockImpl::~ScopedLockImpl() {
-  // TODO(crbug.com/1370140): Fix shared memory leak.
   if (mutex_) {
     pthread_mutex_unlock(mutex_.get());
-    munmap(mutex_.get(), sizeof(pthread_mutex_t));
+    munmap(mutex_.ExtractAsDangling().get(), sizeof(pthread_mutex_t));
     close(shm_fd_);
   }
 }

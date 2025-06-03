@@ -169,7 +169,7 @@ void StackSampler::RecordStackFrames(StackBuffer* stack_buffer,
   // we are constantly calling madvise(MADV_DONTNEED) and then writing to the
   // same parts of the buffer, we're not saving memory and we'll cause extra
   // page faults.
-  constexpr ptrdiff_t kLargeStackSize = 512 * kBytesPerKilobyte;
+  constexpr ptrdiff_t kLargeStackSize = 32 * kBytesPerKilobyte;
   if (stack_size > kLargeStackSize) {
     stack_buffer->MarkUpperBufferContentsAsUnneeded(kLargeStackSize);
   }
@@ -207,7 +207,7 @@ StackSampler::StackSampler(std::unique_ptr<StackCopier> stack_copier,
       module_cache_(module_cache),
       record_sample_callback_(std::move(record_sample_callback)),
       test_delegate_(test_delegate) {
-  DCHECK(unwinders_factory_);
+  CHECK(unwinders_factory_);
 }
 
 // static

@@ -167,7 +167,7 @@ class UkmManagerTest : public testing::Test {
     return SetupEventMetrics(ScrollUpdateEventMetrics::CreateForTesting(
         ui::ET_GESTURE_SCROLL_UPDATE, ui::ScrollInputType::kWheel, is_inertial,
         scroll_update_type, /*delta=*/10.0f, event_time,
-        arrived_in_browser_main_timestamp, &test_tick_clock_));
+        arrived_in_browser_main_timestamp, &test_tick_clock_, absl::nullopt));
   }
 
   struct DispatchTimestamps {
@@ -234,7 +234,7 @@ class UkmManagerTest : public testing::Test {
     return breakdown;
   }
 
-  raw_ptr<ukm::TestUkmRecorder> test_ukm_recorder_;
+  raw_ptr<ukm::TestUkmRecorder, DanglingUntriaged> test_ukm_recorder_;
   std::unique_ptr<UkmManager> manager_;
   base::SimpleTestTickClock test_tick_clock_;
 };

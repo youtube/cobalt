@@ -7,6 +7,7 @@
 
 #include <stddef.h>
 
+#include <map>
 #include <memory>
 #include <queue>
 #include <set>
@@ -22,6 +23,7 @@
 #include "ash/app_list/views/app_drag_icon_proxy.h"
 #include "ash/app_list/views/app_list_item_view.h"
 #include "ash/ash_export.h"
+#include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
@@ -66,6 +68,7 @@ class PagedAppsGridViewTest;
 class ASH_EXPORT AppsGridView : public views::View,
                                 public AppListItemView::GridDelegate,
                                 public AppListItemListObserver,
+                                public AppListItemObserver,
                                 public AppListModelObserver {
  public:
   METADATA_HEADER(AppsGridView);
@@ -84,6 +87,9 @@ class ASH_EXPORT AppsGridView : public views::View,
   AppsGridView(const AppsGridView&) = delete;
   AppsGridView& operator=(const AppsGridView&) = delete;
   ~AppsGridView() override;
+
+  using PendingAppsLayersMap =
+      std::map<std::string, std::unique_ptr<ui::LayerTreeOwner>>;
 
   // Sets the `AppListConfig` that should be used to configure app list item
   // size within the grid. This will cause all items views to be updated to
@@ -180,6 +186,13 @@ class ASH_EXPORT AppsGridView : public views::View,
   void OnDragEntered(const ui::DropTargetEvent& event) override;
   void OnDragExited() override;
   DropCallback GetDropCallback(const ui::DropTargetEvent& event) override;
+
+  // Whether or not the apps grid should handle drag and drop events or delegate
+  // them to the container.
+  virtual bool ShouldContainerHandleDragEvents() = 0;
+
+  // Whether the apps grid will accept the drop event by the data it carries.
+  bool WillAcceptDropEvent(const OSExchangeData& data);
 
   // Updates the visibility of app list items according to |app_list_state|.
   void UpdateControlVisibility(AppListViewState app_list_state);
@@ -447,6 +460,9 @@ class ASH_EXPORT AppsGridView : public views::View,
   // Ends the "cardified" state if the subclass supports it.
   virtual void MaybeEndCardifiedView() {}
 
+  // Ends the "cardified" state if the subclass supports it.
+  virtual bool IsAnimatingCardifiedState() const;
+
   // Starts a page flip if the subclass supports it.
   virtual bool MaybeStartPageFlip();
 
@@ -469,10 +485,6 @@ class ASH_EXPORT AppsGridView : public views::View,
   // Calculates the index range of the visible item views.
   virtual absl::optional<VisibleItemIndexRange> GetVisibleItemIndexRange()
       const = 0;
-
-  // Disables any change on the apps grid's opacity. Returns an scoped runner
-  // that carries a closure to re-enable opacity updates.
-  [[nodiscard]] virtual base::ScopedClosureRunner LockAppsGridOpacity() = 0;
 
   // Makes sure that the background cards render behind everything
   // else in the items container.
@@ -758,6 +770,9 @@ class ASH_EXPORT AppsGridView : public views::View,
                        size_t to_index,
                        AppListItem* item) override;
 
+  // AppListItemObserver:
+  void ItemBeingDestroyed() override;
+
   // Overridden from AppListModelObserver:
   void OnAppListModelStatusChanged() override;
 
@@ -943,6 +958,26 @@ class ASH_EXPORT AppsGridView : public views::View,
       ui::mojom::DragOperation& output_drag_op,
       std::unique_ptr<ui::LayerTreeOwner> drag_image_layer_owner);
 
+  // Add a copy of a layer from an app that is pending for removal into
+  // `pending_promise_apps_removals_`.
+  ui::LayerTreeOwner* AddPendingLayerOwnerForPromiseApp(
+      const std::string& id,
+      std::unique_ptr<ui::LayerTreeOwner> layer_owner);
+
+  // Animate the transition of an incoming app if there was previously a promise
+  // app in place.
+  void AnimateTransitionForPromiseApps(AppListItemView* view,
+                                       ui::Layer* promise_app_layer,
+                                       base::OnceClosure callback);
+
+  // Called when the transition animation between apps is done.
+  void FinishAnimationForPromiseApps(const std::string& pending_app_id);
+
+  // Duplicates the layer for the `promise_app_view` and adds it to
+  // `pending_promise_apps_removals_` if an animation would be required for it
+  // on the future.
+  void MaybeDuplicatePromiseAppForRemoval(AppListItemView* promise_app_view);
+
   class ScopedModelUpdate;
 
   raw_ptr<AppListModel, ExperimentalAsh> model_ =
@@ -974,7 +1009,8 @@ class ASH_EXPORT AppsGridView : public views::View,
 
   // The `AppListConfig` currently used for sizing app list item views within
   // the grid.
-  raw_ptr<const AppListConfig, ExperimentalAsh> app_list_config_ = nullptr;
+  raw_ptr<const AppListConfig, DanglingUntriaged | ExperimentalAsh>
+      app_list_config_ = nullptr;
 
   // The max number of columns the grid can have.
   int max_cols_ = 0;
@@ -1102,7 +1138,8 @@ class ASH_EXPORT AppsGridView : public views::View,
   absl::optional<AppListItemView*> reordering_folder_view_;
 
   // A view which is hidden for testing purposes.
-  raw_ptr<views::View, ExperimentalAsh> hidden_view_for_test_ = nullptr;
+  raw_ptr<views::View, DanglingUntriaged | ExperimentalAsh>
+      hidden_view_for_test_ = nullptr;
 
   std::unique_ptr<AppsGridContextMenu> context_menu_;
 
@@ -1145,6 +1182,10 @@ class ASH_EXPORT AppsGridView : public views::View,
   // Whether an ideal bounds animation is being setup. Used to prevent item
   // layers from being deleted during setup.
   bool setting_up_ideal_bounds_animation_ = false;
+
+  // A list of pending promise app layers to be removed when the actual app is
+  // pushed into the apps grid.
+  PendingAppsLayersMap pending_promise_apps_removals_;
 
   base::WeakPtrFactory<AppsGridView> weak_factory_{this};
 };

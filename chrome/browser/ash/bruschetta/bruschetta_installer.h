@@ -5,9 +5,7 @@
 #ifndef CHROME_BROWSER_ASH_BRUSCHETTA_BRUSCHETTA_INSTALLER_H_
 #define CHROME_BROWSER_ASH_BRUSCHETTA_BRUSCHETTA_INSTALLER_H_
 
-#include "base/uuid.h"
-#include "chromeos/ash/components/dbus/vm_concierge/concierge_service.pb.h"
-#include "components/download/public/background_service/download_metadata.h"
+#include <string>
 
 namespace bruschetta {
 
@@ -17,16 +15,18 @@ enum class BruschettaInstallResult {
   kUnknown = 0,
   kSuccess = 1,
   kInstallationProhibited = 2,
-  kDlcInstallError = 3,
+  kToolsDlcInstallError = 3,
   kDownloadError = 4,
-  kInvalidFirmware = 5,
+  // Deprecated: kInvalidFirmware = 5,
   kInvalidBootDisk = 6,
   kInvalidPflash = 7,
   kUnableToOpenImages = 8,
   kCreateDiskError = 9,
   kStartVmFailed = 10,
   kInstallPflashError = 11,
-  kMaxValue = kInstallPflashError,
+  kFirmwareDlcInstallError = 12,
+  kVmAlreadyExists = 13,
+  kMaxValue = kVmAlreadyExists,
 };
 
 // Returns the string name of the BruschettaResult.
@@ -37,8 +37,8 @@ class BruschettaInstaller {
  public:
   enum class State {
     kInstallStarted,
-    kDlcInstall,
-    kFirmwareDownload,
+    kToolsDlcInstall,
+    kFirmwareDlcInstall,
     kBootDiskDownload,
     kPflashDownload,
     kOpenFiles,
@@ -58,15 +58,6 @@ class BruschettaInstaller {
 
   virtual void Cancel() = 0;
   virtual void Install(std::string vm_name, std::string config_id) = 0;
-
-  virtual const base::Uuid& GetDownloadGuid() const = 0;
-
-  virtual void DownloadStarted(
-      const std::string& guid,
-      download::DownloadParams::StartResult result) = 0;
-  virtual void DownloadFailed() = 0;
-  virtual void DownloadSucceeded(
-      const download::CompletionInfo& completion_info) = 0;
 
   virtual void AddObserver(Observer* observer) = 0;
   virtual void RemoveObserver(Observer* observer) = 0;

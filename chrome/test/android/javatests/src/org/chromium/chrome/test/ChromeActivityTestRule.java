@@ -10,8 +10,9 @@ import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 
-import androidx.test.InstrumentationRegistry;
+import androidx.test.core.app.ApplicationProvider;
 import androidx.test.internal.runner.listener.InstrumentationResultPrinter;
+import androidx.test.platform.app.InstrumentationRegistry;
 
 import org.hamcrest.Matchers;
 import org.junit.Assert;
@@ -69,12 +70,8 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @param <T> The {@link Activity} class under test.
  */
 public class ChromeActivityTestRule<T extends ChromeActivity> extends BaseActivityTestRule<T> {
-    private static final String TAG = "ChromeATR";
-
     // The number of ms to wait for the rendering activity to be started.
     private static final int ACTIVITY_START_TIMEOUT_MS = 1000;
-
-    private static final long OMNIBOX_FIND_SUGGESTION_TIMEOUT_MS = 10 * 1000;
 
     private Thread.UncaughtExceptionHandler mDefaultUncaughtExceptionHandler;
     private String mCurrentTestName;
@@ -94,7 +91,7 @@ public class ChromeActivityTestRule<T extends ChromeActivity> extends BaseActivi
             public void evaluate() throws Throwable {
                 mDefaultUncaughtExceptionHandler = Thread.getDefaultUncaughtExceptionHandler();
                 Thread.setDefaultUncaughtExceptionHandler(new ChromeUncaughtExceptionHandler());
-                ChromeApplicationTestUtils.setUp(InstrumentationRegistry.getTargetContext());
+                ChromeApplicationTestUtils.setUp(ApplicationProvider.getApplicationContext());
                 // Instrumentation infrastructure and tests often access variables from the
                 // instrumentation thread for asserts. See crbug.com/1173814 for more details.
                 ObservableSupplierImpl.setIgnoreThreadChecksForTesting(true);
@@ -116,7 +113,6 @@ public class ChromeActivityTestRule<T extends ChromeActivity> extends BaseActivi
                     base.evaluate();
                 } finally {
                     Thread.setDefaultUncaughtExceptionHandler(mDefaultUncaughtExceptionHandler);
-                    ObservableSupplierImpl.setIgnoreThreadChecksForTesting(false);
                 }
             }
         };
@@ -371,7 +367,7 @@ public class ChromeActivityTestRule<T extends ChromeActivity> extends BaseActivi
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         if (intent.getComponent() == null) {
             intent.setComponent(new ComponentName(
-                    InstrumentationRegistry.getTargetContext(), ChromeLauncherActivity.class));
+                    ApplicationProvider.getApplicationContext(), ChromeLauncherActivity.class));
         }
 
         if (url != null) {

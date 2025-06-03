@@ -302,7 +302,7 @@ bool GLSurfaceEGLSurfaceControl::ScheduleOverlayPlane(
     if (gpu_fence && surface_state.hardware_buffer) {
       auto fence_handle = gpu_fence->GetGpuFenceHandle().Clone();
       DCHECK(!fence_handle.is_null());
-      fence_fd = std::move(fence_handle.owned_fd);
+      fence_fd = fence_handle.Release();
     }
 
     if (is_primary_plane) {
@@ -349,13 +349,15 @@ bool GLSurfaceEGLSurfaceControl::ScheduleOverlayPlane(
     // can become larger then a buffer so we clip it here. See crbug.com/1083412
     src.Intersect(gfx::Rect(buffer_size));
 
+    auto transform =
+        absl::get<gfx::OverlayTransform>(overlay_plane_data.plane_transform);
     if (uninitialized || surface_state.src != src || surface_state.dst != dst ||
-        surface_state.transform != overlay_plane_data.plane_transform) {
+        surface_state.transform != transform) {
       surface_state.src = src;
       surface_state.dst = dst;
-      surface_state.transform = overlay_plane_data.plane_transform;
+      surface_state.transform = transform;
       pending_transaction_->SetGeometry(*surface_state.surface, src, dst,
-                                        overlay_plane_data.plane_transform);
+                                        transform);
     }
   }
 

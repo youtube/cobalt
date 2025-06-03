@@ -1,4 +1,4 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -29,6 +29,10 @@ class AccessibilityServiceRouter : public KeyedService {
       mojo::PendingReceiver<mojom::AssistiveTechnologyController>
           at_controller_receiver,
       const std::vector<mojom::AssistiveTechnologyType>& enabled_features);
+
+  virtual void ConnectDevToolsAgent(
+      ::mojo::PendingAssociatedReceiver<blink::mojom::DevToolsAgent> agent,
+      mojom::AssistiveTechnologyType type);
 
  private:
   void LaunchIfNotRunning();

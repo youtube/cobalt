@@ -6,7 +6,7 @@
 #define CHROME_BROWSER_UI_VIEWS_PERMISSIONS_PERMISSION_PROMPT_BUBBLE_H_
 
 #include "chip_controller.h"
-#include "chrome/browser/ui/views/permissions/permission_prompt_bubble_view.h"
+#include "chrome/browser/ui/views/permissions/permission_prompt_bubble_base_view.h"
 #include "chrome/browser/ui/views/permissions/permission_prompt_desktop.h"
 #include "content/public/browser/web_contents_observer.h"
 
@@ -37,13 +37,14 @@ class PermissionPromptBubble : public PermissionPromptDesktop,
   bool UpdateAnchor() override;
   permissions::PermissionPromptDisposition GetPromptDisposition()
       const override;
+  absl::optional<gfx::Rect> GetViewBoundsInScreen() const override;
 
   views::Widget* GetPromptBubbleWidgetForTesting() override;
 
  private:
   // The popup bubble. Not owned by this class; it will delete itself when a
   // decision is made.
-  raw_ptr<PermissionPromptBubbleView> prompt_bubble_ = nullptr;
+  raw_ptr<PermissionPromptBubbleBaseView> prompt_bubble_ = nullptr;
 
   base::TimeTicks permission_requested_time_;
 

@@ -4,6 +4,8 @@
 
 #include "content/browser/preloading/prerender/prerender_metrics.h"
 
+#include <cmath>
+
 #include "base/containers/flat_map.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/metrics_hashes.h"
@@ -35,8 +37,10 @@ PrerenderCancelledInterface GetCancelledInterfaceType(
     return PrerenderCancelledInterface::kGamepadHapticsManager;
   else if (interface_name == "device.mojom.GamepadMonitor")
     return PrerenderCancelledInterface::kGamepadMonitor;
-  else if (interface_name == "chrome.mojom.SyncEncryptionKeysExtension")
-    return PrerenderCancelledInterface::kSyncEncryptionKeysExtension;
+  else if (interface_name ==
+           "chrome.mojom.TrustedVaultEncryptionKeysExtension") {
+    return PrerenderCancelledInterface::kTrustedVaultEncryptionKeys;
+  }
   return PrerenderCancelledInterface::kUnknown;
 }
 
@@ -118,6 +122,16 @@ void RecordPrerenderFinalStatusUma(
       final_status);
 }
 
+void RecordDidFailLoadErrorType(int32_t error_code,
+                                PrerenderTriggerType trigger_type,
+                                const std::string& embedder_histogram_suffix) {
+  base::UmaHistogramSparse(
+      GenerateHistogramName(
+          "Prerender.Experimental.PrerenderLoadingFailureError", trigger_type,
+          embedder_histogram_suffix),
+      std::abs(error_code));
+}
+
 }  // namespace
 
 // static
@@ -135,6 +149,13 @@ PrerenderCancellationReason::BuildForMojoBinderPolicy(
     const std::string& interface_name) {
   return PrerenderCancellationReason(PrerenderFinalStatus::kMojoBinderPolicy,
                                      interface_name);
+}
+
+//  static
+PrerenderCancellationReason PrerenderCancellationReason::BuildForLoadingError(
+    int32_t error_code) {
+  return PrerenderCancellationReason(PrerenderFinalStatus::kDidFailLoad,
+                                     error_code);
 }
 
 PrerenderCancellationReason::PrerenderCancellationReason(
@@ -170,6 +191,11 @@ void PrerenderCancellationReason::ReportMetrics(
                                         trigger_type,
                                         embedder_histogram_suffix);
       break;
+    case PrerenderFinalStatus::kDidFailLoad:
+      CHECK(absl::holds_alternative<int32_t>(explanation_));
+      RecordDidFailLoadErrorType(absl::get<int32_t>(explanation_), trigger_type,
+                                 embedder_histogram_suffix);
+      break;
     default:
       CHECK(absl::holds_alternative<absl::monostate>(explanation_));
       // Other types need not to report.
@@ -177,20 +203,13 @@ void PrerenderCancellationReason::ReportMetrics(
   }
 }
 
-std::string PrerenderCancellationReason::ToDevtoolReasonString() const {
+absl::optional<std::string>
+PrerenderCancellationReason::DisallowedMojoInterface() const {
   switch (final_status_) {
-    case PrerenderFinalStatus::kInactivePageRestriction:
-      CHECK(absl::holds_alternative<uint64_t>(explanation_));
-      // TODO(https://crbug.com/1328365): It seems we have to return an integer.
-      // And devtool has to handle it based on the enum.xml, as the content
-      // layer cannot know about the enums added by the embedder layer.
-      return "";
     case PrerenderFinalStatus::kMojoBinderPolicy:
-      CHECK(absl::holds_alternative<std::string>(explanation_));
       return absl::get<std::string>(explanation_);
     default:
-      CHECK(absl::holds_alternative<absl::monostate>(explanation_));
-      return "";
+      return absl::nullopt;
   }
 }
 
@@ -224,24 +243,6 @@ void RecordFailedPrerenderFinalStatus(
     ukm::builders::PrerenderPageLoad(attributes.initiator_ukm_id)
         .SetFinalStatus(static_cast<int>(cancellation_reason.final_status()))
         .Record(ukm::UkmRecorder::Get());
-  }
-
-  // Browser initiated prerendering doesn't report cancellation reasons to the
-  // DevTools as it doesn't have the initiator frame associated with DevTools
-  // agents.
-  if (!attributes.IsBrowserInitiated()) {
-    auto* ftn = FrameTreeNode::GloballyFindByID(
-        attributes.initiator_frame_tree_node_id);
-    CHECK(ftn);
-    // TODO(https://crbug.com/1332377): Discuss with devtools to finalize the
-    // message protocol.
-    if (attributes.initiator_devtools_navigation_token.has_value()) {
-      devtools_instrumentation::DidCancelPrerender(
-          ftn, attributes.prerendering_url,
-          attributes.initiator_devtools_navigation_token.value(),
-          cancellation_reason.final_status(),
-          cancellation_reason.ToDevtoolReasonString());
-    }
   }
 }
 
@@ -360,6 +361,17 @@ void AnalyzePrerenderActivationHeader(
   }
 }
 
+void RecordPrerenderActivationTransition(
+    int32_t potential_activation_transition,
+    PrerenderTriggerType trigger_type,
+    const std::string& embedder_histogram_suffix) {
+  base::UmaHistogramSparse(
+      GenerateHistogramName(
+          "Prerender.Experimental.ActivationTransitionMismatch", trigger_type,
+          embedder_histogram_suffix),
+      potential_activation_transition);
+}
+
 static_assert(
     static_cast<int>(PrerenderBackNavigationEligibility::kMaxValue) +
         static_cast<int>(
@@ -390,6 +402,28 @@ void RecordPrerenderBackNavigationEligibility(
   if (preloading_attempt) {
     preloading_attempt->SetEligibility(ToPreloadingEligibility(eligibility));
   }
+}
+
+void RecordPrerenderActivationCommitDeferTime(
+    base::TimeDelta time_delta,
+    PrerenderTriggerType trigger_type,
+    const std::string& embedder_histogram_suffix) {
+  base::UmaHistogramTimes(
+      GenerateHistogramName("Navigation.Prerender.ActivationCommitDeferTime",
+                            trigger_type, embedder_histogram_suffix),
+      time_delta);
+}
+
+void RecordReceivedPrerendersPerPrimaryPageChangedCount(
+    int number,
+    PrerenderTriggerType trigger_type,
+    const std::string& eagerness_category) {
+  base::UmaHistogramCounts100(
+      GenerateHistogramName("Prerender.Experimental."
+                            "ReceivedPrerendersPerPrimaryPageChangedCount2",
+                            trigger_type, /*embedder_suffix=*/"") +
+          "." + eagerness_category,
+      number);
 }
 
 }  // namespace content

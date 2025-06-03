@@ -7,10 +7,6 @@
 #import "ios/chrome/browser/signin/account_capabilities_fetcher_ios.h"
 #import "ios/chrome/browser/signin/system_identity.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace ios {
 
 AccountCapabilitiesFetcherFactoryIOS::AccountCapabilitiesFetcherFactoryIOS(
@@ -23,8 +19,10 @@ AccountCapabilitiesFetcherFactoryIOS::~AccountCapabilitiesFetcherFactoryIOS() =
 std::unique_ptr<AccountCapabilitiesFetcher>
 AccountCapabilitiesFetcherFactoryIOS::CreateAccountCapabilitiesFetcher(
     const CoreAccountInfo& account_info,
+    AccountCapabilitiesFetcher::FetchPriority fetch_priority,
     AccountCapabilitiesFetcher::OnCompleteCallback on_complete_callback) {
   return std::make_unique<AccountCapabilitiesFetcherIOS>(
-      account_info, account_manager_service_, std::move(on_complete_callback));
+      account_info, fetch_priority, account_manager_service_,
+      std::move(on_complete_callback));
 }
 }  // namespace ios

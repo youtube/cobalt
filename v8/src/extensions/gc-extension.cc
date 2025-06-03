@@ -31,46 +31,55 @@ struct GCOptions {
 
 Maybe<bool> IsProperty(v8::Isolate* isolate, v8::Local<v8::Context> ctx,
                        v8::Local<v8::Object> object, const char* key,
-                       const char* value) {
+                       const char* value, bool* found_options_object) {
   auto k = v8::String::NewFromUtf8(isolate, key).ToLocalChecked();
-  // Get will return undefined for non-existing keys which will make
-  // StrictEquals fail.
   auto maybe_property = object->Get(ctx, k);
+  // Handle pending or scheduled exception.
   if (maybe_property.IsEmpty()) return Nothing<bool>();
-  return Just<bool>(maybe_property.ToLocalChecked()->StrictEquals(
+  // If the property does not exist or is explicitly set to undefined,
+  // return false.
+  auto property = maybe_property.ToLocalChecked();
+  if (property->IsUndefined()) return Just<bool>(false);
+  // If it exists, the object defines the option.
+  *found_options_object = true;
+  return Just<bool>(property->StrictEquals(
       v8::String::NewFromUtf8(isolate, value).ToLocalChecked()));
 }
 
 Maybe<GCOptions> Parse(v8::Isolate* isolate,
                        const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(ValidateCallbackInfo(info));
+  DCHECK_LT(0, info.Length());
+
   // Default values.
   auto options =
       GCOptions{v8::Isolate::GarbageCollectionType::kFullGarbageCollection,
                 ExecutionType::kSync};
   bool found_options_object = false;
 
-  if (info.Length() > 0 && info[0]->IsObject()) {
+  if (info[0]->IsObject()) {
     v8::HandleScope scope(isolate);
     auto ctx = isolate->GetCurrentContext();
     auto param = v8::Local<v8::Object>::Cast(info[0]);
-    auto maybe_type = IsProperty(isolate, ctx, param, "type", "minor");
+    auto maybe_type =
+        IsProperty(isolate, ctx, param, "type", "minor", &found_options_object);
     if (maybe_type.IsNothing()) return Nothing<GCOptions>();
     if (maybe_type.ToChecked()) {
-      found_options_object = true;
+      DCHECK(found_options_object);
       options.type =
           v8::Isolate::GarbageCollectionType::kMinorGarbageCollection;
     }
-    auto maybe_execution =
-        IsProperty(isolate, ctx, param, "execution", "async");
+    auto maybe_execution = IsProperty(isolate, ctx, param, "execution", "async",
+                                      &found_options_object);
     if (maybe_execution.IsNothing()) return Nothing<GCOptions>();
     if (maybe_execution.ToChecked()) {
-      found_options_object = true;
+      DCHECK(found_options_object);
       options.execution = ExecutionType::kAsync;
     }
   }
 
-  // If no options object is present default to legacy behavior.
+  // If the parameter is not an object or if it does not define any options,
+  // default to legacy behavior.
   if (!found_options_object) {
     options.type =
         info[0]->BooleanValue(isolate)
@@ -84,21 +93,21 @@ Maybe<GCOptions> Parse(v8::Isolate* isolate,
 void InvokeGC(v8::Isolate* isolate, ExecutionType execution_type,
               v8::Isolate::GarbageCollectionType type) {
   Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
+  EmbedderStackStateScope stack_scope(
+      heap,
+      execution_type == ExecutionType::kAsync
+          ? EmbedderStackStateScope::kImplicitThroughTask
+          : EmbedderStackStateScope::kExplicitInvocation,
+      execution_type == ExecutionType::kAsync
+          ? StackState::kNoHeapPointers
+          : StackState::kMayContainHeapPointers);
   switch (type) {
     case v8::Isolate::GarbageCollectionType::kMinorGarbageCollection:
       heap->CollectGarbage(i::NEW_SPACE, i::GarbageCollectionReason::kTesting,
                            kGCCallbackFlagForced);
       break;
     case v8::Isolate::GarbageCollectionType::kFullGarbageCollection:
-      EmbedderStackStateScope stack_scope(
-          heap,
-          execution_type == ExecutionType::kAsync
-              ? EmbedderStackStateScope::kImplicitThroughTask
-              : EmbedderStackStateScope::kExplicitInvocation,
-          execution_type == ExecutionType::kAsync
-              ? StackState::kNoHeapPointers
-              : StackState::kMayContainHeapPointers);
-      heap->PreciseCollectAllGarbage(i::Heap::kNoGCFlags,
+      heap->PreciseCollectAllGarbage(i::GCFlag::kNoFlags,
                                      i::GarbageCollectionReason::kTesting,
                                      kGCCallbackFlagForced);
       break;
@@ -131,8 +140,8 @@ class AsyncGC final : public CancelableTask {
 
  private:
   v8::Isolate* isolate_;
-  v8::Persistent<v8::Context> ctx_;
-  v8::Persistent<v8::Promise::Resolver> resolver_;
+  v8::Global<v8::Context> ctx_;
+  v8::Global<v8::Promise::Resolver> resolver_;
   v8::Isolate::GarbageCollectionType type_;
 };
 

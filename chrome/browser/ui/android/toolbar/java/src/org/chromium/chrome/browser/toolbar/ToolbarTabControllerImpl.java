@@ -66,7 +66,8 @@ public class ToolbarTabControllerImpl implements ToolbarTabController {
         if (controlsCoordinator != null && controlsCoordinator.onBackPressed()) {
             return true;
         }
-        Tab tab = BackPressManager.isEnabled() ? mActivityTabSupplier.get() : mTabSupplier.get();
+        Tab tab = BackPressManager.shouldUseActivityTabProvider() ? mActivityTabSupplier.get()
+                                                                  : mTabSupplier.get();
         if (tab != null && tab.canGoBack()) {
             NativePage nativePage = tab.getNativePage();
             if (nativePage != null) {
@@ -148,7 +149,8 @@ public class ToolbarTabControllerImpl implements ToolbarTabController {
                         controlsCoordinator.getHandleBackPressChangedSupplier().get())) {
             return true;
         }
-        Tab tab = BackPressManager.isEnabled() ? mActivityTabSupplier.get() : mTabSupplier.get();
+        Tab tab = BackPressManager.shouldUseActivityTabProvider() ? mActivityTabSupplier.get()
+                                                                  : mTabSupplier.get();
         return tab != null && tab.canGoBack();
     }
 
@@ -164,9 +166,7 @@ public class ToolbarTabControllerImpl implements ToolbarTabController {
     private void recordHomeButtonUserPerProfileType() {
         Tab tab = mTabSupplier.get();
         if (tab == null) return;
-        Profile profile = Profile.fromWebContents(tab.getWebContents());
-        if (profile == null) return;
-
+        Profile profile = tab.getProfile();
         @BrowserProfileType
         int type = Profile.getBrowserProfileTypeFromProfile(profile);
         RecordHistogram.recordEnumeratedHistogram(

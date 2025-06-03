@@ -10,7 +10,7 @@
 #import "components/autofill/core/common/autofill_constants.h"
 #import "components/autofill/ios/browser/autofill_java_script_feature.h"
 #import "components/autofill/ios/form_util/form_util_java_script_feature.h"
-#import "ios/chrome/browser/browser_state/test_chrome_browser_state.h"
+#import "ios/chrome/browser/shared/model/browser_state/test_chrome_browser_state.h"
 #import "ios/chrome/browser/web/chrome_web_client.h"
 #import "ios/web/public/js_messaging/web_frame.h"
 #import "ios/web/public/js_messaging/web_frames_manager.h"
@@ -24,15 +24,11 @@
 #import "testing/gtest_mac.h"
 #import "testing/platform_test.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 // Unit tests for ios/chrome/browser/web/resources/autofill_controller.js
 namespace {
 
-using base::test::ios::WaitUntilConditionOrTimeout;
 using base::test::ios::kWaitForJSCompletionTimeout;
+using base::test::ios::WaitUntilConditionOrTimeout;
 
 // Structure for getting element by name using JavaScripts.
 struct ElementByName {
@@ -140,7 +136,10 @@ enum ExtractMask {
 };
 
 const ExtractMask kFormExtractMasks[] = {
-    EXTRACT_NONE, EXTRACT_VALUE, EXTRACT_OPTION_TEXT, EXTRACT_OPTIONS,
+    EXTRACT_NONE,
+    EXTRACT_VALUE,
+    EXTRACT_OPTION_TEXT,
+    EXTRACT_OPTIONS,
 };
 
 // Gets the attributes to check for a mask in `kFormExtractMasks`.
@@ -780,8 +779,9 @@ NSString* GenerateElementItemVerifyingJavaScripts(NSString* results,
             [NSString stringWithFormat:@"'gChrome~field~%d'", index];
       }
       // Option text is used as value for extract_mask 1 << 1
-      if ((extract_mask & 1 << 1) && [attribute isEqualToString:@"value"])
+      if ((extract_mask & 1 << 1) && [attribute isEqualToString:@"value"]) {
         expected_value = [expected objectForKey:@"value_option_text"];
+      }
       [verifying_javascripts
           addObject:[NSString stringWithFormat:@"%@['%@']===%@", results,
                                                attribute, expected_value]];
@@ -909,7 +909,7 @@ class AutofillControllerJsTest : public PlatformTest {
 
   std::unique_ptr<base::Value> CallJavaScriptFunction(
       const std::string& function,
-      const std::vector<base::Value>& parameters);
+      const base::Value::List& parameters);
 
   web::ScopedTestingWebClient web_client_;
   web::WebTaskEnvironment task_environment_;
@@ -997,7 +997,7 @@ id AutofillControllerJsTest::ExecuteJavaScript(NSString* java_script) {
 
 std::unique_ptr<base::Value> AutofillControllerJsTest::CallJavaScriptFunction(
     const std::string& function,
-    const std::vector<base::Value>& parameters) {
+    const base::Value::List& parameters) {
   return web::test::CallJavaScriptFunctionForFeature(
       web_state(), function, parameters,
       autofill::AutofillJavaScriptFeature::GetInstance());
@@ -1030,74 +1030,68 @@ TEST_F(AutofillControllerJsTest, HasTagName) {
 TEST_F(AutofillControllerJsTest, CombineAndCollapseWhitespace) {
   web::test::LoadHtml(@"<html><body></body></html>", web_state());
 
-  std::vector<base::Value> params;
-  params.push_back(base::Value("foo"));
-  params.push_back(base::Value("bar"));
-  params.push_back(base::Value(false));
+  base::Value::List params;
+
+  params.Append("foo");
+  params.Append("bar");
+  params.Append(false);
   auto result =
       CallJavaScriptFunction("fill.combineAndCollapseWhitespace", params);
   ASSERT_TRUE(result->is_string());
   EXPECT_EQ("foobar", result->GetString());
-
   params.clear();
 
-  params.push_back(base::Value("foo"));
-  params.push_back(base::Value("bar"));
-  params.push_back(base::Value(true));
+  params.Append("foo");
+  params.Append("bar");
+  params.Append(true);
   result = CallJavaScriptFunction("fill.combineAndCollapseWhitespace", params);
   ASSERT_TRUE(result->is_string());
   EXPECT_EQ("foo bar", result->GetString());
-
   params.clear();
 
-  params.push_back(base::Value("foo "));
-  params.push_back(base::Value("bar"));
-  params.push_back(base::Value(false));
+  params.Append("foo ");
+  params.Append("bar");
+  params.Append(false);
   result = CallJavaScriptFunction("fill.combineAndCollapseWhitespace", params);
   ASSERT_TRUE(result->is_string());
   EXPECT_EQ("foo bar", result->GetString());
-
   params.clear();
 
-  params.push_back(base::Value("foo"));
-  params.push_back(base::Value(" bar"));
-  params.push_back(base::Value(false));
+  params.Append("foo");
+  params.Append(" bar");
+  params.Append(false);
   result = CallJavaScriptFunction("fill.combineAndCollapseWhitespace", params);
   ASSERT_TRUE(result->is_string());
   EXPECT_EQ("foo bar", result->GetString());
-
   params.clear();
 
-  params.push_back(base::Value("foo"));
-  params.push_back(base::Value(" bar"));
-  params.push_back(base::Value(true));
+  params.Append("foo");
+  params.Append(" bar");
+  params.Append(true);
   result = CallJavaScriptFunction("fill.combineAndCollapseWhitespace", params);
   ASSERT_TRUE(result->is_string());
   EXPECT_EQ("foo bar", result->GetString());
-
   params.clear();
 
-  params.push_back(base::Value("foo  "));
-  params.push_back(base::Value("  bar"));
-  params.push_back(base::Value(false));
+  params.Append("foo  ");
+  params.Append("  bar");
+  params.Append(false);
   result = CallJavaScriptFunction("fill.combineAndCollapseWhitespace", params);
   ASSERT_TRUE(result->is_string());
   EXPECT_EQ("foo bar", result->GetString());
-
   params.clear();
 
-  params.push_back(base::Value("foo"));
-  params.push_back(base::Value("bar "));
-  params.push_back(base::Value(false));
+  params.Append("foo");
+  params.Append("bar ");
+  params.Append(false);
   result = CallJavaScriptFunction("fill.combineAndCollapseWhitespace", params);
   ASSERT_TRUE(result->is_string());
   EXPECT_EQ("foobar ", result->GetString());
-
   params.clear();
 
-  params.push_back(base::Value(" foo"));
-  params.push_back(base::Value("bar"));
-  params.push_back(base::Value(true));
+  params.Append(" foo");
+  params.Append("bar");
+  params.Append(true);
   result = CallJavaScriptFunction("fill.combineAndCollapseWhitespace", params);
   ASSERT_TRUE(result->is_string());
   EXPECT_EQ(" foo bar", result->GetString());
@@ -1295,7 +1289,8 @@ TEST_F(AutofillControllerJsTest, FillFormField) {
 
   // Test text and select elements of which the value should be changed.
   const ElementByName elements[] = {
-      {"firstname", 0, -1}, {"state", 0, -1},
+      {"firstname", 0, -1},
+      {"state", 0, -1},
   };
   NSArray* values = @[
     @"new name",
@@ -1372,7 +1367,8 @@ TEST_F(AutofillControllerJsTest, IsTextInput) {
 
 TEST_F(AutofillControllerJsTest, IsSelectElement) {
   const ElementByName elements_expecting_true[] = {
-      {"state", 0, -1}, {"course", 0, -1},
+      {"state", 0, -1},
+      {"course", 0, -1},
   };
 
   TestExecutingBooleanJavaScriptOnElement(@"__gCrWeb.fill.isSelectElement(%@)",
@@ -1600,7 +1596,7 @@ TEST_F(AutofillControllerJsTest, WebFormElementToFormData) {
 TEST_F(AutofillControllerJsTest, WebFormElementToFormDataTooManyFields) {
   NSString* html_fragment = @"<FORM name='Test' action='http://c.com'>";
   // In autofill_controller.js, the maximum number of parsable element is 200
-  // (__gCrWeb.fill.MAX_PARSEABLE_FIELDS = 200). Here an HTML page with 201
+  // (MAX_EXTRACTABLE_FIELDS = 200). Here an HTML page with 201
   // elements is generated for testing.
   for (NSUInteger index = 0; index < 201; ++index) {
     html_fragment =
@@ -1789,6 +1785,7 @@ TEST_F(AutofillControllerJsTest, ExtractForms) {
         @"unique_renderer_id" : @"2",
         @"form_control_type" : @"text",
         @"max_length" : GetDefaultMaxLength(),
+        @"placeholder_attribute" : @"",
         @"should_autocomplete" : @true,
         @"is_checkable" : @false,
         @"is_focusable" : @true,
@@ -1804,6 +1801,7 @@ TEST_F(AutofillControllerJsTest, ExtractForms) {
         @"identifier" : @"vehicle1",
         @"unique_renderer_id" : @"3",
         @"form_control_type" : @"checkbox",
+        @"placeholder_attribute" : @"",
         @"should_autocomplete" : @true,
         @"is_checkable" : @true,
         @"is_focusable" : @true,
@@ -1819,6 +1817,7 @@ TEST_F(AutofillControllerJsTest, ExtractForms) {
         @"identifier" : @"vehicle2",
         @"unique_renderer_id" : @"4",
         @"form_control_type" : @"checkbox",
+        @"placeholder_attribute" : @"",
         @"should_autocomplete" : @true,
         @"is_checkable" : @true,
         @"is_focusable" : @true,
@@ -1834,6 +1833,7 @@ TEST_F(AutofillControllerJsTest, ExtractForms) {
         @"identifier" : @"vehicle3",
         @"unique_renderer_id" : @"5",
         @"form_control_type" : @"checkbox",
+        @"placeholder_attribute" : @"",
         @"should_autocomplete" : @true,
         @"is_checkable" : @true,
         @"is_focusable" : @true,
@@ -1849,6 +1849,7 @@ TEST_F(AutofillControllerJsTest, ExtractForms) {
         @"identifier" : @"nameintableth",
         @"unique_renderer_id" : @"6",
         @"form_control_type" : @"text",
+        @"placeholder_attribute" : @"",
         @"max_length" : GetDefaultMaxLength(),
         @"should_autocomplete" : @true,
         @"is_checkable" : @false,
@@ -1865,6 +1866,7 @@ TEST_F(AutofillControllerJsTest, ExtractForms) {
         @"identifier" : @"emailtableth",
         @"unique_renderer_id" : @"7",
         @"form_control_type" : @"email",
+        @"placeholder_attribute" : @"",
         @"max_length" : GetDefaultMaxLength(),
         @"should_autocomplete" : @true,
         @"is_checkable" : @false,
@@ -1881,6 +1883,7 @@ TEST_F(AutofillControllerJsTest, ExtractForms) {
         @"identifier" : @"pwd",
         @"unique_renderer_id" : @"8",
         @"form_control_type" : @"password",
+        @"placeholder_attribute" : @"",
         @"autocomplete_attribute" : @"off",
         @"max_length" : GetDefaultMaxLength(),
         @"should_autocomplete" : @false,
@@ -1898,6 +1901,7 @@ TEST_F(AutofillControllerJsTest, ExtractForms) {
         @"identifier" : @"state",
         @"unique_renderer_id" : @"9",
         @"form_control_type" : @"select-one",
+        @"placeholder_attribute" : @"",
         @"is_focusable" : @1,
         @"option_values" : @[ @"CA", @"TX" ],
         @"option_contents" : @[ @"California", @"Texas" ],
@@ -2000,6 +2004,51 @@ TEST_F(AutofillControllerJsTest, FillActiveFormField) {
                        "__gCrWeb.autofill.fillActiveFormField(data);"
                        "element.value === oldValue",
                       newValue]))
+      << "A non-form element's value should changed.";
+}
+
+TEST_F(AutofillControllerJsTest, FillSpecificFormField) {
+  web::test::LoadHtml(kHTMLForTestingElements, web_state());
+
+  web::WebFrame* main_frame = WaitForMainFrame();
+  ASSERT_TRUE(main_frame);
+
+  uint32_t next_available_id = 1;
+  autofill::FormUtilJavaScriptFeature::GetInstance()
+      ->SetUpForUniqueIDsWithInitialState(main_frame, next_available_id);
+
+  // Wait for `SetUpForUniqueIDsWithInitialState` to complete.
+  ASSERT_TRUE(WaitUntilConditionOrTimeout(kWaitForJSCompletionTimeout, ^bool {
+    return [ExecuteJavaScript(@"document[__gCrWeb.fill.ID_SYMBOL]") intValue] ==
+           static_cast<int>(next_available_id);
+  }));
+
+  // Simulate form parsing to set renderer IDs.
+  ExecuteJavaScript(@"__gCrWeb.autofill.extractForms(0, true)");
+
+  NSString* new_value = @"new value";
+  EXPECT_NSEQ(new_value,
+              ExecuteJavaScript([NSString
+                  stringWithFormat:
+                      @"var element=document.getElementsByName('lastname')[0];"
+                       "var "
+                       "data={\"name\":\"lastname\",\"value\":\"%@\","
+                       "\"identifier\":\"lastname\",\"unique_renderer_id\":3};"
+                       "__gCrWeb.autofill.fillSpecificFormField(data);"
+                       "element.value",
+                      new_value]));
+
+  EXPECT_NSEQ(@YES,
+              ExecuteJavaScript([NSString
+                  stringWithFormat:
+                      @"var element=document.getElementsByName('gl')[0];"
+                       "var oldValue = element.value;"
+                       "var "
+                       "data={\"name\":\"lastname\",\"value\":\"%@\","
+                       "\"identifier\":\"lastname\",\"unique_renderer_id\":3};"
+                       "__gCrWeb.autofill.fillSpecificFormField(data);"
+                       "element.value === oldValue",
+                      new_value]))
       << "A non-form element's value should changed.";
 }
 

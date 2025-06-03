@@ -6,15 +6,11 @@
 
 #import <map>
 
-#import "ios/chrome/browser/application_context/application_context.h"
+#import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/signin/capabilities_types.h"
 #import "ios/chrome/browser/signin/chrome_account_manager_service.h"
 #import "ios/chrome/browser/signin/system_identity_manager.h"
 #import "third_party/abseil-cpp/absl/types/optional.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace ios {
 namespace {
@@ -52,9 +48,12 @@ AccountCapabilitiesFetcherIOS::~AccountCapabilitiesFetcherIOS() = default;
 
 AccountCapabilitiesFetcherIOS::AccountCapabilitiesFetcherIOS(
     const CoreAccountInfo& account_info,
+    AccountCapabilitiesFetcher::FetchPriority fetch_priority,
     ChromeAccountManagerService* account_manager_service,
     AccountCapabilitiesFetcher::OnCompleteCallback on_complete_callback)
-    : AccountCapabilitiesFetcher(account_info, std::move(on_complete_callback)),
+    : AccountCapabilitiesFetcher(account_info,
+                                 fetch_priority,
+                                 std::move(on_complete_callback)),
       account_manager_service_(account_manager_service) {}
 
 void AccountCapabilitiesFetcherIOS::StartImpl() {

@@ -22,6 +22,8 @@
 #include "third_party/skia/include/core/SkSurfaceProps.h"
 #include "third_party/skia/include/gpu/GrBackendSurface.h"
 #include "third_party/skia/include/gpu/GrDirectContext.h"
+#include "third_party/skia/include/gpu/ganesh/SkSurfaceGanesh.h"
+#include "third_party/skia/include/gpu/ganesh/gl/GrGLBackendSurface.h"
 #include "third_party/skia/include/gpu/gl/GrGLTypes.h"
 #include "ui/gl/gl_bindings.h"
 #include "ui/gl/gl_context.h"
@@ -52,6 +54,7 @@ SkiaOutputDeviceGL::SkiaOutputDeviceGL(
     gpu::MemoryTracker* memory_tracker,
     DidSwapBufferCompleteCallback did_swap_buffer_complete_callback)
     : SkiaOutputDevice(context_state->gr_context(),
+                       context_state->graphite_context(),
                        memory_tracker,
                        std::move(did_swap_buffer_complete_callback)),
       context_state_(context_state),
@@ -186,14 +189,15 @@ bool SkiaOutputDeviceGL::Reshape(const SkImageInfo& image_info,
   GrBackendFormat backend_format =
       gr_context->defaultBackendFormat(color_type, GrRenderable::kYes);
   DCHECK(backend_format.isValid()) << "color_type: " << color_type;
-  framebuffer_info.fFormat = backend_format.asGLFormatEnum();
+  framebuffer_info.fFormat = GrBackendFormats::AsGLFormatEnum(backend_format);
 
-  GrBackendRenderTarget render_target(size.width(), size.height(), sample_count,
-                                      /*stencilBits=*/0, framebuffer_info);
+  auto render_target =
+      GrBackendRenderTargets::MakeGL(size.width(), size.height(), sample_count,
+                                     /*stencilBits=*/0, framebuffer_info);
   auto origin = (gl_surface_->GetOrigin() == gfx::SurfaceOrigin::kTopLeft)
                     ? kTopLeft_GrSurfaceOrigin
                     : kBottomLeft_GrSurfaceOrigin;
-  sk_surface_ = SkSurface::MakeFromBackendRenderTarget(
+  sk_surface_ = SkSurfaces::WrapBackendRenderTarget(
       gr_context, render_target, origin, color_type, image_info.refColorSpace(),
       &surface_props);
   if (!sk_surface_) {

@@ -104,6 +104,10 @@ bool WidgetDelegate::CanMinimize() const {
   return params_.can_minimize;
 }
 
+bool WidgetDelegate::CanFullscreen() const {
+  return params_.can_fullscreen;
+}
+
 bool WidgetDelegate::CanActivate() const {
   return can_activate_;
 }
@@ -135,6 +139,63 @@ bool WidgetDelegate::ShouldCenterWindowTitleText() const {
 #else
   return false;
 #endif
+}
+
+// TODO(ffred): refactor this method.
+bool WidgetDelegate::RotatePaneFocusFromView(View* focused_view,
+                                             bool forward,
+                                             bool enable_wrapping) {
+  // Get the list of all accessible panes.
+  std::vector<View*> panes;
+  GetAccessiblePanes(&panes);
+
+  // Count the number of panes and set the default index if no pane
+  // is initially focused.
+  const size_t count = panes.size();
+  if (!count) {
+    return false;
+  }
+
+  // Initialize |index| to an appropriate starting index if nothing is
+  // focused initially.
+  size_t index = forward ? (count - 1) : 0;
+
+  // Check to see if a pane already has focus and update the index accordingly.
+  if (focused_view) {
+    const auto i =
+        base::ranges::find_if(panes, [focused_view](const auto* pane) {
+          return pane && pane->Contains(focused_view);
+        });
+    if (i != panes.cend()) {
+      index = static_cast<size_t>(i - panes.cbegin());
+    }
+  }
+
+  // Rotate focus.
+  for (const size_t start_index = index;;) {
+    index = (!forward ? (index + count - 1) : (index + 1)) % count;
+
+    if (!enable_wrapping && (index == (forward ? 0 : (count - 1)))) {
+      return false;
+    }
+
+    // Ensure that we don't loop more than once.
+    if (index == start_index) {
+      return false;
+    }
+
+    views::View* pane = panes[index];
+    DCHECK(pane);
+    if (pane->GetVisible()) {
+      pane->RequestFocus();
+      // |pane| may be in a different widget, so don't assume its focus manager
+      // is |this|.
+      focused_view = pane->GetWidget()->GetFocusManager()->GetFocusedView();
+      if (pane == focused_view || pane->Contains(focused_view)) {
+        return true;
+      }
+    }
+  }
 }
 
 bool WidgetDelegate::ShouldShowCloseButton() const {
@@ -318,6 +379,14 @@ void WidgetDelegate::SetAccessibleTitle(std::u16string title) {
   params_.accessible_title = std::move(title);
 }
 
+void WidgetDelegate::SetCanFullscreen(bool can_fullscreen) {
+  bool old_can_fullscreen =
+      std::exchange(params_.can_fullscreen, can_fullscreen);
+  if (GetWidget() && params_.can_fullscreen != old_can_fullscreen) {
+    GetWidget()->OnSizeConstraintsChanged();
+  }
+}
+
 void WidgetDelegate::SetCanMaximize(bool can_maximize) {
   bool old_can_maximize = std::exchange(params_.can_maximize, can_maximize);
   if (GetWidget() && params_.can_maximize != old_can_maximize)
@@ -414,6 +483,7 @@ void WidgetDelegate::SetCenterTitle(bool center_title) {
 #endif
 
 void WidgetDelegate::SetHasWindowSizeControls(bool has_controls) {
+  SetCanFullscreen(has_controls);
   SetCanMaximize(has_controls);
   SetCanMinimize(has_controls);
   SetCanResize(has_controls);

@@ -26,6 +26,7 @@
 #include "chrome/browser/web_applications/mojom/user_display_mode.mojom.h"
 #include "chrome/browser/web_applications/test/web_app_install_test_utils.h"
 #include "chrome/browser/web_applications/web_app_install_info.h"
+#include "chrome/browser/win/titlebar_config.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
@@ -66,6 +67,10 @@ class BrowserFrameViewWinTest : public InProcessBrowserTest {
     return static_cast<const WindowsCaptionButton*>(
         caption_button_container->GetViewByID(VIEW_ID_MAXIMIZE_BUTTON));
   }
+  bool BrowserUsingCustomDrawTitlebar() const {
+    return ShouldBrowserCustomDrawTitlebar(
+        BrowserView::GetBrowserViewForBrowser(browser()));
+  }
 };
 
 // Test that in touch mode, the maximize button is enabled for a non-maximized
@@ -74,8 +79,8 @@ IN_PROC_BROWSER_TEST_F(BrowserFrameViewWinTest,
                        NonMaximizedTouchMaximizeButtonState) {
   ui::TouchUiController::TouchUiScoperForTesting touch_ui_scoper_{true};
   auto* maximize_button = GetMaximizeButton();
-  if (!maximize_button) {
-    GTEST_SKIP();
+  if (!maximize_button || !BrowserUsingCustomDrawTitlebar()) {
+    GTEST_SKIP() << "No maximize button or not using a custom titlebar";
   }
 
   EXPECT_TRUE(maximize_button->GetVisible());
@@ -88,8 +93,8 @@ IN_PROC_BROWSER_TEST_F(BrowserFrameViewWinTest,
                        MaximizedTouchMaximizeButtonState) {
   ui::TouchUiController::TouchUiScoperForTesting touch_ui_scoper_{true};
   auto* frame_view = GetBrowserFrameViewWin();
-  if (!frame_view) {
-    GTEST_SKIP();
+  if (!frame_view || !BrowserUsingCustomDrawTitlebar()) {
+    GTEST_SKIP() << "Chrome is not using a custom titlebar";
   }
 
   frame_view->frame()->Maximize();
@@ -107,8 +112,8 @@ IN_PROC_BROWSER_TEST_F(BrowserFrameViewWinTest,
                        NonTouchNonMaximizedMaximizeButtonState) {
   ui::TouchUiController::TouchUiScoperForTesting touch_ui_scoper_{false};
   auto* maximize_button = GetMaximizeButton();
-  if (!maximize_button) {
-    GTEST_SKIP();
+  if (!maximize_button || !BrowserUsingCustomDrawTitlebar()) {
+    GTEST_SKIP() << "No maximize button or not using a custom titlebar";
   }
 
   EXPECT_TRUE(maximize_button->GetVisible());
@@ -121,8 +126,8 @@ IN_PROC_BROWSER_TEST_F(BrowserFrameViewWinTest,
                        NonTouchMaximizedMaximizeButtonState) {
   ui::TouchUiController::TouchUiScoperForTesting touch_ui_scoper_{false};
   auto* frame_view = GetBrowserFrameViewWin();
-  if (!frame_view) {
-    GTEST_SKIP();
+  if (!frame_view || !BrowserUsingCustomDrawTitlebar()) {
+    GTEST_SKIP() << "Chrome is not using a custom titlebar";
   }
 
   frame_view->frame()->Maximize();
@@ -145,18 +150,18 @@ class WebAppBrowserFrameViewWinTest : public InProcessBrowserTest {
   void SetUpOnMainThread() override {
     InProcessBrowserTest::SetUpOnMainThread();
 
-    WebAppToolbarButtonContainer::DisableAnimationForTesting();
+    WebAppToolbarButtonContainer::DisableAnimationForTesting(true);
   }
 
   void InstallAndLaunchWebApp() {
-    auto web_app_info = std::make_unique<WebAppInstallInfo>();
+    auto web_app_info = std::make_unique<web_app::WebAppInstallInfo>();
     web_app_info->start_url = GetStartURL();
     web_app_info->scope = GetStartURL().GetWithoutFilename();
     if (theme_color_) {
       web_app_info->theme_color = *theme_color_;
     }
 
-    web_app::AppId app_id = web_app::test::InstallWebApp(
+    webapps::AppId app_id = web_app::test::InstallWebApp(
         browser()->profile(), std::move(web_app_info));
     content::TestNavigationObserver navigation_observer(GetStartURL());
     navigation_observer.StartWatchingNewWebContents();
@@ -175,11 +180,12 @@ class WebAppBrowserFrameViewWinTest : public InProcessBrowserTest {
   }
 
   absl::optional<SkColor> theme_color_ = SK_ColorBLUE;
-  raw_ptr<Browser, DanglingUntriaged> app_browser_ = nullptr;
-  raw_ptr<BrowserView, DanglingUntriaged> browser_view_ = nullptr;
-  raw_ptr<BrowserFrameViewWin, DanglingUntriaged> frame_view_ = nullptr;
-  raw_ptr<WebAppFrameToolbarView, DanglingUntriaged> web_app_frame_toolbar_ =
+  raw_ptr<Browser, AcrossTasksDanglingUntriaged> app_browser_ = nullptr;
+  raw_ptr<BrowserView, AcrossTasksDanglingUntriaged> browser_view_ = nullptr;
+  raw_ptr<BrowserFrameViewWin, AcrossTasksDanglingUntriaged> frame_view_ =
       nullptr;
+  raw_ptr<WebAppFrameToolbarView, AcrossTasksDanglingUntriaged>
+      web_app_frame_toolbar_ = nullptr;
 };
 
 IN_PROC_BROWSER_TEST_F(WebAppBrowserFrameViewWinTest, ThemeColor) {
@@ -274,7 +280,7 @@ class WebAppBrowserFrameViewWinWindowControlsOverlayTest
 
     std::vector<blink::mojom::DisplayMode> display_overrides = {
         blink::mojom::DisplayMode::kWindowControlsOverlay};
-    auto web_app_info = std::make_unique<WebAppInstallInfo>();
+    auto web_app_info = std::make_unique<web_app::WebAppInstallInfo>();
     web_app_info->start_url = start_url;
     web_app_info->scope = start_url.GetWithoutFilename();
     web_app_info->display_mode = blink::mojom::DisplayMode::kStandalone;
@@ -283,7 +289,7 @@ class WebAppBrowserFrameViewWinWindowControlsOverlayTest
     web_app_info->title = u"A Web App";
     web_app_info->display_override = display_overrides;
 
-    web_app::AppId app_id = web_app::test::InstallWebApp(
+    webapps::AppId app_id = web_app::test::InstallWebApp(
         browser()->profile(), std::move(web_app_info));
 
     content::TestNavigationObserver navigation_observer(start_url);
@@ -322,8 +328,9 @@ class WebAppBrowserFrameViewWinWindowControlsOverlayTest
     std::ignore = title_watcher.WaitAndGetTitle();
   }
 
-  raw_ptr<BrowserView, DanglingUntriaged> browser_view_ = nullptr;
-  raw_ptr<BrowserFrameViewWin, DanglingUntriaged> frame_view_ = nullptr;
+  raw_ptr<BrowserView, AcrossTasksDanglingUntriaged> browser_view_ = nullptr;
+  raw_ptr<BrowserFrameViewWin, AcrossTasksDanglingUntriaged> frame_view_ =
+      nullptr;
   WebAppFrameToolbarTestHelper web_app_frame_toolbar_helper_;
 
  private:

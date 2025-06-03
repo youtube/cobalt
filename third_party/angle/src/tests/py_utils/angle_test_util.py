@@ -21,7 +21,9 @@ import angle_path_util
 
 angle_path_util.AddDepsDirToPath('testing/scripts')
 import common
-import xvfb
+if sys.platform.startswith('linux'):
+    # vpython3 can handle this on Windows but not python3
+    import xvfb
 
 
 ANGLE_TRACE_TEST_SUITE = 'angle_trace_tests'
@@ -193,8 +195,12 @@ def RunTestSuite(test_suite,
 
 def GetTestsFromOutput(output):
     out_lines = output.split('\n')
-    start = out_lines.index('Tests list:')
-    end = out_lines.index('End tests list.')
+    try:
+        start = out_lines.index('Tests list:')
+        end = out_lines.index('End tests list.')
+    except ValueError as e:
+        logging.exception(e)
+        return None
     return out_lines[start + 1:end]
 
 

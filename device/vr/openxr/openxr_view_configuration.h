@@ -51,6 +51,8 @@ class OpenXrViewConfiguration {
   const std::vector<XrCompositionLayerProjectionView>& ProjectionViews() const;
   XrCompositionLayerProjectionView& GetProjectionView(uint32_t view_index);
 
+  bool CanEnableAntiAliasing() const;
+
  private:
   XrViewConfigurationType type_ = XR_VIEW_CONFIGURATION_TYPE_MAX_ENUM;
   bool active_ = false;
@@ -118,7 +120,10 @@ class OpenXrLayers {
   // layer for a specific view configuration.
   std::vector<XrCompositionLayerProjection> secondary_projection_layers_;
   // Pointers to the corresponding layer in secondary_projection_layers_.
-  std::vector<XrCompositionLayerBaseHeader*> secondary_composition_layers_;
+  // This field is not vector<raw_ptr<...>> due to interaction with third_party
+  // api.
+  RAW_PTR_EXCLUSION std::vector<XrCompositionLayerBaseHeader*>
+      secondary_composition_layers_;
 
   // The secondary view configuration layer info containing the data above,
   // which is passed to xrEndFrame.

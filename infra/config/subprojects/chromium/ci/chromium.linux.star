@@ -9,6 +9,7 @@ load("//lib/builders.star", "builders", "os", "reclient", "sheriff_rotations")
 load("//lib/branches.star", "branches")
 load("//lib/ci.star", "ci")
 load("//lib/consoles.star", "consoles")
+load("//lib/gn_args.star", "gn_args")
 
 ci.defaults.set(
     executable = ci.DEFAULT_EXECUTABLE,
@@ -19,11 +20,13 @@ ci.defaults.set(
     sheriff_rotations = sheriff_rotations.CHROMIUM,
     tree_closing = True,
     main_console_view = "main",
+    contact_team_email = "chrome-linux-engprod@google.com",
     execution_timeout = ci.DEFAULT_EXECUTION_TIMEOUT,
     notifies = ["chromium.linux"],
     reclient_instance = reclient.instance.DEFAULT_TRUSTED,
     reclient_jobs = reclient.jobs.HIGH_JOBS_FOR_CI,
     service_account = ci.DEFAULT_SERVICE_ACCOUNT,
+    shadow_service_account = ci.DEFAULT_SHADOW_SERVICE_ACCOUNT,
 )
 
 consoles.console_view(
@@ -135,7 +138,6 @@ ci.builder(
         ),
         build_gs_bucket = "chromium-linux-archive",
     ),
-    os = os.LINUX_BIONIC,
     tree_closing = False,
     console_view_entry = consoles.console_view_entry(
         category = "cast",
@@ -171,6 +173,12 @@ ci.builder(
         short_name = "det",
     ),
     execution_timeout = 7 * time.hour,
+    gn_args = {
+        "local": "debug_build",
+        "reclient": gn_args.config(
+            configs = ["debug_build", "reclient"],
+        ),
+    },
     reclient_jobs = reclient.jobs.DEFAULT,
 )
 
@@ -206,6 +214,9 @@ ci.builder(
             config = "chromium",
             apply_configs = [
                 "use_clang_coverage",
+                # This is necessary due to child builders running the
+                # telemetry_perf_unittests suite.
+                "chromium_with_telemetry_dependencies",
             ],
         ),
         chromium_config = builder_config.chromium_config(
@@ -245,7 +256,7 @@ ci.builder(
         short_name = "64",
     ),
     cq_mirrors_console_view = "mirrors",
-    reclient_jobs = reclient.jobs.DEFAULT,
+    reclient_jobs = reclient.jobs.HIGH_JOBS_FOR_CI,
 )
 
 ci.builder(
@@ -469,4 +480,30 @@ ci.builder(
         short_name = "gcc",
     ),
     reclient_instance = None,
+)
+
+ci.builder(
+    name = "linux-v4l2-codec-rel",
+    branch_selector = branches.selector.MAIN,
+    builder_spec = builder_config.builder_spec(
+        gclient_config = builder_config.gclient_config(
+            config = "chromium",
+            apply_configs = [
+            ],
+        ),
+        chromium_config = builder_config.chromium_config(
+            config = "chromium",
+            apply_configs = [
+                "mb",
+            ],
+            build_config = builder_config.build_config.RELEASE,
+            target_bits = 64,
+        ),
+        build_gs_bucket = "chromium-linux-archive",
+    ),
+    tree_closing = False,
+    console_view_entry = consoles.console_view_entry(
+        category = "linux",
+    ),
+    cq_mirrors_console_view = "mirrors",
 )

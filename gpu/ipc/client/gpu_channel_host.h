@@ -60,6 +60,7 @@ class GPU_EXPORT GpuChannelHost
       int channel_id,
       const gpu::GPUInfo& gpu_info,
       const gpu::GpuFeatureInfo& gpu_feature_info,
+      const gpu::SharedImageCapabilities& shared_image_capabilities,
       mojo::ScopedMessagePipeHandle handle,
       scoped_refptr<base::SingleThreadTaskRunner> io_task_runner = nullptr);
   GpuChannelHost(const GpuChannelHost&) = delete;
@@ -115,6 +116,19 @@ class GPU_EXPORT GpuChannelHost
 
   // Generate a route ID guaranteed to be unique for this channel.
   int32_t GenerateRouteID();
+
+  // Creates a GpuMemoryBufferHandle in service side on the IO thread. This is a
+  // blocking call and will block the calling client.
+  void CreateGpuMemoryBuffer(const gfx::Size& size,
+                             const viz::SharedImageFormat& format,
+                             gfx::BufferUsage buffer_usage,
+                             gfx::GpuMemoryBufferHandle* handle);
+
+  void GetGpuMemoryBufferHandleInfo(const Mailbox& mailbox,
+                                    gfx::GpuMemoryBufferHandle* handle,
+                                    viz::SharedImageFormat* format,
+                                    gfx::Size* size,
+                                    gfx::BufferUsage* buffer_usage);
 
   // Crashes the GPU process. This functionality is added here because
   // of instability when creating a new tab just to navigate to

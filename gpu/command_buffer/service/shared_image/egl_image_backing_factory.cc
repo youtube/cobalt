@@ -80,6 +80,19 @@ std::unique_ptr<SharedImageBacking> EGLImageBackingFactory::CreateSharedImage(
 
 std::unique_ptr<SharedImageBacking> EGLImageBackingFactory::CreateSharedImage(
     const Mailbox& mailbox,
+    viz::SharedImageFormat format,
+    const gfx::Size& size,
+    const gfx::ColorSpace& color_space,
+    GrSurfaceOrigin surface_origin,
+    SkAlphaType alpha_type,
+    uint32_t usage,
+    std::string debug_label,
+    gfx::GpuMemoryBufferHandle handle) {
+  NOTREACHED_NORETURN();
+}
+
+std::unique_ptr<SharedImageBacking> EGLImageBackingFactory::CreateSharedImage(
+    const Mailbox& mailbox,
     gfx::GpuMemoryBufferHandle handle,
     gfx::BufferFormat buffer_format,
     gfx::BufferPlane plane,
@@ -128,7 +141,7 @@ bool EGLImageBackingFactory::IsSupported(uint32_t usage,
   }
 
   if ((usage & SHARED_IMAGE_USAGE_WEBGPU) &&
-      (use_webgpu_adapter_ != WebGPUAdapterName::kCompat)) {
+      (use_webgpu_adapter_ != WebGPUAdapterName::kOpenGLES)) {
     return false;
   }
 

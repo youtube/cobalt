@@ -12,7 +12,6 @@
 #include "chrome/browser/ash/android_sms/android_sms_app_manager.h"
 #include "chrome/browser/ash/android_sms/android_sms_pairing_state_tracker_impl.h"
 #include "chrome/browser/ash/android_sms/android_sms_service_factory.h"
-#include "chrome/browser/ash/authpolicy/authpolicy_credentials_manager.h"
 #include "chrome/browser/ash/cryptauth/gcm_device_info_provider_impl.h"
 #include "chrome/browser/ash/device_sync/device_sync_client_factory.h"
 #include "chrome/browser/ash/multidevice_setup/auth_token_validator_factory.h"
@@ -123,7 +122,8 @@ MultiDeviceSetupServiceFactory::MultiDeviceSetupServiceFactory()
 
 MultiDeviceSetupServiceFactory::~MultiDeviceSetupServiceFactory() = default;
 
-KeyedService* MultiDeviceSetupServiceFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+MultiDeviceSetupServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
   if (!multidevice_setup::AreAnyMultiDeviceFeaturesAllowed(
           Profile::FromBrowserContext(context)->GetPrefs())) {
@@ -133,7 +133,7 @@ KeyedService* MultiDeviceSetupServiceFactory::BuildServiceInstanceFor(
     return nullptr;
   }
 
-  return new MultiDeviceSetupServiceHolder(context);
+  return std::make_unique<MultiDeviceSetupServiceHolder>(context);
 }
 
 }  // namespace multidevice_setup

@@ -7,33 +7,37 @@
 
 #import <UIKit/UIKit.h>
 
-#import "ios/chrome/browser/ui/gestures/layout_switcher_provider.h"
-#import "ios/chrome/browser/ui/gestures/view_revealing_animatee.h"
 #import "ios/chrome/browser/ui/incognito_reauth/incognito_reauth_scene_agent.h"
 #import "ios/chrome/browser/ui/keyboard/key_command_actions.h"
+#import "ios/chrome/browser/ui/tab_switcher/tab_grid/grid/disabled_grid_view_controller.h"
+#import "ios/chrome/browser/ui/tab_switcher/tab_grid/grid/grid_consumer.h"
+#import "ios/chrome/browser/ui/tab_switcher/tab_grid/tab_grid_consumer.h"
 #import "ios/chrome/browser/ui/tab_switcher/tab_grid/tab_grid_paging.h"
-#import "ios/chrome/browser/ui/tab_switcher/tab_grid/transitions/grid_transition_animation_layout_providing.h"
-#import "ios/chrome/browser/ui/thumb_strip/thumb_strip_supporting.h"
+#import "ios/chrome/browser/ui/tab_switcher/tab_grid/toolbars/tab_grid_toolbars_action_wrangler.h"
+#import "ios/chrome/browser/ui/tab_switcher/tab_grid/transitions/legacy_grid_transition_animation_layout_providing.h"
 
 @protocol ApplicationCommands;
+@class GridContainerViewController;
 @protocol GridCommands;
-@protocol PriceCardDataSource;
-@protocol GridShareableItemsProvider;
 class GURL;
 @protocol InactiveTabsInfoConsumer;
+@class IncognitoGridViewController;
 @protocol IncognitoReauthCommands;
 @protocol IncognitoReauthConsumer;
 @class LayoutGuideCenter;
-@protocol PopupMenuCommands;
+@protocol PriceCardDataSource;
 @protocol RecentTabsConsumer;
 @class RecentTabsTableViewController;
+@class RegularGridViewController;
+@class TabGridBottomToolbar;
 @protocol TabCollectionCommands;
 @protocol TabCollectionConsumer;
 @protocol TabCollectionDragDropHandler;
+@protocol TabGridConsumer;
 @protocol TabContextMenuProvider;
-@class TabGridViewController;
-@protocol ThumbStripCommands;
-@protocol ViewControllerTraitCollectionObserver;
+@protocol TabGridMutator;
+@protocol TabGridToolbarsCommandsWrangler;
+@class TabGridTopToolbar;
 
 // Configurations for tab grid pages.
 enum class TabGridPageConfiguration {
@@ -49,32 +53,14 @@ enum class TabGridPageConfiguration {
 // from the tab grid.
 @protocol TabPresentationDelegate <NSObject>
 // Show the active tab in `page`, presented on top of the tab grid.  The
-// omnibox will be focused after the animation if `focusOmnibox` is YES. If
-// `closeTabGrid` is NO, then the tab grid will not be closed, and the active
-// tab will simply be displayed in its current position.
-// This last parameter is used for the thumb strip, where the
-// BVCContainerViewController is never dismissed.
-- (void)showActiveTabInPage:(TabGridPage)page
-               focusOmnibox:(BOOL)focusOmnibox
-               closeTabGrid:(BOOL)closeTabGrid;
+// omnibox will be focused after the animation if `focusOmnibox` is YES.
+- (void)showActiveTabInPage:(TabGridPage)page focusOmnibox:(BOOL)focusOmnibox;
 @end
 
 @protocol TabGridViewControllerDelegate <NSObject>
 
-// Asks the delegate for the page that should currently be active.
-- (TabGridPage)activePageForTabGridViewController:
-    (TabGridViewController*)tabGridViewController;
-
-// Notifies the delegate that the tab grid was dismissed via the
-// ViewRevealingAnimatee.
-- (void)tabGridViewControllerDidDismiss:
-    (TabGridViewController*)tabGridViewController;
-
 // Opens a link when the user clicks on the in-text link.
 - (void)openLinkWithURL:(const GURL&)URL;
-
-// BVC is completely hidden, detach it from view (for thumbstrip mode).
-- (void)dismissBVC;
 
 // Asks the delegate to open history modal with results filtered by
 // `searchText`.
@@ -82,9 +68,6 @@ enum class TabGridPageConfiguration {
 
 // Asks the delegate to open a new tab page with a web search for `searchText`.
 - (void)openSearchResultsPageForSearchText:(NSString*)searchText;
-
-// Sets BVC accessibilityViewIsModal to `modal` (for thumbstrip mode).
-- (void)setBVCAccessibilityViewModal:(BOOL)modal;
 
 // Asks the delegate to show the inactive tabs.
 - (void)showInactiveTabs;
@@ -94,36 +77,29 @@ enum class TabGridPageConfiguration {
 // View controller representing a tab switcher. The tab switcher has an
 // incognito tab grid, regular tab grid, and remote tabs.
 @interface TabGridViewController
-    : UIViewController <GridTransitionAnimationLayoutProviding,
+    : UIViewController <DisabledGridViewControllerDelegate,
+                        GridConsumer,
                         IncognitoReauthObserver,
                         KeyCommandActions,
-                        LayoutSwitcherProvider,
+                        TabGridConsumer,
+                        LegacyGridTransitionAnimationLayoutProviding,
                         TabGridPaging,
-                        ThumbStripSupporting,
-                        ViewRevealingAnimatee>
+                        TabGridToolbarsActionWrangler,
+                        UISearchBarDelegate>
 
 @property(nonatomic, weak) id<ApplicationCommands> handler;
-@property(nonatomic, weak) id<IncognitoReauthCommands> reauthHandler;
+// TODO(crbug.com/1457146): Move to Incognito Coordinator.
 @property(nonatomic, weak) IncognitoReauthSceneAgent* reauthAgent;
-// Handlers for popup menu commands for the regular and incognito states.
-@property(nonatomic, weak) id<PopupMenuCommands> regularPopupMenuHandler;
-@property(nonatomic, weak) id<PopupMenuCommands> incognitoPopupMenuHandler;
-// Handlers for thumb strip commands for the regular and incognito states.
-@property(nonatomic, weak) id<ThumbStripCommands> regularThumbStripHandler;
-@property(nonatomic, weak) id<ThumbStripCommands> incognitoThumbStripHandler;
 
 // Delegate for this view controller to handle presenting tab UI.
 @property(nonatomic, weak) id<TabPresentationDelegate> tabPresentationDelegate;
 
 @property(nonatomic, weak) id<TabGridViewControllerDelegate> delegate;
 
+// Mutator to apply all user change in the model.
+@property(nonatomic, weak) id<TabGridMutator> mutator;
+
 // Consumers send updates from the model layer to the UI layer.
-@property(nonatomic, readonly)
-    id<TabCollectionConsumer, InactiveTabsInfoConsumer>
-        regularTabsConsumer;
-@property(nonatomic, readonly)
-    id<TabCollectionConsumer, IncognitoReauthConsumer>
-        incognitoTabsConsumer;
 @property(nonatomic, readonly) id<RecentTabsConsumer> remoteTabsConsumer;
 @property(nonatomic, readonly) id<TabCollectionConsumer> pinnedTabsConsumer;
 
@@ -135,30 +111,21 @@ enum class TabGridPageConfiguration {
 
 // Handles drag and drop interactions that require the model layer.
 @property(nonatomic, weak) id<TabCollectionDragDropHandler>
-    regularTabsDragDropHandler;
-@property(nonatomic, weak) id<TabCollectionDragDropHandler>
-    incognitoTabsDragDropHandler;
-@property(nonatomic, weak) id<TabCollectionDragDropHandler>
     pinnedTabsDragDropHandler;
 
 // Data source for acquiring data which power the PriceCardView
 @property(nonatomic, weak) id<PriceCardDataSource> priceCardDataSource;
-
-@property(nonatomic, weak) id<GridShareableItemsProvider>
-    regularTabsShareableItemsProvider;
-@property(nonatomic, weak) id<GridShareableItemsProvider>
-    incognitoTabsShareableItemsProvider;
-
-// An optional object to be notified whenever the trait collection of this view
-// controller changes.
-@property(nonatomic, weak) id<ViewControllerTraitCollectionObserver>
-    traitCollectionObserver;
 
 // Readwrite override of the UIViewController property. This object will ignore
 // the value supplied by UIViewController.
 @property(nonatomic, weak, readwrite)
     UIViewController* childViewControllerForStatusBarStyle;
 
+// Child view controllers.
+@property(nonatomic, strong)
+    RegularGridViewController* regularTabsViewController;
+@property(nonatomic, strong)
+    IncognitoGridViewController* incognitoTabsViewController;
 // The view controller for remote tabs.
 // TODO(crbug.com/845192) : This was only exposed in the public interface so
 // that TabGridViewController does not need to know about model objects. The
@@ -169,15 +136,29 @@ enum class TabGridPageConfiguration {
 // Provides the context menu for the tabs on the grid.
 @property(nonatomic, weak) id<TabContextMenuProvider>
     regularTabsContextMenuProvider;
-@property(nonatomic, weak) id<TabContextMenuProvider>
-    incognitoTabsContextMenuProvider;
-
-// The view controller that shows below the tab grid as a bottom message. Note
-// that setting this value immediately adds it to the view hierarchy.
-@property(nonatomic, strong) UIViewController* regularTabsBottomMessage;
 
 // The layout guide center to use to refer to the bottom toolbar.
 @property(nonatomic, strong) LayoutGuideCenter* layoutGuideCenter;
+
+// Top and bottom toolbars. Those must be set before -viewDidLoad is called.
+@property(nonatomic, strong) TabGridTopToolbar* topToolbar;
+@property(nonatomic, strong) TabGridBottomToolbar* bottomToolbar;
+
+// Whether the primary signed-in account is subject to parental controls.
+@property(nonatomic, assign) BOOL isSubjectToParentalControls;
+
+// Disabled tab view controllers only available when a certain browser mode is
+// disabled.
+@property(nonatomic, weak) UIViewController* regularDisabledGridViewController;
+@property(nonatomic, weak)
+    UIViewController* incognitoDisabledGridViewController;
+
+// Contains grids (available or disabled one).
+@property(nonatomic, weak) UIViewController* regularGridContainerViewController;
+@property(nonatomic, weak)
+    UIViewController* incognitoGridContainerViewController;
+@property(nonatomic, weak)
+    GridContainerViewController* remoteGridContainerViewController;
 
 // Init with tab grid view configuration, which decides which sub view
 // controller should be added.

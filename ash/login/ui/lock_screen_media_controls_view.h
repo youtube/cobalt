@@ -46,17 +46,6 @@ class ASH_EXPORT LockScreenMediaControlsView
       public ui::ImplicitAnimationObserver {
  public:
   METADATA_HEADER(LockScreenMediaControlsView);
-  // The name of the histogram that records the reason why the controls were
-  // hidden.
-  static const char kMediaControlsHideHistogramName[];
-
-  // The name of the histogram that records whether the media controls were
-  // shown and the reason why.
-  static const char kMediaControlsShownHistogramName[];
-
-  // The name of the histogram that records when a user interacts with the
-  // media controls.
-  static const char kMediaControlsUserActionHistogramName[];
 
   using MediaControlsEnabled = base::RepeatingCallback<bool()>;
 
@@ -114,7 +103,6 @@ class ASH_EXPORT LockScreenMediaControlsView
   void GetAccessibleNodeData(ui::AXNodeData* node_data) override;
   void OnMouseEntered(const ui::MouseEvent& event) override;
   void OnMouseExited(const ui::MouseEvent& event) override;
-  void OnThemeChanged() override;
 
   // media_session::mojom::MediaControllerObserver:
   void MediaSessionInfoChanged(
@@ -206,8 +194,6 @@ class ASH_EXPORT LockScreenMediaControlsView
   // Animates |contents_view_| to its original position.
   void RunResetControlsAnimation();
 
-  void UpdateColors();
-
   // Used to control the active session.
   mojo::Remote<media_session::mojom::MediaController> media_controller_remote_;
 
@@ -244,9 +230,6 @@ class ASH_EXPORT LockScreenMediaControlsView
 
   // Contains the visible and draggable UI of the media controls.
   raw_ptr<views::View, ExperimentalAsh> contents_view_ = nullptr;
-
-  // The reason we hid the media controls.
-  absl::optional<HideReason> hide_reason_;
 
   // Whether the controls were shown or not and the reason why.
   absl::optional<Shown> shown_;

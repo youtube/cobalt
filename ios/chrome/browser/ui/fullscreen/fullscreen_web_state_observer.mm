@@ -20,10 +20,6 @@
 #import "ios/web/public/ui/crw_web_view_proxy.h"
 #import "ios/web/public/web_state.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 FullscreenWebStateObserver::FullscreenWebStateObserver(
     FullscreenController* controller,
     FullscreenModel* model,
@@ -84,10 +80,13 @@ void FullscreenWebStateObserver::DidFinishNavigation(
   model_->SetResizesScrollView(
       !is_pdf && !ios::provider::IsFullscreenSmoothScrollingSupported());
 
+  model_->SetScrollViewHeight(web_state->GetView().bounds.size.height);
+
   // Only reset the model for document-changing navigations or same-document
   // navigations that update the visible URL.
-  if (!navigation_context->IsSameDocument() || url_changed)
+  if (!navigation_context->IsSameDocument() || url_changed) {
     model_->ResetForNavigation();
+  }
 }
 
 void FullscreenWebStateObserver::DidStartLoading(web::WebState* web_state) {

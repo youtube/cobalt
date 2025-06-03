@@ -294,8 +294,10 @@ bool ShouldAllowLegacyTLSProtocols() {
 }
 
 OpenSSLStreamAdapter::OpenSSLStreamAdapter(
-    std::unique_ptr<StreamInterface> stream)
+    std::unique_ptr<StreamInterface> stream,
+    absl::AnyInvocable<void(SSLHandshakeError)> handshake_error)
     : stream_(std::move(stream)),
+      handshake_error_(std::move(handshake_error)),
       owner_(rtc::Thread::Current()),
       state_(SSL_NONE),
       role_(SSL_CLIENT),
@@ -465,6 +467,17 @@ bool OpenSSLStreamAdapter::ExportKeyingMaterial(absl::string_view label,
     return false;
   }
   return true;
+}
+
+uint16_t OpenSSLStreamAdapter::GetPeerSignatureAlgorithm() const {
+  if (state_ != SSL_CONNECTED) {
+    return 0;
+  }
+#ifdef OPENSSL_IS_BORINGSSL
+  return SSL_get_peer_signature_algorithm(ssl_);
+#else
+  return kSslSignatureAlgorithmUnknown;
+#endif
 }
 
 bool OpenSSLStreamAdapter::SetDtlsSrtpCryptoSuites(
@@ -938,7 +951,9 @@ int OpenSSLStreamAdapter::ContinueSSL() {
       }
       RTC_DLOG(LS_VERBOSE) << " -- error " << code << ", " << err_code << ", "
                            << ERR_GET_REASON(err_code);
-      SignalSSLHandshakeError(ssl_handshake_err);
+      if (handshake_error_) {
+        handshake_error_(ssl_handshake_err);
+      }
       return (ssl_error != 0) ? ssl_error : -1;
   }
 
@@ -1057,9 +1072,7 @@ SSL_CTX* OpenSSLStreamAdapter::SetupSSLContext() {
     return nullptr;
   }
 
-#if !defined(NDEBUG)
   SSL_CTX_set_info_callback(ctx, OpenSSLAdapter::SSLInfoCallback);
-#endif
 
   int mode = SSL_VERIFY_PEER;
   if (GetClientAuthEnabled()) {
@@ -1095,6 +1108,11 @@ SSL_CTX* OpenSSLStreamAdapter::SetupSSLContext() {
       return nullptr;
     }
   }
+
+#ifdef OPENSSL_IS_BORINGSSL
+  SSL_CTX_set_permute_extensions(
+      ctx, webrtc::field_trial::IsEnabled("WebRTC-PermuteTlsClientHello"));
+#endif
 
   return ctx;
 }

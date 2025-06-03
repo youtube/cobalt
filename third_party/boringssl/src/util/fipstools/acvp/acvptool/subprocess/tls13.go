@@ -36,7 +36,7 @@ type tls13TestGroup struct {
 }
 
 type tls13Test struct {
-	ID                uint64 `json:"tcId"`
+	ID uint64 `json:"tcId"`
 	// Although ACVP refers to these as client and server randoms, these
 	// fields are misnamed and really contain portions of the handshake
 	// transcript. Concatenated in order, they give the transcript up to
@@ -69,7 +69,7 @@ type tls13TestResponse struct {
 
 type tls13 struct{}
 
-func (k *tls13) Process(vectorSet []byte, m Transactable) (interface{}, error) {
+func (k *tls13) Process(vectorSet []byte, m Transactable) (any, error) {
 	var parsed tls13TestVectorSet
 	if err := json.Unmarshal(vectorSet, &parsed); err != nil {
 		return nil, err
@@ -77,9 +77,11 @@ func (k *tls13) Process(vectorSet []byte, m Transactable) (interface{}, error) {
 
 	var respGroups []tls13TestGroupResponse
 	for _, group := range parsed.Groups {
+		group := group
 		groupResp := tls13TestGroupResponse{ID: group.ID}
 
 		for _, test := range group.Tests {
+			test := test
 			testResp := tls13TestResponse{ID: test.ID}
 
 			clientHello, err := hex.DecodeString(test.ClientHelloHex)

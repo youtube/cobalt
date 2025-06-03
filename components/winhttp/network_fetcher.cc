@@ -20,10 +20,11 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/numerics/safe_math.h"
 #include "base/strings/strcat.h"
-#include "base/strings/string_number_conversions.h"
+#include "base/strings/string_number_conversions_win.h"
 #include "base/strings/string_piece.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/sys_string_conversions.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
@@ -37,7 +38,7 @@
 namespace winhttp {
 namespace {
 
-// TODO(crbug.com/1376713) - implement a way to express priority for
+// TODO(crbug.com/1164512) - implement a way to express priority for
 // foreground/background network fetches.
 constexpr base::TaskTraits kTaskTraits = {
     base::MayBlock(), base::TaskPriority::USER_VISIBLE,
@@ -68,19 +69,19 @@ NetworkFetcher::NetworkFetcher(
       proxy_configuration_(proxy_configuration) {}
 
 NetworkFetcher::~NetworkFetcher() {
-  DVLOG(3) << "~NetworkFetcher";
+  DVLOG(3) << __func__;
 }
 
 void NetworkFetcher::HandleClosing() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  // `write_data_callback_` maintains an outstanding reference to this object
+  // and the reference must be released to avoid leaking the object.
+  write_data_callback_.Reset();
   self_ = nullptr;
 }
 
 void NetworkFetcher::Close() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  // |write_data_callback_| maintains an outstanding reference to this object
-  // and the reference must be released to avoid leaking the object.
-  write_data_callback_.Reset();
   request_handle_.reset();
 }
 
@@ -99,6 +100,9 @@ void NetworkFetcher::CompleteFetch() {
 HRESULT NetworkFetcher::QueryHeaderString(const std::wstring& name,
                                           std::wstring* value) const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (!request_handle_.is_valid()) {
+    return HRESULT_FROM_WIN32(ERROR_CANCELLED);
+  }
   return QueryHeadersString(request_handle_.get(), WINHTTP_QUERY_CUSTOM,
                             name.c_str(), value);
 }
@@ -106,6 +110,9 @@ HRESULT NetworkFetcher::QueryHeaderString(const std::wstring& name,
 HRESULT NetworkFetcher::QueryHeaderInt(const std::wstring& name,
                                        int* value) const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (!request_handle_.is_valid()) {
+    return HRESULT_FROM_WIN32(ERROR_CANCELLED);
+  }
   return QueryHeadersInt(request_handle_.get(), WINHTTP_QUERY_CUSTOM,
                          name.c_str(), value);
 }
@@ -158,7 +165,7 @@ void NetworkFetcher::PostRequest(
     CompleteFetch();
 }
 
-void NetworkFetcher::DownloadToFile(
+base::OnceClosure NetworkFetcher::DownloadToFile(
     const GURL& url,
     const base::FilePath& file_path,
     FetchStartedCallback fetch_started_callback,
@@ -182,6 +189,8 @@ void NetworkFetcher::DownloadToFile(
 
   if (FAILED(net_error_))
     CompleteFetch();
+
+  return base::BindOnce(&NetworkFetcher::Close, this);
 }
 
 HRESULT NetworkFetcher::BeginFetch(
@@ -286,14 +295,6 @@ HRESULT NetworkFetcher::SendRequest(const std::string& data) {
 
 void NetworkFetcher::SendRequestComplete() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-
-  std::wstring all;
-  QueryHeadersString(
-      request_handle_.get(),
-      WINHTTP_QUERY_RAW_HEADERS_CRLF | WINHTTP_QUERY_FLAG_REQUEST_HEADERS,
-      WINHTTP_HEADER_NAME_BY_INDEX, &all);
-  VLOG(3) << "request headers: " << all;
-
   net_error_ = ReceiveResponse();
   if (FAILED(net_error_))
     CompleteFetch();
@@ -301,6 +302,9 @@ void NetworkFetcher::SendRequestComplete() {
 
 HRESULT NetworkFetcher::ReceiveResponse() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (!request_handle_.is_valid()) {
+    return HRESULT_FROM_WIN32(ERROR_CANCELLED);
+  }
   if (!::WinHttpReceiveResponse(request_handle_.get(), nullptr))
     return HRESULTFromLastError();
   return S_OK;
@@ -309,10 +313,21 @@ HRESULT NetworkFetcher::ReceiveResponse() {
 void NetworkFetcher::HeadersAvailable() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  std::wstring all;
+  if (!request_handle_.is_valid()) {
+    CompleteFetch();
+    return;
+  }
+
+  std::wstring request_headers;
+  QueryHeadersString(
+      request_handle_.get(),
+      WINHTTP_QUERY_RAW_HEADERS_CRLF | WINHTTP_QUERY_FLAG_REQUEST_HEADERS,
+      WINHTTP_HEADER_NAME_BY_INDEX, &request_headers);
+  VLOG(3) << "request headers:" << std::endl << request_headers;
+  std::wstring response_headers;
   QueryHeadersString(request_handle_.get(), WINHTTP_QUERY_RAW_HEADERS_CRLF,
-                     WINHTTP_HEADER_NAME_BY_INDEX, &all);
-  VLOG(3) << "response headers: " << all;
+                     WINHTTP_HEADER_NAME_BY_INDEX, &response_headers);
+  VLOG(3) << "response headers:" << std::endl << response_headers;
 
   net_error_ = QueryHeadersInt(request_handle_.get(), WINHTTP_QUERY_STATUS_CODE,
                                WINHTTP_HEADER_NAME_BY_INDEX, &response_code_);
@@ -336,6 +351,10 @@ void NetworkFetcher::HeadersAvailable() {
 
 HRESULT NetworkFetcher::ReadData() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  if (!request_handle_.is_valid()) {
+    return HRESULT_FROM_WIN32(ERROR_CANCELLED);
+  }
 
   // Use a fixed buffer size, larger than the internal WinHTTP buffer size (8K),
   // according to the documentation for WinHttpReadData.
@@ -497,14 +516,14 @@ void __stdcall NetworkFetcher::WinHttpStatusCallback(HINTERNET handle,
     case WINHTTP_CALLBACK_STATUS_DATA_AVAILABLE:
       status_string = "data available";
       DCHECK_EQ(info_len, sizeof(uint32_t));
-      info_string = base::StringPrintf(L"%lu", *static_cast<uint32_t*>(info));
+      info_string = base::NumberToWString(*static_cast<uint32_t*>(info));
       break;
     case WINHTTP_CALLBACK_STATUS_HEADERS_AVAILABLE:
       status_string = "headers available";
       break;
     case WINHTTP_CALLBACK_STATUS_READ_COMPLETE:
       status_string = "read complete";
-      info_string = base::StringPrintf(L"%lu", info_len);
+      info_string = base::NumberToWString(info_len);
       break;
     case WINHTTP_CALLBACK_STATUS_SENDREQUEST_COMPLETE:
       status_string = "send request complete";
@@ -519,7 +538,8 @@ void __stdcall NetworkFetcher::WinHttpStatusCallback(HINTERNET handle,
       status_string = "https failure";
       DCHECK(info);
       DCHECK_EQ(info_len, sizeof(uint32_t));
-      info_string = base::StringPrintf(L"%#x", *static_cast<uint32_t*>(info));
+      info_string = base::ASCIIToWide(
+          base::StringPrintf("%#x", *static_cast<uint32_t*>(info)));
       break;
     default:
       status_string = "unknown callback";

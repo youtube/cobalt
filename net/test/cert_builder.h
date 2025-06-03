@@ -262,6 +262,7 @@ class CertBuilder {
   // comment for general notes.
   void SetTBSSignatureAlgorithmTLV(base::StringPiece signature_algorithm_tlv);
 
+  void SetSerialNumber(uint64_t serial_number);
   void SetRandomSerialNumber();
 
   // Sets the private key for the generated certificate to an EC key. If a key
@@ -275,6 +276,9 @@ class CertBuilder {
 
   // Loads the private key for the generated certificate from |key_file|.
   bool UseKeyFromFile(const base::FilePath& key_file);
+
+  // Sets the private key to be |key|.
+  void SetKey(bssl::UniquePtr<EVP_PKEY> key);
 
   // Returns the CertBuilder that issues this certificate. (Will be |this| if
   // certificate is self-signed.)

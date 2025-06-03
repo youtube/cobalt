@@ -88,6 +88,10 @@ class ShoppingServiceAndroid : public base::SupportsUserData::Data,
                              jint j_management_type,
                              const JavaParamRef<jstring>& j_id);
 
+  void GetAllPriceTrackedBookmarks(JNIEnv* env,
+                                   const JavaParamRef<jobject>& obj,
+                                   const JavaParamRef<jobject>& j_callback);
+
   bool IsShoppingListEligible(JNIEnv* env, const JavaParamRef<jobject>& obj);
 
   bool IsMerchantViewerEnabled(JNIEnv* env, const JavaParamRef<jobject>& obj);
@@ -101,7 +105,7 @@ class ShoppingServiceAndroid : public base::SupportsUserData::Data,
   void HandleProductInfoCallback(JNIEnv* env,
                                  const ScopedJavaGlobalRef<jobject>& callback,
                                  const GURL& url,
-                                 const absl::optional<ProductInfo>& info);
+                                 const absl::optional<const ProductInfo>& info);
 
   void HandleMerchantInfoCallback(JNIEnv* env,
                                   const ScopedJavaGlobalRef<jobject>& callback,

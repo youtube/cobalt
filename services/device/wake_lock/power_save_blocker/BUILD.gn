@@ -8,6 +8,7 @@ import("//build/config/ui.gni")
 
 if (is_android) {
   import("//build/config/android/rules.gni")
+  import("//third_party/jni_zero/jni_zero.gni")
 }
 
 source_set("power_save_blocker") {
@@ -26,6 +27,9 @@ source_set("power_save_blocker") {
     "//remoting/host:*",
     "//remoting/host/win:*",
     "//services/device/wake_lock:*",
+
+    # Scan Service in Ash needs to directly use the PowerSaveBlocker.
+    "//chrome/browser/ash",
   ]
 
   sources = [ "power_save_blocker.h" ]
@@ -94,6 +98,6 @@ if (is_android) {
       "//services/device:*",
     ]
     sources = java_sources_needing_jni
-    deps = [ "//base:jni_java" ]
+    deps = [ "//third_party/jni_zero:jni_zero_java" ]
   }
 }

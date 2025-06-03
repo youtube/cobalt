@@ -27,6 +27,7 @@
 #include "chromeos/ash/components/network/network_profile_handler.h"
 #include "chromeos/ash/components/network/network_state_handler_observer.h"
 #include "components/keyed_service/core/keyed_service.h"
+#include "ui/aura/window.h"
 
 namespace content {
 class BrowserContext;
@@ -99,6 +100,9 @@ class ArcNetHostImpl : public KeyedService,
   void RequestPasspointAppApproval(
       mojom::PasspointApprovalRequestPtr request,
       RequestPasspointAppApprovalCallback callback) override;
+  void NotifyAndroidWifiMulticastLockChange(bool is_held) override;
+  void NotifySocketConnectionEvent(
+      mojom::SocketConnectionEventPtr msg) override;
 
   // Overridden from ash::NetworkStateHandlerObserver.
   void ScanCompleted(const ash::DeviceState* /*unused*/) override;
@@ -225,7 +229,15 @@ class ArcNetHostImpl : public KeyedService,
   // the properties values translated taken from mojo.
   void AddPasspointCredentialsWithProperties(base::Value::Dict properties);
 
-  // Pass any Chrome flags into ARC.
+  // Get the app window with |package_name|. This is necessary to start the
+  // user approval Passpoint dialog above the app. The app window is fetched by
+  // doing BFS over the device's root windows and its children.
+  aura::Window* GetAppWindow(const std::string& package_name);
+
+  // Pass any Chrome flags into ARC. This function may be empty depending on the
+  // current state of flags, i.e. if all Chrome->ARC flags have been launched
+  // and cleaned up, this method may not do anything. But we keep this around to
+  // keep the mojo file stable and decrease churn.
   void SetUpFlags();
 
   void CreateNetworkSuccessCallback(
@@ -265,8 +277,8 @@ class ArcNetHostImpl : public KeyedService,
   std::string arc_vpn_service_path_;
   // Owned by the user profile whose context was used to initialize |this|.
   raw_ptr<PrefService, ExperimentalAsh> pref_service_ = nullptr;
-  raw_ptr<ArcAppMetadataProvider, ExperimentalAsh> app_metadata_provider_ =
-      nullptr;
+  raw_ptr<ArcAppMetadataProvider, DanglingUntriaged | ExperimentalAsh>
+      app_metadata_provider_ = nullptr;
 
   std::unique_ptr<CertManager> cert_manager_;
 

@@ -48,6 +48,7 @@
 #include "ui/views/layout/layout_provider.h"
 #include "ui/views/metadata/view_factory_internal.h"
 #include "ui/views/style/typography.h"
+#include "ui/views/style/typography_provider.h"
 #include "ui/views/view_class_properties.h"
 
 namespace autofill {
@@ -59,8 +60,8 @@ constexpr int kIconSize = 16;
 int ComboboxIconSize() {
   // Use the line height of the body small text. This allows the icons to adapt
   // if the user changes the font size.
-  return views::style::GetLineHeight(views::style::CONTEXT_MENU,
-                                     views::style::STYLE_PRIMARY);
+  return views::TypographyProvider::Get().GetLineHeight(
+      views::style::CONTEXT_MENU, views::style::STYLE_PRIMARY);
 }
 
 std::unique_ptr<views::ImageView> CreateAddressSectionIcon(
@@ -166,11 +167,14 @@ SaveAddressProfileView::SaveAddressProfileView(
   SetAcceptCallback(base::BindOnce(
       &SaveUpdateAddressProfileBubbleController::OnUserDecision,
       base::Unretained(controller_),
-      AutofillClient::SaveAddressProfileOfferUserDecision::kAccepted));
-  SetCancelCallback(base::BindOnce(
-      &SaveUpdateAddressProfileBubbleController::OnUserDecision,
-      base::Unretained(controller_), controller_->GetCancelCallbackValue()));
+      AutofillClient::SaveAddressProfileOfferUserDecision::kAccepted,
+      std::nullopt));
+  SetCancelCallback(
+      base::BindOnce(&SaveUpdateAddressProfileBubbleController::OnUserDecision,
+                     base::Unretained(controller_),
+                     controller_->GetCancelCallbackValue(), std::nullopt));
 
+  SetProperty(views::kElementIdentifierKey, kTopViewId);
   SetTitle(controller_->GetWindowTitle());
   SetButtonLabel(ui::DIALOG_BUTTON_OK, controller_->GetOkButtonLabel());
   SetButtonLabel(ui::DIALOG_BUTTON_CANCEL,
@@ -227,6 +231,7 @@ SaveAddressProfileView::SaveAddressProfileView(
       details_section->AddChildView(CreateEditButton(base::BindRepeating(
           &SaveUpdateAddressProfileBubbleController::OnEditButtonClicked,
           base::Unretained(controller_))));
+  edit_button_->SetProperty(views::kElementIdentifierKey, kEditButtonViewId);
 
   std::u16string address = controller_->GetAddressSummary();
   if (!address.empty()) {
@@ -275,6 +280,7 @@ SaveAddressProfileView::SaveAddressProfileView(
             .SetMultiLine(true)
             .Build());
   }
+  AlignIcons();
 
   Profile* browser_profile =
       Profile::FromBrowserContext(web_contents->GetBrowserContext());
@@ -328,17 +334,12 @@ void SaveAddressProfileView::AddedToWidget() {
   }
 }
 
-void SaveAddressProfileView::OnThemeChanged() {
-  LocationBarBubbleDelegateView::OnThemeChanged();
-  AlignIcons();
-}
-
 void SaveAddressProfileView::AlignIcons() {
-  DCHECK(edit_button_);
-  DCHECK(address_components_view_);
+  CHECK(edit_button_);
+  CHECK(address_components_view_);
   // Adjust margins to make sure the edit button is vertically centered with the
   // first line in the address components view.
-  int label_line_height = views::style::GetLineHeight(
+  int label_line_height = views::TypographyProvider::Get().GetLineHeight(
       views::style::CONTEXT_LABEL, views::style::STYLE_PRIMARY);
   for (views::ImageView* icon_view : address_section_icons_) {
     DCHECK(icon_view);
@@ -364,5 +365,9 @@ void SaveAddressProfileView::AlignIcons() {
                               gfx::Insets::VH(-height_difference, 0));
   }
 }
+
+DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(SaveAddressProfileView, kTopViewId);
+DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(SaveAddressProfileView,
+                                      kEditButtonViewId);
 
 }  // namespace autofill

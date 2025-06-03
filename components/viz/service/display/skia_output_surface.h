@@ -11,11 +11,11 @@
 
 #include "build/build_config.h"
 #include "components/viz/common/quads/aggregated_render_pass.h"
-#include "components/viz/common/resources/resource_format.h"
 #include "components/viz/common/resources/resource_id.h"
 #include "components/viz/service/display/external_use_client.h"
 #include "components/viz/service/display/output_surface.h"
 #include "components/viz/service/display/overlay_processor_interface.h"
+#include "components/viz/service/display/render_pass_alpha_type.h"
 #include "third_party/skia/include/core/SkRefCnt.h"
 #include "third_party/skia/include/core/SkYUVAInfo.h"
 #include "ui/gfx/gpu_fence_handle.h"
@@ -54,7 +54,7 @@ class VIZ_SERVICE_EXPORT SkiaOutputSurface : public OutputSurface,
  public:
   using OverlayList = std::vector<OverlayCandidate>;
 
-  explicit SkiaOutputSurface(OutputSurface::Type type);
+  SkiaOutputSurface();
 
   SkiaOutputSurface(const SkiaOutputSurface&) = delete;
   SkiaOutputSurface& operator=(const SkiaOutputSurface&) = delete;
@@ -64,7 +64,7 @@ class VIZ_SERVICE_EXPORT SkiaOutputSurface : public OutputSurface,
   SkiaOutputSurface* AsSkiaOutputSurface() override;
 
   // Begin painting the current frame. This method will create a
-  // SkDeferredDisplayListRecorder and return a SkCanvas of it.
+  // GrDeferredDisplayListRecorder and return a SkCanvas of it.
   // The SkiaRenderer will use this SkCanvas to paint the current
   // frame.
   // And this SkCanvas may become invalid, when FinishPaintCurrentFrame is
@@ -101,13 +101,14 @@ class VIZ_SERVICE_EXPORT SkiaOutputSurface : public OutputSurface,
           output_surface_plane) = 0;
 
   // Begin painting a render pass. This method will create a
-  // SkDeferredDisplayListRecorder and return a SkCanvas of it. The SkiaRenderer
+  // GrDeferredDisplayListRecorder and return a SkCanvas of it. The SkiaRenderer
   // will use this SkCanvas to paint the render pass.
   // Note: BeginPaintRenderPass cannot be called without finishing the prior
   // paint render pass.
   virtual SkCanvas* BeginPaintRenderPass(const AggregatedRenderPassId& id,
                                          const gfx::Size& size,
                                          SharedImageFormat format,
+                                         RenderPassAlphaType alpha_type,
                                          bool mipmap,
                                          bool scanout_dcomp_surface,
                                          sk_sp<SkColorSpace> color_space,
@@ -183,6 +184,9 @@ class VIZ_SERVICE_EXPORT SkiaOutputSurface : public OutputSurface,
   virtual void ScheduleGpuTaskForTesting(
       base::OnceClosure callback,
       std::vector<gpu::SyncToken> sync_tokens) = 0;
+  // TODO(crbug.com/1474022): tests should not need to poll for async work
+  // completion.
+  virtual void CheckAsyncWorkCompletionForTesting() = 0;
 
   // Android specific, asks GLSurfaceEGLSurfaceControl to not detach child
   // surface controls during destruction. This is necessary for cases when we
@@ -202,11 +206,11 @@ class VIZ_SERVICE_EXPORT SkiaOutputSurface : public OutputSurface,
 
   // Enqueue a GPU task to create a shared image with the specified params and
   // returns the mailbox.
-  // Note: |kTopLeft_GrSurfaceOrigin| and |kPremul_SkAlphaType| params are used
-  // for all images.
+  // Note: |kTopLeft_GrSurfaceOrigin| is used for all images.
   virtual gpu::Mailbox CreateSharedImage(SharedImageFormat format,
                                          const gfx::Size& size,
                                          const gfx::ColorSpace& color_space,
+                                         RenderPassAlphaType alpha_type,
                                          uint32_t usage,
                                          base::StringPiece debug_label,
                                          gpu::SurfaceHandle surface_handle) = 0;
@@ -218,6 +222,8 @@ class VIZ_SERVICE_EXPORT SkiaOutputSurface : public OutputSurface,
 
   // Enqueue a GPU task to delete the specified shared image.
   virtual void DestroySharedImage(const gpu::Mailbox& mailbox) = 0;
+
+  virtual bool SupportsBGRA() const = 0;
 };
 
 }  // namespace viz

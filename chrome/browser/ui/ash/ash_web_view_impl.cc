@@ -83,6 +83,14 @@ void AshWebViewImpl::Navigate(const GURL& url) {
   web_contents_->GetController().LoadURLWithParams(params);
 }
 
+const GURL& AshWebViewImpl::GetVisibleURL() {
+  return web_contents_->GetVisibleURL();
+}
+
+bool AshWebViewImpl::IsErrorDocument() {
+  return web_contents_->GetPrimaryMainFrame()->IsErrorDocument();
+}
+
 views::View* AshWebViewImpl::GetInitiallyFocusedView() {
   return web_view_;
 }
@@ -219,9 +227,10 @@ void AshWebViewImpl::NavigationEntriesDeleted() {
 }
 
 void AshWebViewImpl::InitWebContents(Profile* profile) {
-  web_contents_ =
-      content::WebContents::Create(content::WebContents::CreateParams(
-          profile, content::SiteInstance::Create(profile)));
+  auto web_contents_params = content::WebContents::CreateParams(
+      profile, content::SiteInstance::Create(profile));
+  web_contents_params.enable_wake_locks = params_.enable_wake_locks;
+  web_contents_ = content::WebContents::Create(web_contents_params);
 
   web_contents_->SetDelegate(this);
   Observe(web_contents_.get());
@@ -243,6 +252,7 @@ void AshWebViewImpl::InitWebContents(Profile* profile) {
 
 void AshWebViewImpl::InitLayout(Profile* profile) {
   web_view_ = AddChildView(std::make_unique<views::WebView>(profile));
+  web_view_->SetID(ash::kAshWebViewChildWebViewId);
   web_view_->SetWebContents(web_contents_.get());
 }
 

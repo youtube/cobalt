@@ -21,15 +21,15 @@ TestCreditCardFidoAuthenticator::TestCreditCardFidoAuthenticator(
 TestCreditCardFidoAuthenticator::~TestCreditCardFidoAuthenticator() = default;
 
 void TestCreditCardFidoAuthenticator::Authenticate(
-    const CreditCard* card,
+    CreditCard card,
     base::WeakPtr<Requester> requester,
     base::Value::Dict request_options,
     absl::optional<std::string> context_token) {
   authenticate_invoked_ = true;
-  card_ = *card;
+  card_ = std::move(card);
   context_token_ = context_token;
   CreditCardFidoAuthenticator::Authenticate(
-      card, requester, std::move(request_options), context_token);
+      *card_, requester, std::move(request_options), context_token);
 }
 
 void TestCreditCardFidoAuthenticator::GetAssertion(
@@ -57,6 +57,8 @@ void TestCreditCardFidoAuthenticator::GetAssertion(
     blink::mojom::GetAssertionAuthenticatorResponsePtr response =
         blink::mojom::GetAssertionAuthenticatorResponse::New();
     response->info = blink::mojom::CommonCredentialInfo::New();
+    response->extensions =
+        blink::mojom::AuthenticationExtensionsClientOutputs::New();
     fido_authenticator->OnDidGetAssertion(
         blink::mojom::AuthenticatorStatus::SUCCESS, std::move(response),
         /*dom_exception_details=*/nullptr);

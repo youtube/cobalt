@@ -46,8 +46,7 @@ class CreditCardOtpAuthenticatorTestBase : public testing::Test {
                                 /*history_service=*/nullptr,
                                 /*sync_service=*/nullptr,
                                 /*strike_database=*/nullptr,
-                                /*image_fetcher=*/nullptr,
-                                /*is_off_the_record=*/false);
+                                /*image_fetcher=*/nullptr);
     personal_data_manager_.SetPrefService(autofill_client_.GetPrefs());
 
     requester_ = std::make_unique<TestAuthenticationRequester>();
@@ -61,7 +60,7 @@ class CreditCardOtpAuthenticatorTestBase : public testing::Test {
         std::make_unique<CreditCardOtpAuthenticator>(&autofill_client_);
 
     card_ = test::GetMaskedServerCard();
-    card_.set_record_type(CreditCard::VIRTUAL_CARD);
+    card_.set_record_type(CreditCard::RecordType::kVirtualCard);
   }
 
   void TearDown() override {
@@ -180,6 +179,10 @@ TEST_P(CreditCardOtpAuthenticatorTest, AuthenticateServerCardSuccess) {
   // TestPaymentsClient just stores the unmask request detail, won't invoke the
   // callback. OnDidGetRealPan below will manually invoke the callback.
   authenticator_->OnUnmaskPromptAccepted(/*otp=*/u"111111");
+  // Verify the selected challenge option is correctly set in
+  // UnmaskRequestDetails.
+  EXPECT_EQ(payments_client_->unmask_request()->selected_challenge_option->id,
+            selected_otp_challenge_option_.id);
   // Verify that the otp is correctly set in UnmaskRequestDetails.
   EXPECT_EQ(payments_client_->unmask_request()->otp, u"111111");
   // Also verify that risk data is set in UnmaskRequestDetails.
@@ -224,7 +227,7 @@ TEST_P(CreditCardOtpAuthenticatorTest, SelectChallengeOptionFailsWithVcnError) {
       /*context_token=*/"context_token_from_previous_unmask_response",
       kTestBillingCustomerNumber);
   // Verify error dialog is shown.
-  EXPECT_TRUE(autofill_client_.virtual_card_error_dialog_shown());
+  EXPECT_TRUE(autofill_client_.autofill_error_dialog_shown());
   // Ensure the OTP authenticator is reset.
   EXPECT_TRUE(OtpAuthenticatorContextToken().empty());
   ASSERT_TRUE(requester_->did_succeed().has_value());
@@ -264,7 +267,7 @@ TEST_P(CreditCardOtpAuthenticatorTest,
       /*context_token=*/"context_token_from_previous_unmask_response",
       kTestBillingCustomerNumber);
   // Verify error dialog is shown.
-  EXPECT_TRUE(autofill_client_.virtual_card_error_dialog_shown());
+  EXPECT_TRUE(autofill_client_.autofill_error_dialog_shown());
   // Ensure the OTP authenticator is reset.
   EXPECT_TRUE(OtpAuthenticatorContextToken().empty());
   ASSERT_TRUE(requester_->did_succeed().has_value());
@@ -308,7 +311,7 @@ TEST_P(CreditCardOtpAuthenticatorTest, OtpAuthServerVcnError) {
         AutofillClient::PaymentsRpcResult::kVcnRetrievalTryAgainFailure,
         /*real_pan=*/"", server_returned_decline_details);
     // Verify error dialog is shown.
-    EXPECT_TRUE(autofill_client_.virtual_card_error_dialog_shown());
+    EXPECT_TRUE(autofill_client_.autofill_error_dialog_shown());
     if (server_returned_decline_details) {
       AutofillErrorDialogContext context =
           autofill_client_.autofill_error_dialog_context();
@@ -364,7 +367,7 @@ TEST_P(CreditCardOtpAuthenticatorTest, OtpAuthServerNonVcnError) {
   OnDidGetRealPan(AutofillClient::PaymentsRpcResult::kTryAgainFailure,
                   /*real_pan=*/"");
   // Verify error dialog is shown.
-  EXPECT_TRUE(autofill_client_.virtual_card_error_dialog_shown());
+  EXPECT_TRUE(autofill_client_.autofill_error_dialog_shown());
   // Ensure the OTP authenticator is reset.
   EXPECT_TRUE(OtpAuthenticatorContextToken().empty());
   ASSERT_TRUE(requester_->did_succeed().has_value());
@@ -404,6 +407,10 @@ TEST_P(CreditCardOtpAuthenticatorTest, OtpAuthMismatchThenRetry) {
   // TestPaymentsClient just stores the unmask request detail, won't invoke the
   // callback. OnDidGetRealPan below will manually invoke the callback.
   authenticator_->OnUnmaskPromptAccepted(/*otp=*/u"222222");
+  // Verify the selected challenge option is correctly set in
+  // UnmaskRequestDetails.
+  EXPECT_EQ(payments_client_->unmask_request()->selected_challenge_option->id,
+            selected_otp_challenge_option_.id);
   // Verify that the otp is correctly set in UnmaskRequestDetails.
   EXPECT_EQ(payments_client_->unmask_request()->otp, u"222222");
   // Also verify that risk data is set in UnmaskRequestDetails.
@@ -475,6 +482,10 @@ TEST_P(CreditCardOtpAuthenticatorTest, OtpAuthExpiredThenResendOtp) {
   // TestPaymentsClient just stores the unmask request detail, won't invoke the
   // callback. OnDidGetRealPan below will manually invoke the callback.
   authenticator_->OnUnmaskPromptAccepted(/*otp=*/u"4444444");
+  // Verify the selected challenge option is correctly set in
+  // UnmaskRequestDetails.
+  EXPECT_EQ(payments_client_->unmask_request()->selected_challenge_option->id,
+            selected_otp_challenge_option_.id);
   // Verify that the otp is correctly set in UnmaskRequestDetails.
   EXPECT_EQ(payments_client_->unmask_request()->otp, u"4444444");
   // Also verify that risk data is set in UnmaskRequestDetails.
@@ -638,6 +649,10 @@ TEST_P(CreditCardOtpAuthenticatorCardMetadataTest, MetadataSignal) {
   // TestPaymentsClient just stores the unmask request detail, won't invoke
   // the callback. OnDidGetRealPan below will manually invoke the callback.
   authenticator_->OnUnmaskPromptAccepted(/*otp=*/u"111111");
+  // Verify the selected challenge option is correctly set in
+  // UnmaskRequestDetails.
+  EXPECT_EQ(payments_client_->unmask_request()->selected_challenge_option->id,
+            selected_otp_challenge_option_.id);
   // Verify that the otp is correctly set in UnmaskRequestDetails.
   EXPECT_EQ(payments_client_->unmask_request()->otp, u"111111");
   // Also verify that risk data is set in UnmaskRequestDetails.

@@ -33,7 +33,7 @@ class ProgramPipeline;
 class ProgramPipelineState final : angle::NonCopyable
 {
   public:
-    ProgramPipelineState();
+    ProgramPipelineState(rx::GLImplFactory *factory);
     ~ProgramPipelineState();
 
     const std::string &getLabel() const;
@@ -44,29 +44,42 @@ class ProgramPipelineState final : angle::NonCopyable
         return *mExecutable;
     }
 
+    const SharedProgramExecutable &getSharedExecutable() const
+    {
+        ASSERT(mExecutable);
+        return mExecutable;
+    }
+
     void activeShaderProgram(Program *shaderProgram);
     void useProgramStages(const Context *context,
                           const gl::ShaderBitSet &shaderTypes,
                           Program *shaderProgram,
-                          std::vector<angle::ObserverBinding> *programObserverBindings);
+                          std::vector<angle::ObserverBinding> *programObserverBindings,
+                          std::vector<angle::ObserverBinding> *programExecutableObserverBindings);
 
     Program *getActiveShaderProgram() { return mActiveShaderProgram; }
 
     GLboolean isValid() const { return mValid; }
 
     const Program *getShaderProgram(ShaderType shaderType) const { return mPrograms[shaderType]; }
+    const SharedProgramExecutable &getShaderProgramExecutable(ShaderType shaderType) const
+    {
+        return mProgramExecutables[shaderType];
+    }
 
     bool usesShaderProgram(ShaderProgramID program) const;
 
     void updateExecutableTextures();
 
-    rx::SpecConstUsageBits getSpecConstUsageBits() const;
+    void updateExecutableSpecConstUsageBits();
 
   private:
     void useProgramStage(const Context *context,
                          ShaderType shaderType,
                          Program *shaderProgram,
-                         angle::ObserverBinding *programObserverBindings);
+                         angle::ObserverBinding *programObserverBinding,
+                         angle::ObserverBinding *programExecutableObserverBinding);
+    void destroyDiscardedExecutables(const Context *context);
 
     friend class ProgramPipeline;
 
@@ -77,9 +90,28 @@ class ProgramPipelineState final : angle::NonCopyable
     // The shader programs for each stage.
     ShaderMap<Program *> mPrograms;
 
+    // Installed executables from the programs.  Note that these may be different from the programs'
+    // current executables, because they may have been unsuccessfully relinked.
+    ShaderMap<SharedProgramExecutable> mProgramExecutables;
+
+    // A list of executables to be garbage collected.  This is populated as the pipeline is
+    // notified about program relinks, but cannot immediately destroy the old executables due to
+    // lack of access to context.
+    //
+    // TODO: add a test where program is bound to PPO.  Then Program is linked successfully, then
+    // again linked unsuccessfully.  Using the PPO should use the executable from the successful
+    // link.
+    //
+    // TODO: add a test where program is bound to PPO.  Then Program is linked successfully 2x, then
+    // again linked unsuccessfully.  Using the PPO should use the executable from the second
+    // successful link.  This is to make sure we can support discarding an existing
+    std::vector<SharedProgramExecutable> mProgramExecutablesToDiscard;
+
     GLboolean mValid;
 
-    ProgramExecutable *mExecutable;
+    InfoLog mInfoLog;
+
+    SharedProgramExecutable mExecutable;
 
     bool mIsLinked;
 };
@@ -102,6 +134,10 @@ class ProgramPipeline final : public RefCountObject<ProgramPipelineID>,
     ProgramPipelineState &getState() { return mState; }
 
     ProgramExecutable &getExecutable() const { return mState.getExecutable(); }
+    const SharedProgramExecutable &getSharedExecutable() const
+    {
+        return mState.getSharedExecutable();
+    }
 
     rx::ProgramPipelineImpl *getImplementation() const;
 
@@ -121,10 +157,23 @@ class ProgramPipeline final : public RefCountObject<ProgramPipelineID>,
                                    GLbitfield stages,
                                    Program *shaderProgram);
 
-    Program *getShaderProgram(ShaderType shaderType) const { return mState.mPrograms[shaderType]; }
+    const Program *getShaderProgram(ShaderType shaderType) const
+    {
+        return mState.getShaderProgram(shaderType);
+    }
+    const SharedProgramExecutable &getShaderProgramExecutable(ShaderType shaderType) const
+    {
+        return mState.getShaderProgramExecutable(shaderType);
+    }
 
     void resetIsLinked() { mState.mIsLinked = false; }
     angle::Result link(const gl::Context *context);
+
+    InfoLog &getInfoLog() { return mState.mInfoLog; }
+    int getInfoLogLength() const;
+    void getInfoLog(GLsizei bufSize, GLsizei *length, char *infoLog) const;
+
+    angle::Result syncState(const Context *context);
 
     // Ensure program pipeline is linked. Inlined to make sure its overhead is as low as possible.
     void resolveLink(const Context *context)
@@ -135,6 +184,7 @@ class ProgramPipeline final : public RefCountObject<ProgramPipelineID>,
             return;
         }
 
+        resolveAttachedPrograms(context);
         angle::Result linkResult = link(context);
         if (linkResult != angle::Result::Continue)
         {
@@ -143,16 +193,18 @@ class ProgramPipeline final : public RefCountObject<ProgramPipelineID>,
         }
         return;
     }
+    void resolveAttachedPrograms(const Context *context);
 
     void validate(const gl::Context *context);
     GLboolean isValid() const { return mState.isValid(); }
     bool isLinked() const { return mState.mIsLinked; }
 
+    void onUniformBufferStateChange(size_t uniformBufferIndex);
     // ObserverInterface implementation.
     void onSubjectStateChange(angle::SubjectIndex index, angle::SubjectMessage message) override;
 
   private:
-    bool linkVaryings(InfoLog &infoLog) const;
+    bool linkVaryings();
     void updateLinkedShaderStages();
     void updateExecutableAttributes();
     void updateTransformFeedbackMembers();
@@ -169,6 +221,7 @@ class ProgramPipeline final : public RefCountObject<ProgramPipelineID>,
     ProgramPipelineState mState;
 
     std::vector<angle::ObserverBinding> mProgramObserverBindings;
+    std::vector<angle::ObserverBinding> mProgramExecutableObserverBindings;
     angle::ObserverBinding mExecutableObserverBinding;
 };
 }  // namespace gl

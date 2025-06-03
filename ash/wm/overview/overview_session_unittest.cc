@@ -17,14 +17,15 @@
 #include "ash/app_list/app_list_controller_impl.h"
 #include "ash/constants/app_types.h"
 #include "ash/constants/ash_features.h"
+#include "ash/constants/ash_pref_names.h"
 #include "ash/display/screen_orientation_controller.h"
 #include "ash/display/screen_orientation_controller_test_api.h"
-#include "ash/drag_drop/drag_drop_controller.h"
 #include "ash/frame_throttler/frame_throttling_controller.h"
 #include "ash/frame_throttler/mock_frame_throttling_observer.h"
 #include "ash/public/cpp/shelf_config.h"
 #include "ash/public/cpp/test/shell_test_api.h"
 #include "ash/public/cpp/window_properties.h"
+#include "ash/root_window_controller.h"
 #include "ash/screen_util.h"
 #include "ash/shelf/shelf.h"
 #include "ash/shelf/shelf_view_test_api.h"
@@ -32,30 +33,32 @@
 #include "ash/style/close_button.h"
 #include "ash/style/rounded_label_widget.h"
 #include "ash/test/ash_test_base.h"
-#include "ash/test/ash_test_util.h"
+#include "ash/test/raster_scale_change_tracker.h"
 #include "ash/test/test_window_builder.h"
+#include "ash/wm/desks/cros_next_desk_icon_button.h"
 #include "ash/wm/desks/desk.h"
+#include "ash/wm/desks/desk_action_view.h"
 #include "ash/wm/desks/desks_constants.h"
 #include "ash/wm/desks/desks_test_util.h"
 #include "ash/wm/desks/desks_util.h"
 #include "ash/wm/desks/legacy_desk_bar_view.h"
 #include "ash/wm/desks/templates/saved_desk_save_desk_button.h"
 #include "ash/wm/desks/templates/saved_desk_util.h"
-#include "ash/wm/desks/zero_state_button.h"
-#include "ash/wm/drag_window_resizer.h"
 #include "ash/wm/gestures/back_gesture/back_gesture_event_handler.h"
+#include "ash/wm/gestures/wm_gesture_handler.h"
 #include "ash/wm/mru_window_tracker.h"
 #include "ash/wm/overview/overview_constants.h"
 #include "ash/wm/overview/overview_controller.h"
+#include "ash/wm/overview/overview_drop_target.h"
+#include "ash/wm/overview/overview_focus_cycler.h"
 #include "ash/wm/overview/overview_grid.h"
 #include "ash/wm/overview/overview_grid_event_handler.h"
-#include "ash/wm/overview/overview_highlight_controller.h"
 #include "ash/wm/overview/overview_item.h"
+#include "ash/wm/overview/overview_item_base.h"
 #include "ash/wm/overview/overview_item_view.h"
 #include "ash/wm/overview/overview_test_base.h"
 #include "ash/wm/overview/overview_test_util.h"
 #include "ash/wm/overview/overview_utils.h"
-#include "ash/wm/overview/overview_wallpaper_controller.h"
 #include "ash/wm/overview/overview_window_drag_controller.h"
 #include "ash/wm/overview/scoped_overview_transform_window.h"
 #include "ash/wm/resize_shadow.h"
@@ -66,6 +69,8 @@
 #include "ash/wm/splitview/split_view_utils.h"
 #include "ash/wm/tablet_mode/tablet_mode_controller.h"
 #include "ash/wm/tablet_mode/tablet_mode_controller_test_api.h"
+#include "ash/wm/test/fake_window_state.h"
+#include "ash/wm/window_mini_view_header_view.h"
 #include "ash/wm/window_preview_view.h"
 #include "ash/wm/window_state.h"
 #include "ash/wm/window_state_delegate.h"
@@ -73,20 +78,18 @@
 #include "ash/wm/wm_event.h"
 #include "ash/wm/workspace/workspace_window_resizer.h"
 #include "base/containers/contains.h"
-#include "base/containers/cxx20_erase.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
-#include "base/ranges/algorithm.h"
 #include "base/run_loop.h"
 #include "base/strings/stringprintf.h"
-#include "base/strings/utf_string_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/metrics/user_action_tester.h"
 #include "base/test/scoped_feature_list.h"
+#include "base/test/to_vector.h"
 #include "base/time/time.h"
-#include "chromeos/ui/wm/features.h"
+#include "chromeos/constants/chromeos_features.h"
+#include "chromeos/ui/base/window_state_type.h"
 #include "ui/aura/client/aura_constants.h"
-#include "ui/aura/client/window_types.h"
 #include "ui/aura/test/test_window_delegate.h"
 #include "ui/aura/window.h"
 #include "ui/aura/window_event_dispatcher.h"
@@ -97,6 +100,7 @@
 #include "ui/compositor/layer_animation_sequence.h"
 #include "ui/compositor/scoped_animation_duration_scale_mode.h"
 #include "ui/compositor/test/draw_waiter_for_test.h"
+#include "ui/compositor/test/layer_animation_stopped_waiter.h"
 #include "ui/compositor/test/layer_animator_test_controller.h"
 #include "ui/compositor/test/test_utils.h"
 #include "ui/display/display_layout.h"
@@ -105,10 +109,11 @@
 #include "ui/events/event_utils.h"
 #include "ui/events/gesture_detection/gesture_configuration.h"
 #include "ui/events/test/event_generator.h"
-#include "ui/gfx/geometry/insets_f.h"
 #include "ui/gfx/geometry/point_conversions.h"
 #include "ui/gfx/geometry/transform.h"
 #include "ui/gfx/geometry/transform_util.h"
+#include "ui/gfx/geometry/vector2d.h"
+#include "ui/views/controls/button/label_button.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/widget/widget.h"
 #include "ui/wm/core/coordinate_conversion.h"
@@ -187,6 +192,24 @@ class TestDestroyedWidgetObserver : public views::WidgetObserver {
       this};
 };
 
+void CombineDesksViaMiniView(const DeskMiniView* desk_mini_view,
+                             ui::test::EventGenerator* event_generator) {
+  CHECK(desk_mini_view);
+
+  // Move to the center of the mini view so that the combine button shows up.
+  const gfx::Point mini_view_center =
+      desk_mini_view->GetBoundsInScreen().CenterPoint();
+  event_generator->MoveMouseTo(mini_view_center);
+  const DeskActionView* desk_action_view = desk_mini_view->desk_action_view();
+  auto* combine_button = desk_action_view->combine_desks_button();
+  EXPECT_TRUE(combine_button->GetVisible());
+
+  // Move to the center of the combine button and click.
+  event_generator->MoveMouseTo(
+      combine_button->GetBoundsInScreen().CenterPoint());
+  event_generator->ClickLeftButton();
+}
+
 }  // namespace
 
 class OverviewSessionTest : public OverviewTestBase,
@@ -211,6 +234,59 @@ class OverviewSessionTest : public OverviewTestBase,
     OverviewTestBase::SetUp();
   }
 
+  float ExpectedRasterScale(aura::Window* window,
+                            gfx::Rect start_bounds,
+                            bool window_grows) {
+    auto* item = GetOverviewItemForWindow(window);
+    CHECK(item);
+
+    // If the window is minimized, the widget size is changed. Otherwise, it's
+    // transformed via the transform window. Use the target bounds if it's not
+    // minimized. If it's minimized, it won't have its size animated so it's
+    // safe to look at the item view size.
+    auto end_bounds = window->layer()->GetTargetTransform().MapRect(
+        gfx::RectF(window->GetTargetBounds()));
+
+    if (WindowState::Get(window)->IsMinimized()) {
+      const auto insets = gfx::Insets::TLBR(
+          window->GetProperty(aura::client::kTopViewInset), 0, 0, 0);
+      start_bounds.Inset(insets);
+      const auto size = item->GetLeafItemForWindow(window)
+                            ->overview_item_view()
+                            ->GetPreviewViewSize();
+      end_bounds = gfx::RectF(gfx::Rect(size));
+    }
+
+    auto transform = gfx::TransformBetweenRects(gfx::RectF(start_bounds),
+                                                gfx::RectF(end_bounds));
+    auto scale_2d = transform.To2dScale();
+    auto scale = std::max(scale_2d.x(), scale_2d.y());
+    // Specify 1.0's manually, since they are easy to know, and we want to
+    // minimize the amount of extra computation for raster scale expectations.
+    EXPECT_NE(1.0f, scale);
+    if (window_grows) {
+      EXPECT_GT(scale, 1.0);
+    } else {
+      EXPECT_LT(scale, 1.0);
+    }
+    return scale;
+  }
+
+  void MinimizeAndCheckWindow(aura::Window* window) {
+    WMEvent minimize_event(WM_EVENT_MINIMIZE);
+    WindowState::Get(window)->OnWMEvent(&minimize_event);
+    EXPECT_FALSE(window->IsVisible());
+    EXPECT_EQ(0.f, window->layer()->GetTargetOpacity());
+    ASSERT_TRUE(WindowState::Get(window)->IsMinimized());
+  }
+
+  void MaximizeAndCheckWindow(aura::Window* window) {
+    WMEvent maximize_event(WM_EVENT_MAXIMIZE);
+    WindowState::Get(window)->OnWMEvent(&maximize_event);
+    EXPECT_TRUE(window->IsVisible());
+    ASSERT_TRUE(WindowState::Get(window)->IsMaximized());
+  }
+
  private:
   base::test::ScopedFeatureList scoped_feature_list_;
 };
@@ -229,8 +305,8 @@ TEST_P(OverviewSessionTest, CloseButtonDisabledOnDrag) {
   ASSERT_FALSE(widget1->IsClosed());
   ASSERT_FALSE(widget2->IsClosed());
 
-  OverviewItem* item1 = GetOverviewItemForWindow(window1);
-  OverviewItem* item2 = GetOverviewItemForWindow(window2);
+  auto* item1 = GetOverviewItemForWindow(window1);
+  auto* item2 = GetOverviewItemForWindow(window2);
 
   // Get location of close button on `window1` before drag.
   const gfx::Point item1_close_button_position =
@@ -238,12 +314,20 @@ TEST_P(OverviewSessionTest, CloseButtonDisabledOnDrag) {
 
   // Drag `window1` in overview to trigger drag animations.
   GetEventGenerator()->PressTouchId(
-      /*touch_id=*/0, item1->GetBoundsOfSelectedItem().CenterPoint());
+      /*touch_id=*/0,
+      gfx::ToRoundedPoint(item1->GetTransformedBounds().CenterPoint()));
   GetEventGenerator()->MoveTouchIdBy(/*touch_id=*/0, -100, 0);
 
-  // Make sure the drag event triggered the fade animations.
-  EXPECT_EQ(0.f, GetTitlebarOpacity(item1));
-  EXPECT_EQ(1.f, GetCloseButtonOpacity(item1));
+  if (chromeos::features::IsJellyEnabled()) {
+    // When Jellyroll is enabled, we show the title and hide the close button
+    // only for the overview item being dragged.
+    EXPECT_EQ(1.f, GetTitlebarOpacity(item1));
+    EXPECT_EQ(0.f, GetCloseButtonOpacity(item1));
+  } else {
+    // Make sure the drag event triggered the fade animations.
+    EXPECT_EQ(0.f, GetTitlebarOpacity(item1));
+    EXPECT_EQ(1.f, GetCloseButtonOpacity(item1));
+  }
   EXPECT_EQ(1.f, GetTitlebarOpacity(item2));
   EXPECT_EQ(0.f, GetCloseButtonOpacity(item2));
 
@@ -288,8 +372,8 @@ TEST_P(OverviewSessionTest, CloseButtonEnabledOnSnap) {
 
   ToggleOverview();
 
-  OverviewItem* item1 = GetOverviewItemForWindow(window1.get());
-  OverviewItem* item2 = GetOverviewItemForWindow(window2);
+  auto* item1 = GetOverviewItemForWindow(window1.get());
+  auto* item2 = GetOverviewItemForWindow(window2);
 
   ASSERT_FALSE(widget2->IsClosed());
 
@@ -298,7 +382,8 @@ TEST_P(OverviewSessionTest, CloseButtonEnabledOnSnap) {
   // Snap `window1` to the left side of the screen while in
   // overview.
   GetEventGenerator()->PressTouchId(
-      /*touch_id=*/0, item1->GetBoundsOfSelectedItem().CenterPoint());
+      /*touch_id=*/0,
+      gfx::ToRoundedPoint(item1->GetTransformedBounds().CenterPoint()));
 
   GetEventGenerator()->MoveTouchId(gfx::Point(0, 0), /*touch_id=*/0);
 
@@ -453,7 +538,7 @@ TEST_P(OverviewSessionTest, WindowsOrder) {
   // The order of windows in overview mode is MRU.
   WindowState::Get(window1.get())->Activate();
   ToggleOverview();
-  const std::vector<std::unique_ptr<OverviewItem>>& overview1 =
+  const std::vector<std::unique_ptr<OverviewItemBase>>& overview1 =
       GetOverviewItemsForRoot(0);
   EXPECT_EQ(1, overview1[0]->GetWindow()->GetId());
   EXPECT_EQ(3, overview1[1]->GetWindow()->GetId());
@@ -463,7 +548,7 @@ TEST_P(OverviewSessionTest, WindowsOrder) {
   // Activate the second window.
   WindowState::Get(window2.get())->Activate();
   ToggleOverview();
-  const std::vector<std::unique_ptr<OverviewItem>>& overview2 =
+  const std::vector<std::unique_ptr<OverviewItemBase>>& overview2 =
       GetOverviewItemsForRoot(0);
 
   // The order should be MRU.
@@ -528,11 +613,11 @@ TEST_P(OverviewSessionTest, ActiveWindowChangedUserActionRecorded) {
   EXPECT_EQ(
       2, user_action_tester.GetActionCount(kActiveWindowChangedFromOverview));
 
-  // Highlight |window2| using the arrow keys. Activate it (and exit overview)
-  // by pressing the return key.
+  // Focus `window2` using the arrow keys. Activate it (and exit overview) by
+  // pressing the return key.
   wm::ActivateWindow(window1.get());
   ToggleOverview();
-  ASSERT_TRUE(HighlightOverviewWindow(window2.get()));
+  ASSERT_TRUE(FocusOverviewWindow(window2.get()));
   SendKey(ui::VKEY_RETURN);
   EXPECT_EQ(
       3, user_action_tester.GetActionCount(kActiveWindowChangedFromOverview));
@@ -565,7 +650,7 @@ TEST_P(OverviewSessionTest, ActiveWindowChangedUserActionNotRecorded) {
   // |window1| remains active. Select using the keyboard.
   ASSERT_EQ(window1.get(), window_util::GetFocusedWindow());
   ToggleOverview();
-  ASSERT_TRUE(HighlightOverviewWindow(window1.get()));
+  ASSERT_TRUE(FocusOverviewWindow(window1.get()));
   SendKey(ui::VKEY_RETURN);
   EXPECT_EQ(
       0, user_action_tester.GetActionCount(kActiveWindowChangedFromOverview));
@@ -735,7 +820,7 @@ TEST_P(OverviewSessionTest, CloseAnimationShadow) {
   ShellTestApi().WaitForOverviewAnimationState(
       OverviewAnimationState::kEnterAnimationComplete);
   // Click the close button.
-  OverviewItem* item = GetOverviewItemForWindow(widget->GetNativeWindow());
+  auto* item = GetOverviewItemForWindow(widget->GetNativeWindow());
   const gfx::Point point =
       GetCloseButton(item)->GetBoundsInScreen().CenterPoint();
   GetEventGenerator()->set_current_screen_location(point);
@@ -744,7 +829,7 @@ TEST_P(OverviewSessionTest, CloseAnimationShadow) {
   ASSERT_TRUE(InOverviewSession());
 
   // The shadow bounds are empty, which means its not visible.
-  EXPECT_EQ(gfx::Rect(), item->GetShadowBoundsForTesting());
+  EXPECT_EQ(gfx::Rect(), GetShadowBounds(item));
 }
 
 // Tests minimizing/unminimizing in overview mode.
@@ -785,7 +870,7 @@ TEST_P(OverviewSessionTest, CloseButtonOnMultipleDisplay) {
 
   ToggleOverview();
   gfx::Rect bounds = GetTransformedBoundsInRootWindow(window2);
-  gfx::Point point(bounds.right() - 5, bounds.y() + 5);
+  gfx::Point point(bounds.right() - 15, bounds.y() + 15);
   ui::test::EventGenerator event_generator(window2->GetRootWindow(), point);
 
   EXPECT_FALSE(widget->IsClosed());
@@ -793,12 +878,27 @@ TEST_P(OverviewSessionTest, CloseButtonOnMultipleDisplay) {
   EXPECT_TRUE(widget->IsClosed());
 }
 
-// Tests entering overview mode with two windows and selecting one.
-// TODO(crbug.com/1323145): Flaky.
-TEST_P(OverviewSessionTest, DISABLED_FullscreenWindow) {
-  ui::ScopedAnimationDurationScaleMode anmatin_scale(
-      ui::ScopedAnimationDurationScaleMode::NON_ZERO_DURATION);
+// Tests that dragging an overview item with multiple displays and then exiting
+// overview does not result in a u-a-f. Regression test for b/293867778.
+TEST_P(OverviewSessionTest, DraggingOnMultipleDisplay) {
+  UpdateDisplay("600x400,600x400");
 
+  auto window = CreateAppWindow();
+
+  ToggleOverview();
+  auto* generator = GetEventGenerator();
+  auto* item = GetOverviewItemForWindow(window.get());
+  generator->set_current_screen_location(
+      gfx::ToRoundedPoint(item->target_bounds().CenterPoint()));
+  generator->PressLeftButton();
+  generator->MoveMouseBy(20, 20);
+
+  // Exit overview without completing the drag.
+  ToggleOverview();
+}
+
+// Tests entering overview mode with two windows and selecting one.
+TEST_P(OverviewSessionTest, FullscreenWindow) {
   std::unique_ptr<aura::Window> window1(CreateTestWindow());
   std::unique_ptr<aura::Window> window2(CreateTestWindow());
   wm::ActivateWindow(window1.get());
@@ -809,34 +909,20 @@ TEST_P(OverviewSessionTest, DISABLED_FullscreenWindow) {
 
   // Enter overview and select the fullscreen window.
   ToggleOverview();
-  WaitForOverviewEnterAnimation();
-  CheckOverviewEnterExitHistogram("FullscreenWindowEnter1", {0, 1, 0, 0, 0},
-                                  {0, 0, 0, 0, 0});
   ClickWindow(window1.get());
-  WaitForOverviewExitAnimation();
+  ASSERT_FALSE(InOverviewSession());
   EXPECT_TRUE(WindowState::Get(window1.get())->IsFullscreen());
-  CheckOverviewEnterExitHistogram("FullscreenWindowExit1", {0, 1, 0, 0, 0},
-                                  {0, 1, 0, 0, 0});
 
   // Entering overview and selecting another window, the previous window remains
   // fullscreen.
   ToggleOverview();
-  WaitForOverviewEnterAnimation();
-  CheckOverviewEnterExitHistogram("FullscreenWindowEnter2", {0, 2, 0, 0, 0},
-                                  {0, 1, 0, 0, 0});
   ClickWindow(window2.get());
-  WaitForOverviewExitAnimation();
+  EXPECT_FALSE(InOverviewSession());
   EXPECT_TRUE(WindowState::Get(window1.get())->IsFullscreen());
-  CheckOverviewEnterExitHistogram("FullscreenWindowExit2", {0, 2, 0, 0, 0},
-                                  {1, 1, 0, 0, 0});
 }
 
 // Tests entering overview mode with maximized window.
-// TODO(crbug.com/1325386): Flaky.
-TEST_P(OverviewSessionTest, DISABLED_MaximizedWindow) {
-  ui::ScopedAnimationDurationScaleMode anmatin_scale(
-      ui::ScopedAnimationDurationScaleMode::NON_ZERO_DURATION);
-
+TEST_P(OverviewSessionTest, MaximizedWindow) {
   std::unique_ptr<aura::Window> window1(CreateTestWindow());
   std::unique_ptr<aura::Window> window2(CreateTestWindow());
   wm::ActivateWindow(window1.get());
@@ -845,29 +931,65 @@ TEST_P(OverviewSessionTest, DISABLED_MaximizedWindow) {
   WindowState::Get(window1.get())->OnWMEvent(&maximize_event);
   EXPECT_TRUE(WindowState::Get(window1.get())->IsMaximized());
 
-  // Enter overview and select the fullscreen window.
+  // Enter overview and select the maximized window.
+  ToggleOverview();
+  ClickWindow(window1.get());
+  ASSERT_FALSE(InOverviewSession());
+  EXPECT_TRUE(WindowState::Get(window1.get())->IsMaximized());
+
+  ToggleOverview();
+  ClickWindow(window2.get());
+  EXPECT_FALSE(InOverviewSession());
+  EXPECT_TRUE(WindowState::Get(window1.get())->IsMaximized());
+}
+
+// Tests the animation histograms when entering and exiting overview with a
+// maximized and fullscreen window.
+#if defined(NDEBUG) && !defined(ADDRESS_SANITIZER) && \
+    !defined(LEAK_SANITIZER) && !defined(THREAD_SANITIZER)
+// TODO(crbug.com/1493835): Re-enable this test. Disabled because of flakiness.
+TEST_P(OverviewSessionTest, DISABLED_MaximizedFullscreenHistograms) {
+  std::unique_ptr<aura::Window> maximized_window(CreateTestWindow());
+  std::unique_ptr<aura::Window> fullscreen_window(CreateTestWindow());
+
+  const WMEvent maximize_event(WM_EVENT_MAXIMIZE);
+  WindowState::Get(maximized_window.get())->OnWMEvent(&maximize_event);
+  ASSERT_TRUE(WindowState::Get(maximized_window.get())->IsMaximized());
+
+  const WMEvent toggle_fullscreen_event(WM_EVENT_TOGGLE_FULLSCREEN);
+  WindowState::Get(fullscreen_window.get())
+      ->OnWMEvent(&toggle_fullscreen_event);
+  ASSERT_TRUE(WindowState::Get(fullscreen_window.get())->IsFullscreen());
+
+  ui::ScopedAnimationDurationScaleMode animation_scale(
+      ui::ScopedAnimationDurationScaleMode::NON_ZERO_DURATION);
+
+  // Enter and exit overview with the maximized window activated.
+  wm::ActivateWindow(maximized_window.get());
   ToggleOverview();
   WaitForOverviewEnterAnimation();
   CheckOverviewEnterExitHistogram("MaximizedWindowEnter1", {0, 1, 0, 0, 0},
                                   {0, 0, 0, 0, 0});
-  ClickWindow(window1.get());
+  ToggleOverview();
   WaitForOverviewExitAnimation();
-  EXPECT_TRUE(WindowState::Get(window1.get())->IsMaximized());
   CheckOverviewEnterExitHistogram("MaximizedWindowExit1", {0, 1, 0, 0, 0},
                                   {0, 1, 0, 0, 0});
 
+  // Enter and exit overview with the fullscreen window activated.
+  wm::ActivateWindow(fullscreen_window.get());
   ToggleOverview();
   WaitForOverviewEnterAnimation();
-  CheckOverviewEnterExitHistogram("MaximizedWindowEnter2", {0, 2, 0, 0, 0},
+  CheckOverviewEnterExitHistogram("FullscreenWindowEnter1", {0, 2, 0, 0, 0},
                                   {0, 1, 0, 0, 0});
-  ClickWindow(window2.get());
+  ToggleOverview();
   WaitForOverviewExitAnimation();
-  EXPECT_TRUE(WindowState::Get(window1.get())->IsMaximized());
-  CheckOverviewEnterExitHistogram("MaximizedWindowExit2", {0, 2, 0, 0, 0},
-                                  {1, 1, 0, 0, 0});
+  CheckOverviewEnterExitHistogram("FullscreenWindowExit1", {0, 2, 0, 0, 0},
+                                  {0, 2, 0, 0, 0});
 }
+#endif
 
-TEST_P(OverviewSessionTest, TabletModeHistograms) {
+// TODO(crbug.com/1493835): Re-enable this test. Disabled because of flakiness.
+TEST_P(OverviewSessionTest, DISABLED_TabletModeHistograms) {
   ui::ScopedAnimationDurationScaleMode anmatin_scale(
       ui::ScopedAnimationDurationScaleMode::NON_ZERO_DURATION);
 
@@ -900,7 +1022,8 @@ TEST_P(OverviewSessionTest, TabletModeHistograms) {
 // Tests that entering overview when a fullscreen window is active in maximized
 // mode correctly applies the transformations to the window and correctly
 // updates the window bounds on exiting overview mode: http://crbug.com/401664.
-TEST_P(OverviewSessionTest, FullscreenWindowTabletMode) {
+// TODO(crbug.com/1493835): Re-enable this test. Disabled because of flakiness.
+TEST_P(OverviewSessionTest, DISABLED_FullscreenWindowTabletMode) {
   ui::ScopedAnimationDurationScaleMode anmatin_scale(
       ui::ScopedAnimationDurationScaleMode::NON_ZERO_DURATION);
 
@@ -1119,7 +1242,7 @@ TEST_P(OverviewSessionTest, ActivateDraggedOverviewWindowNotCancelOverview) {
   EnterTabletMode();
   std::unique_ptr<aura::Window> window(CreateTestWindow());
   ToggleOverview();
-  OverviewItem* item = GetOverviewItemForWindow(window.get());
+  auto* item = GetOverviewItemForWindow(window.get());
   gfx::PointF drag_point = item->target_bounds().CenterPoint();
   GetOverviewSession()->InitiateDrag(item, drag_point,
                                      /*is_touch_dragging=*/false);
@@ -1138,7 +1261,7 @@ TEST_P(OverviewSessionTest,
   std::unique_ptr<aura::Window> window1(CreateTestWindow());
   std::unique_ptr<aura::Window> window2(CreateTestWindow());
   ToggleOverview();
-  OverviewItem* item1 = GetOverviewItemForWindow(window1.get());
+  OverviewItemBase* item1 = GetOverviewItemForWindow(window1.get());
   gfx::PointF drag_point = item1->target_bounds().CenterPoint();
   GetOverviewSession()->InitiateDrag(item1, drag_point,
                                      /*is_touch_dragging=*/false);
@@ -1159,7 +1282,7 @@ TEST_P(OverviewSessionTest,
       CreateTestWindow(gfx::Rect(), aura::client::WINDOW_TYPE_POPUP));
   EXPECT_TRUE(window_util::ShouldExcludeForOverview(window2.get()));
   ToggleOverview();
-  OverviewItem* item1 = GetOverviewItemForWindow(window1.get());
+  auto* item1 = GetOverviewItemForWindow(window1.get());
   gfx::PointF drag_point = item1->target_bounds().CenterPoint();
   GetOverviewSession()->InitiateDrag(item1, drag_point,
                                      /*is_touch_dragging=*/false);
@@ -1420,9 +1543,9 @@ TEST_P(OverviewSessionTest, DropTargetOnCorrectDisplayForDraggingFromOverview) {
   ASSERT_EQ(root_windows[1], secondary_screen_window->GetRootWindow());
 
   ToggleOverview();
-  OverviewItem* primary_screen_item =
+  auto* primary_screen_item =
       GetOverviewItemForWindow(primary_screen_window.get());
-  OverviewItem* secondary_screen_item =
+  auto* secondary_screen_item =
       GetOverviewItemForWindow(secondary_screen_window.get());
 
   EXPECT_FALSE(GetDropTarget(0));
@@ -1520,7 +1643,7 @@ TEST_P(OverviewSessionTest, CreateLabelUnderWindow) {
   const std::u16string window_title = u"My window";
   window->SetTitle(window_title);
   ToggleOverview();
-  OverviewItem* window_item = GetOverviewItemsForRoot(0).back().get();
+  auto* window_item = GetOverviewItemsForRoot(0).back().get();
   views::Label* label = GetLabelView(window_item);
   ASSERT_TRUE(label);
 
@@ -1577,6 +1700,28 @@ TEST_P(OverviewSessionTest, AcceleratorInOverviewSession) {
 
   PressAndReleaseKey(ui::VKEY_Q, ui::EF_CONTROL_DOWN | ui::EF_SHIFT_DOWN);
   EXPECT_TRUE(IsUIShown(ewh));
+}
+
+// Tests that overview session will exit when clicking on the empty area in
+// overview.
+TEST_P(OverviewSessionTest, ExitOverviewWhenClickingEmptyArea) {
+  std::unique_ptr<aura::Window> window(CreateTestWindow());
+  ToggleOverview();
+  OverviewController* overview_controller = GetOverviewController();
+  ASSERT_TRUE(overview_controller->InOverviewSession());
+  ASSERT_EQ(1u, GetOverviewSession()->grid_list().size());
+
+  auto* overview_item = GetOverviewItemForWindow(window.get());
+  EXPECT_TRUE(overview_item);
+  const auto outside_point =
+      gfx::ToRoundedPoint(
+          overview_item->GetTransformedBounds().bottom_right()) +
+      gfx::Vector2d(20, 20);
+
+  auto* event_generator = GetEventGenerator();
+  event_generator->MoveMouseTo(outside_point);
+  event_generator->ClickLeftButton();
+  EXPECT_FALSE(overview_controller->InOverviewSession());
 }
 
 // Tests hitting the escape and back keys exits overview mode.
@@ -1734,7 +1879,7 @@ TEST_P(OverviewSessionTest, DragMinimizedWindowHasStableSize) {
 
   WindowState::Get(window.get())->Minimize();
   ToggleOverview();
-  OverviewItem* overview_item = GetOverviewItemForWindow(window.get());
+  auto* overview_item = GetOverviewItemForWindow(window.get());
   auto* widget = overview_item->item_widget();
 
   gfx::Rect workarea =
@@ -1857,13 +2002,13 @@ TEST_P(OverviewSessionTest, ExitOverviewWhenAllGridsEmpty) {
   for (auto& grid : grids)
     EXPECT_FALSE(grid->no_windows_widget());
 
-  OverviewItem* item1 = GetOverviewItemForWindow(window1);
-  OverviewItem* item2 = GetOverviewItemForWindow(window2);
+  auto* item1 = GetOverviewItemForWindow(window1);
+  auto* item2 = GetOverviewItemForWindow(window2);
   ASSERT_TRUE(item1 && item2);
 
-  // Close |item2|. Verify that we are still in overview mode because |window1|
+  // Close `item2`. Verify that we are still in overview mode because `window1`
   // is still open. All the grids should not have a no windows widget.
-  item2->CloseWindow();
+  item2->CloseWindows();
   base::RunLoop().RunUntilIdle();
   ASSERT_TRUE(GetOverviewSession());
   ASSERT_EQ(3u, grids.size());
@@ -1873,9 +2018,9 @@ TEST_P(OverviewSessionTest, ExitOverviewWhenAllGridsEmpty) {
   for (auto& grid : grids)
     EXPECT_FALSE(grid->no_windows_widget());
 
-  // Close |item1|. Verify that since no windows are open, we exit overview
+  // Close `item1`. Verify that since no windows are open, we exit overview
   // mode.
-  item1->CloseWindow();
+  item1->CloseWindows();
   base::RunLoop().RunUntilIdle();
   EXPECT_FALSE(GetOverviewSession());
 }
@@ -2062,9 +2207,14 @@ TEST_P(OverviewSessionTest, HandleActiveWindowNotInOverviewGrid) {
 
   ClickWindow(widget->GetNativeWindow());
 
+  const bool is_jellyroll_enabled = chromeos::features::IsJellyrollEnabled();
   // |window1| and |window2| should animate.
-  EXPECT_EQ(gfx::Tween::EASE_OUT, tester1.tween_type());
-  EXPECT_EQ(gfx::Tween::EASE_OUT, tester2.tween_type());
+  EXPECT_EQ(is_jellyroll_enabled ? gfx::Tween::ACCEL_20_DECEL_100
+                                 : gfx::Tween::EASE_OUT,
+            tester1.tween_type());
+  EXPECT_EQ(is_jellyroll_enabled ? gfx::Tween::ACCEL_20_DECEL_100
+                                 : gfx::Tween::EASE_OUT,
+            tester2.tween_type());
   EXPECT_EQ(gfx::Tween::ZERO, tester3.tween_type());
 }
 
@@ -2267,7 +2417,7 @@ TEST_P(OverviewSessionTest, WindowItemCanAnimateOnDragRelease) {
 
   EnterTabletMode();
   ToggleOverview();
-  OverviewItem* item2 = GetOverviewItemForWindow(window2.get());
+  auto* item2 = GetOverviewItemForWindow(window2.get());
   // Drag |item2| in a way so that |window2| does not get activated.
   ui::test::EventGenerator* generator = GetEventGenerator();
   generator->MoveMouseTo(
@@ -2303,8 +2453,8 @@ TEST_P(OverviewSessionTest, OverviewItemTitleCloseVisibilityOnDrag) {
 
   EnterTabletMode();
   ToggleOverview();
-  OverviewItem* item1 = GetOverviewItemForWindow(window1.get());
-  OverviewItem* item2 = GetOverviewItemForWindow(window2.get());
+  auto* item1 = GetOverviewItemForWindow(window1.get());
+  auto* item2 = GetOverviewItemForWindow(window2.get());
   // Start the drag on |item1|. Verify the dragged item, |item1| has both the
   // close button and titlebar hidden. The close button opacity however is
   // opaque as its a child of the header which handles fading away the whole
@@ -2314,9 +2464,18 @@ TEST_P(OverviewSessionTest, OverviewItemTitleCloseVisibilityOnDrag) {
       gfx::ToRoundedPoint(item1->target_bounds().CenterPoint()));
   generator->PressLeftButton();
   base::RunLoop().RunUntilIdle();
-  EXPECT_EQ(0.f, GetTitlebarOpacity(item1));
-  EXPECT_EQ(1.f, GetCloseButtonOpacity(item1));
-  EXPECT_EQ(1.f, GetTitlebarOpacity(item2));
+
+  if (chromeos::features::IsJellyEnabled()) {
+    // When Jellyroll is enabled, the title is always shown and the layer is
+    // created only after the drag has started moving.
+    EXPECT_TRUE(GetCloseButton(item1)->layer());
+    EXPECT_EQ(0.f, GetCloseButtonOpacity(item1));
+  } else {
+    EXPECT_EQ(0.f, GetTitlebarOpacity(item1));
+    EXPECT_EQ(1.f, GetCloseButtonOpacity(item1));
+    EXPECT_EQ(1.f, GetTitlebarOpacity(item2));
+  }
+
   EXPECT_EQ(0.f, GetCloseButtonOpacity(item2));
 
   // Drag |item1| in a way so that |window1| does not get activated (drags
@@ -2354,9 +2513,9 @@ TEST_P(OverviewSessionTest, OverviewWidgetStackingOrder) {
 
   EnterTabletMode();
   ToggleOverview();
-  OverviewItem* item1 = GetOverviewItemForWindow(minimized.get());
-  OverviewItem* item2 = GetOverviewItemForWindow(window.get());
-  OverviewItem* item3 = GetOverviewItemForWindow(window3.get());
+  auto* item1 = GetOverviewItemForWindow(minimized.get());
+  auto* item2 = GetOverviewItemForWindow(window.get());
+  auto* item3 = GetOverviewItemForWindow(window3.get());
 
   views::Widget* widget1 = item1->item_widget();
   views::Widget* widget2 = item2->item_widget();
@@ -2364,15 +2523,18 @@ TEST_P(OverviewSessionTest, OverviewWidgetStackingOrder) {
 
   // The original order of stacking is determined by the order the associated
   // window was activated.
-  EXPECT_TRUE(
-      IsStackedBelow(widget2->GetNativeWindow(), widget3->GetNativeWindow()));
-  EXPECT_TRUE(
-      IsStackedBelow(widget1->GetNativeWindow(), widget2->GetNativeWindow()));
+  EXPECT_TRUE(window_util::IsStackedBelow(widget2->GetNativeWindow(),
+                                          widget3->GetNativeWindow()));
+  EXPECT_TRUE(window_util::IsStackedBelow(widget1->GetNativeWindow(),
+                                          widget2->GetNativeWindow()));
 
   // Verify that the item widget is stacked below the window.
-  EXPECT_TRUE(IsStackedBelow(widget1->GetNativeWindow(), minimized.get()));
-  EXPECT_TRUE(IsStackedBelow(widget2->GetNativeWindow(), window.get()));
-  EXPECT_TRUE(IsStackedBelow(widget3->GetNativeWindow(), window3.get()));
+  EXPECT_TRUE(
+      window_util::IsStackedBelow(widget1->GetNativeWindow(), minimized.get()));
+  EXPECT_TRUE(
+      window_util::IsStackedBelow(widget2->GetNativeWindow(), window.get()));
+  EXPECT_TRUE(
+      window_util::IsStackedBelow(widget3->GetNativeWindow(), window3.get()));
 
   // Drag the first window. Verify that it's item widget is not stacked above
   // the other two.
@@ -2381,10 +2543,10 @@ TEST_P(OverviewSessionTest, OverviewWidgetStackingOrder) {
   ui::test::EventGenerator* generator = GetEventGenerator();
   generator->MoveMouseTo(start_drag);
   generator->PressLeftButton();
-  EXPECT_TRUE(
-      IsStackedBelow(widget2->GetNativeWindow(), widget1->GetNativeWindow()));
-  EXPECT_TRUE(
-      IsStackedBelow(widget3->GetNativeWindow(), widget1->GetNativeWindow()));
+  EXPECT_TRUE(window_util::IsStackedBelow(widget2->GetNativeWindow(),
+                                          widget1->GetNativeWindow()));
+  EXPECT_TRUE(window_util::IsStackedBelow(widget3->GetNativeWindow(),
+                                          widget1->GetNativeWindow()));
 
   histogram_tester.ExpectTotalCount(
       "Ash.Overview.WindowDrag.PresentationTime.TabletMode", 0);
@@ -2404,10 +2566,10 @@ TEST_P(OverviewSessionTest, OverviewWidgetStackingOrder) {
   generator->ReleaseLeftButton();
 
   // Verify the stacking order is same as before dragging started.
-  EXPECT_TRUE(
-      IsStackedBelow(widget2->GetNativeWindow(), widget3->GetNativeWindow()));
-  EXPECT_TRUE(
-      IsStackedBelow(widget1->GetNativeWindow(), widget2->GetNativeWindow()));
+  EXPECT_TRUE(window_util::IsStackedBelow(widget2->GetNativeWindow(),
+                                          widget3->GetNativeWindow()));
+  EXPECT_TRUE(window_util::IsStackedBelow(widget1->GetNativeWindow(),
+                                          widget2->GetNativeWindow()));
 
   histogram_tester.ExpectTotalCount(
       "Ash.Overview.WindowDrag.PresentationTime.TabletMode", 2);
@@ -2432,7 +2594,8 @@ TEST_P(OverviewSessionTest, DropTargetStackedAtBottomForOverviewItem) {
   generator->PressLeftButton();
   generator->MoveMouseBy(5, 0);
   ASSERT_TRUE(GetDropTarget(0));
-  EXPECT_TRUE(IsStackedBelow(GetDropTarget(0)->GetWindow(), window2.get()));
+  EXPECT_TRUE(window_util::IsStackedBelow(
+      GetDropTarget(0)->item_widget()->GetNativeWindow(), window2.get()));
   generator->ReleaseLeftButton();
   EXPECT_FALSE(GetDropTarget(0));
 }
@@ -2451,9 +2614,9 @@ TEST_P(OverviewSessionTest, Backdrop) {
 
   ToggleOverview();
   base::RunLoop().RunUntilIdle();
-  OverviewItem* wide_item = GetOverviewItemForWindow(wide.get());
-  OverviewItem* tall_item = GetOverviewItemForWindow(tall.get());
-  OverviewItem* normal_item = GetOverviewItemForWindow(normal.get());
+  auto* wide_item = GetOverviewItemForWindow(wide.get());
+  auto* tall_item = GetOverviewItemForWindow(tall.get());
+  auto* normal_item = GetOverviewItemForWindow(normal.get());
 
   // Only very tall and very wide windows will have a backdrop. The backdrop
   // only gets created if we need it once during the overview session.
@@ -2496,8 +2659,8 @@ TEST_P(OverviewSessionTest, RoundedCornersVisibility) {
   // corners until the animation is complete.
   EnterTabletMode();
   ToggleOverview();
-  OverviewItem* item1 = GetOverviewItemForWindow(window1.get());
-  OverviewItem* item2 = GetOverviewItemForWindow(window2.get());
+  auto* item1 = GetOverviewItemForWindow(window1.get());
+  auto* item2 = GetOverviewItemForWindow(window2.get());
   EXPECT_FALSE(HasRoundedCorner(item1));
   EXPECT_FALSE(HasRoundedCorner(item2));
   ShellTestApi().WaitForOverviewAnimationState(
@@ -2540,8 +2703,8 @@ TEST_P(OverviewSessionTest, ShadowVisibilityDragging) {
 
   EnterTabletMode();
   ToggleOverview();
-  OverviewItem* item1 = GetOverviewItemForWindow(window1.get());
-  OverviewItem* item2 = GetOverviewItemForWindow(window2.get());
+  auto* item1 = GetOverviewItemForWindow(window1.get());
+  auto* item2 = GetOverviewItemForWindow(window2.get());
   ui::ScopedAnimationDurationScaleMode test_duration_mode(
       ui::ScopedAnimationDurationScaleMode::NON_ZERO_DURATION);
 
@@ -2556,8 +2719,8 @@ TEST_P(OverviewSessionTest, ShadowVisibilityDragging) {
   EXPECT_FALSE(window1->layer()->GetAnimator()->is_animating());
   EXPECT_FALSE(window2->layer()->GetAnimator()->is_animating());
 
-  EXPECT_TRUE(item1->GetShadowBoundsForTesting().IsEmpty());
-  EXPECT_FALSE(item2->GetShadowBoundsForTesting().IsEmpty());
+  EXPECT_TRUE(GetShadowBounds(item1).IsEmpty());
+  EXPECT_FALSE(GetShadowBounds(item2).IsEmpty());
 
   // Drag to horizontally and then back to the start to avoid activating the
   // window, drag to close or entering splitview. Verify that the shadow is
@@ -2565,44 +2728,49 @@ TEST_P(OverviewSessionTest, ShadowVisibilityDragging) {
   generator->MoveMouseTo(gfx::Point(0, start_drag.y()));
 
   // The drop target window should be created with no shadow.
-  OverviewItem* drop_target_item = GetDropTarget(0);
+  auto* drop_target_item = GetDropTarget(0);
   ASSERT_TRUE(drop_target_item);
-  EXPECT_TRUE(drop_target_item->GetShadowBoundsForTesting().IsEmpty());
+  EXPECT_TRUE(GetShadowBounds(drop_target_item).IsEmpty());
+
+  window1->layer()->GetAnimator()->StopAnimating();
+  window2->layer()->GetAnimator()->StopAnimating();
 
   generator->MoveMouseTo(start_drag);
   generator->ReleaseLeftButton();
   EXPECT_TRUE(window1->layer()->GetAnimator()->is_animating());
   EXPECT_TRUE(window2->layer()->GetAnimator()->is_animating());
-  EXPECT_TRUE(item1->GetShadowBoundsForTesting().IsEmpty());
-  EXPECT_TRUE(item2->GetShadowBoundsForTesting().IsEmpty());
+  EXPECT_TRUE(GetShadowBounds(item1).IsEmpty());
+  EXPECT_TRUE(GetShadowBounds(item2).IsEmpty());
 
   // Verify that the shadow is visble again after animation is finished.
   window1->layer()->GetAnimator()->StopAnimating();
   window2->layer()->GetAnimator()->StopAnimating();
-  EXPECT_FALSE(item1->GetShadowBoundsForTesting().IsEmpty());
-  EXPECT_FALSE(item2->GetShadowBoundsForTesting().IsEmpty());
+  EXPECT_FALSE(GetShadowBounds(item1).IsEmpty());
+  EXPECT_FALSE(GetShadowBounds(item2).IsEmpty());
 }
 
 // Tests that the shadows in overview mode are placed correctly.
 TEST_P(OverviewSessionTest, ShadowBounds) {
   // Helper function to check if the bounds of a shadow owned by |shadow_parent|
   // is contained within the bounds of |widget|.
-  auto contains = [](views::Widget* widget, OverviewItem* shadow_parent) {
+  auto contains = [&](views::Widget* widget, OverviewItemBase* shadow_parent) {
     return gfx::Rect(widget->GetNativeWindow()->bounds().size())
-        .Contains(shadow_parent->GetShadowBoundsForTesting());
+        .Contains(GetShadowBounds(shadow_parent));
   };
 
   // Helper function which returns the ratio of the shadow owned by
   // |shadow_parent| width and height.
-  auto shadow_ratio = [](OverviewItem* shadow_parent) {
-    gfx::RectF boundsf = gfx::RectF(shadow_parent->GetShadowBoundsForTesting());
+  auto shadow_ratio = [&](OverviewItemBase* shadow_parent) {
+    gfx::RectF boundsf = gfx::RectF(GetShadowBounds(shadow_parent));
     return boundsf.width() / boundsf.height();
   };
 
   // Helper function which returns the ratio of the item width and height minus
   // the header and window margin.
-  auto item_ratio = [](OverviewItem* item) {
-    gfx::RectF boundsf = item->GetWindowTargetBoundsWithInsets();
+  auto item_ratio = [](OverviewItemBase* item) {
+    gfx::RectF boundsf = chromeos::features::IsJellyrollEnabled()
+                             ? item->target_bounds()
+                             : item->GetTargetBoundsWithInsets();
     return boundsf.width() / boundsf.height();
   };
 
@@ -2622,9 +2790,9 @@ TEST_P(OverviewSessionTest, ShadowBounds) {
 
   ToggleOverview();
   base::RunLoop().RunUntilIdle();
-  OverviewItem* wide_item = GetOverviewItemForWindow(wide.get());
-  OverviewItem* tall_item = GetOverviewItemForWindow(tall.get());
-  OverviewItem* normal_item = GetOverviewItemForWindow(normal.get());
+  auto* wide_item = GetOverviewItemForWindow(wide.get());
+  auto* tall_item = GetOverviewItemForWindow(tall.get());
+  auto* normal_item = GetOverviewItemForWindow(normal.get());
 
   views::Widget* wide_widget = wide_item->item_widget();
   views::Widget* tall_widget = tall_item->item_widget();
@@ -2645,7 +2813,7 @@ TEST_P(OverviewSessionTest, ShadowBounds) {
   // the header of window margin.
   EXPECT_NEAR(shadow_ratio(wide_item), item_ratio(wide_item), 0.01f);
   EXPECT_NEAR(shadow_ratio(tall_item), item_ratio(tall_item), 0.01f);
-  EXPECT_NEAR(shadow_ratio(normal_item), 1.f, 0.01f);
+  EXPECT_NEAR(shadow_ratio(normal_item), item_ratio(normal_item), 0.01f);
 
   // Verify all the shadows are within the bounds of their respective item
   // widgets when the overview windows are positioned with animations.
@@ -2658,7 +2826,7 @@ TEST_P(OverviewSessionTest, ShadowBounds) {
 
   EXPECT_NEAR(shadow_ratio(wide_item), item_ratio(wide_item), 0.01f);
   EXPECT_NEAR(shadow_ratio(tall_item), item_ratio(tall_item), 0.01f);
-  EXPECT_NEAR(shadow_ratio(normal_item), 1.f, 0.01f);
+  EXPECT_NEAR(shadow_ratio(normal_item), item_ratio(normal_item), 0.01f);
 
   // Test that leaving overview mode cleans up properly.
   ToggleOverview();
@@ -2671,8 +2839,8 @@ TEST_P(OverviewSessionTest, DraggingWithTwoFingers) {
 
   EnterTabletMode();
   ToggleOverview();
-  OverviewItem* item1 = GetOverviewItemForWindow(window1.get());
-  OverviewItem* item2 = GetOverviewItemForWindow(window2.get());
+  auto* item1 = GetOverviewItemForWindow(window1.get());
+  auto* item2 = GetOverviewItemForWindow(window2.get());
 
   const gfx::RectF original_bounds1 = item1->target_bounds();
   const gfx::RectF original_bounds2 = item2->target_bounds();
@@ -2758,7 +2926,7 @@ TEST_P(OverviewSessionTest, PipWindowShownButExcludedFromOverview) {
 
   // PIP window should be visible but not in the overview.
   EXPECT_TRUE(pip_window->IsVisible());
-  EXPECT_FALSE(HighlightOverviewWindow(pip_window.get()));
+  EXPECT_FALSE(FocusOverviewWindow(pip_window.get()));
 }
 
 // Tests the PositionWindows function works as expected.
@@ -2768,9 +2936,9 @@ TEST_P(OverviewSessionTest, PositionWindows) {
   std::unique_ptr<aura::Window> window3(CreateTestWindow());
 
   ToggleOverview();
-  OverviewItem* item1 = GetOverviewItemForWindow(window1.get());
-  OverviewItem* item2 = GetOverviewItemForWindow(window2.get());
-  OverviewItem* item3 = GetOverviewItemForWindow(window3.get());
+  auto* item1 = GetOverviewItemForWindow(window1.get());
+  auto* item2 = GetOverviewItemForWindow(window2.get());
+  auto* item3 = GetOverviewItemForWindow(window3.get());
   const gfx::RectF bounds1 = item1->target_bounds();
   const gfx::RectF bounds2 = item2->target_bounds();
   const gfx::RectF bounds3 = item3->target_bounds();
@@ -2793,8 +2961,8 @@ TEST_P(OverviewSessionTest, PositionWindows) {
 
   // Verify that items that are animating before closing are ignored by
   // PositionWindows.
-  item1->set_animating_to_close_for_testing(true);
-  item2->set_animating_to_close_for_testing(true);
+  SetAnimatingToClose(item1, true);
+  SetAnimatingToClose(item2, true);
   GetOverviewSession()->PositionWindows(/*animate=*/false);
   EXPECT_EQ(bounds1, item1->target_bounds());
   EXPECT_EQ(bounds2, item2->target_bounds());
@@ -2843,7 +3011,7 @@ TEST_P(OverviewSessionTest, SelectingWindowWithBackdrop) {
   std::unique_ptr<aura::Window> window(CreateTestWindow(gfx::Rect(500, 200)));
 
   ToggleOverview();
-  OverviewItem* item = GetOverviewItemForWindow(window.get());
+  auto* item = GetOverviewItemForWindow(window.get());
   ASSERT_EQ(OverviewGridWindowFillMode::kLetterBoxed,
             item->GetWindowDimensionsType());
 
@@ -2902,14 +3070,14 @@ TEST_P(OverviewSessionTest, EatKeysDuringStartAnimation) {
 
   // Keys should be eaten by overview session when entering overview mode.
   ToggleOverview();
-  ASSERT_TRUE(Shell::Get()->overview_controller()->IsInStartAnimation());
+  ASSERT_TRUE(OverviewController::Get()->IsInStartAnimation());
   ASSERT_TRUE(test_window->HasFocus());
   SendKey(ui::VKEY_B);
   EXPECT_FALSE(test_event_handler.HasSeenEvent());
   EXPECT_TRUE(InOverviewSession());
 
   WaitForOverviewEnterAnimation();
-  ASSERT_FALSE(Shell::Get()->overview_controller()->IsInStartAnimation());
+  ASSERT_FALSE(OverviewController::Get()->IsInStartAnimation());
   EXPECT_FALSE(test_window->HasFocus());
 
   ToggleOverview();
@@ -2983,7 +3151,8 @@ TEST_P(OverviewSessionTest, FadeIn) {
   ToggleOverview(OverviewEnterExitType::kFadeInEnter);
   ASSERT_TRUE(InOverviewSession());
 
-  OverviewItem* item = GetOverviewItemForWindow(window.get());
+  auto* item = GetOverviewItemForWindow(window.get())
+                   ->GetLeafItemForWindow(window.get());
 
   // Verify that the item widget's transform is not animated as part of the
   // animation.
@@ -3000,10 +3169,13 @@ TEST_P(OverviewSessionTest, FadeIn) {
   const gfx::Rect bounds = gfx::ToEnclosedRect(item->target_bounds());
   EXPECT_TRUE(GetGridBounds().Contains(bounds));
 
-  // Header is expected to be shown immediately.
-  EXPECT_EQ(
-      1.0f,
-      item->overview_item_view()->header_view()->layer()->GetTargetOpacity());
+  // Header is expected to be shown immediately without Jelly. With Jelly, the
+  // header isn't painted to layer until dragged.
+  if (!chromeos::features::IsJellyrollEnabled()) {
+    EXPECT_EQ(
+        1.0f,
+        item->overview_item_view()->header_view()->layer()->GetTargetOpacity());
+  }
 
   EXPECT_EQ(OverviewEnterExitType::kFadeInEnter,
             GetOverviewSession()->enter_exit_overview_type());
@@ -3026,7 +3198,7 @@ TEST_P(OverviewSessionTest, FadeOutExit) {
   // that NON_ZERO_DURATION animation duration scale, it should be safe to
   // dereference the widget pointer immediately (synchronously) after the
   // session ends.
-  OverviewItem* item = GetOverviewItemForWindow(test_window.get());
+  auto* item = GetOverviewItemForWindow(test_window.get());
   views::Widget* grid_item_widget = item->item_widget();
   gfx::Rect item_bounds = grid_item_widget->GetWindowBoundsInScreen();
 
@@ -3194,9 +3366,9 @@ TEST_P(OverviewSessionTest, ClosingTransientTree) {
   controller->NewDesk(DesksCreationRemovalSource::kKeyboard);
   RemoveDesk(controller->active_desk(), DeskCloseType::kCombineDesks);
 
-  OverviewItem* item = GetOverviewItemForWindow(window);
+  auto* item = GetOverviewItemForWindow(window);
   ASSERT_TRUE(item);
-  item->CloseWindow();
+  item->CloseWindows();
 
   // `NativeWidgetAura::Close()` fires a post task.
   base::RunLoop().RunUntilIdle();
@@ -3256,7 +3428,7 @@ TEST_P(OverviewSessionTest, FrameThrottlingBrowser) {
   for (int i = 0; i < window_count + 1; ++i) {
     aura::Window* window = windows[i].get();
     ids.erase(ids.begin());
-    OverviewItem* item = grid->GetOverviewItemContaining(window);
+    auto* item = grid->GetOverviewItemContaining(window);
     grid->RemoveItem(item, /*item_destroying=*/false, /*reposition=*/false);
     EXPECT_THAT(frame_throttling_controller->GetFrameSinkIdsToThrottle(),
                 testing::UnorderedElementsAreArray(ids));
@@ -3308,7 +3480,7 @@ TEST_P(OverviewSessionTest, FrameThrottlingLacros) {
   for (int i = 0; i < window_count + 1; ++i) {
     aura::Window* window = windows[i].get();
     ids.erase(ids.begin());
-    OverviewItem* item = grid->GetOverviewItemContaining(window);
+    auto* item = grid->GetOverviewItemContaining(window);
     grid->RemoveItem(item, /*item_destroying=*/false, /*reposition=*/false);
     EXPECT_THAT(frame_throttling_controller->GetFrameSinkIdsToThrottle(),
                 testing::UnorderedElementsAreArray(ids));
@@ -3332,9 +3504,8 @@ TEST_P(OverviewSessionTest, FrameThrottlingArc) {
                             static_cast<int>(AppType::ARC_APP));
   }
 
-  std::vector<aura::Window*> windows_to_throttle(window_count, nullptr);
-  base::ranges::transform(windows, windows_to_throttle.begin(),
-                          &std::unique_ptr<aura::Window>::get);
+  auto windows_to_throttle =
+      base::test::ToVector(windows, &std::unique_ptr<aura::Window>::get);
   EXPECT_CALL(observer,
               OnThrottlingStarted(
                   testing::UnorderedElementsAreArray(windows_to_throttle),
@@ -3364,18 +3535,1747 @@ TEST_P(OverviewSessionTest, FrameThrottlingArc) {
     if (i == 0)
       EXPECT_CALL(observer, OnThrottlingEnded());
     EXPECT_CALL(observer, OnThrottlingStarted(testing::_, testing::_)).Times(0);
-    OverviewItem* item = grid->GetOverviewItemContaining(window);
+    auto* item = grid->GetOverviewItemContaining(window);
     grid->RemoveItem(item, /*item_destroying=*/false, /*reposition=*/false);
   }
   frame_throttling_controller->RemoveArcObserver(&observer);
 }
 
-INSTANTIATE_TEST_SUITE_P(All, OverviewSessionTest, testing::Bool());
+// Tests that if we combine a desk in overview, the overview applied clipping is
+// removed properly (other portions of the window will not be visible on exiting
+// overview). Regression test for http://b/282010852.
+TEST_P(OverviewSessionTest, WindowClippingAfterCombiningDesks) {
+  // Need at least two desks to combine them.
+  auto* controller = DesksController::Get();
+  controller->NewDesk(DesksCreationRemovalSource::kKeyboard);
+
+  // Overview clip is used to apply an animation to remove the normal header and
+  // keep it hidden during overview. So we need a non-zero top inset to
+  // reproduce the bug.
+  auto normal_window = CreateAppWindow();
+  normal_window->SetProperty(aura::client::kTopViewInset, 32);
+  ASSERT_TRUE(normal_window->layer()->clip_rect().IsEmpty());
+
+  ui::ScopedAnimationDurationScaleMode scale_mode(
+      ui::ScopedAnimationDurationScaleMode::NON_ZERO_DURATION);
+
+  ToggleOverview();
+  WaitForOverviewEnterAnimation();
+  ASSERT_FALSE(normal_window->layer()->clip_rect().IsEmpty());
+
+  // Combine the two desks while inside overview.
+  RemoveDesk(controller->active_desk(), DeskCloseType::kCombineDesks);
+  ui::LayerAnimationStoppedWaiter().Wait(normal_window->layer());
+
+  // Tests that on exiting overview, the clip is removed.
+  ToggleOverview();
+  WaitForOverviewExitAnimation();
+  EXPECT_TRUE(normal_window->layer()->clip_rect().IsEmpty());
+}
+
+// Tests that if we tab while the desks bar is sliding out, there is no crash.
+// Regression test for http://b/302708219.
+TEST_P(OverviewSessionTest, TabbingDuringExitAnimation) {
+  ui::ScopedAnimationDurationScaleMode scale_mode(
+      ui::ScopedAnimationDurationScaleMode::NON_ZERO_DURATION);
+
+  ToggleOverview();
+  WaitForOverviewEnterAnimation();
+
+  auto* overview_grid = GetOverviewGridForRoot(Shell::GetPrimaryRootWindow());
+  const views::Widget* desks_widget = overview_grid->desks_widget();
+
+  // First activate the desks bar by clicking it (but do not click on the desk
+  // preview because that will exit overview). See bug details for why we need
+  // to activate the desks bar first.
+  ui::test::EventGenerator* generator = GetEventGenerator();
+  generator->set_current_screen_location(
+      desks_widget->GetWindowBoundsInScreen().origin());
+  generator->ClickLeftButton();
+  ASSERT_TRUE(wm::IsActiveWindow(desks_widget->GetNativeWindow()));
+
+  // Exit overview. This will slide out the desks widget.
+  ToggleOverview();
+
+  // Try tab focus traversal while the animation is in progress. There should be
+  // no crash.
+  SendKey(ui::VKEY_TAB);
+  SendKey(ui::VKEY_TAB);
+  SendKey(ui::VKEY_TAB);
+}
+
+// If you update the parameterisation of OverviewSessionTest also update the
+// parameterisation of OverviewRasterScaleTest below.
+INSTANTIATE_TEST_SUITE_P(/*no prefix*/,
+                         OverviewSessionTest,
+                         testing::Bool(),
+                         [](const testing::TestParamInfo<bool>& info) {
+                           return info.param ? "DesksTemplatesOn"
+                                             : "DesksTemplatesOff";
+                         });
+
+using OverviewRasterScaleTest = OverviewSessionTest;
+
+// Tests raster scale changes for a single window which grows when entering
+// overview mode.
+TEST_P(OverviewRasterScaleTest,
+       RasterScaleAnimatedSingleWindowEnterGrowExitShrink) {
+  Shell::Get()
+      ->raster_scale_controller()
+      ->set_raster_scale_slop_proportion_for_testing(0.0f);
+  std::unique_ptr<aura::Window> window(CreateTestWindow(gfx::Rect(100, 100)));
+  auto tracker = RasterScaleChangeTracker(window.get());
+
+  gfx::Rect start_bounds = GetTransformedTargetBounds(window.get());
+  ui::ScopedAnimationDurationScaleMode test_duration_mode(
+      ui::ScopedAnimationDurationScaleMode::NON_ZERO_DURATION);
+
+  const std::vector<float> empty;
+  EXPECT_EQ(empty, tracker.TakeRasterScaleChanges());
+  ToggleOverview();
+
+  // Since the window gets larger, we need to use the more detailed raster
+  // before the animation starts.
+  auto raster_scale =
+      ExpectedRasterScale(window.get(), start_bounds, /*window_grows=*/true);
+  EXPECT_EQ(std::vector<float>{raster_scale}, tracker.TakeRasterScaleChanges());
+  WaitForOverviewEnterAnimation();
+
+  // No change after animation.
+  EXPECT_EQ(empty, tracker.TakeRasterScaleChanges());
+
+  ToggleOverview();
+
+  // Expect no raster scale change as we need to keep the higher detail during
+  // the shrink animation.
+  EXPECT_EQ(empty, tracker.TakeRasterScaleChanges());
+  WaitForOverviewExitAnimation();
+
+  // After completion, restore to normal raster scale.
+  EXPECT_EQ(std::vector<float>{1.0}, tracker.TakeRasterScaleChanges());
+}
+
+// Tests raster scale changes for a single window which shrinks when entering
+// overview mode.
+TEST_P(OverviewRasterScaleTest,
+       RasterScaleAnimatedSingleWindowEnterShrinkExitGrow) {
+  Shell::Get()
+      ->raster_scale_controller()
+      ->set_raster_scale_slop_proportion_for_testing(0.0f);
+  std::unique_ptr<aura::Window> window(CreateTestWindow(gfx::Rect(600, 600)));
+  auto tracker = RasterScaleChangeTracker(window.get());
+
+  gfx::Rect start_bounds = GetTransformedTargetBounds(window.get());
+  ui::ScopedAnimationDurationScaleMode test_duration_mode(
+      ui::ScopedAnimationDurationScaleMode::NON_ZERO_DURATION);
+
+  const std::vector<float> empty;
+  EXPECT_EQ(empty, tracker.TakeRasterScaleChanges());
+  ToggleOverview();
+
+  // Since the window gets smaller, we need to keep the more detailed raster
+  // until after the animation finishes.
+  EXPECT_EQ(empty, tracker.TakeRasterScaleChanges());
+  WaitForOverviewEnterAnimation();
+
+  auto raster_scale =
+      ExpectedRasterScale(window.get(), start_bounds, /*window_grows=*/false);
+  EXPECT_EQ(std::vector<float>{raster_scale}, tracker.TakeRasterScaleChanges());
+
+  ToggleOverview();
+
+  // Expect a raster scale change as we need to use the higher detail during
+  // the grow animation.
+  EXPECT_EQ(std::vector<float>{1.0}, tracker.TakeRasterScaleChanges());
+  WaitForOverviewExitAnimation();
+  EXPECT_EQ(empty, tracker.TakeRasterScaleChanges());
+}
+
+// Tests raster scale changes for a minimized single window which grows when
+// entering overview mode.
+TEST_P(OverviewRasterScaleTest,
+       RasterScaleMinimizedSingleWindowEnterGrowExitShrink) {
+  Shell::Get()
+      ->raster_scale_controller()
+      ->set_raster_scale_slop_proportion_for_testing(0.0f);
+  std::unique_ptr<aura::Window> window(CreateTestWindow(gfx::Rect(100, 100)));
+  auto tracker = RasterScaleChangeTracker(window.get());
+
+  gfx::Rect start_bounds = GetTransformedTargetBounds(window.get());
+  ui::ScopedAnimationDurationScaleMode test_duration_mode(
+      ui::ScopedAnimationDurationScaleMode::NON_ZERO_DURATION);
+
+  MinimizeAndCheckWindow(window.get());
+
+  const std::vector<float> empty;
+  EXPECT_EQ(empty, tracker.TakeRasterScaleChanges());
+  ToggleOverview();
+
+  // Since the window will be shown larger immediately, change raster scale
+  // immediately.
+  auto raster_scale =
+      ExpectedRasterScale(window.get(), start_bounds, /*window_grows=*/true);
+  EXPECT_EQ(std::vector<float>{raster_scale}, tracker.TakeRasterScaleChanges());
+  WaitForOverviewEnterAnimation();
+
+  // No change after enter.
+  EXPECT_EQ(empty, tracker.TakeRasterScaleChanges());
+
+  ToggleOverview();
+
+  // Expect no raster scale change as we need to keep the higher detail until
+  // everything is hidden.
+  EXPECT_EQ(empty, tracker.TakeRasterScaleChanges());
+  WaitForOverviewExitAnimation();
+
+  // After completion, restore to normal raster scale.
+  EXPECT_EQ(std::vector<float>{1.0}, tracker.TakeRasterScaleChanges());
+}
+
+// Tests raster scale changes for a minimized single window which shrinks when
+// entering overview mode.
+TEST_P(OverviewRasterScaleTest,
+       RasterScaleMinimizedSingleWindowEnterShrinkExitGrow) {
+  Shell::Get()
+      ->raster_scale_controller()
+      ->set_raster_scale_slop_proportion_for_testing(0.0f);
+  std::unique_ptr<aura::Window> window(CreateTestWindow(gfx::Rect(600, 600)));
+  auto tracker = RasterScaleChangeTracker(window.get());
+
+  gfx::Rect start_bounds = GetTransformedTargetBounds(window.get());
+  ui::ScopedAnimationDurationScaleMode test_duration_mode(
+      ui::ScopedAnimationDurationScaleMode::NON_ZERO_DURATION);
+
+  MinimizeAndCheckWindow(window.get());
+
+  const std::vector<float> empty;
+  EXPECT_EQ(empty, tracker.TakeRasterScaleChanges());
+  ToggleOverview();
+
+  // Since the window is minimized, it won't be animated and we can show the
+  // less detailed version immediately.
+  auto raster_scale =
+      ExpectedRasterScale(window.get(), start_bounds, /*window_grows=*/false);
+  EXPECT_EQ(std::vector<float>{raster_scale}, tracker.TakeRasterScaleChanges());
+  WaitForOverviewEnterAnimation();
+
+  // No change after enter.
+  EXPECT_EQ(empty, tracker.TakeRasterScaleChanges());
+
+  ToggleOverview();
+
+  // Expect no raster scale change as that will be more performant to keep lower
+  // detail.
+  EXPECT_EQ(empty, tracker.TakeRasterScaleChanges());
+  WaitForOverviewExitAnimation();
+
+  // After completion, restore to normal raster scale.
+  EXPECT_EQ(std::vector<float>{1.0}, tracker.TakeRasterScaleChanges());
+}
+
+// Tests raster scale changes for a more complex case with multiple windows in
+// different states.
+TEST_P(OverviewRasterScaleTest, RasterScaleMultipleWindows) {
+  Shell::Get()
+      ->raster_scale_controller()
+      ->set_raster_scale_slop_proportion_for_testing(0.0f);
+  std::unique_ptr<aura::Window> window_grow_animated(
+      CreateTestWindow(gfx::Rect(100, 100)));
+  std::unique_ptr<aura::Window> window_shrink_animated(
+      CreateTestWindow(gfx::Rect(600, 600)));
+  std::unique_ptr<aura::Window> window_grow_minimized(
+      CreateTestWindow(gfx::Rect(100, 100)));
+  std::unique_ptr<aura::Window> window_shrink_minimized(
+      CreateTestWindow(gfx::Rect(600, 600)));
+
+  MinimizeAndCheckWindow(window_grow_minimized.get());
+  MinimizeAndCheckWindow(window_shrink_minimized.get());
+
+  auto tracker_grow_animated =
+      RasterScaleChangeTracker(window_grow_animated.get());
+  auto tracker_shrink_animated =
+      RasterScaleChangeTracker(window_shrink_animated.get());
+  auto tracker_grow_minimized =
+      RasterScaleChangeTracker(window_grow_minimized.get());
+  auto tracker_shrink_minimized =
+      RasterScaleChangeTracker(window_shrink_minimized.get());
+
+  gfx::Rect start_bounds_grow_animated =
+      GetTransformedTargetBounds(window_grow_animated.get());
+  gfx::Rect start_bounds_shrink_animated =
+      GetTransformedTargetBounds(window_shrink_animated.get());
+  gfx::Rect start_bounds_grow_minimized =
+      GetTransformedTargetBounds(window_grow_minimized.get());
+  gfx::Rect start_bounds_shrink_minimized =
+      GetTransformedTargetBounds(window_shrink_minimized.get());
+  ui::ScopedAnimationDurationScaleMode test_duration_mode(
+      ui::ScopedAnimationDurationScaleMode::NON_ZERO_DURATION);
+
+  const std::vector<float> empty;
+  EXPECT_EQ(empty, tracker_grow_animated.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink_animated.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_grow_minimized.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink_minimized.TakeRasterScaleChanges());
+
+  ToggleOverview();
+
+  float raster_scale_grow_animated =
+      ExpectedRasterScale(window_grow_animated.get(),
+                          start_bounds_grow_animated, /*window_grows=*/true);
+  float raster_scale_shrink_animated =
+      ExpectedRasterScale(window_shrink_animated.get(),
+                          start_bounds_shrink_animated, /*window_grows=*/false);
+  float raster_scale_grow_minimized =
+      ExpectedRasterScale(window_grow_minimized.get(),
+                          start_bounds_grow_minimized, /*window_grows=*/true);
+  float raster_scale_shrink_minimized = ExpectedRasterScale(
+      window_shrink_minimized.get(), start_bounds_shrink_minimized,
+      /*window_grows=*/false);
+
+  EXPECT_EQ(std::vector<float>{raster_scale_grow_animated},
+            tracker_grow_animated.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink_animated.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{raster_scale_grow_minimized},
+            tracker_grow_minimized.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{raster_scale_shrink_minimized},
+            tracker_shrink_minimized.TakeRasterScaleChanges());
+
+  WaitForOverviewEnterAnimation();
+
+  EXPECT_EQ(empty, tracker_grow_animated.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{raster_scale_shrink_animated},
+            tracker_shrink_animated.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_grow_minimized.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink_minimized.TakeRasterScaleChanges());
+
+  ToggleOverview();
+
+  EXPECT_EQ(empty, tracker_grow_animated.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{1.0},
+            tracker_shrink_animated.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_grow_minimized.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink_minimized.TakeRasterScaleChanges());
+
+  WaitForOverviewExitAnimation();
+
+  EXPECT_EQ(std::vector<float>{1.0},
+            tracker_grow_animated.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink_animated.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{1.0},
+            tracker_grow_minimized.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{1.0},
+            tracker_shrink_minimized.TakeRasterScaleChanges());
+}
+
+// Tests raster scale changes when a maximized window exists with windows on
+// top.
+TEST_P(OverviewRasterScaleTest, RasterScaleMaximizedWithGrowingRestoredOnTop) {
+  Shell::Get()
+      ->raster_scale_controller()
+      ->set_raster_scale_slop_proportion_for_testing(0.0f);
+  std::unique_ptr<aura::Window> window_maximized(
+      CreateTestWindow(gfx::Rect(100, 100)));
+  std::unique_ptr<aura::Window> window_grow(
+      CreateTestWindow(gfx::Rect(100, 100)));
+  std::unique_ptr<aura::Window> window_shrink(
+      CreateTestWindow(gfx::Rect(600, 600)));
+
+  MaximizeAndCheckWindow(window_maximized.get());
+
+  window_maximized->parent()->StackChildAtTop(window_grow.get());
+  window_maximized->parent()->StackChildAtTop(window_shrink.get());
+
+  auto tracker_maximized = RasterScaleChangeTracker(window_maximized.get());
+  auto tracker_grow = RasterScaleChangeTracker(window_grow.get());
+  auto tracker_shrink = RasterScaleChangeTracker(window_shrink.get());
+
+  gfx::Rect start_bounds_maximized =
+      GetTransformedTargetBounds(window_maximized.get());
+  gfx::Rect start_bounds_grow = GetTransformedTargetBounds(window_grow.get());
+  gfx::Rect start_bounds_shrink =
+      GetTransformedTargetBounds(window_shrink.get());
+  ui::ScopedAnimationDurationScaleMode test_duration_mode(
+      ui::ScopedAnimationDurationScaleMode::NON_ZERO_DURATION);
+
+  const std::vector<float> empty;
+  EXPECT_EQ(empty, tracker_maximized.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_grow.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink.TakeRasterScaleChanges());
+
+  ToggleOverview();
+
+  float raster_scale_maximized = ExpectedRasterScale(
+      window_maximized.get(), start_bounds_maximized, /*window_grows=*/false);
+  float raster_scale_grow = ExpectedRasterScale(
+      window_grow.get(), start_bounds_grow, /*window_grows=*/true);
+  float raster_scale_shrink = ExpectedRasterScale(
+      window_shrink.get(), start_bounds_shrink, /*window_grows=*/false);
+
+  // Maximized needs to keep detail while it shrinks.
+  EXPECT_EQ(empty, tracker_maximized.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{raster_scale_grow},
+            tracker_grow.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink.TakeRasterScaleChanges());
+
+  WaitForOverviewEnterAnimation();
+
+  EXPECT_EQ(std::vector<float>{raster_scale_maximized},
+            tracker_maximized.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_grow.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{raster_scale_shrink},
+            tracker_shrink.TakeRasterScaleChanges());
+
+  ToggleOverview();
+
+  EXPECT_EQ(std::vector<float>{1.0},
+            tracker_maximized.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_grow.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{1.0}, tracker_shrink.TakeRasterScaleChanges());
+
+  WaitForOverviewExitAnimation();
+
+  EXPECT_EQ(empty, tracker_maximized.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{1.0}, tracker_grow.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink.TakeRasterScaleChanges());
+}
+
+// Tests raster scale changes when a maximized window exists with windows below.
+TEST_P(OverviewRasterScaleTest, RasterScaleMaximizedWithGrowingRestoredBelow) {
+  Shell::Get()
+      ->raster_scale_controller()
+      ->set_raster_scale_slop_proportion_for_testing(0.0f);
+  std::unique_ptr<aura::Window> window_grow(
+      CreateTestWindow(gfx::Rect(100, 100)));
+  std::unique_ptr<aura::Window> window_shrink(
+      CreateTestWindow(gfx::Rect(600, 600)));
+  std::unique_ptr<aura::Window> window_maximized(
+      CreateTestWindow(gfx::Rect(100, 100)));
+
+  MaximizeAndCheckWindow(window_maximized.get());
+
+  window_maximized->parent()->StackChildAtBottom(window_grow.get());
+  window_maximized->parent()->StackChildAtBottom(window_shrink.get());
+
+  auto tracker_maximized = RasterScaleChangeTracker(window_maximized.get());
+  auto tracker_grow = RasterScaleChangeTracker(window_grow.get());
+  auto tracker_shrink = RasterScaleChangeTracker(window_shrink.get());
+
+  gfx::Rect start_bounds_maximized =
+      GetTransformedTargetBounds(window_maximized.get());
+  gfx::Rect start_bounds_grow = GetTransformedTargetBounds(window_grow.get());
+  gfx::Rect start_bounds_shrink =
+      GetTransformedTargetBounds(window_shrink.get());
+  ui::ScopedAnimationDurationScaleMode test_duration_mode(
+      ui::ScopedAnimationDurationScaleMode::NON_ZERO_DURATION);
+
+  const std::vector<float> empty;
+  EXPECT_EQ(empty, tracker_maximized.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_grow.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink.TakeRasterScaleChanges());
+
+  ToggleOverview();
+
+  float raster_scale_maximized = ExpectedRasterScale(
+      window_maximized.get(), start_bounds_maximized, /*window_grows=*/false);
+  float raster_scale_grow = ExpectedRasterScale(
+      window_grow.get(), start_bounds_grow, /*window_grows=*/true);
+  float raster_scale_shrink = ExpectedRasterScale(
+      window_shrink.get(), start_bounds_shrink, /*window_grows=*/false);
+
+  // Both windows are covered, so they can have their final raster scale applied
+  // immediately.
+  EXPECT_EQ(empty, tracker_maximized.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{raster_scale_grow},
+            tracker_grow.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{raster_scale_shrink},
+            tracker_shrink.TakeRasterScaleChanges());
+
+  WaitForOverviewEnterAnimation();
+
+  EXPECT_EQ(std::vector<float>{raster_scale_maximized},
+            tracker_maximized.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_grow.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink.TakeRasterScaleChanges());
+
+  ToggleOverview();
+
+  EXPECT_EQ(std::vector<float>{1.0},
+            tracker_maximized.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_grow.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink.TakeRasterScaleChanges());
+
+  WaitForOverviewExitAnimation();
+
+  // Windows will be covered and not animate, so they wait until the animation
+  // has finished to update.
+  EXPECT_EQ(empty, tracker_maximized.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{1.0}, tracker_grow.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{1.0}, tracker_shrink.TakeRasterScaleChanges());
+}
+
+// Tests raster scale changes for a more complex case with multiple windows in
+// different states when the overview mode animation is cancelled while entering
+// and exiting.
+TEST_P(OverviewRasterScaleTest, RasterScaleMultipleWindowsCancel) {
+  Shell::Get()
+      ->raster_scale_controller()
+      ->set_raster_scale_slop_proportion_for_testing(0.0f);
+  std::unique_ptr<aura::Window> window_grow_covered(
+      CreateTestWindow(gfx::Rect(100, 100)));
+  std::unique_ptr<aura::Window> window_shrink_covered(
+      CreateTestWindow(gfx::Rect(600, 600)));
+  std::unique_ptr<aura::Window> window_maximized(
+      CreateTestWindow(gfx::Rect(100, 100)));
+  std::unique_ptr<aura::Window> window_grow_animated(
+      CreateTestWindow(gfx::Rect(100, 100)));
+  std::unique_ptr<aura::Window> window_shrink_animated(
+      CreateTestWindow(gfx::Rect(600, 600)));
+  std::unique_ptr<aura::Window> window_grow_minimized(
+      CreateTestWindow(gfx::Rect(100, 100)));
+  std::unique_ptr<aura::Window> window_shrink_minimized(
+      CreateTestWindow(gfx::Rect(600, 600)));
+
+  MinimizeAndCheckWindow(window_grow_minimized.get());
+  MinimizeAndCheckWindow(window_shrink_minimized.get());
+
+  MaximizeAndCheckWindow(window_maximized.get());
+
+  window_maximized->parent()->StackChildAtBottom(window_grow_covered.get());
+  window_maximized->parent()->StackChildAtBottom(window_shrink_covered.get());
+  window_maximized->parent()->StackChildAtTop(window_shrink_animated.get());
+  window_maximized->parent()->StackChildAtTop(window_grow_animated.get());
+
+  window_grow_animated->Focus();
+
+  auto tracker_grow_covered =
+      RasterScaleChangeTracker(window_grow_covered.get());
+  auto tracker_shrink_covered =
+      RasterScaleChangeTracker(window_shrink_covered.get());
+  auto tracker_maximized = RasterScaleChangeTracker(window_maximized.get());
+  auto tracker_grow_animated =
+      RasterScaleChangeTracker(window_grow_animated.get());
+  auto tracker_shrink_animated =
+      RasterScaleChangeTracker(window_shrink_animated.get());
+  auto tracker_grow_minimized =
+      RasterScaleChangeTracker(window_grow_minimized.get());
+  auto tracker_shrink_minimized =
+      RasterScaleChangeTracker(window_shrink_minimized.get());
+
+  gfx::Rect start_bounds_grow_covered =
+      GetTransformedTargetBounds(window_grow_covered.get());
+  gfx::Rect start_bounds_shrink_covered =
+      GetTransformedTargetBounds(window_shrink_covered.get());
+  gfx::Rect start_bounds_maximized =
+      GetTransformedTargetBounds(window_maximized.get());
+  gfx::Rect start_bounds_grow_animated =
+      GetTransformedTargetBounds(window_grow_animated.get());
+  gfx::Rect start_bounds_shrink_animated =
+      GetTransformedTargetBounds(window_shrink_animated.get());
+  gfx::Rect start_bounds_grow_minimized =
+      GetTransformedTargetBounds(window_grow_minimized.get());
+  gfx::Rect start_bounds_shrink_minimized =
+      GetTransformedTargetBounds(window_shrink_minimized.get());
+  ui::ScopedAnimationDurationScaleMode test_duration_mode(
+      ui::ScopedAnimationDurationScaleMode::NON_ZERO_DURATION);
+
+  const std::vector<float> empty;
+  EXPECT_EQ(empty, tracker_grow_covered.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink_covered.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_maximized.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_grow_animated.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink_animated.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_grow_minimized.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink_minimized.TakeRasterScaleChanges());
+
+  ToggleOverview();
+
+  float raster_scale_grow_covered =
+      ExpectedRasterScale(window_grow_covered.get(), start_bounds_grow_covered,
+                          /*window_grows=*/true);
+  float raster_scale_shrink_covered = ExpectedRasterScale(
+      window_shrink_covered.get(), start_bounds_shrink_covered,
+      /*window_grows=*/false);
+  float raster_scale_maximized =
+      ExpectedRasterScale(window_maximized.get(), start_bounds_maximized,
+                          /*window_grows=*/false);
+  float raster_scale_grow_animated =
+      ExpectedRasterScale(window_grow_animated.get(),
+                          start_bounds_grow_animated, /*window_grows=*/true);
+  float raster_scale_shrink_animated = ExpectedRasterScale(
+      window_shrink_animated.get(), start_bounds_shrink_animated,
+      /*window_grows=*/false);
+  float raster_scale_grow_minimized =
+      ExpectedRasterScale(window_grow_minimized.get(),
+                          start_bounds_grow_minimized, /*window_grows=*/true);
+  float raster_scale_shrink_minimized = ExpectedRasterScale(
+      window_shrink_minimized.get(), start_bounds_shrink_minimized,
+      /*window_grows=*/false);
+
+  EXPECT_EQ(std::vector<float>{raster_scale_grow_covered},
+            tracker_grow_covered.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{raster_scale_shrink_covered},
+            tracker_shrink_covered.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_maximized.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{raster_scale_grow_animated},
+            tracker_grow_animated.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink_animated.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{raster_scale_grow_minimized},
+            tracker_grow_minimized.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{raster_scale_shrink_minimized},
+            tracker_shrink_minimized.TakeRasterScaleChanges());
+
+  // Cancel overview mode by focusing another window.
+  EXPECT_TRUE(InOverviewSession());
+  window_shrink_animated->Focus();
+  EXPECT_FALSE(InOverviewSession());
+
+  // Animation will start to reverse, no reason to change the raster scale here.
+  EXPECT_EQ(empty, tracker_grow_covered.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink_covered.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_maximized.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_grow_animated.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink_animated.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_grow_minimized.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink_minimized.TakeRasterScaleChanges());
+
+  WaitForOverviewExitAnimation();
+
+  EXPECT_EQ(std::vector<float>{1.0},
+            tracker_grow_covered.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{1.0},
+            tracker_shrink_covered.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_maximized.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{1.0},
+            tracker_grow_animated.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink_animated.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{1.0},
+            tracker_grow_minimized.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{1.0},
+            tracker_shrink_minimized.TakeRasterScaleChanges());
+
+  // Enter overview mode so we can test cancelling exit.
+  ToggleOverview();
+
+  EXPECT_EQ(std::vector<float>{raster_scale_grow_covered},
+            tracker_grow_covered.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{raster_scale_shrink_covered},
+            tracker_shrink_covered.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_maximized.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{raster_scale_grow_animated},
+            tracker_grow_animated.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink_animated.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{raster_scale_grow_minimized},
+            tracker_grow_minimized.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{raster_scale_shrink_minimized},
+            tracker_shrink_minimized.TakeRasterScaleChanges());
+
+  WaitForOverviewEnterAnimation();
+
+  EXPECT_EQ(empty, tracker_grow_covered.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink_covered.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{raster_scale_maximized},
+            tracker_maximized.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_grow_animated.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{raster_scale_shrink_animated},
+            tracker_shrink_animated.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_grow_minimized.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink_minimized.TakeRasterScaleChanges());
+
+  // In overview mode. Start exiting and then cancel.
+  ToggleOverview();
+
+  EXPECT_EQ(empty, tracker_grow_covered.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink_covered.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{1.0},
+            tracker_maximized.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_grow_animated.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{1.0},
+            tracker_shrink_animated.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_grow_minimized.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink_minimized.TakeRasterScaleChanges());
+
+  // Cancel leaving overview mode.
+  EXPECT_FALSE(InOverviewSession());
+  ToggleOverview();
+  EXPECT_TRUE(InOverviewSession());
+
+  // Cancelling shouldn't change any raster scales.
+  EXPECT_EQ(empty, tracker_grow_covered.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink_covered.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_maximized.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_grow_animated.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink_animated.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_grow_minimized.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink_minimized.TakeRasterScaleChanges());
+
+  // Cancel entering overview mode.
+  EXPECT_TRUE(InOverviewSession());
+  ToggleOverview();
+  EXPECT_FALSE(InOverviewSession());
+
+  // Cancelling shouldn't change any raster scales.
+  EXPECT_EQ(empty, tracker_grow_covered.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink_covered.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_maximized.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_grow_animated.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink_animated.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_grow_minimized.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink_minimized.TakeRasterScaleChanges());
+
+  // Cancel leaving overview mode.
+  EXPECT_FALSE(InOverviewSession());
+  ToggleOverview();
+  EXPECT_TRUE(InOverviewSession());
+
+  // Cancelling shouldn't change any raster scales.
+  EXPECT_EQ(empty, tracker_grow_covered.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink_covered.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_maximized.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_grow_animated.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink_animated.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_grow_minimized.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink_minimized.TakeRasterScaleChanges());
+
+  // Finally fully enter overview mode.
+  WaitForOverviewEnterAnimation();
+
+  EXPECT_EQ(empty, tracker_grow_covered.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink_covered.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{raster_scale_maximized},
+            tracker_maximized.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_grow_animated.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{raster_scale_shrink_animated},
+            tracker_shrink_animated.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_grow_minimized.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink_minimized.TakeRasterScaleChanges());
+}
+
+// Tests raster scale changes for transient windows.
+TEST_P(OverviewRasterScaleTest, RasterScaleTransientChildWindows) {
+  Shell::Get()
+      ->raster_scale_controller()
+      ->set_raster_scale_slop_proportion_for_testing(0.0f);
+  std::unique_ptr<aura::Window> window_grow_covered(
+      CreateTestWindow(gfx::Rect(100, 100)));
+  std::unique_ptr<aura::Window> window_shrink_covered(
+      CreateTestWindow(gfx::Rect(600, 600)));
+  std::unique_ptr<aura::Window> window_maximized(
+      CreateTestWindow(gfx::Rect(100, 100)));
+  std::unique_ptr<aura::Window> window_grow_animated(
+      CreateTestWindow(gfx::Rect(100, 100)));
+  std::unique_ptr<aura::Window> window_shrink_animated(
+      CreateTestWindow(gfx::Rect(600, 600)));
+  std::unique_ptr<aura::Window> window_grow_minimized(
+      CreateTestWindow(gfx::Rect(100, 100)));
+  std::unique_ptr<aura::Window> window_shrink_minimized(
+      CreateTestWindow(gfx::Rect(600, 600)));
+
+  std::unique_ptr<aura::Window> window_grow_covered_transient(
+      CreateTestWindow(gfx::Rect(25, 25)));
+  std::unique_ptr<aura::Window> window_shrink_covered_transient(
+      CreateTestWindow(gfx::Rect(25, 25)));
+  std::unique_ptr<aura::Window> window_maximized_transient(
+      CreateTestWindow(gfx::Rect(25, 25)));
+  std::unique_ptr<aura::Window> window_grow_animated_transient(
+      CreateTestWindow(gfx::Rect(25, 25)));
+  std::unique_ptr<aura::Window> window_shrink_animated_transient(
+      CreateTestWindow(gfx::Rect(25, 25)));
+  std::unique_ptr<aura::Window> window_grow_minimized_transient(
+      CreateTestWindow(gfx::Rect(25, 25)));
+  std::unique_ptr<aura::Window> window_shrink_minimized_transient(
+      CreateTestWindow(gfx::Rect(25, 25)));
+
+  wm::AddTransientChild(window_grow_covered.get(),
+                        window_grow_covered_transient.get());
+  wm::AddTransientChild(window_shrink_covered.get(),
+                        window_shrink_covered_transient.get());
+  wm::AddTransientChild(window_maximized.get(),
+                        window_maximized_transient.get());
+  wm::AddTransientChild(window_grow_animated.get(),
+                        window_grow_animated_transient.get());
+  wm::AddTransientChild(window_shrink_animated.get(),
+                        window_shrink_animated_transient.get());
+  wm::AddTransientChild(window_grow_minimized.get(),
+                        window_grow_minimized_transient.get());
+  wm::AddTransientChild(window_shrink_minimized.get(),
+                        window_shrink_minimized_transient.get());
+
+  MinimizeAndCheckWindow(window_grow_minimized.get());
+  MinimizeAndCheckWindow(window_shrink_minimized.get());
+  MaximizeAndCheckWindow(window_maximized.get());
+
+  window_maximized->parent()->StackChildAtBottom(window_grow_covered.get());
+  window_maximized->parent()->StackChildAtBottom(window_shrink_covered.get());
+  window_maximized->parent()->StackChildAtTop(window_shrink_animated.get());
+  window_maximized->parent()->StackChildAtTop(window_grow_animated.get());
+
+  auto tracker_grow_covered =
+      RasterScaleChangeTracker(window_grow_covered.get());
+  auto tracker_shrink_covered =
+      RasterScaleChangeTracker(window_shrink_covered.get());
+  auto tracker_maximized = RasterScaleChangeTracker(window_maximized.get());
+  auto tracker_grow_animated =
+      RasterScaleChangeTracker(window_grow_animated.get());
+  auto tracker_shrink_animated =
+      RasterScaleChangeTracker(window_shrink_animated.get());
+  auto tracker_grow_minimized =
+      RasterScaleChangeTracker(window_grow_minimized.get());
+  auto tracker_shrink_minimized =
+      RasterScaleChangeTracker(window_shrink_minimized.get());
+
+  auto tracker_grow_covered_transient =
+      RasterScaleChangeTracker(window_grow_covered_transient.get());
+  auto tracker_shrink_covered_transient =
+      RasterScaleChangeTracker(window_shrink_covered_transient.get());
+  auto tracker_maximized_transient =
+      RasterScaleChangeTracker(window_maximized_transient.get());
+  auto tracker_grow_animated_transient =
+      RasterScaleChangeTracker(window_grow_animated_transient.get());
+  auto tracker_shrink_animated_transient =
+      RasterScaleChangeTracker(window_shrink_animated_transient.get());
+  auto tracker_grow_minimized_transient =
+      RasterScaleChangeTracker(window_grow_minimized_transient.get());
+  auto tracker_shrink_minimized_transient =
+      RasterScaleChangeTracker(window_shrink_minimized_transient.get());
+
+  gfx::Rect start_bounds_grow_covered =
+      GetTransformedTargetBounds(window_grow_covered.get());
+  gfx::Rect start_bounds_shrink_covered =
+      GetTransformedTargetBounds(window_shrink_covered.get());
+  gfx::Rect start_bounds_maximized =
+      GetTransformedTargetBounds(window_maximized.get());
+  gfx::Rect start_bounds_grow_animated =
+      GetTransformedTargetBounds(window_grow_animated.get());
+  gfx::Rect start_bounds_shrink_animated =
+      GetTransformedTargetBounds(window_shrink_animated.get());
+  gfx::Rect start_bounds_grow_minimized =
+      GetTransformedTargetBounds(window_grow_minimized.get());
+  gfx::Rect start_bounds_shrink_minimized =
+      GetTransformedTargetBounds(window_shrink_minimized.get());
+  ui::ScopedAnimationDurationScaleMode test_duration_mode(
+      ui::ScopedAnimationDurationScaleMode::NON_ZERO_DURATION);
+
+  const std::vector<float> empty;
+  EXPECT_EQ(empty, tracker_grow_covered.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink_covered.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_maximized.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_grow_animated.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink_animated.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_grow_minimized.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink_minimized.TakeRasterScaleChanges());
+
+  EXPECT_EQ(empty, tracker_grow_covered_transient.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink_covered_transient.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_maximized_transient.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_grow_animated_transient.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink_animated_transient.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_grow_minimized_transient.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink_minimized_transient.TakeRasterScaleChanges());
+
+  ToggleOverview();
+
+  float raster_scale_grow_covered =
+      ExpectedRasterScale(window_grow_covered.get(), start_bounds_grow_covered,
+                          /*window_grows=*/true);
+  float raster_scale_shrink_covered = ExpectedRasterScale(
+      window_shrink_covered.get(), start_bounds_shrink_covered,
+      /*window_grows=*/false);
+  float raster_scale_maximized =
+      ExpectedRasterScale(window_maximized.get(), start_bounds_maximized,
+                          /*window_grows=*/false);
+  float raster_scale_grow_animated =
+      ExpectedRasterScale(window_grow_animated.get(),
+                          start_bounds_grow_animated, /*window_grows=*/true);
+  float raster_scale_shrink_animated = ExpectedRasterScale(
+      window_shrink_animated.get(), start_bounds_shrink_animated,
+      /*window_grows=*/false);
+  float raster_scale_grow_minimized =
+      ExpectedRasterScale(window_grow_minimized.get(),
+                          start_bounds_grow_minimized, /*window_grows=*/true);
+  float raster_scale_shrink_minimized = ExpectedRasterScale(
+      window_shrink_minimized.get(), start_bounds_shrink_minimized,
+      /*window_grows=*/false);
+
+  EXPECT_EQ(std::vector<float>{raster_scale_grow_covered},
+            tracker_grow_covered.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{raster_scale_shrink_covered},
+            tracker_shrink_covered.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_maximized.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{raster_scale_grow_animated},
+            tracker_grow_animated.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink_animated.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{raster_scale_grow_minimized},
+            tracker_grow_minimized.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{raster_scale_shrink_minimized},
+            tracker_shrink_minimized.TakeRasterScaleChanges());
+
+  EXPECT_EQ(std::vector<float>{raster_scale_grow_covered},
+            tracker_grow_covered_transient.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{raster_scale_shrink_covered},
+            tracker_shrink_covered_transient.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_maximized_transient.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{raster_scale_grow_animated},
+            tracker_grow_animated_transient.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink_animated_transient.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{raster_scale_grow_minimized},
+            tracker_grow_minimized_transient.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{raster_scale_shrink_minimized},
+            tracker_shrink_minimized_transient.TakeRasterScaleChanges());
+
+  WaitForOverviewEnterAnimation();
+
+  EXPECT_EQ(empty, tracker_grow_covered.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink_covered.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{raster_scale_maximized},
+            tracker_maximized.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_grow_animated.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{raster_scale_shrink_animated},
+            tracker_shrink_animated.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_grow_minimized.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink_minimized.TakeRasterScaleChanges());
+
+  EXPECT_EQ(empty, tracker_grow_covered_transient.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink_covered_transient.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{raster_scale_maximized},
+            tracker_maximized_transient.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_grow_animated_transient.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{raster_scale_shrink_animated},
+            tracker_shrink_animated_transient.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_grow_minimized_transient.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink_minimized_transient.TakeRasterScaleChanges());
+
+  // Exit overview mode.
+  ToggleOverview();
+
+  EXPECT_EQ(empty, tracker_grow_covered.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink_covered.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{1.0},
+            tracker_maximized.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_grow_animated.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{1.0},
+            tracker_shrink_animated.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_grow_minimized.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink_minimized.TakeRasterScaleChanges());
+
+  EXPECT_EQ(empty, tracker_grow_covered_transient.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink_covered_transient.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{1.0},
+            tracker_maximized_transient.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_grow_animated_transient.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{1.0},
+            tracker_shrink_animated_transient.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_grow_minimized_transient.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink_minimized_transient.TakeRasterScaleChanges());
+
+  WaitForOverviewExitAnimation();
+
+  EXPECT_EQ(std::vector<float>{1.0},
+            tracker_grow_covered.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{1.0},
+            tracker_shrink_covered.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_maximized.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{1.0},
+            tracker_grow_animated.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink_animated.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{1.0},
+            tracker_grow_minimized.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{1.0},
+            tracker_shrink_minimized.TakeRasterScaleChanges());
+
+  EXPECT_EQ(std::vector<float>{1.0},
+            tracker_grow_covered_transient.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{1.0},
+            tracker_shrink_covered_transient.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_maximized_transient.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{1.0},
+            tracker_grow_animated_transient.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink_animated_transient.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{1.0},
+            tracker_grow_minimized_transient.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{1.0},
+            tracker_shrink_minimized_transient.TakeRasterScaleChanges());
+
+  // Re-enter overview mode to test adding/removing transient child windows.
+  ToggleOverview();
+
+  EXPECT_EQ(std::vector<float>{raster_scale_grow_covered},
+            tracker_grow_covered.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{raster_scale_shrink_covered},
+            tracker_shrink_covered.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_maximized.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{raster_scale_grow_animated},
+            tracker_grow_animated.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink_animated.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{raster_scale_grow_minimized},
+            tracker_grow_minimized.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{raster_scale_shrink_minimized},
+            tracker_shrink_minimized.TakeRasterScaleChanges());
+
+  EXPECT_EQ(std::vector<float>{raster_scale_grow_covered},
+            tracker_grow_covered_transient.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{raster_scale_shrink_covered},
+            tracker_shrink_covered_transient.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_maximized_transient.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{raster_scale_grow_animated},
+            tracker_grow_animated_transient.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink_animated_transient.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{raster_scale_grow_minimized},
+            tracker_grow_minimized_transient.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{raster_scale_shrink_minimized},
+            tracker_shrink_minimized_transient.TakeRasterScaleChanges());
+
+  WaitForOverviewEnterAnimation();
+
+  EXPECT_EQ(empty, tracker_grow_covered.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink_covered.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{raster_scale_maximized},
+            tracker_maximized.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_grow_animated.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{raster_scale_shrink_animated},
+            tracker_shrink_animated.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_grow_minimized.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink_minimized.TakeRasterScaleChanges());
+
+  EXPECT_EQ(empty, tracker_grow_covered_transient.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink_covered_transient.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{raster_scale_maximized},
+            tracker_maximized_transient.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_grow_animated_transient.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{raster_scale_shrink_animated},
+            tracker_shrink_animated_transient.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_grow_minimized_transient.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink_minimized_transient.TakeRasterScaleChanges());
+
+  wm::RemoveTransientChild(window_grow_covered.get(),
+                           window_grow_covered_transient.get());
+  EXPECT_EQ(std::vector<float>{1.0},
+            tracker_grow_covered_transient.TakeRasterScaleChanges());
+
+  wm::RemoveTransientChild(window_shrink_covered.get(),
+                           window_shrink_covered_transient.get());
+  EXPECT_EQ(std::vector<float>{1.0},
+            tracker_shrink_covered_transient.TakeRasterScaleChanges());
+
+  wm::RemoveTransientChild(window_maximized.get(),
+                           window_maximized_transient.get());
+  EXPECT_EQ(std::vector<float>{1.0},
+            tracker_maximized_transient.TakeRasterScaleChanges());
+
+  wm::RemoveTransientChild(window_grow_animated.get(),
+                           window_grow_animated_transient.get());
+  EXPECT_EQ(std::vector<float>{1.0},
+            tracker_grow_animated_transient.TakeRasterScaleChanges());
+
+  wm::RemoveTransientChild(window_shrink_animated.get(),
+                           window_shrink_animated_transient.get());
+  EXPECT_EQ(std::vector<float>{1.0},
+            tracker_shrink_animated_transient.TakeRasterScaleChanges());
+
+  wm::RemoveTransientChild(window_grow_minimized.get(),
+                           window_grow_minimized_transient.get());
+  EXPECT_EQ(std::vector<float>{1.0},
+            tracker_grow_minimized_transient.TakeRasterScaleChanges());
+
+  wm::RemoveTransientChild(window_shrink_minimized.get(),
+                           window_shrink_minimized_transient.get());
+  EXPECT_EQ(std::vector<float>{1.0},
+            tracker_shrink_minimized_transient.TakeRasterScaleChanges());
+
+  // Add back the transient child windows and expect the raster scales to be
+  // set.
+
+  wm::AddTransientChild(window_grow_covered.get(),
+                        window_grow_covered_transient.get());
+  EXPECT_EQ(std::vector<float>{raster_scale_grow_covered},
+            tracker_grow_covered_transient.TakeRasterScaleChanges());
+
+  wm::AddTransientChild(window_shrink_covered.get(),
+                        window_shrink_covered_transient.get());
+  EXPECT_EQ(std::vector<float>{raster_scale_shrink_covered},
+            tracker_shrink_covered_transient.TakeRasterScaleChanges());
+
+  wm::AddTransientChild(window_maximized.get(),
+                        window_maximized_transient.get());
+  EXPECT_EQ(std::vector<float>{raster_scale_maximized},
+            tracker_maximized_transient.TakeRasterScaleChanges());
+
+  wm::AddTransientChild(window_grow_animated.get(),
+                        window_grow_animated_transient.get());
+  EXPECT_EQ(std::vector<float>{raster_scale_grow_animated},
+            tracker_grow_animated_transient.TakeRasterScaleChanges());
+
+  wm::AddTransientChild(window_shrink_animated.get(),
+                        window_shrink_animated_transient.get());
+  EXPECT_EQ(std::vector<float>{raster_scale_shrink_animated},
+            tracker_shrink_animated_transient.TakeRasterScaleChanges());
+
+  wm::AddTransientChild(window_grow_minimized.get(),
+                        window_grow_minimized_transient.get());
+  EXPECT_EQ(std::vector<float>{raster_scale_grow_minimized},
+            tracker_grow_minimized_transient.TakeRasterScaleChanges());
+
+  wm::AddTransientChild(window_shrink_minimized.get(),
+                        window_shrink_minimized_transient.get());
+  EXPECT_EQ(std::vector<float>{raster_scale_shrink_minimized},
+            tracker_shrink_minimized_transient.TakeRasterScaleChanges());
+
+  // Test adding/removing transient windows during overview animation.
+
+  // Exit overview mode to test adding/removing transient child windows.
+  ToggleOverview();
+
+  EXPECT_EQ(empty, tracker_grow_covered.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink_covered.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{1.0},
+            tracker_maximized.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_grow_animated.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{1.0},
+            tracker_shrink_animated.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_grow_minimized.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink_minimized.TakeRasterScaleChanges());
+
+  EXPECT_EQ(empty, tracker_grow_covered_transient.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink_covered_transient.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{1.0},
+            tracker_maximized_transient.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_grow_animated_transient.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{1.0},
+            tracker_shrink_animated_transient.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_grow_minimized_transient.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink_minimized_transient.TakeRasterScaleChanges());
+
+  // Only expect updates for ones that were not updated when beginning the exit
+  // animation.
+  wm::RemoveTransientChild(window_grow_covered.get(),
+                           window_grow_covered_transient.get());
+  EXPECT_EQ(std::vector<float>{1.0},
+            tracker_grow_covered_transient.TakeRasterScaleChanges());
+
+  wm::RemoveTransientChild(window_shrink_covered.get(),
+                           window_shrink_covered_transient.get());
+  EXPECT_EQ(std::vector<float>{1.0},
+            tracker_shrink_covered_transient.TakeRasterScaleChanges());
+
+  wm::RemoveTransientChild(window_maximized.get(),
+                           window_maximized_transient.get());
+  EXPECT_EQ(empty, tracker_maximized_transient.TakeRasterScaleChanges());
+
+  wm::RemoveTransientChild(window_grow_animated.get(),
+                           window_grow_animated_transient.get());
+  EXPECT_EQ(std::vector<float>{1.0},
+            tracker_grow_animated_transient.TakeRasterScaleChanges());
+
+  wm::RemoveTransientChild(window_shrink_animated.get(),
+                           window_shrink_animated_transient.get());
+  EXPECT_EQ(empty, tracker_shrink_animated_transient.TakeRasterScaleChanges());
+
+  wm::RemoveTransientChild(window_grow_minimized.get(),
+                           window_grow_minimized_transient.get());
+  EXPECT_EQ(std::vector<float>{1.0},
+            tracker_grow_minimized_transient.TakeRasterScaleChanges());
+
+  wm::RemoveTransientChild(window_shrink_minimized.get(),
+                           window_shrink_minimized_transient.get());
+  EXPECT_EQ(std::vector<float>{1.0},
+            tracker_shrink_minimized_transient.TakeRasterScaleChanges());
+
+  // Add back the transient child windows and expect the raster scales to be
+  // set except for the windows that were already set to 1.0.
+  wm::AddTransientChild(window_grow_covered.get(),
+                        window_grow_covered_transient.get());
+  EXPECT_EQ(std::vector<float>{raster_scale_grow_covered},
+            tracker_grow_covered_transient.TakeRasterScaleChanges());
+
+  wm::AddTransientChild(window_shrink_covered.get(),
+                        window_shrink_covered_transient.get());
+  EXPECT_EQ(std::vector<float>{raster_scale_shrink_covered},
+            tracker_shrink_covered_transient.TakeRasterScaleChanges());
+
+  wm::AddTransientChild(window_maximized.get(),
+                        window_maximized_transient.get());
+  EXPECT_EQ(empty, tracker_maximized_transient.TakeRasterScaleChanges());
+
+  wm::AddTransientChild(window_grow_animated.get(),
+                        window_grow_animated_transient.get());
+  EXPECT_EQ(std::vector<float>{raster_scale_grow_animated},
+            tracker_grow_animated_transient.TakeRasterScaleChanges());
+
+  wm::AddTransientChild(window_shrink_animated.get(),
+                        window_shrink_animated_transient.get());
+  EXPECT_EQ(empty, tracker_shrink_animated_transient.TakeRasterScaleChanges());
+
+  wm::AddTransientChild(window_grow_minimized.get(),
+                        window_grow_minimized_transient.get());
+  EXPECT_EQ(std::vector<float>{raster_scale_grow_minimized},
+            tracker_grow_minimized_transient.TakeRasterScaleChanges());
+
+  wm::AddTransientChild(window_shrink_minimized.get(),
+                        window_shrink_minimized_transient.get());
+  EXPECT_EQ(std::vector<float>{raster_scale_shrink_minimized},
+            tracker_shrink_minimized_transient.TakeRasterScaleChanges());
+
+  // Expect that transient children added during the overview mode animation
+  // have their raster scale set at the end of the animation.
+  WaitForOverviewExitAnimation();
+
+  EXPECT_EQ(std::vector<float>{1.0},
+            tracker_grow_covered.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{1.0},
+            tracker_shrink_covered.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_maximized.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{1.0},
+            tracker_grow_animated.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink_animated.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{1.0},
+            tracker_grow_minimized.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{1.0},
+            tracker_shrink_minimized.TakeRasterScaleChanges());
+
+  EXPECT_EQ(std::vector<float>{1.0},
+            tracker_grow_covered_transient.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{1.0},
+            tracker_shrink_covered_transient.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_maximized_transient.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{1.0},
+            tracker_grow_animated_transient.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink_animated_transient.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{1.0},
+            tracker_grow_minimized_transient.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{1.0},
+            tracker_shrink_minimized_transient.TakeRasterScaleChanges());
+
+  // Re-enter overview mode to test removing transient child windows during
+  // enter animation.
+  ToggleOverview();
+
+  EXPECT_EQ(std::vector<float>{raster_scale_grow_covered},
+            tracker_grow_covered.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{raster_scale_shrink_covered},
+            tracker_shrink_covered.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_maximized.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{raster_scale_grow_animated},
+            tracker_grow_animated.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink_animated.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{raster_scale_grow_minimized},
+            tracker_grow_minimized.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{raster_scale_shrink_minimized},
+            tracker_shrink_minimized.TakeRasterScaleChanges());
+
+  EXPECT_EQ(std::vector<float>{raster_scale_grow_covered},
+            tracker_grow_covered_transient.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{raster_scale_shrink_covered},
+            tracker_shrink_covered_transient.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_maximized_transient.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{raster_scale_grow_animated},
+            tracker_grow_animated_transient.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_shrink_animated_transient.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{raster_scale_grow_minimized},
+            tracker_grow_minimized_transient.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{raster_scale_shrink_minimized},
+            tracker_shrink_minimized_transient.TakeRasterScaleChanges());
+
+  // Only expect updates for ones that were already updated when starting to
+  // enter.
+  wm::RemoveTransientChild(window_grow_covered.get(),
+                           window_grow_covered_transient.get());
+  EXPECT_EQ(std::vector<float>{1.0},
+            tracker_grow_covered_transient.TakeRasterScaleChanges());
+
+  wm::RemoveTransientChild(window_shrink_covered.get(),
+                           window_shrink_covered_transient.get());
+  EXPECT_EQ(std::vector<float>{1.0},
+            tracker_shrink_covered_transient.TakeRasterScaleChanges());
+
+  wm::RemoveTransientChild(window_maximized.get(),
+                           window_maximized_transient.get());
+  EXPECT_EQ(empty, tracker_maximized_transient.TakeRasterScaleChanges());
+
+  wm::RemoveTransientChild(window_grow_animated.get(),
+                           window_grow_animated_transient.get());
+  EXPECT_EQ(std::vector<float>{1.0},
+            tracker_grow_animated_transient.TakeRasterScaleChanges());
+
+  wm::RemoveTransientChild(window_shrink_animated.get(),
+                           window_shrink_animated_transient.get());
+  EXPECT_EQ(empty, tracker_shrink_animated_transient.TakeRasterScaleChanges());
+
+  wm::RemoveTransientChild(window_grow_minimized.get(),
+                           window_grow_minimized_transient.get());
+  EXPECT_EQ(std::vector<float>{1.0},
+            tracker_grow_minimized_transient.TakeRasterScaleChanges());
+
+  wm::RemoveTransientChild(window_shrink_minimized.get(),
+                           window_shrink_minimized_transient.get());
+  EXPECT_EQ(std::vector<float>{1.0},
+            tracker_shrink_minimized_transient.TakeRasterScaleChanges());
+}
+
+// Tests that adding a window as a transient window to another window will
+// update its raster scale.
+TEST_P(OverviewRasterScaleTest,
+       RasterScaleAddRemoveTransientChildWindowsDuringOverviewMode) {
+  Shell::Get()
+      ->raster_scale_controller()
+      ->set_raster_scale_slop_proportion_for_testing(0.0f);
+  std::unique_ptr<aura::Window> window(CreateTestWindow(gfx::Rect(100, 100)));
+
+  std::unique_ptr<aura::Window> window_transient(
+      CreateTestWindow(gfx::Rect(600, 600)));
+
+  auto tracker = RasterScaleChangeTracker(window.get());
+  auto tracker_transient = RasterScaleChangeTracker(window_transient.get());
+
+  gfx::Rect start_bounds = GetTransformedTargetBounds(window.get());
+  gfx::Rect start_bounds_transient =
+      GetTransformedTargetBounds(window_transient.get());
+  ui::ScopedAnimationDurationScaleMode test_duration_mode(
+      ui::ScopedAnimationDurationScaleMode::NON_ZERO_DURATION);
+
+  const std::vector<float> empty;
+  EXPECT_EQ(empty, tracker.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_transient.TakeRasterScaleChanges());
+
+  ToggleOverview();
+
+  auto raster_scale =
+      ExpectedRasterScale(window.get(), start_bounds, /*window_grows=*/true);
+  float raster_scale_transient =
+      ExpectedRasterScale(window_transient.get(), start_bounds_transient,
+                          /*window_grows=*/false);
+
+  EXPECT_EQ(std::vector<float>{raster_scale}, tracker.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_transient.TakeRasterScaleChanges());
+
+  WaitForOverviewEnterAnimation();
+
+  EXPECT_EQ(empty, tracker.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{raster_scale_transient},
+            tracker_transient.TakeRasterScaleChanges());
+
+  // Add transient windows and expect the raster scales to be updated to the
+  // larger value.
+  wm::AddTransientChild(window.get(), window_transient.get());
+  EXPECT_EQ(std::vector<float>{raster_scale},
+            tracker_transient.TakeRasterScaleChanges());
+}
+
+// Tests that adding windows to overview mode will update existing raster
+// scales.
+TEST_P(OverviewRasterScaleTest,
+       RasterScaleAddWindowsDuringOverviewModeByCombiningAVirtualDesk) {
+  Shell::Get()
+      ->raster_scale_controller()
+      ->set_raster_scale_slop_proportion_for_testing(0.0f);
+  ui::ScopedAnimationDurationScaleMode test_duration_mode(
+      ui::ScopedAnimationDurationScaleMode::NON_ZERO_DURATION);
+
+  // First ensure there are 3 desks.
+  auto* controller = DesksController::Get();
+  controller->NewDesk(DesksCreationRemovalSource::kKeyboard);
+  controller->NewDesk(DesksCreationRemovalSource::kKeyboard);
+  ASSERT_EQ(3u, controller->desks().size());
+
+  Desk* desk1 = controller->desks()[0].get();
+  Desk* desk2 = controller->desks()[1].get();
+  Desk* desk3 = controller->desks()[2].get();
+
+  // Create three windows, one on each desk. Need to use `CreateAppWindow` to
+  // work with desks.
+  std::unique_ptr<aura::Window> window1(CreateAppWindow(gfx::Rect(100, 100)));
+  auto tracker1 = RasterScaleChangeTracker(window1.get());
+  gfx::Rect start_bounds = GetTransformedTargetBounds(window1.get());
+  const std::vector<float> empty;
+  EXPECT_EQ(empty, tracker1.TakeRasterScaleChanges());
+  controller->SendToDeskAtIndex(window1.get(), 0);
+  EXPECT_TRUE(base::Contains(desk1->windows(), window1.get()));
+
+  std::unique_ptr<aura::Window> window2(CreateAppWindow(gfx::Rect(100, 100)));
+  auto tracker2 = RasterScaleChangeTracker(window2.get());
+  EXPECT_EQ(empty, tracker2.TakeRasterScaleChanges());
+  controller->SendToDeskAtIndex(window2.get(), 1);
+  EXPECT_TRUE(base::Contains(desk2->windows(), window2.get()));
+
+  std::unique_ptr<aura::Window> window3(CreateAppWindow(gfx::Rect(100, 100)));
+  auto tracker3 = RasterScaleChangeTracker(window3.get());
+  EXPECT_EQ(empty, tracker3.TakeRasterScaleChanges());
+  controller->SendToDeskAtIndex(window3.get(), 2);
+  EXPECT_TRUE(base::Contains(desk3->windows(), window3.get()));
+
+  EXPECT_TRUE(desk1->is_active());
+
+  // Enter overview mode
+  ToggleOverview();
+
+  auto raster_scale =
+      ExpectedRasterScale(window1.get(), start_bounds, /*window_grows=*/true);
+  EXPECT_EQ(std::vector<float>{raster_scale},
+            tracker1.TakeRasterScaleChanges());
+
+  // `window2` and `window3` are not visible on the overview, so expect no
+  // raster scale changes.
+  EXPECT_EQ(empty, tracker2.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker3.TakeRasterScaleChanges());
+
+  WaitForOverviewEnterAnimation();
+
+  EXPECT_EQ(empty, tracker1.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker2.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker3.TakeRasterScaleChanges());
+
+  // Combine `desk3` and expect the raster scale for window3 to be updated since
+  // it is moved to the active desk1.
+  const auto* overview_grid =
+      GetOverviewGridForRoot(Shell::GetPrimaryRootWindow());
+  EXPECT_EQ(1u, overview_grid->window_list().size());
+  const auto* desks_bar_view = overview_grid->desks_bar_view();
+  ASSERT_TRUE(desks_bar_view);
+  ASSERT_EQ(3u, desks_bar_view->mini_views().size());
+  auto* mini_view = desks_bar_view->mini_views()[2];
+  EXPECT_EQ(desk3, mini_view->desk());
+  CombineDesksViaMiniView(mini_view, GetEventGenerator());
+
+  EXPECT_TRUE(desk1->is_active());
+  EXPECT_EQ(empty, tracker1.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker2.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{raster_scale},
+            tracker3.TakeRasterScaleChanges());
+
+  // Now combine the active desk (`desk1`), and expect only `window2` to be
+  // updated.
+  EXPECT_EQ(2u, overview_grid->window_list().size());
+  mini_view = desks_bar_view->mini_views()[0];
+  EXPECT_EQ(desk1, mini_view->desk());
+  CombineDesksViaMiniView(mini_view, GetEventGenerator());
+
+  EXPECT_TRUE(desk2->is_active());
+  EXPECT_EQ(empty, tracker1.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{raster_scale},
+            tracker2.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker3.TakeRasterScaleChanges());
+}
+
+// Tests that moving windows from overview mode to a different virtual desk
+// works.
+TEST_P(OverviewRasterScaleTest,
+       RasterScaleMoveWindowToVirtualDeskDuringOverviewMode) {
+  Shell::Get()
+      ->raster_scale_controller()
+      ->set_raster_scale_slop_proportion_for_testing(0.0f);
+  ui::ScopedAnimationDurationScaleMode test_duration_mode(
+      ui::ScopedAnimationDurationScaleMode::NON_ZERO_DURATION);
+
+  // First ensure there are 3 desks.
+  auto* controller = DesksController::Get();
+  controller->NewDesk(DesksCreationRemovalSource::kKeyboard);
+  EXPECT_EQ(2u, controller->desks().size());
+
+  Desk* desk1 = controller->desks()[0].get();
+  Desk* desk2 = controller->desks()[1].get();
+
+  // Create two windows on the first desk.
+  std::unique_ptr<aura::Window> window1(CreateAppWindow(gfx::Rect(100, 100)));
+  auto tracker1 = RasterScaleChangeTracker(window1.get());
+  gfx::Rect start_bounds = GetTransformedTargetBounds(window1.get());
+  const std::vector<float> empty;
+  EXPECT_EQ(empty, tracker1.TakeRasterScaleChanges());
+  controller->SendToDeskAtIndex(window1.get(), 0);
+  EXPECT_TRUE(base::Contains(desk1->windows(), window1.get()));
+
+  std::unique_ptr<aura::Window> window2(CreateAppWindow(gfx::Rect(100, 100)));
+  auto tracker2 = RasterScaleChangeTracker(window2.get());
+  EXPECT_EQ(empty, tracker2.TakeRasterScaleChanges());
+  controller->SendToDeskAtIndex(window2.get(), 0);
+  EXPECT_TRUE(base::Contains(desk1->windows(), window2.get()));
+
+  EXPECT_TRUE(desk1->is_active());
+
+  // Enter overview mode
+  ToggleOverview();
+
+  auto raster_scale =
+      ExpectedRasterScale(window1.get(), start_bounds, /*window_grows=*/true);
+  EXPECT_EQ(std::vector<float>{raster_scale},
+            tracker1.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{raster_scale},
+            tracker2.TakeRasterScaleChanges());
+
+  WaitForOverviewEnterAnimation();
+
+  EXPECT_EQ(empty, tracker1.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker2.TakeRasterScaleChanges());
+
+  // Move `window2` to `desk2` and expect it to go back to 1.0 raster scale.
+  EXPECT_TRUE(controller->MoveWindowFromActiveDeskTo(
+      window2.get(), desk2, window2->GetRootWindow(),
+      DesksMoveWindowFromActiveDeskSource::kDragAndDrop));
+
+  EXPECT_EQ(empty, tracker1.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{1.0f}, tracker2.TakeRasterScaleChanges());
+
+  // Exit overview mode
+  ToggleOverview();
+  EXPECT_EQ(empty, tracker1.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker2.TakeRasterScaleChanges());
+
+  WaitForOverviewExitAnimation();
+
+  EXPECT_EQ(std::vector<float>{1.0f}, tracker1.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker2.TakeRasterScaleChanges());
+}
+
+// Tests raster scale changes work in tablet mode.
+TEST_P(OverviewRasterScaleTest, RasterScaleTabletMode) {
+  Shell::Get()
+      ->raster_scale_controller()
+      ->set_raster_scale_slop_proportion_for_testing(0.0f);
+  EnterTabletMode();
+
+  std::unique_ptr<aura::Window> window_maximized(
+      CreateTestWindow(gfx::Rect(600, 600)));
+  std::unique_ptr<aura::Window> window_minimized(
+      CreateTestWindow(gfx::Rect(600, 600)));
+
+  MinimizeAndCheckWindow(window_minimized.get());
+  MaximizeAndCheckWindow(window_maximized.get());
+
+  auto tracker_maximized = RasterScaleChangeTracker(window_maximized.get());
+  auto tracker_minimized = RasterScaleChangeTracker(window_minimized.get());
+
+  gfx::Rect start_bounds_maximized =
+      GetTransformedTargetBounds(window_maximized.get());
+  gfx::Rect start_bounds_minimized =
+      GetTransformedTargetBounds(window_minimized.get());
+  ui::ScopedAnimationDurationScaleMode test_duration_mode(
+      ui::ScopedAnimationDurationScaleMode::NON_ZERO_DURATION);
+
+  const std::vector<float> empty;
+  EXPECT_EQ(empty, tracker_maximized.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_minimized.TakeRasterScaleChanges());
+
+  ToggleOverview();
+
+  float raster_scale_maximized =
+      ExpectedRasterScale(window_maximized.get(), start_bounds_maximized,
+                          /*window_grows=*/false);
+  float raster_scale_minimized =
+      ExpectedRasterScale(window_minimized.get(), start_bounds_minimized,
+                          /*window_grows=*/false);
+
+  EXPECT_EQ(empty, tracker_maximized.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{raster_scale_minimized},
+            tracker_minimized.TakeRasterScaleChanges());
+
+  // Cancel entering overview mode.
+  ToggleOverview();
+
+  // Animation will start to reverse, no reason to change the raster scale here.
+  EXPECT_EQ(empty, tracker_maximized.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_minimized.TakeRasterScaleChanges());
+
+  WaitForOverviewExitAnimation();
+
+  EXPECT_EQ(empty, tracker_maximized.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{1.0},
+            tracker_minimized.TakeRasterScaleChanges());
+
+  // Enter overview mode so we can test cancelling exit.
+  ToggleOverview();
+
+  EXPECT_EQ(empty, tracker_maximized.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{raster_scale_minimized},
+            tracker_minimized.TakeRasterScaleChanges());
+
+  WaitForOverviewEnterAnimation();
+
+  EXPECT_EQ(std::vector<float>{raster_scale_maximized},
+            tracker_maximized.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_minimized.TakeRasterScaleChanges());
+
+  // In overview mode. Start exiting and then cancel.
+  ToggleOverview();
+
+  EXPECT_EQ(std::vector<float>{1.0},
+            tracker_maximized.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_minimized.TakeRasterScaleChanges());
+
+  // Cancel leaving overview mode.
+  EXPECT_FALSE(InOverviewSession());
+  ToggleOverview();
+  EXPECT_TRUE(InOverviewSession());
+
+  // Cancelling shouldn't change any raster scales.
+  EXPECT_EQ(empty, tracker_maximized.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_minimized.TakeRasterScaleChanges());
+
+  // Cancel entering overview mode.
+  EXPECT_TRUE(InOverviewSession());
+  ToggleOverview();
+  EXPECT_FALSE(InOverviewSession());
+
+  // Cancelling shouldn't change any raster scales.
+  EXPECT_EQ(empty, tracker_maximized.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_minimized.TakeRasterScaleChanges());
+
+  // Cancel leaving overview mode.
+  EXPECT_FALSE(InOverviewSession());
+  ToggleOverview();
+  EXPECT_TRUE(InOverviewSession());
+
+  // Cancelling shouldn't change any raster scales.
+  EXPECT_EQ(empty, tracker_maximized.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_minimized.TakeRasterScaleChanges());
+
+  // Finally fully enter overview mode.
+  WaitForOverviewEnterAnimation();
+
+  EXPECT_EQ(std::vector<float>{raster_scale_maximized},
+            tracker_maximized.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_minimized.TakeRasterScaleChanges());
+}
+
+// Tests raster scale changes work during screen rotations.
+TEST_P(OverviewRasterScaleTest, RasterScaleScreenRotation) {
+  Shell::Get()
+      ->raster_scale_controller()
+      ->set_raster_scale_slop_proportion_for_testing(0.0f);
+  UpdateDisplay("1600x1200");
+  display::test::ScopedSetInternalDisplayId set_internal(
+      Shell::Get()->display_manager(),
+      display::Screen::GetScreen()->GetPrimaryDisplay().id());
+  ScreenOrientationControllerTestApi test_api(
+      Shell::Get()->screen_orientation_controller());
+
+  std::unique_ptr<aura::Window> window_maximized(
+      CreateTestWindow(gfx::Rect(600, 600)));
+  std::unique_ptr<aura::Window> window_minimized(
+      CreateTestWindow(gfx::Rect(600, 600)));
+
+  MinimizeAndCheckWindow(window_minimized.get());
+  MaximizeAndCheckWindow(window_maximized.get());
+
+  auto tracker_maximized = RasterScaleChangeTracker(window_maximized.get());
+  auto tracker_minimized = RasterScaleChangeTracker(window_minimized.get());
+
+  gfx::Rect start_bounds_maximized =
+      GetTransformedTargetBounds(window_maximized.get());
+  gfx::Rect start_bounds_minimized =
+      GetTransformedTargetBounds(window_minimized.get());
+  ui::ScopedAnimationDurationScaleMode test_duration_mode(
+      ui::ScopedAnimationDurationScaleMode::NON_ZERO_DURATION);
+
+  const std::vector<float> empty;
+  EXPECT_EQ(empty, tracker_maximized.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_minimized.TakeRasterScaleChanges());
+
+  ToggleOverview();
+
+  float raster_scale_maximized =
+      ExpectedRasterScale(window_maximized.get(), start_bounds_maximized,
+                          /*window_grows=*/false);
+  float raster_scale_minimized =
+      ExpectedRasterScale(window_minimized.get(), start_bounds_minimized,
+                          /*window_grows=*/false);
+
+  EXPECT_EQ(empty, tracker_maximized.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{raster_scale_minimized},
+            tracker_minimized.TakeRasterScaleChanges());
+
+  WaitForOverviewEnterAnimation();
+
+  EXPECT_EQ(std::vector<float>{raster_scale_maximized},
+            tracker_maximized.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_minimized.TakeRasterScaleChanges());
+
+  // Rotate the screen 180 degrees and expect no raster scale changes.
+  test_api.SetDisplayRotation(display::Display::ROTATE_0,
+                              display::Display::RotationSource::ACTIVE);
+  EXPECT_EQ(empty, tracker_maximized.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_minimized.TakeRasterScaleChanges());
+
+  test_api.SetDisplayRotation(display::Display::ROTATE_180,
+                              display::Display::RotationSource::ACTIVE);
+  EXPECT_EQ(empty, tracker_maximized.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_minimized.TakeRasterScaleChanges());
+}
+
+// Tests raster scale changes work during screen rotations in tablet mode.
+TEST_P(OverviewRasterScaleTest, RasterScaleScreenRotationTabletMode) {
+  Shell::Get()
+      ->raster_scale_controller()
+      ->set_raster_scale_slop_proportion_for_testing(0.0f);
+  UpdateDisplay("1600x1200");
+  EnterTabletMode();
+
+  display::test::ScopedSetInternalDisplayId set_internal(
+      Shell::Get()->display_manager(),
+      display::Screen::GetScreen()->GetPrimaryDisplay().id());
+  ScreenOrientationControllerTestApi test_api(
+      Shell::Get()->screen_orientation_controller());
+
+  std::unique_ptr<aura::Window> window_maximized(
+      CreateTestWindow(gfx::Rect(600, 600)));
+  std::unique_ptr<aura::Window> window_minimized(
+      CreateTestWindow(gfx::Rect(600, 600)));
+
+  MinimizeAndCheckWindow(window_minimized.get());
+  MaximizeAndCheckWindow(window_maximized.get());
+
+  auto tracker_maximized = RasterScaleChangeTracker(window_maximized.get());
+  auto tracker_minimized = RasterScaleChangeTracker(window_minimized.get());
+
+  gfx::Rect start_bounds_maximized =
+      GetTransformedTargetBounds(window_maximized.get());
+  gfx::Rect start_bounds_minimized =
+      GetTransformedTargetBounds(window_minimized.get());
+  ui::ScopedAnimationDurationScaleMode test_duration_mode(
+      ui::ScopedAnimationDurationScaleMode::NON_ZERO_DURATION);
+
+  const std::vector<float> empty;
+  EXPECT_EQ(empty, tracker_maximized.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_minimized.TakeRasterScaleChanges());
+
+  ToggleOverview();
+
+  float raster_scale_maximized =
+      ExpectedRasterScale(window_maximized.get(), start_bounds_maximized,
+                          /*window_grows=*/false);
+  float raster_scale_minimized =
+      ExpectedRasterScale(window_minimized.get(), start_bounds_minimized,
+                          /*window_grows=*/false);
+
+  EXPECT_EQ(empty, tracker_maximized.TakeRasterScaleChanges());
+  EXPECT_EQ(std::vector<float>{raster_scale_minimized},
+            tracker_minimized.TakeRasterScaleChanges());
+
+  WaitForOverviewEnterAnimation();
+
+  EXPECT_EQ(std::vector<float>{raster_scale_maximized},
+            tracker_maximized.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_minimized.TakeRasterScaleChanges());
+
+  // Rotate the screen 180 degrees and expect no raster scale changes.
+  test_api.SetDisplayRotation(display::Display::ROTATE_0,
+                              display::Display::RotationSource::ACTIVE);
+  EXPECT_EQ(empty, tracker_maximized.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_minimized.TakeRasterScaleChanges());
+
+  test_api.SetDisplayRotation(display::Display::ROTATE_180,
+                              display::Display::RotationSource::ACTIVE);
+  EXPECT_EQ(empty, tracker_maximized.TakeRasterScaleChanges());
+  EXPECT_EQ(empty, tracker_minimized.TakeRasterScaleChanges());
+}
+
+INSTANTIATE_TEST_SUITE_P(/*no prefix*/,
+                         OverviewRasterScaleTest,
+                         testing::Bool(),
+                         [](const testing::TestParamInfo<bool>& info) {
+                           return info.param ? "DesksTemplatesOn"
+                                             : "DesksTemplatesOff";
+                         });
 
 class FloatOverviewSessionTest : public OverviewTestBase {
  public:
-  FloatOverviewSessionTest()
-      : scoped_feature_list_(chromeos::wm::features::kWindowLayoutMenu) {}
+  FloatOverviewSessionTest() = default;
   FloatOverviewSessionTest(const FloatOverviewSessionTest&) = delete;
   FloatOverviewSessionTest& operator=(const FloatOverviewSessionTest&) = delete;
   ~FloatOverviewSessionTest() override = default;
@@ -3385,12 +5285,12 @@ class FloatOverviewSessionTest : public OverviewTestBase {
   // this is not true on any of the root windows.
   bool IsFloatContainerNormalStacked() const {
     for (aura::Window* root : Shell::GetAllRootWindows()) {
-      if (!IsStackedBelow(
+      if (!window_util::IsStackedBelow(
               root->GetChildById(kShellWindowId_AlwaysOnTopContainer),
               root->GetChildById(kShellWindowId_FloatContainer))) {
         return false;
       }
-      if (!IsStackedBelow(
+      if (!window_util::IsStackedBelow(
               root->GetChildById(kShellWindowId_FloatContainer),
               root->GetChildById(kShellWindowId_AppListContainer))) {
         return false;
@@ -3402,17 +5302,15 @@ class FloatOverviewSessionTest : public OverviewTestBase {
 
   bool IsFloatContainerBelowActiveDesk() const {
     for (aura::Window* root : Shell::GetAllRootWindows()) {
-      if (!IsStackedBelow(root->GetChildById(kShellWindowId_FloatContainer),
-                          root->GetChildById(kShellWindowId_DeskContainerA))) {
+      if (!window_util::IsStackedBelow(
+              root->GetChildById(kShellWindowId_FloatContainer),
+              root->GetChildById(kShellWindowId_DeskContainerA))) {
         return false;
       }
     }
 
     return true;
   }
-
- private:
-  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 // Tests that the float container is stacked properly when entering and exiting
@@ -3464,8 +5362,8 @@ TEST_F(FloatOverviewSessionTest, DraggingWithFloatedWindow) {
   ToggleOverview();
   ASSERT_TRUE(IsFloatContainerBelowActiveDesk());
 
-  OverviewItem* normal_item = GetOverviewItemForWindow(normal_window.get());
-  OverviewItem* floated_item = GetOverviewItemForWindow(floated_window.get());
+  auto* normal_item = GetOverviewItemForWindow(normal_window.get());
+  auto* floated_item = GetOverviewItemForWindow(floated_window.get());
 
   // Start dragging the floated window. Check that the float container gets
   // stacked above the desk container after dragging starts.
@@ -3512,7 +5410,7 @@ TEST_F(FloatOverviewSessionTest, ClickingWithFloatedWindow) {
   ASSERT_TRUE(WindowState::Get(floated_window.get())->IsFloated());
 
   ToggleOverview();
-  OverviewItem* normal_item = GetOverviewItemForWindow(normal_window.get());
+  auto* normal_item = GetOverviewItemForWindow(normal_window.get());
   GetEventGenerator()->set_current_screen_location(
       gfx::ToRoundedPoint(normal_item->target_bounds().CenterPoint()));
   GetEventGenerator()->ClickLeftButton();
@@ -3529,7 +5427,7 @@ TEST_F(FloatOverviewSessionTest, DraggingToNewDeskWithFloatedWindow) {
 
   // Enter overview and start dragging on the normal window.
   ToggleOverview();
-  OverviewItem* normal_item = GetOverviewItemForWindow(normal_window.get());
+  auto* normal_item = GetOverviewItemForWindow(normal_window.get());
   ui::test::EventGenerator* generator = GetEventGenerator();
   generator->set_current_screen_location(
       gfx::ToRoundedPoint(normal_item->target_bounds().CenterPoint()));
@@ -3541,20 +5439,24 @@ TEST_F(FloatOverviewSessionTest, DraggingToNewDeskWithFloatedWindow) {
       GetOverviewGridForRoot(Shell::GetPrimaryRootWindow());
   const auto* desks_bar_view = overview_grid->desks_bar_view();
   ASSERT_TRUE(desks_bar_view);
-  const auto* zero_state_new_desk_button =
-      desks_bar_view->zero_state_new_desk_button();
-  ASSERT_TRUE(zero_state_new_desk_button);
-  ASSERT_TRUE(zero_state_new_desk_button->GetVisible());
-  generator->DragMouseTo(
-      zero_state_new_desk_button->GetBoundsInScreen().CenterPoint());
+  views::LabelButton* new_desk_button = nullptr;
+  if (chromeos::features::IsJellyrollEnabled()) {
+    new_desk_button =
+        const_cast<CrOSNextDeskIconButton*>(desks_bar_view->new_desk_button());
+  } else {
+    new_desk_button = desks_bar_view->zero_state_new_desk_button();
+  }
+  ASSERT_TRUE(new_desk_button);
+  ASSERT_TRUE(new_desk_button->GetVisible());
+  generator->DragMouseTo(new_desk_button->GetBoundsInScreen().CenterPoint());
 
   // Check that a new desk has been created, and there should be no crash when
   // dropping the window.
   generator->ReleaseLeftButton();
   auto* controller = DesksController::Get();
   EXPECT_EQ(2u, controller->desks().size());
-  EXPECT_TRUE(
-      base::Contains(controller->desks()[1]->windows(), normal_window.get()));
+  EXPECT_TRUE(base::Contains(controller->GetDeskAtIndex(1)->windows(),
+                             normal_window.get()));
 }
 
 // Tests that the overview item associated with the floated window appears
@@ -3577,7 +5479,7 @@ TEST_F(FloatOverviewSessionTest, LongPressingWithFloatedWindow) {
   ASSERT_TRUE(IsFloatContainerBelowActiveDesk());
 
   // Simulate a long press on the overview item of the floated window.
-  OverviewItem* float_item = GetOverviewItemForWindow(floated_window.get());
+  auto* float_item = GetOverviewItemForWindow(floated_window.get());
   ui::test::EventGenerator* generator = GetEventGenerator();
   generator->set_current_screen_location(
       gfx::ToRoundedPoint(float_item->target_bounds().CenterPoint()));
@@ -3622,7 +5524,7 @@ class TabletModeOverviewSessionTest : public OverviewTestBase {
                                                base::Milliseconds(100), 1000);
   }
 
-  void DispatchLongPress(OverviewItem* item) {
+  void DispatchLongPress(OverviewItemBase* item) {
     const gfx::Point point =
         gfx::ToRoundedPoint(item->target_bounds().CenterPoint());
     ui::GestureEvent long_press(
@@ -3631,26 +5533,27 @@ class TabletModeOverviewSessionTest : public OverviewTestBase {
     GetEventGenerator()->Dispatch(&long_press);
   }
 
-  // Creates |n| test windows. They are created in reverse order, so that the
+  // Creates `n` test windows. They are created in reverse order, so that the
   // first window in the vector is the MRU window.
-  std::vector<std::unique_ptr<aura::Window>> CreateTestWindows(int n) {
+  std::vector<std::unique_ptr<aura::Window>> CreateAppWindows(int n) {
     std::vector<std::unique_ptr<aura::Window>> windows(n);
-    for (int i = n - 1; i >= 0; --i)
+    for (int i = n - 1; i >= 0; --i) {
       windows[i] = CreateTestWindow();
+    }
     return windows;
   }
 };
 
 // Tests that windows are in proper positions in the new overview layout.
 TEST_F(TabletModeOverviewSessionTest, CheckNewLayoutWindowPositions) {
-  auto windows = CreateTestWindows(6);
+  auto windows = CreateAppWindows(6);
   ToggleOverview();
   ASSERT_TRUE(InOverviewSession());
 
-  OverviewItem* item1 = GetOverviewItemForWindow(windows[0].get());
-  OverviewItem* item2 = GetOverviewItemForWindow(windows[1].get());
-  OverviewItem* item3 = GetOverviewItemForWindow(windows[2].get());
-  OverviewItem* item4 = GetOverviewItemForWindow(windows[3].get());
+  auto* item1 = GetOverviewItemForWindow(windows[0].get());
+  auto* item2 = GetOverviewItemForWindow(windows[1].get());
+  auto* item3 = GetOverviewItemForWindow(windows[2].get());
+  auto* item4 = GetOverviewItemForWindow(windows[3].get());
 
   const gfx::RectF item1_bounds = item1->target_bounds();
   const gfx::RectF item2_bounds = item2->target_bounds();
@@ -3673,41 +5576,42 @@ TEST_F(TabletModeOverviewSessionTest, CheckNewLayoutWindowPositions) {
   EXPECT_LT(item3_bounds.y(), item4_bounds.y());
 }
 
+// Tests that with the tablet mode layout, some of the windows are offscreen.
 TEST_F(TabletModeOverviewSessionTest, CheckOffscreenWindows) {
-  auto windows = CreateTestWindows(8);
+  auto windows = CreateAppWindows(10);
   ToggleOverview();
   ASSERT_TRUE(InOverviewSession());
 
-  OverviewItem* item0 = GetOverviewItemForWindow(windows[0].get());
-  OverviewItem* item1 = GetOverviewItemForWindow(windows[1].get());
-  OverviewItem* item6 = GetOverviewItemForWindow(windows[6].get());
-  OverviewItem* item7 = GetOverviewItemForWindow(windows[7].get());
+  auto* item0 = GetOverviewItemForWindow(windows[0].get());
+  auto* item1 = GetOverviewItemForWindow(windows[1].get());
+  auto* item8 = GetOverviewItemForWindow(windows[8].get());
+  auto* item9 = GetOverviewItemForWindow(windows[9].get());
 
   const gfx::RectF screen_bounds(GetGridBounds());
   const gfx::RectF item0_bounds = item0->target_bounds();
   const gfx::RectF item1_bounds = item1->target_bounds();
-  const gfx::RectF item6_bounds = item6->target_bounds();
-  const gfx::RectF item7_bounds = item7->target_bounds();
+  const gfx::RectF item8_bounds = item8->target_bounds();
+  const gfx::RectF item9_bounds = item9->target_bounds();
 
   // |item6| should be in the same row of windows as |item0|, but offscreen
   // (one screen length away).
-  EXPECT_FALSE(screen_bounds.Contains(item6_bounds));
-  EXPECT_EQ(item0_bounds.y(), item6_bounds.y());
+  EXPECT_FALSE(screen_bounds.Contains(item8_bounds));
+  EXPECT_EQ(item0_bounds.y(), item8_bounds.y());
   // |item7| should be in the same row of windows as |item1|, but offscreen
   // and below |item6|.
-  EXPECT_FALSE(screen_bounds.Contains(item7_bounds));
-  EXPECT_EQ(item1_bounds.y(), item7_bounds.y());
-  EXPECT_LT(item6_bounds.y(), item7_bounds.y());
+  EXPECT_FALSE(screen_bounds.Contains(item9_bounds));
+  EXPECT_EQ(item1_bounds.y(), item9_bounds.y());
+  EXPECT_LT(item8_bounds.y(), item9_bounds.y());
 }
 
 // Tests to see if windows are not shifted if all already available windows
 // fit on screen.
 TEST_F(TabletModeOverviewSessionTest, CheckNoOverviewItemShift) {
-  auto windows = CreateTestWindows(4);
+  auto windows = CreateAppWindows(4);
   ToggleOverview();
   ASSERT_TRUE(InOverviewSession());
 
-  OverviewItem* item0 = GetOverviewItemForWindow(windows[0].get());
+  auto* item0 = GetOverviewItemForWindow(windows[0].get());
   const gfx::RectF before_shift_bounds = item0->target_bounds();
 
   GenerateScrollSequence(gfx::Point(100, 60), gfx::Point(0, 50));
@@ -3717,11 +5621,11 @@ TEST_F(TabletModeOverviewSessionTest, CheckNoOverviewItemShift) {
 // Tests to see if windows are shifted if at least one window is
 // partially/completely positioned offscreen.
 TEST_F(TabletModeOverviewSessionTest, CheckOverviewItemShift) {
-  auto windows = CreateTestWindows(7);
+  auto windows = CreateAppWindows(7);
   ToggleOverview();
   ASSERT_TRUE(InOverviewSession());
 
-  OverviewItem* item0 = GetOverviewItemForWindow(windows[0].get());
+  auto* item0 = GetOverviewItemForWindow(windows[0].get());
   const gfx::RectF before_shift_bounds = item0->target_bounds();
 
   GenerateScrollSequence(gfx::Point(100, 60), gfx::Point(0, 50));
@@ -3730,7 +5634,7 @@ TEST_F(TabletModeOverviewSessionTest, CheckOverviewItemShift) {
 
 // Tests to see if windows remain in bounds after scrolling extremely far.
 TEST_F(TabletModeOverviewSessionTest, CheckOverviewItemScrollingBounds) {
-  auto windows = CreateTestWindows(8);
+  auto windows = CreateAppWindows(8);
   ToggleOverview();
   ASSERT_TRUE(InOverviewSession());
 
@@ -3738,7 +5642,7 @@ TEST_F(TabletModeOverviewSessionTest, CheckOverviewItemScrollingBounds) {
   // bounds. First, align the left-most window (|windows[0]|) to the left-hand
   // bound and store the item's location. Then, scroll a far amount and check to
   // see if the item moved at all.
-  OverviewItem* leftmost_window = GetOverviewItemForWindow(windows[0].get());
+  auto* leftmost_window = GetOverviewItemForWindow(windows[0].get());
 
   GenerateScrollSequence(
       gfx::Point(BackGestureEventHandler::kStartGoingBackLeftEdgeInset + 5, 50),
@@ -3753,7 +5657,7 @@ TEST_F(TabletModeOverviewSessionTest, CheckOverviewItemScrollingBounds) {
   // bounds. First, align the right-most window (|windows[7]|) to the right-hand
   // bound and store the item's location. Then, scroll a far amount and check to
   // see if the item moved at all.
-  OverviewItem* rightmost_window = GetOverviewItemForWindow(windows[7].get());
+  auto* rightmost_window = GetOverviewItemForWindow(windows[7].get());
   GenerateScrollSequence(gfx::Point(5000, 50), gfx::Point(0, 50));
   const gfx::RectF right_bounds = rightmost_window->target_bounds();
   GenerateScrollSequence(gfx::Point(5000, 50), gfx::Point(0, 50));
@@ -3763,7 +5667,7 @@ TEST_F(TabletModeOverviewSessionTest, CheckOverviewItemScrollingBounds) {
 // Tests that destroying a window does not cause a crash while scrolling the
 // overview grid. Regression test for https://crbug.com/1200605.
 TEST_F(TabletModeOverviewSessionTest, WindowDestroyWhileScrolling) {
-  auto windows = CreateTestWindows(8);
+  auto windows = CreateAppWindows(8);
   ToggleOverview();
   ASSERT_TRUE(InOverviewSession());
 
@@ -3804,47 +5708,76 @@ TEST_F(TabletModeOverviewSessionTest, WindowDestroyWhileScrolling) {
   event_generator->Dispatch(&release);
 }
 
+// Tests that removing a desk does not cause a crash while scrolling the
+// overview grid. Regression test for https://crbug.com/1455360.
+TEST_F(TabletModeOverviewSessionTest, DeskRemovalWhileScrolling) {
+  // The crash happened when closing a desk (which would add its app windows as
+  // items in overview) midway through a scroll. Create two desks with windows;
+  // the first desk has enough windows so that overview is scrollable.
+  auto desk1_windows = CreateAppWindows(15);
+
+  auto* controller = DesksController::Get();
+  controller->NewDesk(DesksCreationRemovalSource::kKeyboard);
+  ActivateDesk(controller->GetDeskAtIndex(1));
+  auto desk2_windows = CreateAppWindows(2);
+
+  // Activate the desk with 15 windows. There may be more than the windows we
+  // created (i.e. backdrop, nudges), so we assert greater than.
+  ActivateDesk(controller->GetDeskAtIndex(0));
+  ASSERT_GT(controller->GetDeskAtIndex(0)->windows().size(), 15u);
+  ASSERT_GT(controller->GetDeskAtIndex(1)->windows().size(), 2u);
+
+  ToggleOverview();
+  ASSERT_TRUE(InOverviewSession());
+
+  // Start scrolling the overview grid.
+  GetEventGenerator()->PressTouch(gfx::Point(400, 300));
+  GetEventGenerator()->MoveTouchBy(-50, 0);
+
+  // Remove the desk and continue scrolling. There should be no crash.
+  RemoveDesk(controller->GetDeskAtIndex(1), DeskCloseType::kCombineDesks);
+  GetEventGenerator()->MoveTouchBy(-50, 0);
+}
+
 // Tests the windows are stacked correctly when entering or exiting splitview
-// while the new overivew layout is enabled.
-// TODO(b/278952025): Fix this test to match the common user CUJs.
+// while in tablet mode.
 TEST_F(TabletModeOverviewSessionTest, StackingOrderSplitViewWindow) {
   std::unique_ptr<aura::Window> window1 = CreateTestWindow();
   std::unique_ptr<aura::Window> window2 = CreateUnsnappableWindow();
   std::unique_ptr<aura::Window> window3 = CreateTestWindow();
 
-  ToggleOverview();
-  ASSERT_TRUE(InOverviewSession());
-
-  // Snap `window1` to the left and exit overview, `window3` will be snapped.
-  // `window3` will be stacked on top.
+  // Snap `window1` to the left and `window3` to the right. Activate `window3`
+  // so that it is stacked above `window1`.
   split_view_controller()->SnapWindow(
       window1.get(), SplitViewController::SnapPosition::kPrimary);
-  ToggleOverview();
-  ASSERT_EQ(SplitViewController::State::kBothSnapped,
-            split_view_controller()->state());
-  ASSERT_TRUE(IsStackedBelow(window1.get(), window3.get()));
+  split_view_controller()->SnapWindow(
+      window3.get(), SplitViewController::SnapPosition::kSecondary);
+  wm::ActivateWindow(window3.get());
+  ASSERT_TRUE(window_util::IsStackedBelow(window1.get(), window3.get()));
 
-  // Test that on entering overview, `window3` is also of a lower z-order, so
+  // Test that on entering overview, `window3` is stacked below `window1`, so
   // that when we scroll the grid, it will be seen under `window1`.
   ToggleOverview();
-  EXPECT_TRUE(IsStackedBelow(window3.get(), window1.get()));
+  ASSERT_FALSE(GetOverviewItemForWindow(window1.get()));
+  ASSERT_TRUE(GetOverviewItemForWindow(window2.get()));
+  ASSERT_TRUE(GetOverviewItemForWindow(window3.get()));
+  EXPECT_TRUE(window_util::IsStackedBelow(window3.get(), window1.get()));
 
   // Test that `window2` has a cannot snap widget indicating that it cannot be
   // snapped, and that both `window2` and the widget are lower z-order than
   // `window1`.
   views::Widget* cannot_snap_widget =
-      static_cast<views::Widget*>(GetOverviewItemForWindow(window2.get())
-                                      ->cannot_snap_widget_for_testing());
+      GetCannotSnapWidget(GetOverviewItemForWindow(window2.get()));
   ASSERT_TRUE(cannot_snap_widget);
   aura::Window* cannot_snap_window = cannot_snap_widget->GetNativeWindow();
   ASSERT_EQ(window1->parent(), cannot_snap_window->parent());
-  EXPECT_TRUE(IsStackedBelow(window2.get(), window1.get()));
-  EXPECT_TRUE(IsStackedBelow(cannot_snap_window, window1.get()));
+  EXPECT_TRUE(window_util::IsStackedBelow(window2.get(), window1.get()));
+  EXPECT_TRUE(window_util::IsStackedBelow(cannot_snap_window, window1.get()));
 
   // Test that on exiting overview, the relative stacking order between
   // `window3` and `window1` remains unchanged.
   ToggleOverview();
-  EXPECT_TRUE(IsStackedBelow(window3.get(), window1.get()));
+  EXPECT_TRUE(window_util::IsStackedBelow(window1.get(), window3.get()));
 }
 
 // Tests the windows are remain stacked underneath the split view window after
@@ -3860,14 +5793,14 @@ TEST_F(TabletModeOverviewSessionTest, StackingOrderAfterGestureEvent) {
 
   // Tests that if we long press, but cancel the event, the window stays stacked
   // under the snapped window.
-  OverviewItem* item = GetOverviewItemForWindow(window2.get());
+  auto* item = GetOverviewItemForWindow(window2.get());
   const gfx::PointF item_center = item->target_bounds().CenterPoint();
   DispatchLongPress(item);
   ui::GestureEvent gesture_end(item_center.x(), item_center.y(), 0,
                                ui::EventTimeForNow(),
                                ui::GestureEventDetails(ui::ET_GESTURE_END));
   item->HandleGestureEvent(&gesture_end);
-  EXPECT_TRUE(IsStackedBelow(window2.get(), window1.get()));
+  EXPECT_TRUE(window_util::IsStackedBelow(window2.get(), window1.get()));
 
   // Tests that if we drag the window around, then release, the window also
   // stays stacked under the snapped window.
@@ -3876,17 +5809,17 @@ TEST_F(TabletModeOverviewSessionTest, StackingOrderAfterGestureEvent) {
   DispatchLongPress(item);
   GetOverviewSession()->Drag(item, item_center + delta);
   GetOverviewSession()->CompleteDrag(item, item_center + delta);
-  EXPECT_TRUE(IsStackedBelow(window2.get(), window1.get()));
+  EXPECT_TRUE(window_util::IsStackedBelow(window2.get(), window1.get()));
 }
 
 // Test that scrolling occurs if started on top of a window using the window's
 // center-point as a start.
 TEST_F(TabletModeOverviewSessionTest, HorizontalScrollingOnOverviewItem) {
-  auto windows = CreateTestWindows(8);
+  auto windows = CreateAppWindows(8);
   ToggleOverview();
   ASSERT_TRUE(InOverviewSession());
 
-  OverviewItem* leftmost_window = GetOverviewItemForWindow(windows[0].get());
+  auto* leftmost_window = GetOverviewItemForWindow(windows[0].get());
   const gfx::Point topleft_window_center =
       gfx::ToRoundedPoint(leftmost_window->target_bounds().CenterPoint());
   const gfx::RectF left_bounds = leftmost_window->target_bounds();
@@ -3909,7 +5842,7 @@ TEST_F(TabletModeOverviewSessionTest, SnappingFullscreenWindow) {
   ToggleOverview();
   ASSERT_TRUE(InOverviewSession());
 
-  OverviewItem* item = GetOverviewItemForWindow(window.get());
+  auto* item = GetOverviewItemForWindow(window.get());
   ui::test::EventGenerator* generator = GetEventGenerator();
   generator->set_current_screen_location(
       gfx::ToRoundedPoint(item->target_bounds().CenterPoint()));
@@ -3919,6 +5852,264 @@ TEST_F(TabletModeOverviewSessionTest, SnappingFullscreenWindow) {
 
   EXPECT_TRUE(WindowState::Get(window.get())->IsSnapped());
 }
+
+class ContinuousOverviewAnimationTest
+    : public OverviewTestBase,
+      public testing::WithParamInterface<bool> {
+ public:
+  ContinuousOverviewAnimationTest() = default;
+  ContinuousOverviewAnimationTest(const ContinuousOverviewAnimationTest&) =
+      delete;
+  ContinuousOverviewAnimationTest& operator=(
+      const ContinuousOverviewAnimationTest&) = delete;
+  ~ContinuousOverviewAnimationTest() override = default;
+
+  // OverviewTestBase:
+  void SetUp() override {
+    scoped_feature_list_.InitWithFeatures(
+        /*enabled_features=*/{features::kContinuousOverviewScrollAnimation,
+                              chromeos::features::kJelly},
+        /*disabled_features=*/{});
+    OverviewTestBase::SetUp();
+
+    // Toggle natural scrolling. Behavior should always stay the same.
+    PrefService* pref_service =
+        Shell::Get()->session_controller()->GetActivePrefService();
+    bool enabled = GetParam();
+    pref_service->SetBoolean(prefs::kTouchpadEnabled, true);
+    pref_service->SetBoolean(prefs::kNaturalScroll, enabled);
+  }
+
+  // If `complete_scroll` is false, end the scroll with the fingers still on the
+  // trackpad.
+  void ThreeFingerScroll(float x_offset, float y_offset, bool complete_scroll) {
+    GetEventGenerator()->ScrollSequence(
+        gfx::Point(), base::Milliseconds(5), x_offset, y_offset,
+        /*steps=*/100, /*fingers=*/3,
+        /*end_state=*/
+        complete_scroll
+            ? ui::test::EventGenerator::ScrollSequenceType::UpToFling
+            : ui::test::EventGenerator::ScrollSequenceType::ScrollOnly);
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+// Tests that continuous scrolls slowly shrink active windows and increase the
+// opacity of minimized windows, regardless of the state of `NaturalScroll`.
+TEST_P(ContinuousOverviewAnimationTest, WindowSizesAndOpacities) {
+  std::unique_ptr<aura::Window> window1(CreateTestWindow());
+  std::unique_ptr<aura::Window> window2(CreateTestWindow());
+  std::unique_ptr<aura::Window> window3(CreateTestWindow());
+  std::unique_ptr<aura::Window> minimized_window(CreateTestWindow());
+  WindowState::Get(minimized_window.get())->Minimize();
+
+  // Get the original positions.
+  const gfx::Rect original_bounds1 = window1->bounds();
+  const gfx::Rect original_bounds2 = window2->bounds();
+  const gfx::Rect original_bounds3 = window3->bounds();
+
+  // Get the final positions by toggling overview mode regularly.
+  ToggleOverview();
+  ASSERT_TRUE(InOverviewSession());
+  auto* item1 = GetOverviewItemForWindow(window1.get());
+  auto* item2 = GetOverviewItemForWindow(window2.get());
+  auto* item3 = GetOverviewItemForWindow(window3.get());
+
+  const gfx::Rect final_bounds1 = gfx::ToEnclosedRect(item1->target_bounds());
+  const gfx::Rect final_bounds2 = gfx::ToEnclosedRect(item2->target_bounds());
+  const gfx::Rect final_bounds3 = gfx::ToEnclosedRect(item3->target_bounds());
+
+  ToggleOverview();
+  ASSERT_FALSE(InOverviewSession());
+
+  // Swipe up a little bit and keep the fingers rested on the trackpad so that
+  // the window placements are paused. Technically, we are in an overview
+  // session, but the windows have not been placed in their final positions yet
+  // due to the scroll still being in progress.
+  const float short_scroll = 50.f;
+  ThreeFingerScroll(0, short_scroll, /*complete_scroll=*/false);
+  ASSERT_TRUE(InOverviewSession());
+
+  // Get the current window positions and opacities.
+  int top_inset = window1.get()->GetProperty(aura::client::kTopViewInset);
+  gfx::RectF curr_bounds1 =
+      window_util::GetTransformedBounds(window1.get(), top_inset);
+  gfx::RectF curr_bounds2 =
+      window_util::GetTransformedBounds(window2.get(), top_inset);
+  gfx::RectF curr_bounds3 =
+      window_util::GetTransformedBounds(window3.get(), top_inset);
+
+  // Each active window should be smaller than their original state, but larger
+  // than their final overview mode state.
+  EXPECT_LT(curr_bounds1.width(), original_bounds1.width());
+  EXPECT_GT(curr_bounds1.width(), final_bounds1.width());
+  EXPECT_LT(curr_bounds2.width(), original_bounds2.width());
+  EXPECT_GT(curr_bounds2.width(), final_bounds2.width());
+  EXPECT_LT(curr_bounds3.width(), original_bounds3.width());
+  EXPECT_GT(curr_bounds3.width(), final_bounds3.width());
+
+  EXPECT_LT(curr_bounds1.height(), original_bounds1.height());
+  EXPECT_GT(curr_bounds1.height(), final_bounds1.height());
+  EXPECT_LT(curr_bounds2.height(), original_bounds2.height());
+  EXPECT_GT(curr_bounds2.height(), final_bounds2.height());
+  EXPECT_LT(curr_bounds3.height(), original_bounds3.height());
+  EXPECT_GT(curr_bounds3.height(), final_bounds3.height());
+
+  // Confirm the opacity of minimized windows is not 100%.
+  float opacity = GetOverviewItemForWindow(minimized_window.get())
+                      ->GetLeafItemForWindow(minimized_window.get())
+                      ->item_widget()
+                      ->GetLayer()
+                      ->opacity();
+  EXPECT_NE(opacity, 1.f);
+  EXPECT_NE(opacity, 0.f);
+}
+
+// Tests that the opacity of the "No recent items" label is continuous.
+TEST_P(ContinuousOverviewAnimationTest, NoRecentItemsLabel) {
+  ui::ScopedAnimationDurationScaleMode test_duration_mode(
+      ui::ScopedAnimationDurationScaleMode::NON_ZERO_DURATION);
+
+  // Start scrolling to enter overview. The no recent items label should have an
+  // opacity between 0.f and 1.f and not be animating.
+  const float short_scroll = 50.f;
+  ThreeFingerScroll(0, short_scroll, /*complete_scroll=*/false);
+  ASSERT_TRUE(InOverviewSession());
+
+  views::Widget* no_windows_widget =
+      GetOverviewGridForRoot(Shell::GetPrimaryRootWindow())
+          ->no_windows_widget();
+  ASSERT_TRUE(no_windows_widget);
+
+  ui::Layer* no_windows_layer = no_windows_widget->GetLayer();
+
+  EXPECT_GT(no_windows_layer->opacity(), 0.f);
+  EXPECT_LT(no_windows_layer->opacity(), 1.f);
+  EXPECT_FALSE(no_windows_layer->GetAnimator()->is_animating());
+
+  // Complete the enter overview scroll. The no recent items label should be
+  // opaque.
+  const float long_scroll = 500.f;
+  ThreeFingerScroll(0, long_scroll, /*complete_scroll=*/false);
+  EXPECT_EQ(1.f, no_windows_layer->opacity());
+
+  ThreeFingerScroll(0, short_scroll, /*complete_scroll=*/true);
+  EXPECT_EQ(1.f, no_windows_layer->opacity());
+  WaitForOverviewEnterAnimation();
+  ASSERT_TRUE(InOverviewSession());
+
+  // Start scrolling to exit overview. The no recent items label should have an
+  // opacity between 0.f and 1.f and not be animating.
+  ThreeFingerScroll(0, -short_scroll, /*complete_scroll=*/false);
+  EXPECT_GT(no_windows_layer->opacity(), 0.f);
+  EXPECT_LT(no_windows_layer->opacity(), 1.f);
+  EXPECT_FALSE(no_windows_layer->GetAnimator()->is_animating());
+}
+
+// Test that the rounded corners and shadows are shown at the correct times
+// throughout a continuous scroll.
+TEST_P(ContinuousOverviewAnimationTest, WindowCornerRadiiAndShadows) {
+  std::unique_ptr<aura::Window> active_window(CreateTestWindow());
+  std::unique_ptr<aura::Window> minimized_window(CreateTestWindow());
+  WindowState::Get(minimized_window.get())->Minimize();
+
+  // Swipe up a little bit and keep the fingers rested on the trackpad so
+  // that the window placements are paused.
+  const float short_scroll = 50.f;
+  ThreeFingerScroll(0, short_scroll, /*complete_scroll=*/false);
+  ASSERT_TRUE(InOverviewSession());
+
+  auto* active_item = GetOverviewItemForWindow(active_window.get());
+  auto* minimized_item = GetOverviewItemForWindow(minimized_window.get());
+
+  // If a window is minimized, it should immediately show rounded corners.
+  // Otherwise, retain sharp corners until the enter animation ends.
+  EXPECT_FALSE(HasRoundedCorner(active_item));
+  EXPECT_TRUE(HasRoundedCorner(minimized_item));
+
+  // Shadows are hidden until the continuous swipe is over.
+  EXPECT_TRUE(GetShadowBounds(active_item).IsEmpty());
+  EXPECT_TRUE(GetShadowBounds(minimized_item).IsEmpty());
+
+  // Reset.
+  ToggleOverview();
+  ASSERT_FALSE(InOverviewSession());
+
+  // Give us some time to check the entry animation since we will be triggering
+  // it by scrolling up and then lifting the fingers off of the trackpad.
+  ui::ScopedAnimationDurationScaleMode test_duration_mode(
+      ui::ScopedAnimationDurationScaleMode::NON_ZERO_DURATION);
+
+  // Scroll up more than 50% of the threshold then let go of the trackpad.
+  const float medium_scroll =
+      (WmGestureHandler::kVerticalThresholdDp / 2.f) + 1.f;
+  ThreeFingerScroll(0, medium_scroll, /*complete_scroll=*/true);
+
+  // Get the overview items again since this is a new overview session.
+  active_item = GetOverviewItemForWindow(active_window.get());
+  minimized_item = GetOverviewItemForWindow(minimized_window.get());
+
+  // Rounded corners are shown once the fingers lift. Shadows on minimized
+  // windows are shown, but shadows on non-minimized windows are hidden until
+  // the animation is finished.
+  EXPECT_TRUE(HasRoundedCorner(active_item));
+  EXPECT_TRUE(GetShadowBounds(active_item).IsEmpty());
+  EXPECT_TRUE(HasRoundedCorner(minimized_item));
+  EXPECT_FALSE(GetShadowBounds(minimized_item).IsEmpty());
+
+  // Ensure overview has been entered completely.
+  ShellTestApi().WaitForOverviewAnimationState(
+      OverviewAnimationState::kEnterAnimationComplete);
+  ASSERT_TRUE(InOverviewSession());
+
+  // All items should have rounded corners and shadows.
+  EXPECT_TRUE(HasRoundedCorner(active_item));
+  EXPECT_TRUE(HasRoundedCorner(minimized_item));
+  EXPECT_FALSE(GetShadowBounds(active_item).IsEmpty());
+  EXPECT_FALSE(GetShadowBounds(minimized_item).IsEmpty());
+}
+
+// Tests that scrolls enter/exit overview mode as expected, regardless of the
+// state of `NaturalScroll`.
+TEST_P(ContinuousOverviewAnimationTest, ReverseGesturesTest) {
+  const float long_scroll = 600.f;
+  const float short_scroll = 50.f;
+  ASSERT_FALSE(InOverviewSession());
+
+  // Test an incorrect, complete, scroll.
+  ThreeFingerScroll(0, -long_scroll, /*complete_scroll=*/true);
+  ASSERT_FALSE(InOverviewSession());
+
+  // Test a correct, complete, scroll.
+  ThreeFingerScroll(0, long_scroll, /*complete_scroll=*/true);
+  ASSERT_TRUE(InOverviewSession());
+
+  // Test an incorrect, complete, scroll.
+  ThreeFingerScroll(0, long_scroll, /*complete_scroll=*/true);
+  ASSERT_TRUE(InOverviewSession());
+
+  // Test a correct, complete, scroll.
+  ThreeFingerScroll(0, -long_scroll, /*complete_scroll=*/true);
+  ASSERT_FALSE(InOverviewSession());
+
+  // Test an incorrect, incomplete, scroll.
+  ThreeFingerScroll(0, -short_scroll, /*complete_scroll=*/false);
+  ASSERT_FALSE(InOverviewSession());
+
+  // Test a correct, incomplete, scroll.
+  ThreeFingerScroll(0, short_scroll, /*complete_scroll=*/false);
+  ASSERT_TRUE(InOverviewSession());
+}
+
+INSTANTIATE_TEST_SUITE_P(/*no prefix*/,
+                         ContinuousOverviewAnimationTest,
+                         testing::Bool(),
+                         [](const testing::TestParamInfo<bool>& info) {
+                           return info.param ? "NaturalScrollOn"
+                                             : "NaturalScrollOff";
+                         });
 
 // A unique test class for testing flings in overview as those rely on observing
 // compositor animations which require a mock time task environment.
@@ -3951,7 +6142,7 @@ TEST_F(OverviewSessionFlingTest, BasicFling) {
   OverviewGrid* grid = GetOverviewSession()->grid_list()[0].get();
   OverviewGridEventHandler* grid_event_handler = grid->grid_event_handler();
 
-  OverviewItem* item = GetOverviewItemForWindow(windows[2].get());
+  auto* item = GetOverviewItemForWindow(windows[2].get());
   const gfx::Point item_center =
       gfx::ToRoundedPoint(item->target_bounds().CenterPoint());
 
@@ -3997,7 +6188,7 @@ TEST_F(TabletModeOverviewSessionTest, VerticalScrollingOnOverviewItem) {
   ToggleOverview();
   ASSERT_TRUE(InOverviewSession());
 
-  OverviewItem* leftmost_window =
+  auto* leftmost_window =
       GetOverviewItemForWindow(widgets[0]->GetNativeWindow());
   const gfx::Point topleft_window_center =
       gfx::ToRoundedPoint(leftmost_window->target_bounds().CenterPoint());
@@ -4009,11 +6200,11 @@ TEST_F(TabletModeOverviewSessionTest, VerticalScrollingOnOverviewItem) {
 
 // Test that scrolling occurs if we hit the associated keyboard shortcut.
 TEST_F(TabletModeOverviewSessionTest, CheckScrollingWithKeyboardShortcut) {
-  auto windows = CreateTestWindows(8);
+  auto windows = CreateAppWindows(8);
   ToggleOverview();
   ASSERT_TRUE(InOverviewSession());
 
-  OverviewItem* leftmost_window = GetOverviewItemForWindow(windows[0].get());
+  auto* leftmost_window = GetOverviewItemForWindow(windows[0].get());
   const gfx::RectF left_bounds = leftmost_window->target_bounds();
 
   SendKey(ui::VKEY_RIGHT, ui::EF_CONTROL_DOWN);
@@ -4023,7 +6214,7 @@ TEST_F(TabletModeOverviewSessionTest, CheckScrollingWithKeyboardShortcut) {
 // Test that tapping a window in overview closes overview mode.
 TEST_F(TabletModeOverviewSessionTest, CheckWindowActivateOnTap) {
   base::UserActionTester user_action_tester;
-  auto windows = CreateTestWindows(8);
+  auto windows = CreateAppWindows(8);
   wm::ActivateWindow(windows[1].get());
 
   ToggleOverview();
@@ -4048,7 +6239,7 @@ TEST_F(TabletModeOverviewSessionTest, LayoutValidAfterRotation) {
   display::test::ScopedSetInternalDisplayId set_internal(
       Shell::Get()->display_manager(),
       display::Screen::GetScreen()->GetPrimaryDisplay().id());
-  auto windows = CreateTestWindows(7);
+  auto windows = CreateAppWindows(7);
 
   // Helper to determine whether a grid layout is valid. It is considered valid
   // if the left edge of the first item is close enough to the left edge of the
@@ -4056,8 +6247,8 @@ TEST_F(TabletModeOverviewSessionTest, LayoutValidAfterRotation) {
   // right edge of the grid bounds. Either of these being false would mean there
   // is a large padding which shouldn't be there.
   auto layout_valid = [&windows, this](int expected_padding) {
-    OverviewItem* first_item = GetOverviewItemForWindow(windows.front().get());
-    OverviewItem* last_item = GetOverviewItemForWindow(windows.back().get());
+    auto* first_item = GetOverviewItemForWindow(windows.front().get());
+    auto* last_item = GetOverviewItemForWindow(windows.back().get());
 
     const gfx::Rect first_bounds =
         gfx::ToEnclosedRect(first_item->target_bounds());
@@ -4111,7 +6302,7 @@ TEST_F(TabletModeOverviewSessionTest, DragOverviewWindowToSnap) {
   // start dragging in SplitView. Drags |overview_item1| to the left border of
   // the screen. SplitView should trigger and upon completing drag,
   // |overview_item1| should snap to the left.
-  OverviewItem* overview_item1 = GetOverviewItemForWindow(window1.get());
+  auto* overview_item1 = GetOverviewItemForWindow(window1.get());
   const gfx::PointF snap_left_location =
       gfx::PointF(GetGridBounds().left_center());
 
@@ -4130,7 +6321,7 @@ TEST_F(TabletModeOverviewSessionTest, DragOverviewWindowToSnap) {
   // start dragging in SplitView. Drags |overview_item2| to the right border of
   // the screen. Upon completing drag, |overview_item2| should snap to the
   // right.
-  OverviewItem* overview_item2 = GetOverviewItemForWindow(window2.get());
+  auto* overview_item2 = GetOverviewItemForWindow(window2.get());
   const gfx::PointF snap_right_location =
       gfx::PointF(GetGridBounds().right_center());
 
@@ -4156,7 +6347,7 @@ TEST_F(TabletModeOverviewSessionTest, DragToClose) {
   ToggleOverview();
   ASSERT_TRUE(GetOverviewController()->InOverviewSession());
 
-  OverviewItem* item = GetOverviewItemForWindow(widget->GetNativeWindow());
+  auto* item = GetOverviewItemForWindow(widget->GetNativeWindow());
   const gfx::PointF start = item->target_bounds().CenterPoint();
   ASSERT_TRUE(item);
 
@@ -4187,7 +6378,7 @@ TEST_F(TabletModeOverviewSessionTest, FlingToClose) {
   ASSERT_TRUE(GetOverviewController()->InOverviewSession());
   EXPECT_EQ(1u, GetOverviewSession()->grid_list()[0]->size());
 
-  OverviewItem* item = GetOverviewItemForWindow(widget->GetNativeWindow());
+  auto* item = GetOverviewItemForWindow(widget->GetNativeWindow());
   const gfx::PointF start = item->target_bounds().CenterPoint();
   ASSERT_TRUE(item);
 
@@ -4229,9 +6420,9 @@ TEST_F(TabletModeOverviewSessionTest, BasicNudging) {
   ToggleOverview();
   ASSERT_TRUE(GetOverviewController()->InOverviewSession());
 
-  OverviewItem* item1 = GetOverviewItemForWindow(window1.get());
-  OverviewItem* item2 = GetOverviewItemForWindow(window2.get());
-  OverviewItem* item3 = GetOverviewItemForWindow(window3.get());
+  auto* item1 = GetOverviewItemForWindow(window1.get());
+  auto* item2 = GetOverviewItemForWindow(window2.get());
+  auto* item3 = GetOverviewItemForWindow(window3.get());
 
   const gfx::RectF item1_bounds = item1->target_bounds();
   const gfx::RectF item2_bounds = item2->target_bounds();
@@ -4276,10 +6467,10 @@ TEST_F(TabletModeOverviewSessionTest, NoNudgingWhenNumRowsChange) {
   ToggleOverview();
   ASSERT_TRUE(GetOverviewController()->InOverviewSession());
 
-  OverviewItem* item1 = GetOverviewItemForWindow(window1.get());
-  OverviewItem* item2 = GetOverviewItemForWindow(window2.get());
-  OverviewItem* item3 = GetOverviewItemForWindow(window3.get());
-  OverviewItem* item4 = GetOverviewItemForWindow(window4.get());
+  auto* item1 = GetOverviewItemForWindow(window1.get());
+  auto* item2 = GetOverviewItemForWindow(window2.get());
+  auto* item3 = GetOverviewItemForWindow(window3.get());
+  auto* item4 = GetOverviewItemForWindow(window4.get());
 
   const gfx::RectF item1_bounds = item1->target_bounds();
   const gfx::RectF item2_bounds = item2->target_bounds();
@@ -4314,7 +6505,7 @@ TEST_F(TabletModeOverviewSessionTest, NoNudgingWhenLastItemOnPreviousRowDrops) {
   ToggleOverview();
   ASSERT_TRUE(GetOverviewController()->InOverviewSession());
 
-  OverviewItem* items[kWindows];
+  OverviewItemBase* items[kWindows];
   gfx::RectF item_bounds[kWindows];
   for (int i = 0; i < kWindows; ++i) {
     items[i] = GetOverviewItemForWindow(windows[i].get());
@@ -4363,7 +6554,7 @@ TEST_F(TabletModeOverviewSessionTest, DestroyWindowDuringNudge) {
   ToggleOverview();
   ASSERT_TRUE(GetOverviewController()->InOverviewSession());
 
-  OverviewItem* item = GetOverviewItemForWindow(window1.get());
+  auto* item = GetOverviewItemForWindow(window1.get());
   const gfx::PointF item_center = item->target_bounds().CenterPoint();
 
   // Drag |item1| vertically to start nudging.
@@ -4387,7 +6578,7 @@ TEST_F(TabletModeOverviewSessionTest, MultiTouch) {
   ASSERT_TRUE(GetOverviewController()->InOverviewSession());
 
   // Dispatches a long press event to start drag mode.
-  OverviewItem* item = GetOverviewItemForWindow(window1.get());
+  auto* item = GetOverviewItemForWindow(window1.get());
   DispatchLongPress(item);
   GetOverviewSession()->Drag(item, gfx::PointF(10.f, 500.f));
   const gfx::Rect item_bounds = item->GetWindow()->GetBoundsInScreen();
@@ -4401,7 +6592,7 @@ TEST_F(TabletModeOverviewSessionTest, MultiTouch) {
   EXPECT_EQ(item_bounds, item->GetWindow()->GetBoundsInScreen());
 
   // Long press on another item, the bounds of both items should be unchanged.
-  OverviewItem* item2 = GetOverviewItemForWindow(window2.get());
+  auto* item2 = GetOverviewItemForWindow(window2.get());
   const gfx::Rect item2_bounds = item2->GetWindow()->GetBoundsInScreen();
   DispatchLongPress(item2);
   EXPECT_EQ(item_bounds, item->GetWindow()->GetBoundsInScreen());
@@ -4437,6 +6628,34 @@ TEST_F(TabletModeOverviewSessionTest, MinimizedRoundedCorners) {
   EXPECT_EQ(gfx::RoundedCornersF(), window->layer()->rounded_corner_radii());
 }
 
+// Tests the UAF issue reported in b/301368132 has been fixed. The overview
+// item in `OverviewWindowDragController::CompleteDrag()` may be reset in
+// `OverviewGrid::RemoveItem()` and is accessed again when getting the
+// window for `ScopedFloatContainerStacker::OnDragFinished()`.
+TEST_F(TabletModeOverviewSessionTest, AvoidUaFOnCompleteDrag) {
+  std::unique_ptr<aura::Window> window = CreateAppWindow(gfx::Rect(100, 100));
+  WindowState* window_state = WindowState::Get(window.get());
+  const WindowSnapWMEvent snap_type(WM_EVENT_SNAP_PRIMARY);
+  window_state->OnWMEvent(&snap_type);
+  EXPECT_EQ(chromeos::WindowStateType::kPrimarySnapped,
+            window_state->GetStateType());
+  OverviewController* overview_controller = OverviewController::Get();
+  EXPECT_TRUE(overview_controller->InOverviewSession());
+
+  window_state->Minimize();
+  EXPECT_TRUE(overview_controller->InOverviewSession());
+  auto* overview_item = GetOverviewItemForWindow(window.get());
+
+  // Trigger `OverviewWindowDragController::CompleteDrag()` and verify that
+  // there will be no crash.
+  auto* event_generator = GetEventGenerator();
+  event_generator->MoveMouseTo(
+      gfx::ToRoundedPoint(overview_item->target_bounds().CenterPoint()));
+  event_generator->ClickLeftButton();
+  EXPECT_EQ(chromeos::WindowStateType::kPrimarySnapped,
+            window_state->GetStateType());
+}
+
 // Test the split view and overview functionalities in tablet mode.
 class SplitViewOverviewSessionTest : public OverviewTestBase {
  public:
@@ -4463,6 +6682,10 @@ class SplitViewOverviewSessionTest : public OverviewTestBase {
 
   SplitViewController* split_view_controller() {
     return SplitViewController::Get(Shell::GetPrimaryRootWindow());
+  }
+
+  SplitViewDivider* split_view_divider() {
+    return split_view_controller()->split_view_divider();
   }
 
   bool IsDividerAnimating() {
@@ -4552,7 +6775,7 @@ class SplitViewOverviewSessionTest : public OverviewTestBase {
   // |long_press| is default to true. Set |long_press| to false if we do not
   // want to long press after every press, which enables dragging vertically to
   // close an item.
-  void DragWindowTo(OverviewItem* item,
+  void DragWindowTo(OverviewItemBase* item,
                     const gfx::PointF& end_location,
                     SelectorItemLocation location,
                     bool long_press = true) {
@@ -4586,7 +6809,7 @@ class SplitViewOverviewSessionTest : public OverviewTestBase {
   }
 
   // Drags a overview item |item| from its center point to |end_location|.
-  void DragWindowTo(OverviewItem* item, const gfx::PointF& end_location) {
+  void DragWindowTo(OverviewItemBase* item, const gfx::PointF& end_location) {
     DragWindowTo(item, end_location, SelectorItemLocation::CENTER, true);
   }
 
@@ -4616,7 +6839,7 @@ TEST_F(SplitViewOverviewSessionTest, DragOverviewWindowToSnap) {
   EXPECT_FALSE(split_view_controller()->InSplitViewMode());
 
   // Drag |window1| selector item to snap to left.
-  OverviewItem* overview_item1 = GetOverviewItemForWindow(window1.get());
+  auto* overview_item1 = GetOverviewItemForWindow(window1.get());
   DragWindowTo(overview_item1, gfx::PointF(0, 0));
 
   EXPECT_TRUE(split_view_controller()->InSplitViewMode());
@@ -4627,7 +6850,7 @@ TEST_F(SplitViewOverviewSessionTest, DragOverviewWindowToSnap) {
   // Drag |window2| selector item to attempt to snap to left. Since there is
   // already one left snapped window |window1|, |window1| will be put in
   // overview mode.
-  OverviewItem* overview_item2 = GetOverviewItemForWindow(window2.get());
+  auto* overview_item2 = GetOverviewItemForWindow(window2.get());
   DragWindowTo(overview_item2, gfx::PointF(0, 0));
 
   EXPECT_EQ(split_view_controller()->state(),
@@ -4637,7 +6860,7 @@ TEST_F(SplitViewOverviewSessionTest, DragOverviewWindowToSnap) {
       window1.get()));
 
   // Drag |window3| selector item to snap to right.
-  OverviewItem* overview_item3 = GetOverviewItemForWindow(window3.get());
+  auto* overview_item3 = GetOverviewItemForWindow(window3.get());
   const gfx::PointF end_location3(GetWorkAreaInScreen(window3.get()).width(),
                                   0.f);
   DragWindowTo(overview_item3, end_location3);
@@ -4662,8 +6885,8 @@ TEST_F(SplitViewOverviewSessionTest, OverviewDragControllerBehavior) {
   ToggleOverview();
   ASSERT_TRUE(GetOverviewController()->InOverviewSession());
 
-  OverviewItem* window_item1 = GetOverviewItemForWindow(window1.get());
-  OverviewItem* window_item2 = GetOverviewItemForWindow(window2.get());
+  auto* window_item1 = GetOverviewItemForWindow(window1.get());
+  auto* window_item2 = GetOverviewItemForWindow(window2.get());
 
   // Verify that if a drag is orginally horizontal, the drag behavior is drag to
   // snap.
@@ -4722,7 +6945,7 @@ TEST_F(SplitViewOverviewSessionTest,
   // Select window one and start the drag.
   const int window_width =
       Shell::Get()->GetPrimaryRootWindow()->GetBoundsInScreen().width();
-  OverviewItem* overview_item = GetOverviewItemForWindow(window1.get());
+  auto* overview_item = GetOverviewItemForWindow(window1.get());
   gfx::RectF overview_item_bounds = overview_item->target_bounds();
   gfx::PointF start_location(overview_item_bounds.CenterPoint());
   GetOverviewSession()->InitiateDrag(overview_item, start_location,
@@ -4800,8 +7023,7 @@ TEST_F(SplitViewOverviewSessionTest, DraggingUnsnappableAppWithSplitView) {
 
   // Verify that after dragging the unsnappable window to the left and right,
   // the window grid bounds do not change.
-  OverviewItem* overview_item =
-      GetOverviewItemForWindow(unsnappable_window.get());
+  auto* overview_item = GetOverviewItemForWindow(unsnappable_window.get());
   GetOverviewSession()->InitiateDrag(
       overview_item, overview_item->target_bounds().CenterPoint(),
       /*is_touch_dragging=*/false);
@@ -4827,7 +7049,7 @@ TEST_F(SplitViewOverviewSessionTest,
       snapped_window.get(), SplitViewController::SnapPosition::kPrimary);
   ASSERT_EQ(1u, GetOverviewSession()->grid_list().size());
   OverviewGrid* overview_grid = GetOverviewSession()->grid_list()[0].get();
-  OverviewItem* overview_item =
+  auto* overview_item =
       overview_grid->GetOverviewItemContaining(unsnappable_window.get());
   GetOverviewSession()->InitiateDrag(
       overview_item, overview_item->target_bounds().CenterPoint(),
@@ -4845,7 +7067,7 @@ TEST_F(SplitViewOverviewSessionTest, Clipping) {
   auto aspect_ratio_near = [](const gfx::Rect& rect1, const gfx::Rect& rect2) {
     DCHECK_GT(rect1.height(), 0);
     DCHECK_GT(rect2.height(), 0);
-    constexpr float kEpsilon = 0.05f;
+    constexpr float kEpsilon = 0.07f;
     const float rect1_aspect_ratio =
         static_cast<float>(rect1.width()) / rect1.height();
     const float rect2_aspect_ratio =
@@ -4892,10 +7114,10 @@ TEST_F(SplitViewOverviewSessionTest, Clipping) {
     EXPECT_NE(clipping4, window4->layer()->clip_rect());
     const gfx::Rect overview_clipping4 = window4->layer()->clip_rect();
 
-    OverviewItem* item1 = GetOverviewItemForWindow(window1.get());
-    OverviewItem* item2 = GetOverviewItemForWindow(window2.get());
-    OverviewItem* item3 = GetOverviewItemForWindow(window3.get());
-    OverviewItem* item4 = GetOverviewItemForWindow(window4.get());
+    auto* item1 = GetOverviewItemForWindow(window1.get());
+    auto* item2 = GetOverviewItemForWindow(window2.get());
+    auto* item3 = GetOverviewItemForWindow(window3.get());
+    auto* item4 = GetOverviewItemForWindow(window4.get());
     GetOverviewSession()->InitiateDrag(item1,
                                        item1->target_bounds().CenterPoint(),
                                        /*is_touch_dragging=*/false);
@@ -4914,7 +7136,7 @@ TEST_F(SplitViewOverviewSessionTest, Clipping) {
     EXPECT_TRUE(aspect_ratio_near(window2->layer()->clip_rect(),
                                   split_view_bounds_right));
     EXPECT_TRUE(aspect_ratio_near(
-        gfx::ToEnclosedRect(item2->GetWindowTargetBoundsWithInsets()),
+        gfx::ToEnclosedRect(item2->GetTargetBoundsWithInsets()),
         split_view_bounds_right));
     EXPECT_TRUE(
         aspect_ratio_near(window2->GetBoundsInScreen(), maximized_bounds));
@@ -4923,8 +7145,10 @@ TEST_F(SplitViewOverviewSessionTest, Clipping) {
     // clipped layer will be the WindowPreviewView of the associated
     // OverviewItemView.
     EXPECT_TRUE(window3->layer()->clip_rect().IsEmpty());
-    ui::Layer* preview_layer =
-        item3->overview_item_view()->preview_view()->layer();
+    ui::Layer* preview_layer = item3->GetLeafItemForWindow(window3.get())
+                                   ->overview_item_view()
+                                   ->preview_view()
+                                   ->layer();
     EXPECT_FALSE(preview_layer->clip_rect().IsEmpty());
     EXPECT_FALSE(preview_layer->transform().IsIdentity());
     // The clip rect is affected by |preview_layer|'s transform so apply it.
@@ -4932,7 +7156,7 @@ TEST_F(SplitViewOverviewSessionTest, Clipping) {
         preview_layer->transform().MapRect(preview_layer->clip_rect());
     EXPECT_TRUE(aspect_ratio_near(clip_rects3, split_view_bounds_right));
     EXPECT_TRUE(aspect_ratio_near(
-        gfx::ToEnclosedRect(item3->GetWindowTargetBoundsWithInsets()),
+        gfx::ToEnclosedRect(item3->GetTargetBoundsWithInsets()),
         split_view_bounds_right));
     EXPECT_TRUE(
         aspect_ratio_near(window3->GetBoundsInScreen(), maximized_bounds));
@@ -4944,7 +7168,7 @@ TEST_F(SplitViewOverviewSessionTest, Clipping) {
     EXPECT_TRUE(aspect_ratio_near(window4->layer()->clip_rect(),
                                   split_view_bounds_right));
     EXPECT_TRUE(aspect_ratio_near(
-        gfx::ToEnclosedRect(item4->GetWindowTargetBoundsWithInsets()),
+        gfx::ToEnclosedRect(item4->GetTargetBoundsWithInsets()),
         split_view_bounds_right));
     EXPECT_TRUE(
         aspect_ratio_near(window4->GetBoundsInScreen(), maximized_bounds));
@@ -4958,7 +7182,7 @@ TEST_F(SplitViewOverviewSessionTest, Clipping) {
     EXPECT_TRUE(aspect_ratio_near(window2->layer()->clip_rect(),
                                   split_view_bounds_right));
     EXPECT_TRUE(aspect_ratio_near(
-        gfx::ToEnclosedRect(item2->GetWindowTargetBoundsWithInsets()),
+        gfx::ToEnclosedRect(item2->GetTargetBoundsWithInsets()),
         split_view_bounds_right));
     EXPECT_TRUE(
         aspect_ratio_near(window2->GetBoundsInScreen(), maximized_bounds));
@@ -4966,7 +7190,7 @@ TEST_F(SplitViewOverviewSessionTest, Clipping) {
     EXPECT_TRUE(window3->layer()->clip_rect().IsEmpty());
     EXPECT_TRUE(aspect_ratio_near(clip_rects3, split_view_bounds_right));
     EXPECT_TRUE(aspect_ratio_near(
-        gfx::ToEnclosedRect(item3->GetWindowTargetBoundsWithInsets()),
+        gfx::ToEnclosedRect(item3->GetTargetBoundsWithInsets()),
         split_view_bounds_right));
     EXPECT_TRUE(
         aspect_ratio_near(window3->GetBoundsInScreen(), maximized_bounds));
@@ -4976,7 +7200,7 @@ TEST_F(SplitViewOverviewSessionTest, Clipping) {
     EXPECT_TRUE(aspect_ratio_near(window4->layer()->clip_rect(),
                                   split_view_bounds_right));
     EXPECT_TRUE(aspect_ratio_near(
-        gfx::ToEnclosedRect(item4->GetWindowTargetBoundsWithInsets()),
+        gfx::ToEnclosedRect(item4->GetTargetBoundsWithInsets()),
         split_view_bounds_right));
     EXPECT_TRUE(
         aspect_ratio_near(window4->GetBoundsInScreen(), maximized_bounds));
@@ -5011,7 +7235,7 @@ TEST_F(SplitViewOverviewSessionTest, NoClippingWhenSplitviewDisabled) {
   EXPECT_EQ(clipping2, window2->layer()->clip_rect());
 
   // Drag to the edge of the screen. There should be no clipping and no crash.
-  OverviewItem* item1 = GetOverviewItemForWindow(window1.get());
+  auto* item1 = GetOverviewItemForWindow(window1.get());
   GetOverviewSession()->InitiateDrag(item1,
                                      item1->target_bounds().CenterPoint(),
                                      /*is_touch_dragging=*/false);
@@ -5031,7 +7255,7 @@ TEST_F(SplitViewOverviewSessionTest, EmptyWindowsListNotExitOverview) {
   EXPECT_TRUE(GetOverviewController()->InOverviewSession());
 
   // Drag |window1| selector item to snap to left.
-  OverviewItem* overview_item1 = GetOverviewItemForWindow(window1.get());
+  auto* overview_item1 = GetOverviewItemForWindow(window1.get());
   DragWindowTo(overview_item1, gfx::PointF());
 
   // Test that overview mode is active in this single window case.
@@ -5109,7 +7333,7 @@ TEST_F(SplitViewOverviewSessionTest, AltLeftSquareBracketOnMaximizedWindow) {
   EXPECT_EQ(SplitViewController::State::kNoSnap,
             split_view_controller()->state());
   EXPECT_FALSE(InOverviewSession());
-  const WMEvent alt_left_square_bracket(WM_EVENT_CYCLE_SNAP_PRIMARY);
+  const WindowSnapWMEvent alt_left_square_bracket(WM_EVENT_CYCLE_SNAP_PRIMARY);
   snapped_window_state->OnWMEvent(&alt_left_square_bracket);
   EXPECT_TRUE(wm::IsActiveWindow(snapped_window.get()));
   EXPECT_EQ(WindowStateType::kPrimarySnapped,
@@ -5130,7 +7354,8 @@ TEST_F(SplitViewOverviewSessionTest, AltRightSquareBracketOnMaximizedWindow) {
   EXPECT_EQ(SplitViewController::State::kNoSnap,
             split_view_controller()->state());
   EXPECT_FALSE(InOverviewSession());
-  const WMEvent alt_right_square_bracket(WM_EVENT_CYCLE_SNAP_SECONDARY);
+  const WindowSnapWMEvent alt_right_square_bracket(
+      WM_EVENT_CYCLE_SNAP_SECONDARY);
   snapped_window_state->OnWMEvent(&alt_right_square_bracket);
   EXPECT_TRUE(wm::IsActiveWindow(snapped_window.get()));
   EXPECT_EQ(WindowStateType::kSecondarySnapped,
@@ -5157,10 +7382,11 @@ TEST_F(SplitViewOverviewSessionTest, AltSquareBracketOnUnsnappableWindow) {
         EXPECT_FALSE(InOverviewSession());
       };
   expect_unsnappable_window_is_active_and_maximized();
-  const WMEvent alt_left_square_bracket(WM_EVENT_CYCLE_SNAP_PRIMARY);
+  const WindowSnapWMEvent alt_left_square_bracket(WM_EVENT_CYCLE_SNAP_PRIMARY);
   unsnappable_window_state->OnWMEvent(&alt_left_square_bracket);
   expect_unsnappable_window_is_active_and_maximized();
-  const WMEvent alt_right_square_bracket(WM_EVENT_CYCLE_SNAP_SECONDARY);
+  const WindowSnapWMEvent alt_right_square_bracket(
+      WM_EVENT_CYCLE_SNAP_SECONDARY);
   unsnappable_window_state->OnWMEvent(&alt_right_square_bracket);
   expect_unsnappable_window_is_active_and_maximized();
 }
@@ -5174,7 +7400,7 @@ TEST_F(SplitViewOverviewSessionTest, AltSquareBracketOnSameSideSnappedWindow) {
                                         &window1](WMEventType event_type) {
     wm::ActivateWindow(window1.get());
     WindowState* window1_state = WindowState::Get(window1.get());
-    const WMEvent event(event_type);
+    const WindowSnapWMEvent event(event_type);
     window1_state->OnWMEvent(&event);
     EXPECT_TRUE(wm::IsActiveWindow(window1.get()));
     EXPECT_EQ(WindowStateType::kMaximized, window1_state->GetStateType());
@@ -5230,7 +7456,8 @@ TEST_F(SplitViewOverviewSessionTest,
   const auto test_left_snapping_window1 = [this, &window1, &window2]() {
     wm::ActivateWindow(window1.get());
     WindowState* window1_state = WindowState::Get(window1.get());
-    const WMEvent alt_left_square_bracket(WM_EVENT_CYCLE_SNAP_PRIMARY);
+    const WindowSnapWMEvent alt_left_square_bracket(
+        WM_EVENT_CYCLE_SNAP_PRIMARY);
     window1_state->OnWMEvent(&alt_left_square_bracket);
     EXPECT_TRUE(wm::IsActiveWindow(window1.get()));
     EXPECT_EQ(WindowStateType::kPrimarySnapped, window1_state->GetStateType());
@@ -5243,7 +7470,8 @@ TEST_F(SplitViewOverviewSessionTest,
   const auto test_right_snapping_window1 = [this, &window1, &window2]() {
     wm::ActivateWindow(window1.get());
     WindowState* window1_state = WindowState::Get(window1.get());
-    const WMEvent alt_right_square_bracket(WM_EVENT_CYCLE_SNAP_SECONDARY);
+    const WindowSnapWMEvent alt_right_square_bracket(
+        WM_EVENT_CYCLE_SNAP_SECONDARY);
     window1_state->OnWMEvent(&alt_right_square_bracket);
     EXPECT_TRUE(wm::IsActiveWindow(window1.get()));
     EXPECT_EQ(WindowStateType::kSecondarySnapped,
@@ -5311,14 +7539,14 @@ TEST_F(SplitViewOverviewSessionTest, SplitViewRotationTest) {
 
   ToggleOverview();
   // Test that dragging |window1| to the left of the screen snaps it to left.
-  OverviewItem* overview_item1 = GetOverviewItemForWindow(window1.get());
+  auto* overview_item1 = GetOverviewItemForWindow(window1.get());
   DragWindowTo(overview_item1, gfx::PointF());
   EXPECT_EQ(split_view_controller()->state(),
             SplitViewController::State::kPrimarySnapped);
   EXPECT_EQ(split_view_controller()->primary_window(), window1.get());
 
   // Test that dragging |window2| to the right of the screen snaps it to right.
-  OverviewItem* overview_item2 = GetOverviewItemForWindow(window2.get());
+  auto* overview_item2 = GetOverviewItemForWindow(window2.get());
   gfx::Rect work_area_rect = GetWorkAreaInScreen(window2.get());
   gfx::PointF end_location2(work_area_rect.width(), work_area_rect.height());
   DragWindowTo(overview_item2, end_location2);
@@ -5438,7 +7666,7 @@ TEST_F(SplitViewOverviewSessionTest, SplitViewOverviewBothActiveTest) {
   ToggleOverview();
 
   // Drag |window1| selector item to snap to left.
-  OverviewItem* overview_item1 = GetOverviewItemForWindow(window1.get());
+  auto* overview_item1 = GetOverviewItemForWindow(window1.get());
   DragWindowTo(overview_item1, gfx::PointF());
 
   EXPECT_EQ(split_view_controller()->state(),
@@ -5453,9 +7681,9 @@ TEST_F(SplitViewOverviewSessionTest, SplitViewOverviewBothActiveTest) {
   EXPECT_EQ(divider_bounds.right(), overview_grid_bounds.x());
 
   const gfx::Point resize_start_location(divider_bounds.CenterPoint());
-  split_view_controller()->StartResizeWithDivider(resize_start_location);
+  split_view_divider()->StartResizeWithDivider(resize_start_location);
   const gfx::Point resize_end_location(300, 0);
-  split_view_controller()->EndResizeWithDivider(resize_end_location);
+  split_view_divider()->EndResizeWithDivider(resize_end_location);
   SkipDividerSnapAnimation();
 
   const gfx::Rect window1_bounds_after_resize = window1->GetBoundsInScreen();
@@ -5491,8 +7719,7 @@ TEST_F(SplitViewOverviewSessionTest, SelectUnsnappableWindowInSplitView) {
   ASSERT_TRUE(split_view_controller()->InSplitViewMode());
 
   // Select the unsnappable window.
-  OverviewItem* overview_item =
-      GetOverviewItemForWindow(unsnappable_window.get());
+  auto* overview_item = GetOverviewItemForWindow(unsnappable_window.get());
   ui::test::EventGenerator* generator = GetEventGenerator();
   generator->set_current_screen_location(
       gfx::ToRoundedPoint(overview_item->target_bounds().CenterPoint()));
@@ -5549,26 +7776,23 @@ TEST_F(SplitViewOverviewSessionTest, OverviewUnsnappableIndicatorVisibility) {
   ToggleOverview();
   ASSERT_TRUE(GetOverviewController()->InOverviewSession());
 
-  OverviewItem* snappable_overview_item =
-      GetOverviewItemForWindow(window2.get());
-  OverviewItem* unsnappable_overview_item =
+  auto* snappable_overview_item = GetOverviewItemForWindow(window2.get());
+  auto* unsnappable_overview_item =
       GetOverviewItemForWindow(unsnappable_window.get());
 
   // Note: |cannot_snap_label_view_| and its parent will be created on demand.
-  EXPECT_FALSE(snappable_overview_item->cannot_snap_widget_for_testing());
-  ASSERT_FALSE(unsnappable_overview_item->cannot_snap_widget_for_testing());
+  EXPECT_FALSE(GetCannotSnapWidget(snappable_overview_item));
+  ASSERT_FALSE(GetCannotSnapWidget(unsnappable_overview_item));
 
   // Snap the extra snappable window to enter split view mode.
   split_view_controller()->SnapWindow(
       window1.get(), SplitViewController::SnapPosition::kPrimary);
   ASSERT_TRUE(split_view_controller()->InSplitViewMode());
-  EXPECT_FALSE(snappable_overview_item->cannot_snap_widget_for_testing());
-  ASSERT_TRUE(unsnappable_overview_item->cannot_snap_widget_for_testing());
-  ui::Layer* unsnappable_layer =
-      unsnappable_overview_item->cannot_snap_widget_for_testing()
-          ->GetNativeWindow()
-          ->layer();
-  EXPECT_EQ(1.f, unsnappable_layer->opacity());
+  EXPECT_FALSE(GetCannotSnapWidget(snappable_overview_item));
+  views::Widget* cannot_snap_widget =
+      GetCannotSnapWidget(unsnappable_overview_item);
+  ASSERT_TRUE(cannot_snap_widget);
+  EXPECT_EQ(1.f, cannot_snap_widget->GetLayer()->opacity());
 
   // Exiting the splitview will hide the unsnappable label.
   const gfx::Rect divider_bounds =
@@ -5579,7 +7803,7 @@ TEST_F(SplitViewOverviewSessionTest, OverviewUnsnappableIndicatorVisibility) {
   SkipDividerSnapAnimation();
 
   EXPECT_FALSE(split_view_controller()->InSplitViewMode());
-  EXPECT_EQ(0.f, unsnappable_layer->opacity());
+  EXPECT_EQ(0.f, cannot_snap_widget->GetLayer()->opacity());
 }
 
 // Verify that during "normal" dragging from overview (not drag-to-close), the
@@ -5599,13 +7823,12 @@ TEST_F(SplitViewOverviewSessionTest,
   split_view_controller()->SnapWindow(
       snapped_window.get(), SplitViewController::SnapPosition::kPrimary);
   ASSERT_TRUE(split_view_controller()->InSplitViewMode());
-  OverviewItem* unsnappable_overview_item =
+  auto* unsnappable_overview_item =
       GetOverviewItemForWindow(unsnappable_window.get());
-  ASSERT_TRUE(unsnappable_overview_item->cannot_snap_widget_for_testing());
-  ui::Layer* unsnappable_layer =
-      unsnappable_overview_item->cannot_snap_widget_for_testing()
-          ->GetNativeWindow()
-          ->layer();
+  views::Widget* cannot_snap_widget =
+      GetCannotSnapWidget(unsnappable_overview_item);
+  ASSERT_TRUE(cannot_snap_widget);
+  ui::Layer* unsnappable_layer = cannot_snap_widget->GetLayer();
   ASSERT_EQ(1.f, unsnappable_layer->opacity());
 
   // Test that the unsnappable label is temporarily suppressed during mouse
@@ -5702,9 +7925,9 @@ TEST_F(SplitViewOverviewSessionTest,
   split_view_controller()->SnapWindow(
       snapped_window.get(), SplitViewController::SnapPosition::kPrimary);
   ASSERT_TRUE(split_view_controller()->InSplitViewMode());
-  OverviewItem* overview_item = GetOverviewItemForWindow(overview_window.get());
+  auto* overview_item = GetOverviewItemForWindow(overview_window.get());
   // Note: |cannot_snap_label_view_| and its parent will be created on demand.
-  EXPECT_FALSE(overview_item->cannot_snap_widget_for_testing());
+  EXPECT_FALSE(GetCannotSnapWidget(overview_item));
 
   // Rotate to primary portrait orientation. The unsnappable indicator appears.
   display::test::DisplayManagerTestApi(Shell::Get()->display_manager())
@@ -5713,9 +7936,9 @@ TEST_F(SplitViewOverviewSessionTest,
       Shell::Get()->screen_orientation_controller());
   test_api.SetDisplayRotation(display::Display::ROTATE_270,
                               display::Display::RotationSource::ACTIVE);
-  ASSERT_TRUE(overview_item->cannot_snap_widget_for_testing());
-  ui::Layer* unsnappable_layer =
-      overview_item->cannot_snap_widget_for_testing()->GetLayer();
+  views::Widget* cannot_snap_widget = GetCannotSnapWidget(overview_item);
+  ASSERT_TRUE(cannot_snap_widget);
+  ui::Layer* unsnappable_layer = cannot_snap_widget->GetLayer();
   EXPECT_EQ(1.f, unsnappable_layer->opacity());
 
   // Rotate to primary landscape orientation. The unsnappable indicator hides.
@@ -5737,40 +7960,40 @@ TEST_F(SplitViewOverviewSessionTest, DragDividerToExitTest) {
   ToggleOverview();
 
   // Drag |window1| selector item to snap to left.
-  OverviewItem* overview_item1 = GetOverviewItemForWindow(window1.get());
+  auto* overview_item1 = GetOverviewItemForWindow(window1.get());
   DragWindowTo(overview_item1, gfx::PointF());
   // Test that overview mode and split view mode are both active.
   EXPECT_TRUE(split_view_controller()->InSplitViewMode());
-  EXPECT_TRUE(Shell::Get()->overview_controller()->InOverviewSession());
+  EXPECT_TRUE(OverviewController::Get()->InOverviewSession());
 
   // Drag the divider toward closing the snapped window.
   gfx::Rect divider_bounds = GetSplitViewDividerBounds(false /* is_dragging */);
-  split_view_controller()->StartResizeWithDivider(divider_bounds.CenterPoint());
-  split_view_controller()->EndResizeWithDivider(gfx::Point(0, 0));
+  split_view_divider()->StartResizeWithDivider(divider_bounds.CenterPoint());
+  split_view_divider()->EndResizeWithDivider(gfx::Point(0, 0));
   SkipDividerSnapAnimation();
 
   // Test that split view mode is ended. Overview mode is still active.
   EXPECT_FALSE(split_view_controller()->InSplitViewMode());
-  EXPECT_TRUE(Shell::Get()->overview_controller()->InOverviewSession());
+  EXPECT_TRUE(OverviewController::Get()->InOverviewSession());
 
   // Now drag |window2| selector item to snap to left.
-  OverviewItem* overview_item2 = GetOverviewItemForWindow(window2.get());
+  auto* overview_item2 = GetOverviewItemForWindow(window2.get());
   DragWindowTo(overview_item2, gfx::PointF());
   // Test that overview mode and split view mode are both active.
   EXPECT_TRUE(split_view_controller()->InSplitViewMode());
-  EXPECT_TRUE(Shell::Get()->overview_controller()->InOverviewSession());
+  EXPECT_TRUE(OverviewController::Get()->InOverviewSession());
 
   // Drag the divider toward closing the overview window grid.
   divider_bounds = GetSplitViewDividerBounds(false /*is_dragging=*/);
   const gfx::Rect display_bounds = GetWorkAreaInScreen(window2.get());
-  split_view_controller()->StartResizeWithDivider(divider_bounds.CenterPoint());
-  split_view_controller()->EndResizeWithDivider(display_bounds.bottom_right());
+  split_view_divider()->StartResizeWithDivider(divider_bounds.CenterPoint());
+  split_view_divider()->EndResizeWithDivider(display_bounds.bottom_right());
   SkipDividerSnapAnimation();
 
   // Test that split view mode is ended. Overview mode is also ended. |window2|
   // should be activated.
   EXPECT_FALSE(split_view_controller()->InSplitViewMode());
-  EXPECT_FALSE(Shell::Get()->overview_controller()->InOverviewSession());
+  EXPECT_FALSE(OverviewController::Get()->InOverviewSession());
   EXPECT_EQ(window2.get(), window_util::GetActiveWindow());
 }
 
@@ -5781,7 +8004,7 @@ TEST_F(SplitViewOverviewSessionTest, OverviewItemLongPressed) {
   ToggleOverview();
   ASSERT_TRUE(GetOverviewController()->InOverviewSession());
 
-  OverviewItem* overview_item = GetOverviewItemForWindow(window1.get());
+  auto* overview_item = GetOverviewItemForWindow(window1.get());
   gfx::PointF start_location(overview_item->target_bounds().CenterPoint());
   const gfx::RectF original_bounds(overview_item->target_bounds());
 
@@ -5819,50 +8042,50 @@ TEST_F(SplitViewOverviewSessionTest, SnappedWindowBoundsTest) {
   ToggleOverview();
 
   // Drag |window1| selector item to snap to left.
-  OverviewItem* overview_item1 = GetOverviewItemForWindow(window1.get());
+  auto* overview_item1 = GetOverviewItemForWindow(window1.get());
   DragWindowTo(overview_item1, gfx::PointF());
   EXPECT_EQ(SplitViewController::State::kPrimarySnapped,
             split_view_controller()->state());
-  EXPECT_TRUE(Shell::Get()->overview_controller()->InOverviewSession());
+  EXPECT_TRUE(OverviewController::Get()->InOverviewSession());
 
   // Then drag the divider to left toward closing the snapped window.
   gfx::Rect divider_bounds = GetSplitViewDividerBounds(false /*is_dragging=*/);
-  split_view_controller()->StartResizeWithDivider(divider_bounds.CenterPoint());
+  split_view_divider()->StartResizeWithDivider(divider_bounds.CenterPoint());
   // Drag the divider to a point that is close enough but still have a short
   // distance to the edge of the screen.
-  split_view_controller()->EndResizeWithDivider(gfx::Point(20, 20));
+  split_view_divider()->EndResizeWithDivider(gfx::Point(20, 20));
   SkipDividerSnapAnimation();
 
   // Test that split view mode is ended. Overview mode is still active.
   EXPECT_FALSE(split_view_controller()->InSplitViewMode());
-  EXPECT_TRUE(Shell::Get()->overview_controller()->InOverviewSession());
+  EXPECT_TRUE(OverviewController::Get()->InOverviewSession());
   // Test that |window1| has the dimensions of a tablet mode maxed window, so
   // that when it is placed back on the grid it will not look skinny.
   EXPECT_LE(window1->bounds().x(), 0);
   EXPECT_EQ(window1->bounds().width(), screen_width);
 
   // Drag |window2| selector item to snap to right.
-  OverviewItem* overview_item2 = GetOverviewItemForWindow(window2.get());
+  auto* overview_item2 = GetOverviewItemForWindow(window2.get());
   const gfx::Rect work_area_rect = GetWorkAreaInScreen(window2.get());
   gfx::Point end_location2 =
       gfx::Point(work_area_rect.width(), work_area_rect.height());
   DragWindowTo(overview_item2, gfx::PointF(end_location2));
   EXPECT_EQ(SplitViewController::State::kSecondarySnapped,
             split_view_controller()->state());
-  EXPECT_TRUE(Shell::Get()->overview_controller()->InOverviewSession());
+  EXPECT_TRUE(OverviewController::Get()->InOverviewSession());
 
   // Then drag the divider to right toward closing the snapped window.
   divider_bounds = GetSplitViewDividerBounds(false /* is_dragging */);
-  split_view_controller()->StartResizeWithDivider(divider_bounds.CenterPoint());
+  split_view_divider()->StartResizeWithDivider(divider_bounds.CenterPoint());
   // Drag the divider to a point that is close enough but still have a short
   // distance to the edge of the screen.
   end_location2.Offset(-20, -20);
-  split_view_controller()->EndResizeWithDivider(end_location2);
+  split_view_divider()->EndResizeWithDivider(end_location2);
   SkipDividerSnapAnimation();
 
   // Test that split view mode is ended. Overview mode is still active.
   EXPECT_FALSE(split_view_controller()->InSplitViewMode());
-  EXPECT_TRUE(Shell::Get()->overview_controller()->InOverviewSession());
+  EXPECT_TRUE(OverviewController::Get()->InOverviewSession());
   // Test that |window2| has the dimensions of a tablet mode maxed window, so
   // that when it is placed back on the grid it will not look skinny.
   EXPECT_GE(window2->bounds().x(), 0);
@@ -5883,9 +8106,9 @@ TEST_F(SplitViewOverviewSessionTest, SnappedWindowBoundsWithMinimumSizeTest) {
   ToggleOverview();
   split_view_controller()->SnapWindow(
       window1.get(), SplitViewController::SnapPosition::kPrimary);
-  split_view_controller()->StartResizeWithDivider(
+  split_view_divider()->StartResizeWithDivider(
       GetSplitViewDividerBounds(/*is_dragging=*/false).CenterPoint());
-  split_view_controller()->EndResizeWithDivider(
+  split_view_divider()->EndResizeWithDivider(
       gfx::Point(work_area_length / 3, 10));
   SkipDividerSnapAnimation();
   // Use |EXPECT_NEAR| for reasons related to rounding and divider thickness.
@@ -5917,9 +8140,9 @@ TEST_F(SplitViewOverviewSessionTest, SnappedWindowBoundsWithMinimumSizeTest) {
               SplitViewController::SnapPosition::kSecondary, window2.get())
           .width(),
       8);
-  split_view_controller()->StartResizeWithDivider(
+  split_view_divider()->StartResizeWithDivider(
       GetSplitViewDividerBounds(/*is_dragging=*/false).CenterPoint());
-  split_view_controller()->EndResizeWithDivider(
+  split_view_divider()->EndResizeWithDivider(
       gfx::Point(work_area_length * 2 / 3, 10));
   EXPECT_NEAR(work_area_length * 2 / 3,
               split_view_controller()
@@ -5964,7 +8187,7 @@ TEST_F(SplitViewOverviewSessionTest,
   ToggleOverview();
   // Drag |window1| selector item to snap to left. There should be two items on
   // the overview grid afterwards, |window2| and |window3|.
-  OverviewItem* overview_item1 = GetOverviewItemForWindow(window1.get());
+  auto* overview_item1 = GetOverviewItemForWindow(window1.get());
   DragWindowTo(overview_item1, gfx::PointF());
   EXPECT_EQ(SplitViewController::State::kPrimarySnapped,
             split_view_controller()->state());
@@ -6037,12 +8260,12 @@ TEST_F(
   aura::Window* parent = window1->parent();
   ASSERT_EQ(parent, window2->parent());
   ASSERT_EQ(parent, window3->parent());
-  EXPECT_TRUE(IsStackedBelow(
+  EXPECT_TRUE(window_util::IsStackedBelow(
       GetOverviewItemForWindow(window1.get())->item_widget()->GetNativeWindow(),
       GetOverviewItemForWindow(window2.get())
           ->item_widget()
           ->GetNativeWindow()));
-  EXPECT_TRUE(IsStackedBelow(
+  EXPECT_TRUE(window_util::IsStackedBelow(
       GetOverviewItemForWindow(window3.get())->item_widget()->GetNativeWindow(),
       GetOverviewItemForWindow(window1.get())
           ->item_widget()
@@ -6087,12 +8310,12 @@ TEST_F(
   aura::Window* parent = window1->parent();
   ASSERT_EQ(parent, window2->parent());
   ASSERT_EQ(parent, window4->parent());
-  EXPECT_TRUE(IsStackedBelow(
+  EXPECT_TRUE(window_util::IsStackedBelow(
       GetOverviewItemForWindow(window1.get())->item_widget()->GetNativeWindow(),
       GetOverviewItemForWindow(window2.get())
           ->item_widget()
           ->GetNativeWindow()));
-  EXPECT_TRUE(IsStackedBelow(
+  EXPECT_TRUE(window_util::IsStackedBelow(
       GetOverviewItemForWindow(window4.get())->item_widget()->GetNativeWindow(),
       GetOverviewItemForWindow(window1.get())
           ->item_widget()
@@ -6166,7 +8389,7 @@ TEST_F(SplitViewOverviewSessionTest, InsertMinimizedWindowBackToOverview) {
   std::unique_ptr<aura::Window> window2(CreateWindow(bounds));
 
   ToggleOverview();
-  OverviewItem* overview_item1 = GetOverviewItemForWindow(window1.get());
+  auto* overview_item1 = GetOverviewItemForWindow(window1.get());
   DragWindowTo(overview_item1, gfx::PointF());
   EXPECT_EQ(split_view_controller()->state(),
             SplitViewController::State::kPrimarySnapped);
@@ -6224,12 +8447,12 @@ TEST_F(SplitViewOverviewSessionTest, SnappedWindowAnimationObserverTest) {
   EXPECT_FALSE(window1->layer()->GetTargetTransform().IsIdentity());
   EXPECT_FALSE(window2->layer()->GetTargetTransform().IsIdentity());
   EXPECT_FALSE(window3->layer()->GetTargetTransform().IsIdentity());
-  OverviewItem* overview_item1 = GetOverviewItemForWindow(window1.get());
+  auto* overview_item1 = GetOverviewItemForWindow(window1.get());
   DragWindowTo(overview_item1, gfx::PointF());
   EXPECT_EQ(SplitViewController::State::kPrimarySnapped,
             split_view_controller()->state());
   // Drag |window2| to snap to right.
-  OverviewItem* overview_item2 = GetOverviewItemForWindow(window2.get());
+  auto* overview_item2 = GetOverviewItemForWindow(window2.get());
   const gfx::Rect work_area_rect =
       screen_util::GetDisplayWorkAreaBoundsInScreenForActiveDeskContainer(
           window2.get());
@@ -6302,7 +8525,7 @@ TEST_F(SplitViewOverviewSessionTest, SwapWindowAndOverviewGrid) {
   std::unique_ptr<aura::Window> window2(CreateWindow(bounds));
 
   ToggleOverview();
-  OverviewItem* overview_item1 = GetOverviewItemForWindow(window1.get());
+  auto* overview_item1 = GetOverviewItemForWindow(window1.get());
   DragWindowTo(overview_item1, gfx::PointF());
   EXPECT_EQ(split_view_controller()->state(),
             SplitViewController::State::kPrimarySnapped);
@@ -6358,7 +8581,7 @@ TEST_F(SplitViewOverviewSessionTest, ClosingSplitViewWindow) {
 
   ToggleOverview();
   // Drag |window1| selector item to snap to left.
-  OverviewItem* overview_item1 = GetOverviewItemForWindow(window1.get());
+  auto* overview_item1 = GetOverviewItemForWindow(window1.get());
   DragWindowTo(overview_item1, gfx::PointF(0, 0));
   EXPECT_TRUE(GetOverviewController()->InOverviewSession());
   EXPECT_TRUE(split_view_controller()->InSplitViewMode());
@@ -6387,13 +8610,13 @@ TEST_F(SplitViewOverviewSessionTest,
           ->split_view_divider()
           ->GetDividerBoundsInScreen(/*is_dragging=*/false)
           .CenterPoint();
-  split_view_controller()->StartResizeWithDivider(divider_drag_point);
+  split_view_divider()->StartResizeWithDivider(divider_drag_point);
   divider_drag_point.Offset(20, 0);
-  split_view_controller()->ResizeWithDivider(divider_drag_point);
-  split_view_controller()->EndResizeWithDivider(divider_drag_point);
+  split_view_divider()->ResizeWithDivider(divider_drag_point);
+  split_view_divider()->EndResizeWithDivider(divider_drag_point);
   ASSERT_TRUE(IsDividerAnimating());
 
-  OverviewItem* overview_item = GetOverviewItemForWindow(overview_window.get());
+  auto* overview_item = GetOverviewItemForWindow(overview_window.get());
   GetOverviewSession()->InitiateDrag(
       overview_item, overview_item->target_bounds().CenterPoint(),
       /*is_touch_dragging=*/true);
@@ -6412,7 +8635,7 @@ TEST_F(SplitViewOverviewSessionTest, GridBoundsAfterWindowDestroyed) {
   const gfx::Rect grid_bounds = GetGridBounds();
   // Drag the item such that the splitview preview area shows up and the grid
   // bounds shrink.
-  OverviewItem* overview_item = GetOverviewItemForWindow(window1.get());
+  auto* overview_item = GetOverviewItemForWindow(window1.get());
   GetOverviewSession()->InitiateDrag(
       overview_item, overview_item->target_bounds().CenterPoint(),
       /*is_touch_dragging=*/true);
@@ -6468,8 +8691,7 @@ TEST_F(SplitViewOverviewSessionTest,
             split_view_controller()->state());
 
   // Select the minimized window.
-  OverviewItem* overview_item =
-      GetOverviewItemForWindow(minimized_window.get());
+  auto* overview_item = GetOverviewItemForWindow(minimized_window.get());
   ui::test::EventGenerator* generator = GetEventGenerator();
   generator->set_current_screen_location(
       gfx::ToRoundedPoint(overview_item->target_bounds().CenterPoint()));
@@ -6612,7 +8834,7 @@ TEST_F(SplitViewOverviewSessionInClamshellTest, BasicFunctionalitiesTest) {
   EXPECT_TRUE(GetOverviewController()->InOverviewSession());
   EXPECT_FALSE(split_view_controller()->InSplitViewMode());
   // Drag |window1| selector item to snap to left.
-  OverviewItem* overview_item1 = GetOverviewItemForWindow(window1.get());
+  auto* overview_item1 = GetOverviewItemForWindow(window1.get());
   DragWindowTo(overview_item1, gfx::PointF(0, 0));
   // Since the only window is snapped, overview and splitview should be both
   // ended.
@@ -6646,7 +8868,7 @@ TEST_F(SplitViewOverviewSessionInClamshellTest, BasicFunctionalitiesTest) {
   ToggleOverview();
   overview_item1 = GetOverviewItemForWindow(window1.get());
   DragWindowTo(overview_item1, gfx::PointF(0, 0));
-  OverviewItem* overview_item3 = GetOverviewItemForWindow(window3.get());
+  auto* overview_item3 = GetOverviewItemForWindow(window3.get());
   DragWindowTo(overview_item3, gfx::PointF(600, 300));
   EXPECT_EQ(window_state1->GetStateType(), WindowStateType::kPrimarySnapped);
   EXPECT_EQ(WindowState::Get(window3.get())->GetStateType(),
@@ -6786,7 +9008,7 @@ TEST_F(SplitViewOverviewSessionInClamshellTest, ResizeWindowTest) {
 
   ToggleOverview();
   gfx::Rect overview_full_bounds = GetGridBounds();
-  OverviewItem* overview_item1 = GetOverviewItemForWindow(window1.get());
+  auto* overview_item1 = GetOverviewItemForWindow(window1.get());
   DragWindowTo(overview_item1, gfx::PointF(0, 0));
   EXPECT_NE(GetGridBounds(), overview_full_bounds);
   EXPECT_EQ(GetGridBounds(), GetSplitViewRightWindowBounds());
@@ -6799,7 +9021,8 @@ TEST_F(SplitViewOverviewSessionInClamshellTest, ResizeWindowTest) {
   generator1.PressLeftButton();
   CheckWindowResizingPerformanceHistograms("BeforeResizingLeftSnappedWindow1",
                                            0, 0, 0, 0);
-  generator1.MoveMouseBy(50, 50);
+  const int drag_x(50);
+  generator1.MoveMouseBy(drag_x, 50);
   CheckWindowResizingPerformanceHistograms("WhileResizingLeftSnappedWindow1", 0,
                                            0, 1, 0);
   generator1.ReleaseLeftButton();
@@ -6810,39 +9033,49 @@ TEST_F(SplitViewOverviewSessionInClamshellTest, ResizeWindowTest) {
   EXPECT_NE(GetGridBounds(), overview_full_bounds);
   EXPECT_NE(GetGridBounds(), overview_snapped_bounds);
   EXPECT_EQ(GetGridBounds(), GetSplitViewRightWindowBounds());
+  EXPECT_TRUE(RootWindowController::ForWindow(Shell::GetPrimaryRootWindow())
+                  ->split_view_overview_session());
+
+  // Verify the overview width has decreased by the same amount the window has
+  // increased.
+  EXPECT_EQ(overview_snapped_bounds.width() - drag_x, GetGridBounds().width());
+  const gfx::Rect work_area(
+      display::Screen::GetScreen()->GetPrimaryDisplay().work_area());
+  EXPECT_EQ(work_area.width(),
+            GetGridBounds().width() + window1->GetBoundsInScreen().width());
 
   // Resize that happens on the left edge of the left snapped window will end
   // overview. The same for the resize that happens on the top or bottom edge of
   // the left snapped window.
-  OverviewItem* overview_item2 = GetOverviewItemForWindow(window2.get());
+  auto* overview_item2 = GetOverviewItemForWindow(window2.get());
   DragWindowTo(overview_item2, gfx::PointF(0, 0));
   EXPECT_TRUE(GetOverviewController()->InOverviewSession());
   EXPECT_TRUE(split_view_controller()->InSplitViewMode());
   ui::test::EventGenerator generator2(Shell::GetPrimaryRootWindow(),
                                       window2.get());
-  generator2.DragMouseBy(50, 50);
+  generator2.DragMouseBy(drag_x, 50);
   CheckWindowResizingPerformanceHistograms("AfterResizingLeftSnappedWindow2", 0,
                                            0, 1, 1);
   EXPECT_FALSE(GetOverviewController()->InOverviewSession());
   EXPECT_FALSE(split_view_controller()->InSplitViewMode());
 
   ToggleOverview();
-  OverviewItem* overview_item3 = GetOverviewItemForWindow(window3.get());
+  auto* overview_item3 = GetOverviewItemForWindow(window3.get());
   DragWindowTo(overview_item3, gfx::PointF(0, 0));
   ui::test::EventGenerator generator3(Shell::GetPrimaryRootWindow(),
                                       window3.get());
-  generator3.DragMouseBy(50, 50);
+  generator3.DragMouseBy(drag_x, 50);
   CheckWindowResizingPerformanceHistograms("AfterResizingLeftSnappedWindow3", 0,
                                            0, 1, 1);
   EXPECT_FALSE(GetOverviewController()->InOverviewSession());
   EXPECT_FALSE(split_view_controller()->InSplitViewMode());
 
   ToggleOverview();
-  OverviewItem* overview_item4 = GetOverviewItemForWindow(window4.get());
+  auto* overview_item4 = GetOverviewItemForWindow(window4.get());
   DragWindowTo(overview_item4, gfx::PointF(0, 0));
   ui::test::EventGenerator generator4(Shell::GetPrimaryRootWindow(),
                                       window4.get());
-  generator4.DragMouseBy(50, 50);
+  generator4.DragMouseBy(drag_x, 50);
   CheckWindowResizingPerformanceHistograms("AfterResizingLeftSnappedWindow4", 0,
                                            0, 1, 1);
   EXPECT_FALSE(GetOverviewController()->InOverviewSession());
@@ -6862,7 +9095,7 @@ TEST_F(SplitViewOverviewSessionInClamshellTest, ResizeWindowTest) {
   generator5.PressLeftButton();
   CheckWindowResizingPerformanceHistograms("BeforeResizingRightSnappedWindow2",
                                            0, 0, 1, 1);
-  generator5.MoveMouseBy(50, 50);
+  generator5.MoveMouseBy(drag_x, 50);
   CheckWindowResizingPerformanceHistograms("WhileResizingRightSnappedWindow2",
                                            0, 0, 2, 1);
   generator5.ReleaseLeftButton();
@@ -6873,6 +9106,9 @@ TEST_F(SplitViewOverviewSessionInClamshellTest, ResizeWindowTest) {
   EXPECT_NE(GetGridBounds(), overview_full_bounds);
   EXPECT_NE(GetGridBounds(), overview_snapped_bounds);
   EXPECT_EQ(GetGridBounds(), GetSplitViewLeftWindowBounds());
+  EXPECT_EQ(overview_snapped_bounds.width() + 50, GetGridBounds().width());
+  EXPECT_EQ(work_area.width(),
+            GetGridBounds().width() + window2->GetBoundsInScreen().width());
 
   overview_item1 = GetOverviewItemForWindow(window1.get());
   DragWindowTo(overview_item1, gfx::PointF(599, 0));
@@ -6880,7 +9116,7 @@ TEST_F(SplitViewOverviewSessionInClamshellTest, ResizeWindowTest) {
   EXPECT_TRUE(split_view_controller()->InSplitViewMode());
   ui::test::EventGenerator generator6(Shell::GetPrimaryRootWindow(),
                                       window1.get());
-  generator6.DragMouseBy(50, 50);
+  generator6.DragMouseBy(drag_x, 50);
   CheckWindowResizingPerformanceHistograms("AfterResizingRightSnappedWindow1",
                                            0, 0, 2, 2);
   EXPECT_FALSE(GetOverviewController()->InOverviewSession());
@@ -6891,7 +9127,7 @@ TEST_F(SplitViewOverviewSessionInClamshellTest, ResizeWindowTest) {
   DragWindowTo(overview_item3, gfx::PointF(599, 0));
   ui::test::EventGenerator generator7(Shell::GetPrimaryRootWindow(),
                                       window3.get());
-  generator7.DragMouseBy(50, 50);
+  generator7.DragMouseBy(drag_x, 50);
   CheckWindowResizingPerformanceHistograms("AfterResizingRightSnappedWindow3",
                                            0, 0, 2, 2);
   EXPECT_FALSE(GetOverviewController()->InOverviewSession());
@@ -6902,7 +9138,7 @@ TEST_F(SplitViewOverviewSessionInClamshellTest, ResizeWindowTest) {
   DragWindowTo(overview_item4, gfx::PointF(599, 0));
   ui::test::EventGenerator generator8(Shell::GetPrimaryRootWindow(),
                                       window4.get());
-  generator8.DragMouseBy(50, 50);
+  generator8.DragMouseBy(drag_x, 50);
   CheckWindowResizingPerformanceHistograms("AfterResizingRightSnappedWindow4",
                                            0, 0, 2, 2);
   EXPECT_FALSE(GetOverviewController()->InOverviewSession());
@@ -6940,29 +9176,6 @@ TEST_F(SplitViewOverviewSessionInClamshellTest,
   EXPECT_FALSE(split_view_controller()->InSplitViewMode());
 }
 
-class TestWindowStateDelegate : public WindowStateDelegate {
- public:
-  TestWindowStateDelegate() = default;
-  TestWindowStateDelegate(const TestWindowStateDelegate&) = delete;
-  TestWindowStateDelegate& operator=(const TestWindowStateDelegate&) = delete;
-  ~TestWindowStateDelegate() override = default;
-
-  // WindowStateDelegate:
-  std::unique_ptr<PresentationTimeRecorder> OnDragStarted(
-      int component) override {
-    drag_in_progress_ = true;
-    return nullptr;
-  }
-  void OnDragFinished(bool cancel, const gfx::PointF& location) override {
-    drag_in_progress_ = false;
-  }
-
-  bool drag_in_progress() { return drag_in_progress_; }
-
- private:
-  bool drag_in_progress_ = false;
-};
-
 // Tests that when a split view window carries over to clamshell split view
 // while the divider is being dragged, the window resize is properly completed.
 TEST_F(SplitViewOverviewSessionInClamshellTest,
@@ -6970,8 +9183,7 @@ TEST_F(SplitViewOverviewSessionInClamshellTest,
   std::unique_ptr<aura::Window> snapped_window = CreateTestWindow();
   std::unique_ptr<aura::Window> overview_window = CreateTestWindow();
   WindowState* snapped_window_state = WindowState::Get(snapped_window.get());
-  TestWindowStateDelegate* snapped_window_state_delegate =
-      new TestWindowStateDelegate();
+  auto* snapped_window_state_delegate = new FakeWindowStateDelegate();
   snapped_window_state->SetDelegate(
       base::WrapUnique(snapped_window_state_delegate));
 
@@ -7033,7 +9245,7 @@ TEST_F(SplitViewOverviewSessionInClamshellTest, MoveWindowTest) {
       CreateWindowWithHitTestComponent(HTCAPTION, bounds));
 
   ToggleOverview();
-  OverviewItem* overview_item1 = GetOverviewItemForWindow(window1.get());
+  auto* overview_item1 = GetOverviewItemForWindow(window1.get());
   DragWindowTo(overview_item1, gfx::PointF(0, 0));
   EXPECT_TRUE(GetOverviewController()->InOverviewSession());
   EXPECT_TRUE(split_view_controller()->InSplitViewMode());
@@ -7054,7 +9266,7 @@ TEST_F(SplitViewOverviewSessionInClamshellTest, MinimizedWindowTest) {
 
   ToggleOverview();
   // Drag |window1| selector item to snap to left.
-  OverviewItem* overview_item1 = GetOverviewItemForWindow(window1.get());
+  auto* overview_item1 = GetOverviewItemForWindow(window1.get());
   DragWindowTo(overview_item1, gfx::PointF(0, 0));
   EXPECT_TRUE(GetOverviewController()->InOverviewSession());
   EXPECT_TRUE(split_view_controller()->InSplitViewMode());
@@ -7248,9 +9460,9 @@ TEST_F(SplitViewOverviewSessionInClamshellTest,
   split_view_controller()->SnapWindow(
       snapped_window.get(), SplitViewController::SnapPosition::kPrimary);
   ASSERT_TRUE(split_view_controller()->InSplitViewMode());
-  OverviewItem* overview_item = GetOverviewItemForWindow(overview_window.get());
+  auto* overview_item = GetOverviewItemForWindow(overview_window.get());
   // Note: |cannot_snap_label_view_| and its parent will be created on demand.
-  EXPECT_FALSE(overview_item->cannot_snap_widget_for_testing());
+  EXPECT_FALSE(GetCannotSnapWidget(overview_item));
 
   // Rotate to primary portrait orientation. The unsnappable indicator appears.
   display::DisplayManager* display_manager = Shell::Get()->display_manager();
@@ -7258,9 +9470,9 @@ TEST_F(SplitViewOverviewSessionInClamshellTest,
       display::Screen::GetScreen()->GetPrimaryDisplay().id();
   display_manager->SetDisplayRotation(display_id, display::Display::ROTATE_270,
                                       display::Display::RotationSource::ACTIVE);
-  ASSERT_TRUE(overview_item->cannot_snap_widget_for_testing());
-  ui::Layer* unsnappable_layer =
-      overview_item->cannot_snap_widget_for_testing()->GetLayer();
+  views::Widget* cannot_snap_widget = GetCannotSnapWidget(overview_item);
+  ASSERT_TRUE(cannot_snap_widget);
+  ui::Layer* unsnappable_layer = cannot_snap_widget->GetLayer();
   EXPECT_EQ(1.f, unsnappable_layer->opacity());
 
   // Rotate to primary landscape orientation. The unsnappable indicator hides.
@@ -7292,7 +9504,7 @@ TEST_F(SplitViewOverviewSessionInClamshellTest,
                             display_manager()->GetDisplayForId(display_ids[0]));
 
   ToggleOverview();
-  OverviewItem* overview_item = GetOverviewItemForWindow(window.get());
+  auto* overview_item = GetOverviewItemForWindow(window.get());
   EXPECT_FALSE(GetDropTarget(0));
   EXPECT_FALSE(GetDropTarget(1));
   gfx::PointF drag_point = overview_item->target_bounds().CenterPoint();
@@ -7319,14 +9531,15 @@ TEST_F(SplitViewOverviewSessionInClamshellTest,
   EXPECT_FALSE(split_view_controller()->InSplitViewMode());
   EXPECT_FALSE(InOverviewSession());
   // Alt+[
-  const WMEvent alt_left_square_bracket(WM_EVENT_CYCLE_SNAP_PRIMARY);
+  const WindowSnapWMEvent alt_left_square_bracket(WM_EVENT_CYCLE_SNAP_PRIMARY);
   WindowState* window1_state = WindowState::Get(window1.get());
   window1_state->OnWMEvent(&alt_left_square_bracket);
   EXPECT_EQ(WindowStateType::kPrimarySnapped, window1_state->GetStateType());
   EXPECT_FALSE(split_view_controller()->InSplitViewMode());
   EXPECT_FALSE(InOverviewSession());
   // Alt+]
-  const WMEvent alt_right_square_bracket(WM_EVENT_CYCLE_SNAP_SECONDARY);
+  const WindowSnapWMEvent alt_right_square_bracket(
+      WM_EVENT_CYCLE_SNAP_SECONDARY);
   window1_state->OnWMEvent(&alt_right_square_bracket);
   EXPECT_EQ(WindowStateType::kSecondarySnapped, window1_state->GetStateType());
   EXPECT_FALSE(split_view_controller()->InSplitViewMode());
@@ -7346,7 +9559,7 @@ TEST_F(SplitViewOverviewSessionInClamshellTest,
             snapped_window_state->GetStateType());
   EXPECT_TRUE(split_view_controller()->InSplitViewMode());
   EXPECT_TRUE(InOverviewSession());
-  const WMEvent alt_left_square_bracket(WM_EVENT_CYCLE_SNAP_PRIMARY);
+  const WindowSnapWMEvent alt_left_square_bracket(WM_EVENT_CYCLE_SNAP_PRIMARY);
   snapped_window_state->OnWMEvent(&alt_left_square_bracket);
   EXPECT_EQ(WindowStateType::kNormal, snapped_window_state->GetStateType());
   EXPECT_FALSE(split_view_controller()->InSplitViewMode());
@@ -7366,7 +9579,8 @@ TEST_F(SplitViewOverviewSessionInClamshellTest,
             snapped_window_state->GetStateType());
   EXPECT_TRUE(split_view_controller()->InSplitViewMode());
   EXPECT_TRUE(InOverviewSession());
-  const WMEvent alt_right_square_bracket(WM_EVENT_CYCLE_SNAP_SECONDARY);
+  const WindowSnapWMEvent alt_right_square_bracket(
+      WM_EVENT_CYCLE_SNAP_SECONDARY);
   snapped_window_state->OnWMEvent(&alt_right_square_bracket);
   EXPECT_EQ(WindowStateType::kNormal, snapped_window_state->GetStateType());
   EXPECT_FALSE(split_view_controller()->InSplitViewMode());
@@ -7392,7 +9606,7 @@ TEST_F(SplitViewOverviewSessionInClamshellTest,
   EXPECT_EQ(snapped_window.get(), split_view_controller()->secondary_window());
   EXPECT_TRUE(InOverviewSession());
   // Test using Alt+[ to put |snapped_window| on the left.
-  const WMEvent alt_left_square_bracket(WM_EVENT_CYCLE_SNAP_PRIMARY);
+  const WindowSnapWMEvent alt_left_square_bracket(WM_EVENT_CYCLE_SNAP_PRIMARY);
   snapped_window_state->OnWMEvent(&alt_left_square_bracket);
   EXPECT_TRUE(wm::IsActiveWindow(snapped_window.get()));
   EXPECT_EQ(WindowStateType::kPrimarySnapped,
@@ -7402,7 +9616,8 @@ TEST_F(SplitViewOverviewSessionInClamshellTest,
   EXPECT_EQ(snapped_window.get(), split_view_controller()->primary_window());
   EXPECT_TRUE(InOverviewSession());
   // Test using Alt+] to put |snapped_window| on the right.
-  const WMEvent alt_right_square_bracket(WM_EVENT_CYCLE_SNAP_SECONDARY);
+  const WindowSnapWMEvent alt_right_square_bracket(
+      WM_EVENT_CYCLE_SNAP_SECONDARY);
   snapped_window_state->OnWMEvent(&alt_right_square_bracket);
   EXPECT_TRUE(wm::IsActiveWindow(snapped_window.get()));
   EXPECT_EQ(WindowStateType::kSecondarySnapped,
@@ -7521,8 +9736,8 @@ TEST_F(SplitViewOverviewSessionInClamshellTestMultiDisplayOnly,
   ToggleOverview();
   OverviewGrid* grid_on_root2 =
       GetOverviewSession()->GetGridWithRootWindow(root_windows[1]);
-  OverviewItem* item1 = grid_on_root2->GetOverviewItemContaining(window1.get());
-  OverviewItem* item2 = grid_on_root2->GetOverviewItemContaining(window2.get());
+  auto* item1 = grid_on_root2->GetOverviewItemContaining(window1.get());
+  auto* item2 = grid_on_root2->GetOverviewItemContaining(window2.get());
   SplitViewController* split_view_controller =
       SplitViewController::Get(root_windows[1]);
   SplitViewDragIndicators* indicators =
@@ -7592,7 +9807,7 @@ TEST_F(SplitViewOverviewSessionInClamshellTestMultiDisplayOnly,
       GetOverviewSession()->GetGridWithRootWindow(root_windows[0]);
   OverviewGrid* grid_on_root2 =
       GetOverviewSession()->GetGridWithRootWindow(root_windows[1]);
-  OverviewItem* item1 = grid_on_root1->GetOverviewItemContaining(window1.get());
+  auto* item1 = grid_on_root1->GetOverviewItemContaining(window1.get());
   SplitViewDragIndicators* indicators_on_root1 =
       grid_on_root1->split_view_drag_indicators();
   SplitViewDragIndicators* indicators_on_root2 =
@@ -7740,7 +9955,7 @@ TEST_F(SplitViewOverviewSessionInClamshellTestMultiDisplayOnly,
       GetOverviewSession()->GetGridWithRootWindow(root_windows[0]);
   OverviewGrid* grid2 =
       GetOverviewSession()->GetGridWithRootWindow(root_windows[1]);
-  OverviewItem* item4 = grid2->GetOverviewItemContaining(window4.get());
+  auto* item4 = grid2->GetOverviewItemContaining(window4.get());
   // Start dragging |item4| from |grid2|.
   cursor_manager->SetDisplay(display_with_root2);
   GetOverviewSession()->InitiateDrag(item4,
@@ -7750,7 +9965,7 @@ TEST_F(SplitViewOverviewSessionInClamshellTestMultiDisplayOnly,
   // On the grid where the drag starts (|grid2|), the drop target is inserted at
   // the index immediately following the dragged item (|item4|).
   ASSERT_EQ(4u, grid2->window_list().size());
-  EXPECT_EQ(grid2->GetDropTarget(), grid2->window_list()[2].get());
+  EXPECT_EQ(GetDropTarget(1), grid2->window_list()[2].get());
   // Drag over |grid1|.
   cursor_manager->SetDisplay(display_with_root1);
   GetOverviewSession()->Drag(item4, gfx::PointF(400.f, 0.f));
@@ -7758,7 +9973,7 @@ TEST_F(SplitViewOverviewSessionInClamshellTestMultiDisplayOnly,
   // correct position according to MRU order (between the overview items for
   // |window3| and |window5|).
   ASSERT_EQ(4u, grid1->window_list().size());
-  EXPECT_EQ(grid1->GetDropTarget(), grid1->window_list()[2].get());
+  EXPECT_EQ(GetDropTarget(0), grid1->window_list()[2].get());
 }
 
 // Verify that the drop target in each overview grid has the correct bounds when
@@ -7769,11 +9984,10 @@ TEST_F(SplitViewOverviewSessionInClamshellTestMultiDisplayOnly,
   std::unique_ptr<aura::Window> window = CreateTestWindow();
   WindowState::Get(window.get())->Maximize();
   ToggleOverview();
-  OverviewItem* item = GetOverviewItemForWindow(window.get());
+  auto* item = GetOverviewItemForWindow(window.get());
   // Verify that |item| is letter boxed. The bounds of |item|, minus the margin
   // should have an aspect ratio of 2 : 1.
   gfx::RectF item_bounds = item->target_bounds();
-  item_bounds.Inset(gfx::InsetsF(kWindowMargin));
   EXPECT_EQ(OverviewGridWindowFillMode::kLetterBoxed,
             item->GetWindowDimensionsType());
   EXPECT_EQ(2.f, item_bounds.width() / item_bounds.height());
@@ -7785,15 +9999,16 @@ TEST_F(SplitViewOverviewSessionInClamshellTestMultiDisplayOnly,
   // Drag to the middle of the secondary display to avoid triggering the drag
   // snap indicator animation.
   GetOverviewSession()->Drag(item, gfx::PointF(1200.f, 500.f));
-  OverviewItem* drop_target = GetDropTarget(1);
+  auto* drop_target = GetDropTarget(1);
   ASSERT_TRUE(drop_target);
   // Verify that |drop_target| is effectively pillar boxed. Avoid calling
   // |OverviewItem::GetWindowDimensionsType|, because it does not work for drop
   // targets (and that is okay). The bounds of |drop_target|, minus the margin
   // should have an aspect ratio of 1 : 2.
-  gfx::RectF drop_target_bounds = drop_target->target_bounds();
-  drop_target_bounds.Inset(gfx::InsetsF(kWindowMargin));
-  EXPECT_EQ(0.5f, drop_target_bounds.width() / drop_target_bounds.height());
+  const gfx::Size drop_target_size =
+      drop_target->item_widget()->GetWindowBoundsInScreen().size();
+  EXPECT_EQ(0.5f, static_cast<float>(drop_target_size.width()) /
+                      drop_target_size.height());
 }
 
 // Verify that the drop target in each overview grid has bounds representing
@@ -7804,7 +10019,7 @@ TEST_F(SplitViewOverviewSessionInClamshellTestMultiDisplayOnly,
   UpdateDisplay("600x500,1200x1000");
   // Drags |item| from the right display to the left display and back, and
   // returns the bounds of the drop target that appears on the left display.
-  const auto root1_drop_target_bounds = [this](OverviewItem* item) {
+  const auto root1_drop_target_bounds = [this](OverviewItemBase* item) {
     wm::CursorManager* cursor_manager = Shell::Get()->cursor_manager();
     const gfx::PointF drag_starting_point = item->target_bounds().CenterPoint();
     display::test::DisplayManagerTestApi display_manager_test(
@@ -7837,10 +10052,10 @@ TEST_F(SplitViewOverviewSessionInClamshellTestMultiDisplayOnly,
       CreateTestWindow(gfx::Rect(600, 0, 400, 1000));
 
   ToggleOverview();
-  OverviewItem* item1 = GetOverviewItemForWindow(window1.get());
-  OverviewItem* item2 = GetOverviewItemForWindow(window2.get());
-  OverviewItem* item3 = GetOverviewItemForWindow(window3.get());
-  OverviewItem* item4 = GetOverviewItemForWindow(window4.get());
+  auto* item1 = GetOverviewItemForWindow(window1.get());
+  auto* item2 = GetOverviewItemForWindow(window2.get());
+  auto* item3 = GetOverviewItemForWindow(window3.get());
+  auto* item4 = GetOverviewItemForWindow(window4.get());
 
   // For good test coverage in each case, the dragged window and the drop target
   // have different |OverviewGridWindowFillMode| values.
@@ -7885,7 +10100,7 @@ TEST_F(SplitViewOverviewSessionInClamshellTestMultiDisplayOnly,
 
   EXPECT_EQ(root_windows[1], window->GetRootWindow());
   EXPECT_TRUE(grid1->empty());
-  OverviewItem* item = grid2->GetOverviewItemContaining(window.get());
+  auto* item = grid2->GetOverviewItemContaining(window.get());
   ASSERT_TRUE(item);
   EXPECT_EQ(root_windows[1], item->root_window());
 }
@@ -7908,23 +10123,24 @@ TEST_F(SplitViewOverviewSessionInClamshellTestMultiDisplayOnly,
   ASSERT_NE(parent_on_root1, parent_on_root2);
   ASSERT_EQ(window3->parent(), parent_on_root2);
   ToggleOverview();
-  OverviewItem* item1 = GetOverviewItemForWindow(window1.get());
-  OverviewItem* item2 = GetOverviewItemForWindow(window2.get());
-  OverviewItem* item3 = GetOverviewItemForWindow(window3.get());
+  auto* item1 = GetOverviewItemForWindow(window1.get());
+  auto* item2 = GetOverviewItemForWindow(window2.get());
+  auto* item3 = GetOverviewItemForWindow(window3.get());
 
   ASSERT_EQ(root_windows[0], item2->root_window());
   // Verify that |item1| is stacked above |item3| (because we created |window1|
   // after |window3|).
-  EXPECT_TRUE(IsStackedBelow(item3->item_widget()->GetNativeWindow(),
-                             item1->item_widget()->GetNativeWindow()));
+  EXPECT_TRUE(
+      window_util::IsStackedBelow(item3->item_widget()->GetNativeWindow(),
+                                  item1->item_widget()->GetNativeWindow()));
 
   // Verify that the item widget for each window is stacked below that window.
-  EXPECT_TRUE(
-      IsStackedBelow(item1->item_widget()->GetNativeWindow(), window1.get()));
-  EXPECT_TRUE(
-      IsStackedBelow(item2->item_widget()->GetNativeWindow(), window2.get()));
-  EXPECT_TRUE(
-      IsStackedBelow(item3->item_widget()->GetNativeWindow(), window3.get()));
+  EXPECT_TRUE(window_util::IsStackedBelow(
+      item1->item_widget()->GetNativeWindow(), window1.get()));
+  EXPECT_TRUE(window_util::IsStackedBelow(
+      item2->item_widget()->GetNativeWindow(), window2.get()));
+  EXPECT_TRUE(window_util::IsStackedBelow(
+      item3->item_widget()->GetNativeWindow(), window3.get()));
 
   // Drag |item2| from the left display and drop into the right display.
   ui::test::EventGenerator* generator = GetEventGenerator();
@@ -7945,13 +10161,15 @@ TEST_F(SplitViewOverviewSessionInClamshellTestMultiDisplayOnly,
   // With all three items on one grid, verify that their stacking order
   // corresponds to the MRU order of the windows. The new |item2| is sandwiched
   // between |item1| and |item3|.
-  EXPECT_TRUE(IsStackedBelow(item2->item_widget()->GetNativeWindow(),
-                             item1->item_widget()->GetNativeWindow()));
-  EXPECT_TRUE(IsStackedBelow(item3->item_widget()->GetNativeWindow(),
-                             item2->item_widget()->GetNativeWindow()));
-  // Verify that the item widget for the new |item2| is stacked below |window2|.
   EXPECT_TRUE(
-      IsStackedBelow(item2->item_widget()->GetNativeWindow(), window2.get()));
+      window_util::IsStackedBelow(item2->item_widget()->GetNativeWindow(),
+                                  item1->item_widget()->GetNativeWindow()));
+  EXPECT_TRUE(
+      window_util::IsStackedBelow(item3->item_widget()->GetNativeWindow(),
+                                  item2->item_widget()->GetNativeWindow()));
+  // Verify that the item widget for the new |item2| is stacked below |window2|.
+  EXPECT_TRUE(window_util::IsStackedBelow(
+      item2->item_widget()->GetNativeWindow(), window2.get()));
 
   // Verify that the right grid is in MRU order.
   const std::vector<aura::Window*> expected_order = {
@@ -8194,57 +10412,55 @@ TEST_F(SplitViewOverviewSessionInClamshellTestMultiDisplayOnly,
   std::unique_ptr<aura::Window> window6 =
       CreateUnsnappableWindow(bounds_within_root2);
   ToggleOverview();
-  OverviewItem* item2 = GetOverviewItemForWindow(window2.get());
-  OverviewItem* item3 = GetOverviewItemForWindow(window3.get());
-  OverviewItem* item5 = GetOverviewItemForWindow(window5.get());
-  OverviewItem* item6 = GetOverviewItemForWindow(window6.get());
+  auto* item2 = GetOverviewItemForWindow(window2.get());
+  auto* item3 = GetOverviewItemForWindow(window3.get());
+  auto* item5 = GetOverviewItemForWindow(window5.get());
+  auto* item6 = GetOverviewItemForWindow(window6.get());
 
   // Note: |cannot_snap_label_view_| and its parent will be created on demand.
   ASSERT_FALSE(SplitViewController::Get(root_windows[0])->InSplitViewMode());
   ASSERT_FALSE(SplitViewController::Get(root_windows[1])->InSplitViewMode());
-  EXPECT_FALSE(item2->cannot_snap_widget_for_testing());
-  EXPECT_FALSE(item3->cannot_snap_widget_for_testing());
-  EXPECT_FALSE(item5->cannot_snap_widget_for_testing());
-  EXPECT_FALSE(item6->cannot_snap_widget_for_testing());
+  EXPECT_FALSE(GetCannotSnapWidget(item2));
+  EXPECT_FALSE(GetCannotSnapWidget(item3));
+  EXPECT_FALSE(GetCannotSnapWidget(item5));
+  EXPECT_FALSE(GetCannotSnapWidget(item6));
 
   SplitViewController::Get(root_windows[0])
       ->SnapWindow(window1.get(), SplitViewController::SnapPosition::kPrimary);
   ASSERT_TRUE(SplitViewController::Get(root_windows[0])->InSplitViewMode());
   ASSERT_FALSE(SplitViewController::Get(root_windows[1])->InSplitViewMode());
-  EXPECT_FALSE(item2->cannot_snap_widget_for_testing());
-  ASSERT_TRUE(item3->cannot_snap_widget_for_testing());
-  ui::Layer* item3_unsnappable_layer =
-      item3->cannot_snap_widget_for_testing()->GetNativeWindow()->layer();
+  EXPECT_FALSE(GetCannotSnapWidget(item2));
+  ASSERT_TRUE(GetCannotSnapWidget(item3));
+  ui::Layer* item3_unsnappable_layer = GetCannotSnapWidget(item3)->GetLayer();
   EXPECT_EQ(1.f, item3_unsnappable_layer->opacity());
-  EXPECT_FALSE(item5->cannot_snap_widget_for_testing());
-  EXPECT_FALSE(item6->cannot_snap_widget_for_testing());
+  EXPECT_FALSE(GetCannotSnapWidget(item5));
+  EXPECT_FALSE(GetCannotSnapWidget(item6));
 
   SplitViewController::Get(root_windows[1])
       ->SnapWindow(window4.get(), SplitViewController::SnapPosition::kPrimary);
   ASSERT_TRUE(SplitViewController::Get(root_windows[0])->InSplitViewMode());
   ASSERT_TRUE(SplitViewController::Get(root_windows[1])->InSplitViewMode());
-  EXPECT_FALSE(item2->cannot_snap_widget_for_testing());
+  EXPECT_FALSE(GetCannotSnapWidget(item2));
   EXPECT_EQ(1.f, item3_unsnappable_layer->opacity());
-  EXPECT_FALSE(item5->cannot_snap_widget_for_testing());
-  ASSERT_TRUE(item6->cannot_snap_widget_for_testing());
-  ui::Layer* item6_unsnappable_layer =
-      item6->cannot_snap_widget_for_testing()->GetNativeWindow()->layer();
+  EXPECT_FALSE(GetCannotSnapWidget(item5));
+  ASSERT_TRUE(GetCannotSnapWidget(item6));
+  ui::Layer* item6_unsnappable_layer = GetCannotSnapWidget(item6)->GetLayer();
   EXPECT_EQ(1.f, item6_unsnappable_layer->opacity());
 
   SplitViewController::Get(root_windows[0])->EndSplitView();
   ASSERT_FALSE(SplitViewController::Get(root_windows[0])->InSplitViewMode());
   ASSERT_TRUE(SplitViewController::Get(root_windows[1])->InSplitViewMode());
-  EXPECT_FALSE(item2->cannot_snap_widget_for_testing());
+  EXPECT_FALSE(GetCannotSnapWidget(item2));
   EXPECT_EQ(0.f, item3_unsnappable_layer->opacity());
-  EXPECT_FALSE(item5->cannot_snap_widget_for_testing());
+  EXPECT_FALSE(GetCannotSnapWidget(item5));
   EXPECT_EQ(1.f, item6_unsnappable_layer->opacity());
 
   SplitViewController::Get(root_windows[1])->EndSplitView();
   ASSERT_FALSE(SplitViewController::Get(root_windows[0])->InSplitViewMode());
   ASSERT_FALSE(SplitViewController::Get(root_windows[1])->InSplitViewMode());
-  EXPECT_FALSE(item2->cannot_snap_widget_for_testing());
+  EXPECT_FALSE(GetCannotSnapWidget(item2));
   EXPECT_EQ(0.f, item3_unsnappable_layer->opacity());
-  EXPECT_FALSE(item5->cannot_snap_widget_for_testing());
+  EXPECT_FALSE(GetCannotSnapWidget(item5));
   EXPECT_EQ(0.f, item6_unsnappable_layer->opacity());
 }
 

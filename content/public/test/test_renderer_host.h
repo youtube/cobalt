@@ -102,7 +102,6 @@ class RenderFrameHostTester {
                                     const IPC::Message& msg);
 
   // Commit the load pending in the given |controller| if any.
-  // TODO(ahemery): This should take a WebContents directly.
   static void CommitPendingLoad(NavigationController* controller);
 
   virtual ~RenderFrameHostTester() {}
@@ -145,6 +144,9 @@ class RenderFrameHostTester {
   // Gets all the console messages requested via
   // RenderFrameHost::AddMessageToConsole in this frame.
   virtual const std::vector<std::string>& GetConsoleMessages() = 0;
+
+  // Clears the console messages logged in this frame.
+  virtual void ClearConsoleMessages() = 0;
 
   // Get a count of the total number of heavy ad issues reported.
   virtual int GetHeavyAdIssueCount(HeavyAdIssueType type) = 0;
@@ -293,6 +295,10 @@ class RenderViewHostTestHarness : public ::testing::Test {
   // Sets the focused frame to the main frame of the WebContents for tests that
   // rely on the focused frame not being null.
   void FocusWebContentsOnMainFrame();
+
+  // Sets the focused frame to the `rfh` for tests that rely on the focused
+  // frame not being null.
+  void FocusWebContentsOnFrame(content::RenderFrameHost* rfh);
 
  protected:
   // testing::Test

@@ -18,6 +18,7 @@
 #include "build/chromeos_buildflags.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/printing/print_view_manager.h"
+#include "chrome/browser/printing/print_view_manager_base.h"
 #include "chrome/browser/task_manager/web_contents_tags.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
@@ -86,8 +87,6 @@ class PrintPreviewDialogDelegate : public ui::WebDialogDelegate {
   std::u16string GetDialogTitle() const override;
   std::u16string GetAccessibleDialogTitle() const override;
   GURL GetDialogContentURL() const override;
-  void GetWebUIMessageHandlers(
-      std::vector<WebUIMessageHandler*>* handlers) const override;
   void GetDialogSize(gfx::Size* size) const override;
   std::string GetDialogArgs() const override;
   void OnDialogClosingFromKeyEvent() override;
@@ -126,11 +125,6 @@ GURL PrintPreviewDialogDelegate::GetDialogContentURL() const {
   return GURL(chrome::kChromeUIPrintURL);
 }
 
-void PrintPreviewDialogDelegate::GetWebUIMessageHandlers(
-    std::vector<WebUIMessageHandler*>* /* handlers */) const {
-  // PrintPreviewUI adds its own message handlers.
-}
-
 void PrintPreviewDialogDelegate::GetDialogSize(gfx::Size* size) const {
   DCHECK(size);
   const gfx::Size kMinDialogSize(800, 480);
@@ -143,7 +137,7 @@ void PrintPreviewDialogDelegate::GetDialogSize(gfx::Size* size) const {
   if (!outermost_web_contents)
     return;
 
-  Browser* browser = chrome::FindBrowserWithWebContents(outermost_web_contents);
+  Browser* browser = chrome::FindBrowserWithTab(outermost_web_contents);
   if (browser)
     host = browser->window()->GetWebContentsModalDialogHost();
 
@@ -208,7 +202,7 @@ void PrintPreviewDialogController::PrintPreview(
     WebContents* initiator,
     const mojom::RequestPrintPreviewParams& params) {
 #if BUILDFLAG(IS_WIN) && BUILDFLAG(GOOGLE_CHROME_BRANDING)
-  ModuleDatabase::DisableThirdPartyBlocking();
+  PrintViewManagerBase::DisableThirdPartyBlocking();
 #endif
 
   if (initiator->IsCrashed()) {
@@ -398,14 +392,7 @@ void PrintPreviewDialogController::OnPreviewDialogNavigated(
       ui::PageTransitionCoreTypeIs(type, ui::PAGE_TRANSITION_AUTO_TOPLEVEL) &&
       !navigation_handle->IsSameDocument()) {
     SaveInitiatorTitle(preview_dialog);
-    return;
   }
-
-  // Cloud print sign-in causes a reload, but other cases should not be reached
-  // here.
-  DCHECK(ui::PageTransitionCoreTypeIs(type, ui::PAGE_TRANSITION_RELOAD));
-  DCHECK(
-      IsPrintPreviewURL(navigation_handle->GetPreviousPrimaryMainFrameURL()));
 }
 
 WebContents* PrintPreviewDialogController::CreatePrintPreviewDialog(

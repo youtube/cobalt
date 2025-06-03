@@ -13,7 +13,6 @@
 #include "third_party/blink/renderer/platform/peerconnection/rtc_rtp_sender_platform.h"
 #include "third_party/blink/renderer/platform/peerconnection/rtc_rtp_source.h"
 #include "third_party/blink/renderer/platform/peerconnection/rtc_stats.h"
-#include "third_party/blink/renderer/platform/peerconnection/webrtc_util.h"
 #include "third_party/blink/renderer/platform/wtf/thread_safe_ref_counted.h"
 #include "third_party/webrtc/api/scoped_refptr.h"
 
@@ -191,14 +190,11 @@ class RTCRtpReceiverImpl::RTCRtpReceiverInternal
     return sources;
   }
 
-  void GetStats(RTCStatsReportCallback callback,
-                const Vector<webrtc::NonStandardGroupId>& exposed_group_ids,
-                bool is_track_stats_deprecation_trial_enabled) {
+  void GetStats(RTCStatsReportCallback callback) {
     signaling_task_runner_->PostTask(
         FROM_HERE,
         base::BindOnce(&RTCRtpReceiverInternal::GetStatsOnSignalingThread, this,
-                       std::move(callback), exposed_group_ids,
-                       is_track_stats_deprecation_trial_enabled));
+                       std::move(callback)));
   }
 
   std::unique_ptr<webrtc::RtpParameters> GetParameters() {
@@ -207,8 +203,7 @@ class RTCRtpReceiverImpl::RTCRtpReceiverInternal
   }
 
   void SetJitterBufferMinimumDelay(absl::optional<double> delay_seconds) {
-    webrtc_receiver_->SetJitterBufferMinimumDelay(
-        blink::ToAbslOptional(delay_seconds));
+    webrtc_receiver_->SetJitterBufferMinimumDelay(delay_seconds);
   }
 
   RTCEncodedAudioStreamTransformer* GetEncodedAudioStreamTransformer() const {
@@ -228,16 +223,12 @@ class RTCRtpReceiverImpl::RTCRtpReceiverInternal
     DCHECK(main_task_runner_->BelongsToCurrentThread());
   }
 
-  void GetStatsOnSignalingThread(
-      RTCStatsReportCallback callback,
-      const Vector<webrtc::NonStandardGroupId>& exposed_group_ids,
-      bool is_track_stats_deprecation_trial_enabled) {
+  void GetStatsOnSignalingThread(RTCStatsReportCallback callback) {
     native_peer_connection_->GetStats(
         rtc::scoped_refptr<webrtc::RtpReceiverInterface>(
             webrtc_receiver_.get()),
-        CreateRTCStatsCollectorCallback(
-            main_task_runner_, std::move(callback), exposed_group_ids,
-            is_track_stats_deprecation_trial_enabled));
+        CreateRTCStatsCollectorCallback(main_task_runner_,
+                                        std::move(callback)));
   }
 
   const rtc::scoped_refptr<webrtc::PeerConnectionInterface>
@@ -338,12 +329,8 @@ Vector<std::unique_ptr<RTCRtpSource>> RTCRtpReceiverImpl::GetSources() {
   return internal_->GetSources();
 }
 
-void RTCRtpReceiverImpl::GetStats(
-    RTCStatsReportCallback callback,
-    const Vector<webrtc::NonStandardGroupId>& exposed_group_ids,
-    bool is_track_stats_deprecation_trial_enabled) {
-  internal_->GetStats(std::move(callback), exposed_group_ids,
-                      is_track_stats_deprecation_trial_enabled);
+void RTCRtpReceiverImpl::GetStats(RTCStatsReportCallback callback) {
+  internal_->GetStats(std::move(callback));
 }
 
 std::unique_ptr<webrtc::RtpParameters> RTCRtpReceiverImpl::GetParameters()

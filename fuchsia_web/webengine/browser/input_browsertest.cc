@@ -23,6 +23,7 @@
 #include "fuchsia_web/webengine/test/test_data.h"
 #include "fuchsia_web/webengine/test/web_engine_browser_test.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "ui/ozone/public/ozone_platform.h"
 
 using fuchsia_input::Key;
 using fuchsia_ui_input3::KeyEvent;
@@ -150,14 +151,13 @@ class FakeKeyboard : public fidl::Server<fuchsia_ui_input3::Keyboard> {
   // Sends |key_event| to |listener_|;
   void SendKeyEvent(KeyEvent key_event) {
     listener_->OnKeyEvent(std::move(key_event))
-        .ThenExactlyOnce(
-            [num_sent_events = num_sent_events_,
-             this](const fidl::Result<
-                   fuchsia_ui_input3::KeyboardListener::OnKeyEvent>& result) {
-              ASSERT_EQ(num_acked_events_, num_sent_events)
-                  << "Key events are acked out of order";
-              num_acked_events_++;
-            });
+        .Then([num_sent_events = num_sent_events_,
+               this](const fidl::Result<
+                     fuchsia_ui_input3::KeyboardListener::OnKeyEvent>& result) {
+          ASSERT_EQ(num_acked_events_, num_sent_events)
+              << "Key events are acked out of order";
+          num_acked_events_++;
+        });
     num_sent_events_++;
   }
 
@@ -194,6 +194,10 @@ class KeyboardInputTest : public WebEngineBrowserTest {
   }
 
   void SetUp() override {
+    if (ui::OzonePlatform::GetPlatformNameForTest() == "headless") {
+      GTEST_SKIP() << "Keyboard inputs are ignored in headless mode.";
+    }
+
     scoped_feature_list_.InitWithFeatures({features::kKeyboardInput}, {});
     WebEngineBrowserTest::SetUp();
   }

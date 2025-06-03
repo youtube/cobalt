@@ -22,8 +22,10 @@
 #include "build/chromeos_buildflags.h"
 #include "chrome/browser/extensions/blocklist.h"
 #include "chrome/browser/extensions/corrupted_extension_reinstaller.h"
+#include "chrome/browser/extensions/cws_info_service.h"
 #include "chrome/browser/extensions/extension_allowlist.h"
 #include "chrome/browser/extensions/extension_management.h"
+#include "chrome/browser/extensions/extension_telemetry_service_verdict_handler.h"
 #include "chrome/browser/extensions/forced_extensions/force_installed_metrics.h"
 #include "chrome/browser/extensions/forced_extensions/force_installed_tracker.h"
 #include "chrome/browser/extensions/install_gate.h"
@@ -89,7 +91,7 @@ enum class UnloadedExtensionReason;
 // various classes have on ExtensionService. This allows easy mocking.
 class ExtensionServiceInterface {
  public:
-  virtual ~ExtensionServiceInterface() {}
+  virtual ~ExtensionServiceInterface() = default;
 
   // Gets the object managing the set of pending extensions.
   virtual PendingExtensionManager* pending_extension_manager() = 0;
@@ -173,6 +175,7 @@ class ExtensionService : public ExtensionServiceInterface,
                          public content::RenderProcessHostCreationObserver,
                          public content::RenderProcessHostObserver,
                          public Blocklist::Observer,
+                         public CWSInfoService::Observer,
                          public ExtensionManagement::Observer,
                          public UpgradeObserver,
                          public ExtensionRegistrar::Delegate,
@@ -313,7 +316,12 @@ class ExtensionService : public ExtensionServiceInterface,
 
   // Performs action based on Omaha attributes for the extension.
   void PerformActionBasedOnOmahaAttributes(const std::string& extension_id,
-                                           const base::Value& attributes);
+                                           const base::Value::Dict& attributes);
+
+  // Performs action based on verdicts received from the Extension Telemetry
+  // server. Currently, these verdicts are limited to off-store extensions.
+  void PerformActionBasedOnExtensionTelemetryServiceVerdicts(
+      const Blocklist::BlocklistStateMap& blocklist_state_map);
 
   // Disables the extension. If the extension is already disabled, just adds
   // the |disable_reasons| (a bitmask of disable_reason::DisableReason - there
@@ -525,6 +533,9 @@ class ExtensionService : public ExtensionServiceInterface,
   // Blocklist::Observer implementation.
   void OnBlocklistUpdated() override;
 
+  // CWSInfoService::Observer implementation.
+  void OnCWSInfoChanged() override;
+
   // UpgradeObserver implementation.
   void OnUpgradeRecommended() override;
 
@@ -653,7 +664,7 @@ class ExtensionService : public ExtensionServiceInterface,
   raw_ptr<Profile> profile_ = nullptr;
 
   // The ExtensionSystem for the profile above.
-  raw_ptr<ExtensionSystem, DanglingUntriaged> system_ = nullptr;
+  raw_ptr<ExtensionSystem, AcrossTasksDanglingUntriaged> system_ = nullptr;
 
   // Preferences for the owning profile.
   raw_ptr<ExtensionPrefs, DanglingUntriaged> extension_prefs_ = nullptr;
@@ -666,6 +677,9 @@ class ExtensionService : public ExtensionServiceInterface,
   SafeBrowsingVerdictHandler safe_browsing_verdict_handler_;
 
   OmahaAttributesHandler omaha_attributes_handler_;
+
+  ExtensionTelemetryServiceVerdictHandler
+      extension_telemetry_service_verdict_handler_;
 
   // Sets of enabled/disabled/terminated/blocklisted extensions. Not owned.
   raw_ptr<ExtensionRegistry, DanglingUntriaged> registry_ = nullptr;
@@ -772,6 +786,9 @@ class ExtensionService : public ExtensionServiceInterface,
   base::ScopedObservation<ExtensionHostRegistry,
                           ExtensionHostRegistry::Observer>
       host_registry_observation_{this};
+
+  base::ScopedObservation<CWSInfoService, CWSInfoService::Observer>
+      cws_info_service_observation_{this};
 
   using InstallGateRegistry =
       std::map<ExtensionPrefs::DelayReason, InstallGate*>;

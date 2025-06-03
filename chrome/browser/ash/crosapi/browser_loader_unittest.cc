@@ -13,7 +13,6 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/bind.h"
 #include "base/test/scoped_command_line.h"
-#include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
 #include "base/version.h"
 #include "chrome/browser/ash/crosapi/browser_util.h"
@@ -77,7 +76,7 @@ class FakeLacrosSelectionLoader : public LacrosSelectionLoader {
 
   ~FakeLacrosSelectionLoader() override = default;
 
-  void Load(LoadCompletionCallback callback) override {
+  void Load(LoadCompletionCallback callback, bool forced) override {
     if (!callback) {
       return;
     }
@@ -91,7 +90,8 @@ class FakeLacrosSelectionLoader : public LacrosSelectionLoader {
   }
   void Unload() override {}
   void Reset() override {}
-  void GetVersion(base::OnceCallback<void(base::Version)> callback) override {
+  void GetVersion(
+      base::OnceCallback<void(const base::Version&)> callback) override {
     std::move(callback).Run(version_);
   }
 
@@ -120,10 +120,6 @@ class BrowserLoaderTest : public testing::Test {
 
  protected:
   std::unique_ptr<BrowserLoader> browser_loader_;
-
- private:
-  base::AutoReset<bool> set_lacros_enabled_ =
-      BrowserSupport::SetLacrosEnabledForTest(true);
 };
 
 TEST_F(BrowserLoaderTest, OnLoadVersionSelectionNeitherIsAvailable) {
@@ -180,6 +176,22 @@ TEST_F(BrowserLoaderTest, OnLoadVersionSelectionRootfsIsNewer) {
 TEST_F(BrowserLoaderTest, OnLoadVersionSelectionRootfsIsOlder) {
   // Use stateful when a rootfs lacros-chrome version is older.
   const base::Version stateful_lacros_version = base::Version("3.0.0");
+  browser_loader_->stateful_lacros_loader_->SetVersionForTesting(
+      stateful_lacros_version);
+  const base::Version rootfs_lacros_version = base::Version("2.0.0");
+  browser_loader_->rootfs_lacros_loader_->SetVersionForTesting(
+      rootfs_lacros_version);
+
+  base::test::TestFuture<const base::FilePath&, LacrosSelection, base::Version>
+      future;
+  browser_loader_->Load(future.GetCallback());
+  EXPECT_EQ(LacrosSelection::kStateful, future.Get<1>());
+  EXPECT_EQ(stateful_lacros_version, future.Get<2>());
+}
+
+TEST_F(BrowserLoaderTest, OnLoadVersionSelectionSameVersions) {
+  // Use stateful when rootfs and stateful lacros-chrome versions are the same.
+  const base::Version stateful_lacros_version = base::Version("2.0.0");
   browser_loader_->stateful_lacros_loader_->SetVersionForTesting(
       stateful_lacros_version);
   const base::Version rootfs_lacros_version = base::Version("2.0.0");
@@ -273,14 +285,17 @@ TEST_F(BrowserLoaderTest,
   EXPECT_TRUE(BrowserLoader::WillLoadStatefulComponentBuilds());
 }
 
-TEST_F(BrowserLoaderTest, OnLoadLacrosSpecifiedBySwitch) {
+TEST_F(BrowserLoaderTest, OnLoadLacrosBinarySpecifiedBySwitch) {
   base::ScopedTempDir temp_dir;
   CHECK(temp_dir.CreateUniqueTempDir());
-  const base::FilePath lacros_chrome_path = temp_dir.GetPath();
-  base::WriteFile(lacros_chrome_path.Append("chrome"),
+  const base::FilePath lacros_chrome_dir = temp_dir.GetPath();
+  base::WriteFile(lacros_chrome_dir.Append("chrome"),
                   "I am lacros-chrome deployed locally.");
+  const base::FilePath lacros_chrome_path =
+      temp_dir.GetPath().Append("mychrome");
+  base::WriteFile(lacros_chrome_path,
+                  "I am a custom lacros-chrome deployed locally.");
 
-  // Set created lacros-chrome binary to ash switches.
   base::CommandLine::ForCurrentProcess()->AppendSwitchASCII(
       ash::switches::kLacrosChromePath, lacros_chrome_path.MaybeAsASCII());
 
@@ -300,6 +315,35 @@ TEST_F(BrowserLoaderTest, OnLoadLacrosSpecifiedBySwitch) {
   const base::FilePath path = future.Get<0>();
   const LacrosSelection selection = future.Get<1>();
   EXPECT_EQ(path, lacros_chrome_path);
+  EXPECT_EQ(selection, LacrosSelection::kDeployedLocally);
+}
+
+TEST_F(BrowserLoaderTest, OnLoadLacrosDirectorySpecifiedBySwitch) {
+  base::ScopedTempDir temp_dir;
+  CHECK(temp_dir.CreateUniqueTempDir());
+  const base::FilePath lacros_chrome_dir = temp_dir.GetPath();
+  base::WriteFile(lacros_chrome_dir.Append("chrome"),
+                  "I am lacros-chrome deployed locally.");
+
+  base::CommandLine::ForCurrentProcess()->AppendSwitchASCII(
+      ash::switches::kLacrosChromePath, lacros_chrome_dir.MaybeAsASCII());
+
+  // Set stateful/rootfs lacros-chrome version to check that specified
+  // lacros-chrome is prioritized higher.
+  const base::Version stateful_lacros_version = base::Version("3.0.0");
+  browser_loader_->stateful_lacros_loader_->SetVersionForTesting(
+      stateful_lacros_version);
+  const base::Version rootfs_lacros_version = base::Version("2.0.0");
+  browser_loader_->rootfs_lacros_loader_->SetVersionForTesting(
+      rootfs_lacros_version);
+
+  base::test::TestFuture<base::FilePath, LacrosSelection, base::Version> future;
+  browser_loader_->Load(future.GetCallback<const base::FilePath&,
+                                           LacrosSelection, base::Version>());
+
+  const base::FilePath path = future.Get<0>();
+  const LacrosSelection selection = future.Get<1>();
+  EXPECT_EQ(path, lacros_chrome_dir.Append("chrome"));
   EXPECT_EQ(selection, LacrosSelection::kDeployedLocally);
 }
 

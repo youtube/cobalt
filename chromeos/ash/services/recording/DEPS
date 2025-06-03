@@ -5,6 +5,7 @@ noparent = True
 include_rules = [
   "+ash/constants",
   "+base",
+  "+components/capture_mode",
   "+components/viz/common",
   "+media",
   "+mojo/public",
@@ -22,6 +23,7 @@ include_rules = [
   '+third_party/abseil-cpp',
   '-third_party/abseil-cpp/absl/algorithm/container.h',
   '-third_party/abseil-cpp/absl/container',
+  '+third_party/abseil-cpp/absl/container/inlined_vector.h',
   '-third_party/abseil-cpp/absl/crc',
   '-third_party/abseil-cpp/absl/flags',
   '-third_party/abseil-cpp/absl/functional/any_invocable.h',

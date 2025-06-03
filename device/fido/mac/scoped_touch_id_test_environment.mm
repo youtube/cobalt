@@ -14,9 +14,7 @@
 #include "device/fido/mac/fake_keychain.h"
 #include "device/fido/mac/fake_touch_id_context.h"
 
-namespace device {
-namespace fido {
-namespace mac {
+namespace device::fido::mac {
 
 static ScopedTouchIdTestEnvironment* g_current_environment = nullptr;
 
@@ -94,6 +92,4 @@ ScopedTouchIdTestEnvironment::CreateTouchIdContext() {
   return std::move(next_touch_id_context_);
 }
 
-}  // namespace mac
-}  // namespace fido
-}  // namespace device
+}  // namespace device::fido::mac

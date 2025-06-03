@@ -3,7 +3,6 @@
 # found in the LICENSE file.
 
 source_set("sync_error") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   sources = [
     "sync_error_infobar_banner_interaction_handler.h",
     "sync_error_infobar_banner_interaction_handler.mm",
@@ -21,23 +20,22 @@ source_set("sync_error") {
 }
 
 source_set("unit_tests") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   testonly = true
   sources = [ "sync_error_infobar_banner_interaction_handler_unittest.mm" ]
   deps = [
     ":sync_error",
     "//base/test:test_support",
-    "//components/sync/driver",
-    "//ios/chrome/browser/browser_state:test_support",
+    "//components/sync/service",
     "//ios/chrome/browser/infobars",
     "//ios/chrome/browser/infobars:public",
     "//ios/chrome/browser/infobars/overlays",
     "//ios/chrome/browser/infobars/test",
     "//ios/chrome/browser/overlays",
-    "//ios/chrome/browser/sync",
-    "//ios/chrome/browser/sync:test_support",
-    "//ios/chrome/browser/ui/settings/sync/utils",
-    "//ios/chrome/browser/ui/settings/sync/utils/test",
+    "//ios/chrome/browser/settings/model/sync/utils",
+    "//ios/chrome/browser/settings/model/sync/utils/test",
+    "//ios/chrome/browser/shared/model/browser_state:test_support",
+    "//ios/chrome/browser/sync/model",
+    "//ios/chrome/browser/sync/model:test_support",
     "//ios/web/public/test",
     "//ios/web/public/test/fakes",
     "//testing/gtest",

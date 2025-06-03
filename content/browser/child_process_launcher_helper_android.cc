@@ -7,7 +7,9 @@
 
 #include "base/android/apk_assets.h"
 #include "base/android/application_status_listener.h"
+#include "base/android/build_info.h"
 #include "base/android/jni_array.h"
+#include "base/base_switches.h"
 #include "base/functional/bind.h"
 #include "base/i18n/icu_util.h"
 #include "base/logging.h"
@@ -92,6 +94,22 @@ bool ChildProcessLauncherHelper::BeforeLaunchOnLauncherThread(
   DCHECK(process_type == switches::kGpuProcess ||
          !command_line()->HasSwitch(sandbox::policy::switches::kNoSandbox));
 
+  // The child processes can't correctly retrieve host package information so we
+  // rather feed this information through the command line.
+  auto* build_info = base::android::BuildInfo::GetInstance();
+  command_line()->AppendSwitchASCII(switches::kHostPackageName,
+                                    build_info->host_package_name());
+  command_line()->AppendSwitchASCII(switches::kPackageName,
+                                    build_info->package_name());
+  command_line()->AppendSwitchASCII(switches::kHostPackageLabel,
+                                    build_info->host_package_label());
+  command_line()->AppendSwitchASCII(switches::kHostVersionCode,
+                                    build_info->host_version_code());
+  command_line()->AppendSwitchASCII(switches::kPackageVersionName,
+                                    build_info->package_version_name());
+  command_line()->AppendSwitchASCII(switches::kPackageVersionCode,
+                                    build_info->package_version_code());
+
   return true;
 }
 
@@ -123,7 +141,7 @@ ChildProcessLauncherHelper::LaunchProcessOnLauncherThread(
 
   for (size_t i = 0; i < file_count; ++i) {
     int fd = files_to_register->GetFDAt(i);
-    PCHECK(0 <= fd);
+    CHECK(0 <= fd);
     int id = files_to_register->GetIDAt(i);
     const auto& region = files_to_register->GetRegionAt(i);
     bool auto_close = files_to_register->OwnsFD(fd);
@@ -134,7 +152,7 @@ ChildProcessLauncherHelper::LaunchProcessOnLauncherThread(
     ScopedJavaLocalRef<jobject> j_file_info =
         Java_ChildProcessLauncherHelperImpl_makeFdInfo(
             env, id, fd, auto_close, region.offset, region.size);
-    PCHECK(j_file_info.obj());
+    CHECK(j_file_info.obj());
     env->SetObjectArrayElement(j_file_infos.obj(), i, j_file_info.obj());
   }
 

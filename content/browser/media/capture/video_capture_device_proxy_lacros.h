@@ -45,12 +45,6 @@ namespace content {
 class CONTENT_EXPORT VideoCaptureDeviceProxyLacros
     : public media::VideoCaptureDevice {
  public:
-  // Helper method to check if the mojom version(s) required to use this class
-  // are available.
-  // May be called from any thread; should be checked before creating (or
-  // posting a task to create) an instance of this class.
-  static bool IsAvailable();
-
   explicit VideoCaptureDeviceProxyLacros(const DesktopMediaID& device_id);
 
   VideoCaptureDeviceProxyLacros(const VideoCaptureDeviceProxyLacros&) = delete;
@@ -73,9 +67,9 @@ class CONTENT_EXPORT VideoCaptureDeviceProxyLacros
   void MaybeSuspend() final;
   void Resume() final;
   void Crop(const base::Token& crop_id,
-            uint32_t crop_version,
-            base::OnceCallback<void(media::mojom::CropRequestResult)> callback)
-      override;
+            uint32_t sub_capture_target_version,
+            base::OnceCallback<void(media::mojom::ApplySubCaptureTargetResult)>
+                callback) override;
   void StopAndDeAllocate() final;
   void GetPhotoState(GetPhotoStateCallback callback) final;
   void SetPhotoOptions(media::mojom::PhotoSettingsPtr settings,

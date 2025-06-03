@@ -47,6 +47,8 @@ const char kShadowDelegatesFocusAttributeName[] = "shadowdelegatesfocus";
 
 }  // namespace
 
+using mojom::blink::FormControlType;
+
 // static
 String FrameSerializerDelegateImpl::GetContentID(Frame* frame) {
   DCHECK(frame);
@@ -96,8 +98,8 @@ bool FrameSerializerDelegateImpl::ShouldIgnoreHiddenElement(
 
   // Do not include the hidden form element.
   auto* html_element_element = DynamicTo<HTMLInputElement>(&element);
-  return html_element_element &&
-         html_element_element->type() == input_type_names::kHidden;
+  return html_element_element && html_element_element->FormControlType() ==
+                                     FormControlType::kInputHidden;
 }
 
 bool FrameSerializerDelegateImpl::ShouldIgnoreMetaElement(
@@ -136,9 +138,10 @@ bool FrameSerializerDelegateImpl::ShouldIgnorePopupOverlayElement(
     center_y = page->GetChromeClient().WindowToViewportScalar(
         window->GetFrame(), center_y);
   }
-  LayoutPoint center_point(center_x, center_y);
-  if (!box->FrameRect().Contains(center_point))
+  if (!PhysicalRect(box->PhysicalLocation(), box->Size())
+           .Contains(LayoutUnit(center_x), LayoutUnit(center_y))) {
     return false;
+  }
 
   // The z-index should be greater than the threshold.
   if (box->Style()->EffectiveZIndex() < kPopupOverlayZIndexThreshold)
@@ -295,12 +298,11 @@ std::pair<Node*, Element*> FrameSerializerDelegateImpl::GetAuxiliaryDOMTree(
   auto* template_element = MakeGarbageCollected<Element>(
       html_names::kTemplateTag, &(element.GetDocument()));
   template_element->setAttribute(
-      QualifiedName(g_null_atom, kShadowModeAttributeName, g_null_atom),
+      QualifiedName(AtomicString(kShadowModeAttributeName)),
       AtomicString(shadow_mode));
   if (shadow_root->delegatesFocus()) {
     template_element->setAttribute(
-        QualifiedName(g_null_atom, kShadowDelegatesFocusAttributeName,
-                      g_null_atom),
+        QualifiedName(AtomicString(kShadowDelegatesFocusAttributeName)),
         g_empty_atom);
   }
   shadow_template_elements_.insert(template_element);

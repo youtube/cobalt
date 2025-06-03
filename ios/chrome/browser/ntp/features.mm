@@ -6,15 +6,13 @@
 
 #import <Foundation/Foundation.h>
 
+#import "base/containers/contains.h"
 #import "base/metrics/field_trial_params.h"
+#import "components/country_codes/country_codes.h"
 #import "components/version_info/channel.h"
 #import "ios/chrome/app/background_mode_buildflags.h"
-#import "ios/chrome/browser/flags/system_flags.h"
+#import "ios/chrome/browser/shared/public/features/system_flags.h"
 #import "ios/chrome/common/channel_info.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace {
 
@@ -56,19 +54,15 @@ BASE_FEATURE(kEnableFeedBackgroundRefresh,
 
 BASE_FEATURE(kEnableFeedInvisibleForegroundRefresh,
              "EnableFeedInvisibleForegroundRefresh",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kCreateDiscoverFeedServiceEarly,
              "CreateDiscoverFeedServiceEarly",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kEnableFeedBottomSignInPromo,
-             "EnableFeedBottomSignInPromo",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 BASE_FEATURE(kEnableFeedCardMenuSignInPromo,
              "EnableFeedCardMenuSignInPromo",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kEnableFeedAblation,
              "EnableFeedAblation",
@@ -78,10 +72,30 @@ BASE_FEATURE(kEnableFeedExperimentTagging,
              "EnableFeedExperimentTagging",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kIOSSetUpList, "IOSSetUpList", base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kIOSSetUpList, "IOSSetUpList", base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kFeedDisableHotStartRefresh,
              "FeedDisableHotStartRefresh",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kEnableFollowUIUpdate,
+             "EnableFollowUIUpdate",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kDiscoverFeedSportCard,
+             "DiscoverFeedSportCard",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kContentPushNotifications,
+             "ContentPushNotifications",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kIOSLargeFakebox,
+             "IOSLargeFakebox",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kIOSHideFeedWithSearchChoice,
+             "IOSHideFeedWithSearchChoice",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Key for NSUserDefaults containing a bool indicating whether the next run
@@ -123,8 +137,15 @@ const char kFeedUnseenRefreshThresholdInSeconds[] =
     "FeedUnseenRefreshThresholdInSeconds";
 const char kEnableFeedUseInteractivityInvalidationForForegroundRefreshes[] =
     "EnableFeedUseInteractivityInvalidationForForegroundRefreshes";
+const char kIOSHideFeedWithSearchChoiceTargeted[] =
+    "IOSHideFeedWithSearchChoiceTargeted";
 
 bool IsWebChannelsEnabled() {
+  std::string launched_countries[5] = {"AU", "GB", "NZ", "US", "ZA"};
+  if (base::Contains(launched_countries,
+                     country_codes::GetCurrentCountryCode())) {
+    return true;
+  }
   return base::FeatureList::IsEnabled(kEnableWebChannels);
 }
 
@@ -255,7 +276,7 @@ bool IsFeedAppCloseForegroundRefreshEnabled() {
   return base::GetFieldTrialParamByFeatureAsBool(
       kEnableFeedInvisibleForegroundRefresh,
       kEnableFeedAppCloseForegroundRefresh,
-      /*default=*/false);
+      /*default=*/true);
 }
 
 bool IsFeedAppCloseBackgroundRefreshEnabled() {
@@ -330,8 +351,10 @@ bool IsFeedUseInteractivityInvalidationForForegroundRefreshesEnabled() {
       /*default=*/false);
 }
 
-bool IsFeedBottomSignInPromoEnabled() {
-  return base::FeatureList::IsEnabled(kEnableFeedBottomSignInPromo);
+bool IsIOSHideFeedWithSearchChoiceTargeted() {
+  return base::GetFieldTrialParamByFeatureAsBool(
+      kIOSHideFeedWithSearchChoice, kIOSHideFeedWithSearchChoiceTargeted,
+      /*default=*/false);
 }
 
 bool IsFeedCardMenuSignInPromoEnabled() {
@@ -352,4 +375,20 @@ bool IsIOSSetUpListEnabled() {
 
 bool IsFeedHotStartRefreshDisabled() {
   return base::FeatureList::IsEnabled(kFeedDisableHotStartRefresh);
+}
+
+bool IsFollowUIUpdateEnabled() {
+  return base::FeatureList::IsEnabled(kEnableFollowUIUpdate);
+}
+
+bool IsContentPushNotificationsEnabled() {
+  return base::FeatureList::IsEnabled(kContentPushNotifications);
+}
+
+bool IsIOSLargeFakeboxEnabled() {
+  return base::FeatureList::IsEnabled(kIOSLargeFakebox);
+}
+
+bool IsIOSHideFeedWithSearchChoiceEnabled() {
+  return base::FeatureList::IsEnabled(kIOSHideFeedWithSearchChoice);
 }

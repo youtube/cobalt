@@ -22,8 +22,10 @@
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/browser/web_contents_user_data.h"
 
+namespace supervised_user {
 class SupervisedUserService;
 class SupervisedUserInterstitial;
+}  // namespace supervised_user
 
 namespace content {
 class NavigationHandle;
@@ -93,7 +95,8 @@ class SupervisedUserNavigationObserver
   // frame.
   void OnInterstitialDone(int frame_id);
 
-  const std::map<int, std::unique_ptr<SupervisedUserInterstitial>>&
+  const std::map<int,
+                 std::unique_ptr<supervised_user::SupervisedUserInterstitial>>&
   interstitials_for_test() const {
     return supervised_user_interstitials_;
   }
@@ -137,7 +140,6 @@ class SupervisedUserNavigationObserver
   void GoBack() override;
   void RequestUrlAccessRemote(RequestUrlAccessRemoteCallback callback) override;
   void RequestUrlAccessLocal(RequestUrlAccessLocalCallback callback) override;
-  void Feedback() override;
 
   // When a remote URL approval request is successfully created, this method is
   // called asynchronously.
@@ -153,11 +155,11 @@ class SupervisedUserNavigationObserver
   raw_ptr<supervised_user::SupervisedUserURLFilter> url_filter_;
 
   // Owned by SupervisedUserServiceFactory (lifetime of Profile).
-  raw_ptr<SupervisedUserService> supervised_user_service_;
+  raw_ptr<supervised_user::SupervisedUserService> supervised_user_service_;
 
   // Keeps track of the blocked frames. It maps the frame's globally unique
   // id to its corresponding |SupervisedUserInterstitial| instance.
-  std::map<int, std::unique_ptr<SupervisedUserInterstitial>>
+  std::map<int, std::unique_ptr<supervised_user::SupervisedUserInterstitial>>
       supervised_user_interstitials_;
 
   std::set<std::string> requested_hosts_;

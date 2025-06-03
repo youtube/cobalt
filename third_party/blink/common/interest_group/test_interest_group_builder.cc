@@ -21,29 +21,11 @@
 namespace blink {
 
 TestInterestGroupBuilder::TestInterestGroupBuilder(url::Origin owner,
-                                                   std::string name)
-    : interest_group_(
-          /*expiry=*/base::Time::Now() + base::Days(30),
-          std::move(owner),
-          std::move(name),
-          /*priority=*/0.0,
-          /*enable_bidding_signals_prioritization=*/false,
-          /*priority_vector=*/absl::nullopt,
-          /*priority_signals_overrides=*/absl::nullopt,
-          /*seller_capabilities=*/absl::nullopt,
-          /*all_sellers_capabilities=*/
-          {}, /*execution_mode=*/
-          blink::InterestGroup::ExecutionMode::kCompatibilityMode,
-          /*bidding_url=*/absl::nullopt,
-          /*bidding_wasm_helper_url=*/absl::nullopt,
-          /*update_url=*/absl::nullopt,
-          /*trusted_bidding_signals_url=*/absl::nullopt,
-          /*trusted_bidding_signals_keys=*/absl::nullopt,
-          /*user_bidding_signals=*/absl::nullopt,
-          /*ads=*/absl::nullopt,
-          /*ad_components=*/absl::nullopt,
-          /*ad_sizes=*/{},
-          /*size_groups=*/{}) {}
+                                                   std::string name) {
+  interest_group_.expiry = base::Time::Now() + base::Days(30);
+  interest_group_.owner = std::move(owner);
+  interest_group_.name = std::move(name);
+}
 
 TestInterestGroupBuilder::~TestInterestGroupBuilder() = default;
 
@@ -166,6 +148,26 @@ TestInterestGroupBuilder& TestInterestGroupBuilder::SetSizeGroups(
     absl::optional<base::flat_map<std::string, std::vector<std::string>>>
         size_groups) {
   interest_group_.size_groups = std::move(size_groups);
+  return *this;
+}
+
+TestInterestGroupBuilder&
+TestInterestGroupBuilder::SetAuctionServerRequestFlags(
+    AuctionServerRequestFlags flags) {
+  interest_group_.auction_server_request_flags = std::move(flags);
+  return *this;
+}
+
+TestInterestGroupBuilder& TestInterestGroupBuilder::SetAdditionalBidKey(
+    absl::optional<blink::InterestGroup::AdditionalBidKey> key) {
+  interest_group_.additional_bid_key = std::move(key);
+  return *this;
+}
+
+TestInterestGroupBuilder&
+TestInterestGroupBuilder::SetAggregationCoordinatorOrigin(
+    absl::optional<url::Origin> agg_coordinator_origin) {
+  interest_group_.aggregation_coordinator_origin = agg_coordinator_origin;
   return *this;
 }
 

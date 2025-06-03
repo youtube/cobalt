@@ -22,6 +22,7 @@ import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.Feature;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.night_mode.ChromeNightModeTestUtils;
+import org.chromium.chrome.browser.omnibox.suggestions.action.OmniboxPedal;
 import org.chromium.chrome.browser.omnibox.suggestions.base.BaseSuggestionView;
 import org.chromium.chrome.browser.tabmodel.IncognitoTabHostUtils;
 import org.chromium.chrome.test.ChromeJUnit4RunnerDelegate;
@@ -34,28 +35,26 @@ import org.chromium.components.omnibox.AutocompleteMatch;
 import org.chromium.components.omnibox.AutocompleteMatchBuilder;
 import org.chromium.components.omnibox.AutocompleteResult;
 import org.chromium.components.omnibox.OmniboxSuggestionType;
-import org.chromium.components.omnibox.action.OmniboxPedal;
-import org.chromium.components.omnibox.action.OmniboxPedalType;
+import org.chromium.components.omnibox.action.OmniboxPedalId;
 import org.chromium.content_public.browser.test.util.TestThreadUtils;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Tests of the Omnibox Pedals feature.
- */
+/** Tests of the Omnibox Pedals feature. */
 @RunWith(ParameterizedRunner.class)
 @ParameterAnnotations.UseRunnerDelegate(ChromeJUnit4RunnerDelegate.class)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
 public class OmniboxPedalsRenderTest {
     @ParameterAnnotations.ClassParameter
     private static List<ParameterSet> sClassParams =
-            List.of(new ParameterSet().value(false).name("LiteMode_RegularTab"),
+            List.of(
+                    new ParameterSet().value(false).name("LiteMode_RegularTab"),
                     new ParameterSet().value(true).name("NightMode_RegularTab"));
 
-    @Rule
-    public TestRule mFeaturesProcessorRule = new Features.JUnitProcessor();
+    @Rule public TestRule mFeaturesProcessorRule = new Features.JUnitProcessor();
+
     @Rule
     public ChromeRenderTestRule mRenderTestRule =
             ChromeRenderTestRule.Builder.withPublicCorpus()
@@ -91,7 +90,9 @@ public class OmniboxPedalsRenderTest {
     @After
     public void tearDown() {
         TestThreadUtils.runOnUiThreadBlocking(
-                () -> { IncognitoTabHostUtils.closeAllIncognitoTabs(); });
+                () -> {
+                    IncognitoTabHostUtils.closeAllIncognitoTabs();
+                });
     }
 
     @AfterClass
@@ -101,15 +102,15 @@ public class OmniboxPedalsRenderTest {
 
     /**
      * Create a dummy pedal suggestion.
+     *
      * @param name The dummy suggestion name.
      * @param id The Omnibox pedal type to be created.
-     *
      * @return a dummy pedal suggestion.
      */
-    private AutocompleteMatch createDummyPedalSuggestion(String name, @OmniboxPedalType int id) {
+    private AutocompleteMatch createDummyPedalSuggestion(String name, @OmniboxPedalId int id) {
         return AutocompleteMatchBuilder.searchWithType(OmniboxSuggestionType.SEARCH_SUGGEST)
                 .setDisplayText(name)
-                .setActions(List.of(new OmniboxPedal("hint", id)))
+                .setActions(List.of(new OmniboxPedal(0, "hint", "accessibility", id)))
                 .build();
     }
 
@@ -119,7 +120,7 @@ public class OmniboxPedalsRenderTest {
     public void testRunChromeSafetyCheckPedal() throws IOException, InterruptedException {
         List<AutocompleteMatch> suggestionsList = new ArrayList<>();
         suggestionsList.add(
-                createDummyPedalSuggestion("pedal", OmniboxPedalType.RUN_CHROME_SAFETY_CHECK));
+                createDummyPedalSuggestion("pedal", OmniboxPedalId.RUN_CHROME_SAFETY_CHECK));
         mOmniboxUtils.setSuggestions(
                 AutocompleteResult.fromCache(suggestionsList, null), "Run safety check");
         mOmniboxUtils.checkSuggestionsShown();
@@ -134,7 +135,7 @@ public class OmniboxPedalsRenderTest {
     public void testPlayChromeDinoGamePedal() throws IOException, InterruptedException {
         List<AutocompleteMatch> suggestionsList = new ArrayList<>();
         suggestionsList.add(
-                createDummyPedalSuggestion("pedal", OmniboxPedalType.PLAY_CHROME_DINO_GAME));
+                createDummyPedalSuggestion("pedal", OmniboxPedalId.PLAY_CHROME_DINO_GAME));
         mOmniboxUtils.setSuggestions(
                 AutocompleteResult.fromCache(suggestionsList, null), "Dino game");
         mOmniboxUtils.checkSuggestionsShown();

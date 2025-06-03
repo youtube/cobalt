@@ -18,15 +18,18 @@
 #include "ui/gfx/native_widget_types.h"
 #include "ui/gl/child_window_win.h"
 
-namespace viz {
+namespace gpu {
+class SharedContextState;
+}  // namespace gpu
 
-class DawnContextProvider;
+namespace viz {
 
 class SkiaOutputDeviceDawn : public SkiaOutputDevice {
  public:
   SkiaOutputDeviceDawn(
-      DawnContextProvider* context_provider,
+      scoped_refptr<gpu::SharedContextState> context_state,
       gfx::SurfaceOrigin origin,
+      gpu::SurfaceHandle surface_handle,
       gpu::MemoryTracker* memory_tracker,
       DidSwapBufferCompleteCallback did_swap_buffer_complete_callback);
 
@@ -51,7 +54,7 @@ class SkiaOutputDeviceDawn : public SkiaOutputDevice {
   void EndPaint() override;
 
  private:
-  DawnContextProvider* const context_provider_;
+  scoped_refptr<gpu::SharedContextState> context_state_;
   wgpu::Surface surface_;
   wgpu::SwapChain swap_chain_;
   wgpu::Texture texture_;

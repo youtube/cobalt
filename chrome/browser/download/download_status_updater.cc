@@ -53,11 +53,10 @@ const char WasInProgressData::kKey[] =
 
 }  // anonymous namespace
 
-DownloadStatusUpdater::DownloadStatusUpdater() {
-}
-
-DownloadStatusUpdater::~DownloadStatusUpdater() {
-}
+#if !BUILDFLAG(IS_CHROMEOS_LACROS)
+DownloadStatusUpdater::DownloadStatusUpdater() = default;
+DownloadStatusUpdater::~DownloadStatusUpdater() = default;
+#endif  // !BUILDFLAG(IS_CHROMEOS_LACROS)
 
 bool DownloadStatusUpdater::GetProgress(float* progress,
                                         int* download_count) const {
@@ -116,7 +115,6 @@ void DownloadStatusUpdater::OnDownloadCreated(content::DownloadManager* manager,
 
 void DownloadStatusUpdater::OnDownloadUpdated(content::DownloadManager* manager,
                                               download::DownloadItem* item) {
-  UpdatePrefsOnDownloadUpdated(manager, item);
   if (item->GetState() == download::DownloadItem::IN_PROGRESS &&
       !item->IsTransient()) {
     // If the item was interrupted/cancelled and then resumed/restarted, then
@@ -187,18 +185,3 @@ void DownloadStatusUpdater::UpdateAppIconDownloadProgress(
   // TODO(avi): Implement for Android?
 }
 #endif
-
-void DownloadStatusUpdater::UpdatePrefsOnDownloadUpdated(
-    content::DownloadManager* manager,
-    download::DownloadItem* download) {
-  if (!manager) {
-    // Can be null in tests.
-    return;
-  }
-
-  if (download->GetState() == download::DownloadItem::COMPLETE &&
-      !download->IsTransient()) {
-    DownloadPrefs::FromDownloadManager(manager)->SetLastCompleteTime(
-        base::Time::Now());
-  }
-}

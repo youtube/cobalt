@@ -5,9 +5,11 @@
 #ifndef COMPONENTS_AUTOFILL_CORE_BROWSER_MERCHANT_PROMO_CODE_MANAGER_H_
 #define COMPONENTS_AUTOFILL_CORE_BROWSER_MERCHANT_PROMO_CODE_MANAGER_H_
 
+#include "base/gtest_prod_util.h"
 #include "components/autofill/core/browser/autofill_subject.h"
 #include "components/autofill/core/browser/personal_data_manager.h"
 #include "components/autofill/core/browser/single_field_form_filler.h"
+#include "components/autofill/core/browser/ui/popup_item_ids.h"
 #include "components/autofill/core/common/unique_ids.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/webdata/common/web_data_service_consumer.h"
@@ -36,7 +38,7 @@ class MerchantPromoCodeManager : public SingleFieldFormFiller,
 
   // SingleFieldFormFiller overrides:
   [[nodiscard]] bool OnGetSingleFieldSuggestions(
-      AutoselectFirstSuggestion autoselect_first_suggestion,
+      AutofillSuggestionTriggerSource trigger_source,
       const FormFieldData& field,
       const AutofillClient& client,
       base::WeakPtr<SuggestionsHandler> handler,
@@ -46,9 +48,9 @@ class MerchantPromoCodeManager : public SingleFieldFormFiller,
   void CancelPendingQueries(const SuggestionsHandler* handler) override;
   void OnRemoveCurrentSingleFieldSuggestion(const std::u16string& field_name,
                                             const std::u16string& value,
-                                            int frontend_id) override;
+                                            PopupItemId popup_item_id) override;
   void OnSingleFieldSuggestionSelected(const std::u16string& value,
-                                       int frontend_id) override;
+                                       PopupItemId popup_item_id) override;
 
   // Initializes the instance with the given parameters. |personal_data_manager|
   // is a profile-scope data manager used to retrieve promo code offers from the
@@ -81,7 +83,7 @@ class MerchantPromoCodeManager : public SingleFieldFormFiller,
     void OnOffersSuggestionsShown(
         const FieldGlobalId& field_global_id,
         const std::vector<const AutofillOfferData*>& offers);
-    void OnOfferSuggestionSelected(int frontend_id);
+    void OnOfferSuggestionSelected(PopupItemId popup_item_id);
 
    private:
     // The global id of the field that most recently had suggestions shown.

@@ -5,12 +5,12 @@
 package org.chromium.components.search_engines;
 
 import androidx.annotation.Nullable;
-import androidx.annotation.VisibleForTesting;
+
+import org.jni_zero.CalledByNative;
+import org.jni_zero.NativeMethods;
 
 import org.chromium.base.ObserverList;
 import org.chromium.base.ThreadUtils;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.NativeMethods;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
 import org.chromium.url.GURL;
@@ -350,28 +350,54 @@ public class TemplateUrlService {
      * @param searchUrl Search url of the search engine to be added.
      * @param suggestUrl Url for retrieving search suggestions.
      * @param faviconUrl Favicon url of the search engine to be added.
+     * @param newTabUrl Url to be shown on a new tab.
+     * @param imageUrl Url for reverse image search.
+     * @param imageUrlPostParams The POST param name to use for the image payload transmitted.
+     * @param imageTranslateUrl Url for image translation.
+     * @param imageTranslateSourceLanguageParamKey Key of the url parameter identifying the source
+     *                                             language for an image translation.
+     * @param imageTranslateTargetLanguageParamKey Key of the url parameter identifying the target
+     *                                             language for an image translation.
      * @param setAsDefault If true, set as default search provider.
      * @return True if search engine was successfully added, false if search engine from Play API
      *         with such keyword already existed (e.g. from previous attempt to set search engine).
      */
     public boolean setPlayAPISearchEngine(String name, String keyword, String searchUrl,
-            String suggestUrl, String faviconUrl, boolean setAsDefault) {
+            String suggestUrl, String faviconUrl, String newTabUrl, String imageUrl,
+            String imageUrlPostParams, String imageTranslateUrl,
+            String imageTranslateSourceLanguageParamKey,
+            String imageTranslateTargetLanguageParamKey, boolean setAsDefault) {
         return TemplateUrlServiceJni.get().setPlayAPISearchEngine(mNativeTemplateUrlServiceAndroid,
                 TemplateUrlService.this, name, keyword, searchUrl, suggestUrl, faviconUrl,
+                newTabUrl, imageUrl, imageUrlPostParams, imageTranslateUrl,
+                imageTranslateSourceLanguageParamKey, imageTranslateTargetLanguageParamKey,
                 setAsDefault);
     }
-    // TODO(crbug/1002271): This API is called from clank repo. Helper function below will be
-    // removed once clank repo is updated.
-    public boolean setPlayAPISearchEngine(
-            String name, String keyword, String searchUrl, String suggestUrl, String faviconUrl) {
-        return TemplateUrlServiceJni.get().setPlayAPISearchEngine(mNativeTemplateUrlServiceAndroid,
-                TemplateUrlService.this, name, keyword, searchUrl, suggestUrl, faviconUrl, true);
-    }
 
-    @VisibleForTesting
     public String addSearchEngineForTesting(String keyword, int ageInDays) {
         return TemplateUrlServiceJni.get().addSearchEngineForTesting(
                 mNativeTemplateUrlServiceAndroid, TemplateUrlService.this, keyword, ageInDays);
+    }
+
+    /**
+     * Finds the image search url for the search engine used and the post content type for the
+     * image.
+     * @return An array of size 2 with the first element being the image search url, the second
+     *         being the post content type.
+     */
+    public String[] getImageUrlAndPostContent() {
+        return TemplateUrlServiceJni.get().getImageUrlAndPostContent(
+                mNativeTemplateUrlServiceAndroid, TemplateUrlService.this);
+    }
+
+    /**
+     * Whether the device is from an EEA country. This is consistent with countries which are
+     * eligible for the EEA default search engine choice prompt. "Default country: or "country at
+     * install" are used for SearchEngineChoiceCountry. It might be different than what LocaleUtils
+     * returns.
+     */
+    public boolean isEeaChoiceCountry() {
+        return TemplateUrlServiceJni.get().isEeaChoiceCountry(mNativeTemplateUrlServiceAndroid);
     }
 
     @NativeMethods
@@ -407,10 +433,17 @@ public class TemplateUrlService {
                 TemplateUrlService caller, String keyword, int offset);
         boolean setPlayAPISearchEngine(long nativeTemplateUrlServiceAndroid,
                 TemplateUrlService caller, String name, String keyword, String searchUrl,
-                String suggestUrl, String faviconUrl, boolean setAsDefault);
+                String suggestUrl, String faviconUrl, String newTabUrl, String imageUrl,
+                String imageUrlPostParams, String imageTranslateUrl,
+                String imageTranslateSourceLanguageParamKey,
+                String imageTranslateTargetLanguageParamKey, boolean setAsDefault);
         void getTemplateUrls(long nativeTemplateUrlServiceAndroid, TemplateUrlService caller,
                 List<TemplateUrl> templateUrls);
         TemplateUrl getDefaultSearchEngine(
                 long nativeTemplateUrlServiceAndroid, TemplateUrlService caller);
+        String[] getImageUrlAndPostContent(
+                long nativeTemplateUrlServiceAndroid, TemplateUrlService caller);
+
+        boolean isEeaChoiceCountry(long nativeTemplateUrlServiceAndroid);
     }
 }

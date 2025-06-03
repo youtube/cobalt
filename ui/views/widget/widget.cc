@@ -27,6 +27,7 @@
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/models/image_model.h"
 #include "ui/base/resource/resource_bundle.h"
+#include "ui/color/color_provider_manager.h"
 #include "ui/compositor/compositor.h"
 #include "ui/compositor/layer.h"
 #include "ui/display/screen.h"
@@ -424,6 +425,10 @@ void Widget::Init(InitParams params) {
         std::make_unique<SublevelManager>(this, params.sublevel);
   }
 
+  if (params.native_theme) {
+    native_theme_ = params.native_theme;
+  }
+
   internal::NativeWidgetPrivate* native_widget_raw_ptr =
       CreateNativeWidget(params, this)->AsNativeWidgetPrivate();
   native_widget_ = native_widget_raw_ptr->GetWeakPtr();
@@ -437,6 +442,12 @@ void Widget::Init(InitParams params) {
   const gfx::Rect bounds = params.bounds;
   const ui::WindowShowState show_state = params.show_state;
   WidgetDelegate* delegate = params.delegate;
+  bool should_set_initial_bounds = true;
+#if BUILDFLAG(IS_CHROMEOS)
+  // If the target display is specified on ChromeOS, the initial bounds will be
+  // set based on the display.
+  should_set_initial_bounds = !params.display_id.has_value();
+#endif
 
   native_widget_->InitNativeWidget(std::move(params));
   if (type == InitParams::TYPE_MENU)
@@ -458,7 +469,9 @@ void Widget::Init(InitParams params) {
     UpdateWindowIcon();
     UpdateWindowTitle();
     non_client_view_->ResetWindowControls();
-    SetInitialBounds(bounds);
+    if (should_set_initial_bounds) {
+      SetInitialBounds(bounds);
+    }
 
     // Perform the initial layout. This handles the case where the size might
     // not actually change when setting the initial bounds. If it did, child
@@ -473,7 +486,9 @@ void Widget::Init(InitParams params) {
     }
   } else if (delegate) {
     SetContentsView(delegate->TransferOwnershipOfContentsView());
-    SetInitialBoundsForFramelessWindow(bounds);
+    if (should_set_initial_bounds) {
+      SetInitialBoundsForFramelessWindow(bounds);
+    }
   }
 
   if (base::FeatureList::IsEnabled(features::kWidgetLayering)) {
@@ -500,13 +515,12 @@ void Widget::ShowEmojiPanel() {
 // Unconverted methods (see header) --------------------------------------------
 
 gfx::NativeView Widget::GetNativeView() const {
-  return native_widget_ ? native_widget_->GetNativeView()
-                        : gfx::kNullNativeView;
+  return native_widget_ ? native_widget_->GetNativeView() : gfx::NativeView();
 }
 
 gfx::NativeWindow Widget::GetNativeWindow() const {
   return native_widget_ ? native_widget_->GetNativeWindow()
-                        : gfx::kNullNativeWindow;
+                        : gfx::NativeWindow();
 }
 
 void Widget::AddObserver(WidgetObserver* observer) {
@@ -808,9 +822,7 @@ void Widget::Show() {
         !initial_restored_bounds_.IsEmpty() && !IsFullscreen()) {
       native_widget_->Show(ui::SHOW_STATE_MAXIMIZED, initial_restored_bounds_);
     } else {
-      native_widget_->Show(
-          IsFullscreen() ? ui::SHOW_STATE_FULLSCREEN : saved_show_state_,
-          gfx::Rect());
+      native_widget_->Show(saved_show_state_, gfx::Rect());
     }
     // |saved_show_state_| only applies the first time the window is shown.
     // If we don't reset the value the window may be shown maximized every time
@@ -935,7 +947,15 @@ void Widget::SetFullscreen(bool fullscreen, int64_t target_display_id) {
 }
 
 bool Widget::IsFullscreen() const {
-  return native_widget_ ? native_widget_->IsFullscreen() : false;
+  if (native_widget_ && native_widget_->IsFullscreen()) {
+    return true;
+  }
+  // Some widgets are logically the same window as their parent, and thus their
+  // parent must also be checked for fullscreen.
+  if (parent() && check_parent_for_fullscreen_) {
+    return parent()->IsFullscreen();
+  }
+  return false;
 }
 
 void Widget::SetCanAppearInExistingFullscreenSpaces(
@@ -996,8 +1016,7 @@ const ui::ThemeProvider* Widget::GetThemeProvider() const {
                                               : nullptr;
 }
 
-ui::ColorProviderManager::ThemeInitializerSupplier* Widget::GetCustomTheme()
-    const {
+ui::ColorProviderKey::ThemeInitializerSupplier* Widget::GetCustomTheme() const {
   return nullptr;
 }
 
@@ -1210,21 +1229,6 @@ bool Widget::ShouldWindowContentsBeTransparent() const {
                         : false;
 }
 
-void Widget::DebugToggleFrameType() {
-  if (!native_widget_)
-    return;
-
-  if (frame_type_ == FrameType::kDefault) {
-    frame_type_ = ShouldUseNativeFrame() ? FrameType::kForceCustom
-                                         : FrameType::kForceNative;
-  } else {
-    frame_type_ = frame_type_ == FrameType::kForceCustom
-                      ? FrameType::kForceNative
-                      : FrameType::kForceCustom;
-  }
-  FrameTypeChanged();
-}
-
 void Widget::FrameTypeChanged() {
   if (native_widget_)
     native_widget_->FrameTypeChanged();
@@ -1326,10 +1330,17 @@ ui::GestureConsumer* Widget::GetGestureConsumer() {
 }
 
 void Widget::OnSizeConstraintsChanged() {
-  if (native_widget_)
+  if (native_widget_) {
     native_widget_->OnSizeConstraintsChanged();
-  if (non_client_view_)
+  }
+
+  if (non_client_view_) {
     non_client_view_->SizeConstraintsChanged();
+  }
+
+  for (WidgetObserver& observer : observers_) {
+    observer.OnWidgetSizeConstraintsChanged(this);
+  }
 }
 
 void Widget::OnOwnerClosing() {}
@@ -1395,11 +1406,23 @@ void Widget::NotifyPaintAsActiveChanged() {
 }
 
 void Widget::SetNativeTheme(ui::NativeTheme* native_theme) {
+  // If `native_theme_` has been set for testing ensure the theme instance is
+  // not reset.
+  if (native_theme_set_for_testing_) {
+    return;
+  }
+
+  const bool is_update = native_theme_ && (native_theme_ != native_theme);
   native_theme_ = native_theme;
   native_theme_observation_.Reset();
   if (native_theme)
     native_theme_observation_.Observe(native_theme);
-  ThemeChanged();
+
+  if (is_update) {
+    OnNativeThemeUpdated(native_theme);
+  } else {
+    ThemeChanged();
+  }
 }
 
 int Widget::GetX() const {
@@ -1776,6 +1799,13 @@ void Widget::OnMouseEvent(ui::MouseEvent* event) {
       }
       return;
 
+    case ui::ET_MOUSE_ENTERED:
+      last_mouse_event_was_move_ = false;
+      if (root_view) {
+        root_view->OnMouseEntered(*event);
+      }
+      return;
+
     case ui::ET_MOUSE_EXITED:
       last_mouse_event_was_move_ = false;
       if (root_view)
@@ -1967,35 +1997,46 @@ void Widget::OnNativeThemeUpdated(ui::NativeTheme* observed_theme) {
 }
 
 void Widget::SetColorModeOverride(
-    absl::optional<ui::ColorProviderManager::ColorMode> color_mode) {
+    absl::optional<ui::ColorProviderKey::ColorMode> color_mode) {
   color_mode_override_ = color_mode;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // Widget, ui::ColorProviderSource:
 
-ui::ColorProviderManager::Key Widget::GetColorProviderKey() const {
-  ui::ColorProviderManager::Key key =
-      GetNativeTheme()->GetColorProviderKey(GetCustomTheme());
+ui::ColorProviderKey Widget::GetColorProviderKey() const {
+  // Generally all Widgets should inherit the key of their parent, falling back
+  // to the key set by the NativeTheme otherwise.
+  // TODO(crbug.com/1455535): `parent_` does not always resolve to the logical
+  // parent as expected here (e.g. bubbles). This should be addressed and the
+  // use of parent_ below replaced with something like GetLogicalParent().
+  ui::ColorProviderKey key =
+      parent_ ? parent_->GetColorProviderKey()
+              : GetNativeTheme()->GetColorProviderKey(GetCustomTheme());
+
+  // Widgets may have specific overrides set on the Widget itself that should
+  // apply specifically to themselves and their children, apply these here.
 #if BUILDFLAG(IS_CHROMEOS_ASH)
   key.elevation_mode = background_elevation_;
 #endif
-  key.user_color = GetUserColor();
-  if (color_mode_override_) {
+  if (color_mode_override_.has_value()) {
     key.color_mode = color_mode_override_.value();
   }
-  return key;
-}
 
-absl::optional<SkColor> Widget::GetUserColor() const {
-  // Fall back to the user color defined in the NativeTheme if a user color is
-  // not provided by any widgets in this UI hierarchy.
-  return parent_ ? parent_->GetUserColor() : GetNativeTheme()->user_color();
+  return key;
 }
 
 const ui::ColorProvider* Widget::GetColorProvider() const {
   return ui::ColorProviderManager::Get().GetColorProviderFor(
       GetColorProviderKey());
+}
+
+ui::ColorProviderKey Widget::GetColorProviderKeyForTesting() const {
+  return GetColorProviderKey();
+}
+
+void Widget::SetCheckParentForFullscreen() {
+  check_parent_for_fullscreen_ = true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

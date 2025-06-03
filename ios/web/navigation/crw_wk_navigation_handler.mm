@@ -4,9 +4,9 @@
 
 #import "ios/web/navigation/crw_wk_navigation_handler.h"
 
+#import "base/apple/foundation_util.h"
 #import "base/feature_list.h"
 #import "base/ios/ns_error_util.h"
-#import "base/mac/foundation_util.h"
 #import "base/metrics/histogram_functions.h"
 #import "base/metrics/histogram_macros.h"
 #import "base/strings/sys_string_conversions.h"
@@ -49,10 +49,6 @@
 #import "net/http/http_content_disposition.h"
 #import "url/gurl.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 using web::wk_navigation_util::kReferrerHeaderName;
 using web::wk_navigation_util::IsRestoreSessionUrl;
 using web::wk_navigation_util::IsWKInternalUrl;
@@ -85,6 +81,36 @@ web::HttpsUpgradeType GetFailedHttpsUpgradeType(
     return context->GetItem()->GetHttpsUpgradeType();
   }
   return web::HttpsUpgradeType::kNone;
+}
+
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+enum class ErrorPagePresentationFailed {
+  kUnknown,
+  kWebViewReleased,
+  kJavaScriptExceptionOccurred,
+  kOtherWKErrorDomain,
+  kMaxValue = kOtherWKErrorDomain
+};
+
+void LogPresentingErrorPageFailedWithError(NSError* error) {
+  ErrorPagePresentationFailed failure_type =
+      ErrorPagePresentationFailed::kUnknown;
+
+  if ([WKErrorDomain isEqualToString:error.domain]) {
+    if (error.code == WKErrorWebViewInvalidated ||
+        error.code == WKErrorWebContentProcessTerminated ||
+        error.code == WKErrorJavaScriptResultTypeIsUnsupported) {
+      failure_type = ErrorPagePresentationFailed::kWebViewReleased;
+    } else if (error.code == WKErrorJavaScriptExceptionOccurred) {
+      failure_type = ErrorPagePresentationFailed::kJavaScriptExceptionOccurred;
+    } else {
+      failure_type = ErrorPagePresentationFailed::kOtherWKErrorDomain;
+    }
+  }
+
+  base::UmaHistogramEnumeration("IOS.Web.ErrorPagePresentationFailed",
+                                failure_type);
 }
 
 }  // namespace
@@ -167,8 +193,19 @@ web::HttpsUpgradeType GetFailedHttpsUpgradeType(
                         preferences:(WKWebpagePreferences*)preferences
                     decisionHandler:(void (^)(WKNavigationActionPolicy,
                                               WKWebpagePreferences*))handler {
-  GURL requestURL = net::GURLWithNSURL(action.request.URL);
+  // Check if OS lockdown mode is enabled and update the preference value.
+  if (!self.beingDestroyed) {
+    static dispatch_once_t onceToken;
+    web::BrowserState* browser_state = self.webStateImpl->GetBrowserState();
+    dispatch_once(&onceToken, ^{
+      if (@available(iOS 16.0, *)) {
+        web::GetWebClient()->SetOSLockdownModeEnabled(
+            browser_state, preferences.lockdownModeEnabled);
+      }
+    });
+  }
 
+  GURL requestURL = net::GURLWithNSURL(action.request.URL);
   const web::UserAgentType userAgentType =
       [self userAgentForNavigationAction:action webView:webView];
 
@@ -223,10 +260,19 @@ web::HttpsUpgradeType GetFailedHttpsUpgradeType(
                               preferences.lockdownModeEnabled);
       }
 
-      if (self.webStateImpl) {
+      if (!self.beingDestroyed) {
         web::BrowserState* browser_state = self.webStateImpl->GetBrowserState();
-        if (web::GetWebClient()->IsBrowserLockdownModeEnabled(browser_state))
+        bool browser_lockdown_mode_enabled =
+            web::GetWebClient()->IsBrowserLockdownModeEnabled(browser_state);
+        if ((policy == WKNavigationActionPolicyAllow) &&
+            isMainFrameNavigationAction) {
+          UMA_HISTOGRAM_BOOLEAN(
+              "IOS.MainFrameNavigationIsInBrowserLockdownMode",
+              browser_lockdown_mode_enabled);
+        }
+        if (browser_lockdown_mode_enabled) {
           preferences.lockdownModeEnabled = true;
+        }
       }
     }
 #endif  // defined (__IPHONE_16_0)
@@ -382,12 +428,8 @@ web::HttpsUpgradeType GetFailedHttpsUpgradeType(
     return;
   }
 
-  BOOL hasTappedRecently =
-      self.userInteractionState->HasUserTappedRecently(webView);
-  BOOL userInteractedWithRequestMainFrame =
-      hasTappedRecently &&
-      net::GURLWithNSURL(action.request.mainDocumentURL) ==
-          self.userInteractionState->LastUserInteraction()->main_document_url;
+  BOOL isUserInitiated = [self.delegate isUserInitiatedAction:action];
+
   BOOL isCrossOriginTargetFrame = NO;
   if (action.sourceFrame && action.targetFrame &&
       action.sourceFrame.webView == action.targetFrame.webView &&
@@ -401,14 +443,14 @@ web::HttpsUpgradeType GetFailedHttpsUpgradeType(
   if (base::FeatureList::IsEnabled(
           web::features::kPreventNavigationWithoutUserInteraction) &&
       isMainFrameNavigationAction && isCrossOriginTargetFrame &&
-      !hasTappedRecently) {
+      !isUserInitiated) {
     decisionHandler(WKNavigationActionPolicyCancel);
     return;
   }
 
   const web::WebStatePolicyDecider::RequestInfo requestInfo(
       transition, isMainFrameNavigationAction, isCrossOriginTargetFrame,
-      userInteractedWithRequestMainFrame);
+      isUserInitiated);
 
   self.webStateImpl->ShouldAllowRequest(action.request, requestInfo,
                                         std::move(callback));
@@ -424,6 +466,10 @@ web::HttpsUpgradeType GetFailedHttpsUpgradeType(
   GURL responseURL = net::GURLWithNSURL(WKResponse.response.URL);
   if ([CRWErrorPageHelper isErrorPageFileURL:responseURL]) {
     handler(WKNavigationResponsePolicyAllow);
+    // Set the mime type for error pages. This allows them to be treated as
+    // HTML.
+    [self updatePendingNavigationInfoFromNavigationResponse:WKResponse
+                                                HTTPHeaders:nullptr];
     return;
   }
 
@@ -973,6 +1019,19 @@ web::HttpsUpgradeType GetFailedHttpsUpgradeType(
     return;
   }
 
+  // `webView:didFailNavigation:withError:` may be called when rendering an
+  // office document which should be ignored because the `webView` will already
+  // be displaying its own error. Additionally, in these cases, JavaScript can
+  // not be run on these pages (in order to display our own error message). See
+  // crbug.com/1489167 for more details.
+  if ([error.domain isEqualToString:@"OfficeImportErrorDomain"]) {
+    [self.navigationStates setState:web::WKNavigationState::FINISHED
+                      forNavigation:navigation];
+    self.webStateImpl->RemoveAllWebFrames();
+    _certVerificationErrors->Clear();
+    return;
+  }
+
   [self.navigationStates setState:web::WKNavigationState::FAILED
                     forNavigation:navigation];
 
@@ -993,22 +1052,22 @@ web::HttpsUpgradeType GetFailedHttpsUpgradeType(
   [self didReceiveWKNavigationDelegateCallback];
 
   NSString* authMethod = challenge.protectionSpace.authenticationMethod;
-  if ([authMethod isEqual:NSURLAuthenticationMethodHTTPBasic] ||
-      [authMethod isEqual:NSURLAuthenticationMethodNTLM] ||
-      [authMethod isEqual:NSURLAuthenticationMethodHTTPDigest]) {
+  if ([authMethod isEqualToString:NSURLAuthenticationMethodHTTPBasic] ||
+      [authMethod isEqualToString:NSURLAuthenticationMethodNTLM] ||
+      [authMethod isEqualToString:NSURLAuthenticationMethodHTTPDigest]) {
     [self handleHTTPAuthForChallenge:challenge
                    completionHandler:completionHandler];
     return;
   }
 
-  if (![authMethod isEqual:NSURLAuthenticationMethodServerTrust]) {
+  if (![authMethod isEqualToString:NSURLAuthenticationMethodServerTrust]) {
     completionHandler(NSURLSessionAuthChallengeRejectProtectionSpace, nil);
     return;
   }
 
   SecTrustRef trust = challenge.protectionSpace.serverTrust;
-  base::ScopedCFTypeRef<SecTrustRef> scopedTrust(trust,
-                                                 base::scoped_policy::RETAIN);
+  base::apple::ScopedCFTypeRef<SecTrustRef> scopedTrust(
+      trust, base::scoped_policy::RETAIN);
   __weak CRWWKNavigationHandler* weakSelf = self;
   [self.certVerificationController
       decideLoadPolicyForTrust:scopedTrust
@@ -1422,11 +1481,11 @@ web::HttpsUpgradeType GetFailedHttpsUpgradeType(
   // not capable of displaying them natively.
   if (@available(iOS 15, *)) {
     NSString* MIMEType = WKResponse.response.MIMEType;
-    if ([MIMEType isEqual:@"model/vnd.pixar.usd"] ||
-        [MIMEType isEqual:@"model/usd"] ||
-        [MIMEType isEqual:@"model/vnd.usdz+zip"] ||
-        [MIMEType isEqual:@"model/vnd.pixar.usd"] ||
-        [MIMEType isEqual:@"model/vnd.reality"]) {
+    if ([MIMEType isEqualToString:@"model/vnd.pixar.usd"] ||
+        [MIMEType isEqualToString:@"model/usd"] ||
+        [MIMEType isEqualToString:@"model/vnd.usdz+zip"] ||
+        [MIMEType isEqualToString:@"model/vnd.pixar.usd"] ||
+        [MIMEType isEqualToString:@"model/vnd.reality"]) {
       return NO;
     }
   }
@@ -1640,20 +1699,20 @@ web::HttpsUpgradeType GetFailedHttpsUpgradeType(
     // iOS 15.
     scoped_refptr<net::X509Certificate> leafCert = nil;
     if (@available(iOS 15.0, *)) {
-      base::ScopedCFTypeRef<CFArrayRef> certificateChain(
+      base::apple::ScopedCFTypeRef<CFArrayRef> certificateChain(
           SecTrustCopyCertificateChain(trust));
       SecCertificateRef secCertificate =
-          base::mac::CFCastStrict<SecCertificateRef>(
+          base::apple::CFCastStrict<SecCertificateRef>(
               CFArrayGetValueAtIndex(certificateChain, 0));
       leafCert = net::x509_util::CreateX509CertificateFromSecCertificate(
-          base::ScopedCFTypeRef<SecCertificateRef>(secCertificate,
-                                                   base::scoped_policy::RETAIN),
+          base::apple::ScopedCFTypeRef<SecCertificateRef>(
+              secCertificate, base::scoped_policy::RETAIN),
           {});
     }
 #if __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_15_0
     else {
       leafCert = net::x509_util::CreateX509CertificateFromSecCertificate(
-          base::ScopedCFTypeRef<SecCertificateRef>(
+          base::apple::ScopedCFTypeRef<SecCertificateRef>(
               SecTrustGetCertificateAtIndex(trust, 0),
               base::scoped_policy::RETAIN),
           {});
@@ -1680,10 +1739,12 @@ web::HttpsUpgradeType GetFailedHttpsUpgradeType(
                      (void (^)(NSURLSessionAuthChallengeDisposition,
                                NSURLCredential*))completionHandler {
   NSURLProtectionSpace* space = challenge.protectionSpace;
-  DCHECK(
-      [space.authenticationMethod isEqual:NSURLAuthenticationMethodHTTPBasic] ||
-      [space.authenticationMethod isEqual:NSURLAuthenticationMethodNTLM] ||
-      [space.authenticationMethod isEqual:NSURLAuthenticationMethodHTTPDigest]);
+  DCHECK([space.authenticationMethod
+             isEqualToString:NSURLAuthenticationMethodHTTPBasic] ||
+         [space.authenticationMethod
+             isEqualToString:NSURLAuthenticationMethodNTLM] ||
+         [space.authenticationMethod
+             isEqualToString:NSURLAuthenticationMethodHTTPDigest]);
 
   self.webStateImpl->OnAuthRequired(
       space, challenge.proposedCredential,
@@ -1754,7 +1815,8 @@ web::HttpsUpgradeType GetFailedHttpsUpgradeType(
   // TODO(crbug.com/803631) DCHECK that self.currentNavItem is the navigation
   // item associated with navigationContext.
 
-  if ([error.domain isEqual:base::SysUTF8ToNSString(web::kWebKitErrorDomain)]) {
+  if ([error.domain
+          isEqualToString:base::SysUTF8ToNSString(web::kWebKitErrorDomain)]) {
     if (error.code == web::kWebKitErrorPlugInLoadFailed) {
       // In cases where a Plug-in handles the load do not take any further
       // action.
@@ -1869,7 +1931,8 @@ web::HttpsUpgradeType GetFailedHttpsUpgradeType(
   self.navigationManagerImpl->AddPendingItem(
       blockedURL, web::Referrer(), transition,
       web::NavigationInitiationType::BROWSER_INITIATED,
-      /*is_post_navigation=*/false, web::HttpsUpgradeType::kNone);
+      /*is_post_navigation=*/false, /*is_error_navigation=*/true,
+      web::HttpsUpgradeType::kNone);
 
   // Create context.
   std::unique_ptr<web::NavigationContextImpl> context =
@@ -1879,6 +1942,8 @@ web::HttpsUpgradeType GetFailedHttpsUpgradeType(
           /*is_renderer_initiated=*/false);
   std::unique_ptr<web::NavigationItemImpl> item =
       self.navigationManagerImpl->ReleasePendingItem();
+  CHECK(item);
+
   context->SetNavigationItemUniqueID(item->GetUniqueID());
   context->SetItem(std::move(item));
   context->SetError(error);
@@ -2043,6 +2108,10 @@ web::HttpsUpgradeType GetFailedHttpsUpgradeType(
       self.webStateImpl, failingURL, error, context->IsPost(),
       self.webStateImpl->GetBrowserState()->IsOffTheRecord(), ssl_info,
       context->GetNavigationId(), base::BindOnce(^(NSString* errorHTML) {
+        if (self.navigationStates.lastAddedNavigation != navigation) {
+          // Do not show the stale error page if the page has since navigated.
+          return;
+        }
         if (errorHTML) {
           CRWErrorPageHelper* errorPageHelper =
               [[CRWErrorPageHelper alloc] initWithError:context->GetError()];
@@ -2052,6 +2121,7 @@ web::HttpsUpgradeType GetFailedHttpsUpgradeType(
                                          addAutomaticReload:YES]
                completionHandler:^(id result, NSError* nserror) {
                  if (nserror) {
+                   LogPresentingErrorPageFailedWithError(nserror);
                    // WKErrorJavaScriptResultTypeIsUnsupported can be received
                    // if the WKWebView is released during this call.
                    DCHECK(nserror.code == WKErrorWebViewInvalidated ||
@@ -2168,7 +2238,7 @@ web::HttpsUpgradeType GetFailedHttpsUpgradeType(
       self.pendingNavigationInfo
           ? self.pendingNavigationInfo.HTTPMethod
           : self.currentBackForwardListItemHolder->http_method();
-  if ([HTTPMethod isEqual:@"POST"]) {
+  if ([HTTPMethod isEqualToString:@"POST"]) {
     return YES;
   }
   if (!self.currentNavItem) {

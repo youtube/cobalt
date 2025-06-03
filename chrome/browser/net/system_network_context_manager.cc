@@ -58,8 +58,8 @@
 #include "content/public/browser/child_process_termination_info.h"
 #include "content/public/browser/network_context_client_base.h"
 #include "content/public/browser/network_service_instance.h"
+#include "content/public/browser/network_service_util.h"
 #include "content/public/common/content_switches.h"
-#include "content/public/common/network_service_util.h"
 #include "content/public/common/user_agent.h"
 #include "crypto/sha2.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
@@ -70,7 +70,6 @@
 #include "net/cookies/cookie_util.h"
 #include "net/net_buildflags.h"
 #include "net/third_party/uri_template/uri_template.h"
-#include "sandbox/features.h"
 #include "sandbox/policy/features.h"
 #include "sandbox/policy/sandbox_type.h"
 #include "services/cert_verifier/public/mojom/cert_verifier_service_factory.mojom.h"
@@ -95,7 +94,7 @@
 // of lacros-chrome is complete.
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_LACROS)
 #include "chrome/common/chrome_paths_internal.h"
-#include "chrome/grit/chromium_strings.h"
+#include "chrome/grit/branded_strings.h"
 #include "ui/base/l10n/l10n_util.h"
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_LACROS)
 
@@ -124,11 +123,11 @@ enum class NetworkSandboxState {
   kEnabledByPolicy = 3,
   // Disabled because of a previous failed launch attempt.
   kDisabledBecauseOfFailedLaunch = 4,
-  kMaxValue = kDisabledBecauseOfFailedLaunch
+  // Disabled because the user (might) want kerberos, which is incompatible with
+  // the Linux/Cros sandbox.
+  kDisabledBecauseOfKerberos = 5,
+  kMaxValue = kDisabledBecauseOfKerberos
 };
-
-// The temporary header name expected by the envoy proxy configuration.
-const char kIPAnonymizationProxyPassword[] = "password";
 
 // The global instance of the SystemNetworkContextManager.
 SystemNetworkContextManager* g_system_network_context_manager = nullptr;
@@ -136,6 +135,19 @@ SystemNetworkContextManager* g_system_network_context_manager = nullptr;
 // Whether or not any instance of the system network context manager has
 // received a failed launch for a sandboxed network service.
 bool g_previously_failed_to_launch_sandboxed_service = false;
+
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)
+// Whether kerberos library loading will work in the network service due to the
+// sandbox.
+bool g_network_service_will_allow_gssapi_library_load = false;
+
+const char* kGssapiDesiredPref =
+#if BUILDFLAG(IS_CHROMEOS)
+    prefs::kKerberosEnabled;
+#elif BUILDFLAG(IS_LINUX)
+    prefs::kReceivedHttpAuthNegotiateHeader;
+#endif
+#endif  // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)
 
 // Constructs HttpAuthStaticParams based on |local_state|.
 network::mojom::HttpAuthStaticParamsPtr CreateHttpAuthStaticParams(
@@ -193,47 +205,87 @@ network::mojom::HttpAuthDynamicParamsPtr CreateHttpAuthDynamicParams(
       local_state->GetString(prefs::kAuthAndroidNegotiateAccountType);
 #endif  // BUILDFLAG(IS_ANDROID)
 
-#if BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)
   auth_dynamic_params->allow_gssapi_library_load =
-      local_state->GetBoolean(prefs::kKerberosEnabled);
+      local_state->GetBoolean(kGssapiDesiredPref);
 #endif  // BUILDFLAG(IS_CHROMEOS)
-
-// TODO(crbug.com/1295308): Remove the following check after Chromad is
-// deprecated.
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-  if (!auth_dynamic_params->allow_gssapi_library_load) {
-    policy::BrowserPolicyConnectorAsh* connector =
-        g_browser_process->platform_part()->browser_policy_connector_ash();
-    auth_dynamic_params->allow_gssapi_library_load =
-        connector->IsActiveDirectoryManaged();
-  }
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
   return auth_dynamic_params;
 }
 
+void OnNewHttpAuthDynamicParams(
+    network::mojom::HttpAuthDynamicParamsPtr& params) {
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)
+  // The kerberos library is incompatible with the network service sandbox, so
+  // if library loading is now enabled, the network service needs to be
+  // restarted. It will be restarted unsandboxed because is
+  // `g_network_service_will_allow_gssapi_library_load` will be set.
+  if (params->allow_gssapi_library_load &&
+      !g_network_service_will_allow_gssapi_library_load) {
+    g_network_service_will_allow_gssapi_library_load = true;
+    // The network service, if sandboxed, will still not allow gssapi library
+    // loading until it is shut down. On restart the network service will get
+    // the correct value.
+    // NOTE: technically another call to OnNewHttpAuthDynamicParams() before the
+    // RestartNetworkService() call will leave this as true. This could happen
+    // if the admin sends out another edit to the HTTP auth dynamic params right
+    // after enabling kerberos. Then if the user attempts a load of a page that
+    // requires "negotiate" HTTP auth, the network service will load a GSSAPI
+    // library despite the sandbox. This is incredibly unlikely, probably
+    // wouldn't have any consequences anyway, and would be quickly self-healing
+    // once RestartNetworkService() runs, so there's no reason to handle this
+    // case.
+    params->allow_gssapi_library_load = false;
+    // Post a shutdown task because the current task probably holds a raw
+    // pointer to the remote.
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, base::BindOnce(&content::RestartNetworkService));
+  }
+#endif  // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)
+}
+
 void OnAuthPrefsChanged(PrefService* local_state,
                         const std::string& pref_name) {
-  content::GetNetworkService()->ConfigureHttpAuthPrefs(
-      CreateHttpAuthDynamicParams(local_state));
+  auto params = CreateHttpAuthDynamicParams(local_state);
+  OnNewHttpAuthDynamicParams(params);
+  content::GetNetworkService()->ConfigureHttpAuthPrefs(std::move(params));
 }
 
 NetworkSandboxState IsNetworkSandboxEnabledInternal() {
   // If previously an attempt to launch the sandboxed process failed, then
   // launch unsandboxed.
-  if (g_previously_failed_to_launch_sandboxed_service)
+  if (g_previously_failed_to_launch_sandboxed_service) {
     return NetworkSandboxState::kDisabledBecauseOfFailedLaunch;
-#if BUILDFLAG(IS_WIN)
-  if (!sandbox::features::IsAppContainerSandboxSupported())
-    return NetworkSandboxState::kDisabledByPlatform;
+  }
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)
   auto* local_state = g_browser_process->local_state();
+#endif
+
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)
+  // The network service sandbox and the kerberos library are incompatible.
+  // If kerberos is enabled by policy, disable the network service sandbox.
+  if (g_network_service_will_allow_gssapi_library_load ||
+      (local_state && local_state->HasPrefPath(kGssapiDesiredPref) &&
+       local_state->GetBoolean(kGssapiDesiredPref))) {
+    return NetworkSandboxState::kDisabledBecauseOfKerberos;
+  }
+#endif  // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)
+
+#if BUILDFLAG(IS_WIN)
+  if (!sandbox::policy::features::IsNetworkSandboxSupported()) {
+    return NetworkSandboxState::kDisabledByPlatform;
+  }
+#endif  // BUILDFLAG(IS_WIN)
+
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
   if (local_state &&
       local_state->HasPrefPath(prefs::kNetworkServiceSandboxEnabled)) {
     return local_state->GetBoolean(prefs::kNetworkServiceSandboxEnabled)
                ? NetworkSandboxState::kEnabledByPolicy
                : NetworkSandboxState::kDisabledByPolicy;
   }
-#endif  // BUILDFLAG(IS_WIN)
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
+
   // If no policy is specified, then delegate to global sandbox configuration.
   return sandbox::policy::features::IsNetworkSandboxEnabled()
              ? NetworkSandboxState::kEnabledByPlatform
@@ -420,6 +472,28 @@ void SystemNetworkContextManager::DeleteInstance() {
   g_system_network_context_manager = nullptr;
 }
 
+#if BUILDFLAG(IS_LINUX)
+SystemNetworkContextManager::GssapiLibraryLoadObserver::
+    GssapiLibraryLoadObserver(SystemNetworkContextManager* owner)
+    : owner_(owner) {}
+
+SystemNetworkContextManager::GssapiLibraryLoadObserver::
+    ~GssapiLibraryLoadObserver() = default;
+
+void SystemNetworkContextManager::GssapiLibraryLoadObserver::Install(
+    network::mojom::NetworkService* network_service) {
+  gssapi_library_loader_observer_receiver_.reset();
+  network_service->SetGssapiLibraryLoadObserver(
+      gssapi_library_loader_observer_receiver_.BindNewPipeAndPassRemote());
+}
+
+void SystemNetworkContextManager::GssapiLibraryLoadObserver::
+    OnBeforeGssapiLibraryLoad() {
+  owner_->local_state_->SetBoolean(prefs::kReceivedHttpAuthNegotiateHeader,
+                                   true);
+}
+#endif  // BUILDFLAG(IS_LINUX)
+
 SystemNetworkContextManager::SystemNetworkContextManager(
     PrefService* local_state)
     : local_state_(local_state),
@@ -470,9 +544,9 @@ SystemNetworkContextManager::SystemNetworkContextManager(
                              auth_pref_callback);
 #endif  // BUILDFLAG(IS_ANDROID)
 
-#if BUILDFLAG(IS_CHROMEOS)
-  pref_change_registrar_.Add(prefs::kKerberosEnabled, auth_pref_callback);
-#endif  // BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)
+  pref_change_registrar_.Add(kGssapiDesiredPref, auth_pref_callback);
+#endif  // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)
 
   local_state_->SetDefaultPrefValue(
       prefs::kEnableReferrers,
@@ -519,6 +593,12 @@ SystemNetworkContextManager::SystemNetworkContextManager(
     network_process_launch_watcher_ =
         std::make_unique<NetworkProcessLaunchWatcher>();
   }
+
+  pref_change_registrar_.Add(
+      prefs::kIPv6ReachabilityOverrideEnabled,
+      base::BindRepeating(
+          &SystemNetworkContextManager::UpdateIPv6ReachabilityOverrideEnabled,
+          base::Unretained(this)));
 }
 
 SystemNetworkContextManager::~SystemNetworkContextManager() {
@@ -538,8 +618,7 @@ void SystemNetworkContextManager::RegisterPrefs(PrefRegistrySimple* registry) {
         // !BUILDFLAG(IS_CHROMEOS)
 
   // Dynamic auth params.
-  registry->RegisterListPref(prefs::kAllHttpAuthSchemesAllowedForOrigins,
-                             base::Value(base::Value::Type::LIST));
+  registry->RegisterListPref(prefs::kAllHttpAuthSchemesAllowedForOrigins);
   registry->RegisterBooleanPref(prefs::kDisableAuthNegotiateCnameLookup, false);
   registry->RegisterBooleanPref(prefs::kEnableAuthNegotiatePort, false);
   registry->RegisterBooleanPref(prefs::kBasicAuthOverHttpEnabled, true);
@@ -591,9 +670,17 @@ void SystemNetworkContextManager::RegisterPrefs(PrefRegistrySimple* registry) {
 
   registry->RegisterListPref(prefs::kExplicitlyAllowedNetworkPorts);
 
-#if BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
   registry->RegisterBooleanPref(prefs::kNetworkServiceSandboxEnabled, true);
-#endif  // BUILDFLAG(IS_WIN)
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
+
+#if BUILDFLAG(IS_LINUX)
+  registry->RegisterBooleanPref(prefs::kReceivedHttpAuthNegotiateHeader, false);
+#endif  // BUILDFLAG(IS_LINUX)
+
+  registry->RegisterBooleanPref(prefs::kZstdContentEncodingEnabled, true);
+
+  registry->RegisterBooleanPref(prefs::kIPv6ReachabilityOverrideEnabled, false);
 }
 
 // static
@@ -636,8 +723,13 @@ void SystemNetworkContextManager::OnNetworkServiceCreated(
   }
 
   network_service->SetUpHttpAuth(CreateHttpAuthStaticParams(local_state_));
-  network_service->ConfigureHttpAuthPrefs(
-      CreateHttpAuthDynamicParams(local_state_));
+  auto http_auth_dynamic_params = CreateHttpAuthDynamicParams(local_state_);
+  OnNewHttpAuthDynamicParams(http_auth_dynamic_params);
+  network_service->ConfigureHttpAuthPrefs(std::move(http_auth_dynamic_params));
+
+#if BUILDFLAG(IS_LINUX)
+  gssapi_library_loader_observer_.Install(network_service);
+#endif  // BUILDFLAG(IS_LINUX)
 
   // Configure the Certificate Transparency logs.
   if (IsCertificateTransparencyEnabled()) {
@@ -688,7 +780,7 @@ void SystemNetworkContextManager::OnNetworkServiceCreated(
     network_service->SetMaxConnectionsPerProxy(max_connections_per_proxy);
 
   network_service_network_context_.reset();
-  network_service->CreateNetworkContext(
+  content::CreateNetworkContextInNetworkService(
       network_service_network_context_.BindNewPipeAndPassReceiver(),
       CreateNetworkContextParams());
 
@@ -715,6 +807,8 @@ void SystemNetworkContextManager::OnNetworkServiceCreated(
       ->ReconfigureAfterNetworkRestart();
 
   UpdateExplicitlyAllowedNetworkPorts();
+
+  UpdateIPv6ReachabilityOverrideEnabled();
 }
 
 void SystemNetworkContextManager::DisableQuic() {
@@ -738,6 +832,10 @@ void SystemNetworkContextManager::ConfigureDefaultNetworkContextParams(
 
   network_context_params->enable_brotli = true;
 
+  network_context_params->enable_zstd =
+      base::FeatureList::IsEnabled(net::features::kZstdContentEncoding) &&
+      local_state_->GetBoolean(prefs::kZstdContentEncodingEnabled);
+
   network_context_params->user_agent = embedder_support::GetUserAgent();
 
   // Disable referrers by default. Any consumer that enables referrers should
@@ -746,26 +844,6 @@ void SystemNetworkContextManager::ConfigureDefaultNetworkContextParams(
 
   const base::CommandLine& command_line =
       *base::CommandLine::ForCurrentProcess();
-
-  std::string quic_user_agent_id;
-
-  if (base::FeatureList::IsEnabled(blink::features::kReduceUserAgent)) {
-    quic_user_agent_id = "";
-  } else {
-    // Extended stable reports as regular stable due to the similarity, and to
-    // avoid adding more signal to the user agent string.
-    quic_user_agent_id =
-        chrome::GetChannelName(chrome::WithExtendedStable(false));
-    if (!quic_user_agent_id.empty())
-      quic_user_agent_id.push_back(' ');
-    quic_user_agent_id.append(
-        version_info::GetProductNameAndVersionForUserAgent());
-    quic_user_agent_id.push_back(' ');
-    quic_user_agent_id.append(
-        content::BuildOSCpuInfo(content::IncludeAndroidBuildNumber::Exclude,
-                                content::IncludeAndroidModel::Include));
-  }
-  network_context_params->quic_user_agent_id = quic_user_agent_id;
 
   // TODO(eroman): Figure out why this doesn't work in single-process mode,
   // or if it does work, now.
@@ -804,48 +882,6 @@ void SystemNetworkContextManager::ConfigureDefaultNetworkContextParams(
   if (IsCertificateTransparencyEnabled()) {
     network_context_params->enforce_chrome_ct_policy = true;
   }
-
-  // If a custom proxy for IP protection is specified by either command line
-  // switch or Finch experiment flag, set the proxy rules
-  if (command_line.HasSwitch(::switches::kIPAnonymizationProxyServer) ||
-      base::FeatureList::IsEnabled(net::features::kEnableIpProtectionProxy)) {
-    auto proxy_config = network::mojom::CustomProxyConfig::New();
-    proxy_config->rules.type =
-        net::ProxyConfig::ProxyRules::Type::PROXY_LIST_PER_SCHEME;
-
-    // Command line input takes precedence over flag configuration
-    std::string ip_protection_proxy_server =
-        command_line.HasSwitch(::switches::kIPAnonymizationProxyServer)
-            ? command_line.GetSwitchValueASCII(
-                  ::switches::kIPAnonymizationProxyServer)
-            : net::features::kIpPrivacyProxyServer.Get();
-
-    proxy_config->rules.ParseFromString(ip_protection_proxy_server);
-
-    // Get allowlist hosts, command line input takes precedence over flag
-    // configuration
-    std::string ip_protection_proxy_allow_list =
-        command_line.HasSwitch(::switches::kIPAnonymizationProxyServer)
-            ? command_line.GetSwitchValueASCII(
-                  ::switches::kIPAnonymizationProxyAllowList)
-            : net::features::kIpPrivacyProxyAllowlist.Get();
-
-    proxy_config->rules.reverse_bypass = true;
-    proxy_config->rules.bypass_rules.ParseFromString(
-        ip_protection_proxy_allow_list);
-
-    proxy_config->should_replace_direct = true;
-    proxy_config->should_override_existing_config = false;
-    proxy_config->allow_non_idempotent_methods = true;
-    proxy_config->connect_tunnel_headers.SetHeader(
-        kIPAnonymizationProxyPassword,
-        command_line.GetSwitchValueASCII(
-            ::switches::kIPAnonymizationProxyPassword));
-
-    // Set initial custom proxy configuration
-    network_context_params->initial_custom_proxy_config =
-        std::move(proxy_config);
-  }
 }
 
 network::mojom::NetworkContextParamsPtr
@@ -880,18 +916,35 @@ bool SystemNetworkContextManager::IsNetworkSandboxEnabled() {
   base::UmaHistogramEnumeration(
       "Chrome.SystemNetworkContextManager.NetworkSandboxState", state);
 
+  bool enabled = true;
   switch (state) {
+    case NetworkSandboxState::kDisabledBecauseOfKerberos:
+      enabled = false;
+      break;
     case NetworkSandboxState::kDisabledByPlatform:
-      return false;
+      enabled = false;
+      break;
     case NetworkSandboxState::kEnabledByPlatform:
-      return true;
+      enabled = true;
+      break;
     case NetworkSandboxState::kDisabledByPolicy:
-      return false;
+      enabled = false;
+      break;
     case NetworkSandboxState::kEnabledByPolicy:
-      return true;
+      enabled = true;
+      break;
     case NetworkSandboxState::kDisabledBecauseOfFailedLaunch:
-      return false;
+      enabled = false;
+      break;
   }
+
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)
+  if (!enabled) {
+    g_network_service_will_allow_gssapi_library_load = true;
+  }
+#endif  // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)
+
+  return enabled;
 }
 
 void SystemNetworkContextManager::FlushSSLConfigManagerForTesting() {
@@ -927,23 +980,18 @@ void SystemNetworkContextManager::SetEnableCertificateTransparencyForTesting(
 bool SystemNetworkContextManager::IsCertificateTransparencyEnabled() {
   if (certificate_transparency_enabled_for_testing_.has_value())
     return certificate_transparency_enabled_for_testing_.value();
-#if BUILDFLAG(GOOGLE_CHROME_BRANDING) && defined(OFFICIAL_BUILD)
-// TODO(carlosil): Figure out if we can/should remove the OFFICIAL_BUILD and
-// GOOGLE_CHROME_BRANDING checks now that enforcement does not rely on build
-// dates, and allow embedders to enforce.
-//    Certificate Transparency is only enabled if:
-//   - base::GetBuildTime() is deterministic to the source (OFFICIAL_BUILD)
-//   - The build in reliably updatable (GOOGLE_CHROME_BRANDING)
-#if BUILDFLAG(IS_ANDROID)
-  // On Android, enforcement is currently controlled via a feature flag.
+#if defined(OFFICIAL_BUILD)
+// TODO(carlosil): Figure out if we can/should remove the OFFICIAL_BUILD
+// check now that enforcement does not rely on build dates.
+//    Certificate Transparency is enabled:
+//   - by default for Chrome-branded builds
+//   - on an opt-in basis for other builds and embedders, controlled with the
+//     kCertificateTransparencyAskBeforeEnabling flag
   return base::FeatureList::IsEnabled(
-      features::kCertificateTransparencyAndroid);
-#else
-  return true;
-#endif  // BUILDFLAG(IS_ANDROID)
+      features::kCertificateTransparencyAskBeforeEnabling);
 #else
   return false;
-#endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING) && defined(OFFICIAL_BUILD)
+#endif  // defined(OFFICIAL_BUILD)
 }
 
 #if BUILDFLAG(CHROME_ROOT_STORE_OPTIONAL)
@@ -1024,6 +1072,17 @@ void SystemNetworkContextManager::UpdateEnforceLocalAnchorConstraintsEnabled() {
 
 void SystemNetworkContextManager::UpdateReferrersEnabled() {
   GetContext()->SetEnableReferrers(enable_referrers_.GetValue());
+}
+
+void SystemNetworkContextManager::UpdateIPv6ReachabilityOverrideEnabled() {
+  bool is_managed = local_state_->IsManagedPreference(
+      prefs::kIPv6ReachabilityOverrideEnabled);
+  bool pref_value =
+      local_state_->GetBoolean(prefs::kIPv6ReachabilityOverrideEnabled);
+  bool is_launched = base::FeatureList::IsEnabled(
+      net::features::kEnableIPv6ReachabilityOverride);
+  bool value = is_managed ? pref_value : is_launched;
+  content::GetNetworkService()->SetIPv6ReachabilityOverride(value);
 }
 
 // static

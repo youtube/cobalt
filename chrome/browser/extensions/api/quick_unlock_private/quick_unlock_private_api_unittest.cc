@@ -7,6 +7,7 @@
 #include "chrome/browser/extensions/api/quick_unlock_private/quick_unlock_private_api.h"
 
 #include <memory>
+#include <utility>
 
 #include "ash/constants/ash_features.h"
 #include "ash/constants/ash_pref_names.h"
@@ -23,14 +24,14 @@
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
-#include "chrome/browser/ash/login/easy_unlock/easy_unlock_service_factory.h"
-#include "chrome/browser/ash/login/easy_unlock/easy_unlock_service_regular.h"
 #include "chrome/browser/ash/login/quick_unlock/auth_token.h"
 #include "chrome/browser/ash/login/quick_unlock/pin_backend.h"
 #include "chrome/browser/ash/login/quick_unlock/pin_storage_prefs.h"
 #include "chrome/browser/ash/login/quick_unlock/quick_unlock_factory.h"
 #include "chrome/browser/ash/login/quick_unlock/quick_unlock_storage.h"
 #include "chrome/browser/ash/login/quick_unlock/quick_unlock_utils.h"
+#include "chrome/browser/ash/login/smart_lock/smart_lock_service.h"
+#include "chrome/browser/ash/login/smart_lock/smart_lock_service_factory.h"
 #include "chrome/browser/ash/login/users/fake_chrome_user_manager.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/browser_process.h"
@@ -44,6 +45,8 @@
 #include "chromeos/ash/components/dbus/userdataauth/fake_userdataauth_client.h"
 #include "chromeos/ash/components/login/auth/fake_extended_authenticator.h"
 #include "chromeos/ash/components/login/auth/public/cryptohome_key_constants.h"
+#include "chromeos/ash/components/osauth/impl/auth_parts_impl.h"
+#include "chromeos/ash/components/osauth/impl/auth_session_storage_impl.h"
 #include "chromeos/ash/services/device_sync/public/cpp/fake_device_sync_client.h"
 #include "chromeos/ash/services/multidevice_setup/public/cpp/fake_multidevice_setup_client.h"
 #include "chromeos/ash/services/secure_channel/public/cpp/client/fake_secure_channel_client.h"
@@ -86,30 +89,26 @@ constexpr char kInvalidToken[] = "invalid";
 constexpr char kValidPassword[] = "valid";
 constexpr char kInvalidPassword[] = "invalid";
 
-class FakeEasyUnlockService : public ash::EasyUnlockServiceRegular {
+class FakeSmartLockService : public ash::SmartLockService {
  public:
-  FakeEasyUnlockService(
+  FakeSmartLockService(
       Profile* profile,
       ash::device_sync::FakeDeviceSyncClient* fake_device_sync_client,
       ash::secure_channel::FakeSecureChannelClient* fake_secure_channel_client,
       ash::multidevice_setup::FakeMultiDeviceSetupClient*
           fake_multidevice_setup_client)
-      : ash::EasyUnlockServiceRegular(profile,
-                                      fake_secure_channel_client,
-                                      fake_device_sync_client,
-                                      fake_multidevice_setup_client) {}
+      : ash::SmartLockService(profile,
+                              fake_secure_channel_client,
+                              fake_device_sync_client,
+                              fake_multidevice_setup_client) {}
 
-  FakeEasyUnlockService(const FakeEasyUnlockService&) = delete;
-  FakeEasyUnlockService& operator=(const FakeEasyUnlockService&) = delete;
+  FakeSmartLockService(const FakeSmartLockService&) = delete;
+  FakeSmartLockService& operator=(const FakeSmartLockService&) = delete;
 
-  ~FakeEasyUnlockService() override {}
-
-  // ash::EasyUnlockServiceRegular:
-  void InitializeInternal() override {}
-  void ShutdownInternal() override {}
+  ~FakeSmartLockService() override {}
 };
 
-std::unique_ptr<KeyedService> CreateEasyUnlockServiceForTest(
+std::unique_ptr<KeyedService> CreateSmartLockServiceForTest(
     content::BrowserContext* context) {
   static base::NoDestructor<ash::device_sync::FakeDeviceSyncClient>
       fake_device_sync_client;
@@ -118,7 +117,7 @@ std::unique_ptr<KeyedService> CreateEasyUnlockServiceForTest(
   static base::NoDestructor<ash::multidevice_setup::FakeMultiDeviceSetupClient>
       fake_multidevice_setup_client;
 
-  return std::make_unique<FakeEasyUnlockService>(
+  return std::make_unique<FakeSmartLockService>(
       Profile::FromBrowserContext(context), fake_device_sync_client.get(),
       fake_secure_channel_client.get(), fake_multidevice_setup_client.get());
 }
@@ -206,6 +205,10 @@ class QuickUnlockPrivateUnitTest
     fake_user_manager_ = fake_user_manager.get();
     scoped_user_manager_ = std::make_unique<user_manager::ScopedUserManager>(
         std::move(fake_user_manager));
+    auth_parts_ = ash::AuthPartsImpl::CreateTestInstance();
+    auth_parts_->SetAuthSessionStorage(
+        std::make_unique<ash::AuthSessionStorageImpl>(
+            ash::UserDataAuthClient::Get()));
 
     ExtensionApiUnittest::SetUp();
 
@@ -256,18 +259,24 @@ class QuickUnlockPrivateUnitTest
       const cryptohome::AccountIdentifier account_id =
           cryptohome::CreateAccountIdentifierFromAccountId(
               AccountId::FromUserEmailGaiaId(kTestUserEmail, kTestUserGaiaId));
-
-      auth_token_user_context_.SetAuthSessionId(
-          fake_userdataauth_client_testapi->AddSession(account_id,
-                                                       /*authenticated=*/true));
+      auto session_ids = fake_userdataauth_client_testapi->AddSession(
+          account_id, /*authenticated=*/true);
+      auth_token_user_context_.SetAuthSessionIds(session_ids.first,
+                                                 session_ids.second);
       // Technically configuration should contain password as factor, but
       // it is not checked anywhere.
       auth_token_user_context_.SetAuthFactorsConfiguration(
           ash::AuthFactorsConfiguration());
     }
 
-    token_ = ash::quick_unlock::QuickUnlockFactory::GetForProfile(profile)
-                 ->CreateAuthToken(auth_token_user_context_);
+    if (ash::features::ShouldUseAuthSessionStorage()) {
+      token_ = ash::AuthSessionStorage::Get()->Store(
+          std::make_unique<ash::UserContext>(auth_token_user_context_));
+    } else {
+      token_ = ash::quick_unlock::QuickUnlockFactory::GetForProfile(profile)
+                   ->CreateAuthToken(auth_token_user_context_);
+    }
+
     base::RunLoop().RunUntilIdle();
 
     return profile;
@@ -288,8 +297,8 @@ class QuickUnlockPrivateUnitTest
   }
 
   TestingProfile::TestingFactories GetTestingFactories() override {
-    return {{ash::EasyUnlockServiceFactory::GetInstance(),
-             base::BindRepeating(&CreateEasyUnlockServiceForTest)}};
+    return {{ash::SmartLockServiceFactory::GetInstance(),
+             base::BindRepeating(&CreateSmartLockServiceForTest)}};
   }
 
   // If a mode change event is raised, fail the test.
@@ -643,7 +652,8 @@ class QuickUnlockPrivateUnitTest
   }
 
   base::test::ScopedFeatureList feature_list_;
-  raw_ptr<sync_preferences::TestingPrefServiceSyncable, ExperimentalAsh>
+  raw_ptr<sync_preferences::TestingPrefServiceSyncable,
+          DanglingUntriaged | ExperimentalAsh>
       test_pref_service_;
 
  private:
@@ -681,6 +691,7 @@ class QuickUnlockPrivateUnitTest
     expect_modes_changed_ = false;
   }
 
+  std::unique_ptr<ash::AuthPartsImpl> auth_parts_;
   raw_ptr<ash::FakeChromeUserManager, ExperimentalAsh> fake_user_manager_ =
       nullptr;
   std::unique_ptr<user_manager::ScopedUserManager> scoped_user_manager_;
@@ -699,8 +710,12 @@ TEST_P(QuickUnlockPrivateUnitTest, GetAuthTokenValid) {
 
   ash::quick_unlock::QuickUnlockStorage* quick_unlock_storage =
       ash::quick_unlock::QuickUnlockFactory::GetForProfile(profile());
-  EXPECT_EQ(token_info->token,
-            quick_unlock_storage->GetAuthToken()->Identifier());
+  if (ash::features::ShouldUseAuthSessionStorage()) {
+    EXPECT_TRUE(ash::AuthSessionStorage::Get()->IsValid(token_info->token));
+  } else {
+    EXPECT_EQ(token_info->token,
+              quick_unlock_storage->GetAuthToken()->Identifier());
+  }
   EXPECT_EQ(token_info->lifetime_seconds,
             ash::quick_unlock::AuthToken::kTokenExpiration.InSeconds());
 }

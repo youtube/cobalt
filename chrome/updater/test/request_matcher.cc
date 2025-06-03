@@ -5,6 +5,7 @@
 #include "chrome/updater/test/request_matcher.h"
 
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -17,10 +18,10 @@
 #include "chrome/updater/test/http_request.h"
 #include "chrome/updater/update_service.h"
 #include "chrome/updater/updater_scope.h"
+#include "chrome/updater/util/util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/re2/src/re2/re2.h"
-#include "third_party/re2/src/re2/stringpiece.h"
 
 namespace updater::test::request {
 
@@ -70,11 +71,15 @@ Matcher GetHeaderMatcher(const std::string& header_name,
       });
 }
 
+Matcher GetUpdaterUserAgentMatcher() {
+  return GetHeaderMatcher("User-Agent", GetUpdaterUserAgent());
+}
+
 Matcher GetContentMatcher(
     const std::vector<std::string>& expected_content_regex_sequence) {
   return base::BindLambdaForTesting(
       [expected_content_regex_sequence](const HttpRequest& request) {
-        re2::StringPiece input(request.decoded_content);
+        std::string_view input(request.decoded_content);
         for (const std::string& regex : expected_content_regex_sequence) {
           re2::RE2::Options opt;
           opt.set_case_sensitive(false);
@@ -184,7 +189,7 @@ Matcher GetMultipartContentMatcher(
 
     re2::RE2::Options opt;
     opt.set_case_sensitive(false);
-    re2::StringPiece input(request.decoded_content);
+    std::string_view input(request.decoded_content);
     for (std::vector<FormExpectations>::const_iterator form_expection =
              form_expections.begin();
          form_expection < form_expections.end(); ++form_expection) {

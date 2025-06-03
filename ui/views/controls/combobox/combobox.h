@@ -47,22 +47,19 @@ class VIEWS_EXPORT Combobox : public View,
   METADATA_HEADER(Combobox);
 
   using MenuSelectionAtCallback = base::RepeatingCallback<bool(size_t index)>;
+  using MenuWillShowCallbackList = base::RepeatingClosureList;
+  using MenuWillShowCallback = MenuWillShowCallbackList::CallbackType;
 
-  static constexpr int kDefaultComboboxTextContext = style::CONTEXT_BUTTON;
-  static constexpr int kDefaultComboboxTextStyle = style::STYLE_PRIMARY;
+  static constexpr style::TextContext kContext = style::CONTEXT_BUTTON;
+  static constexpr style::TextStyle kStyle = style::STYLE_PRIMARY;
 
   // A combobox with an empty model.
-  explicit Combobox(int text_context = kDefaultComboboxTextContext,
-                    int text_style = kDefaultComboboxTextStyle);
+  Combobox();
 
   // |model| is owned by the combobox when using this constructor.
-  explicit Combobox(std::unique_ptr<ui::ComboboxModel> model,
-                    int text_context = kDefaultComboboxTextContext,
-                    int text_style = kDefaultComboboxTextStyle);
+  explicit Combobox(std::unique_ptr<ui::ComboboxModel> model);
   // |model| is not owned by the combobox when using this constructor.
-  explicit Combobox(ui::ComboboxModel* model,
-                    int text_context = kDefaultComboboxTextContext,
-                    int text_style = kDefaultComboboxTextStyle);
+  explicit Combobox(ui::ComboboxModel* model);
   Combobox(const Combobox&) = delete;
   Combobox& operator=(const Combobox&) = delete;
   ~Combobox() override;
@@ -111,6 +108,8 @@ class VIEWS_EXPORT Combobox : public View,
   void SetBorderColorId(ui::ColorId color_id);
   void SetBackgroundColorId(ui::ColorId color_id);
   void SetForegroundColorId(ui::ColorId color_id);
+  void SetForegroundIconColorId(ui::ColorId color_id);
+  void SetForegroundTextStyle(style::TextStyle text_style);
 
   // Sets whether there should be ink drop highlighting on hover/press.
   void SetEventHighlighting(bool should_highlight);
@@ -122,6 +121,9 @@ class VIEWS_EXPORT Combobox : public View,
   void SetMenuSelectionAtCallback(MenuSelectionAtCallback callback) {
     menu_selection_at_callback_ = std::move(callback);
   }
+
+  base::CallbackListSubscription AddMenuWillShowCallback(
+      MenuWillShowCallback callback);
 
   // Set whether the arrow should be shown to the user.
   void SetShouldShowArrow(bool should_show_arrow) {
@@ -152,8 +154,6 @@ class VIEWS_EXPORT Combobox : public View,
   absl::optional<size_t> GetSelectedRow() override;
   void SetSelectedRow(absl::optional<size_t> row) override;
   std::u16string GetTextForRow(size_t row) override;
-
-  void UpdateFont();
 
  protected:
   // Overridden from ComboboxModelObserver:
@@ -200,20 +200,14 @@ class VIEWS_EXPORT Combobox : public View,
 
   PrefixSelector* GetPrefixSelector();
 
+  const gfx::FontList& GetForegroundFontList() const;
+
   // Optionally used to tie the lifetime of the model to this combobox. See
   // constructor.
   std::unique_ptr<ui::ComboboxModel> owned_model_;
 
   // Reference to our model, which may be owned or not.
   raw_ptr<ui::ComboboxModel> model_ = nullptr;
-
-  // Typography context for the text written in the combobox and the options
-  // shown in the drop-down menu.
-  const int text_context_;
-
-  // Typography style for the text written in the combobox and the options shown
-  // in the drop-down menu.
-  const int text_style_;
 
   // Callback notified when the selected index changes.
   base::RepeatingClosure callback_;
@@ -223,6 +217,9 @@ class VIEWS_EXPORT Combobox : public View,
   // returns true no other action is taken, if it returns false then the model
   // will updated based on the selection.
   MenuSelectionAtCallback menu_selection_at_callback_;
+
+  // Callbacks notified when the dropdown menu is about to show.
+  MenuWillShowCallbackList on_menu_will_show_;
 
   // The current selected index; nullopt means no selection.
   absl::optional<size_t> selected_index_ = absl::nullopt;
@@ -241,6 +238,11 @@ class VIEWS_EXPORT Combobox : public View,
 
   // Overriding ColorId for the combobox foreground (text and caret icon).
   absl::optional<ui::ColorId> foreground_color_id_;
+
+  // Attempts to override the color for the combobox foreground icon.
+  absl::optional<ui::ColorId> foreground_icon_color_id_;
+
+  absl::optional<style::TextStyle> foreground_text_style_;
 
   // A helper used to select entries by keyboard input.
   std::unique_ptr<PrefixSelector> selector_;
@@ -277,11 +279,6 @@ class VIEWS_EXPORT Combobox : public View,
   // ChildPreferredSizeChanged(). When false, the size of contents is defined by
   // the selected label
   bool size_to_largest_label_ = true;
-
-  // The font list to be used for the main dropdown of the combobox. Individual
-  // menu items on the dropdown may be defined separately by
-  // ComboboxMenuModel::GetLabelFontListAt.
-  gfx::FontList font_list_;
 
   base::ScopedObservation<ui::ComboboxModel, ui::ComboboxModelObserver>
       observation_{this};

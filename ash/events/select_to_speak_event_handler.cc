@@ -8,6 +8,7 @@
 #include "ash/accessibility/accessibility_event_handler_manager.h"
 #include "ash/public/cpp/select_to_speak_event_handler_delegate.h"
 #include "ash/shell.h"
+#include "base/containers/contains.h"
 #include "ui/events/types/event_type.h"
 
 namespace ash {
@@ -60,6 +61,18 @@ void SelectToSpeakEventHandler::OnKeyEvent(ui::KeyEvent* event) {
   }
 
   ui::KeyboardCode key_code = event->key_code();
+  if (key_code != kSpeakSelectionKey && key_code != ui::VKEY_LWIN &&
+      key_code != ui::VKEY_CONTROL) {
+    // No need to track keys besides search, control and s.
+    if (state_ == SEARCH_DOWN) {
+      // If some other key was pressed and we were in SEARCH_DOWN state,
+      // now we should be in inactive state.
+      // Keys currently pressed hasn't changed so no need to dispatch
+      // an event.
+      state_ = INACTIVE;
+    }
+    return;
+  }
   if (pressed) {
     keys_currently_down_.insert(key_code);
   } else {
@@ -68,7 +81,7 @@ void SelectToSpeakEventHandler::OnKeyEvent(ui::KeyEvent* event) {
     // a fatal error since std::set::erase will still work properly
     // if it can't find the key, and STS will not have propagating bad
     // behavior if it missed a key press event.
-    DCHECK(keys_currently_down_.find(key_code) != keys_currently_down_.end());
+    DCHECK(base::Contains(keys_currently_down_, key_code));
     keys_currently_down_.erase(key_code);
   }
 

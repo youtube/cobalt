@@ -45,7 +45,8 @@ void TabRestoreServiceFactory::ResetForProfile(Profile* profile) {
 }
 
 TabRestoreServiceFactory* TabRestoreServiceFactory::GetInstance() {
-  return base::Singleton<TabRestoreServiceFactory>::get();
+  static base::NoDestructor<TabRestoreServiceFactory> instance;
+  return instance.get();
 }
 
 // static
@@ -70,7 +71,8 @@ bool TabRestoreServiceFactory::ServiceIsNULLWhileTesting() const {
   return true;
 }
 
-KeyedService* TabRestoreServiceFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+TabRestoreServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* browser_context) const {
-  return BuildTemplateService(browser_context).release();
+  return BuildTemplateService(browser_context);
 }

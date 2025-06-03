@@ -39,6 +39,14 @@ class ManagementUITest : public InProcessBrowserTest {
     policy::BrowserPolicyConnector::SetPolicyProviderForTesting(&provider_);
   }
 
+  void SetUpOnMainThread() override {
+    provider_.SetupPolicyServiceForPolicyUpdates(policy_service());
+  }
+
+  void TearDownOnMainThread() override {
+    provider_.SetupPolicyServiceForPolicyUpdates(nullptr);
+  }
+
   void VerifyTexts(
       base::Value* actual_values,
       const std::map<std::string, std::u16string>& expected_values) {
@@ -46,7 +54,7 @@ class ManagementUITest : public InProcessBrowserTest {
     for (const auto& val : expected_values) {
       const std::string* actual_value = values_as_dict.FindString(val.first);
       ASSERT_TRUE(actual_value);
-      ASSERT_EQ(base::UTF8ToUTF16(*actual_value), val.second);
+      EXPECT_EQ(base::UTF8ToUTF16(*actual_value), val.second);
     }
   }
   policy::MockConfigurationPolicyProvider* provider() { return &provider_; }
@@ -55,13 +63,24 @@ class ManagementUITest : public InProcessBrowserTest {
     return browser()->profile()->GetProfilePolicyConnector();
   }
 
+  policy::PolicyService* policy_service() {
+    return browser()->profile()->GetProfilePolicyConnector()->policy_service();
+  }
+
  private:
   testing::NiceMock<policy::MockConfigurationPolicyProvider> provider_;
   policy::FakeBrowserDMTokenStorage fake_dm_token_storage_;
 };
 
 #if !BUILDFLAG(IS_CHROMEOS_ASH)
-IN_PROC_BROWSER_TEST_F(ManagementUITest, ManagementStateChange) {
+
+// TODO(crbug.com/1443363): flaky.
+#if BUILDFLAG(IS_MAC)
+#define MAYBE_ManagementStateChange DISABLED_ManagementStateChange
+#else
+#define MAYBE_ManagementStateChange ManagementStateChange
+#endif
+IN_PROC_BROWSER_TEST_F(ManagementUITest, MAYBE_ManagementStateChange) {
   profile_policy_connector()->OverrideIsManagedForTesting(false);
   ASSERT_TRUE(
       ui_test_utils::NavigateToURL(browser(), GURL("chrome://management")));
@@ -83,11 +102,10 @@ IN_PROC_BROWSER_TEST_F(ManagementUITest, ManagementStateChange) {
   std::map<std::string, std::u16string> expected_unmanaged_values{
       {"browserManagementNotice",
        l10n_util::GetStringFUTF16(
-           IDS_MANAGEMENT_NOT_MANAGED_NOTICE,
-           base::UTF8ToUTF16(chrome::kManagedUiLearnMoreUrl),
+           IDS_MANAGEMENT_NOT_MANAGED_NOTICE, chrome::kManagedUiLearnMoreUrl,
            base::EscapeForHTML(l10n_util::GetStringUTF16(
                IDS_MANAGEMENT_LEARN_MORE_ACCCESSIBILITY_TEXT)))},
-      {"extensionReportingTitle",
+      {"extensionReportingSubtitle",
        l10n_util::GetStringUTF16(IDS_MANAGEMENT_EXTENSIONS_INSTALLED)},
       {"pageSubtitle",
        l10n_util::GetStringUTF16(IDS_MANAGEMENT_NOT_MANAGED_SUBTITLE)},
@@ -116,11 +134,10 @@ IN_PROC_BROWSER_TEST_F(ManagementUITest, ManagementStateChange) {
   std::map<std::string, std::u16string> expected_managed_values{
       {"browserManagementNotice",
        l10n_util::GetStringFUTF16(
-           IDS_MANAGEMENT_BROWSER_NOTICE,
-           base::UTF8ToUTF16(chrome::kManagedUiLearnMoreUrl),
+           IDS_MANAGEMENT_BROWSER_NOTICE, chrome::kManagedUiLearnMoreUrl,
            base::EscapeForHTML(l10n_util::GetStringUTF16(
                IDS_MANAGEMENT_LEARN_MORE_ACCCESSIBILITY_TEXT)))},
-      {"extensionReportingTitle",
+      {"extensionReportingSubtitle",
        l10n_util::GetStringUTF16(IDS_MANAGEMENT_EXTENSIONS_INSTALLED)},
       {"pageSubtitle", l10n_util::GetStringUTF16(IDS_MANAGEMENT_SUBTITLE)},
       {"managedWebsitesSubtitle",

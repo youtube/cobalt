@@ -214,8 +214,8 @@ TEST(ToV8TraitsTest, String) {
   // DOMString
   TEST_TOV8_TRAITS(scope, IDLString, "string", string);
   TEST_TOV8_TRAITS(scope, IDLString, "charptrString", charptr_string);
-  TEST_TOV8_TRAITS(scope, IDLStringTreatNullAsEmptyString, "string", string);
-  TEST_TOV8_TRAITS(scope, IDLStringTreatNullAsEmptyString, "charptrString",
+  TEST_TOV8_TRAITS(scope, IDLStringLegacyNullToEmptyString, "string", string);
+  TEST_TOV8_TRAITS(scope, IDLStringLegacyNullToEmptyString, "charptrString",
                    charptr_string);
   // USVString
   TEST_TOV8_TRAITS(scope, IDLUSVString, "string", string);
@@ -225,10 +225,10 @@ TEST(ToV8TraitsTest, String) {
   TEST_TOV8_TRAITS(scope, IDLStringStringContextTrustedHTML, "charptrString",
                    charptr_string);
   TEST_TOV8_TRAITS(scope,
-                   IDLStringStringContextTrustedHTMLTreatNullAsEmptyString,
+                   IDLStringLegacyNullToEmptyStringStringContextTrustedHTML,
                    "string", string);
   TEST_TOV8_TRAITS(scope,
-                   IDLStringStringContextTrustedHTMLTreatNullAsEmptyString,
+                   IDLStringLegacyNullToEmptyStringStringContextTrustedHTML,
                    "charptrString", charptr_string);
   // [StringContext=TrustedScript] DOMString
   TEST_TOV8_TRAITS(scope, IDLStringStringContextTrustedScript, "string",
@@ -236,10 +236,10 @@ TEST(ToV8TraitsTest, String) {
   TEST_TOV8_TRAITS(scope, IDLStringStringContextTrustedScript, "charptrString",
                    charptr_string);
   TEST_TOV8_TRAITS(scope,
-                   IDLStringStringContextTrustedScriptTreatNullAsEmptyString,
+                   IDLStringLegacyNullToEmptyStringStringContextTrustedScript,
                    "string", string);
   TEST_TOV8_TRAITS(scope,
-                   IDLStringStringContextTrustedScriptTreatNullAsEmptyString,
+                   IDLStringLegacyNullToEmptyStringStringContextTrustedScript,
                    "charptrString", charptr_string);
   // [StringContext=TrustedScriptURL] USVString
   TEST_TOV8_TRAITS(scope, IDLUSVStringStringContextTrustedScriptURL, "string",
@@ -317,12 +317,7 @@ TEST(ToV8TraitsTest, HeapVector) {
   const HeapVector<Member<GarbageCollectedScriptWrappable>>*
       const_garbage_collected_heap_vector = &heap_vector;
   TEST_TOV8_TRAITS(scope, IDLSequence<GarbageCollectedScriptWrappable>,
-                   "hoge,fuga", const_garbage_collected_heap_vector);
-
-  HeapVector<Member<GarbageCollectedScriptWrappable>>*
-      garbage_collected_heap_vector = &heap_vector;
-  TEST_TOV8_TRAITS(scope, IDLSequence<GarbageCollectedScriptWrappable>,
-                   "hoge,fuga", garbage_collected_heap_vector);
+                   "hoge,fuga", *const_garbage_collected_heap_vector);
 }
 
 TEST(ToV8TraitsTest, BasicIDLTypeVectors) {
@@ -505,11 +500,6 @@ TEST(ToV8TraitsTest, PairHeapVector) {
   EXPECT_TRUE(two->IsObject());
   EXPECT_EQ(String("bar"),
             ToCoreString(two->ToString(scope.GetContext()).ToLocalChecked()));
-
-  HeapVector<std::pair<String, Member<GarbageCollectedScriptWrappable>>>*
-      garbage_collected_pair_heap_vector = &pair_heap_vector;
-  TEST_TOV8_TRAITS(scope, HeapRecord, "[object Object]",
-                   garbage_collected_pair_heap_vector);
 }
 
 TEST(ToV8TraitsTest, NullStringInputForNoneNullableType) {

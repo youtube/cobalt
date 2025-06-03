@@ -4,6 +4,8 @@
 
 package org.chromium.chrome.browser.app.creator;
 
+import static org.chromium.chrome.browser.tab.Tab.INVALID_TAB_ID;
+
 import android.os.Bundle;
 import android.view.MenuItem;
 
@@ -14,7 +16,7 @@ import org.chromium.base.supplier.UnownedUserDataSupplier;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.ActivityTabProvider;
 import org.chromium.chrome.browser.SnackbarActivity;
-import org.chromium.chrome.browser.WebContentsFactory;
+import org.chromium.chrome.browser.content.WebContentsFactory;
 import org.chromium.chrome.browser.creator.CreatorCoordinator;
 import org.chromium.chrome.browser.feed.SingleWebFeedEntryPoint;
 import org.chromium.chrome.browser.feed.webfeed.CreatorIntentConstants;
@@ -25,7 +27,7 @@ import org.chromium.chrome.browser.share.ShareDelegate;
 import org.chromium.chrome.browser.share.ShareDelegateImpl;
 import org.chromium.chrome.browser.share.ShareDelegateSupplier;
 import org.chromium.chrome.browser.tab.TabLaunchType;
-import org.chromium.chrome.browser.tabmodel.document.TabDelegate;
+import org.chromium.chrome.browser.tabmodel.document.ChromeAsyncTabLauncher;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.signin.metrics.SigninAccessPoint;
 import org.chromium.content_public.browser.LoadUrlParams;
@@ -72,6 +74,8 @@ public class CreatorActivity extends SnackbarActivity {
                 getIntent().getBooleanExtra(CreatorIntentConstants.CREATOR_FOLLOWING, false);
         int entryPoint = getIntent().getIntExtra(
                 CreatorIntentConstants.CREATOR_ENTRY_POINT, SingleWebFeedEntryPoint.OTHER);
+        int mParentTabId =
+                getIntent().getIntExtra(CreatorIntentConstants.CREATOR_TAB_ID, INVALID_TAB_ID);
 
         mActivityTabProvider = new ActivityTabProvider();
         mLifecycleDispatcher = new ActivityLifecycleDispatcherImpl(this);
@@ -105,8 +109,8 @@ public class CreatorActivity extends SnackbarActivity {
                 new ShareDelegateImpl.ShareSheetDelegate(),
                 /* isCustomTab */ false);
         mShareDelegateSupplier.set(shareDelegate);
-        mCreatorActionDelegate =
-                new CreatorActionDelegateImpl(this, mProfile, getSnackbarManager(), coordinator);
+        mCreatorActionDelegate = new CreatorActionDelegateImpl(
+                this, mProfile, getSnackbarManager(), coordinator, mParentTabId);
 
         coordinator.queryFeedStream(mCreatorActionDelegate,
                 HelpAndFeedbackLauncherImpl.getForProfile(mProfile), mShareDelegateSupplier);
@@ -133,6 +137,7 @@ public class CreatorActivity extends SnackbarActivity {
 
     @Override
     protected void onDestroy() {
+        mWindowAndroid.destroy();
         mTabShareDelegateSupplier.destroy();
         mShareDelegateSupplier.destroy();
         super.onDestroy();
@@ -145,7 +150,7 @@ public class CreatorActivity extends SnackbarActivity {
 
     // This implements the CreatorOpenTab interface.
     public void createNewTab(LoadUrlParams params) {
-        new TabDelegate(false).createNewTab(params, TabLaunchType.FROM_LINK, null);
+        new ChromeAsyncTabLauncher(false).launchNewTab(params, TabLaunchType.FROM_LINK, null);
     }
 
     // This implements the SignInInterstitialInitiator interface.

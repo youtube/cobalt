@@ -10,6 +10,7 @@
 #include "base/containers/flat_map.h"
 #include "components/autofill/core/browser/autofill_client.h"
 #include "components/autofill/core/browser/browser_autofill_manager.h"
+#include "components/autofill/core/common/mojom/autofill_types.mojom-shared.h"
 #include "ios/web/public/js_messaging/web_frame_user_data.h"
 #include "url/origin.h"
 
@@ -43,32 +44,51 @@ class AutofillDriverIOS : public AutofillDriver,
   ~AutofillDriverIOS() override;
 
   // AutofillDriver:
+  LocalFrameToken GetFrameToken() const override;
+  absl::optional<LocalFrameToken> Resolve(FrameToken query) override;
+  AutofillDriverIOS* GetParent() override;
+  BrowserAutofillManager& GetAutofillManager() override;
   bool IsInActiveFrame() const override;
   bool IsInAnyMainFrame() const override;
   bool IsPrerendering() const override;
+  bool HasSharedAutofillPermission() const override;
   bool CanShowAutofillUi() const override;
-  ui::AXTreeID GetAxTreeId() const override;
   bool RendererIsAvailable() override;
-  std::vector<FieldGlobalId> FillOrPreviewForm(
-      mojom::RendererFormDataAction action,
+  std::vector<FieldGlobalId> ApplyFormAction(
+      mojom::ActionType action_type,
+      mojom::ActionPersistence action_persistence,
       const FormData& data,
       const url::Origin& triggered_origin,
       const base::flat_map<FieldGlobalId, ServerFieldType>& field_type_map)
       override;
+  void ApplyFieldAction(mojom::ActionPersistence action_persistence,
+                        mojom::TextReplacement text_replacement,
+                        const FieldGlobalId& field,
+                        const std::u16string& value) override;
+  void ExtractForm(
+      FormGlobalId form,
+      base::OnceCallback<void(AutofillDriver*, const std::optional<FormData>&)>
+          response_callback) override;
   void HandleParsedForms(const std::vector<FormData>& forms) override;
   void SendAutofillTypePredictionsToRenderer(
       const std::vector<FormStructure*>& forms) override;
   void RendererShouldClearFilledSection() override;
   void RendererShouldClearPreviewedForm() override;
+  void RendererShouldTriggerSuggestions(
+      const FieldGlobalId& field_id,
+      AutofillSuggestionTriggerSource trigger_source) override;
   void RendererShouldAcceptDataListSuggestion(
       const FieldGlobalId& field,
       const std::u16string& value) override;
   void SendFieldsEligibleForManualFillingToRenderer(
       const std::vector<FieldGlobalId>& fields) override;
-  void SetShouldSuppressKeyboard(bool suppress) override;
-  void TriggerReparseInAllFrames(
-      base::OnceCallback<void(bool)> trigger_reparse_finished_callback)
+  void TriggerFormExtractionInDriverFrame() override;
+  void TriggerFormExtractionInAllFrames(
+      base::OnceCallback<void(bool)> form_extraction_finished_callback)
       override;
+  void GetFourDigitCombinationsFromDOM(
+      base::OnceCallback<void(const std::vector<std::string>&)>
+          potential_matches) override;
 
   AutofillClient* client() { return client_; }
 
@@ -77,15 +97,6 @@ class AutofillDriverIOS : public AutofillDriver,
     browser_autofill_manager_ = std::move(browser_autofill_manager);
   }
 
-  BrowserAutofillManager* autofill_manager() {
-    return browser_autofill_manager_.get();
-  }
-
-  void RendererShouldFillFieldWithValue(const FieldGlobalId& field,
-                                        const std::u16string& value) override;
-  void RendererShouldPreviewFieldWithValue(
-      const FieldGlobalId& field,
-      const std::u16string& value) override;
   void RendererShouldSetSuggestionAvailability(
       const FieldGlobalId& field,
       const mojom::AutofillState state) override;

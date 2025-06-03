@@ -24,7 +24,6 @@
 #include "ash/style/ash_color_id.h"
 #include "ash/style/dark_light_mode_controller_impl.h"
 #include "base/check.h"
-#include "base/cxx17_backports.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
@@ -401,6 +400,10 @@ int PagedAppsGridView::GetNumberOfPulsingBlocksToShow(int item_count) const {
   return tiles_per_page - (item_count - tiles_on_first_page) % tiles_per_page;
 }
 
+bool PagedAppsGridView::IsAnimatingCardifiedState() const {
+  return is_animating_cardified_state_;
+}
+
 void PagedAppsGridView::MaybeStartCardifiedView() {
   if (!cardified_state_)
     StartAppsGridCardifiedView();
@@ -549,20 +552,6 @@ PagedAppsGridView::GetVisibleItemIndexRange() const {
                                start_view_index + on_page_item_count - 1);
 }
 
-base::ScopedClosureRunner PagedAppsGridView::LockAppsGridOpacity() {
-  lock_opacity_ = true;
-
-  base::OnceClosure reset_closure = base::BindOnce(
-      [](base::WeakPtr<PagedAppsGridView> weak_ptr) {
-        if (!weak_ptr)
-          return;
-
-        weak_ptr->lock_opacity_ = false;
-      },
-      weak_ptr_factory_.GetWeakPtr());
-  return base::ScopedClosureRunner(std::move(reset_closure));
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 // PaginationModelObserver:
 
@@ -647,6 +636,10 @@ void PagedAppsGridView::ScrollStarted() {
 void PagedAppsGridView::ScrollEnded() {
   // Scroll can end without triggering state animation.
   presentation_time_recorder_.reset();
+}
+
+bool PagedAppsGridView::ShouldContainerHandleDragEvents() {
+  return true;
 }
 
 bool PagedAppsGridView::DoesIntersectRect(const views::View* target,
@@ -817,6 +810,7 @@ void PagedAppsGridView::AnimateCardifiedState() {
     base::AutoReset<bool> auto_reset(&ignore_layout_, true);
     GetWidget()->LayoutRootViewIfNecessary();
   }
+  is_animating_cardified_state_ = true;
 
   // Resizing of AppListItemView icons can invalidate layout and cause a layout
   // while exiting cardified state. Keep ignoring layouts when exiting
@@ -967,6 +961,8 @@ void PagedAppsGridView::AnimateAppListItemsForCardifiedState(
 }
 
 void PagedAppsGridView::OnCardifiedStateAnimationDone() {
+  is_animating_cardified_state_ = false;
+
   DestroyLayerItemsIfNotNeeded();
 
   if (layer()->opacity() == 0.0f)

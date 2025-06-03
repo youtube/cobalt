@@ -10,15 +10,16 @@
 
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
-#include "build/build_config.h"
-#include "build/buildflag.h"
-#include "components/attribution_reporting/registration_type.mojom-shared.h"
+#include "base/uuid.h"
+#include "components/attribution_reporting/os_registration.h"
+#include "components/attribution_reporting/registration_eligibility.mojom-shared.h"
 #include "components/attribution_reporting/source_registration.h"
 #include "components/attribution_reporting/suitable_origin.h"
+#include "components/attribution_reporting/test_utils.h"
 #include "components/attribution_reporting/trigger_registration.h"
 #include "mojo/public/cpp/bindings/associated_receiver.h"
 #include "services/network/public/cpp/features.h"
-#include "services/network/public/cpp/trigger_attestation.h"
+#include "services/network/public/cpp/trigger_verification.h"
 #include "services/network/public/mojom/attribution.mojom-blink.h"
 #include "services/network/public/mojom/referrer_policy.mojom-blink.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -27,6 +28,7 @@
 #include "third_party/blink/public/mojom/conversions/attribution_data_host.mojom-blink.h"
 #include "third_party/blink/public/mojom/conversions/conversions.mojom-blink.h"
 #include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom-blink.h"
+#include "third_party/blink/public/platform/web_runtime_features.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/execution_context/security_context.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
@@ -40,7 +42,6 @@
 #include "third_party/blink/renderer/platform/loader/fetch/resource_request.h"
 #include "third_party/blink/renderer/platform/loader/fetch/url_loader/url_loader_factory.h"
 #include "third_party/blink/renderer/platform/loader/testing/mock_resource.h"
-#include "third_party/blink/renderer/platform/testing/testing_platform_support.h"
 #include "third_party/blink/renderer/platform/testing/unit_test_helpers.h"
 #include "third_party/blink/renderer/platform/testing/url_loader_mock_factory.h"
 #include "third_party/blink/renderer/platform/testing/url_test_helpers.h"
@@ -105,15 +106,19 @@ class MockDataHost : public mojom::blink::AttributionDataHost {
     return trigger_data_;
   }
 
-  const Vector<absl::optional<network::TriggerAttestation>>&
-  trigger_attestation() const {
-    return trigger_attestation_;
+  const Vector<Vector<network::TriggerVerification>>& trigger_verifications()
+      const {
+    return trigger_verifications_;
   }
 
-#if BUILDFLAG(IS_ANDROID)
-  const Vector<KURL>& os_sources() const { return os_sources_; }
-  const Vector<KURL>& os_triggers() const { return os_triggers_; }
-#endif
+  const std::vector<std::vector<attribution_reporting::OsRegistrationItem>>&
+  os_sources() const {
+    return os_sources_;
+  }
+  const std::vector<std::vector<attribution_reporting::OsRegistrationItem>>&
+  os_triggers() const {
+    return os_triggers_;
+  }
 
   size_t disconnects() const { return disconnects_; }
 
@@ -132,31 +137,33 @@ class MockDataHost : public mojom::blink::AttributionDataHost {
   void TriggerDataAvailable(
       attribution_reporting::SuitableOrigin reporting_origin,
       attribution_reporting::TriggerRegistration data,
-      absl::optional<network::TriggerAttestation> attestation) override {
+      Vector<network::TriggerVerification> verifications) override {
     trigger_data_.push_back(std::move(data));
-    trigger_attestation_.push_back(std::move(attestation));
+    trigger_verifications_.push_back(std::move(verifications));
   }
 
-#if BUILDFLAG(IS_ANDROID)
-  void OsSourceDataAvailable(const KURL& registration_url) override {
-    os_sources_.push_back(registration_url);
+  void OsSourceDataAvailable(
+      std::vector<attribution_reporting::OsRegistrationItem> registration_items)
+      override {
+    os_sources_.emplace_back(std::move(registration_items));
   }
 
-  void OsTriggerDataAvailable(const KURL& registration_url) override {
-    os_triggers_.push_back(registration_url);
+  void OsTriggerDataAvailable(
+      std::vector<attribution_reporting::OsRegistrationItem> registration_items)
+      override {
+    os_triggers_.emplace_back(std::move(registration_items));
   }
-#endif
 
   Vector<attribution_reporting::SourceRegistration> source_data_;
 
   Vector<attribution_reporting::TriggerRegistration> trigger_data_;
 
-  Vector<absl::optional<network::TriggerAttestation>> trigger_attestation_;
+  Vector<Vector<network::TriggerVerification>> trigger_verifications_;
 
-#if BUILDFLAG(IS_ANDROID)
-  Vector<KURL> os_sources_;
-  Vector<KURL> os_triggers_;
-#endif
+  std::vector<std::vector<attribution_reporting::OsRegistrationItem>>
+      os_sources_;
+  std::vector<std::vector<attribution_reporting::OsRegistrationItem>>
+      os_triggers_;
 
   size_t disconnects_ = 0;
   mojo::Receiver<mojom::blink::AttributionDataHost> receiver_{this};
@@ -174,8 +181,9 @@ class MockAttributionHost : public mojom::blink::AttributionHost {
   ~MockAttributionHost() override = default;
 
   void WaitUntilBoundAndFlush() {
-    if (receiver_.is_bound())
+    if (receiver_.is_bound()) {
       return;
+    }
     base::RunLoop wait_loop;
     quit_ = wait_loop.QuitClosure();
     wait_loop.Run();
@@ -189,13 +197,14 @@ class MockAttributionHost : public mojom::blink::AttributionHost {
     receiver_.Bind(
         mojo::PendingAssociatedReceiver<mojom::blink::AttributionHost>(
             std::move(handle)));
-    if (quit_)
+    if (quit_) {
       std::move(quit_).Run();
+    }
   }
 
   void RegisterDataHost(
       mojo::PendingReceiver<mojom::blink::AttributionDataHost> data_host,
-      attribution_reporting::mojom::RegistrationType) override {
+      attribution_reporting::mojom::RegistrationEligibility) override {
     mock_data_host_ = std::make_unique<MockDataHost>(std::move(data_host));
   }
 
@@ -207,16 +216,6 @@ class MockAttributionHost : public mojom::blink::AttributionHost {
   base::OnceClosure quit_;
 
   std::unique_ptr<MockDataHost> mock_data_host_;
-};
-
-class AttributionTestingPlatformSupport : public TestingPlatformSupport {
- public:
-  network::mojom::AttributionSupport GetAttributionReportingSupport() override {
-    return attribution_support;
-  }
-
-  network::mojom::AttributionSupport attribution_support =
-      network::mojom::AttributionSupport::kWeb;
 };
 
 class AttributionSrcLoaderTest : public PageTestBase {
@@ -250,7 +249,6 @@ class AttributionSrcLoaderTest : public PageTestBase {
   }
 
  protected:
-  ScopedTestingPlatformSupport<AttributionTestingPlatformSupport> platform_;
   Persistent<AttributionSrcLocalFrameClient> client_;
   Persistent<AttributionSrcLoader> attribution_src_loader_;
 };
@@ -264,7 +262,7 @@ TEST_F(AttributionSrcLoaderTest, RegisterTriggerWithoutEligibleHeader) {
   response.SetHttpStatusCode(200);
   response.SetHttpHeaderField(
       http_names::kAttributionReportingRegisterTrigger,
-      R"({"event_trigger_data":[{"trigger_data": "7"}]})");
+      AtomicString(R"({"event_trigger_data":[{"trigger_data": "7"}]})"));
 
   MockAttributionHost host(
       GetFrame().GetRemoteNavigationAssociatedInterfaces());
@@ -277,8 +275,9 @@ TEST_F(AttributionSrcLoaderTest, RegisterTriggerWithoutEligibleHeader) {
 
   mock_data_host->Flush();
   EXPECT_EQ(mock_data_host->trigger_data().size(), 1u);
-  ASSERT_EQ(mock_data_host->trigger_attestation().size(), 1u);
-  ASSERT_FALSE(mock_data_host->trigger_attestation().at(0).has_value());
+  ASSERT_EQ(mock_data_host->trigger_verifications().size(), 1u);
+  ASSERT_THAT(mock_data_host->trigger_verifications().at(0),
+              testing::IsEmpty());
 }
 
 // TODO(https://crbug.com/1412566): Improve tests to properly cover the
@@ -294,7 +293,7 @@ TEST_F(AttributionSrcLoaderTest, RegisterTriggerWithTriggerHeader) {
   response.SetHttpStatusCode(200);
   response.SetHttpHeaderField(
       http_names::kAttributionReportingRegisterTrigger,
-      R"({"event_trigger_data":[{"trigger_data": "7"}]})");
+      AtomicString(R"({"event_trigger_data":[{"trigger_data": "7"}]})"));
 
   MockAttributionHost host(
       GetFrame().GetRemoteNavigationAssociatedInterfaces());
@@ -320,7 +319,7 @@ TEST_F(AttributionSrcLoaderTest, RegisterTriggerWithSourceTriggerHeader) {
   response.SetHttpStatusCode(200);
   response.SetHttpHeaderField(
       http_names::kAttributionReportingRegisterTrigger,
-      R"({"event_trigger_data":[{"trigger_data": "7"}]})");
+      AtomicString(R"({"event_trigger_data":[{"trigger_data": "7"}]})"));
 
   MockAttributionHost host(
       GetFrame().GetRemoteNavigationAssociatedInterfaces());
@@ -346,15 +345,15 @@ TEST_F(AttributionSrcLoaderTest, RegisterTriggerOsHeadersIgnored) {
   response.SetHttpStatusCode(200);
   response.SetHttpHeaderField(
       http_names::kAttributionReportingRegisterTrigger,
-      R"({"event_trigger_data":[{"trigger_data": "7"}]})");
+      AtomicString(R"({"event_trigger_data":[{"trigger_data": "7"}]})"));
 
   // These should be ignored because the relevant feature is disabled by
   // default.
   response.SetHttpHeaderField(http_names::kAttributionReportingRegisterOSSource,
-                              R"("https://r.test/x")");
+                              AtomicString(R"("https://r.test/x")"));
   response.SetHttpHeaderField(
       http_names::kAttributionReportingRegisterOSTrigger,
-      R"("https://r.test/y")");
+      AtomicString(R"("https://r.test/y")"));
 
   MockAttributionHost host(
       GetFrame().GetRemoteNavigationAssociatedInterfaces());
@@ -369,7 +368,7 @@ TEST_F(AttributionSrcLoaderTest, RegisterTriggerOsHeadersIgnored) {
   EXPECT_EQ(mock_data_host->trigger_data().size(), 1u);
 }
 
-TEST_F(AttributionSrcLoaderTest, RegisterTriggerWithAttestation) {
+TEST_F(AttributionSrcLoaderTest, RegisterTriggerWithVerifications) {
   KURL test_url = ToKURL("https://example1.com/foo.html");
 
   ResourceRequest request(test_url);
@@ -378,12 +377,15 @@ TEST_F(AttributionSrcLoaderTest, RegisterTriggerWithAttestation) {
   response.SetHttpStatusCode(200);
   response.SetHttpHeaderField(
       http_names::kAttributionReportingRegisterTrigger,
-      R"({"event_trigger_data":[{"trigger_data": "7"}]})");
+      AtomicString(R"({"event_trigger_data":[{"trigger_data": "7"}]})"));
 
-  absl::optional<network::TriggerAttestation> trigger_attestation =
-      network::TriggerAttestation::Create(
-          "token", "08fa6760-8e5c-4ccb-821d-b5d82bef2b37");
-  response.SetTriggerAttestation(trigger_attestation);
+  response.SetTriggerVerifications(
+      {*network::TriggerVerification::Create(
+           "token-1",
+           base::Uuid::ParseLowercase("11fa6760-8e5c-4ccb-821d-b5d82bef2b37")),
+       *network::TriggerVerification::Create(
+           "token-2", base::Uuid::ParseLowercase(
+                          "22fa6760-8e5c-4ccb-821d-b5d82bef2b37"))});
 
   MockAttributionHost host(
       GetFrame().GetRemoteNavigationAssociatedInterfaces());
@@ -396,16 +398,16 @@ TEST_F(AttributionSrcLoaderTest, RegisterTriggerWithAttestation) {
   ASSERT_TRUE(mock_data_host);
   mock_data_host->Flush();
 
-  ASSERT_EQ(mock_data_host->trigger_attestation().size(), 1u);
-  ASSERT_TRUE(mock_data_host->trigger_attestation().at(0).has_value());
-  EXPECT_EQ(mock_data_host->trigger_attestation().at(0).value().token(),
-            "token");
-  EXPECT_EQ(mock_data_host->trigger_attestation()
-                .at(0)
-                .value()
-                .aggregatable_report_id()
-                .AsLowercaseString(),
-            "08fa6760-8e5c-4ccb-821d-b5d82bef2b37");
+  ASSERT_EQ(mock_data_host->trigger_verifications().size(), 1u);
+  const Vector<network::TriggerVerification>& verifications =
+      mock_data_host->trigger_verifications().at(0);
+  ASSERT_EQ(verifications.size(), 2u);
+  EXPECT_EQ(verifications.at(0).token(), "token-1");
+  EXPECT_EQ(verifications.at(0).aggregatable_report_id().AsLowercaseString(),
+            "11fa6760-8e5c-4ccb-821d-b5d82bef2b37");
+  EXPECT_EQ(verifications.at(1).token(), "token-2");
+  EXPECT_EQ(verifications.at(1).aggregatable_report_id().AsLowercaseString(),
+            "22fa6760-8e5c-4ccb-821d-b5d82bef2b37");
 }
 
 TEST_F(AttributionSrcLoaderTest, AttributionSrcRequestsIgnored) {
@@ -418,7 +420,7 @@ TEST_F(AttributionSrcLoaderTest, AttributionSrcRequestsIgnored) {
   response.SetHttpStatusCode(200);
   response.SetHttpHeaderField(
       http_names::kAttributionReportingRegisterTrigger,
-      R"({"event_trigger_data":[{"trigger_data": "7"}]})");
+      AtomicString(R"({"event_trigger_data":[{"trigger_data": "7"}]})"));
 
   EXPECT_FALSE(attribution_src_loader_->MaybeRegisterAttributionHeaders(
       request, response, resource));
@@ -438,7 +440,7 @@ TEST_F(AttributionSrcLoaderTest, AttributionSrcRequestsInvalidEligibleHeaders) {
 
   for (const char* header : header_values) {
     response.SetHttpHeaderField(
-        http_names::kAttributionReportingRegisterTrigger, header);
+        http_names::kAttributionReportingRegisterTrigger, AtomicString(header));
 
     EXPECT_FALSE(attribution_src_loader_->MaybeRegisterAttributionHeaders(
         request, response, resource))
@@ -452,13 +454,13 @@ TEST_F(AttributionSrcLoaderTest, AttributionSrcRequestStatusHistogram) {
   KURL url1 = ToKURL(kUrl);
   RegisterMockedURLLoad(url1, test::CoreTestDataPath("foo.html"));
 
-  attribution_src_loader_->Register(kUrl, /*element=*/nullptr);
+  attribution_src_loader_->Register(AtomicString(kUrl), /*element=*/nullptr);
 
   static constexpr char kUrl2[] = "https://example2.com/foo.html";
   KURL url2 = ToKURL(kUrl2);
   RegisterMockedErrorURLLoad(url2);
 
-  attribution_src_loader_->Register(kUrl2, /*element=*/nullptr);
+  attribution_src_loader_->Register(AtomicString(kUrl2), /*element=*/nullptr);
 
   // kRequested = 0.
   histograms.ExpectUniqueSample("Conversions.AttributionSrcRequestStatus", 0,
@@ -477,7 +479,7 @@ TEST_F(AttributionSrcLoaderTest, Referrer) {
   KURL url = ToKURL("https://example1.com/foo.html");
   RegisterMockedURLLoad(url, test::CoreTestDataPath("foo.html"));
 
-  attribution_src_loader_->Register(kUrl, /*element=*/nullptr);
+  attribution_src_loader_->Register(AtomicString(kUrl), /*element=*/nullptr);
 
   url_test_helpers::ServeAsynchronousRequests();
 
@@ -490,15 +492,17 @@ TEST_F(AttributionSrcLoaderTest, EligibleHeader_Register) {
   KURL url = ToKURL(kUrl);
   RegisterMockedURLLoad(url, test::CoreTestDataPath("foo.html"));
 
-  attribution_src_loader_->Register(kUrl, /*element=*/nullptr);
+  attribution_src_loader_->Register(AtomicString(kUrl), /*element=*/nullptr);
 
   url_test_helpers::ServeAsynchronousRequests();
 
   EXPECT_EQ(client_->request_head().GetAttributionReportingEligibility(),
             AttributionReportingEligibility::kEventSourceOrTrigger);
 
+  EXPECT_FALSE(client_->request_head().GetAttributionSrcToken());
+
   EXPECT_TRUE(client_->request_head()
-                  .HttpHeaderField(kAttributionReportingSupport)
+                  .HttpHeaderField(AtomicString(kAttributionReportingSupport))
                   .IsNull());
 }
 
@@ -507,16 +511,19 @@ TEST_F(AttributionSrcLoaderTest, EligibleHeader_RegisterNavigation) {
   RegisterMockedURLLoad(url, test::CoreTestDataPath("foo.html"));
 
   std::ignore = attribution_src_loader_->RegisterNavigation(
-      /*navigation_url=*/KURL(), /*attribution_src=*/kUrl,
-      /*element=*/MakeGarbageCollected<HTMLAnchorElement>(GetDocument()));
+      /*navigation_url=*/KURL(), /*attribution_src=*/AtomicString(kUrl),
+      /*element=*/MakeGarbageCollected<HTMLAnchorElement>(GetDocument()),
+      /*has_transient_user_activation=*/true);
 
   url_test_helpers::ServeAsynchronousRequests();
 
   EXPECT_EQ(client_->request_head().GetAttributionReportingEligibility(),
             AttributionReportingEligibility::kNavigationSource);
 
+  EXPECT_TRUE(client_->request_head().GetAttributionSrcToken());
+
   EXPECT_TRUE(client_->request_head()
-                  .HttpHeaderField(kAttributionReportingSupport)
+                  .HttpHeaderField(AtomicString(kAttributionReportingSupport))
                   .IsNull());
 }
 
@@ -530,7 +537,7 @@ TEST_F(AttributionSrcLoaderTest, EagerlyClosesRemote) {
 
   MockAttributionHost host(
       GetFrame().GetRemoteNavigationAssociatedInterfaces());
-  attribution_src_loader_->Register(kUrl, /*element=*/nullptr);
+  attribution_src_loader_->Register(AtomicString(kUrl), /*element=*/nullptr);
   host.WaitUntilBoundAndFlush();
   url_test_helpers::ServeAsynchronousRequests();
 
@@ -539,10 +546,8 @@ TEST_F(AttributionSrcLoaderTest, EagerlyClosesRemote) {
   EXPECT_EQ(mock_data_host->disconnects(), 1u);
 }
 
-#if BUILDFLAG(IS_ANDROID)
-
 TEST_F(AttributionSrcLoaderTest, NoneSupported_CannotRegister) {
-  platform_->attribution_support = network::mojom::AttributionSupport::kNone;
+  GetPage().SetAttributionSupport(network::mojom::AttributionSupport::kNone);
 
   KURL test_url = ToKURL("https://example1.com/foo.html");
 
@@ -556,15 +561,14 @@ TEST_F(AttributionSrcLoaderTest, WebDisabled_TriggerNotRegistered) {
 
   for (auto attribution_support : {network::mojom::AttributionSupport::kNone,
                                    network::mojom::AttributionSupport::kOs}) {
-    platform_->attribution_support = attribution_support;
-
     ResourceRequest request(test_url);
+    request.SetAttributionReportingSupport(attribution_support);
     auto* resource = MakeGarbageCollected<MockResource>(test_url);
     ResourceResponse response(test_url);
     response.SetHttpStatusCode(200);
     response.SetHttpHeaderField(
         http_names::kAttributionReportingRegisterTrigger,
-        R"({"event_trigger_data":[{"trigger_data": "7"}]})");
+        AtomicString(R"({"event_trigger_data":[{"trigger_data": "7"}]})"));
 
     MockAttributionHost host(
         GetFrame().GetRemoteNavigationAssociatedInterfaces());
@@ -580,68 +584,53 @@ TEST_F(AttributionSrcLoaderTest, WebDisabled_TriggerNotRegistered) {
   }
 }
 
-#endif
+TEST_F(AttributionSrcLoaderTest, HeadersSize_RecordsMetrics) {
+  base::HistogramTester histograms;
+  KURL test_url = ToKURL("https://example1.com/foo.html");
+  AtomicString register_trigger_json(
+      R"({"event_trigger_data":[{"trigger_data": "7"}]})");
+  AtomicString register_source_json(
+      R"({"source_event_id":"5","destination":"https://destination.example"})");
 
-class AttributionSrcLoaderCrossAppWebEnabledTest
+  ResourceRequest request(test_url);
+  request.SetAttributionReportingEligibility(
+      AttributionReportingEligibility::kTrigger);
+  auto* resource = MakeGarbageCollected<MockResource>(test_url);
+  ResourceResponse response(test_url);
+  response.SetHttpStatusCode(200);
+  response.SetHttpHeaderField(http_names::kAttributionReportingRegisterTrigger,
+                              register_trigger_json);
+
+  attribution_src_loader_->MaybeRegisterAttributionHeaders(request, response,
+                                                           resource);
+  histograms.ExpectUniqueSample("Conversions.HeadersSize.RegisterTrigger",
+                                register_trigger_json.length(), 1);
+
+  request.SetAttributionReportingEligibility(
+      AttributionReportingEligibility::kEventSource);
+  response.SetHttpHeaderField(http_names::kAttributionReportingRegisterSource,
+                              register_source_json);
+
+  attribution_src_loader_->MaybeRegisterAttributionHeaders(request, response,
+                                                           resource);
+  histograms.ExpectUniqueSample("Conversions.HeadersSize.RegisterSource",
+                                register_source_json.length(), 1);
+}
+
+class AttributionSrcLoaderCrossAppWebRuntimeDisabledTest
     : public AttributionSrcLoaderTest {
  public:
-  AttributionSrcLoaderCrossAppWebEnabledTest() = default;
+  AttributionSrcLoaderCrossAppWebRuntimeDisabledTest() = default;
 
  private:
   base::test::ScopedFeatureList scoped_feature_list_{
       network::features::kAttributionReportingCrossAppWeb};
-
- protected:
-  ScopedTestingPlatformSupport<AttributionTestingPlatformSupport> platform_;
 };
 
-TEST_F(AttributionSrcLoaderCrossAppWebEnabledTest, SupportHeader_Register) {
-#if BUILDFLAG(IS_ANDROID)
-  auto attribution_support = network::mojom::AttributionSupport::kWebAndOs;
-#else
-  auto attribution_support = network::mojom::AttributionSupport::kWeb;
-#endif
-
-  platform_->attribution_support = attribution_support;
-
-  KURL url = ToKURL(kUrl);
-  RegisterMockedURLLoad(url, test::CoreTestDataPath("foo.html"));
-
-  attribution_src_loader_->Register(kUrl, /*element=*/nullptr);
-
-  url_test_helpers::ServeAsynchronousRequests();
-
-  EXPECT_EQ(client_->request_head().GetAttributionReportingSupport(),
-            attribution_support);
-}
-
-TEST_F(AttributionSrcLoaderCrossAppWebEnabledTest,
-       SupportHeader_RegisterNavigation) {
-#if BUILDFLAG(IS_ANDROID)
-  auto attribution_support = network::mojom::AttributionSupport::kWebAndOs;
-#else
-  auto attribution_support = network::mojom::AttributionSupport::kWeb;
-#endif
-
-  platform_->attribution_support = attribution_support;
-
-  KURL url = ToKURL(kUrl);
-  RegisterMockedURLLoad(url, test::CoreTestDataPath("foo.html"));
-
-  std::ignore = attribution_src_loader_->RegisterNavigation(
-      /*navigation_url=*/KURL(), /*attribution_src=*/kUrl,
-      /*element=*/MakeGarbageCollected<HTMLAnchorElement>(GetDocument()));
-
-  url_test_helpers::ServeAsynchronousRequests();
-
-  EXPECT_EQ(client_->request_head().GetAttributionReportingSupport(),
-            attribution_support);
-}
-
-#if BUILDFLAG(IS_ANDROID)
-TEST_F(AttributionSrcLoaderCrossAppWebEnabledTest, RegisterOsTrigger) {
-  platform_->attribution_support =
-      network::mojom::AttributionSupport::kWebAndOs;
+TEST_F(AttributionSrcLoaderCrossAppWebRuntimeDisabledTest,
+       OsTriggerNotRegistered) {
+  GetPage().SetAttributionSupport(
+      network::mojom::AttributionSupport::kWebAndOs);
 
   KURL test_url = ToKURL("https://example1.com/foo.html");
 
@@ -651,7 +640,73 @@ TEST_F(AttributionSrcLoaderCrossAppWebEnabledTest, RegisterOsTrigger) {
   response.SetHttpStatusCode(200);
   response.SetHttpHeaderField(
       http_names::kAttributionReportingRegisterOSTrigger,
-      R"("https://r.test/x")");
+      AtomicString(R"("https://r.test/x")"));
+
+  EXPECT_FALSE(attribution_src_loader_->MaybeRegisterAttributionHeaders(
+      request, response, resource));
+}
+
+class AttributionSrcLoaderCrossAppWebEnabledTest
+    : public AttributionSrcLoaderTest {
+ public:
+  AttributionSrcLoaderCrossAppWebEnabledTest() {
+    WebRuntimeFeatures::EnableFeatureFromString(
+        /*name=*/"AttributionReportingCrossAppWeb", /*enable=*/true);
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_{
+      network::features::kAttributionReportingCrossAppWeb};
+};
+
+TEST_F(AttributionSrcLoaderCrossAppWebEnabledTest, SupportHeader_Register) {
+  auto attribution_support = network::mojom::AttributionSupport::kWebAndOs;
+
+  GetPage().SetAttributionSupport(attribution_support);
+
+  KURL url = ToKURL(kUrl);
+  RegisterMockedURLLoad(url, test::CoreTestDataPath("foo.html"));
+
+  attribution_src_loader_->Register(AtomicString(kUrl), /*element=*/nullptr);
+
+  url_test_helpers::ServeAsynchronousRequests();
+
+  EXPECT_EQ(client_->request_head().GetAttributionReportingSupport(),
+            attribution_support);
+}
+
+TEST_F(AttributionSrcLoaderCrossAppWebEnabledTest,
+       SupportHeader_RegisterNavigation) {
+  auto attribution_support = network::mojom::AttributionSupport::kWebAndOs;
+
+  GetPage().SetAttributionSupport(attribution_support);
+
+  KURL url = ToKURL(kUrl);
+  RegisterMockedURLLoad(url, test::CoreTestDataPath("foo.html"));
+
+  std::ignore = attribution_src_loader_->RegisterNavigation(
+      /*navigation_url=*/KURL(), /*attribution_src=*/AtomicString(kUrl),
+      /*element=*/MakeGarbageCollected<HTMLAnchorElement>(GetDocument()),
+      /*has_transient_user_activation=*/true);
+
+  url_test_helpers::ServeAsynchronousRequests();
+
+  EXPECT_EQ(client_->request_head().GetAttributionReportingSupport(),
+            attribution_support);
+}
+
+TEST_F(AttributionSrcLoaderCrossAppWebEnabledTest, RegisterOsTrigger) {
+  KURL test_url = ToKURL("https://example1.com/foo.html");
+
+  ResourceRequest request(test_url);
+  request.SetAttributionReportingSupport(
+      network::mojom::AttributionSupport::kWebAndOs);
+  auto* resource = MakeGarbageCollected<MockResource>(test_url);
+  ResourceResponse response(test_url);
+  response.SetHttpStatusCode(200);
+  response.SetHttpHeaderField(
+      http_names::kAttributionReportingRegisterOSTrigger,
+      AtomicString(R"("https://r.test/x")"));
 
   MockAttributionHost host(
       GetFrame().GetRemoteNavigationAssociatedInterfaces());
@@ -664,9 +719,44 @@ TEST_F(AttributionSrcLoaderCrossAppWebEnabledTest, RegisterOsTrigger) {
 
   mock_data_host->Flush();
   EXPECT_THAT(mock_data_host->os_triggers(),
-              ::testing::ElementsAre(KURL("https://r.test/x")));
+              ::testing::ElementsAre(::testing::ElementsAre(
+                  attribution_reporting::OsRegistrationItem{
+                      .url = GURL("https://r.test/x")})));
 }
-#endif  // BUILDFLAG(IS_ANDROID)
+
+TEST_F(AttributionSrcLoaderCrossAppWebEnabledTest,
+       HeadersSize_OsMetricsRecorded) {
+  base::HistogramTester histograms;
+  GetPage().SetAttributionSupport(
+      network::mojom::AttributionSupport::kWebAndOs);
+
+  KURL test_url = ToKURL("https://example1.com/foo.html");
+  AtomicString os_registration(R"("https://r.test/x")");
+
+  ResourceRequest request(test_url);
+  request.SetAttributionReportingEligibility(
+      AttributionReportingEligibility::kTrigger);
+  auto* resource = MakeGarbageCollected<MockResource>(test_url);
+  ResourceResponse response(test_url);
+  response.SetHttpStatusCode(200);
+  response.SetHttpHeaderField(
+      http_names::kAttributionReportingRegisterOSTrigger, os_registration);
+
+  EXPECT_TRUE(attribution_src_loader_->MaybeRegisterAttributionHeaders(
+      request, response, resource));
+  histograms.ExpectUniqueSample("Conversions.HeadersSize.RegisterOsTrigger",
+                                os_registration.length(), 1);
+
+  request.SetAttributionReportingEligibility(
+      AttributionReportingEligibility::kEventSource);
+  response.SetHttpHeaderField(http_names::kAttributionReportingRegisterOSSource,
+                              os_registration);
+
+  EXPECT_TRUE(attribution_src_loader_->MaybeRegisterAttributionHeaders(
+      request, response, resource));
+  histograms.ExpectUniqueSample("Conversions.HeadersSize.RegisterOsSource",
+                                os_registration.length(), 1);
+}
 
 }  // namespace
 }  // namespace blink

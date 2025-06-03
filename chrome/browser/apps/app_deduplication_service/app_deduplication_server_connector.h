@@ -7,11 +7,11 @@
 
 #include <memory>
 #include <string>
-#include <vector>
 
 #include "base/functional/callback_forward.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
+#include "chrome/browser/apps/almanac_api_client/device_info_manager.h"
 #include "chrome/browser/apps/app_deduplication_service/proto/deduplication_data.pb.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
@@ -42,6 +42,7 @@ class AppDeduplicationServerConnector {
   // Fetches a list of duplicate app groups from the App Deduplication Service
   // endpoint in the Fondue server.
   void GetDeduplicateAppsFromServer(
+      const DeviceInfo& device_info,
       scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
       GetDeduplicateAppsCallback callback);
 

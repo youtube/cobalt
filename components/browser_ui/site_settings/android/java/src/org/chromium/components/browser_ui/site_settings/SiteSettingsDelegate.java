@@ -66,9 +66,9 @@ public interface SiteSettingsDelegate {
     boolean isPrivacySandboxFirstPartySetsUIFeatureEnabled();
 
     /**
-     * @return true if the PrivacySandboxSettings4 feature is enabled.
+     * @return true if the UserBypassUI feature is enabled.
      */
-    boolean isPrivacySandboxSettings4Enabled();
+    boolean isUserBypassUIEnabled();
 
     /**
      * @return The id of the notification channel associated with the given origin.
@@ -114,6 +114,9 @@ public interface SiteSettingsDelegate {
      */
     void launchProtectedContentHelpAndFeedbackActivity(Activity currentActivity);
 
+    /** Launches the Storage Access API help center link in a Chrome Custom Tab. */
+    void launchStorageAccessHelpActivity(Activity currentActivity);
+
     /**
      * @return The set of all origins that have a WebAPK or TWA installed.
      */
@@ -152,6 +155,16 @@ public interface SiteSettingsDelegate {
     boolean isPartOfManagedFirstPartySet(String origin);
 
     /***
+     * @return true if the Tracking Protection UI should be displayed.
+     */
+    boolean shouldShowTrackingProtectionUI();
+
+    /***
+     * @return true if all third-party cookies are blocked when Tracking Protection is on.
+     */
+    boolean isBlockAll3PCDEnabledInTrackingProtection();
+
+    /***
      * @return Enables/disables First Party Sets data access.
      */
     void setFirstPartySetsDataAccessEnabled(boolean enabled);
@@ -183,4 +196,9 @@ public interface SiteSettingsDelegate {
      * Called when the view this delegate is assigned to gets destroyed.
      */
     void onDestroyView();
+
+    /**
+     * @return whether the Tracking Protection offboarding notice should be shown in the Settings.
+     */
+    boolean shouldShowSettingsOffboardingNotice();
 }

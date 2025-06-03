@@ -37,24 +37,16 @@ import org.chromium.content.browser.webcontents.WebContentsImpl.UserDataFactory;
 import org.chromium.content_public.browser.GestureStateListener;
 import org.chromium.ui.base.ViewAndroidDelegate;
 
-/**
- * Unit test for {@link GestureListenerManagerImpl}.
- */
+/** Unit test for {@link GestureListenerManagerImpl}. */
 @RunWith(BaseRobolectricTestRunner.class)
 public class GestureListenerManagerImplUnitTest {
-    @Rule
-    public MockitoRule mMockitoRule = MockitoJUnit.rule();
-    @Rule
-    public JniMocker mJniMocker = new JniMocker();
+    @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
+    @Rule public JniMocker mJniMocker = new JniMocker();
 
-    @Mock
-    WebContentsImpl mWebContents;
-    @Mock
-    ViewGroup mViewGroup;
-    @Mock
-    GestureListenerManagerImpl.Natives mMockJniGestureListenerManager;
-    @Mock
-    GestureStateListener mGestureStateListener;
+    @Mock WebContentsImpl mWebContents;
+    @Mock ViewGroup mViewGroup;
+    @Mock GestureListenerManagerImpl.Natives mMockJniGestureListenerManager;
+    @Mock GestureStateListener mGestureStateListener;
 
     private GestureListenerManagerImpl mGestureManager;
 
@@ -92,16 +84,25 @@ public class GestureListenerManagerImplUnitTest {
         Assert.assertTrue("Scroll should started.", mGestureManager.isScrollInProgress());
         verify(mGestureStateListener).onScrollStarted(anyInt(), anyInt(), eq(true));
 
-        mGestureManager.onEventAck(EventType.GESTURE_SCROLL_UPDATE, /*consumed*/ true,
-                /*scrollOffsetX*/ 0.f, /*scrollOffsetY*/ 1.f);
+        mGestureManager.onEventAck(
+                EventType.GESTURE_SCROLL_UPDATE,
+                /* consumed= */ true,
+                /* scrollOffsetX= */ 0.f,
+                /* scrollOffsetY= */ 1.f);
         verify(mGestureStateListener).onScrollUpdateGestureConsumed(eq(new Point(0, 1)));
         Mockito.reset(mGestureStateListener);
-        mGestureManager.onEventAck(EventType.GESTURE_SCROLL_UPDATE, /*consumed*/ true,
-                /*scrollOffsetX*/ 1.f, /*scrollOffsetY*/ 0.f);
+        mGestureManager.onEventAck(
+                EventType.GESTURE_SCROLL_UPDATE,
+                /* consumed= */ true,
+                /* scrollOffsetX= */ 1.f,
+                /* scrollOffsetY= */ 0.f);
         verify(mGestureStateListener).onScrollUpdateGestureConsumed(eq(new Point(1, 0)));
 
-        mGestureManager.onEventAck(EventType.GESTURE_SCROLL_END, /*consumed*/ true,
-                /*scrollOffsetX*/ 0.f, /*scrollOffsetY*/ 0.f);
+        mGestureManager.onEventAck(
+                EventType.GESTURE_SCROLL_END,
+                /* consumed= */ true,
+                /* scrollOffsetX= */ 0.f,
+                /* scrollOffsetY= */ 0.f);
         verify(mGestureStateListener).onScrollEnded(anyInt(), anyInt());
     }
 
@@ -132,17 +133,20 @@ public class GestureListenerManagerImplUnitTest {
     @Test
     public void updateFrequency() {
         // This will be ALL_UPDATES because of the listener we add in setup.
-        Assert.assertEquals(ALL_UPDATES, mGestureManager.getRootScrollOffsetUpdateFrequency());
+        Assert.assertEquals(
+                ALL_UPDATES, mGestureManager.getRootScrollOffsetUpdateFrequencyForTesting());
 
         // Adding listeners with lower frequency will not change the result.
         mGestureManager.addListener(new GestureStateListener() {}, NONE);
         mGestureManager.addListener(new GestureStateListener() {}, NONE);
         mGestureManager.addListener(new GestureStateListener() {}, ON_SCROLL_END);
-        Assert.assertEquals(ALL_UPDATES, mGestureManager.getRootScrollOffsetUpdateFrequency());
+        Assert.assertEquals(
+                ALL_UPDATES, mGestureManager.getRootScrollOffsetUpdateFrequencyForTesting());
 
         // Now, remove the ALL_UPDATES listener. This will leave us with ON_SCROLL_END.
         mGestureManager.removeListener(mGestureStateListener);
-        Assert.assertEquals(ON_SCROLL_END, mGestureManager.getRootScrollOffsetUpdateFrequency());
+        Assert.assertEquals(
+                ON_SCROLL_END, mGestureManager.getRootScrollOffsetUpdateFrequencyForTesting());
     }
 
     private void setupMockWebContents() {
@@ -153,15 +157,15 @@ public class GestureListenerManagerImplUnitTest {
         doReturn(renderCoordinates).when(mWebContents).getRenderCoordinates();
 
         // Setup UserData involved in the scrolling process.
-        doAnswer(invocation -> {
-            if (invocation.getArgument(0) == SelectionPopupControllerImpl.class) {
-                return SelectionPopupControllerImpl.createForTesting(mWebContents);
-            }
-            UserDataFactory factory = invocation.getArgument(1);
-            return factory.create(mWebContents);
-        })
+        doAnswer(
+                        invocation -> {
+                            if (invocation.getArgument(0) == SelectionPopupControllerImpl.class) {
+                                return SelectionPopupControllerImpl.createForTesting(mWebContents);
+                            }
+                            UserDataFactory factory = invocation.getArgument(1);
+                            return factory.create(mWebContents);
+                        })
                 .when(mWebContents)
-                .getOrSetUserData(/*key=*/any(),
-                        /*userDataFactory*/ any());
+                .getOrSetUserData(/* key= */ any(), /*userDataFactory*/ any());
     }
 }

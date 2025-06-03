@@ -5,23 +5,33 @@
 #ifndef CHROME_BROWSER_UI_VIEWS_SIDE_PANEL_SIDE_PANEL_COORDINATOR_H_
 #define CHROME_BROWSER_UI_VIEWS_SIDE_PANEL_SIDE_PANEL_COORDINATOR_H_
 
+#include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/observer_list.h"
 #include "base/scoped_multi_source_observation.h"
+#include "base/scoped_observation_traits.h"
 #include "base/time/time.h"
+#include "chrome/browser/ui/actions/chrome_action_id.h"
+#include "chrome/browser/ui/side_panel/side_panel_ui.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_entry.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_registry.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_registry_observer.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_util.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_view_state_observer.h"
-#include "extensions/common/extension_id.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
+#include "ui/actions/actions.h"
+#include "ui/views/controls/image_view.h"
+#include "ui/views/controls/label.h"
 #include "ui/views/view_observer.h"
 
 class Browser;
 class BrowserView;
 class SidePanelComboboxModel;
+
+namespace actions {
+class ActionItem;
+}  // namespace actions
 
 namespace views {
 class ImageButton;
@@ -43,7 +53,8 @@ class View;
 // determine what entry is seen when the panel is reopened.
 class SidePanelCoordinator final : public SidePanelRegistryObserver,
                                    public TabStripModelObserver,
-                                   public views::ViewObserver {
+                                   public views::ViewObserver,
+                                   public SidePanelUI {
  public:
   explicit SidePanelCoordinator(BrowserView* browser_view);
   SidePanelCoordinator(const SidePanelCoordinator&) = delete;
@@ -52,22 +63,31 @@ class SidePanelCoordinator final : public SidePanelRegistryObserver,
 
   static SidePanelRegistry* GetGlobalSidePanelRegistry(Browser* browser);
 
+  // SidePanelUI:
   void Show(absl::optional<SidePanelEntry::Id> entry_id = absl::nullopt,
             absl::optional<SidePanelUtil::SidePanelOpenTrigger> open_trigger =
-                absl::nullopt);
+                absl::nullopt) override;
   void Show(SidePanelEntry::Key entry_key,
             absl::optional<SidePanelUtil::SidePanelOpenTrigger> open_trigger =
-                absl::nullopt);
-  void Close();
-  void Toggle();
+                absl::nullopt) override;
+  void Close() override;
+  void Toggle() override;
+  void OpenInNewTab() override;
+  void UpdatePinState() override;
+  absl::optional<SidePanelEntry::Id> GetCurrentEntryId() const override;
+  bool IsSidePanelShowing() const override;
+  bool IsSidePanelEntryShowing(
+      const SidePanelEntry::Key& entry_key) const override;
 
-  // Opens the current side panel contents in a new tab. This is called by the
-  // header button, when it's visible.
-  void OpenInNewTab();
+  // TODO(crbug.com/1341399): Move this method to `SidePanelUI` after decoupling
+  // `SidePanelEntry` from views.
+  bool IsSidePanelEntryShowing(const SidePanelEntry* entry) const;
 
-  // Toggle the pin state. This is called by the header button, when it's
-  // visible.
-  void UpdatePinState();
+  // Re-runs open new tab URL check and sets button state to enabled/disabled
+  // accordingly.
+  void UpdateNewTabButtonState();
+
+  void UpdateHeaderPinButtonState();
 
   // Prevent content swapping delays from happening for testing.
   // This should be called before the side panel is first shown.
@@ -79,6 +99,8 @@ class SidePanelCoordinator final : public SidePanelRegistryObserver,
     return current_entry_.get();
   }
 
+  actions::ActionItem* GetActionItem(SidePanelEntry::Key entry_key);
+
   views::Combobox* GetComboboxForTesting() { return header_combobox_; }
 
   SidePanelComboboxModel* GetComboboxModelForTesting() {
@@ -89,28 +111,9 @@ class SidePanelCoordinator final : public SidePanelRegistryObserver,
     return header_pin_button_;
   }
 
-  absl::optional<SidePanelEntry::Id> GetCurrentEntryId() const;
-
   SidePanelEntry::Id GetComboboxDisplayedEntryIdForTesting() const;
 
   SidePanelEntry* GetLoadingEntryForTesting() const;
-
-  bool IsSidePanelShowing() const;
-
-  // Returns whether `entry_key` is currently being shown in the side panel.
-  // Note: this returns false if `entry` is current loading but not actually
-  // shown.
-  bool IsSidePanelEntryShowing(const SidePanelEntry::Key& entry_key) const;
-
-  // Returns whether `entry` is currently being shown in the side panel. Note:
-  // this returns false if `entry` is current loading but not actually shown.
-  bool IsSidePanelEntryShowing(const SidePanelEntry* entry) const;
-
-  // Re-runs open new tab URL check and sets button state to enabled/disabled
-  // accordingly.
-  void UpdateNewTabButtonState();
-
-  void UpdateHeaderPinButtonState();
 
   void AddSidePanelViewStateObserver(SidePanelViewStateObserver* observer);
 
@@ -122,6 +125,8 @@ class SidePanelCoordinator final : public SidePanelRegistryObserver,
                            ShowEmptyUserNoteSidePanel);
   FRIEND_TEST_ALL_PREFIXES(UserNoteUICoordinatorTest,
                            PopulateUserNoteSidePanel);
+  FRIEND_TEST_ALL_PREFIXES(SidePanelPinningCoordinatorTest,
+                           SidePanelTitleUpdates);
 
   // Unlike `Show()` which takes in a SidePanelEntry's id or key, this version
   // should only be used for the rare case when we need to show a particular
@@ -130,7 +135,7 @@ class SidePanelCoordinator final : public SidePanelRegistryObserver,
             absl::optional<SidePanelUtil::SidePanelOpenTrigger> open_trigger =
                 absl::nullopt);
 
-  views::View* GetContentView() const;
+  views::View* GetContentContainerView() const;
 
   // Returns the corresponding entry for `entry_key` or a nullptr if this key is
   // not registered in the currently observed registries. This looks through the
@@ -166,6 +171,9 @@ class SidePanelCoordinator final : public SidePanelRegistryObserver,
 
   void UpdateToolbarButtonHighlight(bool side_panel_visible);
 
+  void UpdatePanelIconAndTitle(const ui::ImageModel& icon,
+                               const std::u16string& text);
+
   // views::ViewObserver:
   void OnViewVisibilityChanged(views::View* observed_view,
                                views::View* starting_from) override;
@@ -173,10 +181,6 @@ class SidePanelCoordinator final : public SidePanelRegistryObserver,
   // Returns the last active entry or the default entry if no last active
   // entry exists.
   absl::optional<SidePanelEntry::Key> GetLastActiveEntryKey() const;
-
-  // Returns the last active global entry or the default entry if no last active
-  // global entry exists.
-  absl::optional<SidePanelEntry::Key> GetLastActiveGlobalEntryKey() const;
 
   // Returns the currently selected id in the combobox, if one is shown.
   absl::optional<SidePanelEntry::Key> GetSelectedKey() const;
@@ -191,6 +195,10 @@ class SidePanelCoordinator final : public SidePanelRegistryObserver,
   // allows us to make the entry displayed in the combobox follow the same
   // delays as the side panel content when there are delays for loading content.
   bool OnComboboxChangeTriggered(size_t index);
+
+  // Called before the combobox dropdown menu is about to show. Used to record
+  // the combobox shown metric.
+  void OnComboboxMenuWillShow();
 
   // Sets the entry corresponding to `entry_key` as selected in the combobox.
   void SetSelectedEntryInCombobox(const SidePanelEntry::Key& entry_key);
@@ -215,6 +223,9 @@ class SidePanelCoordinator final : public SidePanelRegistryObserver,
   // side panel.
   SidePanelEntry* GetNewActiveEntryOnTabChanged();
 
+  void NotifyPinnedContainerOfActiveStateChange(SidePanelEntryKey key,
+                                                bool is_active);
+
   // SidePanelRegistryObserver:
   void OnEntryRegistered(SidePanelRegistry* registry,
                          SidePanelEntry* entry) override;
@@ -238,9 +249,8 @@ class SidePanelCoordinator final : public SidePanelRegistryObserver,
   // to delays for loading content. This is used for metrics.
   base::TimeTicks opened_timestamp_;
 
-  const raw_ptr<BrowserView, DanglingUntriaged> browser_view_;
+  const raw_ptr<BrowserView, AcrossTasksDanglingUntriaged> browser_view_;
   raw_ptr<SidePanelRegistry> global_registry_;
-  absl::optional<SidePanelEntry::Key> last_active_global_entry_key_;
 
   // current_entry_ tracks the entry that currently has its view hosted by the
   // side panel. It is necessary as current_entry_ may belong to a contextual
@@ -255,21 +265,52 @@ class SidePanelCoordinator final : public SidePanelRegistryObserver,
   // Used to update SidePanelEntry options in the `header_combobox_` based on
   // their availability in the observed side panel registries.
   std::unique_ptr<SidePanelComboboxModel> combobox_model_;
-  raw_ptr<views::Combobox, DanglingUntriaged> header_combobox_ = nullptr;
+  raw_ptr<views::Combobox, AcrossTasksDanglingUntriaged> header_combobox_ =
+      nullptr;
+
+  // Used to update icon in the side panel header.
+  raw_ptr<views::ImageView, AcrossTasksDanglingUntriaged> panel_icon_ = nullptr;
+
+  // Used to update the displayed title in the side panel header.
+  raw_ptr<views::Label, AcrossTasksDanglingUntriaged> panel_title_ = nullptr;
 
   // Used to update the visibility of the 'Open in New Tab' header button.
-  raw_ptr<views::ImageButton, DanglingUntriaged>
+  raw_ptr<views::ImageButton, AcrossTasksDanglingUntriaged>
       header_open_in_new_tab_button_ = nullptr;
 
   // Used to update the visibility of the pin header button.
-  raw_ptr<views::ToggleImageButton, DanglingUntriaged> header_pin_button_ =
-      nullptr;
+  raw_ptr<views::ToggleImageButton, AcrossTasksDanglingUntriaged>
+      header_pin_button_ = nullptr;
 
   base::ObserverList<SidePanelViewStateObserver> view_state_observers_;
+
+  // Combobox menu subscription.
+  base::CallbackListSubscription on_menu_will_show_subscription_;
 
   base::ScopedMultiSourceObservation<SidePanelRegistry,
                                      SidePanelRegistryObserver>
       registry_observations_{this};
 };
+
+namespace base {
+
+// Since SidePanelCoordinator defines custom method names to add and remove
+// observers, we need define a new trait customization to use
+// `base::ScopedObservation` and `base::ScopedMultiSourceObservation`.
+// See `base/scoped_observation_traits.h` for more details.
+template <>
+struct ScopedObservationTraits<SidePanelCoordinator,
+                               SidePanelViewStateObserver> {
+  static void AddObserver(SidePanelCoordinator* source,
+                          SidePanelViewStateObserver* observer) {
+    source->AddSidePanelViewStateObserver(observer);
+  }
+  static void RemoveObserver(SidePanelCoordinator* source,
+                             SidePanelViewStateObserver* observer) {
+    source->RemoveSidePanelViewStateObserver(observer);
+  }
+};
+
+}  // namespace base
 
 #endif  // CHROME_BROWSER_UI_VIEWS_SIDE_PANEL_SIDE_PANEL_COORDINATOR_H_

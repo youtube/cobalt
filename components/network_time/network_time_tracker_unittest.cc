@@ -185,10 +185,10 @@ class NetworkTimeTrackerTest : public ::testing::Test {
   base::TimeDelta resolution_;
   base::TimeDelta latency_;
   base::TimeDelta adjustment_;
-  raw_ptr<base::SimpleTestClock> clock_;
-  raw_ptr<base::SimpleTestTickClock> tick_clock_;
   TestingPrefServiceSimple pref_service_;
   std::unique_ptr<NetworkTimeTracker> tracker_;
+  raw_ptr<base::SimpleTestClock> clock_;
+  raw_ptr<base::SimpleTestTickClock> tick_clock_;
   network::TestURLLoaderFactory url_loader_factory_;
   base::RepeatingCallback<MockedResponse()> response_handler_;
 
@@ -469,7 +469,8 @@ TEST_F(NetworkTimeTrackerTest, UpdateFromNetwork) {
   // Enabling load timing for the resource requests seems to increase accuracy
   // beyond milliseconds. Accuracy of GoodTimeResponseHandler is
   // milliseconds, any difference below 1 ms can therefore be ignored.
-  EXPECT_LT(base::Time::FromJsTime(kGoodTimeResponseHandlerJsTime[0]) -
+  EXPECT_LT(base::Time::FromMillisecondsSinceUnixEpoch(
+                kGoodTimeResponseHandlerJsTime[0]) -
                 out_network_time,
             base::Milliseconds(1));
   // Should see no backoff in the success case.
@@ -493,7 +494,8 @@ TEST_F(NetworkTimeTrackerTest, StartTimeFetch) {
   // Enabling load timing for the resource requests seems to increase accuracy
   // beyond milliseconds. Accuracy of GoodTimeResponseHandler is milliseconds,
   // any difference below 1 ms can therefore be ignored.
-  EXPECT_LT(base::Time::FromJsTime(kGoodTimeResponseHandlerJsTime[0]) -
+  EXPECT_LT(base::Time::FromMillisecondsSinceUnixEpoch(
+                kGoodTimeResponseHandlerJsTime[0]) -
                 out_network_time,
             base::Milliseconds(1));
   // Should see no backoff in the success case.
@@ -521,7 +523,8 @@ TEST_F(NetworkTimeTrackerTest, StartTimeFetchWithQueryInProgress) {
   // Enabling load timing for the resource requests seems to increase accuracy
   // beyond milliseconds. Accuracy of GoodTimeResponseHandler is milliseconds,
   // any difference below 1 ms can therefore be ignored.
-  EXPECT_LT(base::Time::FromJsTime(kGoodTimeResponseHandlerJsTime[0]) -
+  EXPECT_LT(base::Time::FromMillisecondsSinceUnixEpoch(
+                kGoodTimeResponseHandlerJsTime[0]) -
                 out_network_time,
             base::Milliseconds(1));
   // Should see no backoff in the success case.
@@ -783,7 +786,8 @@ MockedResponse MultipleGoodTimeResponseHandler::ResponseHandler() {
 base::Time MultipleGoodTimeResponseHandler::GetTimeAtIndex(unsigned int i) {
   if (i >= std::size(kGoodTimeResponseHandlerJsTime))
     return base::Time();
-  return base::Time::FromJsTime(kGoodTimeResponseHandlerJsTime[i]);
+  return base::Time::FromMillisecondsSinceUnixEpoch(
+      kGoodTimeResponseHandlerJsTime[i]);
 }
 
 }  // namespace
@@ -802,8 +806,8 @@ TEST_F(NetworkTimeTrackerTest, ClockSkewHistograms) {
       base::BindRepeating(&MultipleGoodTimeResponseHandler::ResponseHandler,
                           base::Unretained(&response_handler)));
 
-  clock_->SetNow(
-      base::Time::FromJsTime(kGoodTimeResponseHandlerJsTime[0] + 3500));
+  clock_->SetNow(base::Time::FromMillisecondsSinceUnixEpoch(
+      kGoodTimeResponseHandlerJsTime[0] + 3500));
   EXPECT_TRUE(tracker_->QueryTimeServiceForTesting(/*on_demand=*/false));
   tracker_->WaitForFetchForTesting(123123123);
   base::TimeDelta latency1 = kGoodTimeResponseLatency[0];
@@ -834,8 +838,8 @@ TEST_F(NetworkTimeTrackerTest, ClockSkewHistograms) {
 
   base::HistogramTester histograms_second;
 
-  clock_->SetNow(
-      base::Time::FromJsTime(kGoodTimeResponseHandlerJsTime[1] + 3500));
+  clock_->SetNow(base::Time::FromMillisecondsSinceUnixEpoch(
+      kGoodTimeResponseHandlerJsTime[1] + 3500));
   EXPECT_TRUE(tracker_->QueryTimeServiceForTesting(/*on_demand=*/false));
   tracker_->WaitForFetchForTesting(123123123);
   base::TimeDelta latency2 = kGoodTimeResponseLatency[1];
@@ -861,8 +865,8 @@ TEST_F(NetworkTimeTrackerTest, ClockSkewHistograms) {
   EXPECT_EQ(0, samples_latency_jitter->TotalCount());
 
   base::HistogramTester histograms_third;
-  clock_->SetNow(
-      base::Time::FromJsTime(kGoodTimeResponseHandlerJsTime[2] - 2500));
+  clock_->SetNow(base::Time::FromMillisecondsSinceUnixEpoch(
+      kGoodTimeResponseHandlerJsTime[2] - 2500));
   EXPECT_TRUE(tracker_->QueryTimeServiceForTesting(/*on_demand=*/false));
   tracker_->WaitForFetchForTesting(123123123);
   base::TimeDelta latency3 = kGoodTimeResponseLatency[2];
@@ -930,16 +934,20 @@ TEST_F(NetworkTimeTrackerTest, ClockDriftHistogramsEmptyForOnDemandChecks) {
   SetResponseHandler(
       base::BindRepeating(&MultipleGoodTimeResponseHandler::ResponseHandler,
                           base::Unretained(&response_handler)));
-  clock_->SetNow(base::Time::FromJsTime(kGoodTimeResponseHandlerJsTime[0]));
+  clock_->SetNow(base::Time::FromMillisecondsSinceUnixEpoch(
+      kGoodTimeResponseHandlerJsTime[0]));
   EXPECT_TRUE(tracker_->QueryTimeServiceForTesting(/*on_demand=*/true));
   tracker_->WaitForFetchForTesting(123123123);
-  clock_->SetNow(base::Time::FromJsTime(kGoodTimeResponseHandlerJsTime[1]));
+  clock_->SetNow(base::Time::FromMillisecondsSinceUnixEpoch(
+      kGoodTimeResponseHandlerJsTime[1]));
   EXPECT_TRUE(tracker_->QueryTimeServiceForTesting(/*on_demand=*/true));
   tracker_->WaitForFetchForTesting(123123123);
-  clock_->SetNow(base::Time::FromJsTime(kGoodTimeResponseHandlerJsTime[2]));
+  clock_->SetNow(base::Time::FromMillisecondsSinceUnixEpoch(
+      kGoodTimeResponseHandlerJsTime[2]));
   EXPECT_TRUE(tracker_->QueryTimeServiceForTesting(/*on_demand=*/true));
   tracker_->WaitForFetchForTesting(123123123);
-  clock_->SetNow(base::Time::FromJsTime(kGoodTimeResponseHandlerJsTime[3]));
+  clock_->SetNow(base::Time::FromMillisecondsSinceUnixEpoch(
+      kGoodTimeResponseHandlerJsTime[3]));
   EXPECT_TRUE(tracker_->QueryTimeServiceForTesting(/*on_demand=*/true));
   tracker_->WaitForFetchForTesting(123123123);
 
@@ -964,35 +972,43 @@ TEST_F(NetworkTimeTrackerTest, ClockDriftHistogramsPositive) {
 
   // This part will trigger a skew measurement fetch first, followed by a drift
   // measurement using two samples.
-  clock_->SetNow(base::Time::FromJsTime(kGoodTimeResponseHandlerJsTime[0]));
+  clock_->SetNow(base::Time::FromMillisecondsSinceUnixEpoch(
+      kGoodTimeResponseHandlerJsTime[0]));
   EXPECT_TRUE(tracker_->QueryTimeServiceForTesting(/*on_demand=*/false));
   tracker_->WaitForFetchForTesting(123123123);
 
   // The next measurements are used for computing drift.
-  clock_->SetNow(base::Time::FromJsTime(kGoodTimeResponseHandlerJsTime[1]));
+  clock_->SetNow(base::Time::FromMillisecondsSinceUnixEpoch(
+      kGoodTimeResponseHandlerJsTime[1]));
   EXPECT_TRUE(tracker_->QueryTimeServiceForTesting(/*on_demand=*/false));
   tracker_->WaitForFetchForTesting(123123123);
   base::TimeDelta latency1 = kGoodTimeResponseLatency[1];
 
   // We add an on demand time query in the middle to check it does not interfere
   // with our samples.
-  clock_->SetNow(base::Time::FromJsTime(kGoodTimeResponseHandlerJsTime[2]));
+  clock_->SetNow(base::Time::FromMillisecondsSinceUnixEpoch(
+      kGoodTimeResponseHandlerJsTime[2]));
   EXPECT_TRUE(tracker_->QueryTimeServiceForTesting(/*on_demand=*/true));
   tracker_->WaitForFetchForTesting(123123123);
 
-  clock_->SetNow(base::Time::FromJsTime(kGoodTimeResponseHandlerJsTime[3]));
+  clock_->SetNow(base::Time::FromMillisecondsSinceUnixEpoch(
+      kGoodTimeResponseHandlerJsTime[3]));
   EXPECT_TRUE(tracker_->QueryTimeServiceForTesting(/*on_demand=*/false));
   tracker_->WaitForFetchForTesting(123123123);
 
-  clock_->SetNow(
-      base::Time::FromJsTime(kGoodTimeResponseHandlerJsTime[4] + 150));
+  clock_->SetNow(base::Time::FromMillisecondsSinceUnixEpoch(
+      kGoodTimeResponseHandlerJsTime[4] + 150));
   EXPECT_TRUE(tracker_->QueryTimeServiceForTesting(/*on_demand=*/false));
   tracker_->WaitForFetchForTesting(123123123);
   base::TimeDelta latency3 = kGoodTimeResponseLatency[4];
 
   double expected_positive_drift =
       (base::Milliseconds(150) - latency3 / 2 + latency1 / 2).InMicroseconds() /
-      2.0;
+      (base::Time::FromMillisecondsSinceUnixEpoch(
+           kGoodTimeResponseHandlerJsTime[4] + 150) -
+       base::Time::FromMillisecondsSinceUnixEpoch(
+           kGoodTimeResponseHandlerJsTime[1]))
+          .InSeconds();
   ASSERT_GT(expected_positive_drift, 0);
   histograms.ExpectTotalCount("PrivacyBudget.ClockDrift.Magnitude.Positive", 1);
   histograms.ExpectUniqueSample("PrivacyBudget.ClockDrift.Magnitude.Positive",
@@ -1005,8 +1021,10 @@ TEST_F(NetworkTimeTrackerTest, ClockDriftHistogramsPositive) {
 
   base::TimeDelta mean = (latency1 + latency3) / 2.0;
   double variance =
-      (latency1 - mean).InMilliseconds() * (latency1 - mean).InMilliseconds() +
-      (latency3 - mean).InMilliseconds() * (latency3 - mean).InMilliseconds();
+      ((latency1 - mean).InMilliseconds() * (latency1 - mean).InMilliseconds() +
+       (latency3 - mean).InMilliseconds() *
+           (latency3 - mean).InMilliseconds()) /
+      2;
   histograms.ExpectUniqueSample("PrivacyBudget.ClockDrift.FetchLatencyVariance",
                                 variance, 1);
 }
@@ -1026,28 +1044,36 @@ TEST_F(NetworkTimeTrackerTest, ClockDriftHistogramsNegative) {
 
   // This part will trigger a skew measurement fetch first, followed by a drift
   // measurement using two samples.
-  clock_->SetNow(base::Time::FromJsTime(kGoodTimeResponseHandlerJsTime[0]));
+  clock_->SetNow(base::Time::FromMillisecondsSinceUnixEpoch(
+      kGoodTimeResponseHandlerJsTime[0]));
   EXPECT_TRUE(tracker_->QueryTimeServiceForTesting(/*on_demand=*/false));
   tracker_->WaitForFetchForTesting(123123123);
 
   // These are the two measurements used for computing drift.
-  clock_->SetNow(base::Time::FromJsTime(kGoodTimeResponseHandlerJsTime[1]));
+  clock_->SetNow(base::Time::FromMillisecondsSinceUnixEpoch(
+      kGoodTimeResponseHandlerJsTime[1]));
   EXPECT_TRUE(tracker_->QueryTimeServiceForTesting(/*on_demand=*/false));
   tracker_->WaitForFetchForTesting(123123123);
   base::TimeDelta latency1 = kGoodTimeResponseLatency[1];
 
-  clock_->SetNow(base::Time::FromJsTime(kGoodTimeResponseHandlerJsTime[2]));
+  clock_->SetNow(base::Time::FromMillisecondsSinceUnixEpoch(
+      kGoodTimeResponseHandlerJsTime[2]));
   EXPECT_TRUE(tracker_->QueryTimeServiceForTesting(/*on_demand=*/false));
   tracker_->WaitForFetchForTesting(123123123);
 
-  clock_->SetNow(base::Time::FromJsTime(kGoodTimeResponseHandlerJsTime[3] - 1));
+  clock_->SetNow(base::Time::FromMillisecondsSinceUnixEpoch(
+      kGoodTimeResponseHandlerJsTime[3] - 1));
   EXPECT_TRUE(tracker_->QueryTimeServiceForTesting(/*on_demand=*/false));
   tracker_->WaitForFetchForTesting(123123123);
   base::TimeDelta latency3 = kGoodTimeResponseLatency[3];
 
   double expected_negative_drift =
       (base::Milliseconds(1) - latency1 / 2 + latency3 / 2).InMicroseconds() /
-      2.0;
+      (base::Time::FromMillisecondsSinceUnixEpoch(
+           kGoodTimeResponseHandlerJsTime[3] - 1) -
+       base::Time::FromMillisecondsSinceUnixEpoch(
+           kGoodTimeResponseHandlerJsTime[1]))
+          .InSeconds();
   ASSERT_GT(expected_negative_drift, 0);
   histograms.ExpectTotalCount("PrivacyBudget.ClockDrift.Magnitude.Positive", 0);
   histograms.ExpectTotalCount("PrivacyBudget.ClockDrift.Magnitude.Negative", 1);
@@ -1056,8 +1082,10 @@ TEST_F(NetworkTimeTrackerTest, ClockDriftHistogramsNegative) {
 
   base::TimeDelta mean = (latency1 + latency3) / 2.0;
   double variance =
-      (latency1 - mean).InMilliseconds() * (latency1 - mean).InMilliseconds() +
-      (latency3 - mean).InMilliseconds() * (latency3 - mean).InMilliseconds();
+      ((latency1 - mean).InMilliseconds() * (latency1 - mean).InMilliseconds() +
+       (latency3 - mean).InMilliseconds() *
+           (latency3 - mean).InMilliseconds()) /
+      2;
 
   histograms.ExpectTotalCount("PrivacyBudget.ClockDrift.FetchLatencyVariance",
                               1);

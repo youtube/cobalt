@@ -4,7 +4,6 @@
 
 package org.chromium.components.browser_ui.site_settings;
 
-import static org.chromium.components.browser_ui.site_settings.WebsitePreference.PARAM_SUBDOMAIN_SETTINGS;
 import static org.chromium.components.browser_ui.site_settings.WebsitePreferenceBridge.SITE_WILDCARD;
 
 import android.content.Context;
@@ -14,8 +13,6 @@ import android.graphics.PorterDuff;
 import android.graphics.drawable.Drawable;
 import android.os.Vibrator;
 import android.provider.Settings;
-import android.text.Editable;
-import android.text.TextWatcher;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.Button;
@@ -32,8 +29,8 @@ import androidx.preference.PreferenceViewHolder;
 import org.chromium.base.ApiCompatibilityUtils;
 import org.chromium.components.browser_ui.styles.SemanticColorUtils;
 import org.chromium.components.browser_ui.widget.CheckBoxWithDescription;
-import org.chromium.content_public.browser.ContentFeatureList;
 import org.chromium.ui.KeyboardVisibilityDelegate;
+import org.chromium.ui.text.EmptyTextWatcher;
 
 /**
  * A utility class for the UI recording exceptions to the blocked list for site
@@ -107,7 +104,6 @@ public class AddExceptionPreference
     public void onBindViewHolder(PreferenceViewHolder holder) {
         super.onBindViewHolder(holder);
         TextView titleView = (TextView) holder.findViewById(android.R.id.title);
-        titleView.setAllCaps(true);
         titleView.setTextColor(mPrefAccentColor);
     }
 
@@ -134,15 +130,11 @@ public class AddExceptionPreference
         } else if (mCategory.getType() == SiteSettingsCategory.Type.REQUEST_DESKTOP_SITE) {
             // Default to domain level setting for Request Desktop Site.
             checkBox.setChecked(true);
-            if (ContentFeatureList.getFieldTrialParamByFeatureAsBoolean(
-                        ContentFeatureList.REQUEST_DESKTOP_SITE_EXCEPTIONS,
-                        PARAM_SUBDOMAIN_SETTINGS, true)) {
-                checkBox.setVisibility(View.VISIBLE);
-                checkBox.setPrimaryText(getContext().getString(
-                        R.string.website_settings_domain_desktop_site_exception_checkbox_primary));
-                checkBox.setDescriptionText(getContext().getString(
-                        R.string.website_settings_domain_desktop_site_exception_checkbox_description));
-            }
+            checkBox.setVisibility(View.VISIBLE);
+            checkBox.setPrimaryText(getContext().getString(
+                    R.string.website_settings_domain_desktop_site_exception_checkbox_primary));
+            checkBox.setDescriptionText(getContext().getString(
+                    R.string.website_settings_domain_desktop_site_exception_checkbox_description));
         }
 
         DialogInterface.OnClickListener onClickListener = new DialogInterface.OnClickListener() {
@@ -183,13 +175,7 @@ public class AddExceptionPreference
         final Button okButton = alertDialog.getButton(AlertDialog.BUTTON_POSITIVE);
         okButton.setEnabled(false);
 
-        input.addTextChangedListener(new TextWatcher() {
-            @Override
-            public void afterTextChanged(Editable s) {}
-
-            @Override
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
-
+        input.addTextChangedListener(new EmptyTextWatcher() {
             @Override
             public void onTextChanged(CharSequence s, int start, int before, int count) {
                 // The intent is to capture a url pattern and register it as an exception.

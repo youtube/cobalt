@@ -9,8 +9,9 @@ import android.app.Activity;
 import androidx.annotation.DrawableRes;
 import androidx.annotation.NonNull;
 
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.NativeMethods;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.feedback.HelpAndFeedbackLauncherImpl;
 import org.chromium.chrome.browser.fullscreen.BrowserControlsManagerSupplier;
@@ -51,9 +52,7 @@ public class CredentialLeakDialogBridge {
 
         @DrawableRes
         int headerDrawableId;
-        headerDrawableId = PasswordManagerHelper.usesUnifiedPasswordManagerBranding()
-                ? R.drawable.password_check_header_red
-                : R.drawable.password_checkup_warning;
+        headerDrawableId = R.drawable.password_check_header_red;
 
         PasswordManagerDialogContents contents = createDialogContents(credentialLeakTitle,
                 credentialLeakDetails, headerDrawableId, positiveButton, negativeButton);
@@ -101,7 +100,7 @@ public class CredentialLeakDialogBridge {
         Tab currentTab = TabModelSelectorSupplier.getCurrentTabFrom(mWindowAndroid);
         if (currentTab == null) return;
 
-        Profile profile = Profile.fromWebContents(currentTab.getWebContents());
+        Profile profile = currentTab.getProfile();
         HelpAndFeedbackLauncherImpl.getForProfile(profile).show(
                 activity, activity.getString(R.string.help_context_password_leak_detection), null);
     }

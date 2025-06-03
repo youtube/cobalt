@@ -7,15 +7,16 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/types/pass_key.h"
 #include "build/build_config.h"
-#include "components/viz/common/resources/resource_format_utils.h"
 #include "components/viz/common/resources/shared_image_format.h"
+#include "components/viz/common/resources/shared_image_format_utils.h"
 #include "gpu/command_buffer/common/shared_image_usage.h"
+#include "gpu/command_buffer/service/dawn_context_provider.h"
 #include "gpu/command_buffer/service/feature_info.h"
 #include "gpu/command_buffer/service/shared_context_state.h"
 #include "gpu/command_buffer/service/shared_image/shared_image_backing.h"
+#include "gpu/command_buffer/service/shared_image/wrapped_graphite_texture_backing.h"
 #include "gpu/command_buffer/service/shared_image/wrapped_sk_image_backing.h"
 #include "gpu/config/gpu_finch_features.h"
-#include "skia/buildflags.h"
 #include "third_party/skia/include/core/SkAlphaType.h"
 #include "third_party/skia/include/core/SkColorType.h"
 #include "third_party/skia/include/core/SkSurface.h"
@@ -25,23 +26,29 @@
 
 namespace gpu {
 namespace {
-
 constexpr uint32_t kSupportedUsage =
     SHARED_IMAGE_USAGE_DISPLAY_READ | SHARED_IMAGE_USAGE_DISPLAY_WRITE |
     SHARED_IMAGE_USAGE_RASTER | SHARED_IMAGE_USAGE_OOP_RASTERIZATION |
     SHARED_IMAGE_USAGE_CPU_UPLOAD | SHARED_IMAGE_USAGE_MIPMAP;
 
-bool IsUsageSupported(uint32_t usage) {
-  // Must have at least one of the supported usage flags.
-  return usage & kSupportedUsage;
-}
+constexpr uint32_t kGraphiteDawnVulkanFallbackUsage =
+    SHARED_IMAGE_USAGE_GLES2 | SHARED_IMAGE_USAGE_GLES2_FRAMEBUFFER_HINT |
+    SHARED_IMAGE_USAGE_WEBGPU | SHARED_IMAGE_USAGE_WEBGPU_SWAP_CHAIN_TEXTURE;
 
+uint32_t GetSupportedUsage(const SharedContextState* context_state) {
+  // We support WebGL and WebGPU fallback when using Graphite Dawn Vulkan.
+  if (context_state->IsGraphiteDawnVulkan()) {
+    return kSupportedUsage | kGraphiteDawnVulkanFallbackUsage;
+  }
+  return kSupportedUsage;
+}
 }  // namespace
 
 WrappedSkImageBackingFactory::WrappedSkImageBackingFactory(
     scoped_refptr<SharedContextState> context_state)
-    : SharedImageBackingFactory(kSupportedUsage),
+    : SharedImageBackingFactory(GetSupportedUsage(context_state.get())),
       context_state_(std::move(context_state)),
+      use_graphite_(context_state_->graphite_context()),
       is_drdc_enabled_(
           features::IsDrDcEnabled() &&
           !context_state_->feature_info()->workarounds().disable_drdc) {}
@@ -69,15 +76,26 @@ WrappedSkImageBackingFactory::CreateSharedImage(
   // That should be fine for now since we do not have/use any locks in backing.
   DCHECK(!is_thread_safe ||
          (context_state_->GrContextIsVulkan() && is_drdc_enabled_));
-  auto texture = std::make_unique<WrappedSkImageBacking>(
+  if (use_graphite_) {
+    auto backing = std::make_unique<WrappedGraphiteTextureBacking>(
+        base::PassKey<WrappedSkImageBackingFactory>(), mailbox, format, size,
+        color_space, surface_origin, alpha_type, usage, context_state_,
+        /*is_thread_safe=*/false);
+    if (!backing->Initialize()) {
+      return nullptr;
+    }
+    return backing;
+  }
+  CHECK(context_state_->gr_context());
+  auto backing = std::make_unique<WrappedSkImageBacking>(
       base::PassKey<WrappedSkImageBackingFactory>(), mailbox, format, size,
       color_space, surface_origin, alpha_type, usage, context_state_,
       /*is_thread_safe=*/is_thread_safe &&
           context_state_->GrContextIsVulkan() && is_drdc_enabled_);
-  if (!texture->Initialize(debug_label)) {
+  if (!backing->Initialize(debug_label)) {
     return nullptr;
   }
-  return texture;
+  return backing;
 }
 
 std::unique_ptr<SharedImageBacking>
@@ -91,15 +109,40 @@ WrappedSkImageBackingFactory::CreateSharedImage(
     uint32_t usage,
     std::string debug_label,
     base::span<const uint8_t> data) {
-  auto texture = std::make_unique<WrappedSkImageBacking>(
+  if (use_graphite_) {
+    auto backing = std::make_unique<WrappedGraphiteTextureBacking>(
+        base::PassKey<WrappedSkImageBackingFactory>(), mailbox, format, size,
+        color_space, surface_origin, alpha_type, usage, context_state_,
+        /*is_thread_safe=*/false);
+    if (!backing->InitializeWithData(data)) {
+      return nullptr;
+    }
+    return backing;
+  }
+  CHECK(context_state_->gr_context());
+  auto backing = std::make_unique<WrappedSkImageBacking>(
       base::PassKey<WrappedSkImageBackingFactory>(), mailbox, format, size,
       color_space, surface_origin, alpha_type, usage, context_state_,
       /*is_thread_safe=*/context_state_->GrContextIsVulkan() &&
           is_drdc_enabled_);
-  if (!texture->InitializeWithData(debug_label, data, /*stride=*/0)) {
+  if (!backing->InitializeWithData(debug_label, data)) {
     return nullptr;
   }
-  return texture;
+  return backing;
+}
+
+std::unique_ptr<SharedImageBacking>
+WrappedSkImageBackingFactory::CreateSharedImage(
+    const Mailbox& mailbox,
+    viz::SharedImageFormat format,
+    const gfx::Size& size,
+    const gfx::ColorSpace& color_space,
+    GrSurfaceOrigin surface_origin,
+    SkAlphaType alpha_type,
+    uint32_t usage,
+    std::string debug_label,
+    gfx::GpuMemoryBufferHandle handle) {
+  NOTREACHED_NORETURN();
 }
 
 std::unique_ptr<SharedImageBacking>
@@ -114,8 +157,7 @@ WrappedSkImageBackingFactory::CreateSharedImage(
     SkAlphaType alpha_type,
     uint32_t usage,
     std::string debug_label) {
-  NOTREACHED();
-  return nullptr;
+  NOTREACHED_NORETURN();
 }
 
 bool WrappedSkImageBackingFactory::IsSupported(
@@ -130,7 +172,7 @@ bool WrappedSkImageBackingFactory::IsSupported(
     return false;
   }
 
-  if (!IsUsageSupported(usage)) {
+  if (usage & ~GetSupportedUsage(context_state_.get())) {
     return false;
   }
 
@@ -177,6 +219,10 @@ bool WrappedSkImageBackingFactory::IsSupported(
       // ETC1 is only supported with initial pixel upload.
       return false;
     }
+    // TODO(crbug.com/1430206): Enable once compressed formats are supported.
+    if (use_graphite_) {
+      return false;
+    }
     auto backend_format = context_state_->gr_context()->compressedBackendFormat(
         SkTextureCompressionType::kETC1_RGB8);
     if (!backend_format.isValid()) {
@@ -185,14 +231,17 @@ bool WrappedSkImageBackingFactory::IsSupported(
     return true;
   }
 
-  // Check that skia can create the required backend textures.
-  for (int plane = 0; plane < format.NumberOfPlanes(); ++plane) {
-    SkColorType color_type =
-        viz::ToClosestSkColorType(/*gpu_compositing=*/true, format, plane);
-    auto backend_format = context_state_->gr_context()->defaultBackendFormat(
-        color_type, GrRenderable::kYes);
-    if (!backend_format.isValid()) {
-      return false;
+  // TODO(b/281151641): Check for formats are supported with graphite.
+  if (context_state_->gr_context()) {
+    // Check that skia-ganesh can create the required backend textures.
+    for (int plane = 0; plane < format.NumberOfPlanes(); ++plane) {
+      SkColorType color_type =
+          viz::ToClosestSkColorType(/*gpu_compositing=*/true, format, plane);
+      auto backend_format = context_state_->gr_context()->defaultBackendFormat(
+          color_type, GrRenderable::kYes);
+      if (!backend_format.isValid()) {
+        return false;
+      }
     }
   }
 

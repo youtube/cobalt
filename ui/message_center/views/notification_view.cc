@@ -8,6 +8,8 @@
 
 #include "build/build_config.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/metadata/metadata_header_macros.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/color/color_id.h"
 #include "ui/color/color_provider.h"
 #include "ui/compositor/layer.h"
@@ -303,6 +305,7 @@ NotificationView::NotificationView(
           .SetBorder(views::CreateEmptyBorder(kLargeImageContainerPadding))
           .Build());
   AddChildView(CreateInlineSettingsBuilder().Build());
+  AddChildView(CreateSnoozeSettingsBuilder().Build());
   AddChildView(CreateActionsRow());
 
   CreateOrUpdateViews(notification);
@@ -471,6 +474,11 @@ void NotificationView::CreateOrUpdateInlineSettingsViews(
   inline_settings_row()->AddChildView(std::move(settings_button_row));
 }
 
+void NotificationView::CreateOrUpdateSnoozeSettingsViews(
+    const Notification& notification) {
+  // Not implemented by default.
+}
+
 std::unique_ptr<views::LabelButton>
 NotificationView::GenerateNotificationLabelButton(
     views::Button::PressedCallback callback,
@@ -559,6 +567,10 @@ void NotificationView::ToggleInlineSettings(const ui::Event& event) {
   // point after it's called.
   if (disable_notification)
     MessageCenter::Get()->DisableNotification(notification_id());
+}
+
+void NotificationView::ToggleSnoozeSettings(const ui::Event& event) {
+  // Not implemented by default.
 }
 
 bool NotificationView::IsExpandable() const {
@@ -687,5 +699,8 @@ void NotificationView::HeaderRowPressed() {
   Layout();
   SchedulePaint();
 }
+
+BEGIN_METADATA(NotificationView, NotificationViewBase)
+END_METADATA
 
 }  // namespace message_center

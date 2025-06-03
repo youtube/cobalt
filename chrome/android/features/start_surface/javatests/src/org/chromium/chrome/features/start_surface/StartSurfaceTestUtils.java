@@ -30,24 +30,28 @@ import android.view.View;
 import android.view.ViewGroup;
 
 import androidx.annotation.Nullable;
-import androidx.test.InstrumentationRegistry;
 import androidx.test.espresso.UiController;
 import androidx.test.espresso.ViewAction;
 import androidx.test.espresso.contrib.RecyclerViewActions;
 import androidx.test.espresso.matcher.ViewMatchers;
+import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.uiautomator.UiDevice;
 
 import org.hamcrest.Matcher;
+import org.hamcrest.Matchers;
 import org.junit.Assert;
 
 import org.chromium.base.CommandLine;
-import org.chromium.base.NativeLibraryLoadedStatus;
+import org.chromium.base.ContextUtils;
 import org.chromium.base.StreamUtil;
 import org.chromium.base.library_loader.LibraryLoader;
+import org.chromium.base.test.params.ParameterProvider;
 import org.chromium.base.test.params.ParameterSet;
 import org.chromium.base.test.util.CallbackHelper;
+import org.chromium.base.test.util.Criteria;
 import org.chromium.base.test.util.CriteriaHelper;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
+import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider;
 import org.chromium.chrome.browser.compositor.layouts.content.TabContentManager;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
@@ -61,6 +65,7 @@ import org.chromium.chrome.browser.suggestions.tile.TileSource;
 import org.chromium.chrome.browser.suggestions.tile.TileTitleSource;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabState;
+import org.chromium.chrome.browser.tab.TabUtils;
 import org.chromium.chrome.browser.tabmodel.TabModelUtils;
 import org.chromium.chrome.browser.tabmodel.TabPersistentStore;
 import org.chromium.chrome.browser.tabmodel.TabbedModeTabPersistencePolicy;
@@ -80,7 +85,6 @@ import org.chromium.chrome.test.util.browser.suggestions.mostvisited.FakeMostVis
 import org.chromium.content_public.browser.test.util.TestThreadUtils;
 import org.chromium.content_public.browser.test.util.TestTouchUtils;
 import org.chromium.url.GURL;
-import org.chromium.url.JUnitTestGURLs;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -115,6 +119,34 @@ public class StartSurfaceTestUtils {
                     new ParameterSet().value(false, true).name("NoInstant_Return"),
                     new ParameterSet().value(true, true).name("Instant_Return"));
 
+    /**
+     * {@link ParameterProvider} used for parameterized tests with/without "Start Surface refactor"
+     * flag enabled.
+     */
+    public static class RefactorTestParams implements ParameterProvider {
+        private static List<ParameterSet> sRefactorTestParams =
+                Arrays.asList(new ParameterSet().value(false).name("RefactorDisabled"),
+                        new ParameterSet().value(true).name("RefactorEnabled"));
+
+        @Override
+        public List<ParameterSet> getParameters() {
+            return sRefactorTestParams;
+        }
+    }
+
+    /**
+     * {@link ParameterProvider} used for tests with "Start Surface refactor" flag disabled.
+     */
+    public static class LegacyTestParams implements ParameterProvider {
+        private static List<ParameterSet> sLegacyTestParams =
+                Arrays.asList(new ParameterSet().value(false));
+
+        @Override
+        public List<ParameterSet> getParameters() {
+            return sLegacyTestParams;
+        }
+    }
+
     private static final long MAX_TIMEOUT_MS = 30000L;
 
     /**
@@ -126,13 +158,91 @@ public class StartSurfaceTestUtils {
      */
     public static void setUpStartSurfaceTests(boolean immediateReturn,
             ChromeTabbedActivityTestRule activityTestRule) throws IOException {
+        BrowserControlsStateProvider fakeBrowserControlsStateProvider =
+                new BrowserControlsStateProvider() {
+                    @Override
+                    public void addObserver(BrowserControlsStateProvider.Observer obs) {
+                        assert false : "Not reached";
+                    }
+
+                    @Override
+                    public void removeObserver(BrowserControlsStateProvider.Observer obs) {
+                        assert false : "Not reached";
+                    }
+
+                    @Override
+                    public int getTopControlsHeight() {
+                        return 0;
+                    }
+
+                    @Override
+                    public int getTopControlsMinHeight() {
+                        return 0;
+                    }
+
+                    @Override
+                    public int getTopControlOffset() {
+                        return 0;
+                    }
+
+                    @Override
+                    public int getTopControlsMinHeightOffset() {
+                        return 0;
+                    }
+
+                    @Override
+                    public int getBottomControlsHeight() {
+                        return 0;
+                    }
+
+                    @Override
+                    public int getBottomControlsMinHeight() {
+                        return 0;
+                    }
+
+                    @Override
+                    public int getBottomControlsMinHeightOffset() {
+                        return 0;
+                    }
+
+                    @Override
+                    public boolean shouldAnimateBrowserControlsHeightChanges() {
+                        return false;
+                    }
+
+                    @Override
+                    public int getBottomControlOffset() {
+                        return 0;
+                    }
+
+                    @Override
+                    public float getBrowserControlHiddenRatio() {
+                        return 0.0f;
+                    }
+
+                    @Override
+                    public int getContentOffset() {
+                        return 0;
+                    }
+
+                    @Override
+                    public float getTopVisibleContentOffset() {
+                        return 0.0f;
+                    }
+
+                    @Override
+                    public int getAndroidControlsVisibility() {
+                        return 0;
+                    }
+                };
+
         int expectedTabs = 1;
         int additionalTabs = expectedTabs - (immediateReturn ? 0 : 1);
         if (additionalTabs > 0) {
             int[] tabIDs = new int[additionalTabs];
             for (int i = 0; i < additionalTabs; i++) {
                 tabIDs[i] = i;
-                createThumbnailBitmapAndWriteToFile(i);
+                createThumbnailBitmapAndWriteToFile(i, fakeBrowserControlsStateProvider);
             }
             createTabStateFile(tabIDs);
         }
@@ -173,9 +283,6 @@ public class StartSurfaceTestUtils {
 
     public static void startAndWaitNativeInitialization(
             ChromeTabbedActivityTestRule activityTestRule) {
-        Assert.assertTrue(NativeLibraryLoadedStatus.getProviderForTesting() == null
-                || !NativeLibraryLoadedStatus.getProviderForTesting().areNativeMethodsReady());
-
         CommandLine.getInstance().removeSwitch(ChromeSwitches.DISABLE_NATIVE_INITIALIZATION);
         TestThreadUtils.runOnUiThreadBlocking(
                 () -> activityTestRule.getActivity().startDelayedNativeInitializationForTests());
@@ -326,10 +433,16 @@ public class StartSurfaceTestUtils {
     /**
      * Create thumbnail bitmap of the tab based on the given id and write it to file.
      * @param tabId The id of the target tab.
+     * @param browserControlsStateProvider For getting the top offset.
      * @return The bitmap created.
      */
-    public static Bitmap createThumbnailBitmapAndWriteToFile(int tabId) {
-        final Bitmap thumbnailBitmap = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888);
+    public static Bitmap createThumbnailBitmapAndWriteToFile(
+            int tabId, BrowserControlsStateProvider browserControlsStateProvider) {
+        final int height = 100;
+        final int width = (int) Math.round(height
+                * TabUtils.getTabThumbnailAspectRatio(
+                        ContextUtils.getApplicationContext(), browserControlsStateProvider));
+        final Bitmap thumbnailBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
 
         try {
             File thumbnailFile = TabContentManager.getTabThumbnailFileJpeg(tabId);
@@ -491,7 +604,7 @@ public class StartSurfaceTestUtils {
      */
     public static void clickTabInCarousel(int position) {
         onViewWaiting(allOf(withParent(withId(R.id.tab_switcher_module_container)),
-                              withId(R.id.tab_list_view)))
+                              withId(R.id.tab_list_recycler_view)))
                 .perform(RecyclerViewActions.actionOnItemAtPosition(position, click()));
     }
 
@@ -542,7 +655,7 @@ public class StartSurfaceTestUtils {
      */
     public static List<SiteSuggestion> createFakeSiteSuggestions() {
         List<SiteSuggestion> siteSuggestions = new ArrayList<>();
-        String urlTemplate = JUnitTestGURLs.getGURL(JUnitTestGURLs.URL_1_NUMERAL).serialize();
+        String urlTemplate = new GURL("https://www.1.com/").serialize();
         for (int i = 0; i < 8; i++) {
             siteSuggestions.add(new SiteSuggestion(String.valueOf(i),
                     // Use pre-serialized GURL to avoid loading native.
@@ -587,11 +700,11 @@ public class StartSurfaceTestUtils {
     }
 
     /**
-     * Gets the "tab_list_view" from the carousel tab switcher module on Start surface.
+     * Gets the "tab_list_recycler_view" from the carousel tab switcher module on Start surface.
      */
     static View getCarouselTabSwitcherTabListView(ChromeTabbedActivity cta) {
         return cta.findViewById(R.id.tab_switcher_module_container)
-                .findViewById(R.id.tab_list_view);
+                .findViewById(R.id.tab_list_recycler_view);
     }
 
     /**
@@ -604,19 +717,30 @@ public class StartSurfaceTestUtils {
         Assert.assertTrue(AsyncInitializationActivity.wasMoveTaskToBackInterceptedForTesting());
     }
 
+    public static void waitForStatusBarColor(Activity activity, int expectedColor) {
+        CriteriaHelper.pollUiThread(() -> {
+            Criteria.checkThat(
+                    activity.getWindow().getStatusBarColor(), Matchers.is(expectedColor));
+        }, CriteriaHelper.DEFAULT_MAX_TIME_TO_POLL, CriteriaHelper.DEFAULT_POLLING_INTERVAL);
+    }
+
     /**
      * Create a file so that a TabState can be restored later.
      * @param tabId the Tab ID
      * @param encrypted for Incognito mode
      */
     private static void saveTabState(int tabId, boolean encrypted) {
-        File file = TabStateFileManager.getTabStateFile(
-                TabStateDirectory.getOrCreateTabbedModeStateDirectory(), tabId, encrypted);
+        File file =
+                TabStateFileManager.getTabStateFile(
+                        TabStateDirectory.getOrCreateTabbedModeStateDirectory(),
+                        tabId,
+                        encrypted,
+                        /* isFlatBuffer= */ false);
         writeFile(file, M26_GOOGLE_COM.encodedTabState);
 
-        TabState tabState = TabStateFileManager.restoreTabState(file, false);
+        TabState tabState = TabStateFileManager.restoreTabStateInternal(file, false);
         tabState.rootId = PseudoTab.fromTabId(tabId).getRootId();
-        TabStateFileManager.saveState(file, tabState, encrypted);
+        TabStateFileManager.saveStateInternal(file, tabState, encrypted);
     }
 
     private static void writeFile(File file, String data) {

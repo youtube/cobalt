@@ -62,7 +62,7 @@ type hashPrimitive struct {
 	size int
 }
 
-func (h *hashPrimitive) Process(vectorSet []byte, m Transactable) (interface{}, error) {
+func (h *hashPrimitive) Process(vectorSet []byte, m Transactable) (any, error) {
 	var parsed hashTestVectorSet
 	if err := json.Unmarshal(vectorSet, &parsed); err != nil {
 		return nil, err
@@ -73,11 +73,14 @@ func (h *hashPrimitive) Process(vectorSet []byte, m Transactable) (interface{}, 
 	// https://pages.nist.gov/ACVP/draft-celi-acvp-sha.html#name-test-vectors
 	// for details about the tests.
 	for _, group := range parsed.Groups {
+		group := group
 		response := hashTestGroupResponse{
 			ID: group.ID,
 		}
 
 		for _, test := range group.Tests {
+			test := test
+
 			if uint64(len(test.MsgHex))*4 != test.BitLength {
 				return nil, fmt.Errorf("test case %d/%d contains hex message of length %d but specifies a bit length of %d", group.ID, test.ID, len(test.MsgHex), test.BitLength)
 			}
@@ -89,14 +92,12 @@ func (h *hashPrimitive) Process(vectorSet []byte, m Transactable) (interface{}, 
 			// http://usnistgov.github.io/ACVP/artifacts/draft-celi-acvp-sha-00.html#rfc.section.3
 			switch group.Type {
 			case "AFT":
-				result, err := m.Transact(h.algo, 1, msg)
-				if err != nil {
-					panic(h.algo + " hash operation failed: " + err.Error())
-				}
-
-				response.Tests = append(response.Tests, hashTestResponse{
-					ID:        test.ID,
-					DigestHex: hex.EncodeToString(result[0]),
+				m.TransactAsync(h.algo, 1, [][]byte{msg}, func(result [][]byte) error {
+					response.Tests = append(response.Tests, hashTestResponse{
+						ID:        test.ID,
+						DigestHex: hex.EncodeToString(result[0]),
+					})
+					return nil
 				})
 
 			case "MCT":
@@ -124,7 +125,13 @@ func (h *hashPrimitive) Process(vectorSet []byte, m Transactable) (interface{}, 
 			}
 		}
 
-		ret = append(ret, response)
+		m.Barrier(func() {
+			ret = append(ret, response)
+		})
+	}
+
+	if err := m.Flush(); err != nil {
+		return nil, err
 	}
 
 	return ret, nil

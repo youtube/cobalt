@@ -22,6 +22,7 @@
 #include "components/services/storage/shared_storage/shared_storage_database_migrations.h"
 #include "components/services/storage/shared_storage/shared_storage_options.h"
 #include "mojo/public/cpp/bindings/remote.h"
+#include "net/base/schemeful_site.h"
 #include "sql/database.h"
 #include "sql/error_delegate_util.h"
 #include "sql/statement.h"
@@ -49,11 +50,21 @@ const int kSharedStorageEntryTotalBytesMultiplier = 4;
 //              * add `last_used_time` to `values_mapping`
 //              * rename `last_used_time` in `per_origin_mapping` to
 //                `creation_time`
-const int SharedStorageDatabase::kCurrentVersionNumber = 2;
+// Version 3 - https://crrev.com/c/4463360
+//              * store `key` and `value` as BLOB instead of TEXT in order to
+//                prevent roundtrip conversion to UTF-8 and back, which is
+//                lossy if the original UTF-16 string contains unpaired
+//                surrogates
+// Version 4 - https://crrev.com/c/4879582
+//              * rename `context_origin` column in `budget_mapping` to
+//                `context_site`, converting existing data in this column from
+//                origins to sites
+
+const int SharedStorageDatabase::kCurrentVersionNumber = 4;
 
 // Earliest version which can use a `kCurrentVersionNumber` database
 // without failing.
-const int SharedStorageDatabase::kCompatibleVersionNumber = 2;
+const int SharedStorageDatabase::kCompatibleVersionNumber = 4;
 
 // Latest version of the database that cannot be upgraded to
 // `kCurrentVersionNumber` without razing the database.
@@ -61,18 +72,24 @@ const int SharedStorageDatabase::kDeprecatedVersionNumber = 0;
 
 namespace {
 
-[[nodiscard]] std::string SerializeOrigin(const url::Origin& origin) {
+std::string SerializeOrigin(const url::Origin& origin) {
   DCHECK(!origin.opaque());
   DCHECK_NE(url::kFileScheme, origin.scheme());
   return origin.Serialize();
+}
+
+std::string SerializeSite(const net::SchemefulSite& site) {
+  DCHECK(!site.opaque());
+  DCHECK_NE(url::kFileScheme, site.GetURL().scheme());
+  return site.Serialize();
 }
 
 [[nodiscard]] bool InitSchema(sql::Database& db, sql::MetaTable& meta_table) {
   static constexpr char kValuesMappingSql[] =
       "CREATE TABLE IF NOT EXISTS values_mapping("
       "context_origin TEXT NOT NULL,"
-      "key TEXT NOT NULL,"
-      "value TEXT,"
+      "key BLOB NOT NULL,"
+      "value BLOB NOT NULL,"
       "last_used_time INTEGER NOT NULL,"
       "PRIMARY KEY(context_origin,key)) WITHOUT ROWID";
   if (!db.Execute(kValuesMappingSql))
@@ -92,20 +109,22 @@ namespace {
   static constexpr char kBudgetMappingSql[] =
       "CREATE TABLE IF NOT EXISTS budget_mapping("
       "id INTEGER NOT NULL PRIMARY KEY,"
-      "context_origin TEXT NOT NULL,"
+      "context_site TEXT NOT NULL,"
       "time_stamp INTEGER NOT NULL,"
       "bits_debit REAL NOT NULL)";
   if (!db.Execute(kBudgetMappingSql))
     return false;
 
-  static constexpr char kOriginTimeIndexSql[] =
-      "CREATE INDEX IF NOT EXISTS budget_mapping_origin_time_stamp_idx "
-      "ON budget_mapping(context_origin,time_stamp)";
-  if (!db.Execute(kOriginTimeIndexSql))
-    return false;
+  if (meta_table.GetVersionNumber() >= 4) {
+    static constexpr char kSiteTimeIndexSql[] =
+        "CREATE INDEX IF NOT EXISTS budget_mapping_site_time_stamp_idx "
+        "ON budget_mapping(context_site,time_stamp)";
+    if (!db.Execute(kSiteTimeIndexSql)) {
+      return false;
+    }
+  }
 
-  if (meta_table.GetVersionNumber() ==
-      SharedStorageDatabase::kCurrentVersionNumber) {
+  if (meta_table.GetVersionNumber() >= 2) {
     static constexpr char kValuesLastUsedTimeIndexSql[] =
         "CREATE INDEX IF NOT EXISTS values_mapping_last_used_time_idx "
         "ON values_mapping(last_used_time)";
@@ -260,7 +279,7 @@ SharedStorageDatabase::GetResult SharedStorageDatabase::Get(
   sql::Statement statement(db_.GetCachedStatement(SQL_FROM_HERE, kSelectSql));
   std::string origin_str(SerializeOrigin(context_origin));
   statement.BindString(0, origin_str);
-  statement.BindString16(1, key);
+  statement.BindBlob(1, key);
 
   if (statement.Step()) {
     base::Time last_used_time = statement.ColumnTime(1);
@@ -268,7 +287,11 @@ SharedStorageDatabase::GetResult SharedStorageDatabase::Get(
         (last_used_time >= clock_->Now() - staleness_threshold_)
             ? OperationResult::kSuccess
             : OperationResult::kExpired;
-    return GetResult(statement.ColumnString16(0), last_used_time, op_result);
+    std::u16string value;
+    if (!statement.ColumnBlobAsString16(0, &value)) {
+      return GetResult();
+    }
+    return GetResult(value, last_used_time, op_result);
   }
 
   if (!statement.Succeeded())
@@ -394,7 +417,7 @@ SharedStorageDatabase::OperationResult SharedStorageDatabase::Delete(
 
   sql::Statement statement(db_.GetCachedStatement(SQL_FROM_HERE, kDeleteSql));
   statement.BindString(0, origin_str);
-  statement.BindString16(1, key);
+  statement.BindBlob(1, key);
 
   if (!statement.Run())
     return OperationResult::kSqlError;
@@ -420,8 +443,9 @@ SharedStorageDatabase::OperationResult SharedStorageDatabase::Clear(
       return OperationResult::kInitFailure;
   }
 
-  if (!Purge(SerializeOrigin(context_origin)))
+  if (!Purge(SerializeOrigin(context_origin))) {
     return OperationResult::kSqlError;
+  }
   return OperationResult::kSuccess;
 }
 
@@ -515,22 +539,28 @@ SharedStorageDatabase::OperationResult SharedStorageDatabase::Keys(
       saved_first_key_for_next_batch.reset();
     }
 
+    bool blob_retrieval_error = false;
     while (select_statement.Step()) {
+      std::u16string key;
+      if (!select_statement.ColumnBlobAsString16(0, &key)) {
+        blob_retrieval_error = true;
+        break;
+      }
       if (keys.size() < max_iterator_batch_size_) {
-        keys.push_back(blink::mojom::SharedStorageKeyAndOrValue::New(
-            select_statement.ColumnString16(0), u""));
+        keys.push_back(
+            blink::mojom::SharedStorageKeyAndOrValue::New(std::move(key), u""));
       } else {
         // Cache the current key to use as the start of the next batch, as we're
         // already passing through this step and the next iteration of
         // `statement.Step()`, if there is one, during the next iteration of the
         // outer while loop, will give us the subsequent key.
-        saved_first_key_for_next_batch = select_statement.ColumnString16(0);
+        saved_first_key_for_next_batch = std::move(key);
         has_more_entries = true;
         break;
       }
     }
 
-    if (!select_statement.Succeeded()) {
+    if (!select_statement.Succeeded() || blob_retrieval_error) {
       keys_listener->DidReadEntries(
           /*success=*/false,
           "SQL database encountered an error while retrieving keys.",
@@ -626,25 +656,35 @@ SharedStorageDatabase::OperationResult SharedStorageDatabase::Entries(
       saved_first_value_for_next_batch.reset();
     }
 
+    bool blob_retrieval_error = false;
     while (select_statement.Step()) {
+      std::u16string key;
+      if (!select_statement.ColumnBlobAsString16(0, &key)) {
+        blob_retrieval_error = true;
+        break;
+      }
+      std::u16string value;
+      if (!select_statement.ColumnBlobAsString16(1, &value)) {
+        blob_retrieval_error = true;
+        break;
+      }
       if (entries.size() < max_iterator_batch_size_) {
         entries.push_back(blink::mojom::SharedStorageKeyAndOrValue::New(
-            select_statement.ColumnString16(0),
-            select_statement.ColumnString16(1)));
+            std::move(key), std::move(value)));
       } else {
         // Cache the current key and value to use as the start of the next
         // batch, as we're already passing through this step and the next
         // iteration of `statement.Step()`, if there is one, during the next
         // iteration of the outer while loop, will give us the subsequent
         // key-value pair.
-        saved_first_key_for_next_batch = select_statement.ColumnString16(0);
-        saved_first_value_for_next_batch = select_statement.ColumnString16(1);
+        saved_first_key_for_next_batch = std::move(key);
+        saved_first_value_for_next_batch = std::move(value);
         has_more_entries = true;
         break;
       }
     }
 
-    if (!select_statement.Succeeded()) {
+    if (!select_statement.Succeeded() || blob_retrieval_error) {
       entries_listener->DidReadEntries(
           /*success=*/false,
           "SQL database encountered an error while retrieving entries.",
@@ -680,17 +720,17 @@ SharedStorageDatabase::PurgeMatchingOrigins(
   }
 
   static constexpr char kSelectSql[] =
-      "SELECT context_origin FROM per_origin_mapping "
-      "WHERE creation_time BETWEEN ? AND ? "
-      "ORDER BY creation_time";
+      "SELECT distinct context_origin FROM values_mapping "
+      "WHERE last_used_time BETWEEN ? AND ? ";
   sql::Statement statement(db_.GetCachedStatement(SQL_FROM_HERE, kSelectSql));
   statement.BindTime(0, begin);
   statement.BindTime(1, end);
 
   std::vector<std::string> origins;
 
-  while (statement.Step())
+  while (statement.Step()) {
     origins.push_back(statement.ColumnString(0));
+  }
 
   if (!statement.Succeeded())
     return OperationResult::kSqlError;
@@ -824,7 +864,7 @@ std::vector<mojom::StorageUsageInfoPtr> SharedStorageDatabase::FetchOrigins() {
 }
 
 SharedStorageDatabase::OperationResult
-SharedStorageDatabase::MakeBudgetWithdrawal(url::Origin context_origin,
+SharedStorageDatabase::MakeBudgetWithdrawal(net::SchemefulSite context_site,
                                             double bits_debit) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK_GT(bits_debit, 0.0);
@@ -833,11 +873,11 @@ SharedStorageDatabase::MakeBudgetWithdrawal(url::Origin context_origin,
     return OperationResult::kInitFailure;
 
   static constexpr char kInsertSql[] =
-      "INSERT INTO budget_mapping(context_origin,time_stamp,bits_debit)"
+      "INSERT INTO budget_mapping(context_site,time_stamp,bits_debit)"
       "VALUES(?,?,?)";
 
   sql::Statement statement(db_.GetCachedStatement(SQL_FROM_HERE, kInsertSql));
-  statement.BindString(0, SerializeOrigin(context_origin));
+  statement.BindString(0, SerializeSite(context_site));
   statement.BindTime(1, clock_->Now());
   statement.BindDouble(2, bits_debit);
 
@@ -847,7 +887,7 @@ SharedStorageDatabase::MakeBudgetWithdrawal(url::Origin context_origin,
 }
 
 SharedStorageDatabase::BudgetResult SharedStorageDatabase::GetRemainingBudget(
-    url::Origin context_origin) {
+    net::SchemefulSite context_site) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   if (LazyInit(DBCreationPolicy::kIgnoreIfAbsent) != InitStatus::kSuccess) {
@@ -861,10 +901,10 @@ SharedStorageDatabase::BudgetResult SharedStorageDatabase::GetRemainingBudget(
 
   static constexpr char kSelectSql[] =
       "SELECT SUM(bits_debit) FROM budget_mapping "
-      "WHERE context_origin=? AND time_stamp>=?";
+      "WHERE context_site=? AND time_stamp>=?";
 
   sql::Statement statement(db_.GetCachedStatement(SQL_FROM_HERE, kSelectSql));
-  statement.BindString(0, SerializeOrigin(context_origin));
+  statement.BindString(0, SerializeSite(context_site));
   statement.BindTime(1, clock_->Now() - budget_interval_);
 
   double total_debits = 0.0;
@@ -910,7 +950,8 @@ SharedStorageDatabase::MetadataResult SharedStorageDatabase::GetMetadata(
   if (time_result.result == OperationResult::kSuccess)
     metadata.creation_time = time_result.time;
 
-  BudgetResult budget_result = GetRemainingBudget(context_origin);
+  BudgetResult budget_result =
+      GetRemainingBudget(net::SchemefulSite(context_origin));
   metadata.budget_result = budget_result.result;
   if (budget_result.result == OperationResult::kSuccess)
     metadata.remaining_budget = budget_result.bits;
@@ -947,9 +988,16 @@ SharedStorageDatabase::GetEntriesForDevTools(url::Origin context_origin) {
   select_statement.BindTime(1, clock_->Now() - staleness_threshold_);
 
   while (select_statement.Step()) {
-    entries.entries.emplace_back(
-        base::UTF16ToUTF8(select_statement.ColumnString16(0)),
-        base::UTF16ToUTF8(select_statement.ColumnString16(1)));
+    std::u16string key;
+    if (!select_statement.ColumnBlobAsString16(0, &key)) {
+      key = u"[[DATABASE_ERROR: unable to retrieve key]]";
+    }
+    std::u16string value;
+    if (!select_statement.ColumnBlobAsString16(1, &value)) {
+      value = u"[[DATABASE_ERROR: unable to retrieve value]]";
+    }
+    entries.entries.emplace_back(base::UTF16ToUTF8(key),
+                                 base::UTF16ToUTF8(value));
   }
 
   if (!select_statement.Succeeded())
@@ -974,10 +1022,10 @@ SharedStorageDatabase::ResetBudgetForDevTools(url::Origin context_origin) {
   }
 
   static constexpr char kDeleteSql[] =
-      "DELETE FROM budget_mapping WHERE context_origin=?";
+      "DELETE FROM budget_mapping WHERE context_site=?";
 
   sql::Statement statement(db_.GetCachedStatement(SQL_FROM_HERE, kDeleteSql));
-  statement.BindString(0, SerializeOrigin(context_origin));
+  statement.BindString(0, SerializeSite(net::SchemefulSite(context_origin)));
 
   if (!statement.Run()) {
     return OperationResult::kSqlError;
@@ -1063,7 +1111,7 @@ void SharedStorageDatabase::OverrideSpecialStoragePolicyForTesting(
 }
 
 int64_t SharedStorageDatabase::GetNumBudgetEntriesForTesting(
-    url::Origin context_origin) {
+    net::SchemefulSite context_site) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   if (LazyInit(DBCreationPolicy::kIgnoreIfAbsent) != InitStatus::kSuccess) {
@@ -1077,10 +1125,10 @@ int64_t SharedStorageDatabase::GetNumBudgetEntriesForTesting(
 
   static constexpr char kSelectSql[] =
       "SELECT COUNT(*) FROM budget_mapping "
-      "WHERE context_origin=?";
+      "WHERE context_site=?";
 
   sql::Statement statement(db_.GetCachedStatement(SQL_FROM_HERE, kSelectSql));
-  statement.BindString(0, SerializeOrigin(context_origin));
+  statement.BindString(0, SerializeSite(context_site));
 
   if (statement.Step())
     return statement.ColumnInt64(0);
@@ -1108,39 +1156,6 @@ int64_t SharedStorageDatabase::GetTotalNumBudgetEntriesForTesting() {
     return statement.ColumnInt64(0);
 
   return -1;
-}
-
-bool SharedStorageDatabase::PopulateDatabaseForTesting(url::Origin origin1,
-                                                       url::Origin origin2,
-                                                       url::Origin origin3) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-
-  // We use `CHECK_EQ()` and `CHECK()` macros instead of early returns because
-  // the latter made the test coverage delta too low.
-  CHECK_EQ(OperationResult::kSet,
-           Set(origin1, u"key1", u"value1", SetBehavior::kDefault));
-
-  CHECK_EQ(OperationResult::kSet,
-           Set(origin1, u"key2", u"value1", SetBehavior::kDefault));
-
-  CHECK_EQ(OperationResult::kSet,
-           Set(origin2, u"key1", u"value2", SetBehavior::kDefault));
-
-  CHECK(OverrideCreationTimeForTesting(  // IN-TEST
-      origin2, clock_->Now() - base::Days(1)));
-
-  CHECK_EQ(OperationResult::kSet,
-           Set(origin3, u"key1", u"value1", SetBehavior::kDefault));
-
-  CHECK_EQ(OperationResult::kSet,
-           Set(origin3, u"key2", u"value2", SetBehavior::kDefault));
-
-  CHECK(OverrideCreationTimeForTesting(  // IN-TEST
-      origin3, clock_->Now() - base::Days(60)));
-
-  // We return a bool in order to facilitate use of `base::test::TestFuture`
-  // with this method.
-  return true;
 }
 
 SharedStorageDatabase::InitStatus SharedStorageDatabase::LazyInit(
@@ -1384,7 +1399,7 @@ bool SharedStorageDatabase::HasEntryFor(const std::string& context_origin,
 
   sql::Statement statement(db_.GetCachedStatement(SQL_FROM_HERE, kSelectSql));
   statement.BindString(0, context_origin);
-  statement.BindString16(1, key);
+  statement.BindBlob(1, key);
 
   return statement.Step();
 }
@@ -1461,10 +1476,10 @@ bool SharedStorageDatabase::UpdateValuesMappingWithTime(
         "WHERE context_origin=? AND key=?";
 
     sql::Statement statement(db_.GetCachedStatement(SQL_FROM_HERE, kUpdateSql));
-    statement.BindString16(0, value);
+    statement.BindBlob(0, value);
     statement.BindTime(1, last_used_time);
     statement.BindString(2, context_origin);
-    statement.BindString16(3, key);
+    statement.BindBlob(3, key);
 
     return statement.Run();
   }
@@ -1479,8 +1494,8 @@ bool SharedStorageDatabase::UpdateValuesMappingWithTime(
 
   sql::Statement statement(db_.GetCachedStatement(SQL_FROM_HERE, kInsertSql));
   statement.BindString(0, context_origin);
-  statement.BindString16(1, key);
-  statement.BindString16(2, value);
+  statement.BindBlob(1, key);
+  statement.BindBlob(2, value);
   statement.BindTime(3, last_used_time);
 
   if (!statement.Run())

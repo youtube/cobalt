@@ -19,10 +19,55 @@
 namespace v8::internal::wasm {
 
 enum class WellKnownImport : uint8_t {
+  // Generic:
   kUninstantiated,
   kGeneric,
+  kLinkError,
+
+  // DataView methods:
+  kDataViewGetBigInt64,
+  kDataViewGetBigUint64,
+  kDataViewGetFloat32,
+  kDataViewGetFloat64,
+  kDataViewGetInt8,
+  kDataViewGetInt16,
+  kDataViewGetInt32,
+  kDataViewGetUint8,
+  kDataViewGetUint16,
+  kDataViewGetUint32,
+  kDataViewSetBigInt64,
+  kDataViewSetBigUint64,
+  kDataViewSetFloat32,
+  kDataViewSetFloat64,
+  kDataViewSetInt8,
+  kDataViewSetInt16,
+  kDataViewSetInt32,
+  kDataViewSetUint8,
+  kDataViewSetUint16,
+  kDataViewSetUint32,
+
+  // String-related functions:
+  kDoubleToString,
   kIntToString,
+  kParseFloat,
+
+  // JS String Builtins
+  // https://github.com/WebAssembly/js-string-builtins
+  kStringCharCodeAt,
+  kStringCodePointAt,
+  kStringCompare,
+  kStringConcat,
+  kStringEquals,
+  kStringFromCharCode,
+  kStringFromCodePoint,
+  kStringFromWtf16Array,
+  kStringFromWtf8Array,
+  kStringIndexOf,
+  kStringLength,
+  kStringSubstring,
+  kStringToLocaleLowerCaseStringref,
   kStringToLowerCaseStringref,
+  kStringToWtf16Array,
 };
 
 class NativeModule;

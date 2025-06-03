@@ -44,17 +44,19 @@ class VIZ_SERVICE_EXPORT DisplayScheduler
   ~DisplayScheduler() override;
 
   // DisplaySchedulerBase implementation.
+  void SetDamageTracker(DisplayDamageTracker* damage_tracker) override;
   void SetVisible(bool visible) override;
   void ForceImmediateSwapIfPossible() override;
   void SetNeedsOneBeginFrame(bool needs_draw) override;
   void DidSwapBuffers() override;
   void DidReceiveSwapBuffersAck() override;
   void OutputSurfaceLost() override;
-  void ReportFrameTime(
-      base::TimeDelta frame_time,
-      base::flat_set<base::PlatformThreadId> thread_ids) override;
+  void ReportFrameTime(base::TimeDelta frame_time,
+                       base::flat_set<base::PlatformThreadId> thread_ids,
+                       base::TimeTicks draw_start,
+                       HintSession::BoostType boost_type) override;
 
-  // DisplayDamageTrackerObserver implementation.
+  // DisplayDamageTracker::Delegate implementation.
   void OnDisplayDamaged(SurfaceId surface_id) override;
   void OnRootFrameMissing(bool missing) override;
   void OnPendingSurfacesChanged() override;
@@ -118,6 +120,7 @@ class VIZ_SERVICE_EXPORT DisplayScheduler
   bool UpdateHasPendingSurfaces();
   void MaybeCreateHintSession(
       base::flat_set<base::PlatformThreadId> thread_ids);
+  void OnFrameBoostDeadline();
 
   std::unique_ptr<BeginFrameObserver> begin_frame_observer_;
   raw_ptr<BeginFrameSource> begin_frame_source_;
@@ -127,6 +130,7 @@ class VIZ_SERVICE_EXPORT DisplayScheduler
   base::RepeatingClosure begin_frame_deadline_closure_;
   base::DeadlineTimer begin_frame_deadline_timer_;
   base::TimeTicks begin_frame_deadline_task_time_;
+  base::DeadlineTimer frame_boost_deadline_timer_;
 
   base::CancelableOnceClosure missed_begin_frame_task_;
   bool inside_surface_damaged_;

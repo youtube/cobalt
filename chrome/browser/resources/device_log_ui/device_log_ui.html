@@ -5,13 +5,24 @@
   <title id="device-log-title">$i18n{titleText}</title>
   <link rel="stylesheet" href="chrome://resources/css/text_defaults.css">
   <link rel="stylesheet" href="device_log_ui.css">
+<if expr="is_chromeos">
+  <link rel="stylesheet" href="chrome://resources/css/os_header.css">
+</if>
   <script type="module" src="device_log_ui.js"></script>
 </head>
 <body>
+<if expr="is_chromeos">
+  <div class="os-link-container-container" id="os-link-container">
+    <div class="os-link-container">
+      <span class="os-link-icon"></span>
+      $i18nRaw{osLinkContainer}
+    </div>
+  </div>
+</if>
   <div id="header">
     <span>$i18n{autoRefreshText}</span>
   </div>
-  <div>
+  <div id="log-checkbox-container">
     <button id="log-refresh">$i18n{logRefreshText}</button>
     <button id="log-clear">$i18n{logClearText}</button>
     <span>$i18n{logLevelLabel}</span>
@@ -80,6 +91,10 @@
     <label>
       <input id="log-type-extensions" type="checkbox">
       <span>$i18n{logTypeExtensionsText}</span>
+    </label>
+    <label>
+      <input id="log-type-display" type="checkbox">
+      <span>$i18n{logTypeDisplayText}</span>
     </label>
   </div>
   <div id="log-container"></div>

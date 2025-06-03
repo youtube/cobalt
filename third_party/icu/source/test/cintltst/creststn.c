@@ -2181,7 +2181,7 @@ static void TestFallback()
         UResourceBundle* myResB = ures_open(NULL,"no_NO_NY",&err);
         UResourceBundle* resLocID = ures_getByKey(myResB, "Version", NULL, &err);
         const UChar* version = NULL;
-        static const UChar versionStr[] = u"42"; // 42 in nn_NO or in a parent bundle/root
+        static const UChar versionStr[] = u"43"; // 43 in nn_NO or in a parent bundle/root
 
         if(U_FAILURE(err)) {
             log_data_err("Expected success when trying to test no_NO_NY aliased to nn_NO for Version "
@@ -2843,7 +2843,7 @@ static void TestCLDRStyleAliases(void) {
       resource[0]='a';
       resource[1]='0'+i;
       resource[2]=0;
-      /* instead of sprintf(resource, "a%i", i); */
+      /* instead of snprintf(resource, "a%i", i); */
       a = ures_getByKeyWithFallback(alias, resource, a, &status);
       result = tres_getString(a, -1, NULL, &len, &status);
       u_charsToUChars(expects[i], expected, (int32_t)strlen(expects[i])+1);

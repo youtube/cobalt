@@ -5,26 +5,31 @@
 #ifndef CHROME_BROWSER_ASH_LOGIN_SCREENS_DRIVE_PINNING_SCREEN_H_
 #define CHROME_BROWSER_ASH_LOGIN_SCREENS_DRIVE_PINNING_SCREEN_H_
 
-#include <memory>
 #include <string>
 
 #include "base/functional/callback.h"
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/ash/drive/drive_integration_service.h"
 #include "chrome/browser/ash/login/screens/base_screen.h"
+#include "chromeos/ash/components/drivefs/drivefs_pinning_manager.h"
+
+class Profile;
 
 namespace ash {
 class DrivePinningScreenView;
 
 // Controller for the Drive Pinning Screen.
 class DrivePinningScreen : public BaseScreen,
-                           drivefs::pinning::PinManager::Observer {
+                           drive::DriveIntegrationService::Observer {
  public:
   using TView = DrivePinningScreenView;
 
-  enum class Result { ACCEPT, DECLINE, NOT_APPLICABLE };
+  enum class Result { NEXT, NOT_APPLICABLE };
 
   static std::string GetResultString(Result result);
+
+  // Apply the deferred perf `kOobeDrivePinningEnabledDeferred`.
+  static void ApplyDrivePinningPref(Profile* profile);
 
   using ScreenExitCallback = base::RepeatingCallback<void(Result result)>;
 
@@ -36,28 +41,49 @@ class DrivePinningScreen : public BaseScreen,
 
   ~DrivePinningScreen() override;
 
-  void CalculateRequiredSpace();
+  void set_exit_callback_for_testing(const ScreenExitCallback& callback) {
+    exit_callback_ = callback;
+  }
+
+  const ScreenExitCallback& get_exit_callback_for_testing() {
+    return exit_callback_;
+  }
+
+  // Starts calculating the required space. This should only be called once, in
+  // the event DriveFS restarts the `DrivePinningScreen` will handle restarting
+  // calculation.
+  void StartCalculatingRequiredSpace();
+
+  std::string RetrieveChoobeSubtitle();
+
+  void OnProgressForTest(const drivefs::pinning::Progress& progress);
 
  private:
+  void CalculateRequiredSpace();
+
   // BaseScreen:
   bool ShouldBeSkipped(const WizardContext& context) const override;
   bool MaybeSkip(WizardContext& context) override;
   void ShowImpl() override;
   void HideImpl() override;
   void OnUserAction(const base::Value::List& args) override;
+  ScreenSummary GetScreenSummary() override;
 
-  // drivefs::pinning::PinManager::Observer
-  void OnProgress(const drivefs::pinning::Progress& progress) override;
+  // DriveIntegrationService::Observer implementation.
+  void OnBulkPinProgress(const drivefs::pinning::Progress& progress) override;
+  void OnBulkPinInitialized() override;
 
-  // Called when the user turn on drive pinning on the screen.
-  void OnAccept();
+  void OnNext(bool drive_pinning);
 
-  // Called when the user decline drive pinning on the screen.
-  void OnDecline();
+  drivefs::pinning::Stage drive_pinning_stage_ =
+      drivefs::pinning::Stage::kStopped;
+  bool started_calculating_space_ = false;
+
+  // The number of times bulk pinning is initialized.
+  int bulk_pinning_initializations_ = 0;
 
   base::WeakPtr<DrivePinningScreenView> view_;
   ScreenExitCallback exit_callback_;
-  bool drive_pinning_available_ = false;
 };
 
 }  // namespace ash

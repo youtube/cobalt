@@ -13,7 +13,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/strings/string_piece.h"
 #include "base/task/sequenced_task_runner.h"
-#include "components/password_manager/core/browser/ui/export_progress_status.h"
+#include "components/password_manager/core/browser/export/export_progress_status.h"
 
 namespace password_manager {
 
@@ -26,10 +26,9 @@ struct PasswordExportInfo {
   std::string file_path;
   // The name of the folder containing the exported file.
   std::string folder_name;
-
-  friend bool operator==(const PasswordExportInfo& lhs,
-                         const PasswordExportInfo& rhs) = default;
 };
+
+bool operator==(const PasswordExportInfo& lhs, const PasswordExportInfo& rhs);
 
 // Controls the exporting of passwords. One instance per export flow.
 // PasswordManagerExporter will perform the export asynchronously as soon as all

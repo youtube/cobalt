@@ -4,13 +4,13 @@
 
 #include "components/component_updater/component_updater_service.h"
 
+#include <algorithm>
 #include <cstdint>
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include "base/cxx17_backports.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
@@ -94,6 +94,12 @@ class MockUpdateClient : public UpdateClient {
   MOCK_METHOD3(SendUninstallPing,
                void(const CrxComponent& crx_component,
                     int reason,
+                    Callback callback));
+  MOCK_METHOD5(SendInstallPing,
+               void(const CrxComponent& crx_component,
+                    bool success,
+                    int error_code,
+                    int extra_code1,
                     Callback callback));
   MOCK_METHOD2(SendRegistrationPing,
                void(const CrxComponent& crx_component, Callback callback));
@@ -190,10 +196,10 @@ class ComponentUpdaterTest : public testing::Test {
       std::make_unique<TestingPrefServiceSimple>();
   scoped_refptr<TestConfigurator> config_ =
       base::MakeRefCounted<TestConfigurator>(pref_.get());
-  raw_ptr<MockUpdateScheduler> scheduler_;
   scoped_refptr<MockUpdateClient> update_client_ =
       base::MakeRefCounted<MockUpdateClient>();
   std::unique_ptr<ComponentUpdateService> component_updater_;
+  raw_ptr<MockUpdateScheduler> scheduler_;
 };
 
 class OnDemandTester {
@@ -243,7 +249,6 @@ ComponentUpdaterTest::ComponentUpdaterTest() {
 
 ComponentUpdaterTest::~ComponentUpdaterTest() {
   EXPECT_CALL(update_client(), RemoveObserver(_)).Times(1);
-  component_updater_.reset();
 }
 
 void ComponentUpdaterTest::RunThreads() {

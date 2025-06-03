@@ -6,23 +6,23 @@
 
 #import <UIKit/UIKit.h>
 
+#import "components/policy/core/common/cloud/user_cloud_policy_manager.h"
 #import "components/policy/core/common/policy_pref_names.h"
 #import "components/prefs/pref_service.h"
 #import "ios/chrome/app/application_delegate/app_state.h"
 #import "ios/chrome/app/application_delegate/app_state_observer.h"
-#import "ios/chrome/browser/main/browser.h"
 #import "ios/chrome/browser/policy/cloud/user_policy_signin_service.h"
 #import "ios/chrome/browser/shared/coordinator/scene/scene_ui_provider.h"
+#import "ios/chrome/browser/shared/model/browser/browser.h"
+#import "ios/chrome/browser/shared/model/url/chrome_url_constants.h"
 #import "ios/chrome/browser/shared/public/commands/application_commands.h"
+#import "ios/chrome/browser/shared/public/commands/open_new_tab_command.h"
 #import "ios/chrome/browser/signin/authentication_service.h"
 #import "ios/chrome/browser/ui/policy/user_policy/user_policy_prompt_coordinator.h"
 #import "ios/chrome/browser/ui/policy/user_policy/user_policy_prompt_coordinator_delegate.h"
 #import "ios/chrome/browser/ui/policy/user_policy_util.h"
 #import "ios/chrome/browser/ui/scoped_ui_blocker/scoped_ui_blocker.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
+#import "url/gurl.h"
 
 @interface UserPolicySceneAgent () <AppStateObserver> {
   // Scoped UI blocker that blocks the other scenes/windows if the dialog is
@@ -62,7 +62,10 @@
 // TODO(crbug.com/1325115): Remove the logic to show the notification dialog
 // once we determined that this isn't needed anymore.
 
-@implementation UserPolicySceneAgent
+@implementation UserPolicySceneAgent {
+  // Manager for user policies that provides access to the stored policy data.
+  policy::UserCloudPolicyManager* _userPolicyManager;
+}
 
 - (instancetype)initWithSceneUIProvider:(id<SceneUIProvider>)sceneUIProvider
                             authService:(AuthenticationService*)authService
@@ -71,7 +74,9 @@
                             prefService:(PrefService*)prefService
                             mainBrowser:(Browser*)mainBrowser
                           policyService:
-                              (policy::UserPolicySigninService*)policyService {
+                              (policy::UserPolicySigninService*)policyService
+                      userPolicyManager:
+                          (policy::UserCloudPolicyManager*)userPolicyManager {
   self = [super init];
   if (self) {
     _sceneUIProvider = sceneUIProvider;
@@ -80,6 +85,7 @@
     _prefService = prefService;
     _mainBrowser = mainBrowser;
     _policyService = policyService;
+    _userPolicyManager = userPolicyManager;
   }
   return self;
 }
@@ -127,13 +133,23 @@
 
 #pragma mark - UserPolicyPromptCoordinatorDelegate
 
-- (void)didCompletePresentation:(UserPolicyPromptCoordinator*)coordinator {
+- (void)didCompletePresentationAndShowLearnMoreAfterward:
+    (BOOL)showLearnMoreAfterward {
   // Mark the prompt as seen.
   self.prefService->SetBoolean(
       policy::policy_prefs::kUserPolicyNotificationWasShown, true);
   self.policyService->OnUserPolicyNotificationSeen();
 
   [self stopUserPolicyPromptCoordinator];
+
+  if (showLearnMoreAfterward) {
+    // Show the enterprise learn more page in a browser tab after dismissing the
+    // notice. Not using modal so it won't interfere with the ongoing dismiss
+    // animation.
+    OpenNewTabCommand* command = [OpenNewTabCommand
+        commandWithURLFromChrome:GURL(kChromeUIManagementURL)];
+    [self.applicationCommandsHandler openURLInNewTab:command];
+  }
 }
 
 #pragma mark - Internal
@@ -161,7 +177,8 @@
     return;
   }
 
-  if (!IsUserPolicyNotificationNeeded(self.authService, self.prefService)) {
+  if (!IsUserPolicyNotificationNeeded(self.authService, self.prefService,
+                                      _userPolicyManager)) {
     // Skip notification if the notification isn't needed anymore. This
     // situation can happen when the user had already dismissed the
     // notification dialog during the same session.

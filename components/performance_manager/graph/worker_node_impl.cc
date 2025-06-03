@@ -6,6 +6,7 @@
 
 #include "components/performance_manager/graph/frame_node_impl.h"
 #include "components/performance_manager/graph/process_node_impl.h"
+#include "content/public/browser/browser_thread.h"
 
 namespace performance_manager {
 
@@ -23,7 +24,13 @@ WorkerNodeImpl::WorkerNodeImpl(const std::string& browser_context_id,
       worker_type_(worker_type),
       process_node_(process_node),
       worker_token_(worker_token) {
+  // Nodes are created on the UI thread, then accessed on the PM sequence.
+  // `weak_this_` can be returned from GetWeakPtrOnUIThread() and dereferenced
+  // on the PM sequence.
+  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   DETACH_FROM_SEQUENCE(sequence_checker_);
+  weak_this_ = weak_factory_.GetWeakPtr();
+
   DCHECK(process_node);
 }
 
@@ -148,6 +155,11 @@ const blink::WorkerToken& WorkerNodeImpl::worker_token() const {
   return worker_token_;
 }
 
+resource_attribution::WorkerContext WorkerNodeImpl::resource_context() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  return resource_attribution::WorkerContext::FromWorkerNode(this);
+}
+
 const base::flat_set<FrameNodeImpl*>& WorkerNodeImpl::client_frames() const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return client_frames_;
@@ -178,8 +190,30 @@ uint64_t WorkerNodeImpl::private_footprint_kb_estimate() const {
   return private_footprint_kb_estimate_;
 }
 
+base::WeakPtr<WorkerNodeImpl> WorkerNodeImpl::GetWeakPtrOnUIThread() {
+  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+  return weak_this_;
+}
+
+base::WeakPtr<WorkerNodeImpl> WorkerNodeImpl::GetWeakPtr() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  return weak_factory_.GetWeakPtr();
+}
+
 void WorkerNodeImpl::OnJoiningGraph() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  // Make sure all weak pointers, even `weak_this_` that was created on the UI
+  // thread in the constructor, can only be dereferenced on the graph sequence.
+  //
+  // If this is the first pointer dereferenced, it will bind all pointers from
+  // `weak_factory_` to the current sequence. If not, get() will DCHECK.
+  // DCHECK'ing the return value of get() prevents the compiler from optimizing
+  // it away.
+  //
+  // TODO(crbug.com/1134162): Use WeakPtrFactory::BindToCurrentSequence for this
+  // (it's clearer but currently not exposed publicly).
+  DCHECK(GetWeakPtr().get());
 
   process_node_->AddWorker(this);
 }
@@ -220,6 +254,11 @@ const blink::WorkerToken& WorkerNodeImpl::GetWorkerToken() const {
   return worker_token();
 }
 
+resource_attribution::WorkerContext WorkerNodeImpl::GetResourceContext() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  return resource_context();
+}
+
 const base::flat_set<const FrameNode*> WorkerNodeImpl::GetClientFrames() const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   base::flat_set<const FrameNode*> client_frames;
@@ -227,6 +266,16 @@ const base::flat_set<const FrameNode*> WorkerNodeImpl::GetClientFrames() const {
     client_frames.insert(static_cast<const FrameNode*>(client));
   DCHECK_EQ(client_frames.size(), client_frames_.size());
   return client_frames;
+}
+
+bool WorkerNodeImpl::VisitClientFrames(const FrameNodeVisitor& visitor) const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  for (FrameNodeImpl* node : client_frames_) {
+    if (!visitor(node)) {
+      return false;
+    }
+  }
+  return true;
 }
 
 const base::flat_set<const WorkerNode*> WorkerNodeImpl::GetClientWorkers()
@@ -237,6 +286,17 @@ const base::flat_set<const WorkerNode*> WorkerNodeImpl::GetClientWorkers()
     client_workers.insert(static_cast<const WorkerNode*>(client));
   DCHECK_EQ(client_workers.size(), client_workers_.size());
   return client_workers;
+}
+
+bool WorkerNodeImpl::VisitClientWorkers(
+    const WorkerNodeVisitor& visitor) const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  for (WorkerNodeImpl* node : client_workers_) {
+    if (!visitor(node)) {
+      return false;
+    }
+  }
+  return true;
 }
 
 const base::flat_set<const WorkerNode*> WorkerNodeImpl::GetChildWorkers()

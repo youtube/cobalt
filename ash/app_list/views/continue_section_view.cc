@@ -19,6 +19,7 @@
 #include "ash/app_list/views/app_list_toast_view.h"
 #include "ash/app_list/views/app_list_view_util.h"
 #include "ash/app_list/views/continue_task_view.h"
+#include "ash/public/cpp/resources/grit/ash_public_unscaled_resources.h"
 #include "ash/resources/vector_icons/vector_icons.h"
 #include "ash/session/session_controller_impl.h"
 #include "ash/shell.h"
@@ -29,6 +30,7 @@
 #include "extensions/common/constants.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/base/resource/resource_bundle.h"
 #include "ui/compositor/layer.h"
 #include "ui/views/animation/animation_builder.h"
 #include "ui/views/layout/flex_layout.h"
@@ -174,15 +176,6 @@ bool ContinueSectionView::ShouldShowPrivacyNotice() const {
 }
 
 bool ContinueSectionView::ShouldShowFilesSection() const {
-  // TODO(hongyulong): each admin template or each file is a continue task view
-  // in the continue task container view. If we set this container visible, the
-  // admin template and the file will show up at the same time. I think we may
-  // need to separate the visibility for admin template and file in the
-  // container view. Otherwise, when we have a admin template, and if
-  // `IsPrivacyNoticeAccepted` and `WasPrivacyNoticeShown` all return false,
-  // the file, privacy toast, admin template will co-exist unexpectedly.
-  // Thus, we need to make some changes for the condition in another CL after
-  // fully consideration.
   return (HasDesksAdminTemplates() || HasMinimumFilesToShow()) &&
          (nudge_controller_->IsPrivacyNoticeAccepted() ||
           nudge_controller_->WasPrivacyNoticeShown()) &&
@@ -346,7 +339,9 @@ void ContinueSectionView::MaybeCreatePrivacyNotice() {
                          &ContinueSectionView::OnPrivacyToastAcknowledged,
                          base::Unretained(this)))
           .SetStyleForTabletMode(tablet_mode_)
-          .SetThemingIcons(&kContinueFilesDarkIcon, &kContinueFilesLightIcon)
+          .SetIcon(
+              ui::ResourceBundle::GetSharedInstance().GetThemedLottieImageNamed(
+                  IDR_APP_LIST_CONTINUE_SECTION_NOTICE_IMAGE))
           .SetIconSize(tablet_mode_ ? kPrivacyIconSizeTablet
                                     : kPrivacyIconSizeClamshell)
           .SetIconBackground(true)

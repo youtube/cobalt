@@ -66,7 +66,7 @@ class GarbageCollectedHolder final : public GarbageCollectedScriptWrappable {
       : GarbageCollectedScriptWrappable("holder"),
         property_(MakeGarbageCollected<Property>(execution_context)) {}
 
-  Property* GetProperty() { return property_; }
+  Property* GetProperty() { return property_.Get(); }
   GarbageCollectedScriptWrappable* ToGarbageCollectedScriptWrappable() {
     return this;
   }
@@ -108,7 +108,7 @@ class ScriptPromisePropertyTestBase {
   ScriptPromisePropertyTestBase()
       : page_(std::make_unique<DummyPageHolder>(gfx::Size(1, 1))) {
     v8::HandleScope handle_scope(GetIsolate());
-    other_script_state_ = MakeGarbageCollected<ScriptState>(
+    other_script_state_ = ScriptState::Create(
         v8::Context::New(GetIsolate()),
         DOMWrapperWorld::EnsureIsolatedWorld(GetIsolate(), 1),
         /* execution_context = */ nullptr);

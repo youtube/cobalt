@@ -189,6 +189,22 @@ INSTANTIATE_TEST_SUITE_P(
                   &kToplevelConfigurationSignature,
                   true,
                   ::onc::ONC_SOURCE_DEVICE_POLICY),
+        // AllowTextMessages is only allowed for device policies.
+        OncParams("managed_toplevel_with_cellular_text_messages.onc",
+                  &kToplevelConfigurationSignature,
+                  true,
+                  ::onc::ONC_SOURCE_DEVICE_POLICY),
+        // RecommendedValuesAreEphemeral is only allowed for device policies.
+        OncParams("managed_toplevel_with_recommended_values_ephemeral.onc",
+                  &kToplevelConfigurationSignature,
+                  true,
+                  ::onc::ONC_SOURCE_DEVICE_POLICY),
+        // UserCreatedNetworkConfigurationsAreEphemeral is only allowed for
+        // device policies.
+        OncParams("managed_toplevel_with_user_created_configs_ephemeral.onc",
+                  &kToplevelConfigurationSignature,
+                  true,
+                  ::onc::ONC_SOURCE_DEVICE_POLICY),
         OncParams("managed_toplevel_l2tpipsec.onc",
                   &kToplevelConfigurationSignature,
                   true),
@@ -239,6 +255,14 @@ INSTANTIATE_TEST_SUITE_P(
                   &kNetworkConfigurationSignature,
                   true),
         OncParams("cellular_with_smdp.onc",
+                  &kNetworkConfigurationSignature,
+                  true,
+                  ::onc::ONC_SOURCE_DEVICE_POLICY),
+        OncParams("cellular_with_smds.onc",
+                  &kNetworkConfigurationSignature,
+                  true,
+                  ::onc::ONC_SOURCE_DEVICE_POLICY),
+        OncParams("cellular_with_neither_smdp_nor_smds.onc",
                   &kNetworkConfigurationSignature,
                   true,
                   ::onc::ONC_SOURCE_DEVICE_POLICY),
@@ -332,10 +356,11 @@ TEST_P(ONCValidatorTestRepairable, StrictValidation) {
            onc.is_managed, onc.onc_source);
   std::string location_of_repaired =
       GetParam().second.location_of_strict_repaired;
-  if (location_of_repaired.empty())
+  if (location_of_repaired.empty()) {
     ExpectInvalid();
-  else
+  } else {
     ExpectRepairWithWarnings(GetDictionaryFromTestFile(location_of_repaired));
+  }
 }
 
 TEST_P(ONCValidatorTestRepairable, LiberalValidation) {
@@ -347,10 +372,11 @@ TEST_P(ONCValidatorTestRepairable, LiberalValidation) {
   } else {
     std::string location_of_repaired =
         GetParam().second.location_of_liberal_repaired;
-    if (location_of_repaired.empty())
+    if (location_of_repaired.empty()) {
       ExpectInvalid();
-    else
+    } else {
       ExpectRepairWithWarnings(GetDictionaryFromTestFile(location_of_repaired));
+    }
   }
 }
 
@@ -539,6 +565,11 @@ INSTANTIATE_TEST_SUITE_P(
     StrictAndLiberalInvalid,
     ONCValidatorTestRepairable,
     ::testing::Values(
+        std::make_pair(OncParams("global-allow-text-messages",
+                                 &kGlobalNetworkConfigurationSignature,
+                                 true,
+                                 ::onc::ONC_SOURCE_DEVICE_POLICY),
+                       ExpectBothNotValid("", "")),
         std::make_pair(OncParams("global-disabled-technologies",
                                  &kGlobalNetworkConfigurationSignature,
                                  false),
@@ -633,10 +664,15 @@ INSTANTIATE_TEST_SUITE_P(
                                  &kScopeSignature,
                                  true),
                        ExpectBothNotValid("", "")),
+        std::make_pair(OncParams("invalid-scope-due-to-missing-type",
+                                 &kScopeSignature,
+                                 true),
+                       ExpectBothNotValid("",
+                                          "invalid-scope-due-to-missing-type")),
         std::make_pair(
-            OncParams("invalid-scope-due-to-missing-type",
-                      &kScopeSignature,
+            OncParams("invalid-cellular-due-to-having-both-smdp-and-smds",
+                      &kCellularSignature,
                       true),
-            ExpectBothNotValid("", "invalid-scope-due-to-missing-type"))));
+            ExpectBothNotValid("", ""))));
 
 }  // namespace chromeos::onc

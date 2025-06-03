@@ -4,10 +4,6 @@
 
 #import "ios/chrome/browser/ui/badges/badge_constants.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 NSString* const kBadgeButtonSavePasswordAccessibilityIdentifier =
     @"badgeButtonSavePasswordAXID";
 
@@ -57,6 +53,12 @@ NSString* const
     kBadgeButtonPermissionsMicrophoneAcceptedAccessibilityIdentifier =
         @"badgeButtonPermissionsMicrophoneAcceptedAXID";
 
+NSString* const kBadgeButtonParcelTrackingAccessibilityIdentifier =
+    @"badgeButtonParcelTrackingAXID";
+
+NSString* const kBadgeButtonParcelTrackingAcceptedAccessibilityIdentifier =
+    @"badgeButtonParcelTrackingAcceptedAXID";
+
 NSString* const kBadgeUnreadIndicatorAccessibilityIdentifier =
     @"badgeUnreadIndicatorAXID";
 
@@ -77,3 +79,6 @@ NSString* const kBadgeButtonTranslateActionIdentifier =
 
 NSString* const kBadgeButtonPermissionsActionIdentifier =
     @"badgeButtonPermissionsActionIdentifier";
+
+NSString* const kBadgeButtonParcelTrackingActionIdentifier =
+    @"badgeButtonParcelTrackingActionIdentifier";

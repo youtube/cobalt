@@ -17,9 +17,11 @@
 #include "base/test/task_environment.h"
 #include "content/browser/interest_group/auction_worklet_manager.h"
 #include "content/browser/interest_group/subresource_url_builder.h"
+#include "content/public/browser/render_frame_host.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "net/base/isolation_info.h"
+#include "net/base/load_flags.h"
 #include "net/base/network_anonymization_key.h"
 #include "net/base/schemeful_site.h"
 #include "net/cookies/site_for_cookies.h"
@@ -121,6 +123,7 @@ class AuctionUrlLoaderFactoryProxyTest : public testing::Test {
     remote_url_loader_factory_.reset();
     url_loader_factory_proxy_ = std::make_unique<AuctionURLLoaderFactoryProxy>(
         remote_url_loader_factory_.BindNewPipeAndPassReceiver(),
+        /*auction_network_events_handler=*/mojo::NullReceiver(),
         base::BindRepeating(
             [](network::mojom::URLLoaderFactory* factory) { return factory; },
             &frame_url_loader_factory_),
@@ -129,10 +132,11 @@ class AuctionUrlLoaderFactoryProxyTest : public testing::Test {
             &trusted_url_loader_factory_),
         base::BindOnce(&AuctionUrlLoaderFactoryProxyTest::PreconnectSocket,
                        base::Unretained(this)),
-        top_frame_origin_, frame_origin_,
+        /*force_reload=*/force_reload_, top_frame_origin_, frame_origin_,
         /*renderer_process_id=*/kRenderProcessId, is_for_seller_,
         client_security_state_.Clone(), GURL(kScriptUrl), wasm_url_,
-        trusted_signals_base_url_);
+        trusted_signals_base_url_, needs_cors_for_additional_bid_,
+        /*frame_tree_node_id=*/RenderFrameHost::kNoFrameTreeNodeId);
 
     EXPECT_EQ(preconnect_url_, trusted_signals_base_url_);
     if (trusted_signals_base_url_) {
@@ -247,14 +251,16 @@ class AuctionUrlLoaderFactoryProxyTest : public testing::Test {
     // AuctionURLLoaderFactoryProxy.
     for (const auto& other_pending_request :
          *frame_url_loader_factory_.pending_requests()) {
-      if (&other_pending_request == pending_request)
+      if (&other_pending_request == pending_request) {
         continue;
+      }
       EXPECT_NE(other_pending_request.request_id, pending_request->request_id);
     }
     for (const auto& other_pending_request :
          *trusted_url_loader_factory_.pending_requests()) {
-      if (&other_pending_request == pending_request)
+      if (&other_pending_request == pending_request) {
         continue;
+      }
       EXPECT_NE(other_pending_request.request_id, pending_request->request_id);
     }
 
@@ -291,21 +297,26 @@ class AuctionUrlLoaderFactoryProxyTest : public testing::Test {
     EXPECT_EQ(network::mojom::RedirectMode::kError,
               observed_request.redirect_mode);
 
+    // Should bypass cache when in force-reload mode.
+    EXPECT_EQ(force_reload_ ? net::LOAD_BYPASS_CACHE : 0,
+              observed_request.load_flags);
+
     // The initiator should be set.
     EXPECT_EQ(frame_origin_, observed_request.request_initiator);
 
-    if (expect_bundle_request) {
+    if (expect_bundle_request || needs_cors_for_additional_bid_) {
       EXPECT_EQ(network::mojom::RequestMode::kCors, observed_request.mode);
     } else {
       EXPECT_EQ(network::mojom::RequestMode::kNoCors, observed_request.mode);
     }
 
-    if (is_for_seller_) {
+    if (is_for_seller_ || needs_cors_for_additional_bid_) {
       if (original_accept_header == kAcceptJavascript ||
-          original_accept_header == kAcceptWasm) {
+          original_accept_header == kAcceptWasm ||
+          needs_cors_for_additional_bid_) {
         // Seller worklet Javascript & WASM requests use the renderer's
         // untrusted URLLoaderFactory, so inherit security parameters from
-        // there.
+        // there. The same happens for CORS-requiring additional bid reporting.
         EXPECT_FALSE(trusted_factory_used);
         EXPECT_FALSE(observed_request.trusted_params);
       } else {
@@ -394,10 +405,12 @@ class AuctionUrlLoaderFactoryProxyTest : public testing::Test {
   base::test::TaskEnvironment task_environment_;
 
   bool is_for_seller_ = false;
+  bool force_reload_ = false;
   const network::mojom::ClientSecurityStatePtr client_security_state_ =
       network::mojom::ClientSecurityState::New();
   absl::optional<GURL> trusted_signals_base_url_ = GURL(kTrustedSignalsBaseUrl);
   absl::optional<GURL> wasm_url_ = GURL(kWasmUrl);
+  bool needs_cors_for_additional_bid_ = false;
 
   url::Origin top_frame_origin_ =
       url::Origin::Create(GURL("https://top.test/"));
@@ -451,6 +464,15 @@ TEST_F(AuctionUrlLoaderFactoryProxyTest, Basic) {
     TryMakeRequest("https://host.test/", absl::nullopt,
                    ExpectedResponse::kReject);
   }
+}
+
+TEST_F(AuctionUrlLoaderFactoryProxyTest, ForceReload) {
+  force_reload_ = true;
+  // Force creation of a new proxy, with correct `force_reload` value.
+  remote_url_loader_factory_.reset();
+  CreateUrlLoaderFactoryProxy();
+
+  TryMakeRequest(kScriptUrl, kAcceptJavascript, ExpectedResponse::kAllow);
 }
 
 TEST_F(AuctionUrlLoaderFactoryProxyTest, NoWasmUrl) {
@@ -660,8 +682,8 @@ TEST_F(AuctionUrlLoaderFactoryProxyTest, SameUrl) {
 TEST_F(AuctionUrlLoaderFactoryProxyTest, ClientSecurityState) {
   is_for_seller_ = false;
 
-  for (auto ip_address_space : {network::mojom::IPAddressSpace::kLoopback,
-                                network::mojom::IPAddressSpace::kLocal,
+  for (auto ip_address_space : {network::mojom::IPAddressSpace::kLocal,
+                                network::mojom::IPAddressSpace::kPrivate,
                                 network::mojom::IPAddressSpace::kPublic,
                                 network::mojom::IPAddressSpace::kUnknown}) {
     client_security_state_->ip_address_space = ip_address_space;
@@ -673,14 +695,14 @@ TEST_F(AuctionUrlLoaderFactoryProxyTest, ClientSecurityState) {
     TryMakeRequest(kTrustedSignalsUrl, kAcceptJson, ExpectedResponse::kAllow);
   }
 
-  for (auto local_network_request_policy :
-       {network::mojom::LocalNetworkRequestPolicy::kAllow,
-        network::mojom::LocalNetworkRequestPolicy::kWarn,
-        network::mojom::LocalNetworkRequestPolicy::kBlock,
-        network::mojom::LocalNetworkRequestPolicy::kPreflightBlock,
-        network::mojom::LocalNetworkRequestPolicy::kPreflightBlock}) {
-    client_security_state_->local_network_request_policy =
-        local_network_request_policy;
+  for (auto private_network_request_policy :
+       {network::mojom::PrivateNetworkRequestPolicy::kAllow,
+        network::mojom::PrivateNetworkRequestPolicy::kWarn,
+        network::mojom::PrivateNetworkRequestPolicy::kBlock,
+        network::mojom::PrivateNetworkRequestPolicy::kPreflightBlock,
+        network::mojom::PrivateNetworkRequestPolicy::kPreflightBlock}) {
+    client_security_state_->private_network_request_policy =
+        private_network_request_policy;
     // Force creation of a new proxy, with correct `ip_address_space` value.
     remote_url_loader_factory_.reset();
     CreateUrlLoaderFactoryProxy();
@@ -737,6 +759,16 @@ TEST_F(AuctionUrlLoaderFactoryProxyTest, BasicSubresourceBundles2) {
 
     OnWorkletHandleDestruction(kWorkletHandle2);
   }
+}
+
+TEST_F(AuctionUrlLoaderFactoryProxyTest, AdditionalBidCors) {
+  is_for_seller_ = false;
+  needs_cors_for_additional_bid_ = true;
+
+  remote_url_loader_factory_.reset();
+  CreateUrlLoaderFactoryProxy();
+
+  TryMakeRequest(kScriptUrl, kAcceptJavascript, ExpectedResponse::kAllow);
 }
 
 }  // namespace content

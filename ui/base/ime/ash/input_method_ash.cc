@@ -13,7 +13,9 @@
 #include <utility>
 #include <vector>
 
+#include "ash/constants/ash_features.h"
 #include "base/check.h"
+#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/i18n/char_iterator.h"
 #include "base/strings/string_util.h"
@@ -26,10 +28,13 @@
 #include "ui/base/ime/ash/text_input_method.h"
 #include "ui/base/ime/ash/typing_session_manager.h"
 #include "ui/base/ime/composition_text.h"
+#include "ui/base/ime/constants.h"
+#include "ui/base/ime/events.h"
 #include "ui/base/ime/ime_key_event_dispatcher.h"
 #include "ui/base/ime/text_input_client.h"
 #include "ui/base/ime/text_input_flags.h"
 #include "ui/base/ime/text_input_type.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/events/event.h"
 #include "ui/events/keycodes/dom/keycode_converter.h"
 #include "ui/events/ozone/events_ozone.h"
@@ -63,6 +68,12 @@ AutocapitalizationMode ConvertAutocapitalizationMode(int flags) {
   if (flags & ui::TEXT_INPUT_FLAG_AUTOCAPITALIZE_SENTENCES)
     return AutocapitalizationMode::kSentences;
   return AutocapitalizationMode::kUnspecified;
+}
+
+// Returns whether `url` refers to Terminal/crosh.
+bool IsTerminalOrCrosh(const GURL& url) {
+  return base::StartsWith(url.spec(), "chrome-untrusted://terminal") ||
+         base::StartsWith(url.spec(), "chrome-untrusted://crosh");
 }
 
 }  // namespace
@@ -120,7 +131,7 @@ ui::EventDispatchDetails InputMethodAsh::DispatchKeyEvent(ui::KeyEvent* event) {
     input_method::ImeKeyboard* keyboard = manager->GetImeKeyboard();
     if (keyboard && event->type() == ui::ET_KEY_PRESSED &&
         event->key_code() != ui::VKEY_CAPITAL &&
-        keyboard->CapsLockIsEnabled() != event->IsCapsLockOn()) {
+        keyboard->IsCapsLockEnabled() != event->IsCapsLockOn()) {
       // Synchronize the keyboard state with event's state if they do not
       // match. Do not synchronize for Caps Lock key because it is already
       // handled in event rewriter.
@@ -159,6 +170,15 @@ ui::EventDispatchDetails InputMethodAsh::DispatchKeyEvent(ui::KeyEvent* event) {
         return DispatchKeyEventPostIME(event);
       }
     }
+  }
+
+  // Simply forward the key event if there's no focused TextInputClient.
+  // Dead keys cannot be supported in this case because composition and commit
+  // are not supported.
+  if (base::FeatureList::IsEnabled(
+          features::kInputMethodDeadKeyFixForNoInputField) &&
+      GetTextInputClient() == nullptr) {
+    return DispatchKeyEventPostIME(event);
   }
 
   // If |context_| is not usable, then we can only dispatch the key event as is.
@@ -559,7 +579,10 @@ void InputMethodAsh::ConfirmComposition(bool reset_engine) {
     pending_composition_ = absl::nullopt;
     composition_changed_ = false;
   }
-  if (client && client->HasCompositionText()) {
+  if (client &&
+      (client->HasCompositionText() ||
+       (base::FeatureList::IsEnabled(::features::kAlwaysConfirmComposition) &&
+        client->SupportsAlwaysConfirmComposition()))) {
     const size_t characters_committed =
         client->ConfirmCompositionText(/*keep_selection*/ true);
     typing_session_manager_.CommitCharacters(characters_committed);
@@ -603,17 +626,37 @@ void InputMethodAsh::UpdateContextFocusState() {
     assistive_window->FocusStateChanged();
 
   IMEBridge::Get()->SetCurrentInputContext(GetInputContext());
+
+  if (base::FeatureList::IsEnabled(
+          features::kInputMethodDeadKeyFixForTerminal)) {
+    TextInputClient* client = GetTextInputClient();
+    focused_url_ = client && !IsPasswordOrNoneInputFieldFocused()
+                       ? client->GetTextEditingContext().page_url
+                       : GURL();
+  }
 }
 
 ui::EventDispatchDetails InputMethodAsh::ProcessKeyEventPostIME(
     ui::KeyEvent* event,
     ui::ime::KeyEventHandledState handled_state,
     bool stopped_propagation) {
-  bool handled = (handled_state != ui::ime::KeyEventHandledState::kNotHandled);
+  bool handled =
+      handled_state == ui::ime::KeyEventHandledState::kHandledByIME ||
+      handled_state ==
+          ui::ime::KeyEventHandledState::kHandledByAssistiveSuggester;
 
+  auto properties =
+      event->properties() ? *event->properties() : ui::Event::Properties();
   // Mark whether the key is handled by IME or not.
-  ui::SetKeyboardImeFlags(event, handled ? ui::kPropertyKeyboardImeHandledFlag
+  ui::SetKeyboardImeFlagProperty(&properties,
+                                 handled ? ui::kPropertyKeyboardImeHandledFlag
                                          : ui::kPropertyKeyboardImeIgnoredFlag);
+  // Mark whether autorepeat needs to be suppressed.
+  if (handled_state ==
+      ui::ime::KeyEventHandledState::kNotHandledSuppressAutoRepeat) {
+    ui::SetKeyEventSuppressAutoRepeat(properties);
+  }
+  event->SetProperties(properties);
 
   TextInputClient* client = GetTextInputClient();
   if (!client) {
@@ -663,8 +706,25 @@ ui::EventDispatchDetails InputMethodAsh::ProcessKeyEventPostIME(
 ui::EventDispatchDetails InputMethodAsh::ProcessFilteredKeyPressEvent(
     ui::KeyEvent* event,
     bool only_dispatch_vkey_processkey) {
-  if (!only_dispatch_vkey_processkey && NeedInsertChar())
-    return DispatchKeyEventPostIME(event);
+  if (!only_dispatch_vkey_processkey) {
+    if (NeedInsertChar()) {
+      return DispatchKeyEventPostIME(event);
+    }
+
+    // For dead keys, it is possible to dispatch a fake Process key, but it is
+    // better to dispatch the real dead key, as it is more specific and allows
+    // apps to have dead key specific behavior.
+    // TODO(b/289319217): Investigate if we need to distinguish between a dead
+    // key that is handled by the character composer or is handled by the input
+    // method.
+    // TODO(b/289319217): Expand fix to all URLs once the fix looks stable.
+    if (base::FeatureList::IsEnabled(
+            features::kInputMethodDeadKeyFixForTerminal) &&
+        focused_url_.is_valid() && IsTerminalOrCrosh(focused_url_) &&
+        event->GetDomKey().IsDeadKey()) {
+      return DispatchKeyEventPostIME(event);
+    }
+  }
 
   ui::KeyEvent fabricated_event(ui::ET_KEY_PRESSED, ui::VKEY_PROCESSKEY,
                                 event->code(), event->flags(),
@@ -720,6 +780,7 @@ void InputMethodAsh::MaybeProcessPendingInputMethodResult(ui::KeyEvent* event,
         ui::KeyEvent ch_event(ui::ET_KEY_PRESSED, ui::VKEY_UNKNOWN,
                               ui::EF_NONE);
         ch_event.set_character(ch);
+        ui::SetKeyboardImeFlags(&ch_event, ui::kPropertyKeyboardImeHandledFlag);
         client->InsertChar(ch_event);
       }
     } else if (pending_commit_->text.empty()) {
@@ -939,6 +1000,7 @@ SurroundingTextInfo InputMethodAsh::GetSurroundingTextInfo() {
   info.selection_range.set_start(info.selection_range.start() -
                                  text_range.start());
   info.selection_range.set_end(info.selection_range.end() - text_range.start());
+  info.offset = text_range.start();
   return info;
 }
 
@@ -952,6 +1014,18 @@ void InputMethodAsh::DeleteSurroundingText(uint32_t num_char16s_before_cursor,
 
   GetTextInputClient()->ExtendSelectionAndDelete(num_char16s_before_cursor,
                                                  num_char16s_after_cursor);
+}
+
+void InputMethodAsh::ReplaceSurroundingText(
+    uint32_t length_before_selection,
+    uint32_t length_after_selection,
+    base::StringPiece16 replacement_text) {
+  if (!GetTextInputClient()) {
+    return;
+  }
+
+  GetTextInputClient()->ExtendSelectionAndReplace(
+      length_before_selection, length_after_selection, replacement_text);
 }
 
 bool InputMethodAsh::ExecuteCharacterComposer(const ui::KeyEvent& event) {

@@ -16,10 +16,14 @@ found in the LICENSE file.
                 <!-- Groups with unique ids used to show a divider. -->
                 <group android:id="@+id/sort_opts"
                        android:checkableBehavior="single">
+                    <item android:id="@+id/sort_by_manual"
+                        android:title="@string/sort_by_manual" />
                     <item android:id="@+id/sort_by_newest"
                         android:title="@string/sort_by_newest" />
                     <item android:id="@+id/sort_by_oldest"
                         android:title="@string/sort_by_oldest" />
+                    <item android:id="@+id/sort_by_last_opened"
+                        android:title="@string/sort_by_last_opened" />
                     <item android:id="@+id/sort_by_alpha"
                         android:title="@string/sort_by_alpha" />
                     <item android:id="@+id/sort_by_reverse_alpha"
@@ -36,20 +40,20 @@ found in the LICENSE file.
         </item>
         <item
             android:id="@+id/edit_menu_id"
-            android:icon="@drawable/ic_edit_24dp"
+            android:icon="@drawable/material_ic_edit_24dp"
             android:title="@string/edit_folder"
             android:visible="false"
             app:showAsAction="ifRoom"
             app:iconTint="@color/default_icon_color_secondary_tint_list" />
         <item
             android:id="@+id/create_new_folder_menu_id"
-            android:icon="@drawable/ic_create_new_folder_24dp"
+            android:icon="@drawable/material_ic_create_new_folder_24dp"
             android:title="@string/create_new_folder"
             app:showAsAction="ifRoom"
             app:iconTint="@color/default_icon_color_secondary_tint_list" />
         <item
             android:id="@+id/close_menu_id"
-            android:icon="@drawable/btn_close"
+            android:icon="@drawable/material_ic_close_24dp"
             android:title="@string/bookmark_toolbar_close"
             app:showAsAction="ifRoom"
             app:iconTint="@color/default_icon_color_secondary_tint_list" />
@@ -59,19 +63,19 @@ found in the LICENSE file.
         android:visible="false" >
         <item
             android:id="@+id/selection_mode_edit_menu_id"
-            android:icon="@drawable/bookmark_edit_active"
+            android:icon="@drawable/material_ic_edit_24dp"
             android:title="@string/edit_bookmark"
             app:showAsAction="ifRoom"
             app:iconTint="@color/default_icon_color_secondary_tint_list" />
         <item
             android:id="@+id/selection_mode_move_menu_id"
-            android:icon="@drawable/bookmark_move_active"
+            android:icon="@drawable/material_ic_drive_file_move_24dp"
             android:title="@string/bookmark_toolbar_move"
             app:showAsAction="ifRoom"
             app:iconTint="@color/default_icon_color_secondary_tint_list" />
         <item
             android:id="@+id/selection_mode_delete_menu_id"
-            android:icon="@drawable/ic_delete_white_24dp"
+            android:icon="@drawable/material_ic_delete_24dp"
             android:title="@string/bookmark_toolbar_delete"
             app:showAsAction="ifRoom"
             app:iconTint="@color/default_icon_color_secondary_tint_list" />

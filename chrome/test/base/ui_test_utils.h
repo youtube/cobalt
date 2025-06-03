@@ -17,7 +17,6 @@
 #include "components/history/core/browser/history_service.h"
 #include "content/public/browser/notification_details.h"
 #include "content/public/browser/notification_observer.h"
-#include "content/public/browser/notification_registrar.h"
 #include "content/public/browser/notification_source.h"
 #include "content/public/test/test_utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -59,7 +58,7 @@ namespace ui_test_utils {
 //    Navigation
 enum BrowserTestWaitFlags {
   // Don't wait for anything.
-  BROWSER_TEST_NONE = 0,
+  BROWSER_TEST_NO_WAIT = 0,
   // Wait for a new browser.
   BROWSER_TEST_WAIT_FOR_BROWSER = 1 << 0,
   // Wait for a new tab.
@@ -273,7 +272,8 @@ class AllBrowserTabAddedWaiter : public TabStripModelObserver,
   base::RunLoop run_loop_;
 
   // The last tab that was added.
-  raw_ptr<content::WebContents, DanglingUntriaged> web_contents_ = nullptr;
+  raw_ptr<content::WebContents, AcrossTasksDanglingUntriaged> web_contents_ =
+      nullptr;
 };
 
 // Enumerates all history contents on the backend thread. Returns them in
@@ -313,9 +313,34 @@ class BrowserChangeObserver : public BrowserListObserver {
   void OnBrowserRemoved(Browser* browser) override;
 
  private:
-  raw_ptr<Browser, DanglingUntriaged> browser_;
+  raw_ptr<Browser, AcrossTasksDanglingUntriaged> browser_;
   ChangeType type_;
   base::RunLoop run_loop_;
+};
+
+// Encapsulates waiting for the browser window to change state. This is
+// needed for example on Chrome desktop linux, where window state change is done
+// asynchronously as an event received from a different process.
+class CheckWaiter {
+ public:
+  CheckWaiter(base::RepeatingCallback<bool()> callback,
+              bool expected,
+              const base::TimeDelta& timeout);
+  CheckWaiter(const CheckWaiter&) = delete;
+  CheckWaiter& operator=(const CheckWaiter&) = delete;
+  ~CheckWaiter();
+
+  // Blocks until the browser window becomes maximized.
+  void Wait();
+
+ private:
+  bool Check();
+
+  base::RepeatingCallback<bool()> callback_;
+  bool expected_;
+  const base::TimeTicks timeout_;
+  // The waiter's RunLoop quit closure.
+  base::RepeatingClosure quit_;
 };
 
 }  // namespace ui_test_utils

@@ -4,6 +4,7 @@
 
 #include "third_party/blink/renderer/core/timing/performance_timing_for_reporting.h"
 
+#include "third_party/blink/public/common/performance/largest_contentful_paint_type.h"
 #include "third_party/blink/public/web/web_performance_metrics_for_reporting.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/document_parser_timing.h"
@@ -29,6 +30,47 @@ static uint64_t ToIntegerMilliseconds(base::TimeDelta duration,
   // methods which do not expose the timestamp to a web perf API).
   return static_cast<uint64_t>(Performance::ClampTimeResolution(
       duration, cross_origin_isolated_capability));
+}
+
+LargestContentfulPaintDetailsForReporting PerformanceTimingForReporting::
+    PopulateLargestContentfulPaintDetailsForReporting(
+        PaintTimingDetector::LargestContentfulPaintDetails timing) const {
+  // The largest_image_paint_time and the largest_text_paint_time are converted
+  // into seconds.
+  double largest_image_paint_time =
+      base::Milliseconds(
+          MonotonicTimeToIntegerMilliseconds(timing.largest_image_paint_time_))
+          .InSecondsF();
+
+  double largest_text_paint_time =
+      base::Milliseconds(
+          MonotonicTimeToIntegerMilliseconds(timing.largest_text_paint_time_))
+          .InSecondsF();
+
+  absl::optional<base::TimeDelta> largest_image_discovery_time =
+      MonotonicTimeToPseudoWallTime(timing.largest_image_discovery_time_);
+
+  absl::optional<base::TimeDelta> largest_image_load_start =
+      MonotonicTimeToPseudoWallTime(timing.largest_image_load_start_);
+
+  absl::optional<base::TimeDelta> largest_image_load_end =
+      MonotonicTimeToPseudoWallTime(timing.largest_image_load_end_);
+
+  return {largest_image_paint_time,
+          timing.largest_image_paint_size_,
+          largest_image_discovery_time,
+          largest_image_load_start,
+          largest_image_load_end,
+          timing.largest_contentful_paint_type_,
+
+          timing.largest_contentful_paint_image_bpp_,
+          largest_text_paint_time,
+          timing.largest_text_paint_size_,
+          timing.largest_contentful_paint_time_,
+
+          timing.largest_contentful_paint_image_request_priority_,
+          timing.is_loaded_from_memory_cache_,
+          timing.is_preloaded_with_early_hints_};
 }
 
 PerformanceTimingForReporting::PerformanceTimingForReporting(
@@ -164,117 +206,37 @@ uint64_t PerformanceTimingForReporting::FirstMeaningfulPaintCandidate() const {
       timing->FirstMeaningfulPaintCandidate());
 }
 
-uint64_t PerformanceTimingForReporting::LargestImagePaintForMetrics() const {
-  PaintTimingDetector* paint_timing_detector = GetPaintTimingDetector();
-  if (!paint_timing_detector)
-    return 0;
-
-  return MonotonicTimeToIntegerMilliseconds(
-      paint_timing_detector->LargestImagePaintForMetrics());
-}
-
-uint64_t PerformanceTimingForReporting::LargestImagePaintSizeForMetrics()
-    const {
-  PaintTimingDetector* paint_timing_detector = GetPaintTimingDetector();
-  if (!paint_timing_detector)
-    return 0;
-
-  return paint_timing_detector->LargestImagePaintSizeForMetrics();
-}
-
-blink::LargestContentfulPaintType
-PerformanceTimingForReporting::LargestContentfulPaintTypeForMetrics() const {
-  PaintTimingDetector* paint_timing_detector = GetPaintTimingDetector();
-  // TODO(iclelland) Add a test for this condition
-  if (!paint_timing_detector) {
-    return blink::LargestContentfulPaintType::kNone;
-  }
-  return paint_timing_detector->LargestContentfulPaintTypeForMetrics();
-}
-
-double PerformanceTimingForReporting::LargestContentfulPaintImageBPPForMetrics()
-    const {
+LargestContentfulPaintDetailsForReporting
+PerformanceTimingForReporting::LargestContentfulPaintDetailsForMetrics() const {
   PaintTimingDetector* paint_timing_detector = GetPaintTimingDetector();
   if (!paint_timing_detector) {
-    return 0.0;
+    return {};
   }
-  return paint_timing_detector->LargestContentfulPaintImageBPPForMetrics();
+
+  auto timing =
+      paint_timing_detector->LargestContentfulPaintDetailsForMetrics();
+
+  return PopulateLargestContentfulPaintDetailsForReporting(timing);
 }
 
-absl::optional<WebURLRequest::Priority> PerformanceTimingForReporting::
-    LargestContentfulPaintImageRequestPriorityForMetrics() const {
+LargestContentfulPaintDetailsForReporting PerformanceTimingForReporting::
+    SoftNavigationLargestContentfulPaintDetailsForMetrics() const {
   PaintTimingDetector* paint_timing_detector = GetPaintTimingDetector();
   if (!paint_timing_detector) {
-    return absl::nullopt;
-  }
-  return paint_timing_detector
-      ->LargestContentfulPaintImageRequestPriorityForMetrics();
-}
-
-absl::optional<base::TimeDelta>
-PerformanceTimingForReporting::LargestContentfulPaintImageLoadStart() const {
-  PaintTimingDetector* paint_timing_detector = GetPaintTimingDetector();
-
-  DCHECK(paint_timing_detector);
-
-  base::TimeTicks time =
-      paint_timing_detector->LargestImageLoadStartForMetrics();
-
-  // Return nullopt if time is base::TimeTicks(0);
-  if (time.is_null()) {
-    return absl::nullopt;
+    return {};
   }
 
-  return MonotonicTimeToPseudoWallTime(time);
-}
+  auto timing = paint_timing_detector
+                    ->SoftNavigationLargestContentfulPaintDetailsForMetrics();
 
-absl::optional<base::TimeDelta>
-PerformanceTimingForReporting::LargestContentfulPaintImageLoadEnd() const {
-  PaintTimingDetector* paint_timing_detector = GetPaintTimingDetector();
-
-  DCHECK(paint_timing_detector);
-
-  base::TimeTicks time = paint_timing_detector->LargestImageLoadEndForMetrics();
-
-  // Return nullopt if time is base::TimeTicks(0);
-  if (time.is_null()) {
-    return absl::nullopt;
-  }
-
-  return MonotonicTimeToPseudoWallTime(time);
-}
-
-uint64_t PerformanceTimingForReporting::LargestTextPaintForMetrics() const {
-  PaintTimingDetector* paint_timing_detector = GetPaintTimingDetector();
-  if (!paint_timing_detector)
-    return 0;
-
-  return MonotonicTimeToIntegerMilliseconds(
-      paint_timing_detector->LargestTextPaintForMetrics());
-}
-
-uint64_t PerformanceTimingForReporting::LargestTextPaintSizeForMetrics() const {
-  PaintTimingDetector* paint_timing_detector = GetPaintTimingDetector();
-  if (!paint_timing_detector)
-    return 0;
-
-  return paint_timing_detector->LargestTextPaintSizeForMetrics();
-}
-
-base::TimeTicks
-PerformanceTimingForReporting::LargestContentfulPaintAsMonotonicTimeForMetrics()
-    const {
-  PaintTimingDetector* paint_timing_detector = GetPaintTimingDetector();
-  if (!paint_timing_detector)
-    return base::TimeTicks();
-
-  return paint_timing_detector->LargestContentfulPaintForMetrics();
+  return PopulateLargestContentfulPaintDetailsForReporting(timing);
 }
 
 uint64_t PerformanceTimingForReporting::FirstEligibleToPaint() const {
   const PaintTiming* timing = GetPaintTiming();
-  if (!timing)
+  if (!timing) {
     return 0;
+  }
 
   return MonotonicTimeToIntegerMilliseconds(timing->FirstEligibleToPaint());
 }
@@ -315,34 +277,6 @@ PerformanceTimingForReporting::FirstInputTimestampAsMonotonicTime() const {
     return absl::nullopt;
 
   return interactive_detector->GetFirstInputTimestamp();
-}
-
-absl::optional<base::TimeDelta>
-PerformanceTimingForReporting::LongestInputDelay() const {
-  const InteractiveDetector* interactive_detector = GetInteractiveDetector();
-  if (!interactive_detector)
-    return absl::nullopt;
-
-  return interactive_detector->GetLongestInputDelay();
-}
-
-absl::optional<base::TimeDelta>
-PerformanceTimingForReporting::LongestInputTimestamp() const {
-  const InteractiveDetector* interactive_detector = GetInteractiveDetector();
-  if (!interactive_detector)
-    return absl::nullopt;
-
-  return MonotonicTimeToPseudoWallTime(
-      interactive_detector->GetLongestInputTimestamp());
-}
-
-absl::optional<base::TimeDelta>
-PerformanceTimingForReporting::FirstInputProcessingTime() const {
-  const InteractiveDetector* interactive_detector = GetInteractiveDetector();
-  if (!interactive_detector)
-    return absl::nullopt;
-
-  return interactive_detector->GetFirstInputProcessingTime();
 }
 
 absl::optional<base::TimeDelta>

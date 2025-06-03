@@ -4,6 +4,7 @@
 
 #include "content/browser/site_per_process_browsertest.h"
 
+#include "content/browser/renderer_host/navigation_entry_restore_context_impl.h"
 #include "content/browser/web_contents/web_contents_impl.h"
 #include "content/public/browser/site_isolation_policy.h"
 #include "content/public/common/content_switches.h"
@@ -15,6 +16,7 @@
 #include "content/test/render_document_feature.h"
 #include "net/dns/mock_host_resolver.h"
 #include "third_party/blink/public/common/features.h"
+#include "third_party/blink/public/common/page_state/page_state_serialization.h"
 #include "third_party/blink/public/common/switches.h"
 
 namespace content {
@@ -39,6 +41,183 @@ class BaseUrlInheritanceBehaviorIframeTest : public ContentBrowserTest {
  private:
   base::test::ScopedFeatureList feature_list_;
 };  // class NewBaseUrlInheritanceBehaviorIframeTest
+
+// Test class that runs with the legacy base url behavior.
+class BaseUrlLegacyBehaviorIframeTest : public ContentBrowserTest {
+ public:
+  BaseUrlLegacyBehaviorIframeTest() {
+    feature_list_.InitAndDisableFeature(
+        blink::features::kNewBaseUrlInheritanceBehavior);
+  }
+
+  void SetUpOnMainThread() override {
+    // Support multiple sites on the test server.
+    host_resolver()->AddRule("*", "127.0.0.1");
+  }
+  void StartEmbeddedServer() {
+    SetupCrossSiteRedirector(embedded_test_server());
+    ASSERT_TRUE(embedded_test_server()->Start());
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};  // class BaseUrlLegacyBehaviorIframeTest
+
+// A class for tests that should run both with and without the new BaseURL
+// inheritance behavior.
+class BaseUrlInheritanceIframeTest
+    : public ContentBrowserTest,
+      public ::testing::WithParamInterface<bool> {
+ public:
+  BaseUrlInheritanceIframeTest() {
+    feature_list_.InitWithFeatureState(
+        blink::features::kNewBaseUrlInheritanceBehavior, GetParam());
+  }
+
+  void SetUpOnMainThread() override {
+    // Support multiple sites on the test server.
+    host_resolver()->AddRule("*", "127.0.0.1");
+  }
+  void StartEmbeddedServer() {
+    SetupCrossSiteRedirector(embedded_test_server());
+    ASSERT_TRUE(embedded_test_server()->Start());
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};  // class BaseUrlInheritanceIframeTest
+
+// A test to make sure that restoring a session history entry that was saved
+// with an about:blank subframe never results in an initiator_base_url of
+// an empty string. absl::nullopt is expected instead of an empty GURL with
+// legacy base url behavior, or the non-empty initiator base url in the
+// new base url inheritance mode. This test runs in both modes.
+IN_PROC_BROWSER_TEST_P(BaseUrlInheritanceIframeTest,
+                       BaseURLFromSessionHistoryIsNulloptNotEmptyString) {
+  StartEmbeddedServer();
+  GURL main_url(
+      embedded_test_server()->GetURL("a.com", "/page_with_iframe.html"));
+  EXPECT_TRUE(NavigateToURL(shell(), main_url));
+  FrameTreeNode* root = static_cast<WebContentsImpl*>(shell()->web_contents())
+                            ->GetPrimaryFrameTree()
+                            .root();
+  ASSERT_EQ(1U, root->child_count());
+  FrameTreeNode* child = root->child_at(0);
+  // Navigate child to about:blank.
+  {
+    TestNavigationObserver iframe_observer(shell()->web_contents());
+    EXPECT_TRUE(ExecJs(child, "location.href = 'about:blank';"));
+    iframe_observer.Wait();
+  }
+  GURL child_frame_url = child->current_frame_host()->GetLastCommittedURL();
+
+  // Save the page state.
+  NavigationControllerImpl& controller = static_cast<NavigationControllerImpl&>(
+      shell()->web_contents()->GetController());
+  NavigationEntryImpl* entry = controller.GetLastCommittedEntry();
+  blink::PageState page_state = entry->GetPageState();
+
+  // Decode the page state so we can inspect what base url value it contains.
+  blink::ExplodedPageState exploded_page_state;
+  ASSERT_TRUE(
+      blink::DecodePageState(page_state.ToEncodedData(), &exploded_page_state));
+  EXPECT_EQ(1U, exploded_page_state.top.children.size());
+  if (GetParam()) {
+    // Make sure the about:blank child has the correct initiator_base_url.
+    GURL initiator_url(embedded_test_server()->GetURL("a.com", "/title1.html"));
+    EXPECT_TRUE(exploded_page_state.top.children[0]
+                    .initiator_base_url_string.has_value());
+    EXPECT_EQ(
+        base::UTF8ToUTF16(initiator_url.spec()),
+        exploded_page_state.top.children[0].initiator_base_url_string.value());
+  } else {
+    // Make sure the about:blank child has nullopt, and not an empty string, for
+    // the initiator_base_url.
+    EXPECT_EQ(absl::nullopt,
+              exploded_page_state.top.children[0].initiator_base_url_string);
+  }
+}
+
+// A test to make sure that restoring a session history entry that was saved
+// while the new behavior was enabled doesn't hit any CHECKs if it's restored
+// while using the legacy behavior.
+IN_PROC_BROWSER_TEST_F(BaseUrlLegacyBehaviorIframeTest,
+                       RestoreNonEmptyBaseURLFromSessionHistory) {
+  StartEmbeddedServer();
+  GURL main_url(
+      embedded_test_server()->GetURL("a.com", "/page_with_iframe.html"));
+  EXPECT_TRUE(NavigateToURL(shell(), main_url));
+  FrameTreeNode* root = static_cast<WebContentsImpl*>(shell()->web_contents())
+                            ->GetPrimaryFrameTree()
+                            .root();
+  ASSERT_EQ(1U, root->child_count());
+  FrameTreeNode* child = root->child_at(0);
+  // Navigate child to about:blank.
+  {
+    TestNavigationObserver iframe_observer(shell()->web_contents());
+    EXPECT_TRUE(ExecJs(child, "location.href = 'about:blank';"));
+    iframe_observer.Wait();
+  }
+  GURL child_frame_url = child->current_frame_host()->GetLastCommittedURL();
+
+  // Save the page state.
+  NavigationControllerImpl& controller = static_cast<NavigationControllerImpl&>(
+      shell()->web_contents()->GetController());
+  NavigationEntryImpl* entry = controller.GetLastCommittedEntry();
+  blink::PageState page_state = entry->GetPageState();
+
+  // Simulate the case that the PageState was stored from a session with the new
+  // base URL inheritance behavior enabled, by defining the
+  // initiator_base_url_string. This approach is necessary because it is
+  // difficult to change the feature state at runtime during the test.
+  {
+    blink::ExplodedPageState exploded_page_state;
+    ASSERT_TRUE(blink::DecodePageState(page_state.ToEncodedData(),
+                                       &exploded_page_state));
+    EXPECT_EQ(1U, exploded_page_state.top.children.size());
+    // Add a non-null base url which shouldn't be there if the feature is turned
+    // off.
+    exploded_page_state.top.children[0].initiator_base_url_string =
+        base::UTF8ToUTF16(main_url.spec());
+    std::string encoded_data;
+    blink::EncodePageState(exploded_page_state, &encoded_data);
+    page_state = blink::PageState::CreateFromEncodedData(encoded_data);
+  }
+
+  // Restore the altered entry in a new tab and verify the frame loads without
+  // hitting any CHECKs.
+  Shell* new_shell = Shell::CreateNewWindow(
+      controller.GetBrowserContext(), GURL::EmptyGURL(), nullptr, gfx::Size());
+  FrameTreeNode* new_root =
+      static_cast<WebContentsImpl*>(new_shell->web_contents())
+          ->GetPrimaryFrameTree()
+          .root();
+  NavigationControllerImpl& new_controller =
+      static_cast<NavigationControllerImpl&>(
+          new_shell->web_contents()->GetController());
+  // Create the restored entry.
+  std::unique_ptr<NavigationEntryImpl> restored_entry = entry->Clone();
+  std::unique_ptr<NavigationEntryRestoreContextImpl> context =
+      std::make_unique<NavigationEntryRestoreContextImpl>();
+  restored_entry->SetPageState(page_state, context.get());
+  EXPECT_EQ(main_url, restored_entry->root_node()->frame_entry->url());
+  ASSERT_EQ(1U, restored_entry->root_node()->children.size());
+  EXPECT_EQ(child_frame_url,
+            restored_entry->root_node()->children[0]->frame_entry->url());
+
+  std::vector<std::unique_ptr<NavigationEntry>> entries;
+  entries.push_back(std::move(restored_entry));
+  new_controller.Restore(entries.size() - 1, RestoreType::kRestored, &entries);
+  ASSERT_EQ(0u, entries.size());
+  {
+    TestNavigationObserver restore_observer(new_shell->web_contents());
+    new_controller.LoadIfNecessary();
+    restore_observer.Wait();
+  }
+  ASSERT_EQ(1U, new_root->child_count());
+  EXPECT_EQ(main_url, new_root->current_url());
+  EXPECT_EQ(GURL("about:blank"), new_root->child_at(0)->current_url());
+}
 
 // Test class to allow testing srcdoc functionality both with and without
 // `kIsolateSandboxedIframes` enabled. The tests verify the correct operation of
@@ -266,19 +445,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessIsolatedSandboxedIframeTest,
 IN_PROC_BROWSER_TEST_P(SitePerProcessIsolatedSandboxedIframeTest,
                        CspIsolatedSandbox) {
   GURL main_url(embedded_test_server()->GetURL("a.com", "/title1.html"));
-  // The child needs to have the same origin as the parent.
-  GURL child_url(main_url);
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
 
   // Create csp-sandboxed child frame, same-origin.
   {
-    std::string js_str = base::StringPrintf(
-        "var frame = document.createElement('iframe'); "
-        "frame.csp = 'sandbox'; "
-        "frame.src = '%s'; "
-        "document.body.appendChild(frame);",
-        child_url.spec().c_str());
-    EXPECT_TRUE(ExecJs(shell(), js_str));
+    EXPECT_TRUE(ExecJs(shell(),
+                       "var frame = document.createElement('iframe'); "
+                       "frame.csp = 'sandbox'; "
+                       "frame.srcdoc = '<b>Hello!</b>'; "
+                       "document.body.appendChild(frame);"));
     ASSERT_TRUE(WaitForLoadStop(shell()->web_contents()));
   }
 
@@ -2229,6 +2404,43 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessIsolatedSandboxedIframeTest,
   EXPECT_EQ(GURL(), root->current_frame_host()->GetInheritedBaseUrl());
 }
 
+// This test verifies that a renderer process doesn't crash if a srcdoc calls
+// document.write on a mainframe parent.
+IN_PROC_BROWSER_TEST_F(BaseUrlInheritanceBehaviorIframeTest,
+                       SrcdocWritesMainFrame) {
+  StartEmbeddedServer();
+  GURL main_url(embedded_test_server()->GetURL("a.com", "/title1.html"));
+  EXPECT_TRUE(NavigateToURL(shell(), main_url));
+  FrameTreeNode* root = static_cast<WebContentsImpl*>(shell()->web_contents())
+                            ->GetPrimaryFrameTree()
+                            .root();
+
+  // Create srcdoc child.
+  EXPECT_TRUE(ExecJs(root,
+                     "var frm = document.createElement('iframe'); "
+                     "frm.srcdoc = 'foo'; "
+                     "document.body.appendChild(frm);"));
+  ASSERT_EQ(1U, root->child_count());
+  FrameTreeNode* child = root->child_at(0);
+
+  // Have the srcdoc child call document.write on the mainframe-parent.
+  std::string test_str("test-complete");
+  // Since having the child write the parent's document will delete the child,
+  // we use setTimeout to ensure ExecJS returns true, and then wait for the
+  // child's RenderFrameHost to be deleted so we know that the write has
+  // completed. Note: the child's subframe exiting does not mean that its
+  // process, which it shares with the parent, has exited.
+  RenderFrameDeletedObserver observer(child->current_frame_host());
+  EXPECT_TRUE(ExecJs(
+      child, JsReplace("setTimeout(() => { parent.document.write($1); }, 100);",
+                       test_str)));
+  observer.WaitUntilDeleted();
+
+  // But fortunately `root` is still valid.
+  EXPECT_EQ(test_str, EvalJs(root, "document.body.innerText").ExtractString());
+  // If we get here without a crash, we've passed.
+}
+
 // A test to verify that a new about:blank mainframe inherits its base url
 // from its initiator.
 IN_PROC_BROWSER_TEST_F(BaseUrlInheritanceBehaviorIframeTest,
@@ -2311,6 +2523,14 @@ INSTANTIATE_TEST_SUITE_P(All,
                          testing::Bool(),
                          [](const testing::TestParamInfo<bool>& info) {
                            return info.param ? "isolated" : "non_isolated";
+                         });
+INSTANTIATE_TEST_SUITE_P(All,
+                         BaseUrlInheritanceIframeTest,
+                         testing::Bool(),
+                         [](const testing::TestParamInfo<bool>& info) {
+                           return info.param
+                                      ? "new_base_url_inheritance_behavior"
+                                      : "legacy_base_url_inheritance_behavior";
                          });
 INSTANTIATE_TEST_SUITE_P(All,
                          BaseUrlInheritanceBehaviorEnterprisePolicyTest,

@@ -6,10 +6,11 @@
 #define CHROME_BROWSER_TOUCH_TO_FILL_TOUCH_TO_FILL_CONTROLLER_H_
 
 #include <memory>
-#include <utility>
-#include <vector>
 
 #include "base/containers/span.h"
+#include "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
+#include "chrome/browser/touch_to_fill/no_passkeys/android/no_passkeys_bottom_sheet_bridge.h"
 #include "chrome/browser/touch_to_fill/touch_to_fill_view.h"
 #include "chrome/browser/touch_to_fill/touch_to_fill_view_factory.h"
 #include "ui/gfx/native_widget_types.h"
@@ -17,22 +18,35 @@
 namespace password_manager {
 class PasskeyCredential;
 class UiCredential;
+class KeyboardReplacingSurfaceVisibilityController;
+class ContentPasswordManagerDriver;
 }  // namespace password_manager
+
+namespace webauthn {
+class WebAuthnCredManDelegate;
+}  // namespace webauthn
 
 class TouchToFillControllerDelegate;
 
-class TouchToFillController {
+class TouchToFillController
+    : public base::SupportsWeakPtr<TouchToFillController> {
  public:
-  TouchToFillController();
+  explicit TouchToFillController(
+      base::WeakPtr<
+          password_manager::KeyboardReplacingSurfaceVisibilityController>
+          visibility_controller);
   TouchToFillController(const TouchToFillController&) = delete;
   TouchToFillController& operator=(const TouchToFillController&) = delete;
   ~TouchToFillController();
 
   // Instructs the controller to show the provided |credentials| and
   // |passkey_credentials| to the user.
-  void Show(base::span<const password_manager::UiCredential> credentials,
+  bool Show(base::span<const password_manager::UiCredential> credentials,
             base::span<password_manager::PasskeyCredential> passkey_credentials,
-            std::unique_ptr<TouchToFillControllerDelegate> delegate);
+            std::unique_ptr<TouchToFillControllerDelegate> ttf_delegate,
+            webauthn::WebAuthnCredManDelegate* cred_man_delegate,
+            base::WeakPtr<password_manager::ContentPasswordManagerDriver>
+                frame_driver);
 
   // Informs the controller that the user has made a selection. Invokes both
   // FillSuggestion() and TouchToFillDismissed() on |driver_|. No-op if invoked
@@ -50,6 +64,18 @@ class TouchToFillController {
   // password management screen is displayed.
   void OnManagePasswordsSelected(bool passkeys_shown);
 
+  // Informs the controller that the user has tapped the "Use Passkey on a
+  // Different Device" option, which initiates hybrid passkey sign-in.
+  void OnHybridSignInSelected();
+
+  // Informs the controller that the user selected "More passkeys". This will
+  // trigger Android Credential Manager UI. Android U+ only.
+  void OnShowCredManSelected();
+
+  // Informs the controller that the Android Credential Manager UI is closed.
+  // Android U+ only.
+  void OnCredManUiClosed(bool success);
+
   // Informs the controller that the user has dismissed the sheet. No-op if
   // invoked repeatedly.
   void OnDismiss();
@@ -61,9 +87,17 @@ class TouchToFillController {
   // interaction.
   void Close();
 
+  // Resets TTF to the state as if it was never shown.
+  void Reset();
+
 #if defined(UNIT_TEST)
   void set_view(std::unique_ptr<TouchToFillView> view) {
     view_ = std::move(view);
+  }
+
+  void set_no_passkeys_bridge(
+      std::unique_ptr<NoPasskeysBottomSheetBridge> bridge) {
+    no_passkeys_bridge_ = std::move(bridge);
   }
 #endif
 
@@ -75,11 +109,19 @@ class TouchToFillController {
   // Delegate for interacting with the client that owns this controller.
   // It is provided when Show() is called, and reset when the view is
   // destroyed.
-  std::unique_ptr<TouchToFillControllerDelegate> delegate_;
+  std::unique_ptr<TouchToFillControllerDelegate> ttf_delegate_;
 
+  // Delegate for interacting with the Android Credential Manager. Lifecycle is
+  // not bound to this controller.
+  raw_ptr<webauthn::WebAuthnCredManDelegate> cred_man_delegate_;
   // View used to communicate with the Android frontend. Lazily instantiated so
   // that it can be injected by tests.
   std::unique_ptr<TouchToFillView> view_;
+
+  std::unique_ptr<NoPasskeysBottomSheetBridge> no_passkeys_bridge_;
+
+  base::WeakPtr<password_manager::KeyboardReplacingSurfaceVisibilityController>
+      visibility_controller_;
 };
 
 #endif  // CHROME_BROWSER_TOUCH_TO_FILL_TOUCH_TO_FILL_CONTROLLER_H_

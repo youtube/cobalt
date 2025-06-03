@@ -118,16 +118,6 @@ enum class CookieAccessSemantics {
   LEGACY,
 };
 
-enum class CookieSamePartyStatus {
-  // Used when there should be no SameParty enforcement (either because the
-  // cookie is not marked SameParty, or the enforcement is irrelevant).
-  kNoSamePartyEnforcement = 0,
-  // Used when SameParty enforcement says to exclude the cookie.
-  kEnforceSamePartyExclude = 1,
-  // Used when SameParty enforcement says to include the cookie.
-  kEnforceSamePartyInclude = 2,
-};
-
 // What scheme was used in the setting of a cookie.
 // Do not renumber.
 enum class CookieSourceScheme {
@@ -359,6 +349,24 @@ enum class TruncatingCharacterInCookieStringType {
   kTruncatingCharLineFeed = 3,
 
   kMaxValue = kTruncatingCharLineFeed,  // Keep as the last value.
+};
+
+// Enum for measuring usage patterns of CookiesAllowedForUrls.
+// The policy supports wildcards in the primary or secondary content setting
+// pattern, and explicit patterns for both. Each variant of this enum represents
+// policies set with each possible combination of rule types. These values are
+// persisted to logs. Entries should not be renumbered and numeric values should
+// never be reused.
+enum class CookiesAllowedForUrlsUsage {
+  kExplicitOnly = 0,
+  kWildcardPrimaryOnly = 1,
+  kWildcardSecondaryOnly = 2,
+  kExplicitAndPrimaryWildcard = 3,
+  kExplicitAndSecondaryWildcard = 4,
+  kWildcardOnly = 5,
+  kAllPresent = 6,
+
+  kMaxValue = kAllPresent,
 };
 
 }  // namespace net

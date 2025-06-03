@@ -28,10 +28,16 @@ BASE_DECLARE_FEATURE(kRunOnDedicatedThreadPoolThread);
 
 #if !BUILDFLAG(IS_ANDROID)
 
-#if BUILDFLAG(IS_CHROMEOS_ASH) || BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_LINUX)
 #define URGENT_DISCARDING_FROM_PERFORMANCE_MANAGER() false
 #else
 #define URGENT_DISCARDING_FROM_PERFORMANCE_MANAGER() true
+#endif
+
+// Enables urgent discarding of pages directly from PerformanceManager rather
+// than via TabManager on Ash Chrome.
+#if BUILDFLAG(IS_CHROMEOS_ASH)
+BASE_DECLARE_FEATURE(kAshUrgentDiscardingFromPerformanceManager);
 #endif
 
 // Enable background tab loading of pages (restored via session restore)
@@ -54,68 +60,14 @@ BASE_DECLARE_FEATURE(kPerformanceControlsBatterySaverOptOutSurvey);
 extern const base::FeatureParam<base::TimeDelta>
     kPerformanceControlsBatterySurveyLookback;
 
-// On certain platforms (ChromeOS), the battery level displayed to the user is
-// artificially lower than the actual battery level. Unfortunately, the battery
-// level that Battery Saver Mode looks at is the "actual" level, so users on
-// that platform may see Battery Saver Mode trigger at say 17% rather than the
-// "advertised" 20%. This parameter allows us to heuristically tweak the
-// threshold on those platforms, by being added to the 20% threshold value (so
-// setting this parameter to 3 would result in battery saver being activated at
-// 23% actual battery level).
-extern const base::FeatureParam<int>
-    kBatterySaverModeThresholdAdjustmentForDisplayLevel;
-
-// When enabled, the memory saver policy used is HeuristicMemorySaverPolicy.
-BASE_DECLARE_FEATURE(kHeuristicMemorySaver);
-
-// Controls the interval at which HeuristicMemorySaverPolicy checks whether the
-// amount of available memory is smaller than the discarding threshold. The
-// "ThresholdReached" version is used when the device is past the threshold
-// specified by `kHeuristicMemorySaverAvailableMemoryThresholdPercent` and the
-// "ThresholdNotReached" version is used otherwise.
-extern const base::FeatureParam<int>
-    kHeuristicMemorySaverThresholdReachedHeartbeatSeconds;
-extern const base::FeatureParam<int>
-    kHeuristicMemorySaverThresholdNotReachedHeartbeatSeconds;
-
-// The amount of available physical memory at which
-// HeuristicMemorySaverPolicy will start discarding tabs. The amount of
-// available memory must be such that it's both lower than the "Percent" param
-// when expressed as a % of total installed physical memory and lower than the
-// "Mb" threshold.
-//
-// For example, if the params are set as:
-// - kHeuristicMemorySaverAvailableMemoryThresholdPercent to 20%
-// - kHeuristicMemorySaverAvailableMemoryThresholdMb to 2048
-//
-// A device with 8Gb of installed RAM, 1Gb of which is available is under the
-// threshold and will discard tabs (12.5% available and 1Gb < 2048Mb)
-//
-// A device with 16Gb of installed RAM, 3Gb of which are available is under
-// the percentage threshold but will not discard tabs because it's above the
-// absolute Mb threshold (18.75% available, but 3Gb > 2048Mb)
-extern const base::FeatureParam<int>
-    kHeuristicMemorySaverAvailableMemoryThresholdPercent;
-extern const base::FeatureParam<int>
-    kHeuristicMemorySaverAvailableMemoryThresholdMb;
-
-// The percentage of the page cache that should be considered "available" for
-// the purposes of Memory Saver thresholding. For instance, setting this
-// parameter to 20 will make it so that 20% of the page cache is added to the
-// "free" memory figure on macOS. See the comment in
-// `HeuristicMemorySaverPolicy::DefaultGetAmountOfAvailablePhysicalMemory` for
-// more information.
-extern const base::FeatureParam<int> kHeuristicMemorySaverPageCacheDiscountMac;
-
-// The minimum amount of minutes a tab has to spend in the background before
-// HeuristicMemorySaverPolicy will consider it eligible for discarding.
-extern const base::FeatureParam<int>
-    kHeuristicMemorySaverMinimumMinutesInBackground;
-
 // Round 2 Performance Controls features
 
 // This enables the UI for the multi-state version of high efficiency mode.
 BASE_DECLARE_FEATURE(kHighEfficiencyMultistateMode);
+// When true, a recommended badge will be shown next to the heuristic memory
+// saver option.
+extern const base::FeatureParam<bool> kHighEfficiencyShowRecommendedBadge;
+
 // This shows more information about discarded tabs in the tab strip and
 // hovercards.
 BASE_DECLARE_FEATURE(kDiscardedTabTreatment);
@@ -139,6 +91,42 @@ extern const base::FeatureParam<int> kExpandedHighEfficiencyChipThresholdBytes;
 extern const base::FeatureParam<base::TimeDelta>
     kExpandedHighEfficiencyChipDiscardedDuration;
 
+// Percentiles of PMF across all tabs on all browsers.
+extern const base::FeatureParam<int> kHighEfficiencyChartPmf25PercentileBytes;
+extern const base::FeatureParam<int> kHighEfficiencyChartPmf50PercentileBytes;
+extern const base::FeatureParam<int> kHighEfficiencyChartPmf75PercentileBytes;
+extern const base::FeatureParam<int> kHighEfficiencyChartPmf99PercentileBytes;
+
+// Final opacity of the favicon after the discard animation completes
+extern const base::FeatureParam<double> kDiscardedTabTreatmentOpacity;
+
+// The version of the tab discard treatment on the favicon should be shown
+extern const base::FeatureParam<int> kDiscardedTabTreatmentOption;
+
+// Threshold for when memory usage is labeled as "high".
+extern const base::FeatureParam<int> kMemoryUsageInHovercardsHighThresholdBytes;
+
+// Options for when memory usage metrics are fetched for hovercards.
+enum class MemoryUsageInHovercardsUpdateTrigger {
+  kBackground,  // Metrics are fetched in the background every 2 minutes
+                // (default).
+  kNavigation,  // Metrics are also fetched after a navigation becomes idle.
+};
+
+// Sets when memory usage metrics will be fetched to display in hovercards.
+extern const base::FeatureParam<MemoryUsageInHovercardsUpdateTrigger>
+    kMemoryUsageInHovercardsUpdateTrigger;
+
+enum class DiscardTabTreatmentOptions {
+  kNone = 0,
+  kFadeFullsizedFavicon = 1,
+  kFadeSmallFaviconWithRing = 2
+};
+
+// This enables the performance controls side panel for learning about and
+// configuring performance settings.
+BASE_DECLARE_FEATURE(kPerformanceControlsSidePanel);
+
 #endif
 
 // Policy that evicts the BFCache of pages that become non visible or the
@@ -155,6 +143,20 @@ BASE_DECLARE_FEATURE(kPageTimelineMonitor);
 // Set the interval in seconds between calls of
 // PageTimelineMonitor::CollectSlice()
 extern const base::FeatureParam<base::TimeDelta> kPageTimelineStateIntervalTime;
+
+// Whether to use the resource_attribution::CPUMeasurementMonitor for logging
+// UKM.
+extern const base::FeatureParam<bool> kUseResourceAttributionCPUMonitor;
+
+// This enables logging to evaluate the efficacy of potential CPU interventions.
+BASE_DECLARE_FEATURE(kCPUInterventionEvaluationLogging);
+
+// This represents the duration that CPU must be over the threshold before
+// logging the delayed metrics.
+extern const base::FeatureParam<base::TimeDelta> kDelayBeforeLogging;
+
+// If Chrome CPU utilization is over the specified percent then we will log it.
+extern const base::FeatureParam<int> kThresholdChromeCPUPercent;
 
 }  // namespace performance_manager::features
 

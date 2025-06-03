@@ -48,6 +48,8 @@ class DataSource : public web_package::mojom::BundleDataSource {
     receivers_.Add(this, std::move(receiver));
   }
 
+  void Close(CloseCallback callback) override { std::move(callback).Run(); }
+
  private:
   bool is_random_access_context_;
   const std::string data_;
@@ -82,8 +84,9 @@ class WebBundleParserFuzzer {
       return;
     } else {
       parser_->ParseMetadata(
-          /*offset=*/-1, base::BindOnce(&WebBundleParserFuzzer::OnParseMetadata,
-                                        base::Unretained(this)));
+          /*offset=*/absl::nullopt,
+          base::BindOnce(&WebBundleParserFuzzer::OnParseMetadata,
+                         base::Unretained(this)));
     }
   }
 
@@ -106,8 +109,9 @@ class WebBundleParserFuzzer {
       std::move(quit_loop_).Run();
       return;
     }
-    for (auto& item : metadata->requests)
+    for (auto& item : metadata->requests) {
       locations_.push_back(std::move(item.second));
+    }
     ParseResponses(0);
   }
 

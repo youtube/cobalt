@@ -23,10 +23,11 @@
 #include "base/trace_event/memory_allocator_dump_guid.h"
 #include "base/trace_event/memory_dump_provider.h"
 #include "cc/cc_export.h"
-#include "components/viz/common/resources/resource_format.h"
 #include "components/viz/common/resources/resource_id.h"
 #include "components/viz/common/resources/resource_sizes.h"
 #include "components/viz/common/resources/shared_bitmap.h"
+#include "components/viz/common/resources/shared_image_format.h"
+#include "components/viz/common/resources/transferable_resource.h"
 #include "gpu/command_buffer/common/sync_token.h"
 #include "third_party/khronos/GLES2/gl2.h"
 #include "ui/gfx/color_space.h"
@@ -37,13 +38,9 @@ namespace base {
 class SingleThreadTaskRunner;
 }
 
-namespace gpu {
-struct Capabilities;
-}
-
 namespace viz {
 class ClientResourceProvider;
-class ContextProvider;
+class RasterContextProvider;
 }
 
 namespace cc {
@@ -74,11 +71,6 @@ class CC_EXPORT ResourcePool : public base::trace_event::MemoryDumpProvider {
         const base::trace_event::MemoryAllocatorDumpGuid& buffer_dump_guid,
         uint64_t tracing_process_id,
         int importance) const = 0;
-
-    void InitOverlayCandidateAndTextureTarget(
-        const viz::SharedImageFormat format,
-        const gpu::Capabilities& caps,
-        bool use_gpu_memory_buffer_resources);
 
     gpu::Mailbox mailbox;
     gpu::SyncToken mailbox_sync_token;
@@ -208,7 +200,7 @@ class CC_EXPORT ResourcePool : public base::trace_event::MemoryDumpProvider {
   // and when holding software resources, it should be null. It is used for
   // consistency checking as well as for correctness.
   ResourcePool(viz::ClientResourceProvider* resource_provider,
-               viz::ContextProvider* context_provider,
+               viz::RasterContextProvider* context_provider,
                scoped_refptr<base::SingleThreadTaskRunner> task_runner,
                const base::TimeDelta& expiration_delay,
                bool disallow_non_exact_reuse);
@@ -245,7 +237,9 @@ class CC_EXPORT ResourcePool : public base::trace_event::MemoryDumpProvider {
   // Returns false if the backing does not contain valid data, in particular
   // a zero mailbox for GpuBacking, in which case the resource is not exported,
   // and true otherwise.
-  bool PrepareForExport(const InUsePoolResource& resource);
+  bool PrepareForExport(
+      const InUsePoolResource& resource,
+      viz::TransferableResource::ResourceSource resource_source);
 
   // Marks any resources in the pool as invalid, preventing their reuse. Call if
   // previous resources were allocated in one way, but future resources should
@@ -290,6 +284,7 @@ class CC_EXPORT ResourcePool : public base::trace_event::MemoryDumpProvider {
 
   // Overrides internal clock for testing purposes.
   void SetClockForTesting(const base::TickClock* clock) { clock_ = clock; }
+  int tracing_id() const { return tracing_id_; }
 
  private:
   FRIEND_TEST_ALL_PREFIXES(ResourcePoolTest, ReuseResource);
@@ -462,7 +457,7 @@ class CC_EXPORT ResourcePool : public base::trace_event::MemoryDumpProvider {
   void FlushEvictedResources();
 
   const raw_ptr<viz::ClientResourceProvider> resource_provider_;
-  const raw_ptr<viz::ContextProvider> context_provider_;
+  const raw_ptr<viz::RasterContextProvider> context_provider_;
   const scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
   const base::TimeDelta resource_expiration_delay_;
   const bool disallow_non_exact_reuse_ = false;

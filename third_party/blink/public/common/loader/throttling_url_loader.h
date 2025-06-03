@@ -12,6 +12,7 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/strings/string_piece.h"
+#include "base/time/time.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
@@ -29,7 +30,7 @@
 #include "third_party/blink/public/common/loader/url_loader_throttle.h"
 
 namespace base {
-class SingleThreadTaskRunner;
+class SequencedTaskRunner;
 }
 
 namespace blink {
@@ -59,7 +60,7 @@ class BLINK_COMMON_EXPORT ThrottlingURLLoader
       network::ResourceRequest* url_request,
       network::mojom::URLLoaderClient* client,
       const net::NetworkTrafficAnnotationTag& traffic_annotation,
-      scoped_refptr<base::SingleThreadTaskRunner> task_runner,
+      scoped_refptr<base::SequencedTaskRunner> task_runner,
       absl::optional<std::vector<std::string>> cors_exempt_header_list =
           absl::nullopt);
 
@@ -121,6 +122,11 @@ class BLINK_COMMON_EXPORT ThrottlingURLLoader
 
   bool response_intercepted() const { return response_intercepted_; }
 
+  // Indicates a restart did occur due to a Critical-CH HTTP Header.
+  void DidRestartForCriticalClientHint() {
+    critical_ch_restart_time_ = base::TimeTicks::Now();
+  }
+
  private:
   class ForwardingThrottleDelegate;
 
@@ -133,7 +139,7 @@ class BLINK_COMMON_EXPORT ThrottlingURLLoader
              int32_t request_id,
              uint32_t options,
              network::ResourceRequest* url_request,
-             scoped_refptr<base::SingleThreadTaskRunner> task_runner,
+             scoped_refptr<base::SequencedTaskRunner> task_runner,
              absl::optional<std::vector<std::string>> cors_exempt_header_list);
 
   void StartNow();
@@ -246,7 +252,7 @@ class BLINK_COMMON_EXPORT ThrottlingURLLoader
         int32_t in_request_id,
         uint32_t in_options,
         network::ResourceRequest* in_url_request,
-        scoped_refptr<base::SingleThreadTaskRunner> in_task_runner,
+        scoped_refptr<base::SequencedTaskRunner> in_task_runner,
         absl::optional<std::vector<std::string>> in_cors_exempt_header_list);
     ~StartInfo();
 
@@ -256,7 +262,7 @@ class BLINK_COMMON_EXPORT ThrottlingURLLoader
 
     network::ResourceRequest url_request;
     // |task_runner| is used to set up |client_receiver_|.
-    scoped_refptr<base::SingleThreadTaskRunner> task_runner;
+    scoped_refptr<base::SequencedTaskRunner> task_runner;
     absl::optional<std::vector<std::string>> cors_exempt_header_list;
   };
   // Holds any info needed to start or restart the request. Used when start is
@@ -322,6 +328,8 @@ class BLINK_COMMON_EXPORT ThrottlingURLLoader
 
   int pending_restart_flags_ = 0;
   bool has_pending_restart_ = false;
+
+  base::TimeTicks critical_ch_restart_time_;
 
   base::WeakPtrFactory<ThrottlingURLLoader> weak_factory_{this};
 };

@@ -16,17 +16,17 @@ static_library("browser") {
     "content_autofill_driver.h",
     "content_autofill_driver_factory.cc",
     "content_autofill_driver_factory.h",
-    "content_autofill_router.cc",
-    "content_autofill_router.h",
-    "form_forest.cc",
-    "form_forest.h",
-    "form_forest_util_inl.h",
+    "renderer_forms_with_server_predictions.cc",
+    "renderer_forms_with_server_predictions.h",
     "risk/fingerprint.cc",
     "risk/fingerprint.h",
+    "scoped_autofill_managers_observation.cc",
+    "scoped_autofill_managers_observation.h",
   ]
 
   public_deps = [
     ":risk_proto",
+    "//base",
     "//components/autofill/content/common/mojom",
     "//components/autofill/core/browser",
     "//components/autofill/core/common",
@@ -37,7 +37,6 @@ static_library("browser") {
     "//third_party/abseil-cpp:absl",
   ]
   deps = [
-    "//base",
     "//base:i18n",
     "//components/os_crypt/sync",
     "//components/prefs",
@@ -62,6 +61,7 @@ static_library("browser") {
     "//ui/gfx/geometry",
     "//url",
   ]
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
 
   if (!is_android) {
     deps += [ "//components/webauthn/content/browser" ]
@@ -79,9 +79,6 @@ source_set("test_support") {
     "content_autofill_driver_factory_test_api.cc",
     "content_autofill_driver_factory_test_api.h",
     "content_autofill_driver_test_api.h",
-    "content_autofill_router_test_api.h",
-    "form_forest_test_api.cc",
-    "form_forest_test_api.h",
     "test_autofill_client_injector.cc",
     "test_autofill_client_injector.h",
     "test_autofill_driver_injector.cc",
@@ -109,7 +106,7 @@ source_set("unit_tests") {
     "autofill_internals_log_router_unittest.cc",
     "content_autofill_driver_factory_unittest.cc",
     "content_autofill_driver_unittest.cc",
-    "form_forest_unittest.cc",
+    "scoped_autofill_managers_observation_unittest.cc",
   ]
 
   deps = [

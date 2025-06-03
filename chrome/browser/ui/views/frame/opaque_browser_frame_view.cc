@@ -254,13 +254,9 @@ void OpaqueBrowserFrameView::LayoutWebAppWindowTitle(
 }
 
 int OpaqueBrowserFrameView::GetTopInset(bool restored) const {
-  return browser_view()->GetTabStripVisible()
+  return browser_view()->ShouldDrawTabStrip()
              ? layout_->GetTabStripInsetsTop(restored)
              : layout_->NonClientTopHeight(restored);
-}
-
-int OpaqueBrowserFrameView::GetThemeBackgroundXInset() const {
-  return 0;
 }
 
 void OpaqueBrowserFrameView::UpdateThrobber(bool running) {
@@ -422,8 +418,6 @@ void OpaqueBrowserFrameView::UpdateWindowTitle() {
   }
 }
 
-void OpaqueBrowserFrameView::SizeConstraintsChanged() {}
-
 ///////////////////////////////////////////////////////////////////////////////
 // OpaqueBrowserFrameView, views::View overrides:
 
@@ -541,7 +535,7 @@ gfx::Size OpaqueBrowserFrameView::GetTabstripMinimumSize() const {
 
 int OpaqueBrowserFrameView::GetTopAreaHeight() const {
   int top_height = layout_->NonClientTopHeight(false);
-  if (browser_view()->GetTabStripVisible()) {
+  if (browser_view()->ShouldDrawTabStrip()) {
     top_height =
         std::max(top_height,
                  GetBoundsForTabStripRegion(GetTabstripMinimumSize()).bottom() -
@@ -625,11 +619,8 @@ void OpaqueBrowserFrameView::OnPaint(gfx::Canvas* canvas) {
   frame_background_->set_use_custom_frame(frame()->UseCustomFrame());
   frame_background_->set_is_active(active);
   frame_background_->set_theme_image(GetFrameImage());
-  const int y_inset =
-      browser_view()->GetTabStripVisible()
-          ? (ThemeProperties::kFrameHeightAboveTabs - GetTopInset(false))
-          : 0;
-  frame_background_->set_theme_image_y_inset(y_inset);
+  frame_background_->set_theme_image_inset(
+      browser_view()->GetThemeOffsetFromBrowserView());
   frame_background_->set_theme_overlay_image(GetFrameOverlayImage());
   frame_background_->set_top_area_height(GetTopAreaHeight());
 
@@ -851,7 +842,7 @@ void OpaqueBrowserFrameView::PaintMaximizedFrameBorder(
 }
 
 void OpaqueBrowserFrameView::PaintClientEdge(gfx::Canvas* canvas) const {
-  const bool tabstrip_visible = browser_view()->GetTabStripVisible();
+  const bool tabstrip_visible = browser_view()->ShouldDrawTabStrip();
   const gfx::Rect client_bounds =
       layout_->CalculateClientAreaBounds(width(), height());
 

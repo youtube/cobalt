@@ -31,6 +31,7 @@ public class FakeTranslateBridgeJni implements TranslateBridge.Natives {
     private HashSet<String> mAlwaysLanguages;
     private TreeMap<String, LanguageItem> mChromeLanguages;
     private boolean mAppLanguagePromptShown;
+    private String mCurrentLanguage;
 
     public FakeTranslateBridgeJni(Collection<LanguageItem> chromeLanguages,
             Collection<String> userAcceptLanguages, Collection<String> neverLanguages,
@@ -158,17 +159,25 @@ public class FakeTranslateBridgeJni implements TranslateBridge.Natives {
         mAppLanguagePromptShown = shown;
     }
 
+    @Override
+    public String getCurrentLanguage(WebContents webContents) {
+        return mCurrentLanguage;
+    }
+
+    /**
+     * Set the web content's current language for testing.
+     * @param language String value of what getCurrentLanguage should return.
+     */
+    public void setCurrentLanguage(String language) {
+        mCurrentLanguage = language;
+    }
+
     /**
      * Following methods are not implemented yet since they are not needed by current tests.
      */
 
     @Override
     public void manualTranslateWhenReady(WebContents webContents) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public void translateToLanguage(WebContents webContents, String targetLanguageCode) {
         throw new UnsupportedOperationException();
     }
 
@@ -189,27 +198,7 @@ public class FakeTranslateBridgeJni implements TranslateBridge.Natives {
     }
 
     @Override
-    public String getSourceLanguage(WebContents webContents) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public String getCurrentLanguage(WebContents webContents) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
     public void moveAcceptLanguage(String language, int offset) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public boolean getExplicitLanguageAskPromptShown() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public void setExplicitLanguageAskPromptShown(boolean shown) {
         throw new UnsupportedOperationException();
     }
 

@@ -15,7 +15,7 @@ const int32 kFailedToStartId = 0;
 
 // Enumeration of each of the diagnostics routines the platform may support.
 //
-// NextMinVersion: 9, NextIndex: 44
+// NextMinVersion: 13, NextIndex: 48
 [Stable, Extensible]
 enum DiagnosticRoutineEnum {
   [Default] kUnknown = 30,
@@ -56,12 +56,16 @@ enum DiagnosticRoutineEnum {
   [MinVersion=4] kLedLitUp = 35,
   [MinVersion=5] kSmartctlCheckWithPercentageUsed = 36,
   [MinVersion=6] kEmmcLifetime = 37,
-  [MinVersion=7] kAudioSetVolume = 38,
-  [MinVersion=7] kAudioSetGain = 39,
+  [MinVersion=7] DEPRECATED_kAudioSetVolume = 38,
+  [MinVersion=7] DEPRECATED_kAudioSetGain = 39,
   [MinVersion=8] kBluetoothPower = 40,
   [MinVersion=8] kBluetoothDiscovery = 41,
   [MinVersion=8] kBluetoothScanning = 42,
   [MinVersion=8] kBluetoothPairing = 43,
+  [MinVersion=9] kPowerButton = 44,
+  [MinVersion=10] kAudioDriver = 45,
+  [MinVersion=11] kUfsLifetime = 46,
+  [MinVersion=12] kFan = 47,
 };
 
 // Enumeration of the possible DiskRead routine's command type
@@ -100,13 +104,15 @@ enum DiagnosticRoutineStatusEnum {
 // Enumeration of each of the messages a diagnostics routine can pass back.
 // These messages prompt interaction from the user of the routine.
 //
-// NextMinVersion: 2, NextIndex: 4
+// NextMinVersion: 3, NextIndex: 5
 [Stable, Extensible]
 enum DiagnosticRoutineUserMessageEnum {
   [Default] kUnknown = 2,
   kUnplugACPower = 0,  // The user needs to unplug the AC power cord.
   kPlugInACPower = 1,  // The user needs to plug in the AC power cord.
   [MinVersion=1] kCheckLedColor = 3, // The user needs to check the LED color.
+  [MinVersion=2] kPressPowerButton = 4, // The user needs to press the power
+                                        // button.
 };
 
 // Enumeration of the possible commands to send a diagnostics routine.
@@ -212,7 +218,7 @@ enum NvmeSelfTestTypeEnum {
 //
 // NextMinVersion: 1, NextIndex: 6
 [Stable, Extensible]
-enum LedName {
+enum DEPRECATED_LedName {
   // The default value is for backward compatibility, should not be used.
   [Default] kUnmappedEnumField = 0,
   kBattery = 1,
@@ -226,7 +232,7 @@ enum LedName {
 //
 // NextMinVersion: 1, NextIndex: 7
 [Stable, Extensible]
-enum LedColor {
+enum DEPRECATED_LedColor {
   // The default value is for backward compatibility, should not be used.
   [Default] kUnmappedEnumField = 0,
   kRed = 1,
@@ -241,7 +247,7 @@ enum LedColor {
 //
 // NextMinVersion: 1, NextIndex: 1
 [Stable]
-interface LedLitUpRoutineReplier {
+interface DEPRECATED_LedLitUpRoutineReplier {
   // Returns whether the actual LED color matches the expected color.
   //
   // The response:

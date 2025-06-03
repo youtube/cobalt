@@ -96,6 +96,16 @@ safe_browsing_private::ReferrerChainEntry ReferrerToReferrerChainEntry(
         entry.navigation_initiation = safe_browsing_private::
             NAVIGATION_INITIATION_RENDERER_INITIATED_WITH_USER_GESTURE;
         break;
+      case safe_browsing::
+          ReferrerChainEntry_NavigationInitiation_COPY_PASTE_USER_INITIATED:
+        entry.navigation_initiation = safe_browsing_private::
+            NAVIGATION_INITIATION_COPY_PASTE_USER_INITIATED;
+        break;
+      case safe_browsing::
+          ReferrerChainEntry_NavigationInitiation_NOTIFICATION_INITIATED:
+        entry.navigation_initiation =
+            safe_browsing_private::NAVIGATION_INITIATION_NOTIFICATION_INITIATED;
+        break;
       case safe_browsing::ReferrerChainEntry_NavigationInitiation_UNDEFINED:
         NOTREACHED();
     }

@@ -62,6 +62,13 @@ export class ApnList extends ApnListBase {
       },
 
       /** @private */
+      apns_: {
+        type: Object,
+        value: [],
+        computed: 'computeApns_(managedCellularProperties)',
+      },
+
+      /** @private */
       shouldShowApnDetailDialog_: {
         type: Boolean,
         value: false,
@@ -110,6 +117,13 @@ export class ApnList extends ApnListBase {
    * @private
    */
   shouldShowErrorMessage_() {
+    // In some instances, there can be an |errorState| and also a connected APN.
+    // Don't show the error message as the network is actually connected.
+    if (this.managedCellularProperties &&
+        this.managedCellularProperties.connectedApn) {
+      return false;
+    }
+
     return this.errorState === SHILL_INVALID_APN_ERROR;
   }
 
@@ -128,8 +142,7 @@ export class ApnList extends ApnListBase {
       return this.i18n('apnSettingsCustomApnsErrorMessage');
     }
 
-    // TODO(b/162365553): Use real string when finalized.
-    return 'Can\'t connect to network.';
+    return this.i18n('apnSettingsDatabaseApnsErrorMessage');
   }
 
   /**
@@ -139,7 +152,7 @@ export class ApnList extends ApnListBase {
    * @return {Array<!ApnProperties>}
    * @private
    */
-  getApns_() {
+  computeApns_() {
     if (!this.managedCellularProperties) {
       return [];
     }
@@ -148,7 +161,6 @@ export class ApnList extends ApnListBase {
     const customApnList = this.managedCellularProperties.customApnList;
 
     if (!connectedApn) {
-      // TODO(b/162365553): Show error when there is no connected APN.
       return customApnList || [];
     }
 

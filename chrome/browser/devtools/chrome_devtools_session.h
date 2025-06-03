@@ -18,12 +18,14 @@ namespace content {
 class DevToolsAgentHostClientChannel;
 }  // namespace content
 
+class AutofillHandler;
 class EmulationHandler;
 class BrowserHandler;
 class CastHandler;
 class PageHandler;
 class SecurityHandler;
 class StorageHandler;
+class SystemInfoHandler;
 class TargetHandler;
 class WindowManagerHandler;
 
@@ -59,12 +61,14 @@ class ChromeDevToolsSession : public protocol::FrontendChannel {
       pending_commands_;
 
   protocol::UberDispatcher dispatcher_;
+  std::unique_ptr<AutofillHandler> autofill_handler_;
   std::unique_ptr<BrowserHandler> browser_handler_;
   std::unique_ptr<CastHandler> cast_handler_;
   std::unique_ptr<EmulationHandler> emulation_handler_;
   std::unique_ptr<PageHandler> page_handler_;
   std::unique_ptr<SecurityHandler> security_handler_;
   std::unique_ptr<StorageHandler> storage_handler_;
+  std::unique_ptr<SystemInfoHandler> system_info_handler_;
   std::unique_ptr<TargetHandler> target_handler_;
 #if BUILDFLAG(IS_CHROMEOS_ASH)
   std::unique_ptr<WindowManagerHandler> window_manager_handler_;

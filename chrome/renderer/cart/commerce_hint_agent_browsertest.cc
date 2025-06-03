@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/memory/raw_ptr.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_timeouts.h"
 #include "build/build_config.h"
@@ -60,7 +61,7 @@ cart_db::ChromeCartContentProto BuildProto(const char* domain,
   proto.set_key(domain);
   proto.set_merchant(domain);
   proto.set_merchant_cart_url(cart_url);
-  proto.set_timestamp(base::Time::Now().ToDoubleT());
+  proto.set_timestamp(base::Time::Now().InSecondsFSinceUnixEpoch());
   return proto;
 }
 
@@ -203,6 +204,8 @@ class CommerceHintAgentTest : public PlatformBrowserTest {
     // HTTPS server only serves a valid cert for localhost, so this is needed
     // to load pages from other hosts without an error.
     command_line->AppendSwitch(switches::kIgnoreCertificateErrors);
+    // TODO(crbug.com/1491942): This fails with the field trial testing config.
+    command_line->AppendSwitch("disable-field-trial-config");
   }
 
   void SetUpOnMainThread() override {
@@ -441,9 +444,10 @@ class CommerceHintAgentTest : public PlatformBrowserTest {
 
   base::test::ScopedFeatureList scoped_feature_list_;
 #if !BUILDFLAG(IS_ANDROID)
-  CartService* service_;
+  raw_ptr<CartService, ExperimentalRenderer> service_;
 #endif
-  cart::CommerceHintService* commerce_hint_service_;
+  raw_ptr<cart::CommerceHintService, ExperimentalRenderer>
+      commerce_hint_service_;
   net::EmbeddedTestServer https_server_{net::EmbeddedTestServer::TYPE_HTTPS};
   std::unique_ptr<ukm::TestAutoSetUkmRecorder> ukm_recorder_;
   bool satisfied_;
@@ -1679,7 +1683,8 @@ class CommerceHintDOMBasedHeuristicsTest : public CommerceHintAgentTest {
 #endif
              {}},
          {commerce::kChromeCartDomBasedHeuristics,
-          {{"add-to-cart-button-active-time", "2s"}}}},
+          {{"add-to-cart-button-active-time", "2s"},
+           {"heuristics-execution-gap-time", "0s"}}}},
         {optimization_guide::features::kOptimizationHints});
   }
 
@@ -1842,6 +1847,57 @@ IN_PROC_BROWSER_TEST_F(CommerceHintDOMBasedHeuristicsSkipTest,
   WaitForUmaCount("Commerce.Carts.AddToCartByPOST", 2);
   WaitForUmaCount("Commerce.Carts.AddToCartButtonDetection", 0);
   ExpectUKMCount(AddToCartEntry::kEntryName, "HeuristicsExecutionTime", 0);
+}
+
+class CommerceHintDOMBasedHeuristicsGapTimeTest : public CommerceHintAgentTest {
+ public:
+  void SetUpInProcessBrowserTestFixture() override {
+    scoped_feature_list_.InitWithFeaturesAndParameters(
+        {{
+#if !BUILDFLAG(IS_ANDROID)
+             ntp_features::kNtpChromeCartModule,
+#else
+             commerce::kCommerceHintAndroid,
+#endif
+             {}},
+         {commerce::kChromeCartDomBasedHeuristics,
+          {{"add-to-cart-button-active-time", "2s"},
+           {"heuristics-execution-gap-time", "100s"}}}},
+        {optimization_guide::features::kOptimizationHints});
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(CommerceHintDOMBasedHeuristicsGapTimeTest,
+                       EnforceExecutionTimeGap) {
+  NavigateToURL("https://www.guitarcenter.com/product-page.html");
+
+  // Focus on a non-AddToCart button and then send AddToCart requests.
+  EXPECT_EQ(nullptr,
+            content::EvalJs(web_contents(), "focusElement(\"buttonTwo\")"));
+  SendXHR("/wp-admin/admin-ajax.php", "action: woocommerce_add_to_cart");
+
+#if !BUILDFLAG(IS_ANDROID)
+  WaitForCartCount(kEmptyExpected);
+#endif
+  WaitForUmaCount("Commerce.Carts.AddToCartByPOST", 0);
+  WaitForUmaCount("Commerce.Carts.AddToCartButtonDetection", 1);
+  ExpectUKMCount(AddToCartEntry::kEntryName, "HeuristicsExecutionTime", 1);
+
+  // Focus on an AddToCart button and then send AddToCart requests. Since the
+  // gap time is shorter than the threshold, this focus event will be ignored.
+  EXPECT_EQ(nullptr,
+            content::EvalJs(web_contents(), "focusElement(\"buttonOne\")"));
+  SendXHR("/wp-admin/admin-ajax.php", "action: woocommerce_add_to_cart");
+
+#if !BUILDFLAG(IS_ANDROID)
+  WaitForCartCount(kEmptyExpected);
+#endif
+  WaitForUmaCount("Commerce.Carts.AddToCartByPOST", 0);
+  WaitForUmaCount("Commerce.Carts.AddToCartButtonDetection", 1);
+  ExpectUKMCount(AddToCartEntry::kEntryName, "HeuristicsExecutionTime", 1);
 }
 
 }  // namespace

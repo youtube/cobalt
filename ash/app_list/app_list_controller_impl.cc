@@ -4,6 +4,7 @@
 
 #include "ash/app_list/app_list_controller_impl.h"
 
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -21,6 +22,7 @@
 #include "ash/app_list/views/app_list_view.h"
 #include "ash/app_list/views/contents_view.h"
 #include "ash/app_list/views/search_box_view.h"
+#include "ash/app_list/views/search_notifier_controller.h"
 #include "ash/assistant/assistant_controller_impl.h"
 #include "ash/assistant/model/assistant_ui_model.h"
 #include "ash/assistant/ui/assistant_view_delegate.h"
@@ -48,10 +50,12 @@
 #include "ash/shelf/home_button.h"
 #include "ash/shelf/shelf_navigation_widget.h"
 #include "ash/shell.h"
+#include "ash/user_education/welcome_tour/welcome_tour_metrics.h"
 #include "ash/wallpaper/wallpaper_controller_impl.h"
 #include "ash/wm/float/float_controller.h"
 #include "ash/wm/mru_window_tracker.h"
 #include "ash/wm/overview/overview_controller.h"
+#include "ash/wm/overview/overview_session.h"
 #include "ash/wm/splitview/split_view_controller.h"
 #include "ash/wm/tablet_mode/tablet_mode_controller.h"
 #include "ash/wm/window_state.h"
@@ -60,15 +64,14 @@
 #include "base/callback_list.h"
 #include "base/containers/adapters.h"
 #include "base/containers/contains.h"
-#include "base/containers/cxx20_erase.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/metrics/user_metrics.h"
+#include "base/trace_event/trace_event.h"
 #include "chromeos/ash/services/assistant/public/cpp/assistant_enums.h"
-#include "chromeos/ui/wm/features.h"
 #include "components/pref_registry/pref_registry_syncable.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "ui/compositor/compositor.h"
@@ -99,6 +102,9 @@ constexpr float kOverviewFadeAnimationScale = 0.92f;
 // fading transitions.
 constexpr base::TimeDelta kOverviewFadeAnimationDuration =
     base::Milliseconds(350);
+
+// The app id for the settings app used for testing quick app access.
+constexpr char kOsSettingsAppId[] = "odknhmnlageboeamepcngndbggdpaobj";
 
 // Update layer animation settings for launcher scale and opacity animation that
 // runs on overview mode change.
@@ -218,8 +224,7 @@ aura::Window* GetTopVisibleWindow() {
 
     // Floated windows can be tucked offscreen in tablet mode. Their target
     // visibility is true but the app list is fully visible under them.
-    if (chromeos::wm::features::IsWindowLayoutMenuEnabled() &&
-        WindowState::Get(window)->IsFloated() &&
+    if (WindowState::Get(window)->IsFloated() &&
         Shell::Get()->float_controller()->IsFloatedWindowTuckedForTablet(
             window)) {
       continue;
@@ -250,6 +255,14 @@ GetTransitionFromMetricsAnimationInfo(
 
 bool IsKioskSession() {
   return Shell::Get()->session_controller()->IsRunningInAppMode();
+}
+
+void MaybeLogWelcomeTourInteraction(AppListShowSource show_source) {
+  if (features::IsWelcomeTourEnabled() &&
+      IsAppListShowSourceUserTriggered(show_source)) {
+    welcome_tour_metrics::RecordInteraction(
+        welcome_tour_metrics::Interaction::kLauncher);
+  }
 }
 
 }  // namespace
@@ -314,7 +327,9 @@ void AppListControllerImpl::RegisterProfilePrefs(PrefRegistrySimple* registry) {
   registry->RegisterTimePref(prefs::kLauncherLastContinueRequestTime,
                              base::Time());
   registry->RegisterBooleanPref(prefs::kLauncherUseLongContinueDelay, false);
-  AppListNudgeController::RegisterProfilePrefs(registry);
+
+  // The prefs for launcher search controls.
+  registry->RegisterDictionaryPref(prefs::kLauncherSearchCategoryControlStatus);
 }
 
 void AppListControllerImpl::SetClient(AppListClient* client) {
@@ -338,13 +353,6 @@ AppListControllerImpl::CreateLauncherSearchIphSession() {
     return nullptr;
   }
   return client_->CreateLauncherSearchIphSession();
-}
-
-void AppListControllerImpl::OpenSearchBoxIphUrl() {
-  if (!client_) {
-    return;
-  }
-  client_->OpenSearchBoxIphUrl();
 }
 
 void AppListControllerImpl::SetActiveModel(
@@ -408,6 +416,12 @@ bool AppListControllerImpl::IsVisible() {
   return IsVisible(absl::nullopt);
 }
 
+bool AppListControllerImpl::IsImageSearchToggleable() {
+  // Hide the image search from the category filter menu if the privacy notice
+  // hasn't been accepted or timeout yet.
+  return !SearchNotifierController::ShouldShowPrivacyNotice();
+}
+
 void AppListControllerImpl::OnActiveUserPrefServiceChanged(
     PrefService* pref_service) {
   if (IsKioskSession())
@@ -439,6 +453,10 @@ void AppListControllerImpl::OnSessionStateChanged(
     return;
   }
 
+  if (base::FeatureList::IsEnabled(features::kQuickAppAccessTestUI)) {
+    SetHomeButtonQuickApp(kOsSettingsAppId);
+  }
+
   if (in_clamshell)
     return;
 
@@ -463,10 +481,11 @@ void AppListControllerImpl::OnUserSessionAdded(const AccountId& account_id) {
   ash::ReportPrefSortOrderOnSessionStart(client_->GetPermanentSortingOrder(),
                                          IsTabletMode());
 
+  auto* prefs =
+      Shell::Get()->session_controller()->GetUserPrefServiceForUser(account_id);
   if (features::IsLauncherNudgeSessionResetEnabled()) {
-    AppListNudgeController::ResetPrefsForNewUserSession(
-        Shell::Get()->session_controller()->GetUserPrefServiceForUser(
-            account_id));
+    AppListNudgeController::ResetPrefsForNewUserSession(prefs);
+    SearchNotifierController::ResetPrefsForNewUserSession(prefs);
   }
 }
 
@@ -491,6 +510,10 @@ void AppListControllerImpl::Show(int64_t display_id,
   if (should_record_metrics)
     LogAppListShowSource(show_source, !IsTabletMode());
 
+  // Checking `should_record_metrics` is redundant here, since this helper
+  // function never logs metrics when the app list was shown by tablet mode.
+  MaybeLogWelcomeTourInteraction(show_source);
+
   if (IsTabletMode()) {
     fullscreen_presenter_->Show(AppListViewState::kFullscreenAllApps,
                                 display_id, event_time_stamp, show_source);
@@ -504,6 +527,8 @@ void AppListControllerImpl::UpdateAppListWithNewTemporarySortOrder(
     const absl::optional<AppListSortOrder>& new_order,
     bool animate,
     base::OnceClosure update_position_closure) {
+  TRACE_EVENT0("ui",
+               "AppListControllerImpl::UpdateAppListWithNewTemporarySortOrder");
   if (new_order) {
     RecordAppListSortAction(*new_order, IsInTabletMode());
 
@@ -558,6 +583,9 @@ ShelfAction AppListControllerImpl::ToggleAppList(
     }
     LogAppListShowSource(show_source, /*app_list_bubble=*/false);
     last_open_source_ = show_source;
+
+    MaybeLogWelcomeTourInteraction(show_source);
+
     return SHELF_ACTION_APP_LIST_SHOWN;
   }
 
@@ -565,6 +593,8 @@ ShelfAction AppListControllerImpl::ToggleAppList(
   if (action == SHELF_ACTION_APP_LIST_SHOWN) {
     LogAppListShowSource(show_source, /*app_list_bubble=*/true);
     last_open_source_ = show_source;
+
+    MaybeLogWelcomeTourInteraction(show_source);
   }
   return action;
 }
@@ -1079,8 +1109,10 @@ void AppListControllerImpl::SetKeyboardTraversalMode(bool engaged) {
     // TODO(https://crbug.com/1262236): class name comparision and static cast
     // should be avoided in the production code. Find a better way to guarantee
     // the item's selection status.
-    if (focused_view->GetClassName() == AppListItemView::kViewClassName)
+    if (std::string_view(focused_view->GetClassName()) ==
+        std::string_view(AppListItemView::kViewClassName)) {
       static_cast<AppListItemView*>(focused_view)->EnsureSelected();
+    }
 
     focused_view->SchedulePaint();
   }
@@ -1116,6 +1148,14 @@ void AppListControllerImpl::RecordShelfAppLaunched() {
 void AppListControllerImpl::StartAssistant() {
   AssistantUiController::Get()->ShowUi(
       AssistantEntryPoint::kLauncherSearchBoxIcon);
+}
+
+std::vector<AppListSearchControlCategory>
+AppListControllerImpl::GetToggleableCategories() const {
+  if (client_) {
+    return client_->GetToggleableCategories();
+  }
+  return std::vector<AppListSearchControlCategory>();
 }
 
 void AppListControllerImpl::StartSearch(const std::u16string& raw_query) {
@@ -1247,8 +1287,7 @@ void AppListControllerImpl::ActivateItem(const std::string& id,
                                     is_tablet_mode, last_show_timestamp_);
       break;
     case AppListLaunchedFrom::kLaunchedFromQuickAppAccess:
-      // TODO(b/266734005): Implement user action to record launching from quick
-      // app access.
+      // Metrics for quick app launch already recorded at RecordApplaunched().
       break;
     case AppListLaunchedFrom::kLaunchedFromContinueTask:
     case AppListLaunchedFrom::kLaunchedFromSearchBox:
@@ -1394,9 +1433,23 @@ void AppListControllerImpl::SetHideContinueSection(bool hide) {
   bubble_presenter_->UpdateContinueSectionVisibility();
 }
 
-void AppListControllerImpl::CommitTemporarySortOrder() {
-  DCHECK(client_);
-  client_->CommitTemporarySortOrder();
+bool AppListControllerImpl::IsCategoryEnabled(
+    AppListSearchControlCategory category) {
+  PrefService* prefs =
+      Shell::Get()->session_controller()->GetLastActiveUserPrefService();
+  return prefs->GetDict(prefs::kLauncherSearchCategoryControlStatus)
+      .FindBool(GetAppListControlCategoryName(category))
+      .value_or(true);
+}
+
+void AppListControllerImpl::SetCategoryEnabled(
+    AppListSearchControlCategory category,
+    bool enabled) {
+  PrefService* prefs =
+      Shell::Get()->session_controller()->GetLastActiveUserPrefService();
+  ScopedDictPrefUpdate pref_update(prefs,
+                                   prefs::kLauncherSearchCategoryControlStatus);
+  pref_update->Set(GetAppListControlCategoryName(category), enabled);
 }
 
 void AppListControllerImpl::GetAppLaunchedMetricParams(
@@ -1448,7 +1501,7 @@ int AppListControllerImpl::GetShelfSize() {
 }
 
 int AppListControllerImpl::GetSystemShelfInsetsInTabletMode() {
-  return ShelfConfig::Get()->GetSystemShelfInsetsInTabletMode();
+  return ShelfConfig::Get()->GetTabletModeShelfInsetsAndRecordUMA();
 }
 
 bool AppListControllerImpl::IsInTabletMode() {

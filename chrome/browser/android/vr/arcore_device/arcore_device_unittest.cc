@@ -134,14 +134,16 @@ class StubXrJavaCoordinator : public XrJavaCoordinator {
       const CompositorDelegateProvider& compositor_delegate_provider,
       SurfaceReadyCallback ready_callback,
       SurfaceTouchCallback touch_callback,
-      SurfaceDestroyedCallback destroyed_callback) override {
+      SurfaceDestroyedCallback destroyed_callback,
+      XrSessionButtonTouchedCallback button_touched_callback) override {
     NOTREACHED();
   }
   void EndSession() override {}
 
   bool EnsureARCoreLoaded() override { return true; }
 
-  base::android::ScopedJavaLocalRef<jobject> GetApplicationContext() override {
+  base::android::ScopedJavaLocalRef<jobject> GetCurrentActivityContext()
+      override {
     JNIEnv* env = base::android::AttachCurrentThread();
     jclass activityThread = env->FindClass("android/app/ActivityThread");
     jmethodID currentActivityThread =
@@ -153,6 +155,12 @@ class StubXrJavaCoordinator : public XrJavaCoordinator {
         activityThread, "getApplication", "()Landroid/app/Application;");
     jobject context = env->CallObjectMethod(at, getApplication);
     return base::android::ScopedJavaLocalRef<jobject>(env, context);
+  }
+
+  base::android::ScopedJavaLocalRef<jobject> GetActivityFrom(
+      int render_process_id,
+      int render_frame_id) override {
+    return nullptr;
   }
 };
 
@@ -217,6 +225,7 @@ class StubCompositorFrameSink
   void SetNeedsBeginFrame(bool needs_begin_frame) override {}
   void SetWantsAnimateOnlyBeginFrames() override {}
   void SetWantsBeginFrameAcks() override {}
+  void SetAutoNeedsBeginFrame() override {}
   void SubmitCompositorFrame(
       const viz::LocalSurfaceId& local_surface_id,
       viz::CompositorFrame frame,

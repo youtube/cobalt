@@ -26,10 +26,12 @@
 #include "content/public/common/content_client.h"
 #include "content/public/common/origin_util.h"
 #include "mojo/public/cpp/bindings/callback_helpers.h"
+#include "mojo/public/cpp/bindings/remote_set.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/service_worker/service_worker_scope_match.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
 #include "third_party/blink/public/mojom/service_worker/service_worker_registration_options.mojom.h"
+#include "third_party/blink/public/mojom/service_worker/service_worker_running_status_callback.mojom.h"
 
 namespace content {
 
@@ -50,6 +52,23 @@ ServiceWorkerMetrics::EventType PurposeToEventType(
   }
   NOTREACHED();
   return ServiceWorkerMetrics::EventType::UNKNOWN;
+}
+
+storage::mojom::CacheStorageControl* GetCacheStorageControl(
+    scoped_refptr<ServiceWorkerVersion> version) {
+  DCHECK(version);
+  if (!version->context()) {
+    return nullptr;
+  }
+  auto* storage_partition = version->context()->wrapper()->storage_partition();
+  if (!storage_partition) {
+    return nullptr;
+  }
+  auto* control = storage_partition->GetCacheStorageControl();
+  if (!control) {
+    return nullptr;
+  }
+  return control;
 }
 
 }  // namespace
@@ -89,6 +108,37 @@ class ServiceWorkerContainerHost::PendingUpdateVersion {
 
  private:
   scoped_refptr<ServiceWorkerVersion> version_;
+};
+
+// To realize the running status condition in the ServiceWorker static routing
+// API, the latest ServiceWorker running status is notified to all renderers
+// that execute ServiceWorker subresource loaders and controlled by the
+// ServiceWorker.
+//
+// This is an observer to receive the ServiceWorker running status change,
+// and make the update notified to all the renderers via mojo IPC.
+//
+// See:
+// https://github.com/WICG/service-worker-static-routing-api/blob/main/final-form.md#use-service-worker-iif-running
+class ServiceWorkerContainerHost::ServiceWorkerRunningStatusObserver final
+    : public ServiceWorkerVersion::Observer {
+ public:
+  void OnRunningStateChanged(ServiceWorkerVersion* version) override {
+    Notify(version->running_status());
+  }
+  void Notify(blink::EmbeddedWorkerStatus status) {
+    for (const auto& callback : callbacks_) {
+      callback->OnStatusChanged(status);
+    }
+  }
+  void AddCallback(
+      mojo::PendingRemote<blink::mojom::ServiceWorkerRunningStatusCallback>
+          callback) {
+    callbacks_.Add(std::move(callback));
+  }
+
+ private:
+  mojo::RemoteSet<blink::mojom::ServiceWorkerRunningStatusCallback> callbacks_;
 };
 
 ServiceWorkerContainerHost::ServiceWorkerContainerHost(
@@ -148,6 +198,11 @@ ServiceWorkerContainerHost::~ServiceWorkerContainerHost() {
   if (controller_) {
     DCHECK(IsContainerForClient());
     controller_->Uncontrol(client_uuid());
+
+    if (running_status_observer_) {
+      controller_->RemoveObserver(running_status_observer_.get());
+      running_status_observer_.reset();
+    }
   }
 
   // Remove |this| as an observer of ServiceWorkerRegistrations.
@@ -615,6 +670,24 @@ void ServiceWorkerContainerHost::SendSetControllerServiceWorker(
       controller()->fetch_handler_bypass_option();
   controller_info->sha256_script_checksum =
       controller()->sha256_script_checksum();
+  if (controller()->router_evaluator()) {
+    controller_info->router_data = blink::mojom::ServiceWorkerRouterData::New();
+    controller_info->router_data->router_rules =
+        controller()->router_evaluator()->rules();
+    // Pass an endpoint for the cache storage.
+    mojo::PendingRemote<blink::mojom::CacheStorage> remote_cache_storage =
+        GetRemoteCacheStorage();
+    if (remote_cache_storage) {
+      controller_info->router_data->remote_cache_storage =
+          std::move(remote_cache_storage);
+    }
+    if (controller()->router_evaluator()->need_running_status()) {
+      controller_info->router_data->running_status_receiver =
+          GetRunningStatusCallbackReceiver();
+      controller_info->router_data->initial_running_status =
+          controller()->running_status();
+    }
+  }
 
   // Pass an endpoint for the client to talk to this controller.
   mojo::Remote<blink::mojom::ControllerServiceWorker> remote =
@@ -1370,9 +1443,17 @@ void ServiceWorkerContainerHost::UpdateController(
       // was called.
       version->MoveControlleeToBackForwardCacheMap(client_uuid());
     }
+    if (running_status_observer_) {
+      version->AddObserver(running_status_observer_.get());
+      running_status_observer_->Notify(version->running_status());
+    }
   }
-  if (previous_version)
+  if (previous_version) {
     previous_version->Uncontrol(client_uuid());
+    if (running_status_observer_) {
+      previous_version->RemoveObserver(running_status_observer_.get());
+    }
+  }
 
   // SetController message should be sent only for clients.
   DCHECK(IsContainerForClient());
@@ -1761,6 +1842,60 @@ void ServiceWorkerContainerHost::InheritControllerFrom(
     SetControllerRegistration(creator_host.controller_registration(),
                               false /* notify_controllerchange */);
   }
+}
+
+mojo::PendingRemote<blink::mojom::CacheStorage>
+ServiceWorkerContainerHost::GetRemoteCacheStorage() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  DCHECK(IsContainerForClient());
+  DCHECK(controller_);
+
+  auto* control = GetCacheStorageControl(controller_);
+  if (!control) {
+    return mojo::NullRemote();
+  }
+
+  // Since this is offloading the cache storage API access in ServiceWorker,
+  // we need to follow COEP used there.
+  // The reason why COEP is enforced to the cache storage API can be seen in:
+  // crbug.com/991428.
+  const network::CrossOriginEmbedderPolicy* coep =
+      controller_->cross_origin_embedder_policy();
+  if (!coep) {
+    return mojo::NullRemote();
+  }
+
+  // Clone the COEP reporter if available.
+  mojo::PendingRemote<network::mojom::CrossOriginEmbedderPolicyReporter>
+      coep_reporter_to_be_passed;
+  if (coep_reporter_) {
+    coep_reporter_->Clone(
+        coep_reporter_to_be_passed.InitWithNewPipeAndPassReceiver());
+  }
+
+  mojo::PendingRemote<blink::mojom::CacheStorage> remote;
+  control->AddReceiver(
+      *coep, std::move(coep_reporter_to_be_passed),
+      storage::BucketLocator::ForDefaultBucket(controller_->key()),
+      storage::mojom::CacheStorageOwner::kCacheAPI,
+      remote.InitWithNewPipeAndPassReceiver());
+  return remote;
+}
+
+mojo::PendingReceiver<blink::mojom::ServiceWorkerRunningStatusCallback>
+ServiceWorkerContainerHost::GetRunningStatusCallbackReceiver() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  CHECK(controller_);
+  if (!running_status_observer_) {
+    running_status_observer_ = absl::make_unique<
+        ServiceWorkerContainerHost::ServiceWorkerRunningStatusObserver>();
+    controller_->AddObserver(running_status_observer_.get());
+  }
+  mojo::PendingRemote<blink::mojom::ServiceWorkerRunningStatusCallback>
+      remote_callback;
+  auto receiver = remote_callback.InitWithNewPipeAndPassReceiver();
+  running_status_observer_->AddCallback(std::move(remote_callback));
+  return receiver;
 }
 
 }  // namespace content

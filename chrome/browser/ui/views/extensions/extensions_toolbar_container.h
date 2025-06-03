@@ -20,6 +20,7 @@
 #include "chrome/browser/ui/views/extensions/extensions_toolbar_controls.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_action_view.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_icon_container_view.h"
+#include "extensions/common/extension.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/base/models/image_model.h"
@@ -83,7 +84,6 @@ class ExtensionsToolbarContainer
       delete;
   ~ExtensionsToolbarContainer() override;
 
-  DisplayMode display_mode() const { return display_mode_; }
   const ToolbarIcons& icons_for_testing() const { return icons_; }
   ToolbarActionViewController* popup_owner_for_testing() {
     return popup_owner_;
@@ -148,18 +148,15 @@ class ExtensionsToolbarContainer
   // ExtensionsContainer:
   ToolbarActionViewController* GetActionForId(
       const std::string& action_id) override;
-  ToolbarActionViewController* GetPoppedOutAction() const override;
+  absl::optional<extensions::ExtensionId> GetPoppedOutActionId() const override;
   void OnContextMenuShown(const std::string& action_id) override;
   void OnContextMenuClosed() override;
-  bool CanShowActionsInToolbar() const override;
   bool IsActionVisibleOnToolbar(const std::string& action_id) const override;
-  extensions::ExtensionContextMenuModel::ButtonVisibility GetActionVisibility(
-      const std::string& action_id) const override;
   void UndoPopOut() override;
   void SetPopupOwner(ToolbarActionViewController* popup_owner) override;
   void HideActivePopup() override;
   bool CloseOverflowMenuIfOpen() override;
-  void PopOutAction(ToolbarActionViewController* action,
+  void PopOutAction(const extensions::ExtensionId& action_id,
                     base::OnceClosure closure) override;
   bool ShowToolbarActionPopupForAPICall(const std::string& action_id,
                                         ShowPopupCallback callback) override;
@@ -170,6 +167,7 @@ class ExtensionsToolbarContainer
   void UpdateToolbarActionHoverCard(
       ToolbarActionView* action_view,
       ToolbarActionHoverCardUpdateType update_type) override;
+  void CollapseConfirmation() override;
 
   // ToolbarActionView::Delegate:
   content::WebContents* GetCurrentWebContents() override;
@@ -259,11 +257,17 @@ class ExtensionsToolbarContainer
   // Updates the controls visibility.
   void UpdateControlsVisibility();
 
+  // Maybe displays the In-Product-Help with a specific priority order.
+  void MaybeShowIPH();
+
   // TabStripModelObserver:
   void OnTabStripModelChanged(
       TabStripModel* tab_strip_model,
       const TabStripModelChange& change,
       const TabStripSelectionChange& selection) override;
+  void TabChangedAt(content::WebContents* contents,
+                    int index,
+                    TabChangeType change_type) override;
 
   // ToolbarActionsModel::Observer:
   void OnToolbarActionAdded(
@@ -282,6 +286,8 @@ class ExtensionsToolbarContainer
   void OnShowAccessRequestsInToolbarChanged(
       const extensions::ExtensionId& extension_id,
       bool can_show_requests) override;
+  void OnExtensionDismissedRequests(const extensions::ExtensionId& extension_id,
+                                    const url::Origin& origin) override;
 
   // views::WidgetObserver:
   void OnWidgetDestroying(views::Widget* widget) override;
@@ -315,7 +321,8 @@ class ExtensionsToolbarContainer
   // `extensions_features::kExtensionsMenuAccessControl` experiment is released.
   // Exactly one of `extensions_button_ and `extensions_controls_` is created;
   // the other is null.
-  const raw_ptr<ExtensionsToolbarButton, DanglingUntriaged> extensions_button_;
+  const raw_ptr<ExtensionsToolbarButton, AcrossTasksDanglingUntriaged>
+      extensions_button_;
   const raw_ptr<ExtensionsToolbarControls, DanglingUntriaged>
       extensions_controls_;
   DisplayMode display_mode_;
@@ -332,7 +339,7 @@ class ExtensionsToolbarContainer
   // View for every action, does not imply pinned or currently shown.
   ToolbarIcons icons_;
   // Popped-out extension, if any.
-  raw_ptr<ToolbarActionViewController> popped_out_action_ = nullptr;
+  absl::optional<extensions::ExtensionId> popped_out_action_;
   // The action that triggered the current popup, if any.
   raw_ptr<ToolbarActionViewController> popup_owner_ = nullptr;
   // Extension with an open context menu, if any.

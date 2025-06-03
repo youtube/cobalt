@@ -71,6 +71,9 @@ message ContentMetaData {
     optional PrinterType printer_type = 2;
   }
   optional PrintMetadata print_metadata = 11;
+
+  // Password for an encrypted archive.
+  optional bytes decryption_key = 12;
 }
 
 message ClientMetadata {
@@ -103,6 +106,9 @@ message ClientMetadata {
     optional string profile_path = 3;
     optional string profile_name = 4;
     optional string client_id = 5;
+    // True if the request comes from a Managed Guest Session on ChromeOS. False
+    // in all other cases.
+    optional bool is_chrome_os_managed_guest_session = 6;
   };
   optional Profile profile = 3;
 };
@@ -157,6 +163,28 @@ message ContentAnalysisRequest {
 
   // Count of analysis requests that belong to the same user action.
   optional int64 user_action_requests_count = 17;
+
+  // Indicates the exact reason the request was created, ie which user action
+  // led to a data transfer.
+  enum Reason {
+    UNKNOWN = 0;
+
+    // Only possible for the `FILE_ATTACHED` and `BULK_DATA_ENTRY` actions.
+    CLIPBOARD_PASTE = 1;
+    DRAG_AND_DROP = 2;
+
+    // Only possible for the `FILE_ATTACHED` action.
+    FILE_PICKER_DIALOG = 3;
+
+    // Only possible for the `PRINT` analysis connector.
+    PRINT_PREVIEW_PRINT = 4;
+    SYSTEM_DIALOG_PRINT = 5;
+
+    // Only possible for the `FILE_DOWNLOADED` analysis connector.
+    NORMAL_DOWNLOAD = 6;
+    SAVE_AS_DOWNLOAD = 7;
+  }
+  optional Reason reason = 19;
 
   // Reserved to make sure there is no overlap with DeepScanningClientRequest.
   reserved 3, 4, 6 to 8;

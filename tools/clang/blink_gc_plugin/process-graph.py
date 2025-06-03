@@ -362,8 +362,6 @@ def read_ignored_cycles():
     ignored_cycles.append(block)
 
 gc_bases = (
-  'blink::GarbageCollected',
-  'blink::GarbageCollectedMixin',
   'cppgc::GarbageCollected',
   'cppgc::GarbageCollectedMixin',
 )
@@ -377,7 +375,6 @@ gcref_bases = (
 )
 ref_mixins = (
   'blink::EventTarget',
-  'blink::EventTargetWithInlineData',
   'blink::ActiveDOMObject',
 )
 

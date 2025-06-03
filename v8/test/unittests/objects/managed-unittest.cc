@@ -8,6 +8,7 @@
 
 #include "src/objects/managed-inl.h"
 #include "src/objects/objects-inl.h"
+#include "test/unittests/heap/heap-utils.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -41,7 +42,7 @@ TEST_F(ManagedTest, GCCausesDestruction) {
 
   // We need to invoke GC without stack, otherwise the objects may survive.
   DisableConservativeStackScanningScopeForTesting scope(isolate()->heap());
-  CollectAllAvailableGarbage();
+  InvokeMemoryReducingMajorGCs(isolate());
 
   CHECK_EQ(1, deleted1);
   CHECK_EQ(0, deleted2);
@@ -177,7 +178,7 @@ TEST_F(ManagedTest, CollectAcrossIsolates) {
           Managed<DeleteCounter>::FromSharedPtr(i_isolate2, 0, handle1->get());
       USE(handle2);
     }
-    CollectAllAvailableGarbage(i_isolate2);
+    InvokeMemoryReducingMajorGCs(i_isolate2);
     CHECK_EQ(0, deleted);
     isolate2->Exit();
     isolate2->Dispose();
@@ -187,7 +188,7 @@ TEST_F(ManagedTest, CollectAcrossIsolates) {
   // We need to invoke GC without stack, otherwise the object may survive.
   {
     DisableConservativeStackScanningScopeForTesting scope(i_isolate1->heap());
-    CollectAllAvailableGarbage(i_isolate1);
+    InvokeMemoryReducingMajorGCs(i_isolate1);
   }
   CHECK_EQ(1, deleted);
   isolate1->Exit();

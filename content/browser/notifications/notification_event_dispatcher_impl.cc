@@ -7,7 +7,6 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
-#include "base/metrics/histogram_functions.h"
 #include "base/notreached.h"
 #include "build/build_config.h"
 #include "content/browser/notifications/devtools_event_logging.h"
@@ -78,6 +77,7 @@ PersistentNotificationStatus ConvertServiceWorkerStatus(
     case blink::ServiceWorkerStatusCode::kErrorDisallowed:
     case blink::ServiceWorkerStatusCode::kErrorInvalidArguments:
     case blink::ServiceWorkerStatusCode::kErrorStorageDisconnected:
+    case blink::ServiceWorkerStatusCode::kErrorStorageDataCorrupted:
       return PersistentNotificationStatus::kServiceWorkerError;
   }
   NOTREACHED();
@@ -146,6 +146,7 @@ void DispatchNotificationEventOnRegistration(
     case blink::ServiceWorkerStatusCode::kErrorDisallowed:
     case blink::ServiceWorkerStatusCode::kErrorInvalidArguments:
     case blink::ServiceWorkerStatusCode::kErrorStorageDisconnected:
+    case blink::ServiceWorkerStatusCode::kErrorStorageDataCorrupted:
       status = PersistentNotificationStatus::kServiceWorkerError;
       break;
     case blink::ServiceWorkerStatusCode::kOk:
@@ -381,10 +382,6 @@ void OnDispatchNotificationClickEventComplete(
     PersistentNotificationDispatchCompleteCallback dispatch_complete_callback,
     PersistentNotificationStatus status,
     blink::ServiceWorkerStatusCode service_worker_status) {
-  base::UmaHistogramEnumeration(
-      "Notifications.PersistentWebNotificationClickEventResult",
-      service_worker_status);
-
   std::move(dispatch_complete_callback).Run(status);
 }
 
@@ -392,10 +389,6 @@ void OnDispatchNotificationCloseEventComplete(
     PersistentNotificationDispatchCompleteCallback dispatch_complete_callback,
     PersistentNotificationStatus status,
     blink::ServiceWorkerStatusCode service_worker_status) {
-  base::UmaHistogramEnumeration(
-      "Notifications.PersistentWebNotificationCloseEventResult",
-      service_worker_status);
-
   std::move(dispatch_complete_callback).Run(status);
 }
 

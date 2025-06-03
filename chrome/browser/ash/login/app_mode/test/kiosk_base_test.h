@@ -10,9 +10,9 @@
 
 #include "base/command_line.h"
 #include "base/version.h"
-#include "chrome/browser/ash/app_mode/app_session_ash.h"
 #include "chrome/browser/ash/app_mode/fake_cws.h"
 #include "chrome/browser/ash/app_mode/kiosk_app_manager.h"
+#include "chrome/browser/ash/app_mode/kiosk_system_session.h"
 #include "chrome/browser/ash/login/app_mode/kiosk_launch_controller.h"
 #include "chrome/browser/ash/login/test/js_checker.h"
 #include "chrome/browser/ash/login/test/network_portal_detector_mixin.h"
@@ -34,22 +34,28 @@ using ::extensions::mojom::ManifestLocation;
 // Webstore data json is in
 //   chrome/test/data/chromeos/app_mode/webstore/inlineinstall/
 //       detail/gcpjojfkologpegommokeppihdbcnahn
-extern const char kTestEnterpriseKioskApp[];
+extern const char kTestEnterpriseKioskAppId[];
 
 extern const char kTestEnterpriseAccountId[];
+
+// This is a simple test chrome app that does not have `kiosk_enabled` flag in
+// manifest. Webstore data json is in
+//   chrome/test/data/chromeos/app_mode/webstore/inlineinstall/
+//       detail/gbcgichpbeeimejckkpgnaighpndpped
+constexpr char kTestNonKioskEnabledApp[] = "gbcgichpbeeimejckkpgnaighpndpped";
 
 extern const test::UIPath kConfigNetwork;
 extern const char kSizeChangedMessage[];
 
-// Waits until |app_session| handles creation of new browser and returns whether
-// the browser has been closed.
-bool ShouldBrowserBeClosedByAppSessionBrowserHander(AppSessionAsh* app_session);
+// Waits until `session` observes a new browser window was created, and returns
+// whether this new window is closing.
+bool DidSessionCloseNewWindow(KioskSystemSession* session);
 
 // Opens accessibility settings browser and waits until it will be handled by
-// |app_session|.
-Browser* OpenA11ySettingsBrowser(AppSessionAsh* app_session);
+// `session`.
+Browser* OpenA11ySettingsBrowser(KioskSystemSession* session);
 
-// Base class for Kiosk browser tests.
+// Base class for Chrome App Kiosk browser tests.
 class KioskBaseTest : public OobeBaseTest {
  public:
   KioskBaseTest();
@@ -119,18 +125,13 @@ class KioskBaseTest : public OobeBaseTest {
 
   void BlockAppLaunch(bool block);
 
-  void set_test_app_id(const std::string& test_app_id) {
-    test_app_id_ = test_app_id;
-  }
-  const std::string& test_app_id() const { return test_app_id_; }
-  void set_test_app_version(const std::string& version) {
-    test_app_version_ = version;
-  }
-  const std::string& test_app_version() const { return test_app_version_; }
-  void set_test_crx_file(const std::string& filename) {
-    test_crx_file_ = filename;
-  }
+  // If `crx_file` is empty string, sets `test_crx_file_` to `app_id` + ".crx".
+  void SetTestApp(const std::string& app_id,
+                  const std::string& version = "1.0.0",
+                  const std::string& crx_file = "");
 
+  const std::string& test_app_id() const { return test_app_id_; }
+  const std::string& test_app_version() const { return test_app_version_; }
   const std::string& test_crx_file() const { return test_crx_file_; }
   FakeCWS* fake_cws() { return fake_cws_.get(); }
 
@@ -159,7 +160,6 @@ class KioskBaseTest : public OobeBaseTest {
   std::unique_ptr<FakeCWS> fake_cws_;
 
   std::unique_ptr<base::AutoReset<bool>> skip_splash_wait_override_;
-  std::unique_ptr<base::AutoReset<base::TimeDelta>> network_wait_override_;
   std::unique_ptr<base::AutoReset<bool>> block_app_launch_override_;
 };
 

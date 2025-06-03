@@ -7,15 +7,15 @@
 #include <memory>
 
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/blink/renderer/core/css/css_property_value_set.h"
-#include "third_party/blink/renderer/core/css/parser/css_parser.h"
-#include "third_party/blink/renderer/core/css/resolver/style_resolver.h"
+#include "third_party/blink/public/platform/web_runtime_features.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/execution_context/security_context.h"
 #include "third_party/blink/renderer/core/frame/local_frame_view.h"
 #include "third_party/blink/renderer/core/frame/settings.h"
 #include "third_party/blink/renderer/core/loader/empty_clients.h"
 #include "third_party/blink/renderer/core/testing/page_test_base.h"
+#include "third_party/blink/renderer/core/testing/sim/sim_request.h"
+#include "third_party/blink/renderer/core/testing/sim/sim_test.h"
 
 namespace blink {
 
@@ -62,79 +62,20 @@ constexpr int HTMLImageElementTest::kViewportHeight;
 
 TEST_F(HTMLImageElementTest, width) {
   auto* image = MakeGarbageCollected<HTMLImageElement>(GetDocument());
-  image->setAttribute(html_names::kWidthAttr, "400");
+  image->setAttribute(html_names::kWidthAttr, AtomicString("400"));
   // TODO(yoav): `width` does not impact resourceWidth until we resolve
   // https://github.com/ResponsiveImagesCG/picture-element/issues/268
   EXPECT_EQ(absl::nullopt, image->GetResourceWidth());
-  image->setAttribute(html_names::kSizesAttr, "100vw");
+  image->setAttribute(html_names::kSizesAttr, AtomicString("100vw"));
   EXPECT_EQ(500, image->GetResourceWidth());
 }
 
 TEST_F(HTMLImageElementTest, sourceSize) {
   auto* image = MakeGarbageCollected<HTMLImageElement>(GetDocument());
-  image->setAttribute(html_names::kWidthAttr, "400");
+  image->setAttribute(html_names::kWidthAttr, AtomicString("400"));
   EXPECT_EQ(kViewportWidth, image->SourceSize(*image));
-  image->setAttribute(html_names::kSizesAttr, "50vw");
+  image->setAttribute(html_names::kSizesAttr, AtomicString("50vw"));
   EXPECT_EQ(250, image->SourceSize(*image));
-}
-
-TEST_F(HTMLImageElementTest, attributeLazyLoadDimensionType) {
-  struct TestCase {
-    const char* attribute_value;
-    HTMLImageElement::LazyLoadDimensionType expected_dimension_type;
-  };
-  const TestCase test_cases[] = {
-      {"", HTMLImageElement::LazyLoadDimensionType::kNotAbsolute},
-      {"invalid", HTMLImageElement::LazyLoadDimensionType::kNotAbsolute},
-      {"10px", HTMLImageElement::LazyLoadDimensionType::kAbsoluteSmall},
-      {"10", HTMLImageElement::LazyLoadDimensionType::kAbsoluteSmall},
-      {"100px", HTMLImageElement::LazyLoadDimensionType::kAbsoluteNotSmall},
-      {"100", HTMLImageElement::LazyLoadDimensionType::kAbsoluteNotSmall},
-  };
-  for (const auto& test : test_cases) {
-    EXPECT_EQ(test.expected_dimension_type,
-              HTMLImageElement::GetAttributeLazyLoadDimensionType(
-                  test.attribute_value));
-  }
-}
-
-TEST_F(HTMLImageElementTest, inlineStyleLazyLoadDimensionType) {
-  struct TestCase {
-    const char* inline_style;
-    HTMLImageElement::LazyLoadDimensionType expected_dimension_type;
-  };
-  const TestCase test_cases[] = {
-      {"", HTMLImageElement::LazyLoadDimensionType::kNotAbsolute},
-      {"invalid", HTMLImageElement::LazyLoadDimensionType::kNotAbsolute},
-      {"height: 1px", HTMLImageElement::LazyLoadDimensionType::kNotAbsolute},
-      {"width: 1px", HTMLImageElement::LazyLoadDimensionType::kNotAbsolute},
-      {"height: 1; width: 1",
-       HTMLImageElement::LazyLoadDimensionType::kNotAbsolute},
-      {"height: 50%; width: 50%",
-       HTMLImageElement::LazyLoadDimensionType::kNotAbsolute},
-      {"height: 1px; width: 1px",
-       HTMLImageElement::LazyLoadDimensionType::kAbsoluteSmall},
-      {"height: 10px; width: 10px",
-       HTMLImageElement::LazyLoadDimensionType::kAbsoluteSmall},
-      {"height: 100px; width: 10px",
-       HTMLImageElement::LazyLoadDimensionType::kAbsoluteNotSmall},
-      {"height: 10px; width: 100px",
-       HTMLImageElement::LazyLoadDimensionType::kAbsoluteNotSmall},
-      {"height: 100px; width: 100px",
-       HTMLImageElement::LazyLoadDimensionType::kAbsoluteNotSmall},
-      {"height: 100; width: 100",
-       HTMLImageElement::LazyLoadDimensionType::kNotAbsolute},
-      {"height: 100%; width: 100%",
-       HTMLImageElement::LazyLoadDimensionType::kNotAbsolute},
-  };
-  for (const auto& test : test_cases) {
-    const ImmutableCSSPropertyValueSet* property_set =
-        CSSParser::ParseInlineStyleDeclaration(
-            test.inline_style, kHTMLStandardMode,
-            SecureContextMode::kInsecureContext);
-    EXPECT_EQ(test.expected_dimension_type,
-              HTMLImageElement::GetInlineStyleDimensionsType(property_set));
-  }
 }
 
 TEST_F(HTMLImageElementTest, ImageAdRectangleUpdate) {
@@ -225,6 +166,49 @@ TEST_F(HTMLImageElementTest, ImageAdRectangleUpdate) {
   EXPECT_EQ(test_frame_client_->observed_image_ad_rects()[3].first, id);
   EXPECT_EQ(test_frame_client_->observed_image_ad_rects()[3].second,
             gfx::Rect());
+}
+
+using HTMLImageElementSimTest = SimTest;
+
+TEST_F(HTMLImageElementSimTest, Sharedstoragewritable_SecureContext_Allowed) {
+  WebRuntimeFeaturesBase::EnableSharedStorageAPI(true);
+  WebRuntimeFeaturesBase::EnableSharedStorageAPIM118(true);
+  SimRequest main_resource("https://example.com/index.html", "text/html");
+  SimSubresourceRequest image_resource("https://example.com/foo.png",
+                                       "image/png");
+  LoadURL("https://example.com/index.html");
+  main_resource.Complete(R"(
+    <img src="foo.png" id="target"
+      allow="shared-storage"
+      sharedstoragewritable></img>
+  )");
+
+  image_resource.Complete("image data");
+  EXPECT_TRUE(ConsoleMessages().empty());
+}
+
+TEST_F(HTMLImageElementSimTest,
+       Sharedstoragewritable_InsecureContext_NotAllowed) {
+  WebRuntimeFeaturesBase::EnableSharedStorageAPI(true);
+  WebRuntimeFeaturesBase::EnableSharedStorageAPIM118(true);
+  SimRequest main_resource("http://example.com/index.html", "text/html");
+  SimSubresourceRequest image_resource("http://example.com/foo.png",
+                                       "image/png");
+  LoadURL("http://example.com/index.html");
+  main_resource.Complete(R"(
+    <img src="foo.png" id="target"
+      allow="shared-storage"
+      sharedstoragewritable></img>
+  )");
+
+  image_resource.Complete("image data");
+  EXPECT_EQ(ConsoleMessages().size(), 1u);
+  EXPECT_TRUE(ConsoleMessages().front().StartsWith(
+      "sharedStorageWritable: sharedStorage operations are only available in "
+      "secure contexts."))
+      << "Expect error that Shared Storage operations are not allowed in "
+         "insecure contexts but got: "
+      << ConsoleMessages().front();
 }
 
 }  // namespace blink

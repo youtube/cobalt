@@ -24,10 +24,6 @@
 #import "ios/chrome/credential_provider_extension/ui/ui_util.h"
 #import "ios/components/credential_provider_extension/password_spec_fetcher.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 using autofill::GeneratePassword;
 using autofill::PasswordRequirementsSpec;
 using base::SysUTF16ToNSString;
@@ -133,11 +129,6 @@ using base::SysUTF16ToNSString;
   if (!StorePasswordInKeychain(password, uuid)) {
     return nil;
   }
-  NSString* validationIdentifierKey =
-      AppGroupUserDefaultsCredentialProviderUserID();
-  NSString* validationIdentifier =
-      [app_group::GetGroupUserDefaults() stringForKey:validationIdentifierKey];
-
   return [[ArchivableCredential alloc] initWithFavicon:nil
                                     keychainIdentifier:uuid
                                                   rank:1
@@ -145,7 +136,6 @@ using base::SysUTF16ToNSString;
                                      serviceIdentifier:identifier
                                            serviceName:url.host ?: identifier
                                                   user:username
-                                  validationIdentifier:validationIdentifier
                                                   note:note];
 }
 

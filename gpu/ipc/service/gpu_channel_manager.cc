@@ -8,17 +8,10 @@
 #include <memory>
 #include <utility>
 
-#include "base/feature_list.h"
-#include "base/task/single_thread_task_runner.h"
-#include "build/build_config.h"
-
-#if BUILDFLAG(IS_WIN)
-#include <dxgi1_3.h>
-#endif
-
 #include "base/command_line.h"
 #include "base/debug/crash_logging.h"
 #include "base/debug/dump_without_crashing.h"
+#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/metrics/histogram_macros.h"
@@ -28,11 +21,10 @@
 #include "base/task/bind_post_task.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/trace_event/traced_value.h"
+#include "build/build_config.h"
+#include "gpu/command_buffer/common/constants.h"
 #include "gpu/command_buffer/common/context_creation_attribs.h"
 #include "gpu/command_buffer/common/sync_token.h"
-#if BUILDFLAG(USE_DAWN)
-#include "gpu/command_buffer/service/dawn_caching_interface.h"
-#endif
 #include "gpu/command_buffer/service/feature_info.h"
 #include "gpu/command_buffer/service/gl_utils.h"
 #include "gpu/command_buffer/service/gpu_tracer.h"
@@ -43,17 +35,16 @@
 #include "gpu/command_buffer/service/sync_point_manager.h"
 #include "gpu/config/gpu_crash_keys.h"
 #include "gpu/config/gpu_finch_features.h"
+#include "gpu/config/gpu_switches.h"
 #include "gpu/ipc/common/gpu_client_ids.h"
 #include "gpu/ipc/common/memory_stats.h"
 #include "gpu/ipc/service/gpu_channel.h"
 #include "gpu/ipc/service/gpu_channel_manager_delegate.h"
-#include "gpu/ipc/service/gpu_memory_ablation_experiment.h"
 #include "gpu/ipc/service/gpu_memory_buffer_factory.h"
 #include "gpu/ipc/service/gpu_watchdog_thread.h"
 #include "third_party/skia/include/core/SkGraphics.h"
-#if BUILDFLAG(IS_WIN)
-#include "ui/gl/gl_angle_util_win.h"
-#endif
+#include "third_party/skia/include/gpu/GrDirectContext.h"
+#include "third_party/skia/include/gpu/GrTypes.h"
 #include "ui/gl/gl_bindings.h"
 #include "ui/gl/gl_enums.h"
 #include "ui/gl/gl_features.h"
@@ -61,6 +52,20 @@
 #include "ui/gl/gl_surface_egl.h"
 #include "ui/gl/gl_version_info.h"
 #include "ui/gl/init/gl_factory.h"
+
+#if BUILDFLAG(USE_DAWN)
+#include "gpu/command_buffer/service/dawn_caching_interface.h"
+#endif
+
+#if BUILDFLAG(SKIA_USE_DAWN)
+#include "gpu/command_buffer/service/dawn_context_provider.h"
+#endif
+
+#if BUILDFLAG(IS_WIN)
+#include <dxgi1_3.h>
+
+#include "ui/gl/gl_angle_util_win.h"
+#endif
 
 #if BUILDFLAG(ENABLE_VULKAN)
 #include "gpu/vulkan/vulkan_device_queue.h"
@@ -83,7 +88,7 @@ const int kMaxGpuIdleTimeMs = 40;
 const int kMaxKeepAliveTimeMs = 200;
 #endif
 #if BUILDFLAG(IS_WIN)
-void TrimD3DResources() {
+void TrimD3DResources(const scoped_refptr<SharedContextState>& context_state) {
   // Graphics drivers periodically allocate internal memory buffers in
   // order to speed up subsequent rendering requests. These memory allocations
   // in general lead to increased memory usage by the overall system.
@@ -95,11 +100,22 @@ void TrimD3DResources() {
   // during the first rendering operations after the Trim call, therefore
   // apps should only call Trim when going idle for a period of time or during
   // low memory conditions.
-  Microsoft::WRL::ComPtr<ID3D11Device> d3d11_device =
-      gl::QueryD3D11DeviceObjectFromANGLE();
+  Microsoft::WRL::ComPtr<ID3D11Device> d3d11_device;
+  if (context_state) {
+    d3d11_device = context_state->GetD3D11Device();
+  }
   if (d3d11_device) {
     Microsoft::WRL::ComPtr<IDXGIDevice3> dxgi_device;
     if (SUCCEEDED(d3d11_device.As(&dxgi_device))) {
+      dxgi_device->Trim();
+    }
+  }
+
+  Microsoft::WRL::ComPtr<ID3D11Device> angle_d3d11_device =
+      gl::QueryD3D11DeviceObjectFromANGLE();
+  if (angle_d3d11_device && angle_d3d11_device != d3d11_device) {
+    Microsoft::WRL::ComPtr<IDXGIDevice3> dxgi_device;
+    if (SUCCEEDED(angle_d3d11_device.As(&dxgi_device))) {
       dxgi_device->Trim();
     }
   }
@@ -167,10 +183,7 @@ void SetCrashKeyTimeDelta(base::debug::CrashKeyString* key,
 GpuChannelManager::GpuPeakMemoryMonitor::GpuPeakMemoryMonitor(
     GpuChannelManager* channel_manager,
     scoped_refptr<base::SingleThreadTaskRunner> task_runner)
-    : ablation_experiment_(
-          std::make_unique<GpuMemoryAblationExperiment>(channel_manager,
-                                                        task_runner)),
-      weak_factory_(this) {}
+    : weak_factory_(this) {}
 
 GpuChannelManager::GpuPeakMemoryMonitor::~GpuPeakMemoryMonitor() = default;
 
@@ -184,12 +197,6 @@ GpuChannelManager::GpuPeakMemoryMonitor::GetPeakMemoryUsage(
   if (sequence != sequence_trackers_.end()) {
     *out_peak_memory = sequence->second.total_memory_;
     allocation_per_source = sequence->second.peak_memory_per_source_;
-
-    uint64_t ablation_memory =
-        ablation_experiment_->GetPeakMemory(sequence_num);
-    *out_peak_memory += ablation_memory;
-    allocation_per_source[GpuPeakMemoryAllocationSource::SHARED_IMAGE_STUB] +=
-        ablation_memory;
   }
   return allocation_per_source;
 }
@@ -199,7 +206,6 @@ void GpuChannelManager::GpuPeakMemoryMonitor::StartGpuMemoryTracking(
   sequence_trackers_.emplace(
       sequence_num,
       SequenceTracker(current_memory_, current_memory_per_source_));
-  ablation_experiment_->StartSequence(sequence_num);
   TRACE_EVENT_ASYNC_BEGIN2("gpu", "PeakMemoryTracking", sequence_num, "start",
                            current_memory_, "start_sources",
                            StartTrackingTracedValue());
@@ -213,7 +219,6 @@ void GpuChannelManager::GpuPeakMemoryMonitor::StopGpuMemoryTracking(
                            sequence->second.total_memory_, "end_sources",
                            StopTrackingTracedValue(sequence->second));
     sequence_trackers_.erase(sequence);
-    ablation_experiment_->StopSequence(sequence_num);
   }
 }
 
@@ -296,7 +301,6 @@ void GpuChannelManager::GpuPeakMemoryMonitor::OnMemoryAllocatedChange(
   current_memory_ += diff;
   current_memory_per_source_[source] += diff;
 
-  ablation_experiment_->OnMemoryAllocated(old_size, new_size);
   if (old_size < new_size) {
     // When memory has increased, iterate over the sequences to update their
     // peak.
@@ -333,12 +337,13 @@ GpuChannelManager::GpuChannelManager(
     SharedImageManager* shared_image_manager,
     GpuMemoryBufferFactory* gpu_memory_buffer_factory,
     const GpuFeatureInfo& gpu_feature_info,
-    GpuProcessActivityFlags activity_flags,
+    GpuProcessShmCount use_shader_cache_shm_count,
     scoped_refptr<gl::GLSurface> default_offscreen_surface,
     ImageDecodeAcceleratorWorker* image_decode_accelerator_worker,
     viz::VulkanContextProvider* vulkan_context_provider,
     viz::MetalContextProvider* metal_context_provider,
-    viz::DawnContextProvider* dawn_context_provider)
+    DawnContextProvider* dawn_context_provider,
+    webgpu::DawnCachingInterfaceFactory* dawn_caching_interface_factory)
     : task_runner_(task_runner),
       io_task_runner_(io_task_runner),
       gpu_preferences_(gpu_preferences),
@@ -358,11 +363,12 @@ GpuChannelManager::GpuChannelManager(
       discardable_manager_(gpu_preferences_),
       passthrough_discardable_manager_(gpu_preferences_),
       image_decode_accelerator_worker_(image_decode_accelerator_worker),
-      activity_flags_(std::move(activity_flags)),
+      use_shader_cache_shm_count_(std::move(use_shader_cache_shm_count)),
       memory_pressure_listener_(
           FROM_HERE,
           base::BindRepeating(&GpuChannelManager::HandleMemoryPressure,
                               base::Unretained(this))),
+      dawn_caching_interface_factory_(dawn_caching_interface_factory),
       vulkan_context_provider_(vulkan_context_provider),
       metal_context_provider_(metal_context_provider),
       dawn_context_provider_(dawn_context_provider),
@@ -381,10 +387,6 @@ GpuChannelManager::GpuChannelManager(
     gr_shader_cache_.emplace(gpu_preferences.gpu_program_cache_size, this);
     gr_shader_cache_->CacheClientIdOnDisk(gpu::kDisplayCompositorClientId);
   }
-#if BUILDFLAG(USE_DAWN)
-  dawn_caching_interface_factory_ =
-      std::make_unique<webgpu::DawnCachingInterfaceFactory>();
-#endif
 }
 
 GpuChannelManager::~GpuChannelManager() {
@@ -454,7 +456,7 @@ gles2::ProgramCache* GpuChannelManager::program_cache() {
       program_cache_ = std::make_unique<gles2::MemoryProgramCache>(
           gpu_preferences_.gpu_program_cache_size, disable_disk_cache,
           workarounds.disable_program_caching_for_transform_feedback,
-          &activity_flags_);
+          &use_shader_cache_shm_count_);
     }
   }
   return program_cache_.get();
@@ -491,13 +493,28 @@ GpuChannel* GpuChannelManager::EstablishChannel(
     const base::UnguessableToken& channel_token,
     int client_id,
     uint64_t client_tracing_id,
-    bool is_gpu_host) {
+    bool is_gpu_host,
+    const gfx::GpuExtraInfo& gpu_extra_info,
+    gpu::GpuMemoryBufferFactory* gpu_memory_buffer_factory) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+
+  // Remove existing GPU channel with same client id before creating
+  // new GPU channel. if not, new SyncPointClientState in SyncPointManager
+  // will be destroyed when existing GPU channel is destroyed.
+  // We can't call RemoveChannel() because it will clear GpuDiskCache
+  // with the client id.
+  auto it = gpu_channels_.find(client_id);
+  if (it != gpu_channels_.end()) {
+    std::unique_ptr<GpuChannel> channel = std::move(it->second);
+    gpu_channels_.erase(it);
+    channel.reset();
+  }
 
   std::unique_ptr<GpuChannel> gpu_channel = GpuChannel::Create(
       this, channel_token, scheduler_, sync_point_manager_, share_group_,
       task_runner_, io_task_runner_, client_id, client_tracing_id, is_gpu_host,
-      image_decode_accelerator_worker_);
+      image_decode_accelerator_worker_, gpu_extra_info,
+      gpu_memory_buffer_factory);
 
   if (!gpu_channel)
     return nullptr;
@@ -561,7 +578,7 @@ void GpuChannelManager::OnDiskCacheHandleDestoyed(
     }
     case gpu::GpuDiskCacheType::kDawnWebGPU: {
 #if BUILDFLAG(USE_DAWN)
-      dawn_caching_interface_factory_->ReleaseHandle(handle);
+      dawn_caching_interface_factory()->ReleaseHandle(handle);
 #endif
       break;
     }
@@ -595,10 +612,10 @@ void GpuChannelManager::PopulateCache(const gpu::GpuDiskCacheHandle& handle,
       break;
     }
     case gpu::GpuDiskCacheType::kDawnWebGPU: {
-#if BUILDFLAG(USE_DAWN)
+#if BUILDFLAG(USE_DAWN) || BUILDFLAG(SKIA_USE_DAWN)
       std::unique_ptr<gpu::webgpu::DawnCachingInterface>
           dawn_caching_interface =
-              dawn_caching_interface_factory_->CreateInstance(handle);
+              dawn_caching_interface_factory()->CreateInstance(handle);
       if (!dawn_caching_interface) {
         return;
       }
@@ -771,10 +788,11 @@ void GpuChannelManager::OnBackgroundCleanup() {
   // goes to background on low-end devices.
   std::vector<int> channels_to_clear;
   for (auto& kv : gpu_channels_) {
-    // TODO(ssid): WebGL context loss event notification must be sent before
-    // clearing WebGL contexts crbug.com/725306.
-    if (kv.second->HasActiveWebGLContext())
+    // Stateful contexts (e.g. WebGL and WebGPU) support context lost
+    // notifications, but for now, skip those.
+    if (kv.second->HasActiveStatefulContext()) {
       continue;
+    }
     channels_to_clear.push_back(kv.first);
     kv.second->MarkAllContextsLost();
   }
@@ -829,11 +847,13 @@ void GpuChannelManager::PerformImmediateCleanup() {
     auto* fence_helper =
         vulkan_context_provider_->GetDeviceQueue()->GetFenceHelper();
     fence_helper->PerformImmediateCleanup();
+
+    // TODO(lizeb): Also perform this on GL devices.
+    if (auto* context = shared_context_state_->gr_context()) {
+      context->flushAndSubmit(GrSyncCpu::kYes);
+    }
   }
 #endif
-  if (auto* context = shared_context_state_->gr_context()) {
-    context->flushAndSubmit(true);
-  }
 }
 
 void GpuChannelManager::HandleMemoryPressure(
@@ -855,7 +875,7 @@ void GpuChannelManager::HandleMemoryPressure(
   if (gr_shader_cache_)
     gr_shader_cache_->PurgeMemory(memory_pressure_level);
 #if BUILDFLAG(IS_WIN)
-  TrimD3DResources();
+  TrimD3DResources(shared_context_state_);
 #endif
 }
 
@@ -1002,7 +1022,7 @@ scoped_refptr<SharedContextState> GpuChannelManager::GetSharedContextState(
 
   if (!shared_context_state->InitializeSkia(
           gpu_preferences_, gpu_driver_bug_workarounds_, gr_shader_cache(),
-          &activity_flags_, watchdog_)) {
+          &use_shader_cache_shm_count_, watchdog_)) {
     LOG(ERROR) << "ContextResult::kFatalFailure: Failed to initialize Skia for "
                   "SharedContextState";
     *result = ContextResult::kFatalFailure;
@@ -1015,8 +1035,10 @@ scoped_refptr<SharedContextState> GpuChannelManager::GetSharedContextState(
   return shared_context_state_;
 }
 
-void GpuChannelManager::OnContextLost(int context_lost_count,
-                                      bool synthetic_loss) {
+void GpuChannelManager::OnContextLost(
+    int context_lost_count,
+    bool synthetic_loss,
+    error::ContextLostReason context_lost_reason) {
   if (context_lost_count < 0)
     context_lost_count = context_lost_count_ + 1;
   // Because of the DrDC, we may receive context loss from the GPU main and
@@ -1076,14 +1098,14 @@ void GpuChannelManager::OnContextLost(int context_lost_count,
   // Work around issues with recovery by allowing a new GPU process to launch.
   if (force_restart || gpu_driver_bug_workarounds_.exit_on_context_lost ||
       (shared_context_state_ && !shared_context_state_->GrContextIsGL())) {
-    delegate_->MaybeExitOnContextLost(synthetic_loss);
+    delegate_->MaybeExitOnContextLost(synthetic_loss, context_lost_reason);
   }
 }
 
 void GpuChannelManager::ScheduleGrContextCleanup() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
-  shared_context_state_->ScheduleGrContextCleanup();
+  shared_context_state_->ScheduleSkiaCleanup();
 }
 
 void GpuChannelManager::StoreShader(const std::string& key,

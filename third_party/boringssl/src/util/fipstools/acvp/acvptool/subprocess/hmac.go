@@ -76,7 +76,7 @@ func (h *hmacPrimitive) hmac(msg []byte, key []byte, outBits int, m Transactable
 	return result[0][:outBytes]
 }
 
-func (h *hmacPrimitive) Process(vectorSet []byte, m Transactable) (interface{}, error) {
+func (h *hmacPrimitive) Process(vectorSet []byte, m Transactable) (any, error) {
 	var parsed hmacTestVectorSet
 	if err := json.Unmarshal(vectorSet, &parsed); err != nil {
 		return nil, err
@@ -87,14 +87,21 @@ func (h *hmacPrimitive) Process(vectorSet []byte, m Transactable) (interface{}, 
 	// https://pages.nist.gov/ACVP/draft-fussell-acvp-mac.html#name-test-vectors
 	// for details about the tests.
 	for _, group := range parsed.Groups {
+		group := group
 		response := hmacTestGroupResponse{
 			ID: group.ID,
 		}
 		if group.MACBits > h.mdLen*8 {
 			return nil, fmt.Errorf("test group %d specifies MAC length should be %d, but maximum possible length is %d", group.ID, group.MACBits, h.mdLen*8)
 		}
+		if group.MACBits%8 != 0 {
+			return nil, fmt.Errorf("fractional-byte HMAC output length requested: %d", group.MACBits)
+		}
+		outBytes := group.MACBits / 8
 
 		for _, test := range group.Tests {
+			test := test
+
 			if len(test.MsgHex)*4 != group.MsgBits {
 				return nil, fmt.Errorf("test case %d/%d contains hex message of length %d but specifies a bit length of %d", group.ID, test.ID, len(test.MsgHex), group.MsgBits)
 			}
@@ -111,14 +118,27 @@ func (h *hmacPrimitive) Process(vectorSet []byte, m Transactable) (interface{}, 
 				return nil, fmt.Errorf("failed to decode key in test case %d/%d: %s", group.ID, test.ID, err)
 			}
 
-			// https://pages.nist.gov/ACVP/draft-fussell-acvp-mac.html#name-test-vectors
-			response.Tests = append(response.Tests, hmacTestResponse{
-				ID:     test.ID,
-				MACHex: hex.EncodeToString(h.hmac(msg, key, group.MACBits, m)),
+			m.TransactAsync(h.algo, 1, [][]byte{msg, key}, func(result [][]byte) error {
+				if l := len(result[0]); l < outBytes {
+					return fmt.Errorf("HMAC result too short: %d bytes but wanted %d", l, outBytes)
+				}
+
+				// https://pages.nist.gov/ACVP/draft-fussell-acvp-mac.html#name-test-vectors
+				response.Tests = append(response.Tests, hmacTestResponse{
+					ID:     test.ID,
+					MACHex: hex.EncodeToString(result[0][:outBytes]),
+				})
+				return nil
 			})
 		}
 
-		ret = append(ret, response)
+		m.Barrier(func() {
+			ret = append(ret, response)
+		})
+	}
+
+	if err := m.Flush(); err != nil {
+		return nil, err
 	}
 
 	return ret, nil

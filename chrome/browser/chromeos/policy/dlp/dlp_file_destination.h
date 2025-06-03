@@ -5,19 +5,20 @@
 #ifndef CHROME_BROWSER_CHROMEOS_POLICY_DLP_DLP_FILE_DESTINATION_H_
 #define CHROME_BROWSER_CHROMEOS_POLICY_DLP_DLP_FILE_DESTINATION_H_
 
-#include <string>
-
-#include "chrome/browser/chromeos/policy/dlp/dlp_rules_manager.h"
+#include "components/enterprise/data_controls/component.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
+#include "url/gurl.h"
 
 namespace policy {
-// DlpFileDestination represents the destination for file transfer. It either
-// has a url or a component.
+// DlpFileDestination represents the destination for file transfer. It has a
+// field to save an component and one to save an url. Either one of them is set
+// or none. The case of both values undefined is to be interpreted as the
+// destination is within the MyFiles filesystem.
 class DlpFileDestination {
  public:
-  DlpFileDestination() = delete;
-  explicit DlpFileDestination(const std::string& url);
-  explicit DlpFileDestination(const DlpRulesManager::Component component);
+  DlpFileDestination();
+  explicit DlpFileDestination(const GURL& url);
+  explicit DlpFileDestination(const data_controls::Component component);
 
   DlpFileDestination(const DlpFileDestination&);
   DlpFileDestination& operator=(const DlpFileDestination&);
@@ -33,15 +34,22 @@ class DlpFileDestination {
 
   ~DlpFileDestination();
 
-  absl::optional<std::string> url_or_path() const;
+  absl::optional<GURL> url() const;
 
-  absl::optional<DlpRulesManager::Component> component() const;
+  absl::optional<data_controls::Component> component() const;
+
+  // Returns if the destination is in a local filesystem (any
+  // `data_control::Destination` or MyFiles).
+  bool IsFileSystem() const;
+
+  // Returns if the destination is within MyFiles.
+  bool IsMyFiles() const;
 
  private:
   // Destination url or destination path.
-  absl::optional<std::string> url_or_path_;
+  absl::optional<GURL> url_;
   // Destination component.
-  absl::optional<DlpRulesManager::Component> component_;
+  absl::optional<data_controls::Component> component_;
 };
 
 }  // namespace policy

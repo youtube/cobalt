@@ -11,6 +11,8 @@
 #include <string>
 #include <vector>
 
+#include "components/webapps/browser/android/webapp_icon.h"
+#include "components/webapps/common/web_page_metadata.mojom.h"
 #include "services/device/public/mojom/screen_orientation_lock_types.mojom-shared.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/mojom/manifest/manifest.mojom.h"
@@ -56,7 +58,8 @@ struct ShortcutInfo {
   static std::unique_ptr<ShortcutInfo> CreateShortcutInfo(
       const GURL& manifest_url,
       const blink::mojom::Manifest& manifest,
-      const GURL& primary_icon_url);
+      const GURL& primary_icon_url,
+      bool primary_icon_maskable);
 
   // This enum is used to back a UMA histogram, and must be treated as
   // append-only.
@@ -124,6 +127,10 @@ struct ShortcutInfo {
   ShortcutInfo(const ShortcutInfo& other);
   ~ShortcutInfo();
 
+  // Updates the info based on the given web page metadata.
+  void UpdateFromWebPageMetadata(
+      const mojom::WebPageMetadata& web_page_metadata);
+
   // Updates the info based on the given |manifest|.
   void UpdateFromManifest(const blink::mojom::Manifest& manifest);
 
@@ -131,12 +138,15 @@ struct ShortcutInfo {
   // later download.
   void UpdateBestSplashIcon(const blink::mojom::Manifest& manifest);
 
+  // Update the display mode based on whether the web app is webapk_compatible.
+  void UpdateDisplayMode(bool webapk_compatible);
+
   // Updates the source of the shortcut.
   void UpdateSource(const Source source);
 
-  // Returns a set of icons including |best_primary_icon_url|,
+  // Returns a vector of icons including |best_primary_icon_url|,
   // |splash_image_url| and |best_shortcut_icon_urls| if they are not empty
-  std::set<GURL> GetWebApkIcons();
+  std::vector<WebappIcon> GetWebApkIcons();
 
   GURL manifest_url;
   GURL url;
@@ -154,12 +164,15 @@ struct ShortcutInfo {
   absl::optional<SkColor> background_color;
   int ideal_splash_image_size_in_px = 0;
   int minimum_splash_image_size_in_px = 0;
+  GURL best_primary_icon_url;
+  bool is_primary_icon_maskable = false;
   GURL splash_image_url;
   bool is_splash_image_maskable = false;
-  GURL best_primary_icon_url;
   std::vector<std::string> icon_urls;
   std::vector<GURL> screenshot_urls;
   absl::optional<ShareTarget> share_target;
+  absl::optional<SkColor> dark_theme_color;
+  absl::optional<SkColor> dark_background_color;
 
   // Id specified in the manifest.
   GURL manifest_id;

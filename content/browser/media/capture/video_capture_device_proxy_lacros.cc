@@ -31,8 +31,6 @@ namespace content {
 
 namespace {
 
-const int kVideoCaptureMinVersion = crosapi::mojom::ScreenManager::
-    MethodMinVersions::kGetScreenVideoCapturerMinVersion;
 const int kRequestRefreshFrameMinVersion = crosapi::mojom::VideoCaptureDevice::
     MethodMinVersions::kRequestRefreshFrameMinVersion;
 
@@ -44,29 +42,17 @@ void BindWakeLockProvider(
 
 }  // namespace
 
-// static
-bool VideoCaptureDeviceProxyLacros::IsAvailable() {
-  auto* service = chromeos::LacrosService::Get();
-
-  if (!service)
-    return false;
-
-  return service->GetInterfaceVersion(crosapi::mojom::ScreenManager::Uuid_) >=
-         kVideoCaptureMinVersion;
-}
-
 VideoCaptureDeviceProxyLacros::VideoCaptureDeviceProxyLacros(
     const DesktopMediaID& device_id)
     : capture_id_(device_id) {
-  CHECK(IsAvailable());
   CHECK(capture_id_.type == DesktopMediaID::TYPE_SCREEN ||
         capture_id_.type == DesktopMediaID::TYPE_WINDOW);
 
   // The LacrosService exists at all times except during early start-up and
   // late shut-down. This class should never be used in those two times.
   auto* lacros_service = chromeos::LacrosService::Get();
-  DCHECK(lacros_service);
-  DCHECK(lacros_service->IsAvailable<crosapi::mojom::ScreenManager>());
+  CHECK(lacros_service);
+  CHECK(lacros_service->IsAvailable<crosapi::mojom::ScreenManager>());
   lacros_service->BindScreenManagerReceiver(
       screen_manager_.BindNewPipeAndPassReceiver());
 
@@ -160,13 +146,14 @@ void VideoCaptureDeviceProxyLacros::Resume() {
 
 void VideoCaptureDeviceProxyLacros::Crop(
     const base::Token& crop_id,
-    uint32_t crop_version,
-    base::OnceCallback<void(media::mojom::CropRequestResult)> callback) {
+    uint32_t sub_capture_target_version,
+    base::OnceCallback<void(media::mojom::ApplySubCaptureTargetResult)>
+        callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(callback);
 
   std::move(callback).Run(
-      media::mojom::CropRequestResult::kUnsupportedCaptureDevice);
+      media::mojom::ApplySubCaptureTargetResult::kUnsupportedCaptureDevice);
 }
 
 void VideoCaptureDeviceProxyLacros::StopAndDeAllocate() {

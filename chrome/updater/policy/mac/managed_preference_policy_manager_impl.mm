@@ -4,8 +4,10 @@
 
 #import "chrome/updater/policy/mac/managed_preference_policy_manager_impl.h"
 
+#include <Foundation/Foundation.h>
+
+#include "base/apple/foundation_util.h"
 #include "base/enterprise_util.h"
-#include "base/mac/scoped_nsobject.h"
 #include "chrome/updater/constants.h"
 #include "chrome/updater/policy/manager.h"
 
@@ -43,14 +45,6 @@ int ReadPolicyInteger(id value) {
   }
 
   return static_cast<int>(result);
-}
-
-// Reads a policy NSString value. Returns nil for all unexpected cases.
-base::scoped_nsobject<NSString> ReadPolicyString(id value) {
-  if ([value isKindOfClass:[NSString class]])
-    return base::scoped_nsobject<NSString>([value copy]);
-  else
-    return base::scoped_nsobject<NSString>(nil);
 }
 
 // For historical reasons, "update" policy has different enum values in Manage
@@ -92,7 +86,7 @@ int TranslateUpdatePolicyValue(int update_policy_from_managed_preferences) {
 
 /// Class that manages Mac global-level policies.
 @interface CRUManagedPreferenceGlobalPolicySettings : NSObject {
-  base::scoped_nsobject<NSString> _downloadPreference;
+  NSString* __strong _downloadPreference;
 };
 
 @property(nonatomic, readonly) int lastCheckPeriodMinutes;
@@ -113,8 +107,8 @@ int TranslateUpdatePolicyValue(int update_policy_from_managed_preferences) {
 
 - (instancetype)initWithDictionary:(CRUAppPolicyDictionary*)policyDict {
   if (([super init])) {
-    _downloadPreference = updater::ReadPolicyString(
-        [policyDict objectForKey:kDownloadPreferenceKey]);
+    _downloadPreference =
+        base::apple::ObjCCast<NSString>(policyDict[kDownloadPreferenceKey]);
     _defaultUpdatePolicy = updater::TranslateUpdatePolicyValue(
         updater::ReadPolicyInteger(policyDict[kUpdateDefaultKey]));
     _updatesSuppressed.start_hour_ =
@@ -134,7 +128,7 @@ int TranslateUpdatePolicyValue(int update_policy_from_managed_preferences) {
 
 - (NSString*)downloadPreference {
   if (_downloadPreference) {
-    return [NSString stringWithString:_downloadPreference];
+    return _downloadPreference;
   } else {
     return nil;
   }
@@ -156,8 +150,8 @@ int TranslateUpdatePolicyValue(int update_policy_from_managed_preferences) {
 
 /// Class that manages policies for a single App.
 @interface CRUManagedPreferenceAppPolicySettings : NSObject {
-  base::scoped_nsobject<NSString> _targetChannel;
-  base::scoped_nsobject<NSString> _targetVersionPrefix;
+  NSString* __strong _targetChannel;
+  NSString* __strong _targetVersionPrefix;
 }
 
 @property(nonatomic, readonly) int updatePolicy;
@@ -174,15 +168,14 @@ int TranslateUpdatePolicyValue(int update_policy_from_managed_preferences) {
 
 - (instancetype)initWithDictionary:(CRUAppPolicyDictionary*)policyDict {
   if (([super init])) {
-    _updatePolicy =
-        updater::TranslateUpdatePolicyValue(updater::ReadPolicyInteger(
-            [policyDict objectForKey:kUpdateDefaultKey]));
+    _updatePolicy = updater::TranslateUpdatePolicyValue(
+        updater::ReadPolicyInteger(policyDict[kUpdateDefaultKey]));
     _targetChannel =
-        updater::ReadPolicyString([policyDict objectForKey:kTargetChannelKey]);
-    _targetVersionPrefix = updater::ReadPolicyString(
-        [policyDict objectForKey:kTargetVersionPrefixKey]);
-    _rollbackToTargetVersion = updater::ReadPolicyInteger(
-        [policyDict objectForKey:kRollbackToTargetVersionKey]);
+        base::apple::ObjCCast<NSString>(policyDict[kTargetChannelKey]);
+    _targetVersionPrefix =
+        base::apple::ObjCCast<NSString>(policyDict[kTargetVersionPrefixKey]);
+    _rollbackToTargetVersion =
+        updater::ReadPolicyInteger(policyDict[kRollbackToTargetVersionKey]);
   }
 
   return self;
@@ -207,37 +200,36 @@ int TranslateUpdatePolicyValue(int update_policy_from_managed_preferences) {
 @end
 
 @implementation CRUManagedPreferencePolicyManager {
-  base::scoped_nsobject<CRUManagedPreferenceGlobalPolicySettings> _globalPolicy;
-  base::scoped_nsobject<
-      NSMutableDictionary<NSString*, CRUManagedPreferenceAppPolicySettings*>>
-      _appPolicies;
+  CRUManagedPreferenceGlobalPolicySettings* __strong _globalPolicy;
+  NSMutableDictionary<NSString*, CRUManagedPreferenceAppPolicySettings*>*
+      __strong _appPolicies;
 }
 
-@synthesize managed = _managed;
+@synthesize hasActivePolicy = _hasActivePolicy;
 
 - (instancetype)initWithDictionary:(CRUUpdatePolicyDictionary*)policies {
   if (([super init])) {
-    _managed = policies.count > 0 && base::IsManagedOrEnterpriseDevice();
+    _hasActivePolicy = policies.count > 0;
 
     // Always create a global policy instance for default values.
-    _globalPolicy.reset([[CRUManagedPreferenceGlobalPolicySettings alloc]
-        initWithDictionary:nil]);
+    _globalPolicy = [[CRUManagedPreferenceGlobalPolicySettings alloc]
+        initWithDictionary:nil];
 
-    _appPolicies.reset([[NSMutableDictionary alloc] init]);
-    for (NSString* appid in policies.allKeys) {
+    _appPolicies = [[NSMutableDictionary alloc] init];
+    for (NSString* __strong appid in policies.allKeys) {
       if (![policies[appid] isKindOfClass:[CRUAppPolicyDictionary class]])
         continue;
 
       CRUAppPolicyDictionary* policyDict = policies[appid];
       appid = appid.lowercaseString;
       if ([appid isEqualToString:kGlobalPolicyKey]) {
-        _globalPolicy.reset([[CRUManagedPreferenceGlobalPolicySettings alloc]
-            initWithDictionary:policyDict]);
+        _globalPolicy = [[CRUManagedPreferenceGlobalPolicySettings alloc]
+            initWithDictionary:policyDict];
       } else {
-        base::scoped_nsobject<CRUManagedPreferenceAppPolicySettings>
-            appSettings([[CRUManagedPreferenceAppPolicySettings alloc]
-                initWithDictionary:policyDict]);
-        [_appPolicies setObject:appSettings.get() forKey:appid];
+        CRUManagedPreferenceAppPolicySettings* appSettings =
+            [[CRUManagedPreferenceAppPolicySettings alloc]
+                initWithDictionary:policyDict];
+        [_appPolicies setObject:appSettings forKey:appid];
       }
     }
   }

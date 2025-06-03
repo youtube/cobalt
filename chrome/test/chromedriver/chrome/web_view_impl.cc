@@ -31,6 +31,7 @@
 #include "chrome/test/chromedriver/chrome/devtools_client.h"
 #include "chrome/test/chromedriver/chrome/devtools_client_impl.h"
 #include "chrome/test/chromedriver/chrome/download_directory_override_manager.h"
+#include "chrome/test/chromedriver/chrome/fedcm_tracker.h"
 #include "chrome/test/chromedriver/chrome/frame_tracker.h"
 #include "chrome/test/chromedriver/chrome/geolocation_override_manager.h"
 #include "chrome/test/chromedriver/chrome/heap_snapshot_taker.h"
@@ -286,6 +287,55 @@ Status GetFrameIdForBackendNodeId(DevToolsClient* client,
   return Status(kOk);
 }
 
+Status ResolveWeakReferences(base::Value::List& nodes) {
+  Status status{kOk};
+  std::map<int, int> ref_to_idx;
+  // Mapping
+  for (int k = 0; static_cast<size_t>(k) < nodes.size(); ++k) {
+    if (!nodes[k].is_dict()) {
+      continue;
+    }
+    const base::Value::Dict& node = nodes[k].GetDict();
+    absl::optional<int> weak_node_ref =
+        node.FindIntByDottedPath("weakLocalObjectReference");
+    if (!weak_node_ref) {
+      continue;
+    }
+    absl::optional<int> maybe_backend_node_id =
+        node.FindIntByDottedPath("value.backendNodeId");
+    if (!maybe_backend_node_id) {
+      continue;
+    }
+    ref_to_idx[weak_node_ref.value()] = k;
+  }
+  // Resolving
+  for (int k = 0; static_cast<size_t>(k) < nodes.size(); ++k) {
+    if (!nodes[k].is_dict()) {
+      continue;
+    }
+    const base::Value::Dict& node = nodes[k].GetDict();
+    absl::optional<int> weak_node_ref =
+        node.FindIntByDottedPath("weakLocalObjectReference");
+    if (!weak_node_ref) {
+      continue;
+    }
+    absl::optional<int> maybe_backend_node_id =
+        node.FindIntByDottedPath("value.backendNodeId");
+    if (maybe_backend_node_id) {
+      continue;
+    }
+    auto it = ref_to_idx.find(*weak_node_ref);
+    if (it == ref_to_idx.end()) {
+      return Status{
+          kUnknownError,
+          base::StringPrintf("Unable to resolve weakLocalObjectReference=%d",
+                             *weak_node_ref)};
+    }
+    nodes[k] = nodes[it->second].Clone();
+  }
+  return status;
+}
+
 }  // namespace
 
 WebViewImpl::WebViewImpl(const std::string& id,
@@ -324,11 +374,12 @@ WebViewImpl::WebViewImpl(const std::string& id,
       is_detached_(false),
       parent_(parent),
       client_(std::move(client)),
-      frame_tracker_(new FrameTracker(client_.get(), this, browser_info)),
-      dialog_manager_(new JavaScriptDialogManager(client_.get(), browser_info)),
+      frame_tracker_(new FrameTracker(client_.get(), this)),
+      dialog_manager_(new JavaScriptDialogManager(client_.get())),
       mobile_emulation_override_manager_(
           new MobileEmulationOverrideManager(client_.get(),
-                                             std::move(mobile_device))),
+                                             std::move(mobile_device),
+                                             browser_info->major_version)),
       geolocation_override_manager_(
           new GeolocationOverrideManager(client_.get())),
       network_conditions_override_manager_(
@@ -339,16 +390,17 @@ WebViewImpl::WebViewImpl(const std::string& id,
   // Browser.setDownloadBehavior. This is handled by the
   // DownloadDirectoryOverrideManager, which is only instantiated
   // in headless chrome.
-  if (browser_info->is_headless)
+  if (browser_info->is_headless_shell) {
     download_directory_override_manager_ =
         std::make_unique<DownloadDirectoryOverrideManager>(client_.get());
+  }
   // Child WebViews should not have their own navigation_tracker, but defer
   // all related calls to their parent. All WebViews must have either parent_
   // or navigation_tracker_
   if (!parent_) {
-    navigation_tracker_ = std::unique_ptr<PageLoadStrategy>(
-        PageLoadStrategy::Create(page_load_strategy, client_.get(), this,
-                                 browser_info, dialog_manager_.get()));
+    navigation_tracker_ =
+        std::unique_ptr<PageLoadStrategy>(PageLoadStrategy::Create(
+            page_load_strategy, client_.get(), this, dialog_manager_.get()));
   }
   client_->SetOwner(this);
 }
@@ -373,18 +425,16 @@ WebViewImpl* WebViewImpl::CreateChild(const std::string& session_id,
   // its children (one level deep at most).
   std::unique_ptr<DevToolsClientImpl> child_client =
       std::make_unique<DevToolsClientImpl>(session_id, session_id);
-  WebViewImpl* child = new WebViewImpl(
-      target_id, w3c_compliant_, this, browser_info_, std::move(child_client),
-      absl::nullopt,
-      IsNonBlocking() ? PageLoadStrategy::kNone : PageLoadStrategy::kNormal);
+  WebViewImpl* child =
+      new WebViewImpl(target_id, w3c_compliant_, this, browser_info_,
+                      std::move(child_client), absl::nullopt, "");
   if (!IsNonBlocking()) {
     // Find Navigation Tracker for the top of the WebViewImpl hierarchy
     const WebViewImpl* current_view = this;
     while (current_view->parent_)
       current_view = current_view->parent_;
     PageLoadStrategy* pls = current_view->navigation_tracker_.get();
-    NavigationTracker* nt = static_cast<NavigationTracker*>(pls);
-    child->client_->AddListener(static_cast<DevToolsEventListener*>(nt));
+    child->client_->AddListener(static_cast<DevToolsEventListener*>(pls));
   }
   return child;
 }
@@ -698,9 +748,14 @@ Status WebViewImpl::CallFunctionWithTimeoutInternal(
     params.Set("uniqueContextId", context_id);
   }
   params.Set("arguments", std::move(nodes));
-  params.Set("generateWebDriverValue", true);
   params.Set("awaitPromise", true);
   params.Set("objectGroup", object_group.name());
+
+  base::Value::Dict serialization_options;
+  serialization_options.Set("serialization", "deep");
+
+  params.Set("serializationOptions", std::move(serialization_options));
+
   base::Value::Dict cmd_result;
 
   status = client_->SendCommandAndGetResultWithTimeout(
@@ -720,24 +775,24 @@ Status WebViewImpl::CallFunctionWithTimeoutInternal(
   }
 
   base::Value::List* maybe_received_list =
-      cmd_result.FindListByDottedPath("result.webDriverValue.value");
+      cmd_result.FindListByDottedPath("result.deepSerializedValue.value");
   if (!maybe_received_list || maybe_received_list->empty()) {
     return Status(kUnknownError,
-                  "result.webdriverValue.value list is missing or empty in "
-                  "Runtime.callFunctionOn response");
+                  "result.deepSerializedValue.value list is missing or empty "
+                  "in Runtime.callFunctionOn response");
   }
   base::Value::List& received_list = *maybe_received_list;
 
   if (!received_list[0].is_dict()) {
     return Status(kUnknownError,
-                  "first element in result.webDriverValue.value list must be "
-                  "a dictionary");
+                  "first element in result.deepSerializedValue.value list must "
+                  "be a dictionary");
   }
   std::string* serialized_value =
       received_list[0].GetDict().FindString("value");
   if (!serialized_value) {
     return Status(kUnknownError,
-                  "first element in result.webDriverValue.value list must "
+                  "first element in result.deepSerializedValue.value list must "
                   "contain a string");
   }
   absl::optional<base::Value> maybe_call_result =
@@ -768,6 +823,10 @@ Status WebViewImpl::CallFunctionWithTimeoutInternal(
   if (call_result_value == nullptr) {
     // Missing 'value' indicates the JavaScript code didn't return a value.
     return Status(kOk);
+  }
+  status = ResolveWeakReferences(received_list);
+  if (!status.IsOk()) {
+    return status;
   }
   status = CreateElementReferences(call_result_value, received_list, loader_id);
   if (!status.IsOk()) {
@@ -838,15 +897,6 @@ Status WebViewImpl::CallFunction(const std::string& frame,
                                  result);
 }
 
-Status WebViewImpl::CallAsyncFunction(const std::string& frame,
-                                      const std::string& function,
-                                      const base::Value::List& args,
-                                      const base::TimeDelta& timeout,
-                                      std::unique_ptr<base::Value>* result) {
-  return CallAsyncFunctionInternal(
-      frame, function, args, false, timeout, result);
-}
-
 Status WebViewImpl::CallUserSyncScript(const std::string& frame,
                                        const std::string& script,
                                        const base::Value::List& args,
@@ -877,8 +927,7 @@ Status WebViewImpl::CallUserAsyncFunction(
     const base::Value::List& args,
     const base::TimeDelta& timeout,
     std::unique_ptr<base::Value>* result) {
-  return CallAsyncFunctionInternal(
-      frame, function, args, true, timeout, result);
+  return CallAsyncFunctionInternal(frame, function, args, timeout, result);
 }
 
 // TODO (crbug.com/chromedriver/4364): Simplify this function
@@ -1571,13 +1620,12 @@ Status WebViewImpl::CallAsyncFunctionInternal(
     const std::string& frame,
     const std::string& function,
     const base::Value::List& args,
-    bool is_user_supplied,
     const base::TimeDelta& timeout,
     std::unique_ptr<base::Value>* result) {
   base::Value::List async_args;
   async_args.Append("return (" + function + ").apply(null, arguments);");
   async_args.Append(args.Clone());
-  async_args.Append(is_user_supplied);
+  async_args.Append(/*is_user_supplied=*/true);
   std::unique_ptr<base::Value> tmp;
   Timeout local_timeout(timeout);
   Status status = CallFunctionWithTimeout(frame, kExecuteAsyncScriptScript,
@@ -1672,6 +1720,19 @@ bool WebViewImpl::IsNonBlocking() const {
   if (navigation_tracker_)
     return navigation_tracker_->IsNonBlocking();
   return parent_->IsNonBlocking();
+}
+
+Status WebViewImpl::GetFedCmTracker(FedCmTracker** out_tracker) {
+  if (!fedcm_tracker_) {
+    fedcm_tracker_ = std::make_unique<FedCmTracker>(client_.get());
+    Status status = fedcm_tracker_->Enable(client_.get());
+    if (!status.IsOk()) {
+      fedcm_tracker_.reset();
+      return status;
+    }
+  }
+  *out_tracker = fedcm_tracker_.get();
+  return Status(kOk);
 }
 
 FrameTracker* WebViewImpl::GetFrameTracker() const {

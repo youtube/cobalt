@@ -25,7 +25,6 @@
 
 #include "third_party/blink/renderer/core/css/css_segmented_font_face.h"
 
-#include "base/debug/dump_without_crashing.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "third_party/blink/renderer/core/css/cascade_layer_map.h"
@@ -113,9 +112,8 @@ scoped_refptr<FontData> CSSSegmentedFontFace::GetFontData(
   }
 
   bool is_unique_match = false;
-  bool is_generic_family = false;
-  FontCacheKey key = font_description.CacheKey(
-      FontFaceCreationParams(), is_unique_match, is_generic_family);
+  FontCacheKey key =
+      font_description.CacheKey(FontFaceCreationParams(), is_unique_match);
 
   // font_data_table_ caches FontData and SegmentedFontData instances, which
   // provide SimpleFontData objects containing FontPlatformData objects. In the
@@ -144,12 +142,12 @@ scoped_refptr<FontData> CSSSegmentedFontFace::GetFontData(
   const FontSelectionRequest& font_selection_request =
       font_description.GetFontSelectionRequest();
   requested_font_description.SetSyntheticBold(
-      font_selection_capabilities_.weight.maximum < BoldThreshold() &&
-      font_selection_request.weight >= BoldThreshold() &&
+      font_selection_capabilities_.weight.maximum < kBoldThreshold &&
+      font_selection_request.weight >= kBoldThreshold &&
       font_description.SyntheticBoldAllowed());
   requested_font_description.SetSyntheticItalic(
-      font_selection_capabilities_.slope.maximum < ItalicSlopeValue() &&
-      font_selection_request.slope >= ItalicSlopeValue() &&
+      font_selection_capabilities_.slope.maximum < kItalicSlopeValue &&
+      font_selection_request.slope >= kItalicSlopeValue &&
       font_description.SyntheticItalicAllowed());
 
   font_faces_->ForEachReverse(WTF::BindRepeating(
@@ -225,16 +223,16 @@ void CSSSegmentedFontFace::WillUseRange(
       font_description, range_set));
 }
 
-bool CSSSegmentedFontFace::CheckFont(const String& text) const {
+bool CSSSegmentedFontFace::CheckFont(UChar32 c) const {
   return font_faces_->ForEachUntilFalse(WTF::BindRepeating(
-      [](const String& text, Member<FontFace> font_face) -> bool {
+      [](UChar32 c, Member<FontFace> font_face) -> bool {
         if (font_face->LoadStatus() != FontFace::kLoaded &&
-            font_face->CssFontFace()->Ranges()->IntersectsWith(text)) {
+            font_face->CssFontFace()->Ranges()->Contains(c)) {
           return false;
         }
         return true;
       },
-      text));
+      c));
 }
 
 void CSSSegmentedFontFace::Match(const String& text,
@@ -267,8 +265,9 @@ bool CascadePriorityHigherThan(const FontFace& new_font_face,
   // owner document. However, there are cases where we don't have a document
   // here, possibly caused by ExecutionContext or Document lifecycle issues.
   // TODO(crbug.com/1250831): Find out the root cause and fix it.
+  // Used to have base::debug::DumpWithoutCrashing(), but caused a lot of
+  // crashes, particularly on Android (crbug.com/1468721).
   if (!new_font_face.GetDocument() || !existing_font_face.GetDocument()) {
-    base::debug::DumpWithoutCrashing();
     // In the buggy case, to ensure a stable ordering, font faces without a
     // document are considered higher priority.
     return !new_font_face.GetDocument();

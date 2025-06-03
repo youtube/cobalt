@@ -21,6 +21,7 @@
 #include "components/account_id/account_id.h"
 #include "components/user_manager/user.h"
 #include "components/user_manager/user_manager.h"
+#include "components/user_manager/user_names.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 #include "crypto/nss_util_internal.h"
@@ -119,8 +120,7 @@ void CertDatabaseAsh::GetCertDatabaseInfo(
   }
 
   // Guest users should not have access to certs.
-  const bool is_guest =
-      user_manager::UserManager::Get()->IsGuestAccountId(user->GetAccountId());
+  const bool is_guest = user->GetAccountId() == user_manager::GuestAccountId();
 
   // Otherwise, if the TPM was already loaded previously, let the
   // caller know.
@@ -176,9 +176,21 @@ void CertDatabaseAsh::LoggedInStateChanged() {
   is_cert_database_ready_.reset();
 }
 
-void CertDatabaseAsh::OnCertsChangedInLacros() {
+void CertDatabaseAsh::OnCertsChangedInLacros(
+    mojom::CertDatabaseChangeType change_type) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
-  net::CertDatabase::GetInstance()->NotifyObserversCertDBChanged();
+  switch (change_type) {
+    case mojom::CertDatabaseChangeType::kUnknown:
+      net::CertDatabase::GetInstance()->NotifyObserversTrustStoreChanged();
+      net::CertDatabase::GetInstance()->NotifyObserversClientCertStoreChanged();
+      break;
+    case mojom::CertDatabaseChangeType::kTrustStore:
+      net::CertDatabase::GetInstance()->NotifyObserversTrustStoreChanged();
+      break;
+    case mojom::CertDatabaseChangeType::kClientCertStore:
+      net::CertDatabase::GetInstance()->NotifyObserversClientCertStoreChanged();
+      break;
+  }
 }
 
 void CertDatabaseAsh::AddAshCertDatabaseObserver(
@@ -209,10 +221,11 @@ void CertDatabaseAsh::SetCertsProvidedByExtension(
       extension_id, filtered_certificate_infos);
 }
 
-void CertDatabaseAsh::NotifyCertsChangedInAsh() {
+void CertDatabaseAsh::NotifyCertsChangedInAsh(
+    mojom::CertDatabaseChangeType change_type) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   for (const auto& observer : observers_) {
-    observer->OnCertsChangedInAsh();
+    observer->OnCertsChangedInAsh(change_type);
   }
 }
 

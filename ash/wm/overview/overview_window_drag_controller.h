@@ -20,7 +20,7 @@ class PresentationTimeRecorder;
 namespace ash {
 
 class OverviewGrid;
-class OverviewItem;
+class OverviewItemBase;
 class OverviewSession;
 
 // These values are persisted to logs. Entries should not be renumbered and
@@ -92,7 +92,7 @@ class ASH_EXPORT OverviewWindowDragController {
   };
 
   OverviewWindowDragController(OverviewSession* overview_session,
-                               OverviewItem* item,
+                               OverviewItemBase* item,
                                bool is_touch_dragging);
 
   OverviewWindowDragController(const OverviewWindowDragController&) = delete;
@@ -124,7 +124,7 @@ class ASH_EXPORT OverviewWindowDragController {
   // after a gesture is completed if there is an animation.
   void DestroyFloatDragHelper();
 
-  OverviewItem* item() { return item_; }
+  OverviewItemBase* item() { return item_; }
 
   bool is_touch_dragging() const { return is_touch_dragging_; }
 
@@ -199,8 +199,9 @@ class ASH_EXPORT OverviewWindowDragController {
 
   raw_ptr<OverviewSession, ExperimentalAsh> overview_session_;
 
-  // The drag target window in the overview mode.
-  raw_ptr<OverviewItem, ExperimentalAsh> item_ = nullptr;
+  // The drag target item in the overview mode.
+  raw_ptr<OverviewItemBase, DanglingUntriaged | ExperimentalAsh> item_ =
+      nullptr;
 
   DragBehavior current_drag_behavior_ = DragBehavior::kNoDrag;
 
@@ -246,8 +247,8 @@ class ASH_EXPORT OverviewWindowDragController {
   // mode is only allowed when |is_touch_dragging_| is true.
   const bool is_touch_dragging_;
 
-  // True if SplitView is enabled.
-  const bool should_allow_split_view_;
+  // True if the `item_` can be snapped by dragging.
+  const bool is_eligible_for_drag_to_snap_;
 
   // True if the Virtual Desks bar is created and dragging to desks is enabled.
   const bool virtual_desks_bar_enabled_;

@@ -17,7 +17,7 @@
 #include "chrome/browser/password_entry_edit/android/credential_edit_bridge.h"
 #include "chrome/browser/password_manager/account_password_store_factory.h"
 #include "chrome/browser/password_manager/affiliation_service_factory.h"
-#include "chrome/browser/password_manager/password_store_factory.h"
+#include "chrome/browser/password_manager/profile_password_store_factory.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "components/password_manager/core/browser/password_store_consumer.h"
@@ -94,6 +94,12 @@ class PasswordUIViewAndroid
       const base::android::JavaRef<jobject>& settings_launcher,
       int index,
       const base::android::JavaParamRef<jobject>& obj);
+  void ShowMigrationWarning(
+      JNIEnv* env,
+      const base::android::JavaParamRef<jobject>& activity,
+      const base::android::JavaParamRef<jobject>& controller);
+  jboolean IsWaitingForPasswordStore(JNIEnv* env,
+                                     const base::android::JavaRef<jobject>&);
   // Destroy the native implementation.
   void Destroy(JNIEnv*, const base::android::JavaRef<jobject>&);
 
@@ -129,7 +135,8 @@ class PasswordUIViewAndroid
   enum class State { ALIVE, ALIVE_SERIALIZATION_PENDING, DELETION_PENDING };
 
   // password_manager::SavedPasswordsPresenter::Observer implementation.
-  void OnSavedPasswordsChanged() override;
+  void OnSavedPasswordsChanged(
+      const password_manager::PasswordStoreChangeList& changes) override;
 
   void UpdatePasswordLists();
 
@@ -150,8 +157,9 @@ class PasswordUIViewAndroid
 
   // Pointer to the password store, powering |saved_passwords_presenter_|.
   scoped_refptr<password_manager::PasswordStoreInterface> profile_store_ =
-      PasswordStoreFactory::GetForProfile(ProfileManager::GetLastUsedProfile(),
-                                          ServiceAccessType::EXPLICIT_ACCESS);
+      ProfilePasswordStoreFactory::GetForProfile(
+          ProfileManager::GetLastUsedProfile(),
+          ServiceAccessType::EXPLICIT_ACCESS);
 
   // Manages the list of saved passwords, including updates.
   password_manager::SavedPasswordsPresenter saved_passwords_presenter_{

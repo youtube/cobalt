@@ -24,6 +24,7 @@
 #include "components/autofill/core/browser/data_model/iban.h"
 #include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/randomized_encoder.h"
+#include "components/autofill/core/browser/ui/popup_item_ids.h"
 #include "components/autofill/core/browser/webdata/autofill_table.h"
 #include "components/autofill/core/common/autofill_clock.h"
 #include "components/autofill/core/common/autofill_constants.h"
@@ -82,72 +83,6 @@ std::string GetRandomCardNumber() {
 
 }  // namespace
 
-AutofillTestEnvironment* AutofillTestEnvironment::current_instance_ = nullptr;
-
-AutofillTestEnvironment& AutofillTestEnvironment::GetCurrent(
-    const base::Location& location) {
-  CHECK(current_instance_)
-      << location.ToString() << " "
-      << "tried to access the current AutofillTestEnvironment, but none "
-         "exists. Add an autofill::test::Autofill(Browser|Unit)TestEnvironment "
-         "member to test your test fixture.";
-  return *current_instance_;
-}
-
-AutofillTestEnvironment::AutofillTestEnvironment(const Options& options) {
-  CHECK(!current_instance_) << "An autofill::test::AutofillTestEnvironment has "
-                               "already been registered.";
-  current_instance_ = this;
-  if (options.disable_server_communication) {
-    scoped_feature_list_.InitAndDisableFeature(
-        features::test::kAutofillServerCommunication);
-  }
-}
-
-AutofillTestEnvironment::~AutofillTestEnvironment() {
-  CHECK_EQ(current_instance_, this);
-  current_instance_ = nullptr;
-}
-
-LocalFrameToken AutofillTestEnvironment::NextLocalFrameToken() {
-  return LocalFrameToken(base::UnguessableToken::CreateForTesting(
-      ++local_frame_token_counter_high_, ++local_frame_token_counter_low_));
-}
-
-FormRendererId AutofillTestEnvironment::NextFormRendererId() {
-  return FormRendererId(++form_renderer_id_counter_);
-}
-
-FieldRendererId AutofillTestEnvironment::NextFieldRendererId() {
-  return FieldRendererId(++field_renderer_id_counter_);
-}
-
-AutofillBrowserTestEnvironment::AutofillBrowserTestEnvironment(
-    const Options& options)
-    : AutofillTestEnvironment(options) {}
-
-LocalFrameToken MakeLocalFrameToken(RandomizeFrame randomize) {
-  if (*randomize) {
-    return LocalFrameToken(
-        AutofillTestEnvironment::GetCurrent().NextLocalFrameToken());
-  } else {
-    return LocalFrameToken(
-        base::UnguessableToken::CreateForTesting(98765, 43210));
-  }
-}
-
-FormData WithoutValues(FormData form) {
-  for (FormFieldData& field : form.fields)
-    field.value.clear();
-  return form;
-}
-
-FormData AsAutofilled(FormData form, bool is_autofilled) {
-  for (FormFieldData& field : form.fields)
-    field.is_autofilled = is_autofilled;
-  return form;
-}
-
 void SetFormGroupValues(FormGroup& form_group,
                         const std::vector<FormGroupValue>& values) {
   for (const auto& value : values) {
@@ -161,9 +96,8 @@ void VerifyFormGroupValues(const FormGroup& form_group,
                            bool ignore_status) {
   for (const auto& value : values) {
     SCOPED_TRACE(testing::Message()
-                 << "Expected for type "
-                 << AutofillType::ServerFieldTypeToString(value.type) << "\n\t"
-                 << value.value << " with status "
+                 << "Expected for type " << FieldTypeToStringView(value.type)
+                 << "\n\t" << value.value << " with status "
                  << (ignore_status ? "(ignored)" : "")
                  << value.verification_status << "\nFound:"
                  << "\n\t" << form_group.GetRawInfo(value.type)
@@ -198,101 +132,10 @@ std::unique_ptr<PrefService> PrefServiceForTesting(
   return factory.Create(registry);
 }
 
-void CreateTestFormField(const char* label,
-                         const char* name,
-                         const char* value,
-                         const char* type,
-                         FormFieldData* field) {
-  field->host_frame = MakeLocalFrameToken();
-  field->unique_renderer_id = MakeFieldRendererId();
-  field->label = ASCIIToUTF16(label);
-  field->name = ASCIIToUTF16(name);
-  field->value = ASCIIToUTF16(value);
-  field->form_control_type = type;
-  field->is_focusable = true;
-}
-
-void CreateTestFormField(const char* label,
-                         const char* name,
-                         const char* value,
-                         const char* type,
-                         const char* autocomplete,
-                         FormFieldData* field) {
-  CreateTestFormField(label, name, value, type, field);
-  field->autocomplete_attribute = autocomplete;
-  field->parsed_autocomplete =
-      ParseAutocompleteAttribute(autocomplete, field->max_length);
-}
-
-void CreateTestFormField(const char* label,
-                         const char* name,
-                         const char* value,
-                         const char* type,
-                         const char* autocomplete,
-                         uint64_t max_length,
-                         FormFieldData* field) {
-  // First, set the `max_length`, as the `parsed_autocomplete` is set based on
-  // this value.
-  field->max_length = max_length;
-  CreateTestFormField(label, name, value, type, autocomplete, field);
-}
-
-void CreateTestSelectField(const char* label,
-                           const char* name,
-                           const char* value,
-                           const std::vector<const char*>& values,
-                           const std::vector<const char*>& contents,
-                           FormFieldData* field) {
-  // Fill the base attributes.
-  CreateTestFormField(label, name, value, "select-one", field);
-
-  field->options.clear();
-  CHECK_EQ(values.size(), contents.size());
-  for (size_t i = 0; i < std::min(values.size(), contents.size()); ++i) {
-    field->options.push_back({
-        .value = base::UTF8ToUTF16(values[i]),
-        .content = base::UTF8ToUTF16(contents[i]),
-    });
-  }
-}
-
-void CreateTestSelectField(const char* label,
-                           const char* name,
-                           const char* value,
-                           const char* autocomplete,
-                           const std::vector<const char*>& values,
-                           const std::vector<const char*>& contents,
-                           FormFieldData* field) {
-  CreateTestSelectField(label, name, value, values, contents, field);
-  field->autocomplete_attribute = autocomplete;
-  field->parsed_autocomplete =
-      ParseAutocompleteAttribute(autocomplete, field->max_length);
-}
-
-void CreateTestSelectField(const std::vector<const char*>& values,
-                           FormFieldData* field) {
-  CreateTestSelectField("", "", "", values, values, field);
-}
-
-void CreateTestDatalistField(const char* label,
-                             const char* name,
-                             const char* value,
-                             const std::vector<const char*>& values,
-                             const std::vector<const char*>& labels,
-                             FormFieldData* field) {
-  // Fill the base attributes.
-  CreateTestFormField(label, name, value, "text", field);
-
-  std::vector<std::u16string> values16(values.size());
-  for (size_t i = 0; i < values.size(); ++i)
-    values16[i] = base::UTF8ToUTF16(values[i]);
-
-  std::vector<std::u16string> label16(labels.size());
-  for (size_t i = 0; i < labels.size(); ++i)
-    label16[i] = base::UTF8ToUTF16(labels[i]);
-
-  field->datalist_values = values16;
-  field->datalist_labels = label16;
+[[nodiscard]] FormData CreateTestAddressFormData(const char* unique_id) {
+  FormData form;
+  CreateTestAddressFormData(&form, unique_id);
+  return form;
 }
 
 void CreateTestAddressFormData(FormData* form, const char* unique_id) {
@@ -317,130 +160,39 @@ void CreateTestAddressFormData(FormData* form,
   form->submission_event =
       mojom::SubmissionIndicatorEvent::SAME_DOCUMENT_NAVIGATION;
 
-  FormFieldData field;
-  test::CreateTestFormField("First Name", "firstname", "", "text", &field);
-  form->fields.push_back(field);
+  form->fields.push_back(CreateTestFormField("First Name", "firstname", "",
+                                             FormControlType::kInputText));
   types->push_back({NAME_FIRST});
-  test::CreateTestFormField("Middle Name", "middlename", "", "text", &field);
-  form->fields.push_back(field);
+  form->fields.push_back(CreateTestFormField("Middle Name", "middlename", "",
+                                             FormControlType::kInputText));
   types->push_back({NAME_MIDDLE});
-  test::CreateTestFormField("Last Name", "lastname", "", "text", &field);
-  form->fields.push_back(field);
+  form->fields.push_back(CreateTestFormField("Last Name", "lastname", "",
+                                             FormControlType::kInputText));
   types->push_back({NAME_LAST, NAME_LAST_SECOND});
-  test::CreateTestFormField("Address Line 1", "addr1", "", "text", &field);
-  form->fields.push_back(field);
+  form->fields.push_back(CreateTestFormField("Address Line 1", "addr1", "",
+                                             FormControlType::kInputText));
   types->push_back({ADDRESS_HOME_LINE1});
-  test::CreateTestFormField("Address Line 2", "addr2", "", "text", &field);
-  form->fields.push_back(field);
+  form->fields.push_back(CreateTestFormField("Address Line 2", "addr2", "",
+                                             FormControlType::kInputText));
   types->push_back({ADDRESS_HOME_SUBPREMISE, ADDRESS_HOME_LINE2});
-  test::CreateTestFormField("City", "city", "", "text", &field);
-  form->fields.push_back(field);
+  form->fields.push_back(
+      CreateTestFormField("City", "city", "", FormControlType::kInputText));
   types->push_back({ADDRESS_HOME_CITY});
-  test::CreateTestFormField("State", "state", "", "text", &field);
-  form->fields.push_back(field);
+  form->fields.push_back(
+      CreateTestFormField("State", "state", "", FormControlType::kInputText));
   types->push_back({ADDRESS_HOME_STATE});
-  test::CreateTestFormField("Postal Code", "zipcode", "", "text", &field);
-  form->fields.push_back(field);
+  form->fields.push_back(CreateTestFormField("Postal Code", "zipcode", "",
+                                             FormControlType::kInputText));
   types->push_back({ADDRESS_HOME_ZIP});
-  test::CreateTestFormField("Country", "country", "", "text", &field);
-  form->fields.push_back(field);
+  form->fields.push_back(CreateTestFormField("Country", "country", "",
+                                             FormControlType::kInputText));
   types->push_back({ADDRESS_HOME_COUNTRY});
-  test::CreateTestFormField("Phone Number", "phonenumber", "", "tel", &field);
-  form->fields.push_back(field);
+  form->fields.push_back(CreateTestFormField("Phone Number", "phonenumber", "",
+                                             FormControlType::kInputTelephone));
   types->push_back({PHONE_HOME_WHOLE_NUMBER});
-  test::CreateTestFormField("Email", "email", "", "email", &field);
-  form->fields.push_back(field);
+  form->fields.push_back(
+      CreateTestFormField("Email", "email", "", FormControlType::kInputEmail));
   types->push_back({EMAIL_ADDRESS});
-}
-
-void CreateTestPersonalInformationFormData(FormData* form,
-                                           const char* unique_id) {
-  form->unique_renderer_id = MakeFormRendererId();
-  form->name = u"MyForm" + ASCIIToUTF16(unique_id ? unique_id : "");
-  form->url = GURL("https://myform.com/form.html");
-  form->action = GURL("https://myform.com/submit.html");
-  form->main_frame_origin =
-      url::Origin::Create(GURL("https://myform_root.com/form.html"));
-
-  FormFieldData field;
-  test::CreateTestFormField("First Name", "firstname", "", "text", &field);
-  form->fields.push_back(field);
-  test::CreateTestFormField("Middle Name", "middlename", "", "text", &field);
-  form->fields.push_back(field);
-  test::CreateTestFormField("Last Name", "lastname", "", "text", &field);
-  form->fields.push_back(field);
-  test::CreateTestFormField("Email", "email", "", "email", &field);
-  form->fields.push_back(field);
-}
-
-void CreateTestCreditCardFormData(FormData* form,
-                                  bool is_https,
-                                  bool use_month_type,
-                                  bool split_names,
-                                  const char* unique_id) {
-  form->unique_renderer_id = MakeFormRendererId();
-  form->name = u"MyForm" + ASCIIToUTF16(unique_id ? unique_id : "");
-  if (is_https) {
-    form->url = GURL("https://myform.com/form.html");
-    form->action = GURL("https://myform.com/submit.html");
-    form->main_frame_origin =
-        url::Origin::Create(GURL("https://myform_root.com/form.html"));
-  } else {
-    form->url = GURL("http://myform.com/form.html");
-    form->action = GURL("http://myform.com/submit.html");
-    form->main_frame_origin =
-        url::Origin::Create(GURL("http://myform_root.com/form.html"));
-  }
-
-  FormFieldData field;
-  if (split_names) {
-    test::CreateTestFormField("First Name on Card", "firstnameoncard", "",
-                              "text", &field);
-    field.autocomplete_attribute = "cc-given-name";
-    form->fields.push_back(field);
-    test::CreateTestFormField("Last Name on Card", "lastnameoncard", "", "text",
-                              &field);
-    field.autocomplete_attribute = "cc-family-name";
-    form->fields.push_back(field);
-    field.autocomplete_attribute = "";
-  } else {
-    test::CreateTestFormField("Name on Card", "nameoncard", "", "text", &field);
-    form->fields.push_back(field);
-  }
-  test::CreateTestFormField("Card Number", "cardnumber", "", "text", &field);
-  form->fields.push_back(field);
-  if (use_month_type) {
-    test::CreateTestFormField("Expiration Date", "ccmonth", "", "month",
-                              &field);
-    form->fields.push_back(field);
-  } else {
-    test::CreateTestFormField("Expiration Date", "ccmonth", "", "text", &field);
-    form->fields.push_back(field);
-    test::CreateTestFormField("", "ccyear", "", "text", &field);
-    form->fields.push_back(field);
-  }
-  test::CreateTestFormField("CVC", "cvc", "", "text", &field);
-  form->fields.push_back(field);
-}
-
-void CreateTestIbanFormData(FormData* form_data, const char* value) {
-  FormFieldData field;
-  test::CreateTestFormField("IBAN Value:", "iban_value", value, "text", &field);
-  form_data->fields.push_back(field);
-}
-
-FormData WithoutUnserializedData(FormData form) {
-  form.url = {};
-  form.main_frame_origin = {};
-  form.host_frame = {};
-  for (FormFieldData& field : form.fields)
-    field = WithoutUnserializedData(std::move(field));
-  return form;
-}
-
-FormFieldData WithoutUnserializedData(FormFieldData field) {
-  field.host_frame = {};
-  return field;
 }
 
 inline void check_and_set(
@@ -455,8 +207,7 @@ inline void check_and_set(
 }
 
 AutofillProfile GetFullValidProfileForCanada() {
-  AutofillProfile profile(base::Uuid::GenerateRandomV4().AsLowercaseString(),
-                          kEmptyOrigin);
+  AutofillProfile profile;
   SetProfileInfo(&profile, "Alice", "", "Wonderland", "alice@wonderland.ca",
                  "Fiction", "666 Notre-Dame Ouest", "Apt 8", "Montreal", "QC",
                  "H3B 2T9", "CA", "15141112233");
@@ -464,8 +215,7 @@ AutofillProfile GetFullValidProfileForCanada() {
 }
 
 AutofillProfile GetFullProfile() {
-  AutofillProfile profile(base::Uuid::GenerateRandomV4().AsLowercaseString(),
-                          kEmptyOrigin);
+  AutofillProfile profile;
   SetProfileInfo(&profile, "John", "H.", "Doe", "johndoe@hades.com",
                  "Underworld", "666 Erebus St.", "Apt 8", "Elysium", "CA",
                  "91111", "US", "16502111111");
@@ -473,8 +223,7 @@ AutofillProfile GetFullProfile() {
 }
 
 AutofillProfile GetFullProfile2() {
-  AutofillProfile profile(base::Uuid::GenerateRandomV4().AsLowercaseString(),
-                          kEmptyOrigin);
+  AutofillProfile profile;
   SetProfileInfo(&profile, "Jane", "A.", "Smith", "jsmith@example.com", "ACME",
                  "123 Main Street", "Unit 1", "Greensdale", "MI", "48838", "US",
                  "13105557889");
@@ -482,8 +231,7 @@ AutofillProfile GetFullProfile2() {
 }
 
 AutofillProfile GetFullCanadianProfile() {
-  AutofillProfile profile(base::Uuid::GenerateRandomV4().AsLowercaseString(),
-                          kEmptyOrigin);
+  AutofillProfile profile;
   SetProfileInfo(&profile, "Wayne", "", "Gretzky", "wayne@hockey.com", "NHL",
                  "123 Hockey rd.", "Apt 8", "Moncton", "New Brunswick",
                  "E1A 0A6", "CA", "15068531212");
@@ -491,8 +239,7 @@ AutofillProfile GetFullCanadianProfile() {
 }
 
 AutofillProfile GetIncompleteProfile1() {
-  AutofillProfile profile(base::Uuid::GenerateRandomV4().AsLowercaseString(),
-                          kEmptyOrigin);
+  AutofillProfile profile;
   SetProfileInfo(&profile, "John", "H.", "Doe", "jsmith@example.com", "ACME",
                  "123 Main Street", "Unit 1", "Greensdale", "MI", "48838", "US",
                  "");
@@ -500,16 +247,9 @@ AutofillProfile GetIncompleteProfile1() {
 }
 
 AutofillProfile GetIncompleteProfile2() {
-  AutofillProfile profile(base::Uuid::GenerateRandomV4().AsLowercaseString(),
-                          kEmptyOrigin);
+  AutofillProfile profile;
   SetProfileInfo(&profile, "", "", "", "jsmith@example.com", "", "", "", "", "",
                  "", "", "");
-  return profile;
-}
-
-AutofillProfile GetVerifiedProfile() {
-  AutofillProfile profile(GetFullProfile());
-  profile.set_origin(kSettingsOrigin);
   return profile;
 }
 
@@ -582,23 +322,44 @@ std::string GetStrippedValue(const char* value) {
   return base::UTF16ToUTF8(stripped_value);
 }
 
-IBAN GetIBAN() {
-  IBAN iban(base::Uuid::GenerateRandomV4().AsLowercaseString());
+Iban GetLocalIban() {
+  Iban iban(Iban::Guid(base::Uuid::GenerateRandomV4().AsLowercaseString()));
   iban.set_value(base::UTF8ToUTF16(std::string(kIbanValue)));
   iban.set_nickname(u"Nickname for Iban");
   return iban;
 }
 
-IBAN GetIBAN2() {
-  IBAN iban;
+Iban GetLocalIban2() {
+  Iban iban(Iban::Guid(base::Uuid::GenerateRandomV4().AsLowercaseString()));
   iban.set_value(base::UTF8ToUTF16(std::string(kIbanValue_1)));
   iban.set_nickname(u"My doctor's IBAN");
   return iban;
 }
 
-IBAN GetIBANWithoutNickname() {
-  IBAN iban;
-  iban.set_value(base::UTF8ToUTF16(std::string(kIbanValue_2)));
+Iban GetServerIban() {
+  Iban iban(Iban::InstrumentId("1234567"));
+  iban.set_prefix(u"FR76");
+  iban.set_suffix(u"0189");
+  iban.set_length(27);
+  iban.set_nickname(u"My doctor's IBAN");
+  return iban;
+}
+
+Iban GetServerIban2() {
+  Iban iban(Iban::InstrumentId("1234568"));
+  iban.set_prefix(u"BE71");
+  iban.set_suffix(u"8676");
+  iban.set_length(16);
+  iban.set_nickname(u"My sister's IBAN");
+  return iban;
+}
+
+Iban GetServerIban3() {
+  Iban iban(Iban::InstrumentId("1234569"));
+  iban.set_prefix(u"DE91");
+  iban.set_suffix(u"6789");
+  iban.set_length(22);
+  iban.set_nickname(u"My IBAN");
   return iban;
 }
 
@@ -647,7 +408,7 @@ CreditCard GetVerifiedCreditCard2() {
 }
 
 CreditCard GetMaskedServerCard() {
-  CreditCard credit_card(CreditCard::MASKED_SERVER_CARD, "a123");
+  CreditCard credit_card(CreditCard::RecordType::kMaskedServerCard, "a123");
   test::SetCreditCardInfo(&credit_card, "Bonnie Parker",
                           "2109" /* Mastercard */, NextMonth().c_str(),
                           NextYear().c_str(), "1");
@@ -656,8 +417,17 @@ CreditCard GetMaskedServerCard() {
   return credit_card;
 }
 
+CreditCard GetMaskedServerCard2() {
+  CreditCard credit_card(CreditCard::RecordType::kMaskedServerCard, "b456");
+  test::SetCreditCardInfo(&credit_card, "Rick Roman", "2109" /* Mastercard */,
+                          NextMonth().c_str(), NextYear().c_str(), "");
+  credit_card.SetNetworkForMaskedCard(kMasterCard);
+  credit_card.set_instrument_id(2);
+  return credit_card;
+}
+
 CreditCard GetMaskedServerCardWithLegacyId() {
-  CreditCard credit_card(CreditCard::MASKED_SERVER_CARD, "a123");
+  CreditCard credit_card(CreditCard::RecordType::kMaskedServerCard, "a123");
   test::SetCreditCardInfo(&credit_card, "Bonnie Parker",
                           "2109" /* Mastercard */, NextMonth().c_str(),
                           NextYear().c_str(), "1");
@@ -666,7 +436,7 @@ CreditCard GetMaskedServerCardWithLegacyId() {
 }
 
 CreditCard GetMaskedServerCardWithNonLegacyId() {
-  CreditCard credit_card(CreditCard::MASKED_SERVER_CARD, 1);
+  CreditCard credit_card(CreditCard::RecordType::kMaskedServerCard, 1);
   test::SetCreditCardInfo(&credit_card, "Bonnie Parker",
                           "2109" /* Mastercard */, NextMonth().c_str(),
                           NextYear().c_str(), "1");
@@ -675,7 +445,7 @@ CreditCard GetMaskedServerCardWithNonLegacyId() {
 }
 
 CreditCard GetMaskedServerCardVisa() {
-  CreditCard credit_card(CreditCard::MASKED_SERVER_CARD, "a123");
+  CreditCard credit_card(CreditCard::RecordType::kMaskedServerCard, "a123");
   test::SetCreditCardInfo(&credit_card, "Bonnie Parker", "1111" /* Visa */,
                           NextMonth().c_str(), NextYear().c_str(), "1");
   credit_card.SetNetworkForMaskedCard(kVisaCard);
@@ -683,7 +453,7 @@ CreditCard GetMaskedServerCardVisa() {
 }
 
 CreditCard GetMaskedServerCardAmex() {
-  CreditCard credit_card(CreditCard::MASKED_SERVER_CARD, "b456");
+  CreditCard credit_card(CreditCard::RecordType::kMaskedServerCard, "b456");
   test::SetCreditCardInfo(&credit_card, "Justin Thyme", "8431" /* Amex */,
                           NextMonth().c_str(), NextYear().c_str(), "1");
   credit_card.SetNetworkForMaskedCard(kAmericanExpressCard);
@@ -691,7 +461,7 @@ CreditCard GetMaskedServerCardAmex() {
 }
 
 CreditCard GetMaskedServerCardWithNickname() {
-  CreditCard credit_card(CreditCard::MASKED_SERVER_CARD, "c789");
+  CreditCard credit_card(CreditCard::RecordType::kMaskedServerCard, "c789");
   test::SetCreditCardInfo(&credit_card, "Test user", "1111" /* Visa */,
                           NextMonth().c_str(), NextYear().c_str(), "1");
   credit_card.SetNetworkForMaskedCard(kVisaCard);
@@ -702,12 +472,12 @@ CreditCard GetMaskedServerCardWithNickname() {
 CreditCard GetMaskedServerCardEnrolledIntoVirtualCardNumber() {
   CreditCard credit_card = GetMaskedServerCard();
   credit_card.set_virtual_card_enrollment_state(
-      CreditCard::VirtualCardEnrollmentState::ENROLLED);
+      CreditCard::VirtualCardEnrollmentState::kEnrolled);
   return credit_card;
 }
 
 CreditCard GetFullServerCard() {
-  CreditCard credit_card(CreditCard::FULL_SERVER_CARD, "c123");
+  CreditCard credit_card(CreditCard::RecordType::kFullServerCard, "c123");
   test::SetCreditCardInfo(&credit_card, "Full Carter",
                           "4111111111111111" /* Visa */, NextMonth().c_str(),
                           NextYear().c_str(), "1");
@@ -719,10 +489,10 @@ CreditCard GetVirtualCard() {
   test::SetCreditCardInfo(&credit_card, "Lorem Ipsum",
                           "5555555555554444",  // Mastercard
                           "10", test::NextYear().c_str(), "1");
-  credit_card.set_record_type(CreditCard::RecordType::VIRTUAL_CARD);
+  credit_card.set_record_type(CreditCard::RecordType::kVirtualCard);
   credit_card.set_virtual_card_enrollment_state(
-      CreditCard::VirtualCardEnrollmentState::ENROLLED);
-  CreditCardTestApi(&credit_card).set_network_for_virtual_card(kMasterCard);
+      CreditCard::VirtualCardEnrollmentState::kEnrolled);
+  test_api(credit_card).set_network_for_virtual_card(kMasterCard);
   return credit_card;
 }
 
@@ -744,7 +514,7 @@ CreditCard GetRandomCreditCard(CreditCard::RecordType record_type) {
   AutofillClock::Now().LocalExplode(&now);
 
   CreditCard credit_card =
-      (record_type == CreditCard::LOCAL_CARD)
+      (record_type == CreditCard::RecordType::kLocalCard)
           ? CreditCard(base::Uuid::GenerateRandomV4().AsLowercaseString(),
                        kEmptyOrigin)
           : CreditCard(
@@ -754,11 +524,16 @@ CreditCard GetRandomCreditCard(CreditCard::RecordType record_type) {
       &credit_card, "Justin Thyme", GetRandomCardNumber().c_str(),
       base::StringPrintf("%d", base::RandInt(1, 12)).c_str(),
       base::StringPrintf("%d", now.year + base::RandInt(1, 4)).c_str(), "1");
-  if (record_type == CreditCard::MASKED_SERVER_CARD) {
+  if (record_type == CreditCard::RecordType::kMaskedServerCard) {
     credit_card.SetNetworkForMaskedCard(
         kNetworks[base::RandInt(0, kNumNetworks - 1)]);
   }
 
+  return credit_card;
+}
+
+CreditCard WithCvc(CreditCard credit_card, std::u16string cvc) {
+  credit_card.set_cvc(cvc);
   return credit_card;
 }
 
@@ -985,11 +760,13 @@ void SetCreditCardInfo(CreditCard* credit_card,
                        const char* card_number,
                        const char* expiration_month,
                        const char* expiration_year,
-                       const std::string& billing_address_id) {
+                       const std::string& billing_address_id,
+                       const std::u16string& cvc) {
   check_and_set(credit_card, CREDIT_CARD_NAME_FULL, name_on_card);
   check_and_set(credit_card, CREDIT_CARD_NUMBER, card_number);
   check_and_set(credit_card, CREDIT_CARD_EXP_MONTH, expiration_month);
   check_and_set(credit_card, CREDIT_CARD_EXP_4_DIGIT_YEAR, expiration_year);
+  credit_card->set_cvc(cvc);
   credit_card->set_billing_address_id(billing_address_id);
 }
 
@@ -1006,16 +783,19 @@ void SetServerCreditCards(AutofillTable* table,
                           const std::vector<CreditCard>& cards) {
   std::vector<CreditCard> as_masked_cards = cards;
   for (CreditCard& card : as_masked_cards) {
-    card.set_record_type(CreditCard::MASKED_SERVER_CARD);
+    card.set_record_type(CreditCard::RecordType::kMaskedServerCard);
     card.SetNumber(card.LastFourDigits());
     card.SetNetworkForMaskedCard(card.network());
     card.set_instrument_id(card.instrument_id());
+    table->AddServerCvc({card.instrument_id(), card.cvc(),
+                         /*last_updated_timestamp=*/AutofillClock::Now()});
   }
   table->SetServerCreditCards(as_masked_cards);
 
   for (const CreditCard& card : cards) {
-    if (card.record_type() != CreditCard::FULL_SERVER_CARD)
+    if (card.record_type() != CreditCard::RecordType::kFullServerCard) {
       continue;
+    }
     ASSERT_TRUE(table->UnmaskServerCreditCard(card, card.number()));
   }
 }
@@ -1053,29 +833,11 @@ void InitializePossibleTypesAndValidities(
   }
 }
 
-void BasicFillUploadField(AutofillUploadContents::Field* field,
-                          unsigned signature,
-                          const char* name,
-                          const char* control_type,
-                          const char* autocomplete) {
-  field->set_signature(signature);
-  if (name)
-    field->set_name(name);
-  if (control_type)
-    field->set_type(control_type);
-  if (autocomplete)
-    field->set_autocomplete(autocomplete);
-}
-
 void FillUploadField(AutofillUploadContents::Field* field,
                      unsigned signature,
-                     const char* name,
-                     const char* control_type,
-                     const char* autocomplete,
                      unsigned autofill_type,
                      unsigned validity_state) {
-  BasicFillUploadField(field, signature, name, control_type, autocomplete);
-
+  field->set_signature(signature);
   field->add_autofill_type(autofill_type);
 
   auto* type_validities = field->add_autofill_type_validities();
@@ -1085,12 +847,9 @@ void FillUploadField(AutofillUploadContents::Field* field,
 
 void FillUploadField(AutofillUploadContents::Field* field,
                      unsigned signature,
-                     const char* name,
-                     const char* control_type,
-                     const char* autocomplete,
                      const std::vector<unsigned>& autofill_types,
                      const std::vector<unsigned>& validity_states) {
-  BasicFillUploadField(field, signature, name, control_type, autocomplete);
+  field->set_signature(signature);
 
   for (unsigned i = 0; i < autofill_types.size(); ++i) {
     field->add_autofill_type(autofill_types[i]);
@@ -1107,14 +866,11 @@ void FillUploadField(AutofillUploadContents::Field* field,
 
 void FillUploadField(AutofillUploadContents::Field* field,
                      unsigned signature,
-                     const char* name,
-                     const char* control_type,
-                     const char* autocomplete,
                      unsigned autofill_type,
                      const std::vector<unsigned>& validity_states) {
-  BasicFillUploadField(field, signature, name, control_type, autocomplete);
-
+  field->set_signature(signature);
   field->add_autofill_type(autofill_type);
+
   auto* type_validities = field->add_autofill_type_validities();
   type_validities->set_type(autofill_type);
   for (unsigned i = 0; i < validity_states.size(); ++i)
@@ -1137,13 +893,14 @@ void GenerateTestAutofillPopup(
   std::vector<Suggestion> suggestions;
   suggestions.push_back(Suggestion(u"Test suggestion"));
   autofill_external_delegate->OnSuggestionsReturned(
-      field.global_id(), suggestions, AutoselectFirstSuggestion(false));
+      field.global_id(), suggestions,
+      AutofillSuggestionTriggerSource::kFormControlElementClicked);
 }
 
 std::string ObfuscatedCardDigitsAsUTF8(const std::string& str,
                                        int obfuscation_length) {
-  return base::UTF16ToUTF8(internal::GetObfuscatedStringForCardDigits(
-      base::ASCIIToUTF16(str), obfuscation_length));
+  return base::UTF16ToUTF8(CreditCard::GetObfuscatedStringForCardDigits(
+      obfuscation_length, base::ASCIIToUTF16(str)));
 }
 
 std::string NextMonth() {
@@ -1181,13 +938,29 @@ std::vector<FormSignature> GetEncodedSignatures(
   return all_signatures;
 }
 
+std::vector<FormSignature> GetEncodedAlternativeSignatures(
+    const FormStructure& form) {
+  return std::vector<FormSignature>{form.alternative_form_signature()};
+}
+
+std::vector<FormSignature> GetEncodedAlternativeSignatures(
+    const std::vector<FormStructure*>& forms) {
+  std::vector<FormSignature> all_signatures;
+  for (const FormStructure* form : forms) {
+    all_signatures.push_back(form->alternative_form_signature());
+  }
+  return all_signatures;
+}
+
 FieldPrediction CreateFieldPrediction(ServerFieldType type,
                                       FieldPrediction::Source source) {
   FieldPrediction field_prediction;
   field_prediction.set_type(type);
   field_prediction.set_source(source);
-  if (source == FieldPrediction::SOURCE_OVERRIDE)
+  if (source == FieldPrediction::SOURCE_OVERRIDE ||
+      source == FieldPrediction::SOURCE_MANUAL_OVERRIDE) {
     field_prediction.set_override(true);
+  }
   return field_prediction;
 }
 
@@ -1242,11 +1015,11 @@ void AddFieldPredictionsToForm(
   }
 }
 
-Suggestion CreateAutofillSuggestion(int frontend_id,
+Suggestion CreateAutofillSuggestion(PopupItemId popup_item_id,
                                     const std::u16string& main_text_value,
                                     const Suggestion::Payload& payload) {
   Suggestion suggestion;
-  suggestion.frontend_id = frontend_id;
+  suggestion.popup_item_id = popup_item_id;
   suggestion.main_text.value = main_text_value;
   suggestion.payload = payload;
   return suggestion;

@@ -22,6 +22,7 @@
 
 namespace media {
 class GpuVideoAcceleratorFactories;
+class VideoEncoderMetricsProvider;
 class VideoEncoder;
 struct VideoEncoderOutput;
 }  // namespace media
@@ -46,6 +47,8 @@ class MODULES_EXPORT VideoEncoderTraits {
     media::VideoEncoder::Options options;
     String codec_string;
     absl::optional<gfx::Size> display_size;
+
+    absl::optional<String> not_supported_error_message;
 
     void Trace(Visitor*) const {}
   };
@@ -86,6 +89,12 @@ class MODULES_EXPORT VideoEncoder : public EncoderBase<VideoEncoderTraits> {
   // GarbageCollected override.
   void Trace(Visitor*) const override;
 
+  void ReportError(const char* error_message,
+                   const media::EncoderStatus& status);
+
+  std::unique_ptr<media::VideoEncoderMetricsProvider> encoder_metrics_provider_
+      GUARDED_BY_CONTEXT(sequence_checker_);
+
  protected:
   using Base = EncoderBase<VideoEncoderTraits>;
   using ParsedConfig = VideoEncoderTraits::ParsedConfig;
@@ -100,7 +109,7 @@ class MODULES_EXPORT VideoEncoder : public EncoderBase<VideoEncoderTraits> {
   void ProcessEncode(Request* request) override;
   void ProcessConfigure(Request* request) override;
   void ProcessReconfigure(Request* request) override;
-  void ResetInternal() override;
+  void ResetInternal(DOMException* ex) override;
 
   void OnEncodeDone(Request* request, media::EncoderStatus status);
   media::VideoEncoder::EncodeOptions CreateEncodeOptions(Request* request);
@@ -111,16 +120,21 @@ class MODULES_EXPORT VideoEncoder : public EncoderBase<VideoEncoderTraits> {
                       scoped_refptr<media::VideoFrame> result_frame);
   static std::unique_ptr<media::VideoEncoder> CreateSoftwareVideoEncoder(
       VideoEncoder* self,
+      bool fallback,
       media::VideoCodec codec);
 
   ParsedConfig* ParseConfig(const VideoEncoderConfig*,
                             ExceptionState&) override;
-  bool VerifyCodecSupport(ParsedConfig*, ExceptionState&) override;
+  bool VerifyCodecSupport(ParsedConfig*, String* js_error_message) override;
 
   // Virtual for UTs.
+  // Returns the VideoEncoder.
   virtual std::unique_ptr<media::VideoEncoder> CreateMediaVideoEncoder(
       const ParsedConfig& config,
-      media::GpuVideoAcceleratorFactories* gpu_factories);
+      media::GpuVideoAcceleratorFactories* gpu_factories,
+      bool& is_platform_encoder);
+  virtual std::unique_ptr<media::VideoEncoderMetricsProvider>
+  CreateVideoEncoderMetricsProvider() const;
 
   void ContinueConfigureWithGpuFactories(
       Request* request,
@@ -150,6 +164,9 @@ class MODULES_EXPORT VideoEncoder : public EncoderBase<VideoEncoderTraits> {
 
   // The current upper limit on |active_encodes_|.
   int max_active_encodes_;
+
+  // True if a running video encoder is hardware accelerated.
+  bool is_platform_encoder_ = false;
 
   // Per-frame metadata to be applied to outputs, linked by timestamp.
   struct FrameMetadata {

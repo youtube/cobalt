@@ -6,6 +6,7 @@
  * @fileoverview Polymer element for Enterprise Enrollment screen.
  */
 
+import '//resources/cr_elements/chromeos/cros_color_overrides.css.js';
 import '//resources/cr_elements/cr_input/cr_input.js';
 import '//resources/js/action_link.js';
 import '//resources/polymer/v3_0/iron-icon/iron-icon.js';
@@ -33,9 +34,9 @@ import {InjectedKeyboardUtils} from '../../components/keyboard_utils.js';
 import {globalOobeKeyboard, KEYBOARD_UTILS_FOR_INJECTION} from '../../components/keyboard_utils_oobe.js';
 import {OobeTypes} from '../../components/oobe_types.js';
 import {Oobe} from '../../cr_ui.js';
+import * as OobeDebugger from '../../debug/debug.js';
 import {DisplayManager, invokePolymerMethod} from '../../display_manager.js';
 import {ActiveDirectoryErrorState, ADLoginStep, JoinConfigType} from '../common/offline_ad_login.js';
-
 
 /**
  * @constructor
@@ -53,6 +54,26 @@ const EnterpriseEnrollmentElementBase = mixinBehaviors(
  * }}
  */
 EnterpriseEnrollmentElementBase.$;
+
+/**
+ * Data that is passed to the screen during onBeforeShow.
+ * @typedef {{
+ *   enrollment_mode: string,
+ *   is_enrollment_enforced: boolean,
+ *   attestationBased: boolean,
+ *   flow: string,
+ *   license: (string|undefined),
+ *   gaiaUrl: (string|undefined),
+ *   gaiaPath: (string|undefined),
+ *   gaia_buttons_type: (string|undefined),
+ *   clientId: (string|undefined),
+ *   hl: (string|undefined),
+ *   management_domain: (string|undefined),
+ *   email: (string|undefined),
+ *   webviewPartitionName: (string|undefined),
+ * }}
+ */
+let EnterpriseEnrollmentScreenData;
 
 /**
  * @polymer
@@ -249,7 +270,7 @@ class EnterpriseEnrollmentElement extends EnterpriseEnrollmentElementBase {
       }
     });
 
-    this.$['step-ad-join'].addEventListener('authCompleted', (e) => {
+    this.$['step-ad-join'].addEventListener('authCompletedAd', (e) => {
       this.$['step-ad-join'].disabled = true;
       this.$['step-ad-join'].loading = true;
       chrome.send('oauthEnrollAdCompleteLogin', [
@@ -279,8 +300,8 @@ class EnterpriseEnrollmentElement extends EnterpriseEnrollmentElementBase {
 
   /**
    * Event handler that is invoked just before the frame is shown.
-   * @param {Object} data Screen init payload, contains the signin frame
-   * URL.
+   * @param {EnterpriseEnrollmentScreenData|undefined} data Screen init payload,
+   * contains the signin frame URL.
    */
   onBeforeShow(data) {
     if (data == undefined) {
@@ -302,18 +323,12 @@ class EnterpriseEnrollmentElement extends EnterpriseEnrollmentElementBase {
       }]);
     }
 
-    this.isManualEnrollment_ = 'enrollment_mode' in data ?
-        data.enrollment_mode === 'manual' :
-        undefined;
-    this.isForced_ = 'is_enrollment_enforced' in data ?
-        data.is_enrollment_enforced :
-        undefined;
-    this.isAutoEnroll_ =
-        'attestationBased' in data ? data.attestationBased : undefined;
-    this.hasAccountCheck_ = 'flow' in data ?
+    this.isManualEnrollment_ = (data.enrollment_mode === 'manual');
+    this.isForced_ = data.is_enrollment_enforced;
+    this.isAutoEnroll_ = data.attestationBased;
+    this.hasAccountCheck_ =
         ((data.flow === 'enterpriseLicense') ||
-         (data.flow === 'educationLicense')) :
-        false;
+         (data.flow === 'educationLicense'));
 
     this.licenseType_ = ('license' in data) ?
         this.convertLicenseType(data.license) :
@@ -322,6 +337,7 @@ class EnterpriseEnrollmentElement extends EnterpriseEnrollmentElementBase {
     if (!this.isAutoEnroll_) {
       const gaiaParams = {};
       gaiaParams.gaiaUrl = data.gaiaUrl;
+      gaiaParams.gaiaPath = data.gaiaPath;
       gaiaParams.clientId = data.clientId;
       gaiaParams.needPassword = false;
       gaiaParams.hl = data.hl;
@@ -331,6 +347,12 @@ class EnterpriseEnrollmentElement extends EnterpriseEnrollmentElementBase {
       }
       gaiaParams.flow = data.flow;
       gaiaParams.enableGaiaActionButtons = true;
+      if (data.email) {
+        // TODO(b/292087570): we have to set `readOnlyEmail` even though email
+        // will in fact be modifiable.
+        gaiaParams.readOnlyEmail = true;
+        gaiaParams.email = data.email;
+      }
 
       this.authenticator_.setWebviewPartition(
           'webviewPartitionName' in data ? data.webviewPartitionName : '');
@@ -565,7 +587,24 @@ class EnterpriseEnrollmentElement extends EnterpriseEnrollmentElementBase {
       return;
     }
     this.isCancelDisabled = false;
+
+    if (this.openedFromDebugOverlay()) {
+      return;
+    }
     chrome.send('frameLoadingCompleted');
+  }
+
+  /** @suppress {missingProperties} */
+  openedFromDebugOverlay() {
+    if (OobeDebugger.DebuggerUI &&
+        OobeDebugger.DebuggerUI.getInstance().currentScreenId ===
+            'enterprise-enrollment') {
+      console.warn(
+          'Enrollment screen was opened using debug overlay: ' +
+          'omit chrome.send() to prevent calls on C++ side.');
+      return true;
+    }
+    return false;
   }
 
   onLicenseTypeSelected(e) {
@@ -625,6 +664,8 @@ class EnterpriseEnrollmentElement extends EnterpriseEnrollmentElementBase {
         return OobeTypes.LicenseType.EDUCATION;
       case 'terminal':
         return OobeTypes.LicenseType.KIOSK;
+      default:
+        return OobeTypes.LicenseType.NONE;
     }
   }
 

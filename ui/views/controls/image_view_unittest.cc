@@ -75,6 +75,8 @@ class ImageViewTest : public ViewsTestBase,
   }
 
   void TearDown() override {
+    // Null out the raw_ptr so it doesn't dangle during teardown.
+    image_view_ = nullptr;
     widget_.Close();
     ViewsTestBase::TearDown();
   }

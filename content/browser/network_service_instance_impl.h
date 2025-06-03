@@ -43,6 +43,10 @@ enum class SSLKeyLogFileAction {
 // process one, allowing it to shut down.
 CONTENT_EXPORT void ShutDownNetworkService();
 
+// `on_restart` will be called at the end of every RestartNetworkService().
+CONTENT_EXPORT void OnRestartNetworkServiceForTesting(
+    base::RepeatingClosure on_restart);
+
 }  // namespace content
 
 #endif  // CONTENT_BROWSER_NETWORK_SERVICE_INSTANCE_IMPL_H_

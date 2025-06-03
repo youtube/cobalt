@@ -58,6 +58,9 @@ public class TextBubble implements AnchoredPopupWindow.LayoutObserver {
     private static final ObservableSupplierImpl<Integer> sCountSupplier =
             new ObservableSupplierImpl<>();
 
+    /** Disable assert error if it fails to be displayed. */
+    private static boolean sSkipShowCheckForTesting;
+
     protected final Context mContext;
     private final Handler mHandler;
     private final boolean mInverseColor;
@@ -352,6 +355,10 @@ public class TextBubble implements AnchoredPopupWindow.LayoutObserver {
         }
 
         mPopupWindow.show();
+        assert sSkipShowCheckForTesting
+                || mPopupWindow.isShowing() : "TextBubble is not presented: " + mString;
+        if (!mPopupWindow.isShowing()) return;
+
         sBubbles.add(this);
         sCountSupplier.set(sBubbles.size());
         mBubbleShowStartTime = System.currentTimeMillis();
@@ -362,13 +369,13 @@ public class TextBubble implements AnchoredPopupWindow.LayoutObserver {
      * @see PopupWindow#dismiss()
      */
     public void dismiss() {
-        mPopupWindow.dismiss();
-
-        if (mBubbleShowStartTime != 0) {
+        if (mPopupWindow.isShowing() && mBubbleShowStartTime != 0) {
             RecordHistogram.recordTimesHistogram("InProductHelp.TextBubble.ShownTime",
                     System.currentTimeMillis() - mBubbleShowStartTime);
             mBubbleShowStartTime = 0;
         }
+
+        mPopupWindow.dismiss();
     }
 
     /**
@@ -562,5 +569,9 @@ public class TextBubble implements AnchoredPopupWindow.LayoutObserver {
     /** For testing only, get the content view of a TextBubble. */
     public View getTextBubbleContentViewForTesting() {
         return mContentView;
+    }
+
+    public static void setSkipShowCheckForTesting(boolean skip) {
+        sSkipShowCheckForTesting = skip;
     }
 }

@@ -99,6 +99,8 @@
 
 namespace blink {
 
+using mojom::blink::FormControlType;
+
 namespace {
 
 const unsigned kMaxEmailFieldLength = 254;
@@ -167,7 +169,7 @@ bool HTMLInputElement::HasPendingActivity() const {
 HTMLImageLoader& HTMLInputElement::EnsureImageLoader() {
   if (!image_loader_) {
     image_loader_ = MakeGarbageCollected<HTMLImageLoader>(this);
-    RegisterActiveScriptWrappable();
+    RegisterActiveScriptWrappable(GetExecutionContext()->GetIsolate());
   }
   return *image_loader_;
 }
@@ -332,8 +334,6 @@ void HTMLInputElement::UpdateSelectionOnFocus(
     // TODO(tkent): scrollRectToVisible is a workaround of a bug of
     // FrameSelection::revealSelection().  It doesn't scroll correctly in a
     // case of RangeSelection. crbug.com/443061.
-    GetDocument().EnsurePaintLocationDataValidForNode(
-        this, DocumentUpdateReason::kFocus);
     if (!options->preventScroll()) {
       if (GetLayoutObject()) {
         scroll_into_view_util::ScrollRectToVisible(
@@ -420,8 +420,9 @@ void HTMLInputElement::UpdateType() {
 
   const AtomicString& new_type_name =
       InputType::NormalizeTypeName(FastGetAttribute(html_names::kTypeAttr));
-  if (input_type_->FormControlType() == new_type_name)
+  if (input_type_->FormControlTypeAsString() == new_type_name) {
     return;
+  }
 
   InputType* new_type = InputType::Create(*this, new_type_name);
   RemoveFromRadioButtonGroup();
@@ -467,8 +468,17 @@ void HTMLInputElement::UpdateType() {
   const bool previously_selectable = input_type_->SupportsSelectionAPI();
 
   input_type_view_->WillBeDestroyed();
+  InputType* old_type = input_type_;
   input_type_ = new_type;
   input_type_view_ = input_type_->CreateView();
+
+  const AtomicString& dir = FastGetAttribute(html_names::kDirAttr);
+  if ((!dir && (old_type->IsTelephoneInputType() || IsTelephone())) ||
+      (EqualIgnoringASCIICase(dir, "auto") &&
+       (old_type->ShouldAutoDirUseValue() || ShouldAutoDirUseValue()))) {
+    const AtomicString& value_dir = AtomicString(DirectionForFormData());
+    UpdateDirectionalityAfterInputTypeChange(dir, value_dir);
+  }
 
   input_type_view_->CreateShadowSubtreeIfNeeded();
 
@@ -602,8 +612,12 @@ void HTMLInputElement::SubtreeHasChanged() {
   CalculateAndAdjustAutoDirectionality(this);
 }
 
-const AtomicString& HTMLInputElement::FormControlType() const {
+FormControlType HTMLInputElement::FormControlType() const {
   return input_type_->FormControlType();
+}
+
+const AtomicString& HTMLInputElement::FormControlTypeAsString() const {
+  return input_type_->FormControlTypeAsString();
 }
 
 bool HTMLInputElement::ShouldSaveAndRestoreFormControlState() const {
@@ -653,10 +667,10 @@ void HTMLInputElement::setSelectionStartForBinding(
     absl::optional<uint32_t> start,
     ExceptionState& exception_state) {
   if (!input_type_->SupportsSelectionAPI()) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
-                                      "The input element's type ('" +
-                                          input_type_->FormControlType() +
-                                          "') does not support selection.");
+    exception_state.ThrowDOMException(
+        DOMExceptionCode::kInvalidStateError,
+        "The input element's type ('" + input_type_->FormControlTypeAsString() +
+            "') does not support selection.");
     return;
   }
   TextControlElement::setSelectionStart(start.value_or(0));
@@ -666,10 +680,10 @@ void HTMLInputElement::setSelectionEndForBinding(
     absl::optional<uint32_t> end,
     ExceptionState& exception_state) {
   if (!input_type_->SupportsSelectionAPI()) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
-                                      "The input element's type ('" +
-                                          input_type_->FormControlType() +
-                                          "') does not support selection.");
+    exception_state.ThrowDOMException(
+        DOMExceptionCode::kInvalidStateError,
+        "The input element's type ('" + input_type_->FormControlTypeAsString() +
+            "') does not support selection.");
     return;
   }
   TextControlElement::setSelectionEnd(end.value_or(0));
@@ -679,10 +693,10 @@ void HTMLInputElement::setSelectionDirectionForBinding(
     const String& direction,
     ExceptionState& exception_state) {
   if (!input_type_->SupportsSelectionAPI()) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
-                                      "The input element's type ('" +
-                                          input_type_->FormControlType() +
-                                          "') does not support selection.");
+    exception_state.ThrowDOMException(
+        DOMExceptionCode::kInvalidStateError,
+        "The input element's type ('" + input_type_->FormControlTypeAsString() +
+            "') does not support selection.");
     return;
   }
   TextControlElement::setSelectionDirection(direction);
@@ -693,10 +707,10 @@ void HTMLInputElement::setSelectionRangeForBinding(
     unsigned end,
     ExceptionState& exception_state) {
   if (!input_type_->SupportsSelectionAPI()) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
-                                      "The input element's type ('" +
-                                          input_type_->FormControlType() +
-                                          "') does not support selection.");
+    exception_state.ThrowDOMException(
+        DOMExceptionCode::kInvalidStateError,
+        "The input element's type ('" + input_type_->FormControlTypeAsString() +
+            "') does not support selection.");
     return;
   }
   TextControlElement::setSelectionRangeForBinding(start, end);
@@ -708,10 +722,10 @@ void HTMLInputElement::setSelectionRangeForBinding(
     const String& direction,
     ExceptionState& exception_state) {
   if (!input_type_->SupportsSelectionAPI()) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
-                                      "The input element's type ('" +
-                                          input_type_->FormControlType() +
-                                          "') does not support selection.");
+    exception_state.ThrowDOMException(
+        DOMExceptionCode::kInvalidStateError,
+        "The input element's type ('" + input_type_->FormControlTypeAsString() +
+            "') does not support selection.");
     return;
   }
   TextControlElement::setSelectionRangeForBinding(start, end, direction);
@@ -724,11 +738,11 @@ void HTMLInputElement::SetSelectionRangeForTesting(
     unsigned start,
     unsigned end,
     ExceptionState& exception_state) {
-  if (FormControlType() != input_type_names::kNumber) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
-                                      "The input element's type ('" +
-                                          input_type_->FormControlType() +
-                                          "') is not a number input.");
+  if (FormControlType() != FormControlType::kInputNumber) {
+    exception_state.ThrowDOMException(
+        DOMExceptionCode::kInvalidStateError,
+        "The input element's type ('" + input_type_->FormControlTypeAsString() +
+            "') is not a number input.");
   }
   TextControlElement::setSelectionRangeForBinding(start, end);
 }
@@ -744,8 +758,10 @@ bool HTMLInputElement::IsPresentationAttribute(
   if (name == html_names::kVspaceAttr || name == html_names::kHspaceAttr ||
       name == html_names::kAlignAttr || name == html_names::kWidthAttr ||
       name == html_names::kHeightAttr ||
-      (name == html_names::kBorderAttr && type() == input_type_names::kImage))
+      (name == html_names::kBorderAttr &&
+       FormControlType() == FormControlType::kInputImage)) {
     return true;
+  }
   return TextControlElement::IsPresentationAttribute(name);
 }
 
@@ -777,7 +793,8 @@ void HTMLInputElement::CollectStyleForPresentationAttribute(
         ApplyAspectRatioToStyle(width, value, style);
     }
   } else if (name == html_names::kBorderAttr &&
-             type() == input_type_names::kImage) {  // FIXME: Remove type check.
+             FormControlType() ==
+                 FormControlType::kInputImage) {  // FIXME: Remove type check.
     ApplyBorderAttributeToStyle(value, style);
   } else {
     TextControlElement::CollectStyleForPresentationAttribute(name, value,
@@ -914,6 +931,7 @@ void HTMLInputElement::ParseAttribute(
 void HTMLInputElement::ParserDidSetAttributes() {
   DCHECK(parsing_in_progress_);
   InitializeTypeInParsing();
+  TextControlElement::ParserDidSetAttributes();
 }
 
 void HTMLInputElement::FinishParsingChildren() {
@@ -995,7 +1013,6 @@ void HTMLInputElement::ResetImpl() {
     SetNonDirtyValue(String());
     SetNeedsValidityCheck();
   }
-
   SetChecked(FastHasAttribute(html_names::kCheckedAttr));
   dirty_checkedness_ = false;
   HTMLFormControlElementWithState::ResetImpl();
@@ -1003,6 +1020,14 @@ void HTMLInputElement::ResetImpl() {
 
 bool HTMLInputElement::IsTextField() const {
   return input_type_->IsTextField();
+}
+
+bool HTMLInputElement::IsTelephone() const {
+  return input_type_->IsTelephoneInputType();
+}
+
+bool HTMLInputElement::ShouldAutoDirUseValue() const {
+  return input_type_->ShouldAutoDirUseValue();
 }
 
 bool HTMLInputElement::HasBeenPasswordField() const {
@@ -1032,7 +1057,7 @@ bool HTMLInputElement::Checked() const {
 }
 
 void HTMLInputElement::setCheckedForBinding(bool now_checked) {
-  if (GetAutofillState() != WebAutofillState::kAutofilled) {
+  if (!IsAutofilled()) {
     SetChecked(now_checked);
   } else {
     bool old_value = this->Checked();
@@ -1117,7 +1142,7 @@ bool HTMLInputElement::SizeShouldIncludeDecoration(int& preferred_size) const {
 }
 
 void HTMLInputElement::CloneNonAttributePropertiesFrom(const Element& source,
-                                                       CloneChildrenFlag flag) {
+                                                       NodeCloningData& data) {
   const auto& source_element = To<HTMLInputElement>(source);
 
   non_attribute_value_ = source_element.non_attribute_value_;
@@ -1127,7 +1152,7 @@ void HTMLInputElement::CloneNonAttributePropertiesFrom(const Element& source,
   is_indeterminate_ = source_element.is_indeterminate_;
   input_type_->CopyNonAttributeProperties(source_element);
 
-  TextControlElement::CloneNonAttributePropertiesFrom(source, flag);
+  TextControlElement::CloneNonAttributePropertiesFrom(source, data);
 
   needs_to_update_view_value_ = true;
   input_type_view_->UpdateView();
@@ -1141,7 +1166,7 @@ String HTMLInputElement::Value() const {
       return FastGetAttribute(html_names::kValueAttr);
     case ValueMode::kDefaultOn: {
       AtomicString value_string = FastGetAttribute(html_names::kValueAttr);
-      return value_string.IsNull() ? "on" : value_string;
+      return value_string.IsNull() ? AtomicString("on") : value_string;
     }
     case ValueMode::kValue:
       return non_attribute_value_;
@@ -1184,6 +1209,13 @@ void HTMLInputElement::SetSuggestedValue(const String& value) {
     } else {
       placeholder->classList().Remove(reveal);
     }
+
+    const AtomicString fade_out("fade-out-password");
+    if (should_show_strong_password_label_) {
+      placeholder->classList().Add(fade_out);
+    } else {
+      placeholder->classList().Remove(fade_out);
+    }
   }
 
   SetNeedsStyleRecalc(
@@ -1200,14 +1232,14 @@ void HTMLInputElement::SetInnerEditorValue(const String& value) {
 void HTMLInputElement::setValueForBinding(const String& value,
                                           ExceptionState& exception_state) {
   // FIXME: Remove type check.
-  if (type() == input_type_names::kFile && !value.empty()) {
+  if (FormControlType() == FormControlType::kInputFile && !value.empty()) {
     exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
                                       "This input element accepts a filename, "
                                       "which may only be programmatically set "
                                       "to the empty string.");
     return;
   }
-  if (GetAutofillState() != WebAutofillState::kAutofilled) {
+  if (!IsAutofilled()) {
     SetValue(value);
   } else {
     String old_value = this->Value();
@@ -1305,7 +1337,9 @@ ScriptValue HTMLInputElement::valueAsDate(ScriptState* script_state) const {
   v8::Isolate* isolate = script_state->GetIsolate();
   if (!std::isfinite(date))
     return ScriptValue::CreateNull(isolate);
-  return ScriptValue(isolate, ToV8(base::Time::FromJsTime(date), script_state));
+  return ScriptValue(
+      isolate,
+      ToV8(base::Time::FromMillisecondsSinceUnixEpoch(date), script_state));
 }
 
 void HTMLInputElement::setValueAsDate(ScriptState* script_state,
@@ -1338,7 +1372,7 @@ void HTMLInputElement::setValueAsNumber(double new_value,
 }
 
 Decimal HTMLInputElement::RatioValue() const {
-  DCHECK_EQ(type(), input_type_names::kRange);
+  DCHECK_EQ(FormControlType(), FormControlType::kInputRange);
   const StepRange step_range(CreateStepRange(kRejectAny));
   const Decimal old_value =
       ParseToDecimalForNumberType(Value(), step_range.DefaultValue());
@@ -1347,7 +1381,7 @@ Decimal HTMLInputElement::RatioValue() const {
 
 void HTMLInputElement::SetValueFromRenderer(const String& value) {
   // File upload controls will never use this.
-  DCHECK_NE(type(), input_type_names::kFile);
+  DCHECK_NE(FormControlType(), FormControlType::kInputFile);
 
   // Clear the suggested value. Use the base class version to not trigger a view
   // update.
@@ -1460,7 +1494,7 @@ void HTMLInputElement::DefaultEventHandler(Event& evt) {
 
   if (input_type_view_->ShouldSubmitImplicitly(evt)) {
     // FIXME: Remove type check.
-    if (type() == input_type_names::kSearch) {
+    if (FormControlType() == FormControlType::kInputSearch) {
       GetDocument()
           .GetTaskRunner(TaskType::kUserInteraction)
           ->PostTask(FROM_HERE, WTF::BindOnce(&HTMLInputElement::OnSearch,
@@ -1526,10 +1560,6 @@ bool HTMLInputElement::IsURLAttribute(const Attribute& attribute) const {
 bool HTMLInputElement::HasLegalLinkAttribute(const QualifiedName& name) const {
   return input_type_->HasLegalLinkAttribute(name) ||
          TextControlElement::HasLegalLinkAttribute(name);
-}
-
-const QualifiedName& HTMLInputElement::SubResourceAttributeName() const {
-  return input_type_->SubResourceAttributeName();
 }
 
 const AtomicString& HTMLInputElement::DefaultValue() const {
@@ -1729,8 +1759,9 @@ void HTMLInputElement::DidMoveToNewDocument(Document& old_document) {
     ImageLoader()->ElementDidMoveToNewDocument();
 
   // FIXME: Remove type check.
-  if (type() == input_type_names::kRadio)
+  if (FormControlType() == FormControlType::kInputRadio) {
     GetTreeScope().GetRadioButtonGroupScope().RemoveButton(this);
+  }
 
   TextControlElement::DidMoveToNewDocument(old_document);
 }
@@ -1796,7 +1827,7 @@ HTMLInputElement::FilteredDataListOptions() const {
     return filtered;
 
   String editor_value = InnerEditorValue();
-  if (Multiple() && type() == input_type_names::kEmail) {
+  if (Multiple() && FormControlType() == FormControlType::kInputEmail) {
     Vector<String> emails;
     editor_value.Split(',', true, emails);
     if (!emails.empty())
@@ -1916,7 +1947,7 @@ int HTMLInputElement::scrollWidth() {
   LayoutUnit adjustment = box->ClientWidth() - editor_box->ClientWidth();
   int snapped_scroll_width =
       SnapSizeToPixel(editor_box->ScrollWidth() + adjustment,
-                      box->Location().X() + box->ClientLeft());
+                      box->PhysicalLocation().left + box->ClientLeft());
   return AdjustForAbsoluteZoom::AdjustLayoutUnit(
              LayoutUnit(snapped_scroll_width), box->StyleRef())
       .Round();
@@ -1994,8 +2025,9 @@ HTMLInputElement::SupportsPopoverTriggering() const {
 
 RadioButtonGroupScope* HTMLInputElement::GetRadioButtonGroupScope() const {
   // FIXME: Remove type check.
-  if (type() != input_type_names::kRadio)
+  if (FormControlType() != FormControlType::kInputRadio) {
     return nullptr;
+  }
   if (HTMLFormElement* form_element = Form())
     return &form_element->GetRadioButtonGroupScope();
   if (isConnected())
@@ -2055,10 +2087,10 @@ void ListAttributeTargetObserver::IdTargetChanged() {
 void HTMLInputElement::setRangeText(const String& replacement,
                                     ExceptionState& exception_state) {
   if (!input_type_->SupportsSelectionAPI()) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
-                                      "The input element's type ('" +
-                                          input_type_->FormControlType() +
-                                          "') does not support selection.");
+    exception_state.ThrowDOMException(
+        DOMExceptionCode::kInvalidStateError,
+        "The input element's type ('" + input_type_->FormControlTypeAsString() +
+            "') does not support selection.");
     return;
   }
 
@@ -2071,10 +2103,10 @@ void HTMLInputElement::setRangeText(const String& replacement,
                                     const V8SelectionMode& selection_mode,
                                     ExceptionState& exception_state) {
   if (!input_type_->SupportsSelectionAPI()) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
-                                      "The input element's type ('" +
-                                          input_type_->FormControlType() +
-                                          "') does not support selection.");
+    exception_state.ThrowDOMException(
+        DOMExceptionCode::kInvalidStateError,
+        "The input element's type ('" + input_type_->FormControlTypeAsString() +
+            "') does not support selection.");
     return;
   }
 
@@ -2087,7 +2119,7 @@ bool HTMLInputElement::SetupDateTimeChooserParameters(
   if (!GetDocument().View())
     return false;
 
-  parameters.type = type();
+  parameters.type = input_type_->type();
   parameters.minimum = Minimum();
   parameters.maximum = Maximum();
   parameters.required = IsRequired();
@@ -2184,6 +2216,15 @@ bool HTMLInputElement::IsInteractiveContent() const {
   return input_type_->IsInteractiveContent();
 }
 
+const ComputedStyle* HTMLInputElement::CustomStyleForLayoutObject(
+    const StyleRecalcContext& style_recalc_context) {
+  // TODO(crbug.com/953707): Avoid marking style dirty in
+  // HTMLImageFallbackHelper and use AdjustStyle instead.
+  const ComputedStyle* original_style =
+      OriginalStyleForLayoutObject(style_recalc_context);
+  return input_type_view_->CustomStyleForLayoutObject(original_style);
+}
+
 void HTMLInputElement::AdjustStyle(ComputedStyleBuilder& builder) {
   return input_type_view_->AdjustStyle(builder);
 }
@@ -2276,15 +2317,11 @@ void HTMLInputElement::showPicker(ExceptionState& exception_state) {
   // In cross-origin iframes it should throw a "SecurityError" DOMException
   // except on file and color. In same-origin iframes it should work fine.
   // https://github.com/whatwg/html/issues/6909#issuecomment-917138991
-  if (type() != input_type_names::kFile && type() != input_type_names::kColor &&
-      frame) {
-    const SecurityOrigin* security_origin =
-        frame->GetSecurityContext()->GetSecurityOrigin();
-    const SecurityOrigin* top_security_origin =
-        frame->Tree().Top().GetSecurityContext()->GetSecurityOrigin();
-    if (!security_origin->IsSameOriginWith(top_security_origin)) {
+  if (FormControlType() != FormControlType::kInputFile &&
+      FormControlType() != FormControlType::kInputColor && frame) {
+    if (!frame->IsSameOrigin()) {
       exception_state.ThrowSecurityError(
-          "HTMLInputElement::showPicker() called from cross-origin iframe.");
+          "showPicker() called from cross-origin iframe.");
       return;
     }
   }

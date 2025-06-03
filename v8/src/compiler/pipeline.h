@@ -25,7 +25,9 @@ struct WasmInliningPosition;
 
 namespace wasm {
 struct CompilationEnv;
+struct FunctionBody;
 struct WasmCompilationResult;
+class WasmFeatures;
 }  // namespace wasm
 
 namespace compiler {
@@ -40,6 +42,13 @@ class Schedule;
 class SourcePositionTable;
 struct WasmCompilationData;
 
+struct InstructionRangesAsJSON {
+  const InstructionSequence* sequence;
+  const ZoneVector<std::pair<int, int>>* instr_origins;
+};
+
+std::ostream& operator<<(std::ostream& out, const InstructionRangesAsJSON& s);
+
 class Pipeline : public AllStatic {
  public:
   // Returns a new compilation job for the given JavaScript function.
@@ -49,17 +58,25 @@ class Pipeline : public AllStatic {
                     BytecodeOffset osr_offset = BytecodeOffset::None());
 
   // Run the pipeline for the WebAssembly compilation info.
+  // Note: We pass a pointer to {detected} as it might get mutated while
+  // inlining.
   static void GenerateCodeForWasmFunction(
       OptimizedCompilationInfo* info, wasm::CompilationEnv* env,
       WasmCompilationData& compilation_data, MachineGraph* mcgraph,
       CallDescriptor* call_descriptor,
-      ZoneVector<WasmInliningPosition>* inlining_positions);
+      ZoneVector<WasmInliningPosition>* inlining_positions,
+      wasm::WasmFeatures* detected);
 
   // Run the pipeline on a machine graph and generate code.
   static wasm::WasmCompilationResult GenerateCodeForWasmNativeStub(
       CallDescriptor* call_descriptor, MachineGraph* mcgraph, CodeKind kind,
       const char* debug_name, const AssemblerOptions& assembler_options,
       SourcePositionTable* source_positions = nullptr);
+
+  static bool GenerateWasmCodeFromTurboshaftGraph(
+      OptimizedCompilationInfo* info, wasm::CompilationEnv* env,
+      WasmCompilationData& compilation_data, MachineGraph* mcgraph,
+      wasm::WasmFeatures* detected, CallDescriptor* call_descriptor);
 
   // Returns a new compilation job for a wasm heap stub.
   static std::unique_ptr<TurbofanCompilationJob> NewWasmHeapStubCompilationJob(

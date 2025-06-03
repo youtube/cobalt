@@ -342,11 +342,16 @@ class EgtestsApp(GTestsApp):
       host_app_path: (str) full path to host app.
       inserted_libs: List of libraries to insert when running the test.
       repeat_count: (int) Number of times to run each test case.
+      record_video_option: (enum) If the arg is not none, then video
+        recording on tests will be enabled. Currently the enum only supports
+        recording on failed tests, but can be extended to support more
+        cases in the future if needed.
 
     Raises:
       AppNotFoundError: If the given app does not exist
     """
     super(EgtestsApp, self).__init__(egtests_app, **kwargs)
+    self.record_video_option = kwargs.get('record_video_option')
 
   def _xctest_path(self):
     """Gets xctest-file from egtests/PlugIns folder.
@@ -412,6 +417,14 @@ class EgtestsApp(GTestsApp):
       # Module data specific to EG2 tests
       module_data['IsUITestBundle'] = True
       module_data['IsXCTRunnerHostedTestBundle'] = True
+      module_data['SystemAttachmentLifetime'] = 'keepAlways'
+      if self.record_video_option is not None:
+        # Currently the enum only supports recording on failed tests,
+        # but can be extended to support more cases if needed,
+        # such as recording on successful tests.
+        module_data['PreferredScreenCaptureFormat'] = 'video'
+      else:
+        module_data['PreferredScreenCaptureFormat'] = 'screenshots'
       module_data['UITargetAppPath'] = '%s' % self.host_app_path
       module_data['UITargetAppBundleIdentifier'] = get_bundle_id(
           self.host_app_path)

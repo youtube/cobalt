@@ -7,9 +7,10 @@
 #include "build/build_config.h"
 #include "components/viz/common/gpu/vulkan_context_provider.h"
 #include "components/viz/common/resources/shared_image_format.h"
+#include "components/viz/common/resources/shared_image_format_utils.h"
 #include "gpu/command_buffer/common/shared_image_usage.h"
 #include "gpu/command_buffer/service/shared_image/external_vk_image_backing.h"
-#include "gpu/command_buffer/service/shared_image/shared_image_format_utils.h"
+#include "gpu/command_buffer/service/shared_image/shared_image_format_service_utils.h"
 #include "gpu/command_buffer/service/shared_image/shared_image_representation.h"
 #include "gpu/vulkan/vulkan_command_buffer.h"
 #include "gpu/vulkan/vulkan_command_pool.h"
@@ -19,6 +20,7 @@
 #include "gpu/vulkan/vulkan_implementation.h"
 #include "ui/gfx/buffer_format_util.h"
 #include "ui/gfx/gpu_memory_buffer.h"
+#include "ui/gl/buildflags.h"
 
 namespace gpu {
 
@@ -59,19 +61,37 @@ base::flat_map<VkFormat, VkImageUsageFlags> CreateImageUsageCache(
     VkPhysicalDevice vk_physical_device) {
   base::flat_map<VkFormat, VkImageUsageFlags> image_usage_cache;
 
-  for (int i = 0; i <= static_cast<int>(viz::RESOURCE_FORMAT_MAX); ++i) {
-    viz::SharedImageFormat format = viz::SharedImageFormat::SinglePlane(
-        static_cast<viz::ResourceFormat>(i));
-    if (!HasVkFormat(format))
-      continue;
-    VkFormat vk_format = ToVkFormat(format);
+  auto add_to_cache_if_supported = [&image_usage_cache, &vk_physical_device](
+                                       viz::SharedImageFormat format) {
+    if (!HasVkFormat(format)) {
+      return;
+    }
+    VkFormat vk_format = format.PrefersExternalSampler()
+                             ? ToVkFormatExternalSampler(format)
+                             : ToVkFormatSinglePlanar(format);
     DCHECK_NE(vk_format, VK_FORMAT_UNDEFINED);
     VkFormatProperties format_props = {};
     vkGetPhysicalDeviceFormatProperties(vk_physical_device, vk_format,
                                         &format_props);
     image_usage_cache[vk_format] =
         GetMaximalImageUsageFlags(format_props.optimalTilingFeatures);
+  };
+
+  for (auto format : viz::SinglePlaneFormat::kAll) {
+    add_to_cache_if_supported(format);
   }
+
+  for (auto format : viz::LegacyMultiPlaneFormat::kAll) {
+    add_to_cache_if_supported(format);
+  }
+
+#if BUILDFLAG(IS_OZONE)
+  // Support multiplanar formats with external sampling.
+  for (auto format : viz::MultiPlaneFormat::kAll) {
+    format.SetPrefersExternalSampler();
+    add_to_cache_if_supported(format);
+  }
+#endif
 
   return image_usage_cache;
 }
@@ -79,14 +99,16 @@ base::flat_map<VkFormat, VkImageUsageFlags> CreateImageUsageCache(
 }  // namespace
 
 constexpr uint32_t kSupportedUsage =
+#if BUILDFLAG(IS_LINUX) && BUILDFLAG(USE_DAWN)
+    SHARED_IMAGE_USAGE_WEBGPU | SHARED_IMAGE_USAGE_WEBGPU_SWAP_CHAIN_TEXTURE |
+    SHARED_IMAGE_USAGE_WEBGPU_STORAGE_TEXTURE |
+#endif
     SHARED_IMAGE_USAGE_GLES2 | SHARED_IMAGE_USAGE_GLES2_FRAMEBUFFER_HINT |
     SHARED_IMAGE_USAGE_DISPLAY_WRITE | SHARED_IMAGE_USAGE_DISPLAY_READ |
     SHARED_IMAGE_USAGE_RASTER | SHARED_IMAGE_USAGE_OOP_RASTERIZATION |
-    SHARED_IMAGE_USAGE_SCANOUT | SHARED_IMAGE_USAGE_WEBGPU |
-    SHARED_IMAGE_USAGE_VIDEO_DECODE |
-    SHARED_IMAGE_USAGE_WEBGPU_SWAP_CHAIN_TEXTURE |
+    SHARED_IMAGE_USAGE_SCANOUT | SHARED_IMAGE_USAGE_VIDEO_DECODE |
     SHARED_IMAGE_USAGE_HIGH_PERFORMANCE_GPU | SHARED_IMAGE_USAGE_CPU_UPLOAD |
-    SHARED_IMAGE_USAGE_CPU_WRITE | SHARED_IMAGE_USAGE_WEBGPU_STORAGE_TEXTURE;
+    SHARED_IMAGE_USAGE_CPU_WRITE;
 
 ExternalVkImageBackingFactory::ExternalVkImageBackingFactory(
     scoped_refptr<SharedContextState> context_state)
@@ -147,6 +169,23 @@ ExternalVkImageBackingFactory::CreateSharedImage(
 std::unique_ptr<SharedImageBacking>
 ExternalVkImageBackingFactory::CreateSharedImage(
     const Mailbox& mailbox,
+    viz::SharedImageFormat format,
+    const gfx::Size& size,
+    const gfx::ColorSpace& color_space,
+    GrSurfaceOrigin surface_origin,
+    SkAlphaType alpha_type,
+    uint32_t usage,
+    std::string debug_label,
+    gfx::GpuMemoryBufferHandle handle) {
+  CHECK(CanImportGpuMemoryBuffer(handle.type));
+  return ExternalVkImageBacking::CreateFromGMB(
+      context_state_, command_pool_.get(), mailbox, std::move(handle), format,
+      size, color_space, surface_origin, alpha_type, usage);
+}
+
+std::unique_ptr<SharedImageBacking>
+ExternalVkImageBackingFactory::CreateSharedImage(
+    const Mailbox& mailbox,
     gfx::GpuMemoryBufferHandle handle,
     gfx::BufferFormat buffer_format,
     gfx::BufferPlane plane,
@@ -156,14 +195,41 @@ ExternalVkImageBackingFactory::CreateSharedImage(
     SkAlphaType alpha_type,
     uint32_t usage,
     std::string debug_label) {
-  DCHECK(CanImportGpuMemoryBuffer(handle.type));
   if (plane != gfx::BufferPlane::DEFAULT) {
     LOG(ERROR) << "Invalid plane";
     return nullptr;
   }
-  return ExternalVkImageBacking::CreateFromGMB(
-      context_state_, command_pool_.get(), mailbox, std::move(handle),
-      buffer_format, size, color_space, surface_origin, alpha_type, usage);
+  return CreateSharedImage(mailbox,
+                           viz::GetSinglePlaneSharedImageFormat(buffer_format),
+                           size, color_space, surface_origin, alpha_type, usage,
+                           debug_label, std::move(handle));
+}
+
+std::unique_ptr<SharedImageBacking>
+ExternalVkImageBackingFactory::CreateSharedImage(
+    const Mailbox& mailbox,
+    viz::SharedImageFormat format,
+    SurfaceHandle surface_handle,
+    const gfx::Size& size,
+    const gfx::ColorSpace& color_space,
+    GrSurfaceOrigin surface_origin,
+    SkAlphaType alpha_type,
+    uint32_t usage,
+    std::string debug_label,
+    bool is_thread_safe,
+    gfx::BufferUsage buffer_usage) {
+  DCHECK(!is_thread_safe);
+#if BUILDFLAG(IS_OZONE)
+  // Creating the backing with a native pixmap so that it can be CPU mappable.
+  return ExternalVkImageBacking::CreateWithPixmap(
+      context_state_, command_pool_.get(), mailbox, format, surface_handle,
+      size, color_space, surface_origin, alpha_type, usage, buffer_usage);
+#else
+  // A CPU mappable backing of this type can only be requested for OZONE
+  // platforms.
+  NOTREACHED();
+  return nullptr;
+#endif  // BUILDFLAG(IS_OZONE)
 }
 
 bool ExternalVkImageBackingFactory::CanImportGpuMemoryBuffer(
@@ -183,12 +249,13 @@ bool ExternalVkImageBackingFactory::IsSupported(
     GrContextType gr_context_type,
     base::span<const uint8_t> pixel_data) {
   if (format.is_multi_plane()) {
-    if (gmb_type != gfx::EMPTY_BUFFER) {
+    if (gmb_type != gfx::EMPTY_BUFFER && !format.PrefersExternalSampler()) {
       return false;
     }
 
     if (format != viz::MultiPlaneFormat::kNV12 &&
-        format != viz::MultiPlaneFormat::kYV12) {
+        format != viz::MultiPlaneFormat::kYV12 &&
+        format != viz::MultiPlaneFormat::kI420) {
       return false;
     }
   }

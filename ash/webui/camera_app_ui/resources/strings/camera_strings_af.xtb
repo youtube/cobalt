@@ -57,6 +57,7 @@
 <translation id="3566302376254083266">Beweeg tans na links bo</translation>
 <translation id="3573890771273113519">Skakel oor na skandeermodus</translation>
 <translation id="3583444040776960729">Dokument se hoek links onder</translation>
+<translation id="3642192109456033823">Verwerk tans video …</translation>
 <translation id="3789724198583203151">Draai 90 grade antikloksgewys</translation>
 <translation id="3810838688059735925">Video</translation>
 <translation id="3892148308691398805">Kopieer teks</translation>
@@ -65,9 +66,10 @@
 <translation id="4118525110028899586">Onderbreek opname</translation>
 <translation id="4121305183798804752">Dokument bespeur</translation>
 <translation id="414641094616694804">Hierdie kamera kan nie resolusie verander nie</translation>
+<translation id="4176463684765177261">Gedeaktiveer</translation>
 <translation id="4269820728363426813">Kopieer skakeladres</translation>
-<translation id="4281620174117014503">Mediumresolusie</translation>
 <translation id="428234092390943511">Bladsyminiprent</translation>
+<translation id="4349714250734879769">Skaleer rame deur Chrome</translation>
 <translation id="4383571725254449280">Drukwerkverrigtingloglêers</translation>
 <translation id="4445542136948522167">Hou op om foto te neem</translation>
 <translation id="4570032796877367747">Voorste kamera</translation>
@@ -93,6 +95,7 @@
 <translation id="5374917190292010970">4K (2160 p)</translation>
 <translation id="5662366948659129155">Skandeer tans bladsy <ph name="COUNT" /></translation>
 <translation id="5671277269877808209">Vierkant</translation>
+<translation id="574392208103952083">Medium</translation>
 <translation id="5746169159649715125">Stoor as PDF</translation>
 <translation id="5753488212459587150">Aktiveer kennermodus</translation>
 <translation id="5759254179196327752">Skandeer dokument</translation>
@@ -148,6 +151,7 @@ As jou terugvoer oor prent- of videogehalte gaan, moet jy asseblief 'n voorbeeld
 <translation id="8145038249676204903">Skakel oor na neem van foto</translation>
 <translation id="8167081290930651932">Stoor as foto</translation>
 <translation id="8239780215768881278">Neem 'n videofoto</translation>
+<translation id="8346544573713510785">Skaleer rame deur Kamera HAL</translation>
 <translation id="8425673304802773841">Kantel af</translation>
 <translation id="8428213095426709021">Instellings</translation>
 <translation id="8629662593426079630">360 p</translation>

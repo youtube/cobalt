@@ -25,7 +25,8 @@ NtpBackgroundService* NtpBackgroundServiceFactory::GetForProfile(
 
 // static
 NtpBackgroundServiceFactory* NtpBackgroundServiceFactory::GetInstance() {
-  return base::Singleton<NtpBackgroundServiceFactory>::get();
+  static base::NoDestructor<NtpBackgroundServiceFactory> instance;
+  return instance.get();
 }
 
 NtpBackgroundServiceFactory::NtpBackgroundServiceFactory()
@@ -40,12 +41,13 @@ NtpBackgroundServiceFactory::NtpBackgroundServiceFactory()
 
 NtpBackgroundServiceFactory::~NtpBackgroundServiceFactory() = default;
 
-KeyedService* NtpBackgroundServiceFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+NtpBackgroundServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
   // TODO(crbug.com/914898): Background service URLs should be
   // configurable server-side, so they can be changed mid-release.
 
   auto url_loader_factory = context->GetDefaultStoragePartition()
                                 ->GetURLLoaderFactoryForBrowserProcess();
-  return new NtpBackgroundService(url_loader_factory);
+  return std::make_unique<NtpBackgroundService>(url_loader_factory);
 }

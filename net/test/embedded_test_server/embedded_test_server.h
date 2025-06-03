@@ -15,7 +15,6 @@
 #include "base/files/file_path.h"
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
-#include "base/memory/raw_ptr_exclusion.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/strings/string_piece.h"
@@ -25,6 +24,7 @@
 #include "net/base/host_port_pair.h"
 #include "net/base/ip_endpoint.h"
 #include "net/cert/ocsp_revocation_status.h"
+#include "net/cert/pki/parse_certificate.h"
 #include "net/cert/test_root_certs.h"
 #include "net/cert/x509_certificate.h"
 #include "net/socket/ssl_server_socket.h"
@@ -69,9 +69,7 @@ class EmbeddedTestServerHandle {
   friend class EmbeddedTestServer;
 
   explicit EmbeddedTestServerHandle(EmbeddedTestServer* test_server);
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #constexpr-ctor-field-initializer
-  RAW_PTR_EXCLUSION EmbeddedTestServer* test_server_ = nullptr;
+  raw_ptr<EmbeddedTestServer> test_server_ = nullptr;
 };
 
 // Class providing an HTTP server for testing purpose. This is a basic server
@@ -310,6 +308,9 @@ class EmbeddedTestServer {
 
     // A list of IP addresses to include in the leaf subjectAltName extension.
     std::vector<net::IPAddress> ip_addresses;
+
+    // A list of key usages to include in the leaf keyUsage extension.
+    std::vector<KeyUsageBit> key_usages;
   };
 
   typedef base::RepeatingCallback<std::unique_ptr<HttpResponse>(
@@ -367,11 +368,14 @@ class EmbeddedTestServer {
 
   // Equivalent of StartAndReturnHandle(), but requires manual Shutdown() by
   // the caller.
-  [[nodiscard]] bool Start(int port = 0);
+  [[nodiscard]] bool Start(int port = 0,
+                           base::StringPiece address = "127.0.0.1");
 
   // Starts listening for incoming connections but will not yet accept them.
-  // Returns whether a listening socket has been succesfully created.
-  [[nodiscard]] bool InitializeAndListen(int port = 0);
+  // Returns whether a listening socket has been successfully created.
+  [[nodiscard]] bool InitializeAndListen(
+      int port = 0,
+      base::StringPiece address = "127.0.0.1");
 
   // Starts the Accept IO Thread and begins accepting connections.
   [[nodiscard]] EmbeddedTestServerHandle
@@ -451,12 +455,12 @@ class EmbeddedTestServer {
   // ServeFilesFromSourceDirectory.
   void ServeFilesFromDirectory(const base::FilePath& directory);
 
-  // Serves files relative to DIR_SOURCE_ROOT.
+  // Serves files relative to DIR_SRC_TEST_DATA_ROOT.
   void ServeFilesFromSourceDirectory(base::StringPiece relative);
   void ServeFilesFromSourceDirectory(const base::FilePath& relative);
 
   // Registers the default handlers and serve additional files from the
-  // |directory| directory, relative to DIR_SOURCE_ROOT.
+  // |directory| directory, relative to DIR_SRC_TEST_DATA_ROOT.
   void AddDefaultHandlers(const base::FilePath& directory);
 
   // Returns the directory that files will be served from if |relative| is

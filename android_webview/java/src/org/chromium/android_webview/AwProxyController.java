@@ -4,18 +4,20 @@
 
 package org.chromium.android_webview;
 
-import org.chromium.base.annotations.CalledByNativeUnchecked;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
+import org.jni_zero.CalledByNativeUnchecked;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
+import org.chromium.android_webview.common.Lifetime;
 
 import java.util.concurrent.Executor;
 
 /**
  * Manages proxy override functionality in WebView.
  */
+@Lifetime.Singleton
 @JNINamespace("android_webview")
 public class AwProxyController {
-
     public AwProxyController() {}
 
     public void setProxyOverride(String[][] proxyRules, String[] bypassRules, Runnable listener,

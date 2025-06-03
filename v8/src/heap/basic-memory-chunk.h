@@ -10,6 +10,7 @@
 
 #include "src/base/atomic-utils.h"
 #include "src/base/flags.h"
+#include "src/base/functional.h"
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
 #include "src/heap/marking.h"
@@ -24,13 +25,6 @@ class BaseSpace;
 
 class BasicMemoryChunk {
  public:
-  // Use with std data structures.
-  struct Hasher {
-    size_t operator()(const BasicMemoryChunk* const chunk) const {
-      return reinterpret_cast<size_t>(chunk) >> kPageSizeBits;
-    }
-  };
-
   // All possible flags that can be set on a page. While the value of flags
   // doesn't matter in principle, keep flags used in the write barrier together
   // in order to have dense page flag checks in the write barrier.
@@ -71,45 +65,46 @@ class BasicMemoryChunk {
     // from new to old space during evacuation.
     PAGE_NEW_OLD_PROMOTION = 1u << 10,
 
-    // |PAGE_NEW_NEW_PROMOTION|: A page tagged with this flag has been moved
-    // within the new space during evacuation.
-    PAGE_NEW_NEW_PROMOTION = 1u << 11,
-
     // This flag is intended to be used for testing. Works only when both
     // v8_flags.stress_compaction and
     // v8_flags.manual_evacuation_candidates_selection are set. It forces the
     // page to become an evacuation candidate at next candidates selection
     // cycle.
-    FORCE_EVACUATION_CANDIDATE_FOR_TESTING = 1u << 12,
+    FORCE_EVACUATION_CANDIDATE_FOR_TESTING = 1u << 11,
 
     // This flag is intended to be used for testing.
-    NEVER_ALLOCATE_ON_PAGE = 1u << 13,
+    NEVER_ALLOCATE_ON_PAGE = 1u << 12,
 
     // The memory chunk is already logically freed, however the actual freeing
     // still has to be performed.
-    PRE_FREED = 1u << 14,
+    PRE_FREED = 1u << 13,
 
     // |POOLED|: When actually freeing this chunk, only uncommit and do not
     // give up the reservation as we still reuse the chunk at some point.
-    POOLED = 1u << 15,
+    POOLED = 1u << 14,
 
     // |COMPACTION_WAS_ABORTED|: Indicates that the compaction in this page
     //   has been aborted and needs special handling by the sweeper.
-    COMPACTION_WAS_ABORTED = 1u << 16,
+    COMPACTION_WAS_ABORTED = 1u << 15,
 
-    NEW_SPACE_BELOW_AGE_MARK = 1u << 18,
+    NEW_SPACE_BELOW_AGE_MARK = 1u << 16,
 
     // The memory chunk freeing bookkeeping has been performed but the chunk has
     // not yet been freed.
-    UNREGISTERED = 1u << 19,
+    UNREGISTERED = 1u << 17,
 
     // The memory chunk is pinned in memory and can't be moved. This is likely
     // because there exists a potential pointer to somewhere in the chunk which
     // can't be updated.
-    PINNED = 1u << 20,
+    PINNED = 1u << 18,
 
     // A Page with code objects.
-    IS_EXECUTABLE = 1u << 21,
+    IS_EXECUTABLE = 1u << 19,
+
+    // The memory chunk belongs to the trusted space. When the sandbox is
+    // enabled, the trusted space is located outside of the sandbox and so its
+    // content cannot be corrupted by an attacker.
+    IS_TRUSTED = 1u << 20,
   };
 
   using MainThreadFlags = base::Flags<Flag, uintptr_t>;
@@ -156,7 +151,7 @@ class BasicMemoryChunk {
   }
 
   // Only works if the object is in the first kPageSize of the MemoryChunk.
-  static BasicMemoryChunk* FromHeapObject(HeapObject o) {
+  static BasicMemoryChunk* FromHeapObject(Tagged<HeapObject> o) {
     DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
     return reinterpret_cast<BasicMemoryChunk*>(BaseAddress(o.ptr()));
   }
@@ -278,6 +273,8 @@ class BasicMemoryChunk {
 
   bool IsPinned() const { return IsFlagSet(PINNED); }
 
+  bool IsTrusted() const;
+
   bool Contains(Address addr) const {
     return addr >= area_start() && addr < area_end();
   }
@@ -367,6 +364,32 @@ DEFINE_OPERATORS_FOR_FLAGS(BasicMemoryChunk::MainThreadFlags)
 static_assert(std::is_standard_layout<BasicMemoryChunk>::value);
 
 }  // namespace internal
+
+namespace base {
+
+// Define special hash function for chunk pointers, to be used with std data
+// structures, e.g.
+// std::unordered_set<BasicMemoryChunk*, base::hash<BasicMemoryChunk*>
+// This hash function discards the trailing zero bits (chunk alignment).
+// Notice that, when pointer compression is enabled, it also discards the
+// cage base.
+template <>
+struct hash<const i::BasicMemoryChunk*> {
+  V8_INLINE size_t operator()(const i::BasicMemoryChunk* chunk) const {
+    return static_cast<v8::internal::Tagged_t>(
+               reinterpret_cast<uintptr_t>(chunk)) >>
+           kPageSizeBits;
+  }
+};
+
+template <>
+struct hash<i::BasicMemoryChunk*> {
+  V8_INLINE size_t operator()(i::BasicMemoryChunk* chunk) const {
+    return hash<const i::BasicMemoryChunk*>()(chunk);
+  }
+};
+
+}  // namespace base
 }  // namespace v8
 
 #endif  // V8_HEAP_BASIC_MEMORY_CHUNK_H_

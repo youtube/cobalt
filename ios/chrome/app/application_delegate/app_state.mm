@@ -6,12 +6,12 @@
 
 #import <utility>
 
+#import "base/apple/foundation_util.h"
 #import "base/critical_closure.h"
 #import "base/functional/bind.h"
 #import "base/functional/callback.h"
 #import "base/ios/crb_protocol_observers.h"
 #import "base/ios/ios_util.h"
-#import "base/mac/foundation_util.h"
 #import "base/metrics/histogram_functions.h"
 #import "base/metrics/histogram_macros.h"
 #import "base/notreached.h"
@@ -21,26 +21,26 @@
 #import "components/metrics/metrics_service.h"
 #import "components/previous_session_info/previous_session_info.h"
 #import "ios/chrome/app/application_delegate/app_state+private.h"
-#import "ios/chrome/app/application_delegate/browser_launcher.h"
 #import "ios/chrome/app/application_delegate/memory_warning_helper.h"
 #import "ios/chrome/app/application_delegate/metrics_mediator.h"
 #import "ios/chrome/app/application_delegate/startup_information.h"
 #import "ios/chrome/app/application_delegate/user_activity_handler.h"
 #import "ios/chrome/app/deferred_initialization_runner.h"
-#import "ios/chrome/app/main_application_delegate.h"
-#import "ios/chrome/browser/application_context/application_context.h"
-#import "ios/chrome/browser/browser_state/chrome_browser_state.h"
-#import "ios/chrome/browser/browsing_data/sessions_storage_util.h"
-#import "ios/chrome/browser/crash_report/crash_helper.h"
-#import "ios/chrome/browser/crash_report/crash_keys_helper.h"
-#import "ios/chrome/browser/crash_report/crash_loop_detection_util.h"
-#import "ios/chrome/browser/crash_report/features.h"
+#import "ios/chrome/browser/browsing_data/model/sessions_storage_util.h"
+#import "ios/chrome/browser/crash_report/model/crash_helper.h"
+#import "ios/chrome/browser/crash_report/model/crash_keys_helper.h"
+#import "ios/chrome/browser/crash_report/model/crash_loop_detection_util.h"
+#import "ios/chrome/browser/crash_report/model/features.h"
 #import "ios/chrome/browser/device_sharing/device_sharing_manager.h"
-#import "ios/chrome/browser/feature_engagement/tracker_factory.h"
-#import "ios/chrome/browser/main/browser.h"
-#import "ios/chrome/browser/main/browser_provider.h"
-#import "ios/chrome/browser/main/browser_provider_interface.h"
+#import "ios/chrome/browser/feature_engagement/model/tracker_factory.h"
+#import "ios/chrome/browser/metrics/model/web_state_list_metrics_browser_agent.h"
+#import "ios/chrome/browser/ntp/home/features.h"
 #import "ios/chrome/browser/shared/coordinator/scene/scene_delegate.h"
+#import "ios/chrome/browser/shared/model/application_context/application_context.h"
+#import "ios/chrome/browser/shared/model/browser/browser.h"
+#import "ios/chrome/browser/shared/model/browser/browser_provider.h"
+#import "ios/chrome/browser/shared/model/browser/browser_provider_interface.h"
+#import "ios/chrome/browser/shared/model/browser_state/chrome_browser_state.h"
 #import "ios/chrome/browser/shared/public/commands/application_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/commands/help_commands.h"
@@ -48,9 +48,7 @@
 #import "ios/chrome/browser/signin/authentication_service.h"
 #import "ios/chrome/browser/signin/authentication_service_factory.h"
 #import "ios/chrome/browser/signin/system_identity_manager.h"
-#import "ios/chrome/browser/ui/content_suggestions/content_suggestions_feature.h"
 #import "ios/chrome/browser/web_state_list/session_metrics.h"
-#import "ios/chrome/browser/web_state_list/web_state_list_metrics_browser_agent.h"
 #import "ios/net/cookies/cookie_store_ios.h"
 #import "ios/public/provider/chrome/browser/app_distribution/app_distribution_api.h"
 #import "ios/public/provider/chrome/browser/user_feedback/user_feedback_api.h"
@@ -60,12 +58,19 @@
 #import "net/url_request/url_request_context_getter.h"
 #import "ui/base/device_form_factor.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace {
 NSString* const kStartupAttemptReset = @"StartupAttemptReset";
+
+// Flushes the CookieStore on the IO thread and invoke `closure` upon
+// completion. The sequence where `closure` is invoked is unspecified.
+void FlushCookieStoreOnIOThread(
+    scoped_refptr<net::URLRequestContextGetter> getter,
+    base::OnceClosure closure) {
+  DCHECK_CURRENTLY_ON(web::WebThread::IO);
+  getter->GetURLRequestContext()->cookie_store()->FlushStore(
+      std::move(closure));
+}
+
 }  // namespace
 
 #pragma mark - AppStateObserverList
@@ -82,6 +87,11 @@ NSString* const kStartupAttemptReset = @"StartupAttemptReset";
 
 // Container for observers.
 @property(nonatomic, strong) AppStateObserverList* observers;
+
+// YES if cookies are currently being flushed to disk. Declared as a property
+// to allow modifying it in a block via a __weak pointer without checking if
+// the pointer is nil or not.
+@property(nonatomic, assign) BOOL savingCookies;
 
 // This method is the first to be called when user launches the application.
 // This performs the minimal amount of browser initialization that is needed by
@@ -128,36 +138,23 @@ NSString* const kStartupAttemptReset = @"StartupAttemptReset";
 @end
 
 @implementation AppState {
-  // Browser launcher to launch browser in different states.
-  __weak id<BrowserLauncher> _browserLauncher;
-
-  // UIApplicationDelegate for the application.
-  __weak MainApplicationDelegate* _mainApplicationDelegate;
-
   // Whether the application is currently in the background.
   // This is a workaround for rdar://22392526 where
   // -applicationDidEnterBackground: can be called twice.
   // TODO(crbug.com/546196): Remove this once rdar://22392526 is fixed.
   BOOL _applicationInBackground;
-
-  // YES if cookies are currently being flushed to disk.
-  BOOL _savingCookies;
 }
 
 @synthesize userInteracted = _userInteracted;
 
-- (instancetype)
-initWithBrowserLauncher:(id<BrowserLauncher>)browserLauncher
-     startupInformation:(id<StartupInformation>)startupInformation
-    applicationDelegate:(MainApplicationDelegate*)applicationDelegate {
+- (instancetype)initWithStartupInformation:
+    (id<StartupInformation>)startupInformation {
   self = [super init];
   if (self) {
     _observers = [AppStateObserverList
         observersWithProtocol:@protocol(AppStateObserver)];
     _agents = [[NSMutableArray alloc] init];
     _startupInformation = startupInformation;
-    _browserLauncher = browserLauncher;
-    _mainApplicationDelegate = applicationDelegate;
     _appCommandDispatcher = [[CommandDispatcher alloc] init];
 
     // Subscribe to scene connection notifications.
@@ -255,33 +252,33 @@ initWithBrowserLauncher:(id<BrowserLauncher>)browserLauncher
 
   [self.startupInformation expireFirstUserActionRecorder];
 
-  // Do not save cookies if it is already in progress.
-  id<BrowserProvider> currentBrowserProvider =
-      _browserLauncher.browserProviderInterface.currentBrowserProvider;
-  if (currentBrowserProvider.browser && !_savingCookies) {
-    // Save cookies to disk. The empty critical closure guarantees that the task
-    // will be run before backgrounding.
-    scoped_refptr<net::URLRequestContextGetter> getter =
-        currentBrowserProvider.browser->GetBrowserState()->GetRequestContext();
+  if (self.mainBrowserState && !_savingCookies) {
+    // Record that saving the cookies has started to prevent posting multiple
+    // tasks if the user quickly background, foreground and background the app
+    // again.
     _savingCookies = YES;
-    __weak AppState* weakSelf = self;
 
-    __block base::OnceClosure criticalClosure = base::MakeCriticalClosure(
-        "applicationDidEnterBackground:_savingCookies", base::BindOnce(^{
-          DCHECK_CURRENTLY_ON(web::WebThread::UI);
-          AppState* strongSelf = weakSelf;
-          if (strongSelf)
-            strongSelf->_savingCookies = NO;
-        }),
-        /*is_immediate=*/true);
+    // The closure may be called on any sequence, so ensure it is posted back
+    // on the current one but using base::BindPostTask(). The critical closure
+    // guarantees that the task will be run before backgrounding.
+    __weak AppState* weakSelf = self;
+    base::OnceClosure closure = base::BindPostTask(
+        base::SequencedTaskRunner::GetCurrentDefault(),
+        base::MakeCriticalClosure(
+            "applicationDidEnterBackground:_savingCookies", base::BindOnce(^{
+              // Accessing a property in a block is safe as this is compiled
+              // to sending a message which is well defined on nil.
+              weakSelf.savingCookies = NO;
+            }),
+            /*is_immediate=*/true));
+
+    // Saving the cookies needs to happen on the IO thread.
     web::GetIOThreadTaskRunner({})->PostTask(
-        FROM_HERE, base::BindOnce(^{
-          net::CookieStore* store =
-              getter->GetURLRequestContext()->cookie_store();
-          // FlushStore() runs its callback on any thread. Jump back to UI.
-          store->FlushStore(base::BindPostTask(web::GetUIThreadTaskRunner({}),
-                                               std::move(criticalClosure)));
-        }));
+        FROM_HERE,
+        base::BindOnce(
+            &FlushCookieStoreOnIOThread,
+            base::WrapRefCounted(self.mainBrowserState->GetRequestContext()),
+            std::move(closure)));
   }
 
   // Mark the startup as clean if it hasn't already been.
@@ -303,17 +300,8 @@ initWithBrowserLauncher:(id<BrowserLauncher>)browserLauncher
   // Fully initialize the browser objects for the browser UI if it is not
   // already the case. This is especially needed for scene startup.
   if (self.initStage < InitStageBrowserObjectsForUI) {
-    // Start the initialization in the case it wasn't already done before
-    // foregrounding the app. `initStage` will be greater than InitStageStart if
-    // the initialization was already started.
-    if (self.initStage == InitStageStart) {
-      // TODO(crbug.com/1346512): Remove this code path after some time in
-      // canary. This is meant to be easy to revert. Initialization is always
-      // started at application:didFinishLaunchingWithOptions: and transitions
-      // past InitStageStart before returning to the runloop.
-      NOTREACHED();
-      [self queueTransitionToFirstInitStage];
-    }
+    // Invariant: The app has passed InitStageStart.
+    CHECK(self.initStage != InitStageStart);
     // TODO(crbug.com/1197330): This function should only be called once
     // during a specific stage, but this requires non-trivial refactoring, so
     // for now #initializeUIPreSafeMode will just return early if called more
@@ -455,25 +443,6 @@ initWithBrowserLauncher:(id<BrowserLauncher>)browserLauncher
   }
 }
 
-- (BOOL)requiresHandlingAfterLaunchWithOptions:(NSDictionary*)launchOptions
-                               stateBackground:(BOOL)stateBackground {
-  [_browserLauncher setLaunchOptions:launchOptions];
-
-  [self queueTransitionToFirstInitStage];
-
-  // `stateBackground` is wrongly always YES, even in regular foreground
-  // launches. This variable is a legacy before we started supporting
-  // multi-scene.
-  // TODO(crbug.com/1346512): Remove this code path after some time in
-  // canary. This is meant to be easy to revert.
-  DCHECK(stateBackground);
-  if (!stateBackground) {
-    [self initializeUIPreSafeMode];
-  }
-
-  return YES;
-}
-
 - (void)addObserver:(id<AppStateObserver>)observer {
   [self.observers addObserver:observer];
 
@@ -508,29 +477,8 @@ initWithBrowserLauncher:(id<BrowserLauncher>)browserLauncher
   [self queueTransitionToInitStage:nextInitStage];
 }
 
-- (void)queueTransitionToFirstInitStage {
+- (void)startInitialization {
   [self queueTransitionToInitStage:InitStageStart];
-}
-
-- (void)queueTransitionToInitStage:(InitStage)initStage {
-  if (self.isIncrementingInitStage) {
-    // It is an error to queue more than one transition at once.
-    DCHECK(!self.needsIncrementInitStage);
-
-    // Set a flag to increment after the observers are notified of the current
-    // change.
-    self.needsIncrementInitStage = YES;
-    return;
-  }
-
-  self.isIncrementingInitStage = YES;
-  self.initStage = initStage;
-  self.isIncrementingInitStage = NO;
-
-  if (self.needsIncrementInitStage) {
-    self.needsIncrementInitStage = NO;
-    [self queueTransitionToNextInitStage];
-  }
 }
 
 #pragma mark - Multiwindow-related
@@ -558,7 +506,7 @@ initWithBrowserLauncher:(id<BrowserLauncher>)browserLauncher
     }
 
     SceneDelegate* sceneDelegate =
-        base::mac::ObjCCastStrict<SceneDelegate>(scene.delegate);
+        base::apple::ObjCCastStrict<SceneDelegate>(scene.delegate);
     [sceneStates addObject:sceneDelegate.sceneState];
   }
   return sceneStates;
@@ -619,6 +567,27 @@ initWithBrowserLauncher:(id<BrowserLauncher>)browserLauncher
   [[PreviousSessionInfo sharedInstance] beginRecordingCurrentSession];
 }
 
+- (void)queueTransitionToInitStage:(InitStage)initStage {
+  if (self.isIncrementingInitStage) {
+    // It is an error to queue more than one transition at once.
+    DCHECK(!self.needsIncrementInitStage);
+
+    // Set a flag to increment after the observers are notified of the current
+    // change.
+    self.needsIncrementInitStage = YES;
+    return;
+  }
+
+  self.isIncrementingInitStage = YES;
+  self.initStage = initStage;
+  self.isIncrementingInitStage = NO;
+
+  if (self.needsIncrementInitStage) {
+    self.needsIncrementInitStage = NO;
+    [self queueTransitionToNextInitStage];
+  }
+}
+
 #pragma mark - UIBlockerManager
 
 - (void)incrementBlockingUICounterForTarget:(id<UIBlockerTarget>)target {
@@ -657,6 +626,7 @@ initWithBrowserLauncher:(id<BrowserLauncher>)browserLauncher
   if (level >= SceneActivationLevelForegroundActive) {
     sceneState.presentingModalOverlay =
         (self.uiBlockerTarget != nil) && (self.uiBlockerTarget != sceneState);
+    [self.observers appState:self sceneDidBecomeActive:sceneState];
   }
   crash_keys::SetForegroundScenesCount([self foregroundScenes].count);
 }
@@ -665,9 +635,9 @@ initWithBrowserLauncher:(id<BrowserLauncher>)browserLauncher
 
 - (void)sceneWillConnect:(NSNotification*)notification {
   UIWindowScene* scene =
-      base::mac::ObjCCastStrict<UIWindowScene>(notification.object);
+      base::apple::ObjCCastStrict<UIWindowScene>(notification.object);
   SceneDelegate* sceneDelegate =
-      base::mac::ObjCCastStrict<SceneDelegate>(scene.delegate);
+      base::apple::ObjCCastStrict<SceneDelegate>(scene.delegate);
 
   // Under some iOS 15 betas, Chrome gets scene connection events for some
   // system scene connections. To handle this, early return if the connecting

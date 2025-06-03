@@ -5,15 +5,18 @@
 #ifndef CHROME_BROWSER_UI_VIEWS_TOOLBAR_SIDE_PANEL_TOOLBAR_BUTTON_H_
 #define CHROME_BROWSER_UI_VIEWS_TOOLBAR_SIDE_PANEL_TOOLBAR_BUTTON_H_
 
+#include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/ui/views/bubble/bubble_contents_wrapper.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_button.h"
 #include "components/prefs/pref_change_registrar.h"
+#include "ui/base/metadata/metadata_header_macros.h"
 
 class Browser;
 
 class SidePanelToolbarButton : public ToolbarButton {
  public:
+  METADATA_HEADER(SidePanelToolbarButton);
   explicit SidePanelToolbarButton(Browser* browser);
   SidePanelToolbarButton(const SidePanelToolbarButton&) = delete;
   SidePanelToolbarButton& operator=(const SidePanelToolbarButton&) = delete;

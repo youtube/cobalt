@@ -31,11 +31,10 @@ import org.chromium.base.IntentUtils;
 import org.chromium.base.Log;
 import org.chromium.base.PackageManagerUtils;
 import org.chromium.base.StrictModeContext;
-import org.chromium.base.metrics.RecordHistogram;
+import org.chromium.base.shared_preferences.SharedPreferencesManager;
 import org.chromium.chrome.browser.crash.ChromePureJavaExceptionReporter;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
-import org.chromium.chrome.browser.preferences.SharedPreferencesManager;
+import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.components.browser_ui.share.ShareParams;
 import org.chromium.components.browser_ui.share.ShareParams.TargetChosenCallback;
@@ -116,9 +115,6 @@ public class ShareHelper extends org.chromium.components.browser_ui.share.ShareH
         }
         Intent intent = getShareIntent(params);
         intent.addFlags(Intent.FLAG_ACTIVITY_FORWARD_RESULT | Intent.FLAG_ACTIVITY_PREVIOUS_IS_TOP);
-        if (ChromeFeatureList.isEnabled(ChromeFeatureList.CHROME_SHARING_HUB_LAUNCH_ADJACENT)) {
-            intent.addFlags(Intent.FLAG_ACTIVITY_LAUNCH_ADJACENT);
-        }
         intent.setComponent(component);
         try {
             fireIntent(params.getWindow(), intent, null);
@@ -151,9 +147,8 @@ public class ShareHelper extends org.chromium.components.browser_ui.share.ShareH
     /**
      * Gets the {@link ComponentName} of the app that was used to last share.
      */
-    @Nullable
-    public static ComponentName getLastShareComponentName() {
-        SharedPreferencesManager preferencesManager = SharedPreferencesManager.getInstance();
+    public static @Nullable ComponentName getLastShareComponentName() {
+        SharedPreferencesManager preferencesManager = ChromeSharedPreferences.getInstance();
         String name = preferencesManager.readString(
                 ChromePreferenceKeys.SHARING_LAST_SHARED_COMPONENT_NAME, null);
         if (name == null) {
@@ -202,7 +197,6 @@ public class ShareHelper extends org.chromium.components.browser_ui.share.ShareH
             }
         }
         if (isComponentValid) {
-            boolean retrieved = false;
             final PackageManager pm = ContextUtils.getApplicationContext().getPackageManager();
             try {
                 // TODO(dtrainor): Make asynchronous and have a callback to update the menu.
@@ -211,12 +205,9 @@ public class ShareHelper extends org.chromium.components.browser_ui.share.ShareH
                     directShareIcon = pm.getActivityIcon(component);
                     directShareTitle = pm.getActivityInfo(component, 0).loadLabel(pm);
                 }
-                retrieved = true;
             } catch (NameNotFoundException exception) {
                 // Use the default null values.
             }
-            RecordHistogram.recordBooleanHistogram(
-                    "Android.IsLastSharedAppInfoRetrieved", retrieved);
         }
 
         return new Pair<>(directShareIcon, directShareTitle);
@@ -242,7 +233,7 @@ public class ShareHelper extends org.chromium.components.browser_ui.share.ShareH
      */
     @VisibleForTesting
     public static void setLastShareComponentName(Profile profile, ComponentName component) {
-        SharedPreferencesManager.getInstance().writeString(
+        ChromeSharedPreferences.getInstance().writeString(
                 ChromePreferenceKeys.SHARING_LAST_SHARED_COMPONENT_NAME,
                 component.flattenToString());
         if (profile != null) {
@@ -320,13 +311,6 @@ public class ShareHelper extends org.chromium.components.browser_ui.share.ShareH
 
             Parcelable[] customActions = chooserActions.toArray(new Parcelable[0]);
             chooserIntent.putExtra(INTENT_EXTRA_CHOOSER_CUSTOM_ACTIONS, customActions);
-
-            if (mCustomActionProvider.getModifyShareAction() != null) {
-                var modifiedShareAction = createChooserAction(
-                        mCustomActionProvider.getModifyShareAction(), activity, requestCode);
-                chooserIntent.putExtra(
-                        INTENT_EXTRA_CHOOSER_MODIFY_SHARE_ACTION, modifiedShareAction);
-            }
 
             return chooserIntent;
         }

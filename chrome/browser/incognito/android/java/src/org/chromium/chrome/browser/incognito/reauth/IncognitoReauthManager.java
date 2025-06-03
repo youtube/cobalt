@@ -7,11 +7,9 @@ package org.chromium.chrome.browser.incognito.reauth;
 import android.os.Build;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.VisibleForTesting;
 
-import org.chromium.base.ContextUtils;
-import org.chromium.chrome.browser.device.DeviceClassManager;
-import org.chromium.chrome.browser.device_reauth.DeviceAuthRequester;
+import org.chromium.base.ResettersForTesting;
+import org.chromium.chrome.browser.device_reauth.DeviceAuthSource;
 import org.chromium.chrome.browser.device_reauth.ReauthenticatorBridge;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.preferences.Pref;
@@ -40,7 +38,7 @@ public class IncognitoReauthManager {
     }
 
     public IncognitoReauthManager() {
-        this(ReauthenticatorBridge.create(DeviceAuthRequester.INCOGNITO_REAUTH_PAGE));
+        this(ReauthenticatorBridge.create(DeviceAuthSource.INCOGNITO));
     }
 
     public IncognitoReauthManager(ReauthenticatorBridge reauthenticatorBridge) {
@@ -56,7 +54,7 @@ public class IncognitoReauthManager {
      */
     public void startReauthenticationFlow(
             @NonNull IncognitoReauthCallback incognitoReauthCallback) {
-        if (!mReauthenticatorBridge.canUseAuthentication()
+        if (!mReauthenticatorBridge.canUseAuthenticationWithBiometricOrScreenLock()
                 || !isIncognitoReauthFeatureAvailable()) {
             incognitoReauthCallback.onIncognitoReauthNotPossible();
             return;
@@ -68,7 +66,7 @@ public class IncognitoReauthManager {
             } else {
                 incognitoReauthCallback.onIncognitoReauthFailure();
             }
-        }, /*useLastValidAuth=*/false);
+        });
     }
     /**
      * @return A boolean indicating whether the platform version supports reauth and the
@@ -87,8 +85,6 @@ public class IncognitoReauthManager {
         // The implementation relies on {@link BiometricManager} which was introduced in API
         // level 29. Android Q is not supported due to a potential bug in BiometricPrompt.
         return (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R)
-                && !DeviceClassManager.enableAccessibilityLayout(
-                        ContextUtils.getApplicationContext())
                 && ChromeFeatureList.sIncognitoReauthenticationForAndroid.isEnabled();
     }
 
@@ -104,9 +100,9 @@ public class IncognitoReauthManager {
                 && isIncognitoReauthSettingEnabled(profile);
     }
 
-    @VisibleForTesting
     public static void setIsIncognitoReauthFeatureAvailableForTesting(Boolean isAvailable) {
         sIsIncognitoReauthFeatureAvailableForTesting = isAvailable;
+        ResettersForTesting.register(() -> sIsIncognitoReauthFeatureAvailableForTesting = null);
     }
 
     private static boolean isIncognitoReauthSettingEnabled(Profile profile) {

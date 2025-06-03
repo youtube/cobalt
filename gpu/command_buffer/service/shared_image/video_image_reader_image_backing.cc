@@ -30,11 +30,13 @@
 #include "gpu/vulkan/vulkan_image.h"
 #include "gpu/vulkan/vulkan_implementation.h"
 #include "gpu/vulkan/vulkan_util.h"
-#include "third_party/skia/include/core/SkPromiseImageTexture.h"
 #include "third_party/skia/include/gpu/GrBackendSemaphore.h"
 #include "third_party/skia/include/gpu/GrBackendSurface.h"
+#include "third_party/skia/include/gpu/ganesh/vk/GrVkBackendSurface.h"
+#include "third_party/skia/include/private/chromium/GrPromiseImageTexture.h"
 #include "ui/gl/android/egl_fence_utils.h"
 #include "ui/gl/gl_utils.h"
+#include "ui/gl/scoped_restore_texture.h"
 
 namespace gpu {
 
@@ -47,6 +49,10 @@ void CreateAndBindEglImageFromAHB(AHardwareBuffer* buffer, GLuint service_id) {
   base::AndroidHardwareBufferCompat::GetInstance().Describe(buffer, &desc);
   auto egl_image = CreateEGLImageFromAHardwareBuffer(buffer);
   if (egl_image.is_valid()) {
+    // We should never alter gl binding without updating state tracking, which
+    // we can't do here, so restore previous after we done.
+    gl::ScopedRestoreTexture scoped_restore(gl::g_current_gl_context,
+                                            GL_TEXTURE_EXTERNAL_OES);
     glBindTexture(GL_TEXTURE_EXTERNAL_OES, service_id);
     glEGLImageTargetTexture2DOES(GL_TEXTURE_EXTERNAL_OES, egl_image.get());
   } else {
@@ -331,7 +337,7 @@ class VideoImageReaderImageBacking::SkiaVkVideoImageRepresentation
       const gfx::Rect& update_rect,
       std::vector<GrBackendSemaphore>* begin_semaphores,
       std::vector<GrBackendSemaphore>* end_semaphores,
-      std::unique_ptr<GrBackendSurfaceMutableState>* end_state) override {
+      std::unique_ptr<skgpu::MutableTextureState>* end_state) override {
     // Writes are not intended to used for video backed representations.
     NOTIMPLEMENTED();
     return {};
@@ -339,10 +345,10 @@ class VideoImageReaderImageBacking::SkiaVkVideoImageRepresentation
 
   void EndWriteAccess() override { NOTIMPLEMENTED(); }
 
-  std::vector<sk_sp<SkPromiseImageTexture>> BeginReadAccess(
+  std::vector<sk_sp<GrPromiseImageTexture>> BeginReadAccess(
       std::vector<GrBackendSemaphore>* begin_semaphores,
       std::vector<GrBackendSemaphore>* end_semaphores,
-      std::unique_ptr<GrBackendSurfaceMutableState>* end_state) override {
+      std::unique_ptr<skgpu::MutableTextureState>* end_state) override {
     base::AutoLockMaybe auto_lock(GetDrDcLockPtr());
 
     DCHECK(!scoped_hardware_buffer_);
@@ -386,9 +392,9 @@ class VideoImageReaderImageBacking::SkiaVkVideoImageRepresentation
 
       // TODO(bsalomon): Determine whether it makes sense to attempt to reuse
       // this if the vk_info stays the same on subsequent calls.
-      promise_texture_ = SkPromiseImageTexture::Make(
-          GrBackendTexture(size().width(), size().height(),
-                           CreateGrVkImageInfo(vulkan_image_.get())));
+      promise_texture_ = GrPromiseImageTexture::Make(GrBackendTextures::MakeVk(
+          size().width(), size().height(),
+          CreateGrVkImageInfo(vulkan_image_.get(), color_space())));
       DCHECK(promise_texture_);
     }
 
@@ -522,7 +528,9 @@ class VideoImageReaderImageBacking::OverlayVideoImageRepresentation
     base::AutoLockMaybe auto_lock(GetDrDcLockPtr());
     // A |CodecImage| must have TextureOwner() for SurfaceControl overlays.
     // Legacy overlays are handled by LegacyOverlayImageRepresentation.
-    DCHECK(stream_image()->HasTextureOwner());
+    // Unfortunately it's possible that underlying CodecImage has released its
+    // resources due to MediaCodec shutdown, so we don't DCHECK here.
+
     scoped_hardware_buffer_ = stream_image()->GetAHardwareBuffer();
 
     // |scoped_hardware_buffer_| could be null for cases when a buffer is
@@ -532,7 +540,7 @@ class VideoImageReaderImageBacking::OverlayVideoImageRepresentation
       return false;
 
     gfx::GpuFenceHandle handle;
-    handle.owned_fd = scoped_hardware_buffer_->TakeFence();
+    handle.Adopt(scoped_hardware_buffer_->TakeFence());
     if (!handle.is_null())
       acquire_fence = std::move(handle);
 
@@ -547,7 +555,7 @@ class VideoImageReaderImageBacking::OverlayVideoImageRepresentation
       }
       video_image_.reset();
     } else {
-      scoped_hardware_buffer_->SetReadFence(std::move(release_fence.owned_fd));
+      scoped_hardware_buffer_->SetReadFence(release_fence.Release());
     }
 
     base::AutoLockMaybe auto_lock(GetDrDcLockPtr());
@@ -567,8 +575,6 @@ class VideoImageReaderImageBacking::OverlayVideoImageRepresentation
  private:
   VideoImage* GetVideoImage() {
     base::AutoLockMaybe auto_lock(GetDrDcLockPtr());
-    DCHECK(stream_image()->HasTextureOwner())
-        << "The backing is already in a SurfaceView!";
     DCHECK(scoped_hardware_buffer_);
 
     if (!video_image_) {

@@ -10,6 +10,7 @@
 
 #include "base/check.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
@@ -130,14 +131,15 @@ class KeyRotationManagerTest : public testing::Test {
 
   void SetUpOldKey(bool exists = true) {
     if (exists) {
-      auto old_key = std::make_unique<SigningKeyPair>(
+      old_key_pair_ = base::MakeRefCounted<SigningKeyPair>(
           CreateHardwareKey(), BPKUR::CHROME_BROWSER_HW_KEY);
-      old_key_pair_ = old_key.get();
-      EXPECT_CALL(*mock_persistence_delegate_, LoadKeyPair())
-          .WillOnce(Return(ByMove(std::move(old_key))));
+      EXPECT_CALL(*mock_persistence_delegate_,
+                  LoadKeyPair(KeyStorageType::kPermanent, _))
+          .WillOnce(Return(old_key_pair_));
     } else {
-      old_key_pair_ = nullptr;
-      EXPECT_CALL(*mock_persistence_delegate_, LoadKeyPair())
+      old_key_pair_.reset();
+      EXPECT_CALL(*mock_persistence_delegate_,
+                  LoadKeyPair(KeyStorageType::kPermanent, _))
           .WillOnce(Invoke([]() { return nullptr; }));
     }
   }
@@ -149,11 +151,10 @@ class KeyRotationManagerTest : public testing::Test {
 
   void SetUpNewKeyCreation(bool success = true) {
     if (success) {
-      auto new_key = std::make_unique<SigningKeyPair>(
+      new_key_pair_ = base::MakeRefCounted<SigningKeyPair>(
           CreateHardwareKey(), BPKUR::CHROME_BROWSER_HW_KEY);
-      new_key_pair_ = new_key.get();
       EXPECT_CALL(*mock_persistence_delegate_, CreateKeyPair())
-          .WillOnce(Return(ByMove(std::move(new_key))));
+          .WillOnce(Return(new_key_pair_));
     } else {
       EXPECT_CALL(*mock_persistence_delegate_, CreateKeyPair())
           .WillOnce(Invoke([]() { return nullptr; }));
@@ -207,11 +208,13 @@ class KeyRotationManagerTest : public testing::Test {
   std::unique_ptr<base::HistogramTester> histogram_tester_;
   std::unique_ptr<crypto::UnexportableKeyProvider> key_provider_;
 
-  raw_ptr<StrictMock<MockKeyNetworkDelegate>> mock_network_delegate_;
-  raw_ptr<StrictMock<MockKeyPersistenceDelegate>> mock_persistence_delegate_;
+  raw_ptr<StrictMock<MockKeyNetworkDelegate>, DanglingUntriaged>
+      mock_network_delegate_;
+  raw_ptr<StrictMock<MockKeyPersistenceDelegate>, DanglingUntriaged>
+      mock_persistence_delegate_;
 
-  raw_ptr<SigningKeyPair> old_key_pair_;
-  raw_ptr<SigningKeyPair> new_key_pair_;
+  scoped_refptr<SigningKeyPair> old_key_pair_;
+  scoped_refptr<SigningKeyPair> new_key_pair_;
   absl::optional<std::string> captured_upload_body_;
 
   std::unique_ptr<KeyRotationManager> key_rotation_manager_;

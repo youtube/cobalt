@@ -11,6 +11,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/apple/foundation_util.h"
 #include "base/at_exit.h"
 #include "base/command_line.h"
 #include "base/containers/contains.h"
@@ -20,7 +21,6 @@
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
 #include "base/logging.h"
-#include "base/mac/foundation_util.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/message_loop/message_pump_type.h"
 #include "base/no_destructor.h"
@@ -46,16 +46,6 @@
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace updater {
-
-namespace {
-
-std::string ReadPlist(const std::string& path, const std::string& key) {
-  return base::SysNSStringToUTF8([NSDictionary
-      dictionaryWithContentsOfFile:base::SysUTF8ToNSString(
-                                       path)][base::SysUTF8ToNSString(key)]);
-}
-
-}  // namespace
 
 // base::CommandLine can't be used because it enforces that all switches are
 // lowercase, but ksadmin has case-sensitive switches. This argument parser
@@ -133,8 +123,9 @@ bool HasSwitch(const std::string& arg,
   if (!base::Contains(*aliases, arg))
     return false;
   for (const auto& alias : aliases->at(arg)) {
-    if (base::Contains(switches, alias))
+    if (base::Contains(switches, alias)) {
       return true;
+    }
   }
   return false;
 }
@@ -197,9 +188,8 @@ void MaybeInstallUpdater(UpdaterScope scope) {
   const absl::optional<base::FilePath> path = GetUpdaterExecutablePath(scope);
 
   if (path &&
-      [[NSFileManager defaultManager]
-          fileExistsAtPath:base::mac::FilePathToNSString(path.value())]) {
-    // Updater is already installed.
+      [NSFileManager.defaultManager
+          fileExistsAtPath:base::apple::FilePathToNSString(path.value())]) {
     return;
   }
 
@@ -210,9 +200,10 @@ void MaybeInstallUpdater(UpdaterScope scope) {
 
   const absl::optional<base::FilePath> setup_path = GetUpdaterExecutablePath(
       IsSystemShim() ? UpdaterScope::kSystem : UpdaterScope::kUser);
-  if (!setup_path ||
-      ![[NSFileManager defaultManager]
-          fileExistsAtPath:base::mac::FilePathToNSString(setup_path.value())]) {
+  if (!setup_path || ![NSFileManager.defaultManager
+                         fileExistsAtPath:base::apple::FilePathToNSString(
+                                              setup_path.value())]) {
+    VLOG(2) << "No existing updater to install from.";
     return;
   }
 
@@ -221,7 +212,9 @@ void MaybeInstallUpdater(UpdaterScope scope) {
   install_command.AppendSwitch(kEnableLoggingSwitch);
   install_command.AppendSwitchASCII(kLoggingModuleSwitch,
                                     kLoggingModuleSwitchValue);
-  // TODO(crbug.com/1281971): suppress the installer's UI.
+  if (IsSystemInstall(scope)) {
+    install_command.AppendSwitch(kSystemSwitch);
+  }
   int exit_code = -1;
   if (base::LaunchProcess(install_command, {}).WaitForExit(&exit_code)) {
     VLOG(0) << "Installer returned " << exit_code << ".";
@@ -301,13 +294,13 @@ class KSAdminApp : public App {
 
 KSTicket* KSAdminApp::TicketFromAppState(
     const updater::UpdateService::AppState& state) {
-  return [[[KSTicket alloc]
+  return [[KSTicket alloc]
       initWithAppId:base::SysUTF8ToNSString(state.app_id)
             version:base::SysUTF8ToNSString(state.version.GetString())
                 ecp:state.ecp
                 tag:base::SysUTF8ToNSString(state.ap)
           brandCode:base::SysUTF8ToNSString(state.brand_code)
-          brandPath:state.brand_path] autorelease];
+          brandPath:state.brand_path];
 }
 
 scoped_refptr<UpdateService> KSAdminApp::ServiceProxy(
@@ -405,7 +398,6 @@ void KSAdminApp::Register() {
   registration.version = base::Version(SwitchValue(kCommandVersion));
   registration.existence_checker_path =
       base::FilePath(SwitchValue(kCommandXCPath));
-
   const std::string brand_key = SwitchValue(kCommandBrandKey);
   if (!brand_key.empty() &&
       brand_key != base::SysNSStringToUTF8(kCRUTicketBrandKey)) {
@@ -416,22 +408,22 @@ void KSAdminApp::Register() {
   const std::string tag_key = SwitchValue(kCommandTagKey);
   const std::string tag_path = SwitchValue(kCommandTagPath);
   if (tag_key.empty() != tag_path.empty()) {
-    PrintUsage("--tag-key must be set if and only if --tag_path is set.");
+    PrintUsage("--tag-key must be set if and only if --tag-path is set.");
     return;
-  }
-  if (!tag_key.empty()) {
-    registration.ap = ReadPlist(tag_path, tag_key);
+  } else if (!tag_key.empty() && !tag_path.empty()) {
+    registration.ap_path = base::FilePath(tag_path);
+    registration.ap_key = tag_key;
   }
 
   const std::string version_key = SwitchValue(kCommandVersionKey);
   const std::string version_path = SwitchValue(kCommandVersionPath);
   if (version_key.empty() != version_path.empty()) {
     PrintUsage(
-        "--version-key must be set if and only if --version_path is set.");
+        "--version-key must be set if and only if --version-path is set.");
     return;
-  }
-  if (!version_key.empty()) {
-    registration.version = base::Version(ReadPlist(version_path, version_key));
+  } else if (!version_key.empty() && !version_path.empty()) {
+    registration.version_path = base::FilePath(version_path);
+    registration.version_key = version_key;
   }
 
   if (registration.app_id.empty()) {
@@ -553,8 +545,20 @@ std::string KSAdminApp::SwitchValue(const std::string& arg) const {
 }
 
 void KSAdminApp::Delete() {
-  // TODO(crbug.com/1250524): Implement.
-  Shutdown(1);
+  // Existing updater clients may call `ksadmin --delete` to delete an app
+  // ticket in one of the following situations:
+  // 1) The app is uninstalled. In this case, the path existence checker should
+  //    return false. That means the app will be un-registered by the periodic
+  //    tasks at certain point.
+  // 2) The user updater figures that the app is managed by the system updater
+  //    as well. A common scenario is that a second user installed the same app
+  //    and then promoted it to a system app. In this case, we can ignore the
+  //    deletion request and just rely on the system updater to run update.
+  //    The downside is that sometimes the user updater gets the app update
+  //    error. But this could an existing problem when two user updaters manage
+  //    the same app together.
+  // So in summary, we can just omit the ticket deletion request here.
+  Shutdown(0);
 }
 
 NSDictionary<NSString*, KSTicket*>* KSAdminApp::LoadTicketStore() const {
@@ -730,7 +734,7 @@ int KSAdminAppMain(int argc, const char* argv[]) {
   updater::InitLogging(Scope(command_line));
   InitializeThreadPool("keystone");
   const base::ScopedClosureRunner shutdown_thread_pool(
-      base::BindOnce([]() { base::ThreadPoolInstance::Get()->Shutdown(); }));
+      base::BindOnce([] { base::ThreadPoolInstance::Get()->Shutdown(); }));
   base::SingleThreadTaskExecutor main_task_executor(base::MessagePumpType::UI);
 
   // base::CommandLine may reorder arguments and switches, this is not the exact

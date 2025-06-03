@@ -41,6 +41,7 @@
 namespace blink {
 
 class CSSSelector;
+class StyleScope;
 
 // SelectorFilter is a bloom filter for rapidly discarding style rules that
 // have ancestor requirements. When we traverse the DOM, we call PushParent()
@@ -78,44 +79,36 @@ class CORE_EXPORT SelectorFilter {
   DISALLOW_NEW();
 
  public:
-  class ParentStackFrame {
-    DISALLOW_NEW();
-
-   public:
-    ParentStackFrame() : element(nullptr) {}
-    explicit ParentStackFrame(Element& element) : element(&element) {}
-
-    void Trace(Visitor*) const;
-
-    Member<Element> element;
-    Vector<unsigned, 4> identifier_hashes;
-  };
-
   SelectorFilter() = default;
   SelectorFilter(const SelectorFilter&) = delete;
   SelectorFilter& operator=(const SelectorFilter&) = delete;
 
+  // Call before the first PushParent(), if you are starting traversal at
+  // some tree scope that is not at the root of the document.
+  void PushAllParentsOf(TreeScope& tree_scope);
+
   void PushParent(Element& parent);
   void PopParent(Element& parent);
 
-  bool ParentStackIsConsistent(const ContainerNode* parent_node) const {
-    return !parent_stack_.empty() &&
-           parent_stack_.back().element == parent_node;
+  bool ParentStackIsConsistent(const Element* parent) const {
+    return !parent_stack_.empty() && parent_stack_.back() == parent;
   }
 
   template <unsigned maximumIdentifierCount>
   inline bool FastRejectSelector(const unsigned* identifier_hashes) const;
   static void CollectIdentifierHashes(const CSSSelector&,
+                                      const StyleScope*,
                                       unsigned* identifier_hashes,
                                       unsigned maximum_identifier_count);
 
   void Trace(Visitor*) const;
 
  private:
+  void PushAncestors(const Node& node);
   void PushParentStackFrame(Element& parent);
   void PopParentStackFrame();
 
-  HeapVector<ParentStackFrame> parent_stack_;
+  HeapVector<Member<Element>> parent_stack_;
 
   // With 100 unique strings in the filter, 2^12 slot table has false positive
   // rate of ~0.2%.
@@ -137,7 +130,5 @@ inline bool SelectorFilter::FastRejectSelector(
 }
 
 }  // namespace blink
-
-WTF_ALLOW_INIT_WITH_MEM_FUNCTIONS(blink::SelectorFilter::ParentStackFrame)
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_CORE_CSS_SELECTOR_FILTER_H_

@@ -1,4 +1,5 @@
 include_rules = [
+  "+components/miracle_parameter",
   "+crypto",
   "+net/net_jni_headers",
   "+third_party/apple_apsl",
@@ -52,6 +53,10 @@ specific_include_rules = {
 
   "fuzzer_test_support.cc": [
     "+base/i18n",
+  ],
+
+  "zstd_source_stream\.cc": [
+    "+third_party/zstd",
   ],
 
   # Dependencies specific for fuzz targets and other fuzzing-related code.

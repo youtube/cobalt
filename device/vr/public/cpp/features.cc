@@ -18,6 +18,11 @@ BASE_FEATURE(kWebXrIncubations,
              "WebXRIncubations",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Feature flag for the WebXRInternals debugging page.
+BASE_FEATURE(kWebXrInternals,
+             "WebXrInternals",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Enables access to WebXR composition layers.
 BASE_FEATURE(kWebXrLayers, "WebXRLayers", base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -45,14 +50,15 @@ BASE_FEATURE(kWebXrSharedBuffers,
 #if BUILDFLAG(ENABLE_CARDBOARD)
 // Controls WebXR support for the Cardboard SDK Runtime. Note that enabling
 // this will also disable the GVR runtime.
-BASE_FEATURE(kEnableCardboard,
-             "EnableCardboard",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kEnableCardboard, "Cardboard", base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // ENABLE_CARDBOARD
 
 #if BUILDFLAG(ENABLE_OPENXR)
 // Controls WebXR support for the OpenXR Runtime.
-BASE_FEATURE(kOpenXR, "OpenXR", base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kOpenXR,
+             "OpenXR",
+             BUILDFLAG(IS_WIN) ? base::FEATURE_ENABLED_BY_DEFAULT
+                               : base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Some WebXR features may have been enabled for ARCore, but are not yet ready
 // to be plumbed up from the OpenXR backend. This feature provides a mechanism

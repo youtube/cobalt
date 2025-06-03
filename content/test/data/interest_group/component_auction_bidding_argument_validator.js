@@ -19,8 +19,8 @@ function generateBid(
       'bid': 2,
       'bidCurrency': 'USD',
       'adCost': 3,
-      'render': ad.renderUrl,
-      'adComponents': [interestGroup.adComponents[0].renderUrl],
+      'render': ad.renderURL,
+      'adComponents': [interestGroup.adComponents[0].renderURL],
       'allowComponentAuction': true,
   };
 }
@@ -40,7 +40,7 @@ function validateInterestGroup(interestGroup) {
   if (!interestGroup)
     throw 'No interest group';
 
-  if (Object.keys(interestGroup).length !== 12) {
+  if (Object.keys(interestGroup).length !== 15) {
     throw 'Wrong number of interestGroupFields ' +
         JSON.stringify(interestGroup);
   }
@@ -61,14 +61,24 @@ function validateInterestGroup(interestGroup) {
         JSON.stringify(interestGroup.priorityVector);
   }
 
+  if (!interestGroup.biddingLogicURL.startsWith('https://a.test') ||
+      !interestGroup.biddingLogicURL.endsWith(
+          '/component_auction_bidding_argument_validator.js')) {
+    throw 'Incorrect biddingLogicURL ' + interestGroup.biddingLogicURL;
+  }
+
   if (!interestGroup.biddingLogicUrl.startsWith('https://a.test') ||
       !interestGroup.biddingLogicUrl.endsWith(
           '/component_auction_bidding_argument_validator.js')) {
     throw 'Incorrect biddingLogicUrl ' + interestGroup.biddingLogicUrl;
   }
 
-  if (!interestGroup.updateUrl.startsWith('https://a.test') ||
-      !interestGroup.updateUrl.endsWith('/not_found_update_url.json')) {
+  if (!interestGroup.updateURL.startsWith('https://a.test') ||
+      !interestGroup.updateURL.endsWith('/not_found_update_url.json')) {
+    throw 'Incorrect updateURL ' + interestGroup.updateURL;
+  }
+
+  if (interestGroup.updateUrl !== interestGroup.updateURL) {
     throw 'Incorrect updateUrl ' + interestGroup.updateUrl;
   }
 
@@ -79,10 +89,18 @@ function validateInterestGroup(interestGroup) {
     throw 'Incorrect dailyUpdateUrl ' + interestGroup.dailyUpdateUrl;
   }
 
+  if (!interestGroup.trustedBiddingSignalsURL.startsWith('https://a.test') ||
+      !interestGroup.trustedBiddingSignalsURL.includes(
+          'trusted_bidding_signals.json')) {
+    throw 'Incorrect trustedBiddingSignalsURL ' +
+        interestGroup.trustedBiddingSignalsURL;
+  }
+
   if (!interestGroup.trustedBiddingSignalsUrl.startsWith('https://a.test') ||
       !interestGroup.trustedBiddingSignalsUrl.includes(
           'trusted_bidding_signals.json')) {
-    throw 'Incorrect biddingLogicUrl ' + interestGroup.biddingLogicUrl;
+    throw 'Incorrect trustedBiddingSignalsUrl ' +
+        interestGroup.trustedBiddingSignalsUrl;
   }
 
   trustedBiddingSignalsKeysJson =
@@ -93,7 +111,7 @@ function validateInterestGroup(interestGroup) {
   }
 
   // TODO(crbug.com/1186444): Consider validating URL fields like
-  // interestGroup.biddingLogicUrl once we decide what to do about URL
+  // interestGroup.biddingLogicURL once we decide what to do about URL
   // normalization.
 
   // If userBiddingSignals is passed as a JSON string instead of an object,
@@ -108,6 +126,8 @@ function validateInterestGroup(interestGroup) {
 
   if (interestGroup.ads.length !== 1)
     throw 'Wrong ads.length ' + interestGroup.ads.length;
+  if (interestGroup.ads[0].renderURL !== 'https://example.com/render')
+    throw 'Wrong ads[0].renderURL ' + interestGroup.ads[0].renderURL;
   if (interestGroup.ads[0].renderUrl !== 'https://example.com/render')
     throw 'Wrong ads[0].renderUrl ' + interestGroup.ads[0].renderUrl;
   const adMetadataJson = JSON.stringify(interestGroup.ads[0].metadata);
@@ -116,6 +136,11 @@ function validateInterestGroup(interestGroup) {
 
   if (interestGroup.adComponents.length !== 1)
     throw 'Wrong adComponents.length ' + interestGroup.adComponents.length;
+  if (interestGroup.adComponents[0].renderURL !==
+        'https://example.com/render-component') {
+    throw 'Wrong adComponents[0].renderURL ' +
+        interestGroup.adComponents[0].renderURL;
+  }
   if (interestGroup.adComponents[0].renderUrl !==
         'https://example.com/render-component') {
     throw 'Wrong adComponents[0].renderUrl ' +
@@ -155,7 +180,7 @@ function validateBrowserSignals(browserSignals, isGenerateBid) {
     throw 'Wrong topLevelSeller ' + browserSignals.topLevelSeller;
 
   if (isGenerateBid) {
-    if (Object.keys(browserSignals).length !== 6) {
+    if (Object.keys(browserSignals).length !== 8) {
       throw 'Wrong number of browser signals fields ' +
           JSON.stringify(browserSignals);
     }
@@ -165,8 +190,16 @@ function validateBrowserSignals(browserSignals, isGenerateBid) {
       throw 'Wrong bidCount ' + browserSignals.bidCount;
     if (browserSignals.prevWins.length !== 0)
       throw 'Wrong prevWins ' + JSON.stringify(browserSignals.prevWins);
+    if (browserSignals.prevWinsMs.length !== 0)
+      throw 'Wrong prevWinsMs ' + JSON.stringify(browserSignals.prevWinsMs);
   } else {
-    if (Object.keys(browserSignals).length !== 14) {
+    // FledgePassKAnonStatusToReportWin feature adds a new parameter
+    // KAnonStatus to reportWin(), which is under a Finch trial for some enabled
+    // tests.
+    // TODO(xtlsheep): Check length only equals to 16 after
+    // FledgePassKAnonStatusToReportWin is completely turned on.
+    if (Object.keys(browserSignals).length !== 15 &&
+        Object.keys(browserSignals).length !== 16) {
       throw 'Wrong number of browser signals fields ' +
           JSON.stringify(browserSignals);
     }
@@ -174,6 +207,8 @@ function validateBrowserSignals(browserSignals, isGenerateBid) {
       throw 'Wrong interestGroupOwner ' + browserSignals.interestGroupOwner;
     if (browserSignals.interestGroupName !== 'cars')
       throw 'Wrong interestGroupName ' + browserSignals.interestGroupName;
+    if (browserSignals.renderURL !== "https://example.com/render")
+      throw 'Wrong renderURL ' + browserSignals.renderURL;
     if (browserSignals.renderUrl !== "https://example.com/render")
       throw 'Wrong renderUrl ' + browserSignals.renderUrl;
     if (browserSignals.bid !== 2)
@@ -202,14 +237,17 @@ function validateSellerSignals(sellerSignals) {
 function validateDirectFromSellerSignals(directFromSellerSignals) {
   const perBuyerSignalsJSON =
       JSON.stringify(directFromSellerSignals.perBuyerSignals);
-  if (perBuyerSignalsJSON !== '{"from":"component","json":"for","buyer":[1]}') {
+  if (perBuyerSignalsJSON !== '{"from":"component","json":"for","buyer":[1]}' &&
+      perBuyerSignalsJSON !== '{"buyer":[1],"from":"component","json":"for"}') {
     throw 'Wrong directFromSellerSignals.perBuyerSignals ' +
         perBuyerSignalsJSON;
   }
   const auctionSignalsJSON =
       JSON.stringify(directFromSellerSignals.auctionSignals);
   if (auctionSignalsJSON !==
-      '{"from":"component","json":"for","all":["parties"]}') {
+          '{"from":"component","json":"for","all":["parties"]}' &&
+      auctionSignalsJSON !==
+          '{"all":["parties"],"from":"component","json":"for"}') {
     throw 'Wrong directFromSellerSignals.auctionSignals ' +
         auctionSignalsJSON;
   }

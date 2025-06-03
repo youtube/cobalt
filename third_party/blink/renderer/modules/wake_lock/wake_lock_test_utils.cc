@@ -210,6 +210,12 @@ void MockPermissionService::HasPermission(PermissionDescriptorPtr permission,
       mojom::blink::PermissionStatus::DENIED));
 }
 
+void MockPermissionService::RequestPageEmbeddedPermission(
+    mojom::blink::EmbeddedPermissionRequestDescriptorPtr permissions,
+    RequestPageEmbeddedPermissionCallback) {
+  NOTREACHED();
+}
+
 void MockPermissionService::RequestPermission(
     PermissionDescriptorPtr permission,
     bool user_gesture,
@@ -331,15 +337,15 @@ v8::Promise::PromiseState ScriptPromiseUtils::GetPromiseState(
 // static
 DOMException* ScriptPromiseUtils::GetPromiseResolutionAsDOMException(
     const ScriptPromise& promise) {
-  return V8DOMException::ToImplWithTypeCheck(promise.GetIsolate(),
-                                             promise.V8Promise()->Result());
+  return V8DOMException::ToWrappable(promise.GetIsolate(),
+                                     promise.V8Promise()->Result());
 }
 
 // static
 WakeLockSentinel* ScriptPromiseUtils::GetPromiseResolutionAsWakeLockSentinel(
     const ScriptPromise& promise) {
-  return V8WakeLockSentinel::ToImplWithTypeCheck(promise.GetIsolate(),
-                                                 promise.V8Promise()->Result());
+  return V8WakeLockSentinel::ToWrappable(promise.GetIsolate(),
+                                         promise.V8Promise()->Result());
 }
 
 }  // namespace blink

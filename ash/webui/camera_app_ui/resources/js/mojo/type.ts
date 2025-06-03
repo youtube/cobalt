@@ -5,7 +5,7 @@
 // This file contains many long export lines that exceed the max-len limit */
 /* eslint-disable max-len */
 
-export {
+export type {
   PointF,
 } from 'chrome://resources/mojo/ui/gfx/geometry/mojom/geometry.mojom-webui.js';
 export {
@@ -16,7 +16,6 @@ export {
   CameraAppHelperRemote,
   CameraUsageOwnershipMonitorCallbackRouter,
   DocumentOutputFormat,
-  DocumentScannerReadyState,
   ExternalScreenMonitorCallbackRouter,
   FileMonitorResult,
   ScreenState,
@@ -33,7 +32,7 @@ export {
   Rotation,
 } from
     '../../mojom/chromeos/services/machine_learning/public/mojom/document_scanner_param_types.mojom-webui.js';
-export {
+export type{
   Blob as MojoBlob,
 } from '../../mojom/media/capture/mojom/image_capture.mojom-webui.js';
 export {
@@ -46,21 +45,22 @@ export {
   DocumentCornersObserverCallbackRouter,
   Effect,
   GetCameraAppDeviceStatus,
-  ReprocessResultListenerCallbackRouter,
   ResultMetadataObserverCallbackRouter,
+  StillCaptureResultObserverCallbackRouter,
   StreamType,
 } from
     '../../mojom/media/capture/video/chromeos/mojom/camera_app.mojom-webui.js';
 export {
   CameraFacing,
-  CameraInfo,
 } from
     '../../mojom/media/capture/video/chromeos/mojom/camera_common.mojom-webui.js';
+export type{CameraInfo} from
+    '../../mojom/media/capture/video/chromeos/mojom/camera_common.mojom-webui.js';
 export {
-  CameraMetadata,
-  CameraMetadataEntry,
   EntryType,
 } from
+    '../../mojom/media/capture/video/chromeos/mojom/camera_metadata.mojom-webui.js';
+export type{CameraMetadata, CameraMetadataEntry} from
     '../../mojom/media/capture/video/chromeos/mojom/camera_metadata.mojom-webui.js';
 export {
   AndroidControlAeAntibandingMode,

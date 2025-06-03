@@ -140,13 +140,30 @@ class COMPONENT_EXPORT(PLATFORM_WINDOW) PlatformWindowDelegate {
 #endif
 
 #if BUILDFLAG(IS_CHROMEOS_LACROS)
+  // Notifies delegate that the pending fullscreen operation has been completed.
+  virtual void OnFullscreenModeChanged();
+#endif
+
+#if BUILDFLAG(IS_CHROMEOS_LACROS)
   // TODO(ffred): We should just add kImmersiveFullscreen as a state. However,
   // that will require more refactoring in other places to understand that
   // kImmersiveFullscreen is a fullscreen status.
   // Sets the immersive mode for the window. This will only have an effect on
   // ChromeOS platforms.
   virtual void OnImmersiveModeChanged(bool immersive) {}
+
+  // Lets the window know that ChromeOS overview mode has changed.
+  virtual void OnOverviewModeChanged(bool in_overview) {}
 #endif
+
+  enum RotateDirection {
+    kForward,
+    kBackward,
+  };
+  // Rotates the focus within the window. The method will return true if there
+  // are more views left after rotation and false otherwise. Reset will restart
+  // the focus and focus on the first view for the given direction.
+  virtual bool OnRotateFocus(RotateDirection direction, bool reset);
 
   virtual void OnLostCapture() = 0;
 
@@ -165,6 +182,9 @@ class COMPONENT_EXPORT(PLATFORM_WINDOW) PlatformWindowDelegate {
   // Requests size constraints for the PlatformWindow in DIP.
   virtual absl::optional<gfx::Size> GetMinimumSizeForWindow();
   virtual absl::optional<gfx::Size> GetMaximumSizeForWindow();
+
+  virtual bool CanMaximize();
+  virtual bool CanFullscreen();
 
   // Returns a mask to be used to clip the window for the size of
   // |WindowTreeHost::GetBoundsInPixels|.

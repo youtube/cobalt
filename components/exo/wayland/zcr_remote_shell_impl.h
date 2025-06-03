@@ -73,8 +73,7 @@ class WaylandRemoteShell : public ash::TabletModeObserver,
 
   std::unique_ptr<ClientControlledShellSurface> CreateShellSurface(
       Surface* surface,
-      int container,
-      double default_device_scale_factor);
+      int container);
 
   std::unique_ptr<ClientControlledShellSurface::Delegate>
   CreateShellSurfaceDelegate(wl_resource* resource);
@@ -83,12 +82,9 @@ class WaylandRemoteShell : public ash::TabletModeObserver,
       const std::string& notification_key);
 
   std::unique_ptr<InputMethodSurface> CreateInputMethodSurface(
-      Surface* surface,
-      double default_device_scale_factor);
+      Surface* surface);
 
-  std::unique_ptr<ToastSurface> CreateToastSurface(
-      Surface* surface,
-      double default_device_scale_factor);
+  std::unique_ptr<ToastSurface> CreateToastSurface(Surface* surface);
 
   void SetUseDefaultScaleCancellation(bool use_default_scale);
 
@@ -362,6 +358,17 @@ void remote_surface_set_resize_lock_type(wl_client* client,
                                          wl_resource* resource,
                                          uint32_t mode);
 
+void remote_surface_set_scale_factor(wl_client* client,
+                                     wl_resource* resource,
+                                     uint mode);
+
+void remote_surface_set_window_corner_radii(wl_client* client,
+                                            wl_resource* resource,
+                                            uint32_t upper_left_radius,
+                                            uint32_t upper_right_radius,
+                                            uint32_t lower_right_radius,
+                                            uint32_t lower_left_radius);
+
 void remote_surface_set_float(wl_client* client, wl_resource* resource);
 
 void remote_surface_block_ime(wl_client* client, wl_resource* resource);
@@ -465,6 +472,10 @@ void toast_surface_set_bounds_in_output(wl_client* client,
                                         int32_t y,
                                         int32_t width,
                                         int32_t height);
+
+void toast_surface_set_scale_factor(wl_client* client,
+                                    wl_resource* resource,
+                                    uint scale_factor_as_uint);
 
 ////////////////////////////////////////////////////////////////////////////////
 // remote_shell_interface:

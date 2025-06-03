@@ -35,6 +35,7 @@
 
 #include <stdint.h>
 
+#include "base/apple/owned_objc.h"
 #include "base/mac/mac_util.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/strings/string_util.h"
@@ -250,19 +251,20 @@ blink::WebMouseEvent::Button ButtonFromButtonNumber(NSEvent* event) {
 }  // namespace
 
 blink::WebKeyboardEvent WebKeyboardEventBuilder::Build(NSEvent* event) {
-  ui::ComputeEventLatencyOS(event);
+  ui::ComputeEventLatencyOS(base::apple::OwnedNSEvent(event));
 
   ui::DomCode dom_code = ui::DomCodeFromNSEvent(event);
   int modifiers =
       ModifiersFromEvent(event) | ui::DomCodeToWebInputEventModifiers(dom_code);
 
-  if (([event type] != NSEventTypeFlagsChanged) && [event isARepeat])
+  if ((event.type != NSEventTypeFlagsChanged) && event.ARepeat) {
     modifiers |= blink::WebInputEvent::kIsAutoRepeat;
+  }
 
   blink::WebKeyboardEvent result(
       ui::IsKeyUpEvent(event) ? blink::WebInputEvent::Type::kKeyUp
                               : blink::WebInputEvent::Type::kRawKeyDown,
-      modifiers, ui::EventTimeStampFromSeconds([event timestamp]));
+      modifiers, ui::EventTimeStampFromSeconds(event.timestamp));
 
   // Some keys have the same meaning but different locations on the keyboard:
   // the left and right shift keys; the numeric keypad keys and their
@@ -331,7 +333,7 @@ blink::WebMouseEvent WebMouseEventBuilder::Build(
     NSView* view,
     blink::WebPointerProperties::PointerType pointerType,
     bool unacceleratedMovement) {
-  ui::ComputeEventLatencyOS(event);
+  ui::ComputeEventLatencyOS(base::apple::OwnedNSEvent(event));
   blink::WebInputEvent::Type event_type =
       blink::WebInputEvent::Type::kUndefined;
   int click_count = 0;
@@ -417,7 +419,7 @@ blink::WebMouseEvent WebMouseEventBuilder::Build(
   if (subtype == NSEventSubtypeTabletPoint) {
     result.force = [event pressure];
     NSPoint tilt = [event tilt];
-    result.tilt_x = lround(tilt.x * 90);
+    result.tilt_x = tilt.x * 90.0f;
     // Pointer Events specification states that tiltY is positive when the
     // pen is tilted towards the user.
     // By default, in MacOS, the Y coordinate increases going up,
@@ -426,7 +428,7 @@ blink::WebMouseEvent WebMouseEventBuilder::Build(
     // In this case (if the coordinate system is not flipped) tiltY needs to
     // be reversed to match Chromium's expectation that tiltY is positive
     // towards the user
-    result.tilt_y = ([view isFlipped] ? 1 : (-1)) * lround(tilt.y * 90);
+    result.tilt_y = ([view isFlipped] ? 1.0 : (-1.0)) * tilt.y * 90.0f;
     result.tangential_pressure = [event tangentialPressure];
     // NSEvent spec doesn't specify the range of rotation, we make sure that
     // this value is in the range of [0,359].
@@ -449,7 +451,7 @@ blink::WebMouseEvent WebMouseEventBuilder::Build(
 blink::WebMouseWheelEvent WebMouseWheelEventBuilder::Build(
     NSEvent* event,
     NSView* view) {
-  ui::ComputeEventLatencyOS(event);
+  ui::ComputeEventLatencyOS(base::apple::OwnedNSEvent(event));
   blink::WebMouseWheelEvent result(
       blink::WebInputEvent::Type::kMouseWheel, ModifiersFromEvent(event),
       ui::EventTimeStampFromSeconds([event timestamp]));
@@ -681,7 +683,7 @@ blink::WebTouchEvent WebTouchEventBuilder::Build(NSEvent* event, NSView* view) {
 
   blink::WebTouchEvent result(event_type, ModifiersFromEvent(event),
                               ui::EventTimeStampFromSeconds([event timestamp]));
-  ui::ComputeEventLatencyOS(event);
+  ui::ComputeEventLatencyOS(base::apple::OwnedNSEvent(event));
   result.hovering = event_type == blink::WebInputEvent::Type::kTouchEnd;
   result.unique_touch_event_id = ui::GetNextTouchEventId();
   result.touches_length = 1;
@@ -700,8 +702,8 @@ blink::WebTouchEvent WebTouchEventBuilder::Build(NSEvent* event, NSView* view) {
   result.touches[0].id = [event pointingDeviceID];
   result.touches[0].force = [event pressure];
   NSPoint tilt = [event tilt];
-  result.touches[0].tilt_x = lround(tilt.x * 90);
-  result.touches[0].tilt_y = lround(tilt.y * 90);
+  result.touches[0].tilt_x = tilt.x * 90.0f;
+  result.touches[0].tilt_y = tilt.y * 90.0f;
   result.touches[0].tangential_pressure = [event tangentialPressure];
   // NSEvent spec doesn't specify the range of rotation, we make sure that
   // this value is in the range of [0,359].

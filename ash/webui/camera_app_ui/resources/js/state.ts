@@ -31,6 +31,9 @@ export enum State {
   HAS_PAN_SUPPORT = 'has-pan-support',
   HAS_TILT_SUPPORT = 'has-tilt-support',
   HAS_ZOOM_SUPPORT = 'has-zoom-support',
+  // Hides all toasts, nudges and tooltips for tests that relies on visual and
+  // might be affected by these UIs appearing at incorrect timing.
+  HIDE_FLOATING_UI_FOR_TESTING = 'hide-floating-ui-for-testing',
   INTENT = 'intent',
   KEYBOARD_NAVIGATION = 'keyboard-navigation',
   MAX_WND = 'max-wnd',
@@ -83,7 +86,11 @@ const stateValues =
  * Asserts input string is valid state.
  */
 export function assertState(s: string): StateUnion {
+  // This is to workaround current TypeScript limitation on Set.has.
+  // See https://github.com/microsoft/TypeScript/issues/26255
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
   assert((stateValues as Set<string>).has(s), `No such state: ${s}`);
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
   return s as StateUnion;
 }
 
@@ -104,6 +111,24 @@ export function addObserver(state: StateUnion, observer: StateObserver): void {
     allObservers.set(state, observers);
   }
   observers.add(observer);
+}
+
+/**
+ * Adds observer function to be called when the state value is changed to true.
+ * Returns the wrapped observer in case it needs to be removed later.
+ *
+ * @param state State to be observed.
+ * @param observer Observer function called with newly changed value.
+ */
+export function addEnabledStateObserver(
+    state: StateUnion, observer: StateObserver): StateObserver {
+  const wrappedObserver: StateObserver = (val, perfInfo) => {
+    if (val) {
+      observer(val, perfInfo);
+    }
+  };
+  addObserver(state, wrappedObserver);
+  return wrappedObserver;
 }
 
 /**
@@ -139,10 +164,10 @@ export function removeObserver(
 }
 
 /**
- * Checks if the specified state exists.
+ * Gets if the specified state is on or off.
  *
  * @param state State to be checked.
- * @return Whether the state exists.
+ * @return Whether the state is on or off.
  */
 export function get(state: StateUnion): boolean {
   return document.body.classList.contains(state);

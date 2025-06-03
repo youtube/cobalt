@@ -46,7 +46,8 @@ struct CONTENT_EXPORT IdentityRequestAccount {
       const std::string& name,
       const std::string& given_name,
       const GURL& picture,
-      std::vector<std::string> hints,
+      std::vector<std::string> login_hints,
+      std::vector<std::string> domain_hints,
       absl::optional<LoginState> login_state = absl::nullopt);
   IdentityRequestAccount(const IdentityRequestAccount&);
   ~IdentityRequestAccount();
@@ -56,7 +57,8 @@ struct CONTENT_EXPORT IdentityRequestAccount {
   std::string name;
   std::string given_name;
   GURL picture;
-  std::vector<std::string> hints;
+  std::vector<std::string> login_hints;
+  std::vector<std::string> domain_hints;
 
   // The account login state. Unlike the other fields this one can be populated
   // either by the IDP or by the browser based on its stored permission grants.

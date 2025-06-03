@@ -6,6 +6,7 @@
 
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/signin/profile_token_web_signin_interceptor.h"
+#include "chrome/browser/ui/signin/dice_web_signin_interceptor_delegate.h"
 
 // static
 ProfileTokenWebSigninInterceptor*
@@ -28,8 +29,10 @@ ProfileTokenWebSigninInterceptorFactory::
 ProfileTokenWebSigninInterceptorFactory::
     ~ProfileTokenWebSigninInterceptorFactory() = default;
 
-KeyedService* ProfileTokenWebSigninInterceptorFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+ProfileTokenWebSigninInterceptorFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
-  return new ProfileTokenWebSigninInterceptor(
-      Profile::FromBrowserContext(context));
+  return std::make_unique<ProfileTokenWebSigninInterceptor>(
+      Profile::FromBrowserContext(context),
+      std::make_unique<DiceWebSigninInterceptorDelegate>());
 }

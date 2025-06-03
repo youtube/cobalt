@@ -21,6 +21,7 @@ import android.os.SystemClock;
 import android.util.AttributeSet;
 import android.util.Pair;
 import android.view.Gravity;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewParent;
@@ -33,18 +34,16 @@ import android.widget.RelativeLayout;
 import androidx.annotation.ColorInt;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.annotation.VisibleForTesting;
 import androidx.recyclerview.widget.DefaultItemAnimator;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import org.chromium.base.Log;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.tab_ui.R;
 import org.chromium.ui.base.ViewUtils;
-import org.chromium.ui.interpolators.BakedBezierInterpolator;
+import org.chromium.ui.interpolators.Interpolators;
 import org.chromium.ui.modelutil.SimpleRecyclerViewAdapter;
 import org.chromium.ui.resources.dynamics.DynamicResourceLoader;
 import org.chromium.ui.resources.dynamics.DynamicResourceReadyOnceCallback;
@@ -63,18 +62,12 @@ class TabListRecyclerView
     private static final String TAG = "TabListRecyclerView";
     private static final String SHADOW_VIEW_TAG = "TabListViewShadow";
 
-    private static final String MAX_DUTY_CYCLE_PARAM = "max-duty-cycle";
+    // Default values from experimentation.
+    private static final float DEFAULT_DOWNSAMPLING_SCALE = 0.5f;
     private static final float DEFAULT_MAX_DUTY_CYCLE = 0.2f;
 
     public static final long BASE_ANIMATION_DURATION_MS = 218;
     public static final long FINAL_FADE_IN_DURATION_MS = 50;
-
-    /**
-     * Field trial parameter for downsampling scaling factor.
-     */
-    private static final String DOWNSAMPLING_SCALE_PARAM = "downsampling-scale";
-
-    private static final float DEFAULT_DOWNSAMPLING_SCALE = 0.5f;
 
     /**
      * An interface to listen to visibility related changes on this {@link RecyclerView}.
@@ -149,14 +142,17 @@ class TabListRecyclerView
     private VisibilityListener mListener;
     private DynamicResourceLoader mLoader;
     private ViewResourceAdapter mDynamicView;
+    private boolean mBlockTouchInput;
     private boolean mIsDynamicViewRegistered;
-    private long mLastDirtyTime;
     private ImageView mShadowImageView;
     private int mShadowTopOffset;
     private TabListOnScrollListener mScrollListener;
     // It is null when gts-tab animation is disabled or switching from Start surface to GTS.
     @Nullable
     private RecyclerView.ItemAnimator mOriginalAnimator;
+    // Null unless item animations are disabled.
+    @Nullable
+    private RecyclerView.ItemAnimator mDisabledAnimatorHolder;
     // Null if there is no runnable to execute on the next layout.
     @Nullable
     private Runnable mOnNextLayoutRunnable;
@@ -220,12 +216,42 @@ class TabListRecyclerView
         }
     }
 
+    @Override
+    public boolean dispatchTouchEvent(MotionEvent e) {
+        if (mBlockTouchInput) return true;
+
+        return super.dispatchTouchEvent(e);
+    }
+
     /**
      * Set the {@link VisibilityListener} that will listen on granular visibility events.
      * @param listener The {@link VisibilityListener} to use.
      */
     void setVisibilityListener(VisibilityListener listener) {
         mListener = listener;
+    }
+
+    /**
+     * Set whether to block touch inputs. For example, during an animated transition the
+     * TabListRecyclerView may still be visible, but interacting with it could trigger repeat
+     * animations or unexpected state changes.
+     * @param blockTouchInput Whether the touch inputs should be blocked.
+     */
+    void setBlockTouchInput(boolean blockTouchInput) {
+        mBlockTouchInput = blockTouchInput;
+    }
+
+    void setDisableItemAnimations(boolean disable) {
+        if (disable) {
+            ItemAnimator animator = getItemAnimator();
+            if (animator == null) return;
+
+            mDisabledAnimatorHolder = animator;
+            setItemAnimator(null);
+        } else if (mDisabledAnimatorHolder != null) {
+            setItemAnimator(mDisabledAnimatorHolder);
+            mDisabledAnimatorHolder = null;
+        }
     }
 
     void prepareTabSwitcherView() {
@@ -253,7 +279,7 @@ class TabListRecyclerView
         setAlpha(0);
         setVisibility(View.VISIBLE);
         mFadeInAnimator = ObjectAnimator.ofFloat(this, View.ALPHA, 1);
-        mFadeInAnimator.setInterpolator(BakedBezierInterpolator.FADE_IN_CURVE);
+        mFadeInAnimator.setInterpolator(Interpolators.LINEAR_OUT_SLOW_IN_INTERPOLATOR);
         mFadeInAnimator.setDuration(duration);
         mFadeInAnimator.start();
         mFadeInAnimator.addListener(new AnimatorListenerAdapter() {
@@ -369,18 +395,8 @@ class TabListRecyclerView
         return mResourceId;
     }
 
-    long getLastDirtyTime() {
-        return mLastDirtyTime;
-    }
-
     private float getDownsamplingScale() {
-        String scale = ChromeFeatureList.getFieldTrialParamByFeature(
-                ChromeFeatureList.TAB_TO_GTS_ANIMATION, DOWNSAMPLING_SCALE_PARAM);
-        try {
-            return Float.valueOf(scale);
-        } catch (NumberFormatException e) {
-            return DEFAULT_DOWNSAMPLING_SCALE;
-        }
+        return DEFAULT_DOWNSAMPLING_SCALE;
     }
 
     /**
@@ -388,6 +404,9 @@ class TabListRecyclerView
      * The view resource can be obtained by {@link #getResourceId} in compositor layer.
      */
     void createDynamicView(DynamicResourceLoader loader) {
+        // If there is no resource loader it isn't necessary to create a dynamic view.
+        if (loader == null) return;
+
         // TODO(crbug/1409886): Consider reducing capture frequency or only capturing once. There
         // was some discussion about this in crbug/1386265. However, it was punted on due to mid-end
         // devices having difficulty producing thumbnails before the first capture to avoid the
@@ -399,9 +418,6 @@ class TabListRecyclerView
             @Override
             public boolean isDirty() {
                 boolean dirty = super.isDirty();
-                if (dirty) {
-                    mLastDirtyTime = SystemClock.elapsedRealtime();
-                }
                 if (SystemClock.elapsedRealtime() < mSuppressedUntil || mSuppressCapture) {
                     if (dirty) {
                         Log.d(TAG, "Dynamic View is dirty but suppressed");
@@ -436,13 +452,7 @@ class TabListRecyclerView
     }
 
     private float getMaxDutyCycle() {
-        String maxDutyCycle = ChromeFeatureList.getFieldTrialParamByFeature(
-                ChromeFeatureList.TAB_GRID_LAYOUT_ANDROID, MAX_DUTY_CYCLE_PARAM);
-        try {
-            return Float.valueOf(maxDutyCycle);
-        } catch (NumberFormatException e) {
-            return DEFAULT_MAX_DUTY_CYCLE;
-        }
+        return DEFAULT_MAX_DUTY_CYCLE;
     }
 
     private void registerDynamicView() {
@@ -524,7 +534,7 @@ class TabListRecyclerView
     private void hideAnimation(boolean animate) {
         mListener.startedHiding(animate);
         mFadeOutAnimator = ObjectAnimator.ofFloat(this, View.ALPHA, 0);
-        mFadeOutAnimator.setInterpolator(BakedBezierInterpolator.FADE_OUT_CURVE);
+        mFadeOutAnimator.setInterpolator(Interpolators.FAST_OUT_LINEAR_IN_INTERPOLATOR);
         mFadeOutAnimator.setDuration(BASE_ANIMATION_DURATION_MS);
         mFadeOutAnimator.addListener(new AnimatorListenerAdapter() {
             @Override
@@ -574,6 +584,9 @@ class TabListRecyclerView
     }
 
     private Rect getRectOfComponent(View v) {
+        // If called before a thumbnail view exists or for list view then exit with null.
+        if (v == null) return null;
+
         Rect recyclerViewRect = new Rect();
         Rect componentRect = new Rect();
         getGlobalVisibleRect(recyclerViewRect);
@@ -582,37 +595,6 @@ class TabListRecyclerView
         // Get the relative position.
         componentRect.offset(-recyclerViewRect.left, -recyclerViewRect.top);
         return componentRect;
-    }
-
-    /**
-     * A structure for holding the a recycler view position and offset.
-     */
-    public static class RecyclerViewPosition {
-        private int mPosition;
-        private int mOffset;
-
-        /**
-         * @param position The position of the first visible item in the recyclerView.
-         * @param offset The scroll offset of the recyclerView;
-         */
-        public RecyclerViewPosition(int position, int offset) {
-            mPosition = position;
-            mOffset = offset;
-        }
-
-        /**
-         * @return the position of the first visible item in the RecyclerView.
-         */
-        public int getPosition() {
-            return mPosition;
-        }
-
-        /**
-         * @return the offset from the first item in the RecyclerView.
-         */
-        public int getOffset() {
-            return mOffset;
-        }
     }
 
     /**
@@ -754,12 +736,10 @@ class TabListRecyclerView
                 || action == R.id.move_tab_up || action == R.id.move_tab_down;
     }
 
-    @VisibleForTesting
     ImageView getShadowImageViewForTesting() {
         return mShadowImageView;
     }
 
-    @VisibleForTesting
     int getToolbarHairlineColorForTesting() {
         return mToolbarHairlineColor;
     }

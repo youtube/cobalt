@@ -31,6 +31,8 @@ class WebContentsModalDialogHost;
 
 namespace constrained_window {
 
+extern const void* kConstrainedWindowWidgetIdentifier;
+
 class ConstrainedWindowViewsClient;
 
 // Sets the ConstrainedWindowClient impl.
@@ -88,9 +90,10 @@ views::Widget* CreateBrowserModalDialogViews(
 views::Widget* CreateBrowserModalDialogViews(views::DialogDelegate* dialog,
                                              gfx::NativeWindow parent);
 
-// Shows a browser-modal dialog based on `dialog_model`.
-void ShowBrowserModal(std::unique_ptr<ui::DialogModel> dialog_model,
-                      gfx::NativeWindow parent);
+// Shows a browser-modal dialog based on `dialog_model`, returns pointer
+// to the created widget.
+views::Widget* ShowBrowserModal(std::unique_ptr<ui::DialogModel> dialog_model,
+                                gfx::NativeWindow parent);
 
 // Shows a web/tab-modal dialog based on `dialog_model` and returns its widget.
 views::Widget* ShowWebModal(std::unique_ptr<ui::DialogModel> dialog_model,

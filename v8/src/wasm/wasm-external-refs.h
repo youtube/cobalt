@@ -15,6 +15,9 @@
 
 namespace v8 {
 namespace internal {
+
+class Isolate;
+
 namespace wasm {
 
 using Address = uintptr_t;
@@ -75,13 +78,13 @@ V8_EXPORT_PRIVATE uint32_t word32_popcnt_wrapper(Address data);
 
 V8_EXPORT_PRIVATE uint32_t word64_popcnt_wrapper(Address data);
 
-V8_EXPORT_PRIVATE uint32_t word32_rol_wrapper(Address data);
+V8_EXPORT_PRIVATE uint32_t word32_rol_wrapper(uint32_t input, uint32_t shift);
 
-V8_EXPORT_PRIVATE uint32_t word32_ror_wrapper(Address data);
+V8_EXPORT_PRIVATE uint32_t word32_ror_wrapper(uint32_t input, uint32_t shift);
 
-V8_EXPORT_PRIVATE void word64_rol_wrapper(Address data);
+V8_EXPORT_PRIVATE uint64_t word64_rol_wrapper(uint64_t input, uint32_t shift);
 
-V8_EXPORT_PRIVATE void word64_ror_wrapper(Address data);
+V8_EXPORT_PRIVATE uint64_t word64_ror_wrapper(uint64_t input, uint32_t shift);
 
 V8_EXPORT_PRIVATE void float64_pow_wrapper(Address data);
 
@@ -124,12 +127,14 @@ void array_fill_wrapper(Address raw_array, uint32_t index, uint32_t length,
                         uint32_t emit_write_barrier, uint32_t raw_type,
                         Address initial_value_addr);
 
-using WasmTrapCallbackForTesting = void (*)();
+double flat_string_to_f64(Address string_address);
 
-V8_EXPORT_PRIVATE void set_trap_callback_for_testing(
-    WasmTrapCallbackForTesting callback);
+// Update the stack limit after a stack switch,
+// and preserve pending interrupts.
+void sync_stack_limit(Isolate* isolate);
 
-V8_EXPORT_PRIVATE void call_trap_callback_for_testing();
+intptr_t switch_to_the_central_stack(Isolate* isolate, uintptr_t sp);
+void switch_from_the_central_stack(Isolate* isolate);
 
 }  // namespace wasm
 }  // namespace internal

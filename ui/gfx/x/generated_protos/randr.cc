@@ -7,36 +7,19 @@
 //    ../../third_party/xcbproto/src \
 //    gen/ui/gfx/x \
 //    bigreq \
-//    composite \
-//    damage \
-//    dpms \
-//    dri2 \
 //    dri3 \
-//    ge \
 //    glx \
-//    present \
 //    randr \
-//    record \
 //    render \
-//    res \
 //    screensaver \
 //    shape \
 //    shm \
 //    sync \
-//    xc_misc \
-//    xevie \
-//    xf86dri \
-//    xf86vidmode \
 //    xfixes \
-//    xinerama \
 //    xinput \
 //    xkb \
-//    xprint \
 //    xproto \
-//    xselinux \
-//    xtest \
-//    xv \
-//    xvmc
+//    xtest
 
 #include "randr.h"
 
@@ -94,8 +77,9 @@ void ReadError<RandR::BadOutputError>(RandR::BadOutputError* error_,
   // major_opcode
   Read(&major_opcode, &buf);
 
-  DCHECK_LE(buf.offset, 32ul);
+  DUMP_WILL_BE_CHECK_LE(buf.offset, 32ul);
 }
+
 std::string RandR::BadCrtcError::ToString() const {
   std::stringstream ss_;
   ss_ << "RandR::BadCrtcError{";
@@ -137,8 +121,9 @@ void ReadError<RandR::BadCrtcError>(RandR::BadCrtcError* error_,
   // major_opcode
   Read(&major_opcode, &buf);
 
-  DCHECK_LE(buf.offset, 32ul);
+  DUMP_WILL_BE_CHECK_LE(buf.offset, 32ul);
 }
+
 std::string RandR::BadModeError::ToString() const {
   std::stringstream ss_;
   ss_ << "RandR::BadModeError{";
@@ -180,8 +165,9 @@ void ReadError<RandR::BadModeError>(RandR::BadModeError* error_,
   // major_opcode
   Read(&major_opcode, &buf);
 
-  DCHECK_LE(buf.offset, 32ul);
+  DUMP_WILL_BE_CHECK_LE(buf.offset, 32ul);
 }
+
 std::string RandR::BadProviderError::ToString() const {
   std::stringstream ss_;
   ss_ << "RandR::BadProviderError{";
@@ -223,8 +209,9 @@ void ReadError<RandR::BadProviderError>(RandR::BadProviderError* error_,
   // major_opcode
   Read(&major_opcode, &buf);
 
-  DCHECK_LE(buf.offset, 32ul);
+  DUMP_WILL_BE_CHECK_LE(buf.offset, 32ul);
 }
+
 template <>
 COMPONENT_EXPORT(X11)
 void ReadEvent<RandR::ScreenChangeNotifyEvent>(
@@ -289,7 +276,7 @@ void ReadEvent<RandR::ScreenChangeNotifyEvent>(
   // mheight
   Read(&mheight, &buf);
 
-  DCHECK_LE(buf.offset, 32ul);
+  DUMP_WILL_BE_CHECK_LE(buf.offset, 32ul);
 }
 
 template <>
@@ -514,7 +501,7 @@ void ReadEvent<RandR::NotifyEvent>(RandR::NotifyEvent* event_,
     Pad(&buf, 15);
   }
 
-  DCHECK_LE(buf.offset, 32ul);
+  DUMP_WILL_BE_CHECK_LE(buf.offset, 32ul);
 }
 
 Future<RandR::QueryVersionReply> RandR::QueryVersion(
@@ -593,7 +580,7 @@ std::unique_ptr<RandR::QueryVersionReply> detail::ReadReply<
   Pad(&buf, 16);
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  DUMP_WILL_BE_CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -712,7 +699,7 @@ std::unique_ptr<RandR::SetScreenConfigReply> detail::ReadReply<
   Pad(&buf, 10);
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  DUMP_WILL_BE_CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -906,7 +893,7 @@ std::unique_ptr<RandR::GetScreenInfoReply> detail::ReadReply<
   }
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  DUMP_WILL_BE_CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -989,7 +976,7 @@ std::unique_ptr<RandR::GetScreenSizeRangeReply> detail::ReadReply<
   Pad(&buf, 16);
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  DUMP_WILL_BE_CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -1223,7 +1210,7 @@ std::unique_ptr<RandR::GetScreenResourcesReply> detail::ReadReply<
   }
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  DUMP_WILL_BE_CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -1379,7 +1366,7 @@ std::unique_ptr<RandR::GetOutputInfoReply> detail::ReadReply<
   }
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  DUMP_WILL_BE_CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -1460,7 +1447,7 @@ std::unique_ptr<RandR::ListOutputPropertiesReply> detail::ReadReply<
   }
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  DUMP_WILL_BE_CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -1554,7 +1541,7 @@ std::unique_ptr<RandR::QueryOutputPropertyReply> detail::ReadReply<
   }
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  DUMP_WILL_BE_CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -1601,7 +1588,7 @@ Future<void> RandR::ConfigureOutputProperty(
   Pad(&buf, 2);
 
   // values
-  DCHECK_EQ(static_cast<size_t>(values_len), values.size());
+  DUMP_WILL_BE_CHECK_EQ(static_cast<size_t>(values_len), values.size());
   for (auto& values_elem : values) {
     // values_elem
     buf.Write(&values_elem);
@@ -1853,7 +1840,7 @@ std::unique_ptr<RandR::GetOutputPropertyReply> detail::ReadReply<
   }
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  DUMP_WILL_BE_CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -1944,7 +1931,7 @@ Future<RandR::CreateModeReply> RandR::CreateMode(
   }
 
   // name
-  DCHECK_EQ(static_cast<size_t>(name_len), name.size());
+  DUMP_WILL_BE_CHECK_EQ(static_cast<size_t>(name_len), name.size());
   for (auto& name_elem : name) {
     // name_elem
     buf.Write(&name_elem);
@@ -1993,7 +1980,7 @@ std::unique_ptr<RandR::CreateModeReply> detail::ReadReply<
   Pad(&buf, 20);
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  DUMP_WILL_BE_CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -2232,7 +2219,7 @@ std::unique_ptr<RandR::GetCrtcInfoReply> detail::ReadReply<
   }
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  DUMP_WILL_BE_CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -2293,7 +2280,7 @@ Future<RandR::SetCrtcConfigReply> RandR::SetCrtcConfig(
   Pad(&buf, 2);
 
   // outputs
-  DCHECK_EQ(static_cast<size_t>(outputs_len), outputs.size());
+  DUMP_WILL_BE_CHECK_EQ(static_cast<size_t>(outputs_len), outputs.size());
   for (auto& outputs_elem : outputs) {
     // outputs_elem
     buf.Write(&outputs_elem);
@@ -2352,7 +2339,7 @@ std::unique_ptr<RandR::SetCrtcConfigReply> detail::ReadReply<
   Pad(&buf, 20);
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  DUMP_WILL_BE_CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -2422,7 +2409,7 @@ std::unique_ptr<RandR::GetCrtcGammaSizeReply> detail::ReadReply<
   Pad(&buf, 22);
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  DUMP_WILL_BE_CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -2519,7 +2506,7 @@ std::unique_ptr<RandR::GetCrtcGammaReply> detail::ReadReply<
   }
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  DUMP_WILL_BE_CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -2562,21 +2549,21 @@ Future<void> RandR::SetCrtcGamma(const RandR::SetCrtcGammaRequest& request) {
   Pad(&buf, 2);
 
   // red
-  DCHECK_EQ(static_cast<size_t>(size), red.size());
+  DUMP_WILL_BE_CHECK_EQ(static_cast<size_t>(size), red.size());
   for (auto& red_elem : red) {
     // red_elem
     buf.Write(&red_elem);
   }
 
   // green
-  DCHECK_EQ(static_cast<size_t>(size), green.size());
+  DUMP_WILL_BE_CHECK_EQ(static_cast<size_t>(size), green.size());
   for (auto& green_elem : green) {
     // green_elem
     buf.Write(&green_elem);
   }
 
   // blue
-  DCHECK_EQ(static_cast<size_t>(size), blue.size());
+  DUMP_WILL_BE_CHECK_EQ(static_cast<size_t>(size), blue.size());
   for (auto& blue_elem : blue) {
     // blue_elem
     buf.Write(&blue_elem);
@@ -2772,7 +2759,7 @@ std::unique_ptr<RandR::GetScreenResourcesCurrentReply> detail::ReadReply<
   }
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  DUMP_WILL_BE_CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -2855,7 +2842,7 @@ Future<void> RandR::SetCrtcTransform(
   Pad(&buf, 2);
 
   // filter_name
-  DCHECK_EQ(static_cast<size_t>(filter_len), filter_name.size());
+  DUMP_WILL_BE_CHECK_EQ(static_cast<size_t>(filter_len), filter_name.size());
   for (auto& filter_name_elem : filter_name) {
     // filter_name_elem
     buf.Write(&filter_name_elem);
@@ -2865,7 +2852,8 @@ Future<void> RandR::SetCrtcTransform(
   Align(&buf, 4);
 
   // filter_params
-  DCHECK_EQ(static_cast<size_t>(filter_params_len), filter_params.size());
+  DUMP_WILL_BE_CHECK_EQ(static_cast<size_t>(filter_params_len),
+                        filter_params.size());
   for (auto& filter_params_elem : filter_params) {
     // filter_params_elem
     buf.Write(&filter_params_elem);
@@ -3093,7 +3081,7 @@ std::unique_ptr<RandR::GetCrtcTransformReply> detail::ReadReply<
   }
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  DUMP_WILL_BE_CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -3211,7 +3199,7 @@ std::unique_ptr<RandR::GetPanningReply> detail::ReadReply<
   Read(&border_bottom, &buf);
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  DUMP_WILL_BE_CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -3349,7 +3337,7 @@ std::unique_ptr<RandR::SetPanningReply> detail::ReadReply<
   Read(&timestamp, &buf);
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  DUMP_WILL_BE_CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -3456,7 +3444,7 @@ std::unique_ptr<RandR::GetOutputPrimaryReply> detail::ReadReply<
   Read(&output, &buf);
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  DUMP_WILL_BE_CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -3539,7 +3527,7 @@ std::unique_ptr<RandR::GetProvidersReply> detail::ReadReply<
   }
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  DUMP_WILL_BE_CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -3683,7 +3671,7 @@ std::unique_ptr<RandR::GetProviderInfoReply> detail::ReadReply<
   }
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  DUMP_WILL_BE_CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -3854,7 +3842,7 @@ std::unique_ptr<RandR::ListProviderPropertiesReply> detail::ReadReply<
   }
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  DUMP_WILL_BE_CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -3948,7 +3936,7 @@ std::unique_ptr<RandR::QueryProviderPropertyReply> detail::ReadReply<
   }
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  DUMP_WILL_BE_CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -3995,7 +3983,7 @@ Future<void> RandR::ConfigureProviderProperty(
   Pad(&buf, 2);
 
   // values
-  DCHECK_EQ(static_cast<size_t>(values_len), values.size());
+  DUMP_WILL_BE_CHECK_EQ(static_cast<size_t>(values_len), values.size());
   for (auto& values_elem : values) {
     // values_elem
     buf.Write(&values_elem);
@@ -4242,7 +4230,7 @@ std::unique_ptr<RandR::GetProviderPropertyReply> detail::ReadReply<
   data = buffer->ReadAndAdvance((num_items) * ((format) / (8)));
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  DUMP_WILL_BE_CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -4384,7 +4372,7 @@ std::unique_ptr<RandR::GetMonitorsReply> detail::ReadReply<
   }
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  DUMP_WILL_BE_CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -4460,7 +4448,7 @@ Future<void> RandR::SetMonitor(const RandR::SetMonitorRequest& request) {
     buf.Write(&height_in_millimeters);
 
     // outputs
-    DCHECK_EQ(static_cast<size_t>(nOutput), outputs.size());
+    DUMP_WILL_BE_CHECK_EQ(static_cast<size_t>(nOutput), outputs.size());
     for (auto& outputs_elem : outputs) {
       // outputs_elem
       buf.Write(&outputs_elem);
@@ -4556,14 +4544,14 @@ Future<RandR::CreateLeaseReply> RandR::CreateLease(
   buf.Write(&num_outputs);
 
   // crtcs
-  DCHECK_EQ(static_cast<size_t>(num_crtcs), crtcs.size());
+  DUMP_WILL_BE_CHECK_EQ(static_cast<size_t>(num_crtcs), crtcs.size());
   for (auto& crtcs_elem : crtcs) {
     // crtcs_elem
     buf.Write(&crtcs_elem);
   }
 
   // outputs
-  DCHECK_EQ(static_cast<size_t>(num_outputs), outputs.size());
+  DUMP_WILL_BE_CHECK_EQ(static_cast<size_t>(num_outputs), outputs.size());
   for (auto& outputs_elem : outputs) {
     // outputs_elem
     buf.Write(&outputs_elem);
@@ -4616,7 +4604,7 @@ std::unique_ptr<RandR::CreateLeaseReply> detail::ReadReply<
   Pad(&buf, 24);
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  DUMP_WILL_BE_CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }

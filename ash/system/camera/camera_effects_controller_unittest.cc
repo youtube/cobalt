@@ -11,6 +11,7 @@
 #include "ash/shell.h"
 #include "ash/style/tab_slider.h"
 #include "ash/style/tab_slider_button.h"
+#include "ash/system/camera/autozoom_controller_impl.h"
 #include "ash/system/status_area_widget.h"
 #include "ash/system/status_area_widget_test_helper.h"
 #include "ash/system/video_conference/bubble/bubble_view_ids.h"
@@ -23,6 +24,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
+#include "media/capture/video/chromeos/mojom/cros_camera_service.mojom-shared.h"
 #include "media/capture/video/chromeos/mojom/effects_pipeline.mojom.h"
 
 namespace ash {
@@ -31,9 +33,10 @@ class CameraEffectsControllerTest : public NoSessionAshTestBase {
  public:
   // NoSessionAshTestBase:
   void SetUp() override {
-    scoped_feature_list_.InitWithFeatures({features::kVideoConference}, {});
-    base::CommandLine::ForCurrentProcess()->AppendSwitch(
-        switches::kCameraEffectsSupportedByHardware);
+    scoped_feature_list_.InitWithFeatures(
+        {features::kVideoConference,
+         features::kCameraEffectsSupportedByHardware},
+        {});
 
     // Instantiates a fake controller (the real one is created in
     // ChromeBrowserMainExtraPartsAsh::PreProfileInit() which is not called in
@@ -76,11 +79,18 @@ class CameraEffectsControllerTest : public NoSessionAshTestBase {
         ->GetInteger(prefs::kBackgroundBlur);
   }
 
-  // Toggles portrait relighting state.
+  // Simulates toggling portrait relighting effect state. Note that the `state`
+  // argument doesn't matter for toggle effects.
   void TogglePortraitRelightingEffectState() {
-    // The `state` argument doesn't matter for toggle effects.
     camera_effects_controller_->OnEffectControlActivated(
         VcEffectId::kPortraitRelighting, /*state=*/absl::nullopt);
+  }
+
+  // Simulates toggling camera framing effect state. Note that the `state`
+  // argument doesn't matter for toggle effects.
+  void ToggleCameraFramingEffectState() {
+    camera_effects_controller_->OnEffectControlActivated(
+        VcEffectId::kCameraFraming, /*state=*/absl::nullopt);
   }
 
   // Gets the state of the portrait relighting effect from the effect's host,
@@ -101,6 +111,23 @@ class CameraEffectsControllerTest : public NoSessionAshTestBase {
         ->GetBoolean(prefs::kPortraitRelighting);
   }
 
+  void SetAutozoomSupportState(bool autozoom_supported) {
+    auto* autozoom_controller = Shell::Get()->autozoom_controller();
+
+    autozoom_controller->SetAutozoomSupported(autozoom_supported);
+
+    if (!autozoom_supported) {
+      return;
+    }
+
+    // Autozoom is only supported if there's an active camera client, so we
+    // simulate that here.
+    autozoom_controller->OnActiveClientChange(
+        cros::mojom::CameraClientType::ASH_CHROME,
+        /*is_new_active_client=*/true,
+        /*active_device_ids=*/{"fake_id"});
+  }
+
   CameraEffectsController* camera_effects_controller() {
     return camera_effects_controller_;
   }
@@ -108,8 +135,8 @@ class CameraEffectsControllerTest : public NoSessionAshTestBase {
   FakeVideoConferenceTrayController* controller() { return controller_.get(); }
 
  protected:
-  raw_ptr<CameraEffectsController, ExperimentalAsh> camera_effects_controller_ =
-      nullptr;
+  raw_ptr<CameraEffectsController, DanglingUntriaged | ExperimentalAsh>
+      camera_effects_controller_ = nullptr;
   std::unique_ptr<FakeVideoConferenceTrayController> controller_;
   base::test::ScopedFeatureList scoped_feature_list_;
 };
@@ -351,6 +378,41 @@ TEST_F(CameraEffectsControllerTest, BackgroundBlurMetricsRecord) {
   histogram_tester.ExpectBucketCount(
       "Ash.VideoConferenceTray.BackgroundBlur.Click",
       CameraEffectsController::BackgroundBlurState::kOff, 1);
+}
+
+TEST_F(CameraEffectsControllerTest, CameraFramingSupportState) {
+  SimulateUserLogin("testuser@gmail.com");
+
+  // By default autozoom is not supported, so the effect is not added.
+  EXPECT_FALSE(
+      camera_effects_controller()->GetEffectById(VcEffectId::kCameraFraming));
+
+  SetAutozoomSupportState(true);
+
+  EXPECT_TRUE(
+      camera_effects_controller()->GetEffectById(VcEffectId::kCameraFraming));
+
+  SetAutozoomSupportState(false);
+
+  EXPECT_FALSE(
+      camera_effects_controller()->GetEffectById(VcEffectId::kCameraFraming));
+}
+
+TEST_F(CameraEffectsControllerTest, CameraFramingToggle) {
+  SetAutozoomSupportState(true);
+
+  SimulateUserLogin("testuser@gmail.com");
+
+  ASSERT_EQ(Shell::Get()->autozoom_controller()->GetState(),
+            cros::mojom::CameraAutoFramingState::OFF);
+
+  ToggleCameraFramingEffectState();
+  EXPECT_EQ(Shell::Get()->autozoom_controller()->GetState(),
+            cros::mojom::CameraAutoFramingState::ON_SINGLE);
+
+  ToggleCameraFramingEffectState();
+  EXPECT_EQ(Shell::Get()->autozoom_controller()->GetState(),
+            cros::mojom::CameraAutoFramingState::OFF);
 }
 
 }  // namespace ash

@@ -5,8 +5,11 @@
 #include "third_party/blink/renderer/core/layout/ng/ng_fragment_builder.h"
 
 #include "base/containers/contains.h"
+#include "third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom-shared.h"
+#include "third_party/blink/renderer/core/layout/ng/ng_fragmentation_utils.h"
 #include "third_party/blink/renderer/core/layout/ng/ng_physical_box_fragment.h"
 #include "third_party/blink/renderer/core/layout/ng/ng_physical_fragment.h"
+#include "third_party/blink/renderer/core/style/computed_style_base_constants.h"
 
 namespace blink {
 
@@ -23,41 +26,124 @@ NGLogicalAnchorQuery::SetOptions AnchorQuerySetOptions(
     const NGPhysicalFragment& fragment,
     const NGLayoutInputNode& container,
     bool maybe_out_of_order_if_oof) {
-  // If the |fragment| is not absolutely positioned, it's a valid anchor.
+  // If the |fragment| is not absolutely positioned, it's an in-flow anchor.
   // https://drafts.csswg.org/css-anchor-1/#determining
-  if (!fragment.IsOutOfFlowPositioned())
-    return NGLogicalAnchorQuery::SetOptions::kValidInOrder;
+  if (!fragment.IsOutOfFlowPositioned()) {
+    return NGLogicalAnchorQuery::SetOptions::kInFlow;
+  }
 
   // If the OOF |fragment| is not in a block fragmentation context, it's a child
-  // of its containing block. Make it invalid.
+  // of its containing block. Make it out-of-flow.
   DCHECK(fragment.GetLayoutObject());
-  if (!maybe_out_of_order_if_oof)
-    return NGLogicalAnchorQuery::SetOptions::kInvalid;
+  if (!maybe_out_of_order_if_oof) {
+    return NGLogicalAnchorQuery::SetOptions::kOutOfFlow;
+  }
 
   // |container| is null if it's an inline box.
-  if (!container.GetLayoutBox())
-    return NGLogicalAnchorQuery::SetOptions::kInvalid;
+  if (!container.GetLayoutBox()) {
+    return NGLogicalAnchorQuery::SetOptions::kOutOfFlow;
+  }
 
   // If the OOF |fragment| is in a block fragmentation context, it's a child of
   // the fragmentation context root. If its containing block is the |container|,
-  // make it invalid.
+  // make it out-of-flow.
   const LayoutObject* layout_object = fragment.GetLayoutObject();
   const LayoutObject* containing_block = layout_object->Container();
   DCHECK(containing_block);
-  if (containing_block == container.GetLayoutBox())
-    return NGLogicalAnchorQuery::SetOptions::kInvalid;
+  if (containing_block == container.GetLayoutBox()) {
+    return NGLogicalAnchorQuery::SetOptions::kOutOfFlow;
+  }
   // Otherwise its containing block is a descendant of the block fragmentation
-  // context, so it's valid, but the call order is not in the tree order.
-  return NGLogicalAnchorQuery::SetOptions::kValidOutOfOrder;
+  // context, so it's in-flow.
+  return NGLogicalAnchorQuery::SetOptions::kInFlow;
 }
 
 }  // namespace
+
+NGPhysicalFragment::NGBoxType NGFragmentBuilder::BoxType() const {
+  if (box_type_ != NGPhysicalFragment::NGBoxType::kNormalBox) {
+    return box_type_;
+  }
+
+  // When implicit, compute from LayoutObject.
+  DCHECK(layout_object_);
+  if (layout_object_->IsFloating()) {
+    return NGPhysicalFragment::NGBoxType::kFloating;
+  }
+  if (layout_object_->IsOutOfFlowPositioned()) {
+    return NGPhysicalFragment::NGBoxType::kOutOfFlowPositioned;
+  }
+  if (layout_object_->IsRenderedLegend()) {
+    return NGPhysicalFragment::NGBoxType::kRenderedLegend;
+  }
+  if (layout_object_->IsInline()) {
+    // Check |IsAtomicInlineLevel()| after |IsInline()| because |LayoutReplaced|
+    // sets |IsAtomicInlineLevel()| even when it's block-level. crbug.com/567964
+    if (layout_object_->IsAtomicInlineLevel()) {
+      return NGPhysicalFragment::NGBoxType::kAtomicInline;
+    }
+    return NGPhysicalFragment::NGBoxType::kInlineBox;
+  }
+  DCHECK(node_) << "Must call SetBoxType if there is no node";
+  DCHECK_EQ(is_new_fc_, node_.CreatesNewFormattingContext())
+      << "Forgot to call builder.SetIsNewFormattingContext";
+  if (is_new_fc_) {
+    return NGPhysicalFragment::NGBoxType::kBlockFlowRoot;
+  }
+  return NGPhysicalFragment::NGBoxType::kNormalBox;
+}
 
 void NGFragmentBuilder::ReplaceChild(wtf_size_t index,
                                      const NGPhysicalFragment& new_child,
                                      const LogicalOffset offset) {
   DCHECK_LT(index, children_.size());
   children_[index] = NGLogicalLink{std::move(&new_child), offset};
+}
+
+HeapVector<Member<LayoutBoxModelObject>>&
+NGFragmentBuilder::EnsureStickyDescendants() {
+  if (!sticky_descendants_) {
+    sticky_descendants_ =
+        MakeGarbageCollected<HeapVector<Member<LayoutBoxModelObject>>>();
+  }
+  return *sticky_descendants_;
+}
+
+void NGFragmentBuilder::PropagateStickyDescendants(
+    const NGPhysicalFragment& child) {
+  if (child.HasStickyConstrainedPosition()) {
+    EnsureStickyDescendants().push_front(
+        To<LayoutBoxModelObject>(child.GetMutableLayoutObject()));
+  }
+
+  if (const auto* child_sticky_descendants =
+          child.PropagatedStickyDescendants()) {
+    EnsureStickyDescendants().AppendVector(*child_sticky_descendants);
+  }
+}
+
+HeapHashSet<Member<LayoutBox>>& NGFragmentBuilder::EnsureSnapAreas() {
+  if (!snap_areas_) {
+    snap_areas_ = MakeGarbageCollected<HeapHashSet<Member<LayoutBox>>>();
+  }
+  return *snap_areas_;
+}
+
+void NGFragmentBuilder::PropagateSnapAreas(const NGPhysicalFragment& child) {
+  if (child.IsSnapArea()) {
+    EnsureSnapAreas().insert(To<LayoutBox>(child.GetMutableLayoutObject()));
+  }
+
+  if (const auto* child_snap_areas = child.PropagatedSnapAreas()) {
+    auto& snap_areas = EnsureSnapAreas();
+    for (auto& child_snap_area : *child_snap_areas) {
+      snap_areas.insert(child_snap_area);
+    }
+  }
+
+  if (child.IsSnapArea() && child.PropagatedSnapAreas()) {
+    child.GetDocument().CountUse(WebFeature::kScrollSnapNestedSnapAreas);
+  }
 }
 
 NGLogicalAnchorQuery& NGFragmentBuilder::EnsureAnchorQuery() {
@@ -80,11 +166,14 @@ void NGFragmentBuilder::PropagateChildAnchors(
     options = AnchorQuerySetOptions(
         child, node_, IsBlockFragmentationContextRoot() || HasItems());
     if (child.Style().AnchorName()) {
-      EnsureAnchorQuery().Set(child.Style().AnchorName(), child, rect,
-                              *options);
+      for (const ScopedCSSName* name : child.Style().AnchorName()->GetNames()) {
+        EnsureAnchorQuery().Set(name, *child.GetLayoutObject(), rect, *options);
+      }
     }
-    if (child.IsImplicitAnchor())
-      EnsureAnchorQuery().Set(child.GetLayoutObject(), child, rect, *options);
+    if (child.IsImplicitAnchor()) {
+      EnsureAnchorQuery().Set(child.GetLayoutObject(), *child.GetLayoutObject(),
+                              rect, *options);
+    }
   }
 
   // Propagate any descendants' anchor references.
@@ -99,24 +188,80 @@ void NGFragmentBuilder::PropagateChildAnchors(
   }
 }
 
+void NGFragmentBuilder::PropagateFromLayoutResultAndFragment(
+    const NGLayoutResult& child_result,
+    LogicalOffset child_offset,
+    LogicalOffset relative_offset,
+    const NGInlineContainer<LogicalOffset>* inline_container) {
+  PropagateFromLayoutResult(child_result);
+  PropagateFromFragment(child_result.PhysicalFragment(), child_offset,
+                        relative_offset, inline_container);
+}
+
+void NGFragmentBuilder::PropagateFromLayoutResult(
+    const NGLayoutResult& child_result) {
+  has_orthogonal_fallback_size_descendant_ |=
+      child_result.HasOrthogonalFallbackInlineSize() ||
+      child_result.HasOrthogonalFallbackSizeDescendant();
+}
+
+ScrollStartTargetCandidates& NGFragmentBuilder::EnsureScrollStartTargets() {
+  if (!scroll_start_targets_) {
+    scroll_start_targets_ = MakeGarbageCollected<ScrollStartTargetCandidates>();
+  }
+  return *scroll_start_targets_;
+}
+
+void NGFragmentBuilder::PropagateScrollStartTarget(
+    const NGPhysicalFragment& child) {
+  auto UpdateScrollStartTarget = [](Member<const LayoutBox>& old_target,
+                                    const LayoutBox* new_target) {
+    if (new_target &&
+        (!old_target || old_target->IsBeforeInPreOrder(*new_target))) {
+      old_target = new_target;
+    }
+  };
+  const auto* child_box = DynamicTo<LayoutBox>(child.GetLayoutObject());
+  if (child.Style().ScrollStartTargetY() != EScrollStartTarget::kNone) {
+    UpdateScrollStartTarget(EnsureScrollStartTargets().y, child_box);
+  }
+  if (child.Style().ScrollStartTargetX() != EScrollStartTarget::kNone) {
+    UpdateScrollStartTarget(EnsureScrollStartTargets().x, child_box);
+  }
+
+  // Prefer deeper scroll-start-targets.
+  if (const auto* targets = child.PropagatedScrollStartTargets()) {
+    UpdateScrollStartTarget(EnsureScrollStartTargets().y, targets->y);
+    UpdateScrollStartTarget(EnsureScrollStartTargets().x, targets->x);
+  }
+}
+
 // Propagate data in |child| to this fragment. The |child| will then be added as
 // a child fragment or a child fragment item.
-void NGFragmentBuilder::PropagateChildData(
+void NGFragmentBuilder::PropagateFromFragment(
     const NGPhysicalFragment& child,
     LogicalOffset child_offset,
     LogicalOffset relative_offset,
-    const NGInlineContainer<LogicalOffset>* inline_container,
-    absl::optional<LayoutUnit> adjustment_for_oof_propagation) {
+    const NGInlineContainer<LogicalOffset>* inline_container) {
   // Propagate anchors from the |child|. Anchors are in |OutOfFlowData| but the
   // |child| itself may have an anchor.
   PropagateChildAnchors(child, child_offset + relative_offset);
 
-  if (adjustment_for_oof_propagation &&
-      child.NeedsOOFPositionedInfoPropagation()) {
+  PropagateStickyDescendants(child);
+  if (RuntimeEnabledFeatures::LayoutNewSnapLogicEnabled()) {
+    PropagateSnapAreas(child);
+  }
+  PropagateScrollStartTarget(child);
+
+  if (child.NeedsOOFPositionedInfoPropagation() &&
+      !disable_oof_descendants_propagation_) {
+    LayoutUnit adjustment_for_oof_propagation =
+        BlockOffsetAdjustmentForFragmentainer();
+
     PropagateOOFPositionedInfo(child, child_offset, relative_offset,
                                /* offset_adjustment */ LogicalOffset(),
                                inline_container,
-                               *adjustment_for_oof_propagation);
+                               adjustment_for_oof_propagation);
   }
 
   // We only need to report if inflow or floating elements depend on the
@@ -150,10 +295,10 @@ void NGFragmentBuilder::PropagateChildData(
   // Compute |has_floating_descendants_for_paint_| to optimize tree traversal
   // in paint.
   if (!has_floating_descendants_for_paint_) {
-    if (child.IsFloating() || child.IsLegacyLayoutRoot() ||
-        (child.HasFloatingDescendantsForPaint() &&
-         !child.IsPaintedAtomically()))
+    if (child.IsFloating() || (child.HasFloatingDescendantsForPaint() &&
+                               !child.IsPaintedAtomically())) {
       has_floating_descendants_for_paint_ = true;
+    }
   }
 
   // The |has_adjoining_object_descendants_| is used to determine if a fragment
@@ -179,38 +324,19 @@ void NGFragmentBuilder::PropagateChildData(
           child_break_tokens_.push_back(child_break_token);
         break;
       case NGPhysicalFragment::kFragmentLineBox:
-        const auto* inline_break_token =
-            To<NGInlineBreakToken>(child_break_token);
-        if (inline_break_token) {
-          // TODO(mstensho): Orphans / widows calculation is wrong when regular
-          // inline layout gets interrupted by a block-in-inline. We need to
-          // reset line_count_ when this happens.
-          if (UNLIKELY(inline_break_token->BlockInInlineBreakToken())) {
-            if (inline_break_token->BlockInInlineBreakToken()->IsAtBlockEnd()) {
-              // We were resuming a block in inline, and we broke again, and
-              // we're in a parallel flow. To be resumed in the next
-              // fragmentainer.
-              child_break_tokens_.push_back(inline_break_token);
-              break;
-            }
-          }
-          if (UNLIKELY(inline_break_token->SubBreakTokenInParallelFlow())) {
-            // We broke inside a block inside an inline which establised a
-            // parallel flow in the current fragmentainer. This creates two
-            // inline break tokens - one for the actual inline content to resume
-            // in the current fragmentainer, and one for the block-in-inline to
-            // resume in the next fragmentainer. Look inside the break token for
-            // actual inline layout (it will be picked up and resumed by the
-            // current layout algorithm), and take the sub break token with the
-            // block-in-inline and add it to the break token list, so that it
-            // gets resumed in the next fragmentainer.
-            const auto* sub_break_token =
-                inline_break_token->SubBreakTokenInParallelFlow();
-            DCHECK(sub_break_token->BlockInInlineBreakToken());
-            child_break_tokens_.push_back(sub_break_token);
-          }
+        if (child.IsLineForParallelFlow()) {
+          // This is a line that only contains a resumed float / block after a
+          // fragmentation break. It should not affect orphans / widows
+          // calculation.
+          break;
         }
 
+        const auto* inline_break_token =
+            To<InlineBreakToken>(child_break_token);
+        // TODO(mstensho): Orphans / widows calculation is wrong when regular
+        // inline layout gets interrupted by a block-in-inline. We need to reset
+        // line_count_ when this happens.
+        //
         // We only care about the break token from the last line box added. This
         // is where we'll resume if we decide to block-fragment. Note that
         // child_break_token is nullptr if this is the last line to be generated
@@ -247,11 +373,11 @@ void NGFragmentBuilder::AddChildInternal(const NGPhysicalFragment* child,
 void NGFragmentBuilder::AddOutOfFlowChildCandidate(
     NGBlockNode child,
     const LogicalOffset& child_offset,
-    NGLogicalStaticPosition::InlineEdge inline_edge,
-    NGLogicalStaticPosition::BlockEdge block_edge) {
+    LogicalStaticPosition::InlineEdge inline_edge,
+    LogicalStaticPosition::BlockEdge block_edge) {
   DCHECK(child);
   oof_positioned_candidates_.emplace_back(
-      child, NGLogicalStaticPosition{child_offset, inline_edge, block_edge},
+      child, LogicalStaticPosition{child_offset, inline_edge, block_edge},
       NGInlineContainer<LogicalOffset>());
 }
 
@@ -271,9 +397,9 @@ void NGFragmentBuilder::AddOutOfFlowInlineChildCandidate(
   // parent element to correctly determine an OOF childs static position.
   AddOutOfFlowChildCandidate(child, child_offset,
                              IsLtr(inline_container_direction)
-                                 ? NGLogicalStaticPosition::kInlineStart
-                                 : NGLogicalStaticPosition::kInlineEnd,
-                             NGLogicalStaticPosition::kBlockStart);
+                                 ? LogicalStaticPosition::kInlineStart
+                                 : LogicalStaticPosition::kInlineEnd,
+                             LogicalStaticPosition::kBlockStart);
 }
 
 void NGFragmentBuilder::AddOutOfFlowFragmentainerDescendant(
@@ -368,6 +494,14 @@ void NGFragmentBuilder::MoveOutOfFlowDescendantCandidatesToDescendants() {
   }
 }
 
+LayoutUnit NGFragmentBuilder::BlockOffsetAdjustmentForFragmentainer(
+    LayoutUnit fragmentainer_consumed_block_size) const {
+  if (IsFragmentainerBoxType() && PreviousBreakToken()) {
+    return PreviousBreakToken()->ConsumedBlockSize();
+  }
+  return fragmentainer_consumed_block_size;
+}
+
 void NGFragmentBuilder::PropagateOOFPositionedInfo(
     const NGPhysicalFragment& fragment,
     LogicalOffset offset,
@@ -390,7 +524,7 @@ void NGFragmentBuilder::PropagateOOFPositionedInfo(
   const WritingModeConverter converter(GetWritingDirection(), fragment.Size());
   for (const auto& descendant : fragment.OutOfFlowPositionedDescendants()) {
     NGBlockNode node = descendant.Node();
-    NGLogicalStaticPosition static_position =
+    LogicalStaticPosition static_position =
         descendant.StaticPosition().ConvertToLogical(converter);
 
     NGInlineContainer<LogicalOffset> new_inline_container;
@@ -435,7 +569,7 @@ void NGFragmentBuilder::PropagateOOFPositionedInfo(
       // fragment, since it hasn't finished layout yet. But we still need to
       // propagate the fixed-positioned descendant, so that it gets laid out
       // inside the fragmentation context (and repeated on every page), instead
-      // of becoming a direct child of the LayoutNGView fragment (and thus a
+      // of becoming a direct child of the LayoutView fragment (and thus a
       // sibling of the page fragments).
       if (fixedpos_containing_block &&
           (fixedpos_containing_block->Fragment() || node_.IsPaginatedRoot())) {
@@ -658,7 +792,7 @@ void NGFragmentBuilder::PropagateOOFFragmentainerDescendants(
     // fragment.
     const WritingModeConverter containing_block_converter(
         GetWritingDirection(), containing_block_fragment->Size());
-    NGLogicalStaticPosition static_position =
+    LogicalStaticPosition static_position =
         descendant.StaticPosition().ConvertToLogical(
             containing_block_converter);
 
@@ -777,6 +911,17 @@ void NGFragmentBuilder::AdjustFixedposContainerInfo(
         *fixedpos_containing_block_fragment = box_fragment;
     }
   }
+}
+
+void NGFragmentBuilder::PropagateSpaceShortage(
+    absl::optional<LayoutUnit> space_shortage) {
+  // Space shortage should only be reported when we already have a tentative
+  // fragmentainer block-size. It's meaningless to talk about space shortage
+  // in the initial column balancing pass, because then we have no
+  // fragmentainer block-size at all, so who's to tell what's too short or
+  // not?
+  DCHECK(!IsInitialColumnBalancingPass());
+  UpdateMinimalSpaceShortage(space_shortage, &minimal_space_shortage_);
 }
 
 const NGLayoutResult* NGFragmentBuilder::Abort(NGLayoutResult::EStatus status) {

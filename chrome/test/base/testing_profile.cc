@@ -92,9 +92,9 @@
 #include "content/public/browser/cookie_store_factory.h"
 #include "content/public/browser/network_service_instance.h"
 #include "content/public/browser/render_process_host.h"
+#include "content/public/browser/resource_context.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/browser/zoom_level_delegate.h"
-#include "content/public/test/mock_resource_context.h"
 #include "content/public/test/test_utils.h"
 #include "extensions/buildflags/buildflags.h"
 #include "extensions/common/constants.h"
@@ -111,7 +111,6 @@
 #include "chrome/browser/web_applications/test/fake_web_app_provider.h"
 #include "chrome/browser/web_applications/web_app_provider_factory.h"
 #include "components/guest_view/browser/guest_view_manager.h"
-#include "extensions/browser/event_router_factory.h"
 #include "extensions/browser/extension_pref_value_map.h"
 #include "extensions/browser/extension_pref_value_map_factory.h"
 #include "extensions/browser/extension_prefs.h"
@@ -379,20 +378,17 @@ void TestingProfile::Init(bool is_supervised_profile) {
     bool extensions_disabled =
         base::CommandLine::ForCurrentProcess()->HasSwitch(
             switches::kDisableExtensions);
-    std::unique_ptr<extensions::ExtensionPrefs> extension_prefs(
+    std::unique_ptr<extensions::ExtensionPrefs> extension_prefs =
         extensions::ExtensionPrefs::Create(
             this, GetPrefs(), extensions_path_,
             ExtensionPrefValueMapFactory::GetForBrowserContext(this),
             extensions_disabled,
-            std::vector<extensions::EarlyExtensionPrefsObserver*>()));
+            std::vector<extensions::EarlyExtensionPrefsObserver*>());
     extensions::ExtensionPrefsFactory::GetInstance()->SetInstanceForTesting(
         this, std::move(extension_prefs));
 
     extensions::ExtensionSystemFactory::GetInstance()->SetTestingFactory(
         this, base::BindRepeating(&extensions::TestExtensionSystem::Build));
-
-    extensions::EventRouterFactory::GetInstance()->SetTestingFactory(
-        this, BrowserContextKeyedServiceFactory::TestingFactory());
 
     web_app::WebAppProviderFactory::GetInstance()->SetTestingFactory(
         this, base::BindRepeating(&web_app::FakeWebAppProvider::BuildDefault));
@@ -665,10 +661,14 @@ const Profile* TestingProfile::GetOriginalProfile() const {
   return this;
 }
 
-void TestingProfile::SetIsSupervisedProfile() {
+void TestingProfile::SetIsSupervisedProfile(bool is_supervised_profile) {
 #if BUILDFLAG(ENABLE_SUPERVISED_USERS)
-  GetPrefs()->SetString(prefs::kSupervisedUserId,
-                        supervised_user::kChildAccountSUID);
+  if (is_supervised_profile) {
+    GetPrefs()->SetString(prefs::kSupervisedUserId,
+                          supervised_user::kChildAccountSUID);
+  } else {
+    GetPrefs()->ClearPref(prefs::kSupervisedUserId);
+  }
 #else
   NOTREACHED() << "Supervised users are not enabled";
 #endif
@@ -793,9 +793,9 @@ content::ResourceContext* TestingProfile::GetResourceContext() {
   // non compliant tests: SpellingMenuObserverTest.SuggestionsForceTopSeparator
   if (!resource_context_) {
     resource_context_ =
-        std::unique_ptr<content::MockResourceContext,
+        std::unique_ptr<content::ResourceContext,
                         content::BrowserThread::DeleteOnIOThread>(
-            new content::MockResourceContext);
+            new content::ResourceContext);
   }
   return resource_context_.get();
 }
@@ -846,11 +846,6 @@ TestingProfile::GetPolicySchemaRegistryService() {
 policy::UserCloudPolicyManagerAsh*
 TestingProfile::GetUserCloudPolicyManagerAsh() {
   return user_cloud_policy_manager_.get();
-}
-
-policy::ActiveDirectoryPolicyManager*
-TestingProfile::GetActiveDirectoryPolicyManager() {
-  return nullptr;
 }
 #else
 policy::UserCloudPolicyManager* TestingProfile::GetUserCloudPolicyManager() {

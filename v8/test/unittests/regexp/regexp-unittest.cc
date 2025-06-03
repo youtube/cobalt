@@ -657,15 +657,13 @@ static Handle<JSRegExp> CreateJSRegExp(Handle<String> source, Handle<Code> code,
   return regexp;
 }
 
-static ArchRegExpMacroAssembler::Result Execute(JSRegExp regexp, String input,
-                                                int start_offset,
-                                                Address input_start,
-                                                Address input_end,
-                                                int* captures) {
+static ArchRegExpMacroAssembler::Result Execute(
+    Tagged<JSRegExp> regexp, Tagged<String> input, int start_offset,
+    Address input_start, Address input_end, int* captures) {
   return static_cast<NativeRegExpMacroAssembler::Result>(
       NativeRegExpMacroAssembler::ExecuteForTesting(
-          input, start_offset, reinterpret_cast<byte*>(input_start),
-          reinterpret_cast<byte*>(input_end), captures, 0,
+          input, start_offset, reinterpret_cast<uint8_t*>(input_start),
+          reinterpret_cast<uint8_t*>(input_end), captures, 0,
           reinterpret_cast<i::Isolate*>(v8::Isolate::GetCurrent()), regexp));
 }
 
@@ -1787,12 +1785,12 @@ TEST_F(RegExpTest, PeepholeNoChange) {
   v8_flags.regexp_peephole_optimization = false;
   Handle<ByteArray> array = Handle<ByteArray>::cast(orig.GetCode(source));
   int length = array->length();
-  byte* byte_array = array->GetDataStartAddress();
+  uint8_t* byte_array = array->begin();
 
   v8_flags.regexp_peephole_optimization = true;
   Handle<ByteArray> array_optimized =
       Handle<ByteArray>::cast(opt.GetCode(source));
-  byte* byte_array_optimized = array_optimized->GetDataStartAddress();
+  uint8_t* byte_array_optimized = array_optimized->begin();
 
   CHECK_EQ(0, memcmp(byte_array, byte_array_optimized, length));
 }
@@ -2181,8 +2179,8 @@ TEST_F(RegExpTest, PeepholeLabelFixupsInside) {
   for (int label_idx = 0; label_idx < 3; label_idx++) {
     for (int pos_idx = 0; pos_idx < 2; pos_idx++) {
       int label_pos = label_positions[label_idx][pos_idx] + pos_fixups[pos_idx];
-      int jump_address = *reinterpret_cast<uint32_t*>(
-          array_optimized->GetDataStartAddress() + label_pos);
+      int jump_address =
+          *reinterpret_cast<uint32_t*>(array_optimized->begin() + label_pos);
       int expected_jump_address =
           labels[label_idx]->pos() + target_fixups[label_idx];
       CHECK_EQ(expected_jump_address, jump_address);
@@ -2291,8 +2289,8 @@ TEST_F(RegExpTest, PeepholeLabelFixupsComplex) {
   for (int label_idx = 0; label_idx < 4; label_idx++) {
     for (int pos_idx = 0; pos_idx < 3; pos_idx++) {
       int label_pos = label_positions[label_idx][pos_idx] + pos_fixups[pos_idx];
-      int jump_address = *reinterpret_cast<uint32_t*>(
-          array_optimized->GetDataStartAddress() + label_pos);
+      int jump_address =
+          *reinterpret_cast<uint32_t*>(array_optimized->begin() + label_pos);
       int expected_jump_address =
           labels[label_idx]->pos() + target_fixups[label_idx];
       CHECK_EQ(expected_jump_address, jump_address);
@@ -2310,15 +2308,15 @@ TEST_F(RegExpTestWithContext, UnicodePropertyEscapeCodeSize) {
 
   static constexpr int kMaxSize = 200 * KB;
   static constexpr bool kIsNotLatin1 = false;
-  Object maybe_code = re->code(kIsNotLatin1);
-  Object maybe_bytecode = re->bytecode(kIsNotLatin1);
-  if (maybe_bytecode.IsByteArray()) {
+  Tagged<Object> maybe_code = re->code(kIsNotLatin1);
+  Tagged<Object> maybe_bytecode = re->bytecode(kIsNotLatin1);
+  if (IsByteArray(maybe_bytecode)) {
     // On x64, excessive inlining produced >250KB.
-    CHECK_LT(ByteArray::cast(maybe_bytecode).Size(), kMaxSize);
-  } else if (maybe_code.IsCode()) {
+    CHECK_LT(ByteArray::cast(maybe_bytecode)->AllocatedSize(), kMaxSize);
+  } else if (IsCode(maybe_code)) {
     // On x64, excessive inlining produced >360KB.
-    CHECK_LT(Code::cast(maybe_code).Size(), kMaxSize);
-    CHECK_EQ(Code::cast(maybe_code).kind(), CodeKind::REGEXP);
+    CHECK_LT(Code::cast(maybe_code)->Size(), kMaxSize);
+    CHECK_EQ(Code::cast(maybe_code)->kind(), CodeKind::REGEXP);
   } else {
     UNREACHABLE();
   }
@@ -2341,7 +2339,7 @@ i::Handle<i::Object> RegExpExec(const RegExpExecData* d) {
 void ReenterRegExp(v8::Isolate* isolate, void* data) {
   RegExpExecData* d = static_cast<RegExpExecData*>(data);
   i::Handle<i::Object> result = RegExpExec(d);
-  CHECK(result->IsNull());
+  CHECK(IsNull(*result));
 }
 
 }  // namespace
@@ -2363,7 +2361,7 @@ TEST_F(RegExpTestWithContext, RegExpInterruptReentrantExecution) {
   isolate()->RequestInterrupt(&ReenterRegExp, &d);
 
   i::Handle<i::Object> result = RegExpExec(&d);
-  CHECK(result->IsNull());
+  CHECK(IsNull(*result));
 }
 
 #undef CHECK_PARSE_ERROR

@@ -58,9 +58,7 @@ class FormattedText;
 class CanvasImageSource;
 class Element;
 class ExceptionState;
-class Font;
 class Path2D;
-class TextMetrics;
 
 class MODULES_EXPORT CanvasRenderingContext2D final
     : public CanvasRenderingContext,
@@ -116,25 +114,8 @@ class MODULES_EXPORT CanvasRenderingContext2D final
 
   void Reset() override;
 
-  String font() const;
-  void setFont(const String&) override;
+  void setFontForTesting(const String& new_font) override;
 
-  String direction() const;
-  void setDirection(const String&);
-
-  void setLetterSpacing(const String&);
-  void setWordSpacing(const String&);
-  void setTextRendering(const String&);
-
-  void setFontKerning(const String&);
-  void setFontStretch(const String&);
-  void setFontVariantCaps(const String&);
-
-  void fillText(const String& text, double x, double y);
-  void fillText(const String& text, double x, double y, double max_width);
-  void strokeText(const String& text, double x, double y);
-  void strokeText(const String& text, double x, double y, double max_width);
-  TextMetrics* measureText(const String& text);
   void drawFormattedText(FormattedText* formatted_text,
                          double x,
                          double y,
@@ -165,10 +146,8 @@ class MODULES_EXPORT CanvasRenderingContext2D final
   // BaseRenderingContext2D implementation
   bool OriginClean() const final;
   void SetOriginTainted() final;
-  bool WouldTaintOrigin(CanvasImageSource* source) final {
-    return CanvasRenderingContext::WouldTaintOrigin(source);
-  }
   void DisableAcceleration() override;
+  bool ShouldDisableAccelerationBecauseOfReadback() const override;
 
   int Width() const final;
   int Height() const final;
@@ -187,17 +166,13 @@ class MODULES_EXPORT CanvasRenderingContext2D final
   SkColorInfo CanvasRenderingContextSkColorInfo() const override {
     return color_params_.GetSkColorInfo();
   }
-  scoped_refptr<StaticBitmapImage> GetImage(
-      CanvasResourceProvider::FlushReason) final;
+  scoped_refptr<StaticBitmapImage> GetImage(FlushReason) final;
 
   sk_sp<PaintFilter> StateGetFilter() final;
-  void SnapshotStateForFilter() final;
 
-  void ValidateStateStackWithCanvas(const cc::PaintCanvas*) const final;
+  void FinalizeFrame(FlushReason) override;
 
-  void FinalizeFrame(CanvasResourceProvider::FlushReason) override;
-
-  CanvasRenderingContextHost* GetCanvasRenderingContextHost() override;
+  CanvasRenderingContextHost* GetCanvasRenderingContextHost() const override;
   ExecutionContext* GetTopExecutionContext() const override;
 
   bool IsPaintable() const final {
@@ -206,7 +181,7 @@ class MODULES_EXPORT CanvasRenderingContext2D final
 
   void WillDrawImage(CanvasImageSource*) const final;
 
-  void FlushCanvas(CanvasResourceProvider::FlushReason) override;
+  void FlushCanvas(FlushReason) override;
 
   void Trace(Visitor*) const override;
 
@@ -236,6 +211,9 @@ class MODULES_EXPORT CanvasRenderingContext2D final
   }
 
  protected:
+  HTMLCanvasElement* HostAsHTMLCanvasElement() const final;
+  FontSelector* GetFontSelector() const final;
+
   PredefinedColorSpace GetDefaultImageDataColorSpace() const final {
     return color_params_.ColorSpace();
   }
@@ -247,20 +225,16 @@ class MODULES_EXPORT CanvasRenderingContext2D final
   void WillOverwriteCanvas() override;
   void TryRestoreContextEvent(TimerBase*) override;
 
+  bool WillSetFont() const final;
+  bool CurrentFontResolvedAndUpToDate() const final;
+  bool ResolveFont(const String& new_font) final;
+
  private:
   friend class CanvasRenderingContext2DAutoRestoreSkCanvas;
 
   void PruneLocalFontCache(size_t target_size);
 
   void ScrollPathIntoViewInternal(const Path&);
-
-  void DrawTextInternal(const String&,
-                        double x,
-                        double y,
-                        CanvasRenderingContext2DState::PaintType,
-                        double* max_width = nullptr);
-
-  const Font& AccessFont();
 
   void DrawFocusIfNeededInternal(
       const Path&,
@@ -271,14 +245,12 @@ class MODULES_EXPORT CanvasRenderingContext2D final
   void UpdateElementAccessibility(const Path&, Element*);
 
   bool IsComposited() const override;
-  bool IsAccelerated() const override;
   bool IsOriginTopLeft() const override;
   bool HasAlpha() const override { return CreationAttributes().alpha; }
   bool IsDesynchronized() const override {
     return CreationAttributes().desynchronized;
   }
-  void SetIsInHiddenPage(bool) override;
-  void SetIsBeingDisplayed(bool) override;
+  void PageVisibilityChanged() override;
   void Stop() final;
 
   cc::Layer* CcLayer() const override;

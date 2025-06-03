@@ -188,8 +188,9 @@ public class HistoryAdapter extends DateDividedAdapter implements BrowsingHistor
      * Should be called when the user's sign in state changes.
      */
     public void onSignInStateChange() {
+        int visibility = mManager.getRemoveItemButtonVisibility();
         for (HistoryItemView itemView : mItemViews) {
-            itemView.onSignInStateChange();
+            itemView.setRemoveButtonVisiblity(visibility);
         }
         startLoadingItems();
         updateClearBrowsingDataButtonVisibility();
@@ -203,8 +204,13 @@ public class HistoryAdapter extends DateDividedAdapter implements BrowsingHistor
         if (mClearBrowsingDataButton != null) {
             mClearBrowsingDataButton.setEnabled(!active);
         }
+
+        int visibility = mManager.getRemoveItemButtonVisibility();
+        if (active) {
+            assert visibility != View.VISIBLE : "Removal is not allowed when selection is active";
+        }
         for (HistoryItemView item : mItemViews) {
-            item.setRemoveButtonVisible(!active);
+            item.setRemoveButtonVisiblity(visibility);
         }
     }
 
@@ -214,8 +220,8 @@ public class HistoryAdapter extends DateDividedAdapter implements BrowsingHistor
                 R.layout.history_item_view, parent, false);
         ViewHolder viewHolder = mManager.getHistoryItemViewHolder(v);
         HistoryItemView itemView = (HistoryItemView) viewHolder.itemView;
-        itemView.setRemoveButtonVisible(mManager.shouldShowRemoveItemButton());
         itemView.setFaviconHelper(mFaviconHelper);
+        itemView.setRemoveButtonVisiblity(mManager.getRemoveItemButtonVisibility());
         mItemViews.add(itemView);
         return viewHolder;
     }
@@ -433,18 +439,15 @@ public class HistoryAdapter extends DateDividedAdapter implements BrowsingHistor
         mHostName = hostName;
     }
 
-    @VisibleForTesting
     ItemGroup getFirstGroupForTests() {
         return getGroupAt(0).first;
     }
 
-    @VisibleForTesting
     ItemGroup getLastGroupForTests() {
         final int itemCount = getItemCount();
         return itemCount > 0 ? getGroupAt(itemCount - 1).first : null;
     }
 
-    @VisibleForTesting
     void setClearBrowsingDataButtonVisibilityForTest(boolean isVisible) {
         if (mClearBrowsingDataButtonVisible == isVisible) return;
         mClearBrowsingDataButtonVisible = isVisible;
@@ -452,19 +455,16 @@ public class HistoryAdapter extends DateDividedAdapter implements BrowsingHistor
         setHeaders();
     }
 
-    @VisibleForTesting
     public ArrayList<HistoryItemView> getItemViewsForTests() {
         return mItemViews;
     }
 
-    @VisibleForTesting
     void generateHeaderItemsForTest() {
         mPrivacyDisclaimerHeaderItem = new HeaderItem(0, null);
         mClearBrowsingDataButtonHeaderItem = new HeaderItem(1, null);
         mClearBrowsingDataButtonVisible = true;
     }
 
-    @VisibleForTesting
     void generateFooterItemsForTest(MoreProgressButton mockButton) {
         mMoreProgressButton = mockButton;
         mMoreProgressButtonFooterItem = new FooterItem(-1, null);
@@ -480,12 +480,10 @@ public class HistoryAdapter extends DateDividedAdapter implements BrowsingHistor
         return mClearBrowsingDataButtonVisible;
     }
 
-    @VisibleForTesting
     void setScrollToLoadDisabledForTest(boolean isDisabled) {
         mDisableScrollToLoadForTest = isDisabled;
     }
 
-    @VisibleForTesting
     MoreProgressButton getMoreProgressButtonForTest() {
         return mMoreProgressButton;
     }

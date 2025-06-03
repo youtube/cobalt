@@ -87,10 +87,12 @@ public class CastWebContentsActivityTest {
         private boolean mInPipMode;
         private MotionEvent mLastTouchEvent;
 
+        @Override
         public boolean getTurnScreenOn() {
             return mTurnScreenOn;
         }
 
+        @Override
         public boolean getShowWhenLocked() {
             return mShowWhenLocked;
         }
@@ -106,11 +108,13 @@ public class CastWebContentsActivityTest {
         }
 
         @Implementation
+        @Override
         public void setTurnScreenOn(boolean turnScreenOn) {
             mTurnScreenOn = turnScreenOn;
         }
 
         @Implementation
+        @Override
         public void setShowWhenLocked(boolean showWhenLocked) {
             mShowWhenLocked = showWhenLocked;
         }
@@ -537,6 +541,38 @@ public class CastWebContentsActivityTest {
         mActivity.onUserLeaveHint();
 
         ExtendedShadowActivity shadowActivity = (ExtendedShadowActivity) Shadow.extract(mActivity);
+        assertFalse(shadowActivity.getInPictureInPictureMode());
+    }
+
+    @Test
+    @Config(shadows = {ExtendedShadowActivity.class})
+    public void testEntersPipWhenAllowPipIsTrueOnUserPresent() {
+        mShadowPackageManager.setSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE, true);
+        mActivityLifecycle.create().start().resume();
+
+        CastWebContentsIntentUtils.getLocalBroadcastManager().sendBroadcastSync(
+                CastWebContentsIntentUtils.allowPictureInPicture(mSessionId, true));
+        RuntimeEnvironment.application.sendBroadcast(new Intent(Intent.ACTION_USER_PRESENT));
+
+        ExtendedShadowActivity shadowActivity = (ExtendedShadowActivity) Shadow.extract(mActivity);
+        Shadows.shadowOf(getMainLooper()).idle();
+
+        assertTrue(shadowActivity.getInPictureInPictureMode());
+    }
+
+    @Test
+    @Config(shadows = {ExtendedShadowActivity.class})
+    public void testDoesNotenterPipWhenAllowPipIsFalseOnUserPresent() {
+        mShadowPackageManager.setSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE, true);
+        mActivityLifecycle.create().start().resume();
+
+        CastWebContentsIntentUtils.getLocalBroadcastManager().sendBroadcastSync(
+                CastWebContentsIntentUtils.allowPictureInPicture(mSessionId, false));
+        RuntimeEnvironment.application.sendBroadcast(new Intent(Intent.ACTION_USER_PRESENT));
+
+        ExtendedShadowActivity shadowActivity = (ExtendedShadowActivity) Shadow.extract(mActivity);
+        Shadows.shadowOf(getMainLooper()).idle();
+
         assertFalse(shadowActivity.getInPictureInPictureMode());
     }
 

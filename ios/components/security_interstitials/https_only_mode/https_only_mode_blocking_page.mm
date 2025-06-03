@@ -9,15 +9,12 @@
 #import "base/strings/string_number_conversions.h"
 #import "base/values.h"
 #import "components/security_interstitials/core/common_string_util.h"
+#import "components/security_interstitials/core/https_only_mode_metrics.h"
 #import "components/security_interstitials/core/https_only_mode_ui_util.h"
 #import "components/security_interstitials/core/metrics_helper.h"
 #import "ios/components/security_interstitials/https_only_mode/https_upgrade_service.h"
 #import "ios/components/security_interstitials/ios_blocking_page_controller_client.h"
 #import "ios/components/security_interstitials/ios_blocking_page_metrics_helper.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace {
 
@@ -69,7 +66,7 @@ void HttpsOnlyModeBlockingPage::PopulateInterstitialStrings(
   PopulateHttpsOnlyModeStringsForSharedHTML(load_time_data);
   PopulateHttpsOnlyModeStringsForBlockingPage(
       load_time_data, request_url(),
-      /*is_under_advanced_protection=*/false);
+      security_interstitials::https_only_mode::HttpInterstitialState{});
 }
 
 bool HttpsOnlyModeBlockingPage::ShouldDisplayURL() const {

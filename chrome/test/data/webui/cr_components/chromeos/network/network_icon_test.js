@@ -5,6 +5,7 @@
 import 'chrome://os-settings/strings.m.js';
 import 'chrome://resources/ash/common/network/network_icon.js';
 
+import {HotspotState} from 'chrome://resources/ash/common/hotspot/cros_hotspot_config.mojom-webui.js';
 import {OncMojo} from 'chrome://resources/ash/common/network/onc_mojo.js';
 import {ActivationStateType} from 'chrome://resources/mojo/chromeos/services/network_config/public/mojom/cros_network_config.mojom-webui.js';
 import {DeviceStateType, NetworkType} from 'chrome://resources/mojo/chromeos/services/network_config/public/mojom/network_types.mojom-webui.js';
@@ -34,6 +35,30 @@ suite('NetworkIconTest', function() {
     networkState.typeState.cellular.iccid = '1';
     networkState.typeState.cellular.eid = '1';
     networkState.typeState.cellular.simLocked = true;
+    networkIcon.networkState = networkState;
+
+    networkIcon.deviceState = {
+      type: NetworkType.kCellular,
+      deviceState: DeviceStateType.kEnabled,
+      simInfos: [
+        {slot_id: 1, eid: '1', iccid: '1', isPrimary: false},
+      ],
+      scanning: true,
+    };
+    await flushAsync();
+
+    assertTrue(networkIcon.$$('#icon').classList.contains('cellular-locked'));
+  });
+
+  test('Display locked cellular icon for  carrier lock', async function() {
+    loadTimeData.overrideValues({'isCellularCarrierLockEnabled': true});
+    init();
+    const networkState =
+        OncMojo.getDefaultNetworkState(NetworkType.kCellular, 'cellular');
+    networkState.typeState.cellular.iccid = '1';
+    networkState.typeState.cellular.eid = '1';
+    networkState.typeState.cellular.simLocked = true;
+    networkState.typeState.cellular.simLockType = 'network-pin';
     networkIcon.networkState = networkState;
 
     networkIcon.deviceState = {
@@ -98,6 +123,41 @@ suite('NetworkIconTest', function() {
 
     assertTrue(networkIcon.$$('#roaming').hidden);
   });
+
+  test('Should not display badges for hotspot', async function() {
+    init();
+    const hotspotInfo = {state: HotspotState.kEnabled};
+    networkIcon.hotspotInfo = hotspotInfo;
+
+    await flushAsync();
+
+    assertTrue(networkIcon.$$('#roaming').hidden);
+    assertTrue(networkIcon.$$('#secure').hidden);
+    assertTrue(networkIcon.$$('#technology').hidden);
+  });
+
+  [HotspotState.kEnabled, HotspotState.kDisabled, HotspotState.kEnabling,
+   HotspotState.kDisabling]
+      .forEach(hotspotState => {
+        test('Should display icon for hotspot', async function() {
+          init();
+          const hotspotInfo = {state: hotspotState};
+          networkIcon.hotspotInfo = hotspotInfo;
+
+          await flushAsync();
+
+          if (hotspotState === HotspotState.kEnabled) {
+            assertTrue(
+                networkIcon.$$('#icon').classList.contains('hotspot-on'));
+          } else if (hotspotState === HotspotState.kEnabling) {
+            assertTrue(networkIcon.$$('#icon').classList.contains(
+                'hotspot-connecting'));
+          } else {
+            assertTrue(
+                networkIcon.$$('#icon').classList.contains('hotspot-off'));
+          }
+        });
+      });
 
   test('Should not display icon', async function() {
     init();

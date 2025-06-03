@@ -14,11 +14,11 @@ import '../settings_shared.css.js';
 import '../site_favicon.js';
 
 import {AnchorAlignment} from 'chrome://resources/cr_elements/cr_action_menu/cr_action_menu.js';
-import {assert} from 'chrome://resources/js/assert_ts.js';
+import {assert} from 'chrome://resources/js/assert.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {getTemplate} from './search_engine_entry.html.js';
-import {SearchEngine, SearchEnginesBrowserProxy, SearchEnginesBrowserProxyImpl} from './search_engines_browser_proxy.js';
+import {ChoiceMadeLocation, SearchEngine, SearchEnginesBrowserProxy, SearchEnginesBrowserProxyImpl} from './search_engines_browser_proxy.js';
 
 export interface SettingsSearchEngineEntryElement {
   $: {
@@ -44,7 +44,6 @@ export class SettingsSearchEngineEntryElement extends PolymerElement {
       showShortcut: {type: Boolean, value: false, reflectToAttribute: true},
 
       showQueryUrl: {type: Boolean, value: false, reflectToAttribute: true},
-
 
       isDefault: {
         reflectToAttribute: true,
@@ -119,7 +118,8 @@ export class SettingsSearchEngineEntryElement extends PolymerElement {
 
   private onMakeDefaultClick_() {
     this.closePopupMenu_();
-    this.browserProxy_.setDefaultSearchEngine(this.engine.modelIndex);
+    this.browserProxy_.setDefaultSearchEngine(
+        this.engine.modelIndex, ChoiceMadeLocation.SEARCH_ENGINE_SETTINGS);
   }
 
   private onActivateClick_() {

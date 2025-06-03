@@ -23,6 +23,7 @@
 #include "ui/accessibility/ax_node_data.h"
 #include "ui/base/dragdrop/drag_drop_types.h"
 #include "ui/base/dragdrop/drop_target_event.h"
+#include "ui/gfx/animation/animation_test_api.h"
 #include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/view_utils.h"
 #include "ui/views/widget/widget.h"
@@ -126,7 +127,7 @@ class FakeTabContainerController final : public TabContainerController {
 
  private:
   const raw_ref<TabStripController> tab_strip_controller_;
-  raw_ptr<const TabContainer> tab_container_;
+  raw_ptr<const TabContainer, DanglingUntriaged> tab_container_;
 
   // Set this to true to emulate a tab being animated outside `tab_container_`.
   bool is_animating_outside_container_ = false;
@@ -135,7 +136,9 @@ class FakeTabContainerController final : public TabContainerController {
 
 class TabContainerTest : public ChromeViewsTestBase {
  public:
-  TabContainerTest() = default;
+  TabContainerTest()
+      : animation_mode_reset_(gfx::AnimationTestApi::SetRichAnimationRenderMode(
+            gfx::Animation::RichAnimationRenderMode::FORCE_ENABLED)) {}
   TabContainerTest(const TabContainerTest&) = delete;
   TabContainerTest& operator=(const TabContainerTest&) = delete;
   ~TabContainerTest() override = default;
@@ -330,7 +333,7 @@ class TabContainerTest : public ChromeViewsTestBase {
 
   void SetTabContainerWidth(int width) {
     tab_container_width_ = width;
-    gfx::Size size(tab_container_width_, GetLayoutConstant(TAB_HEIGHT));
+    gfx::Size size(tab_container_width_, GetLayoutConstant(TAB_STRIP_HEIGHT));
     widget_->SetSize(size);
     drag_context_->SetSize(size);
     tab_container_->SetSize(size);
@@ -340,7 +343,7 @@ class TabContainerTest : public ChromeViewsTestBase {
   // from Widget::SetSize.
   void SetTabContainerWidthSingleLayout(int width) {
     tab_container_width_ = width;
-    gfx::Size size(tab_container_width_, GetLayoutConstant(TAB_HEIGHT));
+    gfx::Size size(tab_container_width_, GetLayoutConstant(TAB_STRIP_HEIGHT));
     tab_container_->SetSize(size);
   }
 
@@ -350,6 +353,10 @@ class TabContainerTest : public ChromeViewsTestBase {
   raw_ptr<FakeTabDragContext> drag_context_;
   raw_ptr<TabContainer> tab_container_;
   std::unique_ptr<views::Widget> widget_;
+
+  // Used to force animation on, so that any tests that rely on animation pass
+  // on machines where animation is turned off.
+  gfx::AnimationTestApi::RenderModeResetter animation_mode_reset_;
 
   int tab_container_width_ = 0;
 };
@@ -418,7 +425,7 @@ TEST_F(TabContainerTest, RemoveTabInGroupWithTabClosingMode) {
 
   // Get the group tab's close button center point
   Tab* tab = tab_container_->GetTabAtModelIndex(1);
-  raw_ptr<TabCloseButton> tab_close_button = tab->close_button();
+  TabCloseButton* tab_close_button = tab->close_button();
   gfx::Point tab_center = tab_close_button->GetBoundsInScreen().CenterPoint();
 
   // Remove the tab

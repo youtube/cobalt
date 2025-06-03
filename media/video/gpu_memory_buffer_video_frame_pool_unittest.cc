@@ -239,10 +239,10 @@ class GpuMemoryBufferVideoFramePoolTest : public ::testing::Test {
   static constexpr uint8_t kUValue = 50;
   static constexpr uint8_t kVValue = 150;
 
-  raw_ptr<uint8_t> y_data_ = nullptr;
-  raw_ptr<uint8_t> u_data_ = nullptr;
-  raw_ptr<uint8_t> v_data_ = nullptr;
-  raw_ptr<uint8_t> uv_data_ = nullptr;
+  raw_ptr<uint8_t, DanglingUntriaged | AllowPtrArithmetic> y_data_ = nullptr;
+  raw_ptr<uint8_t, DanglingUntriaged | AllowPtrArithmetic> u_data_ = nullptr;
+  raw_ptr<uint8_t, DanglingUntriaged | AllowPtrArithmetic> v_data_ = nullptr;
+  raw_ptr<uint8_t, DanglingUntriaged | AllowPtrArithmetic> uv_data_ = nullptr;
 
   base::SimpleTestTickClock test_clock_;
   std::unique_ptr<MockGpuVideoAcceleratorFactories> mock_gpu_factories_;
@@ -942,8 +942,7 @@ TEST_F(GpuMemoryBufferVideoFramePoolTest, CreateOneHardwareRGBAFrame) {
 
 TEST_F(GpuMemoryBufferVideoFramePoolTest, PreservesMetadata) {
   gfx::HDRMetadata hdr_metadata;
-  hdr_metadata.max_content_light_level = 5000;
-  hdr_metadata.max_frame_average_light_level = 1000;
+  hdr_metadata.cta_861_3 = gfx::HdrMetadataCta861_3(5000, 1000);
 
   scoped_refptr<VideoFrame> software_frame = CreateTestYUVVideoFrame(10);
   software_frame->metadata().end_of_stream = true;

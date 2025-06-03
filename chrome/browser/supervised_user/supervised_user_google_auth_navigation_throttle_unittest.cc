@@ -7,7 +7,6 @@
 #include "base/strings/string_piece.h"
 #include "chrome/browser/signin/chrome_signin_client_factory.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
-#include "chrome/browser/supervised_user/child_accounts/child_account_service.h"
 #include "chrome/browser/supervised_user/child_accounts/child_account_service_factory.h"
 #include "chrome/browser/sync/sync_service_factory.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
@@ -17,6 +16,7 @@
 #include "components/signin/public/identity_manager/accounts_cookie_mutator.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/signin/public/identity_manager/identity_test_utils.h"
+#include "components/supervised_user/core/browser/child_account_service.h"
 #include "components/sync/test/mock_sync_service.h"
 #include "content/public/browser/navigation_throttle.h"
 #include "content/public/test/mock_navigation_handle.h"
@@ -113,8 +113,8 @@ TEST_F(SupervisedUserGoogleAuthNavigationThrottleTest,
   EXPECT_EQ(content::NavigationThrottle::PROCEED,
             CreateNavigationThrottle(GURL(kExampleURL))->WillStartRequest());
   EXPECT_EQ(
-      CreateNavigationThrottle(GURL(kGoogleSearchURL))->WillStartRequest(),
-      content::NavigationThrottle::PROCEED);
+      content::NavigationThrottle::PROCEED,
+      CreateNavigationThrottle(GURL(kGoogleSearchURL))->WillStartRequest());
   EXPECT_EQ(content::NavigationThrottle::PROCEED,
             CreateNavigationThrottle(GURL(kGoogleHomeURL))->WillStartRequest());
   EXPECT_EQ(content::NavigationThrottle::PROCEED,
@@ -152,8 +152,8 @@ TEST_F(SupervisedUserGoogleAuthNavigationThrottleTest,
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
   EXPECT_EQ(
-      CreateNavigationThrottle(GURL(kGoogleSearchURL))->WillStartRequest(),
-      content::NavigationThrottle::DEFER);
+      content::NavigationThrottle::DEFER,
+      CreateNavigationThrottle(GURL(kGoogleSearchURL))->WillStartRequest());
   EXPECT_EQ(content::NavigationThrottle::DEFER,
             CreateNavigationThrottle(GURL(kGoogleHomeURL))->WillStartRequest());
   EXPECT_EQ(content::NavigationThrottle::DEFER,
@@ -161,17 +161,17 @@ TEST_F(SupervisedUserGoogleAuthNavigationThrottleTest,
 #elif BUILDFLAG(IS_ANDROID)
   SetPrimaryAccount(identity_manager(), kChildTestEmail,
                     signin::ConsentLevel::kSignin);
-  EXPECT_EQ(CreateNavigationThrottle(GURL(kGoogleSearchURL), true)
-                ->WillStartRequest(),
-            content::NavigationThrottle::DEFER);
+  EXPECT_EQ(content::NavigationThrottle::DEFER,
+            CreateNavigationThrottle(GURL(kGoogleSearchURL), true)
+                ->WillStartRequest());
   EXPECT_EQ(content::NavigationThrottle::DEFER,
             CreateNavigationThrottle(GURL(kGoogleHomeURL))->WillStartRequest());
   EXPECT_EQ(content::NavigationThrottle::DEFER,
             CreateNavigationThrottle(GURL(kYoutubeDomain))->WillStartRequest());
 #else
   EXPECT_EQ(
-      CreateNavigationThrottle(GURL(kGoogleSearchURL))->WillStartRequest(),
-      content::NavigationThrottle::PROCEED);
+      content::NavigationThrottle::PROCEED,
+      CreateNavigationThrottle(GURL(kGoogleSearchURL))->WillStartRequest());
   EXPECT_EQ(content::NavigationThrottle::PROCEED,
             CreateNavigationThrottle(GURL(kGoogleHomeURL))->WillStartRequest());
   EXPECT_EQ(content::NavigationThrottle::PROCEED,
@@ -200,8 +200,8 @@ TEST_F(SupervisedUserGoogleAuthNavigationThrottleTest,
   EXPECT_EQ(content::NavigationThrottle::PROCEED,
             CreateNavigationThrottle(GURL(kExampleURL))->WillStartRequest());
   EXPECT_EQ(
-      CreateNavigationThrottle(GURL(kGoogleSearchURL))->WillStartRequest(),
-      content::NavigationThrottle::DEFER);
+      content::NavigationThrottle::DEFER,
+      CreateNavigationThrottle(GURL(kGoogleSearchURL))->WillStartRequest());
   EXPECT_EQ(content::NavigationThrottle::DEFER,
             CreateNavigationThrottle(GURL(kGoogleHomeURL))->WillStartRequest());
   EXPECT_EQ(content::NavigationThrottle::DEFER,

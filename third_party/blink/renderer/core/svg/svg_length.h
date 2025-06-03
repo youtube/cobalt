@@ -25,7 +25,7 @@
 #include "third_party/blink/renderer/core/css/css_numeric_literal_value.h"
 #include "third_party/blink/renderer/core/css/css_primitive_value.h"
 #include "third_party/blink/renderer/core/svg/properties/svg_listable_property.h"
-#include "third_party/blink/renderer/core/svg/svg_length_context.h"
+#include "third_party/blink/renderer/core/svg/svg_length_functions.h"
 #include "third_party/blink/renderer/core/svg/svg_parsing_error.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/wtf/casting.h"
@@ -34,6 +34,7 @@ namespace blink {
 
 class Length;
 class QualifiedName;
+class SVGLengthContext;
 class SVGLengthConversionData;
 class SVGLengthTearOff;
 
@@ -82,10 +83,9 @@ class CORE_EXPORT SVGLength final : public SVGListablePropertyBase {
   Length ConvertToLength(const SVGLengthConversionData&) const;
   float Value(const SVGLengthConversionData&, float dimension) const;
   float Value(const SVGLengthContext&) const;
-  void SetValue(float, const SVGLengthContext&);
-  void SetValueAsNumber(float);
-
   float ValueInSpecifiedUnits() const { return value_->GetFloatValue(); }
+
+  void SetValueAsNumber(float);
   void SetValueInSpecifiedUnits(float value);
 
   const CSSPrimitiveValue& AsCSSPrimitiveValue() const { return *value_; }

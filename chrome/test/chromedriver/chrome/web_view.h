@@ -17,6 +17,7 @@ class FilePath;
 class TimeDelta;
 }  // namespace base
 
+class FedCmTracker;
 class FrameTracker;
 struct Geoposition;
 class JavaScriptDialogManager;
@@ -116,17 +117,6 @@ class WebView {
                               const std::string& function,
                               const base::Value::List& args,
                               std::unique_ptr<base::Value>* result) = 0;
-
-  // Calls a JavaScript function in a specified frame with the given args and
-  // two callbacks. The first may be invoked with a value to return to the user.
-  // The second may be used to report an error. This function waits until
-  // one of the callbacks is invoked or the timeout occurs.
-  // |result| will never be NULL on success.
-  virtual Status CallAsyncFunction(const std::string& frame,
-                                   const std::string& function,
-                                   const base::Value::List& args,
-                                   const base::TimeDelta& timeout,
-                                   std::unique_ptr<base::Value>* result) = 0;
 
   // Same as |CallAsyncFunction|, except no additional error callback is passed
   // to the function. Also, |kJavaScriptError| or |kScriptTimeout| is used
@@ -272,6 +262,9 @@ class WebView {
   virtual bool IsNonBlocking() const = 0;
 
   virtual FrameTracker* GetFrameTracker() const = 0;
+
+  // On success, sets *tracker to the FedCmTracker.
+  virtual Status GetFedCmTracker(FedCmTracker** out_tracker) = 0;
 
   virtual std::unique_ptr<base::Value> GetCastSinks() = 0;
 

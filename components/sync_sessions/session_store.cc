@@ -108,6 +108,7 @@ absl::optional<syncer::ModelError> ParseInitialDataOnBackendSequence(
     std::map<std::string, sync_pb::SessionSpecifics>* initial_data,
     std::string* session_name,
     std::unique_ptr<ModelTypeStore::RecordList> record_list) {
+  TRACE_EVENT0("sync", "sync_sessions::ParseInitialDataOnBackendSequence");
   DCHECK(initial_data);
   DCHECK(initial_data->empty());
   DCHECK(record_list);
@@ -131,7 +132,8 @@ absl::optional<syncer::ModelError> ParseInitialDataOnBackendSequence(
 }  // namespace
 
 struct SessionStore::Builder {
-  raw_ptr<SyncSessionsClient, DanglingUntriaged> sessions_client = nullptr;
+  raw_ptr<SyncSessionsClient, AcrossTasksDanglingUntriaged> sessions_client =
+      nullptr;
   OpenCallback callback;
   SessionInfo local_session_info;
   std::unique_ptr<syncer::ModelTypeStore> underlying_store;
@@ -350,6 +352,7 @@ void SessionStore::OnReadAllMetadata(
     std::unique_ptr<Builder> builder,
     const absl::optional<syncer::ModelError>& error,
     std::unique_ptr<syncer::MetadataBatch> metadata_batch) {
+  TRACE_EVENT0("sync", "sync_sessions::SessionStore::OnReadAllMetadata");
   DCHECK(builder);
 
   if (error) {
@@ -375,6 +378,7 @@ void SessionStore::OnReadAllMetadata(
 void SessionStore::OnReadAllData(
     std::unique_ptr<Builder> builder,
     const absl::optional<syncer::ModelError>& error) {
+  TRACE_EVENT0("sync", "sync_sessions::SessionStore::OnReadAllData");
   DCHECK(builder);
 
   if (error) {

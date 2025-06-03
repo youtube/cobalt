@@ -24,7 +24,8 @@ ProfileIdService* ProfileIdServiceFactory::GetForProfile(Profile* profile) {
 
 // static
 ProfileIdServiceFactory* ProfileIdServiceFactory::GetInstance() {
-  return base::Singleton<ProfileIdServiceFactory>::get();
+  static base::NoDestructor<ProfileIdServiceFactory> instance;
+  return instance.get();
 }
 
 ProfileIdServiceFactory::ProfileIdServiceFactory()
@@ -33,12 +34,13 @@ ProfileIdServiceFactory::ProfileIdServiceFactory()
 
 ProfileIdServiceFactory::~ProfileIdServiceFactory() = default;
 
-KeyedService* ProfileIdServiceFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+ProfileIdServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
   auto* profile = Profile::FromBrowserContext(context);
   DCHECK(profile);
-  return new ProfileIdService(std::make_unique<ProfileIdDelegateImpl>(profile),
-                              profile->GetPrefs());
+  return std::make_unique<ProfileIdService>(
+      std::make_unique<ProfileIdDelegateImpl>(profile), profile->GetPrefs());
 }
 
 }  // namespace enterprise

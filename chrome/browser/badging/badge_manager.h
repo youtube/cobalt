@@ -12,8 +12,8 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/time/time.h"
-#include "chrome/browser/web_applications/web_app_id.h"
 #include "components/keyed_service/core/keyed_service.h"
+#include "components/webapps/common/web_app_id.h"
 #include "content/public/browser/service_worker_version_base_info.h"
 #include "mojo/public/cpp/bindings/receiver_set.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
@@ -100,14 +100,14 @@ class BadgeManager : public KeyedService, public blink::mojom::BadgeService {
 
   // Gets the badge for |app_id|. This will be absl::nullopt if the app is not
   // badged.
-  absl::optional<BadgeValue> GetBadgeValue(const web_app::AppId& app_id);
+  absl::optional<BadgeValue> GetBadgeValue(const webapps::AppId& app_id);
 
-  bool HasRecentApiUsage(const web_app::AppId& app_id) const;
+  bool HasRecentApiUsage(const webapps::AppId& app_id) const;
 
-  void SetBadgeForTesting(const web_app::AppId& app_id,
+  void SetBadgeForTesting(const webapps::AppId& app_id,
                           BadgeValue value,
                           ukm::UkmRecorder* test_recorder);
-  void ClearBadgeForTesting(const web_app::AppId& app_id,
+  void ClearBadgeForTesting(const webapps::AppId& app_id,
                             ukm::UkmRecorder* test_recorder);
   const base::Clock* SetClockForTesting(const base::Clock* clock);
   void SetSyncBridgeForTesting(web_app::WebAppSyncBridge* sync_bridge);
@@ -128,7 +128,7 @@ class BadgeManager : public KeyedService, public blink::mojom::BadgeService {
     // Gets the list of app IDs to badge, based on the state of this
     // BindingContext.  Returns an empty list when no apps exist for this
     // BindingContext.
-    virtual std::vector<std::tuple<web_app::AppId, GURL>>
+    virtual std::vector<std::tuple<webapps::AppId, GURL>>
     GetAppIdsAndUrlsForBadging() const = 0;
   };
 
@@ -141,7 +141,7 @@ class BadgeManager : public KeyedService, public blink::mojom::BadgeService {
 
     // Returns the AppId that matches the frame's URL.  Returns either 0 or 1
     // AppIds.
-    std::vector<std::tuple<web_app::AppId, GURL>> GetAppIdsAndUrlsForBadging()
+    std::vector<std::tuple<webapps::AppId, GURL>> GetAppIdsAndUrlsForBadging()
         const override;
 
    private:
@@ -158,7 +158,7 @@ class BadgeManager : public KeyedService, public blink::mojom::BadgeService {
 
     // Returns the list of AppIds within the service worker's scope. Returns
     // either 0, 1 or more AppIds.
-    std::vector<std::tuple<web_app::AppId, GURL>> GetAppIdsAndUrlsForBadging()
+    std::vector<std::tuple<webapps::AppId, GURL>> GetAppIdsAndUrlsForBadging()
         const override;
 
    private:
@@ -168,7 +168,7 @@ class BadgeManager : public KeyedService, public blink::mojom::BadgeService {
 
   // Updates the badge for |app_id| to be |value|, if it is not absl::nullopt.
   // If value is |absl::nullopt| then this clears the badge.
-  void UpdateBadge(const web_app::AppId& app_id,
+  void UpdateBadge(const webapps::AppId& app_id,
                    absl::optional<BadgeValue> value);
 
   // blink::mojom::BadgeService:
@@ -177,11 +177,11 @@ class BadgeManager : public KeyedService, public blink::mojom::BadgeService {
   void SetBadge(blink::mojom::BadgeValuePtr value) override;
   void ClearBadge() override;
 
-  const raw_ptr<Profile> profile_;
+  const raw_ptr<Profile, DanglingUntriaged> profile_;
 
   raw_ptr<const base::Clock> clock_;
 
-  raw_ptr<web_app::WebAppSyncBridge> sync_bridge_;
+  raw_ptr<web_app::WebAppSyncBridge, DanglingUntriaged> sync_bridge_;
 
   // All the mojo receivers for the BadgeManager. Keeps track of the
   // render_frame the binding is associated with, so as to not have to rely
@@ -194,7 +194,7 @@ class BadgeManager : public KeyedService, public blink::mojom::BadgeService {
   std::unique_ptr<BadgeManagerDelegate> delegate_;
 
   // Maps app_id to badge contents.
-  std::map<web_app::AppId, BadgeValue> badged_apps_;
+  std::map<webapps::AppId, BadgeValue> badged_apps_;
 };
 
 // Determines the text to put on the badge based on some badge_content.

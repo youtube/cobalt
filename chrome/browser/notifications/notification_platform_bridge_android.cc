@@ -317,8 +317,8 @@ void NotificationPlatformBridgeAndroid::Display(
       env, java_object_, j_notification_id, j_notification_type, j_origin,
       j_scope_url, j_profile_id, android_profile, title, body, image,
       notification_icon, badge, vibration_pattern,
-      notification.timestamp().ToJavaTime(), notification.renotify(),
-      notification.silent(), actions);
+      notification.timestamp().InMillisecondsSinceUnixEpoch(),
+      notification.renotify(), notification.silent(), actions);
 
   regenerated_notification_infos_[notification.id()] =
       RegeneratedNotificationInfo(scope_url, absl::nullopt);
@@ -362,6 +362,17 @@ void NotificationPlatformBridgeAndroid::DisplayServiceShutDown(
 
 void NotificationPlatformBridgeAndroid::GetDisplayed(
     Profile* profile,
+    GetDisplayedNotificationsCallback callback) const {
+  std::set<std::string> displayed_notifications;
+  content::GetUIThreadTaskRunner({})->PostTask(
+      FROM_HERE,
+      base::BindOnce(std::move(callback), std::move(displayed_notifications),
+                     false /* supports_synchronization */));
+}
+
+void NotificationPlatformBridgeAndroid::GetDisplayedForOrigin(
+    Profile* profile,
+    const GURL& origin,
     GetDisplayedNotificationsCallback callback) const {
   std::set<std::string> displayed_notifications;
   content::GetUIThreadTaskRunner({})->PostTask(

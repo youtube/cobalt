@@ -4,7 +4,9 @@
 
 #include "chrome/browser/ui/ash/holding_space/holding_space_downloads_delegate.h"
 
+#include "ash/constants/ash_features.h"
 #include "ash/public/cpp/holding_space/holding_space_constants.h"
+#include "ash/public/cpp/holding_space/holding_space_file.h"
 #include "ash/public/cpp/holding_space/holding_space_metrics.h"
 #include "ash/public/cpp/holding_space/holding_space_progress.h"
 #include "ash/public/cpp/image_util.h"
@@ -552,6 +554,7 @@ class HoldingSpaceDownloadsDelegate::InProgressLacrosDownload
       : InProgressDownload(Type::kLacros,
                            delegate,
                            std::move(mojo_download_item)) {
+    CHECK(!features::IsSysUiDownloadsIntegrationV2Enabled());
     auto* const download_controller_ash = GetDownloadControllerAsh();
     if (download_controller_ash)
       download_controller_ash->AddObserver(this);
@@ -651,11 +654,15 @@ void HoldingSpaceDownloadsDelegate::OnPersistenceRestored() {
   download_notifier_.AddProfile(profile());
 
   // Lacros Chrome downloads.
-  auto* const download_controller_ash = GetDownloadControllerAsh();
-  if (download_controller_ash) {
-    download_controller_ash->GetAllDownloads(
-        base::BindOnce(&HoldingSpaceDownloadsDelegate::OnLacrosDownloadsSynced,
-                       weak_factory_.GetWeakPtr()));
+  // NOTE: If the downloads integration V2 feature is enabled, the download
+  // status updater, rather than the download controller, is observed for Lacros
+  // downloads.
+  if (!features::IsSysUiDownloadsIntegrationV2Enabled()) {
+    if (auto* const download_controller_ash = GetDownloadControllerAsh()) {
+      download_controller_ash->GetAllDownloads(base::BindOnce(
+          &HoldingSpaceDownloadsDelegate::OnLacrosDownloadsSynced,
+          weak_factory_.GetWeakPtr()));
+    }
   }
 }
 
@@ -760,6 +767,8 @@ void HoldingSpaceDownloadsDelegate::OnMediaStoreUriAdded(
 
 void HoldingSpaceDownloadsDelegate::OnLacrosDownloadCreated(
     const crosapi::mojom::DownloadItem& mojo_download_item) {
+  CHECK(!features::IsSysUiDownloadsIntegrationV2Enabled());
+
   // NOTE: If ineligible for in-progress download handling, the download will
   // still be added to holding space on completion.
   if (IsInProgress(&mojo_download_item) &&
@@ -771,6 +780,8 @@ void HoldingSpaceDownloadsDelegate::OnLacrosDownloadCreated(
 
 void HoldingSpaceDownloadsDelegate::OnLacrosDownloadUpdated(
     const crosapi::mojom::DownloadItem& mojo_download_item) {
+  CHECK(!features::IsSysUiDownloadsIntegrationV2Enabled());
+
   // NOTE: It is only necessary to add a holding space item on completion here
   // if the download was ineligible for in-progress download handling.
   if (IsComplete(&mojo_download_item) &&
@@ -782,6 +793,8 @@ void HoldingSpaceDownloadsDelegate::OnLacrosDownloadUpdated(
 
 void HoldingSpaceDownloadsDelegate::OnLacrosDownloadsSynced(
     std::vector<crosapi::mojom::DownloadItemPtr> mojo_download_items) {
+  CHECK(!features::IsSysUiDownloadsIntegrationV2Enabled());
+
   // After the initial sync, observe updates to Lacros downloads.
   auto* const download_controller_ash = GetDownloadControllerAsh();
   if (download_controller_ash)
@@ -887,13 +900,19 @@ void HoldingSpaceDownloadsDelegate::CreateOrUpdateHoldingSpaceItem(
                             weak_factory_.GetWeakPtr()));
   }
 
+  // File.
+  const base::FilePath file_path = in_progress_download->GetFilePath();
+  const GURL file_system_url =
+      holding_space_util::ResolveFileSystemUrl(profile(), file_path);
+  const HoldingSpaceFile::FileSystemType file_system_type =
+      holding_space_util::ResolveFileSystemType(profile(), file_system_url);
+
   // Update.
   service()
       ->UpdateItem(item->id())
       ->SetAccessibleName(in_progress_download->GetAccessibleName())
-      .SetBackingFile(in_progress_download->GetFilePath(),
-                      holding_space_util::ResolveFileSystemUrl(
-                          profile(), in_progress_download->GetFilePath()))
+      .SetBackingFile(
+          HoldingSpaceFile(file_path, file_system_type, file_system_url))
       .SetInProgressCommands(std::move(in_progress_commands))
       .SetInvalidateImage(invalidate_image)
       .SetText(in_progress_download->GetText())

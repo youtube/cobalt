@@ -25,7 +25,6 @@ import androidx.test.filters.MediumTest;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -39,7 +38,6 @@ import org.chromium.base.test.BaseActivityTestRule;
 import org.chromium.base.test.util.Batch;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.share.ChromeShareExtras.DetailedContentType;
 import org.chromium.chrome.browser.share.ShareContentTypeHelper.ContentType;
@@ -51,6 +49,7 @@ import org.chromium.components.favicon.IconType;
 import org.chromium.components.favicon.LargeIconBridge;
 import org.chromium.components.feature_engagement.FeatureConstants;
 import org.chromium.components.feature_engagement.Tracker;
+import org.chromium.components.url_formatter.SchemeDisplay;
 import org.chromium.components.url_formatter.UrlFormatter;
 import org.chromium.content_public.browser.test.NativeLibraryTestUtils;
 import org.chromium.content_public.browser.test.util.TestThreadUtils;
@@ -58,10 +57,9 @@ import org.chromium.ui.test.util.BlankUiTestActivity;
 import org.chromium.url.GURL;
 
 import java.util.ArrayList;
+import java.util.List;
 
-/**
- * Unit tests {@link ShareSheetBottomSheetContent}.
- */
+/** Unit tests {@link ShareSheetBottomSheetContent}. */
 @Batch(Batch.UNIT_TESTS)
 @RunWith(ChromeJUnit4ClassRunner.class)
 public final class ShareSheetBottomSheetContentTest {
@@ -69,23 +67,20 @@ public final class ShareSheetBottomSheetContentTest {
     public BaseActivityTestRule<BlankUiTestActivity> mActivityTestRule =
             new BaseActivityTestRule<>(BlankUiTestActivity.class);
 
-    @Rule
-    public TestRule mFeaturesProcessor = new Features.JUnitProcessor();
+    @Rule public TestRule mFeaturesProcessor = new Features.JUnitProcessor();
+
     @Rule
     public AutomotiveContextWrapperTestRule mAutoTestRule = new AutomotiveContextWrapperTestRule();
 
-    @Mock
-    private Profile mProfile;
-    @Mock
-    private ShareSheetLinkToggleCoordinator mShareSheetLinkToggleCoordinator;
-    @Mock
-    private Tracker mFeatureEngagementTracker;
+    @Mock private Profile mProfile;
+    @Mock private ShareSheetLinkToggleCoordinator mShareSheetLinkToggleCoordinator;
+    @Mock private Tracker mFeatureEngagementTracker;
 
     private static final Bitmap.Config sConfig = Bitmap.Config.ALPHA_8;
     private static final Uri sImageUri = Uri.parse("content://testImage.png");
     private static final String sText = "Text";
     private static final String sTitle = "Title";
-    private static final String sUrl = "https://www.example.com";
+    private static final String sUrl = "https://www.example.com/path?query#hash";
     private String mPreviewUrl;
 
     private Activity mActivity;
@@ -99,30 +94,33 @@ public final class ShareSheetBottomSheetContentTest {
         mActivityTestRule.launchActivity(null);
         mActivity = mActivityTestRule.getActivity();
 
-        mPreviewUrl = UrlFormatter.formatUrlForDisplayOmitSchemeOmitTrivialSubdomains(sUrl);
-        mShareParams = new ShareParams.Builder(/*window=*/null, sTitle, sUrl)
-                               .setText(sText)
-                               .setSingleImageUri(sImageUri)
-                               .setLinkToTextSuccessful(true)
-                               .build();
+        mPreviewUrl =
+                UrlFormatter.formatUrlForSecurityDisplay(sUrl, SchemeDisplay.OMIT_HTTP_AND_HTTPS);
+        mShareParams =
+                new ShareParams.Builder(/* window= */ null, sTitle, sUrl)
+                        .setText(sText)
+                        .setSingleImageUri(sImageUri)
+                        .setLinkToTextSuccessful(true)
+                        .build();
         // Pretend the feature engagement feature is already initialized. Otherwise
         // UserEducationHelper#requestShowIPH() calls get dropped during test.
-        doAnswer(invocation -> {
-            invocation.<Callback<Boolean>>getArgument(0).onResult(true);
-            return null;
-        })
+        doAnswer(
+                        invocation -> {
+                            invocation.<Callback<Boolean>>getArgument(0).onResult(true);
+                            return null;
+                        })
                 .when(mFeatureEngagementTracker)
                 .addOnInitializedCallback(any());
         TrackerFactory.setTrackerForTests(mFeatureEngagementTracker);
         Profile.setLastUsedProfileForTesting(mProfile);
 
-        mShareSheetBottomSheetContent = new ShareSheetBottomSheetContent(mActivity,
-                new MockLargeIconBridge(), null, mShareParams, mFeatureEngagementTracker);
-    }
-
-    @After
-    public void tearDown() {
-        TrackerFactory.setTrackerForTests(null);
+        mShareSheetBottomSheetContent =
+                new ShareSheetBottomSheetContent(
+                        mActivity,
+                        new MockLargeIconBridge(),
+                        null,
+                        mShareParams,
+                        mFeatureEngagementTracker);
     }
 
     @Test
@@ -130,15 +128,53 @@ public final class ShareSheetBottomSheetContentTest {
     public void createRecyclerViews_imageOnlyShare() {
         String fileContentType = "image/jpeg";
         ShareSheetBottomSheetContent shareSheetBottomSheetContent =
-                new ShareSheetBottomSheetContent(mActivity, new MockLargeIconBridge(), null,
-                        new ShareParams.Builder(/*window=*/null, /*title=*/"", /*url=*/"")
+                new ShareSheetBottomSheetContent(
+                        mActivity,
+                        new MockLargeIconBridge(),
+                        null,
+                        new ShareParams.Builder(/* window= */ null, /* title= */ "", /* url= */ "")
                                 .setSingleImageUri(sImageUri)
                                 .setFileContentType(fileContentType)
                                 .build(),
                         mFeatureEngagementTracker);
 
-        shareSheetBottomSheetContent.createRecyclerViews(ImmutableList.of(), ImmutableList.of(),
-                ImmutableSet.of(ContentType.IMAGE), fileContentType, DetailedContentType.IMAGE,
+        shareSheetBottomSheetContent.createRecyclerViews(
+                ImmutableList.of(),
+                ImmutableList.of(),
+                ImmutableSet.of(ContentType.IMAGE),
+                fileContentType,
+                DetailedContentType.IMAGE,
+                mShareSheetLinkToggleCoordinator);
+
+        TextView titleView =
+                shareSheetBottomSheetContent.getContentView().findViewById(R.id.title_preview);
+        TextView subtitleView =
+                shareSheetBottomSheetContent.getContentView().findViewById(R.id.subtitle_preview);
+        assertEquals("", titleView.getText());
+        assertEquals("image", subtitleView.getText());
+    }
+
+    @Test
+    @MediumTest
+    public void createRecyclerViews_multipleImageShare() {
+        String fileContentType = "image/jpeg";
+        ShareSheetBottomSheetContent shareSheetBottomSheetContent =
+                new ShareSheetBottomSheetContent(
+                        mActivity,
+                        new MockLargeIconBridge(),
+                        null,
+                        new ShareParams.Builder(/* window= */ null, /* title= */ "", /* url= */ "")
+                                .setFileUris(new ArrayList<>(List.of(sImageUri, sImageUri)))
+                                .setFileContentType(fileContentType)
+                                .build(),
+                        mFeatureEngagementTracker);
+
+        shareSheetBottomSheetContent.createRecyclerViews(
+                ImmutableList.of(),
+                ImmutableList.of(),
+                ImmutableSet.of(ContentType.IMAGE),
+                fileContentType,
+                DetailedContentType.IMAGE,
                 mShareSheetLinkToggleCoordinator);
 
         TextView titleView =
@@ -154,17 +190,26 @@ public final class ShareSheetBottomSheetContentTest {
     public void createRecyclerViews_fileShare() {
         String fileContentType = "video/mp4";
         ShareSheetBottomSheetContent shareSheetBottomSheetContent =
-                new ShareSheetBottomSheetContent(mActivity, new MockLargeIconBridge(), null,
-                        new ShareParams.Builder(/*window=*/null, /*title=*/"", /*url=*/"")
-                                .setFileUris(new ArrayList<>(
-                                        ImmutableList.of(Uri.parse("content://TestVideo.mp4"))))
+                new ShareSheetBottomSheetContent(
+                        mActivity,
+                        new MockLargeIconBridge(),
+                        null,
+                        new ShareParams.Builder(/* window= */ null, /* title= */ "", /* url= */ "")
+                                .setFileUris(
+                                        new ArrayList<>(
+                                                ImmutableList.of(
+                                                        Uri.parse("content://TestVideo.mp4"))))
                                 .setFileContentType(fileContentType)
                                 .build(),
                         mFeatureEngagementTracker);
 
-        shareSheetBottomSheetContent.createRecyclerViews(ImmutableList.of(), ImmutableList.of(),
-                ImmutableSet.of(ContentType.OTHER_FILE_TYPE), fileContentType,
-                DetailedContentType.NOT_SPECIFIED, mShareSheetLinkToggleCoordinator);
+        shareSheetBottomSheetContent.createRecyclerViews(
+                ImmutableList.of(),
+                ImmutableList.of(),
+                ImmutableSet.of(ContentType.OTHER_FILE_TYPE),
+                fileContentType,
+                DetailedContentType.NOT_SPECIFIED,
+                mShareSheetLinkToggleCoordinator);
 
         TextView titleView =
                 shareSheetBottomSheetContent.getContentView().findViewById(R.id.title_preview);
@@ -177,9 +222,13 @@ public final class ShareSheetBottomSheetContentTest {
     @Test
     @MediumTest
     public void createRecyclerViews_highlightedTextShare() {
-        mShareSheetBottomSheetContent.createRecyclerViews(ImmutableList.of(), ImmutableList.of(),
-                ImmutableSet.of(ContentType.HIGHLIGHTED_TEXT), "",
-                DetailedContentType.HIGHLIGHTED_TEXT, mShareSheetLinkToggleCoordinator);
+        mShareSheetBottomSheetContent.createRecyclerViews(
+                ImmutableList.of(),
+                ImmutableList.of(),
+                ImmutableSet.of(ContentType.HIGHLIGHTED_TEXT),
+                "",
+                DetailedContentType.HIGHLIGHTED_TEXT,
+                mShareSheetLinkToggleCoordinator);
 
         TextView titleView =
                 mShareSheetBottomSheetContent.getContentView().findViewById(R.id.title_preview);
@@ -192,8 +241,12 @@ public final class ShareSheetBottomSheetContentTest {
     @Test
     @MediumTest
     public void createRecyclerViews_textOnlyShare() {
-        mShareSheetBottomSheetContent.createRecyclerViews(ImmutableList.of(), ImmutableList.of(),
-                ImmutableSet.of(ContentType.TEXT), "", DetailedContentType.NOT_SPECIFIED,
+        mShareSheetBottomSheetContent.createRecyclerViews(
+                ImmutableList.of(),
+                ImmutableList.of(),
+                ImmutableSet.of(ContentType.TEXT),
+                "",
+                DetailedContentType.NOT_SPECIFIED,
                 mShareSheetLinkToggleCoordinator);
 
         TextView titleView =
@@ -207,16 +260,22 @@ public final class ShareSheetBottomSheetContentTest {
     @Test
     @MediumTest
     public void createRecyclerViews_producesCorrectFavicon() {
-        mShareSheetBottomSheetContent.createRecyclerViews(ImmutableList.of(), ImmutableList.of(),
-                ImmutableSet.of(ContentType.LINK_PAGE_VISIBLE), "",
-                DetailedContentType.NOT_SPECIFIED, mShareSheetLinkToggleCoordinator);
+        mShareSheetBottomSheetContent.createRecyclerViews(
+                ImmutableList.of(),
+                ImmutableList.of(),
+                ImmutableSet.of(ContentType.LINK_PAGE_VISIBLE),
+                "",
+                DetailedContentType.NOT_SPECIFIED,
+                mShareSheetLinkToggleCoordinator);
 
         ImageView imageView =
                 mShareSheetBottomSheetContent.getContentView().findViewById(R.id.image_preview);
         assertNotNull(imageView.getDrawable());
         Bitmap bitmap = ((BitmapDrawable) imageView.getDrawable()).getBitmap();
-        int size = mActivity.getResources().getDimensionPixelSize(
-                R.dimen.sharing_hub_preview_inner_icon_size);
+        int size =
+                mActivity
+                        .getResources()
+                        .getDimensionPixelSize(R.dimen.sharing_hub_preview_inner_icon_size);
         assertEquals(size, bitmap.getWidth());
         assertEquals(size, bitmap.getHeight());
         assertEquals(sConfig, bitmap.getConfig());
@@ -225,9 +284,13 @@ public final class ShareSheetBottomSheetContentTest {
     @Test
     @MediumTest
     public void createRecyclerViews_tabShare() {
-        mShareSheetBottomSheetContent.createRecyclerViews(ImmutableList.of(), ImmutableList.of(),
-                ImmutableSet.of(ContentType.LINK_PAGE_VISIBLE), "",
-                DetailedContentType.NOT_SPECIFIED, mShareSheetLinkToggleCoordinator);
+        mShareSheetBottomSheetContent.createRecyclerViews(
+                ImmutableList.of(),
+                ImmutableList.of(),
+                ImmutableSet.of(ContentType.LINK_PAGE_VISIBLE),
+                "",
+                DetailedContentType.NOT_SPECIFIED,
+                mShareSheetLinkToggleCoordinator);
 
         TextView titleView =
                 mShareSheetBottomSheetContent.getContentView().findViewById(R.id.title_preview);
@@ -243,9 +306,13 @@ public final class ShareSheetBottomSheetContentTest {
     @Test
     @MediumTest
     public void createRecyclerViews_webShareTextAndUrl() {
-        mShareSheetBottomSheetContent.createRecyclerViews(ImmutableList.of(), ImmutableList.of(),
-                ImmutableSet.of(ContentType.LINK_PAGE_NOT_VISIBLE, ContentType.TEXT), "",
-                DetailedContentType.NOT_SPECIFIED, mShareSheetLinkToggleCoordinator);
+        mShareSheetBottomSheetContent.createRecyclerViews(
+                ImmutableList.of(),
+                ImmutableList.of(),
+                ImmutableSet.of(ContentType.LINK_PAGE_NOT_VISIBLE, ContentType.TEXT),
+                "",
+                DetailedContentType.NOT_SPECIFIED,
+                mShareSheetLinkToggleCoordinator);
 
         TextView titleView =
                 mShareSheetBottomSheetContent.getContentView().findViewById(R.id.title_preview);
@@ -262,13 +329,20 @@ public final class ShareSheetBottomSheetContentTest {
     @MediumTest
     public void createRecyclerViews_webShareUrl() {
         ShareSheetBottomSheetContent shareSheetBottomSheetContent =
-                new ShareSheetBottomSheetContent(mActivity, new MockLargeIconBridge(), null,
-                        new ShareParams.Builder(/*window=*/null, /*title=*/"", sUrl).build(),
+                new ShareSheetBottomSheetContent(
+                        mActivity,
+                        new MockLargeIconBridge(),
+                        null,
+                        new ShareParams.Builder(/* window= */ null, /* title= */ "", sUrl).build(),
                         mFeatureEngagementTracker);
 
-        shareSheetBottomSheetContent.createRecyclerViews(ImmutableList.of(), ImmutableList.of(),
-                ImmutableSet.of(ContentType.LINK_PAGE_NOT_VISIBLE), "",
-                DetailedContentType.NOT_SPECIFIED, mShareSheetLinkToggleCoordinator);
+        shareSheetBottomSheetContent.createRecyclerViews(
+                ImmutableList.of(),
+                ImmutableList.of(),
+                ImmutableSet.of(ContentType.LINK_PAGE_NOT_VISIBLE),
+                "",
+                DetailedContentType.NOT_SPECIFIED,
+                mShareSheetLinkToggleCoordinator);
 
         TextView titleView =
                 shareSheetBottomSheetContent.getContentView().findViewById(R.id.title_preview);
@@ -283,12 +357,14 @@ public final class ShareSheetBottomSheetContentTest {
 
     @Test
     @MediumTest
-    @Features.DisableFeatures({ChromeFeatureList.ANDROID_SCROLL_OPTIMIZATIONS})
     public void createRecyclerViews_toggleOff_showsIph() {
         String fileContentType = "image/gif";
         ShareSheetBottomSheetContent shareSheetBottomSheetContent =
-                new ShareSheetBottomSheetContent(mActivity, new MockLargeIconBridge(), null,
-                        new ShareParams.Builder(/*window=*/null, /*title=*/"", /*url=*/"")
+                new ShareSheetBottomSheetContent(
+                        mActivity,
+                        new MockLargeIconBridge(),
+                        null,
+                        new ShareParams.Builder(/* window= */ null, /* title= */ "", /* url= */ "")
                                 .setSingleImageUri(sImageUri)
                                 .setFileContentType(fileContentType)
                                 .build(),
@@ -297,10 +373,13 @@ public final class ShareSheetBottomSheetContentTest {
         when(mShareSheetLinkToggleCoordinator.shouldEnableToggleByDefault()).thenReturn(false);
 
         TestThreadUtils.runOnUiThreadBlocking(
-                ()
-                        -> shareSheetBottomSheetContent.createRecyclerViews(ImmutableList.of(),
-                                ImmutableList.of(), ImmutableSet.of(ContentType.IMAGE),
-                                fileContentType, DetailedContentType.GIF,
+                () ->
+                        shareSheetBottomSheetContent.createRecyclerViews(
+                                ImmutableList.of(),
+                                ImmutableList.of(),
+                                ImmutableSet.of(ContentType.IMAGE),
+                                fileContentType,
+                                DetailedContentType.GIF,
                                 mShareSheetLinkToggleCoordinator));
 
         ImageView toggleView =
@@ -315,8 +394,11 @@ public final class ShareSheetBottomSheetContentTest {
     public void createRecyclerViews_toggleOn_doesNotShowIph() {
         String fileContentType = "image/jpeg";
         ShareSheetBottomSheetContent shareSheetBottomSheetContent =
-                new ShareSheetBottomSheetContent(mActivity, new MockLargeIconBridge(), null,
-                        new ShareParams.Builder(/*window=*/null, /*title=*/"", /*url=*/"")
+                new ShareSheetBottomSheetContent(
+                        mActivity,
+                        new MockLargeIconBridge(),
+                        null,
+                        new ShareParams.Builder(/* window= */ null, /* title= */ "", /* url= */ "")
                                 .setSingleImageUri(sImageUri)
                                 .setFileContentType(fileContentType)
                                 .build(),
@@ -324,8 +406,12 @@ public final class ShareSheetBottomSheetContentTest {
         when(mShareSheetLinkToggleCoordinator.shouldShowToggle()).thenReturn(true);
         when(mShareSheetLinkToggleCoordinator.shouldEnableToggleByDefault()).thenReturn(true);
 
-        shareSheetBottomSheetContent.createRecyclerViews(ImmutableList.of(), ImmutableList.of(),
-                ImmutableSet.of(ContentType.IMAGE), fileContentType, DetailedContentType.IMAGE,
+        shareSheetBottomSheetContent.createRecyclerViews(
+                ImmutableList.of(),
+                ImmutableList.of(),
+                ImmutableSet.of(ContentType.IMAGE),
+                fileContentType,
+                DetailedContentType.IMAGE,
                 mShareSheetLinkToggleCoordinator);
 
         ImageView toggleView =
@@ -342,8 +428,11 @@ public final class ShareSheetBottomSheetContentTest {
 
         String fileContentType = "image/jpeg";
         ShareSheetBottomSheetContent shareSheetBottomSheetContent =
-                new ShareSheetBottomSheetContent(mActivity, new MockLargeIconBridge(), null,
-                        new ShareParams.Builder(/*window=*/null, /*title=*/"", /*url=*/"")
+                new ShareSheetBottomSheetContent(
+                        mActivity,
+                        new MockLargeIconBridge(),
+                        null,
+                        new ShareParams.Builder(/* window= */ null, /* title= */ "", /* url= */ "")
                                 .setSingleImageUri(sImageUri)
                                 .setFileContentType(fileContentType)
                                 .build(),
@@ -351,18 +440,28 @@ public final class ShareSheetBottomSheetContentTest {
 
         // Set the third party section to visible.
         shareSheetBottomSheetContent.getThirdPartyView().setVisibility(View.VISIBLE);
-        shareSheetBottomSheetContent.getContentView()
+        shareSheetBottomSheetContent
+                .getContentView()
                 .findViewById(R.id.share_sheet_divider)
                 .setVisibility(View.VISIBLE);
 
-        shareSheetBottomSheetContent.createRecyclerViews(ImmutableList.of(), ImmutableList.of(),
-                ImmutableSet.of(ContentType.IMAGE), fileContentType, DetailedContentType.IMAGE,
+        shareSheetBottomSheetContent.createRecyclerViews(
+                ImmutableList.of(),
+                ImmutableList.of(),
+                ImmutableSet.of(ContentType.IMAGE),
+                fileContentType,
+                DetailedContentType.IMAGE,
                 mShareSheetLinkToggleCoordinator);
 
-        assertEquals("The ThirdPartyView should be visible", View.VISIBLE,
+        assertEquals(
+                "The ThirdPartyView should be visible",
+                View.VISIBLE,
                 shareSheetBottomSheetContent.getThirdPartyView().getVisibility());
-        assertEquals("The share sheet divider should be visible", View.VISIBLE,
-                shareSheetBottomSheetContent.getContentView()
+        assertEquals(
+                "The share sheet divider should be visible",
+                View.VISIBLE,
+                shareSheetBottomSheetContent
+                        .getContentView()
                         .findViewById(R.id.share_sheet_divider)
                         .getVisibility());
     }
@@ -374,23 +473,36 @@ public final class ShareSheetBottomSheetContentTest {
 
         String fileContentType = "image/jpeg";
         ShareSheetBottomSheetContent shareSheetBottomSheetContent =
-                new ShareSheetBottomSheetContent(mActivity, new MockLargeIconBridge(), null,
-                        new ShareParams.Builder(/*window=*/null, /*title=*/"", /*url=*/"")
+                new ShareSheetBottomSheetContent(
+                        mActivity,
+                        new MockLargeIconBridge(),
+                        null,
+                        new ShareParams.Builder(/* window= */ null, /* title= */ "", /* url= */ "")
                                 .setSingleImageUri(sImageUri)
                                 .setFileContentType(fileContentType)
                                 .build(),
                         mFeatureEngagementTracker);
 
-        shareSheetBottomSheetContent.createRecyclerViews(ImmutableList.of(), ImmutableList.of(),
-                ImmutableSet.of(ContentType.IMAGE), fileContentType, DetailedContentType.IMAGE,
+        shareSheetBottomSheetContent.createRecyclerViews(
+                ImmutableList.of(),
+                ImmutableList.of(),
+                ImmutableSet.of(ContentType.IMAGE),
+                fileContentType,
+                DetailedContentType.IMAGE,
                 mShareSheetLinkToggleCoordinator);
 
-        assertEquals("The ThirdPartyView should be hidden", View.GONE,
-                shareSheetBottomSheetContent.getContentView()
+        assertEquals(
+                "The ThirdPartyView should be hidden",
+                View.GONE,
+                shareSheetBottomSheetContent
+                        .getContentView()
                         .findViewById(R.id.share_sheet_other_apps)
                         .getVisibility());
-        assertEquals("The share sheet divider should be hidden", View.GONE,
-                shareSheetBottomSheetContent.getContentView()
+        assertEquals(
+                "The share sheet divider should be hidden",
+                View.GONE,
+                shareSheetBottomSheetContent
+                        .getContentView()
                         .findViewById(R.id.share_sheet_divider)
                         .getVisibility());
     }

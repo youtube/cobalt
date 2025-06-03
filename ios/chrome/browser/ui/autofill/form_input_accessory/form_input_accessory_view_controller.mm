@@ -4,25 +4,23 @@
 
 #import "ios/chrome/browser/ui/autofill/form_input_accessory/form_input_accessory_view_controller.h"
 
-#import "base/mac/foundation_util.h"
+#import "base/apple/foundation_util.h"
 #import "base/metrics/histogram_macros.h"
 #import "base/metrics/user_metrics.h"
 #import "base/strings/sys_string_conversions.h"
 #import "components/autofill/core/common/autofill_features.h"
 #import "ios/chrome/browser/autofill/form_suggestion_client.h"
-#import "ios/chrome/browser/ui/autofill/features.h"
-#import "ios/chrome/browser/ui/autofill/form_input_accessory/branding_view_controller.h"
+#import "ios/chrome/browser/shared/public/features/features.h"
+#import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
+#import "ios/chrome/browser/ui/autofill/branding/branding_view_controller.h"
 #import "ios/chrome/browser/ui/autofill/form_input_accessory/form_suggestion_view.h"
 #import "ios/chrome/browser/ui/autofill/manual_fill/manual_fill_accessory_view_controller.h"
+#import "ios/chrome/browser/ui/toolbar/public/toolbar_utils.h"
 #import "ios/chrome/common/ui/elements/form_input_accessory_view.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "ui/base/device_form_factor.h"
 #import "ui/base/l10n/l10n_util.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 @interface FormInputAccessoryViewController () <
     FormSuggestionViewDelegate,
@@ -31,13 +29,10 @@
 // The leading view that contains the branding and form suggestions.
 @property(nonatomic, strong) UIStackView* leadingView;
 
-// Whether the branding logo should be present; it should be hidden when
-// autofill branding is disabled, or when there are no suggestions or mandatory
-// fill buttons in the form input accessory.
-@property(nonatomic, readonly, getter=isBrandingVisible) BOOL brandingVisible;
-
-// The view controller to show the branding logo.
-@property(nonatomic, strong) BrandingViewController* brandingViewController;
+// A BOOL value indicating whether any form accessory is visible. If YES, at
+// lease one form accessory is visible.
+@property(nonatomic, readonly, getter=isFormAccessoryVisible)
+    BOOL formAccessoryVisible;
 
 // The view with the suggestions in FormInputAccessoryView.
 @property(nonatomic, strong) FormSuggestionView* formSuggestionView;
@@ -57,7 +52,10 @@
 
 @end
 
-@implementation FormInputAccessoryViewController
+@implementation FormInputAccessoryViewController {
+  // Is the preferred omnibox position at the bottom.
+  BOOL _isBottomOmnibox;
+}
 
 @synthesize addressButtonHidden = _addressButtonHidden;
 @synthesize creditCardButtonHidden = _creditCardButtonHidden;
@@ -93,12 +91,13 @@
   // Sets up leading view.
   self.leadingView = [[UIStackView alloc] init];
   self.leadingView.axis = UILayoutConstraintAxisHorizontal;
-  if (self.brandingVisible) {
-    [self addChildViewController:self.brandingViewController];
-    self.brandingViewController.delegate = self.brandingViewControllerDelegate;
-    [self.leadingView addArrangedSubview:self.brandingViewController.view];
-    [self.brandingViewController didMoveToParentViewController:self];
-  }
+
+  [self addChildViewController:self.brandingViewController];
+  [self.leadingView addArrangedSubview:self.brandingViewController.view];
+  [self.brandingViewController didMoveToParentViewController:self];
+  self.brandingViewController.keyboardAccessoryVisible =
+      self.formAccessoryVisible;
+
   [self.leadingView addArrangedSubview:self.formSuggestionView];
 
   if (ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET) {
@@ -120,7 +119,14 @@
 
 // The custom view that should be shown in the input accessory view.
 - (FormInputAccessoryView*)formInputAccessoryView {
-  return base::mac::ObjCCastStrict<FormInputAccessoryView>(self.view);
+  return base::apple::ObjCCastStrict<FormInputAccessoryView>(self.view);
+}
+
+- (void)traitCollectionDidChange:(UITraitCollection*)previousTraitCollection {
+  [super traitCollectionDidChange:previousTraitCollection];
+  if (IsBottomOmniboxSteadyStateEnabled()) {
+    [self updateOmniboxTypingShieldVisibility];
+  }
 }
 
 #pragma mark - Public
@@ -138,27 +144,21 @@
 - (void)showAccessorySuggestions:(NSArray<FormSuggestion*>*)suggestions {
   [self createFormSuggestionViewIfNeeded];
   [self.formSuggestionView updateSuggestions:suggestions];
-  [self updateBrandingVisibility];
+  self.brandingViewController.keyboardAccessoryVisible =
+      self.formAccessoryVisible;
   [self announceVoiceOverMessageIfNeeded:[suggestions count]];
+}
+
+- (void)newOmniboxPositionIsBottom:(BOOL)isBottomOmnibox {
+  _isBottomOmnibox = isBottomOmnibox;
+  [self updateOmniboxTypingShieldVisibility];
 }
 
 #pragma mark - Getter
 
-- (BOOL)isBrandingVisible {
-  if (autofill::features::GetAutofillBrandingType() ==
-      autofill::features::AutofillBrandingType::kDisabled) {
-    return NO;
-  }
+- (BOOL)isFormAccessoryVisible {
   return !(self.manualFillAccessoryViewController.allButtonsHidden &&
            self.formSuggestionView.suggestions.count == 0);
-}
-
-- (BrandingViewController*)brandingViewController {
-  if (!_brandingViewController) {
-    DCHECK(self.brandingVisible);
-    _brandingViewController = [[BrandingViewController alloc] init];
-  }
-  return _brandingViewController;
 }
 
 #pragma mark - Setters
@@ -167,21 +167,24 @@
   _passwordButtonHidden = passwordButtonHidden;
   self.manualFillAccessoryViewController.passwordButtonHidden =
       passwordButtonHidden;
-  [self updateBrandingVisibility];
+  self.brandingViewController.keyboardAccessoryVisible =
+      self.formAccessoryVisible;
 }
 
 - (void)setAddressButtonHidden:(BOOL)addressButtonHidden {
   _addressButtonHidden = addressButtonHidden;
   self.manualFillAccessoryViewController.addressButtonHidden =
       addressButtonHidden;
-  [self updateBrandingVisibility];
+  self.brandingViewController.keyboardAccessoryVisible =
+      self.formAccessoryVisible;
 }
 
 - (void)setCreditCardButtonHidden:(BOOL)creditCardButtonHidden {
   _creditCardButtonHidden = creditCardButtonHidden;
   self.manualFillAccessoryViewController.creditCardButtonHidden =
       creditCardButtonHidden;
-  [self updateBrandingVisibility];
+  self.brandingViewController.keyboardAccessoryVisible =
+      self.formAccessoryVisible;
 }
 
 - (void)setFormInputNextButtonEnabled:(BOOL)formInputNextButtonEnabled {
@@ -201,23 +204,14 @@
       _formInputPreviousButtonEnabled;
 }
 
-- (void)setBrandingViewControllerDelegate:
-    (id<BrandingViewControllerDelegate>)delegate {
-  _brandingViewControllerDelegate = delegate;
-  if (self.brandingVisible) {
-    // If the branding view controller is created previously without the
-    // delegate, attach it.
-    self.brandingViewController.delegate = delegate;
-  }
-}
-
 #pragma mark - Private
 
 // Resets this view to its original state. Can be animated.
 - (void)resetAnimated:(BOOL)animated {
   [self.formSuggestionView resetContentInsetAndDelegateAnimated:animated];
   [self.manualFillAccessoryViewController resetAnimated:animated];
-  [self updateBrandingVisibility];
+  self.brandingViewController.keyboardAccessoryVisible =
+      self.formAccessoryVisible;
 }
 
 // Creates formSuggestionView if not done yet.
@@ -227,27 +221,6 @@
     self.formSuggestionView.formSuggestionViewDelegate = self;
     self.formSuggestionView.layoutGuideCenter = self.layoutGuideCenter;
     self.formSuggestionView.translatesAutoresizingMaskIntoConstraints = NO;
-  }
-}
-
-// Shows or hides branding when the number of suggestions and/or buttons
-// changes.
-- (void)updateBrandingVisibility {
-  if (self.brandingVisible) {
-    self.brandingViewController.delegate = self.brandingViewControllerDelegate;
-    UIView* branding = self.brandingViewController.view;
-    if (branding.superview == nil) {
-      [self addChildViewController:self.brandingViewController];
-      [self.leadingView insertArrangedSubview:branding atIndex:0];
-      [self.brandingViewController didMoveToParentViewController:self];
-    }
-  } else if (self.leadingView.subviews.count ==
-             2) {  // Branding button and form suggestions view.
-    UIView* branding = self.brandingViewController.view;
-    DCHECK_EQ(branding, self.leadingView.arrangedSubviews[0]);
-    [self.brandingViewController willMoveToParentViewController:nil];
-    [branding removeFromSuperview];
-    [self.brandingViewController removeFromParentViewController];
   }
 }
 
@@ -299,6 +272,19 @@
                                     suggestionsVoiceOverMessage);
   }
   self.lastAnnouncedFieldId = _currentFieldId;
+}
+
+- (void)updateOmniboxTypingShieldVisibility {
+  CHECK(IsBottomOmniboxSteadyStateEnabled());
+  const BOOL shouldShowTypingShield =
+      _isBottomOmnibox && IsSplitToolbarMode(self.traitCollection);
+  const CGFloat typingShieldHeight =
+      shouldShowTypingShield
+          ? ToolbarCollapsedHeight(
+                self.traitCollection.preferredContentSizeCategory)
+          : 0.0;
+  [[self formInputAccessoryView]
+      setOmniboxTypingShieldHeight:typingShieldHeight];
 }
 
 #pragma mark - ManualFillAccessoryViewControllerDelegate

@@ -12,6 +12,7 @@
 #include "base/time/time.h"
 #include "net/base/features.h"
 #include "net/base/host_port_pair.h"
+#include "net/third_party/quiche/src/quiche/quic/core/crypto/quic_crypto_client_config.h"
 #include "net/third_party/quiche/src/quiche/quic/core/quic_connection.h"
 
 namespace net {
@@ -31,9 +32,9 @@ DefaultSupportedQuicVersions() {
 // QUIC shared code but that Chrome refuses to use because modern clients
 // should only use versions at least as recent as the oldest default version.
 inline NET_EXPORT_PRIVATE quic::ParsedQuicVersionVector ObsoleteQuicVersions() {
-  return quic::ParsedQuicVersionVector{
-      quic::ParsedQuicVersion::Q043(), quic::ParsedQuicVersion::Q046(),
-      quic::ParsedQuicVersion::Q050(), quic::ParsedQuicVersion::Draft29()};
+  return quic::ParsedQuicVersionVector{quic::ParsedQuicVersion::Q046(),
+                                       quic::ParsedQuicVersion::Q050(),
+                                       quic::ParsedQuicVersion::Draft29()};
 }
 
 // All of the QUIC versions that Chrome can support. This is the subset of
@@ -96,8 +97,6 @@ struct NET_EXPORT QuicParams {
   // Versions of QUIC which may be used.
   quic::ParsedQuicVersionVector supported_versions =
       DefaultSupportedQuicVersions();
-  // User agent description to send in the QUIC handshake.
-  std::string user_agent_id;
   // Limit on the size of QUIC packets.
   size_t max_packet_length = quic::kDefaultMaxPacketSize;
   // Maximum number of server configs that are to be stored in
@@ -105,6 +104,10 @@ struct NET_EXPORT QuicParams {
   size_t max_server_configs_stored_in_properties = 0u;
   // QUIC will be used for all connections in this set.
   std::set<HostPortPair> origins_to_force_quic_on;
+  // WebTransport developer mode disables the requirement that all QUIC
+  // connections are anchored to a system certificate root, but only for
+  // WebTransport connections.
+  bool webtransport_developer_mode = false;
   // Set of QUIC tags to send in the handshake's connection options.
   quic::QuicTagVector connection_options;
   // Set of QUIC tags to send in the handshake's connection options that only
@@ -177,9 +180,6 @@ struct NET_EXPORT QuicParams {
   // If true, allows QUIC to use alternative services with a different
   // hostname from the origin.
   bool allow_remote_alt_svc = true;
-  // If true, the quic stream factory may race connection from stale dns
-  // result with the original dns resolution
-  bool race_stale_dns_on_connection = false;
   // If true, estimate the initial RTT for QUIC connections based on network.
   bool estimate_initial_rtt = false;
   // The initial rtt that will be used in crypto handshake if no cached
@@ -237,6 +237,10 @@ class NET_EXPORT_PRIVATE QuicContext {
 
 // Initializes QuicConfig based on the specified parameters.
 quic::QuicConfig InitializeQuicConfig(const QuicParams& params);
+
+// Configures QuicCryptoClientConfig with Chromium-specific settings.
+void ConfigureQuicCryptoClientConfig(
+    quic::QuicCryptoClientConfig& crypto_config);
 
 }  // namespace net
 

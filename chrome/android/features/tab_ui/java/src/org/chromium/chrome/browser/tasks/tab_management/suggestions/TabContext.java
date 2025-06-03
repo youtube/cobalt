@@ -8,7 +8,6 @@ import android.text.TextUtils;
 
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
-import org.chromium.chrome.browser.tab.state.CriticalPersistedTabData;
 import org.chromium.chrome.browser.tabmodel.TabModelFilter;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.components.site_engagement.SiteEngagementService;
@@ -95,9 +94,8 @@ public class TabContext {
         public static TabInfo createFromTab(Tab tab) {
             // TODO(crbug/783819): convert TabInfo to GURL
             return new TabInfo(tab.getId(), tab.getTitle(), tab.getUrl().getSpec(),
-                    tab.getOriginalUrl().getSpec(),
-                    CriticalPersistedTabData.from(tab).getTimestampMillis(), tab.getUrl().getSpec(),
-                    tab.isIncognito());
+                    tab.getOriginalUrl().getSpec(), tab.getTimestampMillis(),
+                    tab.getUrl().getSpec(), tab.isIncognito());
         }
 
         public double getSiteEngagementScore() {
@@ -194,9 +192,8 @@ public class TabContext {
 
             if (relatedTabs.size() > 1) {
                 List<Tab> nonClosingTabs = getNonClosingTabs(relatedTabs);
-                existingGroups.add(
-                        new TabGroupInfo(CriticalPersistedTabData.from(currentTab).getRootId(),
-                                createTabInfoList(nonClosingTabs)));
+                existingGroups.add(new TabGroupInfo(
+                        currentTab.getRootId(), createTabInfoList(nonClosingTabs)));
             } else {
                 if (currentTab.isClosing()) continue;
                 ungroupedTabs.add(TabInfo.createFromTab(currentTab));

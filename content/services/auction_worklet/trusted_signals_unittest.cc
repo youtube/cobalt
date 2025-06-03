@@ -13,13 +13,16 @@
 #include "base/functional/bind.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/run_loop.h"
+#include "base/strings/stringprintf.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/test/bind.h"
 #include "base/test/task_environment.h"
 #include "content/services/auction_worklet/auction_v8_helper.h"
 #include "content/services/auction_worklet/worklet_test_util.h"
+#include "mojo/public/cpp/bindings/pending_remote.h"
 #include "net/http/http_status_code.h"
 #include "services/network/test/test_url_loader_factory.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
 #include "v8/include/v8-context.h"
@@ -82,13 +85,59 @@ const char kBaseBiddingJson[] = R"(
 )";
 
 // Common JSON used for most scoring signals tests.
-const char kBaseScoringJson[] = R"(
+const char kBaseScoringJsonOldNames[] = R"(
   {
     "renderUrls": {
       "https://foo.test/": 1,
       "https://bar.test/": [2],
       "https://baz.test/": null,
       "https://shared.test/": "render url"
+    },
+    "adComponentRenderUrls": {
+      "https://foosub.test/": 2,
+      "https://barsub.test/": [3],
+      "https://bazsub.test/": null,
+      "https://shared.test/": "ad component url"
+    }
+  }
+)";
+
+const char kBaseScoringJson[] = R"(
+  {
+    "renderURLs": {
+      "https://foo.test/": 1,
+      "https://bar.test/": [2],
+      "https://baz.test/": null,
+      "https://shared.test/": "render url"
+    },
+    "adComponentRenderURLs": {
+      "https://foosub.test/": 2,
+      "https://barsub.test/": [3],
+      "https://bazsub.test/": null,
+      "https://shared.test/": "ad component url"
+    }
+  }
+)";
+
+const char kBaseScoringJsonNewAndOldNames[] = R"(
+  {
+    "renderURLs": {
+      "https://foo.test/": 1,
+      "https://bar.test/": [2],
+      "https://baz.test/": null,
+      "https://shared.test/": "render url"
+    },
+    "renderUrls": {
+      "https://foo.test/": 1,
+      "https://bar.test/": [2],
+      "https://baz.test/": null,
+      "https://shared.test/": "render url"
+    },
+    "adComponentRenderURLs": {
+      "https://foosub.test/": 2,
+      "https://barsub.test/": [3],
+      "https://bazsub.test/": null,
+      "https://shared.test/": "ad component url"
     },
     "adComponentRenderUrls": {
       "https://foosub.test/": 2,
@@ -139,8 +188,10 @@ class TrustedSignalsTest : public testing::Test {
     CHECK(!load_signals_run_loop_);
 
     DCHECK(!load_signals_result_);
+
     auto bidding_signals = TrustedSignals::LoadBiddingSignals(
-        &url_loader_factory_, std::move(interest_group_names),
+        &url_loader_factory_, auction_network_events_handler_.CreateRemote(),
+        std::move(interest_group_names),
         std::move(trusted_bidding_signals_keys), hostname, base_url_,
         experiment_group_id, v8_helper_,
         base::BindOnce(&TrustedSignalsTest::LoadSignalsCallback,
@@ -175,9 +226,9 @@ class TrustedSignalsTest : public testing::Test {
 
     DCHECK(!load_signals_result_);
     auto scoring_signals = TrustedSignals::LoadScoringSignals(
-        &url_loader_factory_, std::move(render_urls),
-        std::move(ad_component_render_urls), hostname, base_url_,
-        experiment_group_id, v8_helper_,
+        &url_loader_factory_, auction_network_events_handler_.CreateRemote(),
+        std::move(render_urls), std::move(ad_component_render_urls), hostname,
+        base_url_, experiment_group_id, v8_helper_,
         base::BindOnce(&TrustedSignalsTest::LoadSignalsCallback,
                        base::Unretained(this)));
     WaitForLoadComplete();
@@ -285,6 +336,8 @@ class TrustedSignalsTest : public testing::Test {
   // LoadSignalsCallback().
   bool expect_nonfatal_error_ = false;
 
+  TestAuctionNetworkEventsHandler auction_network_events_handler_;
+
   network::TestURLLoaderFactory url_loader_factory_;
   scoped_refptr<AuctionV8Helper> v8_helper_;
 };
@@ -301,6 +354,19 @@ TEST_F(TrustedSignalsTest, BiddingSignalsNetworkError) {
       "https://url.test/?hostname=publisher&keys=key1&interestGroupNames=name1 "
       "HTTP status = 404 Not Found.",
       error_msg_.value());
+
+  // Wait until idle to ensure all requests have been observed within the
+  // `auction_network_events_handler_`.
+  task_environment_.RunUntilIdle();
+  EXPECT_THAT(auction_network_events_handler_.GetObservedRequests(),
+              testing::ElementsAre(
+                  "Sent URL: "
+                  "https://url.test/"
+                  "?hostname=publisher&keys=key1&interestGroupNames=name1",
+                  "Received URL: "
+                  "https://url.test/"
+                  "?hostname=publisher&keys=key1&interestGroupNames=name1",
+                  "Completion Status: net::ERR_HTTP_RESPONSE_CODE_FAILURE"));
 }
 
 TEST_F(TrustedSignalsTest, ScoringSignalsNetworkError) {
@@ -319,6 +385,19 @@ TEST_F(TrustedSignalsTest, ScoringSignalsNetworkError) {
       "?hostname=publisher&renderUrls=https%3A%2F%2Ffoo.test%2F "
       "HTTP status = 404 Not Found.",
       error_msg_.value());
+
+  // Wait until idle to ensure all requests have been observed within the
+  // `auction_network_events_handler_`.
+  task_environment_.RunUntilIdle();
+  EXPECT_THAT(auction_network_events_handler_.GetObservedRequests(),
+              testing::ElementsAre(
+                  "Sent URL: "
+                  "https://url.test/"
+                  "?hostname=publisher&renderUrls=https%3A%2F%2Ffoo.test%2F",
+                  "Received URL: "
+                  "https://url.test/"
+                  "?hostname=publisher&renderUrls=https%3A%2F%2Ffoo.test%2F",
+                  "Completion Status: net::ERR_HTTP_RESPONSE_CODE_FAILURE"));
 }
 
 TEST_F(TrustedSignalsTest, BiddingSignalsResponseNotJsonObject) {
@@ -396,6 +475,20 @@ TEST_F(TrustedSignalsTest, BiddingSignalsInvalidVersion) {
       "Rejecting load of https://url.test/ due to unrecognized Format-Version "
       "header: shiny",
       error_msg_.value());
+
+  AddResponse(
+      &url_loader_factory_,
+      GURL("https://url.test/"
+           "?hostname=publisher&keys=key1&interestGroupNames=name1"),
+      kJsonMimeType, absl::nullopt, kBaseBiddingJson,
+      base::StringPrintf("%s\nAd-Auction-Bidding-Signals-Format-Version: 100",
+                         kAllowFledgeHeader));
+  EXPECT_FALSE(FetchBiddingSignals({"name1"}, {"key1"}, kHostname,
+                                   /*experiment_group_id=*/absl::nullopt));
+  EXPECT_EQ(
+      "Rejecting load of https://url.test/ due to unrecognized Format-Version "
+      "header: 100",
+      error_msg_.value());
 }
 
 TEST_F(TrustedSignalsTest, BiddingSignalsResponseNotObject) {
@@ -443,7 +536,9 @@ TEST_F(TrustedSignalsTest, ScoringSignalsExpectedEntriesNotPresent) {
           /*ad_component_render_urls=*/{"https://bar.test/"}, kHostname,
           /*experiment_group_id=*/absl::nullopt);
   ASSERT_TRUE(signals);
-  EXPECT_EQ(R"({"renderUrl":{"https://foo.test/":null},)"
+  EXPECT_EQ(R"({"renderURL":{"https://foo.test/":null},)"
+            R"("renderUrl":{"https://foo.test/":null},)"
+            R"("adComponentRenderURLs":{"https://bar.test/":null},)"
             R"("adComponentRenderUrls":{"https://bar.test/":null}})",
             ExtractScoringSignals(
                 signals.get(), /*render_url=*/GURL("https://foo.test/"),
@@ -514,12 +609,14 @@ TEST_F(TrustedSignalsTest, ScoringSignalsNestedEntriesNotObjects) {
           GURL("https://url.test/?hostname=publisher"
                "&renderUrls=https%3A%2F%2Ffoo.test%2F"
                "&adComponentRenderUrls=https%3A%2F%2Fbar.test%2F"),
-          R"({"renderUrls":4,"adComponentRenderUrls":5})",
+          R"({"renderUrls":4,"adComponentRenderURLs":5})",
           /*render_urls=*/{"https://foo.test/"},
           /*ad_component_render_urls=*/{"https://bar.test/"}, kHostname,
           /*experiment_group_id=*/absl::nullopt);
   ASSERT_TRUE(signals);
-  EXPECT_EQ(R"({"renderUrl":{"https://foo.test/":null},)"
+  EXPECT_EQ(R"({"renderURL":{"https://foo.test/":null},)"
+            R"("renderUrl":{"https://foo.test/":null},)"
+            R"("adComponentRenderURLs":{"https://bar.test/":null},)"
             R"("adComponentRenderUrls":{"https://bar.test/":null}})",
             ExtractScoringSignals(
                 signals.get(), /*render_url=*/GURL("https://foo.test/"),
@@ -561,12 +658,14 @@ TEST_F(TrustedSignalsTest, ScoringSignalsKeysMissing) {
                "&renderUrls=https%3A%2F%2Ffoo.test%2F"
                "&adComponentRenderUrls=https%3A%2F%2Fbar.test%2F"),
           R"({"renderUrls":{"these":"are not"},")"
-          R"(adComponentRenderUrls":{"the values":"you're looking for"}})",
+          R"(adComponentRenderURLs":{"the values":"you're looking for"}})",
           /*render_urls=*/{"https://foo.test/"},
           /*ad_component_render_urls=*/{"https://bar.test/"}, kHostname,
           /*experiment_group_id=*/absl::nullopt);
   ASSERT_TRUE(signals);
-  EXPECT_EQ(R"({"renderUrl":{"https://foo.test/":null},)"
+  EXPECT_EQ(R"({"renderURL":{"https://foo.test/":null},)"
+            R"("renderUrl":{"https://foo.test/":null},)"
+            R"("adComponentRenderURLs":{"https://bar.test/":null},)"
             R"("adComponentRenderUrls":{"https://bar.test/":null}})",
             ExtractScoringSignals(
                 signals.get(), /*render_url=*/GURL("https://foo.test/"),
@@ -587,6 +686,75 @@ TEST_F(TrustedSignalsTest, BiddingSignalsOneKey) {
   ASSERT_TRUE(priority_vector);
   EXPECT_EQ((TrustedSignals::Result::PriorityVector{{"foo", 1}}),
             *priority_vector);
+
+  // Wait until idle to ensure all requests have been observed within the
+  // `auction_network_events_handler_`.
+  task_environment_.RunUntilIdle();
+  EXPECT_THAT(auction_network_events_handler_.GetObservedRequests(),
+              testing::ElementsAre(
+                  "Sent URL: https://url.test/"
+                  "?hostname=publisher&keys=key1&interestGroupNames=name1",
+                  "Received URL: https://url.test/"
+                  "?hostname=publisher&keys=key1&interestGroupNames=name1",
+                  "Completion Status: net::OK"));
+}
+
+TEST_F(TrustedSignalsTest, BiddingSignalsOneKeyOldHeaderName) {
+  AddResponse(
+      &url_loader_factory_,
+      GURL("https://url.test/"
+           "?hostname=publisher&keys=key1&interestGroupNames=name1"),
+      kJsonMimeType, absl::nullopt, kBaseBiddingJson,
+      base::StringPrintf("%s\nX-Fledge-Bidding-Signals-Format-Version: 2",
+                         kAllowFledgeHeader));
+  scoped_refptr<TrustedSignals::Result> signals =
+      FetchBiddingSignals({"name1"}, {"key1"}, kHostname,
+                          /*experiment_group_id=*/absl::nullopt);
+  ASSERT_TRUE(signals);
+  EXPECT_EQ(R"({"key1":1})", ExtractBiddingSignals(signals.get(), {"key1"}));
+  const auto* priority_vector = signals->GetPriorityVector("name1");
+  ASSERT_TRUE(priority_vector);
+  EXPECT_EQ((TrustedSignals::Result::PriorityVector{{"foo", 1}}),
+            *priority_vector);
+}
+
+TEST_F(TrustedSignalsTest, BiddingSignalsOneKeyHeaderName) {
+  AddResponse(
+      &url_loader_factory_,
+      GURL("https://url.test/"
+           "?hostname=publisher&keys=key1&interestGroupNames=name1"),
+      kJsonMimeType, absl::nullopt, kBaseBiddingJson,
+      base::StringPrintf("%s\nAd-Auction-Bidding-Signals-Format-Version: 2",
+                         kAllowFledgeHeader));
+  scoped_refptr<TrustedSignals::Result> signals =
+      FetchBiddingSignals({"name1"}, {"key1"}, kHostname,
+                          /*experiment_group_id=*/absl::nullopt);
+  ASSERT_TRUE(signals);
+  EXPECT_EQ(R"({"key1":1})", ExtractBiddingSignals(signals.get(), {"key1"}));
+  const auto* priority_vector = signals->GetPriorityVector("name1");
+  ASSERT_TRUE(priority_vector);
+  EXPECT_EQ((TrustedSignals::Result::PriorityVector{{"foo", 1}}),
+            *priority_vector);
+}
+
+TEST_F(TrustedSignalsTest, BiddingSignalsOneKeyBothOldAndNewHeaderNames) {
+  AddResponse(
+      &url_loader_factory_,
+      GURL("https://url.test/"
+           "?hostname=publisher&keys=key1&interestGroupNames=name1"),
+      kJsonMimeType, absl::nullopt, kBaseBiddingJson,
+      base::StringPrintf("%s\nAd-Auction-Bidding-Signals-Format-Version: 2\n"
+                         "X-Fledge-Bidding-Signals-Format-Version: 2",
+                         kAllowFledgeHeader));
+  scoped_refptr<TrustedSignals::Result> signals =
+      FetchBiddingSignals({"name1"}, {"key1"}, kHostname,
+                          /*experiment_group_id=*/absl::nullopt);
+  ASSERT_TRUE(signals);
+  EXPECT_EQ(R"({"key1":1})", ExtractBiddingSignals(signals.get(), {"key1"}));
+  const auto* priority_vector = signals->GetPriorityVector("name1");
+  ASSERT_TRUE(priority_vector);
+  EXPECT_EQ((TrustedSignals::Result::PriorityVector{{"foo", 1}}),
+            *priority_vector);
 }
 
 TEST_F(TrustedSignalsTest, ScoringSignalsForOneRenderUrl) {
@@ -599,11 +767,23 @@ TEST_F(TrustedSignalsTest, ScoringSignalsForOneRenderUrl) {
           /*ad_component_render_urls=*/{}, kHostname,
           /*experiment_group_id=*/absl::nullopt);
   ASSERT_TRUE(signals);
-  EXPECT_EQ(R"({"renderUrl":{"https://foo.test/":1}})",
+  EXPECT_EQ(R"({"renderURL":{"https://foo.test/":1},)"
+            R"("renderUrl":{"https://foo.test/":1}})",
             ExtractScoringSignals(signals.get(),
                                   /*render_url=*/GURL("https://foo.test/"),
                                   /*ad_component_render_urls=*/{}));
   EXPECT_FALSE(error_msg_.has_value());
+
+  // Wait until idle to ensure all requests have been observed within the
+  // `auction_network_events_handler_`.
+  task_environment_.RunUntilIdle();
+  EXPECT_THAT(auction_network_events_handler_.GetObservedRequests(),
+              testing::ElementsAre(
+                  "Sent URL: https://url.test/"
+                  "?hostname=publisher&renderUrls=https%3A%2F%2Ffoo.test%2F",
+                  "Received URL: https://url.test/"
+                  "?hostname=publisher&renderUrls=https%3A%2F%2Ffoo.test%2F",
+                  "Completion Status: net::OK"));
 }
 
 TEST_F(TrustedSignalsTest, BiddingSignalsMultipleKeys) {
@@ -659,8 +839,73 @@ TEST_F(TrustedSignalsTest, ScoringSignalsMultipleUrls) {
           kHostname, /*experiment_group_id=*/absl::nullopt);
   ASSERT_TRUE(signals);
   EXPECT_FALSE(error_msg_.has_value());
-  EXPECT_EQ(R"({"renderUrl":{"https://bar.test/":[2]},")"
-            R"(adComponentRenderUrls":{"https://foosub.test/":2,)"
+  EXPECT_EQ(R"({"renderURL":{"https://bar.test/":[2]},)"
+            R"("renderUrl":{"https://bar.test/":[2]},)"
+            R"("adComponentRenderURLs":{"https://foosub.test/":2,)"
+            R"("https://barsub.test/":[3],"https://bazsub.test/":null},)"
+            R"("adComponentRenderUrls":{"https://foosub.test/":2,)"
+            R"("https://barsub.test/":[3],"https://bazsub.test/":null}})",
+            ExtractScoringSignals(
+                signals.get(), /*render_url=*/GURL("https://bar.test/"),
+                /*ad_component_render_urls=*/
+                {"https://foosub.test/", "https://barsub.test/",
+                 "https://bazsub.test/"}));
+}
+
+TEST_F(TrustedSignalsTest, ScoringSignalsOldNames) {
+  // URLs are currently added in lexical order.
+  scoped_refptr<TrustedSignals::Result> signals =
+      FetchScoringSignalsWithResponse(
+          GURL("https://url.test/?hostname=publisher"
+               "&renderUrls=https%3A%2F%2Fbar.test%2F,"
+               "https%3A%2F%2Fbaz.test%2F,https%3A%2F%2Ffoo.test%2F"
+               "&adComponentRenderUrls=https%3A%2F%2Fbarsub.test%2F,"
+               "https%3A%2F%2Fbazsub.test%2F,https%3A%2F%2Ffoosub.test%2F"),
+          kBaseScoringJsonOldNames,
+          /*render_urls=*/
+          {"https://foo.test/", "https://bar.test/", "https://baz.test/"},
+          /*ad_component_render_urls=*/
+          {"https://foosub.test/", "https://barsub.test/",
+           "https://bazsub.test/"},
+          kHostname, /*experiment_group_id=*/absl::nullopt);
+  ASSERT_TRUE(signals);
+  EXPECT_FALSE(error_msg_.has_value());
+  EXPECT_EQ(R"({"renderURL":{"https://bar.test/":[2]},)"
+            R"("renderUrl":{"https://bar.test/":[2]},)"
+            R"("adComponentRenderURLs":{"https://foosub.test/":2,)"
+            R"("https://barsub.test/":[3],"https://bazsub.test/":null},)"
+            R"("adComponentRenderUrls":{"https://foosub.test/":2,)"
+            R"("https://barsub.test/":[3],"https://bazsub.test/":null}})",
+            ExtractScoringSignals(
+                signals.get(), /*render_url=*/GURL("https://bar.test/"),
+                /*ad_component_render_urls=*/
+                {"https://foosub.test/", "https://barsub.test/",
+                 "https://bazsub.test/"}));
+}
+
+TEST_F(TrustedSignalsTest, ScoringSignalsNewAndOldNames) {
+  // URLs are currently added in lexical order.
+  scoped_refptr<TrustedSignals::Result> signals =
+      FetchScoringSignalsWithResponse(
+          GURL("https://url.test/?hostname=publisher"
+               "&renderUrls=https%3A%2F%2Fbar.test%2F,"
+               "https%3A%2F%2Fbaz.test%2F,https%3A%2F%2Ffoo.test%2F"
+               "&adComponentRenderUrls=https%3A%2F%2Fbarsub.test%2F,"
+               "https%3A%2F%2Fbazsub.test%2F,https%3A%2F%2Ffoosub.test%2F"),
+          kBaseScoringJsonNewAndOldNames,
+          /*render_urls=*/
+          {"https://foo.test/", "https://bar.test/", "https://baz.test/"},
+          /*ad_component_render_urls=*/
+          {"https://foosub.test/", "https://barsub.test/",
+           "https://bazsub.test/"},
+          kHostname, /*experiment_group_id=*/absl::nullopt);
+  ASSERT_TRUE(signals);
+  EXPECT_FALSE(error_msg_.has_value());
+  EXPECT_EQ(R"({"renderURL":{"https://bar.test/":[2]},)"
+            R"("renderUrl":{"https://bar.test/":[2]},)"
+            R"("adComponentRenderURLs":{"https://foosub.test/":2,)"
+            R"("https://barsub.test/":[3],"https://bazsub.test/":null},)"
+            R"("adComponentRenderUrls":{"https://foosub.test/":2,)"
             R"("https://barsub.test/":[3],"https://bazsub.test/":null}})",
             ExtractScoringSignals(
                 signals.get(), /*render_url=*/GURL("https://bar.test/"),
@@ -709,16 +954,19 @@ TEST_F(TrustedSignalsTest, ScoringSignalsDuplicateKeys) {
           kHostname, /*experiment_group_id=*/absl::nullopt);
   ASSERT_TRUE(signals);
   EXPECT_FALSE(error_msg_.has_value());
-  EXPECT_EQ(R"({"renderUrl":{"https://bar.test/":[2]},")"
-            R"(adComponentRenderUrls":{)"
+  EXPECT_EQ(R"({"renderURL":{"https://bar.test/":[2]},)"
+            R"("renderUrl":{"https://bar.test/":[2]},)"
+            R"("adComponentRenderURLs":{)"
+            R"("https://barsub.test/":[3],"https://foosub.test/":2},)"
+            R"("adComponentRenderUrls":{)"
             R"("https://barsub.test/":[3],"https://foosub.test/":2}})",
             ExtractScoringSignals(signals.get(),
                                   /*render_url=*/GURL("https://bar.test/"),
                                   ad_component_render_urls_vector));
 }
 
-// Test when a single URL is used as both a `renderUrl` and
-// `adComponentRenderUrl`.
+// Test when a single URL is used as both a `renderURL` and
+// `adComponentRenderURL`.
 TEST_F(TrustedSignalsTest, ScoringSignalsSharedUrl) {
   // URLs are currently added in lexical order.
   scoped_refptr<TrustedSignals::Result> signals =
@@ -735,8 +983,10 @@ TEST_F(TrustedSignalsTest, ScoringSignalsSharedUrl) {
   ASSERT_TRUE(signals);
   EXPECT_FALSE(error_msg_.has_value());
   EXPECT_EQ(
-      R"({"renderUrl":{"https://shared.test/":"render url"},")"
-      R"(adComponentRenderUrls":{"https://shared.test/":"ad component url"}})",
+      R"({"renderURL":{"https://shared.test/":"render url"},)"
+      R"("renderUrl":{"https://shared.test/":"render url"},)"
+      R"("adComponentRenderURLs":{"https://shared.test/":"ad component url"},)"
+      R"("adComponentRenderUrls":{"https://shared.test/":"ad component url"}})",
       ExtractScoringSignals(signals.get(),
                             /*render_url=*/GURL("https://shared.test/"),
                             /*ad_component_render_urls=*/
@@ -780,7 +1030,7 @@ TEST_F(TrustedSignalsTest, ScoringSignalsEscapeQueryParams) {
     "renderUrls": {
       "https://foo.test/?&=": 4
     },
-    "adComponentRenderUrls": {
+    "adComponentRenderURLs": {
       "https://bar.test/?&=": 5
     }
   }
@@ -790,7 +1040,9 @@ TEST_F(TrustedSignalsTest, ScoringSignalsEscapeQueryParams) {
           {"https://bar.test/?&="}, "pub li&sher",
           /*experiment_group_id=*/absl::nullopt);
   ASSERT_TRUE(signals);
-  EXPECT_EQ(R"({"renderUrl":{"https://foo.test/?&=":4},)"
+  EXPECT_EQ(R"({"renderURL":{"https://foo.test/?&=":4},)"
+            R"("renderUrl":{"https://foo.test/?&=":4},)"
+            R"("adComponentRenderURLs":{"https://bar.test/?&=":5},)"
             R"("adComponentRenderUrls":{"https://bar.test/?&=":5}})",
             ExtractScoringSignals(
                 signals.get(),                /*render_url=*/
@@ -812,7 +1064,8 @@ TEST_F(TrustedSignalsTest, BiddingSignalsDeleteBeforeCallback) {
   base::WaitableEvent* event_handle = WedgeV8Thread(v8_helper_.get());
 
   auto bidding_signals = TrustedSignals::LoadBiddingSignals(
-      &url_loader_factory_, {"name1"}, {"key1"}, "publisher", base_url_,
+      &url_loader_factory_, auction_network_events_handler_.CreateRemote(),
+      {"name1"}, {"key1"}, "publisher", base_url_,
       /*experiment_group_id=*/absl::nullopt, v8_helper_,
       base::BindOnce([](scoped_refptr<TrustedSignals::Result> result,
                         absl::optional<std::string> error_msg) {
@@ -835,7 +1088,7 @@ TEST_F(TrustedSignalsTest, ScoringSignalsDeleteBeforeCallback) {
   // Wedge the V8 thread to control when the JSON parsing takes place.
   base::WaitableEvent* event_handle = WedgeV8Thread(v8_helper_.get());
   auto scoring_signals = TrustedSignals::LoadScoringSignals(
-      &url_loader_factory_,
+      &url_loader_factory_, auction_network_events_handler_.CreateRemote(),
       /*render_urls=*/{"http://foo.test/"},
       /*ad_component_render_urls=*/{}, "publisher", base_url_,
       /*experiment_group_id=*/absl::nullopt, v8_helper_,
@@ -863,7 +1116,8 @@ TEST_F(TrustedSignalsTest, ScoringSignalsWithDataVersion) {
                             /*ad_component_render_urls=*/{}, kHostname,
                             /*experiment_group_id=*/absl::nullopt);
     ASSERT_TRUE(signals);
-    EXPECT_EQ(R"({"renderUrl":{"https://foo.test/":1}})",
+    EXPECT_EQ(R"({"renderURL":{"https://foo.test/":1},)"
+              R"("renderUrl":{"https://foo.test/":1}})",
               ExtractScoringSignals(signals.get(),
                                     /*render_url=*/GURL("https://foo.test/"),
                                     /*ad_component_render_urls=*/{}));
@@ -883,7 +1137,7 @@ TEST_F(TrustedSignalsTest, ScoringSignalsWithInvalidDataVersion) {
         GURL("https://url.test/"
              "?hostname=publisher&renderUrls=https%3A%2F%2Ffoo.test%2F"),
         kJsonMimeType, absl::nullopt, kBaseScoringJson,
-        "X-Allow-FLEDGE: true\nData-Version: " + test_case);
+        "Ad-Auction-Allowed: true\nData-Version: " + test_case);
     scoped_refptr<TrustedSignals::Result> signals =
         FetchScoringSignals(/*render_urls=*/{"https://foo.test/"},
                             /*ad_component_render_urls=*/{}, kHostname,
@@ -922,7 +1176,8 @@ TEST_F(TrustedSignalsTest, ScoringSignalsExperimentId) {
           /*ad_component_render_urls=*/{}, kHostname,
           /*experiment_group_id=*/2345u);
   ASSERT_TRUE(signals);
-  EXPECT_EQ(R"({"renderUrl":{"https://foo.test/":1}})",
+  EXPECT_EQ(R"({"renderURL":{"https://foo.test/":1},)"
+            R"("renderUrl":{"https://foo.test/":1}})",
             ExtractScoringSignals(signals.get(),
                                   /*render_url=*/GURL("https://foo.test/"),
                                   /*ad_component_render_urls=*/{}));

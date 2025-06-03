@@ -10,7 +10,6 @@ import("//build/config/features.gni")
 import("//build/config/ui.gni")
 import("//build/nocompile.gni")
 import("//media/media_options.gni")
-import("//skia/features.gni")
 import("//testing/libfuzzer/fuzzer_test.gni")
 import("//testing/test.gni")
 import("//third_party/blink/public/public_features.gni")
@@ -127,6 +126,9 @@ executable("character_data_generator") {
     "text/character_property.h",
     "text/character_property_data.h",
     "text/character_property_data_generator.cc",
+    "text/han_kerning_char_type.h",
+    "wtf/text/character_names.h",
+    "wtf/text/wtf_uchar.h",
   ]
   configs += [ "//third_party/blink/renderer:config" ]
   deps = [
@@ -141,7 +143,10 @@ executable("character_data_generator") {
 # but it helps to have the targets match the GYP build.
 group("make_platform_generated") {
   visibility = []  # Allow re-assignment of list.
-  visibility = [ "//third_party/blink/renderer/*" ]
+  visibility = [
+    "//third_party/blink/public:blink_headers",
+    "//third_party/blink/renderer/*",
+  ]
   public_deps = [
     ":bindings_buildflags",
     ":character_data",
@@ -149,6 +154,8 @@ group("make_platform_generated") {
     ":font_family_names",
     ":runtime_enabled_features",
     ":runtime_feature_state_override_context",
+    "//third_party/blink/public/common:buildflags",
+    "//third_party/blink/renderer/platform/heap:blink_heap_buildflags",
     "//third_party/blink/renderer/platform/network:make_generated",
   ]
 }
@@ -195,11 +202,9 @@ group("blink_platform_public_deps") {
     "//third_party/blink/public/common:font_enumeration_table_proto",
     "//third_party/blink/public/mojom:mojom_platform_blink",
     "//third_party/blink/public/mojom:web_bluetooth_mojo_bindings_blink",
-    "//third_party/blink/renderer/platform/heap:blink_heap_buildflags",
     "//third_party/blink/renderer/platform/network:make_generated",
     "//third_party/blink/renderer/platform/wtf",
     "//third_party/boringssl",
-    "//third_party/iccjpeg",
     "//third_party/libpng",
     "//third_party/libwebp",
     "//third_party/ots",
@@ -282,6 +287,25 @@ source_set("allow_discouraged_type") {
   visibility = [ "//third_party/blink/renderer/platform/*" ]
 }
 
+source_set("image_headers") {
+  visibility = []  # Allow re-assignment of list.
+  visibility = [ "//third_party/blink/renderer/platform/image-decoders/*" ]
+
+  sources = [
+    "graphics/bitmap_image_metrics.h",
+    "graphics/color_behavior.h",
+    "graphics/image_orientation_enum.h",
+    "graphics/paint/paint_image.h",
+  ]
+
+  public_deps = [
+    "//base:base",
+    "//cc/paint:paint",
+    "//third_party/blink/renderer/platform:platform_export",
+    "//third_party/blink/renderer/platform/wtf:wtf",
+  ]
+}
+
 component("platform") {
   visibility = []  # Allow re-assignment of list.
   visibility = [
@@ -307,8 +331,6 @@ component("platform") {
     "audio/audio_callback_metric_reporter.h",
     "audio/audio_channel.cc",
     "audio/audio_channel.h",
-    "audio/audio_delay_dsp_kernel.cc",
-    "audio/audio_delay_dsp_kernel.h",
     "audio/audio_destination.cc",
     "audio/audio_destination.h",
     "audio/audio_dsp_kernel.cc",
@@ -334,6 +356,8 @@ component("platform") {
     "audio/cpu/x86/vector_math_sse.cc",
     "audio/cpu/x86/vector_math_sse.h",
     "audio/cpu/x86/vector_math_x86.h",
+    "audio/delay.cc",
+    "audio/delay.h",
     "audio/denormal_disabler.h",
     "audio/direct_convolver.cc",
     "audio/direct_convolver.h",
@@ -399,6 +423,9 @@ component("platform") {
     "bindings/active_script_wrappable_base.h",
     "bindings/active_script_wrappable_manager.cc",
     "bindings/active_script_wrappable_manager.h",
+    "bindings/async_iterator_base.cc",
+    "bindings/async_iterator_base.h",
+    "bindings/bigint.cc",
     "bindings/bigint.h",
     "bindings/binding_security_for_platform.cc",
     "bindings/binding_security_for_platform.h",
@@ -409,6 +436,7 @@ component("platform") {
     "bindings/callback_method_retriever.cc",
     "bindings/callback_method_retriever.h",
     "bindings/cross_thread_copier.h",
+    "bindings/custom_wrappable.cc",
     "bindings/custom_wrappable.h",
     "bindings/dictionary_base.cc",
     "bindings/dictionary_base.h",
@@ -462,14 +490,11 @@ component("platform") {
     "bindings/to_blink_string.h",
     "bindings/to_v8.h",
     "bindings/trace_wrapper_v8_reference.h",
-    "bindings/trace_wrapper_v8_string.cc",
-    "bindings/trace_wrapper_v8_string.h",
     "bindings/union_base.cc",
     "bindings/union_base.h",
     "bindings/v8_binding.cc",
     "bindings/v8_binding.h",
     "bindings/v8_binding_macros.h",
-    "bindings/v8_cross_origin_callback_info.h",
     "bindings/v8_cross_origin_property_support.cc",
     "bindings/v8_cross_origin_property_support.h",
     "bindings/v8_dom_activity_logger.cc",
@@ -515,6 +540,7 @@ component("platform") {
     "data_resource_helper.h",
     "disk_data_allocator.cc",
     "disk_data_allocator.h",
+    "disk_data_metadata.cc",
     "disk_data_metadata.h",
     "exported/file_path_conversion.cc",
     "exported/interface_registry.cc",
@@ -635,6 +661,7 @@ component("platform") {
     "fonts/font_selector.cc",
     "fonts/font_selector.h",
     "fonts/font_selector_client.h",
+    "fonts/font_size_adjust.cc",
     "fonts/font_size_adjust.h",
     "fonts/font_smoothing_mode.cc",
     "fonts/font_smoothing_mode.h",
@@ -658,11 +685,15 @@ component("platform") {
     "fonts/opentype/font_format_check.h",
     "fonts/opentype/font_settings.cc",
     "fonts/opentype/font_settings.h",
+    "fonts/opentype/open_type_baseline_metrics.cc",
+    "fonts/opentype/open_type_baseline_metrics.h",
     "fonts/opentype/open_type_caps_support.cc",
     "fonts/opentype/open_type_caps_support.h",
     "fonts/opentype/open_type_caps_support_mpl.cc",
     "fonts/opentype/open_type_cpal_lookup.cc",
     "fonts/opentype/open_type_cpal_lookup.h",
+    "fonts/opentype/open_type_features.cc",
+    "fonts/opentype/open_type_features.h",
     "fonts/opentype/open_type_math_stretch_data.h",
     "fonts/opentype/open_type_math_support.cc",
     "fonts/opentype/open_type_math_support.h",
@@ -675,6 +706,8 @@ component("platform") {
     "fonts/opentype/variable_axes_names.h",
     "fonts/orientation_iterator.cc",
     "fonts/orientation_iterator.h",
+    "fonts/palette_interpolation.cc",
+    "fonts/palette_interpolation.h",
     "fonts/resolved_font_features.h",
     "fonts/script_run_iterator.cc",
     "fonts/script_run_iterator.h",
@@ -689,6 +722,8 @@ component("platform") {
     "fonts/shaping/font_features.cc",
     "fonts/shaping/font_features.h",
     "fonts/shaping/glyph_bounds_accumulator.h",
+    "fonts/shaping/han_kerning.cc",
+    "fonts/shaping/han_kerning.h",
     "fonts/shaping/harfbuzz_face.cc",
     "fonts/shaping/harfbuzz_face.h",
     "fonts/shaping/harfbuzz_face_from_typeface.cc",
@@ -703,6 +738,7 @@ component("platform") {
     "fonts/shaping/run_segmenter.cc",
     "fonts/shaping/run_segmenter.h",
     "fonts/shaping/shape_cache.h",
+    "fonts/shaping/shape_options.h",
     "fonts/shaping/shape_result.cc",
     "fonts/shaping/shape_result.h",
     "fonts/shaping/shape_result_bloberizer.cc",
@@ -720,6 +756,9 @@ component("platform") {
     "fonts/shaping/shaping_line_breaker.h",
     "fonts/shaping/stretchy_operator_shaper.cc",
     "fonts/shaping/stretchy_operator_shaper.h",
+    "fonts/shaping/text_auto_space.cc",
+    "fonts/shaping/text_auto_space.h",
+    "fonts/shaping/text_spacing_trim.h",
     "fonts/simple_font_data.cc",
     "fonts/simple_font_data.h",
     "fonts/skia/font_cache_skia.cc",
@@ -762,6 +801,7 @@ component("platform") {
     "geometry/float_rounded_rect.h",
     "geometry/geometry_as_json.h",
     "geometry/geometry_hash_traits.h",
+    "geometry/infinite_int_rect.h",
     "geometry/layout_point.cc",
     "geometry/layout_point.h",
     "geometry/layout_rect.cc",
@@ -799,6 +839,8 @@ component("platform") {
     "graphics/canvas_2d_layer_bridge.h",
     "graphics/canvas_color_params.cc",
     "graphics/canvas_color_params.h",
+    "graphics/canvas_hibernation_handler.cc",
+    "graphics/canvas_hibernation_handler.h",
     "graphics/canvas_resource.cc",
     "graphics/canvas_resource.h",
     "graphics/canvas_resource_dispatcher.cc",
@@ -809,7 +851,6 @@ component("platform") {
     "graphics/canvas_resource_provider.h",
     "graphics/color.cc",
     "graphics/color.h",
-    "graphics/color_behavior.cc",
     "graphics/color_behavior.h",
     "graphics/color_space_gamut.cc",
     "graphics/color_space_gamut.h",
@@ -840,6 +881,7 @@ component("platform") {
     "graphics/compositor_mutator_client.cc",
     "graphics/compositor_mutator_client.h",
     "graphics/cpu/arm/webgl_image_conversion_neon.h",
+    "graphics/cpu/loongarch64/webgl_image_conversion_lsx.h",
     "graphics/cpu/mips/webgl_image_conversion_msa.h",
     "graphics/cpu/x86/webgl_image_conversion_sse.h",
     "graphics/crossfade_generated_image.cc",
@@ -983,6 +1025,7 @@ component("platform") {
     "graphics/image_observer.h",
     "graphics/image_orientation.cc",
     "graphics/image_orientation.h",
+    "graphics/image_orientation_enum.h",
     "graphics/image_pattern.cc",
     "graphics/image_pattern.h",
     "graphics/intercepting_canvas.cc",
@@ -1113,9 +1156,9 @@ component("platform") {
     "graphics/replaying_canvas.cc",
     "graphics/replaying_canvas.h",
     "graphics/resource_id_traits.h",
-    "graphics/rw_buffer.cc",
-    "graphics/rw_buffer.h",
-    "graphics/scoped_interpolation_quality.h",
+    "graphics/scoped_image_rendering_settings.h",
+    "graphics/scoped_raster_timer.cc",
+    "graphics/scoped_raster_timer.h",
     "graphics/scrollbar_theme_settings.cc",
     "graphics/scrollbar_theme_settings.h",
     "graphics/skia/sk_image_info_hash.h",
@@ -1146,6 +1189,7 @@ component("platform") {
     "graphics/video_frame_submitter.cc",
     "graphics/video_frame_submitter.h",
     "graphics/view_transition_element_id.h",
+    "graphics/visual_rect_flags.h",
     "graphics/viz_util.cc",
     "graphics/viz_util.h",
     "graphics/web_graphics_context_3d_provider_util.cc",
@@ -1155,35 +1199,6 @@ component("platform") {
     "graphics/web_graphics_context_3d_video_frame_pool.cc",
     "graphics/web_graphics_context_3d_video_frame_pool.h",
     "heap_observer_set.h",
-    "image-decoders/bmp/bmp_image_decoder.cc",
-    "image-decoders/bmp/bmp_image_decoder.h",
-    "image-decoders/bmp/bmp_image_reader.cc",
-    "image-decoders/bmp/bmp_image_reader.h",
-    "image-decoders/exif_reader.cc",
-    "image-decoders/exif_reader.h",
-    "image-decoders/fast_shared_buffer_reader.cc",
-    "image-decoders/fast_shared_buffer_reader.h",
-    "image-decoders/gif/gif_image_decoder.cc",
-    "image-decoders/gif/gif_image_decoder.h",
-    "image-decoders/ico/ico_image_decoder.cc",
-    "image-decoders/ico/ico_image_decoder.h",
-    "image-decoders/image_animation.h",
-    "image-decoders/image_decoder.cc",
-    "image-decoders/image_decoder.h",
-    "image-decoders/image_frame.cc",
-    "image-decoders/image_frame.h",
-    "image-decoders/jpeg/jpeg_image_decoder.cc",
-    "image-decoders/jpeg/jpeg_image_decoder.h",
-    "image-decoders/png/png_image_decoder.cc",
-    "image-decoders/png/png_image_decoder.h",
-    "image-decoders/png/png_image_reader.cc",
-    "image-decoders/png/png_image_reader.h",
-    "image-decoders/segment_reader.cc",
-    "image-decoders/segment_reader.h",
-    "image-decoders/segment_stream.cc",
-    "image-decoders/segment_stream.h",
-    "image-decoders/webp/webp_image_decoder.cc",
-    "image-decoders/webp/webp_image_decoder.h",
     "image-encoders/image_encoder.cc",
     "image-encoders/image_encoder.h",
     "image-encoders/image_encoder_utils.cc",
@@ -1265,8 +1280,6 @@ component("platform") {
     "mojo/kurl_mojom_traits.h",
     "mojo/mojo_binding_context.h",
     "mojo/security_origin_mojom_traits.h",
-    "mojo/shared_storage_mojom_traits.cc",
-    "mojo/shared_storage_mojom_traits.h",
     "mojo/string16_mojom_traits.cc",
     "mojo/string16_mojom_traits.h",
     "p2p/empty_network_manager.cc",
@@ -1372,6 +1385,7 @@ component("platform") {
     "region_capture_crop_id.cc",
     "region_capture_crop_id.h",
     "resolution_units.h",
+    "restriction_target_id.h",
     "search_engine_utils.cc",
     "search_engine_utils.h",
     "storage/blink_storage_key.cc",
@@ -1394,6 +1408,7 @@ component("platform") {
     "text/date_time_format.cc",
     "text/date_time_format.h",
     "text/decode_escape_sequences.h",
+    "text/han_kerning_char_type.h",
     "text/hyphenation.cc",
     "text/hyphenation.h",
     "text/icu_error.cc",
@@ -1580,21 +1595,24 @@ component("platform") {
     }
   }
 
+  if (current_cpu == "loong64") {
+    cflags = [
+      "-mlsx",
+      "-flax-vector-conversions",
+    ]
+  }
+
   if (is_mac) {
     sources += [
       "audio/mac/fft_frame_mac.cc",
       "audio/mac/vector_math_mac.h",
       "fonts/mac/attributed_string_type_converter.h",
       "fonts/mac/attributed_string_type_converter.mm",
-      "fonts/mac/core_text_font_format_support.cc",
-      "fonts/mac/core_text_font_format_support.h",
       "fonts/mac/font_cache_mac.mm",
       "fonts/mac/font_matcher_mac.h",
       "fonts/mac/font_matcher_mac.mm",
       "fonts/mac/font_platform_data_mac.h",
       "fonts/mac/font_platform_data_mac.mm",
-      "mac/block_exceptions.h",
-      "mac/block_exceptions.mm",
       "mac/color_mac.h",
       "mac/color_mac.mm",
       "mac/graphics_context_canvas.h",
@@ -1609,7 +1627,6 @@ component("platform") {
   if (is_ios) {
     sources += [ "fonts/ios/font_cache_ios.mm" ]
   }
-
   if (is_linux || is_chromeos) {
     sources += [
       "fonts/linux/font_cache_linux.cc",
@@ -1622,8 +1639,6 @@ component("platform") {
     sources += [
       "fonts/win/dwrite_font_format_support.cc",
       "fonts/win/dwrite_font_format_support.h",
-      "fonts/win/fallback_family_style_cache_win.cc",
-      "fonts/win/fallback_family_style_cache_win.h",
       "fonts/win/font_cache_skia_win.cc",
       "fonts/win/font_fallback_win.cc",
       "fonts/win/font_fallback_win.h",
@@ -1666,6 +1681,7 @@ component("platform") {
     "//third_party/blink/public/mojom:embedded_frame_sink_mojo_bindings_blink",
     "//third_party/blink/renderer/platform/blob",
     "//third_party/blink/renderer/platform/heap",
+    "//third_party/blink/renderer/platform/image-decoders:image_decoders",
     "//third_party/blink/renderer/platform/instrumentation",
     "//third_party/blink/renderer/platform/loader",
     "//third_party/blink/renderer/platform/network",
@@ -1674,6 +1690,7 @@ component("platform") {
     "//third_party/pffft:pffft",
     "//ui/base/cursor",
     "//ui/gfx",
+    "//ui/native_theme:features",
   ]
   deps = [
     "//base:base_static",
@@ -1684,7 +1701,6 @@ component("platform") {
     "//cc/ipc",
     "//cc/mojo_embedder",
     "//components/paint_preview/common",
-    "//components/power_scheduler",
     "//components/search_engines:search_engine_utils",
     "//components/viz/client",
     "//components/viz/common",
@@ -1698,6 +1714,7 @@ component("platform") {
     "//media",
     "//media/capture:capture_switches",
     "//media/capture/mojom:video_capture",
+    "//media/mojo/clients:clients",
     "//media/webrtc:webrtc",
     "//mojo/public/cpp/bindings:wtf_support",
     "//services/metrics/public/cpp:ukm_builders",
@@ -1706,6 +1723,7 @@ component("platform") {
     "//services/viz/public/cpp/gpu",
     "//skia",
     "//skia:skcms",
+    "//third_party:freetype_buildflags",
     "//third_party:freetype_harfbuzz",
     "//third_party/abseil-cpp:absl",
     "//third_party/blink/public:image_resources",
@@ -1723,6 +1741,7 @@ component("platform") {
     "//ui/base/cursor/mojom:cursor_type_blink",
     "//ui/base/prediction",
     "//ui/color",
+    "//ui/color:mixers",
     "//ui/events/ipc",
     "//ui/gfx/geometry",
     "//ui/gfx/mojom",
@@ -1730,7 +1749,7 @@ component("platform") {
   ]
 
   if (is_android) {
-    deps += [ "//third_party/android_ndk:cpu_features" ]
+    deps += [ "//third_party/cpu_features:ndk_compat" ]
     sources += [
       "theme/web_theme_engine_android.cc",
       "theme/web_theme_engine_android.h",
@@ -1802,23 +1821,14 @@ component("platform") {
     sources += [ "text/hyphenation/hyphenation_null.cc" ]
   }
 
-  if (enable_av1_decoder) {
-    sources += [
-      "image-decoders/avif/avif_image_decoder.cc",
-      "image-decoders/avif/avif_image_decoder.h",
-    ]
-
-    deps += [ "//third_party/libavif" ]
-  }
-
   if (current_cpu == "x86" || current_cpu == "x64") {
     deps += [ ":blink_x86_avx" ]
-    sources += [ "audio/cpu/x86/audio_delay_dsp_kernel_sse2.cc" ]
+    sources += [ "audio/cpu/x86/delay_sse2.cc" ]
     allow_circular_includes_from += [ ":blink_x86_avx" ]
   }
 
   if (current_cpu == "arm64" || (current_cpu == "arm" && arm_use_neon)) {
-    sources += [ "audio/cpu/arm/audio_delay_dsp_kernel_neon.cc" ]
+    sources += [ "audio/cpu/arm/delay_neon.cc" ]
   }
 
   if (use_webaudio_ffmpeg) {
@@ -1861,8 +1871,6 @@ static_library("test_support") {
     "graphics/test/mock_frame_sink_bundle.h",
     "graphics/test/mock_image_decoder.h",
     "graphics/test/mock_paint_canvas.h",
-    "testing/code_cache_loader_mock.cc",
-    "testing/code_cache_loader_mock.h",
     "testing/compositor_test.cc",
     "testing/compositor_test.h",
     "testing/empty_web_media_player.cc",
@@ -1874,8 +1882,6 @@ static_library("test_support") {
     "testing/font_test_base.h",
     "testing/font_test_helpers.cc",
     "testing/font_test_helpers.h",
-    "testing/histogram_tester.cc",
-    "testing/histogram_tester.h",
     "testing/io_task_runner_testing_platform_support.cc",
     "testing/io_task_runner_testing_platform_support.h",
     "testing/layer_tree_host_embedder.cc",
@@ -1974,15 +1980,15 @@ static_library("test_support") {
 test("blink_platform_unittests") {
   deps = [ ":blink_platform_unittests_sources" ]
 
+  if (enable_nocompile_tests_new) {
+    deps += [ ":blink_platform_nocompile_tests" ]
+  }
+
   if (is_fuchsia) {
     additional_manifest_fragments = [
       "//build/config/fuchsia/test/test_fonts.shard.test-cml",
       "//build/config/fuchsia/test/mark_vmo_executable.shard.test-cml",
     ]
-
-    # Oilpan reuses V8's v8::PageAllocator which generally requires JIT
-    # permissions.
-    test_runner_shard = "//build/config/fuchsia/test/elf_test_ambient_exec_runner.shard.test-cml"
   }
 
   if (is_android) {
@@ -1997,6 +2003,17 @@ test("blink_platform_unittests") {
   }
   if (is_ios) {
     bundle_deps = [ ":blink_platform_unittests_bundle_data" ]
+  }
+}
+
+if (enable_nocompile_tests_new) {
+  nocompile_source_set("blink_platform_nocompile_tests") {
+    sources = [ "wtf/functional_nocompile.nc" ]
+
+    deps = [
+      ":platform",
+      "//base",
+    ]
   }
 }
 
@@ -2026,6 +2043,7 @@ source_set("blink_platform_unittests_sources") {
     "exported/web_vector_test.cc",
     "fonts/bitmap_glyphs_block_list_test.cc",
     "fonts/cursor_position_test.cc",
+    "fonts/fallback_list_composite_key_test.cc",
     "fonts/font_cache_test.cc",
     "fonts/font_description_test.cc",
     "fonts/font_family_test.cc",
@@ -2033,19 +2051,23 @@ source_set("blink_platform_unittests_sources") {
     "fonts/font_palette_test.cc",
     "fonts/font_platform_data_test.cc",
     "fonts/font_selection_types_test.cc",
+    "fonts/font_size_adjust_test.cc",
     "fonts/font_test.cc",
     "fonts/font_test_utilities.cc",
     "fonts/generic_font_family_settings_test.cc",
     "fonts/opentype/font_format_check_test.cc",
     "fonts/opentype/font_settings_test.cc",
+    "fonts/opentype/open_type_baseline_metrics_test.cc",
     "fonts/opentype/open_type_cpal_lookup_test.cc",
     "fonts/opentype/open_type_math_support_test.cc",
     "fonts/opentype/open_type_vertical_data_test.cc",
     "fonts/opentype/variable_axes_names_test.cc",
     "fonts/orientation_iterator_test.cc",
+    "fonts/palette_interpolation_test.cc",
     "fonts/script_run_iterator_test.cc",
     "fonts/shaping/caching_word_shaper_test.cc",
     "fonts/shaping/font_features_test.cc",
+    "fonts/shaping/han_kerning_test.cc",
     "fonts/shaping/harfbuzz_shaper_test.cc",
     "fonts/shaping/ng_shape_cache_test.cc",
     "fonts/shaping/run_segmenter_test.cc",
@@ -2055,6 +2077,7 @@ source_set("blink_platform_unittests_sources") {
     "fonts/shaping/shape_result_view_test.cc",
     "fonts/shaping/shaping_line_breaker_test.cc",
     "fonts/shaping/stretchy_operator_shaper_test.cc",
+    "fonts/shaping/text_auto_space_test.cc",
     "fonts/small_caps_iterator_test.cc",
     "fonts/symbols_iterator_test.cc",
     "fonts/typesetting_features_test.cc",
@@ -2107,30 +2130,15 @@ source_set("blink_platform_unittests_sources") {
     "graphics/paint/raster_invalidator_test.cc",
     "graphics/paint/scrollbar_display_item_test.cc",
     "graphics/paint_invalidation_reason_test.cc",
+    "graphics/parkable_image_segment_reader_test.cc",
     "graphics/parkable_image_test.cc",
     "graphics/path_test.cc",
     "graphics/placeholder_image_test.cc",
     "graphics/raster_dark_mode_filter_impl_test.cc",
-    "graphics/rw_buffer_test.cc",
     "graphics/video_frame_image_util_test.cc",
     "graphics/video_frame_sink_bundle_test.cc",
     "graphics/video_frame_submitter_test.cc",
     "heap_observer_set_test.cc",
-    "image-decoders/bmp/bmp_image_decoder_test.cc",
-    "image-decoders/fast_shared_buffer_reader_test.cc",
-    "image-decoders/gif/gif_image_decoder_test.cc",
-    "image-decoders/ico/ico_image_decoder_test.cc",
-    "image-decoders/image_decoder_base_test.cc",
-    "image-decoders/image_decoder_base_test.h",
-    "image-decoders/image_decoder_test.cc",
-    "image-decoders/image_decoder_test_helpers.cc",
-    "image-decoders/image_decoder_test_helpers.h",
-    "image-decoders/image_frame_test.cc",
-    "image-decoders/jpeg/jpeg_image_decoder_test.cc",
-    "image-decoders/png/png_image_decoder_test.cc",
-    "image-decoders/segment_reader_test.cc",
-    "image-decoders/segment_stream_test.cc",
-    "image-decoders/webp/webp_image_decoder_test.cc",
     "json/json_parser_test.cc",
     "json/json_values_test.cc",
     "media/webaudiosourceprovider_impl_test.cc",
@@ -2155,6 +2163,7 @@ source_set("blink_platform_unittests_sources") {
     "mojo/string16_mojom_traits_test.cc",
     "p2p/filtering_network_manager_test.cc",
     "p2p/ipc_network_manager_test.cc",
+    "p2p/socket_client_impl_test.cc",
     "peerconnection/coalesced_tasks_test.cc",
     "peerconnection/linear_histogram_test.cc",
     "peerconnection/low_precision_timer_test.cc",
@@ -2162,7 +2171,6 @@ source_set("blink_platform_unittests_sources") {
     "peerconnection/rtc_encoded_audio_stream_transformer_test.cc",
     "peerconnection/rtc_encoded_video_stream_transformer_test.cc",
     "peerconnection/rtc_rtp_source_test.cc",
-    "peerconnection/rtc_stats_test.cc",
     "peerconnection/rtc_video_decoder_adapter_test.cc",
     "peerconnection/rtc_video_decoder_factory_test.cc",
     "peerconnection/rtc_video_decoder_stream_adapter_test.cc",
@@ -2231,10 +2239,7 @@ source_set("blink_platform_unittests_sources") {
   if (is_android) {
     sources += [ "fonts/android/font_cache_android_test.cc" ]
   } else if (is_win) {
-    sources += [
-      "fonts/win/fallback_lru_cache_win_test.cc",
-      "text/locale_win_test.cc",
-    ]
+    sources += [ "text/locale_win_test.cc" ]
   } else if (is_mac) {
     sources += [
       "fonts/mac/font_matcher_mac_test.mm",
@@ -2245,10 +2250,6 @@ source_set("blink_platform_unittests_sources") {
     ]
   } else if (is_posix || is_fuchsia) {
     sources += [ "text/locale_icu_test.cc" ]
-  }
-
-  if (enable_av1_decoder) {
-    sources += [ "image-decoders/avif/avif_image_decoder_test.cc" ]
   }
 
   sources += [ "testing/run_all_tests.cc" ]
@@ -2270,6 +2271,7 @@ source_set("blink_platform_unittests_sources") {
     "//gin:gin",
     "//media:test_support",
     "//media/capture/mojom:video_capture",
+    "//media/mojo:test_support",
     "//mojo/core/embedder",
     "//mojo/public/cpp/bindings/tests:for_blink_tests",
     "//mojo/public/cpp/test_support:test_utils",
@@ -2285,6 +2287,7 @@ source_set("blink_platform_unittests_sources") {
     "//third_party/blink/public:test_headers",
     "//third_party/blink/public/strings:strings",
     "//third_party/blink/renderer/platform/blob:unit_tests",
+    "//third_party/blink/renderer/platform/image-decoders:unit_tests",
     "//third_party/blink/renderer/platform/instrumentation:unit_tests",
     "//third_party/blink/renderer/platform/loader:unit_tests",
     "//third_party/blink/renderer/platform/media:unit_tests",
@@ -2472,7 +2475,6 @@ test("blink_fuzzer_unittests") {
   }
 
   if (is_fuchsia) {
-    test_runner_shard = "//build/config/fuchsia/test/elf_test_ambient_exec_runner.shard.test-cml"
     additional_manifest_fragments = [
       "//build/config/fuchsia/test/test_fonts.shard.test-cml",
       "//build/config/fuchsia/test/mark_vmo_executable.shard.test-cml",
@@ -2689,7 +2691,9 @@ source_set("unit_tests") {
     "graphics/animation_worklet_mutator_dispatcher_impl_test.cc",
     "graphics/canvas_2d_layer_bridge_test.cc",
     "graphics/canvas_color_params_test.cc",
+    "graphics/canvas_hibernation_handler_test.cc",
     "graphics/canvas_resource_dispatcher_test.cc",
+    "graphics/canvas_resource_host_test.cc",
     "graphics/canvas_resource_provider_test.cc",
     "graphics/canvas_resource_test.cc",
     "graphics/color_correction_test_utils.cc",
@@ -2699,6 +2703,7 @@ source_set("unit_tests") {
     "graphics/image_frame_generator_test.cc",
     "graphics/offscreen_canvas_placeholder_test.cc",
     "graphics/paint_worklet_paint_dispatcher_test.cc",
+    "graphics/scoped_raster_timer_test.cc",
     "graphics/test/stub_image.h",
 
     # Tests migrated from the web/tests directory.
@@ -2725,21 +2730,4 @@ source_set("unit_tests") {
     "//third_party/blink/public:test_headers",
   ]
   public_deps = [ "//gpu:raster" ]
-}
-
-if (enable_nocompile_tests) {
-  nocompile_test("blink_platform_nocompile_tests") {
-    sources = [ "wtf/functional_test.nc" ]
-
-    deps = [
-      ":platform",
-      "//base",
-      "//base/test:run_all_unittests",
-      "//testing/gtest",
-    ]
-
-    # Since the nocompile test is not able to inspect the contents of
-    # include_dirs, we need to specify the v8 include dir manually.
-    include_dirs = [ "//v8/include" ]
-  }
 }

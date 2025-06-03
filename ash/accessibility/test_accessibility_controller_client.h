@@ -46,12 +46,13 @@ class TestAccessibilityControllerClient : public AccessibilityControllerClient {
   void PlaySpokenFeedbackToggleCountdown(int tick_count) override;
   void RequestSelectToSpeakStateChange() override;
   void RequestAutoclickScrollableBoundsForPoint(
-      gfx::Point& point_in_screen) override;
+      const gfx::Point& point_in_screen) override;
   void MagnifierBoundsChanged(const gfx::Rect& bounds_in_screen) override;
   void OnSwitchAccessDisabled() override;
   void OnSelectToSpeakPanelAction(SelectToSpeakPanelAction action,
                                   double value) override;
   void SetA11yOverrideWindow(aura::Window* a11y_override_window) override;
+  std::string GetDictationDefaultLocale(bool new_user) override;
 
   absl::optional<Sound> GetPlayedEarconAndReset();
 

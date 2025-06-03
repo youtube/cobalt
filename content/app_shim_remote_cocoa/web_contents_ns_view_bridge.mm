@@ -18,22 +18,21 @@ WebContentsNSViewBridge::WebContentsNSViewBridge(
     mojo::PendingAssociatedRemote<mojom::WebContentsNSViewHost> client)
     : host_(std::move(client),
             ui::WindowResizeHelperMac::Get()->task_runner()) {
-  ns_view_.reset(
-      [[WebContentsViewCocoa alloc] initWithViewsHostableView:nullptr]);
+  ns_view_ = [[WebContentsViewCocoa alloc] initWithViewsHostableView:nullptr];
   [ns_view_ setHost:host_.get()];
   [ns_view_ enableDroppedScreenShotCopier];
-  view_id_ = std::make_unique<remote_cocoa::ScopedNSViewIdMapping>(
-      view_id, ns_view_.get());
+  view_id_ =
+      std::make_unique<remote_cocoa::ScopedNSViewIdMapping>(view_id, ns_view_);
 }
 
 WebContentsNSViewBridge::WebContentsNSViewBridge(
     uint64_t view_id,
     content::WebContentsViewMac* web_contents_view) {
-  ns_view_.reset([[WebContentsViewCocoa alloc]
-      initWithViewsHostableView:web_contents_view]);
+  ns_view_ = [[WebContentsViewCocoa alloc]
+      initWithViewsHostableView:web_contents_view];
   [ns_view_ setHost:web_contents_view];
-  view_id_ = std::make_unique<remote_cocoa::ScopedNSViewIdMapping>(
-      view_id, ns_view_.get());
+  view_id_ =
+      std::make_unique<remote_cocoa::ScopedNSViewIdMapping>(view_id, ns_view_);
 }
 
 WebContentsNSViewBridge::~WebContentsNSViewBridge() {
@@ -99,6 +98,7 @@ void WebContentsNSViewBridge::TakeFocus(bool reverse) {
 }
 
 void WebContentsNSViewBridge::StartDrag(const content::DropData& drop_data,
+                                        const url::Origin& source_origin,
                                         uint32_t operation_mask,
                                         const gfx::ImageSkia& image,
                                         const gfx::Vector2d& image_offset,
@@ -106,6 +106,7 @@ void WebContentsNSViewBridge::StartDrag(const content::DropData& drop_data,
   NSPoint offset = NSPointFromCGPoint(
       gfx::PointAtOffsetFromOrigin(image_offset).ToCGPoint());
   [ns_view_ startDragWithDropData:drop_data
+                     sourceOrigin:source_origin
                 dragOperationMask:operation_mask
                             image:gfx::NSImageFromImageSkia(image)
                            offset:offset

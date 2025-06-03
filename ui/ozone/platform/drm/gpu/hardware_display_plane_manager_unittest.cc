@@ -218,7 +218,8 @@ TEST_P(HardwareDisplayPlaneManagerTest, MAYBE_ResettingConnectorCache) {
   drm_state.connector_properties[connector_and_crtc_count - 1].id =
       kConnectorIdBase + 3;
   fake_drm_->UpdateStateBesidesPlaneManager(drm_state);
-  fake_drm_->plane_manager()->ResetConnectorsCache(fake_drm_->GetResources());
+  fake_drm_->plane_manager()->ResetConnectorsCacheAndGetValidIds(
+      fake_drm_->GetResources());
 
   {
     CommitRequest commit_request;
@@ -1456,7 +1457,7 @@ FakeFenceFD::FakeFenceFD() {
 
 std::unique_ptr<gfx::GpuFence> FakeFenceFD::GetGpuFence() const {
   gfx::GpuFenceHandle handle;
-  handle.owned_fd = base::ScopedFD(HANDLE_EINTR(dup(read_fd.get())));
+  handle.Adopt(base::ScopedFD(HANDLE_EINTR(dup(read_fd.get()))));
   return std::make_unique<gfx::GpuFence>(std::move(handle));
 }
 
@@ -1667,9 +1668,10 @@ TEST_P(HardwareDisplayPlaneManagerAtomicTest, OverlaySourceCrop) {
 
   {
     DrmOverlayPlaneList assigns;
-    assigns.emplace_back(
-        fake_buffer_, 0, gfx::OverlayTransform::OVERLAY_TRANSFORM_NONE,
-        gfx::Rect(kDefaultBufferSize), gfx::RectF(0, 0, .5, 1), false, nullptr);
+    assigns.emplace_back(fake_buffer_, 0,
+                         gfx::OverlayTransform::OVERLAY_TRANSFORM_NONE,
+                         gfx::Rect(), gfx::Rect(kDefaultBufferSize),
+                         gfx::RectF(0, 0, .5, 1), false, nullptr);
 
     fake_drm_->plane_manager()->BeginFrame(&state_);
     EXPECT_TRUE(fake_drm_->plane_manager()->AssignOverlayPlanes(
@@ -1689,7 +1691,7 @@ TEST_P(HardwareDisplayPlaneManagerAtomicTest, OverlaySourceCrop) {
     DrmOverlayPlaneList assigns;
     assigns.emplace_back(fake_buffer_, 0,
                          gfx::OverlayTransform::OVERLAY_TRANSFORM_NONE,
-                         gfx::Rect(kDefaultBufferSize),
+                         gfx::Rect(), gfx::Rect(kDefaultBufferSize),
                          gfx::RectF(0, 0, .999, .501), false, nullptr);
 
     fake_drm_->plane_manager()->BeginFrame(&state_);
@@ -1712,10 +1714,12 @@ class HardwareDisplayPlaneAtomicMock : public HardwareDisplayPlaneAtomic {
   HardwareDisplayPlaneAtomicMock() : HardwareDisplayPlaneAtomic(1) {}
   ~HardwareDisplayPlaneAtomicMock() override = default;
 
-  bool AssignPlaneProps(uint32_t crtc_id,
+  bool AssignPlaneProps(DrmDevice* drm,
+                        uint32_t crtc_id,
                         uint32_t framebuffer,
                         const gfx::Rect& crtc_rect,
                         const gfx::Rect& src_rect,
+                        const gfx::Rect& damage_rect,
                         const gfx::OverlayTransform transform,
                         int in_fence_fd,
                         uint32_t format_fourcc,

@@ -70,6 +70,9 @@ class AlarmManager : public BrowserContextKeyedAPI,
  public:
   using AlarmList = std::vector<Alarm>;
 
+  // An extension can have at most this many active alarms.
+  static constexpr int kMaxAlarmsPerExtension = 500;
+
   class Delegate {
    public:
     virtual ~Delegate() {}
@@ -89,6 +92,9 @@ class AlarmManager : public BrowserContextKeyedAPI,
   void set_delegate(std::unique_ptr<Delegate> delegate) {
     delegate_ = std::move(delegate);
   }
+
+  // Returns the number of alarms currently associated with the extension.
+  int GetCountForExtension(const ExtensionId& extension_id) const;
 
   using AddAlarmCallback = base::OnceClosure;
   // Adds |alarm| for the given extension, and starts the timer. Invokes
@@ -200,7 +206,7 @@ class AlarmManager : public BrowserContextKeyedAPI,
   // Syncs our alarm data for the given extension to/from the state storage.
   void WriteToStorage(const std::string& extension_id);
   void ReadFromStorage(const std::string& extension_id,
-                       bool is_unpacked,
+                       base::TimeDelta min_delay,
                        absl::optional<base::Value> value);
 
   // Set the timer to go off at the specified |time|, and set |next_poll_time|

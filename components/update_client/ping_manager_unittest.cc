@@ -115,24 +115,14 @@ void PingManagerTest::PingSentCallback(int error, const std::string& response) {
 }
 
 scoped_refptr<UpdateContext> PingManagerTest::MakeMockUpdateContext() const {
-#if BUILDFLAG(ENABLE_PUFFIN_PATCHES)
-  // TODO(crbug.com/1349060) once Puffin patches are fully implemented,
-  // we should remove this #if.
   base::ScopedTempDir temp_dir;
   if (!temp_dir.CreateUniqueTempDir()) {
     return nullptr;
   }
   CrxCache::Options options(temp_dir.GetPath());
-#endif
   return base::MakeRefCounted<UpdateContext>(
-      config_,
-#if BUILDFLAG(ENABLE_PUFFIN_PATCHES)
-      // TODO(crbug.com/1349060) once Puffin patches are fully implemented,
-      // we should remove this #if.
-      base::MakeRefCounted<CrxCache>(options),
-#endif
-      false, false, std::vector<std::string>(),
-      UpdateClient::CrxStateChangeCallback(),
+      config_, base::MakeRefCounted<CrxCache>(options), false, false,
+      std::vector<std::string>(), UpdateClient::CrxStateChangeCallback(),
       UpdateEngine::NotifyObserversCallback(), UpdateEngine::Callback(),
       nullptr,
       /*is_update_check_only=*/false);
@@ -178,11 +168,7 @@ TEST_P(PingManagerTest, SendPing) {
 
     EXPECT_TRUE(request.contains("@os"));
     EXPECT_EQ("fake_prodid", CHECK_DEREF(request.FindString("@updater")));
-#if BUILDFLAG(ENABLE_PUFFIN_PATCHES)
     EXPECT_EQ("crx3,puff", CHECK_DEREF(request.FindString("acceptformat")));
-#else
-    EXPECT_EQ("crx3", CHECK_DEREF(request.FindString("acceptformat")));
-#endif
     EXPECT_TRUE(request.contains("arch"));
     EXPECT_EQ("cr", CHECK_DEREF(request.FindString("dedup")));
     EXPECT_LT(0, request.FindByDottedPath("hw.physmemory")->GetInt());
@@ -351,8 +337,7 @@ TEST_P(PingManagerTest, SendPing) {
     Component component(*update_context, "abc");
     CrxComponent crx_component;
     crx_component.version = base::Version("1.2.3.4");
-    component.Uninstall(crx_component, 0);
-    component.AppendEvent(component.MakeEventUninstalled());
+    component.PingOnly(crx_component, 4, 1, 0, 0);
 
     EXPECT_TRUE(interceptor->ExpectRequest(std::make_unique<AnyMatch>()));
     ping_manager_->SendPing(component, *metadata_, MakePingCallback());
@@ -372,38 +357,8 @@ TEST_P(PingManagerTest, SendPing) {
       EXPECT_EQ(1, event.FindInt("eventresult"));
       EXPECT_EQ(4, event.FindInt("eventtype"));
       EXPECT_EQ("1.2.3.4", CHECK_DEREF(event.FindString("previousversion")));
-      EXPECT_EQ("0", CHECK_DEREF(event.FindString("nextversion")));
+      EXPECT_EQ(event.FindString("nextversion"), nullptr);
       interceptor->Reset();
-  }
-
-  {
-    // Test registrationEvent.
-    Component component(*update_context, "abc");
-    CrxComponent crx_component;
-    crx_component.version = base::Version("1.2.3.4");
-    component.Registration(crx_component);
-    component.AppendEvent(component.MakeEventRegistration());
-
-    EXPECT_TRUE(interceptor->ExpectRequest(std::make_unique<AnyMatch>()));
-    ping_manager_->SendPing(component, *metadata_, MakePingCallback());
-    RunThreads();
-
-    EXPECT_EQ(1, interceptor->GetCount()) << interceptor->GetRequestsAsString();
-    const auto msg = interceptor->GetRequestBody(0);
-
-    const auto root = base::JSONReader::Read(msg);
-    ASSERT_TRUE(root);
-    const base::Value::Dict* request = root->GetDict().FindDict("request");
-    const base::Value& app_val = CHECK_DEREF(request->FindList("app"))[0];
-    const base::Value::Dict& app = app_val.GetDict();
-    EXPECT_EQ("abc", CHECK_DEREF(app.FindString("appid")));
-    EXPECT_EQ("1.2.3.4", CHECK_DEREF(app.FindString("version")));
-    const base::Value::Dict& event =
-        CHECK_DEREF(app.FindList("event"))[0].GetDict();
-    EXPECT_EQ(1, event.FindInt("eventresult"));
-    EXPECT_EQ(2, event.FindInt("eventtype"));
-    EXPECT_EQ("1.2.3.4", CHECK_DEREF(event.FindString("nextversion")));
-    interceptor->Reset();
   }
 
   {
@@ -438,9 +393,9 @@ TEST_P(PingManagerTest, SendPing) {
     download_metrics.url = GURL("http://host3/path3");
     download_metrics.downloader = CrxDownloader::DownloadMetrics::kBits;
     download_metrics.error = 0;
-    download_metrics.downloaded_bytes = kProtocolMaxInt;
-    download_metrics.total_bytes = kProtocolMaxInt - 1;
-    download_metrics.download_time_ms = kProtocolMaxInt - 2;
+    download_metrics.downloaded_bytes = protocol_request::kProtocolMaxInt;
+    download_metrics.total_bytes = protocol_request::kProtocolMaxInt - 1;
+    download_metrics.download_time_ms = protocol_request::kProtocolMaxInt - 2;
     component.AppendEvent(component.MakeEventDownloadMetrics(download_metrics));
 
     EXPECT_TRUE(interceptor->ExpectRequest(std::make_unique<AnyMatch>()));

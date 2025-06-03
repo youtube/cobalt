@@ -114,10 +114,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionBindingsApiTest, LastError) {
   extensions::ExtensionHost* host = FindHostWithPath(manager, "/bg.html", 1);
   ASSERT_TRUE(host);
 
-  bool result = false;
-  ASSERT_TRUE(content::ExecuteScriptAndExtractBool(host->host_contents(),
-                                                   "testLastError()", &result));
-  EXPECT_TRUE(result);
+  EXPECT_EQ(true, content::EvalJs(host->host_contents(), "testLastError()"));
 }
 
 // Regression test that we don't delete our own bindings with about:blank
@@ -290,11 +287,9 @@ IN_PROC_BROWSER_TEST_F(FramesExtensionBindingsApiTest, FramesBeforeNavigation) {
       embedded_test_server()->GetURL(
           "/extensions/api_test/bindings/frames_before_navigation.html")));
 
-  bool page_success = false;
-  ASSERT_TRUE(content::ExecuteScriptAndExtractBool(
-      browser()->tab_strip_model()->GetWebContentsAt(0), "getResult()",
-      &page_success));
-  EXPECT_TRUE(page_success);
+  EXPECT_EQ(true,
+            content::EvalJs(browser()->tab_strip_model()->GetWebContentsAt(0),
+                            "getResult()"));
 
   // Reply to |sender|, causing it to send a message over to |receiver|, and
   // then ask |receiver| for the total message count. It should be 1 since
@@ -543,8 +538,8 @@ IN_PROC_BROWSER_TEST_F(
                                                        "tabs.onCreated"));
 
   // Register both lsiteners, and verify they were added.
-  ASSERT_TRUE(content::ExecuteScript(first_tab, "registerListener()"));
-  ASSERT_TRUE(content::ExecuteScript(second_tab, "registerListener()"));
+  ASSERT_TRUE(content::ExecJs(first_tab, "registerListener()"));
+  ASSERT_TRUE(content::ExecJs(second_tab, "registerListener()"));
   EXPECT_TRUE(event_router->ExtensionHasEventListener(extension->id(),
                                                       "tabs.onCreated"));
 
@@ -554,7 +549,7 @@ IN_PROC_BROWSER_TEST_F(
   chrome::CloseWebContents(browser(), second_tab, add_to_history);
   watcher.Wait();
   // Hacky round trip to the renderer to flush IPCs.
-  ASSERT_TRUE(content::ExecuteScript(first_tab, ""));
+  ASSERT_TRUE(content::ExecJs(first_tab, ""));
 
   // Since the second page is still open, the extension should still be
   // registered as a listener.

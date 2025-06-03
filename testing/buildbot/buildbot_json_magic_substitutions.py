@@ -145,7 +145,7 @@ def _GetGpusFromTestConfig(test_config):
       yield gpu
 
 
-def GPUParallelJobs(test_config, _, tester_config):
+def GPUParallelJobs(test_config, tester_name, tester_config):
   """Substitutes the correct number of jobs for GPU tests.
 
   Linux/Mac/Windows can run tests in parallel since multiple windows can be open
@@ -154,6 +154,8 @@ def GPUParallelJobs(test_config, _, tester_config):
   Args:
     test_config: A dict containing a configuration for a specific test on a
         specific builder.
+    tester_name: A string containing the name of the builder that |test_config|
+        is for.
     tester_config: A dict containing the configuration for the builder
         that |test_config| is for.
   """
@@ -170,11 +172,11 @@ def GPUParallelJobs(test_config, _, tester_config):
   # we swap which machines we're using.
   is_webgpu_cts = test_name.startswith('webgpu_cts') or test_config.get(
       'telemetry_test_name') == 'webgpu_cts'
-  is_webgl_cts = (any(test_name in n
+  is_webgl_cts = (any(n in test_name
                       for n in ('webgl_conformance', 'webgl1_conformance',
                                 'webgl2_conformance'))
-                  or test_config.get('telemetry_test_name') in (
-                      'webgl1_conformance', 'webgl2_conformance'))
+                  or test_config.get('telemetry_test_name')
+                  in ('webgl1_conformance', 'webgl2_conformance'))
   if os_type == 'win' and (is_webgl_cts or is_webgpu_cts):
     for gpu in _GetGpusFromTestConfig(test_config):
       if gpu.startswith('8086'):
@@ -188,6 +190,19 @@ def GPUParallelJobs(test_config, _, tester_config):
     for gpu in _GetGpusFromTestConfig(test_config):
       if gpu.startswith('10de'):
         return ['--jobs=3']
+
+  # Slow Mac configs have issues with flakiness when running tests in parallel.
+  is_pixel_test = (test_name == 'pixel_skia_gold_test'
+                   or test_config.get('telemetry_test_name') == 'pixel')
+  is_webcodecs_test = (test_name == 'webcodecs_tests'
+                       or test_config.get('telemetry_test_name') == 'webcodecs')
+  is_debug = any(s in tester_name.lower() for s in ('debug', 'dbg'))
+  if os_type == 'mac' and (is_pixel_test or is_webcodecs_test):
+    if is_debug:
+      return ['--jobs=1']
+    for gpu in _GetGpusFromTestConfig(test_config):
+      if gpu.startswith('10de'):
+        return ['--jobs=1']
 
   if os_type in ['lacros', 'linux', 'mac', 'win']:
     return ['--jobs=4']
@@ -215,6 +230,31 @@ def GPUTelemetryNoRootForUnrootedDevices(test_config, _, tester_config):
   if device_type in unrooted_devices:
     return ['--compatibility-mode=dont-require-rooted-device']
   return []
+
+
+def GPUWebGLRuntimeFile(test_config, _, tester_config):
+  """Gets the correct WebGL runtime file for a tester.
+
+  Args:
+    test_config: A dict containing a configuration for a specific test on a
+        specific builder.
+    tester_config: A dict containing the configuration for the builder
+        that |test_config| is for.
+  """
+  os_type = tester_config.get('os_type')
+  assert os_type
+  suite = test_config.get('telemetry_test_name')
+  assert suite in ('webgl1_conformance', 'webgl2_conformance')
+
+  # Default to using Linux's file if we're on a platform that we don't actively
+  # maintain runtime files for.
+  chosen_os = os_type
+  if chosen_os not in ('android', 'linux', 'mac', 'win'):
+    chosen_os = 'linux'
+
+  runtime_filepath = (
+      f'../../content/test/data/gpu/{suite}_{chosen_os}_runtimes.json')
+  return [f'--read-abbreviated-json-results-from={runtime_filepath}']
 
 
 def TestOnlySubstitution(_, __, ___):

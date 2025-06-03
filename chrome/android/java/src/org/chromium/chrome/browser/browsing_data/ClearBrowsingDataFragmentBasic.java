@@ -24,9 +24,9 @@ import org.chromium.chrome.R;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.search_engines.TemplateUrlServiceFactory;
 import org.chromium.chrome.browser.signin.services.IdentityServicesProvider;
-import org.chromium.chrome.browser.sync.SyncService;
+import org.chromium.chrome.browser.sync.SyncServiceFactory;
 import org.chromium.chrome.browser.tab.TabLaunchType;
-import org.chromium.chrome.browser.tabmodel.document.TabDelegate;
+import org.chromium.chrome.browser.tabmodel.document.ChromeAsyncTabLauncher;
 import org.chromium.components.browser_ui.settings.ClickableSpansTextMessagePreference;
 import org.chromium.components.embedder_support.util.UrlConstants;
 import org.chromium.components.search_engines.TemplateUrl;
@@ -34,6 +34,7 @@ import org.chromium.components.search_engines.TemplateUrlService;
 import org.chromium.components.signin.identitymanager.ConsentLevel;
 import org.chromium.components.signin.identitymanager.IdentityManager;
 import org.chromium.components.sync.ModelType;
+import org.chromium.components.sync.SyncService;
 import org.chromium.ui.text.NoUnderlineClickableSpan;
 import org.chromium.ui.text.SpanApplier;
 import org.chromium.ui.text.SpanApplier.SpanInfo;
@@ -85,10 +86,13 @@ public class ClearBrowsingDataFragmentBasic extends ClearBrowsingDataFragment {
                 (ClearBrowsingDataCheckBoxPreference) findPreference(
                         getPreferenceKey(DialogOption.CLEAR_COOKIES_AND_SITE_DATA));
 
-        historyCheckbox.setLinkClickDelegate(() -> {
-            new TabDelegate(false /* incognito */)
-                    .launchUrl(UrlConstants.MY_ACTIVITY_URL_IN_CBD, TabLaunchType.FROM_CHROME_UI);
-        });
+        historyCheckbox.setLinkClickDelegate(
+                () -> {
+                    new ChromeAsyncTabLauncher(false /* incognito */)
+                            .launchUrl(
+                                    UrlConstants.MY_ACTIVITY_URL_IN_CBD,
+                                    TabLaunchType.FROM_CHROME_UI);
+                });
 
         IdentityManager identityManager =
                 IdentityServicesProvider.get().getIdentityManager(getProfile());
@@ -225,7 +229,7 @@ public class ClearBrowsingDataFragmentBasic extends ClearBrowsingDataFragment {
     }
 
     private boolean isHistorySyncEnabled() {
-        SyncService syncService = SyncService.get();
+        SyncService syncService = SyncServiceFactory.getForProfile(getProfile());
         return syncService != null && syncService.isSyncFeatureEnabled()
                 && syncService.getActiveDataTypes().contains(ModelType.HISTORY_DELETE_DIRECTIVES);
     }

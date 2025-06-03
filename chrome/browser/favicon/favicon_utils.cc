@@ -15,6 +15,7 @@
 #include "components/favicon/content/content_favicon_driver.h"
 #include "components/favicon/core/fallback_url_util.h"
 #include "components/favicon/core/favicon_service.h"
+#include "components/password_manager/content/common/web_ui_constants.h"
 #include "content/public/browser/favicon_status.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_entry.h"
@@ -23,6 +24,7 @@
 #include "ui/color/color_provider.h"
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/color_analysis.h"
+#include "ui/gfx/color_palette.h"
 #include "ui/gfx/color_utils.h"
 #include "ui/gfx/favicon_size.h"
 #include "ui/gfx/font_list.h"
@@ -109,7 +111,7 @@ gfx::Image TabFaviconFromWebContents(content::WebContents* contents) {
 
   favicon::FaviconDriver* favicon_driver =
       favicon::ContentFaviconDriver::FromWebContents(contents);
-  // TODO(crbug.com/3041580): Investigate why some WebContents do not have
+  // TODO(crbug.com/1231506): Investigate why some WebContents do not have
   // an attached ContentFaviconDriver.
   if (!favicon_driver) {
     return gfx::Image();
@@ -187,16 +189,23 @@ void SaveFaviconEvenIfInIncognito(content::WebContents* contents) {
                                favicon_status.image);
 }
 
+bool ShouldThemifyFavicon(GURL url) {
+  if (!url.SchemeIs(content::kChromeUIScheme)) {
+    return false;
+  }
+  return url.host_piece() != chrome::kChromeUIAppLauncherPageHost &&
+         url.host_piece() != chrome::kChromeUIHelpHost &&
+         url.host_piece() != chrome::kChromeUIVersionHost &&
+         url.host_piece() != chrome::kChromeUINetExportHost &&
+         url.host_piece() != chrome::kChromeUINewTabHost &&
+         url.host_piece() != password_manager::kChromeUIPasswordManagerHost;
+}
+
 bool ShouldThemifyFaviconForEntry(content::NavigationEntry* entry) {
   const GURL& virtual_url = entry->GetVirtualURL();
   const GURL& actual_url = entry->GetURL();
 
-  if (virtual_url.SchemeIs(content::kChromeUIScheme) &&
-      virtual_url.host_piece() != chrome::kChromeUIAppLauncherPageHost &&
-      virtual_url.host_piece() != chrome::kChromeUIHelpHost &&
-      virtual_url.host_piece() != chrome::kChromeUIVersionHost &&
-      virtual_url.host_piece() != chrome::kChromeUINetExportHost &&
-      virtual_url.host_piece() != chrome::kChromeUINewTabHost) {
+  if (ShouldThemifyFavicon(virtual_url)) {
     return true;
   }
 
@@ -233,6 +242,15 @@ gfx::ImageSkia ThemeFavicon(const gfx::ImageSkia& source,
              ? gfx::ImageSkiaOperations::CreateColorMask(source,
                                                          alternate_color)
              : source;
+}
+
+gfx::ImageSkia ThemeMonochromeFavicon(const gfx::ImageSkia& source,
+                                      SkColor background) {
+  return (color_utils::GetContrastRatio(gfx::kGoogleGrey900, background) >
+          color_utils::GetContrastRatio(SK_ColorWHITE, background))
+             ? gfx::ImageSkiaOperations::CreateColorMask(source,
+                                                         gfx::kGoogleGrey900)
+             : gfx::ImageSkiaOperations::CreateColorMask(source, SK_ColorWHITE);
 }
 
 }  // namespace favicon

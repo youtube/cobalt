@@ -67,6 +67,7 @@ enum AcceleratorLayoutStyle {
 };
 
 // Enum of top-level accelerator categories. Used in the UI for categorization.
+// Must be kept in sync with enums.xml: `ShortcutCustomizationMainCategory`.
 enum AcceleratorCategory {
   kGeneral,
   kDevice,
@@ -128,6 +129,9 @@ struct StandardAcceleratorProperties {
   ui.mojom.Accelerator accelerator;
   // The user viewable string of the primary activation key for the accelerator.
   mojo_base.mojom.String16 key_display;
+  // Optional field - if the accelerator is an alias of another accelerator this
+  // field represents the original accelerator.
+  ui.mojom.Accelerator? original_accelerator;
 };
 
 // Contains properties specific to an accelerator type.

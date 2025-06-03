@@ -28,6 +28,7 @@
 #include "base/logging.h"
 #include "base/ranges/algorithm.h"
 #include "components/account_id/account_id.h"
+#include "components/pref_registry/pref_registry_syncable.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
 #include "components/user_manager/user_type.h"
@@ -37,6 +38,26 @@
 using session_manager::SessionState;
 
 namespace ash {
+namespace {
+
+void SetTimeOfLastSessionActivation(PrefService* user_pref_service) {
+  if (!user_pref_service) {
+    return;
+  }
+
+  // NOTE: Round down to the nearest day since Windows epoch to reduce syncs.
+  const base::Time time_of_last_session_activation =
+      base::Time::FromDeltaSinceWindowsEpoch(
+          base::Days(base::Time::Now().ToDeltaSinceWindowsEpoch().InDays()));
+
+  if (user_pref_service->GetTime(prefs::kTimeOfLastSessionActivation) !=
+      time_of_last_session_activation) {
+    user_pref_service->SetTime(prefs::kTimeOfLastSessionActivation,
+                               time_of_last_session_activation);
+  }
+}
+
+}  // namespace
 
 class SessionControllerImpl::ScopedScreenLockBlockerImpl
     : public ScopedScreenLockBlocker {
@@ -69,7 +90,13 @@ SessionControllerImpl::~SessionControllerImpl() {
 // static
 void SessionControllerImpl::RegisterUserProfilePrefs(
     PrefRegistrySimple* registry) {
-  registry->RegisterTimePref(prefs::kTimeOfLastSessionActivation, base::Time());
+  registry->RegisterTimePref(
+      prefs::kTimeOfLastSessionActivation, base::Time(),
+      user_prefs::PrefRegistrySyncable::SYNCABLE_OS_PREF);
+  registry->RegisterTimePref(ash::prefs::kAshLoginSessionStartedTime,
+                             base::Time());
+  registry->RegisterBooleanPref(
+      ash::prefs::kAshLoginSessionStartedIsFirstSession, false);
 }
 
 int SessionControllerImpl::NumberOfLoggedInUsers() const {
@@ -83,6 +110,11 @@ AccountId SessionControllerImpl::GetActiveAccountId() const {
 
 AddUserSessionPolicy SessionControllerImpl::GetAddUserPolicy() const {
   return add_user_session_policy_;
+}
+
+bool SessionControllerImpl::IsActiveAccountManaged() const {
+  CHECK(!user_sessions_.empty());
+  return user_sessions_[0]->user_info.is_managed;
 }
 
 bool SessionControllerImpl::IsActiveUserSessionStarted() const {
@@ -412,9 +444,8 @@ void SessionControllerImpl::SetUserSessionOrder(
     // NOTE: This pref is intentionally set *after* notifying observers of
     // active user session changes so observers can use time of last activation
     // during event handling.
-    if (state_ == SessionState::ACTIVE && user_pref_service) {
-      user_pref_service->SetTime(prefs::kTimeOfLastSessionActivation,
-                                 base::Time::Now());
+    if (state_ == SessionState::ACTIVE) {
+      SetTimeOfLastSessionActivation(user_pref_service);
     }
 
     UpdateLoginStatus();
@@ -532,10 +563,8 @@ void SessionControllerImpl::SetSessionState(SessionState state) {
   // NOTE: This pref is intentionally set *after* notifying observers of state
   // changes so observers can use time of last activation during event handling.
   if (state_ == SessionState::ACTIVE) {
-    if (auto* pref_service = GetUserPrefServiceForUser(GetActiveAccountId())) {
-      pref_service->SetTime(prefs::kTimeOfLastSessionActivation,
-                            base::Time::Now());
-    }
+    SetTimeOfLastSessionActivation(
+        GetUserPrefServiceForUser(GetActiveAccountId()));
   }
 
   UpdateLoginStatus();
@@ -619,9 +648,6 @@ LoginStatus SessionControllerImpl::CalculateLoginStatusForActiveSession()
       return LoginStatus::CHILD;
     case user_manager::USER_TYPE_ARC_KIOSK_APP:
       return LoginStatus::KIOSK_APP;
-    case user_manager::USER_TYPE_ACTIVE_DIRECTORY:
-      // TODO(jamescook): There is no LoginStatus for this.
-      return LoginStatus::USER;
     case user_manager::USER_TYPE_WEB_KIOSK_APP:
       return LoginStatus::KIOSK_APP;
     case user_manager::NUM_USER_TYPES:

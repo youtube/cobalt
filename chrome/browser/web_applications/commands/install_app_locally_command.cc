@@ -10,7 +10,6 @@
 #include "base/containers/flat_set.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
-#include "base/metrics/histogram_functions.h"
 #include "base/time/time.h"
 #include "base/values.h"
 #include "chrome/browser/web_applications/commands/web_app_command.h"
@@ -18,16 +17,16 @@
 #include "chrome/browser/web_applications/os_integration/os_integration_manager.h"
 #include "chrome/browser/web_applications/web_app.h"
 #include "chrome/browser/web_applications/web_app_constants.h"
-#include "chrome/browser/web_applications/web_app_id.h"
 #include "chrome/browser/web_applications/web_app_install_manager.h"
 #include "chrome/browser/web_applications/web_app_registrar.h"
 #include "chrome/browser/web_applications/web_app_registry_update.h"
 #include "chrome/browser/web_applications/web_app_sync_bridge.h"
+#include "components/webapps/common/web_app_id.h"
 
 namespace web_app {
 
 InstallAppLocallyCommand::InstallAppLocallyCommand(
-    const AppId& app_id,
+    const webapps::AppId& app_id,
     base::OnceClosure install_callback)
     : WebAppCommandTemplate<AppLock>("InstallAppLocallyCommand"),
       app_lock_description_(std::make_unique<AppLockDescription>(app_id)),
@@ -47,9 +46,19 @@ void InstallAppLocallyCommand::StartWithLock(
   app_lock_ = std::move(app_lock);
 
   if (!app_lock_->registrar().IsInstalled(app_id_)) {
-    debug_log_.Set("command_result", "app_already_installed");
+    debug_log_.Set("command_result", "app_not_in_registry");
     ReportResultAndShutdown(CommandResult::kSuccess);
     return;
+  }
+
+  // Setting app to be locally installed before calling Synchronize() helps
+  // trigger the OS integration.
+  if (!app_lock_->registrar().IsLocallyInstalled(app_id_)) {
+    ScopedRegistryUpdate update = app_lock_->sync_bridge().BeginUpdate();
+    WebApp* web_app_to_update = update->UpdateApp(app_id_);
+    if (web_app_to_update) {
+      web_app_to_update->SetIsLocallyInstalled(/*is_locally_installed=*/true);
+    }
   }
 
   // Install OS hooks first.
@@ -96,29 +105,22 @@ void InstallAppLocallyCommand::StartWithLock(
 
 void InstallAppLocallyCommand::OnOsHooksInstalled(
     const OsHooksErrors os_hooks_errors) {
-  // TODO(dmurph): Once installation takes the OsHooksErrors bitfield, then
-  // use that to compare with the results, and record if they all were
-  // successful, instead of just shortcuts.
-  bool error = os_hooks_errors[web_app::OsHookType::kShortcuts];
   const base::Time& install_time = base::Time::Now();
   {
-    ScopedRegistryUpdate update(&app_lock_->sync_bridge());
+    // Updating install time on app.
+    ScopedRegistryUpdate update = app_lock_->sync_bridge().BeginUpdate();
     WebApp* web_app_to_update = update->UpdateApp(app_id_);
     if (web_app_to_update) {
-      web_app_to_update->SetIsLocallyInstalled(/*is_locally_installed=*/true);
-      web_app_to_update->SetInstallTime(install_time);
+      web_app_to_update->SetFirstInstallTime(install_time);
     }
   }
 
-  base::UmaHistogramBoolean("Apps.Launcher.InstallLocallyShortcutsCreated",
-                            !error);
   app_lock_->install_manager().NotifyWebAppInstalledWithOsHooks(app_id_);
-  app_lock_->registrar().NotifyWebAppInstallTimeChanged(app_id_, install_time);
+  app_lock_->registrar().NotifyWebAppFirstInstallTimeChanged(app_id_,
+                                                             install_time);
   debug_log_.Set("command_result", "success");
   ReportResultAndShutdown(CommandResult::kSuccess);
 }
-
-void InstallAppLocallyCommand::OnSyncSourceRemoved() {}
 
 void InstallAppLocallyCommand::OnShutdown() {
   ReportResultAndShutdown(CommandResult::kShutdown);

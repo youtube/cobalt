@@ -5,11 +5,8 @@
 #ifndef NET_CERT_PKI_NAME_CONSTRAINTS_H_
 #define NET_CERT_PKI_NAME_CONSTRAINTS_H_
 
-#include <stdint.h>
-
 #include <memory>
 
-#include "net/base/ip_address.h"
 #include "net/base/net_export.h"
 #include "net/cert/pki/general_names.h"
 
@@ -50,6 +47,12 @@ class NET_EXPORT NameConstraints {
                        const GeneralNames* subject_alt_names,
                        CertErrors* errors) const;
 
+  // Returns true if the ASCII email address |name| is permitted. |name| should
+  // be a "mailbox" as specified by RFC 2821, with the additional restriction
+  // that quoted names and whitespace are not allowed by this implementation.
+  bool IsPermittedRfc822Name(std::string_view name,
+                             bool case_insensitive_exclude_localpart) const;
+
   // Returns true if the ASCII hostname |name| is permitted.
   // |name| may be a wildcard hostname (starts with "*."). Eg, "*.bar.com"
   // would not be permitted if "bar.com" is permitted and "foo.bar.com" is
@@ -63,7 +66,7 @@ class NET_EXPORT NameConstraints {
   bool IsPermittedDirectoryName(const der::Input& name_rdn_sequence) const;
 
   // Returns true if the iPAddress |ip| is permitted.
-  bool IsPermittedIP(const IPAddress& ip) const;
+  bool IsPermittedIP(const der::Input& ip) const;
 
   // Returns a bitfield of GeneralNameTypes of all the types constrained by this
   // NameConstraints. Name types that aren't supported will only be present if

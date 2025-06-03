@@ -267,13 +267,6 @@ void CameraAppHelperImpl::OpenUrlInBrowser(const GURL& url) {
       NewWindowDelegate::Disposition::kNewForegroundTab);
 }
 
-void CameraAppHelperImpl::SetCameraUsageMonitor(
-    mojo::PendingRemote<CameraUsageOwnershipMonitor> usage_monitor,
-    SetCameraUsageMonitorCallback callback) {
-  camera_app_ui_->app_window_manager()->SetCameraUsageMonitor(
-      window_, std::move(usage_monitor), std::move(callback));
-}
-
 void CameraAppHelperImpl::GetWindowStateController(
     GetWindowStateControllerCallback callback) {
   if (!window_state_controller_) {
@@ -342,20 +335,9 @@ void CameraAppHelperImpl::MonitorFileDeletion(
                 std::move(callback)));
 }
 
-void CameraAppHelperImpl::GetDocumentScannerReadyState(
-    GetDocumentScannerReadyStateCallback callback) {
-  if (document_scanner_service_ == nullptr) {
-    std::move(callback).Run(
-        camera_app::mojom::DocumentScannerReadyState::NOT_SUPPORTED);
-    return;
-  }
-  if (document_scanner_service_->IsLoaded()) {
-    std::move(callback).Run(
-        camera_app::mojom::DocumentScannerReadyState::SUPPORTED_AND_READY);
-    return;
-  }
-  std::move(callback).Run(
-      camera_app::mojom::DocumentScannerReadyState::SUPPORTED_BUT_NOT_READY);
+void CameraAppHelperImpl::IsDocumentScannerSupported(
+    IsDocumentScannerSupportedCallback callback) {
+  std::move(callback).Run(document_scanner_service_ != nullptr);
 }
 
 void CameraAppHelperImpl::CheckDocumentModeReadiness(

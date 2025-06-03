@@ -4,22 +4,63 @@
 
 #include "ash/wm/snap_group/snap_group_controller.h"
 
-#include <memory>
-
+#include "ash/root_window_controller.h"
 #include "ash/shell.h"
+#include "ash/wm/mru_window_tracker.h"
+#include "ash/wm/overview/overview_controller.h"
+#include "ash/wm/overview/overview_grid.h"
+#include "ash/wm/overview/overview_session.h"
+#include "ash/wm/overview/overview_utils.h"
 #include "ash/wm/snap_group/snap_group.h"
-#include "ash/wm/splitview/split_view_constants.h"
-#include "ash/wm/wm_event.h"
+#include "ash/wm/splitview/split_view_controller.h"
+#include "ash/wm/tablet_mode/tablet_mode_controller.h"
+#include "ash/wm/window_state.h"
+#include "ash/wm/window_util.h"
 #include "base/check.h"
+#include "base/check_op.h"
+#include "base/containers/adapters.h"
 #include "base/containers/contains.h"
-#include "base/containers/cxx20_erase.h"
 #include "base/containers/unique_ptr_adapters.h"
 
 namespace ash {
 
-SnapGroupController::SnapGroupController() = default;
+namespace {
 
-SnapGroupController::~SnapGroupController() = default;
+SnapGroupController* g_instance = nullptr;
+
+}  // namespace
+
+SnapGroupController::SnapGroupController() {
+  Shell::Get()->overview_controller()->AddObserver(this);
+  TabletModeController::Get()->AddObserver(this);
+  CHECK_EQ(g_instance, nullptr);
+  g_instance = this;
+}
+
+SnapGroupController::~SnapGroupController() {
+  TabletModeController::Get()->RemoveObserver(this);
+  Shell::Get()->overview_controller()->RemoveObserver(this);
+  CHECK_EQ(g_instance, this);
+  g_instance = nullptr;
+}
+
+// static
+SnapGroupController* SnapGroupController::Get() {
+  // TODO(michelefan): Add CHECK(g_instance) after the snap group controller
+  // feature is enabled by default.
+  return g_instance;
+}
+
+void SnapGroupController::OnWindowSnapped(
+    aura::Window* window,
+    WindowSnapActionSource snap_action_source) {
+  // If `window` already belongs to a snap group, do nothing.
+  if (!IsArm1AutomaticallyLockEnabled() || GetSnapGroupForGivenWindow(window)) {
+    return;
+  }
+
+  window_util::MaybeStartSplitViewOverview(window, snap_action_source);
+}
 
 bool SnapGroupController::AreWindowsInSnapGroup(aura::Window* window1,
                                                 aura::Window* window2) const {
@@ -39,10 +80,8 @@ bool SnapGroupController::AddSnapGroup(aura::Window* window1,
     return false;
   }
 
-  if (window_to_snap_group_map_.find(window1) !=
-          window_to_snap_group_map_.end() ||
-      window_to_snap_group_map_.find(window2) !=
-          window_to_snap_group_map_.end()) {
+  if (base::Contains(window_to_snap_group_map_, window1) ||
+      base::Contains(window_to_snap_group_map_, window2)) {
     return false;
   }
 
@@ -60,14 +99,16 @@ bool SnapGroupController::AddSnapGroup(aura::Window* window1,
 }
 
 bool SnapGroupController::RemoveSnapGroup(SnapGroup* snap_group) {
+  CHECK(snap_group);
   aura::Window* window1 = snap_group->window1();
   aura::Window* window2 = snap_group->window2();
-  CHECK(window_to_snap_group_map_.find(window1) !=
-            window_to_snap_group_map_.end() &&
-        window_to_snap_group_map_.find(window2) !=
-            window_to_snap_group_map_.end());
+  CHECK(base::Contains(window_to_snap_group_map_, window1) &&
+        base::Contains(window_to_snap_group_map_, window2));
 
-  snap_group->RestoreWindowsBoundsOnSnapGroupRemoved();
+  if (!Shell::Get()->IsInTabletMode()) {
+    snap_group->RestoreWindowsBoundsOnSnapGroupRemoved();
+  }
+
   window_to_snap_group_map_.erase(window1);
   window_to_snap_group_map_.erase(window2);
   snap_group->StopObservingWindows();
@@ -91,13 +132,23 @@ bool SnapGroupController::RemoveSnapGroupContainingWindow(
 }
 
 SnapGroup* SnapGroupController::GetSnapGroupForGivenWindow(
-    aura::Window* window) {
-  if (window_to_snap_group_map_.find(window) ==
-      window_to_snap_group_map_.end()) {
-    return nullptr;
+    const aura::Window* window) {
+  auto iter = window_to_snap_group_map_.find(window);
+  return iter != window_to_snap_group_map_.end() ? iter->second : nullptr;
+}
+
+bool SnapGroupController::CanEnterOverview() const {
+  // `SnapGroupController` is currently available for clamshell only, tablet
+  // mode check will not be handled here.
+  // TODO(michelefan): Get the `SplitViewController` for the actual root window
+  // instead of hard code it to be primary root window.
+  if (Shell::Get()->tablet_mode_controller()->InTabletMode() ||
+      !SplitViewController::Get(Shell::GetPrimaryRootWindow())
+           ->InSplitViewMode()) {
+    return true;
   }
 
-  return window_to_snap_group_map_.find(window)->second;
+  return IsArm1AutomaticallyLockEnabled() && can_enter_overview_;
 }
 
 void SnapGroupController::AddObserver(Observer* observer) {
@@ -118,6 +169,46 @@ bool SnapGroupController::IsArm2ManuallyLockEnabled() const {
          !features::kAutomaticallyLockGroup.Get();
 }
 
+void SnapGroupController::MinimizeTopMostSnapGroup() {
+  auto* topmost_snap_group = GetTopmostSnapGroup();
+  topmost_snap_group->MinimizeWindows();
+}
+
+SnapGroup* SnapGroupController::GetTopmostSnapGroup() {
+  auto windows =
+      Shell::Get()->mru_window_tracker()->BuildMruWindowList(kActiveDesk);
+  for (auto* window : windows) {
+    if (auto* snap_group = GetSnapGroupForGivenWindow(window)) {
+      if (!WindowState::Get(snap_group->window1())->IsMinimized() &&
+          !WindowState::Get(snap_group->window2())->IsMinimized()) {
+        return snap_group;
+      }
+    }
+  }
+  return nullptr;
+}
+
+void SnapGroupController::RestoreTopmostSnapGroup() {
+  auto windows =
+      Shell::Get()->mru_window_tracker()->BuildMruWindowList(kActiveDesk);
+  for (auto* window : windows) {
+    if (auto* snap_group = GetSnapGroupForGivenWindow(window)) {
+      CHECK(WindowState::Get(snap_group->window1())->IsMinimized());
+      CHECK(WindowState::Get(snap_group->window2())->IsMinimized());
+      RestoreSnapState(snap_group);
+      return;
+    }
+  }
+}
+
+void SnapGroupController::OnOverviewModeEnded() {
+  RestoreSnapGroups();
+}
+
+void SnapGroupController::OnTabletModeEnding() {
+  RestoreSnapGroups();
+}
+
 aura::Window* SnapGroupController::RetrieveTheOtherWindowInSnapGroup(
     aura::Window* window) const {
   if (window_to_snap_group_map_.find(window) ==
@@ -128,6 +219,34 @@ aura::Window* SnapGroupController::RetrieveTheOtherWindowInSnapGroup(
   SnapGroup* snap_group = window_to_snap_group_map_.find(window)->second;
   return window == snap_group->window1() ? snap_group->window2()
                                          : snap_group->window1();
+}
+
+void SnapGroupController::RestoreSnapGroups() {
+  // TODO(b/286968669): Restore the snap ratio when snapping the windows in snap
+  // group.
+  // TODO(b/288335850): Currently `SplitViewController` only supports two
+  // windows, the group at the end will overwrite any split view operations.
+  // This will be addressed in multiple snap groups feature.
+  // TODO(b/288334530): Iterate through all the displays and restore the snap
+  // groups based on the mru order.
+  for (const auto& snap_group : snap_groups_) {
+    RestoreSnapState(snap_group.get());
+  }
+}
+
+void SnapGroupController::RestoreSnapState(SnapGroup* snap_group) {
+  CHECK(snap_group);
+  auto* window1 = snap_group->window1();
+  auto* window2 = snap_group->window2();
+  auto* root_window = window1->GetRootWindow();
+  SplitViewController* split_view_controller =
+      SplitViewController::Get(root_window);
+
+  base::AutoReset<bool> bypass(&can_enter_overview_, false);
+  split_view_controller->SnapWindow(
+      window1, SplitViewController::SnapPosition::kPrimary);
+  split_view_controller->SnapWindow(
+      window2, SplitViewController::SnapPosition::kSecondary);
 }
 
 }  // namespace ash

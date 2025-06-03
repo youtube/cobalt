@@ -34,7 +34,7 @@ import java.util.Locale;
  * granted access to it by the user.
  */
 public class ChosenObjectSettings
-        extends SiteSettingsPreferenceFragment implements CustomDividerFragment {
+        extends BaseSiteSettingsFragment implements CustomDividerFragment {
     public static final String EXTRA_OBJECT_INFOS = "org.chromium.chrome.preferences.object_infos";
     public static final String EXTRA_SITES = "org.chromium.chrome.preferences.site_set";
     public static final String EXTRA_CATEGORY =
@@ -263,7 +263,7 @@ public class ChosenObjectSettings
         // WebsitePreference to extend ChromeBasePreference to more easily set dividers
         // programmatically.
         Preference divider = new Preference(getStyledContext());
-        divider.setLayoutResource(R.layout.divider_preference);
+        divider.setLayoutResource(R.layout.horizontal_divider);
         preferenceScreen.addPreference(divider);
     }
 

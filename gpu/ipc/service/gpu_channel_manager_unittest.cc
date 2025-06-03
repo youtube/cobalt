@@ -93,8 +93,10 @@ class GpuChannelManagerTest : public GpuChannelTestCommon {
 
     ContextResult result = ContextResult::kFatalFailure;
     Capabilities capabilities;
+    GLCapabilities gl_capabilities;
     CreateCommandBuffer(*channel, std::move(init_params), kRouteId,
-                        GetSharedMemoryRegion(), &result, &capabilities);
+                        GetSharedMemoryRegion(), &result, &capabilities,
+                        &gl_capabilities);
     EXPECT_EQ(result, ContextResult::kSuccess);
 
     auto raster_decoder_state =
@@ -121,31 +123,6 @@ class GpuChannelManagerTest : public GpuChannelTestCommon {
 #endif
 
 #if BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
-  // TODO(crbug.com/1420217): Simplify this with a generic helper to control the
-  // test's tracing in ::base::test.
-  std::unique_ptr<perfetto::TracingSession> StartNewTraceBlocking() {
-    std::unique_ptr<perfetto::TracingSession> session =
-        perfetto::Tracing::NewTrace();
-    auto config = ::base::test::TracingEnvironment::GetDefaultTraceConfig();
-    for (auto& data_source : *config.mutable_data_sources()) {
-      perfetto::protos::gen::TrackEventConfig track_event_config;
-      track_event_config.add_disabled_categories("*");
-      track_event_config.add_enabled_categories("gpu");
-      data_source.mutable_config()->set_track_event_config_raw(
-          track_event_config.SerializeAsString());
-    }
-    session->Setup(config);
-    session->StartBlocking();
-    return session;
-  }
-
-  std::vector<char> StopAndReadTraceBlocking(
-      std::unique_ptr<perfetto::TracingSession> session) {
-    base::TrackEvent::Flush();
-    session->StopBlocking();
-    return session->ReadTraceBlocking();
-  }
-
  private:
   ::base::test::TracingEnvironment tracing_environment_;
 #endif  // BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
@@ -157,7 +134,8 @@ TEST_F(GpuChannelManagerTest, EstablishChannel) {
 
   ASSERT_TRUE(channel_manager());
   GpuChannel* channel = channel_manager()->EstablishChannel(
-      base::UnguessableToken::Create(), kClientId, kClientTracingId, false);
+      base::UnguessableToken::Create(), kClientId, kClientTracingId, false,
+      gfx::GpuExtraInfo(), /*gpu_memory_buffer_factory=*/nullptr);
   EXPECT_TRUE(channel);
   EXPECT_EQ(channel_manager()->LookupChannel(kClientId), channel);
 }
@@ -177,7 +155,8 @@ TEST_F(GpuChannelManagerTest, OnBackgroundedWithWebGL) {
 // and that polling shuts down the monitoring.
 TEST_F(GpuChannelManagerTest, GpuPeakMemoryOnlyReportedForValidSequence) {
 #if BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
-  std::unique_ptr<perfetto::TracingSession> session = StartNewTraceBlocking();
+  base::test::TestTraceProcessor ttp;
+  ttp.StartTrace("gpu");
 #else
   // TODO(crbug.com/1006541): Remove trace_analyzer usage after migration to the
   // SDK.
@@ -206,10 +185,7 @@ TEST_F(GpuChannelManagerTest, GpuPeakMemoryOnlyReportedForValidSequence) {
   EXPECT_EQ(0u, GetManagersPeakMemoryUsage(sequence_num));
 
 #if BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
-  std::vector<char> raw_trace = StopAndReadTraceBlocking(std::move(session));
-  ASSERT_FALSE(raw_trace.empty());
-  base::test::TestTraceProcessor trace_processor;
-  auto status = trace_processor.ParseTrace(raw_trace);
+  absl::Status status = ttp.StopAndParseTrace();
   ASSERT_TRUE(status.ok()) << status.message();
   std::string query =
       R"(
@@ -232,7 +208,9 @@ TEST_F(GpuChannelManagerTest, GpuPeakMemoryOnlyReportedForValidSequence) {
       where name = 'PeakMemoryTracking'
       ORDER BY ts ASC
       )";
-  EXPECT_THAT(trace_processor.ExecuteQuery(query),
+  auto result = ttp.RunQuery(query);
+  ASSERT_TRUE(result.has_value()) << result.error();
+  EXPECT_THAT(result.value(),
               ::testing::ElementsAre(
                   std::vector<std::string>{"start", "has_start_sources", "peak",
                                            "has_end_sources"},

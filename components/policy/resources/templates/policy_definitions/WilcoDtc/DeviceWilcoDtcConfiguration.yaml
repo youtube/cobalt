@@ -12,8 +12,10 @@ features:
   per_profile: false
 max_size: 1000000
 owners:
-- lamzin@google.com
 - bkersting@google.com
+- kerker@chromium.org
+- chungsheng@google.com
+- byronlee@chromium.org
 - chromeos-oem-services@google.com
 schema:
   properties:

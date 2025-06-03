@@ -55,8 +55,8 @@ void MojoHandle::Watch(gin::Arguments* arguments) {
   v8::HandleScope handle_scope(isolate);
   v8::Local<v8::Context> context = arguments->GetHolderCreationContext();
 
-  std::vector<v8::Local<v8::Value>> args = arguments->GetAll();
-  DCHECK_EQ(args.size(), 2u);
+  v8::LocalVector<v8::Value> args = arguments->GetAll();
+  CHECK_EQ(args.size(), 2u);
 
   // See third_party/blink/renderer/core/mojo/mojo_handle_signals.idl,
   // which defines the first argument as:
@@ -65,7 +65,7 @@ void MojoHandle::Watch(gin::Arguments* arguments) {
   //   boolean writable = false;
   //   boolean peerClosed = false;
   // };
-  DCHECK(args[0]->IsObject());
+  CHECK(args[0]->IsObject());
   gin::Dictionary signals(isolate, args[0].As<v8::Object>());
   bool readable, writable, peer_closed = false;
   signals.Get("readable", &readable);
@@ -74,7 +74,7 @@ void MojoHandle::Watch(gin::Arguments* arguments) {
 
   // Now need to extract the MojoWatchCallback from the second
   // argument, see third_party/blink/renderer/core/mojo/mojo_handle.idl.
-  DCHECK(args[1]->IsFunction());
+  CHECK(args[1]->IsFunction());
   v8::Local<v8::Function> v8_callback = args[1].As<v8::Function>();
   auto context_holder = std::make_unique<gin::ContextHolder>(isolate);
   context_holder->SetContext(context);
@@ -180,7 +180,7 @@ void MojoHandle::WriteMessage(gin::Arguments* arguments) {
   // third_party/blink/renderer/core/mojo/mojo_handle.idl defines this
   // method as:
   // MojoResult writeMessage(BufferSource buffer, sequence<MojoHandle> handles);
-  std::vector<v8::Local<v8::Value>> args = arguments->GetAll();
+  v8::LocalVector<v8::Value> args = arguments->GetAll();
   DCHECK_EQ(args.size(), 2u);
   DCHECK(args[0]->IsArrayBuffer() || args[0]->IsArrayBufferView());
   DCHECK(args[1]->IsArray());

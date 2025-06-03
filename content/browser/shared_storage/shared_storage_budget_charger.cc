@@ -31,7 +31,7 @@ void SharedStorageBudgetCharger::DidStartNavigation(
   RenderFrameHostImpl* initiator_frame_host =
       navigation_handle->GetInitiatorFrameToken().has_value()
           ? RenderFrameHostImpl::FromFrameToken(
-                navigation_handle->GetInitiatorProcessID(),
+                navigation_handle->GetInitiatorProcessId(),
                 navigation_handle->GetInitiatorFrameToken().value())
           : nullptr;
 
@@ -76,7 +76,7 @@ void SharedStorageBudgetCharger::DidStartNavigation(
     }
 
     shared_storage_manager->MakeBudgetWithdrawal(
-        metadata->origin, metadata->budget_to_charge, base::DoNothing());
+        metadata->site, metadata->budget_to_charge, base::DoNothing());
   }
 }
 

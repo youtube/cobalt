@@ -4,9 +4,12 @@
 
 #include "components/autofill/core/browser/data_model/phone_number.h"
 
+#include <limits.h>
+
 #include <algorithm>
 
 #include "base/check_op.h"
+#include "base/containers/cxx20_erase.h"
 #include "base/notreached.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
@@ -18,6 +21,7 @@
 #include "components/autofill/core/browser/geo/autofill_country.h"
 #include "components/autofill/core/browser/geo/phone_number_i18n.h"
 #include "components/autofill/core/common/autofill_features.h"
+#include "third_party/abseil-cpp/absl/strings/ascii.h"
 
 namespace autofill {
 
@@ -44,7 +48,7 @@ PhoneNumber::PhoneNumber(const PhoneNumber& number) : profile_(nullptr) {
   *this = number;
 }
 
-PhoneNumber::~PhoneNumber() {}
+PhoneNumber::~PhoneNumber() = default;
 
 PhoneNumber& PhoneNumber::operator=(const PhoneNumber& number) {
   if (this == &number)
@@ -79,7 +83,7 @@ void PhoneNumber::GetSupportedTypes(ServerFieldTypeSet* supported_types) const {
 }
 
 std::u16string PhoneNumber::GetRawInfo(ServerFieldType type) const {
-  DCHECK_EQ(FieldTypeGroup::kPhoneHome, AutofillType(type).group());
+  DCHECK_EQ(FieldTypeGroup::kPhone, GroupTypeOfServerFieldType(type));
   if (type == PHONE_HOME_WHOLE_NUMBER)
     return number_;
 
@@ -92,13 +96,12 @@ std::u16string PhoneNumber::GetRawInfo(ServerFieldType type) const {
 void PhoneNumber::SetRawInfoWithVerificationStatus(ServerFieldType type,
                                                    const std::u16string& value,
                                                    VerificationStatus status) {
-  DCHECK_EQ(FieldTypeGroup::kPhoneHome, AutofillType(type).group());
-  if (type != PHONE_HOME_CITY_AND_NUMBER && type != PHONE_HOME_WHOLE_NUMBER) {
-    // Only full phone numbers should be set directly. The remaining field types
-    // are read-only. As PHONE_HOME_CITY_AND_NUMBER_WITHOUT_TRUNK_PREFIX
-    // generally doesn't represent a dialable number, it is not accessible
-    // either.
-    return;
+  DCHECK_EQ(FieldTypeGroup::kPhone, GroupTypeOfServerFieldType(type));
+  if (type != PHONE_HOME_WHOLE_NUMBER) {
+    // Only full phone numbers should be set directly. The browser is
+    // intentionally caused to crash to prevent all users from setting raw info
+    // to the non-storable fields.
+    NOTREACHED_NORETURN();
   }
 
   number_ = value;
@@ -244,10 +247,10 @@ std::u16string PhoneNumber::GetInfoImpl(const AutofillType& type,
       // GetNationallyFormattedNumber optimizes for screen display, e.g. it
       // shows a US number as (888) 123-1234. The following retains only the
       // digits.
-      national_number.erase(
-          std::remove_if(national_number.begin(), national_number.end(),
-                         [](auto c) { return !std::isdigit(c); }),
-          national_number.end());
+      base::EraseIf(national_number, [](char16_t c) {
+        return c > UCHAR_MAX ||
+               !absl::ascii_isdigit(static_cast<unsigned char>(c));
+      });
       return national_number;
     }
 
@@ -323,9 +326,9 @@ void PhoneNumber::UpdateCacheIfNeeded(const std::string& app_locale) const {
   }
 }
 
-PhoneNumber::PhoneCombineHelper::PhoneCombineHelper() {}
+PhoneNumber::PhoneCombineHelper::PhoneCombineHelper() = default;
 
-PhoneNumber::PhoneCombineHelper::~PhoneCombineHelper() {}
+PhoneNumber::PhoneCombineHelper::~PhoneCombineHelper() = default;
 
 bool PhoneNumber::PhoneCombineHelper::SetInfo(const AutofillType& type,
                                               const std::u16string& value) {
@@ -363,6 +366,13 @@ bool PhoneNumber::PhoneCombineHelper::SetInfo(const AutofillType& type,
     return true;
   }
 
+  // PHONE_HOME_EXTENSION is not stored or filled, but it's still classified to
+  // prevent misclassifying such fields as something else.
+  if (storable_type == PHONE_HOME_EXTENSION) {
+    return true;
+  }
+
+  CHECK_NE(type.group(), FieldTypeGroup::kPhone);
   return false;
 }
 
@@ -378,7 +388,7 @@ bool PhoneNumber::PhoneCombineHelper::ParseNumber(
     return true;
   }
 
-  return i18n::ConstructPhoneNumber(country_, city_, phone_,
+  return i18n::ConstructPhoneNumber(country_ + city_ + phone_,
                                     GetRegion(profile, app_locale), value);
 }
 

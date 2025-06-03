@@ -63,7 +63,9 @@ class NavigationControllerHistoryInterventionBrowserTest
  public:
   NavigationControllerHistoryInterventionBrowserTest() {
     feature_list_.InitWithFeaturesAndParameters(
-        {{kQueueNavigationsWhileWaitingForCommit, {{"level", "full"}}}}, {});
+        {{features::kQueueNavigationsWhileWaitingForCommit,
+          {{"queueing_level", "full"}}}},
+        {});
     InitAndEnableRenderDocumentFeature(&feature_list_for_render_document_,
                                        std::get<0>(GetParam()));
     InitBackForwardCacheFeature(&feature_list_for_back_forward_cache_,
@@ -437,6 +439,34 @@ IN_PROC_BROWSER_TEST_P(NavigationControllerHistoryInterventionBrowserTest,
   EXPECT_EQ(0, controller.GetLastCommittedEntryIndex());
 }
 
+namespace {
+
+// WebContentsDelegate that keeps track of CanGoBack state during all
+// NavigationStateChanged notifications.
+class CanGoBackNavigationStateChangedDelegate : public WebContentsDelegate {
+ public:
+  CanGoBackNavigationStateChangedDelegate() = default;
+
+  CanGoBackNavigationStateChangedDelegate(
+      const CanGoBackNavigationStateChangedDelegate&) = delete;
+  CanGoBackNavigationStateChangedDelegate& operator=(
+      const CanGoBackNavigationStateChangedDelegate&) = delete;
+
+  ~CanGoBackNavigationStateChangedDelegate() override = default;
+
+  void NavigationStateChanged(WebContents* source,
+                              InvalidateTypes changed_flags) override {
+    if (changed_flags) {
+      can_go_back_ = source->GetController().CanGoBack();
+    }
+  }
+  bool can_go_back() { return can_go_back_; }
+
+ private:
+  bool can_go_back_ = false;
+};
+}  // namespace
+
 // Tests that if a navigation entry is marked as skippable due to pushState then
 // the flag should be reset if there is a user gesture on this document. All of
 // the adjacent entries belonging to the same document will have their skippable
@@ -519,11 +549,17 @@ IN_PROC_BROWSER_TEST_P(NavigationControllerHistoryInterventionBrowserTest,
   EXPECT_TRUE(controller.GetEntryAtIndex(2)->should_skip_on_back_forward_ui());
   EXPECT_TRUE(controller.GetEntryAtIndex(3)->should_skip_on_back_forward_ui());
   EXPECT_FALSE(controller.GetEntryAtIndex(4)->should_skip_on_back_forward_ui());
+  EXPECT_FALSE(controller.CanGoBack());
 
-  // Simulate a user gesture. ExecuteScript internally also sends a user
-  // gesture.
+  // Should notify navigation state changed when skippable bit has been reset.
+  CanGoBackNavigationStateChangedDelegate navigation_state_changed_delegate;
+  shell()->web_contents()->SetDelegate(&navigation_state_changed_delegate);
+  EXPECT_FALSE(navigation_state_changed_delegate.can_go_back());
+  // Simulate a user gesture. ExecJs internally also sends a user gesture.
   script = "a=5";
   EXPECT_TRUE(content::ExecJs(shell()->web_contents(), script));
+  EXPECT_TRUE(navigation_state_changed_delegate.can_go_back());
+  EXPECT_TRUE(controller.CanGoBack());
 
   // We now have (After user gesture)
   // [skippable_url(skip), redirected_url, push_state_url1*, push_state_url2,
@@ -557,78 +593,6 @@ IN_PROC_BROWSER_TEST_P(NavigationControllerHistoryInterventionBrowserTest,
   // The skippable flag will still be unset since this page has seen a user
   // gesture once.
   EXPECT_FALSE(controller.GetEntryAtIndex(1)->should_skip_on_back_forward_ui());
-}
-
-class NavigationControllerDebugHistoryInterventionNoUserActivation
-    : public NavigationControllerHistoryInterventionBrowserTest {
- protected:
-  void SetUp() override {
-    feature_list_.InitAndEnableFeature(
-        features::kDebugHistoryInterventionNoUserActivation);
-    NavigationControllerHistoryInterventionBrowserTest::SetUp();
-  }
-
- private:
-  base::test::ScopedFeatureList feature_list_;
-};
-
-// Tests that if a navigation entry is marked as skippable due to pushState then
-// the flag is not reset even if there is a user gesture on this document, when
-// the debug flag is enabled. This is to check the case where there wasn't
-// actually a user gesture but one is being reported somehow.
-// (See crbug.com/1201355)
-IN_PROC_BROWSER_TEST_P(
-    NavigationControllerDebugHistoryInterventionNoUserActivation,
-    OnUserGestureDoNotResetSameDocumentEntriesSkipFlag) {
-  GURL skippable_url(embedded_test_server()->GetURL("/frame_tree/top.html"));
-  EXPECT_TRUE(NavigateToURL(shell(), skippable_url));
-
-  // It is safe to obtain the root frame tree node here, as it doesn't change.
-  FrameTreeNode* root = static_cast<WebContentsImpl*>(shell()->web_contents())
-                            ->GetPrimaryFrameTree()
-                            .root();
-
-  EXPECT_FALSE(root->HasStickyUserActivation());
-  EXPECT_FALSE(root->HasTransientUserActivation());
-
-  NavigationControllerImpl& controller = static_cast<NavigationControllerImpl&>(
-      shell()->web_contents()->GetController());
-
-  // Redirect to another page without a user gesture.
-  GURL redirected_url(embedded_test_server()->GetURL("/empty.html"));
-  EXPECT_TRUE(
-      NavigateToURLFromRendererWithoutUserGesture(shell(), redirected_url));
-  // Last entry should have been marked as skippable.
-  EXPECT_TRUE(controller.GetEntryAtIndex(0)->should_skip_on_back_forward_ui());
-
-  // Use the pushState API to add another entry without user gesture.
-  GURL push_state_url1(embedded_test_server()->GetURL("/title1.html"));
-  std::string script("history.pushState('', '','" + push_state_url1.spec() +
-                     "');");
-  EXPECT_TRUE(
-      ExecJs(shell()->web_contents(), script, EXECUTE_SCRIPT_NO_USER_GESTURE));
-
-  EXPECT_EQ(2, controller.GetCurrentEntryIndex());
-  EXPECT_EQ(2, controller.GetLastCommittedEntryIndex());
-
-  // We now have
-  // [skippable_url(skip), redirected_url(skip), push_state_url1*]
-  EXPECT_TRUE(controller.GetEntryAtIndex(1)->should_skip_on_back_forward_ui());
-  EXPECT_FALSE(
-      controller.GetLastCommittedEntry()->should_skip_on_back_forward_ui());
-
-  EXPECT_EQ(skippable_url, controller.GetEntryAtIndex(0)->GetURL());
-  EXPECT_EQ(redirected_url, controller.GetEntryAtIndex(1)->GetURL());
-  EXPECT_EQ(push_state_url1, controller.GetEntryAtIndex(2)->GetURL());
-
-  // Simulate a user gesture. ExecuteScript internally also sends a user
-  // gesture. The skippable bit for [1] should not have changed because of the
-  // DebugHistoryInterventionNoUserActivation flag.
-  script = "a=5";
-  EXPECT_TRUE(content::ExecJs(shell()->web_contents(), script));
-
-  EXPECT_TRUE(controller.GetEntryAtIndex(1)->should_skip_on_back_forward_ui());
-  EXPECT_TRUE(controller.GetEntryAtIndex(0)->should_skip_on_back_forward_ui());
 }
 
 // Tests that if a navigation entry is marked as skippable due to redirect to a
@@ -1308,7 +1272,7 @@ IN_PROC_BROWSER_TEST_P(NavigationControllerHistoryInterventionBrowserTest,
   NavigationControllerImpl& controller = static_cast<NavigationControllerImpl&>(
       shell()->web_contents()->GetController());
 
-  // Add the 2 pushstate entries. Note that ExecuteScript also sends a user
+  // Add the 2 pushstate entries. Note that ExecJs also sends a user
   // gesture.
   GURL a1_url(embedded_test_server()->GetURL("/title2.html"));
   GURL a2_url(embedded_test_server()->GetURL("/title3.html"));
@@ -1412,12 +1376,6 @@ IN_PROC_BROWSER_TEST_P(NavigationControllerHistoryInterventionBrowserTest,
 INSTANTIATE_TEST_SUITE_P(
     All,
     NavigationControllerHistoryInterventionBrowserTest,
-    testing::Combine(testing::ValuesIn(RenderDocumentFeatureLevelValues()),
-                     testing::Bool()),
-    NavigationControllerHistoryInterventionBrowserTest::DescribeParams);
-INSTANTIATE_TEST_SUITE_P(
-    All,
-    NavigationControllerDebugHistoryInterventionNoUserActivation,
     testing::Combine(testing::ValuesIn(RenderDocumentFeatureLevelValues()),
                      testing::Bool()),
     NavigationControllerHistoryInterventionBrowserTest::DescribeParams);

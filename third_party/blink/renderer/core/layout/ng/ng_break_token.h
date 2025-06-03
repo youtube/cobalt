@@ -44,7 +44,8 @@ class CORE_EXPORT NGBreakToken : public GarbageCollected<NGBreakToken> {
   // used with any other node.
   NGLayoutInputNode InputNode() const {
     return NGLayoutInputNode::Create(
-        box_, static_cast<NGLayoutInputNode::NGLayoutInputNodeType>(type_));
+        box_.Get(),
+        static_cast<NGLayoutInputNode::NGLayoutInputNodeType>(type_));
   }
 
 #if DCHECK_IS_ON()
@@ -90,10 +91,10 @@ class CORE_EXPORT NGBreakToken : public GarbageCollected<NGBreakToken> {
   unsigned is_repeated_actual_break_ : 1;
 #endif
 
-  // The following bitfields are only to be used by NGInlineBreakToken (it's
+  // The following bitfields are only to be used by InlineBreakToken (it's
   // defined here to save memory, since that class has no bitfields).
 
-  const unsigned flags_ : 4;  // NGInlineBreakTokenFlags
+  const unsigned flags_ : 5;  // InlineBreakTokenFlags
 
   // The following bitfields are only to be used by NGBlockBreakToken (it's
   // defined here to save memory, since that class has no bitfields).

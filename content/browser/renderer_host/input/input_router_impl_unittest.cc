@@ -30,7 +30,7 @@
 #include "content/browser/scheduler/browser_ui_thread_scheduler.h"
 #include "content/browser/site_instance_group.h"
 #include "content/common/content_constants_internal.h"
-#include "content/public/common/content_features.h"
+#include "content/common/features.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/test/browser_task_environment.h"
 #include "content/public/test/mock_render_process_host.h"
@@ -133,7 +133,8 @@ class MockInputRouterImplClient : public InputRouterImplClient {
 
   void OnImeCompositionRangeChanged(
       const gfx::Range& range,
-      const std::vector<gfx::Rect>& character_bounds) override {}
+      const absl::optional<std::vector<gfx::Rect>>& character_bounds,
+      const absl::optional<std::vector<gfx::Rect>>& line_bounds) override {}
 
   void OnImeCancelComposition() override {}
 
@@ -600,7 +601,8 @@ class InputRouterImplTestBase : public testing::Test {
   std::unique_ptr<MockInputRouterImplClient> client_;
   std::unique_ptr<InputRouterImpl> input_router_;
   std::unique_ptr<MockInputDispositionHandler> disposition_handler_;
-  raw_ptr<MockRenderWidgetHostViewForStylusWriting> mock_view_;
+  raw_ptr<MockRenderWidgetHostViewForStylusWriting, DanglingUntriaged>
+      mock_view_;
 
  private:
   content::BrowserTaskEnvironment task_environment_;

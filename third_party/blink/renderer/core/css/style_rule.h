@@ -32,6 +32,7 @@
 #include "third_party/blink/renderer/core/css/css_property_value_set.h"
 #include "third_party/blink/renderer/core/css/css_selector_list.h"
 #include "third_party/blink/renderer/core/css/media_list.h"
+#include "third_party/blink/renderer/core/css/parser/css_nesting_type.h"
 #include "third_party/blink/renderer/core/css/style_scope.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/wtf/casting.h"
@@ -42,6 +43,7 @@ class CascadeLayer;
 class CSSRule;
 class CSSStyleSheet;
 class ExecutionContext;
+class StyleSheetContents;
 
 class CORE_EXPORT StyleRuleBase : public GarbageCollected<StyleRuleBase> {
  public:
@@ -67,7 +69,8 @@ class CORE_EXPORT StyleRuleBase : public GarbageCollected<StyleRuleBase> {
     kSupports,
     kPositionFallback,
     kTry,
-    kInitial,
+    kStartingStyle,
+    kViewTransitions,
   };
 
   // Name of a cascade layer as given by an @layer rule, split at '.' into a
@@ -103,10 +106,11 @@ class CORE_EXPORT StyleRuleBase : public GarbageCollected<StyleRuleBase> {
   bool IsImportRule() const { return GetType() == kImport; }
   bool IsPositionFallbackRule() const { return GetType() == kPositionFallback; }
   bool IsTryRule() const { return GetType() == kTry; }
-  bool IsInitialRule() const { return GetType() == kInitial; }
+  bool IsStartingStyleRule() const { return GetType() == kStartingStyle; }
+  bool IsViewTransitionsRule() const { return GetType() == kViewTransitions; }
   bool IsConditionRule() const {
     return GetType() == kContainer || GetType() == kMedia ||
-           GetType() == kSupports || GetType() == kInitial;
+           GetType() == kSupports || GetType() == kStartingStyle;
   }
 
   StyleRuleBase* Copy() const;
@@ -216,7 +220,7 @@ class CORE_EXPORT StyleRule : public StyleRuleBase {
   ~StyleRule();
 
   void SetProperties(CSSPropertyValueSet* properties) {
-    DCHECK_EQ(properties_, nullptr);
+    DCHECK_EQ(properties_.Get(), nullptr);
     properties_ = properties;
   }
 
@@ -316,7 +320,7 @@ class CORE_EXPORT StyleRuleFontFace : public StyleRuleBase {
   }
 
   void SetCascadeLayer(const CascadeLayer* layer) { layer_ = layer; }
-  const CascadeLayer* GetCascadeLayer() const { return layer_; }
+  const CascadeLayer* GetCascadeLayer() const { return layer_.Get(); }
 
   void TraceAfterDispatch(blink::Visitor*) const;
 
@@ -343,7 +347,7 @@ class StyleRulePage : public StyleRuleBase {
   }
 
   void SetCascadeLayer(const CascadeLayer* layer) { layer_ = layer; }
-  const CascadeLayer* GetCascadeLayer() const { return layer_; }
+  const CascadeLayer* GetCascadeLayer() const { return layer_.Get(); }
 
   void TraceAfterDispatch(blink::Visitor*) const;
 
@@ -365,8 +369,11 @@ class CORE_EXPORT StyleRuleProperty : public StyleRuleBase {
   const CSSValue* Inherits() const;
   const CSSValue* GetInitialValue() const;
 
+  bool SetNameText(const ExecutionContext* execution_context,
+                   const String& name_text);
+
   void SetCascadeLayer(const CascadeLayer* layer) { layer_ = layer; }
-  const CascadeLayer* GetCascadeLayer() const { return layer_; }
+  const CascadeLayer* GetCascadeLayer() const { return layer_.Get(); }
 
   StyleRuleProperty* Copy() const {
     return MakeGarbageCollected<StyleRuleProperty>(*this);
@@ -387,8 +394,8 @@ class CORE_EXPORT StyleRuleGroup : public StyleRuleBase {
   }
   HeapVector<Member<StyleRuleBase>>& ChildRules() { return child_rules_; }
 
-  void WrapperInsertRule(unsigned, StyleRuleBase*);
-  void WrapperRemoveRule(unsigned);
+  void WrapperInsertRule(CSSStyleSheet*, unsigned, StyleRuleBase*);
+  void WrapperRemoveRule(CSSStyleSheet*, unsigned);
 
   void TraceAfterDispatch(blink::Visitor*) const;
 
@@ -413,7 +420,11 @@ class CORE_EXPORT StyleRuleScope : public StyleRuleGroup {
 
   const StyleScope& GetStyleScope() const { return *style_scope_; }
 
-  void SetPreludeText(const ExecutionContext*, String);
+  void SetPreludeText(const ExecutionContext*,
+                      String,
+                      CSSNestingType,
+                      StyleRule* parent_rule_for_nesting,
+                      StyleSheetContents* style_sheet);
 
  private:
   Member<const StyleScope> style_scope_;
@@ -539,17 +550,15 @@ class CORE_EXPORT StyleRuleContainer : public StyleRuleCondition {
   Member<ContainerQuery> container_query_;
 };
 
-class StyleRuleInitial : public StyleRuleCondition {
+class StyleRuleStartingStyle : public StyleRuleCondition {
  public:
-  explicit StyleRuleInitial(HeapVector<Member<StyleRuleBase>> rules);
-  StyleRuleInitial(const StyleRuleInitial&) = default;
+  explicit StyleRuleStartingStyle(HeapVector<Member<StyleRuleBase>> rules);
+  StyleRuleStartingStyle(const StyleRuleStartingStyle&) = default;
 
   bool ConditionIsSupported() const { return true; }
-  StyleRuleInitial* Copy() const {
-    return MakeGarbageCollected<StyleRuleInitial>(*this);
+  StyleRuleStartingStyle* Copy() const {
+    return MakeGarbageCollected<StyleRuleStartingStyle>(*this);
   }
-
-  void SetConditionText(const ExecutionContext*, String);
 
   void TraceAfterDispatch(blink::Visitor* visitor) const {
     StyleRuleCondition::TraceAfterDispatch(visitor);
@@ -605,7 +614,7 @@ struct DowncastTraits<StyleRuleGroup> {
   static bool AllowFrom(const StyleRuleBase& rule) {
     return rule.IsMediaRule() || rule.IsSupportsRule() ||
            rule.IsContainerRule() || rule.IsLayerBlockRule() ||
-           rule.IsScopeRule();
+           rule.IsScopeRule() || rule.IsPositionFallbackRule();
   }
 };
 
@@ -652,9 +661,9 @@ struct DowncastTraits<StyleRuleCharset> {
 };
 
 template <>
-struct DowncastTraits<StyleRuleInitial> {
+struct DowncastTraits<StyleRuleStartingStyle> {
   static bool AllowFrom(const StyleRuleBase& rule) {
-    return rule.IsInitialRule();
+    return rule.IsStartingStyleRule();
   }
 };
 

@@ -139,8 +139,8 @@ SkColor NativeThemeIOS::ButtonFillColorForState(
   return GetControlColor(color_id, color_scheme, color_provider);
 }
 
-NativeThemeIOS::NativeThemeIOS() {}
+NativeThemeIOS::NativeThemeIOS() = default;
 
-NativeThemeIOS::~NativeThemeIOS() {}
+NativeThemeIOS::~NativeThemeIOS() = default;
 
 }  // namespace ui

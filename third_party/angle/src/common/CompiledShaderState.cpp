@@ -69,7 +69,7 @@ void WriteShaderVar(gl::BinaryOutputStream *stream, const sh::ShaderVariable &va
     stream->writeInt(var.precision);
     stream->writeString(var.name);
     stream->writeString(var.mappedName);
-    stream->writeIntVector(var.arraySizes);
+    stream->writeVector(var.arraySizes);
     stream->writeBool(var.staticUse);
     stream->writeBool(var.active);
     stream->writeInt<size_t>(var.fields.size());
@@ -97,6 +97,7 @@ void WriteShaderVar(gl::BinaryOutputStream *stream, const sh::ShaderVariable &va
     stream->writeBool(var.isPatch);
     stream->writeBool(var.texelFetchStaticUse);
     stream->writeInt(var.getFlattenedOffsetInParentArrays());
+    stream->writeInt(var.id);
 }
 
 void LoadShaderVar(gl::BinaryInputStream *stream, sh::ShaderVariable *var)
@@ -105,7 +106,7 @@ void LoadShaderVar(gl::BinaryInputStream *stream, sh::ShaderVariable *var)
     var->precision = stream->readInt<GLenum>();
     stream->readString(&var->name);
     stream->readString(&var->mappedName);
-    stream->readIntVector<unsigned int>(&var->arraySizes);
+    stream->readVector(&var->arraySizes);
     var->staticUse      = stream->readBool();
     var->active         = stream->readBool();
     size_t elementCount = stream->readInt<size_t>();
@@ -134,6 +135,7 @@ void LoadShaderVar(gl::BinaryInputStream *stream, sh::ShaderVariable *var)
     var->isPatch             = stream->readBool();
     var->texelFetchStaticUse = stream->readBool();
     var->setParentArrayIndex(stream->readInt<int>());
+    var->id = stream->readInt<uint32_t>();
 }
 
 void WriteShInterfaceBlock(gl::BinaryOutputStream *stream, const sh::InterfaceBlock &block)
@@ -148,6 +150,7 @@ void WriteShInterfaceBlock(gl::BinaryOutputStream *stream, const sh::InterfaceBl
     stream->writeBool(block.staticUse);
     stream->writeBool(block.active);
     stream->writeEnum(block.blockType);
+    stream->writeInt(block.id);
 
     stream->writeInt<size_t>(block.fields.size());
     for (const sh::ShaderVariable &shaderVariable : block.fields)
@@ -168,6 +171,7 @@ void LoadShInterfaceBlock(gl::BinaryInputStream *stream, sh::InterfaceBlock *blo
     block->staticUse        = stream->readBool();
     block->active           = stream->readBool();
     block->blockType        = stream->readEnum<sh::BlockType>();
+    block->id               = stream->readInt<uint32_t>();
 
     block->fields.resize(stream->readInt<size_t>());
     for (sh::ShaderVariable &variable : block->fields)
@@ -177,7 +181,19 @@ void LoadShInterfaceBlock(gl::BinaryInputStream *stream, sh::InterfaceBlock *blo
 }
 
 CompiledShaderState::CompiledShaderState(gl::ShaderType type)
-    : shaderType(type), shaderVersion(100), numViews(-1), geometryShaderInvocations(1)
+    : shaderType(type),
+      successfullyCompiled(false),
+      shaderVersion(100),
+      hasClipDistance(false),
+      hasDiscard(false),
+      enablesPerSampleShading(false),
+      numViews(-1),
+      geometryShaderInvocations(1),
+      tessControlShaderVertices(0),
+      tessGenMode(0),
+      tessGenSpacing(0),
+      tessGenVertexOrder(0),
+      tessGenPointMode(0)
 {
     localSize.fill(-1);
 }
@@ -463,7 +479,7 @@ void CompiledShaderState::serialize(gl::BinaryOutputStream &stream) const
             UNREACHABLE();
     }
 
-    stream.writeIntVector(compiledBinary);
+    stream.writeVector(compiledBinary);
 }
 
 void CompiledShaderState::deserialize(gl::BinaryInputStream &stream)
@@ -667,6 +683,6 @@ void CompiledShaderState::deserialize(gl::BinaryInputStream &stream)
             UNREACHABLE();
     }
 
-    stream.readIntVector<unsigned int>(&compiledBinary);
+    stream.readVector(&compiledBinary);
 }
 }  // namespace gl

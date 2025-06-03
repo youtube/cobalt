@@ -130,8 +130,9 @@ void ActiveTabPermissionGranter::GrantIfRequested(const Extension* extension) {
 
   const PermissionsData* permissions_data = extension->permissions_data();
 
-  const GURL& url =
-      web_contents()->GetPrimaryMainFrame()->GetLastCommittedOrigin().GetURL();
+  // Do not use `RFH::GetLastCommittedOrigin()` because it returns an empty
+  // origin in case of a frame with CSP sandbox.
+  const GURL& url = web_contents()->GetLastCommittedURL();
 
   // If the extension requested the host permission to |url| but had it
   // withheld, we grant it active tab-style permissions, even if it doesn't have
@@ -192,7 +193,7 @@ void ActiveTabPermissionGranter::GrantIfRequested(const Extension* extension) {
 }
 
 void ActiveTabPermissionGranter::RevokeForTesting() {
-  ClearActiveExtensionsAndNotify();
+  ClearGrantedExtensionsAndNotify();
 }
 
 void ActiveTabPermissionGranter::DidFinishNavigation(
@@ -208,11 +209,11 @@ void ActiveTabPermissionGranter::DidFinishNavigation(
   if (navigation_handle->IsSameOrigin())
     return;
 
-  ClearActiveExtensionsAndNotify();
+  ClearGrantedExtensionsAndNotify();
 }
 
 void ActiveTabPermissionGranter::WebContentsDestroyed() {
-  ClearActiveExtensionsAndNotify();
+  ClearGrantedExtensionsAndNotify();
 }
 
 void ActiveTabPermissionGranter::OnExtensionUnloaded(
@@ -224,8 +225,24 @@ void ActiveTabPermissionGranter::OnExtensionUnloaded(
   granted_extensions_.Remove(extension->id());
 }
 
-void ActiveTabPermissionGranter::ClearActiveExtensionsAndNotify() {
-  if (granted_extensions_.empty()) {
+void ActiveTabPermissionGranter::ClearGrantedExtensionsAndNotify() {
+  ClearGrantedExtensionsAndNotify(granted_extensions_);
+}
+
+void ActiveTabPermissionGranter::ClearActiveExtensionAndNotify(
+    const ExtensionId& id) {
+  if (!granted_extensions_.Contains(id)) {
+    return;
+  }
+
+  ExtensionSet granted_to_remove{};
+  granted_to_remove.Insert(granted_extensions_.GetByID(id));
+  ClearGrantedExtensionsAndNotify(granted_to_remove);
+}
+
+void ActiveTabPermissionGranter::ClearGrantedExtensionsAndNotify(
+    const ExtensionSet& granted_extensions_to_remove) {
+  if (granted_extensions_to_remove.empty()) {
     return;
   }
 
@@ -234,7 +251,8 @@ void ActiveTabPermissionGranter::ClearActiveExtensionsAndNotify() {
   content::BrowserContext* browser_context =
       web_contents()->GetBrowserContext();
   ProcessManager* process_manager = ProcessManager::Get(browser_context);
-  for (const scoped_refptr<const Extension>& extension : granted_extensions_) {
+  for (const scoped_refptr<const Extension>& extension :
+       granted_extensions_to_remove) {
     extension->permissions_data()->ClearTabSpecificPermissions(tab_id_);
     SetCorsOriginAccessList(browser_context, *extension, base::DoNothing());
 
@@ -251,7 +269,9 @@ void ActiveTabPermissionGranter::ClearActiveExtensionsAndNotify() {
       frame_hosts, web_contents()->GetPrimaryMainFrame()->GetProcess(),
       clear_message);
 
-  granted_extensions_.Clear();
+  for (const auto& id : extension_ids) {
+    granted_extensions_.Remove(id);
+  }
 }
 
 }  // namespace extensions

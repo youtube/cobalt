@@ -8,6 +8,7 @@
 #include <map>
 
 #include "base/containers/id_map.h"
+#include "base/memory/raw_ref.h"
 #include "base/task/single_thread_task_runner.h"
 #include "content/common/agent_scheduling_group.mojom.h"
 #include "content/common/associated_interfaces.mojom.h"
@@ -25,6 +26,7 @@
 #include "third_party/blink/public/mojom/browser_interface_broker.mojom.h"
 #include "third_party/blink/public/mojom/frame/frame_replication_state.mojom-forward.h"
 #include "third_party/blink/public/mojom/shared_storage/shared_storage_worklet_service.mojom-forward.h"
+#include "third_party/blink/public/mojom/worker/worklet_global_scope_creation_params.mojom-forward.h"
 #include "third_party/blink/public/platform/scheduler/web_agent_group_scheduler.h"
 
 namespace IPC {
@@ -103,8 +105,9 @@ class CONTENT_EXPORT AgentSchedulingGroup
   void CreateView(mojom::CreateViewParamsPtr params) override;
   void CreateFrame(mojom::CreateFrameParamsPtr params) override;
   void CreateSharedStorageWorkletService(
-      mojo::PendingReceiver<blink::mojom::SharedStorageWorkletService> receiver)
-      override;
+      mojo::PendingReceiver<blink::mojom::SharedStorageWorkletService> receiver,
+      blink::mojom::WorkletGlobalScopeCreationParamsPtr
+          global_scope_creation_params) override;
 
   // mojom::RouteProvider
   void GetRoute(
@@ -132,7 +135,7 @@ class CONTENT_EXPORT AgentSchedulingGroup
   std::unique_ptr<blink::scheduler::WebAgentGroupScheduler>
       agent_group_scheduler_;
 
-  RenderThread& render_thread_;
+  const raw_ref<RenderThread, ExperimentalRenderer> render_thread_;
 
   // Implementation of `mojom::AgentSchedulingGroup`, used for responding to
   // calls from the (browser-side) `AgentSchedulingGroupHost`.

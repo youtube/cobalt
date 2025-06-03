@@ -27,9 +27,6 @@ AwServerSideAllowlistMetricsProvider::AwServerSideAllowlistMetricsProvider(
 void AwServerSideAllowlistMetricsProvider::ProvideSystemProfileMetrics(
     metrics::SystemProfileProto* system_profile) {
   if (!IsServerSideAllowlistEnabled()) {
-    system_profile->set_app_package_name_allowlist_filter(
-        metrics::SystemProfileProto::
-            NO_SERVER_SIDE_FILTER_REQUIRED_DUE_TO_CLIENT_FILTERING);
     return;
   }
 

@@ -83,7 +83,7 @@ bool ManagePasswordsIconViews::OnMousePressed(const ui::MouseEvent& event) {
 
 const gfx::VectorIcon& ManagePasswordsIconViews::GetVectorIcon() const {
   return OmniboxFieldTrial::IsChromeRefreshIconsEnabled()
-             ? kKeyChromeRefreshIcon
+             ? kKeyOpenChromeRefreshIcon
              : kKeyIcon;
 }
 
@@ -91,7 +91,8 @@ std::u16string ManagePasswordsIconViews::GetTextForTooltipAndAccessibleName()
     const {
   switch (state_) {
     case password_manager::ui::INACTIVE_STATE:
-    case password_manager::ui::CONFIRMATION_STATE:
+    case password_manager::ui::SAVE_CONFIRMATION_STATE:
+    case password_manager::ui::UPDATE_CONFIRMATION_STATE:
     case password_manager::ui::CREDENTIAL_REQUEST_STATE:
     case password_manager::ui::AUTO_SIGNIN_STATE:
     case password_manager::ui::WILL_DELETE_UNSYNCED_ACCOUNT_PASSWORDS_STATE:
@@ -101,12 +102,17 @@ std::u16string ManagePasswordsIconViews::GetTextForTooltipAndAccessibleName()
       return l10n_util::GetStringUTF16(IDS_PASSWORD_MANAGER_TOOLTIP_MANAGE);
     case password_manager::ui::PENDING_PASSWORD_UPDATE_STATE:
     case password_manager::ui::PENDING_PASSWORD_STATE:
+    case password_manager::ui::GENERATED_PASSWORD_CONFIRMATION_STATE:
       return l10n_util::GetStringUTF16(IDS_PASSWORD_MANAGER_TOOLTIP_SAVE);
     case password_manager::ui::CAN_MOVE_PASSWORD_TO_ACCOUNT_STATE:
       return l10n_util::GetStringUTF16(IDS_PASSWORD_MANAGER_TOOLTIP_MOVE);
     case password_manager::ui::BIOMETRIC_AUTHENTICATION_FOR_FILLING_STATE:
     case password_manager::ui::BIOMETRIC_AUTHENTICATION_CONFIRMATION_STATE:
       return l10n_util::GetStringUTF16(IDS_PASSWORD_MANAGER_TOOLTIP_PROTECT);
+    case password_manager::ui::NOTIFY_RECEIVED_SHARED_CREDENTIALS: {
+      return l10n_util::GetStringUTF16(
+          IDS_PASSWORD_MANAGER_TOOLTIP_SHARED_NOTIFICATION);
+    }
   }
   NOTREACHED_NORETURN();
 }

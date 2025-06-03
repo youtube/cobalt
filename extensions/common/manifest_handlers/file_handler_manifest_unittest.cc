@@ -93,7 +93,7 @@ TEST_F(FileHandlersManifestTest, NotPlatformApp) {
 
 class WebFileHandlersTest : public ManifestTest {
  public:
-  WebFileHandlersTest() : channel_(version_info::Channel::DEV) {
+  WebFileHandlersTest() : channel_(version_info::Channel::BETA) {
     feature_list_.InitAndEnableFeature(
         extensions_features::kExtensionWebFileHandlers);
   }
@@ -213,7 +213,7 @@ TEST_F(WebFileHandlersTest, GeneralSuccess) {
 
     // Exercise the web `file_handlers` key with a subkey introduced in MV3.
     for (const auto& file_handler : *file_handlers) {
-      EXPECT_TRUE(file_handler.action.size() > 0);
+      EXPECT_TRUE(file_handler.file_handler.action.size() > 0);
     }
   }
 }
@@ -303,6 +303,17 @@ TEST_F(WebFileHandlersTest, GeneralErrors) {
           }])",
           "Invalid value for 'file_handlers[0]'. `action` must "
           "start with a forward slash.",
+      },
+      {
+          "Error if `launch_type` multiple-clients is singular.",
+          R"([{
+            "name":"test",
+            "action":"/path",
+            "accept": {"text/csv": ".csv"},
+            "launch_type": "multiple-client"
+          }])",
+          "Invalid value for 'file_handlers[0]'. `launch_type` must have a "
+          "valid value.",
       }};
 
   for (const auto& test_case : test_cases) {

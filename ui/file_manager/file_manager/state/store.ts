@@ -2,19 +2,30 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import {VolumeManagerCommon} from '../common/js/volume_manager_types.js';
 import {FilesAppEntry} from '../externs/files_app_entry_interfaces.js';
-import {FileData, FileKey, SearchLocation, SearchOptions, SearchRecency, State} from '../externs/ts/state.js';
+import {FileData, FileKey, State, Volume} from '../externs/ts/state.js';
 import {BaseStore} from '../lib/base_store.js';
 
-import {Action} from './actions.js';
-import {rootReducer} from './reducers/root.js';
+import {allEntriesSlice} from './ducks/all_entries.js';
+import {androidAppsSlice} from './ducks/android_apps.js';
+import {bulkPinningSlice} from './ducks/bulk_pinning.js';
+import {currentDirectorySlice} from './ducks/current_directory.js';
+import {deviceSlice} from './ducks/device.js';
+import {driveSlice} from './ducks/drive.js';
+import {folderShortcutsSlice} from './ducks/folder_shortcuts.js';
+import {navigationSlice} from './ducks/navigation.js';
+import {preferencesSlice} from './ducks/preferences.js';
+import {searchSlice} from './ducks/search.js';
+import {uiEntriesSlice} from './ducks/ui_entries.js';
+import {volumesSlice} from './ducks/volumes.js';
 
 /**
  * Files app's Store type.
  *
  * It enforces the types for the State and the Actions managed by Files app.
  */
-export type Store = BaseStore<State, Action>;
+export type Store = BaseStore<State>;
 
 /**
  * Store singleton instance.
@@ -34,8 +45,20 @@ export function getStore(): Store {
   // TODO(b/272120634): Put the store on window to prevent Store being created
   // twice.
   if (!window.store) {
-    window.store =
-        new BaseStore<State, Action>({allEntries: {}} as State, rootReducer);
+    window.store = new BaseStore<State>(getEmptyState(), [
+      searchSlice,
+      volumesSlice,
+      bulkPinningSlice,
+      uiEntriesSlice,
+      androidAppsSlice,
+      folderShortcutsSlice,
+      navigationSlice,
+      preferencesSlice,
+      deviceSlice,
+      driveSlice,
+      currentDirectorySlice,
+      allEntriesSlice,
+    ]);
   }
 
   return window.store;
@@ -46,6 +69,13 @@ export function getEmptyState(): State {
   return {
     allEntries: {},
     currentDirectory: undefined,
+    device: {
+      connection: chrome.fileManagerPrivate.DeviceConnectionState.ONLINE,
+    },
+    drive: {
+      connectionType: chrome.fileManagerPrivate.DriveConnectionStateType.ONLINE,
+      offlineReason: undefined,
+    },
     search: {
       query: undefined,
       status: undefined,
@@ -61,17 +91,6 @@ export function getEmptyState(): State {
     bulkPinning: undefined,
     preferences: undefined,
   };
-}
-
-/**
- * Search options to be used if the user did not specify their own.
- */
-export function getDefaultSearchOptions(): SearchOptions {
-  return {
-    location: SearchLocation.THIS_FOLDER,
-    recency: SearchRecency.ANYTIME,
-    fileCategory: chrome.fileManagerPrivate.FileCategory.ALL,
-  } as SearchOptions;
 }
 
 /**
@@ -133,6 +152,16 @@ export function getFilesData(state: State, keys: FileKey[]): FileData[] {
 export function getEntry(state: State, key: FileKey): Entry|FilesAppEntry|null {
   const fileData = state.allEntries[key];
   return fileData?.entry ?? null;
+}
+
+export function getVolume(state: State, fileData?: FileData|null): Volume|null {
+  const volumeId = fileData?.volumeId;
+  return (volumeId && state.volumes[volumeId]) || null;
+}
+
+export function getVolumeType(state: State, fileData?: FileData|null):
+    VolumeManagerCommon.VolumeType|null {
+  return getVolume(state, fileData)?.volumeType ?? null;
 }
 
 /**

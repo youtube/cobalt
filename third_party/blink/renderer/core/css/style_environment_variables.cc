@@ -4,6 +4,7 @@
 
 #include "third_party/blink/renderer/core/css/style_environment_variables.h"
 
+#include "base/containers/contains.h"
 #include "third_party/blink/renderer/core/css/parser/css_tokenizer.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 namespace blink {
@@ -70,41 +71,41 @@ const AtomicString StyleEnvironmentVariables::GetVariableName(
     const FeatureContext* feature_context) {
   switch (variable) {
     case UADefinedVariable::kSafeAreaInsetTop:
-      return "safe-area-inset-top";
+      return AtomicString("safe-area-inset-top");
     case UADefinedVariable::kSafeAreaInsetLeft:
-      return "safe-area-inset-left";
+      return AtomicString("safe-area-inset-left");
     case UADefinedVariable::kSafeAreaInsetBottom:
-      return "safe-area-inset-bottom";
+      return AtomicString("safe-area-inset-bottom");
     case UADefinedVariable::kSafeAreaInsetRight:
-      return "safe-area-inset-right";
+      return AtomicString("safe-area-inset-right");
     case UADefinedVariable::kKeyboardInsetTop:
-      return "keyboard-inset-top";
+      return AtomicString("keyboard-inset-top");
     case UADefinedVariable::kKeyboardInsetLeft:
-      return "keyboard-inset-left";
+      return AtomicString("keyboard-inset-left");
     case UADefinedVariable::kKeyboardInsetBottom:
-      return "keyboard-inset-bottom";
+      return AtomicString("keyboard-inset-bottom");
     case UADefinedVariable::kKeyboardInsetRight:
-      return "keyboard-inset-right";
+      return AtomicString("keyboard-inset-right");
     case UADefinedVariable::kKeyboardInsetWidth:
-      return "keyboard-inset-width";
+      return AtomicString("keyboard-inset-width");
     case UADefinedVariable::kKeyboardInsetHeight:
-      return "keyboard-inset-height";
+      return AtomicString("keyboard-inset-height");
     case UADefinedVariable::kTitlebarAreaX:
       DCHECK(RuntimeEnabledFeatures::WebAppWindowControlsOverlayEnabled(
           feature_context));
-      return "titlebar-area-x";
+      return AtomicString("titlebar-area-x");
     case UADefinedVariable::kTitlebarAreaY:
       DCHECK(RuntimeEnabledFeatures::WebAppWindowControlsOverlayEnabled(
           feature_context));
-      return "titlebar-area-y";
+      return AtomicString("titlebar-area-y");
     case UADefinedVariable::kTitlebarAreaWidth:
       DCHECK(RuntimeEnabledFeatures::WebAppWindowControlsOverlayEnabled(
           feature_context));
-      return "titlebar-area-width";
+      return AtomicString("titlebar-area-width");
     case UADefinedVariable::kTitlebarAreaHeight:
       DCHECK(RuntimeEnabledFeatures::WebAppWindowControlsOverlayEnabled(
           feature_context));
-      return "titlebar-area-height";
+      return AtomicString("titlebar-area-height");
     default:
       break;
   }
@@ -117,23 +118,23 @@ const AtomicString StyleEnvironmentVariables::GetVariableName(
     const FeatureContext* feature_context) {
   switch (variable) {
     case UADefinedTwoDimensionalVariable::kViewportSegmentTop:
-      DCHECK(RuntimeEnabledFeatures::CSSFoldablesEnabled());
-      return "viewport-segment-top";
+      DCHECK(RuntimeEnabledFeatures::ViewportSegmentsEnabled());
+      return AtomicString("viewport-segment-top");
     case UADefinedTwoDimensionalVariable::kViewportSegmentRight:
-      DCHECK(RuntimeEnabledFeatures::CSSFoldablesEnabled());
-      return "viewport-segment-right";
+      DCHECK(RuntimeEnabledFeatures::ViewportSegmentsEnabled());
+      return AtomicString("viewport-segment-right");
     case UADefinedTwoDimensionalVariable::kViewportSegmentBottom:
-      DCHECK(RuntimeEnabledFeatures::CSSFoldablesEnabled());
-      return "viewport-segment-bottom";
+      DCHECK(RuntimeEnabledFeatures::ViewportSegmentsEnabled());
+      return AtomicString("viewport-segment-bottom");
     case UADefinedTwoDimensionalVariable::kViewportSegmentLeft:
-      DCHECK(RuntimeEnabledFeatures::CSSFoldablesEnabled());
-      return "viewport-segment-left";
+      DCHECK(RuntimeEnabledFeatures::ViewportSegmentsEnabled());
+      return AtomicString("viewport-segment-left");
     case UADefinedTwoDimensionalVariable::kViewportSegmentWidth:
-      DCHECK(RuntimeEnabledFeatures::CSSFoldablesEnabled());
-      return "viewport-segment-width";
+      DCHECK(RuntimeEnabledFeatures::ViewportSegmentsEnabled());
+      return AtomicString("viewport-segment-width");
     case UADefinedTwoDimensionalVariable::kViewportSegmentHeight:
-      DCHECK(RuntimeEnabledFeatures::CSSFoldablesEnabled());
-      return "viewport-segment-height";
+      DCHECK(RuntimeEnabledFeatures::ViewportSegmentsEnabled());
+      return AtomicString("viewport-segment-height");
     default:
       break;
   }
@@ -317,8 +318,8 @@ void StyleEnvironmentVariables::ParentInvalidatedVariable(
     const AtomicString& name) {
   // If we have not overridden the variable then we should invalidate it
   // locally.
-  if (data_.find(name) == data_.end() &&
-      two_dimension_data_.find(name) == two_dimension_data_.end()) {
+  if (!base::Contains(data_, name) &&
+      !base::Contains(two_dimension_data_, name)) {
     InvalidateVariable(name);
   }
 }

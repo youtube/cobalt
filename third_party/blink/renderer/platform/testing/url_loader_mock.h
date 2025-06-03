@@ -6,6 +6,7 @@
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_TESTING_URL_LOADER_MOCK_H_
 
 #include <memory>
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/task/single_thread_task_runner.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
@@ -14,7 +15,6 @@
 
 namespace blink {
 
-class WebURLRequestExtraData;
 class URLLoaderClient;
 class URLLoaderMockFactoryImpl;
 class URLLoaderTestDelegate;
@@ -45,27 +45,27 @@ class URLLoaderMock : public URLLoader {
                        const WebURLResponse& redirect_response);
 
   // URLLoader methods:
-  void LoadSynchronously(
-      std::unique_ptr<network::ResourceRequest> request,
-      scoped_refptr<WebURLRequestExtraData> url_request_extra_data,
-      bool pass_response_pipe_to_client,
-      bool no_mime_sniffing,
-      base::TimeDelta timeout_interval,
-      URLLoaderClient* client,
-      WebURLResponse&,
-      absl::optional<WebURLError>&,
-      scoped_refptr<SharedBuffer>&,
-      int64_t& encoded_data_length,
-      uint64_t& encoded_body_length,
-      scoped_refptr<BlobDataHandle>& downloaded_blob,
-      std::unique_ptr<blink::ResourceLoadInfoNotifierWrapper>
-          resource_load_info_notifier_wrapper) override;
+  void LoadSynchronously(std::unique_ptr<network::ResourceRequest> request,
+                         scoped_refptr<const SecurityOrigin> top_frame_origin,
+                         bool download_to_blob,
+                         bool no_mime_sniffing,
+                         base::TimeDelta timeout_interval,
+                         URLLoaderClient* client,
+                         WebURLResponse&,
+                         absl::optional<WebURLError>&,
+                         scoped_refptr<SharedBuffer>&,
+                         int64_t& encoded_data_length,
+                         uint64_t& encoded_body_length,
+                         scoped_refptr<BlobDataHandle>& downloaded_blob,
+                         std::unique_ptr<blink::ResourceLoadInfoNotifierWrapper>
+                             resource_load_info_notifier_wrapper) override;
   void LoadAsynchronously(
       std::unique_ptr<network::ResourceRequest> request,
-      scoped_refptr<WebURLRequestExtraData> url_request_extra_data,
+      scoped_refptr<const SecurityOrigin> top_frame_origin,
       bool no_mime_sniffing,
       std::unique_ptr<blink::ResourceLoadInfoNotifierWrapper>
           resource_load_info_notifier_wrapper,
+      CodeCacheHost* code_cache_host,
       URLLoaderClient* client) override;
   void Freeze(LoaderFreezeMode mode) override;
   void DidChangePriority(WebURLRequest::Priority new_priority,
@@ -81,8 +81,8 @@ class URLLoaderMock : public URLLoader {
  private:
   void Cancel();
 
-  URLLoaderMockFactoryImpl* factory_ = nullptr;
-  URLLoaderClient* client_ = nullptr;
+  raw_ptr<URLLoaderMockFactoryImpl, ExperimentalRenderer> factory_ = nullptr;
+  raw_ptr<URLLoaderClient, ExperimentalRenderer> client_ = nullptr;
   bool is_deferred_ = false;
 
   base::WeakPtrFactory<URLLoaderMock> weak_factory_{this};

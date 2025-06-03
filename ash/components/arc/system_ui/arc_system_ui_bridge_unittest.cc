@@ -10,13 +10,13 @@
 #include "ash/components/arc/session/arc_service_manager.h"
 #include "ash/components/arc/test/connection_holder_util.h"
 #include "ash/components/arc/test/fake_system_ui_instance.h"
-#include "ash/components/arc/test/test_browser_context.h"
-#include "ash/style/color_palette_controller.h"
+#include "ash/style/mojom/color_scheme.mojom-shared.h"
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
 #include "base/test/mock_log.h"
 #include "base/test/scoped_feature_list.h"
 #include "chromeos/constants/chromeos_features.h"
+#include "components/user_prefs/test/test_browser_context_with_prefs.h"
 #include "content/public/test/browser_task_environment.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/gfx/color_palette.h"
@@ -39,12 +39,16 @@ class TestColorPaletteController : public ash::ColorPaletteController {
 
   void AddObserver(Observer* observer) override {}
   void RemoveObserver(Observer* observer) override {}
-  void SetColorScheme(ash::ColorScheme scheme,
+  void SetColorScheme(ash::style::mojom::ColorScheme scheme,
                       const AccountId& account_id,
                       base::OnceClosure on_complete) override {}
   void SetStaticColor(SkColor seed_color,
                       const AccountId& account_id,
                       base::OnceClosure on_complete) override {}
+  void SelectLocalAccount(const AccountId& account_id) override {}
+  SkColor GetUserWallpaperColorOrDefault(SkColor default_color) const override {
+    return SK_ColorGREEN;
+  }
   absl::optional<ash::ColorPaletteSeed> GetColorPaletteSeed(
       const AccountId& account_id) const override {
     return seed_;
@@ -55,15 +59,19 @@ class TestColorPaletteController : public ash::ColorPaletteController {
   bool UsesWallpaperSeedColor(const AccountId& account_id) const override {
     return true;
   }
-  ash::ColorScheme GetColorScheme(const AccountId& account_id) const override {
+  ash::style::mojom::ColorScheme GetColorScheme(
+      const AccountId& account_id) const override {
     return seed_.scheme;
   }
   absl::optional<SkColor> GetStaticColor(
       const AccountId& account_id) const override {
     return seed_.seed_color;
   }
+  bool GetUseKMeansPref(const AccountId& account_id) const override {
+    return false;
+  }
   void GenerateSampleColorSchemes(
-      base::span<const ash::ColorScheme> color_scheme_buttons,
+      base::span<const ash::style::mojom::ColorScheme> color_scheme_buttons,
       ash::ColorPaletteController::SampleColorSchemeCallback callback)
       const override {}
 
@@ -111,7 +119,7 @@ class ArcSystemUIBridgeTest : public testing::Test {
 
   content::BrowserTaskEnvironment task_environment_;
   ArcServiceManager arc_service_manager_;
-  TestBrowserContext context_;
+  user_prefs::TestBrowserContextWithPrefs context_;
   FakeSystemUiInstance system_ui_instance_;
   std::unique_ptr<TestColorPaletteController> test_palette_;
   const raw_ptr<ArcSystemUIBridge, ExperimentalAsh> bridge_;
@@ -132,14 +140,14 @@ TEST_F(ArcSystemUIBridgeTest, DestroyColorPaletteControllerFirst) {
 TEST_F(ArcSystemUIBridgeTest, OnColorModeChanged) {
   EXPECT_FALSE(system_ui_instance_.dark_theme_status());
   ash::ColorPaletteSeed seed;
-  seed.color_mode = ui::ColorProviderManager::ColorMode::kDark;
+  seed.color_mode = ui::ColorProviderKey::ColorMode::kDark;
   bridge_->OnColorPaletteChanging(seed);
   EXPECT_TRUE(system_ui_instance_.dark_theme_status());
   ArcServiceManager::Get()->arc_bridge_service()->system_ui()->CloseInstance(
       &system_ui_instance_);
   EXPECT_ERROR_LOG(testing::HasSubstr("Failed to send theme status"));
   log_.StartCapturingLogs();
-  seed.color_mode = ui::ColorProviderManager::ColorMode::kLight;
+  seed.color_mode = ui::ColorProviderKey::ColorMode::kLight;
   bridge_->OnColorPaletteChanging(seed);
 }
 
@@ -148,8 +156,8 @@ TEST_F(ArcSystemUIBridgeTest, OnConnectionReady) {
 
   EXPECT_FALSE(system_ui_instance_.dark_theme_status());
   ash::ColorPaletteSeed seed;
-  seed.color_mode = ui::ColorProviderManager::ColorMode::kDark;
-  seed.scheme = ash::ColorScheme::kVibrant;
+  seed.color_mode = ui::ColorProviderKey::ColorMode::kDark;
+  seed.scheme = ash::style::mojom::ColorScheme::kVibrant;
   seed.seed_color = SK_ColorMAGENTA;
   test_palette_->SetSeed(seed);
 
@@ -168,7 +176,7 @@ TEST_F(ArcSystemUIBridgeTest, JellyDisabled) {
 
   ash::ColorPaletteSeed seed;
   seed.seed_color = SK_ColorGREEN;
-  seed.scheme = ash::ColorScheme::kVibrant;
+  seed.scheme = ash::style::mojom::ColorScheme::kVibrant;
   bridge_->OnColorPaletteChanging(seed);
   EXPECT_EQ(gfx::kGoogleBlue400, system_ui_instance_.source_color());
   EXPECT_EQ(mojom::ThemeStyleType::TONAL_SPOT,
@@ -192,8 +200,8 @@ TEST_F(ArcSystemUIBridgeTest, OnConnectionReady_NeutralToSpritzConversion) {
 
   EXPECT_FALSE(system_ui_instance_.dark_theme_status());
   ash::ColorPaletteSeed seed;
-  seed.color_mode = ui::ColorProviderManager::ColorMode::kLight;
-  seed.scheme = ash::ColorScheme::kNeutral;
+  seed.color_mode = ui::ColorProviderKey::ColorMode::kLight;
+  seed.scheme = ash::style::mojom::ColorScheme::kNeutral;
   seed.seed_color = SK_ColorCYAN;
   test_palette_->SetSeed(seed);
 

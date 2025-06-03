@@ -13,11 +13,11 @@ import android.os.Build;
 import android.security.KeyChain;
 import android.util.Pair;
 
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.ContextUtils;
 import org.chromium.base.Log;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
-import org.chromium.build.annotations.MainDex;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
@@ -50,7 +50,6 @@ import javax.security.auth.x500.X500Principal;
  * Utility functions for interacting with Android's X.509 certificates.
  */
 @JNINamespace("net")
-@MainDex
 public class X509Util {
     private static final String TAG = "X509Util";
 
@@ -59,17 +58,15 @@ public class X509Util {
         public void onReceive(Context context, Intent intent) {
             boolean shouldReloadTrustManager = false;
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                if (KeyChain.ACTION_KEYCHAIN_CHANGED.equals(intent.getAction())
-                        || KeyChain.ACTION_TRUST_STORE_CHANGED.equals(intent.getAction())) {
-                    // TODO(davidben): ACTION_KEYCHAIN_CHANGED indicates client certificates
-                    // changed, not the trust store. The two signals within CertDatabase are
-                    // identical, so we are reloading more than needed. But note b/36492171.
+                if (KeyChain.ACTION_TRUST_STORE_CHANGED.equals(intent.getAction())) {
                     shouldReloadTrustManager = true;
+                } else if (KeyChain.ACTION_KEYCHAIN_CHANGED.equals(intent.getAction())) {
+                    X509UtilJni.get().notifyClientCertStoreChanged();
                 } else if (KeyChain.ACTION_KEY_ACCESS_CHANGED.equals(intent.getAction())
                         && !intent.getBooleanExtra(KeyChain.EXTRA_KEY_ACCESSIBLE, false)) {
                     // We lost access to a client certificate key. Reload all client certificate
                     // state as we are not currently able to forget an individual identity.
-                    shouldReloadTrustManager = true;
+                    X509UtilJni.get().notifyClientCertStoreChanged();
                 }
             } else {
                 @SuppressWarnings("deprecation")
@@ -77,7 +74,10 @@ public class X509Util {
                 // Before Android O, KeyChain only emitted a coarse-grained intent. This fires much
                 // more often than it should (https://crbug.com/381912), but there are no APIs to
                 // distinguish the various cases.
-                shouldReloadTrustManager = action.equals(intent.getAction());
+                if (action.equals(intent.getAction())) {
+                    shouldReloadTrustManager = true;
+                    X509UtilJni.get().notifyClientCertStoreChanged();
+                }
             }
 
             if (shouldReloadTrustManager) {
@@ -161,6 +161,11 @@ public class X509Util {
      * was not found, sSystemKeyStore may be null while sLoadedSystemKeyStore is true.
      */
     private static boolean sLoadedSystemKeyStore;
+
+    /**
+     * A root that will be installed as a user-trusted root for testing purposes.
+     */
+    private static X509Certificate sTestRoot;
 
     /**
      * Lock object used to synchronize all calls that modify or depend on the trust managers.
@@ -306,7 +311,7 @@ public class X509Util {
             sSystemTrustAnchorCache = null;
             ensureInitializedLocked();
         }
-        X509UtilJni.get().notifyKeyChainChanged();
+        X509UtilJni.get().notifyTrustStoreChanged();
     }
 
     /**
@@ -319,17 +324,24 @@ public class X509Util {
                 new ByteArrayInputStream(derBytes));
     }
 
+    /**
+     * Add a test root certificate for use by the Android Platform verifier.
+     */
     public static void addTestRootCertificate(byte[] rootCertBytes)
             throws CertificateException, KeyStoreException, NoSuchAlgorithmException {
         X509Certificate rootCert = createCertificateFromBytes(rootCertBytes);
         synchronized (sLock) {
             ensureTestInitializedLocked();
+            // Add the cert to be used by the Android Platform Verifier.
             sTestKeyStore.setCertificateEntry(
                     "root_cert_" + Integer.toString(sTestKeyStore.size()), rootCert);
             reloadTestTrustManager();
         }
     }
 
+    /**
+     * Clear test root certificates in use by the Android Platform verifier.
+     */
     public static void clearTestRootCertificates()
             throws NoSuchAlgorithmException, CertificateException, KeyStoreException {
         synchronized (sLock) {
@@ -340,6 +352,22 @@ public class X509Util {
             } catch (IOException e) {
                 // No IO operation is attempted.
             }
+        }
+    }
+
+    /**
+     * Set a test root certificate for use by CertVerifierBuiltin.
+     */
+    public static void setTestRootCertificateForBuiltin(byte[] rootCertBytes)
+            throws NoSuchAlgorithmException, CertificateException, KeyStoreException {
+        X509Certificate rootCert = createCertificateFromBytes(rootCertBytes);
+        synchronized (sLock) {
+            // Add the cert to be used by CertVerifierBuiltin.
+            //
+            // This saves the root so it is returned from getUserAddedRoots, for TrustStoreAndroid.
+            // This is done for the Java EmbeddedTestServer implementation and must run before
+            // native code is loaded, when getUserAddedRoots is first run.
+            sTestRoot = rootCert;
         }
     }
 
@@ -503,6 +531,14 @@ public class X509Util {
                 Log.e(TAG, "Error reading cert aliases: %s", e);
                 return new byte[0][];
             }
+
+            if (sTestRoot != null) {
+                try {
+                    userRootBytes.add(sTestRoot.getEncoded());
+                } catch (CertificateEncodingException e) {
+                    Log.e(TAG, "Error encoding test root cert, error %s", e);
+                }
+            }
         }
 
         return userRootBytes.toArray(new byte[0][]);
@@ -604,6 +640,7 @@ public class X509Util {
         /**
          * Notify the native net::CertDatabase instance that the system database has been updated.
          */
-        void notifyKeyChainChanged();
+        void notifyTrustStoreChanged();
+        void notifyClientCertStoreChanged();
     }
 }

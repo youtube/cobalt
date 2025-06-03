@@ -5,12 +5,13 @@
 #include "components/autofill/core/browser/form_structure.h"
 
 #include <stdint.h>
-#include <utility>
 
 #include <algorithm>
 #include <deque>
 #include <map>
 #include <memory>
+#include <sstream>
+#include <string>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
@@ -26,6 +27,7 @@
 #include "base/memory/ptr_util.h"
 #include "base/metrics/field_trial.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/numerics/safe_conversions.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_piece.h"
@@ -34,6 +36,7 @@
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "components/autofill/core/browser/autofill_data_util.h"
 #include "components/autofill/core/browser/autofill_field.h"
 #include "components/autofill/core/browser/autofill_type.h"
@@ -51,6 +54,7 @@
 #include "components/autofill/core/browser/metrics/precedence_over_autocomplete_metrics.h"
 #include "components/autofill/core/browser/metrics/shadow_prediction_metrics.h"
 #include "components/autofill/core/browser/randomized_encoder.h"
+#include "components/autofill/core/browser/server_prediction_overrides.h"
 #include "components/autofill/core/browser/validation.h"
 #include "components/autofill/core/common/autocomplete_parsing_util.h"
 #include "components/autofill/core/common/autofill_constants.h"
@@ -78,6 +82,7 @@
 namespace autofill {
 
 using mojom::SubmissionIndicatorEvent;
+using FieldSuggestion = AutofillQueryResponse::FormSuggestion::FieldSuggestion;
 
 namespace {
 
@@ -136,17 +141,19 @@ std::ostream& operator<<(std::ostream& out,
   return out;
 }
 
-// Returns true iff all form fields autofill types are in |contained_types|.
-bool AllTypesCaptured(const FormStructure& form,
-                      const ServerFieldTypeSet& contained_types) {
+// Returns the first form field type that is not contained in |contained_types|
+// or MAX_VALID_FIELD_TYPE if no such type exists.
+ServerFieldType FirstNonCapturedType(
+    const FormStructure& form,
+    const ServerFieldTypeSet& contained_types) {
   for (const auto& field : form) {
     for (auto type : field->possible_types()) {
       if (type != UNKNOWN_TYPE && type != EMPTY_TYPE &&
           !contained_types.count(type))
-        return false;
+        return type;
     }
   }
-  return true;
+  return MAX_VALID_FIELD_TYPE;
 }
 
 // Encode password attributes and length into |upload|.
@@ -199,6 +206,51 @@ void EncodeRandomizedValue(const RandomizedEncoder& encoder,
                         output);
 }
 
+// Merges manual and server type predictions.
+//
+// The logic to merge manual and server overrides (which may differ in length),
+// is as follows:
+// * Both overrides assume the same field order, so iterate through the manual
+//   overrides.
+// * If the manual override has at least one field prediction, use the manual
+//   override instead of the server override. Pop the server override, but only
+//   if there are at least two server overrides left. This is because the last
+//   server override may be used for multiple fields (`GetPrediction` inside
+//   `ProcessQueryResponse` will keep returning the last value) and we only wish
+//   to override the prediction for the current field.
+// * If the manual override has no specified field prediction (i.e. is a "pass
+//   through"), then it was not intended to override this specific prediction.
+//   In that case, use the server prediction instead. In the special case that
+//   the last specified manual override is a pass through, copy all server
+//   predictions.
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+std::deque<FieldSuggestion> MergeManualAndServerOverrides(
+    std::deque<FieldSuggestion> manual_overrides,
+    std::deque<FieldSuggestion> server_overrides) {
+  std::deque<FieldSuggestion> result;
+  while (!manual_overrides.empty() && !server_overrides.empty()) {
+    // If the manual override has a no type specified, it means that the
+    // server prediction should be used.
+    result.push_back(manual_overrides.front().predictions().empty()
+                         ? server_overrides.front()
+                         : manual_overrides.front());
+
+    manual_overrides.pop_front();
+    // Generally consume the first element of each override source. However,
+    // the last server override can apply to multiple fields with the same
+    // signature, so we do not pop it while it is still useful.
+    if (server_overrides.size() > 1 || manual_overrides.empty()) {
+      server_overrides.pop_front();
+    }
+  }
+  // At most one override source is non-empty - preserve the values.
+  base::ranges::move(manual_overrides, std::back_inserter(result));
+  base::ranges::move(server_overrides, std::back_inserter(result));
+
+  return result;
+}
+#endif
+
 void PopulateRandomizedFormMetadata(const RandomizedEncoder& encoder,
                                     const FormStructure& form,
                                     AutofillRandomizedFormMetadata* metadata) {
@@ -250,11 +302,11 @@ void PopulateRandomizedFieldMetadata(
                           RandomizedEncoder::FIELD_NAME, field.name_attribute,
                           /*include_checksum=*/false, metadata->mutable_name());
   }
-  if (!field.form_control_type.empty()) {
+  if (!FormControlTypeToString(field.form_control_type).empty()) {
     EncodeRandomizedValue(encoder, form_signature, field_signature,
                           RandomizedEncoder::FIELD_CONTROL_TYPE,
-                          field.form_control_type, /*include_checksum=*/false,
-                          metadata->mutable_type());
+                          FormControlTypeToString(field.form_control_type),
+                          /*include_checksum=*/false, metadata->mutable_type());
   }
   if (!field.label.empty()) {
     EncodeRandomizedValue(encoder, form_signature, field_signature,
@@ -294,6 +346,41 @@ void PopulateRandomizedFieldMetadata(
   }
 }
 
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+// Applies manual overrides from |parsed_overrides| to |field_types|.
+void InsertParsedOverrides(
+    base::expected<ServerPredictionOverrides, std::string> parsed_overrides,
+    std::map<std::pair<FormSignature, FieldSignature>,
+             std::deque<FieldSuggestion>>& field_types) {
+  if (!parsed_overrides.has_value()) {
+    LOG(ERROR) << parsed_overrides.error();
+    return;
+  }
+  for (auto& [key, value] : parsed_overrides.value()) {
+    field_types.insert_or_assign(
+        key,
+        MergeManualAndServerOverrides(/*manual_overrides=*/std::move(value),
+                                      /*server_overrides=*/field_types[key]));
+  }
+}
+#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+
+std::string ServerTypesToString(const AutofillField* field) {
+  const std::vector<
+      AutofillQueryResponse::FormSuggestion::FieldSuggestion::FieldPrediction>&
+      server_types = field->server_predictions();
+  std::ostringstream buffer;
+  for (const auto& field_prediction : server_types) {
+    if (buffer.tellp() > 0) {  // Add comma if buffer is not empty.
+      buffer << ", ";
+    }
+    ServerFieldType server_type =
+        ToSafeServerFieldType(field_prediction.type(), NO_SERVER_DATA);
+    buffer << FieldTypeToStringView(server_type);
+  }
+  return "[" + buffer.str() + "]";
+}
+
 }  // namespace
 
 FormStructure::FormStructure(const FormData& form)
@@ -316,15 +403,17 @@ FormStructure::FormStructure(const FormData& form)
     if (!ShouldSkipField(field))
       ++active_field_count_;
 
-    if (field.form_control_type == "password")
+    if (field.form_control_type == FormControlType::kInputPassword) {
       has_password_field_ = true;
-    else
+    } else {
       all_fields_are_passwords_ = false;
+    }
 
     fields_.push_back(std::make_unique<AutofillField>(field));
   }
 
   form_signature_ = CalculateFormSignature(form);
+  alternative_form_signature_ = CalculateAlternativeFormSignature(form);
   // Do further processing on the fields, as needed.
   ProcessExtractedFields();
   SetFieldTypesFromAutocompleteAttribute();
@@ -362,26 +451,37 @@ void FormStructure::DetermineFieldRanks() {
 }
 
 void FormStructure::DetermineHeuristicTypes(
+    const GeoIpCountryCode& client_country,
     AutofillMetrics::FormInteractionsUkmLogger* form_interactions_ukm_logger,
     LogManager* log_manager) {
   SCOPED_UMA_HISTOGRAM_TIMER("Autofill.Timing.DetermineHeuristicTypes");
 
-  ParseFieldTypesWithPatterns(GetActivePatternSource(), log_manager);
+  // The active heuristic source might not be a pattern source.
+  if (absl::optional<PatternSource> pattern_source = GetActivePatternSource()) {
+    ParseFieldTypesWithPatterns(*pattern_source, client_country, log_manager);
+  }
+
   if (!base::FeatureList::IsEnabled(
           features::kAutofillDisableShadowHeuristics)) {
-    for (PatternSource shadow_source : GetNonActivePatternSources())
-      ParseFieldTypesWithPatterns(shadow_source, log_manager);
+    for (HeuristicSource heuristic_source : GetNonActiveHeuristicSources()) {
+      if (auto shadow_source =
+              HeuristicSourceToPatternSource(heuristic_source)) {
+        ParseFieldTypesWithPatterns(*shadow_source, client_country,
+                                    log_manager);
+      }
+    }
   }
 
   UpdateAutofillCount();
   IdentifySections(/*ignore_autocomplete=*/false);
 
-  FormStructureRationalizer rationalizer(&fields_, form_signature_);
+  FormStructureRationalizer rationalizer(&fields_);
+  rationalizer.RationalizeAutocompleteAttributes(log_manager);
   if (base::FeatureList::IsEnabled(features::kAutofillPageLanguageDetection)) {
-    rationalizer.RationalizeRepeatedFields(form_interactions_ukm_logger,
-                                           log_manager);
+    rationalizer.RationalizeRepeatedFields(
+        form_signature_, form_interactions_ukm_logger, log_manager);
   }
-  rationalizer.RationalizeFieldTypePredictions(log_manager);
+  rationalizer.RationalizeFieldTypePredictions(main_frame_origin_, log_manager);
 
   // Log the field type predicted by rationalization.
   // The sections are mapped to consecutive natural numbers starting at 1.
@@ -406,15 +506,16 @@ std::vector<AutofillUploadContents> FormStructure::EncodeUploadRequest(
     const ServerFieldTypeSet& available_field_types,
     bool form_was_autofilled,
     const base::StringPiece& login_form_signature,
-    bool observed_submission,
-    bool is_raw_metadata_uploading_enabled) const {
-  DCHECK(AllTypesCaptured(*this, available_field_types));
+    bool observed_submission) const {
+  DCHECK_EQ(FirstNonCapturedType(*this, available_field_types),
+            MAX_VALID_FIELD_TYPE);
+
   std::string data_present = EncodeFieldTypes(available_field_types);
 
   AutofillUploadContents upload;
   upload.set_submission(observed_submission);
   upload.set_client_version(
-      version_info::GetProductNameAndVersionForUserAgent());
+      std::string(version_info::GetProductNameAndVersionForUserAgent()));
   upload.set_form_signature(form_signature().value());
   upload.set_autofill_used(form_was_autofilled);
   upload.set_data_present(data_present);
@@ -423,8 +524,11 @@ std::vector<AutofillUploadContents> FormStructure::EncodeUploadRequest(
   if (!current_page_language_->empty() && randomized_encoder_ != nullptr) {
     upload.set_language(current_page_language_.value());
   }
-  if (single_username_data_)
-    upload.mutable_single_username_data()->CopyFrom(*single_username_data_);
+  for (const auto& form_data : single_username_data_) {
+    AutofillUploadContents::SingleUsernameData* single_username_data =
+        upload.add_single_username_data();
+    single_username_data->CopyFrom(form_data);
+  }
 
   if (form_associations_.last_address_form_submitted) {
     upload.set_last_address_form_submitted(
@@ -454,17 +558,6 @@ std::vector<AutofillUploadContents> FormStructure::EncodeUploadRequest(
                                  &upload);
   }
 
-  if (is_raw_metadata_uploading_enabled) {
-    upload.set_action_signature(StrToHash64Bit(target_url_.host_piece()));
-    if (!form_name().empty())
-      upload.set_form_name(base::UTF16ToUTF8(form_name()));
-    for (const ButtonTitleInfo& e : button_titles_) {
-      auto* button_title = upload.add_button_title();
-      button_title->set_title(base::UTF16ToUTF8(e.first));
-      button_title->set_type(static_cast<ButtonTitleType>(e.second));
-    }
-  }
-
   if (!login_form_signature.empty()) {
     uint64_t login_sig;
     if (base::StringToUint64(login_form_signature, &login_sig))
@@ -479,8 +572,7 @@ std::vector<AutofillUploadContents> FormStructure::EncodeUploadRequest(
                                    upload.mutable_randomized_form_metadata());
   }
 
-  EncodeFormFieldsForUpload(is_raw_metadata_uploading_enabled, absl::nullopt,
-                            &upload);
+  EncodeFormFieldsForUpload(/*filter_renderer_form_id=*/absl::nullopt, &upload);
 
   std::vector<AutofillUploadContents> uploads = {std::move(upload)};
 
@@ -500,12 +592,11 @@ std::vector<AutofillUploadContents> FormStructure::EncodeUploadRequest(
        base::flat_map<FormGlobalId, FormSignature>(std::move(subforms))) {
     uploads.emplace_back();
     uploads.back().set_client_version(
-        version_info::GetProductNameAndVersionForUserAgent());
+        std::string(version_info::GetProductNameAndVersionForUserAgent()));
     uploads.back().set_form_signature(subform_signature.value());
     uploads.back().set_autofill_used(form_was_autofilled);
     uploads.back().set_data_present(data_present);
-    EncodeFormFieldsForUpload(is_raw_metadata_uploading_enabled, subform_id,
-                              &uploads.back());
+    EncodeFormFieldsForUpload(subform_id, &uploads.back());
   }
 
   return uploads;
@@ -521,7 +612,7 @@ bool FormStructure::EncodeQueryRequest(
   queried_form_signatures->reserve(forms.size());
 
   query->set_client_version(
-      version_info::GetProductNameAndVersionForUserAgent());
+      std::string(version_info::GetProductNameAndVersionForUserAgent()));
 
   // If a page contains repeated forms, detect that and encode only one form as
   // the returned data would be the same for all the repeated forms.
@@ -579,8 +670,6 @@ void FormStructure::ProcessQueryResponse(
     const std::vector<FormSignature>& queried_form_signatures,
     AutofillMetrics::FormInteractionsUkmLogger* form_interactions_ukm_logger,
     LogManager* log_manager) {
-  using FieldSuggestion =
-      AutofillQueryResponse::FormSuggestion::FieldSuggestion;
   AutofillMetrics::LogServerQueryMetric(AutofillMetrics::QUERY_RESPONSE_PARSED);
   LOG_AF(log_manager) << LoggingScope::kParsing
                       << LogMessage::kProcessingServerData;
@@ -603,6 +692,21 @@ void FormStructure::ProcessQueryResponse(
       field_types[{form_sig, field_sig}].push_back(field);
     }
   }
+
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+  if (base::FeatureList::IsEnabled(features::kAutofillOverridePredictions)) {
+    InsertParsedOverrides(
+        ParseServerPredictionOverrides(
+            features::kAutofillOverridePredictionsSpecification.Get()),
+        field_types);
+    InsertParsedOverrides(
+        ParseServerPredictionOverrides(
+            features::
+                kAutofillOverridePredictionsForAlternativeFormSignaturesSpecification
+                    .Get()),
+        field_types);
+  }
+#endif
 
   // Retrieves the next prediction for |form| and |field| and pops it. Popping
   // is omitted if no other predictions for |form| and |field| are left, so that
@@ -638,8 +742,7 @@ void FormStructure::ProcessQueryResponse(
       };
       if (field->host_form_signature &&
           field->host_form_signature != form->form_signature() &&
-          !is_override(current_field) &&
-          base::FeatureList::IsEnabled(features::kAutofillAcrossIframes)) {
+          !is_override(current_field)) {
         // Retrieves the alternative prediction even if it is not used so that
         // the alternative predictions are popped.
         absl::optional<FieldSuggestion> alternative_field = GetPrediction(
@@ -653,9 +756,21 @@ void FormStructure::ProcessQueryResponse(
           current_field = *alternative_field;
         }
       }
-      if (!current_field)
+      if (form->alternative_form_signature() && !is_override(current_field)) {
+        absl::optional<FieldSuggestion> alternative_field = GetPrediction(
+            form->alternative_form_signature(), field->GetFieldSignature());
+        if (alternative_field &&
+            (!current_field || is_override(alternative_field) ||
+             base::ranges::all_of(current_field->predictions(),
+                                  [](const auto& prediction) {
+                                    return prediction.type() == NO_SERVER_DATA;
+                                  }))) {
+          current_field = *alternative_field;
+        }
+      }
+      if (!current_field) {
         continue;
-
+      }
       ServerFieldType heuristic_type = field->heuristic_type();
       if (heuristic_type != UNKNOWN_TYPE)
         heuristics_detected_fillable_field = true;
@@ -698,11 +813,12 @@ void FormStructure::ProcessQueryResponse(
         &AutofillField::server_type));
 
     form->UpdateAutofillCount();
-    FormStructureRationalizer rationalizer(&(form->fields_),
-                                           form->form_signature_);
-    rationalizer.RationalizeRepeatedFields(form_interactions_ukm_logger,
-                                           log_manager);
-    rationalizer.RationalizeFieldTypePredictions(log_manager);
+    FormStructureRationalizer rationalizer(&form->fields_);
+    rationalizer.RationalizeAutocompleteAttributes(log_manager);
+    rationalizer.RationalizeRepeatedFields(
+        form->form_signature_, form_interactions_ukm_logger, log_manager);
+    rationalizer.RationalizeFieldTypePredictions(form->main_frame_origin_,
+                                                 log_manager);
     // TODO(crbug.com/1154080): By calling this with true, autocomplete section
     // attributes will be ignored.
     form->IdentifySections(/*ignore_autocomplete=*/true);
@@ -751,6 +867,8 @@ std::vector<FormDataPredictions> FormStructure::GetFieldTypePredictions(
     FormDataPredictions form;
     form.data = form_structure->ToFormData();
     form.signature = form_structure->FormSignatureAsStr();
+    form.alternative_signature = base::NumberToString(
+        form_structure->alternative_form_signature().value());
 
     for (const auto& field : form_structure->fields_) {
       FormFieldDataPredictions annotated_field;
@@ -758,9 +876,8 @@ std::vector<FormDataPredictions> FormStructure::GetFieldTypePredictions(
           base::NumberToString(field->host_form_signature.value());
       annotated_field.signature = field->FieldSignatureAsStr();
       annotated_field.heuristic_type =
-          AutofillType(field->heuristic_type()).ToString();
-      annotated_field.server_type =
-          AutofillType(field->server_type()).ToString();
+          FieldTypeToStringView(field->heuristic_type());
+      annotated_field.server_type = FieldTypeToStringView(field->server_type());
       annotated_field.overall_type = field->Type().ToString();
       annotated_field.parseable_name =
           base::UTF16ToUTF8(field->parseable_name());
@@ -876,7 +993,7 @@ bool FormStructure::ShouldBeParsed(ShouldBeParsedParams params,
   }
 
   bool has_text_field = base::ranges::any_of(*this, [](const auto& field) {
-    return field->form_control_type != "select-one";
+    return !field->IsSelectOrSelectListElement();
   });
   if (!has_text_field) {
     LOG_AF(log_manager) << LoggingScope::kAbortParsing
@@ -957,9 +1074,8 @@ void FormStructure::RetrieveFromCache(const FormStructure& cached_form,
         // During form parsing (as in "assigning field types to fields")
         // the `value` represents the initial value found at page load and needs
         // to be preserved.
-        if (field->form_control_type != "select-one") {
+        if (!field->IsSelectOrSelectListElement()) {
           field->value = cached_field->value;
-          value_from_dynamic_change_form_ = true;
         }
         break;
       case RetrieveFromCacheReason::kFormImport:
@@ -971,10 +1087,14 @@ void FormStructure::RetrieveFromCache(const FormStructure& cached_form,
         // GeoIP, we want to hold on to these values.
         const bool same_value_as_on_page_load =
             field->value == cached_field->value;
+        if (!cached_field->value.empty() &&
+            !field->IsSelectOrSelectListElement()) {
+          field->set_initial_value_changed(!same_value_as_on_page_load);
+        }
         const bool field_is_neither_state_nor_country =
             field->server_type() != ADDRESS_HOME_COUNTRY &&
             field->server_type() != ADDRESS_HOME_STATE;
-        if (field->form_control_type != "select-one" &&
+        if (!field->IsSelectOrSelectListElement() &&
             same_value_as_on_page_load && field_is_neither_state_nor_country) {
           field->value = std::u16string();
         }
@@ -1022,8 +1142,8 @@ void FormStructure::RetrieveFromCache(const FormStructure& cached_form,
     if (reason == RetrieveFromCacheReason::kFormImport) {
       // Transfer attributes of the cached AutofillField to the newly created
       // AutofillField.
-      for (int i = 0; i <= static_cast<int>(PatternSource::kMaxValue); ++i) {
-        PatternSource s = static_cast<PatternSource>(i);
+      for (int i = 0; i <= static_cast<int>(HeuristicSource::kMaxValue); ++i) {
+        HeuristicSource s = static_cast<HeuristicSource>(i);
         field->set_heuristic_type(s, cached_field->heuristic_type(s));
       }
       field->SetHtmlType(cached_field->html_type(), cached_field->html_mode());
@@ -1125,16 +1245,37 @@ bool FormStructure::SetSectionsFromAutocompleteOrReset() {
   return has_autocomplete;
 }
 
-void FormStructure::ParseFieldTypesWithPatterns(PatternSource pattern_source,
-                                                LogManager* log_manager) {
+void FormStructure::ParseFieldTypesWithPatterns(
+    PatternSource pattern_source,
+    const GeoIpCountryCode& client_country,
+    LogManager* log_manager) {
   FieldCandidatesMap field_type_map;
+  const LanguageCode& page_language =
+      base::FeatureList::IsEnabled(features::kAutofillPageLanguageDetection)
+          ? current_page_language_
+          : LanguageCode();
   if (ShouldRunHeuristics()) {
-    FormField::ParseFormFields(fields_, current_page_language_, is_form_tag_,
-                               pattern_source, field_type_map, log_manager);
+    FormField::ParseFormFields(fields_, client_country, page_language,
+                               is_form_tag_, pattern_source, field_type_map,
+                               log_manager);
   } else if (ShouldRunHeuristicsForSingleFieldForms()) {
-    FormField::ParseSingleFieldForms(fields_, current_page_language_,
+    FormField::ParseSingleFieldForms(fields_, client_country, page_language,
                                      is_form_tag_, pattern_source,
                                      field_type_map, log_manager);
+    FormField::ParseStandaloneCVCFields(fields_, client_country, page_language,
+                                        pattern_source, field_type_map,
+                                        log_manager);
+
+    // For standalone email fields inside a form tag, allow heuristics even
+    // when the minimum number of fields is not met. See similar comments
+    // in `FormField::ClearCandidatesIfHeuristicsDidNotFindEnoughFields`.
+    if (is_form_tag_ &&
+        base::FeatureList::IsEnabled(
+            features::kAutofillEnableEmailHeuristicOnlyAddressForms)) {
+      FormField::ParseStandaloneEmailFields(fields_, client_country,
+                                            page_language, pattern_source,
+                                            field_type_map, log_manager);
+    }
   }
   if (field_type_map.empty())
     return;
@@ -1147,12 +1288,14 @@ void FormStructure::ParseFieldTypesWithPatterns(PatternSource pattern_source,
     if (iter == field_type_map.end())
       continue;
     const FieldCandidates& candidates = iter->second;
-    field->set_heuristic_type(pattern_source, candidates.BestHeuristicType());
+    field->set_heuristic_type(PatternSourceToHeuristicSource(pattern_source),
+                              candidates.BestHeuristicType());
 
     ++field_rank_map[field->GetFieldSignature()];
     // Log the field type predicted from local heuristics.
     field->AppendLogEventIfNotRepeated(HeuristicPredictionFieldLogEvent{
-        .field_type = field->heuristic_type(pattern_source),
+        .field_type = field->heuristic_type(
+            PatternSourceToHeuristicSource(pattern_source)),
         .pattern_source = pattern_source,
         .is_active_pattern_source = GetActivePatternSource() == pattern_source,
         .rank_in_field_signature_group =
@@ -1223,12 +1366,14 @@ void FormStructure::EncodeFormForQuery(
   // |field| from |fields_| that meets |necessary_condition|. Repeated calls for
   // the same |form| have no effect (early return if |processed_forms| contains
   // |form|).
-  auto AddFormIf = [&](FormSignature form, auto necessary_condition) mutable {
+  auto AddFormIf = [&](FormSignature form, FormSignature alternative_signature,
+                       auto necessary_condition) mutable {
     if (!processed_forms->insert(form).second)
       return;
 
     AutofillPageQueryRequest::Form* query_form = query->add_forms();
     query_form->set_signature(form.value());
+    query_form->set_alternative_signature(alternative_signature.value());
     queried_form_signatures->push_back(form);
 
     for (const auto& field : fields_) {
@@ -1241,22 +1386,21 @@ void FormStructure::EncodeFormForQuery(
     }
   };
 
-  AddFormIf(form_signature(), [](auto& f) { return true; });
+  AddFormIf(form_signature(), alternative_form_signature(),
+            [](auto& f) { return true; });
 
-  if (base::FeatureList::IsEnabled(features::kAutofillAcrossIframes)) {
-    for (const auto& field : fields_) {
-      if (field->host_form_signature) {
-        AddFormIf(field->host_form_signature, [&](const auto& f) {
-          return f->host_form_signature == field->host_form_signature;
-        });
-      }
+  for (const auto& field : fields_) {
+    if (field->host_form_signature) {
+      AddFormIf(field->host_form_signature, alternative_form_signature(),
+                [&](const auto& f) {
+                  return f->host_form_signature == field->host_form_signature;
+                });
     }
   }
 }
 
 // static
 void FormStructure::EncodeFormFieldsForUpload(
-    bool is_raw_metadata_uploading_enabled,
     absl::optional<FormGlobalId> filter_renderer_form_id,
     AutofillUploadContents* upload) const {
   DCHECK(!IsMalformed());
@@ -1307,6 +1451,11 @@ void FormStructure::EncodeFormFieldsForUpload(
       added_field->set_initial_value_hash(field->initial_value_hash().value());
     }
 
+    if (field->initial_value_changed().has_value()) {
+      added_field->set_initial_value_changed(
+          field->initial_value_changed().value());
+    }
+
     added_field->set_signature(field->GetFieldSignature().value());
 
     if (field->properties_mask)
@@ -1322,21 +1471,15 @@ void FormStructure::EncodeFormFieldsForUpload(
       added_field->set_single_username_vote_type(
           field->single_username_vote_type().value());
     }
-
-    if (is_raw_metadata_uploading_enabled) {
-      added_field->set_type(field->form_control_type);
-
-      if (!field->name.empty())
-        added_field->set_name(base::UTF16ToUTF8(field->name));
-
-      if (!field->id_attribute.empty())
-        added_field->set_id(base::UTF16ToUTF8(field->id_attribute));
-
-      if (!field->autocomplete_attribute.empty())
-        added_field->set_autocomplete(field->autocomplete_attribute);
-
-      if (!field->css_classes.empty())
-        added_field->set_css_classes(base::UTF16ToUTF8(field->css_classes));
+    switch (field->is_most_recent_single_username_candidate()) {
+      case IsMostRecentSingleUsernameCandidate::kNotPartOfUsernameFirstFlow:
+        added_field->clear_is_most_recent_single_username_candidate();
+        break;
+      case IsMostRecentSingleUsernameCandidate::kHasIntermediateValuesInBetween:
+        added_field->set_is_most_recent_single_username_candidate(false);
+        break;
+      case IsMostRecentSingleUsernameCandidate::kMostRecentCandidate:
+        added_field->set_is_most_recent_single_username_candidate(true);
     }
   }
 }
@@ -1381,7 +1524,8 @@ void FormStructure::IdentifySectionsWithNewMethod() {
   for (const auto& field : fields_) {
     const ServerFieldType current_type = field->Type().GetStorableType();
     // Put credit card fields into one, separate credit card section.
-    if (AutofillType(current_type).group() == FieldTypeGroup::kCreditCard) {
+    if (GroupTypeOfServerFieldType(current_type) ==
+        FieldTypeGroup::kCreditCard) {
       if (!credit_card_section) {
         credit_card_section =
             Section::FromFieldIdentifier(*field, frame_token_ids);
@@ -1398,8 +1542,9 @@ void FormStructure::IdentifySectionsWithNewMethod() {
     // Forms often ask for multiple phone numbers -- e.g. both a daytime and
     // evening phone number.  Our phone number detection is also generally a
     // little off.  Hence, ignore this field type as a signal here.
-    if (AutofillType(current_type).group() == FieldTypeGroup::kPhoneHome)
+    if (GroupTypeOfServerFieldType(current_type) == FieldTypeGroup::kPhone) {
       already_saw_current_type = false;
+    }
 
     bool ignored_field = !field->IsFocusable();
 
@@ -1546,8 +1691,10 @@ void FormStructure::IdentifySections(bool ignore_autocomplete) {
     for (const auto& field : fields_) {
       const ServerFieldType current_type = field->Type().GetStorableType();
       // Credit card fields are already in one, separate credit card section.
-      if (AutofillType(current_type).group() == FieldTypeGroup::kCreditCard)
+      if (GroupTypeOfServerFieldType(current_type) ==
+          FieldTypeGroup::kCreditCard) {
         continue;
+      }
 
       if (!current_section)
         current_section = Section::FromFieldIdentifier(*field, frame_token_ids);
@@ -1557,8 +1704,9 @@ void FormStructure::IdentifySections(bool ignore_autocomplete) {
       // Forms often ask for multiple phone numbers -- e.g. both a daytime and
       // evening phone number.  Our phone number detection is also generally a
       // little off.  Hence, ignore this field type as a signal here.
-      if (AutofillType(current_type).group() == FieldTypeGroup::kPhoneHome)
+      if (GroupTypeOfServerFieldType(current_type) == FieldTypeGroup::kPhone) {
         already_saw_current_type = false;
+      }
 
       bool ignored_field = !field->IsFocusable();
 
@@ -1691,7 +1839,15 @@ void FormStructure::ExtractParseableFieldNames() {
 DenseSet<FormType> FormStructure::GetFormTypes() const {
   DenseSet<FormType> form_types;
   for (const auto& field : fields_) {
-    form_types.insert(FieldTypeGroupToFormType(field->Type().group()));
+    if (field->ShouldSuppressSuggestionsAndFillingByDefault()) {
+      // When `kAutofillPredictionsForAutocompleteUnrecognized` is enabled,
+      // types are predicted for fields with unrecognized autocomplete
+      // attribute. They are excluded from the form types, to keep the baseline
+      // for key and quality metrics.
+      form_types.insert(FormType::kUnknownFormType);
+    } else {
+      form_types.insert(FieldTypeGroupToFormType(field->Type().group()));
+    }
   }
   return form_types;
 }
@@ -1704,7 +1860,7 @@ void FormStructure::set_randomized_encoder(
 void FormStructure::RationalizePhoneNumbersInSection(const Section& section) {
   if (base::Contains(phone_rationalized_, section))
     return;
-  FormStructureRationalizer rationalizer(&fields_, form_signature_);
+  FormStructureRationalizer rationalizer(&fields_);
   rationalizer.RationalizePhoneNumbersInSection(section);
   phone_rationalized_.insert(section);
 }
@@ -1749,14 +1905,14 @@ std::ostream& operator<<(std::ostream& buffer, const FormStructure& form) {
     buffer << "\n  Name: " << field->parseable_name();
 
     auto type = field->Type().ToString();
-    auto heuristic_type = AutofillType(field->heuristic_type()).ToString();
-    auto server_type = AutofillType(field->server_type()).ToString();
-    if (field->server_type_prediction_is_override())
-      server_type += " (manual override)";
+    auto heuristic_type = FieldTypeToStringView(field->heuristic_type());
+    std::string server_type = ServerTypesToString(field);
+    const char* is_override =
+        field->server_type_prediction_is_override() ? " (manual override)" : "";
     auto html_type_description =
         field->html_type() != HtmlFieldType::kUnspecified
             ? base::StrCat(
-                  {", html: ", FieldTypeToStringPiece(field->html_type())})
+                  {", html: ", FieldTypeToStringView(field->html_type())})
             : "";
     if (field->html_type() == HtmlFieldType::kUnrecognized &&
         !field->server_type_prediction_is_override()) {
@@ -1764,8 +1920,9 @@ std::ostream& operator<<(std::ostream& buffer, const FormStructure& form) {
     }
 
     buffer << "\n  Type: "
-           << base::StrCat({type, " (heuristic: ", heuristic_type, ", server: ",
-                            server_type, html_type_description, ")"});
+           << base::StrCat({type, " (heuristic: ", heuristic_type,
+                            ", server: ", server_type, is_override,
+                            html_type_description, ")"});
     buffer << "\n  Section: " << field->section;
 
     constexpr size_t kMaxLabelSize = 100;
@@ -1824,14 +1981,14 @@ LogBuffer& operator<<(LogBuffer& buffer, const FormStructure& form) {
     buffer << Tr{} << "Placeholder:" << field->placeholder;
 
     auto type = field->Type().ToString();
-    auto heuristic_type = AutofillType(field->heuristic_type()).ToString();
-    auto server_type = AutofillType(field->server_type()).ToString();
+    auto heuristic_type = FieldTypeToStringView(field->heuristic_type());
+    std::string server_type = ServerTypesToString(field);
     if (field->server_type_prediction_is_override())
       server_type += " (manual override)";
     auto html_type_description =
         field->html_type() != HtmlFieldType::kUnspecified
             ? base::StrCat(
-                  {", html: ", FieldTypeToStringPiece(field->html_type())})
+                  {", html: ", FieldTypeToStringView(field->html_type())})
             : "";
     if (field->html_type() == HtmlFieldType::kUnrecognized &&
         !field->server_type_prediction_is_override()) {
@@ -1874,6 +2031,39 @@ LogBuffer& operator<<(LogBuffer& buffer, const FormStructure& form) {
   buffer << CTag{"table"};
   buffer << CTag{"div"};
   return buffer;
+}
+
+FormDataAndServerPredictions::FormDataAndServerPredictions() = default;
+
+FormDataAndServerPredictions::FormDataAndServerPredictions(
+    const FormDataAndServerPredictions&) = default;
+
+FormDataAndServerPredictions& FormDataAndServerPredictions::operator=(
+    const FormDataAndServerPredictions&) = default;
+
+FormDataAndServerPredictions::FormDataAndServerPredictions(
+    FormDataAndServerPredictions&&) = default;
+
+FormDataAndServerPredictions& FormDataAndServerPredictions::operator=(
+    FormDataAndServerPredictions&&) = default;
+
+FormDataAndServerPredictions::~FormDataAndServerPredictions() = default;
+
+FormDataAndServerPredictions GetFormDataAndServerPredictions(
+    const FormStructure& form) {
+  FormDataAndServerPredictions result;
+  std::vector<std::pair<FieldGlobalId, AutofillType::ServerPrediction>>
+      predictions;
+  result.form_data = form.ToFormData();
+  predictions.reserve(form.fields().size());
+  for (const std::unique_ptr<AutofillField>& field : form) {
+    predictions.emplace_back(field->global_id(),
+                             AutofillType::ServerPrediction(*field));
+  }
+  result.predictions =
+      base::flat_map<FieldGlobalId, AutofillType::ServerPrediction>(
+          std::move(predictions));
+  return result;
 }
 
 }  // namespace autofill

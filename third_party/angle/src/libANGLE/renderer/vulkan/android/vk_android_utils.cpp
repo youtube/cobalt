@@ -28,18 +28,22 @@ angle::Result GetClientBufferMemoryRequirements(ContextVk *contextVk,
                                                 VkMemoryRequirements &memRequirements)
 {
 #if defined(ANGLE_PLATFORM_ANDROID)
-    ASSERT(GetImplAs<DisplayVkAndroid>(contextVk->getRenderer()->getDisplay())
-               ->getAHBFunctions()
-               .valid());
+    const AHBFunctions &ahbFunctions =
+        GetImplAs<DisplayVkAndroid>(contextVk->getRenderer()->getDisplay())->getAHBFunctions();
+    ASSERT(ahbFunctions.valid());
+
+    AHardwareBuffer_Desc aHardwareBufferDescription = {};
+    ahbFunctions.describe(hardwareBuffer, &aHardwareBufferDescription);
+    if (aHardwareBufferDescription.format != AHARDWAREBUFFER_FORMAT_BLOB)
+    {
+        ERR() << "Trying to import non-BLOB AHB as client buffer.";
+        return angle::Result::Stop;
+    }
 
     // Get Android Buffer Properties
-    VkAndroidHardwareBufferFormatPropertiesANDROID bufferFormatProperties = {};
-    bufferFormatProperties.sType =
-        VK_STRUCTURE_TYPE_ANDROID_HARDWARE_BUFFER_FORMAT_PROPERTIES_ANDROID;
-
     VkAndroidHardwareBufferPropertiesANDROID bufferProperties = {};
     bufferProperties.sType = VK_STRUCTURE_TYPE_ANDROID_HARDWARE_BUFFER_PROPERTIES_ANDROID;
-    bufferProperties.pNext = &bufferFormatProperties;
+    bufferProperties.pNext = nullptr;
 
     VkDevice device = contextVk->getRenderer()->getDevice();
     ANGLE_VK_TRY(contextVk, vkGetAndroidHardwareBufferPropertiesANDROID(device, hardwareBuffer,
@@ -83,10 +87,10 @@ angle::Result InitAndroidExternalMemory(ContextVk *contextVk,
     importHardwareBufferInfo.sType  = VK_STRUCTURE_TYPE_IMPORT_ANDROID_HARDWARE_BUFFER_INFO_ANDROID;
     importHardwareBufferInfo.buffer = hardwareBuffer;
 
-    ANGLE_TRY(AllocateBufferMemoryWithRequirements(
-        contextVk, MemoryAllocationType::BufferExternal, memoryProperties,
-        externalMemoryRequirements, &importHardwareBufferInfo, buffer, memoryPropertyFlagsOut,
-        memoryTypeIndexOut, deviceMemoryOut));
+    ANGLE_VK_TRY(contextVk, AllocateBufferMemoryWithRequirements(
+                                contextVk, MemoryAllocationType::BufferExternal, memoryProperties,
+                                externalMemoryRequirements, &importHardwareBufferInfo, buffer,
+                                memoryPropertyFlagsOut, memoryTypeIndexOut, deviceMemoryOut));
     *sizeOut = externalMemoryRequirements.size;
 
     functions.acquire(hardwareBuffer);

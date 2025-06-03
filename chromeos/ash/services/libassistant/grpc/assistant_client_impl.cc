@@ -13,7 +13,6 @@
 #include "base/functional/callback_helpers.h"
 #include "base/notreached.h"
 #include "base/system/sys_info.h"
-#include "chromeos/ash/services/assistant/public/cpp/features.h"
 #include "chromeos/ash/services/libassistant/callback_utils.h"
 #include "chromeos/ash/services/libassistant/grpc/assistant_client_v1.h"
 #include "chromeos/ash/services/libassistant/grpc/external_services/action_service.h"
@@ -170,28 +169,14 @@ void AssistantClientImpl::GetSpeakerIdEnrollmentInfo(
             bool has_model = false;
             //  `response` could have an error field.
             // Treat any error as no existing model.
-            if (response.has_cloud_enrollment_status_response()) {
-              has_model = response.cloud_enrollment_status_response()
-                              .utterance_status() ==
-                          ::assistant::api::CloudEnrollmentStatusResponse::
-                              HAS_UTTERANCES;
+            if (response.has_user_model_status_response()) {
+              has_model =
+                  response.user_model_status_response().user_model_exists();
             }
             std::move(on_done).Run(has_model);
           },
           std::move(on_done)),
       kDefaultStateConfig);
-}
-
-void AssistantClientImpl::ResetAllDataAndShutdown() {
-  // ResetAllDataAndShutdown request may have high latency. Server
-  // recommendation is to set proper deadlines for every RPC.
-  constexpr int kResetAllDataAndShutdownTimeoutMs = 10000;
-  StateConfig custom_config(kMaxRpcRetries, kResetAllDataAndShutdownTimeoutMs);
-  libassistant_client_->CallServiceMethod(
-      ::assistant::api::ResetAllDataAndShutdownRequest(),
-      GetLoggingCallback<::assistant::api::ResetAllDataAndShutdownResponse>(
-          /*request_name=*/__func__),
-      custom_config);
 }
 
 void AssistantClientImpl::SendDisplayRequest(
@@ -449,19 +434,14 @@ void AssistantClientImpl::AddAlarmTimerEventObserver(
 std::unique_ptr<AssistantClient> AssistantClient::Create(
     std::unique_ptr<assistant_client::AssistantManager> assistant_manager,
     assistant_client::AssistantManagerInternal* assistant_manager_internal) {
-  if (assistant::features::IsLibAssistantV2Enabled()) {
-    const bool is_chromeos_device = base::SysInfo::IsRunningOnChromeOS();
-    // Note that we should *not* depend on |assistant_manager_internal| for V2,
-    // so |assistant_manager_internal| will be nullptr after the migration has
-    // done.
-    return std::make_unique<AssistantClientImpl>(
-        std::move(assistant_manager), assistant_manager_internal,
-        chromeos::assistant::GetLibassistantServiceAddress(is_chromeos_device),
-        chromeos::assistant::GetAssistantServiceAddress(is_chromeos_device));
-  }
-
-  return std::make_unique<AssistantClientV1>(std::move(assistant_manager),
-                                             assistant_manager_internal);
+  const bool is_chromeos_device = base::SysInfo::IsRunningOnChromeOS();
+  // Note that we should *not* depend on |assistant_manager_internal| for V2,
+  // so |assistant_manager_internal| will be nullptr after the migration has
+  // done.
+  return std::make_unique<AssistantClientImpl>(
+      std::move(assistant_manager), assistant_manager_internal,
+      chromeos::assistant::GetLibassistantServiceAddress(is_chromeos_device),
+      chromeos::assistant::GetAssistantServiceAddress(is_chromeos_device));
 }
 
 }  // namespace ash::libassistant

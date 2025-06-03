@@ -141,6 +141,7 @@ class ProcessNodeImpl
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
     return process_.value();
   }
+  resource_attribution::ProcessContext resource_context() const;
   base::TimeTicks launch_time() const {
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
     return launch_time_;
@@ -201,8 +202,7 @@ class ProcessNodeImpl
 
   void OnAllFramesInProcessFrozenForTesting() { OnAllFramesInProcessFrozen(); }
   static void FireBackgroundTracingTriggerOnUIForTesting(
-      const std::string& trigger_name,
-      content::BackgroundTracingManager& manager);
+      const std::string& trigger_name);
 
   base::WeakPtr<ProcessNodeImpl> GetWeakPtrOnUIThread();
   base::WeakPtr<ProcessNodeImpl> GetWeakPtr();
@@ -219,15 +219,24 @@ class ProcessNodeImpl
   friend class ProcessMetricsDecoratorAccess;
   friend class ProcessPriorityAggregatorAccess;
 
+  using AnyChildProcessHostProxy =
+      absl::variant<RenderProcessHostProxy, BrowserChildProcessHostProxy>;
+
+  // Shared constructor for all process types.
+  ProcessNodeImpl(content::ProcessType process_type,
+                  AnyChildProcessHostProxy proxy);
+
   // ProcessNode implementation. These are private so that users of the impl use
   // the private getters rather than the public interface.
   content::ProcessType GetProcessType() const override;
   base::ProcessId GetProcessId() const override;
   const base::Process& GetProcess() const override;
+  resource_attribution::ProcessContext GetResourceContext() const override;
   base::TimeTicks GetLaunchTime() const override;
   absl::optional<int32_t> GetExitStatus() const override;
   const std::string& GetMetricsName() const override;
   bool VisitFrameNodes(const FrameNodeVisitor& visitor) const override;
+  bool VisitWorkerNodes(const WorkerNodeVisitor& visitor) const override;
   base::flat_set<const FrameNode*> GetFrameNodes() const override;
   base::flat_set<const WorkerNode*> GetWorkerNodes() const override;
   bool GetMainThreadTaskLoadIsLow() const override;
@@ -243,6 +252,7 @@ class ProcessNodeImpl
   void OnAllFramesInProcessFrozen();
 
   // NodeBase:
+  void OnJoiningGraph() override;
   void OnBeforeLeavingGraph() override;
   void RemoveNodeAttachedData() override;
 
@@ -269,8 +279,7 @@ class ProcessNodeImpl
   // The proxy that allows access to either the RenderProcessHost or the
   // BrowserChildProcessHost associated with this process, if `this` is a
   // process node for a child process (process_type() != PROCESS_TYPE_BROWSER).
-  const absl::variant<RenderProcessHostProxy, BrowserChildProcessHostProxy>
-      child_process_host_proxy_;
+  const AnyChildProcessHostProxy child_process_host_proxy_;
 
   ObservedProperty::NotifiesOnlyOnChanges<
       bool,

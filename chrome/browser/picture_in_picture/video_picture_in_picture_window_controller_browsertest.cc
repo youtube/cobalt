@@ -10,6 +10,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/path_service.h"
 #include "base/scoped_observation.h"
+#include "base/test/bind.h"
 #include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
@@ -31,7 +32,6 @@
 #include "components/viz/common/frame_sinks/copy_output_request.h"
 #include "components/viz/common/frame_sinks/copy_output_result.h"
 #include "content/public/browser/media_session.h"
-#include "content/public/browser/notification_service.h"
 #include "content/public/browser/overlay_window.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_view_host.h"
@@ -104,6 +104,7 @@ class MockVideoPictureInPictureWindowController
   MOCK_METHOD0(NextSlide, void());
   MOCK_CONST_METHOD0(GetSourceBounds, const gfx::Rect&());
   MOCK_METHOD0(GetWindowBounds, absl::optional<gfx::Rect>());
+  MOCK_METHOD0(GetOrigin, absl::optional<url::Origin>());
 };
 
 const base::FilePath::CharType kPictureInPictureWindowSizePage[] =
@@ -195,6 +196,35 @@ void WaitForTitle(content::WebContents* web_contents,
       expected_title,
       content::TitleWatcher(web_contents, expected_title).WaitAndGetTitle());
 }
+
+class OverlayControlsBecomingVisibleObserver : public views::ViewObserver {
+ public:
+  OverlayControlsBecomingVisibleObserver(views::View* controls_container,
+                                         base::OnceClosure cb)
+      : visibility_changed_callback_(std::move(cb)) {
+    observation_.Observe(controls_container);
+  }
+  OverlayControlsBecomingVisibleObserver(
+      const OverlayControlsBecomingVisibleObserver&) = delete;
+  OverlayControlsBecomingVisibleObserver& operator=(
+      const OverlayControlsBecomingVisibleObserver&) = delete;
+
+  ~OverlayControlsBecomingVisibleObserver() override = default;
+
+  void OnViewVisibilityChanged(views::View*,
+                               views::View* controls_container) override {
+    if (controls_container->GetVisible()) {
+      std::move(visibility_changed_callback_).Run();
+    } else {
+      LOG(WARNING) << "Expected to receive callback after container is "
+                      "visible, but did not";
+    }
+  }
+
+ private:
+  base::ScopedObservation<views::View, views::ViewObserver> observation_{this};
+  base::OnceClosure visibility_changed_callback_;
+};
 
 }  // namespace
 
@@ -305,7 +335,8 @@ class VideoPictureInPictureWindowControllerBrowserTest
   }
 
  private:
-  raw_ptr<content::VideoPictureInPictureWindowController, DanglingUntriaged>
+  raw_ptr<content::VideoPictureInPictureWindowController,
+          AcrossTasksDanglingUntriaged>
       pip_window_controller_ = nullptr;
   MockVideoPictureInPictureWindowController mock_controller_;
 };
@@ -346,6 +377,15 @@ IN_PROC_BROWSER_TEST_F(VideoPictureInPictureWindowControllerBrowserTest,
 
   EXPECT_FALSE(GetOverlayWindow()->AreControlsVisible());
   MoveMouseOverOverlayWindow();
+
+  // Wait for controls to become visible. This might not be immediate, if the
+  // window has been moved.
+  base::RunLoop run_loop;
+  OverlayControlsBecomingVisibleObserver observer(
+      GetOverlayWindow()->GetControlsContainerView(),
+      base::BindLambdaForTesting([&] { run_loop.Quit(); }));
+  run_loop.Run();
+
   EXPECT_TRUE(GetOverlayWindow()->AreControlsVisible());
 }
 
@@ -364,7 +404,7 @@ class PictureInPicturePixelComparisonBrowserTest
 
   base::FilePath GetFilePath(base::FilePath::StringPieceType relative_path) {
     base::FilePath base_dir;
-    CHECK(base::PathService::Get(base::DIR_SOURCE_ROOT, &base_dir));
+    CHECK(base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &base_dir));
     // The path relative to <chromium src> for pixel test data.
     const base::FilePath::StringPieceType kTestDataPath =
         FILE_PATH_LITERAL("chrome/test/data/media/picture-in-picture/");
@@ -1219,12 +1259,21 @@ IN_PROC_BROWSER_TEST_F(VideoPictureInPictureWindowControllerBrowserTest,
       .WillOnce(testing::Return(nullptr));
   EXPECT_CALL(mock_controller(), Show());
   pip_window_manager->EnterPictureInPictureWithController(&mock_controller());
+  EXPECT_TRUE(pip_window_manager->GetActiveSessionOrigins().empty());
 
   // Now show the WebContents based Picture-in-Picture window controller.
   // This should close the existing window and show the new one.
   EXPECT_CALL(mock_controller(), Close(_));
   LoadTabAndEnterPictureInPicture(
       browser(), base::FilePath(kPictureInPictureWindowSizePage));
+
+  ASSERT_EQ(pip_window_manager->GetActiveSessionOrigins().size(), 1u);
+  const GURL& url = browser()
+                        ->tab_strip_model()
+                        ->GetActiveWebContents()
+                        ->GetLastCommittedURL();
+  EXPECT_TRUE(
+      pip_window_manager->GetActiveSessionOrigins()[0].IsSameOriginWith(url));
 
   ASSERT_TRUE(GetOverlayWindow());
   EXPECT_TRUE(GetOverlayWindow()->IsVisible());
@@ -1537,8 +1586,16 @@ class PictureInPictureWindowControllerPrerenderBrowserTest
   content::test::PrerenderTestHelper prerender_helper_;
 };
 
+// TODO(crbug.com/1432427): Reenable once Linux MSAN failure is fixed.
+#if BUILDFLAG(IS_LINUX) && defined(MEMORY_SANITIZER)
+#define MAYBE_EnterPipThenNavigateAwayCloseWindow \
+  DISABLED_EnterPipThenNavigateAwayCloseWindow
+#else
+#define MAYBE_EnterPipThenNavigateAwayCloseWindow \
+  EnterPipThenNavigateAwayCloseWindow
+#endif
 IN_PROC_BROWSER_TEST_F(PictureInPictureWindowControllerPrerenderBrowserTest,
-                       EnterPipThenNavigateAwayCloseWindow) {
+                       MAYBE_EnterPipThenNavigateAwayCloseWindow) {
   GURL test_page_url = embedded_test_server()->GetURL(
       "example.com", "/media/picture-in-picture/window-size.html");
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), test_page_url));

@@ -272,16 +272,28 @@
 
     /** Converts the testharness test status into the corresponding string. */
     function convertResult(resultStatus) {
+        let retVal = '';
         switch (resultStatus) {
             case 0:
-                return 'PASS';
+                retVal = 'PASS';
+                break;
             case 1:
-                return 'FAIL';
+                retVal = 'FAIL';
+                break;
             case 2:
-                return 'TIMEOUT';
+                retVal = 'TIMEOUT';
+                break;
+            case 3:
+                retVal = 'NOTRUN';
+                break;
+            case 4:
+                retVal = 'PRECONDITION_FAILED';
+                break;
             default:
-                return 'NOTRUN';
+                retVal = 'NOTRUN';
+                break;
         }
+        return '[' + retVal + ']';
     }
 
     /**
@@ -329,8 +341,11 @@
 
     function resultLine(test) {
         let result = `${convertResult(test.status)} ${sanitize(test.name)}`;
+        // include error message when test result is FAIL or PRECONDITION_FAILED
         if (test.message) {
-            result += ' ' + sanitize(test.message).trim();
+            if (test.status == 1 || test.status == 4) {
+                result += '\n  ' + sanitize(test.message).trim();
+            }
         }
         return result + '\n';
     }
@@ -344,6 +359,7 @@
         text = text.replace(/\0/g, '\\0');
         // Escape some special characters to improve readability of the output.
         text = text.replace(/\r/g, '\\r');
+        text = text.replace(/\n/g, '\\n');
 
         // Replace machine-dependent path with "...".
         if (localPathRegExp) {

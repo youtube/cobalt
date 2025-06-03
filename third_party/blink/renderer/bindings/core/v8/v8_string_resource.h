@@ -29,6 +29,7 @@
 #include "base/notreached.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/bindings/string_resource.h"
+#include "third_party/blink/renderer/platform/bindings/to_blink_string.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_view.h"
@@ -67,14 +68,6 @@ class V8StringResource {
   void operator=(const String& string) { SetString(string); }
 
   void operator=(std::nullptr_t) { SetString(String()); }
-
-  bool Prepare() {  // DEPRECATED
-    if (PrepareFast())
-      return true;
-
-    return v8_object_->ToString(v8::Isolate::GetCurrent()->GetCurrentContext())
-        .ToLocal(&v8_object_);
-  }
 
   bool Prepare(v8::Isolate* isolate, ExceptionState& exception_state) {
     return PrepareFast() || PrepareSlow(isolate, exception_state);

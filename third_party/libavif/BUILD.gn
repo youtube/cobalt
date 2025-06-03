@@ -4,9 +4,18 @@
 
 import("//media/media_options.gni")
 
-source_set("libavif") {
+config("avif_config") {
+  defines = [ "AVIF_ENABLE_EXPERIMENTAL_GAIN_MAP" ]
+  if (is_component_build) {
+    defines += [ "AVIF_DLL" ]
+  }
+}
+
+component("libavif") {
+  public = [ "src/include/avif/avif.h" ]
+  public_configs = [ ":avif_config" ]
+
   sources = [
-    "src/include/avif/avif.h",
     "src/include/avif/internal.h",
     "src/src/alpha.c",
     "src/src/avif.c",
@@ -25,10 +34,11 @@ source_set("libavif") {
     "src/src/utils.c",
   ]
 
-  # configs -= [ "//build/config/compiler:chromium_code" ]
-  # configs += [ "//build/config/compiler:no_chromium_code" ]
   include_dirs = [ "src/include/" ]
   defines = [ "AVIF_LIBYUV_ENABLED" ]
+  if (is_component_build) {
+    defines += [ "AVIF_BUILDING_SHARED_LIBS" ]
+  }
 
   deps = [ "//third_party/libyuv" ]
 

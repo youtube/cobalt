@@ -40,7 +40,7 @@ class HostContentSettingsMap;
 class TestingPrefStore;
 
 namespace content {
-class MockResourceContext;
+class ResourceContext;
 class SSLHostStateDelegate;
 class ZoomLevelDelegate;
 }  // namespace content
@@ -79,8 +79,8 @@ class TestingProfile : public Profile {
   // platforms but must be different on ChromeOS because a logged-in user cannot
   // use "Default" as profile directory.
   // Browser- and UI tests should always use this to get to the user's profile
-  // directory. Unit-tests, though, should use |kInitialProfile|, which is
-  // always "Default", because they are runnining without logged-in user.
+  // directory. Unit-tests, though, should use `chrome::kInitialProfile`, which
+  // is always "Default", because they are running without logged-in user.
   static const char kTestUserProfileDir[];
 
   // Default constructor that cannot be used with multi-profiles.
@@ -282,9 +282,9 @@ class TestingProfile : public Profile {
   // |otr_profile| cannot be empty.
   void SetOffTheRecordProfile(std::unique_ptr<Profile> otr_profile);
 
-  // Marks profile as a Family Link supervised profile.
+  // Marks profile Family Link supervision status.
   // Only available when ENABLE_SUPERVISED_USERS feature is enabled.
-  void SetIsSupervisedProfile();
+  void SetIsSupervisedProfile(bool is_supervised_profile = true);
 
   sync_preferences::TestingPrefServiceSyncable* GetTestingPrefService();
 
@@ -358,8 +358,6 @@ class TestingProfile : public Profile {
   policy::SchemaRegistryService* GetPolicySchemaRegistryService() override;
 #if BUILDFLAG(IS_CHROMEOS_ASH)
   policy::UserCloudPolicyManagerAsh* GetUserCloudPolicyManagerAsh() override;
-  policy::ActiveDirectoryPolicyManager* GetActiveDirectoryPolicyManager()
-      override;
 #else
   policy::UserCloudPolicyManager* GetUserCloudPolicyManager() override;
   policy::ProfileCloudPolicyManager* GetProfileCloudPolicyManager() override;
@@ -491,7 +489,7 @@ class TestingProfile : public Profile {
       BrowserContextDependencyManager::GetInstance()};
 
   // Live on the IO thread:
-  std::unique_ptr<content::MockResourceContext,
+  std::unique_ptr<content::ResourceContext,
                   content::BrowserThread::DeleteOnIOThread>
       resource_context_;
 

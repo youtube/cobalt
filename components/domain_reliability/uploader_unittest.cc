@@ -200,6 +200,7 @@ class DomainReliabilityUploaderTest : public testing::Test {
   }
 
   ~DomainReliabilityUploaderTest() override {
+    interceptor_ = nullptr;
     net::URLRequestFilter::GetInstance()->ClearHandlers();
   }
 

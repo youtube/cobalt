@@ -4,9 +4,9 @@
 
 package org.chromium.chrome.browser.password_manager;
 
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -58,6 +58,12 @@ class PasswordStoreAndroidBackendReceiverBridgeImpl {
                 mNativeBackendReceiverBridge, jobId, passwords);
     }
 
+    void onCompleteWithAffiliatedLogins(@JobId int jobId, byte[] passwords) {
+        if (mNativeBackendReceiverBridge == 0) return;
+        PasswordStoreAndroidBackendReceiverBridgeImplJni.get().onCompleteWithAffiliatedLogins(
+                mNativeBackendReceiverBridge, jobId, passwords);
+    }
+
     void onLoginChanged(@JobId int jobId) {
         if (mNativeBackendReceiverBridge == 0) return;
         PasswordStoreAndroidBackendReceiverBridgeImplJni.get().onLoginChanged(
@@ -80,6 +86,9 @@ class PasswordStoreAndroidBackendReceiverBridgeImpl {
     interface Natives {
         void onCompleteWithLogins(long nativePasswordStoreAndroidBackendReceiverBridgeImpl,
                 @JobId int jobId, byte[] passwords);
+        void onCompleteWithAffiliatedLogins(
+                long nativePasswordStoreAndroidBackendReceiverBridgeImpl, @JobId int jobId,
+                byte[] passwords);
         void onLoginChanged(
                 long nativePasswordStoreAndroidBackendReceiverBridgeImpl, @JobId int jobId);
         void onError(long nativePasswordStoreAndroidBackendReceiverBridgeImpl, @JobId int jobId,

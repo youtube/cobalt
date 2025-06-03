@@ -23,6 +23,7 @@
 #include "base/threading/thread.h"
 #include "base/values.h"
 #include "chrome/browser/browser_process.h"
+#include "chrome/browser/download/bubble/download_bubble_ui_controller.h"
 #include "chrome/browser/download/download_danger_prompt.h"
 #include "chrome/browser/download/download_history.h"
 #include "chrome/browser/download/download_item_model.h"
@@ -30,9 +31,14 @@
 #include "chrome/browser/download/download_prefs.h"
 #include "chrome/browser/download/download_query.h"
 #include "chrome/browser/download/drag_download_item.h"
+#include "chrome/browser/download/offline_item_utils.h"
 #include "chrome/browser/platform_util.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/safe_browsing/safe_browsing_service.h"
+#include "chrome/browser/ui/browser_finder.h"
+#include "chrome/browser/ui/browser_window.h"
+#include "chrome/browser/ui/hats/trust_safety_sentiment_service.h"
+#include "chrome/browser/ui/hats/trust_safety_sentiment_service_factory.h"
 #include "chrome/browser/ui/webui/downloads/downloads.mojom.h"
 #include "chrome/browser/ui/webui/fileicon_source.h"
 #include "chrome/common/chrome_switches.h"
@@ -43,6 +49,7 @@
 #include "components/safe_browsing/core/common/features.h"
 #include "components/safe_browsing/core/common/safe_browsing_prefs.h"
 #include "content/public/browser/browser_thread.h"
+#include "content/public/browser/download_item_utils.h"
 #include "content/public/browser/download_manager.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/render_view_host.h"
@@ -87,6 +94,19 @@ void CountDownloadsDOMEvents(DownloadsDOMEvent event) {
   UMA_HISTOGRAM_ENUMERATION("Download.DOMEvent",
                             event,
                             DOWNLOADS_DOM_EVENT_MAX);
+}
+
+void PromptForScanningInBubble(content::WebContents* web_contents,
+                               download::DownloadItem* download) {
+  Browser* browser = chrome::FindBrowserWithTab(web_contents);
+  if (!browser) {
+    return;
+  }
+  browser->window()
+      ->GetDownloadBubbleUIController()
+      ->GetDownloadDisplayController()
+      ->OpenSecuritySubpage(
+          OfflineItemUtils::GetContentIdForDownload(download));
 }
 
 }  // namespace
@@ -191,6 +211,24 @@ void DownloadsDOMHandler::DiscardDangerous(const std::string& id) {
   CountDownloadsDOMEvents(DOWNLOADS_DOM_EVENT_DISCARD_DANGEROUS);
   download::DownloadItem* download = GetDownloadByStringId(id);
   if (download) {
+    content::DownloadManager* manager = GetMainNotifierManager();
+    if (manager) {
+      Profile* profile =
+          Profile::FromBrowserContext(manager->GetBrowserContext());
+      if (profile &&
+          safe_browsing::IsSafeBrowsingSurveysEnabled(*(profile->GetPrefs()))) {
+        TrustSafetySentimentService* trust_safety_sentiment_service =
+            TrustSafetySentimentServiceFactory::GetForProfile(profile);
+        if (trust_safety_sentiment_service) {
+          // Survey triggered on DISCARD action only. If the user clicks to
+          // PROCEED in the downloads page, their choice is not confirmed until
+          // they PROCEED within the dangerous download prompt.
+          trust_safety_sentiment_service->InteractedWithDownloadWarningUI(
+              DownloadItemWarningData::WarningSurface::DOWNLOADS_PAGE,
+              DownloadItemWarningData::WarningAction::DISCARD);
+        }
+      }
+    }
     // The warning action event needs to be added before Safe Browsing report is
     // sent, because this event should be included in the report.
     DownloadItemWarningData::AddWarningActionEvent(
@@ -422,7 +460,17 @@ void DownloadsDOMHandler::OpenDuringScanningRequiringGesture(
 void DownloadsDOMHandler::DeepScan(const std::string& id) {
   CountDownloadsDOMEvents(DOWNLOADS_DOM_EVENT_DEEP_SCAN);
   download::DownloadItem* download = GetDownloadByStringId(id);
-  if (download) {
+  if (!download) {
+    return;
+  }
+
+  if (base::FeatureList::IsEnabled(
+          safe_browsing::kDeepScanningEncryptedArchives) &&
+      DownloadItemWarningData::IsEncryptedArchive(download)) {
+    // For encrypted archives, we need a password from the user. We will request
+    // this in the download bubble.
+    PromptForScanningInBubble(GetWebUIWebContents(), download);
+  } else {
     DownloadItemModel model(download);
     DownloadCommands commands(model.GetWeakPtr());
     commands.ExecuteCommand(DownloadCommands::DEEP_SCAN);
@@ -442,7 +490,7 @@ void DownloadsDOMHandler::BypassDeepScanRequiringGesture(
   if (download) {
     DownloadItemModel model(download);
     DownloadCommands commands(model.GetWeakPtr());
-    commands.ExecuteCommand(DownloadCommands::BYPASS_DEEP_SCANNING);
+    commands.ExecuteCommand(DownloadCommands::BYPASS_DEEP_SCANNING_AND_OPEN);
   }
 }
 

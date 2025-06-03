@@ -7,15 +7,21 @@
 #include <stdint.h>
 
 #include "base/no_destructor.h"
-#include "base/task/sequenced_task_runner.h"
-#include "chrome/browser/metrics/structured/cros_events_processor.h"
-#include "components/metrics/structured/histogram_util.h"
 #include "components/metrics/structured/recorder.h"
 #include "components/metrics/structured/structured_metrics_features.h"
+#include "components/metrics_services_manager/metrics_services_manager.h"
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
+#include "chrome/browser/ash/login/startup_utils.h"
 #include "chrome/browser/browser_process.h"  // nogncheck
 #include "chrome/browser/metrics/structured/ash_structured_metrics_recorder.h"  // nogncheck
+#include "chrome/browser/metrics/structured/cros_events_processor.h"  // nogncheck
+#include "chrome/browser/metrics/structured/event_logging_features.h"  // nogncheck
+#include "chrome/browser/metrics/structured/key_data_provider_ash.h"  // nogncheck
+#include "chrome/browser/metrics/structured/metadata_processor_ash.h"  // nogncheck
+#include "chrome/browser/metrics/structured/oobe_structured_metrics_watcher.h"  // nogncheck
+#include "components/metrics/structured/structured_metrics_recorder.h"  // nogncheck
+#include "components/metrics/structured/structured_metrics_service.h"  // nogncheck
 #elif BUILDFLAG(IS_CHROMEOS_LACROS)
 #include "base/task/current_thread.h"
 #include "chrome/browser/metrics/structured/lacros_structured_metrics_recorder.h"  // nogncheck
@@ -73,12 +79,28 @@ void ChromeStructuredMetricsRecorder::Initialize() {
       static_cast<AshStructuredMetricsRecorder*>(delegate_.get());
   ash_recorder->Initialize();
 
+  auto* service = g_browser_process->GetMetricsServicesManager()
+                      ->GetStructuredMetricsService();
+
   // Adds CrOSEvents processor if feature is enabled.
   if (base::FeatureList::IsEnabled(kEventSequenceLogging)) {
     Recorder::GetInstance()->AddEventsProcessor(
         std::make_unique<cros_event::CrOSEventsProcessor>(
             cros_event::kResetCounterPath));
+
+    if (!ash::StartupUtils::IsOobeCompleted()) {
+      Recorder::GetInstance()->AddEventsProcessor(
+          std::make_unique<OobeStructuredMetricsWatcher>(
+              service, GetOobeEventUploadCount()));
+    }
   }
+
+  // Initialize the key data provider.
+  service->recorder()->InitializeKeyDataProvider(
+      std::make_unique<KeyDataProviderAsh>());
+
+  Recorder::GetInstance()->AddEventsProcessor(
+      std::make_unique<MetadataProcessorAsh>());
 
   LogInitializationInStructuredMetrics(StructuredMetricsPlatform::kAshChrome);
 

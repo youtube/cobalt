@@ -6,6 +6,7 @@
 
 #include "ui/base/ui_base_features.h"
 #include "ui/color/core_default_color_mixer.h"
+#include "ui/color/forced_colors_mixer.h"
 #include "ui/color/material_ui_color_mixer.h"
 #include "ui/color/native_color_mixers.h"
 #include "ui/color/ref_color_mixer.h"
@@ -14,8 +15,7 @@
 
 namespace ui {
 
-void AddColorMixers(ColorProvider* provider,
-                    const ColorProviderManager::Key& key) {
+void AddColorMixers(ColorProvider* provider, const ColorProviderKey& key) {
   AddRefColorMixer(provider, key);
   // TODO(tluk): Determine the correct place to insert the sys color mixer.
   AddSysColorMixer(provider, key);
@@ -28,6 +28,7 @@ void AddColorMixers(ColorProvider* provider,
     AddMaterialUiColorMixer(provider, key);
   }
   AddNativeUiColorMixer(provider, key);
+  AddForcedColorsColorMixer(provider, key);
   AddNativePostprocessingMixer(provider, key);
 }
 

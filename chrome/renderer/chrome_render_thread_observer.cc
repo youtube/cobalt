@@ -58,6 +58,12 @@
 #include "chrome/renderer/ash_merge_session_loader_throttle.h"
 #endif
 
+#if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
+#include "chrome/renderer/bound_session_credentials/bound_session_request_throttled_in_renderer_manager.h"
+#include "chrome/renderer/bound_session_credentials/bound_session_request_throttled_listener_renderer_impl.h"
+#include "components/signin/public/base/signin_switches.h"
+#endif
+
 using blink::WebCache;
 using blink::WebSecurityPolicy;
 using content::RenderThread;
@@ -148,6 +154,22 @@ chrome::mojom::DynamicParamsPtr ChromeRenderThreadObserver::GetDynamicParams()
   return chrome::mojom::DynamicParams::New();
 }
 
+#if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
+// Returns null if `bound_session_request_throttled_in_renderer_manager_` is
+// null. This can happen on profiles where `RendererUpdater` and
+// `BoundSessionCookieRefreshService` keyed services are not created.
+std::unique_ptr<BoundSessionRequestThrottledListener>
+ChromeRenderThreadObserver::CreateBoundSessionRequestThrottledListener() const {
+  if (!bound_session_request_throttled_in_renderer_manager_) {
+    return nullptr;
+  }
+
+  CHECK(switches::IsBoundSessionCredentialsEnabled());
+  return std::make_unique<BoundSessionRequestThrottledListenerRendererImpl>(
+      bound_session_request_throttled_in_renderer_manager_, io_task_runner_);
+}
+#endif
+
 void ChromeRenderThreadObserver::RegisterMojoInterfaces(
     blink::AssociatedInterfaceRegistry* associated_interfaces) {
   associated_interfaces->AddInterface<chrome::mojom::RendererConfiguration>(
@@ -179,6 +201,16 @@ void ChromeRenderThreadObserver::SetInitialConfiguration(
         ChromeOSListener::Create(std::move(chromeos_listener_receiver));
   }
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+
+#if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
+  if (bound_session_request_throttled_listener) {
+    CHECK(switches::IsBoundSessionCredentialsEnabled());
+    bound_session_request_throttled_in_renderer_manager_ =
+        BoundSessionRequestThrottledInRendererManager::Create(
+            std::move(bound_session_request_throttled_listener));
+    io_task_runner_ = content::ChildThread::Get()->GetIOTaskRunner();
+  }
+#endif
 }
 
 void ChromeRenderThreadObserver::SetConfiguration(

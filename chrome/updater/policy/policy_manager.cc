@@ -4,14 +4,17 @@
 
 #include "chrome/updater/policy/policy_manager.h"
 
+#include <set>
 #include <string>
 #include <vector>
 
+#include "base/logging.h"
 #include "base/ranges/algorithm.h"
 #include "base/strings/string_util.h"
 #include "base/values.h"
 #include "chrome/updater/policy/manager.h"
 #include "chrome/updater/updater_scope.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace updater {
 
@@ -45,12 +48,12 @@ constexpr char kCacheLifeLimitDays[] = "PackageCacheLifeLimit";
 
 // Applications Category.
 // The prefix strings have the app's GUID appended to them.
-constexpr char kInstallAppsDefault[] = "InstallDefault";
-constexpr char kInstallAppPrefix[] = "Install";
-constexpr char kUpdateAppsDefault[] = "UpdateDefault";
-constexpr char kUpdateAppPrefix[] = "Update";
-constexpr char kTargetVersionPrefix[] = "TargetVersionPrefix";
-constexpr char kTargetChannel[] = "TargetChannel";
+constexpr char kInstallAppsDefault[] = "installdefault";
+constexpr char kInstallAppPrefix[] = "install";
+constexpr char kUpdateAppsDefault[] = "updatedefault";
+constexpr char kUpdateAppPrefix[] = "update";
+constexpr char kTargetVersionPrefix[] = "targetversionprefix";
+constexpr char kTargetChannel[] = "targetchannel";
 constexpr char kRollbackToTargetVersion[] = "RollbackToTargetVersion";
 
 }  // namespace
@@ -61,9 +64,14 @@ PolicyManager::PolicyManager(base::Value::Dict policies)
       base::StringPiece(kInstallAppPrefix).length();
   base::ranges::for_each(policies_, [&](const auto& policy) {
     const std::string policy_name = policy.first;
+    VLOG_IF(1, policy_name != base::ToLowerASCII(policy_name))
+        << "Policy [" << policy_name
+        << "] is ignored because it's not all lower-case.";
     if (policy_name.length() <= kInstallAppPrefixLength ||
-        !base::StartsWith(policy_name, kInstallAppPrefix) ||
-        base::StartsWith(policy_name, kInstallAppsDefault) ||
+        !base::StartsWith(policy_name, kInstallAppPrefix,
+                          base::CompareCase::INSENSITIVE_ASCII) ||
+        base::StartsWith(policy_name, kInstallAppsDefault,
+                         base::CompareCase::INSENSITIVE_ASCII) ||
         !policy.second.is_int()) {
       return;
     }
@@ -90,19 +98,20 @@ std::string PolicyManager::source() const {
 
 absl::optional<base::TimeDelta> PolicyManager::GetLastCheckPeriod() const {
   absl::optional<int> minutes =
-      policies_.FindInt(kAutoUpdateCheckPeriodOverrideMinutes);
-  if (!minutes)
+      GetIntegerPolicy(kAutoUpdateCheckPeriodOverrideMinutes);
+  if (!minutes) {
     return absl::nullopt;
+  }
   return base::Minutes(*minutes);
 }
 
 absl::optional<UpdatesSuppressedTimes>
 PolicyManager::GetUpdatesSuppressedTimes() const {
   absl::optional<int> start_hour =
-      policies_.FindInt(kUpdatesSuppressedStartHour);
-  absl::optional<int> start_min = policies_.FindInt(kUpdatesSuppressedStartMin);
+      GetIntegerPolicy(kUpdatesSuppressedStartHour);
+  absl::optional<int> start_min = GetIntegerPolicy(kUpdatesSuppressedStartMin);
   absl::optional<int> duration_min =
-      policies_.FindInt(kUpdatesSuppressedDurationMin);
+      GetIntegerPolicy(kUpdatesSuppressedDurationMin);
 
   if (!start_hour || !start_min || !duration_min)
     return absl::nullopt;
@@ -114,33 +123,32 @@ PolicyManager::GetUpdatesSuppressedTimes() const {
   return supressed_times;
 }
 
-absl::optional<std::string> PolicyManager::GetDownloadPreferenceGroupPolicy()
-    const {
+absl::optional<std::string> PolicyManager::GetDownloadPreference() const {
   return GetStringPolicy(kDownloadPreference);
 }
 
 absl::optional<int> PolicyManager::GetPackageCacheSizeLimitMBytes() const {
-  return policies_.FindInt(kCacheSizeLimitMBytes);
+  return GetIntegerPolicy(kCacheSizeLimitMBytes);
 }
 
 absl::optional<int> PolicyManager::GetPackageCacheExpirationTimeDays() const {
-  return policies_.FindInt(kCacheLifeLimitDays);
+  return GetIntegerPolicy(kCacheLifeLimitDays);
 }
 
 absl::optional<int> PolicyManager::GetEffectivePolicyForAppInstalls(
     const std::string& app_id) const {
   std::string app_value_name(kInstallAppPrefix);
   app_value_name.append(app_id);
-  absl::optional<int> policy = policies_.FindInt(app_value_name.c_str());
-  return policy ? policy : policies_.FindInt(kInstallAppsDefault);
+  absl::optional<int> policy = GetIntegerPolicy(app_value_name);
+  return policy ? policy : GetIntegerPolicy(kInstallAppsDefault);
 }
 
 absl::optional<int> PolicyManager::GetEffectivePolicyForAppUpdates(
     const std::string& app_id) const {
   std::string app_value_name(kUpdateAppPrefix);
   app_value_name.append(app_id);
-  absl::optional<int> policy = policies_.FindInt(app_value_name.c_str());
-  return policy ? policy : policies_.FindInt(kUpdateAppsDefault);
+  absl::optional<int> policy = GetIntegerPolicy(app_value_name);
+  return policy ? policy : GetIntegerPolicy(kUpdateAppsDefault);
 }
 
 absl::optional<std::string> PolicyManager::GetTargetChannel(
@@ -161,7 +169,7 @@ absl::optional<bool> PolicyManager::IsRollbackToTargetVersionAllowed(
     const std::string& app_id) const {
   std::string app_value_name(kRollbackToTargetVersion);
   app_value_name.append(app_id);
-  absl::optional<int> policy = policies_.FindInt(app_value_name);
+  absl::optional<int> policy = GetIntegerPolicy(app_value_name);
   return policy ? absl::optional<bool>(policy.value()) : absl::nullopt;
 }
 
@@ -186,6 +194,12 @@ absl::optional<std::vector<std::string>> PolicyManager::GetForceInstallApps()
 
 absl::optional<std::vector<std::string>> PolicyManager::GetAppsWithPolicy()
     const {
+  const std::set<std::string> kPrefixedPolicyNames = {
+      // prefixed by kUpdateAppPrefix:
+      base::ToLowerASCII(kUpdatesSuppressedStartHour),
+      base::ToLowerASCII(kUpdatesSuppressedStartMin),
+      base::ToLowerASCII(kUpdatesSuppressedDurationMin),
+  };
   const char* kAppPolicyPrefixes[] = {
       kInstallAppsDefault,     kInstallAppPrefix,    kUpdateAppsDefault,
       kUpdateAppPrefix,        kTargetVersionPrefix, kTargetChannel,
@@ -194,7 +208,8 @@ absl::optional<std::vector<std::string>> PolicyManager::GetAppsWithPolicy()
   base::ranges::for_each(policies_, [&](const auto& policy) {
     const std::string policy_name = policy.first;
     base::ranges::for_each(kAppPolicyPrefixes, [&](const auto& prefix) {
-      if (base::StartsWith(policy_name, prefix)) {
+      if (base::StartsWith(policy_name, base::ToLowerASCII(prefix)) &&
+          kPrefixedPolicyNames.count(policy_name) == 0) {
         apps_with_policy.push_back(
             policy_name.substr(base::StringPiece(prefix).length()));
       }
@@ -204,10 +219,14 @@ absl::optional<std::vector<std::string>> PolicyManager::GetAppsWithPolicy()
   return apps_with_policy;
 }
 
-absl::optional<std::string> PolicyManager::GetStringPolicy(
+absl::optional<int> PolicyManager::GetIntegerPolicy(
     const std::string& key) const {
-  const std::string* policy = policies_.FindString(key);
-  return policy ? absl::optional<std::string>(*policy) : absl::nullopt;
+  return policies_.FindInt(base::ToLowerASCII(key));
 }
 
+absl::optional<std::string> PolicyManager::GetStringPolicy(
+    const std::string& key) const {
+  const std::string* policy = policies_.FindString(base::ToLowerASCII(key));
+  return policy ? absl::make_optional(*policy) : absl::nullopt;
+}
 }  // namespace updater

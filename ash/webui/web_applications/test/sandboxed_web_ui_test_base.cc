@@ -7,6 +7,7 @@
 
 #include <vector>
 
+#include "ash/webui/common/trusted_types_test_util.h"
 #include "ash/webui/web_applications/webui_test_prod_util.h"
 #include "base/base_paths.h"
 #include "base/containers/contains.h"
@@ -17,7 +18,7 @@
 #include "base/test/scoped_run_loop_timeout.h"
 #include "base/test/test_timeouts.h"
 #include "base/threading/thread_restrictions.h"
-#include "chrome/test/base/js_test_api.h"
+#include "chrome/test/base/ash/js_test_api.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/test/test_navigation_observer.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -31,7 +32,7 @@ void HandleTestFileRequestCallback(
   base::ScopedAllowBlockingForTesting allow_blocking;
 
   base::FilePath source_root;
-  base::PathService::Get(base::DIR_SOURCE_ROOT, &source_root);
+  base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &source_root);
   const base::FilePath test_file_path =
       source_root.Append(test_file_location).AppendASCII(path);
 
@@ -80,21 +81,19 @@ class SandboxedWebUiAppTestBase::TestCodeInjector
                    owner_->scripts_.end());
 
     for (const auto& script : scripts) {
-      // Use ExecuteScript(), not ExecJs(), because of Content Security Policy
-      // directive: "script-src chrome://resources 'self'"
-      ASSERT_TRUE(
-          content::ExecuteScript(guest_frame, LoadJsTestLibrary(script)));
+      ASSERT_TRUE(content::ExecJs(guest_frame, LoadJsTestLibrary(script)));
     }
     if (!owner_->test_module_.empty()) {
+      ASSERT_TRUE(ash::test_util::AddTestStaticUrlPolicy(guest_frame));
       constexpr char kScript[] = R"(
           (() => {
             const s = document.createElement('script');
             s.type = 'module';
-            s.src = '$1';
+            s.src = window.testStaticUrlPolicy.createScriptURL('$1');
             document.body.appendChild(s);
           })();
       )";
-      ASSERT_TRUE(content::ExecuteScript(
+      ASSERT_TRUE(content::ExecJs(
           guest_frame, base::ReplaceStringPlaceholders(
                            kScript, {owner_->test_module_}, nullptr)));
     }
@@ -131,7 +130,8 @@ void SandboxedWebUiAppTestBase::ConfigureDefaultTestRequestHandler(
 std::string SandboxedWebUiAppTestBase::LoadJsTestLibrary(
     const base::FilePath& script_path) {
   base::FilePath source_root;
-  EXPECT_TRUE(base::PathService::Get(base::DIR_SOURCE_ROOT, &source_root));
+  EXPECT_TRUE(
+      base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &source_root));
   const auto full_script_path =
       script_path.IsAbsolute() ? script_path : source_root.Append(script_path);
 

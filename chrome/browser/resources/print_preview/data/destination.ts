@@ -4,7 +4,7 @@
 
 import '../strings.m.js';
 
-import {assert} from 'chrome://resources/js/assert_ts.js';
+import {assert} from 'chrome://resources/js/assert.js';
 
 // <if expr="is_chromeos">
 import {NativeLayerCrosImpl} from '../native_layer_cros.js';
@@ -352,6 +352,10 @@ export class Destination {
    */
   get printerStatusReason(): PrinterStatusReason|null {
     return this.printerStatusReason_;
+  }
+
+  set printerStatusReason(printerStatusReason: PrinterStatusReason) {
+    this.printerStatusReason_ = printerStatusReason;
   }
 
   setPrinterStatusRetryTimeoutForTesting(timeoutMs: number) {

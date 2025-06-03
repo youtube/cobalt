@@ -18,11 +18,7 @@
 #import "components/crash/core/common/reporter_running_ios.h"
 #import "components/previous_session_info/previous_session_info.h"
 #import "components/version_info/version_info.h"
-#import "ios/chrome/browser/crash_report/features.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
+#import "ios/chrome/browser/crash_report/model/features.h"
 
 // The different causes of app exit as reported by MetricKit.
 // This enum is used in UMA. Do not change the order.
@@ -115,7 +111,11 @@ void SendDiagnostic(MXDiagnostic* diagnostic, const std::string& type) {
           {base::SysNSStringToUTF8(key),
            base::SysNSStringToUTF8(previous_session.reportParameters[key])});
     }
-
+    if (previous_session.breadcrumbs) {
+      override_annotations.insert(
+          {"breadcrumbs",
+           base::SysNSStringToUTF8(previous_session.breadcrumbs)});
+    }
     crash_reporter::ProcessExternalDump("MetricKit", spanpayload,
                                         override_annotations);
   }

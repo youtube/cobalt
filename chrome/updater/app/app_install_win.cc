@@ -14,6 +14,7 @@
 #include <shldisp.h>
 #include <shlobj.h>
 #include <windows.h>
+#include <winhttp.h>
 #include <wrl/client.h>
 
 #include "base/check.h"
@@ -39,6 +40,7 @@
 #include "base/time/time.h"
 #include "base/values.h"
 #include "base/win/registry.h"
+#include "chrome/updater/app/app_install_win_internal.h"
 #include "chrome/updater/registration_data.h"
 #include "chrome/updater/service_proxy_factory.h"
 #include "chrome/updater/update_service.h"
@@ -52,6 +54,7 @@
 #include "chrome/updater/win/manifest_util.h"
 #include "chrome/updater/win/ui/resources/resources.grh"
 #include "chrome/updater/win/win_constants.h"
+#include "components/update_client/update_client_errors.h"
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wmissing-braces"
@@ -61,6 +64,7 @@
 #include "chrome/updater/win/ui/splash_screen.h"
 #pragma clang diagnostic pop
 
+#include "components/update_client/protocol_parser.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace updater {
@@ -164,9 +168,6 @@ void InstallProgressSilentObserver::OnComplete(
   CHECK(events_sink_);
   VLOG(1) << __func__;
 
-  // TODO(crbug.com/1286580): Launch `post_install_launch_command_line` for
-  // each app if needed.
-
   events_sink_->DoExit();
 }
 
@@ -251,7 +252,7 @@ class InstallProgressObserverIPC : public InstallProgressObserver {
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
     CHECK(observer_);
 
-    // TODO(crbug.com/1014591): handle `can_start_install`.
+    // TODO(crbug.com/1290331): handle `can_start_install`.
     PostClosure(base::BindOnce(&InstallProgressObserver::OnWaitingToInstall,
                                base::Unretained(observer_), app_id, app_name,
                                nullptr));
@@ -263,8 +264,6 @@ class InstallProgressObserverIPC : public InstallProgressObserver {
                     int pos) override {
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
     CHECK(observer_);
-
-    // TODO(crbug.com/1014594): implement progress.
     PostClosure(base::BindOnce(&InstallProgressObserver::OnInstalling,
                                base::Unretained(observer_), app_id, app_name,
                                time_remaining_ms, pos));
@@ -300,18 +299,30 @@ class InstallProgressObserverIPC : public InstallProgressObserver {
 
 void SetUsageStats(UpdaterScope scope,
                    const std::string& app_id,
-                   bool usage_stats_enabled) {
+                   absl::optional<bool> usage_stats) {
+  if (!usage_stats) {
+    return;
+  }
+
   const LONG result =
       base::win::RegKey(
           UpdaterScopeToHKeyRoot(scope),
-          base::StrCat({IsSystemInstall(scope) ? CLIENT_STATE_MEDIUM_KEY
-                                               : CLIENT_STATE_KEY,
-                        base::SysUTF8ToWide(app_id)})
-              .c_str(),
+          base::StrCat({CLIENT_STATE_KEY, base::SysUTF8ToWide(app_id)}).c_str(),
           Wow6432(KEY_WRITE))
-          .WriteValue(L"usagestats", usage_stats_enabled ? 1 : 0);
-  VLOG_IF(1, result != ERROR_SUCCESS)
-      << "Error writing usage stats for " << app_id << ":" << result;
+          .WriteValue(L"usagestats", usage_stats.value() ? 1 : 0);
+  if (result != ERROR_SUCCESS) {
+    VLOG(1) << "Error writing usage stats for " << app_id << ":" << result;
+    return;
+  }
+
+  if (IsSystemInstall(scope)) {
+    base::win::RegKey(
+        UpdaterScopeToHKeyRoot(scope),
+        base::StrCat({CLIENT_STATE_MEDIUM_KEY, base::SysUTF8ToWide(app_id)})
+            .c_str(),
+        Wow6432(KEY_WRITE))
+        .DeleteValue(L"usagestats");
+  }
 }
 
 // Implements installing a single application by invoking the code in
@@ -389,15 +400,14 @@ class AppInstallControllerImpl : public AppInstallController,
 
   // These functions are called on the main updater sequence.
   void DoInstallApp();
-  void DoInstallAppOffline(const std::string& installer_version,
-                           const base::FilePath& installer_path,
-                           const std::string& install_args,
-                           const std::string& install_data);
+  void DoInstallAppOffline(
+      const update_client::ProtocolParser::Results& results,
+      const std::string& installer_version,
+      const base::FilePath& installer_path,
+      const std::string& install_args,
+      const std::string& install_data);
   void HandleOsNotSupported();
   void InstallComplete(UpdateService::Result result);
-
-  [[nodiscard]] static ObserverCompletionInfo HandleInstallResult(
-      const UpdateService::UpdateState& update_state);
 
   // Returns the thread id of the thread which owns the progress window.
   DWORD GetUIThreadID() const;
@@ -443,7 +453,6 @@ class AppInstallControllerImpl : public AppInstallController,
   const bool is_silent_install_ = false;
 };
 
-// TODO(crbug.com/1296931): fix the hardcoding of the application name.
 AppInstallControllerImpl::AppInstallControllerImpl(
     bool is_silent_install,
     scoped_refptr<UpdateService> update_service)
@@ -500,8 +509,7 @@ void AppInstallControllerImpl::DoInstallApp() {
   base::ThreadPool::PostTaskAndReply(
       FROM_HERE,
       base::BindOnce(&SetUsageStats, GetUpdaterScope(), app_id_,
-                     tag_args && tag_args->usage_stats_enable &&
-                         *tag_args->usage_stats_enable),
+                     tag_args ? tag_args->usage_stats_enable : absl::nullopt),
       base::BindOnce(
           &UpdateService::Install, update_service_, request,
           GetDecodedInstallDataFromAppArgs(app_id_),
@@ -529,8 +537,6 @@ void AppInstallControllerImpl::InstallAppOffline(
                 FROM_HERE, {base::MayBlock()},
                 base::BindOnce(
                     [](const std::string& app_id) {
-                      const base::CommandLine cmd_line =
-                          GetCommandLineLegacyCompatible();
                       // Parse the offline manifest to get the install
                       // command and install data.
                       update_client::ProtocolParser::Results results;
@@ -539,16 +545,14 @@ void AppInstallControllerImpl::InstallAppOffline(
                       std::string install_args;
                       std::string install_data;
                       ReadInstallCommandFromManifest(
-                          cmd_line.GetSwitchValueNative(kOfflineDirSwitch),
-                          app_id,
-                          GetInstallDataIndexFromAppArgsForCommandLine(cmd_line,
-                                                                       app_id),
+                          base::CommandLine::ForCurrentProcess()
+                              ->GetSwitchValueNative(kOfflineDirSwitch),
+                          app_id, GetInstallDataIndexFromAppArgs(app_id),
                           results, installer_version, installer_path,
                           install_args, install_data);
 
                       const std::string client_install_data =
-                          GetDecodedInstallDataFromAppArgsForCommandLine(
-                              cmd_line, app_id);
+                          GetDecodedInstallDataFromAppArgs(app_id);
                       return std::make_tuple(results, installer_version,
                                              installer_path, install_args,
                                              client_install_data.empty()
@@ -564,14 +568,10 @@ void AppInstallControllerImpl::InstallAppOffline(
                            base::FilePath /*installer_path*/,
                            std::string /*arguments*/,
                            std::string /*install_data*/>& result) {
-                      if (!IsOsSupported(std::get<0>(result))) {
-                        self->HandleOsNotSupported();
-                        return;
-                      }
-
                       self->DoInstallAppOffline(
-                          std::get<1>(result), std::get<2>(result),
-                          std::get<3>(result), std::get<4>(result));
+                          std::get<0>(result), std::get<1>(result),
+                          std::get<2>(result), std::get<3>(result),
+                          std::get<4>(result));
                     },
                     self));
           },
@@ -579,6 +579,7 @@ void AppInstallControllerImpl::InstallAppOffline(
 }
 
 void AppInstallControllerImpl::DoInstallAppOffline(
+    const update_client::ProtocolParser::Results& results,
     const std::string& installer_version,
     const base::FilePath& installer_path,
     const std::string& install_args,
@@ -595,13 +596,15 @@ void AppInstallControllerImpl::DoInstallAppOffline(
   install_progress_observer_ipc_ = std::make_unique<InstallProgressObserverIPC>(
       observer_.get(), ui_thread_id_);
 
+  if (!IsOsSupported(results)) {
+    HandleOsNotSupported();
+    return;
+  }
+
   base::Value::Dict install_settings_dict;
   install_settings_dict.Set(kInstallerVersion, installer_version);
 
-  // TODO(crbug.com/1286581): fine-tune installation behavior by serializing
-  // other related command line options, such as "/sessionid <sid>" into
-  // `install_settings`.
-  base::CommandLine cmd_line = GetCommandLineLegacyCompatible();
+  const base::CommandLine cmd_line(*base::CommandLine::ForCurrentProcess());
   install_settings_dict.Set(kEnterpriseSwitch,
                             cmd_line.HasSwitch(kEnterpriseSwitch));
   install_settings_dict.Set(kSessionIdSwitch,
@@ -613,14 +616,12 @@ void AppInstallControllerImpl::DoInstallAppOffline(
     VLOG(1) << "Failed to serialize install settings.";
   }
 
-  absl::optional<tagging::TagArgs> tag_args =
-      GetTagArgsForCommandLine(cmd_line).tag_args;
+  absl::optional<tagging::TagArgs> tag_args = GetTagArgs().tag_args;
   RegistrationRequest request;
   request.app_id = app_id_;
   request.version = base::Version(kNullVersion);
 
-  absl::optional<tagging::AppArgs> app_args =
-      GetAppArgsForCommandLine(cmd_line, app_id_);
+  absl::optional<tagging::AppArgs> app_args = GetAppArgs(app_id_);
   if (app_args) {
     request.ap = app_args->ap;
   }
@@ -634,8 +635,7 @@ void AppInstallControllerImpl::DoInstallAppOffline(
   base::ThreadPool::PostTaskAndReply(
       FROM_HERE,
       base::BindOnce(&SetUsageStats, GetUpdaterScope(), app_id_,
-                     tag_args && tag_args->usage_stats_enable &&
-                         *tag_args->usage_stats_enable),
+                     tag_args ? tag_args->usage_stats_enable : absl::nullopt),
       base::BindOnce(
           &UpdateService::RegisterApp, update_service_, request,
           base::BindOnce(
@@ -666,23 +666,35 @@ void AppInstallControllerImpl::HandleOsNotSupported() {
   update_state.app_id = app_id_;
   update_state.state = UpdateService::UpdateState::State::kUpdateError;
   update_state.error_category = UpdateService::ErrorCategory::kInstall;
-  update_state.error_code = UNSUPPORTED_WINDOWS_VERSION;
   observer_completion_info_ = HandleInstallResult(update_state);
   observer_completion_info_->completion_text =
       GetLocalizedString(IDS_INSTALL_OS_NOT_SUPPORTED_BASE);
   InstallComplete(UpdateService::Result::kInstallFailed);
 }
 
-// TODO(crbug.com/1218219) - propagate error code in case of errors.
 void AppInstallControllerImpl::InstallComplete(UpdateService::Result result) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   VLOG(1) << __func__;
-  if (result == UpdateService::Result::kServiceFailed) {
+
+  // Create a best-effort `UpdateState` instance if one is not available because
+  // state change callbacks were never posted for this install. This happens if
+  // the execution path returns early, before it has reached the state machine
+  // of the component in the `update_client`.
+  if (!observer_completion_info_.has_value()) {
     UpdateService::UpdateState update_state;
     update_state.app_id = app_id_;
     update_state.state = UpdateService::UpdateState::State::kUpdateError;
-    update_state.error_category = UpdateService::ErrorCategory::kService;
-    update_state.error_code = -1;
+    update_state.error_code = static_cast<int>(result);
+    update_state.error_category = [result] {
+      switch (result) {
+        case UpdateService::Result::kUpdateCheckFailed:
+          return UpdateService::ErrorCategory::kUpdateCheck;
+        case UpdateService::Result::kInstallFailed:
+          return UpdateService::ErrorCategory::kInstall;
+        default:
+          return UpdateService::ErrorCategory::kService;
+      }
+    }();
     observer_completion_info_ = HandleInstallResult(update_state);
   }
   update_service_ = nullptr;
@@ -710,7 +722,6 @@ void AppInstallControllerImpl::StateChange(
       break;
 
     case UpdateService::UpdateState::State::kDownloading: {
-      // TODO(sorin): handle time remaining https://crbug.com/1014590.
       const auto pos = GetDownloadProgress(update_state.downloaded_bytes,
                                            update_state.total_bytes);
       install_progress_observer_ipc_->OnDownloading(app_id, app_name_, -1,
@@ -718,7 +729,7 @@ void AppInstallControllerImpl::StateChange(
     } break;
 
     case UpdateService::UpdateState::State::kInstalling: {
-      // TODO(crbug.com/1014591): handle the install cancellation.
+      // TODO(crbug.com/1290331): handle the install cancellation.
       bool can_start_install = false;
       install_progress_observer_ipc_->OnWaitingToInstall(app_id, app_name_,
                                                          &can_start_install);
@@ -738,72 +749,6 @@ void AppInstallControllerImpl::StateChange(
     case UpdateService::UpdateState::State::kNotStarted:
       break;
   }
-}
-
-ObserverCompletionInfo AppInstallControllerImpl::HandleInstallResult(
-    const UpdateService::UpdateState& update_state) {
-  CompletionCodes completion_code = CompletionCodes::COMPLETION_CODE_ERROR;
-  std::wstring completion_text;
-  switch (update_state.state) {
-    case UpdateService::UpdateState::State::kUpdated:
-      VLOG(1) << "Update success.";
-      completion_code = CompletionCodes::COMPLETION_CODE_SUCCESS;
-      completion_text =
-          GetLocalizedString(IDS_BUNDLE_INSTALLED_SUCCESSFULLY_BASE);
-      break;
-    case UpdateService::UpdateState::State::kNoUpdate:
-      VLOG(1) << "No updates.";
-      completion_code = CompletionCodes::COMPLETION_CODE_ERROR;
-      completion_text = GetLocalizedString(IDS_NO_UPDATE_RESPONSE_BASE);
-      break;
-    case UpdateService::UpdateState::State::kUpdateError:
-      VLOG(1) << "Updater error: " << update_state.error_code << ".";
-      completion_code = CompletionCodes::COMPLETION_CODE_ERROR;
-      completion_text = GetLocalizedString(IDS_INSTALL_UPDATER_FAILED_BASE);
-      break;
-    default:
-      NOTREACHED();
-      break;
-  }
-
-  ObserverCompletionInfo observer_info;
-  observer_info.completion_code = completion_code;
-  observer_info.completion_text = completion_text;
-  observer_info.help_url = base::StringPrintf(
-      "%s?product=%s&error=%d", HELP_CENTER_URL,
-      base::EscapeUrlEncodedData(update_state.app_id, false).c_str(),
-      update_state.error_code);
-
-  AppCompletionInfo app_info;
-  if (update_state.state != UpdateService::UpdateState::State::kNoUpdate) {
-    app_info.app_id = base::ASCIIToUTF16(update_state.app_id);
-    app_info.completion_message =
-        base::ASCIIToUTF16(update_state.installer_text);
-    app_info.error_code = update_state.error_code;
-    app_info.extra_code1 = update_state.extra_code1;
-    app_info.post_install_launch_command_line =
-        base::SysUTF8ToWide(update_state.installer_cmd_line);
-    VLOG(1) << app_info.app_id << " installation completed: error_code["
-            << app_info.error_code << "], extra_code1[" << app_info.extra_code1
-            << "], completion_message[" << app_info.completion_message
-            << "], post_install_launch_command_line["
-            << app_info.post_install_launch_command_line << "]";
-
-    // TODO(crbug.com/1352307): Figure out how to populate members like
-    // `completion_code` and `post_install_url`. For now, set the completion
-    // for the basic cases and ignore the post install URL.
-    if (app_info.error_code == 0) {
-      app_info.completion_code =
-          app_info.post_install_launch_command_line.empty()
-              ? CompletionCodes::COMPLETION_CODE_SUCCESS
-              : CompletionCodes::COMPLETION_CODE_LAUNCH_COMMAND;
-    } else {
-      app_info.completion_code = CompletionCodes::COMPLETION_CODE_ERROR;
-    }
-  }
-  observer_info.apps_info.push_back(app_info);
-
-  return observer_info;
 }
 
 // Loads the logo in BMP format if it exists at the provided `url`, and sets the
@@ -941,12 +886,92 @@ bool AppInstallControllerImpl::DoReboot() {
 
 void AppInstallControllerImpl::DoCancel() {
   CHECK_EQ(GetUIThreadID(), GetCurrentThreadId());
+  if (!update_service_) {
+    return;
+  }
   main_task_runner_->PostTask(
       FROM_HERE,
       base::BindOnce(&UpdateService::CancelInstalls, update_service_, app_id_));
 }
 
 }  // namespace
+
+[[nodiscard]] ObserverCompletionInfo HandleInstallResult(
+    const UpdateService::UpdateState& update_state) {
+  CompletionCodes completion_code = CompletionCodes::COMPLETION_CODE_ERROR;
+  std::wstring completion_text;
+  switch (update_state.state) {
+    case UpdateService::UpdateState::State::kUpdated:
+      VLOG(1) << "Update success.";
+      completion_code = CompletionCodes::COMPLETION_CODE_SUCCESS;
+      completion_text =
+          GetLocalizedString(IDS_BUNDLE_INSTALLED_SUCCESSFULLY_BASE);
+      break;
+    case UpdateService::UpdateState::State::kNoUpdate:
+      VLOG(1) << "No updates.";
+      completion_code = CompletionCodes::COMPLETION_CODE_ERROR;
+      completion_text = GetLocalizedString(IDS_NO_UPDATE_RESPONSE_BASE);
+      break;
+    case UpdateService::UpdateState::State::kUpdateError:
+      VLOG(1) << "Updater error: " << update_state.error_code << ".";
+      completion_code = CompletionCodes::COMPLETION_CODE_ERROR;
+      completion_text = GetLocalizedString(IDS_INSTALL_UPDATER_FAILED_BASE);
+      break;
+    default:
+      NOTREACHED();
+      break;
+  }
+
+  ObserverCompletionInfo observer_info;
+  observer_info.completion_code = completion_code;
+  observer_info.completion_text = completion_text;
+  observer_info.help_url = base::StringPrintf(
+      "%s?product=%s&error=%d", HELP_CENTER_URL,
+      base::EscapeUrlEncodedData(update_state.app_id, false).c_str(),
+      update_state.error_code);
+
+  AppCompletionInfo app_info;
+  if (update_state.state != UpdateService::UpdateState::State::kNoUpdate) {
+    app_info.app_id = base::ASCIIToUTF16(update_state.app_id);
+    app_info.error_code = update_state.error_code;
+    app_info.completion_message =
+        base::UTF8ToUTF16(update_state.installer_text);
+    app_info.extra_code1 = update_state.extra_code1;
+    app_info.post_install_launch_command_line =
+        base::SysUTF8ToWide(update_state.installer_cmd_line);
+    VLOG(1) << app_info.app_id << " installation completed: error category["
+            << update_state.error_category << "], error_code["
+            << app_info.error_code << "], extra_code1[" << app_info.extra_code1
+            << "], completion_message[" << app_info.completion_message
+            << "], post_install_launch_command_line["
+            << app_info.post_install_launch_command_line << "]";
+
+    // If the installer provides a launch command,
+    // `COMPLETION_CODE_EXIT_SILENTLY_ON_LAUNCH_COMMAND` will cause the UI
+    // client to run the launch command and exit in the interactive install
+    // case.
+    // TODO(crbug.com/1352307): Is there more to be done to populate members
+    // like `completion_code` and `post_install_url`? For now, set the
+    // completion for the basic cases and ignore the post install URL.
+    if (app_info.error_code == 0) {
+      app_info.completion_code =
+          app_info.post_install_launch_command_line.empty()
+              ? CompletionCodes::COMPLETION_CODE_SUCCESS
+              : CompletionCodes::
+                    COMPLETION_CODE_EXIT_SILENTLY_ON_LAUNCH_COMMAND;
+    } else if (app_info.error_code == ERROR_SUCCESS_REBOOT_INITIATED ||
+               app_info.error_code == ERROR_SUCCESS_REBOOT_REQUIRED ||
+               app_info.error_code == ERROR_SUCCESS_RESTART_REQUIRED) {
+      app_info.completion_code =
+          CompletionCodes::COMPLETION_CODE_REBOOT_NOTICE_ONLY;
+    } else {
+      app_info.completion_code = CompletionCodes::COMPLETION_CODE_ERROR;
+    }
+  }
+  observer_info.apps_info.push_back(app_info);
+
+  return observer_info;
+}
 
 scoped_refptr<App> MakeAppInstall(bool is_silent_install) {
   return base::MakeRefCounted<AppInstall>(

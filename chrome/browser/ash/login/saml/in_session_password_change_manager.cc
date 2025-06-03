@@ -5,12 +5,10 @@
 #include "chrome/browser/ash/login/saml/in_session_password_change_manager.h"
 
 #include "ash/constants/ash_features.h"
-#include "ash/public/cpp/session/session_activation_observer.h"
 #include "ash/public/cpp/session/session_controller.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/metrics/histogram_macros.h"
-#include "chrome/browser/ash/login/auth/chrome_safe_mode_delegate.h"
 #include "chrome/browser/ash/login/login_pref_names.h"
 #include "chrome/browser/ash/login/saml/password_change_success_notification.h"
 #include "chrome/browser/ash/login/saml/password_expiry_notification.h"
@@ -28,7 +26,6 @@
 #include "components/user_manager/user_manager.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
-#include "services/network/public/cpp/shared_url_loader_factory.h"
 
 namespace ash {
 namespace {
@@ -437,11 +434,7 @@ void InSessionPasswordChangeManager::OnLockStateChanged(bool locked) {
 
 void InSessionPasswordChangeManager::OnTokenCreated(
     const std::string& sync_token) {
-  PrefService* prefs = primary_profile_->GetPrefs();
-
-  // Set token value in prefs for in-session operations and ephemeral users and
-  // local settings for login screen sync.
-  prefs->SetString(prefs::kSamlPasswordSyncToken, sync_token);
+  // Set token value in local state.
   user_manager::KnownUser known_user(g_browser_process->local_state());
   known_user.SetPasswordSyncToken(primary_user_->GetAccountId(), sync_token);
 }

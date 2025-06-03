@@ -1,6 +1,6 @@
 # Interactive Testing API: "Kombucha"
 
-**[go/kombucha-api](goto.google.com/kombucha-api)**
+**[go/kombucha-api](https://goto.google.com/kombucha-api)**
 
 **Kombucha** is a group of powerful test mix-ins that let you easily and
 concisely write interactive tests.
@@ -10,7 +10,7 @@ either be backwards-compatible with existing tests, or the authors will update
 the API calls for you.
 
 This page provides technical documentation. For a cookbook/FAQ/troubleshooting
-guide, see our [Kombucha Playbook](goto.google.com/kombucha-playbook).
+guide, see our [Kombucha Playbook](https://goto.google.com/kombucha-playbook).
 
  - [Changelog](#changelog)
  - [Known Issues](#known-issues-and-incompatibilities)
@@ -99,6 +99,8 @@ Verbs fall into a number of different categories:
     - `WaitForHide()`
     - `WaitForActivated()`
     - `WaitForEvent()`
+    - `WaitForViewProperty()` [Views]
+    - `WaitForViewPropertyCallback()` [Views]
 - **After** verbs allow you to take some action when a given event takes place
   or condition becomes true. The action can be a full
   `InteractionSequence::StepStartCallback` or it can omit any number of leading
@@ -113,10 +115,9 @@ Verbs fall into a number of different categories:
     - `WithElement()`
     - `WithView()` [Views]
 - **Ensure** verbs check the presence or absence of an element after allowing
-  all pending events to settle. They are not compatible with `InAnyContext()`
-  for technical reasons, and therefore, take an `in_any_context` parameter.
-  There are also versions that look for a DOM element in an
-  [instrumented WebContents](#webcontents-instrumentation) [Browser].
+  all pending events to settle. There are also versions that look for a DOM
+  element in an [instrumented WebContents](#webcontents-instrumentation)
+  [Browser].
     - `EnsurePresent()`
     - `EnsureNotPresent()`
 - **Action** verbs simulate input to specific UI elements. You can often specify
@@ -149,6 +150,8 @@ Verbs fall into a number of different categories:
 - **Name** verbs assign a string name to some UI element which may not be known
   ahead of time, so that it can be referenced later in the test. Examples
   include:
+    - `NameElement()`
+    - `NameElementRelative()`
     - `NameView()` [Views]
     - `NameChildView()` [Views]
     - `NameChildViewByType()` [Views]
@@ -165,6 +168,7 @@ Verbs fall into a number of different categories:
     - `NavigateWebContents()` [Browser]
     - `WaitForWebContentsReady()` [Browser]
     - `WaitForWebContentsNavigation()` [Browser]
+    - `FocusWebContents()` [Browser]
     - `WaitForStateChange()` [Browser]
 - **Javascript** verbs execute javascript in an
   [instrumented WebContents](#webcontents-instrumentation), or verify a result
@@ -177,8 +181,18 @@ Verbs fall into a number of different categories:
    - `ExecuteJsAt()` [Browser]
    - `CheckJsResult()` [Browser]
    - `CheckJsResultAt()` [Browser]
+- **Observation** verbs let you observe state that isn't tied to a UI element,
+  and to wait for it to achieve specific values. See
+  [Waiting for Asynchronous Events](#waiting-for-asynchronous-events) for more
+  information.
+   - `ObserveState()`
+   - `WaitForState()`
+   - `PollState()`
+   - `PollElement()`
+   - `PollView()` [Views]
+   - `StopObservingState()`
 - **Utility** verbs modify how the test sequence is executed.
-   - `FlushEvents()` - ensures that the next step happens on a fresh
+   - `FlushEvents()` ensures that the next step happens on a fresh
      message loop rather than being able to chain successive steps.
    - `SetOnIncompatibleAction()` changes what the sequence will do when faced
      with an action that cannot be executed on the current
@@ -281,12 +295,11 @@ A modifier wraps around a step or steps and change their behavior.
 
 - **InAnyContext** allows the modified verb to find an element outside the test's default
   `ElementContext`. Unlike the other modifiers, there are a number of limitations on its use:
-  - It should not be used with `FlushEvents`, most `Ensure`, or any `Activate`,
-    `Event`, or `Mouse` verbs.
+  - It should not be used with any `Ensure` verbs.
     - This is a shortcoming in the underlying framework that will be fixed in the future.
   - It should not be used with named elements, which can already be found in any context.
   - For unsupported verbs, it is best to either use `InSameContext()` or `InContext()` instead.
-  - Example:
+  - Usage example:
 
 ```cpp
 RunTestSequence(
@@ -296,10 +309,7 @@ RunTestSequence(
 ```
 
 - **InSameContext** allows the modified verb (or verbs) to find an element in the same context
-  as the previous step.
-  - Has no effect on `EnsurePresent()` or `EnsureNotPresent()` when the `in_any_context`
-    parameter is set to true.
-  - Example:
+  as the previous step. Example:
 ```cpp
 RunTestSequence(
     InAnyContext(WaitForShow(kMyButton)),
@@ -307,10 +317,7 @@ RunTestSequence(
 ```
 
 - **InContext** allows the modified verb (or verbs) to execute in the specified context instead of
-  the default context for the sequence.
-  - Has no effect on `EnsurePresent()` or `EnsureNotPresent()` when the `in_any_context` parameter
-    is set to true.
-  - Example:
+  the default context for the sequence. Example:
 
 ```cpp
 Browser* const incognito = CreateIncognitoBrowser();
@@ -372,7 +379,7 @@ RunTestSequence(
          // If the side panel is visible...
          [](const SidePanel* side_panel) { return side_panel != nullptr; },
          // Then press the side panel button to close the side panel.
-         Steps(PressButton(kSidePanelButtonElementId),
+         Steps(PressButton(kToolbarSidePanelButtonElementId),
                WaitForHide(kSidePanelElementId)),
          // Else note that it was not open.
          Log("Side panel was already closed.")),
@@ -572,6 +579,170 @@ Example:
     AsView<ComboBox>(el)->SelectItem(1);
   }),
 ```
+
+### Waiting for Asynchronous Events
+
+There are a number of ways to wait for some asynchronous browser event or state:
+ - If you are waiting for WebContents state, use `WaitForStateChange()`
+ - If you are waiting for a discrete event, have your code or a test-specific
+   listener emit a custom event, then use `WaitForEvent()` or `AfterEvent()`.
+    - **Note:** the event must be emitted while you are waiting, or during the
+      callback of the step before, or you may miss it.
+ - If you are waiting for a stateful change, consider creating an appropriate
+   `StateObserver`-derived class, and use `ObserveState()` and `WaitForState()`
+   to check for your state change.
+
+`ObserveState()` is powerful but kind of tricky, as you have to declare a helper
+class that actually tracks the state.
+
+For state that can be observed using an observer pattern (i.e. you could use
+`base::ScopedObservation`), derive from `ObservationStateObserver`, which will
+handle subscribing and unsubscribing; you need only override 1-3 methods.
+
+Otherwise you will need to derive directly from `StateObserver` and manage the
+process yourself.
+
+Here is an example that waits for a property to achieve a specific value using
+an observer pattern:
+
+```cpp
+class FooStateObserver
+  : public ObservationStateObserver<int, Foo, FooObserver> {
+ public:
+  FooStateObserver(Foo* foo)
+    : ObservationStateObserver<int>(foo) {}
+  ~FooStateObserver() override = default;
+
+  // ObservationStateObserver:
+  int GetStateObserverInitialState() const override {
+    return source()->value();
+  }
+
+  // FooObserver:
+  void OnFooValueChanged(Foo*, int value) override {
+    OnStateObserverStateChanged(value);
+  }
+  void OnFooDestroyed(Foo*) override {
+    OnObservationStateObserverSourceDestroyed();
+  }
+}
+```
+
+Here is an example that derives directly from `StateObserver`:
+
+```cpp
+class SubscriptionObserver : public StateObserver {
+ public:
+  SubscriptionObserver(SubscribableObject* object)
+    : subscription_(
+          object->AddValueChangedCallback(
+              base::BindRepeating(&SubscriptionObserver::OnValueChanged,
+                                  base::Unretained(this)))),
+      object_(sub_obj) {}
+
+  // ObservationStateObserver:
+  int GetStateObserverInitialState() const override {
+    return object_->value();
+  }
+
+ private:
+  void OnValueChanged() {
+    OnStateObserverStateChanged(object_->value());
+  }
+
+  base::CallbackListSubscription subscription_;
+  raw_ptr<SubscribableObject> object_;
+};
+```
+
+The next step is to declare your state identifier and call `ObserveState()`.
+`StateIdentifier`s are like `ElementIdentifier`s except that they also encode
+the type of the observer, which allows you to be a little more lax when passing
+in values to the corresponding verbs:
+
+```cpp
+DEFINE_LOCAL_STATE_IDENTIFIER_VALUE(FooStateObserver, kFooState);
+```
+
+The `ObserveState()` verb has two versions:
+ - One lets you pre-construct an observer and pass it in as a `unique_ptr`.
+ - The other lets you pass in the constructor arguments, which allows you
+   to have some of them evaluate when the step is executed:
+    - Any argument that is a function will be executed to get its return value.
+    - Any `std::reference_wrapper` will be unwrapped to get its value.
+    - This behavior is identical to the how the `Log()` verb works.
+    - This does mean that if you need to pass a callback to the constructor, you
+      can't use this version.
+
+Examples:
+```cpp
+  // These have parameters evaluated when the sequence is built:
+  ObserveState(kFooState, std::make_unique<FooStateObserver>(&foo))
+  ObserveState(kFooState, foo.get())
+  // These have a parameter evaluated at runtime:
+  ObserveState(kFooState, std::ref(foo_ptr))
+  ObserveState(kFooState, base::BindOnce(&FooTest::GetCurrentFoo,
+                                         base::Unretained(this)))
+```
+
+Waiting for the state to change is as simple as calling `WaitForState()`; again
+you may pass a callback or reference to have the target evaluated at runtime, or
+a matcher to look for a range of values:
+```cpp
+  WaitForState(kFooState, 3),
+  WaitForState(kFooState, std::ref(expected_foo_value)),
+  WaitForState(kFooState, &GetExpectedFooValue),
+  WaitForState(kFooState, testing::Ne(3)),
+```
+
+#### Observing State Via Polling
+
+The `PollState()`, `PollElement()`, and `PollView()` verbs can be used when you
+want to observe a state but there's no established callback or observer pattern
+established for that state.
+
+For example, if a system only has a `MySystem::GetCurrentState()` property but
+has neither `MySystem::AddObserver(MySystemObserver)` or
+`MySystem::AddStateChangeCallback(MySystem::StateChangeCallback)`, you can use
+`PollState()` to monitor the state:
+
+```cpp
+DEFINE_LOCAL_STATE_IDENTIFIER_VALUE(
+    ui::test::PollingStateObserver<MySystem::State>,
+    kMySystemState);
+
+RunTestSequence(
+  // Do setup that would cause your system to initialize.
+  PollState(kMySystemState, [](){
+    return MySystem::GetInstance()->GetCurrentState();
+  }),
+  WaitForState(kMySystemState, MySystem::State::kReady)
+  // System will be ready now, continue with your test.
+);
+```
+
+For `PollElement()` and `PollView()`, the state value is an `absl::optional` and
+if the element or view is not present in the target context the value will be
+`absl::nullopt`.
+
+Be aware that for transient or short-lived states, the correct value might be
+missed between polls, so polling should only be used for states that should
+eventually "settle" on the expected value.
+
+#### Avoiding UAF and Stopping State Observation
+
+By default, a state observer will persist until the end of the test body, and
+lasts across multiple calls to `RunTestSequence()`.
+
+You should ideally write your state observers (polling or otherwise) to handle
+freeing of resources or underlying objects, e.g. by unregistering an observer on
+destruction, or by using `base::CallbackSubscription` which is safe with respect
+to  destruction of the subscribed object. Polling an element or view is also
+safe, with the caveat that you might get a different element each time.
+
+However, in some cases it is easier to simply remove the observer than to try to
+harden it against changes in the underlying object. The `StopObservingState()`
+verb allows you to do this.
 
 ### Custom Verbs
 

@@ -13,6 +13,7 @@
 #include "ash/session/session_controller_impl.h"
 #include "ash/shell.h"
 #include "ash/wm/tablet_mode/tablet_mode_controller.h"
+#include "base/check_is_test.h"
 #include "base/command_line.h"
 #include "base/containers/contains.h"
 #include "base/strings/string_number_conversions.h"
@@ -28,8 +29,8 @@
 #include "ui/display/display_switches.h"
 #include "ui/display/manager/display_layout_store.h"
 #include "ui/display/manager/display_manager.h"
-#include "ui/display/manager/display_manager_utilities.h"
 #include "ui/display/manager/json_converter.h"
+#include "ui/display/manager/util/display_manager_util.h"
 #include "ui/display/types/display_constants.h"
 #include "ui/display/util/display_util.h"
 #include "ui/gfx/geometry/insets.h"
@@ -205,7 +206,7 @@ void LoadDisplayLayouts(PrefService* local_state) {
       continue;
     }
 
-    if (it.first.find(",") != std::string::npos) {
+    if (base::Contains(it.first, ",")) {
       std::vector<std::string> ids_str = base::SplitString(
           it.first, ",", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
       std::vector<int64_t> ids;
@@ -274,8 +275,8 @@ void LoadDisplayProperties(PrefService* local_state) {
       variable_refresh_rate_state =
           static_cast<display::VariableRefreshRateState>(*vrr_state_value);
     }
-    absl::optional<uint16_t> vsync_rate_min =
-        dict_value->FindInt(kVsyncRateMin);
+    absl::optional<float> vsync_rate_min =
+        dict_value->FindDouble(kVsyncRateMin);
 
     GetDisplayManager()->RegisterDisplayProperty(
         id, rotation, insets_to_set, resolution_in_pixels, device_scale_factor,
@@ -321,7 +322,7 @@ void LoadDisplayTouchAssociations(PrefService* local_state) {
               kTouchAssociationTimestamp);
       if (!value)
         continue;
-      info.timestamp = base::Time().FromDoubleT(*value);
+      info.timestamp = base::Time().FromSecondsSinceUnixEpoch(*value);
 
       const base::Value::Dict* calibration_data_dict =
           association_info_item.second.GetDict().FindDict(
@@ -434,26 +435,22 @@ void LoadDisplayMixedMirrorModeParams(PrefService* local_state) {
   // be empty.
   DCHECK(!GetDisplayManager()->mixed_mirror_mode_params());
 
-  auto* mirroring_source_id_value = pref_data.Find(kMirroringSourceId);
-  if (!mirroring_source_id_value)
+  auto* mirroring_source_id_string = pref_data.FindString(kMirroringSourceId);
+  if (!mirroring_source_id_string)
     return;
 
-  DCHECK(mirroring_source_id_value->is_string());
   int64_t mirroring_source_id;
-  if (!base::StringToInt64(mirroring_source_id_value->GetString(),
-                           &mirroring_source_id)) {
+  if (!base::StringToInt64(*mirroring_source_id_string, &mirroring_source_id)) {
     return;
   }
 
-  auto* mirroring_destination_ids_value =
-      pref_data.Find(kMirroringDestinationIds);
-  if (!mirroring_destination_ids_value)
+  auto* mirroring_destination_ids_list =
+      pref_data.FindList(kMirroringDestinationIds);
+  if (!mirroring_destination_ids_list)
     return;
 
-  DCHECK(mirroring_destination_ids_value->is_list());
   display::DisplayIdList mirroring_destination_ids;
-  for (const auto& entry : mirroring_destination_ids_value->GetList()) {
-    DCHECK(entry.is_string());
+  for (const auto& entry : *mirroring_destination_ids_list) {
     int64_t id;
     if (!base::StringToInt64(entry.GetString(), &id))
       return;
@@ -576,8 +573,7 @@ void StoreCurrentDisplayProperties(PrefService* pref_service) {
 
     property_value.Set(kVariableRefreshRateState,
                        info.variable_refresh_rate_state());
-    if (const absl::optional<uint16_t>& vsync_rate_min =
-            info.vsync_rate_min()) {
+    if (const absl::optional<float>& vsync_rate_min = info.vsync_rate_min()) {
       property_value.Set(kVsyncRateMin, vsync_rate_min.value());
     }
 
@@ -669,8 +665,9 @@ void StoreDisplayTouchAssociations(PrefService* pref_service) {
       // |association_info_value|.
 
       // Serialize timestamp.
-      association_info_value.Set(kTouchAssociationTimestamp,
-                                 association_info.second.timestamp.ToDoubleT());
+      association_info_value.Set(
+          kTouchAssociationTimestamp,
+          association_info.second.timestamp.InSecondsFSinceUnixEpoch());
 
       // Serialize TouchCalibrationData.
       base::Value::Dict calibration_data_value;
@@ -890,6 +887,11 @@ void DisplayPrefs::StoreDisplayPowerStateForTest(
 
 void DisplayPrefs::LoadTouchAssociationPreferenceForTest() {
   LoadDisplayTouchAssociations(local_state_);
+}
+
+void DisplayPrefs::LoadDisplayPrefsForTest() {
+  CHECK_IS_TEST();
+  LoadDisplayPreferences();
 }
 
 void DisplayPrefs::StoreLegacyTouchDataForTest(

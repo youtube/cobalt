@@ -7,7 +7,6 @@
 #include <utility>
 
 #include "base/memory/scoped_refptr.h"
-#include "base/metrics/histogram_macros.h"
 #include "base/ranges/algorithm.h"
 #include "services/network/public/mojom/ip_address_space.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
@@ -117,7 +116,8 @@ scoped_refptr<BlobDataHandle> ExtractBlobHandle(
     return nullptr;
 
   auto blob_handle = buffer->DrainAsBlobDataHandle(
-      BytesConsumer::BlobSizePolicy::kDisallowBlobWithInvalidSize);
+      BytesConsumer::BlobSizePolicy::kDisallowBlobWithInvalidSize,
+      exception_state);
 
   return blob_handle;
 }
@@ -152,20 +152,11 @@ ScriptPromise BackgroundFetchManager::fetch(
     return ScriptPromise();
   }
 
-  bool has_requests_with_body;
   Vector<mojom::blink::FetchAPIRequestPtr> fetch_api_requests =
-      CreateFetchAPIRequestVector(script_state, requests, exception_state,
-                                  &has_requests_with_body);
-  if (exception_state.HadException())
+      CreateFetchAPIRequestVector(script_state, requests, exception_state);
+  if (exception_state.HadException()) {
     return ScriptPromise();
-
-  // Record whether any requests had a body. If there were, reject the promise.
-  UMA_HISTOGRAM_BOOLEAN("BackgroundFetch.HasRequestsWithBody",
-                        has_requests_with_body);
-
-  // A HashSet to find whether there are any duplicate requests within the
-  // fetch. https://bugs.chromium.org/p/chromium/issues/detail?id=871174.
-  HashSet<KURL> kurls;
+  }
 
   // Based on security steps from https://fetch.spec.whatwg.org/#main-fetch
   // TODO(crbug.com/757441): Remove all this duplicative code once Fetch (and
@@ -220,12 +211,7 @@ ScriptPromise BackgroundFetchManager::fetch(
                                  "it contains dangling markup",
                                  exception_state);
     }
-
-    kurls.insert(request_url);
   }
-
-  UMA_HISTOGRAM_BOOLEAN("BackgroundFetch.HasDuplicateRequests",
-                        kurls.size() != fetch_api_requests.size());
 
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
       script_state, exception_state.GetContext());
@@ -268,19 +254,14 @@ void BackgroundFetchManager::DidLoadIcons(
   ukm_data->ideal_to_chosen_icon_size = ideal_to_chosen_icon_size;
   bridge_->Fetch(id, std::move(requests), std::move(options), icon,
                  std::move(ukm_data),
-                 resolver->WrapCallbackInScriptScope(
-                     WTF::BindOnce(&BackgroundFetchManager::DidFetch,
-                                   WrapPersistent(this), base::Time::Now())));
+                 resolver->WrapCallbackInScriptScope(WTF::BindOnce(
+                     &BackgroundFetchManager::DidFetch, WrapPersistent(this))));
 }
 
 void BackgroundFetchManager::DidFetch(
-    base::Time time_started,
     ScriptPromiseResolver* resolver,
     mojom::blink::BackgroundFetchError error,
     BackgroundFetchRegistration* registration) {
-  UMA_HISTOGRAM_TIMES("BackgroundFetch.Manager.FetchDuration",
-                      base::Time::Now() - time_started);
-
   ScriptState* script_state = resolver->GetScriptState();
   ScriptState::Scope scope(script_state);
 
@@ -357,9 +338,9 @@ ScriptPromise BackgroundFetchManager::get(ScriptState* script_state,
   ScriptPromise promise = resolver->Promise();
 
   bridge_->GetRegistration(
-      id, resolver->WrapCallbackInScriptScope(
-              WTF::BindOnce(&BackgroundFetchManager::DidGetRegistration,
-                            WrapPersistent(this), base::Time::Now())));
+      id,
+      resolver->WrapCallbackInScriptScope(WTF::BindOnce(
+          &BackgroundFetchManager::DidGetRegistration, WrapPersistent(this))));
 
   return promise;
 }
@@ -369,13 +350,10 @@ Vector<mojom::blink::FetchAPIRequestPtr>
 BackgroundFetchManager::CreateFetchAPIRequestVector(
     ScriptState* script_state,
     const V8UnionRequestInfoOrRequestOrUSVStringSequence* requests,
-    ExceptionState& exception_state,
-    bool* has_requests_with_body) {
+    ExceptionState& exception_state) {
   DCHECK(requests);
-  DCHECK(has_requests_with_body);
 
   Vector<mojom::blink::FetchAPIRequestPtr> fetch_api_requests;
-  *has_requests_with_body = false;
 
   switch (requests->GetContentType()) {
     case V8UnionRequestInfoOrRequestOrUSVStringSequence::ContentType::
@@ -403,7 +381,6 @@ BackgroundFetchManager::CreateFetchAPIRequestVector(
               return {};
             break;
         }
-        *has_requests_with_body |= request->HasBody();
         fetch_api_requests.push_back(request->CreateFetchAPIRequest());
         fetch_api_requests.back()->blob =
             ExtractBlobHandle(request, exception_state);
@@ -415,7 +392,6 @@ BackgroundFetchManager::CreateFetchAPIRequestVector(
     case V8UnionRequestInfoOrRequestOrUSVStringSequence::ContentType::
         kRequest: {
       Request* request = requests->GetAsRequest();
-      *has_requests_with_body = request->HasBody();
       fetch_api_requests.push_back(request->CreateFetchAPIRequest());
       fetch_api_requests.back()->blob =
           ExtractBlobHandle(request, exception_state);
@@ -429,7 +405,6 @@ BackgroundFetchManager::CreateFetchAPIRequestVector(
           script_state, requests->GetAsUSVString(), exception_state);
       if (exception_state.HadException())
         return {};
-      *has_requests_with_body = request->HasBody();
       fetch_api_requests.push_back(request->CreateFetchAPIRequest());
       fetch_api_requests.back()->blob =
           ExtractBlobHandle(request, exception_state);
@@ -441,13 +416,9 @@ BackgroundFetchManager::CreateFetchAPIRequestVector(
 }
 
 void BackgroundFetchManager::DidGetRegistration(
-    base::Time time_started,
     ScriptPromiseResolver* resolver,
     mojom::blink::BackgroundFetchError error,
     BackgroundFetchRegistration* registration) {
-  UMA_HISTOGRAM_TIMES("BackgroundFetch.Manager.GetDuration",
-                      base::Time::Now() - time_started);
-
   ScriptState* script_state = resolver->GetScriptState();
   ScriptState::Scope scope(script_state);
 
@@ -504,21 +475,16 @@ ScriptPromise BackgroundFetchManager::getIds(ScriptState* script_state,
       script_state, exception_state.GetContext());
   ScriptPromise promise = resolver->Promise();
 
-  bridge_->GetDeveloperIds(resolver->WrapCallbackInScriptScope(
-      WTF::BindOnce(&BackgroundFetchManager::DidGetDeveloperIds,
-                    WrapPersistent(this), base::Time::Now())));
+  bridge_->GetDeveloperIds(resolver->WrapCallbackInScriptScope(WTF::BindOnce(
+      &BackgroundFetchManager::DidGetDeveloperIds, WrapPersistent(this))));
 
   return promise;
 }
 
 void BackgroundFetchManager::DidGetDeveloperIds(
-    base::Time time_started,
     ScriptPromiseResolver* resolver,
     mojom::blink::BackgroundFetchError error,
     const Vector<String>& developer_ids) {
-  UMA_HISTOGRAM_TIMES("BackgroundFetch.Manager.GetIdsDuration",
-                      base::Time::Now() - time_started);
-
   ScriptState::Scope scope(resolver->GetScriptState());
 
   switch (error) {

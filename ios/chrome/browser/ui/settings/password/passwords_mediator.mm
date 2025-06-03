@@ -5,47 +5,49 @@
 #import "ios/chrome/browser/ui/settings/password/passwords_mediator.h"
 
 #import "base/memory/raw_ptr.h"
+#import "components/feature_engagement/public/event_constants.h"
+#import "components/feature_engagement/public/feature_constants.h"
+#import "components/feature_engagement/public/tracker.h"
 #import "components/password_manager/core/browser/leak_detection_dialog_utils.h"
-#import "components/password_manager/core/browser/password_manager_util.h"
+#import "components/password_manager/core/browser/password_manager_client.h"
+#import "components/password_manager/core/browser/password_sync_util.h"
 #import "components/password_manager/core/common/password_manager_features.h"
-#import "components/sync/driver/sync_service_utils.h"
+#import "components/sync/service/sync_service_utils.h"
 #import "ios/chrome/browser/favicon/favicon_loader.h"
 #import "ios/chrome/browser/net/crurl.h"
-#import "ios/chrome/browser/passwords/password_check_observer_bridge.h"
-#import "ios/chrome/browser/passwords/password_checkup_utils.h"
-#import "ios/chrome/browser/passwords/password_manager_util_ios.h"
-#import "ios/chrome/browser/passwords/save_passwords_consumer.h"
+#import "ios/chrome/browser/passwords/model/password_check_observer_bridge.h"
+#import "ios/chrome/browser/passwords/model/password_checkup_utils.h"
+#import "ios/chrome/browser/passwords/model/password_manager_util_ios.h"
+#import "ios/chrome/browser/passwords/model/save_passwords_consumer.h"
 #import "ios/chrome/browser/signin/authentication_service.h"
-#import "ios/chrome/browser/sync/sync_observer_bridge.h"
-#import "ios/chrome/browser/sync/sync_setup_service.h"
+#import "ios/chrome/browser/sync/model/sync_observer_bridge.h"
+#import "ios/chrome/browser/sync/model/sync_setup_service.h"
 #import "ios/chrome/browser/ui/settings/password/account_storage_utils.h"
 #import "ios/chrome/browser/ui/settings/password/passwords_consumer.h"
+#import "ios/chrome/browser/ui/settings/password/passwords_mediator+private.h"
+#import "ios/chrome/browser/ui/settings/password/passwords_table_view_constants.h"
 #import "ios/chrome/browser/ui/settings/password/saved_passwords_presenter_observer.h"
 #import "ios/chrome/browser/ui/settings/utils/password_auto_fill_status_manager.h"
 #import "ios/chrome/common/string_util.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/favicon/favicon_constants.h"
-#import "ios/chrome/grit/ios_chromium_strings.h"
+#import "ios/chrome/grit/ios_branded_strings.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "net/base/mac/url_conversions.h"
 #import "ui/base/l10n/l10n_util_mac.h"
 #import "url/gurl.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 using password_manager::WarningType;
 using password_manager::features::IsPasswordCheckupEnabled;
 
 @interface PasswordsMediator () <PasswordCheckObserver,
                                  SavedPasswordsPresenterObserver,
-                                 SyncObserverModelBridge> {
+                                 SyncObserverModelBridge>
+@end
+
+@implementation PasswordsMediator {
   // The service responsible for password check feature.
   scoped_refptr<IOSChromePasswordCheckManager> _passwordCheckManager;
-
-  // Service to check if passwords are synced.
-  raw_ptr<SyncSetupService> _syncSetupService;
 
   raw_ptr<password_manager::SavedPasswordsPresenter> _savedPasswordsPresenter;
 
@@ -76,26 +78,24 @@ using password_manager::features::IsPasswordCheckupEnabled;
 
   // Service to know whether passwords are synced.
   raw_ptr<syncer::SyncService> _syncService;
+
+  // The user pref service.
+  raw_ptr<PrefService> _prefService;
 }
-
-@end
-
-@implementation PasswordsMediator
 
 - (instancetype)initWithPasswordCheckManager:
                     (scoped_refptr<IOSChromePasswordCheckManager>)
                         passwordCheckManager
-                            syncSetupService:(SyncSetupService*)syncSetupService
                                faviconLoader:(FaviconLoader*)faviconLoader
-                                 syncService:(syncer::SyncService*)syncService {
+                                 syncService:(syncer::SyncService*)syncService
+                                 prefService:(PrefService*)prefService {
   self = [super init];
   if (self) {
     _syncService = syncService;
+    _prefService = prefService;
     _faviconLoader = faviconLoader;
 
     _syncObserver = std::make_unique<SyncObserverBridge>(self, syncService);
-
-    _syncSetupService = syncSetupService;
 
     _passwordCheckManager = passwordCheckManager;
     _savedPasswordsPresenter =
@@ -121,20 +121,32 @@ using password_manager::features::IsPasswordCheckupEnabled;
   _currentState = _passwordCheckManager->GetPasswordCheckState();
   [self updateConsumerPasswordCheckState:_currentState];
   [self.consumer
-      setSavingPasswordsToAccount:password_manager_util::GetPasswordSyncState(
-                                      _syncService) !=
+      setSavingPasswordsToAccount:password_manager::sync_util::
+                                      GetPasswordSyncState(_syncService) !=
                                   password_manager::SyncState::kNotSyncing];
 }
 
 - (void)disconnect {
+  if (_shouldNotifyFETToDismissPasswordManagerWidgetPromo && _tracker) {
+    _tracker->Dismissed(
+        feature_engagement::kIPHiOSPromoPasswordManagerWidgetFeature);
+  }
+  _tracker = nullptr;
   _syncObserver.reset();
   _passwordsPresenterObserver.reset();
   _passwordCheckObserver.reset();
   _passwordCheckManager.reset();
-  _syncSetupService = nullptr;
   _savedPasswordsPresenter = nullptr;
   _faviconLoader = nullptr;
+  _prefService = nullptr;
   _syncService = nullptr;
+}
+
+- (void)askFETToShowPasswordManagerWidgetPromo {
+  if (self.tracker && !_shouldNotifyFETToDismissPasswordManagerWidgetPromo) {
+    [self.consumer setShouldShowPasswordManagerWidgetPromo:
+                       [self shouldShowPasswordManagerWidgetPromo]];
+  }
 }
 
 #pragma mark - PasswordManagerViewControllerDelegate
@@ -252,6 +264,16 @@ using password_manager::features::IsPasswordCheckupEnabled;
   return password_manager::ShouldShowLocalOnlyIconForGroup(group, _syncService);
 }
 
+- (void)notifyFETOfPasswordManagerWidgetPromoDismissal {
+  if (self.tracker) {
+    self.tracker->NotifyEvent(
+        feature_engagement::events::kPasswordManagerWidgetPromoClosed);
+    self.tracker->Dismissed(
+        feature_engagement::kIPHiOSPromoPasswordManagerWidgetFeature);
+  }
+  _shouldNotifyFETToDismissPasswordManagerWidgetPromo = NO;
+}
+
 #pragma mark - PasswordCheckObserver
 
 - (void)passwordCheckStateDidChange:(PasswordCheckState)state {
@@ -274,24 +296,8 @@ using password_manager::features::IsPasswordCheckupEnabled;
 
 // Provides passwords and blocked forms to the '_consumer'.
 - (void)providePasswordsToConsumer {
-  if (base::FeatureList::IsEnabled(
-          password_manager::features::kPasswordsGrouping)) {
-    [_consumer
-        setAffiliatedGroups:_savedPasswordsPresenter->GetAffiliatedGroups()
-               blockedSites:_savedPasswordsPresenter->GetBlockedSites()];
-  } else {
-    std::vector<password_manager::CredentialUIEntry> passwords, blockedSites;
-    for (const auto& credential :
-         _savedPasswordsPresenter->GetSavedCredentials()) {
-      if (credential.blocked_by_user) {
-        blockedSites.push_back(std::move(credential));
-      } else {
-        passwords.push_back(std::move(credential));
-      }
-    }
-    [_consumer setPasswords:std::move(passwords)
-               blockedSites:std::move(blockedSites)];
-  }
+  [_consumer setAffiliatedGroups:_savedPasswordsPresenter->GetAffiliatedGroups()
+                    blockedSites:_savedPasswordsPresenter->GetBlockedSites()];
 }
 
 // Updates the `_consumer` Password Check UI State and Insecure Passwords.
@@ -377,8 +383,19 @@ using password_manager::features::IsPasswordCheckupEnabled;
 
 // Compute whether user is capable to run password check in Google Account.
 - (BOOL)canUseAccountPasswordCheckup {
-  return _syncSetupService->CanSyncFeatureStart() &&
-         !_syncSetupService->IsEncryptEverythingEnabled();
+  return password_manager::sync_util::GetAccountForSaving(_prefService,
+                                                          _syncService) &&
+         !_syncService->GetUserSettings()->IsEncryptEverythingEnabled();
+}
+
+- (BOOL)shouldShowPasswordManagerWidgetPromo {
+  if (self.tracker &&
+      self.tracker->ShouldTriggerHelpUI(
+          feature_engagement::kIPHiOSPromoPasswordManagerWidgetFeature)) {
+    self.shouldNotifyFETToDismissPasswordManagerWidgetPromo = YES;
+    return YES;
+  }
+  return NO;
 }
 
 #pragma mark - SavedPasswordsPresenterObserver
@@ -401,20 +418,20 @@ using password_manager::features::IsPasswordCheckupEnabled;
 
 - (void)faviconForPageURL:(CrURL*)URL
                completion:(void (^)(FaviconAttributes*))completion {
-  BOOL isPasswordSyncEnabled =
-      password_manager_util::IsPasswordSyncNormalEncryptionEnabled(
+  BOOL fallbackToGoogleServer =
+      password_manager_util::IsSavingPasswordsToAccountWithNormalEncryption(
           _syncService);
-  _faviconLoader->FaviconForPageUrl(
-      URL.gurl, kDesiredMediumFaviconSizePt, kMinFaviconSizePt,
-      /*fallback_to_google_server=*/isPasswordSyncEnabled, completion);
+  _faviconLoader->FaviconForPageUrl(URL.gurl, kDesiredMediumFaviconSizePt,
+                                    kMinFaviconSizePt, fallbackToGoogleServer,
+                                    completion);
 }
 
 #pragma mark - SyncObserverModelBridge
 
 - (void)onSyncStateChanged {
   [self.consumer
-      setSavingPasswordsToAccount:password_manager_util::GetPasswordSyncState(
-                                      _syncService) !=
+      setSavingPasswordsToAccount:password_manager::sync_util::
+                                      GetPasswordSyncState(_syncService) !=
                                   password_manager::SyncState::kNotSyncing];
 }
 

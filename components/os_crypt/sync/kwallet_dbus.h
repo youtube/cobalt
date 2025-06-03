@@ -5,12 +5,13 @@
 #ifndef COMPONENTS_OS_CRYPT_SYNC_KWALLET_DBUS_H_
 #define COMPONENTS_OS_CRYPT_SYNC_KWALLET_DBUS_H_
 
+#include <stdint.h>
+
 #include <string>
 #include <vector>
 
 #include "base/component_export.h"
-#include "base/memory/raw_ptr.h"
-#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/nix/xdg_util.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
@@ -153,8 +154,8 @@ class COMPONENT_EXPORT(OS_CRYPT) KWalletDBus {
  private:
   // DBus handle for communication with klauncher and kwalletd.
   scoped_refptr<dbus::Bus> session_bus_;
-  // Object proxy for kwalletd. We do not own this.
-  raw_ptr<dbus::ObjectProxy> kwallet_proxy_;
+  // Object proxy for kwalletd.
+  scoped_refptr<dbus::ObjectProxy> kwallet_proxy_;
 
   // KWallet DBus name.
   std::string dbus_service_name_;

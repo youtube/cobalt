@@ -12,9 +12,6 @@
 #import "ios/chrome/browser/ui/keyboard/key_command_actions.h"
 
 @protocol BookmarksEditorMutator;
-class Browser;
-@protocol SnackbarCommands;
-
 // View controller for editing bookmarks. Allows editing of the title, URL and
 // the parent folder of the bookmark.
 //
@@ -25,18 +22,19 @@ class Browser;
     : ChromeTableViewController <BookmarksEditorConsumer, KeyCommandActions>
 
 @property(nonatomic, weak) id<BookmarksEditorViewControllerDelegate> delegate;
-// Snackbar commands handler.
-@property(nonatomic, weak) id<SnackbarCommands> snackbarCommandsHandler;
 // Cancel button item in navigation bar.
 @property(nonatomic, strong, readonly) UIBarButtonItem* cancelItem;
 // Mutator for the presented bookmark.
 @property(nonatomic, weak) id<BookmarksEditorMutator> mutator;
 // Whether some value was edited.
 @property(nonatomic, assign) BOOL edited;
+// Whether the view can be dismissed.
+@property(nonatomic, assign) BOOL canBeDismissed;
 
 // Designated initializer.
-// TODO(crbug.com/1404311) Remove the model from init.
-- (instancetype)initWithBrowser:(Browser*)browser NS_DESIGNATED_INITIALIZER;
+- (instancetype)initWithName:(NSString*)name
+                         URL:(NSString*)URL
+                  folderName:(NSString*)folderName NS_DESIGNATED_INITIALIZER;
 - (instancetype)initWithStyle:(UITableViewStyle)style NS_UNAVAILABLE;
 
 // Cancels the editor.

@@ -42,24 +42,29 @@ namespace content {
 // SiteInfo::requires_origin_keyed_process().
 //
 // Note: it is not expected that this struct will be exposed in content/public.
+class IsolationContext;
 class UrlInfoInit;
 
 struct CONTENT_EXPORT UrlInfo {
  public:
   // Bitmask representing one or more isolation requests.
   enum OriginIsolationRequest {
-    // No isolated has been requested.
-    kNone = 0,
+    // No isolation has been requested, so the default isolation state for the
+    // current BrowsingInstance should be used.
+    kDefault = 0,
+    // Explicitly requests no isolation.
+    kNone = (1 << 0),
     // The Origin-Agent-Cluster header is requesting OAC isolation for `url`'s
     // origin in the renderer. If granted, this is tracked for consistency in
-    // ChildProcessSecurityPolicyImpl. If kRequiresOriginKeyedProcess is not
-    // set, then this only affects the renderer.
-    kOriginAgentCluster = (1 << 0),
-    // If kOriginAgentCluster is set, the following bit triggers an origin-keyed
-    // process for `url`'s origin. If kRequiresOriginKeyedProcess is not set and
-    // kOriginAgentCluster is,  then OAC will be logical only, i.e. implemented
-    // in the renderer via a separate AgentCluster.
-    kRequiresOriginKeyedProcess = (1 << 1),
+    // ChildProcessSecurityPolicyImpl. If kRequiresOriginKeyedProcessByHeader is
+    // not set, then this only affects the renderer.
+    kOriginAgentClusterByHeader = (1 << 1),
+    // If kOriginAgentClusterByHeader is set, the following bit triggers an
+    // origin-keyed process for `url`'s origin. If
+    // kRequiresOriginKeyedProcessByHeader is not set and
+    // kOriginAgentClusterByHeader is, then OAC will be logical only, i.e.
+    // implemented in the renderer via a separate AgentCluster.
+    kRequiresOriginKeyedProcessByHeader = (1 << 2),
   };
 
   // For isolated sandboxed iframes, when per-document mode is used, we
@@ -79,19 +84,34 @@ struct CONTENT_EXPORT UrlInfo {
                                   absl::optional<StoragePartitionConfig>
                                       storage_partition_config = absl::nullopt);
 
+  // Depending on enabled features (some of which can change at runtime),
+  // default can be no isolation, requests origin agent cluster only, or
+  // requests origin agent cluster with origin keyed process. BrowsingInstances
+  // store a copy of the default isolation state at the time of their creation
+  // to make sure the default value stays constant over the lifetime of the
+  // BrowsingInstance.
+  bool requests_default_origin_agent_cluster_isolation() const {
+    return origin_isolation_request == OriginIsolationRequest::kDefault;
+  }
   // Returns whether this UrlInfo is requesting an origin-keyed agent cluster
   // for `url`'s origin due to the OriginAgentCluster header.
-  bool requests_origin_agent_cluster() const {
+  bool requests_origin_agent_cluster_by_header() const {
     return (origin_isolation_request &
-            OriginIsolationRequest::kOriginAgentCluster);
+            OriginIsolationRequest::kOriginAgentClusterByHeader);
   }
 
   // Returns whether this UrlInfo is requesting an origin-keyed process for
-  // for `url`'s origin due to the OriginAgentCluster header.
-  bool requests_origin_keyed_process() const {
+  // `url`'s origin due to the OriginAgentCluster header.
+  bool requests_origin_keyed_process_by_header() const {
     return (origin_isolation_request &
-            OriginIsolationRequest::kRequiresOriginKeyedProcess);
+            OriginIsolationRequest::kRequiresOriginKeyedProcessByHeader);
   }
+
+  // Returns whether this UrlInfo is requesting an origin-keyed process for
+  // `url`'s origin due to the OriginAgentCluster header, or whether it should
+  // try to use an origin-keyed process by default within the given `context`,
+  // in cases without an explicit header.
+  bool RequestsOriginKeyedProcess(const IsolationContext& context) const;
 
   // Returns whether this UrlInfo is requesting site isolation for its site in
   // response to the Cross-Origin-Opener-Policy header. See
@@ -107,26 +127,23 @@ struct CONTENT_EXPORT UrlInfo {
 
   // This field indicates whether the URL is requesting additional process
   // isolation during the current navigation (e.g., via OriginAgentCluster).  If
-  // URL did not request any isolation, this will be set to kNone. This field is
-  // only relevant (1) during a navigation request, (2) up to the point where
-  // the origin is placed into a SiteInstance.  Other than these cases, this
-  // should be set to kNone.
+  // URL did not explicitly request any isolation, this will be set to kDefault.
+  // This field is only relevant (1) during a navigation request, (2) up to the
+  // point where the origin is placed into a SiteInstance.  Other than these
+  // cases, this should be set to kDefault.
   OriginIsolationRequest origin_isolation_request =
-      OriginIsolationRequest::kNone;
+      OriginIsolationRequest::kDefault;
 
   // True if the Cross-Origin-Opener-Policy header has triggered a hint to turn
   // on site isolation for `url`'s site.
   bool is_coop_isolation_requested = false;
 
   // This allows overriding the origin of |url| for process assignment purposes
-  // in certain very special cases. Namely, if |url| represents a resource
-  // inside another resource (e.g. a resource with a urn: URL in WebBundle),
-  // this will be the origin of the original resource. If the navigation to
-  // |url| is performed via the loadDataWithBaseURL API (e.g., in a <webview>
-  // tag or on Android Webview), this will be the base origin provided via that
-  // API. For renderer-initiated about:blank navigations, this will be the
-  // initiator's origin that about:blank should inherit. Otherwise, this will be
-  // nullopt.
+  // in certain very special cases. If the navigation to |url| is performed via
+  // the loadDataWithBaseURL API (e.g., in a <webview> tag or on Android
+  // Webview), this will be the base origin provided via that API. For renderer-
+  // initiated about:blank navigations, this will be the initiator's origin that
+  // about:blank should inherit. Otherwise, this will be nullopt.
   //
   // TODO(alexmos): Currently, this is also used to hold the origin committed
   // by the renderer at DidCommitNavigation() time, for use in commit-time URL
@@ -217,7 +234,7 @@ class CONTENT_EXPORT UrlInfoInit {
 
   GURL url_;
   UrlInfo::OriginIsolationRequest origin_isolation_request_ =
-      UrlInfo::OriginIsolationRequest::kNone;
+      UrlInfo::OriginIsolationRequest::kDefault;
   bool requests_coop_isolation_ = false;
   absl::optional<url::Origin> origin_;
   bool is_sandboxed_ = false;

@@ -10,34 +10,12 @@
 #import <memory>
 #import <vector>
 
+#import "ios/chrome/browser/ui/settings/password/passwords_table_view_constants.h"
+
 namespace password_manager {
 struct CredentialUIEntry;
 class AffiliatedGroup;
 }  // namespace password_manager
-
-// Enum with all possible UI states of password check.
-typedef NS_ENUM(NSInteger, PasswordCheckUIState) {
-  // When no insecure passwords were detected.
-  PasswordCheckStateSafe,
-  // When user has unmuted compromised passwords.
-  PasswordCheckStateUnmutedCompromisedPasswords,
-  // When user has reused passwords.
-  PasswordCheckStateReusedPasswords,
-  // When user has weak passwords.
-  PasswordCheckStateWeakPasswords,
-  // When user has dismissed warnings.
-  PasswordCheckStateDismissedWarnings,
-  // When check was not perfect and state is unclear.
-  PasswordCheckStateDefault,
-  // When password check is running.
-  PasswordCheckStateRunning,
-  // When user has no passwords and check can't be performed.
-  PasswordCheckStateDisabled,
-  // When password check failed due to network issues, quota limit or others.
-  PasswordCheckStateError,
-  // When password check failed due to user being signed out.
-  PasswordCheckStateSignedOut,
-};
 
 // Consumer for the Passwords Screen.
 @protocol PasswordsConsumer <NSObject>
@@ -45,12 +23,6 @@ typedef NS_ENUM(NSInteger, PasswordCheckUIState) {
 // Displays current password check UI state on screen for insecure credentials.
 - (void)setPasswordCheckUIState:(PasswordCheckUIState)state
          insecurePasswordsCount:(NSInteger)insecureCount;
-
-// Displays password and blocked forms.
-// TODO(crbug.com/1359392): Remove this.
-- (void)setPasswords:(std::vector<password_manager::CredentialUIEntry>)passwords
-        blockedSites:
-            (std::vector<password_manager::CredentialUIEntry>)blockedSites;
 
 // Updates whether passwords are being saved to an account or only locally.
 - (void)setSavingPasswordsToAccount:(BOOL)savingPasswordsToAccount;
@@ -64,6 +36,11 @@ typedef NS_ENUM(NSInteger, PasswordCheckUIState) {
                blockedSites:
                    (const std::vector<password_manager::CredentialUIEntry>&)
                        blockedSites;
+
+// Displays the Password Manager widget promo if the Feature Engagement Tracker
+// allows it.
+- (void)setShouldShowPasswordManagerWidgetPromo:
+    (BOOL)shouldShowPasswordManagerWidgetPromo;
 
 @end
 

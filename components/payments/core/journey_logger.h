@@ -150,6 +150,9 @@ class JourneyLogger {
     // The user elected to opt-out of the flow (and future flows).
     kUserOptedOut = 1 << 9,
 
+    // .show() was allowed without a user activaiton.
+    kActivationlessShow = 1 << 10,
+
     // Correspond to the merchant specifying requestShipping,
     // requestPayerName,
     // requestPayerEmail, requestPayerPhone.
@@ -275,6 +278,9 @@ class JourneyLogger {
   // current UI flow.
   void SetOptOutOffered();
 
+  // Records that a show() was allowed without a user activation.
+  void SetActivationlessShow();
+
   // Records that a payment app has been shown without payment UIs being shown
   // before that.
   void SetSkippedShow();
@@ -312,8 +318,8 @@ class JourneyLogger {
   // logging of all the journey metrics.
   void SetCompleted();
 
-  // Records that the Payment Request was aborted along with the reason. Also
-  // starts the logging of all the journey metrics.
+  // Records that the Payment Request was aborted. This counts as a completion,
+  // starting the logging of all the journey metrics.
   void SetAborted(AbortReason reason);
 
   // Records that the Payment Request was not shown to the user, along with the

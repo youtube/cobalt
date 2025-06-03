@@ -41,9 +41,9 @@ class CORE_EXPORT CanvasRenderingContextHost : public CanvasResourceHost,
     kCanvasHost,
     kOffscreenCanvasHost,
   };
-  explicit CanvasRenderingContextHost(HostType host_type);
+  CanvasRenderingContextHost(HostType host_type, const gfx::Size& size);
 
-  void RecordCanvasSizeToUMA(const gfx::Size&);
+  void RecordCanvasSizeToUMA();
 
   virtual void DetachContext() = 0;
 
@@ -51,12 +51,11 @@ class CORE_EXPORT CanvasRenderingContextHost : public CanvasResourceHost,
   void DidDraw() { DidDraw(SkIRect::MakeWH(width(), height())); }
 
   virtual void PreFinalizeFrame() = 0;
-  virtual void PostFinalizeFrame(CanvasResourceProvider::FlushReason) = 0;
+  virtual void PostFinalizeFrame(FlushReason) = 0;
   virtual bool PushFrame(scoped_refptr<CanvasResource>&& frame,
                          const SkIRect& damage_rect) = 0;
   virtual bool OriginClean() const = 0;
   virtual void SetOriginTainted() = 0;
-  virtual const gfx::Size& Size() const = 0;
   virtual CanvasRenderingContext* RenderingContext() const = 0;
   virtual CanvasResourceDispatcher* GetOrCreateResourceDispatcher() = 0;
 
@@ -98,11 +97,12 @@ class CORE_EXPORT CanvasRenderingContextHost : public CanvasResourceHost,
   int height() const { return Size().height(); }
 
   // Partial CanvasResourceHost implementation
-  void RestoreCanvasMatrixClipStack(cc::PaintCanvas*) const final;
+  void InitializeForRecording(cc::PaintCanvas*) const final;
   CanvasResourceProvider* GetOrCreateCanvasResourceProviderImpl(
       RasterModeHint hint) final;
   CanvasResourceProvider* GetOrCreateCanvasResourceProvider(
       RasterModeHint hint) override;
+  void PageVisibilityChanged() override;
 
   bool IsWebGL() const;
   bool IsWebGPU() const;

@@ -14,12 +14,13 @@
 #include "ash/session/session_controller_impl.h"
 #include "ash/shell.h"
 #include "ash/wm/container_finder.h"
+#include "ash/wm/desks/desk.h"
 #include "ash/wm/desks/desks_util.h"
 #include "ash/wm/desks/templates/saved_desk_util.h"
 #include "ash/wm/float/float_controller.h"
 #include "ash/wm/mru_window_tracker.h"
-#include "ash/wm/tablet_mode/tablet_mode_controller.h"
 #include "ash/wm/window_positioning_utils.h"
+#include "ash/wm/window_restore/informed_restore_dialog.h"
 #include "ash/wm/window_restore/window_restore_util.h"
 #include "ash/wm/window_state.h"
 #include "ash/wm/wm_event.h"
@@ -29,8 +30,6 @@
 #include "base/containers/contains.h"
 #include "base/functional/bind.h"
 #include "base/task/single_thread_task_runner.h"
-#include "components/account_id/account_id.h"
-#include "components/app_restore/app_restore_info.h"
 #include "components/app_restore/full_restore_utils.h"
 #include "components/app_restore/window_properties.h"
 #include "ui/aura/client/aura_constants.h"
@@ -50,6 +49,10 @@ WindowRestoreController* g_instance = nullptr;
 // file.
 WindowRestoreController::SaveWindowCallback g_save_window_callback_for_testing;
 
+// Temporary test widget brought up by a debug accelerator that hosts the
+// informed restore dialog.
+views::Widget* g_test_informed_restore_dialog_widget = nullptr;
+
 // The list of possible app window parents.
 constexpr ShellWindowId kAppParentContainers[19] = {
     kShellWindowId_DeskContainerA,       kShellWindowId_DeskContainerB,
@@ -68,8 +71,9 @@ constexpr ShellWindowId kAppParentContainers[19] = {
 // TODO(crbug.com/1164472): Checking app type is temporary solution until we
 // can get windows which are allowed to window restore from the
 // FullRestoreService.
-constexpr AppType kSupportedAppTypes[4] = {
-    AppType::BROWSER, AppType::CHROME_APP, AppType::ARC_APP, AppType::LACROS};
+constexpr AppType kSupportedAppTypes[5] = {
+    AppType::BROWSER, AppType::CHROME_APP, AppType::ARC_APP,
+    AppType::SYSTEM_APP, AppType::LACROS};
 
 // Delay for certain app types before activation is allowed. This is because
 // some apps' client request activation after creation, which can break user
@@ -237,7 +241,7 @@ WindowRestoreController::GetWindowToInsertBefore(
 
   // If this is an admin template window, it should be placed on top of existing
   // windows (but relative to other desk template windows).
-  if (saved_desk_util::IsAdminTemplateWindow(window)) {
+  if (saved_desk_util::IsWindowOnTopForTemplate(window)) {
     for (auto it = windows.begin(); it != windows.end(); ++it) {
       const int32_t* next_activation_index =
           (*it)->GetProperty(app_restore::kActivationIndexKey);
@@ -346,9 +350,18 @@ void WindowRestoreController::OnParentWindowToValidContainer(
 
   app_restore::WindowInfo* window_info = GetWindowInfo(window);
   if (window_info) {
-    const int desk_id = window_info->desk_id
-                            ? int{*window_info->desk_id}
-                            : aura::client::kWindowWorkspaceUnassignedWorkspace;
+    int desk_id = -1;
+    if (window_info->desk_guid.is_valid()) {
+      desk_id =
+          DesksController::Get()->GetDeskIndexByUuid(window_info->desk_guid);
+    }
+    // Its possible that the uuid is valid but it is not the uuid of any current
+    // desk.
+    if (desk_id == -1) {
+      desk_id = window_info->desk_id
+                    ? static_cast<int>(*window_info->desk_id)
+                    : aura::client::kWindowWorkspaceUnassignedWorkspace;
+    }
     window->SetProperty(aura::client::kWindowWorkspaceKey, desk_id);
   }
 
@@ -358,7 +371,8 @@ void WindowRestoreController::OnParentWindowToValidContainer(
   window->SetProperty(app_restore::kParentToHiddenContainerKey, false);
   aura::client::ParentWindowWithContext(window,
                                         /*context=*/window->GetRootWindow(),
-                                        window->GetBoundsInScreen());
+                                        window->GetBoundsInScreen(),
+                                        display::kInvalidDisplayId);
 
   UpdateAndObserveWindow(window);
 }
@@ -411,8 +425,7 @@ void WindowRestoreController::OnWindowVisibilityChanged(aura::Window* window,
   // Early return if we're not in tablet mode, or the app list is null.
   aura::Window* app_list_window =
       Shell::Get()->app_list_controller()->GetWindow();
-  if (!Shell::Get()->tablet_mode_controller()->InTabletMode() ||
-      !app_list_window) {
+  if (!Shell::Get()->IsInTabletMode() || !app_list_window) {
     return;
   }
 
@@ -476,6 +489,26 @@ bool WindowRestoreController::IsRestoringWindow(aura::Window* window) const {
   return windows_observation_.IsObservingSource(window);
 }
 
+void WindowRestoreController::MaybeStartInformedRestore() {
+  if (!features::ArePostLoginGlanceablesEnabled()) {
+    return;
+  }
+
+  // TODO(sammiequon|zxdan): Need to check "Ask every time" preference, the pref
+  // needs to be moved to ash_pref_names.h.
+
+  if (g_test_informed_restore_dialog_widget) {
+    return;
+  }
+
+  auto widget = InformedRestoreDialog::Create(Shell::GetPrimaryRootWindow());
+  g_test_informed_restore_dialog_widget = widget.release();
+  g_test_informed_restore_dialog_widget->widget_delegate()
+      ->RegisterWindowClosingCallback(base::BindOnce(
+          []() { g_test_informed_restore_dialog_widget = nullptr; }));
+  g_test_informed_restore_dialog_widget->Show();
+}
+
 void WindowRestoreController::SaveWindowImpl(
     WindowState* window_state,
     absl::optional<int> activation_index) {
@@ -536,21 +569,22 @@ void WindowRestoreController::RestoreStateTypeAndClearLaunchedKey(
       // in normal or maximized state.
       // TODO(crbug.com/1164472): Investigate splitview for ARC apps, which
       // are not managed by TabletModeWindowManager.
-      if (Shell::Get()->tablet_mode_controller()->InTabletMode())
-        Shell::Get()->tablet_mode_controller()->AddWindow(window);
+      Shell::Get()->tablet_mode_controller()->AddWindow(window);
 
-      if (*state_type == chromeos::WindowStateType::kPrimarySnapped ||
-          *state_type == chromeos::WindowStateType::kSecondarySnapped) {
+      if (chromeos::IsSnappedWindowStateType(*state_type)) {
         base::AutoReset<aura::Window*> auto_reset_to_be_snapped(
             &to_be_snapped_window_, window);
-        const WMEvent snap_event(
+        const WindowSnapWMEvent snap_event(
             *state_type == chromeos::WindowStateType::kPrimarySnapped
                 ? WM_EVENT_SNAP_PRIMARY
-                : WM_EVENT_SNAP_SECONDARY);
+                : WM_EVENT_SNAP_SECONDARY,
+            WindowSnapActionSource::
+                kSnapByFullRestoreOrDeskTemplateOrSavedDesk);
         window_state->OnWMEvent(&snap_event);
       }
       if (*state_type == chromeos::WindowStateType::kFloated) {
-        const WMEvent float_event(WM_EVENT_FLOAT);
+        const WindowFloatWMEvent float_event(
+            chromeos::FloatStartLocation::kBottomRight);
         window_state->OnWMEvent(&float_event);
       }
     }

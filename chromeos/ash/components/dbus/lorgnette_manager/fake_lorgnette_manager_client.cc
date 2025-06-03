@@ -19,6 +19,7 @@ FakeLorgnetteManagerClient::~FakeLorgnetteManagerClient() = default;
 void FakeLorgnetteManagerClient::Init(dbus::Bus* bus) {}
 
 void FakeLorgnetteManagerClient::ListScanners(
+    bool local_only,
     chromeos::DBusMethodCallback<lorgnette::ListScannersResponse> callback) {
   base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(std::move(callback), list_scanners_response_));
@@ -29,6 +30,29 @@ void FakeLorgnetteManagerClient::GetScannerCapabilities(
     chromeos::DBusMethodCallback<lorgnette::ScannerCapabilities> callback) {
   base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(std::move(callback), capabilities_response_));
+}
+
+void FakeLorgnetteManagerClient::OpenScanner(
+    const lorgnette::OpenScannerRequest& request,
+    chromeos::DBusMethodCallback<lorgnette::OpenScannerResponse> callback) {
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindOnce(std::move(callback), open_scanner_response_));
+}
+
+void FakeLorgnetteManagerClient::CloseScanner(
+    const lorgnette::CloseScannerRequest& request,
+    chromeos::DBusMethodCallback<lorgnette::CloseScannerResponse> callback) {
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindOnce(std::move(callback), close_scanner_response_));
+}
+
+void FakeLorgnetteManagerClient::StartPreparedScan(
+    const lorgnette::StartPreparedScanRequest& request,
+    chromeos::DBusMethodCallback<lorgnette::StartPreparedScanResponse>
+        callback) {
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE,
+      base::BindOnce(std::move(callback), start_prepared_scan_response_));
 }
 
 void FakeLorgnetteManagerClient::StartScan(
@@ -62,10 +86,40 @@ void FakeLorgnetteManagerClient::StartScan(
   scan_response_ = absl::nullopt;
 }
 
+void FakeLorgnetteManagerClient::ReadScanData(
+    const lorgnette::ReadScanDataRequest& request,
+    chromeos::DBusMethodCallback<lorgnette::ReadScanDataResponse> callback) {
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindOnce(std::move(callback), read_scan_data_response_));
+}
+
 void FakeLorgnetteManagerClient::CancelScan(
     chromeos::VoidDBusMethodCallback completion_callback) {
   base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(std::move(completion_callback), true));
+}
+
+void FakeLorgnetteManagerClient::CancelScan(
+    const lorgnette::CancelScanRequest& request,
+    chromeos::DBusMethodCallback<lorgnette::CancelScanResponse> callback) {
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindOnce(std::move(callback), cancel_scan_response_));
+}
+
+void FakeLorgnetteManagerClient::StartScannerDiscovery(
+    const lorgnette::StartScannerDiscoveryRequest& request,
+    base::RepeatingCallback<void(lorgnette::ScannerListChangedSignal)>
+        signal_callback,
+    chromeos::DBusMethodCallback<lorgnette::StartScannerDiscoveryResponse>
+        callback) {
+  NOTIMPLEMENTED();
+}
+
+void FakeLorgnetteManagerClient::StopScannerDiscovery(
+    const lorgnette::StopScannerDiscoveryRequest& request,
+    chromeos::DBusMethodCallback<lorgnette::StopScannerDiscoveryResponse>
+        callback) {
+  NOTIMPLEMENTED();
 }
 
 void FakeLorgnetteManagerClient::SetListScannersResponse(
@@ -80,9 +134,36 @@ void FakeLorgnetteManagerClient::SetScannerCapabilitiesResponse(
   capabilities_response_ = capabilities_response;
 }
 
+void FakeLorgnetteManagerClient::SetOpenScannerResponse(
+    const absl::optional<lorgnette::OpenScannerResponse>&
+        open_scanner_response) {
+  open_scanner_response_ = open_scanner_response;
+}
+
+void FakeLorgnetteManagerClient::SetCloseScannerResponse(
+    const absl::optional<lorgnette::CloseScannerResponse>&
+        close_scanner_response) {
+  close_scanner_response_ = close_scanner_response;
+}
+
+void FakeLorgnetteManagerClient::SetStartPreparedScanResponse(
+    const absl::optional<lorgnette::StartPreparedScanResponse>& response) {
+  start_prepared_scan_response_ = response;
+}
+
+void FakeLorgnetteManagerClient::SetReadScanDataResponse(
+    const absl::optional<lorgnette::ReadScanDataResponse>& response) {
+  read_scan_data_response_ = response;
+}
+
 void FakeLorgnetteManagerClient::SetScanResponse(
     const absl::optional<std::vector<std::string>>& scan_response) {
   scan_response_ = scan_response;
+}
+
+void FakeLorgnetteManagerClient::SetCancelScanResponse(
+    const absl::optional<lorgnette::CancelScanResponse>& response) {
+  cancel_scan_response_ = response;
 }
 
 }  // namespace ash

@@ -17,12 +17,16 @@ const char kMobileConfigFilePath[] =
     "ios/testing/data/http_server_files/sample.mobileconfig";
 const char kPkPassFilePath[] =
     "ios/testing/data/http_server_files/generic.pkpass";
+const char kBundledPkPassFilePath[] =
+    "ios/testing/data/http_server_files/bundle.pkpasses";
+const char kSemiValidBundledPkPassFilePath[] =
+    "ios/testing/data/http_server_files/semi_bundle.pkpasses";
 const char kUsdzFilePath[] = "ios/testing/data/http_server_files/redchair.usdz";
 const char kVcardFilePath[] = "ios/testing/data/http_server_files/vcard.vcf";
 
 std::string GetTestFileContents(const char* file_path) {
   base::FilePath path;
-  base::PathService::Get(base::DIR_MODULE, &path);
+  base::PathService::Get(base::DIR_ASSETS, &path);
   path = path.Append(FILE_PATH_LITERAL(file_path));
   base::File file(path, base::File::FLAG_OPEN | base::File::FLAG_READ);
   size_t size_to_read = file.GetLength();

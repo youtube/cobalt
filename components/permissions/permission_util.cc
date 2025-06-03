@@ -12,7 +12,6 @@
 #include "components/content_settings/core/common/content_settings_types.h"
 #include "components/permissions/features.h"
 #include "components/permissions/permission_request.h"
-#include "components/permissions/permission_result.h"
 #include "components/permissions/permissions_client.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/permission_result.h"
@@ -373,24 +372,6 @@ blink::mojom::PermissionStatus PermissionUtil::ContentSettingToPermissionStatus(
   return blink::mojom::PermissionStatus::DENIED;
 }
 
-content::PermissionResult PermissionUtil::ToContentPermissionResult(
-    PermissionResult result) {
-  content::PermissionStatusSource source =
-      (content::PermissionStatusSource)result.source;
-  blink::mojom::PermissionStatus status =
-      ContentSettingToPermissionStatus(result.content_setting);
-
-  return content::PermissionResult(status, source);
-}
-
-PermissionResult PermissionUtil::ToPermissionResult(
-    content::PermissionResult result) {
-  PermissionStatusSource source = (PermissionStatusSource)result.source;
-  ContentSetting setting = PermissionStatusToContentSetting(result.status);
-
-  return PermissionResult(setting, source);
-}
-
 bool PermissionUtil::IsPermissionBlockedInPartition(
     ContentSettingsType permission,
     const GURL& requesting_origin,
@@ -442,4 +423,39 @@ bool PermissionUtil::HasUserGesture(PermissionPrompt::Delegate* delegate) {
                permissions::PermissionRequestGestureType::GESTURE;
       });
 }
+
+bool PermissionUtil::CanPermissionRequestIgnoreStatus(
+    const PermissionRequestData& request,
+    content::PermissionStatusSource source) {
+  if (!request.embedded_permission_element_initiated) {
+    return false;
+  }
+
+  switch (source) {
+    case content::PermissionStatusSource::KILL_SWITCH:
+    case content::PermissionStatusSource::FEATURE_POLICY:
+    case content::PermissionStatusSource::FENCED_FRAME:
+    case content::PermissionStatusSource::INSECURE_ORIGIN:
+    case content::PermissionStatusSource::VIRTUAL_URL_DIFFERENT_ORIGIN:
+    case content::PermissionStatusSource::PORTAL:
+      return false;
+    case content::PermissionStatusSource::MULTIPLE_DISMISSALS:
+    case content::PermissionStatusSource::MULTIPLE_IGNORES:
+    case content::PermissionStatusSource::RECENT_DISPLAY:
+    case content::PermissionStatusSource::UNSPECIFIED:
+      return true;
+  }
+
+  NOTREACHED();
+}
+
+// static
+bool PermissionUtil::DoesPlatformSupportChip() {
+#if BUILDFLAG(IS_ANDROID)
+  return false;
+#else
+  return true;
+#endif
+}
+
 }  // namespace permissions

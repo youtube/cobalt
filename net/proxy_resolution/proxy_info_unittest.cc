@@ -5,6 +5,7 @@
 #include "net/proxy_resolution/proxy_info.h"
 
 #include "net/base/net_errors.h"
+#include "net/base/proxy_chain.h"
 #include "net/log/net_log_with_source.h"
 #include "net/proxy_resolution/proxy_config.h"
 #include "net/proxy_resolution/proxy_list.h"
@@ -55,6 +56,23 @@ TEST(ProxyInfoTest, UseVsOverrideProxyList) {
   proxy_list.Set("http://bar.com");
   info.UseProxyList(proxy_list);
   EXPECT_EQ("PROXY bar.com:80", info.proxy_list().ToPacString());
+}
+
+TEST(ProxyInfoTest, IsForIpProtection) {
+  ProxyInfo info;
+  EXPECT_FALSE(info.is_for_ip_protection());
+  info.set_is_for_ip_protection(true);
+  EXPECT_TRUE(info.is_for_ip_protection());
+  info.set_is_for_ip_protection(false);
+  EXPECT_FALSE(info.is_for_ip_protection());
+}
+
+TEST(ProxyListTest, UseProxyChain) {
+  ProxyInfo info;
+  ProxyChain proxy_chain =
+      ProxyChain::FromSchemeHostAndPort(ProxyServer::SCHEME_HTTP, "foo", 80);
+  info.UseProxyChain(proxy_chain);
+  EXPECT_EQ("PROXY foo:80", info.proxy_list().ToPacString());
 }
 
 }  // namespace net

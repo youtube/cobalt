@@ -6,14 +6,11 @@
 
 #include "base/no_destructor.h"
 #include "base/values.h"
+#import "components/autofill/ios/common/javascript_feature_util.h"
 #include "components/autofill/ios/form_util/form_activity_tab_helper.h"
 #import "components/autofill/ios/form_util/form_util_java_script_feature.h"
 #import "components/password_manager/ios/password_manager_java_script_feature.h"
 #include "ios/web/public/js_messaging/java_script_feature_util.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace {
 constexpr char kScriptName[] = "form_handlers";
@@ -30,9 +27,7 @@ FormHandlersJavaScriptFeature* FormHandlersJavaScriptFeature::GetInstance() {
 
 FormHandlersJavaScriptFeature::FormHandlersJavaScriptFeature()
     : web::JavaScriptFeature(
-          // TODO(crbug.com/1175793): Move autofill code to kIsolatedWorld
-          // once all scripts are converted to JavaScriptFeatures.
-          web::ContentWorld::kPageContentWorld,
+          ContentWorldForAutofillJavascriptFeatures(),
           {FeatureScript::CreateWithFilename(
               kScriptName,
               FeatureScript::InjectionTime::kDocumentStart,
@@ -49,18 +44,15 @@ FormHandlersJavaScriptFeature::~FormHandlersJavaScriptFeature() = default;
 void FormHandlersJavaScriptFeature::TrackFormMutations(
     web::WebFrame* frame,
     int mutation_tracking_delay) {
-  std::vector<base::Value> parameters;
-  parameters.push_back(base::Value(mutation_tracking_delay));
-  CallJavaScriptFunction(frame, "formHandlers.trackFormMutations", parameters);
+  CallJavaScriptFunction(frame, "formHandlers.trackFormMutations",
+                         base::Value::List().Append(mutation_tracking_delay));
 }
 
 void FormHandlersJavaScriptFeature::ToggleTrackingUserEditedFields(
     web::WebFrame* frame,
     bool track_user_edited_fields) {
-  std::vector<base::Value> parameters;
-  parameters.push_back(base::Value(track_user_edited_fields));
   CallJavaScriptFunction(frame, "formHandlers.toggleTrackingUserEditedFields",
-                         parameters);
+                         base::Value::List().Append(track_user_edited_fields));
 }
 
 absl::optional<std::string>

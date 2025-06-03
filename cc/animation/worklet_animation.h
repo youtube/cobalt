@@ -33,7 +33,7 @@ class AnimationEffectTimings;
 // instance to the Impl thread instance during commit.
 class CC_ANIMATION_EXPORT WorkletAnimation final : public Animation {
  public:
-  enum class State { PENDING, RUNNING, REMOVED };
+  enum class State { kPending, kRunning, kRemoved };
   WorkletAnimation(int cc_animation_id,
                    WorkletAnimationId worklet_animation_id,
                    const std::string& name,
@@ -54,7 +54,7 @@ class CC_ANIMATION_EXPORT WorkletAnimation final : public Animation {
 
   bool IsWorkletAnimation() const override;
 
-  void Tick(base::TimeTicks monotonic_time) override;
+  bool Tick(base::TimeTicks monotonic_time) override;
 
   void UpdateState(bool start_ready_animations,
                    AnimationEvents* events) override;
@@ -149,7 +149,7 @@ class CC_ANIMATION_EXPORT WorkletAnimation final : public Animation {
   // lock in the worklet. The lock is established when updating the input state
   // for the pending tree and release on pending tree activation.
   ProtectedSequenceReadable<bool> has_pending_tree_lock_{false};
-  ProtectedSequenceReadable<State> state_{State::PENDING};
+  ProtectedSequenceReadable<State> state_{State::kPending};
 
   const bool is_impl_instance_;
 };

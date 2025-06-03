@@ -2,9 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import {TestRunner} from 'test_runner';
+import {PerformanceTestRunner} from 'performance_test_runner';
+
+import * as Timeline from 'devtools/panels/timeline/timeline.js';
+import * as TimelineModel from 'devtools/models/timeline_model/timeline_model.js';
+
 (async function() {
   TestRunner.addResult(`Tests that paint profiler is properly update when an event is selected in Flame Chart\n`);
-  await TestRunner.loadLegacyModule('timeline'); await TestRunner.loadTestModule('performance_test_runner');
   await TestRunner.showPanel('timeline');
   await TestRunner.loadHTML(`
     <div id="square" style="width: 40px; height: 40px"></div>
@@ -33,7 +38,7 @@
       }
   `);
 
-  const panel = UI.panels.timeline;
+  const panel = Timeline.TimelinePanel.TimelinePanel.instance();
   panel.captureLayersAndPicturesSetting.set(true);
   panel.onModeChanged();
 
@@ -46,7 +51,7 @@
     // event will not correspond to any captured picture, and we just ignore it
     // for the purpose of this test.
     if (event.name === TimelineModel.TimelineModel.RecordType.Paint &&
-        TimelineModel.TimelineData.forEvent(event).picture) {
+        TimelineModel.TimelineModel.EventOnTimelineData.forEvent(event).picture) {
       paintEvents.push(event);
     }
   }
@@ -56,7 +61,7 @@
 
   TestRunner.addSniffer(
       panel.flameChart.detailsView, 'appendDetailsTabsForTraceEventAndShowDetails', onRecordDetailsReady, false);
-  panel.select(Timeline.TimelineSelection.fromTraceEvent(paintEvents[0]));
+  panel.select(Timeline.TimelineSelection.TimelineSelection.fromTraceEvent(paintEvents[0]));
 
   function onRecordDetailsReady() {
     var updateCount = 0;
@@ -75,7 +80,7 @@
         TestRunner.completeTest();
       else
         panel.select(
-            Timeline.TimelineSelection.fromTraceEvent(paintEvents[1]), Timeline.TimelineDetailsView.Tab.PaintProfiler);
+            Timeline.TimelineSelection.TimelineSelection.fromTraceEvent(paintEvents[1]), Timeline.TimelineDetailsView.Tab.PaintProfiler);
     }
   }
 })();

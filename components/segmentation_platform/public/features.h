@@ -6,7 +6,6 @@
 #define COMPONENTS_SEGMENTATION_PLATFORM_PUBLIC_FEATURES_H_
 
 #include "base/feature_list.h"
-#include "base/strings/string_piece.h"
 
 namespace segmentation_platform::features {
 
@@ -15,6 +14,10 @@ BASE_DECLARE_FEATURE(kSegmentationPlatformFeature);
 
 // Feature flag for enabling UKM based engine.
 BASE_DECLARE_FEATURE(kSegmentationPlatformUkmEngine);
+
+// Feature flag to increase segmentation platform background processing task
+// runner priority.
+BASE_DECLARE_FEATURE(kSegmentationPlatformUserVisibleTaskRunner);
 
 // Feature flag for enabling adaptive toolbar v2 multi-output model.
 BASE_DECLARE_FEATURE(kSegmentationPlatformAdaptiveToolbarV2Feature);
@@ -67,6 +70,30 @@ BASE_DECLARE_FEATURE(kSegmentationPlatformTabletProductivityUser);
 
 // Feature flag for enabling model execution report sampling.
 BASE_DECLARE_FEATURE(kSegmentationPlatformModelExecutionSampling);
+
+// Feature flag for enabling cross device user segment.
+BASE_DECLARE_FEATURE(kSegmentationPlatformCrossDeviceUser);
+
+// Feature flag for enabling intentional user segment.
+BASE_DECLARE_FEATURE(kSegmentationPlatformIntentionalUser);
+
+// Feature flag for enabling password manager user segment.
+BASE_DECLARE_FEATURE(kSegmentationPlatformPasswordManagerUser);
+
+// Feature flag for enabling tab resumption ranker.
+BASE_DECLARE_FEATURE(kSegmentationPlatformTabResumptionRanker);
+
+// Feature flag for enabling ios module ranker.
+BASE_DECLARE_FEATURE(kSegmentationPlatformIosModuleRanker);
+
+// Feature flag for controlling sampling of training data collection.
+BASE_DECLARE_FEATURE(kSegmentationPlatformTimeDelaySampling);
+
+// Feature flag for enabling data collection for tab ranking.
+BASE_DECLARE_FEATURE(kSegmentationPlatformCollectTabRankData);
+
+// Feature flag for intoroducing delay while initializing models at startup.
+BASE_DECLARE_FEATURE(kSegmentationPlatformModelInitializationDelay);
 }  // namespace segmentation_platform::features
 
 #endif  // COMPONENTS_SEGMENTATION_PLATFORM_PUBLIC_FEATURES_H_

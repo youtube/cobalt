@@ -4,6 +4,7 @@
 
 package org.chromium.chrome.browser.offlinepages.indicator;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.drawable.Drawable;
 import android.os.Handler;
@@ -19,8 +20,8 @@ import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.Supplier;
 import org.chromium.chrome.R;
-import org.chromium.chrome.browser.ChromeSemanticColorUtils;
 import org.chromium.chrome.browser.status_indicator.StatusIndicatorCoordinator;
+import org.chromium.chrome.browser.ui.theme.ChromeSemanticColorUtils;
 import org.chromium.components.browser_ui.styles.SemanticColorUtils;
 import org.chromium.content_public.common.ContentSwitches;
 
@@ -57,6 +58,7 @@ public class OfflineIndicatorControllerV2 {
     public static final String OFFLINE_INDICATOR_SHOWN_DURATION_V2 =
             "OfflineIndicator.ShownDurationV2";
 
+    @SuppressLint("StaticFieldLeak")
     private static OfflineDetector sMockOfflineDetector;
     private static Supplier<Long> sMockElapsedTimeSupplier;
     private static OfflineIndicatorMetricsDelegate sMockOfflineIndicatorMetricsDelegate;
@@ -120,7 +122,7 @@ public class OfflineIndicatorControllerV2 {
         } else {
             mOfflineDetector = new OfflineDetector((Boolean offline)
                                                            -> onConnectionStateChanged(offline),
-                    (Boolean isForeground) -> onApplicationStateChanged(isForeground));
+                    (Boolean isForeground) -> onApplicationStateChanged(isForeground), mContext);
         }
 
         // Initializes the application state.
@@ -260,7 +262,6 @@ public class OfflineIndicatorControllerV2 {
             surfaceState = mCanAnimateBrowserControlsSupplier.get()
                     ? UmaEnum.CAN_ANIMATE_NATIVE_CONTROLS
                     : UmaEnum.CANNOT_ANIMATE_NATIVE_CONTROLS;
-            ;
         }
         RecordHistogram.recordEnumeratedHistogram(
                 "OfflineIndicator.ConnectivityChanged.DeviceState."
@@ -287,7 +288,6 @@ public class OfflineIndicatorControllerV2 {
         sMockElapsedTimeSupplier = supplier;
     }
 
-    @VisibleForTesting
     void setHandlerForTesting(Handler handler) {
         mHandler = handler;
     }

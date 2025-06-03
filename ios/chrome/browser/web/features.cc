@@ -4,15 +4,9 @@
 
 #include "ios/chrome/browser/web/features.h"
 
+#include "ios/web/common/features.h"
+
 namespace web {
-
-BASE_FEATURE(kEnableBrowserLockdownMode,
-             "EnableBrowserLockdownMode",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-bool IsBrowserLockdownModeEnabled() {
-  return base::FeatureList::IsEnabled(kEnableBrowserLockdownMode);
-}
 
 BASE_FEATURE(kWebPageDefaultZoomFromDynamicType,
              "WebPageDefaultZoomFromDynamicType",
@@ -29,5 +23,16 @@ BASE_FEATURE(kWebPageTextZoomIPad,
 BASE_FEATURE(kRestoreSessionFromCache,
              "RestoreSessionFromCache",
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+bool UseNativeSessionRestorationCache() {
+  // The optimised session restoration code manage the session state save
+  // itself, so there is no need to use the native session restoration cache
+  // when the feature is enabled.
+  if (web::features::UseSessionSerializationOptimizations()) {
+    return false;
+  }
+
+  return base::FeatureList::IsEnabled(web::kRestoreSessionFromCache);
+}
 
 }  // namespace web

@@ -9,10 +9,6 @@
 #import "ios/chrome/test/earl_grey/chrome_matchers_app_interface.h"
 #import "ios/testing/earl_grey/earl_grey_test.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace chrome_test_util {
 
 id<GREYMatcher> WindowWithNumber(int window_number) {
@@ -41,6 +37,16 @@ id<GREYMatcher> ButtonWithAccessibilityLabel(NSString* label) {
 
 id<GREYMatcher> ButtonWithAccessibilityLabelId(int message_id) {
   return [ChromeMatchersAppInterface buttonWithAccessibilityLabelID:message_id];
+}
+
+id<GREYMatcher> ContextMenuItemWithAccessibilityLabel(NSString* label) {
+  return
+      [ChromeMatchersAppInterface contextMenuItemWithAccessibilityLabel:label];
+}
+
+id<GREYMatcher> ContextMenuItemWithAccessibilityLabelId(int message_id) {
+  return [ChromeMatchersAppInterface
+      contextMenuItemWithAccessibilityLabelID:message_id];
 }
 
 id<GREYMatcher> ImageViewWithImageNamed(NSString* imageName) {
@@ -143,6 +149,10 @@ id<GREYMatcher> Omnibox() {
 
 id<GREYMatcher> OmniboxPopupRow() {
   return [ChromeMatchersAppInterface omniboxPopupRow];
+}
+
+id<GREYMatcher> OmniboxPopupRowWithString(NSString* string) {
+  return [ChromeMatchersAppInterface omniboxPopupRowWithString:string];
 }
 
 id<GREYMatcher> OmniboxPopupList() {
@@ -369,6 +379,14 @@ id<GREYMatcher> SettingsNotificationsTableView() {
   return [ChromeMatchersAppInterface settingsNotificationsTableView];
 }
 
+id<GREYMatcher> SettingsInactiveTabsTableView() {
+  return [ChromeMatchersAppInterface settingsInactiveTabsTableView];
+}
+
+id<GREYMatcher> SettingsTabsTableView() {
+  return [ChromeMatchersAppInterface settingsTabsTableView];
+}
+
 id<GREYMatcher> SettingsTrackingPriceTableView() {
   return [ChromeMatchersAppInterface settingsTrackingPriceTableView];
 }
@@ -383,6 +401,18 @@ id<GREYMatcher> GoogleServicesSettingsButton() {
 
 id<GREYMatcher> ManageSyncSettingsButton() {
   return [ChromeMatchersAppInterface manageSyncSettingsButton];
+}
+
+id<GREYMatcher> InactiveTabsSettingsButton() {
+  return [ChromeMatchersAppInterface inactiveTabsSettingsButton];
+}
+
+id<GREYMatcher> TabPickupSettingsButton() {
+  return [ChromeMatchersAppInterface tabPickupSettingsButton];
+}
+
+id<GREYMatcher> TabsSettingsButton() {
+  return [ChromeMatchersAppInterface tabsSettingsButton];
 }
 
 id<GREYMatcher> GoogleServicesSettingsView() {
@@ -671,6 +701,10 @@ id<GREYMatcher> SettingsSearchEngineButton() {
   return [ChromeMatchersAppInterface settingsSearchEngineButton];
 }
 
+id<GREYMatcher> SettingsAddressBarButton() {
+  return [ChromeMatchersAppInterface settingsAddressBarButton];
+}
+
 id<GREYMatcher> AutofillSuggestionViewMatcher() {
   return [ChromeMatchersAppInterface autofillSuggestionViewMatcher];
 }
@@ -691,6 +725,24 @@ id<GREYMatcher> SettingsToolbarAddButton() {
 
 id<GREYMatcher> CellCanBeSwipedToDismissed() {
   return [ChromeMatchersAppInterface cellCanBeSwipedToDismissed];
+}
+
+id<GREYMatcher> PasswordsTableViewMatcher() {
+  return [ChromeMatchersAppInterface passwordsTableViewMatcher];
+}
+
+id<GREYMatcher> DefaultBrowserSettingsTableViewMatcher() {
+  return [ChromeMatchersAppInterface defaultBrowserSettingsTableViewMatcher];
+}
+
+id<GREYMatcher> SafetyCheckTableViewMatcher() {
+  return [ChromeMatchersAppInterface safetyCheckTableViewMatcher];
+}
+
+id<GREYMatcher> AlertAction(NSString* title) {
+  return grey_allOf(
+      grey_accessibilityID([title stringByAppendingString:@"AlertAction"]),
+      grey_interactable(), nil);
 }
 
 #pragma mark - Overflow Menu Destinations

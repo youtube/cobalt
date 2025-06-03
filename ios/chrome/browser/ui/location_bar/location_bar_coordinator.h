@@ -10,11 +10,13 @@
 #import "ios/chrome/browser/shared/public/commands/omnibox_commands.h"
 #import "ios/chrome/browser/ui/location_bar/location_bar_url_loader.h"
 
+@class BubblePresenter;
 @protocol BrowserCoordinatorCommands;
 @protocol EditViewAnimatee;
 @protocol LocationBarAnimatee;
 @protocol OmniboxPopupPresenterDelegate;
 @protocol OmniboxFocusDelegate;
+@protocol ToolbarOmniboxConsumer;
 
 // Location bar coordinator.
 @interface LocationBarCoordinator
@@ -29,6 +31,9 @@
 
 @property(nonatomic, weak) id<OmniboxPopupPresenterDelegate>
     popupPresenterDelegate;
+
+// Bubble presenter for displaying IPH bubbles relating to the toolbars.
+@property(nonatomic, strong) BubblePresenter* bubblePresenter;
 
 // Initializes this Coordinator with its `browser` and a nil base view
 // controller.
@@ -54,6 +59,9 @@
 
 // Target to forward omnibox-related scribble events to.
 - (UIResponder<UITextInput>*)omniboxScribbleForwardingTarget;
+
+// Returns the toolbar omnibox consumer.
+- (id<ToolbarOmniboxConsumer>)toolbarOmniboxConsumer;
 
 @end
 

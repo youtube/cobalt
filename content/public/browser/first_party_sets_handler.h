@@ -137,11 +137,13 @@ class CONTENT_EXPORT FirstPartySetsHandler {
   //
   // Embedder should call this method as early as possible during browser
   // startup if First-Party Sets are enabled, since no First-Party Sets queries
-  // are answered until initialization is complete. Must not be called if
-  // `ContentBrowserClient::WillProvidePublicFirstPartySets` returns false or
-  // `ContentBrowserClient::IsFrstpartySetsEnabled` returns false.
+  // are answered until initialization is complete.
   //
-  // Must be called at most once.
+  // If this is called when First-Party Sets are enabled, or the embedder has
+  // not indicated it will provide the public First-Party Sets, the call is
+  // ignored.
+  //
+  // If this is called more than once, all but the first call are ignored.
   virtual void SetPublicFirstPartySets(const base::Version& version,
                                        base::File sets_file) = 0;
 
@@ -195,9 +197,24 @@ class CONTENT_EXPORT FirstPartySetsHandler {
   virtual void ComputeFirstPartySetMetadata(
       const net::SchemefulSite& site,
       const net::SchemefulSite* top_frame_site,
-      const std::set<net::SchemefulSite>& party_context,
       const net::FirstPartySetsContextConfig& config,
       base::OnceCallback<void(net::FirstPartySetMetadata)> callback) = 0;
+
+  // Synchronously iterates over all the effective entries (i.e. anything that
+  // could be returned by `FindEntry` given the global First-Party Sets and
+  // `config`, including the manual set, policy sets, and aliases), and invokes
+  // `f` on each entry formed as a net::SchemefulSite and a
+  // net::FirstPartySetEntry. If any of these invocations returns false, then
+  // ForEachEffectiveSetEntry stops iterating over the entries and returns false
+  // to its caller. Otherwise, if each call to `f` returns true, then
+  // ForEachEffectiveSetEntry returns true.
+  //
+  // Also returns false if First-Party Sets was not yet initialized. No
+  // guarantees are made re: iteration order.
+  virtual bool ForEachEffectiveSetEntry(
+      const net::FirstPartySetsContextConfig& config,
+      base::FunctionRef<bool(const net::SchemefulSite&,
+                             const net::FirstPartySetEntry&)> f) const = 0;
 };
 
 }  // namespace content

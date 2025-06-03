@@ -10,6 +10,7 @@ import("//build/config/sanitizers/sanitizers.gni")
 import("//build/config/ui.gni")
 import("//build/config/win/console_app.gni")
 import("//build/config/win/manifest.gni")
+import("//device/vr/buildflags/buildflags.gni")
 import("//gpu/vulkan/features.gni")
 import("//media/media_options.gni")
 import("//mojo/public/tools/bindings/mojom.gni")
@@ -28,8 +29,8 @@ if (is_android) {
   import("//v8/gni/v8.gni")
 } else if (is_fuchsia) {
   import("//build/config/fuchsia/generate_runner_scripts.gni")
-  import("//third_party/fuchsia-sdk/sdk/build/component.gni")
-  import("//third_party/fuchsia-sdk/sdk/build/package.gni")
+  import("//third_party/fuchsia-gn-sdk/src/component.gni")
+  import("//third_party/fuchsia-gn-sdk/src/package.gni")
 } else if (is_ios) {
   import("//build/config/ios/config.gni")
 }
@@ -107,7 +108,6 @@ static_library("content_shell_app") {
     ]
   }
   if (is_apple) {
-    configs += [ "//build/config/compiler:enable_arc" ]
     sources += [
       "app/paths_mac.h",
       "app/paths_mac.mm",
@@ -123,7 +123,12 @@ static_library("content_shell_app") {
     sources += [
       "app/ios/shell_application_ios.h",
       "app/ios/shell_application_ios.mm",
+      "app/ios/web_tests_support_ios.h",
+      "app/ios/web_tests_support_ios.mm",
     ]
+  }
+  if (is_chromeos) {
+    deps += [ "//ui/gfx/linux:gbm" ]
   }
   defines = [
     "CONTENT_SHELL_VERSION=\"$content_shell_version\"",
@@ -211,19 +216,30 @@ static_library("content_shell_lib") {
       "browser/shell_platform_delegate_mac.mm",
       "browser/shell_web_contents_view_delegate_mac.mm",
     ]
-    configs += [ "//build/config/compiler:enable_arc" ]
   }
 
   if (is_ios) {
     sources += [
+      "browser/bluetooth/ios/shell_bluetooth_chooser_coordinator.h",
+      "browser/bluetooth/ios/shell_bluetooth_chooser_coordinator.mm",
+      "browser/bluetooth/ios/shell_bluetooth_chooser_ios.h",
+      "browser/bluetooth/ios/shell_bluetooth_chooser_ios.mm",
+      "browser/bluetooth/ios/shell_bluetooth_chooser_mediator.h",
+      "browser/bluetooth/ios/shell_bluetooth_chooser_mediator.mm",
+      "browser/bluetooth/ios/shell_bluetooth_device_list_consumer.h",
+      "browser/bluetooth/ios/shell_bluetooth_device_list_delegate.h",
+      "browser/bluetooth/ios/shell_bluetooth_device_list_view_controller.h",
+      "browser/bluetooth/ios/shell_bluetooth_device_list_view_controller.mm",
       "browser/bluetooth/shell_bluetooth_delegate_impl_client.cc",
       "browser/bluetooth/shell_bluetooth_delegate_impl_client.h",
+      "browser/color_chooser/shell_color_chooser_ios.h",
+      "browser/color_chooser/shell_color_chooser_ios.mm",
+      "browser/shell_browser_main_parts_ios.mm",
       "browser/shell_file_select_helper.cc",
       "browser/shell_file_select_helper.h",
       "browser/shell_platform_delegate_ios.mm",
       "browser/shell_web_contents_view_delegate_ios.mm",
     ]
-    configs += [ "//build/config/compiler:enable_arc" ]
   }
 
   if (is_win) {
@@ -290,7 +306,6 @@ static_library("content_shell_lib") {
     "//components/variations/service",
     "//components/web_cache/renderer",
     "//content:content_resources",
-    "//content:dev_ui_content_resources",
     "//content/common:main_frame_counter",
     "//content/public/common",
     "//content/test:content_test_mojo_bindings",
@@ -298,6 +313,7 @@ static_library("content_shell_lib") {
     "//device/bluetooth",
     "//media",
     "//media/mojo:buildflags",
+    "//media/mojo/services",
     "//net",
     "//net:net_resources",
     "//ppapi/buildflags",
@@ -325,10 +341,7 @@ static_library("content_shell_lib") {
       "browser/fuchsia_view_presenter.cc",
       "browser/fuchsia_view_presenter.h",
     ]
-    deps += [
-      "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.element:fuchsia.element_hlcpp",
-      "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.ui.policy:fuchsia.ui.policy_hlcpp",
-    ]
+    deps += [ "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.element:fuchsia.element_hlcpp" ]
   } else {
     deps += [
       "//components/crash/content/browser",
@@ -366,6 +379,7 @@ static_library("content_shell_lib") {
   if (is_ios) {
     deps += [
       "//components/permissions",
+      "//components/strings:components_strings",
       "//services/tracing/public/cpp",
       "//services/tracing/public/mojom:mojom",
       "//ui/shell_dialogs",
@@ -492,12 +506,14 @@ repack("pak") {
     "$root_gen_dir/content/browser/resources/media/media_internals_resources.pak",
     "$root_gen_dir/content/browser/webrtc/resources/webrtc_internals_resources.pak",
     "$root_gen_dir/content/content_resources.pak",
-    "$root_gen_dir/content/dev_ui_content_resources.pak",
     "$root_gen_dir/content/gpu_resources.pak",
     "$root_gen_dir/content/histograms_resources.pak",
+    "$root_gen_dir/content/process_resources.pak",
     "$root_gen_dir/content/quota_internals_resources.pak",
+    "$root_gen_dir/content/service_worker_resources.pak",
     "$root_gen_dir/content/shell/shell_resources.pak",
     "$root_gen_dir/content/test/web_ui_mojo_test_resources.pak",
+    "$root_gen_dir/content/traces_internals_resources.pak",
     "$root_gen_dir/mojo/public/js/mojo_bindings_resources.pak",
     "$root_gen_dir/net/net_resources.pak",
     "$root_gen_dir/third_party/blink/public/resources/blink_resources.pak",
@@ -516,7 +532,6 @@ repack("pak") {
     ":resources",
     "//base/tracing/protos:chrome_track_event_resources",
     "//content:content_resources",
-    "//content:dev_ui_content_resources",
     "//content/browser/resources:resources",
     "//content/browser/resources/media:resources",
     "//content/browser/webrtc/resources",
@@ -532,9 +547,24 @@ repack("pak") {
     "//ui/strings",
   ]
 
+  if (enable_vr) {
+    sources += [ "$root_gen_dir/content/webxr_internals_resources.pak" ]
+  }
+
   if (!is_android) {
     deps += [ "//content/browser/tracing:resources" ]
     sources += [ "$root_gen_dir/content/browser/tracing/tracing_resources.pak" ]
+  }
+
+  if (is_ios) {
+    sources += [
+      "$root_gen_dir/device/bluetooth/strings/bluetooth_strings_en-US.pak",
+      "${root_gen_dir}/components/strings/components_strings_en-US.pak",
+    ]
+    deps += [
+      "//components/strings:components_strings",
+      "//device/bluetooth/strings/",
+    ]
   }
 
   if (shell_use_toolkit_views) {
@@ -580,7 +610,7 @@ if (is_android) {
 
       # Despite its path, this does not add a //base dependency, see comments in
       # the .cc file.
-      "//base/allocator:early_zone_registration_mac",
+      "//base/allocator:early_zone_registration_apple",
       "//sandbox/mac:seatbelt",
     ]
     info_plist_target = ":content_shell_plist"
@@ -594,12 +624,7 @@ if (is_android) {
   declare_args() {
     # The bundle identifier. Overriding this will affect the provisioning profile
     # used, and hence will affect the app's capabilities.
-    if (ios_use_shared_bundle_id_for_test_apps) {
-      ios_content_shell_bundle_identifier = shared_bundle_id_for_test_apps
-    } else {
-      ios_content_shell_bundle_identifier =
-          "$ios_app_bundle_id_prefix.ios-content-shell"
-    }
+    ios_content_shell_bundle_identifier = shared_bundle_id_for_test_apps
 
     # Path to an entitlements file used in ios_content_shell. Can be overridden
     # to provide an alternative.
@@ -625,8 +650,6 @@ if (is_android) {
     ]
     entitlements_path = ios_content_shell_entitlements_path
     bundle_identifier = ios_content_shell_bundle_identifier
-
-    configs += [ "//build/config/compiler:enable_arc" ]
   }
 } else {
   executable("content_shell") {
@@ -642,6 +665,7 @@ if (is_android) {
 
     deps = [
       ":content_shell_app",
+      ":content_shell_lib",
       ":pak",
       "//build/win:default_exe_manifest",
       "//content/public/app",
@@ -665,6 +689,13 @@ if (is_android) {
         configs -= [ "//build/config/win:console" ]
         configs += [ "//build/config/win:windowed" ]
       }
+
+      # Limit pre-loaded modules to improve sandbox coverage in content_shell.
+      configs += [ "//build/config/win:delayloads" ]
+
+      # Increase the initial stack size. The default is 1MB, this is 8MB.
+      # This matches the chrome.exe.
+      ldflags = [ "/STACK:0x800000" ]
     }
 
     if (is_win) {
@@ -875,7 +906,7 @@ if (is_mac) {
         "CONTENT_SHELL_HELPER_BUNDLE_ID_SUFFIX=${invoker.helper_bundle_id_suffix}",
       ]
       deps = [
-        "//base/allocator:early_zone_registration_mac",
+        "//base/allocator:early_zone_registration_apple",
         "//sandbox/mac:seatbelt",
       ]
 

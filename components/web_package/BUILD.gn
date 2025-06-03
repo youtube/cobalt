@@ -8,8 +8,6 @@ static_library("web_package") {
   sources = [
     "input_reader.cc",
     "input_reader.h",
-    "shared_file.cc",
-    "shared_file.h",
     "signed_web_bundles/integrity_block_parser.cc",
     "signed_web_bundles/integrity_block_parser.h",
     "signed_web_bundles/signed_web_bundle_id.cc",
@@ -91,6 +89,10 @@ source_set("unit_tests") {
     "//mojo/public/cpp/test_support:test_utils",
     "//testing/gtest",
   ]
+
+  if (is_ios) {
+    deps += [ "//components/test:web_package_test_bundle_data" ]
+  }
 }
 
 fuzzer_test("web_bundle_parser_fuzzer") {

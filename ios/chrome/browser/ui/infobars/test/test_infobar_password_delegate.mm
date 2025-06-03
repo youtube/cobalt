@@ -16,10 +16,6 @@
 #import "ios/chrome/browser/infobars/infobar_utils.h"
 #import "testing/gmock/include/gmock/gmock.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 using password_manager::PasswordForm;
 using base::ASCIIToUTF16;
 
@@ -87,9 +83,10 @@ TestInfobarPasswordDelegate::TestInfobarPasswordDelegate(
     : IOSChromeSavePasswordInfoBarDelegate(
           "foobar@gmail.com",
           false,
-          password_manager::metrics_util::PasswordAccountStorageUserState::
+          password_manager::features_util::PasswordAccountStorageUserState::
               kSyncUser,
-          CreateFormManager()),
+          CreateFormManager(),
+          nullptr),
       infobar_message_(infobar_message) {}
 
 bool TestInfobarPasswordDelegate::Create(

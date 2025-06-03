@@ -22,7 +22,7 @@
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/base/metadata/metadata_types.h"
 #include "ui/base/ui_base_types.h"
-#include "ui/color/color_provider_manager.h"
+#include "ui/color/color_provider_key.h"
 #include "ui/color/color_provider_source.h"
 #include "ui/display/types/display_constants.h"
 #include "ui/events/event_source.h"
@@ -305,8 +305,8 @@ class VIEWS_EXPORT Widget : public internal::NativeWidgetDelegate,
     absl::optional<int> shadow_elevation;
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
-    ui::ColorProviderManager::ElevationMode background_elevation =
-        ui::ColorProviderManager::ElevationMode::kLow;
+    ui::ColorProviderKey::ElevationMode background_elevation =
+        ui::ColorProviderKey::ElevationMode::kLow;
 #endif
 
     // The window corner radius. May be ignored on some platforms.
@@ -349,13 +349,20 @@ class VIEWS_EXPORT Widget : public internal::NativeWidgetDelegate,
     // that way throughout. This should simply be a NativeWindow - windows are
     // parented to other windows, not to views, and it being a view confuses
     // the concept with bubble anchoring a la BubbleDialogDelegateView.
-    gfx::NativeView parent = nullptr;
+    gfx::NativeView parent = gfx::NativeView();
 
     // Specifies the initial bounds of the Widget. Default is empty, which means
     // the NativeWidget may specify a default size. If the parent is specified,
     // |bounds| is in the parent's coordinate system. If the parent is not
     // specified, it's in screen's global coordinate system.
     gfx::Rect bounds;
+
+#if BUILDFLAG(IS_CHROMEOS)
+    // If specified and the `bounds` is inside the specified display, the widget
+    // will be created on this display. Otherwise, the display matching the
+    // `bounds` will be used.
+    absl::optional<int64_t> display_id;
+#endif
 
     // The initial workspace of the Widget. Default is "", which means the
     // current workspace.
@@ -385,7 +392,7 @@ class VIEWS_EXPORT Widget : public internal::NativeWidgetDelegate,
     // where it wants your window placed.) Nullptr is not allowed on Windows and
     // Linux. Nullptr is allowed on Chrome OS, which will place the window on
     // the default desktop for new windows.
-    gfx::NativeWindow context = nullptr;
+    gfx::NativeWindow context = gfx::NativeWindow();
 
     // If true, forces the window to be shown in the taskbar, even for window
     // types that do not appear in the taskbar by default (popup and bubble).
@@ -442,6 +449,12 @@ class VIEWS_EXPORT Widget : public internal::NativeWidgetDelegate,
     // even if it matches with the compositor's keyboard shortcuts.
     bool inhibit_keyboard_shortcuts = false;
 #endif
+
+    // Directly sets the NativeTheme used by the Widget. Providing the
+    // NativeTheme here vs setting afterwards potentially avoids lots of
+    // notifications of theme changes.
+    // A value of null results in the default theme being used.
+    raw_ptr<ui::NativeTheme> native_theme = nullptr;
   };
 
   // Represents a lock held on the widget's ShouldPaintAsActive() state. As
@@ -510,11 +523,15 @@ class VIEWS_EXPORT Widget : public internal::NativeWidgetDelegate,
 
   // Returns all Widgets in |native_view|'s hierarchy, including itself if
   // it is one.
+  // TODO(tluk): This API should be updated to return Widgets rather than take
+  // an out param.
   static void GetAllChildWidgets(gfx::NativeView native_view,
                                  Widgets* children);
 
   // Returns all Widgets owned by |native_view| (including child widgets, but
   // not including itself).
+  // TODO(tluk): This API should be updated to return Widgets rather than take
+  // an out param.
   static void GetAllOwnedWidgets(gfx::NativeView native_view, Widgets* owned);
 
   // Re-parent a NativeView and notify all Widgets in |native_view|'s hierarchy
@@ -819,8 +836,8 @@ class VIEWS_EXPORT Widget : public internal::NativeWidgetDelegate,
   virtual const ui::ThemeProvider* GetThemeProvider() const;
 
   // Returns a custom theme object suitable for use in a
-  // ColorProviderManager::Key. If this is null, the window has no custom theme.
-  virtual ui::ColorProviderManager::ThemeInitializerSupplier* GetCustomTheme()
+  // ColorProviderKey. If this is null, the window has no custom theme.
+  virtual ui::ColorProviderKey::ThemeInitializerSupplier* GetCustomTheme()
       const;
 
   ui::NativeTheme* GetNativeTheme() {
@@ -921,10 +938,6 @@ class VIEWS_EXPORT Widget : public internal::NativeWidgetDelegate,
   // Determines whether the window contents should be rendered transparently
   // (for example, so that they can overhang onto the window title bar).
   bool ShouldWindowContentsBeTransparent() const;
-
-  // Forces the frame into the alternate frame type (custom or native) depending
-  // on its current state.
-  void DebugToggleFrameType();
 
   // Tell the window that something caused the frame type to change.
   void FrameTypeChanged();
@@ -1141,15 +1154,22 @@ class VIEWS_EXPORT Widget : public internal::NativeWidgetDelegate,
   // Sets an override for `color_mode` when `GetColorProvider()` is requested.
   // e.g. if set to kDark, colors will always be for the dark theme.
   void SetColorModeOverride(
-      absl::optional<ui::ColorProviderManager::ColorMode> color_mode);
+      absl::optional<ui::ColorProviderKey::ColorMode> color_mode);
 
   // ui::ColorProviderSource:
   const ui::ColorProvider* GetColorProvider() const override;
 
-  // Set the native theme from which this widget gets color from.
+  // Set the native theme from which this widget gets color from for testing.
   void SetNativeThemeForTest(ui::NativeTheme* native_theme) {
     SetNativeTheme(native_theme);
+    native_theme_set_for_testing_ = true;
   }
+
+  ui::ColorProviderKey GetColorProviderKeyForTesting() const;
+
+  // Causes IsFullscreen() to also check parent state, since this widget is
+  // logically part of the same window as the parent.
+  void SetCheckParentForFullscreen();
 
  protected:
   // Creates the RootView to be used within this Widget. Subclasses may override
@@ -1187,8 +1207,7 @@ class VIEWS_EXPORT Widget : public internal::NativeWidgetDelegate,
   void SetVisible(bool visible);
 
   // ui::ColorProviderSource:
-  ui::ColorProviderManager::Key GetColorProviderKey() const override;
-  absl::optional<SkColor> GetUserColor() const override;
+  ui::ColorProviderKey GetColorProviderKey() const override;
 
  private:
   // Type of ways to ignore activation changes.
@@ -1322,13 +1341,13 @@ class VIEWS_EXPORT Widget : public internal::NativeWidgetDelegate,
   bool is_secondary_widget_ = true;
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
-  ui::ColorProviderManager::ElevationMode background_elevation_ =
-      ui::ColorProviderManager::ElevationMode::kLow;
+  ui::ColorProviderKey::ElevationMode background_elevation_ =
+      ui::ColorProviderKey::ElevationMode::kLow;
 #endif
 
   // If set, overrides this value is used instead of the one from NativeTheme
   // when constructing a ColorProvider.
-  absl::optional<ui::ColorProviderManager::ColorMode> color_mode_override_;
+  absl::optional<ui::ColorProviderKey::ColorMode> color_mode_override_;
 
   // The current frame type in use by this window. Defaults to
   // FrameType::kDefault.
@@ -1412,6 +1431,17 @@ class VIEWS_EXPORT Widget : public internal::NativeWidgetDelegate,
   // The native theme this widget is using.
   // If nullptr, defaults to use the regular native theme.
   raw_ptr<ui::NativeTheme> native_theme_ = nullptr;
+
+  // A flag that prevents the widget from updating its instance of
+  // `native_theme_`. This is necessary during testing as theme updates may
+  // trigger a reset of the explicitly set test theme.
+  bool native_theme_set_for_testing_ = false;
+
+  // By default, widgets are assumed to correspond to windows. If a parent
+  // widget is fullscreen, then the child widget is a popup which is not
+  // fullscreen. However, on macOS some child widgets logically correspond to
+  // the same window. Their fullscreen state should inherit from their parents.
+  bool check_parent_for_fullscreen_ = false;
 
   base::ScopedObservation<ui::NativeTheme, ui::NativeThemeObserver>
       native_theme_observation_{this};

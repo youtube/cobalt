@@ -17,13 +17,14 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
+#include "chrome/browser/ash/login/demo_mode/demo_mode_dimensions.h"
+#include "chrome/browser/ash/login/demo_mode/demo_setup_controller.h"
 #include "chrome/browser/ash/ownership/owner_settings_service_ash.h"
-#include "chrome/browser/ash/policy/active_directory/active_directory_join_delegate.h"
 #include "chrome/browser/ash/policy/core/device_cloud_policy_store_ash.h"
-#include "chrome/browser/ash/policy/core/dm_token_storage.h"
 #include "chrome/browser/ash/policy/dev_mode/dev_mode_policy_util.h"
 #include "chrome/browser/ash/policy/enrollment/auto_enrollment_type_checker.h"
 #include "chrome/browser/ash/policy/enrollment/enrollment_config.h"
+#include "chrome/browser/ash/policy/enrollment/enrollment_requisition_manager.h"
 #include "chrome/browser/ash/policy/enrollment/enrollment_status.h"
 #include "chrome/browser/ash/policy/enrollment/tpm_enrollment_key_signing_service.h"
 #include "chrome/browser/ash/policy/server_backed_state/server_backed_state_keys_broker.h"
@@ -32,7 +33,6 @@
 #include "chrome/common/pref_names.h"
 #include "chromeos/ash/components/attestation/attestation_features.h"
 #include "chromeos/ash/components/attestation/attestation_flow.h"
-#include "chromeos/ash/components/dbus/authpolicy/authpolicy_client.h"
 #include "chromeos/ash/components/dbus/constants/attestation_constants.h"
 #include "chromeos/ash/components/dbus/cryptohome/rpc.pb.h"
 #include "chromeos/ash/components/dbus/dbus_thread_manager.h"
@@ -74,8 +74,8 @@ em::DeviceRegisterRequest::Flavor EnrollmentModeToRegistrationFlavor(
     EnrollmentConfig::Mode mode) {
   switch (mode) {
     case EnrollmentConfig::MODE_NONE:
-    case EnrollmentConfig::OBSOLETE_MODE_ENROLLED_ROLLBACK:
-    case EnrollmentConfig::MODE_OFFLINE_DEMO_DEPRECATED:
+    case EnrollmentConfig::DEPRECATED_MODE_ENROLLED_ROLLBACK:
+    case EnrollmentConfig::DEPRECATED_MODE_OFFLINE_DEMO:
       break;
     case EnrollmentConfig::MODE_MANUAL:
       return em::DeviceRegisterRequest::FLAVOR_ENROLLMENT_MANUAL;
@@ -170,25 +170,7 @@ absl::optional<int64_t> GetPsmDeterminationTimestamp(
   // we already checked the existence of the pref with non-default value.
   DCHECK(!psm_determination_timestamp.is_null());
 
-  return psm_determination_timestamp.ToJavaTime();
-}
-
-// Returns binary config which is encrypted by a password that the joining user
-// has to enter.
-std::string GetActiveDirectoryDomainJoinConfig(
-    const base::Value::Dict* config) {
-  if (!config)
-    return std::string();
-  const std::string* base64_value =
-      config->FindString("active_directory_domain_join_config");
-  if (!base64_value)
-    return std::string();
-  std::string result;
-  if (!base::Base64Decode(*base64_value, &result)) {
-    LOG(ERROR) << "Active Directory config is not base64";
-    return std::string();
-  }
-  return result;
+  return psm_determination_timestamp.InMillisecondsSinceUnixEpoch();
 }
 
 }  // namespace
@@ -200,7 +182,6 @@ EnrollmentHandler::EnrollmentHandler(
     ash::attestation::AttestationFlow* attestation_flow,
     std::unique_ptr<CloudPolicyClient> client,
     scoped_refptr<base::SequencedTaskRunner> background_task_runner,
-    ActiveDirectoryJoinDelegate* ad_join_delegate,
     const EnrollmentConfig& enrollment_config,
     LicenseType license_type,
     DMAuth dm_auth,
@@ -216,7 +197,6 @@ EnrollmentHandler::EnrollmentHandler(
           std::make_unique<TpmEnrollmentKeySigningServiceProvider>()),
       client_(std::move(client)),
       background_task_runner_(background_task_runner),
-      ad_join_delegate_(ad_join_delegate),
       enrollment_config_(enrollment_config),
       client_id_(client_id),
       sub_organization_(sub_organization),
@@ -246,6 +226,11 @@ EnrollmentHandler::EnrollmentHandler(
 
   register_params_->requisition = requisition;
 
+  if (requisition == EnrollmentRequisitionManager::kDemoRequisition) {
+    register_params_->demo_mode_dimensions =
+        ash::demo_mode::GetDemoModeDimensions();
+  }
+
   store_->AddObserver(this);
   client_->AddObserver(this);
   client_->AddPolicyTypeToFetch(dm_protocol::kChromeDevicePolicyType,
@@ -269,18 +254,18 @@ void EnrollmentHandler::StartEnrollment() {
 
   if (client_->machine_id().empty()) {
     LOG(ERROR) << "Machine id empty.";
-    ReportResult(EnrollmentStatus::ForStatus(
-        EnrollmentStatus::NO_MACHINE_IDENTIFICATION));
+    ReportResult(EnrollmentStatus::ForEnrollmentCode(
+        EnrollmentStatus::Code::kNoMachineIdentification));
     return;
   }
   if (client_->machine_model().empty()) {
     LOG(ERROR) << "Machine model empty.";
-    ReportResult(EnrollmentStatus::ForStatus(
-        EnrollmentStatus::NO_MACHINE_IDENTIFICATION));
+    ReportResult(EnrollmentStatus::ForEnrollmentCode(
+        EnrollmentStatus::Code::kNoMachineIdentification));
     return;
   }
 
-  // Currently reven devices don't support sever-backed state keys, but they
+  // Currently reven devices don't support server-backed state keys, but they
   // also don't support FRE/AutoRE so don't block enrollment on the
   // availability of state keys.
   // TODO(b/208705225): Remove this special case when reven supports state keys.
@@ -345,30 +330,21 @@ void EnrollmentHandler::OnRegistrationStateChanged(CloudPolicyClient* client) {
 
   device_mode_ = client_->device_mode();
 
-  // If the management mode setting from DM Server is Active Directory, we
-  // override this setting to cloud management (b/259180126).
-  if (device_mode_ == DEVICE_MODE_ENTERPRISE_AD) {
-    device_mode_ = DEVICE_MODE_ENTERPRISE;
-  }
-
   switch (device_mode_) {
     case DEVICE_MODE_ENTERPRISE:
     case DEVICE_MODE_DEMO:
       // Do nothing.
       break;
-    case DEVICE_MODE_ENTERPRISE_AD:
-      ash::UpstartClient::Get()->StartAuthPolicyService();
-      break;
     default:
       LOG(ERROR) << "Supplied device mode is not supported:" << device_mode_;
-      ReportResult(
-          EnrollmentStatus::ForStatus(EnrollmentStatus::REGISTRATION_BAD_MODE));
+      ReportResult(EnrollmentStatus::ForEnrollmentCode(
+          EnrollmentStatus::Code::kRegistrationBadMode));
       return;
   }
   // Only use DMToken from now on.
   dm_auth_ = DMAuth::FromDMToken(client_->dm_token());
   SetStep(STEP_POLICY_FETCH);
-  client_->FetchPolicy();
+  client_->FetchPolicy(PolicyFetchReason::kDeviceEnrollment);
 }
 
 void EnrollmentHandler::OnClientError(CloudPolicyClient* client) {
@@ -397,7 +373,8 @@ void EnrollmentHandler::OnStoreLoaded(CloudPolicyStore* store) {
     // again after the store finishes loading.
     StartRegistration();
   } else if (enrollment_step_ == STEP_STORE_POLICY) {
-    ReportResult(EnrollmentStatus::ForStatus(EnrollmentStatus::SUCCESS));
+    ReportResult(
+        EnrollmentStatus::ForEnrollmentCode(EnrollmentStatus::Code::kSuccess));
   }
 }
 
@@ -432,8 +409,8 @@ void EnrollmentHandler::HandleStateKeysResult(
         state_keys_broker_->current_state_key();
     if (state_keys.empty() || register_params_->current_state_key.empty()) {
       LOG(ERROR) << "State keys empty.";
-      ReportResult(
-          EnrollmentStatus::ForStatus(EnrollmentStatus::NO_STATE_KEYS));
+      ReportResult(EnrollmentStatus::ForEnrollmentCode(
+          EnrollmentStatus::Code::kNoStateKeys));
       return;
     }
   }
@@ -521,8 +498,7 @@ void EnrollmentHandler::HandleRegistrationCertificateResult(
     ash::attestation::AttestationStatus status,
     const std::string& pem_certificate_chain) {
   if (status != ash::attestation::ATTESTATION_SUCCESS) {
-    ReportResult(EnrollmentStatus::ForStatus(
-        EnrollmentStatus::REGISTRATION_CERT_FETCH_FAILED));
+    ReportResult(EnrollmentStatus::ForAttestationError(status));
     return;
   }
 
@@ -563,30 +539,23 @@ void EnrollmentHandler::HandlePolicyValidationResult(
 
   if (GetDeviceBlockDevModePolicyValue(*policy_) &&
       !IsDeviceBlockDevModePolicyAllowed()) {
-    ReportResult(
-        EnrollmentStatus::ForStatus(EnrollmentStatus::MAY_NOT_BLOCK_DEV_MODE));
+    ReportResult(EnrollmentStatus::ForEnrollmentCode(
+        EnrollmentStatus::Code::kMayNotBlockDevMode));
     return;
   }
 
-  if (device_mode_ == DEVICE_MODE_ENTERPRISE_AD) {
-    // Don't use robot account for the Active Directory managed devices.
-    skip_robot_auth_ = true;
-    SetStep(STEP_AD_DOMAIN_JOIN);
-    StartJoinAdDomain();
-  } else {
-    domain_ = gaia::ExtractDomainName(gaia::CanonicalizeEmail(username));
-    SetStep(STEP_ROBOT_AUTH_FETCH);
-    device_account_initializer_ =
-        std::make_unique<DeviceAccountInitializer>(client_.get(), this);
-    device_account_initializer_->FetchToken();
-  }
+  domain_ = gaia::ExtractDomainName(gaia::CanonicalizeEmail(username));
+  SetStep(STEP_ROBOT_AUTH_FETCH);
+  device_account_initializer_ =
+      std::make_unique<DeviceAccountInitializer>(client_.get(), this);
+  device_account_initializer_->FetchToken();
 }
 
 void EnrollmentHandler::OnDeviceAccountTokenFetched(bool empty_token) {
   CHECK_EQ(STEP_ROBOT_AUTH_FETCH, enrollment_step_);
   skip_robot_auth_ = empty_token;
-  SetStep(STEP_AD_DOMAIN_JOIN);
-  StartJoinAdDomain();
+  SetStep(STEP_SET_FWMP_DATA);
+  SetFirmwareManagementParametersData();
 }
 
 void EnrollmentHandler::OnDeviceAccountTokenFetchError(
@@ -595,15 +564,15 @@ void EnrollmentHandler::OnDeviceAccountTokenFetchError(
   if (dm_status.has_value()) {
     ReportResult(EnrollmentStatus::ForRobotAuthFetchError(dm_status.value()));
   } else {
-    ReportResult(EnrollmentStatus::ForStatus(
-        EnrollmentStatus::ROBOT_REFRESH_FETCH_FAILED));
+    ReportResult(EnrollmentStatus::ForEnrollmentCode(
+        EnrollmentStatus::Code::kRobotRefreshFetchFailed));
   }
 }
 
 void EnrollmentHandler::OnDeviceAccountTokenStoreError() {
   CHECK_EQ(enrollment_step_, STEP_STORE_ROBOT_AUTH);
-  ReportResult(EnrollmentStatus::ForStatus(
-      EnrollmentStatus::ROBOT_REFRESH_STORE_FAILED));
+  ReportResult(EnrollmentStatus::ForEnrollmentCode(
+      EnrollmentStatus::Code::kRobotRefreshStoreFailed));
 }
 
 void EnrollmentHandler::OnDeviceAccountClientError(
@@ -666,29 +635,6 @@ void EnrollmentHandler::OnFirmwareManagementParametersDataSet(
   StartLockDevice();
 }
 
-void EnrollmentHandler::StartJoinAdDomain() {
-  DCHECK_EQ(STEP_AD_DOMAIN_JOIN, enrollment_step_);
-  if (device_mode_ != DEVICE_MODE_ENTERPRISE_AD) {
-    SetStep(STEP_SET_FWMP_DATA);
-    SetFirmwareManagementParametersData();
-    return;
-  }
-  DCHECK(ad_join_delegate_);
-  ad_join_delegate_->JoinDomain(
-      client_->dm_token(),
-      GetActiveDirectoryDomainJoinConfig(client_->configuration_seed()),
-      base::BindOnce(&EnrollmentHandler::OnAdDomainJoined,
-                     weak_ptr_factory_.GetWeakPtr()));
-}
-
-void EnrollmentHandler::OnAdDomainJoined(const std::string& realm) {
-  DCHECK_EQ(STEP_AD_DOMAIN_JOIN, enrollment_step_);
-  CHECK(!realm.empty());
-  realm_ = realm;
-  SetStep(STEP_SET_FWMP_DATA);
-  SetFirmwareManagementParametersData();
-}
-
 void EnrollmentHandler::StartLockDevice() {
   DCHECK_EQ(STEP_LOCK_DEVICE, enrollment_step_);
   // Since this method is also called directly.
@@ -700,27 +646,12 @@ void EnrollmentHandler::StartLockDevice() {
                      weak_ptr_factory_.GetWeakPtr()));
 }
 
-void EnrollmentHandler::HandleDMTokenStoreResult(bool success) {
-  CHECK_EQ(STEP_STORE_TOKEN, enrollment_step_);
-  if (!success) {
-    ReportResult(
-        EnrollmentStatus::ForStatus(EnrollmentStatus::DM_TOKEN_STORE_FAILED));
-    return;
-  }
-
-  StartStoreRobotAuth();
-}
-
 void EnrollmentHandler::HandleLockDeviceResult(
     ash::InstallAttributes::LockResult lock_result) {
   DCHECK_EQ(STEP_LOCK_DEVICE, enrollment_step_);
   switch (lock_result) {
     case ash::InstallAttributes::LOCK_SUCCESS:
-      if (device_mode_ == DEVICE_MODE_ENTERPRISE_AD) {
-        StartStoreDMToken();
-      } else {
-        StartStoreRobotAuth();
-      }
+      StartStoreRobotAuth();
       break;
     case ash::InstallAttributes::LOCK_NOT_READY:
       // We wait up to |kLockRetryTimeoutMs| milliseconds and if it hasn't
@@ -752,17 +683,6 @@ void EnrollmentHandler::HandleLockDeviceResult(
   }
 }
 
-void EnrollmentHandler::StartStoreDMToken() {
-  DCHECK(device_mode_ == DEVICE_MODE_ENTERPRISE_AD);
-  SetStep(STEP_STORE_TOKEN);
-  dm_token_storage_ =
-      std::make_unique<DMTokenStorage>(g_browser_process->local_state());
-  dm_token_storage_->StoreDMToken(
-      client_->dm_token(),
-      base::BindOnce(&EnrollmentHandler::HandleDMTokenStoreResult,
-                     weak_ptr_factory_.GetWeakPtr()));
-}
-
 void EnrollmentHandler::StartStoreRobotAuth() {
   SetStep(STEP_STORE_ROBOT_AUTH);
 
@@ -777,33 +697,7 @@ void EnrollmentHandler::StartStoreRobotAuth() {
 void EnrollmentHandler::OnDeviceAccountTokenStored() {
   DCHECK_EQ(STEP_STORE_ROBOT_AUTH, enrollment_step_);
   SetStep(STEP_STORE_POLICY);
-  if (device_mode_ == DEVICE_MODE_ENTERPRISE_AD) {
-    CHECK(install_attributes_->IsActiveDirectoryManaged());
-    // Update device settings so that in case of Active Directory unsigned
-    // policy is accepted.
-    ash::DeviceSettingsService::Get()->SetDeviceMode(
-        install_attributes_->GetMode());
-    ash::AuthPolicyClient::Get()->RefreshDevicePolicy(
-        base::BindOnce(&EnrollmentHandler::HandleActiveDirectoryPolicyRefreshed,
-                       weak_ptr_factory_.GetWeakPtr()));
-  } else {
-    store_->InstallInitialPolicy(*policy_);
-  }
-}
-
-void EnrollmentHandler::HandleActiveDirectoryPolicyRefreshed(
-    authpolicy::ErrorType error) {
-  DCHECK_EQ(STEP_STORE_POLICY, enrollment_step_);
-
-  if (error != authpolicy::ERROR_NONE) {
-    LOG(ERROR) << "Failed to load Active Directory policy.";
-    ReportResult(EnrollmentStatus::ForStatus(
-        EnrollmentStatus::ACTIVE_DIRECTORY_POLICY_FETCH_FAILED));
-    return;
-  }
-
-  // After that, the enrollment flow continues in one of the OnStore* observers.
-  store_->Load();
+  store_->InstallInitialPolicy(*policy_);
 }
 
 void EnrollmentHandler::Stop() {
@@ -822,8 +716,8 @@ void EnrollmentHandler::ReportResult(EnrollmentStatus status) {
   EnrollmentCallback callback = std::move(completion_callback_);
   Stop();
 
-  if (status.status() != EnrollmentStatus::SUCCESS) {
-    LOG(WARNING) << "Enrollment failed: " << status.status()
+  if (status.enrollment_code() != EnrollmentStatus::Code::kSuccess) {
+    LOG(WARNING) << "Enrollment failed: " << status.enrollment_code()
                  << ", client: " << status.client_status()
                  << ", validation: " << status.validation_status()
                  << ", store: " << status.store_status()

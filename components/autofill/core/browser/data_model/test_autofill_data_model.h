@@ -13,10 +13,8 @@ namespace autofill {
 
 class TestAutofillDataModel : public AutofillDataModel {
  public:
-  TestAutofillDataModel(const std::string& guid, const std::string& origin);
-  TestAutofillDataModel(const std::string& guid,
-                        size_t use_count,
-                        base::Time use_date);
+  explicit TestAutofillDataModel();
+  TestAutofillDataModel(size_t use_count, base::Time use_date);
 
   TestAutofillDataModel(const TestAutofillDataModel&) = delete;
   TestAutofillDataModel& operator=(const TestAutofillDataModel&) = delete;

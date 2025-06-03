@@ -5,6 +5,7 @@
 
 from __future__ import print_function
 
+import copy
 import json
 import os
 import re
@@ -16,38 +17,61 @@ sys.path.append(
     os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
 from scripts import common
 
-# A list of files that are allowed to have static initializers.
-# If something adds a static initializer, revert it. We don't accept regressions
-# in static initializers.
-_LINUX_SI_FILE_ALLOWLIST = {
-    'chrome': [
-        'InstrProfilingRuntime.cpp',  # Only in coverage builds, not production.
-        'crtstuff.c',  # Added by libgcc due to USE_EH_FRAME_REGISTRY.
-        'iostream.cpp',  # TODO(crbug.com/973554): Remove.
-    ],
-    'nacl_helper_bootstrap': [],
-}
-_LINUX_SI_FILE_ALLOWLIST['nacl_helper'] = _LINUX_SI_FILE_ALLOWLIST['chrome']
+CHROMIUM_ROOT = os.path.join(os.path.dirname(__file__), os.pardir, os.pardir)
+BUILD_DIR = os.path.join(CHROMIUM_ROOT, 'build')
 
-# The lists for Chrome OS are conceptually the same as the Linux ones above.
+if BUILD_DIR not in sys.path:
+  sys.path.insert(0, BUILD_DIR)
+import gn_helpers
+
+
+# A list of filename regexes that are allowed to have static initializers.
 # If something adds a static initializer, revert it. We don't accept regressions
 # in static initializers.
-_CROS_SI_FILE_ALLOWLIST = {
+_SHARED_LINUX_CROS_SI_ALLOWLIST = {
     'chrome': [
-        'InstrProfilingRuntime.cpp',  # Only in coverage builds, not production.
-        'iostream.cpp:',  # TODO(crbug.com/973554): Remove.
-        '000100',   # libc++ uses init_priority 100 for iostreams.
+        # Only in coverage builds, not production.
+        'InstrProfilingRuntime\\.cpp : ' +
+        '_GLOBAL__sub_I_InstrProfilingRuntime\\.cpp',
+
+        # TODO(crbug.com/973554): Remove.
+        'iostream\\.cpp : _GLOBAL__I_000100',
+
+        # TODO(crbug.com/1445935): Rust stdlib argv handling.
+        # https://github.com/rust-lang/rust/blob/b08148f6a76010ea3d4e91d61245aa7aac59e4b4/library/std/src/sys/unix/args.rs#L107-L127
+        # https://github.com/rust-lang/rust/issues/111921
+        '.* : std::sys::unix::args::imp::ARGV_INIT_ARRAY::init_wrapper',
     ],
     'nacl_helper_bootstrap': [],
 }
-_CROS_SI_FILE_ALLOWLIST['nacl_helper'] = _LINUX_SI_FILE_ALLOWLIST['chrome']
+
+# The lists for Linux and ChromeOS are similar, but some Linux-specific entries
+# need to be added below.  If something adds a static initializer, revert it. We
+# don't accept regressions in static initializers.
+_LINUX_SI_ALLOWLIST = copy.deepcopy(_SHARED_LINUX_CROS_SI_ALLOWLIST)
+_LINUX_SI_ALLOWLIST['chrome'].extend([
+    # Added by libgcc due to USE_EH_FRAME_REGISTRY.
+    'crtstuff\\.c : frame_dummy',
+])
+
+# The lists for Linux and ChromeOS are similar, but some ChromeOS-specific
+# entries need to be added below.  If something adds a static initializer,
+# revert it. We don't accept regressions in static initializers.
+_CROS_SI_ALLOWLIST = copy.deepcopy(_SHARED_LINUX_CROS_SI_ALLOWLIST)
+_CROS_SI_ALLOWLIST['chrome'].extend([
+    '.*000100.*',       # libc++ uses init_priority 100 for iostreams.
+])
+
+# `nacl_helper` has the same expectations on Linux and CrOS.
+_LINUX_SI_ALLOWLIST['nacl_helper'] = _LINUX_SI_ALLOWLIST['chrome']
+_CROS_SI_ALLOWLIST['nacl_helper'] = _LINUX_SI_ALLOWLIST['chrome']
 
 # Mac can use this list when a dsym is available, otherwise it will fall back
 # to checking the count.
 _MAC_SI_FILE_ALLOWLIST = [
-    'InstrProfilingRuntime.cpp', # Only in coverage builds, not in production.
-    'sysinfo.cc', # Only in coverage builds, not in production.
-    'iostream.cpp', # Used to setup std::cin/cout/cerr.
+    'InstrProfilingRuntime\\.cpp', # Only in coverage builds, not in production.
+    'sysinfo\\.cc', # Only in coverage builds, not in production.
+    'iostream\\.cpp', # Used to setup std::cin/cout/cerr.
     '000100', # Used to setup std::cin/cout/cerr
 ]
 
@@ -153,7 +177,7 @@ def main_mac(src_dir, hermetic_xcode_path, allow_coverage_initializer = False):
               [dump_static_initializers, chromium_framework_dsym])
           for line in stdout:
             if re.match('0x[0-9a-f]+', line) and not any(
-                f in line for f in _MAC_SI_FILE_ALLOWLIST):
+                re.match(f, line) for f in _MAC_SI_FILE_ALLOWLIST):
               ret = 1
               print('Found invalid static initializer: {}'.format(line))
           print(stdout)
@@ -185,8 +209,8 @@ def main_mac(src_dir, hermetic_xcode_path, allow_coverage_initializer = False):
 
 def main_linux(src_dir, is_chromeos):
   ret = 0
-  allowlist = _CROS_SI_FILE_ALLOWLIST if is_chromeos else \
-      _LINUX_SI_FILE_ALLOWLIST
+  allowlist = _CROS_SI_ALLOWLIST if is_chromeos else \
+      _LINUX_SI_ALLOWLIST
   for binary_name in allowlist:
     if not os.path.exists(binary_name):
       continue
@@ -197,9 +221,11 @@ def main_linux(src_dir, is_chromeos):
     entries = json.loads(stdout)['entries']
 
     for e in entries:
-      # Also remove line number suffix.
+      # Get the basename and remove line number suffix.
       basename = os.path.basename(e['filename']).split(':')[0]
-      if basename not in allowlist[binary_name]:
+      symbol = e['symbol_name']
+      descriptor = f"{basename} : {symbol}"
+      if not any(re.match(p, descriptor) for p in allowlist[binary_name]):
         ret = 1
         print(('Error: file "%s" is not expected to have static initializers in'
                ' binary "%s", but found "%s"') % (e['filename'], binary_name,
@@ -215,11 +241,17 @@ def main_linux(src_dir, is_chromeos):
 
 
 def main_run(args):
-  if args.build_config_fs != 'Release':
+  if args.build_dir:
+    with open(os.path.join(args.build_dir, 'args.gn')) as f:
+      gn_args = gn_helpers.FromGNArgs(f.read())
+    if gn_args.get('is_debug') or gn_args.get('is_official_build'):
+      raise Exception('Only release builds are supported')
+  elif args.build_config_fs != 'Release':
     raise Exception('Only release builds are supported')
 
   src_dir = args.paths['checkout']
-  build_dir = os.path.join(src_dir, 'out', args.build_config_fs)
+  build_dir = args.build_dir or os.path.join(src_dir, 'out',
+                                             args.build_config_fs)
   os.chdir(build_dir)
 
   if sys.platform.startswith('darwin'):

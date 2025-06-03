@@ -7,15 +7,12 @@
 #import <stdint.h>
 
 #import "base/logging.h"
-#import "base/strings/stringprintf.h"
+#import "base/strings/strcat.h"
+#import "base/strings/string_number_conversions.h"
 #import "base/system/sys_info.h"
 #import "build/build_config.h"
 #import "components/policy/core/browser/browser_policy_connector.h"
 #import "components/version_info/version_info.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace policy {
 
@@ -36,9 +33,9 @@ std::string DeviceManagementServiceConfigurationIOS::GetDMServerUrl() const {
 }
 
 std::string DeviceManagementServiceConfigurationIOS::GetAgentParameter() const {
-  return base::StringPrintf("%s %s(%s)", version_info::GetProductName().c_str(),
-                            version_info::GetVersionNumber().c_str(),
-                            version_info::GetLastChange().c_str());
+  return base::StrCat({version_info::GetProductName(), " ",
+                       version_info::GetVersionNumber(), "(",
+                       version_info::GetLastChange(), ")"});
 }
 
 std::string DeviceManagementServiceConfigurationIOS::GetPlatformParameter()
@@ -53,11 +50,11 @@ std::string DeviceManagementServiceConfigurationIOS::GetPlatformParameter()
   int32_t os_bugfix_version = 0;
   base::SysInfo::OperatingSystemVersionNumbers(
       &os_major_version, &os_minor_version, &os_bugfix_version);
-  os_version = base::StringPrintf("%d.%d.%d", os_major_version,
-                                  os_minor_version, os_bugfix_version);
+  os_version = base::StrCat({base::NumberToString(os_major_version), ".",
+                             base::NumberToString(os_minor_version), ".",
+                             base::NumberToString(os_bugfix_version)});
 
-  return base::StringPrintf("%s|%s|%s", os_name.c_str(), os_hardware.c_str(),
-                            os_version.c_str());
+  return base::StrCat({os_name, "|", os_hardware, "|", os_version});
 }
 
 std::string

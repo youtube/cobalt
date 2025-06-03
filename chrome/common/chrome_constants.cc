@@ -6,7 +6,6 @@
 
 #include "build/branding_buildflags.h"
 #include "build/build_config.h"
-#include "chrome/browser/chrome_for_testing/buildflags.h"
 #include "chrome/common/chrome_version.h"
 
 #define FPL FILE_PATH_LITERAL
@@ -74,6 +73,14 @@ const base::FilePath::CharType kHelperProcessExecutablePath[] =
 #elif BUILDFLAG(IS_MAC)
 const base::FilePath::CharType kBrowserProcessExecutablePath[] =
     FPL(PRODUCT_STRING ".app/Contents/MacOS/" PRODUCT_STRING);
+const base::FilePath::CharType
+    kGoogleChromeForTestingBrowserProcessExecutablePath[] =
+        FPL("Google Chrome for Testing.app/Contents/MacOS/Google Chrome for "
+            "Testing");
+const base::FilePath::CharType kGoogleChromeBrowserProcessExecutablePath[] =
+    FPL("Google Chrome.app/Contents/MacOS/Google Chrome");
+const base::FilePath::CharType kChromiumBrowserProcessExecutablePath[] =
+    FPL("Chromium.app/Contents/MacOS/Chromium");
 const base::FilePath::CharType kHelperProcessExecutablePath[] =
     FPL(PRODUCT_STRING " Helper.app/Contents/MacOS/" PRODUCT_STRING " Helper");
 #elif BUILDFLAG(IS_ANDROID)
@@ -103,11 +110,10 @@ const char kInitialProfile[] = "Default";
 const char kMultiProfileDirPrefix[] = "Profile ";
 const base::FilePath::CharType kGuestProfileDir[] = FPL("Guest Profile");
 const base::FilePath::CharType kSystemProfileDir[] = FPL("System Profile");
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-const char kWebAppProfilePrefix[] = "web-app-profile-";
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
 
 // filenames
+const base::FilePath::CharType kAccountPreferencesFilename[] =
+    FPL("AccountPreferences");
 const base::FilePath::CharType kCacheDirname[] = FPL("Cache");
 const base::FilePath::CharType kCookieFilename[] = FPL("Cookies");
 const base::FilePath::CharType kCRLSetFilename[] =

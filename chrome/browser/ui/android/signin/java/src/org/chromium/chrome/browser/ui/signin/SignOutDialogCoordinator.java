@@ -15,11 +15,10 @@ import androidx.annotation.MainThread;
 import androidx.annotation.StringRes;
 import androidx.annotation.VisibleForTesting;
 
+import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.chrome.browser.preferences.Pref;
 import org.chromium.chrome.browser.profiles.Profile;
-import org.chromium.chrome.browser.profiles.ProfileAccountManagementMetrics;
 import org.chromium.chrome.browser.signin.services.IdentityServicesProvider;
-import org.chromium.chrome.browser.signin.services.SigninMetricsUtils;
 import org.chromium.components.signin.GAIAServiceType;
 import org.chromium.components.signin.identitymanager.ConsentLevel;
 import org.chromium.components.user_prefs.UserPrefs;
@@ -86,8 +85,6 @@ public class SignOutDialogCoordinator {
             Context context, String managedDomain, @ActionType int actionType) {
         final View view =
                 LayoutInflater.from(context).inflate(R.layout.signout_wipe_storage_dialog, null);
-        ((TextView) view.findViewById(android.R.id.title))
-                .setText(getTitleRes(managedDomain, actionType));
         ((TextView) view.findViewById(android.R.id.message))
                 .setText(getMessage(context, managedDomain));
 
@@ -153,18 +150,18 @@ public class SignOutDialogCoordinator {
         mGaiaServiceType = gaiaServiceType;
         mListener = listener;
         mModel = new PropertyModel.Builder(ModalDialogProperties.ALL_KEYS)
-                         .with(ModalDialogProperties.CANCEL_ON_TOUCH_OUTSIDE, true)
+                         .with(ModalDialogProperties.TITLE,
+                                 context.getString(getTitleRes(managedDomain, actionType)))
                          .with(ModalDialogProperties.POSITIVE_BUTTON_TEXT,
                                  context.getString(R.string.continue_button))
                          .with(ModalDialogProperties.NEGATIVE_BUTTON_TEXT,
                                  context.getString(R.string.cancel))
+                         .with(ModalDialogProperties.CANCEL_ON_TOUCH_OUTSIDE, true)
                          .with(ModalDialogProperties.CUSTOM_VIEW, view)
                          .with(ModalDialogProperties.CONTROLLER, createController())
                          .build();
         mDialogManager = dialogManager;
 
-        SigninMetricsUtils.logProfileAccountManagementMenu(
-                ProfileAccountManagementMetrics.TOGGLE_SIGNOUT, gaiaServiceType);
         mDialogManager.showDialog(mModel, ModalDialogType.APP);
     }
 
@@ -173,6 +170,10 @@ public class SignOutDialogCoordinator {
             @Override
             public void onClick(PropertyModel model, int buttonType) {
                 if (buttonType == ButtonType.POSITIVE) {
+                    if (mCheckBox.getVisibility() == View.VISIBLE) {
+                        RecordHistogram.recordBooleanHistogram(
+                                "Signin.UserRequestedWipeDataOnSignout", mCheckBox.isChecked());
+                    }
                     mListener.onSignOutClicked(
                             mCheckBox.getVisibility() == View.VISIBLE && mCheckBox.isChecked());
                     mDialogManager.dismissDialog(
@@ -184,15 +185,7 @@ public class SignOutDialogCoordinator {
             }
 
             @Override
-            public void onDismiss(PropertyModel model, int dismissalCause) {
-                if (dismissalCause == DialogDismissalCause.POSITIVE_BUTTON_CLICKED) {
-                    SigninMetricsUtils.logProfileAccountManagementMenu(
-                            ProfileAccountManagementMetrics.SIGNOUT_SIGNOUT, mGaiaServiceType);
-                } else {
-                    SigninMetricsUtils.logProfileAccountManagementMenu(
-                            ProfileAccountManagementMetrics.SIGNOUT_CANCEL, mGaiaServiceType);
-                }
-            }
+            public void onDismiss(PropertyModel model, int dismissalCause) {}
         };
     }
 

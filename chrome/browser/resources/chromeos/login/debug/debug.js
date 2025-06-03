@@ -6,13 +6,24 @@
  * @fileoverview Root element of the OOBE UI Debugger.
  */
 
-import {addSingletonGetter} from '//resources/ash/common/cr_deprecated.js';
 import {MessageType, ProblemType} from '//resources/ash/common/quick_unlock/setup_pin_keyboard.js';
 import {$} from '//resources/ash/common/util.js';
+import {sanitizeInnerHtml} from 'chrome://resources/js/parse_html_subset.js';
 
 import {AssistantNativeIconType} from '../../assistant_optin/utils.js';
 import {Oobe} from '../cr_ui.js';
 import {loadTimeData} from '../i18n_setup.js';
+
+function createQuickStartQR() {
+  // Fake data extracted from the real flow.
+  const qrDataStr = '1111111000011000010010000001101111111100000100111100001001010011100100000110111010111011101001111010110010111011011101010100011110010001110001011101101110101101101100110111100010101110110000010100011001010100001010010000011111111010101010101010101010101111111000000001101010010001111101010000000010111110011000100101111000101011111001001100011111111111111111100111101010101100110001000001101110111110101101110001100111101101001111010100101010010110111010110000010001110111011110111110100000110010111110101010000010001000100111000111111100110001010111110111111010100000101000011001000100110001111010111010100110011110101011100011111111101111011010000110001001001011100000111100010101100000100111100111011100110011100000100001110101111101000110011011110010111100000001100110110000111000100010000000111110000100001010010100101101000101100100010111011100111001001011010111001111100010001100001101001101010010010001110110011000100111100000110011111101111001001110010010110111011001000010101001110110110111010100001100110100111001011010001011101100110011010001101111111011111010100000000101011111000111111011000110101111111001110111010000100100101010111100000101001001010100100000010001101110111010110000010000101001011111101011011101011001111011010011111111011011101110101100011110000000001010000111110000010000011110000110100001010100011111111011011110100010001111001010111';
+  // Screen expects an array of booleans representing the pixels.
+  const qrData = [];
+  for (const pixel of qrDataStr) {
+    qrData.push(pixel === '1' ? true : false);
+  }
+  return qrData;
+}
 
 const createAssistantData = (isMinor) => {
   const data = {};
@@ -274,9 +285,9 @@ const createAssistantZippy = (type, isMinor, isNativeIcons) => {
           id: 'success',
           trigger: (screen) => {
             screen.updateCountdownString(
-                'Your device will shut down in 60 seconds. Remove the USB \
-                 before turning your device back on. Then you can start using \
-                 ChromeOS Flex.');
+                'Your device will shut down in 60 seconds. Remove the USB' +
+                ' before turning your device back on. Then you can start' +
+                ' using ChromeOS Flex.');
             screen.showStep('success');
           },
         },
@@ -350,6 +361,10 @@ const createAssistantZippy = (type, isMinor, isNativeIcons) => {
       kind: ScreenKind.NORMAL,
     },
     {
+      id: 'consumer-update',
+      kind: ScreenKind.NORMAL,
+    },
+    {
       id: 'auto-enrollment-check',
       kind: ScreenKind.NORMAL,
     },
@@ -390,6 +405,10 @@ const createAssistantZippy = (type, isMinor, isNativeIcons) => {
       kind: ScreenKind.NORMAL,
     },
     {
+      id: 'add-child',
+      kind: ScreenKind.NORMAL,
+    },
+    {
       id: 'offline-ad-login',
       kind: ScreenKind.NORMAL,
       // Remove this step from preview here, because it can only occur during
@@ -426,28 +445,17 @@ const createAssistantZippy = (type, isMinor, isNativeIcons) => {
     {
       id: 'enterprise-enrollment',
       kind: ScreenKind.NORMAL,
-      defaultState: 'step-signin',
-      handledSteps: 'error,ad-join',
+      handledSteps: 'error',
       suffix: 'E',
+      data: {
+        gaiaPath: 'embedded/setup/v2/chromeos',
+        gaiaUrl: 'https://accounts.google.com/',
+      },
       states: [
         {
           id: 'error',
           trigger: (screen) => {
             screen.showError('Some error message', true);
-          },
-        },
-        {
-          id: 'ad-join-encrypted',
-          trigger: (screen) => {
-            screen.setAdJoinParams('machineName', 'userName', 0, true);
-            screen.showStep('ad-join');
-          },
-        },
-        {
-          id: 'ad-join',
-          trigger: (screen) => {
-            screen.setAdJoinParams('machineName', 'userName', 0, false);
-            screen.showStep('ad-join');
           },
         },
       ],
@@ -656,17 +664,32 @@ const createAssistantZippy = (type, isMinor, isNativeIcons) => {
     {
       id: 'gaia-signin',
       kind: ScreenKind.NORMAL,
-      handledSteps: 'allowlist-error',
+      handledSteps: 'online-gaia,enrollment-nudge',
       states: [
         {
-          id: 'allowlist-customer',
+          id: 'online-gaia',
           trigger: (screen) => {
-            screen.showAllowlistCheckFailedError({
-              enterpriseManaged: false,
+            screen.loadAuthExtension({
+              chromeType: 'chromedevice',
+              enterpriseManagedDevice: false,
+              forceReload: true,
+              gaiaPath: 'embedded/setup/v2/chromeos',
+              gaiaUrl: 'https://accounts.google.com/',
+              hl: loadTimeData.getString('app_locale'),
             });
           },
         },
+        {
+          id: 'enrollment-nudge',
+          trigger: (screen) => {
+            screen.showEnrollmentNudge('example.com');
+          },
+        },
       ],
+    },
+    {
+      id: 'gaia-info',
+      kind: ScreenKind.NORMAL,
     },
     {
       id: 'offline-login',
@@ -828,6 +851,30 @@ const createAssistantZippy = (type, isMinor, isNativeIcons) => {
             screen.setSpaceInfoInString(
                 '1 GB' /* availableSpaceSize */,
                 '2 GB' /* necessarySpaceSize */);
+          },
+        },
+      ],
+    },
+    {
+      id: 'local-password-setup',
+      kind: ScreenKind.NORMAL,
+      states: [
+        {
+          // Forced password setup
+          id: 'forced',
+          trigger: (screen) => {
+            screen.onBeforeShow({
+              showBackButton: false,
+            });
+          },
+        },
+        {
+          // Forced password setup
+          id: 'optional',
+          trigger: (screen) => {
+            screen.onBeforeShow({
+              showBackButton: true,
+            });
           },
         },
       ],
@@ -1342,6 +1389,10 @@ const createAssistantZippy = (type, isMinor, isNativeIcons) => {
       ],
     },
     {
+      id: 'password-selection',
+      kind: ScreenKind.NORMAL,
+    },
+    {
       id: 'arc-vm-data-migration',
       kind: ScreenKind.NORMAL,
     },
@@ -1354,7 +1405,7 @@ const createAssistantZippy = (type, isMinor, isNativeIcons) => {
       // will append apps instead of replacing.
       states: [
         {
-          id: '2-apps',
+          id: '3-apps',
           trigger: (screen) => {
             screen.reset();
             screen.loadAppList([
@@ -1373,6 +1424,19 @@ const createAssistantZippy = (type, isMinor, isNativeIcons) => {
                 in_app_purchases: true,
                 was_installed: false,
                 content_rating: '',
+                description: 'Short description',
+              },
+              {
+                title: 'anotherGapp',
+                icon_url: 'https://www.google.com/favicon.ico',
+                category: 'Games',
+                in_app_purchases: true,
+                was_installed: false,
+                content_rating: '',
+                // Current limitation is 80 characters.
+                description:
+                    'Lorem ipsum dolor sit amet, consectetur adipiscing elit,' +
+                    ' sed do eiusmod tempor',
               },
             ]);
           },
@@ -1563,10 +1627,41 @@ const createAssistantZippy = (type, isMinor, isNativeIcons) => {
           data: {
             screens: [
               {
-                title: 'choobeThemeSelectionTileTitle',
-                icon: 'oobe-32:stars',
+                screenID: 'screenID1',
+                icon: 'oobe-40:scroll-choobe',
+                title: 'choobeTouchpadScrollTitle',
+                subtitle: 'choobeTouchpadScrollSubtitleEnabled',
+                is_synced: true,
+                is_revisitable: true,
                 selected: false,
-                screenID: 'screenID',
+                is_completed: false,
+              },
+              {
+                screenID: 'screenID2',
+                icon: 'oobe-40:drive-pinning-choobe',
+                title: 'choobeDrivePinningTitle',
+                is_synced: false,
+                is_revisitable: false,
+                selected: false,
+                is_completed: false,
+              },
+              {
+                screenID: 'screenID3',
+                icon: 'oobe-40:display-size-choobe',
+                title: 'choobeDisplaySizeTitle',
+                is_synced: false,
+                is_revisitable: false,
+                selected: false,
+                is_completed: false,
+              },
+              {
+                screenID: 'screenID4',
+                icon: 'oobe-40:theme-choobe',
+                title: 'choobeThemeSelectionTitle',
+                is_synced: false,
+                is_revisitable: false,
+                selected: false,
+                is_completed: false,
               },
             ],
           },
@@ -1641,7 +1736,84 @@ const createAssistantZippy = (type, isMinor, isNativeIcons) => {
       ],
     },
     {
+      id: 'display-size',
+      kind: ScreenKind.NORMAL,
+      handledSteps: 'overview',
+      states: [
+        {
+          id: 'overview',
+          data: {
+            availableSizes: [
+              0.8999999761581421,
+              1,
+              1.0499999523162842,
+              1.100000023841858,
+              1.149999976158142,
+              1.2000000476837158,
+              1.25,
+              1.2999999523162842,
+              1.5,
+            ],
+            currentSize: 1,
+          },
+        },
+      ],
+    },
+    {
       id: 'cryptohome-recovery',
+      kind: ScreenKind.NORMAL,
+    },
+    {
+      id: 'quick-start',
+      kind: ScreenKind.NORMAL,
+      handledSteps:
+          'verification,connecting_to_wifi,connected_to_wifi,gaia_credentials,fido_assertion_received',
+      states: [
+        {
+          id: 'PinVerification',
+          trigger: (screen) => {
+            screen.setDiscoverableName('Chromebook (123)');
+            screen.setPin('1234');
+          },
+        },
+        {
+          id: 'QRVerification',
+          trigger: (screen) => {
+            screen.setQRCode(createQuickStartQR());
+          },
+        },
+        {
+          id: 'ConnectingToWifi',
+          trigger: (screen) => {
+            screen.showConnectingToWifi();
+          },
+        },
+        {
+          id: 'ConnectedToWifi',
+          trigger: (screen) => {
+            screen.showConnectedToWifi('TestNetwork', 'TestPassword');
+          },
+        },
+        {
+          id: 'TransferringGaiaCreds',
+          trigger: (screen) => {
+            screen.showTransferringGaiaCredentials();
+          },
+        },
+        {
+          id: 'TransferredGaiaCreds',
+          trigger: (screen) => {
+            screen.showFidoAssertionReceived('testUser@gmail.com');
+          },
+        },
+      ],
+    },
+    {
+      id: 'user-allowlist-check-screen',
+      kind: ScreenKind.NORMAL,
+    },
+    {
+      id: 'online-authentication-screen',
       kind: ScreenKind.NORMAL,
     },
   ];
@@ -1728,6 +1900,10 @@ const createAssistantZippy = (type, isMinor, isNativeIcons) => {
       this.knownScreens = undefined;
       /** Iterator for making a series of screenshots */
       this.commandIterator_ = undefined;
+    }
+
+    get currentScreenId() {
+      return this.currentScreenId_;
     }
 
     showDebugUI() {
@@ -2019,8 +2195,8 @@ const createAssistantZippy = (type, isMinor, isNativeIcons) => {
       this.currentScreenId_ = screenId;
       this.lastScreenState_ = stateId;
       /** @suppress {visibility} */
-      const displayManager = Oobe.instance_;
-      Oobe.instance_.showScreen({id: screen.id, data: data});
+      const displayManager = Oobe.getInstance();
+      displayManager.showScreen({id: screen.id, data: data});
       if (state.trigger) {
         state.trigger(displayManager.currentScreen);
       }
@@ -2034,7 +2210,7 @@ const createAssistantZippy = (type, isMinor, isNativeIcons) => {
       this.knownScreens = [];
       this.screenButtons = {};
       /** @suppress {visibility} */
-      for (var id of Oobe.instance_.screens_) {
+      for (var id of Oobe.getInstance().screens_) {
         if (id in this.screenMap) {
           const screenDef = this.screenMap[id];
           const screenElement = $(id);
@@ -2105,7 +2281,7 @@ const createAssistantZippy = (type, isMinor, isNativeIcons) => {
         this.createScreensList();
       }
       /** @suppress {visibility} */
-      const displayManager = Oobe.instance_;
+      const displayManager = Oobe.getInstance();
       if (this.stateCachedFor_) {
         this.screenButtons[this.stateCachedFor_].element.classList.remove(
             'debug-button-selected');
@@ -2148,7 +2324,7 @@ const createAssistantZippy = (type, isMinor, isNativeIcons) => {
     createCssStyle(name, styleSpec) {
       var style = document.createElement('style');
       style.type = 'text/css';
-      style.innerHTML = '.' + name + ' {' + styleSpec + '}';
+      style.innerHTML = sanitizeInnerHtml('.' + name + ' {' + styleSpec + '}');
       document.getElementsByTagName('head')[0].appendChild(style);
     }
 
@@ -2198,6 +2374,12 @@ const createAssistantZippy = (type, isMinor, isNativeIcons) => {
       element.appendChild(this.debuggerButton_);
       element.appendChild(this.debuggerOverlay_);
     }
+
+    /** @return {!DebuggerUI} */
+    static getInstance() {
+      return instance || (instance = new DebuggerUI());
+    }
   }
 
-  addSingletonGetter(DebuggerUI);
+  /** @type {?DebuggerUI} */
+  let instance = null;

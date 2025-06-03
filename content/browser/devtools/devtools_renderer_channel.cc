@@ -114,6 +114,13 @@ void DevToolsRendererChannel::InspectElement(const gfx::Point& point) {
     associated_agent_remote_->InspectElement(point);
 }
 
+void DevToolsRendererChannel::GetUniqueFormControlId(
+    int node_id,
+    GetUniqueFormCallback callback) {
+  associated_agent_remote_->GetUniqueFormControlId(node_id,
+                                                   std::move(callback));
+}
+
 void DevToolsRendererChannel::SetReportChildTargets(
     ChildTargetCreatedCallback report_callback,
     bool wait_for_debugger,
@@ -178,6 +185,12 @@ void DevToolsRendererChannel::ChildTargetCreated(
     scoped_refptr<WorkerDevToolsAgentHost> agent_host =
         WorkerDevToolsManager::GetInstance().GetDevToolsHostFromToken(
             devtools_worker_token);
+    if (!agent_host) {
+      // If `agent_host` is nullptr, we can assume that `DedicatedWorkerHost`
+      // has been destructed while handling `DedicatedWorker::ContinueStart`.
+      // We do not need to continue in that case.
+      return;
+    }
     agent_host->ChildWorkerCreated(
         url, name,
         base::BindOnce(&DevToolsRendererChannel::ChildTargetDestroyed,
@@ -212,6 +225,14 @@ void DevToolsRendererChannel::ChildTargetCreated(
 void DevToolsRendererChannel::ChildTargetDestroyed(
     DevToolsAgentHostImpl* host) {
   child_targets_.erase(host);
+}
+
+void DevToolsRendererChannel::MainThreadDebuggerPaused() {
+  owner_->MainThreadDebuggerPaused();
+}
+
+void DevToolsRendererChannel::MainThreadDebuggerResumed() {
+  owner_->MainThreadDebuggerResumed();
 }
 
 }  // namespace content

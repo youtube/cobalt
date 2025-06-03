@@ -37,9 +37,6 @@
 #if !BUILDFLAG(IS_ANDROID)
 #include "third_party/blink/public/web/web_picture_in_picture_window_options.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_document_picture_in_picture_options.h"
-#include "third_party/blink/renderer/core/css/style_engine.h"
-#include "third_party/blink/renderer/core/css/style_sheet_contents.h"
-#include "third_party/blink/renderer/core/css/style_sheet_list.h"
 #include "third_party/blink/renderer/modules/document_picture_in_picture/document_picture_in_picture.h"
 #include "third_party/blink/renderer/modules/document_picture_in_picture/document_picture_in_picture_event.h"
 #endif  // !BUILDFLAG(IS_ANDROID)
@@ -311,6 +308,8 @@ void PictureInPictureControllerImpl::OnExitedPictureInPicture(
         event_type_names::kLeavepictureinpicture,
         WrapPersistent(picture_in_picture_window_.Get())));
 
+    picture_in_picture_window_ = nullptr;
+
     // Register the video frame sink back to the element when the PiP window
     // is closed and if the video is not unset.
     if (element->GetWebMediaPlayer()) {
@@ -324,11 +323,11 @@ void PictureInPictureControllerImpl::OnExitedPictureInPicture(
 
 PictureInPictureWindow* PictureInPictureControllerImpl::pictureInPictureWindow()
     const {
-  return picture_in_picture_window_;
+  return picture_in_picture_window_.Get();
 }
 
 Element* PictureInPictureControllerImpl::PictureInPictureElement() const {
-  return picture_in_picture_element_;
+  return picture_in_picture_element_.Get();
 }
 
 Element* PictureInPictureControllerImpl::PictureInPictureElement(
@@ -348,7 +347,7 @@ bool PictureInPictureControllerImpl::IsPictureInPictureElement(
 #if !BUILDFLAG(IS_ANDROID)
 LocalDOMWindow* PictureInPictureControllerImpl::documentPictureInPictureWindow()
     const {
-  return document_picture_in_picture_window_;
+  return document_picture_in_picture_window_.Get();
 }
 
 void PictureInPictureControllerImpl::CreateDocumentPictureInPictureWindow(
@@ -364,10 +363,18 @@ void PictureInPictureControllerImpl::CreateDocumentPictureInPictureWindow(
     return;
   }
 
+  if (!opener.Url().ProtocolIs(WTF::g_https_atom) &&
+      !opener.Url().IsLocalFile()) {
+    exception_state.ThrowDOMException(DOMExceptionCode::kNotAllowedError,
+                                      "Opening a PiP window requires https "
+                                      "or file protocol");
+    resolver->Reject(exception_state);
+    return;
+  }
+
   WebPictureInPictureWindowOptions web_options;
   web_options.width = options->width();
   web_options.height = options->height();
-  web_options.initial_aspect_ratio = options->initialAspectRatio();
 
   // If either width or height is specified, then both must be specified.
   if (web_options.width > 0 && web_options.height == 0) {
@@ -385,8 +392,15 @@ void PictureInPictureControllerImpl::CreateDocumentPictureInPictureWindow(
   auto* dom_window = opener.openPictureInPictureWindow(
       script_state->GetIsolate(), web_options, exception_state);
 
+  if (!dom_window) {
+    exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
+                                      "Internal error: no window");
+    resolver->Reject(exception_state);
+    return;
+  }
+
   // If we can't create a window, reject the promise with the exception state.
-  if (!dom_window || exception_state.HadException()) {
+  if (exception_state.HadException()) {
     resolver->Reject(exception_state);
     return;
   }
@@ -404,27 +418,6 @@ void PictureInPictureControllerImpl::CreateDocumentPictureInPictureWindow(
   Document* pip_document = local_dom_window->document();
   DCHECK(pip_document);
   pip_document->SetBaseURLOverride(opener.document()->BaseURL());
-
-  // Copy style sheets, if requested.
-  if (options->copyStyleSheets()) {
-    StyleSheetList& list = opener.document()->StyleSheets();
-    for (unsigned i = 0; i < list.length(); i++) {
-      StyleSheet* sheet = list.item(i);
-      if (!sheet->IsCSSStyleSheet() || sheet->disabled()) {
-        continue;
-      }
-      CSSStyleSheet* css = To<CSSStyleSheet>(sheet);
-      StyleSheetContents* contents = css->Contents();
-
-      // Inject the style sheet. It will not stay in sync with the opener.
-      //
-      // `key` is arbitrary; it just has to avoid conflicting with any other
-      // injected style sheets. Typically, only extensions do that, so it's
-      // fairly rare.
-      pip_document->GetStyleEngine().InjectSheet(
-          /*key=*/AtomicString::Number(i), contents);
-    }
-  }
 
   SetMayThrottleIfUndrawnFrames(false);
 

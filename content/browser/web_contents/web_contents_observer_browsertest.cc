@@ -6,7 +6,6 @@
 #include "build/build_config.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/browser/service_worker/embedded_worker_instance.h"
-#include "content/browser/service_worker/embedded_worker_status.h"
 #include "content/browser/web_contents/web_contents_impl.h"
 #include "content/public/browser/allow_service_worker_result.h"
 #include "content/public/browser/focused_node_details.h"
@@ -280,14 +279,16 @@ class CookieTracker : public WebContentsObserver {
   void OnCookiesAccessed(NavigationHandle* navigation,
                          const CookieAccessDetails& details) override {
     for (const auto& cookie : details.cookie_list) {
-      cookie_accesses_.push_back({details.type,
-                                  ContextType::kNavigation,
-                                  {},
-                                  navigation->GetNavigationId(),
-                                  details.url,
-                                  details.first_party_url,
-                                  cookie.Name(),
-                                  cookie.Value()});
+      for (size_t i = 0; i < details.count; ++i) {
+        cookie_accesses_.push_back({details.type,
+                                    ContextType::kNavigation,
+                                    {},
+                                    navigation->GetNavigationId(),
+                                    details.url,
+                                    details.first_party_url,
+                                    cookie.Name(),
+                                    cookie.Value()});
+      }
     }
 
     QuitIfReady();
@@ -296,15 +297,17 @@ class CookieTracker : public WebContentsObserver {
   void OnCookiesAccessed(RenderFrameHost* rfh,
                          const CookieAccessDetails& details) override {
     for (const auto& cookie : details.cookie_list) {
-      cookie_accesses_.push_back(
-          {details.type,
-           ContextType::kFrame,
-           {rfh->GetProcess()->GetID(), rfh->GetRoutingID()},
-           -1,
-           details.url,
-           details.first_party_url,
-           cookie.Name(),
-           cookie.Value()});
+      for (size_t i = 0; i < details.count; ++i) {
+        cookie_accesses_.push_back(
+            {details.type,
+             ContextType::kFrame,
+             {rfh->GetProcess()->GetID(), rfh->GetRoutingID()},
+             -1,
+             details.url,
+             details.first_party_url,
+             cookie.Name(),
+             cookie.Value()});
+      }
     }
 
     QuitIfReady();
@@ -372,8 +375,8 @@ using CookieAccess = CookieTracker::CookieAccessDescription;
 
 }  // namespace
 
-// TODO(https://crbug.com/1288573): Flaky on Mac.
-#if BUILDFLAG(IS_MAC)
+// TODO(https://crbug.com/1288573): Flaky on Windows, Mac, and Android.
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_ANDROID)
 #define MAYBE_CookieCallbacks_MainFrame DISABLED_CookieCallbacks_MainFrame
 #else
 #define MAYBE_CookieCallbacks_MainFrame CookieCallbacks_MainFrame
@@ -382,7 +385,7 @@ IN_PROC_BROWSER_TEST_F(WebContentsObserverBrowserTest,
                        MAYBE_CookieCallbacks_MainFrame) {
   CookieTracker cookie_tracker(web_contents());
 
-  GURL first_party_url("http://a.com/");
+  GURL first_party_url(embedded_test_server()->GetURL("a.com", "/"));
   GURL url1(
       embedded_test_server()->GetURL("a.com", "/cookies/set_cookie.html"));
   GURL url2(embedded_test_server()->GetURL("a.com", "/title1.html"));
@@ -423,8 +426,8 @@ IN_PROC_BROWSER_TEST_F(WebContentsObserverBrowserTest,
   cookie_tracker.cookie_accesses().clear();
 }
 
-// TODO(https://crbug.com/1288573): Flaky on Mac.
-#if BUILDFLAG(IS_MAC)
+// TODO(https://crbug.com/1288573): Flaky on Mac and Android and Win.
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
 #define MAYBE_CookieCallbacks_MainFrameRedirect \
   DISABLED_CookieCallbacks_MainFrameRedirect
 #else
@@ -435,7 +438,7 @@ IN_PROC_BROWSER_TEST_F(WebContentsObserverBrowserTest,
                        MAYBE_CookieCallbacks_MainFrameRedirect) {
   CookieTracker cookie_tracker(web_contents());
 
-  GURL first_party_url("http://a.com/");
+  GURL first_party_url(embedded_test_server()->GetURL("a.com", "/"));
   GURL url1(embedded_test_server()->GetURL(
       "a.com", "/cookies/redirect_and_set_cookie.html"));
   GURL url1_after_redirect(
@@ -487,8 +490,8 @@ IN_PROC_BROWSER_TEST_F(WebContentsObserverBrowserTest,
   cookie_tracker.cookie_accesses().clear();
 }
 
-// TODO(https://crbug.com/1288573): Flaky on Mac and Android.
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_ANDROID)
+// TODO(https://crbug.com/1288573): Flaky on Mac, Android and Windows.
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_WIN)
 #define MAYBE_CookieCallbacks_Subframe DISABLED_CookieCallbacks_Subframe
 #else
 #define MAYBE_CookieCallbacks_Subframe CookieCallbacks_Subframe
@@ -497,7 +500,7 @@ IN_PROC_BROWSER_TEST_F(WebContentsObserverBrowserTest,
                        MAYBE_CookieCallbacks_Subframe) {
   CookieTracker cookie_tracker(web_contents());
 
-  GURL first_party_url("http://a.com/");
+  GURL first_party_url(embedded_test_server()->GetURL("a.com", "/"));
   GURL url1(embedded_test_server()->GetURL(
       "a.com", "/cookies/set_cookie_from_subframe.html"));
   GURL url1_subframe(
@@ -563,7 +566,7 @@ IN_PROC_BROWSER_TEST_F(WebContentsObserverBrowserTest,
                        MAYBE_CookieCallbacks_Subresource) {
   CookieTracker cookie_tracker(web_contents());
 
-  GURL first_party_url("http://a.com/");
+  GURL first_party_url(embedded_test_server()->GetURL("a.com", "/"));
   GURL url1(embedded_test_server()->GetURL(
       "a.com", "/cookies/set_cookie_from_subresource.html"));
   GURL url1_image(embedded_test_server()->GetURL(
@@ -614,7 +617,7 @@ IN_PROC_BROWSER_TEST_F(WebContentsObserverBrowserTest,
                        CookieCallbacks_DocumentCookie) {
   CookieTracker cookie_tracker(web_contents());
 
-  GURL first_party_url("http://a.com/");
+  GURL first_party_url(embedded_test_server()->GetURL("a.com", "/"));
   GURL url1(embedded_test_server()->GetURL("a.com", "/title1.html"));
 
   EXPECT_TRUE(NavigateToURL(web_contents(), url1));

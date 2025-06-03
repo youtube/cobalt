@@ -4,7 +4,9 @@
 
 // See README.md for format.
 
-// Skip these tests due to timeouts
+// Tests took ~40s to run. Disable them for bots to prevent bots getting stuck.
+// Flush and finish are very common, and we have plenty of other tests that cover
+// these functionalities
 1034 : dEQP-GLES2.functional.flush_finish.* = SKIP
 
 // Failures related to not supporting separate depth/stencil masks on D3D11.
@@ -239,6 +241,9 @@
 
 // Mac / Metal
 
+// Some trig functions have precision issues when fast math is enabled in Metal shader compilation
+8287 MAC METAL : dEQP-GLES2.functional.shaders.invariance.lowp.loop_2 = FAIL
+
 // Fails on Metal, some of filtering tests fail when MSAA is off and pass when MSAA is on. Some
 // tests are opposite. The filtering tests mostly fail on a few pixels.
 6466 MAC METAL : dEQP-GLES2.functional.shaders.texture_functions.vertex.texturecubelod = FAIL
@@ -314,3 +319,26 @@
 6678 UBSAN : dEQP-GLES2.functional.shaders.random.* = SKIP
 6678 UBSAN : dEQP-GLES2.functional.fragment_ops.interaction.basic_shader.* = SKIP
 6678 UBSAN : dEQP-GLES2.functional.shaders.texture_functions.vertex.texture2dprojlod_vec3 = SKIP
+
+// Samsung Galaxy S23
+8157 GALAXYS23 VULKAN : dEQP-GLES2.functional.fbo.render.color_clear.* = SKIP
+8157 GALAXYS23 VULKAN : dEQP-GLES2.functional.fbo.render.recreate_colorbuffer.* = SKIP
+8157 GALAXYS23 VULKAN : dEQP-GLES2.functional.fbo.render.recreate_stencilbuffer.* = SKIP
+8157 GALAXYS23 VULKAN : dEQP-GLES2.functional.fbo.render.resize.* = SKIP
+8157 GALAXYS23 VULKAN : dEQP-GLES2.functional.fbo.render.shared_colorbuffer.* = SKIP
+8157 GALAXYS23 VULKAN : dEQP-GLES2.functional.fbo.render.stencil_clear.* = SKIP
+8157 GALAXYS23 VULKAN : dEQP-GLES2.functional.fbo.render.stencil.* = SKIP
+8157 GALAXYS23 VULKAN : dEQP-GLES2.functional.fragment_ops.interaction.basic_shader.* = SKIP
+8157 GALAXYS23 VULKAN : dEQP-GLES2.functional.polygon_offset.* = SKIP
+8157 GALAXYS23 VULKAN : dEQP-GLES2.functional.rasterization.primitives.* = SKIP
+8157 GALAXYS23 VULKAN : dEQP-GLES2.functional.shaders.random.* = SKIP
+
+// Undefined behavior in dEQP framework due to NaN
+b/307584642 ANDROID : dEQP-GLES2.functional.shaders.random.texture.vertex.1 = SKIP
+b/307584642 ANDROID : dEQP-GLES2.functional.shaders.random.texture.vertex.6 = SKIP
+b/307584642 ANDROID : dEQP-GLES2.functional.shaders.random.texture.vertex.18 = SKIP
+b/307584642 ANDROID : dEQP-GLES2.functional.shaders.random.texture.vertex.19 = SKIP
+b/307584642 ANDROID : dEQP-GLES2.functional.shaders.random.texture.vertex.23 = SKIP
+b/307584642 ANDROID : dEQP-GLES2.functional.shaders.random.texture.vertex.29 = SKIP
+b/307584642 ANDROID : dEQP-GLES2.functional.shaders.random.texture.vertex.34 = SKIP
+b/307584642 ANDROID : dEQP-GLES2.functional.shaders.random.all_features.fragment.6 = SKIP

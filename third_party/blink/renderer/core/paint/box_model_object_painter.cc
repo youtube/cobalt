@@ -33,24 +33,6 @@ BoxModelObjectPainter::BoxModelObjectPainter(const LayoutBoxModelObject& box)
     : BoxPainterBase(&box.GetDocument(), box.StyleRef(), GetNode(box)),
       box_model_(box) {}
 
-void BoxModelObjectPainter::PaintTextClipMask(
-    const PaintInfo& paint_info,
-    const gfx::Rect& mask_rect,
-    const PhysicalOffset& paint_offset,
-    bool object_has_multiple_boxes) {
-  PaintInfo mask_paint_info(paint_info.context, CullRect(mask_rect),
-                            PaintPhase::kTextClip);
-  mask_paint_info.SetFragmentID(paint_info.FragmentID());
-  if (auto* layout_block = DynamicTo<LayoutBlock>(box_model_)) {
-    layout_block->PaintObject(mask_paint_info, paint_offset);
-  } else {
-    // We should go through the above path for LayoutInlines.
-    DCHECK(!box_model_.IsLayoutInline());
-    // Other types of objects don't have anything meaningful to paint for text
-    // clip mask.
-  }
-}
-
 PhysicalRect BoxModelObjectPainter::AdjustRectForScrolledContent(
     const PaintInfo& paint_info,
     const BoxPainterBase::FillLayerInfo& info,
@@ -71,19 +53,23 @@ PhysicalRect BoxModelObjectPainter::AdjustRectForScrolledContent(
   PhysicalRect scrolled_paint_rect = rect;
   scrolled_paint_rect.offset -=
       PhysicalOffset(this_box.PixelSnappedScrolledContentOffset());
-  NGPhysicalBoxStrut border = AdjustedBorderOutsets(info);
+  PhysicalBoxStrut border = AdjustedBorderOutsets(info);
   scrolled_paint_rect.SetWidth(border.HorizontalSum() + this_box.ScrollWidth());
   scrolled_paint_rect.SetHeight(this_box.BorderTop() + this_box.ScrollHeight() +
                                 this_box.BorderBottom());
   return scrolled_paint_rect;
 }
 
-NGPhysicalBoxStrut BoxModelObjectPainter::ComputeBorders() const {
-  return box_model_.BorderBoxOutsets();
+PhysicalBoxStrut BoxModelObjectPainter::ComputeBorders() const {
+  return box_model_.BorderOutsets();
 }
 
-NGPhysicalBoxStrut BoxModelObjectPainter::ComputePadding() const {
+PhysicalBoxStrut BoxModelObjectPainter::ComputePadding() const {
   return box_model_.PaddingOutsets();
+}
+
+PhysicalBoxStrut BoxModelObjectPainter::ComputeMargins() const {
+  return box_model_.MarginOutsets();
 }
 
 BoxPainterBase::FillLayerInfo BoxModelObjectPainter::GetFillLayerInfo(

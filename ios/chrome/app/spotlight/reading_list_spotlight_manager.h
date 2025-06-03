@@ -7,10 +7,13 @@
 
 #import "ios/chrome/app/spotlight/base_spotlight_manager.h"
 
+namespace favicon {
+class LargeIconService;
+}
+
 class ChromeBrowserState;
 class ReadingListModel;
 @class CSSearchableItem;
-@class SpotlightInterface;
 
 /// Manages Reading List items in Spotlight search.
 @interface ReadingListSpotlightManager : BaseSpotlightManager
@@ -24,22 +27,24 @@ class ReadingListModel;
 + (ReadingListSpotlightManager*)readingListSpotlightManagerWithBrowserState:
     (ChromeBrowserState*)browserState;
 
-- (instancetype)initWithLargeIconService:
-                    (favicon::LargeIconService*)largeIconService
-                        readingListModel:(ReadingListModel*)readingListModel
-                      spotlightInterface:(SpotlightInterface*)spotlightInterface
+- (instancetype)
+    initWithLargeIconService:(favicon::LargeIconService*)largeIconService
+            readingListModel:(ReadingListModel*)readingListModel
+          spotlightInterface:(SpotlightInterface*)spotlightInterface
+       searchableItemFactory:(SearchableItemFactory*)searchableItemFactory
     NS_DESIGNATED_INITIALIZER;
 
-- (instancetype)initWithLargeIconService:
-                    (favicon::LargeIconService*)largeIconService
-                                  domain:(spotlight::Domain)domain
-                      spotlightInterface:(SpotlightInterface*)spotlightInterface
+- (instancetype)
+    initWithSpotlightInterface:(SpotlightInterface*)spotlightInterface
+         searchableItemFactory:(SearchableItemFactory*)searchableItemFactory
     NS_UNAVAILABLE;
 
 /// Immediately clears and reindexes the reading list items in Spotlight. Calls
 /// `completionHandler` when done.
-- (void)clearAndReindexReadingListWithCompletionBlock:
-    (void (^)(NSError* error))completionHandler;
+- (void)clearAndReindexReadingList;
+
+// Indexes all existing reading list items in spotlight.
+- (void)indexAllReadingListItems;
 
 @end
 

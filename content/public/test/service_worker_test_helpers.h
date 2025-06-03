@@ -38,13 +38,25 @@ void AdvanceClockAfterRequestTimeout(ServiceWorkerContext* context,
                                      int64_t service_worker_version_id,
                                      base::SimpleTestTickClock* tick_clock);
 
+// Tests that uses AdvanceClockAfterRequestTimeout() should call this before
+// `tick_clock` is destroyed. Otherwise, `tick_clock` pointer will become
+// dangling.
+void ResetTickClockToDefaultForAllLiveServiceWorkerVersions(
+    ServiceWorkerContext* context);
+
 // Runs the user tasks on a service worker, triggers a timeout and returns
 // whether the service worker is still running.
 bool TriggerTimeoutAndCheckRunningState(ServiceWorkerContext* context,
                                         int64_t service_worker_version_id);
 
-// Returns whether the service worker is still running.
+// Returns whether the worker appears to be in each blink::EmbeddedWorkerStatus.
 bool CheckServiceWorkerIsRunning(ServiceWorkerContext* context,
+                                 int64_t service_worker_version_id);
+bool CheckServiceWorkerIsStarting(ServiceWorkerContext* context,
+                                  int64_t service_worker_version_id);
+bool CheckServiceWorkerIsStopping(ServiceWorkerContext* context,
+                                  int64_t service_worker_version_id);
+bool CheckServiceWorkerIsStopped(ServiceWorkerContext* context,
                                  int64_t service_worker_version_id);
 
 void SetServiceWorkerIdleDelay(ServiceWorkerContext* context,

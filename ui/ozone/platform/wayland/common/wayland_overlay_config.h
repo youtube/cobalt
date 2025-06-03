@@ -34,7 +34,9 @@ struct WaylandOverlayConfig {
   int z_order = 0;
 
   // Specifies how the buffer is to be transformed during composition.
-  gfx::OverlayTransform transform =
+  // Note: A |gfx::OverlayTransform| transforms the buffer within its bounds and
+  // does not affect |bounds_rect|.
+  absl::variant<gfx::OverlayTransform, gfx::Transform> transform =
       gfx::OverlayTransform::OVERLAY_TRANSFORM_NONE;
 
   // Specifies if alpha blending, with premultiplied alpha should be applied at
@@ -62,8 +64,8 @@ struct WaylandOverlayConfig {
   // This sets the source rectangle of Wayland Viewport.
   gfx::RectF crop_rect = {1.f, 1.f};
 
-  // Describes the changed region of the buffer. Optional to hint a partial
-  // swap.
+  // Damage in viz::Display space, the same space as |bounds_rect|. Optional
+  // to hint a partial swap.
   gfx::Rect damage_region;
 
   // Opacity of the overlay independent of buffer alpha.

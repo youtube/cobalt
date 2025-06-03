@@ -42,7 +42,7 @@ class LayoutMultiColumnSpannerPlaceholder final : public LayoutBox {
 
   LayoutBox* LayoutObjectInFlowThread() const {
     NOT_DESTROYED();
-    return layout_object_in_flow_thread_;
+    return layout_object_in_flow_thread_.Get();
   }
   void MarkForLayoutIfObjectInFlowThreadNeedsLayout() {
     NOT_DESTROYED();
@@ -72,27 +72,11 @@ class LayoutMultiColumnSpannerPlaceholder final : public LayoutBox {
  protected:
   void InsertedIntoTree() override;
   void WillBeRemovedFromTree() override;
-  bool NeedsPreferredWidthsRecalculation() const override;
-  void RecalcVisualOverflow() override;
-  MinMaxSizes PreferredLogicalWidths() const override;
   void UpdateLayout() override;
-  void ComputeLogicalHeight(LayoutUnit logical_height,
-                            LayoutUnit logical_top,
-                            LogicalExtentComputedValues&) const override;
-  void Paint(const PaintInfo&) const override;
-  bool NodeAtPoint(HitTestResult&,
-                   const HitTestLocation&,
-                   const PhysicalOffset& accumulated_offset,
-                   HitTestPhase) override;
 
  private:
-  MinMaxSizes ComputeIntrinsicLogicalWidths() const final {
-    NOT_DESTROYED();
-    NOTREACHED();
-    return MinMaxSizes();
-  }
-  LayoutPoint Location() const override;
-  LayoutSize Size() const override;
+  LayoutPoint LocationInternal() const override;
+  PhysicalSize Size() const override;
 
   // The actual column-span:all layoutObject inside the flow thread.
   Member<LayoutBox> layout_object_in_flow_thread_;

@@ -8,25 +8,21 @@
 
 #include <algorithm>
 
+#import "base/apple/foundation_util.h"
 #include "base/check_op.h"
 #include "base/containers/contains.h"
-#import "base/mac/foundation_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/notreached.h"
 #include "base/strings/string_piece.h"
 #include "base/strings/sys_string_conversions.h"
-#include "content/public/browser/native_web_keyboard_event.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_widget_host.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
+#include "content/public/common/input/native_web_keyboard_event.h"
 #include "content/shell/app/resource.h"
 #include "content/shell/browser/shell.h"
 #include "url/gurl.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 // Receives notification that the window is closing so that it can start the
 // tear-down process.
@@ -60,7 +56,7 @@
 // the various global lists. By returning YES, we allow the window to be
 // removed from the screen.
 - (BOOL)windowShouldClose:(id)sender {
-  CHECK_EQ(base::mac::ObjCCastStrict<NSWindow>(sender), _window);
+  CHECK_EQ(base::apple::ObjCCastStrict<NSWindow>(sender), _window);
   // Don't leave a dangling pointer if the window lives beyond
   // this method. See crbug.com/719830.
   _window.delegate = nil;
@@ -336,7 +332,7 @@ bool ShellPlatformDelegate::HandleKeyboardEvent(
     Shell* shell,
     WebContents* source,
     const NativeWebKeyboardEvent& event) {
-  if (event.skip_in_browser || Shell::ShouldHideToolbar()) {
+  if (event.skip_if_unhandled || Shell::ShouldHideToolbar()) {
     return false;
   }
 
@@ -345,14 +341,15 @@ bool ShellPlatformDelegate::HandleKeyboardEvent(
 
   // The event handling to get this strictly right is a tangle; cheat here a bit
   // by just letting the menus have a chance at it.
-  if (event.os_event.type == NSEventTypeKeyDown) {
-    if ((event.os_event.modifierFlags & NSEventModifierFlagCommand) &&
-        [event.os_event.characters isEqual:@"l"]) {
+  NSEvent* ns_event = event.os_event.Get();
+  if (ns_event.type == NSEventTypeKeyDown) {
+    if ((ns_event.modifierFlags & NSEventModifierFlagCommand) &&
+        [ns_event.characters isEqual:@"l"]) {
       [shell_data.delegate.window makeFirstResponder:shell_data.url_edit_view];
       return true;
     }
 
-    [NSApp.mainMenu performKeyEquivalent:event.os_event];
+    [NSApp.mainMenu performKeyEquivalent:ns_event];
     return true;
   }
   return false;

@@ -43,19 +43,14 @@ class INVALIDATION_EXPORT FakeAckHandler
   // acknowledged.
   bool IsAcknowledged(const Invalidation& invalidation) const;
 
-  // Returns true if the specified invalidation has been delivered and
-  // dropped.
-  bool IsDropped(const Invalidation& invalidation) const;
-
   // Returns true if the specified invalidation was never delivered.
   bool IsUnsent(const Invalidation& invalidation) const;
 
-  // Retruns true if all invalidations have been acked and all drops recovered.
+  // Returns true if all invalidations have been acked and all drops recovered.
   bool AllInvalidationsAccountedFor() const;
 
   // Implementation of AckHandler.
   void Acknowledge(const Topic& topic, const AckHandle& handle) override;
-  void Drop(const Topic& topic, const AckHandle& handle) override;
 
  private:
   typedef std::vector<Invalidation> InvalidationVector;
@@ -63,7 +58,6 @@ class INVALIDATION_EXPORT FakeAckHandler
   InvalidationVector unsent_invalidations_;
   InvalidationVector unacked_invalidations_;
   InvalidationVector acked_invalidations_;
-  InvalidationVector dropped_invalidations_;
 
   std::map<Topic, AckHandle> unrecovered_drop_events_;
 };

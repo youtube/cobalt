@@ -123,8 +123,9 @@ int main(int argc, char** argv) {
   }
 
   // Instantiate Web Instance Host.
-  WebInstanceHost web_instance_host(
-      *base::ComponentContextForProcess()->outgoing());
+  WebInstanceHostWithServicesFromThisComponent web_instance_host(
+      *base::ComponentContextForProcess()->outgoing(),
+      /*is_web_instance_component_in_same_package=*/false);
   fidl::InterfaceRequest<fuchsia::io::Directory> services_request;
   auto services = sys::ServiceDirectory::CreateWithRequest(&services_request);
   base::CommandLine child_command_line =
@@ -173,7 +174,7 @@ int main(int argc, char** argv) {
       std::make_unique<fuchsia_component_support::AnnotationsManager>();
   fuchsia::element::AnnotationControllerPtr annotation_controller;
   annotations_manager->Connect(annotation_controller.NewRequest());
-  auto maybe_presenter =
+  auto presenter =
       ConfigureFrame(frame.get(), std::move(annotation_controller));
 
   // Register the MessagePort for the Cast Streaming Receiver.

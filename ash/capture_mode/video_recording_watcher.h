@@ -20,6 +20,7 @@
 #include "ui/aura/scoped_window_capture_request.h"
 #include "ui/aura/window_observer.h"
 #include "ui/base/cursor/cursor.h"
+#include "ui/color/color_provider_source_observer.h"
 #include "ui/compositor/layer_delegate.h"
 #include "ui/compositor/layer_owner.h"
 #include "ui/display/display_observer.h"
@@ -34,6 +35,7 @@ class CursorManager;
 
 namespace ash {
 
+class CaptureModeBehavior;
 class CaptureModeController;
 class CaptureModeDemoToolsController;
 class RecordingOverlayController;
@@ -46,7 +48,7 @@ class RecordedWindowRootObserver;
 // This also paints a dimming shield to distinguish the area being recorded, but
 // only when recording a window or a partial region.
 // Note that this object doesn't create a new layer, rather the controller makes
-// it acquire and reuse the layer of the |CaptureModeSession| prior to the
+// it acquire and reuse the layer of the `CaptureModeSession` prior to the
 // session ending.
 // It also controls the overlay created on the video capturer to efficiently
 // record the mouse cursor on top of the video frames.
@@ -59,7 +61,8 @@ class ASH_EXPORT VideoRecordingWatcher
       public WindowDimmer::Delegate,
       public ui::EventHandler,
       public TabletModeObserver,
-      public CursorWindowController::Observer {
+      public CursorWindowController::Observer,
+      public ui::ColorProviderSourceObserver {
  public:
   VideoRecordingWatcher(
       CaptureModeController* controller,
@@ -67,19 +70,21 @@ class ASH_EXPORT VideoRecordingWatcher
       aura::Window* window_being_recorded,
       mojo::PendingRemote<viz::mojom::FrameSinkVideoCaptureOverlay>
           cursor_capture_overlay,
-      bool projector_mode,
       bool is_recording_audio);
   ~VideoRecordingWatcher() override;
 
+  const CaptureModeBehavior* active_behavior() const {
+    return active_behavior_;
+  }
   aura::Window* window_being_recorded() const { return window_being_recorded_; }
-  bool is_in_projector_mode() const { return is_in_projector_mode_; }
   bool is_recording_audio() const { return is_recording_audio_; }
   bool should_paint_layer() const { return should_paint_layer_; }
   bool is_shutting_down() const { return is_shutting_down_; }
   CaptureModeSource recording_source() const { return recording_source_; }
 
-  // Toggles the Projector mode's overlay widget on or off. Can only be called
-  // if |is_in_projector_mode()| is true.
+  // Toggles the overlay widget on or off. Can only be called if
+  // `ShouldCreateRecordingOverlayController()` return true for
+  // `active_behavior_`.
   void ToggleRecordingOverlayEnabled();
 
   // Clean up prior to deletion.
@@ -149,6 +154,9 @@ class ASH_EXPORT VideoRecordingWatcher
 
   // CursorWindowController::Observer:
   void OnCursorCompositingStateChanged(bool enabled) override;
+
+  // ui::ColorProviderSourceObserver:
+  void OnColorProviderChanged() override;
 
   bool IsWindowDimmedForTesting(aura::Window* window) const;
 
@@ -232,10 +240,12 @@ class ASH_EXPORT VideoRecordingWatcher
   const raw_ptr<CaptureModeController, ExperimentalAsh> controller_;
 
   // The currently active behavior which is passed from capture mode session.
-  CaptureModeBehavior* const active_behavior_;
+  const raw_ptr<CaptureModeBehavior, DanglingUntriaged | ExperimentalAsh>
+      active_behavior_;
   const raw_ptr<wm::CursorManager, ExperimentalAsh> cursor_manager_;
-  const raw_ptr<aura::Window, ExperimentalAsh> window_being_recorded_;
-  raw_ptr<aura::Window, ExperimentalAsh> current_root_;
+  const raw_ptr<aura::Window, DanglingUntriaged | ExperimentalAsh>
+      window_being_recorded_;
+  raw_ptr<aura::Window, DanglingUntriaged | ExperimentalAsh> current_root_;
   const CaptureModeSource recording_source_;
 
   // The end point of the overlay owned by the video capturer on Viz, which is
@@ -278,9 +288,6 @@ class ASH_EXPORT VideoRecordingWatcher
   // repeated reconfiguration of the video encoder. This timer is used to
   // throttle such events.
   base::OneShotTimer window_size_change_throttle_timer_;
-
-  // True if the current in progress recording is for a Projector mode session.
-  const bool is_in_projector_mode_;
 
   // True if this active recording session started with audio recording turned
   // on, and audio recording is being done by the recording service.

@@ -27,9 +27,7 @@ import org.chromium.base.test.BaseRobolectricTestRunner;
 
 import java.util.LinkedList;
 
-/**
- * Unit test for {@link ChildProcessConnectionMetrics}.
- */
+/** Unit test for {@link ChildProcessConnectionMetrics}. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE, sdk = Build.VERSION_CODES.Q)
 public class ChildProcessConnectionMetricsUnitTest {
@@ -42,8 +40,9 @@ public class ChildProcessConnectionMetricsUnitTest {
         UmaRecorderHolder.resetForTesting();
         LauncherThread.setCurrentThreadAsLauncherThread();
         mRanking = new LinkedList<ChildProcessConnection>();
-        mBindingManager = new BindingManager(
-                RuntimeEnvironment.application, BindingManager.NO_MAX_SIZE, mRanking);
+        mBindingManager =
+                new BindingManager(
+                        RuntimeEnvironment.application, BindingManager.NO_MAX_SIZE, mRanking);
         mConnectionMetrics = new ChildProcessConnectionMetrics();
         mConnectionMetrics.setBindingManager(mBindingManager);
     }
@@ -62,53 +61,40 @@ public class ChildProcessConnectionMetricsUnitTest {
         removeConnection(connection);
 
         mConnectionMetrics.emitMetrics();
-        Assert.assertEquals(1,
+        Assert.assertEquals(
+                1,
                 RecordHistogram.getHistogramValueCountForTesting(
                         "Android.ChildProcessBinding.TotalConnections", 0));
-        Assert.assertEquals(1,
+        Assert.assertEquals(
+                1,
                 RecordHistogram.getHistogramValueCountForTesting(
                         "Android.ChildProcessBinding.StrongConnections", 0));
-        Assert.assertEquals(0,
-                RecordHistogram.getHistogramTotalCountForTesting(
-                        "Android.ChildProcessBinding.PercentageStrongConnections_LessThan3Connections"));
-        Assert.assertEquals(1,
+        Assert.assertEquals(
+                1,
                 RecordHistogram.getHistogramValueCountForTesting(
                         "Android.ChildProcessBinding.VisibleConnections", 0));
-        Assert.assertEquals(0,
-                RecordHistogram.getHistogramTotalCountForTesting(
-                        "Android.ChildProcessBinding.PercentageVisibleConnections_LessThan3Connections"));
-        Assert.assertEquals(1,
+        Assert.assertEquals(
+                1,
                 RecordHistogram.getHistogramValueCountForTesting(
                         "Android.ChildProcessBinding.NotPerceptibleConnections", 0));
-        Assert.assertEquals(0,
-                RecordHistogram.getHistogramTotalCountForTesting(
-                        "Android.ChildProcessBinding.PercentageNotPerceptibleConnections_LessThan3Connections"));
-        Assert.assertEquals(1,
+        Assert.assertEquals(
+                1,
                 RecordHistogram.getHistogramValueCountForTesting(
                         "Android.ChildProcessBinding.WaivedConnections", 0));
-        Assert.assertEquals(0,
-                RecordHistogram.getHistogramTotalCountForTesting(
-                        "Android.ChildProcessBinding.PercentageWaivedConnections_LessThan3Connections"));
 
-        Assert.assertEquals(1,
+        Assert.assertEquals(
+                1,
                 RecordHistogram.getHistogramValueCountForTesting(
                         "Android.ChildProcessBinding.ContentVisibleConnections", 0));
-        Assert.assertEquals(0,
-                RecordHistogram.getHistogramTotalCountForTesting(
-                        "Android.ChildProcessBinding.PercentageContentVisibleConnections_LessThan3Connections"));
-        Assert.assertEquals(1,
+        Assert.assertEquals(
+                1,
                 RecordHistogram.getHistogramValueCountForTesting(
                         "Android.ChildProcessBinding.ContentWaivedConnections", 0));
-        Assert.assertEquals(0,
-                RecordHistogram.getHistogramTotalCountForTesting(
-                        "Android.ChildProcessBinding.PercentageContentWaivedConnections_LessThan3Connections"));
 
-        Assert.assertEquals(1,
+        Assert.assertEquals(
+                1,
                 RecordHistogram.getHistogramValueCountForTesting(
                         "Android.ChildProcessBinding.WaivableConnections", 0));
-        Assert.assertEquals(0,
-                RecordHistogram.getHistogramTotalCountForTesting(
-                        "Android.ChildProcessBinding.PercentageWaivableConnections_LessThan3Connections"));
     }
 
     @Test
@@ -126,60 +112,40 @@ public class ChildProcessConnectionMetricsUnitTest {
         setLowestRanking(lowestRankingConnection);
 
         mConnectionMetrics.emitMetrics();
-        Assert.assertEquals(1,
+        Assert.assertEquals(
+                1,
                 RecordHistogram.getHistogramValueCountForTesting(
                         "Android.ChildProcessBinding.TotalConnections", 6));
-        Assert.assertEquals(1,
+        Assert.assertEquals(
+                1,
                 RecordHistogram.getHistogramValueCountForTesting(
                         "Android.ChildProcessBinding.StrongConnections", 1));
-        Assert.assertEquals(1,
-                RecordHistogram.getHistogramValueCountForTesting(
-                        "Android.ChildProcessBinding.PercentageStrongConnections_6To10Connections",
-                        17));
-        Assert.assertEquals(1,
+        Assert.assertEquals(
+                1,
                 RecordHistogram.getHistogramValueCountForTesting(
                         "Android.ChildProcessBinding.VisibleConnections", 1));
-        Assert.assertEquals(1,
-                RecordHistogram.getHistogramValueCountForTesting(
-                        "Android.ChildProcessBinding.PercentageVisibleConnections_6To10Connections",
-                        17));
-        Assert.assertEquals(1,
+        Assert.assertEquals(
+                1,
                 RecordHistogram.getHistogramValueCountForTesting(
                         "Android.ChildProcessBinding.NotPerceptibleConnections", 3));
-        Assert.assertEquals(1,
-                RecordHistogram.getHistogramValueCountForTesting(
-                        "Android.ChildProcessBinding.PercentageNotPerceptibleConnections_6To10Connections",
-                        50));
-        Assert.assertEquals(1,
+        Assert.assertEquals(
+                1,
                 RecordHistogram.getHistogramValueCountForTesting(
                         "Android.ChildProcessBinding.WaivedConnections", 1));
-        Assert.assertEquals(1,
-                RecordHistogram.getHistogramValueCountForTesting(
-                        "Android.ChildProcessBinding.PercentageWaivedConnections_6To10Connections",
-                        17));
 
-        Assert.assertEquals(1,
+        Assert.assertEquals(
+                1,
                 RecordHistogram.getHistogramValueCountForTesting(
                         "Android.ChildProcessBinding.ContentVisibleConnections", 1));
-        Assert.assertEquals(1,
-                RecordHistogram.getHistogramValueCountForTesting(
-                        "Android.ChildProcessBinding.PercentageContentVisibleConnections_6To10Connections",
-                        17));
-        Assert.assertEquals(1,
+        Assert.assertEquals(
+                1,
                 RecordHistogram.getHistogramValueCountForTesting(
                         "Android.ChildProcessBinding.ContentWaivedConnections", 4));
-        Assert.assertEquals(1,
-                RecordHistogram.getHistogramValueCountForTesting(
-                        "Android.ChildProcessBinding.PercentageContentWaivedConnections_6To10Connections",
-                        67));
 
-        Assert.assertEquals(1,
+        Assert.assertEquals(
+                1,
                 RecordHistogram.getHistogramValueCountForTesting(
                         "Android.ChildProcessBinding.WaivableConnections", 3));
-        Assert.assertEquals(1,
-                RecordHistogram.getHistogramValueCountForTesting(
-                        "Android.ChildProcessBinding.PercentageWaivableConnections_6To10Connections",
-                        50));
     }
 
     @Test
@@ -198,60 +164,40 @@ public class ChildProcessConnectionMetricsUnitTest {
 
         mConnectionMetrics.emitMetrics();
 
-        Assert.assertEquals(1,
+        Assert.assertEquals(
+                1,
                 RecordHistogram.getHistogramValueCountForTesting(
                         "Android.ChildProcessBinding.TotalConnections", 6));
-        Assert.assertEquals(1,
+        Assert.assertEquals(
+                1,
                 RecordHistogram.getHistogramValueCountForTesting(
                         "Android.ChildProcessBinding.StrongConnections", 1));
-        Assert.assertEquals(1,
-                RecordHistogram.getHistogramValueCountForTesting(
-                        "Android.ChildProcessBinding.PercentageStrongConnections_6To10Connections",
-                        17));
-        Assert.assertEquals(1,
+        Assert.assertEquals(
+                1,
                 RecordHistogram.getHistogramValueCountForTesting(
                         "Android.ChildProcessBinding.VisibleConnections", 4));
-        Assert.assertEquals(1,
-                RecordHistogram.getHistogramValueCountForTesting(
-                        "Android.ChildProcessBinding.PercentageVisibleConnections_6To10Connections",
-                        67));
-        Assert.assertEquals(1,
+        Assert.assertEquals(
+                1,
                 RecordHistogram.getHistogramValueCountForTesting(
                         "Android.ChildProcessBinding.NotPerceptibleConnections", 0));
-        Assert.assertEquals(1,
-                RecordHistogram.getHistogramValueCountForTesting(
-                        "Android.ChildProcessBinding.PercentageNotPerceptibleConnections_6To10Connections",
-                        0));
-        Assert.assertEquals(1,
+        Assert.assertEquals(
+                1,
                 RecordHistogram.getHistogramValueCountForTesting(
                         "Android.ChildProcessBinding.WaivedConnections", 1));
-        Assert.assertEquals(1,
-                RecordHistogram.getHistogramValueCountForTesting(
-                        "Android.ChildProcessBinding.PercentageWaivedConnections_6To10Connections",
-                        17));
 
-        Assert.assertEquals(1,
+        Assert.assertEquals(
+                1,
                 RecordHistogram.getHistogramValueCountForTesting(
                         "Android.ChildProcessBinding.ContentVisibleConnections", 1));
-        Assert.assertEquals(1,
-                RecordHistogram.getHistogramValueCountForTesting(
-                        "Android.ChildProcessBinding.PercentageContentVisibleConnections_6To10Connections",
-                        17));
-        Assert.assertEquals(1,
+        Assert.assertEquals(
+                1,
                 RecordHistogram.getHistogramValueCountForTesting(
                         "Android.ChildProcessBinding.ContentWaivedConnections", 4));
-        Assert.assertEquals(1,
-                RecordHistogram.getHistogramValueCountForTesting(
-                        "Android.ChildProcessBinding.PercentageContentWaivedConnections_6To10Connections",
-                        67));
 
-        Assert.assertEquals(1,
+        Assert.assertEquals(
+                1,
                 RecordHistogram.getHistogramValueCountForTesting(
                         "Android.ChildProcessBinding.WaivableConnections", 3));
-        Assert.assertEquals(1,
-                RecordHistogram.getHistogramValueCountForTesting(
-                        "Android.ChildProcessBinding.PercentageWaivableConnections_6To10Connections",
-                        50));
     }
 
     @Test
@@ -267,119 +213,79 @@ public class ChildProcessConnectionMetricsUnitTest {
         setLowestRanking(lowestRankingConnection);
         mConnectionMetrics.emitMetrics();
 
-        Assert.assertEquals(1,
+        Assert.assertEquals(
+                1,
                 RecordHistogram.getHistogramValueCountForTesting(
                         "Android.ChildProcessBinding.TotalConnections", 2));
-        Assert.assertEquals(1,
+        Assert.assertEquals(
+                1,
                 RecordHistogram.getHistogramValueCountForTesting(
                         "Android.ChildProcessBinding.StrongConnections", 0));
-        Assert.assertEquals(1,
-                RecordHistogram.getHistogramValueCountForTesting(
-                        "Android.ChildProcessBinding.PercentageStrongConnections_LessThan3Connections",
-                        0));
-        Assert.assertEquals(1,
+        Assert.assertEquals(
+                1,
                 RecordHistogram.getHistogramValueCountForTesting(
                         "Android.ChildProcessBinding.VisibleConnections", 2));
-        Assert.assertEquals(1,
-                RecordHistogram.getHistogramValueCountForTesting(
-                        "Android.ChildProcessBinding.PercentageVisibleConnections_LessThan3Connections",
-                        100));
-        Assert.assertEquals(1,
+        Assert.assertEquals(
+                1,
                 RecordHistogram.getHistogramValueCountForTesting(
                         "Android.ChildProcessBinding.NotPerceptibleConnections", 0));
-        Assert.assertEquals(1,
-                RecordHistogram.getHistogramValueCountForTesting(
-                        "Android.ChildProcessBinding.PercentageNotPerceptibleConnections_LessThan3Connections",
-                        0));
-        Assert.assertEquals(1,
+        Assert.assertEquals(
+                1,
                 RecordHistogram.getHistogramValueCountForTesting(
                         "Android.ChildProcessBinding.WaivedConnections", 0));
-        Assert.assertEquals(1,
-                RecordHistogram.getHistogramValueCountForTesting(
-                        "Android.ChildProcessBinding.PercentageWaivedConnections_LessThan3Connections",
-                        0));
 
-        Assert.assertEquals(1,
+        Assert.assertEquals(
+                1,
                 RecordHistogram.getHistogramValueCountForTesting(
                         "Android.ChildProcessBinding.ContentVisibleConnections", 2));
-        Assert.assertEquals(1,
-                RecordHistogram.getHistogramValueCountForTesting(
-                        "Android.ChildProcessBinding.PercentageContentVisibleConnections_LessThan3Connections",
-                        100));
-        Assert.assertEquals(1,
+        Assert.assertEquals(
+                1,
                 RecordHistogram.getHistogramValueCountForTesting(
                         "Android.ChildProcessBinding.ContentWaivedConnections", 0));
-        Assert.assertEquals(1,
-                RecordHistogram.getHistogramValueCountForTesting(
-                        "Android.ChildProcessBinding.PercentageContentWaivedConnections_LessThan3Connections",
-                        0));
 
-        Assert.assertEquals(1,
+        Assert.assertEquals(
+                1,
                 RecordHistogram.getHistogramValueCountForTesting(
                         "Android.ChildProcessBinding.WaivableConnections", 0));
-        Assert.assertEquals(1,
-                RecordHistogram.getHistogramValueCountForTesting(
-                        "Android.ChildProcessBinding.PercentageWaivableConnections_LessThan3Connections",
-                        0));
 
         updateContentBinding(lowestRankingConnection, ChildBindingState.WAIVED);
         updateContentBinding(highestRankingConnection, ChildBindingState.WAIVED);
         mConnectionMetrics.emitMetrics();
 
-        Assert.assertEquals(2,
+        Assert.assertEquals(
+                2,
                 RecordHistogram.getHistogramValueCountForTesting(
                         "Android.ChildProcessBinding.TotalConnections", 2));
-        Assert.assertEquals(2,
+        Assert.assertEquals(
+                2,
                 RecordHistogram.getHistogramValueCountForTesting(
                         "Android.ChildProcessBinding.StrongConnections", 0));
-        Assert.assertEquals(2,
-                RecordHistogram.getHistogramValueCountForTesting(
-                        "Android.ChildProcessBinding.PercentageStrongConnections_LessThan3Connections",
-                        0));
-        Assert.assertEquals(1,
+        Assert.assertEquals(
+                1,
                 RecordHistogram.getHistogramValueCountForTesting(
                         "Android.ChildProcessBinding.VisibleConnections", 1));
-        Assert.assertEquals(1,
-                RecordHistogram.getHistogramValueCountForTesting(
-                        "Android.ChildProcessBinding.PercentageVisibleConnections_LessThan3Connections",
-                        50));
-        Assert.assertEquals(2,
+        Assert.assertEquals(
+                2,
                 RecordHistogram.getHistogramValueCountForTesting(
                         "Android.ChildProcessBinding.NotPerceptibleConnections", 0));
-        Assert.assertEquals(2,
-                RecordHistogram.getHistogramValueCountForTesting(
-                        "Android.ChildProcessBinding.PercentageNotPerceptibleConnections_LessThan3Connections",
-                        0));
-        Assert.assertEquals(1,
+        Assert.assertEquals(
+                1,
                 RecordHistogram.getHistogramValueCountForTesting(
                         "Android.ChildProcessBinding.WaivedConnections", 1));
-        Assert.assertEquals(1,
-                RecordHistogram.getHistogramValueCountForTesting(
-                        "Android.ChildProcessBinding.PercentageWaivedConnections_LessThan3Connections",
-                        50));
 
-        Assert.assertEquals(1,
+        Assert.assertEquals(
+                1,
                 RecordHistogram.getHistogramValueCountForTesting(
                         "Android.ChildProcessBinding.ContentVisibleConnections", 0));
-        Assert.assertEquals(1,
-                RecordHistogram.getHistogramValueCountForTesting(
-                        "Android.ChildProcessBinding.PercentageContentVisibleConnections_LessThan3Connections",
-                        0));
-        Assert.assertEquals(1,
+        Assert.assertEquals(
+                1,
                 RecordHistogram.getHistogramValueCountForTesting(
                         "Android.ChildProcessBinding.ContentWaivedConnections", 2));
-        Assert.assertEquals(1,
-                RecordHistogram.getHistogramValueCountForTesting(
-                        "Android.ChildProcessBinding.PercentageContentWaivedConnections_LessThan3Connections",
-                        100));
 
-        Assert.assertEquals(1,
+        Assert.assertEquals(
+                1,
                 RecordHistogram.getHistogramValueCountForTesting(
                         "Android.ChildProcessBinding.WaivableConnections", 1));
-        Assert.assertEquals(1,
-                RecordHistogram.getHistogramValueCountForTesting(
-                        "Android.ChildProcessBinding.PercentageWaivableConnections_LessThan3Connections",
-                        50));
     }
 
     /**
@@ -388,10 +294,13 @@ public class ChildProcessConnectionMetricsUnitTest {
      */
     private ChildProcessConnection createMockConnection(
             @ChildBindingState int contentBindingState) {
-        ChildProcessConnection connection = new TestChildProcessConnection(
-                new ComponentName("pkg", "cls"), /*bindToCallerCheck=*/false,
-                /*bindAsExternalService=*/false, /*serviceBundle=*/null);
-        connection.start(/*useStrongBinding=*/false, /*serviceCallback*/ null);
+        ChildProcessConnection connection =
+                new TestChildProcessConnection(
+                        new ComponentName("pkg", "cls"),
+                        /* bindToCallerCheck= */ false,
+                        /* bindAsExternalService= */ false,
+                        /* serviceBundle= */ null);
+        connection.start(/* useStrongBinding= */ false, /* serviceCallback= */ null);
         if (contentBindingState == ChildBindingState.STRONG) {
             connection.addStrongBinding();
             connection.removeVisibleBinding();
@@ -414,8 +323,8 @@ public class ChildProcessConnectionMetricsUnitTest {
         final boolean needsVisibleBinding = contentBindingState == ChildBindingState.VISIBLE;
         final boolean hasContentVisibleBinding =
                 ((lowestRank || BindingManager.useNotPerceptibleBinding())
-                        && connection.isVisibleBindingBound())
-                || connection.getVisibleBindingCount() == 2;
+                                && connection.isVisibleBindingBound())
+                        || connection.getVisibleBindingCount() == 2;
 
         if (needsStrongBinding && !hasContentStrongBinding) {
             connection.addStrongBinding();
@@ -430,9 +339,7 @@ public class ChildProcessConnectionMetricsUnitTest {
         }
     }
 
-    /**
-     * Make the supplied connection the lowest ranking.
-     */
+    /** Make the supplied connection the lowest ranking. */
     private void setLowestRanking(ChildProcessConnection connection) {
         if (mRanking.size() == 1) {
             mBindingManager.removeConnection(mRanking.get(0));

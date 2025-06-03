@@ -53,7 +53,7 @@ ThreadGroup::ScopedReenqueueExecutor::~ScopedReenqueueExecutor() {
 
 void ThreadGroup::ScopedReenqueueExecutor::
     SchedulePushTaskSourceAndWakeUpWorkers(
-        TransactionWithRegisteredTaskSource transaction_with_task_source,
+        RegisteredTaskSourceAndTransaction transaction_with_task_source,
         ThreadGroup* destination_thread_group) {
   DCHECK(destination_thread_group);
   DCHECK(!destination_thread_group_);
@@ -64,12 +64,8 @@ void ThreadGroup::ScopedReenqueueExecutor::
 }
 
 ThreadGroup::ThreadGroup(TrackedRef<TaskTracker> task_tracker,
-                         TrackedRef<Delegate> delegate,
-                         ThreadGroup* predecessor_thread_group)
-    : task_tracker_(std::move(task_tracker)),
-      delegate_(std::move(delegate)),
-      lock_(predecessor_thread_group ? &predecessor_thread_group->lock_
-                                     : nullptr) {
+                         TrackedRef<Delegate> delegate)
+    : task_tracker_(std::move(task_tracker)), delegate_(std::move(delegate)) {
   DCHECK(task_tracker_);
 }
 
@@ -148,7 +144,7 @@ RegisteredTaskSource ThreadGroup::RemoveTaskSource(
 void ThreadGroup::ReEnqueueTaskSourceLockRequired(
     BaseScopedCommandsExecutor* workers_executor,
     ScopedReenqueueExecutor* reenqueue_executor,
-    TransactionWithRegisteredTaskSource transaction_with_task_source) {
+    RegisteredTaskSourceAndTransaction transaction_with_task_source) {
   // Decide in which thread group the TaskSource should be reenqueued.
   ThreadGroup* destination_thread_group = delegate_->GetThreadGroupForTraits(
       transaction_with_task_source.transaction.traits());
@@ -234,7 +230,7 @@ void ThreadGroup::UpdateSortKeyImpl(BaseScopedCommandsExecutor* executor,
 
 void ThreadGroup::PushTaskSourceAndWakeUpWorkersImpl(
     BaseScopedCommandsExecutor* executor,
-    TransactionWithRegisteredTaskSource transaction_with_task_source) {
+    RegisteredTaskSourceAndTransaction transaction_with_task_source) {
   CheckedAutoLock auto_lock(lock_);
   DCHECK(!replacement_thread_group_);
   DCHECK_EQ(delegate_->GetThreadGroupForTraits(
@@ -259,34 +255,29 @@ void ThreadGroup::PushTaskSourceAndWakeUpWorkersImpl(
   EnsureEnoughWorkersLockRequired(executor);
 }
 
-void ThreadGroup::InvalidateAndHandoffAllTaskSourcesToOtherThreadGroup(
-    ThreadGroup* destination_thread_group) {
-  CheckedAutoLock current_thread_group_lock(lock_);
-  CheckedAutoLock destination_thread_group_lock(
-      destination_thread_group->lock_);
-  destination_thread_group->priority_queue_ = std::move(priority_queue_);
-  replacement_thread_group_ = destination_thread_group;
-}
-
 void ThreadGroup::HandoffNonUserBlockingTaskSourcesToOtherThreadGroup(
     ThreadGroup* destination_thread_group) {
-  CheckedAutoLock current_thread_group_lock(lock_);
-  CheckedAutoLock destination_thread_group_lock(
-      destination_thread_group->lock_);
   PriorityQueue new_priority_queue;
   TaskSourceSortKey top_sort_key;
-  // This works because all USER_BLOCKING tasks are at the front of the queue.
-  while (!priority_queue_.IsEmpty() &&
-         (top_sort_key = priority_queue_.PeekSortKey()).priority() ==
-             TaskPriority::USER_BLOCKING) {
-    new_priority_queue.Push(priority_queue_.PopTaskSource(), top_sort_key);
+  {
+    // This works because all USER_BLOCKING tasks are at the front of the queue.
+    CheckedAutoLock current_thread_group_lock(lock_);
+    while (!priority_queue_.IsEmpty() &&
+           (top_sort_key = priority_queue_.PeekSortKey()).priority() ==
+               TaskPriority::USER_BLOCKING) {
+      new_priority_queue.Push(priority_queue_.PopTaskSource(), top_sort_key);
+    }
+    new_priority_queue.swap(priority_queue_);
   }
-  while (!priority_queue_.IsEmpty()) {
-    top_sort_key = priority_queue_.PeekSortKey();
-    destination_thread_group->priority_queue_.Push(
-        priority_queue_.PopTaskSource(), top_sort_key);
+  {
+    CheckedAutoLock destination_thread_group_lock(
+        destination_thread_group->lock_);
+    while (!new_priority_queue.IsEmpty()) {
+      top_sort_key = new_priority_queue.PeekSortKey();
+      destination_thread_group->priority_queue_.Push(
+          new_priority_queue.PopTaskSource(), top_sort_key);
+    }
   }
-  priority_queue_ = std::move(new_priority_queue);
 }
 
 bool ThreadGroup::ShouldYield(TaskSourceSortKey sort_key) {

@@ -13,7 +13,6 @@
 #include "ash/webui/help_app_ui/help_app_page_handler.h"
 #include "ash/webui/help_app_ui/help_app_untrusted_ui.h"
 #include "ash/webui/help_app_ui/search/search_handler.h"
-#include "ash/webui/help_app_ui/url_constants.h"
 #include "ash/webui/web_applications/webui_test_prod_util.h"
 #include "chromeos/ash/components/local_search_service/public/cpp/local_search_service_proxy.h"
 #include "chromeos/ash/components/local_search_service/public/cpp/local_search_service_proxy_factory.h"
@@ -76,6 +75,9 @@ HelpAppUI::HelpAppUI(content::WebUI* web_ui,
                         });
 
   if (MaybeConfigureTestableDataSource(host_source)) {
+    host_source->OverrideContentSecurityPolicy(
+        network::mojom::CSPDirectiveName::ScriptSrc,
+        "script-src chrome://resources chrome://webui-test 'self';");
     host_source->OverrideContentSecurityPolicy(
         network::mojom::CSPDirectiveName::TrustedTypes,
         std::string("trusted-types test-harness;"));

@@ -9,17 +9,20 @@
 
 #include "base/memory/scoped_refptr.h"
 #import "ios/chrome/browser/shared/ui/table_view/table_view_favicon_data_source.h"
-#include "ios/chrome/browser/sync/sync_service_factory.h"
 #import "ios/chrome/browser/ui/settings/password/password_manager_view_controller_delegate.h"
 #import "ios/chrome/common/ui/reauthentication/reauthentication_module.h"
 
 class FaviconLoader;
 class IOSChromePasswordCheckManager;
 @protocol PasswordsConsumer;
-class SyncSetupService;
+class PrefService;
 
-namespace password_manager {
-struct CredentialUIEntry;
+namespace syncer {
+class SyncService;
+}
+
+namespace feature_engagement {
+class Tracker;
 }
 
 // This mediator fetches and organises the passwords for its consumer.
@@ -30,9 +33,9 @@ struct CredentialUIEntry;
 - (instancetype)initWithPasswordCheckManager:
                     (scoped_refptr<IOSChromePasswordCheckManager>)
                         passwordCheckManager
-                            syncSetupService:(SyncSetupService*)syncSetupService
                                faviconLoader:(FaviconLoader*)faviconLoader
                                  syncService:(syncer::SyncService*)syncService
+                                 prefService:(PrefService*)prefService
     NS_DESIGNATED_INITIALIZER;
 
 - (instancetype)init NS_UNAVAILABLE;
@@ -40,7 +43,14 @@ struct CredentialUIEntry;
 // Disconnect the observers.
 - (void)disconnect;
 
+// Ask the Feature Engagement Tracker whether or not the Password Manager widget
+// promo can be shown.
+- (void)askFETToShowPasswordManagerWidgetPromo;
+
 @property(nonatomic, weak) id<PasswordsConsumer> consumer;
+
+// Feature Engagement Tracker used to handle promo events.
+@property(nonatomic, assign) feature_engagement::Tracker* tracker;
 
 @end
 

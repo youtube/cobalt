@@ -54,7 +54,7 @@ const int kNumberOfPacketsForTest = 100;
 
 void ReadDataFromSpeechFile(char* data, int length) {
   base::FilePath file;
-  CHECK(base::PathService::Get(base::DIR_SOURCE_ROOT, &file));
+  CHECK(base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &file));
   file = file.Append(FILE_PATH_LITERAL("media"))
              .Append(FILE_PATH_LITERAL("test"))
              .Append(FILE_PATH_LITERAL("data"))
@@ -395,7 +395,6 @@ TEST_P(MediaStreamAudioProcessorTestMultichannel, TestStereoAudio) {
 
     // Run the test consecutively to make sure the stereo channels are not
     // flipped back and forth.
-    static const int kNumberOfPacketsForTest = 100;
     const base::TimeTicks pushed_capture_time = base::TimeTicks::Now();
 
     for (int num_preferred_channels = 0; num_preferred_channels <= 5;

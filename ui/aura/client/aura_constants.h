@@ -30,6 +30,7 @@ constexpr int kResizeBehaviorNone = 0;
 constexpr int kResizeBehaviorCanResize = 1 << 0;
 constexpr int kResizeBehaviorCanMaximize = 1 << 1;
 constexpr int kResizeBehaviorCanMinimize = 1 << 2;
+constexpr int kResizeBehaviorCanFullscreen = 1 << 3;
 
 // A value used to represent an unassigned workspace for `kWindowWorkspaceKey`.
 constexpr int kWindowWorkspaceUnassignedWorkspace = -1;
@@ -81,6 +82,9 @@ AURA_EXPORT extern const WindowProperty<bool>* const kConstrainedWindowKey;
 
 // A property key to store if a window was created by a user gesture.
 AURA_EXPORT extern const WindowProperty<bool>* const kCreatedByUserGesture;
+
+// A property key to indicate the uuid of the desk this window belongs to.
+AURA_EXPORT extern const WindowProperty<std::string*>* const kDeskUuidKey;
 
 // A property key to indicate that a window should show that it deserves
 // attention.

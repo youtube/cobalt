@@ -25,8 +25,8 @@ struct NameHandleHasher {
 
 struct UniqueNameHandleEqual {
   bool operator()(Handle<Name> x, Handle<Name> y) const {
-    DCHECK(x->IsUniqueName());
-    DCHECK(y->IsUniqueName());
+    DCHECK(IsUniqueName(*x));
+    DCHECK(IsUniqueName(*y));
     return *x == *y;
   }
 };
@@ -39,7 +39,7 @@ using UniqueNameHandleSet =
 BUILTIN(SharedSpaceJSObjectHasInstance) {
   HandleScope scope(isolate);
   Handle<Object> constructor = args.receiver();
-  if (!constructor->IsJSFunction()) {
+  if (!IsJSFunction(*constructor)) {
     return *isolate->factory()->false_value();
   }
 
@@ -76,7 +76,7 @@ Maybe<bool> CollectFieldsAndElements(Isolate* isolate,
       property_name = isolate->factory()->InternalizeName(property_name);
 
       // TODO(v8:12547): Support Symbols?
-      if (property_name->IsSymbol()) {
+      if (IsSymbol(*property_name)) {
         THROW_NEW_ERROR_RETURN_VALUE(
             isolate, NewTypeError(MessageTemplate::kSymbolToString),
             Nothing<bool>());
@@ -119,7 +119,7 @@ BUILTIN(SharedStructTypeConstructor) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, raw_length_number,
       Object::GetLengthFromArrayLike(isolate, property_names_arg));
-  double num_properties_double = raw_length_number->Number();
+  double num_properties_double = Object::Number(*raw_length_number);
   if (num_properties_double < 0 || num_properties_double > kMaxJSStructFields) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewRangeError(MessageTemplate::kStructFieldCountOutOfRange));
@@ -189,30 +189,19 @@ BUILTIN(SharedStructTypeConstructor) {
   Handle<Map> instance_map =
       factory->NewMap(JS_SHARED_STRUCT_TYPE, instance_size, DICTIONARY_ELEMENTS,
                       in_object_properties, AllocationType::kSharedMap);
+  if (num_fields == 0) {
+    AlwaysSharedSpaceJSObject::PrepareMapNoEnumerableProperties(*instance_map);
+  } else {
+    AlwaysSharedSpaceJSObject::PrepareMapWithEnumerableProperties(
+        isolate, instance_map, maybe_descriptors, num_fields);
+  }
 
   // Structs have fixed layout ahead of time, so there's no slack.
   int out_of_object_properties = num_fields - in_object_properties;
-  if (out_of_object_properties == 0) {
-    instance_map->SetInObjectUnusedPropertyFields(0);
-  } else {
+  if (out_of_object_properties != 0) {
     instance_map->SetOutOfObjectUnusedPropertyFields(0);
   }
-  instance_map->set_is_extensible(false);
-  JSFunction::SetInitialMap(isolate, constructor, instance_map,
-                            factory->null_value(), factory->null_value());
-  constructor->map().SetConstructor(ReadOnlyRoots(isolate).null_value());
-  constructor->map().set_has_non_instance_prototype(true);
-
-  // Pre-create the enum cache in the shared space, as otherwise for-in
-  // enumeration will incorrectly create an enum cache in the per-thread heap.
-  if (num_fields == 0) {
-    instance_map->SetEnumLength(0);
-  } else {
-    instance_map->InitializeDescriptors(isolate, *maybe_descriptors);
-    FastKeyAccumulator::InitializeFastPropertyEnumCache(
-        isolate, instance_map, num_fields, AllocationType::kSharedOld);
-    DCHECK_EQ(num_fields, instance_map->EnumLength());
-  }
+  constructor->set_prototype_or_initial_map(*instance_map, kReleaseStore);
 
   int num_elements = num_properties - num_fields;
   if (num_elements != 0) {
@@ -244,28 +233,22 @@ BUILTIN(SharedStructConstructor) {
                                                 elements_template);
 }
 
-BUILTIN(SharedArrayIsSharedArray) {
-  HandleScope scope(isolate);
-  return isolate->heap()->ToBoolean(
-      args.atOrUndefined(isolate, 1)->IsJSSharedArray());
-}
-
 BUILTIN(SharedStructTypeIsSharedStruct) {
   HandleScope scope(isolate);
   return isolate->heap()->ToBoolean(
-      args.atOrUndefined(isolate, 1)->IsJSSharedStruct());
+      IsJSSharedStruct(*args.atOrUndefined(isolate, 1)));
 }
 
 BUILTIN(AtomicsMutexIsMutex) {
   HandleScope scope(isolate);
   return isolate->heap()->ToBoolean(
-      args.atOrUndefined(isolate, 1)->IsJSAtomicsMutex());
+      IsJSAtomicsMutex(*args.atOrUndefined(isolate, 1)));
 }
 
 BUILTIN(AtomicsConditionIsCondition) {
   HandleScope scope(isolate);
   return isolate->heap()->ToBoolean(
-      args.atOrUndefined(isolate, 1)->IsJSAtomicsCondition());
+      IsJSAtomicsCondition(*args.atOrUndefined(isolate, 1)));
 }
 
 }  // namespace internal

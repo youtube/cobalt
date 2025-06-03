@@ -91,12 +91,6 @@ class PLATFORM_EXPORT RTCVideoDecoderAdapter : public webrtc::VideoDecoder {
   static void IncrementCurrentDecoderCountForTesting();
   static void DecrementCurrentDecoderCountForTesting();
 
-  // Returns true if there's VP9 HW support for spatial layers. Please note that
-  // the response from this function implicitly assumes that HW decoding is
-  // enabled and that VP9 decoding is supported in HW.
-  static bool Vp9HwSupportForSpatialLayers(
-      const media::VideoDecoderType decoder_type);
-
  private:
   class Impl;
 
@@ -119,7 +113,7 @@ class PLATFORM_EXPORT RTCVideoDecoderAdapter : public webrtc::VideoDecoder {
       const webrtc::EncodedImage& input_image,
       bool missing_frames,
       int64_t render_time_ms);
-  bool ShouldReinitializeForSettingHDRColorSpace(
+  bool ShouldReinitializeForSettingColorSpace(
       const webrtc::EncodedImage& input_image) const;
   bool ReinitializeSync(const media::VideoDecoderConfig& config);
   void ChangeStatus(Status new_status);

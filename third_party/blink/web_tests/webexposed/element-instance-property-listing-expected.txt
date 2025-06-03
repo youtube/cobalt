@@ -47,7 +47,7 @@ namespace http://www.w3.org/1999/xhtml
     property ariaDescription
     property ariaDetailsElements
     property ariaDisabled
-    property ariaErrorMessageElement
+    property ariaErrorMessageElements
     property ariaExpanded
     property ariaFlowToElements
     property ariaHasPopup
@@ -327,6 +327,7 @@ namespace http://www.w3.org/1999/xhtml
     property setAttributeNode
     property setAttributeNodeNS
     property setHTML
+    property setHTMLUnsafe
     property setPointerCapture
     property shadowRoot
     property showPopover
@@ -340,7 +341,6 @@ namespace http://www.w3.org/1999/xhtml
     property toString
     property toggleAttribute
     property togglePopover
-    property toggles
     property translate
     property virtualKeyboardPolicy
     property webkitMatchesSelector
@@ -502,6 +502,8 @@ html element button
     property formMethod
     property formNoValidate
     property formTarget
+    property invokeAction
+    property invokeTargetElement
     property labels
     property name
     property popoverTargetAction
@@ -550,6 +552,7 @@ html element del
     property cite
     property dateTime
 html element details
+    property name
     property open
 html element dfn
 html element dialog
@@ -573,6 +576,12 @@ html element embed
     property name
     property src
     property type
+    property width
+html element fencedframe
+    property allow
+    property config
+    property height
+    property sandbox
     property width
 html element fieldset
     property checkValidity
@@ -665,6 +674,7 @@ html element hr
     property size
     property width
 html element html
+    property blocking
     property version
 html element i
 html element iframe
@@ -672,6 +682,7 @@ html element iframe
     property allow
     property allowFullscreen
     property allowPaymentRequest
+    property browsingTopics
     property contentDocument
     property contentWindow
     property credentialless
@@ -743,6 +754,8 @@ html element input
     property height
     property incremental
     property indeterminate
+    property invokeAction
+    property invokeTargetElement
     property labels
     property list
     property max
@@ -818,6 +831,7 @@ html element link
     property sizes
     property target
     property type
+html element listbox
 html element listing
     property width
 html element main
@@ -926,6 +940,10 @@ html element param
     property type
     property value
     property valueType
+html element permission
+    property ondismiss
+    property onresolve
+    property type
 html element picture
 html element plaintext
 html element pre
@@ -960,6 +978,7 @@ html element script
     property src
     property text
     property type
+html element search
 html element section
 html element select
     property add
@@ -979,13 +998,15 @@ html element select
     property selectedIndex
     property selectedOptions
     property setCustomValidity
+    property showPicker
     property size
     property type
     property validationMessage
     property validity
     property value
     property willValidate
-html element selectmenu
+html element selectedoption
+html element selectlist
     property checkValidity
     property disabled
     property form
@@ -1077,6 +1098,7 @@ html element td
     property width
 html element template
     property content
+    property parseparts
     property shadowRootMode
 html element textarea
     property autocomplete
@@ -1297,7 +1319,7 @@ namespace http://www.w3.org/2000/svg
     property ariaDescription
     property ariaDetailsElements
     property ariaDisabled
-    property ariaErrorMessageElement
+    property ariaErrorMessageElements
     property ariaExpanded
     property ariaFlowToElements
     property ariaHasPopup
@@ -1556,6 +1578,7 @@ namespace http://www.w3.org/2000/svg
     property setAttributeNode
     property setAttributeNodeNS
     property setHTML
+    property setHTMLUnsafe
     property setPointerCapture
     property shadowRoot
     property slot
@@ -1564,7 +1587,6 @@ namespace http://www.w3.org/2000/svg
     property tagName
     property textContent
     property toggleAttribute
-    property toggles
     property viewportElement
     property webkitMatchesSelector
     property webkitRequestFullScreen
@@ -1642,13 +1664,6 @@ svg element circle
     property transform
 svg element clipPath
     property clipPathUnits
-    property farthestViewportElement
-    property getBBox
-    property getCTM
-    property getScreenCTM
-    property nearestViewportElement
-    property requiredExtensions
-    property systemLanguage
     property transform
 svg element defs
     property farthestViewportElement
@@ -2000,6 +2015,7 @@ svg element g
     property systemLanguage
     property transform
 svg element image
+    property crossOrigin
     property decode
     property decoding
     property farthestViewportElement

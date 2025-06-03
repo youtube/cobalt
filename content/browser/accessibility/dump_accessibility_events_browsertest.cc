@@ -114,10 +114,11 @@ std::vector<std::string> DumpAccessibilityEventsTest::Dump(ui::AXMode mode) {
     // Dump the event logs, running them through any filters specified
     // in the HTML file.
     auto [go_results, event_logs] = CaptureEvents(
-        base::BindOnce(&ExecuteScriptAndGetValue,
+        base::BindOnce([](RenderFrameHostImpl* frame,
+                          std::string script) { return EvalJs(frame, script); },
                        web_contents->GetPrimaryMainFrame(), "go()"),
         ui::kAXModeComplete);
-    run_go_again = go_results.is_bool() && go_results.GetBool();
+    run_go_again = go_results == true;
     // Save a copy of the final accessibility tree (as a text dump); we'll
     // log this for the user later if the test fails.
     final_tree_.append(DumpUnfilteredAccessibilityTreeAsString());
@@ -167,15 +168,17 @@ class DumpAccessibilityEventsTestExceptUIA
 // Parameterize the tests so that each test-pass is run independently.
 struct DumpAccessibilityEventsTestPassToString {
   std::string operator()(
-      const ::testing::TestParamInfo<ui::AXApiType::Type>& i) const {
-    return std::string(i.param);
+      const ::testing::TestParamInfo<std::pair<ui::AXApiType::Type, bool>>& i)
+      const {
+    return std::string(i.param.first) + (i.param.second ? "1" : "0");
   }
 };
 
+// UIA is excluded due to flakiness. See https://crbug.com/1459215
 INSTANTIATE_TEST_SUITE_P(
     All,
     DumpAccessibilityEventsTest,
-    ::testing::ValuesIn(ui::AXInspectTestHelper::EventTestPasses()),
+    ::testing::ValuesIn(DumpAccessibilityTestBase::EventTestPassesExceptUIA()),
     DumpAccessibilityEventsTestPassToString());
 
 INSTANTIATE_TEST_SUITE_P(
@@ -256,16 +259,6 @@ IN_PROC_BROWSER_TEST_P(DumpAccessibilityEventsTest,
   RunEventTest(FILE_PATH_LITERAL("aria-disabled-changed.html"));
 }
 
-IN_PROC_BROWSER_TEST_P(DumpAccessibilityEventsTest,
-                       AccessibilityEventsAriaDropeffectChanged) {
-  RunEventTest(FILE_PATH_LITERAL("aria-dropeffect-changed.html"));
-}
-
-IN_PROC_BROWSER_TEST_P(DumpAccessibilityEventsTest,
-                       AccessibilityEventsAriaGrabbedChanged) {
-  RunEventTest(FILE_PATH_LITERAL("aria-grabbed-changed.html"));
-}
-
 // crbug.com/1047282: disabled due to flakiness.
 IN_PROC_BROWSER_TEST_P(DumpAccessibilityEventsTest,
                        DISABLED_AccessibilityEventsAriaHasPopupChanged) {
@@ -275,11 +268,6 @@ IN_PROC_BROWSER_TEST_P(DumpAccessibilityEventsTest,
 IN_PROC_BROWSER_TEST_P(DumpAccessibilityEventsTest,
                        AccessibilityEventsAriaHiddenChanged) {
   RunEventTest(FILE_PATH_LITERAL("aria-hidden-changed.html"));
-}
-
-IN_PROC_BROWSER_TEST_P(DumpAccessibilityEventsTest,
-                       AccessibilityEventsAriaInvalidChanged) {
-  RunEventTest(FILE_PATH_LITERAL("aria-invalid-changed.html"));
 }
 
 IN_PROC_BROWSER_TEST_P(DumpAccessibilityEventsTest,
@@ -847,7 +835,8 @@ IN_PROC_BROWSER_TEST_P(DumpAccessibilityEventsTest,
 }
 
 IN_PROC_BROWSER_TEST_P(DumpAccessibilityEventsTest,
-                       AccessibilityEventsMenuListCollapseNext) {
+                       // TODO(crbug.com/1466801): Re-enable this test
+                       DISABLED_AccessibilityEventsMenuListCollapseNext) {
   RunEventTest(FILE_PATH_LITERAL("menulist-collapse-next.html"));
 }
 
@@ -865,12 +854,9 @@ IN_PROC_BROWSER_TEST_P(DumpAccessibilityEventsTest,
 // action on selected HTML:option doesn't work, so no events are fired, and
 // the test times out.
 #if BUILDFLAG(IS_MAC)
-#define MAYBE_AccessibilityEventsMenuListNext \
-  DISABLED_AccessibilityEventsMenuListNext
 #define MAYBE_AccessibilityEventsMenuWithOptgroupListNext \
   DISABLED_AccessibilityEventsMenuWithOptgroupListNext
 #else
-#define MAYBE_AccessibilityEventsMenuListNext AccessibilityEventsMenuListNext
 #define MAYBE_AccessibilityEventsMenuWithOptgroupListNext \
   AccessibilityEventsMenuWithOptgroupListNext
 #endif
@@ -887,7 +873,8 @@ IN_PROC_BROWSER_TEST_P(DumpAccessibilityEventsTest,
 
 // TODO(crbug.com/1327652): disabled on UIA
 IN_PROC_BROWSER_TEST_P(DumpAccessibilityEventsTestExceptUIA,
-                       MAYBE_AccessibilityEventsMenuListNext) {
+                       // TODO(crbug.com/1446550): Re-enable this test
+                       DISABLED_AccessibilityEventsMenuListNext) {
   RunEventTest(FILE_PATH_LITERAL("menulist-next.html"));
 }
 
@@ -1025,10 +1012,10 @@ IN_PROC_BROWSER_TEST_P(DumpAccessibilityEventsTest,
 }
 
 IN_PROC_BROWSER_TEST_P(DumpAccessibilityEventsTest,
-                       AccessibilityEventsSelectMenu) {
+                       AccessibilityEventsSelectList) {
   base::CommandLine::ForCurrentProcess()->AppendSwitchASCII(
-      switches::kEnableBlinkFeatures, "HTMLSelectMenuElement");
-  RunEventTest(FILE_PATH_LITERAL("select-menu.html"));
+      switches::kEnableBlinkFeatures, "HTMLSelectListElement");
+  RunEventTest(FILE_PATH_LITERAL("selectlist.html"));
 }
 
 IN_PROC_BROWSER_TEST_P(DumpAccessibilityEventsTest,
@@ -1164,6 +1151,11 @@ IN_PROC_BROWSER_TEST_P(DumpAccessibilityEventsTest,
 IN_PROC_BROWSER_TEST_P(DumpAccessibilityEventsTest,
                        AccessibilityEventsAriaSelectedChanged) {
   RunEventTest(FILE_PATH_LITERAL("aria-selected-changed.html"));
+}
+
+IN_PROC_BROWSER_TEST_P(DumpAccessibilityEventsTest,
+                       AccessibilityEventsAriaSelectedChangedNewSubtree) {
+  RunEventTest(FILE_PATH_LITERAL("aria-selected-changed-new-subtree.html"));
 }
 
 IN_PROC_BROWSER_TEST_P(DumpAccessibilityEventsTest,

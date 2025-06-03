@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {loadTimeData} from 'chrome://resources/ash/common/load_time_data.m.js';
-import {assert} from 'chrome://resources/js/assert_ts.js';
+import {assert} from 'chrome://resources/js/assert.js';
+import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {FilePath} from 'chrome://resources/mojo/mojo/public/mojom/base/file_path.mojom-webui.js';
 import {Url} from 'chrome://resources/mojo/url/mojom/url.mojom-webui.js';
 
@@ -265,6 +265,40 @@ export async function fetchGooglePhotosPhotos(
   store.dispatch(action.appendGooglePhotosPhotosAction(photos, resumeToken));
 }
 
+export async function searchImageThumbnails(
+    query: string, store: PersonalizationStore): Promise<void> {
+  // TODO(b/300129209): use real API to search for thumbnails.
+  store.dispatch(action.beginSearchImageThumbnailsAction(query));
+  const images = [
+    {
+      id: BigInt(1),
+      url: {url: 'chrome://personalization/images/feel_the_breeze.png'},
+    },
+    {
+      id: BigInt(2),
+      url: {url: 'chrome://personalization/images/float_on_by.png'},
+    },
+    {
+      id: BigInt(3),
+      url: {url: 'chrome://personalization/images/slideshow.png'},
+    },
+    {
+      id: BigInt(4),
+      url: {url: 'chrome://personalization/images/feel_the_breeze.png'},
+    },
+  ];
+  if (!isNonEmptyArray(images)) {
+    console.warn('Failed to generate thumbnails.');
+  }
+  // Mock thumbnail loading by sleeping for 2s.
+  return new Promise(resolve => {
+    window.setTimeout(() => {
+      store.dispatch(action.setImageThumbnailsAction(query, images));
+      resolve();
+    }, 2000);
+  });
+}
+
 export async function getDefaultImageThumbnail(
     provider: WallpaperProviderInterface,
     store: PersonalizationStore): Promise<void> {
@@ -382,6 +416,8 @@ export async function selectWallpaper(
   }
   if (!success) {
     console.warn('Error setting wallpaper');
+    store.dispatch(
+        action.setAttributionAction(store.data.wallpaper.attribution));
     store.dispatch(
         action.setSelectedImageAction(store.data.wallpaper.currentSelected));
   }
@@ -503,6 +539,7 @@ export async function updateDailyRefreshWallpaper(
   if (success) {
     store.dispatch(action.setUpdatedDailyRefreshImageAction());
   } else {
+    const currentAttribution = store.data.wallpaper.attribution;
     const currentWallpaper = store.data.wallpaper.currentSelected;
     const dailyRefresh = store.data.wallpaper.dailyRefresh;
     // Displays error if daily refresh is activated for Google Photos album
@@ -513,6 +550,7 @@ export async function updateDailyRefreshWallpaper(
     // online wallpaper collections.
     if (!!dailyRefresh && dailyRefresh.type == DailyRefreshType.GOOGLE_PHOTOS) {
       store.dispatch(action.setUpdatedDailyRefreshImageAction());
+      store.dispatch(action.setAttributionAction(currentAttribution));
       store.dispatch(action.setSelectedImageAction(currentWallpaper));
       store.dispatch(setErrorAction(
           {message: loadTimeData.getString('googlePhotosError')}));

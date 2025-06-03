@@ -246,8 +246,6 @@ void InstallAttributes::LockDevice(policy::DeviceMode device_mode,
                                    LockResultCallback callback) {
   CHECK((device_mode == policy::DEVICE_MODE_ENTERPRISE && !domain.empty() &&
          realm.empty() && !device_id.empty()) ||
-        (device_mode == policy::DEVICE_MODE_ENTERPRISE_AD && domain.empty() &&
-         !realm.empty() && !device_id.empty()) ||
         (device_mode == policy::DEVICE_MODE_DEMO && !domain.empty() &&
          realm.empty() && !device_id.empty()) ||
         (device_mode == policy::DEVICE_MODE_CONSUMER_KIOSK_AUTOLAUNCH &&
@@ -397,15 +395,7 @@ bool InstallAttributes::IsEnterpriseManaged() const {
     return false;
   }
   return registration_mode_ == policy::DEVICE_MODE_ENTERPRISE ||
-         registration_mode_ == policy::DEVICE_MODE_ENTERPRISE_AD ||
          registration_mode_ == policy::DEVICE_MODE_DEMO;
-}
-
-bool InstallAttributes::IsActiveDirectoryManaged() const {
-  if (!device_locked_) {
-    return false;
-  }
-  return registration_mode_ == policy::DEVICE_MODE_ENTERPRISE_AD;
 }
 
 bool InstallAttributes::IsCloudManaged() const {
@@ -483,7 +473,6 @@ void InstallAttributes::OnClearStoredOwnerPassword(
 // that all changes to the constants are reflected there as well.
 const char InstallAttributes::kConsumerDeviceMode[] = "consumer";
 const char InstallAttributes::kEnterpriseDeviceMode[] = "enterprise";
-const char InstallAttributes::kEnterpriseADDeviceMode[] = "enterprise_ad";
 const char InstallAttributes::kLegacyRetailDeviceMode[] = "kiosk";
 const char InstallAttributes::kConsumerKioskDeviceMode[] = "consumer_kiosk";
 const char InstallAttributes::kDemoDeviceMode[] = "demo_mode";
@@ -514,8 +503,6 @@ std::string InstallAttributes::GetDeviceModeString(policy::DeviceMode mode) {
       return InstallAttributes::kConsumerDeviceMode;
     case policy::DEVICE_MODE_ENTERPRISE:
       return InstallAttributes::kEnterpriseDeviceMode;
-    case policy::DEVICE_MODE_ENTERPRISE_AD:
-      return InstallAttributes::kEnterpriseADDeviceMode;
     case policy::DEPRECATED_DEVICE_MODE_LEGACY_RETAIL_MODE:
       return InstallAttributes::kLegacyRetailDeviceMode;
     case policy::DEVICE_MODE_CONSUMER_KIOSK_AUTOLAUNCH:
@@ -536,8 +523,6 @@ policy::DeviceMode InstallAttributes::GetDeviceModeFromString(
     return policy::DEVICE_MODE_CONSUMER;
   if (mode == InstallAttributes::kEnterpriseDeviceMode)
     return policy::DEVICE_MODE_ENTERPRISE;
-  if (mode == InstallAttributes::kEnterpriseADDeviceMode)
-    return policy::DEVICE_MODE_ENTERPRISE_AD;
   if (mode == InstallAttributes::kLegacyRetailDeviceMode)
     return policy::DEPRECATED_DEVICE_MODE_LEGACY_RETAIL_MODE;
   if (mode == InstallAttributes::kConsumerKioskDeviceMode)
@@ -572,7 +557,6 @@ void InstallAttributes::DecodeInstallAttributes(
     // Set registration_mode_.
     registration_mode_ = GetDeviceModeFromString(mode);
     if (registration_mode_ != policy::DEVICE_MODE_ENTERPRISE &&
-        registration_mode_ != policy::DEVICE_MODE_ENTERPRISE_AD &&
         registration_mode_ != policy::DEVICE_MODE_DEMO) {
       if (!mode.empty()) {
         LOG(WARNING) << "Bad " << kAttrEnterpriseMode << ": " << mode;

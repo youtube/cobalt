@@ -41,7 +41,7 @@ import java.util.List;
 public class BasicListMenu implements ListMenu, OnItemClickListener {
     @Retention(RetentionPolicy.SOURCE)
     @IntDef({ListMenuItemType.DIVIDER, ListMenuItemType.MENU_ITEM})
-    public static @interface ListMenuItemType {
+    public @interface ListMenuItemType {
         int DIVIDER = 0;
         int MENU_ITEM = 1;
     }
@@ -173,14 +173,13 @@ public class BasicListMenu implements ListMenu, OnItemClickListener {
     }
 
     private void registerListItemTypes() {
-        // clang-format off
         mAdapter.registerType(ListMenuItemType.MENU_ITEM,
             new LayoutViewBuilder(R.layout.list_menu_item),
             ListMenuItemViewBinder::binder);
-        mAdapter.registerType(ListMenuItemType.DIVIDER,
-            new LayoutViewBuilder(R.layout.app_menu_divider),
-            (m, v, p) -> {});
-        // clang-format on
+        mAdapter.registerType(
+                ListMenuItemType.DIVIDER,
+                new LayoutViewBuilder(R.layout.list_section_divider),
+                (m, v, p) -> {});
     }
 
     // Internal helper function to build a property model of list menu item.

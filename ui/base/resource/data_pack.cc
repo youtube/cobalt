@@ -20,13 +20,13 @@
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted_memory.h"
-#include "base/metrics/histogram_macros.h"
 #include "base/strings/string_piece.h"
 #include "base/synchronization/lock.h"
 #include "base/sys_byteorder.h"
 #include "build/build_config.h"
 #include "net/filter/gzip_header.h"
 #include "third_party/zlib/google/compression_utils.h"
+#include "ui/base/resource/resource_scale_factor.h"
 #include "ui/base/resource/scoped_file_writer.h"
 
 // For details of the file layout, see
@@ -43,45 +43,20 @@ static const size_t kHeaderLengthV4 = 2 * sizeof(uint32_t) + sizeof(uint8_t);
 static const size_t kHeaderLengthV5 =
     sizeof(uint32_t) + sizeof(uint8_t) * 4 + sizeof(uint16_t) * 2;
 
-// We're crashing when trying to load a pak file on Windows.  Add some error
-// codes for logging.
-// http://crbug.com/58056
-// These values are logged to UMA. Entries should not be renumbered and
-// numeric values should never be reused. Keep in sync with "DataPackLoadErrors"
-// in src/tools/metrics/histograms/enums.xml.
-enum LoadErrors {
-  INIT_FAILED_OBSOLETE = 1,
-  BAD_VERSION,
-  INDEX_TRUNCATED,
-  ENTRY_NOT_FOUND,
-  HEADER_TRUNCATED,
-  WRONG_ENCODING,
-  INIT_FAILED_FROM_FILE,
-  UNZIP_FAILED,
-  OPEN_FAILED,
-  MAP_FAILED,
-
-  LOAD_ERRORS_COUNT,
-};
-
-void LogDataPackError(LoadErrors error) {
-  UMA_HISTOGRAM_ENUMERATION("DataPack.Load", error, LOAD_ERRORS_COUNT);
-}
-
 // Prints the given resource id the first time it's loaded if Chrome has been
 // started with --print-resource-ids. This output is then used to generate a
 // more optimal resource renumbering to improve startup speed. See
 // tools/gritsettings/README.md for more info.
 void MaybePrintResourceId(uint16_t resource_id) {
-  // This code is run in other binaries than Chrome which do not initialize the
-  // CommandLine object. Early return in those cases.
-  if (!base::CommandLine::InitializedForCurrentProcess())
-    return;
-
-  // Note: This switch isn't in ui/base/ui_base_switches.h because ui/base
-  // depends on ui/base/resource and thus it would cause a circular dependency.
-  static bool print_resource_ids =
-      base::CommandLine::ForCurrentProcess()->HasSwitch("print-resource-ids");
+  static const bool print_resource_ids = [] {
+    // This code is run in other binaries than Chrome which do not initialize
+    // the CommandLine object. Note: This switch isn't in
+    // ui/base/ui_base_switches.h because ui/base depends on ui/base/resource
+    // and thus it would cause a circular dependency.
+    return base::CommandLine::InitializedForCurrentProcess() &&
+           base::CommandLine::ForCurrentProcess()->HasSwitch(
+               "print-resource-ids");
+  }();
   if (!print_resource_ids)
     return;
 
@@ -124,11 +99,11 @@ int DataPack::Alias::CompareById(const void* void_key, const void* void_entry) {
 }
 
 void DataPack::Iterator::UpdateResourceData() {
-  const Entry* next_entry = entry_ + 1;
-  base::StringPiece data;
-  GetStringPieceFromOffset(entry_->file_offset, next_entry->file_offset,
-                           data_source_, &data);
-  resource_data_ = new ResourceData(entry_->resource_id, data);
+  const Entry* const next_entry = entry_ + 1;
+  resource_data_ = new ResourceData(
+      entry_->resource_id,
+      GetStringPieceFromOffset(entry_->file_offset, next_entry->file_offset,
+                               data_source_));
 }
 
 DataPack::Iterator DataPack::begin() const {
@@ -223,12 +198,10 @@ std::unique_ptr<DataPack::DataSource> DataPack::LoadFromPathInternal(
   if (!data_file.IsValid()) {
     DLOG(ERROR) << "Failed to open datapack with base::File::Error "
                 << data_file.error_details();
-    LogDataPackError(OPEN_FAILED);
     return nullptr;
   }
   if (!mmap->Initialize(std::move(data_file))) {
     DLOG(ERROR) << "Failed to mmap datapack";
-    LogDataPackError(MAP_FAILED);
     return nullptr;
   }
   if (MmapHasGzipHeader(mmap.get())) {
@@ -237,7 +210,6 @@ std::unique_ptr<DataPack::DataSource> DataPack::LoadFromPathInternal(
     std::string data;
     if (!compression::GzipUncompress(compressed, &data)) {
       LOG(ERROR) << "Failed to unzip compressed datapack: " << path;
-      LogDataPackError(UNZIP_FAILED);
       return nullptr;
     }
     return std::make_unique<StringDataSource>(std::move(data));
@@ -265,7 +237,6 @@ bool DataPack::LoadFromFileRegion(
       std::make_unique<base::MemoryMappedFile>();
   if (!mmap->Initialize(std::move(file), region)) {
     DLOG(ERROR) << "Failed to mmap datapack";
-    LogDataPackError(INIT_FAILED_FROM_FILE);
     mmap.reset();
     return false;
   }
@@ -291,7 +262,6 @@ bool DataPack::SanityCheckFileAndRegisterResources(size_t margin_to_skip,
                << " bytes, expected longer than "
                << margin_to_skip + resource_table_size + alias_table_size
                << " bytes.";
-    LogDataPackError(INDEX_TRUNCATED);
     return false;
   }
 
@@ -305,26 +275,15 @@ bool DataPack::SanityCheckFileAndRegisterResources(size_t margin_to_skip,
     if (resource_table_[i].file_offset > data_length) {
       LOG(ERROR) << "Data pack file corruption: "
                  << "Entry #" << i << " past end.";
-      LogDataPackError(ENTRY_NOT_FOUND);
       return false;
     }
   }
 
-  // 3) Verify the entries are ordered correctly.
-  for (size_t i = 0; i < resource_count_; ++i) {
-    if (resource_table_[i].file_offset > resource_table_[i + 1].file_offset) {
-      LOG(ERROR) << "Data pack file corruption: "
-                 << "Entry #" << i + 1 << " before Entry #" << i << ".";
-      return false;
-    }
-  }
-
-  // 4) Verify the aliases are within the appropriate bounds.
+  // 3) Verify the aliases are within the appropriate bounds.
   for (size_t i = 0; i < alias_count_; ++i) {
     if (alias_table_[i].entry_index >= resource_count_) {
       LOG(ERROR) << "Data pack file corruption: "
                  << "Alias #" << i << " past end.";
-      LogDataPackError(ENTRY_NOT_FOUND);
       return false;
     }
   }
@@ -343,7 +302,6 @@ bool DataPack::LoadImpl(std::unique_ptr<DataPack::DataSource> data_source) {
       version == kFileFormatV4 ? kHeaderLengthV4 : kHeaderLengthV5;
   if (version == 0 || data_length < header_length) {
     DLOG(ERROR) << "Data pack file corruption: incomplete file header.";
-    LogDataPackError(HEADER_TRUNCATED);
     return false;
   }
 
@@ -360,7 +318,6 @@ bool DataPack::LoadImpl(std::unique_ptr<DataPack::DataSource> data_source) {
   } else {
     LOG(ERROR) << "Bad data pack version: got " << version << ", expected "
                << kFileFormatV4 << " or " << kFileFormatV5;
-    LogDataPackError(BAD_VERSION);
     return false;
   }
 
@@ -368,7 +325,6 @@ bool DataPack::LoadImpl(std::unique_ptr<DataPack::DataSource> data_source) {
       text_encoding_type_ != BINARY) {
     LOG(ERROR) << "Bad data pack text encoding: got " << text_encoding_type_
                << ", expected between " << BINARY << " and " << UTF16;
-    LogDataPackError(WRONG_ENCODING);
     return false;
   }
 
@@ -402,17 +358,16 @@ bool DataPack::HasResource(uint16_t resource_id) const {
 }
 
 // static
-void DataPack::GetStringPieceFromOffset(uint32_t target_offset,
-                                        uint32_t next_offset,
-                                        const uint8_t* data_source,
-                                        base::StringPiece* data) {
+base::StringPiece DataPack::GetStringPieceFromOffset(
+    uint32_t target_offset,
+    uint32_t next_offset,
+    const uint8_t* data_source) {
   size_t length = next_offset - target_offset;
-  *data = base::StringPiece(
-      reinterpret_cast<const char*>(data_source + target_offset), length);
+  return {reinterpret_cast<const char*>(data_source + target_offset), length};
 }
 
-bool DataPack::GetStringPiece(uint16_t resource_id,
-                              base::StringPiece* data) const {
+absl::optional<base::StringPiece> DataPack::GetStringPiece(
+    uint16_t resource_id) const {
   // It won't be hard to make this endian-agnostic, but it's not worth
   // bothering to do right now.
 #if !defined(ARCH_CPU_LITTLE_ENDIAN)
@@ -421,7 +376,7 @@ bool DataPack::GetStringPiece(uint16_t resource_id,
 
   const Entry* target = LookupEntryById(resource_id);
   if (!target)
-    return false;
+    return absl::nullopt;
 
   const Entry* next_entry = target + 1;
   // If the next entry points beyond the end of the file this data pack's entry
@@ -435,30 +390,20 @@ bool DataPack::GetStringPiece(uint16_t resource_id,
     LOG(ERROR) << "Entry #" << entry_index << " in data pack points off end "
                << "of file. This should have been caught when loading. Was the "
                << "file modified?";
-    return false;
-  }
-  if (target->file_offset > next_entry->file_offset) {
-    size_t entry_index = target - resource_table_;
-    size_t next_index = next_entry - resource_table_;
-    LOG(ERROR) << "Entry #" << next_index << " in data pack is before Entry #"
-               << entry_index << ". This should have been caught when loading. "
-               << "Was the file modified?";
-    return false;
+    return absl::nullopt;
   }
 
   MaybePrintResourceId(resource_id);
-  GetStringPieceFromOffset(target->file_offset, next_entry->file_offset,
-                           data_source_->GetData(), data);
-  return true;
+  return GetStringPieceFromOffset(target->file_offset, next_entry->file_offset,
+                                  data_source_->GetData());
 }
 
 base::RefCountedStaticMemory* DataPack::GetStaticMemory(
     uint16_t resource_id) const {
-  base::StringPiece piece;
-  if (!GetStringPiece(resource_id, &piece))
-    return NULL;
-
-  return new base::RefCountedStaticMemory(piece.data(), piece.length());
+  if (auto piece = GetStringPiece(resource_id); piece.has_value()) {
+    return new base::RefCountedStaticMemory(piece->data(), piece->length());
+  }
+  return nullptr;
 }
 
 ResourceHandle::TextEncodingType DataPack::GetTextEncodingType() const {

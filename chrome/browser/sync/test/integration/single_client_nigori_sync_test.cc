@@ -8,6 +8,7 @@
 #include "base/base64.h"
 #include "base/command_line.h"
 #include "base/memory/raw_ptr.h"
+#include "base/run_loop.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/metrics/histogram_tester.h"
@@ -29,31 +30,38 @@
 #include "chrome/browser/sync/test/integration/sync_engine_stopped_checker.h"
 #include "chrome/browser/sync/test/integration/sync_service_impl_harness.h"
 #include "chrome/browser/sync/test/integration/sync_test.h"
+#include "chrome/browser/trusted_vault/trusted_vault_service_factory.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/grit/generated_resources.h"
-#include "components/password_manager/core/browser/password_manager_features_util.h"
+#include "components/password_manager/core/browser/features/password_features.h"
+#include "components/password_manager/core/browser/features/password_manager_features_util.h"
 #include "components/password_manager/core/browser/password_store_interface.h"
-#include "components/password_manager/core/common/password_manager_features.h"
 #include "components/signin/public/identity_manager/identity_test_utils.h"
-#include "components/sync/base/command_line_switches.h"
 #include "components/sync/base/features.h"
+#include "components/sync/base/model_type.h"
 #include "components/sync/base/time.h"
 #include "components/sync/engine/loopback_server/loopback_server_entity.h"
+#include "components/sync/engine/nigori/cross_user_sharing_public_private_key_pair.h"
 #include "components/sync/engine/nigori/key_derivation_params.h"
 #include "components/sync/engine/nigori/nigori.h"
 #include "components/sync/nigori/cryptographer_impl.h"
-#include "components/sync/test/fake_security_domains_server.h"
 #include "components/sync/test/fake_server_nigori_helper.h"
 #include "components/sync/test/nigori_test_utils.h"
+#include "components/trusted_vault/command_line_switches.h"
 #include "components/trusted_vault/securebox.h"
+#include "components/trusted_vault/standalone_trusted_vault_client.h"
+#include "components/trusted_vault/test/fake_security_domains_server.h"
+#include "components/trusted_vault/trusted_vault_client.h"
 #include "components/trusted_vault/trusted_vault_connection.h"
 #include "components/trusted_vault/trusted_vault_server_constants.h"
+#include "components/trusted_vault/trusted_vault_service.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/test_launcher.h"
 #include "crypto/ec_private_key.h"
 #include "google_apis/gaia/gaia_switches.h"
 #include "google_apis/gaia/gaia_urls.h"
+#include "net/base/features.h"
 #include "net/dns/mock_host_resolver.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -62,6 +70,12 @@
 #if BUILDFLAG(IS_CHROMEOS_ASH)
 #include "chrome/browser/ash/sync/sync_error_notifier.h"
 #include "chrome/browser/ash/sync/sync_error_notifier_factory.h"
+#include "chrome/browser/ui/webui/trusted_vault/trusted_vault_dialog_delegate.h"
+#include "chromeos/ash/components/standalone_browser/feature_refs.h"
+#include "components/trusted_vault/features.h"
+#include "ui/views/test/widget_test.h"
+#include "ui/views/widget/any_widget_observer.h"
+#include "ui/views/widget/widget.h"
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
 namespace {
@@ -118,14 +132,15 @@ MATCHER_P4(StatusLabelsMatch,
 
 GURL GetFakeTrustedVaultRetrievalURL(
     const net::test_server::EmbeddedTestServer& test_server,
-    const std::vector<uint8_t>& encryption_key) {
+    const std::vector<uint8_t>& encryption_key,
+    int encryption_key_version) {
   // encryption_keys_retrieval.html would populate encryption key to sync
   // service upon loading. Key is provided as part of URL and needs to be
   // encoded with Base64, because |encryption_key| is binary.
   const std::string base64_encoded_key = base::Base64Encode(encryption_key);
-  return test_server.GetURL(
-      base::StringPrintf("/sync/encryption_keys_retrieval.html?%s#%s", kGaiaId,
-                         base64_encoded_key.c_str()));
+  return test_server.GetURL(base::StringPrintf(
+      "/sync/encryption_keys_retrieval.html?gaia=%s&key=%s&key_version=%d",
+      kGaiaId, base64_encoded_key.c_str(), encryption_key_version));
 }
 
 GURL GetFakeTrustedVaultRecoverabilityURL(
@@ -163,6 +178,20 @@ std::unique_ptr<net::test_server::HttpResponse> HttpServerRedirect(
       to.spec().c_str()));
   return http_response;
 }
+
+class WifiConfigurationsSyncActiveChecker
+    : public SingleClientStatusChangeChecker {
+ public:
+  explicit WifiConfigurationsSyncActiveChecker(
+      syncer::SyncServiceImpl* sync_service)
+      : SingleClientStatusChangeChecker(sync_service) {}
+  ~WifiConfigurationsSyncActiveChecker() override = default;
+
+  bool IsExitConditionSatisfied(std::ostream* os) override {
+    *os << "Waiting for WIFI_CONFIGURATIONS sync to become active";
+    return service()->GetActiveDataTypes().Has(syncer::WIFI_CONFIGURATIONS);
+  }
+};
 
 // Used to wait until a tab closes.
 class TabClosedChecker : public StatusChangeChecker,
@@ -213,29 +242,6 @@ class TrustedVaultKeyRequiredForPreferredDataTypesChecker
         ->GetUserSettings()
         ->IsTrustedVaultKeyRequiredForPreferredDataTypes();
   }
-};
-
-// Used to wait until IsTrustedVaultRecoverabilityDegraded() returns false.
-class TrustedVaultRecoverabilityDegradedStateChecker
-    : public SingleClientStatusChangeChecker {
- public:
-  TrustedVaultRecoverabilityDegradedStateChecker(
-      syncer::SyncServiceImpl* service,
-      bool degraded)
-      : SingleClientStatusChangeChecker(service), degraded_(degraded) {}
-  ~TrustedVaultRecoverabilityDegradedStateChecker() override = default;
-
- protected:
-  // StatusChangeChecker implementation.
-  bool IsExitConditionSatisfied(std::ostream* os) override {
-    *os << "Waiting until trusted vault recoverability degraded state is "
-        << degraded_;
-    return service()
-               ->GetUserSettings()
-               ->IsTrustedVaultRecoverabilityDegraded() == degraded_;
-  }
-
-  const bool degraded_;
 };
 
 class FakeSecurityDomainsServerMemberStatusChecker
@@ -314,10 +320,46 @@ class SingleClientNigoriSyncTestWithNotAwaitQuiescence
 
   bool TestUsesSelfNotifications() override {
     // This test fixture is used with tests, which expect SetupSync() to be
-    // waiting for completion, but not for quiescense, because it can't be
+    // waiting for completion, but not for quiescence, because it can't be
     // achieved and isn't needed.
     return false;
   }
+};
+
+class SingleClientNigoriCrossUserSharingPublicPrivateKeyPairSyncTest
+    : public SingleClientNigoriSyncTest {
+ public:
+  SingleClientNigoriCrossUserSharingPublicPrivateKeyPairSyncTest() {
+    override_features_.InitAndEnableFeature(
+        syncer::kSharingOfferKeyPairBootstrap);
+  }
+
+  SingleClientNigoriCrossUserSharingPublicPrivateKeyPairSyncTest(
+      const SingleClientNigoriCrossUserSharingPublicPrivateKeyPairSyncTest&) =
+      delete;
+  SingleClientNigoriCrossUserSharingPublicPrivateKeyPairSyncTest& operator=(
+      const SingleClientNigoriCrossUserSharingPublicPrivateKeyPairSyncTest&) =
+      delete;
+
+  ~SingleClientNigoriCrossUserSharingPublicPrivateKeyPairSyncTest() override =
+      default;
+
+ private:
+  base::test::ScopedFeatureList override_features_;
+};
+
+// Some tests are flaky on Chromeos when run with IP Protection enabled.
+// TODO(crbug.com/1491411): Fix flakes.
+class SingleClientNigoriCrossUserSharingPublicPrivateKeyPairSyncTestNoIpProt
+    : public SingleClientNigoriCrossUserSharingPublicPrivateKeyPairSyncTest {
+ public:
+  SingleClientNigoriCrossUserSharingPublicPrivateKeyPairSyncTestNoIpProt() {
+    feature_list_.InitAndDisableFeature(
+        net::features::kEnableIpProtectionProxy);
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
 };
 
 IN_PROC_BROWSER_TEST_F(SingleClientNigoriSyncTest,
@@ -686,6 +728,161 @@ IN_PROC_BROWSER_TEST_F(
                   .Wait());
 }
 
+IN_PROC_BROWSER_TEST_F(
+    SingleClientNigoriCrossUserSharingPublicPrivateKeyPairSyncTest,
+    ShouldBootstrapCrossUserSharingPublicPrivateKeyPairWhenReceivedDefault) {
+  ASSERT_TRUE(SetupSync());
+  sync_pb::NigoriSpecifics specifics;
+
+  // Commit of specifics with key pair happens during SetupSync().
+  ASSERT_TRUE(GetServerNigori(GetFakeServer(), &specifics));
+
+  EXPECT_TRUE(specifics.has_cross_user_sharing_public_key());
+  EXPECT_TRUE(
+      specifics.cross_user_sharing_public_key().has_x25519_public_key());
+  EXPECT_TRUE(specifics.cross_user_sharing_public_key().has_version());
+  EXPECT_EQ(specifics.cross_user_sharing_public_key().version(), 0);
+  EXPECT_THAT(specifics.cross_user_sharing_public_key().x25519_public_key(),
+              SizeIs(X25519_PUBLIC_VALUE_LEN));
+
+  const std::vector<std::vector<uint8_t>>& keystore_keys =
+      GetFakeServer()->GetKeystoreKeys();
+  EXPECT_THAT(
+      specifics.encryption_keybag(),
+      IsDataEncryptedWith(KeystoreKeyParamsForTesting(keystore_keys.back())));
+  const KeyParamsForTesting kKeystoreKeyParams =
+      KeystoreKeyParamsForTesting(keystore_keys.back());
+  std::unique_ptr<syncer::CryptographerImpl> cryptographer =
+      syncer::CryptographerImpl::FromSingleKeyForTesting(
+          kKeystoreKeyParams.password, kKeystoreKeyParams.derivation_params);
+
+  std::string decrypted_keys_str;
+  EXPECT_TRUE(cryptographer->DecryptToString(specifics.encryption_keybag(),
+                                             &decrypted_keys_str));
+  sync_pb::EncryptionKeys decrypted_keys;
+
+  EXPECT_TRUE(decrypted_keys.ParseFromString(decrypted_keys_str));
+  ASSERT_THAT(decrypted_keys.cross_user_sharing_private_key(), SizeIs(1));
+  auto private_key_proto = decrypted_keys.cross_user_sharing_private_key()
+                               .at(0)
+                               .x25519_private_key();
+  EXPECT_THAT(private_key_proto, SizeIs(X25519_PRIVATE_KEY_LEN));
+  EXPECT_EQ(decrypted_keys.cross_user_sharing_private_key().at(0).version(), 0);
+  std::vector<uint8_t> raw_private_key(private_key_proto.begin(),
+                                       private_key_proto.end());
+  absl::optional<syncer::CrossUserSharingPublicPrivateKeyPair> private_key =
+      syncer::CrossUserSharingPublicPrivateKeyPair::CreateByImport(
+          raw_private_key);
+  EXPECT_TRUE(private_key.has_value());
+  EXPECT_THAT(specifics.cross_user_sharing_public_key().x25519_public_key(),
+              testing::ElementsAreArray(private_key->GetRawPublicKey()));
+}
+
+IN_PROC_BROWSER_TEST_F(
+    SingleClientNigoriCrossUserSharingPublicPrivateKeyPairSyncTestNoIpProt,
+    PRE_ShouldSyncCrossUserSharingPublicPrivateKeyPair) {
+  const std::vector<std::vector<uint8_t>>& keystore_keys =
+      GetFakeServer()->GetKeystoreKeys();
+  ASSERT_THAT(keystore_keys, SizeIs(1));
+  const KeyParamsForTesting kKeystoreKeyParams =
+      KeystoreKeyParamsForTesting(keystore_keys.back());
+  const KeyParamsForTesting kDefaultKeyParams =
+      Pbkdf2PassphraseKeyParamsForTesting("password");
+  SetNigoriInFakeServer(
+      BuildKeystoreNigoriSpecifics(
+          /*keybag_keys_params=*/{kDefaultKeyParams, kKeystoreKeyParams},
+          /*keystore_decryptor_params*/ {kDefaultKeyParams},
+          /*keystore_key_params=*/kKeystoreKeyParams),
+      GetFakeServer());
+
+  ASSERT_TRUE(SetupSync());
+}
+
+IN_PROC_BROWSER_TEST_F(
+    SingleClientNigoriCrossUserSharingPublicPrivateKeyPairSyncTestNoIpProt,
+    ShouldSyncCrossUserSharingPublicPrivateKeyPair) {
+  ASSERT_TRUE(SetupSync());
+  sync_pb::NigoriSpecifics specifics;
+
+  // Commit of specifics with key pair happens during SetupSync().
+  ASSERT_TRUE(GetServerNigori(GetFakeServer(), &specifics));
+
+  EXPECT_TRUE(specifics.has_cross_user_sharing_public_key());
+  EXPECT_TRUE(
+      specifics.cross_user_sharing_public_key().has_x25519_public_key());
+  EXPECT_TRUE(specifics.cross_user_sharing_public_key().has_version());
+  EXPECT_EQ(specifics.cross_user_sharing_public_key().version(), 0);
+  EXPECT_THAT(specifics.cross_user_sharing_public_key().x25519_public_key(),
+              SizeIs(X25519_PUBLIC_VALUE_LEN));
+
+  const std::vector<std::vector<uint8_t>>& keystore_keys =
+      GetFakeServer()->GetKeystoreKeys();
+  EXPECT_THAT(
+      specifics.encryption_keybag(),
+      IsDataEncryptedWith(KeystoreKeyParamsForTesting(keystore_keys.back())));
+
+  const KeyParamsForTesting kKeystoreKeyParams =
+      KeystoreKeyParamsForTesting(keystore_keys.back());
+  std::unique_ptr<syncer::CryptographerImpl> cryptographer =
+      syncer::CryptographerImpl::FromSingleKeyForTesting(
+          kKeystoreKeyParams.password, kKeystoreKeyParams.derivation_params);
+
+  std::string decrypted_keys_str;
+  EXPECT_TRUE(cryptographer->DecryptToString(specifics.encryption_keybag(),
+                                             &decrypted_keys_str));
+  sync_pb::EncryptionKeys decrypted_keys;
+  EXPECT_TRUE(decrypted_keys.ParseFromString(decrypted_keys_str));
+  ASSERT_THAT(decrypted_keys.cross_user_sharing_private_key(), SizeIs(1));
+  auto private_key_proto = decrypted_keys.cross_user_sharing_private_key()
+                               .at(0)
+                               .x25519_private_key();
+  EXPECT_THAT(private_key_proto, SizeIs(X25519_PRIVATE_KEY_LEN));
+  EXPECT_EQ(decrypted_keys.cross_user_sharing_private_key().at(0).version(), 0);
+  std::vector<uint8_t> raw_private_key(private_key_proto.begin(),
+                                       private_key_proto.end());
+  absl::optional<syncer::CrossUserSharingPublicPrivateKeyPair> private_key =
+      syncer::CrossUserSharingPublicPrivateKeyPair::CreateByImport(
+          raw_private_key);
+  EXPECT_TRUE(private_key.has_value());
+  EXPECT_THAT(specifics.cross_user_sharing_public_key().x25519_public_key(),
+              testing::ElementsAreArray(private_key->GetRawPublicKey()));
+}
+
+IN_PROC_BROWSER_TEST_F(
+    SingleClientNigoriCrossUserSharingPublicPrivateKeyPairSyncTest,
+    PRE_ShouldRecreateKeyPairUponClientServerInconsistency) {
+  ASSERT_TRUE(SetupSync());
+  sync_pb::NigoriSpecifics specifics;
+
+  ASSERT_TRUE(GetServerNigori(GetFakeServer(), &specifics));
+  EXPECT_TRUE(specifics.has_cross_user_sharing_public_key());
+  EXPECT_TRUE(
+      specifics.cross_user_sharing_public_key().has_x25519_public_key());
+
+  // Mimic remote transition to custom passphrase without
+  // cross_user_sharing_public_key.
+  const KeyParamsForTesting kCustomPassphraseKeyParams =
+      Pbkdf2PassphraseKeyParamsForTesting("passphrase");
+  SetNigoriInFakeServer(
+      BuildCustomPassphraseNigoriSpecifics(kCustomPassphraseKeyParams),
+      GetFakeServer());
+
+  EXPECT_TRUE(PassphraseRequiredChecker(GetSyncService(0)).Wait());
+  EXPECT_TRUE(GetSyncService(0)->GetUserSettings()->SetDecryptionPassphrase(
+      kCustomPassphraseKeyParams.password));
+  EXPECT_TRUE(PassphraseAcceptedChecker(GetSyncService(0)).Wait());
+}
+
+// Tests that upon an inconsistent state between client and server in which the
+// cross-user sharing key-pair is missing on the server, a new cross-user
+// sharing key-pair is created on the client and synced to the server.
+IN_PROC_BROWSER_TEST_F(
+    SingleClientNigoriCrossUserSharingPublicPrivateKeyPairSyncTest,
+    ShouldRecreateKeyPairUponClientServerInconsistency) {
+  ASSERT_TRUE(SetupClients());
+  EXPECT_TRUE(CrossUserSharingKeysChecker().Wait());
+}
+
 // Performs initial sync for Nigori, but doesn't allow initialized Nigori to be
 // committed.
 IN_PROC_BROWSER_TEST_F(SingleClientNigoriSyncTestWithNotAwaitQuiescence,
@@ -732,7 +929,7 @@ class SingleClientNigoriWithWebApiTest : public SyncTest {
     const GURL& base_url = embedded_test_server()->base_url();
     command_line->AppendSwitchASCII(switches::kGaiaUrl, base_url.spec());
     command_line->AppendSwitchASCII(
-        syncer::kTrustedVaultServiceURL,
+        trusted_vault::kTrustedVaultServiceURLSwitch,
         trusted_vault::FakeSecurityDomainsServer::GetServerURL(
             embedded_test_server()->base_url())
             .spec());
@@ -770,7 +967,7 @@ class SingleClientNigoriWithWebApiTest : public SyncTest {
     // GaiaUrls to |retrieval_url|, which runs Javascript code to mimic
     // retrieval of key |kTestEncryptionKey|.
     const GURL retrieval_url = GetFakeTrustedVaultRetrievalURL(
-        *embedded_test_server(), kTestEncryptionKey);
+        *embedded_test_server(), kTestEncryptionKey, kTestEncryptionKeyVersion);
     embedded_test_server()->RegisterRequestHandler(base::BindRepeating(
         &HttpServerRedirect,
         /*from_prefix=*/
@@ -791,10 +988,16 @@ class SingleClientNigoriWithWebApiTest : public SyncTest {
     return security_domains_server_.get();
   }
 
+  trusted_vault::TrustedVaultClient* GetSyncTrustedVaultClient() {
+    return TrustedVaultServiceFactory::GetForProfile(GetProfile(0))
+        ->GetTrustedVaultClient(trusted_vault::SecurityDomainId::kChromeSync);
+  }
+
  protected:
   // Arbitrary encryption key that the Gaia retrieval page returns via
   // Javascript API if the retrieval page is visited.
   const std::vector<uint8_t> kTestEncryptionKey = {1, 2, 3, 4};
+  const int kTestEncryptionKeyVersion = 23;
 
   // Arbitrary (but valid) public key of a recovery method that gets
   // automatically added if the Gaia recoverability page is visited.
@@ -870,8 +1073,124 @@ IN_PROC_BROWSER_TEST_F(SingleClientNigoriWithWebApiTest,
 #endif  // !BUILDFLAG(IS_CHROMEOS_ASH)
 }
 
+// Regression test for crbug.com/1479879: test verifies that client is able to
+// fix degraded recoverability if trusted vault keys were obtained by key
+// retrieval. In particular, this requires plumbing correct key version
+// (verified by FakeSecurityDomainsServer).
+IN_PROC_BROWSER_TEST_F(
+    SingleClientNigoriWithWebApiTest,
+    ShouldAddRecoveryMethodAfterAcceptingEncryptionKeysFromWeb) {
+  // Setup SecurityDomainsServer to mimic that it has a single non-constant key.
+  GetSecurityDomainsServer()->ResetDataToState({kTestEncryptionKey},
+                                               kTestEncryptionKeyVersion);
+  // Mimic the account being already using a trusted vault passphrase.
+  SetNigoriInFakeServer(BuildTrustedVaultNigoriSpecifics({kTestEncryptionKey}),
+                        GetFakeServer());
+
+  ASSERT_TRUE(SetupSync());
+  ASSERT_TRUE(GetSyncService(0)
+                  ->GetUserSettings()
+                  ->IsTrustedVaultKeyRequiredForPreferredDataTypes());
+  ASSERT_TRUE(ShouldShowSyncKeysMissingError(GetSyncService(0),
+                                             GetProfile(0)->GetPrefs()));
+
+  // There needs to be an existing tab for the second tab (the retrieval flow)
+  // to be closeable via javascript.
+  chrome::AddTabAt(GetBrowser(0), GURL(url::kAboutBlankURL), /*index=*/0,
+                   /*foreground=*/true);
+
+  // Mimic opening a web page where the user can interact with the retrieval
+  // flow.
+  OpenTabForSyncKeyRetrieval(
+      GetBrowser(0), syncer::TrustedVaultUserActionTriggerForUMA::kProfileMenu);
+  ASSERT_THAT(GetBrowser(0)->tab_strip_model()->GetActiveWebContents(),
+              NotNull());
+
+  // Wait until the page closes and passwords are active, which indicates
+  // successful completion.
+  ASSERT_TRUE(
+      TabClosedChecker(GetBrowser(0)->tab_strip_model()->GetActiveWebContents())
+          .Wait());
+  ASSERT_TRUE(PasswordSyncActiveChecker(GetSyncService(0)).Wait());
+  ASSERT_FALSE(GetSyncService(0)
+                   ->GetUserSettings()
+                   ->IsTrustedVaultKeyRequiredForPreferredDataTypes());
+  ASSERT_FALSE(ShouldShowSyncKeysMissingError(GetSyncService(0),
+                                              GetProfile(0)->GetPrefs()));
+
+  // Now mimic entering degraded recoverability state.
+  GetSecurityDomainsServer()->RequirePublicKeyToAvoidRecoverabilityDegraded(
+      kTestRecoveryMethodPublicKey);
+  ASSERT_TRUE(GetSecurityDomainsServer()->IsRecoverabilityDegraded());
+
+  // Note: this test doesn't expect degraded recoverability state to be shown
+  // (this is not needed and requires more sophisticated setup, because client
+  // normally doesn't refresh this state often). Instead, it expects relevant
+  // API to work as intended and verifies that client state is sufficient to
+  // add recovery method.
+  OpenTabForSyncKeyRecoverabilityDegraded(
+      GetBrowser(0), syncer::TrustedVaultUserActionTriggerForUMA::kProfileMenu);
+  // Expect two members: one corresponds to the client and another to
+  // kTestRecoveryMethodPublicKey.
+  EXPECT_TRUE(FakeSecurityDomainsServerMemberStatusChecker(
+                  /*expected_member_count=*/2, kTestEncryptionKey,
+                  GetSecurityDomainsServer())
+                  .Wait());
+  EXPECT_FALSE(GetSecurityDomainsServer()->IsRecoverabilityDegraded());
+}
+
 #if BUILDFLAG(IS_CHROMEOS_ASH)
-IN_PROC_BROWSER_TEST_F(SingleClientNigoriWithWebApiTest,
+class SingleClientNigoriWithWebApiAndDialogUIParamTest
+    : public testing::WithParamInterface<bool>,
+      public SingleClientNigoriWithWebApiTest {
+ public:
+  SingleClientNigoriWithWebApiAndDialogUIParamTest() {
+    if (GetParam()) {
+      std::vector<base::test::FeatureRef> enabled_features =
+          ash::standalone_browser::GetFeatureRefs();
+      enabled_features.push_back(
+          trusted_vault::kChromeOSTrustedVaultUseWebUIDialog);
+      feature_list_.InitWithFeatures(enabled_features,
+                                     /*disabled_features=*/{});
+    } else {
+      feature_list_.InitAndDisableFeature(
+          trusted_vault::kChromeOSTrustedVaultUseWebUIDialog);
+    }
+  }
+
+  ~SingleClientNigoriWithWebApiAndDialogUIParamTest() override = default;
+
+  void SetUpOnMainThread() override {
+    SingleClientNigoriWithWebApiTest::SetUpOnMainThread();
+    if (GetParam()) {
+      trusted_vault_widget_shown_waiter_ =
+          std::make_unique<views::NamedWidgetShownWaiter>(
+              views::test::AnyWidgetTestPasskey{},
+              TrustedVaultDialogDelegate::kWidgetName);
+    }
+  }
+
+  bool WaitForTrustedVaultReauthCompletion() {
+    if (GetParam()) {
+      CHECK(trusted_vault_widget_shown_waiter_);
+      views::Widget* trusted_vault_widged =
+          trusted_vault_widget_shown_waiter_->WaitIfNeededAndGet();
+      views::test::WidgetDestroyedWaiter(trusted_vault_widged).Wait();
+      return true;
+    } else {
+      return TabClosedChecker(
+                 GetBrowser(0)->tab_strip_model()->GetActiveWebContents())
+          .Wait();
+    }
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+  std::unique_ptr<views::NamedWidgetShownWaiter>
+      trusted_vault_widget_shown_waiter_;
+};
+
+IN_PROC_BROWSER_TEST_P(SingleClientNigoriWithWebApiAndDialogUIParamTest,
                        ShouldAcceptTrustedVaultKeysUponAshSystemNotification) {
   // Mimic the account being already using a trusted vault passphrase.
   SetNigoriInFakeServer(BuildTrustedVaultNigoriSpecifics({kTestEncryptionKey}),
@@ -890,7 +1209,8 @@ IN_PROC_BROWSER_TEST_F(SingleClientNigoriWithWebApiTest,
   ASSERT_TRUE(GetSyncService(0)
                   ->GetUserSettings()
                   ->IsTrustedVaultKeyRequiredForPreferredDataTypes());
-  ASSERT_FALSE(GetSyncService(0)->GetActiveDataTypes().Has(syncer::PASSWORDS));
+  ASSERT_FALSE(
+      GetSyncService(0)->GetActiveDataTypes().Has(syncer::WIFI_CONFIGURATIONS));
 
   // Verify that a notification was displayed.
   const std::string notification_id =
@@ -912,19 +1232,17 @@ IN_PROC_BROWSER_TEST_F(SingleClientNigoriWithWebApiTest,
                                 notification_id, /*action_index=*/absl::nullopt,
                                 /*reply=*/absl::nullopt);
 
-  // Wait until the page closes, which indicates successful completion.
-  EXPECT_TRUE(
-      TabClosedChecker(GetBrowser(0)->tab_strip_model()->GetActiveWebContents())
-          .Wait());
+  // Wait until successful completion.
+  EXPECT_TRUE(WaitForTrustedVaultReauthCompletion());
 
-  EXPECT_TRUE(PasswordSyncActiveChecker(GetSyncService(0)).Wait());
+  EXPECT_TRUE(WifiConfigurationsSyncActiveChecker(GetSyncService(0)).Wait());
   EXPECT_FALSE(GetSyncService(0)
                    ->GetUserSettings()
                    ->IsTrustedVaultKeyRequiredForPreferredDataTypes());
 }
 
-IN_PROC_BROWSER_TEST_F(
-    SingleClientNigoriWithWebApiTest,
+IN_PROC_BROWSER_TEST_P(
+    SingleClientNigoriWithWebApiAndDialogUIParamTest,
     ShouldImproveTrustedVaultRecoverabilityUponAshSystemNotification) {
   // Mimic the key being available upon startup but recoverability degraded.
   const std::vector<uint8_t> trusted_vault_key =
@@ -937,7 +1255,7 @@ IN_PROC_BROWSER_TEST_F(
                             /*trusted_vault_keys=*/{trusted_vault_key}),
                         GetFakeServer());
   ASSERT_TRUE(SetupClients());
-  GetSyncService(0)->AddTrustedVaultDecryptionKeysFromWeb(
+  GetSyncTrustedVaultClient()->StoreKeys(
       kGaiaId, GetSecurityDomainsServer()->GetAllTrustedVaultKeys(),
       /*last_key_version=*/GetSecurityDomainsServer()->GetCurrentEpoch());
 
@@ -975,15 +1293,17 @@ IN_PROC_BROWSER_TEST_F(
                                 notification_id, /*action_index=*/absl::nullopt,
                                 /*reply=*/absl::nullopt);
 
-  // Wait until the page closes, which indicates successful completion.
-  EXPECT_TRUE(
-      TabClosedChecker(GetBrowser(0)->tab_strip_model()->GetActiveWebContents())
-          .Wait());
+  // Wait until successful completion.
+  EXPECT_TRUE(WaitForTrustedVaultReauthCompletion());
 
   EXPECT_TRUE(TrustedVaultRecoverabilityDegradedStateChecker(GetSyncService(0),
                                                              /*degraded=*/false)
                   .Wait());
 }
+
+INSTANTIATE_TEST_SUITE_P(All,
+                         SingleClientNigoriWithWebApiAndDialogUIParamTest,
+                         ::testing::Bool());
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
 IN_PROC_BROWSER_TEST_F(SingleClientNigoriWithWebApiTest,
@@ -1019,6 +1339,14 @@ IN_PROC_BROWSER_TEST_F(SingleClientNigoriWithWebApiTest,
                    ->IsTrustedVaultKeyRequiredForPreferredDataTypes());
 }
 
+// TODO(crbug.com/1466096): Some changes desired once test confirmed to be
+// deflaked:
+// 1. ShouldRecordTrustedVaultErrorShownOnStartupWhenErrorNotShown does almost
+// the same, but have unique expectation. Consider to dedup them.
+// 2. BeforeSignIn is misleading (SetupClients() *does* sign in), either rename
+// the test to reflect this or change it (likely we need some helper that
+// creates the profile, but doesn't sign in). Same applies to comments in both
+// tests.
 IN_PROC_BROWSER_TEST_F(SingleClientNigoriWithWebApiTest,
                        PRE_ShouldAcceptEncryptionKeysFromTheWebBeforeSignIn) {
   ASSERT_TRUE(SetupClients());
@@ -1035,10 +1363,15 @@ IN_PROC_BROWSER_TEST_F(SingleClientNigoriWithWebApiTest,
   ASSERT_THAT(GetBrowser(0)->tab_strip_model()->GetActiveWebContents(),
               NotNull());
 
-  // Wait until the page closes, which indicates successful completion.
+  // Wait until the page closes and keys are persisted.
   EXPECT_TRUE(
       TabClosedChecker(GetBrowser(0)->tab_strip_model()->GetActiveWebContents())
           .Wait());
+  base::RunLoop run_loop;
+  static_cast<trusted_vault::StandaloneTrustedVaultClient*>(
+      GetSyncTrustedVaultClient())
+      ->WaitForFlushForTesting(run_loop.QuitClosure());
+  run_loop.Run();
 }
 
 IN_PROC_BROWSER_TEST_F(SingleClientNigoriWithWebApiTest,
@@ -1077,6 +1410,9 @@ IN_PROC_BROWSER_TEST_F(SingleClientNigoriWithWebApiTest,
 IN_PROC_BROWSER_TEST_F(
     SingleClientNigoriWithWebApiTest,
     PRE_ShouldClearEncryptionKeysFromTheWebWhenSigninCookiesCleared) {
+  // TODO(crbug.com/1466096): TrustedVaultKeysChangedStateChecker may be not
+  // sufficient and redundant in this test, consider rewriting it using
+  // StandaloneTrustedVaultClient::WaitForFlushForTesting().
   ASSERT_TRUE(SetupClients());
 
   // Explicitly add signin cookie (normally it would be done during the keys
@@ -1263,7 +1599,7 @@ IN_PROC_BROWSER_TEST_F(
 
 IN_PROC_BROWSER_TEST_F(
     SingleClientNigoriWithWebApiTest,
-    ShoudRecordTrustedVaultErrorShownOnStartupWhenErrorShown) {
+    ShouldRecordTrustedVaultErrorShownOnStartupWhenErrorShown) {
   // 4 days is an arbitrary value between 3 days and 7 days to allow testing
   // histogram suffixes.
   const base::Time migration_time = base::Time::Now() - base::Days(4);
@@ -1284,7 +1620,12 @@ IN_PROC_BROWSER_TEST_F(
   ASSERT_TRUE(GetClient(0)->SignInPrimaryAccount());
   ASSERT_TRUE(GetClient(0)->AwaitSyncTransportActive());
 #endif  // !BUILDFLAG(IS_CHROMEOS_ASH)
-  ASSERT_TRUE(SetupSync());
+  // TODO(crbug.com/1448448): SetupSync(WAIT_FOR_COMMITS_TO_COMPLETE) (e.g. with
+  // default argument) causes test flakiness here due to unrelated issue in
+  // SharingService. From this test perspective it doesn't matter whether to use
+  // WAIT_FOR_COMMITS_TO_COMPLETE or WAIT_FOR_SYNC_SETUP_TO_COMPLETE, but it
+  // would be nice to use default argument once the issue is resolved.
+  ASSERT_TRUE(SetupSync(WAIT_FOR_SYNC_SETUP_TO_COMPLETE));
 
   ASSERT_TRUE(GetSyncService(0)
                   ->GetUserSettings()
@@ -1318,7 +1659,7 @@ IN_PROC_BROWSER_TEST_F(
 
 IN_PROC_BROWSER_TEST_F(
     SingleClientNigoriWithWebApiTest,
-    PRE_ShoudRecordTrustedVaultErrorShownOnStartupWhenErrorNotShown) {
+    PRE_ShouldRecordTrustedVaultErrorShownOnStartupWhenErrorNotShown) {
   ASSERT_TRUE(SetupClients());
 
   // There needs to be an existing tab for the second tab (the retrieval flow)
@@ -1326,7 +1667,6 @@ IN_PROC_BROWSER_TEST_F(
   chrome::AddTabAt(GetBrowser(0), GURL(url::kAboutBlankURL), /*index=*/0,
                    /*foreground=*/true);
 
-  TrustedVaultKeysChangedStateChecker keys_fetched_checker(GetSyncService(0));
   // Mimic opening a web page where the user can interact with the retrieval
   // flow, while the user is signed out.
   OpenTabForSyncKeyRetrieval(
@@ -1334,16 +1674,20 @@ IN_PROC_BROWSER_TEST_F(
   ASSERT_THAT(GetBrowser(0)->tab_strip_model()->GetActiveWebContents(),
               NotNull());
 
-  // Wait until the page closes, which indicates successful completion.
+  // Wait until the page closes and keys are persisted.
   ASSERT_TRUE(
       TabClosedChecker(GetBrowser(0)->tab_strip_model()->GetActiveWebContents())
           .Wait());
-  ASSERT_TRUE(keys_fetched_checker.Wait());
+  base::RunLoop run_loop;
+  static_cast<trusted_vault::StandaloneTrustedVaultClient*>(
+      GetSyncTrustedVaultClient())
+      ->WaitForFlushForTesting(run_loop.QuitClosure());
+  run_loop.Run();
 }
 
 IN_PROC_BROWSER_TEST_F(
     SingleClientNigoriWithWebApiTest,
-    ShoudRecordTrustedVaultErrorShownOnStartupWhenErrorNotShown) {
+    ShouldRecordTrustedVaultErrorShownOnStartupWhenErrorNotShown) {
   // Mimic the account being already using a trusted vault passphrase.
   SetNigoriInFakeServer(BuildTrustedVaultNigoriSpecifics({kTestEncryptionKey}),
                         GetFakeServer());
@@ -1382,7 +1726,7 @@ IN_PROC_BROWSER_TEST_F(SingleClientNigoriWithWebApiTest,
           /*trusted_vault_keys=*/{trusted_vault_key}, migration_time),
       GetFakeServer());
   ASSERT_TRUE(SetupClients());
-  GetSyncService(0)->AddTrustedVaultDecryptionKeysFromWeb(
+  GetSyncTrustedVaultClient()->StoreKeys(
       kGaiaId, GetSecurityDomainsServer()->GetAllTrustedVaultKeys(),
       /*last_key_version=*/GetSecurityDomainsServer()->GetCurrentEpoch());
   ASSERT_TRUE(SetupSync());
@@ -1478,14 +1822,14 @@ IN_PROC_BROWSER_TEST_F(
   // Mimic the key being available upon startup but recoverability degraded.
   GetSecurityDomainsServer()->RequirePublicKeyToAvoidRecoverabilityDegraded(
       kTestRecoveryMethodPublicKey);
-  GetSyncService(0)->AddTrustedVaultDecryptionKeysFromWeb(
+  GetSyncTrustedVaultClient()->StoreKeys(
       kGaiaId, GetSecurityDomainsServer()->GetAllTrustedVaultKeys(),
       /*last_key_version=*/GetSecurityDomainsServer()->GetCurrentEpoch());
 
   // Mimic a recovery method being added before or during sign-in, which should
   // be deferred until sign-in completes.
   base::RunLoop run_loop;
-  GetSyncService(0)->AddTrustedVaultRecoveryMethodFromWeb(
+  GetSyncTrustedVaultClient()->AddTrustedRecoveryMethod(
       kGaiaId, kTestRecoveryMethodPublicKey, kTestMethodTypeHint,
       run_loop.QuitClosure());
 
@@ -1494,7 +1838,7 @@ IN_PROC_BROWSER_TEST_F(
   // Sign in now and wait until sync initializes.
   ASSERT_TRUE(SetupSync());
 
-  // Wait until AddTrustedVaultRecoveryMethodFromWeb() completes.
+  // Wait until AddTrustedRecoveryMethod() completes.
   run_loop.Run();
 
   EXPECT_TRUE(TrustedVaultRecoverabilityDegradedStateChecker(GetSyncService(0),
@@ -1521,7 +1865,7 @@ IN_PROC_BROWSER_TEST_F(
   // Mimic the key being available upon startup but recoverability degraded.
   GetSecurityDomainsServer()->RequirePublicKeyToAvoidRecoverabilityDegraded(
       kTestRecoveryMethodPublicKey);
-  GetSyncService(0)->AddTrustedVaultDecryptionKeysFromWeb(
+  GetSyncTrustedVaultClient()->StoreKeys(
       kGaiaId, GetSecurityDomainsServer()->GetAllTrustedVaultKeys(),
       /*last_key_version=*/GetSecurityDomainsServer()->GetCurrentEpoch());
   ASSERT_TRUE(GetSecurityDomainsServer()->IsRecoverabilityDegraded());
@@ -1536,7 +1880,7 @@ IN_PROC_BROWSER_TEST_F(
   // Mimic a recovery method being added during a persistent auth error, which
   // should be deferred until the auth error is resolved.
   base::RunLoop run_loop;
-  GetSyncService(0)->AddTrustedVaultRecoveryMethodFromWeb(
+  GetSyncTrustedVaultClient()->AddTrustedRecoveryMethod(
       kGaiaId, kTestRecoveryMethodPublicKey, kTestMethodTypeHint,
       run_loop.QuitClosure());
 
@@ -1544,7 +1888,7 @@ IN_PROC_BROWSER_TEST_F(
   ASSERT_TRUE(GetSecurityDomainsServer()->IsRecoverabilityDegraded());
   GetClient(0)->ExitSyncPausedStateForPrimaryAccount();
 
-  // Wait until AddTrustedVaultRecoveryMethodFromWeb() completes.
+  // Wait until AddTrustedRecoveryMethod() completes.
   run_loop.Run();
 
   EXPECT_TRUE(TrustedVaultRecoverabilityDegradedStateChecker(GetSyncService(0),
@@ -1566,7 +1910,7 @@ IN_PROC_BROWSER_TEST_F(
                             /*trusted_vault_keys=*/{trusted_vault_key}),
                         GetFakeServer());
   ASSERT_TRUE(SetupClients());
-  GetSyncService(0)->AddTrustedVaultDecryptionKeysFromWeb(
+  GetSyncTrustedVaultClient()->StoreKeys(
       kGaiaId, GetSecurityDomainsServer()->GetAllTrustedVaultKeys(),
       /*last_key_version=*/GetSecurityDomainsServer()->GetCurrentEpoch());
   ASSERT_TRUE(SetupSync());
@@ -1696,7 +2040,7 @@ IN_PROC_BROWSER_TEST_F(SingleClientNigoriWithWebApiTest,
 
   // Mimic a recovery method being added.
   base::RunLoop run_loop;
-  GetSyncService(0)->AddTrustedVaultRecoveryMethodFromWeb(
+  GetSyncTrustedVaultClient()->AddTrustedRecoveryMethod(
       kGaiaId, kTestRecoveryMethodPublicKey, kTestMethodTypeHint,
       run_loop.QuitClosure());
   run_loop.Run();
@@ -1711,8 +2055,16 @@ IN_PROC_BROWSER_TEST_F(SingleClientNigoriWithWebApiTest,
 
 // This test verifies that client handles security domain reset and able to
 // register again after that and follow key rotation.
+// TODO(crbug.com/1482344) Test failing on linux-lacros-tester-rel
+#if BUILDFLAG(IS_CHROMEOS_LACROS)
+#define MAYBE_ShouldFollowKeyRotationAfterSecurityDomainReset \
+  DISABLED_ShouldFollowKeyRotationAfterSecurityDomainReset
+#else
+#define MAYBE_ShouldFollowKeyRotationAfterSecurityDomainReset \
+  ShouldFollowKeyRotationAfterSecurityDomainReset
+#endif
 IN_PROC_BROWSER_TEST_F(SingleClientNigoriWithWebApiTest,
-                       ShouldFollowKeyRotationAfterSecurityDomainReset) {
+                       MAYBE_ShouldFollowKeyRotationAfterSecurityDomainReset) {
   ASSERT_TRUE(SetupSync());
   ASSERT_TRUE(FakeSecurityDomainsServerMemberStatusChecker(
                   /*expected_member_count=*/1,
@@ -1868,7 +2220,7 @@ IN_PROC_BROWSER_TEST_F(
                             /*trusted_vault_keys=*/{trusted_vault_key}),
                         GetFakeServer());
   ASSERT_TRUE(SetupClients());
-  GetSyncService(0)->AddTrustedVaultDecryptionKeysFromWeb(
+  GetSyncTrustedVaultClient()->StoreKeys(
       kGaiaId, GetSecurityDomainsServer()->GetAllTrustedVaultKeys(),
       /*last_key_version=*/GetSecurityDomainsServer()->GetCurrentEpoch());
 

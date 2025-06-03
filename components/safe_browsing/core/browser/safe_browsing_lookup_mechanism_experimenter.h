@@ -5,6 +5,7 @@
 #ifndef COMPONENTS_SAFE_BROWSING_CORE_BROWSER_SAFE_BROWSING_LOOKUP_MECHANISM_EXPERIMENTER_H_
 #define COMPONENTS_SAFE_BROWSING_CORE_BROWSER_SAFE_BROWSING_LOOKUP_MECHANISM_EXPERIMENTER_H_
 
+#include "base/gtest_prod_util.h"
 #include "components/safe_browsing/core/browser/db/database_manager.h"
 #include "components/safe_browsing/core/browser/db/v4_protocol_manager_util.h"
 #include "components/safe_browsing/core/browser/hashprefix_realtime/hash_realtime_service.h"
@@ -59,7 +60,6 @@ class SafeBrowsingLookupMechanismExperimenter
       const SBThreatTypeSet& threat_types,
       network::mojom::RequestDestination request_destination,
       scoped_refptr<SafeBrowsingDatabaseManager> database_manager,
-      bool can_check_db,
       bool can_check_high_confidence_allowlist,
       std::string url_lookup_service_metric_suffix,
       const GURL& last_committed_url,
@@ -248,6 +248,7 @@ class SafeBrowsingLookupMechanismExperimenter
   void OnHashDatabaseCheckCompleteInternal(
       bool timed_out,
       absl::optional<SBThreatType> threat_type,
+      absl::optional<bool> matched_high_confidence_allowlist,
       absl::optional<SBThreatType> locally_cached_results_threat_type,
       absl::optional<bool> real_time_request_failed);
   // Kicks off the next hash-prefix database lookup available from the
@@ -300,6 +301,7 @@ class SafeBrowsingLookupMechanismExperimenter
   void StoreCheckResults(
       bool timed_out,
       absl::optional<SBThreatType> threat_type,
+      absl::optional<bool> matched_high_confidence_allowlist,
       absl::optional<SBThreatType> locally_cached_results_threat_type,
       absl::optional<bool> real_time_request_failed,
       CheckToRun::RunDetails& run_details);

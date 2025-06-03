@@ -144,6 +144,8 @@ String NavigationPolicyToProtocol(NavigationPolicy policy) {
       return DispositionEnum::NewWindow;
     case kNavigationPolicyPictureInPicture:
       return DispositionEnum::NewWindow;
+    case kNavigationPolicyLinkPreview:
+      NOTREACHED_NORETURN();
   }
   return DispositionEnum::CurrentTab;
 }
@@ -480,6 +482,42 @@ String InspectorPageAgent::CachedResourceTypeJson(
   return ResourceTypeJson(ToResourceType(cached_resource.GetType()));
 }
 
+InspectorPageAgent::PageReloadScriptInjection::PageReloadScriptInjection(
+    InspectorAgentState& agent_state)
+    : pending_script_to_evaluate_on_load_once_(&agent_state,
+                                               /*default_value=*/{}),
+      target_url_for_pending_script_(&agent_state,
+                                     /*default_value=*/{}) {}
+
+void InspectorPageAgent::PageReloadScriptInjection::clear() {
+  script_to_evaluate_on_load_once_ = {};
+  pending_script_to_evaluate_on_load_once_.Set({});
+  target_url_for_pending_script_.Set({});
+}
+
+void InspectorPageAgent::PageReloadScriptInjection::SetPending(
+    String script,
+    const KURL& target_url) {
+  pending_script_to_evaluate_on_load_once_.Set(script);
+  target_url_for_pending_script_.Set(target_url.GetString());
+}
+
+void InspectorPageAgent::PageReloadScriptInjection::PromoteToLoadOnce() {
+  script_to_evaluate_on_load_once_ =
+      pending_script_to_evaluate_on_load_once_.Get();
+  target_url_for_active_script_ = target_url_for_pending_script_.Get();
+  pending_script_to_evaluate_on_load_once_.Set({});
+  target_url_for_pending_script_.Set({});
+}
+
+String InspectorPageAgent::PageReloadScriptInjection::GetScriptForInjection(
+    const KURL& target_url) {
+  if (target_url_for_active_script_ == target_url.GetString()) {
+    return script_to_evaluate_on_load_once_;
+  }
+  return {};
+}
+
 InspectorPageAgent::InspectorPageAgent(
     InspectedFrames* inspected_frames,
     Client* client,
@@ -497,15 +535,16 @@ InspectorPageAgent::InspectorPageAgent(
       lifecycle_events_enabled_(&agent_state_, /*default_value=*/false),
       bypass_csp_enabled_(&agent_state_, /*default_value=*/false),
       scripts_to_evaluate_on_load_(&agent_state_,
-                                   /*default_value=*/WTF::String()),
+                                   /*default_value=*/String()),
       worlds_to_evaluate_on_load_(&agent_state_,
-                                  /*default_value=*/WTF::String()),
+                                  /*default_value=*/String()),
       include_command_line_api_for_scripts_to_evaluate_on_load_(
           &agent_state_,
           /*default_value=*/false),
       standard_font_size_(&agent_state_, /*default_value=*/0),
       fixed_font_size_(&agent_state_, /*default_value=*/0),
-      script_font_families_cbor_(&agent_state_, std::vector<uint8_t>()) {}
+      script_font_families_cbor_(&agent_state_, std::vector<uint8_t>()),
+      script_injection_on_load_(agent_state_) {}
 
 void InspectorPageAgent::Restore() {
   if (enabled_.Get())
@@ -544,8 +583,7 @@ protocol::Response InspectorPageAgent::enable() {
 protocol::Response InspectorPageAgent::disable() {
   agent_state_.ClearAllFields();
   pending_isolated_worlds_.clear();
-  script_to_evaluate_on_load_once_ = String();
-  pending_script_to_evaluate_on_load_once_ = String();
+  script_injection_on_load_.clear();
   instrumenting_agents_->RemoveInspectorPageAgent(this);
   inspector_resource_content_loader_->Cancel(
       resource_content_loader_client_id_);
@@ -561,6 +599,7 @@ protocol::Response InspectorPageAgent::addScriptToEvaluateOnNewDocument(
     const String& source,
     Maybe<String> world_name,
     Maybe<bool> include_command_line_api,
+    Maybe<bool> runImmediately,
     String* identifier) {
   Vector<WTF::String> keys = scripts_to_evaluate_on_load_.Keys();
   auto* result = std::max_element(
@@ -574,14 +613,15 @@ protocol::Response InspectorPageAgent::addScriptToEvaluateOnNewDocument(
   }
 
   scripts_to_evaluate_on_load_.Set(*identifier, source);
-  worlds_to_evaluate_on_load_.Set(*identifier, world_name.fromMaybe(""));
+  worlds_to_evaluate_on_load_.Set(*identifier, world_name.value_or(""));
   include_command_line_api_for_scripts_to_evaluate_on_load_.Set(
-      *identifier, include_command_line_api.fromMaybe(false));
+      *identifier, include_command_line_api.value_or(false));
 
-  if (client_->IsPausedForNewWindow()) {
-    // When opening a new popup, Page.addScriptToEvaluateOnNewDocument could be
-    // called after Runtime.enable that forces main context creation. In this
-    // case, we would not normally evaluate the script, but we should.
+  if (client_->IsPausedForNewWindow() || runImmediately.value_or(false)) {
+    // client_->IsPausedForNewWindow(): When opening a new popup,
+    // Page.addScriptToEvaluateOnNewDocument could be called after
+    // Runtime.enable that forces main context creation. In this case, we would
+    // not normally evaluate the script, but we should.
     for (LocalFrame* frame : *inspected_frames_) {
       EvaluateScriptOnNewDocument(*frame, *identifier);
     }
@@ -604,6 +644,7 @@ protocol::Response InspectorPageAgent::addScriptToEvaluateOnLoad(
     const String& source,
     String* identifier) {
   return addScriptToEvaluateOnNewDocument(source, Maybe<String>(""),
+                                          Maybe<bool>(false),
                                           Maybe<bool>(false), identifier);
 }
 
@@ -668,9 +709,11 @@ protocol::Response InspectorPageAgent::setAdBlockingEnabled(bool enable) {
 protocol::Response InspectorPageAgent::reload(
     Maybe<bool> optional_bypass_cache,
     Maybe<String> optional_script_to_evaluate_on_load) {
-  pending_script_to_evaluate_on_load_once_ =
-      optional_script_to_evaluate_on_load.fromMaybe("");
+  script_injection_on_load_.SetPending(
+      optional_script_to_evaluate_on_load.value_or(""),
+      inspected_frames_->Root()->Loader().GetDocumentLoader()->Url());
   v8_session_->setSkipAllPauses(true);
+  v8_session_->resume(true /* terminate on resume */);
   return protocol::Response::Success();
 }
 
@@ -824,8 +867,8 @@ void InspectorPageAgent::searchInResource(
       WTF::BindOnce(
           &InspectorPageAgent::SearchContentAfterResourcesContentLoaded,
           WrapPersistent(this), frame_id, url, query,
-          optional_case_sensitive.fromMaybe(false),
-          optional_is_regex.fromMaybe(false), std::move(callback)));
+          optional_case_sensitive.value_or(false),
+          optional_is_regex.value_or(false), std::move(callback)));
 }
 
 protocol::Response InspectorPageAgent::setBypassCSP(bool enabled) {
@@ -984,11 +1027,19 @@ void InspectorPageAgent::DidCreateMainWorldContext(LocalFrame* frame) {
     EvaluateScriptOnNewDocument(*frame, key);
   }
 
-  if (!script_to_evaluate_on_load_once_.empty()) {
-    ClassicScript::CreateUnspecifiedScript(script_to_evaluate_on_load_once_)
-        ->RunScript(frame->DomWindow(),
-                    ExecuteScriptPolicy::kExecuteScriptWhenScriptsDisabled);
+  String script = script_injection_on_load_.GetScriptForInjection(
+      frame->Loader().GetDocumentLoader()->Url());
+  if (script.empty()) {
+    return;
   }
+  ScriptState* script_state = ToScriptStateForMainWorld(frame);
+  if (!script_state) {
+    return;
+  }
+
+  ClassicScript::CreateUnspecifiedScript(script)->RunScript(
+      frame->DomWindow(),
+      ExecuteScriptPolicy::kExecuteScriptWhenScriptsDisabled);
 }
 
 void InspectorPageAgent::EvaluateScriptOnNewDocument(
@@ -1050,8 +1101,7 @@ void InspectorPageAgent::LoadEventFired(LocalFrame* frame) {
 
 void InspectorPageAgent::WillCommitLoad(LocalFrame*, DocumentLoader* loader) {
   if (loader->GetFrame() == inspected_frames_->Root()) {
-    script_to_evaluate_on_load_once_ = pending_script_to_evaluate_on_load_once_;
-    pending_script_to_evaluate_on_load_once_ = String();
+    script_injection_on_load_.PromoteToLoadOnce();
   }
   GetFrontend()->frameNavigated(BuildObjectForFrame(loader->GetFrame()),
                                 protocol::Page::NavigationTypeEnum::Navigation);
@@ -1107,13 +1157,9 @@ bool InspectorPageAgent::ScreencastEnabled() {
   return enabled_.Get() && screencast_enabled_.Get();
 }
 
-void InspectorPageAgent::FrameStartedLoading(LocalFrame* frame) {
-  GetFrontend()->frameStartedLoading(IdentifiersFactory::FrameId(frame));
-  GetFrontend()->flush();
-}
-
 void InspectorPageAgent::FrameStoppedLoading(LocalFrame* frame) {
-  GetFrontend()->frameStoppedLoading(IdentifiersFactory::FrameId(frame));
+  // The actual event is reported by the browser, but let's make sure
+  // earlier events from the commit make their way to client first.
   GetFrontend()->flush();
 }
 
@@ -1121,6 +1167,11 @@ void InspectorPageAgent::FrameRequestedNavigation(Frame* target_frame,
                                                   const KURL& url,
                                                   ClientNavigationReason reason,
                                                   NavigationPolicy policy) {
+  // TODO(b:303396822): Support Link Preview
+  if (policy == kNavigationPolicyLinkPreview) {
+    return;
+  }
+
   GetFrontend()->frameRequestedNavigation(
       IdentifiersFactory::FrameId(target_frame),
       ClientNavigationReasonToProtocol(reason), url.GetString(),
@@ -1322,7 +1373,7 @@ std::unique_ptr<protocol::Page::OriginTrialToken> CreateOriginTrialToken(
                      ->ToRawString())
       .setIsThirdParty(blink_trial_token.is_third_party())
       .setMatchSubDomains(blink_trial_token.match_subdomains())
-      .setExpiryTime(blink_trial_token.expiry_time().ToDoubleT())
+      .setExpiryTime(blink_trial_token.expiry_time().InSecondsFSinceUnixEpoch())
       .setTrialName(blink_trial_token.feature_name().c_str())
       .setUsageRestriction(CreateOriginTrialUsageRestriction(
           blink_trial_token.usage_restriction()))
@@ -1501,8 +1552,10 @@ InspectorPageAgent::BuildObjectForResourceTree(LocalFrame* frame) {
             .build();
     absl::optional<base::Time> last_modified =
         cached_resource->GetResponse().LastModified();
-    if (last_modified)
-      resource_object->setLastModified(last_modified.value().ToDoubleT());
+    if (last_modified) {
+      resource_object->setLastModified(
+          last_modified.value().InSecondsFSinceUnixEpoch());
+    }
     if (cached_resource->WasCanceled())
       resource_object->setCanceled(true);
     else if (cached_resource->GetStatus() == ResourceStatus::kLoadError)
@@ -1668,12 +1721,12 @@ void InspectorPageAgent::createIsolatedWorld(
     }
     pending_isolated_worlds_.insert(frame, Vector<IsolatedWorldRequest>())
         .stored_value->value.push_back(IsolatedWorldRequest(
-            world_name.fromMaybe(""), grant_universal_access.fromMaybe(false),
+            world_name.value_or(""), grant_universal_access.value_or(false),
             std::move(callback)));
     return;
   }
-  CreateIsolatedWorldImpl(*frame, world_name.fromMaybe(""),
-                          grant_universal_access.fromMaybe(false),
+  CreateIsolatedWorldImpl(*frame, world_name.value_or(""),
+                          grant_universal_access.value_or(false),
                           std::move(callback));
 }
 
@@ -1693,7 +1746,7 @@ void InspectorPageAgent::CreateIsolatedWorldImpl(
 
   LocalWindowProxy* isolated_world_window_proxy =
       frame.DomWindow()->GetScriptController().WindowProxy(*world);
-  v8::HandleScope handle_scope(V8PerIsolateData::MainThreadIsolate());
+  v8::HandleScope handle_scope(frame.DomWindow()->GetIsolate());
 
   callback->sendSuccess(v8_inspector::V8ContextInfo::executionContextId(
       isolated_world_window_proxy->ContextIfInitialized()));
@@ -1756,11 +1809,11 @@ protocol::Response InspectorPageAgent::setFontFamilies(
         "Font families can only be set once");
   }
 
-  if (!for_scripts.isJust()) {
+  if (!for_scripts.has_value()) {
     for_scripts =
         std::make_unique<protocol::Array<protocol::Page::ScriptFontFamilies>>();
   }
-  auto& script_fonts = *for_scripts.fromJust();
+  auto& script_fonts = for_scripts.value();
   script_fonts.push_back(protocol::Page::ScriptFontFamilies::create()
                              .setScript(blink::web_pref::kCommonScript)
                              .setFontFamilies(std::move(font_families))
@@ -1864,7 +1917,7 @@ void InspectorPageAgent::FileChooserOpened(LocalFrame* frame,
       IdentifiersFactory::FrameId(frame),
       multiple ? protocol::Page::FileChooserOpened::ModeEnum::SelectMultiple
                : protocol::Page::FileChooserOpened::ModeEnum::SelectSingle,
-      element ? Maybe<int>(DOMNodeIds::IdForNode(element)) : Maybe<int>());
+      element ? Maybe<int>(element->GetDomNodeId()) : Maybe<int>());
 }
 
 protocol::Response InspectorPageAgent::produceCompilationCache(

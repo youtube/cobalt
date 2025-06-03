@@ -13,7 +13,7 @@
 #include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
 #include "ui/base/metadata/metadata_header_macros.h"
-#include "ui/views/view.h"
+#include "ui/views/controls/scroll_view.h"
 
 namespace views {
 class Separator;
@@ -21,7 +21,7 @@ class Separator;
 
 namespace ash {
 
-class CaptureModeBarView;
+class CaptureModeBehavior;
 class CaptureModeMenuGroup;
 class CaptureModeSession;
 class CaptureModeMenuToggleButton;
@@ -30,7 +30,9 @@ class SystemShadow;
 // All the options in the CaptureMode settings view.
 enum CaptureSettingsOption {
   kAudioOff = 0,
+  kAudioSystem,
   kAudioMicrophone,
+  kAudioSystemAndMicrophone,
   kDownloadsFolder,
   kCustomFolder,
   kCameraOff,
@@ -38,17 +40,19 @@ enum CaptureSettingsOption {
 };
 
 // A view that acts as the content view of the capture mode settings menu
-// widget. It is the content view of settings widget and it contains
-// `CaptureModeMenuGroup` for each setting, save to, audio input etc.
+// widget. It allows the settings options to scroll when the menu height is
+// constrained by the top of the screen. It contains `scroll_view_contents_`
+// that parents a `CaptureModeMenuGroup` for each setting, save to, audio input,
+// etc.
 class ASH_EXPORT CaptureModeSettingsView
-    : public views::View,
+    : public views::ScrollView,
       public CaptureModeMenuGroup::Delegate,
       public CaptureModeCameraController::Observer {
  public:
   METADATA_HEADER(CaptureModeSettingsView);
 
   CaptureModeSettingsView(CaptureModeSession* session,
-                          bool is_in_projector_mode);
+                          CaptureModeBehavior* active_behavior);
   CaptureModeSettingsView(const CaptureModeSettingsView&) = delete;
   CaptureModeSettingsView& operator=(const CaptureModeSettingsView&) = delete;
   ~CaptureModeSettingsView() override;
@@ -126,8 +130,10 @@ class ASH_EXPORT CaptureModeSettingsView
 
   // A reference to the session that owns this view indirectly by owning its
   // containing widget.
-  const raw_ptr<CaptureModeSession, ExperimentalAsh>
+  const raw_ptr<CaptureModeSession, DanglingUntriaged | ExperimentalAsh>
       capture_mode_session_;  // Not null;
+
+  const raw_ptr<CaptureModeBehavior, ExperimentalAsh> active_behavior_;
 
   // "Audio input" menu group that users can select an audio input from for
   // screen capture recording. It has "Off" and "Microphone" options for now.
@@ -155,16 +161,16 @@ class ASH_EXPORT CaptureModeSettingsView
   raw_ptr<CaptureModeMenuToggleButton, ExperimentalAsh>
       demo_tools_menu_toggle_button_ = nullptr;
 
-  // Can be null when in Projector mode, since then it's not needed as the
+  // Can be null if `ShouldSaveToSettingsBeIncluded()` is false for the active
+  // behavior of current capture mode session, since then it's not needed as the
   // "Save-to" menu group will not be added at all.
   raw_ptr<views::Separator, ExperimentalAsh> separator_3_ = nullptr;
 
   // "Save to" menu group that users can select a folder to save the captured
   // files to. It will include the "Downloads" folder as the default one and
   // one more folder selected by users.
-  // This menu group is not added when in Projector mode, since the folder
-  // selection here doesn't affect where Projector saves the videos, and hence
-  // it doesn't make sense to show this option. In this case, it remains null.
+  // This menu group is not added when in `ShouldSaveToSettingsBeIncluded()` is
+  // false for the active behavior of current capture mode session.
   raw_ptr<CaptureModeMenuGroup, ExperimentalAsh> save_to_menu_group_ = nullptr;
 
   // If not set, custom folder is not set. If true, customer folder is set and

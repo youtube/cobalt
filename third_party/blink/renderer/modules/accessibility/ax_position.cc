@@ -11,8 +11,8 @@
 #include "third_party/blink/renderer/core/dom/node_traversal.h"
 #include "third_party/blink/renderer/core/editing/position.h"
 #include "third_party/blink/renderer/core/editing/position_with_affinity.h"
-#include "third_party/blink/renderer/core/layout/ng/inline/ng_inline_node.h"
-#include "third_party/blink/renderer/core/layout/ng/inline/ng_offset_mapping.h"
+#include "third_party/blink/renderer/core/layout/inline/inline_node.h"
+#include "third_party/blink/renderer/core/layout/inline/offset_mapping.h"
 #include "third_party/blink/renderer/modules/accessibility/ax_layout_object.h"
 #include "third_party/blink/renderer/modules/accessibility/ax_object.h"
 #include "third_party/blink/renderer/modules/accessibility/ax_object_cache_impl.h"
@@ -239,13 +239,13 @@ const AXPosition AXPosition::FromPosition(
     // Convert from a DOM offset that may have uncompressed white space to a
     // character offset.
     //
-    // Note that NGOffsetMapping::GetInlineFormattingContextOf will reject DOM
+    // Note that OffsetMapping::GetInlineFormattingContextOf will reject DOM
     // positions that it does not support, so we don't need to explicitly check
     // this before calling the method.)
     LayoutBlockFlow* formatting_context =
-        NGOffsetMapping::GetInlineFormattingContextOf(parent_anchored_position);
-    const NGOffsetMapping* container_offset_mapping =
-        formatting_context ? NGInlineNode::GetOffsetMapping(formatting_context)
+        OffsetMapping::GetInlineFormattingContextOf(parent_anchored_position);
+    const OffsetMapping* container_offset_mapping =
+        formatting_context ? InlineNode::GetOffsetMapping(formatting_context)
                            : nullptr;
     if (!container_offset_mapping) {
       // We are unable to compute the text offset in the accessibility tree that
@@ -265,12 +265,21 @@ const AXPosition AXPosition::FromPosition(
     // subtract the text offset of our |container| from the beginning of the
     // same formatting context.
     int container_offset = container->TextOffsetInFormattingContext(0);
-    int text_offset =
-        static_cast<int>(
-            container_offset_mapping
-                ->GetTextContentOffset(parent_anchored_position)
-                .value_or(static_cast<unsigned int>(container_offset))) -
-        container_offset;
+    absl::optional<unsigned> content_offset =
+        container_offset_mapping->GetTextContentOffset(
+            parent_anchored_position);
+    int text_offset = 0;
+    if (content_offset.has_value()) {
+      text_offset = content_offset.value() - container_offset;
+      // Adjust the offset for characters that are not in the accessible text.
+      // These can include zero-width breaking opportunities inserted after
+      // preserved preliminary whitespace and isolate characters inserted when
+      // positioning SVG text at a specific x coordinate.
+      int adjustment = ax_position.GetLeadingIgnoredCharacterCount(
+          container_offset_mapping, container->GetNode(), container_offset,
+          content_offset.value());
+      text_offset -= adjustment;
+    }
     DCHECK_GE(text_offset, 0);
     ax_position.text_offset_or_child_index_ = text_offset;
     ax_position.affinity_ = affinity;
@@ -454,13 +463,13 @@ int AXPosition::MaxTextOffset() const {
   }
 
   LayoutBlockFlow* formatting_context =
-      NGOffsetMapping::GetInlineFormattingContextOf(*layout_object);
-  const NGOffsetMapping* container_offset_mapping =
-      formatting_context ? NGInlineNode::GetOffsetMapping(formatting_context)
+      OffsetMapping::GetInlineFormattingContextOf(*layout_object);
+  const OffsetMapping* container_offset_mapping =
+      formatting_context ? InlineNode::GetOffsetMapping(formatting_context)
                          : nullptr;
   if (!container_offset_mapping)
     return container_object_->ComputedName().length();
-  const base::span<const NGOffsetMappingUnit> mapping_units =
+  const base::span<const OffsetMappingUnit> mapping_units =
       container_offset_mapping->GetMappingUnitsForNode(*container_node);
   if (mapping_units.empty())
     return container_object_->ComputedName().length();
@@ -910,9 +919,9 @@ const PositionWithAffinity AXPosition::ToPositionWithAffinity(
                                 affinity_);
   }
 
-  // If NGOffsetMapping supports it, convert from a text offset, which may have
+  // If OffsetMapping supports it, convert from a text offset, which may have
   // white space collapsed, to a DOM offset which should have uncompressed white
-  // space. NGOffsetMapping supports layout text, layout replaced, ruby runs,
+  // space. OffsetMapping supports layout text, layout replaced, ruby columns,
   // list markers, and layout block flow at inline-level, i.e. "display=inline"
   // or "display=inline-block". It also supports out-of-flow elements, which
   // should not be relevant to text positions in the accessibility tree.
@@ -924,12 +933,12 @@ const PositionWithAffinity AXPosition::ToPositionWithAffinity(
       layout_object &&
       ((layout_object->IsInline() && layout_object->IsAtomicInlineLevel()) ||
        layout_object->IsText());
-  const NGOffsetMapping* container_offset_mapping = nullptr;
+  const OffsetMapping* container_offset_mapping = nullptr;
   if (supports_ng_offset_mapping) {
     LayoutBlockFlow* formatting_context =
-        NGOffsetMapping::GetInlineFormattingContextOf(*layout_object);
+        OffsetMapping::GetInlineFormattingContextOf(*layout_object);
     container_offset_mapping =
-        formatting_context ? NGInlineNode::GetOffsetMapping(formatting_context)
+        formatting_context ? InlineNode::GetOffsetMapping(formatting_context)
                            : nullptr;
   }
 
@@ -1002,6 +1011,47 @@ String AXPosition::ToString() const {
   builder.Append(container_object_->ToString());
   builder.AppendFormat(", %d", ChildIndex());
   return builder.ToString();
+}
+
+// static
+bool AXPosition::IsIgnoredCharacter(UChar character) {
+  switch (character) {
+    case kZeroWidthSpaceCharacter:
+    case kLeftToRightIsolateCharacter:
+    case kRightToLeftIsolateCharacter:
+    case kPopDirectionalIsolateCharacter:
+      return true;
+    default:
+      return false;
+  }
+}
+
+int AXPosition::GetLeadingIgnoredCharacterCount(const OffsetMapping* mapping,
+                                                const Node* node,
+                                                int container_offset,
+                                                int content_offset) const {
+  if (!mapping) {
+    return content_offset;
+  }
+
+  String text = mapping->GetText();
+  int count = 0;
+  unsigned previous_content_end = container_offset;
+  for (auto unit : mapping->GetMappingUnitsForNode(*node)) {
+    if (unit.TextContentStart() > static_cast<unsigned>(content_offset)) {
+      break;
+    }
+
+    if (unit.TextContentStart() != previous_content_end) {
+      String substring = text.Substring(
+          previous_content_end, unit.TextContentStart() - previous_content_end);
+      String unignored = substring.RemoveCharacters(IsIgnoredCharacter);
+      count += substring.length() - unignored.length();
+    }
+    previous_content_end = unit.TextContentEnd();
+  }
+
+  return count;
 }
 
 // static

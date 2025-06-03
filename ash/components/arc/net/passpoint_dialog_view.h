@@ -61,6 +61,7 @@ class PasspointDialogView : public views::BoxLayoutView {
 
   // views::View:
   gfx::Size CalculatePreferredSize() const override;
+  void AddedToWidget() override;
 
  private:
   // Get width to be used by label. This is calculated by getting the dialog's
@@ -78,13 +79,14 @@ class PasspointDialogView : public views::BoxLayoutView {
   void OnLearnMoreClicked();
   void OnButtonClicked(bool allow);
 
+  std::u16string app_name_;
   PasspointDialogCallback callback_;
 
   // Added for testing.
-  views::StyledLabel* body_text_{nullptr};
-  views::StyledLabel* body_subscription_text_{nullptr};
-  views::MdTextButton* allow_button_{nullptr};
-  views::MdTextButton* dont_allow_button_{nullptr};
+  raw_ptr<views::StyledLabel, ExperimentalAsh> body_text_{nullptr};
+  raw_ptr<views::StyledLabel, ExperimentalAsh> body_subscription_text_{nullptr};
+  raw_ptr<views::MdTextButton, ExperimentalAsh> allow_button_{nullptr};
+  raw_ptr<views::MdTextButton, ExperimentalAsh> dont_allow_button_{nullptr};
 
   base::WeakPtrFactory<PasspointDialogView> weak_factory_{this};
 };

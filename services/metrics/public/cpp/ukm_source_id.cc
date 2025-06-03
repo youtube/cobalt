@@ -99,7 +99,7 @@ std::string GetSourceIdTypeDebugString(SourceId source_id) {
       return "WEBAPK_ID";
     case SourceIdObj::Type::PAYMENT_APP_ID:
       return "PAYMENT_APP_ID";
-    case SourceIdObj::Type::DESKTOP_WEB_APP_ID:
+    case SourceIdObj::Type::DEPRECATED_DESKTOP_WEB_APP_ID:
       return "DESKTOP_WEB_APP_ID";
     case SourceIdObj::Type::WORKER_ID:
       return "WORKER_ID";
@@ -113,8 +113,6 @@ std::string GetSourceIdTypeDebugString(SourceId source_id) {
       return "CHROMEOS_WEBSITE_ID";
     case SourceIdObj::Type::EXTENSION_ID:
       return "EXTENSION_ID";
-    case SourceIdObj::Type::SOFT_NAVIGATION_ID:
-      return "SOFT_NAVIGATION_ID";
   }
 }
 

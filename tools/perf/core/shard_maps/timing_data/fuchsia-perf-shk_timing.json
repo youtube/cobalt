@@ -1,18 +1,18 @@
 [
     {
-        "duration": "10.0",
+        "duration": "11.0",
         "name": "media.mobile/mse.html?media=aac_audio.mp4"
     },
     {
-        "duration": "10.0",
+        "duration": "14.0",
         "name": "media.mobile/mse.html?media=aac_audio.mp4,h264_video.mp4"
     },
     {
-        "duration": "10.0",
+        "duration": "14.0",
         "name": "media.mobile/mse.html?media=h264_video.mp4"
     },
     {
-        "duration": "14.0",
+        "duration": "16.0",
         "name": "media.mobile/mse.html?media=tulip2.vp9.webm"
     },
     {
@@ -28,7 +28,7 @@
         "name": "media.mobile/video.html?src=tulip2.m4a&type=audio"
     },
     {
-        "duration": "24.0",
+        "duration": "25.0",
         "name": "media.mobile/video.html?src=tulip2.mp3&type=audio"
     },
     {
@@ -48,7 +48,7 @@
         "name": "media.mobile/video.html?src=tulip2.ogg&type=audio"
     },
     {
-        "duration": "7.0",
+        "duration": "8.0",
         "name": "media.mobile/video.html?src=tulip2.ogg&type=audio&seek"
     },
     {
@@ -64,11 +64,7 @@
         "name": "media.mobile/video.html?src=tulip2.vp9.webm_WiFi"
     },
     {
-        "duration": "375.0",
+        "duration": "374.0",
         "name": "speedometer2/Speedometer2"
-    },
-    {
-        "duration": "900.0",
-        "name": "base_perftests/_gtest_"
     }
 ]

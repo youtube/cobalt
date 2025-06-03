@@ -10,7 +10,7 @@
 
 namespace base {
 template <typename T>
-struct DefaultSingletonTraits;
+class NoDestructor;
 }  // namespace base
 
 class Profile;
@@ -42,13 +42,13 @@ class PolicyCertServiceFactory : public ProfileKeyedServiceFactory {
   PolicyCertServiceFactory& operator=(const PolicyCertServiceFactory&) = delete;
 
  private:
-  friend struct base::DefaultSingletonTraits<PolicyCertServiceFactory>;
+  friend base::NoDestructor<PolicyCertServiceFactory>;
 
   PolicyCertServiceFactory();
   ~PolicyCertServiceFactory() override;
 
   // BrowserContextKeyedServiceFactory:
-  KeyedService* BuildServiceInstanceFor(
+  std::unique_ptr<KeyedService> BuildServiceInstanceForBrowserContext(
       content::BrowserContext* context) const override;
   bool ServiceIsNULLWhileTesting() const override;
 };

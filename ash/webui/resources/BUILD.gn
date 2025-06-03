@@ -60,11 +60,6 @@ ash_generated_grit("os_feedback_untrusted_resources") {
   deps = [ "//ash/webui/os_feedback_ui/untrusted_resources:build_grd" ]
 }
 
-ash_generated_grit("color_internals_resources") {
-  source = "$root_gen_dir/ash/webui/color_internals/resources/ash_color_internals_resources.grd"
-  deps = [ "//ash/webui/color_internals/resources:build_grd" ]
-}
-
 ash_generated_grit("shortcut_customization_app_resources") {
   shortcut_customization_app_gen_dir =
       "$root_gen_dir/ash/webui/shortcut_customization_ui/resources"
@@ -83,13 +78,6 @@ ash_generated_grit("shimless_rma_resources") {
 ash_generated_grit("files_internals_resources") {
   source = "$root_gen_dir/ash/webui/files_internals/ash_files_internals_resources.grd"
   deps = [ "//ash/webui/files_internals:build_grd" ]
-}
-
-ash_generated_grit("firmware_update_app_resources") {
-  firmware_update_app_gen_dir =
-      "$root_gen_dir/ash/webui/firmware_update_ui/resources"
-  source = "$firmware_update_app_gen_dir/ash_firmware_update_app_resources.grd"
-  deps = [ "//ash/webui/firmware_update_ui/resources:build_grd" ]
 }
 
 ash_generated_grit("system_extensions_internals_resources") {
@@ -119,25 +107,6 @@ if (!is_official_build) {
       "//ash/webui/sample_system_web_app_ui/resources/untrusted:untrusted_grd",
     ]
   }
-}
-
-grit("scanning_app_resources") {
-  source = "//ash/webui/scanning/resources/scanning_app_resources.grd"
-
-  deps = [
-    "//ash/webui/common/mojom:mojom_js",
-    "//ash/webui/scanning/mojom:mojom_js",
-    "//ash/webui/scanning/resources:web_components",
-  ]
-
-  outputs = [
-    "ash_scanning_app_resources.pak",
-    "grit/ash_scanning_app_resources.h",
-    "grit/ash_scanning_app_resources_map.cc",
-    "grit/ash_scanning_app_resources_map.h",
-  ]
-
-  output_dir = "$ash_webui_grit_output_dir"
 }
 
 # Resources used by chrome://help-app, and parts of the sandboxed app it hosts
@@ -260,12 +229,6 @@ ash_generated_grit("projector_app_untrusted_resources") {
   deps = [
     "//ash/webui/projector_app/resources/app/untrusted:build_untrusted_grd",
   ]
-}
-
-# Resources used by chrome://projector SWA.
-ash_generated_grit("projector_app_trusted_resources") {
-  source = "$root_gen_dir/ash/webui/projector_app/resources/app/trusted/ash_projector_app_trusted_resources.grd"
-  deps = [ "//ash/webui/projector_app/resources/app/trusted:build_trusted_grd" ]
 }
 
 # Resources automatically served by the chrome-untrusted://projector bundle, obtained via DEPS.

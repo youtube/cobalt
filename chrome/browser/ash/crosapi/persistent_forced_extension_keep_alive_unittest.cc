@@ -4,21 +4,24 @@
 
 #include "chrome/browser/ash/crosapi/persistent_forced_extension_keep_alive.h"
 
-#include "base/auto_reset.h"
+#include <memory>
+
+#include "ash/constants/ash_features.h"
 #include "base/memory/raw_ptr.h"
+#include "base/test/scoped_feature_list.h"
 #include "chrome/browser/ash/crosapi/browser_manager.h"
 #include "chrome/browser/ash/crosapi/fake_browser_manager.h"
+#include "chrome/browser/ash/login/users/fake_chrome_user_manager.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile.h"
 #include "chrome/test/base/testing_profile_manager.h"
-#include "chromeos/ash/components/standalone_browser/browser_support.h"
+#include "chromeos/ash/components/standalone_browser/feature_refs.h"
 #include "components/prefs/pref_service.h"
+#include "components/user_manager/scoped_user_manager.h"
 #include "content/public/test/browser_task_environment.h"
 #include "extensions/browser/pref_names.h"
 #include "extensions/common/extension_builder.h"
 #include "testing/gtest/include/gtest/gtest.h"
-
-using ash::standalone_browser::BrowserSupport;
 
 namespace {
 
@@ -33,7 +36,10 @@ namespace crosapi {
 class PersistentForcedExtensionKeepAliveTest : public testing::Test {
  public:
   PersistentForcedExtensionKeepAliveTest()
-      : browser_manager_(std::make_unique<FakeBrowserManager>()) {}
+      : browser_manager_(std::make_unique<FakeBrowserManager>()) {
+    scoped_feature_list_.InitWithFeatures(
+        ash::standalone_browser::GetFeatureRefs(), {});
+  }
 
   PersistentForcedExtensionKeepAliveTest(
       const PersistentForcedExtensionKeepAliveTest&) = delete;
@@ -43,22 +49,33 @@ class PersistentForcedExtensionKeepAliveTest : public testing::Test {
   ~PersistentForcedExtensionKeepAliveTest() override = default;
 
   void SetUp() override {
-    ASSERT_TRUE(browser_util::IsLacrosEnabled());
-
+    fake_user_manager_.Reset(std::make_unique<ash::FakeChromeUserManager>());
     profile_manager_ = std::make_unique<TestingProfileManager>(
         TestingBrowserProcess::GetGlobal());
+
     ASSERT_TRUE(profile_manager_->SetUp());
 
+    // Login a user. The "email" must match the TestingProfile's
+    // GetProfileUserName() so that profile() will be the primary profile.
+    const AccountId account_id = AccountId::FromUserEmail(kUserEmail);
+    fake_user_manager_->AddUser(account_id);
+    fake_user_manager_->LoginUser(account_id);
+
+    CreateTestingProfile();
+
+    ASSERT_TRUE(browser_util::IsLacrosEnabled());
+
+    // Unset KeepAlive temporarily at the end of SetUp(), so that any KeepAlive
+    // instantiated during the set up will be disabled.
     scoped_unset_all_keep_alive_ =
         std::make_unique<BrowserManager::ScopedUnsetAllKeepAliveForTesting>(
             BrowserManager::Get());
-
-    CreateTestingProfile();
   }
 
   void TearDown() override {
     profile_manager_->DeleteAllTestingProfiles();
     profile_manager_.reset();
+    fake_user_manager_.Reset();
   }
 
   void CreateTestingProfile() {
@@ -66,29 +83,27 @@ class PersistentForcedExtensionKeepAliveTest : public testing::Test {
   }
 
   void SetInstallForceList(const std::string& extension_id) {
-    base::Value::Dict dict =
-        extensions::DictionaryBuilder()
-            .Set(extension_id, extensions::DictionaryBuilder().Build())
-            .Build();
     profile_->GetPrefs()->Set(extensions::pref_names::kInstallForceList,
-                              base::Value(std::move(dict)));
+                              base::Value(base::Value::Dict().Set(
+                                  extension_id, base::Value::Dict())));
   }
 
   FakeBrowserManager& browser_manager() { return *browser_manager_; }
 
  private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+
   content::BrowserTaskEnvironment task_environment_;
 
-  base::AutoReset<bool> set_lacros_enabled_ =
-      BrowserSupport::SetLacrosEnabledForTest(true);
-
+  user_manager::TypedScopedUserManager<ash::FakeChromeUserManager>
+      fake_user_manager_;
   std::unique_ptr<FakeBrowserManager> browser_manager_;
   std::unique_ptr<TestingProfileManager> profile_manager_;
 
   std::unique_ptr<BrowserManager::ScopedUnsetAllKeepAliveForTesting>
       scoped_unset_all_keep_alive_;
 
-  raw_ptr<TestingProfile, ExperimentalAsh> profile_;
+  raw_ptr<TestingProfile, DanglingUntriaged | ExperimentalAsh> profile_;
 };
 
 // Test that KeepAlive is registered on session start if an extension that

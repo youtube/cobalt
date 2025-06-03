@@ -61,14 +61,6 @@ class AutofillProfileComparator {
                base::StringPiece16 text2,
                WhitespaceSpec whitespace_spec = DISCARD_WHITESPACE) const;
 
-  // Returns the first merge candidate from |existing_profiles| for
-  // |new_profile| as an optional. If no merge candidate exists |absl::nullopt|
-  // is returned.
-  static absl::optional<AutofillProfile> GetAutofillProfileMergeCandidate(
-      const AutofillProfile& new_profile,
-      const std::vector<AutofillProfile*>& existing_profiles,
-      const std::string& app_locale);
-
   // Returns true if |existing_profile| is a merge candidate for |new_profile|.
   // A profile is a merge candidate if it is mergeable with |new_profile| and if
   // at least one settings-visible value is changed.
@@ -219,16 +211,6 @@ class AutofillProfileComparator {
 
   // App locale used when this comparator instance was created.
   const std::string app_locale() const { return app_locale_; }
-
-  // Merges |new_profile| into one of the |existing_profiles| if possible;
-  // otherwise appends |new_profile| to the end of that list. Fills
-  // |merged_profiles| with the result. Returns the |guid| of the new or updated
-  // profile.
-  static std::string MergeProfile(
-      const AutofillProfile& new_profile,
-      const std::vector<std::unique_ptr<AutofillProfile>>& existing_profiles,
-      const std::string& app_locale,
-      std::vector<AutofillProfile>* merged_profiles);
 
  protected:
   // The result type returned by CompareTokens.

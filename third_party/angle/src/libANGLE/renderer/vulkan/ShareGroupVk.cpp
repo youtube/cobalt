@@ -35,8 +35,10 @@ constexpr size_t kDescriptorWriteInfosInitialSize =
     kDescriptorBufferInfosInitialSize + kDescriptorImageInfosInitialSize;
 constexpr size_t kDescriptorBufferViewsInitialSize = 0;
 
+#if ANGLE_VMA_VERSION < 3000000
 constexpr VkDeviceSize kMaxStaticBufferSizeToUseBuddyAlgorithm  = 256;
 constexpr VkDeviceSize kMaxDynamicBufferSizeToUseBuddyAlgorithm = 4096;
+#endif
 
 // How often monolithic pipelines should be created, if preferMonolithicPipelinesOverLibraries is
 // enabled.  Pipeline creation is typically O(hundreds of microseconds).  A value of 2ms is chosen
@@ -46,40 +48,48 @@ constexpr double kMonolithicPipelineJobPeriod = 0.002;
 
 // Time interval in seconds that we should try to prune default buffer pools.
 constexpr double kTimeElapsedForPruneDefaultBufferPool = 0.25;
+
+bool ValidateIdenticalPriority(const egl::ContextMap &contexts, egl::ContextPriority sharedPriority)
+{
+    if (sharedPriority == egl::ContextPriority::InvalidEnum)
+    {
+        return false;
+    }
+
+    for (auto context : contexts)
+    {
+        const ContextVk *contextVk = vk::GetImpl(context.second);
+        if (contextVk->getPriority() != sharedPriority)
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
 }  // namespace
 
 // Set to true will log bufferpool stats into INFO stream
-#define ANGLE_ENABLE_BUFFER_POOL_STATS_LOGGING 0
+#define ANGLE_ENABLE_BUFFER_POOL_STATS_LOGGING false
 
-ShareGroupVk::ShareGroupVk()
-    : mContextsPriority(egl::ContextPriority::InvalidEnum),
+ShareGroupVk::ShareGroupVk(const egl::ShareGroupState &state)
+    : ShareGroupImpl(state),
+      mContextsPriority(egl::ContextPriority::InvalidEnum),
       mIsContextsPriorityLocked(false),
-      mLastMonolithicPipelineJobTime(0),
-      mOrphanNonEmptyBufferBlock(false)
+      mLastMonolithicPipelineJobTime(0)
 {
     mLastPruneTime = angle::GetCurrentSystemTime();
+
+#if ANGLE_VMA_VERSION < 3000000
     mSizeLimitForBuddyAlgorithm[BufferUsageType::Dynamic] =
         kMaxDynamicBufferSizeToUseBuddyAlgorithm;
     mSizeLimitForBuddyAlgorithm[BufferUsageType::Static] = kMaxStaticBufferSizeToUseBuddyAlgorithm;
+#endif
 }
 
-void ShareGroupVk::addContext(ContextVk *contextVk)
+void ShareGroupVk::onContextAdd()
 {
-    // All mContexts must have mContextsPriority set
-    ASSERT(mContextsPriority != egl::ContextPriority::InvalidEnum);
-    ASSERT(contextVk->getPriority() == mContextsPriority);
-
-    mContexts.insert(contextVk);
-
-    if (contextVk->getState().hasDisplayTextureShareGroup())
-    {
-        mOrphanNonEmptyBufferBlock = true;
-    }
-}
-
-void ShareGroupVk::removeContext(ContextVk *contextVk)
-{
-    mContexts.erase(contextVk);
+    ASSERT(ValidateIdenticalPriority(getContexts(), mContextsPriority));
 }
 
 angle::Result ShareGroupVk::unifyContextsPriority(ContextVk *newContextVk)
@@ -90,7 +100,7 @@ angle::Result ShareGroupVk::unifyContextsPriority(ContextVk *newContextVk)
     if (mContextsPriority == egl::ContextPriority::InvalidEnum)
     {
         ASSERT(!mIsContextsPriorityLocked);
-        ASSERT(mContexts.empty());
+        ASSERT(getContexts().empty());
         mContextsPriority = newContextPriority;
         return angle::Result::Continue;
     }
@@ -131,16 +141,16 @@ angle::Result ShareGroupVk::updateContextsPriority(ContextVk *contextVk,
     ASSERT(newPriority != mContextsPriority);
     if (mContextsPriority == egl::ContextPriority::InvalidEnum)
     {
-        ASSERT(mContexts.empty());
+        ASSERT(getContexts().empty());
         mContextsPriority = newPriority;
         return angle::Result::Continue;
     }
 
     vk::ProtectionTypes protectionTypes;
     protectionTypes.set(contextVk->getProtectionType());
-    for (ContextVk *ctx : mContexts)
+    for (auto context : getContexts())
     {
-        protectionTypes.set(ctx->getProtectionType());
+        protectionTypes.set(vk::GetImpl(context.second)->getProtectionType());
     }
 
     {
@@ -151,10 +161,12 @@ angle::Result ShareGroupVk::updateContextsPriority(ContextVk *contextVk,
                                                      newPriority, index.get()));
     }
 
-    for (ContextVk *ctx : mContexts)
+    for (auto context : getContexts())
     {
-        ASSERT(ctx->getPriority() == mContextsPriority);
-        ctx->setPriority(newPriority);
+        ContextVk *sharedContextVk = vk::GetImpl(context.second);
+
+        ASSERT(sharedContextVk->getPriority() == mContextsPriority);
+        sharedContextVk->setPriority(newPriority);
     }
     mContextsPriority = newPriority;
 
@@ -171,7 +183,10 @@ void ShareGroupVk::onDestroy(const egl::Display *display)
         {
             if (pool)
             {
-                pool->destroy(renderer, mOrphanNonEmptyBufferBlock);
+                // If any context uses display texture share group, it is expected that a
+                // BufferBlock may still in used by textures that outlived ShareGroup.  The
+                // non-empty BufferBlock will be put into RendererVk's orphan list instead.
+                pool->destroy(renderer, mState.hasAnyContextWithDisplayTextureShareGroup());
             }
         }
     }
@@ -248,11 +263,13 @@ angle::Result TextureUpload::onMutableTextureUpload(ContextVk *contextVk, Textur
 {
     // This feature is currently disabled in the case of display-level texture sharing.
     ASSERT(!contextVk->hasDisplayTextureShareGroup());
+    ASSERT(!newTexture->isImmutable());
+    ASSERT(mPrevUploadedMutableTexture == nullptr || !mPrevUploadedMutableTexture->isImmutable());
 
     // If the previous texture is null, it should be set to the current texture. We also have to
     // make sure that the previous texture pointer is still a mutable texture. Otherwise, we skip
     // the optimization.
-    if (mPrevUploadedMutableTexture == nullptr || mPrevUploadedMutableTexture->isImmutable())
+    if (mPrevUploadedMutableTexture == nullptr)
     {
         mPrevUploadedMutableTexture = newTexture;
         return angle::Result::Continue;
@@ -268,7 +285,7 @@ angle::Result TextureUpload::onMutableTextureUpload(ContextVk *contextVk, Textur
     if (mPrevUploadedMutableTexture->isMutableTextureConsistentlySpecifiedForFlush())
     {
         ANGLE_TRY(mPrevUploadedMutableTexture->ensureImageInitialized(
-            contextVk, ImageMipLevels::FullMipChain));
+            contextVk, ImageMipLevels::EnabledLevels));
         contextVk->getPerfCounters().mutableTexturesUploaded++;
     }
 
@@ -388,13 +405,22 @@ vk::BufferPool *ShareGroupVk::getDefaultBufferPool(RendererVk *renderer,
                                                    uint32_t memoryTypeIndex,
                                                    BufferUsageType usageType)
 {
+#if ANGLE_VMA_VERSION < 3000000
     // First pick allocation algorithm. Buddy algorithm is faster, but waste more memory
     // due to power of two alignment. For smaller size allocation we always use buddy algorithm
     // since align to power of two does not waste too much memory. For dynamic usage, the size
     // threshold for buddy algorithm is relaxed since the performance is more important.
-    SuballocationAlgorithm algorithm = size <= mSizeLimitForBuddyAlgorithm[usageType]
-                                           ? SuballocationAlgorithm::Buddy
-                                           : SuballocationAlgorithm::General;
+    SuballocationAlgorithm algorithm      = size <= mSizeLimitForBuddyAlgorithm[usageType]
+                                                ? SuballocationAlgorithm::Buddy
+                                                : SuballocationAlgorithm::General;
+    vma::VirtualBlockCreateFlags vmaFlags = algorithm == SuballocationAlgorithm::Buddy
+                                                ? vma::VirtualBlockCreateFlagBits::BUDDY
+                                                : vma::VirtualBlockCreateFlagBits::GENERAL;
+#else
+    // For VMA 3.0, the general allocation algorithm is used.
+    SuballocationAlgorithm algorithm      = SuballocationAlgorithm::General;
+    vma::VirtualBlockCreateFlags vmaFlags = vma::VirtualBlockCreateFlagBits::GENERAL;
+#endif  // ANGLE_VMA_VERSION < 3000000
 
     if (!mDefaultBufferPools[algorithm][memoryTypeIndex])
     {
@@ -404,10 +430,7 @@ vk::BufferPool *ShareGroupVk::getDefaultBufferPool(RendererVk *renderer,
         VkMemoryPropertyFlags memoryPropertyFlags;
         allocator.getMemoryTypeProperties(memoryTypeIndex, &memoryPropertyFlags);
 
-        std::unique_ptr<vk::BufferPool> pool  = std::make_unique<vk::BufferPool>();
-        vma::VirtualBlockCreateFlags vmaFlags = algorithm == SuballocationAlgorithm::Buddy
-                                                    ? vma::VirtualBlockCreateFlagBits::BUDDY
-                                                    : vma::VirtualBlockCreateFlagBits::GENERAL;
+        std::unique_ptr<vk::BufferPool> pool = std::make_unique<vk::BufferPool>();
         pool->initWithFlags(renderer, vmaFlags, usageFlags, 0, memoryTypeIndex,
                             memoryPropertyFlags);
         mDefaultBufferPools[algorithm][memoryTypeIndex] = std::move(pool);
@@ -482,21 +505,17 @@ void ShareGroupVk::calculateTotalBufferCount(size_t *bufferCount, VkDeviceSize *
 
 void ShareGroupVk::logBufferPools() const
 {
-    size_t totalBufferCount;
-    VkDeviceSize totalMemorySize;
-    calculateTotalBufferCount(&totalBufferCount, &totalMemorySize);
-
-    INFO() << "BufferBlocks count:" << totalBufferCount << " memorySize:" << totalMemorySize / 1024
-           << " UnusedBytes/memorySize (KBs):";
-    for (const vk::BufferPoolPointerArray &array : mDefaultBufferPools)
+    for (size_t i = 0; i < mDefaultBufferPools.size(); i++)
     {
+        const vk::BufferPoolPointerArray &array =
+            mDefaultBufferPools[static_cast<SuballocationAlgorithm>(i)];
         for (const std::unique_ptr<vk::BufferPool> &pool : array)
         {
             if (pool && pool->getBufferCount() > 0)
             {
                 std::ostringstream log;
                 pool->addStats(&log);
-                INFO() << "\t" << log.str();
+                INFO() << "Pool[" << i << "]:" << log.str();
             }
         }
     }

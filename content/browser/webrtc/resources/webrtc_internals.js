@@ -14,7 +14,7 @@ import {StatsRatesCalculator, StatsReport} from './stats_rates_calculator.js';
 import {StatsTable} from './stats_table.js';
 import {TabView} from './tab_view.js';
 import {createIceCandidateGrid, updateIceCandidateGrid} from './candidate_grid.js';
-import {UserMediaTable} from './user_media.js';
+import {UserMediaTable} from './user_media_table.js';
 
 const OPTION_GETSTATS_STANDARD = 'Standardized (promise-based) getStats() API';
 const OPTION_GETSTATS_LEGACY =
@@ -27,6 +27,8 @@ let peerConnectionUpdateTable = null;
 let statsTable = null;
 let userMediaTable = null;
 let dumpCreator = null;
+
+const searchParameters = new URLSearchParams(window.location.search);
 
 // Exporting these on window since they are directly accessed by tests.
 window.setCurrentGetStatsMethod = function(method) {
@@ -160,7 +162,6 @@ function initialize() {
 
   // Requests stats from all peer connections every second unless specified via
   // ?statsInterval=(milliseconds >= 100ms)
-  const searchParameters = new URLSearchParams(window.location.search);
   let statsInterval = 1000;
   if (searchParameters.has('statsInterval')) {
     statsInterval = Math.max(
@@ -305,6 +306,7 @@ function addPeerConnectionUpdate(peerConnectionElement, update) {
 
 /**
  * Removes all information about a peer connection.
+ * Use ?keepRemovedConnections url parameter to prevent the removal.
  *
  * @param {!Object<number>} data The object containing the rid and lid of a peer
  *     connection.
@@ -313,8 +315,9 @@ function removePeerConnection(data) {
   // Disable getElementById restriction here, since |getPeerConnectionId| does
   // not return valid selectors.
   // eslint-disable-next-line no-restricted-properties
+
   const element = document.getElementById(getPeerConnectionId(data));
-  if (element) {
+  if (element && !searchParameters.has('keepRemovedConnections')) {
     delete peerConnectionDataStore[element.id];
     tabView.removeTab(element.id);
   }
@@ -360,23 +363,6 @@ function addPeerConnection(data) {
   const deprecationNotices = document.createElement('ul');
   if (data.rtcConfiguration) {
     deprecationNotices.className = 'peerconnection-deprecations';
-  }
-  if (data.constraints) {
-    if (data.constraints.indexOf('enableDtlsSrtp:') !== -1) {
-      if (data.constraints.indexOf('enableDtlsSrtp: {exact: false}') !== -1) {
-        appendChildWithText(deprecationNotices, 'li',
-          'The constraint "DtlsSrtpKeyAgreement" will be removed. You have ' +
-          'specified a "false" value for this constraint, which is ' +
-          'interpreted as an attempt to use the deprecated "SDES" key ' +
-          'negotiation method. This functionality will be removed; use a ' +
-          'service that supports DTLS key negotiation instead.');
-      } else {
-        appendChildWithText(deprecationNotices, 'li',
-          'The constraint "DtlsSrtpKeyAgreement" will be removed. You have ' +
-          'specified a "true" value for this constraint, which has no ' +
-          'effect, but you can remove this constraint for tidiness.');
-      }
-    }
   }
   peerConnectionElement.appendChild(deprecationNotices);
 

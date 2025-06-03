@@ -13,13 +13,18 @@
 #include "ash/shell.h"
 #include "ash/strings/grit/ash_strings.h"
 #include "ash/style/ash_color_id.h"
+#include "ash/style/typography.h"
 #include "ash/system/tray/hover_highlight_view.h"
+#include "ash/system/tray/tray_background_view.h"
+#include "ash/system/tray/tray_bubble_view.h"
 #include "ash/system/tray/tray_constants.h"
 #include "ash/wm/tablet_mode/tablet_mode_controller.h"
 #include "ash/wm/work_area_insets.h"
 #include "base/check.h"
 #include "base/strings/string_number_conversions.h"
+#include "chromeos/constants/chromeos_features.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/chromeos/styles/cros_tokens_color_mappings.h"
 #include "ui/gfx/font_list.h"
 #include "ui/views/controls/label.h"
 
@@ -54,7 +59,14 @@ void SetupConnectedScrollListItem(HoverHighlightView* view,
   }
 
   view->sub_text_label()->SetAutoColorReadabilityEnabled(false);
-  view->sub_text_label()->SetEnabledColorId(kColorAshTextColorPositive);
+
+  if (chromeos::features::IsJellyEnabled()) {
+    view->sub_text_label()->SetEnabledColorId(cros_tokens::kCrosSysPositive);
+    ash::TypographyProvider::Get()->StyleLabel(
+        ash::TypographyToken::kCrosAnnotation1, *view->sub_text_label());
+  } else {
+    view->sub_text_label()->SetEnabledColorId(kColorAshTextColorPositive);
+  }
 }
 
 void SetupConnectingScrollListItem(HoverHighlightView* view) {
@@ -69,10 +81,16 @@ void SetWarningSubText(HoverHighlightView* view, std::u16string subtext) {
 
   view->SetSubText(subtext);
   view->sub_text_label()->SetAutoColorReadabilityEnabled(false);
-  view->sub_text_label()->SetEnabledColorId(kColorAshTextColorWarning);
+  if (chromeos::features::IsJellyEnabled()) {
+    view->sub_text_label()->SetEnabledColorId(cros_tokens::kCrosSysWarning);
+    ash::TypographyProvider::Get()->StyleLabel(
+        ash::TypographyToken::kCrosAnnotation1, *view->sub_text_label());
+  } else {
+    view->sub_text_label()->SetEnabledColorId(kColorAshTextColorWarning);
+  }
 }
 
-gfx::Insets GetTrayBubbleInsets() {
+gfx::Insets GetTrayBubbleInsets(aura::Window* window) {
   // Decrease bottom and side insets by `kShelfDisplayOffset` to compensate for
   // the adjustment of the respective edges in Shelf::GetSystemTrayAnchorRect().
   gfx::Insets insets = gfx::Insets::TLBR(
@@ -88,7 +106,7 @@ gfx::Insets GetTrayBubbleInsets() {
   if (!in_tablet_mode)
     return insets;
 
-  Shelf* shelf = Shelf::ForWindow(Shell::GetPrimaryRootWindow());
+  Shelf* shelf = Shelf::ForWindow(window);
   bool is_bottom_alignment =
       shelf->alignment() == ShelfAlignment::kBottom ||
       shelf->alignment() == ShelfAlignment::kBottomLocked;
@@ -96,14 +114,14 @@ gfx::Insets GetTrayBubbleInsets() {
   if (!is_bottom_alignment)
     return insets;
 
-  int height_compensation = GetBubbleInsetHotseatCompensation();
+  int height_compensation = GetBubbleInsetHotseatCompensation(window);
   insets.set_bottom(insets.bottom() + height_compensation);
   return insets;
 }
 
-int GetBubbleInsetHotseatCompensation() {
+int GetBubbleInsetHotseatCompensation(aura::Window* window) {
   int height_compensation = kTrayBubbleInsetHotseatCompensation;
-  Shelf* shelf = Shelf::ForWindow(Shell::GetPrimaryRootWindow());
+  Shelf* shelf = Shelf::ForWindow(window);
 
   switch (shelf->GetBackgroundType()) {
     case ShelfBackgroundType::kInApp:
@@ -122,25 +140,6 @@ int GetBubbleInsetHotseatCompensation() {
   return height_compensation;
 }
 
-gfx::Insets GetSecondaryBubbleInsets() {
-  Shelf* shelf = Shelf::ForWindow(Shell::GetPrimaryRootWindow());
-  gfx::Insets insets;
-
-  switch (shelf->alignment()) {
-    case ShelfAlignment::kBottom:
-    case ShelfAlignment::kBottomLocked:
-      insets.set_bottom(kBubbleMenuPadding);
-      break;
-    case ShelfAlignment::kLeft:
-      insets.set_left(kBubbleMenuPadding);
-      break;
-    case ShelfAlignment::kRight:
-      insets.set_right(kBubbleMenuPadding);
-      break;
-  }
-  return insets;
-}
-
 gfx::Insets GetInkDropInsets(TrayPopupInkDropStyle ink_drop_style) {
   if (ink_drop_style == TrayPopupInkDropStyle::HOST_CENTERED ||
       ink_drop_style == TrayPopupInkDropStyle::INSET_BOUNDS) {
@@ -149,18 +148,47 @@ gfx::Insets GetInkDropInsets(TrayPopupInkDropStyle ink_drop_style) {
   return gfx::Insets();
 }
 
-int CalculateMaxTrayBubbleHeight() {
-  Shelf* shelf = Shelf::ForWindow(Shell::GetPrimaryRootWindow());
+int CalculateMaxTrayBubbleHeight(aura::Window* window) {
+  Shelf* shelf = Shelf::ForWindow(window);
 
   // We calculate the available height from the top of the screen to the top of
   // the bubble's anchor rect. We can not use the bottom of the screen since the
-  // anchor's position is not always exactly at the bottom of the screen.
+  // anchor's position is not always exactly at the bottom of the screen. If
+  // we're in tablet mode then we also need to subtract out any extra padding
+  // that may be present due to the hotseat.
   int anchor_rect_top = shelf->GetSystemTrayAnchorRect().y();
   WorkAreaInsets* work_area =
       WorkAreaInsets::ForWindow(shelf->GetWindow()->GetRootWindow());
   int free_space_height_above_anchor =
       anchor_rect_top - work_area->user_work_area_bounds().y();
+  bool in_tablet_mode = Shell::Get()->tablet_mode_controller() &&
+                        Shell::Get()->tablet_mode_controller()->InTabletMode();
+  if (in_tablet_mode) {
+    free_space_height_above_anchor -= GetBubbleInsetHotseatCompensation(window);
+  }
   return free_space_height_above_anchor - kBubbleMenuPadding * 2;
+}
+
+TrayBubbleView::InitParams CreateInitParamsForTrayBubble(
+    TrayBackgroundView* tray,
+    bool anchor_to_shelf_corner) {
+  TrayBubbleView::InitParams init_params;
+  init_params.delegate = tray->GetWeakPtr();
+  init_params.parent_window = tray->GetBubbleWindowContainer();
+  init_params.anchor_mode = TrayBubbleView::AnchorMode::kRect;
+  init_params.anchor_rect = anchor_to_shelf_corner
+                                ? tray->shelf()->GetSystemTrayAnchorRect()
+                                : tray->GetAnchorBoundsInScreen();
+  init_params.insets = GetTrayBubbleInsets(tray->GetBubbleWindowContainer());
+  init_params.shelf_alignment = tray->shelf()->alignment();
+  init_params.preferred_width = kTrayMenuWidth;
+  init_params.close_on_deactivate = true;
+  init_params.translucent = true;
+  init_params.corner_radius = kTrayItemCornerRadius;
+  init_params.reroute_event_handler = true;
+  init_params.anchor_to_shelf_corner = anchor_to_shelf_corner;
+
+  return init_params;
 }
 
 }  // namespace ash

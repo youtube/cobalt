@@ -4,10 +4,11 @@
 
 package org.chromium.components.segmentation_platform;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.Callback;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
 
 /**
  * Java side of the JNI bridge between SegmentationPlatformServiceImpl in Java
@@ -34,6 +35,13 @@ public class SegmentationPlatformServiceImpl implements SegmentationPlatformServ
     }
 
     @Override
+    public void getClassificationResult(String segmentationKey, PredictionOptions predictionOptions,
+            InputContext inputContext, Callback<ClassificationResult> callback) {
+        SegmentationPlatformServiceImplJni.get().getClassificationResult(
+                mNativePtr, this, segmentationKey, predictionOptions, inputContext, callback);
+    }
+
+    @Override
     public SegmentSelectionResult getCachedSegmentResult(String segmentationKey) {
         return SegmentationPlatformServiceImplJni.get().getCachedSegmentResult(
                 mNativePtr, this, segmentationKey);
@@ -49,6 +57,11 @@ public class SegmentationPlatformServiceImpl implements SegmentationPlatformServ
         void getSelectedSegment(long nativeSegmentationPlatformServiceAndroid,
                 SegmentationPlatformServiceImpl caller, String segmentationKey,
                 Callback<SegmentSelectionResult> callback);
+
+        void getClassificationResult(long nativeSegmentationPlatformServiceAndroid,
+                SegmentationPlatformServiceImpl caller, String segmentationKey,
+                PredictionOptions predictionOptions, InputContext inputContext,
+                Callback<ClassificationResult> callback);
 
         SegmentSelectionResult getCachedSegmentResult(long nativeSegmentationPlatformServiceAndroid,
                 SegmentationPlatformServiceImpl caller, String segmentationKey);

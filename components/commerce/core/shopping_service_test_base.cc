@@ -14,14 +14,18 @@
 #include "components/bookmarks/test/test_bookmark_client.h"
 #include "components/commerce/core/commerce_feature_list.h"
 #include "components/commerce/core/pref_names.h"
+#include "components/commerce/core/proto/discounts.pb.h"
 #include "components/commerce/core/proto/merchant_trust.pb.h"
+#include "components/commerce/core/proto/price_insights.pb.h"
 #include "components/commerce/core/proto/price_tracking.pb.h"
 #include "components/optimization_guide/core/optimization_guide_switches.h"
 #include "components/optimization_guide/proto/common_types.pb.h"
 #include "components/optimization_guide/proto/hints.pb.h"
+#include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/testing_pref_service.h"
 #include "components/signin/public/identity_manager/identity_test_environment.h"
 #include "components/sync/test/test_sync_service.h"
+#include "components/unified_consent/pref_names.h"
 #include "services/network/public/cpp/weak_wrapper_shared_url_loader_factory.h"
 #include "services/network/test/test_url_loader_factory.h"
 
@@ -35,6 +39,8 @@ using optimization_guide::proto::OptimizationType;
 using optimization_guide::proto::RequestContext;
 
 namespace commerce {
+
+const uint64_t kInvalidDiscountId = 0;
 
 MockOptGuideDecider::MockOptGuideDecider() = default;
 MockOptGuideDecider::~MockOptGuideDecider() = default;
@@ -124,7 +130,8 @@ OptimizationMetadata MockOptGuideDecider::BuildPriceTrackingResponse(
     const uint64_t product_cluster_id,
     const std::string& country_code,
     const int64_t amount_micros,
-    const std::string& currency_code) {
+    const std::string& currency_code,
+    const std::string& gpc_title) {
   OptimizationMetadata meta;
 
   PriceTrackingData price_tracking_data;
@@ -133,6 +140,10 @@ OptimizationMetadata MockOptGuideDecider::BuildPriceTrackingResponse(
 
   if (!title.empty())
     buyable_product->set_title(title);
+
+  if (!gpc_title.empty()) {
+    buyable_product->set_gpc_title(gpc_title);
+  }
 
   if (!image_url.empty())
     buyable_product->set_image_url(image_url);
@@ -202,15 +213,145 @@ OptimizationMetadata MockOptGuideDecider::BuildMerchantTrustResponse(
   return meta;
 }
 
+OptimizationMetadata MockOptGuideDecider::BuildPriceInsightsResponse(
+    const uint64_t product_cluster_id,
+    const std::string& price_range_currency_code,
+    const int64_t low_typical_price_micros,
+    const int64_t high_typical_price_micros,
+    const std::string& price_history_currency_code,
+    const std::string& attributes,
+    const std::vector<std::tuple<std::string, int64_t>>& history_prices,
+    const std::string& jackpot_url,
+    const PriceBucket& price_bucket,
+    const bool has_multiple_catalogs) {
+  OptimizationMetadata meta;
+
+  PriceInsightsData price_insights_data;
+
+  price_insights_data.set_product_cluster_id(product_cluster_id);
+
+  PriceRange* price_range = price_insights_data.mutable_price_range();
+  price_range->set_currency_code(price_range_currency_code);
+  price_range->set_lowest_typical_price_micros(low_typical_price_micros);
+  price_range->set_highest_typical_price_micros(high_typical_price_micros);
+
+  PriceHistory* price_history = price_insights_data.mutable_price_history();
+  price_history->set_currency_code(price_history_currency_code);
+  price_history->set_attributes(attributes);
+  for (auto price : history_prices) {
+    PricePoint* price_point = price_history->add_price_points();
+    price_point->set_date(std::get<0>(price));
+    price_point->set_min_price_micros(std::get<1>(price));
+  }
+  price_history->set_jackpot_url(jackpot_url);
+
+  PriceInsightsData_PriceBucket bucket = PriceInsightsData_PriceBucket_UNKNOWN;
+  if (price_bucket == PriceBucket::kLowPrice) {
+    bucket = PriceInsightsData_PriceBucket_LOW_PRICE;
+  } else if (price_bucket == PriceBucket::kTypicalPrice) {
+    bucket = PriceInsightsData_PriceBucket_TYPICAL_PRICE;
+  } else if (price_bucket == PriceBucket::kHighPrice) {
+    bucket = PriceInsightsData_PriceBucket_HIGH_PRICE;
+  }
+
+  price_insights_data.set_price_bucket(bucket);
+  price_insights_data.set_has_multiple_catalogs(has_multiple_catalogs);
+
+  Any any;
+  any.set_type_url(price_insights_data.GetTypeName());
+  price_insights_data.SerializeToString(any.mutable_value());
+  meta.set_any_metadata(any);
+
+  return meta;
+}
+
+OptimizationMetadata MockOptGuideDecider::BuildDiscountsResponse(
+    const std::vector<DiscountInfo>& infos) {
+  OptimizationMetadata meta;
+
+  DiscountsData discounts_data;
+
+  std::vector<DiscountClusterType> checked_cluster_types;
+  for (const auto& info_to_check : infos) {
+    if (std::find(checked_cluster_types.begin(), checked_cluster_types.end(),
+                  info_to_check.cluster_type) != checked_cluster_types.end()) {
+      continue;
+    }
+    checked_cluster_types.push_back(info_to_check.cluster_type);
+
+    DiscountCluster* cluster = discounts_data.add_discount_clusters();
+
+    DiscountCluster_ClusterType cluster_type =
+        DiscountCluster_ClusterType_TYPE_UNSPECIFIED;
+    if (info_to_check.cluster_type == DiscountClusterType::kOfferLevel) {
+      cluster_type = DiscountCluster_ClusterType_OFFER_LEVEL;
+    }
+    cluster->set_cluster_type(cluster_type);
+
+    for (const auto& info : infos) {
+      if (info.cluster_type != info_to_check.cluster_type) {
+        continue;
+      }
+
+      Discount* discount = cluster->add_discounts();
+      if (info.id != kInvalidDiscountId) {
+        discount->set_id(info.id);
+      }
+
+      Discount_Type type = Discount_Type_TYPE_UNSPECIFIED;
+      if (info.type == DiscountType::kFreeListingWithCode) {
+        type = Discount_Type_FREE_LISTING_WITH_CODE;
+      }
+      discount->set_type(type);
+
+      Discount_Description* description = discount->mutable_description();
+      description->set_language_code(info.language_code);
+      description->set_detail(info.description_detail);
+      if (info.terms_and_conditions.has_value()) {
+        description->set_terms_and_conditions(
+            info.terms_and_conditions.value());
+      }
+      description->set_value_text(info.value_in_text);
+      discount->set_expiry_time_sec(info.expiry_time_sec);
+      discount->set_is_merchant_wide(info.is_merchant_wide);
+      if (info.discount_code.has_value()) {
+        discount->set_discount_code(info.discount_code.value());
+      }
+      discount->set_offer_id(info.offer_id);
+    }
+  }
+
+  Any any;
+  any.set_type_url(discounts_data.GetTypeName());
+  discounts_data.SerializeToString(any.mutable_value());
+  meta.set_any_metadata(any);
+
+  return meta;
+}
+
 MockWebWrapper::MockWebWrapper(const GURL& last_committed_url,
                                bool is_off_the_record)
+    : MockWebWrapper(last_committed_url, is_off_the_record, nullptr) {}
+
+MockWebWrapper::MockWebWrapper(const GURL& last_committed_url,
+                               bool is_off_the_record,
+                               base::Value* result)
     : last_committed_url_(last_committed_url),
-      is_off_the_record_(is_off_the_record) {}
+      is_off_the_record_(is_off_the_record),
+      mock_js_result_(result) {}
 
 MockWebWrapper::~MockWebWrapper() = default;
 
 const GURL& MockWebWrapper::GetLastCommittedURL() {
   return last_committed_url_;
+}
+
+bool MockWebWrapper::IsFirstLoadForNavigationFinished() {
+  return is_first_load_finished_;
+}
+
+void MockWebWrapper::SetIsFirstLoadForNavigationFinished(bool finished) {
+  is_first_load_finished_ = finished;
 }
 
 bool MockWebWrapper::IsOffTheRecord() {
@@ -230,12 +371,10 @@ void MockWebWrapper::RunJavascript(
       FROM_HERE, base::BindOnce(std::move(callback), mock_js_result_->Clone()));
 }
 
-void MockWebWrapper::SetMockJavaScriptResult(base::Value* result) {
-  mock_js_result_ = result;
-}
-
 ShoppingServiceTestBase::ShoppingServiceTestBase()
-    : bookmark_model_(bookmarks::TestBookmarkClient::CreateModel()),
+    : local_or_syncable_bookmark_model_(
+          bookmarks::TestBookmarkClient::CreateModel()),
+      account_bookmark_model_(bookmarks::TestBookmarkClient::CreateModel()),
       opt_guide_(std::make_unique<MockOptGuideDecider>()),
       pref_service_(std::make_unique<TestingPrefServiceSimple>()),
       identity_test_env_(std::make_unique<signin::IdentityTestEnvironment>()),
@@ -245,16 +384,21 @@ ShoppingServiceTestBase::ShoppingServiceTestBase()
   base::CommandLine::ForCurrentProcess()->AppendSwitch(
       optimization_guide::switches::kDisableCheckingUserPermissionsForTesting);
   RegisterPrefs(pref_service_->registry());
-  shopping_service_ = std::make_unique<ShoppingService>(
-      "us", "en-us", bookmark_model_.get(), opt_guide_.get(),
-      pref_service_.get(), identity_test_env_->identity_manager(),
-      sync_service_.get(),
-      base::MakeRefCounted<network::WeakWrapperSharedURLLoaderFactory>(
-          test_url_loader_factory_.get()),
-      nullptr, nullptr);
+  pref_service_->registry()->RegisterBooleanPref(
+      unified_consent::prefs::kUrlKeyedAnonymizedDataCollectionEnabled, false);
 }
 
 ShoppingServiceTestBase::~ShoppingServiceTestBase() = default;
+
+void ShoppingServiceTestBase::SetUp() {
+  shopping_service_ = std::make_unique<ShoppingService>(
+      "us", "en-us", local_or_syncable_bookmark_model_.get(),
+      account_bookmark_model_.get(), opt_guide_.get(), pref_service_.get(),
+      identity_test_env_->identity_manager(), sync_service_.get(),
+      base::MakeRefCounted<network::WeakWrapperSharedURLLoaderFactory>(
+          test_url_loader_factory_.get()),
+      nullptr, nullptr, nullptr, nullptr, nullptr);
+}
 
 void ShoppingServiceTestBase::TestBody() {}
 
@@ -270,6 +414,12 @@ void ShoppingServiceTestBase::DidNavigatePrimaryMainFrame(WebWrapper* web) {
 
 void ShoppingServiceTestBase::DidFinishLoad(WebWrapper* web) {
   shopping_service_->DidFinishLoad(web);
+  base::RunLoop().RunUntilIdle();
+}
+
+void ShoppingServiceTestBase::SimulateProductInfoLocalExtractionTaskFinished() {
+  task_environment_.FastForwardBy(
+      base::Milliseconds(kProductInfoLocalExtractionDelayMs));
   base::RunLoop().RunUntilIdle();
 }
 
@@ -295,7 +445,7 @@ int ShoppingServiceTestBase::GetProductInfoCacheOpenURLCount(const GURL& url) {
   if (it == shopping_service_->product_info_cache_.end())
     return 0;
 
-  return std::get<0>(it->second);
+  return it->second->pages_with_url_open;
 }
 
 const ProductInfo* ShoppingServiceTestBase::GetFromProductInfoCache(

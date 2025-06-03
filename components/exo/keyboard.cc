@@ -4,6 +4,7 @@
 
 #include "components/exo/keyboard.h"
 
+#include "ash/accelerators/accelerator_controller_impl.h"
 #include "ash/accelerators/accelerator_table.h"
 #include "ash/constants/app_types.h"
 #include "ash/constants/ash_features.h"
@@ -12,6 +13,7 @@
 #include "ash/public/cpp/accelerators.h"
 #include "ash/public/cpp/keyboard/keyboard_controller.h"
 #include "ash/shell.h"
+#include "ash/wm/window_state.h"
 #include "base/containers/contains.h"
 #include "base/containers/span.h"
 #include "base/functional/bind.h"
@@ -30,6 +32,8 @@
 #include "ui/aura/client/aura_constants.h"
 #include "ui/aura/client/focus_client.h"
 #include "ui/aura/window.h"
+#include "ui/base/ime/constants.h"
+#include "ui/base/ime/events.h"
 #include "ui/base/ime/input_method.h"
 #include "ui/events/base_event_utils.h"
 #include "ui/events/event.h"
@@ -99,10 +103,9 @@ bool IsImeSupportedSurface(Surface* surface) {
         static_cast<ash::AppType>(window->GetProperty(aura::client::kAppType));
     switch (app_type) {
       case ash::AppType::ARC_APP:
+      case ash::AppType::CROSTINI_APP:
       case ash::AppType::LACROS:
         return true;
-      case ash::AppType::CROSTINI_APP:
-        return base::FeatureList::IsEnabled(ash::features::kCrostiniImeSupport);
       default:
         // Do nothing.
         break;
@@ -169,6 +172,14 @@ bool ProcessAshAcceleratorIfPossible(Surface* surface, ui::KeyEvent* event) {
     return false;
 
   return ash::AcceleratorController::Get()->Process(accelerator);
+}
+
+bool IsAutoRepeatEnabled(const ui::KeyEvent& event) {
+  const auto* properties = event.properties();
+  if (!properties) {
+    return true;
+  }
+  return !ui::HasKeyEventSuppressAutoRepeat(*properties);
 }
 
 }  // namespace
@@ -325,8 +336,19 @@ void Keyboard::OnKeyEvent(ui::KeyEvent* event) {
       auto it = pressed_keys_.find(physical_code);
       if (it == pressed_keys_.end() && !event->handled() &&
           physical_code != ui::DomCode::NONE) {
-        for (auto& observer : observer_list_)
+        if (bool auto_repeat_enabled = IsAutoRepeatEnabled(*event);
+            auto_repeat_enabled != auto_repeat_enabled_) {
+          auto_repeat_enabled_ = auto_repeat_enabled;
+          if (auto settings =
+                  ash::KeyboardController::Get()->GetKeyRepeatSettings();
+              settings.has_value()) {
+            OnKeyRepeatSettingsChanged(*settings);
+          }
+        }
+
+        for (auto& observer : observer_list_) {
           observer.OnKeyboardKey(event->time_stamp(), event->code(), true);
+        }
 
         if (!consumed_by_ime) {
           // Process key press event if not already handled and not already
@@ -438,8 +460,9 @@ void Keyboard::OnKeyboardEnableFlagsChanged(
 
 void Keyboard::OnKeyRepeatSettingsChanged(
     const ash::KeyRepeatSettings& settings) {
-  delegate_->OnKeyRepeatSettingsChanged(settings.enabled, settings.delay,
-                                        settings.interval);
+  delegate_->OnKeyRepeatSettingsChanged(
+      settings.enabled && auto_repeat_enabled_, settings.delay,
+      settings.interval);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -456,6 +479,20 @@ void Keyboard::OnKeyboardLayoutNameChanged(const std::string& layout_name) {
 ////////////////////////////////////////////////////////////////////////////////
 // Keyboard, private:
 
+base::flat_map<ui::DomCode, KeyState> Keyboard::GetPressedKeysForSurface(
+    Surface* surface) {
+  // Remove system keys from being sent as pressed keys unless the window
+  // can consume them.
+  base::flat_map<ui::DomCode, KeyState> filtered_keys = pressed_keys_;
+  aura::Window* top_level = surface->window()->GetToplevelWindow();
+  if (top_level && !ash::WindowState::Get(top_level)->CanConsumeSystemKeys()) {
+    base::EraseIf(filtered_keys, [](const auto& p) {
+      return ash::AcceleratorController::IsSystemKey(p.second.key_code);
+    });
+  }
+  return filtered_keys;
+}
+
 void Keyboard::SetFocus(Surface* surface) {
   if (focus_) {
     RemoveEventHandler();
@@ -466,8 +503,9 @@ void Keyboard::SetFocus(Surface* surface) {
   }
   if (surface) {
     pressed_keys_ = seat_->pressed_keys();
+    auto enter_keys = GetPressedKeysForSurface(surface);
     delegate_->OnKeyboardModifiers(seat_->xkb_tracker()->GetModifiers());
-    delegate_->OnKeyboardEnter(surface, pressed_keys_);
+    delegate_->OnKeyboardEnter(surface, enter_keys);
     focus_ = surface;
     focus_->AddSurfaceObserver(this);
     focused_on_ime_supported_surface_ = IsImeSupportedSurface(surface);

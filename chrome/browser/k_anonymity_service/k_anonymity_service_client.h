@@ -1,4 +1,4 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -76,6 +76,12 @@ class KAnonymityServiceClient : public content::KAnonymityServiceDelegate,
 
   base::TimeDelta GetJoinInterval() override;
   base::TimeDelta GetQueryInterval() override;
+
+  // Returns true if the profile is allowed to use the k-anonymity service. This
+  // currently checks if the primary profile CanRunChromePrivacySandboxTrials.
+  // This is partially to prevent exposing minors' data to the k-anonymity
+  // service.
+  static bool CanUseKAnonymityService(Profile* profile);
 
  private:
   struct PendingJoinRequest {
@@ -197,7 +203,7 @@ class KAnonymityServiceClient : public content::KAnonymityServiceDelegate,
   url::Origin join_origin_;
   url::Origin query_origin_;
 
-  base::raw_ptr<Profile> profile_;
+  raw_ptr<Profile> profile_;
   base::WeakPtrFactory<KAnonymityServiceClient> weak_ptr_factory_{this};
 };
 

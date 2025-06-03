@@ -30,6 +30,7 @@
 #include "content/public/test/test_navigation_observer.h"
 #include "content/public/test/test_utils.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
+#include "net/test/embedded_test_server/embedded_test_server.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/mojom/choosers/file_chooser.mojom-forward.h"
 #include "third_party/blink/public/mojom/choosers/popup_menu.mojom.h"
@@ -325,52 +326,6 @@ class ShowPopupWidgetWaiter
 #endif
 };
 
-// A BrowserMessageFilter that drops a pre-specified message.
-class DropMessageFilter : public BrowserMessageFilter {
- public:
-  DropMessageFilter(uint32_t message_class, uint32_t drop_message_id);
-
-  DropMessageFilter(const DropMessageFilter&) = delete;
-  DropMessageFilter& operator=(const DropMessageFilter&) = delete;
-
- protected:
-  ~DropMessageFilter() override;
-
- private:
-  // BrowserMessageFilter:
-  bool OnMessageReceived(const IPC::Message& message) override;
-
-  const uint32_t drop_message_id_;
-};
-
-// A BrowserMessageFilter that observes a message without handling it, and
-// reports when it was seen.
-class ObserveMessageFilter : public BrowserMessageFilter {
- public:
-  ObserveMessageFilter(uint32_t message_class, uint32_t watch_message_id);
-
-  ObserveMessageFilter(const ObserveMessageFilter&) = delete;
-  ObserveMessageFilter& operator=(const ObserveMessageFilter&) = delete;
-
-  bool has_received_message() { return received_; }
-
-  // Spins a RunLoop until the message is observed.
-  void Wait();
-
- protected:
-  ~ObserveMessageFilter() override;
-
-  // BrowserMessageFilter:
-  bool OnMessageReceived(const IPC::Message& message) override;
-
- private:
-  void QuitWait();
-
-  const uint32_t watch_message_id_;
-  bool received_ = false;
-  base::OnceClosure quit_closure_;
-};
-
 // This observer waits until WebContentsObserver::OnRendererUnresponsive
 // notification.
 class UnresponsiveRendererObserver : public WebContentsObserver {
@@ -588,7 +543,7 @@ class RenderFrameHostCreatedObserver : public WebContentsObserver {
   base::RunLoop run_loop_;
 
   // The last RenderFrameHost created.
-  raw_ptr<RenderFrameHost, DanglingUntriaged> last_rfh_ = nullptr;
+  raw_ptr<RenderFrameHost, AcrossTasksDanglingUntriaged> last_rfh_ = nullptr;
 
   // The callback to call when a RenderFrameCreated call is observed.
   OnRenderFrameHostCreatedCallback on_rfh_created_;
@@ -726,57 +681,51 @@ class CustomStoragePartitionBrowserClient
   GURL site_to_isolate_;
 };
 
-// Helper for BeginNavigationInCommitCallbackInterceptor. Declared separately
-// to make it easier to friend.
-//
-// Defers an attempt to commit a navigation A in a speculative RenderFrameHost.
-// This observer should be owned by a base::Closure that is used for a
-// subsequent navigation B's `resume_commit_closure_` field.
-//
-// Navigation B will eventually be queued when it reaches ready to commit; since
-// navigation A is still stuck in the pending commit state, navigation B will
-// not be able to successfully select a RenderFrameHost.
-//
-// Navigation B will then assign an actual navigation continuation closure to
-// its `resume_commit_closure_` field, which will destroy `this`. The destructor
-// then resumes committing navigation A.
-class ResumeCommitClosureSetObserver {
- public:
-  explicit ResumeCommitClosureSetObserver(
-      base::SafeRef<NavigationHandle> original_navigation,
-      mojom::DidCommitProvisionalLoadParamsPtr original_params,
-      mojom::DidCommitProvisionalLoadInterfaceParamsPtr
-          original_interface_params);
-
-  ~ResumeCommitClosureSetObserver();
-
- private:
-  base::SafeRef<NavigationHandle> original_navigation_;
-  mojom::DidCommitProvisionalLoadParamsPtr original_params_;
-  mojom::DidCommitProvisionalLoadInterfaceParamsPtr original_interface_params_;
-};
-
-// Helper that ignores a request from the renderer to commit a navigation and
-// instead, begins another navigation to the specified `url` in
-// `frame_tree_node`.
-class BeginNavigationInCommitCallbackInterceptor
+// Helper that waits for a request from the specified `RenderFrameHost` to send
+// `CommitNavigation()` to the browser.
+class CommitNavigationPauser
     : public RenderFrameHostImpl::CommitCallbackInterceptor {
  public:
-  BeginNavigationInCommitCallbackInterceptor(FrameTreeNode* frame_tree_node,
-                                             const GURL& url);
+  explicit CommitNavigationPauser(RenderFrameHostImpl* rfh);
+  ~CommitNavigationPauser() override;
 
+  void WaitForCommitAndPause();
+
+  // Once a `CommitNavigation()` call has been paused, these two methods may be
+  // used to resume or discard the commit as appropriate.
+  void ResumePausedCommit();
+  void DiscardPausedCommit();
+
+ private:
+  // CommitCallbackInterceptor overrides:
   bool WillProcessDidCommitNavigation(
       NavigationRequest* request,
       mojom::DidCommitProvisionalLoadParamsPtr* params,
       mojom::DidCommitProvisionalLoadInterfaceParamsPtr* interface_params)
       override;
 
- private:
-  class ObserverInstaller;
+  base::RunLoop loop_;
 
-  const raw_ptr<FrameTreeNode> frame_tree_node_;
-  const GURL url_;
+  // The parameters to resume a previously paused `CommitNavigation()`.
+  base::WeakPtr<NavigationRequest> paused_request_;
+  mojom::DidCommitProvisionalLoadParamsPtr paused_params_;
+  mojom::DidCommitProvisionalLoadInterfaceParamsPtr paused_interface_params_;
 };
+
+// Blocks the current execution until the renderer main thread is in a steady
+// state, so the caller can issue an `viz::CopyOutputRequest` against the
+// current `WebContents`.
+void WaitForCopyableViewInWebContents(WebContents* web_contents);
+
+// Blocks the current execution until the frame submitted via the browser's
+// compositor is presented on the screen.
+void WaitForBrowserCompositorFramePresented(WebContents* web_contents);
+
+// Sets up a /redirect-on-second-navigation?url endpoint on the provided
+// `server`, which will return a 200 OK response for the first request, and
+// redirect the second request to `url` provided in the query param. This should
+// be called before starting `server`.
+void AddRedirectOnSecondNavigationHandler(net::EmbeddedTestServer* server);
 
 }  // namespace content
 

@@ -7,7 +7,6 @@
 
 #include <memory>
 
-#include "base/logging.h"
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/webauthn/authenticator_request_dialog_model.h"
 #include "content/public/browser/web_contents_observer.h"
@@ -21,10 +20,6 @@ class WebContents;
 
 namespace test {
 class AuthenticatorRequestDialogViewTestApi;
-}
-
-namespace views {
-class MdTextButton;
 }
 
 class AuthenticatorRequestSheetView;
@@ -110,8 +105,6 @@ class AuthenticatorRequestDialogView
   raw_ptr<AuthenticatorRequestDialogModel> model_;
 
   raw_ptr<AuthenticatorRequestSheetView, DanglingUntriaged> sheet_ = nullptr;
-  raw_ptr<views::MdTextButton> other_mechanisms_button_ = nullptr;
-  raw_ptr<views::View> manage_devices_button_ = nullptr;
   std::unique_ptr<views::MenuRunner> other_mechanisms_menu_runner_;
   bool first_shown_ = false;
 

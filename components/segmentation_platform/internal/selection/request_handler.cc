@@ -7,31 +7,18 @@
 #include "base/memory/raw_ref.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/task/single_thread_task_runner.h"
-#include "base/time/clock.h"
 #include "components/segmentation_platform/internal/post_processor/post_processor.h"
 #include "components/segmentation_platform/internal/selection/segment_result_provider.h"
+#include "components/segmentation_platform/internal/selection/selection_utils.h"
 #include "components/segmentation_platform/internal/stats.h"
 #include "components/segmentation_platform/public/config.h"
 #include "components/segmentation_platform/public/input_context.h"
 #include "components/segmentation_platform/public/prediction_options.h"
-#include "components/segmentation_platform/public/proto/prediction_result.pb.h"
+#include "components/segmentation_platform/public/result.h"
+#include "components/segmentation_platform/public/trigger.h"
 
 namespace segmentation_platform {
 namespace {
-
-PredictionStatus ResultStateToPredictionStatus(
-    SegmentResultProvider::ResultState result_state) {
-  switch (result_state) {
-    case SegmentResultProvider::ResultState::kSuccessFromDatabase:
-    case SegmentResultProvider::ResultState::kDefaultModelScoreUsed:
-    case SegmentResultProvider::ResultState::kTfliteModelScoreUsed:
-      return PredictionStatus::kSucceeded;
-    case SegmentResultProvider::ResultState::kSignalsNotCollected:
-      return PredictionStatus::kNotReady;
-    default:
-      return PredictionStatus::kFailed;
-  }
-}
 
 class RequestHandlerImpl : public RequestHandler {
  public:
@@ -44,20 +31,24 @@ class RequestHandlerImpl : public RequestHandler {
   RequestHandlerImpl(const RequestHandlerImpl&) = delete;
   RequestHandlerImpl& operator=(const RequestHandlerImpl&) = delete;
 
-  // Client API. See `SegmentationPlatformService::GetClassificationResult`.
-  void GetClassificationResult(const PredictionOptions& options,
-                               scoped_refptr<InputContext> input_context,
-                               ClassificationResultCallback callback) override;
+  // RequestHandler impl.
+  void GetPredictionResult(const PredictionOptions& options,
+                           scoped_refptr<InputContext> input_context,
+                           RawResultCallback callback) override;
 
  private:
   void GetModelResult(const PredictionOptions& options,
                       scoped_refptr<InputContext> input_context,
                       SegmentResultProvider::SegmentResultCallback callback);
 
-  void OnGetModelResultForClassification(
+  void OnGetPredictionResult(
       scoped_refptr<InputContext> input_context,
-      ClassificationResultCallback classification_callback,
+      RawResultCallback callback,
       std::unique_ptr<SegmentResultProvider::SegmentResult> result);
+
+  TrainingRequestId CollectTrainingData(
+      scoped_refptr<InputContext> input_context,
+      ModelProvider::Request inputs);
 
   // The config for providing client config params.
   const raw_ref<const Config> config_;
@@ -67,7 +58,7 @@ class RequestHandlerImpl : public RequestHandler {
   std::unique_ptr<SegmentResultProvider> result_provider_;
 
   // Pointer to the execution service.
-  const raw_ptr<ExecutionService> execution_service_{};
+  const raw_ptr<ExecutionService> execution_service_ = nullptr;
 
   base::WeakPtrFactory<RequestHandlerImpl> weak_ptr_factory_{this};
 };
@@ -82,16 +73,15 @@ RequestHandlerImpl::RequestHandlerImpl(
 
 RequestHandlerImpl::~RequestHandlerImpl() = default;
 
-void RequestHandlerImpl::GetClassificationResult(
+void RequestHandlerImpl::GetPredictionResult(
     const PredictionOptions& options,
     scoped_refptr<InputContext> input_context,
-    ClassificationResultCallback callback) {
+    RawResultCallback callback) {
   DCHECK(options.on_demand_execution);
-  GetModelResult(
-      options, input_context,
-      base::BindOnce(&RequestHandlerImpl::OnGetModelResultForClassification,
-                     weak_ptr_factory_.GetWeakPtr(), input_context,
-                     std::move(callback)));
+  GetModelResult(options, input_context,
+                 base::BindOnce(&RequestHandlerImpl::OnGetPredictionResult,
+                                weak_ptr_factory_.GetWeakPtr(), input_context,
+                                std::move(callback)));
 }
 
 void RequestHandlerImpl::GetModelResult(
@@ -111,37 +101,46 @@ void RequestHandlerImpl::GetModelResult(
   result_provider_->GetSegmentResult(std::move(result_options));
 }
 
-void RequestHandlerImpl::OnGetModelResultForClassification(
+void RequestHandlerImpl::OnGetPredictionResult(
     scoped_refptr<InputContext> input_context,
-    ClassificationResultCallback classification_callback,
-    std::unique_ptr<SegmentResultProvider::SegmentResult> result) {
-  PostProcessor post_processor;
-  PredictionStatus status = PredictionStatus::kFailed;
-  proto::PredictionResult pred_result;
-  if (result) {
-    stats::RecordSegmentSelectionFailure(
-        *config_, stats::GetSuccessOrFailureReason(result->state));
-    status = ResultStateToPredictionStatus(result->state);
-    pred_result = result->result;
-    stats::RecordClassificationResultComputed(*config_, pred_result);
-
-    // Collect training data. The execution service and training data collector
-    // might be null in testing.
-    if (execution_service_ && execution_service_->training_data_collector()) {
-      execution_service_->training_data_collector()->OnDecisionTime(
-          config_->segments.begin()->first, input_context,
-          proto::TrainingOutputs::TriggerConfig::ONDEMAND);
+    RawResultCallback callback,
+    std::unique_ptr<SegmentResultProvider::SegmentResult> segment_result) {
+  RawResult result(PredictionStatus::kFailed);
+  if (segment_result) {
+    auto status =
+        selection_utils::ResultStateToPredictionStatus(segment_result->state);
+    result = PostProcessor().GetRawResult(segment_result->result, status);
+    if (status == PredictionStatus::kSucceeded) {
+      CHECK(segment_result->model_inputs)
+          << "Handler should be used only for on demand execution: "
+          << config_->segmentation_key;
+      result.request_id = CollectTrainingData(
+          input_context, std::move(*segment_result->model_inputs));
     }
+
+    stats::RecordSegmentSelectionFailure(
+        *config_, stats::GetSuccessOrFailureReason(segment_result->state));
+    stats::RecordClassificationResultComputed(*config_, segment_result->result);
   } else {
     stats::RecordSegmentSelectionFailure(
         *config_, stats::SegmentationSelectionFailureReason::
                       kOnDemandModelExecutionFailed);
   }
-  ClassificationResult classification_result =
-      post_processor.GetPostProcessedClassificationResult(pred_result, status);
   base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE, base::BindOnce(std::move(classification_callback),
-                                classification_result));
+      FROM_HERE, base::BindOnce(std::move(callback), std::move(result)));
+}
+
+TrainingRequestId RequestHandlerImpl::CollectTrainingData(
+    scoped_refptr<InputContext> input_context,
+    ModelProvider::Request inputs) {
+  // The training data collector might be null in testing.
+  if (!execution_service_->training_data_collector()) {
+    return TrainingRequestId();
+  }
+
+  return execution_service_->training_data_collector()->OnDecisionTime(
+      config_->segments.begin()->first, input_context,
+      proto::TrainingOutputs::TriggerConfig::ONDEMAND, std::move(inputs));
 }
 
 }  // namespace

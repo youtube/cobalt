@@ -3,11 +3,13 @@
 // found in the LICENSE file.
 
 #include "ash/constants/ash_features.h"
+#include "ash/constants/ash_pref_names.h"
 #include "ash/constants/ash_switches.h"
 #include "ash/shell.h"
 #include "ash/strings/grit/ash_strings.h"
+#include "ash/system/audio/audio_effects_controller.h"
 #include "ash/system/status_area_widget_test_helper.h"
-#include "ash/system/toast/toast_manager_impl.h"
+#include "ash/system/toast/anchored_nudge_manager_impl.h"
 #include "ash/system/video_conference/bubble/bubble_view_ids.h"
 #include "ash/system/video_conference/bubble/return_to_app_panel.h"
 #include "ash/system/video_conference/video_conference_tray.h"
@@ -16,18 +18,24 @@
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
 #include "base/test/bind.h"
+#include "base/test/gtest_tags.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_timeouts.h"
+#include "chrome/browser/browser_process.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/media/webrtc/webrtc_browsertest_base.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/common/chrome_switches.h"
+#include "chrome/test/base/testing_profile.h"
 #include "chrome/test/base/ui_test_utils.h"
+#include "chromeos/ash/components/audio/cras_audio_handler.h"
 #include "components/content_settings/core/browser/host_content_settings_map.h"
 #include "components/content_settings/core/common/content_settings.h"
 #include "components/content_settings/core/common/content_settings_types.h"
+#include "components/prefs/pref_service.h"
+#include "components/user_manager/user_names.h"
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/visibility.h"
 #include "content/public/browser/web_contents.h"
@@ -41,8 +49,26 @@
 
 namespace ash::video_conference {
 
-constexpr char kVideoConferenceTrayUseWhileDisabledToastId[] =
-    "video_conference_tray_toast_ids.use_while_disable";
+namespace {
+
+bool IsNudgeShown(const std::string& id) {
+  return Shell::Get()->anchored_nudge_manager()->IsNudgeShown(id);
+}
+
+const std::u16string& GetNudgeText(const std::string& id) {
+  return Shell::Get()->anchored_nudge_manager()->GetNudgeBodyTextForTest(id);
+}
+
+views::View* GetNudgeAnchorView(const std::string& id) {
+  return Shell::Get()->anchored_nudge_manager()->GetNudgeAnchorViewForTest(id);
+}
+
+}  // namespace
+
+constexpr char kVideoConferenceTrayMicrophoneUseWhileSWDisabledNudgeId[] =
+    "video_conference_tray_nudge_ids.microphone_use_while_sw_disabled";
+constexpr char kVideoConferenceTrayCameraUseWhileSWDisabledNudgeId[] =
+    "video_conference_tray_nudge_ids.camera_use_while_sw_disabled";
 const char16_t kTitle1[] = u"Title1";
 const char16_t kTitle2[] = u"Title2";
 
@@ -88,11 +114,21 @@ void ClickButton(views::Button* button) {
   views::test::ButtonTestApi(button).NotifyClick(event);
 }
 
-// Parameter stands for whether in incognito mode.
-class VideoConferenceIntegrationTest : public testing::WithParamInterface<bool>,
-                                       public WebRtcTestBase {
+// Parameter stands for whether in incognito mode; and whether in guest mode.
+class VideoConferenceIntegrationTest
+    : public testing::WithParamInterface<std::tuple<bool, bool>>,
+      public WebRtcTestBase {
  public:
-  VideoConferenceIntegrationTest() = default;
+  VideoConferenceIntegrationTest() {
+    // kOnDeviceSpeechRecognition is to support live caption.
+    scoped_feature_list_.InitWithFeatures(
+        {ash::features::kVideoConference,
+         ash::features::kOnDeviceSpeechRecognition,
+         ash::features::kCameraEffectsSupportedByHardware,
+         ash::features::kShowLiveCaptionInVideoConferenceTray},
+        {});
+  }
+
   ~VideoConferenceIntegrationTest() override = default;
 
   void SetUpOnMainThread() override {
@@ -101,7 +137,7 @@ class VideoConferenceIntegrationTest : public testing::WithParamInterface<bool>,
     ASSERT_TRUE(embedded_test_server()->Start());
 
     // Create an incognito browser when parameter is true.
-    if (GetParam()) {
+    if (std::get<0>(GetParam())) {
       browser_ = Browser::Create(Browser::CreateParams(
           browser()->profile()->GetPrimaryOTRProfile(/*create_if_needed=*/true),
           true));
@@ -118,8 +154,6 @@ class VideoConferenceIntegrationTest : public testing::WithParamInterface<bool>,
     camera_bt_ = GetVcTray()->camera_icon();
     mic_bt_ = GetVcTray()->audio_icon();
     share_bt_ = GetVcTray()->screen_share_icon();
-
-    toast_manager_ = Shell::Get()->toast_manager();
   }
 
   // Navigate to the url in a new tab.
@@ -185,10 +219,26 @@ class VideoConferenceIntegrationTest : public testing::WithParamInterface<bool>,
   }
 
   void SetUpCommandLine(base::CommandLine* command_line) override {
-    command_line->AppendSwitch(
-        ::ash::switches::kCameraEffectsSupportedByHardware);
-    // Used for bypassing tab capturing selection.
-    command_line->AppendSwitch(::switches::kThisTabCaptureAutoAccept);
+    // Flags use to automatically select the right desktop source and get
+    // around security restrictions.
+    // TODO(crbug.com/1459164): Use a less error-prone flag.
+#if BUILDFLAG(IS_CHROMEOS_ASH)
+    command_line->AppendSwitchASCII(::switches::kAutoSelectDesktopCaptureSource,
+                                    "Display");
+#else
+    command_line->AppendSwitchASCII(::switches::kAutoSelectDesktopCaptureSource,
+                                    "Entire screen");
+#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+
+    // If in guest mode.
+    if (std::get<1>(GetParam())) {
+      command_line->AppendSwitch(ash::switches::kGuestSession);
+      command_line->AppendSwitchASCII(ash::switches::kLoginUser,
+                                      user_manager::kGuestUserName);
+      command_line->AppendSwitchASCII(ash::switches::kLoginProfile,
+                                      TestingProfile::kTestUserProfileDir);
+      command_line->AppendSwitch(::switches::kIncognito);
+    }
   }
 
   // Returns all `ReturnToAppButton`s into a vector for easier check.
@@ -213,41 +263,72 @@ class VideoConferenceIntegrationTest : public testing::WithParamInterface<bool>,
 
     return nullptr;
   }
-  const std::u16string GetCurrentToastText() {
-    return toast_manager_->GetCurrentOverlayForTesting()->GetText();
+
+  // Helper function that triggers the VcTray with
+  //  (1) tab video_conference_demo.html
+  //  (2) both camera and microphone permissions.
+  //  (3) capturing state based the parameters.
+  // This function is to simplify test cases.
+  content::WebContents* TriggeringTray(bool use_camera,
+                                       bool use_microphone,
+                                       bool use_screen_sharing) {
+    // Open a tab.
+    content::WebContents* web_contents =
+        NavigateTo("/video_conference_demo.html");
+    // Set permissions as allow.
+    SetPermission(web_contents, ContentSettingsType::MEDIASTREAM_CAMERA,
+                  CONTENT_SETTING_ALLOW);
+    SetPermission(web_contents, ContentSettingsType::MEDIASTREAM_MIC,
+                  CONTENT_SETTING_ALLOW);
+
+    // Change title.
+    SetTitle(web_contents, kTitle1);
+
+    if (use_camera) {
+      StartCamera(web_contents);
+      WAIT_FOR_CONDITION(camera_bt_->is_capturing());
+    }
+
+    if (use_microphone) {
+      StartMicrophone(web_contents);
+      WAIT_FOR_CONDITION(mic_bt_->is_capturing());
+    }
+
+    if (use_screen_sharing) {
+      StartScreenSharing(web_contents);
+      WAIT_FOR_CONDITION(share_bt_->is_capturing());
+    }
+
+    return web_contents;
   }
 
  protected:
-  raw_ptr<VideoConferenceTrayButton, ExperimentalAsh> camera_bt_ = nullptr;
-  raw_ptr<VideoConferenceTrayButton, ExperimentalAsh> mic_bt_ = nullptr;
-  raw_ptr<VideoConferenceTrayButton, ExperimentalAsh> share_bt_ = nullptr;
+  raw_ptr<VideoConferenceTrayButton, DanglingUntriaged | ExperimentalAsh>
+      camera_bt_ = nullptr;
+  raw_ptr<VideoConferenceTrayButton, DanglingUntriaged | ExperimentalAsh>
+      mic_bt_ = nullptr;
+  raw_ptr<VideoConferenceTrayButton, DanglingUntriaged | ExperimentalAsh>
+      share_bt_ = nullptr;
 
-  raw_ptr<ToastManagerImpl, ExperimentalAsh> toast_manager_ = nullptr;
-  Browser* browser_ = nullptr;
+  raw_ptr<Browser, DanglingUntriaged | ExperimentalAsh> browser_ = nullptr;
 
-  base::test::ScopedFeatureList scoped_feature_list_{
-      ash::features::kVideoConference};
+  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
-INSTANTIATE_TEST_SUITE_P(All,
-                         VideoConferenceIntegrationTest,
-                         ::testing::Values(true, false));
+INSTANTIATE_TEST_SUITE_P(
+    ,  // Empty to simplify gtest output
+    VideoConferenceIntegrationTest,
+    ::testing::Values(std::make_tuple<bool, bool>(false, false),
+                      std::make_tuple<bool, bool>(true, false),
+                      std::make_tuple<bool, bool>(false, true)));
 
 IN_PROC_BROWSER_TEST_P(VideoConferenceIntegrationTest,
                        CaptureVideoShowsVcTray) {
-  // Open a tab.
+  // Trigger the VcTray with camera accessing.
   content::WebContents* web_contents =
-      NavigateTo("/video_conference_demo.html");
-
-  // Set permissions as allow.
-  SetPermission(web_contents, ContentSettingsType::MEDIASTREAM_CAMERA,
-                CONTENT_SETTING_ALLOW);
-  SetPermission(web_contents, ContentSettingsType::MEDIASTREAM_MIC,
-                CONTENT_SETTING_ALLOW);
-
-  // Start camera and wait for the tray to show.
-  StartCamera(web_contents);
-  WAIT_FOR_CONDITION(GetVcTray()->GetVisible());
+      TriggeringTray(/*use_camera=*/true,
+                     /*use_microphone=*/false,
+                     /*use_screen_sharing=*/false);
 
   // camera_icon should be visible with green_dot.
   EXPECT_TRUE(camera_bt_->GetVisible());
@@ -284,19 +365,11 @@ IN_PROC_BROWSER_TEST_P(VideoConferenceIntegrationTest,
 
 IN_PROC_BROWSER_TEST_P(VideoConferenceIntegrationTest,
                        CaptureAudioShowsVcTray) {
-  // Open a tab.
+  // Trigger the VcTray with microphone accessing.
   content::WebContents* web_contents =
-      NavigateTo("/video_conference_demo.html");
-
-  // Set permissions as allow.
-  SetPermission(web_contents, ContentSettingsType::MEDIASTREAM_CAMERA,
-                CONTENT_SETTING_ALLOW);
-  SetPermission(web_contents, ContentSettingsType::MEDIASTREAM_MIC,
-                CONTENT_SETTING_ALLOW);
-
-  // Start microphone and wait for the tray to show.
-  StartMicrophone(web_contents);
-  WAIT_FOR_CONDITION(GetVcTray()->GetVisible());
+      TriggeringTray(/*use_camera=*/false,
+                     /*use_microphone=*/true,
+                     /*use_screen_sharing=*/false);
 
   // camera_icon should be visible without green_dot.
   EXPECT_TRUE(camera_bt_->GetVisible());
@@ -333,19 +406,11 @@ IN_PROC_BROWSER_TEST_P(VideoConferenceIntegrationTest,
 
 IN_PROC_BROWSER_TEST_P(VideoConferenceIntegrationTest,
                        ScreenSharingShowsVcTray) {
-  // Open a tab.
+  // Trigger the VcTray with screen sharing.
   content::WebContents* web_contents =
-      NavigateTo("/video_conference_demo.html");
-
-  // Set permissions as allow.
-  SetPermission(web_contents, ContentSettingsType::MEDIASTREAM_CAMERA,
-                CONTENT_SETTING_ALLOW);
-  SetPermission(web_contents, ContentSettingsType::MEDIASTREAM_MIC,
-                CONTENT_SETTING_ALLOW);
-
-  // Start screen sharing and wait for the tray to show.
-  StartScreenSharing(web_contents);
-  WAIT_FOR_CONDITION(GetVcTray()->GetVisible());
+      TriggeringTray(/*use_camera=*/false,
+                     /*use_microphone=*/false,
+                     /*use_screen_sharing=*/true);
 
   // camera_icon should be invisible.
   EXPECT_TRUE(camera_bt_->GetVisible());
@@ -379,6 +444,9 @@ IN_PROC_BROWSER_TEST_P(VideoConferenceIntegrationTest,
 
 IN_PROC_BROWSER_TEST_P(VideoConferenceIntegrationTest,
                        MicWithoutPermissionShouldNotShow) {
+  base::AddFeatureIdTagToTestResult(
+      "screenplay-92ebd14e-9017-4734-ae47-e9dc6afc6e87");
+
   // Open a tab.
   content::WebContents* web_contents =
       NavigateTo("/video_conference_demo.html");
@@ -401,6 +469,9 @@ IN_PROC_BROWSER_TEST_P(VideoConferenceIntegrationTest,
 
 IN_PROC_BROWSER_TEST_P(VideoConferenceIntegrationTest,
                        CameraWithoutPermissionShouldNotShow) {
+  base::AddFeatureIdTagToTestResult(
+      "screenplay-2d9bddf4-8d96-4304-a605-1140f9a0b45e");
+
   // Open a tab.
   content::WebContents* web_contents =
       NavigateTo("/video_conference_demo.html");
@@ -445,19 +516,13 @@ IN_PROC_BROWSER_TEST_P(VideoConferenceIntegrationTest,
 
 IN_PROC_BROWSER_TEST_P(VideoConferenceIntegrationTest,
                        ClickOnTheMicOrCameraIconsShouldMute) {
-  // Open a tab.
-  content::WebContents* web_contents =
-      NavigateTo("/video_conference_demo.html");
+  base::AddFeatureIdTagToTestResult(
+      "screenplay-cc18f9a3-e46f-4192-b505-876975c5ef4b");
 
-  // Set permissions.
-  SetPermission(web_contents, ContentSettingsType::MEDIASTREAM_CAMERA,
-                CONTENT_SETTING_ALLOW);
-  SetPermission(web_contents, ContentSettingsType::MEDIASTREAM_MIC,
-                CONTENT_SETTING_ALLOW);
-
-  // Start accessing microphone and wait for the tray to show.
-  StartMicrophone(web_contents);
-  WAIT_FOR_CONDITION(GetVcTray()->GetVisible());
+  // Trigger the VcTray with microphone.
+  TriggeringTray(/*use_camera=*/false,
+                 /*use_microphone=*/true,
+                 /*use_screen_sharing=*/false);
 
   // Clicking on the mic icon should mute it.
   ClickButton(mic_bt_);
@@ -482,21 +547,11 @@ IN_PROC_BROWSER_TEST_P(VideoConferenceIntegrationTest,
 
 IN_PROC_BROWSER_TEST_P(VideoConferenceIntegrationTest,
                        OneTabReturnToAppInformation) {
-  // Open a tab.
+  // Trigger the VcTray with microphone.
   content::WebContents* web_contents =
-      NavigateTo("/video_conference_demo.html");
-  // Set permissions as allow.
-  SetPermission(web_contents, ContentSettingsType::MEDIASTREAM_CAMERA,
-                CONTENT_SETTING_ALLOW);
-  SetPermission(web_contents, ContentSettingsType::MEDIASTREAM_MIC,
-                CONTENT_SETTING_ALLOW);
-
-  // Change title.
-  SetTitle(web_contents, kTitle1);
-
-  // Start accessing microphone.
-  StartMicrophone(web_contents);
-  WAIT_FOR_CONDITION(GetVcTray()->GetVisible());
+      TriggeringTray(/*use_camera=*/false,
+                     /*use_microphone=*/true,
+                     /*use_screen_sharing=*/false);
 
   // Get the ReturnToApp Panel.
   ClickButton(GetVcTray()->toggle_bubble_button());
@@ -553,18 +608,11 @@ IN_PROC_BROWSER_TEST_P(VideoConferenceIntegrationTest,
 }
 
 IN_PROC_BROWSER_TEST_P(VideoConferenceIntegrationTest, OneTabReturnToApp) {
-  // Open a tab.
+  // Trigger the VcTray with microphone.
   content::WebContents* web_contents =
-      NavigateTo("/video_conference_demo.html");
-  // Set permissions as allow.
-  SetPermission(web_contents, ContentSettingsType::MEDIASTREAM_CAMERA,
-                CONTENT_SETTING_ALLOW);
-  SetPermission(web_contents, ContentSettingsType::MEDIASTREAM_MIC,
-                CONTENT_SETTING_ALLOW);
-
-  // Start accessing microphone and wait for the VcTray to show.
-  StartMicrophone(web_contents);
-  WAIT_FOR_CONDITION(GetVcTray()->GetVisible());
+      TriggeringTray(/*use_camera=*/false,
+                     /*use_microphone=*/true,
+                     /*use_screen_sharing=*/false);
 
   // Switch to the default tab at 0; this should make the `web_contents` hidden.
   browser_->tab_strip_model()->ActivateTabAt(0);
@@ -601,21 +649,24 @@ IN_PROC_BROWSER_TEST_P(VideoConferenceIntegrationTest, OneTabReturnToApp) {
 }
 
 IN_PROC_BROWSER_TEST_P(VideoConferenceIntegrationTest, UseWhileDisabled) {
-  // Open a tab.
+  base::AddFeatureIdTagToTestResult(
+      "screenplay-f583c1ff-db6f-460e-b1f2-ddec173359a6");
+  base::AddFeatureIdTagToTestResult(
+      "screenplay-3042cdd9-978d-432c-8488-77684b09a9e4");
+
+  // Prevent "Speak-on-mute opt-in" nudge from showing so it doesn't cancel
+  // other shown nudges.
+  Shell::Get()->session_controller()->GetActivePrefService()->SetBoolean(
+      prefs::kShouldShowSpeakOnMuteOptInNudge, false);
+
+  // Trigger the VcTray with microphone.
   content::WebContents* web_contents =
-      NavigateTo("/video_conference_demo.html");
-  // Set permissions as allow.
-  SetPermission(web_contents, ContentSettingsType::MEDIASTREAM_CAMERA,
-                CONTENT_SETTING_ALLOW);
-  SetPermission(web_contents, ContentSettingsType::MEDIASTREAM_MIC,
-                CONTENT_SETTING_ALLOW);
+      TriggeringTray(/*use_camera=*/false,
+                     /*use_microphone=*/true,
+                     /*use_screen_sharing=*/false);
 
-  // Change title.
-  SetTitle(web_contents, kTitle1);
-
-  // Start accessing microphone and wait for the VcTray to show.
-  StartMicrophone(web_contents);
-  WAIT_FOR_CONDITION(GetVcTray()->GetVisible());
+  auto* microphone_nudge_id =
+      kVideoConferenceTrayMicrophoneUseWhileSWDisabledNudgeId;
 
   // Stop microphone and wait for is_capturing to populate.
   StopMicrophone(web_contents);
@@ -627,20 +678,21 @@ IN_PROC_BROWSER_TEST_P(VideoConferenceIntegrationTest, UseWhileDisabled) {
 
   // Start accessing microphone should trigger UseWhileDisabled.
   StartMicrophone(web_contents);
-  WAIT_FOR_CONDITION(
-      toast_manager_->IsRunning(kVideoConferenceTrayUseWhileDisabledToastId));
+  WAIT_FOR_CONDITION(IsNudgeShown(microphone_nudge_id));
 
-  // Check the toast message is as expected.
+  // Check the nudge message and anchor view is as expected.
   EXPECT_EQ(
-      GetCurrentToastText(),
+      GetNudgeText(microphone_nudge_id),
       l10n_util::GetStringFUTF16(
-          IDS_ASH_VIDEO_CONFERENCE_TOAST_USE_WHILE_SOFTWARE_DISABLED, kTitle1,
+          IDS_ASH_VIDEO_CONFERENCE_TOAST_USE_WHILE_DISABLED, kTitle1,
           l10n_util::GetStringUTF16(IDS_ASH_VIDEO_CONFERENCE_MICROPHONE_NAME)));
+  EXPECT_EQ(GetNudgeAnchorView(microphone_nudge_id), GetVcTray()->audio_icon());
 
-  // Remove current toast for the next step.
-  toast_manager_->Cancel(kVideoConferenceTrayUseWhileDisabledToastId);
-  WAIT_FOR_CONDITION(
-      !toast_manager_->IsRunning(kVideoConferenceTrayUseWhileDisabledToastId));
+  // Remove current nudge for the next step.
+  Shell::Get()->anchored_nudge_manager()->Cancel(microphone_nudge_id);
+  WAIT_FOR_CONDITION(!IsNudgeShown(microphone_nudge_id));
+
+  auto* camera_nudge_id = kVideoConferenceTrayCameraUseWhileSWDisabledNudgeId;
 
   // Clicking on the camera icon should mute it.
   ClickButton(camera_bt_);
@@ -648,15 +700,15 @@ IN_PROC_BROWSER_TEST_P(VideoConferenceIntegrationTest, UseWhileDisabled) {
 
   // Start accessing camera should trigger UseWhileDisabled.
   StartCamera(web_contents);
-  WAIT_FOR_CONDITION(
-      toast_manager_->IsRunning(kVideoConferenceTrayUseWhileDisabledToastId));
+  WAIT_FOR_CONDITION(IsNudgeShown(camera_nudge_id));
 
-  // Check the toast message is as expected.
+  // Check the nudge message and anchor view is as expected.
   EXPECT_EQ(
-      GetCurrentToastText(),
+      GetNudgeText(camera_nudge_id),
       l10n_util::GetStringFUTF16(
-          IDS_ASH_VIDEO_CONFERENCE_TOAST_USE_WHILE_SOFTWARE_DISABLED, kTitle1,
+          IDS_ASH_VIDEO_CONFERENCE_TOAST_USE_WHILE_DISABLED, kTitle1,
           l10n_util::GetStringUTF16(IDS_ASH_VIDEO_CONFERENCE_CAMERA_NAME)));
+  EXPECT_EQ(GetNudgeAnchorView(camera_nudge_id), GetVcTray()->camera_icon());
 }
 
 IN_PROC_BROWSER_TEST_P(VideoConferenceIntegrationTest,
@@ -783,6 +835,98 @@ IN_PROC_BROWSER_TEST_P(VideoConferenceIntegrationTest, TwoTabsReturnToApp) {
   WAIT_FOR_CONDITION(web_contents_1->GetVisibility() ==
                      content::Visibility::VISIBLE);
   EXPECT_NE(web_contents_2->GetVisibility(), content::Visibility::VISIBLE);
+}
+
+IN_PROC_BROWSER_TEST_P(VideoConferenceIntegrationTest,
+                       ExpectedButtonsAreShown) {
+  // In order to set noise cancellation support, we need to call
+  //   CrasAudioHandler::Get()->SetNoiseCancellationSupportedForTesting(true)
+  // But by the time it reaches here, the audio_effects_controller is already
+  // constructed based on the fact that the Noise Cancellation is not supported.
+  // The way to fix that is:
+  //  (1) Unregister audio_effects_controller
+  //  (2) SetNoiseCancellationSupportedForTesting(true)
+  //  (3) Register audio_effects_controller again with
+  //      OnActiveUserPrefServiceChanged.
+  auto* audio_effects_controller = Shell::Get()->audio_effects_controller();
+  VideoConferenceTrayController::Get()->effects_manager().UnregisterDelegate(
+      audio_effects_controller);
+  CrasAudioHandler::Get()->SetNoiseCancellationSupportedForTesting(true);
+  audio_effects_controller->OnActiveUserPrefServiceChanged(
+      g_browser_process->local_state());
+
+  // Trigger the VcTray with microphone.
+  TriggeringTray(/*use_camera=*/false,
+                 /*use_microphone=*/true,
+                 /*use_screen_sharing=*/false);
+
+  // Wait for VcPanel to appear.
+  ClickButton(GetVcTray()->toggle_bubble_button());
+  WAIT_FOR_CONDITION(GetVcTray()->GetBubbleView()->GetVisible());
+
+  bool found_live_caption_button = false;
+  bool found_noise_cancellation_buttion = false;
+
+  auto* toggle_effects_view = GetVcTray()->GetBubbleView()->GetViewByID(
+      BubbleViewID::kToggleEffectsView);
+
+  for (auto* row : toggle_effects_view->children()) {
+    for (auto* tile : row->children()) {
+      // Each tile is a button to click on; we want its label.
+      views::Label* label = static_cast<views::Label*>(
+          tile->GetViewByID(BubbleViewID::kToggleEffectLabel));
+
+      if (label->GetText() ==
+          l10n_util::GetStringUTF16(IDS_ASH_STATUS_TRAY_LIVE_CAPTION)) {
+        found_live_caption_button = true;
+      }
+
+      if (label->GetText() ==
+          l10n_util::GetStringUTF16(
+              IDS_ASH_STATUS_TRAY_AUDIO_INPUT_NOISE_CANCELLATION)) {
+        found_noise_cancellation_buttion = true;
+      }
+    }
+  }
+
+  EXPECT_TRUE(found_live_caption_button);
+  EXPECT_TRUE(found_noise_cancellation_buttion);
+}
+
+// TODO(crbug.com/1479984): re-enable once the bug is fixed.
+IN_PROC_BROWSER_TEST_P(VideoConferenceIntegrationTest,
+                       DISABLED_StopAllScreenShare) {
+  // Open a tab.
+  content::WebContents* web_contents_1 =
+      NavigateTo("/video_conference_demo.html");
+
+  // Start the screen sharing.
+  StartScreenSharing(web_contents_1);
+  WAIT_FOR_CONDITION(GetVcTray()->GetVisible());
+
+  // Get the ReturnToApp Panel.
+  ClickButton(GetVcTray()->toggle_bubble_button());
+  WAIT_FOR_CONDITION(GetVcTray()->GetBubbleView()->GetVisible());
+
+  // Check that web_contents_1 is sharing screen.
+  auto buttons = GetReturnToAppButtons();
+  EXPECT_EQ(buttons.size(), 1u);
+  EXPECT_FALSE(buttons[0]->is_capturing_camera());
+  EXPECT_FALSE(buttons[0]->is_capturing_microphone());
+  EXPECT_TRUE(buttons[0]->is_capturing_screen());
+
+  // Hide the ReturnToApp Panel.
+  ClickButton(GetVcTray()->toggle_bubble_button());
+
+  // Click on the screen share button.
+  EXPECT_TRUE(share_bt_->is_capturing());
+  ClickButton(share_bt_);
+  WAIT_FOR_CONDITION(!share_bt_->is_capturing());
+
+  // Check that web_contents_1 has stopped sharing screen.
+  ClickButton(GetVcTray()->toggle_bubble_button());
+  WAIT_FOR_CONDITION(GetVcTray()->GetBubbleView()->GetVisible());
+  EXPECT_FALSE(GetReturnToAppButtons()[0]->is_capturing_screen());
 }
 
 }  // namespace ash::video_conference

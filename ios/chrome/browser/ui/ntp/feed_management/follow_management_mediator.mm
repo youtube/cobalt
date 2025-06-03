@@ -16,10 +16,6 @@
 #import "ios/chrome/browser/ui/ntp/feed_management/follow_management_ui_updater.h"
 #import "ios/chrome/common/ui/favicon/favicon_constants.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace {
 
 // Converts a FollowedWebSite to a FollowedWebChannel.
@@ -53,14 +49,14 @@ FollowedWebChannel* FollowedWebSiteToFollowedWebChannel(
   NSMutableArray<id<FollowManagementUIUpdater>>* _updaters;
 }
 
-- (instancetype)initWithBrowser:(Browser*)browser {
+- (instancetype)initWithBrowserAgent:(FollowBrowserAgent*)browserAgent
+                       faviconLoader:(FaviconLoader*)faviconLoader {
   self = [super init];
   if (self) {
-    _faviconLoader = IOSChromeFaviconLoaderFactory::GetForBrowserState(
-        browser->GetBrowserState());
-    _followBrowserAgent = FollowBrowserAgent::FromBrowser(browser);
+    _followBrowserAgent = browserAgent;
     _observer = std::make_unique<FollowBrowserAgentObserverBridge>(
         self, _followBrowserAgent);
+    _faviconLoader = faviconLoader;
     _updaters = [[NSMutableArray alloc] init];
   }
   return self;

@@ -92,6 +92,10 @@ class ScreenOrientation;
 }
 }  // namespace device
 
+namespace network::mojom {
+class SharedDictionaryAccessDetails;
+}  // namespace network::mojom
+
 namespace ui {
 class ClipboardFormatType;
 }
@@ -105,7 +109,9 @@ class SiteInstanceGroup;
 struct AXEventNotificationDetails;
 struct AXLocationChangeNotificationDetails;
 struct ContextMenuParams;
+struct CookieAccessDetails;
 struct GlobalRequestID;
+struct TrustTokenAccessDetails;
 
 namespace mojom {
 class CreateNewWindowParams;
@@ -212,6 +218,11 @@ class CONTENT_EXPORT RenderFrameHostDelegate {
   // times for the same frame. Does not include frames activated by the
   // same-origin visibility heuristic, see `UserActivationState` for details.
   virtual void DidReceiveUserActivation(
+      RenderFrameHostImpl* render_frame_host) {}
+
+  // Called when a RenderFrameHost gets a successful web authn assertion
+  // request.
+  virtual void WebAuthnAssertionRequestSucceeded(
       RenderFrameHostImpl* render_frame_host) {}
 
   // Binds a DisplayCutoutHost object associated to |render_frame_host|.
@@ -323,6 +334,15 @@ class CONTENT_EXPORT RenderFrameHostDelegate {
       RenderFrameHostImpl* rfh,
       bool is_fullscreen,
       blink::mojom::FullscreenOptionsPtr options);
+
+  // Request to maximize window.
+  virtual void Maximize() {}
+
+  // Request to minimize window.
+  virtual void Minimize() {}
+
+  // Request to restore window.
+  virtual void Restore() {}
 
 #if BUILDFLAG(IS_ANDROID)
   // Updates information to determine whether a user gesture should carryover to
@@ -481,6 +501,11 @@ class CONTENT_EXPORT RenderFrameHostDelegate {
   virtual void OnFrameAudioStateChanged(RenderFrameHostImpl* host,
                                         bool is_audible) {}
 
+  // Notifies observers that the frame's visibility has changed.
+  virtual void OnFrameVisibilityChanged(
+      RenderFrameHostImpl* host,
+      blink::mojom::FrameVisibility visibility) {}
+
   // Returns FrameTreeNodes that are logically owned by another frame even
   // though this relationship is not yet reflected in their frame trees. This
   // can happen, for example, with unattached guests and orphaned portals.
@@ -592,6 +617,9 @@ class CONTENT_EXPORT RenderFrameHostDelegate {
 
   virtual void OnTrustTokensAccessed(RenderFrameHostImpl* render_frame_host,
                                      const TrustTokenAccessDetails& details) {}
+  virtual void OnSharedDictionaryAccessed(
+      RenderFrameHostImpl* render_frame_host,
+      const network::mojom::SharedDictionaryAccessDetails& details) {}
 
   // Notified that the renderer responded after calling GetSavableResourceLinks.
   virtual void SavableResourceLinksResponse(
@@ -621,9 +649,15 @@ class CONTENT_EXPORT RenderFrameHostDelegate {
   virtual void UpdateWindowPreferredSize(const gfx::Size& pref_size) {}
 
   // Returns the list of top-level RenderFrameHosts hosting active documents
-  // that belong to the same browsing context group as |render_frame_host|.
+  // that belong to the same browsing context group as `render_frame_host`.
   virtual std::vector<RenderFrameHostImpl*>
   GetActiveTopLevelDocumentsInBrowsingContextGroup(
+      RenderFrameHostImpl* render_frame_host);
+
+  // Returns the list of top-level RenderFrameHosts hosting active documents
+  // that belong to the same CoopRelatedGroup as `render_frame_host`.
+  virtual std::vector<RenderFrameHostImpl*>
+  GetActiveTopLevelDocumentsInCoopRelatedGroup(
       RenderFrameHostImpl* render_frame_host);
 
   // Returns the PrerenderHostRegistry to start/cancel prerendering. This

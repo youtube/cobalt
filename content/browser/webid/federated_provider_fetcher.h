@@ -19,12 +19,13 @@
 #include "third_party/blink/public/mojom/devtools/inspector_issue.mojom.h"
 
 namespace content {
+class RenderFrameHost;
 
 // Fetches the config and well-known files for a list of identity providers.
 // Validates returned information and calls callback when done.
-class FederatedProviderFetcher {
+class CONTENT_EXPORT FederatedProviderFetcher {
  public:
-  struct FetchError {
+  struct CONTENT_EXPORT FetchError {
     FetchError(const FetchError& info);
     FetchError(blink::mojom::FederatedAuthRequestResult result,
                FedCmRequestIdTokenStatus token_status,
@@ -36,11 +37,12 @@ class FederatedProviderFetcher {
     absl::optional<std::string> additional_console_error_message;
   };
 
-  struct FetchResult {
+  struct CONTENT_EXPORT FetchResult {
     FetchResult();
     FetchResult(const FetchResult&);
     ~FetchResult();
     GURL identity_provider_config_url;
+    IdpNetworkRequestManager::WellKnown wellknown;
     IdpNetworkRequestManager::Endpoints endpoints;
     absl::optional<IdentityProviderMetadata> metadata;
     absl::optional<FetchError> error;
@@ -48,7 +50,10 @@ class FederatedProviderFetcher {
 
   using RequesterCallback = base::OnceCallback<void(std::vector<FetchResult>)>;
 
-  explicit FederatedProviderFetcher(IdpNetworkRequestManager* network_manager);
+  // TODO(crbug.com/1487668): Remove |render_frame_host| when the IDP signin
+  // status API is enabled by default.
+  FederatedProviderFetcher(RenderFrameHost& render_frame_host,
+                           IdpNetworkRequestManager* network_manager);
   ~FederatedProviderFetcher();
 
   FederatedProviderFetcher(const FederatedProviderFetcher&) = delete;
@@ -61,13 +66,19 @@ class FederatedProviderFetcher {
              int icon_minimum_size,
              RequesterCallback callback);
 
+  // Given a FetchResult, validates all of the conditions that the config file
+  // and the well-known files need to meet. Sets an "error" in the result in
+  // case the validation fails.
+  void ValidateAndMaybeSetError(FetchResult& result);
+
  private:
-  void OnWellKnownFetched(FetchResult& fetch_result,
-                          IdpNetworkRequestManager::FetchStatus status,
-                          const std::set<GURL>& urls);
+  void OnWellKnownFetched(
+      FetchResult& fetch_result,
+      IdpNetworkRequestManager::FetchStatus status,
+      const IdpNetworkRequestManager::WellKnown& well_known);
   void OnConfigFetched(FetchResult& fetch_result,
                        IdpNetworkRequestManager::FetchStatus status,
-                       IdpNetworkRequestManager::Endpoints,
+                       IdpNetworkRequestManager::Endpoints endpoints,
                        IdentityProviderMetadata idp_metadata);
 
   // Called when fetching either the config endpoint or the well-known
@@ -78,6 +89,8 @@ class FederatedProviderFetcher {
                absl::optional<std::string> additional_console_error_message);
 
   void RunCallbackIfDone();
+
+  raw_ref<RenderFrameHost> render_frame_host_;
 
   RequesterCallback callback_;
 
@@ -91,7 +104,7 @@ class FederatedProviderFetcher {
   std::vector<FetchResult> fetch_results_;
 
   // Fetches the config and well-known files.
-  base::raw_ptr<IdpNetworkRequestManager, DanglingUntriaged> network_manager_;
+  raw_ptr<IdpNetworkRequestManager, DanglingUntriaged> network_manager_;
 
   base::WeakPtrFactory<FederatedProviderFetcher> weak_ptr_factory_{this};
 };

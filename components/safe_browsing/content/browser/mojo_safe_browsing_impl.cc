@@ -41,29 +41,22 @@ content::WebContents* GetWebContentsFromID(int render_process_id,
 // if it hasn't been run yet.
 class CheckUrlCallbackWrapper {
  public:
-  using Callback =
-      base::OnceCallback<void(mojo::PendingReceiver<mojom::UrlCheckNotifier>,
-                              bool,
-                              bool,
-                              bool,
-                              bool)>;
+  using Callback = base::OnceCallback<
+      void(mojo::PendingReceiver<mojom::UrlCheckNotifier>, bool, bool)>;
 
   explicit CheckUrlCallbackWrapper(Callback callback)
       : callback_(std::move(callback)) {}
   ~CheckUrlCallbackWrapper() {
     if (callback_) {
-      Run(mojo::NullReceiver(), true, false, false, false);
+      Run(mojo::NullReceiver(), true, false);
     }
   }
 
   void Run(mojo::PendingReceiver<mojom::UrlCheckNotifier> slow_check_notifier,
            bool proceed,
-           bool showed_interstitial,
-           bool did_perform_real_time_check,
-           bool did_check_allowlist) {
+           bool showed_interstitial) {
     std::move(callback_).Run(std::move(slow_check_notifier), proceed,
-                             showed_interstitial, did_perform_real_time_check,
-                             did_check_allowlist);
+                             showed_interstitial);
   }
 
  private:
@@ -160,9 +153,7 @@ void MojoSafeBrowsingImpl::CreateCheckerAndCheck(
     // Ensure that we don't destroy an uncalled CreateCheckerAndCheckCallback
     if (callback) {
       std::move(callback).Run(mojo::NullReceiver(), true /* proceed */,
-                              false /* showed_interstitial */,
-                              false /* did_perform_real_time_check */,
-                              false /* did_check_allowlist */);
+                              false /* showed_interstitial */);
     }
 
     // This will drop |receiver|. The result is that the renderer side will
@@ -183,21 +174,25 @@ void MojoSafeBrowsingImpl::CreateCheckerAndCheck(
                           static_cast<int>(render_frame_id)),
       render_process_id_, render_frame_id,
       content::RenderFrameHost::kNoFrameTreeNodeId,
-      /*real_time_lookup_enabled=*/false,
-      /*can_rt_check_subresource_url=*/false,
+      /*url_real_time_lookup_enabled=*/false,
+      /*can_urt_check_subresource_url=*/false,
       /*can_check_db=*/true, /*can_check_high_confidence_allowlist=*/true,
       /*url_lookup_service_metric_suffix=*/".None",
       /*last_committed_url=*/GURL(), content::GetUIThreadTaskRunner({}),
       /*url_lookup_service=*/nullptr, WebUIInfoSingleton::GetInstance(),
       /*hash_realtime_service_on_ui=*/nullptr,
       /*mechanism_experimenter=*/nullptr,
-      /*is_mechanism_experiment_allowed=*/false);
+      /*is_mechanism_experiment_allowed=*/false,
+      /*hash_realtime_selection=*/
+      hash_realtime_utils::HashRealTimeSelection::kNone);
+  auto weak_impl = checker_impl->WeakPtr();
 
   checker_impl->CheckUrl(
       url, method,
       base::BindOnce(
           &CheckUrlCallbackWrapper::Run,
           base::Owned(new CheckUrlCallbackWrapper(std::move(callback)))));
+  CHECK(weak_impl);  // This is to ensure calling CheckUrl doesn't delete itself
   mojo::MakeSelfOwnedReceiver(std::move(checker_impl), std::move(receiver));
 }
 

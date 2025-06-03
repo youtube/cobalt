@@ -182,7 +182,11 @@ class LaunchCommand(object):
         erase_all_simulators()
         erase_all_simulators(XTDEVICE_FOLDER)
         if self.cert_path:
-          iossim_util.copy_trusted_certificate(self.cert_path, self.uuid)
+          iossim_util.copy_trusted_certificate(self.cert_path, self.udid)
+
+        # ideally this should be the last step before running tests, because
+        # it boots the simulator.
+        iossim_util.disable_simulator_keyboard_tutorial(self.udid)
 
       outdir_attempt = os.path.join(self.out_dir, 'attempt_%d' % attempt)
       cmd_list = self.egtests_app.command(outdir_attempt, 'id=%s' % self.udid,
@@ -191,12 +195,6 @@ class LaunchCommand(object):
       LOGGER.info('Start test attempt #%d for command [%s]' % (
           attempt, ' '.join(cmd_list)))
       output = self.launch_attempt(cmd_list)
-
-      if hasattr(self, 'use_clang_coverage') and self.use_clang_coverage:
-        # out_dir of LaunchCommand object is the TestRunner out_dir joined with
-        # UDID. Use os.path.dirname to retrieve the TestRunner out_dir.
-        file_util.move_raw_coverage_data(self.udid,
-                                         os.path.dirname(self.out_dir))
 
       result = self._log_parser.collect_test_results(outdir_attempt, output)
 
@@ -286,15 +284,18 @@ class SimulatorParallelTestRunner(test_runner.SimulatorTestRunner):
     self.logs = collections.OrderedDict()
     self.release = kwargs.get('release') or False
     self.test_results['path_delimiter'] = '/'
-    # Do not enable parallel testing when code coverage is enabled, because raw
-    # coverage data won't be produced with parallel testing.
-    if hasattr(self, 'use_clang_coverage') and self.use_clang_coverage:
-      self.shards = 1
+
+    # TODO(crbug.com/1486897): For simulators, the record_video_option
+    # is always None right now, because we are still using our own video
+    # plugin. Currently native Xcode15+ video recording is only supported
+    # on iOS17+, but we should aim to migrate to the native solution so
+    # that we don't need to maintain our own.
+    self.record_video_option = kwargs.get('record_video_option')
 
     # initializing test plugin service
     self.test_plugin_service = None
     enabled_plugins = init_plugins_from_args(
-        self.udid, os.path.join(self.out_dir, self.udid), **kwargs)
+        os.path.join(self.out_dir, self.udid), **kwargs)
     if (len(enabled_plugins) > 0):
       LOGGER.info('Number of enabled plugins are greater than 0, initiating' +
                   'test plugin service... Enabled plugins are %s' %
@@ -327,7 +328,8 @@ class SimulatorParallelTestRunner(test_runner.SimulatorTestRunner):
         test_args=self.test_args,
         release=self.release,
         repeat_count=self.repeat_count,
-        host_app_path=self.host_app_path)
+        host_app_path=self.host_app_path,
+        record_video_option=self.record_video_option)
 
   def launch(self):
     """Launches tests using xcodebuild."""
@@ -446,12 +448,14 @@ class DeviceXcodeTestRunner(SimulatorParallelTestRunner,
     self.set_up()
     self.start_time = time.strftime('%Y-%m-%d-%H%M%S', time.localtime())
     self.test_results['path_delimiter'] = '/'
+    self.record_video_option = kwargs.get('record_video_option')
     self.test_plugin_service = None
 
   def set_up(self):
     """Performs setup actions which must occur prior to every test launch."""
     self.uninstall_apps()
     self.wipe_derived_data()
+    self.restart_usbmuxd()
 
   def tear_down(self):
     """Performs cleanup actions which must occur after every test launch."""

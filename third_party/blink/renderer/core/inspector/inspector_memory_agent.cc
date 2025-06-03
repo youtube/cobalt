@@ -77,8 +77,9 @@ protocol::Response InspectorMemoryAgent::forciblyPurgeJavaScriptMemory() {
       local_frame->ForciblyPurgeV8Memory();
     }
   }
-  V8PerIsolateData::MainThreadIsolate()->MemoryPressureNotification(
-      v8::MemoryPressureLevel::kCritical);
+  v8::Isolate* isolate =
+      frames_->Root()->GetPage()->GetAgentGroupScheduler().Isolate();
+  isolate->MemoryPressureNotification(v8::MemoryPressureLevel::kCritical);
   return protocol::Response::Success();
 }
 
@@ -97,12 +98,12 @@ protocol::Response InspectorMemoryAgent::startSampling(
     protocol::Maybe<int> in_sampling_interval,
     protocol::Maybe<bool> in_suppressRandomness) {
   int interval =
-      in_sampling_interval.fromMaybe(kDefaultNativeMemorySamplingInterval);
+      in_sampling_interval.value_or(kDefaultNativeMemorySamplingInterval);
   if (interval <= 0)
     return protocol::Response::ServerError("Invalid sampling rate.");
   base::SamplingHeapProfiler::Get()->SetSamplingInterval(interval);
   sampling_profile_interval_.Set(interval);
-  if (in_suppressRandomness.fromMaybe(false)) {
+  if (in_suppressRandomness.value_or(false)) {
     randomness_suppressor_ = std::make_unique<
         base::PoissonAllocationSampler::ScopedSuppressRandomnessForTesting>();
   }
@@ -188,14 +189,14 @@ InspectorMemoryAgent::GetSamplingProfileById(uint32_t id) {
 }
 
 Vector<String> InspectorMemoryAgent::Symbolize(
-    const WebVector<void*>& addresses) {
+    const WebVector<const void*>& addresses) {
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
   // TODO(alph): Move symbolization to the client.
-  Vector<void*> addresses_to_symbolize;
-  for (size_t i = 0; i < addresses.size(); i++) {
-    void* address = addresses[i];
-    if (!symbols_cache_.Contains(address))
+  Vector<const void*> addresses_to_symbolize;
+  for (const void* address : addresses) {
+    if (!symbols_cache_.Contains(address)) {
       addresses_to_symbolize.push_back(address);
+    }
   }
 
   String text(base::debug::StackTrace(addresses_to_symbolize.data(),
@@ -216,7 +217,7 @@ Vector<String> InspectorMemoryAgent::Symbolize(
 #endif
 
   Vector<String> result;
-  for (void* address : addresses) {
+  for (const void* address : addresses) {
     char buffer[20];
     std::snprintf(buffer, sizeof(buffer), "0x%" PRIxPTR,
                   reinterpret_cast<uintptr_t>(address));

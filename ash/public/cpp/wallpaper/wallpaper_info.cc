@@ -61,7 +61,7 @@ WallpaperInfo::WallpaperInfo(WallpaperInfo&& other) = default;
 WallpaperInfo& WallpaperInfo::operator=(WallpaperInfo&& other) = default;
 
 bool WallpaperInfo::MatchesSelection(const WallpaperInfo& other) const {
-  // |asset_id| and |location| are skipped on purpose in favor of |unit_id| as
+  // |location| are skipped on purpose in favor of |unit_id| as
   // online wallpapers can vary across devices due to their color mode. Other
   // wallpaper types still require location to be equal.
   switch (type) {
@@ -75,14 +75,18 @@ bool WallpaperInfo::MatchesSelection(const WallpaperInfo& other) const {
       return location == other.location && layout == other.layout &&
              collection_id == other.collection_id;
     case WallpaperType::kCustomized:
+      // |location| is skipped for customized wallpaper as it includes files id
+      // which is different between devices even it refers to the same file.
+      // Comparing |user_file_path| that contains the absolute path should be
+      // enough.
       return type == other.type && layout == other.layout &&
-             location == other.location &&
              user_file_path == other.user_file_path;
     case WallpaperType::kDefault:
     case WallpaperType::kPolicy:
     case WallpaperType::kThirdParty:
     case WallpaperType::kDevice:
     case WallpaperType::kOneShot:
+    case WallpaperType::kOobe:
     case WallpaperType::kCount:
       return type == other.type && layout == other.layout &&
              location == other.location;
@@ -96,7 +100,7 @@ bool WallpaperInfo::MatchesAsset(const WallpaperInfo& other) const {
   switch (type) {
     case WallpaperType::kOnline:
     case WallpaperType::kDaily:
-      return location == other.location && asset_id == other.asset_id;
+      return location == other.location;
     case WallpaperType::kOnceGooglePhotos:
     case WallpaperType::kDailyGooglePhotos:
     case WallpaperType::kCustomized:
@@ -105,6 +109,7 @@ bool WallpaperInfo::MatchesAsset(const WallpaperInfo& other) const {
     case WallpaperType::kThirdParty:
     case WallpaperType::kDevice:
     case WallpaperType::kOneShot:
+    case WallpaperType::kOobe:
     case WallpaperType::kCount:
       return true;
   }

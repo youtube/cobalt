@@ -147,6 +147,11 @@ static constexpr const ComponentTestData kComponentsTestData[] = {
         .gtest_name = "CrosButton",
     },
     {
+        .script_src = "chrome://resources/cros_components/card/card.js",
+        .component_name = "cros-card",
+        .gtest_name = "CrosCard",
+    },
+    {
         .script_src = "chrome://resources/cros_components/checkbox/checkbox.js",
         .component_name = "cros-checkbox",
         .gtest_name = "CrosCheckbox",
@@ -160,6 +165,22 @@ static constexpr const ComponentTestData kComponentsTestData[] = {
         .script_src = "chrome://resources/cros_components/switch/switch.js",
         .component_name = "cros-switch",
         .gtest_name = "CrosSwitch",
+    },
+    {
+        .script_src = "chrome://resources/cros_components/slider/slider.js",
+        .component_name = "cros-slider",
+        .gtest_name = "CrosSlider",
+    },
+    {
+        .script_src = "chrome://resources/cros_components/tag/tag.js",
+        .component_name = "cros-tag",
+        .gtest_name = "CrosTag",
+    },
+    {
+        .script_src =
+            "chrome://resources/cros_components/textfield/textfield.js",
+        .component_name = "cros-textfield",
+        .gtest_name = "CrosTextfield",
     },
 };
 

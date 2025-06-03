@@ -4,7 +4,10 @@
 
 #include "components/memory_system/memory_system.h"
 
-#include "base/allocator/buildflags.h"
+#include "base/allocator/dispatcher/dispatcher.h"
+#include "base/allocator/dispatcher/initializer.h"
+#include "base/allocator/partition_allocator/src/partition_alloc/partition_alloc_buildflags.h"
+#include "base/debug/debugging_buildflags.h"
 #include "build/build_config.h"
 #include "components/gwp_asan/buildflags/buildflags.h"
 #include "components/memory_system/parameters.h"
@@ -17,8 +20,8 @@
 #endif
 
 #if BUILDFLAG(IS_IOS) && BUILDFLAG(USE_ALLOCATOR_SHIM)
-#include "base/allocator/partition_allocator/shim/allocator_interception_mac.h"
-#include "base/allocator/partition_allocator/shim/allocator_shim.h"
+#include "base/allocator/partition_allocator/src/partition_alloc/shim/allocator_interception_apple.h"
+#include "base/allocator/partition_allocator/src/partition_alloc/shim/allocator_shim.h"
 #include "base/ios/ios_util.h"
 #include "base/metrics/histogram_functions.h"
 #endif
@@ -36,10 +39,6 @@
 #include "components/services/heap_profiling/public/cpp/profiling_client.h"  // nogncheck
 #endif
 
-#if BUILDFLAG(USE_ALLOCATION_EVENT_DISPATCHER)
-#include "base/allocator/dispatcher/dispatcher.h"
-#include "base/allocator/dispatcher/initializer.h"
-
 #if HEAP_PROFILING_SUPPORTED
 // If profiling is not supported, the PoissonAllocationSampler is removed from
 // base, which causes linker errors. Since we need it only for the dispatcher,
@@ -51,8 +50,10 @@
 #include "base/cpu.h"
 #include "base/debug/allocation_trace.h"
 #include "components/allocation_recorder/crash_client/client.h"
+#if BUILDFLAG(ENABLE_ALLOCATION_TRACE_RECORDER_FULL_REPORTING)
+#include "base/debug/allocation_trace_reporting.h"
+#endif
 #endif  // BUILDFLAG(ENABLE_ALLOCATION_STACK_TRACE_RECORDER)
-#endif  // BUILDFLAG(USE_ALLOCATION_EVENT_DISPATCHER)
 
 namespace memory_system {
 namespace {
@@ -108,7 +109,6 @@ struct MemorySystem::Impl {
   bool IsAllocatorShimInitialized();
 
 #if HEAP_PROFILING_SUPPORTED
-#if BUILDFLAG(USE_ALLOCATION_EVENT_DISPATCHER)
   // Check if the the dispatcher should include the PoissonAllocationSampler as
   // observer.
   bool DispatcherIncludesPoissonAllocationSampler(
@@ -121,7 +121,6 @@ struct MemorySystem::Impl {
   bool DispatcherIncludesAllocationTraceRecorder(
       const DispatcherParameters& dispatcher_parameters);
 #endif
-#endif
 
   std::unique_ptr<heap_profiling::HeapProfilerController>
       heap_profiler_controller_;
@@ -129,6 +128,11 @@ struct MemorySystem::Impl {
 
 #if BUILDFLAG(IS_IOS) && BUILDFLAG(USE_ALLOCATOR_SHIM)
   const bool should_install_allocator_shim_ = ShouldInstallAllocatorShim();
+#endif
+
+#if BUILDFLAG(ENABLE_ALLOCATION_TRACE_RECORDER_FULL_REPORTING)
+  base::debug::tracer::AllocationTraceRecorderReporter
+      allocation_trace_recorder_reporting_;
 #endif
 };
 
@@ -211,6 +215,10 @@ void MemorySystem::Impl::InitializeGwpASan(
   gwp_asan::EnableForPartitionAlloc(gwp_asan_parameters.boost_sampling,
                                     gwp_asan_parameters.process_type.c_str());
 #endif
+
+  gwp_asan::MaybeEnableLightweightDetector(
+      gwp_asan_parameters.boost_sampling,
+      gwp_asan_parameters.process_type.c_str());
 #endif  // BUILDFLAG(ENABLE_GWP_ASAN)
 }
 
@@ -228,7 +236,6 @@ void MemorySystem::Impl::InitializeHeapProfiler(
 #endif
 }
 
-#if BUILDFLAG(USE_ALLOCATION_EVENT_DISPATCHER)
 #if HEAP_PROFILING_SUPPORTED
 bool MemorySystem::Impl::DispatcherIncludesPoissonAllocationSampler(
     const DispatcherParameters& dispatcher_parameters,
@@ -281,8 +288,17 @@ void MemorySystem::Impl::InitializeDispatcher(
   const bool include_allocation_recorder =
       DispatcherIncludesAllocationTraceRecorder(dispatcher_parameters);
 
-  auto* const allocation_recorder_to_include =
-      include_allocation_recorder ? &allocation_recorder : nullptr;
+  base::debug::tracer::AllocationTraceRecorder* allocation_recorder_to_include =
+      nullptr;
+
+  if (include_allocation_recorder) {
+    allocation_recorder_to_include = &allocation_recorder;
+#if BUILDFLAG(ENABLE_ALLOCATION_TRACE_RECORDER_FULL_REPORTING)
+    allocation_trace_recorder_reporting_.Start(
+        allocation_recorder, dispatcher_parameters.process_type,
+        base::Seconds(15), logging::LOGGING_ERROR);
+#endif
+  }
 #endif
 
   base::allocator::dispatcher::CreateInitializer()
@@ -294,14 +310,6 @@ void MemorySystem::Impl::InitializeDispatcher(
 #endif
       .DoInitialize(base::allocator::dispatcher::Dispatcher::GetInstance());
 }
-
-#else  // BUILDFLAG(USE_ALLOCATION_EVENT_DISPATCHER)
-
-void MemorySystem::Impl::InitializeDispatcher(
-    const DispatcherParameters& dispatcher_parameters,
-    InitializationData& initialization_data) {}
-
-#endif  // BUILDFLAG(USE_ALLOCATION_EVENT_DISPATCHER)
 
 MemorySystem::MemorySystem() : impl_(std::make_unique<Impl>()) {}
 

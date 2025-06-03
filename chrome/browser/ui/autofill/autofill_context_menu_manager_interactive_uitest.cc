@@ -39,7 +39,7 @@ content::ContextMenuParams CreateContextMenuParams(
   content::ContextMenuParams rv;
   rv.is_editable = true;
   rv.page_url = GURL("http://test.page/");
-  rv.input_field_type = blink::mojom::ContextMenuDataInputFieldType::kPlainText;
+  rv.form_control_type = blink::mojom::FormControlType::kInputText;
   if (form_renderer_id) {
     rv.form_renderer_id = form_renderer_id->value();
   }
@@ -67,12 +67,8 @@ class AutofillContextMenuManagerFeedbackUIBrowserTest
     : public InProcessBrowserTest {
  public:
   AutofillContextMenuManagerFeedbackUIBrowserTest() {
-    iph_feature_list_.InitAndEnableFeatures(
-        {feature_engagement::kIPHAutofillFeedbackNewBadgeFeature});
     feature_.InitWithFeatures(
-        /*enabled_features=*/{features::
-                                  kAutofillShowManualFallbackInContextMenu,
-                              features::kAutofillFeedback},
+        /*enabled_features=*/{features::kAutofillFeedback},
         /*disabled_features=*/{});
   }
 
@@ -82,8 +78,7 @@ class AutofillContextMenuManagerFeedbackUIBrowserTest
     render_view_context_menu_->Init();
     autofill_context_menu_manager_ =
         std::make_unique<AutofillContextMenuManager>(
-            nullptr, render_view_context_menu_.get(), nullptr, nullptr,
-            std::make_unique<ScopedNewBadgeTracker>(browser()->profile()));
+            nullptr, render_view_context_menu_.get(), nullptr);
 
     browser()->profile()->GetPrefs()->SetBoolean(prefs::kUserFeedbackAllowed,
                                                  true);
@@ -108,7 +103,6 @@ class AutofillContextMenuManagerFeedbackUIBrowserTest
   test::AutofillBrowserTestEnvironment autofill_test_environment_;
   std::unique_ptr<TestRenderViewContextMenu> render_view_context_menu_;
   std::unique_ptr<AutofillContextMenuManager> autofill_context_menu_manager_;
-  feature_engagement::test::ScopedIphFeatureList iph_feature_list_;
   base::test::ScopedFeatureList feature_;
   TestAutofillManagerInjector<TestAutofillManager> autofill_manager_injector_;
 };
@@ -135,8 +129,7 @@ IN_PROC_BROWSER_TEST_F(AutofillContextMenuManagerFeedbackUIBrowserTest,
   base::HistogramTester histogram_tester;
   // Executing autofill feedback command opens the Feedback UI.
   autofill_context_menu_manager_->ExecuteCommand(
-      AutofillContextMenuManager::CommandId(
-          IDC_CONTENT_CONTEXT_AUTOFILL_FEEDBACK));
+      IDC_CONTENT_CONTEXT_AUTOFILL_FEEDBACK);
 
   // Checks that feedback form was requested.
   histogram_tester.ExpectTotalCount("Feedback.RequestSource", 1);
@@ -145,8 +138,7 @@ IN_PROC_BROWSER_TEST_F(AutofillContextMenuManagerFeedbackUIBrowserTest,
 IN_PROC_BROWSER_TEST_F(AutofillContextMenuManagerFeedbackUIBrowserTest,
                        CloseTabWhileUIIsOpenShouldNotCrash) {
   autofill_context_menu_manager_->ExecuteCommand(
-      AutofillContextMenuManager::CommandId(
-          IDC_CONTENT_CONTEXT_AUTOFILL_FEEDBACK));
+      IDC_CONTENT_CONTEXT_AUTOFILL_FEEDBACK);
 
   content::WebContents* tab =
       browser()->tab_strip_model()->GetActiveWebContents();
@@ -160,8 +152,7 @@ IN_PROC_BROWSER_TEST_F(AutofillContextMenuManagerFeedbackUIBrowserTest,
   ASSERT_EQ(nullptr, FeedbackDialog::GetInstanceForTest());
 
   autofill_context_menu_manager_->ExecuteCommand(
-      AutofillContextMenuManager::CommandId(
-          IDC_CONTENT_CONTEXT_AUTOFILL_FEEDBACK));
+      IDC_CONTENT_CONTEXT_AUTOFILL_FEEDBACK);
 
   FeedbackDialog* feedback_dialog = FeedbackDialog::GetInstanceForTest();
   // Test that a feedback dialog object has been created.
@@ -180,6 +171,22 @@ IN_PROC_BROWSER_TEST_F(AutofillContextMenuManagerFeedbackUIBrowserTest,
   feedback_dialog->GetWidget()->Close();
 }
 
+// Regression test for crbug.com/1493774.
+IN_PROC_BROWSER_TEST_F(AutofillContextMenuManagerFeedbackUIBrowserTest,
+                       TabMoveToOtherBrowserDoesNotCrash) {
+  // Create another browser.
+  Browser* other_browser = CreateBrowser(browser()->profile());
+
+  // Move the tab to the other browser.
+  other_browser->tab_strip_model()->InsertWebContentsAt(
+      0, browser()->tab_strip_model()->DetachWebContentsAtForInsertion(0),
+      AddTabTypes::ADD_ACTIVE);
+  ASSERT_EQ(other_browser->tab_strip_model()->count(), 2);
+
+  // Close the first browser.
+  CloseBrowserSynchronously(browser());
+}
+
 IN_PROC_BROWSER_TEST_F(AutofillContextMenuManagerFeedbackUIBrowserTest,
                        FeedbackDialogArgsAutofillMetadata) {
   std::string expected_metadata;
@@ -192,8 +199,7 @@ IN_PROC_BROWSER_TEST_F(AutofillContextMenuManagerFeedbackUIBrowserTest,
 
   // Display feedback dialog.
   autofill_context_menu_manager_->ExecuteCommand(
-      AutofillContextMenuManager::CommandId(
-          IDC_CONTENT_CONTEXT_AUTOFILL_FEEDBACK));
+      IDC_CONTENT_CONTEXT_AUTOFILL_FEEDBACK);
 
   ui::WebDialogDelegate* feedback_dialog = FeedbackDialog::GetInstanceForTest();
   // Test that a feedback dialog object has been created.
@@ -242,8 +248,7 @@ IN_PROC_BROWSER_TEST_F(AutofillContextMenuManagerFeedbackUIBrowserTest,
                               form.fields[0].global_id().renderer_id));
   // Display feedback dialog.
   autofill_context_menu_manager_->ExecuteCommand(
-      AutofillContextMenuManager::CommandId(
-          IDC_CONTENT_CONTEXT_AUTOFILL_FEEDBACK));
+      IDC_CONTENT_CONTEXT_AUTOFILL_FEEDBACK);
 
   ui::WebDialogDelegate* feedback_dialog = FeedbackDialog::GetInstanceForTest();
   // Test that a feedback dialog object has been created.

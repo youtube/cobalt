@@ -11,6 +11,8 @@
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/time/clock.h"
+#include "base/time/default_clock.h"
 #include "chromeos/ash/components/cryptohome/auth_factor.h"
 #include "chromeos/ash/components/dbus/cryptohome/UserDataAuth.pb.h"
 #include "chromeos/ash/components/dbus/userdataauth/userdataauth_client.h"
@@ -30,7 +32,8 @@ class UserContext;
 // This implementation is only compatible with AuthSession-based API.
 class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_LOGIN_AUTH) AuthPerformer {
  public:
-  explicit AuthPerformer(UserDataAuthClient* client);
+  AuthPerformer(UserDataAuthClient* client,
+                const base::Clock* clock = base::DefaultClock::GetInstance());
 
   AuthPerformer(const AuthPerformer&) = delete;
   AuthPerformer& operator=(const AuthPerformer&) = delete;
@@ -47,13 +50,23 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_LOGIN_AUTH) AuthPerformer {
                               base::TimeDelta lifetime,
                               std::unique_ptr<UserContext>,
                               absl::optional<AuthenticationError>)>;
-
+  using RecoveryRequestCallback =
+      base::OnceCallback<void(absl::optional<RecoveryRequest>,
+                              std::unique_ptr<UserContext>,
+                              absl::optional<AuthenticationError>)>;
   // Invalidates any ongoing mount attempts by invalidating Weak pointers on
   // internal callbacks. Callbacks for ongoing operations will not be called
   // afterwards, but there is no guarantees about state of the session.
   void InvalidateCurrentAttempts();
 
   base::WeakPtr<AuthPerformer> AsWeakPtr();
+
+  // Utility method, copies data relevant for authentidated session
+  // into UserContext: authenticated intents, remaining lifetime.
+  static void FillAuthenticationData(
+      const base::Time& reference_time,
+      const user_data_auth::AuthSessionProperties& session_properties,
+      UserContext& out_context);
 
   // Starts new AuthSession using identity passed in `context`,
   // fills information about supported (and configured if user exists) keys.
@@ -90,8 +103,9 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_LOGIN_AUTH) AuthPerformer {
                                      AuthOperationCallback callback);
 
   // After attempting authentication with `AuthenticateUsingKnowledgeKey`, if
-  // attempt failed, record it in `AuthMetricsRecorder`.
+  // attempt failed, record it in `AuthEventsRecorder`.
   void MaybeRecordKnowledgeFactorAuthFailure(
+      base::Time request_start,
       std::unique_ptr<UserContext> context,
       AuthOperationCallback callback,
       absl::optional<user_data_auth::AuthenticateAuthFactorReply> reply);
@@ -130,6 +144,23 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_LOGIN_AUTH) AuthPerformer {
   void GetAuthSessionStatus(std::unique_ptr<UserContext> context,
                             AuthSessionStatusCallback callback);
 
+  void ExtendAuthSessionLifetime(std::unique_ptr<UserContext> context,
+                                 AuthOperationCallback callback);
+
+  void GetRecoveryRequest(const std::string& access_token,
+                          const CryptohomeRecoveryEpochResponse& epoch,
+                          std::unique_ptr<UserContext> context,
+                          RecoveryRequestCallback callback);
+
+  void AuthenticateWithRecovery(
+      const CryptohomeRecoveryEpochResponse& epoch,
+      const CryptohomeRecoveryResponse& recovery_response,
+      const RecoveryLedgerName ledger_name,
+      const RecoveryLedgerPubKey ledger_public_key,
+      uint32_t ledger_public_key_hash,
+      std::unique_ptr<UserContext> context,
+      AuthOperationCallback callback);
+
  private:
   void OnServiceRunning(std::unique_ptr<UserContext> context,
                         bool ephemeral,
@@ -167,16 +198,30 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_LOGIN_AUTH) AuthPerformer {
                                    const std::string& system_salt);
 
   void OnAuthenticateAuthFactor(
+      base::Time request_start,
       std::unique_ptr<UserContext> context,
       AuthOperationCallback callback,
       absl::optional<user_data_auth::AuthenticateAuthFactorReply> reply);
 
   void OnGetAuthSessionStatus(
+      base::Time request_start,
       std::unique_ptr<UserContext> context,
       AuthSessionStatusCallback callback,
       absl::optional<user_data_auth::GetAuthSessionStatusReply> reply);
 
-  const base::raw_ptr<UserDataAuthClient, DanglingUntriaged> client_;
+  void OnGetRecoveryRequest(
+      RecoveryRequestCallback callback,
+      std::unique_ptr<UserContext> context,
+      absl::optional<user_data_auth::GetRecoveryRequestReply> reply);
+
+  void OnExtendAuthSession(
+      base::Time request_start,
+      std::unique_ptr<UserContext> context,
+      AuthOperationCallback callback,
+      absl::optional<user_data_auth::ExtendAuthSessionReply> reply);
+
+  const raw_ptr<UserDataAuthClient, DanglingUntriaged> client_;
+  const raw_ptr<const base::Clock> clock_;
   base::WeakPtrFactory<AuthPerformer> weak_factory_{this};
 };
 

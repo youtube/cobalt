@@ -9,6 +9,7 @@
 
 #include <ostream>
 
+#include "base/hash/hash.h"
 #include "base/rand_util.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
@@ -60,19 +61,6 @@ std::string GetCanonicalUuidInternal(StringPieceType input, bool strict) {
 }
 
 }  // namespace
-
-std::string GenerateUuid() {
-  Uuid uuid = Uuid::GenerateRandomV4();
-  return uuid.AsLowercaseString();
-}
-
-bool IsValidUuid(StringPiece input) {
-  return !GetCanonicalUuidInternal(input, /*strict=*/false).empty();
-}
-
-bool IsValidUuidOutputString(StringPiece input) {
-  return !GetCanonicalUuidInternal(input, /*strict=*/true).empty();
-}
 
 // static
 Uuid Uuid::GenerateRandomV4() {
@@ -196,16 +184,10 @@ std::ostream& operator<<(std::ostream& out, const Uuid& uuid) {
   return out << uuid.AsLowercaseString();
 }
 
-std::string GenerateGUID() {
-  return GenerateUuid();
-}
-
-bool IsValidGUID(StringPiece input) {
-  return IsValidUuid(input);
-}
-
-bool IsValidGUIDOutputString(StringPiece input) {
-  return IsValidUuidOutputString(input);
+size_t UuidHash::operator()(const Uuid& uuid) const {
+  // TODO(crbug.com/1026195): Avoid converting to string to take the hash when
+  // the internal type is migrated to a non-string type.
+  return FastHash(uuid.AsLowercaseString());
 }
 
 }  // namespace base

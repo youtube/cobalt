@@ -63,8 +63,7 @@ class WindowManagementPermissionContextTest
  public:
   WindowManagementPermissionContextTest() {
     scoped_feature_list_.InitWithFeatureState(
-        permissions::features::kWindowManagementPermissionAlias,
-        AliasEnabled());
+        permissions::features::kWindowPlacementPermissionAlias, AliasEnabled());
   }
   void SetUpOnMainThread() override {
     // Support multiple sites on the test server.
@@ -107,7 +106,7 @@ class WindowManagementPermissionContextTest
   bool UseAlias() const { return std::get<1>(GetParam()); }
   bool ShouldError() const { return UseAlias() && !AliasEnabled(); }
   const std::string AliasToTest() const {
-    return UseAlias() ? kNewPermissionName : kOldPermissionName;
+    return UseAlias() ? kOldPermissionName : kNewPermissionName;
   }
   const std::string GetScreensScript() const {
     return base::ReplaceStringPlaceholders(kGetScreens, {AliasToTest()},
@@ -141,7 +140,7 @@ class MultiscreenWindowManagementPermissionContextTest
     display::Screen::SetScreenInstance(&screen_);
     screen_.display_list().AddDisplay({1, gfx::Rect(100, 100, 801, 802)},
                                       display::DisplayList::Type::PRIMARY);
-    screen_.display_list().AddDisplay({2, gfx::Rect(901, 100, 802, 802)},
+    screen_.display_list().AddDisplay({2, gfx::Rect(901, 100, 802, 803)},
                                       display::DisplayList::Type::NOT_PRIMARY);
     ASSERT_EQ(2, display::Screen::GetScreen()->GetNumDisplays());
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
@@ -152,7 +151,7 @@ class MultiscreenWindowManagementPermissionContextTest
     // This has to happen later than SetScreenInstance as the ash shell
     // does not exist yet.
     display::test::DisplayManagerTestApi(ash::Shell::Get()->display_manager())
-        .UpdateDisplay("100+100-801x802,901+100-802x802");
+        .UpdateDisplay("100+100-801x802,901+100-802x803");
     ASSERT_EQ(2, display::Screen::GetScreen()->GetNumDisplays());
 #endif
     WindowManagementPermissionContextTest::SetUpOnMainThread();

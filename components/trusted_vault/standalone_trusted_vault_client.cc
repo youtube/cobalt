@@ -11,17 +11,18 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "base/observer_list.h"
+#include "base/sequence_checker.h"
+#include "base/task/bind_post_task.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
 #include "components/signin/public/identity_manager/account_info.h"
 #include "components/signin/public/identity_manager/accounts_in_cookie_jar_info.h"
-#include "components/sync/base/bind_to_task_runner.h"
-#include "components/sync/base/command_line_switches.h"
-#include "components/sync/base/features.h"
+#include "components/trusted_vault/command_line_switches.h"
 #include "components/trusted_vault/standalone_trusted_vault_backend.h"
 #include "components/trusted_vault/trusted_vault_access_token_fetcher_impl.h"
 #include "components/trusted_vault/trusted_vault_connection_impl.h"
+#include "components/trusted_vault/trusted_vault_server_constants.h"
 #include "google_apis/gaia/google_service_auth_error.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 
@@ -218,11 +219,41 @@ class BackendDelegate : public StandaloneTrustedVaultBackend::Delegate {
   const base::RepeatingClosure notify_recoverability_degraded_cb_;
 };
 
+constexpr base::FilePath::CharType kChromeSyncTrustedVaultFilename[] =
+    FILE_PATH_LITERAL("trusted_vault.pb");
+constexpr base::FilePath::CharType kChromeSyncDeprecatedTrustedVaultFilename[] =
+    FILE_PATH_LITERAL("Trusted Vault");
+constexpr base::FilePath::CharType kPasskeysTrustedVaultFilename[] =
+    FILE_PATH_LITERAL("passkeys_trusted_vault.pb");
+
+base::FilePath GetBackendFilePath(const base::FilePath& base_dir,
+                                  SecurityDomainId security_domain) {
+  switch (security_domain) {
+    case SecurityDomainId::kChromeSync:
+      return base_dir.Append(kChromeSyncTrustedVaultFilename);
+    case SecurityDomainId::kPasskeys:
+      return base_dir.Append(kPasskeysTrustedVaultFilename);
+  }
+  NOTREACHED_NORETURN();
+}
+
+base::FilePath GetBackendDeprecatedFilePath(const base::FilePath& base_dir,
+                                            SecurityDomainId security_domain) {
+  switch (security_domain) {
+    case SecurityDomainId::kChromeSync:
+      return base_dir.Append(kChromeSyncDeprecatedTrustedVaultFilename);
+    case SecurityDomainId::kPasskeys:
+      // There is no legacy file for passkeys that needs to be migrated.
+      return base::FilePath();
+  }
+  NOTREACHED_NORETURN();
+}
+
 }  // namespace
 
 StandaloneTrustedVaultClient::StandaloneTrustedVaultClient(
-    const base::FilePath& file_path,
-    const base::FilePath& deprecated_file_path,
+    SecurityDomainId security_domain,
+    const base::FilePath& base_dir,
     signin::IdentityManager* identity_manager,
     scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory)
     : backend_task_runner_(
@@ -230,20 +261,22 @@ StandaloneTrustedVaultClient::StandaloneTrustedVaultClient(
       access_token_fetcher_frontend_(identity_manager) {
   std::unique_ptr<TrustedVaultConnection> connection;
   GURL trusted_vault_service_gurl =
-      syncer::ExtractTrustedVaultServiceURLFromCommandLine();
+      ExtractTrustedVaultServiceURLFromCommandLine();
   if (trusted_vault_service_gurl.is_valid()) {
     connection = std::make_unique<TrustedVaultConnectionImpl>(
-        trusted_vault_service_gurl, url_loader_factory->Clone(),
+        security_domain, trusted_vault_service_gurl,
+        url_loader_factory->Clone(),
         std::make_unique<TrustedVaultAccessTokenFetcherImpl>(
             access_token_fetcher_frontend_.GetWeakPtr()));
   }
 
   backend_ = base::MakeRefCounted<StandaloneTrustedVaultBackend>(
-      file_path, deprecated_file_path,
-      std::make_unique<
-          BackendDelegate>(syncer::BindToCurrentSequence(base::BindRepeating(
-          &StandaloneTrustedVaultClient::NotifyRecoverabilityDegradedChanged,
-          weak_ptr_factory_.GetWeakPtr()))),
+      GetBackendFilePath(base_dir, security_domain),
+      GetBackendDeprecatedFilePath(base_dir, security_domain),
+      std::make_unique<BackendDelegate>(base::BindPostTaskToCurrentDefault(
+          base::BindRepeating(&StandaloneTrustedVaultClient::
+                                  NotifyRecoverabilityDegradedChanged,
+                              weak_ptr_factory_.GetWeakPtr()))),
       std::move(connection));
   backend_task_runner_->PostTask(
       FROM_HERE,
@@ -283,9 +316,10 @@ void StandaloneTrustedVaultClient::FetchKeys(
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(backend_);
   backend_task_runner_->PostTask(
-      FROM_HERE, base::BindOnce(&StandaloneTrustedVaultBackend::FetchKeys,
-                                backend_, account_info,
-                                syncer::BindToCurrentSequence(std::move(cb))));
+      FROM_HERE,
+      base::BindOnce(&StandaloneTrustedVaultBackend::FetchKeys, backend_,
+                     account_info,
+                     base::BindPostTaskToCurrentDefault(std::move(cb))));
 }
 
 void StandaloneTrustedVaultClient::StoreKeys(
@@ -321,7 +355,7 @@ void StandaloneTrustedVaultClient::GetIsRecoverabilityDegraded(
       FROM_HERE,
       base::BindOnce(
           &StandaloneTrustedVaultBackend::GetIsRecoverabilityDegraded, backend_,
-          account_info, syncer::BindToCurrentSequence(std::move(cb))));
+          account_info, base::BindPostTaskToCurrentDefault(std::move(cb))));
 }
 
 void StandaloneTrustedVaultClient::AddTrustedRecoveryMethod(
@@ -335,7 +369,7 @@ void StandaloneTrustedVaultClient::AddTrustedRecoveryMethod(
       FROM_HERE,
       base::BindOnce(&StandaloneTrustedVaultBackend::AddTrustedRecoveryMethod,
                      backend_, gaia_id, public_key, method_type_hint,
-                     syncer::BindToCurrentSequence(std::move(cb))));
+                     base::BindPostTaskToCurrentDefault(std::move(cb))));
 }
 
 void StandaloneTrustedVaultClient::ClearLocalDataForAccount(
@@ -377,6 +411,19 @@ void StandaloneTrustedVaultClient::
       base::BindOnce(&StandaloneTrustedVaultBackend::
                          GetLastAddedRecoveryMethodPublicKeyForTesting,
                      backend_),
+      std::move(callback));
+}
+
+void StandaloneTrustedVaultClient::GetLastKeyVersionForTesting(
+    const std::string& gaia_id,
+    base::OnceCallback<void(int last_key_version)> callback) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  DCHECK(backend_);
+  backend_task_runner_->PostTaskAndReplyWithResult(
+      FROM_HERE,
+      base::BindOnce(
+          &StandaloneTrustedVaultBackend::GetLastKeyVersionForTesting, backend_,
+          gaia_id),
       std::move(callback));
 }
 

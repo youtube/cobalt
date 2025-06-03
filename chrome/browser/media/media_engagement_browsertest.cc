@@ -232,7 +232,7 @@ class MediaEngagementBrowserTest : public InProcessBrowserTest {
   }
 
   void ExecuteScript(const std::string& script) {
-    EXPECT_TRUE(content::ExecuteScript(GetWebContents(), script));
+    EXPECT_TRUE(content::ExecJs(GetWebContents(), script));
   }
 
   void OpenTabAsLink() {
@@ -243,7 +243,9 @@ class MediaEngagementBrowserTest : public InProcessBrowserTest {
   }
 
   void CloseTab() {
-    EXPECT_TRUE(browser()->tab_strip_model()->CloseWebContentsAt(0, 0));
+    const int previous_tab_count = browser()->tab_strip_model()->count();
+    browser()->tab_strip_model()->CloseWebContentsAt(0, 0);
+    EXPECT_EQ(previous_tab_count - 1, browser()->tab_strip_model()->count());
   }
 
   void LoadSubFrame(const GURL& url) {
@@ -741,7 +743,7 @@ IN_PROC_BROWSER_TEST_F(MediaEngagementPreloadBrowserTest,
   EXPECT_TRUE(MediaEngagementPreloadedList::GetInstance()->loaded());
 }
 
-#if BUILDFLAG(IS_MAC) && defined(ARCH_CPU_ARM64)
+#if BUILDFLAG(IS_MAC)
 // https://crbug.com/1222896
 #define MAYBE_SessionNewTabNavigateSameURLWithOpener_Typed \
   DISABLED_SessionNewTabNavigateSameURLWithOpener_Typed
@@ -948,7 +950,7 @@ class MediaEngagementContentsObserverPrerenderBrowserTest
   ~MediaEngagementContentsObserverPrerenderBrowserTest() override = default;
 
   void SetUpOnMainThread() override {
-    prerender_helper_->SetUp(embedded_test_server());
+    prerender_helper_->RegisterServerRequestMonitor(embedded_test_server());
     MediaEngagementContentsObserverMPArchBrowserTest::SetUpOnMainThread();
   }
 

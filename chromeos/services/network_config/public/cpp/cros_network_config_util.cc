@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 #include "chromeos/services/network_config/public/cpp/cros_network_config_util.h"
-
 #include "components/device_event_log/device_event_log.h"
 #include "components/onc/onc_constants.h"
 
@@ -328,24 +327,24 @@ bool IsInhibited(const mojom::DeviceStateProperties* device) {
 
 base::Value::Dict CustomApnListToOnc(const std::string& network_guid,
                                      const base::Value::List* custom_apn_list) {
+  CHECK(custom_apn_list);
   base::Value::Dict onc;
   onc.Set(::onc::network_config::kGUID, network_guid);
   onc.Set(::onc::network_config::kType, ::onc::network_type::kCellular);
   base::Value::Dict type_dict;
-  // If |custom_apn_list| is a nullptr, set the value as Value::Type::NONE
-  if (custom_apn_list) {
-    type_dict.Set(::onc::cellular::kCustomAPNList, custom_apn_list->Clone());
-  } else {
-    type_dict.Set(::onc::cellular::kCustomAPNList, base::Value());
-  }
+  type_dict.Set(::onc::cellular::kCustomAPNList, custom_apn_list->Clone());
   onc.Set(::onc::network_type::kCellular, std::move(type_dict));
   return onc;
 }
 
 std::vector<mojom::ApnType> OncApnTypesToMojo(
     const std::vector<std::string>& apn_types) {
-  DCHECK(!apn_types.empty());
   std::vector<mojom::ApnType> apn_types_result;
+  if (apn_types.empty()) {
+    NET_LOG(ERROR) << "APN types is empty";
+    return apn_types_result;
+  }
+
   apn_types_result.reserve(apn_types.size());
   for (const std::string& apn_type : apn_types) {
     if (apn_type == ::onc::cellular_apn::kApnTypeDefault) {
@@ -354,6 +353,10 @@ std::vector<mojom::ApnType> OncApnTypesToMojo(
     }
     if (apn_type == ::onc::cellular_apn::kApnTypeAttach) {
       apn_types_result.push_back(mojom::ApnType::kAttach);
+      continue;
+    }
+    if (apn_type == ::onc::cellular_apn::kApnTypeTether) {
+      apn_types_result.push_back(mojom::ApnType::kTether);
       continue;
     }
 
@@ -386,6 +389,44 @@ mojom::ApnPropertiesPtr GetApnProperties(const base::Value::Dict& onc_apn,
   }
 
   return apn;
+}
+
+mojom::ManagedApnListPtr GetManagedApnList(const base::Value* value,
+                                           bool is_apn_revamp_enabled) {
+  if (!value) {
+    return nullptr;
+  }
+  if (value->is_list()) {
+    auto result = mojom::ManagedApnList::New();
+    std::vector<mojom::ApnPropertiesPtr> active;
+    for (const base::Value& e : value->GetList()) {
+      active.push_back(GetApnProperties(e.GetDict(), is_apn_revamp_enabled));
+    }
+    result->active_value = std::move(active);
+    return result;
+  } else if (value->is_dict()) {
+    ManagedDictionary managed_dict = GetManagedDictionary(&value->GetDict());
+    if (!managed_dict.active_value.is_list()) {
+      NET_LOG(ERROR) << "No active or effective value for APNList";
+      return nullptr;
+    }
+    auto result = mojom::ManagedApnList::New();
+    for (const base::Value& e : managed_dict.active_value.GetList()) {
+      result->active_value.push_back(
+          GetApnProperties(e.GetDict(), is_apn_revamp_enabled));
+    }
+    result->policy_source = managed_dict.policy_source;
+    if (!managed_dict.policy_value.is_none()) {
+      result->policy_value = std::vector<mojom::ApnPropertiesPtr>();
+      for (const base::Value& e : managed_dict.policy_value.GetList()) {
+        result->policy_value->push_back(
+            GetApnProperties(e.GetDict(), is_apn_revamp_enabled));
+      }
+    }
+    return result;
+  }
+  NET_LOG(ERROR) << "Expected list or dictionary, found: " << *value;
+  return nullptr;
 }
 
 }  // namespace chromeos::network_config

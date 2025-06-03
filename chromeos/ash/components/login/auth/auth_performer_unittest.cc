@@ -50,8 +50,8 @@ void ReplyAsSuccess(
     UserDataAuthClient::AuthenticateAuthFactorCallback callback) {
   ::user_data_auth::AuthenticateAuthFactorReply reply;
   reply.set_error(::user_data_auth::CRYPTOHOME_ERROR_NOT_SET);
-  reply.set_authenticated(true);
-  reply.add_authorized_for(user_data_auth::AUTH_INTENT_DECRYPT);
+  reply.mutable_auth_properties()->add_authorized_for(
+      user_data_auth::AUTH_INTENT_DECRYPT);
   std::move(callback).Run(reply);
 }
 
@@ -60,7 +60,6 @@ void ReplyAsKeyMismatch(
   ::user_data_auth::AuthenticateAuthFactorReply reply;
   reply.set_error(
       ::user_data_auth::CRYPTOHOME_ERROR_AUTHORIZATION_KEY_NOT_FOUND);
-  reply.set_authenticated(false);
   std::move(callback).Run(reply);
 }
 
@@ -94,6 +93,7 @@ TEST_F(AuthPerformerTest, StartWithUntypedPasswordKey) {
                    UserDataAuthClient::StartAuthSessionCallback callback) {
         ::user_data_auth::StartAuthSessionReply reply;
         reply.set_auth_session_id("123");
+        reply.set_broadcast_id("broadcast");
         reply.set_user_exists(true);
         auto* factor = reply.add_auth_factors();
         factor->set_label("legacy-0");
@@ -115,6 +115,7 @@ TEST_F(AuthPerformerTest, StartWithUntypedPasswordKey) {
   EXPECT_TRUE(user_exists);
   ASSERT_TRUE(user_context);
   EXPECT_EQ(user_context->GetAuthSessionId(), "123");
+  EXPECT_EQ(user_context->GetBroadcastId(), "broadcast");
   EXPECT_TRUE(user_context->GetAuthFactorsData().FindOnlinePasswordFactor());
 }
 
@@ -130,6 +131,7 @@ TEST_F(AuthPerformerTest, StartWithUntypedKioskKey) {
                    UserDataAuthClient::StartAuthSessionCallback callback) {
         ::user_data_auth::StartAuthSessionReply reply;
         reply.set_auth_session_id("123");
+        reply.set_broadcast_id("broadcast");
         reply.set_user_exists(true);
         auto* factor = reply.add_auth_factors();
         factor->set_label("legacy-0");
@@ -151,6 +153,7 @@ TEST_F(AuthPerformerTest, StartWithUntypedKioskKey) {
   EXPECT_TRUE(user_exists);
   ASSERT_TRUE(user_context);
   EXPECT_EQ(user_context->GetAuthSessionId(), "123");
+  EXPECT_EQ(user_context->GetBroadcastId(), "broadcast");
   EXPECT_TRUE(user_context->GetAuthFactorsData().FindKioskFactor());
 }
 
@@ -162,7 +165,7 @@ TEST_F(AuthPerformerTest, KnowledgeKeyCorrectLabelFallback) {
   *context_->GetKey() = Key("secret");
   context_->GetKey()->SetLabel("gaia");
   // Simulate the already started auth session.
-  context_->SetAuthSessionId("123");
+  context_->SetAuthSessionIds("123", "broadcast");
 
   AuthPerformer performer(&mock_client_);
 
@@ -190,7 +193,7 @@ TEST_F(AuthPerformerTest, KnowledgeKeyCorrectLabelFallback) {
 TEST_F(AuthPerformerTest, KnowledgeKeyNoFallbackOnPin) {
   SetupUserWithLegacyPasswordFactor(context_.get());
   // Simulate the already started auth session.
-  context_->SetAuthSessionId("123");
+  context_->SetAuthSessionIds("123", "broadcast");
 
   // PIN knowledge key in user context.
   *context_->GetKey() =
@@ -224,7 +227,7 @@ TEST_F(AuthPerformerTest, KnowledgeKeyNoFallbackOnPin) {
 TEST_F(AuthPerformerTest, AuthenticateWithPasswordCorrectLabel) {
   SetupUserWithLegacyPasswordFactor(context_.get());
   // Simulate the already started auth session.
-  context_->SetAuthSessionId("123");
+  context_->SetAuthSessionIds("123", "broadcast");
 
   AuthPerformer performer(&mock_client_);
 
@@ -253,7 +256,7 @@ TEST_F(AuthPerformerTest, AuthenticateWithPasswordCorrectLabel) {
 TEST_F(AuthPerformerTest, AuthenticateWithPasswordBadLabel) {
   SetupUserWithLegacyPasswordFactor(context_.get());
   // Simulate the already started auth session.
-  context_->SetAuthSessionId("123");
+  context_->SetAuthSessionIds("123", "broadcast");
 
   AuthPerformer performer(&mock_client_);
 
@@ -274,7 +277,7 @@ TEST_F(AuthPerformerTest, AuthenticateWithPasswordBadLabel) {
 TEST_F(AuthPerformerTest, AuthenticateWithPinSuccess) {
   SetupUserWithLegacyPasswordFactor(context_.get());
   // Simulate the already started auth session.
-  context_->SetAuthSessionId("123");
+  context_->SetAuthSessionIds("123", "broadcast");
 
   // Add a pin factor to session auth factors.
   cryptohome::AuthFactorRef pin_factor_ref(cryptohome::AuthFactorType::kPin,

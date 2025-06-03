@@ -26,8 +26,9 @@ import './toggle_row.js';
 
 import {CrLinkRowElement} from 'chrome://resources/cr_elements/cr_link_row/cr_link_row.js';
 import {CrToggleElement} from 'chrome://resources/cr_elements/cr_toggle/cr_toggle.js';
+import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
 import {CrTooltipIconElement} from 'chrome://resources/cr_elements/policy/cr_tooltip_icon.js';
-import {assert} from 'chrome://resources/js/assert_ts.js';
+import {assert} from 'chrome://resources/js/assert.js';
 import {focusWithoutInk} from 'chrome://resources/js/focus_without_ink.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {afterNextRender, DomRepeatEvent, PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
@@ -35,7 +36,7 @@ import {afterNextRender, DomRepeatEvent, PolymerElement} from 'chrome://resource
 import {getTemplate} from './detail_view.html.js';
 import {ItemDelegate} from './item.js';
 import {ItemMixin} from './item_mixin.js';
-import {computeInspectableViewLabel, EnableControl, getEnableControl, getItemSource, getItemSourceString, isEnabled, sortViews, userCanChangeEnablement} from './item_util.js';
+import {computeInspectableViewLabel, EnableControl, getEnableControl, getEnableToggleAriaLabel, getEnableToggleTooltipText, getItemSource, getItemSourceString, isEnabled, sortViews, userCanChangeEnablement} from './item_util.js';
 import {navigation, Page} from './navigation_helper.js';
 import {ExtensionsToggleRowElement} from './toggle_row.js';
 
@@ -47,11 +48,12 @@ export interface ExtensionsDetailViewElement {
     extensionsActivityLogLink: HTMLElement,
     extensionsOptions: CrLinkRowElement,
     parentDisabledPermissionsToolTip: CrTooltipIconElement,
+    safetyCheckWarningContainer: HTMLElement,
     source: HTMLElement,
   };
 }
 
-const ExtensionsDetailViewElementBase = ItemMixin(PolymerElement);
+const ExtensionsDetailViewElementBase = I18nMixin(ItemMixin(PolymerElement));
 
 export class ExtensionsDetailViewElement extends
     ExtensionsDetailViewElementBase {
@@ -98,6 +100,19 @@ export class ExtensionsDetailViewElement extends
         type: Array,
         computed: 'computeSortedViews_(data.views)',
       },
+
+      /** Whether the extensions safety check warning is shown. */
+      showSafetyCheck_: {
+        type: Boolean,
+        computed: 'computeShowSafetyCheck_(data.safetyCheckText)',
+        observer: 'onShowSafetyCheckChanged_',
+      },
+
+      /** Whether the extensions blocklist text is shown. */
+      showBlocklistText_: {
+        type: Boolean,
+        computed: 'computeShowBlocklistText_(data.blacklistText)',
+      },
     };
   }
 
@@ -112,8 +127,11 @@ export class ExtensionsDetailViewElement extends
   incognitoAvailable: boolean;
   showActivityLog: boolean;
   fromActivityLog: boolean;
+  private showSafetyCheck_: boolean;
+  private showBlocklistText_: boolean;
   private size_: string;
   private sortedViews_: chrome.developerPrivate.ExtensionView[];
+  private safetyCheckExtensionsEnabled_: boolean;
 
   override ready() {
     super.ready();
@@ -166,6 +184,16 @@ export class ExtensionsDetailViewElement extends
         'itemDetailsBackButtonRoleDescription', this.data.name);
   }
 
+  private getEnableToggleAriaLabel_(): string {
+    return getEnableToggleAriaLabel(
+        this.isEnabled_(), this.data.type, this.i18n('appEnabled'),
+        this.i18n('extensionEnabled'), this.i18n('itemOff'));
+  }
+
+  private getEnableToggleTooltipText_(): string {
+    return getEnableToggleTooltipText(this.data);
+  }
+
   private onCloseButtonClick_() {
     navigation.navigateTo({page: Page.LIST});
   }
@@ -186,6 +214,7 @@ export class ExtensionsDetailViewElement extends
     return this.data.disableReasons.corruptInstall ||
         this.data.disableReasons.suspiciousInstall ||
         this.data.disableReasons.updateRequired || !!this.data.blacklistText ||
+        this.data.disableReasons.publishedInStoreRequired ||
         this.data.runtimeWarnings.length > 0;
   }
 
@@ -214,8 +243,12 @@ export class ExtensionsDetailViewElement extends
   }
 
   private shouldShowOptionsSection_(): boolean {
-    return this.data.incognitoAccess.isEnabled ||
+    return this.canPinToToolbar_() || this.data.incognitoAccess.isEnabled ||
         this.data.fileAccess.isEnabled || this.data.errorCollection.isEnabled;
+  }
+
+  private canPinToToolbar_(): boolean {
+    return this.data.pinnedToToolbar !== undefined;
   }
 
   private shouldShowIncognitoOption_(): boolean {
@@ -244,7 +277,17 @@ export class ExtensionsDetailViewElement extends
   }
 
   private onRemoveClick_() {
+    if (this.showSafetyCheck_) {
+      chrome.metricsPrivate.recordUserAction('SafetyCheck.DetailRemoveClicked');
+    }
     this.delegate.deleteItem(this.data.id);
+  }
+
+  private onKeepClick_() {
+    if (this.showSafetyCheck_) {
+      chrome.metricsPrivate.recordUserAction('SafetyCheck.DetailKeepClicked');
+    }
+    this.delegate.setItemSafetyCheckWarningAcknowledged(this.data.id);
   }
 
   private onRepairClick_() {
@@ -253,6 +296,14 @@ export class ExtensionsDetailViewElement extends
 
   private onLoadPathClick_() {
     this.delegate.showInFolder(this.data.id);
+  }
+
+  private onPinnedToToolbarChange_() {
+    this.delegate.setItemPinnedToToolbar(
+        this.data.id,
+        this.shadowRoot!
+            .querySelector<ExtensionsToggleRowElement>(
+                '#pin-to-toolbar')!.checked);
   }
 
   private onAllowIncognitoChange_() {
@@ -358,6 +409,31 @@ export class ExtensionsDetailViewElement extends
 
   private showReloadButton_(): boolean {
     return getEnableControl(this.data) === EnableControl.RELOAD;
+  }
+
+  private computeShowSafetyCheck_(): boolean {
+    if (!loadTimeData.getBoolean('safetyCheckShowReviewPanel')) {
+      return false;
+    }
+    const ExtensionType = chrome.developerPrivate.ExtensionType;
+    // Check to make sure this is an extension and not a Chrome app.
+    if (!(this.data.type === ExtensionType.EXTENSION ||
+          this.data.type === ExtensionType.SHARED_MODULE)) {
+      return false;
+    }
+    return !!(
+        this.data.safetyCheckText && this.data.safetyCheckText.detailString &&
+        this.data.acknowledgeSafetyCheckWarning !== true);
+  }
+
+  private onShowSafetyCheckChanged_() {
+    if (this.showSafetyCheck_) {
+      chrome.metricsPrivate.recordUserAction('SafetyCheck.DetailWarningShown');
+    }
+  }
+
+  private computeShowBlocklistText_(): boolean {
+    return !this.showSafetyCheck_ && !!this.data.blacklistText;
   }
 
   private showRepairButton_(): boolean {

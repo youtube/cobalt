@@ -10,6 +10,7 @@
 #include "base/run_loop.h"
 #include "base/test/bind.h"
 #include "base/token.h"
+#include "chrome/browser/apps/app_service/app_registry_cache_waiter.h"
 #include "chrome/browser/apps/app_service/app_service_proxy.h"
 #include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
@@ -19,7 +20,6 @@
 #include "chrome/browser/ui/ash/system_web_apps/system_web_app_ui_utils.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_finder.h"
-#include "chrome/browser/web_applications/test/app_registry_cache_waiter.h"
 #include "chrome/browser/web_applications/test/web_app_install_test_utils.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
@@ -221,12 +221,12 @@ class CrosWindowManagementBrowserTest : public SystemExtensionsApiBrowserTest {
              .additional_src_files = {"chrome/test/data/system_extensions/"
                                       "cros_window_test_utils.js"},
              .additional_gen_files = {
-                 "gen/chrome/browser/ash/system_extensions/api/"
+                 "chrome/browser/ash/system_extensions/api/"
                  "window_management/"
                  "cros_window_management_test_helper.test-mojom-lite.js",
-                 "gen/ui/events/mojom/keyboard_codes.mojom-lite.js",
-                 "gen/ui/events/mojom/event_constants.mojom-lite.js",
-                 "gen/ui/gfx/geometry/mojom/geometry.mojom-lite.js",
+                 "ui/events/mojom/keyboard_codes.mojom-lite.js",
+                 "ui/events/mojom/event_constants.mojom-lite.js",
+                 "ui/gfx/geometry/mojom/geometry.mojom-lite.js",
              }}) {
     installation_ =
         TestSystemWebAppInstallation::SetUpStandaloneSingleWindowApp();
@@ -258,12 +258,12 @@ class CrosWindowManagementBrowserTest : public SystemExtensionsApiBrowserTest {
 
     // Install a web app with `browser` display mode, so that it launched
     // in a tab in regular browser window.
-    auto web_app_info = std::make_unique<WebAppInstallInfo>();
+    auto web_app_info = std::make_unique<web_app::WebAppInstallInfo>();
     web_app_info->start_url = start_url;
     web_app_info->user_display_mode = web_app::mojom::UserDisplayMode::kBrowser;
-    const web_app::AppId app_id = web_app::test::InstallWebApp(
+    const webapps::AppId app_id = web_app::test::InstallWebApp(
         browser()->profile(), std::move(web_app_info));
-    web_app::AppReadinessWaiter(browser()->profile(), app_id).Await();
+    apps::AppReadinessWaiter(browser()->profile(), app_id).Await();
 
     // Launch app through App Service proxy and wait for it to open.
     auto* const proxy =

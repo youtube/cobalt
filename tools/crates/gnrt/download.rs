@@ -2,43 +2,56 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-use std::fs;
-use std::io::{Read, Write};
-use std::process::{self, ExitCode};
-
-use crate::crates;
+use crate::crates::{self, ThirdPartySource};
 use crate::manifest::CargoManifest;
 use crate::paths;
+use crate::util::{check_exit_ok, check_output, check_spawn, check_wait_with_output};
+
+use std::fs;
+use std::io::Write;
+use std::process;
+
+use anyhow::{Context, Result};
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum SecurityCritical {
+    Yes,
+    No,
+}
+impl From<bool> for SecurityCritical {
+    fn from(b: bool) -> Self {
+        if b { Self::Yes } else { Self::No }
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum Shipped {
+    Yes,
+    No,
+}
+impl From<bool> for Shipped {
+    fn from(b: bool) -> Self {
+        if b { Self::Yes } else { Self::No }
+    }
+}
 
 /// Runs the download subcommand, which downloads a crate from crates.io and
 /// unpacks it into the Chromium tree.
 pub fn download(
     name: &str,
     version: semver::Version,
-    security: bool,
+    security: SecurityCritical,
+    shipped: Shipped,
     paths: &paths::ChromiumPaths,
-) -> ExitCode {
-    let vendored_crate = crates::ChromiumVendoredCrate {
-        name: name.to_string(),
-        epoch: crates::Epoch::from_version(&version),
-    };
-    let build_path = paths.third_party.join(vendored_crate.build_path());
-    let crate_path = paths.third_party.join(vendored_crate.crate_path());
+) -> Result<()> {
+    let vendored_crate = crates::VendoredCrate { name: name.into(), version: version.clone() };
+    let build_path = paths.third_party.join(ThirdPartySource::build_path(&vendored_crate));
+    let crate_path = paths.third_party.join(ThirdPartySource::crate_path(&vendored_crate));
 
-    let url = format!(
-        "{dir}/{name}/{name}-{version}.{suffix}",
-        dir = CRATES_IO_DOWNLOAD_URL,
-        suffix = CRATES_IO_DOWNLOAD_SUFFIX
-    );
-    let curl_out = process::Command::new("curl")
-        .arg("--fail")
-        .arg(url.to_string())
-        .output()
-        .expect("Failed to run curl");
-    if !curl_out.status.success() {
-        eprintln!("gnrt: {}", String::from_utf8(curl_out.stderr).unwrap());
-        return ExitCode::FAILURE;
-    }
+    let url =
+        format!("{CRATES_IO_DOWNLOAD_URL}/{name}/{name}-{version}.{CRATES_IO_DOWNLOAD_SUFFIX}");
+    let curl_out = check_output(process::Command::new("curl").arg("--fail").arg(&url), "curl")?;
+    check_exit_ok(&curl_out, "curl")?;
 
     // Makes the directory where the build file will go. The crate's source code
     // will go below it. This directory and its parents are allowed to exist
@@ -49,30 +62,30 @@ pub fn download(
     // exist or we'd be clobbering existing files.
     std::fs::create_dir(&crate_path).expect("Crate directory '{crate_path}' already exists");
 
-    let mut untar = process::Command::new("tar")
-        // Extract and unzip from stdin.
-        .arg("xzf")
-        .arg("-")
-        // Drop the first path component, which is the crate's name-version.
-        .arg("--strip-components=1")
-        // Unzip into the crate's directory in third_party/rust.
-        .arg(format!("--directory={}", crate_path.display()))
-        // The input is the downloaded file.
-        .stdin(process::Stdio::piped())
-        .stdout(process::Stdio::piped())
-        .stderr(process::Stdio::piped())
-        .spawn()
-        .expect("Failed to run tar");
+    let mut untar = check_spawn(
+        process::Command::new("tar")
+            // Extract and unzip from stdin.
+            .arg("xzf")
+            .arg("-")
+            // Drop the first path component, which is the crate's name-version.
+            .arg("--strip-components=1")
+            // Unzip into the crate's directory in third_party/rust.
+            .arg(format!("--directory={}", crate_path.display()))
+            // The input is the downloaded file.
+            .stdin(process::Stdio::piped())
+            .stderr(process::Stdio::piped()),
+        "tar",
+    )?;
 
-    if untar.stdin.take().unwrap().write_all(&curl_out.stdout).is_err() {
-        eprintln!("gnrt: Failed to pipe input to tar, it exited early");
-    }
-
-    if !untar.wait().expect("Failed to wait for tar").success() {
-        let mut stderr_buf = Vec::new();
-        untar.stderr.unwrap().read_to_end(&mut stderr_buf).expect("Failed to read stderr from tar");
-        eprintln!("gnrt: {}", String::from_utf8(stderr_buf).unwrap());
-        return ExitCode::FAILURE;
+    untar
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(&curl_out.stdout)
+        .context("Failed to pipe crate archive to tar")?;
+    {
+        let untar_output = check_wait_with_output(untar, "tar")?;
+        check_exit_ok(&untar_output, "tar")?;
     }
 
     let cargo: CargoManifest = {
@@ -83,11 +96,23 @@ pub fn download(
 
     let (_, readme_license) = ALLOWED_LICENSES
         .iter()
-        .find(|(allowed_license, _)| &cargo.package.license == *allowed_license)
+        .find(|(allowed_license, _)| cargo.package.license == *allowed_license)
         .expect("License in downloaded Cargo.toml is not in ALLOWED_LICENSES");
 
+    // Determine the crate's license files by searching its `package.include`.
+    // Crates only need license files if they are shipped in a library with a
+    // LICENSE file, and license generation will fail in that case if the files
+    // are not present.
+    let license_files: Vec<String> = cargo
+        .package
+        .include
+        .iter()
+        .filter(|inc| inc.starts_with("LICENSE") || inc.starts_with("COPYING"))
+        .map(|inc| format!("crate/{inc}"))
+        .collect();
+
     let vcs_path = crate_path.join(".cargo_vcs_info.json");
-    let vcs_contents = match fs::read_to_string(&vcs_path) {
+    let vcs_contents = match fs::read_to_string(vcs_path) {
         Ok(s) => serde_json::from_str(&s).unwrap(),
         Err(_) => None,
     };
@@ -105,36 +130,43 @@ pub fn download(
         }
     });
 
-    let readme = gen_readme_chromium_text(&cargo, readme_license, githash, security);
+    let readme =
+        gen_readme_chromium_text(&cargo, readme_license, license_files, githash, security, shipped);
     std::fs::write(build_path.join("README.chromium"), readme)
         .expect("Failed to write README.chromium");
 
     println!("gnrt: Downloaded {name} {version} to {path}", path = crate_path.display());
 
-    ExitCode::SUCCESS
+    Ok(())
 }
 
 /// Generate the contents of the README.chromium file.
 fn gen_readme_chromium_text(
     manifest: &CargoManifest,
     license: &str,
+    license_files: Vec<String>,
     githash: Option<&str>,
-    security: bool,
+    security: SecurityCritical,
+    shipped: Shipped,
 ) -> String {
-    let security = if security { "yes" } else { "no" };
+    let security = if security == SecurityCritical::Yes { "yes" } else { "no" };
+    let shipped = if shipped == Shipped::Yes { "yes" } else { "no" };
 
     let revision = githash.map_or_else(String::new, |s| format!("Revision: {s}\n"));
+    let license_files = license_files.join(",");
 
     format!(
         "Name: {crate_name}\n\
-         URL: {url}\n\
+         URL: {CRATES_IO_VIEW_URL}/{package_name}\n\
          Description: {description}\n\
          Version: {version}\n\
          Security Critical: {security}\n\
+         Shipped: {shipped}\n\
          License: {license}\n\
+         License File: {license_files}\n\
          {revision}",
         crate_name = manifest.package.name,
-        url = format!("{}/{}", CRATES_IO_VIEW_URL, manifest.package.name),
+        package_name = manifest.package.name,
         description = manifest.package.description.as_ref().unwrap_or(&"".to_string()),
         version = manifest.package.version,
     )
@@ -146,7 +178,7 @@ static CRATES_IO_VIEW_URL: &str = "https://crates.io/crates";
 
 // Allowed licenses, in the format they are specified in Cargo.toml files from
 // crates.io, and the format to write to README.chromium.
-static ALLOWED_LICENSES: [(&str, &str); 15] = [
+static ALLOWED_LICENSES: [(&str, &str); 16] = [
     // ("Cargo.toml string", "License for README.chromium")
     ("Apache-2.0", "Apache 2.0"),
     ("MIT OR Apache-2.0", "Apache 2.0"),
@@ -161,6 +193,10 @@ static ALLOWED_LICENSES: [(&str, &str); 15] = [
     ("BSD-3-Clause", "BSD 3-Clause"),
     ("ISC", "ISC"),
     ("MIT OR Zlib OR Apache-2.0", "Apache 2.0"),
+    ("Zlib OR Apache-2.0 OR MIT", "Apache 2.0"),
     ("0BSD OR MIT OR Apache-2.0", "Apache 2.0"),
-    ("Unicode-DFS-2016", "Unicode License Agreement - Data Files and Software (2016)"),
+    (
+        "(MIT OR Apache-2.0) AND Unicode-DFS-2016",
+        "Apache 2.0 AND Unicode License Agreement - Data Files and Software (2016)",
+    ),
 ];

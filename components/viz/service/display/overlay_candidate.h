@@ -18,7 +18,7 @@
 #include "gpu/command_buffer/common/mailbox.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/abseil-cpp/absl/types/variant.h"
-#include "third_party/skia/include/core/SkDeferredDisplayList.h"
+#include "third_party/skia/include/private/chromium/GrDeferredDisplayList.h"
 #include "ui/gfx/buffer_types.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/rect_f.h"
@@ -59,6 +59,9 @@ class VIZ_SERVICE_EXPORT OverlayCandidate {
     kFailPriority,
     kFailNotSharedImage,
     kFailRoundedDisplayMasksNotSupported,
+    kFailMaskFilterNotSupported,
+    kFailHasTransformButCantClip,
+    kFailRpdqWithTransform,
   };
   using TrackingId = uint32_t;
   static constexpr TrackingId kDefaultTrackingId{0};
@@ -100,10 +103,8 @@ class VIZ_SERVICE_EXPORT OverlayCandidate {
   gfx::BufferFormat format = gfx::BufferFormat::RGBA_8888;
   // ColorSpace of the buffer for scanout.
   gfx::ColorSpace color_space;
-  // HDR mode for the buffer.
-  gfx::HDRMode hdr_mode = gfx::HDRMode::kDefault;
   // Optional HDR Metadata for the buffer.
-  absl::optional<gfx::HDRMetadata> hdr_metadata;
+  gfx::HDRMetadata hdr_metadata;
   // Size of the resource, in pixels.
   gfx::Size resource_size_in_pixels;
   // Rect in content space that, when combined with |transform|, is the bounds
@@ -132,7 +133,29 @@ class VIZ_SERVICE_EXPORT OverlayCandidate {
       gfx::ProtectedVideoType::kClear;
 
 #if BUILDFLAG(IS_WIN)
-  bool maybe_video_fullscreen_letterboxing = false;
+  // Indication of the overlay to be detected as possible full screen
+  // letterboxing.
+  // During video display, sometimes the video image does not have the same
+  // shape or Picture Aspect Ratio as the display area. Letterboxing is the
+  // process of scaling a widescreen image to fit a specific display, like 4:3.
+  // The reverse case, scaling a 4:3 image to fit a widescreen display, is
+  // sometimes called pillarboxing. However here letterboxing is also used in a
+  // general sense, to mean scaling a video image to fit any given display area.
+  // Check out more information from
+  // https://learn.microsoft.com/en-us/windows/win32/medfound/picture-aspect-ratio#letterboxing.
+  // Two conditions to make possible_video_fullscreen_letterboxing be true:
+  // 1. Current page is in full screen mode which is decided by
+  // AggregatedFrame::page_fullscreen_mode.
+  // 2. IsPossibleFullScreenLetterboxing helper from
+  // DCLayerOverlayProcessor returns true, which basically means the draw
+  // quad beneath the overlay quad touches two sides of the screen while
+  // starting at display origin (0, 0). Then before swap chain presentation and
+  // with possible_video_fullscreen_letterboxing be true, some necessary
+  // adjustment is done in order to make the video be equidistant from the sides
+  // off the screen. That is, it needs to be CENTERED for the sides that are not
+  // touching the screen. At this point, Desktop Window Manager(DWM) considers
+  // the video as full screen letterboxing.
+  bool possible_video_fullscreen_letterboxing = false;
 #endif
 
 #if BUILDFLAG(IS_ANDROID)
@@ -160,7 +183,7 @@ class VIZ_SERVICE_EXPORT OverlayCandidate {
   // is an estimate when 'EstimateOccludedDamage' function is used.
   float damage_area_estimate = 0.f;
 
-  // Damage in buffer space (extents bound by |resource_size_in_pixels|).
+  // Damage in viz Display space, the same space as |display_rect|;
   gfx::RectF damage_rect;
 
   static constexpr uint32_t kInvalidDamageIndex = UINT_MAX;
@@ -187,7 +210,7 @@ class VIZ_SERVICE_EXPORT OverlayCandidate {
   RAW_PTR_EXCLUSION const AggregatedRenderPassDrawQuad* rpdq = nullptr;
   // The DDL for generating render pass overlay buffer with SkiaRenderer. This
   // is the recorded output of rendering the |rpdq|.
-  sk_sp<SkDeferredDisplayList> ddl;
+  sk_sp<GrDeferredDisplayList> ddl;
 
   // Quad |shared_quad_state| opacity is ubiquitous for quad types
   // AggregateRenderPassDrawQuad, TileDrawQuad, SolidColorDrawQuad. A delegate
@@ -219,6 +242,9 @@ class VIZ_SERVICE_EXPORT OverlayCandidate {
 
   // Whether this overlay candidate represents the root render pass.
   bool is_root_render_pass = false;
+
+  // Whether this overlay candidate is a render pass draw quad.
+  bool is_render_pass_draw_quad = false;
 };
 
 using OverlayCandidateList = std::vector<OverlayCandidate>;

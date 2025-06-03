@@ -22,6 +22,7 @@
 
 class HostContentSettingsMap;
 class Profile;
+struct UrlIdentity;
 
 namespace content {
 class WebUI;
@@ -31,46 +32,77 @@ namespace permissions {
 class ObjectPermissionContextBase;
 }
 
+namespace web_app {
+class IsolatedWebAppUrlInfo;
+}  // namespace web_app
+
 namespace site_settings {
 
-// Maps from a secondary pattern to a setting.
-typedef std::map<ContentSettingsPattern, ContentSetting> OnePatternSettings;
-// Maps from a primary pattern/source pair to a OnePatternSettings. All the
+struct SiteExceptionInfo {
+  ContentSetting content_setting;
+  bool is_embargoed;
+  base::Time expiration;
+};
+
+struct StorageAccessEmbeddingException {
+  ContentSettingsPattern secondary_pattern;
+  bool is_incognito;
+  bool is_embargoed;
+  base::Time expiration;
+};
+
+// Maps from a pair(secondary pattern, incognito)  to a setting and if it's
+// embargoed.
+typedef std::map<std::pair<ContentSettingsPattern, bool>, SiteExceptionInfo>
+    OnePatternSettings;
+
+// Maps from a pair (primary pattern, source) to a OnePatternSettings. All the
 // mappings in OnePatternSettings share the given primary pattern and source.
+//
+// The operator< in ContentSettingsPattern, determines that by default the
+// preferences are saved in lowest precedence pattern to the highest. However,
+// we want to show the patterns with the highest precedence (the more specific
+// ones) on the top, hence `std::greater<>`.
 typedef std::map<std::pair<ContentSettingsPattern, std::string>,
-                 OnePatternSettings>
+                 OnePatternSettings,
+                 std::greater<>>
     AllPatternsSettings;
 
 // A set of <origin, source, incognito> tuple for organizing granted permission
 // objects that belong to the same device.
 using ChooserExceptionDetails = std::set<std::tuple<GURL, std::string, bool>>;
 
+// TODO(crbug.com/1373962): Prefix the types related to the File System Access
+// API so that their relation to the file system is more apparent.
 constexpr char kChooserType[] = "chooserType";
-constexpr char kDisplayName[] = "displayName";
-constexpr char kEmbeddingOrigin[] = "embeddingOrigin";
-constexpr char kIncognito[] = "incognito";
-constexpr char kObject[] = "object";
+constexpr char kCloseDescription[] = "closeDescription";
 constexpr char kDisabled[] = "disabled";
-constexpr char kIsolatedWebAppName[] = "isolatedWebAppName";
-constexpr char kOrigin[] = "origin";
-constexpr char kOriginForFavicon[] = "originForFavicon";
-constexpr char kRecentPermissions[] = "recentPermissions";
-constexpr char kSetting[] = "setting";
-constexpr char kSites[] = "sites";
-constexpr char kPolicyIndicator[] = "indicator";
-constexpr char kSource[] = "source";
-constexpr char kType[] = "type";
+constexpr char kDisplayName[] = "displayName";
+constexpr char kDescription[] = "description";
+constexpr char kEditGrants[] = "editGrants";
+constexpr char kEmbeddingOrigin[] = "embeddingOrigin";
+constexpr char kEmbeddingDisplayName[] = "embeddingDisplayName";
+constexpr char kExceptions[] = "exceptions";
+constexpr char kFilePath[] = "filePath";
+constexpr char kHostOrSpec[] = "hostOrSpec";
+constexpr char kIncognito[] = "incognito";
 constexpr char kIsDirectory[] = "isDirectory";
 constexpr char kIsEmbargoed[] = "isEmbargoed";
 constexpr char kIsWritable[] = "isWritable";
-constexpr char kDirectoryReadGrants[] = "directoryReadGrants";
-constexpr char kDirectoryWriteGrants[] = "directoryWriteGrants";
-constexpr char kFilePath[] = "filePath";
-constexpr char kFileReadGrants[] = "fileReadGrants";
-constexpr char kFileWriteGrants[] = "fileWriteGrants";
-constexpr char kNotificationInfoString[] = "notificationInfoString";
+constexpr char kObject[] = "object";
+constexpr char kOpenDescription[] = "openDescription";
+constexpr char kOrigin[] = "origin";
+constexpr char kOriginForFavicon[] = "originForFavicon";
 constexpr char kPermissions[] = "permissions";
-constexpr char kExtensionNameWithId[] = "extensionNameWithId";
+constexpr char kPolicyIndicator[] = "indicator";
+constexpr char kRecentPermissions[] = "recentPermissions";
+constexpr char kSetting[] = "setting";
+constexpr char kSites[] = "sites";
+constexpr char kSource[] = "source";
+constexpr char kType[] = "type";
+constexpr char kNotificationPermissionsReviewListMaybeChangedEvent[] =
+    "notification-permission-review-list-maybe-changed";
+constexpr char kViewGrants[] = "viewGrants";
 
 enum class SiteSettingSource {
   kAllowlist,
@@ -112,6 +144,27 @@ base::Value::Dict GetFileSystemExceptionForPage(
     bool incognito,
     bool is_embargoed = false);
 
+// Calculates the number of days between now and `expiration_timestamp`,
+// timestamp of when a setting is going to expire, and returns the appropriate
+// string for display in site settings. Only looks at the date between now and
+// `expiration_timestamp` i.e. doesn't take into account time.
+
+// E.g. current time 03/07 18:00. If expiration is in:
+//   03/07 01:00 then, time diff is 17h, and returns 0.
+//   04/07 19:00 then, time diff is 23h, but returns 1.
+//   05/07 19:00 then, time diff is 47h, and returns 2.
+//   05/07 17:00 then, time diff is 49h, and returns 2.
+std::u16string GetExpirationDescription(const base::Time& expiration_timestamp);
+
+// Helper function to construct a dictionary for a storage access exceptions
+// grouped by origin.
+base::Value::Dict GetStorageAccessExceptionForPage(
+    Profile* profile,
+    const ContentSettingsPattern& pattern,
+    const std::string& display_name,
+    ContentSetting setting,
+    const std::vector<StorageAccessEmbeddingException>& exceptions);
+
 // Helper function to construct a dictionary for an exception.
 base::Value::Dict GetExceptionForPage(
     ContentSettingsType content_type,
@@ -121,6 +174,7 @@ base::Value::Dict GetExceptionForPage(
     const std::string& display_name,
     const ContentSetting& setting,
     const std::string& provider_name,
+    const base::Time& expiration,
     bool incognito,
     bool is_embargoed = false);
 
@@ -135,6 +189,15 @@ void GetExceptionsForContentType(ContentSettingsType type,
                                  content::WebUI* web_ui,
                                  bool incognito,
                                  base::Value::List* exceptions);
+
+// Fills in |exceptions| with Values for the Storage Access exception for the
+// given content setting (such as enabled or blocked) from a |profile| and its
+// |incognito_profile|, if applicable.
+void GetStorageAccessExceptions(ContentSetting content_setting,
+                                Profile* profile,
+                                Profile* incognito_profile,
+                                content::WebUI* web_ui,
+                                base::Value::List* exceptions);
 
 // Fills in object saying what the current settings is for the category (such as
 // enabled or blocked) and the source of that setting (such preference, policy,
@@ -151,8 +214,7 @@ ContentSetting GetContentSettingForOrigin(Profile* profile,
                                           const HostContentSettingsMap* map,
                                           const GURL& origin,
                                           ContentSettingsType content_type,
-                                          std::string* source_string,
-                                          std::string* display_name);
+                                          std::string* source_string);
 
 // Returns URLs with granted entries from the File System Access API.
 void GetFileSystemGrantedEntries(std::vector<base::Value::Dict>* exceptions,
@@ -199,19 +261,21 @@ base::Value::List GetChooserExceptionListFromProfile(
     Profile* profile,
     const ChooserTypeNameEntry& chooser_type);
 
-// Returns the short name of a browser extension, or nullopt if `origin` is not
-// an extension URL.
-absl::optional<std::string> GetExtensionDisplayName(Profile* profile,
-                                                    GURL origin);
-
 // Takes |url| and converts it into an individual origin string or retrieves
 // name of the extension or Isolated Web App it belongs to. If |hostname_only|
 // is true, returns |url|'s hostname for HTTP/HTTPS pages or unknown
 // extension/IWA URLs, otherwise an origin string will be returned that
 // includes the scheme if it's non-cryptographic.
+UrlIdentity GetUrlIdentityForGURL(Profile* profile,
+                                  const GURL& url,
+                                  bool hostname_only);
 std::string GetDisplayNameForGURL(Profile* profile,
                                   const GURL& url,
                                   bool hostname_only);
+
+// Returns data about all currently installed Isolated Web Apps.
+std::vector<web_app::IsolatedWebAppUrlInfo> GetInstalledIsolatedWebApps(
+    Profile* profile);
 
 }  // namespace site_settings
 

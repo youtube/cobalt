@@ -43,10 +43,10 @@
 namespace v8 {
 namespace internal {
 
-static bool IsAddressWithinFuncCode(JSFunction function, Isolate* isolate,
-                                    void* addr) {
-  i::AbstractCode code = function.abstract_code(isolate);
-  return code.contains(isolate, reinterpret_cast<Address>(addr));
+static bool IsAddressWithinFuncCode(Tagged<JSFunction> function,
+                                    Isolate* isolate, void* addr) {
+  i::Tagged<i::AbstractCode> code = function->abstract_code(isolate);
+  return code->contains(isolate, reinterpret_cast<Address>(addr));
 }
 
 static bool IsAddressWithinFuncCode(v8::Local<v8::Context> context,
@@ -55,7 +55,7 @@ static bool IsAddressWithinFuncCode(v8::Local<v8::Context> context,
   v8::Local<v8::Value> func =
       context->Global()->Get(context, v8_str(func_name)).ToLocalChecked();
   CHECK(func->IsFunction());
-  JSFunction js_func = JSFunction::cast(*v8::Utils::OpenHandle(*func));
+  Tagged<JSFunction> js_func = JSFunction::cast(*v8::Utils::OpenHandle(*func));
   return IsAddressWithinFuncCode(js_func, isolate, addr);
 }
 
@@ -67,9 +67,11 @@ static void construct_call(const v8::FunctionCallbackInfo<v8::Value>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   i::StackFrameIterator frame_iterator(isolate);
   CHECK(frame_iterator.frame()->is_exit() ||
-        frame_iterator.frame()->is_builtin_exit());
+        frame_iterator.frame()->is_builtin_exit() ||
+        frame_iterator.frame()->is_api_callback_exit());
   frame_iterator.Advance();
-  CHECK(frame_iterator.frame()->is_construct());
+  CHECK(frame_iterator.frame()->is_construct() ||
+        frame_iterator.frame()->is_fast_construct());
   frame_iterator.Advance();
   if (frame_iterator.frame()->type() == i::StackFrame::STUB) {
     // Skip over bytecode handler frame.
@@ -237,7 +239,7 @@ TEST(PureJSStackTrace) {
                                 sample.stack[base + 1]));
 }
 
-static void CFuncDoTrace(byte dummy_param) {
+static void CFuncDoTrace(uint8_t dummy_param) {
   Address fp;
 #if V8_HAS_BUILTIN_FRAME_ADDRESS
   fp = reinterpret_cast<Address>(__builtin_frame_address(0));
@@ -250,7 +252,6 @@ static void CFuncDoTrace(byte dummy_param) {
 #endif
   i::TraceExtension::DoTrace(fp);
 }
-
 
 static int CFunc(int depth) {
   if (depth <= 0) {

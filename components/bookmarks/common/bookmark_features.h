@@ -10,7 +10,8 @@
 
 namespace bookmarks {
 
-BASE_DECLARE_FEATURE(kEnableBookmarksAccountStorage);
+BASE_DECLARE_FEATURE(kRollbackBookmarksAccountStorage);
+BASE_DECLARE_FEATURE(kAllBookmarksBaselineFolderVisibility);
 
 }  // namespace bookmarks
 

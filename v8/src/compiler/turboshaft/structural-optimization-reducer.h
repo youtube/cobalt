@@ -80,15 +80,13 @@ namespace v8::internal::compiler::turboshaft {
 template <class Next>
 class StructuralOptimizationReducer : public Next {
  public:
-  using Next::Asm;
-  template <class... Args>
-  explicit StructuralOptimizationReducer(const std::tuple<Args...>& args)
-      : Next(args) {}
+  TURBOSHAFT_REDUCER_BOILERPLATE()
 
   OpIndex ReduceInputGraphBranch(OpIndex input_index, const BranchOp& branch) {
     LABEL_BLOCK(no_change) {
       return Next::ReduceInputGraphBranch(input_index, branch);
     }
+    if (ShouldSkipOptimizationStep()) goto no_change;
 
     TRACE("[structural] Calling ReduceInputGraphBranch for index: %u\n",
           static_cast<unsigned int>(input_index.id()));
@@ -98,10 +96,17 @@ class StructuralOptimizationReducer : public Next {
 
     Block* current_if_false;
     const BranchOp* current_branch = &branch;
-    BranchHint default_hint = BranchHint::kNone;
+    BranchHint next_hint = BranchHint::kNone;
 
     OpIndex switch_var = OpIndex::Invalid();
     while (true) {
+      // The "false" destination will be inlined before the switch is emitted,
+      // so it should only contain pure operations.
+      if (!ContainsOnlyPureOps(current_branch->if_false, Asm().input_graph())) {
+        TRACE("\t [break] End of only-pure-ops cascade reached.\n");
+        break;
+      }
+
       // If we encounter a condition that is not equality, we can't turn it
       // into a switch case.
       const EqualOp* equal = Asm()
@@ -118,17 +123,11 @@ class StructuralOptimizationReducer : public Next {
       // MachineOptimizationReducer should normalize equality to put constants
       // right.
       const Operation& right_op = Asm().input_graph().Get(equal->right());
-      if (!right_op.Is<ConstantOp>()) {
-        TRACE("\t [bailout] No constant on the right side of Equal.\n");
+      if (!right_op.Is<Opmask::kWord32Constant>()) {
+        TRACE("\t [bailout] No Word32 constant on the right side of Equal.\n");
         break;
       }
-
-      // We can only turn Word32 constant equals to switch cases.
       const ConstantOp& const_op = right_op.Cast<ConstantOp>();
-      if (const_op.kind != ConstantOp::Kind::kWord32) {
-        TRACE("\t [bailout] Constant is not of type Word32.\n");
-        break;
-      }
 
       // If we encounter equal to a different value, we can't introduce
       // a switch.
@@ -144,10 +143,46 @@ class StructuralOptimizationReducer : public Next {
       current_if_false = current_branch->if_false;
       DCHECK(current_if_true && current_if_false);
 
+      // We can't just use `current_branch->hint` for every case. Consider:
+      //
+      //     if (a) { }
+      //     else if (b) { }
+      //     else if (likely(c)) { }
+      //     else if (d) { }
+      //     else { }
+      //
+      // The fact that `c` is Likely doesn't tell anything about the likelyness
+      // of `a` and `b` compared to `c`, which means that `c` shouldn't have the
+      // Likely hint in the switch. However, since `c` is likely here, it means
+      // that `d` and "default" are both unlikely, even in the switch.
+      //
+      // So, for the 1st case, we use `current_branch->hint`.
+      // Then, when we encounter a Likely hint, we mark all of the subsequent
+      // cases are Unlikely, but don't mark the current one as Likely. This is
+      // done with the `next_hint` variable, which is initially kNone, but
+      // because kFalse when we encounter a Likely branch.
+      // We never set `next_hint` as kTrue as it would only apply to subsequent
+      // cases and not to already-emitted cases. The only case that could thus
+      // have a kTrue annotation is the 1st one.
+      DCHECK_NE(next_hint, BranchHint::kTrue);
+      BranchHint hint = next_hint;
+      if (cases.size() == 0) {
+        // The 1st case gets its original hint.
+        hint = current_branch->hint;
+      } else if (current_branch->hint == BranchHint::kFalse) {
+        // For other cases, if the branch has a kFalse hint, we do use it,
+        // regardless of `next_hint`.
+        hint = BranchHint::kNone;
+      }
+      if (current_branch->hint == BranchHint::kTrue) {
+        // This branch is likely true, which means that all subsequent cases are
+        // unlikely.
+        next_hint = BranchHint::kFalse;
+      }
+
       // The current_if_true block becomes the corresponding switch case block.
       uint32_t value = const_op.word32();
-      cases.emplace_back(value, current_if_true->MapToNextGraph(),
-                         current_branch->hint);
+      cases.emplace_back(value, Asm().MapToNewGraph(current_if_true), hint);
 
       // All pure ops from the if_false block should be executed before
       // the switch, except the last Branch operation (which we drop).
@@ -162,17 +197,8 @@ class StructuralOptimizationReducer : public Next {
         break;
       }
 
-      default_hint = current_branch->hint;
-
       // Iterate to the next if_false block in the cascade.
       current_branch = &maybe_branch.template Cast<BranchOp>();
-
-      // As long as the else blocks contain only pure ops, we can keep
-      // traversing the if-else cascade.
-      if (!ContainsOnlyPureOps(current_branch->if_false, Asm().input_graph())) {
-        TRACE("\t [break] End of only-pure-ops cascade reached.\n");
-        break;
-      }
     }
 
     // Probably better to keep short if-else cascades as they are.
@@ -188,7 +214,7 @@ class StructuralOptimizationReducer : public Next {
       InlineAllOperationsWithoutLast(block);
     }
 
-    TRACE("[reduce] Successfully emit a Switch with %z cases.", cases.size());
+    TRACE("[reduce] Successfully emit a Switch with %zu cases.", cases.size());
 
     // The last current_if_true block that ends the cascade becomes the default
     // case.
@@ -196,17 +222,16 @@ class StructuralOptimizationReducer : public Next {
     Asm().Switch(
         Asm().MapToNewGraph(switch_var),
         Asm().output_graph().graph_zone()->CloneVector(base::VectorOf(cases)),
-        default_block->MapToNextGraph(), default_hint);
+        Asm().MapToNewGraph(default_block), next_hint);
     return OpIndex::Invalid();
   }
 
  private:
   static bool ContainsOnlyPureOps(const Block* block, const Graph& graph) {
     for (const auto& op : base::IterateWithoutLast(graph.operations(*block))) {
-      OpProperties props = op.Properties();
-      // It's fine to allow allocations and reads. Writes and
-      // aborting should be disallowed though.
-      if (props.observable_when_unused) {
+      // We are moving the block content to before the switch, effectively
+      // moving it before the previously existing branches.
+      if (!op.Effects().hoistable_before_a_branch()) {
         return false;
       }
     }

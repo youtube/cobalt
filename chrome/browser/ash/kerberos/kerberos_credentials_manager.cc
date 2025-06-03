@@ -6,6 +6,7 @@
 
 #include <vector>
 
+#include "ash/webui/settings/public/constants/routes.mojom.h"
 #include "base/containers/flat_map.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
@@ -22,7 +23,6 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/browser/ui/settings_window_manager_chromeos.h"
-#include "chrome/browser/ui/webui/settings/chromeos/constants/routes.mojom.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chromeos/ash/components/dbus/kerberos/kerberos_client.h"
@@ -42,7 +42,7 @@ namespace {
 // Account keys for the kerberos.accounts pref.
 constexpr char kPrincipal[] = "principal";
 constexpr char kPassword[] = "password";
-constexpr char kRememberPassword[] = "remember_password";
+constexpr char kRememberPasswordFromPolicy[] = "remember_password_from_policy";
 constexpr char kKrb5Conf[] = "krb5conf";
 
 // Principal placeholders for the KerberosAccounts policy.
@@ -110,9 +110,12 @@ bool Succeeded(kerberos::ErrorType error) {
 
 bool ShouldRetry(kerberos::ErrorType error) {
   // The error types that should trigger a managed accounts addition retry.
+  // ERROR_UNKNOWN_KRB5_ERROR will cover unknown temporary issues preventing the
+  // device from adding a ticket, such as "resource temporarily unavailable".
   return error == kerberos::ERROR_NETWORK_PROBLEM ||
          error == kerberos::ERROR_CONTACTING_KDC_FAILED ||
-         error == kerberos::ERROR_IN_PROGRESS;
+         error == kerberos::ERROR_IN_PROGRESS ||
+         error == kerberos::ERROR_UNKNOWN_KRB5_ERROR;
 }
 
 }  // namespace
@@ -847,6 +850,7 @@ void KerberosCredentialsManager::UpdateAccountsFromPref(bool is_retry) {
   std::vector<std::string> managed_accounts_added;
   for (const auto& account : accounts) {
     const base::Value::Dict& account_dict = account.GetDict();
+
     // Get the principal. Should always be set.
     const std::string* principal_string = account_dict.FindString(kPrincipal);
     DCHECK(principal_string);
@@ -860,19 +864,21 @@ void KerberosCredentialsManager::UpdateAccountsFromPref(bool is_retry) {
       continue;
     }
 
-    // Get the password, default to not set.
+    // Get the password, defaults to not set.
     const std::string* password_str = account_dict.FindString(kPassword);
     absl::optional<std::string> password;
-    if (password_str)
+    if (password_str) {
       password = std::move(*password_str);
+    }
 
     // Keep track of whether any account has the '${PASSWORD}' placeholder.
-    if (password == kLoginPasswordPlaceholder)
+    if (password == kLoginPasswordPlaceholder) {
       requires_login_password = true;
+    }
 
-    // Get the remember password flag, default to false.
+    // Get the "remember password from policy" flag, defaults to true.
     bool remember_password =
-        account.GetDict().FindBool(kRememberPassword).value_or(false);
+        account.GetDict().FindBool(kRememberPasswordFromPolicy).value_or(true);
 
     // Get Kerberos configuration if given. Otherwise, use default to make sure
     // it overwrites an existing unmanaged account.

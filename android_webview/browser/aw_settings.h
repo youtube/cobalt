@@ -20,6 +20,7 @@ namespace android_webview {
 class AwContentsOriginMatcher;
 class AwRenderViewHostExt;
 
+// Lifetime: WebView
 class AwSettings : public content::WebContentsObserver {
  public:
   // GENERATED_JAVA_ENUM_PACKAGE: org.chromium.android_webview.settings
@@ -49,6 +50,17 @@ class AwSettings : public content::WebContentsObserver {
     COUNT,
   };
 
+  // These values are persisted to logs. Entries should not be renumbered and
+  // numeric values should never be reused.
+  // GENERATED_JAVA_ENUM_PACKAGE: org.chromium.android_webview.settings
+  enum AttributionBehavior {
+    DISABLED = 0,
+    APP_SOURCE_AND_WEB_TRIGGER = 1,
+    WEB_SOURCE_AND_WEB_TRIGGER = 2,
+    APP_SOURCE_AND_APP_TRIGGER = 3,
+    kMaxValue = APP_SOURCE_AND_APP_TRIGGER,
+  };
+
   static AwSettings* FromWebContents(content::WebContents* web_contents);
   static bool GetAllowSniffingFileUrls();
 
@@ -63,6 +75,7 @@ class AwSettings : public content::WebContentsObserver {
   bool GetJavaScriptCanOpenWindowsAutomatically();
   bool GetAllowThirdPartyCookies();
   MixedContentMode GetMixedContentMode();
+  AttributionBehavior GetAttributionBehavior();
 
   // Called from Java. Methods with "Locked" suffix require that the settings
   // access lock is held during their execution.
@@ -108,6 +121,9 @@ class AwSettings : public content::WebContentsObserver {
   void UpdateMixedContentModeLocked(
       JNIEnv* env,
       const base::android::JavaParamRef<jobject>& obj);
+  void UpdateAttributionBehaviorLocked(
+      JNIEnv* env,
+      const base::android::JavaParamRef<jobject>& obj);
 
   void PopulateWebPreferences(blink::web_pref::WebPreferences* web_prefs);
   bool GetAllowFileAccess();
@@ -125,15 +141,6 @@ class AwSettings : public content::WebContentsObserver {
       const base::android::JavaParamRef<jobject>& obj);
   inline bool enterprise_authentication_app_link_policy_enabled() {
     return enterprise_authentication_app_link_policy_enabled_;
-  }
-
-  void SetRestrictSensitiveWebContentEnabled(
-      JNIEnv* env,
-      const base::android::JavaParamRef<jobject>& obj,
-      jboolean enabled);
-  bool GetRestrictSensitiveWebContentEnabled();
-  inline bool restrict_sensitive_web_content_enabled() {
-    return restrict_sensitive_web_content_enabled_;
   }
 
   base::android::ScopedJavaLocalRef<jobjectArray>
@@ -159,8 +166,8 @@ class AwSettings : public content::WebContentsObserver {
   // TODO(b/222053757,ayushsha): Change this policy to be by
   // default false from next Android version(Maybe Android U).
   bool enterprise_authentication_app_link_policy_enabled_{true};
-  bool restrict_sensitive_web_content_enabled_{false};
   MixedContentMode mixed_content_mode_;
+  AttributionBehavior attribution_behavior_;
 
   scoped_refptr<AwContentsOriginMatcher> xrw_allowlist_matcher_;
 

@@ -75,6 +75,22 @@ en_CA{
                         "twelfth month",
                     }
                 }
+                stand-alone{
+                    wide{
+                        "first month",
+                        "second month",
+                        "third month",
+                        "fourth month",
+                        "fifth month",
+                        "sixth month",
+                        "seventh month",
+                        "eighth month",
+                        "ninth month",
+                        "tenth month",
+                        "eleventh month",
+                        "twelfth month",
+                    }
+                }
             }
         }
         generic{
@@ -237,8 +253,13 @@ en_CA{
             }
             availableFormats{
                 Ed{"E d"}
-                MMdd{"MM/dd"}
-		yMd{"y-MM-dd"}
+                GyMd{"y-MM-dd G"}
+                MEd{"E, MM-dd"}
+                MMdd{"MM-dd"}
+                Md{"MM-dd"}
+                yM{"y-MM"}
+                yMEd{"E, y-MM-dd"}
+                yMd{"y-MM-dd"}
             }
             dayPeriod{
                 format{

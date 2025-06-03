@@ -3,11 +3,9 @@
 // found in the LICENSE file.
 
 #include "ash/root_window_controller.h"
-#include "base/memory/raw_ptr.h"
 
 #include <algorithm>
 #include <memory>
-#include <queue>
 #include <vector>
 
 #include "ash/accessibility/chromevox/touch_exploration_controller.h"
@@ -26,16 +24,15 @@
 #include "ash/keyboard/keyboard_controller_impl.h"
 #include "ash/keyboard/ui/keyboard_layout_manager.h"
 #include "ash/keyboard/ui/keyboard_ui_controller.h"
-#include "ash/keyboard/ui/keyboard_util.h"
 #include "ash/keyboard/virtual_keyboard_container_layout_manager.h"
 #include "ash/lock_screen_action/lock_screen_action_background_controller.h"
 #include "ash/login_status.h"
 #include "ash/public/cpp/app_menu_constants.h"
-#include "ash/public/cpp/shelf_types.h"
 #include "ash/public/cpp/shell_window_ids.h"
 #include "ash/public/cpp/window_properties.h"
 #include "ash/resources/vector_icons/vector_icons.h"
 #include "ash/root_window_settings.h"
+#include "ash/rotator/screen_rotation_animator.h"
 #include "ash/scoped_animation_disabler.h"
 #include "ash/screen_util.h"
 #include "ash/session/session_controller_impl.h"
@@ -53,7 +50,7 @@
 #include "ash/touch/touch_hud_debug.h"
 #include "ash/touch/touch_hud_projection.h"
 #include "ash/touch/touch_observer_hud.h"
-#include "ash/wallpaper/wallpaper_widget_controller.h"
+#include "ash/wallpaper/views/wallpaper_widget_controller.h"
 #include "ash/wm/always_on_top_controller.h"
 #include "ash/wm/container_finder.h"
 #include "ash/wm/desks/desks_controller.h"
@@ -68,20 +65,23 @@
 #include "ash/wm/overview/overview_session.h"
 #include "ash/wm/root_window_layout_manager.h"
 #include "ash/wm/splitview/split_view_controller.h"
+#include "ash/wm/splitview/split_view_overview_session.h"
 #include "ash/wm/splitview/split_view_utils.h"
-#include "ash/wm/stacking_controller.h"
 #include "ash/wm/switchable_windows.h"
 #include "ash/wm/system_modal_container_layout_manager.h"
 #include "ash/wm/system_wallpaper_controller.h"
 #include "ash/wm/tablet_mode/tablet_mode_controller.h"
+#include "ash/wm/window_parenting_controller.h"
 #include "ash/wm/window_properties.h"
 #include "ash/wm/window_state.h"
 #include "ash/wm/window_util.h"
+#include "ash/wm/wm_metrics.h"
 #include "ash/wm/work_area_insets.h"
 #include "ash/wm/workspace/workspace_layout_manager.h"
 #include "ash/wm/workspace_controller.h"
 #include "base/command_line.h"
 #include "base/functional/bind.h"
+#include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/ranges/algorithm.h"
 #include "base/task/single_thread_task_runner.h"
@@ -101,10 +101,7 @@
 #include "ui/compositor/layer.h"
 #include "ui/display/types/display_constants.h"
 #include "ui/events/event_utils.h"
-#include "ui/views/controls/menu/menu_model_adapter.h"
 #include "ui/views/controls/menu/menu_runner.h"
-#include "ui/views/view_model.h"
-#include "ui/views/view_model_utils.h"
 #include "ui/views/widget/widget.h"
 #include "ui/wm/core/capture_controller.h"
 #include "ui/wm/core/coordinate_conversion.h"
@@ -205,7 +202,7 @@ void ReparentWindow(aura::Window* window, aura::Window* new_parent) {
   const bool has_restore_bounds = state && state->HasRestoreBounds();
 
   const bool update_bounds =
-      state && (state->IsNormalOrSnapped() || state->IsMinimized());
+      state && (state->IsNormalStateType() || state->IsMinimized());
   gfx::Rect work_area_in_new_parent =
       screen_util::GetDisplayWorkAreaBoundsInParent(new_parent);
 
@@ -224,7 +221,7 @@ void ReparentWindow(aura::Window* window, aura::Window* new_parent) {
 
   new_parent->AddChild(window);
 
-  // Docked windows have bounds handled by the layout manager in AddChild().
+  // Snapped windows have bounds handled by the layout manager in AddChild().
   if (update_bounds) {
     window->SetBounds(local_bounds);
   }
@@ -610,10 +607,12 @@ bool RootWindowController::CanWindowReceiveEvents(aura::Window* window) {
   window_util::GetBlockingContainersForRoot(
       GetRootWindow(), &blocking_container, &modal_container);
   SystemModalContainerLayoutManager* modal_layout_manager = nullptr;
-  modal_layout_manager = static_cast<SystemModalContainerLayoutManager*>(
-      modal_container->layout_manager());
+  if (modal_container && modal_container->layout_manager()) {
+    modal_layout_manager = static_cast<SystemModalContainerLayoutManager*>(
+        modal_container->layout_manager());
+  }
 
-  if (modal_layout_manager->has_window_dimmer()) {
+  if (modal_layout_manager && modal_layout_manager->has_window_dimmer()) {
     blocking_container = modal_container;
   } else {
     modal_container = nullptr;  // Don't check modal dialogs.
@@ -670,16 +669,36 @@ const aura::Window* RootWindowController::GetContainer(int container_id) const {
   return window_tree_host_->window()->GetChildById(container_id);
 }
 
+ScreenRotationAnimator* RootWindowController::GetScreenRotationAnimator() {
+  if (is_shutting_down_) {
+    return nullptr;
+  }
+
+  if (!screen_rotation_animator_) {
+    screen_rotation_animator_ =
+        std::make_unique<ScreenRotationAnimator>(GetRootWindow());
+  }
+
+  return screen_rotation_animator_.get();
+}
+
 void RootWindowController::Shutdown() {
-  auto targeter = GetRootWindow()->SetEventTargeter(
+  is_shutting_down_ = true;
+
+  // Destroy the `screen_rotation_animator_` now to avoid any potential crashes
+  // if there's any ongoing animation. See http://b/293667233.
+  screen_rotation_animator_.reset();
+
+  aura::Window* root_window = GetRootWindow();
+  auto targeter = root_window->SetEventTargeter(
       std::make_unique<aura::NullWindowTargeter>());
 
   touch_exploration_manager_.reset();
   wallpaper_widget_controller_.reset();
+  EndSplitViewOverviewSession(SplitViewOverviewSessionExitPoint::kShutdown);
   CloseAmbientWidget(/*immediately=*/true);
 
   CloseChildWindows();
-  aura::Window* root_window = GetRootWindow();
   GetRootWindowSettings(root_window)->controller = nullptr;
   // Forget with the display ID so that display lookup
   // ends up with invalid display.
@@ -687,7 +706,7 @@ void RootWindowController::Shutdown() {
   if (ash_host_) {
     ash_host_->PrepareForShutdown();
   }
-
+  window_parenting_controller_.reset();
   system_wallpaper_.reset();
   security_curtain_widget_controller_.reset();
   lock_screen_action_background_controller_.reset();
@@ -835,7 +854,8 @@ void RootWindowController::ShowContextMenu(const gfx::Point& location_in_screen,
       Shell::Get()->tablet_mode_controller()->InTabletMode();
   root_window_menu_model_adapter_ =
       std::make_unique<RootWindowMenuModelAdapter>(
-          std::make_unique<ShelfContextMenuModel>(nullptr, display_id),
+          std::make_unique<ShelfContextMenuModel>(nullptr, display_id,
+                                                  /*menu_in_shelf=*/false),
           wallpaper_widget_controller()->GetWidget(), source_type,
           base::BindOnce(&RootWindowController::OnMenuClosed,
                          base::Unretained(this)),
@@ -932,7 +952,7 @@ void RootWindowController::CreateAmbientWidget() {
   DCHECK(!ambient_widget_);
 
   auto* ambient_controller = Shell::Get()->ambient_controller();
-  if (ambient_controller && ambient_controller->IsShown()) {
+  if (ambient_controller) {
     ambient_widget_ = ambient_controller->CreateWidget(
         GetRootWindow()->GetChildById(kShellWindowId_AmbientModeContainer));
   }
@@ -974,6 +994,30 @@ RootWindowController::security_curtain_widget_controller() {
   return security_curtain_widget_controller_.get();
 }
 
+void RootWindowController::StartSplitViewOverviewSession(
+    aura::Window* window,
+    absl::optional<OverviewStartAction> action,
+    absl::optional<OverviewEnterExitType> type,
+    WindowSnapActionSource snap_action_source) {
+  split_view_overview_session_ =
+      std::make_unique<SplitViewOverviewSession>(window, snap_action_source);
+  split_view_overview_session_->Init(action, type);
+}
+
+void RootWindowController::EndSplitViewOverviewSession(
+    SplitViewOverviewSessionExitPoint exit_point) {
+  if (!is_shutting_down_ && split_view_overview_session_) {
+    split_view_overview_session_
+        ->RecordSplitViewOverviewSessionExitPointMetrics(exit_point);
+  }
+  split_view_overview_session_.reset();
+}
+
+void RootWindowController::SetScreenRotationAnimatorForTest(
+    std::unique_ptr<ScreenRotationAnimator> animator) {
+  screen_rotation_animator_ = std::move(animator);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // RootWindowController, private:
 
@@ -995,9 +1039,8 @@ RootWindowController::RootWindowController(AshWindowTreeHost* ash_host)
   aura::Window* root_window = GetRootWindow();
   GetRootWindowSettings(root_window)->controller = this;
 
-  stacking_controller_ = std::make_unique<StackingController>();
-  aura::client::SetWindowParentingClient(root_window,
-                                         stacking_controller_.get());
+  window_parenting_controller_ =
+      std::make_unique<WindowParentingController>(root_window);
   capture_client_ = std::make_unique<::wm::ScopedCaptureClient>(root_window);
 }
 
@@ -1043,7 +1086,7 @@ void RootWindowController::Init(RootWindowType root_window_type) {
   // Explicitly update the desks controller before notifying the ShellObservers.
   // This is to make sure the desks' states are correct before clients are
   // updated.
-  Shell::Get()->desks_controller()->OnRootWindowAdded(root_window);
+  shell->desks_controller()->OnRootWindowAdded(root_window);
 
   if (root_window_type == RootWindowType::PRIMARY) {
     shell->keyboard_controller()->RebuildKeyboardIfEnabled();
@@ -1162,15 +1205,6 @@ void RootWindowController::CreateContainers() {
   ::wm::SetChildWindowVisibilityChangesAnimated(wallpaper_container);
   wallpaper_container->SetLayoutManager(
       std::make_unique<FillLayoutManager>(wallpaper_container));
-
-  if (features::AreGlanceablesEnabled()) {
-    aura::Window* glanceables_container =
-        CreateContainer(kShellWindowId_GlanceablesContainer,
-                        "GlanceablesContainer", magnified_container);
-    glanceables_container->SetProperty(::wm::kUsesScreenCoordinatesKey, true);
-    glanceables_container->SetLayoutManager(
-        std::make_unique<FillLayoutManager>(glanceables_container));
-  }
 
   aura::Window* non_lock_screen_containers =
       CreateContainer(kShellWindowId_NonLockScreenContainersContainer,
@@ -1301,6 +1335,12 @@ void RootWindowController::CreateContainers() {
   settings_bubble_container->SetProperty(::wm::kUsesScreenCoordinatesKey, true);
   settings_bubble_container->SetProperty(kLockedToRootKey, true);
 
+  aura::Window* help_bubble_container =
+      CreateContainer(kShellWindowId_HelpBubbleContainer, "HelpBubbleContainer",
+                      lock_screen_related_containers);
+  ::wm::SetChildWindowVisibilityChangesAnimated(help_bubble_container);
+  help_bubble_container->SetProperty(::wm::kUsesScreenCoordinatesKey, true);
+
   aura::Window* virtual_keyboard_parent_container = CreateContainer(
       kShellWindowId_ImeWindowParentContainer, "ImeWindowParentContainer",
       lock_screen_related_containers);
@@ -1374,6 +1414,16 @@ void RootWindowController::CreateContainers() {
 
   CreateContainer(kShellWindowId_PowerButtonAnimationContainer,
                   "PowerButtonAnimationContainer", magnified_container);
+
+  // Make sure booting animation container is always on top of all other
+  // siblings under the `magnified_container`.
+  if (ash::features::IsOobeSimonEnabled()) {
+    aura::Window* booting_animation_container =
+        CreateContainer(kShellWindowId_BootingAnimationContainer,
+                        "BootingAnimationContainer", magnified_container);
+    booting_animation_container->SetLayoutManager(
+        std::make_unique<FillLayoutManager>(booting_animation_container));
+  }
 }
 
 aura::Window* RootWindowController::CreateContainer(int window_id,

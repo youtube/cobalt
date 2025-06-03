@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <memory>
 #include <utility>
 
 #include "base/functional/callback_forward.h"
 #include "base/i18n/base_i18n_switches.h"
+#include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/bind.h"
-#include "build/build_config.h"
-#include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
@@ -17,20 +17,21 @@
 #include "chrome/browser/ui/side_search/side_search_config.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/side_panel/side_panel.h"
+#include "chrome/browser/ui/views/side_panel/side_panel_coordinator.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_entry.h"
-#include "chrome/browser/ui/views/toolbar/browser_app_menu_button.h"
+#include "chrome/browser/ui/views/side_panel/side_panel_util.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
 #include "chrome/browser/ui/views/user_education/browser_feature_promo_controller.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/interaction/interaction_test_util_browser.h"
 #include "chrome/test/interaction/interactive_browser_test.h"
-#include "chrome/test/interaction/widget_focus_waiter.h"
+#include "components/user_education/common/events.h"
 #include "components/user_education/common/help_bubble.h"
 #include "components/user_education/common/help_bubble_factory_registry.h"
 #include "components/user_education/common/help_bubble_params.h"
 #include "components/user_education/views/help_bubble_view.h"
-#include "components/user_education/webui/floating_webui_help_bubble_factory.h"
-#include "components/user_education/webui/help_bubble_webui.h"
+#include "components/user_education/webui/help_bubble_handler.h"
+#include "components/user_education/webui/tracked_element_webui.h"
 #include "content/public/test/browser_test.h"
 #include "ui/base/interaction/element_identifier.h"
 #include "ui/base/interaction/element_tracker.h"
@@ -41,6 +42,7 @@ namespace {
 constexpr char16_t kBubbleBodyText[] = u"Bubble body text.";
 constexpr char16_t kBubbleButtonText[] = u"Button";
 constexpr char16_t kCloseButtonAltText[] = u"Close";
+DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kReadLaterWebContentsElementId);
 }  // namespace
 
 class HelpBubbleFactoryWebUIInteractiveUiTest : public InteractiveBrowserTest {
@@ -48,8 +50,31 @@ class HelpBubbleFactoryWebUIInteractiveUiTest : public InteractiveBrowserTest {
   HelpBubbleFactoryWebUIInteractiveUiTest() = default;
   ~HelpBubbleFactoryWebUIInteractiveUiTest() override = default;
 
+  // Opens the side panel and instruments the Read Later WebContents as
+  // kReadLaterWebContentsElementId.
+  auto OpenReadingListSidePanel() {
+    return Steps(
+        // Remove delays in switching side panels to prevent possible race
+        // conditions when selecting items from the side panel dropdown.
+        Do([this]() {
+          SidePanelUtil::GetSidePanelCoordinatorForBrowser(browser())
+              ->SetNoDelaysForTesting(true);
+        }),
+        // Click the Side Panel button and wait for the side panel to appear.
+        PressButton(kToolbarSidePanelButtonElementId),
+        WaitForShow(kSidePanelElementId), FlushEvents(),
+        // Select the Reading List side panel and wait for the WebView to
+        // appear.
+        SelectDropdownItem(kSidePanelComboboxElementId,
+                           static_cast<int>(SidePanelEntry::Id::kReadingList)),
+        WaitForShow(kReadLaterSidePanelWebViewElementId),
+        // Ensure that the Reading List side panel loads properly.
+        InstrumentNonTabWebView(kReadLaterWebContentsElementId,
+                                kReadLaterSidePanelWebViewElementId));
+  }
+
   auto ShowHelpBubble(ElementSpecifier element) {
-    return InAnyContext(
+    return InAnyContext(std::move(
         AfterShow(
             element,
             base::BindLambdaForTesting(
@@ -61,11 +86,27 @@ class HelpBubbleFactoryWebUIInteractiveUiTest : public InteractiveBrowserTest {
                     seq->FailForTesting();
                   }
                 }))
-            .SetDescription("ShowHelpBubble"));
+            .SetDescription("ShowHelpBubble")));
   }
 
   auto CloseHelpBubble() {
     return Do(base::BindLambdaForTesting([this]() { help_bubble_->Close(); }));
+  }
+
+  auto CheckHandlerHasHelpBubble(ElementSpecifier anchor,
+                                 bool has_help_bubble) {
+    return InAnyContext(
+        std::move(CheckElement(
+                      anchor,
+                      [](ui::TrackedElement* el) {
+                        return el->AsA<user_education::TrackedElementWebUI>()
+                            ->handler()
+                            ->IsHelpBubbleShowingForTesting(el->identifier());
+                      },
+                      has_help_bubble)
+                      .SetDescription(base::StringPrintf(
+                          "CheckHandlerHasHelpBubble(%s)",
+                          has_help_bubble ? "true" : "false"))));
   }
 
  protected:
@@ -93,23 +134,20 @@ class HelpBubbleFactoryWebUIInteractiveUiTest : public InteractiveBrowserTest {
 
 IN_PROC_BROWSER_TEST_F(HelpBubbleFactoryWebUIInteractiveUiTest,
                        ShowFloatingHelpBubble) {
-  DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kReadLaterElementId);
   const DeepQuery kPathToAddCurrentTabElement{"reading-list-app",
                                               "#currentPageActionButton"};
   RunTestSequence(
-      // Click on the toolbar button to show the side panel.
-      PressButton(kSidePanelButtonElementId), WaitForShow(kSidePanelElementId),
-      FlushEvents(),
-      SelectDropdownItem(kSidePanelComboboxElementId,
-                         static_cast<int>(SidePanelEntry::Id::kReadingList)),
+      OpenReadingListSidePanel(),
       ShowHelpBubble(kAddCurrentTabToReadingListElementId),
 
+      // Verify that the handler does not believe a WebUI help bubble is
+      // present.
+      CheckHandlerHasHelpBubble(kAddCurrentTabToReadingListElementId, false),
+
       // Verify that the anchor element is marked.
-      InstrumentNonTabWebView(kReadLaterElementId,
-                              kReadLaterSidePanelWebViewElementId),
-      CheckJsResultAt(kReadLaterElementId, kPathToAddCurrentTabElement,
-                      "el => el.classList.contains('help-anchor-highlight')",
-                      true),
+      CheckJsResultAt(
+          kReadLaterWebContentsElementId, kPathToAddCurrentTabElement,
+          "el => el.classList.contains('help-anchor-highlight')", true),
 
       // Expect the help bubble to display with the correct parameters.
       CheckViewProperty(
@@ -132,36 +170,70 @@ IN_PROC_BROWSER_TEST_F(HelpBubbleFactoryWebUIInteractiveUiTest,
                     },
                     browser()->window()->GetElementContext())),
 
-      // Verify that the anchor element is no longer marked.
       CloseHelpBubble(),
-      CheckJsResultAt(kReadLaterElementId, kPathToAddCurrentTabElement,
-                      "el => el.classList.contains('help-anchor-highlight')",
-                      false));
+
+      // Verify that the anchor element is no longer marked.
+      CheckJsResultAt(
+          kReadLaterWebContentsElementId, kPathToAddCurrentTabElement,
+          "el => el.classList.contains('help-anchor-highlight')", false));
 }
 
 IN_PROC_BROWSER_TEST_F(HelpBubbleFactoryWebUIInteractiveUiTest,
-                       ShowEmbeddedHelpBubble) {
+                       ShowEmbeddedHelpBubbleAndCloseViaExternalApi) {
   DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kBrowserTabId);
   static const DeepQuery kPathToHelpBubbleBody = {"user-education-internals",
                                                   "#IPH_WebUiHelpBubbleTest",
                                                   "help-bubble", "#topBody"};
-  RunTestSequence(InstrumentTab(kBrowserTabId),
-                  NavigateWebContents(
-                      kBrowserTabId, GURL("chrome://internals/user-education")),
-                  ShowHelpBubble(kWebUIIPHDemoElementIdentifier),
-                  CheckJsResultAt(kBrowserTabId, kPathToHelpBubbleBody,
-                                  "(el) => el.innerText",
-                                  base::UTF16ToUTF8(kBubbleBodyText)));
+  RunTestSequence(
+      InstrumentTab(kBrowserTabId),
+      NavigateWebContents(kBrowserTabId,
+                          GURL("chrome://internals/user-education")),
+      ShowHelpBubble(kWebUIIPHDemoElementIdentifier),
+
+      // Verify that the handler believes that the anchor has a help bubble.
+      CheckHandlerHasHelpBubble(kWebUIIPHDemoElementIdentifier, true),
+
+      CheckJsResultAt(kBrowserTabId, kPathToHelpBubbleBody,
+                      "el => el.innerText", base::UTF16ToUTF8(kBubbleBodyText)),
+      CloseHelpBubble(),
+
+      // Verify that the handler no longer believes that the anchor has a help
+      // bubble.
+      CheckHandlerHasHelpBubble(kWebUIIPHDemoElementIdentifier, false));
+}
+
+IN_PROC_BROWSER_TEST_F(HelpBubbleFactoryWebUIInteractiveUiTest,
+                       ShowEmbeddedHelpBubbleAndCloseViaClick) {
+  DEFINE_LOCAL_CUSTOM_ELEMENT_EVENT_TYPE(kHelpBubbleHiddenEvent);
+  DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kBrowserTabId);
+  static const DeepQuery kPathToHelpBubbleCloseButton = {
+      "user-education-internals", "#IPH_WebUiHelpBubbleTest", "help-bubble",
+      "#close"};
+  StateChange bubble_hidden;
+  bubble_hidden.type = StateChange::Type::kDoesNotExist;
+  bubble_hidden.where = kPathToHelpBubbleCloseButton;
+  bubble_hidden.event = kHelpBubbleHiddenEvent;
+
+  RunTestSequence(
+      InstrumentTab(kBrowserTabId),
+      NavigateWebContents(kBrowserTabId,
+                          GURL("chrome://internals/user-education")),
+      ShowHelpBubble(kWebUIIPHDemoElementIdentifier),
+
+      ExecuteJsAt(kBrowserTabId, kPathToHelpBubbleCloseButton,
+                  "el => el.click()"),
+      WaitForStateChange(kBrowserTabId, bubble_hidden), FlushEvents(),
+
+      // Verify that the handler no longer believes that the anchor has a help
+      // bubble.
+      CheckHandlerHasHelpBubble(kWebUIIPHDemoElementIdentifier, false));
 }
 
 // Regression test for item (1) in crbug.com/1422875.
 IN_PROC_BROWSER_TEST_F(HelpBubbleFactoryWebUIInteractiveUiTest,
                        FloatingHelpBubbleHiddenOnWebUiHidden) {
   RunTestSequence(
-      PressButton(kSidePanelButtonElementId), WaitForShow(kSidePanelElementId),
-      FlushEvents(),
-      SelectDropdownItem(kSidePanelComboboxElementId,
-                         static_cast<int>(SidePanelEntry::Id::kReadingList)),
+      OpenReadingListSidePanel(),
       ShowHelpBubble(kAddCurrentTabToReadingListElementId),
       WaitForShow(
           user_education::HelpBubbleView::kHelpBubbleElementIdForTesting),
@@ -195,17 +267,13 @@ class HelpBubbleFactoryRtlWebUIInteractiveUiTest
 IN_PROC_BROWSER_TEST_F(HelpBubbleFactoryRtlWebUIInteractiveUiTest,
                        ResizeSidePanelSendsUpdate) {
   RunTestSequence(
-      PressButton(kSidePanelButtonElementId), WaitForShow(kSidePanelElementId),
-      FlushEvents(),
-      SelectDropdownItem(kSidePanelComboboxElementId,
-                         static_cast<int>(SidePanelEntry::Id::kReadingList)),
-      FlushEvents(),
+      OpenReadingListSidePanel(),
       InAnyContext(
           AfterShow(kAddCurrentTabToReadingListElementId,
                     [](ui::InteractionSequence* seq, ui::TrackedElement* el) {
                       seq->NameElement(el, kSidePanelElementName);
                     })),
-      ShowHelpBubble(kAddCurrentTabToReadingListElementId), FlushEvents(),
+      ShowHelpBubble(kSidePanelElementName), FlushEvents(),
       WithView(kSidePanelElementId,
                [](SidePanel* side_panel) {
                  side_panel->OnResize(-50, true);

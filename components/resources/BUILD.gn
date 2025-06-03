@@ -4,6 +4,7 @@
 
 import("//build/config/android/config.gni")
 import("//components/safe_browsing/buildflags.gni")
+import("//components/signin/features.gni")
 import("//components/supervised_user/buildflags.gni")
 import("//printing/buildflags/buildflags.gni")
 import("//tools/grit/grit_rule.gni")
@@ -23,6 +24,8 @@ group("resources") {
     ":components_resources",
     ":components_scaled_resources",
     ":dev_ui_components_resources",
+    "../flags_ui/resources:resources",
+    "../version_ui/resources:resources",
   ]
 }
 
@@ -54,9 +57,9 @@ grit("components_resources") {
 
   deps = [
     ":about_credits",
-    "//components/flags_ui/resources:build_ts",
+    "//components/neterror/resources:bundle_js",
     "//components/security_interstitials/content/resources:build_ts",
-    "//components/version_ui/resources:build_ts",
+    "//components/security_interstitials/core/browser/resources:bundle_js",
   ]
 
   if (!is_ios) {
@@ -101,6 +104,8 @@ grit("components_scaled_resources") {
     "components_resources_300_percent.pak",
   ]
   output_dir = "$root_gen_dir/components"
+
+  defines = [ "enable_search_engine_choice=$enable_search_engine_choice" ]
 }
 
 action("about_credits") {
@@ -110,6 +115,7 @@ action("about_credits") {
   inputs = [
     "../about_ui/resources/about_credits.tmpl",
     "../about_ui/resources/about_credits_entry.tmpl",
+    "../about_ui/resources/about_credits_reciprocal.tmpl",
   ]
 
   outputs = [ about_credits_file ]
@@ -131,6 +137,7 @@ action("about_credits") {
 if (is_android) {
   source_set("android_resources") {
     sources = [
+      "android/autofill_resource_id.h",
       "android/blocked_content_resource_id.h",
       "android/page_info_resource_id.h",
       "android/permissions_resource_id.h",

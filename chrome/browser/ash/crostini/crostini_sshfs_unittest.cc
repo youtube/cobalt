@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "chrome/browser/ash/crostini/crostini_sshfs.h"
+#include "build/build_config.h"
 
 #include <memory>
 
@@ -150,7 +151,8 @@ class CrostiniSshfsHelperTest : public testing::Test {
   }
 
   content::BrowserTaskEnvironment task_environment_;
-  raw_ptr<ash::disks::MockDiskMountManager, ExperimentalAsh> disk_manager_;
+  raw_ptr<ash::disks::MockDiskMountManager, DanglingUntriaged | ExperimentalAsh>
+      disk_manager_;
   std::unique_ptr<TestingProfile> profile_;
   std::unique_ptr<CrostiniTestHelper> crostini_test_helper_;
   const std::string kMountName = "crostini_test_termina_penguin";
@@ -161,7 +163,14 @@ class CrostiniSshfsHelperTest : public testing::Test {
   base::HistogramTester histogram_tester{};
 };
 
-TEST_F(CrostiniSshfsHelperTest, MountDiskMountsDisk) {
+// TODO(https://crbug.com/1491372): UAF and other failures in MSAN, ASAN
+#if BUILDFLAG(IS_LINUX) && \
+    (defined(ADDRESS_SANITIZER) || defined(MEMORY_SANITIZER))
+#define MAYBE_MountDiskMountsDisk DISABLED_MountDiskMountsDisk
+#else
+#define MAYBE_MountDiskMountsDisk MountDiskMountsDisk
+#endif
+TEST_F(CrostiniSshfsHelperTest, MAYBE_MountDiskMountsDisk) {
   SetContainerRunning(DefaultContainerId());
   ExpectMountCalls(1);
   bool result = false;
@@ -199,7 +208,15 @@ TEST_F(CrostiniSshfsHelperTest, FailsIfContainerNotRunning) {
   histogram_tester.ExpectTotalCount(kCrostiniMetricMountTimeTaken, 1);
 }
 
-TEST_F(CrostiniSshfsHelperTest, OnlyDefaultContainerSupported) {
+// TODO(https://crbug.com/1491372): UAF and other failures in MSAN, ASAN
+#if BUILDFLAG(IS_LINUX) && \
+    (defined(ADDRESS_SANITIZER) || defined(MEMORY_SANITIZER))
+#define MAYBE_OnlyDefaultContainerSupported \
+  DISABLED_OnlyDefaultContainerSupported
+#else
+#define MAYBE_OnlyDefaultContainerSupported OnlyDefaultContainerSupported
+#endif
+TEST_F(CrostiniSshfsHelperTest, MAYBE_OnlyDefaultContainerSupported) {
   auto not_default =
       guest_os::GuestId(kCrostiniDefaultVmType, "vm_name", "container_name");
   SetContainerRunning(not_default);
@@ -233,7 +250,16 @@ TEST_F(CrostiniSshfsHelperTest, RecordBackgroundMetricIfBackground) {
   histogram_tester.ExpectTotalCount(kCrostiniMetricMountResultUserVisible, 0);
 }
 
-TEST_F(CrostiniSshfsHelperTest, MultipleCallsAreQueuedAndOnlyMountOnce) {
+// TODO(https://crbug.com/1491372): UAF and other failures in MSAN, ASAN
+#if BUILDFLAG(IS_LINUX) && \
+    (defined(ADDRESS_SANITIZER) || defined(MEMORY_SANITIZER))
+#define MAYBE_MultipleCallsAreQueuedAndOnlyMountOnce \
+  DISABLED_MultipleCallsAreQueuedAndOnlyMountOnce
+#else
+#define MAYBE_MultipleCallsAreQueuedAndOnlyMountOnce \
+  MultipleCallsAreQueuedAndOnlyMountOnce
+#endif
+TEST_F(CrostiniSshfsHelperTest, MAYBE_MultipleCallsAreQueuedAndOnlyMountOnce) {
   SetContainerRunning(DefaultContainerId());
 
   ExpectMountCalls(1);
@@ -262,7 +288,14 @@ TEST_F(CrostiniSshfsHelperTest, MultipleCallsAreQueuedAndOnlyMountOnce) {
   histogram_tester.ExpectTotalCount(kCrostiniMetricMountTimeTaken, 2);
 }
 
-TEST_F(CrostiniSshfsHelperTest, CanRemountAfterUnmount) {
+// TODO(https://crbug.com/1491372): UAF and other failures in MSAN, ASAN
+#if BUILDFLAG(IS_LINUX) && \
+    (defined(ADDRESS_SANITIZER) || defined(MEMORY_SANITIZER))
+#define MAYBE_CanRemountAfterUnmount DISABLED_CanRemountAfterUnmount
+#else
+#define MAYBE_CanRemountAfterUnmount CanRemountAfterUnmount
+#endif
+TEST_F(CrostiniSshfsHelperTest, MAYBE_CanRemountAfterUnmount) {
   SetContainerRunning(DefaultContainerId());
   ExpectMountCalls(2);
   EXPECT_CALL(*disk_manager_, UnmountPath)
@@ -299,7 +332,16 @@ TEST_F(CrostiniSshfsHelperTest, CanRemountAfterUnmount) {
   histogram_tester.ExpectTotalCount(kCrostiniMetricUnmountTimeTaken, 1);
 }
 
-TEST_F(CrostiniSshfsHelperTest, ContainerShutdownClearsMountStatus) {
+// TODO(https://crbug.com/1491372): UAF and other failures in MSAN, ASAN
+#if BUILDFLAG(IS_LINUX) && \
+    (defined(ADDRESS_SANITIZER) || defined(MEMORY_SANITIZER))
+#define MAYBE_ContainerShutdownClearsMountStatus \
+  DISABLED_ContainerShutdownClearsMountStatus
+#else
+#define MAYBE_ContainerShutdownClearsMountStatus \
+  ContainerShutdownClearsMountStatus
+#endif
+TEST_F(CrostiniSshfsHelperTest, MAYBE_ContainerShutdownClearsMountStatus) {
   SetContainerRunning(DefaultContainerId());
   ExpectMountCalls(2);
   crostini_sshfs_->MountCrostiniFiles(

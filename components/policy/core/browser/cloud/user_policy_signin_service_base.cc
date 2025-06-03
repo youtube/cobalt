@@ -17,6 +17,7 @@
 #include "components/policy/core/common/cloud/profile_cloud_policy_manager.h"
 #include "components/policy/core/common/cloud/user_cloud_policy_manager.h"
 #include "components/policy/core/common/policy_logger.h"
+#include "components/policy/core/common/policy_types.h"
 #include "components/prefs/pref_service.h"
 #include "components/signin/public/identity_manager/account_info.h"
 #include "components/signin/public/identity_manager/account_managed_status_finder.h"
@@ -104,7 +105,8 @@ void UserPolicySigninServiceBase::FetchPolicyForSignedInUser(
   }
 
   // Now initiate a policy fetch.
-  manager->core()->service()->RefreshPolicy(std::move(callback));
+  manager->core()->service()->RefreshPolicy(std::move(callback),
+                                            PolicyFetchReason::kSignin);
 }
 
 void UserPolicySigninServiceBase::OnPolicyFetched(CloudPolicyClient* client) {}
@@ -154,6 +156,7 @@ void UserPolicySigninServiceBase::PrepareForCloudPolicyManagerShutdown() {
     manager->core()->client()->RemoveObserver(this);
   if (manager && manager->core()->service())
     manager->core()->service()->RemoveObserver(this);
+  registration_callback_.Cancel();
 }
 
 base::OnceCallbackList<void(bool)>&
@@ -204,7 +207,8 @@ void UserPolicySigninServiceBase::InitializeForSignedInUser(
     DCHECK(account_id.is_valid());
     bool should_load_policies =
         ShouldLoadPolicyForUser(account_id.GetUserEmail());
-    user_policy_manager_->SetPoliciesRequired(should_load_policies);
+    user_policy_manager_->SetPoliciesRequired(should_load_policies,
+                                              PolicyFetchReason::kSignin);
     if (!should_load_policies) {
       DVLOG_POLICY(1, POLICY_FETCHING)
           << "Policy load not enabled for user: " << account_id.GetUserEmail();
@@ -386,11 +390,11 @@ void UserPolicySigninServiceBase::
     // immediately without queueing a task. This is the case for Desktop.
     RegisterCloudPolicyService();
   } else {
-    base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
-        FROM_HERE,
+    registration_callback_.Reset(
         base::BindOnce(&UserPolicySigninServiceBase::RegisterCloudPolicyService,
-                       weak_factory_for_registration_.GetWeakPtr()),
-        try_registration_delay);
+                       weak_factory_for_registration_.GetWeakPtr()));
+    base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
+        FROM_HERE, registration_callback_.callback(), try_registration_delay);
   }
 
   ProhibitSignoutIfNeeded();

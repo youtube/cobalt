@@ -9,7 +9,7 @@
 
 #include "base/command_line.h"
 #include "base/feature_list.h"
-#include "base/memory/singleton.h"
+#include "base/no_destructor.h"
 #include "base/task/deferred_sequenced_task_runner.h"
 #include "base/time/default_clock.h"
 #include "base/values.h"
@@ -23,7 +23,9 @@
 #include "components/reading_list/core/reading_list_model_storage_impl.h"
 #include "components/reading_list/core/reading_list_pref_names.h"
 #include "components/reading_list/features/reading_list_switches.h"
+#include "components/sync/base/features.h"
 #include "components/sync/model/model_type_store_service.h"
+#include "components/sync/model/wipe_model_upon_sync_disabled_behavior.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 
@@ -38,10 +40,11 @@ std::unique_ptr<KeyedService> BuildReadingListModel(
       std::make_unique<ReadingListModelStorageImpl>(std::move(store_factory));
   auto reading_list_model = std::make_unique<ReadingListModelImpl>(
       std::move(storage), syncer::StorageType::kUnspecified,
+      syncer::WipeModelUponSyncDisabledBehavior::kNever,
       base::DefaultClock::GetInstance());
 
   if (!base::FeatureList::IsEnabled(
-          reading_list::switches::kReadingListEnableDualReadingListModel)) {
+          syncer::kReadingListEnableDualReadingListModel)) {
     return reading_list_model;
   }
 
@@ -51,9 +54,10 @@ std::unique_ptr<KeyedService> BuildReadingListModel(
   auto account_storage = std::make_unique<ReadingListModelStorageImpl>(
       std::move(store_factory_for_account_storage));
   auto reading_list_model_for_account_storage =
-      std::make_unique<ReadingListModelImpl>(std::move(account_storage),
-                                             syncer::StorageType::kAccount,
-                                             base::DefaultClock::GetInstance());
+      std::make_unique<ReadingListModelImpl>(
+          std::move(account_storage), syncer::StorageType::kAccount,
+          syncer::WipeModelUponSyncDisabledBehavior::kAlways,
+          base::DefaultClock::GetInstance());
   return std::make_unique<reading_list::DualReadingListModel>(
       /*local_or_syncable_model=*/std::move(reading_list_model),
       /*account_model=*/std::move(reading_list_model_for_account_storage));
@@ -70,7 +74,8 @@ ReadingListModel* ReadingListModelFactory::GetForBrowserContext(
 
 // static
 ReadingListModelFactory* ReadingListModelFactory::GetInstance() {
-  return base::Singleton<ReadingListModelFactory>::get();
+  static base::NoDestructor<ReadingListModelFactory> instance;
+  return instance.get();
 }
 
 // static
@@ -82,15 +87,21 @@ ReadingListModelFactory::GetDefaultFactoryForTesting() {
 ReadingListModelFactory::ReadingListModelFactory()
     : ProfileKeyedServiceFactory(
           "ReadingListModel",
-          ProfileSelections::BuildRedirectedInIncognito()) {
+          ProfileSelections::Builder()
+              .WithRegular(ProfileSelection::kRedirectedToOriginal)
+              // TODO(crbug.com/1418376): Check if this service is needed in
+              // Guest mode.
+              .WithGuest(ProfileSelection::kRedirectedToOriginal)
+              .Build()) {
   DependsOn(ModelTypeStoreServiceFactory::GetInstance());
 }
 
 ReadingListModelFactory::~ReadingListModelFactory() = default;
 
-KeyedService* ReadingListModelFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+ReadingListModelFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
-  return BuildReadingListModel(context).release();
+  return BuildReadingListModel(context);
 }
 
 void ReadingListModelFactory::RegisterProfilePrefs(

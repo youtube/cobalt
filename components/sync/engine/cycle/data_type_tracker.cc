@@ -6,8 +6,6 @@
 
 #include <algorithm>
 #include <memory>
-#include <string>
-#include <utility>
 
 #include "base/check.h"
 #include "base/metrics/histogram_functions.h"
@@ -54,11 +52,12 @@ base::TimeDelta GetDefaultLocalChangeNudgeDelay(ModelType model_type) {
       return kVeryBigLocalChangeNudgeDelay;
     case SESSIONS:
     case HISTORY:
-    case SAVED_TAB_GROUP:
       // Sessions is the type that causes the most commit traffic. It gets a
       // custom nudge delay, tuned for a reasonable trade-off between traffic
       // and freshness.
       return kDefaultLocalChangeNudgeDelayForSessions;
+    case SAVED_TAB_GROUP:
+      return syncer::kTabGroupsSaveCustomNudgeDelay.Get();
     case SEGMENTATION:
       // There are multiple segmentations computed during start-up within
       // seconds. Applies a custom nudge delay, so that they are batched into
@@ -69,18 +68,19 @@ base::TimeDelta GetDefaultLocalChangeNudgeDelay(ModelType model_type) {
       // Types with sometimes automatic changes get longer delays to allow more
       // coalescing.
       return kBigLocalChangeNudgeDelay;
+    case OUTGOING_PASSWORD_SHARING_INVITATION:
     case SHARING_MESSAGE:
       // Sharing messages are time-sensitive, so use a small nudge delay.
       return kMinLocalChangeNudgeDelay;
     case PASSWORDS:
     case AUTOFILL_PROFILE:
+    case AUTOFILL_WALLET_CREDENTIAL:
     case AUTOFILL_WALLET_DATA:
     case AUTOFILL_WALLET_METADATA:
     case AUTOFILL_WALLET_OFFER:
     case AUTOFILL_WALLET_USAGE:
     case CONTACT_INFO:
     case THEMES:
-    case TYPED_URLS:
     case EXTENSIONS:
     case SEARCH_ENGINES:
     case APPS:
@@ -89,6 +89,7 @@ base::TimeDelta GetDefaultLocalChangeNudgeDelay(ModelType model_type) {
     case HISTORY_DELETE_DIRECTIVES:
     case DICTIONARY:
     case DEVICE_INFO:
+    case INCOMING_PASSWORD_SHARING_INVITATION:
     case PRIORITY_PREFERENCES:
     case SUPERVISED_USER_SETTINGS:
     case APP_LIST:
@@ -105,7 +106,6 @@ base::TimeDelta GetDefaultLocalChangeNudgeDelay(ModelType model_type) {
     case OS_PRIORITY_PREFERENCES:
     case WORKSPACE_DESK:
     case NIGORI:
-    case PROXY_TABS:
     case POWER_BOOKMARK:
     case WEBAUTHN_CREDENTIAL:
       return kMediumLocalChangeNudgeDelay;
@@ -136,12 +136,12 @@ bool CanGetCommitsFromExtensions(ModelType model_type) {
     case SESSIONS:
     case PREFERENCES:
     case SHARING_MESSAGE:
+    case AUTOFILL_WALLET_CREDENTIAL:
     case AUTOFILL_WALLET_DATA:
     case AUTOFILL_WALLET_METADATA:
     case AUTOFILL_WALLET_OFFER:
     case AUTOFILL_WALLET_USAGE:
     case THEMES:
-    case TYPED_URLS:
     case EXTENSIONS:
     case SEARCH_ENGINES:
     case APPS:
@@ -167,8 +167,9 @@ bool CanGetCommitsFromExtensions(ModelType model_type) {
     case NIGORI:
     case SAVED_TAB_GROUP:
     case POWER_BOOKMARK:
-    case PROXY_TABS:
     case WEBAUTHN_CREDENTIAL:
+    case INCOMING_PASSWORD_SHARING_INVITATION:
+    case OUTGOING_PASSWORD_SHARING_INVITATION:
       return false;
     case UNSPECIFIED:
       NOTREACHED();
@@ -196,8 +197,7 @@ DataTypeTracker::DataTypeTracker(ModelType type)
   // Sanity check the hardcode value for kMinLocalChangeNudgeDelay.
   DCHECK_GE(local_change_nudge_delay_, kMinLocalChangeNudgeDelay);
 
-  if (CanGetCommitsFromExtensions(type) &&
-      base::FeatureList::IsEnabled(kSyncExtensionTypesThrottling)) {
+  if (CanGetCommitsFromExtensions(type)) {
     quota_ = std::make_unique<CommitQuota>(kInitialTokensForExtensionTypes,
                                            kRefillIntervalForExtensionTypes);
   }

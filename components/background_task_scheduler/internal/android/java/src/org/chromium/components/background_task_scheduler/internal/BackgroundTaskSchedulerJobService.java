@@ -12,8 +12,10 @@ import android.content.Context;
 import android.os.PersistableBundle;
 
 import androidx.annotation.VisibleForTesting;
+import androidx.core.os.BuildCompat;
 
 import org.chromium.base.Log;
+import org.chromium.base.ResettersForTesting;
 import org.chromium.base.ThreadUtils;
 import org.chromium.components.background_task_scheduler.TaskInfo;
 import org.chromium.components.background_task_scheduler.TaskParameters;
@@ -35,9 +37,10 @@ class BackgroundTaskSchedulerJobService implements BackgroundTaskSchedulerDelega
 
     private static Clock sClock = System::currentTimeMillis;
 
-    @VisibleForTesting
     static void setClockForTesting(Clock clock) {
+        var oldValue = sClock;
         sClock = clock;
+        ResettersForTesting.register(() -> sClock = oldValue);
     }
 
     /**
@@ -118,6 +121,10 @@ class BackgroundTaskSchedulerJobService implements BackgroundTaskSchedulerDelega
                         .setRequiredNetworkType(getJobInfoNetworkTypeFromTaskNetworkType(
                                 taskInfo.getRequiredNetworkType()));
 
+        if (BuildCompat.isAtLeastU()) {
+            builder.setUserInitiated(taskInfo.isUserInitiated());
+        }
+
         JobInfoBuilderVisitor jobInfoBuilderVisitor = new JobInfoBuilderVisitor(builder, jobExtras);
         taskInfo.getTimingInfo().accept(jobInfoBuilderVisitor);
         builder = jobInfoBuilderVisitor.getBuilder();
@@ -153,11 +160,14 @@ class BackgroundTaskSchedulerJobService implements BackgroundTaskSchedulerDelega
             if (oneOffInfo.hasWindowStartTimeConstraint()) {
                 mBuilder.setMinimumLatency(oneOffInfo.getWindowStartTimeMs());
             }
-            long windowEndTimeMs = oneOffInfo.getWindowEndTimeMs();
-            if (oneOffInfo.expiresAfterWindowEndTime()) {
-                windowEndTimeMs += DEADLINE_DELTA_MS;
+            if (oneOffInfo.hasWindowEndTimeConstraint()) {
+                long windowEndTimeMs = oneOffInfo.getWindowEndTimeMs();
+                if (oneOffInfo.expiresAfterWindowEndTime()) {
+                    windowEndTimeMs += DEADLINE_DELTA_MS;
+                }
+
+                mBuilder.setOverrideDeadline(windowEndTimeMs);
             }
-            mBuilder.setOverrideDeadline(windowEndTimeMs);
         }
 
         @Override

@@ -222,14 +222,15 @@ GURL WebKioskAppData::GetLaunchableUrl() const {
                                                          : install_url();
 }
 
-void WebKioskAppData::UpdateFromWebAppInfo(const WebAppInstallInfo& app_info) {
+void WebKioskAppData::UpdateFromWebAppInfo(
+    const web_app::WebAppInstallInfo& app_info) {
   UpdateAppInfo(base::UTF16ToUTF8(app_info.title), app_info.start_url,
                 app_info.icon_bitmaps);
 }
 
 void WebKioskAppData::UpdateAppInfo(const std::string& title,
                                     const GURL& start_url,
-                                    const IconBitmaps& icon_bitmaps) {
+                                    const web_app::IconBitmaps& icon_bitmaps) {
   name_ = title;
 
   base::FilePath cache_dir;

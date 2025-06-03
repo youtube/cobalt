@@ -29,11 +29,46 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/loader/loader_constants.h"
+#include "third_party/blink/public/mojom/speculation_rules/speculation_rules.mojom-shared.h"
 
 namespace content {
 namespace {
 
 using ::testing::_;
+
+TEST(IsActivationHeaderMatchTest, OrderInsensitive) {
+  net::HttpRequestHeaders prerender_headers;
+  prerender_headers.AddHeadersFromString(
+      "name1: value1 \r\n name2: value2 \r\n name3:value3");
+  net::HttpRequestHeaders potential_activation_headers;
+  potential_activation_headers.AddHeadersFromString(
+      "name2: value2 \r\n name3:value3  \r\n name1: value1 ");
+  EXPECT_TRUE(PrerenderHost::IsActivationHeaderMatch(
+      potential_activation_headers, prerender_headers));
+}
+
+TEST(IsActivationHeaderMatchTest, KeyCaseInsensitive) {
+  net::HttpRequestHeaders prerender_headers;
+  prerender_headers.AddHeadersFromString(
+      "NAME1: value1 \r\n name2: value2 \r\n name3:value3");
+  net::HttpRequestHeaders potential_activation_headers;
+  potential_activation_headers.AddHeadersFromString(
+      "name1: value1 \r\n name2: value2  \r\n name3: value3 ");
+  EXPECT_TRUE(PrerenderHost::IsActivationHeaderMatch(
+      potential_activation_headers, prerender_headers));
+}
+
+TEST(IsActivationHeaderMatchTest, ValueCaseInsensitive) {
+  net::HttpRequestHeaders prerender_headers;
+  prerender_headers.AddHeadersFromString(
+      "name1: value1 \r\n name2: value2 \r\n name3:value3");
+  net::HttpRequestHeaders potential_activation_headers;
+  potential_activation_headers.AddHeadersFromString(
+      "name1: value1 \r\n name2: VALUE2  \r\n name3: value3 ");
+  EXPECT_TRUE(PrerenderHost::IsActivationHeaderMatch(
+      potential_activation_headers, prerender_headers));
+}
+
 using ExpectedReadyForActivationState =
     base::StrongAlias<class ExpectedReadyForActivationStateType, bool>;
 
@@ -94,11 +129,14 @@ class PrerenderHostTest : public RenderViewHostImplTestHarness {
     RenderFrameHostImpl* rfh = contents()->GetPrimaryMainFrame();
     return PrerenderAttributes(
         url, PrerenderTriggerType::kSpeculationRule,
-        /*embedder_histogram_suffix=*/"", Referrer(),
+        /*embedder_histogram_suffix=*/"",
+        blink::mojom::SpeculationTargetHint::kNoHint, Referrer(),
+        blink::mojom::SpeculationEagerness::kEager,
         rfh->GetLastCommittedOrigin(), rfh->GetProcess()->GetID(),
         contents()->GetWeakPtr(), rfh->GetFrameToken(),
         rfh->GetFrameTreeNodeId(), rfh->GetPageUkmSourceId(),
-        ui::PAGE_TRANSITION_LINK, std::move(url_match_predicate));
+        ui::PAGE_TRANSITION_LINK, std::move(url_match_predicate),
+        /*prerender_navigation_handle_callback=*/absl::nullopt);
   }
 
   void ExpectFinalStatus(PrerenderFinalStatus status) {
@@ -183,8 +221,7 @@ TEST_F(PrerenderHostTest, MainFrameNavigationForReservedHost) {
 
   {
     MockCommitDeferringConditionInstaller installer(
-        kPrerenderingUrl,
-        /*is_ready_to_commit=*/false);
+        kPrerenderingUrl, CommitDeferringCondition::Result::kDefer);
     // Start trying to activate the prerendered page.
     navigation = CreateActivation(kPrerenderingUrl, *contents());
     navigation->Start();
@@ -441,7 +478,8 @@ TEST_F(PrerenderHostTest, CanceledPrerenderCannotBeReadyForActivation) {
       PreloadingData::GetSameURLMatcher(kPrerenderingUrl);
   PreloadingAttempt* preloading_attempt = preloading_data->AddPreloadingAttempt(
       content_preloading_predictor::kSpeculationRules,
-      PreloadingType::kPrerender, std::move(same_url_matcher));
+      PreloadingType::kPrerender, std::move(same_url_matcher),
+      contents()->GetPrimaryMainFrame()->GetPageUkmSourceId());
 
   const int prerender_frame_tree_node_id = registry().CreateAndStartHost(
       GeneratePrerenderAttributes(kPrerenderingUrl), preloading_attempt);
@@ -483,6 +521,15 @@ TEST_F(PrerenderHostTest, CanceledPrerenderCannotBeReadyForActivation) {
   EXPECT_EQ(test::PreloadingAttemptAccessor(preloading_attempt)
                 .GetTriggeringOutcome(),
             PreloadingTriggeringOutcome::kFailure);
+}
+
+TEST(AreHttpRequestHeadersCompatible, IgnoreRTT) {
+  const std::string prerender_headers = "rtt: 1 \r\n downlink: 3";
+  const std::string potential_activation_headers = "rtt: 2 \r\n downlink: 4";
+  EXPECT_TRUE(PrerenderHost::AreHttpRequestHeadersCompatible(
+      potential_activation_headers, prerender_headers,
+      PrerenderTriggerType::kSpeculationRule,
+      /*embedder_histogram_suffix=*/""));
 }
 
 }  // namespace

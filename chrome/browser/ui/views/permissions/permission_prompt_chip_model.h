@@ -21,16 +21,14 @@
 class PermissionPromptChipModel {
  public:
   explicit PermissionPromptChipModel(
-      permissions::PermissionPrompt::Delegate* delegate);
-  ~PermissionPromptChipModel() = default;
+      base::WeakPtr<permissions::PermissionPrompt::Delegate> delegate);
+  ~PermissionPromptChipModel();
   PermissionPromptChipModel(const PermissionPromptChipModel&) = delete;
   PermissionPromptChipModel& operator=(const PermissionPromptChipModel&) =
       delete;
 
-  void ResetDelegate() { delegate_.reset(); }
-
   // The delegate representing the permission request
-  absl::optional<permissions::PermissionPrompt::Delegate*> GetDelegate() {
+  base::WeakPtr<permissions::PermissionPrompt::Delegate> GetDelegate() {
     return delegate_;
   }
 
@@ -46,26 +44,17 @@ class PermissionPromptChipModel {
   OmniboxChipTheme GetChipTheme() { return chip_theme_; }
 
   // Chip behaviour
+  bool ShouldDisplayBlockedIcon() { return should_display_blocked_icon_; }
   bool ShouldBubbleStartOpen() { return should_bubble_start_open_; }
   bool ShouldExpand() { return should_expand_; }
-
-  // Permission state
-  void SetShouldDismiss(bool flag) { should_dismiss_ = flag; }
 
   // Updates relevant properties of the model according to the chip's collapse
   // state if it's triggered automatically.
   void UpdateAutoCollapsePromptChipState(bool is_collapsed);
 
-  bool ShouldDismiss() { return should_dismiss_; }
-
   bool IsExpandAnimationAllowed();
 
   bool CanDisplayConfirmation() { return chip_text_.length() > 0; }
-
-  bool WasRequestAlreadyDisplayed() {
-    DCHECK(delegate_.has_value());
-    return delegate_.value()->WasCurrentRequestAlreadyDisplayed();
-  }
 
   // Takes a user decision and updates relevant properties of the model
   void UpdateWithUserDecision(permissions::PermissionAction permission_action);
@@ -74,7 +63,7 @@ class PermissionPromptChipModel {
 
  private:
   // Delegate holding the current request
-  absl::optional<permissions::PermissionPrompt::Delegate*> delegate_;
+  base::WeakPtr<permissions::PermissionPrompt::Delegate> delegate_;
 
   // Permission icons and text
   const raw_ref<const gfx::VectorIcon> allowed_icon_;
@@ -92,9 +81,6 @@ class PermissionPromptChipModel {
   // Chip behaviour
   bool should_bubble_start_open_ = false;
   bool should_expand_ = true;
-
-  // Permission state
-  bool should_dismiss_ = false;
 
   permissions::PermissionAction user_decision_ =
       permissions::PermissionAction::NUM;

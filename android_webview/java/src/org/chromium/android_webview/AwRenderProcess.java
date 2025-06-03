@@ -4,12 +4,17 @@
 
 package org.chromium.android_webview;
 
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
+import org.chromium.android_webview.common.Lifetime;
 
 /**
+ * Java-side representation of the renderer process.
+ * Managed and owned by android_webview/browser/aw_render_process.cc
  */
+@Lifetime.Renderer
 @JNINamespace("android_webview")
 public final class AwRenderProcess extends AwSupportLibIsomorphic {
     private long mNativeRenderProcess;

@@ -52,6 +52,12 @@ enum class PreloadingType {
   // NoState prefetch only supports the GET HTTP method and doesn't cache
   // resources with the no-store cache-control header.
   kNoStatePrefetch = 5,
+
+  // Link-Preview loads a page with prerendering infrastructures in a dedicated
+  // mini tab so that users can take a look at the content before visiting it.
+  // TODO(b:291867362): This is not used by the current implementation,
+  // but might be reused in the future.
+  kLinkPreview = 6,
 };
 
 // Defines various triggering mechanisms which triggers different preloading
@@ -193,6 +199,16 @@ enum class PreloadingEligibility {
   // Preloading was ineligible because it was triggered under memory pressure.
   kMemoryPressure = 16,
 
+  // Preloading was ineligible because some DevTools client temporarily
+  // disabled.
+  kPreloadingDisabledByDevTools = 17,
+
+  // Preloading was ineligible because some triggers only allows https.
+  kHttpsOnly = 18,
+
+  // Preloading was ineligible for non-http(s).
+  kHttpOrHttpsOnly = 19,
+
   // Values between `kPreloadingEligibilityCommonEnd` (inclusive) and
   // `kPreloadingEligibilityContentEnd` (exclusive) are reserved for enums
   // defined under `//content`, namely `PrefetchStatus`.
@@ -278,8 +294,7 @@ enum class PreloadingTriggeringOutcome {
   kTriggeredButUpgradedToPrerender = 8,
 
   // Preloading was triggered but was pending for starting its initial
-  // navigation. This outcome should not be recorded when
-  // `kPrerender2SequentialPrerendering` is disabled.
+  // navigation.
   kTriggeredButPending = 9,
 
   // Used for triggers that do not perform a preloading operation. This may be

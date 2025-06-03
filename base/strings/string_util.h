@@ -7,7 +7,6 @@
 #ifndef BASE_STRINGS_STRING_UTIL_H_
 #define BASE_STRINGS_STRING_UTIL_H_
 
-#include <ctype.h>
 #include <stdarg.h>   // va_list
 #include <stddef.h>
 #include <stdint.h>
@@ -116,7 +115,7 @@ constexpr WStringPiece MakeWStringPiece(Iter begin, Iter end) {
 // ASCII-specific tolower.  The standard library's tolower is locale sensitive,
 // so we don't want to use it here.
 template <typename CharT,
-          typename = std::enable_if_t<std::is_integral<CharT>::value>>
+          typename = std::enable_if_t<std::is_integral_v<CharT>>>
 constexpr CharT ToLowerASCII(CharT c) {
   return internal::ToLowerASCII(c);
 }
@@ -124,7 +123,7 @@ constexpr CharT ToLowerASCII(CharT c) {
 // ASCII-specific toupper.  The standard library's toupper is locale sensitive,
 // so we don't want to use it here.
 template <typename CharT,
-          typename = std::enable_if_t<std::is_integral<CharT>::value>>
+          typename = std::enable_if_t<std::is_integral_v<CharT>>>
 CharT ToUpperASCII(CharT c) {
   return (c >= 'a' && c <= 'z') ? static_cast<CharT>(c + 'A' - 'a') : c;
 }
@@ -418,6 +417,28 @@ inline bool IsAsciiAlphaNumeric(Char c) {
 template <typename Char>
 inline bool IsAsciiPrintable(Char c) {
   return c >= ' ' && c <= '~';
+}
+
+template <typename Char>
+inline bool IsAsciiControl(Char c) {
+  if constexpr (std::is_signed_v<Char>) {
+    if (c < 0) {
+      return false;
+    }
+  }
+  return c <= 0x1f || c == 0x7f;
+}
+
+template <typename Char>
+inline bool IsUnicodeControl(Char c) {
+  return IsAsciiControl(c) ||
+         // C1 control characters: http://unicode.org/charts/PDF/U0080.pdf
+         (c >= 0x80 && c <= 0x9F);
+}
+
+template <typename Char>
+inline bool IsAsciiPunctuation(Char c) {
+  return c > 0x20 && c < 0x7f && !IsAsciiAlphaNumeric(c);
 }
 
 template <typename Char>

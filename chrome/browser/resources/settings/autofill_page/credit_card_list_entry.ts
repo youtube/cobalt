@@ -14,16 +14,22 @@ import '../settings_shared.css.js';
 import './passwords_shared.css.js';
 
 import {I18nMixin} from '//resources/cr_elements/i18n_mixin.js';
-import {assert} from 'chrome://resources/js/assert_ts.js';
+import {assert, assertNotReached} from 'chrome://resources/js/assert.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {loadTimeData} from '../i18n_setup.js';
 
 import {getTemplate} from './credit_card_list_entry.html.js';
 
+const enum CardSummarySublabelType {
+  VIRTUAL_CARD,
+  EXPIRATION_DATE,
+  EXPIRATION_DATE_WITH_CVC_TAG,
+}
+
 const SettingsCreditCardListEntryElementBase = I18nMixin(PolymerElement);
 
-class SettingsCreditCardListEntryElement extends
+export class SettingsCreditCardListEntryElement extends
     SettingsCreditCardListEntryElementBase {
   static get is() {
     return 'settings-credit-card-list-entry';
@@ -37,34 +43,14 @@ class SettingsCreditCardListEntryElement extends
     return {
       /** A saved credit card. */
       creditCard: Object,
-
-      /**
-       * Whether the expiration date should be shown as secondary label.
-       */
-      showExpirationAsSecondaryLabelEnabled_: {
-        type: Boolean,
-        value() {
-          return loadTimeData.getBoolean('removeCardExpirationAndTypeTitles');
-        },
-        readOnly: true,
-      },
-
-      /**
-       * Whether virtual card enrollment management on settings page is enabled.
-       */
-      virtualCardEnrollmentEnabled_: {
-        type: Boolean,
-        value() {
-          return loadTimeData.getBoolean('virtualCardEnrollmentEnabled');
-        },
-        readOnly: true,
-      },
     };
   }
 
   creditCard: chrome.autofillPrivate.CreditCardEntry;
-  private readonly showExpirationAsSecondaryLabelEnabled_: boolean;
-  private readonly virtualCardEnrollmentEnabled_: boolean;
+
+  get dotsMenu(): HTMLElement|null {
+    return this.shadowRoot!.getElementById('creditCardMenu');
+  }
 
   /**
    * Opens the credit card action menu.
@@ -84,7 +70,25 @@ class SettingsCreditCardListEntryElement extends
     this.dispatchEvent(new CustomEvent('remote-card-menu-click', {
       bubbles: true,
       composed: true,
+      detail: {
+        creditCard: this.creditCard,
+        anchorElement: this.shadowRoot!.querySelector('#creditCardMenu'),
+      },
     }));
+  }
+
+  private getCardNumberDescription_(
+      creditCard: chrome.autofillPrivate.CreditCardEntry): string|undefined {
+    const cardNumber = creditCard.cardNumber;
+    if (cardNumber) {
+      const lastFourDigits =
+          cardNumber.substring(Math.max(0, cardNumber.length - 4));
+      if (lastFourDigits) {
+        const network = creditCard.network || this.i18n('genericCreditCard');
+        return this.i18n('creditCardDescription', network, lastFourDigits);
+      }
+    }
+    return undefined;
   }
 
   /**
@@ -92,26 +96,11 @@ class SettingsCreditCardListEntryElement extends
    *     which is described by the nickname or the network name and last 4
    *     digits or name
    */
-  private moreActionsTitle_(creditCard: chrome.autofillPrivate.CreditCardEntry):
-      string {
-    if (creditCard.nickname) {
-      return this.i18n('moreActionsForCreditCard', creditCard.nickname);
-    }
-
-    const cardNumber = creditCard.cardNumber;
-    if (cardNumber) {
-      const lastFourDigits =
-          cardNumber.substring(Math.max(0, cardNumber.length - 4));
-      if (lastFourDigits) {
-        const network = creditCard.network || this.i18n('genericCreditCard');
-        return this.i18n(
-            'moreActionsForCreditCard',
-            this.i18n(
-                'moreActionsCreditCardDescription', network, lastFourDigits));
-      }
-    }
-
-    return this.i18n('moreActionsForCreditCard', creditCard.name!);
+  private moreActionsTitle_(): string {
+    const cardDescription = this.creditCard.nickname ||
+        this.getCardNumberDescription_(this.creditCard) ||
+        this.creditCard.name!;
+    return this.i18n('moreActionsForCreditCard', cardDescription);
   }
 
   /**
@@ -126,35 +115,72 @@ class SettingsCreditCardListEntryElement extends
   }
 
   private isVirtualCardEnrollmentEligible_(): boolean {
-    return this.virtualCardEnrollmentEnabled_ &&
-        this.creditCard.metadata!.isVirtualCardEnrollmentEligible!;
+    return this.creditCard.metadata!.isVirtualCardEnrollmentEligible!;
   }
 
   private isVirtualCardEnrolled_(): boolean {
-    return this.virtualCardEnrollmentEnabled_ &&
-        this.creditCard.metadata!.isVirtualCardEnrolled!;
+    return this.creditCard.metadata!.isVirtualCardEnrolled!;
   }
 
-  private shouldShowVirtualCardLabel_(): boolean {
-    return this.isVirtualCardEnrolled_() &&
-        !this.showExpirationAsSecondaryLabelEnabled_;
+  private getSummaryAriaLabel_(): string {
+    const cardNumberDescription =
+        this.getCardNumberDescription_(this.creditCard);
+    if (cardNumberDescription) {
+      return this.i18n('creditCardA11yLabeled', cardNumberDescription);
+    }
+    return this.creditCard.metadata!.summaryLabel;
+  }
+
+  private getCardExpiryDate_(): string {
+    assert(this.creditCard.expirationMonth);
+    assert(this.creditCard.expirationYear);
+    // Truncate the year down to two digits (eg. 2023 to 23).
+    return this.creditCard.expirationMonth + '/' +
+        this.creditCard.expirationYear.toString().substring(2);
+  }
+
+  private getCardSublabelType(): CardSummarySublabelType {
+    if (this.isVirtualCardEnrolled_()) {
+      return CardSummarySublabelType.VIRTUAL_CARD;
+    }
+    if (loadTimeData.getBoolean('cvcStorageAvailable') &&
+        !!this.creditCard.cvc) {
+      return CardSummarySublabelType.EXPIRATION_DATE_WITH_CVC_TAG;
+    }
+    return CardSummarySublabelType.EXPIRATION_DATE;
   }
 
   /**
    * Returns virtual card metadata if the card is eligible for enrollment or has
-   * already enrolled, or expiration date (MM/YY) otherwise.
-   * E.g., 11/23, or Virtual card turned on
+   * already enrolled, or expiration date (MM/YY) or expiration date (MM/YY)
+   * with the `CVC saved` tag otherwise.
+   * E.g., 11/23, or Virtual card turned on, or 11/23 | CVC saved
    */
   private getSummarySublabel_(): string {
-    if (this.isVirtualCardEnrolled_()) {
-      return this.i18n('virtualCardTurnedOn');
+    switch (this.getCardSublabelType()) {
+      case CardSummarySublabelType.VIRTUAL_CARD:
+        return this.i18n('virtualCardTurnedOn');
+      case CardSummarySublabelType.EXPIRATION_DATE_WITH_CVC_TAG:
+        return this.getCardExpiryDate_() + ' | ' +
+            this.i18n('cvcTagForCreditCardListEntry');
+      case CardSummarySublabelType.EXPIRATION_DATE:
+        return this.getCardExpiryDate_();
+      default:
+        assertNotReached();
     }
+  }
 
-    assert(this.creditCard.expirationMonth);
-    assert(this.creditCard.expirationYear);
-    // Convert string (e.g. '06') to number (e.g. 6).
-    return this.creditCard.expirationMonth + '/' +
-        this.creditCard.expirationYear.toString().substring(2);
+  private getSummaryAriaSublabel_(): string {
+    switch (this.getCardSublabelType()) {
+      case CardSummarySublabelType.VIRTUAL_CARD:
+        return this.getSummarySublabel_();
+      case CardSummarySublabelType.EXPIRATION_DATE_WITH_CVC_TAG:
+      case CardSummarySublabelType.EXPIRATION_DATE:
+        return this.i18n(
+            'creditCardExpDateA11yLabeled', this.getSummarySublabel_());
+      default:
+        assertNotReached();
+    }
   }
 
   private shouldShowVirtualCardSecondarySublabel_(): boolean {
@@ -163,14 +189,8 @@ class SettingsCreditCardListEntryElement extends
         this.isVirtualCardEnrollmentEligible_();
   }
 
-  private shouldShowPaymentsLabel_(): boolean {
-    return !this.creditCard.metadata!.isLocal &&
-        !this.showExpirationAsSecondaryLabelEnabled_;
-  }
-
   private shouldShowPaymentsIndicator_(): boolean {
-    return !this.creditCard.metadata!.isLocal &&
-        this.showExpirationAsSecondaryLabelEnabled_;
+    return !this.creditCard.metadata!.isLocal;
   }
 
   private getPaymentsLabel_(): string {

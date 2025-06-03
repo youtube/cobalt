@@ -43,6 +43,8 @@ class INVALIDATION_EXPORT PerUserTopicSubscriptionManager {
    public:
     virtual void OnSubscriptionChannelStateChanged(
         SubscriptionChannelState state) = 0;
+    virtual void OnSubscriptionRequestStarted(Topic topic) = 0;
+    virtual void OnSubscriptionRequestFinished(Topic topic, Status code) = 0;
   };
 
   PerUserTopicSubscriptionManager(
@@ -72,12 +74,14 @@ class INVALIDATION_EXPORT PerUserTopicSubscriptionManager {
   static void RegisterProfilePrefs(PrefRegistrySimple* registry);
   static void RegisterPrefs(PrefRegistrySimple* registry);
 
+  static void ClearDeprecatedPrefs(PrefService* prefs);
+
   virtual void Init();
 
   // Triggers subscription and/or unsubscription requests so that the set of
   // subscribed topics matches |topics|. If the |instance_id_token| has changed,
   // triggers re-subscription for all topics.
-  virtual void UpdateSubscribedTopics(const Topics& topics,
+  virtual void UpdateSubscribedTopics(const TopicMap& topics,
                                       const std::string& instance_id_token);
 
   // Called when the InstanceID token (previously passed to
@@ -90,8 +94,6 @@ class INVALIDATION_EXPORT PerUserTopicSubscriptionManager {
   // PerUserTopicSubscriptionManager::Observer and register here.
   void AddObserver(Observer* observer);
   void RemoveObserver(Observer* observer);
-
-  base::Value::Dict CollectDebugData() const;
 
   virtual absl::optional<Topic> LookupSubscribedPublicTopicByPrivateTopic(
       const std::string& private_topic) const;
@@ -136,6 +138,8 @@ class INVALIDATION_EXPORT PerUserTopicSubscriptionManager {
 
   void NotifySubscriptionChannelStateChange(
       SubscriptionChannelState invalidator_state);
+  void NotifySubscriptionRequestStarted(Topic topic);
+  void NotifySubscriptionRequestFinished(Topic topic, Status code);
 
   const raw_ptr<PrefService> pref_service_;
   const raw_ptr<IdentityProvider> identity_provider_;

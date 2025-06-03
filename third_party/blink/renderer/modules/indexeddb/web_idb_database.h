@@ -6,20 +6,18 @@
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_INDEXEDDB_WEB_IDB_DATABASE_H_
 
 #include <stdint.h>
-#include <cstdint>
 #include <memory>
 
 #include "base/task/single_thread_task_runner.h"
 #include "mojo/public/cpp/bindings/associated_remote.h"
 #include "mojo/public/cpp/bindings/pending_associated_receiver.h"
 #include "mojo/public/cpp/bindings/pending_associated_remote.h"
-#include "third_party/blink/public/common/indexeddb/web_idb_types.h"
 #include "third_party/blink/public/mojom/indexeddb/indexeddb.mojom-blink.h"
 #include "third_party/blink/renderer/modules/indexeddb/web_idb_cursor.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
 
 namespace blink {
-class WebIDBCallbacks;
+class IDBRequest;
 
 class MODULES_EXPORT WebIDBDatabase final {
  public:
@@ -43,35 +41,20 @@ class MODULES_EXPORT WebIDBDatabase final {
   void Close();
   void VersionChangeIgnored();
 
-  void Get(int64_t transaction_id,
-           int64_t object_store_id,
-           int64_t index_id,
-           const IDBKeyRange*,
-           bool key_only,
-           WebIDBCallbacks*);
-  void GetCallback(std::unique_ptr<WebIDBCallbacks> callbacks,
-                   mojom::blink::IDBDatabaseGetResultPtr result);
+  void Get(
+      int64_t transaction_id,
+      int64_t object_store_id,
+      int64_t index_id,
+      const IDBKeyRange*,
+      bool key_only,
+      base::OnceCallback<void(mojom::blink::IDBDatabaseGetResultPtr)> result);
   void GetAll(int64_t transaction_id,
               int64_t object_store_id,
               int64_t index_id,
               const IDBKeyRange*,
               int64_t max_count,
               bool key_only,
-              WebIDBCallbacks*);
-  void GetAllCallback(
-      std::unique_ptr<WebIDBCallbacks> callbacks,
-      bool key_only,
-      mojo::PendingReceiver<mojom::blink::IDBDatabaseGetAllResultSink>
-          receiver);
-  void BatchGetAll(int64_t transaction_id,
-                   int64_t object_store_id,
-                   int64_t index_id,
-                   Vector<mojom::blink::IDBKeyRangePtr> key_ranges,
-                   uint32_t max_count,
-                   WebIDBCallbacks*);
-  void BatchGetAllCallback(
-      std::unique_ptr<WebIDBCallbacks> callbacks,
-      mojom::blink::IDBDatabaseBatchGetAllResultPtr result);
+              IDBRequest*);
   void SetIndexKeys(int64_t transaction_id,
                     int64_t object_store_id,
                     std::unique_ptr<IDBKey> primary_key,
@@ -79,33 +62,33 @@ class MODULES_EXPORT WebIDBDatabase final {
   void SetIndexesReady(int64_t transaction_id,
                        int64_t object_store_id,
                        const Vector<int64_t>& index_ids);
-  void OpenCursor(int64_t transaction_id,
-                  int64_t object_store_id,
+  void OpenCursor(int64_t object_store_id,
                   int64_t index_id,
                   const IDBKeyRange*,
                   mojom::blink::IDBCursorDirection direction,
                   bool key_only,
                   mojom::blink::IDBTaskType,
-                  WebIDBCallbacks*);
-  void OpenCursorCallback(std::unique_ptr<WebIDBCallbacks> callbacks,
-                          mojom::blink::IDBDatabaseOpenCursorResultPtr result);
+                  IDBRequest*);
   void Count(int64_t transaction_id,
              int64_t object_store_id,
              int64_t index_id,
              const IDBKeyRange*,
-             WebIDBCallbacks*);
+             mojom::blink::IDBDatabase::CountCallback callback);
   void Delete(int64_t transaction_id,
               int64_t object_store_id,
               const IDBKey* primary_key,
-              WebIDBCallbacks*);
+              mojom::blink::IDBDatabase::DeleteRangeCallback callback);
   void DeleteRange(int64_t transaction_id,
                    int64_t object_store_id,
                    const IDBKeyRange*,
-                   WebIDBCallbacks*);
-  void GetKeyGeneratorCurrentNumber(int64_t transaction_id,
-                                    int64_t object_store_id,
-                                    WebIDBCallbacks*);
-  void Clear(int64_t transaction_id, int64_t object_store_id, WebIDBCallbacks*);
+                   mojom::blink::IDBDatabase::DeleteRangeCallback callback);
+  void GetKeyGeneratorCurrentNumber(
+      int64_t transaction_id,
+      int64_t object_store_id,
+      mojom::blink::IDBDatabase::GetKeyGeneratorCurrentNumberCallback callback);
+  void Clear(int64_t transaction_id,
+             int64_t object_store_id,
+             mojom::blink::IDBDatabase::ClearCallback callback);
   void CreateIndex(int64_t transaction_id,
                    int64_t object_store_id,
                    int64_t index_id,
@@ -124,9 +107,6 @@ class MODULES_EXPORT WebIDBDatabase final {
   void DidBecomeInactive();
 
  private:
-  mojo::PendingAssociatedRemote<mojom::blink::IDBCallbacks> GetCallbacksProxy(
-      std::unique_ptr<WebIDBCallbacks> callbacks);
-
   mojo::AssociatedRemote<mojom::blink::IDBDatabase> database_;
   scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
 };

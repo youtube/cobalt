@@ -10,15 +10,15 @@
 
  * [android-go-perf](https://ci.chromium.org/p/chrome/builders/ci/android-go-perf): Android O (gobo).
  * [android-go-wembley-perf](https://ci.chromium.org/p/chrome/builders/ci/android-go-wembley-perf): Android U.
+ * [android-go-wembley_webview-perf](https://ci.chromium.org/p/chrome/builders/ci/android-go-wembley_webview-perf): Android U.
  * [android-go_webview-perf](https://ci.chromium.org/p/chrome/builders/ci/android-go_webview-perf): Android OPM1.171019.021 (gobo).
  * [android-pixel2-perf](https://ci.chromium.org/p/chrome/builders/ci/android-pixel2-perf): Android OPM1.171019.021.
  * [android-pixel2-perf-calibration](https://ci.chromium.org/p/chrome/builders/ci/android-pixel2-perf-calibration): Android OPM1.171019.021.
  * [android-pixel2_webview-perf](https://ci.chromium.org/p/chrome/builders/ci/android-pixel2_webview-perf): Android OPM1.171019.021.
  * [android-pixel4-perf](https://ci.chromium.org/p/chrome/builders/ci/android-pixel4-perf): Android R.
  * [android-pixel4_webview-perf](https://ci.chromium.org/p/chrome/builders/ci/android-pixel4_webview-perf): Android R.
- * [android-pixel4a_power-perf](https://ci.chromium.org/p/chrome/builders/ci/android-pixel4a_power-perf): Android QD4A.200102.001.A1.
- * [android-pixel4a_power-perf-pgo](https://ci.chromium.org/p/chrome/builders/ci/android-pixel4a_power-perf-pgo): Android QD4A.200102.001.A1.
  * [android-pixel6-perf](https://ci.chromium.org/p/chrome/builders/ci/android-pixel6-perf): Android T.
+ * [android-pixel6-perf-pgo](https://ci.chromium.org/p/chrome/builders/ci/android-pixel6-perf-pgo): Android T.
  * [android-pixel6-pro-perf](https://ci.chromium.org/p/chrome/builders/ci/android-pixel6-pro-perf): Android T.
 
 ### Chromeos
@@ -58,7 +58,6 @@
  * android-pixel2-perf-pgo: Android OPM1.171019.021.
  * android-pixel2_webview-perf-pgo: Android OPM1.171019.021.
  * android-pixel4-perf-pgo: Android R.
- * android-pixel6-perf-pgo: Android T.
  * android-pixel6-pro-perf-pgo: Android T.
 
 ### Linux
@@ -67,6 +66,7 @@
 
 ### Mac
 
+ * mac-14-m1-pro-perf: Mac M1 PRO 2020 running MacOS 14.
  * mac-laptop_high_end-perf-pgo: MacBook Pro, Core i7 2.8 GHz, 16GB RAM, 256GB SSD, Radeon 55.
  * mac-laptop_low_end-perf-pgo: MacBook Air, Core i5 1.8 GHz, 8GB RAM, 128GB SSD, HD Graphics.
 
@@ -89,12 +89,7 @@
 
 ### Fuchsia
 
- * [fuchsia-perf-ast](https://ci.chromium.org/p/chrome/builders/ci/fuchsia-perf-ast).
- * [fuchsia-perf-atlas-fyi](https://ci.chromium.org/p/chrome/builders/ci/fuchsia-perf-atlas-fyi).
- * [fuchsia-perf-fyi](https://ci.chromium.org/p/chrome/builders/ci/fuchsia-perf-fyi).
  * [fuchsia-perf-nsn](https://ci.chromium.org/p/chrome/builders/ci/fuchsia-perf-nsn).
- * [fuchsia-perf-nuc-fyi](https://ci.chromium.org/p/chrome/builders/ci/fuchsia-perf-nuc-fyi).
- * [fuchsia-perf-sherlock-fyi](https://ci.chromium.org/p/chrome/builders/ci/fuchsia-perf-sherlock-fyi).
  * [fuchsia-perf-shk](https://ci.chromium.org/p/chrome/builders/ci/fuchsia-perf-shk).
 
 ### Linux

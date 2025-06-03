@@ -4,6 +4,11 @@
 
 package org.chromium.chrome.test.util;
 
+import static androidx.test.espresso.Espresso.onView;
+import static androidx.test.espresso.action.ViewActions.click;
+import static androidx.test.espresso.contrib.RecyclerViewActions.actionOnItemAtPosition;
+import static androidx.test.espresso.matcher.ViewMatchers.withId;
+
 import android.app.Activity;
 import android.app.Instrumentation;
 import android.content.Context;
@@ -14,9 +19,12 @@ import android.view.inputmethod.BaseInputConnection;
 import android.view.inputmethod.InputConnection;
 import android.view.inputmethod.InputMethodManager;
 
+import androidx.activity.ComponentActivity;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.test.InstrumentationRegistry;
+import androidx.test.espresso.UiController;
+import androidx.test.espresso.ViewAction;
+import androidx.test.platform.app.InstrumentationRegistry;
 
 import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
@@ -29,15 +37,14 @@ import org.chromium.chrome.browser.omnibox.UrlBar;
 import org.chromium.chrome.browser.omnibox.suggestions.AutocompleteController.OnSuggestionsReceivedListener;
 import org.chromium.chrome.browser.omnibox.suggestions.AutocompleteCoordinator;
 import org.chromium.chrome.browser.omnibox.suggestions.DropdownItemViewInfo;
-import org.chromium.chrome.browser.omnibox.suggestions.OmniboxSuggestionUiType;
 import org.chromium.chrome.browser.omnibox.suggestions.OmniboxSuggestionsDropdown;
-import org.chromium.chrome.browser.omnibox.suggestions.OmniboxSuggestionsDropdownAdapter;
 import org.chromium.chrome.browser.omnibox.suggestions.base.ActionChipsProperties;
 import org.chromium.chrome.browser.omnibox.suggestions.header.HeaderView;
 import org.chromium.chrome.browser.searchwidget.SearchActivity;
 import org.chromium.chrome.browser.toolbar.top.ToolbarLayout;
 import org.chromium.components.omnibox.AutocompleteMatch;
 import org.chromium.components.omnibox.AutocompleteResult;
+import org.chromium.components.omnibox.suggestions.OmniboxSuggestionUiType;
 import org.chromium.content_public.browser.test.util.KeyUtils;
 import org.chromium.content_public.browser.test.util.TestThreadUtils;
 import org.chromium.ui.modelutil.MVCListAdapter.ModelList;
@@ -53,10 +60,6 @@ import java.util.function.Function;
 public class OmniboxTestUtils {
     /** Value indicating that the index is not valid. */
     public static final int SUGGESTION_INDEX_INVALID = -1;
-    /** Maximum time to wait for the Omnibox content to stabilize. */
-    private static final int MAX_TIME_TO_POLL_MS = 300;
-    /** Interval between subsequent polls. */
-    private static final int POLL_INTERVAL_MS = 30;
 
     private final @NonNull Activity mActivity;
     private final @NonNull LocationBarLayout mLocationBar;
@@ -64,6 +67,47 @@ public class OmniboxTestUtils {
     private final @NonNull UrlBar mUrlBar;
     private final @NonNull Instrumentation mInstrumentation;
     private final @Nullable ToolbarLayout mToolbar;
+
+    /**
+     * Invokes a specific ViewAction on an {@link
+     * org.chromium.chrome.browser.omnibox.suggestions.action.OmniboxAction} at specific position.
+     *
+     * <p>This class can be chained with {@link
+     * androidx.test.espresso.contrib.RecyclerViewActions.actionOnItemAtPosition}.
+     */
+    private static class ActionOnOmniboxActionAtPosition implements ViewAction {
+        private final ViewAction mAction;
+
+        public ActionOnOmniboxActionAtPosition(int position, ViewAction action) {
+            mAction = actionOnItemAtPosition(position, action);
+        }
+
+        @Override
+        public Matcher<View> getConstraints() {
+            return withId(R.id.omnibox_actions_carousel);
+        }
+
+        @Override
+        public String getDescription() {
+            return mAction.getDescription();
+        }
+
+        @Override
+        public void perform(UiController uiController, View view) {
+            mAction.perform(uiController, view.findViewById(R.id.omnibox_actions_carousel));
+        }
+    }
+
+    /**
+     * Create a ViewAction that can be executed on a Suggestion with Action Chips.
+     *
+     * @param position the index of an {@link
+     *         org.chromium.chrome.browser.omnibox.suggestions.action.OmniboxAction},
+     * @param action the action to perform.
+     */
+    public static ViewAction actionOnOmniboxActionAtPosition(int position, ViewAction action) {
+        return new ActionOnOmniboxActionAtPosition(position, action);
+    }
 
     /**
      * Class describing individual suggestion, delivering access to broad range of information.
@@ -145,7 +189,7 @@ public class OmniboxTestUtils {
                     Context.INPUT_METHOD_SERVICE);
             Criteria.checkThat("Keyboard did not reach expected state", imm.isActive(mUrlBar),
                     Matchers.is(active));
-        }, MAX_TIME_TO_POLL_MS, POLL_INTERVAL_MS);
+        });
     }
 
     /**
@@ -165,19 +209,24 @@ public class OmniboxTestUtils {
         CriteriaHelper.pollUiThread(() -> {
             Criteria.checkThat("Omnibox not shown.", mUrlBar.isShown(), Matchers.is(true));
             Criteria.checkThat("Omnibox not focusable.", mUrlBar.isFocusable(), Matchers.is(true));
-        }, MAX_TIME_TO_POLL_MS, POLL_INTERVAL_MS);
-
-        TestThreadUtils.runOnUiThreadBlockingNoException(() -> mUrlBar.requestFocus());
-        waitAnimationsComplete();
-        checkFocus(true);
+            if (!mUrlBar.hasFocus()) mUrlBar.requestFocus();
+            Criteria.checkThat("Omnibox is focused.", mUrlBar.hasFocus(), Matchers.is(true));
+        });
     }
 
     /**
-     * Clear the Omnibox focus and wait until keyboard is dismissed.
-     * Expects the Omnibox to be focused before the call.
+     * Clear the Omnibox focus and wait until keyboard is dismissed. Performs no action if the
+     * Omnibox is already unfocused.
      */
     public void clearFocus() {
-        sendKey(KeyEvent.KEYCODE_BACK);
+        TestThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    if (mUrlBar.hasFocus()) {
+                        ((ComponentActivity) mActivity)
+                                .getOnBackPressedDispatcher()
+                                .onBackPressed();
+                    }
+                });
         checkFocus(false);
     }
 
@@ -211,7 +260,7 @@ public class OmniboxTestUtils {
                     suggestionsDropdown.getViewGroup().isShown(), Matchers.is(true));
             Criteria.checkThat("suggestion list has no entries",
                     suggestionsDropdown.getDropdownItemViewCountForTest(), Matchers.greaterThan(0));
-        }, MAX_TIME_TO_POLL_MS, POLL_INTERVAL_MS);
+        });
     }
 
     /**
@@ -285,7 +334,7 @@ public class OmniboxTestUtils {
                 }
             }
             return false;
-        }, MAX_TIME_TO_POLL_MS, POLL_INTERVAL_MS);
+        });
 
         return result.get();
     }
@@ -315,21 +364,6 @@ public class OmniboxTestUtils {
             }
 
             return null;
-        });
-    }
-
-    /**
-     * Highligh suggestion at a specific index.
-     *
-     * @param index The index of the suggestion to be highlighted.
-     */
-    public void focusSuggestion(int index) {
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            OmniboxSuggestionsDropdownAdapter adapter =
-                    (OmniboxSuggestionsDropdownAdapter) mLocationBar.getAutocompleteCoordinator()
-                            .getSuggestionsDropdownForTest()
-                            .getAdapter();
-            adapter.setSelectedViewIndex(index);
         });
     }
 
@@ -484,7 +518,7 @@ public class OmniboxTestUtils {
                 // URL bar is not focused. Match against the content.
                 Criteria.checkThat(mUrlBar.getText().toString(), textMatcher);
             }
-        }, MAX_TIME_TO_POLL_MS, POLL_INTERVAL_MS);
+        });
     }
 
     /**
@@ -526,7 +560,7 @@ public class OmniboxTestUtils {
             Criteria.checkThat("Composing Span End",
                     BaseInputConnection.getComposingSpanEnd(composingText),
                     Matchers.is(composingRangeEnd));
-        }, MAX_TIME_TO_POLL_MS, POLL_INTERVAL_MS);
+        });
     }
 
     /**
@@ -547,5 +581,17 @@ public class OmniboxTestUtils {
             conn.setComposingRegion(composingRegionStart, composingRegionEnd);
             conn.setComposingText(composingText, /* newCursorPosition=*/0);
         });
+    }
+
+    /**
+     * Click the n-th action.
+     *
+     * @param suggestionIndex the index of suggestion to click an action on.
+     * @param actionIndex the index of action to invoke.
+     */
+    public void clickOnAction(int suggestionIndex, int actionIndex) {
+        onView(withId(R.id.omnibox_suggestions_dropdown))
+                .perform(actionOnItemAtPosition(suggestionIndex,
+                        OmniboxTestUtils.actionOnOmniboxActionAtPosition(actionIndex, click())));
     }
 }

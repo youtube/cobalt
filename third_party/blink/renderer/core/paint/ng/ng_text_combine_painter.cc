@@ -4,33 +4,35 @@
 
 #include "third_party/blink/renderer/core/paint/ng/ng_text_combine_painter.h"
 
-#include "third_party/blink/renderer/core/layout/ng/inline/layout_ng_text_combine.h"
+#include "third_party/blink/renderer/core/layout/layout_text_combine.h"
 #include "third_party/blink/renderer/core/layout/ng/ng_text_decoration_offset.h"
 #include "third_party/blink/renderer/core/paint/paint_auto_dark_mode.h"
 #include "third_party/blink/renderer/core/paint/paint_info.h"
 #include "third_party/blink/renderer/core/style/computed_style.h"
 #include "third_party/blink/renderer/platform/fonts/ng_text_fragment_paint_info.h"
+#include "third_party/blink/renderer/platform/fonts/text_run_paint_info.h"
 #include "third_party/blink/renderer/platform/graphics/graphics_context.h"
 #include "third_party/blink/renderer/platform/graphics/graphics_context_state_saver.h"
 
 namespace blink {
 
-NGTextCombinePainter::NGTextCombinePainter(GraphicsContext& context,
-                                           const ComputedStyle& style,
-                                           const PhysicalRect& text_frame_rect)
-    : NGTextPainterBase(context,
-                        style.GetFont(),
-                        text_frame_rect.offset,
-                        text_frame_rect,
-                        /* inline_context */ nullptr,
-                        /* horizontal */ false),
+NGTextCombinePainter::NGTextCombinePainter(
+    GraphicsContext& context,
+    const ComputedStyle& style,
+    const LineRelativeRect& text_frame_rect)
+    : TextPainterBase(context,
+                      style.GetFont(),
+                      text_frame_rect.offset,
+                      text_frame_rect,
+                      /* inline_context */ nullptr,
+                      /* horizontal */ false),
       style_(style) {}
 
 NGTextCombinePainter::~NGTextCombinePainter() = default;
 
 void NGTextCombinePainter::Paint(const PaintInfo& paint_info,
                                  const PhysicalOffset& paint_offset,
-                                 const LayoutNGTextCombine& text_combine) {
+                                 const LayoutTextCombine& text_combine) {
   if (paint_info.phase == PaintPhase::kBlockBackground ||
       paint_info.phase == PaintPhase::kForcedColorsModeBackplate ||
       paint_info.phase == PaintPhase::kFloat ||
@@ -57,22 +59,21 @@ void NGTextCombinePainter::Paint(const PaintInfo& paint_info,
       style.GetTextEmphasisMark() != TextEmphasisMark::kNone;
   DCHECK(has_text_decoration | has_emphasis_mark);
 
-  const PhysicalRect& text_frame_rect =
+  const LineRelativeRect& text_frame_rect =
       text_combine.ComputeTextFrameRect(paint_offset);
 
   // To match the logical direction
   GraphicsContextStateSaver state_saver(paint_info.context);
   paint_info.context.ConcatCTM(
-      TextPainterBase::Rotation(text_frame_rect, style.GetWritingMode()));
+      text_frame_rect.ComputeRelativeToPhysicalTransform(
+          style.GetWritingMode()));
 
   NGTextCombinePainter text_painter(paint_info.context, style, text_frame_rect);
   const TextPaintStyle text_style = TextPainterBase::TextPaintingStyle(
       text_combine.GetDocument(), style, paint_info);
 
   if (has_emphasis_mark) {
-    text_painter.PaintEmphasisMark(text_style,
-                                   text_combine.Parent()->StyleRef().GetFont(),
-                                   text_combine.GetDocument());
+    text_painter.PaintEmphasisMark(text_style, style.GetFont());
   }
 
   if (has_text_decoration)
@@ -80,8 +81,7 @@ void NGTextCombinePainter::Paint(const PaintInfo& paint_info,
 }
 
 // static
-bool NGTextCombinePainter::ShouldPaint(
-    const LayoutNGTextCombine& text_combine) {
+bool NGTextCombinePainter::ShouldPaint(const LayoutTextCombine& text_combine) {
   const auto& style = text_combine.Parent()->StyleRef();
   return style.HasAppliedTextDecorations() ||
          style.GetTextEmphasisMark() != TextEmphasisMark::kNone;
@@ -99,10 +99,10 @@ void NGTextCombinePainter::PaintDecorations(const PaintInfo& paint_info,
   // Setup arguments for painting text decorations
   const absl::optional<AppliedTextDecoration> selection_text_decoration;
   TextDecorationInfo decoration_info(
-      text_frame_rect_.offset, text_frame_rect_.size.width, style_,
+      text_frame_rect_.offset, text_frame_rect_.size.inline_size, style_,
       /* inline_context */ nullptr, selection_text_decoration);
 
-  const NGTextDecorationOffset decoration_offset(style_, style_);
+  const NGTextDecorationOffset decoration_offset(style_);
 
   // Paint underline and overline text decorations
   PaintUnderOrOverLineDecorations(NGTextFragmentPaintInfo{}, decoration_offset,
@@ -114,13 +114,32 @@ void NGTextCombinePainter::PaintDecorations(const PaintInfo& paint_info,
 }
 
 void NGTextCombinePainter::PaintEmphasisMark(const TextPaintStyle& text_style,
-                                             const Font& emphasis_mark_font,
-                                             const Document& document) {
+                                             const Font& emphasis_mark_font) {
   DCHECK_NE(style_.GetTextEmphasisMark(), TextEmphasisMark::kNone);
   SetEmphasisMark(style_.TextEmphasisMarkString(),
                   style_.GetTextEmphasisPosition());
-  PaintEmphasisMarkForCombinedText(
-      text_style, emphasis_mark_font,
+  DCHECK(emphasis_mark_font.GetFontDescription().IsVerticalBaseline());
+  DCHECK(emphasis_mark_);
+  const SimpleFontData* const font_data = font_.PrimaryFont();
+  DCHECK(font_data);
+  if (!font_data) {
+    return;
+  }
+  if (text_style.emphasis_mark_color != text_style.fill_color) {
+    // See virtual/text-antialias/emphasis-combined-text.html
+    graphics_context_.SetFillColor(text_style.emphasis_mark_color);
+  }
+
+  const auto font_ascent = font_data->GetFontMetrics().Ascent();
+  const TextRun placeholder_text_run(&kIdeographicFullStopCharacter, 1);
+  const gfx::PointF emphasis_mark_text_origin(
+      text_frame_rect_.LineLeft().ToFloat(),
+      text_frame_rect_.LineOver().ToFloat() + font_ascent +
+          emphasis_mark_offset_);
+  const TextRunPaintInfo text_run_paint_info(placeholder_text_run);
+  graphics_context_.DrawEmphasisMarks(
+      emphasis_mark_font, text_run_paint_info, emphasis_mark_,
+      emphasis_mark_text_origin,
       PaintAutoDarkMode(style_, DarkModeFilter::ElementRole::kForeground));
 }
 

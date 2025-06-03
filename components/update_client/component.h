@@ -52,11 +52,12 @@ class Component {
 
   CrxUpdateItem GetCrxUpdateItem() const;
 
-  // Sets the uninstall state for this component.
-  void Uninstall(const CrxComponent& crx_component, int reason);
-
-  // Set the registration state for this component.
-  void Registration(const CrxComponent& crx_component);
+  // Sets the ping-only state for this component.
+  void PingOnly(const CrxComponent& crx_component,
+                int event_type,
+                int result,
+                int error_code,
+                int extra_code1);
 
   // Called by the UpdateEngine when an update check for this component is done.
   void SetUpdateCheckResult(
@@ -75,6 +76,8 @@ class Component {
   // Returns true if an update is available for this component, meaning that
   // the update server has return a response containing an update.
   bool IsUpdateAvailable() const { return is_update_available_; }
+
+  void Cancel() { state_->Cancel(); }
 
   base::TimeDelta GetUpdateDuration() const;
 
@@ -111,7 +114,11 @@ class Component {
   bool diff_update_failed() const { return !!diff_error_code_; }
 
   ErrorCategory error_category() const { return error_category_; }
-  int error_code() const { return error_code_; }
+  int error_code() const {
+    return installer_result_ && installer_result_->original_error
+               ? installer_result_->original_error
+               : error_code_;
+  }
   int extra_code1() const { return extra_code1_; }
   ErrorCategory diff_error_category() const { return diff_error_category_; }
   int diff_error_code() const { return diff_error_code_; }
@@ -160,6 +167,12 @@ class Component {
 
     ComponentState state() const { return state_; }
 
+    void Cancel() {
+      if (cancel_callback_) {
+        std::move(cancel_callback_).Run();
+      }
+    }
+
    protected:
     // Initiates the transition to the new state.
     void TransitionState(std::unique_ptr<State> new_state);
@@ -174,6 +187,7 @@ class Component {
     SEQUENCE_CHECKER(sequence_checker_);
 
     const ComponentState state_;
+    base::OnceClosure cancel_callback_;
 
    private:
     virtual void DoHandle() = 0;
@@ -301,7 +315,8 @@ class Component {
     void InstallProgress(int install_progress);
     void InstallComplete(ErrorCategory error_category,
                          int error_code,
-                         int extra_code1);
+                         int extra_code1,
+                         absl::optional<CrxInstaller::Result> installer_result);
   };
 
   class StateUpdating : public State {
@@ -318,7 +333,8 @@ class Component {
     void InstallProgress(int install_progress);
     void InstallComplete(ErrorCategory error_category,
                          int error_code,
-                         int extra_code1);
+                         int extra_code1,
+                         absl::optional<CrxInstaller::Result> installer_result);
   };
 
   class StateUpdated : public State {
@@ -333,26 +349,12 @@ class Component {
     void DoHandle() override;
   };
 
-  class StateUninstalled : public State {
+  class StatePingOnly : public State {
    public:
-    explicit StateUninstalled(Component* component);
-    StateUninstalled(const StateUninstalled&) = delete;
-    StateUninstalled& operator=(const StateUninstalled&) = delete;
-    ~StateUninstalled() override;
-
-   private:
-    // State overrides.
-    void DoHandle() override;
-  };
-
-  class StateRegistration : public State {
-   public:
-    explicit StateRegistration(Component* component);
-
-    StateRegistration(const StateRegistration&) = delete;
-    StateRegistration& operator=(const StateRegistration&) = delete;
-
-    ~StateRegistration() override;
+    explicit StatePingOnly(Component* component);
+    StatePingOnly(const StatePingOnly&) = delete;
+    StatePingOnly& operator=(const StatePingOnly&) = delete;
+    ~StatePingOnly() override;
 
    private:
     // State overrides.
@@ -400,8 +402,6 @@ class Component {
   base::Value::Dict MakeEventUpdateComplete() const;
   base::Value::Dict MakeEventDownloadMetrics(
       const CrxDownloader::DownloadMetrics& download_metrics) const;
-  base::Value::Dict MakeEventUninstalled() const;
-  base::Value::Dict MakeEventRegistration() const;
   base::Value::Dict MakeEventActionRun(bool succeeded,
                                        int error_code,
                                        int extra_code1) const;
@@ -465,9 +465,12 @@ class Component {
   // the |extra_code1| usually contains a system error, but it can contain
   // any extended information that is relevant to either the category or the
   // error itself.
+  // The `installer_result_` contains the value provided by the `CrxInstaller`
+  // instance when the install completes.
   ErrorCategory error_category_ = ErrorCategory::kNone;
   int error_code_ = 0;
   int extra_code1_ = 0;
+  absl::optional<CrxInstaller::Result> installer_result_;
   ErrorCategory diff_error_category_ = ErrorCategory::kNone;
   int diff_error_code_ = 0;
   int diff_extra_code1_ = 0;

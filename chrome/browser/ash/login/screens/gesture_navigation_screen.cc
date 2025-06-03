@@ -65,7 +65,7 @@ void GestureNavigationScreen::GesturePageChange(const std::string& new_page) {
 bool GestureNavigationScreen::MaybeSkip(WizardContext& context) {
   AccessibilityManager* accessibility_manager = AccessibilityManager::Get();
   if (context.skip_post_login_screens_for_tests ||
-      chrome_user_manager_util::IsPublicSessionOrEphemeralLogin() ||
+      chrome_user_manager_util::IsManagedGuestSessionOrEphemeralLogin() ||
       !features::IsHideShelfControlsInTabletModeEnabled() ||
       ProfileManager::GetActiveUserProfile()->GetPrefs()->GetBoolean(
           prefs::kAccessibilityTabletModeShelfNavigationButtonsEnabled) ||
@@ -102,11 +102,6 @@ void GestureNavigationScreen::HideImpl() {}
 void GestureNavigationScreen::OnUserAction(const base::Value::List& args) {
   const std::string& action_id = args[0].GetString();
   if (action_id == kUserActionExitPressed) {
-    // Make sure the user does not see a notification about the new gestures
-    // since they have already gone through this gesture education screen.
-    ProfileManager::GetActiveUserProfile()->GetPrefs()->SetBoolean(
-        prefs::kGestureEducationNotificationShown, true);
-
     RecordPageShownTimeMetrics();
     exit_callback_.Run(Result::NEXT);
     return;

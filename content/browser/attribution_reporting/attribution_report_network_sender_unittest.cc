@@ -123,6 +123,17 @@ TEST_F(AttributionReportNetworkSenderTest, LoadFlags) {
   EXPECT_TRUE(load_flags & net::LOAD_DISABLE_CACHE);
 }
 
+TEST_F(AttributionReportNetworkSenderTest, SameSite) {
+  auto report = DefaultEventLevelReport();
+  network_sender_->SendReport(report, /*is_debug_report=*/false,
+                              base::DoNothing());
+  EXPECT_EQ(test_url_loader_factory_.GetPendingRequest(0)->request.mode,
+            network::mojom::RequestMode::kSameOrigin);
+  EXPECT_EQ(
+      test_url_loader_factory_.GetPendingRequest(0)->request.request_initiator,
+      report.GetReportingOrigin());
+}
+
 TEST_F(AttributionReportNetworkSenderTest, Isolation) {
   auto report = DefaultEventLevelReport();
   network_sender_->SendReport(report, /*is_debug_report=*/false,
@@ -174,9 +185,9 @@ TEST_F(AttributionReportNetworkSenderTest,
                         .Build(),
                     SourceBuilder(base::Time::UnixEpoch())
                         .SetSourceEventId(100)
+                        .SetRandomizedResponseRate(0.2)
                         .BuildStored())
           .SetTriggerData(5)
-          .SetRandomizedTriggerRate(0.2)
           .SetReportTime(base::Time::UnixEpoch() + base::Hours(1))
           .Build();
 
@@ -451,9 +462,8 @@ TEST_F(AttributionReportNetworkSenderTest, ManyReports_AllSentSuccessfully) {
 
 TEST_F(AttributionReportNetworkSenderTest, HeadersPopulated) {
   AttributionReport report =
-      ReportBuilder(
-          AttributionInfoBuilder().Build(),
-          SourceBuilder(base::Time::FromJavaTime(1234483200000)).BuildStored())
+      ReportBuilder(AttributionInfoBuilder().Build(),
+                    SourceBuilder().BuildStored())
           .SetAggregatableHistogramContributions(
               {AggregatableHistogramContribution(/*key=*/1, /*value=*/2)})
           .BuildAggregatableAttribution();
@@ -795,7 +805,7 @@ TEST_F(AttributionReportNetworkSenderTest,
           StoreSourceResult(
               StorableSource::Result::kInsufficientUniqueDestinationCapacity,
               /*min_fake_report_time=*/absl::nullopt,
-              /*max_destinations_per_source_site_reporting_origin=*/3));
+              /*max_destinations_per_source_site_reporting_site=*/3));
   ASSERT_TRUE(report);
 
   base::MockCallback<AttributionReportSender::DebugReportSentCallback> callback;
@@ -828,7 +838,7 @@ TEST_F(AttributionReportNetworkSenderTest,
           StoreSourceResult(
               StorableSource::Result::kInsufficientUniqueDestinationCapacity,
               /*min_fake_report_time=*/absl::nullopt,
-              /*max_destinations_per_source_site_reporting_origin=*/3));
+              /*max_destinations_per_source_site_reporting_site=*/3));
   ASSERT_TRUE(report);
 
   base::MockCallback<AttributionReportSender::DebugReportSentCallback> callback;

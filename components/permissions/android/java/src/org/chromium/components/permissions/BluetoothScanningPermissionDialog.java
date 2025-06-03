@@ -25,10 +25,11 @@ import android.widget.ProgressBar;
 
 import androidx.annotation.VisibleForTesting;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.MathUtils;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
 import org.chromium.components.omnibox.AutocompleteSchemeClassifier;
 import org.chromium.components.omnibox.OmniboxUrlEmphasizer;
 import org.chromium.content_public.browser.bluetooth_scanning.Event;
@@ -270,7 +271,6 @@ public class BluetoothScanningPermissionDialog {
     /**
      * Returns the dialog associated with this class. For use with tests only.
      */
-    @VisibleForTesting
     public Dialog getDialogForTesting() {
         return mDialog;
     }
@@ -278,12 +278,11 @@ public class BluetoothScanningPermissionDialog {
     /**
      * Returns the ItemAdapter associated with this class. For use with tests only.
      */
-    @VisibleForTesting
     public DeviceItemAdapter getItemAdapterForTesting() {
         return mItemAdapter;
     }
 
-    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
     @NativeMethods
     public interface Natives {
         void onDialogFinished(long nativeBluetoothScanningPromptAndroid, int eventType);

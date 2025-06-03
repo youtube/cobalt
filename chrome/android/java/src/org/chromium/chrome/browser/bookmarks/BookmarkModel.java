@@ -7,6 +7,7 @@ package org.chromium.chrome.browser.bookmarks;
 import androidx.annotation.NonNull;
 
 import org.chromium.base.ObserverList;
+import org.chromium.base.ResettersForTesting;
 import org.chromium.base.ThreadUtils;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.components.bookmarks.BookmarkId;
@@ -14,7 +15,9 @@ import org.chromium.components.bookmarks.BookmarkItem;
 import org.chromium.components.bookmarks.BookmarkType;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * A class that encapsulates {@link BookmarkBridge} and provides extra features such as undo, large
@@ -27,6 +30,7 @@ public class BookmarkModel extends BookmarkBridge {
     /** Set an instance for testing. */
     public static void setInstanceForTesting(BookmarkModel bookmarkModel) {
         sInstanceForTesting = bookmarkModel;
+        ResettersForTesting.register(() -> sInstanceForTesting = null);
     }
 
     /**
@@ -38,6 +42,7 @@ public class BookmarkModel extends BookmarkBridge {
 
         /**
          * Callback being triggered immediately before bookmarks are deleted.
+         *
          * @param titles All titles of the bookmarks to be deleted.
          * @param isUndoable Whether the deletion is undoable.
          */
@@ -48,6 +53,7 @@ public class BookmarkModel extends BookmarkBridge {
 
     /**
      * Provides an instance of the bookmark model for the provided profile.
+     *
      * @param profile A profile for which the bookmark model is provided.
      * @return An instance of the bookmark model.
      */
@@ -67,6 +73,7 @@ public class BookmarkModel extends BookmarkBridge {
 
     /**
      * Add an observer that listens to delete events that go through the bookmark model.
+     *
      * @param observer The observer to add.
      */
     void addDeleteObserver(BookmarkDeleteObserver observer) {
@@ -75,6 +82,7 @@ public class BookmarkModel extends BookmarkBridge {
 
     /**
      * Remove the observer from listening to bookmark deleting events.
+     *
      * @param observer The observer to remove.
      */
     void removeDeleteObserver(BookmarkDeleteObserver observer) {
@@ -85,9 +93,10 @@ public class BookmarkModel extends BookmarkBridge {
      * Delete one or multiple bookmarks from model. If more than one bookmarks are passed here, this
      * method will group these delete operations into one undo bundle so that later if the user
      * clicks undo, all bookmarks deleted here will be restored.
+     *
      * @param bookmarks Bookmarks to delete. Note this array should not contain a folder and its
-     *                  children, because deleting folder will also remove all its children, and
-     *                  deleting children once more will cause errors.
+     *     children, because deleting folder will also remove all its children, and deleting
+     *     children once more will cause errors.
      */
     public void deleteBookmarks(BookmarkId... bookmarks) {
         assert bookmarks != null && bookmarks.length > 0;
@@ -111,13 +120,16 @@ public class BookmarkModel extends BookmarkBridge {
     }
 
     /**
-     * Calls {@link BookmarkBridge#moveBookmark(BookmarkId, BookmarkId, int)} for the given
-     * bookmark list. The bookmarks are appended at the end.
+     * Calls {@link BookmarkBridge#moveBookmark(BookmarkId, BookmarkId, int)} for the given bookmark
+     * list. The bookmarks are appended at the end.
      */
     public void moveBookmarks(List<BookmarkId> bookmarkIds, BookmarkId newParentId) {
+        Set<BookmarkId> existingChildren = new HashSet<>(getChildIds(newParentId));
         int appendIndex = getChildCount(newParentId);
-        for (int i = 0; i < bookmarkIds.size(); ++i) {
-            moveBookmark(bookmarkIds.get(i), newParentId, appendIndex + i);
+        for (BookmarkId child : bookmarkIds) {
+            if (!existingChildren.contains(child)) {
+                moveBookmark(child, newParentId, appendIndex++);
+            }
         }
     }
 
@@ -128,22 +140,6 @@ public class BookmarkModel extends BookmarkBridge {
         BookmarkItem bookmarkItem = getBookmarkById(bookmarkId);
         if (bookmarkItem == null) return "";
         return bookmarkItem.getTitle();
-    }
-
-    /**
-     * @param bookmarkId The {@link BookmarkId} for the reading list folder.
-     * @return The total number of unread reading list articles.
-     */
-    public int getUnreadCount(@NonNull BookmarkId bookmarkId) {
-        assert bookmarkId.getType() == BookmarkType.READING_LIST;
-        List<BookmarkId> children = getChildIds(bookmarkId);
-        int unreadCount = 0;
-        for (BookmarkId child : children) {
-            BookmarkItem childItem = getBookmarkById(child);
-            if (!childItem.isRead()) unreadCount++;
-        }
-
-        return unreadCount;
     }
 
     /**

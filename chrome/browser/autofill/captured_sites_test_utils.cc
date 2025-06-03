@@ -44,6 +44,7 @@
 #include "components/javascript_dialogs/app_modal_dialog_controller.h"
 #include "components/javascript_dialogs/app_modal_dialog_view.h"
 #include "components/permissions/permission_request_manager.h"
+#include "components/variations/variations_switches.h"
 #include "content/public/browser/browsing_data_remover.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/render_frame_host.h"
@@ -135,15 +136,13 @@ absl::optional<autofill::ServerFieldType> StringToFieldType(
     const std::string& str) {
   static auto map = []() {
     std::map<std::string, autofill::ServerFieldType> map;
-    for (size_t i = autofill::NO_SERVER_DATA;
-         i < autofill::MAX_VALID_FIELD_TYPE; ++i) {
-      auto field_type = static_cast<autofill::ServerFieldType>(i);
+    for (autofill::ServerFieldType field_type :
+         autofill::kAllServerFieldTypes) {
       map[autofill::AutofillType(field_type).ToString()] = field_type;
     }
-    for (size_t i = static_cast<size_t>(autofill::HtmlFieldType::kUnspecified);
-         i <= static_cast<size_t>(autofill::HtmlFieldType::kMaxValue); ++i) {
-      autofill::AutofillType field_type(static_cast<autofill::HtmlFieldType>(i),
-                                        autofill::HtmlFieldMode::kNone);
+    for (autofill::HtmlFieldType html_field_type :
+         autofill::kAllHtmlFieldTypes) {
+      autofill::AutofillType field_type(html_field_type);
       map[field_type.ToString()] = field_type.GetStorableType();
     }
     return map;
@@ -364,25 +363,20 @@ std::vector<CapturedSiteParams> GetCapturedSites(
       replay_files_dir_path.AppendASCII("testcases.json");
 
   std::string json_text;
-  {
-    if (!base::ReadFileToString(config_file_path, &json_text)) {
-      LOG(WARNING) << "Could not read json file: " << config_file_path;
-      return sites;
-    }
+  if (!base::ReadFileToString(config_file_path, &json_text)) {
+    LOG(WARNING) << "Could not read json file: " << config_file_path;
+    return sites;
   }
   // Parse json text content to json value node.
-  base::Value::Dict root_node;
-  {
-    auto value_with_error = JSONReader::ReadAndReturnValueWithError(
-        json_text, JSONParserOptions::JSON_PARSE_RFC);
-    if (!value_with_error.has_value()) {
-      LOG(WARNING) << "Could not load test config from json file: "
-                   << "`testcases.json` because: "
-                   << value_with_error.error().message;
-      return sites;
-    }
-    root_node = std::move(*value_with_error).TakeDict();
+  auto value_with_error = JSONReader::ReadAndReturnValueWithError(
+      json_text, JSONParserOptions::JSON_PARSE_RFC);
+  if (!value_with_error.has_value()) {
+    LOG(WARNING) << "Could not load test config from json file: "
+                 << "`testcases.json` because: "
+                 << value_with_error.error().message;
+    return sites;
   }
+  base::Value::Dict root_node = std::move(*value_with_error).TakeDict();
   const base::Value::List* list_node = root_node.FindList("tests");
   if (!list_node) {
     LOG(WARNING) << "No tests found in `testcases.json` config";
@@ -626,7 +620,7 @@ bool WebPageReplayServerWrapper::Start(
     const base::FilePath& capture_file_path) {
   std::vector<std::string> args;
   base::FilePath src_dir;
-  if (!base::PathService::Get(base::DIR_SOURCE_ROOT, &src_dir)) {
+  if (!base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &src_dir)) {
     ADD_FAILURE() << "Failed to extract the Chromium source directory!";
     return false;
   }
@@ -734,7 +728,7 @@ bool WebPageReplayServerWrapper::RunWebPageReplayCmd(
 
   base::LaunchOptions options = base::LaunchOptionsForTest();
   base::FilePath exe_dir;
-  if (!base::PathService::Get(base::DIR_SOURCE_ROOT, &exe_dir)) {
+  if (!base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &exe_dir)) {
     ADD_FAILURE() << "Failed to extract the Chromium source directory!";
     return false;
   }
@@ -775,7 +769,7 @@ bool WebPageReplayServerWrapper::RunWebPageReplayCmd(
   // The custom cert and key files are different from those of the official
   // WPR releases. The custom files are made to work on iOS.
   base::FilePath src_dir;
-  if (!base::PathService::Get(base::DIR_SOURCE_ROOT, &src_dir)) {
+  if (!base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &src_dir)) {
     ADD_FAILURE() << "Failed to extract the Chromium source directory!";
     return false;
   }
@@ -812,21 +806,6 @@ ProfileDataController::ProfileDataController()
       card_(autofill::CreditCard(
           base::Uuid::GenerateRandomV4().AsLowercaseString(),
           "http://www.example.com")) {
-  for (size_t i = autofill::NO_SERVER_DATA; i < autofill::MAX_VALID_FIELD_TYPE;
-       ++i) {
-    autofill::ServerFieldType field_type =
-        static_cast<autofill::ServerFieldType>(i);
-    string_to_field_type_map_[autofill::AutofillType(field_type).ToString()] =
-        field_type;
-  }
-
-  for (size_t i = static_cast<size_t>(autofill::HtmlFieldType::kUnspecified);
-       i <= static_cast<size_t>(autofill::HtmlFieldType::kMaxValue); ++i) {
-    autofill::AutofillType field_type(static_cast<autofill::HtmlFieldType>(i),
-                                      autofill::HtmlFieldMode::kNone);
-    string_to_field_type_map_[field_type.ToString()] =
-        field_type.GetStorableType();
-  }
 
   // Initialize the credit card with default values, in case the test recipe
   // file does not contain pre-saved credit card info.
@@ -870,9 +849,21 @@ bool ProfileDataController::AddAutofillProfileInfo(
 TestRecipeReplayer::TestRecipeReplayer(
     Browser* browser,
     TestRecipeReplayChromeFeatureActionExecutor* feature_action_executor)
-    : browser_(browser), feature_action_executor_(feature_action_executor) {}
+    : browser_(browser), feature_action_executor_(feature_action_executor) {
+  CleanupSiteData();
+  // Bypass permission dialogs.
+  permissions::PermissionRequestManager::FromWebContents(GetWebContents())
+      ->set_auto_response_for_test(
+          permissions::PermissionRequestManager::ACCEPT_ALL);
+}
 
-TestRecipeReplayer::~TestRecipeReplayer() {}
+TestRecipeReplayer::~TestRecipeReplayer() {
+  // If there are still cookies at the time the browser test shuts down,
+  // Chrome's SQL lite persistent cookie store will crash.
+  CleanupSiteData();
+  EXPECT_TRUE(web_page_replay_server_wrapper()->Stop())
+      << "Cannot stop the local Web Page Replay server.";
+}
 
 bool TestRecipeReplayer::ReplayTest(
     const base::FilePath& capture_file_path,
@@ -922,8 +913,7 @@ bool TestRecipeReplayer::OverrideAutofillClock(
     VLOG(1) << kClockNotSetMessage << "No DeterministicTimeSeedMs found";
     return false;
   }
-  // wpr archive stores time seed in ms, clock is set in seconds.
-  test_clock_.SetNow(base::Time::FromDoubleT(*time_value / 1000));
+  test_clock_.SetNow(base::Time::FromMillisecondsSinceUnixEpoch(*time_value));
   return true;
 }
 
@@ -949,25 +939,10 @@ void TestRecipeReplayer::SetUpCommandLine(base::CommandLine* command_line) {
       network::switches::kIgnoreCertificateErrorsSPKIList,
       kWebPageReplayCertSPKI);
   command_line->AppendSwitch(switches::kStartMaximized);
-}
-
-void TestRecipeReplayer::Setup() {
-  CleanupSiteData();
-  web_page_replay_server_wrapper_ =
-      std::make_unique<WebPageReplayServerWrapper>(true);
-
-  // Bypass permission dialogs.
-  permissions::PermissionRequestManager::FromWebContents(GetWebContents())
-      ->set_auto_response_for_test(
-          permissions::PermissionRequestManager::ACCEPT_ALL);
-}
-
-void TestRecipeReplayer::Cleanup() {
-  // If there are still cookies at the time the browser test shuts down,
-  // Chrome's SQL lite persistent cookie store will crash.
-  CleanupSiteData();
-  EXPECT_TRUE(web_page_replay_server_wrapper()->Stop())
-      << "Cannot stop the local Web Page Replay server.";
+  // Since we are adding via ScopedFeatureList for test features required, we
+  // need to explicitly also enable field trials.
+  command_line->AppendSwitch(
+      variations::switches::kEnableFieldTrialTestingConfig);
 }
 
 TestRecipeReplayChromeFeatureActionExecutor*
@@ -1140,7 +1115,7 @@ bool TestRecipeReplayer::ReplayRecordedActions(
         while (!thread_finished) {
           base::RunLoop run_loop;
           base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
-              FROM_HERE, run_loop.QuitClosure(), base::Milliseconds(1000));
+              FROM_HERE, run_loop.QuitClosure(), base::Seconds(1));
           run_loop.Run();
         }
       }
@@ -1289,9 +1264,9 @@ bool TestRecipeReplayer::InitializeBrowserToExecuteRecipe(
   }
 
   // Navigate to the starting URL, wait for the page to complete loading.
-  if (!content::ExecuteScript(GetWebContents(),
-                              base::StringPrintf("window.location.href = '%s';",
-                                                 starting_url->c_str()))) {
+  if (!content::ExecJs(GetWebContents(),
+                       base::StringPrintf("window.location.href = '%s';",
+                                          starting_url->c_str()))) {
     ADD_FAILURE() << "Failed to navigate Chrome to '" << *starting_url << "!";
     return false;
   }
@@ -1513,7 +1488,7 @@ bool TestRecipeReplayer::ExecuteRunCommandAction(base::Value::Dict action) {
 
   // Execute the commands.
   for (const std::string& command : commands) {
-    if (!content::ExecuteScript(frame, command)) {
+    if (!content::ExecJs(frame, command)) {
       ADD_FAILURE() << "Failed to execute JavaScript command `" << command
                     << "`!";
       return false;
@@ -2030,19 +2005,14 @@ bool TestRecipeReplayer::AllAssertionsPassed(
     const content::ToRenderFrameHost& frame,
     const std::vector<std::string>& assertions) {
   for (const std::string& assertion : assertions) {
-    bool assertion_passed = false;
-    EXPECT_TRUE(ExecuteScriptAndExtractBool(
-        frame,
-        base::StringPrintf("window.domAutomationController.send("
-                           "    (function() {"
-                           "      try {"
-                           "        %s"
-                           "      } catch (ex) {}"
-                           "      return false;"
-                           "    })());",
-                           assertion.c_str()),
-        &assertion_passed));
-    if (!assertion_passed) {
+    if (!EvalJs(frame, base::StringPrintf("(function() {"
+                                          "  try {"
+                                          "    %s"
+                                          "  } catch (ex) {}"
+                                          "  return false;"
+                                          "})();",
+                                          assertion.c_str()))
+             .ExtractBool()) {
       VLOG(1) << "'" << assertion << "' failed!";
       return false;
     }
@@ -2061,7 +2031,7 @@ bool TestRecipeReplayer::ExecuteJavaScriptOnElementByXpath(
       "  (function(target) { %s })(element);"
       "} catch(ex) {}",
       element_xpath.c_str(), execute_function_body.c_str()));
-  return ExecuteScript(frame, js);
+  return ExecJs(frame, js);
 }
 
 bool TestRecipeReplayer::GetElementProperty(
@@ -2069,21 +2039,20 @@ bool TestRecipeReplayer::GetElementProperty(
     const std::string& element_xpath,
     const std::string& get_property_function_body,
     std::string* property) {
-  *property =
-      content::EvalJs(
-          frame, base::StringPrintf(
-                     "(function() {"
-                     "  try {"
-                     "    var element = function() {"
-                     "      return automation_helper.getElementByXpath(`%s`);"
-                     "    }();"
-                     "    return function(target){%s}(element);"
-                     "  } catch (ex) {}"
-                     "  return 'Exception encountered';"
-                     "})();",
-                     element_xpath.c_str(), get_property_function_body.c_str()))
-          .ExtractString();
-  return true;
+  content::EvalJsResult result = content::EvalJs(
+      frame, base::StringPrintf(
+                 "(function() {"
+                 "    var element = function() {"
+                 "      return automation_helper.getElementByXpath(`%s`);"
+                 "    }();"
+                 "    return function(target){%s}(element);})();",
+                 element_xpath.c_str(), get_property_function_body.c_str()));
+  if (result.error.empty() && result.value.is_string()) {
+    *property = result.ExtractString();
+    return true;
+  }
+  *property = result.error;
+  return false;
 }
 
 bool TestRecipeReplayer::ExpectElementPropertyEqualsAnyOf(
@@ -2128,18 +2097,13 @@ bool TestRecipeReplayer::ScrollElementIntoView(
       "  const element = automation_helper.getElementByXpath(`%s`);"
       "  element.scrollIntoView({"
       "    block: 'center', inline: 'center'});"
-      "  window.domAutomationController.send(true);"
+      "  true;"
       "} catch(ex) {"
-      "  window.domAutomationController.send(false);"
+      "  false;"
       "}",
       element_xpath.c_str()));
 
-  bool succeeded = false;
-  if (!ExecuteScriptAndExtractBool(frame, scroll_target_js, &succeeded)) {
-    ADD_FAILURE() << "Failed to scroll the element into view with JavaScript!";
-    return false;
-  }
-  return true;
+  return EvalJs(frame, scroll_target_js).ExtractBool();
 }
 
 bool TestRecipeReplayer::PlaceFocusOnElement(
@@ -2149,37 +2113,26 @@ bool TestRecipeReplayer::PlaceFocusOnElement(
   if (!ScrollElementIntoView(element_xpath, frame))
     return false;
 
-  const std::string focus_on_target_field_js(base::StringPrintf(
-      "try {"
-      "  function onFocusHandler(event) {"
-      "    event.target.removeEventListener(event.type, arguments.callee);"
-      "    window.domAutomationController.send(true);"
-      "  }"
-      "  const element = automation_helper.getElementByXpath(`%s`);"
-      "  if (document.activeElement === element) {"
-      "    window.domAutomationController.send(true);"
-      "  } else {"
-      "    element.addEventListener('focus', onFocusHandler);"
-      "    element.focus();"
-      "  }"
-      "  setTimeout(() => {"
-      "    element.removeEventListener('focus', onFocusHandler);"
-      "    window.domAutomationController.send(false);"
-      "  }, 1000);"
-      "} catch(ex) {"
-      "  window.domAutomationController.send(false);"
-      "}",
-      element_xpath.c_str()));
+  const std::string focus_on_target_field_js(
+      base::StringPrintf("(function() {const element = "
+                         "automation_helper.getElementByXpath(`%s`);"
+                         "    if (document.activeElement !== element) {"
+                         "      element.focus();"
+                         "    }"
+                         "    return document.activeElement === element;})();",
+                         element_xpath.c_str()));
 
-  bool focused = false;
-  if (!ExecuteScriptAndExtractBool(frame, focus_on_target_field_js, &focused)) {
-    ADD_FAILURE() << "Failed to place focus on the element with JavaScript!";
-    return false;
-  }
-
-  if (focused) {
+  content::EvalJsResult result =
+      content::EvalJs(frame, focus_on_target_field_js);
+  if (result.error.empty() && result.value.is_bool() && result.ExtractBool()) {
     return true;
   } else {
+    VLOG(1) << "Failed to focus element through script:"
+            << (result.error.empty()
+                    ? (result.value.is_bool() ? "Not a valid bool"
+                                              : "Returned false")
+                    : result.error);
+
     // Failing focusing on an element through script, use the less preferred
     // method of left mouse clicking the element.
     gfx::Rect rect;
@@ -2330,7 +2283,7 @@ void TestRecipeReplayer::NavigateAwayAndDismissBeforeUnloadDialog() {
   content::PrepContentsForBeforeUnloadTest(GetWebContents());
   ui_test_utils::NavigateToURLWithDisposition(
       browser(), GURL(url::kAboutBlankURL), WindowOpenDisposition::CURRENT_TAB,
-      ui_test_utils::BROWSER_TEST_NONE);
+      ui_test_utils::BROWSER_TEST_NO_WAIT);
   javascript_dialogs::AppModalDialogController* alert =
       ui_test_utils::WaitForAppModalDialog();
   alert->view()->AcceptAppModalDialog();

@@ -10,12 +10,15 @@
 #include <cmath>
 #include <memory>
 #include <set>
+#include <unordered_set>
 #include <utility>
 
 #include "base/command_line.h"
+#include "base/containers/contains.h"
 #include "base/containers/flat_map.h"
 #include "base/debug/leak_annotations.h"
 #include "base/environment.h"
+#include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/nix/mime_util_xdg.h"
 #include "base/nix/xdg_util.h"
@@ -30,13 +33,16 @@
 #include "ui/base/ime/input_method.h"
 #include "ui/base/ime/linux/fake_input_method_context.h"
 #include "ui/base/ime/linux/linux_input_method_context.h"
+#include "ui/base/ime/text_input_flags.h"
 #include "ui/color/color_id.h"
 #include "ui/color/color_provider.h"
+#include "ui/color/color_provider_key.h"
 #include "ui/color/color_provider_manager.h"
 #include "ui/display/display.h"
 #include "ui/events/keycodes/dom/dom_code.h"
 #include "ui/events/keycodes/dom/dom_keyboard_layout_manager.h"
 #include "ui/events/keycodes/dom/keycode_converter.h"
+#include "ui/gfx/animation/animation.h"
 #include "ui/gfx/font_render_params.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
@@ -168,6 +174,23 @@ std::unique_ptr<GtkUiPlatform> CreateGtkUiPlatform(ui::LinuxUiBackend backend) {
   }
 }
 
+double FontScale() {
+  double resolution = 0;
+  if (GtkCheckVersion(4)) {
+    auto* settings = gtk_settings_get_default();
+    int dpi = 0;
+    g_object_get(settings, "gtk-xft-dpi", &dpi, nullptr);
+    resolution = dpi / 1024.0;
+  } else {
+    GdkScreen* screen = gdk_screen_get_default();
+    resolution = gdk_screen_get_resolution(screen);
+  }
+  const double font_scale = resolution > 0 ? resolution / kDefaultDPI : 1.0;
+  // Round to the nearest 1/64th so that UI can losslessly multiply and divide
+  // the scale factor.
+  return std::round(font_scale * 64) / 64;
+}
+
 }  // namespace
 
 GtkUi::GtkUi() : window_frame_actions_() {
@@ -213,32 +236,48 @@ bool GtkUi::Initialize() {
       {ActionSource::kMiddleClick, Action::kNone},
       {ActionSource::kRightClick, Action::kMenu}};
 
+  auto connect = [&](auto* sender, const char* detailed_signal, auto receiver) {
+    // Unretained() is safe since GtkUi will own the ScopedGSignal.
+    signals_.emplace_back(sender, detailed_signal,
+                          base::BindRepeating(receiver, base::Unretained(this)),
+                          G_CONNECT_AFTER);
+  };
+
   GtkSettings* settings = gtk_settings_get_default();
-  g_signal_connect_after(settings, "notify::gtk-theme-name",
-                         G_CALLBACK(OnThemeChangedThunk), this);
-  g_signal_connect_after(settings, "notify::gtk-icon-theme-name",
-                         G_CALLBACK(OnThemeChangedThunk), this);
-  g_signal_connect_after(settings, "notify::gtk-application-prefer-dark-theme",
-                         G_CALLBACK(OnThemeChangedThunk), this);
-  g_signal_connect_after(settings, "notify::gtk-cursor-theme-name",
-                         G_CALLBACK(OnCursorThemeNameChangedThunk), this);
-  g_signal_connect_after(settings, "notify::gtk-cursor-theme-size",
-                         G_CALLBACK(OnCursorThemeSizeChangedThunk), this);
+  connect(settings, "notify::gtk-theme-name", &GtkUi::OnThemeChanged);
+  connect(settings, "notify::gtk-icon-theme-name", &GtkUi::OnThemeChanged);
+  connect(settings, "notify::gtk-application-prefer-dark-theme",
+          &GtkUi::OnThemeChanged);
+  connect(settings, "notify::gtk-cursor-theme-name",
+          &GtkUi::OnCursorThemeNameChanged);
+  connect(settings, "notify::gtk-cursor-theme-size",
+          &GtkUi::OnCursorThemeSizeChanged);
+  connect(settings, "notify::gtk-enable-animations",
+          &GtkUi::OnEnableAnimationsChanged);
 
   // Listen for DPI changes.
-  auto* dpi_callback = G_CALLBACK(OnDeviceScaleFactorMaybeChangedThunk);
   if (GtkCheckVersion(4)) {
-    g_signal_connect_after(settings, "notify::gtk-xft-dpi", dpi_callback, this);
+    connect(settings, "notify::gtk-xft-dpi", &GtkUi::OnGtkXftDpiChanged);
   } else {
     GdkScreen* screen = gdk_screen_get_default();
-    g_signal_connect_after(screen, "notify::resolution", dpi_callback, this);
+    connect(screen, "notify::resolution", &GtkUi::OnScreenResolutionChanged);
   }
 
-  // Listen for scale factor changes.  We would prefer to listen on
-  // a GdkScreen, but there is no scale-factor property, so use an
-  // unmapped window instead.
-  g_signal_connect(GetDummyWindow(), "notify::scale-factor",
-                   G_CALLBACK(OnDeviceScaleFactorMaybeChangedThunk), this);
+  // Listen for scale factor changes.
+  GdkDisplay* display = gdk_display_get_default();
+  if (GtkCheckVersion(4)) {
+    GListModel* monitors = gdk_display_get_monitors(display);
+    connect(monitors, "items-changed", &GtkUi::OnMonitorsChanged);
+    const guint n_monitors = g_list_model_get_n_items(monitors);
+    OnMonitorsChanged(monitors, 0, 0, n_monitors);
+  } else {
+    connect(display, "monitor-added", &GtkUi::OnMonitorAdded);
+    connect(display, "monitor-removed", &GtkUi::OnMonitorRemoved);
+    const int n_monitors = gdk_display_get_n_monitors(display);
+    for (int i = 0; i < n_monitors; i++) {
+      TrackMonitor(gdk_display_get_monitor(display, i));
+    }
+  }
 
   LoadGtkValues();
 
@@ -459,6 +498,14 @@ bool GtkUi::PreferDarkTheme() const {
   return dark;
 }
 
+void GtkUi::SetDarkTheme(bool dark) {
+  auto* settings = gtk_settings_get_default();
+  g_object_set(settings, "gtk-application-prefer-dark-theme", dark, nullptr);
+  // OnThemeChanged() will be called via the
+  // notify::gtk-application-prefer-dark-theme handler to update the native
+  // theme.
+}
+
 bool GtkUi::AnimationsEnabled() const {
   gboolean animations_enabled = false;
   g_object_get(gtk_settings_get_default(), "gtk-enable-animations",
@@ -574,6 +621,7 @@ int GtkUi::GetCursorThemeSize() {
 
 bool GtkUi::GetTextEditCommandsForEvent(
     const ui::Event& event,
+    int text_flags,
     std::vector<ui::TextEditCommandAuraLinux>* commands) {
   // GTK4 dropped custom key bindings.
   if (GtkCheckVersion(4)) {
@@ -586,6 +634,16 @@ bool GtkUi::GetTextEditCommandsForEvent(
   // early out here, for now, until a proper solution for ozone is implemented.
   if (!platform_->GetGdkKeymap()) {
     return false;
+  }
+
+  // Skip mapping arrow keys to edit commands for vertical text fields in a
+  // renderer.  Blink handles them.  See crbug.com/484651.
+  if (text_flags & ui::TEXT_INPUT_FLAG_VERTICAL) {
+    ui::KeyboardCode code = event.AsKeyEvent()->key_code();
+    if (code == ui::VKEY_LEFT || code == ui::VKEY_RIGHT ||
+        code == ui::VKEY_UP || code == ui::VKEY_DOWN) {
+      return false;
+    }
   }
 
   // Ensure that we have a keyboard handler.
@@ -638,7 +696,49 @@ void GtkUi::OnCursorThemeSizeChanged(GtkSettings* settings,
   }
 }
 
-void GtkUi::OnDeviceScaleFactorMaybeChanged(void*, GParamSpec*) {
+void GtkUi::OnEnableAnimationsChanged(GtkSettings* settings,
+                                      GtkParamSpec* param) {
+  gfx::Animation::UpdatePrefersReducedMotion();
+}
+
+void GtkUi::OnGtkXftDpiChanged(GtkSettings* settings, GParamSpec* param) {
+  UpdateDeviceScaleFactor();
+}
+
+void GtkUi::OnScreenResolutionChanged(GdkScreen* screen, GParamSpec* param) {
+  UpdateDeviceScaleFactor();
+}
+
+void GtkUi::OnMonitorChanged(GdkMonitor* monitor, GParamSpec* param) {
+  UpdateDeviceScaleFactor();
+}
+
+void GtkUi::OnMonitorAdded(GdkDisplay* display, GdkMonitor* monitor) {
+  TrackMonitor(monitor);
+  UpdateDeviceScaleFactor();
+}
+
+void GtkUi::OnMonitorRemoved(GdkDisplay* display, GdkMonitor* monitor) {
+  monitor_signals_.erase(monitor);
+  UpdateDeviceScaleFactor();
+}
+
+void GtkUi::OnMonitorsChanged(GListModel* list,
+                              guint position,
+                              guint removed,
+                              guint added) {
+  const guint n_monitors = g_list_model_get_n_items(list);
+  std::unordered_set<GdkMonitor*> monitors;
+  for (size_t i = 0; i < n_monitors; ++i) {
+    auto* monitor = static_cast<GdkMonitor*>(g_list_model_get_item(list, i));
+    if (!base::Contains(monitor_signals_, monitor)) {
+      TrackMonitor(monitor);
+    }
+    monitors.insert(monitor);
+  }
+  std::erase_if(monitor_signals_, [&](const auto& pair) {
+    return !base::Contains(monitors, pair.first);
+  });
   UpdateDeviceScaleFactor();
 }
 
@@ -661,19 +761,23 @@ void GtkUi::UpdateColors() {
   // to the theme bits associated with the NativeThemeGtk instance to ensure
   // we do not regress existing behavior during the transition.
   const auto color_scheme = native_theme_->GetDefaultSystemColorScheme();
+  ui::ColorProviderKey key;
+  key.color_mode = (color_scheme == ui::NativeTheme::ColorScheme::kDark)
+                       ? ui::ColorProviderKey::ColorMode::kDark
+                       : ui::ColorProviderKey::ColorMode::kLight;
+  key.contrast_mode =
+      (color_scheme == ui::NativeTheme::ColorScheme::kPlatformHighContrast)
+          ? ui::ColorProviderKey::ContrastMode::kHigh
+          : ui::ColorProviderKey::ContrastMode::kNormal;
+  key.forced_colors =
+      (color_scheme == ui::NativeTheme::ColorScheme::kPlatformHighContrast)
+          ? ui::ColorProviderKey::ForcedColors::kActive
+          : ui::ColorProviderKey::ForcedColors::kNone;
+  // Some theme colors, e.g. COLOR_NTP_LINK, are derived from color provider
+  // colors. We assume that those sources' colors won't change with frame type.
+  key.system_theme = ui::SystemTheme::kGtk;
   const auto* color_provider =
-      ui::ColorProviderManager::Get().GetColorProviderFor(
-          {(color_scheme == ui::NativeTheme::ColorScheme::kDark)
-               ? ui::ColorProviderManager::ColorMode::kDark
-               : ui::ColorProviderManager::ColorMode::kLight,
-           (color_scheme == ui::NativeTheme::ColorScheme::kPlatformHighContrast)
-               ? ui::ColorProviderManager::ContrastMode::kHigh
-               : ui::ColorProviderManager::ContrastMode::kNormal,
-           ui::SystemTheme::kGtk,
-           // Some theme colors, e.g. COLOR_NTP_LINK, are derived from color
-           // provider colors. We assume that those sources' colors won't change
-           // with frame type.
-           ui::ColorProviderManager::FrameType::kChromium});
+      ui::ColorProviderManager::Get().GetColorProviderFor(key);
 
   SkColor location_bar_border = GetBorderColor("entry");
   if (SkColorGetA(location_bar_border)) {
@@ -808,7 +912,7 @@ void GtkUi::UpdateColors() {
 }
 
 void GtkUi::UpdateDefaultFont() {
-  gfx::SetFontRenderParamsDeviceScaleFactor(device_scale_factor_);
+  gfx::SetFontRenderParamsDeviceScaleFactor(display_config().primary_scale);
 
   auto fake_label = TakeGObject(gtk_label_new(nullptr));
   PangoContext* pc = gtk_widget_get_pango_context(fake_label);
@@ -821,21 +925,25 @@ void GtkUi::UpdateDefaultFont() {
       base::SplitString(pango_font_description_get_family(desc), ",",
                         base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
 
+  constexpr double kPangoScale = PANGO_SCALE;
+  double size_pixels;
   if (pango_font_description_get_size_is_absolute(desc)) {
     // If the size is absolute, it's specified in Pango units. There are
     // PANGO_SCALE Pango units in a device unit (pixel).
-    const int size_pixels = pango_font_description_get_size(desc) / PANGO_SCALE;
-    default_font_size_pixels_ = size_pixels;
-    query.pixel_size = size_pixels;
+    size_pixels = pango_font_description_get_size(desc) / kPangoScale;
+    query.pixel_size = std::round(size_pixels);
   } else {
     // Non-absolute sizes are in points (again scaled by PANGO_SIZE).
     // Round the value when converting to pixels to match GTK's logic.
-    const double size_points = pango_font_description_get_size(desc) /
-                               static_cast<double>(PANGO_SCALE);
-    default_font_size_pixels_ =
-        static_cast<int>(kDefaultDPI / 72.0 * size_points + 0.5);
-    query.point_size = static_cast<int>(size_points);
+    const double size_points =
+        pango_font_description_get_size(desc) / kPangoScale;
+    size_pixels = kDefaultDPI / 72.0 * size_points;
+    query.point_size = std::round(size_points);
   }
+  if (!platform_->IncludeFontScaleInDeviceScale()) {
+    size_pixels *= FontScale();
+  }
+  default_font_size_pixels_ = std::round(size_pixels);
 
   query.style = gfx::Font::NORMAL;
   query.weight =
@@ -850,49 +958,80 @@ void GtkUi::UpdateDefaultFont() {
   default_font_style_ = query.style;
 }
 
-float GtkUi::GetRawDeviceScaleFactor() {
+void GtkUi::TrackMonitor(GdkMonitor* monitor) {
+  auto connect = [&](const char* detailed_signal) {
+    // Unretained() is safe since GtkUi will own the ScopedGSignal.
+    return ScopedGSignal(
+        monitor, detailed_signal,
+        base::BindRepeating(&GtkUi::OnMonitorChanged, base::Unretained(this)),
+        G_CONNECT_AFTER);
+  };
+  monitor_signals_[monitor] = {connect("notify::geometry"),
+                               connect("notify::scale-factor")};
+}
+
+ui::DisplayConfig GtkUi::GetDisplayConfig() const {
+  ui::DisplayConfig config;
   if (display::Display::HasForceDeviceScaleFactor()) {
-    return display::Display::GetForcedDeviceScaleFactor();
+    config.primary_scale = display::Display::GetForcedDeviceScaleFactor();
+    return config;
   }
 
-  float scale = gtk_widget_get_scale_factor(GetDummyWindow());
-  DCHECK_GT(scale, 0.0);
+  const double font_scale =
+      platform_->IncludeFontScaleInDeviceScale() ? FontScale() : 1.0;
 
-  double resolution = 0;
+  GdkDisplay* display = gdk_display_get_default();
+  GdkMonitor* primary = nullptr;
+  std::vector<GdkMonitor*> monitors;
   if (GtkCheckVersion(4)) {
-    auto* settings = gtk_settings_get_default();
-    int dpi = 0;
-    g_object_get(settings, "gtk-xft-dpi", &dpi, nullptr);
-    resolution = dpi / 1024.0;
+    GListModel* list = gdk_display_get_monitors(display);
+    auto n_monitors = g_list_model_get_n_items(list);
+    if (!n_monitors) {
+      return config;
+    }
+    primary = static_cast<GdkMonitor*>(g_list_model_get_item(list, 0));
+    monitors.reserve(n_monitors);
+    for (unsigned int i = 0; i < n_monitors; ++i) {
+      monitors.push_back(
+          static_cast<GdkMonitor*>(g_list_model_get_item(list, i)));
+    }
   } else {
-    GdkScreen* screen = gdk_screen_get_default();
-    resolution = gdk_screen_get_resolution(screen);
+    primary = gdk_display_get_primary_monitor(display);
+    const int n_monitors = gdk_display_get_n_monitors(display);
+    monitors.reserve(n_monitors);
+    for (int i = 0; i < n_monitors; i++) {
+      monitors.push_back(gdk_display_get_monitor(display, i));
+    }
   }
-  if (resolution > 0) {
-    scale *= resolution / kDefaultDPI;
+  if (!primary) {
+    return config;
   }
-
-  // Round to the nearest 64th so that UI can losslessly multiply and divide
-  // the scale factor.
-  scale = roundf(scale * 64) / 64;
-
-  return scale;
+  config.primary_scale =
+      std::max(1, gdk_monitor_get_scale_factor(primary)) * font_scale;
+  config.display_geometries.reserve(monitors.size());
+  for (GdkMonitor* monitor : monitors) {
+    GdkRectangle geometry;
+    gdk_monitor_get_geometry(monitor, &geometry);
+    int monitor_scale = std::max(1, gdk_monitor_get_scale_factor(monitor));
+    config.display_geometries.emplace_back(
+        gfx::Rect(monitor_scale * geometry.x, monitor_scale * geometry.y,
+                  monitor_scale * geometry.width,
+                  monitor_scale * geometry.height),
+        monitor_scale * font_scale);
+  }
+  return config;
 }
 
 void GtkUi::UpdateDeviceScaleFactor() {
-  float old_device_scale_factor = device_scale_factor_;
-  device_scale_factor_ = GetRawDeviceScaleFactor();
-  if (device_scale_factor_ != old_device_scale_factor) {
+  auto new_config = GetDisplayConfig();
+  if (display_config() != new_config) {
+    display_config() = std::move(new_config);
     for (ui::DeviceScaleFactorObserver& observer :
          device_scale_factor_observer_list()) {
       observer.OnDeviceScaleFactorChanged();
     }
   }
   UpdateDefaultFont();
-}
-
-float GtkUi::GetDeviceScaleFactor() const {
-  return device_scale_factor_;
 }
 
 }  // namespace gtk

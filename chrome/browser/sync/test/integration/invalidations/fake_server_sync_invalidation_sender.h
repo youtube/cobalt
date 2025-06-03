@@ -64,7 +64,7 @@ class FakeServerSyncInvalidationSender : public FakeServer::Observer,
   // data type.
   void UpdateTokenToInterestedDataTypesMap();
 
-  raw_ptr<FakeServer> fake_server_;
+  const raw_ptr<FakeServer> fake_server_;
 
   // Cache of invalidations to be dispatched by
   // DeliverInvalidationsToHandlers(), keyed by FCM registration token. If no
@@ -77,7 +77,7 @@ class FakeServerSyncInvalidationSender : public FakeServer::Observer,
   // invalidations to a corresponding client.
   std::map<std::string, syncer::ModelTypeSet> token_to_interested_data_types_;
 
-  std::vector<base::raw_ptr<instance_id::FakeGCMDriverForInstanceID>>
+  std::vector<raw_ptr<instance_id::FakeGCMDriverForInstanceID>>
       fake_gcm_drivers_;
 };
 

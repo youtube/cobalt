@@ -17,11 +17,27 @@
 #include "content/browser/renderer_host/media/video_capture_manager.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
+#include "content/public/browser/content_browser_client.h"
 #include "content/public/browser/render_process_host.h"
+#include "content/public/common/content_client.h"
 #include "media/capture/mojom/video_capture_types.mojom.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
+#include "services/video_capture/public/mojom/video_effects_manager.mojom.h"
 
 namespace content {
+
+namespace {
+
+BrowserContext* GetBrowserContext(uint32_t render_process_id) {
+  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+  RenderProcessHost* host = RenderProcessHost::FromID(render_process_id);
+  if (host) {
+    return host->GetBrowserContext();
+  }
+  return nullptr;
+}
+
+}  // namespace
 
 VideoCaptureHost::RenderProcessHostDelegate::~RenderProcessHostDelegate() =
     default;
@@ -40,24 +56,43 @@ class VideoCaptureHost::RenderProcessHostDelegateImpl
       const RenderProcessHostDelegateImpl&) = delete;
 
   ~RenderProcessHostDelegateImpl() override {
-    DCHECK_CURRENTLY_ON(BrowserThread::UI);
+    DCHECK_CURRENTLY_ON(BrowserThread::IO);
   }
 
   // Helper functions that are used for notifying Browser-side RenderProcessHost
   // if renderer is currently consuming video capture. This information is then
   // used to determine if the renderer process should be backgrounded or not.
   void NotifyStreamAdded() override {
-    DCHECK_CURRENTLY_ON(BrowserThread::UI);
-    RenderProcessHost* host = RenderProcessHost::FromID(render_process_id_);
-    if (host)
-      host->OnMediaStreamAdded();
+    DCHECK_CURRENTLY_ON(BrowserThread::IO);
+    GetUIThreadTaskRunner({})->PostTask(
+        FROM_HERE, base::BindOnce(
+                       [](uint32_t render_process_id) {
+                         RenderProcessHost* host =
+                             RenderProcessHost::FromID(render_process_id);
+                         if (host) {
+                           host->OnMediaStreamAdded();
+                         }
+                       },
+                       render_process_id_));
   }
 
   void NotifyStreamRemoved() override {
-    DCHECK_CURRENTLY_ON(BrowserThread::UI);
-    RenderProcessHost* host = RenderProcessHost::FromID(render_process_id_);
-    if (host)
-      host->OnMediaStreamRemoved();
+    DCHECK_CURRENTLY_ON(BrowserThread::IO);
+    GetUIThreadTaskRunner({})->PostTask(
+        FROM_HERE, base::BindOnce(
+                       [](uint32_t render_process_id) {
+                         RenderProcessHost* host =
+                             RenderProcessHost::FromID(render_process_id);
+                         if (host) {
+                           host->OnMediaStreamRemoved();
+                         }
+                       },
+                       render_process_id_));
+  }
+
+  uint32_t GetRenderProcessId() const override {
+    DCHECK_CURRENTLY_ON(BrowserThread::IO);
+    return render_process_id_;
   }
 
  private:
@@ -111,8 +146,6 @@ VideoCaptureHost::~VideoCaptureHost() {
   }
 
   NotifyAllStreamsRemoved();
-  GetUIThreadTaskRunner({})->DeleteSoon(
-      FROM_HERE, render_process_host_delegate_.release());
 }
 
 void VideoCaptureHost::OnError(const VideoCaptureControllerID& controller_id,
@@ -164,8 +197,7 @@ void VideoCaptureHost::OnBufferDestroyed(
 
 void VideoCaptureHost::OnBufferReady(
     const VideoCaptureControllerID& controller_id,
-    const ReadyBuffer& buffer,
-    const std::vector<ReadyBuffer>& scaled_buffers) {
+    const ReadyBuffer& buffer) {
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
   if (controllers_.find(controller_id) == controllers_.end())
     return;
@@ -181,14 +213,19 @@ void VideoCaptureHost::OnBufferReady(
 
   media::mojom::ReadyBufferPtr mojom_buffer = media::mojom::ReadyBuffer::New(
       buffer.buffer_id, buffer.frame_info->Clone());
-  std::vector<media::mojom::ReadyBufferPtr> mojom_scaled_buffers;
-  mojom_scaled_buffers.reserve(scaled_buffers.size());
-  for (const auto& scaled_buffer : scaled_buffers) {
-    mojom_scaled_buffers.push_back(media::mojom::ReadyBuffer::New(
-        scaled_buffer.buffer_id, scaled_buffer.frame_info->Clone()));
-  }
   device_id_to_observer_map_[controller_id]->OnBufferReady(
-      std::move(mojom_buffer), std::move(mojom_scaled_buffers));
+      std::move(mojom_buffer));
+}
+
+void VideoCaptureHost::OnFrameDropped(
+    const VideoCaptureControllerID& controller_id,
+    media::VideoCaptureFrameDropReason reason) {
+  DCHECK_CURRENTLY_ON(BrowserThread::IO);
+  if (controllers_.find(controller_id) == controllers_.end() ||
+      !base::Contains(device_id_to_observer_map_, controller_id)) {
+    return;
+  }
+  device_id_to_observer_map_[controller_id]->OnFrameDropped(reason);
 }
 
 void VideoCaptureHost::OnFrameWithEmptyRegionCapture(
@@ -261,10 +298,15 @@ void VideoCaptureHost::Start(
   }
 
   controllers_[controller_id] = base::WeakPtr<VideoCaptureController>();
-  media_stream_manager_->video_capture_manager()->ConnectClient(
-      session_id, params, controller_id, this,
-      base::BindOnce(&VideoCaptureHost::OnControllerAdded,
-                     weak_factory_.GetWeakPtr(), device_id));
+  GetUIThreadTaskRunner({})->PostTaskAndReplyWithResult(
+      FROM_HERE,
+      base::BindOnce(&GetBrowserContext,
+                     render_process_host_delegate_->GetRenderProcessId()),
+      base::BindOnce(&VideoCaptureHost::ConnectClient,
+                     weak_factory_.GetWeakPtr(), session_id, params,
+                     controller_id,
+                     base::BindOnce(&VideoCaptureHost::OnControllerAdded,
+                                    weak_factory_.GetWeakPtr(), device_id)));
 }
 
 void VideoCaptureHost::Stop(const base::UnguessableToken& device_id) {
@@ -279,8 +321,8 @@ void VideoCaptureHost::Stop(const base::UnguessableToken& device_id) {
     device_id_to_observer_map_[device_id]->OnStateChanged(
         media::mojom::VideoCaptureResult::NewState(
             media::mojom::VideoCaptureState::STOPPED));
-    device_id_to_observer_map_.erase(controller_id);
   }
+  device_id_to_observer_map_.erase(controller_id);
 
   DeleteVideoCaptureController(controller_id, media::VideoCaptureError::kNone);
   NotifyStreamRemoved();
@@ -394,23 +436,9 @@ void VideoCaptureHost::GetDeviceFormatsInUse(
   std::move(callback).Run(formats_in_use);
 }
 
-void VideoCaptureHost::OnFrameDropped(
+void VideoCaptureHost::OnNewSubCaptureTargetVersion(
     const base::UnguessableToken& device_id,
-    media::VideoCaptureFrameDropReason reason) {
-  DCHECK_CURRENTLY_ON(BrowserThread::IO);
-
-  VideoCaptureControllerID controller_id(device_id);
-  auto it = controllers_.find(controller_id);
-  if (it == controllers_.end())
-    return;
-
-  const base::WeakPtr<VideoCaptureController>& controller = it->second;
-  if (controller)
-    controller->OnFrameDropped(reason);
-}
-
-void VideoCaptureHost::OnNewCropVersion(const base::UnguessableToken& device_id,
-                                        uint32_t crop_version) {
+    uint32_t sub_capture_target_version) {
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
 
   const VideoCaptureControllerID controller_id(device_id);
@@ -419,7 +447,8 @@ void VideoCaptureHost::OnNewCropVersion(const base::UnguessableToken& device_id,
     return;
   }
 
-  device_id_to_observer_map_[controller_id]->OnNewCropVersion(crop_version);
+  device_id_to_observer_map_[controller_id]->OnNewSubCaptureTargetVersion(
+      sub_capture_target_version);
 }
 
 void VideoCaptureHost::OnLog(const base::UnguessableToken& device_id,
@@ -518,12 +547,7 @@ void VideoCaptureHost::DeleteVideoCaptureController(
 void VideoCaptureHost::NotifyStreamAdded() {
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
   ++number_of_active_streams_;
-  // base::Unretained() usage is safe because |render_process_host_delegate_|
-  // is destroyed on UI thread.
-  GetUIThreadTaskRunner({})->PostTask(
-      FROM_HERE,
-      base::BindOnce(&RenderProcessHostDelegate::NotifyStreamAdded,
-                     base::Unretained(render_process_host_delegate_.get())));
+  render_process_host_delegate_->NotifyStreamAdded();
 }
 
 void VideoCaptureHost::NotifyStreamRemoved() {
@@ -535,18 +559,23 @@ void VideoCaptureHost::NotifyStreamRemoved() {
   if (number_of_active_streams_ == 0)
     return;
   --number_of_active_streams_;
-  // base::Unretained() usage is safe because |render_process_host_delegate_| is
-  // destroyed on UI thread.
-  GetUIThreadTaskRunner({})->PostTask(
-      FROM_HERE,
-      base::BindOnce(&RenderProcessHostDelegate::NotifyStreamRemoved,
-                     base::Unretained(render_process_host_delegate_.get())));
+  render_process_host_delegate_->NotifyStreamRemoved();
 }
 
 void VideoCaptureHost::NotifyAllStreamsRemoved() {
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
   while (number_of_active_streams_ > 0)
     NotifyStreamRemoved();
+}
+
+void VideoCaptureHost::ConnectClient(const base::UnguessableToken session_id,
+                                     const media::VideoCaptureParams& params,
+                                     VideoCaptureControllerID controller_id,
+                                     VideoCaptureManager::DoneCB done_cb,
+                                     BrowserContext* browser_context) {
+  media_stream_manager_->video_capture_manager()->ConnectClient(
+      session_id, params, controller_id, this, std::move(done_cb),
+      browser_context);
 }
 
 }  // namespace content

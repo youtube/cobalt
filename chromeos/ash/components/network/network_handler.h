@@ -27,6 +27,8 @@ class CellularPolicyHandler;
 class ClientCertResolver;
 class ConnectionInfoMetricsLogger;
 class EnterpriseManagedMetadataStore;
+class EphemeralNetworkConfigurationHandler;
+class EphemeralNetworkPoliciesEnablementHandler;
 class ESimPolicyLoginMetricsLogger;
 class GeolocationHandler;
 class HiddenNetworkHandler;
@@ -51,11 +53,12 @@ class NetworkMetadataStore;
 class NetworkProfileHandler;
 class NetworkStateHandler;
 class NetworkSmsHandler;
+class Network3gppHandler;
 class ProhibitedTechnologiesHandler;
 class StubCellularNetworksProvider;
 class TechnologyStateController;
+class TextMessageProvider;
 class UIProxyConfigService;
-class HiddenNetworkMetricsHelper;
 class VpnNetworkMetricsHelper;
 
 // Class for handling initialization and access to chromeos network handlers.
@@ -132,9 +135,11 @@ class COMPONENT_EXPORT(CHROMEOS_NETWORK) NetworkHandler {
   NetworkConnectionHandler* network_connection_handler();
   NetworkMetadataStore* network_metadata_store();
   NetworkSmsHandler* network_sms_handler();
+  Network3gppHandler* network_3gpp_handler();
   GeolocationHandler* geolocation_handler();
   ProhibitedTechnologiesHandler* prohibited_technologies_handler();
   TechnologyStateController* technology_state_controller();
+  TextMessageProvider* text_message_provider();
 
  private:
   friend class ConnectionInfoMetricsLoggerTest;
@@ -143,6 +148,14 @@ class COMPONENT_EXPORT(CHROMEOS_NETWORK) NetworkHandler {
   virtual ~NetworkHandler();
 
   void Init();
+
+  // Called when ephemeral network policies become enabled.
+  void OnEphemeralNetworkPoliciesEnabled();
+
+  // True when the device was manged by device policy at initialization time.
+  // TODO: b/302726243 - Introduce
+  // InstallAttributes::WasEnterpriseManagedAtStartup to avoid this.
+  const bool was_enterprise_managed_at_startup_;
 
   // The order of these determines the (inverse) destruction order.
   scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
@@ -179,7 +192,6 @@ class COMPONENT_EXPORT(CHROMEOS_NETWORK) NetworkHandler {
   std::unique_ptr<HotspotMetricsHelper> hotspot_metrics_helper_;
   std::unique_ptr<ESimPolicyLoginMetricsLogger>
       esim_policy_login_metrics_logger_;
-  std::unique_ptr<HiddenNetworkMetricsHelper> hidden_network_metrics_helper_;
   std::unique_ptr<VpnNetworkMetricsHelper> vpn_network_metrics_helper_;
   std::unique_ptr<CellularNetworkMetricsLogger>
       cellular_network_metrics_logger_;
@@ -190,9 +202,15 @@ class COMPONENT_EXPORT(CHROMEOS_NETWORK) NetworkHandler {
   std::unique_ptr<ProhibitedTechnologiesHandler>
       prohibited_technologies_handler_;
   std::unique_ptr<NetworkSmsHandler> network_sms_handler_;
+  std::unique_ptr<Network3gppHandler> network_3gpp_handler_;
+  std::unique_ptr<TextMessageProvider> text_message_provider_;
   std::unique_ptr<GeolocationHandler> geolocation_handler_;
   std::unique_ptr<UIProxyConfigService> ui_proxy_config_service_;
   std::unique_ptr<NetworkMetadataStore> network_metadata_store_;
+  std::unique_ptr<EphemeralNetworkPoliciesEnablementHandler>
+      ephemeral_network_policies_enablement_handler_;
+  std::unique_ptr<EphemeralNetworkConfigurationHandler>
+      ephemeral_network_configuration_handler_;
 
   // True when the device is managed by policy.
   bool is_enterprise_managed_ = false;

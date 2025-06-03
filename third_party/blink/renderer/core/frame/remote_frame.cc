@@ -112,7 +112,9 @@ RemoteFrame::RemoteFrame(
             insert_type,
             frame_token,
             devtools_frame_token,
-            MakeGarbageCollected<RemoteWindowProxyManager>(*this),
+            MakeGarbageCollected<RemoteWindowProxyManager>(
+                page.GetAgentGroupScheduler().Isolate(),
+                *this),
             inheriting_agent_factory),
       // TODO(samans): Investigate if it is safe to delay creation of this
       // object until a FrameSinkId is provided.
@@ -134,7 +136,7 @@ RemoteFrame::RemoteFrame(
   dom_window_ = MakeGarbageCollected<RemoteDOMWindow>(*this);
 
   DCHECK(task_runner_);
-  remote_frame_host_remote_.Bind(std::move(remote_frame_host));
+  remote_frame_host_remote_.Bind(std::move(remote_frame_host), task_runner_);
   receiver_.Bind(std::move(receiver), task_runner_);
 
   UpdateInertIfPossible();
@@ -157,6 +159,9 @@ void RemoteFrame::DetachAndDispose() {
 void RemoteFrame::Trace(Visitor* visitor) const {
   visitor->Trace(view_);
   visitor->Trace(security_context_);
+  visitor->Trace(remote_frame_host_remote_);
+  visitor->Trace(receiver_);
+  visitor->Trace(main_frame_receiver_);
   Frame::Trace(visitor);
 }
 
@@ -306,6 +311,7 @@ void RemoteFrame::Navigate(FrameLoadRequest& frame_request,
 
   params->initiator_activation_and_ad_status =
       GetNavigationInitiatorActivationAndAdStatus(request.HasUserGesture(),
+                                                  initiator_frame_is_ad,
                                                   is_ad_script_in_stack);
 
   params->is_container_initiated = frame_request.IsContainerInitiated();
@@ -951,6 +957,8 @@ bool RemoteFrame::SynchronizeVisualProperties(bool propagate) {
           pending_visual_properties_.page_scale_factor ||
       sent_visual_properties_->compositing_scale_factor !=
           pending_visual_properties_.compositing_scale_factor ||
+      sent_visual_properties_->cursor_accessibility_scale_factor !=
+          pending_visual_properties_.cursor_accessibility_scale_factor ||
       sent_visual_properties_->is_pinch_gesture_active !=
           pending_visual_properties_.is_pinch_gesture_active ||
       sent_visual_properties_->visible_viewport_size !=
@@ -1068,6 +1076,11 @@ void RemoteFrame::DidChangeVisibleViewportSize(
 void RemoteFrame::UpdateCaptureSequenceNumber(
     uint32_t capture_sequence_number) {
   pending_visual_properties_.capture_sequence_number = capture_sequence_number;
+  SynchronizeVisualProperties();
+}
+
+void RemoteFrame::CursorAccessibilityScaleFactorChanged(float scale_factor) {
+  pending_visual_properties_.cursor_accessibility_scale_factor = scale_factor;
   SynchronizeVisualProperties();
 }
 

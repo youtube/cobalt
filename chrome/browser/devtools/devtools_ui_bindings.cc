@@ -31,7 +31,6 @@
 #include "base/values.h"
 #include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
-#include "chrome/browser/chrome_notification_types.h"
 #include "chrome/browser/devtools/devtools_file_watcher.h"
 #include "chrome/browser/devtools/devtools_window.h"
 #include "chrome/browser/devtools/url_constants.h"
@@ -42,11 +41,9 @@
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/sync/sync_service_factory.h"
 #include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_list.h"
-#include "chrome/browser/ui/browser_window.h"
+#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/hats/hats_service.h"
 #include "chrome/browser/ui/hats/hats_service_factory.h"
-#include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/common/extensions/chrome_manifest_url_handlers.h"
 #include "chrome/common/pref_names.h"
@@ -55,7 +52,7 @@
 #include "components/prefs/scoped_user_pref_update.h"
 #include "components/signin/public/identity_manager/account_info.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
-#include "components/sync/driver/sync_service.h"
+#include "components/sync/service/sync_service.h"
 #include "components/sync_preferences/pref_service_syncable.h"
 #include "components/zoom/page_zoom.h"
 #include "content/public/browser/browser_task_traits.h"
@@ -67,7 +64,6 @@
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/navigation_handle.h"
-#include "content/public/browser/notification_source.h"
 #include "content/public/browser/reload_type.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
@@ -86,6 +82,7 @@
 #include "extensions/common/permissions/permissions_data.h"
 #include "google_apis/google_api_keys.h"
 #include "ipc/ipc_channel.h"
+#include "net/base/load_flags.h"
 #include "net/base/net_errors.h"
 #include "net/base/url_util.h"
 #include "net/http/http_response_headers.h"
@@ -108,21 +105,21 @@ struct FrameNavigateParams;
 
 namespace {
 
-static const char kFrontendHostId[] = "id";
-static const char kFrontendHostMethod[] = "method";
-static const char kFrontendHostParams[] = "params";
-static const char kTitleFormat[] = "DevTools - %s";
+const char kFrontendHostId[] = "id";
+const char kFrontendHostMethod[] = "method";
+const char kFrontendHostParams[] = "params";
+const char kTitleFormat[] = "DevTools - %s";
 
-static const char kRemotePageActionInspect[] = "inspect";
-static const char kRemotePageActionReload[] = "reload";
-static const char kRemotePageActionActivate[] = "activate";
-static const char kRemotePageActionClose[] = "close";
+const char kRemotePageActionInspect[] = "inspect";
+const char kRemotePageActionReload[] = "reload";
+const char kRemotePageActionActivate[] = "activate";
+const char kRemotePageActionClose[] = "close";
 
-static const char kConfigDiscoverUsbDevices[] = "discoverUsbDevices";
-static const char kConfigPortForwardingEnabled[] = "portForwardingEnabled";
-static const char kConfigPortForwardingConfig[] = "portForwardingConfig";
-static const char kConfigNetworkDiscoveryEnabled[] = "networkDiscoveryEnabled";
-static const char kConfigNetworkDiscoveryConfig[] = "networkDiscoveryConfig";
+const char kConfigDiscoverUsbDevices[] = "discoverUsbDevices";
+const char kConfigPortForwardingEnabled[] = "portForwardingEnabled";
+const char kConfigPortForwardingConfig[] = "portForwardingConfig";
+const char kConfigNetworkDiscoveryEnabled[] = "networkDiscoveryEnabled";
+const char kConfigNetworkDiscoveryConfig[] = "networkDiscoveryConfig";
 
 // This constant should be in sync with
 // the constant
@@ -140,16 +137,6 @@ base::Value::Dict CreateFileSystemValue(
   file_system_value.Set("rootURL", file_system.root_url);
   file_system_value.Set("fileSystemPath", file_system.file_system_path);
   return file_system_value;
-}
-
-Browser* FindBrowser(content::WebContents* web_contents) {
-  for (auto* browser : *BrowserList::GetInstance()) {
-    int tab_index = browser->tab_strip_model()->GetIndexOfWebContents(
-        web_contents);
-    if (tab_index != TabStripModel::kNoTab)
-      return browser;
-  }
-  return nullptr;
 }
 
 // DevToolsUIDefaultDelegate --------------------------------------------------
@@ -198,7 +185,7 @@ void DefaultBindingsDelegate::OpenInNewTab(const std::string& url) {
   content::OpenURLParams params(GURL(url), content::Referrer(),
                                 WindowOpenDisposition::NEW_FOREGROUND_TAB,
                                 ui::PAGE_TRANSITION_LINK, false);
-  Browser* browser = FindBrowser(web_contents_);
+  Browser* browser = chrome::FindBrowserWithTab(web_contents_);
   browser->OpenURL(params);
 }
 
@@ -360,6 +347,24 @@ std::string SanitizeFrontendQueryParam(
   if (key == "consolePaste" && value == "blockwebui") {
     return value;
   }
+
+  if (key == "noJavaScriptCompletion" && value == "true") {
+    return value;
+  }
+
+  if (key == "veLogging" && value == "true") {
+    return value;
+  }
+
+  if (key == "isChromeForTesting" && value == "true") {
+    return value;
+  }
+
+#if defined(AIDA_SCOPE)
+  if (key == "enableAida" && value == "true") {
+    return value;
+  }
+#endif
 
   return std::string();
 }
@@ -796,6 +801,17 @@ void DevToolsUIBindings::SetIsDocked(DispatchCallback callback,
   delegate_->SetIsDocked(dock_requested);
   std::move(callback).Run(nullptr);
 }
+
+#if defined(AIDA_SCOPE)
+void DevToolsUIBindings::OnAidaConverstaionResponse(
+    DispatchCallback callback,
+    const std::string& response) {
+  base::Value::Dict response_dict;
+  response_dict.Set("response", response);
+  auto response_value = base::Value(std::move(response_dict));
+  std::move(callback).Run(&response_value);
+}
+#endif
 
 void DevToolsUIBindings::InspectElementCompleted() {
   delegate_->InspectElementCompleted();
@@ -1325,24 +1341,53 @@ void DevToolsUIBindings::DispatchProtocolMessageFromDevToolsFrontend(
       this, base::as_bytes(base::make_span(message)));
 }
 
+void DevToolsUIBindings::RecordCountHistogram(const std::string& name,
+                                              int sample,
+                                              int min,
+                                              int exclusive_max,
+                                              int buckets) {
+  if (!frontend_host_) {
+    return;
+  }
+
+  // DevTools previously would crash if histogram counts didn't make sense.
+  // We've changed this to a DCHECK and instead clamp the value for counts,
+  // because it doesn't really make sense to crash if the histogram is out
+  // of range.
+  DCHECK_GE(sample, min);
+  DCHECK_LT(sample, exclusive_max);
+
+  if (sample < min) {
+    sample = 0;
+  } else if (sample >= exclusive_max) {
+    sample = exclusive_max - 1;
+  }
+
+  base::UmaHistogramCustomCounts(name, sample, min, exclusive_max, buckets);
+}
+
 void DevToolsUIBindings::RecordEnumeratedHistogram(const std::string& name,
                                                    int sample,
                                                    int boundary_value) {
   if (!frontend_host_)
     return;
+
+  DCHECK_GE(boundary_value, 0);
+  DCHECK_LT(boundary_value, 1000);
+  DCHECK_GE(sample, 0);
+  DCHECK_LT(sample, boundary_value);
   if (!(boundary_value >= 0 && boundary_value <= 1000 && sample >= 0 &&
         sample < boundary_value)) {
-    // TODO(nick): Replace with chrome::bad_message::ReceivedBadMessage().
-    frontend_host_->BadMessageReceived();
+    // We should have DCHECK'd in debug builds; for release builds, if we're
+    // out of range, just omit the histogram
     return;
   }
 
   const std::string kDevToolsHistogramPrefix = "DevTools.";
-  if (name.compare(0, kDevToolsHistogramPrefix.size(),
-                   kDevToolsHistogramPrefix) == 0)
-    base::UmaHistogramExactLinear(name, sample, boundary_value);
-  else
-    frontend_host_->BadMessageReceived();
+  DCHECK_EQ(name.compare(0, kDevToolsHistogramPrefix.size(),
+                         kDevToolsHistogramPrefix),
+            0);
+  base::UmaHistogramExactLinear(name, sample, boundary_value);
 }
 
 void DevToolsUIBindings::RecordPerformanceHistogram(const std::string& name,
@@ -1366,6 +1411,10 @@ void DevToolsUIBindings::RecordUserMetricsAction(const std::string& name) {
   base::RecordComputedAction(name);
 }
 
+void DevToolsUIBindings::RecordImpression(const ImpressionEvent& event) {}
+void DevToolsUIBindings::RecordClick(const ClickEvent& event) {}
+void DevToolsUIBindings::RecordChange(const ChangeEvent& event) {}
+void DevToolsUIBindings::RecordKeyDown(const KeyDownEvent& event) {}
 void DevToolsUIBindings::SendJsonRequest(DispatchCallback callback,
                                          const std::string& browser_id,
                                          const std::string& url) {
@@ -1637,6 +1686,23 @@ void DevToolsUIBindings::CanShowSurvey(DispatchCallback callback,
   base::Value response = base::Value(std::move(response_dict));
   std::move(callback).Run(&response);
 }
+
+#if defined(AIDA_SCOPE)
+void DevToolsUIBindings::DoAidaConversation(DispatchCallback callback,
+                                            const std::string& request) {
+  if (!aida_client_) {
+    aida_client_ = std::make_unique<AidaClient>(
+        profile_, DevToolsWindow::AsDevToolsWindow(web_contents_)
+                      ->GetInspectedWebContents()
+                      ->GetPrimaryMainFrame()
+                      ->GetStoragePartition()
+                      ->GetURLLoaderFactoryForBrowserProcess());
+  }
+  aida_client_->DoConversation(
+      request, base::BindOnce(&DevToolsUIBindings::OnAidaConverstaionResponse,
+                              base::Unretained(this), std::move(callback)));
+}
+#endif
 
 void DevToolsUIBindings::SetDelegate(Delegate* delegate) {
   delegate_.reset(delegate);

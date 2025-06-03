@@ -29,7 +29,9 @@
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
+#include "mojo/public/cpp/bindings/receiver_set.h"
 #include "mojo/public/cpp/bindings/remote.h"
+#include "mojo/public/cpp/bindings/remote_set.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/openscreen/src/cast/common/channel/proto/cast_channel.pb.h"
 
@@ -121,11 +123,15 @@ class MirroringActivity : public CastActivity,
  private:
   FRIEND_TEST_ALL_PREFIXES(MirroringActivityTest, GetScrubbedLogMessage);
   FRIEND_TEST_ALL_PREFIXES(MirroringActivityTest, OnSourceChanged);
+  FRIEND_TEST_ALL_PREFIXES(MirroringActivityTest,
+                           OnSourceChangedNotifiesMediaStatusObserver);
   FRIEND_TEST_ALL_PREFIXES(MirroringActivityTest, ReportsNotEnabledByDefault);
   FRIEND_TEST_ALL_PREFIXES(MirroringActivityTest, EnableRtcpReports);
   FRIEND_TEST_ALL_PREFIXES(MirroringActivityTest, Pause);
   FRIEND_TEST_ALL_PREFIXES(MirroringActivityTest, Play);
   FRIEND_TEST_ALL_PREFIXES(MirroringActivityTest, OnRemotingStateChanged);
+  FRIEND_TEST_ALL_PREFIXES(MirroringActivityTest,
+                           MultipleMediaControllersNotified);
 
   void HandleParseJsonResult(const std::string& route_id,
                              data_decoder::DataDecoder::ValueOrError result);
@@ -139,7 +145,11 @@ class MirroringActivity : public CastActivity,
 
   void SetPlayState(mojom::MediaStatus::PlayState play_state);
 
-  void NotifyMediaStatusObserver();
+  void NotifyMediaStatusObservers();
+
+  // Invoked when mirroring is paused / resumed, for metrics.
+  void OnMirroringPaused();
+  void OnMirroringResumed();
 
   // Scrubs AES related data in messages with type "OFFER".
   static std::string GetScrubbedLogMessage(const base::Value::Dict& message);
@@ -180,27 +190,33 @@ class MirroringActivity : public CastActivity,
   // mirroring stats from the session.
   mojo::Remote<mojom::Debugger> debugger_;
 
+  // Most recent fetched mirroring stats.
+  base::Value::Dict most_recent_mirroring_stats_;
+
   mojo::Receiver<mirroring::mojom::SessionObserver> observer_receiver_{this};
 
   // To handle Cast messages from the mirroring service to the mirroring
   // receiver.
   mojo::Receiver<mirroring::mojom::CastMessageChannel> channel_receiver_{this};
 
-  // To handle freeze and unfreeze requests from the mirroring media controller
-  // host to the mirroring service host.
-  mojo::Receiver<mojom::MediaController> media_controller_receiver_{this};
+  // To handle freeze and unfreeze requests from media controllers.
+  mojo::ReceiverSet<mojom::MediaController> media_controller_receivers_;
 
-  // Sends media status updates with mirroring information needed for freezing
-  // the session.
-  mojo::Remote<mojom::MediaStatusObserver> media_status_observer_;
+  // Sends media status updates with mirroring information to observers.
+  mojo::RemoteSet<mojom::MediaStatusObserver> media_status_observers_;
 
+  // Info for mirroring state transitions like pause / resume.
   mojom::MediaStatusPtr media_status_;
+  int mirroring_pause_count_ = 0;
+  absl::optional<base::Time> mirroring_pause_timestamp_;
 
   // Set before and after a mirroring session is established, for metrics.
   absl::optional<base::Time> will_start_mirroring_timestamp_;
   absl::optional<base::Time> did_start_mirroring_timestamp_;
 
   const absl::optional<MirroringType> mirroring_type_;
+
+  absl::optional<base::TimeDelta> target_playout_delay_;
 
   // The FrameTreeNode ID to retrieve the WebContents of the tab to mirror.
   int frame_tree_node_id_;

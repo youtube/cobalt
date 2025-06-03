@@ -93,7 +93,8 @@ ProfileInvalidationProvider* ProfileInvalidationProviderFactory::GetForProfile(
 // static
 ProfileInvalidationProviderFactory*
 ProfileInvalidationProviderFactory::GetInstance() {
-  return base::Singleton<ProfileInvalidationProviderFactory>::get();
+  static base::NoDestructor<ProfileInvalidationProviderFactory> instance;
+  return instance.get();
 }
 
 ProfileInvalidationProviderFactory::ProfileInvalidationProviderFactory()
@@ -118,10 +119,11 @@ void ProfileInvalidationProviderFactory::RegisterTestingFactory(
   testing_factory_ = std::move(testing_factory);
 }
 
-KeyedService* ProfileInvalidationProviderFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+ProfileInvalidationProviderFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
   if (testing_factory_)
-    return testing_factory_.Run(context).release();
+    return testing_factory_.Run(context);
 
   std::unique_ptr<IdentityProvider> identity_provider;
 
@@ -142,14 +144,10 @@ KeyedService* ProfileInvalidationProviderFactory::BuildServiceInstanceFor(
     identity_provider = std::make_unique<ProfileIdentityProvider>(
         IdentityManagerFactory::GetForProfile(profile));
   }
-  auto service =
-      CreateInvalidationServiceForSenderId(profile, identity_provider.get(),
-                                           /* sender_id = */ "");
   auto custom_sender_id_factory = base::BindRepeating(
       &CreateInvalidationServiceForSenderId, profile, identity_provider.get());
-  return new ProfileInvalidationProvider(std::move(service),
-                                         std::move(identity_provider),
-                                         std::move(custom_sender_id_factory));
+  return std::make_unique<ProfileInvalidationProvider>(
+      std::move(identity_provider), std::move(custom_sender_id_factory));
 }
 
 void ProfileInvalidationProviderFactory::RegisterProfilePrefs(

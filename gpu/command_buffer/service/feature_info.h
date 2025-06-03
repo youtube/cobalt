@@ -151,6 +151,9 @@ class GPU_GLES2_EXPORT FeatureInfo : public base::RefCounted<FeatureInfo> {
     bool angle_rgbx_internal_format = false;
     bool angle_provoking_vertex = false;
     bool angle_clip_cull_distance = false;
+    bool angle_polygon_mode = false;
+    bool ext_clip_control = false;
+    bool ext_polygon_offset_clamp = false;
   };
 
   FeatureInfo();
@@ -228,6 +231,10 @@ class GPU_GLES2_EXPORT FeatureInfo : public base::RefCounted<FeatureInfo> {
     return ext_color_buffer_half_float_available_;
   }
 
+  bool oes_texture_float_available() const {
+    return oes_texture_float_available_;
+  }
+
   bool oes_texture_float_linear_available() const {
     return oes_texture_float_linear_available_;
   }
@@ -275,6 +282,7 @@ class GPU_GLES2_EXPORT FeatureInfo : public base::RefCounted<FeatureInfo> {
   bool ext_color_buffer_float_available_ = false;
   bool ext_color_buffer_half_float_available_ = false;
   bool ext_texture_filter_anisotropic_available_ = false;
+  bool oes_texture_float_available_ = false;
   bool oes_texture_float_linear_available_ = false;
   bool oes_texture_half_float_linear_available_ = false;
 

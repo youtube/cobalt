@@ -9,16 +9,16 @@
 #include "base/test/scoped_feature_list.h"
 #include "content/public/browser/prerender_trigger_type.h"
 #include "content/public/browser/render_frame_host.h"
+#include "content/public/browser/web_contents.h"
 #include "content/public/common/isolated_world_ids.h"
 #include "content/public/test/browser_test_utils.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "net/test/embedded_test_server/http_request.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/blink/public/mojom/speculation_rules/speculation_rules.mojom.h"
 #include "url/gurl.h"
 
 namespace content {
-
-class WebContents;
 
 namespace test {
 
@@ -107,7 +107,8 @@ class PrerenderTestHelper {
   // impossible (eg, if the test helper is created later to avoid problematic
   // creation/destruction relative to other ScopedFeatureLists or if the fixture
   // creates test server after SetUp).
-  void SetUp(net::test_server::EmbeddedTestServer* http_server);
+  void RegisterServerRequestMonitor(
+      net::test_server::EmbeddedTestServer* http_server);
 
   // Attempts to lookup the host for the given |gurl|. Returns
   // RenderFrameHost::kNoFrameTreeNodeId upon failure.
@@ -132,12 +133,13 @@ class PrerenderTestHelper {
                    int32_t world_id = ISOLATED_WORLD_ID_GLOBAL);
   void AddPrerenderAsync(const GURL& prerendering_url,
                          int32_t world_id = ISOLATED_WORLD_ID_GLOBAL);
-  void AddPrerenderWithTargetHintAsync(const GURL& prerendering_url,
-                                       const std::string& target_hint);
+  void AddPrerendersAsync(
+      const std::vector<GURL>& prerendering_urls,
+      absl::optional<blink::mojom::SpeculationEagerness> eagerness,
+      const std::string& target_hint,
+      int32_t world_id = ISOLATED_WORLD_ID_GLOBAL);
 
-  // Adds multiple URLs to the speculation rules at the same time. This function
-  // doesn't wait for the completion of prerendering.
-  void AddMultiplePrerenderAsync(const std::vector<GURL>& prerendering_urls);
+  void AddPrefetchAsync(const GURL& prefetch_url);
 
   // Starts prerendering and returns a PrerenderHandle that should be kept alive
   // until prerender activation. Note that it returns before the completion of

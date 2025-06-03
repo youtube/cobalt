@@ -15,7 +15,9 @@
 #include "third_party/blink/renderer/bindings/modules/v8/v8_ml_operand_type.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_ml_pad_options.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_ml_pool_2d_options.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_ml_reduce_options.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_ml_resample_2d_options.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_ml_split_options.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_ml_transpose_options.h"
 #include "third_party/blink/renderer/core/dom/dom_exception.h"
 #include "third_party/blink/renderer/modules/ml/webnn/ml_graph.h"
@@ -57,13 +59,15 @@ MLOperand* BuildLeakyRelu(
     const MLOperand* input,
     const MLLeakyReluOptions* options = MLLeakyReluOptions::Create());
 
-enum class ElementWiseBinaryKind { kAdd, kSub, kMul, kDiv, kMin, kMax };
+enum class ElementWiseBinaryKind { kAdd, kSub, kMul, kDiv, kMin, kMax, kPow };
 
 MLOperand* BuildElementWiseBinary(V8TestingScope& scope,
                                   MLGraphBuilder* builder,
                                   ElementWiseBinaryKind kind,
                                   const MLOperand* a,
                                   const MLOperand* b);
+
+enum class ElementWiseUnaryKind { kAbs, kCeil, kFloor, kNeg };
 
 MLOperand* BuildPad(V8TestingScope& scope,
                     MLGraphBuilder* builder,
@@ -86,6 +90,15 @@ MLOperand* BuildGemm(V8TestingScope& scope,
                      const MLOperand* a,
                      const MLOperand* b,
                      const MLGemmOptions* options = MLGemmOptions::Create());
+
+enum class ReduceKind { kMean, kSum };
+
+MLOperand* BuildReduce(
+    V8TestingScope& scope,
+    MLGraphBuilder* builder,
+    ReduceKind kind,
+    const MLOperand* input,
+    const MLReduceOptions* options = MLReduceOptions::Create());
 
 MLOperand* BuildResample2d(
     V8TestingScope& scope,

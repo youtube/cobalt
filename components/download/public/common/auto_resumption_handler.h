@@ -90,11 +90,12 @@ class COMPONENTS_DOWNLOAD_EXPORT AutoResumptionHandler
   void ResumePendingDownloads();
 
   // Maybe resume some of the |downloads|. Returns the number of downloads
-  // resumed.
-  int MaybeResumeDownloads(const DownloadMap& downloads);
+  // resumed. Pass by value is intentional to avoid concurrent modification.
+  int MaybeResumeDownloads(DownloadMap downloads);
 
   void RecomputeTaskParams();
   void RescheduleTaskIfNecessary();
+  void RescheduleTaskIfNecessaryForTaskType(DownloadTaskType task_type);
   void ResumeDownloadImmediately();
   bool ShouldResumeNow(download::DownloadItem* download) const;
   bool IsAutoResumableDownload(download::DownloadItem* item) const;

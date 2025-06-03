@@ -14,10 +14,6 @@
 #import "ios/web/web_state/ui/wk_web_view_configuration_provider.h"
 #import "testing/gtest_mac.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 // A test fixture for testing JavaScriptFeatureManager.
 class JavaScriptFeatureManagerTest : public web::WebTest {
  protected:
@@ -63,8 +59,7 @@ TEST_F(JavaScriptFeatureManagerTest, AllFramesStartFeature) {
   EXPECT_EQ(1ul, [GetUserContentController().userScripts count]);
   WKUserScript* user_script =
       [GetUserContentController().userScripts lastObject];
-  EXPECT_TRUE(
-      [user_script.source containsString:@"__gCrWeb.javaScriptFeatureTest"]);
+  EXPECT_TRUE([user_script.source containsString:@"javaScriptFeatureTest="]);
   EXPECT_EQ(WKUserScriptInjectionTimeAtDocumentStart,
             user_script.injectionTime);
   EXPECT_EQ(NO, user_script.forMainFrameOnly);
@@ -90,8 +85,7 @@ TEST_F(JavaScriptFeatureManagerTest, MainFrameEndFeature) {
   EXPECT_EQ(1ul, [GetUserContentController().userScripts count]);
   WKUserScript* user_script =
       [GetUserContentController().userScripts lastObject];
-  EXPECT_TRUE(
-      [user_script.source containsString:@"__gCrWeb.javaScriptFeatureTest"]);
+  EXPECT_TRUE([user_script.source containsString:@"javaScriptFeatureTest="]);
   EXPECT_EQ(WKUserScriptInjectionTimeAtDocumentEnd, user_script.injectionTime);
   EXPECT_EQ(YES, user_script.forMainFrameOnly);
 }
@@ -116,8 +110,7 @@ TEST_F(JavaScriptFeatureManagerTest, MainFrameEndFeatureIsolatedWorld) {
   EXPECT_EQ(1ul, [GetUserContentController().userScripts count]);
   WKUserScript* user_script =
       [GetUserContentController().userScripts lastObject];
-  EXPECT_TRUE(
-      [user_script.source containsString:@"__gCrWeb.javaScriptFeatureTest"]);
+  EXPECT_TRUE([user_script.source containsString:@"javaScriptFeatureTest"]);
   EXPECT_EQ(WKUserScriptInjectionTimeAtDocumentEnd, user_script.injectionTime);
   EXPECT_EQ(YES, user_script.forMainFrameOnly);
 }

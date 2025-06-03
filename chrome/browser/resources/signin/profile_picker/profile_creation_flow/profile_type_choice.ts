@@ -8,7 +8,7 @@ import 'chrome://resources/cr_elements/cr_shared_vars.css.js';
 import './profile_creation_shared.css.js';
 
 import {CrButtonElement} from 'chrome://resources/cr_elements/cr_button/cr_button.js';
-import {assert} from 'chrome://resources/js/assert_ts.js';
+import {assert} from 'chrome://resources/js/assert.js';
 import {focusWithoutInk} from 'chrome://resources/js/focus_without_ink.js';
 import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
@@ -58,13 +58,6 @@ export class ProfileTypeChoiceElement extends ProfileTypeChoiceElementBase {
         notify: true,
       },
 
-      isTangibleSyncEnabled_: {
-        type: Boolean,
-        value() {
-          return loadTimeData.getBoolean('isTangibleSyncEnabled');
-        },
-      },
-
       /**
        * The disclaimer for managed devices.
        */
@@ -93,7 +86,6 @@ export class ProfileTypeChoiceElement extends ProfileTypeChoiceElementBase {
   private managedDeviceDisclaimer_: boolean;
   private manageProfilesBrowserProxy_: ManageProfilesBrowserProxy =
       ManageProfilesBrowserProxyImpl.getInstance();
-  private isTangibleSyncEnabled_: boolean;
 
   // <if expr="chromeos_lacros">
   private hasAvailableAccounts_: boolean;
@@ -150,7 +142,7 @@ export class ProfileTypeChoiceElement extends ProfileTypeChoiceElementBase {
   }
 
   private handleLoadSigninFinished_(_success: boolean) {
-    // TODO(crbug.com/1126913): If failed, show some error message to inform the
+    // TODO(crbug.com/1444046): If failed, show some error message to inform the
     // user.
     this.profileCreationInProgress = false;
   }
@@ -158,10 +150,6 @@ export class ProfileTypeChoiceElement extends ProfileTypeChoiceElementBase {
   private getBackButtonAriaLabel_(): string {
     return this.i18n(
         'backButtonAriaLabel', this.i18n('profileTypeChoiceTitle'));
-  }
-
-  private getTangibleSyncStyleClass_() {
-    return this.isTangibleSyncEnabled_ ? 'tangible-sync-style' : '';
   }
 
   // <if expr="chromeos_lacros">

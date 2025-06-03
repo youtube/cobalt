@@ -8,7 +8,6 @@
 #include <string>
 
 #include "ash/login/ui/login_test_base.h"
-#include "ash/metrics/user_metrics_recorder.h"
 #include "ash/public/cpp/shelf_item_delegate.h"
 #include "ash/public/cpp/shelf_model.h"
 #include "ash/session/test_session_controller_client.h"
@@ -31,10 +30,10 @@ constexpr char kAshLoginAnimationDurationTabletMode[] =
     "Ash.LoginAnimation.Duration.TabletMode";
 constexpr char kAshLoginAnimationDurationClamshellMode[] =
     "Ash.LoginAnimation.Duration.ClamshellMode";
-constexpr char kAshUnlockAnimationDurationTabletMode[] =
-    "Ash.UnlockAnimation.Duration.TabletMode";
-constexpr char kAshUnlockAnimationDurationClamshellMode[] =
-    "Ash.UnlockAnimation.Duration.ClamshellMode";
+constexpr char kAshUnlockAnimationSmoothnessTabletMode[] =
+    "Ash.UnlockAnimation.Smoothness.TabletMode";
+constexpr char kAshUnlockAnimationSmoothnessClamshellMode[] =
+    "Ash.UnlockAnimation.Smoothness.ClamshellMode";
 
 // A test shelf item delegate that simulates an activated window when a shelf
 // item is selected.
@@ -115,7 +114,7 @@ class TestObserver final : public ui::CompositorAnimationObserver {
 
  private:
   int count_ = 0;
-  const base::raw_ptr<ui::Compositor> compositor_;
+  const raw_ptr<ui::Compositor> compositor_;
 };
 
 class BeginMainFrameWaiter : public ui::CompositorObserver {
@@ -146,7 +145,7 @@ class BeginMainFrameWaiter : public ui::CompositorObserver {
   }
 
  private:
-  const base::raw_ptr<ui::Compositor> compositor_;
+  const raw_ptr<ui::Compositor> compositor_;
   bool done_ = false;
   std::unique_ptr<base::RunLoop> run_loop_;
 };
@@ -224,7 +223,7 @@ class MetricsWaiter {
   }
 
  private:
-  base::raw_ptr<base::HistogramTester> histogram_tester_;
+  raw_ptr<base::HistogramTester> histogram_tester_;
   const std::string metrics_name_;
 };
 
@@ -444,8 +443,8 @@ TEST_P(LoginUnlockThroughputRecorderLoginAnimationTest, ReportUnlock) {
   UnlockScreenAndAnimate();
 
   MetricsWaiter(histogram_tester_.get(),
-                GetParam() ? kAshUnlockAnimationDurationTabletMode
-                           : kAshUnlockAnimationDurationClamshellMode)
+                GetParam() ? kAshUnlockAnimationSmoothnessTabletMode
+                           : kAshUnlockAnimationSmoothnessClamshellMode)
       .Wait();
 }
 

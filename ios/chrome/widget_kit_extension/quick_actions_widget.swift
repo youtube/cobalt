@@ -68,6 +68,8 @@ struct QuickActionsWidget: Widget {
     )
     .description(Text("IDS_IOS_WIDGET_KIT_EXTENSION_QUICK_ACTIONS_DESCRIPTION"))
     .supportedFamilies([.systemMedium])
+    .crDisfavoredLocations()
+    .crContentMarginsDisabled()
   }
 }
 
@@ -95,8 +97,6 @@ struct QuickActionsWidgetEntryView: View {
   var body: some View {
     VStack(spacing: 0) {
       ZStack {
-        Color("widget_background_color")
-          .unredacted()
         VStack {
           Spacer()
           Link(destination: WidgetConstants.QuickActionsWidget.searchUrl) {
@@ -178,6 +178,7 @@ struct QuickActionsWidgetEntryView: View {
         .padding([.leading, .trailing], 11)
       }
     }
+    .crContainerBackground(Color("widget_background_color").unredacted())
   }
 }
 

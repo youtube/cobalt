@@ -58,7 +58,7 @@ enum class EnableAuraShellProtocol { kEnabled, kDisabled };
 
 struct ServerConfig {
   TestZcrTextInputExtensionV1::Version text_input_extension_version =
-      TestZcrTextInputExtensionV1::Version::kV8;
+      TestZcrTextInputExtensionV1::Version::kV12;
   TestCompositor::Version compositor_version = TestCompositor::Version::kV4;
   PrimarySelectionProtocol primary_selection_protocol =
       PrimarySelectionProtocol::kNone;
@@ -69,6 +69,7 @@ struct ServerConfig {
   bool surface_submission_in_pixel_coordinates = true;
   bool supports_viewporter_surface_scaling = false;
   bool use_aura_output_manager = false;
+  bool use_ime_keep_selection_fix = false;
 };
 
 class TestWaylandServerThread;
@@ -222,7 +223,7 @@ class TestWaylandServerThread : public TestOutput::Delegate,
   TestServerListener client_destroy_listener_;
   raw_ptr<wl_client> client_ = nullptr;
   raw_ptr<wl_event_loop> event_loop_ = nullptr;
-  raw_ptr<wl_protocol_logger> protocol_logger_ = nullptr;
+  raw_ptr<wl_protocol_logger, DanglingUntriaged> protocol_logger_ = nullptr;
 
   ServerConfig config_;
 
@@ -241,7 +242,7 @@ class TestWaylandServerThread : public TestOutput::Delegate,
   MockXdgShell xdg_shell_;
   TestZAuraOutputManager zaura_output_manager_;
   TestZAuraShell zaura_shell_;
-  MockZcrColorManagerV1 zcr_color_manager_v1_;
+  ::testing::NiceMock<MockZcrColorManagerV1> zcr_color_manager_v1_;
   TestZcrStylus zcr_stylus_;
   TestZcrTextInputExtensionV1 zcr_text_input_extension_v1_;
   TestZwpTextInputManagerV1 zwp_text_input_manager_v1_;

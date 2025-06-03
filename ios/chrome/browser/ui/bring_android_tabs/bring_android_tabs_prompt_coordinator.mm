@@ -6,18 +6,13 @@
 
 #import "base/check_op.h"
 #import "base/notreached.h"
-#import "ios/chrome/browser/bring_android_tabs/bring_android_tabs_to_ios_service.h"
-#import "ios/chrome/browser/bring_android_tabs/bring_android_tabs_to_ios_service_factory.h"
-#import "ios/chrome/browser/bring_android_tabs/features.h"
-#import "ios/chrome/browser/main/browser.h"
+#import "ios/chrome/browser/bring_android_tabs/model/bring_android_tabs_to_ios_service.h"
+#import "ios/chrome/browser/bring_android_tabs/model/bring_android_tabs_to_ios_service_factory.h"
+#import "ios/chrome/browser/shared/model/browser/browser.h"
 #import "ios/chrome/browser/shared/public/commands/bring_android_tabs_commands.h"
 #import "ios/chrome/browser/ui/bring_android_tabs/bring_android_tabs_prompt_mediator.h"
 #import "ios/chrome/browser/ui/bring_android_tabs/bring_android_tabs_ui_swift.h"
-#import "ios/chrome/browser/url_loading/url_loading_browser_agent.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
+#import "ios/chrome/browser/url_loading/model/url_loading_browser_agent.h"
 
 namespace {
 
@@ -49,8 +44,6 @@ void SetModalPresentationStyle(UIViewController* view_controller) {
   // Mediator that updates Chromium model objects; serves as a delegate to the
   // view controller.
   BringAndroidTabsPromptMediator* _mediator;
-  // View provider for the bottom message variant of the prompt.
-  BringAndroidTabsPromptBottomMessageProvider* _provider;
 }
 
 - (void)start {
@@ -62,32 +55,14 @@ void SetModalPresentationStyle(UIViewController* view_controller) {
                             URLLoader:UrlLoadingBrowserAgent::FromBrowser(
                                           self.browser)];
 
-  switch (GetBringYourOwnTabsPromptType()) {
-    case BringYourOwnTabsPromptType::kHalfSheet: {
-      BringAndroidTabsPromptConfirmationAlertViewController* confirmationAlert =
-          [[BringAndroidTabsPromptConfirmationAlertViewController alloc]
-              initWithTabsCount:static_cast<int>(
-                                    service->GetNumberOfAndroidTabs())];
-      confirmationAlert.delegate = _mediator;
-      confirmationAlert.commandHandler = self.commandHandler;
-      SetModalPresentationStyle(confirmationAlert);
-      _viewController = confirmationAlert;
-      break;
-    }
-    case BringYourOwnTabsPromptType::kBottomMessage: {
-      _provider = [[BringAndroidTabsPromptBottomMessageProvider alloc]
+  BringAndroidTabsPromptConfirmationAlertViewController* confirmationAlert =
+      [[BringAndroidTabsPromptConfirmationAlertViewController alloc]
           initWithTabsCount:static_cast<int>(
                                 service->GetNumberOfAndroidTabs())];
-      _provider.delegate = _mediator;
-      _provider.commandHandler = self.commandHandler;
-      _viewController = _provider.viewController;
-      break;
-    }
-    case BringYourOwnTabsPromptType::kDisabled: {
-      NOTREACHED();
-      break;
-    }
-  }
+  confirmationAlert.delegate = _mediator;
+  confirmationAlert.commandHandler = self.commandHandler;
+  SetModalPresentationStyle(confirmationAlert);
+  _viewController = confirmationAlert;
 }
 
 - (void)stop {
@@ -100,7 +75,6 @@ void SetModalPresentationStyle(UIViewController* view_controller) {
   // Remove the mediator.
   DCHECK(_mediator);
   _mediator = nil;
-  _provider = nil;
 }
 
 @end

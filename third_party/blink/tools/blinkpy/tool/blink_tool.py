@@ -51,7 +51,6 @@ from blinkpy.tool.commands.queries import PrintExpectations
 from blinkpy.tool.commands.rebaseline import Rebaseline
 from blinkpy.tool.commands.rebaseline_cl import RebaselineCL
 from blinkpy.tool.commands.update_metadata import UpdateMetadata
-from blinkpy.tool.commands.lint_wpt import LintWPT
 
 _log = logging.getLogger(__name__)
 
@@ -71,7 +70,7 @@ class BlinkTool(Host):
     ]
 
     def __init__(self, path):
-        super(BlinkTool, self).__init__()
+        super().__init__()
         self._path = path
         io_pool = ThreadPoolExecutor(max_workers=RebaselineCL.MAX_WORKERS)
         self.commands = [
@@ -84,11 +83,13 @@ class BlinkTool(Host):
             PrintExpectations(),
             Rebaseline(),
             RebaselineCL(self, io_pool),
-            UpdateMetadata(self),
-            LintWPT(self),
+            UpdateMetadata(self, io_pool),
         ]
         self.help_command = HelpCommand(tool=self)
         self.commands.append(self.help_command)
+
+    def __reduce__(self):
+        return (self.__class__, (self._path, ))
 
     def main(self, argv=None):
         argv = argv or sys.argv

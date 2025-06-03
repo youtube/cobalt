@@ -12,7 +12,6 @@
 #include "base/check.h"
 #include "base/check_op.h"
 #include "base/functional/overloaded.h"
-#include "base/memory/raw_ptr.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/values.h"
@@ -56,18 +55,12 @@ base::Value::Dict GetReportBody(
 
 }  // namespace
 
-AttributionReport::EventLevelData::EventLevelData(
-    uint64_t trigger_data,
-    int64_t priority,
-    double randomized_trigger_rate,
-    StoredSource source)
+AttributionReport::EventLevelData::EventLevelData(uint64_t trigger_data,
+                                                  int64_t priority,
+                                                  StoredSource source)
     : trigger_data(trigger_data),
       priority(priority),
-      randomized_trigger_rate(randomized_trigger_rate),
-      source(std::move(source)) {
-  DCHECK_GE(randomized_trigger_rate, 0);
-  DCHECK_LE(randomized_trigger_rate, 1);
-}
+      source(std::move(source)) {}
 
 AttributionReport::EventLevelData::EventLevelData(const EventLevelData&) =
     default;
@@ -83,11 +76,14 @@ AttributionReport::EventLevelData& AttributionReport::EventLevelData::operator=(
 AttributionReport::EventLevelData::~EventLevelData() = default;
 
 AttributionReport::CommonAggregatableData::CommonAggregatableData(
-    ::aggregation_service::mojom::AggregationCoordinator
-        aggregation_coordinator,
-    absl::optional<std::string> attestation_token)
-    : aggregation_coordinator(aggregation_coordinator),
-      attestation_token(std::move(attestation_token)) {}
+    absl::optional<attribution_reporting::SuitableOrigin>
+        aggregation_coordinator_origin,
+    absl::optional<std::string> verification_token,
+    attribution_reporting::mojom::SourceRegistrationTimeConfig
+        source_registration_time_config)
+    : aggregation_coordinator_origin(std::move(aggregation_coordinator_origin)),
+      verification_token(std::move(verification_token)),
+      source_registration_time_config(source_registration_time_config) {}
 
 AttributionReport::CommonAggregatableData::CommonAggregatableData() = default;
 
@@ -246,7 +242,8 @@ base::Value::Dict AttributionReport::ReportBody() const {
             // randomized response with epsilon = 14 without rounding to 0
             // (0.00000166305 -> 0.0000017).
             double rounded_rate =
-                round(data.randomized_trigger_rate * 10000000) / 10000000.0;
+                round(data.source.randomized_response_rate() * 10000000) /
+                10000000.0;
             dict.Set("randomized_trigger_rate", rounded_rate);
 
             if (absl::optional<uint64_t> debug_key = source.debug_key()) {
@@ -311,9 +308,9 @@ absl::optional<base::Time> AttributionReport::MinReportTime(
 void AttributionReport::PopulateAdditionalHeaders(
     net::HttpRequestHeaders& headers) const {
   if (const auto* data = absl::get_if<AggregatableAttributionData>(&data_);
-      data && data->common_data.attestation_token.has_value()) {
+      data && data->common_data.verification_token.has_value()) {
     headers.SetHeader("Sec-Attribution-Reporting-Private-State-Token",
-                      *data->common_data.attestation_token);
+                      *data->common_data.verification_token);
   }
 }
 

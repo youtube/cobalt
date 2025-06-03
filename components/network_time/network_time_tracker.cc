@@ -118,7 +118,8 @@ const uint32_t kClockDivergenceSeconds = 60;
 // Maximum time lapse before deserialized data are considered stale.
 const uint32_t kSerializedDataMaxAgeDays = 7;
 
-// Name of a pref that stores the wall clock time, via |ToJsTime|.
+// Name of a pref that stores the wall clock time, via
+// |InMillisecondsFSinceUnixEpoch|.
 const char kPrefTime[] = "local";
 
 // Name of a pref that stores the tick clock time, via |ToInternalValue|.
@@ -127,7 +128,8 @@ const char kPrefTicks[] = "ticks";
 // Name of a pref that stores the time uncertainty, via |ToInternalValue|.
 const char kPrefUncertainty[] = "uncertainty";
 
-// Name of a pref that stores the network time via |ToJsTime|.
+// Name of a pref that stores the network time via
+// |InMillisecondsFSinceUnixEpoch|.
 const char kPrefNetworkTime[] = "network";
 
 // Time server's maximum allowable clock skew, in seconds.  (This is a property
@@ -154,10 +156,7 @@ const uint8_t kKeyPubBytes[] = {
 constexpr base::FeatureParam<NetworkTimeTracker::ClockDriftSamples>::Option
     kClockDriftSamplesOptions[] = {
         {NetworkTimeTracker::ClockDriftSamples::NO_SAMPLES, "0"},
-        {NetworkTimeTracker::ClockDriftSamples::TWO_SAMPLES, "2"},
-        {NetworkTimeTracker::ClockDriftSamples::FOUR_SAMPLES, "4"},
-        {NetworkTimeTracker::ClockDriftSamples::SIX_SAMPLES, "6"},
-};
+        {NetworkTimeTracker::ClockDriftSamples::TWO_SAMPLES, "2"}};
 constexpr base::FeatureParam<NetworkTimeTracker::ClockDriftSamples>
     kClockDriftSamples{&kNetworkTimeServiceQuerying, "ClockDriftSamples",
                        NetworkTimeTracker::ClockDriftSamples::NO_SAMPLES,
@@ -213,13 +212,14 @@ NetworkTimeTracker::NetworkTimeTracker(
   absl::optional<double> network_time_js =
       time_mapping.FindDouble(kPrefNetworkTime);
   if (time_js && ticks_js && uncertainty_js && network_time_js) {
-    time_at_last_measurement_ = base::Time::FromJsTime(*time_js);
+    time_at_last_measurement_ =
+        base::Time::FromMillisecondsSinceUnixEpoch(*time_js);
     ticks_at_last_measurement_ =
         base::TimeTicks::FromInternalValue(static_cast<int64_t>(*ticks_js));
     network_time_uncertainty_ = base::TimeDelta::FromInternalValue(
         static_cast<int64_t>(*uncertainty_js));
     network_time_at_last_measurement_ =
-        base::Time::FromJsTime(*network_time_js);
+        base::Time::FromMillisecondsSinceUnixEpoch(*network_time_js);
   }
   base::Time now = clock_->Now();
   if (ticks_at_last_measurement_ > tick_clock_->NowTicks() ||
@@ -278,15 +278,17 @@ void NetworkTimeTracker::UpdateNetworkTime(base::Time network_time,
       kNumTimeMeasurements * base::Milliseconds(kTicksResolutionMs);
 
   base::Value::Dict time_mapping;
-  time_mapping.Set(kPrefTime, time_at_last_measurement_.ToJsTime());
+  time_mapping.Set(kPrefTime,
+                   time_at_last_measurement_.InMillisecondsFSinceUnixEpoch());
   time_mapping.Set(
       kPrefTicks,
       static_cast<double>(ticks_at_last_measurement_.ToInternalValue()));
   time_mapping.Set(
       kPrefUncertainty,
       static_cast<double>(network_time_uncertainty_.ToInternalValue()));
-  time_mapping.Set(kPrefNetworkTime,
-                   network_time_at_last_measurement_.ToJsTime());
+  time_mapping.Set(
+      kPrefNetworkTime,
+      network_time_at_last_measurement_.InMillisecondsFSinceUnixEpoch());
   pref_service_->Set(prefs::kNetworkTimeMapping,
                      base::Value(std::move(time_mapping)));
 }
@@ -526,7 +528,8 @@ bool NetworkTimeTracker::UpdateTimeFromResponse(
 
   // There is a "server_nonce" key here too, but it serves no purpose other than
   // to make the server's response unpredictable.
-  base::Time current_time = base::Time::FromJsTime(*current_time_millis);
+  base::Time current_time =
+      base::Time::FromMillisecondsSinceUnixEpoch(*current_time_millis);
   base::TimeDelta resolution =
       base::Milliseconds(1) + base::Seconds(kTimeServerMaxSkewSeconds);
 
@@ -554,13 +557,16 @@ void NetworkTimeTracker::ProcessClockHistograms(base::Time current_time,
   base::TimeDelta system_clock_skew =
       clock_->Now() - (current_time + latency / 2);
   if (clock_drift_measurement_triggered_) {
-    clock_drift_skews_.push_back(system_clock_skew);
-    clock_drift_latencies_.push_back(latency);
+    ClockDriftSample s;
+    s.latency = latency;
+    s.skew = system_clock_skew;
+    s.timestamp = current_time + latency / 2;
+    clock_drift_samples_.push_back(s);
 
-    // We need one more sample than the number used for the computation
-    // because the middle sample is not used by the central finite difference
-    // formulas.
-    if (clock_drift_skews_.size() ==
+    // We need one more sample than the number used for the
+    // computation because the middle sample is not used by the
+    // central finite difference formulas.
+    if (clock_drift_samples_.size() ==
         static_cast<uint8_t>(kClockDriftSamples.Get()) + 1) {
       RecordClockDriftHistograms();
       clock_drift_measurement_triggered_ = false;
@@ -605,48 +611,27 @@ void NetworkTimeTracker::MaybeTriggerClockDriftMeasurements() {
       static_cast<uint8_t>(kClockDriftSamples.Get()) == 0) {
     return;
   }
-  clock_drift_latencies_.clear();
-  clock_drift_skews_.clear();
+  clock_drift_samples_.clear();
   clock_drift_measurement_triggered_ = true;
   QueueCheckTime(kClockDriftSamplesDistance.Get());
 }
 
 // The clock drift is the time derivative of clock skew. We use the central
-// finite difference method to compute the derivative using the equally
-// distanced samples we have collected. The coefficients for computing the
-// derivative depending on the number of samples we use can be found at
-// https://en.wikipedia.org/wiki/Finite_difference_coefficient . Because we use
-// *central* finite differences, the middle sample does not take part in the
-// computation.
+// finite difference method to compute the derivative using the skew samples
+// we have collected. Because we use *central* finite differences, the middle
+// sample does not take part in the computation.
 double NetworkTimeTracker::ComputeClockDrift() {
   if (kClockDriftSamplesDistance.Get() <= base::TimeDelta(base::Seconds(0)))
     return std::numeric_limits<double>::infinity();
-
-  switch (kClockDriftSamples.Get()) {
-    case NetworkTimeTracker::ClockDriftSamples::NO_SAMPLES:
-      NOTREACHED();
-      return std::numeric_limits<double>::infinity();
-    case NetworkTimeTracker::ClockDriftSamples::TWO_SAMPLES:
-      return (clock_drift_skews_[2] - clock_drift_skews_[0]) /
-             kClockDriftSamplesDistance.Get();
-    case NetworkTimeTracker::ClockDriftSamples::FOUR_SAMPLES:
-      return (-clock_drift_skews_[0] + 8 * clock_drift_skews_[1] -
-              8 * clock_drift_skews_[3] + clock_drift_skews_[4]) /
-             (12 * kClockDriftSamplesDistance.Get());
-    case NetworkTimeTracker::ClockDriftSamples::SIX_SAMPLES:
-      return (-clock_drift_skews_[0] + 9 * clock_drift_skews_[1] -
-              45 * clock_drift_skews_[2] + 45 * clock_drift_skews_[4] -
-              9 * clock_drift_skews_[5] + clock_drift_skews_[6]) /
-             (60 * kClockDriftSamplesDistance.Get());
-  }
+  CHECK(clock_drift_samples_.size() >= 2);
+  return (clock_drift_samples_[2].skew - clock_drift_samples_[0].skew) /
+         (clock_drift_samples_[2].timestamp -
+          clock_drift_samples_[0].timestamp);
 }
 
 void NetworkTimeTracker::RecordClockDriftHistograms() {
-  DCHECK_EQ(clock_drift_skews_.size(), clock_drift_latencies_.size());
-  if (clock_drift_latencies_.size() !=
-          static_cast<uint8_t>(kClockDriftSamples.Get()) + 1 ||
-      clock_drift_skews_.size() !=
-          static_cast<uint8_t>(kClockDriftSamples.Get()) + 1) {
+  if (clock_drift_samples_.size() !=
+      static_cast<uint8_t>(kClockDriftSamples.Get()) + 1) {
     return;
   }
 
@@ -669,23 +654,29 @@ void NetworkTimeTracker::RecordClockDriftHistograms() {
 }
 
 double NetworkTimeTracker::ComputeClockDriftLatencyVariance() {
+  if (static_cast<uint8_t>(kClockDriftSamples.Get()) == 0) {
+    return std::numeric_limits<double>::infinity();
+  }
+
   base::TimeDelta mean = base::Seconds(0);
-  for (size_t i = 0; i < clock_drift_latencies_.size(); i++) {
+  for (size_t i = 0; i < clock_drift_samples_.size(); i++) {
     // Exclude middle sample since we do not use it
-    if (i != clock_drift_latencies_.size() / 2)
-      mean += clock_drift_latencies_[i];
+    if (i != clock_drift_samples_.size() / 2) {
+      mean += clock_drift_samples_[i].latency;
+    }
   }
   mean /= static_cast<uint8_t>(kClockDriftSamples.Get());
 
   double variance = 0;
-  for (size_t i = 0; i < clock_drift_latencies_.size(); i++) {
-    base::TimeDelta diff_from_mean = mean - clock_drift_latencies_[i];
+  for (size_t i = 0; i < clock_drift_samples_.size(); i++) {
+    base::TimeDelta diff_from_mean = mean - clock_drift_samples_[i].latency;
     // Exclude middle sample since we do not use it
-    if (i != clock_drift_latencies_.size() / 2) {
+    if (i != clock_drift_samples_.size() / 2) {
       variance +=
           diff_from_mean.InMilliseconds() * diff_from_mean.InMilliseconds();
     }
   }
+  variance /= static_cast<uint8_t>(kClockDriftSamples.Get());
 
   return variance;
 }

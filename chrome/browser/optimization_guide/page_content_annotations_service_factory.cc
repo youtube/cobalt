@@ -30,9 +30,9 @@
 #include "components/optimization_guide/content/browser/page_content_annotations_service.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
 #include "components/search_engines/template_url_service.h"
+#include "components/variations/service/variations_service.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/storage_partition.h"
-#include "third_party/blink/public/common/features.h"
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
 #include "chrome/browser/ash/profiles/profile_helper.h"
@@ -67,14 +67,13 @@ bool ShouldEnablePageContentAnnotations(Profile* profile) {
     return false;
   }
 
-  // Allow for the validation experiment, remote page metadata, or the Topics
-  // experiment to enable the PCAService without need to enable both features.
+  // Allow for the validation experiment or remote page metadata to enable the
+  // PCAService without need to enable both features.
   return optimization_guide::features::IsPageContentAnnotationEnabled() ||
          base::FeatureList::IsEnabled(
              optimization_guide::features::kPageContentAnnotationsValidation) ||
          base::FeatureList::IsEnabled(
-             optimization_guide::features::kRemotePageMetadata) ||
-         base::FeatureList::IsEnabled(blink::features::kBrowsingTopics);
+             optimization_guide::features::kRemotePageMetadata);
 }
 
 }  // namespace
@@ -111,7 +110,8 @@ PageContentAnnotationsServiceFactory::PageContentAnnotationsServiceFactory()
 PageContentAnnotationsServiceFactory::~PageContentAnnotationsServiceFactory() =
     default;
 
-KeyedService* PageContentAnnotationsServiceFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+PageContentAnnotationsServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
   Profile* profile = Profile::FromBrowserContext(context);
 
@@ -135,12 +135,18 @@ KeyedService* PageContentAnnotationsServiceFactory::BuildServiceInstanceFor(
   ZeroSuggestCacheService* zero_suggest_cache_service =
       ZeroSuggestCacheServiceFactory::GetForProfile(profile);
   if (optimization_guide_keyed_service && history_service) {
-    return new optimization_guide::PageContentAnnotationsService(
+    std::string country_code;
+    if (g_browser_process->variations_service()) {
+      country_code =
+          g_browser_process->variations_service()->GetStoredPermanentCountry();
+    }
+    return std::make_unique<optimization_guide::PageContentAnnotationsService>(
         std::make_unique<ChromeAutocompleteProviderClient>(profile),
-        g_browser_process->GetApplicationLocale(),
+        g_browser_process->GetApplicationLocale(), country_code,
         optimization_guide_keyed_service, history_service, template_url_service,
         zero_suggest_cache_service, proto_db_provider, profile_path,
         optimization_guide_keyed_service->GetOptimizationGuideLogger(),
+        optimization_guide_keyed_service,
         base::ThreadPool::CreateSequencedTaskRunner(
             {base::MayBlock(), base::TaskPriority::BEST_EFFORT}));
   }

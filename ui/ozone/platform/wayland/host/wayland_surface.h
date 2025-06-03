@@ -12,6 +12,7 @@
 #include "base/containers/flat_map.h"
 #include "base/files/scoped_file.h"
 #include "base/functional/callback.h"
+#include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
@@ -38,6 +39,7 @@ class WaylandOutput;
 class WaylandWindow;
 class WaylandBufferHandle;
 class WaylandZcrColorManagementSurface;
+class WaylandZAuraSurface;
 
 // Wrapper of a wl_surface, owned by a WaylandWindow or a WlSubsurface.
 class WaylandSurface {
@@ -65,6 +67,18 @@ class WaylandSurface {
   const std::vector<uint32_t>& entered_outputs() const {
     return entered_outputs_;
   }
+
+  // Creates a zaura_surface extension object for this surface if it does not
+  // already exist and is supported by the server. Returns the surface
+  // extension.
+  WaylandZAuraSurface* CreateZAuraSurface();
+
+  // Resets the zaura_surface extension object for this surface if it exists.
+  // This may be done for the purposes of unmapping the toplevel surface when
+  // hiding the window (see crrev.com/c/3628350/comment/b6315793_85f0b073).
+  void ResetZAuraSurface();
+
+  WaylandZAuraSurface* zaura_surface() { return zaura_surface_.get(); }
 
   // Requests an explicit release for the next commit.
   void RequestExplicitRelease(ExplicitReleaseCallback callback);
@@ -116,9 +130,9 @@ class WaylandSurface {
   // Sets the region that is opaque on this surface in physical pixels. This is
   // expected to be called whenever the region that the surface span changes or
   // the opacity changes. Rects in |region_px| are specified surface-local, in
-  // physical pixels.  If |region_px| is nullptr or empty, the opaque region is
+  // physical pixels.  If |region_px| is nullopt or empty, the opaque region is
   // reset to empty.
-  void set_opaque_region(const std::vector<gfx::Rect>* region_px);
+  void set_opaque_region(absl::optional<std::vector<gfx::Rect>> region_px);
 
   // Sets the input region on this surface in physical pixels.
   // The input region indicates which parts of the surface accept pointer and
@@ -126,7 +140,7 @@ class WaylandSurface {
   // whenever the region that the surface span changes or window state changes
   // when custom frame is used.  If |region_px| is nullptr, the input region is
   // reset to cover the entire wl_surface.
-  void set_input_region(const gfx::Rect* region_px);
+  void set_input_region(absl::optional<gfx::Rect> region_px);
 
   // Set the crop uv of the attached wl_buffer.
   // Unlike wp_viewport.set_source, this crops the buffer prior to
@@ -187,6 +201,13 @@ class WaylandSurface {
       pending_state_.background_color = background_color;
   }
 
+  // Sets the clip rect for this surface.
+  void set_clip_rect(absl::optional<gfx::RectF> clip_rect) {
+    if (get_augmented_surface()) {
+      pending_state_.clip_rect = clip_rect;
+    }
+  }
+
   // Sets whether this surface contains a video.
   void set_contains_video(bool contains_video) {
     pending_state_.contains_video = contains_video;
@@ -221,6 +242,11 @@ class WaylandSurface {
   // compositor accelerators, e.g: Alt+Tab, etc.
   void SetKeyboardShortcutsInhibition(bool enabled);
 
+  // Set the trusted damage flag on this surface to be active, if the surface
+  // augmenter protocol is available. This only needs to be set on the root
+  // surface for a window.
+  void EnableTrustedDamageIfPossible();
+
  private:
   FRIEND_TEST_ALL_PREFIXES(WaylandWindowTest,
                            DoesNotCreateSurfaceSyncOnCommitWithoutBuffers);
@@ -240,7 +266,7 @@ class WaylandSurface {
 
     wl::Object<zwp_linux_buffer_release_v1> linux_buffer_release;
     // The buffer associated with this explicit release.
-    raw_ptr<wl_buffer, DanglingUntriaged> buffer;
+    raw_ptr<wl_buffer, AcrossTasksDanglingUntriaged> buffer;
     // The associated release callback with this request.
     ExplicitReleaseCallback explicit_release_callback;
   };
@@ -266,7 +292,7 @@ class WaylandSurface {
     // buffer_handle owning this wl_buffer is destroyed. Accessing this field
     // should ensure wl_buffer exists by calling
     // WaylandBufferManagerHost::EnsureBufferHandle(buffer_id).
-    raw_ptr<wl_buffer, DanglingUntriaged> buffer = nullptr;
+    raw_ptr<wl_buffer, AcrossTasksDanglingUntriaged> buffer = nullptr;
     gfx::Size buffer_size_px;
 
     // The buffer scale refers to the ratio between the buffer size and the
@@ -303,6 +329,9 @@ class WaylandSurface {
     // can be used by Wayland compositor to correctly display delegated textures
     // which require background color applied.
     absl::optional<SkColor4f> background_color;
+
+    // Optional clip rect for this surface on surface space coordinates.
+    absl::optional<gfx::RectF> clip_rect;
 
     // Whether or not this surface contains video, for wp_content_type_v1.
     bool contains_video = false;
@@ -360,6 +389,7 @@ class WaylandSurface {
   wl::Object<wp_fractional_scale_v1> fractional_scale_;
   std::unique_ptr<WaylandZcrColorManagementSurface>
       zcr_color_management_surface_;
+  std::unique_ptr<WaylandZAuraSurface> zaura_surface_;
   base::flat_map<zwp_linux_buffer_release_v1*, ExplicitReleaseInfo>
       linux_buffer_releases_;
   ExplicitReleaseCallback next_explicit_release_request_;
@@ -383,31 +413,24 @@ class WaylandSurface {
   // we ask its parent.
   std::vector<uint32_t> entered_outputs_;
 
-  void ExplicitRelease(struct zwp_linux_buffer_release_v1* linux_buffer_release,
+  void ExplicitRelease(zwp_linux_buffer_release_v1* linux_buffer_release,
                        base::ScopedFD fence);
 
-  // wl_surface_listener
-  static void Enter(void* data,
-                    struct wl_surface* wl_surface,
-                    struct wl_output* output);
-  static void Leave(void* data,
-                    struct wl_surface* wl_surface,
-                    struct wl_output* output);
+  // wl_surface_listener callbacks:
+  static void OnEnter(void* data, wl_surface* surface, wl_output* output);
+  static void OnLeave(void* data, wl_surface* surface, wl_output* output);
 
-  // wp_fractional_scale_v1_listener
-  static void PreferredScale(
-      void* data,
-      struct wp_fractional_scale_v1* wp_fractional_scale_v1,
-      uint32_t scale);
+  // wp_fractional_scale_v1_listener callbacks:
+  static void OnPreferredScale(void* data,
+                               wp_fractional_scale_v1* fractional_scale,
+                               uint32_t scale);
 
-  // zwp_linux_buffer_release_v1_listener
-  static void FencedRelease(
-      void* data,
-      struct zwp_linux_buffer_release_v1* linux_buffer_release,
-      int32_t fence);
-  static void ImmediateRelease(
-      void* data,
-      struct zwp_linux_buffer_release_v1* linux_buffer_release);
+  // zwp_linux_buffer_release_v1_listener callbacks:
+  static void OnFencedRelease(void* data,
+                              zwp_linux_buffer_release_v1* buffer_release,
+                              int32_t fence);
+  static void OnImmediateRelease(void* data,
+                                 zwp_linux_buffer_release_v1* buffer_release);
 };
 
 }  // namespace ui

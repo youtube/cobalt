@@ -6,11 +6,13 @@
 
 #include <memory>
 
+#include "base/android/jni_android.h"
 #include "base/android/jni_string.h"
-#include "chrome/browser/touch_to_fill/payments/android/jni_headers/TouchToFillCreditCardControllerBridge_jni.h"
+#include "chrome/browser/touch_to_fill/payments/android/internal/jni/TouchToFillCreditCardControllerBridge_jni.h"
 #include "chrome/browser/touch_to_fill/payments/android/touch_to_fill_credit_card_view.h"
 #include "chrome/browser/touch_to_fill/payments/android/touch_to_fill_delegate_android_impl.h"
 #include "components/autofill/content/browser/content_autofill_client.h"
+#include "components/autofill/content/browser/content_autofill_driver.h"
 #include "components/autofill/core/browser/autofill_manager.h"
 #include "components/autofill/core/browser/browser_autofill_manager.h"
 #include "components/autofill/core/browser/ui/touch_to_fill_delegate.h"
@@ -35,9 +37,11 @@ TouchToFillCreditCardController::TouchToFillCreditCardController(
           }),
           base::BindRepeating([](AutofillManager& manager,
                                  FormGlobalId form,
-                                 FieldGlobalId field) {
+                                 FieldGlobalId field,
+                                 const FormData& form_data) {
             return GetDelegate(manager) &&
-                   GetDelegate(manager)->IntendsToShowTouchToFill(form, field);
+                   GetDelegate(manager)->IntendsToShowTouchToFill(form, field,
+                                                                  form_data);
           }),
           base::Seconds(1)) {
   driver_factory_observation_.Observe(
@@ -59,10 +63,10 @@ void TouchToFillCreditCardController::OnContentAutofillDriverFactoryDestroyed(
 void TouchToFillCreditCardController::OnContentAutofillDriverCreated(
     ContentAutofillDriverFactory& factory,
     ContentAutofillDriver& driver) {
-  auto* manager =
-      static_cast<BrowserAutofillManager*>(driver.autofill_manager());
-  manager->set_touch_to_fill_delegate(
-      std::make_unique<TouchToFillDelegateAndroidImpl>(manager));
+  auto& manager =
+      static_cast<BrowserAutofillManager&>(driver.GetAutofillManager());
+  manager.set_touch_to_fill_delegate(
+      std::make_unique<TouchToFillDelegateAndroidImpl>(&manager));
 }
 
 bool TouchToFillCreditCardController::Show(

@@ -7,14 +7,13 @@ import 'chrome://resources/cr_elements/cr_shared_vars.css.js';
 import 'chrome://resources/polymer/v3_0/iron-icon/iron-icon.js';
 
 import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
-import {assert} from 'chrome://resources/js/assert_ts.js';
+import {assert} from 'chrome://resources/js/assert.js';
 import {PolymerElementProperties} from 'chrome://resources/polymer/v3_0/polymer/interfaces.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {AcceleratorLookupManager} from './accelerator_lookup_manager.js';
 import {getTemplate} from './input_key.html.js';
-
-const META_KEY = 'meta';
+import {keyToIconNameMap, LWIN_KEY, META_KEY} from './shortcut_utils.js';
 
 /**
  * Refers to the state of an 'input-key' item.
@@ -24,47 +23,6 @@ export enum KeyInputState {
   MODIFIER_SELECTED = 'modifier-selected',
   ALPHANUMERIC_SELECTED = 'alpha-numeric-selected',
 }
-
-// The keys in this map are pulled from the file:
-// ui/events/keycodes/dom/dom_code_data.inc
-// TODO(cambickel): Add remaining missing icons.
-export const keyToIconNameMap: {[key: string]: string|undefined} = {
-  'ArrowDown': 'arrow-down',
-  'ArrowLeft': 'arrow-left',
-  'ArrowRight': 'arrow-right',
-  'ArrowUp': 'arrow-up',
-  'AudioVolumeDown': 'volume-down',
-  'AudioVolumeMute': 'volume-mute',
-  'AudioVolumeUp': 'volume-up',
-  'BrightnessDown': 'display-brightness-down',
-  'BrightnessUp': 'display-brightness-up',
-  'BrowserBack': 'back',
-  'BrowserForward': 'forward',
-  'BrowserRefresh': 'refresh',
-  'BrowserSearch': 'search',
-  'EmojiPicker': 'emoji-picker',
-  'KeyboardBacklightToggle': 'keyboard-brightness-toggle',
-  'KeyboardBrightnessUp': 'keyboard-brightness-up',
-  'KeyboardBrightnessDown': 'keyboard-brightness-down',
-  'LaunchApplication1': 'overview',
-  'LaunchApplication2': 'calculator',
-  'LaunchAssistant': 'assistant',
-  'MediaFastForward': 'fast-forward',
-  'MediaPause': 'pause',
-  'MediaPlay': 'play',
-  'MediaPlayPause': 'play-pause',
-  'MediaTrackNext': 'next-track',
-  'MediaTrackPrevious': 'last-track',
-  'MicrophoneMuteToggle': 'microphone-mute',
-  'ModeChange': 'globe',
-  'OpenLauncher': 'open-launcher',
-  'Power': 'power',
-  'PrintScreen': 'screenshot',
-  'PrivacyScreenToggle': 'electronic-privacy-screen',
-  'Settings': 'settings',
-  'ToggleDictation': 'dictation-toggle',
-  'ZoomToggle': 'fullscreen',
-};
 
 /**
  * @fileoverview
@@ -85,6 +43,7 @@ export class InputKeyElement extends InputKeyElementBase {
         type: String,
         value: '',
         reflectToAttribute: true,
+        observer: InputKeyElement.prototype.onKeyChanged,
       },
 
       keyState: {
@@ -127,25 +86,27 @@ export class InputKeyElement extends InputKeyElementBase {
   private lookupManager: AcceleratorLookupManager =
       AcceleratorLookupManager.getInstance();
 
-  override connectedCallback(): void {
-    super.connectedCallback();
-    this.hasIcon = this.key in keyToIconNameMap;
-  }
-
   static get template(): HTMLTemplateElement {
     return getTemplate();
   }
 
   private getIconIdForKey(): string|null {
-    const hasLauncherButton = this.lookupManager.getHasLauncherButton();
-    if (this.key === META_KEY) {
-      // 'meta' key should always be the modifier key.
+    // If the key is 'LWIN', then set it as a modifier key.
+    if (this.key === LWIN_KEY) {
       this.keyState = KeyInputState.MODIFIER_SELECTED;
+    }
+    // For 'META_KEY' and 'LWIN' key, return launcher/search icon.
+    if (this.key === META_KEY || this.key === LWIN_KEY) {
+      const hasLauncherButton = this.lookupManager.getHasLauncherButton();
       return hasLauncherButton ? 'shortcut-customization-keys:launcher' :
                                  'shortcut-customization-keys:search';
     }
     const iconName = keyToIconNameMap[this.key];
     return iconName ? `shortcut-customization-keys:${iconName}` : null;
+  }
+
+  private onKeyChanged(): void {
+    this.hasIcon = this.key in keyToIconNameMap;
   }
 
   /**
@@ -157,9 +118,9 @@ export class InputKeyElement extends InputKeyElementBase {
    *     search button.
    */
   static getAriaLabelStringId(key: string, hasLauncherButton: boolean): string {
-    if (key === META_KEY) {
+    if (key === META_KEY || key === LWIN_KEY) {
       return hasLauncherButton ? 'iconLabelOpenLauncher' :
-                                 'iconLabelBrowserSearch';
+                                 'iconLabelOpenSearch';
     }
     return `iconLabel${key}`;  // e.g. iconLabelArrowUp
   }
@@ -173,6 +134,11 @@ export class InputKeyElement extends InputKeyElementBase {
         `String ID ${ariaLabelStringId} should exist, but it doesn't.`);
 
     return this.i18n(ariaLabelStringId);
+  }
+
+  // Prevent announcing input keys when in editing mode.
+  private getAriaHidden(): boolean {
+    return this.keyState === KeyInputState.NOT_SELECTED;
   }
 }
 

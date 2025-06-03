@@ -10,8 +10,8 @@
 #include "base/scoped_observation.h"
 #include "chrome/browser/lacros/sync/crosapi_session_sync_favicon_delegate.h"
 #include "chromeos/crosapi/mojom/synced_session_client.mojom.h"
-#include "components/sync/driver/sync_service.h"
-#include "components/sync/driver/sync_service_observer.h"
+#include "components/sync/service/sync_service.h"
+#include "components/sync/service/sync_service_observer.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/remote.h"
 
@@ -49,7 +49,7 @@ class CrosapiSessionSyncNotifier : public syncer::SyncServiceObserver {
   void OnForeignSyncedSessionsUpdated();
 
   bool is_tab_sync_enabled_ = false;
-  base::raw_ptr<sync_sessions::SessionSyncService> session_sync_service_;
+  raw_ptr<sync_sessions::SessionSyncService> session_sync_service_;
   mojo::Remote<crosapi::mojom::SyncedSessionClient> synced_session_client_;
   base::CallbackListSubscription session_updated_subscription_;
   base::ScopedObservation<syncer::SyncService, syncer::SyncServiceObserver>

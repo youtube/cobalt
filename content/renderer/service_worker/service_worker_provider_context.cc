@@ -17,6 +17,7 @@
 #include "base/task/sequenced_task_runner_helpers.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/task/thread_pool.h"
+#include "content/common/features.h"
 #include "content/public/common/content_features.h"
 #include "content/renderer/service_worker/controller_service_worker_connector.h"
 #include "content/renderer/service_worker/service_worker_subresource_loader.h"
@@ -25,6 +26,7 @@
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "services/network/public/cpp/weak_wrapper_shared_url_loader_factory.h"
 #include "third_party/blink/public/mojom/service_worker/controller_service_worker.mojom-shared.h"
+#include "third_party/blink/public/mojom/service_worker/service_worker_fetch_handler_bypass_option.mojom-shared.h"
 #include "third_party/blink/public/mojom/service_worker/service_worker_object.mojom.h"
 #include "third_party/blink/public/mojom/service_worker/service_worker_registration.mojom.h"
 #include "third_party/blink/public/mojom/service_worker/service_worker_worker_client.mojom.h"
@@ -38,9 +40,14 @@ void CreateSubresourceLoaderFactoryForProviderContext(
         remote_container_host,
     mojo::PendingRemote<blink::mojom::ControllerServiceWorker>
         remote_controller,
+    mojo::PendingRemote<blink::mojom::CacheStorage> remote_cache_storage,
     const std::string& client_id,
     blink::mojom::ServiceWorkerFetchHandlerBypassOption
         fetch_handler_bypass_option,
+    absl::optional<blink::ServiceWorkerRouterRules> router_rules,
+    blink::EmbeddedWorkerStatus initial_running_status,
+    mojo::PendingReceiver<blink::mojom::ServiceWorkerRunningStatusCallback>
+        running_status_receiver,
     std::unique_ptr<network::PendingSharedURLLoaderFactory>
         pending_fallback_factory,
     mojo::PendingReceiver<blink::mojom::ControllerServiceWorkerConnector>
@@ -48,8 +55,9 @@ void CreateSubresourceLoaderFactoryForProviderContext(
     mojo::PendingReceiver<network::mojom::URLLoaderFactory> receiver,
     scoped_refptr<base::SequencedTaskRunner> task_runner) {
   auto connector = base::MakeRefCounted<ControllerServiceWorkerConnector>(
-      std::move(remote_container_host), std::move(remote_controller), client_id,
-      fetch_handler_bypass_option);
+      std::move(remote_container_host), std::move(remote_controller),
+      std::move(remote_cache_storage), client_id, fetch_handler_bypass_option,
+      router_rules, initial_running_status, std::move(running_status_receiver));
   connector->AddBinding(std::move(connector_receiver));
   ServiceWorkerSubresourceLoaderFactory::Create(
       std::move(connector),
@@ -181,14 +189,16 @@ ServiceWorkerProviderContext::GetSubresourceLoaderFactoryInternal() {
         {base::MayBlock(), base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN});
     task_runner->PostTask(
         FROM_HERE,
-        base::BindOnce(&CreateSubresourceLoaderFactoryForProviderContext,
-                       std::move(remote_container_host),
-                       std::move(remote_controller_), client_id_,
-                       fetch_handler_bypass_option_,
-                       fallback_loader_factory_->Clone(),
-                       controller_connector_.BindNewPipeAndPassReceiver(),
-                       subresource_loader_factory_.BindNewPipeAndPassReceiver(),
-                       task_runner));
+        base::BindOnce(
+            &CreateSubresourceLoaderFactoryForProviderContext,
+            std::move(remote_container_host), std::move(remote_controller_),
+            std::move(remote_cache_storage_), client_id_,
+            fetch_handler_bypass_option_, router_rules_,
+            initial_running_status_, std::move(running_status_receiver_),
+            fallback_loader_factory_->Clone(),
+            controller_connector_.BindNewPipeAndPassReceiver(),
+            subresource_loader_factory_.BindNewPipeAndPassReceiver(),
+            task_runner));
 
     DCHECK(!weak_wrapped_subresource_loader_factory_);
     weak_wrapped_subresource_loader_factory_ =
@@ -334,6 +344,14 @@ ServiceWorkerProviderContext::GetFetchHandlerType() const {
   return fetch_handler_type_;
 }
 
+blink::mojom::ServiceWorkerFetchHandlerBypassOption
+ServiceWorkerProviderContext::GetFetchHandlerBypassOption() const {
+  CHECK(main_thread_task_runner_->RunsTasksInCurrentSequence());
+  CHECK_NE(controller_version_id_,
+           blink::mojom::kInvalidServiceWorkerVersionId);
+  return fetch_handler_bypass_option_;
+}
+
 const blink::WebString ServiceWorkerProviderContext::client_id() const {
   return blink::WebString::FromUTF8(client_id_);
 }
@@ -379,6 +397,15 @@ void ServiceWorkerProviderContext::SetController(
   remote_controller_ = std::move(controller_info->remote_controller);
   fetch_handler_bypass_option_ = controller_info->fetch_handler_bypass_option;
   sha256_script_checksum_ = controller_info->sha256_script_checksum;
+  if (controller_info->router_data) {
+    router_rules_ = controller_info->router_data->router_rules;
+    initial_running_status_ =
+        controller_info->router_data->initial_running_status;
+    running_status_receiver_ =
+        std::move(controller_info->router_data->running_status_receiver);
+    remote_cache_storage_ =
+        std::move(controller_info->router_data->remote_cache_storage);
+  }
 
   // Propagate the controller to workers related to this provider.
   if (controller_) {

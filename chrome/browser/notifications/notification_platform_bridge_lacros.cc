@@ -19,6 +19,7 @@
 #include "chromeos/crosapi/mojom/notification.mojom.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
+#include "ui/color/color_provider_manager.h"
 #include "ui/message_center/public/cpp/notification.h"
 #include "ui/message_center/public/cpp/notification_types.h"
 #include "ui/native_theme/native_theme.h"
@@ -121,6 +122,12 @@ crosapi::mojom::NotificationPtr ToMojo(
   mojo_note->notifier_id->url = notification.notifier_id().url;
   mojo_note->notifier_id->title = notification.notifier_id().title;
   mojo_note->notifier_id->profile_id = notification.notifier_id().profile_id;
+
+  const absl::optional<base::FilePath>& image_path =
+      notification.rich_notification_data().image_path;
+  if (image_path.has_value()) {
+    mojo_note->image_path = image_path;
+  }
 
   return mojo_note;
 }
@@ -238,6 +245,14 @@ void NotificationPlatformBridgeLacros::Close(
 
 void NotificationPlatformBridgeLacros::GetDisplayed(
     Profile* profile,
+    GetDisplayedNotificationsCallback callback) const {
+  NOTIMPLEMENTED();
+  std::move(callback).Run(/*notification_ids=*/{}, /*supports_sync=*/false);
+}
+
+void NotificationPlatformBridgeLacros::GetDisplayedForOrigin(
+    Profile* profile,
+    const GURL& origin,
     GetDisplayedNotificationsCallback callback) const {
   NOTIMPLEMENTED();
   std::move(callback).Run(/*notification_ids=*/{}, /*supports_sync=*/false);

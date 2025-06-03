@@ -379,15 +379,12 @@ TEST_F(WebCryptoRsaSsaTest, ImportMultipleRsaKeysJwk) {
 // for how that could happen.
 TEST_F(WebCryptoRsaSsaTest, ImportCorruptKeyReusedModulus) {
   blink::WebCryptoKey key = ImportJwkRS256OrDie(kRsa512Jwk_0);
-  EXPECT_EQ(Status::OperationError(),
-            ImportJwkRS256MustFail(kRsa512Jwk_0_Damaged));
+  EXPECT_EQ(Status::DataError(), ImportJwkRS256MustFail(kRsa512Jwk_0_Damaged));
 }
 
 TEST_F(WebCryptoRsaSsaTest, GenerateKeyPairRsa) {
-  // Note: using unrealistic short key lengths here to avoid bogging down tests.
-
   // Successful WebCryptoAlgorithmIdRsaSsaPkcs1v1_5 key generation (sha256)
-  const unsigned int modulus_length = 256;
+  const unsigned int modulus_length = 2048;
   const std::vector<uint8_t> public_exponent = HexStringToBytes("010001");
   blink::WebCryptoAlgorithm algorithm = CreateRsaHashedKeyGenAlgorithm(
       blink::kWebCryptoAlgorithmIdRsaSsaPkcs1v1_5,
@@ -777,7 +774,7 @@ TEST_F(WebCryptoRsaSsaTest, GenerateKeyBadUsages) {
 // key usages which are applicable, and not have the exact same usages as was
 // specified to GenerateKey
 TEST_F(WebCryptoRsaSsaTest, GenerateKeyPairIntersectUsages) {
-  const unsigned int modulus_length = 256;
+  const unsigned int modulus_length = 2048;
   const std::vector<uint8_t> public_exponent = HexStringToBytes("010001");
 
   blink::WebCryptoKey public_key;
@@ -810,7 +807,7 @@ TEST_F(WebCryptoRsaSsaTest, GenerateKeyPairIntersectUsages) {
 }
 
 TEST_F(WebCryptoRsaSsaTest, GenerateKeyPairEmptyUsages) {
-  const unsigned int modulus_length = 256;
+  const unsigned int modulus_length = 2048;
   const std::vector<uint8_t> public_exponent = HexStringToBytes("010001");
 
   blink::WebCryptoKey public_key;
@@ -1005,14 +1002,14 @@ TEST_F(WebCryptoRsaSsaTest, ImportValidJwkPrivateKey) {
 TEST_F(WebCryptoRsaSsaTest, ImportInvalidJwkPrivateKey_SwapPQ) {
   auto key = BuildTestJwkPrivateKey();
   SwapDictMembers(key, "p", "q");
-  EXPECT_EQ(StatusToString(ImportJwkRS256MustFail(key)), "OperationError");
+  EXPECT_EQ(StatusToString(ImportJwkRS256MustFail(key)), "DataError");
 }
 
 TEST_F(WebCryptoRsaSsaTest, ImportInvalidJwkPrivateKey_SwapPQDPDQ) {
   auto key = BuildTestJwkPrivateKey();
   SwapDictMembers(key, "p", "q");
   SwapDictMembers(key, "dp", "dq");
-  EXPECT_EQ(StatusToString(ImportJwkRS256MustFail(key)), "OperationError");
+  EXPECT_EQ(StatusToString(ImportJwkRS256MustFail(key)), "DataError");
 }
 
 TEST_F(WebCryptoRsaSsaTest, ImportInvalidJwkPrivateKey_MissingMostOptionals) {

@@ -80,6 +80,24 @@ class MEDIA_GPU_EXPORT H265Decoder final : public AcceleratedVideoDecoder {
     // this situation as normal and return from Decode() with kRanOutOfSurfaces.
     virtual scoped_refptr<H265Picture> CreateH265Picture() = 0;
 
+    // Provides the raw NALU data for a VPS. The |vps| passed to
+    // SubmitFrameMetadata() is always the most recent VPS passed to
+    // ProcessVPS() with the same |vps_video_parameter_set_id|.
+    virtual void ProcessVPS(const H265VPS* vps,
+                            base::span<const uint8_t> vps_nalu_data);
+
+    // Provides the raw NALU data for an SPS. The |sps| passed to
+    // SubmitFrameMetadata() is always the most recent SPS passed to
+    // ProcessSPS() with the same |sps_video_parameter_set_id|.
+    virtual void ProcessSPS(const H265SPS* sps,
+                            base::span<const uint8_t> sps_nalu_data);
+
+    // Provides the raw NALU data for a PPS. The |pps| passed to
+    // SubmitFrameMetadata() is always the most recent PPS passed to
+    // ProcessPPS() with the same |pps_pic_parameter_set_id|.
+    virtual void ProcessPPS(const H265PPS* pps,
+                            base::span<const uint8_t> pps_nalu_data);
+
     // Submit metadata for the current frame, providing the current |sps|, |pps|
     // and |slice_hdr| for it. |ref_pic_list| contains the set of pictures as
     // described in 8.3.2 from the lists RefPicSetLtCurr, RefPicSetLtFoll,
@@ -158,6 +176,9 @@ class MEDIA_GPU_EXPORT H265Decoder final : public AcceleratedVideoDecoder {
     // Indicates whether the accelerator supports bitstreams with
     // specific chroma subsampling format.
     virtual bool IsChromaSamplingSupported(VideoChromaSampling format) = 0;
+
+    // Indicates whether the accelerator supports an alpha layer.
+    virtual bool IsAlphaLayerSupported();
   };
 
   H265Decoder(std::unique_ptr<H265Accelerator> accelerator,
@@ -179,6 +200,7 @@ class MEDIA_GPU_EXPORT H265Decoder final : public AcceleratedVideoDecoder {
   VideoCodecProfile GetProfile() const override;
   uint8_t GetBitDepth() const override;
   VideoChromaSampling GetChromaSampling() const override;
+  VideoColorSpace GetVideoColorSpace() const override;
   absl::optional<gfx::HDRMetadata> GetHDRMetadata() const override;
   size_t GetRequiredNumOfPictures() const override;
   size_t GetNumReferenceFrames() const override;
@@ -222,7 +244,8 @@ class MEDIA_GPU_EXPORT H265Decoder final : public AcceleratedVideoDecoder {
   H265Accelerator::Status FinishPrevFrameIfPresent();
 
   // Called after we are done processing |pic|.
-  void FinishPicture(scoped_refptr<H265Picture> pic);
+  bool FinishPicture(scoped_refptr<H265Picture> pic,
+                     std::unique_ptr<H265SliceHeader> slice_hdr);
 
   // Commits all pending data for HW decoder and starts HW decoder.
   H265Accelerator::Status DecodePicture();
@@ -296,6 +319,10 @@ class MEDIA_GPU_EXPORT H265Decoder final : public AcceleratedVideoDecoder {
   // follows an EOS NALU.
   bool first_picture_ = true;
 
+  // Used to keep NoRaslOutputFlag state since last IRAP, to decide if we
+  // drop a RASL picture.
+  bool no_rasl_output_flag_ = true;
+
   // Global state values, needed in decoding. See spec.
   scoped_refptr<H265Picture> prev_tid0_pic_;
   int max_pic_order_cnt_lsb_;
@@ -341,6 +368,8 @@ class MEDIA_GPU_EXPORT H265Decoder final : public AcceleratedVideoDecoder {
   uint8_t bit_depth_ = 0;
   // Chroma sampling format of input bitstream
   VideoChromaSampling chroma_sampling_ = VideoChromaSampling::kUnknown;
+  // Video color space of input bitstream.
+  VideoColorSpace picture_color_space_;
   // HDR metadata in the bitstream.
   absl::optional<gfx::HDRMetadata> hdr_metadata_;
 

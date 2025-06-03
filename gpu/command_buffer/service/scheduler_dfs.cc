@@ -8,7 +8,6 @@
 #include <cstddef>
 #include <vector>
 
-#include "base/cpu_reduction_experiment.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/hash/md5_constexpr.h"
@@ -652,9 +651,15 @@ void SchedulerDfs::RunNextTask() {
       // TODO(elgarawany): We shouldn't have run RunNextTask if there were no
       // runnable sequences. Change logic to check for that too (that changes
       // old behavior - so leaving for now).
+
+      // TODO(crbug.com/1472145): this assert is firing frequently on
+      // Release builds with dcheck_always_on on Intel Macs. It looks
+      // like it happens when the browser drops frames.
+      /*
       DCHECK(GetSortedRunnableSequences(task_runner).empty())
           << "RunNextTask should not have been called "
              "if it did not have any unblocked tasks.";
+      */
 
       TRACE_EVENT_NESTABLE_ASYNC_END0("gpu", "SchedulerDfs::Running",
                                       TRACE_ID_LOCAL(this));
@@ -697,8 +702,8 @@ void SchedulerDfs::ExecuteSequence(const SequenceId sequence_id) {
   auto* task_runner = base::SingleThreadTaskRunner::GetCurrentDefault().get();
   auto* thread_state = &per_thread_state_map_[task_runner];
 
-  const bool log_histograms =
-      base::ShouldLogHistogramForCpuReductionExperiment();
+  // Subsampling these metrics reduced CPU utilization (crbug.com/1295441).
+  const bool log_histograms = metrics_subsampler_.ShouldSample(0.001);
 
   if (log_histograms) {
     UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(

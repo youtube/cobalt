@@ -10,7 +10,7 @@ import android.view.View;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.test.InstrumentationRegistry;
+import androidx.test.platform.app.InstrumentationRegistry;
 
 import org.junit.Assert;
 
@@ -18,6 +18,7 @@ import org.chromium.base.Log;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.test.util.CallbackHelper;
+import org.chromium.base.test.util.CriteriaHelper;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
 import org.chromium.chrome.browser.app.ChromeActivity;
@@ -30,7 +31,6 @@ import org.chromium.chrome.browser.tab.TabHidingType;
 import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.chrome.browser.tab.TabSelectionType;
 import org.chromium.chrome.browser.tab.TabWebContentsObserver;
-import org.chromium.chrome.browser.tab.state.CriticalPersistedTabData;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelFilter;
 import org.chromium.chrome.browser.tabmodel.TabModelObserver;
@@ -236,16 +236,33 @@ public class ChromeTabUtils {
                         "onPageLoadFinished was never called, but loading stopped "
                                 + "on the expected page. Tentatively continuing.");
             } else {
-                WebContents webContents = tab.getWebContents();
-                Assert.fail(String.format(Locale.ENGLISH,
-                        "Page did not load.  Tab information at time of failure -- "
-                                + "expected url: '%s', actual URL: '%s', load progress: %d, is "
-                                + "loading: %b, web contents init: %b, web contents loading: %b",
-                        url, getUrlStringOnUiThread(tab), Math.round(100 * tab.getProgress()),
-                        tab.isLoading(), webContents != null,
-                        webContents == null ? false : webContents.shouldShowLoadingUI()));
+                Assert.fail("Page did not load. " + tabDebugInfo(tab, url));
             }
         }
+
+        boolean complete =
+                TestThreadUtils.runOnUiThreadBlockingNoException(() -> loadComplete(tab, url));
+
+        if (complete) return;
+
+        CriteriaHelper.pollUiThread(() -> {
+            return loadComplete(tab, url);
+        }, "Tab failed to complete load after additional polling. " + tabDebugInfo(tab, url));
+    }
+
+    private static String tabDebugInfo(final Tab tab, @Nullable final String url) {
+        WebContents webContents = tab.getWebContents();
+        boolean shouldShowLoadingUI = false;
+        if (webContents != null) {
+            shouldShowLoadingUI = TestThreadUtils.runOnUiThreadBlockingNoException(
+                    () -> webContents.shouldShowLoadingUI());
+        }
+        return String.format(Locale.ENGLISH,
+                "Tab information at time of failure -- "
+                        + "expected url: '%s', actual URL: '%s', load progress: %d, is "
+                        + "loading: %b, web contents init: %b, web contents loading: %b",
+                url, getUrlStringOnUiThread(tab), Math.round(100 * tab.getProgress()),
+                tab.isLoading(), webContents != null, shouldShowLoadingUI);
     }
 
     /**
@@ -706,7 +723,7 @@ public class ChromeTabUtils {
      */
     public static int getRootId(Tab tab) {
         Assert.assertTrue(ThreadUtils.runningOnUiThread());
-        return CriticalPersistedTabData.from(tab).getRootId();
+        return tab.getRootId();
     }
 
     /**

@@ -11,10 +11,11 @@ import android.view.MotionEvent;
 
 import androidx.annotation.VisibleForTesting;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.UserData;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
 import org.chromium.content.browser.input.ImeAdapterImpl;
 import org.chromium.content.browser.webcontents.WebContentsImpl;
 import org.chromium.content.browser.webcontents.WebContentsImpl.UserDataFactory;
@@ -49,7 +50,6 @@ public class ContentUiEventHandler implements UserData {
                 ContentUiEventHandlerJni.get().init(ContentUiEventHandler.this, webContents);
     }
 
-    @VisibleForTesting
     static ContentUiEventHandler createForTesting(
             WebContents webContents, long nativeContentUiEventHandler) {
         ContentUiEventHandler contentUiEventHandler = new ContentUiEventHandler(webContents);
@@ -94,7 +94,7 @@ public class ContentUiEventHandler implements UserData {
     private void onMouseWheelEvent(MotionEvent event) {
         assert mNativeContentUiEventHandler != 0;
         ContentUiEventHandlerJni.get().sendMouseWheelEvent(mNativeContentUiEventHandler,
-                ContentUiEventHandler.this, MotionEventUtils.getEventTimeNano(event), event.getX(),
+                ContentUiEventHandler.this, MotionEventUtils.getEventTimeNanos(event), event.getX(),
                 event.getY(), event.getAxisValue(MotionEvent.AXIS_HSCROLL),
                 event.getAxisValue(MotionEvent.AXIS_VSCROLL));
     }
@@ -109,7 +109,7 @@ public class ContentUiEventHandler implements UserData {
             event = newEvent;
         }
         ContentUiEventHandlerJni.get().sendMouseEvent(mNativeContentUiEventHandler,
-                ContentUiEventHandler.this, MotionEventUtils.getEventTimeNano(event),
+                ContentUiEventHandler.this, MotionEventUtils.getEventTimeNanos(event),
                 event.getActionMasked(), event.getX(), event.getY(), event.getPointerId(0),
                 event.getPressure(0), event.getOrientation(0),
                 event.getAxisValue(MotionEvent.AXIS_TILT, 0),

@@ -169,7 +169,7 @@ void OmahaPolicyValidator::ValidateProxyPolicies(
         base::ToLowerASCII(omaha_settings_.proxy_mode());
     if (!base::Contains(kProxyModeValidValues, proxy_mode)) {
       validation_result.issues.emplace_back(
-          "proxy_mode", PolicyValueValidationIssue::Severity::kError,
+          "proxy_mode", PolicyValueValidationIssue::Severity::kWarning,
           "Unrecognized proxy mode: " + omaha_settings_.proxy_mode());
     }
   }
@@ -413,7 +413,9 @@ bool DMResponseValidator::ValidateTimestamp(
   }
 
   if (policy_data.timestamp() < policy_info_.timestamp()) {
-    VLOG(1) << "Unexpected DM response timestamp older than cached timestamp.";
+    VLOG(1) << "Unexpected DM response timestamp [" << policy_data.timestamp()
+            << "] is older than cached timestamp [" << policy_info_.timestamp()
+            << "].";
     validation_result.status =
         PolicyValidationResult::Status::kValidationBadTimestamp;
     return false;

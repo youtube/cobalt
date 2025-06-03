@@ -10,16 +10,16 @@
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/renderer/bindings/core/v8/serialization/serialized_script_value.h"
 #include "third_party/blink/renderer/core/core_export.h"
+#include "third_party/blink/renderer/core/layout/exclusions/exclusion_space.h"
+#include "third_party/blink/renderer/core/layout/geometry/bfc_offset.h"
 #include "third_party/blink/renderer/core/layout/geometry/logical_size.h"
+#include "third_party/blink/renderer/core/layout/geometry/margin_strut.h"
 #include "third_party/blink/renderer/core/layout/geometry/physical_size.h"
+#include "third_party/blink/renderer/core/layout/grid/grid_data.h"
 #include "third_party/blink/renderer/core/layout/min_max_sizes.h"
-#include "third_party/blink/renderer/core/layout/ng/exclusions/ng_exclusion_space.h"
-#include "third_party/blink/renderer/core/layout/ng/geometry/ng_bfc_offset.h"
-#include "third_party/blink/renderer/core/layout/ng/geometry/ng_margin_strut.h"
-#include "third_party/blink/renderer/core/layout/ng/grid/ng_grid_data.h"
 #include "third_party/blink/renderer/core/layout/ng/ng_break_appeal.h"
 #include "third_party/blink/renderer/core/layout/ng/ng_floats_utils.h"
-#include "third_party/blink/renderer/core/layout/ng/table/ng_table_constraint_space_data.h"
+#include "third_party/blink/renderer/core/layout/table/table_constraint_space_data.h"
 #include "third_party/blink/renderer/platform/text/text_direction.h"
 #include "third_party/blink/renderer/platform/text/writing_mode.h"
 #include "third_party/blink/renderer/platform/wtf/ref_counted.h"
@@ -28,7 +28,6 @@
 
 namespace blink {
 
-class LayoutBlock;
 class NGConstraintSpaceBuilder;
 
 enum NGFragmentationType {
@@ -166,12 +165,7 @@ class CORE_EXPORT NGConstraintSpace final {
       delete rare_data_;
   }
 
-  // Creates NGConstraintSpace representing LayoutObject's containing block.
-  // This should live on NGBlockNode or another layout bridge and probably take
-  // a root NGConstraintSpace.
-  static NGConstraintSpace CreateFromLayoutObject(const LayoutBlock&);
-
-  const NGExclusionSpace& ExclusionSpace() const { return exclusion_space_; }
+  const ExclusionSpace& GetExclusionSpace() const { return exclusion_space_; }
 
   TextDirection Direction() const {
     return static_cast<TextDirection>(bitfields_.direction);
@@ -282,6 +276,12 @@ class CORE_EXPORT NGConstraintSpace final {
                          : absl::nullopt;
   }
 
+  // True if we're using the "fallback" available inline-size. This typically
+  // means that we depend on the size of the initial containing block.
+  bool UsesOrthogonalFallbackInlineSize() const {
+    return HasRareData() && rare_data_->uses_orthogonal_fallback_inline_size;
+  }
+
   // Inline/block target stretch size constraints.
   // See:
   // https://w3c.github.io/mathml-core/#dfn-inline-stretch-size-constraint
@@ -305,8 +305,8 @@ class CORE_EXPORT NGConstraintSpace final {
   }
 
   // Return the borders which should be used for a table-cell.
-  NGBoxStrut TableCellBorders() const {
-    return HasRareData() ? rare_data_->TableCellBorders() : NGBoxStrut();
+  BoxStrut TableCellBorders() const {
+    return HasRareData() ? rare_data_->TableCellBorders() : BoxStrut();
   }
 
   wtf_size_t TableCellColumnIndex() const {
@@ -329,7 +329,7 @@ class CORE_EXPORT NGConstraintSpace final {
                          : false;
   }
 
-  const NGTableConstraintSpaceData* TableData() const {
+  const TableConstraintSpaceData* TableData() const {
     return HasRareData() ? rare_data_->TableData() : nullptr;
   }
 
@@ -640,8 +640,8 @@ class CORE_EXPORT NGConstraintSpace final {
                          : LayoutUnit();
   }
 
-  NGMarginStrut MarginStrut() const {
-    return HasRareData() ? rare_data_->MarginStrut() : NGMarginStrut();
+  MarginStrut GetMarginStrut() const {
+    return HasRareData() ? rare_data_->GetMarginStrut() : MarginStrut();
   }
 
   // The BfcOffset is where the MarginStrut is placed within the block
@@ -652,7 +652,7 @@ class CORE_EXPORT NGConstraintSpace final {
   //
   // This is done by:
   //   bfc_block_offset =
-  //     space.BfcOffset().block_offset + space.MarginStrut().Sum();
+  //     space.GetBfcOffset().block_offset + space.GetMarginStrut().Sum();
   //
   // The BFC offset can get "resolved" in many circumstances (including, but
   // not limited to):
@@ -660,7 +660,7 @@ class CORE_EXPORT NGConstraintSpace final {
   //   - Text content, atomic inlines, (see NGLineBreaker).
   //   - The current layout having a block_size.
   //   - Clearance before a child.
-  NGBfcOffset BfcOffset() const {
+  BfcOffset GetBfcOffset() const {
     return HasRareData() ? rare_data_->bfc_offset : bfc_offset_;
   }
 
@@ -705,7 +705,7 @@ class CORE_EXPORT NGConstraintSpace final {
     }
 
     return ForcedBfcBlockOffset().value_or(
-        OptimisticBfcBlockOffset().value_or(BfcOffset().block_offset));
+        OptimisticBfcBlockOffset().value_or(GetBfcOffset().block_offset));
   }
 
   SerializedScriptValue* CustomLayoutData() const {
@@ -729,7 +729,7 @@ class CORE_EXPORT NGConstraintSpace final {
 
   // Return true if there were any earlier floats that may affect the current
   // layout.
-  bool HasFloats() const { return !ExclusionSpace().IsEmpty(); }
+  bool HasFloats() const { return !GetExclusionSpace().IsEmpty(); }
 
   bool HasClearanceOffset() const {
     return HasRareData() && rare_data_->ClearanceOffset() != LayoutUnit::Min();
@@ -753,8 +753,8 @@ class CORE_EXPORT NGConstraintSpace final {
     return HasRareData() ? rare_data_->LinesUntilClamp() : absl::nullopt;
   }
 
-  const NGGridLayoutSubtree* GridLayoutSubtree() const {
-    return HasRareData() ? rare_data_->GridLayoutSubtree() : nullptr;
+  const GridLayoutSubtree* GetGridLayoutSubtree() const {
+    return HasRareData() ? rare_data_->GetGridLayoutSubtree() : nullptr;
   }
 
   // Return true if the two constraint spaces are similar enough that it *may*
@@ -836,7 +836,7 @@ class CORE_EXPORT NGConstraintSpace final {
     return true;
   }
 
-  void ReplaceTableRowData(const NGTableConstraintSpaceData& table_data,
+  void ReplaceTableRowData(const TableConstraintSpaceData& table_data,
                            const wtf_size_t row_index) {
     DCHECK(HasRareData());
     rare_data_->ReplaceTableRowData(table_data, row_index);
@@ -875,7 +875,7 @@ class CORE_EXPORT NGConstraintSpace final {
       kSubgridData        // A nested grid with subgridded columns/rows.
     };
 
-    explicit RareData(const NGBfcOffset bfc_offset)
+    explicit RareData(const BfcOffset bfc_offset)
         : bfc_offset(bfc_offset),
           data_union_type(static_cast<unsigned>(DataUnionType::kNone)),
           is_line_clamp_context(false),
@@ -892,6 +892,7 @@ class CORE_EXPORT NGConstraintSpace final {
           is_past_break(false),
           min_block_size_should_encompass_intrinsic_size(false),
           has_override_min_max_block_sizes(false),
+          uses_orthogonal_fallback_inline_size(false),
           min_break_appeal(kBreakAppealLastResort),
           propagate_child_break_values(false),
           is_at_fragmentainer_start(false),
@@ -927,6 +928,8 @@ class CORE_EXPORT NGConstraintSpace final {
               other.min_block_size_should_encompass_intrinsic_size),
           has_override_min_max_block_sizes(
               other.has_override_min_max_block_sizes),
+          uses_orthogonal_fallback_inline_size(
+              other.uses_orthogonal_fallback_inline_size),
           min_break_appeal(other.min_break_appeal),
           propagate_child_break_values(other.propagate_child_break_values),
           is_at_fragmentainer_start(other.is_at_fragmentainer_start),
@@ -1081,13 +1084,13 @@ class CORE_EXPORT NGConstraintSpace final {
       block_start_annotation_space = space;
     }
 
-    NGMarginStrut MarginStrut() const {
+    MarginStrut GetMarginStrut() const {
       return GetDataUnionType() == DataUnionType::kBlockData
                  ? block_data_.margin_strut
-                 : NGMarginStrut();
+                 : MarginStrut();
     }
 
-    void SetMarginStrut(const NGMarginStrut& margin_strut) {
+    void SetMarginStrut(const MarginStrut& margin_strut) {
       EnsureBlockData()->margin_strut = margin_strut;
     }
 
@@ -1150,13 +1153,13 @@ class CORE_EXPORT NGConstraintSpace final {
 
     void SetIsTableCell() { EnsureTableCellData(); }
 
-    NGBoxStrut TableCellBorders() const {
+    BoxStrut TableCellBorders() const {
       return GetDataUnionType() == DataUnionType::kTableCellData
                  ? table_cell_data_.table_cell_borders
-                 : NGBoxStrut();
+                 : BoxStrut();
     }
 
-    void SetTableCellBorders(const NGBoxStrut& table_cell_borders) {
+    void SetTableCellBorders(const BoxStrut& table_cell_borders) {
       EnsureTableCellData()->table_cell_borders = table_cell_borders;
     }
 
@@ -1201,20 +1204,20 @@ class CORE_EXPORT NGConstraintSpace final {
     }
 
     void SetTableRowData(
-        scoped_refptr<const NGTableConstraintSpaceData> table_data,
+        scoped_refptr<const TableConstraintSpaceData> table_data,
         wtf_size_t row_index) {
       EnsureTableRowData()->table_data = std::move(table_data);
       EnsureTableRowData()->row_index = row_index;
     }
 
     void SetTableSectionData(
-        scoped_refptr<const NGTableConstraintSpaceData> table_data,
+        scoped_refptr<const TableConstraintSpaceData> table_data,
         wtf_size_t section_index) {
       EnsureTableSectionData()->table_data = std::move(table_data);
       EnsureTableSectionData()->section_index = section_index;
     }
 
-    void ReplaceTableRowData(const NGTableConstraintSpaceData& table_data,
+    void ReplaceTableRowData(const TableConstraintSpaceData& table_data,
                              wtf_size_t row_index) {
       DCHECK_EQ(GetDataUnionType(), DataUnionType::kTableRowData);
       DCHECK(
@@ -1225,7 +1228,7 @@ class CORE_EXPORT NGConstraintSpace final {
       table_row_data_.row_index = row_index;
     }
 
-    const NGTableConstraintSpaceData* TableData() {
+    const TableConstraintSpaceData* TableData() {
       if (GetDataUnionType() == DataUnionType::kTableRowData)
         return table_row_data_.table_data.get();
       if (GetDataUnionType() == DataUnionType::kTableSectionData)
@@ -1280,13 +1283,13 @@ class CORE_EXPORT NGConstraintSpace final {
           target_stretch_block_sizes;
     }
 
-    const NGGridLayoutSubtree* GridLayoutSubtree() const {
+    const GridLayoutSubtree* GetGridLayoutSubtree() const {
       return GetDataUnionType() == DataUnionType::kSubgridData
                  ? &subgrid_data_.layout_subtree
                  : nullptr;
     }
 
-    void SetGridLayoutSubtree(NGGridLayoutSubtree&& grid_layout_subtree) {
+    void SetGridLayoutSubtree(GridLayoutSubtree&& grid_layout_subtree) {
       EnsureSubgridData()->layout_subtree = std::move(grid_layout_subtree);
     }
 
@@ -1297,7 +1300,7 @@ class CORE_EXPORT NGConstraintSpace final {
     LogicalSize percentage_resolution_size;
     LayoutUnit replaced_percentage_resolution_block_size;
     LayoutUnit block_start_annotation_space;
-    NGBfcOffset bfc_offset;
+    BfcOffset bfc_offset;
     MinMaxSizes override_min_max_block_sizes;
 
     AtomicString page_name;
@@ -1321,6 +1324,7 @@ class CORE_EXPORT NGConstraintSpace final {
     unsigned is_past_break : 1;
     unsigned min_block_size_should_encompass_intrinsic_size : 1;
     unsigned has_override_min_max_block_sizes : 1;
+    unsigned uses_orthogonal_fallback_inline_size : 1;
     unsigned min_break_appeal : kNGBreakAppealBitsNeeded;
     unsigned propagate_child_break_values : 1;
     unsigned is_at_fragmentainer_start : 1;
@@ -1337,7 +1341,7 @@ class CORE_EXPORT NGConstraintSpace final {
         return !lines_until_clamp.has_value();
       }
 
-      NGMarginStrut margin_strut;
+      MarginStrut margin_strut;
       absl::optional<LayoutUnit> optimistic_bfc_block_offset;
       absl::optional<LayoutUnit> forced_bfc_block_offset;
       LayoutUnit clearance_offset = LayoutUnit::Min();
@@ -1355,12 +1359,12 @@ class CORE_EXPORT NGConstraintSpace final {
       }
 
       bool IsInitialForMaySkipLayout() const {
-        return table_cell_borders == NGBoxStrut() &&
+        return table_cell_borders == BoxStrut() &&
                table_cell_column_index == kNotFound && !is_hidden_for_paint &&
                !has_collapsed_borders;
       }
 
-      NGBoxStrut table_cell_borders;
+      BoxStrut table_cell_borders;
       wtf_size_t table_cell_column_index = kNotFound;
       absl::optional<LayoutUnit> table_cell_alignment_baseline;
       bool is_hidden_for_paint = false;
@@ -1377,7 +1381,7 @@ class CORE_EXPORT NGConstraintSpace final {
         return !table_data && row_index == kNotFound;
       }
 
-      scoped_refptr<const NGTableConstraintSpaceData> table_data;
+      scoped_refptr<const TableConstraintSpaceData> table_data;
       wtf_size_t row_index = kNotFound;
     };
 
@@ -1391,7 +1395,7 @@ class CORE_EXPORT NGConstraintSpace final {
         return !table_data && section_index == kNotFound;
       }
 
-      scoped_refptr<const NGTableConstraintSpaceData> table_data;
+      scoped_refptr<const TableConstraintSpaceData> table_data;
       wtf_size_t section_index = kNotFound;
     };
 
@@ -1433,7 +1437,7 @@ class CORE_EXPORT NGConstraintSpace final {
 
       bool IsInitialForMaySkipLayout() const { return !layout_subtree; }
 
-      NGGridLayoutSubtree layout_subtree;
+      GridLayoutSubtree layout_subtree;
     };
 
     BlockData* EnsureBlockData() {
@@ -1648,11 +1652,11 @@ class CORE_EXPORT NGConstraintSpace final {
   // To save a little space, we union these two fields. rare_data_ is valid if
   // the |has_rare_data| bit is set, otherwise bfc_offset_ is valid.
   union {
-    NGBfcOffset bfc_offset_;
+    BfcOffset bfc_offset_;
     RareData* rare_data_;
   };
 
-  NGExclusionSpace exclusion_space_;
+  ExclusionSpace exclusion_space_;
   Bitfields bitfields_;
 };
 

@@ -176,6 +176,7 @@ void FtlMessagingClientTest::SetUp() {
 }
 
 void FtlMessagingClientTest::TearDown() {
+  mock_message_reception_channel_ = nullptr;
   messaging_client_.reset();
 }
 

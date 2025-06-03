@@ -10,6 +10,31 @@
 
 namespace exo::test {
 
+void SetFrameSubmissionFeatureFlags(base::test::ScopedFeatureList* feature_list,
+                                    FrameSubmissionType frame_submission) {
+  switch (frame_submission) {
+    case FrameSubmissionType::kNoReactive: {
+      feature_list->InitWithFeatures(
+          /*enabled_features=*/{},
+          /*disabled_features=*/{kExoReactiveFrameSubmission});
+      break;
+    }
+    case FrameSubmissionType::kReactive_NoAutoNeedsBeginFrame: {
+      feature_list->InitWithFeatures(
+          /*enabled_features=*/{kExoReactiveFrameSubmission},
+          /*disabled_features=*/{kExoAutoNeedsBeginFrame});
+      break;
+    }
+    case FrameSubmissionType::kReactive_AutoNeedsBeginFrame: {
+      feature_list->InitWithFeatures(
+          /*enabled_features=*/{kExoReactiveFrameSubmission,
+                                kExoAutoNeedsBeginFrame},
+          /*disabled_features=*/{});
+      break;
+    }
+  }
+}
+
 void WaitForLastFrameAck(SurfaceTreeHost* surface_tree_host) {
   CHECK(!surface_tree_host->GetFrameCallbacksForTesting().empty());
 

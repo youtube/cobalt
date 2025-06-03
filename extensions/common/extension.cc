@@ -14,6 +14,7 @@
 
 #include "base/base64.h"
 #include "base/command_line.h"
+#include "base/containers/contains.h"
 #include "base/files/file_path.h"
 #include "base/i18n/rtl.h"
 #include "base/json/json_writer.h"
@@ -73,8 +74,9 @@ bool ContainsReservedCharacters(const base::FilePath& path) {
   // Extensions are cross-platform.
   // Since FilePath uses backslash '\\' as file path separator on Windows, so we
   // need to check manually.
-  if (path.value().find('\\') != path.value().npos)
+  if (base::Contains(path.value(), '\\')) {
     return true;
+  }
   return !net::IsSafePortableRelativePath(path);
 }
 
@@ -276,7 +278,7 @@ scoped_refptr<Extension> Extension::Create(const base::FilePath& path,
     return nullptr;
   }
 
-  extension->guid_ = base::GUID::GenerateRandomV4();
+  extension->guid_ = base::Uuid::GenerateRandomV4();
   extension->dynamic_url_ = Extension::GetBaseURLFromExtensionId(
       extension->guid_.AsLowercaseString());
 
@@ -453,7 +455,7 @@ void Extension::SetManifestData(const std::string& key,
 }
 
 void Extension::SetGUID(const ExtensionGuid& guid) {
-  guid_ = base::GUID::ParseLowercase(guid);
+  guid_ = base::Uuid::ParseLowercase(guid);
   DCHECK(guid_.is_valid());
   dynamic_url_ =
       Extension::GetBaseURLFromExtensionId(guid_.AsLowercaseString());
@@ -725,7 +727,7 @@ bool Extension::LoadExtent(const char* key,
 
     // We do not allow authors to put wildcards in their paths. Instead, we
     // imply one at the end.
-    if (pattern.path().find('*') != std::string::npos) {
+    if (base::Contains(pattern.path(), '*')) {
       *error = ErrorUtils::FormatErrorMessageUTF16(
           value_error, base::NumberToString(i), errors::kNoWildCardsInPaths);
       return false;

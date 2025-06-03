@@ -42,8 +42,6 @@ TransferableResourceTracker::ImportResources(
   const auto& directive = saved_frame->directive();
 
   ResourceFrame resource_frame;
-  resource_frame.root = ImportResource(std::move(frame_copy->root_result));
-
   resource_frame.shared.resize(frame_copy->shared_results.size());
   for (size_t i = 0; i < frame_copy->shared_results.size(); ++i) {
     auto& shared_result = frame_copy->shared_results[i];
@@ -82,7 +80,8 @@ TransferableResourceTracker::ImportResource(
     shared_bitmap_manager_->LocalAllocatedSharedBitmap(
         std::move(output_copy.bitmap), id);
     resource = TransferableResource::MakeSoftware(
-        id, output_copy.draw_data.size, SinglePlaneFormat::kRGBA_8888);
+        id, output_copy.draw_data.size, SinglePlaneFormat::kRGBA_8888,
+        TransferableResource::ResourceSource::kSharedElementTransition);
 
     // Remove the bitmap from shared bitmap manager when no longer in use.
     release_callback = base::BindOnce(
@@ -97,7 +96,8 @@ TransferableResourceTracker::ImportResource(
     resource = TransferableResource::MakeGpu(
         output_copy.mailbox, GL_TEXTURE_2D, output_copy.sync_token,
         output_copy.draw_data.size, SinglePlaneFormat::kRGBA_8888,
-        /*is_overlay_candidate=*/false);
+        /*is_overlay_candidate=*/false,
+        TransferableResource::ResourceSource::kSharedElementTransition);
     resource.color_space = output_copy.color_space;
 
     // Run the SingleReleaseCallback when no longer in use.
@@ -124,7 +124,6 @@ TransferableResourceTracker::ImportResource(
 }
 
 void TransferableResourceTracker::ReturnFrame(const ResourceFrame& frame) {
-  UnrefResource(frame.root.resource.id, /*count=*/1);
   for (const auto& shared : frame.shared) {
     if (shared.has_value())
       UnrefResource(shared->resource.id, /*count=*/1);

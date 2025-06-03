@@ -75,6 +75,22 @@ public interface PasswordStoreAndroidBackend {
             Callback<Exception> failureCallback);
 
     /**
+     * Triggers an async list call to retrieve all logins with branding info.
+     *
+     * @param syncingAccount Account used to sync passwords. If the syncingAccount is empty local
+     *     account will be used.
+     * @param loginsReply Callback that is called on success with serialized {@link
+     *     org.chromium.components.password_manager.core.browser.proto.ListPasswordsWithUiInfoResult
+     *     } data.
+     * @param failureCallback A callback that is called on failure for any reason. May return sync.
+     *     TODO(crbug.com/1428539): Remove default keyword after downstream implementation.
+     */
+    default void getAllLoginsWithBrandingInfo(
+            Optional<Account> syncingAccount,
+            Callback<byte[]> loginsReply,
+            Callback<Exception> failureCallback) {}
+
+    /**
      * Triggers an async list call to retrieve autofillable logins.
      *
      * @param syncingAccount Account used to sync passwords. If the syncingAccount is empty local
@@ -101,6 +117,24 @@ public interface PasswordStoreAndroidBackend {
      */
     void getLoginsForSignonRealm(String signonRealm, Optional<Account> syncingAccount,
             Callback<byte[]> loginsReply, Callback<Exception> failureCallback);
+
+    /**
+     * Triggers an async list call to retrieve affiliated logins with matching signon realm. This
+     * includes credential sharing affiliation and grouping affiliation.
+     *
+     * @param signonRealm Signon realm string matched by a substring match. The returned results
+     * must be validated (e.g matching "sample.com" also returns logins for "not-sample.com").
+     * @param syncingAccount Account used to sync passwords. If the syncingAccount is empty local
+     *         account will be used.
+     * @param loginsReply Callback that is called on success with serialized {@link
+     *         org.chromium.components.password_manager.core.browser.proto.ListAffiliatedPasswordsResult}
+     * data.
+     * @param failureCallback A callback that is called on failure for any reason. May return sync.
+     * TODO(crbug.com/1428539): Remove default keyword after downstream implementation.
+     */
+    default void getAffiliatedLoginsForSignonRealm(String signonRealm,
+            Optional<Account> syncingAccount, Callback<byte[]> loginsReply,
+            Callback<Exception> failureCallback){};
 
     /**
      * Triggers an async call to add a login to the store.

@@ -10,12 +10,14 @@
 #include <memory>
 #include <utility>
 
+#include "base/base_switches.h"
 #include "base/command_line.h"
 #include "base/debug/leak_annotations.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/location.h"
 #include "base/memory/discardable_memory.h"
+#include "base/memory/raw_ptr.h"
 #include "base/metrics/field_trial.h"
 #include "base/run_loop.h"
 #include "base/strings/string_number_conversions.h"
@@ -194,7 +196,9 @@ class RenderThreadImplBrowserTest : public testing::Test,
     scoped_refptr<base::SingleThreadTaskRunner> test_task_counter(
         test_task_counter_.get());
 
-    base::FieldTrialList::CreateTrialsFromCommandLine(*cmd, -1);
+    // This handles the --force-fieldtrials flag passed to content_browsertests.
+    base::FieldTrialList::CreateTrialsFromString(
+        cmd->GetSwitchValueASCII(::switches::kForceFieldTrials));
     thread_ = new RenderThreadImpl(
         InProcessChildThreadParams(io_task_runner,
                                    &process_host_->GetMojoInvitation().value()),
@@ -277,12 +281,13 @@ class RenderThreadImplBrowserTest : public testing::Test,
   std::unique_ptr<RenderProcess> process_;
   scoped_refptr<QuitOnTestMsgFilter> test_msg_filter_;
 
-  blink::scheduler::WebMockThreadScheduler* main_thread_scheduler_;
+  raw_ptr<blink::scheduler::WebMockThreadScheduler, ExperimentalRenderer>
+      main_thread_scheduler_;
 
   // RenderThreadImpl doesn't currently support a proper shutdown sequence
   // and it's okay when we're running in multi-process mode because renderers
   // get killed by the OS. Memory leaks aren't nice but it's test-only.
-  RenderThreadImpl* thread_;
+  raw_ptr<RenderThreadImpl, ExperimentalRenderer> thread_;
 
   std::unique_ptr<base::RunLoop> run_loop_;
 };
@@ -453,7 +458,8 @@ class RenderThreadImplGpuMemoryBufferBrowserTest
         base::Unretained(this)));
   }
 
-  gpu::GpuMemoryBufferManager* memory_buffer_manager_ = nullptr;
+  raw_ptr<gpu::GpuMemoryBufferManager, ExperimentalRenderer>
+      memory_buffer_manager_ = nullptr;
 };
 
 // https://crbug.com/652531

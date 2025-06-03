@@ -6,9 +6,11 @@
 
 #include <utility>
 
+#include "base/feature_list.h"
 #include "base/notreached.h"
 #include "base/synchronization/waitable_event.h"
 #include "gpu/command_buffer/client/webgpu_interface.h"
+#include "gpu/config/gpu_finch_features.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "third_party/blink/public/common/privacy_budget/identifiability_metric_builder.h"
 #include "third_party/blink/public/common/privacy_budget/identifiability_study_settings.h"
@@ -28,10 +30,12 @@
 #include "third_party/blink/renderer/core/execution_context/navigator_base.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/inspector/console_message.h"
+#include "third_party/blink/renderer/modules/webgpu/dawn_enum_conversions.h"
 #include "third_party/blink/renderer/modules/webgpu/gpu_adapter.h"
 #include "third_party/blink/renderer/modules/webgpu/gpu_buffer.h"
 #include "third_party/blink/renderer/modules/webgpu/gpu_supported_features.h"
 #include "third_party/blink/renderer/modules/webgpu/string_utils.h"
+#include "third_party/blink/renderer/modules/webgpu/wgsl_language_features.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/dawn_control_client_holder.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/webgpu_callback.h"
 #include "third_party/blink/renderer/platform/graphics/web_graphics_context_3d_provider_util.h"
@@ -73,6 +77,7 @@ WGPURequestAdapterOptions AsDawnType(
 
   WGPURequestAdapterOptions dawn_options = {};
   dawn_options.forceFallbackAdapter = webgpu_options->forceFallbackAdapter();
+  dawn_options.compatibilityMode = webgpu_options->compatibilityMode();
   if (webgpu_options->hasPowerPreference()) {
     dawn_options.powerPreference =
         AsDawnType(webgpu_options->powerPreference());
@@ -121,16 +126,24 @@ GPU* GPU::gpu(NavigatorBase& navigator) {
 GPU::GPU(NavigatorBase& navigator)
     : Supplement<NavigatorBase>(navigator),
       ExecutionContextLifecycleObserver(navigator.GetExecutionContext()),
+      wgsl_language_features_(MakeGarbageCollected<WGSLLanguageFeatures>()),
       mappable_buffer_handles_(
-          base::MakeRefCounted<BoxedMappableWGPUBufferHandles>()) {}
+          base::MakeRefCounted<BoxedMappableWGPUBufferHandles>()) {
+  DCHECK(wgsl_language_features_->FeatureNameSet().empty());
+}
 
 GPU::~GPU() = default;
+
+WGSLLanguageFeatures* GPU::wgslLanguageFeatures() const {
+  return wgsl_language_features_.Get();
+}
 
 void GPU::Trace(Visitor* visitor) const {
   ScriptWrappable::Trace(visitor);
   Supplement<NavigatorBase>::Trace(visitor);
   ExecutionContextLifecycleObserver::Trace(visitor);
   visitor->Trace(mappable_buffers_);
+  visitor->Trace(wgsl_language_features_);
 }
 
 void GPU::ContextDestroyed() {
@@ -143,7 +156,7 @@ void GPU::ContextDestroyed() {
   // short amount of JS can still execute after the ContextDestroyed event
   // is received.
   if (!mappable_buffers_.empty()) {
-    v8::Isolate* isolate = ThreadState::Current()->GetIsolate();
+    v8::Isolate* isolate = GetExecutionContext()->GetIsolate();
     v8::HandleScope scope(isolate);
     for (GPUBuffer* buffer : mappable_buffers_) {
       buffer->DetachMappedArrayBuffers(isolate);
@@ -342,11 +355,23 @@ void GPU::RequestAdapterImpl(ScriptState* script_state,
   dawn_control_client_->EnsureFlush(
       *execution_context->GetAgent()->event_loop());
 
-  UseCounter::Count(execution_context, WebFeature::kWebGPU);
+  UseCounter::Count(execution_context, WebFeature::kWebGPURequestAdapter);
 }
 
 ScriptPromise GPU::requestAdapter(ScriptState* script_state,
                                   const GPURequestAdapterOptions* options) {
+  // Remind developers when they are using WebGPU on unsupported platforms.
+  ExecutionContext* execution_context = GetExecutionContext();
+  if (execution_context &&
+      !base::FeatureList::IsEnabled(features::kWebGPUService)) {
+    execution_context->AddConsoleMessage(MakeGarbageCollected<ConsoleMessage>(
+        mojom::blink::ConsoleMessageSource::kJavaScript,
+        mojom::blink::ConsoleMessageLevel::kInfo,
+        "WebGPU is experimental on this platform. See "
+        "https://github.com/gpuweb/gpuweb/wiki/"
+        "Implementation-Status#implementation-status"));
+  }
+
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(script_state);
   ScriptPromise promise = resolver->Promise();
   RequestAdapterImpl(script_state, options, resolver);
@@ -354,11 +379,14 @@ ScriptPromise GPU::requestAdapter(ScriptState* script_state,
 }
 
 String GPU::getPreferredCanvasFormat() {
-  // TODO(crbug.com/1007166): Return actual preferred format for the swap chain.
+  return FromDawnEnum(preferred_canvas_format());
+}
+
+WGPUTextureFormat GPU::preferred_canvas_format() {
 #if BUILDFLAG(IS_ANDROID)
-  return "rgba8unorm";
+  return WGPUTextureFormat_RGBA8Unorm;
 #else
-  return "bgra8unorm";
+  return WGPUTextureFormat_BGRA8Unorm;
 #endif
 }
 

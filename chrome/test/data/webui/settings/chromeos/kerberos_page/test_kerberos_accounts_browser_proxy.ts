@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {KerberosAccount, KerberosAccountsBrowserProxy, KerberosConfigErrorCode, KerberosErrorType, ValidateKerberosConfigResult} from 'chrome://os-settings/chromeos/os_settings.js';
+import {KerberosAccount, KerberosAccountsBrowserProxy, KerberosConfigErrorCode, KerberosErrorType, ValidateKerberosConfigResult} from 'chrome://os-settings/lazy_load.js';
 import {TestBrowserProxy} from 'chrome://webui-test/test_browser_proxy.js';
 
 // List of fake accounts.
@@ -39,10 +39,18 @@ export const TEST_KERBEROS_ACCOUNTS = [
   },
 ];
 
+// Account indices (to help readability).
+export const AccountIndex = {
+  FIRST: 0,
+  SECOND: 1,
+  THIRD: 2,
+};
+
 export class TestKerberosAccountsBrowserProxy extends TestBrowserProxy
     implements KerberosAccountsBrowserProxy {
   addAccountError: KerberosErrorType;
   validateConfigResult: ValidateKerberosConfigResult;
+
   constructor() {
     super([
       'getAccounts',

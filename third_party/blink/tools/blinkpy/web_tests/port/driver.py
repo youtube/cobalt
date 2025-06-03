@@ -208,10 +208,8 @@ class Driver(object):
         if self._port.get_option('profile'):
             profiler_name = self._port.get_option('profiler')
             self._profiler = ProfilerFactory.create_profiler(
-                self._port.host,
-                self._port._path_to_driver(),  # pylint: disable=protected-access
-                self._port.artifacts_directory(),
-                profiler_name)
+                self._port.host, self._port.path_to_driver(),
+                self._port.artifacts_directory(), profiler_name)
         else:
             self._profiler = None
 
@@ -327,13 +325,6 @@ class Driver(object):
         return self._port._get_crash_log(self._crashed_process_name,
                                          self._crashed_pid, stdout, stderr,
                                          newer_than)
-
-    # FIXME: Seems this could just be inlined into callers.
-    @classmethod
-    def _command_wrapper(cls, wrapper_option):
-        # Hook for injecting valgrind or other runtime instrumentation,
-        # used by e.g. tools/valgrind/valgrind_tests.py.
-        return shlex.split(wrapper_option) if wrapper_option else []
 
     # The *_HOST_AND_PORTS tuples are (hostname, insecure_port, secure_port),
     # i.e. the information needed to create HTTP and HTTPS URLs.
@@ -571,10 +562,10 @@ class Driver(object):
         self._current_cmd_line = None
 
     def _base_cmd_line(self):
-        return [self._port._path_to_driver()]  # pylint: disable=protected-access
+        return [self._port.path_to_driver()]
 
     def cmd_line(self, per_test_args):
-        cmd = self._command_wrapper(self._port.get_option('wrapper'))
+        cmd = list(self._port.get_option('wrapper', []))
         cmd += self._base_cmd_line()
         if self._no_timeout:
             cmd.append('--no-timeout')

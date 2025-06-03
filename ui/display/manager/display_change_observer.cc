@@ -27,9 +27,9 @@
 #include "ui/display/display_switches.h"
 #include "ui/display/manager/display_layout_store.h"
 #include "ui/display/manager/display_manager.h"
-#include "ui/display/manager/display_manager_utilities.h"
 #include "ui/display/manager/display_properties_parser.h"
 #include "ui/display/manager/touch_device_manager.h"
+#include "ui/display/manager/util/display_manager_util.h"
 #include "ui/display/types/display_constants.h"
 #include "ui/display/types/display_mode.h"
 #include "ui/display/types/display_snapshot.h"
@@ -51,7 +51,7 @@ struct DeviceScaleFactorDPIThreshold {
 };
 
 // Update the list of zoom levels whenever a new device scale factor is added
-// here. See zoom level list in /ui/display/manager/display_manager_util.cc
+// here. See zoom level list in /ui/display/manager/util/display_manager_util.cc
 const DeviceScaleFactorDPIThreshold kThresholdTableForInternal[] = {
     {310.f, kDsf_2_666}, {270.0f, 2.4f},  {230.0f, 2.0f}, {220.0f, kDsf_1_777},
     {180.0f, 1.6f},      {150.0f, 1.25f}, {0.0f, 1.0f},
@@ -97,6 +97,14 @@ absl::optional<gfx::RoundedCornersF> ParsePanelRadiiFromCommandLine() {
   }
 
   return ParseDisplayPanelRadii(&display_switch_value.value());
+}
+
+absl::optional<float> GetVSyncRateMin(const DisplaySnapshot* snapshot,
+                                      const DisplayMode* mode_info) {
+  if (snapshot->vsync_rate_min().has_value()) {
+    return mode_info->GetVSyncRateMin(snapshot->vsync_rate_min().value());
+  }
+  return absl::nullopt;
 }
 
 }  // namespace
@@ -347,6 +355,9 @@ ManagedDisplayInfo DisplayChangeObserver::CreateManagedDisplayInfo(
 
   new_info.set_refresh_rate(mode_info->refresh_rate());
   new_info.set_is_interlaced(mode_info->is_interlaced());
+  new_info.set_vsync_rate_min(GetVSyncRateMin(snapshot, mode_info));
+  new_info.set_variable_refresh_rate_state(
+      snapshot->variable_refresh_rate_state());
 
   ManagedDisplayInfo::ManagedDisplayModeList display_modes =
       (snapshot->type() == DISPLAY_CONNECTION_TYPE_INTERNAL)
@@ -356,13 +367,9 @@ ManagedDisplayInfo DisplayChangeObserver::CreateManagedDisplayInfo(
 
   new_info.set_maximum_cursor_size(snapshot->maximum_cursor_size());
 
-  new_info.set_rounded_corners_radii(panel_radii);
+  new_info.set_panel_corners_radii(panel_radii);
 
   new_info.SetDRMFormatsAndModifiers(snapshot->GetDRMFormatsAndModifiers());
-
-  new_info.set_variable_refresh_rate_state(
-      snapshot->variable_refresh_rate_state());
-  new_info.set_vsync_rate_min(snapshot->vsync_rate_min());
 
   return new_info;
 }
@@ -412,12 +419,14 @@ ManagedDisplayInfo DisplayChangeObserver::CreateManagedDisplayInfoInternal(
     native = true;
     device_scale_factor = FindDeviceScaleFactor(dpi, mode_info->size());
   } else {
-    ManagedDisplayMode mode;
-    if (display_manager_->GetSelectedModeForDisplayId(snapshot->display_id(),
-                                                      &mode)) {
-      device_scale_factor = mode.device_scale_factor();
-      native = mode.native();
-    }
+    // DisplaySnapshot stores the native_mode info. For external display, use it
+    // to determine if current mode_info is native or not.
+    const DisplayMode* native_mode = snapshot->native_mode();
+    native = *mode_info == *native_mode;
+
+    // External display scale factor is always 1.
+    CHECK(snapshot->type() != DISPLAY_CONNECTION_TYPE_INTERNAL);
+    device_scale_factor = 1.0f;
   }
   std::string name = (snapshot->type() == DISPLAY_CONNECTION_TYPE_INTERNAL)
                          ? l10n_util::GetStringUTF8(IDS_DISPLAY_NAME_INTERNAL)

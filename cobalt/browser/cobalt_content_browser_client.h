@@ -73,8 +73,6 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
       content::BrowserContext* context) override;
   std::string GetApplicationLocale() override;
   std::string GetUserAgent() override;
-  std::string GetFullUserAgent() override;
-  std::string GetReducedUserAgent() override;
   blink::UserAgentMetadata GetUserAgentMetadata() override;
   content::StoragePartitionConfig GetStoragePartitionConfigForSite(
       content::BrowserContext* browser_context,
@@ -120,7 +118,9 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
           header_client,
       bool* bypass_redirect_checks,
       bool* disable_secure_dns,
-      network::mojom::URLLoaderFactoryOverridePtr* factory_override) override;
+      network::mojom::URLLoaderFactoryOverridePtr* factory_override,
+      scoped_refptr<base::SequencedTaskRunner> navigation_response_task_runner)
+      override;
 
  private:
   void CreateVideoGeometrySetterService();

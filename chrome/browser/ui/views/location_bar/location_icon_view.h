@@ -8,6 +8,7 @@
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/ui/views/location_bar/icon_label_bubble_view.h"
 #include "components/omnibox/browser/location_bar_model.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 
 namespace content {
@@ -58,6 +59,11 @@ class LocationIconView : public IconLabelBubbleView {
     // Gets an icon for the location bar icon chip.
     virtual ui::ImageModel GetLocationIcon(
         IconFetchedCallback on_icon_fetched) const = 0;
+
+    // Gets an optional background color override for the location bar icon
+    // chip.
+    virtual absl::optional<ui::ColorId> GetLocationIconBackgroundColorOverride()
+        const;
   };
 
   LocationIconView(const gfx::FontList& font_list,
@@ -83,9 +89,11 @@ class LocationIconView : public IconLabelBubbleView {
   int GetMinimumLabelTextWidth() const;
 
   // Updates the icon's ink drop mode, focusable behavior, text and security
-  // status. |suppress_animations| indicates whether this update should suppress
+  // status. `suppress_animations` indicates whether this update should suppress
   // the text change animation (e.g. when swapping tabs).
-  void Update(bool suppress_animations);
+  // `force_hide_background` hides the background color. This is useful in
+  // situations like where the popup is shown.
+  void Update(bool suppress_animations, bool force_hide_background = false);
 
   // Returns text to be placed in the view.
   // - For secure/insecure pages, returns text describing the URL's security
@@ -108,7 +116,6 @@ class LocationIconView : public IconLabelBubbleView {
   // IconLabelBubbleView:
   bool IsTriggerableEvent(const ui::Event& event) override;
   void UpdateBorder() override;
-  int GetInternalSpacing() const override;
 
  private:
   // Returns what the minimum size would be if the preferred size were |size|.

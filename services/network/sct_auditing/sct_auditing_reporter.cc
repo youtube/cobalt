@@ -187,14 +187,15 @@ SCTAuditingReporter::SCTHashdanceMetadata::operator=(SCTHashdanceMetadata&&) =
     default;
 
 base::Value SCTAuditingReporter::SCTHashdanceMetadata::ToValue() const {
-  base::Value::Dict dict;
-  dict.Set(kLeafHashKey,
-           base::Base64Encode(base::as_bytes(base::make_span(leaf_hash))));
-  dict.Set(kIssuedKey, base::TimeToValue(issued));
-  dict.Set(kLogIdKey,
-           base::Base64Encode(base::as_bytes(base::make_span(log_id))));
-  dict.Set(kLogMMDKey, base::TimeDeltaToValue(log_mmd));
-  dict.Set(kCertificateExpiry, base::TimeToValue(certificate_expiry));
+  auto dict =
+      base::Value::Dict()
+          .Set(kLeafHashKey,
+               base::Base64Encode(base::as_bytes(base::make_span(leaf_hash))))
+          .Set(kIssuedKey, base::TimeToValue(issued))
+          .Set(kLogIdKey,
+               base::Base64Encode(base::as_bytes(base::make_span(log_id))))
+          .Set(kLogMMDKey, base::TimeDeltaToValue(log_mmd))
+          .Set(kCertificateExpiry, base::TimeToValue(certificate_expiry));
   return base::Value(std::move(dict));
 }
 
@@ -292,8 +293,10 @@ void SCTAuditingReporter::OnCheckReportAllowedStatusComplete(bool allowed) {
 
   // Calculate an estimated minimum delay after which the log is expected to
   // have been ingested by the server.
-  base::TimeDelta random_delay = base::Seconds(base::RandInt(
-      0, configuration_->log_max_ingestion_random_delay.InSeconds()));
+  const auto max_delay = configuration_->log_max_ingestion_random_delay;
+  const base::TimeDelta random_delay = max_delay.is_positive()
+                                           ? base::RandTimeDeltaUpTo(max_delay)
+                                           : base::TimeDelta();
   base::TimeDelta delay = sct_hashdance_metadata_->issued +
                           sct_hashdance_metadata_->log_mmd +
                           configuration_->log_expected_ingestion_delay +

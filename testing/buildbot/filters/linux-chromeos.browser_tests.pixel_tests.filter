@@ -4,3 +4,5 @@
 All/CurtainModeChromeOsPixelTest.*
 KioskPixelTest.*
 
+# TODO(b/305779741) re-enable this test.
+# *PersonalizationAppIntegrationPixelBrowserTest.*

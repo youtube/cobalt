@@ -55,11 +55,11 @@ static const char* PATTERNS[] = {
     "VVVV"
 };
 
-static const UChar ETC_UNKNOWN[] = {0x45, 0x74, 0x63, 0x2F, 0x55, 0x6E, 0x6B, 0x6E, 0x6F, 0x77, 0x6E, 0};
+static const char16_t ETC_UNKNOWN[] = {0x45, 0x74, 0x63, 0x2F, 0x55, 0x6E, 0x6B, 0x6E, 0x6F, 0x77, 0x6E, 0};
 
-static const UChar ETC_SLASH[] = { 0x45, 0x74, 0x63, 0x2F, 0 }; // "Etc/"
-static const UChar SYSTEMV_SLASH[] = { 0x53, 0x79, 0x73, 0x74, 0x65, 0x6D, 0x56, 0x2F, 0 }; // "SystemV/
-static const UChar RIYADH8[] = { 0x52, 0x69, 0x79, 0x61, 0x64, 0x68, 0x38, 0 }; // "Riyadh8"
+static const char16_t ETC_SLASH[] = { 0x45, 0x74, 0x63, 0x2F, 0 }; // "Etc/"
+static const char16_t SYSTEMV_SLASH[] = { 0x53, 0x79, 0x73, 0x74, 0x65, 0x6D, 0x56, 0x2F, 0 }; // "SystemV/
+static const char16_t RIYADH8[] = { 0x52, 0x69, 0x79, 0x61, 0x64, 0x68, 0x38, 0 }; // "Riyadh8"
 
 static UBool contains(const char** list, const char* str) {
     for (int32_t i = 0; list[i]; i++) {
@@ -92,7 +92,7 @@ TimeZoneFormatTest::runIndexedTest( int32_t index, UBool exec, const char* &name
 }
 
 void
-TimeZoneFormatTest::TestTimeZoneRoundTrip(void) {
+TimeZoneFormatTest::TestTimeZoneRoundTrip() {
     UErrorCode status = U_ZERO_ERROR;
 
     SimpleTimeZone unknownZone(-31415, ETC_UNKNOWN);
@@ -275,8 +275,8 @@ TimeZoneFormatTest::TestTimeZoneRoundTrip(void) {
                             status = U_ZERO_ERROR;
                         } else if (outtzid != canonical) {
                             // Canonical ID did not match - check the rules
-                            if (!((BasicTimeZone*)&outtz)->hasEquivalentTransitions((BasicTimeZone&)*tz, low, high, true, status)) {
-                                if (canonical.indexOf((UChar)0x27 /*'/'*/) == -1) {
+                            if (!(dynamic_cast<const BasicTimeZone*>(&outtz))->hasEquivalentTransitions(dynamic_cast<BasicTimeZone&>(*tz), low, high, true, status)) {
+                                if (canonical.indexOf((char16_t)0x27 /*'/'*/) == -1) {
                                     // Exceptional cases, such as CET, EET, MET and WET
                                     logln((UnicodeString)"Canonical round trip failed (as expected); tz=" + *tzid
                                             + ", locale=" + LOCALES[locidx].getName() + ", pattern=" + PATTERNS[patidx]
@@ -365,18 +365,18 @@ static UBool isSpecialTimeRoundTripCase(const char* loc,
         const char* pattern;
         UDate time;
     } EXCLUSIONS[] = {
-        {NULL, "Asia/Chita", "zzzz", 1414252800000.0},
-        {NULL, "Asia/Chita", "vvvv", 1414252800000.0},
-        {NULL, "Asia/Srednekolymsk", "zzzz", 1414241999999.0},
-        {NULL, "Asia/Srednekolymsk", "vvvv", 1414241999999.0},
-        {NULL, NULL, NULL, U_DATE_MIN}
+        {nullptr, "Asia/Chita", "zzzz", 1414252800000.0},
+        {nullptr, "Asia/Chita", "vvvv", 1414252800000.0},
+        {nullptr, "Asia/Srednekolymsk", "zzzz", 1414241999999.0},
+        {nullptr, "Asia/Srednekolymsk", "vvvv", 1414241999999.0},
+        {nullptr, nullptr, nullptr, U_DATE_MIN}
     };
 
     UBool isExcluded = false;
-    for (int32_t i = 0; EXCLUSIONS[i].id != NULL; i++) {
-        if (EXCLUSIONS[i].loc == NULL || uprv_strcmp(loc, EXCLUSIONS[i].loc) == 0) {
+    for (int32_t i = 0; EXCLUSIONS[i].id != nullptr; i++) {
+        if (EXCLUSIONS[i].loc == nullptr || uprv_strcmp(loc, EXCLUSIONS[i].loc) == 0) {
             if (id.compare(EXCLUSIONS[i].id) == 0) {
-                if (EXCLUSIONS[i].pattern == NULL || uprv_strcmp(pattern, EXCLUSIONS[i].pattern) == 0) {
+                if (EXCLUSIONS[i].pattern == nullptr || uprv_strcmp(pattern, EXCLUSIONS[i].pattern) == 0) {
                     if (EXCLUSIONS[i].time == U_DATE_MIN || EXCLUSIONS[i].time == time) {
                         isExcluded = true;
                     }
@@ -410,7 +410,7 @@ struct LocaleData {
     UDate END_TIME;
     int32_t numDone;
 
-    LocaleData() : localeIndex(0), patternIndex(0), testCounts(0), locales(NULL),
+    LocaleData() : localeIndex(0), patternIndex(0), testCounts(0), locales(nullptr),
                    nLocales(0), START_TIME(0), END_TIME(0), numDone(0) {
         for (int i=0; i<UPRV_LENGTHOF(times); i++) {
             times[i] = 0;
@@ -446,10 +446,10 @@ struct LocaleData {
     }
 };
 
-static LocaleData *gLocaleData = NULL;
+static LocaleData *gLocaleData = nullptr;
 
 void
-TimeZoneFormatTest::TestTimeRoundTrip(void) {
+TimeZoneFormatTest::TestTimeRoundTrip() {
     UErrorCode status = U_ZERO_ERROR;
     LocalPointer <Calendar> cal(Calendar::createInstance(TimeZone::createTimeZone((UnicodeString) "UTC"), status));
     if (U_FAILURE(status)) {
@@ -552,7 +552,7 @@ void TimeZoneFormatTest::RunTimeRoundTripTests(int32_t threadNumber) {
     UBool expectedRoundTrip[4];
     int32_t testLen = 0;
 
-    StringEnumeration *tzids = TimeZone::createTimeZoneIDEnumeration(UCAL_ZONE_TYPE_CANONICAL, NULL, NULL, status);
+    StringEnumeration *tzids = TimeZone::createTimeZoneIDEnumeration(UCAL_ZONE_TYPE_CANONICAL, nullptr, nullptr, status);
     if (U_FAILURE(status)) {
         if (status == U_MISSING_RESOURCE_ERROR) {
             // This error is generally caused by data not being present.
@@ -593,15 +593,15 @@ void TimeZoneFormatTest::RunTimeRoundTripTests(int32_t threadNumber) {
                 // Some zones do not have short ID assigned, such as Asia/Riyadh87.
                 // The time roundtrip will fail for such zones with pattern "V" (short zone ID).
                 // This is expected behavior.
-                const UChar* shortZoneID = ZoneMeta::getShortID(*tzid);
-                if (shortZoneID == NULL) {
+                const char16_t* shortZoneID = ZoneMeta::getShortID(*tzid);
+                if (shortZoneID == nullptr) {
                     continue;
                 }
             } else if (uprv_strcmp(PATTERNS[patidx], "VVV") == 0) {
                 // Some zones are not associated with any region, such as Etc/GMT+8.
                 // The time roundtrip will fail for such zone with pattern "VVV" (exemplar location).
                 // This is expected behavior.
-                if (tzid->indexOf((UChar)0x2F) < 0 || tzid->indexOf(ETC_SLASH, -1, 0) >= 0
+                if (tzid->indexOf((char16_t)0x2F) < 0 || tzid->indexOf(ETC_SLASH, -1, 0) >= 0
                     || tzid->indexOf(SYSTEMV_SLASH, -1, 0) >= 0 || tzid->indexOf(RIYADH8, -1, 0) >= 0) {
                     continue;
                 }
@@ -613,7 +613,7 @@ void TimeZoneFormatTest::RunTimeRoundTripTests(int32_t threadNumber) {
                 continue;
             }
 
-            BasicTimeZone *tz = (BasicTimeZone*) TimeZone::createTimeZone(*tzid);
+            BasicTimeZone *tz = dynamic_cast<BasicTimeZone*>(TimeZone::createTimeZone(*tzid));
             sdf->setTimeZone(*tz);
 
             UDate t = gLocaleData->START_TIME;
@@ -718,7 +718,7 @@ void TimeZoneFormatTest::RunTimeRoundTripTests(int32_t threadNumber) {
 }
 
 void
-TimeZoneFormatTest::TestAdoptDefaultThreadSafe(void) {
+TimeZoneFormatTest::TestAdoptDefaultThreadSafe() {
     ThreadPool<TimeZoneFormatTest> threads(this, threadCount, &TimeZoneFormatTest::RunAdoptDefaultThreadSafeTests);
     threads.start();   // Start all threads.
     threads.join();    // Wait for all threads to finish.
@@ -771,7 +771,7 @@ typedef struct {
 } ParseTestData;
 
 void
-TimeZoneFormatTest::TestParse(void) {
+TimeZoneFormatTest::TestParse() {
     const ParseTestData DATA[] = {
         //   text               inPos   locale      style
         //      parseOptions                        expected            outPos  timeType
@@ -821,7 +821,7 @@ TimeZoneFormatTest::TestParse(void) {
                 UTZFMT_PARSE_OPTION_NONE,           "America/New_York", 3,      UTZFMT_TIME_TYPE_DAYLIGHT},
 
             {"EST",             0,      "en_US",    UTZFMT_STYLE_SPECIFIC_LONG,
-                UTZFMT_PARSE_OPTION_NONE,           NULL,               0,      UTZFMT_TIME_TYPE_UNKNOWN},
+                UTZFMT_PARSE_OPTION_NONE,           nullptr,               0,      UTZFMT_TIME_TYPE_UNKNOWN},
 
             {"EST",             0,      "en_US",    UTZFMT_STYLE_SPECIFIC_LONG,
                 UTZFMT_PARSE_OPTION_ALL_STYLES,     "America/New_York", 3,      UTZFMT_TIME_TYPE_STANDARD},
@@ -833,7 +833,7 @@ TimeZoneFormatTest::TestParse(void) {
                 UTZFMT_PARSE_OPTION_NONE,           "America/Chicago",  3,      UTZFMT_TIME_TYPE_STANDARD},
 
             {"CST",             0,      "en_GB",    UTZFMT_STYLE_SPECIFIC_SHORT,
-                UTZFMT_PARSE_OPTION_NONE,           NULL,               0,      UTZFMT_TIME_TYPE_UNKNOWN},
+                UTZFMT_PARSE_OPTION_NONE,           nullptr,               0,      UTZFMT_TIME_TYPE_UNKNOWN},
 
             {"CST",             0,      "en_GB",    UTZFMT_STYLE_SPECIFIC_SHORT,
                 UTZFMT_PARSE_OPTION_TZ_DATABASE_ABBREVIATIONS,  "America/Chicago",  3,  UTZFMT_TIME_TYPE_STANDARD},
@@ -851,16 +851,16 @@ TimeZoneFormatTest::TestParse(void) {
                 UTZFMT_PARSE_OPTION_TZ_DATABASE_ABBREVIATIONS,  "Asia/Riyadh",      3,  UTZFMT_TIME_TYPE_STANDARD},
 
             {"AQTST",           0,      "en",       UTZFMT_STYLE_SPECIFIC_LONG,
-                UTZFMT_PARSE_OPTION_NONE,           NULL,               0,      UTZFMT_TIME_TYPE_UNKNOWN},
+                UTZFMT_PARSE_OPTION_NONE,           nullptr,               0,      UTZFMT_TIME_TYPE_UNKNOWN},
 
             {"AQTST",           0,      "en",       UTZFMT_STYLE_SPECIFIC_LONG,
-                UTZFMT_PARSE_OPTION_ALL_STYLES,     NULL,               0,      UTZFMT_TIME_TYPE_UNKNOWN},
+                UTZFMT_PARSE_OPTION_ALL_STYLES,     nullptr,               0,      UTZFMT_TIME_TYPE_UNKNOWN},
 
             {"AQTST",           0,      "en",       UTZFMT_STYLE_SPECIFIC_LONG,
                 UTZFMT_PARSE_OPTION_ALL_STYLES | UTZFMT_PARSE_OPTION_TZ_DATABASE_ABBREVIATIONS, "Asia/Aqtobe",  5,  UTZFMT_TIME_TYPE_DAYLIGHT},
 
-            {NULL,              0,      NULL,       UTZFMT_STYLE_GENERIC_LOCATION,
-                UTZFMT_PARSE_OPTION_NONE,           NULL,               0,      UTZFMT_TIME_TYPE_UNKNOWN}
+            {nullptr,              0,      nullptr,       UTZFMT_STYLE_GENERIC_LOCATION,
+                UTZFMT_PARSE_OPTION_NONE,           nullptr,               0,      UTZFMT_TIME_TYPE_UNKNOWN}
     };
 
     for (int32_t i = 0; DATA[i].text; i++) {
@@ -898,7 +898,7 @@ TimeZoneFormatTest::TestParse(void) {
 }
 
 void
-TimeZoneFormatTest::TestISOFormat(void) {
+TimeZoneFormatTest::TestISOFormat() {
     const int32_t OFFSET[] = {
         0,          // 0
         999,        // 0.999s
@@ -1035,7 +1035,7 @@ TimeZoneFormatTest::TestISOFormat(void) {
         dataerrln("Fail new Calendar: %s", u_errorName(status));
         return;
     }
-    for (int32_t i = 0; ISO_STR[i][0] != NULL; i++) {
+    for (int32_t i = 0; ISO_STR[i][0] != nullptr; i++) {
         for (int32_t j = 0; PATTERN[j] != 0; j++) {
             if (ISO_STR[i][j] == 0) {
                 continue;
@@ -1073,7 +1073,7 @@ typedef struct {
 } FormatTestData;
 
 void
-TimeZoneFormatTest::TestFormat(void) {
+TimeZoneFormatTest::TestFormat() {
     UDate dateJan = 1358208000000.0;    // 2013-01-15T00:00:00Z
     UDate dateJul = 1373846400000.0;    // 2013-07-15T00:00:00Z
 
@@ -1172,7 +1172,7 @@ TimeZoneFormatTest::TestFormat(void) {
 }
 
 void
-TimeZoneFormatTest::TestFormatTZDBNames(void) {
+TimeZoneFormatTest::TestFormatTZDBNames() {
     UDate dateJan = 1358208000000.0;    // 2013-01-15T00:00:00Z
     UDate dateJul = 1373846400000.0;    // 2013-07-15T00:00:00Z
 
@@ -1269,7 +1269,7 @@ TimeZoneFormatTest::TestFormatTZDBNames(void) {
 }
 
 void
-TimeZoneFormatTest::TestFormatCustomZone(void) {
+TimeZoneFormatTest::TestFormatCustomZone() {
     struct {
         const char* id;
         int32_t offset;
@@ -1300,13 +1300,13 @@ TimeZoneFormatTest::TestFormatCustomZone(void) {
         UnicodeString tzstr;
         UnicodeString expected = UnicodeString(TESTDATA[i].expected, -1, US_INV).unescape();
 
-        tzfmt->format(UTZFMT_STYLE_SPECIFIC_LONG, tz, now, tzstr, NULL);
+        tzfmt->format(UTZFMT_STYLE_SPECIFIC_LONG, tz, now, tzstr, nullptr);
         assertEquals(UnicodeString("Format result for ") + tzid, expected, tzstr);
     }
 }
 
 void
-TimeZoneFormatTest::TestFormatTZDBNamesAllZoneCoverage(void) {
+TimeZoneFormatTest::TestFormatTZDBNamesAllZoneCoverage() {
     UErrorCode status = U_ZERO_ERROR;
     LocalPointer<StringEnumeration> tzids(TimeZone::createEnumeration(status));
     if (U_FAILURE(status)) {
@@ -1353,7 +1353,7 @@ TimeZoneFormatTest::TestFormatTZDBNamesAllZoneCoverage(void) {
 // using SimpleDateFormat initialized with different regional locales - US and Belize.
 // Belize did not observe DST from 1968 to 1973, 1975 to 1982, and 1985 and later.
 void
-TimeZoneFormatTest::TestCentralTime(void) {
+TimeZoneFormatTest::TestCentralTime() {
     UnicodeString pattern(u"y-MM-dd HH:mm:ss zzzz");
     UnicodeString testInputs[] = {
         // 1970-01-01 - Chicago:STD/Belize:STD

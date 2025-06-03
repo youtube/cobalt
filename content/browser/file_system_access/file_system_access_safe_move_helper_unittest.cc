@@ -20,7 +20,6 @@
 #include "base/test/gmock_callback_support.h"
 #include "content/browser/file_system_access/features.h"
 #include "content/browser/file_system_access/file_system_access_safe_move_helper.h"
-#include "content/browser/file_system_access/file_system_access_write_lock_manager.h"
 #include "content/browser/file_system_access/fixed_file_system_access_permission_grant.h"
 #include "content/browser/file_system_access/mock_file_system_access_permission_context.h"
 #include "content/public/test/browser_task_environment.h"
@@ -80,13 +79,15 @@ class TestFileSystemBackend : public storage::TestFileSystemBackend {
       : storage::TestFileSystemBackend(task_runner, base_path) {}
 
   std::unique_ptr<storage::FileSystemOperation> CreateFileSystemOperation(
+      storage::OperationType type,
       const storage::FileSystemURL& url,
       storage::FileSystemContext* context,
       base::File::Error* error_code) const override {
-    if (operation_created_callback_)
+    if (operation_created_callback_) {
       std::move(operation_created_callback_).Run(url);
+    }
     return storage::TestFileSystemBackend::CreateFileSystemOperation(
-        url, context, error_code);
+        type, url, context, error_code);
   }
 
   void SetOperationCreatedCallback(
@@ -158,10 +159,6 @@ class FileSystemAccessSafeMoveHelperTest : public testing::Test {
           quarantine_receivers_.Add(&quarantine_, std::move(receiver));
         });
 
-    ASSERT_TRUE(manager_->TakeWriteLock(
-        test_dest_url_,
-        FileSystemAccessWriteLockManager::WriteLockType::kShared));
-
     InitializeHelperWithUrls(test_source_url_, test_dest_url_);
   }
 
@@ -180,8 +177,8 @@ class FileSystemAccessSafeMoveHelperTest : public testing::Test {
                                                     kFrameId),
         source_url, dest_url,
         storage::FileSystemOperation::CopyOrMoveOptionSet(
-            storage::FileSystemOperation::CopyOrMoveOption::
-                kPreserveDestinationPermissions),
+            {storage::FileSystemOperation::CopyOrMoveOption::
+                 kPreserveDestinationPermissions}),
         quarantine_callback_,
         /*has_transient_user_activation=*/false);
   }

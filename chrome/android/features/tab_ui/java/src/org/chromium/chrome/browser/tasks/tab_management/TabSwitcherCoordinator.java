@@ -6,20 +6,22 @@ package org.chromium.chrome.browser.tasks.tab_management;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.Rect;
 import android.os.SystemClock;
+import android.util.Size;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.accessibility.AccessibilityEvent;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.annotation.VisibleForTesting;
 import androidx.recyclerview.widget.RecyclerView.ViewHolder;
 
 import org.chromium.base.Callback;
+import org.chromium.base.ContextUtils;
 import org.chromium.base.Promise;
+import org.chromium.base.ResettersForTesting;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.TraceEvent;
 import org.chromium.base.metrics.RecordHistogram;
@@ -32,19 +34,22 @@ import org.chromium.chrome.browser.compositor.layouts.content.TabContentManager;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.incognito.reauth.IncognitoReauthController;
 import org.chromium.chrome.browser.incognito.reauth.IncognitoReauthManager;
+import org.chromium.chrome.browser.layouts.LayoutStateProvider;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
 import org.chromium.chrome.browser.lifecycle.DestroyObserver;
 import org.chromium.chrome.browser.multiwindow.MultiWindowModeStateDispatcher;
-import org.chromium.chrome.browser.preferences.SharedPreferencesManager;
+import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.chrome.browser.price_tracking.PriceDropNotificationManager;
 import org.chromium.chrome.browser.price_tracking.PriceDropNotificationManagerFactory;
 import org.chromium.chrome.browser.price_tracking.PriceTrackingFeatures;
 import org.chromium.chrome.browser.price_tracking.PriceTrackingUtilities;
 import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.profiles.ProfileManager;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tabmodel.TabCreatorManager;
 import org.chromium.chrome.browser.tabmodel.TabList;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
+import org.chromium.chrome.browser.tasks.ReturnToChromeUtil;
 import org.chromium.chrome.browser.tasks.pseudotab.PseudoTab;
 import org.chromium.chrome.browser.tasks.pseudotab.TabAttributeCache;
 import org.chromium.chrome.browser.tasks.tab_management.PriceMessageService.PriceMessageType;
@@ -105,6 +110,7 @@ public class TabSwitcherCoordinator
     private final boolean mUsesTabGridDialogCoordinator;
     @Nullable
     private TabGridDialogCoordinator mTabGridDialogCoordinator;
+    private final BrowserControlsStateProvider mBrowserControlsStateProvider;
     private final TabModelSelector mTabModelSelector;
     private final @TabListCoordinator.TabListMode int mMode;
     private final MessageCardProviderCoordinator mMessageCardProviderCoordinator;
@@ -122,11 +128,12 @@ public class TabSwitcherCoordinator
     private TabCreatorManager mTabCreatorManager;
     private boolean mIsInitialized;
     private PriceMessageService mPriceMessageService;
-    private SharedPreferencesManager.Observer mPriceAnnotationsPrefObserver;
+    private SharedPreferences.OnSharedPreferenceChangeListener mPriceAnnotationsPrefListener;
     private final ViewGroup mCoordinatorView;
     private final ViewGroup mRootView;
     private TabContentManager mTabContentManager;
     private IncognitoReauthPromoMessageService mIncognitoReauthPromoMessageService;
+    private boolean mHasEmptyView;
     /**
      * TODO(crbug.com/1227656): Refactor this to pass a supplier instead to ensure we re-use the
      * same instance of {@link IncognitoReauthManager} across the codebase.
@@ -140,6 +147,9 @@ public class TabSwitcherCoordinator
     private SnackbarManager mTabSelectionEditorSnackbarManager;
 
     /** {@see TabManagementDelegate#createCarouselTabSwitcher} */
+    // Suppress to observe SharedPreferences, which is discouraged; use another messaging channel
+    // instead.
+    @SuppressWarnings("UseSharedPreferencesManagerFromChromeCheck")
     public TabSwitcherCoordinator(@NonNull Activity activity,
             @NonNull ActivityLifecycleDispatcher lifecycleDispatcher,
             @NonNull TabModelSelector tabModelSelector,
@@ -155,10 +165,12 @@ public class TabSwitcherCoordinator
             @NonNull SnackbarManager snackbarManager,
             @NonNull ModalDialogManager modalDialogManager,
             @Nullable OneshotSupplier<IncognitoReauthController> incognitoReauthControllerSupplier,
-            @Nullable BackPressManager backPressManager) {
+            @Nullable BackPressManager backPressManager,
+            @Nullable OneshotSupplier<LayoutStateProvider> layoutStateProviderSupplier) {
         try (TraceEvent e = TraceEvent.scoped("TabSwitcherCoordinator.constructor")) {
             mActivity = activity;
             mMode = mode;
+            mBrowserControlsStateProvider = browserControls;
             mTabModelSelector = tabModelSelector;
             mContainer = container;
             mCoordinatorView = activity.findViewById(R.id.coordinator);
@@ -176,67 +188,64 @@ public class TabSwitcherCoordinator
             mTabSelectionEditorSnackbarManager = new SnackbarManager(activity, mRootView, null);
 
             PropertyModel containerViewModel =
-                    new PropertyModel(TabListContainerProperties.ALL_KEYS);
+                    new PropertyModel.Builder(TabListContainerProperties.ALL_KEYS)
+                            .with(TabListContainerProperties.BROWSER_CONTROLS_STATE_PROVIDER,
+                                    mBrowserControlsStateProvider)
+                            .build();
 
             OneshotSupplier<TabGridDialogMediator.DialogController> dialogControllerSupplier = null;
-            if (TabUiFeatureUtilities.isTabGroupsAndroidEnabled(activity)) {
-                mGridDialogScrimCoordinator =
-                        DeviceFormFactor.isNonMultiDisplayContextOnTablet(mRootView.getContext())
-                        ? createScrimCoordinator()
-                        : scrimCoordinator;
-                mUsesTabGridDialogCoordinator = true;
-                dialogControllerSupplier =
-                        new OneshotSupplier<TabGridDialogMediator.DialogController>() {
-                            // Implementation is based on OneshotSupplierImpl with modifications
-                            // such that onAvailable does not invoke get() unless the object already
-                            // exists this prevents callers of onAvailable from triggering the lazy
-                            // creation of the TabGridDialogCoordinator before it is required.
-                            private final Promise<TabGridDialogMediator.DialogController> mPromise =
-                                    new Promise<>();
-                            private final ThreadUtils.ThreadChecker mThreadChecker =
-                                    new ThreadUtils.ThreadChecker();
+            mGridDialogScrimCoordinator =
+                    DeviceFormFactor.isNonMultiDisplayContextOnTablet(mRootView.getContext())
+                    ? createScrimCoordinator()
+                    : scrimCoordinator;
+            mUsesTabGridDialogCoordinator = true;
+            dialogControllerSupplier =
+                    new OneshotSupplier<TabGridDialogMediator.DialogController>() {
+                        // Implementation is based on OneshotSupplierImpl with modifications
+                        // such that onAvailable does not invoke get() unless the object already
+                        // exists this prevents callers of onAvailable from triggering the lazy
+                        // creation of the TabGridDialogCoordinator before it is required.
+                        private final Promise<TabGridDialogMediator.DialogController> mPromise =
+                                new Promise<>();
+                        private final ThreadUtils.ThreadChecker mThreadChecker =
+                                new ThreadUtils.ThreadChecker();
 
-                            @Override
-                            public TabGridDialogMediator.DialogController onAvailable(
-                                    Callback<TabGridDialogMediator.DialogController> callback) {
-                                mThreadChecker.assertOnValidThread();
-                                mPromise.then(callback);
-                                if (!hasValue()) return null;
+                        @Override
+                        public TabGridDialogMediator.DialogController onAvailable(
+                                Callback<TabGridDialogMediator.DialogController> callback) {
+                            mThreadChecker.assertOnValidThread();
+                            mPromise.then(callback);
+                            if (!hasValue()) return null;
 
-                                return get();
+                            return get();
+                        }
+
+                        @Override
+                        public TabGridDialogMediator.DialogController get() {
+                            mThreadChecker.assertOnValidThread();
+                            if (initTabGridDialogCoordinator()) {
+                                assert !mPromise.isFulfilled();
+                                mPromise.fulfill(mTabGridDialogCoordinator.getDialogController());
                             }
+                            assert mPromise.isFulfilled();
+                            return mPromise.getResult();
+                        }
 
-                            @Override
-                            public TabGridDialogMediator.DialogController get() {
-                                mThreadChecker.assertOnValidThread();
-                                if (initTabGridDialogCoordinator()) {
-                                    assert !mPromise.isFulfilled();
-                                    mPromise.fulfill(
-                                            mTabGridDialogCoordinator.getDialogController());
-                                }
-                                assert mPromise.isFulfilled();
-                                return mPromise.getResult();
-                            }
-
-                            @Override
-                            public boolean hasValue() {
-                                return mTabGridDialogCoordinator != null;
-                            }
-                        };
-            } else {
-                mGridDialogScrimCoordinator = null;
-                mUsesTabGridDialogCoordinator = false;
-                mTabGridDialogCoordinator = null;
-            }
+                        @Override
+                        public boolean hasValue() {
+                            return mTabGridDialogCoordinator != null;
+                        }
+                    };
             mMediator = new TabSwitcherMediator(activity, this, containerViewModel,
                     tabModelSelector, browserControls, container, tabContentManager, this, this,
                     multiWindowModeStateDispatcher, mode, incognitoReauthControllerSupplier,
-                    backPressManager, dialogControllerSupplier);
+                    backPressManager, dialogControllerSupplier, this::onTabSwitcherShown,
+                    layoutStateProviderSupplier);
 
             mTabSwitcherCustomViewManager = new TabSwitcherCustomViewManager(mMediator);
 
-            mMultiThumbnailCardProvider =
-                    new MultiThumbnailCardProvider(activity, tabContentManager, tabModelSelector);
+            mMultiThumbnailCardProvider = new MultiThumbnailCardProvider(
+                    activity, mBrowserControlsStateProvider, tabContentManager, tabModelSelector);
 
             PseudoTab.TitleProvider titleProvider = (context, tab) -> {
                 int numRelatedTabs =
@@ -247,47 +256,39 @@ public class TabSwitcherCoordinator
             };
 
             long startTimeMs = SystemClock.uptimeMillis();
-            mTabListCoordinator = new TabListCoordinator(mode, activity, tabModelSelector,
-                    mMultiThumbnailCardProvider, titleProvider, true, mMediator, null,
-                    TabProperties.UiType.CLOSABLE, null, this, container, true, COMPONENT_NAME,
-                    mRootView, null);
+
+            mHasEmptyView = ChromeFeatureList.sEmptyStates.isEnabled()
+                    && (mMode == TabListMode.GRID || mMode == TabListMode.LIST);
+
+            if (mHasEmptyView) {
+                int emptyImageResId =
+                        DeviceFormFactor.isNonMultiDisplayContextOnTablet(mRootView.getContext())
+                        ? R.drawable.tablet_tab_switcher_empty_state_illustration
+                        : R.drawable.phone_tab_switcher_empty_state_illustration;
+                int emptyHeadingStringResId = R.string.tabswitcher_no_tabs_empty_state;
+                int emptySubheadingStringResId =
+                        R.string.tabswitcher_no_tabs_open_to_visit_different_pages;
+
+                mTabListCoordinator = new TabListCoordinator(mode, activity,
+                        mBrowserControlsStateProvider, tabModelSelector,
+                        mMultiThumbnailCardProvider, titleProvider, true, mMediator, null,
+                        TabProperties.UiType.CLOSABLE, null, this, container, true, COMPONENT_NAME,
+                        mRootView, null, mHasEmptyView, emptyImageResId, emptyHeadingStringResId,
+                        emptySubheadingStringResId);
+            } else {
+                mTabListCoordinator =
+                        new TabListCoordinator(mode, activity, mBrowserControlsStateProvider,
+                                tabModelSelector, mMultiThumbnailCardProvider, titleProvider, true,
+                                mMediator, null, TabProperties.UiType.CLOSABLE, null, this,
+                                container, true, COMPONENT_NAME, mRootView, null);
+            }
+
             mTabListCoordinator.setOnLongPressTabItemEventListener(this);
             mContainerViewChangeProcessor = PropertyModelChangeProcessor.create(containerViewModel,
                     mTabListCoordinator.getContainerView(), TabListContainerViewBinder::bind);
 
             RecordHistogram.recordTimesHistogram("Android.TabSwitcher.SetupRecyclerView.Time",
                     SystemClock.uptimeMillis() - startTimeMs);
-
-            if (TabUiFeatureUtilities.isTabGroupsAndroidContinuationEnabled(activity)) {
-                mMediator.addTabSwitcherViewObserver(new TabSwitcherViewObserver() {
-                    @Override
-                    public void startedShowing() {}
-
-                    @Override
-                    public void finishedShowing() {
-                        if (!mTabModelSelector.isTabStateInitialized()) return;
-
-                        int selectedIndex = mTabModelSelector.getTabModelFilterProvider()
-                                                    .getCurrentTabModelFilter()
-                                                    .index();
-                        ViewHolder selectedViewHolder =
-                                mTabListCoordinator.getContainerView()
-                                        .findViewHolderForAdapterPosition(selectedIndex);
-
-                        if (selectedViewHolder == null) return;
-
-                        View focusView = selectedViewHolder.itemView;
-                        focusView.requestFocus();
-                        focusView.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_FOCUSED);
-                    }
-
-                    @Override
-                    public void startedHiding() {}
-
-                    @Override
-                    public void finishedHiding() {}
-                });
-            }
 
             mMessageCardProviderCoordinator = new MessageCardProviderCoordinator(
                     activity, tabModelSelector::isIncognitoSelected, (identifier) -> {
@@ -319,8 +320,10 @@ public class TabSwitcherCoordinator
                             LargeMessageCardViewBinder::bind);
                 }
 
-                if (PriceTrackingFeatures.isPriceTrackingEnabled()) {
-                    mPriceAnnotationsPrefObserver = key -> {
+                if (ProfileManager.isInitialized()
+                        && PriceTrackingFeatures.isPriceTrackingEnabled(
+                                Profile.getLastUsedRegularProfile())) {
+                    mPriceAnnotationsPrefListener = (sharedPrefs, key) -> {
                         if (PriceTrackingUtilities.TRACK_PRICES_ON_TABS.equals(key)
                                 && !mTabModelSelector.isIncognitoSelected()
                                 && mTabModelSelector.isTabStateInitialized()) {
@@ -329,8 +332,8 @@ public class TabSwitcherCoordinator
                                     false, isShowingTabsInMRUOrder(mMode));
                         }
                     };
-                    SharedPreferencesManager.getInstance().addObserver(
-                            mPriceAnnotationsPrefObserver);
+                    ContextUtils.getAppSharedPreferences().registerOnSharedPreferenceChangeListener(
+                            mPriceAnnotationsPrefListener);
                 }
             }
 
@@ -363,6 +366,13 @@ public class TabSwitcherCoordinator
         }
     }
 
+    // @Todo(crbug.com/1464841) can use VisibilityListener instead of this callback.
+    public void onTabSwitcherShown() {
+        if (mHasEmptyView) {
+            mTabListCoordinator.attachEmptyView();
+        }
+    }
+
     /**
      * @return false if already initialized or true when first initialized.
      */
@@ -370,12 +380,12 @@ public class TabSwitcherCoordinator
         assert mUsesTabGridDialogCoordinator;
         if (mTabGridDialogCoordinator != null) return false;
 
-        mTabGridDialogCoordinator =
-                new TabGridDialogCoordinator(mActivity, mTabModelSelector, mTabContentManager,
-                        mTabCreatorManager, mCoordinatorView, TabSwitcherCoordinator.this,
-                        mMediator, TabSwitcherCoordinator.this::getTabGridDialogAnimationSourceView,
-                        mGridDialogScrimCoordinator, mTabListCoordinator.getTabGroupTitleEditor(),
-                        mRootView);
+        mTabGridDialogCoordinator = new TabGridDialogCoordinator(mActivity,
+                mBrowserControlsStateProvider, mTabModelSelector, mTabContentManager,
+                mTabCreatorManager, mCoordinatorView, TabSwitcherCoordinator.this, mMediator,
+                TabSwitcherCoordinator.this::getTabGridDialogAnimationSourceView,
+                mGridDialogScrimCoordinator, mTabListCoordinator.getTabGroupTitleEditor(),
+                mRootView);
         return true;
     }
 
@@ -392,7 +402,6 @@ public class TabSwitcherCoordinator
                 coordinator.getContext().getColor(R.color.omnibox_focused_fading_background_color));
     }
 
-    @VisibleForTesting
     public static boolean hasAppendedMessagesForTesting() {
         return sAppendedMessagesForTesting;
     }
@@ -401,7 +410,12 @@ public class TabSwitcherCoordinator
     public void initWithNative() {
         if (mIsInitialized) return;
         try (TraceEvent e = TraceEvent.scoped("TabSwitcherCoordinator.initWithNative")) {
-            mTabListCoordinator.initWithNative(mDynamicResourceLoaderSupplier.get());
+            final boolean shouldUseDynamicResource = mMode == TabListCoordinator.TabListMode.GRID
+                    && !DeviceFormFactor.isNonMultiDisplayContextOnTablet(mActivity)
+                    && !(ChromeFeatureList.sGridTabSwitcherAndroidAnimations.isEnabled()
+                            && ReturnToChromeUtil.isStartSurfaceRefactorEnabled(mActivity));
+            mTabListCoordinator.initWithNative(
+                    shouldUseDynamicResource ? mDynamicResourceLoaderSupplier.get() : null);
 
             if (mMode == TabListCoordinator.TabListMode.GRID) {
                 if (ChromeFeatureList.sCloseTabSuggestions.isEnabled()) {
@@ -417,8 +431,7 @@ public class TabSwitcherCoordinator
                             tabSuggestionMessageService);
                 }
 
-                if (TabUiFeatureUtilities.isTabGroupsAndroidEnabled(mActivity)
-                        && !TabSwitcherCoordinator.isShowingTabsInMRUOrder(mMode)) {
+                if (!TabSwitcherCoordinator.isShowingTabsInMRUOrder(mMode)) {
                     mTabGridIphDialogCoordinator = new TabGridIphDialogCoordinator(
                             mActivity, mContainer, mModalDialogManager);
                     IphMessageService iphMessageService =
@@ -432,7 +445,7 @@ public class TabSwitcherCoordinator
                     mIncognitoReauthPromoMessageService = new IncognitoReauthPromoMessageService(
                             MessageService.MessageType.INCOGNITO_REAUTH_PROMO_MESSAGE,
                             Profile.getLastUsedRegularProfile(), mActivity,
-                            SharedPreferencesManager.getInstance(), mIncognitoReauthManager,
+                            ChromeSharedPreferences.getInstance(), mIncognitoReauthManager,
                             mSnackbarManager,
                             ()
                                     -> TabUiFeatureUtilities.isTabToGtsAnimationEnabled(mActivity),
@@ -457,8 +470,9 @@ public class TabSwitcherCoordinator
             // style.
             int selectionEditorMode = mMode == TabListMode.CAROUSEL ? TabListMode.GRID : mMode;
             mTabSelectionEditorCoordinator = new TabSelectionEditorCoordinator(mActivity,
-                    mCoordinatorView, mTabModelSelector, mTabContentManager,
-                    mTabListCoordinator::setRecyclerViewPosition, selectionEditorMode, mRootView,
+                    mCoordinatorView, mBrowserControlsStateProvider, mTabModelSelector,
+                    mTabContentManager, mTabListCoordinator::setRecyclerViewPosition,
+                    selectionEditorMode, mRootView,
                     /*displayGroups=*/true, mTabSelectionEditorSnackbarManager);
             mMediator.setTabSelectionEditorController(
                     mTabSelectionEditorCoordinator.getController());
@@ -500,7 +514,7 @@ public class TabSwitcherCoordinator
     }
 
     private void setUpPriceTracking(Context context, ModalDialogManager modalDialogManager) {
-        if (PriceTrackingFeatures.isPriceTrackingEnabled()) {
+        if (PriceTrackingFeatures.isPriceTrackingEnabled(Profile.getLastUsedRegularProfile())) {
             PriceDropNotificationManager notificationManager =
                     PriceDropNotificationManagerFactory.create();
             if (mMode == TabListCoordinator.TabListMode.GRID) {
@@ -554,8 +568,23 @@ public class TabSwitcherCoordinator
     }
 
     @Override
+    public int getTabSwitcherTabListModelSize() {
+        return mTabListCoordinator.getTabListModelSize();
+    }
+
+    @Override
+    public void setTabSwitcherRecyclerViewPosition(RecyclerViewPosition recyclerViewPosition) {
+        mTabListCoordinator.setRecyclerViewPosition(recyclerViewPosition);
+    }
+
+    @Override
     public int getTabListTopOffset() {
         return mTabListCoordinator.getTabListTopOffset();
+    }
+
+    @Override
+    public Rect getRecyclerViewLocation() {
+        return mTabListCoordinator.getRecyclerViewLocation();
     }
 
     @Override
@@ -565,19 +594,15 @@ public class TabSwitcherCoordinator
 
     @Override
     public void requestFocusOnCurrentTab() {
-        if (!mTabModelSelector.isTabStateInitialized()) return;
+        // TODO(crbug.com/1447564): Ideally, this shouldn't be called directly and instead mediator
+        // should listen for |requestFocusOnCurrentTab| signal implicitly and apply changes. This
+        // would require refactoring TabSwitcher.TabListDelegate and its implementation.
+        mMediator.requestAccessibilityFocusOnCurrentTab();
+    }
 
-        int selectedIndex =
-                mTabModelSelector.getTabModelFilterProvider().getCurrentTabModelFilter().index();
-        ViewHolder selectedViewHolder =
-                mTabListCoordinator.getContainerView().findViewHolderForAdapterPosition(
-                        selectedIndex);
-
-        if (selectedViewHolder == null) return;
-
-        View focusView = selectedViewHolder.itemView;
-        focusView.requestFocus();
-        focusView.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_FOCUSED);
+    @Override
+    public void prepareTabGridView() {
+        mTabListCoordinator.prepareTabGridView();
     }
 
     @Override
@@ -589,23 +614,29 @@ public class TabSwitcherCoordinator
 
     @Override
     public void postHiding() {
+        if (mHasEmptyView) {
+            mTabListCoordinator.destroyEmptyView();
+        }
         mTabListCoordinator.postHiding();
         mMediator.postHiding();
     }
 
     @Override
-    @NonNull
-    public Rect getThumbnailLocationOfCurrentTab(boolean forceUpdate) {
+    public @NonNull Rect getThumbnailLocationOfCurrentTab() {
         if (mTabGridDialogCoordinator != null && mTabGridDialogCoordinator.isVisible()) {
-            assert forceUpdate;
             Rect thumbnail = mTabGridDialogCoordinator.getGlobalLocationOfCurrentThumbnail();
             // Adjust to the relative coordinate.
             Rect root = mTabListCoordinator.getRecyclerViewLocation();
             thumbnail.offset(-root.left, -root.top);
             return thumbnail;
         }
-        if (forceUpdate) mTabListCoordinator.updateThumbnailLocation();
+        mTabListCoordinator.updateThumbnailLocation();
         return mTabListCoordinator.getThumbnailLocationOfCurrentTab();
+    }
+
+    @Override
+    public @NonNull Size getThumbnailSize() {
+        return mTabListCoordinator.getThumbnailSize();
     }
 
     // TabListDelegate implementation.
@@ -615,30 +646,28 @@ public class TabSwitcherCoordinator
     }
 
     @Override
-    public long getLastDirtyTime() {
-        return mTabListCoordinator.getLastDirtyTime();
-    }
-
-    @Override
-    @VisibleForTesting
     public void setBitmapCallbackForTesting(Callback<Bitmap> callback) {
         TabListMediator.ThumbnailFetcher.sBitmapCallbackForTesting = callback;
+        ResettersForTesting.register(
+                () -> TabListMediator.ThumbnailFetcher.sBitmapCallbackForTesting = null);
     }
 
     @Override
-    @VisibleForTesting
     public int getBitmapFetchCountForTesting() {
         return TabListMediator.ThumbnailFetcher.sFetchCountForTesting;
     }
 
     @Override
-    @VisibleForTesting
+    public void resetBitmapFetchCountForTesting() {
+        TabListMediator.ThumbnailFetcher.sFetchCountForTesting = 0;
+    }
+
+    @Override
     public int getSoftCleanupDelayForTesting() {
         return mMediator.getSoftCleanupDelayForTesting();
     }
 
     @Override
-    @VisibleForTesting
     public int getCleanupDelayForTesting() {
         return mMediator.getCleanupDelayForTesting();
     }
@@ -663,7 +692,8 @@ public class TabSwitcherCoordinator
         }
         if (tabs != null && tabs.size() > 0) {
             if (mPriceMessageService != null
-                    && PriceTrackingUtilities.isPriceAlertsMessageCardEnabled()) {
+                    && PriceTrackingUtilities.isPriceAlertsMessageCardEnabled(
+                            Profile.getLastUsedRegularProfile())) {
                 mPriceMessageService.preparePriceMessage(PriceMessageType.PRICE_ALERTS, null);
             }
             appendMessagesTo(tabs.size());
@@ -719,7 +749,8 @@ public class TabSwitcherCoordinator
     @Override
     public void showPriceWelcomeMessage(PriceMessageService.PriceTabData priceTabData) {
         if (mPriceMessageService == null
-                || !PriceTrackingUtilities.isPriceWelcomeMessageCardEnabled()
+                || !PriceTrackingUtilities.isPriceWelcomeMessageCardEnabled(
+                        Profile.getLastUsedRegularProfile())
                 || mMessageCardProviderCoordinator.isMessageShown(
                         MessageService.MessageType.PRICE_MESSAGE, PriceMessageType.PRICE_WELCOME)) {
             return;
@@ -819,13 +850,16 @@ public class TabSwitcherCoordinator
 
     private boolean shouldRegisterMessageItemType() {
         return ChromeFeatureList.sCloseTabSuggestions.isEnabled()
-                || (TabUiFeatureUtilities.isTabGroupsAndroidEnabled(mRootView.getContext())
-                        && !TabSwitcherCoordinator.isShowingTabsInMRUOrder(mMode));
+                || !TabSwitcherCoordinator.isShowingTabsInMRUOrder(mMode);
     }
 
     private boolean shouldRegisterLargeMessageItemType() {
-        return PriceTrackingFeatures.isPriceTrackingEnabled()
-                || IncognitoReauthManager.isIncognitoReauthFeatureAvailable();
+        if (ProfileManager.isInitialized()
+                && PriceTrackingFeatures.isPriceTrackingEnabled(
+                        Profile.getLastUsedRegularProfile())) {
+            return true;
+        }
+        return IncognitoReauthManager.isIncognitoReauthFeatureAvailable();
     }
 
     @Override
@@ -839,6 +873,10 @@ public class TabSwitcherCoordinator
     }
 
     // ResetHandler implementation.
+    //
+    // Suppress to observe SharedPreferences, which is discouraged; use another messaging channel
+    // instead.
+    @SuppressWarnings("UseSharedPreferencesManagerFromChromeCheck")
     @Override
     public void onDestroy() {
         if (mTabSwitcherMenuActionHandler != null) {
@@ -863,8 +901,9 @@ public class TabSwitcherCoordinator
         if (mTabAttributeCache != null) {
             mTabAttributeCache.destroy();
         }
-        if (mPriceAnnotationsPrefObserver != null) {
-            SharedPreferencesManager.getInstance().removeObserver(mPriceAnnotationsPrefObserver);
+        if (mPriceAnnotationsPrefListener != null) {
+            ContextUtils.getAppSharedPreferences().unregisterOnSharedPreferenceChangeListener(
+                    mPriceAnnotationsPrefListener);
         }
     }
 

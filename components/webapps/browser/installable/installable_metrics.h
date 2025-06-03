@@ -5,6 +5,8 @@
 #ifndef COMPONENTS_WEBAPPS_BROWSER_INSTALLABLE_INSTALLABLE_METRICS_H_
 #define COMPONENTS_WEBAPPS_BROWSER_INSTALLABLE_INSTALLABLE_METRICS_H_
 
+#include <iosfwd>
+
 namespace base {
 class TimeDelta;
 }
@@ -117,19 +119,26 @@ enum class WebappInstallSource {
   // Lock screen app infrastructure installing to the lock screen app profile.
   EXTERNAL_LOCK_SCREEN = 23,
 
-  // OEM apps installed by the App Preload Service.
+  // OEM apps installed by the App Preload Service on ChromeOS.
   PRELOADED_OEM = 24,
 
   // Installed via the Microsoft 365 setup dialog.
   MICROSOFT_365_SETUP = 25,
 
-  // Profile picking in ProfileMenuView (for installable
-  // WebUIs).
+  // Profile picking in ProfileMenuView (for installable WebUIs).
   PROFILE_MENU = 26,
+
+  // Installation promotion was triggered via ML model.
+  ML_PROMOTION = 27,
+
+  // Default apps installed by the App Preload Service on ChromeOS.
+  PRELOADED_DEFAULT = 28,
 
   // Add any new values above this one.
   COUNT,
 };
+
+std::ostream& operator<<(std::ostream& os, WebappInstallSource source);
 
 // Uninstall surface from which an uninstall was initiated. This value cannot be
 // used to infer an install source. These values are persisted to logs. Entries
@@ -198,8 +207,15 @@ enum class WebappUninstallSource {
   // Tests often need a way of fully installing apps to clean up OS integration.
   kTestCleanup = 19,
 
+  // The DedupeInstallUrlsCommand.
+  kInstallUrlDeduping = 20,
+
+  // Healthcare app cleaning up all user installed apps in between shared
+  // sessions.
+  kHealthcareUserInstallCleanup = 21,
+
   // Add any new values above this one.
-  kMaxValue = kTestCleanup,
+  kMaxValue = kHealthcareUserInstallCleanup,
 };
 
 // This is the result of the promotability check that is recorded in the

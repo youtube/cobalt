@@ -19,13 +19,15 @@
 #include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "base/test/bind.h"
+#include "base/test/gmock_expected_support.h"
 #include "base/test/gmock_move_support.h"
 #include "base/test/mock_callback.h"
 #include "base/test/values_test_util.h"
 #include "base/time/time.h"
 #include "base/uuid.h"
 #include "base/values.h"
-#include "components/aggregation_service/aggregation_service.mojom.h"
+#include "components/aggregation_service/features.h"
+#include "content/browser/aggregation_service/aggregatable_report.h"
 #include "content/browser/aggregation_service/aggregation_service.h"
 #include "content/browser/aggregation_service/aggregation_service_features.h"
 #include "content/browser/aggregation_service/aggregation_service_impl.h"
@@ -77,15 +79,17 @@ class PrivateAggregationReportGoldenLatestVersionTest : public testing::Test {
     input_dir_ = input_dir_.AppendASCII(
         "private_aggregation/aggregatable_report_goldens/latest/");
 
-    absl::optional<PublicKeyset> keyset =
+    ASSERT_OK_AND_ASSIGN(
+        PublicKeyset keyset,
         aggregation_service::ReadAndParsePublicKeys(
-            input_dir_.AppendASCII("public_key.json"), base::Time::Now());
-    ASSERT_TRUE(keyset);
-    ASSERT_EQ(keyset->keys.size(), 1u);
+            input_dir_.AppendASCII("public_key.json"), base::Time::Now()));
+    ASSERT_EQ(keyset.keys.size(), 1u);
 
     aggregation_service().SetPublicKeysForTesting(
-        GURL(kPrivacySandboxAggregationServiceTrustedServerUrlAwsParam.Get()),
-        std::move(*keyset));
+        GetAggregationServiceProcessingUrl(url::Origin::Create(
+            GURL(::aggregation_service::kAggregationServiceCoordinatorAwsCloud
+                     .Get()))),
+        std::move(keyset));
 
     absl::optional<std::vector<uint8_t>> private_key =
         base::Base64Decode(ReadStringFromFile(
@@ -122,23 +126,23 @@ class PrivateAggregationReportGoldenLatestVersionTest : public testing::Test {
         expected_cleartext_payloads.GetList().front().GetIfString();
     ASSERT_TRUE(base64_encoded_expected_cleartext_payload);
 
-    absl::optional<AggregatableReportRequest> actual_report;
-
-    actual_report = PrivateAggregationHost::GenerateReportRequest(
-        std::move(contributions),
-        blink::mojom::AggregationServiceMode::kDefault,
-        std::move(debug_details),
-        /*scheduled_report_time=*/base::Time::FromJavaTime(1234486400000),
-        /*report_id=*/
-        base::GUID::ParseLowercase("21abd97f-73e8-4b88-9389-a9fee6abda5e"),
-        /*reporting_origin=*/kExampleOrigin, api_identifier,
-        /*context_id=*/absl::nullopt);
-    ASSERT_TRUE(actual_report.has_value());
+    AggregatableReportRequest actual_report =
+        PrivateAggregationHost::GenerateReportRequest(
+            std::move(debug_details),
+            /*scheduled_report_time=*/
+            base::Time::FromMillisecondsSinceUnixEpoch(1234486400000),
+            /*report_id=*/
+            base::Uuid::ParseLowercase("21abd97f-73e8-4b88-9389-a9fee6abda5e"),
+            /*reporting_origin=*/kExampleOrigin, api_identifier,
+            /*context_id=*/absl::nullopt,
+            // TODO(alexmt): Generate golden reports for multiple coordinators.
+            /*aggregation_coordinator_origin=*/absl::nullopt,
+            std::move(contributions));
 
     base::RunLoop run_loop;
 
     aggregation_service().AssembleReport(
-        std::move(*actual_report),
+        std::move(actual_report),
         base::BindLambdaForTesting(
             [&](AggregatableReportRequest,
                 absl::optional<AggregatableReport> assembled_report,
@@ -343,13 +347,13 @@ TEST_F(PrivateAggregationReportGoldenLatestVersionTest, VerifyGoldenReport) {
            /*debug_key=*/blink::mojom::DebugKey::New(/*value=*/123u)),
        .contributions = {blink::mojom::AggregatableReportHistogramContribution(
            /*bucket=*/1, /*value=*/2)},
-       .api_identifier = PrivateAggregationBudgetKey::Api::kFledge,
+       .api_identifier = PrivateAggregationBudgetKey::Api::kProtectedAudience,
        .report_file = "report_1.json",
        .cleartext_payloads_file = "report_1_cleartext_payloads.json"},
       {.debug_details = blink::mojom::DebugModeDetails::New(),
        .contributions = {blink::mojom::AggregatableReportHistogramContribution(
            /*bucket==*/1, /*value=*/2)},
-       .api_identifier = PrivateAggregationBudgetKey::Api::kFledge,
+       .api_identifier = PrivateAggregationBudgetKey::Api::kProtectedAudience,
        .report_file = "report_2.json",
        .cleartext_payloads_file = "report_2_cleartext_payloads.json"},
       {.debug_details = blink::mojom::DebugModeDetails::New(
@@ -375,15 +379,21 @@ TEST_F(PrivateAggregationReportGoldenLatestVersionTest, VerifyGoldenReport) {
            /*debug_key=*/blink::mojom::DebugKey::New(/*value=*/123u)),
        .contributions = {blink::mojom::AggregatableReportHistogramContribution(
            /*bucket==*/1, /*value=*/2)},
-       .api_identifier = PrivateAggregationBudgetKey::Api::kFledge,
+       .api_identifier = PrivateAggregationBudgetKey::Api::kProtectedAudience,
        .report_file = "report_5.json",
        .cleartext_payloads_file = "report_5_cleartext_payloads.json"},
       {.debug_details = blink::mojom::DebugModeDetails::New(),
        .contributions = {blink::mojom::AggregatableReportHistogramContribution(
            /*bucket==*/1, /*value=*/2)},
-       .api_identifier = PrivateAggregationBudgetKey::Api::kFledge,
+       .api_identifier = PrivateAggregationBudgetKey::Api::kProtectedAudience,
        .report_file = "report_6.json",
        .cleartext_payloads_file = "report_6_cleartext_payloads.json"},
+      {.debug_details = blink::mojom::DebugModeDetails::New(),
+       .contributions = {blink::mojom::AggregatableReportHistogramContribution(
+           /*bucket==*/0, /*value=*/0)},
+       .api_identifier = PrivateAggregationBudgetKey::Api::kSharedStorage,
+       .report_file = "report_7.json",
+       .cleartext_payloads_file = "report_7_cleartext_payloads.json"},
   };
 
   for (auto& test_case : kTestCases) {
@@ -396,7 +406,7 @@ TEST_F(PrivateAggregationReportGoldenLatestVersionTest, VerifyGoldenReport) {
 
 std::vector<base::FilePath> GetLegacyVersions() {
   base::FilePath input_dir;
-  base::PathService::Get(base::DIR_SOURCE_ROOT, &input_dir);
+  base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &input_dir);
   input_dir = input_dir.AppendASCII(
       "content/test/data/private_aggregation/aggregatable_report_goldens");
 

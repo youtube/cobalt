@@ -35,14 +35,17 @@ class MODULES_EXPORT H264Encoder final : public VideoTrackRecorder::Encoder {
   H264Encoder(const H264Encoder&) = delete;
   H264Encoder& operator=(const H264Encoder&) = delete;
 
-  base::WeakPtr<Encoder> GetWeakPtr() { return weak_factory_.GetWeakPtr(); }
+  base::WeakPtr<Encoder> GetWeakPtr() override {
+    return weak_factory_.GetWeakPtr();
+  }
 
  private:
   friend class H264EncoderFixture;
 
   // VideoTrackRecorder::Encoder implementation.
   void EncodeFrame(scoped_refptr<media::VideoFrame> frame,
-                   base::TimeTicks capture_timestamp) override;
+                   base::TimeTicks capture_timestamp,
+                   bool request_keyframe) override;
 
   [[nodiscard]] bool ConfigureEncoder(const gfx::Size& size);
 

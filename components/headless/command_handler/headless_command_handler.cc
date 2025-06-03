@@ -6,11 +6,13 @@
 
 #include <cstdint>
 #include <iostream>
-#include <map>
+#include <string>
+#include <utility>
 
 #include "base/base64.h"
 #include "base/command_line.h"
 #include "base/containers/adapters.h"
+#include "base/containers/fixed_flat_map.h"
 #include "base/containers/span.h"
 #include "base/files/file.h"
 #include "base/files/file_path.h"
@@ -19,6 +21,7 @@
 #include "base/functional/callback.h"
 #include "base/json/json_writer.h"
 #include "base/logging.h"
+#include "base/no_destructor.h"
 #include "base/path_service.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
@@ -34,6 +37,7 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_ui_data_source.h"
 #include "content/public/common/content_switches.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/base/resource/resource_bundle.h"
 
 namespace headless {
@@ -50,6 +54,11 @@ const char kChromeHeadlessURL[] = "chrome://headless/";
 
 const char kHeadlessCommandHtml[] = "headless_command.html";
 const char kHeadlessCommandJs[] = "headless_command.js";
+
+HeadlessCommandHandler::DoneCallback& GetGlobalDoneCallback() {
+  static base::NoDestructor<HeadlessCommandHandler::DoneCallback> done_callback;
+  return *done_callback;
+}
 
 void EnsureHeadlessCommandResources() {
   // Check if our resources are already loaded and bail out early. This happens
@@ -124,14 +133,12 @@ bool GetCommandDictAndOutputPaths(base::Value::Dict* commands,
     *pdf_file_path = path;
 
     base::Value::Dict params;
-    if (command_line->HasSwitch(switches::kNoPDFHeaderFooter) ||
-        command_line->HasSwitch(switches::kPrintToPDFNoHeaderDeprecated)) {
+    if (command_line->HasSwitch(switches::kNoPDFHeaderFooter)) {
       params.Set("noHeaderFooter", true);
     }
 
-    if (command_line->HasSwitch(switches::kPrintToPDFNoHeaderDeprecated)) {
-      LOG(WARNING) << "--" << switches::kPrintToPDFNoHeaderDeprecated
-                   << " is deprecated, use --" << switches::kNoPDFHeaderFooter;
+    if (command_line->HasSwitch(switches::kDisablePDFTagging)) {
+      params.Set("disablePDFTagging", true);
     }
 
     commands->Set("printToPDF", std::move(params));
@@ -149,15 +156,16 @@ bool GetCommandDictAndOutputPaths(base::Value::Dict* commands,
     base::FilePath::StringType extension =
         base::ToLowerASCII(path.FinalExtension());
 
-    static const std::map<const base::FilePath::StringType, const char*>
-        kImageFileTypes{
+    static constexpr auto kImageFileTypes =
+        base::MakeFixedFlatMapSorted<base::FilePath::StringPieceType,
+                                     const char*>({
             {FILE_PATH_LITERAL(".jpeg"), "jpeg"},
             {FILE_PATH_LITERAL(".jpg"), "jpeg"},
             {FILE_PATH_LITERAL(".png"), "png"},
             {FILE_PATH_LITERAL(".webp"), "webp"},
-        };
+        });
 
-    auto it = kImageFileTypes.find(extension);
+    auto* it = kImageFileTypes.find(extension);
     if (it == kImageFileTypes.cend()) {
       LOG(ERROR) << "Unsupported screenshot image file type: "
                  << path.FinalExtension();
@@ -217,26 +225,17 @@ bool GetCommandDictAndOutputPaths(base::Value::Dict* commands,
   return true;
 }
 
-void WriteFileTask(base::FilePath file_path, std::string file_data) {
+bool WriteFileTask(base::FilePath file_path, std::string file_data) {
   auto file_span = base::make_span(
       reinterpret_cast<const uint8_t*>(file_data.data()), file_data.size());
-  if (base::WriteFile(file_path, file_span)) {
-    std::cerr << file_data.size() << " bytes written to file " << file_path
-              << std::endl;
-  } else {
+  if (!base::WriteFile(file_path, file_span)) {
     PLOG(ERROR) << "Failed to write file " << file_path;
+    return false;
   }
-}
 
-void WriteFile(base::FilePath file_path,
-               std::string base64_file_data,
-               scoped_refptr<base::SequencedTaskRunner> io_task_runner) {
-  std::string file_data;
-  CHECK(base::Base64Decode(base64_file_data, &file_data));
-
-  io_task_runner->PostTask(FROM_HERE,
-                           base::BindOnce(&WriteFileTask, std::move(file_path),
-                                          std::move(file_data)));
+  std::cerr << file_data.size() << " bytes written to file " << file_path
+            << std::endl;
+  return true;
 }
 
 }  // namespace
@@ -278,7 +277,6 @@ bool HeadlessCommandHandler::HasHeadlessCommandSwitches(
       switches::kDefaultBackgroundColor,
       switches::kDumpDom,
       switches::kPrintToPDF,
-      switches::kPrintToPDFNoHeaderDeprecated,
       switches::kNoPDFHeaderFooter,
       switches::kScreenshot,
       switches::kTimeout,
@@ -305,27 +303,10 @@ void HeadlessCommandHandler::ProcessCommands(
         {base::MayBlock(), base::TaskPriority::USER_BLOCKING,
          base::TaskShutdownBehavior::BLOCK_SHUTDOWN});
   }
+
   // Headless Command Handler instance will self delete when done.
-  HeadlessCommandHandler* command_handler =
-      new HeadlessCommandHandler(web_contents, std::move(target_url),
-                                 std::move(done_callback), io_task_runner);
-
-  command_handler->ExecuteCommands();
-}
-
-void HeadlessCommandHandler::ExecuteCommands() {
-  // Expose DevTools protocol to the target.
-  base::Value::Dict params;
-  params.Set("targetId", devtools_client_.GetTargetId());
-  browser_devtools_client_.SendCommand("Target.exposeDevToolsProtocol",
-                                       std::move(params));
-
-  // Set up Inspector domain.
-  devtools_client_.AddEventHandler(
-      "Inspector.targetCrashed",
-      base::BindRepeating(&HeadlessCommandHandler::OnTargetCrashed,
-                          base::Unretained(this)));
-  devtools_client_.SendCommand("Inspector.enable");
+  new HeadlessCommandHandler(web_contents, std::move(target_url),
+                             std::move(done_callback), io_task_runner);
 }
 
 void HeadlessCommandHandler::DocumentOnLoadCompletedInPrimaryMainFrame() {
@@ -333,11 +314,24 @@ void HeadlessCommandHandler::DocumentOnLoadCompletedInPrimaryMainFrame() {
   if (!GetCommandDictAndOutputPaths(&commands, &pdf_file_path_,
                                     &screenshot_file_path_) ||
       commands.empty()) {
-    Done();
+    PostDone();
     return;
   }
 
   commands.Set("targetUrl", target_url_.spec());
+
+  // Expose DevTools protocol to the target.
+  base::Value::Dict expose_params;
+  expose_params.Set("targetId", devtools_client_.GetTargetId());
+  browser_devtools_client_.SendCommand("Target.exposeDevToolsProtocol",
+                                       std::move(expose_params));
+
+  // Set up Inspector domain.
+  devtools_client_.AddEventHandler(
+      "Inspector.targetCrashed",
+      base::BindRepeating(&HeadlessCommandHandler::OnTargetCrashed,
+                          base::Unretained(this)));
+  devtools_client_.SendCommand("Inspector.enable");
 
   std::string json_commands;
   base::JSONWriter::Write(commands, &json_commands);
@@ -364,6 +358,12 @@ void HeadlessCommandHandler::OnTargetCrashed(const base::Value::Dict&) {
 }
 
 void HeadlessCommandHandler::OnCommandsResult(base::Value::Dict result) {
+  if (result.FindBoolByDottedPath("result.result.value.pageLoadTimedOut")
+          .value_or(false)) {
+    result_ = Result::kPageLoadTimeout;
+    LOG(ERROR) << "Page load timed out.";
+  }
+
   if (std::string* dom_dump =
           result.FindStringByDottedPath("result.result.value.dumpDomResult")) {
     std::cout << *dom_dump << std::endl;
@@ -371,26 +371,70 @@ void HeadlessCommandHandler::OnCommandsResult(base::Value::Dict result) {
 
   if (std::string* base64_data = result.FindStringByDottedPath(
           "result.result.value.screenshotResult")) {
-    WriteFile(std::move(screenshot_file_path_), std::move(*base64_data),
-              io_task_runner_);
+    WriteFile(std::move(screenshot_file_path_), std::move(*base64_data));
   }
 
   if (std::string* base64_data = result.FindStringByDottedPath(
           "result.result.value.printToPdfResult")) {
-    WriteFile(std::move(pdf_file_path_), std::move(*base64_data),
-              io_task_runner_);
+    WriteFile(std::move(pdf_file_path_), std::move(*base64_data));
   }
 
-  Done();
+  if (!write_file_tasks_in_flight_) {
+    PostDone();
+  }
+}
+
+void HeadlessCommandHandler::WriteFile(base::FilePath file_path,
+                                       std::string base64_file_data) {
+  std::string file_data;
+  CHECK(base::Base64Decode(base64_file_data, &file_data));
+
+  if (io_task_runner_->PostTaskAndReplyWithResult(
+          FROM_HERE,
+          base::BindOnce(&WriteFileTask, std::move(file_path),
+                         std::move(file_data)),
+          base::BindOnce(&HeadlessCommandHandler::OnWriteFileDone,
+                         base::Unretained(this)))) {
+    ++write_file_tasks_in_flight_;
+  }
+}
+
+void HeadlessCommandHandler::OnWriteFileDone(bool success) {
+  DCHECK_GT(write_file_tasks_in_flight_, 0) << write_file_tasks_in_flight_;
+
+  if (!success) {
+    result_ = Result::kWriteFileError;
+  }
+
+  if (!--write_file_tasks_in_flight_) {
+    Done();
+  }
+}
+
+void HeadlessCommandHandler::PostDone() {
+  content::GetUIThreadTaskRunner({})->PostTask(
+      FROM_HERE,
+      base::BindOnce(&HeadlessCommandHandler::Done, base::Unretained(this)));
 }
 
 void HeadlessCommandHandler::Done() {
   devtools_client_.DetachClient();
   browser_devtools_client_.DetachClient();
 
+  Result result = result_;
   DoneCallback done_callback(std::move(done_callback_));
   delete this;
-  std::move(done_callback).Run();
+  std::move(done_callback).Run(result);
+
+  if (GetGlobalDoneCallback()) {
+    std::move(GetGlobalDoneCallback()).Run(result);
+  }
+}
+
+// static
+void HeadlessCommandHandler::SetDoneCallbackForTesting(
+    DoneCallback done_callback) {
+  GetGlobalDoneCallback() = std::move(done_callback);
 }
 
 }  // namespace headless

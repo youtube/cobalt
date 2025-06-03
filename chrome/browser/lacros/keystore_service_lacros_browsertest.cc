@@ -28,7 +28,7 @@
 // NOTE: Some tests in this file modify the certificate store. That is
 // potentially a lasting side effect that can affect other tests.
 // * To prevent interference with tests that are run in parallel, these tests
-// are a part of lacros_chrome_browsertests_run_in_series test suite.
+// are a part of lacros_chrome_browsertests test suite.
 // * To prevent interference with following tests, they try to clean up all the
 // side effects themself, e.g. if a test adds a cert, it is also responsible for
 // deleting it.
@@ -170,11 +170,11 @@ IN_PROC_BROWSER_TEST_F(KeystoreServiceLacrosBrowserTest, WrongFormattingUser) {
 
   ASSERT_TRUE(result->is_error_message());
 
-  // TODO(https://crbug.com/1134349): Currently this errors out because remote
-  // attestation is disabled. We want this to error out because of a poorly
-  // formatted attestation message.
+  // TODO(https://crbug.com/1134349): Currently this errors out because the
+  // device is not enterprise enrolled. We want this to error out because of a
+  // poorly formatted attestation message.
   const char expected_error_message[] =
-      "Remote attestation is not enabled for your account.";
+      "Failed to get Enterprise certificate. Error code = 2";
   EXPECT_EQ(expected_error_message, result->get_error_message());
 }
 

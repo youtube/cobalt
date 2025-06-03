@@ -7,6 +7,7 @@
 
 #include <string>
 
+#import "ios/web/public/js_messaging/web_frames_manager.h"
 #include "ios/web/public/web_state_observer.h"
 #import "ios/web/public/web_state_user_data.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
@@ -31,7 +32,8 @@ enum Zoom {
 // `UIApplication.sharedApplication.preferredContentSizeCategory` to a scaling
 // percentage and setting it to "-webkit-font-size-adjust" style on <body> when
 // the page is successfully loaded or system font size changes.
-class FontSizeTabHelper : public web::WebStateObserver,
+class FontSizeTabHelper : public web::WebFramesManager::Observer,
+                          public web::WebStateObserver,
                           public web::WebStateUserData<FontSizeTabHelper> {
  public:
   FontSizeTabHelper(const FontSizeTabHelper&) = delete;
@@ -108,19 +110,19 @@ class FontSizeTabHelper : public web::WebStateObserver,
   void WebStateDestroyed(web::WebState* web_state) override;
   void DidFinishNavigation(web::WebState* web_state,
                            web::NavigationContext* context) override;
-  void WebFrameDidBecomeAvailable(web::WebState* web_state,
-                                  web::WebFrame* web_frame) override;
 
-  // Observer id returned by registering at NSNotificationCenter.
-  id content_size_did_change_observer_ = nil;
+  // web::WebFramesManager::Observer
+  void WebFrameBecameAvailable(web::WebFramesManager* web_frames_manager,
+                               web::WebFrame* web_frame) override;
 
   // WebState this tab helper is attached to.
   web::WebState* web_state_ = nullptr;
-
   // Whether the Text Zoom UI is active
   bool text_zoom_ui_active_ = false;
 
   WEB_STATE_USER_DATA_KEY_DECL();
+
+  base::WeakPtrFactory<FontSizeTabHelper> weak_factory_;
 };
 
 #endif  // IOS_CHROME_BROWSER_WEB_FONT_SIZE_FONT_SIZE_TAB_HELPER_H_

@@ -30,7 +30,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 using OsIntegrationSubManagersState = web_app::OsIntegrationSubManagersState;
-using AppId = web_app::AppId;
+using AppId = webapps::AppId;
 using WebAppProvider = web_app::WebAppProvider;
 
 namespace {
@@ -70,8 +70,8 @@ class TestAppLauncherHandler : public AppLauncherHandler {
   }
 };
 
-std::unique_ptr<WebAppInstallInfo> BuildWebAppInfo() {
-  auto app_info = std::make_unique<WebAppInstallInfo>();
+std::unique_ptr<web_app::WebAppInstallInfo> BuildWebAppInfo() {
+  auto app_info = std::make_unique<web_app::WebAppInstallInfo>();
   app_info->start_url = GURL(kTestAppUrl);
   app_info->scope = GURL(kTestAppUrl);
   app_info->title = kTestAppTitle;
@@ -119,16 +119,16 @@ class AppLauncherHandlerTest
 
   // Install a web app and sets the locally installed property based on
   // |is_locally_installed|.
-  AppId InstallWebApp(bool is_locally_installed = true) {
-    AppId installed_app_id =
+  webapps::AppId InstallWebApp(bool is_locally_installed = true) {
+    webapps::AppId installed_app_id =
         web_app::test::InstallWebApp(profile(), BuildWebAppInfo());
     if (is_locally_installed)
       return installed_app_id;
 
     provider()->sync_bridge_unsafe().SetAppIsLocallyInstalledForTesting(
         installed_app_id, false);
-    provider()->sync_bridge_unsafe().SetAppInstallTime(installed_app_id,
-                                                       base::Time::Min());
+    provider()->sync_bridge_unsafe().SetAppFirstInstallTime(installed_app_id,
+                                                            base::Time::Min());
     return installed_app_id;
   }
 
@@ -136,7 +136,7 @@ class AppLauncherHandlerTest
   // web app.
   void ValidateLocallyInstalledCallData(
       TestAppLauncherHandler* app_launcher_handler,
-      const AppId& installed_app_id) {
+      const webapps::AppId& installed_app_id) {
     ASSERT_EQ(1U, app_launcher_handler->call_data().size());
     EXPECT_EQ(kMethodNameAppAdded,
               app_launcher_handler->call_data()[0]->function_name());
@@ -181,14 +181,15 @@ class AppLauncherHandlerTest
   WebAppProvider* provider() { return WebAppProvider::GetForTest(profile()); }
 
   web_app::OsIntegrationManager::ScopedSuppressForTesting os_hooks_suppress_;
-  raw_ptr<extensions::ExtensionService> extension_service_;
+  raw_ptr<extensions::ExtensionService, DanglingUntriaged> extension_service_;
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 // Tests that AppLauncherHandler::HandleInstallAppLocally calls the JS method
 // "ntp.appAdded" for the locally installed app.
 TEST_P(AppLauncherHandlerTest, HandleInstallAppLocally) {
-  AppId installed_app_id = InstallWebApp(/*is_locally_installed=*/false);
+  webapps::AppId installed_app_id =
+      InstallWebApp(/*is_locally_installed=*/false);
 
   // Initialize the web_ui instance.
   std::unique_ptr<content::WebContents> test_web_contents =
@@ -215,7 +216,8 @@ TEST_P(AppLauncherHandlerTest, HandleInstallAppLocally) {
 // Tests that AppLauncherHandler::HandleInstallAppLocally calls the JS method
 // "ntp.appAdded" for the all the running instances of chrome://apps page.
 TEST_P(AppLauncherHandlerTest, HandleInstallAppLocally_MultipleWebUI) {
-  AppId installed_app_id = InstallWebApp(/*is_locally_installed=*/false);
+  webapps::AppId installed_app_id =
+      InstallWebApp(/*is_locally_installed=*/false);
 
   // Initialize the first web_ui instance.
   std::unique_ptr<content::WebContents> test_web_contents_1 =

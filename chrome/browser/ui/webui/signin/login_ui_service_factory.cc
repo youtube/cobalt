@@ -22,7 +22,7 @@ LoginUIServiceFactory::LoginUIServiceFactory()
   DependsOn(UnifiedConsentServiceFactory::GetInstance());
 }
 
-LoginUIServiceFactory::~LoginUIServiceFactory() {}
+LoginUIServiceFactory::~LoginUIServiceFactory() = default;
 
 // static
 LoginUIService* LoginUIServiceFactory::GetForProfile(Profile* profile) {
@@ -32,12 +32,14 @@ LoginUIService* LoginUIServiceFactory::GetForProfile(Profile* profile) {
 
 // static
 LoginUIServiceFactory* LoginUIServiceFactory::GetInstance() {
-  return base::Singleton<LoginUIServiceFactory>::get();
+  static base::NoDestructor<LoginUIServiceFactory> instance;
+  return instance.get();
 }
 
-KeyedService* LoginUIServiceFactory::BuildServiceInstanceFor(
-    content::BrowserContext* profile) const {
-  return new LoginUIService(static_cast<Profile*>(profile));
+std::unique_ptr<KeyedService>
+LoginUIServiceFactory::BuildServiceInstanceForBrowserContext(
+    content::BrowserContext* browser_context) const {
+  return std::make_unique<LoginUIService>(Profile::FromBrowserContext(browser_context));
 }
 
 bool LoginUIServiceFactory::ServiceIsCreatedWithBrowserContext() const {

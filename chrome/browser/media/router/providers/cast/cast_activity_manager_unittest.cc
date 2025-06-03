@@ -17,6 +17,7 @@
 #include "base/run_loop.h"
 #include "base/strings/strcat.h"
 #include "base/test/bind.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/mock_callback.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/values_test_util.h"
@@ -27,7 +28,6 @@
 #include "chrome/browser/media/router/providers/cast/mock_app_activity.h"
 #include "chrome/browser/media/router/providers/cast/mock_mirroring_activity.h"
 #include "chrome/browser/media/router/providers/cast/test_util.h"
-#include "chrome/browser/media/router/providers/common/buffered_message_sender.h"
 #include "chrome/browser/media/router/test/mock_mojo_media_router.h"
 #include "chrome/browser/media/router/test/provider_test_helpers.h"
 #include "components/media_router/common/media_source.h"
@@ -83,6 +83,8 @@ constexpr char kAppParams[] = R"(
 )";
 constexpr char kPresentationId[] = "presentationId";
 constexpr char kPresentationId2[] = "presentationId2";
+constexpr char histogram[] =
+    "AccessCodeCast.Session.SavedDeviceRouteCreationDuration";
 
 std::string MakeSourceId(const std::string& app_id = kAppId1,
                          const std::string& app_params = "",
@@ -248,8 +250,7 @@ class CastActivityManagerTest : public testing::Test,
 
     // Callback needs to be invoked by running |launch_session_callback_|.
     manager_->LaunchSession(*source, sink_, kPresentationId, origin_,
-                            kFrameTreeNodeId,
-                            /*incognito*/ false, std::move(callback));
+                            kFrameTreeNodeId, std::move(callback));
 
     RunUntilIdle();
   }
@@ -526,8 +527,9 @@ class CastActivityManagerTest : public testing::Test,
   MockCastAppDiscoveryService app_discovery_service_;
   std::unique_ptr<CastActivityManager> manager_;
   std::unique_ptr<CastSessionTracker> session_tracker_;
-  raw_ptr<MockAppActivity> app_activity_ = nullptr;
-  raw_ptr<MockMirroringActivity> mirroring_activity_ = nullptr;
+  raw_ptr<MockAppActivity, DanglingUntriaged> app_activity_ = nullptr;
+  raw_ptr<MockMirroringActivity, DanglingUntriaged> mirroring_activity_ =
+      nullptr;
   MockAppActivityCallback app_activity_callback_ = base::DoNothing();
   MockMirroringActivityCallback mirroring_activity_callback_ =
       base::DoNothing();
@@ -693,7 +695,6 @@ TEST_F(CastActivityManagerTest, LaunchAppSessionFailsWithAppParams) {
   // Callback will be invoked synchronously.
   manager_->LaunchSession(
       *source, sink_, kPresentationId, origin_, kFrameTreeNodeId,
-      /*incognito*/ false,
       base::BindOnce(&CastActivityManagerTest::ExpectLaunchSessionFailure,
                      base::Unretained(this)));
 
@@ -709,9 +710,7 @@ TEST_F(CastActivityManagerTest, LaunchSessionTerminatesExistingSessionFromTab) {
   // Use LaunchSessionParsed() instead of LaunchSession() here because
   // LaunchSessionParsed() is called asynchronously and will fail the test.
   manager_->LaunchSessionParsed(
-      *source, sink2_, kPresentationId2, origin_,
-      kFrameTreeNodeId, /*incognito*/
-      false,
+      *source, sink2_, kPresentationId2, origin_, kFrameTreeNodeId,
       base::BindOnce(&CastActivityManagerTest::ExpectLaunchSessionSuccess,
                      base::Unretained(this)),
       data_decoder::DataDecoder::ValueOrError());
@@ -727,9 +726,7 @@ TEST_F(CastActivityManagerTest, LaunchSessionTerminatesPendingLaunchFromTab) {
   // Use LaunchSessionParsed() instead of LaunchSession() here because
   // LaunchSessionParsed() is called asynchronously and will fail the test.
   manager_->LaunchSessionParsed(
-      *source, sink2_, kPresentationId2, origin_,
-      kFrameTreeNodeId, /*incognito*/
-      false,
+      *source, sink2_, kPresentationId2, origin_, kFrameTreeNodeId,
       base::BindOnce(&CastActivityManagerTest::ExpectLaunchSessionSuccess,
                      base::Unretained(this)),
       data_decoder::DataDecoder::ValueOrError());
@@ -873,9 +870,7 @@ TEST_F(CastActivityManagerTest, OnSourceChanged) {
   auto source2 =
       CastMediaSource::FromMediaSourceId(MakeSourceId(cast_streaming_app_id_));
   manager_->LaunchSession(
-      *source2, sink2_, kPresentationId2, origin_,
-      kFrameTreeNodeId2, /*incognito*/
-      false,
+      *source2, sink2_, kPresentationId2, origin_, kFrameTreeNodeId2,
       base::BindOnce(&CastActivityManagerTest::ExpectLaunchSessionSuccess,
                      base::Unretained(this)));
 
@@ -900,7 +895,6 @@ TEST_F(CastActivityManagerTest, StartSessionAndRemoveExistingSessionOnSink) {
   auto source = CastMediaSource::FromMediaSourceId(MakeSourceId(kAppId2));
   manager_->LaunchSessionParsed(
       *source, sink_, kPresentationId2, origin_, kFrameTreeNodeId2,
-      /*incognito*/ false,
       base::BindOnce(&CastActivityManagerTest::ExpectLaunchSessionSuccess,
                      base::Unretained(this)),
       data_decoder::DataDecoder::ValueOrError());
@@ -915,86 +909,6 @@ TEST_F(CastActivityManagerTest, StartSessionAndRemoveExistingSessionOnSink) {
   EXPECT_EQ(updated_route_->media_route_id(), route_->media_route_id());
 }
 
-class CastActivityManagerWithTerminatingTest : public CastActivityManagerTest {
- public:
-  void SetUp() override {
-    feature_list_.InitAndDisableFeature(kStartCastSessionWithoutTerminating);
-    CastActivityManagerTest::SetUp();
-  }
-
- protected:
-  base::test::ScopedFeatureList feature_list_;
-};
-
-TEST_F(CastActivityManagerWithTerminatingTest,
-       LaunchSessionTerminatesExistingSessionOnSink) {
-  LaunchAppSession();
-  ExpectAppActivityStoppedTimes(1);
-
-  {
-    testing::InSequence dummy;
-
-    // Existing route is terminated before new route is created.
-    // MediaRouter is notified of terminated route.
-    ExpectEmptyRouteUpdate();
-
-    // After existing route is terminated, new route is created.
-    // MediaRouter is notified of new route.
-    ExpectSingleRouteUpdate();
-  }
-
-  // Launch a new session on the same sink.
-  auto source = CastMediaSource::FromMediaSourceId(MakeSourceId(kAppId2));
-  // Use LaunchSessionParsed() instead of LaunchSession() here because
-  // LaunchSessionParsed() is called asynchronously and will fail the test.
-  manager_->LaunchSessionParsed(
-      // TODO(crbug.com/1291744): Verify that presentation ID is used correctly.
-      *source, sink_, kPresentationId2, origin_,
-      kFrameTreeNodeId2, /*incognito*/
-      false,
-      base::BindOnce(&CastActivityManagerTest::ExpectLaunchSessionSuccess,
-                     base::Unretained(this)),
-      data_decoder::DataDecoder::ValueOrError());
-
-  // LaunchSession() should not be called until we notify |mananger_| that the
-  // previous session was removed.
-  EXPECT_CALL(message_handler_,
-              LaunchSession(kChannelId, "BBBBBBBB", kDefaultLaunchTimeout,
-                            testing::ElementsAre("WEB"),
-                            /* absl::optional<base::Value> appParams */
-                            testing::Eq(absl::nullopt), _))
-      .WillOnce(WithArg<5>([this](auto callback) {
-        launch_session_callback_ = std::move(callback);
-      }));
-
-  manager_->OnSessionRemoved(sink_);
-}
-
-TEST_F(CastActivityManagerWithTerminatingTest,
-       SecondPendingRequestCancelsTheFirst) {
-  auto source =
-      CastMediaSource::FromMediaSourceId(MakeSourceId(kAppId1, "", kClientId));
-  MockLaunchSessionCallback callback;
-  // Launch a session so that the next launch request gets queued.
-  LaunchAppSession();
-
-  // Ignore StopSession() so that pending requests don't get executed.
-  EXPECT_CALL(message_handler_, StopSession).WillRepeatedly([]() {});
-  // The first request gets queued, then cancelled when the second request
-  // replaces it.
-  EXPECT_CALL(callback, Run)
-      .WillOnce(WithArg<3>([](mojom::RouteRequestResultCode code) {
-        EXPECT_EQ(mojom::RouteRequestResultCode::CANCELLED, code);
-      }));
-  for (int i = 0; i < 2; i++) {
-    manager_->LaunchSession(*source, sink_, kPresentationId, origin_,
-                            kFrameTreeNodeId,
-                            /*incognito*/ false,
-                            base::BindOnce(&MockLaunchSessionCallback::Run,
-                                           base::Unretained(&callback)));
-  }
-}
-
 TEST_F(CastActivityManagerTest, FindMirroringActivityByRouteIdNonMirroring) {
   LaunchAppSession();
   EXPECT_FALSE(
@@ -1005,6 +919,59 @@ TEST_F(CastActivityManagerTest, FindMirroringActivityByRouteId) {
   LaunchCastSdkMirroringSession();
   EXPECT_TRUE(
       manager_->FindMirroringActivityByRouteId(route_->media_route_id()));
+}
+
+TEST_F(CastActivityManagerTest, LaunchAccessCodeCastSavedDeviceSuccess) {
+  // Set the sink member variable to a saved device.
+  sink_.cast_data().discovery_type =
+      CastDiscoveryType::kAccessCodeRememberedDevice;
+
+  base::HistogramTester histogram_tester;
+  histogram_tester.ExpectTotalCount(histogram, 0);
+
+  // A successful saved device mirroring request should trigger 1 histogram
+  // count.
+  LaunchNonSdkMirroringSession();
+  histogram_tester.ExpectTotalCount(histogram, 1);
+}
+
+TEST_F(CastActivityManagerTest, LaunchAccessCodeCastSavedDeviceFailure) {
+  // Set the sink member variable to a saved device.
+  sink_.cast_data().discovery_type =
+      CastDiscoveryType::kAccessCodeRememberedDevice;
+
+  base::HistogramTester histogram_tester;
+  histogram_tester.ExpectTotalCount(histogram, 0);
+
+  // A failed saved device mirroring request should trigger 0 histogram count.
+  CallLaunchSessionFailure();
+  histogram_tester.ExpectTotalCount(histogram, 0);
+}
+
+TEST_F(CastActivityManagerTest, LaunchAccessCodeCastInstantDeviceSuccess) {
+  base::HistogramTester histogram_tester;
+  histogram_tester.ExpectTotalCount(histogram, 0);
+
+  // Set the sink member variable to a instant device.
+  sink_.cast_data().discovery_type = CastDiscoveryType::kAccessCodeManualEntry;
+
+  // A successful instant device mirroring request should not trigger any
+  // histogram count.
+  LaunchNonSdkMirroringSession();
+  histogram_tester.ExpectTotalCount(histogram, 0);
+}
+
+TEST_F(CastActivityManagerTest, LaunchMdnsInstantDeviceSuccess) {
+  base::HistogramTester histogram_tester;
+  histogram_tester.ExpectTotalCount(histogram, 0);
+
+  // Set the sink member variable to Mdns.
+  sink_.cast_data().discovery_type = CastDiscoveryType::kMdns;
+
+  // A successful instant device mirroring request should not trigger any
+  // histogram count.
+  LaunchNonSdkMirroringSession();
+  histogram_tester.ExpectTotalCount(histogram, 0);
 }
 
 }  // namespace media_router

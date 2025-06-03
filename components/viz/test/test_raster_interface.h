@@ -48,12 +48,11 @@ class TestRasterInterface : public gpu::raster::RasterInterface {
   void set_avoid_stencil_buffers(bool avoid_stencil_buffers) {
     caps_.avoid_stencil_buffers = avoid_stencil_buffers;
   }
-  void set_multisample_compatibility(bool multisample_compatibility) {
-    caps_.multisample_compatibility = multisample_compatibility;
-  }
   void set_max_texture_size(int max_texture_size) {
     caps_.max_texture_size = max_texture_size;
   }
+  void set_supports_gpu_memory_buffer_format(gfx::BufferFormat format,
+                                             bool support);
 
   // gpu::raster::RasterInterface implementation.
   void Finish() override;
@@ -88,8 +87,14 @@ class TestRasterInterface : public gpu::raster::RasterInterface {
                    int dst_plane_index,
                    GLenum texture_target,
                    const SkPixmap& src_sk_pixmap) override {}
+  void WritePixelsYUV(const gpu::Mailbox& dest_mailbox,
+                      const SkYUVAPixmaps& src_yuv_pixmap) override {}
   void ConvertYUVAMailboxesToRGB(
       const gpu::Mailbox& dest_mailbox,
+      GLint src_x,
+      GLint src_y,
+      GLsizei width,
+      GLsizei height,
       SkYUVColorSpace planes_yuv_color_space,
       const SkColorSpace* planes_rgb_color_space,
       SkYUVAInfo::PlaneConfig plane_config,
@@ -108,6 +113,7 @@ class TestRasterInterface : public gpu::raster::RasterInterface {
                            GLboolean can_use_lcd_text,
                            GLboolean visible,
                            const gfx::ColorSpace& color_space,
+                           float hdr_headroom,
                            const GLbyte* mailbox) override {}
   void RasterCHROMIUM(const cc::DisplayItemList* list,
                       cc::ImageProvider* provider,

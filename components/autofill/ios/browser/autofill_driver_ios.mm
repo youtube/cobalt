@@ -6,6 +6,7 @@
 
 #include "base/memory/ptr_util.h"
 #include "components/autofill/core/browser/form_structure.h"
+#include "components/autofill/core/common/mojom/autofill_types.mojom-shared.h"
 #include "components/autofill/ios/browser/autofill_driver_ios_bridge.h"
 #include "components/autofill/ios/browser/autofill_driver_ios_factory.h"
 #import "components/autofill/ios/browser/autofill_java_script_feature.h"
@@ -16,10 +17,6 @@
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "ui/accessibility/ax_tree_id.h"
 #include "ui/gfx/geometry/rect_f.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace autofill {
 
@@ -46,6 +43,25 @@ AutofillDriverIOS::AutofillDriverIOS(web::WebState* web_state,
 
 AutofillDriverIOS::~AutofillDriverIOS() = default;
 
+LocalFrameToken AutofillDriverIOS::GetFrameToken() const {
+  NOTIMPLEMENTED();  // TODO(crbug.com/1441921) implement.
+  return LocalFrameToken();
+}
+
+absl::optional<LocalFrameToken> AutofillDriverIOS::Resolve(FrameToken query) {
+  NOTIMPLEMENTED();  // TODO(crbug.com/1441921) implement.
+  return absl::nullopt;
+}
+
+AutofillDriverIOS* AutofillDriverIOS::GetParent() {
+  NOTIMPLEMENTED();  // TODO(crbug.com/1441921) implement.
+  return nullptr;
+}
+
+BrowserAutofillManager& AutofillDriverIOS::GetAutofillManager() {
+  return *browser_autofill_manager_;
+}
+
 // Return true as iOS has no MPArch.
 bool AutofillDriverIOS::IsInActiveFrame() const {
   return true;
@@ -60,24 +76,28 @@ bool AutofillDriverIOS::IsPrerendering() const {
   return false;
 }
 
-bool AutofillDriverIOS::CanShowAutofillUi() const {
-  return true;
+bool AutofillDriverIOS::HasSharedAutofillPermission() const {
+  return false;
 }
 
-ui::AXTreeID AutofillDriverIOS::GetAxTreeId() const {
-  NOTIMPLEMENTED() << "See https://crbug.com/985933";
-  return ui::AXTreeIDUnknown();
+bool AutofillDriverIOS::CanShowAutofillUi() const {
+  return true;
 }
 
 bool AutofillDriverIOS::RendererIsAvailable() {
   return true;
 }
 
-std::vector<FieldGlobalId> AutofillDriverIOS::FillOrPreviewForm(
-    mojom::RendererFormDataAction action,
+std::vector<FieldGlobalId> AutofillDriverIOS::ApplyFormAction(
+    mojom::ActionType action_type,
+    mojom::ActionPersistence action_persistence,
     const FormData& data,
     const url::Origin& triggered_origin,
     const base::flat_map<FieldGlobalId, ServerFieldType>& field_type_map) {
+  // TODO(crbug.com/1441410) Add Undo support on iOS.
+  if (action_type == mojom::ActionType::kUndo) {
+    return {};
+  }
   web::WebFrame* frame = web_frame();
   if (frame) {
     [bridge_ fillFormData:data inFrame:frame];
@@ -86,6 +106,35 @@ std::vector<FieldGlobalId> AutofillDriverIOS::FillOrPreviewForm(
   for (const auto& field : data.fields)
     safe_fields.push_back(field.global_id());
   return safe_fields;
+}
+
+void AutofillDriverIOS::ApplyFieldAction(
+    mojom::ActionPersistence action_persistence,
+    mojom::TextReplacement text_replacement,
+    const FieldGlobalId& field,
+    const std::u16string& value) {
+  // For now, only support filling.
+  switch (action_persistence) {
+    case mojom::ActionPersistence::kFill: {
+      web::WebFrame* frame = web_frame();
+      if (frame) {
+        [bridge_ fillSpecificFormField:field.renderer_id
+                             withValue:value
+                               inFrame:frame];
+      }
+      break;
+    }
+    case mojom::ActionPersistence::kPreview:
+      return;
+  }
+}
+
+void AutofillDriverIOS::ExtractForm(
+    FormGlobalId form,
+    base::OnceCallback<void(AutofillDriver*, const std::optional<FormData>&)>
+        response_callback) {
+  // TODO(crbug.com/1490670): Implement ExtractForm().
+  NOTIMPLEMENTED();
 }
 
 void AutofillDriverIOS::HandleParsedForms(const std::vector<FormData>& forms) {
@@ -123,12 +172,19 @@ void AutofillDriverIOS::RendererShouldAcceptDataListSuggestion(
 void AutofillDriverIOS::SendFieldsEligibleForManualFillingToRenderer(
     const std::vector<FieldGlobalId>& fields) {}
 
-void AutofillDriverIOS::SetShouldSuppressKeyboard(bool suppress) {
+void AutofillDriverIOS::TriggerFormExtractionInDriverFrame() {
+  NOTIMPLEMENTED();  // TODO(crbug.com/1441921) implement.
+}
+
+void AutofillDriverIOS::TriggerFormExtractionInAllFrames(
+    base::OnceCallback<void(bool)> form_extraction_finished_callback) {
   NOTIMPLEMENTED();
 }
 
-void AutofillDriverIOS::TriggerReparseInAllFrames(
-    base::OnceCallback<void(bool)> trigger_reparse_finished_callback) {
+void AutofillDriverIOS::GetFourDigitCombinationsFromDOM(
+    base::OnceCallback<void(const std::vector<std::string>&)>
+        potential_matches) {
+  // TODO(crbug.com/1423605): Implement GetFourDigitCombinationsFromDOM in iOS.
   NOTIMPLEMENTED();
 }
 
@@ -137,13 +193,13 @@ void AutofillDriverIOS::RendererShouldClearFilledSection() {}
 void AutofillDriverIOS::RendererShouldClearPreviewedForm() {
 }
 
-void AutofillDriverIOS::RendererShouldFillFieldWithValue(
-    const FieldGlobalId& field,
-    const std::u16string& value) {}
-
-void AutofillDriverIOS::RendererShouldPreviewFieldWithValue(
-    const FieldGlobalId& field,
-    const std::u16string& value) {}
+void AutofillDriverIOS::RendererShouldTriggerSuggestions(
+    const FieldGlobalId& field_id,
+    AutofillSuggestionTriggerSource trigger_source) {
+  // Triggering suggestions from the browser process is currently only used for
+  // manual fallbacks on Desktop. It is not implemented on iOS.
+  NOTIMPLEMENTED();
+}
 
 void AutofillDriverIOS::RendererShouldSetSuggestionAvailability(
     const FieldGlobalId& field,

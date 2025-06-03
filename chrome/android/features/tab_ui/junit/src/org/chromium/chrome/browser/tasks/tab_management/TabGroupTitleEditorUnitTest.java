@@ -12,7 +12,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import org.junit.Before;
@@ -27,11 +26,9 @@ import org.mockito.MockitoAnnotations;
 import org.robolectric.RuntimeEnvironment;
 import org.robolectric.annotation.Config;
 
-import org.chromium.base.UserDataHost;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabImpl;
-import org.chromium.chrome.browser.tab.state.CriticalPersistedTabData;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelFilterProvider;
 import org.chromium.chrome.browser.tabmodel.TabModelObserver;
@@ -46,15 +43,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Tests for {@link TabGroupTitleEditor}.
- */
+/** Tests for {@link TabGroupTitleEditor}. */
 @SuppressWarnings({"ArraysAsListWithZeroOrOneArgument", "ResultOfMethodCallIgnored"})
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 public class TabGroupTitleEditorUnitTest {
-    @Rule
-    public TestRule mProcessor = new Features.JUnitProcessor();
+    @Rule public TestRule mProcessor = new Features.JUnitProcessor();
 
     private static final String TAB1_TITLE = "Tab1";
     private static final String TAB2_TITLE = "Tab2";
@@ -67,18 +61,12 @@ public class TabGroupTitleEditorUnitTest {
     private static final int TAB3_ID = 123;
     private static final int TAB4_ID = 357;
 
-    @Mock
-    TabModel mTabModel;
-    @Mock
-    TabModelSelector mTabModelSelector;
-    @Mock
-    TabGroupModelFilter mTabGroupModelFilter;
-    @Mock
-    TabModelFilterProvider mTabModelFilterProvider;
-    @Captor
-    ArgumentCaptor<TabModelObserver> mTabModelObserverCaptor;
-    @Captor
-    ArgumentCaptor<TabGroupModelFilter.Observer> mTabGroupModelFilterObserverCaptor;
+    @Mock TabModel mTabModel;
+    @Mock TabModelSelector mTabModelSelector;
+    @Mock TabGroupModelFilter mTabGroupModelFilter;
+    @Mock TabModelFilterProvider mTabModelFilterProvider;
+    @Captor ArgumentCaptor<TabModelObserver> mTabModelObserverCaptor;
+    @Captor ArgumentCaptor<TabGroupModelFilter.Observer> mTabGroupModelFilterObserverCaptor;
 
     private TabImpl mTab1;
     private TabImpl mTab2;
@@ -108,26 +96,26 @@ public class TabGroupTitleEditorUnitTest {
                 .when(mTabGroupModelFilter)
                 .addTabGroupObserver(mTabGroupModelFilterObserverCaptor.capture());
 
-        mTabGroupTitleEditor = new TabGroupTitleEditor(
-                RuntimeEnvironment.application, mTabModelSelector) {
-            @Override
-            protected void updateTabGroupTitle(Tab tab, String title) {}
+        mTabGroupTitleEditor =
+                new TabGroupTitleEditor(RuntimeEnvironment.application, mTabModelSelector) {
+                    @Override
+                    protected void updateTabGroupTitle(Tab tab, String title) {}
 
-            @Override
-            protected void storeTabGroupTitle(int tabRootId, String title) {
-                mStorage.put(String.valueOf(tabRootId), title);
-            }
+                    @Override
+                    protected void storeTabGroupTitle(int tabRootId, String title) {
+                        mStorage.put(String.valueOf(tabRootId), title);
+                    }
 
-            @Override
-            protected void deleteTabGroupTitle(int tabRootId) {
-                mStorage.remove(String.valueOf(tabRootId));
-            }
+                    @Override
+                    protected void deleteTabGroupTitle(int tabRootId) {
+                        mStorage.remove(String.valueOf(tabRootId));
+                    }
 
-            @Override
-            protected String getTabGroupTitle(int tabRootId) {
-                return mStorage.get(String.valueOf(tabRootId));
-            }
-        };
+                    @Override
+                    protected String getTabGroupTitle(int tabRootId) {
+                        return mStorage.get(String.valueOf(tabRootId));
+                    }
+                };
         mStorage = new HashMap<>();
     }
 
@@ -191,7 +179,7 @@ public class TabGroupTitleEditorUnitTest {
     }
 
     @Test
-    public void tabMergeIntoGroup_DeleteStoredTitle() {
+    public void tabMergeIntoGroup_NotDeleteStoredTitle() {
         // Mock that we have two stored titles with reference to root ID of tab1 and tab3.
         mTabGroupTitleEditor.storeTabGroupTitle(TAB1_ID, CUSTOMIZED_TITLE1);
         mTabGroupTitleEditor.storeTabGroupTitle(TAB3_ID, CUSTOMIZED_TITLE2);
@@ -206,9 +194,10 @@ public class TabGroupTitleEditorUnitTest {
 
         mTabGroupModelFilterObserverCaptor.getValue().willMergeTabToGroup(mTab1, TAB3_ID);
 
-        // The title of the source group should be deleted.
-        assertThat(mStorage.size(), equalTo(1));
-        assertThat(mTabGroupTitleEditor.getTabGroupTitle(TAB1_ID), equalTo(null));
+        // The title of the source group will not be deleted until the merge is committed, after
+        // SnackbarController#onDismissNoAction is called for the UndoGroupSnackbarController.
+        assertThat(mStorage.size(), equalTo(2));
+        assertThat(mTabGroupTitleEditor.getTabGroupTitle(TAB1_ID), equalTo(CUSTOMIZED_TITLE1));
         assertThat(mTabGroupTitleEditor.getTabGroupTitle(TAB3_ID), equalTo(CUSTOMIZED_TITLE2));
     }
 
@@ -227,9 +216,11 @@ public class TabGroupTitleEditorUnitTest {
 
         mTabGroupModelFilterObserverCaptor.getValue().willMergeTabToGroup(mTab1, TAB3_ID);
 
-        // The stored title should be assigned to the new root id.
-        assertThat(mStorage.size(), equalTo(1));
-        assertThat(mTabGroupTitleEditor.getTabGroupTitle(TAB1_ID), equalTo(null));
+        // The stored title should be assigned to the new root id. The title of the source group
+        // will not be deleted until the merge is committed, after
+        // SnackbarController#onDismissNoAction is called for the UndoGroupSnackbarController.
+        assertThat(mStorage.size(), equalTo(2));
+        assertThat(mTabGroupTitleEditor.getTabGroupTitle(TAB1_ID), equalTo(CUSTOMIZED_TITLE1));
         assertThat(mTabGroupTitleEditor.getTabGroupTitle(TAB3_ID), equalTo(CUSTOMIZED_TITLE1));
     }
 
@@ -274,9 +265,15 @@ public class TabGroupTitleEditorUnitTest {
     public void testDefaultTitle() {
         int relatedTabCount = 5;
 
-        String expectedTitle = RuntimeEnvironment.application.getResources().getQuantityString(
-                R.plurals.bottom_tab_grid_title_placeholder, relatedTabCount, relatedTabCount);
-        assertEquals(expectedTitle,
+        String expectedTitle =
+                RuntimeEnvironment.application
+                        .getResources()
+                        .getQuantityString(
+                                R.plurals.bottom_tab_grid_title_placeholder,
+                                relatedTabCount,
+                                relatedTabCount);
+        assertEquals(
+                expectedTitle,
                 TabGroupTitleEditor.getDefaultTitle(
                         RuntimeEnvironment.application, relatedTabCount));
     }
@@ -294,12 +291,7 @@ public class TabGroupTitleEditorUnitTest {
     private void createTabGroup(List<Tab> tabs, int rootId) {
         for (Tab tab : tabs) {
             when(mTabGroupModelFilter.getRelatedTabList(tab.getId())).thenReturn(tabs);
-            CriticalPersistedTabData criticalPersistedTabData =
-                    mock(CriticalPersistedTabData.class);
-            UserDataHost userDataHost = new UserDataHost();
-            userDataHost.setUserData(CriticalPersistedTabData.class, criticalPersistedTabData);
-            doReturn(userDataHost).when(tab).getUserDataHost();
-            doReturn(rootId).when(criticalPersistedTabData).getRootId();
+            when(tab.getRootId()).thenReturn(rootId);
         }
     }
 }

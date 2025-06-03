@@ -69,8 +69,8 @@ HostGpuMemoryBufferManager::HostGpuMemoryBufferManager(
   weak_ptr_ = weak_factory_.GetWeakPtr();
 
   if (!WillGetGmbConfigFromGpu()) {
-    native_configurations_ = gpu::GetNativeGpuMemoryBufferConfigurations(
-        gpu_memory_buffer_support_.get());
+    native_configurations_ =
+        gpu::GpuMemoryBufferSupport::GetNativeGpuMemoryBufferConfigurations();
     native_configurations_initialized_.Set();
   }
   base::trace_event::MemoryDumpManager::GetInstance()->RegisterDumpProvider(
@@ -191,7 +191,7 @@ void HostGpuMemoryBufferManager::AllocateGpuMemoryBuffer(
     buffer_handle = gpu::GpuMemoryBufferImplSharedMemory::CreateGpuMemoryBuffer(
         id, size, format, usage);
     DCHECK_EQ(gfx::SHARED_MEMORY_BUFFER, buffer_handle.type);
-    AllocatedBufferInfo buffer_info(buffer_handle, size, format);
+    gpu::AllocatedBufferInfo buffer_info(buffer_handle, size, format);
     allocated_buffers_[client_id].insert(
         std::make_pair(buffer_handle.id, buffer_info));
   }
@@ -465,8 +465,8 @@ void HostGpuMemoryBufferManager::OnGpuMemoryBufferAllocated(
   if (!handle.is_null()) {
     DCHECK(handle.id == id);
 
-    AllocatedBufferInfo buffer_info(handle, pending_buffer.size,
-                                    pending_buffer.format);
+    gpu::AllocatedBufferInfo buffer_info(handle, pending_buffer.size,
+                                         pending_buffer.format);
     allocated_buffers_[client_id].insert(std::make_pair(id, buffer_info));
   }
   std::move(pending_buffer.callback).Run(std::move(handle));
@@ -475,7 +475,7 @@ void HostGpuMemoryBufferManager::OnGpuMemoryBufferAllocated(
 bool HostGpuMemoryBufferManager::CreateBufferUsesGpuService(
     gfx::BufferFormat format,
     gfx::BufferUsage usage) {
-  return gpu_memory_buffer_support_->GetNativeGpuMemoryBufferType() !=
+  return gpu::GpuMemoryBufferSupport::GetNativeGpuMemoryBufferType() !=
              gfx::EMPTY_BUFFER &&
          IsNativeGpuMemoryBufferConfiguration(format, usage);
 }

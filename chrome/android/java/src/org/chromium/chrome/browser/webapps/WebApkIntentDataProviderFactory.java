@@ -15,6 +15,7 @@ import android.content.pm.PackageManager;
 import android.content.pm.ProviderInfo;
 import android.content.pm.ResolveInfo;
 import android.content.res.Resources;
+import android.content.res.Resources.Theme;
 import android.content.res.XmlResourceParser;
 import android.net.Uri;
 import android.os.Build;
@@ -252,6 +253,9 @@ public class WebApkIntentDataProviderFactory {
             return null;
         }
 
+        // Difficult to necessarily get the right theme from the other app. Use null instead.
+        Theme theme = null;
+
         int nameId = res.getIdentifier(RESOURCE_NAME, RESOURCE_STRING_TYPE, webApkPackageName);
         int shortNameId =
                 res.getIdentifier(RESOURCE_SHORT_NAME, RESOURCE_STRING_TYPE, webApkPackageName);
@@ -272,6 +276,10 @@ public class WebApkIntentDataProviderFactory {
                 bundle, WebApkMetaDataKeys.THEME_COLOR, ColorUtils.INVALID_COLOR);
         long backgroundColor = WebApkMetaDataUtils.getLongFromMetaData(
                 bundle, WebApkMetaDataKeys.BACKGROUND_COLOR, ColorUtils.INVALID_COLOR);
+        long darkThemeColor = WebApkMetaDataUtils.getLongFromMetaData(
+                bundle, WebApkMetaDataKeys.DARK_THEME_COLOR, ColorUtils.INVALID_COLOR);
+        long darkBackgroundColor = WebApkMetaDataUtils.getLongFromMetaData(
+                bundle, WebApkMetaDataKeys.DARK_BACKGROUND_COLOR, ColorUtils.INVALID_COLOR);
 
         // Fetch the default background color from the WebAPK's resources. Fetching the default
         // background color from the WebAPK is important for consistency when:
@@ -284,7 +292,7 @@ public class WebApkIntentDataProviderFactory {
                 IntentUtils.safeGetInt(bundle, WebApkMetaDataKeys.DEFAULT_BACKGROUND_COLOR_ID, 0);
         int defaultBackgroundColor = (defaultBackgroundColorId == 0)
                 ? SplashLayout.getDefaultBackgroundColor(appContext)
-                : ApiCompatibilityUtils.getColor(res, defaultBackgroundColorId);
+                : res.getColor(defaultBackgroundColorId, theme);
 
         int shellApkVersion =
                 IntentUtils.safeGetInt(bundle, WebApkMetaDataKeys.SHELL_APK_VERSION, 0);
@@ -344,11 +352,12 @@ public class WebApkIntentDataProviderFactory {
                 new WebappIcon(webApkPackageName,
                         isPrimaryIconMaskable ? primaryMaskableIconId : primaryIconId),
                 new WebappIcon(webApkPackageName, splashIconId), name, shortName, displayMode,
-                orientation, source, themeColor, backgroundColor, defaultBackgroundColor,
-                isPrimaryIconMaskable, isSplashIconMaskable, webApkPackageName, shellApkVersion,
-                manifestUrl, manifestStartUrl, manifestId, appKey, distributor,
-                iconUrlToMurmur2HashMap, shareTarget, forceNavigation, isSplashProvidedByWebApk,
-                shareData, parseShortcutItems(webApkPackageName, res), apkVersion);
+                orientation, source, themeColor, backgroundColor, darkThemeColor,
+                darkBackgroundColor, defaultBackgroundColor, isPrimaryIconMaskable,
+                isSplashIconMaskable, webApkPackageName, shellApkVersion, manifestUrl,
+                manifestStartUrl, manifestId, appKey, distributor, iconUrlToMurmur2HashMap,
+                shareTarget, forceNavigation, isSplashProvidedByWebApk, shareData,
+                parseShortcutItems(webApkPackageName, res), apkVersion);
     }
 
     /**
@@ -365,6 +374,8 @@ public class WebApkIntentDataProviderFactory {
      * @param source                   Source that the WebAPK was launched from.
      * @param themeColor               The theme color of the WebAPK.
      * @param backgroundColor          The background color of the WebAPK.
+     * @param darkThemeColor           The theme color of the WebAPK's dark mode.
+     * @param darkBackgroundColor      The background color of the WebAPK's dark mode.
      * @param defaultBackgroundColor   The background color to use if the Web Manifest does not
      *                                 provide a background color.
      * @param isPrimaryIconMaskable    Is the primary icon maskable.
@@ -395,9 +406,10 @@ public class WebApkIntentDataProviderFactory {
     public static BrowserServicesIntentDataProvider create(Intent intent, String url, String scope,
             WebappIcon primaryIcon, WebappIcon splashIcon, String name, String shortName,
             @DisplayMode.EnumType int displayMode, int orientation, int source, long themeColor,
-            long backgroundColor, int defaultBackgroundColor, boolean isPrimaryIconMaskable,
-            boolean isSplashIconMaskable, String webApkPackageName, int shellApkVersion,
-            String manifestUrl, String manifestStartUrl, String manifestId, String appKey,
+            long backgroundColor, long darkThemeColor, long darkBackgroundColor,
+            int defaultBackgroundColor, boolean isPrimaryIconMaskable, boolean isSplashIconMaskable,
+            String webApkPackageName, int shellApkVersion, String manifestUrl,
+            String manifestStartUrl, String manifestId, String appKey,
             @WebApkDistributor int distributor, Map<String, String> iconUrlToMurmur2HashMap,
             WebApkShareTarget shareTarget, boolean forceNavigation,
             boolean isSplashProvidedByWebApk, ShareData shareData, List<ShortcutItem> shortcutItems,
@@ -433,7 +445,8 @@ public class WebApkIntentDataProviderFactory {
         WebappExtras webappExtras = new WebappExtras(
                 WebappIntentUtils.getIdForWebApkPackage(webApkPackageName), url, scope, primaryIcon,
                 name, shortName, displayMode, orientation, source,
-                WebappIntentUtils.colorFromLongColor(backgroundColor), defaultBackgroundColor,
+                WebappIntentUtils.colorFromLongColor(backgroundColor),
+                WebappIntentUtils.colorFromLongColor(darkBackgroundColor), defaultBackgroundColor,
                 false /* isIconGenerated */, isPrimaryIconMaskable, forceNavigation);
         WebApkExtras webApkExtras = new WebApkExtras(webApkPackageName, splashIcon,
                 isSplashIconMaskable, shellApkVersion, manifestUrl, manifestStartUrl, manifestId,
@@ -443,8 +456,12 @@ public class WebApkIntentDataProviderFactory {
         int toolbarColor = hasCustomToolbarColor
                 ? (int) themeColor
                 : WebappIntentDataProvider.getDefaultToolbarColor();
-        return new WebappIntentDataProvider(
-                intent, toolbarColor, hasCustomToolbarColor, shareData, webappExtras, webApkExtras);
+        boolean hasCustomDarkToolbarColor = WebappIntentUtils.isLongColorValid(darkThemeColor);
+        int darkToolbarColor = hasCustomDarkToolbarColor
+                ? (int) darkThemeColor
+                : WebappIntentDataProvider.getDefaultDarkToolbarColor();
+        return new WebappIntentDataProvider(intent, toolbarColor, hasCustomToolbarColor,
+                darkToolbarColor, hasCustomDarkToolbarColor, shareData, webappExtras, webApkExtras);
     }
 
     private static int computeSource(Intent intent, ShareData shareData) {

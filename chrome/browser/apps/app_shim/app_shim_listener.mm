@@ -23,7 +23,7 @@
 #include "chrome/common/mac/app_mode_common.h"
 #include "content/public/browser/browser_task_traits.h"
 
-AppShimListener::AppShimListener() {}
+AppShimListener::AppShimListener() = default;
 
 void AppShimListener::Init() {
   has_initialized_ = true;

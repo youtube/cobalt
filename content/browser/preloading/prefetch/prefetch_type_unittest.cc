@@ -12,48 +12,35 @@ namespace {
 class PrefetchTypeTest : public ::testing::Test {};
 
 TEST_F(PrefetchTypeTest, GetPrefetchTypeParams) {
-  PrefetchType prefetch_type1(/*use_isolated_network_context=*/true,
-                              /*use_prefetch_proxy=*/true,
+  PrefetchType prefetch_type1(/*use_prefetch_proxy=*/true,
                               blink::mojom::SpeculationEagerness::kEager);
-  PrefetchType prefetch_type2(/*use_isolated_network_context=*/true,
-                              /*use_prefetch_proxy=*/false,
+  PrefetchType prefetch_type2(/*use_prefetch_proxy=*/false,
                               blink::mojom::SpeculationEagerness::kEager);
   PrefetchType prefetch_type3(
-      /*use_isolated_network_context=*/false,
       /*use_prefetch_proxy=*/false,
       blink::mojom::SpeculationEagerness::kConservative);
 
-  EXPECT_TRUE(prefetch_type1.IsIsolatedNetworkContextRequired());
-  EXPECT_TRUE(prefetch_type1.IsProxyRequired());
+  EXPECT_TRUE(prefetch_type1.IsProxyRequiredWhenCrossOrigin());
   EXPECT_EQ(prefetch_type1.GetEagerness(),
             blink::mojom::SpeculationEagerness::kEager);
 
-  EXPECT_TRUE(prefetch_type2.IsIsolatedNetworkContextRequired());
-  EXPECT_FALSE(prefetch_type2.IsProxyRequired());
+  EXPECT_FALSE(prefetch_type2.IsProxyRequiredWhenCrossOrigin());
   EXPECT_EQ(prefetch_type2.GetEagerness(),
             blink::mojom::SpeculationEagerness::kEager);
 
-  EXPECT_FALSE(prefetch_type3.IsIsolatedNetworkContextRequired());
-  EXPECT_FALSE(prefetch_type3.IsProxyRequired());
+  EXPECT_FALSE(prefetch_type3.IsProxyRequiredWhenCrossOrigin());
   EXPECT_EQ(prefetch_type3.GetEagerness(),
             blink::mojom::SpeculationEagerness::kConservative);
 }
 
 TEST_F(PrefetchTypeTest, ComparePrefetchTypes) {
-  PrefetchType prefetch_type1(/*use_isolated_network_context=*/true,
-                              /*use_prefetch_proxy=*/true,
+  PrefetchType prefetch_type1(/*use_prefetch_proxy=*/true,
                               blink::mojom::SpeculationEagerness::kEager);
-  PrefetchType prefetch_type2(/*use_isolated_network_context=*/true,
-                              /*use_prefetch_proxy=*/true,
+  PrefetchType prefetch_type2(/*use_prefetch_proxy=*/true,
                               blink::mojom::SpeculationEagerness::kEager);
-  PrefetchType prefetch_type3(/*use_isolated_network_context=*/true,
-                              /*use_prefetch_proxy=*/false,
+  PrefetchType prefetch_type3(/*use_prefetch_proxy=*/false,
                               blink::mojom::SpeculationEagerness::kEager);
-  PrefetchType prefetch_type4(/*use_isolated_network_context=*/false,
-                              /*use_prefetch_proxy=*/false,
-                              blink::mojom::SpeculationEagerness::kEager);
-  PrefetchType prefetch_type5(
-      /*use_isolated_network_context=*/true,
+  PrefetchType prefetch_type4(
       /*use_prefetch_proxy=*/true,
       blink::mojom::SpeculationEagerness::kConservative);
 
@@ -62,23 +49,18 @@ TEST_F(PrefetchTypeTest, ComparePrefetchTypes) {
   EXPECT_TRUE(prefetch_type1 == prefetch_type2);
   EXPECT_TRUE(prefetch_type1 != prefetch_type3);
   EXPECT_TRUE(prefetch_type1 != prefetch_type4);
-  EXPECT_TRUE(prefetch_type1 != prefetch_type5);
 }
 
 TEST_F(PrefetchTypeTest, WptProxyTest) {
   PrefetchType prefetch_types[] = {
-      {/*isolated*/ true, /*use_proxy*/ true,
-       blink::mojom::SpeculationEagerness::kEager},
-      {/*isolated*/ true, /*use_proxy*/ true,
-       blink::mojom::SpeculationEagerness::kEager},
-      {/*isolated*/ true, /*use_proxy*/ false,
-       blink::mojom::SpeculationEagerness::kEager},
-      {/*isolated*/ false, /*use_proxy*/ false,
-       blink::mojom::SpeculationEagerness::kEager},
+      {/*use_proxy*/ true, blink::mojom::SpeculationEagerness::kEager},
+      {/*use_proxy*/ true, blink::mojom::SpeculationEagerness::kEager},
+      {/*use_proxy*/ false, blink::mojom::SpeculationEagerness::kEager},
+      {/*use_proxy*/ false, blink::mojom::SpeculationEagerness::kEager},
   };
   for (auto& prefetch_type : prefetch_types) {
     EXPECT_FALSE(prefetch_type.IsProxyBypassedForTesting());
-    if (prefetch_type.IsProxyRequired()) {
+    if (prefetch_type.IsProxyRequiredWhenCrossOrigin()) {
       prefetch_type.SetProxyBypassedForTest();
       EXPECT_TRUE(prefetch_type.IsProxyBypassedForTesting());
     }

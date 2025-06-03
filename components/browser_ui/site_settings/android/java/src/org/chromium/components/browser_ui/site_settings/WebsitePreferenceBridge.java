@@ -4,9 +4,10 @@
 
 package org.chromium.components.browser_ui.site_settings;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.Callback;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.NativeMethods;
 import org.chromium.components.content_settings.ContentSettingValues;
 import org.chromium.components.content_settings.ContentSettingsType;
 import org.chromium.components.location.LocationUtils;
@@ -92,6 +93,18 @@ public class WebsitePreferenceBridge {
     }
 
     @CalledByNative
+    private static Object createSharedDictionaryInfoList() {
+        return new ArrayList<SharedDictionaryInfo>();
+    }
+
+    @SuppressWarnings("unchecked")
+    @CalledByNative
+    private static void insertSharedDictionaryInfoIntoList(
+            ArrayList<SharedDictionaryInfo> list, String origin, String topFrameSite, long size) {
+        list.add(new SharedDictionaryInfo(origin, topFrameSite, size));
+    }
+
+    @CalledByNative
     private static Object createCookiesInfoMap() {
         return new HashMap<String, CookiesInfo>();
     }
@@ -134,6 +147,11 @@ public class WebsitePreferenceBridge {
     public void fetchStorageInfo(
             BrowserContextHandle browserContextHandle, Callback<ArrayList> callback) {
         WebsitePreferenceBridgeJni.get().fetchStorageInfo(browserContextHandle, callback);
+    }
+
+    public void fetchSharedDictionaryInfo(
+            BrowserContextHandle browserContextHandle, Callback<ArrayList> callback) {
+        WebsitePreferenceBridgeJni.get().fetchSharedDictionaryInfo(browserContextHandle, callback);
     }
 
     public void fetchCookiesInfo(BrowserContextHandle browserContextHandle,
@@ -186,10 +204,12 @@ public class WebsitePreferenceBridge {
     @CalledByNative
     private static void addContentSettingExceptionToList(ArrayList<ContentSettingException> list,
             @ContentSettingsType int contentSettingsType, String primaryPattern,
-            String secondaryPattern, int contentSetting, String source, boolean isEmbargoed) {
+            String secondaryPattern, int contentSetting, String source, final boolean hasExpiration,
+            final int expirationInDays, boolean isEmbargoed) {
         String nonNullSource = (source == null) ? "" : source;
         ContentSettingException exception = new ContentSettingException(contentSettingsType,
-                primaryPattern, secondaryPattern, contentSetting, nonNullSource, isEmbargoed);
+                primaryPattern, secondaryPattern, contentSetting, nonNullSource,
+                hasExpiration ? expirationInDays : null, isEmbargoed);
         list.add(exception);
     }
 
@@ -332,6 +352,15 @@ public class WebsitePreferenceBridge {
     }
 
     /**
+     * @return Whether the ContentSettings is global setting.
+     */
+    public static boolean isContentSettingGlobal(BrowserContextHandle browserContextHandle,
+            @ContentSettingsType int contentSettingType, GURL primaryUrl, GURL secondaryUrl) {
+        return WebsitePreferenceBridgeJni.get().isContentSettingGlobal(
+                browserContextHandle, contentSettingType, primaryUrl, secondaryUrl);
+    }
+
+    /**
      * Sets the content setting for the default scope of the url that is appropriate for the
      * given contentSettingType.
      * See HostContentSettingsMap::SetContentSettingDefaultScope() for more details.
@@ -351,13 +380,17 @@ public class WebsitePreferenceBridge {
     public static void setContentSettingCustomScope(BrowserContextHandle browserContextHandle,
             @ContentSettingsType int contentSettingType, String primaryPattern,
             String secondaryPattern, @ContentSettingValues int setting) {
-        // Currently only Cookie Settings support a non-empty, non-wildcard secondaryPattern.
-        // In addition, if a Cookie Setting uses secondaryPattern, the primaryPattern must be
-        // the wildcard.
-        if (contentSettingType != ContentSettingsType.COOKIES) {
-            assert secondaryPattern.equals(SITE_WILDCARD) || secondaryPattern.isEmpty();
-        } else if (!secondaryPattern.equals(SITE_WILDCARD) && !secondaryPattern.isEmpty()) {
+        if (contentSettingType == ContentSettingsType.STORAGE_ACCESS) {
+            // StorageAccess exceptions should always specify a primary and a secondary pattern.
+            assert !primaryPattern.equals(SITE_WILDCARD) && !secondaryPattern.equals(SITE_WILDCARD);
+        } else if (contentSettingType == ContentSettingsType.COOKIES
+                && !secondaryPattern.equals(SITE_WILDCARD)) {
+            // Currently only Cookie Settings support a non-empty, non-wildcard secondaryPattern.
+            // In addition, if a Cookie Setting uses secondaryPattern, the primaryPattern must be
+            // the wildcard.
             assert primaryPattern.equals(SITE_WILDCARD);
+        } else {
+            assert secondaryPattern.equals(SITE_WILDCARD) || secondaryPattern.isEmpty();
         }
 
         WebsitePreferenceBridgeJni.get().setContentSettingCustomScope(browserContextHandle,
@@ -394,6 +427,8 @@ public class WebsitePreferenceBridge {
         void clearCookieData(BrowserContextHandle browserContextHandle, String path);
         void clearLocalStorageData(
                 BrowserContextHandle browserContextHandle, String path, Object callback);
+        void clearSharedDictionary(BrowserContextHandle browserContextHandle, String origin,
+                String topLevelSite, Object callback);
         void clearStorageData(BrowserContextHandle browserContextHandle, String origin, int type,
                 Object callback);
         void getChosenObjects(BrowserContextHandle browserContextHandle,
@@ -405,6 +440,7 @@ public class WebsitePreferenceBridge {
         boolean urlMatchesContentSettingsPattern(String url, String pattern);
         void fetchCookiesInfo(BrowserContextHandle browserContextHandle, Object callback);
         void fetchStorageInfo(BrowserContextHandle browserContextHandle, Object callback);
+        void fetchSharedDictionaryInfo(BrowserContextHandle browserContextHandle, Object callback);
         void fetchLocalStorageInfo(BrowserContextHandle browserContextHandle, Object callback,
                 boolean includeImportant);
         void getOriginsForPermission(BrowserContextHandle browserContextHandle,
@@ -428,6 +464,8 @@ public class WebsitePreferenceBridge {
                 @ContentSettingsType int contentSettingsType, List<ContentSettingException> list);
         @ContentSettingValues
         int getContentSetting(BrowserContextHandle browserContextHandle,
+                @ContentSettingsType int contentSettingType, GURL primaryUrl, GURL secondaryUrl);
+        boolean isContentSettingGlobal(BrowserContextHandle browserContextHandle,
                 @ContentSettingsType int contentSettingType, GURL primaryUrl, GURL secondaryUrl);
         void setContentSettingDefaultScope(BrowserContextHandle browserContextHandle,
                 @ContentSettingsType int contentSettingType, GURL primaryUrl, GURL secondaryUrl,

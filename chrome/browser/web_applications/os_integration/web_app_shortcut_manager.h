@@ -29,7 +29,8 @@ namespace web_app {
 class WebAppFileHandlerManager;
 class WebAppProtocolHandlerManager;
 class WebApp;
-class WebAppIconManager;
+class WebAppProvider;
+class OsIntegrationManager;
 struct ShortcutInfo;
 
 using ShortcutLocationCallback =
@@ -46,16 +47,14 @@ class WebAppShortcutManager {
   static void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry);
 
   WebAppShortcutManager(Profile* profile,
-                        WebAppIconManager* icon_manager,
                         WebAppFileHandlerManager* file_handler_manager,
                         WebAppProtocolHandlerManager* protocol_handler_manager);
   WebAppShortcutManager(const WebAppShortcutManager&) = delete;
   WebAppShortcutManager& operator=(const WebAppShortcutManager&) = delete;
   virtual ~WebAppShortcutManager();
 
-  void SetSubsystems(WebAppIconManager* icon_manager,
-                     WebAppRegistrar* registrar);
-
+  void SetProvider(base::PassKey<OsIntegrationManager>,
+                   WebAppProvider& provider);
   void Start();
 
   // Tells the WebAppShortcutManager that no shortcuts should actually be
@@ -63,15 +62,15 @@ class WebAppShortcutManager {
   void SuppressShortcutsForTesting();
 
   bool CanCreateShortcuts() const;
-  void CreateShortcuts(const AppId& app_id,
+  void CreateShortcuts(const webapps::AppId& app_id,
                        bool add_to_desktop,
                        ShortcutCreationReason reason,
                        CreateShortcutsCallback callback);
   // Fetch already-updated shortcut data and deploy to OS integration.
-  void UpdateShortcuts(const AppId& app_id,
+  void UpdateShortcuts(const webapps::AppId& app_id,
                        base::StringPiece old_name,
                        ResultCallback update_finished_callback);
-  void DeleteShortcuts(const AppId& app_id,
+  void DeleteShortcuts(const webapps::AppId& app_id,
                        const base::FilePath& shortcuts_data_dir,
                        std::unique_ptr<ShortcutInfo> shortcut_info,
                        ResultCallback callback);
@@ -89,17 +88,18 @@ class WebAppShortcutManager {
   // TODO(crbug.com/1098471): Consider unifying this method and
   // RegisterShortcutsMenuWithOs() below.
   void ReadAllShortcutsMenuIconsAndRegisterShortcutsMenu(
-      const AppId& app_id,
+      const webapps::AppId& app_id,
+      const std::vector<WebAppShortcutsMenuItemInfo>& shortcuts_menu_item_infos,
       ResultCallback callback);
 
   // Registers a shortcuts menu for the web app's icon with the OS.
   void RegisterShortcutsMenuWithOs(
-      const AppId& app_id,
+      const webapps::AppId& app_id,
       const std::vector<WebAppShortcutsMenuItemInfo>& shortcuts_menu_item_infos,
       const ShortcutsMenuIconBitmaps& shortcuts_menu_icon_bitmaps,
       ResultCallback callback);
 
-  void UnregisterShortcutsMenuWithOs(const AppId& app_id,
+  void UnregisterShortcutsMenuWithOs(const webapps::AppId& app_id,
                                      ResultCallback callback);
 
   // Builds initial ShortcutInfo without |ShortcutInfo::favicon| being read.
@@ -107,7 +107,8 @@ class WebAppShortcutManager {
   //
   // TODO(crbug.com/1225132): Get rid of |BuildShortcutInfo| method: inline it
   // or make it private.
-  virtual std::unique_ptr<ShortcutInfo> BuildShortcutInfo(const AppId& app_id);
+  virtual std::unique_ptr<ShortcutInfo> BuildShortcutInfo(
+      const webapps::AppId& app_id);
 
   // The result of a call to GetShortcutInfo.
   using GetShortcutInfoCallback =
@@ -116,7 +117,7 @@ class WebAppShortcutManager {
   // |app_id| including all the icon bitmaps. Returns nullptr if app_id is
   // uninstalled or becomes uninstalled during the asynchronous read of icons.
   // virtual for testing.
-  virtual void GetShortcutInfoForApp(const AppId& app_id,
+  virtual void GetShortcutInfoForApp(const webapps::AppId& app_id,
                                      GetShortcutInfoCallback callback);
 
   // Sets a callback to be called when this class determines that all shortcuts
@@ -132,14 +133,14 @@ class WebAppShortcutManager {
       UpdateShortcutsForAllAppsCallback callback);
 
  private:
-  void OnIconsRead(const AppId& app_id,
+  void OnIconsRead(const webapps::AppId& app_id,
                    GetShortcutInfoCallback callback,
                    std::map<SquareSizePx, SkBitmap> icon_bitmaps);
 
-  void OnShortcutsCreated(const AppId& app_id,
+  void OnShortcutsCreated(const webapps::AppId& app_id,
                           CreateShortcutsCallback callback,
                           bool success);
-  void OnShortcutsDeleted(const AppId& app_id,
+  void OnShortcutsDeleted(const webapps::AppId& app_id,
                           ResultCallback callback,
                           bool success);
 
@@ -155,7 +156,8 @@ class WebAppShortcutManager {
       std::unique_ptr<ShortcutInfo> info);
 
   void OnShortcutsMenuIconsReadRegisterShortcutsMenu(
-      const AppId& app_id,
+      const webapps::AppId& app_id,
+      const std::vector<WebAppShortcutsMenuItemInfo>& shortcuts_menu_item_infos,
       ResultCallback callback,
       ShortcutsMenuIconBitmaps shortcuts_menu_icon_bitmaps);
 
@@ -170,13 +172,12 @@ class WebAppShortcutManager {
   bool suppress_shortcuts_for_testing_ = false;
 
   const raw_ptr<Profile> profile_;
-
-  raw_ptr<WebAppRegistrar> registrar_ = nullptr;
-  raw_ptr<WebAppIconManager> icon_manager_ = nullptr;
   raw_ptr<WebAppFileHandlerManager, DanglingUntriaged> file_handler_manager_ =
       nullptr;
-  raw_ptr<WebAppProtocolHandlerManager, DanglingUntriaged>
+  raw_ptr<WebAppProtocolHandlerManager, AcrossTasksDanglingUntriaged>
       protocol_handler_manager_ = nullptr;
+
+  raw_ptr<WebAppProvider> provider_ = nullptr;
 
   base::WeakPtrFactory<WebAppShortcutManager> weak_ptr_factory_{this};
 };

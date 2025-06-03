@@ -15,8 +15,7 @@
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/no_destructor.h"
-#include "base/notreached.h"
-#include "base/observer_list_types.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/base/interaction/element_identifier.h"
 #include "ui/base/interaction/framework_specific_implementation.h"
 #include "ui/gfx/geometry/rect.h"
@@ -179,6 +178,11 @@ class COMPONENT_EXPORT(UI_BASE) ElementTracker
                                            Callback callback);
 
   // Adds a callback that will be called whenever an element with identifier
+  // `id` is activated in any context.
+  Subscription AddElementActivatedInAnyContextCallback(ElementIdentifier id,
+                                                       Callback callback);
+
+  // Adds a callback that will be called whenever an element with identifier
   // `id` in `context` is hidden.
   //
   // Note: the TrackedElement* passed to the callback may not remain
@@ -188,14 +192,38 @@ class COMPONENT_EXPORT(UI_BASE) ElementTracker
                                         ElementContext context,
                                         Callback callback);
 
+  // Adds a callback that will be called whenever an element with identifier
+  // `id` is hidden in any context.
+  //
+  // Note: the TrackedElement* passed to the callback may not remain
+  // valid after the call, even if the same element object in its UI framework
+  // is re-shown (a new TrackedElement may be generated).
+  Subscription AddElementHiddenInAnyContextCallback(ElementIdentifier id,
+                                                    Callback callback);
+
   // Adds a callback that will be called whenever an event of `event_type` is
   // generated within `context` by any element.
   Subscription AddCustomEventCallback(CustomElementEventType event_type,
                                       ElementContext context,
                                       Callback callback);
 
+  // Adds a callback that will be called whenever an event of `event_type` is
+  // generated within any context.
+  Subscription AddCustomEventInAnyContextCallback(
+      CustomElementEventType event_type,
+      Callback callback);
+
   // Returns all known contexts.
   Contexts GetAllContextsForTesting() const;
+
+  // Returns a list of all elements. Should only be used in a meta-testing
+  // context, e.g. for testing the tracker itself, or for getting lists of
+  // candidate elements for fuzzing input.
+  //
+  // If `in_context` is specified, only elements in that context will be
+  // returned.
+  ElementList GetAllElementsForTesting(
+      absl::optional<ElementContext> in_context = absl::nullopt);
 
   // Adds a callback when any element is shown.
   Subscription AddAnyElementShownCallbackForTesting(Callback callback);
@@ -279,6 +307,8 @@ class COMPONENT_EXPORT(UI_BASE) SafeElementReference {
 // defined below instead.
 #define DECLARE_CUSTOM_ELEMENT_EVENT_TYPE(EventName) \
   DECLARE_ELEMENT_IDENTIFIER_VALUE(EventName)
+#define DECLARE_EXPORTED_CUSTOM_ELEMENT_EVENT_TYPE(ExportName, EventName) \
+  DECLARE_EXPORTED_ELEMENT_IDENTIFIER_VALUE(ExportName, EventName)
 #define DEFINE_CUSTOM_ELEMENT_EVENT_TYPE(EventName) \
   DEFINE_ELEMENT_IDENTIFIER_VALUE(EventName)
 
@@ -290,10 +320,17 @@ class COMPONENT_EXPORT(UI_BASE) SafeElementReference {
 #define DEFINE_CLASS_CUSTOM_ELEMENT_EVENT_TYPE(ClassName, EventName) \
   DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(ClassName, EventName)
 
+// This produces a unique, mangled name that can safely be used in macros called
+// by tests without having to worry about global name collisions. For production
+// code, use DECLARE/DEFINE above instead. You should pass __FILE__ and __LINE__
+// for `File`, and `Line`, respectively.
+#define DEFINE_MACRO_CUSTOM_ELEMENT_EVENT_TYPE(File, Line, EventName) \
+  DEFINE_MACRO_ELEMENT_IDENTIFIER_VALUE(File, Line, EventName)
+
 // This produces a unique, mangled name that can safely be used in tests
 // without having to worry about global name collisions. For production code,
 // use DECLARE/DEFINE above instead.
 #define DEFINE_LOCAL_CUSTOM_ELEMENT_EVENT_TYPE(EventName) \
-  DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(EventName)
+  DEFINE_MACRO_ELEMENT_IDENTIFIER_VALUE(__FILE__, __LINE__, EventName)
 
 #endif  // UI_BASE_INTERACTION_ELEMENT_TRACKER_H_

@@ -138,6 +138,13 @@ source_set("test_support") {
     ]
   }
 
+  if (enable_dice_support || is_chromeos_lacros) {
+    sources += [
+      "cloud/user_policy_signin_service_test_util.cc",
+      "cloud/user_policy_signin_service_test_util.h",
+    ]
+  }
+
   if (!is_android) {
     sources += [
       "extension_policy_test_base.cc",
@@ -180,24 +187,24 @@ source_set("policy_specific_browser_tests") {
   sources = [
     "policy_network_browsertest.cc",
     "site_isolation_policy_browsertest.cc",
+    "test/back_forward_cache_policy_browsertest.cc",
     "test/certificate_transparency_policy_browsertest.cc",
-    "test/event_path_policy_browsertest.cc",
+    "test/force_permission_policy_unload_default_enabled_policy_browsertest.cc",
     "test/hsts_policy_browsertest.cc",
     "test/network_prediction_policy_browsertest.cc",
     "test/offset_parent_new_spec_behavior_policy_browsertest.cc",
+    "test/policy_statistics_collector_browsertest.cc",
+    "test/proxy_policies_browsertest.cc",
     "test/safe_browsing_policy_browsertest.cc",
     "test/send_mouse_events_disabled_form_controls_policy_browsertest.cc",
     "test/shared_clipboard_enabled_browsertest.cc",
     "test/ssl_error_overriding_allowed_policy_browsertest.cc",
     "test/url_keyed_anonymized_data_collection_enabled_browsertest.cc",
     "test/web_rtc_udp_port_range_policy_browsertest.cc",
+    "test/web_sql_access_policy_browsertest.cc",
   ]
   if (is_chromeos) {
     sources += [ "test/policy_certs_browsertest.cc" ]
-  }
-
-  if (enable_nacl) {
-    sources += [ "test/ppb_video_decoder_dev_api_policy_browsertest.cc" ]
   }
 
   deps = [
@@ -209,6 +216,8 @@ source_set("policy_specific_browser_tests") {
     "//chrome/test:test_support",
     "//components/policy/core/common",
     "//components/prefs",
+    "//components/proxy_config",
+    "//components/safe_browsing/core/common",
     "//components/security_interstitials/content:security_interstitial_page",
     "//components/unified_consent",
     "//content/test:test_support",
@@ -234,21 +243,24 @@ source_set("policy_specific_browser_tests") {
   if (!is_android) {
     sources += [
       "test/autoplay_policy_browsertest.cc",
+      "test/block_truncated_cookies_policy_browsertest.cc",
       "test/bookmark_bar_enabled_browsertest.cc",
       "test/component_updater_policy_browsertest.cc",
       "test/developer_tools_policy_browsertest.cc",
       "test/download_directory_browsertest.cc",
-      "test/hide_webstore_icon_policy_browsertest.cc",
+      "test/ipv6_reachability_override_policy_browsertest.cc",
       "test/lens_desktop_ntp_search_enabled_policy_browsertest.cc",
       "test/local_fonts_policy_browsertest.cc",
       "test/media_stream_policy_browsertest.cc",
       "test/quic_allowed_browsertest.cc",
+      "test/shared_dictionary_policy_browsertest.cc",
       "test/signed_exchange_browsertest.cc",
       "test/task_manager_end_process_enabled_browsertest.cc",
       "test/web_rtc_event_log_collection_allowed_policy_browsertest.cc",
       "test/web_rtc_local_ips_allowed_urls_policy_browsertest.cc",
       "test/web_rtc_text_log_collection_allowed_policy_browsertest.cc",
       "test/window_management_policy_browsertest.cc",
+      "test/zstd_content_encoding_policy_browsertest.cc",
     ]
 
     deps += [
@@ -352,6 +364,7 @@ source_set("browser_tests") {
       "test/assistant_policy_browsertest.cc",
       "test/audio_output_allowed_browsertest.cc",
       "test/note_taking_on_lock_screen_policy_browsertest.cc",
+      "test/power_sounds_policy_browsertest.cc",
       "test/screenshot_policy_browsertest.cc",
       "test/session_length_limit_policy_browsertest.cc",
       "test/suggested_content_policy_browsertest.cc",
@@ -366,6 +379,7 @@ source_set("browser_tests") {
       "//ash/components/arc/session:session",
       "//chrome/browser/apps/app_service",
       "//chrome/browser/ash",
+      "//chrome/browser/ash:test_support",
       "//chrome/browser/ash/system_web_apps/test_support",
       "//chromeos/ash/components/audio",
       "//chromeos/ash/components/cryptohome",
@@ -391,9 +405,12 @@ source_set("browser_tests") {
     sources += [
       "test/audio_process_high_priority_enabled_browsertest.cc",
       "test/locale_policy_browsertest.cc",
-      "test/network_service_sandbox_enabled_browsertest.cc",
       "test/renderer_app_container_enabled_win_browsertest.cc",
     ]
+  }
+
+  if (is_win || is_linux) {
+    sources += [ "test/network_service_sandbox_enabled_browsertest.cc" ]
   }
 
   if (!is_android) {

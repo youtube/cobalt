@@ -149,23 +149,23 @@ class LockScreenReauthDialogTestHelper {
   void WaitForNetworkDialogToLoad();
 
   // Main Dialog
-  base::raw_ptr<LockScreenStartReauthDialog, DanglingUntriaged> reauth_dialog_ =
-      nullptr;
-  base::raw_ptr<LockScreenStartReauthUI, DanglingUntriaged>
+  raw_ptr<LockScreenStartReauthDialog, AcrossTasksDanglingUntriaged>
+      reauth_dialog_ = nullptr;
+  raw_ptr<LockScreenStartReauthUI, AcrossTasksDanglingUntriaged>
       reauth_webui_controller_ = nullptr;
-  base::raw_ptr<LockScreenReauthHandler, DanglingUntriaged> main_handler_ =
+  raw_ptr<LockScreenReauthHandler, AcrossTasksDanglingUntriaged> main_handler_ =
       nullptr;
 
   // Network dialog which is owned by the main dialog.
-  base::raw_ptr<LockScreenNetworkDialog, DanglingUntriaged> network_dialog_ =
-      nullptr;
-  base::raw_ptr<LockScreenNetworkUI, DanglingUntriaged>
+  raw_ptr<LockScreenNetworkDialog, AcrossTasksDanglingUntriaged>
+      network_dialog_ = nullptr;
+  raw_ptr<LockScreenNetworkUI, AcrossTasksDanglingUntriaged>
       network_webui_controller_ = nullptr;
-  base::raw_ptr<NetworkConfigMessageHandler, DanglingUntriaged>
+  raw_ptr<NetworkConfigMessageHandler, AcrossTasksDanglingUntriaged>
       network_handler_ = nullptr;
 
   // Captive portal dialog which is owned by the main dialog.
-  base::raw_ptr<LockScreenCaptivePortalDialog, DanglingUntriaged>
+  raw_ptr<LockScreenCaptivePortalDialog, AcrossTasksDanglingUntriaged>
       captive_portal_dialog_ = nullptr;
 };
 

@@ -5,8 +5,10 @@
 package org.chromium.chrome.browser.omnibox.suggestions;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import org.chromium.components.omnibox.AutocompleteMatch;
+import org.chromium.components.omnibox.action.OmniboxAction;
 import org.chromium.url.GURL;
 
 /** A mechanism for creating {@link SuggestionViewDelegate}s. */
@@ -29,29 +31,40 @@ public interface SuggestionHost {
             @NonNull AutocompleteMatch suggestion, int position, @NonNull GURL url);
 
     /**
-     * Triggered when the user long presses the omnibox suggestion.
-     * Deletes the entire AutocompleteMatch. Execution of this method implies removal of the
-     * AutocompleteMatch.
+     * Triggered when the user touches down on a suggestion. Only called for search suggestions.
      *
-     * @param suggestion Long-pressed Suggestion.
-     * @param titleText The title to display in the delete dialog.
+     * @param suggestion Touch-downed Suggestion.
      * @param position The position of the suggestion on the list.
      */
-    void onDeleteMatch(
-            @NonNull AutocompleteMatch suggestion, @NonNull String titleText, int position);
+    void onSuggestionTouchDown(@NonNull AutocompleteMatch suggestion, int position);
 
     /**
-     * Triggered when the user long presses the omnibox suggestion element (eg. tile).
-     * Performs partial deletion of an AutocompleteMatch, focusing on the supplied element.
-     * Execution of this method does not imply removal of the AutocompleteMatch.
+     * Triggered when the user clicks one of the OmniboxActions attached to Suggestion.
+     *
+     * @param action the action the user interacted with
+     */
+    void onOmniboxActionClicked(@NonNull OmniboxAction action);
+
+    /**
+     * Triggered when the user long presses the omnibox suggestion. Deletes the entire
+     * AutocompleteMatch. Execution of this method implies removal of the AutocompleteMatch.
      *
      * @param suggestion Long-pressed Suggestion.
      * @param titleText The title to display in the delete dialog.
-     * @param position The position of the suggestion on the list.
+     */
+    void onDeleteMatch(@NonNull AutocompleteMatch suggestion, @NonNull String titleText);
+
+    /**
+     * Triggered when the user long presses the omnibox suggestion element (eg. tile). Performs
+     * partial deletion of an AutocompleteMatch, focusing on the supplied element. Execution of this
+     * method does not imply removal of the AutocompleteMatch.
+     *
+     * @param suggestion Long-pressed Suggestion.
+     * @param titleText The title to display in the delete dialog.
      * @param element Element of the suggestion to be deleted.
      */
-    void onDeleteMatchElement(@NonNull AutocompleteMatch suggestion, @NonNull String titleText,
-            int position, int element);
+    void onDeleteMatchElement(
+            @NonNull AutocompleteMatch suggestion, @NonNull String titleText, int element);
 
     /**
      * Triggered when the user selects a switch to tab action.
@@ -68,8 +81,10 @@ public interface SuggestionHost {
      */
     void setOmniboxEditingText(@NonNull String text);
 
-    /**
-     * Clear focus, close the suggestions list and complete the interaction with the Omnibox.
-     */
+    /** Clear focus, close the suggestions list and complete the interaction with the Omnibox. */
     void finishInteraction();
+
+    /** Returns query extracted from GURL. */
+    @Nullable
+    String queryFromGurl(GURL url);
 }

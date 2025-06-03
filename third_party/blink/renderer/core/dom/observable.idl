@@ -1,0 +1,23 @@
+// Copyright 2023 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+// https://github.com/WICG/observable
+
+callback SubscribeCallback = void (Subscriber subscriber);
+callback ObserverCallback = void (any value);
+callback ObserverCompleteCallback = void ();
+
+dictionary Observer {
+  ObserverCallback next;
+  ObserverCompleteCallback complete;
+  ObserverCallback error;
+  AbortSignal signal;
+};
+
+[Exposed=(Window,Worker), RuntimeEnabled=ObservableAPI]
+interface Observable {
+    [CallWith=ScriptState, MeasureAs=ObservableConstructor] constructor(SubscribeCallback callback);
+    [CallWith=ScriptState] void subscribe(optional Observer observer = {});
+};
+

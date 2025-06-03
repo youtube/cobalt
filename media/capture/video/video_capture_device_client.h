@@ -11,12 +11,16 @@
 #include <memory>
 #include <vector>
 
+#include "base/feature_list.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/threading/thread_collision_warner.h"
+#include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
 #include "media/capture/capture_export.h"
 #include "media/capture/video/video_capture_device.h"
 #include "media/capture/video/video_frame_receiver.h"
+#include "mojo/public/cpp/bindings/remote.h"
+#include "services/video_capture/public/mojom/video_effects_manager.mojom.h"
 
 namespace media {
 class VideoCaptureBufferPool;
@@ -25,6 +29,10 @@ class VideoCaptureJpegDecoder;
 
 using VideoCaptureJpegDecoderFactoryCB =
     base::OnceCallback<std::unique_ptr<VideoCaptureJpegDecoder>()>;
+
+#if BUILDFLAG(IS_MAC)
+CAPTURE_EXPORT BASE_DECLARE_FEATURE(kFallbackToSharedMemoryIfNotNv12OnMac);
+#endif
 
 // Implementation of VideoCaptureDevice::Client that uses a buffer pool
 // to provide buffers and converts incoming data to the I420 format for
@@ -50,9 +58,12 @@ class CAPTURE_EXPORT VideoCaptureDeviceClient
       scoped_refptr<VideoCaptureBufferPool> buffer_pool,
       VideoCaptureJpegDecoderFactoryCB jpeg_decoder_factory_callback);
 #else
-  VideoCaptureDeviceClient(VideoCaptureBufferType target_buffer_type,
-                           std::unique_ptr<VideoFrameReceiver> receiver,
-                           scoped_refptr<VideoCaptureBufferPool> buffer_pool);
+  VideoCaptureDeviceClient(
+      VideoCaptureBufferType target_buffer_type,
+      std::unique_ptr<VideoFrameReceiver> receiver,
+      scoped_refptr<VideoCaptureBufferPool> buffer_pool,
+      mojo::PendingRemote<video_capture::mojom::VideoEffectsManager>
+          video_effects_manager);
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
   VideoCaptureDeviceClient(const VideoCaptureDeviceClient&) = delete;
@@ -84,10 +95,9 @@ class CAPTURE_EXPORT VideoCaptureDeviceClient
                                    int frame_feedback_id) override;
   void OnIncomingCapturedExternalBuffer(
       CapturedExternalVideoBuffer buffer,
-      std::vector<CapturedExternalVideoBuffer> scaled_buffers,
       base::TimeTicks reference_time,
       base::TimeDelta timestamp,
-      gfx::Rect visible_rect) override;
+      const gfx::Rect& visible_rect) override;
   ReserveResult ReserveOutputBuffer(const gfx::Size& dimensions,
                                     VideoPixelFormat format,
                                     int frame_feedback_id,
@@ -113,11 +123,12 @@ class CAPTURE_EXPORT VideoCaptureDeviceClient
   double GetBufferPoolUtilization() const override;
 
  private:
-  ReadyFrameInBuffer CreateReadyFrameFromExternalBuffer(
+  VideoCaptureDevice::Client::ReserveResult CreateReadyFrameFromExternalBuffer(
       CapturedExternalVideoBuffer buffer,
       base::TimeTicks reference_time,
       base::TimeDelta timestamp,
-      gfx::Rect visible_rect);
+      const gfx::Rect& visible_rect,
+      ReadyFrameInBuffer* ready_buffer);
 
   // A branch of OnIncomingCapturedData for Y16 frame_format.pixel_format.
   void OnIncomingCapturedY16Data(const uint8_t* data,
@@ -143,6 +154,11 @@ class CAPTURE_EXPORT VideoCaptureDeviceClient
   const scoped_refptr<VideoCaptureBufferPool> buffer_pool_;
 
   VideoPixelFormat last_captured_pixel_format_;
+
+#if !BUILDFLAG(IS_CHROMEOS_ASH)
+  scoped_refptr<base::SequencedTaskRunner> mojo_task_runner_;
+  mojo::Remote<video_capture::mojom::VideoEffectsManager> effects_manager_;
+#endif  // !BUILDFLAG(IS_CHROMEOS_ASH)
 
   // Thread collision warner to ensure that producer-facing API is not called
   // concurrently. Producers are allowed to call from multiple threads, but not

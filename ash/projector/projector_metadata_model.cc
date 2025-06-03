@@ -4,11 +4,8 @@
 
 #include "ash/projector/projector_metadata_model.h"
 
+#include "ash/constants/ash_features.h"
 #include "base/json/json_writer.h"
-#include "base/logging.h"
-#include "base/strings/string_number_conversions.h"
-#include "base/values.h"
-#include "media/mojo/mojom/speech_recognition.mojom.h"
 
 namespace ash {
 namespace {
@@ -22,6 +19,7 @@ constexpr base::StringPiece kCaptionsKey = "captions";
 constexpr base::StringPiece kKeyIdeasKey = "tableOfContent";
 constexpr base::StringPiece kOffset = "offset";
 constexpr base::StringPiece kRecognitionStatus = "recognitionStatus";
+constexpr base::StringPiece kMetadataVersionNumber = "version";
 
 base::Value::Dict HypothesisPartsToDict(
     const media::HypothesisParts& hypothesis_parts) {
@@ -65,11 +63,12 @@ ProjectorKeyIdea::~ProjectorKeyIdea() = default;
 //   "startOffset": INT
 //   "endOffset": INT
 //   "text": STRING
-base::Value ProjectorKeyIdea::ToJson() {
-  base::Value transcript(base::Value::Type::DICT);
-  transcript.SetIntKey(kStartOffsetKey, start_time_.InMilliseconds());
-  transcript.SetIntKey(kEndOffsetKey, end_time_.InMilliseconds());
-  transcript.SetStringKey(kTextKey, text_);
+base::Value::Dict ProjectorKeyIdea::ToJson() {
+  auto transcript =
+      base::Value::Dict()
+          .Set(kStartOffsetKey, static_cast<int>(start_time_.InMilliseconds()))
+          .Set(kEndOffsetKey, static_cast<int>(end_time_.InMilliseconds()))
+          .Set(kTextKey, text_);
   return transcript;
 }
 
@@ -108,7 +107,7 @@ ProjectorTranscript::~ProjectorTranscript() = default;
 //   "text": STRING
 //   "hypothesisParts": DICT LIST
 //
-base::Value ProjectorTranscript::ToJson() {
+base::Value::Dict ProjectorTranscript::ToJson() {
   base::Value::Dict transcript;
   transcript.Set(kStartOffsetKey,
                  static_cast<int>(start_time_.InMilliseconds()));
@@ -120,7 +119,7 @@ base::Value ProjectorTranscript::ToJson() {
     hypothesis_parts_list.Append(HypothesisPartsToDict(hypothesis_part));
 
   transcript.Set(kHypothesisPartsKey, std::move(hypothesis_parts_list));
-  return base::Value(std::move(transcript));
+  return transcript;
 }
 
 ProjectorMetadata::ProjectorMetadata() = default;
@@ -142,6 +141,11 @@ void ProjectorMetadata::AddTranscript(
 
 void ProjectorMetadata::SetSpeechRecognitionStatus(RecognitionStatus status) {
   speech_recognition_status_ = status;
+}
+
+void ProjectorMetadata::SetMetadataVersionNumber(
+    MetadataVersionNumber version) {
+  metadata_version_number_ = version;
 }
 
 void ProjectorMetadata::MarkKeyIdea() {
@@ -182,6 +186,7 @@ std::string ProjectorMetadata::Serialize() {
 //      },
 //    ],
 //    "recognitionStatus": 0,
+//    "version": 2,
 //  }
 //
 // Which is:
@@ -192,7 +197,7 @@ std::string ProjectorMetadata::Serialize() {
 //   "captionLanguage": STRING
 //   "tableOfContent": LIST
 //   "recognitionStatus": INTEGER
-base::Value ProjectorMetadata::ToJson() {
+base::Value::Dict ProjectorMetadata::ToJson() {
   base::Value::Dict metadata;
   metadata.Set(kCaptionLanguage, caption_language_);
 
@@ -207,7 +212,11 @@ base::Value ProjectorMetadata::ToJson() {
   metadata.Set(kKeyIdeasKey, std::move(key_ideas_list));
   metadata.Set(kRecognitionStatus,
                static_cast<int>(speech_recognition_status_));
-  return base::Value(std::move(metadata));
+  if (ash::features::IsProjectorV2Enabled()) {
+    metadata.Set(kMetadataVersionNumber,
+                 static_cast<int>(metadata_version_number_));
+  }
+  return metadata;
 }
 
 }  // namespace ash

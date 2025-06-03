@@ -8,6 +8,7 @@
 
 import argparse
 import os
+import re
 import sys
 import zipfile
 
@@ -28,6 +29,7 @@ public class NativeLibraries {{
     public static final int CPU_FAMILY_ARM = 1;
     public static final int CPU_FAMILY_MIPS = 2;
     public static final int CPU_FAMILY_X86 = 3;
+    public static final int CPU_FAMILY_RISCV = 4;
 
     // Set to true to enable the use of the Chromium Linker.
     public static {MAYBE_FINAL}boolean sUseLinker{USE_LINKER};
@@ -37,14 +39,17 @@ public class NativeLibraries {{
     public static {MAYBE_FINAL}String[] LIBRARIES = {{{LIBRARIES}}};
 
     public static {MAYBE_FINAL}int sCpuFamily = {CPU_FAMILY};
+
+    public static {MAYBE_FINAL}boolean sSupport32Bit{SUPPORT_32_BIT};
+
+    public static {MAYBE_FINAL}boolean sSupport64Bit{SUPPORT_64_BIT};
 }}
 """
 
 
 def _FormatLibraryName(library_name):
   filename = os.path.split(library_name)[1]
-  assert filename.startswith('lib')
-  assert filename.endswith('.so')
+  assert filename.startswith('lib') and filename.endswith('.so'), filename
   # Remove lib prefix and .so suffix.
   return '"%s"' % filename[3:-3]
 
@@ -60,15 +65,14 @@ def main():
       help='Enable Chromium linker.')
   parser.add_argument(
       '--native-libraries-list', help='File with list of native libraries.')
-  parser.add_argument(
-      '--cpu-family',
-      choices={
-          'CPU_FAMILY_ARM', 'CPU_FAMILY_X86', 'CPU_FAMILY_MIPS',
-          'CPU_FAMILY_UNKNOWN'
-      },
-      required=True,
-      default='CPU_FAMILY_UNKNOWN',
-      help='CPU family.')
+  parser.add_argument('--cpu-family',
+                      choices={
+                          'CPU_FAMILY_ARM', 'CPU_FAMILY_X86', 'CPU_FAMILY_MIPS',
+                          'CPU_FAMILY_RISCV', 'CPU_FAMILY_UNKNOWN'
+                      },
+                      required=True,
+                      default='CPU_FAMILY_UNKNOWN',
+                      help='CPU family.')
   parser.add_argument(
       '--main-component-library',
       help='If used, the list of native libraries will only contain this '
@@ -76,6 +80,12 @@ def main():
 
   parser.add_argument(
       '--output', required=True, help='Path to the generated srcjar file.')
+  parser.add_argument('--native-lib-32-bit',
+                      action='store_true',
+                      help='32-bit binaries.')
+  parser.add_argument('--native-lib-64-bit',
+                      action='store_true',
+                      help='64-bit binaries.')
 
   options = parser.parse_args(build_utils.ExpandFileArgs(sys.argv[1:]))
 
@@ -93,6 +103,14 @@ def main():
     sys.stderr.write('\n')
     sys.exit(1)
 
+  # When building for robolectric in component buildS, OS=linux causes
+  # "libmirprotobuf.so.9" to be a dep. This script, as well as
+  # System.loadLibrary("name") require libraries to end with ".so", so just
+  # filter it out.
+  native_libraries = [
+      f for f in native_libraries if not re.search(r'\.so\.\d+$', f)
+  ]
+
   def bool_str(value):
     if value:
       return ' = true'
@@ -105,6 +123,8 @@ def main():
       'USE_LINKER': bool_str(options.enable_chromium_linker),
       'LIBRARIES': ','.join(_FormatLibraryName(n) for n in native_libraries),
       'CPU_FAMILY': options.cpu_family,
+      'SUPPORT_32_BIT': bool_str(options.native_lib_32_bit),
+      'SUPPORT_64_BIT': bool_str(options.native_lib_64_bit),
   }
   with action_helpers.atomic_output(options.output) as f:
     with zipfile.ZipFile(f.name, 'w') as srcjar_file:

@@ -32,6 +32,7 @@
 #define THIRD_PARTY_BLINK_PUBLIC_PLATFORM_WEB_URL_RESPONSE_H_
 
 #include <memory>
+#include <vector>
 
 #include "base/memory/raw_ptr.h"
 #include "base/time/time.h"
@@ -46,7 +47,7 @@
 #include "third_party/blink/public/platform/web_vector.h"
 
 namespace network {
-class TriggerAttestation;
+class TriggerVerification;
 namespace mojom {
 enum class AlternateProtocolUsage;
 enum class FetchResponseSource;
@@ -112,8 +113,8 @@ class BLINK_PLATFORM_EXPORT WebURLResponse {
 
   void SetConnectionReused(bool);
 
-  void SetTriggerAttestation(
-      const absl::optional<network::TriggerAttestation>&);
+  void SetTriggerVerifications(
+      const std::vector<network::TriggerVerification>&);
 
   void SetLoadTiming(const network::mojom::LoadTimingInfo&);
 
@@ -182,6 +183,9 @@ class BLINK_PLATFORM_EXPORT WebURLResponse {
   // See network.mojom.URLResponseHead.service_worker_response_source.
   network::mojom::FetchResponseSource GetServiceWorkerResponseSource() const;
   void SetServiceWorkerResponseSource(network::mojom::FetchResponseSource);
+
+  // Flag whether a shared dictionary was used to decompress the response body.
+  void SetDidUseSharedDictionary(bool);
 
   // https://fetch.spec.whatwg.org/#concept-response-type
   void SetType(network::mojom::FetchResponseType);
@@ -284,6 +288,9 @@ class BLINK_PLATFORM_EXPORT WebURLResponse {
   // See: https://fetch.spec.whatwg.org/#concept-http-network-fetch
   void SetRequestIncludeCredentials(bool);
   bool RequestIncludeCredentials() const;
+
+  void SetShouldUseSourceHashForJSCodeCache(bool);
+  bool ShouldUseSourceHashForJSCodeCache() const;
 
   void SetWasFetchedViaCache(bool);
   void SetArrivalTimeAtRenderer(base::TimeTicks arrival);

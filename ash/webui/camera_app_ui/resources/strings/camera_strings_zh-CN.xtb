@@ -57,6 +57,7 @@
 <translation id="3566302376254083266">正在向左上角移动</translation>
 <translation id="3573890771273113519">切换到扫描模式</translation>
 <translation id="3583444040776960729">文件左下角</translation>
+<translation id="3642192109456033823">正在处理视频…</translation>
 <translation id="3789724198583203151">逆时针旋转 90 度</translation>
 <translation id="3810838688059735925">视频</translation>
 <translation id="3892148308691398805">复制文字</translation>
@@ -65,9 +66,10 @@
 <translation id="4118525110028899586">暂停录制</translation>
 <translation id="4121305183798804752">检测到文件</translation>
 <translation id="414641094616694804">此相机无法更改分辨率</translation>
+<translation id="4176463684765177261">已停用</translation>
 <translation id="4269820728363426813">复制链接地址</translation>
-<translation id="4281620174117014503">中等分辨率</translation>
 <translation id="428234092390943511">页面缩略图</translation>
+<translation id="4349714250734879769">由 Chrome 缩放帧</translation>
 <translation id="4383571725254449280">打印性能日志</translation>
 <translation id="4445542136948522167">停止拍照</translation>
 <translation id="4570032796877367747">前置摄像头</translation>
@@ -93,6 +95,7 @@
 <translation id="5374917190292010970">4K (2160p)</translation>
 <translation id="5662366948659129155">正在扫描第 <ph name="COUNT" /> 页</translation>
 <translation id="5671277269877808209">方形</translation>
+<translation id="574392208103952083">中等</translation>
 <translation id="5746169159649715125">另存为 PDF</translation>
 <translation id="5753488212459587150">启用专家模式</translation>
 <translation id="5759254179196327752">扫描文件</translation>
@@ -148,6 +151,7 @@
 <translation id="8145038249676204903">切换到拍照模式</translation>
 <translation id="8167081290930651932">另存为照片</translation>
 <translation id="8239780215768881278">拍摄视频快照</translation>
+<translation id="8346544573713510785">由相机 HAL 缩放帧</translation>
 <translation id="8425673304802773841">向下倾斜</translation>
 <translation id="8428213095426709021">设置</translation>
 <translation id="8629662593426079630">360p</translation>

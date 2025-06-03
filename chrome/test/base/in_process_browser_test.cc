@@ -15,6 +15,7 @@
 #include "base/functional/bind.h"
 #include "base/lazy_instance.h"
 #include "base/location.h"
+#include "base/memory/weak_ptr.h"
 #include "base/no_destructor.h"
 #include "base/path_service.h"
 #include "base/sampling_heap_profiler/poisson_allocation_sampler.h"
@@ -32,7 +33,6 @@
 #include "chrome/browser/chrome_browser_main.h"
 #include "chrome/browser/chrome_browser_main_extra_parts.h"
 #include "chrome/browser/chrome_content_browser_client.h"
-#include "chrome/browser/chrome_notification_types.h"
 #include "chrome/browser/devtools/devtools_window.h"
 #include "chrome/browser/lifetime/application_lifetime.h"
 #include "chrome/browser/lifetime/application_lifetime_desktop.h"
@@ -49,6 +49,7 @@
 #include "chrome/browser/profiles/profile_attributes_storage.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/profiles/profile_test_util.h"
+#include "chrome/browser/search_engine_choice/search_engine_choice_service.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_finder.h"
@@ -59,11 +60,13 @@
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "chrome/browser/ui/toolbar_controller_util.h"
 #include "chrome/common/chrome_constants.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/chrome_paths.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/common/logging_chrome.h"
+#include "chrome/common/pref_names.h"
 #include "chrome/common/profiler/main_thread_stack_sampling_profiler.h"
 #include "chrome/common/url_constants.h"
 #include "chrome/renderer/chrome_content_renderer_client.h"
@@ -76,6 +79,7 @@
 #include "components/feature_engagement/public/feature_list.h"
 #include "components/google/core/common/google_util.h"
 #include "components/os_crypt/sync/os_crypt_mocker.h"
+#include "components/search_engines/search_engine_choice_utils.h"
 #include "content/public/browser/browser_main_parts.h"
 #include "content/public/browser/devtools_agent_host.h"
 #include "content/public/common/content_paths.h"
@@ -90,7 +94,7 @@
 #include "ui/base/ui_base_features.h"
 
 #if BUILDFLAG(IS_MAC)
-#include "base/mac/scoped_nsautorelease_pool.h"
+#include "base/apple/scoped_nsautorelease_pool.h"
 #include "chrome/test/base/scoped_bundle_swizzler_mac.h"
 #include "services/device/public/cpp/test/fake_geolocation_manager.h"
 #endif
@@ -98,6 +102,7 @@
 #if BUILDFLAG(IS_WIN)
 #include "base/win/scoped_com_initializer.h"
 #include "base/win/windows_version.h"
+#include "components/version_info/version_info.h"
 #include "ui/base/win/atl_module.h"
 #endif
 
@@ -144,8 +149,13 @@
 #include "base/environment.h"
 #include "base/files/file_path_watcher.h"
 #include "base/process/launch.h"
+#include "base/threading/thread_restrictions.h"
 #include "base/uuid.h"
+#include "base/version.h"
 #include "chrome/browser/lacros/cert/cert_db_initializer_factory.h"
+#include "chromeos/crosapi/mojom/crosapi.mojom.h"
+#include "chromeos/crosapi/mojom/test_controller.mojom-test-utils.h"
+#include "chromeos/lacros/lacros_service.h"
 #include "components/account_manager_core/chromeos/account_manager.h"
 #include "components/account_manager_core/chromeos/account_manager_facade_factory.h"  // nogncheck
 #include "components/account_manager_core/chromeos/fake_account_manager_ui.h"  // nogncheck
@@ -201,7 +211,7 @@ class ChromeBrowserMainExtraPartsBrowserProcessInjection
         std::make_unique<device::FakeGeolocationManager>();
     fake_geolocation_manager->SetSystemPermission(
         device::LocationSystemPermissionStatus::kAllowed);
-    g_browser_process->SetGeolocationManager(
+    device::GeolocationManager::SetInstance(
         std::move(fake_geolocation_manager));
   }
 
@@ -252,11 +262,19 @@ class IdentityExtraSetUp : public ChromeBrowserMainExtraParts {
  private:
   std::unique_ptr<ScopedAshAccountManagerForTests> scoped_ash_account_manager_;
 };
+
+bool IsCrosapiEnabled() {
+  return !base::CommandLine::ForCurrentProcess()
+              ->GetSwitchValuePath("lacros-mojo-socket-for-testing")
+              .empty();
+}
 #endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
 
 void EnsureBrowserContextKeyedServiceFactoriesForTestingBuilt() {
   NotificationDisplayServiceTester::EnsureFactoryBuilt();
 }
+
+InProcessBrowserTest* g_current_test;
 
 }  // namespace
 
@@ -302,12 +320,80 @@ FakeAccountManagerUI* InProcessBrowserTest::GetFakeAccountManagerUI() const {
   return static_cast<FakeAccountManagerUI*>(
       MaybeGetAshAccountManagerUIForTests());
 }
+
+base::Version InProcessBrowserTest::GetAshChromeVersion() {
+  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+  base::FilePath ash_chrome_path =
+      command_line->GetSwitchValuePath("ash-chrome-path");
+  CHECK(!ash_chrome_path.empty());
+  base::CommandLine invoker(ash_chrome_path);
+  invoker.AppendSwitch(switches::kVersion);
+  std::string output;
+  base::ScopedAllowBlockingForTesting blocking;
+  CHECK(base::GetAppOutput(invoker, &output));
+  std::vector<std::string> tokens = base::SplitString(
+      output, " ", base::KEEP_WHITESPACE, base::SPLIT_WANT_ALL);
+  CHECK_GT(tokens.size(), 1U);
+  // We assume Chrome version is always at the second last position.
+  base::Version version(tokens[tokens.size() - 2]);
+  CHECK(version.IsValid()) << "Can not find "
+                           << "chrome version in string: " << output;
+  return version;
+}
+
+void InProcessBrowserTest::VerifyNoAshBrowserWindowOpenRightNow() {
+  auto* lacros_service = chromeos::LacrosService::Get();
+  DCHECK(lacros_service);
+  crosapi::mojom::TestControllerAsyncWaiter waiter(
+      lacros_service->GetRemote<crosapi::mojom::TestController>().get());
+
+  uint32_t number = 1;
+  waiter.GetOpenAshBrowserWindows(&number);
+  EXPECT_EQ(0u, number)
+      << "There should not be any ash browser window open at this point.";
+}
+
+void InProcessBrowserTest::CloseAllAshBrowserWindows() {
+  DCHECK(IsCloseAndWaitAshBrowserWindowApisSupported());
+  crosapi::mojom::TestControllerAsyncWaiter waiter(
+      chromeos::LacrosService::Get()
+          ->GetRemote<crosapi::mojom::TestController>()
+          .get());
+  bool success;
+  waiter.CloseAllAshBrowserWindowsAndConfirm(&success);
+  EXPECT_TRUE(success) << "Failed to close all ash browser windows";
+}
+
+void InProcessBrowserTest::WaitUntilAtLeastOneAshBrowserWindowOpen() {
+  DCHECK(IsCloseAndWaitAshBrowserWindowApisSupported());
+  crosapi::mojom::TestControllerAsyncWaiter waiter(
+      chromeos::LacrosService::Get()
+          ->GetRemote<crosapi::mojom::TestController>()
+          .get());
+  bool has_open_window;
+  waiter.CheckAtLeastOneAshBrowserWindowOpen(&has_open_window);
+  EXPECT_TRUE(has_open_window);
+}
+
+bool InProcessBrowserTest::IsCloseAndWaitAshBrowserWindowApisSupported() const {
+  auto* lacros_service = chromeos::LacrosService::Get();
+  if (!lacros_service ||
+      !lacros_service->IsAvailable<crosapi::mojom::TestController>()) {
+    return false;
+  }
+
+  return lacros_service
+             ->GetInterfaceVersion<crosapi::mojom::TestController>() >=
+         static_cast<int>(crosapi::mojom::TestController::MethodMinVersions::
+                              kCheckAtLeastOneAshBrowserWindowOpenMinVersion);
+}
 #endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
 
 void InProcessBrowserTest::Initialize() {
+  g_current_test = this;
   CreateTestServer(GetChromeTestDataDir());
   base::FilePath src_dir;
-  CHECK(base::PathService::Get(base::DIR_SOURCE_ROOT, &src_dir));
+  CHECK(base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &src_dir));
 
   // chrome::DIR_TEST_DATA isn't going to be setup until after we call
   // ContentMain. However that is after tests' constructors or SetUp methods,
@@ -318,6 +404,9 @@ void InProcessBrowserTest::Initialize() {
 #if BUILDFLAG(IS_MAC)
   bundle_swizzler_ = std::make_unique<ScopedBundleSwizzlerMac>();
 #endif
+
+  // Force all buttons not overflow to prevent test flakiness.
+  ToolbarControllerUtil::SetPreventOverflowForTesting(true);
 
   std::vector<base::test::FeatureRef> disabled_features;
 
@@ -346,7 +435,13 @@ void InProcessBrowserTest::Initialize() {
 #endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
 }
 
-InProcessBrowserTest::~InProcessBrowserTest() = default;
+InProcessBrowserTest::~InProcessBrowserTest() {
+  g_current_test = nullptr;
+}
+
+InProcessBrowserTest* InProcessBrowserTest::GetCurrent() {
+  return g_current_test;
+}
 
 void InProcessBrowserTest::SetUp() {
   // Browser tests will create their own g_browser_process later.
@@ -486,6 +581,17 @@ void InProcessBrowserTest::SetUp() {
   // expect this can allow the prompt as desired.
   PrivacySandboxService::SetPromptDisabledForTests(true);
 
+  // The Search Engine Choice service may attempt to show a modal dialog to the
+  // profile on browser start, which is unexpected by mosts tests. Tests which
+  // expect this can allow the prompt as desired.
+#if BUILDFLAG(ENABLE_SEARCH_ENGINE_CHOICE)
+  if (search_engines::IsChoiceScreenFlagEnabled(
+          search_engines::ChoicePromo::kDialog)) {
+    SearchEngineChoiceService::SetDialogDisabledForTests(
+        /*dialog_disabled=*/true);
+  }
+#endif
+
   EnsureBrowserContextKeyedServiceFactoriesForTestingBuilt();
 
   BrowserTestBase::SetUp();
@@ -519,14 +625,6 @@ void InProcessBrowserTest::TearDown() {
 #if BUILDFLAG(IS_CHROMEOS_ASH)
   ash::device_sync::DeviceSyncImpl::Factory::SetCustomFactory(nullptr);
   launch_browser_for_testing_ = nullptr;
-#endif
-
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-  if (ash_process_.IsValid()) {
-    // Need to wait for the termination so the temporary user data dir
-    // can be cleaned up.
-    ash_process_.Terminate(0, /*wait=*/true);
-  }
 #endif
 }
 
@@ -577,6 +675,16 @@ void InProcessBrowserTest::RecordPropertyFromMap(
   }
   if (!result.empty())
     RecordProperty("gtest_tag", result);
+}
+
+void InProcessBrowserTest::SetUpLocalStatePrefService(
+    PrefService* local_state) {
+#if BUILDFLAG(IS_WIN)
+  // Put the current build version number in the prefs, so that pinned taskbar
+  // icons aren't migrated.
+  local_state->SetString(prefs::kShortcutMigrationVersion,
+                         std::string(version_info::GetVersionNumber()));
+#endif  // BUILDFLAG(IS_WIN);
 }
 
 void InProcessBrowserTest::CloseBrowserSynchronously(Browser* browser) {
@@ -770,6 +878,11 @@ void InProcessBrowserTest::PreRunTestOnMainThread() {
 #if BUILDFLAG(IS_CHROMEOS_LACROS)
   content::NetworkConnectionChangeSimulator network_change_simulator;
   network_change_simulator.InitializeChromeosConnectionType();
+
+  if (IsCrosapiEnabled() && IsCloseAndWaitAshBrowserWindowApisSupported()) {
+    // There should NOT be any open ash browser window UI at this point.
+    VerifyNoAshBrowserWindowOpenRightNow();
+  }
 #endif
 
   AfterStartupTaskUtils::SetBrowserStartupIsCompleteForTesting();
@@ -782,10 +895,13 @@ void InProcessBrowserTest::PreRunTestOnMainThread() {
   content::RunAllPendingInMessageLoop();
 
   SelectFirstBrowser();
-  if (browser_) {
-    auto* tab = browser_->tab_strip_model()->GetActiveWebContents();
-    content::WaitForLoadStop(tab);
-    SetInitialWebContents(tab);
+  if (browser_ && !browser_->tab_strip_model()->empty()) {
+    base::WeakPtr<content::WebContents> tab =
+        browser_->tab_strip_model()->GetActiveWebContents()->GetWeakPtr();
+    content::WaitForLoadStop(tab.get());
+    if (tab) {
+      SetInitialWebContents(tab.get());
+    }
   }
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -802,7 +918,7 @@ void InProcessBrowserTest::PreRunTestOnMainThread() {
   // deallocation via an autorelease pool (such as browser window closure and
   // browser shutdown). To avoid this, the following pool is recycled after each
   // time code is directly executed.
-  autorelease_pool_ = new base::mac::ScopedNSAutoreleasePool;
+  autorelease_pool_.emplace();
 #endif
 
   // Pump any pending events that were created as a result of creating a
@@ -832,6 +948,15 @@ void InProcessBrowserTest::PostRunTestOnMainThread() {
 
   // BrowserList should be empty at this point.
   CHECK(BrowserList::GetInstance()->empty());
+
+#if BUILDFLAG(IS_CHROMEOS_LACROS)
+  if (IsCrosapiEnabled() && IsCloseAndWaitAshBrowserWindowApisSupported()) {
+    // At this point, there should NOT be any ash browser UIs(e.g. SWA, etc)
+    // open; otherwise, the tests running after the current one could be
+    // polluted if the tests are running against the shared Ash (by default).
+    VerifyNoAshBrowserWindowOpenRightNow();
+  }
+#endif
 }
 
 void InProcessBrowserTest::QuitBrowsers() {
@@ -842,9 +967,12 @@ void InProcessBrowserTest::QuitBrowsers() {
     // runs at the current thread.
     base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE, base::BindOnce(&chrome::OnAppExiting));
-    // Spin the message loop to ensure OnAppExitting finishes so that proper
+    // Spin the message loop to ensure OnAppExiting finishes so that proper
     // clean up happens before returning.
     content::RunAllPendingInMessageLoop();
+#if BUILDFLAG(IS_MAC)
+    autorelease_pool_.reset();
+#endif
     return;
   }
 
@@ -866,8 +994,7 @@ void InProcessBrowserTest::QuitBrowsers() {
   // below is necessary to pump these pending messages to ensure all Browsers
   // get deleted.
   content::RunAllPendingInMessageLoop();
-  delete autorelease_pool_;
-  autorelease_pool_ = nullptr;
+  autorelease_pool_.reset();
 #endif
 }
 
@@ -878,17 +1005,17 @@ void InProcessBrowserTest::StartUniqueAshChrome(
     const std::vector<std::string>& additional_cmdline_switches,
     const std::string& bug_number_and_reason) {
   DCHECK(!bug_number_and_reason.empty());
-  CHECK(!base::CommandLine::ForCurrentProcess()
-             ->GetSwitchValuePath("lacros-mojo-socket-for-testing")
-             .empty())
+  base::CommandLine* cmdline = base::CommandLine::ForCurrentProcess();
+  CHECK(IsCrosapiEnabled())
       << "You can only start unique ash chrome when crosapi is enabled. "
       << "It should not be necessary otherwise.";
-  CHECK(unique_ash_user_data_dir_.CreateUniqueTempDir());
+  base::FilePath ash_dir_holder = cmdline->GetSwitchValuePath("unique-ash-dir");
+  CHECK(!ash_dir_holder.empty());
+  CHECK(unique_ash_user_data_dir_.CreateUniqueTempDirUnderPath(ash_dir_holder));
   base::FilePath socket_file =
       unique_ash_user_data_dir_.GetPath().Append("lacros.sock");
 
   // Reset the current test runner connecting to the unique ash chrome.
-  base::CommandLine* cmdline = base::CommandLine::ForCurrentProcess();
   cmdline->RemoveSwitch("lacros-mojo-socket-for-testing");
   cmdline->AppendSwitchPath("lacros-mojo-socket-for-testing", socket_file);
   // Need unique socket name for wayland globally. So for each ash and lacros
@@ -912,7 +1039,14 @@ void InProcessBrowserTest::StartUniqueAshChrome(
   ash_cmdline.AppendSwitch(
       variations::switches::kEnableFieldTrialTestingConfig);
   for (const std::string& cmdline_switch : additional_cmdline_switches) {
-    ash_cmdline.AppendSwitch(cmdline_switch);
+    size_t pos = cmdline_switch.find("=");
+    if (pos == std::string::npos) {
+      ash_cmdline.AppendSwitch(cmdline_switch);
+    } else {
+      CHECK_GT(pos, 0u);
+      ash_cmdline.AppendSwitchASCII(cmdline_switch.substr(0, pos),
+                                    cmdline_switch.substr(pos + 1));
+    }
   }
 
   std::vector<std::string> all_enabled_features = {

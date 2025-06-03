@@ -104,23 +104,14 @@ otherwise too powerful to use in a post-Spectre world.
 [Cross-Origin-Resource-Policy][corp] restricts a resource to only be fetched by
 "same-origin" or "same-site" pages.
 
-* "NetworkService.CrossOriginResourcePolicy.Result" UMA histogram records the
-  result of the CORP check.
-
-  * "success": The CORP check passes successfully.
-  * "same-origin violation": "same-origin" is specified on a cross-origin
-    response.
-  * "same-origin violation with COEP involvement": No CORP header
-    is specified but that is treated as "same-origin" because the initiator
-    context enables Cross-Origin Embedder Policy (see below), and the response
-    comes from cross-origin.
-  * "same-site violation": "same-site" is specified on a cross-site response.
-
-* "NetworkService.CrossOriginResourcePolciy.ReportOnlyResult" UMA histogram
-  records the result of the CORP check, only when a
-  Cross-Origin-Embedder-Policy-Report-Only header is attached to the initiator
-  context. The format is same as
-  "NetworkService.CrossOriginResourcePolicy.Result".
+* "success": The CORP check passes successfully.
+* "same-origin violation": "same-origin" is specified on a cross-origin
+  response.
+* "same-origin violation with COEP involvement": No CORP header
+  is specified but that is treated as "same-origin" because the initiator
+  context enables Cross-Origin Embedder Policy (see below), and the response
+  comes from cross-origin.
+* "same-site violation": "same-site" is specified on a cross-site response.
 
 [Cross-Origin-Opener-Policy][coop] is used to restrict the usage of window
 openers. Pages can choose to restrict this relation to same-origin pages with
@@ -192,20 +183,20 @@ platform.
 
 [sanitizer]: https://wicg.github.io/sanitizer-api/
 
-## Local Network Access
+## Private Network Access
 
-[Local Network Access][lna] helps to prevent the user agent from
+[Private Network Access][pna] helps to prevent the user agent from
 inadvertently enabling attacks on devices running on a user's local intranet,
 or services running on the user's machine directly.
 
-* Use of LNA in workers tracked via:
+* Use of PNA in workers tracked via:
   - `kPrivateNetworkAccessFetchesWorkerScript`
   - `kPrivateNetworkAccessWithWorker`
 
 * `kPrivateNetworkAccessNullIpAddress` is an experimental use counter for
   accesses to the 0.0.0.0 IP address (and the corresponding `[::]` IPv6 address).
-  These can be used to access localhost on MacOS and Linux and bypass Local
+  These can be used to access localhost on MacOS and Linux and bypass Private
   Network Access checks. We intent to block all such requests. See
   https://crbug.com/1300021 and https://github.com/whatwg/fetch/issues/1117.
 
-[lna]: https://wicg.github.io/local-network-access/
+[pna]: https://wicg.github.io/private-network-access/

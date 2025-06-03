@@ -4,6 +4,7 @@
 
 #include "ui/views/bubble/bubble_frame_view.h"
 
+#include <algorithm>
 #include <memory>
 #include <utility>
 
@@ -13,6 +14,8 @@
 #include "build/build_config.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/skia/include/core/SkColor.h"
+#include "ui/base/metadata/metadata_header_macros.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/events/base_event_utils.h"
 #include "ui/events/event.h"
 #include "ui/gfx/geometry/insets.h"
@@ -30,6 +33,7 @@
 #include "ui/views/test/test_views.h"
 #include "ui/views/test/view_metadata_test_utils.h"
 #include "ui/views/test/views_test_base.h"
+#include "ui/views/view_class_properties.h"
 #include "ui/views/widget/widget.h"
 #include "ui/views/widget/widget_delegate.h"
 #include "ui/views/widget/widget_interactive_uitest_utils.h"
@@ -79,8 +83,9 @@ class TestBubbleFrameViewWidgetDelegate : public WidgetDelegate {
   }
 
  private:
-  const raw_ptr<Widget> widget_;
-  raw_ptr<View> contents_view_ = nullptr;  // Owned by |widget_|.
+  const raw_ptr<Widget, DanglingUntriaged> widget_;
+  raw_ptr<View, DanglingUntriaged> contents_view_ =
+      nullptr;  // Owned by |widget_|.
   bool should_show_close_ = false;
 };
 
@@ -174,7 +179,7 @@ TEST_F(BubbleFrameViewTest, GetBoundsForClientViewWithClose) {
   const gfx::Insets content_margins = frame.GetContentMargins();
   const gfx::Insets insets = frame.GetBorderInsets();
   const int close_margin =
-      frame.GetCloseButtonForTesting()->height() +
+      frame.close_button()->height() +
       LayoutProvider::Get()->GetDistanceMetric(DISTANCE_CLOSE_BUTTON_MARGIN);
   const gfx::Rect client_view_bounds = frame.GetBoundsForClientView();
   EXPECT_EQ(insets.left() + content_margins.left(), client_view_bounds.x());
@@ -921,7 +926,7 @@ TEST_F(BubbleFrameViewTest, LayoutWithHeaderAndCloseButton) {
   frame.widget_delegate()->SetShouldShowCloseButton(true);
 
   const int close_margin =
-      frame.GetCloseButtonForTesting()->height() +
+      frame.close_button()->height() +
       LayoutProvider::Get()->GetDistanceMetric(DISTANCE_CLOSE_BUTTON_MARGIN);
   const gfx::Insets content_margins = frame.GetContentMargins();
   const gfx::Insets insets = frame.GetBorderInsets();
@@ -955,6 +960,7 @@ namespace {
 
 class TestBubbleDialogDelegateView : public BubbleDialogDelegateView {
  public:
+  METADATA_HEADER(TestBubbleDialogDelegateView);
   TestBubbleDialogDelegateView()
       : BubbleDialogDelegateView(nullptr, BubbleBorder::NONE) {
     set_shadow(BubbleBorder::NO_SHADOW);
@@ -1008,6 +1014,9 @@ class TestBubbleDialogDelegateView : public BubbleDialogDelegateView {
   std::u16string subtitle_;
   bool should_show_close_ = false;
 };
+
+BEGIN_METADATA(TestBubbleDialogDelegateView, views::BubbleDialogDelegateView)
+END_METADATA
 
 class TestAnchor {
  public:
@@ -1178,7 +1187,7 @@ TEST_F(BubbleFrameViewTest, LayoutEdgeCasesWithHeader) {
 
   BubbleFrameView* frame = delegate->GetBubbleFrameView();
   const int close_margin =
-      frame->GetCloseButtonForTesting()->height() +
+      frame->close_button()->height() +
       LayoutProvider::Get()->GetDistanceMetric(DISTANCE_CLOSE_BUTTON_MARGIN);
 
   // Set a header view that is 1 dip smaller than the close button.
@@ -1467,6 +1476,29 @@ TEST_F(BubbleFrameViewTest, LayoutWithProgressIndicator) {
   EXPECT_EQ(progress_indicator->y(), 0);
   EXPECT_EQ(progress_indicator->width(),
             bubble->GetWindowBoundsInScreen().width());
+}
+
+// Close should be the next element after minimize.
+TEST_F(BubbleFrameViewTest, MinimizeBeforeClose) {
+  auto delegate_unique = std::make_unique<TestBubbleDialogDelegateView>();
+  TestBubbleDialogDelegateView* const delegate = delegate_unique.get();
+  TestAnchor anchor(CreateParams(Widget::InitParams::TYPE_WINDOW));
+  delegate->SetAnchorView(anchor.widget().GetContentsView());
+  delegate->SetShouldShowCloseButton(true);
+  delegate->SetCanMinimize(true);
+  Widget* bubble =
+      BubbleDialogDelegateView::CreateBubble(std::move(delegate_unique));
+  bubble->Show();
+
+  auto minimze_iter = std::find_if(
+      delegate->GetBubbleFrameView()->children().begin(),
+      delegate->GetBubbleFrameView()->children().end(), [](views::View* child) {
+        return child->GetProperty(views::kElementIdentifierKey) ==
+               BubbleFrameView::kMinimizeButtonElementId;
+      });
+  ASSERT_NE(minimze_iter, delegate->GetBubbleFrameView()->children().end());
+  EXPECT_EQ((*++minimze_iter)->GetProperty(views::kElementIdentifierKey),
+            BubbleFrameView::kCloseButtonElementId);
 }
 
 }  // namespace views

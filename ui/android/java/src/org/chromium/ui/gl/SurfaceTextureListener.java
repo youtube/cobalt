@@ -6,15 +6,13 @@ package org.chromium.ui.gl;
 
 import android.graphics.SurfaceTexture;
 
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
-import org.chromium.build.annotations.MainDex;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
 
 /**
  * Listener to an android SurfaceTexture object for frame availability.
  */
 @JNINamespace("gl")
-@MainDex
 class SurfaceTextureListener implements SurfaceTexture.OnFrameAvailableListener {
     // Used to determine the class instance to dispatch the native call to.
     private final long mNativeSurfaceTextureListener;

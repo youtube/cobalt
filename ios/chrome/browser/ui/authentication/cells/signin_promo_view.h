@@ -28,7 +28,6 @@
 @property(nonatomic, weak) id<SigninPromoViewDelegate> delegate;
 @property(nonatomic, assign) SigninPromoViewMode mode;
 @property(nonatomic, strong, readonly) UIImageView* imageView;
-@property(nonatomic, strong, readonly) UILabel* titleLabel;
 @property(nonatomic, strong, readonly) UILabel* textLabel;
 @property(nonatomic, strong, readonly) UIButton* primaryButton;
 @property(nonatomic, strong, readonly) UIButton* secondaryButton;
@@ -65,6 +64,9 @@
 - (void)startSignInSpinner;
 // Stops the spinner on top of the primary button, and enables all buttons.
 - (void)stopSignInSpinner;
+
+// Configures primary button using UIButtonConfiguration.
+- (void)configurePrimaryButtonWithTitle:(NSString*)title;
 
 @end
 

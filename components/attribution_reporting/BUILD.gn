@@ -7,8 +7,10 @@ import("//testing/libfuzzer/fuzzer_test.gni")
 
 mojom("mojom") {
   sources = [
-    "registration_type.mojom",
+    "registration_eligibility.mojom",
     "source_registration_error.mojom",
+    "source_registration_time_config.mojom",
+    "trigger_data_matching.mojom",
     "trigger_registration_error.mojom",
   ]
   webui_module_path = "/"
@@ -17,6 +19,21 @@ mojom("mojom") {
   # Used by Blink, so requires legacy JS bindings.
   generate_legacy_js_bindings = true
   generate_java = true
+
+  disallow_interfaces = true
+}
+
+component("features") {
+  sources = [
+    "features.cc",
+    "features.h",
+  ]
+
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
+
+  public_deps = [ "//base" ]
+
+  defines = [ "IS_ATTRIBUTION_REPORTING_FEATURES_IMPL" ]
 }
 
 component("attribution_reporting") {
@@ -32,6 +49,8 @@ component("attribution_reporting") {
     "constants.h",
     "destination_set.cc",
     "destination_set.h",
+    "event_report_windows.cc",
+    "event_report_windows.h",
     "event_trigger_data.cc",
     "event_trigger_data.h",
     "filters.cc",
@@ -46,23 +65,43 @@ component("attribution_reporting") {
     "source_type.h",
     "suitable_origin.cc",
     "suitable_origin.h",
+    "trigger_config.cc",
+    "trigger_config.h",
     "trigger_registration.cc",
     "trigger_registration.h",
   ]
 
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
+
   public_deps = [
+    ":features",
     ":mojom",
     ":source_type_mojom",
     "//base",
     "//components/aggregation_service",
-    "//components/aggregation_service:mojom",
     "//net",
     "//url",
   ]
 
-  deps = [ "//services/network/public/cpp" ]
+  deps = [ ":is_origin_suitable" ]
 
   defines = [ "IS_ATTRIBUTION_REPORTING_IMPL" ]
+}
+
+component("is_origin_suitable") {
+  sources = [
+    "is_origin_suitable.cc",
+    "is_origin_suitable.h",
+  ]
+
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
+
+  deps = [
+    "//services/network/public/cpp",
+    "//url",
+  ]
+
+  defines = [ "IS_ATTRIBUTION_REPORTING_IS_ORIGIN_SUITABLE_IMPL" ]
 }
 
 source_set("unit_tests") {
@@ -74,12 +113,14 @@ source_set("unit_tests") {
     "aggregatable_values_unittest.cc",
     "aggregation_keys_unittest.cc",
     "destination_set_unittest.cc",
+    "event_report_windows_unittest.cc",
     "event_trigger_data_unittest.cc",
     "filters_unittest.cc",
     "os_registration_unittest.cc",
     "parsing_utils_unittest.cc",
     "source_registration_unittest.cc",
     "suitable_origin_unittest.cc",
+    "trigger_config_unittest.cc",
     "trigger_registration_unittest.cc",
   ]
 
@@ -154,14 +195,16 @@ mojom("registration_mojom") {
   generate_java = true
   webui_module_path = "/"
   use_typescript_sources = true
+  disallow_interfaces = true
 
   # Used by Blink, so requires legacy JS bindings.
   generate_legacy_js_bindings = true
 
   deps = [
-    "//components/aggregation_service:mojom",
+    ":mojom",
     "//mojo/public/mojom/base",
     "//services/network/public/mojom:mojom_schemeful_site",
+    "//url/mojom:url_mojom_gurl",
     "//url/mojom:url_mojom_origin",
   ]
 
@@ -172,14 +215,6 @@ mojom("registration_mojom") {
   cpp_typemaps = [
     {
       types = [
-        {
-          mojom = "attribution_reporting.mojom.DebugKey"
-          cpp = "uint64_t"
-        },
-        {
-          mojom = "attribution_reporting.mojom.TriggerDedupKey"
-          cpp = "uint64_t"
-        },
         {
           mojom = "attribution_reporting.mojom.SuitableOrigin"
           cpp = "::attribution_reporting::SuitableOrigin"
@@ -256,6 +291,27 @@ mojom("registration_mojom") {
           forward_declaration =
               "namespace attribution_reporting { class DestinationSet; }"
         },
+        {
+          mojom = "attribution_reporting.mojom.OsRegistration"
+          cpp = "::std::vector<::attribution_reporting::OsRegistrationItem>"
+          move_only = true
+        },
+        {
+          mojom = "attribution_reporting.mojom.OsRegistrationItem"
+          cpp = "::attribution_reporting::OsRegistrationItem"
+        },
+        {
+          mojom = "attribution_reporting.mojom.EventReportWindows"
+          cpp = "::attribution_reporting::EventReportWindows"
+          forward_declaration =
+              "namespace attribution_reporting { class EventReportWindows; }"
+        },
+        {
+          mojom = "attribution_reporting.mojom.TriggerConfig"
+          cpp = "::attribution_reporting::TriggerConfig"
+          forward_declaration =
+              "namespace attribution_reporting { class TriggerConfig; }"
+        },
       ]
       traits_headers = [ "registration_mojom_traits.h" ]
       traits_public_deps = [ ":registration_mojom_traits" ]
@@ -271,13 +327,14 @@ component("registration_mojom_traits") {
     "registration_mojom_traits.h",
   ]
 
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
+
   defines = [ "IS_ATTRIBUTION_REPORTING_REGISTRATION_MOJOM_TRAITS_IMPL" ]
 
   public_deps = [
     ":attribution_reporting",
     ":registration_mojom_shared",
     "//base",
-    "//components/aggregation_service:mojom_shared",
     "//mojo/public/cpp/base:shared_typemap_traits",
     "//net",
     "//services/network/public/mojom",
@@ -290,4 +347,6 @@ mojom("source_type_mojom") {
   sources = [ "source_type.mojom" ]
   webui_module_path = "/"
   use_typescript_sources = true
+  disallow_interfaces = true
+  generate_java = false
 }

@@ -20,6 +20,7 @@
 #include "content/browser/renderer_host/render_widget_host_input_event_router.h"
 #include "content/browser/renderer_host/render_widget_host_view_base.h"
 #include "content/browser/renderer_host/render_widget_host_view_child_frame.h"
+#include "content/common/features.h"
 #include "third_party/blink/public/common/frame/frame_visual_properties.h"
 #include "third_party/blink/public/common/input/web_input_event.h"
 #include "third_party/blink/public/mojom/frame/intrinsic_sizing_info.mojom.h"
@@ -429,6 +430,7 @@ void CrossProcessFrameConnector::OnVisibilityChanged(
 
   // TODO(https://crbug.com/1014212) Remove this CHECK when the bug is fixed.
   CHECK(current_child_frame_host());
+  current_child_frame_host()->VisibilityChanged(visibility_);
 
   // If there is an inner WebContents, it should be notified of the change in
   // the visibility. The Show/Hide methods will not be called if an inner

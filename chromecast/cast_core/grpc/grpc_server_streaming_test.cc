@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 #include "base/files/scoped_temp_dir.h"
-#include "base/guid.h"
 #include "base/rand_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/synchronization/waitable_event.h"
@@ -11,6 +10,7 @@
 #include "base/test/task_environment.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/time/time.h"
+#include "base/uuid.h"
 #include "chromecast/cast_core/grpc/grpc_server.h"
 #include "chromecast/cast_core/grpc/status_matchers.h"
 #include "chromecast/cast_core/grpc/test_service.castcore.pb.h"
@@ -32,10 +32,13 @@ class GrpcServerStreamingTest : public ::testing::Test {
  protected:
   GrpcServerStreamingTest() {
     CHECK(temp_dir_.CreateUniqueTempDir());
-    endpoint_ = "unix:" +
-                temp_dir_.GetPath()
-                    .AppendASCII("cast-uds-" + base::GenerateGUID().substr(24))
-                    .value();
+    endpoint_ =
+        "unix:" +
+        temp_dir_.GetPath()
+            .AppendASCII(
+                "cast-uds-" +
+                base::Uuid::GenerateRandomV4().AsLowercaseString().substr(24))
+            .value();
   }
 
   base::test::TaskEnvironment task_environment_{
@@ -78,7 +81,7 @@ TEST_F(GrpcServerStreamingTest, ServerStreamingCallSucceeds) {
   GrpcServer server;
   server.SetHandler<ServerStreamingServiceHandler::StreamingCall>(
       std::move(call_handler));
-  server.Start(endpoint_);
+  ASSERT_THAT(server.Start(endpoint_), StatusIs(grpc::StatusCode::OK));
 
   ServerStreamingServiceStub stub(endpoint_);
   auto call = stub.CreateCall<ServerStreamingServiceStub::StreamingCall>();
@@ -111,7 +114,7 @@ TEST_F(GrpcServerStreamingTest, ServerStreamingCallFailsRightAway) {
             reactor->Write(
                 grpc::Status(grpc::StatusCode::NOT_FOUND, "not found"));
           }));
-  server.Start(endpoint_);
+  ASSERT_THAT(server.Start(endpoint_), StatusIs(grpc::StatusCode::OK));
 
   ServerStreamingServiceStub stub(endpoint_);
   auto call = stub.CreateCall<ServerStreamingServiceStub::StreamingCall>();
@@ -141,7 +144,7 @@ TEST_F(GrpcServerStreamingTest, ServerStreamingCallCancelledIfServerIsStopped) {
                         base::BindLambdaForTesting(
                             [&]() { server_stopped_event.Signal(); }));
           }));
-  server.Start(endpoint_);
+  ASSERT_THAT(server.Start(endpoint_), StatusIs(grpc::StatusCode::OK));
 
   ServerStreamingServiceStub stub(endpoint_);
   auto call = stub.CreateCall<ServerStreamingServiceStub::StreamingCall>();
@@ -193,7 +196,7 @@ TEST_F(GrpcServerStreamingTest, DISABLED_ServerStreamingCallIsCancelledByClient)
   GrpcServer server;
   server.SetHandler<ServerStreamingServiceHandler::StreamingCall>(
       std::move(call_handler));
-  server.Start(endpoint_);
+  ASSERT_THAT(server.Start(endpoint_), StatusIs(grpc::StatusCode::OK));
 
   size_t response_count = 0;
   base::WaitableEvent response_received_event{

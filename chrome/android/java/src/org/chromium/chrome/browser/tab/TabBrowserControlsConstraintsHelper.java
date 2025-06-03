@@ -5,11 +5,11 @@
 package org.chromium.chrome.browser.tab;
 
 import androidx.annotation.Nullable;
-import androidx.annotation.VisibleForTesting;
+
+import org.jni_zero.NativeMethods;
 
 import org.chromium.base.Callback;
 import org.chromium.base.UserData;
-import org.chromium.base.annotations.NativeMethods;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.cc.input.BrowserControlsState;
 import org.chromium.components.browser_ui.util.BrowserControlsVisibilityDelegate;
@@ -45,8 +45,7 @@ public class TabBrowserControlsConstraintsHelper implements UserData {
      * @param tab Tab whose browser controls state is looked into.
      * @return The current visibility constraints.
      */
-    @BrowserControlsState
-    public static int getConstraints(Tab tab) {
+    public static @BrowserControlsState int getConstraints(Tab tab) {
         if (tab == null || get(tab) == null) return BrowserControlsState.BOTH;
         return get(tab).getConstraints();
     }
@@ -139,7 +138,7 @@ public class TabBrowserControlsConstraintsHelper implements UserData {
                 updateAfterRendererProcessSwitch(tab, true);
             }
         });
-        if (mTab.isInitialized() && !TabImpl.isDetached(mTab)) updateVisibilityDelegate();
+        if (mTab.isInitialized() && !TabUtils.isDetached(mTab)) updateVisibilityDelegate();
     }
 
     @Override
@@ -178,6 +177,8 @@ public class TabBrowserControlsConstraintsHelper implements UserData {
      *                should jump immediately.
      */
     public void update(int current, boolean animate) {
+        assert mTab.getWebContents() != null : "Shouldn't update a Tab with a null WebContents.";
+
         int constraints = getConstraints();
 
         // Do nothing if current and constraints conflict to avoid error in renderer.
@@ -197,12 +198,10 @@ public class TabBrowserControlsConstraintsHelper implements UserData {
                 current, animate);
     }
 
-    @BrowserControlsState
-    private int getConstraints() {
+    private @BrowserControlsState int getConstraints() {
         return mVisibilityDelegate == null ? BrowserControlsState.BOTH : mVisibilityDelegate.get();
     }
 
-    @VisibleForTesting
     public static void setForTesting(Tab tab, TabBrowserControlsConstraintsHelper helper) {
         tab.getUserDataHost().setUserData(USER_DATA_KEY, helper);
     }

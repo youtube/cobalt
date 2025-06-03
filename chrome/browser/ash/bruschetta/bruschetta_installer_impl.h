@@ -8,8 +8,8 @@
 #include <memory>
 
 #include "base/memory/raw_ptr.h"
-#include "base/uuid.h"
 #include "base/values.h"
+#include "chrome/browser/ash/bruschetta/bruschetta_download.h"
 #include "chrome/browser/ash/bruschetta/bruschetta_installer.h"
 #include "chrome/browser/ash/bruschetta/bruschetta_util.h"
 #include "chrome/browser/ash/guest_os/guest_os_dlc_helper.h"
@@ -21,6 +21,7 @@
 class Profile;
 
 namespace bruschetta {
+class BruschettaDownload;
 
 class BruschettaInstallerImpl : public BruschettaInstaller {
  public:
@@ -36,16 +37,14 @@ class BruschettaInstallerImpl : public BruschettaInstaller {
   void Cancel() override;
   void Install(std::string vm_name, std::string config_id) override;
 
-  const base::Uuid& GetDownloadGuid() const override;
-
-  void DownloadStarted(const std::string& guid,
-                       download::DownloadParams::StartResult result) override;
-  void DownloadFailed() override;
-  void DownloadSucceeded(
-      const download::CompletionInfo& completion_info) override;
-
   void AddObserver(Observer* observer) override;
   void RemoveObserver(Observer* observer) override;
+
+  void SetDownloadFactoryForTesting(
+      base::RepeatingCallback<std::unique_ptr<BruschettaDownload>(void)>
+          callback) {
+    download_factory_ = std::move(callback);
+  }
 
  private:
   using DownloadCallback =
@@ -58,12 +57,13 @@ class BruschettaInstallerImpl : public BruschettaInstaller {
   void InstallToolsDlc();
   void OnToolsDlcInstalled(
       guest_os::GuestOsDlcInstallation::Result install_result);
-  void DownloadFirmware();
-  void OnFirmwareDownloaded(const download::CompletionInfo& completion_info);
+  void InstallFirmwareDlc();
+  void OnFirmwareDlcInstalled(
+      guest_os::GuestOsDlcInstallation::Result install_result);
   void DownloadBootDisk();
-  void OnBootDiskDownloaded(const download::CompletionInfo& completion_info);
+  void OnBootDiskDownloaded(base::FilePath path, std::string hash);
   void DownloadPflash();
-  void OnPflashDownloaded(const download::CompletionInfo& completion_info);
+  void OnPflashDownloaded(base::FilePath path, std::string hash);
   void OpenFds();
   void OnOpenFds(std::unique_ptr<Fds> fds);
   void CreateVmDisk();
@@ -86,10 +86,6 @@ class BruschettaInstallerImpl : public BruschettaInstaller {
   std::string config_id_;
   base::Value::Dict config_;
 
-  base::Uuid download_guid_;
-  DownloadCallback download_callback_;
-
-  base::FilePath firmware_path_;
   base::FilePath boot_disk_path_;
   base::FilePath pflash_path_;
   std::string disk_path_;
@@ -97,11 +93,21 @@ class BruschettaInstallerImpl : public BruschettaInstaller {
 
   std::unique_ptr<guest_os::GuestOsDlcInstallation> in_progress_dlc_;
 
-  const base::raw_ptr<Profile> profile_;
+  const raw_ptr<Profile> profile_;
+
+  // The downloaded files get deleted once these go out of scope.
+  std::unique_ptr<BruschettaDownload> boot_disk_download_;
+  std::unique_ptr<BruschettaDownload> pflash_download_;
+  base::RepeatingCallback<std::unique_ptr<BruschettaDownload>(void)>
+      download_factory_ = base::BindRepeating([]() {
+        std::unique_ptr<BruschettaDownload> d =
+            std::make_unique<SimpleURLLoaderDownload>();
+        return d;
+      });
 
   base::OnceClosure close_closure_;
 
-  base::raw_ptr<Observer> observer_ = nullptr;
+  raw_ptr<Observer> observer_ = nullptr;
 
   base::WeakPtrFactory<BruschettaInstallerImpl> weak_ptr_factory_{this};
 };

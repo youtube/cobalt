@@ -35,6 +35,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/types/optional_util.h"
+#include "components/miracle_parameter/common/public/miracle_parameter.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/loader/loading_behavior_flag.h"
 #include "third_party/blink/public/platform/platform.h"
@@ -43,13 +44,16 @@
 #include "third_party/blink/renderer/core/css/style_engine.h"
 #include "third_party/blink/renderer/core/dom/document_fragment.h"
 #include "third_party/blink/renderer/core/dom/element.h"
+#include "third_party/blink/renderer/core/execution_context/agent.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/frame/settings.h"
 #include "third_party/blink/renderer/core/html/html_document.h"
 #include "third_party/blink/renderer/core/html/html_meta_element.h"
+#include "third_party/blink/renderer/core/html/html_template_element.h"
 #include "third_party/blink/renderer/core/html/nesting_level_incrementer.h"
 #include "third_party/blink/renderer/core/html/parser/atomic_html_token.h"
 #include "third_party/blink/renderer/core/html/parser/background_html_scanner.h"
+#include "third_party/blink/renderer/core/html/parser/html_element_stack.h"
 #include "third_party/blink/renderer/core/html/parser/html_parser_metrics.h"
 #include "third_party/blink/renderer/core/html/parser/html_preload_scanner.h"
 #include "third_party/blink/renderer/core/html/parser/html_resource_preloader.h"
@@ -62,7 +66,6 @@
 #include "third_party/blink/renderer/core/probe/core_probes.h"
 #include "third_party/blink/renderer/core/script/html_parser_script_runner.h"
 #include "third_party/blink/renderer/platform/bindings/runtime_call_stats.h"
-#include "third_party/blink/renderer/platform/bindings/v8_per_isolate_data.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/heap/persistent.h"
 #include "third_party/blink/renderer/platform/instrumentation/tracing/trace_event.h"
@@ -186,51 +189,63 @@ bool IsPreloadScanningEnabled(Document* document) {
          document->GetSettings()->GetDoHtmlPreloadScanning();
 }
 
+MIRACLE_PARAMETER_FOR_TIME_DELTA(GetDefaultParserBudget,
+                                 features::kTimedHTMLParserBudget,
+                                 "default-parser-budget",
+                                 base::Milliseconds(10))
+
+// These constants were chosen using experiment data from the field to
+// optimize Core Web Vitals metrics: https://web.dev/vitals/#core-web-vitals
+// Experiments were run on both Android and desktop to determine the values
+// that gave the best aggregate CWV pass rate.
+constexpr int kNumYieldsWithDefaultBudgetDefaultValue =
+#if BUILDFLAG(IS_ANDROID)
+    2
+#else
+    6
+#endif
+    ;
+
+MIRACLE_PARAMETER_FOR_INT(GetNumYieldsWithDefaultBudget,
+                          features::kTimedHTMLParserBudget,
+                          "num-yields-with-default-budget",
+                          kNumYieldsWithDefaultBudgetDefaultValue)
+
+// These constants were chosen using experiment data from the field to
+// optimize Core Web Vitals metrics: https://web.dev/vitals/#core-web-vitals
+// Experiments were run on both Android and desktop to determine the values
+// that gave the best aggregate CWV pass rate.
+constexpr base::TimeDelta kLongParserBudgetDefaultValue =
+#if BUILDFLAG(IS_ANDROID)
+    base::Milliseconds(50)
+#else
+    base::Milliseconds(500)
+#endif
+    ;
+
+MIRACLE_PARAMETER_FOR_TIME_DELTA(GetLongParserBudget,
+                                 features::kTimedHTMLParserBudget,
+                                 "long-parser-budget",
+                                 kLongParserBudgetDefaultValue)
+
 base::TimeDelta GetDefaultTimedBudget() {
-  static const base::FeatureParam<base::TimeDelta> kDefaultParserBudgetParam{
-      &features::kTimedHTMLParserBudget, "default-parser-budget",
-      base::Milliseconds(10)};
   // Cache the value to avoid parsing the param string more than once.
   static const base::TimeDelta kDefaultParserBudgetValue =
-      kDefaultParserBudgetParam.Get();
+      GetDefaultParserBudget();
   return kDefaultParserBudgetValue;
 }
 
 base::TimeDelta GetTimedBudget(int times_yielded) {
-  static const base::FeatureParam<int> kNumYieldsWithDefaultBudgetParam {
-    &features::kTimedHTMLParserBudget, "num-yields-with-default-budget",
-    // These constants were chosen using experiment data from the field to
-    // optimize Core Web Vitals metrics: https://web.dev/vitals/#core-web-vitals
-    // Experiments were run on both Android and desktop to determine the values
-    // that gave the best aggregate CWV pass rate.
-#if BUILDFLAG(IS_ANDROID)
-        2
-#else
-        6
-#endif
-  };
   // Cache the value to avoid parsing the param string more than once.
   static const int kNumYieldsWithDefaultBudgetValue =
-      kNumYieldsWithDefaultBudgetParam.Get();
+      GetNumYieldsWithDefaultBudget();
 
-  static const base::FeatureParam<base::TimeDelta> kLongParserBudgetParam {
-    &features::kTimedHTMLParserBudget, "long-parser-budget",
-    // These constants were chosen using experiment data from the field to
-    // optimize Core Web Vitals metrics: https://web.dev/vitals/#core-web-vitals
-    // Experiments were run on both Android and desktop to determine the values
-    // that gave the best aggregate CWV pass rate.
-#if BUILDFLAG(IS_ANDROID)
-        base::Milliseconds(50)
-#else
-        base::Milliseconds(500)
-#endif
-  };
   // Cache the value to avoid parsing the param string more than once.
-  static const base::TimeDelta kLongParserBudgetValue =
-      kLongParserBudgetParam.Get();
+  static const base::TimeDelta kLongParserBudgetValue = GetLongParserBudget();
 
-  if (times_yielded <= kNumYieldsWithDefaultBudgetValue)
+  if (times_yielded <= kNumYieldsWithDefaultBudgetValue) {
     return GetDefaultTimedBudget();
+  }
   return kLongParserBudgetValue;
 }
 
@@ -643,6 +658,10 @@ bool HTMLDocumentParser::PumpTokenizer() {
           ? task_runner_state_->GetDefaultBudget()
           : kInfiniteTokenizationBudget;
 
+  if (RuntimeEnabledFeatures::HTMLParserYieldAndDelayOftenForTestingEnabled()) {
+    budget = 2;
+  }
+
   base::TimeDelta timed_budget;
   if (TimedParserBudgetEnabled())
     timed_budget = GetTimedBudget(task_runner_state_->TimesYielded());
@@ -654,6 +673,7 @@ bool HTMLDocumentParser::PumpTokenizer() {
   unsigned tokens_parsed = 0;
   int characters_consumed_before_token = 0;
   base::TimeDelta time_executing_script;
+  v8::Isolate* isolate = GetDocument()->GetAgent().isolate();
   while (true) {
     if (should_process_preloading)
       FlushPendingPreloads();
@@ -677,8 +697,7 @@ bool HTMLDocumentParser::PumpTokenizer() {
     HTMLToken* token;
     {
       RUNTIME_CALL_TIMER_SCOPE(
-          V8PerIsolateData::MainThreadIsolate(),
-          RuntimeCallStats::CounterId::kHTMLTokenizerNextToken);
+          isolate, RuntimeCallStats::CounterId::kHTMLTokenizerNextToken);
       token = tokenizer_.NextToken(input_.Current());
       if (!token)
         break;
@@ -693,7 +712,9 @@ bool HTMLDocumentParser::PumpTokenizer() {
     ConstructTreeFromToken(atomic_html_token);
     if (!should_run_until_completion && !IsPaused()) {
       DCHECK_EQ(task_runner_state_->GetMode(), kAllowDeferredParsing);
-      if (TimedParserBudgetEnabled()) {
+      if (TimedParserBudgetEnabled() &&
+          !RuntimeEnabledFeatures::
+              HTMLParserYieldAndDelayOftenForTestingEnabled()) {
         if (CheckParserBudgetLessOften()) {
           int newly_consumed_characters =
               input_.Current().NumberOfCharactersConsumed() -
@@ -752,23 +773,20 @@ bool HTMLDocumentParser::PumpTokenizer() {
   if (is_stopped_or_parsing_fragment)
     return false;
 
-  if (IsPaused()) {
-    DCHECK_EQ(tokenizer_.GetState(), HTMLTokenizer::kDataState);
-
-    if (preloader_ && !background_scanner_) {
-      if (!preload_scanner_) {
-        preload_scanner_ = CreatePreloadScanner(
-            TokenPreloadScanner::ScannerType::kMainDocument);
-        preload_scanner_->AppendToEnd(input_.Current());
-      }
-      ScanAndPreload(preload_scanner_.get());
+  if (IsPaused() && preloader_ && !background_scanner_) {
+    if (!preload_scanner_) {
+      preload_scanner_ =
+          CreatePreloadScanner(TokenPreloadScanner::ScannerType::kMainDocument);
+      preload_scanner_->AppendToEnd(input_.Current());
     }
+    ScanAndPreload(preload_scanner_.get());
   }
 
   // should_run_until_completion implies that we should not yield
   CHECK(!should_run_until_completion || !should_yield);
   if (should_yield)
     task_runner_state_->MarkYield();
+
   return should_yield;
 }
 
@@ -781,11 +799,16 @@ void HTMLDocumentParser::SchedulePumpTokenizer(bool from_finish_append) {
     // If the parser is already scheduled, there's no need to do anything.
     return;
   }
-  loading_task_runner_->PostTask(
+  base::TimeDelta delay = base::Milliseconds(0);
+  if (RuntimeEnabledFeatures::HTMLParserYieldAndDelayOftenForTestingEnabled()) {
+    delay = base::Milliseconds(10);
+  }
+  loading_task_runner_->PostDelayedTask(
       FROM_HERE,
       WTF::BindOnce(&HTMLDocumentParser::DeferredPumpTokenizerIfPossible,
                     WrapPersistent(this), from_finish_append,
-                    base::TimeTicks::Now()));
+                    base::TimeTicks::Now()),
+      delay);
   task_runner_state_->SetState(
       HTMLDocumentParserState::DeferredParserState::kScheduled);
 
@@ -1226,6 +1249,20 @@ void HTMLDocumentParser::ParseDocumentFragment(
     ParserContentPolicy parser_content_policy) {
   auto* parser = MakeGarbageCollected<HTMLDocumentParser>(
       fragment, context_element, parser_content_policy);
+
+  if (RuntimeEnabledFeatures::DOMPartsAPIEnabled()) {
+    // Within templates containing the `parseparts` attribute, allow parsing
+    // DOM Parts. Otherwise do not parse any DOM Part content.
+    DOMPartsAllowed parts_allowed{DOMPartsAllowed::kNever};
+    if (auto* template_element =
+            DynamicTo<HTMLTemplateElement>(context_element);
+        template_element &&
+        template_element->hasAttribute(html_names::kParsepartsAttr)) {
+      parts_allowed = DOMPartsAllowed::kAlways;
+    }
+    parser->tree_builder_->SetDOMPartsAllowedState(parts_allowed);
+  }
+
   parser->Append(source);
   parser->Finish();
   // Allows ~DocumentParser to assert it was detached before destruction.
@@ -1263,9 +1300,9 @@ void HTMLDocumentParser::DocumentElementAvailable() {
   DCHECK(document);
   DCHECK(document->documentElement());
   Element* documentElement = GetDocument()->documentElement();
-  if (documentElement->hasAttribute(u"\u26A1") ||
-      documentElement->hasAttribute("amp") ||
-      documentElement->hasAttribute("i-amphtml-layout")) {
+  if (documentElement->hasAttribute(AtomicString(u"\u26A1")) ||
+      documentElement->hasAttribute(AtomicString("amp")) ||
+      documentElement->hasAttribute(AtomicString("i-amphtml-layout"))) {
     // The DocumentLoader fetches a main resource and handles the result.
     // But it may not be available if JavaScript appends HTML to the page later
     // in the page's lifetime. This can happen both from in-page JavaScript and
@@ -1329,6 +1366,14 @@ void HTMLDocumentParser::ProcessPreloadData(
             base::OptionalToPtr(preload_data->viewport),
             PreloadHelper::LoadLinksFromHeaderMode::
                 kDocumentAfterCommitWithViewport);
+      }
+      if (base::FeatureList::IsEnabled(
+              blink::features::kLCPPFontURLPredictor)) {
+        TRACE_EVENT0("blink", "HTMLDocumentParser::DispatchLcppFontPreloads");
+        GetDocument()->Loader()->DispatchLcppFontPreloads(
+            base::OptionalToPtr(preload_data->viewport),
+            PreloadHelper::LoadLinksFromHeaderMode::
+                kSubresourceNotFromMemoryCache);
       }
       if (GetDocument()->Loader()->GetPrefetchedSignedExchangeManager()) {
         TRACE_EVENT0("blink",

@@ -9,6 +9,8 @@ import 'chrome://resources/cr_elements/cr_auto_img/cr_auto_img.js';
 import 'chrome://resources/cr_elements/cr_toast/cr_toast.js';
 import './icons.html.js';
 
+import {ShoppingListApiProxy, ShoppingListApiProxyImpl} from '//bookmarks-side-panel.top-chrome/shared/commerce/shopping_list_api_proxy.js';
+import {BookmarkProductInfo} from '//bookmarks-side-panel.top-chrome/shared/shopping_list.mojom-webui.js';
 import {CrToastElement} from 'chrome://resources/cr_elements/cr_toast/cr_toast.js';
 import {getFaviconForPageURL} from 'chrome://resources/js/icon.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
@@ -16,10 +18,8 @@ import {DomRepeatEvent, PolymerElement} from 'chrome://resources/polymer/v3_0/po
 
 import {ActionSource} from '../bookmarks.mojom-webui.js';
 import {BookmarksApiProxy, BookmarksApiProxyImpl} from '../bookmarks_api_proxy.js';
-import {BookmarkProductInfo} from '../shopping_list.mojom-webui.js';
 
 import {getTemplate} from './shopping_list.html.js';
-import {ShoppingListApiProxy, ShoppingListApiProxyImpl} from './shopping_list_api_proxy.js';
 
 export const LOCAL_STORAGE_EXPAND_STATUS_KEY = 'shoppingListExpanded';
 export const ACTION_BUTTON_TRACK_IMAGE =
@@ -81,10 +81,11 @@ export class ShoppingListElement extends PolymerElement {
             (product: BookmarkProductInfo) =>
                 this.onBookmarkPriceTracked(product)),
         callbackRouter.priceUntrackedForBookmark.addListener(
-            (bookmarkId: bigint) => this.onBookmarkPriceUntracked(bookmarkId)),
+            (product: BookmarkProductInfo) =>
+                this.onBookmarkPriceUntracked(product)),
         callbackRouter.operationFailedForBookmark.addListener(
-            (bookmarkId: bigint, attemptedTrack: boolean) =>
-                this.onBookmarkOperationFailed(bookmarkId, attemptedTrack)),
+            (product: BookmarkProductInfo, attemptedTrack: boolean) =>
+                this.onBookmarkOperationFailed(product, attemptedTrack)),
     );
     try {
       this.open_ =
@@ -215,9 +216,9 @@ export class ShoppingListElement extends PolymerElement {
     }
   }
 
-  private onBookmarkPriceUntracked(bookmarkId: bigint) {
+  private onBookmarkPriceUntracked(product: BookmarkProductInfo) {
     const untrackedItem =
-        this.productInfos.find(item => item.bookmarkId === bookmarkId);
+        this.productInfos.find(item => item.bookmarkId === product.bookmarkId);
     if (untrackedItem == null) {
       return;
     }
@@ -255,12 +256,12 @@ export class ShoppingListElement extends PolymerElement {
   }
 
   private onBookmarkOperationFailed(
-      bookmarkId: bigint, attemptedTrack: boolean) {
+      product: BookmarkProductInfo, attemptedTrack: boolean) {
     this.retryOperationCallback_ = () => {
       if (attemptedTrack) {
-        this.shoppingListApi_.trackPriceForBookmark(bookmarkId);
+        this.shoppingListApi_.trackPriceForBookmark(product.bookmarkId);
       } else {
-        this.shoppingListApi_.untrackPriceForBookmark(bookmarkId);
+        this.shoppingListApi_.untrackPriceForBookmark(product.bookmarkId);
       }
     };
     this.$.errorToast.show();

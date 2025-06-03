@@ -8,6 +8,7 @@
 
 #include "ash/constants/ash_features.h"
 #include "ash/public/cpp/holding_space/holding_space_controller.h"
+#include "ash/public/cpp/holding_space/holding_space_file.h"
 #include "ash/public/cpp/holding_space/holding_space_image.h"
 #include "ash/public/cpp/holding_space/holding_space_item.h"
 #include "ash/public/cpp/holding_space/holding_space_metrics.h"
@@ -57,7 +58,8 @@ std::unique_ptr<HoldingSpaceImage> CreateTestHoldingSpaceImage(
 // downloads directory, and returns the path to the copy.
 base::FilePath TestFile(Profile* profile, const std::string& relative_path) {
   base::FilePath source_root;
-  EXPECT_TRUE(base::PathService::Get(base::DIR_SOURCE_ROOT, &source_root));
+  EXPECT_TRUE(
+      base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &source_root));
   const base::FilePath source_file =
       source_root.AppendASCII(kTestDataDir).AppendASCII(relative_path);
 
@@ -123,7 +125,7 @@ IN_PROC_BROWSER_TEST_F(HoldingSpaceClientImplTest, AddItemOfType) {
     const HoldingSpaceItem* item = model->items().back().get();
     EXPECT_EQ(item->id(), expected_id);
     EXPECT_EQ(item->type(), expected_type);
-    EXPECT_EQ(item->file_path(), expected_file_path);
+    EXPECT_EQ(item->file().file_path, expected_file_path);
   }
 }
 
@@ -244,8 +246,11 @@ IN_PROC_BROWSER_TEST_F(HoldingSpaceClientImplTest, OpenItems) {
   {
     // Create a holding space item backed by a non-existing file.
     auto holding_space_item = HoldingSpaceItem::CreateFileBackedItem(
-        HoldingSpaceItem::Type::kDownload, base::FilePath("foo.pdf"),
-        GURL("filesystem:fake"), base::BindOnce(&CreateTestHoldingSpaceImage));
+        HoldingSpaceItem::Type::kDownload,
+        HoldingSpaceFile(base::FilePath("foo.pdf"),
+                         HoldingSpaceFile::FileSystemType::kTest,
+                         GURL("filesystem:fake")),
+        base::BindOnce(&CreateTestHoldingSpaceImage));
 
     // We expect `HoldingSpaceClient::OpenItems()` to fail when the backing file
     // for `holding_space_item` does not exist.
@@ -262,7 +267,7 @@ IN_PROC_BROWSER_TEST_F(HoldingSpaceClientImplTest, OpenItems) {
           histogram_tester.ExpectBucketCount(
               "HoldingSpace.Item.FailureToLaunch.Extension",
               holding_space_metrics::FilePathToExtension(
-                  holding_space_item->file_path()),
+                  holding_space_item->file().file_path),
               1);
 
           run_loop.Quit();
@@ -304,8 +309,11 @@ IN_PROC_BROWSER_TEST_F(HoldingSpaceClientImplTest, ShowItemInFolder) {
   {
     // Create a holding space item backed by a non-existing file.
     auto holding_space_item = HoldingSpaceItem::CreateFileBackedItem(
-        HoldingSpaceItem::Type::kDownload, base::FilePath("foo"),
-        GURL("filesystem:fake"), base::BindOnce(&CreateTestHoldingSpaceImage));
+        HoldingSpaceItem::Type::kDownload,
+        HoldingSpaceFile(base::FilePath("foo"),
+                         HoldingSpaceFile::FileSystemType::kTest,
+                         GURL("filesystem:fake")),
+        base::BindOnce(&CreateTestHoldingSpaceImage));
 
     // We expect `HoldingSpaceClient::ShowItemInFolder()` to fail when the
     // backing file for `holding_space_item` does not exist.
@@ -357,7 +365,8 @@ IN_PROC_BROWSER_TEST_F(HoldingSpaceClientImplTest, PinItems) {
   HoldingSpaceItem* pinned_file_item = holding_space_model->items()[1].get();
   EXPECT_EQ(pinned_file_item->type(), HoldingSpaceItem::Type::kPinnedFile);
   EXPECT_EQ(download_item->GetText(), pinned_file_item->GetText());
-  EXPECT_EQ(download_item->file_path(), pinned_file_item->file_path());
+  EXPECT_EQ(download_item->file().file_path,
+            pinned_file_item->file().file_path);
 }
 
 // Verifies that `HoldingSpaceClient::UnpinItems()` works as intended.

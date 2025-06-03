@@ -67,13 +67,29 @@ enum class ManagePasswordsReferrer {
   // feature from settings.
   kBiometricAuthenticationBeforeFillingDialog = 15,
 
-  // On Desktop, the Password Manager item was clicked in the Chrome menu.
+  // The Password Manager item was clicked in the Chrome menu.
   kChromeMenuItem = 16,
+
+  // On Desktop, the bubble that notifies the user that some of the password
+  // stored for the current site have been received via the password sharing
+  // feature from other users.
+  kSharedPasswordsNotificationBubble = 17,
+
+  // On iOS, the Search Passwords homescreen widget that opens the Password
+  // manager in search mode.
+  kSearchPasswordsWidget = 18,
+
+  // On Desktop, the Google Password Manager link was clicked in the footer of
+  // AddUsername bubble.
+  kAddUsernameBubble = 19,
+
+  // On iOS, the "Manage Passwords" omnibox pedal suggestion was tapped.
+  kOmniboxPedalSuggestion = 20,
 
   // NOTE: When adding a new value to this enum that applies or could apply to
   // Android, make sure it is correctly handled by the internal credential
   // manager launcher java implementation.
-  kMaxValue = kChromeMenuItem,
+  kMaxValue = kOmniboxPedalSuggestion,
 };
 
 }  // namespace password_manager

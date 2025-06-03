@@ -21,7 +21,7 @@ import {PrefsMixin} from 'chrome://resources/cr_components/settings_prefs/prefs_
 import {getInstance as getAnnouncerInstance} from 'chrome://resources/cr_elements/cr_a11y_announcer/cr_a11y_announcer.js';
 import {CrButtonElement} from 'chrome://resources/cr_elements/cr_button/cr_button.js';
 import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
-import {assert} from 'chrome://resources/js/assert_ts.js';
+import {assert} from 'chrome://resources/js/assert.js';
 import {focusWithoutInk} from 'chrome://resources/js/focus_without_ink.js';
 import {sanitizeInnerHtml} from 'chrome://resources/js/parse_html_subset.js';
 import {PluralStringProxyImpl} from 'chrome://resources/js/plural_string_proxy.js';
@@ -211,7 +211,7 @@ export class PasswordsSectionElement extends PasswordsSectionElementBase {
     }
   }
 
-  public focusFirstResult() {
+  focusFirstResult() {
     if (!this.searchTerm_) {
       // If search term is empty don't do anything.
       return;
@@ -376,6 +376,28 @@ export class PasswordsSectionElement extends PasswordsSectionElementBase {
 
       focusWithoutInk(this.activeListItem_);
     });
+  }
+
+  private computeSortFunction_(searchTerm: string):
+      ((a: chrome.passwordsPrivate.CredentialGroup,
+        b: chrome.passwordsPrivate.CredentialGroup) => number)|null {
+    // Keep current order when not searching.
+    if (!searchTerm) {
+      return null;
+    }
+
+    // Always show group with matching name in the top, fallback to alphabetical
+    // order when matching type is the same.
+    return function(
+        a: chrome.passwordsPrivate.CredentialGroup,
+        b: chrome.passwordsPrivate.CredentialGroup) {
+      const doesNameMatchA = a.name.toLowerCase().includes(searchTerm);
+      const doesNameMatchB = b.name.toLowerCase().includes(searchTerm);
+      if (doesNameMatchA === doesNameMatchB) {
+        return a.name.localeCompare(b.name);
+      }
+      return doesNameMatchA ? -1 : 1;
+    };
   }
 }
 

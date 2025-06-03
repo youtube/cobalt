@@ -197,7 +197,7 @@ void HandleDisableCodeGenerationParam(
 
 }  // namespace
 
-void RegisterWebInstanceProductData(base::StringPiece component_url) {
+void RegisterWebInstanceProductData(base::StringPiece absolute_component_url) {
   // LINT.IfChange(web_engine_crash_product_name)
   static constexpr char kCrashProductName[] = "FuchsiaWebEngine";
   // LINT.ThenChange(//fuchsia_web/webengine/context_provider_main.cc:web_engine_crash_product_name)
@@ -205,7 +205,7 @@ void RegisterWebInstanceProductData(base::StringPiece component_url) {
   static constexpr char kFeedbackAnnotationsNamespace[] = "web-engine";
 
   fuchsia_component_support::RegisterProductDataForCrashReporting(
-      component_url, kCrashProductName);
+      absolute_component_url, kCrashProductName);
 
   fuchsia_component_support::RegisterProductDataForFeedback(
       kFeedbackAnnotationsNamespace);
@@ -456,8 +456,6 @@ void AppendDynamicServices(fuchsia::web::ContextFeatureFlags features,
      "fuchsia.ui.composition.Allocator"},
     {ContextFeatureFlags::HEADLESS, kNoFeaturesRequested,
      "fuchsia.ui.composition.Flatland"},
-    {ContextFeatureFlags::HEADLESS, kNoFeaturesRequested,
-     "fuchsia.ui.scenic.Scenic"},
 #if BUILDFLAG(ENABLE_CAST_RECEIVER)
     {ContextFeatureFlags::LEGACYMETRICS, ContextFeatureFlags::LEGACYMETRICS,
      "fuchsia.legacymetrics.MetricsRecorder"},

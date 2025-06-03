@@ -5,40 +5,45 @@
 #ifndef ASH_WEBUI_ECHE_APP_UI_ACCESSIBILITY_TREE_CONVERTER_H_
 #define ASH_WEBUI_ECHE_APP_UI_ACCESSIBILITY_TREE_CONVERTER_H_
 
-#include <memory>
-
-#include "ash/components/arc/mojom/accessibility_helper.mojom.h"
 #include "ash/webui/eche_app_ui/proto/accessibility_mojom.pb.h"
+#include "services/accessibility/android/public/mojom/accessibility_helper.mojom.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "ui/accessibility/ax_action_data.h"
 
 namespace {
 
-using AXEventData = arc::mojom::AccessibilityEventData;
-using AXEventType = arc::mojom::AccessibilityEventType;
-using AXNodeData = arc::mojom::AccessibilityNodeInfoData;
-using AXWindowData = arc::mojom::AccessibilityWindowInfoData;
+using AXEventData = ax::android::mojom::AccessibilityEventData;
+using AXEventType = ax::android::mojom::AccessibilityEventType;
+using AXNodeData = ax::android::mojom::AccessibilityNodeInfoData;
+using AXWindowData = ax::android::mojom::AccessibilityWindowInfoData;
 
 // Event Properties
-using AXEventIntProperty = arc::mojom::AccessibilityEventIntProperty;
-using AXEventIntListProperty = arc::mojom::AccessibilityEventIntListProperty;
-using AXEventStringProperty = arc::mojom::AccessibilityEventStringProperty;
+using AXEventIntProperty = ax::android::mojom::AccessibilityEventIntProperty;
+using AXEventIntListProperty =
+    ax::android::mojom::AccessibilityEventIntListProperty;
+using AXEventStringProperty =
+    ax::android::mojom::AccessibilityEventStringProperty;
 
 // Node Properties
-using AXIntProperty = arc::mojom::AccessibilityIntProperty;
-using AXStringProperty = arc::mojom::AccessibilityStringProperty;
-using AXIntListProperty = arc::mojom::AccessibilityIntListProperty;
-using AXBoolProperty = arc::mojom::AccessibilityBooleanProperty;
+using AXIntProperty = ax::android::mojom::AccessibilityIntProperty;
+using AXStringProperty = ax::android::mojom::AccessibilityStringProperty;
+using AXIntListProperty = ax::android::mojom::AccessibilityIntListProperty;
+using AXBoolProperty = ax::android::mojom::AccessibilityBooleanProperty;
 
 // Window Properties
-using AXWindowBoolProperty = arc::mojom::AccessibilityWindowBooleanProperty;
-using AXWindowIntProperty = arc::mojom::AccessibilityWindowIntProperty;
-using AXWindowIntListProperty = arc::mojom::AccessibilityWindowIntListProperty;
-using AXWindowStringProperty = arc::mojom::AccessibilityWindowStringProperty;
-using AXWindowType = arc::mojom::AccessibilityWindowType;
+using AXWindowBoolProperty =
+    ax::android::mojom::AccessibilityWindowBooleanProperty;
+using AXWindowIntProperty = ax::android::mojom::AccessibilityWindowIntProperty;
+using AXWindowIntListProperty =
+    ax::android::mojom::AccessibilityWindowIntListProperty;
+using AXWindowStringProperty =
+    ax::android::mojom::AccessibilityWindowStringProperty;
+using AXWindowType = ax::android::mojom::AccessibilityWindowType;
 
 // Other
-using AXRangeType = arc::mojom::AccessibilityRangeType;
-using AXSelectionMode = arc::mojom::AccessibilitySelectionMode;
-using AXSpanType = arc::mojom::SpanType;
+using AXRangeType = ax::android::mojom::AccessibilityRangeType;
+using AXSelectionMode = ax::android::mojom::AccessibilitySelectionMode;
+using AXSpanType = ax::android::mojom::SpanType;
 }  // namespace
 
 namespace ash::eche_app {
@@ -50,9 +55,17 @@ class AccessibilityTreeConverter {
  public:
   AccessibilityTreeConverter();
   ~AccessibilityTreeConverter();
+
   // Proto is ash/webui/eche_app_ui/proto/accessibility_mojom.proto
+  bool DeserializeProto(const std::vector<uint8_t>& serialized_proto,
+                        proto::AccessibilityEventData* out_proto);
+
   mojo::StructPtr<AXEventData> ConvertEventDataProtoToMojom(
-      const std::vector<uint8_t>& serialized_proto);
+      proto::AccessibilityEventData& in_data);
+
+  absl::optional<proto::AccessibilityActionData> ConvertActionDataToProto(
+      const ui::AXActionData& data,
+      int32_t window_id);
 
  private:
   // Utility Functions
@@ -82,7 +95,8 @@ class AccessibilityTreeConverter {
           in_properties,
       absl::optional<base::flat_map<MojomKeyType, std::vector<MojomValueType>>>&
           out_properties,
-      base::RepeatingCallback<bool(ProtoValueType, MojomValueType*)> tranform);
+      base::RepeatingCallback<bool(ProtoValueType,
+                                   absl::optional<MojomValueType>&)> tranform);
 
   template <class ProtoPropertyPairType,
             class MojomKeyType,

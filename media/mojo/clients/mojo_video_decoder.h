@@ -120,6 +120,7 @@ class MojoVideoDecoder final : public VideoDecoder,
   // Manages VideoFrame destruction callbacks.
   scoped_refptr<MojoVideoFrameHandleReleaser> mojo_video_frame_handle_releaser_;
 
+  // `gpu_factories_` is not immortal when provided by ThumbnailMediaParserImpl.
   raw_ptr<GpuVideoAcceleratorFactories> gpu_factories_ = nullptr;
 
   // Raw pointer is safe since both `this` and the `media_log` are owned by
@@ -130,7 +131,7 @@ class MojoVideoDecoder final : public VideoDecoder,
   OutputCB output_cb_;
   WaitingCB waiting_cb_;
   uint64_t decode_counter_ = 0;
-  std::map<uint64_t, DecodeCB> pending_decodes_;
+  base::flat_map<uint64_t, DecodeCB> pending_decodes_;
   base::OnceClosure reset_cb_;
 
   // DecodeBuffer/VideoFrame timestamps for histogram/tracing purposes. Must be

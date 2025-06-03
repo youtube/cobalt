@@ -131,9 +131,6 @@ depends on its arguments.
   considered.
 * You can also explicitly pass a list of test names, and then just those tests
   will be rebaselined.
-* If some of the try jobs failed to run, and you wish to continue rebaselining
-  assuming that there are no platform-specific results for those platforms,
-  you can add the flag `--fill-missing`.
 * By default, it finds the try jobs by looking at the latest patchset. If you
   have finished try jobs that are associated with an earlier patchset and you
   want to use them instead of scheduling new try jobs, you can add the flag
@@ -291,7 +288,7 @@ The syntax of a line is roughly:
 * If specified, modifiers must be one of `Fuchsia`, `Mac`, `Mac10.13`,
   `Mac10.14`, `Mac10.15`, `Mac11`, `Mac11-arm64`, `Mac12`, `Mac12-arm64`,
   `Mac13`, `Mac13-arm64`, `Linux`, `Trusty`, `Win`, `Win10.20h2`,
-  `Win11`, and, optionally, `Release`, or `Debug`. Check the top of
+  `Win11`, `iOS16-Simulator`, and, optionally, `Release`, or `Debug`. Check the top of
   [TestExpectations](../../third_party/blink/web_tests/TestExpectations) or the
   `ALL_SYSTEMS` macro in
   [third_party/blink/tools/blinkpy/web_tests/port/base.py](../../third_party/blink/tools/blinkpy/web_tests/port/base.py)

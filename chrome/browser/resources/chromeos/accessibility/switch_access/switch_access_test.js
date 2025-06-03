@@ -9,8 +9,10 @@ SwitchAccessSwitchAccessTest = class extends SwitchAccessE2ETest {
   /** @override */
   async setUpDeferred() {
     await super.setUpDeferred();
-    await importModule('Flags', '/common/flags.js');
-    await importModule('SwitchAccess', '/switch_access/switch_access.js');
+    await Promise.all([
+      importModule('Flags', '/common/flags.js'),
+      importModule('SwitchAccess', '/switch_access/switch_access.js'),
+    ]);
   }
 
   async waitForCallback() {
@@ -20,19 +22,21 @@ SwitchAccessSwitchAccessTest = class extends SwitchAccessE2ETest {
 
 function resetState() {
   delete Flags.instance;
+  delete SwitchAccess.instance;
 }
 
 AX_TEST_F(
     'SwitchAccessSwitchAccessTest', 'NoFocusDefersInit', async function() {
+      await this.runWithLoadedTree('');
       // Build a new SwitchAccess instance with hooks.
       let initCount = 0;
-      const oldInit = SwitchAccess.initialize;
-      SwitchAccess.initialize = async () => {
-        await oldInit();
+      const oldInit = SwitchAccess.init;
+      SwitchAccess.init = async (...args) => {
+        await oldInit(...args);
         initCount++;
         assertNotNullNorUndefined(this.promiseCallback);
         this.promiseCallback();
-        delete this.promiseCallback();
+        delete this.promiseCallback;
       };
 
       // Stub this out so that focus is undefined.
@@ -48,7 +52,7 @@ AX_TEST_F(
 
       // Initialize; we should not have incremented initCount since there's no
       // focus.
-      SwitchAccess.initialize();
+      SwitchAccess.init(this.desktop);
       await this.waitForCallback();
       assertEquals(0, initCount);
 
@@ -57,7 +61,7 @@ AX_TEST_F(
 
       // Restub this to pass a "focused" node.
       chrome.automation.getFocus = callback => callback({});
-      SwitchAccess.initialize();
+      SwitchAccess.init(this.desktop);
       await this.waitForCallback();
       assertEquals(1, initCount);
     });

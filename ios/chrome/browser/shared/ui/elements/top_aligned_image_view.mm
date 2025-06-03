@@ -4,10 +4,6 @@
 
 #import "ios/chrome/browser/shared/ui/elements/top_aligned_image_view.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 @interface TopAlignedImageView ()
 // The backing image view.
 @property(nonatomic, weak) UIImageView* innerImageView;
@@ -30,20 +26,20 @@
 
 - (void)layoutSubviews {
   [super layoutSubviews];
-  if (!self.image) {
+  const CGSize imageSize = self.image.size;
+  if (imageSize.width == 0 || imageSize.height == 0) {
     return;
   }
-  CGFloat widthScaleFactor = CGRectGetWidth(self.frame) / self.image.size.width;
-  CGFloat heightScaleFactor =
-      CGRectGetHeight(self.frame) / self.image.size.height;
+  CGFloat widthScaleFactor = CGRectGetWidth(self.frame) / imageSize.width;
+  CGFloat heightScaleFactor = CGRectGetHeight(self.frame) / imageSize.height;
   CGFloat imageViewWidth;
   CGFloat imageViewHeight;
-  if (self.image.size.width > self.image.size.height) {
-    imageViewWidth = self.image.size.width * heightScaleFactor;
+  if (imageSize.width > imageSize.height) {
+    imageViewWidth = imageSize.width * heightScaleFactor;
     imageViewHeight = CGRectGetHeight(self.frame);
   } else {
     imageViewWidth = CGRectGetWidth(self.frame);
-    imageViewHeight = self.image.size.height * widthScaleFactor;
+    imageViewHeight = imageSize.height * widthScaleFactor;
   }
   self.innerImageView.frame =
       CGRectMake((self.frame.size.width - imageViewWidth) / 2.0f, 0,

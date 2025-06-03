@@ -5,28 +5,46 @@
 import 'chrome://shortcut-customization/js/accelerator_row.js';
 import 'chrome://webui-test/mojo_webui_test_support.js';
 
+import {strictQuery} from 'chrome://resources/ash/common/typescript_utils/strict_query.js';
+import {CrIconButtonElement} from 'chrome://resources/cr_elements/cr_icon_button/cr_icon_button.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
+import {stringToMojoString16} from 'chrome://resources/js/mojo_type_util.js';
 import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import {AcceleratorLookupManager} from 'chrome://shortcut-customization/js/accelerator_lookup_manager.js';
 import {AcceleratorRowElement} from 'chrome://shortcut-customization/js/accelerator_row.js';
+import {fakeAcceleratorConfig, fakeLayoutInfo} from 'chrome://shortcut-customization/js/fake_data.js';
 import {InputKeyElement} from 'chrome://shortcut-customization/js/input_key.js';
-import {stringToMojoString16} from 'chrome://shortcut-customization/js/mojo_utils.js';
-import {AcceleratorSource, LayoutStyle, Modifier, TextAcceleratorPartType} from 'chrome://shortcut-customization/js/shortcut_types.js';
+import {AcceleratorSource, AcceleratorState, LayoutStyle, Modifier, TextAcceleratorPartType} from 'chrome://shortcut-customization/js/shortcut_types.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {flushTasks, waitAfterNextRender} from 'chrome://webui-test/polymer_test_util.js';
+import {isVisible} from 'chrome://webui-test/test_util.js';
 
 import {createTextAcceleratorInfo, createUserAcceleratorInfo} from './shortcut_customization_test_util.js';
 
-export function initAcceleratorRowElement(): AcceleratorRowElement {
+export function initAcceleratorRowElement(layoutStyle: LayoutStyle):
+    AcceleratorRowElement {
   const element = document.createElement('accelerator-row');
   document.body.appendChild(element);
   flush();
+  element.layoutStyle = layoutStyle;
   return element;
 }
 
 suite('acceleratorRowTest', function() {
   let rowElement: AcceleratorRowElement|null = null;
+  let manager: AcceleratorLookupManager|null = null;
+
+  setup(() => {
+    // Set up manager.
+    manager = AcceleratorLookupManager.getInstance();
+    manager.setAcceleratorLookup(fakeAcceleratorConfig);
+    manager.setAcceleratorLayoutLookup(fakeLayoutInfo);
+  });
 
   teardown(() => {
+    if (manager) {
+      manager.reset();
+    }
     if (rowElement) {
       rowElement.remove();
     }
@@ -34,8 +52,8 @@ suite('acceleratorRowTest', function() {
   });
 
   test('LoadsBasicRow', async () => {
-    loadTimeData.overrideValues({isCustomizationEnabled: true});
-    rowElement = initAcceleratorRowElement();
+    loadTimeData.overrideValues({isCustomizationAllowed: true});
+    rowElement = initAcceleratorRowElement(LayoutStyle.kDefault);
     const acceleratorInfo1 = createUserAcceleratorInfo(
         Modifier.CONTROL | Modifier.SHIFT,
         /*key=*/ 71,
@@ -51,7 +69,6 @@ suite('acceleratorRowTest', function() {
 
     rowElement.acceleratorInfos = accelerators;
     rowElement.description = description;
-    rowElement.layoutStyle = LayoutStyle.kDefault;
     await flush();
     const acceleratorElements =
         rowElement!.shadowRoot!.querySelectorAll('accelerator-view');
@@ -86,8 +103,8 @@ suite('acceleratorRowTest', function() {
   });
 
   test('ShowDialogOnClickWhenCustomizationEnabled', async () => {
-    loadTimeData.overrideValues({isCustomizationEnabled: true});
-    rowElement = initAcceleratorRowElement();
+    loadTimeData.overrideValues({isCustomizationAllowed: true});
+    rowElement = initAcceleratorRowElement(LayoutStyle.kDefault);
     waitAfterNextRender(rowElement);
 
     const acceleratorInfo1 = createUserAcceleratorInfo(
@@ -100,8 +117,8 @@ suite('acceleratorRowTest', function() {
 
     rowElement.acceleratorInfos = accelerators;
     rowElement.description = description;
-    rowElement.source = AcceleratorSource.kBrowser;
-    rowElement.layoutStyle = LayoutStyle.kDefault;
+    rowElement.source = AcceleratorSource.kAsh;
+    rowElement.action = 0;
 
     let showDialogListenerCalled = false;
     rowElement.addEventListener('show-edit-dialog', () => {
@@ -110,18 +127,23 @@ suite('acceleratorRowTest', function() {
 
     await flushTasks();
 
-    const rowContainer =
-        rowElement.shadowRoot!.querySelector('#container') as HTMLDivElement;
-    rowContainer.click();
+    const acceleratorViewElement =
+        rowElement!.shadowRoot!.querySelectorAll('accelerator-view');
+    assertEquals(1, acceleratorViewElement.length);
+    const editButton = strictQuery(
+        '.edit-button', acceleratorViewElement[0]!.shadowRoot,
+        CrIconButtonElement);
+
+    editButton.click();
 
     await flushTasks();
 
     assertTrue(showDialogListenerCalled);
   });
 
-  test('DontShowDialogOnClickWhenCustomizationDisabled', async () => {
-    loadTimeData.overrideValues({isCustomizationEnabled: false});
-    rowElement = initAcceleratorRowElement();
+  test('EditIconHiddenWhenCustomizationDisabled', async () => {
+    loadTimeData.overrideValues({isCustomizationAllowed: false});
+    rowElement = initAcceleratorRowElement(LayoutStyle.kDefault);
     waitAfterNextRender(rowElement);
 
     const acceleratorInfo1 = createUserAcceleratorInfo(
@@ -134,57 +156,26 @@ suite('acceleratorRowTest', function() {
 
     rowElement.acceleratorInfos = accelerators;
     rowElement.description = description;
-    rowElement.source = AcceleratorSource.kBrowser;
-    rowElement.layoutStyle = LayoutStyle.kDefault;
-
-    let showDialogListenerCalled = false;
-    rowElement.addEventListener('show-edit-dialog', () => {
-      showDialogListenerCalled = true;
-    });
+    rowElement.source = AcceleratorSource.kAsh;
+    rowElement.action = 0;
 
     await flushTasks();
 
-    const rowContainer =
-        rowElement.shadowRoot!.querySelector('#container') as HTMLDivElement;
-    rowContainer.click();
+    const acceleratorViewElement =
+        rowElement!.shadowRoot!.querySelectorAll('accelerator-view');
+    assertEquals(1, acceleratorViewElement.length);
 
-    await flushTasks();
+    const editIconContainerElement = strictQuery(
+        '.edit-icon-container', acceleratorViewElement[0]!.shadowRoot,
+        HTMLDivElement);
 
-    assertFalse(showDialogListenerCalled);
-  });
 
-  test('DontShowDialogForTextAccelerators', async () => {
-    loadTimeData.overrideValues({isCustomizationEnabled: true});
-    rowElement = initAcceleratorRowElement();
-    waitAfterNextRender(rowElement);
-    const accelerators = [createTextAcceleratorInfo([{
-      text: stringToMojoString16('ctrl'),
-      type: TextAcceleratorPartType.kModifier,
-    }])];
-
-    rowElement.acceleratorInfos = accelerators;
-    rowElement.source = AcceleratorSource.kBrowser;
-    rowElement.layoutStyle = LayoutStyle.kText;
-
-    let showDialogListenerCalled = false;
-    rowElement.addEventListener('show-edit-dialog', () => {
-      showDialogListenerCalled = true;
-    });
-
-    await flushTasks();
-
-    const rowContainer =
-        rowElement.shadowRoot!.querySelector('#container') as HTMLDivElement;
-    rowContainer.click();
-
-    await flushTasks();
-
-    assertFalse(showDialogListenerCalled);
+    assertFalse(isVisible(editIconContainerElement));
   });
 
   test('ShowTextAccelerator', async () => {
-    loadTimeData.overrideValues({isCustomizationEnabled: true});
-    rowElement = initAcceleratorRowElement();
+    loadTimeData.overrideValues({isCustomizationAllowed: true});
+    rowElement = initAcceleratorRowElement(LayoutStyle.kText);
 
     const accelerators = [createTextAcceleratorInfo([{
       text: stringToMojoString16('ctrl'),
@@ -192,7 +183,6 @@ suite('acceleratorRowTest', function() {
     }])];
 
     rowElement.acceleratorInfos = accelerators;
-    rowElement.layoutStyle = LayoutStyle.kText;
     await flush();
 
     const acceleratorElements =
@@ -211,8 +201,8 @@ suite('acceleratorRowTest', function() {
   });
 
   test('LoadBasicRowEvenWhenAccelTextIsPresent', async () => {
-    loadTimeData.overrideValues({isCustomizationEnabled: true});
-    rowElement = initAcceleratorRowElement();
+    loadTimeData.overrideValues({isCustomizationAllowed: true});
+    rowElement = initAcceleratorRowElement(LayoutStyle.kDefault);
     const acceleratorInfo1 = createUserAcceleratorInfo(
         Modifier.CONTROL | Modifier.SHIFT,
         /*key=*/ 71,
@@ -228,7 +218,6 @@ suite('acceleratorRowTest', function() {
 
     rowElement.acceleratorInfos = accelerators;
     rowElement.description = description;
-    rowElement.layoutStyle = LayoutStyle.kDefault;
     await flush();
 
     const acceleratorElements =
@@ -255,5 +244,126 @@ suite('acceleratorRowTest', function() {
         acceleratorElements[1]!.shadowRoot!.querySelectorAll('input-key');
     // CONTROL + c
     assertEquals(2, keys2.length);
+  });
+
+  test('ElementFocusableWhenCustomizationEnabled', async () => {
+    loadTimeData.overrideValues({isCustomizationAllowed: true});
+    rowElement = initAcceleratorRowElement(LayoutStyle.kDefault);
+
+    const acceleratorInfo = createUserAcceleratorInfo(
+        Modifier.CONTROL,
+        /*key=*/ 67,
+        /*keyDisplay=*/ 'c');
+    acceleratorInfo.state = AcceleratorState.kEnabled;
+
+    rowElement.acceleratorInfos = [acceleratorInfo];
+    rowElement.description = 'test shortcut';
+    await flush();
+
+    const containerElement =
+        strictQuery('#container', rowElement.shadowRoot, HTMLTableRowElement);
+    assertEquals(0, containerElement.tabIndex);
+  });
+
+  test('ElementFocusableWhenCustomizationDisabled', async () => {
+    loadTimeData.overrideValues({isCustomizationAllowed: false});
+    rowElement = initAcceleratorRowElement(LayoutStyle.kDefault);
+
+    const acceleratorInfo = createUserAcceleratorInfo(
+        Modifier.CONTROL,
+        /*key=*/ 67,
+        /*keyDisplay=*/ 'c');
+    acceleratorInfo.state = AcceleratorState.kEnabled;
+
+    rowElement.acceleratorInfos = [acceleratorInfo];
+    rowElement.description = 'test shortcut';
+    await flush();
+
+    const containerElement =
+        strictQuery('#container', rowElement.shadowRoot, HTMLTableRowElement);
+    assertEquals(-1, containerElement.tabIndex);
+  });
+
+  test('GetAriaLabelForStandardRow', async () => {
+    loadTimeData.overrideValues({isCustomizationEnabled: true});
+    rowElement = initAcceleratorRowElement(LayoutStyle.kDefault);
+
+    const acceleratorInfo = createUserAcceleratorInfo(
+        Modifier.CONTROL,
+        /*key=*/ 67,
+        /*keyDisplay=*/ 'c');
+    acceleratorInfo.state = AcceleratorState.kEnabled;
+    rowElement.acceleratorInfos = [acceleratorInfo];
+    rowElement.description = 'Open notifications';
+
+    await flush();
+    assertEquals(
+        'Open notifications, ctrl c.',
+        rowElement!.shadowRoot!.querySelector('#container')!.getAttribute(
+            'aria-label'));
+  });
+
+  test('GetAriaLabelForStandardRowWithMultipleAccelerators', async () => {
+    loadTimeData.overrideValues({isCustomizationEnabled: true});
+    rowElement = initAcceleratorRowElement(LayoutStyle.kDefault);
+
+    const acceleratorInfo1 = createUserAcceleratorInfo(
+        Modifier.CONTROL,
+        /*key=*/ 67,
+        /*keyDisplay=*/ 'c');
+    const acceleratorInfo2 = createUserAcceleratorInfo(
+        Modifier.CONTROL,
+        /*key=*/ 68,
+        /*keyDisplay=*/ 'd');
+
+    const accelerators = [acceleratorInfo1, acceleratorInfo2];
+    const description = 'Open Calculator app';
+    rowElement.acceleratorInfos = accelerators;
+    rowElement.description = description;
+
+    await flush();
+    assertEquals(
+        'Open Calculator app, ctrl c or ctrl d.',
+        rowElement!.shadowRoot!.querySelector('#container')!.getAttribute(
+            'aria-label'));
+  });
+
+  test('GetAriaLabelForTextAcceleratorRow', async () => {
+    loadTimeData.overrideValues({isCustomizationEnabled: true});
+    rowElement = initAcceleratorRowElement(LayoutStyle.kText);
+
+    const accelerators = [createTextAcceleratorInfo(
+        [
+          {
+            text: stringToMojoString16('ctrl'),
+            type: TextAcceleratorPartType.kModifier,
+          },
+          {
+            text: stringToMojoString16(' + '),
+            type: TextAcceleratorPartType.kDelimiter,
+          },
+          {
+            text: stringToMojoString16('1 '),
+            type: TextAcceleratorPartType.kKey,
+          },
+          {
+            text: stringToMojoString16('through '),
+            type: TextAcceleratorPartType.kPlainText,
+          },
+          {
+            text: stringToMojoString16('8'),
+            type: TextAcceleratorPartType.kKey,
+          },
+        ],
+        )];
+
+    const description = 'Go through tabs 1 to 8';
+    rowElement.acceleratorInfos = accelerators;
+    rowElement.description = description;
+    await flush();
+    assertEquals(
+        'Go through tabs 1 to 8, ctrl + 1 through 8.',
+        rowElement!.shadowRoot!.querySelector('#container')!.getAttribute(
+            'aria-label'));
   });
 });

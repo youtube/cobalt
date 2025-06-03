@@ -24,6 +24,7 @@
 #include "base/threading/sequence_bound.h"
 #include "base/time/clock.h"
 #include "base/time/time.h"
+#include "base/types/expected_macros.h"
 #include "base/uuid.h"
 #include "base/values.h"
 #include "content/browser/aggregation_service/aggregatable_report.h"
@@ -174,11 +175,17 @@ testing::AssertionResult PayloadContentsEqual(
            << ", actual: " << actual.aggregation_mode;
   }
 
-  if (expected.aggregation_coordinator != actual.aggregation_coordinator) {
+  if (expected.aggregation_coordinator_origin !=
+      actual.aggregation_coordinator_origin) {
     return testing::AssertionFailure()
-           << "Expected aggregation_coordinator "
-           << expected.aggregation_coordinator
-           << ", actual: " << actual.aggregation_coordinator;
+           << "Expected aggregation_coordinator_origin "
+           << (expected.aggregation_coordinator_origin
+                   ? expected.aggregation_coordinator_origin->Serialize()
+                   : "null")
+           << ", actual: "
+           << (actual.aggregation_coordinator_origin
+                   ? actual.aggregation_coordinator_origin->Serialize()
+                   : "null");
   }
 
   return testing::AssertionSuccess();
@@ -230,26 +237,25 @@ testing::AssertionResult SharedInfoEqual(
 AggregatableReportRequest CreateExampleRequest(
     blink::mojom::AggregationServiceMode aggregation_mode,
     int failed_send_attempts,
-    ::aggregation_service::mojom::AggregationCoordinator
-        aggregation_coordinator) {
+    absl::optional<url::Origin> aggregation_coordinator_origin) {
   return CreateExampleRequestWithReportTime(
       /*report_time=*/base::Time::Now(), aggregation_mode, failed_send_attempts,
-      aggregation_coordinator);
+      std::move(aggregation_coordinator_origin));
 }
 
 AggregatableReportRequest CreateExampleRequestWithReportTime(
     base::Time report_time,
     blink::mojom::AggregationServiceMode aggregation_mode,
     int failed_send_attempts,
-    ::aggregation_service::mojom::AggregationCoordinator
-        aggregation_coordinator) {
+    absl::optional<url::Origin> aggregation_coordinator_origin) {
   return AggregatableReportRequest::Create(
              AggregationServicePayloadContents(
                  AggregationServicePayloadContents::Operation::kHistogram,
                  {blink::mojom::AggregatableReportHistogramContribution(
                      /*bucket=*/123,
                      /*value=*/456)},
-                 aggregation_mode, aggregation_coordinator),
+                 aggregation_mode, std::move(aggregation_coordinator_origin),
+                 /*max_contributions_allowed=*/20),
              AggregatableReportSharedInfo(
                  /*scheduled_report_time=*/report_time,
                  /*report_id=*/
@@ -284,64 +290,56 @@ AggregatableReport CloneAggregatableReport(const AggregatableReport& report) {
 
   return AggregatableReport(std::move(payloads), report.shared_info(),
                             report.debug_key(), report.additional_fields(),
-                            report.aggregation_coordinator());
+                            report.aggregation_coordinator_origin());
 }
 
-TestHpkeKey GenerateKey(std::string key_id) {
-  bssl::ScopedEVP_HPKE_KEY key;
-  EXPECT_TRUE(EVP_HPKE_KEY_generate(key.get(), EVP_hpke_x25519_hkdf_sha256()));
+TestHpkeKey::TestHpkeKey(std::string key_id) : key_id_(std::move(key_id)) {
+  EXPECT_TRUE(EVP_HPKE_KEY_generate(full_hpke_key_.get(),
+                                    EVP_hpke_x25519_hkdf_sha256()));
+}
 
+TestHpkeKey::TestHpkeKey(TestHpkeKey&&) = default;
+TestHpkeKey& TestHpkeKey::operator=(TestHpkeKey&&) = default;
+TestHpkeKey::~TestHpkeKey() = default;
+
+PublicKey TestHpkeKey::GetPublicKey() const {
   std::vector<uint8_t> public_key(X25519_PUBLIC_VALUE_LEN);
   size_t public_key_len;
   EXPECT_TRUE(EVP_HPKE_KEY_public_key(
-      /*key=*/key.get(), /*out=*/public_key.data(),
+      /*key=*/full_hpke_key_.get(), /*out=*/public_key.data(),
       /*out_len=*/&public_key_len, /*max_out=*/public_key.size()));
   EXPECT_EQ(public_key.size(), public_key_len);
-
-  TestHpkeKey hpke_key{
-      {}, PublicKey(key_id, public_key), base::Base64Encode(public_key)};
-  EVP_HPKE_KEY_copy(&hpke_key.full_hpke_key, key.get());
-
-  return hpke_key;
+  return PublicKey(key_id_, std::move(public_key));
 }
 
-absl::optional<PublicKeyset> ReadAndParsePublicKeys(const base::FilePath& file,
-                                                    base::Time now,
-                                                    std::string* error_msg) {
-  if (!base::PathExists(file)) {
-    if (error_msg)
-      *error_msg = base::StrCat({"Failed to open file: ", file.MaybeAsASCII()});
+std::string TestHpkeKey::GetPublicKeyBase64() const {
+  return base::Base64Encode(GetPublicKey().key);
+}
 
-    return absl::nullopt;
+base::expected<PublicKeyset, std::string> ReadAndParsePublicKeys(
+    const base::FilePath& file,
+    base::Time now) {
+  if (!base::PathExists(file)) {
+    return base::unexpected("Failed to open file: " + file.MaybeAsASCII());
   }
 
   std::string contents;
   if (!base::ReadFileToString(file, &contents)) {
-    if (error_msg)
-      *error_msg = base::StrCat({"Failed to read file: ", file.MaybeAsASCII()});
-
-    return absl::nullopt;
+    return base::unexpected("Failed to read file: " + file.MaybeAsASCII());
   }
 
-  auto value_with_error =
-      base::JSONReader::ReadAndReturnValueWithError(contents);
-  if (!value_with_error.has_value()) {
-    if (error_msg) {
-      *error_msg =
-          base::StrCat({"Failed to parse \"", contents,
-                        "\" as JSON: ", value_with_error.error().message});
-    }
-    return absl::nullopt;
-  }
+  ASSIGN_OR_RETURN(
+      base::Value value,
+      base::JSONReader::ReadAndReturnValueWithError(contents),
+      [&](base::JSONReader::Error error) {
+        return base::StrCat({"Failed to parse \"", contents,
+                             "\" as JSON: ", std::move(error).message});
+      });
 
-  std::vector<PublicKey> keys = GetPublicKeys(*value_with_error);
+  std::vector<PublicKey> keys = GetPublicKeys(value);
   if (keys.empty()) {
-    if (error_msg) {
-      *error_msg =
-          base::StrCat({"Failed to parse public keys from \"", contents, "\""});
-    }
-
-    return absl::nullopt;
+    return base::unexpected(
+        base::StrCat({"Failed to parse public keys from \"", contents, "\""}));
   }
 
   return PublicKeyset(std::move(keys), /*fetch_time=*/now,

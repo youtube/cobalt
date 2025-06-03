@@ -165,6 +165,13 @@ void ChromeFeaturesServiceProvider::Start(
                           weak_ptr_factory_.GetWeakPtr()),
       base::BindRepeating(&ChromeFeaturesServiceProvider::OnExported,
                           weak_ptr_factory_.GetWeakPtr()));
+  exported_object->ExportMethod(
+      chromeos::kChromeFeaturesServiceInterface,
+      chromeos::kChromeFeaturesServiceIsSuspendToDiskEnabledMethod,
+      base::BindRepeating(&ChromeFeaturesServiceProvider::IsSuspendToDiskEnabled,
+                          weak_ptr_factory_.GetWeakPtr()),
+      base::BindRepeating(&ChromeFeaturesServiceProvider::OnExported,
+                          weak_ptr_factory_.GetWeakPtr()));
 }
 
 void ChromeFeaturesServiceProvider::OnExported(
@@ -187,6 +194,7 @@ void ChromeFeaturesServiceProvider::IsFeatureEnabled(
       &features::kSessionManagerLongKillTimeout,
       &features::kSessionManagerLivenessCheck,
       &features::kVmPerBootShaderCache,
+      &features::kBorealisProvision,
   };
 
   dbus::MessageReader reader(method_call);
@@ -219,12 +227,26 @@ void ChromeFeaturesServiceProvider::IsFeatureEnabled(
       base::FeatureList::OVERRIDE_USE_DEFAULT;
   if (feature_name.find(kCrOSLateBootFeaturePrefix) == 0) {
     state = feature_list_accessor_->GetOverrideStateByFeatureName(feature_name);
-  }
-  if (state == base::FeatureList::OVERRIDE_USE_DEFAULT) {
-    LOG(ERROR) << "Unexpected feature name '" << feature_name << "'";
+  } else {
+    LOG(ERROR) << "Invalid prefix on feature " << feature_name << " (want "
+               << kCrOSLateBootFeaturePrefix << ")";
     std::move(response_sender)
         .Run(dbus::ErrorResponse::FromMethodCall(
-            method_call, DBUS_ERROR_INVALID_ARGS, "Unexpected feature name."));
+            method_call, DBUS_ERROR_INVALID_ARGS,
+            base::StrCat({"Invalid prefix for feature name: '", feature_name,
+                          "'. Want ", kCrOSLateBootFeaturePrefix})));
+    return;
+  }
+  if (state == base::FeatureList::OVERRIDE_USE_DEFAULT) {
+    VLOG(1) << "Unexpected feature name '" << feature_name << "'"
+            << " (likely just indicates there isn't a variations seed).";
+    // This isn't really an error, we're just using the error channel to signal
+    // to feature_library that it should fall back to its defaults.
+    std::move(response_sender)
+        .Run(dbus::ErrorResponse::FromMethodCall(
+            method_call, DBUS_ERROR_INVALID_ARGS,
+            base::StrCat({"Chrome can't get state for '", feature_name,
+                          "'; feature_library will decide"})));
     return;
   }
   SendResponse(method_call, std::move(response_sender),
@@ -261,11 +283,13 @@ void ChromeFeaturesServiceProvider::GetFeatureParams(
     }
 
     if (feature_name.find(kCrOSLateBootFeaturePrefix) != 0) {
-      LOG(ERROR) << "Unexpected feature name '" << feature_name << "'";
+      LOG(ERROR) << "Unexpected prefix on feature name '" << feature_name << "'"
+                 << " (want " << kCrOSLateBootFeaturePrefix << ")";
       std::move(response_sender)
-          .Run(dbus::ErrorResponse::FromMethodCall(method_call,
-                                                   DBUS_ERROR_INVALID_ARGS,
-                                                   "Unexpected feature name."));
+          .Run(dbus::ErrorResponse::FromMethodCall(
+              method_call, DBUS_ERROR_INVALID_ARGS,
+              base::StrCat({"Invalid prefix for feature name: '", feature_name,
+                            "'. Want ", kCrOSLateBootFeaturePrefix})));
       return;
     }
 
@@ -283,7 +307,8 @@ void ChromeFeaturesServiceProvider::GetFeatureParams(
     std::map<std::string, std::string> per_feature_map;
     if (!feature_list_accessor_->GetParamsByFeatureName(feature_name,
                                                         &per_feature_map)) {
-      LOG(ERROR) << "No trial found for '" << feature_name << "', skipping.";
+      VLOG(1) << "No trial found for '" << feature_name << "', skipping."
+              << " (likely just means there is no variations seed)";
       continue;
     }
     params_map[feature_name] = std::move(per_feature_map);
@@ -422,6 +447,13 @@ void ChromeFeaturesServiceProvider::IsDnsProxyEnabled(
     dbus::ExportedObject::ResponseSender response_sender) {
   SendResponse(method_call, std::move(response_sender),
                !base::FeatureList::IsEnabled(features::kDisableDnsProxy));
+}
+
+void ChromeFeaturesServiceProvider::IsSuspendToDiskEnabled(
+    dbus::MethodCall* method_call,
+    dbus::ExportedObject::ResponseSender response_sender) {
+  SendResponse(method_call, std::move(response_sender),
+               base::FeatureList::IsEnabled(features::kSuspendToDisk));
 }
 
 }  // namespace ash

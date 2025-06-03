@@ -5,7 +5,9 @@
 #include "chrome/browser/extensions/cws_info_service.h"
 
 #include "base/test/bind.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
+#include "chrome/browser/extensions/cws_info_service_factory.h"
 #include "chrome/browser/extensions/cws_item_service.pb.h"
 #include "chrome/browser/extensions/extension_service.h"
 #include "chrome/browser/extensions/test_extension_system.h"
@@ -73,13 +75,20 @@ class CWSInfoServiceTest : public ::testing::Test,
     return "items/" + id + "/storeMetadata";
   }
 
+  static std::unique_ptr<KeyedService> BuildTestContextCWSService(
+      content::BrowserContext* context) {
+    return std::make_unique<CWSInfoService>(static_cast<Profile*>(context));
+  }
+
   // CWSInfoService::Observer:
-  void OnInfoChanged() override { info_change_notification_received_ = true; }
+  void OnCWSInfoChanged() override {
+    info_change_notification_received_ = true;
+  }
 
   content::BrowserTaskEnvironment task_environment_;
   network::TestURLLoaderFactory test_url_loader_factory_;
   std::unique_ptr<TestingProfile> profile_;
-  std::unique_ptr<CWSInfoService> cws_info_service_;
+  raw_ptr<CWSInfoService> cws_info_service_ = nullptr;
   raw_ptr<ExtensionPrefs> extension_prefs_ = nullptr;
   raw_ptr<ExtensionRegistry> extension_registry_ = nullptr;
   raw_ptr<ExtensionService> extension_service_ = nullptr;
@@ -91,15 +100,24 @@ CWSInfoServiceTest::CWSInfoServiceTest()
   auto pref_service =
       std::make_unique<sync_preferences::TestingPrefServiceSyncable>();
   RegisterUserProfilePrefs(pref_service->registry());
+  // TODO(anunoy): The following policy pref setting is currently required to
+  // enable CWS metadata fetches (see CWSInfoService::CanFetchInfo). Remove this
+  // pref setting after `kSafetyCheckExtensions` is enabled by default.
   pref_service->SetInteger(pref_names::kExtensionUnpublishedAvailability, 1);
 
   TestingProfile::Builder builder;
   builder.SetPrefService(std::move(pref_service));
   builder.SetSharedURLLoaderFactory(
       test_url_loader_factory_.GetSafeWeakWrapper());
+  builder.AddTestingFactory(
+      CWSInfoServiceFactory::GetInstance(),
+      base::BindRepeating(&CWSInfoServiceTest::BuildTestContextCWSService));
   profile_ = builder.Build();
   extension_prefs_ = ExtensionPrefs::Get(profile_.get());
   extension_registry_ = ExtensionRegistry::Get(profile_.get());
+
+  // Create CWSInfoService instance.
+  cws_info_service_ = CWSInfoService::Get(profile_.get());
 
   // Create test extension service instance.
   base::CommandLine command_line(base::CommandLine::NO_PROGRAM);
@@ -108,9 +126,6 @@ CWSInfoServiceTest::CWSInfoServiceTest()
   extension_service_ = test_extension_system->CreateExtensionService(
       &command_line, /*install_directory=*/base::FilePath(),
       /*autoupdate_enabled=*/false);
-
-  // Create CWSInfoService instance.
-  cws_info_service_ = std::make_unique<CWSInfoService>(profile_.get());
 }
 
 CWSInfoServiceTest::~CWSInfoServiceTest() = default;
@@ -134,7 +149,8 @@ StoreMetadata CWSInfoServiceTest::BuildStoreMetadata(
   StoreMetadata metadata;
   metadata.set_name(GetNameFromId(extension_id));
   metadata.set_is_live(true);
-  metadata.set_last_update_time_millis(last_update_time.ToJavaTime());
+  metadata.set_last_update_time_millis(
+      last_update_time.InMillisecondsSinceUnixEpoch());
   metadata.set_violation_type("none");
   return metadata;
 }
@@ -148,7 +164,8 @@ void CWSInfoServiceTest::VerifyCWSInfoRetrieved(
   } else {
     EXPECT_TRUE(cws_info->is_present);
     EXPECT_EQ(metadata->is_live(), cws_info->is_live);
-    EXPECT_EQ(base::Time::FromJavaTime(metadata->last_update_time_millis()),
+    EXPECT_EQ(base::Time::FromMillisecondsSinceUnixEpoch(
+                  metadata->last_update_time_millis()),
               cws_info->last_update_time);
     EXPECT_EQ(
         CWSInfoService::GetViolationTypeFromString(metadata->violation_type()),
@@ -193,15 +210,21 @@ TEST_F(CWSInfoServiceTest, IgnoresNonCWSExtensions) {
 }
 
 TEST_F(CWSInfoServiceTest, IgnoresNetworkErrorAndBadServerResponse) {
+  base::HistogramTester histogram_tester;
   scoped_refptr<const Extension> test1 =
       AddExtension("test1", /* updates_from_cws= */ true);
-
   SetUpResponseWithNetworkError(
       GURL(cws_info_service_->GetRequestURLForTesting()));
   cws_info_service_->CheckAndMaybeFetchInfo();
   task_environment_.FastForwardBy(base::Seconds(0));
+
   EXPECT_TRUE(VerifyStats(/*requests=*/1, /*responses=*/0, /*changes=*/0,
                           /*errors=*/1));
+  histogram_tester.ExpectBucketCount(
+      "Extensions.CWSInfoService.NetworkResponseCodeOrError",
+      net::HTTP_NOT_FOUND, 1);
+  histogram_tester.ExpectBucketCount("Extensions.CWSInfoService.FetchSuccess",
+                                     false, 1);
   EXPECT_TRUE(cws_info_service_->GetCWSInfo(*test1) == absl::nullopt);
 
   SetUpResponseWithData(GURL(cws_info_service_->GetRequestURLForTesting()),
@@ -210,13 +233,17 @@ TEST_F(CWSInfoServiceTest, IgnoresNetworkErrorAndBadServerResponse) {
   task_environment_.FastForwardBy(base::Seconds(0));
   EXPECT_TRUE(VerifyStats(/*requests=*/2, /*responses=*/0, /*changes=*/0,
                           /*errors=*/2));
+  histogram_tester.ExpectBucketCount(
+      "Extensions.CWSInfoService.NetworkResponseCodeOrError", net::HTTP_OK, 1);
+  histogram_tester.ExpectBucketCount("Extensions.CWSInfoService.FetchSuccess",
+                                     false, 2);
   EXPECT_TRUE(cws_info_service_->GetCWSInfo(*test1) == absl::nullopt);
 }
 
 TEST_F(CWSInfoServiceTest, SavesGoodResponse) {
+  base::HistogramTester histogram_tester;
   scoped_refptr<const Extension> test1 =
       AddExtension("test1", /*updates_from_cws=*/true);
-
   base::Time last_update_time = base::Time::Now() - base::Days(31);
   BatchGetStoreMetadatasResponse response_proto;
   *response_proto.add_store_metadatas() =
@@ -234,6 +261,16 @@ TEST_F(CWSInfoServiceTest, SavesGoodResponse) {
   EXPECT_EQ(base::Time::Now(),
             cws_info_service_->GetCWSInfoTimestampForTesting());
   EXPECT_TRUE(info_change_notification_received_);
+  histogram_tester.ExpectBucketCount(
+      "Extensions.CWSInfoService.NetworkResponseCodeOrError", net::HTTP_OK, 1);
+  histogram_tester.ExpectBucketCount(
+      "Extensions.CWSInfoService.NumRequestsInFetch", /*requests=*/1, 1);
+  histogram_tester.ExpectBucketCount(
+      "Extensions.CWSInfoService.NetworkRetriesTillSuccess", 0, 1);
+  histogram_tester.ExpectBucketCount("Extensions.CWSInfoService.FetchSuccess",
+                                     true, 1);
+  histogram_tester.ExpectBucketCount(
+      "Extensions.CWSInfoService.MetadataChanged", true, 1);
 
   absl::optional<CWSInfoService::CWSInfo> info =
       cws_info_service_->GetCWSInfo(*test1);
@@ -241,6 +278,7 @@ TEST_F(CWSInfoServiceTest, SavesGoodResponse) {
 }
 
 TEST_F(CWSInfoServiceTest, HandlesMultipleRequestsPerInfoCheck) {
+  base::HistogramTester histogram_tester;
   // Set max of 2 extension ids per request.
   cws_info_service_->SetMaxExtensionIdsPerRequestForTesting(2);
 
@@ -265,18 +303,19 @@ TEST_F(CWSInfoServiceTest, HandlesMultipleRequestsPerInfoCheck) {
   base::Time test2_last_update_time = base::Time::Now() - base::Days(31);
   StoreMetadata test2_metadata =
       BuildStoreMetadata(test2->id(), test2_last_update_time);
+
   // Override builder defaults.
   test2_metadata.set_is_live(false);
   test2_metadata.set_violation_type("malware");
   test2_metadata.add_labels("unpublished-long-ago");
   test2_metadata.add_labels("no-privacy-practice");
-
   // Create response proto with metadata for only 2 extensions.
   BatchGetStoreMetadatasResponse response;
   *response.add_store_metadatas() = test1_metadata;
   *response.add_store_metadatas() = test2_metadata;
   std::string response_str = response.SerializeAsString();
   ASSERT_TRUE(!response_str.empty());
+
   // Set up server response for requests and start the info check.
   SetUpResponseWithData(GURL(cws_info_service_->GetRequestURLForTesting()),
                         response_str);
@@ -287,6 +326,10 @@ TEST_F(CWSInfoServiceTest, HandlesMultipleRequestsPerInfoCheck) {
   EXPECT_EQ(2u, test_url_loader_factory_.total_requests());
   EXPECT_TRUE(VerifyStats(/*requests=*/2, /*responses=*/2, /*changes=*/2,
                           /*errors=*/0));
+  histogram_tester.ExpectBucketCount(
+      "Extensions.CWSInfoService.NumRequestsInFetch", /*requests=*/2, 1);
+  histogram_tester.ExpectBucketCount("Extensions.CWSInfoService.FetchSuccess",
+                                     true, 1);
 
   // Retrieve information for 1st extension and verify.
   absl::optional<CWSInfoService::CWSInfo> info =
@@ -352,7 +395,7 @@ TEST_F(CWSInfoServiceTest, SchedulesStartupAndPeriodicInfoChecks) {
 
 // The service only makes requests to the CWS server if:
 // - there are extensions that are missing the store metadata info OR
-// - enough time (update interval) has elapsed since the last update
+// - enough time (fetch interval) has elapsed since the last update
 // This test verifies the latter condition.
 TEST_F(CWSInfoServiceTest, UpdatesExistingInfoAtUpdateIntervals) {
   // Add an extension to cause queries to CWS.
@@ -379,7 +422,7 @@ TEST_F(CWSInfoServiceTest, UpdatesExistingInfoAtUpdateIntervals) {
             cws_info_service_->GetCWSInfoTimestampForTesting());
 
   // Verify that no request is sent at the next check interval since the
-  // update interval has not elapsed.
+  // fetch interval has not elapsed.
   task_environment_.FastForwardBy(
       base::Seconds(cws_info_service_->GetCheckIntervalForTesting()));
   EXPECT_TRUE(VerifyStats(/*requests=*/1, /*responses=*/1, /*changes=*/1,
@@ -388,10 +431,14 @@ TEST_F(CWSInfoServiceTest, UpdatesExistingInfoAtUpdateIntervals) {
                 base::Seconds(cws_info_service_->GetCheckIntervalForTesting()),
             cws_info_service_->GetCWSInfoTimestampForTesting());
 
-  // Verify that a request is sent once the update interval has elapsed.
+  // Verify that a request is sent once the fetch interval has elapsed.
+  // Already consumed 1 check interval; compute the rest till the next fetch.
+  int remaining_check_intervals_till_next_fetch =
+      cws_info_service_->GetFetchIntervalForTesting() /
+      cws_info_service_->GetCheckIntervalForTesting();
   task_environment_.FastForwardBy(
-      base::Seconds(cws_info_service_->GetFetchIntervalForTesting()) -
-      base::Seconds(cws_info_service_->GetCheckIntervalForTesting()));
+      base::Seconds(cws_info_service_->GetCheckIntervalForTesting() *
+                    remaining_check_intervals_till_next_fetch));
   // Note the info changed count has not changed since the server response is
   // the same.
   EXPECT_TRUE(VerifyStats(/*requests=*/2, /*responses=*/2, /*changes=*/1,

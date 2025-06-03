@@ -36,6 +36,7 @@
 #include "chromeos/ash/components/cryptohome/cryptohome_parameters.h"
 #include "chromeos/ash/components/dbus/dbus_thread_manager.h"
 #include "chromeos/ash/components/dbus/session_manager/session_manager_client.h"
+#include "chromeos/ash/components/standalone_browser/standalone_browser_features.h"
 #include "chromeos/dbus/constants/dbus_switches.h"
 #include "components/account_id/account_id.h"
 #include "components/policy/core/common/policy_switches.h"
@@ -112,7 +113,6 @@ void DeriveCommandLine(const GURL& start_url,
     ::switches::kDisableGpuCompositing,
     ::switches::kDisableGpuRasterization,
     ::switches::kDisableMojoBroker,
-    ::switches::kDisablePepper3DImageChromium,
     ::switches::kDisableTouchDragDrop,
     ::switches::kDisableVideoCaptureUseGpuMemoryBuffer,
     ::switches::kDisableYUVImageDecoding,
@@ -177,7 +177,6 @@ void DeriveCommandLine(const GURL& start_url,
     blink::switches::kDisablePartialRaster,
     blink::switches::kDisablePreferCompositingToLCDText,
     blink::switches::kDisableRGBA4444Textures,
-    blink::switches::kDisableThreadedScrolling,
     blink::switches::kDisableZeroCopy,
     blink::switches::kEnableLowResTiling,
     blink::switches::kEnablePreferCompositingToLCDText,
@@ -187,6 +186,7 @@ void DeriveCommandLine(const GURL& start_url,
     blink::switches::kGpuRasterizationMSAASampleCount,
     switches::kAshPowerButtonPosition,
     switches::kAshSideVolumeButtonPosition,
+    switches::kCameraEffectsSupportedByHardware,
     switches::kDefaultWallpaperLarge,
     switches::kDefaultWallpaperSmall,
     switches::kGuestWallpaperLarge,
@@ -222,6 +222,7 @@ void DeriveCommandLine(const GURL& start_url,
     switches::kEnableArc,
     switches::kEnterpriseDisableArc,
     switches::kEnterpriseEnableForcedReEnrollment,
+    switches::kForceTabletPowerButton,
     switches::kFormFactor,
     switches::kHasChromeOSKeyboard,
     switches::kLacrosChromeAdditionalArgs,
@@ -230,14 +231,14 @@ void DeriveCommandLine(const GURL& start_url,
     crosapi::browser_util::kLacrosStabilitySwitch,
     switches::kLoginProfile,
     switches::kNaturalScrollDefault,
+    switches::kOobeForceTabletFirstRun,
     switches::kRlzPingDelay,
     chromeos::switches::kSystemInDevMode,
     switches::kTouchscreenUsableWhileScreenOff,
     policy::switches::kDeviceManagementUrl,
     wm::switches::kWindowAnimationsDisabled,
   };
-  command_line->CopySwitchesFrom(base_command_line, kForwardSwitches,
-                                 std::size(kForwardSwitches));
+  command_line->CopySwitchesFrom(base_command_line, kForwardSwitches);
 
   if (start_url.is_valid())
     command_line->AppendArg(start_url.spec());
@@ -253,9 +254,7 @@ void DeriveCommandLine(const GURL& start_url,
 void DeriveFeatures(base::CommandLine* out_command_line) {
   auto kForwardFeatures = {
     &features::kAutoNightLight,
-    &features::kLacrosOnly,
-    &features::kLacrosPrimary,
-    &features::kLacrosSupport,
+    &ash::standalone_browser::features::kLacrosOnly,
     &::features::kPluginVm,
 #if BUILDFLAG(ENABLE_PLATFORM_HEVC)
     &media::kPlatformHEVCDecoderSupport,

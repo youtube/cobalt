@@ -16,6 +16,7 @@ class ColorSpace;
 }  // namespace gfx
 
 namespace gpu {
+class SharedContextState;
 class SharedImageBacking;
 struct Mailbox;
 
@@ -24,7 +25,8 @@ struct Mailbox;
 class GPU_GLES2_EXPORT DCompImageBackingFactory
     : public SharedImageBackingFactory {
  public:
-  DCompImageBackingFactory();
+  explicit DCompImageBackingFactory(
+      scoped_refptr<SharedContextState> context_state);
 
   DCompImageBackingFactory(const DCompImageBackingFactory&) = delete;
   DCompImageBackingFactory& operator=(const DCompImageBackingFactory&) = delete;
@@ -54,6 +56,16 @@ class GPU_GLES2_EXPORT DCompImageBackingFactory
       base::span<const uint8_t> pixel_data) override;
   std::unique_ptr<SharedImageBacking> CreateSharedImage(
       const Mailbox& mailbox,
+      viz::SharedImageFormat format,
+      const gfx::Size& size,
+      const gfx::ColorSpace& color_space,
+      GrSurfaceOrigin surface_origin,
+      SkAlphaType alpha_type,
+      uint32_t usage,
+      std::string debug_label,
+      gfx::GpuMemoryBufferHandle handle) override;
+  std::unique_ptr<SharedImageBacking> CreateSharedImage(
+      const Mailbox& mailbox,
       gfx::GpuMemoryBufferHandle handle,
       gfx::BufferFormat format,
       gfx::BufferPlane plane,
@@ -71,6 +83,9 @@ class GPU_GLES2_EXPORT DCompImageBackingFactory
                    gfx::GpuMemoryBufferType gmb_type,
                    GrContextType gr_context_type,
                    base::span<const uint8_t> pixel_data) override;
+
+ private:
+  scoped_refptr<SharedContextState> context_state_;
 };
 
 }  // namespace gpu

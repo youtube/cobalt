@@ -12,6 +12,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/scoped_feature_list.h"
 #include "components/autofill/core/browser/autofill_field.h"
+#include "components/autofill/core/browser/country_type.h"
 #include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/form_parsing/address_field.h"
 #include "components/autofill/core/browser/form_parsing/autofill_scanner.h"
@@ -51,13 +52,13 @@ class FormFieldTestBase {
  protected:
   // Add a field with |control_type|, the |name|, the |label| the expected
   // parsed type |expected_type|.
-  void AddFormFieldData(std::string control_type,
+  void AddFormFieldData(FormControlType control_type,
                         std::string name,
                         std::string label,
                         ServerFieldType expected_type);
 
   // Convenience wrapper for text control elements with a maximal length.
-  void AddFormFieldDataWithLength(std::string control_type,
+  void AddFormFieldDataWithLength(FormControlType control_type,
                                   std::string name,
                                   std::string label,
                                   int max_length,
@@ -66,15 +67,7 @@ class FormFieldTestBase {
   // Convenience wrapper for text control elements.
   void AddTextFormFieldData(std::string name,
                             std::string label,
-                            ServerFieldType expected_classification);
-
-  // Convenience wrapper for 'select-one' elements with a max length.
-  void AddSelectOneFormFieldDataWithLength(
-      std::string name,
-      std::string label,
-      int max_length,
-      const std::vector<SelectOption>& options,
-      ServerFieldType expected_type);
+                            ServerFieldType expected_type);
 
   // Convenience wrapper for 'select-one' elements.
   void AddSelectOneFormFieldData(std::string name,
@@ -95,6 +88,7 @@ class FormFieldTestBase {
   // Apply the parsing with a specific parser.
   virtual std::unique_ptr<FormField> Parse(
       AutofillScanner* scanner,
+      const GeoIpCountryCode& client_country,
       const LanguageCode& page_language) = 0;
 
   FieldRendererId MakeFieldRendererId();

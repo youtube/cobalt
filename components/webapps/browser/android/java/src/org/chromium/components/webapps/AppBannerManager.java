@@ -10,12 +10,13 @@ import android.text.TextUtils;
 import androidx.annotation.StringRes;
 import androidx.annotation.VisibleForTesting;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.ContextUtils;
 import org.chromium.base.PackageUtils;
 import org.chromium.base.ThreadUtils;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
 import org.chromium.content_public.browser.WebContents;
 
 /**
@@ -48,8 +49,6 @@ public class AppBannerManager {
 
     /** The key to use to store and retrieve (from the menu data) what was shown in the menu. */
     public static final String MENU_TITLE_KEY = "AppMenuTitleShown";
-
-    private static final String TAG = "AppBannerManager";
 
     /** Retrieves information about a given package. */
     private static AppDetailsDelegate sAppDetailsDelegate;
@@ -170,43 +169,36 @@ public class AppBannerManager {
     }
 
     /** Sets the app-banner-showing logic to ignore the Chrome channel. */
-    @VisibleForTesting
     public static void ignoreChromeChannelForTesting() {
         AppBannerManagerJni.get().ignoreChromeChannelForTesting();
     }
 
     /** Returns whether the native AppBannerManager is working. */
-    @VisibleForTesting
     public boolean isRunningForTesting() {
         return AppBannerManagerJni.get().isRunningForTesting(mNativePointer, AppBannerManager.this);
     }
 
     /** Returns the state of the current pipeline. */
-    @VisibleForTesting
     public int getPipelineStatusForTesting() {
         return AppBannerManagerJni.get().getPipelineStatusForTesting(mNativePointer);
     }
 
     /** Returns the state of the ambient badge. */
-    @VisibleForTesting
     public int getBadgeStatusForTesting() {
         return AppBannerManagerJni.get().getBadgeStatusForTesting(mNativePointer);
     }
 
     /** Sets constants (in days) the banner should be blocked for after dismissing and ignoring. */
-    @VisibleForTesting
     public static void setDaysAfterDismissAndIgnoreForTesting(int dismissDays, int ignoreDays) {
         AppBannerManagerJni.get().setDaysAfterDismissAndIgnoreToTrigger(dismissDays, ignoreDays);
     }
 
     /** Sets a constant (in days) that gets added to the time when the current time is requested. */
-    @VisibleForTesting
     public static void setTimeDeltaForTesting(int days) {
         AppBannerManagerJni.get().setTimeDeltaForTesting(days);
     }
 
     /** Sets the total required engagement to trigger the banner. */
-    @VisibleForTesting
     public static void setTotalEngagementForTesting(double engagement) {
         AppBannerManagerJni.get().setTotalEngagementToTrigger(engagement);
     }
@@ -231,7 +223,7 @@ public class AppBannerManager {
     }
 
     @NativeMethods
-    interface Natives {
+    public interface Natives {
         AppBannerManager getJavaBannerManagerForWebContents(WebContents webContents);
         String getInstallableWebAppName(WebContents webContents);
         String getInstallableWebAppManifestId(WebContents webContents);

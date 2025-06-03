@@ -6,9 +6,10 @@ package org.chromium.components.location;
 
 import android.Manifest;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.Callback;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.NativeMethods;
 import org.chromium.ui.base.WindowAndroid;
 
 /**
@@ -20,6 +21,11 @@ public class LocationSettings {
     @CalledByNative
     private static boolean hasAndroidLocationPermission() {
         return LocationUtils.getInstance().hasAndroidLocationPermission();
+    }
+
+    @CalledByNative
+    private static boolean hasAndroidFineLocationPermission() {
+        return LocationUtils.getInstance().hasAndroidFineLocationPermission();
     }
 
     @CalledByNative

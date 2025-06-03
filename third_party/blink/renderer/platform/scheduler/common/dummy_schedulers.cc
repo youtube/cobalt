@@ -4,6 +4,7 @@
 
 #include "third_party/blink/renderer/platform/scheduler/public/dummy_schedulers.h"
 
+#include "base/memory/raw_ptr.h"
 #include "base/task/single_thread_task_runner.h"
 #include "third_party/blink/public/common/browser_interface_broker_proxy.h"
 #include "third_party/blink/renderer/platform/scheduler/main_thread/main_thread_scheduler_impl.h"
@@ -101,11 +102,12 @@ class DummyFrameScheduler : public FrameScheduler {
     return WebScopedVirtualTimePauser();
   }
   void DidStartProvisionalLoad() override {}
-  void DidCommitProvisionalLoad(bool, FrameScheduler::NavigationType) override {
-  }
+  void DidCommitProvisionalLoad(bool,
+                                FrameScheduler::NavigationType,
+                                DidCommitProvisionalLoadParams) override {}
   void OnFirstContentfulPaintInMainFrame() override {}
-  void OnFirstMeaningfulPaint() override {}
-  void OnLoad() override {}
+  void OnFirstMeaningfulPaint(base::TimeTicks timestamp) override {}
+  void OnDispatchLoadEvent() override {}
   void OnMainFrameInteractive() override {}
   bool IsExemptFromBudgetBasedThrottling() const override { return false; }
   std::unique_ptr<blink::mojom::blink::PauseSubresourceLoadingHandle>
@@ -168,6 +170,7 @@ class DummyPageScheduler : public PageScheduler {
 
   void OnTitleOrFaviconUpdated() override {}
   void SetPageVisible(bool) override {}
+  bool IsPageVisible() const override { return true; }
   void SetPageFrozen(bool) override {}
   void SetPageBackForwardCached(bool) override {}
   bool IsMainFrameLocal() const override { return true; }
@@ -211,7 +214,7 @@ class SimpleThread : public MainThread {
   bool IsCurrentThread() const { return WTF::IsMainThread(); }
 
  private:
-  ThreadScheduler* scheduler_;
+  raw_ptr<ThreadScheduler, ExperimentalRenderer> scheduler_;
 };
 
 class DummyWebMainThreadScheduler : public WebThreadScheduler,
@@ -296,6 +299,13 @@ class DummyWebMainThreadScheduler : public WebThreadScheduler,
   }
 
   void StartIdlePeriodForTesting() override {}
+
+  void ForEachMainThreadIsolate(
+      base::RepeatingCallback<void(v8::Isolate* isolate)> callback) override {
+    if (isolate_) {
+      callback.Run(isolate_);
+    }
+  }
 
  private:
   v8::Isolate* isolate_ = nullptr;

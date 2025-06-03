@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 import 'chrome://personalization/strings.m.js';
-import 'chrome://webui-test/mojo_webui_test_support.js';
 
 import {AmbientActionName, AmbientModeAlbum, AmbientObserver, emptyState, SetAlbumsAction, TopicSource} from 'chrome://personalization/js/personalization_app.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
@@ -124,15 +123,6 @@ suite('GooglePhotosPreviewLoadPerformance', () => {
         AmbientActionName.SET_AMBIENT_MODE_ENABLED);
     await personalizationStore.waitForAction(
         AmbientActionName.SET_AMBIENT_MODE_ENABLED);
-    assertFalse(AmbientObserver.shouldLogPreviewsLoadPerformance);
-  });
-
-  test('sets to false if topic source is not kGooglePhotos', async () => {
-    ambientProvider.ambientObserverRemote!.onTopicSourceChanged(
-        TopicSource.kArtGallery);
-    personalizationStore.expectAction(AmbientActionName.SET_TOPIC_SOURCE);
-    await personalizationStore.waitForAction(
-        AmbientActionName.SET_TOPIC_SOURCE);
     assertFalse(AmbientObserver.shouldLogPreviewsLoadPerformance);
   });
 

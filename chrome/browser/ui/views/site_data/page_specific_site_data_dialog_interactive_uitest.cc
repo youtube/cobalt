@@ -16,7 +16,6 @@
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window.h"
-#include "chrome/browser/ui/views/collected_cookies_views.h"
 #include "chrome/browser/ui/views/frame/app_menu_button.h"
 #include "chrome/browser/ui/views/page_info/page_info_cookies_content_view.h"
 #include "chrome/browser/ui/views/page_info/page_info_main_view.h"
@@ -32,7 +31,8 @@
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/interaction/interactive_browser_test.h"
 #include "components/content_settings/core/common/pref_names.h"
-#include "components/page_info/core/features.h"
+#include "components/privacy_sandbox/privacy_sandbox_attestations/privacy_sandbox_attestations.h"
+#include "components/privacy_sandbox/privacy_sandbox_attestations/scoped_privacy_sandbox_attestations.h"
 #include "components/privacy_sandbox/privacy_sandbox_settings.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/common/content_features.h"
@@ -202,10 +202,7 @@ class PageSpecificSiteDataDialogInteractiveUiTest
 
  protected:
   virtual void SetUpFeatureList() {
-    feature_list_.InitWithFeatures({page_info::kPageSpecificSiteDataDialog,
-                                    page_info::kPageInfoCookiesSubpage,
-                                    net::features::kPartitionedCookies},
-                                   {});
+    feature_list_.InitWithFeatures({net::features::kPartitionedCookies}, {});
   }
 
   virtual void SetUpCookieControlMode() {
@@ -226,8 +223,14 @@ class PageSpecificSiteDataDialogInteractiveUiTest
   std::unique_ptr<net::EmbeddedTestServer> https_server_;
 };
 
+// Flaky on ChromeOS: crbug.com/1429381
+#if BUILDFLAG(IS_CHROMEOS)
+#define MAYBE_FirstPartyAllowed DISABLED_FirstPartyAllowed
+#else
+#define MAYBE_FirstPartyAllowed FirstPartyAllowed
+#endif
 IN_PROC_BROWSER_TEST_F(PageSpecificSiteDataDialogInteractiveUiTest,
-                       FirstPartyAllowed) {
+                       MAYBE_FirstPartyAllowed) {
   CookieChangeObserver observer(
       browser()->tab_strip_model()->GetActiveWebContents(), 6);
   RunTestSequenceInContext(
@@ -238,8 +241,8 @@ IN_PROC_BROWSER_TEST_F(PageSpecificSiteDataDialogInteractiveUiTest,
       InAnyContext(NameChildView(kPageSpecificSiteDataDialogFirstPartySection,
                                  kFirstPartyAllowedRow, 0)),
       // Verify no empty state label is present.
-      EnsureNotPresent(kPageSpecificSiteDataDialogEmptyStateLabel,
-                       /* in_any_context =*/true),
+      InAnyContext(
+          EnsureNotPresent(kPageSpecificSiteDataDialogEmptyStateLabel)),
       // Verify the row label and open the row menu.
       CheckRowLabel(kFirstPartyAllowedRow,
                     IDS_PAGE_SPECIFIC_SITE_DATA_DIALOG_ALLOWED_STATE_SUBTITLE),
@@ -248,8 +251,7 @@ IN_PROC_BROWSER_TEST_F(PageSpecificSiteDataDialogInteractiveUiTest,
       InAnyContext(WaitForShow(SiteDataRowView::kBlockMenuItem)),
       InAnyContext(WaitForShow(SiteDataRowView::kClearOnExitMenuItem)),
       // Verify that "Allow" is not present as it is already allowed.
-      EnsureNotPresent(SiteDataRowView::kAllowMenuItem,
-                       /* in_any_context =*/true),
+      InAnyContext(EnsureNotPresent(SiteDataRowView::kAllowMenuItem)),
       // Verify that the site can be deleted.
       DeleteRow(kFirstPartyAllowedRow),
       // Verify that UI has updated as a result of clicking on a menu item and
@@ -265,8 +267,14 @@ IN_PROC_BROWSER_TEST_F(PageSpecificSiteDataDialogInteractiveUiTest,
               IDS_PAGE_SPECIFIC_SITE_DATA_DIALOG_EMPTY_STATE_LABEL))));
 }
 
+// Flaky on ChromeOS: crbug.com/1429381
+#if BUILDFLAG(IS_CHROMEOS)
+#define MAYBE_ThirdPartyBlocked DISABLED_ThirdPartyBlocked
+#else
+#define MAYBE_ThirdPartyBlocked ThirdPartyBlocked
+#endif
 IN_PROC_BROWSER_TEST_F(PageSpecificSiteDataDialogInteractiveUiTest,
-                       ThirdPartyBlocked) {
+                       MAYBE_ThirdPartyBlocked) {
   CookieChangeObserver observer(
       browser()->tab_strip_model()->GetActiveWebContents(), 6);
   RunTestSequenceInContext(
@@ -284,8 +292,7 @@ IN_PROC_BROWSER_TEST_F(PageSpecificSiteDataDialogInteractiveUiTest,
       InAnyContext(WaitForShow(SiteDataRowView::kAllowMenuItem)),
       // Verify that the menu doesn't have the "Block" or "Delete" menu items
       // because it is already blocked.
-      EnsureNotPresent(SiteDataRowView::kBlockMenuItem,
-                       /* in_any_context =*/true),
+      InAnyContext(EnsureNotPresent(SiteDataRowView::kBlockMenuItem)),
       InAnyContext(SelectMenuItem(SiteDataRowView::kAllowMenuItem)),
       // Wait until custom event happens (triggered when any menu item
       // callback is called). Menu item is accepted on Mac async, after
@@ -303,8 +310,16 @@ IN_PROC_BROWSER_TEST_F(PageSpecificSiteDataDialogInteractiveUiTest,
                     PageSpecificSiteDataDialogAction::kSiteDeleted, 1)));
 }
 
+// Flaky on ChromeOS: crbug.com/1429381
+#if BUILDFLAG(IS_CHROMEOS)
+#define MAYBE_OnlyPartitionedBlockedThirdPartyCookies \
+  DISABLED_OnlyPartitionedBlockedThirdPartyCookies
+#else
+#define MAYBE_OnlyPartitionedBlockedThirdPartyCookies \
+  OnlyPartitionedBlockedThirdPartyCookies
+#endif
 IN_PROC_BROWSER_TEST_F(PageSpecificSiteDataDialogInteractiveUiTest,
-                       OnlyPartitionedBlockedThirdPartyCookies) {
+                       MAYBE_OnlyPartitionedBlockedThirdPartyCookies) {
   CookieChangeObserver observer(
       browser()->tab_strip_model()->GetActiveWebContents(), 6);
   RunTestSequenceInContext(
@@ -335,9 +350,16 @@ IN_PROC_BROWSER_TEST_F(PageSpecificSiteDataDialogInteractiveUiTest,
                     IDS_PAGE_SPECIFIC_SITE_DATA_DIALOG_BLOCKED_STATE_SUBTITLE),
       Do(ExpectActionCount(PageSpecificSiteDataDialogAction::kSiteBlocked, 1)));
 }
-
+// Flaky on ChromeOS: crbug.com/1429381
+#if BUILDFLAG(IS_CHROMEOS)
+#define MAYBE_MixedPartitionedBlockedThirdPartyCookies \
+  DISABLED_MixedPartitionedBlockedThirdPartyCookies
+#else
+#define MAYBE_MixedPartitionedBlockedThirdPartyCookies \
+  MixedPartitionedBlockedThirdPartyCookies
+#endif
 IN_PROC_BROWSER_TEST_F(PageSpecificSiteDataDialogInteractiveUiTest,
-                       MixedPartitionedBlockedThirdPartyCookies) {
+                       MAYBE_MixedPartitionedBlockedThirdPartyCookies) {
   CookieChangeObserver observer(
       browser()->tab_strip_model()->GetActiveWebContents(), 6);
   RunTestSequenceInContext(
@@ -385,10 +407,7 @@ class PageSpecificSiteDataDialogIsolatedWebAppInteractiveUiTest
  protected:
   void SetUpFeatureList() override {
     feature_list_.InitWithFeatures(
-        {page_info::kPageSpecificSiteDataDialog,
-         page_info::kPageInfoCookiesSubpage, features::kIsolatedWebApps,
-         features::kIsolatedWebAppDevMode},
-        {});
+        {features::kIsolatedWebApps, features::kIsolatedWebAppDevMode}, {});
   }
 
   Browser* InstallAndLaunchIsolatedWebApp() {
@@ -402,28 +421,28 @@ class PageSpecificSiteDataDialogIsolatedWebAppInteractiveUiTest
 
     CHECK(content::ExecJs(iwa_frame, "localStorage.setItem('key', 'value')"));
 
-    return chrome::FindBrowserWithWebContents(
+    return chrome::FindBrowserWithTab(
         content::WebContents::FromRenderFrameHost(iwa_frame));
   }
 
   // Installs and launches an IWA, then opens the PageSpecificSiteData dialog.
   MultiStep NavigateAndOpenDialog(Browser* iwa_browser,
                                   ui::ElementIdentifier section_id) {
-    return Steps(
-        InstrumentTab(kWebContentsElementId,
-                      /*tab_index=*/absl::nullopt, iwa_browser),
-        PressButton(kAppMenuButtonElementId),
-        WithView(
-            kAppMenuButtonElementId, base::BindOnce([](AppMenuButton* button) {
-              CHECK(button->IsMenuShowing());
-              button->app_menu()->ExecuteCommand(IDC_WEB_APP_MENU_APP_INFO, 0);
-            })),
-        PressButton(PageInfoMainView::kCookieButtonElementId),
-        PressButton(PageInfoCookiesContentView::kCookieDialogButton),
-        InAnyContext(AfterShow(
-            section_id,
-            ExpectActionCount(PageSpecificSiteDataDialogAction::kDialogOpened,
-                              1))));
+    return Steps(InstrumentTab(kWebContentsElementId,
+                               /*tab_index=*/absl::nullopt, iwa_browser),
+                 PressButton(kToolbarAppMenuButtonElementId),
+                 WithView(kToolbarAppMenuButtonElementId,
+                          base::BindOnce([](AppMenuButton* button) {
+                            CHECK(button->IsMenuShowing());
+                            button->app_menu()->ExecuteCommand(
+                                IDC_WEB_APP_MENU_APP_INFO, 0);
+                          })),
+                 PressButton(PageInfoMainView::kCookieButtonElementId),
+                 PressButton(PageInfoCookiesContentView::kCookieDialogButton),
+                 InAnyContext(AfterShow(
+                     section_id,
+                     ExpectActionCount(
+                         PageSpecificSiteDataDialogAction::kDialogOpened, 1))));
   }
 
   // Returns a test step that verifies that the hostname for `row` is equal to
@@ -448,8 +467,8 @@ IN_PROC_BROWSER_TEST_F(
       InAnyContext(NameChildView(kPageSpecificSiteDataDialogFirstPartySection,
                                  kFirstPartyAllowedRow, 0)),
       // Verify no empty state label is present.
-      EnsureNotPresent(kPageSpecificSiteDataDialogEmptyStateLabel,
-                       /* in_any_context =*/true),
+      InAnyContext(
+          EnsureNotPresent(kPageSpecificSiteDataDialogEmptyStateLabel)),
       // Verify the hostname label.
       CheckHostnameLabel(kFirstPartyAllowedRow, u"Simple Isolated App"));
 }
@@ -464,9 +483,7 @@ class PageSpecificSiteDataDialogPrivacySandboxInteractiveUiTest
  protected:
   void SetUpFeatureList() override {
     feature_list_.InitWithFeatures(
-        {page_info::kPageSpecificSiteDataDialog,
-         page_info::kPageInfoCookiesSubpage, blink::features::kSharedStorageAPI,
-         blink::features::kFencedFrames,
+        {blink::features::kSharedStorageAPI, blink::features::kFencedFrames,
          features::kPrivacySandboxAdsAPIsOverride},
         {});
   }
@@ -486,6 +503,13 @@ class PageSpecificSiteDataDialogPrivacySandboxInteractiveUiTest
 IN_PROC_BROWSER_TEST_F(
     PageSpecificSiteDataDialogPrivacySandboxInteractiveUiTest,
     FirstPartyAllowed) {
+  privacy_sandbox::ScopedPrivacySandboxAttestations scoped_attestations(
+      privacy_sandbox::PrivacySandboxAttestations::CreateForTesting());
+  // Mark all Privacy Sandbox APIs as attested since the test case is testing
+  // behaviors not related to attestations.
+  privacy_sandbox::PrivacySandboxAttestations::GetInstance()
+      ->SetAllPrivacySandboxAttestedForTesting(true);
+
   RunTestSequenceInContext(
       context(),
       NavigateAndOpenDialog(kPageSpecificSiteDataDialogFirstPartySection),
@@ -493,8 +517,8 @@ IN_PROC_BROWSER_TEST_F(
       InAnyContext(NameChildView(kPageSpecificSiteDataDialogFirstPartySection,
                                  kFirstPartyAllowedRow, 0)),
       // Verify no empty state label is present.
-      EnsureNotPresent(kPageSpecificSiteDataDialogEmptyStateLabel,
-                       /*in_any_context=*/true),
+      InAnyContext(
+          EnsureNotPresent(kPageSpecificSiteDataDialogEmptyStateLabel)),
       // Verify the row label and open the row menu.
       CheckRowLabel(kFirstPartyAllowedRow,
                     IDS_PAGE_SPECIFIC_SITE_DATA_DIALOG_ALLOWED_STATE_SUBTITLE),
@@ -503,8 +527,7 @@ IN_PROC_BROWSER_TEST_F(
       InAnyContext(WaitForShow(SiteDataRowView::kBlockMenuItem)),
       InAnyContext(WaitForShow(SiteDataRowView::kClearOnExitMenuItem)),
       // Verify that "Allow" is not present as it is already allowed.
-      EnsureNotPresent(SiteDataRowView::kAllowMenuItem,
-                       /*in_any_context=*/true),
+      InAnyContext(EnsureNotPresent(SiteDataRowView::kAllowMenuItem)),
       // Verify that the site can be deleted.
       DeleteRow(kFirstPartyAllowedRow),
       // Verify that UI has updated as a result of clicking on a menu item and

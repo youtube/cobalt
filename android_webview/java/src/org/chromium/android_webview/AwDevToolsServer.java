@@ -4,12 +4,15 @@
 
 package org.chromium.android_webview;
 
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
+import org.chromium.android_webview.common.Lifetime;
 
 /**
  * Controller for Remote Web Debugging (Developer Tools).
  */
+@Lifetime.Singleton
 @JNINamespace("android_webview")
 public class AwDevToolsServer {
 

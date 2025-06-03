@@ -30,7 +30,7 @@ class MockMessagePopupView;
 class MockMessagePopupCollection : public DesktopMessagePopupCollection {
  public:
   explicit MockMessagePopupCollection(gfx::NativeWindow context)
-      : DesktopMessagePopupCollection(), context_(context) {}
+      : context_(context) {}
 
   MockMessagePopupCollection(const MockMessagePopupCollection&) = delete;
   MockMessagePopupCollection& operator=(const MockMessagePopupCollection&) =
@@ -66,6 +66,10 @@ class MockMessagePopupCollection : public DesktopMessagePopupCollection {
 
   bool popup_timer_started() const { return popup_timer_started_; }
 
+  int popup_collection_height_changed() const {
+    return popup_collection_height_changed_;
+  }
+
  protected:
   MessagePopupView* CreatePopup(const Notification& notification) override;
 
@@ -95,6 +99,10 @@ class MockMessagePopupCollection : public DesktopMessagePopupCollection {
     return is_fullscreen_;
   }
 
+  void NotifyPopupCollectionHeightChanged() override {
+    ++popup_collection_height_changed_;
+  }
+
  private:
   gfx::NativeWindow context_;
 
@@ -104,6 +112,7 @@ class MockMessagePopupCollection : public DesktopMessagePopupCollection {
   bool is_primary_display_ = true;
   bool is_fullscreen_ = false;
   int new_popup_height_ = 84;
+  int popup_collection_height_changed_ = 0;
 };
 
 class MockMessagePopupView : public MessagePopupView {
@@ -134,6 +143,14 @@ class MockMessagePopupView : public MessagePopupView {
     popup_collection_->NotifyPopupResized();
     updated_ = true;
     title_ = base::UTF16ToUTF8(notification.title());
+  }
+
+  void UpdateContentsForChildNotification(
+      const std::string& notification_id,
+      const Notification& notification) override {
+    child_updated_ = true;
+    child_updated_notification_id_ = notification_id;
+    child_updated_title_ = base::UTF16ToUTF8(notification.title());
   }
 
   void AutoCollapse() override {
@@ -167,6 +184,12 @@ class MockMessagePopupView : public MessagePopupView {
   const std::string& id() const { return id_; }
   bool updated() const { return updated_; }
 
+  bool child_updated() const { return child_updated_; }
+  const std::string& child_updated_notification_id() {
+    return child_updated_notification_id_;
+  }
+  const std::string& child_updated_title() { return child_updated_title_; }
+
   const std::string& title() const { return title_; }
 
   void set_expandable(bool expandable) { expandable_ = expandable; }
@@ -180,6 +203,11 @@ class MockMessagePopupView : public MessagePopupView {
 
   std::string id_;
   bool updated_ = false;
+
+  bool child_updated_ = false;
+  std::string child_updated_notification_id_;
+  std::string child_updated_title_;
+
   bool expandable_ = false;
   std::string title_;
 
@@ -423,6 +451,24 @@ TEST_F(MessagePopupCollectionTest, DISABLED_UpdateContentsCausesPopupClose) {
   MessageCenter::Get()->UpdateNotification(id, std::move(updated_notification));
   RunPendingMessages();
   EXPECT_EQ(0u, GetPopupCounts());
+}
+
+TEST_F(MessagePopupCollectionTest, OnChildNotificationViewUpdated) {
+  std::string parent_id = AddNotification();
+  std::string child_id = AddNotification();
+
+  const std::string new_notification_title("new_title");
+  auto new_notification = CreateNotification(child_id, new_notification_title);
+  MessageCenter::Get()->UpdateNotification(child_id,
+                                           std::move(new_notification));
+
+  // Calling `OnChildNotificationViewUpdated()` should update the child
+  // notification in parent's popup.
+  popup_collection()->OnChildNotificationViewUpdated(parent_id, child_id);
+
+  EXPECT_TRUE(GetPopup(parent_id)->child_updated());
+  EXPECT_EQ(child_id, GetPopup(parent_id)->child_updated_notification_id());
+  EXPECT_EQ(new_notification_title, GetPopup(parent_id)->child_updated_title());
 }
 
 TEST_F(MessagePopupCollectionTest, MessageCenterVisibility) {
@@ -836,6 +882,69 @@ TEST_F(MessagePopupCollectionTest, NotDismissedOnClick) {
   EXPECT_EQ(2u, GetPopupCounts());
   EXPECT_TRUE(GetPopup(id1));
   EXPECT_TRUE(GetPopup(id2));
+}
+
+TEST_F(MessagePopupCollectionTest, PopupCollectionBounds) {
+  EXPECT_EQ(gfx::Rect(), popup_collection()->popup_collection_bounds());
+
+  std::string id0 = AddNotification();
+  AnimateUntilIdle();
+
+  gfx::Rect r0 = GetPopup(id0)->GetBoundsInScreen();
+
+  // The popup collection bounds should be the bounds of the only popup.
+  EXPECT_EQ(r0, popup_collection()->popup_collection_bounds());
+
+  std::string id1 = AddNotification();
+  std::string id2 = AddNotification();
+
+  AnimateUntilIdle();
+
+  r0 = GetPopup(id0)->GetBoundsInScreen();
+  gfx::Rect r1 = GetPopup(id1)->GetBoundsInScreen();
+  gfx::Rect r2 = GetPopup(id2)->GetBoundsInScreen();
+
+  // The height of the entire popup collection bounds should be the total
+  // heights of all popups, plus all the margins between them.
+  int expected_height = r0.height() + kMarginBetweenPopups + r1.height() +
+                        kMarginBetweenPopups + r2.height();
+
+  EXPECT_EQ(gfx::Rect(r2.x(), r2.y(), kNotificationWidth, expected_height),
+            popup_collection()->popup_collection_bounds());
+
+  MessageCenter::Get()->RemoveNotification(id0, true);
+  AnimateUntilIdle();
+
+  r1 = GetPopup(id1)->GetBoundsInScreen();
+  r2 = GetPopup(id2)->GetBoundsInScreen();
+
+  EXPECT_EQ(gfx::Rect(r2.x(), r2.y(), kNotificationWidth,
+                      r1.height() + kMarginBetweenPopups + r2.height()),
+            popup_collection()->popup_collection_bounds());
+}
+
+TEST_F(MessagePopupCollectionTest, PopupCollectionHeightChanged) {
+  EXPECT_EQ(0, popup_collection()->popup_collection_height_changed());
+
+  std::string id0 = AddNotification();
+  AnimateUntilIdle();
+
+  EXPECT_EQ(1, popup_collection()->popup_collection_height_changed());
+
+  std::string id1 = AddNotification();
+  AnimateUntilIdle();
+
+  EXPECT_EQ(2, popup_collection()->popup_collection_height_changed());
+
+  std::string id2 = AddNotification();
+  AnimateUntilIdle();
+
+  EXPECT_EQ(3, popup_collection()->popup_collection_height_changed());
+
+  MessageCenter::Get()->RemoveNotification(id0, true);
+  AnimateUntilIdle();
+
+  EXPECT_EQ(4, popup_collection()->popup_collection_height_changed());
 }
 
 TEST_F(MessagePopupCollectionTest, DefaultPositioning) {

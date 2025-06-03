@@ -9,6 +9,7 @@
 
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/threading/thread_checker.h"
@@ -196,26 +197,6 @@ class CommandBufferHelperImpl
     textures_[service_id]->SetCleared();
   }
 
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_APPLE)
-  bool BindDecoderManagedImage(GLuint service_id, gl::GLImage* image) override {
-    DVLOG(2) << __func__ << "(" << service_id << ")";
-    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-
-    DCHECK(textures_.count(service_id));
-    textures_[service_id]->SetUnboundImage(image);
-    return true;
-  }
-#else
-  bool BindClientManagedImage(GLuint service_id, gl::GLImage* image) override {
-    DVLOG(2) << __func__ << "(" << service_id << ")";
-    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-
-    DCHECK(textures_.count(service_id));
-    textures_[service_id]->SetBoundImage(image);
-    return true;
-  }
-#endif
-
  private:
   gpu::Mailbox CreateLegacyMailbox(GLuint service_id) override {
     DVLOG(2) << __func__ << "(" << service_id << ")";
@@ -310,15 +291,19 @@ class CommandBufferHelperImpl
     DVLOG(1) << __func__;
     DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
-    // In case |will_destroy_stub_cb_| drops the last reference to |this|, make
-    // sure that we're around a bit longer.
-    scoped_refptr<CommandBufferHelper> thiz(this);
+    // In case any of the |will_destroy_stub_callbacks_| drops the last
+    // reference to |this|, use a weak ptr to check if |this| is still alive.
+    auto weak_ptr = weak_ptr_factory_.GetWeakPtr();
 
-    for (auto& callback : will_destroy_stub_callbacks_) {
+    // Save callbacks in case |this| gets destroyed while running callbacks.
+    auto callbacks = std::move(will_destroy_stub_callbacks_);
+    for (auto& callback : callbacks) {
       std::move(callback).Run(have_context);
     }
 
-    DestroyStub();
+    if (weak_ptr && weak_ptr->stub_) {
+      weak_ptr->DestroyStub();
+    }
   }
 
   void DestroyStub() {
@@ -355,6 +340,8 @@ class CommandBufferHelperImpl
   gpu::MemoryTypeTracker memory_type_tracker_;
 
   THREAD_CHECKER(thread_checker_);
+
+  base::WeakPtrFactory<CommandBufferHelperImpl> weak_ptr_factory_{this};
 };
 
 CommandBufferHelper::CommandBufferHelper(

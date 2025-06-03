@@ -4,9 +4,9 @@
 
 package org.chromium.chrome.browser.flags;
 
-import androidx.annotation.VisibleForTesting;
+import androidx.annotation.AnyThread;
 
-import org.chromium.chrome.browser.preferences.SharedPreferencesManager;
+import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 
 /**
  * A double-type {@link CachedFieldTrialParameter}.
@@ -23,9 +23,34 @@ public class DoubleCachedFieldTrialParameter extends CachedFieldTrialParameter {
     /**
      * @return the value of the field trial parameter that should be used in this run.
      */
+    @AnyThread
     public double getValue() {
-        return CachedFeatureFlags.getConsistentDoubleValue(
-                getSharedPreferenceKey(), getDefaultValue());
+        CachedFlagsSafeMode.getInstance().onFlagChecked();
+
+        String preferenceName = getSharedPreferenceKey();
+        double defaultValue = getDefaultValue();
+
+        Double value = ValuesOverridden.getDouble(preferenceName);
+        if (value != null) {
+            return value;
+        }
+
+        synchronized (ValuesReturned.sDoubleValues) {
+            value = ValuesReturned.sDoubleValues.get(preferenceName);
+            if (value != null) {
+                return value;
+            }
+
+            value = CachedFlagsSafeMode.getInstance().getDoubleFieldTrialParam(
+                    preferenceName, defaultValue);
+            if (value == null) {
+                value = ChromeSharedPreferences.getInstance().readDouble(
+                        preferenceName, defaultValue);
+            }
+
+            ValuesReturned.sDoubleValues.put(preferenceName, value);
+        }
+        return value;
     }
 
     public double getDefaultValue() {
@@ -36,7 +61,7 @@ public class DoubleCachedFieldTrialParameter extends CachedFieldTrialParameter {
     void cacheToDisk() {
         double value = ChromeFeatureList.getFieldTrialParamByFeatureAsDouble(
                 getFeatureName(), getParameterName(), getDefaultValue());
-        SharedPreferencesManager.getInstance().writeDouble(getSharedPreferenceKey(), value);
+        ChromeSharedPreferences.getInstance().writeDouble(getSharedPreferenceKey(), value);
     }
 
     /**
@@ -47,9 +72,8 @@ public class DoubleCachedFieldTrialParameter extends CachedFieldTrialParameter {
      *
      * @param overrideValue the value to be returned
      */
-    @VisibleForTesting
     public void setForTesting(double overrideValue) {
-        CachedFeatureFlags.setOverrideTestValue(
+        ValuesOverridden.setOverrideForTesting(
                 getSharedPreferenceKey(), String.valueOf(overrideValue));
     }
 }

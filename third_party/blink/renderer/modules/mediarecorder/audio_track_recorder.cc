@@ -16,6 +16,7 @@
 #include "third_party/blink/renderer/modules/mediarecorder/audio_track_mojo_encoder.h"
 #include "third_party/blink/renderer/modules/mediarecorder/audio_track_opus_encoder.h"
 #include "third_party/blink/renderer/modules/mediarecorder/audio_track_pcm_encoder.h"
+#include "third_party/blink/renderer/platform/heap/persistent.h"
 #include "third_party/blink/renderer/platform/mediastream/media_stream_audio_track.h"
 #include "third_party/blink/renderer/platform/mediastream/media_stream_component.h"
 #include "third_party/blink/renderer/platform/mediastream/media_stream_source.h"
@@ -24,6 +25,7 @@
 #include "third_party/blink/renderer/platform/wtf/cross_thread_copier_std.h"
 #include "third_party/blink/renderer/platform/wtf/cross_thread_functional.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
+#include "third_party/blink/renderer/platform/wtf/text/string_view.h"
 #include "third_party/blink/renderer/platform/wtf/wtf.h"
 
 #if BUILDFLAG(IS_WIN) || \
@@ -53,27 +55,44 @@ namespace blink {
 // Max size of buffers passed on to encoders.
 const int kMaxChunkedBufferDurationMs = 60;
 
-AudioTrackRecorder::CodecId AudioTrackRecorder::GetPreferredCodecId() {
+AudioTrackRecorder::CodecId AudioTrackRecorder::GetPreferredCodecId(
+    MediaTrackContainerType type) {
+#if BUILDFLAG(USE_PROPRIETARY_CODECS)
+  // TODO(crbug.com/1480630): Not all platforms support `aac` codecs so make
+  // `opus` as a default after supporting it in the mp4.
+  if (type == MediaTrackContainerType::kVideoMp4 ||
+      type == MediaTrackContainerType::kAudioMp4) {
+    return CodecId::kAac;
+  }
+#endif
   return CodecId::kOpus;
 }
 
 AudioTrackRecorder::AudioTrackRecorder(
+    scoped_refptr<base::SingleThreadTaskRunner> main_thread_task_runner,
     CodecId codec,
     MediaStreamComponent* track,
-    OnEncodedAudioCB on_encoded_audio_cb,
-    base::OnceClosure on_track_source_ended_cb,
+    CallbackInterface* callback_interface,
     uint32_t bits_per_second,
     BitrateMode bitrate_mode,
     scoped_refptr<base::SequencedTaskRunner> encoder_task_runner)
-    : TrackRecorder(std::move(on_track_source_ended_cb)),
+    : TrackRecorder(base::BindPostTask(
+          main_thread_task_runner,
+          WTF::BindOnce(&CallbackInterface::OnSourceReadyStateChanged,
+                        WrapWeakPersistent(callback_interface)))),
       track_(track),
       encoder_task_runner_(std::move(encoder_task_runner)),
-      encoder_(encoder_task_runner_,
-               CreateAudioEncoder(codec,
-                                  encoder_task_runner_,
-                                  std::move(on_encoded_audio_cb),
-                                  bits_per_second,
-                                  bitrate_mode)) {
+      encoder_(
+          encoder_task_runner_,
+          CreateAudioEncoder(
+              codec,
+              encoder_task_runner_,
+              base::BindPostTask(
+                  main_thread_task_runner,
+                  WTF::BindRepeating(&CallbackInterface::OnEncodedAudio,
+                                     WrapWeakPersistent(callback_interface))),
+              bits_per_second,
+              bitrate_mode)) {
   DCHECK(IsMainThread());
   DCHECK(track_);
   DCHECK(track_->GetSourceType() == MediaStreamSource::kTypeAudio);

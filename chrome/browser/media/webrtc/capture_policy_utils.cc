@@ -18,9 +18,12 @@
 #include "components/content_settings/browser/page_specific_content_settings.h"
 #include "components/content_settings/core/browser/host_content_settings_map.h"
 #include "components/content_settings/core/common/content_settings_pattern.h"
+#include "components/content_settings/core/common/pref_names.h"
+#include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/web_contents.h"
+#include "media/base/media_switches.h"
 #include "third_party/blink/public/common/features_generated.h"
 #include "url/gurl.h"
 #include "url/origin.h"
@@ -33,6 +36,15 @@
 #endif
 
 namespace capture_policy {
+
+// This pref connects to the GetDisplayMediaSetSelectAllScreensAllowedForUrls
+// policy. To avoid dynamic refresh, this pref will not be read directly, but
+// the value will be copied manually to the
+// kManagedAccessToGetAllScreensMediaInSessionAllowedForUrls pref, which is then
+// consumed by content settings to check if access to `getAllScreensMedia` shall
+// be permitted for a given origin.
+const char kManagedAccessToGetAllScreensMediaAllowedForUrls[] =
+    "profile.managed_access_to_get_all_screens_media_allowed_for_urls";
 
 namespace {
 
@@ -69,8 +81,8 @@ AllowedScreenCaptureLevel GetAllowedCaptureLevel(
   // properly on all platforms, and since it's not clear that we actually want
   // to support this anyway, turn it off for now.  Note that direct calls into
   // `GetAllowedCaptureLevel(..., PrefService)` will miss this check.
-  // TODO(crbug.com/1410382): Consider turning this back on.
-  if (PictureInPictureWindowManager::IsChildWebContents(
+  if (!base::FeatureList::IsEnabled(media::kDocumentPictureInPictureCapture) &&
+      PictureInPictureWindowManager::IsChildWebContents(
           capturer_web_contents)) {
     return AllowedScreenCaptureLevel::kDisallowed;
   }
@@ -123,8 +135,11 @@ AllowedScreenCaptureLevel GetAllowedCaptureLevel(const GURL& request_origin,
   return AllowedScreenCaptureLevel::kDisallowed;
 }
 
-bool IsGetDisplayMediaSetSelectAllScreensAllowedForAnySite(
-    content::BrowserContext* context) {
+void RegisterProfilePrefs(PrefRegistrySimple* registry) {
+  registry->RegisterListPref(kManagedAccessToGetAllScreensMediaAllowedForUrls);
+}
+
+bool IsGetAllScreensMediaAllowedForAnySite(content::BrowserContext* context) {
 #if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)
   Profile* profile = Profile::FromBrowserContext(context);
   if (!profile) {
@@ -145,10 +160,9 @@ bool IsGetDisplayMediaSetSelectAllScreensAllowedForAnySite(
   if (!host_content_settings_map) {
     return false;
   }
-  ContentSettingsForOneType content_settings;
-  host_content_settings_map->GetSettingsForOneType(
-      ContentSettingsType::GET_DISPLAY_MEDIA_SET_SELECT_ALL_SCREENS,
-      &content_settings);
+  ContentSettingsForOneType content_settings =
+      host_content_settings_map->GetSettingsForOneType(
+          ContentSettingsType::ALL_SCREEN_CAPTURE);
   return base::ranges::any_of(content_settings,
                               [](const ContentSettingPatternSource& source) {
                                 return source.GetContentSetting() ==
@@ -159,9 +173,8 @@ bool IsGetDisplayMediaSetSelectAllScreensAllowedForAnySite(
 #endif
 }
 
-bool IsGetDisplayMediaSetSelectAllScreensAllowed(
-    content::BrowserContext* context,
-    const GURL& url) {
+bool IsGetAllScreensMediaAllowed(content::BrowserContext* context,
+                                 const GURL& url) {
 #if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)
   Profile* profile = Profile::FromBrowserContext(context);
   if (!profile) {
@@ -184,8 +197,7 @@ bool IsGetDisplayMediaSetSelectAllScreensAllowed(
   }
   ContentSetting auto_accept_enabled =
       host_content_settings_map->GetContentSetting(
-          url, url,
-          ContentSettingsType::GET_DISPLAY_MEDIA_SET_SELECT_ALL_SCREENS);
+          url, url, ContentSettingsType::ALL_SCREEN_CAPTURE);
   return auto_accept_enabled == ContentSetting::CONTENT_SETTING_ALLOW;
 #else
   // This API is currently only available on ChromeOS and Linux.
@@ -253,8 +265,7 @@ void FilterMediaList(std::vector<DesktopMediaList::Type>& media_types,
       media_types, [capture_level](const DesktopMediaList::Type& type) {
         switch (type) {
           case DesktopMediaList::Type::kNone:
-            NOTREACHED();
-            return false;
+            NOTREACHED_NORETURN();
           // SameOrigin is more restrictive than just Tabs, so as long as
           // at least SameOrigin is allowed, these entries should stay.
           // They should be filtered later by the caller.

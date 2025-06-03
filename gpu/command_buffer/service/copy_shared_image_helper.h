@@ -8,12 +8,14 @@
 #include <stdint.h>
 #include <string>
 
+#include "base/functional/function_ref.h"
 #include "base/memory/raw_ptr.h"
 #include "base/types/expected.h"
 #include "gpu/command_buffer/common/gl2_types.h"
 #include "gpu/command_buffer/service/shared_image/shared_image_representation.h"
 #include "gpu/gpu_gles2_export.h"
 #include "third_party/skia/include/core/SkImageInfo.h"
+#include "third_party/skia/include/core/SkYUVAInfo.h"
 
 namespace gpu {
 
@@ -43,6 +45,24 @@ class GPU_GLES2_EXPORT CopySharedImageHelper {
       GLenum subsampling,
       const volatile GLbyte* mailboxes_in);
   base::expected<void, GLError> ConvertYUVAMailboxesToRGB(
+      GLint src_x,
+      GLint src_y,
+      GLsizei width,
+      GLsizei height,
+      GLenum yuv_color_space,
+      GLenum plane_config,
+      GLenum subsampling,
+      const volatile GLbyte* mailboxes_in);
+  base::expected<void, GLError> ConvertYUVAMailboxesToGLTexture(
+      GLuint texture,
+      GLenum target,
+      GLuint internal_format,
+      GLenum type,
+      GLint src_x,
+      GLint src_y,
+      GLsizei width,
+      GLsizei height,
+      bool flip_y,
       GLenum yuv_color_space,
       GLenum plane_config,
       GLenum subsampling,
@@ -57,6 +77,7 @@ class GPU_GLES2_EXPORT CopySharedImageHelper {
       GLboolean unpack_flip_y,
       const volatile GLbyte* mailboxes);
   // Only used by passthrough decoder.
+  // TODO(crbug.com/1444777): Handle this use-case for graphite.
   base::expected<void, GLError> CopySharedImageToGLTexture(
       GLuint texture_service_id,
       GLenum target,
@@ -76,8 +97,34 @@ class GPU_GLES2_EXPORT CopySharedImageHelper {
       SkImageInfo dst_info,
       void* pixel_address,
       std::unique_ptr<SkiaImageRepresentation> source_shared_image);
+  base::expected<void, GLError> WritePixelsYUV(
+      GLuint src_width,
+      GLuint src_height,
+      std::array<SkPixmap, SkYUVAInfo::kMaxPlanes> pixmaps,
+      std::vector<GrBackendSemaphore> end_semaphores,
+      std::unique_ptr<SkiaImageRepresentation> dest_shared_image,
+      std::unique_ptr<SkiaImageRepresentation::ScopedWriteAccess>
+          dest_scoped_access);
 
  private:
+  // Converts YUVA mailboxes in `bytes_in` to the RGB SKSurface `dest_surface`.
+  // Returns an error if the conversion did not succeed.
+  base::expected<void, GLError> ConvertYUVAMailboxesToSkSurface(
+      const char* function_name,
+      GLint src_x,
+      GLint src_y,
+      GLsizei width,
+      GLsizei height,
+      GLenum planes_yuv_color_space,
+      GLenum plane_config,
+      GLenum subsampling,
+      const volatile GLbyte* bytes_in,
+      SkSurface* dest_surface,
+      std::vector<GrBackendSemaphore>& begin_semaphores,
+      std::vector<GrBackendSemaphore>& end_semaphores,
+      sk_sp<SkColorSpace> src_rgb_color_space,
+      base::FunctionRef<void()> flush_dest_surface_function);
+
   raw_ptr<SharedImageRepresentationFactory> representation_factory_ = nullptr;
   raw_ptr<SharedContextState> shared_context_state_ = nullptr;
   bool is_drdc_enabled_ = false;

@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "ash/components/arc/test/arc_task_window_builder.h"
 #include "ash/shell.h"
 #include "ash/wm/desks/desks_util.h"
 #include "base/metrics/histogram_samples.h"
@@ -15,8 +16,8 @@
 #include "chrome/browser/ash/app_restore/arc_ghost_window_handler.h"
 #include "chrome/browser/ash/app_restore/arc_ghost_window_shell_surface.h"
 #include "chrome/browser/ash/arc/tracing/arc_app_performance_tracing_session.h"
-#include "chrome/browser/ash/arc/tracing/arc_app_performance_tracing_test_helper.h"
 #include "chrome/browser/ash/arc/tracing/arc_app_performance_tracing_uma_session.h"
+#include "chrome/browser/ash/arc/tracing/test/arc_app_performance_tracing_test_helper.h"
 #include "chrome/browser/ash/arc/window_predictor/window_predictor_utils.h"
 #include "chrome/browser/sync/sync_service_factory.h"
 #include "chrome/test/base/browser_with_test_window_test.h"
@@ -47,16 +48,22 @@ constexpr base::TimeDelta kTestPeriod = base::Seconds(1) / (60 / 20);
 
 constexpr int kMillisecondsToFirstFrame = 500;
 
-// Creates name of histogram with required statistics.
-std::string GetFocusStatisticName(const std::string& name) {
+struct Application {
+  std::string package;
+  std::string activity;
+  std::string name;
+};
+
+std::string GetStatisticName(const std::string& name,
+                             const std::string& category) {
   return base::StringPrintf("Arc.Runtime.Performance.%s.%s", name.c_str(),
-                            kFocusCategory);
+                            category.c_str());
 }
 
 // Reads statistics value from histogram.
-int64_t ReadFocusStatistics(const std::string& name) {
+int64_t ReadStatistics(const std::string& name, const std::string& category) {
   const base::HistogramBase* histogram =
-      base::StatisticsRecorder::FindHistogram(GetFocusStatisticName(name));
+      base::StatisticsRecorder::FindHistogram(GetStatisticName(name, category));
   DCHECK(histogram);
 
   std::unique_ptr<base::HistogramSamples> samples =
@@ -64,6 +71,11 @@ int64_t ReadFocusStatistics(const std::string& name) {
   DCHECK(samples.get());
   DCHECK_EQ(1, samples->TotalCount());
   return samples->sum();
+}
+
+// Reads focus statistics value from histogram
+int64_t ReadFocusStatistics(const std::string& name) {
+  return ReadStatistics(name, kFocusCategory);
 }
 
 }  // namespace
@@ -101,24 +113,35 @@ class ArcAppPerformanceTracingTest : public BrowserWithTestWindowTest {
   }
 
  protected:
+  int64_t task_id = 1;
   // Ensures that tracing is active.
-  views::Widget* StartArcFocusAppTracing() {
+  views::Widget* StartArcAppTracing(const std::string& package_name,
+                                    const std::string& activity_name) {
     shell_root_surface_ = std::make_unique<exo::Surface>();
-    views::Widget* const arc_widget =
-        ArcAppPerformanceTracingTestHelper::CreateArcWindow(
-            "org.chromium.arc.1", shell_root_surface_.get());
-    DCHECK(arc_widget && arc_widget->GetNativeWindow());
+    views::Widget* arc_widget =
+        ArcTaskWindowBuilder()
+            .SetTaskId(task_id)
+            .SetShellRootSurface(shell_root_surface_.get())
+            .BuildOwnedByNativeWidget();
+    arc_widget->Show();
+    DCHECK(arc_widget->GetNativeWindow());
+
     tracing_helper().GetTracing()->OnWindowActivated(
         wm::ActivationChangeObserver::ActivationReason::ACTIVATION_CLIENT,
         arc_widget->GetNativeWindow(), arc_widget->GetNativeWindow());
     tracing_helper().GetTracing()->OnTaskCreated(
-        1 /* task_Id */, kFocusAppPackage, kFocusAppActivity,
+        task_id /* task_Id */, package_name, activity_name,
         std::string() /* intent */, 0 /* session_id */);
+    task_id++;
     DCHECK(tracing_helper().GetTracingSession());
     tracing_helper().GetTracingSession()->FireTimerForTesting();
     DCHECK(tracing_helper().GetTracingSession());
     DCHECK(tracing_helper().GetTracingSession()->tracing_active());
     return arc_widget;
+  }
+
+  views::Widget* StartArcFocusAppTracing() {
+    return StartArcAppTracing(kFocusAppPackage, kFocusAppActivity);
   }
 
   void ResetRootSurface() { shell_root_surface_.reset(); }
@@ -142,20 +165,28 @@ class ArcAppPerformanceTracingTest : public BrowserWithTestWindowTest {
 };
 
 TEST_F(ArcAppPerformanceTracingTest, TracingScheduled) {
+  constexpr int kTaskId1 = 999;
+  constexpr int kTaskId2 = 87111;
+
   // By default it is inactive.
   EXPECT_FALSE(tracing_helper().GetTracingSession());
 
   // Report task first.
   tracing_helper().GetTracing()->OnTaskCreated(
-      1 /* task_Id */, kFocusAppPackage, kFocusAppActivity,
-      std::string() /* intent */, 0 /* session_id */);
+      kTaskId1, kFocusAppPackage, kFocusAppActivity, std::string() /* intent */,
+      0 /* session_id */);
   EXPECT_FALSE(tracing_helper().GetTracingSession());
 
   // Create window second.
   exo::Surface shell_root_surface1;
+
   views::Widget* const arc_widget1 =
-      ArcAppPerformanceTracingTestHelper::CreateArcWindow("org.chromium.arc.1",
-                                                          &shell_root_surface1);
+      ArcTaskWindowBuilder()
+          .SetTaskId(kTaskId1)
+          .SetShellRootSurface(&shell_root_surface1)
+          .BuildOwnedByNativeWidget();
+  arc_widget1->Show();
+
   ASSERT_TRUE(arc_widget1);
   ASSERT_TRUE(arc_widget1->GetNativeWindow());
   tracing_helper().GetTracing()->OnWindowActivated(
@@ -168,9 +199,12 @@ TEST_F(ArcAppPerformanceTracingTest, TracingScheduled) {
   // Test reverse order, create window first.
   exo::Surface shell_root_surface2;
   views::Widget* const arc_widget2 =
-      ArcAppPerformanceTracingTestHelper::CreateArcWindow("org.chromium.arc.2",
-                                                          &shell_root_surface2);
-  ASSERT_TRUE(arc_widget2);
+      ArcTaskWindowBuilder()
+          .SetTaskId(kTaskId2)
+          .SetShellRootSurface(&shell_root_surface2)
+          .BuildOwnedByNativeWidget();
+  arc_widget2->Show();
+
   ASSERT_TRUE(arc_widget2->GetNativeWindow());
   tracing_helper().GetTracing()->OnWindowActivated(
       wm::ActivationChangeObserver::ActivationReason::ACTIVATION_CLIENT,
@@ -179,8 +213,8 @@ TEST_F(ArcAppPerformanceTracingTest, TracingScheduled) {
   EXPECT_FALSE(tracing_helper().GetTracingSession());
   // Report task second.
   tracing_helper().GetTracing()->OnTaskCreated(
-      2 /* task_Id */, kFocusAppPackage, kFocusAppActivity,
-      std::string() /* intent */, 0 /* session_id */);
+      kTaskId2, kFocusAppPackage, kFocusAppActivity, std::string() /* intent */,
+      0 /* session_id */);
   ASSERT_TRUE(tracing_helper().GetTracingSession());
   // Scheduled but not started.
   EXPECT_FALSE(tracing_helper().GetTracingSession()->tracing_active());
@@ -191,9 +225,11 @@ TEST_F(ArcAppPerformanceTracingTest, TracingScheduled) {
 TEST_F(ArcAppPerformanceTracingTest, TracingNotScheduledForNonFocusApp) {
   exo::Surface shell_root_surface;
   views::Widget* const arc_widget =
-      ArcAppPerformanceTracingTestHelper::CreateArcWindow("org.chromium.arc.1",
-                                                          &shell_root_surface);
-  ASSERT_TRUE(arc_widget);
+      ArcTaskWindowBuilder()
+          .SetShellRootSurface(&shell_root_surface)
+          .BuildOwnedByNativeWidget();
+  arc_widget->Show();
+
   ASSERT_TRUE(arc_widget->GetNativeWindow());
   tracing_helper().GetTracing()->OnWindowActivated(
       wm::ActivationChangeObserver::ActivationReason::ACTIVATION_CLIENT,
@@ -243,13 +279,75 @@ TEST_F(ArcAppPerformanceTracingTest, StatisticsReported) {
   arc_widget->Close();
 }
 
+TEST_F(ArcAppPerformanceTracingTest, ApplicationStatisticsReported) {
+  std::vector<const Application> applications;
+
+  const Application minecraft = {"com.mojang.minecraftpe",
+                                 "com.mojang.minecraftpe.MainActivity",
+                                 "MinecraftConsumerEdition"};
+  applications.push_back(minecraft);
+
+  const Application among_us = {
+      "com.innersloth.spacemafia",
+      "com.innersloth.spacemafia.EosUnityPlayerActivity", "AmongUs"};
+  applications.push_back(among_us);
+
+  const Application raid_legends = {"com.plarium.raidlegends",
+                                    "com.plarium.unity_app.UnityMainActivity",
+                                    "RaidLegends"};
+  applications.push_back(raid_legends);
+
+  const Application underlords = {"com.valvesoftware.underlords",
+                                  "com.valvesoftware.underlords.applauncher",
+                                  "Underlords"};
+  applications.push_back(underlords);
+
+  const Application toca_life = {"com.tocaboca.tocalifeworld",
+                                 "com.tocaboca.activity.TocaBocaMainActivity",
+                                 "TocaLife"};
+  applications.push_back(toca_life);
+
+  const Application candy_crush = {
+      "com.king.candycrushsaga",
+      "com.king.candycrushsaga.CandyCrushSagaActivity", "CandyCrush"};
+  applications.push_back(candy_crush);
+
+  const Application homescapes = {"com.playrix.homescapes",
+                                  "com.playrix.homescapes.GoogleActivity",
+                                  "Homescapes"};
+  applications.push_back(homescapes);
+
+  const Application fifa_mobile = {"com.ea.gp.fifamobile",
+                                   "com.ea.gp.fifamobile.FifaMainActivity",
+                                   "FIFAMobile"};
+  applications.push_back(fifa_mobile);
+
+  const Application genshin_impact = {"com.miHoYo.GenshinImpact",
+                                      "com.miHoYo.GetMobileInfo.MainActivity",
+                                      "GenshinImpact"};
+  applications.push_back(genshin_impact);
+
+  for (const Application& application : applications) {
+    views::Widget* const arc_widget =
+        StartArcAppTracing(application.package, application.activity);
+
+    tracing_helper().PlayDefaultSequence();
+    tracing_helper().FireTimerForTesting();
+    EXPECT_EQ(45L, ReadStatistics("FPS2", application.name));
+    EXPECT_EQ(216L, ReadStatistics("CommitDeviation2", application.name));
+    EXPECT_EQ(48L, ReadStatistics("RenderQuality2", application.name));
+    arc_widget->Close();
+  }
+}
+
 TEST_F(ArcAppPerformanceTracingTest, TracingNotScheduledWhenAppSyncDisabled) {
   tracing_helper().DisableAppSync();
   exo::Surface shell_root_surface;
   views::Widget* const arc_widget =
-      ArcAppPerformanceTracingTestHelper::CreateArcWindow("org.chromium.arc.1",
-                                                          &shell_root_surface);
-  ASSERT_TRUE(arc_widget);
+      ArcTaskWindowBuilder()
+          .SetShellRootSurface(&shell_root_surface)
+          .BuildOwnedByNativeWidget();
+  arc_widget->Show();
   ASSERT_TRUE(arc_widget->GetNativeWindow());
   tracing_helper().GetTracing()->OnWindowActivated(
       wm::ActivationChangeObserver::ActivationReason::ACTIVATION_CLIENT,
@@ -267,9 +365,11 @@ TEST_F(ArcAppPerformanceTracingTest, TimeToFirstFrameRendered) {
       ArcAppListPrefs::GetAppId(kFocusAppPackage, kFocusAppActivity);
   exo::Surface shell_root_surface;
   views::Widget* const arc_widget =
-      ArcAppPerformanceTracingTestHelper::CreateArcWindow("org.chromium.arc.1",
-                                                          &shell_root_surface);
-  DCHECK(arc_widget && arc_widget->GetNativeWindow());
+      ArcTaskWindowBuilder()
+          .SetShellRootSurface(&shell_root_surface)
+          .BuildOwnedByNativeWidget();
+  arc_widget->Show();
+  DCHECK(arc_widget->GetNativeWindow());
 
   tracing_helper().GetTracing()->OnWindowActivated(
       wm::ActivationChangeObserver::ActivationReason::ACTIVATION_CLIENT,

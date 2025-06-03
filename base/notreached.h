@@ -12,6 +12,17 @@
 
 namespace logging {
 
+// NOTREACHED() annotates should-be unreachable code. Under the
+// kNotReachedIsFatal experiment all NOTREACHED()s that happen after FeatureList
+// initialization are fatal. As of 2023-06-06 this experiment is disabled
+// everywhere.
+//
+// For paths that are intended to eventually be NOTREACHED() but are not yet
+// ready for migration (stability risk, known pre-existing failures), consider
+// the DUMP_WILL_BE_NOTREACHED_NORETURN() macro below.
+//
+// Outside the kNotReachedIsFatal experiment behavior is as follows:
+//
 // On DCHECK builds NOTREACHED() match the fatality of DCHECKs. When DCHECKs are
 // non-FATAL a crash report will be generated for the first NOTREACHED() that
 // hits per process.
@@ -23,9 +34,12 @@ namespace logging {
 // TODO(crbug.com/851128): Migrate NOTREACHED() callers to NOTREACHED_NORETURN()
 // which is [[noreturn]] and always FATAL. Once that's done, rename
 // NOTREACHED_NORETURN() back to NOTREACHED() and remove the non-FATAL version.
+// This migration will likely happen through the kNotReachedIsFatal experiment
+// for most code as we'll be able to avoid stability issues for pre-existing
+// failures.
 #if CHECK_WILL_STREAM() || BUILDFLAG(ENABLE_LOG_ERROR_NOT_REACHED)
 #define NOTREACHED() \
-  CHECK_FUNCTION_IMPL(::logging::NotReachedError::NotReached(), false)
+  LOGGING_CHECK_FUNCTION_IMPL(::logging::NotReachedError::NotReached(), false)
 #else
 #define NOTREACHED()                                       \
   (true) ? ::logging::NotReachedError::TriggerNotReached() \
@@ -37,8 +51,7 @@ namespace logging {
 // TODO(crbug.com/851128): Rename back to NOTREACHED() once there are no callers
 // of the old non-CHECK-fatal macro.
 #if CHECK_WILL_STREAM()
-#define NOTREACHED_NORETURN() \
-  ::logging::NotReachedNoreturnError(__FILE__, __LINE__)
+#define NOTREACHED_NORETURN() ::logging::NotReachedNoreturnError()
 #else
 // This function is used to be able to detect NOTREACHED() failures in stack
 // traces where this symbol is preserved (even if inlined). Its implementation
@@ -51,6 +64,12 @@ namespace logging {
   (true) ? ::logging::NotReachedFailure() : EAT_CHECK_STREAM_PARAMS()
 #endif
 
+// The DUMP_WILL_BE_NOTREACHED_NORETURN() macro provides a convenient way to
+// non-fatally dump in official builds if ever hit. See DUMP_WILL_BE_CHECK for
+// suggested usage.
+#define DUMP_WILL_BE_NOTREACHED_NORETURN() \
+  ::logging::CheckError::DumpWillBeNotReachedNoreturn()
+
 // The NOTIMPLEMENTED() macro annotates codepaths which have not been
 // implemented yet. If output spam is a serious concern,
 // NOTIMPLEMENTED_LOG_ONCE can be used.
@@ -60,7 +79,7 @@ namespace logging {
 // NOTIMPLEMENTED_LOG_ONCE() << "foo message"; pattern is not supported.
 #if DCHECK_IS_ON()
 #define NOTIMPLEMENTED() \
-  ::logging::CheckError::NotImplemented(__FILE__, __LINE__, __PRETTY_FUNCTION__)
+  ::logging::CheckError::NotImplemented(__PRETTY_FUNCTION__)
 #else
 #define NOTIMPLEMENTED() EAT_CHECK_STREAM_PARAMS()
 #endif

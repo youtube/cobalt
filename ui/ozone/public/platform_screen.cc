@@ -61,8 +61,6 @@ display::TabletState PlatformScreen::GetTabletState() const {
 }
 #endif
 
-void PlatformScreen::SetDeviceScaleFactor(float scale) {}
-
 void PlatformScreen::StorePlatformNameIntoListOfValues(
     base::Value::List& values,
     const std::string& platform_name) {

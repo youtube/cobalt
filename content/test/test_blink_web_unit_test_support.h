@@ -47,8 +47,6 @@ class TestBlinkWebUnitTestSupport : public BlinkPlatformImpl {
   ~TestBlinkWebUnitTestSupport() override;
 
   blink::WebString UserAgent() override;
-  blink::WebString FullUserAgent() override;
-  blink::WebString ReducedUserAgent() override;
   blink::WebString QueryLocalizedString(int resource_id) override;
   blink::WebString QueryLocalizedString(int resource_id,
                                         const blink::WebString& value) override;
@@ -66,6 +64,9 @@ class TestBlinkWebUnitTestSupport : public BlinkPlatformImpl {
   // The original value should be restored before ending a test to avoid
   // cross-test side effects.
   static bool SetThreadedAnimationEnabled(bool enabled);
+
+  // Returns the main thread isolate created for this test environment.
+  v8::Isolate* MainThreadIsolate();
 
  private:
   void BindClipboardHost(mojo::ScopedMessagePipeHandle handle);

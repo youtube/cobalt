@@ -179,22 +179,21 @@ out/Default chrome/test:unit_tests`).
 
 ### Multiple Chrome Targets
 
-The Google Play Store allows apps to send customized `.apk` or `.aab` files
+The Google Play Store allows apps to send customized bundles (`.aab` files)
 depending on the version of Android running on a device. Chrome uses this
 feature to package optimized versions for different OS versions.
 
-1. `monochrome_public_bundle` (MonochromePublic.aab)
+1. `monochrome_public_bundle` (`MonochromePublic.aab`)
    * `minSdkVersion=24` (Nougat).
    * Contains both Chrome and WebView (to save disk space).
-2. `trichrome_chrome_bundle` (TrichromeChrome.aab)
+2. `trichrome_chrome_bundle` (`TrichromeChrome.aab`)
    * `minSdkVersion=29` (Android 10).
    * Native code shared with WebView through a "Static Shared Library APK": `trichrome_library_apk` 
    * Corresponding WebView target: `trichrome_webview_bundle`
-3. `chrome_public_apk` (ChromePublic.apk)
+3. `chrome_public_bundle` & `chrome_public_apk` (`ChromePublic.aab`, `ChromePublic.apk`)
    * `minSdkVersion=24` (Nougat).
-   * WebView packaged independently (`system_webview_apk`).
-   * Used for only local development and tests (simpler than using bundle
-     targets).
+   * Used for local development (to avoid building WebView).
+   * WebView packaged independently (`system_webview_bundle` / `system_webview_apk`).
 
 *** note
 **Notes:**
@@ -334,7 +333,7 @@ with `.*`), eg:
 
 ```shell
 export CHROMIUM_LOGCAT_HIGHLIGHT='(WARNING|cr_Child)'
-out/Default.bin/chrome_public_apk logcat
+out/Default/bin/chrome_public_apk logcat
 # Highlights messages/tags containing WARNING and cr_Child strings.
 ```
 
@@ -353,7 +352,7 @@ for more on debugging, including how to debug Java code.
 ### Testing
 
 For information on running tests, see
-[Android Test Instructions](/testing/android/docs/README.md)
+[Android Test Instructions](/docs/testing/android_test_instructions.md)
 
 ### Faster Edit/Deploy
 

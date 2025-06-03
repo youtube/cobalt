@@ -47,6 +47,8 @@ class RootFrameSinkClient {
 // access to the GPU. It is single-threaded and refcounted on the viz thread.
 // This needs to be separate from classes for rendering which requires GPU
 // to enable sending begin frames independently from access to GPU.
+//
+// Lifetime: WebView
 class RootFrameSink : public base::RefCounted<RootFrameSink>,
                       public viz::mojom::CompositorFrameSinkClient,
                       public viz::ExternalBeginFrameSourceClient {
@@ -134,7 +136,7 @@ class RootFrameSink : public base::RefCounted<RootFrameSink>,
   bool needs_draw_ = false;
   raw_ptr<RootFrameSinkClient> client_;
   base::flat_set<viz::SurfaceId> contained_surfaces_;
-  std::map<viz::SurfaceId, viz::BeginFrameId> last_invalidated_frame_id_;
+  std::map<viz::SurfaceId, uint64_t> last_invalidated_frame_index_;
 
   const bool use_new_invalidate_heuristic_;
 

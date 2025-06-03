@@ -46,7 +46,7 @@ MetricEventObserverManager::MetricEventObserverManager(
   reporting_controller_ = std::make_unique<MetricReportingController>(
       reporting_settings, enable_setting_path, setting_enabled_default_value);
 
-  DCHECK(!init_delay.is_negative());
+  CHECK(!init_delay.is_negative());
   if (init_delay.is_zero()) {
     SetReportingControllerCb();
     return;
@@ -85,7 +85,8 @@ void MetricEventObserverManager::OnEventObserved(MetricData metric_data) {
     return;
   }
   MetricEventType event_type = metric_data.event_data().type();
-  metric_data.set_timestamp_ms(base::Time::Now().ToJavaTime());
+  metric_data.set_timestamp_ms(
+      base::Time::Now().InMillisecondsSinceUnixEpoch());
   metric_report_queue_->Enqueue(std::move(metric_data));
 
   if (collector_pool_) {

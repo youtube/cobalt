@@ -27,7 +27,7 @@ bytecodes: [
   /*   32 S> */ B(Return),
 ]
 constant pool: [
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["x"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["x"],
 ]
 handlers: [
 ]
@@ -61,8 +61,8 @@ bytecodes: [
   /*   47 S> */ B(Return),
 ]
 constant pool: [
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["x"],
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["y"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["x"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["y"],
 ]
 handlers: [
 ]
@@ -102,9 +102,9 @@ bytecodes: [
   /*   67 S> */ B(Return),
 ]
 constant pool: [
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["x"],
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["y"],
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["z"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["x"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["y"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["z"],
 ]
 handlers: [
 ]
@@ -137,8 +137,8 @@ bytecodes: [
   /*   49 S> */ B(Return),
 ]
 constant pool: [
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["x"],
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["y"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["x"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["y"],
 ]
 handlers: [
 ]
@@ -170,8 +170,8 @@ bytecodes: [
   /*   53 S> */ B(Return),
 ]
 constant pool: [
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["x"],
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["y"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["x"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["y"],
 ]
 handlers: [
 ]
@@ -202,8 +202,8 @@ bytecodes: [
   /*   60 S> */ B(Return),
 ]
 constant pool: [
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["x"],
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["y"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["x"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["y"],
 ]
 handlers: [
 ]
@@ -243,10 +243,10 @@ bytecodes: [
   /*   59 S> */ B(Return),
 ]
 constant pool: [
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["x"],
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["y"],
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["w"],
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["z"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["x"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["y"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["w"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["z"],
 ]
 handlers: [
 ]
@@ -264,7 +264,7 @@ snippet: "
 "
 frame size: 6
 parameter count: 2
-bytecode array length: 70
+bytecode array length: 72
 bytecodes: [
   /*   34 S> */ B(CreateArrayLiteral), U8(0), U8(1), U8(37),
                 B(Star0),
@@ -295,6 +295,7 @@ bytecodes: [
                 B(Star4),
   /*   24 E> */ B(JumpLoop), U8(28), I8(0), U8(4),
   /*   46 S> */ B(LdaCurrentContextSlot), U8(2),
+                B(ThrowReferenceErrorIfHole), U8(2),
   /*   49 S> */ B(LdaImmutableCurrentContextSlot), U8(3),
   /*   52 S> */ B(LdaImmutableCurrentContextSlot), U8(4),
                 B(ThrowReferenceErrorIfHole), U8(3),
@@ -303,9 +304,9 @@ bytecodes: [
 ]
 constant pool: [
   ARRAY_BOILERPLATE_DESCRIPTION_TYPE,
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["y"],
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["x"],
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["z"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["y"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["x"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["z"],
 ]
 handlers: [
 ]
@@ -402,13 +403,13 @@ bytecodes: [
 ]
 constant pool: [
   ARRAY_BOILERPLATE_DESCRIPTION_TYPE,
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["y"],
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["next"],
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["done"],
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["value"],
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["x"],
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["z"],
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["return"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["y"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["next"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["done"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["value"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["x"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["z"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["return"],
 ]
 handlers: [
   [30, 73, 79],
@@ -475,11 +476,11 @@ bytecodes: [
   /*   84 S> */ B(Return),
 ]
 constant pool: [
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["x"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["x"],
   SCOPE_INFO_TYPE,
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["z"],
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["w"],
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["y"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["z"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["w"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["y"],
 ]
 handlers: [
   [3, 33, 39],
@@ -515,8 +516,8 @@ bytecodes: [
 ]
 constant pool: [
   OBJECT_BOILERPLATE_DESCRIPTION_TYPE,
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["p"],
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["x"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["p"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["x"],
 ]
 handlers: [
 ]
@@ -554,9 +555,9 @@ bytecodes: [
   /*   57 S> */ B(Return),
 ]
 constant pool: [
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["x"],
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["y"],
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["z"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["x"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["y"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["z"],
 ]
 handlers: [
 ]
@@ -594,9 +595,9 @@ bytecodes: [
   /*   57 S> */ B(Return),
 ]
 constant pool: [
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["x"],
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["y"],
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["z"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["x"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["y"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["z"],
 ]
 handlers: [
 ]
@@ -636,9 +637,9 @@ bytecodes: [
   /*   57 S> */ B(Return),
 ]
 constant pool: [
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["x"],
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["y"],
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["z"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["x"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["y"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["z"],
 ]
 handlers: [
 ]
@@ -684,8 +685,8 @@ bytecodes: [
 ]
 constant pool: [
   OBJECT_BOILERPLATE_DESCRIPTION_TYPE,
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["x"],
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["y"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["x"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["y"],
 ]
 handlers: [
 ]
@@ -718,8 +719,8 @@ bytecodes: [
   /*   41 S> */ B(Return),
 ]
 constant pool: [
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["x"],
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["y"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["x"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["y"],
 ]
 handlers: [
 ]
@@ -752,8 +753,8 @@ bytecodes: [
   /*   41 S> */ B(Return),
 ]
 constant pool: [
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["x"],
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["y"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["x"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["y"],
 ]
 handlers: [
 ]
@@ -787,8 +788,8 @@ bytecodes: [
   /*   41 S> */ B(Return),
 ]
 constant pool: [
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["x"],
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["y"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["x"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["y"],
 ]
 handlers: [
 ]
@@ -842,10 +843,10 @@ bytecodes: [
   /*  107 S> */ B(Return),
 ]
 constant pool: [
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["x"],
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["y"],
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["z"],
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["w"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["x"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["y"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["z"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["w"],
 ]
 handlers: [
 ]
@@ -884,8 +885,8 @@ bytecodes: [
   /*   71 S> */ B(Return),
 ]
 constant pool: [
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["x"],
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["y"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["x"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["y"],
 ]
 handlers: [
 ]
@@ -917,8 +918,8 @@ bytecodes: [
   /*   46 S> */ B(Return),
 ]
 constant pool: [
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["x"],
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["y"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["x"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["y"],
 ]
 handlers: [
 ]
@@ -958,7 +959,7 @@ bytecodes: [
   /*   55 S> */ B(Return),
 ]
 constant pool: [
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["x"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["x"],
   SCOPE_INFO_TYPE,
 ]
 handlers: [
@@ -1000,7 +1001,7 @@ bytecodes: [
   /*   59 S> */ B(Return),
 ]
 constant pool: [
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["x"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["x"],
   SCOPE_INFO_TYPE,
 ]
 handlers: [
@@ -1052,8 +1053,8 @@ bytecodes: [
   /*   60 S> */ B(Return),
 ]
 constant pool: [
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["x"],
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["y"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["x"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["y"],
 ]
 handlers: [
   [3, 7, 13],

@@ -190,8 +190,8 @@ sessions::LiveTab* BrowserLiveTabContext::AddRestoredTab(
           : nullptr;
 
   TabGroupModel* group_model = browser_->tab_strip_model()->group_model();
-  const bool first_tab_in_group =
-      group.has_value() ? !group_model->ContainsTabGroup(group.value()) : false;
+  const bool first_tab_in_group = group_model && group.has_value() &&
+                                  !group_model->ContainsTabGroup(group.value());
 
   bool restored_from_closed_tab_cache = false;
   WebContents* web_contents = nullptr;
@@ -323,15 +323,19 @@ sessions::LiveTabContext* BrowserLiveTabContext::Create(
 // static
 sessions::LiveTabContext* BrowserLiveTabContext::FindContextForWebContents(
     const WebContents* contents) {
-  Browser* browser = chrome::FindBrowserWithWebContents(contents);
-  return browser ? browser->live_tab_context() : nullptr;
+  Browser* browser = chrome::FindBrowserWithTab(contents);
+  return browser && !browser->is_delete_scheduled()
+             ? browser->live_tab_context()
+             : nullptr;
 }
 
 // static
 sessions::LiveTabContext* BrowserLiveTabContext::FindContextWithID(
     SessionID desired_id) {
   Browser* browser = chrome::FindBrowserWithID(desired_id);
-  return browser ? browser->live_tab_context() : nullptr;
+  return browser && !browser->is_delete_scheduled()
+             ? browser->live_tab_context()
+             : nullptr;
 }
 
 // static
@@ -339,5 +343,7 @@ sessions::LiveTabContext* BrowserLiveTabContext::FindContextWithGroup(
     tab_groups::TabGroupId group,
     Profile* profile) {
   Browser* browser = chrome::FindBrowserWithGroup(group, profile);
-  return browser ? browser->live_tab_context() : nullptr;
+  return browser && !browser->is_delete_scheduled()
+             ? browser->live_tab_context()
+             : nullptr;
 }

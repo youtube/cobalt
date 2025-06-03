@@ -18,6 +18,7 @@
 #include "content/public/browser/content_browser_client.h"
 #include "content/public/browser/site_isolation_policy.h"
 #include "content/public/browser/storage_partition_config.h"
+#include "content/public/browser/web_exposed_isolation_level.h"
 #include "content/public/common/content_client.h"
 #include "content/public/common/content_features.h"
 #include "content/public/common/content_switches.h"
@@ -74,6 +75,32 @@ GURL SchemeAndHostToSite(const std::string& scheme, const std::string& host) {
   return GURL(scheme + url::kStandardSchemeSeparator + host);
 }
 
+// Figure out which origin to use for computing site and process lock URLs for
+// `url`. In most cases, this should just be `url`'s origin. However, there are
+// some exceptions where an alternate origin must be used. Namely, for
+// LoadDataWithBaseURL navigations, this should be the origin of the base URL
+// rather than the data URL. about:blank navigations ought to inherit the
+// initiator's origin. In all these cases, we should use the alternate origin
+// which will be passed through `overridden_origin`, ensuring to use its
+// precursor if the origin is opaque to still compute a meaningful site URL.
+url::Origin GetPossiblyOverriddenOriginFromUrl(
+    const GURL& url,
+    absl::optional<url::Origin> overridden_origin) {
+  bool scheme_allows_origin_override =
+      url.SchemeIs(url::kDataScheme) || url.IsAboutBlank();
+  if (overridden_origin.has_value() && scheme_allows_origin_override) {
+    auto precursor = overridden_origin->GetTupleOrPrecursorTupleIfOpaque();
+    if (precursor.IsValid()) {
+      return url::Origin::CreateFromNormalizedTuple(
+          precursor.scheme(), precursor.host(), precursor.port());
+    } else {
+      return url::Origin::Resolve(url, overridden_origin.value());
+    }
+  } else {
+    return url::Origin::Create(url);
+  }
+}
+
 }  // namespace
 
 // static
@@ -81,12 +108,15 @@ SiteInfo SiteInfo::CreateForErrorPage(
     const StoragePartitionConfig storage_partition_config,
     bool is_guest,
     bool is_fenced,
-    const WebExposedIsolationInfo& web_exposed_isolation_info) {
-  return SiteInfo(GetErrorPageSiteAndLockURL(), GetErrorPageSiteAndLockURL(),
+    const WebExposedIsolationInfo& web_exposed_isolation_info,
+    WebExposedIsolationLevel web_exposed_isolation_level) {
+  return SiteInfo(GetErrorPageSiteAndLockURL() /* site_url */,
+                  GetErrorPageSiteAndLockURL() /* process_lock_url */,
                   false /* requires_origin_keyed_process */,
+                  false /* requires_origin_keyed_process_by_default */,
                   false /* is_sandboxed */, UrlInfo::kInvalidUniqueSandboxId,
                   storage_partition_config, web_exposed_isolation_info,
-                  is_guest,
+                  web_exposed_isolation_level, is_guest,
                   false /* does_site_request_dedicated_process_for_coop */,
                   false /* is_jit_disabled */, false /* is_pdf */, is_fenced);
 }
@@ -103,14 +133,20 @@ SiteInfo SiteInfo::CreateForDefaultSiteInstance(
   bool is_jit_disabled = GetContentClient()->browser()->IsJitDisabledForSite(
       browser_context, GURL());
 
+  WebExposedIsolationLevel web_exposed_isolation_level =
+      SiteInfo::ComputeWebExposedIsolationLevelForEmptySite(
+          web_exposed_isolation_info);
+
   return SiteInfo(
-      SiteInstanceImpl::GetDefaultSiteURL(),
-      SiteInstanceImpl::GetDefaultSiteURL(),
-      false /* requires_origin_keyed_process */, false /* is_sandboxed */,
-      UrlInfo::kInvalidUniqueSandboxId, storage_partition_config,
-      web_exposed_isolation_info, isolation_context.is_guest(),
-      false /* does_site_request_dedicated_process_for_coop */, is_jit_disabled,
-      false /* is_pdf */, isolation_context.is_fenced());
+      /*site_url=*/SiteInstanceImpl::GetDefaultSiteURL(),
+      /*process_lock_url=*/SiteInstanceImpl::GetDefaultSiteURL(),
+      /*requires_origin_keyed_process=*/false,
+      /*requires_origin_keyed_process_by_default=*/false,
+      /*is_sandboxed=*/false, UrlInfo::kInvalidUniqueSandboxId,
+      storage_partition_config, web_exposed_isolation_info,
+      web_exposed_isolation_level, isolation_context.is_guest(),
+      /*does_site_request_dedicated_process_for_coop=*/false, is_jit_disabled,
+      /*is_pdf=*/false, isolation_context.is_fenced());
 }
 
 // static
@@ -125,12 +161,15 @@ SiteInfo SiteInfo::CreateForGuest(
   // the guest will follow the normal process selection paths and use
   // SiteInstances with real site and lock URLs.
   return SiteInfo(
-      GURL(), GURL(), false /* requires_origin_keyed_process */,
-      false /* is_sandboxed */, UrlInfo::kInvalidUniqueSandboxId,
+      /*site_url=*/GURL(), /*process_lock_url=*/GURL(),
+      /*requires_origin_keyed_process=*/false,
+      /*requires_origin_keyed_process_by_default=*/false,
+      /*is_sandboxed=*/false, UrlInfo::kInvalidUniqueSandboxId,
       partition_config, WebExposedIsolationInfo::CreateNonIsolated(),
-      true /* is_guest */,
-      false /* does_site_request_dedicated_process_for_coop */,
-      false /* is_jit_disabled */, false /* is_pdf */, false /*is_fenced*/);
+      WebExposedIsolationLevel::kNotIsolated,
+      /*is_guest=*/true,
+      /*does_site_request_dedicated_process_for_coop=*/false,
+      /*is_jit_disabled=*/false, /*is_pdf=*/false, /*is_fenced=*/false);
 }
 
 // static
@@ -186,25 +225,41 @@ SiteInfo SiteInfo::CreateInternal(const IsolationContext& isolation_context,
   }
   DCHECK(storage_partition_config.has_value());
 
+  WebExposedIsolationInfo web_exposed_isolation_info =
+      url_info.web_exposed_isolation_info.value_or(
+          WebExposedIsolationInfo::CreateNonIsolated());
+  WebExposedIsolationLevel web_exposed_isolation_level =
+      ComputeWebExposedIsolationLevel(web_exposed_isolation_info, url_info);
+
   if (url_info.url.SchemeIs(kChromeErrorScheme)) {
-    return CreateForErrorPage(
-        storage_partition_config.value(),
-        /*is_guest=*/isolation_context.is_guest(),
-        /*is_fenced=*/isolation_context.is_fenced(),
-        url_info.web_exposed_isolation_info.value_or(
-            WebExposedIsolationInfo::CreateNonIsolated()));
+    return CreateForErrorPage(storage_partition_config.value(),
+                              /*is_guest=*/isolation_context.is_guest(),
+                              /*is_fenced=*/isolation_context.is_fenced(),
+                              web_exposed_isolation_info,
+                              web_exposed_isolation_level);
   }
   // We should only set |requires_origin_keyed_process| if we are actually
-  // creating separate SiteInstances for OAC isolation. When we do same-process
-  // OAC, we don't do that at present.
+  // creating separate SiteInstances for OAC isolation. When we use site-keyed
+  // processes for OAC, we don't do that at present.
   // TODO(wjmaclean): Once SiteInstanceGroups are fully implemented, we should
-  // be able to give spOAC origins their own SiteInstance.
+  // be able to give all OAC origins their own SiteInstance.
   // https://crbug.com/1195535
   OriginAgentClusterIsolationState requested_isolation_state =
-      url_info.requests_origin_agent_cluster()
-          ? OriginAgentClusterIsolationState::CreateForOriginAgentCluster(
-                url_info.requests_origin_keyed_process())
-          : OriginAgentClusterIsolationState::CreateNonIsolated();
+      isolation_context.default_isolation_state();
+  if (!url_info.requests_default_origin_agent_cluster_isolation()) {
+    // In this case, url_info is not using OAC by default, so we only need to
+    // check the by_header() functions to determine the isolation state.
+    // (RequestsOriginKeyedProcess(isolation_context) only behaves differently
+    // in the non-header / by-default case.)
+    requested_isolation_state =
+        url_info.requests_origin_agent_cluster_by_header()
+            ? OriginAgentClusterIsolationState::CreateForOriginAgentCluster(
+                  url_info.requests_origin_keyed_process_by_header())
+            : OriginAgentClusterIsolationState::CreateNonIsolated();
+  }
+  // An origin-keyed process can only be used for origin-keyed agent clusters.
+  CHECK(!requested_isolation_state.requires_origin_keyed_process() ||
+        requested_isolation_state.is_origin_agent_cluster());
 
   bool requires_origin_keyed_process = false;
   if (SiteIsolationPolicy::IsProcessIsolationForOriginAgentClusterEnabled()) {
@@ -216,6 +271,15 @@ SiteInfo SiteInfo::CreateInternal(const IsolationContext& isolation_context,
                 requested_isolation_state)
             .requires_origin_keyed_process();
   }
+  // If after the call to `DetermineOriginAgentClusterIsolation` the returned
+  // isolation state has `requires_origin_keyed_process() == true`, and if the
+  // requested `url_info` was for default isolation, then we know that
+  // `requires_origin_keyed_process` is true by default; we track that in
+  // `requires_origin_keyed_process_by_default` so that later we know not to
+  // add the isolation state to the per-BrowsingInstance tracking.
+  bool requires_origin_keyed_process_by_default =
+      requires_origin_keyed_process &&
+      url_info.requests_default_origin_agent_cluster_isolation();
 
   // If there is a COOP isolation request, propagate it to SiteInfo.
   // This will be used later when determining a suitable SiteInstance
@@ -236,11 +300,10 @@ SiteInfo SiteInfo::CreateInternal(const IsolationContext& isolation_context,
   // appropriate to disregard WebExposedIsolationInfo and override it manually
   // to what they expect the other value to be.
   return SiteInfo(site_url, lock_url, requires_origin_keyed_process,
+                  requires_origin_keyed_process_by_default,
                   url_info.is_sandboxed, url_info.unique_sandbox_id,
-                  storage_partition_config.value(),
-                  url_info.web_exposed_isolation_info.value_or(
-                      WebExposedIsolationInfo::CreateNonIsolated()),
-                  isolation_context.is_guest(),
+                  storage_partition_config.value(), web_exposed_isolation_info,
+                  web_exposed_isolation_level, isolation_context.is_guest(),
                   does_site_request_dedicated_process_for_coop, is_jitless,
                   url_info.is_pdf, isolation_context.is_fenced());
 }
@@ -254,10 +317,12 @@ SiteInfo SiteInfo::CreateForTesting(const IsolationContext& isolation_context,
 SiteInfo::SiteInfo(const GURL& site_url,
                    const GURL& process_lock_url,
                    bool requires_origin_keyed_process,
+                   bool requires_origin_keyed_process_by_default,
                    bool is_sandboxed,
                    int unique_sandbox_id,
                    const StoragePartitionConfig storage_partition_config,
                    const WebExposedIsolationInfo& web_exposed_isolation_info,
+                   WebExposedIsolationLevel web_exposed_isolation_level,
                    bool is_guest,
                    bool does_site_request_dedicated_process_for_coop,
                    bool is_jit_disabled,
@@ -266,10 +331,13 @@ SiteInfo::SiteInfo(const GURL& site_url,
     : site_url_(site_url),
       process_lock_url_(process_lock_url),
       requires_origin_keyed_process_(requires_origin_keyed_process),
+      requires_origin_keyed_process_by_default_(
+          requires_origin_keyed_process_by_default),
       is_sandboxed_(is_sandboxed),
       unique_sandbox_id_(unique_sandbox_id),
       storage_partition_config_(storage_partition_config),
       web_exposed_isolation_info_(web_exposed_isolation_info),
+      web_exposed_isolation_level_(web_exposed_isolation_level),
       is_guest_(is_guest),
       does_site_request_dedicated_process_for_coop_(
           does_site_request_dedicated_process_for_coop),
@@ -278,6 +346,8 @@ SiteInfo::SiteInfo(const GURL& site_url,
       is_fenced_(is_fenced) {
   DCHECK(is_sandboxed_ ||
          unique_sandbox_id_ == UrlInfo::kInvalidUniqueSandboxId);
+  DCHECK(!requires_origin_keyed_process_by_default_ ||
+         requires_origin_keyed_process_);
 }
 SiteInfo::SiteInfo(const SiteInfo& rhs) = default;
 
@@ -288,10 +358,12 @@ SiteInfo::SiteInfo(BrowserContext* browser_context)
           /*site_url=*/GURL(),
           /*process_lock_url=*/GURL(),
           /*requires_origin_keyed_process=*/false,
+          /*requires_origin_keyed_process_by_default=*/false,
           /*is_sandboxed*/ false,
           UrlInfo::kInvalidUniqueSandboxId,
           StoragePartitionConfig::CreateDefault(browser_context),
           WebExposedIsolationInfo::CreateNonIsolated(),
+          WebExposedIsolationLevel::kNotIsolated,
           /*is_guest=*/false,
           /*does_site_request_dedicated_process_for_coop=*/false,
           /*is_jit_disabled=*/false,
@@ -319,7 +391,8 @@ auto SiteInfo::MakeSecurityPrincipalKey(const SiteInfo& site_info) {
       // separate SiteInfos for same-process OriginAgentCluster.
       site_info.requires_origin_keyed_process_, site_info.is_sandboxed_,
       site_info.unique_sandbox_id_, site_info.storage_partition_config_,
-      site_info.web_exposed_isolation_info_, site_info.is_guest_,
+      site_info.web_exposed_isolation_info_,
+      site_info.web_exposed_isolation_level_, site_info.is_guest_,
       site_info.is_jit_disabled_, site_info.is_pdf_, site_info.is_fenced_);
 }
 
@@ -351,7 +424,8 @@ SiteInfo SiteInfo::GetNonOriginKeyedEquivalentForMetrics(
             IsolationContext(BrowsingInstanceId(0),
                              isolation_context.browser_or_resource_context(),
                              isolation_context.is_guest(),
-                             isolation_context.is_fenced()),
+                             isolation_context.is_fenced(),
+                             isolation_context.default_isolation_state()),
             url::Origin::Create(process_lock_url_),
             false /* origin_requests_isolation */, &result_origin)) {
       non_oac_site_info.process_lock_url_ = result_origin.GetURL();
@@ -383,6 +457,7 @@ bool SiteInfo::IsExactMatch(const SiteInfo& other) const {
       unique_sandbox_id_ == other.unique_sandbox_id_ &&
       storage_partition_config_ == other.storage_partition_config_ &&
       web_exposed_isolation_info_ == other.web_exposed_isolation_info_ &&
+      web_exposed_isolation_level_ == other.web_exposed_isolation_level_ &&
       is_guest_ == other.is_guest_ &&
       does_site_request_dedicated_process_for_coop_ ==
           other.does_site_request_dedicated_process_for_coop_ &&
@@ -409,8 +484,8 @@ auto SiteInfo::MakeProcessLockComparisonKey() const {
   // leads to crashes in https://crbug.com/1279453.
   return std::tie(process_lock_url_, requires_origin_keyed_process_,
                   is_sandboxed_, unique_sandbox_id_, is_pdf_, is_guest_,
-                  web_exposed_isolation_info_, storage_partition_config_,
-                  is_fenced_);
+                  web_exposed_isolation_info_, web_exposed_isolation_level_,
+                  storage_partition_config_, is_fenced_);
 }
 
 int SiteInfo::ProcessLockCompareTo(const SiteInfo& other) const {
@@ -459,6 +534,12 @@ std::string SiteInfo::GetDebugString() const {
       debug_string += " application";
     debug_string += ", coi-origin='" +
                     web_exposed_isolation_info_.origin().GetDebugString() + "'";
+  }
+
+  if (web_exposed_isolation_info_.is_isolated_application() &&
+      web_exposed_isolation_level_ <
+          WebExposedIsolationLevel::kMaybeIsolatedApplication) {
+    debug_string += ", application isolation not inherited";
   }
 
   if (is_guest_)
@@ -670,34 +751,8 @@ GURL SiteInfo::GetSiteForURLInternal(const IsolationContext& isolation_context,
                        real_url)
                  : real_url;
 
-  // Figure out the origin to use for computing the site URL. In most cases,
-  // this should just be `url`'s origin. However, there are some exceptions
-  // where an alternate origin must be used. Namely, for navigations to URLs
-  // served from Web Bundles [1], this should be the origin of the web bundle
-  // rather than the uuid-in-package: URL, which lacks any origin information.
-  // For LoadDataWithBaseURL navigations, this should be the origin of the base
-  // URL rather than the data URL. about:blank navigations ought to inherit the
-  // initiator's origin. In all these cases, we should use the alternate origin
-  // which will be passed through UrlInfo, ensuring to use its precursor if the
-  // origin is opaque (as will be the case for Web Bundles) to still compute a
-  // meaningful site URL.
-  //
-  // [1] bit.ly/subresource-web-bundles-doc
-  url::Origin origin;
-  bool scheme_allows_origin_override =
-      url.SchemeIs(url::kUuidInPackageScheme) ||
-      url.SchemeIs(url::kDataScheme) || url.IsAboutBlank();
-  if (real_url_info.origin.has_value() && scheme_allows_origin_override) {
-    auto precursor = real_url_info.origin->GetTupleOrPrecursorTupleIfOpaque();
-    if (precursor.IsValid()) {
-      origin = url::Origin::CreateFromNormalizedTuple(
-          precursor.scheme(), precursor.host(), precursor.port());
-    } else {
-      origin = url::Origin::Resolve(url, real_url_info.origin.value());
-    }
-  } else {
-    origin = url::Origin::Create(url);
-  }
+  url::Origin origin =
+      GetPossiblyOverriddenOriginFromUrl(url, real_url_info.origin);
 
   // If the url has a host, then determine the site.  Skip file URLs to avoid a
   // situation where site URL of file://localhost/ would mismatch Blink's origin
@@ -733,8 +788,8 @@ GURL SiteInfo::GetSiteForURLInternal(const IsolationContext& isolation_context,
     url::Origin isolated_origin;
     if (policy->GetMatchingProcessIsolatedOrigin(
             isolation_context, origin,
-            real_url_info.requests_origin_keyed_process(), site_url,
-            &isolated_origin)) {
+            real_url_info.RequestsOriginKeyedProcess(isolation_context),
+            site_url, &isolated_origin)) {
       return isolated_origin.GetURL();
     }
   } else {
@@ -788,6 +843,35 @@ GURL SiteInfo::GetSiteForOrigin(const url::Origin& origin) {
       origin, net::registry_controlled_domains::INCLUDE_PRIVATE_REGISTRIES);
   return SchemeAndHostToSite(origin.scheme(),
                              domain.empty() ? origin.host() : domain);
+}
+
+// static
+WebExposedIsolationLevel SiteInfo::ComputeWebExposedIsolationLevel(
+    const WebExposedIsolationInfo& web_exposed_isolation_info,
+    const UrlInfo& url_info) {
+  if (!web_exposed_isolation_info.is_isolated()) {
+    return WebExposedIsolationLevel::kNotIsolated;
+  }
+  if (!web_exposed_isolation_info.is_isolated_application()) {
+    return WebExposedIsolationLevel::kMaybeIsolated;
+  }
+  // The "application isolation" level cannot be delegated cross-origin.
+  url::Origin origin =
+      GetPossiblyOverriddenOriginFromUrl(url_info.url, url_info.origin);
+  return web_exposed_isolation_info.origin() == origin
+             ? WebExposedIsolationLevel::kMaybeIsolatedApplication
+             : WebExposedIsolationLevel::kMaybeIsolated;
+}
+
+// static
+WebExposedIsolationLevel SiteInfo::ComputeWebExposedIsolationLevelForEmptySite(
+    const WebExposedIsolationInfo& web_exposed_isolation_info) {
+  // We don't return kMaybeIsolatedApplication here because that isolation
+  // level can't be delegated cross-origin, and we don't know the origin of
+  // content that will use this SiteInstance.
+  return web_exposed_isolation_info.is_isolated()
+             ? WebExposedIsolationLevel::kMaybeIsolated
+             : WebExposedIsolationLevel::kNotIsolated;
 }
 
 }  // namespace content

@@ -21,6 +21,7 @@ static inline cc::PaintFlags::FilterQuality FilterQualityForPaint(
 GraphicsContextState::GraphicsContextState()
     : text_drawing_mode_(kTextModeFill),
       interpolation_quality_(kInterpolationDefault),
+      dynamic_range_limit_(cc::PaintFlags::DynamicRangeLimit::kHigh),
       save_count_(0),
       should_antialias_(true) {
   stroke_flags_.setStyle(cc::PaintFlags::kStroke_Style);
@@ -29,8 +30,10 @@ GraphicsContextState::GraphicsContextState()
   stroke_flags_.setStrokeJoin(cc::PaintFlags::kDefault_Join);
   stroke_flags_.setStrokeMiter(SkFloatToScalar(stroke_data_.MiterLimit()));
   stroke_flags_.setFilterQuality(FilterQualityForPaint(interpolation_quality_));
+  stroke_flags_.setDynamicRangeLimit(dynamic_range_limit_);
   stroke_flags_.setAntiAlias(should_antialias_);
   fill_flags_.setFilterQuality(FilterQualityForPaint(interpolation_quality_));
+  fill_flags_.setDynamicRangeLimit(dynamic_range_limit_);
   fill_flags_.setAntiAlias(should_antialias_);
 }
 
@@ -40,6 +43,7 @@ GraphicsContextState::GraphicsContextState(const GraphicsContextState& other)
       stroke_data_(other.stroke_data_),
       text_drawing_mode_(other.text_drawing_mode_),
       interpolation_quality_(other.interpolation_quality_),
+      dynamic_range_limit_(other.dynamic_range_limit_),
       save_count_(0),
       should_antialias_(other.should_antialias_) {}
 
@@ -67,7 +71,7 @@ void GraphicsContextState::SetStrokeThickness(float thickness) {
 }
 
 void GraphicsContextState::SetStrokeColor(const Color& color) {
-  stroke_flags_.setColor(color.Rgb());
+  stroke_flags_.setColor(color.toSkColor4f());
   stroke_flags_.setShader(nullptr);
 }
 
@@ -87,7 +91,7 @@ void GraphicsContextState::SetMiterLimit(float miter_limit) {
 }
 
 void GraphicsContextState::SetFillColor(const Color& color) {
-  fill_flags_.setColor(color.Rgb());
+  fill_flags_.setColor(color.toSkColor4f());
   fill_flags_.setShader(nullptr);
 }
 
@@ -109,6 +113,13 @@ void GraphicsContextState::SetInterpolationQuality(
   interpolation_quality_ = quality;
   stroke_flags_.setFilterQuality(FilterQualityForPaint(quality));
   fill_flags_.setFilterQuality(FilterQualityForPaint(quality));
+}
+
+void GraphicsContextState::SetDynamicRangeLimit(
+    cc::PaintFlags::DynamicRangeLimit limit) {
+  dynamic_range_limit_ = limit;
+  stroke_flags_.setDynamicRangeLimit(limit);
+  fill_flags_.setDynamicRangeLimit(limit);
 }
 
 void GraphicsContextState::SetShouldAntialias(bool should_antialias) {

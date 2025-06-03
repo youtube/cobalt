@@ -7,24 +7,18 @@
 #include <stdint.h>
 
 #include <memory>
-#include <string>
 #include <utility>
 #include <vector>
 
 #include "base/check.h"
 #include "base/observer_list.h"
 #include "base/time/time.h"
-#include "components/attribution_reporting/source_registration_error.mojom-forward.h"
-#include "components/attribution_reporting/source_type.mojom-forward.h"
 #include "content/browser/attribution_reporting/attribution_data_host_manager.h"
 #include "content/browser/attribution_reporting/attribution_observer.h"
-#include "content/browser/attribution_reporting/storable_source.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
-
-#if BUILDFLAG(IS_ANDROID)
 #include "content/browser/attribution_reporting/attribution_reporting.mojom-forward.h"
 #include "content/browser/attribution_reporting/os_registration.h"
-#endif
+#include "content/browser/attribution_reporting/storable_source.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace content {
 
@@ -61,8 +55,9 @@ void MockAttributionManager::NotifySourceHandled(
     const StorableSource& source,
     StorableSource::Result result,
     absl::optional<uint64_t> cleared_debug_key) {
+  base::Time now = base::Time::Now();
   for (auto& observer : observers_) {
-    observer.OnSourceHandled(source, cleared_debug_key, result);
+    observer.OnSourceHandled(source, now, cleared_debug_key, result);
   }
 }
 
@@ -71,20 +66,6 @@ void MockAttributionManager::NotifyReportSent(const AttributionReport& report,
                                               const SendResult& info) {
   for (auto& observer : observers_) {
     observer.OnReportSent(report, is_debug_report, info);
-  }
-}
-
-void MockAttributionManager::NotifySourceRegistrationFailure(
-    const std::string& header_value,
-    const attribution_reporting::SuitableOrigin& source_origin,
-    const attribution_reporting::SuitableOrigin& reporting_origin,
-    attribution_reporting::mojom::SourceType source_type,
-    attribution_reporting::mojom::SourceRegistrationError error) {
-  base::Time source_time = base::Time::Now();
-  for (auto& observer : observers_) {
-    observer.OnFailedSourceRegistration(header_value, source_time,
-                                        source_origin, reporting_origin,
-                                        source_type, error);
   }
 }
 
@@ -106,7 +87,6 @@ void MockAttributionManager::NotifyDebugReportSent(
   }
 }
 
-#if BUILDFLAG(IS_ANDROID)
 void MockAttributionManager::NotifyOsRegistration(
     const OsRegistration& registration,
     bool is_debug_key_allowed,
@@ -116,7 +96,6 @@ void MockAttributionManager::NotifyOsRegistration(
     observer.OnOsRegistration(now, registration, is_debug_key_allowed, result);
   }
 }
-#endif  // BUILDFLAG(IS_ANDROID)
 
 void MockAttributionManager::SetDataHostManager(
     std::unique_ptr<AttributionDataHostManager> manager) {

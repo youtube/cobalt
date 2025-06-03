@@ -60,6 +60,7 @@
 #include "ui/views/layout/layout_provider.h"
 #include "ui/views/style/platform_style.h"
 #include "ui/views/style/typography.h"
+#include "ui/views/style/typography_provider.h"
 #include "ui/views/vector_icons.h"
 #include "ui/views/view.h"
 #include "ui/views/widget/widget.h"
@@ -107,7 +108,7 @@ class Arrow : public Button {
     arrow_bounds.ClampToCenteredSize(ComboboxArrowSize());
     // Make sure the arrow use the same color as the text in the combobox.
     PaintComboboxArrow(
-        GetColorProvider()->GetColor(style::GetColorId(
+        GetColorProvider()->GetColor(TypographyProvider::Get().GetColorId(
             style::CONTEXT_TEXTFIELD,
             GetEnabled() ? style::STYLE_PRIMARY : style::STYLE_DISABLED)),
         arrow_bounds, canvas);
@@ -227,14 +228,6 @@ class EditableCombobox::EditableComboboxMenuModel
     size_t index;
     bool enabled;
   };
-  bool HasIcons() const override {
-    for (size_t i = 0; i < GetItemCount(); ++i) {
-      if (!GetIconAt(i).IsEmpty()) {
-        return true;
-      }
-    }
-    return false;
-  }
 
   ItemType GetTypeAt(size_t index) const override {
     return UseCheckmarks() ? TYPE_CHECK : TYPE_COMMAND;
@@ -425,7 +418,7 @@ void EditableCombobox::SetPlaceholderText(const std::u16string& text) {
 }
 
 const gfx::FontList& EditableCombobox::GetFontList() const {
-  return style::GetFont(text_context_, text_style_);
+  return TypographyProvider::Get().GetFont(text_context_, text_style_);
 }
 
 void EditableCombobox::SelectRange(const gfx::Range& range) {

@@ -31,24 +31,26 @@ class OSExchangeData;
 
 namespace ash {
 
+class AcceleratorPrefsDelegate;
 class AccessibilityDelegate;
 class BackGestureContextualNudgeController;
 class BackGestureContextualNudgeDelegate;
 class CaptureModeDelegate;
+class ClipboardHistoryControllerDelegate;
 class GameDashboardDelegate;
-class GlanceablesController;
-class GlanceablesDelegate;
 class MediaNotificationProvider;
 class NearbyShareController;
 class NearbyShareDelegate;
 class SavedDeskDelegate;
 class SystemSoundsDelegate;
 class UserEducationDelegate;
+class WindowState;
 
 // Delegate of the Shell.
 class ASH_EXPORT ShellDelegate {
  public:
   enum class FeedbackSource {
+    kGameDashboard,
     kWindowLayoutMenu,
   };
 
@@ -63,13 +65,17 @@ class ASH_EXPORT ShellDelegate {
   virtual std::unique_ptr<CaptureModeDelegate> CreateCaptureModeDelegate()
       const = 0;
 
+  // Creates and returns the delegate of the clipboard history feature.
+  virtual std::unique_ptr<ClipboardHistoryControllerDelegate>
+  CreateClipboardHistoryControllerDelegate() const = 0;
+
   // Creates and returns the delegate of the Game Dashboard feature.
   virtual std::unique_ptr<GameDashboardDelegate> CreateGameDashboardDelegate()
       const = 0;
 
-  // Creates the delegate for the Glanceables feature.
-  virtual std::unique_ptr<GlanceablesDelegate> CreateGlanceablesDelegate(
-      GlanceablesController* controller) const = 0;
+  // Creates a accelerator_prefs_delegate.
+  virtual std::unique_ptr<AcceleratorPrefsDelegate>
+  CreateAcceleratorPrefsDelegate() const = 0;
 
   // Creates a accessibility delegate. Shell takes ownership of the delegate.
   virtual AccessibilityDelegate* CreateAccessibilityDelegate() = 0;
@@ -149,7 +155,8 @@ class ASH_EXPORT ShellDelegate {
   virtual bool IsSessionRestoreInProgress() const = 0;
 
   // Adjust system configuration for a Locked Fullscreen window.
-  virtual void SetUpEnvironmentForLockedFullscreen(bool locked) = 0;
+  virtual void SetUpEnvironmentForLockedFullscreen(
+      const WindowState& window_state) = 0;
 
   // Ui Dev Tools control.
   virtual bool IsUiDevToolsStarted() const;

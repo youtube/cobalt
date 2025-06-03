@@ -34,6 +34,7 @@ class GPUSupportedLimits final : public ScriptWrappable {
   unsigned maxTextureDimension3D() const;
   unsigned maxTextureArrayLayers() const;
   unsigned maxBindGroups() const;
+  unsigned maxBindGroupsPlusVertexBuffers() const;
   unsigned maxBindingsPerBindGroup() const;
   unsigned maxDynamicUniformBuffersPerPipelineLayout() const;
   unsigned maxDynamicStorageBuffersPerPipelineLayout() const;
@@ -60,9 +61,14 @@ class GPUSupportedLimits final : public ScriptWrappable {
   unsigned maxComputeWorkgroupSizeY() const;
   unsigned maxComputeWorkgroupSizeZ() const;
   unsigned maxComputeWorkgroupsPerDimension() const;
+  unsigned minSubgroupSize() const;
+  unsigned maxSubgroupSize() const;
 
  private:
   WGPULimits limits_;
+
+  bool subgroup_limits_initialized_;
+  WGPUDawnExperimentalSubgroupLimits subgroup_limits_;
 };
 
 }  // namespace blink

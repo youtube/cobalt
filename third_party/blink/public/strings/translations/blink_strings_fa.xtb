@@ -16,6 +16,7 @@
 <translation id="1729654308190250600">لطفاً یک نشانی ایمیل غیرخالی وارد کنید.</translation>
 <translation id="1758486001363313524">موارد دیگر...</translation>
 <translation id="1787192514241997742">زمان کل: <ph name="REMAINING_TIME" /></translation>
+<translation id="1800494066469288780">مجاز کردن دوربین</translation>
 <translation id="1822429046913737220">ق.ظ/ب.ظ</translation>
 <translation id="1832974991323546415">پخش در دستگاه راه دور</translation>
 <translation id="1921819250265091946">dd</translation>
@@ -24,9 +25,9 @@
 <translation id="1993104285338243655">به نمایش صفحه‌نمایش روی دستگاه دیگر تغییر یافت</translation>
 <translation id="2031987842108996681">کانال قرمز</translation>
 <translation id="2060505056492490888">«<ph name="DOT" />» در «<ph name="INVALIDDOMAIN" />» در محل اشتباهی قرار دارد.</translation>
+<translation id="2068711044993563745">کمترین مقدار (<ph name="MINIMUM" />) باید کمتر از بیشترین مقدار (<ph name="MAXIMUM" />) باشد.</translation>
 <translation id="2148716181193084225">امروز</translation>
 <translation id="2226276347425096477">لطفاً این متن را به اندازه <ph name="MAX_CHARACTERS" /> نویسه یا کمتر کوتاه کنید (شما در حال حاضر از <ph name="CURRENT_LENGTH" /> نویسه استفاده می‌کنید).</translation>
-<translation id="2246498165605549352">فایل محلی</translation>
 <translation id="2247351761944213033">هفته <ph name="WEEKNUMBER" />، <ph name="YEAR" /></translation>
 <translation id="2277199496770840904">آهنگ <ph name="NUMBER" /></translation>
 <translation id="2393030564806080191">مقدار رنگ در مبنای شانزده</translation>
@@ -45,11 +46,13 @@
 <translation id="2761667185364618470">درصورتی‌که می‌خواهید ادامه دهید، این کادر را انتخاب کنید.</translation>
 <translation id="2908441821576996758">لطفاً لیستی از آدرس‌های ایمیل که با کاما از هم جدا شده‌اند را وارد کنید.</translation>
 <translation id="3049748772180311791"><ph name="QUANTITY" /> مگابایت</translation>
+<translation id="3053226512517284904">نمایش منو شرح صوتی</translation>
 <translation id="3075154866155599887">لطفاً یک مقدار معتبر وارد کنید. این قسمت کامل نیست و یا تاریخ نامعتبر است.</translation>
 <translation id="310520048233152454">لطفاً یک نشانی وب وارد کنید.</translation>
 <translation id="3220661731597678625">مرحله کنونی</translation>
 <translation id="3321030238473337787">سرعت بازپخش</translation>
 <translation id="3329013043687509092">اشباع رنگ</translation>
+<translation id="3377518164566272702">مجاز کردن میکروفون و دوربین</translation>
 <translation id="3450233048674729344">مقدار باید کمتر یا برابر با <ph name="MAXIMUM" /> باشد.</translation>
 <translation id="3732799496749320381">mm</translation>
 <translation id="3754210790023674521">خروج از تصویردرتصویر</translation>
@@ -64,7 +67,8 @@
 <translation id="4664250907885839816">قسمت بعد از «<ph name="ATSIGN" />» نباید حاوی نماد «<ph name="INVALIDCHARACTER" />» باشد.</translation>
 <translation id="4718048029184481307">درحال پخش در حالت تصویردرتصویر</translation>
 <translation id="4748357248530471599">جابجایی برش نمایشگر تمام‌صفحه</translation>
-<translation id="4763480195061959176">ویدئو</translation>
+<translation id="4763480195061959176">ویدیو</translation>
+<translation id="4792862212177489858">هم‌رسانی مکان</translation>
 <translation id="4812940957355064477">لطفاً شماره‌ای را وارد کنید.</translation>
 <translation id="4912200001568447310">مورد کنونی</translation>
 <translation id="4915360478455618802">نمایش انتخابگر زمان</translation>
@@ -74,6 +78,7 @@
 <translation id="4975562563186953947"><ph name="SELECTED_COUNT" /> انتخاب شد</translation>
 <translation id="4992066212339426712">باصدا کردن</translation>
 <translation id="49969490063480558">لطفاً قسمت بعد از «<ph name="ATSIGN" />» را وارد کنید. «<ph name="INVALIDADDRESS" />» ناقص است.</translation>
+<translation id="5037575921016181960">گذرواژه قوی</translation>
 <translation id="5090250355906949916">انتخابگر زمان ویدیو</translation>
 <translation id="509897012892853729">کانال آبی</translation>
 <translation id="5117590920725113268">نمایش ماه بعدی</translation>
@@ -89,6 +94,7 @@
 <translation id="5425179576310518467">تاریخ کنونی</translation>
 <translation id="5466621249238537318">لطفاً یک یا چند فایل را انتخاب کنید.</translation>
 <translation id="5468998798572797635">خروج از حالت تمام صفحه</translation>
+<translation id="5514612371225420585">فایل ذخیره‌شده در دستگاه</translation>
 <translation id="5516235301412634559">۰٫۷۵</translation>
 <translation id="5537725057119320332">فرستادن</translation>
 <translation id="5546461542133609677">صدادارکردن</translation>
@@ -113,6 +119,7 @@
 <translation id="6398862346408813489">نمایش پانل انتخاب ماه</translation>
 <translation id="6404546809543547843">انتخابگر زمان صدا</translation>
 <translation id="6443871981718447451">نمایش منوی زیرنویس ناشنوایان</translation>
+<translation id="6484738902856791350">چاپ شکیل</translation>
 <translation id="6550675742724504774">گزینه‌ها</translation>
 <translation id="6572309429103589720">دستور زبان نامعتبر</translation>
 <translation id="658823671542763450">رفتن به حالت تمام صفحه</translation>
@@ -166,7 +173,7 @@
 <translation id="8668988909814782445">شکست خط</translation>
 <translation id="8750798805984357768">لطفاً یکی از این گزینه‌ها را انتخاب کنید.</translation>
 <translation id="8845239796550121995">درحال پخش محتوا به تلویزیون</translation>
-<translation id="8875657656876809964">خطا در بازپخش ویدئو</translation>
+<translation id="8875657656876809964">خطا در بازپخش ویدیو</translation>
 <translation id="8889402386540077796">رنگ‌مایه</translation>
 <translation id="8901569739625249689"><ph name="QUANTITY" /> کیلوبایت</translation>
 <translation id="894736920926684893">قالب‌بندی تغییردهنده وضعیت</translation>
@@ -176,6 +183,7 @@
 <translation id="9132465097189459683">موارد دیگر...</translation>
 <translation id="9155987714137265666"><ph name="WEEK" />، شروع از <ph name="WEEK_START_DATE" /></translation>
 <translation id="916607977885256133">تصویر در تصویر</translation>
+<translation id="918430632320614861">مجاز کردن میکروفون</translation>
 <translation id="945780513535800434">برخی موارد علامت‌گذاری شده است</translation>
 <translation id="954003015749068518">ورود به تصویر در تصویر</translation>
 </translationbundle>

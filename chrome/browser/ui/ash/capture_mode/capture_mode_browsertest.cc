@@ -4,6 +4,7 @@
 
 #include "ash/capture_mode/capture_mode_types.h"
 #include "ash/constants/ash_features.h"
+#include "ash/constants/ash_switches.h"
 #include "ash/public/cpp/capture_mode/capture_mode_test_api.h"
 #include "ash/public/cpp/projector/projector_client.h"
 #include "ash/public/cpp/projector/projector_controller.h"
@@ -12,24 +13,30 @@
 #include "ash/public/cpp/test/shell_test_api.h"
 #include "ash/session/session_controller_impl.h"
 #include "ash/shell.h"
+#include "ash/system/status_area_widget_test_helper.h"
+#include "ash/system/video_conference/video_conference_common.h"
+#include "ash/system/video_conference/video_conference_tray.h"
 #include "base/files/file_util.h"
+#include "base/files/safe_base_name.h"
 #include "base/functional/callback_forward.h"
 #include "base/run_loop.h"
 #include "base/scoped_observation.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/test/bind.h"
 #include "base/test/scoped_feature_list.h"
+#include "chrome/browser/ash/crosapi/crosapi_ash.h"
+#include "chrome/browser/ash/crosapi/crosapi_manager.h"
 #include "chrome/browser/ash/file_manager/file_manager_test_util.h"
 #include "chrome/browser/ash/system_web_apps/system_web_app_manager.h"
-#include "chrome/browser/chromeos/policy/dlp/dlp_content_manager_test_helper.h"
+#include "chrome/browser/ash/video_conference/video_conference_manager_ash.h"
 #include "chrome/browser/chromeos/policy/dlp/dlp_content_observer.h"
 #include "chrome/browser/chromeos/policy/dlp/dlp_content_restriction_set.h"
-#include "chrome/browser/chromeos/policy/dlp/dlp_policy_event.pb.h"
-#include "chrome/browser/chromeos/policy/dlp/dlp_reporting_manager.h"
-#include "chrome/browser/chromeos/policy/dlp/dlp_reporting_manager_test_helper.h"
 #include "chrome/browser/chromeos/policy/dlp/dlp_rules_manager.h"
 #include "chrome/browser/chromeos/policy/dlp/dlp_rules_manager_factory.h"
-#include "chrome/browser/chromeos/policy/dlp/mock_dlp_rules_manager.h"
+#include "chrome/browser/chromeos/policy/dlp/test/dlp_content_manager_test_helper.h"
+#include "chrome/browser/chromeos/policy/dlp/test/mock_dlp_rules_manager.h"
+#include "chrome/browser/enterprise/data_controls/dlp_reporting_manager.h"
+#include "chrome/browser/enterprise/data_controls/dlp_reporting_manager_test_helper.h"
 #include "chrome/browser/extensions/extension_browsertest.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/ui/ash/system_web_apps/system_web_app_ui_utils.h"
@@ -37,6 +44,7 @@
 #include "chrome/common/pref_names.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
+#include "components/enterprise/data_controls/dlp_policy_event.pb.h"
 #include "components/prefs/pref_service.h"
 #include "content/public/test/browser_test.h"
 #include "media/base/media_switches.h"
@@ -163,7 +171,8 @@ void SendKeyEvent(Browser* browser,
 std::unique_ptr<KeyedService> SetDlpRulesManager(
     content::BrowserContext* context) {
   auto dlp_rules_manager =
-      std::make_unique<testing::NiceMock<policy::MockDlpRulesManager>>();
+      std::make_unique<testing::NiceMock<policy::MockDlpRulesManager>>(
+          Profile::FromBrowserContext(context));
   ON_CALL(*dlp_rules_manager, GetSourceUrlPattern)
       .WillByDefault(testing::DoAll(testing::SetArgPointee<3>(kRuleMetadata),
                                     testing::Return(kSrcPattern)));
@@ -261,7 +270,7 @@ IN_PROC_BROWSER_TEST_F(CaptureModeBrowserTest, DlpReportingVideoCapture) {
   ASSERT_EQ(events_.size(), 1u);
   EXPECT_THAT(
       events_[0],
-      policy::IsDlpPolicyEvent(CreateDlpPolicyEvent(
+      data_controls::IsDlpPolicyEvent(data_controls::CreateDlpPolicyEvent(
           kSrcPattern, policy::DlpRulesManager::Restriction::kScreenshot,
           kRuleName, kRuleId, policy::DlpRulesManager::Level::kReport)));
 
@@ -279,7 +288,7 @@ IN_PROC_BROWSER_TEST_F(CaptureModeBrowserTest, DlpReportingVideoCapture) {
   ASSERT_EQ(events_.size(), 2u);
   EXPECT_THAT(
       events_[1],
-      policy::IsDlpPolicyEvent(CreateDlpPolicyEvent(
+      data_controls::IsDlpPolicyEvent(data_controls::CreateDlpPolicyEvent(
           kSrcPattern, policy::DlpRulesManager::Restriction::kScreenshot,
           kRuleName, kRuleId, policy::DlpRulesManager::Level::kReport)));
 }
@@ -309,7 +318,7 @@ IN_PROC_BROWSER_TEST_F(CaptureModeBrowserTest,
   ASSERT_EQ(events_.size(), 1u);
   EXPECT_THAT(
       events_[0],
-      policy::IsDlpPolicyEvent(CreateDlpPolicyEvent(
+      data_controls::IsDlpPolicyEvent(data_controls::CreateDlpPolicyEvent(
           kSrcPattern, policy::DlpRulesManager::Restriction::kScreenshot,
           kRuleName, kRuleId, policy::DlpRulesManager::Level::kReport)));
 }
@@ -344,7 +353,7 @@ IN_PROC_BROWSER_TEST_F(CaptureModeBrowserTest,
   ASSERT_EQ(events_.size(), 1u);
   EXPECT_THAT(
       events_[0],
-      policy::IsDlpPolicyEvent(CreateDlpPolicyEvent(
+      data_controls::IsDlpPolicyEvent(data_controls::CreateDlpPolicyEvent(
           kSrcPattern, policy::DlpRulesManager::Restriction::kScreenshot,
           kRuleName, kRuleId, policy::DlpRulesManager::Level::kWarn)));
 }
@@ -373,14 +382,15 @@ IN_PROC_BROWSER_TEST_F(CaptureModeBrowserTest,
   ASSERT_EQ(events_.size(), 2u);
   EXPECT_THAT(
       events_[0],
-      policy::IsDlpPolicyEvent(CreateDlpPolicyEvent(
+      data_controls::IsDlpPolicyEvent(data_controls::CreateDlpPolicyEvent(
           kSrcPattern, policy::DlpRulesManager::Restriction::kScreenshot,
           kRuleName, kRuleId, policy::DlpRulesManager::Level::kWarn)));
   EXPECT_THAT(
       events_[1],
-      policy::IsDlpPolicyEvent(policy::CreateDlpPolicyWarningProceededEvent(
-          kSrcPattern, policy::DlpRulesManager::Restriction::kScreenshot,
-          kRuleName, kRuleId)));
+      data_controls::IsDlpPolicyEvent(
+          data_controls::CreateDlpPolicyWarningProceededEvent(
+              kSrcPattern, policy::DlpRulesManager::Restriction::kScreenshot,
+              kRuleName, kRuleId)));
 }
 
 // A regression test for https://crbug.com/1350711 in which a session is started
@@ -430,7 +440,7 @@ IN_PROC_BROWSER_TEST_P(CaptureModeParamBrowserTest,
   ASSERT_EQ(events_.size(), 1u);
   EXPECT_THAT(
       events_[0],
-      policy::IsDlpPolicyEvent(CreateDlpPolicyEvent(
+      data_controls::IsDlpPolicyEvent(data_controls::CreateDlpPolicyEvent(
           kSrcPattern, policy::DlpRulesManager::Restriction::kScreenshot,
           kRuleName, kRuleId, policy::DlpRulesManager::Level::kWarn)));
 }
@@ -459,7 +469,7 @@ IN_PROC_BROWSER_TEST_P(CaptureModeParamBrowserTest,
   ASSERT_EQ(events_.size(), 1u);
   EXPECT_THAT(
       events_[0],
-      policy::IsDlpPolicyEvent(CreateDlpPolicyEvent(
+      data_controls::IsDlpPolicyEvent(data_controls::CreateDlpPolicyEvent(
           kSrcPattern, policy::DlpRulesManager::Restriction::kScreenshot,
           kRuleName, kRuleId, policy::DlpRulesManager::Level::kWarn)));
 }
@@ -493,7 +503,7 @@ IN_PROC_BROWSER_TEST_P(CaptureModeParamBrowserTest,
   ASSERT_EQ(events_.size(), 1u);
   EXPECT_THAT(
       events_[0],
-      policy::IsDlpPolicyEvent(CreateDlpPolicyEvent(
+      data_controls::IsDlpPolicyEvent(data_controls::CreateDlpPolicyEvent(
           kSrcPattern, policy::DlpRulesManager::Restriction::kScreenshot,
           kRuleName, kRuleId, policy::DlpRulesManager::Level::kWarn)));
 }
@@ -530,14 +540,15 @@ IN_PROC_BROWSER_TEST_F(CaptureModeBrowserTest,
   EXPECT_EQ(events_.size(), 2u);
   EXPECT_THAT(
       events_[0],
-      policy::IsDlpPolicyEvent(CreateDlpPolicyEvent(
+      data_controls::IsDlpPolicyEvent(data_controls::CreateDlpPolicyEvent(
           kSrcPattern, policy::DlpRulesManager::Restriction::kScreenshot,
           kRuleName, kRuleId, policy::DlpRulesManager::Level::kWarn)));
   EXPECT_THAT(
       events_[1],
-      policy::IsDlpPolicyEvent(policy::CreateDlpPolicyWarningProceededEvent(
-          kSrcPattern, policy::DlpRulesManager::Restriction::kScreenshot,
-          kRuleName, kRuleId)));
+      data_controls::IsDlpPolicyEvent(
+          data_controls::CreateDlpPolicyWarningProceededEvent(
+              kSrcPattern, policy::DlpRulesManager::Restriction::kScreenshot,
+              kRuleName, kRuleId)));
 }
 
 IN_PROC_BROWSER_TEST_F(CaptureModeBrowserTest,
@@ -594,14 +605,15 @@ IN_PROC_BROWSER_TEST_F(CaptureModeBrowserTest,
   ASSERT_EQ(events_.size(), 2u);
   EXPECT_THAT(
       events_[0],
-      policy::IsDlpPolicyEvent(CreateDlpPolicyEvent(
+      data_controls::IsDlpPolicyEvent(data_controls::CreateDlpPolicyEvent(
           kSrcPattern, policy::DlpRulesManager::Restriction::kScreenshot,
           kRuleName, kRuleId, policy::DlpRulesManager::Level::kWarn)));
   EXPECT_THAT(
       events_[1],
-      policy::IsDlpPolicyEvent(policy::CreateDlpPolicyWarningProceededEvent(
-          kSrcPattern, policy::DlpRulesManager::Restriction::kScreenshot,
-          kRuleName, kRuleId)));
+      data_controls::IsDlpPolicyEvent(
+          data_controls::CreateDlpPolicyWarningProceededEvent(
+              kSrcPattern, policy::DlpRulesManager::Restriction::kScreenshot,
+              kRuleName, kRuleId)));
 }
 
 IN_PROC_BROWSER_TEST_F(CaptureModeBrowserTest,
@@ -635,7 +647,7 @@ IN_PROC_BROWSER_TEST_F(CaptureModeBrowserTest,
   ASSERT_EQ(events_.size(), 1u);
   EXPECT_THAT(
       events_[0],
-      policy::IsDlpPolicyEvent(CreateDlpPolicyEvent(
+      data_controls::IsDlpPolicyEvent(data_controls::CreateDlpPolicyEvent(
           kSrcPattern, policy::DlpRulesManager::Restriction::kScreenshot,
           kRuleName, kRuleId, policy::DlpRulesManager::Level::kWarn)));
 }
@@ -677,14 +689,15 @@ IN_PROC_BROWSER_TEST_F(CaptureModeBrowserTest,
   ASSERT_EQ(events_.size(), 2u);
   EXPECT_THAT(
       events_[0],
-      policy::IsDlpPolicyEvent(CreateDlpPolicyEvent(
+      data_controls::IsDlpPolicyEvent(data_controls::CreateDlpPolicyEvent(
           kSrcPattern, policy::DlpRulesManager::Restriction::kScreenshot,
           kRuleName, kRuleId, policy::DlpRulesManager::Level::kWarn)));
   EXPECT_THAT(
       events_[1],
-      policy::IsDlpPolicyEvent(policy::CreateDlpPolicyWarningProceededEvent(
-          kSrcPattern, policy::DlpRulesManager::Restriction::kScreenshot,
-          kRuleName, kRuleId)));
+      data_controls::IsDlpPolicyEvent(
+          data_controls::CreateDlpPolicyWarningProceededEvent(
+              kSrcPattern, policy::DlpRulesManager::Restriction::kScreenshot,
+              kRuleName, kRuleId)));
 }
 
 IN_PROC_BROWSER_TEST_F(
@@ -709,7 +722,7 @@ IN_PROC_BROWSER_TEST_F(
   ASSERT_EQ(events_.size(), 1u);
   EXPECT_THAT(
       events_[0],
-      policy::IsDlpPolicyEvent(CreateDlpPolicyEvent(
+      data_controls::IsDlpPolicyEvent(data_controls::CreateDlpPolicyEvent(
           kSrcPattern, policy::DlpRulesManager::Restriction::kScreenshot,
           kRuleName, kRuleId, policy::DlpRulesManager::Level::kWarn)));
 }
@@ -748,14 +761,15 @@ IN_PROC_BROWSER_TEST_F(
   ASSERT_EQ(events_.size(), 2u);
   EXPECT_THAT(
       events_[0],
-      policy::IsDlpPolicyEvent(CreateDlpPolicyEvent(
+      data_controls::IsDlpPolicyEvent(data_controls::CreateDlpPolicyEvent(
           kSrcPattern, policy::DlpRulesManager::Restriction::kScreenshot,
           kRuleName, kRuleId, policy::DlpRulesManager::Level::kWarn)));
   EXPECT_THAT(
       events_[1],
-      policy::IsDlpPolicyEvent(policy::CreateDlpPolicyWarningProceededEvent(
-          kSrcPattern, policy::DlpRulesManager::Restriction::kScreenshot,
-          kRuleName, kRuleId)));
+      data_controls::IsDlpPolicyEvent(
+          data_controls::CreateDlpPolicyWarningProceededEvent(
+              kSrcPattern, policy::DlpRulesManager::Restriction::kScreenshot,
+              kRuleName, kRuleId)));
 }
 
 class CaptureModeSettingsBrowserTest : public extensions::ExtensionBrowserTest {
@@ -794,14 +808,17 @@ IN_PROC_BROWSER_TEST_F(CaptureModeSettingsBrowserTest,
 IN_PROC_BROWSER_TEST_F(CaptureModeSettingsBrowserTest,
                        AudioCaptureDisabledByPolicy) {
   ash::CaptureModeTestApi test_api;
-  test_api.SetAudioRecordingEnabled(true);
-  EXPECT_TRUE(test_api.GetAudioRecordingEnabled());
+  test_api.SetAudioRecordingMode(ash::AudioRecordingMode::kMicrophone);
+  EXPECT_EQ(ash::AudioRecordingMode::kMicrophone,
+            test_api.GetEffectiveAudioRecordingMode());
 
   auto* prefs = ProfileManager::GetActiveUserProfile()->GetPrefs();
   prefs->SetBoolean(prefs::kAudioCaptureAllowed, false);
-  EXPECT_FALSE(test_api.GetAudioRecordingEnabled());
+  EXPECT_EQ(ash::AudioRecordingMode::kOff,
+            test_api.GetEffectiveAudioRecordingMode());
   prefs->SetBoolean(prefs::kAudioCaptureAllowed, true);
-  EXPECT_TRUE(test_api.GetAudioRecordingEnabled());
+  EXPECT_EQ(ash::AudioRecordingMode::kMicrophone,
+            test_api.GetEffectiveAudioRecordingMode());
 }
 
 // This test fixture tests the chromeos-linux path of camera video frames coming
@@ -850,9 +867,7 @@ IN_PROC_BROWSER_TEST_F(CaptureModeCameraBrowserTests, VerifyFrames) {
 
 class CaptureModeProjectorBrowserTests : public CaptureModeCameraBrowserTests {
  public:
-  CaptureModeProjectorBrowserTests() {
-    scoped_feature_list_.InitWithFeatures({ash::features::kProjector}, {});
-  }
+  CaptureModeProjectorBrowserTests() = default;
 
   ~CaptureModeProjectorBrowserTests() override = default;
 
@@ -881,13 +896,11 @@ class CaptureModeProjectorBrowserTests : public CaptureModeCameraBrowserTests {
   void StartProjectorModeSession() {
     auto* projector_session = ash::ProjectorSession::Get();
     EXPECT_FALSE(projector_session->is_active());
-    ash::ProjectorController::Get()->StartProjectorSession("projector_data");
+    ash::ProjectorController::Get()->StartProjectorSession(
+        base::SafeBaseName::Create("projector_data").value());
     EXPECT_TRUE(projector_session->is_active());
     EXPECT_TRUE(ash::CaptureModeTestApi().IsSessionActive());
   }
-
- private:
-  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 // Tests that the crash reported in https://crbug.com/1368903 is not happening.
@@ -899,4 +912,108 @@ IN_PROC_BROWSER_TEST_F(CaptureModeProjectorBrowserTests,
   test_api.SetCaptureModeSource(ash::CaptureModeSource::kWindow);
   SendKeyEvent(browser(), ui::VKEY_ESCAPE);
   EXPECT_FALSE(test_api.IsSessionActive());
+}
+
+class CaptureModeVideoConferenceBrowserTests
+    : public CaptureModeCameraBrowserTests {
+ public:
+  CaptureModeVideoConferenceBrowserTests() {
+    scoped_feature_list_.InitWithFeatures(
+        /*enabled_features=*/{ash::features::kVideoConference,
+                              ash::features::kCameraEffectsSupportedByHardware},
+        /*disabled_features=*/{});
+  }
+  CaptureModeVideoConferenceBrowserTests(
+      const CaptureModeVideoConferenceBrowserTests&) = delete;
+  CaptureModeVideoConferenceBrowserTests& operator=(
+      const CaptureModeVideoConferenceBrowserTests&) = delete;
+  ~CaptureModeVideoConferenceBrowserTests() override = default;
+
+  ash::VideoConferenceTray* video_conference_tray() {
+    return ash::StatusAreaWidgetTestHelper::GetStatusAreaWidget()
+        ->video_conference_tray();
+  }
+
+  ash::VideoConferenceTrayButton* vc_tray_camera_icon() {
+    return video_conference_tray()->camera_icon();
+  }
+
+  ash::VideoConferenceTrayButton* vc_tray_audio_icon() {
+    return video_conference_tray()->audio_icon();
+  }
+
+  ash::VideoConferenceTrayButton* vc_tray_screen_share_icon() {
+    return video_conference_tray()->screen_share_icon();
+  }
+
+  // InProcessBrowserTest:
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    CaptureModeCameraBrowserTests::SetUpCommandLine(command_line);
+    command_line->AppendSwitch(
+        ash::switches::kCameraEffectsSupportedByHardware);
+  }
+
+  ash::VideoConferenceMediaState GetMediaStateInVideoConferenceManager() {
+    return crosapi::CrosapiManager::Get()
+        ->crosapi_ash()
+        ->video_conference_manager_ash()
+        ->GetAggregatedState();
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(CaptureModeVideoConferenceBrowserTests,
+                       ManagerGetsUpdated) {
+  // Test the initial state.
+  ash::VideoConferenceMediaState state =
+      GetMediaStateInVideoConferenceManager();
+  EXPECT_FALSE(state.has_media_app);
+  EXPECT_FALSE(state.has_camera_permission);
+  EXPECT_FALSE(state.has_microphone_permission);
+  EXPECT_FALSE(state.is_capturing_camera);
+  EXPECT_FALSE(state.is_capturing_microphone);
+  EXPECT_FALSE(state.is_capturing_screen);
+
+  // Start recording with microphone and camera turned on.
+  ash::CaptureModeTestApi test_api;
+  test_api.SetAudioRecordingMode(ash::AudioRecordingMode::kMicrophone);
+  test_api.StartForFullscreen(/*for_video=*/true);
+  test_api.PerformCapture();
+  EXPECT_TRUE(test_api.IsVideoRecordingInProgress());
+  EXPECT_TRUE(test_api.GetCameraPreviewWidget());
+
+  state = GetMediaStateInVideoConferenceManager();
+  EXPECT_TRUE(state.has_media_app);
+  EXPECT_TRUE(state.has_camera_permission);
+  EXPECT_TRUE(state.has_microphone_permission);
+  EXPECT_TRUE(state.is_capturing_camera);
+  EXPECT_TRUE(state.is_capturing_microphone);
+  EXPECT_FALSE(state.is_capturing_screen);
+
+  EXPECT_TRUE(video_conference_tray()->GetVisible());
+  EXPECT_TRUE(vc_tray_audio_icon()->GetVisible());
+  EXPECT_TRUE(vc_tray_camera_icon()->GetVisible());
+  EXPECT_FALSE(vc_tray_screen_share_icon()->GetVisible());
+
+  // Stop recording and expect the state to return back to the initial state,
+  // and the VC tray buttons should be hidden.
+  base::RunLoop loop;
+  SetupLoopToWaitForCaptureFileToBeSaved(&loop);
+  test_api.StopVideoRecording();
+  loop.Run();
+
+  state = GetMediaStateInVideoConferenceManager();
+  EXPECT_FALSE(state.has_media_app);
+  EXPECT_FALSE(state.has_camera_permission);
+  EXPECT_FALSE(state.has_microphone_permission);
+  EXPECT_FALSE(state.is_capturing_camera);
+  EXPECT_FALSE(state.is_capturing_microphone);
+  EXPECT_FALSE(state.is_capturing_screen);
+
+  EXPECT_FALSE(video_conference_tray()->GetVisible());
+  EXPECT_FALSE(vc_tray_audio_icon()->GetVisible());
+  EXPECT_FALSE(vc_tray_camera_icon()->GetVisible());
+  EXPECT_FALSE(vc_tray_screen_share_icon()->GetVisible());
 }

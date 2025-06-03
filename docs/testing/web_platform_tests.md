@@ -148,6 +148,11 @@ notified of breakages.
 Same as Blink web tests, you can use
 [`run_web_tests.py`](web_tests.md#running-the-tests) to run any WPT test.
 
+*** promo
+Consider running WPTs with [`wptrunner`](web_platform_tests_wptrunner.md), the
+harness developed by the WPT project that Chromium now supports.
+***
+
 One thing to note is that glob patterns for WPT tests are not yet supported.
 
 See [Running WPT tests in Content Shell](web_tests_in_content_shell.md#Running-WPT-Tests-in-Content-Shell)
@@ -203,13 +208,39 @@ For maintainers:
 
 ### New failure notifications
 
-Test owners can elect to have the importer automatically file bugs against a
-component when imported changes introduce failures. This includes new tests that
-fail in Chromium, as well as new failures introduced to an existing test. To
-opt-in to this functionality, create an `DIR_METADATA` file in the appropriate
-`external/wpt/` subdirectory that contains at least `wpt.notify` and
-`monorail.component` fields. For example, `external/wpt/css/css-grid/DIR_METADATA`
-looks like:
+The importer automatically file bugs against a component when imported changes
+introduce failures as long as test owners did not choose to opt-out the failure
+notification mechanism. This includes new tests that fail in Chromium, as well
+as new failures introduced to an existing test. Test owners are encouraged to
+create an `DIR_METADATA` file in the appropriate `external/wpt/` subdirectory
+that contains at least the `monorail.component` and `buganizer_public.component_id`
+fields, which the importer will use to file bugs.
+For example, `external/wpt/css/css-grid/DIR_METADATA` looks like:
+
+```
+monorail {
+  component: "Blink>Layout>Grid"
+}
+buganizer_public {
+  component_id: 1415957
+}
+team_email: "layout-dev@chromium.org"
+```
+
+When tests under `external/wpt/css/css-grid/` newly fail in a WPT import, the
+importer will automatically file a bug against the `Blink>Layout>Grid` component
+in [crbug.com](https://crbug.com), with details of which tests failed and the
+outputs.
+The importer will also copy `layout-dev@chromium.org` (the `team_email`) and any
+`external/wpt/css/css-grid/OWNERS` on the bug.
+
+Failing tests are grouped according to the most specific `DIR_METADATA` that
+they roll up to.
+
+To opt-out of this notification, add `wpt.notify` field set to `NO` to the
+corresponding `DIR_METADATA`.
+For example, the following `DIR_METADATA` will suppress notification from tests
+under the located directory:
 
 ```
 monorail {
@@ -217,17 +248,9 @@ monorail {
 }
 team_email: "layout-dev@chromium.org"
 wpt {
-  notify: YES
+  notify: NO
 }
 ```
-
-When a test under `external/wpt/css/css-grid/` newly fails in a WPT import, the
-importer will automatically file a bug against the Blink>Layout>Grid component
-in [crbug.com](https://crbug.com), with details of which test failed and the
-output.
-
-Note that we are considering making the notifications opt-out instead of
-opt-in: see https://crbug.com/845232
 
 ### Skipped tests (and how to re-enable them)
 

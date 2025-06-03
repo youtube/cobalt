@@ -15,10 +15,6 @@
 
 #import <UIKit/UIKit.h>
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace {
 
 // The image used for password related badges.
@@ -87,6 +83,13 @@ UIAction* GetOverflowMenuElementForBadgeType(
       image = DefaultSymbolTemplateWithPointSize(kMicrophoneSymbol,
                                                  kInfobarSymbolPointSize);
       histogram_type = MobileMessagesInfobarType::Permissions;
+      break;
+    case kBadgeTypeParcelTracking:
+      action_identifier = kBadgeButtonParcelTrackingActionIdentifier;
+      title = l10n_util::GetNSString(
+          IDS_IOS_PARCEL_TRACKING_INFOBAR_NEW_PACKAGE_TRACKED_TITLE);
+      image = CustomSymbolWithPointSize(kShippingBoxSymbol,
+                                        kInfobarSymbolPointSize);
       break;
     case kBadgeTypeIncognito:
       NOTREACHED() << "An overflow menu badge should not be an Incognito badge";

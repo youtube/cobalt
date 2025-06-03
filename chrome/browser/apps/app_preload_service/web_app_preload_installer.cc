@@ -6,14 +6,21 @@
 
 #include <memory>
 
+#include "base/barrier_callback.h"
 #include "base/metrics/histogram_functions.h"
+#include "chrome/browser/ash/crosapi/crosapi_ash.h"
+#include "chrome/browser/ash/crosapi/crosapi_manager.h"
+#include "chrome/browser/ash/crosapi/web_app_service_ash.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/web_applications/commands/install_preloaded_verified_app_command.h"
 #include "chrome/browser/web_applications/web_app_command_manager.h"
 #include "chrome/browser/web_applications/web_app_helpers.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/browser/web_applications/web_app_utils.h"
+#include "chromeos/crosapi/mojom/web_app_types.mojom.h"
+#include "components/services/app_service/public/cpp/app_types.h"
 #include "components/webapps/browser/install_result_code.h"
+#include "components/webapps/browser/installable/installable_metrics.h"
 #include "net/base/net_errors.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
 #include "services/network/public/cpp/resource_request.h"
@@ -70,36 +77,79 @@ void RecordInstallResultMetric(apps::WebAppPreloadResult result) {
 namespace apps {
 
 WebAppPreloadInstaller::WebAppPreloadInstaller(Profile* profile)
-    : profile_(profile) {}
+    : profile_(profile) {
+  // Check CrosapiManager::IsInitialized as it is not initialized in some unit
+  // tests. This should never fail in production code.
+  if (web_app::IsWebAppsCrosapiEnabled() &&
+      crosapi::CrosapiManager::IsInitialized()) {
+    if (crosapi::CrosapiManager::Get()
+            ->crosapi_ash()
+            ->web_app_service_ash()
+            ->GetWebAppProviderBridge() != nullptr) {
+      // Set to true if the lacros bridge is already connected.
+      lacros_is_connected_ = true;
+    } else {
+      // Add an observer to observe when the lacros bridge connects.
+      crosapi::WebAppServiceAsh* web_app_service_ash =
+          crosapi::CrosapiManager::Get()->crosapi_ash()->web_app_service_ash();
+      web_app_service_observer_.Observe(web_app_service_ash);
+    }
+  }
+}
 
 WebAppPreloadInstaller::~WebAppPreloadInstaller() = default;
 
-void WebAppPreloadInstaller::InstallApp(
-    const PreloadAppDefinition& app,
+void WebAppPreloadInstaller::InstallAllApps(
+    std::vector<PreloadAppDefinition> apps,
     WebAppPreloadInstalledCallback callback) {
-  DCHECK_EQ(app.GetPlatform(), AppType::kWeb);
+  CHECK(!installation_complete_callback_);
+  installation_complete_callback_ = std::move(callback);
+  apps_for_installation_ = apps;
 
   if (web_app::IsWebAppsCrosapiEnabled()) {
-    // Installation in Lacros is not implemented yet. Report the installation as
-    // successful to prevent useless retries.
-    // TODO(b/267667215): Support web app installation for Lacros web apps.
-    std::move(callback).Run(/*success=*/true);
-    return;
+    if (lacros_is_connected_) {
+      InstallAllAppsWhenReady();
+    }
+  } else {
+    auto* provider = web_app::WebAppProvider::GetForWebApps(profile_);
+    CHECK(provider);
+    provider->on_registry_ready().Post(
+        FROM_HERE,
+        base::BindOnce(&WebAppPreloadInstaller::InstallAllAppsWhenReady,
+                       weak_ptr_factory_.GetWeakPtr()));
   }
-
-  auto* provider = web_app::WebAppProvider::GetForWebApps(profile_);
-  DCHECK(provider);
-
-  provider->on_registry_ready().Post(
-      FROM_HERE,
-      base::BindOnce(&WebAppPreloadInstaller::InstallAppImpl,
-                     weak_ptr_factory_.GetWeakPtr(), app, std::move(callback)));
 }
 
 std::string WebAppPreloadInstaller::GetAppId(
     const PreloadAppDefinition& app) const {
   // The app's "Web app manifest ID" is the equivalent of the unhashed app ID.
-  return web_app::GenerateAppIdFromUnhashed(app.GetWebAppManifestId().spec());
+  return web_app::GenerateAppIdFromManifestId(app.GetWebAppManifestId());
+}
+
+void WebAppPreloadInstaller::OnWebAppProviderBridgeConnected() {
+  lacros_is_connected_ = true;
+  InstallAllAppsWhenReady();
+}
+
+void WebAppPreloadInstaller::InstallAllAppsWhenReady() {
+  if (!apps_for_installation_.has_value()) {
+    return;
+  }
+
+  // Request installation of any remaining apps. If there are no apps to
+  // install, OnAllAppInstallationFinished will be called immediately.
+  const auto install_barrier_callback = base::BarrierCallback<bool>(
+      apps_for_installation_.value().size(),
+      base::BindOnce(&WebAppPreloadInstaller::OnAllAppInstallationFinished,
+                     weak_ptr_factory_.GetWeakPtr()));
+
+  for (const PreloadAppDefinition& app : apps_for_installation_.value()) {
+    CHECK_EQ(app.GetPlatform(), AppType::kWeb);
+    InstallAppImpl(app, install_barrier_callback);
+  }
+
+  // Reset the values after installation has been performed.
+  apps_for_installation_ = absl::nullopt;
 }
 
 void WebAppPreloadInstaller::InstallAppImpl(
@@ -159,22 +209,52 @@ void WebAppPreloadInstaller::OnManifestRetrieved(
 
   auto* provider = web_app::WebAppProvider::GetForWebApps(profile_);
 
-  base::flat_set<std::string> host_allowlist = {
-      "meltingpot.googleusercontent.com"};
+  if (web_app::IsWebAppsCrosapiEnabled()) {
+    crosapi::mojom::WebAppProviderBridge* web_app_provider_bridge =
+        crosapi::CrosapiManager::Get()
+            ->crosapi_ash()
+            ->web_app_service_ash()
+            ->GetWebAppProviderBridge();
+    if (!web_app_provider_bridge) {
+      std::move(callback).Run(/*success=*/false);
+      return;
+    }
+    auto web_app_install_info = crosapi::mojom::PreloadWebAppInstallInfo::New();
+    web_app_install_info->document_url =
+        GURL(app.GetWebAppManifestId()).GetWithEmptyPath();
+    web_app_install_info->manifest_url = app.GetWebAppOriginalManifestUrl();
+    web_app_install_info->expected_app_id = GetAppId(app);
+    web_app_install_info->manifest = std::move(*response);
+    web_app_install_info->install_source =
+        app.IsDefaultApp()
+            ? crosapi::mojom::PreloadWebAppInstallSource::kDefaultPreload
+            : crosapi::mojom::PreloadWebAppInstallSource::kOemPreload;
 
-  provider->command_manager().ScheduleCommand(
-      std::make_unique<web_app::InstallPreloadedVerifiedAppCommand>(
-          webapps::WebappInstallSource::PRELOADED_OEM,
-          /*document_url=*/GURL(app.GetWebAppManifestId()).GetWithEmptyPath(),
-          /*manifest_url=*/app.GetWebAppOriginalManifestUrl(),
-          std::move(*response), GetAppId(app), std::move(host_allowlist),
-          base::BindOnce(&WebAppPreloadInstaller::OnAppInstalled,
-                         weak_ptr_factory_.GetWeakPtr(), std::move(callback))));
+    web_app_provider_bridge->InstallPreloadWebApp(
+        std::move(web_app_install_info),
+        base::BindOnce(&WebAppPreloadInstaller::OnAppInstalled,
+                       weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
+    return;
+  } else {
+    webapps::WebappInstallSource install_source =
+        app.IsDefaultApp() ? webapps::WebappInstallSource::PRELOADED_DEFAULT
+                           : webapps::WebappInstallSource::PRELOADED_OEM;
+
+    provider->command_manager().ScheduleCommand(
+        std::make_unique<web_app::InstallPreloadedVerifiedAppCommand>(
+            install_source,
+            /*document_url=*/GURL(app.GetWebAppManifestId()).GetWithEmptyPath(),
+            /*manifest_url=*/app.GetWebAppOriginalManifestUrl(),
+            std::move(*response), GetAppId(app),
+            base::BindOnce(&WebAppPreloadInstaller::OnAppInstalled,
+                           weak_ptr_factory_.GetWeakPtr(),
+                           std::move(callback))));
+  }
 }
 
 void WebAppPreloadInstaller::OnAppInstalled(
     WebAppPreloadInstalledCallback callback,
-    const web_app::AppId& app_id,
+    const webapps::AppId& app_id,
     webapps::InstallResultCode code) {
   bool success = webapps::IsSuccess(code);
   RecordInstallResultMetric(success ? WebAppPreloadResult::kSuccess
@@ -182,6 +262,13 @@ void WebAppPreloadInstaller::OnAppInstalled(
   base::UmaHistogramEnumeration(kCommandResultCodeHistogramName, code);
 
   std::move(callback).Run(success);
+}
+
+void WebAppPreloadInstaller::OnAllAppInstallationFinished(
+    const std::vector<bool>& results) {
+  CHECK(installation_complete_callback_);
+  std::move(installation_complete_callback_)
+      .Run(base::ranges::all_of(results, [](bool b) { return b; }));
 }
 
 }  // namespace apps

@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "third_party/blink/public/web/modules/mediastream/web_media_player_ms.h"
-
 #include <stddef.h>
 
 #include <memory>
@@ -12,6 +10,7 @@
 
 #include "base/containers/circular_deque.h"
 #include "base/functional/callback_helpers.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/run_loop.h"
 #include "base/task/sequenced_task_runner.h"
@@ -166,7 +165,7 @@ class FakeWebMediaPlayerDelegate
 
  private:
   int delegate_id_ = 1234;
-  Observer* observer_ = nullptr;
+  raw_ptr<Observer, ExperimentalRenderer> observer_ = nullptr;
   bool is_hidden_ = false;
   bool is_gone_ = true;
   bool is_idle_ = false;
@@ -242,7 +241,8 @@ class MockMediaStreamVideoRenderer : public WebMediaStreamVideoRenderer {
   gfx::Size standard_size_;
 
   const scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
-  ReusableMessageLoopEvent* const message_loop_controller_;
+  const raw_ptr<ReusableMessageLoopEvent, DanglingUntriaged>
+      message_loop_controller_;
   const WebMediaStreamVideoRenderer::RepaintCB repaint_cb_;
 
   base::circular_deque<TestFrame> frames_;
@@ -419,7 +419,7 @@ class MockWebVideoFrameSubmitter : public WebVideoFrameSubmitter {
   }
 
  private:
-  cc::VideoFrameProvider* provider_;
+  raw_ptr<cc::VideoFrameProvider, ExperimentalRenderer> provider_;
 };
 
 // The class is used to generate a MockVideoProvider in
@@ -465,7 +465,8 @@ class MockRenderFactory : public MediaStreamRendererFactory {
  private:
   const scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
   scoped_refptr<WebMediaStreamVideoRenderer> provider_;
-  ReusableMessageLoopEvent* const message_loop_controller_;
+  const raw_ptr<ReusableMessageLoopEvent, ExperimentalRenderer>
+      message_loop_controller_;
   bool support_video_renderer_ = true;
   scoped_refptr<WebMediaStreamAudioRenderer> audio_renderer_;
 };
@@ -562,8 +563,6 @@ class WebMediaPlayerMSTest
     return WebMediaPlayer::TrackId();
   }
   void RemoveVideoTrack(WebMediaPlayer::TrackId) override {}
-  void AddTextTrack(WebInbandTextTrack*) override {}
-  void RemoveTextTrack(WebInbandTextTrack*) override {}
   void MediaSourceOpened(WebMediaSource*) override {}
   void RemotePlaybackCompatibilityChanged(const WebURL& url,
                                           bool is_compatible) override {}
@@ -611,10 +610,6 @@ class WebMediaPlayerMSTest
     background_rendering_ = background_rendering;
   }
 
-  Vector<blink::TextTrackMetadata> GetTextTrackMetadata() override {
-    return {};
-  }
-
   void SetGpuMemoryBufferVideoForTesting() {
 #if BUILDFLAG(IS_WIN)
     render_factory_->provider()->set_standard_size(
@@ -646,19 +641,21 @@ class WebMediaPlayerMSTest
     return std::move(surface_layer_bridge_);
   }
 
-  MockRenderFactory* render_factory_;
+  raw_ptr<MockRenderFactory, DanglingUntriaged> render_factory_;
   std::unique_ptr<media::MockGpuVideoAcceleratorFactories> gpu_factories_;
   FakeWebMediaPlayerDelegate delegate_;
   std::unique_ptr<WebMediaPlayerMS> player_;
-  WebMediaPlayerMSCompositor* compositor_;
+  raw_ptr<WebMediaPlayerMSCompositor, DanglingUntriaged> compositor_;
   ReusableMessageLoopEvent message_loop_controller_;
-  cc::Layer* layer_;
+  raw_ptr<cc::Layer, ExperimentalRenderer> layer_;
   bool is_audio_element_ = false;
   std::vector<base::OnceClosure> frame_ready_cbs_;
   std::unique_ptr<NiceMock<MockSurfaceLayerBridge>> surface_layer_bridge_;
   std::unique_ptr<NiceMock<MockWebVideoFrameSubmitter>> submitter_;
-  NiceMock<MockSurfaceLayerBridge>* surface_layer_bridge_ptr_ = nullptr;
-  NiceMock<MockWebVideoFrameSubmitter>* submitter_ptr_ = nullptr;
+  raw_ptr<NiceMock<MockSurfaceLayerBridge>, DanglingUntriaged>
+      surface_layer_bridge_ptr_ = nullptr;
+  raw_ptr<NiceMock<MockWebVideoFrameSubmitter>, DanglingUntriaged>
+      submitter_ptr_ = nullptr;
   bool enable_surface_layer_for_video_ = false;
 
  private:

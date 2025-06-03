@@ -70,12 +70,13 @@ class SaveCardBubbleViews : public AutofillBubbleBase,
   void Init() override;
 
   void OnDialogAccepted();
-  void OnDialogCancelled();
 
   ~SaveCardBubbleViews() override;
 
  private:
   friend class SaveCardBubbleViewsFullFormBrowserTest;
+
+  std::unique_ptr<views::View> GetCardIdentifierView();
 
   raw_ptr<views::View> footnote_view_ = nullptr;
 

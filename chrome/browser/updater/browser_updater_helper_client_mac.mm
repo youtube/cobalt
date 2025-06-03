@@ -6,12 +6,11 @@
 
 #import <Foundation/Foundation.h>
 
+#include "base/apple/bundle_locations.h"
+#include "base/apple/foundation_util.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/logging.h"
-#include "base/mac/bundle_locations.h"
-#include "base/mac/foundation_util.h"
-#include "base/mac/scoped_nsobject.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/strings/sys_string_conversions.h"
 #include "base/task/bind_post_task.h"
@@ -25,19 +24,19 @@ const int kPrivilegedHelperConnectionFailed = -10000;
 }
 
 BrowserUpdaterHelperClientMac::BrowserUpdaterHelperClientMac() {
-  xpc_connection_.reset([[NSXPCConnection alloc]
+  xpc_connection_ = [[NSXPCConnection alloc]
       initWithMachServiceName:base::SysUTF8ToNSString(kPrivilegedHelperName)
-                      options:NSXPCConnectionPrivileged]);
+                      options:NSXPCConnectionPrivileged];
 
-  xpc_connection_.get().remoteObjectInterface = [NSXPCInterface
+  xpc_connection_.remoteObjectInterface = [NSXPCInterface
       interfaceWithProtocol:@protocol(PrivilegedHelperServiceProtocol)];
 
-  xpc_connection_.get().interruptionHandler = ^{
+  xpc_connection_.interruptionHandler = ^{
     LOG(WARNING)
         << "PrivilegedHelperServiceProtocolImpl: XPC connection interrupted.";
   };
 
-  xpc_connection_.get().invalidationHandler = ^{
+  xpc_connection_.invalidationHandler = ^{
     LOG(WARNING)
         << "PrivilegedHelperServiceProtocolImpl: XPC connection invalidated.";
   };
@@ -47,7 +46,7 @@ BrowserUpdaterHelperClientMac::BrowserUpdaterHelperClientMac() {
 
 BrowserUpdaterHelperClientMac::~BrowserUpdaterHelperClientMac() {
   [xpc_connection_ invalidate];
-  xpc_connection_.reset();
+  xpc_connection_ = nil;
 }
 
 void BrowserUpdaterHelperClientMac::SetupSystemUpdater(
@@ -69,8 +68,8 @@ void BrowserUpdaterHelperClientMac::SetupSystemUpdater(
   };
 
   [[xpc_connection_ remoteObjectProxyWithErrorHandler:errorHandler]
-      setupSystemUpdaterWithBrowserPath:base::mac::FilePathToNSString(
-                                            base::mac::OuterBundlePath())
+      setupSystemUpdaterWithBrowserPath:base::apple::FilePathToNSString(
+                                            base::apple::OuterBundlePath())
                                   reply:reply];
 }
 

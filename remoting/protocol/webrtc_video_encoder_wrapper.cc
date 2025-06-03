@@ -215,12 +215,11 @@ int32_t WebrtcVideoEncoderWrapper::Encode(
   auto encode_start = base::TimeTicks::Now();
 
   // Calculate the frame interval before dropping or queueing frames.
-  auto frame_timestamp =
-      base::Time::NowFromSystemTime().ToDeltaSinceWindowsEpoch();
-  if (!last_frame_received_timestamp_.is_zero()) {
-    current_frame_interval_ =
-        std::clamp(frame_timestamp - last_frame_received_timestamp_,
-                   kMinFrameDuration, kMaxFrameDuration);
+  base::Time frame_timestamp = base::Time::NowFromSystemTime();
+  if (!last_frame_received_timestamp_.is_null()) {
+    current_frame_interval_ = std::clamp(
+        base::TimeDelta(frame_timestamp - last_frame_received_timestamp_),
+        kMinFrameDuration, kMaxFrameDuration);
   }
   last_frame_received_timestamp_ = frame_timestamp;
 
@@ -406,9 +405,8 @@ WebrtcVideoEncoderWrapper::ReturnEncodedFrame(
   encoded_image._frameType = frame.key_frame
                                  ? webrtc::VideoFrameType::kVideoFrameKey
                                  : webrtc::VideoFrameType::kVideoFrameDelta;
-  encoded_image.SetTimestamp(frame.rtp_timestamp);
-  encoded_image.playout_delay_.min_ms = 0;
-  encoded_image.playout_delay_.max_ms = 0;
+  encoded_image.SetRtpTimestamp(frame.rtp_timestamp);
+  encoded_image.SetPlayoutDelay(webrtc::VideoPlayoutDelay::Minimal());
   encoded_image.content_type_ = webrtc::VideoContentType::SCREENSHARE;
 
   webrtc::CodecSpecificInfo codec_specific_info;

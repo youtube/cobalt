@@ -8,18 +8,21 @@
 
 #include "base/logging.h"
 #include "components/viz/common/gpu/raster_context_provider.h"
-#include "components/viz/common/resources/resource_format_utils.h"
 #include "components/viz/common/resources/shared_image_format.h"
+#include "components/viz/common/resources/shared_image_format_utils.h"
 #include "gpu/GLES2/gl2extchromium.h"
 #include "gpu/command_buffer/client/raster_interface.h"
 #include "gpu/command_buffer/client/shared_image_interface.h"
 #include "gpu/command_buffer/common/shared_image_usage.h"
+#include "media/base/media_switches.h"
 #include "third_party/skia/include/core/SkColorSpace.h"
 #include "third_party/skia/include/core/SkImage.h"
 #include "third_party/skia/include/core/SkSurface.h"
 #include "third_party/skia/include/core/SkYUVAPixmaps.h"
 #include "third_party/skia/include/gpu/GrDirectContext.h"
 #include "third_party/skia/include/gpu/ganesh/SkImageGanesh.h"
+#include "third_party/skia/include/gpu/ganesh/SkSurfaceGanesh.h"
+#include "third_party/skia/include/gpu/ganesh/gl/GrGLBackendSurface.h"
 #include "third_party/skia/include/gpu/gl/GrGLTypes.h"
 
 namespace media {
@@ -39,15 +42,32 @@ viz::SharedImageFormat PlaneSharedImageFormat(int num_channels,
     case 4:
       return viz::SinglePlaneFormat::kRGBA_8888;
   }
-  NOTREACHED();
-  return viz::SinglePlaneFormat::kRGBA_8888;
+  NOTREACHED_NORETURN();
 }
 
-GLenum PlaneGLFormat(int num_channels, const gpu::Capabilities& capabilities) {
-  return viz::TextureStorageFormat(
-      PlaneSharedImageFormat(num_channels, capabilities.texture_rg)
-          .resource_format(),
-      capabilities.angle_rgbx_internal_format);
+// Returns multiplanar format equivalent of a VideoPixelFormat.
+viz::SharedImageFormat VideoPixelFormatToSharedImageFormat(
+    VideoPixelFormat video_format) {
+  switch (video_format) {
+    case PIXEL_FORMAT_NV12:
+      return viz::MultiPlaneFormat::kNV12;
+    case PIXEL_FORMAT_P016LE:
+      return viz::MultiPlaneFormat::kP010;
+    case PIXEL_FORMAT_NV12A:
+      return viz::MultiPlaneFormat::kNV12A;
+    case PIXEL_FORMAT_I420:
+      return viz::MultiPlaneFormat::kI420;
+    case PIXEL_FORMAT_I420A:
+      return viz::MultiPlaneFormat::kI420;
+    default:
+      NOTREACHED_NORETURN();
+  }
+}
+
+GLenum PlaneGLFormat(int num_channels,
+                     viz::RasterContextProvider* context_provider) {
+  return context_provider->GetGrGLTextureFormat(PlaneSharedImageFormat(
+      num_channels, context_provider->ContextCapabilities().texture_rg));
 }
 
 }  // namespace
@@ -87,7 +107,8 @@ void VideoFrameYUVMailboxesHolder::ReleaseCachedData() {
 void VideoFrameYUVMailboxesHolder::VideoFrameToMailboxes(
     const VideoFrame* video_frame,
     viz::RasterContextProvider* raster_context_provider,
-    gpu::Mailbox mailboxes[SkYUVAInfo::kMaxPlanes]) {
+    gpu::Mailbox mailboxes[SkYUVAInfo::kMaxPlanes],
+    bool allow_multiplanar_for_upload) {
   yuva_info_ = VideoFrameGetSkYUVAInfo(video_frame);
   num_planes_ = yuva_info_.planeDimensions(plane_sizes_);
 
@@ -105,6 +126,9 @@ void VideoFrameYUVMailboxesHolder::VideoFrameToMailboxes(
   DCHECK(ri);
 
   if (video_frame->HasTextures()) {
+    // Video frames with mailboxes will have shared images per plane as new
+    // multiplanar shared image with mailbox path should not go through
+    // VideoFrameToMailboxes.
     DCHECK_EQ(num_planes_, video_frame->NumTextures());
     for (size_t plane = 0; plane < video_frame->NumTextures(); ++plane) {
       holders_[plane] = video_frame->mailbox_holder(plane);
@@ -119,18 +143,62 @@ void VideoFrameYUVMailboxesHolder::VideoFrameToMailboxes(
     return;
   }
 
-  // Create a shared image to upload the data to, if one doesn't exist already.
-  if (!created_shared_images_) {
-    auto* sii = provider_->SharedImageInterface();
-    DCHECK(sii);
-    uint32_t mailbox_usage;
-    auto& caps = provider_->ContextCapabilities();
-    if (caps.supports_oop_raster) {
-      mailbox_usage = gpu::SHARED_IMAGE_USAGE_RASTER |
-                      gpu::SHARED_IMAGE_USAGE_OOP_RASTERIZATION;
-    } else {
-      mailbox_usage = gpu::SHARED_IMAGE_USAGE_GLES2;
+  CHECK(!video_frame->HasTextures());
+  constexpr SkAlphaType kPlaneAlphaType = kPremul_SkAlphaType;
+  auto* sii = provider_->SharedImageInterface();
+  DCHECK(sii);
+  uint32_t mailbox_usage;
+  auto& caps = provider_->ContextCapabilities();
+  if (caps.supports_oop_raster) {
+    mailbox_usage = gpu::SHARED_IMAGE_USAGE_RASTER |
+                    gpu::SHARED_IMAGE_USAGE_OOP_RASTERIZATION;
+  } else {
+    mailbox_usage = gpu::SHARED_IMAGE_USAGE_GLES2;
+  }
+
+  // Enabled with flags UseWritePixelsYUV and
+  // UseMultiPlaneFormatForHardwareVideo.
+  if (allow_multiplanar_for_upload) {
+    SkPixmap pixmaps[SkYUVAInfo::kMaxPlanes] = {};
+    viz::SharedImageFormat format =
+        VideoPixelFormatToSharedImageFormat(video_frame->format());
+    CHECK(format.is_multi_plane());
+
+    // Create a multiplanar shared image to upload the data to, if one doesn't
+    // exist already.
+    if (!created_shared_images_) {
+      holders_[0].mailbox = sii->CreateSharedImage(
+          format, video_frame->coded_size(), video_frame->ColorSpace(),
+          kTopLeft_GrSurfaceOrigin, kPlaneAlphaType, mailbox_usage,
+          "VideoFrameYUV", gpu::kNullSurfaceHandle);
+      holders_[0].texture_target = GL_TEXTURE_2D;
+
+      // Split up shared image creation from upload so we only have to wait on
+      // one sync token.
+      ri->WaitSyncTokenCHROMIUM(sii->GenUnverifiedSyncToken().GetConstData());
+
+      cached_video_size_ = video_frame->coded_size();
+      cached_video_color_space_ = video_frame->ColorSpace();
+      created_shared_images_ = true;
     }
+
+    for (size_t plane = 0; plane < num_planes_; ++plane) {
+      SkColorType color_type =
+          viz::ToClosestSkColorType(/*gpu_compositing=*/true, format, plane);
+      SkImageInfo info =
+          SkImageInfo::Make(plane_sizes_[plane], color_type, kPlaneAlphaType);
+      pixmaps[plane] =
+          SkPixmap(info, video_frame->data(plane), video_frame->stride(plane));
+    }
+    SkYUVAPixmaps yuv_pixmap =
+        SkYUVAPixmaps::FromExternalPixmaps(yuva_info_, pixmaps);
+    ri->WritePixelsYUV(holders_[0].mailbox, yuv_pixmap);
+    mailboxes[0] = holders_[0].mailbox;
+    return;
+  }
+
+  // Create shared images to upload the data to, if they doesn't exist already.
+  if (!created_shared_images_) {
     for (size_t plane = 0; plane < num_planes_; ++plane) {
       gfx::Size tex_size = {plane_sizes_[plane].width(),
                             plane_sizes_[plane].height()};
@@ -139,7 +207,7 @@ void VideoFrameYUVMailboxesHolder::VideoFrameToMailboxes(
           PlaneSharedImageFormat(num_channels, caps.texture_rg);
       holders_[plane].mailbox = sii->CreateSharedImage(
           format, tex_size, video_frame->ColorSpace(), kTopLeft_GrSurfaceOrigin,
-          kPremul_SkAlphaType, mailbox_usage, "VideoFrameYUV",
+          kPlaneAlphaType, mailbox_usage, "VideoFrameYUV",
           gpu::kNullSurfaceHandle);
       holders_[plane].texture_target = GL_TEXTURE_2D;
     }
@@ -161,8 +229,8 @@ void VideoFrameYUVMailboxesHolder::VideoFrameToMailboxes(
     int num_channels = yuva_info_.numChannelsInPlane(plane);
     SkColorType color_type = SkYUVAPixmapInfo::DefaultColorTypeForDataType(
         SkYUVAPixmaps::DataType::kUnorm8, num_channels);
-    SkImageInfo info = SkImageInfo::Make(plane_sizes_[plane], color_type,
-                                         kUnknown_SkAlphaType);
+    SkImageInfo info =
+        SkImageInfo::Make(plane_sizes_[plane], color_type, kPlaneAlphaType);
     ri->WritePixels(
         holders_[plane].mailbox, /*dst_x_offset=*/0,
         /*dst_y_offset=*/0, /*dst_plane_index=*/0, GL_TEXTURE_2D,
@@ -176,13 +244,14 @@ GrYUVABackendTextures VideoFrameYUVMailboxesHolder::VideoFrameToSkiaTextures(
     viz::RasterContextProvider* raster_context_provider,
     bool for_surface) {
   gpu::Mailbox mailboxes[kMaxPlanes];
-  VideoFrameToMailboxes(video_frame, raster_context_provider, mailboxes);
+  VideoFrameToMailboxes(video_frame, raster_context_provider, mailboxes,
+                        /*allow_multiplanar_for_upload=*/false);
   ImportTextures(for_surface);
   GrBackendTexture backend_textures[SkYUVAInfo::kMaxPlanes];
   for (size_t plane = 0; plane < num_planes_; ++plane) {
-    backend_textures[plane] = {plane_sizes_[plane].width(),
-                               plane_sizes_[plane].height(), GrMipmapped::kNo,
-                               textures_[plane].texture};
+    backend_textures[plane] = GrBackendTextures::MakeGL(
+        plane_sizes_[plane].width(), plane_sizes_[plane].height(),
+        skgpu::Mipmapped::kNo, textures_[plane].texture);
   }
   return GrYUVABackendTextures(yuva_info_, backend_textures,
                                kTopLeft_GrSurfaceOrigin);
@@ -239,7 +308,7 @@ bool VideoFrameYUVMailboxesHolder::VideoFrameToPlaneSkSurfaces(
     if (color_type == kGray_8_SkColorType)
       color_type = kAlpha_8_SkColorType;
 
-    auto surface = SkSurface::MakeFromBackendTexture(
+    auto surface = SkSurfaces::WrapBackendTexture(
         gr_context, yuva_backend_textures.texture(plane),
         kTopLeft_GrSurfaceOrigin, /*sampleCnt=*/1, color_type,
         SkColorSpace::MakeSRGB(), nullptr);
@@ -276,7 +345,7 @@ void VideoFrameYUVMailboxesHolder::ImportTextures(bool for_surface) {
     int num_channels = yuva_info_.numChannelsInPlane(plane);
     textures_[plane].texture.fTarget = holders_[plane].texture_target;
     textures_[plane].texture.fFormat =
-        PlaneGLFormat(num_channels, provider_->ContextCapabilities());
+        PlaneGLFormat(num_channels, provider_.get());
   }
 
   imported_textures_ = true;

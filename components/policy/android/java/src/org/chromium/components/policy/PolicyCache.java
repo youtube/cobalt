@@ -15,6 +15,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import org.chromium.base.ContextUtils;
+import org.chromium.base.ResettersForTesting;
 import org.chromium.base.StrictModeContext;
 import org.chromium.base.ThreadUtils;
 
@@ -31,7 +32,7 @@ public class PolicyCache {
     @VisibleForTesting
     static final String POLICY_PREF = "Components.Policy";
 
-    private static PolicyCache sPolicyCache;
+    private static PolicyCache sInstance;
 
     public enum Type {
         Integer,
@@ -79,8 +80,13 @@ public class PolicyCache {
     }
 
     public static PolicyCache get() {
-        if (sPolicyCache == null) sPolicyCache = new PolicyCache();
-        return sPolicyCache;
+        var ret = sInstance;
+        if (ret == null) {
+            ret = new PolicyCache();
+            sInstance = ret;
+            ResettersForTesting.register(() -> sInstance = null);
+        }
+        return ret;
     }
 
     /**
@@ -232,7 +238,12 @@ public class PolicyCache {
                 }
             }
         }
-        sharedPreferencesEditor.apply();
+
+        // Update sharedPreferences. The first round of updating during launch
+        // will use the main thread.
+        try (StrictModeContext ignored = StrictModeContext.allowDiskWrites()) {
+            sharedPreferencesEditor.apply();
+        }
 
         // Policy Service is up and there is no need to get policy from here anymore.
         enableWriteOnlyMode();
@@ -250,12 +261,6 @@ public class PolicyCache {
         mReadable = false;
     }
 
-    @VisibleForTesting
-    static void resetForTesting() {
-        sPolicyCache = null;
-    }
-
-    @VisibleForTesting
     public void setReadableForTesting(boolean readable) {
         mReadable = readable;
     }

@@ -15,7 +15,6 @@ import androidx.annotation.IntDef;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider;
 import org.chromium.chrome.browser.compositor.layouts.components.LayoutTab;
 import org.chromium.chrome.browser.compositor.layouts.content.TabContentManager;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.layouts.EventFilter;
 import org.chromium.chrome.browser.layouts.LayoutType;
 import org.chromium.chrome.browser.layouts.animation.CompositorAnimationHandler;
@@ -352,20 +351,15 @@ public abstract class Layout {
     protected void notifySizeChanged(float width, float height, @Orientation int orientation) {}
 
     /**
-     * Sets the managers needed to for the layout to get information from outside. The managers
-     * are tailored to be called from the GL thread.
-     *
+     * Sets the the {@link TabModelSelector} for the layout.
      * @param modelSelector The {@link TabModelSelector} to be set on the layout.
-     * @param manager       The {@link TabContentManager} to get tab display content.
      */
-    public void setTabModelSelector(TabModelSelector modelSelector, TabContentManager manager) {
+    public void setTabModelSelector(TabModelSelector modelSelector) {
         mTabModelSelector = modelSelector;
-        setTabContentManager(manager);
     }
 
     /**
-     * Sets the manager needed for the layout to get thumbnails.
-     *
+     * Sets the {@link TabContentManager} needed for the layout to get thumbnails.
      * @param manager The {@link TabContentManager} to get tab display content.
      */
     protected void setTabContentManager(TabContentManager manager) {
@@ -399,10 +393,10 @@ public abstract class Layout {
 
     /**
      * To be called when the layout is starting a transition out of the view mode.
-     * @param nextTabId          The id of the next tab.
+     *
+     * @param nextTabId The id of the next tab.
      * @param hintAtTabSelection Whether or not the new tab selection should be broadcast as a hint
-     *                           potentially before this {@link Layout} is done hiding and the
-     *                           selection occurs.
+     *     potentially before this {@link Layout} is done hiding and the selection occurs.
      */
     public void startHiding(int nextTabId, boolean hintAtTabSelection) {
         mUpdateHost.startHiding(nextTabId, hintAtTabSelection);
@@ -458,8 +452,7 @@ public abstract class Layout {
             mNextTabId = Tab.INVALID_TAB_ID;
         }
         mUpdateHost.doneHiding();
-        if (mRenderHost != null && mRenderHost.getResourceManager() != null
-                && !ChromeFeatureList.isEnabled(ChromeFeatureList.KEEP_ANDROID_TINTED_RESOURCES)) {
+        if (mRenderHost != null && mRenderHost.getResourceManager() != null) {
             mRenderHost.getResourceManager().clearTintedResourceCache();
         }
 
@@ -580,15 +573,6 @@ public abstract class Layout {
     }
 
     /**
-     * Called when a tab is about to be closed. When called, the closing tab will still
-     * be part of the model.
-     * @param time  The current time of the app in ms.
-     * @param tabId The id of the tab being closed
-     */
-    public void onTabClosing(long time, int tabId) {
-    }
-
-    /**
      * Called when a tab is being closed. When called, the closing tab will not
      * be part of the model.
      * @param time      The current time of the app in ms.
@@ -671,19 +655,6 @@ public abstract class Layout {
     }
 
     /**
-     * @param id The id of the {@link LayoutTab} to search for.
-     * @return   A {@link LayoutTab} represented by a {@link Tab} with an id of {@code id}.
-     */
-    public LayoutTab getLayoutTab(int id) {
-        if (mLayoutTabs != null) {
-            for (int i = 0; i < mLayoutTabs.length; i++) {
-                if (mLayoutTabs[i].getId() == id) return mLayoutTabs[i];
-            }
-        }
-        return null;
-    }
-
-    /**
      * @return Whether the layout is handling the model updates when a tab is closing.
      */
     public boolean handlesTabClosing() {
@@ -715,7 +686,7 @@ public abstract class Layout {
 
     /**
      * @param e                 The {@link MotionEvent} to consider.
-     * @param offsets           The current touch offsets that should be applied to the
+     * @param offsets           The current motion offsets that should be applied to the
      *                          {@link EventFilter}s.
      * @param isKeyboardShowing Whether or not the keyboard is showing.
      * @return The {@link EventFilter} the {@link Layout} is listening to.
@@ -728,6 +699,9 @@ public abstract class Layout {
                 layoutEventFilter.setCurrentMotionEventOffsets(offsets.x, offsets.y);
             }
             if (layoutEventFilter.onInterceptTouchEvent(e, isKeyboardShowing)) {
+                return layoutEventFilter;
+            }
+            if (layoutEventFilter.onInterceptHoverEvent(e)) {
                 return layoutEventFilter;
             }
         }
@@ -791,8 +765,7 @@ public abstract class Layout {
     /**
      * @return The {@link LayoutType}.
      */
-    @LayoutType
-    public abstract int getLayoutType();
+    public abstract @LayoutType int getLayoutType();
 
     /** Returns whether the layout is currently running animations. */
     public boolean isRunningAnimations() {

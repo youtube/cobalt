@@ -8,6 +8,8 @@
 
 #include "base/check.h"
 #include "base/functional/bind.h"
+#include "base/functional/callback.h"
+#include "base/functional/callback_helpers.h"
 #include "base/numerics/safe_conversions.h"
 #include "components/update_client/net/network_chromium.h"
 #include "net/base/load_flags.h"
@@ -17,7 +19,6 @@
 #include "services/network/public/cpp/resource_request.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "services/network/public/cpp/simple_url_loader.h"
-#include "services/network/public/cpp/simple_url_loader_throttle.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
 #include "url/gurl.h"
 
@@ -120,8 +121,6 @@ void NetworkFetcherImpl::PostRequest(
     resource_request->headers.SetHeader(header.first, header.second);
   simple_url_loader_ = network::SimpleURLLoader::Create(
       std::move(resource_request), traffic_annotation);
-  if (network::SimpleURLLoaderThrottle::IsBatchingEnabled(traffic_annotation))
-    simple_url_loader_->SetAllowBatching();
   simple_url_loader_->SetRetryOptions(
       kMaxRetriesOnNetworkChange,
       network::SimpleURLLoader::RETRY_ON_NETWORK_CHANGE);
@@ -151,7 +150,7 @@ void NetworkFetcherImpl::PostRequest(
       kMaxResponseSize);
 }
 
-void NetworkFetcherImpl::DownloadToFile(
+base::OnceClosure NetworkFetcherImpl::DownloadToFile(
     const GURL& url,
     const base::FilePath& file_path,
     ResponseStartedCallback response_started_callback,
@@ -193,6 +192,7 @@ void NetworkFetcherImpl::DownloadToFile(
           simple_url_loader_.get(),
           std::move(download_to_file_complete_callback)),
       file_path);
+  return base::DoNothing();
 }
 
 void NetworkFetcherImpl::OnResponseStartedCallback(

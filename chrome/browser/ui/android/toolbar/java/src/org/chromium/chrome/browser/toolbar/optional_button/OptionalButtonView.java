@@ -8,6 +8,8 @@ import android.content.Context;
 import android.content.res.ColorStateList;
 import android.content.res.Resources;
 import android.graphics.drawable.Drawable;
+import android.os.Build;
+import android.os.Build.VERSION;
 import android.os.Handler;
 import android.transition.ChangeBounds;
 import android.transition.Fade;
@@ -17,6 +19,7 @@ import android.transition.Transition.TransitionListener;
 import android.transition.TransitionManager;
 import android.transition.TransitionSet;
 import android.util.AttributeSet;
+import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -29,8 +32,8 @@ import android.widget.TextView;
 import androidx.annotation.IntDef;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.annotation.VisibleForTesting;
 import androidx.appcompat.content.res.AppCompatResources;
+import androidx.appcompat.widget.TooltipCompat;
 import androidx.core.view.ViewCompat;
 import androidx.core.widget.ImageViewCompat;
 
@@ -219,6 +222,27 @@ class OptionalButtonView extends FrameLayout implements TransitionListener {
         mClickListener = buttonSpec.getOnClickListener();
         mLongClickListener = buttonSpec.getOnLongClickListener();
         mButton.setEnabled(buttonData.isEnabled());
+
+        // Set circular hover highlight for optional button when button variant is profile, share,
+        // voice search and new tab. Set box hover highlight for the rest of button variants.
+        if (buttonData.getButtonSpec().getShouldShowHoverHighlight()) {
+            mButton.setBackgroundResource(R.drawable.toolbar_button_ripple);
+        } else {
+            TypedValue themeRes = new TypedValue();
+            getContext().getTheme().resolveAttribute(
+                    R.attr.selectableItemBackground, themeRes, true);
+            mButton.setBackgroundResource(themeRes.resourceId);
+        }
+
+        // Set hover state tooltip text for optional toolbar buttons(e.g. share, voice search, new
+        // tab and profile).
+        if (buttonSpec.getHoverTooltipTextId() != ButtonSpec.INVALID_TOOLTIP_TEXT_ID
+                && mButton != null && VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            TooltipCompat.setTooltipText(
+                    mButton, getContext().getString(buttonSpec.getHoverTooltipTextId()));
+        } else {
+            TooltipCompat.setTooltipText(mButton, null);
+        }
         mContentDescription = buttonSpec.getContentDescription();
 
         // If the transition root hasn't been laid out then try again after the next layout. This
@@ -282,7 +306,6 @@ class OptionalButtonView extends FrameLayout implements TransitionListener {
         }
     }
 
-    @VisibleForTesting
     void setHandlerForTesting(Handler handler) {
         mHandlerForTesting = handler;
     }
@@ -715,7 +738,6 @@ class OptionalButtonView extends FrameLayout implements TransitionListener {
         mState = State.RUNNING_SHOW_TRANSITION;
     }
 
-    @VisibleForTesting
     public void setFakeBeginDelayedTransitionForTesting(
             Callback<Transition> fakeBeginDelayedTransition) {
         mFakeBeginTransitionForTesting = fakeBeginDelayedTransition;

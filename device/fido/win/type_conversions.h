@@ -10,6 +10,7 @@
 #include <string>
 
 #include "base/component_export.h"
+#include "base/containers/flat_set.h"
 #include "device/fido/authenticator_get_assertion_response.h"
 #include "device/fido/authenticator_make_credential_response.h"
 #include "device/fido/ctap_get_assertion_request.h"
@@ -65,7 +66,7 @@ uint32_t ToWinLargeBlobSupport(LargeBlobSupport large_blob_support);
 // WinCtapDeviceResponseCodeTo{MakeCredential,GetAssertion}Status().
 COMPONENT_EXPORT(DEVICE_FIDO)
 CtapDeviceResponseCode WinErrorNameToCtapDeviceResponseCode(
-    const std::u16string& error_name);
+    std::u16string_view error_name);
 
 // WinCtapDeviceResponseCodeToMakeCredentialStatus returns the
 // MakeCredentialStatus that corresponds to a synthetic CtapDeviceResponseCode
@@ -92,6 +93,14 @@ COMPONENT_EXPORT(DEVICE_FIDO)
 std::vector<DiscoverableCredentialMetadata>
 WinCredentialDetailsListToCredentialMetadata(
     const WEBAUTHN_CREDENTIAL_DETAILS_LIST& credentials);
+
+COMPONENT_EXPORT(DEVICE_FIDO)
+absl::optional<FidoTransportProtocol> FromWinTransportsMask(
+    const DWORD transport);
+
+COMPONENT_EXPORT(DEVICE_FIDO)
+uint32_t ToWinTransportsMask(
+    const base::flat_set<FidoTransportProtocol>& transports);
 
 }  // namespace device
 

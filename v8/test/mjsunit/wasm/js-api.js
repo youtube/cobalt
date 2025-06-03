@@ -59,8 +59,8 @@ let moduleBinaryImporting2Memories = (() => {
 
 let moduleBinaryWithMemSectionAndMemImport = (() => {
   var builder = new WasmModuleBuilder();
-  builder.addMemory(1, 1, false);
   builder.addImportedMemory('', 'memory1');
+  builder.addMemory(1, 1);
   return new Int8Array(builder.toBuffer());
 })();
 
@@ -262,7 +262,7 @@ let exportingModuleBinary2 = (() => {
       '(module (func (export "a")) (memory (export "b") 1) (table (export "c") 1 anyfunc) (global (export "⚡") i32 (i32.const 0)))';
   let builder = new WasmModuleBuilder();
   builder.addFunction('foo', kSig_v_v).addBody([]).exportAs('a');
-  builder.addMemory(1, 1, false);
+  builder.addMemory(1, 1);
   builder.exportMemoryAs('b');
   builder.setTableBounds(1, 1);
   builder.addExportOfKind('c', kExternalTable, 0);
@@ -781,9 +781,8 @@ assertThrows(
 assertThrows(() => WebAssembly.validate(), TypeError);
 assertThrows(() => WebAssembly.validate('hi'), TypeError);
 assertTrue(WebAssembly.validate(emptyModuleBinary));
-// TODO: other ways for validate to return false.
-assertFalse(WebAssembly.validate(moduleBinaryImporting2Memories));
-assertFalse(WebAssembly.validate(moduleBinaryWithMemSectionAndMemImport));
+assertTrue(WebAssembly.validate(moduleBinaryImporting2Memories));
+assertTrue(WebAssembly.validate(moduleBinaryWithMemSectionAndMemImport));
 
 // 'WebAssembly.compile' data property
 let compileDesc = Object.getOwnPropertyDescriptor(WebAssembly, 'compile');

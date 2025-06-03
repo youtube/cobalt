@@ -32,7 +32,7 @@
 #include "net/base/net_errors.h"
 #include "net/base/net_export.h"
 #include "net/base/network_delegate.h"
-#include "net/base/proxy_server.h"
+#include "net/base/proxy_chain.h"
 #include "net/base/request_priority.h"
 #include "net/base/upload_progress.h"
 #include "net/cookies/canonical_cookie.h"
@@ -61,6 +61,7 @@
 namespace net {
 
 class CookieOptions;
+class CookieInclusionStatus;
 class IOBuffer;
 struct LoadTimingInfo;
 struct RedirectInfo;
@@ -312,16 +313,6 @@ class NET_EXPORT URLRequest : public base::SupportsUserData {
   }
   void set_force_ignore_site_for_cookies(bool attach) {
     force_ignore_site_for_cookies_ = attach;
-  }
-
-  // Indicates whether the top frame party will be considered same-party to the
-  // request URL (regardless of what it is), for the purpose of SameParty
-  // cookies.
-  bool force_ignore_top_frame_party_for_cookies() const {
-    return force_ignore_top_frame_party_for_cookies_;
-  }
-  void set_force_ignore_top_frame_party_for_cookies(bool force) {
-    force_ignore_top_frame_party_for_cookies_ = force;
   }
 
   // Indicates if the request should be treated as a main frame navigation for
@@ -748,7 +739,7 @@ class NET_EXPORT URLRequest : public base::SupportsUserData {
 
   // Available when the request headers are sent, which is before the more
   // general response_info() is available.
-  const ProxyServer& proxy_server() const { return proxy_server_; }
+  const ProxyChain& proxy_chain() const { return proxy_chain_; }
 
   // Gets the connection attempts made in the process of servicing this
   // URLRequest. Only guaranteed to be valid if called after the request fails
@@ -792,6 +783,11 @@ class NET_EXPORT URLRequest : public base::SupportsUserData {
   // is received from the remote party.
   void SetEarlyResponseHeadersCallback(ResponseHeadersCallback callback);
 
+  // Set a callback that will be invoked when a matching shared dictionary is
+  // available to determine whether it is allowed to use the dictionary.
+  void SetIsSharedDictionaryReadAllowedCallback(
+      base::RepeatingCallback<bool()> callback);
+
   // Sets socket tag to be applied to all sockets used to execute this request.
   // Must be set before Start() is called.  Only currently supported for HTTP
   // and HTTPS requests on Android; UID tagging requires
@@ -830,22 +826,6 @@ class NET_EXPORT URLRequest : public base::SupportsUserData {
 
   void SetIdempotency(Idempotency idempotency) { idempotency_ = idempotency; }
   Idempotency GetIdempotency() const { return idempotency_; }
-
-  int pervasive_payloads_index_for_logging() const {
-    return pervasive_payloads_index_for_logging_;
-  }
-
-  void set_pervasive_payloads_index_for_logging(int index) {
-    pervasive_payloads_index_for_logging_ = index;
-  }
-
-  const std::string& expected_response_checksum() const {
-    return expected_response_checksum_;
-  }
-
-  void set_expected_response_checksum(base::StringPiece checksum) {
-    expected_response_checksum_ = std::string(checksum);
-  }
 
   void set_has_storage_access(bool has_storage_access) {
     DCHECK(!is_pending_);
@@ -937,7 +917,8 @@ class NET_EXPORT URLRequest : public base::SupportsUserData {
   // Otherwise, cookies can be used unless SetDefaultCookiePolicyToBlock() has
   // been called.
   bool CanSetCookie(const net::CanonicalCookie& cookie,
-                    CookieOptions* options) const;
+                    CookieOptions* options,
+                    CookieInclusionStatus* inclusion_status) const;
 
   // Called just before calling a delegate that may block a request. |type|
   // should be the delegate's event type,
@@ -980,7 +961,6 @@ class NET_EXPORT URLRequest : public base::SupportsUserData {
   absl::optional<CookiePartitionKey> cookie_partition_key_ = absl::nullopt;
 
   bool force_ignore_site_for_cookies_ = false;
-  bool force_ignore_top_frame_party_for_cookies_ = false;
   bool force_main_frame_for_same_site_cookies_ = false;
   CookieSettingOverrides cookie_setting_overrides_;
 
@@ -1091,8 +1071,8 @@ class NET_EXPORT URLRequest : public base::SupportsUserData {
   // populated during Start(), and the rest are populated in OnResponseReceived.
   LoadTimingInfo load_timing_info_;
 
-  // The proxy server used for this request, if any.
-  ProxyServer proxy_server_;
+  // The proxy chain used for this request, if any.
+  ProxyChain proxy_chain_;
 
   // If not null, the network service will not advertise any stream types
   // (via Accept-Encoding) that are not listed. Also, it will not attempt
@@ -1109,16 +1089,8 @@ class NET_EXPORT URLRequest : public base::SupportsUserData {
   ResponseHeadersCallback early_response_headers_callback_;
   ResponseHeadersCallback response_headers_callback_;
 
-  // The index of the request URL in Cache Transparency's Pervasive Payloads
-  // List. This is only used for logging purposes. It is initialized as -1 to
-  // signify that the index has not been set.
-  int pervasive_payloads_index_for_logging_ = -1;
-
-  // A SHA-256 checksum of the response and selected headers, stored as
-  // upper-case hexadecimal. If this is set to a non-empty value the transaction
-  // will attempt to use the single-keyed cache. On failure to match the cache
-  // entry will be marked as unusable and will not be re-used.
-  std::string expected_response_checksum_;
+  // See SetIsSharedDictionaryReadAllowedCallback() above for details.
+  base::RepeatingCallback<bool()> is_shared_dictionary_read_allowed_callback_;
 
   bool upgrade_if_insecure_ = false;
 

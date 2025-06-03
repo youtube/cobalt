@@ -28,8 +28,13 @@ desks_storage::DeskModel* TestSavedDeskDelegate::GetDeskModel() {
   return desk_model_;
 }
 
-bool TestSavedDeskDelegate::IsIncognitoWindow(aura::Window* window) const {
-  return false;
+desks_storage::AdminTemplateService*
+TestSavedDeskDelegate::GetAdminTemplateService() {
+  return admin_template_service_;
+}
+
+bool TestSavedDeskDelegate::IsWindowPersistable(aura::Window* window) const {
+  return true;
 }
 
 absl::optional<gfx::ImageSkia>

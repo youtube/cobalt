@@ -7,12 +7,9 @@
 #include <memory>
 #include <utility>
 
-#include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
-#include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
-#include "base/memory/weak_ptr.h"
 #include "base/strings/strcat.h"
 #include "base/test/task_environment.h"
 #include "base/values.h"
@@ -27,7 +24,7 @@
 #include "components/invalidation/impl/invalidation_prefs.h"
 #include "components/invalidation/impl/invalidation_service_test_template.h"
 #include "components/invalidation/impl/profile_identity_provider.h"
-#include "components/invalidation/public/topic_invalidation_map.h"
+#include "components/invalidation/public/invalidation.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/scoped_user_pref_update.h"
 #include "components/prefs/testing_pref_service.h"
@@ -50,10 +47,6 @@ class TestFCMSyncNetworkChannel : public FCMSyncNetworkChannel {
  public:
   void StartListening() override {}
   void StopListening() override {}
-
-  void RequestDetailedStatus(
-      const base::RepeatingCallback<void(base::Value::Dict)>& callback)
-      override {}
 };
 
 // TODO: Make FCMInvalidationListener class abstract and explicitly make all the
@@ -67,12 +60,6 @@ class FakeFCMInvalidationListener : public FCMInvalidationListener {
       std::unique_ptr<FCMSyncNetworkChannel> network_channel)
       : FCMInvalidationListener(std::move(network_channel)) {}
   ~FakeFCMInvalidationListener() override = default;
-
-  void RequestDetailedStatus(
-      const base::RepeatingCallback<void(base::Value::Dict)>& callback)
-      const override {
-    callback.Run(base::Value::Dict());
-  }
 };
 
 }  // namespace
@@ -161,24 +148,22 @@ class FCMInvalidationServiceTestDelegate {
   }
 
   void InitializeInvalidationService() {
-    fake_listener_ = new FakeFCMInvalidationListener(
+    auto fake_listener = std::make_unique<FakeFCMInvalidationListener>(
         std::make_unique<TestFCMSyncNetworkChannel>());
-    invalidation_service_->InitForTest(base::WrapUnique(fake_listener_.get()));
+    fake_listener_ = fake_listener.get();
+    invalidation_service_->InitForTest(std::move(fake_listener));
   }
 
   FCMInvalidationService* GetInvalidationService() {
     return invalidation_service_.get();
   }
 
-  void DestroyInvalidationService() { invalidation_service_.reset(); }
-
   void TriggerOnInvalidatorStateChange(InvalidatorState state) {
     fake_listener_->EmitStateChangeForTest(state);
   }
 
-  void TriggerOnIncomingInvalidation(
-      const TopicInvalidationMap& invalidation_map) {
-    fake_listener_->EmitSavedInvalidationsForTest(invalidation_map);
+  void TriggerOnIncomingInvalidation(const Invalidation& invalidation) {
+    fake_listener_->EmitSavedInvalidationForTest(invalidation);
   }
 
   base::test::TaskEnvironment task_environment_;
@@ -188,13 +173,14 @@ class FCMInvalidationServiceTestDelegate {
   std::unique_ptr<MockInstanceID> mock_instance_id_;
   signin::IdentityTestEnvironment identity_test_env_;
   std::unique_ptr<IdentityProvider> identity_provider_;
-  raw_ptr<FCMInvalidationListener> fake_listener_;  // Owned by the service.
   network::TestURLLoaderFactory url_loader_factory_;
   TestingPrefServiceSimple pref_service_;
 
   // The service has to be below the provider since the service keeps
   // a non-owned pointer to the provider.
   std::unique_ptr<FCMInvalidationService> invalidation_service_;
+  raw_ptr<FCMInvalidationListener, DanglingUntriaged>
+      fake_listener_;  // Owned by the service.
 };
 
 INSTANTIATE_TYPED_TEST_SUITE_P(FCMInvalidationServiceTest,
@@ -217,14 +203,6 @@ TEST(FCMInvalidationServiceTest, NotifiesAboutInstanceID) {
       delegate->GetInvalidationService();
   ASSERT_TRUE(invalidation_service->GetInvalidatorClientId().empty());
 
-  // Register a handler *before* initializing the invalidation service.
-  FakeInvalidationHandler handler("owner_1");
-  invalidation_service->RegisterInvalidationHandler(&handler);
-
-  // Because the invalidation service hasn't been initialized, the client ID is
-  // still empty.
-  EXPECT_TRUE(handler.GetInvalidatorClientId().empty());
-
   // Make sure the MockInstanceID doesn't immediately provide a fresh client ID.
   InstanceID::GetIDCallback get_id_callback;
   EXPECT_CALL(*delegate->mock_instance_id_, GetID(_))
@@ -237,24 +215,13 @@ TEST(FCMInvalidationServiceTest, NotifiesAboutInstanceID) {
   // The invalidation service has requested a fresh client ID.
   ASSERT_FALSE(get_id_callback.is_null());
 
-  // The invalidation service should have restored the client ID from prefs, and
-  // passed it on to the handler.
-  EXPECT_EQ(handler.GetInvalidatorClientId(), "InstanceIDFromPrefs");
+  // The invalidation service should have restored the client ID from prefs.
+  EXPECT_EQ(invalidation_service->GetInvalidatorClientId(),
+            "InstanceIDFromPrefs");
 
-  // Once the invalidation service receives a fresh client ID, it should notify
-  // the handler again. (Note that in practice, the fresh ID will almost always
-  // be identical to the cached one.)
+  // Set another client ID in the invalidation service.
   std::move(get_id_callback).Run("FreshInstanceID");
-  EXPECT_EQ(handler.GetInvalidatorClientId(), "FreshInstanceID");
-
-  // Another handler that gets registered should immediately be informed of the
-  // client ID.
-  FakeInvalidationHandler handler2(/*owner=*/"owner_2");
-  invalidation_service->RegisterInvalidationHandler(&handler2);
-  EXPECT_EQ(handler2.GetInvalidatorClientId(), "FreshInstanceID");
-
-  invalidation_service->UnregisterInvalidationHandler(&handler2);
-  invalidation_service->UnregisterInvalidationHandler(&handler);
+  EXPECT_EQ(invalidation_service->GetInvalidatorClientId(), "FreshInstanceID");
 }
 
 TEST(FCMInvalidationServiceTest, ClearsInstanceIDOnSignout) {
@@ -279,41 +246,6 @@ TEST(FCMInvalidationServiceTest, ClearsInstanceIDOnSignout) {
   // asynchronous DeleteID operation to complete, in which case this test will
   // have to be updated.)
   EXPECT_TRUE(invalidation_service->GetInvalidatorClientId().empty());
-}
-
-namespace internal {
-
-class FakeCallbackContainer {
- public:
-  void FakeCallback(base::Value::Dict value) { called_ = true; }
-
-  bool called_ = false;
-  base::WeakPtrFactory<FakeCallbackContainer> weak_ptr_factory_{this};
-};
-
-}  // namespace internal
-
-// Test that requesting for detailed status doesn't crash even if the
-// underlying invalidator is not initialized.
-TEST(FCMInvalidationServiceLoggingTest, DetailedStatusCallbacksWork) {
-  std::unique_ptr<FCMInvalidationServiceTestDelegate> delegate(
-      new FCMInvalidationServiceTestDelegate());
-
-  delegate->CreateUninitializedInvalidationService();
-  InvalidationService* const invalidator = delegate->GetInvalidationService();
-
-  internal::FakeCallbackContainer fake_container;
-  invalidator->RequestDetailedStatus(
-      base::BindRepeating(&internal::FakeCallbackContainer::FakeCallback,
-                          fake_container.weak_ptr_factory_.GetWeakPtr()));
-  EXPECT_TRUE(fake_container.called_);
-
-  delegate->InitializeInvalidationService();
-
-  invalidator->RequestDetailedStatus(
-      base::BindRepeating(&internal::FakeCallbackContainer::FakeCallback,
-                          fake_container.weak_ptr_factory_.GetWeakPtr()));
-  EXPECT_TRUE(fake_container.called_);
 }
 
 }  // namespace invalidation

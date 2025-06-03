@@ -13,7 +13,6 @@
 #include "third_party/blink/renderer/core/animation/document_timeline.h"
 #include "third_party/blink/renderer/core/animation/element_animations.h"
 #include "third_party/blink/renderer/core/animation/keyframe_effect_model.h"
-#include "third_party/blink/renderer/core/animation/scroll_timeline.h"
 #include "third_party/blink/renderer/core/animation/scroll_timeline_util.h"
 #include "third_party/blink/renderer/core/animation/timing.h"
 #include "third_party/blink/renderer/core/animation/worklet_animation_controller.h"
@@ -304,9 +303,6 @@ WorkletAnimation::WorkletAnimation(
   }
   effect_timings_ = std::make_unique<WorkletAnimationEffectTimings>(
       timings, normalized_timings);
-
-  if (timeline_->IsScrollTimeline())
-    To<ScrollTimeline>(*timeline_).WorkletAnimationAttached(this);
 }
 
 String WorkletAnimation::playState() {
@@ -417,7 +413,6 @@ void WorkletAnimation::cancel() {
   if (IsActive(play_state_)) {
     for (auto& effect : effects_) {
       effect->UpdateInheritedTime(absl::nullopt,
-                                  /* at_scroll_timeline_boundary */ false,
                                   /* is_idle */ false, playback_rate_,
                                   kTimingUpdateOnDemand);
     }
@@ -505,7 +500,6 @@ void WorkletAnimation::Update(TimingUpdateReason reason) {
         local_times_[i]
             ? absl::make_optional(AnimationTimeDelta(local_times_[i].value()))
             : absl::nullopt,
-        /* at_scroll_timeline_boundary */ false,
         /* is_idle */ false, playback_rate_, reason);
   }
 }
@@ -730,7 +724,7 @@ void WorkletAnimation::DestroyCompositorAnimation() {
 
 KeyframeEffect* WorkletAnimation::GetEffect() const {
   DCHECK(effects_.at(0));
-  return effects_.at(0);
+  return effects_.at(0).Get();
 }
 
 bool WorkletAnimation::IsActiveAnimation() const {

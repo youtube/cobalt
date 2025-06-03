@@ -127,8 +127,8 @@ PaintImage BitmapImage::CreatePaintImage() {
     return PaintImage();
 
   auto completion_state = all_data_received_
-                              ? PaintImage::CompletionState::DONE
-                              : PaintImage::CompletionState::PARTIALLY_DONE;
+                              ? PaintImage::CompletionState::kDone
+                              : PaintImage::CompletionState::kPartiallyDone;
   auto builder =
       CreatePaintImageBuilder()
           .set_paint_image_generator(std::move(generator))
@@ -185,7 +185,9 @@ bool BitmapImage::ShouldReportByteSizeUMAs(bool data_now_completely_received) {
   if (!decoder_)
     return false;
   return !all_data_received_ && data_now_completely_received &&
-         decoder_->ByteSize() != 0 && IsSizeAvailable();
+         decoder_->ByteSize() != 0 && IsSizeAvailable() &&
+         decoder_->RepetitionCount() == kAnimationNone &&
+         !decoder_->ImageIsHighBitDepth();
 }
 
 Image::SizeAvailability BitmapImage::SetData(scoped_refptr<SharedBuffer> data,
@@ -205,7 +207,7 @@ Image::SizeAvailability BitmapImage::SetData(scoped_refptr<SharedBuffer> data,
   bool has_enough_data = ImageDecoder::HasSufficientDataToSniffMimeType(*data);
   decoder_ = DeferredImageDecoder::Create(std::move(data), all_data_received,
                                           ImageDecoder::kAlphaPremultiplied,
-                                          ColorBehavior::Tag());
+                                          ColorBehavior::kTag);
   // If we had enough data but couldn't create a decoder, it implies a decode
   // failure.
   if (has_enough_data && !decoder_)

@@ -10,7 +10,6 @@
 #include <utility>
 
 #include "base/containers/cxx20_erase.h"
-#include "base/feature_list.h"
 #include "base/files/file_util.h"
 #include "base/format_macros.h"
 #include "base/logging.h"
@@ -63,14 +62,6 @@ static const char kOtherBookmarksFolderServerTag[] = "other_bookmarks";
 static const char kOtherBookmarksFolderName[] = "Other Bookmarks";
 static const char kSyncedBookmarksFolderServerTag[] = "synced_bookmarks";
 static const char kSyncedBookmarksFolderName[] = "Synced Bookmarks";
-
-// Returns entity's version without increasing it by one for tombstones. The
-// version is updated and set in SaveEntity() and there is no need to increment
-// it again in CommitResponse. Otherwise, it would be possible that the next
-// commit request would return the same version.
-BASE_FEATURE(kSyncReturnRealVersionOnCommitInLoopbackServer,
-             "SyncReturnRealVersionOnCommitInLoopbackServer",
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 int GetServerMigrationVersion(
     const std::map<ModelType, int>& server_migration_versions,
@@ -250,8 +241,7 @@ LoopbackServer::LoopbackServer(const base::FilePath& persistent_file)
       writer_(
           persistent_file_,
           base::ThreadPool::CreateSequencedTaskRunner(
-              {base::MayBlock(), base::TaskShutdownBehavior::BLOCK_SHUTDOWN})),
-      observer_for_tests_(nullptr) {
+              {base::MayBlock(), base::TaskShutdownBehavior::BLOCK_SHUTDOWN})) {
   DCHECK(!persistent_file_.empty());
   Init();
 }
@@ -265,7 +255,7 @@ void LoopbackServer::Init() {
   if (LoadStateFromFile())
     return;
 
-  store_birthday_ = base::Time::Now().ToJavaTime();
+  store_birthday_ = base::Time::Now().InMillisecondsSinceUnixEpoch();
   keystore_keys_.push_back(GenerateNewKeystoreKey());
 
   const bool create_result = CreateDefaultPermanentItems();
@@ -296,8 +286,8 @@ bool LoopbackServer::CreatePermanentBookmarkFolder(
 bool LoopbackServer::CreateDefaultPermanentItems() {
   // Permanent folders are always required for Bookmarks (hierarchical
   // structure) and Nigori (data stored in permanent root folder).
-  ModelTypeSet permanent_folder_types =
-      ModelTypeSet(syncer::BOOKMARKS, syncer::NIGORI);
+  const ModelTypeSet permanent_folder_types = {syncer::BOOKMARKS,
+                                               syncer::NIGORI};
 
   for (ModelType model_type : permanent_folder_types) {
     std::unique_ptr<LoopbackServerEntity> top_level_entity =
@@ -609,14 +599,7 @@ void LoopbackServer::BuildEntryResponseForSuccessfulCommit(
                                         ? response_type_override_.Run(entity)
                                         : sync_pb::CommitResponse::SUCCESS);
   entry_response->set_id_string(entity.GetId());
-
-  if (entity.IsDeleted() &&
-      !base::FeatureList::IsEnabled(
-          kSyncReturnRealVersionOnCommitInLoopbackServer)) {
-    entry_response->set_version(entity.GetVersion() + 1);
-  } else {
-    entry_response->set_version(entity.GetVersion());
-  }
+  entry_response->set_version(entity.GetVersion());
 }
 
 bool LoopbackServer::IsChild(const string& id,
@@ -661,9 +644,6 @@ bool LoopbackServer::HandleCommitRequest(
   string guid = commit.cache_guid();
   ModelTypeSet committed_model_types;
 
-  ModelTypeSet enabled_types = GetModelTypeSetFromSpecificsFieldNumberList(
-      commit.config_params().enabled_type_ids());
-
   // TODO(pvalenzuela): Add validation of CommitMessage.entries.
   for (const sync_pb::SyncEntity& client_entity : commit.entries()) {
     sync_pb::CommitResponse_EntryResponse* entry_response =
@@ -697,30 +677,9 @@ bool LoopbackServer::HandleCommitRequest(
     DCHECK(iter != entities_.end());
     committed_model_types.Put(iter->second->GetModelType());
 
-    // Notify observers about history having been synced. There are two
-    // iterations of "History sync" both guarded by the user's selection in the
-    // settings page:
-    // 1) The "old" one based on SESSIONS data, only enabled if TYPED_URLS and
-    //    HISTORY_DELETE_DIRECTIVES are also enabled. Note that for custom
-    //    passphrase users, HISTORY_DELETE_DIRECTIVES will not be enabled (and
-    //    since they commit encrypted specifics, the server couldn't inspect the
-    //    data anyway).
-    // 2) The "new" one based on a dedicated HISTORY data type. This data type
-    //    is itself disabled for custom passphrase users.
-    // In practice, at most one of TYPED_URLS or HISTORY can be enabled at the
-    // same time, so OnHistoryCommit() gets called at most once per URL.
-    DCHECK(!(enabled_types.Has(TYPED_URLS) && enabled_types.Has(HISTORY)));
+    // Notify observers about history having been synced.
     if (observer_for_tests_) {
-      if (iter->second->GetModelType() == SESSIONS &&
-          enabled_types.Has(HISTORY_DELETE_DIRECTIVES) &&
-          enabled_types.Has(TYPED_URLS)) {
-        // "Old" history sync.
-        for (const sync_pb::TabNavigation& navigation :
-             client_entity.specifics().session().tab().navigation()) {
-          observer_for_tests_->OnHistoryCommit(navigation.virtual_url());
-        }
-      } else if (iter->second->GetModelType() == HISTORY) {
-        // "New" history sync.
+      if (iter->second->GetModelType() == HISTORY) {
         const sync_pb::HistorySpecifics& specifics =
             client_entity.specifics().history();
         // The last entry of the redirect chain is the "actual" URL. In the case
@@ -742,7 +701,7 @@ void LoopbackServer::ClearServerData() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   entities_.clear();
   keystore_keys_.clear();
-  store_birthday_ = base::Time::Now().ToJavaTime();
+  store_birthday_ = base::Time::Now().InMillisecondsSinceUnixEpoch();
   base::DeleteFile(persistent_file_);
   Init();
 }
@@ -835,6 +794,9 @@ bool LoopbackServer::ModifyEntitySpecifics(
   LoopbackServerEntity* entity = iter->second.get();
   entity->SetSpecifics(updated_specifics);
   UpdateEntityVersion(entity);
+
+  ScheduleSaveStateToFile();
+
   return true;
 }
 
@@ -858,6 +820,9 @@ bool LoopbackServer::ModifyBookmarkEntity(
     entity->SetName(updated_specifics.bookmark().legacy_canonicalized_title());
   }
   UpdateEntityVersion(entity);
+
+  ScheduleSaveStateToFile();
+
   return true;
 }
 

@@ -6,7 +6,7 @@
 
 #import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
 
-#import "base/mac/foundation_util.h"
+#import "base/apple/foundation_util.h"
 #import "ios/chrome/common/app_group/app_group_metrics.h"
 #import "ios/chrome/common/constants.h"
 #import "ios/chrome/common/credential_provider/credential.h"
@@ -17,10 +17,6 @@
 #import "ios/chrome/credential_provider_extension/ui/password_note_cell.h"
 #import "ios/chrome/credential_provider_extension/ui/tooltip_view.h"
 #import "ios/chrome/credential_provider_extension/ui/ui_util.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace {
 
@@ -106,17 +102,12 @@ typedef NS_ENUM(NSInteger, RowIdentifier) {
 
 - (NSInteger)tableView:(UITableView*)tableView
     numberOfRowsInSection:(NSInteger)section {
-  if (IsPasswordNotesWithBackupEnabled()) {
-    return RowIdentifier::NumRows;
-  }
-
-  return RowIdentifier::NumRows - 1;
+  return RowIdentifier::NumRows;
 }
 
 - (UITableViewCell*)tableView:(UITableView*)tableView
         cellForRowAtIndexPath:(NSIndexPath*)indexPath {
-  if (indexPath.row == RowIdentifier::RowIdentifierNote &&
-      IsPasswordNotesWithBackupEnabled()) {
+  if (indexPath.row == RowIdentifier::RowIdentifierNote) {
     PasswordNoteCell* cell =
         [tableView dequeueReusableCellWithIdentifier:PasswordNoteCell.reuseID];
     if (!cell) {

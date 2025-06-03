@@ -10,10 +10,12 @@ import android.net.Uri;
 import android.util.Log;
 import android.util.TypedValue;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
+import org.chromium.android_webview.common.Lifetime;
 import org.chromium.base.ContextUtils;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
 import org.chromium.url.GURL;
 
 import java.io.IOException;
@@ -26,6 +28,7 @@ import java.util.zip.GZIPInputStream;
  * Implements the Java side of Android URL protocol jobs.
  * See android_protocol_handler.cc.
  */
+@Lifetime.Singleton
 @JNINamespace("android_webview")
 public class AndroidProtocolHandler {
     private static final String TAG = "AndroidProtocolHandler";
@@ -224,6 +227,14 @@ public class AndroidProtocolHandler {
             } else if (uri.getScheme().equals(FILE_SCHEME)
                     && path.startsWith(AndroidProtocolHandlerJni.get().getAndroidAssetPath())) {
                 String mimeType = URLConnection.guessContentTypeFromName(path);
+
+                // If the OS didn't find anything we fall back to Chromium's implementation which
+                // should be far more reliable since we can control this.
+                // See crbug.com/1019528
+                if (mimeType == null) {
+                    mimeType = AndroidProtocolHandlerJni.get().getWellKnownMimeType(path);
+                }
+
                 if (mimeType != null) {
                     return mimeType;
                 }
@@ -262,5 +273,6 @@ public class AndroidProtocolHandler {
     interface Natives {
         String getAndroidAssetPath();
         String getAndroidResourcePath();
+        String getWellKnownMimeType(String path);
     }
 }

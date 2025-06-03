@@ -30,15 +30,22 @@ FederatedIdentityAutoReauthnPermissionContextFactory::
     FederatedIdentityAutoReauthnPermissionContextFactory()
     : ProfileKeyedServiceFactory(
           "FederatedIdentityAutoReauthnPermissionContext",
-          ProfileSelections::BuildForRegularAndIncognito()) {
+          ProfileSelections::Builder()
+              .WithRegular(ProfileSelection::kOwnInstance)
+              // TODO(crbug.com/1418376): Check if this service is needed in
+              // Guest mode.
+              .WithGuest(ProfileSelection::kOwnInstance)
+              .Build()) {
   DependsOn(HostContentSettingsMapFactory::GetInstance());
 }
 
 FederatedIdentityAutoReauthnPermissionContextFactory::
     ~FederatedIdentityAutoReauthnPermissionContextFactory() = default;
 
-KeyedService*
-FederatedIdentityAutoReauthnPermissionContextFactory::BuildServiceInstanceFor(
-    content::BrowserContext* profile) const {
-  return new FederatedIdentityAutoReauthnPermissionContext(profile);
+std::unique_ptr<KeyedService>
+FederatedIdentityAutoReauthnPermissionContextFactory::
+    BuildServiceInstanceForBrowserContext(
+        content::BrowserContext* profile) const {
+  return std::make_unique<FederatedIdentityAutoReauthnPermissionContext>(
+      profile);
 }

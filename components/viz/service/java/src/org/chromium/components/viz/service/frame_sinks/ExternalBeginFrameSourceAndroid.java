@@ -6,17 +6,16 @@ package org.chromium.components.viz.service.frame_sinks;
 
 import android.view.Choreographer;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.TraceEvent;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
-import org.chromium.build.annotations.MainDex;
 
 /**
  * Provides a VSyncMonitor backed BeginFrameSource.
  */
 @JNINamespace("viz")
-@MainDex
 public class ExternalBeginFrameSourceAndroid implements Choreographer.FrameCallback {
     private static final long NANOSECONDS_PER_SECOND = 1000000000;
     private static final long NANOSECONDS_PER_MICROSECOND = 1000;

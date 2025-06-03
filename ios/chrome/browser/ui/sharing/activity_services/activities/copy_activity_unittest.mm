@@ -12,10 +12,6 @@
 #import "third_party/ocmock/gtest_support.h"
 #import "url/gurl.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace {
 const char kTestShareURL[] = "https://www.google.com/";
 const char kTestVisibleURL[] = "https://google.com/";
@@ -155,6 +151,6 @@ TEST_F(CopyActivityTest, ExecuteActivityURLAndAdditionalText) {
   EXPECT_TRUE([GetExpectedURL() isEqual:UIPasteboard.generalPasteboard.URL]);
 
   // The second pasteboard item has the additional text stored as string.
-  EXPECT_TRUE(
-      [kTestAdditionaText isEqual:UIPasteboard.generalPasteboard.strings[1]]);
+  EXPECT_TRUE([kTestAdditionaText
+      isEqualToString:UIPasteboard.generalPasteboard.strings[1]]);
 }

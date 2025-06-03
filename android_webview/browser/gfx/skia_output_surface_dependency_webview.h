@@ -18,6 +18,8 @@ class TaskQueueWebView;
 class GpuServiceWebView;
 
 // Implementation for access to gpu objects and task queue for WebView.
+//
+// Lifetime: WebView
 class SkiaOutputSurfaceDependencyWebView
     : public viz::SkiaOutputSurfaceDependency {
  public:
@@ -42,7 +44,7 @@ class SkiaOutputSurfaceDependencyWebView
   scoped_refptr<gpu::SharedContextState> GetSharedContextState() override;
   gpu::raster::GrShaderCache* GetGrShaderCache() override;
   viz::VulkanContextProvider* GetVulkanContextProvider() override;
-  viz::DawnContextProvider* GetDawnContextProvider() override;
+  gpu::DawnContextProvider* GetDawnContextProvider() override;
   const gpu::GpuPreferences& GetGpuPreferences() const override;
   const gpu::GpuFeatureInfo& GetGpuFeatureInfo() override;
   gpu::MailboxManager* GetMailboxManager() override;

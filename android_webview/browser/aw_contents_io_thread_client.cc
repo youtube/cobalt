@@ -21,7 +21,6 @@
 #include "base/functional/bind.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
-#include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/synchronization/lock.h"
 #include "base/threading/scoped_blocking_call.h"
@@ -96,10 +95,6 @@ class RfhToIoThreadClientMap {
 
 // static
 LazyInstance<RfhToIoThreadClientMap>::DestructorAtExit g_instance_ =
-    LAZY_INSTANCE_INITIALIZER;
-
-// static
-LazyInstance<JavaObjectWeakGlobalRef>::DestructorAtExit g_sw_instance_ =
     LAZY_INSTANCE_INITIALIZER;
 
 // static
@@ -279,23 +274,6 @@ void AwContentsIoThreadClient::Associate(WebContents* web_contents,
   new ClientMapEntryUpdater(env, web_contents, jclient.obj());
 }
 
-// static
-void AwContentsIoThreadClient::SetServiceWorkerIoThreadClient(
-    const base::android::JavaRef<jobject>& jclient,
-    const base::android::JavaRef<jobject>& browser_context) {
-  // TODO: currently there is only one browser context so it is ok to
-  // store in a global variable, in the future use browser_context to
-  // obtain the correct instance.
-  JavaObjectWeakGlobalRef temp(AttachCurrentThread(), jclient.obj());
-  g_sw_instance_.Get() = temp;
-}
-
-// static
-std::unique_ptr<AwContentsIoThreadClient>
-AwContentsIoThreadClient::GetServiceWorkerIoThreadClient() {
-  return WrapOptionalWeakRef(absl::make_optional(g_sw_instance_.Get()));
-}
-
 AwContentsIoThreadClient::AwContentsIoThreadClient(const JavaRef<jobject>& obj)
     : java_object_(obj) {
   DCHECK(java_object_);
@@ -313,42 +291,6 @@ AwContentsIoThreadClient::CacheMode AwContentsIoThreadClient::GetCacheMode()
 }
 
 namespace {
-// Used to specify what kind of url was intercepted by the embedded
-// using shouldIntercepterRequest callback.
-// Note: these values are persisted in UMA logs, so they should never be
-// renumbered or reused.
-// GENERATED_JAVA_ENUM_PACKAGE: org.chromium.android_webview
-enum class InterceptionType {
-  kNoIntercept,
-  kOther,
-  kHTTP,
-  kHTTPS,
-  kFILE,
-  kDATA,
-  // Magic constant used by the histogram macros.
-  kMaxValue = kDATA,
-};
-
-// Record UMA whether the request was intercepted and if so what kind of scheme.
-void RecordInterceptedScheme(bool response_is_null, const std::string& url) {
-  InterceptionType type = InterceptionType::kNoIntercept;
-  if (!response_is_null) {
-    GURL gurl(url);
-    if (gurl.SchemeIs(url::kHttpScheme)) {
-      type = InterceptionType::kHTTP;
-    } else if (gurl.SchemeIs(url::kHttpsScheme)) {
-      type = InterceptionType::kHTTPS;
-    } else if (gurl.SchemeIs(url::kFileScheme)) {
-      type = InterceptionType::kFILE;
-    } else if (gurl.SchemeIs(url::kDataScheme)) {
-      type = InterceptionType::kDATA;
-    } else {
-      type = InterceptionType::kOther;
-    }
-  }
-  UMA_HISTOGRAM_ENUMERATION(
-      "Android.WebView.ShouldInterceptRequest.InterceptionType2", type);
-}
 
 std::unique_ptr<AwWebResourceInterceptResponse> NoInterceptRequest() {
   return nullptr;
@@ -385,7 +327,9 @@ std::unique_ptr<AwWebResourceInterceptResponse> RunShouldInterceptRequest(
       std::make_unique<AwWebResourceInterceptResponse>(java_ref);
 
   bool has_response = web_resource_intercept_response->HasResponse(env);
-  RecordInterceptedScheme(!has_response, request.url);
+  UMA_HISTOGRAM_BOOLEAN(
+      "Android.WebView.ShouldInterceptRequest.IsRequestIntercepted",
+      has_response);
   return web_resource_intercept_response;
 }
 

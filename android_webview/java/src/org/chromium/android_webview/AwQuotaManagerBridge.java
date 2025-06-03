@@ -6,16 +6,19 @@ package org.chromium.android_webview;
 
 import androidx.annotation.NonNull;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
+import org.chromium.android_webview.common.Lifetime;
 import org.chromium.base.Callback;
 import org.chromium.base.ThreadUtils;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
 
 /**
  * Bridge between android.webview.WebStorage and native QuotaManager. This object is owned by Java
  * AwBrowserContext and the native side is owned by the native AwBrowserContext.
  */
+@Lifetime.Profile
 @JNINamespace("android_webview")
 public class AwQuotaManagerBridge {
     /**

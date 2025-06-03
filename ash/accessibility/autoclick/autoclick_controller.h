@@ -8,6 +8,7 @@
 #include "ash/ash_export.h"
 #include "ash/constants/ash_constants.h"
 #include "ash/public/cpp/ash_constants.h"
+#include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "base/time/time.h"
 #include "ui/aura/client/cursor_client_observer.h"
@@ -94,7 +95,7 @@ class ASH_EXPORT AutoclickController
 
   // The Accessibility Common extension has found scrollble bounds at the
   // current scroll point.
-  void HandleAutoclickScrollableBoundsFound(gfx::Rect& bounds_in_screen);
+  void HandleAutoclickScrollableBoundsFound(const gfx::Rect& bounds_in_screen);
 
   // Update the bubble menu bounds if necessary to avoid system UI.
   void UpdateAutoclickMenuBoundsIfNeeded();
@@ -122,6 +123,10 @@ class ASH_EXPORT AutoclickController
   }
   AccessibilityFeatureDisableDialog* GetDisableDialogForTesting() {
     return disable_dialog_.get();
+  }
+  void SetScrollableBoundsCallbackForTesting(
+      base::RepeatingCallback<void(const gfx::Rect&)> callback) {
+    scrollable_bounds_callback_for_testing_ = callback;
   }
 
  private:
@@ -202,6 +207,8 @@ class ASH_EXPORT AutoclickController
   // will not be started. This ensures the autoclick ring is not drawn over
   // the scroll position buttons, and extra clicks will not be generated there.
   bool over_scroll_button_ = false;
+  base::RepeatingCallback<void(const gfx::Rect&)>
+      scrollable_bounds_callback_for_testing_;
 
   // The widget containing the autoclick ring.
   std::unique_ptr<views::Widget> ring_widget_;

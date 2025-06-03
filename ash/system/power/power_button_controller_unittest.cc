@@ -1081,6 +1081,38 @@ TEST_F(PowerButtonControllerTest, PartiallyShownMenuInTabletMode) {
   EXPECT_FALSE(power_manager_client()->backlights_forced_off());
 }
 
+TEST_F(PowerButtonControllerTest, PowerMenuItemsInTabletKiosk) {
+  ClearLogin();
+  SimulateKioskMode(user_manager::USER_TYPE_WEB_KIOSK_APP);
+  SetCanLockScreen(false);
+
+  EnableTabletMode(true);
+
+  OpenPowerButtonMenu();
+
+  EXPECT_TRUE(power_button_test_api_->MenuHasPowerOffItem());
+  EXPECT_TRUE(power_button_test_api_->MenuHasSignOutItem());
+  EXPECT_FALSE(power_button_test_api_->MenuHasLockScreenItem());
+  EXPECT_FALSE(power_button_test_api_->MenuHasCaptureModeItem());
+  EXPECT_FALSE(power_button_test_api_->MenuHasFeedbackItem());
+}
+
+TEST_F(PowerButtonControllerTest, PowerMenuItemsInLaptopKiosk) {
+  ClearLogin();
+  SimulateKioskMode(user_manager::USER_TYPE_WEB_KIOSK_APP);
+  SetCanLockScreen(false);
+
+  EnableTabletMode(false);
+
+  OpenPowerButtonMenu();
+
+  EXPECT_TRUE(power_button_test_api_->MenuHasPowerOffItem());
+  EXPECT_TRUE(power_button_test_api_->MenuHasSignOutItem());
+  EXPECT_FALSE(power_button_test_api_->MenuHasLockScreenItem());
+  EXPECT_FALSE(power_button_test_api_->MenuHasCaptureModeItem());
+  EXPECT_FALSE(power_button_test_api_->MenuHasFeedbackItem());
+}
+
 class PowerButtonControllerWithPositionTest
     : public PowerButtonControllerTest,
       public testing::WithParamInterface<PowerButtonPosition> {
@@ -1364,10 +1396,9 @@ TEST_P(PowerButtonControllerWithPositionTest, AdjustMenuShownForDisplaySize) {
       power_button_test_api_->GetMenuBoundsInScreen()));
 }
 
-// Disabled due to consistent failures. http://crbug.com/1286199
 // Tests that a power button press before the menu is fully shown will not
 // create a new menu.
-TEST_F(PowerButtonControllerTest, DISABLED_LegacyPowerButtonIgnoreExtraPress) {
+TEST_F(PowerButtonControllerTest, LegacyPowerButtonIgnoreExtraPress) {
   Initialize(ButtonType::LEGACY, LoginStatus::USER);
 
   // Enable animations so that we can make sure that they occur.

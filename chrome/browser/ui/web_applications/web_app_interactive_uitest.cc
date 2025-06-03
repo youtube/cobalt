@@ -46,7 +46,7 @@ IN_PROC_BROWSER_TEST_F(WebAppInteractiveUiTest,
                        MAYBE_TabOpensOnCorrectDisplay) {
 #if BUILDFLAG(IS_CHROMEOS_ASH)
   display::test::DisplayManagerTestApi(ash::Shell::Get()->display_manager())
-      .UpdateDisplay("801x802,802x802");
+      .UpdateDisplay("801x802,802x803");
 #elif BUILDFLAG(IS_MAC)
   if (!display::test::VirtualDisplayMacUtil::IsAPIAvailable()) {
     GTEST_SKIP() << "Skipping test for unsupported MacOS version.";
@@ -57,7 +57,7 @@ IN_PROC_BROWSER_TEST_F(WebAppInteractiveUiTest,
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
   // Install test app.
-  const AppId app_id = InstallPWA(GURL(kExampleURL));
+  const webapps::AppId app_id = InstallPWA(GURL(kExampleURL));
 
   // Figure out what display the original tabbed browser was created on, as well
   // as what the display Id is for a second display.

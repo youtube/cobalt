@@ -63,7 +63,7 @@ class AnimationKeyframeEffectModel : public PageTestBase {
   void SetUp() override {
     PageTestBase::SetUp(gfx::Size());
     GetDocument().UpdateStyleAndLayoutTree();
-    element = GetDocument().CreateElementForBinding("foo");
+    element = GetDocument().CreateElementForBinding(AtomicString("foo"));
     GetDocument().body()->appendChild(element);
   }
 
@@ -145,32 +145,35 @@ StringKeyframeVector KeyframesAtZeroAndOne(AtomicString property_name,
 }
 
 const PropertySpecificKeyframeVector& ConstructEffectAndGetKeyframes(
-    const AtomicString& property_name,
-    const AtomicString& type,
+    const char* property_name,
+    const char* type,
     Document* document,
     Element* element,
     const String& zero_value,
     const String& one_value,
     ExceptionState& exception_state) {
-  css_test_helpers::RegisterProperty(*document, property_name, type, zero_value,
-                                     false);
+  AtomicString property_name_string(property_name);
+  css_test_helpers::RegisterProperty(*document, property_name_string,
+                                     AtomicString(type), zero_value, false);
 
   StringKeyframeVector keyframes =
-      KeyframesAtZeroAndOne(property_name, zero_value, one_value);
+      KeyframesAtZeroAndOne(property_name_string, zero_value, one_value);
 
-  element->style()->setProperty(document->GetExecutionContext(), property_name,
-                                zero_value, g_empty_string, exception_state);
+  element->style()->setProperty(document->GetExecutionContext(),
+                                property_name_string, zero_value,
+                                g_empty_string, exception_state);
 
   auto* effect = MakeGarbageCollected<StringKeyframeEffectModel>(keyframes);
 
-  auto style =
+  const auto* style =
       document->GetStyleResolver().ResolveStyle(element, StyleRecalcContext());
 
   // Snapshot should update first time after construction
   EXPECT_TRUE(effect->SnapshotAllCompositorKeyframesIfNecessary(
       *element, *style, nullptr));
 
-  return *effect->GetPropertySpecificKeyframes(PropertyHandle(property_name));
+  return *effect->GetPropertySpecificKeyframes(
+      PropertyHandle(property_name_string));
 }
 
 void ExpectProperty(CSSPropertyID property,
@@ -188,7 +191,7 @@ Interpolation* FindValue(HeapVector<Member<Interpolation>>& values,
         To<InvalidatableInterpolation>(value.Get())->GetProperty();
     if (property.IsCSSProperty() &&
         property.GetCSSProperty().PropertyID() == id)
-      return value;
+      return value.Get();
   }
   return nullptr;
 }
@@ -639,7 +642,7 @@ TEST_F(AnimationKeyframeEffectModel, CompositorSnapshotUpdateBasic) {
       KeyframesAtZeroAndOne(CSSPropertyID::kOpacity, "0", "1");
   auto* effect = MakeGarbageCollected<StringKeyframeEffectModel>(keyframes);
 
-  auto style = GetDocument().GetStyleResolver().ResolveStyle(
+  const auto* style = GetDocument().GetStyleResolver().ResolveStyle(
       element, StyleRecalcContext());
 
   const CompositorKeyframeValue* value;
@@ -676,7 +679,7 @@ TEST_F(AnimationKeyframeEffectModel,
   auto* effect =
       MakeGarbageCollected<StringKeyframeEffectModel>(opacity_keyframes);
 
-  auto style = GetDocument().GetStyleResolver().ResolveStyle(
+  const auto* style = GetDocument().GetStyleResolver().ResolveStyle(
       element, StyleRecalcContext());
 
   EXPECT_TRUE(effect->SnapshotAllCompositorKeyframesIfNecessary(
@@ -815,7 +818,7 @@ TEST_F(AnimationKeyframeEffectModel, CompositorSnapshotContainerRelative) {
       </div>
     </div>
   )HTML");
-  Element* target = GetDocument().getElementById("target");
+  Element* target = GetDocument().getElementById(AtomicString("target"));
   ASSERT_TRUE(target);
 
   StringKeyframeVector keyframes = KeyframesAtZeroAndOne(

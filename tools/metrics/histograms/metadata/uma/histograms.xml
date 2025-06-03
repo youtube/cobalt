@@ -57,7 +57,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Histogram.MismatchedConstructionArguments"
-    enum="HistogramNameHash" expires_after="2023-11-01">
+    enum="HistogramNameHash" expires_after="2024-03-03">
   <owner>asvitkine@chromium.org</owner>
   <owner>src/base/metrics/OWNERS</owner>
   <summary>
@@ -69,7 +69,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Histogram.TooManyBuckets.1000" enum="HistogramNameHash"
-    expires_after="2023-11-01">
+    expires_after="2024-11-01">
   <owner>asvitkine@chromium.org</owner>
   <owner>src/base/metrics/OWNERS</owner>
   <summary>
@@ -80,13 +80,32 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="UMA.ActualLogUploadInterval" units="minutes"
-    expires_after="2023-10-22">
+    expires_after="2024-02-25">
   <owner>asvitkine@chromium.org</owner>
   <owner>src/base/metrics/OWNERS</owner>
   <summary>
     The actual interval between log upload start and previous log upload
     finished within the same process. A value of 0 indicates there was no
     previous upload. Prior to M71, logging for this metric was broken.
+  </summary>
+</histogram>
+
+<histogram name="UMA.AndroidPreNative.ChromeActivityCounter2"
+    enum="ChromeActivityCounter" expires_after="2024-10-04">
+  <owner>gabrielgs@google.com</owner>
+  <owner>src/base/metrics/OWNERS</owner>
+  <summary>
+    Counts of how many times onPostCreate() and onResume() were called (from the
+    ChromeActivity class) when a foreground session begins in the native C++
+    code. The counters are reset when this histogram is emitted. This histogram
+    is a diagnostic tool for understanding Clank short sessions, by capturing
+    some information about the cases where Java code starts up, but native C++
+    code is never reached.
+
+    This replaces UMA.AndroidPreNative.ChromeActivityCounter, which would
+    increment the counters to P1R0 on first-run-experience, but would not
+    advance to native code. This version circumvents the issue by waiting to be
+    sure that onCreate was not aborted (see AsyncInitializationActivity).
   </summary>
 </histogram>
 
@@ -102,8 +121,46 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="UMA.ChildProcess.Ping.{Source}" enum="UmaChildPingStatus"
+    expires_after="2024-02-20">
+  <owner>lucnguyen@google.com</owner>
+  <owner>src/base/metrics/OWNERS</owner>
+  <summary>
+    The current status of a ping sent by the browser process to a child process.
+    Emitted in 3 steps: 1. When the browser process sends a ping IPC to the
+    child process (BROWSER_SENT_IPC), 2. When the child process receives said
+    IPC (CHILD_RECEIVED_IPC), and 3. When the browser process receives a reply
+    from the child process after the IPC was processed (BROWSER_REPLY_CALLBACK).
+
+    Because a child process may exit early and never receive the IPC (even in
+    normal scenarios), 1 may not match 2 and 3 in total count. However, 2 and 3
+    should be equivalent, and that them not matching should be an indication of
+    loss of child process histograms. Note that 1 and 3 are emitted from the
+    browser process, while 2 is emitted from the child process.
+
+    {Source}
+
+    Caveat: Because this histogram is emitted from the child process after the
+    shared memory is set up, the histogram will live on it (except if there were
+    failures in creating it), so this histogram quantifies lost histograms from
+    the shared memory. In particular, histograms that are emitted very early on
+    in a child process do not live on the shared memory, and are passed to the
+    browser process through IPCs. This histogram, mostly, does not quantify the
+    loss of those histograms.
+  </summary>
+  <token key="Source">
+    <variant name="Periodic"
+        summary="This ping process occurs every 5 minutes with ~10% of all
+                 child processes (chosen at random every time)."/>
+    <variant name="SharedMemorySetUp"
+        summary="This ping process occurs when a child process has just
+                 launched and processed the IPC to set up the shared memory
+                 segment for histograms."/>
+  </token>
+</histogram>
+
 <histogram name="UMA.CleanExitBeaconConsistency3"
-    enum="UmaCleanExitConsistency3" expires_after="2023-10-01">
+    enum="UmaCleanExitConsistency3" expires_after="2023-12-04">
   <owner>caitlinfischer@google.com</owner>
   <owner>justincohen@chromium.org</owner>
   <owner>src/base/metrics/OWNERS</owner>
@@ -123,7 +180,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="UMA.ClientIdBackupRecoveredWithAge" units="hours"
-    expires_after="2023-08-20">
+    expires_after="2024-02-25">
   <owner>asvitkine@chromium.org</owner>
   <owner>src/base/metrics/OWNERS</owner>
   <summary>
@@ -134,7 +191,7 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="UMA.ClientIdCleared" enum="Boolean" expires_after="2023-10-22">
+<histogram name="UMA.ClientIdCleared" enum="Boolean" expires_after="2024-03-10">
   <owner>pdyson@chromium.org</owner>
   <owner>src/base/metrics/OWNERS</owner>
   <summary>
@@ -144,7 +201,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="UMA.ClientIdSource" enum="ClientIdSource"
-    expires_after="2023-10-22">
+    expires_after="2024-02-25">
   <owner>pdyson@chromium.org</owner>
   <owner>src/base/metrics/OWNERS</owner>
   <summary>The source of the client id when its creation is forced.</summary>
@@ -162,7 +219,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="UMA.CrosPerUser.IdReset" enum="PerUserIdType"
-    expires_after="2023-09-24">
+    expires_after="2024-02-04">
   <owner>jongahn@chromium.org</owner>
   <owner>asvitkine@chromium.org</owner>
   <summary>
@@ -214,7 +271,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="UMA.EntropySourceType" enum="UmaEntropySourceType"
-    expires_after="2023-11-01">
+    expires_after="2024-03-03">
   <owner>asvitkine@chromium.org</owner>
   <owner>src/base/metrics/OWNERS</owner>
   <summary>
@@ -224,7 +281,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="UMA.ExternalExperiment.GroupCount" units="groups"
-    expires_after="2023-11-01">
+    expires_after="2024-03-03">
   <owner>asvitkine@chromium.org</owner>
   <owner>src/base/metrics/OWNERS</owner>
   <summary>
@@ -236,7 +293,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="UMA.FileMetricsProvider.AccessResult"
-    enum="FileMetricsProviderAccessResult" expires_after="2023-11-01">
+    enum="FileMetricsProviderAccessResult" expires_after="2024-03-03">
   <owner>asvitkine@chromium.org</owner>
   <owner>src/base/metrics/OWNERS</owner>
   <summary>
@@ -245,7 +302,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="UMA.FileMetricsProvider.InitialAccessResult"
-    enum="FileMetricsProviderAccessResult" expires_after="2023-11-01">
+    enum="FileMetricsProviderAccessResult" expires_after="2024-11-01">
   <owner>asvitkine@chromium.org</owner>
   <owner>src/base/metrics/OWNERS</owner>
   <summary>
@@ -255,7 +312,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="UMA.FileMetricsProvider.{Source}.MergedHistogramsCount"
-    units="histograms" expires_after="2023-11-01">
+    units="histograms" expires_after="2024-11-01">
   <owner>lucnguyen@google.com</owner>
   <owner>src/base/metrics/OWNERS</owner>
   <summary>
@@ -269,24 +326,20 @@ chromium-metrics-reviews@google.com.
   </token>
 </histogram>
 
-<histogram name="UMA.IndependentLog.{Provider}.FinalizeTime" units="ms"
-    expires_after="2023-07-01">
-  <owner>lucnguyen@google.com</owner>
+<histogram name="UMA.InitialStabilityRecordBeacon" enum="Boolean"
+    expires_after="2024-08-22">
+  <owner>mpearson@chromium.org</owner>
   <owner>src/base/metrics/OWNERS</owner>
   <summary>
-    The amount of time the main thread spent on finalizing and storing an
-    independent log provided by {Provider}. This is only emitted for logs that
-    are successfully closed.
+    Emitted (with value &quot;true&quot;) in each UMA record that's an initial
+    stability log. Missing from other types of logs such as logs from ongoing
+    Chrome use and &quot;independent&quot; logs that contain data from the
+    previous session via the persistent histograms code.
   </summary>
-  <token key="Provider">
-    <variant name="BackgroundTracingMetricsProvider"/>
-    <variant name="FileMetricsProvider"/>
-    <variant name="StructuredMetricsProvider"/>
-  </token>
 </histogram>
 
 <histogram name="UMA.InitSequence" enum="UmaInitSequence"
-    expires_after="2023-10-15">
+    expires_after="2024-02-20">
   <owner>asvitkine@chromium.org</owner>
   <owner>src/base/metrics/OWNERS</owner>
   <summary>
@@ -299,7 +352,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="UMA.IsClonedInstall" enum="BooleanCloned"
-    expires_after="2023-09-03">
+    expires_after="2024-03-17">
   <owner>asvitkine@chromium.org</owner>
   <owner>src/base/metrics/OWNERS</owner>
   <summary>
@@ -309,57 +362,21 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="UMA.JavaCachingRecorder.DroppedHistogramSampleCount"
-    units="samples" expires_after="2023-09-03">
-  <owner>bttk@chromium.org</owner>
+<histogram name="UMA.LocalHistogram" enum="Boolean" expires_after="never">
+<!-- expires-never: Used to monitor that local histograms are not reported. -->
+
+  <owner>lucnguyen@google.com</owner>
   <owner>src/base/metrics/OWNERS</owner>
   <summary>
-    Number of histogram samples that were not recorded when flushing due to
-    cache size limits in the Java in-memory cache. There are separate limits on
-    the number of cached histograms, and the number of samples in a histogram.
+    A local histogram that should never be reported to the servers. If this
+    histogram appears on the serverside, it is possibly an indication that local
+    histograms are making it into UMA logs. Emitted in the constructor and
+    destructor of MetricsService, and in child processes after setting up the
+    shared memory.
   </summary>
 </histogram>
 
-<histogram name="UMA.JavaCachingRecorder.DroppedUserActionCount"
-    units="samples" expires_after="2023-04-30">
-  <owner>bttk@chromium.org</owner>
-  <owner>src/base/metrics/OWNERS</owner>
-  <summary>
-    Number of user actions that were not recorded when flushing due to a cache
-    size limit in Java the in-memory cache.
-  </summary>
-</histogram>
-
-<histogram name="UMA.JavaCachingRecorder.FlushedHistogramCount"
-    units="histograms" expires_after="2022-03-21">
-  <owner>bttk@chromium.org</owner>
-  <owner>src/base/metrics/OWNERS</owner>
-  <summary>
-    Number of histograms recorded when flushing the Java in-memory cache.
-  </summary>
-</histogram>
-
-<histogram name="UMA.JavaCachingRecorder.InputHistogramSampleCount"
-    units="samples" expires_after="2022-03-21">
-  <owner>bttk@chromium.org</owner>
-  <owner>src/base/metrics/OWNERS</owner>
-  <summary>
-    Number of histogram samples seen by the time the Java in-memory cache was
-    flushed. This includes samples counted in DroppedHistogramSampleCount.
-  </summary>
-</histogram>
-
-<histogram name="UMA.JavaCachingRecorder.InputUserActionCount" units="samples"
-    expires_after="2022-03-21">
-  <owner>bttk@chromium.org</owner>
-  <owner>src/base/metrics/OWNERS</owner>
-  <summary>
-    Number of user actions seen by the time the in-memory cache was flushed.
-    This includes actions counted in DroppedUserActionCount.
-  </summary>
-</histogram>
-
-<histogram name="UMA.LogSize.OnSuccess" units="KB" expires_after="2023-10-01">
+<histogram name="UMA.LogSize.OnSuccess" units="KB" expires_after="2024-02-04">
   <owner>asvitkine@chromium.org</owner>
   <owner>src/base/metrics/OWNERS</owner>
   <summary>
@@ -372,7 +389,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="UMA.LogUpload.Canceled.CellularConstraint"
-    enum="BooleanCanceled" expires_after="2023-10-01">
+    enum="BooleanCanceled" expires_after="2023-12-04">
   <owner>holte@chromium.org</owner>
   <owner>asvitkine@chromium.org</owner>
   <owner>src/base/metrics/OWNERS</owner>
@@ -383,7 +400,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="UMA.LogUpload.ResponseOrErrorCode"
-    enum="CombinedHttpResponseAndNetErrorCode" expires_after="2023-10-01">
+    enum="CombinedHttpResponseAndNetErrorCode" expires_after="2024-02-04">
   <owner>holte@chromium.org</owner>
   <owner>asvitkine@chromium.org</owner>
   <owner>src/base/metrics/OWNERS</owner>
@@ -394,7 +411,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="UMA.LogUpload.ResponseOrErrorCode.HTTP"
-    enum="CombinedHttpResponseAndNetErrorCode" expires_after="2023-08-01">
+    enum="CombinedHttpResponseAndNetErrorCode" expires_after="2024-07-01">
   <owner>holte@chromium.org</owner>
   <owner>asvitkine@chromium.org</owner>
   <owner>src/base/metrics/OWNERS</owner>
@@ -405,7 +422,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="UMA.MachineIdState" enum="UmaMachineIdState"
-    expires_after="2023-10-15">
+    expires_after="2024-02-20">
   <owner>jwd@chromium.org</owner>
   <owner>src/base/metrics/OWNERS</owner>
   <summary>
@@ -417,7 +434,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="UMA.MetricsIDsReset" enum="BooleanHit"
-    expires_after="2023-08-12">
+    expires_after="2024-02-20">
   <owner>jwd@chromium.org</owner>
   <owner>src/base/metrics/OWNERS</owner>
   <summary>
@@ -433,7 +450,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="UMA.MetricsReporting.Toggle" enum="MetricsReportingChange"
-    expires_after="2023-09-03">
+    expires_after="2024-03-17">
   <owner>asvitkine@chromium.org</owner>
   <owner>src/base/metrics/OWNERS</owner>
   <summary>
@@ -443,7 +460,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="UMA.MetricsService.Initialize.Time" units="microseconds"
-    expires_after="2023-06-18">
+    expires_after="2024-01-31">
   <owner>asvitkine@chromium.org</owner>
   <owner>src/base/metrics/OWNERS</owner>
   <summary>
@@ -455,7 +472,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="UMA.MetricsService.MaybeCleanUpAndStoreFinalizedLog.Time"
-    units="ms" expires_after="2023-10-08">
+    units="ms" expires_after="2024-02-11">
   <owner>lucnguyen@google.com</owner>
   <owner>src/base/metrics/OWNERS</owner>
   <summary>
@@ -467,8 +484,20 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="UMA.MetricsService.OnBackgroundedScopedTerminationChecker"
+    enum="ScopedTerminationCheckerStatus" expires_after="2024-02-04">
+  <owner>lucnguyen@google.com</owner>
+  <owner>src/base/metrics/OWNERS</owner>
+  <summary>
+    Tentative histogram to quantify how often the browser is ungracefully killed
+    while finalizing a UMA log right after the browser is backgrounded. Emitted
+    before starting to finalize the log (Started bucket), and right after
+    (Finished bucket). Emitted only on mobile platforms.
+  </summary>
+</histogram>
+
 <histogram name="UMA.MetricsService.PendingOngoingLog" enum="Boolean"
-    expires_after="2023-10-08">
+    expires_after="2024-02-11">
   <owner>lucnguyen@google.com</owner>
   <owner>src/base/metrics/OWNERS</owner>
   <summary>
@@ -480,7 +509,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="UMA.MetricsService.PendingOngoingLogOnBackgrounded"
-    enum="Boolean" expires_after="2023-10-08">
+    enum="Boolean" expires_after="2024-02-11">
   <owner>lucnguyen@google.com</owner>
   <owner>src/base/metrics/OWNERS</owner>
   <summary>
@@ -492,7 +521,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="UMA.MetricsService.PendingOngoingLogOnDisable" enum="Boolean"
-    expires_after="2023-10-08">
+    expires_after="2024-02-11">
   <owner>lucnguyen@google.com</owner>
   <owner>src/base/metrics/OWNERS</owner>
   <summary>
@@ -507,7 +536,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="UMA.MetricsService.PendingOngoingLogOnForegrounded"
-    enum="Boolean" expires_after="2023-10-08">
+    enum="Boolean" expires_after="2024-02-11">
   <owner>lucnguyen@google.com</owner>
   <owner>src/base/metrics/OWNERS</owner>
   <summary>
@@ -519,7 +548,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="UMA.MetricsService.PeriodicOngoingLog.CloseTime" units="ms"
-    expires_after="2023-10-08">
+    expires_after="2024-02-11">
   <owner>lucnguyen@google.com</owner>
   <owner>src/base/metrics/OWNERS</owner>
   <summary>
@@ -531,7 +560,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="UMA.MetricsService.PeriodicOngoingLog.ReplyTime" units="ms"
-    expires_after="2023-10-08">
+    expires_after="2023-12-10">
   <owner>lucnguyen@google.com</owner>
   <owner>src/base/metrics/OWNERS</owner>
   <summary>
@@ -543,7 +572,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="UMA.MetricsService.ShouldStoreAsyncLog" enum="Boolean"
-    expires_after="2023-10-08">
+    expires_after="2023-12-10">
   <owner>lucnguyen@google.com</owner>
   <owner>src/base/metrics/OWNERS</owner>
   <summary>
@@ -555,7 +584,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="UMA.MetricsService.SnapshotDeltasTime" units="ms"
-    expires_after="2023-10-08">
+    expires_after="2024-02-11">
   <owner>lucnguyen@google.com</owner>
   <owner>src/base/metrics/OWNERS</owner>
   <summary>
@@ -565,7 +594,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="UMA.NegativeSamples.Histogram" enum="HistogramNameHash"
-    expires_after="2023-11-01">
+    expires_after="2024-11-01">
   <owner>asvitkine@chromium.org</owner>
   <owner>src/base/metrics/OWNERS</owner>
   <summary>
@@ -574,7 +603,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="UMA.NegativeSamples.Increment" units="increment"
-    expires_after="2023-11-01">
+    expires_after="2024-11-01">
   <owner>asvitkine@chromium.org</owner>
   <owner>src/base/metrics/OWNERS</owner>
   <summary>
@@ -583,7 +612,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="UMA.NegativeSamples.Reason" enum="NegativeSampleReason"
-    expires_after="2023-11-01">
+    expires_after="2024-11-01">
   <owner>asvitkine@chromium.org</owner>
   <owner>src/base/metrics/OWNERS</owner>
   <summary>
@@ -604,7 +633,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="UMA.PersistentAllocator.{PersistentAllocatorType}.UsedPct"
-    units="%" expires_after="2023-06-01">
+    units="%" expires_after="2024-06-01">
   <owner>asvitkine@chromium.org</owner>
   <owner>src/base/metrics/OWNERS</owner>
   <summary>
@@ -615,7 +644,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="UMA.PersistentHistograms.InitResult"
-    enum="PersistentHistogramsInitResult" expires_after="2023-10-15">
+    enum="PersistentHistogramsInitResult" expires_after="2024-02-20">
   <owner>asvitkine@chromium.org</owner>
   <owner>src/base/metrics/OWNERS</owner>
   <summary>
@@ -625,7 +654,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="UMA.PrimaryUserType" enum="UserType"
-    expires_after="2023-10-15">
+    expires_after="2024-02-20">
   <owner>michaelpg@chromium.org</owner>
   <owner>yilkal@chromium.org</owner>
   <owner>src/base/metrics/OWNERS</owner>
@@ -702,7 +731,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="UMA.ProtoCompressionRatio" units="%"
-    expires_after="2023-10-15">
+    expires_after="2024-03-03">
   <owner>asvitkine@chromium.org</owner>
   <owner>src/base/metrics/OWNERS</owner>
   <summary>
@@ -737,15 +766,16 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="UMA.SamplingRatePerMille" units="samples per mille"
-    expires_after="2023-10-22">
+    expires_after="2024-02-25">
   <owner>jwd@chromium.org</owner>
   <owner>src/base/metrics/OWNERS</owner>
   <summary>
     Sample rate applied to this client, expressed as number of clients per 1000
     that are in the sample. Recorded on every log upload but only if the client
-    is eligible for sampling. (As of September 2019, the only clients eligible
-    for sampling are Windows and Android installs on which the UMA checkbox was
-    enabled by default.)
+    is eligible for sampling. (As of February 2021, all clients on Android and
+    Windows are eligible for sampling. Prior to Jan 26 2021, only Windows and
+    Android installs on which the UMA checkbox was enabled by default were
+    eligible, see b/161848997).
 
     Clients not eligible for sampling will not have this histogram recorded.
 
@@ -765,7 +795,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="UMA.Startup.LocalStateFileExistence" enum="BooleanExists"
-    expires_after="2023-10-22">
+    expires_after="2023-12-24">
   <owner>caitlinfischer@google.com</owner>
   <owner>src/base/metrics/OWNERS</owner>
   <summary>
@@ -775,12 +805,23 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="UMA.StartupVisibility" enum="StartupVisibility"
-    expires_after="2023-10-22">
+    expires_after="2024-02-25">
   <owner>caitlinfischer@google.com</owner>
   <owner>src/base/metrics/OWNERS</owner>
   <summary>
     Whether the session is a background or foreground session. Recorded just
     before the MetricsStateManager is created. Android Chrome only.
+  </summary>
+</histogram>
+
+<histogram name="UMA.StatisticsRecorder.LockWaitTime" units="ms"
+    expires_after="2024-03-01">
+  <owner>asvitkine@chromium.org</owner>
+  <owner>src/base/metrics/OWNERS</owner>
+  <summary>
+    Records the sum of the accumulating wait times for acquiring the lock in
+    StatisticsRecorder. This is logged with every UMA log and reset to 0 at that
+    time.
   </summary>
 </histogram>
 
@@ -796,16 +837,16 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="UMA.StructuredMetrics.EventRecordingState"
-    enum="StructuredMetricsEventRecordingState" expires_after="2024-02-01">
+<histogram name="UMA.StructuredMetrics.EventRecordingState2"
+    enum="StructuredMetricsEventRecordingState2" expires_after="2024-02-01">
   <owner>jongahn@chromium.org</owner>
   <owner>tby@chromium.org</owner>
   <owner>rkaplow@chromium.org</owner>
   <owner>asvitkine@chromium.org</owner>
   <summary>
     Emitted when a structured metrics event is sent for recording. This records
-    whether that event was recorded successfully, or otherwise what error
-    occurred.
+    whether that event was recorded successfully, or otherwise why the event was
+    not recorded.
   </summary>
 </histogram>
 
@@ -915,7 +956,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="UMA.TruncatedEvents.UserAction" units="events"
-    expires_after="2023-10-22">
+    expires_after="2024-03-31">
   <owner>rkaplow@chromium.org</owner>
   <owner>src/base/metrics/OWNERS</owner>
   <summary>
@@ -925,7 +966,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="UMA.UnsentLogs.Dropped" units="logs"
-    expires_after="2023-10-01">
+    expires_after="2024-02-04">
   <owner>holte@chromium.org</owner>
   <owner>asvitkine@chromium.org</owner>
   <owner>lucnguyen@google.com</owner>
@@ -939,7 +980,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="UMA.UnsentLogs.DroppedSize" units="bytes"
-    expires_after="2023-10-01">
+    expires_after="2024-02-04">
   <owner>akirabaruah@chromium.org</owner>
   <owner>rkaplow@chromium.org</owner>
   <owner>asvitkine@chromium.org</owner>
@@ -1003,7 +1044,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="UMA.UserActionsCount" enum="Boolean"
-    expires_after="2023-08-01">
+    expires_after="2024-07-01">
   <owner>mpearson@chromium.org</owner>
   <owner>src/base/metrics/OWNERS</owner>
   <summary>
@@ -1023,7 +1064,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="UMA.UserDemographics.IsNoisedAgeOver21Under85"
-    enum="BooleanNoisedAgeOver21Under85" expires_after="2023-08-08">
+    enum="BooleanNoisedAgeOver21Under85" expires_after="2024-02-04">
   <owner>tobyhuang@chromium.org</owner>
   <owner>cros-families-eng@google.com</owner>
   <summary>

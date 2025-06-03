@@ -9,6 +9,7 @@
 #include "base/test/test_simple_task_runner.h"
 #include "base/time/time.h"
 #include "components/embedder_support/android/metrics/android_metrics_service_client.h"
+#include "components/metrics/content/subprocess_metrics_provider.h"
 #include "components/metrics/metrics_pref_names.h"
 #include "components/metrics/metrics_switches.h"
 #include "components/prefs/testing_pref_service.h"
@@ -55,6 +56,8 @@ class AwMetricsServiceClientSampleRateTest : public testing::Test {
   AwMetricsServiceClientSampleRateTest()
       : task_runner_(new base::TestSimpleTaskRunner) {
     base::SetRecordActionTaskRunner(task_runner_);
+    // Needed because RegisterMetricsProvidersAndInitState() checks for this.
+    metrics::SubprocessMetricsProvider::CreateInstance();
   }
 
  private:

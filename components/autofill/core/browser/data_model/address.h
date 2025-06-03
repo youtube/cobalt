@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "base/compiler_specific.h"
+#include "components/autofill/core/browser/country_type.h"
 #include "components/autofill/core/browser/data_model/autofill_structured_address.h"
 #include "components/autofill/core/browser/data_model/form_group.h"
 #include "components/autofill/core/browser/geo/alternative_state_name_map.h"
@@ -18,10 +19,10 @@ namespace autofill {
 // A form group that stores address information.
 class Address : public FormGroup {
  public:
-  Address();
-  Address(const Address& address);
+  explicit Address(AddressCountryCode country_code);
   ~Address() override;
 
+  Address(const Address& address);
   Address& operator=(const Address& address);
   bool operator==(const Address& other) const;
   bool operator!=(const Address& other) const { return !operator==(other); }
@@ -38,10 +39,7 @@ class Address : public FormGroup {
   // Derives all missing tokens in the structured representation of the address
   // either parsing missing tokens from their assigned parent or by formatting
   // them from their assigned children.
-  bool FinalizeAfterImport(bool profile_is_verified);
-
-  // Convenience wrapper to invoke finalization for unverified profiles.
-  bool FinalizeAfterImport() { return FinalizeAfterImport(false); }
+  bool FinalizeAfterImport();
 
   // For structured addresses, merges |newer| into |this|. For some values
   // within the structured address tree the more recently used profile gets
@@ -59,7 +57,13 @@ class Address : public FormGroup {
   bool IsStructuredAddressMergeable(const Address& newer) const;
 
   // Returns a constant reference to |structured_address_|.
-  const AddressNode& GetStructuredAddress() const;
+  const AddressComponent& GetStructuredAddress() const;
+
+  // Returns the structured address country code.
+  AddressCountryCode GetAddressCountryCode() const;
+
+  // Returns whether the structured address uses the legacy address hierarchy.
+  bool IsLegacyAddress() const { return is_legacy_address_; }
 
  private:
   // FormGroup:
@@ -77,7 +81,10 @@ class Address : public FormGroup {
 
   // This data structure holds the address information if the structured address
   // feature is enabled.
-  AddressNode structured_address_;
+  std::unique_ptr<AddressComponent> structured_address_;
+
+  // Whether the structured address uses the legacy hierarchy.
+  bool is_legacy_address_ = true;
 };
 
 }  // namespace autofill

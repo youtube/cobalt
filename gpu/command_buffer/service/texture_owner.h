@@ -79,11 +79,6 @@ class GPU_GLES2_EXPORT TextureOwner
   // Update the texture image using the latest available image data.
   virtual void UpdateTexImage() = 0;
 
-  // Ensures that the latest texture image is bound to the provided texture
-  // service_id. Should only be used if the TextureOwner requires explicit
-  // binding of the image after an update.
-  virtual void EnsureTexImageBound(GLuint service_id) = 0;
-
   // Transformation matrix if any associated with the texture image.
   virtual void ReleaseBackBuffers() = 0;
 
@@ -125,21 +120,6 @@ class GPU_GLES2_EXPORT TextureOwner
  protected:
   friend class base::RefCountedDeleteOnSequence<TextureOwner>;
   friend class base::DeleteHelper<TextureOwner>;
-
-  // Used to restore texture binding to GL_TEXTURE_EXTERNAL_OES target.
-  // TODO(crbug.com/1367187): Fold into gl::ScopedRestoreTexture.
-  class ScopedRestoreTextureBinding {
-   public:
-    ScopedRestoreTextureBinding() {
-      glGetIntegerv(GL_TEXTURE_BINDING_EXTERNAL_OES, &bound_service_id_);
-    }
-    ~ScopedRestoreTextureBinding() {
-      glBindTexture(GL_TEXTURE_EXTERNAL_OES, bound_service_id_);
-    }
-
-   private:
-    GLint bound_service_id_;
-  };
 
   // |texture| is the texture that we'll own.
   TextureOwner(bool binds_texture_on_update,

@@ -6,6 +6,7 @@
  * @fileoverview Polymer element for GAIA password changed screen.
  */
 
+import '//resources/cr_elements/chromeos/cros_color_overrides.css.js';
 import '//resources/cr_elements/cr_input/cr_input.js';
 import '//resources/polymer/v3_0/iron-icon/iron-icon.js';
 import '//resources/polymer/v3_0/iron-media-query/iron-media-query.js';
@@ -99,7 +100,6 @@ class GaiaPasswordChanged extends GaiaPasswordChangedBase {
         type: Boolean,
         value: loadTimeData.getBoolean('isCryptohomeRecoveryUIFlowEnabled'),
       },
-      isDarkModeActive_: {type: Boolean, value: false},
     };
   }
 
@@ -177,12 +177,15 @@ class GaiaPasswordChanged extends GaiaPasswordChangedBase {
   }
 
   /**
-   * Returns the src of the illustration.
-   * @private
+   * Returns the label for the forgot password dialog.
+   * @param {string} locale The i18n locale.
+   * @returns {string} The translated label text.
    */
-  getImageSource_() {
-    return this.isDarkModeActive_ ? 'images/security_lock_dark.svg' :
-                                    'images/security_lock_light.svg';
+  getForgotPasswordLabel_(locale) {
+    if (this.isCryptohomeRecoveryUIFlowEnabled_) {
+      return this.i18nDynamic(locale, 'dataLossWarningTitle');
+    }
+    return '';
   }
 
   /**

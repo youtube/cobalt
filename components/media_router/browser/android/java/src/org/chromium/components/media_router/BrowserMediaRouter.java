@@ -13,13 +13,15 @@ import androidx.mediarouter.media.MediaRouter;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GoogleApiAvailability;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.ContextUtils;
 import org.chromium.base.Log;
+import org.chromium.base.ResettersForTesting;
 import org.chromium.base.StrictModeContext;
 import org.chromium.base.SysUtils;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
 import org.chromium.components.media_router.caf.CafMediaRouteProvider;
 import org.chromium.components.media_router.caf.remoting.CafRemotingMediaRouteProvider;
 import org.chromium.content_public.browser.WebContents;
@@ -73,34 +75,34 @@ public class BrowserMediaRouter implements MediaRouteManager {
     @SuppressLint("StaticFieldLeak") // This is for test only.
     private static MediaRouter sAndroidMediaRouterForTest;
 
-    @VisibleForTesting
     public static void setAndroidMediaRouterForTest(MediaRouter router) {
         sAndroidMediaRouterSetForTest = true;
         sAndroidMediaRouterForTest = router;
+        ResettersForTesting.register(() -> {
+            sAndroidMediaRouterSetForTest = false;
+            sAndroidMediaRouterForTest = null;
+        });
     }
 
-    @VisibleForTesting
     public static void setRouteProviderFactoryForTest(MediaRouteProvider.Factory factory) {
+        var oldValue = sRouteProviderFactory;
         sRouteProviderFactory = factory;
+        ResettersForTesting.register(() -> sRouteProviderFactory = oldValue);
     }
 
-    @VisibleForTesting
     protected List<MediaRouteProvider> getRouteProvidersForTest() {
         return mRouteProviders;
     }
 
-    @VisibleForTesting
     protected Map<String, MediaRouteProvider> getRouteIdsToProvidersForTest() {
         return mRouteIdsToProviders;
     }
 
-    @VisibleForTesting
     protected Map<String, Map<MediaRouteProvider, List<MediaSink>>>
     getSinksPerSourcePerProviderForTest() {
         return mSinksPerSourcePerProvider;
     }
 
-    @VisibleForTesting
     protected Map<String, List<MediaSink>> getSinksPerSourceForTest() {
         return mSinksPerSource;
     }

@@ -70,14 +70,15 @@ TaskResults ParseData(int task_id, std::unique_ptr<std::string> data) {
   std::set<GURL> print_server_urls;
   task_data.servers.reserve(json_blob.GetList().size());
   for (const base::Value& val : json_blob.GetList()) {
-    if (!val.is_dict()) {
+    auto* val_dict = val.GetIfDict();
+    if (!val_dict) {
       LOG(WARNING) << "Entry in print servers policy skipped. "
                    << "Not a dictionary.";
       continue;
     }
-    const std::string* id = val.FindStringKey("id");
-    const std::string* url = val.FindStringKey("url");
-    const std::string* name = val.FindStringKey("display_name");
+    const std::string* id = val_dict->FindString("id");
+    const std::string* url = val_dict->FindString("url");
+    const std::string* name = val_dict->FindString("display_name");
     if (!id || !url || !name) {
       LOG(WARNING) << "Entry in print servers policy skipped. The following "
                    << "fields are required: id, url, display_name.";
@@ -187,6 +188,10 @@ class PrintServersProviderImpl : public PrintServersProvider {
     return IsCompleted() ? absl::make_optional(result_servers_) : absl::nullopt;
   }
 
+  base::WeakPtr<PrintServersProvider> AsWeakPtr() override {
+    return weak_ptr_factory_.GetWeakPtr();
+  }
+
   void AddObserver(PrintServersProvider::Observer* observer) override {
     DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
     observers_.AddObserver(observer);
@@ -241,6 +246,7 @@ class PrintServersProviderImpl : public PrintServersProvider {
 
   // Called when a new allowlist is available.
   void UpdateAllowlist() {
+    DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
     allowlist_ = absl::nullopt;
     // Fetch and parse the allowlist.
     const PrefService::Preference* pref =
@@ -322,7 +328,8 @@ class PrintServersProviderImpl : public PrintServersProvider {
   // The current resultant list of servers.
   std::vector<PrintServer> result_servers_;
 
-  raw_ptr<PrefService, ExperimentalAsh> prefs_ = nullptr;
+  raw_ptr<PrefService, LeakedDanglingUntriaged | ExperimentalAsh> prefs_ =
+      nullptr;
   PrefChangeRegistrar pref_change_registrar_;
   std::string allowlist_pref_;
 

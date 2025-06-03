@@ -12,7 +12,6 @@
 
 #include "base/base_export.h"
 #include "base/containers/span.h"
-#include "base/hash/hash.h"
 #include "base/strings/string_piece.h"
 #include "base/types/pass_key.h"
 #include "build/build_config.h"
@@ -22,17 +21,6 @@ class FileSystemAccessManagerImpl;
 }
 
 namespace base {
-
-// DEPRECATED(crbug.com/1195446): Use Uuid::GenerateRandomV4() instead.
-BASE_EXPORT std::string GenerateUuid();
-
-// DEPRECATED(crbug.com/1195446): Use Uuid::ParseCaseInsensitive() and
-// Uuid::is_valid() instead.
-BASE_EXPORT bool IsValidUuid(StringPiece input);
-
-// DEPRECATED(crbug.com/1195446): Use Uuid::ParseLowercase() and
-// Uuid::is_valid() instead.
-BASE_EXPORT bool IsValidUuidOutputString(StringPiece input);
 
 class BASE_EXPORT Uuid {
  public:
@@ -118,24 +106,11 @@ class BASE_EXPORT Uuid {
 // For runtime usage only. Do not store the result of this hash, as it may
 // change in future Chromium revisions.
 struct BASE_EXPORT UuidHash {
-  size_t operator()(const Uuid& uuid) const {
-    // TODO(crbug.com/1026195): Avoid converting to string to take the hash when
-    // the internal type is migrated to a non-string type.
-    return FastHash(uuid.AsLowercaseString());
-  }
+  size_t operator()(const Uuid& uuid) const;
 };
 
 // Stream operator so Uuid objects can be used in logging statements.
 BASE_EXPORT std::ostream& operator<<(std::ostream& out, const Uuid& uuid);
-
-// DEPREACATED(crbug.com/1428566): Please, use the Uuid variants of the
-// functions/types above. These are merely aliases to allow a gradual
-// transition away from `base/guid.h`.
-using GUID = Uuid;
-using GUIDHash = UuidHash;
-BASE_EXPORT std::string GenerateGUID();
-BASE_EXPORT bool IsValidGUID(StringPiece input);
-BASE_EXPORT bool IsValidGUIDOutputString(StringPiece input);
 
 }  // namespace base
 

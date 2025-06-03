@@ -7,6 +7,9 @@ import {assert} from 'chrome://resources/ash/common/assert.js';
 import {FilesAppEntry} from '../../externs/files_app_entry_interfaces.js';
 import {FileData} from '../../externs/ts/state.js';
 
+import {getFileTypeForName, getFinalExtension} from './file_types_base.js';
+// @ts-ignore: error TS6133: 'EXTENSION_TO_TYPE' is declared but its value is
+// never read.
 import {EXTENSION_TO_TYPE, FileExtensionType, MIME_TO_TYPE} from './file_types_data.js';
 import {VolumeEntry} from './files_app_entry_types.js';
 import {VolumeManagerCommon} from './volume_manager_types.js';
@@ -26,56 +29,15 @@ export {FileExtensionType};
  * @type{!FileExtensionType}
  * @const
  */
+// @ts-ignore: error TS2739: Type '{ translationKey: string; type: string; icon:
+// string; subtype: string; }' is missing the following properties from type
+// 'FileExtensionType': extensions, mime, encrypted, originalMimeType
 FileType.DIRECTORY = {
   translationKey: 'FOLDER',
   type: '.folder',
   icon: 'folder',
   subtype: '',
 };
-
-/**
- * A special placeholder for unknown types with no extension.
- * @type{!FileExtensionType}
- * @const
- */
-FileType.PLACEHOLDER = {
-  translationKey: 'NO_EXTENSION_FILE_TYPE',
-  type: 'UNKNOWN',
-  icon: '',
-  subtype: '',
-};
-
-/**
- * Returns the final extension of a file name, check for the last two dots
- * to distinguish extensions like ".tar.gz" and ".gz".
- *
- * @param {string} fileName The file name.
- * @returns {string} The extension string.
- */
-function getFinalExtension(fileName) {
-  if (!fileName) {
-    return '';
-  }
-  const lowerCaseFileName = fileName.toLowerCase();
-  const parts = lowerCaseFileName.split('.');
-  // No dot, so no extension.
-  if (parts.length === 1) {
-    return '';
-  }
-  // Only one dot, so only 1 extension.
-  if (parts.length === 2) {
-    return `.${parts.pop()}`;
-  }
-  // More than 1 dot/extension: e.g. ".tar.gz".
-  const last = `.${parts.pop()}`;
-  const secondLast = `.${parts.pop()}`;
-  const doubleExtension = `${secondLast}${last}`;
-  if (EXTENSION_TO_TYPE.has(doubleExtension)) {
-    return doubleExtension;
-  }
-  // Double extension doesn't exist in the map, return the single one.
-  return last;
-}
 
 /**
  * Returns the file path extension for a given file.
@@ -94,33 +56,6 @@ FileType.getExtension = entry => {
 };
 
 /**
- * Gets the file type object for a given file name (base name). Use getType()
- * if possible, since this method can't recognize directories.
- *
- * @param {string} name Name of the file.
- * @return {!FileExtensionType} The matching descriptor or a placeholder.
- */
-FileType.getTypeForName = name => {
-  const extension = getFinalExtension(name);
-  if (EXTENSION_TO_TYPE.has(extension)) {
-    return EXTENSION_TO_TYPE.get(extension);
-  }
-
-  // Unknown file type.
-  if (extension === '') {
-    return FileType.PLACEHOLDER;
-  }
-
-  // subtype is the extension excluding the first dot.
-  return {
-    translationKey: 'GENERIC_FILE_TYPE',
-    type: 'UNKNOWN',
-    subtype: extension.substr(1).toUpperCase(),
-    icon: '',
-  };
-};
-
-/**
  * Gets the file type object for a given entry. If mime type is provided, then
  * uses it with higher priority than the extension.
  *
@@ -133,6 +68,10 @@ FileType.getType = (entry, opt_mimeType) => {
     // For removable partitions, use the file system type.
     if (/** @type {VolumeEntry}*/ (entry).volumeInfo &&
         /** @type {VolumeEntry}*/ (entry).volumeInfo.diskFileSystemType) {
+      // @ts-ignore: error TS2739: Type '{ translationKey: string; type: string;
+      // subtype: string; icon: string; }' is missing the following properties
+      // from type 'FileExtensionType': extensions, mime, encrypted,
+      // originalMimeType
       return {
         translationKey: '',
         type: 'partition',
@@ -151,21 +90,27 @@ FileType.getType = (entry, opt_mimeType) => {
       const type = /** @type {FileExtensionType} */ (
           {...FileType.getType(entry, cseMatch[1])});
       type.encrypted = true;
+      type.originalMimeType = cseMatch[1];
       return type;
     }
   }
 
   if (opt_mimeType && MIME_TO_TYPE.has(opt_mimeType)) {
+    // @ts-ignore: error TS2322: Type '{ extensions: string[]; mime: string;
+    // subtype: string; translationKey: string; type: string; icon?: undefined;
+    // } | { extensions: string[]; icon: string; mime: string; subtype: string;
+    // translationKey: string; type: string; } | undefined' is not assignable to
+    // type 'FileExtensionType'.
     return MIME_TO_TYPE.get(opt_mimeType);
   }
 
-  return FileType.getTypeForName(entry.name);
+  return getFileTypeForName(entry.name);
 };
 
 /**
  * Gets the media type for a given file.
  *
- * @param {Entry} entry Reference to the file.
+ * @param {Entry|FilesAppEntry} entry Reference to the file.
  * @param {string=} opt_mimeType Optional mime type for the file.
  * @return {string} The value of 'type' property from one of the elements in
  *     the knows file types (file_types.json5) or undefined.
@@ -234,7 +179,7 @@ FileType.isPDF = (entry, opt_mimeType) => {
 /**
  * Files with more pixels won't have preview.
  * @param {!Array<string>} types
- * @param {Entry} entry Reference to the file.
+ * @param {Entry|FilesAppEntry} entry Reference to the file.
  * @param {string=} opt_mimeType Optional mime type for the file.
  * @return {boolean} True if type is in specified set
  */
@@ -273,7 +218,11 @@ FileType.isEncrypted = (entry, opt_mimeType) => {
 FileType.getIcon = (entry, opt_mimeType, opt_rootType) => {
   let icon;
   // Handles the FileData and FilesAppEntry types.
+  // @ts-ignore: error TS2339: Property 'iconName' does not exist on type
+  // 'FileSystemEntry | FileData | VolumeEntry'.
   if (entry && entry.iconName) {
+    // @ts-ignore: error TS2339: Property 'iconName' does not exist on type
+    // 'FileSystemEntry | FileData | VolumeEntry'.
     return entry.iconName;
   }
   // Handles other types of entries.
@@ -304,6 +253,7 @@ FileType.getIconOverrides = (entry, opt_rootType) => {
       '/PvmDefault': 'plugin_vm',
     },
   };
+  // @ts-ignore: error TS2538: Type 'undefined' cannot be used as an index type.
   const root = overrides[opt_rootType];
   return root ? root[entry.fullPath] : '';
 };

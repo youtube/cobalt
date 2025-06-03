@@ -14,6 +14,7 @@
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/metrics/user_metrics.h"
 #include "base/metrics/user_metrics_action.h"
@@ -52,6 +53,7 @@
 #include "ui/base/models/dialog_model_field.h"
 #include "ui/base/models/image_model.h"
 #include "ui/base/pointer/touch_ui_controller.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/events/types/event_type.h"
 #include "ui/gfx/color_palette.h"
 #include "ui/gfx/geometry/insets.h"
@@ -98,6 +100,9 @@ std::unique_ptr<views::LabelButton> CreateMenuItem(
 
   auto button = CreateBubbleMenuItem(button_id, name, callback, icon);
   button->SetBorder(views::CreateEmptyBorder(control_insets));
+  if (features::IsChromeRefresh2023()) {
+    button->SetLabelStyle(views::style::STYLE_BODY_3_EMPHASIS);
+  }
 
   return button;
 }
@@ -203,6 +208,17 @@ class TabGroupEditorBubbleDelegate : public ui::DialogModelDelegate {
     if (title_at_opening_ != GetTitle()) {
       base::RecordAction(
           base::UserMetricsAction("TabGroups_TabGroupBubble_NameChanged"));
+    }
+
+    if (browser_->tab_strip_model()->group_model()->ContainsTabGroup(group_)) {
+      const int tab_count = browser_->tab_strip_model()
+                                ->group_model()
+                                ->GetTabGroup(group_)
+                                ->tab_count();
+      if (tab_count > 0) {
+        base::UmaHistogramCounts100("TabGroups.TabGroupBubble.TabCount",
+                                    tab_count);
+      }
     }
   }
 
@@ -421,12 +437,50 @@ gfx::Rect TabGroupEditorBubbleView::GetAnchorRect() const {
 }
 
 void TabGroupEditorBubbleView::AddedToWidget() {
-  if (!move_menu_item_->GetEnabled()) {
-    const SkColor disabled_color = move_menu_item_->GetCurrentTextColor();
-    move_menu_item_->SetImageModel(
-        views::Button::STATE_DISABLED,
-        ui::ImageModel::FromVectorIcon(kMoveGroupToNewWindowIcon,
-                                       disabled_color));
+  const auto* const color_provider = GetColorProvider();
+
+  for (views::LabelButton* menu_item : menu_items_) {
+    const bool enabled = menu_item->GetEnabled();
+    views::Button::ButtonState button_state =
+        enabled ? views::Button::STATE_NORMAL : views::Button::STATE_DISABLED;
+
+    const SkColor text_color = menu_item->GetCurrentTextColor();
+
+    const SkColor enabled_icon_color =
+        features::IsChromeRefresh2023()
+            ? color_provider->GetColor(kColorTabGroupDialogIconEnabled)
+            : color_utils::DeriveDefaultIconColor(text_color);
+    const SkColor icon_color = enabled ? enabled_icon_color : text_color;
+
+    const ui::ImageModel& old_image_model =
+        menu_item->GetImageModel(button_state);
+    if (!old_image_model.IsEmpty() && old_image_model.IsVectorIcon()) {
+      ui::VectorIconModel vector_icon_model = old_image_model.GetVectorIcon();
+      const gfx::VectorIcon* icon = vector_icon_model.vector_icon();
+      const ui::ImageModel new_image_model =
+          ui::ImageModel::FromVectorIcon(*icon, icon_color);
+      menu_item->SetImageModel(button_state, new_image_model);
+    }
+  }
+
+  if (save_group_icon_) {
+    DCHECK(save_group_label_);
+
+    const bool enabled = save_group_icon_->GetEnabled();
+    const SkColor text_color = save_group_label_->GetEnabledColor();
+    const SkColor enabled_icon_color =
+        features::IsChromeRefresh2023()
+            ? color_provider->GetColor(kColorTabGroupDialogIconEnabled)
+            : color_utils::DeriveDefaultIconColor(text_color);
+    const SkColor icon_color = enabled ? enabled_icon_color : text_color;
+
+    const ui::ImageModel& old_image_model = save_group_icon_->GetImageModel();
+    ui::VectorIconModel vector_icon_model = old_image_model.GetVectorIcon();
+    const gfx::VectorIcon* icon = vector_icon_model.vector_icon();
+
+    const ui::ImageModel saved_tab_group_line_image_model =
+        ui::ImageModel::FromVectorIcon(*icon, icon_color);
+    save_group_icon_->SetImage(saved_tab_group_line_image_model);
   }
 }
 
@@ -485,73 +539,88 @@ TabGroupEditorBubbleView::TabGroupEditorBubbleView(
 
   auto* const separator = AddChildView(std::make_unique<views::Separator>());
 
-  views::ImageView* save_group_icon = nullptr;
   views::View* save_group_line_container = nullptr;
-  views::Label* save_group_label = nullptr;
 
   if (base::FeatureList::IsEnabled(features::kTabGroupsSave) &&
       browser_->profile()->IsRegularProfile()) {
     save_group_line_container = AddChildView(std::make_unique<views::View>());
 
-    // The save_group_icon is put in differently than the rest because it
+    // The `save_group_icon_` is put in differently than the rest because it
     // utilizes a different view (view::Label) that does not have an option to
     // take in an image like the other line items do.
-    save_group_icon = save_group_line_container->AddChildView(
-        std::make_unique<views::ImageView>(
-            ui::ImageModel::FromVectorIcon(kSaveGroupIcon)));
+    save_group_icon_ = save_group_line_container->AddChildView(
+        std::make_unique<views::ImageView>(ui::ImageModel::FromVectorIcon(
+            features::IsChromeRefresh2023() ? kSaveGroupRefreshIcon
+                                            : kSaveGroupIcon)));
 
-    save_group_label =
+    save_group_label_ =
         save_group_line_container->AddChildView(std::make_unique<views::Label>(
             l10n_util::GetStringUTF16(IDS_TAB_GROUP_HEADER_CXMENU_SAVE_GROUP)));
-    save_group_label->SetHorizontalAlignment(gfx::ALIGN_LEFT);
+    save_group_label_->SetHorizontalAlignment(gfx::ALIGN_LEFT);
+    if (features::IsChromeRefresh2023()) {
+      save_group_label_->SetTextStyle(views::style::STYLE_BODY_3_EMPHASIS);
+    }
 
     save_group_toggle_ = save_group_line_container->AddChildView(
         std::make_unique<views::ToggleButton>(
             base::BindRepeating(&TabGroupEditorBubbleView::OnSaveTogglePressed,
                                 base::Unretained(this))));
-    save_group_toggle_->SetAccessibleName(
-        l10n_util::GetStringUTF16(IDS_TAB_GROUP_HEADER_CXMENU_SAVE_GROUP));
-    save_group_toggle_->SetProperty(views::kElementIdentifierKey,
-                                    kTabGroupEditorBubbleSaveToggleId);
 
     const SavedTabGroupKeyedService* const saved_tab_group_service =
         SavedTabGroupServiceFactory::GetForProfile(browser_->profile());
+    CHECK(saved_tab_group_service);
 
     save_group_toggle_->SetIsOn(
         saved_tab_group_service->model()->Contains(group_));
+    save_group_toggle_->SetAccessibleName(GetSaveToggleAccessibleName());
+    save_group_toggle_->SetProperty(views::kElementIdentifierKey,
+                                    kTabGroupEditorBubbleSaveToggleId);
   }
 
-  auto* const new_tab_menu_item = AddChildView(CreateMenuItem(
+  views::LabelButton* const new_tab_menu_item = AddChildView(CreateMenuItem(
       TAB_GROUP_HEADER_CXMENU_NEW_TAB_IN_GROUP,
       l10n_util::GetStringUTF16(IDS_TAB_GROUP_HEADER_CXMENU_NEW_TAB_IN_GROUP),
       base::BindRepeating(&TabGroupEditorBubbleView::NewTabInGroupPressed,
                           base::Unretained(this)),
-      ui::ImageModel::FromVectorIcon(kNewTabInGroupIcon)));
+      ui::ImageModel::FromVectorIcon(features::IsChromeRefresh2023()
+                                         ? kNewTabInGroupRefreshIcon
+                                         : kNewTabInGroupIcon)));
+  menu_items_.push_back(new_tab_menu_item);
 
-  AddChildView(CreateMenuItem(
+  menu_items_.push_back(AddChildView(CreateMenuItem(
       TAB_GROUP_HEADER_CXMENU_UNGROUP,
       l10n_util::GetStringUTF16(IDS_TAB_GROUP_HEADER_CXMENU_UNGROUP),
       base::BindRepeating(&TabGroupEditorBubbleView::UngroupPressed,
                           base::Unretained(this), header_view),
-      ui::ImageModel::FromVectorIcon(kUngroupIcon)));
+      ui::ImageModel::FromVectorIcon(features::IsChromeRefresh2023()
+                                         ? kUngroupRefreshIcon
+                                         : kUngroupIcon))));
 
-  AddChildView(CreateMenuItem(
+  views::LabelButton* close_group_menu_item = AddChildView(CreateMenuItem(
       TAB_GROUP_HEADER_CXMENU_CLOSE_GROUP, GetTextForCloseButton(),
       base::BindRepeating(&TabGroupEditorBubbleView::CloseGroupPressed,
                           base::Unretained(this)),
-      ui::ImageModel::FromVectorIcon(kCloseGroupIcon)));
+      ui::ImageModel::FromVectorIcon(features::IsChromeRefresh2023()
+                                         ? kCloseGroupRefreshIcon
+                                         : kCloseGroupIcon)));
+  close_group_menu_item->SetProperty(views::kElementIdentifierKey,
+                                     kTabGroupEditorBubbleCloseGroupButtonId);
+  menu_items_.push_back(close_group_menu_item);
 
-  move_menu_item_ = AddChildView(CreateMenuItem(
+  views::LabelButton* move_menu_item = AddChildView(CreateMenuItem(
       TAB_GROUP_HEADER_CXMENU_MOVE_GROUP_TO_NEW_WINDOW,
       l10n_util::GetStringUTF16(
           IDS_TAB_GROUP_HEADER_CXMENU_MOVE_GROUP_TO_NEW_WINDOW),
       base::BindRepeating(
           &TabGroupEditorBubbleView::MoveGroupToNewWindowPressed,
           base::Unretained(this)),
-      ui::ImageModel::FromVectorIcon(kMoveGroupToNewWindowIcon)));
-  move_menu_item_->SetEnabled(
+      ui::ImageModel::FromVectorIcon(features::IsChromeRefresh2023()
+                                         ? kMoveGroupToNewWindowRefreshIcon
+                                         : kMoveGroupToNewWindowIcon)));
+  move_menu_item->SetEnabled(
       tab_strip_model->count() !=
       tab_strip_model->group_model()->GetTabGroup(group_)->tab_count());
+  menu_items_.push_back(move_menu_item);
 
   // Setting up the layout.
 
@@ -579,12 +648,12 @@ TabGroupEditorBubbleView::TabGroupEditorBubbleView(
     gfx::Insets save_group_margins = control_insets;
     const int label_height = new_tab_menu_item->GetPreferredSize().height();
     const int control_height =
-        std::max(save_group_label->GetPreferredSize().height(),
+        std::max(save_group_label_->GetPreferredSize().height(),
                  save_group_toggle_->GetPreferredSize().height());
     save_group_margins.set_top((label_height - control_height) / 2);
     save_group_margins.set_bottom(save_group_margins.top());
 
-    save_group_icon->SetProperty(
+    save_group_icon_->SetProperty(
         views::kMarginsKey,
         gfx::Insets::TLBR(0, 0, 0, new_tab_menu_item->GetImageLabelSpacing()));
 
@@ -594,7 +663,7 @@ TabGroupEditorBubbleView::TabGroupEditorBubbleView(
         .SetCrossAxisAlignment(views::LayoutAlignment::kCenter)
         .SetInteriorMargin(save_group_margins);
 
-    save_group_label->SetProperty(
+    save_group_label_->SetProperty(
         views::kFlexBehaviorKey,
         views::FlexSpecification(views::MinimumFlexSizeRule::kPreferred,
                                  views::MaximumFlexSizeRule::kUnbounded));
@@ -659,10 +728,15 @@ const std::u16string TabGroupEditorBubbleView::GetTextForCloseButton() {
   }
 
   return saved_tab_group_service->model()->Contains(group_)
-             ? l10n_util::GetStringUTF16(
-                   IDS_TAB_GROUP_HEADER_CXMENU_CLOSE_GROUP)
+             ? l10n_util::GetStringUTF16(IDS_TAB_GROUP_HEADER_CXMENU_HIDE_GROUP)
              : l10n_util::GetStringUTF16(
                    IDS_TAB_GROUP_HEADER_CXMENU_DELETE_GROUP);
+}
+
+const std::u16string TabGroupEditorBubbleView::GetSaveToggleAccessibleName() {
+  return l10n_util::GetStringUTF16(
+      save_group_toggle_->GetIsOn() ? IDS_TAB_GROUP_HEADER_CXMENU_UNSAVE_GROUP
+                                    : IDS_TAB_GROUP_HEADER_CXMENU_SAVE_GROUP);
 }
 
 void TabGroupEditorBubbleView::OnSaveTogglePressed() {
@@ -680,6 +754,7 @@ void TabGroupEditorBubbleView::OnSaveTogglePressed() {
     saved_tab_group_service->UnsaveGroup(group_);
   }
 
+  save_group_toggle_->SetAccessibleName(GetSaveToggleAccessibleName());
   UpdateGroup();
 }
 
@@ -755,6 +830,17 @@ void TabGroupEditorBubbleView::OnBubbleClose() {
   if (title_at_opening_ != title_field_->GetText()) {
     base::RecordAction(
         base::UserMetricsAction("TabGroups_TabGroupBubble_NameChanged"));
+  }
+
+  if (browser_->tab_strip_model()->group_model()->ContainsTabGroup(group_)) {
+    const int tab_count = browser_->tab_strip_model()
+                              ->group_model()
+                              ->GetTabGroup(group_)
+                              ->tab_count();
+    if (tab_count > 0) {
+      base::UmaHistogramCounts100("TabGroups.TabGroupBubble.TabCount",
+                                  tab_count);
+    }
   }
 }
 

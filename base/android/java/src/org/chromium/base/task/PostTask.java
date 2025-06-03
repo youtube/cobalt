@@ -6,10 +6,12 @@ package org.chromium.base.task;
 
 import android.os.Handler;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+
 import org.chromium.base.Log;
+import org.chromium.base.ResettersForTesting;
 import org.chromium.base.ThreadUtils;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -38,7 +40,7 @@ public class PostTask {
     private static volatile boolean sNativeInitialized;
     private static ChromeThreadPoolExecutor sPrenativeThreadPoolExecutor =
             new ChromeThreadPoolExecutor();
-    private static volatile Executor sPrenativeThreadPoolExecutorOverride;
+    private static volatile Executor sPrenativeThreadPoolExecutorForTesting;
 
     private static final ThreadPoolTaskExecutor sThreadPoolTaskExecutor =
             new ThreadPoolTaskExecutor();
@@ -180,22 +182,23 @@ public class PostTask {
      * @param executor The Executor to use for pre-native thread pool tasks.
      */
     public static void setPrenativeThreadPoolExecutorForTesting(Executor executor) {
-        sPrenativeThreadPoolExecutorOverride = executor;
+        sPrenativeThreadPoolExecutorForTesting = executor;
+        ResettersForTesting.register(() -> sPrenativeThreadPoolExecutorForTesting = null);
     }
 
     /**
      * Clears an override set by setPrenativeThreadPoolExecutorOverrideForTesting.
      */
     public static void resetPrenativeThreadPoolExecutorForTesting() {
-        sPrenativeThreadPoolExecutorOverride = null;
+        sPrenativeThreadPoolExecutorForTesting = null;
     }
 
     /**
      * @return The current Executor that PrenativeThreadPool tasks should run on.
      */
     static Executor getPrenativeThreadPoolExecutor() {
-        if (sPrenativeThreadPoolExecutorOverride != null) {
-            return sPrenativeThreadPoolExecutorOverride;
+        if (sPrenativeThreadPoolExecutorForTesting != null) {
+            return sPrenativeThreadPoolExecutorForTesting;
         }
         return sPrenativeThreadPoolExecutor;
     }

@@ -8,9 +8,10 @@
 #include <string>
 
 #include "base/android/jni_string.h"
+#include "chrome/browser/password_check/android/internal/internal_jni/PasswordCheckBridge_jni.h"
 #include "chrome/browser/password_check/android/jni_headers/CompromisedCredential_jni.h"
-#include "chrome/browser/password_check/android/jni_headers/PasswordCheckBridge_jni.h"
 #include "chrome/browser/password_manager/android/password_checkup_launcher_helper.h"
+#include "chrome/browser/password_manager/android/password_checkup_launcher_helper_impl.h"
 #include "components/password_manager/core/browser/affiliation/affiliation_utils.h"
 #include "components/password_manager/core/browser/password_manager_util.h"
 #include "components/password_manager/core/browser/ui/insecure_credentials_manager.h"
@@ -46,7 +47,7 @@ password_manager::CredentialUIEntry ConvertJavaObjectToCredential(
       env, Java_CompromisedCredential_getUsername(env, credential));
   entry.password = ConvertJavaStringToUTF16(
       env, Java_CompromisedCredential_getPassword(env, credential));
-  entry.last_used_time = base::Time::FromJavaTime(
+  entry.last_used_time = base::Time::FromMillisecondsSinceUnixEpoch(
       Java_CompromisedCredential_getLastUsedTime(env, credential));
   entry.stored_in.insert(password_manager::PasswordForm::Store::kProfileStore);
   return entry;
@@ -89,7 +90,7 @@ void PasswordCheckBridge::StopCheck(JNIEnv* env) {
 }
 
 int64_t PasswordCheckBridge::GetLastCheckTimestamp(JNIEnv* env) {
-  return check_manager_.GetLastCheckTimestamp().ToJavaTime();
+  return check_manager_.GetLastCheckTimestamp().InMillisecondsSinceUnixEpoch();
 }
 
 jint PasswordCheckBridge::GetCompromisedCredentialsCount(JNIEnv* env) {
@@ -121,16 +122,17 @@ void PasswordCheckBridge::GetCompromisedCredentials(
         base::android::ConvertUTF8ToJavaString(env,
                                                credential.change_password_url),
         base::android::ConvertUTF8ToJavaString(env, credential.package_name),
-        credential.GetLastLeakedOrPhishedTime().ToJavaTime(),
-        credential.last_used_time.ToJavaTime(), IsOnlyLeaked(credential),
-        IsOnlyPhished(credential));
+        credential.GetLastLeakedOrPhishedTime().InMillisecondsSinceUnixEpoch(),
+        credential.last_used_time.InMillisecondsSinceUnixEpoch(),
+        IsOnlyLeaked(credential), IsOnlyPhished(credential));
   }
 }
 
 void PasswordCheckBridge::LaunchCheckupInAccount(
     JNIEnv* env,
     const base::android::JavaParamRef<jobject>& activity) {
-  PasswordCheckupLauncherHelper::LaunchCheckupInAccountWithActivity(
+  PasswordCheckupLauncherHelperImpl checkup_launcher;
+  checkup_launcher.LaunchCheckupInAccountWithActivity(
       env,
       base::android::ConvertUTF8ToJavaString(
           env, password_manager::GetPasswordCheckupURL().spec()),

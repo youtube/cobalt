@@ -7,6 +7,7 @@
 
 #include <stddef.h>
 
+#include <limits>
 #include <utility>
 
 #include "base/atomic_ref_count.h"
@@ -15,8 +16,6 @@
 #include "base/check_op.h"
 #include "base/compiler_specific.h"
 #include "base/dcheck_is_on.h"
-// TODO(dcheng): Remove this separately.
-#include "base/gtest_prod_util.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/sequence_checker.h"
 #include "base/template_util.h"
@@ -136,7 +135,7 @@ class BASE_EXPORT RefCountedBase {
 #endif
 
   mutable uint32_t ref_count_ = 0;
-  static_assert(std::is_unsigned<decltype(ref_count_)>::value,
+  static_assert(std::is_unsigned_v<decltype(ref_count_)>,
                 "ref_count_ must be an unsigned type.");
 
 #if DCHECK_IS_ON()

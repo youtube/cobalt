@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "base/command_line.h"
+#include "base/containers/contains.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "build/build_config.h"
@@ -64,8 +65,8 @@ void NormalizeInitState(gpu::gles2::GLES2DecoderTestBase::InitState* init) {
       "GL_APPLE_vertex_array_object"
   };
   bool contains_vao_extension = false;
-  for (size_t ii = 0; ii < std::size(kVAOExtensions); ++ii) {
-    if (init->extensions.find(kVAOExtensions[ii]) != std::string::npos) {
+  for (const char* extension : kVAOExtensions) {
+    if (base::Contains(init->extensions, extension)) {
       contains_vao_extension = true;
       break;
     }
@@ -165,14 +166,6 @@ void GLES2DecoderTestBase::SetUp() {
   init.request_depth = true;
   init.bind_generates_resource = true;
   InitDecoder(init);
-}
-
-void GLES2DecoderTestBase::AddExpectationsForVertexAttribManager() {
-  for (GLint ii = 0; ii < kNumVertexAttribs; ++ii) {
-    EXPECT_CALL(*gl_, VertexAttrib4f(ii, 0.0f, 0.0f, 0.0f, 1.0f))
-        .Times(1)
-        .RetiresOnSaturation();
-  }
 }
 
 GLES2DecoderTestBase::InitState::InitState() = default;
@@ -278,9 +271,6 @@ ContextResult GLES2DecoderTestBase::MaybeInitDecoderWithWorkarounds(
         .RetiresOnSaturation();
     EXPECT_CALL(*gl_, BindVertexArrayOES(_)).Times(1).RetiresOnSaturation();
   }
-
-  if (group_->feature_info()->workarounds().init_vertex_attributes)
-    AddExpectationsForVertexAttribManager();
 
   AddExpectationsForBindVertexArrayOES();
 
@@ -498,9 +488,6 @@ ContextResult GLES2DecoderTestBase::MaybeInitDecoderWithWorkarounds(
   ClearSharedMemory();
 
   ContextCreationAttribs attribs;
-  attribs.alpha_size = normalized_init.request_alpha ? 8 : 0;
-  attribs.depth_size = normalized_init.request_depth ? 24 : 0;
-  attribs.stencil_size = normalized_init.request_stencil ? 8 : 0;
   attribs.lose_context_when_out_of_memory =
       normalized_init.lose_context_when_out_of_memory;
   attribs.context_type = init.context_type;
@@ -2429,13 +2416,6 @@ void GLES2DecoderPassthroughTestBase::SetUp() {
   ui::OzonePlatform::InitializeForGPU(params);
 #endif
 
-  context_creation_attribs_.offscreen_framebuffer_size = gfx::Size(4, 4);
-  context_creation_attribs_.alpha_size = 8;
-  context_creation_attribs_.blue_size = 8;
-  context_creation_attribs_.green_size = 8;
-  context_creation_attribs_.red_size = 8;
-  context_creation_attribs_.depth_size = 24;
-  context_creation_attribs_.stencil_size = 8;
   context_creation_attribs_.bind_generates_resource = true;
 
   gl::init::InitializeStaticGLBindingsImplementation(
@@ -2457,8 +2437,7 @@ void GLES2DecoderPassthroughTestBase::SetUp() {
       nullptr /* progress_reporter */, GpuFeatureInfo(), &discardable_manager_,
       &passthrough_discardable_manager_, &shared_image_manager_);
 
-  surface_ = gl::init::CreateOffscreenGLSurface(
-      display_, context_creation_attribs_.offscreen_framebuffer_size);
+  surface_ = gl::init::CreateOffscreenGLSurface(display_, gfx::Size(4, 4));
   context_ = gl::init::CreateGLContext(
       nullptr, surface_.get(),
       GenerateGLContextAttribs(context_creation_attribs_, group_.get()));

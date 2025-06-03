@@ -9,6 +9,7 @@
 
 #include "base/containers/contains.h"
 #include "base/i18n/char_iterator.h"
+#include "base/no_destructor.h"
 #include "base/strings/string_piece.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
@@ -27,8 +28,7 @@
 #include "third_party/icu/source/common/unicode/uscript.h"
 #include "third_party/re2/src/re2/re2.h"
 
-namespace autofill {
-namespace data_util {
+namespace autofill::data_util {
 
 using bit_field_type_groups::kAddress;
 using bit_field_type_groups::kEmail;
@@ -274,19 +274,18 @@ bool SplitCJKName(const std::vector<base::StringPiece16>& name_tokens,
 }
 
 void AddGroupToBitmask(uint32_t* group_bitmask, ServerFieldType type) {
-  const FieldTypeGroup group =
-      AutofillType(AutofillType(type).GetStorableType()).group();
+  const FieldTypeGroup group = GroupTypeOfServerFieldType(type);
   switch (group) {
     case autofill::FieldTypeGroup::kName:
       *group_bitmask |= kName;
       break;
-    case autofill::FieldTypeGroup::kAddressHome:
+    case autofill::FieldTypeGroup::kAddress:
       *group_bitmask |= kAddress;
       break;
     case autofill::FieldTypeGroup::kEmail:
       *group_bitmask |= kEmail;
       break;
-    case autofill::FieldTypeGroup::kPhoneHome:
+    case autofill::FieldTypeGroup::kPhone:
       *group_bitmask |= kPhone;
       break;
     default:
@@ -321,9 +320,9 @@ uint32_t DetermineGroups(const FormStructure& form) {
   return group_bitmask;
 }
 
-uint32_t DetermineGroups(const std::vector<ServerFieldType>& types) {
+uint32_t DetermineGroups(const ServerFieldTypeSet& types) {
   uint32_t group_bitmask = 0;
-  for (const auto& type : types) {
+  for (const ServerFieldType type : types) {
     AddGroupToBitmask(&group_bitmask, type);
   }
   return group_bitmask;
@@ -548,7 +547,8 @@ bool IsValidCountryCode(const std::string& country_code) {
   if (country_code.size() != 2)
     return false;
 
-  return re2::RE2::FullMatch(country_code, "^[A-Z]{2}$");
+  static const base::NoDestructor<re2::RE2> country_code_regex("^[A-Z]{2}$");
+  return re2::RE2::FullMatch(country_code, *country_code_regex.get());
 }
 
 bool IsValidCountryCode(const std::u16string& country_code) {
@@ -564,5 +564,4 @@ std::string GetCountryCodeWithFallback(const autofill::AutofillProfile& profile,
   return country_code;
 }
 
-}  // namespace data_util
-}  // namespace autofill
+}  // namespace autofill::data_util

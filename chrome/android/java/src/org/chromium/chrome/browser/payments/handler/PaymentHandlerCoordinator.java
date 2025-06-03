@@ -6,9 +6,7 @@ package org.chromium.chrome.browser.payments.handler;
 
 import android.app.Activity;
 
-import androidx.annotation.VisibleForTesting;
-
-import org.chromium.chrome.browser.WebContentsFactory;
+import org.chromium.chrome.browser.content.WebContentsFactory;
 import org.chromium.chrome.browser.incognito.IncognitoUtils;
 import org.chromium.chrome.browser.payments.handler.toolbar.PaymentHandlerToolbarCoordinator;
 import org.chromium.chrome.browser.profiles.Profile;
@@ -19,6 +17,7 @@ import org.chromium.chrome.browser.tabmodel.TabModelSelectorSupplier;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetControllerProvider;
 import org.chromium.components.embedder_support.view.ContentView;
+import org.chromium.components.payments.InputProtector;
 import org.chromium.components.payments.PaymentHandlerNavigationThrottle;
 import org.chromium.components.thinwebview.ThinWebView;
 import org.chromium.components.thinwebview.ThinWebViewConstraints;
@@ -45,6 +44,7 @@ public class PaymentHandlerCoordinator {
     private Runnable mHider;
     private WebContents mPaymentHandlerWebContents;
     private PaymentHandlerToolbarCoordinator mToolbarCoordinator;
+    private InputProtector mInputProtector = new InputProtector();
 
     /** Constructs the payment-handler component coordinator. */
     public PaymentHandlerCoordinator() {}
@@ -76,6 +76,7 @@ public class PaymentHandlerCoordinator {
         if (windowAndroid == null) return null;
         Activity activity = windowAndroid.getActivity().get();
         if (activity == null) return null;
+        mInputProtector.markShowTime();
         Profile profile = IncognitoUtils.getProfileFromWindowAndroid(windowAndroid, isIncognito);
         mPaymentHandlerWebContents =
                 WebContentsFactory.createWebContents(profile, /*initiallyHidden=*/false, false);
@@ -101,7 +102,7 @@ public class PaymentHandlerCoordinator {
                 /*paymentRequestWebContents=*/paymentRequestWebContents,
                 /*paymentHandlerWebContents*/ mPaymentHandlerWebContents, uiObserver,
                 currentTab.getView(), mToolbarCoordinator.getToolbarHeightPx(),
-                bottomSheetController, tabObscuringHandler, activity);
+                bottomSheetController, tabObscuringHandler, activity, mInputProtector);
         activity.getWindow().getDecorView().addOnLayoutChangeListener(mediator);
 
         bottomSheetController.addObserver(mediator);
@@ -115,7 +116,7 @@ public class PaymentHandlerCoordinator {
         assert webContentView.getParent() == null;
         thinWebView.attachWebContents(mPaymentHandlerWebContents, webContentView, null);
         PaymentHandlerView view = new PaymentHandlerView(activity, mPaymentHandlerWebContents,
-                mToolbarCoordinator.getView(), thinWebView.getView());
+                mToolbarCoordinator.getView(), thinWebView.getView(), mInputProtector);
         assert mToolbarCoordinator.getToolbarHeightPx() == view.getToolbarHeightPx();
         PropertyModelChangeProcessor changeProcessor =
                 PropertyModelChangeProcessor.create(model, view, PaymentHandlerViewBinder::bind);
@@ -160,7 +161,6 @@ public class PaymentHandlerCoordinator {
      *
      * @return The WebContents of the Payment Handler.
      */
-    @VisibleForTesting
     public WebContents getWebContentsForTest() {
         return mPaymentHandlerWebContents;
     }
@@ -172,13 +172,15 @@ public class PaymentHandlerCoordinator {
         mHider = null;
     }
 
-    @VisibleForTesting
     public void clickSecurityIconForTest() {
         mToolbarCoordinator.clickSecurityIconForTest();
     }
 
-    @VisibleForTesting
     public void clickCloseButtonForTest() {
         mToolbarCoordinator.clickCloseButtonForTest();
+    }
+
+    public void setInputProtectorForTest(InputProtector inputProtector) {
+        mInputProtector = inputProtector;
     }
 }

@@ -15,6 +15,7 @@
 #include "components/services/app_service/public/cpp/intent_filter.h"
 #include "components/services/app_service/public/cpp/permission.h"
 #include "components/services/app_service/public/cpp/preferred_app.h"
+#include "components/services/app_service/public/cpp/shortcut/shortcut.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/abseil-cpp/absl/types/variant.h"
 
@@ -112,7 +113,7 @@ struct StructTraits<crosapi::mojom::AppDataView, apps::AppPtr> {
   static crosapi::mojom::OptionalBool handles_intents(const apps::AppPtr& r);
 
   // This method is required for Ash-Lacros backwards compatibility.
-  static std::vector<crosapi::mojom::ShortcutPtr> deprecated_shortcuts(
+  static std::vector<crosapi::mojom::REMOVED_01Ptr> deprecated_shortcuts(
       const apps::AppPtr& r) {
     return {};
   }
@@ -303,7 +304,8 @@ struct StructTraits<crosapi::mojom::PermissionDataView, apps::PermissionPtr> {
     return r->permission_type;
   }
 
-  static const apps::PermissionValuePtr& value(const apps::PermissionPtr& r) {
+  static const apps::Permission::PermissionValue& value(
+      const apps::PermissionPtr& r) {
     return r->value;
   }
 
@@ -328,33 +330,33 @@ struct EnumTraits<crosapi::mojom::TriState, apps::TriState> {
 
 template <>
 struct UnionTraits<crosapi::mojom::PermissionValueDataView,
-                   apps::PermissionValuePtr> {
+                   apps::Permission::PermissionValue> {
   static crosapi::mojom::PermissionValueDataView::Tag GetTag(
-      const apps::PermissionValuePtr& r);
+      const apps::Permission::PermissionValue& r);
 
-  static bool IsNull(const apps::PermissionValuePtr& r) {
-    return !absl::holds_alternative<bool>(r->value) &&
-           !absl::holds_alternative<apps::TriState>(r->value);
+  static bool IsNull(const apps::Permission::PermissionValue& r) {
+    return false;
   }
 
-  static void SetToNull(apps::PermissionValuePtr* out) {}
+  static void SetToNull(apps::Permission::PermissionValue* out) {}
 
-  static bool bool_value(const apps::PermissionValuePtr& r) {
-    if (absl::holds_alternative<bool>(r->value)) {
-      return absl::get<bool>(r->value);
+  static bool bool_value(const apps::Permission::PermissionValue& r) {
+    if (absl::holds_alternative<bool>(r)) {
+      return absl::get<bool>(r);
     }
     return false;
   }
 
-  static apps::TriState tristate_value(const apps::PermissionValuePtr& r) {
-    if (absl::holds_alternative<apps::TriState>(r->value)) {
-      return absl::get<apps::TriState>(r->value);
+  static apps::TriState tristate_value(
+      const apps::Permission::PermissionValue& r) {
+    if (absl::holds_alternative<apps::TriState>(r)) {
+      return absl::get<apps::TriState>(r);
     }
     return apps::TriState::kBlock;
   }
 
   static bool Read(crosapi::mojom::PermissionValueDataView data,
-                   apps::PermissionValuePtr* out);
+                   apps::Permission::PermissionValue* out);
 };
 
 template <>
@@ -387,6 +389,26 @@ struct StructTraits<crosapi::mojom::PreferredAppChangesDataView,
 
   static bool Read(crosapi::mojom::PreferredAppChangesDataView,
                    apps::PreferredAppChangesPtr* out);
+};
+
+template <>
+struct StructTraits<crosapi::mojom::AppShortcutDataView, apps::ShortcutPtr> {
+  static const std::string& host_app_id(const apps::ShortcutPtr& r) {
+    return r->host_app_id;
+  }
+
+  static const std::string& local_id(const apps::ShortcutPtr& r) {
+    return r->local_id;
+  }
+
+  static const absl::optional<std::string>& name(const apps::ShortcutPtr& r) {
+    return r->name;
+  }
+
+  static apps::IconKeyPtr icon_key(const apps::ShortcutPtr& r);
+
+  static bool Read(crosapi::mojom::AppShortcutDataView data,
+                   apps::ShortcutPtr* out);
 };
 
 }  // namespace mojo

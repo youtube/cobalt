@@ -15,6 +15,7 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/stringprintf.h"
 #include "base/trace_event/memory_usage_estimator.h"
+#include "base/trace_event/trace_event.h"
 #include "components/sync/base/client_tag_hash.h"
 #include "components/sync/model/conflict_resolution.h"
 #include "components/sync/model/metadata_batch.h"
@@ -204,9 +205,10 @@ class LocalChangeProcessor : public SyncChangeProcessor {
   const ModelType type_;
   const base::RepeatingCallback<void(const absl::optional<ModelError>&)>
       error_callback_;
-  const raw_ptr<ModelTypeStore> store_;
-  const raw_ptr<SyncableServiceBasedBridge::InMemoryStore> in_memory_store_;
-  const raw_ptr<ModelTypeChangeProcessor> other_;
+  const raw_ptr<ModelTypeStore, AcrossTasksDanglingUntriaged> store_;
+  const raw_ptr<SyncableServiceBasedBridge::InMemoryStore, DanglingUntriaged>
+      in_memory_store_;
+  const raw_ptr<ModelTypeChangeProcessor, AcrossTasksDanglingUntriaged> other_;
   SEQUENCE_CHECKER(sequence_checker_);
 };
 
@@ -417,6 +419,7 @@ void SyncableServiceBasedBridge::OnReadAllDataForInit(
 void SyncableServiceBasedBridge::OnReadAllMetadataForInit(
     const absl::optional<ModelError>& error,
     std::unique_ptr<MetadataBatch> metadata_batch) {
+  TRACE_EVENT0("sync", "SyncableServiceBasedBridge::OnReadAllMetadataForInit");
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(!syncable_service_started_);
 
@@ -432,6 +435,7 @@ void SyncableServiceBasedBridge::OnReadAllMetadataForInit(
 
 void SyncableServiceBasedBridge::OnSyncableServiceReady(
     std::unique_ptr<MetadataBatch> metadata_batch) {
+  TRACE_EVENT0("sync", "SyncableServiceBasedBridge::OnSyncableServiceReady");
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(!syncable_service_started_);
 

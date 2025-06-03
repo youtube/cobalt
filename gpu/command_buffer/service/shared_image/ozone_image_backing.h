@@ -5,12 +5,11 @@
 #ifndef GPU_COMMAND_BUFFER_SERVICE_SHARED_IMAGE_OZONE_IMAGE_BACKING_H_
 #define GPU_COMMAND_BUFFER_SERVICE_SHARED_IMAGE_OZONE_IMAGE_BACKING_H_
 
-#include <dawn/webgpu.h>
+#include <dawn/webgpu_cpp.h>
 
 #include <memory>
 
 #include "base/containers/flat_map.h"
-#include "base/memory/ref_counted.h"
 #include "base/memory/scoped_refptr.h"
 #include "gpu/command_buffer/common/mailbox.h"
 #include "gpu/command_buffer/service/memory_tracking.h"
@@ -20,21 +19,25 @@
 #include "gpu/command_buffer/service/shared_image/shared_image_manager.h"
 #include "gpu/command_buffer/service/shared_image/shared_image_representation.h"
 #include "gpu/config/gpu_driver_bug_workarounds.h"
-#include "gpu/ipc/common/surface_handle.h"
+#include "gpu/gpu_gles2_export.h"
 #include "ui/gfx/buffer_types.h"
 #include "ui/gfx/color_space.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/gpu_fence.h"
 #include "ui/gfx/gpu_fence_handle.h"
 #include "ui/gfx/native_pixmap.h"
+#include "ui/gl/gl_context.h"
 
 namespace gpu {
+class OzoneImageGLTexturesHolder;
 class VaapiDependencies;
 
 // Implementation of SharedImageBacking that uses a NativePixmap created via
 // an Ozone surface factory. The memory associated with the pixmap can be
 // aliased by both GL and Vulkan for use in rendering or compositing.
-class OzoneImageBacking final : public ClearTrackingSharedImageBacking {
+class GPU_GLES2_EXPORT OzoneImageBacking final
+    : public ClearTrackingSharedImageBacking,
+      public gl::GLContext::GLContextObserver {
  public:
   OzoneImageBacking(
       const Mailbox& mailbox,
@@ -47,9 +50,9 @@ class OzoneImageBacking final : public ClearTrackingSharedImageBacking {
       uint32_t usage,
       scoped_refptr<SharedContextState> context_state,
       scoped_refptr<gfx::NativePixmap> pixmap,
-      scoped_refptr<base::RefCountedData<DawnProcTable>> dawn_procs,
       const GpuDriverBugWorkarounds& workarounds,
-      bool use_passthrough);
+      bool use_passthrough,
+      absl::optional<gfx::BufferUsage> buffer_usage = absl::nullopt);
 
   OzoneImageBacking(const OzoneImageBacking&) = delete;
   OzoneImageBacking& operator=(const OzoneImageBacking&) = delete;
@@ -61,6 +64,7 @@ class OzoneImageBacking final : public ClearTrackingSharedImageBacking {
   void Update(std::unique_ptr<gfx::GpuFence> in_fence) override;
   bool UploadFromMemory(const std::vector<SkPixmap>& pixmaps) override;
   scoped_refptr<gfx::NativePixmap> GetNativePixmap() override;
+  gfx::GpuMemoryBufferHandle GetGpuMemoryBufferHandle() override;
 
   enum class AccessStream { kGL, kVulkan, kWebGPU, kOverlay, kLast };
 
@@ -68,9 +72,9 @@ class OzoneImageBacking final : public ClearTrackingSharedImageBacking {
   std::unique_ptr<DawnImageRepresentation> ProduceDawn(
       SharedImageManager* manager,
       MemoryTypeTracker* tracker,
-      WGPUDevice device,
-      WGPUBackendType backend_type,
-      std::vector<WGPUTextureFormat> view_formats) override;
+      const wgpu::Device& device,
+      wgpu::BackendType backend_type,
+      std::vector<wgpu::TextureFormat> view_formats) override;
   std::unique_ptr<GLTextureImageRepresentation> ProduceGLTexture(
       SharedImageManager* manager,
       MemoryTypeTracker* tracker) override;
@@ -96,6 +100,17 @@ class OzoneImageBacking final : public ClearTrackingSharedImageBacking {
   class VaapiOzoneImageRepresentation;
   class OverlayOzoneImageRepresentation;
 
+  FRIEND_TEST_ALL_PREFIXES(OzoneImageBackingFactoryTest,
+                           UsesCacheForTextureHolders);
+  FRIEND_TEST_ALL_PREFIXES(OzoneImageBackingFactoryTest,
+                           UsesCacheForTextureHolders2);
+  FRIEND_TEST_ALL_PREFIXES(OzoneImageBackingFactoryTest,
+                           MarksContextLostOnContextLost);
+  FRIEND_TEST_ALL_PREFIXES(OzoneImageBackingFactoryTest,
+                           MarksContextLostOnContextLost2);
+  FRIEND_TEST_ALL_PREFIXES(OzoneImageBackingFactoryTest,
+                           RemovesTextureHoldersOnContextDestroy);
+
   bool VaSync();
 
   void FlushAndSubmitIfNecessary(
@@ -110,6 +125,24 @@ class OzoneImageBacking final : public ClearTrackingSharedImageBacking {
                  AccessStream access_stream,
                  gfx::GpuFenceHandle fence);
 
+  template <typename T>
+  std::unique_ptr<T> ProduceGLTextureInternal(SharedImageManager* manager,
+                                              MemoryTypeTracker* tracker,
+                                              bool is_passthrough);
+
+  // gl::GLContext::GLContextObserver:
+  void OnGLContextLost(gl::GLContext* context) override;
+  void OnGLContextWillDestroy(gl::GLContext* context) override;
+
+  void OnGLContextLostOrDestroy(gl::GLContext* context, bool mark_context_lost);
+
+  scoped_refptr<OzoneImageGLTexturesHolder> RetainGLTexture(
+      bool is_passthrough);
+
+  // Returns a GpuMemoryBufferHandle for a single plane of the backing pixmap.
+  gfx::GpuMemoryBufferHandle GetSinglePlaneGpuMemoryBufferHandle(
+      uint32_t index);
+
   // Indicates if this backing produced a VASurface that may have pending work.
   bool has_pending_va_writes_ = false;
   std::unique_ptr<VaapiDependencies> vaapi_deps_;
@@ -119,9 +152,16 @@ class OzoneImageBacking final : public ClearTrackingSharedImageBacking {
   int write_streams_count_;
 
   scoped_refptr<gfx::NativePixmap> pixmap_;
-  scoped_refptr<base::RefCountedData<DawnProcTable>> dawn_procs_;
-  std::vector<scoped_refptr<GLOzoneImageRepresentationShared::TextureHolder>>
-      cached_texture_holders_;
+  // A texture holder cache for the |cache_texture_in_ozone_backing| workaround.
+  // Not used if features::Blah is enabled. See more details below.
+  scoped_refptr<OzoneImageGLTexturesHolder> cached_texture_holder_;
+  // Per-context texture holders that are cached to reduce the number of
+  // allocations/deallocations of textures and their EGLImages. That's
+  // especially handy for raster tasks as there can be tens of tasks resulting
+  // in creation and destruction of EGLImages, which is costly.
+  std::map<gl::GLContext*, scoped_refptr<OzoneImageGLTexturesHolder>>
+      per_context_cached_textures_holders_;
+  const bool use_per_context_cache_ = false;
 
   // Write fence that is external and does not do Begin/EndAccess (eg. exo)
   gfx::GpuFenceHandle external_write_fence_;

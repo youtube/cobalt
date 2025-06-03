@@ -4,19 +4,22 @@
 
 #include "content/browser/webid/fake_identity_request_dialog_controller.h"
 
+#include "content/public/browser/page_navigator.h"
+#include "content/public/browser/web_contents.h"
+#include "content/public/browser/web_contents_delegate.h"
 #include "third_party/blink/public/mojom/webid/federated_auth_request.mojom.h"
 
 namespace content {
 
 FakeIdentityRequestDialogController::FakeIdentityRequestDialogController(
-    absl::optional<std::string> selected_account)
-    : selected_account_(selected_account) {}
+    absl::optional<std::string> selected_account,
+    WebContents* web_contents)
+    : selected_account_(selected_account), web_contents_(web_contents) {}
 
 FakeIdentityRequestDialogController::~FakeIdentityRequestDialogController() =
     default;
 
 void FakeIdentityRequestDialogController::ShowAccountsDialog(
-    content::WebContents* rp_web_contents,
     const std::string& top_frame_for_display,
     const absl::optional<std::string>& iframe_for_display,
     const std::vector<content::IdentityProviderData>& identity_provider_data,
@@ -52,24 +55,84 @@ void FakeIdentityRequestDialogController::ShowAccountsDialog(
     // Browser automation will handle selecting an account/canceling.
     return;
   }
-  // Use the provided account, if any. Otherwise use the first one.
-  std::move(on_selected)
-      .Run(identity_provider_data[0].idp_metadata.config_url,
-           selected_account_ ? *selected_account_ : accounts[0].id,
-           /* is_sign_in= */ true);
+  // Use the provided account, if any. Otherwise do not run the callback right
+  // away.
+  if (selected_account_) {
+    std::move(on_selected)
+        .Run(identity_provider_data[0].idp_metadata.config_url,
+             *selected_account_,
+             /* is_sign_in= */ true);
+  } else if (sign_in_mode == IdentityRequestAccount::SignInMode::kAuto) {
+    std::move(on_selected)
+        .Run(identity_provider_data[0].idp_metadata.config_url,
+             identity_provider_data[0].accounts[0].id, /* is_sign_in= */ true);
+  }
+}
+
+void FakeIdentityRequestDialogController::ShowFailureDialog(
+    const std::string& top_frame_for_display,
+    const absl::optional<std::string>& iframe_for_display,
+    const std::string& idp_for_display,
+    const blink::mojom::RpContext& rp_context,
+    const IdentityProviderMetadata& idp_metadata,
+    DismissCallback dismiss_callback,
+    SigninToIdPCallback signin_callback) {
+  title_ = "Confirm IDP Login";
+}
+
+void FakeIdentityRequestDialogController::ShowErrorDialog(
+    const std::string& top_frame_for_display,
+    const absl::optional<std::string>& iframe_for_display,
+    const std::string& idp_for_display,
+    const blink::mojom::RpContext& rp_context,
+    const IdentityProviderMetadata& idp_metadata,
+    const absl::optional<TokenError>& error,
+    DismissCallback dismiss_callback,
+    MoreDetailsCallback more_details_callback) {
+  DCHECK(dismiss_callback);
+  std::move(dismiss_callback).Run(DismissReason::kOther);
 }
 
 std::string FakeIdentityRequestDialogController::GetTitle() const {
   return title_;
 }
 
-void FakeIdentityRequestDialogController::ShowPopUpWindow(
+content::WebContents* FakeIdentityRequestDialogController::ShowModalDialog(
     const GURL& url,
-    TokenCallback on_resolve,
     DismissCallback dismiss_callback) {
-  // Pretends that the url is loaded and calls the
-  // IdentityProvider.resolve() method with the fake token below.
-  std::move(on_resolve).Run("--fake-token-from-pop-up-window--");
+  if (!web_contents_) {
+    return nullptr;
+  }
+
+  popup_dismiss_callback_ = std::move(dismiss_callback);
+  // This follows the code in FedCmModalDialogView::ShowPopupWindow.
+  content::OpenURLParams params(
+      url, content::Referrer(), WindowOpenDisposition::NEW_POPUP,
+      ui::PAGE_TRANSITION_AUTO_TOPLEVEL, /*is_renderer_initiated=*/false);
+  popup_window_ =
+      web_contents_->GetDelegate()->OpenURLFromTab(web_contents_, params);
+  Observe(popup_window_);
+  return popup_window_;
+}
+
+void FakeIdentityRequestDialogController::CloseModalDialog() {
+  // We do not want to trigger the dismiss callback when we close the popup
+  // here, because that would abort the signin flow.
+  popup_dismiss_callback_.Reset();
+  if (popup_window_) {
+    // Store this in a local variable to avoid triggering the dangling pointer
+    // detector.
+    WebContents* web_contents = popup_window_;
+    popup_window_ = nullptr;
+    web_contents->Close();
+  }
+}
+
+void FakeIdentityRequestDialogController::WebContentsDestroyed() {
+  if (popup_dismiss_callback_) {
+    std::move(popup_dismiss_callback_).Run(DismissReason::kOther);
+  }
+  popup_window_ = nullptr;
 }
 
 }  // namespace content

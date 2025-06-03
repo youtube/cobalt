@@ -84,8 +84,6 @@ void CobaltBrowserMainParts::PostCreateMainMessageLoop() {
       std::make_unique<os_crypt::Config>();
   // Forward the product name
   config->product_name = "Cobalt";
-  // OSCrypt may target keyring, which requires calls from the main thread.
-  config->main_thread_runner = content::GetUIThreadTaskRunner({});
   // OSCrypt can be disabled in a special settings file.
   config->should_use_preference = false;
   base::PathService::Get(content::SHELL_DIR_USER_DATA, &config->user_data_path);

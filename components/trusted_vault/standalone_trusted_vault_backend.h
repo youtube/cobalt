@@ -138,6 +138,7 @@ class StandaloneTrustedVaultBackend
   GetDeviceRegistrationInfoForTesting(const std::string& gaia_id);
 
   std::vector<uint8_t> GetLastAddedRecoveryMethodPublicKeyForTesting() const;
+  int GetLastKeyVersionForTesting(const std::string& gaia_id);
 
   void SetDeviceRegisteredVersionForTesting(const std::string& gaia_id,
                                             int version);
@@ -227,8 +228,8 @@ class StandaloneTrustedVaultBackend
   // functionality that involves interaction with vault service (such as device
   // registration, keys downloading, etc.) will be disabled.
   // TODO(crbug.com/1113598): |connection_| can be null if URL passed as
-  // kTrustedVaultServiceURL is not valid, consider making it non-nullable even
-  // in this case and clean up related logic.
+  // kTrustedVaultServiceURLSwitch is not valid, consider making it non-nullable
+  // even in this case and clean up related logic.
   const std::unique_ptr<TrustedVaultConnection> connection_;
 
   trusted_vault_pb::LocalTrustedVault data_;

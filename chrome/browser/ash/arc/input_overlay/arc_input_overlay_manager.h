@@ -5,13 +5,12 @@
 #ifndef CHROME_BROWSER_ASH_ARC_INPUT_OVERLAY_ARC_INPUT_OVERLAY_MANAGER_H_
 #define CHROME_BROWSER_ASH_ARC_INPUT_OVERLAY_ARC_INPUT_OVERLAY_MANAGER_H_
 
-#include "ash/components/arc/ime/arc_ime_bridge.h"
+#include "ash/constants/ash_features.h"
 #include "ash/public/cpp/tablet_mode_observer.h"
 #include "ash/wm/tablet_mode/tablet_mode_controller.h"
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_multi_source_observation.h"
 #include "base/scoped_observation.h"
-#include "base/strings/string_util.h"
 #include "base/task/sequenced_task_runner.h"
 #include "chrome/browser/ash/app_list/arc/arc_app_list_prefs.h"
 #include "chrome/browser/ash/arc/input_overlay/db/data_controller.h"
@@ -49,7 +48,7 @@ class ArcInputOverlayManager : public KeyedService,
                                public display::DisplayObserver {
  public:
   // Returns singleton instance for the given BrowserContext,
-  // or nullptr if the browser |context| is not allowed to use ARC.
+  // or nullptr if the browser `context` is not allowed to use ARC.
   static ArcInputOverlayManager* GetForBrowserContext(
       content::BrowserContext* context);
   ArcInputOverlayManager(content::BrowserContext* browser_context,
@@ -91,11 +90,12 @@ class ArcInputOverlayManager : public KeyedService,
 
  private:
   friend class ArcInputOverlayManagerTest;
+  friend class GameControlsTestBase;
   friend class TestArcInputOverlayManager;
 
   class InputMethodObserver;
 
-  // Remove |window| from observation list.
+  // Remove `window` from observation list.
   void RemoveWindowObservation(aura::Window* window);
   void UnregisterAndRemoveObservation(aura::Window* window);
   // Read default data.
@@ -106,10 +106,6 @@ class ArcInputOverlayManager : public KeyedService,
   // Called after checking if GIO is applicable.
   void OnDidCheckGioApplicable(std::unique_ptr<TouchInjector> touch_injector,
                                bool is_gio_applicable);
-  // Read customized data. Customized data will overrides the default data if
-  // there is any.
-  void ReadCustomizedData(const std::string& package_name,
-                          std::unique_ptr<TouchInjector> touch_injector);
   // Apply the customized proto data.
   void OnProtoDataAvailable(std::unique_ptr<TouchInjector> touch_injector,
                             std::unique_ptr<AppDataProto> proto);
@@ -123,14 +119,28 @@ class ArcInputOverlayManager : public KeyedService,
   void RegisterWindow(aura::Window* window);
   void UnRegisterWindow(aura::Window* window);
   void RegisterFocusedWindow();
-  // Add display overlay controller related to |touch_injector|. Virtual for
+  // Add display overlay controller related to `touch_injector`. Virtual for
   // test.
   virtual void AddDisplayOverlayController(TouchInjector* touch_injector);
   void RemoveDisplayOverlayController();
-  // Reset for removing pending |touch_injector| because of no GIO data or
+  // Reset for removing pending `touch_injector` because of no GIO data or
   // window destroying.
   void ResetForPendingTouchInjector(
       std::unique_ptr<TouchInjector> touch_injector);
+  // Called when data loading finished from files or mojom calls for
+  // `touch_injector`.
+  void OnLoadingFinished(std::unique_ptr<TouchInjector> touch_injector);
+  // Once there is an error when checking Android side, reset `TouchInjector` if
+  // it has empty actions. Otherwise, finish data loading. This is called for
+  // mojom connection error. Once the mojom connection failed, it considers GIO
+  // is available if there is mapping data.
+  void MayKeepTouchInjectorAfterError(
+      std::unique_ptr<TouchInjector> touch_injector);
+
+  // Returns the game window if `window` is game dashboard window which is the
+  // window of `GameDashboardButton` or `GameDashboardMainMenu`. Otherwise,
+  // returns nullptr.
+  aura::Window* GetGameWindow(aura::Window* window);
 
   base::ScopedObservation<aura::Env, aura::EnvObserver> env_observation_{this};
   base::ScopedMultiSourceObservation<aura::Window, aura::WindowObserver>
@@ -152,9 +162,6 @@ class ArcInputOverlayManager : public KeyedService,
   std::unique_ptr<DisplayOverlayController> display_overlay_controller_;
   std::unique_ptr<DataController> data_controller_;
   scoped_refptr<base::SequencedTaskRunner> task_runner_;
-
-  // TODO(b/253646354): This can be removed when removing the flag.
-  bool beta_ = ash::features::IsArcInputOverlayBetaEnabled();
 
   base::WeakPtrFactory<ArcInputOverlayManager> weak_ptr_factory_{this};
 };

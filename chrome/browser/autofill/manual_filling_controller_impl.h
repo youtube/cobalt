@@ -14,6 +14,7 @@
 #include "chrome/browser/autofill/accessory_controller.h"
 #include "chrome/browser/autofill/manual_filling_controller.h"
 #include "chrome/browser/autofill/manual_filling_view_interface.h"
+#include "components/autofill/core/browser/ui/accessory_sheet_enums.h"
 #include "components/autofill/core/common/mojom/autofill_types.mojom-shared.h"
 #include "components/autofill/core/common/unique_ids.h"
 #include "content/public/browser/web_contents_user_data.h"
@@ -46,12 +47,16 @@ class ManualFillingControllerImpl
   void UpdateSourceAvailability(FillingSource source,
                                 bool has_suggestions) override;
   void Hide() override;
-  void OnAutomaticGenerationStatusChanged(bool available) override;
+  void OnAccessoryActionAvailabilityChanged(
+      ShouldShowAction shouldShowAction,
+      autofill::AccessoryAction action) override;
   void ShowAccessorySheetTab(
       const autofill::AccessoryTabType& tab_type) override;
   void OnFillingTriggered(
       autofill::AccessoryTabType type,
       const autofill::AccessorySheetField& selection) override;
+  void OnPasskeySelected(autofill::AccessoryTabType type,
+                         const std::vector<uint8_t>& passkey_id) override;
   void OnOptionSelected(
       autofill::AccessoryAction selected_action) const override;
   void OnToggleChanged(autofill::AccessoryAction toggled_action,

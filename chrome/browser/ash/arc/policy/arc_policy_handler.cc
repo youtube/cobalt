@@ -3,7 +3,9 @@
 // found in the LICENSE file.
 
 #include "chrome/browser/ash/arc/policy/arc_policy_handler.h"
+
 #include <string>
+#include <string_view>
 
 #include "base/check.h"
 #include "base/json/json_reader.h"
@@ -19,7 +21,6 @@
 #include "components/strings/grit/components_strings.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/re2/src/re2/re2.h"
-#include "third_party/re2/src/re2/stringpiece.h"
 
 namespace arc {
 
@@ -39,7 +40,7 @@ absl::optional<base::StringPiece> FindUnknownVariable(
   const re2::RE2 regex(unknown_variable_capture);
   DCHECK(regex.ok()) << "Error compiling regex: " << regex.error();
 
-  re2::StringPiece capture;
+  std::string_view capture;
   const bool found_unknown_variable =
       re2::RE2::PartialMatch(input, regex, &capture) &&
       capture.data() != nullptr;
@@ -47,7 +48,7 @@ absl::optional<base::StringPiece> FindUnknownVariable(
   if (!found_unknown_variable)
     return absl::nullopt;
 
-  return base::StringPiece(capture.data(), capture.length());
+  return capture;
 }
 
 // Add warning messages in |arc_policy| for invalid variables in

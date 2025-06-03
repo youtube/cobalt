@@ -41,7 +41,9 @@ class ManualFillingViewAndroid : public ManualFillingViewInterface {
 
   // ManualFillingViewInterface:
   void OnItemsAvailable(autofill::AccessorySheetData data) override;
-  void OnAutomaticGenerationStatusChanged(bool available) override;
+  void OnAccessoryActionAvailabilityChanged(
+      ShouldShowAction shouldShowAction,
+      autofill::AccessoryAction action) override;
   void CloseAccessorySheet() override;
   void SwapSheetWithKeyboard() override;
   void Show(WaitForKeyboard wait_for_keyboard) override;
@@ -61,6 +63,11 @@ class ManualFillingViewAndroid : public ManualFillingViewInterface {
       const base::android::JavaParamRef<jobject>& obj,
       jint tab_type,
       const base::android::JavaParamRef<jobject>& j_user_info_field);
+  void OnPasskeySelected(
+      JNIEnv* env,
+      const base::android::JavaParamRef<jobject>& obj,
+      jint tab_type,
+      const base::android::JavaParamRef<jbyteArray>& j_passkey_id);
   void OnOptionSelected(JNIEnv* env,
                         const base::android::JavaParamRef<jobject>& obj,
                         jint selected_action);

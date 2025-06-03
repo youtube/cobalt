@@ -31,16 +31,9 @@ std::vector<zx::event> GpuFenceHandlesToZxEvents(
   std::vector<zx::event> events;
   events.reserve(handles.size());
   for (auto& handle : handles) {
-    events.push_back(std::move(handle.owned_event));
+    events.push_back(handle.Release());
   }
   return events;
-}
-
-zx::event DuplicateZxEvent(const zx::event& event) {
-  zx::event result;
-  zx_status_t status = event.duplicate(ZX_RIGHT_SAME_RIGHTS, &result);
-  ZX_DCHECK(status == ZX_OK, status);
-  return result;
 }
 
 // A struct containing Flatland properties for an associated overlay transform.
@@ -64,11 +57,13 @@ OverlayTransformFlatlandProperties OverlayTransformToFlatlandProperties(
           .translation = {rounded_bounds.x(), rounded_bounds.y()},
           .orientation = fuchsia::ui::composition::Orientation::CCW_0_DEGREES,
           .image_flip = fuchsia::ui::composition::ImageFlip::NONE};
+    // gfx::OverlayTransform and Flatland rotate in opposite directions relative
+    // to each other, so swap 90 and 270.
     case gfx::OVERLAY_TRANSFORM_ROTATE_90:
       return {
-          .translation = {rounded_bounds.x(),
-                          rounded_bounds.y() + rounded_bounds.height()},
-          .orientation = fuchsia::ui::composition::Orientation::CCW_90_DEGREES,
+          .translation = {rounded_bounds.x() + rounded_bounds.width(),
+                          rounded_bounds.y()},
+          .orientation = fuchsia::ui::composition::Orientation::CCW_270_DEGREES,
           .image_flip = fuchsia::ui::composition::ImageFlip::NONE};
     case gfx::OVERLAY_TRANSFORM_ROTATE_180:
       return {
@@ -78,9 +73,9 @@ OverlayTransformFlatlandProperties OverlayTransformToFlatlandProperties(
           .image_flip = fuchsia::ui::composition::ImageFlip::NONE};
     case gfx::OVERLAY_TRANSFORM_ROTATE_270:
       return {
-          .translation = {rounded_bounds.x() + rounded_bounds.width(),
-                          rounded_bounds.y()},
-          .orientation = fuchsia::ui::composition::Orientation::CCW_270_DEGREES,
+          .translation = {rounded_bounds.x(),
+                          rounded_bounds.y() + rounded_bounds.height()},
+          .orientation = fuchsia::ui::composition::Orientation::CCW_90_DEGREES,
           .image_flip = fuchsia::ui::composition::ImageFlip::NONE};
     case gfx::OVERLAY_TRANSFORM_FLIP_HORIZONTAL:
       return {
@@ -201,8 +196,8 @@ void FlatlandSurface::Present(
         overlay.pixmap.get(), /*is_primary_plane=*/false);
     const auto image_id = flatland_ids.image_id;
     const auto transform_id = flatland_ids.transform_id;
-    const auto overlay_plane_transform =
-        overlay.overlay_plane_data.plane_transform;
+    const auto overlay_plane_transform = absl::get<gfx::OverlayTransform>(
+        overlay.overlay_plane_data.plane_transform);
 
     if (overlay.gpu_fence) {
       acquire_fences.push_back(overlay.gpu_fence->GetGpuFenceHandle().Clone());
@@ -281,8 +276,7 @@ void FlatlandSurface::Present(
   // Keep track of release fences from last present for destructor.
   release_fences_from_last_present_.clear();
   for (auto& fence : release_fences) {
-    release_fences_from_last_present_.push_back(
-        DuplicateZxEvent(fence.owned_event));
+    release_fences_from_last_present_.push_back(fence.Clone().Release());
   }
 
   // Present to Flatland.

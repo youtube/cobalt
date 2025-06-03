@@ -15,8 +15,6 @@
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
-#include "chrome/browser/buildflags.h"
-#include "chrome/browser/chrome_process_singleton.h"
 #include "chrome/browser/metrics/chrome_browser_sampling_trials.h"
 #include "chrome/browser/metrics/chrome_metrics_service_accessor.h"
 #include "chrome/browser/metrics/chrome_metrics_service_client.h"
@@ -32,8 +30,8 @@
 #include "base/android/build_info.h"
 #include "base/android/bundle_utils.h"
 #include "base/task/thread_pool/environment_config.h"
+#include "chrome/browser/android/flags/chrome_cached_flags.h"
 #include "chrome/browser/android/signin/fre_mobile_identity_consistency_field_trial.h"
-#include "chrome/browser/flags/android/cached_feature_flags.h"
 #include "chrome/browser/flags/android/chrome_feature_list.h"
 #include "chrome/common/chrome_features.h"
 #endif
@@ -44,6 +42,12 @@
 #include "chromeos/ash/services/multidevice_setup/public/cpp/first_run_field_trial.h"
 #endif
 
+#if BUILDFLAG(IS_CHROMEOS_LACROS)
+// GN doesn't understand conditional includes, so we need nogncheck here.
+// See crbug.com/1125897.
+#include "chromeos/startup/startup.h"  // nogncheck
+#endif
+
 ChromeBrowserFieldTrials::ChromeBrowserFieldTrials(PrefService* local_state)
     : local_state_(local_state) {
   DCHECK(local_state_);
@@ -52,17 +56,27 @@ ChromeBrowserFieldTrials::ChromeBrowserFieldTrials(PrefService* local_state)
 ChromeBrowserFieldTrials::~ChromeBrowserFieldTrials() = default;
 
 void ChromeBrowserFieldTrials::OnVariationsSetupComplete() {
-#if BUILDFLAG(IS_FUCHSIA)
-  // Persistent histograms must be enabled ASAP, but depends on Features. For
-  // non-Fuchsia platforms, it is enabled earlier on, and is not controlled by
-  // variations. See //chrome/app/chrome_main_delegate.cc.
+#if BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(IS_CHROMEOS_LACROS)
+  // Persistent histograms must be enabled ASAP, but depends on Features.
+  // For non-Fuchsia platforms, it is enabled earlier on, and is not controlled
+  // by variations.
+  // See //chrome/app/chrome_main_delegate.cc.
+  bool histogram_init_and_cleanup = true;
+#if BUILDFLAG(IS_CHROMEOS_LACROS)
+  // For Lacros, when prelaunching at login screen, we want to postpone the
+  // initialization and cleanup of persistent histograms to when the user has
+  // logged in and the cryptohome is accessible.
+  histogram_init_and_cleanup &= chromeos::IsLaunchedWithPostLoginParams();
+#endif
   base::FilePath metrics_dir;
-  if (base::PathService::Get(chrome::DIR_USER_DATA, &metrics_dir)) {
-    InstantiatePersistentHistogramsWithFeaturesAndCleanup(metrics_dir);
-  } else {
-    NOTREACHED();
+  if (histogram_init_and_cleanup) {
+    if (base::PathService::Get(chrome::DIR_USER_DATA, &metrics_dir)) {
+      InstantiatePersistentHistogramsWithFeaturesAndCleanup(metrics_dir);
+    } else {
+      NOTREACHED();
+    }
   }
-#endif  // BUILDFLAG(IS_FUCHSIA)
+#endif  // BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(IS_CHROMEOS_LACROS)
 }
 
 void ChromeBrowserFieldTrials::SetUpClientSideFieldTrials(
@@ -85,7 +99,8 @@ void ChromeBrowserFieldTrials::SetUpClientSideFieldTrials(
   // For this feature we will use the client-side trial for rollout. The
   // server-side/Finch config will be used only as a kill-switch. If it's
   // configured - it will override the local trial.
-  ash::CreateFallbackFieldTrialForRecovery(chrome::GetChannel() == version_info::Channel::STABLE, feature_list);
+  ash::CreateFallbackFieldTrialForRecovery(
+      chrome::GetChannel() == version_info::Channel::STABLE, feature_list);
 #endif
   if (!has_seed) {
 #if BUILDFLAG(IS_CHROMEOS_ASH)
@@ -111,9 +126,6 @@ void ChromeBrowserFieldTrials::SetUpClientSideFieldTrials(
 }
 
 void ChromeBrowserFieldTrials::RegisterSyntheticTrials() {
-#if BUILDFLAG(ENABLE_PROCESS_SINGLETON)
-  ChromeProcessSingleton::RegisterEarlySingletonFeature();
-#endif  // BUILDFLAG(ENABLE_PROCESS_SINGLETON)
 #if BUILDFLAG(IS_ANDROID)
   static constexpr char kReachedCodeProfilerTrial[] =
       "ReachedCodeProfilerSynthetic2";

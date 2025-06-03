@@ -13,6 +13,7 @@
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "content/public/browser/browser_thread.h"
 #include "ui/gfx/color_palette.h"
 
 #if BUILDFLAG(IS_WIN)
@@ -42,7 +43,7 @@ class BorderView : public views::View {
 };
 
 void InitContentsBorderWidget(content::WebContents* web_contents) {
-  Browser* const browser = chrome::FindBrowserWithWebContents(web_contents);
+  Browser* const browser = chrome::FindBrowserWithTab(web_contents);
   if (!browser) {
     return;
   }
@@ -151,7 +152,7 @@ void TabCaptureContentsBorderHelper::Update() {
 
   content::WebContents* const web_contents = &GetWebContents();
 
-  Browser* const browser = chrome::FindBrowserWithWebContents(web_contents);
+  Browser* const browser = chrome::FindBrowserWithTab(web_contents);
   if (!browser) {
     return;
   }
@@ -191,7 +192,7 @@ void TabCaptureContentsBorderHelper::UpdateBlueBorderLocation() {
 
   content::WebContents* const web_contents = &GetWebContents();
 
-  Browser* const browser = chrome::FindBrowserWithWebContents(web_contents);
+  Browser* const browser = chrome::FindBrowserWithTab(web_contents);
   if (!browser) {
     return;
   }

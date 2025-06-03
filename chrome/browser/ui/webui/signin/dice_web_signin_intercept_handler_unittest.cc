@@ -14,7 +14,7 @@
 #include "chrome/browser/enterprise/browser_management/management_service_factory.h"
 #include "chrome/browser/signin/dice_web_signin_interceptor.h"
 #include "chrome/browser/signin/signin_features.h"
-#include "chrome/grit/chromium_strings.h"
+#include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile_manager.h"
@@ -45,10 +45,9 @@ struct BubbleStrings {
 using ExpectedStringGenerator = base::RepeatingCallback<BubbleStrings()>;
 
 struct TestParam {
-  DiceWebSigninInterceptor::SigninInterceptionType interception_type;
+  WebSigninInterceptor::SigninInterceptionType interception_type;
   policy::EnterpriseManagementAuthority management_authority;
   ExpectedStringGenerator expected_strings;
-  ExpectedStringGenerator expected_strings_v2;
 };
 
 AccountInfo CreateAccount(std::string gaia_id,
@@ -79,34 +78,14 @@ const AccountInfo intercepted_account = CreateAccount(
     /*email=*/"sam.sample@intercepted.com",
     /*hosted_domain=*/kNoHostedDomainFound);
 
-const ExpectedStringGenerator common_v2_strings_generator =
-    base::BindRepeating([] {
-      return BubbleStrings{
-          /*header_text=*/"",
-          /*body_title=*/
-          l10n_util::GetStringUTF8(
-              IDS_SIGNIN_DICE_WEB_INTERCEPT_CREATE_BUBBLE_TITLE),
-          /*body_text=*/
-          l10n_util::GetStringFUTF8(
-              IDS_SIGNIN_DICE_WEB_INTERCEPT_CONSUMER_BUBBLE_DESC,
-              base::UTF8ToUTF16(primary_account.given_name)),
-          /*confirm_button_label=*/
-          l10n_util::GetStringUTF8(
-              IDS_SIGNIN_DICE_WEB_INTERCEPT_BUBBLE_NEW_PROFILE_BUTTON_LABEL),
-          /*cancel_button_label=*/
-          l10n_util::GetStringUTF8(
-              IDS_SIGNIN_DICE_WEB_INTERCEPT_BUBBLE_CANCEL_BUTTON_LABEL),
-      };
-    });
-
 // Permutations of supported bubbles.
 const TestParam kTestParams[] = {
     {
-        DiceWebSigninInterceptor::SigninInterceptionType::kMultiUser,
+        WebSigninInterceptor::SigninInterceptionType::kMultiUser,
         policy::EnterpriseManagementAuthority::NONE,
-        /*expected_strings=*/base::BindRepeating([]() {
+        /*expected_strings=*/base::BindRepeating([] {
           return BubbleStrings{
-              /*header_text=*/intercepted_account.given_name,
+              /*header_text=*/"",
               /*body_title=*/
               l10n_util::GetStringUTF8(
                   IDS_SIGNIN_DICE_WEB_INTERCEPT_CREATE_BUBBLE_TITLE),
@@ -122,31 +101,11 @@ const TestParam kTestParams[] = {
                   IDS_SIGNIN_DICE_WEB_INTERCEPT_BUBBLE_CANCEL_BUTTON_LABEL),
           };
         }),
-        /*expected_strings_v2=*/common_v2_strings_generator,
     },
     {
-        DiceWebSigninInterceptor::SigninInterceptionType::kMultiUser,
+        WebSigninInterceptor::SigninInterceptionType::kMultiUser,
         policy::EnterpriseManagementAuthority::CLOUD_DOMAIN,
-        /*expected_strings=*/base::BindRepeating([]() {
-          return BubbleStrings{
-              /*header_text=*/intercepted_account.given_name,
-              /*body_title=*/
-              l10n_util::GetStringUTF8(
-                  IDS_SIGNIN_DICE_WEB_INTERCEPT_CREATE_BUBBLE_TITLE),
-              /*body_text=*/
-              l10n_util::GetStringFUTF8(
-                  IDS_SIGNIN_DICE_WEB_INTERCEPT_CONSUMER_BUBBLE_DESC_MANAGED_DEVICE,
-                  base::UTF8ToUTF16(primary_account.given_name),
-                  base::UTF8ToUTF16(intercepted_account.email)),
-              /*confirm_button_label=*/
-              l10n_util::GetStringUTF8(
-                  IDS_SIGNIN_DICE_WEB_INTERCEPT_BUBBLE_NEW_PROFILE_BUTTON_LABEL),
-              /*cancel_button_label=*/
-              l10n_util::GetStringUTF8(
-                  IDS_SIGNIN_DICE_WEB_INTERCEPT_BUBBLE_CANCEL_BUTTON_LABEL),
-          };
-        }),
-        /*expected_strings_v2=*/base::BindRepeating([] {
+        /*expected_strings=*/base::BindRepeating([] {
           return BubbleStrings{
               /*header_text=*/"",
               /*body_title=*/
@@ -167,27 +126,9 @@ const TestParam kTestParams[] = {
         }),
     },
     {
-        DiceWebSigninInterceptor::SigninInterceptionType::kEnterprise,
+        WebSigninInterceptor::SigninInterceptionType::kEnterprise,
         policy::EnterpriseManagementAuthority::NONE,
-        /*expected_strings=*/base::BindRepeating([]() {
-          return BubbleStrings{
-              /*header_text=*/intercepted_account.given_name,
-              /*body_title=*/
-              l10n_util::GetStringUTF8(
-                  IDS_SIGNIN_DICE_WEB_INTERCEPT_CREATE_BUBBLE_TITLE),
-              /*body_text=*/
-              l10n_util::GetStringFUTF8(
-                  IDS_SIGNIN_DICE_WEB_INTERCEPT_ENTERPRISE_BUBBLE_DESC,
-                  base::UTF8ToUTF16(primary_account.email)),
-              /*confirm_button_label=*/
-              l10n_util::GetStringUTF8(
-                  IDS_SIGNIN_DICE_WEB_INTERCEPT_BUBBLE_NEW_PROFILE_BUTTON_LABEL),
-              /*cancel_button_label=*/
-              l10n_util::GetStringUTF8(
-                  IDS_SIGNIN_DICE_WEB_INTERCEPT_BUBBLE_CANCEL_BUTTON_LABEL),
-          };
-        }),
-        /*expected_strings_v2=*/base::BindRepeating([] {
+        /*expected_strings=*/base::BindRepeating([] {
           return BubbleStrings{
               /*header_text=*/"",
               /*body_title=*/
@@ -207,27 +148,9 @@ const TestParam kTestParams[] = {
         }),
     },
     {
-        DiceWebSigninInterceptor::SigninInterceptionType::kEnterprise,
+        WebSigninInterceptor::SigninInterceptionType::kEnterprise,
         policy::EnterpriseManagementAuthority::CLOUD_DOMAIN,
-        /*expected_strings=*/base::BindRepeating([]() {
-          return BubbleStrings{
-              /*header_text=*/intercepted_account.given_name,
-              /*body_title=*/
-              l10n_util::GetStringUTF8(
-                  IDS_SIGNIN_DICE_WEB_INTERCEPT_CREATE_BUBBLE_TITLE),
-              /*body_text=*/
-              l10n_util::GetStringFUTF8(
-                  IDS_SIGNIN_DICE_WEB_INTERCEPT_ENTERPRISE_BUBBLE_DESC_MANAGED_DEVICE,
-                  base::UTF8ToUTF16(intercepted_account.email)),
-              /*confirm_button_label=*/
-              l10n_util::GetStringUTF8(
-                  IDS_SIGNIN_DICE_WEB_INTERCEPT_BUBBLE_NEW_PROFILE_BUTTON_LABEL),
-              /*cancel_button_label=*/
-              l10n_util::GetStringUTF8(
-                  IDS_SIGNIN_DICE_WEB_INTERCEPT_BUBBLE_CANCEL_BUTTON_LABEL),
-          };
-        }),
-        /*expected_strings_v2=*/base::BindRepeating([] {
+        /*expected_strings=*/base::BindRepeating([] {
           return BubbleStrings{
               /*header_text=*/"",
               /*body_title=*/
@@ -243,6 +166,27 @@ const TestParam kTestParams[] = {
               /*cancel_button_label=*/
               l10n_util::GetStringUTF8(
                   IDS_SIGNIN_DICE_WEB_INTERCEPT_BUBBLE_CANCEL_BUTTON_LABEL),
+          };
+        }),
+    },
+    {
+        WebSigninInterceptor::SigninInterceptionType::kProfileSwitch,
+        policy::EnterpriseManagementAuthority::NONE,
+        /*expected_strings=*/base::BindRepeating([] {
+          return BubbleStrings{
+              /*header_text=*/intercepted_account.given_name,
+              /*body_title=*/
+              l10n_util::GetStringUTF8(
+                  IDS_SIGNIN_DICE_WEB_INTERCEPT_SWITCH_BUBBLE_TITLE),
+              /*body_text=*/
+              l10n_util::GetStringUTF8(
+                  IDS_SIGNIN_DICE_WEB_INTERCEPT_SWITCH_BUBBLE_DESC),
+              /*confirm_button_label=*/
+              l10n_util::GetStringUTF8(
+                  IDS_SIGNIN_DICE_WEB_INTERCEPT_BUBBLE_CONFIRM_SWITCH_BUTTON_LABEL),
+              /*cancel_button_label=*/
+              l10n_util::GetStringUTF8(
+                  IDS_SIGNIN_DICE_WEB_INTERCEPT_BUBBLE_CANCEL_SWITCH_BUTTON_LABEL),
           };
         }),
     },
@@ -305,16 +249,11 @@ class DiceWebSigninInterceptHandlerTest
 TEST_P(DiceWebSigninInterceptHandlerTest, CheckStrings) {
   base::Value::Dict parameters = GetInterceptionParameters();
 
-  EXPECT_FALSE(*parameters.FindBool("useV2Design"));
+  if (GetParam().interception_type !=
+      WebSigninInterceptor::SigninInterceptionType::kProfileSwitch) {
+    EXPECT_TRUE(*parameters.FindBool("useV2Design"));
+  }
   ExpectStringsMatch(parameters, GetParam().expected_strings.Run());
-}
-
-TEST_P(DiceWebSigninInterceptHandlerTest, CheckStrings_V2) {
-  base::test::ScopedFeatureList feature_list{kSigninInterceptBubbleV2};
-  base::Value::Dict parameters = GetInterceptionParameters();
-
-  EXPECT_TRUE(*parameters.FindBool("useV2Design"));
-  ExpectStringsMatch(parameters, GetParam().expected_strings_v2.Run());
 }
 
 INSTANTIATE_TEST_SUITE_P(All,

@@ -10,7 +10,6 @@
 
 #include "base/files/file_path.h"
 #include "base/memory/raw_ptr.h"
-#include "base/time/time.h"
 #include "build/build_config.h"
 #include "components/prefs/pref_change_registrar.h"
 #include "components/prefs/pref_member.h"
@@ -79,8 +78,6 @@ class DownloadPrefs {
   void SetSaveFilePath(const base::FilePath& path);
   int save_file_type() const { return *save_file_type_; }
   void SetSaveFileType(int type);
-  base::Time GetLastCompleteTime();
-  void SetLastCompleteTime(const base::Time& last_complete_time);
   DownloadRestriction download_restriction() const {
     return static_cast<DownloadRestriction>(*download_restriction_);
   }
@@ -161,7 +158,6 @@ class DownloadPrefs {
   FilePathPrefMember save_file_path_;
   IntegerPrefMember save_file_type_;
   IntegerPrefMember download_restriction_;
-  BooleanPrefMember download_bubble_enabled_;
   BooleanPrefMember prompt_for_duplicate_file_;
   BooleanPrefMember safebrowsing_for_trusted_sources_enabled_;
 

@@ -27,7 +27,6 @@
 #include "chromeos/ash/components/dbus/attestation/attestation_client.h"
 #include "chromeos/ash/components/dbus/audio/cras_audio_client.h"
 #include "chromeos/ash/components/dbus/audio/floss_media_client.h"
-#include "chromeos/ash/components/dbus/authpolicy/authpolicy_client.h"
 #include "chromeos/ash/components/dbus/biod/biod_client.h"
 #include "chromeos/ash/components/dbus/cdm_factory_daemon/cdm_factory_daemon_client.h"
 #include "chromeos/ash/components/dbus/cec_service/cec_service_client.h"
@@ -63,15 +62,16 @@
 #include "chromeos/ash/components/dbus/runtime_probe/runtime_probe_client.h"
 #include "chromeos/ash/components/dbus/seneschal/seneschal_client.h"
 #include "chromeos/ash/components/dbus/session_manager/session_manager_client.h"
+#include "chromeos/ash/components/dbus/shill/modem_3gpp_client.h"
 #include "chromeos/ash/components/dbus/shill/shill_clients.h"
 #include "chromeos/ash/components/dbus/smbprovider/smb_provider_client.h"
 #include "chromeos/ash/components/dbus/spaced/spaced_client.h"
+#include "chromeos/ash/components/dbus/swap_management/swap_management_client.h"
 #include "chromeos/ash/components/dbus/system_clock/system_clock_client.h"
 #include "chromeos/ash/components/dbus/system_proxy/system_proxy_client.h"
 #include "chromeos/ash/components/dbus/typecd/typecd_client.h"
 #include "chromeos/ash/components/dbus/update_engine/update_engine_client.h"
 #include "chromeos/ash/components/dbus/upstart/upstart_client.h"
-#include "chromeos/ash/components/dbus/userdataauth/arc_quota_client.h"
 #include "chromeos/ash/components/dbus/userdataauth/cryptohome_misc_client.h"
 #include "chromeos/ash/components/dbus/userdataauth/cryptohome_pkcs11_client.h"
 #include "chromeos/ash/components/dbus/userdataauth/install_attributes_client.h"
@@ -114,7 +114,19 @@ void OverrideStubPathsIfNeeded() {
   }
 }
 
+DBusHelperObserverForTest* g_dbus_helper_observer = nullptr;
+
 }  // namespace
+
+DBusHelperObserverForTest::~DBusHelperObserverForTest() = default;  // IN-TEST
+
+// static
+void DBusHelperObserverForTest::Set(DBusHelperObserverForTest* observer) {
+  // Only allow set `g_dbus_helper_observer` when it is null or resets it.
+  DCHECK(!g_dbus_helper_observer || !observer);
+
+  g_dbus_helper_observer = observer;
+}
 
 void InitializeDBus() {
   using chromeos::InitializeDBusClient;
@@ -140,10 +152,8 @@ void InitializeDBus() {
   InitializeDBusClient<ArcKeyMintClient>(bus);
   InitializeDBusClient<ArcMidisClient>(bus);
   InitializeDBusClient<ArcObbMounterClient>(bus);
-  InitializeDBusClient<ArcQuotaClient>(bus);
   InitializeDBusClient<ArcVmDataMigratorClient>(bus);
   InitializeDBusClient<AttestationClient>(bus);
-  InitializeDBusClient<AuthPolicyClient>(bus);
   InitializeDBusClient<BiodClient>(bus);  // For device::Fingerprint.
   InitializeDBusClient<CdmFactoryDaemonClient>(bus);
   InitializeDBusClient<CecServiceClient>(bus);
@@ -160,7 +170,6 @@ void InitializeDBus() {
   InitializeDBusClient<DlcserviceClient>(bus);
   InitializeDBusClient<chromeos::DlpClient>(bus);
   InitializeDBusClient<EasyUnlockClient>(bus);
-  InitializeDBusClient<featured::FeaturedClient>(bus);
   InitializeDBusClient<FederatedClient>(bus);
   InitializeDBusClient<GnubbyClient>(bus);
   hermes_clients::Initialize(bus);
@@ -188,6 +197,7 @@ void InitializeDBus() {
   InitializeDBusClient<SessionManagerClient>(bus);
   InitializeDBusClient<SmbProviderClient>(bus);
   InitializeDBusClient<SpacedClient>(bus);
+  InitializeDBusClient<SwapManagementClient>(bus);
   InitializeDBusClient<SystemClockClient>(bus);
   InitializeDBusClient<SystemProxyClient>(bus);
   InitializeDBusClient<chromeos::TpmManagerClient>(bus);
@@ -205,6 +215,10 @@ void InitializeDBus() {
   // g_browser_process initializes BrowserPolicyConnector.
   DeviceSettingsService::Initialize();
   InstallAttributes::Initialize();
+
+  if (g_dbus_helper_observer) {
+    g_dbus_helper_observer->PostInitializeDBus();
+  }
 }
 
 void InitializeFeatureListDependentDBus() {
@@ -236,20 +250,34 @@ void InitializeFeatureListDependentDBus() {
   if (shimless_rma::IsShimlessRmaAllowed()) {
     InitializeDBusClient<RmadClient>(bus);
   }
-  if (features::IsRgbKeyboardEnabled()) {
-    InitializeDBusClient<RgbkbdClient>(bus);
-  }
+  InitializeDBusClient<RgbkbdClient>(bus);
   InitializeDBusClient<WilcoDtcSupportdClient>(bus);
 
   if (features::IsSnoopingProtectionEnabled() ||
       features::IsQuickDimEnabled()) {
     InitializeDBusClient<HumanPresenceDBusClient>(bus);
   }
+
+  if (features::IsCellularCarrierLockEnabled()) {
+    InitializeDBusClient<Modem3gppClient>(bus);
+  }
+
+  // FeaturedClient is not a feature and instead uses the FieldTrialList (which
+  // is initialized with the FeatureList) to record early-boot trials in UMA.
+  InitializeDBusClient<featured::FeaturedClient>(bus);
 }
 
 void ShutdownDBus() {
+  if (g_dbus_helper_observer) {
+    g_dbus_helper_observer->PreShutdownDBus();
+  }
+
   // Feature list-dependent D-Bus clients are shut down first because we try to
   // shut down in reverse order of initialization (in case of dependencies).
+  if (features::IsCellularCarrierLockEnabled()) {
+    Modem3gppClient::Shutdown();
+  }
+
   if (features::IsSnoopingProtectionEnabled() ||
       features::IsQuickDimEnabled()) {
     HumanPresenceDBusClient::Shutdown();
@@ -277,15 +305,14 @@ void ShutdownDBus() {
   chromeos::TpmManagerClient::Shutdown();
   SystemProxyClient::Shutdown();
   SystemClockClient::Shutdown();
+  SwapManagementClient::Shutdown();
   SpacedClient::Shutdown();
   SmbProviderClient::Shutdown();
   SessionManagerClient::Shutdown();
   SeneschalClient::Shutdown();
   RuntimeProbeClient::Shutdown();
   ResourcedClient::Shutdown();
-  if (features::IsRgbKeyboardEnabled()) {
-    RgbkbdClient::Shutdown();
-  }
+  RgbkbdClient::Shutdown();
   if (shimless_rma::IsShimlessRmaAllowed()) {
     RmadClient::Shutdown();
   }
@@ -326,10 +353,8 @@ void ShutdownDBus() {
   CecServiceClient::Shutdown();
   CdmFactoryDaemonClient::Shutdown();
   BiodClient::Shutdown();
-  AuthPolicyClient::Shutdown();
   AttestationClient::Shutdown();
   ArcVmDataMigratorClient::Shutdown();
-  ArcQuotaClient::Shutdown();
   ArcObbMounterClient::Shutdown();
   ArcMidisClient::Shutdown();
   ArcKeyMintClient::Shutdown();

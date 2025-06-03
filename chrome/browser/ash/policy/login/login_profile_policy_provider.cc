@@ -74,7 +74,15 @@ const DevicePolicyToUserPolicyMapEntry kDevicePoliciesWithPolicyOptionsMap[] = {
     {key::kDeviceLoginScreenPromptOnMultipleMatchingCertificates,
      key::kPromptOnMultipleMatchingCertificates},
     {key::kDeviceLoginScreenContextAwareAccessSignalsAllowlist,
-     key::kContextAwareAccessSignalsAllowlist},
+     key::kUserContextAwareAccessSignalsAllowlist},
+
+    // The authentication URL blocklist and allowlist policies implement content
+    // control for authentication flows, including in the login screen and lock
+    // screen.  Since these use the SigninProfile and LockScreenProfile, content
+    // control is already possible there through the URLBlocklist/URLAllowlist
+    // user policies.
+    {key::kDeviceAuthenticationURLBlocklist, key::kURLBlocklist},
+    {key::kDeviceAuthenticationURLAllowlist, key::kURLAllowlist},
 
     // key::kDeviceLoginScreenLocales maps to the ash::kDeviceLoginScreenLocales
     // CrosSetting elsewhere. Also map it to the key::kForcedLanguages policy in
@@ -187,12 +195,13 @@ void LoginProfilePolicyProvider::Shutdown() {
   ConfigurationPolicyProvider::Shutdown();
 }
 
-void LoginProfilePolicyProvider::RefreshPolicies() {
+void LoginProfilePolicyProvider::RefreshPolicies(PolicyFetchReason reason) {
   waiting_for_device_policy_refresh_ = true;
   weak_factory_.InvalidateWeakPtrs();
   device_policy_service_->RefreshPolicies(
       base::BindOnce(&LoginProfilePolicyProvider::OnDevicePolicyRefreshDone,
-                     weak_factory_.GetWeakPtr()));
+                     weak_factory_.GetWeakPtr()),
+      reason);
 }
 
 void LoginProfilePolicyProvider::OnPolicyUpdated(const PolicyNamespace& ns,

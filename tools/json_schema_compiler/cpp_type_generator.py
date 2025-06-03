@@ -86,7 +86,12 @@ class CppTypeGenerator(object):
       CamelCaseWithUpperFirst: kCamelCaseWithUpperFirst.
       x86_64: kX86_64
       x86_ARCH: kX86Arch
+      '': EmptyString
     """
+
+    if not name:
+      return 'EmptyString'
+
     change_to_upper = True
     last_was_lower = True
     result = ''
@@ -199,7 +204,10 @@ class CppTypeGenerator(object):
         cpp_type = 'base::Value::Dict'
     elif type_.property_type == PropertyType.ARRAY:
       item_cpp_type = self.GetCppType(type_.item_type)
-      cpp_type = 'std::vector<%s>' % item_cpp_type
+      if item_cpp_type == 'base::Value':
+        cpp_type = 'base::Value::List'
+      else:
+        cpp_type = 'std::vector<%s>' % item_cpp_type
     elif type_.property_type == PropertyType.BINARY:
       cpp_type = 'std::vector<uint8_t>'
     else:

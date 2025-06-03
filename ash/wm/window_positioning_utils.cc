@@ -20,7 +20,6 @@
 #include "ash/wm/wm_event.h"
 #include "base/notreached.h"
 #include "base/numerics/ranges.h"
-#include "chromeos/ui/wm/features.h"
 #include "ui/aura/client/focus_client.h"
 #include "ui/aura/window.h"
 #include "ui/aura/window_delegate.h"
@@ -210,7 +209,7 @@ chromeos::OrientationType GetSnapDisplayOrientation(
     const display::Display& display) {
   // This function is used by `GetSnappedWindowBounds()` for clamshell mode
   // only. Tablet mode uses a different function
-  // `SplitViewController::GetSnappedWindowBoundsInScreen()`1.
+  // `SplitViewController::GetSnappedWindowBoundsInScreen()`.
   auto* tablet_mode_controller = Shell::Get()->tablet_mode_controller();
   DCHECK(!tablet_mode_controller || !tablet_mode_controller->InTabletMode());
 
@@ -222,11 +221,6 @@ chromeos::OrientationType GetSnapDisplayOrientation(
 
   return RotationToOrientation(chromeos::GetDisplayNaturalOrientation(display),
                                rotation);
-}
-
-void CenterWindow(aura::Window* window) {
-  WMEvent event(WM_EVENT_CENTER);
-  WindowState::Get(window)->OnWMEvent(&event);
 }
 
 void SetBoundsInScreen(aura::Window* window,

@@ -7,25 +7,23 @@
 #include <memory>
 #include <utility>
 
-#include "chrome/browser/ui/color/chrome_color_id.h"
+#include "base/feature_list.h"
+#include "cc/paint/skottie_wrapper.h"
+#include "chrome/browser/accessibility/accessibility_state_utils.h"
 #include "chrome/browser/ui/views/accessibility/non_accessible_image_view.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "chrome/browser/ui/views/chrome_typography.h"
 #include "chrome/browser/ui/webauthn/authenticator_request_sheet_model.h"
-#include "chrome/browser/webauthn/authenticator_request_dialog_model.h"
-#include "chrome/grit/generated_resources.h"
-#include "components/strings/grit/components_strings.h"
-#include "components/vector_icons/vector_icons.h"
-#include "ui/base/l10n/l10n_util.h"
+#include "device/fido/features.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
-#include "ui/color/color_provider.h"
-#include "ui/gfx/color_utils.h"
+#include "ui/base/resource/resource_bundle.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/gfx/geometry/insets.h"
 #include "ui/gfx/paint_vector_icon.h"
+#include "ui/lottie/animation.h"
 #include "ui/native_theme/native_theme.h"
 #include "ui/views/border.h"
-#include "ui/views/controls/button/image_button.h"
-#include "ui/views/controls/button/image_button_factory.h"
+#include "ui/views/controls/animated_image_view.h"
 #include "ui/views/controls/image_view.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/controls/progress_bar.h"
@@ -33,11 +31,21 @@
 
 namespace {
 
-// Height of the progress bar style activity indicator shown at the top of some
-// sheets.
-constexpr int kActivityIndicatorHeight = 4;
+// Margin between the top of the dialog and the start of any illustration.
+constexpr int kImageMarginTop = 22;
 
-using ImageColorScheme = AuthenticatorRequestSheetModel::ImageColorScheme;
+template <typename T>
+void ConfigureHeaderIllustration(T* illustration, gfx::Size header_size) {
+  illustration->SetBorder(views::CreateEmptyBorder(
+      gfx::Insets::TLBR(kImageMarginTop, 0, kImageMarginTop, 0)));
+  illustration->SetSize(header_size);
+  illustration->SetVerticalAlignment(views::ImageView::Alignment::kLeading);
+}
+
+bool ScreenReaderModeEnabled() {
+  return base::FeatureList::IsEnabled(device::kWebAuthnScreenReaderMode) &&
+         accessibility_state_utils::IsScreenReaderEnabled();
+}
 
 }  // namespace
 
@@ -50,6 +58,7 @@ AuthenticatorRequestSheetView::AuthenticatorRequestSheetView(
 AuthenticatorRequestSheetView::~AuthenticatorRequestSheetView() = default;
 
 void AuthenticatorRequestSheetView::ReInitChildViews() {
+  child_views_ = ChildViews();
   RemoveAllChildViews();
 
   // No need to add further spacing between the upper and lower half. The image
@@ -68,10 +77,12 @@ void AuthenticatorRequestSheetView::ReInitChildViews() {
 
 views::View* AuthenticatorRequestSheetView::GetInitiallyFocusedView() {
   if (should_focus_step_specific_content_ == AutoFocus::kYes) {
-    return step_specific_content_;
+    return child_views_.step_specific_content_;
   }
-  if (model()->ShouldFocusBackArrow()) {
-    return back_arrow_button_;
+  if (ScreenReaderModeEnabled()) {
+    // Focus the title label if a screen reader is detected to nudge it to
+    // announce the title when the sheet changes.
+    return child_views_.title_label_;
   }
   return nullptr;
 }
@@ -84,34 +95,40 @@ AuthenticatorRequestSheetView::BuildStepSpecificContent() {
 
 std::unique_ptr<views::View>
 AuthenticatorRequestSheetView::CreateIllustrationWithOverlays() {
-  // Some sheets do not have an illustration.
-  const gfx::VectorIcon& illustration =
-      model()->GetStepIllustration(ImageColorScheme::kLight);
-  if (&illustration == &gfx::kNoneIcon) {
+  constexpr int kImageHeight = 112, kImageMarginBottom = 2;
+  constexpr int kHeaderHeight =
+      kImageHeight + kImageMarginTop + kImageMarginBottom;
+  const int dialog_width = ChromeLayoutProvider::Get()->GetDistanceMetric(
+      views::DISTANCE_MODAL_DIALOG_PREFERRED_WIDTH);
+  const gfx::Size header_size(dialog_width, kHeaderHeight);
+
+  // The actual illustration image is set in `UpdateIconImageFromModel`, below,
+  // because it's not until that point that we know whether the light or dark
+  // illustration should be used.
+  View* illustration;
+  if (model()->lottie_illustrations()) {
+    auto animation = std::make_unique<views::AnimatedImageView>();
+    animation->SetPreferredSize(gfx::Size(dialog_width, kImageHeight));
+    ConfigureHeaderIllustration(animation.get(), header_size);
+    child_views_.step_illustration_animation_ = animation.get();
+    illustration = animation.release();
+  } else if (model()->vector_illustrations()) {
+    auto image_view = std::make_unique<NonAccessibleImageView>();
+    ConfigureHeaderIllustration(image_view.get(), header_size);
+    child_views_.step_illustration_image_ = image_view.get();
+    illustration = image_view.release();
+  } else {
     return std::make_unique<views::View>();
   }
 
-  const int dialog_width = ChromeLayoutProvider::Get()->GetDistanceMetric(
-      views::DISTANCE_MODAL_DIALOG_PREFERRED_WIDTH);
-  constexpr int kImageHeight = 112, kImageMarginTop = 22,
-                kImageMarginBottom = 2;
-  const int header_height = kImageHeight + kImageMarginTop + kImageMarginBottom;
-  const gfx::Size image_view_size(dialog_width, header_height);
-
   // The container view has no layout, so its preferred size is hardcoded to
-  // match the size of the image, and all overlays are absolutely positioned.
+  // match the size of the header, and all overlays are absolutely positioned.
   auto header_view = std::make_unique<views::View>();
-  header_view->SetPreferredSize(image_view_size);
-
-  auto image_view = std::make_unique<NonAccessibleImageView>();
-  step_illustration_ = image_view.get();
-  image_view->SetBorder(views::CreateEmptyBorder(
-      gfx::Insets::TLBR(kImageMarginTop, 0, kImageMarginTop, 0)));
-  image_view->SetSize(image_view_size);
-  image_view->SetVerticalAlignment(views::ImageView::Alignment::kLeading);
-  header_view->AddChildView(image_view.release());
+  header_view->SetPreferredSize(header_size);
+  header_view->AddChildView(illustration);
 
   if (model()->IsActivityIndicatorVisible()) {
+    constexpr int kActivityIndicatorHeight = 4;
     auto activity_indicator = std::make_unique<views::ProgressBar>(
         kActivityIndicatorHeight, false /* allow_round_corner */);
     activity_indicator->SetValue(-1 /* inifinite animation */);
@@ -124,7 +141,6 @@ AuthenticatorRequestSheetView::CreateIllustrationWithOverlays() {
 
   if (GetWidget()) {
     UpdateIconImageFromModel();
-    UpdateIconColors();
   }
 
   return header_view;
@@ -156,8 +172,17 @@ AuthenticatorRequestSheetView::CreateContentsBelowIllustration() {
         title, views::style::CONTEXT_DIALOG_TITLE, views::style::STYLE_PRIMARY);
     title_label->SetMultiLine(true);
     title_label->SetHorizontalAlignment(gfx::ALIGN_LEFT);
+    title_label->SetAccessibleRole(ax::mojom::Role::kHeading);
     title_label->SetAllowCharacterBreak(true);
-    label_container->AddChildView(title_label.release());
+    if (features::IsChromeRefresh2023()) {
+      title_label->SetTextStyle(views::style::STYLE_HEADLINE_4);
+    }
+    if (ScreenReaderModeEnabled() &&
+        should_focus_step_specific_content_ == AutoFocus::kNo) {
+      title_label->SetFocusBehavior(FocusBehavior::ALWAYS);
+    }
+    child_views_.title_label_ =
+        label_container->AddChildView(title_label.release());
   }
 
   std::u16string description = model()->GetStepDescription();
@@ -189,9 +214,9 @@ AuthenticatorRequestSheetView::CreateContentsBelowIllustration() {
   DCHECK(should_focus_step_specific_content_ == AutoFocus::kNo ||
          step_specific_content);
   if (step_specific_content) {
-    step_specific_content_ = step_specific_content.get();
+    child_views_.step_specific_content_ = step_specific_content.get();
     contents->AddChildView(step_specific_content.release());
-    contents_layout->SetFlexForView(step_specific_content_, 1);
+    contents_layout->SetFlexForView(child_views_.step_specific_content_, 1);
   }
 
   std::u16string error = model()->GetError();
@@ -200,7 +225,7 @@ AuthenticatorRequestSheetView::CreateContentsBelowIllustration() {
         std::move(error), views::style::CONTEXT_LABEL, STYLE_RED);
     error_label->SetHorizontalAlignment(gfx::ALIGN_LEFT);
     error_label->SetMultiLine(true);
-    error_label_ = contents->AddChildView(std::move(error_label));
+    child_views_.error_label_ = contents->AddChildView(std::move(error_label));
   }
 
   return contents;
@@ -209,33 +234,25 @@ AuthenticatorRequestSheetView::CreateContentsBelowIllustration() {
 void AuthenticatorRequestSheetView::OnThemeChanged() {
   views::View::OnThemeChanged();
   UpdateIconImageFromModel();
-  UpdateIconColors();
 }
 
 void AuthenticatorRequestSheetView::UpdateIconImageFromModel() {
-  if (!step_illustration_) {
-    return;
-  }
-
-  gfx::IconDescription icon_description(model()->GetStepIllustration(
-      GetNativeTheme()->ShouldUseDarkColors() ? ImageColorScheme::kDark
-                                              : ImageColorScheme::kLight));
-  step_illustration_->SetImage(gfx::CreateVectorIcon(icon_description));
-}
-
-void AuthenticatorRequestSheetView::UpdateIconColors() {
-  const auto* const cp = GetColorProvider();
-  if (back_arrow_) {
-    views::SetImageFromVectorIconWithColor(
-        back_arrow_, vector_icons::kBackArrowIcon,
-        cp->GetColor(kColorWebAuthnBackArrowButtonIcon),
-        cp->GetColor(kColorWebAuthnBackArrowButtonIconDisabled));
-  }
-  if (close_button_) {
-    views::SetImageFromVectorIconWithColor(
-        close_button_, vector_icons::kCloseIcon,
-        cp->GetColor(kColorWebAuthnBackArrowButtonIcon),
-        cp->GetColor(kColorWebAuthnBackArrowButtonIconDisabled));
+  const bool is_dark = GetNativeTheme()->ShouldUseDarkColors();
+  if (child_views_.step_illustration_image_) {
+    gfx::IconDescription icon_description(
+        model()->vector_illustrations()->get(is_dark));
+    child_views_.step_illustration_image_->SetImage(
+        gfx::CreateVectorIcon(icon_description));
+  } else if (child_views_.step_illustration_animation_) {
+    const int lottie_id = model()->lottie_illustrations()->get(is_dark);
+    absl::optional<std::vector<uint8_t>> lottie_bytes =
+        ui::ResourceBundle::GetSharedInstance().GetLottieData(lottie_id);
+    scoped_refptr<cc::SkottieWrapper> skottie =
+        cc::SkottieWrapper::CreateSerializable(std::move(*lottie_bytes));
+    child_views_.step_illustration_animation_->SetAnimatedImage(
+        std::make_unique<lottie::Animation>(skottie));
+    child_views_.step_illustration_animation_->SizeToPreferredSize();
+    child_views_.step_illustration_animation_->Play();
   }
 }
 

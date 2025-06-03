@@ -27,6 +27,7 @@
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "services/network/public/mojom/fetch_api.mojom.h"
 #include "services/network/public/mojom/url_loader.mojom-forward.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/base/page_transition_types.h"
 #include "url/gurl.h"
 
@@ -68,6 +69,10 @@ class Origin;
 namespace base {
 class CancelableTaskTracker;
 }  // namespace base
+
+namespace media_device_salt {
+class MediaDeviceSaltService;
+}  // namespace media_device_salt
 
 namespace extensions {
 
@@ -124,8 +129,10 @@ class ExtensionsBrowserClient {
   virtual bool AreExtensionsDisabled(const base::CommandLine& command_line,
                                      content::BrowserContext* context) = 0;
 
-  // Returns true if the |context| is known to the embedder.
-  virtual bool IsValidContext(content::BrowserContext* context) = 0;
+  // Returns true if the `context` is known to the embedder.
+  // Note: This is a `void*` to ensure downstream uses do not use the `context`
+  // in case it is *not* valid.
+  virtual bool IsValidContext(void* context) = 0;
 
   // Returns true if the BrowserContexts could be considered equivalent, for
   // example, if one is an off-the-record context owned by the other.
@@ -147,33 +154,41 @@ class ExtensionsBrowserClient {
   virtual content::BrowserContext* GetOriginalContext(
       content::BrowserContext* context) = 0;
 
-  // The below methods include a test for the experiment
-  // `kSystemProfileSelectionDefaultNone` and will include a similar experiment
-  // for Guest Profile, these two experiment can be bypassed by setting the
-  // force_* to true. The naming of the functions follows the logic of
-  // `ProfileSelections` predefined experimental builders.
-  // - `force_guest_profile`: to force Guest Profile selection in experiment.
-  // - `force_system_profile`: to force System Profile selection in experiment.
+  // The below methods are modeled off `Profile` and `ProfileSelections` in
+  // //chrome where their implementation filters out Profiles based on their
+  // types (Regular, Guest, System, etc..) and sub-implementation (Original vs
+  // OTR).
   //
-  // Returns the Original Profile for Regular Profile and redirects Incognito
-  // to the Original Profile.
-  // Force values to have the same behavior for Guest and System Profile.
-  virtual content::BrowserContext* GetRedirectedContextInIncognito(
+  // Returns the Original `BrowserContext` based on the input `context`:
+  // - if `context` is Original: returns itself.
+  // - if `context` is OTR: returns the equivalent parent context.
+  // - returns nullptr if the underlying implementation of `context` is of type
+  // System Profile, or of type Guest Profile if `force_guest_profile` is false.
+  virtual content::BrowserContext* GetContextRedirectedToOriginal(
       content::BrowserContext* context,
-      bool force_guest_profile,
-      bool force_system_profile) = 0;
-  // Returns Profile for Regular and Incognito.
-  // Force values to have the same behavior for Guest and System Profile.
-  virtual content::BrowserContext* GetContextForRegularAndIncognito(
+      bool force_guest_profile) = 0;
+  // Returns its own instance of `BrowserContext` based on the input `context`:
+  // - if `context` is Original: returns itself.
+  // - if `context` is OTR: returns nullptr.
+  // - returns nullptr if the underlying implementation of `context` is of type
+  // System Profile, or of type Guest Profile if `force_guest_profile` is false.
+  virtual content::BrowserContext* GetContextOwnInstance(
       content::BrowserContext* context,
-      bool force_guest_profile,
-      bool force_system_profile) = 0;
-  // Returns Profile only for Original Regular profile.
-  // Force values to have the same behavior for Guest and System Profile.
-  virtual content::BrowserContext* GetRegularProfile(
+      bool force_guest_profile) = 0;
+  // Returns the Original `BrowserContext` based on the input `context`:
+  // - if `context` is Original: returns itself.
+  // - if `context` is OTR: returns nullptr.
+  // - returns nullptr if the underlying implementation of `context` is of type
+  // System Profile, or of type Guest Profile if `force_guest_profile` is false.
+  virtual content::BrowserContext* GetContextForOriginalOnly(
       content::BrowserContext* context,
-      bool force_guest_profile,
-      bool force_system_profile) = 0;
+      bool force_guest_profile) = 0;
+
+  // Returns whether the `context` has extensions disabled.
+  // An example of an implementation of `BrowserContext` that has extensions
+  // disabled is `Profile` of type System Profile.
+  virtual bool AreExtensionsDisabledForContext(
+      content::BrowserContext* context) = 0;
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
   // Returns a user id hash from |context| or an empty string if no hash could
@@ -502,19 +517,26 @@ class ExtensionsBrowserClient {
       const std::u16string& url_title,
       int call_type);
 
-  // Returns the StoragePartitionConfig that should be used for a <webview> or
-  // <controlledframe> with the given |partition_name| that is owned by a frame
-  // within |owner_site_instance|.
-  virtual content::StoragePartitionConfig GetWebViewStoragePartitionConfig(
+  // Invokes |callback| with the StoragePartitionConfig that should be used for
+  // a <webview> or <controlledframe> with the given |partition_name| that is
+  // owned by a frame within |owner_site_instance|.
+  virtual void GetWebViewStoragePartitionConfig(
       content::BrowserContext* browser_context,
       content::SiteInstance* owner_site_instance,
       const std::string& partition_name,
-      bool in_memory);
+      bool in_memory,
+      base::OnceCallback<void(absl::optional<content::StoragePartitionConfig>)>
+          callback);
 
   // Creates password reuse detection manager when new extension web contents
   // are created.
   virtual void CreatePasswordReuseDetectionManager(
       content::WebContents* web_contents) const;
+
+  // Returns a service that provides persistent salts for generating media
+  // device IDs. Can be null if the embedder does not support persistent salts.
+  virtual media_device_salt::MediaDeviceSaltService* GetMediaDeviceSaltService(
+      content::BrowserContext* context);
 
  private:
   std::vector<std::unique_ptr<ExtensionsBrowserAPIProvider>> providers_;

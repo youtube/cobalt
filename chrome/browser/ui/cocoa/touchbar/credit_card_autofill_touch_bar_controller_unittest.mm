@@ -8,7 +8,6 @@
 #include <vector>
 
 #include "base/mac/mac_util.h"
-#include "base/mac/scoped_nsobject.h"
 #include "base/strings/sys_string_conversions.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
@@ -16,6 +15,7 @@
 #include "chrome/browser/ui/autofill/autofill_popup_controller.h"
 #import "chrome/browser/ui/cocoa/test/cocoa_test_helper.h"
 #import "chrome/browser/ui/cocoa/touchbar/credit_card_autofill_touch_bar_controller.h"
+#import "components/autofill/core/browser/ui/popup_item_ids.h"
 #include "components/autofill/core/browser/ui/suggestion.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -39,25 +39,25 @@ class CreditCardAutofillTouchBarControllerUnitTest : public CocoaTest {
   void SetUp() override {
     CocoaTest::SetUp();
 
-    touch_bar_controller_.reset([[CreditCardAutofillTouchBarController alloc]
-        initWithController:&autofill_popup_controller_]);
+    touch_bar_controller_ = [[CreditCardAutofillTouchBarController alloc]
+        initWithController:&autofill_popup_controller_];
   }
 
   void SetSuggestions(std::vector<Suggestion> suggestions) {
     autofill_popup_controller_.set_suggestions(std::move(suggestions));
   }
 
-  void SetSuggestions(const std::vector<int>& frontends_ids) {
+  void SetSuggestions(
+      const std::vector<autofill::PopupItemId>& popup_item_ids) {
     std::vector<Suggestion> suggestions;
-    suggestions.reserve(frontends_ids.size());
-    for (int frontend_id : frontends_ids) {
-      suggestions.emplace_back("", "", "", frontend_id);
+    suggestions.reserve(popup_item_ids.size());
+    for (autofill::PopupItemId popup_item_id : popup_item_ids) {
+      suggestions.emplace_back("", "", "", popup_item_id);
     }
     SetSuggestions(std::move(suggestions));
   }
 
-  base::scoped_nsobject<CreditCardAutofillTouchBarController>
-      touch_bar_controller_;
+  CreditCardAutofillTouchBarController* __strong touch_bar_controller_;
 
  private:
   MockAutofillPopupController autofill_popup_controller_;
@@ -74,7 +74,8 @@ TEST_F(CreditCardAutofillTouchBarControllerUnitTest, TouchBar) {
   EXPECT_FALSE([touch_bar_controller_ makeTouchBar]);
 
   [touch_bar_controller_ setIsCreditCardPopup:true];
-  SetSuggestions({1, 1});
+  SetSuggestions(
+      {PopupItemId::kCreditCardEntry, PopupItemId::kCreditCardEntry});
   NSTouchBar* touch_bar = [touch_bar_controller_ makeTouchBar];
   EXPECT_TRUE(touch_bar);
   EXPECT_TRUE([[touch_bar customizationIdentifier]
@@ -85,7 +86,9 @@ TEST_F(CreditCardAutofillTouchBarControllerUnitTest, TouchBar) {
 // Tests to check that the touch bar doesn't show more than 3 items
 TEST_F(CreditCardAutofillTouchBarControllerUnitTest, TouchBarCardLimit) {
   [touch_bar_controller_ setIsCreditCardPopup:true];
-  SetSuggestions({1, 1, 1, 1});
+  SetSuggestions({PopupItemId::kCreditCardEntry, PopupItemId::kCreditCardEntry,
+                  PopupItemId::kCreditCardEntry,
+                  PopupItemId::kCreditCardEntry});
   NSTouchBar* touch_bar = [touch_bar_controller_ makeTouchBar];
   EXPECT_TRUE(touch_bar);
   EXPECT_TRUE([[touch_bar customizationIdentifier]
@@ -103,7 +106,8 @@ TEST_F(CreditCardAutofillTouchBarControllerUnitTest, TouchBarCardLimit) {
 // Tests for for the credit card button.
 TEST_F(CreditCardAutofillTouchBarControllerUnitTest, CreditCardButtonCheck) {
   [touch_bar_controller_ setIsCreditCardPopup:true];
-  SetSuggestions({Suggestion("bufflehead", "canvasback", "goldeneye", 1)});
+  SetSuggestions({Suggestion("bufflehead", "canvasback", "goldeneye",
+                             PopupItemId::kCreditCardEntry)});
   NSButton* button = [touch_bar_controller_ createCreditCardButtonAtRow:0];
   EXPECT_TRUE(button);
   EXPECT_EQ(0, [button tag]);

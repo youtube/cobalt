@@ -16,7 +16,7 @@
 #include "base/win/registry.h"
 #include "base/win/win_util.h"
 #include "base/win/windows_version.h"
-#include "chrome/browser/chrome_for_testing/buildflags.h"
+#include "build/branding_buildflags.h"
 #include "chrome/common/chrome_constants.h"
 #include "chrome/install_static/install_util.h"
 #include "chrome/install_static/test/scoped_install_details.h"
@@ -178,7 +178,8 @@ void AddChromeToInstallationState(bool system_level,
   product_state.set_version(new base::Version(*current_version));
   product_state.set_brand(L"TEST");
   product_state.set_eula_accepted(1);
-  base::FilePath install_path = installer::GetChromeInstallPath(system_level);
+  base::FilePath install_path =
+      installer::GetDefaultChromeInstallPath(system_level);
   product_state.SetUninstallProgram(
       install_path.AppendASCII(current_version->GetString())
           .Append(installer::kInstallerDir)
@@ -225,7 +226,8 @@ void AddChromeToInstallerState(const InstallationState& machine_state,
         chrome->GetSetupPath().DirName().DirName().DirName());
   } else {
     installer_state->set_target_path_for_testing(
-        installer::GetChromeInstallPath(installer_state->system_install()));
+        installer::GetDefaultChromeInstallPath(
+            installer_state->system_install()));
   }
 }
 
@@ -441,6 +443,12 @@ TEST_P(AddUpdateBrandCodeWorkItemTest, GGRV) {
   installer::AddUpdateBrandCodeWorkItem(*installer_state(), &work_item_list);
 }
 
+TEST_P(AddUpdateBrandCodeWorkItemTest, GTPM) {
+  StrictMock<MockWorkItemList> work_item_list;
+  SetupExpectations(L"GTPM", false, &work_item_list);
+  installer::AddUpdateBrandCodeWorkItem(*installer_state(), &work_item_list);
+}
+
 TEST_P(AddUpdateBrandCodeWorkItemTest, GGLS) {
   StrictMock<MockWorkItemList> work_item_list;
   SetupExpectations(L"GGLS", false, &work_item_list);
@@ -456,6 +464,12 @@ TEST_P(AddUpdateBrandCodeWorkItemTest, GGRV_CBCM) {
 TEST_P(AddUpdateBrandCodeWorkItemTest, GGLS_CBCM) {
   StrictMock<MockWorkItemList> work_item_list;
   SetupExpectations(L"GGLS", true, &work_item_list);
+  installer::AddUpdateBrandCodeWorkItem(*installer_state(), &work_item_list);
+}
+
+TEST_P(AddUpdateBrandCodeWorkItemTest, GTPM_CBCM) {
+  StrictMock<MockWorkItemList> work_item_list;
+  SetupExpectations(L"GTPM", true, &work_item_list);
   installer::AddUpdateBrandCodeWorkItem(*installer_state(), &work_item_list);
 }
 

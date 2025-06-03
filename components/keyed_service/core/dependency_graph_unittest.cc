@@ -4,10 +4,10 @@
 
 #include "components/keyed_service/core/dependency_graph.h"
 
+#include <string_view>
+
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
-#include "base/numerics/safe_conversions.h"
-#include "base/strings/string_piece.h"
 #include "components/keyed_service/core/dependency_node.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/re2/src/re2/re2.h"
@@ -171,26 +171,23 @@ std::string NodeNameProvider(const std::string& name, DependencyNode* node) {
 // as valid identifiers, but those are not used in the production code calling
 // the tested DumpAsGraphviz.
 // [1] http://www.graphviz.org/content/dot-language
-bool IsValidDotId(base::StringPiece name) {
+bool IsValidDotId(std::string_view name) {
   static const char pattern[] =
       "[a-zA-Z\\200-\\377_][0-9a-zA-Z\\200-\\377_]*"
       "|-?(?:\\.[0-9]+|[0-9]+(\\.[0-9]*)?)"
       "|\"(?:[^\"]|\\\")*\"";
-  return RE2::FullMatch(
-      re2::StringPiece(name.data(), base::checked_cast<int>(name.size())),
-      pattern);
+  return RE2::FullMatch(name, pattern);
 }
 
 // Returns the source name of the first edge of the graphstr described in DOT
 // format in |graphstr|.
-base::StringPiece LocateNodeNameInGraph(base::StringPiece graphstr) {
-  re2::StringPiece name;
+std::string_view LocateNodeNameInGraph(std::string_view graphstr) {
+  std::string_view name;
   EXPECT_TRUE(RE2::FullMatch(
-      re2::StringPiece(graphstr.data(),
-                       base::checked_cast<int>(graphstr.size())),
-      "(?sm).*^[ \\t]*([^ \\t]*(?:[ \\t]+[^ \\t]+)*)[ \\t]*->.*", &name))
+      graphstr, "(?sm).*^[ \\t]*([^ \\t]*(?:[ \\t]+[^ \\t]+)*)[ \\t]*->.*",
+      &name))
       << "graphstr=" << graphstr;
-  return base::StringPiece(name.data(), name.size());
+  return name;
 }
 
 // Node names in the dependency graph should be properly escaped.
@@ -211,7 +208,7 @@ TEST_F(DependencyGraphTest, DumpAsGraphviz_Escaping) {
     SCOPED_TRACE(testing::Message("name=") << name);
     std::string graph_str = graph.DumpAsGraphviz(
         "Test", base::BindRepeating(&NodeNameProvider, name));
-    base::StringPiece dumped_name(LocateNodeNameInGraph(graph_str));
+    std::string_view dumped_name(LocateNodeNameInGraph(graph_str));
     EXPECT_TRUE(IsValidDotId(dumped_name)) << "dumped_name=" << dumped_name;
   }
 }

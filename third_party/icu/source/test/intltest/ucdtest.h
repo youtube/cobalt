@@ -31,8 +31,8 @@ class UnicodeTest: public IntlTest {
 public:
     UnicodeTest();
     virtual ~UnicodeTest();
-    
-    void runIndexedTest( int32_t index, UBool exec, const char* &name, char* par = NULL ) override;
+
+    void runIndexedTest( int32_t index, UBool exec, const char* &name, char* par = nullptr ) override;
 
     void TestAdditionalProperties();
     void TestBinaryValues();
@@ -49,6 +49,7 @@ public:
     void TestInvalidCodePointFolding();
     void TestBinaryCharacterProperties();
     void TestIntCharacterProperties();
+    void TestPropertyNames();
 
 private:
 

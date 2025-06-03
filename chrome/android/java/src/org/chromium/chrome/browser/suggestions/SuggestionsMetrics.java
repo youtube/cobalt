@@ -7,10 +7,9 @@ package org.chromium.chrome.browser.suggestions;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
+import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.chrome.browser.preferences.Pref;
-import org.chromium.chrome.browser.preferences.SharedPreferencesManager;
 import org.chromium.chrome.browser.profiles.Profile;
-import org.chromium.chrome.browser.suggestions.mostvisited.MostVisitedSitesBridge;
 import org.chromium.components.user_prefs.UserPrefs;
 
 /**
@@ -22,10 +21,10 @@ public abstract class SuggestionsMetrics {
     // UI Element interactions
 
     public static void recordSurfaceVisible() {
-        if (!SharedPreferencesManager.getInstance().readBoolean(
+        if (!ChromeSharedPreferences.getInstance().readBoolean(
                     ChromePreferenceKeys.CONTENT_SUGGESTIONS_SHOWN, false)) {
             RecordUserAction.record("Suggestions.FirstTimeSurfaceVisible");
-            SharedPreferencesManager.getInstance().writeBoolean(
+            ChromeSharedPreferences.getInstance().writeBoolean(
                     ChromePreferenceKeys.CONTENT_SUGGESTIONS_SHOWN, true);
         }
 
@@ -57,14 +56,5 @@ public abstract class SuggestionsMetrics {
         RecordHistogram.recordBooleanHistogram("NewTabPage.ContentSuggestions.ArticlesListVisible",
                 UserPrefs.get(Profile.getLastUsedRegularProfile())
                         .getBoolean(Pref.ARTICLES_LIST_VISIBLE));
-    }
-
-    /**
-     * Records which tiles are available offline once the site suggestions finished loading.
-     * @param tileIndex index of a tile whose URL is available offline.
-     */
-    public static void recordTileOfflineAvailability(int tileIndex) {
-        RecordHistogram.recordEnumeratedHistogram("NewTabPage.TileOfflineAvailable", tileIndex,
-                MostVisitedSitesBridge.MAX_TILE_COUNT);
     }
 }

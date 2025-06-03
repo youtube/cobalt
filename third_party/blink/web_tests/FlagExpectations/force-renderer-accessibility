@@ -1,4 +1,4 @@
-# tags: [ Android Fuchsia Linux Mac Mac10.13 Mac11 Mac12 Mac13 Mac13-arm64 Win Win10.20h2 Win11 ]
+# tags: [ Android Fuchsia Linux Mac Mac11 Mac12 Mac13 Mac13-arm64 Win Win10.20h2 Win11 Win11-arm64 ]
 # tags: [ Release Debug ]
 # results: [ Skip Crash Pass Failure Slow ]
 
@@ -15,27 +15,11 @@
 # run virtual test suites.
 virtual/* [ Skip ]
 
-# ax_object_cache_impl.cc#1151 -- IsRelevantSlotElement():
+# Crashes
+crbug.com/1401767 external/wpt/html/semantics/forms/the-selectlist-element/selectlist-marker-end-aligned.tentative.html [ Crash ]
 
 # Timeouts
 fast/loader/iframe-navigation-stealing-focus.html [ Skip ]
-
-# Slow prerender tests, needs investigation
-# Using [ Skip ] instead of [ Timeout ] to save time on test run
-crbug.com/1226461 crbug.com/1350124 crbug.com/1126305 external/wpt/speculation-rules/prerender/about-blank-iframes.html [ Skip ]
-crbug.com/1226461 crbug.com/1350124 crbug.com/1126305 external/wpt/speculation-rules/prerender/activation-start.html [ Skip ]
-crbug.com/1226461 crbug.com/1350124 crbug.com/1126305 external/wpt/speculation-rules/prerender/cross-origin-isolated.https.html [ Skip ]
-crbug.com/1226461 crbug.com/1350124 crbug.com/1126305 external/wpt/speculation-rules/prerender/restriction-prompt-by-before-unload.html [ Skip ]
-crbug.com/1226461 crbug.com/1350124 crbug.com/1126305 external/wpt/speculation-rules/prerender/windowclient-navigate-to-cross-origin-url-on-iframe.https.html [ Skip ]
-crbug.com/1226461 crbug.com/1350124 crbug.com/1126305 external/wpt/speculation-rules/prerender/windowclient-navigate-to-same-origin-url-on-iframe.https.html [ Skip ]
-crbug.com/1226461 crbug.com/1350124 crbug.com/1126305 wpt_internal/prerender/cross-origin-iframe.html [ Skip ]
-crbug.com/1226461 crbug.com/1350124 crbug.com/1126305 wpt_internal/prerender/purpose-prefetch-header.https.html [ Skip ]
-crbug.com/1226461 crbug.com/1350124 crbug.com/1126305 wpt_internal/prerender/sandbox-iframe.html [ Skip ]
-crbug.com/1226461 crbug.com/1350124 crbug.com/1126305 wpt_internal/prerender/session-history-subframe-navigation.https.html [ Skip ]
-crbug.com/1226461 crbug.com/1350124 crbug.com/1126305 wpt_internal/prerender/session-history-subframe-reload.https.html [ Skip ]
-crbug.com/1226461 crbug.com/1350124 crbug.com/1126305 wpt_internal/prerender/unload-on-prerender-cross-origin-subframe-navigation.html [ Skip ]
-crbug.com/1226461 crbug.com/1350124 crbug.com/1126305 wpt_internal/prerender/unload-on-prerender-remove-subframe.html [ Skip ]
-crbug.com/1226461 crbug.com/1350124 crbug.com/1126305 wpt_internal/prerender/unload-on-prerender-same-origin-subframe-navigation.html [ Skip ]
 
 # Intentional failures for focusless spatial navigation.
 # Focusless spatial navigation is intentionally disabled when accessibility is turned on.
@@ -80,5 +64,5 @@ wpt_internal/webcodecs/annexb_decoding.https.any.worker.html [ Skip ]
 wpt_internal/webcodecs/avc_encoder_config.https.any.html [ Skip ]
 wpt_internal/webcodecs/avc_encoder_config.https.any.worker.html [ Skip ]
 
-# Most likely a forced style/layout update from accessibiity while we are
-# render blocking, which should not happen.
+# Times out
+http/tests/inspector-protocol/runtime/serialization-options.js [ Skip ]

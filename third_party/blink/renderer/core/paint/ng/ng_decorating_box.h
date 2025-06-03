@@ -7,7 +7,7 @@
 
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/layout/geometry/physical_offset.h"
-#include "third_party/blink/renderer/core/layout/ng/inline/ng_fragment_item.h"
+#include "third_party/blink/renderer/core/layout/inline/fragment_item.h"
 
 namespace blink {
 
@@ -28,14 +28,16 @@ class CORE_EXPORT NGDecoratingBox {
                                  : &style.AppliedTextDecorations()) {
     DCHECK_EQ(&style.AppliedTextDecorations(), decorations_);
   }
-  NGDecoratingBox(const NGFragmentItem& item,
+  NGDecoratingBox(const FragmentItem& item,
                   const ComputedStyle& style,
                   const Vector<AppliedTextDecoration, 1>* decorations)
       : NGDecoratingBox(item.ContentOffsetInContainerFragment(),
                         style,
                         decorations) {}
-  explicit NGDecoratingBox(const NGFragmentItem& item)
+  explicit NGDecoratingBox(const FragmentItem& item)
       : NGDecoratingBox(item, item.Style(), /* decorations */ nullptr) {}
+
+  void Trace(Visitor* visitor) const { visitor->Trace(style_); }
 
   const PhysicalOffset& ContentOffsetInContainer() const {
     return content_offset_in_container_;
@@ -47,10 +49,12 @@ class CORE_EXPORT NGDecoratingBox {
 
  private:
   PhysicalOffset content_offset_in_container_;
-  const ComputedStyle* style_;
+  Member<const ComputedStyle> style_;
   const Vector<AppliedTextDecoration, 1>* decorations_;
 };
 
 }  // namespace blink
+
+WTF_ALLOW_CLEAR_UNUSED_SLOTS_WITH_MEM_FUNCTIONS(blink::NGDecoratingBox)
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_CORE_PAINT_NG_NG_DECORATING_BOX_H_

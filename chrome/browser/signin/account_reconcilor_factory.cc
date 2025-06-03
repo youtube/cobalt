@@ -21,6 +21,7 @@
 #include "components/signin/public/base/account_consistency_method.h"
 #include "components/signin/public/base/signin_buildflags.h"
 #include "components/signin/public/base/signin_client.h"
+#include "components/signin/public/base/signin_switches.h"
 
 #if BUILDFLAG(IS_CHROMEOS)
 #include "components/account_manager_core/chromeos/account_manager_facade_factory.h"
@@ -34,7 +35,6 @@
 #include "chromeos/ash/components/install_attributes/install_attributes.h"
 #include "components/pref_registry/pref_registry_syncable.h"
 #include "components/prefs/pref_service.h"
-#include "components/signin/core/browser/active_directory_account_reconcilor_delegate.h"
 #include "components/signin/public/base/signin_pref_names.h"
 #include "components/user_manager/user_manager.h"
 #include "google_apis/gaia/google_service_auth_error.h"
@@ -130,7 +130,7 @@ AccountReconcilorFactory::AccountReconcilorFactory()
   DependsOn(IdentityManagerFactory::GetInstance());
 }
 
-AccountReconcilorFactory::~AccountReconcilorFactory() {}
+AccountReconcilorFactory::~AccountReconcilorFactory() = default;
 
 // static
 AccountReconcilor* AccountReconcilorFactory::GetForProfile(Profile* profile) {
@@ -140,7 +140,8 @@ AccountReconcilor* AccountReconcilorFactory::GetForProfile(Profile* profile) {
 
 // static
 AccountReconcilorFactory* AccountReconcilorFactory::GetInstance() {
-  return base::Singleton<AccountReconcilorFactory>::get();
+  static base::NoDestructor<AccountReconcilorFactory> instance;
+  return instance.get();
 }
 
 KeyedService* AccountReconcilorFactory::BuildServiceInstanceFor(
@@ -189,16 +190,6 @@ AccountReconcilorFactory::CreateAccountReconcilorDelegate(Profile* profile) {
             IdentityManagerFactory::GetForProfile(profile));
       }
 
-      // Only for Active Directory accounts on Chrome OS.
-      // TODO(https://crbug.com/993317): Remove the check for
-      // |IsAccountManagerAvailable| after fixing https://crbug.com/1008349 and
-      // https://crbug.com/993317.
-      if (ash::IsAccountManagerAvailable(profile) &&
-          ash::InstallAttributes::Get()->IsActiveDirectoryManaged()) {
-        return std::make_unique<
-            signin::ActiveDirectoryAccountReconcilorDelegate>();
-      }
-
       if (profile->GetPrefs()->GetBoolean(
               prefs::kForceLogoutUnauthenticatedUserEnabled)) {
         return std::make_unique<ChromeOSLimitedAccessAccountReconcilorDelegate>(
@@ -225,6 +216,14 @@ AccountReconcilorFactory::CreateAccountReconcilorDelegate(Profile* profile) {
 
     case signin::AccountConsistencyMethod::kDice:
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
+#if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
+      if (switches::kEnableBoundSessionCredentialsDiceSupport.Get() ==
+          switches::EnableBoundSessionCredentialsDiceSupport::kEnabled) {
+        // Disable the reconcilor for bound session credentials dogfood.
+        // Bound session credentials isn't fully supported in the DICE mode yet.
+        return std::make_unique<signin::AccountReconcilorDelegate>();
+      }
+#endif  // BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
       return std::make_unique<signin::DiceAccountReconcilorDelegate>(
           IdentityManagerFactory::GetForProfile(profile),
           ChromeSigninClientFactory::GetForProfile(profile));

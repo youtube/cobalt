@@ -5,8 +5,9 @@
 #include "third_party/blink/renderer/platform/loader/fetch/url_loader/mojo_url_loader_client.h"
 
 #include <vector>
+#include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
-#include "base/task/single_thread_task_runner.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
@@ -47,7 +48,7 @@ class MockResourceRequestSender : public ResourceRequestSender {
   void OnReceivedRedirect(
       const net::RedirectInfo& redirect_info,
       network::mojom::URLResponseHeadPtr head,
-      scoped_refptr<base::SingleThreadTaskRunner> task_runner) override {
+      scoped_refptr<base::SequencedTaskRunner> task_runner) override {
     EXPECT_FALSE(context_->cancelled);
     EXPECT_FALSE(context_->complete);
     ++context_->seen_redirects;
@@ -58,22 +59,21 @@ class MockResourceRequestSender : public ResourceRequestSender {
   }
 
   void OnReceivedResponse(network::mojom::URLResponseHeadPtr head,
+                          mojo::ScopedDataPipeConsumerHandle body,
+                          absl::optional<mojo_base::BigBuffer> cached_metadata,
                           base::TimeTicks response_arrival_time) override {
     EXPECT_FALSE(context_->cancelled);
     EXPECT_FALSE(context_->received_response);
     EXPECT_FALSE(context_->complete);
     context_->received_response = true;
     context_->last_load_timing = head->load_timing;
-    if (context_->cancel_on_receive_response)
+    if (cached_metadata) {
+      context_->cached_metadata = std::move(*cached_metadata);
+    }
+    if (context_->cancel_on_receive_response) {
       context_->cancelled = true;
-  }
-
-  void OnStartLoadingResponseBody(
-      mojo::ScopedDataPipeConsumerHandle body) override {
-    if (context_->cancelled)
       return;
-    EXPECT_TRUE(context_->received_response);
-    EXPECT_FALSE(context_->complete);
+    }
     context_->body_handle = std::move(body);
   }
 
@@ -86,14 +86,6 @@ class MockResourceRequestSender : public ResourceRequestSender {
     if (context_->defer_on_transfer_size_updated) {
       context_->url_laoder_client->Freeze(LoaderFreezeMode::kStrict);
     }
-  }
-
-  void OnReceivedCachedMetadata(mojo_base::BigBuffer data) override {
-    EXPECT_TRUE(context_->received_response);
-    EXPECT_FALSE(context_->complete);
-    if (context_->cancelled)
-      return;
-    context_->cached_metadata = std::move(data);
   }
 
   void OnRequestComplete(
@@ -144,7 +136,7 @@ class MockResourceRequestSender : public ResourceRequestSender {
 
     net::LoadTimingInfo last_load_timing;
     network::URLLoaderCompletionStatus completion_status;
-    MojoURLLoaderClient* url_laoder_client;
+    raw_ptr<MojoURLLoaderClient, ExperimentalRenderer> url_laoder_client;
   };
 
  private:
@@ -173,7 +165,7 @@ class TestBackForwardCacheLoaderHelper : public BackForwardCacheLoaderHelper {
  public:
   TestBackForwardCacheLoaderHelper() = default;
   void EvictFromBackForwardCache(
-      mojom::RendererEvictionReason reason) override {}
+      mojom::blink::RendererEvictionReason reason) override {}
 
   void DidBufferLoadWhileInBackForwardCache(size_t num_bytes) override {}
 
@@ -205,8 +197,10 @@ class WebMojoURLLoaderClientTest : public ::testing::Test,
     client_ = std::make_unique<MojoURLLoaderClient>(
         resource_request_sender_.get(), loading_task_runner,
         url_loader_factory->BypassRedirectChecks(), request->url,
-        /*back*/
-        MakeGarbageCollected<TestBackForwardCacheLoaderHelper>());
+        /*evict_from_bfcache_callback=*/
+        base::OnceCallback<void(mojom::blink::RendererEvictionReason)>(),
+        /*did_buffer_load_while_in_bfcache_callback=*/
+        base::RepeatingCallback<void(size_t)>());
     context_ = resource_request_sender_->context();
     context_->url_laoder_client = client_.get();
     url_loader_ = ThrottlingURLLoader::CreateLoaderAndStart(
@@ -262,7 +256,7 @@ class WebMojoURLLoaderClientTest : public ::testing::Test,
   std::unique_ptr<ThrottlingURLLoader> url_loader_;
   std::unique_ptr<MojoURLLoaderClient> client_;
   std::unique_ptr<MockResourceRequestSender> resource_request_sender_;
-  MockResourceRequestSender::Context* context_;
+  raw_ptr<MockResourceRequestSender::Context, ExperimentalRenderer> context_;
   int request_id_ = 0;
   mojo::Remote<network::mojom::URLLoaderClient> url_loader_client_;
 };

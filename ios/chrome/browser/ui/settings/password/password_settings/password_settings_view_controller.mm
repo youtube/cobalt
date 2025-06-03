@@ -4,12 +4,14 @@
 
 #import "ios/chrome/browser/ui/settings/password/password_settings/password_settings_view_controller.h"
 
+#import "base/apple/foundation_util.h"
 #import "base/check.h"
 #import "base/check_op.h"
-#import "base/mac/foundation_util.h"
+#import "base/i18n/message_formatter.h"
 #import "base/metrics/histogram_functions.h"
 #import "base/notreached.h"
 #import "base/strings/sys_string_conversions.h"
+#import "components/password_manager/core/browser/password_manager_metrics_util.h"
 #import "components/strings/grit/components_strings.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_detail_icon_item.h"
@@ -24,15 +26,11 @@
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/reauthentication/reauthentication_module.h"
 #import "ios/chrome/common/ui/util/image_util.h"
-#import "ios/chrome/grit/ios_chromium_strings.h"
+#import "ios/chrome/grit/ios_branded_strings.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "third_party/abseil-cpp/absl/types/optional.h"
 #import "ui/base/l10n/l10n_util.h"
 #import "ui/base/l10n/l10n_util_mac.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace {
 
@@ -42,6 +40,7 @@ const CGFloat kNewFeatureIconPadding = 2.5;
 // Sections of the password settings UI.
 typedef NS_ENUM(NSInteger, SectionIdentifier) {
   SectionIdentifierSavePasswordsSwitch = kSectionIdentifierEnumZero,
+  SectionIdentifierBulkMovePasswordsToAccount,
   SectionIdentifierPasswordsInOtherApps,
   SectionIdentifierOnDeviceEncryption,
   SectionIdentifierExportPasswordsButton,
@@ -51,6 +50,8 @@ typedef NS_ENUM(NSInteger, SectionIdentifier) {
 typedef NS_ENUM(NSInteger, ItemType) {
   ItemTypeSavePasswordsSwitch = kItemTypeEnumZero,
   ItemTypeAccountStorageSwitch,
+  ItemTypeBulkMovePasswordsToAccountDescription,
+  ItemTypeBulkMovePasswordsToAccountButton,
   ItemTypeManagedSavePasswords,
   ItemTypePasswordsInOtherApps,
   ItemTypeExportPasswordsButton,
@@ -97,7 +98,14 @@ typedef NS_ENUM(NSInteger, ModelLoadStatus) {
 
 // Indicates the state of the account storage switch.
 @property(nonatomic, assign)
-    PasswordSettingsAccountStorageState accountStorageState;
+    AccountStorageSwitchState accountStorageSwitchState;
+
+// The amount of local passwords present on device.
+@property(nonatomic, assign) int localPasswordsCount;
+
+// Inidicates whether or not the bulk move passwords to account section should
+// be shown.
+@property(nonatomic, assign) BOOL showBulkMovePasswordsToAccount;
 
 // Indicates whether the account storage switch should contain an icon
 // indicating a new feature. This doesn't mean the switch itself is shown.
@@ -117,6 +125,16 @@ typedef NS_ENUM(NSInteger, ModelLoadStatus) {
 
 // The item related to the switch for the account storage opt-in.
 @property(nonatomic, readonly) TableViewSwitchItem* accountStorageItem;
+
+// The item related to the description of bulk moving passwords to the user's
+// account.
+@property(nonatomic, readonly)
+    TableViewImageItem* bulkMovePasswordsToAccountDescriptionItem;
+
+// The item related to the button allowing users to bulk move passwords to their
+// account.
+@property(nonatomic, readonly)
+    TableViewTextItem* bulkMovePasswordsToAccountButtonItem;
 
 // The item related to the enterprise managed save password setting.
 @property(nonatomic, readonly)
@@ -151,6 +169,10 @@ typedef NS_ENUM(NSInteger, ModelLoadStatus) {
 
 @synthesize savePasswordsItem = _savePasswordsItem;
 @synthesize accountStorageItem = _accountStorageItem;
+@synthesize bulkMovePasswordsToAccountDescriptionItem =
+    _bulkMovePasswordsToAccountDescriptionItem;
+@synthesize bulkMovePasswordsToAccountButtonItem =
+    _bulkMovePasswordsToAccountButtonItem;
 @synthesize managedSavePasswordsItem = _managedSavePasswordsItem;
 @synthesize passwordsInOtherAppsItem = _passwordsInOtherAppsItem;
 @synthesize onDeviceEncryptionOptInDescriptionItem =
@@ -166,6 +188,14 @@ typedef NS_ENUM(NSInteger, ModelLoadStatus) {
   return self;
 }
 
+- (CGRect)sourceRectForBulkMovePasswordsToAccount {
+  return [self.tableView
+             cellForRowAtIndexPath:
+                 [self.tableViewModel
+                     indexPathForItem:_bulkMovePasswordsToAccountButtonItem]]
+      .frame;
+}
+
 - (CGRect)sourceRectForPasswordExportAlerts {
   return [self.tableView
              cellForRowAtIndexPath:[self.tableViewModel
@@ -173,7 +203,7 @@ typedef NS_ENUM(NSInteger, ModelLoadStatus) {
       .frame;
 }
 
-- (UIView*)sourceViewForPasswordExportAlerts {
+- (UIView*)sourceViewForAlerts {
   return self.tableView;
 }
 
@@ -200,7 +230,7 @@ typedef NS_ENUM(NSInteger, ModelLoadStatus) {
   [model addSectionWithIdentifier:SectionIdentifierSavePasswordsSwitch];
   [self addSavePasswordsSwitchOrManagedInfo];
 
-  if (self.accountStorageState != PasswordSettingsAccountStorageStateNotShown) {
+  if (self.accountStorageSwitchState != AccountStorageSwitchState::kHidden) {
     [self updateAccountStorageSwitch];
   }
 
@@ -221,6 +251,10 @@ typedef NS_ENUM(NSInteger, ModelLoadStatus) {
   [model addItem:_exportPasswordsItem
       toSectionWithIdentifier:SectionIdentifierExportPasswordsButton];
 
+  if (self.showBulkMovePasswordsToAccount) {
+    [self updateBulkMovePasswordsToAccountSection];
+  }
+
   self.modelLoadStatus = ModelLoadComplete;
 }
 
@@ -234,7 +268,7 @@ typedef NS_ENUM(NSInteger, ModelLoadStatus) {
   switch ([self.tableViewModel itemTypeForIndexPath:indexPath]) {
     case ItemTypeSavePasswordsSwitch: {
       TableViewSwitchCell* switchCell =
-          base::mac::ObjCCastStrict<TableViewSwitchCell>(cell);
+          base::apple::ObjCCastStrict<TableViewSwitchCell>(cell);
       [switchCell.switchView addTarget:self
                                 action:@selector(savePasswordsSwitchChanged:)
                       forControlEvents:UIControlEventValueChanged];
@@ -242,7 +276,7 @@ typedef NS_ENUM(NSInteger, ModelLoadStatus) {
     }
     case ItemTypeAccountStorageSwitch: {
       TableViewSwitchCell* switchCell =
-          base::mac::ObjCCastStrict<TableViewSwitchCell>(cell);
+          base::apple::ObjCCastStrict<TableViewSwitchCell>(cell);
       [switchCell.switchView addTarget:self
                                 action:@selector(accountStorageSwitchChanged:)
                       forControlEvents:UIControlEventValueChanged];
@@ -277,7 +311,7 @@ typedef NS_ENUM(NSInteger, ModelLoadStatus) {
     }
     case ItemTypeManagedSavePasswords: {
       TableViewInfoButtonCell* managedCell =
-          base::mac::ObjCCastStrict<TableViewInfoButtonCell>(cell);
+          base::apple::ObjCCastStrict<TableViewInfoButtonCell>(cell);
       [managedCell.trailingButton
                  addTarget:self
                     action:@selector(didTapManagedUIInfoButton:)
@@ -296,6 +330,12 @@ typedef NS_ENUM(NSInteger, ModelLoadStatus) {
   switch (itemType) {
     case ItemTypePasswordsInOtherApps: {
       [self.presentationDelegate showPasswordsInOtherAppsScreen];
+      break;
+    }
+    case ItemTypeBulkMovePasswordsToAccountButton: {
+      if (self.showBulkMovePasswordsToAccount) {
+        [self.delegate bulkMovePasswordsToAccountButtonClicked];
+      }
       break;
     }
     case ItemTypeExportPasswordsButton: {
@@ -326,9 +366,10 @@ typedef NS_ENUM(NSInteger, ModelLoadStatus) {
     shouldHighlightRowAtIndexPath:(NSIndexPath*)indexPath {
   NSInteger itemType = [self.tableViewModel itemTypeForIndexPath:indexPath];
   switch (itemType) {
-    case ItemTypeExportPasswordsButton: {
+    case ItemTypeExportPasswordsButton:
       return self.canExportPasswords;
-    }
+    case ItemTypeSavePasswordsSwitch:
+      return NO;
   }
   return YES;
 }
@@ -370,6 +411,56 @@ typedef NS_ENUM(NSInteger, ModelLoadStatus) {
   _accountStorageItem.accessibilityIdentifier =
       kPasswordSettingsAccountStorageSwitchTableViewId;
   return _accountStorageItem;
+}
+
+// Creates and returns the move passwords to account description item.
+- (TableViewImageItem*)bulkMovePasswordsToAccountDescriptionItem {
+  if (_bulkMovePasswordsToAccountDescriptionItem) {
+    return _bulkMovePasswordsToAccountDescriptionItem;
+  }
+
+  _bulkMovePasswordsToAccountDescriptionItem = [[TableViewImageItem alloc]
+      initWithType:ItemTypeBulkMovePasswordsToAccountDescription];
+  _bulkMovePasswordsToAccountDescriptionItem.title = l10n_util::GetNSString(
+      IDS_IOS_PASSWORD_SETTINGS_BULK_UPLOAD_PASSWORDS_SECTION_TITLE);
+  // TODO(crbug.com/1488868): Without setting the table view image item to
+  // enabled, the accessibility voiceover reads out dimmed.
+  _bulkMovePasswordsToAccountDescriptionItem.enabled = YES;
+  _bulkMovePasswordsToAccountDescriptionItem.accessibilityIdentifier =
+      kPasswordSettingsBulkMovePasswordsToAccountDescriptionTableViewId;
+  _bulkMovePasswordsToAccountDescriptionItem.accessibilityTraits =
+      UIAccessibilityTraitHeader;
+
+  std::u16string pattern = l10n_util::GetStringUTF16(
+      IDS_IOS_PASSWORD_SETTINGS_BULK_UPLOAD_PASSWORDS_SECTION_DESCRIPTION);
+  std::u16string result = base::i18n::MessageFormatter::FormatWithNamedArgs(
+      pattern, "COUNT", self.localPasswordsCount, "EMAIL",
+      base::SysNSStringToUTF16(self.signedInAccount));
+
+  _bulkMovePasswordsToAccountDescriptionItem.detailText =
+      base::SysUTF16ToNSString(result);
+
+  return _bulkMovePasswordsToAccountDescriptionItem;
+}
+
+// Creates and returns the move passwords to account button.
+- (TableViewTextItem*)bulkMovePasswordsToAccountButtonItem {
+  if (_bulkMovePasswordsToAccountButtonItem) {
+    return _bulkMovePasswordsToAccountButtonItem;
+  }
+
+  _bulkMovePasswordsToAccountButtonItem = [[TableViewTextItem alloc]
+      initWithType:ItemTypeBulkMovePasswordsToAccountButton];
+  _bulkMovePasswordsToAccountButtonItem.text = l10n_util::GetPluralNSStringF(
+      IDS_IOS_PASSWORD_SETTINGS_BULK_UPLOAD_PASSWORDS_SECTION_BUTTON,
+      self.localPasswordsCount);
+  _bulkMovePasswordsToAccountButtonItem.textColor =
+      [UIColor colorNamed:kBlueColor];
+  _bulkMovePasswordsToAccountButtonItem.accessibilityTraits =
+      UIAccessibilityTraitButton;
+  _bulkMovePasswordsToAccountButtonItem.accessibilityIdentifier =
+      kPasswordSettingsBulkMovePasswordsToAccountButtonTableViewId;
+  return _bulkMovePasswordsToAccountButtonItem;
 }
 
 // Creates the row which replaces `savePasswordsItem` when this preference is
@@ -423,8 +514,6 @@ typedef NS_ENUM(NSInteger, ModelLoadStatus) {
   _onDeviceEncryptionOptInDescriptionItem.enabled = NO;
   _onDeviceEncryptionOptInDescriptionItem.accessibilityIdentifier =
       kPasswordSettingsOnDeviceEncryptionOptInId;
-  _onDeviceEncryptionOptInDescriptionItem.accessibilityTraits |=
-      UIAccessibilityTraitLink;
   return _onDeviceEncryptionOptInDescriptionItem;
 }
 
@@ -538,12 +627,12 @@ typedef NS_ENUM(NSInteger, ModelLoadStatus) {
   }
 }
 
-- (void)setAccountStorageState:(PasswordSettingsAccountStorageState)state {
-  if (_accountStorageState == state) {
+- (void)setAccountStorageSwitchState:(AccountStorageSwitchState)state {
+  if (_accountStorageSwitchState == state) {
     return;
   }
 
-  _accountStorageState = state;
+  _accountStorageSwitchState = state;
 
   if (self.modelLoadStatus != ModelNotLoaded) {
     [self updateAccountStorageSwitch];
@@ -552,6 +641,20 @@ typedef NS_ENUM(NSInteger, ModelLoadStatus) {
 
 - (void)setShowAccountStorageNewFeatureIcon:(BOOL)show {
   _showAccountStorageNewFeatureIcon = show;
+}
+
+- (void)setLocalPasswordsCount:(int)count
+           withUserEligibility:(BOOL)eligibility {
+  BOOL showSection = count > 0 && eligibility;
+
+  if (_localPasswordsCount == count &&
+      _showBulkMovePasswordsToAccount == showSection) {
+    return;
+  }
+
+  _localPasswordsCount = count;
+  _showBulkMovePasswordsToAccount = showSection;
+  [self updateBulkMovePasswordsToAccountSection];
 }
 
 - (void)setPasswordsInOtherAppsEnabled:(BOOL)enabled {
@@ -605,6 +708,8 @@ typedef NS_ENUM(NSInteger, ModelLoadStatus) {
 #pragma mark - Actions
 
 - (void)savePasswordsSwitchChanged:(UISwitch*)switchView {
+  base::UmaHistogramBoolean(
+      "PasswordManager.Settings.ToggleOfferToSavePasswords", switchView.on);
   [self.delegate savedPasswordSwitchDidChange:switchView.on];
 }
 
@@ -657,8 +762,8 @@ typedef NS_ENUM(NSInteger, ModelLoadStatus) {
   const BOOL hadItem = [self.tableViewModel
       hasItemForItemType:ItemTypeAccountStorageSwitch
        sectionIdentifier:SectionIdentifierSavePasswordsSwitch];
-  switch (self.accountStorageState) {
-    case PasswordSettingsAccountStorageStateNotShown: {
+  switch (self.accountStorageSwitchState) {
+    case AccountStorageSwitchState::kHidden: {
       if (!hadItem) {
         return;
       }
@@ -676,19 +781,19 @@ typedef NS_ENUM(NSInteger, ModelLoadStatus) {
       }
       return;
     }
-    case PasswordSettingsAccountStorageStateOptedIn:
-    case PasswordSettingsAccountStorageStateOptedOut:
-    case PasswordSettingsAccountStorageStateDisabledByPolicy: {
+    case AccountStorageSwitchState::kOn:
+    case AccountStorageSwitchState::kOff:
+    case AccountStorageSwitchState::kDisabledByPolicy: {
       if (!hadItem) {
         [self.tableViewModel addItem:self.accountStorageItem
              toSectionWithIdentifier:SectionIdentifierSavePasswordsSwitch];
       }
 
-      self.accountStorageItem.on = self.accountStorageState ==
-                                   PasswordSettingsAccountStorageStateOptedIn;
+      self.accountStorageItem.on =
+          self.accountStorageSwitchState == AccountStorageSwitchState::kOn;
       self.accountStorageItem.enabled =
-          self.accountStorageState !=
-          PasswordSettingsAccountStorageStateDisabledByPolicy;
+          self.accountStorageSwitchState !=
+          AccountStorageSwitchState::kDisabledByPolicy;
 
       if (self.modelLoadStatus != ModelLoadComplete) {
         return;
@@ -715,6 +820,78 @@ typedef NS_ENUM(NSInteger, ModelLoadStatus) {
   }
 }
 
+- (void)updateBulkMovePasswordsToAccountSection {
+  BOOL sectionExists =
+      [self.tableViewModel hasSectionForSectionIdentifier:
+                               SectionIdentifierBulkMovePasswordsToAccount];
+
+  // Remove the section if it exists and we shouldn't show it.
+  if (!_showBulkMovePasswordsToAccount && sectionExists) {
+    NSInteger section =
+        [self.tableViewModel sectionForSectionIdentifier:
+                                 SectionIdentifierBulkMovePasswordsToAccount];
+    [self.tableViewModel removeSectionWithIdentifier:
+                             SectionIdentifierBulkMovePasswordsToAccount];
+    if (self.modelLoadStatus == ModelLoadComplete) {
+      [self.tableView deleteSections:[NSIndexSet indexSetWithIndex:section]
+                    withRowAnimation:UITableViewRowAnimationAutomatic];
+    }
+    return;
+  }
+
+  if (!_showBulkMovePasswordsToAccount) {
+    return;
+  }
+
+  // Prepare the section in the model, either by clearing or adding it.
+  if (sectionExists) {
+    [self.tableViewModel deleteAllItemsFromSectionWithIdentifier:
+                             SectionIdentifierBulkMovePasswordsToAccount];
+  } else {
+    // Find the section that's supposed to be before Bulk Move Passwords to
+    // Account, and insert after that.
+    NSInteger bulkMovePasswordsToAccountSectionIndex =
+        [self.tableViewModel
+            sectionForSectionIdentifier:SectionIdentifierSavePasswordsSwitch] +
+        1;
+    [self.tableViewModel
+        insertSectionWithIdentifier:SectionIdentifierBulkMovePasswordsToAccount
+                            atIndex:bulkMovePasswordsToAccountSectionIndex];
+
+    // Record histogram only if the section doesn't already exist but is about
+    // to be shown.
+    base::UmaHistogramEnumeration(
+        "PasswordManager.AccountStorage.MoveToAccountStoreFlowOffered",
+        password_manager::metrics_util::MoveToAccountStoreTrigger::
+            kExplicitlyTriggeredForMultiplePasswordsInSettings);
+  }
+
+  // Add the description and button items to the bulk move passwords to account
+  // section.
+  [self.tableViewModel addItem:self.bulkMovePasswordsToAccountDescriptionItem
+       toSectionWithIdentifier:SectionIdentifierBulkMovePasswordsToAccount];
+  [self.tableViewModel addItem:self.bulkMovePasswordsToAccountButtonItem
+       toSectionWithIdentifier:SectionIdentifierBulkMovePasswordsToAccount];
+
+  NSIndexSet* indexSet = [NSIndexSet
+      indexSetWithIndex:[self.tableViewModel
+                            sectionForSectionIdentifier:
+                                SectionIdentifierBulkMovePasswordsToAccount]];
+
+  if (self.modelLoadStatus != ModelLoadComplete) {
+    return;
+  }
+
+  // Reload the section if it exists, otherwise insert it if it does not.
+  if (sectionExists) {
+    [self.tableView reloadSections:indexSet
+                  withRowAnimation:UITableViewRowAnimationAutomatic];
+  } else {
+    [self.tableView insertSections:indexSet
+                  withRowAnimation:UITableViewRowAnimationAutomatic];
+  }
+}
+
 // Updates the appearance of the Passwords In Other Apps item to reflect the
 // current state of `_passwordsInOtherAppsEnabled`.
 - (void)updatePasswordsInOtherAppsItem {
@@ -727,8 +904,7 @@ typedef NS_ENUM(NSInteger, ModelLoadStatus) {
     if (self.modelLoadStatus != ModelLoadComplete) {
       return;
     }
-    [self reloadCellsForItems:@[ self.passwordsInOtherAppsItem ]
-             withRowAnimation:UITableViewRowAnimationNone];
+    [self reconfigureCellsForItems:@[ self.passwordsInOtherAppsItem ]];
   }
 }
 

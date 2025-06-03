@@ -44,6 +44,7 @@ enum class SignatureAlgorithm {
   kRsaPssSha256,
   kRsaPssSha384,
   kRsaPssSha512,
+  kMaxValue = kRsaPssSha512,
 };
 
 // Parses AlgorithmIdentifier as defined by RFC 5280 section 4.1.1.2:
@@ -78,7 +79,7 @@ NET_EXPORT absl::optional<SignatureAlgorithm> ParseSignatureAlgorithm(
 
 // Returns the hash to be used with the tls-server-end-point channel binding
 // (RFC 5929) or `absl::nullopt`, if not supported for this signature algorithm.
-absl::optional<DigestAlgorithm> GetTlsServerEndpointDigestAlgorithm(
+NET_EXPORT absl::optional<DigestAlgorithm> GetTlsServerEndpointDigestAlgorithm(
     SignatureAlgorithm alg);
 
 }  // namespace net

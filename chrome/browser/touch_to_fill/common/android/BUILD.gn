@@ -12,7 +12,7 @@ android_resources("java_resources") {
     "java/res/drawable/touch_to_fill_credential_background_modern_rounded_all.xml",
     "java/res/drawable/touch_to_fill_credential_background_modern_rounded_down.xml",
     "java/res/drawable/touch_to_fill_credential_background_modern_rounded_up.xml",
-    "java/res/layout/touch_to_fill_fill_button_modern.xml",
+    "java/res/layout/touch_to_fill_fill_button.xml",
     "java/res/layout/touch_to_fill_sheet.xml",
     "java/res/values/dimens.xml",
   ]
@@ -30,12 +30,15 @@ android_library("java") {
     "//content/public/android:content_java",
     "//third_party/androidx:androidx_annotation_annotation_jvm_java",
     "//third_party/androidx:androidx_appcompat_appcompat_resources_java",
+    "//third_party/androidx:androidx_core_core_java",
     "//third_party/androidx:androidx_recyclerview_recyclerview_java",
+    "//ui/accessibility:ax_base_java",
     "//ui/android:ui_java",
   ]
 
   sources = [
     "java/src/org/chromium/chrome/browser/touch_to_fill/common/BottomSheetFocusHelper.java",
+    "java/src/org/chromium/chrome/browser/touch_to_fill/common/FillableItemCollectionInfo.java",
     "java/src/org/chromium/chrome/browser/touch_to_fill/common/ItemDividerBase.java",
     "java/src/org/chromium/chrome/browser/touch_to_fill/common/TouchToFillViewBase.java",
   ]
@@ -49,6 +52,7 @@ robolectric_library("junit") {
 
   deps = [
     ":java",
+    "//base:base_java",
     "//base:base_java_test_support",
     "//base:base_junit_test_support",
     "//chrome/browser/tab:java",

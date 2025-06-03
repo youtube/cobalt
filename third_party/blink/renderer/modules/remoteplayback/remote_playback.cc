@@ -66,21 +66,29 @@ void RunRemotePlaybackTask(
   std::move(task).Run();
 }
 
-KURL GetAvailabilityUrl(const WebURL& source, bool is_source_supported) {
-  if (source.IsEmpty() || !source.IsValid() || !is_source_supported)
+KURL GetAvailabilityUrl(const WebURL& source,
+                        bool is_source_supported,
+                        media::VideoCodec video_codec,
+                        media::AudioCodec audio_codec) {
+  if (source.IsEmpty() || !source.IsValid() || !is_source_supported) {
     return KURL();
+  }
 
   // The URL for each media element's source looks like the following:
-  // remote-playback://<encoded-data> where |encoded-data| is base64 URL
-  // encoded string representation of the source URL.
+  // remote-playback:media-element?source=<encoded-data>&video_codec=<video_codec>&audio_codec=<audio_codec>
+  // where |encoded-data| is base64 URL encoded string representation of the
+  // source URL. |video_codec| and |audio_codec| are used for device capability
+  // filter for Media Remoting based Remote Playback on Desktop. The codec
+  // fields are optional.
   std::string source_string = source.GetString().Utf8();
   String encoded_source = WTF::Base64URLEncode(
       source_string.data(),
       base::checked_cast<unsigned>(source_string.length()));
 
-  return KURL(
-      base::StrCat({kRemotePlaybackPresentationUrlScheme, "://"}).c_str() +
-      encoded_source);
+  return KURL(StringView(kRemotePlaybackPresentationUrlPath) +
+              "?source=" + encoded_source +
+              "&video_codec=" + media::GetCodecName(video_codec).c_str() +
+              "&audio_codec=" + media::GetCodecName(audio_codec).c_str());
 }
 
 bool IsBackgroundAvailabilityMonitoringDisabled() {
@@ -373,7 +381,7 @@ void RemotePlayback::StateChanged(
       IsInParallelAlgorithmRunnable(
           prompt_promise_resolver_->GetExecutionContext(),
           prompt_promise_resolver_->GetScriptState())) {
-    // Changing state to "disconnected" from "disconnected" or "connecting"
+    // Changing state to "CLOSED" from "CLOSED" or "CONNECTING"
     // means that establishing connection with remote playback device failed.
     // Changing state to anything else means the state change intended by
     // prompt() succeeded.
@@ -387,10 +395,6 @@ void RemotePlayback::StateChanged(
           DOMExceptionCode::kAbortError,
           "Failed to connect to the remote device."));
     } else {
-      DCHECK((state_ == mojom::blink::PresentationConnectionState::CLOSED &&
-              state == mojom::blink::PresentationConnectionState::CONNECTING) ||
-             (state_ == mojom::blink::PresentationConnectionState::CONNECTED &&
-              state == mojom::blink::PresentationConnectionState::CLOSED));
       prompt_promise_resolver_->Resolve();
     }
   }
@@ -443,12 +447,23 @@ void RemotePlayback::PromptCancelled() {
 
 void RemotePlayback::SourceChanged(const WebURL& source,
                                    bool is_source_supported) {
-  if (IsBackgroundAvailabilityMonitoringDisabled())
+  source_ = source;
+  is_source_supported_ = is_source_supported;
+
+  UpdateAvailabilityUrlsAndStartListening();
+}
+
+void RemotePlayback::UpdateAvailabilityUrlsAndStartListening() {
+  if (is_background_availability_monitoring_disabled_for_testing_ ||
+      IsBackgroundAvailabilityMonitoringDisabled() ||
+      !RuntimeEnabledFeatures::RemotePlaybackBackendEnabled()) {
     return;
+  }
 
   KURL current_url =
       availability_urls_.empty() ? KURL() : availability_urls_[0];
-  KURL new_url = GetAvailabilityUrl(source, is_source_supported);
+  KURL new_url = GetAvailabilityUrl(source_, is_source_supported_, video_codec_,
+                                    audio_codec_);
 
   if (new_url == current_url)
     return;
@@ -474,6 +489,14 @@ WebString RemotePlayback::GetPresentationId() {
   return presentation_id_;
 }
 
+void RemotePlayback::MediaMetadataChanged(media::VideoCodec video_codec,
+                                          media::AudioCodec audio_codec) {
+  video_codec_ = video_codec;
+  audio_codec_ = audio_codec;
+
+  UpdateAvailabilityUrlsAndStartListening();
+}
+
 void RemotePlayback::AddObserver(RemotePlaybackObserver* observer) {
   observers_.insert(observer);
 }
@@ -485,6 +508,10 @@ void RemotePlayback::RemoveObserver(RemotePlaybackObserver* observer) {
 void RemotePlayback::AvailabilityChangedForTesting(bool screen_is_available) {
   // AvailabilityChanged() is only normally called when |is_listening_| is true.
   is_listening_ = true;
+  // Disable the background availability monitoring so that the availability
+  // won't be overridden later.
+  is_background_availability_monitoring_disabled_for_testing_ = true;
+
   AvailabilityChanged(screen_is_available
                           ? mojom::blink::ScreenAvailability::AVAILABLE
                           : mojom::blink::ScreenAvailability::UNAVAILABLE);
@@ -578,6 +605,11 @@ void RemotePlayback::OnConnectionSuccess(
   if (!presentation_controller)
     return;
 
+#if !BUILDFLAG(IS_ANDROID)
+  media_element_->Play();
+  media_element_->GetWebMediaPlayer()->RequestMediaRemoting();
+#endif
+
   // Note: Messages on |connection_receiver| are ignored.
   target_presentation_connection_.Bind(
       std::move(result->connection_remote),
@@ -650,8 +682,10 @@ void RemotePlayback::StopListeningForAvailability() {
 }
 
 void RemotePlayback::MaybeStartListeningForAvailability() {
-  if (IsBackgroundAvailabilityMonitoringDisabled())
+  if (IsBackgroundAvailabilityMonitoringDisabled() ||
+      is_background_availability_monitoring_disabled_for_testing_) {
     return;
+  }
 
   if (is_listening_)
     return;
@@ -675,7 +709,7 @@ void RemotePlayback::Trace(Visitor* visitor) const {
   visitor->Trace(presentation_connection_receiver_);
   visitor->Trace(target_presentation_connection_);
   visitor->Trace(observers_);
-  EventTargetWithInlineData::Trace(visitor);
+  EventTarget::Trace(visitor);
   ExecutionContextLifecycleObserver::Trace(visitor);
   RemotePlaybackController::Trace(visitor);
 }

@@ -289,6 +289,7 @@
       <part file="blocked_content_strings.grdp" />
       <part file="browsing_data_strings.grdp" />
       <part file="commerce_strings.grdp" />
+      <part file="compose_strings.grdp" />
       <part file="live_caption_strings.grdp" />
       <part file="components_settings_strings.grdp" />
       <part file="content_creation_strings.grdp" />
@@ -321,6 +322,7 @@
       <part file="privacy_sandbox_strings.grdp" />
       <part file="protocol_handler_strings.grdp" />
       <part file="reset_password_strings.grdp" />
+      <part file="search_engine_choice_strings.grdp" />
       <part file="security_interstitials_strings.grdp" />
       <part file="send_tab_to_self_strings.grdp" />
       <part file="site_settings_strings.grdp" />
@@ -336,12 +338,13 @@
       <part file="version_ui_strings.grdp" />
       <part file="webapps_strings.grdp" />
 
-      <if expr="not is_ios">
+      <if expr="use_blink">
         <part file="history_clusters_strings.grdp" />
       </if>
       <if expr="is_android">
         <part file="android_system_error_page_strings.grdp" />
         <part file="external_intents_strings.grdp" />
+        <part file="webauthn_strings.grdp" />
       </if>
       <if expr="is_ios">
         <part file="management_ios_strings.grdp" />
@@ -381,7 +384,7 @@
       <message name="IDS_SAVE" desc="Used on a button to save information you are editing.">
         Save
       </message>
-      <message name="IDS_MENU" desc="The accessible name for the Menu. This is used as the aria-roledescription for context menus.">
+      <message name="IDS_MENU" desc="The accessible name for the Menu. This is used as the aria-roledescription for context menus." formatter_data="android_java">
         Menu
       </message>
       <message name="IDS_INSTALL" desc="Text to be displayed when an action will trigger an installation (of a component, app from the Play Store, etc.).">
@@ -445,13 +448,25 @@
         </if>
       </if>
       <if expr="not use_titlecase">
+        <message name="IDS_RECENT_TABS" desc="The section header for the Recent Tabs section of the Recent Tabs menu.">
+          Recent tabs
+        </message>
         <message name="IDS_RECENTLY_CLOSED" desc="The section header for the Recently Closed section of the Recent Tabs menu.">
           Recently closed
         </message>
+        <message name="IDS_YOUR_DEVICES" desc="The section header for the Your Devices section of the Recent Tabs menu.">
+          Your devices
+        </message>
       </if>
       <if expr="use_titlecase">
+        <message name="IDS_RECENT_TABS" desc="The section header for the Recent Tabs section of the Recent Tabs menu.">
+          Recent Tabs
+        </message>
         <message name="IDS_RECENTLY_CLOSED" desc="In Title Case: The section header for the Recently Closed section of the Recent Tabs menu.">
           Recently Closed
+        </message>
+        <message name="IDS_YOUR_DEVICES" desc="In Title Case: The section header for the Your Devices section of the Recent Tabs menu.">
+          Your Devices
         </message>
       </if>
       <message name="IDS_CHOOSE" desc="Label for a button to choose something, like a shipping address for a payment request. [CHAR_LIMIT=20]" formatter_data="android_java">
@@ -525,9 +540,6 @@
       </message>
       <message name="IDS_PASSWORD_MANAGER_CSV_PASSWORD_PARSER_SERVICE_DISPLAY_NAME" desc="The display name (in the system task manager, etc) of the service process used for parsing a csv passwords file.">
         CSV Password Parser Service
-      </message>
-      <message name="IDS_PASSWORD_MANAGER_PASSWORD_STRENGTH_CALCULATOR_SERVICE_DISPLAY_NAME" desc="The display name (in the system task manager, etc) of the service process used for calculating the strength of a password.">
-        Password Strength Calculator
       </message>
       <message name="IDS_UNZIP_SERVICE_DISPLAY_NAME" desc="The display name (in the system task manager, etc) of the service process used for unzipping files.">
         Unzip Service

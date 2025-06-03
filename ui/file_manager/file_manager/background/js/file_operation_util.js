@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {util} from '../../common/js/util.js';
+import {FileErrorToDomError, FileOperationErrorType} from '../../common/js/util.js';
 
 /**
  * Utilities for file operations.
@@ -17,7 +17,7 @@ const fileOperationUtil = {};
  */
 export class FileOperationError {
   /**
-   * @param {util.FileOperationErrorType} code Error type.
+   * @param {FileOperationErrorType} code Error type.
    * @param {string|Entry|DOMError} data Additional data.
    */
   constructor(code, data) {
@@ -41,7 +41,7 @@ fileOperationUtil.resolvePath = (root, path) => {
   }
   return new Promise(root.getFile.bind(root, path, {create: false}))
       .catch(error => {
-        if (error.name === util.FileError.TYPE_MISMATCH_ERR) {
+        if (error.name === FileErrorToDomError.TYPE_MISMATCH_ERR) {
           // Bah.  It's a directory, ask again.
           return new Promise(
               root.getDirectory.bind(root, path, {create: false}));
@@ -74,10 +74,14 @@ fileOperationUtil.deduplicatePath =
       // |relativePath| is "file (10).txt", the second check path will be
       // "file (11).txt".
       const match = /^(.*?)(?: \((\d+)\))?(\.[^.]*?)?$/.exec(relativePath);
+      // @ts-ignore: error TS18047: 'match' is possibly 'null'.
       const prefix = match[1];
+      // @ts-ignore: error TS18047: 'match' is possibly 'null'.
       const ext = match[3] || '';
 
       // Check to see if the target exists.
+      // @ts-ignore: error TS7006: Parameter 'copyNumber' implicitly has an
+      // 'any' type.
       const resolvePath = (trialPath, copyNumber) => {
         return fileOperationUtil.resolvePath(dirEntry, trialPath)
             .then(
@@ -90,7 +94,7 @@ fileOperationUtil.deduplicatePath =
                   // we're going to create it during the copy.  However, if the
                   // resolve fails with anything other than NOT_FOUND, that's
                   // trouble.
-                  if (error.name === util.FileError.NOT_FOUND_ERR) {
+                  if (error.name === FileErrorToDomError.NOT_FOUND_ERR) {
                     return trialPath;
                   } else {
                     return Promise.reject(error);
@@ -98,12 +102,14 @@ fileOperationUtil.deduplicatePath =
                 });
       };
 
+      // @ts-ignore: error TS7006: Parameter 'error' implicitly has an 'any'
+      // type.
       const promise = resolvePath(relativePath, 1).catch(error => {
         if (error instanceof Error) {
           return Promise.reject(error);
         }
         return Promise.reject(new FileOperationError(
-            util.FileOperationErrorType.FILESYSTEM_ERROR, error));
+            FileOperationErrorType.FILESYSTEM_ERROR, error));
       });
       if (opt_successCallback) {
         promise.then(opt_successCallback, opt_errorCallback);
@@ -119,30 +125,33 @@ fileOperationUtil.deduplicatePath =
  * Current speed and remaining time are calculated using a linear interpolation
  * of the kept samples.
  */
-fileOperationUtil.Speedometer = class {
+class Speedometer {
   /**
    * @param {number} maxSamples Max number of samples to keep.
    */
   constructor(maxSamples = 20) {
     /**
-     * @private @const {number} Max number of samples to keep.
+     * @private @const @type {number} Max number of samples to keep.
      */
     this.maxSamples_ = maxSamples;
 
     /**
-     * @private {!Array<!{time: number, bytes: number}>} Recent samples.
+     * @private @type {!Array<!{time: number, bytes: number}>} Recent samples.
      *     |time| is in milliseconds.
      */
+    // @ts-ignore: error TS7008: Member 'samples_' implicitly has an 'any[]'
+    // type.
     this.samples_ = [];
 
     /**
-     * @private {?{time: number, bytes: number}} First sample.
+     * @private @type {?{time: number, bytes: number}} First sample.
      *     |time| is in milliseconds.
      */
     this.first_ = null;
 
     /**
-     * @private {number} Total number of bytes to be processed by the task.
+     * @private @type {number} Total number of bytes to be processed by the
+     *     task.
      */
     this.totalBytes_ = 0;
   }
@@ -210,7 +219,7 @@ fileOperationUtil.Speedometer = class {
     } else {
       // Drop this sample if we already received one less than a second ago.
       const last = this.samples_[this.samples_.length - 1];
-      if (sample.time - last.time < 1000) {
+      if (last && sample.time - last.time < 1000) {
         return;
       }
     }
@@ -272,6 +281,6 @@ fileOperationUtil.Speedometer = class {
     const speed = covarianceTimeBytes / varianceTime;
     return {speed, averageTime, averageBytes};
   }
-};
+}
 
-export {fileOperationUtil};
+export {fileOperationUtil, Speedometer};

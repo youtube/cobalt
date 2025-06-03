@@ -8,17 +8,14 @@
 
 #import "base/strings/stringprintf.h"
 #import "base/test/metrics/histogram_tester.h"
+#import "components/password_manager/core/browser/manage_passwords_referrer.h"
 #import "ios/chrome/app/app_startup_parameters.h"
-#import "ios/chrome/browser/url/chrome_url_constants.h"
+#import "ios/chrome/browser/shared/model/url/chrome_url_constants.h"
 #import "ios/chrome/common/app_group/app_group_constants.h"
 #import "ios/components/webui/web_ui_url_constants.h"
 #import "testing/gtest_mac.h"
 #import "testing/platform_test.h"
 #import "url/gurl.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace {
 void CheckLaunchSourceForURL(first_run::ExternalLaunch expectedSource,
@@ -404,12 +401,53 @@ TEST_F(AppStartupParametersTest, ParseQuickActionsWidgetKitLens) {
       [ChromeAppStartupParameters newChromeAppStartupParametersWithURL:url
                                                  fromSourceApplication:nil];
 
-  std::string expected_url_string =
-      base::StringPrintf("%s://%s/", kChromeUIScheme, kChromeUINewTabHost);
-
-  EXPECT_EQ(params.externalURL.spec(), expected_url_string);
-  EXPECT_EQ(params.postOpeningAction, START_LENS);
+  EXPECT_TRUE(params.externalURL.is_empty());
+  EXPECT_EQ(params.postOpeningAction, START_LENS_FROM_HOME_SCREEN_WIDGET);
   histogram_tester.ExpectUniqueSample("IOS.WidgetKit.Action", 10, 1);
+}
+
+// Tests that shortcuts action search is parsed correctly, and the
+// right metric is recorded.
+TEST_F(AppStartupParametersTest, ParseShortcutWidgetSearch) {
+  base::HistogramTester histogram_tester;
+  NSURL* url =
+      [NSURL URLWithString:@"chromewidgetkit://shortcuts-widget/search"];
+  ChromeAppStartupParameters* params =
+      [ChromeAppStartupParameters newChromeAppStartupParametersWithURL:url
+                                                 fromSourceApplication:nil];
+
+  EXPECT_EQ(params.externalURL, kChromeUINewTabURL);
+  EXPECT_EQ(params.postOpeningAction, FOCUS_OMNIBOX);
+  histogram_tester.ExpectUniqueSample("IOS.WidgetKit.Action", 11, 1);
+}
+
+// Tests that shortcuts action open is parsed correctly, and the
+// right metric is recorded.
+TEST_F(AppStartupParametersTest, ParseShortcutWidgetOpen) {
+  base::HistogramTester histogram_tester;
+  NSURL* url = [NSURL URLWithString:@"chromewidgetkit://shortcuts-widget/"
+                                    @"open?url=https://www.example.org"];
+  ChromeAppStartupParameters* params =
+      [ChromeAppStartupParameters newChromeAppStartupParametersWithURL:url
+                                                 fromSourceApplication:nil];
+
+  EXPECT_EQ(params.externalURL, "https://www.example.org/");
+  EXPECT_EQ(params.postOpeningAction, NO_ACTION);
+  histogram_tester.ExpectUniqueSample("IOS.WidgetKit.Action", 12, 1);
+}
+
+// Tests that shortcuts action open with invalid URL is parsed correctly, and
+// no metric is recorded.
+TEST_F(AppStartupParametersTest, ParseShortcutWidgetOpenInvalid) {
+  base::HistogramTester histogram_tester;
+  NSURL* url = [NSURL
+      URLWithString:@"chromewidgetkit://shortcuts-widget/open?url=not_a_url"];
+  ChromeAppStartupParameters* params =
+      [ChromeAppStartupParameters newChromeAppStartupParametersWithURL:url
+                                                 fromSourceApplication:nil];
+
+  EXPECT_EQ(params, nil);
+  histogram_tester.ExpectTotalCount("IOS.WidgetKit.Action", 0);
 }
 
 // Tests that dino widget game url is parsed correctly, and the right metric is
@@ -497,6 +535,26 @@ TEST_F(AppStartupParametersTest, ParseLockscreenLauncherGame) {
 
   EXPECT_EQ(params.externalURL, expected_url);
   histogram_tester.ExpectUniqueSample("IOS.WidgetKit.Action", 9, 1);
+}
+
+// Tests that search passwords widget url is parsed correctly, and the right
+// metric is recorded.
+TEST_F(AppStartupParametersTest, ParseSearchPasswordsWidgetKit) {
+  base::HistogramTester histogram_tester;
+  NSURL* url =
+      [NSURL URLWithString:
+                 @"chromewidgetkit://search-passwords-widget/search-passwords"];
+  ChromeAppStartupParameters* params =
+      [ChromeAppStartupParameters newChromeAppStartupParametersWithURL:url
+                                                 fromSourceApplication:nil];
+
+  EXPECT_TRUE(params.externalURL.is_empty());
+  EXPECT_EQ(params.postOpeningAction, SEARCH_PASSWORDS);
+  EXPECT_NE(params.applicationMode, ApplicationModeForTabOpening::INCOGNITO);
+  histogram_tester.ExpectUniqueSample("IOS.WidgetKit.Action", 13, 1);
+  histogram_tester.ExpectBucketCount(
+      "PasswordManager.ManagePasswordsReferrer",
+      password_manager::ManagePasswordsReferrer::kSearchPasswordsWidget, 1);
 }
 
 }  // namespace

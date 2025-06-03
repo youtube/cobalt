@@ -17,15 +17,16 @@
 #include "chrome/browser/apps/app_service/app_service_proxy.h"
 #include "chrome/browser/ash/login/existing_user_controller.h"
 #include "chrome/browser/ash/login/session/user_session_manager.h"
-#include "chrome/browser/ash/login/test/embedded_policy_test_server_mixin.h"
 #include "chrome/browser/ash/login/test/session_manager_state_waiter.h"
 #include "chrome/browser/ash/login/ui/login_display_host.h"
 #include "chrome/browser/ash/login/wizard_controller.h"
 #include "chrome/browser/ash/policy/core/device_local_account_policy_service.h"
 #include "chrome/browser/ash/policy/core/device_policy_cros_browser_test.h"
+#include "chrome/browser/ash/policy/test_support/embedded_policy_test_server_mixin.h"
 #include "chrome/browser/prefs/session_startup_pref.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_manager.h"
+#include "chrome/browser/ui/web_applications/test/isolated_web_app_builder.h"
 #include "chrome/browser/ui/web_applications/test/isolated_web_app_test_utils.h"
 #include "chrome/browser/web_applications/policy/web_app_policy_manager.h"
 #include "chrome/browser/web_applications/test/web_app_test_observers.h"
@@ -194,7 +195,9 @@ class IsolatedWebAppPolicyManagerAshBrowserTest
           policy::DeviceLocalAccount::TYPE_PUBLIC_SESSION));
   policy::UserPolicyBuilder device_local_account_policy_;
   const web_app::TestSignedWebBundle iwa_bundle_ =
-      web_app::BuildDefaultTestSignedWebBundle();
+      web_app::TestSignedWebBundleBuilder::BuildDefault(
+          TestSignedWebBundleBuilder::BuildOptions().SetVersion(
+              base::Version("7.0.6")));
 
  private:
   ash::EmbeddedPolicyTestServerMixin policy_test_server_mixin_{&mixin_host_};
@@ -220,7 +223,7 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebAppPolicyManagerAshBrowserTest,
 
   // Wait for the IWA to be installed.
   WebAppTestInstallObserver observer(profile);
-  const AppId id = observer.BeginListeningAndWait();
+  const webapps::AppId id = observer.BeginListeningAndWait();
   ASSERT_EQ(id,
             IsolatedWebAppUrlInfo::CreateFromSignedWebBundleId(iwa_bundle_.id)
                 .app_id());

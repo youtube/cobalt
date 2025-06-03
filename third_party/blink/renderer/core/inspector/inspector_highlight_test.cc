@@ -8,6 +8,7 @@
 #include "base/values.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/blink/renderer/core/accessibility/ax_context.h"
 #include "third_party/blink/renderer/core/frame/local_frame_view.h"
 #include "third_party/blink/renderer/core/html/html_element.h"
 #include "third_party/blink/renderer/core/testing/dummy_page_holder.h"
@@ -55,7 +56,7 @@ TEST_F(InspectorHighlightTest, BuildSnapContainerInfoNoSnapAreas) {
     <div id="target">test</div>
   )HTML");
   GetDocument().View()->UpdateAllLifecyclePhasesForTest();
-  Element* target = GetDocument().getElementById("target");
+  Element* target = GetDocument().getElementById(AtomicString("target"));
   EXPECT_FALSE(BuildSnapContainerInfo(target));
 }
 
@@ -81,7 +82,7 @@ TEST_F(InspectorHighlightTest, BuildSnapContainerInfoSnapAreas) {
     <div id="snap"><div>A</div><div>B</div></div>
   )HTML");
   GetDocument().View()->UpdateAllLifecyclePhasesForTest();
-  Element* container = GetDocument().getElementById("snap");
+  Element* container = GetDocument().getElementById(AtomicString("snap"));
   auto info = BuildSnapContainerInfo(container);
   EXPECT_TRUE(info);
 
@@ -166,7 +167,7 @@ TEST_F(InspectorHighlightTest,
     <div id="container"></div>
   )HTML");
   GetDocument().View()->UpdateAllLifecyclePhasesForTest();
-  Element* container = GetDocument().getElementById("container");
+  Element* container = GetDocument().getElementById(AtomicString("container"));
   auto info = BuildContainerQueryContainerInfo(
       container, InspectorContainerQueryContainerHighlightConfig(), 1.0f);
   EXPECT_TRUE(info);
@@ -203,7 +204,7 @@ TEST_F(InspectorHighlightTest,
   )HTML");
   GetDocument().View()->UpdateAllLifecyclePhasesForTest();
 
-  Element* container = GetDocument().getElementById("container");
+  Element* container = GetDocument().getElementById(AtomicString("container"));
 
   LineStyle line_style;
   line_style.color = Color(1, 1, 1);
@@ -244,7 +245,7 @@ TEST_F(InspectorHighlightTest, BuildIsolatedElementInfo) {
     <div id="element"></div>
   )HTML");
   GetDocument().View()->UpdateAllLifecyclePhasesForTest();
-  Element* element = GetDocument().getElementById("element");
+  Element* element = GetDocument().getElementById(AtomicString("element"));
   auto info = BuildIsolatedElementInfo(
       *element, InspectorIsolationModeHighlightConfig(), 1.0f);
   EXPECT_TRUE(info);
@@ -273,6 +274,8 @@ TEST_F(InspectorHighlightTest, BuildIsolatedElementInfo) {
 
 static std::string GetBackgroundColorFromElementInfo(Element* element) {
   EXPECT_TRUE(element);
+  AXContext ax_context(element->GetDocument(), ui::kAXModeBasic);
+  element->GetDocument().View()->UpdateAllLifecyclePhasesForTest();
   auto info = BuildElementInfo(element);
   EXPECT_TRUE(info);
   AppendStyleInfo(element, info.get(), {}, {});
@@ -330,21 +333,21 @@ TEST_F(InspectorHighlightTest, BuildElementInfo_Colors) {
     <div id="var"></div>
   )HTML");
   GetDocument().View()->UpdateAllLifecyclePhasesForTest();
-  EXPECT_THAT(
-      GetBackgroundColorFromElementInfo(GetDocument().getElementById("lab")),
-      Eq("lab(100 0 0)"));
-  EXPECT_THAT(
-      GetBackgroundColorFromElementInfo(GetDocument().getElementById("color")),
-      Eq("color(display-p3 0.5 0.5 0.5)"));
-  EXPECT_THAT(
-      GetBackgroundColorFromElementInfo(GetDocument().getElementById("hex")),
-      Eq("#FF00FFFF"));
-  EXPECT_THAT(
-      GetBackgroundColorFromElementInfo(GetDocument().getElementById("rgb")),
-      Eq("#808080FF"));
-  EXPECT_THAT(
-      GetBackgroundColorFromElementInfo(GetDocument().getElementById("var")),
-      Eq("lab(20 -10 -10)"));
+  EXPECT_THAT(GetBackgroundColorFromElementInfo(
+                  GetDocument().getElementById(AtomicString("lab"))),
+              Eq("lab(100 0 0)"));
+  EXPECT_THAT(GetBackgroundColorFromElementInfo(
+                  GetDocument().getElementById(AtomicString("color"))),
+              Eq("color(display-p3 0.5 0.5 0.5)"));
+  EXPECT_THAT(GetBackgroundColorFromElementInfo(
+                  GetDocument().getElementById(AtomicString("hex"))),
+              Eq("#FF00FFFF"));
+  EXPECT_THAT(GetBackgroundColorFromElementInfo(
+                  GetDocument().getElementById(AtomicString("rgb"))),
+              Eq("#808080FF"));
+  EXPECT_THAT(GetBackgroundColorFromElementInfo(
+                  GetDocument().getElementById(AtomicString("var"))),
+              Eq("lab(20 -10 -10)"));
 }
 
 }  // namespace blink

@@ -38,7 +38,6 @@ public class WebappActivityCoordinator
     private final WebappDeferredStartupWithStorageHandler mDeferredStartupWithStorageHandler;
 
     // Whether the current page is within the webapp's scope.
-    private boolean mInScope = true;
 
     @Inject
     public WebappActivityCoordinator(SharedActivityCoordinator sharedActivityCoordinator,
@@ -55,9 +54,6 @@ public class WebappActivityCoordinator
         mWebappInfo = WebappInfo.create(mIntentDataProvider);
         mActivity = activity;
         mDeferredStartupWithStorageHandler = deferredStartupWithStorageHandler;
-
-        // WebappActiveTabUmaTracker sets itself as an observer of |activityTabProvider|.
-        new WebappActiveTabUmaTracker(activityTabProvider, intentDataProvider, currentPageVerifier);
 
         mDeferredStartupWithStorageHandler.addTask((storage, didCreateStorage) -> {
             if (lifecycleDispatcher.isActivityFinishingOrDestroyed()) return;

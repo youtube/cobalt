@@ -117,6 +117,15 @@ class UpdateServiceImpl : public UpdateService {
       Callback callback,
       bool update_blocked);
 
+  void OnShouldBlockForceInstallForMeteredNetwork(
+      const std::vector<std::string>& app_ids,
+      const AppClientInstallData& app_client_install_data,
+      const AppInstallDataIndex& app_install_data_index,
+      PolicySameVersionUpdate policy_same_version_update,
+      StateChangeCallback state_update,
+      Callback callback,
+      bool update_blocked);
+
   SEQUENCE_CHECKER(sequence_checker_);
 
   scoped_refptr<Configurator> config_;
@@ -130,6 +139,29 @@ class UpdateServiceImpl : public UpdateService {
   // Cancellation callbacks, keyed by appid.
   std::multimap<std::string, base::RepeatingClosure> cancellation_callbacks_;
 };
+
+namespace internal {
+UpdateService::Result ToResult(update_client::Error error);
+
+void GetComponents(
+    scoped_refptr<Configurator> config,
+    scoped_refptr<PersistedData> persisted_data,
+    const AppClientInstallData& app_client_install_data,
+    const AppInstallDataIndex& app_install_data_index,
+    UpdateService::Priority priority,
+    bool update_blocked,
+    UpdateService::PolicySameVersionUpdate policy_same_version_update,
+    const std::vector<std::string>& ids,
+    base::OnceCallback<
+        void(const std::vector<absl::optional<update_client::CrxComponent>>&)>
+        callback);
+
+#if BUILDFLAG(IS_WIN)
+std::string GetInstallerText(UpdateService::ErrorCategory error_category,
+                             int error_code,
+                             bool is_installer_error = false);
+#endif  // BUILDFLAG(IS_WIN)
+}  // namespace internal
 
 }  // namespace updater
 

@@ -65,7 +65,7 @@ class TestModuleScriptLoaderClient final
   }
 
   bool WasNotifyFinished() const { return was_notify_finished_; }
-  ModuleScript* GetModuleScript() { return module_script_; }
+  ModuleScript* GetModuleScript() { return module_script_.Get(); }
 
  private:
   bool was_notify_finished_ = false;
@@ -85,7 +85,7 @@ class ModuleScriptLoaderTestModulator final : public DummyModulator {
     return KURL(base_url, module_request);
   }
 
-  ScriptState* GetScriptState() override { return script_state_; }
+  ScriptState* GetScriptState() override { return script_state_.Get(); }
 
   ModuleScriptFetcher* CreateModuleScriptFetcher(
       ModuleScriptCustomFetchType custom_fetch_type,
@@ -218,8 +218,7 @@ void ModuleScriptLoaderTest::InitializeForWorklet() {
       base::UnguessableToken::Create() /* agent_cluster_id */);
   creation_params->parent_context_token = GetFrame().GetLocalFrameToken();
   global_scope_ = MakeGarbageCollected<FakeWorkletGlobalScope>(
-      std::move(creation_params), *reporting_proxy_, &GetFrame(),
-      false /* create_microtask_queue */);
+      std::move(creation_params), *reporting_proxy_, &GetFrame());
   global_scope_->ScriptController()->Initialize(NullURL());
   modulator_ = MakeGarbageCollected<ModuleScriptLoaderTestModulator>(
       global_scope_->ScriptController()->GetScriptState());

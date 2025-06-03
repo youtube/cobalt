@@ -31,6 +31,8 @@
 #include "chrome/browser/ash/app_mode/kiosk_app_manager.h"
 #include "chrome/browser/ash/settings/scoped_cros_settings_test_helper.h"
 #include "chromeos/ash/components/install_attributes/stub_install_attributes.h"
+#include "components/user_manager/fake_user_manager.h"
+#include "components/user_manager/scoped_user_manager.h"
 #else
 #include "ui/views/test/scoped_views_test_helper.h"
 #endif
@@ -55,10 +57,6 @@ class NavigationController;
 namespace crosapi {
 class CrosapiManager;
 }
-
-namespace user_manager {
-class ScopedUserManager;
-}  // namespace user_manager
 #endif
 
 class TestingProfileManager;
@@ -154,6 +152,7 @@ class BrowserWithTestWindowTest : public testing::Test {
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
   ash::AshTestHelper* ash_test_helper() { return &ash_test_helper_; }
+  user_manager::FakeUserManager* user_manager() { return user_manager_; }
 #endif
 
   // The context to help determine desktop type when creating new Widgets.
@@ -235,12 +234,13 @@ class BrowserWithTestWindowTest : public testing::Test {
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
   ash::ScopedCrosSettingsTestHelper cros_settings_test_helper_;
+  raw_ptr<user_manager::FakeUserManager> user_manager_ = nullptr;
   std::unique_ptr<user_manager::ScopedUserManager> scoped_user_manager_;
   std::unique_ptr<crosapi::CrosapiManager> manager_;
   std::unique_ptr<ash::KioskAppManager> kiosk_app_manager_;
 #endif
 
-  raw_ptr<TestingProfile> profile_ = nullptr;
+  raw_ptr<TestingProfile, AcrossTasksDanglingUntriaged> profile_ = nullptr;
 
   // test_url_loader_factory_ is declared before profile_manager_
   // to guarantee it outlives any profiles that might use it.

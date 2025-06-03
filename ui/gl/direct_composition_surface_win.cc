@@ -47,17 +47,21 @@ DirectCompositionSurfaceWin::DirectCompositionSurfaceWin(
     VSyncCallback vsync_callback,
     const Settings& settings)
     : GLSurfaceEGL(display),
+      d3d11_device_(GetDirectCompositionD3D11Device()),
       vsync_callback_(std::move(vsync_callback)),
       vsync_thread_(VSyncThreadWin::GetInstance()),
       task_runner_(base::SingleThreadTaskRunner::GetCurrentDefault()),
       max_pending_frames_(settings.max_pending_frames),
       root_surface_(new DirectCompositionChildSurfaceWin(
           display,
+          d3d11_device_,
           settings.use_angle_texture_offset)),
       layer_tree_(std::make_unique<DCLayerTree>(
           settings.disable_nv12_dynamic_textures,
+          settings.disable_vp_auto_hdr,
           settings.disable_vp_scaling,
           settings.disable_vp_super_resolution,
+          settings.force_dcomp_triple_buffer_video_swap_chain,
           settings.no_downscaled_overlay_promotion)) {}
 
 DirectCompositionSurfaceWin::~DirectCompositionSurfaceWin() {
@@ -70,11 +74,9 @@ bool DirectCompositionSurfaceWin::Initialize(GLSurfaceFormat format) {
     return false;
   }
 
-  d3d11_device_ = QueryD3D11DeviceObjectFromANGLE();
-
   child_window_.Initialize();
 
-  if (!layer_tree_->Initialize(window())) {
+  if (!layer_tree_->Initialize(window(), d3d11_device_)) {
     return false;
   }
 
@@ -120,10 +122,7 @@ bool DirectCompositionSurfaceWin::Resize(const gfx::Size& size,
                                          float scale_factor,
                                          const gfx::ColorSpace& color_space,
                                          bool has_alpha) {
-  // Force a resize and redraw (but not a move, activate, etc.).
-  if (!SetWindowPos(window(), nullptr, 0, 0, size.width(), size.height(),
-                    SWP_NOMOVE | SWP_NOACTIVATE | SWP_NOCOPYBITS |
-                        SWP_NOOWNERZORDER | SWP_NOZORDER)) {
+  if (!child_window_.Resize(size)) {
     return false;
   }
   return root_surface_->Resize(size, scale_factor, color_space, has_alpha);

@@ -12,7 +12,6 @@ import static org.mockito.Mockito.when;
 
 import android.content.Context;
 
-import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
@@ -26,6 +25,7 @@ import org.robolectric.shadows.ShadowToast;
 
 import org.chromium.base.ContextUtils;
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.profiles.Profile;
@@ -33,22 +33,17 @@ import org.chromium.chrome.browser.signin.services.IdentityServicesProvider;
 import org.chromium.chrome.browser.signin.services.SigninManager;
 import org.chromium.components.signin.metrics.SigninAccessPoint;
 
-/**
- * Tests {@link SyncConsentActivityLauncherImpl}.
- */
+/** Tests {@link SyncConsentActivityLauncherImpl}. */
 @RunWith(BaseRobolectricTestRunner.class)
 public class SyncConsentActivityLauncherImplTest {
     @Rule
     public final MockitoRule mMockitoRule = MockitoJUnit.rule().strictness(Strictness.STRICT_STUBS);
 
-    @Mock
-    private SigninManager mSigninManagerMock;
+    @Mock private SigninManager mSigninManagerMock;
 
-    @Mock
-    private Context mContextMock;
+    @Mock private Context mContextMock;
 
-    @Mock
-    private Profile mProfile;
+    @Mock private Profile mProfile;
 
     private final Context mContext = ContextUtils.getApplicationContext();
 
@@ -59,18 +54,12 @@ public class SyncConsentActivityLauncherImplTest {
         when(IdentityServicesProvider.get().getSigninManager(any())).thenReturn(mSigninManagerMock);
     }
 
-    @After
-    public void tearDown() {
-        SyncConsentActivityLauncherImpl.setLauncherForTest(null);
-        Profile.setLastUsedProfileForTesting(null);
-        IdentityServicesProvider.setInstanceForTests(null);
-    }
-
     @Test
     public void testLaunchActivityIfAllowedWhenSigninIsAllowed() {
         when(mSigninManagerMock.isSyncOptInAllowed()).thenReturn(true);
-        Assert.assertTrue(SyncConsentActivityLauncherImpl.get().launchActivityIfAllowed(
-                mContextMock, SigninAccessPoint.SETTINGS));
+        Assert.assertTrue(
+                SyncConsentActivityLauncherImpl.get()
+                        .launchActivityIfAllowed(mContextMock, SigninAccessPoint.SETTINGS));
         verify(mContextMock).startActivity(notNull());
     }
 
@@ -79,25 +68,31 @@ public class SyncConsentActivityLauncherImplTest {
         when(mSigninManagerMock.isSyncOptInAllowed()).thenReturn(false);
         when(mSigninManagerMock.isSigninDisabledByPolicy()).thenReturn(false);
         Object toastBeforeCall = ShadowToast.getLatestToast();
-        Assert.assertFalse(SyncConsentActivityLauncherImpl.get().launchActivityIfAllowed(
-                mContext, SigninAccessPoint.SETTINGS));
+        Assert.assertFalse(
+                SyncConsentActivityLauncherImpl.get()
+                        .launchActivityIfAllowed(mContext, SigninAccessPoint.SETTINGS));
         Object toastAfterCall = ShadowToast.getLatestToast();
         Assert.assertEquals(
                 "No new toast should be made during the call!", toastBeforeCall, toastAfterCall);
     }
 
     @Test
+    @DisabledTest(message = "Flaky - crbug/1457280")
     public void testLaunchActivityIfAllowedWhenSigninIsDisabledByPolicy() {
         HistogramWatcher watchSigninDisabledToastShownHistogram =
-                HistogramWatcher.newSingleRecordWatcher("Signin.SyncDisabledNotificationShown",
+                HistogramWatcher.newSingleRecordWatcher(
+                        "Signin.SyncDisabledNotificationShown",
                         SigninAccessPoint.NTP_FEED_CARD_MENU_PROMO);
         when(mSigninManagerMock.isSyncOptInAllowed()).thenReturn(false);
         when(mSigninManagerMock.isSigninDisabledByPolicy()).thenReturn(true);
-        Assert.assertFalse(SyncConsentActivityLauncherImpl.get().launchActivityIfAllowed(
-                mContext, SigninAccessPoint.NTP_FEED_CARD_MENU_PROMO));
-        Assert.assertTrue(ShadowToast.showedCustomToast(
-                mContext.getResources().getString(R.string.managed_by_your_organization),
-                R.id.toast_text));
+        Assert.assertFalse(
+                SyncConsentActivityLauncherImpl.get()
+                        .launchActivityIfAllowed(
+                                mContext, SigninAccessPoint.NTP_FEED_CARD_MENU_PROMO));
+        Assert.assertTrue(
+                ShadowToast.showedCustomToast(
+                        mContext.getResources().getString(R.string.managed_by_your_organization),
+                        R.id.toast_text));
         watchSigninDisabledToastShownHistogram.assertExpected();
     }
 }

@@ -1,0 +1,12 @@
+diff --git a/source/i18n/unicode/measunit.h b/source/i18n/unicode/measunit.h
+index 6a64ae2b..4e3673c7 100644
+--- a/source/i18n/unicode/measunit.h
++++ b/source/i18n/unicode/measunit.h
+@@ -19,6 +19,7 @@
+ 
+ #if !UCONFIG_NO_FORMATTING
+ 
++#include <utility>
+ #include "unicode/unistr.h"
+ #include "unicode/localpointer.h"
+ 

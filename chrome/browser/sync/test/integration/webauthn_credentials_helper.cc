@@ -11,6 +11,7 @@
 #include "chrome/browser/sync/test/integration/sync_integration_test_util.h"
 #include "chrome/browser/sync/test/integration/sync_test.h"
 #include "chrome/browser/webauthn/passkey_model_factory.h"
+#include "components/sync/base/model_type.h"
 #include "components/sync/protocol/sync_entity.pb.h"
 #include "components/sync/protocol/webauthn_credential_specifics.pb.h"
 #include "components/webauthn/core/browser/passkey_model.h"
@@ -43,11 +44,40 @@ class WebAuthnCredentialsSyncIdEqualsChecker
 
 }  // namespace
 
+PasskeySyncActiveChecker::PasskeySyncActiveChecker(
+    syncer::SyncServiceImpl* service)
+    : SingleClientStatusChangeChecker(service) {}
+PasskeySyncActiveChecker::~PasskeySyncActiveChecker() = default;
+
+bool PasskeySyncActiveChecker::IsExitConditionSatisfied(std::ostream* os) {
+  return service()->GetActiveDataTypes().Has(syncer::WEBAUTHN_CREDENTIAL);
+}
+
+LocalPasskeysChangedChecker::LocalPasskeysChangedChecker(int profile)
+    : profile_(profile) {
+  observation_.Observe(&GetModel(profile_));
+}
+
+LocalPasskeysChangedChecker::~LocalPasskeysChangedChecker() = default;
+
+bool LocalPasskeysChangedChecker::IsExitConditionSatisfied(std::ostream* os) {
+  return satisfied_;
+}
+
+void LocalPasskeysChangedChecker::OnPasskeysChanged() {
+  satisfied_ = true;
+  CheckExitCondition();
+}
+
+void LocalPasskeysChangedChecker::OnPasskeyModelShuttingDown() {
+  observation_.Reset();
+}
+
 LocalPasskeysMatchChecker::LocalPasskeysMatchChecker(int profile,
                                                      Matcher matcher)
-    : SingleClientStatusChangeChecker(test()->GetSyncService(profile)),
-      profile_(profile),
-      matcher_(matcher) {}
+    : profile_(profile), matcher_(matcher) {
+  observation_.Observe(&GetModel(profile_));
+}
 
 LocalPasskeysMatchChecker::~LocalPasskeysMatchChecker() = default;
 
@@ -60,9 +90,12 @@ bool LocalPasskeysMatchChecker::IsExitConditionSatisfied(std::ostream* os) {
   return matches;
 }
 
-void LocalPasskeysMatchChecker::OnSyncCycleCompleted(
-    syncer::SyncService* sync) {
+void LocalPasskeysMatchChecker::OnPasskeysChanged() {
   CheckExitCondition();
+}
+
+void LocalPasskeysMatchChecker::OnPasskeyModelShuttingDown() {
+  observation_.Reset();
 }
 
 ServerPasskeysMatchChecker::ServerPasskeysMatchChecker(Matcher matcher)
@@ -81,7 +114,14 @@ bool ServerPasskeysMatchChecker::IsExitConditionSatisfied(std::ostream* os) {
   return matches;
 }
 
-PasskeyModel& GetModel(int profile_idx) {
+MockPasskeyModelObserver::MockPasskeyModelObserver(
+    webauthn::PasskeyModel* model) {
+  observation_.Observe(model);
+}
+
+MockPasskeyModelObserver::~MockPasskeyModelObserver() = default;
+
+webauthn::PasskeyModel& GetModel(int profile_idx) {
   return *PasskeyModelFactory::GetForProfile(test()->GetProfile(profile_idx));
 }
 
@@ -95,6 +135,8 @@ sync_pb::WebauthnCredentialSpecifics NewPasskey() {
   specifics.set_credential_id(base::RandBytesAsString(16));
   specifics.set_rp_id(kTestRpId);
   specifics.set_user_id(kTestUserId);
+  specifics.set_creation_time(
+      base::Time::Now().ToDeltaSinceWindowsEpoch().InMicroseconds());
   return specifics;
 }
 

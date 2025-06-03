@@ -10,6 +10,7 @@
 
 #include "ash/public/cpp/ambient/ambient_backend_controller.h"
 #include "ash/public/cpp/ambient/common/ambient_settings.h"
+#include "ash/webui/personalization_app/mojom/personalization_app.mojom-shared.h"
 #include "base/check.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
@@ -22,8 +23,8 @@ namespace ash {
 
 namespace {
 
-constexpr AmbientModeTopicSource kTopicSource =
-    AmbientModeTopicSource::kGooglePhotos;
+constexpr personalization_app::mojom::TopicSource kTopicSource =
+    personalization_app::mojom::TopicSource::kGooglePhotos;
 
 constexpr AmbientModeTemperatureUnit kTemperatureUnit =
     AmbientModeTemperatureUnit::kCelsius;
@@ -139,16 +140,17 @@ void FakeAmbientBackendControllerImpl::FetchPreviewImages(
 }
 
 void FakeAmbientBackendControllerImpl::UpdateSettings(
-    const AmbientSettings& settings,
+    const AmbientSettings settings,
     UpdateSettingsCallback callback) {
   // |show_weather| should always be set to true.
   DCHECK(settings.show_weather);
   current_temperature_unit_ = settings.temperature_unit;
   if (update_auto_reply_.has_value()) {
-    std::move(callback).Run(update_auto_reply_.value());
+    std::move(callback).Run(update_auto_reply_.value(), settings);
     return;
   }
   pending_update_callback_ = std::move(callback);
+  pending_settings_ = settings;
 }
 
 void FakeAmbientBackendControllerImpl::FetchSettingsAndAlbums(
@@ -177,6 +179,10 @@ FakeAmbientBackendControllerImpl::GetTimeOfDayVideoPreviewImageUrls(
 
 const char* FakeAmbientBackendControllerImpl::GetPromoBannerUrl() const {
   return kFakeUrl;
+}
+
+const char* FakeAmbientBackendControllerImpl::GetTimeOfDayProductName() const {
+  return "Product Name";
 }
 
 void FakeAmbientBackendControllerImpl::ReplyFetchSettingsAndAlbums(
@@ -208,7 +214,7 @@ void FakeAmbientBackendControllerImpl::ReplyUpdateSettings(bool success) {
   if (!pending_update_callback_)
     return;
 
-  std::move(pending_update_callback_).Run(success);
+  std::move(pending_update_callback_).Run(success, pending_settings_);
 }
 
 bool FakeAmbientBackendControllerImpl::IsUpdateSettingsPending() const {

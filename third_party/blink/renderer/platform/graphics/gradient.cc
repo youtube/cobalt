@@ -29,16 +29,17 @@
 
 #include <algorithm>
 #include "third_party/abseil-cpp/absl/types/optional.h"
+#include "third_party/blink/renderer/platform/geometry/blend.h"
 #include "third_party/blink/renderer/platform/graphics/color.h"
 #include "third_party/blink/renderer/platform/graphics/dark_mode_settings_builder.h"
 #include "third_party/blink/renderer/platform/graphics/graphics_context.h"
 #include "third_party/blink/renderer/platform/graphics/paint/paint_shader.h"
 #include "third_party/blink/renderer/platform/graphics/skia/skia_utils.h"
+#include "third_party/blink/renderer/platform/wtf/wtf_size_t.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "third_party/skia/include/core/SkMatrix.h"
 #include "third_party/skia/include/core/SkShader.h"
 #include "third_party/skia/include/effects/SkGradientShader.h"
-#include "ui/gfx/geometry/rect_f.h"
 
 namespace blink {
 
@@ -71,8 +72,9 @@ void Gradient::AddColorStop(const Gradient::ColorStop& stop) {
 }
 
 void Gradient::AddColorStops(const Vector<Gradient::ColorStop>& stops) {
-  for (const auto& stop : stops)
+  for (const auto& stop : stops) {
     AddColorStop(stop);
+  }
 }
 
 void Gradient::SortStopsIfNecessary() const {
@@ -87,12 +89,25 @@ void Gradient::SortStopsIfNecessary() const {
   std::stable_sort(stops_.begin(), stops_.end(), CompareStops);
 }
 
-bool Gradient::HasNonLegacyColor() const {
-  for (const auto& stop : stops_) {
-    if (!stop.color.IsLegacyColor())
-      return true;
+static SkColor4f ResolveStopColorWithMissingParams(
+    Color color,
+    Color neighbor,
+    Color::ColorSpace color_space,
+    sk_sp<cc::ColorFilter> color_filter) {
+  absl::optional<float> param0 =
+      color.Param0IsNone() ? neighbor.Param0() : color.Param0();
+  absl::optional<float> param1 =
+      color.Param1IsNone() ? neighbor.Param1() : color.Param1();
+  absl::optional<float> param2 =
+      color.Param2IsNone() ? neighbor.Param2() : color.Param2();
+  absl::optional<float> alpha =
+      color.AlphaIsNone() ? neighbor.Alpha() : color.Alpha();
+  Color resolved_color =
+      Color::FromColorSpace(color_space, param0, param1, param2, alpha);
+  if (color_filter) {
+    return color_filter->FilterColor(resolved_color.toSkColor4f());
   }
-  return false;
+  return resolved_color.toSkColor4f();
 }
 
 // Collect sorted stop position and color information into the pos and colors
@@ -112,20 +127,41 @@ void Gradient::FillSkiaStops(ColorBuffer& colors, OffsetBuffer& pos) const {
     // with a stop at (0 + epsilon).
     pos.push_back(WebCoreDoubleToSkScalar(0));
     if (color_filter_) {
-      colors.push_back(color_filter_->filterColor4f(
-          stops_.front().color.toSkColor4f(), nullptr, nullptr));
+      colors.push_back(
+          color_filter_->FilterColor(stops_.front().color.toSkColor4f()));
     } else {
       colors.push_back(stops_.front().color.toSkColor4f());
     }
   }
 
-  for (const auto& stop : stops_) {
-    pos.push_back(WebCoreDoubleToSkScalar(stop.stop));
-    if (color_filter_) {
-      colors.push_back(color_filter_->filterColor4f(stop.color.toSkColor4f(),
-                                                    nullptr, nullptr));
+  // Deal with none parameters.
+  for (wtf_size_t i = 0; i < stops_.size(); i++) {
+    Color color = stops_[i].color;
+    color.ConvertToColorSpace(color_space_interpolation_space_);
+    if (color.HasNoneParams()) {
+      if (i != 0) {
+        // Fill left
+        pos.push_back(WebCoreDoubleToSkScalar(stops_[i].stop));
+        colors.push_back(ResolveStopColorWithMissingParams(
+            color, stops_[i - 1].color, color_space_interpolation_space_,
+            color_filter_));
+      }
+
+      if (i != stops_.size() - 1) {
+        // Fill right
+        pos.push_back(WebCoreDoubleToSkScalar(stops_[i].stop));
+        colors.push_back(ResolveStopColorWithMissingParams(
+            color, stops_[i + 1].color, color_space_interpolation_space_,
+            color_filter_));
+      }
     } else {
-      colors.push_back(stop.color.toSkColor4f());
+      pos.push_back(WebCoreDoubleToSkScalar(stops_[i].stop));
+      if (color_filter_) {
+        colors.push_back(
+            color_filter_->FilterColor(stops_[i].color.toSkColor4f()));
+      } else {
+        colors.push_back(stops_[i].color.toSkColor4f());
+      }
     }
   }
 
@@ -143,6 +179,7 @@ SkGradientShader::Interpolation Gradient::ResolveSkInterpolation() const {
   using sk_hue_method = SkGradientShader::Interpolation::HueMethod;
   SkGradientShader::Interpolation sk_interpolation;
 
+  bool has_non_legacy_color = false;
   switch (color_space_interpolation_space_) {
     case Color::ColorSpace::kXYZD65:
     case Color::ColorSpace::kXYZD50:
@@ -172,7 +209,12 @@ SkGradientShader::Interpolation Gradient::ResolveSkInterpolation() const {
       sk_interpolation.fColorSpace = sk_colorspace::kHWB;
       break;
     case Color::ColorSpace::kNone:
-      if (HasNonLegacyColor()) {
+      for (const auto& stop : stops_) {
+        if (!Color::IsLegacyColorSpace(stop.color.GetColorSpace())) {
+          has_non_legacy_color = true;
+        }
+      }
+      if (has_non_legacy_color) {
         // If no colorspace is provided and the gradient is not entirely
         // composed of legacy colors, Oklab is the default interpolation space.
         sk_interpolation.fColorSpace = sk_colorspace::kOKLab;

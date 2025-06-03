@@ -41,7 +41,6 @@ class PageLoadMetricsTestWaiter : public MetricsLifecycleObserver {
     kRequestAnimationFrameAfterBackForwardCacheRestore = 1 << 11,
     kFirstScrollDelay = 1 << 12,
     kSoftNavigationCountUpdated = 1 << 13,
-    kTotalInputDelay = 1 << 14,
   };
 
   // Identify which frame the layout shift happens.
@@ -120,11 +119,23 @@ class PageLoadMetricsTestWaiter : public MetricsLifecycleObserver {
   // set of expected behaviors.
   void AddLoadingBehaviorExpectation(int behavior_flags);
 
+  // Add minimum largest contentful paint image update count to be expected.
+  // Also reset observed largest contentful paint image count.
   void AddMinimumLargestContentfulPaintImageExpectation(int expected_minumum);
 
+  // Add minimum largest contentful paint text update count to be expected.
+  // Also reset observed largest contentful paint text count.
   void AddMinimumLargestContentfulPaintTextExpectation(int expected_minumum);
 
   void AddLargestContentfulPaintGreaterThanExpectation(double timestamp);
+
+  void AddSoftNavigationCountExpectation(int expected_count);
+
+  void AddSoftNavigationImageLCPExpectation(
+      int expected_soft_nav_image_lcp_update);
+
+  void AddSoftNavigationTextLCPExpectation(
+      int expected_soft_nav_text_lcp_update);
 
   // Add a main/sub frame layout shift expectation.
   void AddPageLayoutShiftExpectation(
@@ -149,11 +160,6 @@ class PageLoadMetricsTestWaiter : public MetricsLifecycleObserver {
 
   int64_t current_network_body_bytes() const {
     return current_network_body_bytes_;
-  }
-
-  // Add the number of input events count expectation.
-  void AddNumInputEventsExpectation(uint64_t expected_num_input_events) {
-    expected_num_input_events_ = expected_num_input_events;
   }
 
   // Add the number of interactions count expectation.
@@ -237,13 +243,14 @@ class PageLoadMetricsTestWaiter : public MetricsLifecycleObserver {
   void OnTimingUpdated(content::RenderFrameHost* subframe_rfh,
                        const page_load_metrics::mojom::PageLoadTiming& timing);
 
-  void OnSoftNavigationCountUpdated();
+  void OnSoftNavigationMetricsUpdated(
+      const page_load_metrics::mojom::SoftNavigationMetrics&
+          soft_navigation_metrics);
 
   // Updates observed page fields when a input timing update is received by the
   // MetricsWebContentsObserver. Stops waiting if expectations are satsfied
   // after update.
-  void OnPageInputTimingUpdated(uint64_t num_interactions,
-                                uint64_t num_input_events);
+  void OnPageInputTimingUpdated(uint64_t num_interactions);
 
   // Updates observed page fields when a timing update is received by the
   // MetricsWebContentsObserver. Stops waiting if expectations are satsfied
@@ -317,12 +324,14 @@ class PageLoadMetricsTestWaiter : public MetricsLifecycleObserver {
   bool MainFrameViewportRectExpectationsSatisfied() const;
   bool MainFrameImageAdRectsExpectationsSatisfied() const;
   bool MemoryUpdateExpectationsSatisfied() const;
-  bool TotalInputDelayExpectationsSatisfied() const;
   bool LayoutShiftExpectationsSatisfied() const;
   bool NumInteractionsExpectationsSatisfied() const;
   bool NumLargestContentfulPaintImageSatisfied() const;
   bool NumLargestContentfulPaintTextSatisfied() const;
   bool LargestContentfulPaintGreaterThanExpectationSatisfied() const;
+  bool SoftNavigationCountExpectationSatisfied() const;
+  bool SoftNavigationImageLCPExpectationSatisfied() const;
+  bool SoftNavigationTextLCPExpectationSatisfied() const;
 
   void AddObserver(page_load_metrics::PageLoadTracker* tracker);
 
@@ -373,9 +382,6 @@ class PageLoadMetricsTestWaiter : public MetricsLifecycleObserver {
   bool did_add_observer_ = false;
   bool soft_navigation_count_updated_ = false;
 
-  uint64_t current_num_input_events_ = 0;
-  uint64_t expected_num_input_events_ = 0;
-
   uint64_t current_num_interactions_ = 0;
   uint64_t expected_num_interactions_ = 0;
 
@@ -384,6 +390,17 @@ class PageLoadMetricsTestWaiter : public MetricsLifecycleObserver {
 
   uint64_t expected_num_largest_contentful_paint_text_ = 0;
   uint64_t current_num_largest_contentful_paint_text_ = 0;
+
+  uint64_t expected_soft_navigation_count_ = 0;
+  uint64_t current_soft_navigation_count_ = 0;
+
+  uint64_t expected_soft_navigation_image_lcp_update_ = 0;
+  uint64_t observed_soft_navigation_image_lcp_update_ = 0;
+  uint64_t observed_soft_navigation_image_lcp_ = 0;
+
+  uint64_t expected_soft_navigation_text_lcp_update_ = 0;
+  uint64_t observed_soft_navigation_text_lcp_update_ = 0;
+  uint64_t observed_soft_navigation_text_lcp_ = 0;
 
   double expected_min_largest_contentful_paint_ = -1.0;
   double observed_largest_contentful_paint_ = 0.0;

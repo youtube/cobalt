@@ -17,8 +17,8 @@
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/prefs/pref_store.h"
 #include "components/supervised_user/core/common/supervised_users.h"
-#include "components/sync/driver/sync_type_preference_provider.h"
 #include "components/sync/model/syncable_service.h"
+#include "components/sync/service/sync_type_preference_provider.h"
 #include "url/gurl.h"
 
 class PersistentPrefStore;
@@ -94,7 +94,7 @@ class SupervisedUserSettingsService : public KeyedService,
   // |sequenced_task_runner|. If |load_synchronously| is true, the settings will
   // be loaded synchronously, otherwise asynchronously.
   void Init(base::FilePath profile_path,
-            base::SequencedTaskRunner* sequenced_task_runner,
+            scoped_refptr<base::SequencedTaskRunner> sequenced_task_runner,
             bool load_synchronously);
 
   // Initializes the service by loading its settings from the |pref_store|.

@@ -233,7 +233,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
     DCHECK(allow_macro_instructions());
     mov(vd, vd_index, vn, vn_index);
   }
-  void Mov(const Register& rd, Smi smi);
+  void Mov(const Register& rd, Tagged<Smi> smi);
   void Mov(const VRegister& vd, const VRegister& vn, int index) {
     DCHECK(allow_macro_instructions());
     mov(vd, vn, index);
@@ -249,7 +249,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   // These are required for compatibility with architecture independent code.
   // Remove if not needed.
-  void Move(Register dst, Smi src);
+  void Move(Register dst, Tagged<Smi> src);
   void Move(Register dst, MemOperand src);
   void Move(Register dst, Register src);
 
@@ -914,14 +914,16 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void CallEphemeronKeyBarrier(Register object, Operand offset,
                                SaveFPRegsMode fp_mode);
 
+  void CallIndirectPointerBarrier(Register object, Operand offset,
+                                  SaveFPRegsMode fp_mode,
+                                  IndirectPointerTag tag);
+
   void CallRecordWriteStubSaveRegisters(
       Register object, Operand offset, SaveFPRegsMode fp_mode,
       StubCallMode mode = StubCallMode::kCallBuiltinPointer);
   void CallRecordWriteStub(
       Register object, Register slot_address, SaveFPRegsMode fp_mode,
       StubCallMode mode = StubCallMode::kCallBuiltinPointer);
-
-  inline void MoveHeapNumber(Register dst, double value);
 
   // For a given |object| and |offset|:
   //   - Move |object| to |dst_object|.
@@ -969,6 +971,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void CheckPageFlag(const Register& object, int mask, Condition cc,
                      Label* condition_met);
 
+  void CheckPageFlag(const Register& object, Register scratch, int mask,
+                     Condition cc, Label* condition_met) {
+    CheckPageFlag(object, mask, cc, condition_met);
+  }
+
   // Compare a register with an operand, and branch to label depending on the
   // condition. May corrupt the status flags.
   inline void CompareAndBranch(const Register& lhs, const Operand& rhs,
@@ -996,6 +1003,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   void LoadMap(Register dst, Register object);
   void LoadCompressedMap(Register dst, Register object);
+
+  void LoadFeedbackVector(Register dst, Register closure, Register scratch,
+                          Label* fbv_undef);
 
   inline void Fmov(VRegister fd, VRegister fn);
   inline void Fmov(VRegister fd, Register rn);
@@ -1043,12 +1053,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // Generate an indirect call (for when a direct call's range is not adequate).
   void IndirectCall(Address target, RelocInfo::Mode rmode);
 
-  // Load the builtin given by the Smi in |builtin_| into the same
-  // register.
-  void LoadEntryFromBuiltinIndex(Register builtin);
+  // Load the builtin given by the Smi in |builtin| into |target|.
+  void LoadEntryFromBuiltinIndex(Register builtin, Register target);
   void LoadEntryFromBuiltin(Builtin builtin, Register destination);
   MemOperand EntryFromBuiltinAsOperand(Builtin builtin);
-  void CallBuiltinByIndex(Register builtin);
+  void CallBuiltinByIndex(Register builtin, Register target);
   void CallBuiltin(Builtin builtin);
   void TailCallBuiltin(Builtin builtin, Condition cond = al);
 
@@ -1056,6 +1065,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void LoadCodeInstructionStart(Register destination, Register code_object);
   void CallCodeObject(Register code_object);
   void JumpCodeObject(Register code_object,
+                      JumpMode jump_mode = JumpMode::kJump);
+
+  // Convenience functions to call/jmp to the code of a JSFunction object.
+  void CallJSFunction(Register function_object);
+  void JumpJSFunction(Register function_object,
                       JumpMode jump_mode = JumpMode::kJump);
 
   // Generates an instruction sequence s.t. the return address points to the
@@ -1546,6 +1560,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // to native instructions. These helpers allow us to define the optimal code
   // sequence, and be used in both TurboFan and Liftoff.
   void PopcntHelper(Register dst, Register src);
+  void I8x16BitMask(Register dst, VRegister src);
+  void I16x8BitMask(Register dst, VRegister src);
+  void I32x4BitMask(Register dst, VRegister src);
   void I64x2BitMask(Register dst, VRegister src);
   void I64x2AllTrue(Register dst, VRegister src);
 
@@ -1555,17 +1572,43 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // Transform a SandboxedPointer from/to its encoded form, which is used when
   // the pointer is stored on the heap and ensures that the pointer will always
   // point into the sandbox.
-  void DecodeSandboxedPointer(const Register& value);
-  void LoadSandboxedPointerField(const Register& destination,
-                                 const MemOperand& field_operand);
-  void StoreSandboxedPointerField(const Register& value,
-                                  const MemOperand& dst_field_operand);
+  void DecodeSandboxedPointer(Register value);
+  void LoadSandboxedPointerField(Register destination,
+                                 MemOperand field_operand);
+  void StoreSandboxedPointerField(Register value, MemOperand dst_field_operand);
 
-  // Loads a field containing off-heap pointer and does necessary decoding
-  // if sandboxed external pointers are enabled.
+  // Loads a field containing an off-heap ("external") pointer and does
+  // necessary decoding if the sandbox is enabled.
   void LoadExternalPointerField(Register destination, MemOperand field_operand,
                                 ExternalPointerTag tag,
                                 Register isolate_root = Register::no_reg());
+
+  // Load an indirect pointer field.
+  // Only available when the sandbox is enabled.
+  void LoadIndirectPointerField(Register destination, MemOperand field_operand,
+                                IndirectPointerTag tag);
+
+  // Store an indirect pointer field.
+  // Only available when the sandbox is enabled.
+  void StoreIndirectPointerField(Register value, MemOperand dst_field_operand);
+
+  // Store a trusted pointer field.
+  // When the sandbox is enabled, these are indirect pointers using the trusted
+  // pointer table. Otherwise they are regular tagged fields.
+  void StoreTrustedPointerField(Register value, MemOperand dst_field_operand);
+
+  // Store a code pointer field.
+  // These are special versions of trusted pointers that, when the sandbox is
+  // enabled, reference code objects through the code pointer table.
+  void StoreCodePointerField(Register value, MemOperand dst_field_operand) {
+    StoreTrustedPointerField(value, dst_field_operand);
+  }
+
+  // Load the pointer to a Code's entrypoint via a code pointer.
+  // Only available when the sandbox is enabled as it requires the code pointer
+  // table.
+  void LoadCodeEntrypointViaCodePointer(Register destination,
+                                        MemOperand field_operand);
 
   // Instruction set functions ------------------------------------------------
   // Logical macros.
@@ -1870,12 +1913,16 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void PopCalleeSavedRegisters();
 
   // Tiering support.
+  void AssertFeedbackCell(Register object,
+                          Register scratch) NOOP_UNLESS_DEBUG_CODE;
   inline void AssertFeedbackVector(Register object);
   void AssertFeedbackVector(Register object,
                             Register scratch) NOOP_UNLESS_DEBUG_CODE;
   void ReplaceClosureCodeWithOptimizedCode(Register optimized_code,
                                            Register closure);
   void GenerateTailCallToReturnedCode(Runtime::FunctionId function_id);
+  Condition LoadFeedbackVectorFlagsAndCheckIfNeedsProcessing(
+      Register flags, Register feedback_vector, CodeKind current_code_kind);
   void LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
       Register flags, Register feedback_vector, CodeKind current_code_kind,
       Label* flags_need_processing);
@@ -1898,9 +1945,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   void JumpIfCodeIsMarkedForDeoptimization(Register code, Register scratch,
                                            Label* if_marked_for_deoptimization);
+  void JumpIfCodeIsTurbofanned(Register code, Register scratch,
+                               Label* if_marked_for_deoptimization);
   Operand ClearedValue() const;
 
-  Operand ReceiverOperand(const Register arg_count);
+  Operand ReceiverOperand();
 
   // ---- SMI and Number Utilities ----
 
@@ -1937,6 +1986,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // Abort execution if argument is not undefined or an AllocationSite,
   // enabled via --debug-code.
   void AssertUndefinedOrAllocationSite(Register object) NOOP_UNLESS_DEBUG_CODE;
+
+  // Abort execution if argument is not smi nor in the pointer compresssion
+  // cage, enabled via --debug-code.
+  void AssertSmiOrHeapObjectInCompressionCage(Register object)
+      NOOP_UNLESS_DEBUG_CODE;
 
   // ---- Calling / Jumping helpers ----
 
@@ -2131,15 +2185,18 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // stored.
   // The offset is the offset from the start of the object, not the offset from
   // the tagged HeapObject pointer.  For use with FieldMemOperand(reg, off).
-  void RecordWriteField(Register object, int offset, Register value,
-                        LinkRegisterStatus lr_status, SaveFPRegsMode save_fp,
-                        SmiCheck smi_check = SmiCheck::kInline);
+  void RecordWriteField(
+      Register object, int offset, Register value, LinkRegisterStatus lr_status,
+      SaveFPRegsMode save_fp, SmiCheck smi_check = SmiCheck::kInline,
+      SlotDescriptor slot = SlotDescriptor::ForDirectPointerSlot());
 
   // For a given |object| notify the garbage collector that the slot at |offset|
   // has been written. |value| is the object being stored.
-  void RecordWrite(Register object, Operand offset, Register value,
-                   LinkRegisterStatus lr_status, SaveFPRegsMode save_fp,
-                   SmiCheck smi_check = SmiCheck::kInline);
+  void RecordWrite(
+      Register object, Operand offset, Register value,
+      LinkRegisterStatus lr_status, SaveFPRegsMode save_fp,
+      SmiCheck smi_check = SmiCheck::kInline,
+      SlotDescriptor slot = SlotDescriptor::ForDirectPointerSlot());
 
   // ---------------------------------------------------------------------------
   // Debugging.
@@ -2149,8 +2206,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // Falls through and sets scratch_and_result to 0 on failure, jumps to
   // on_result on success.
   void TryLoadOptimizedOsrCode(Register scratch_and_result,
-                               Register feedback_vector, FeedbackSlot slot,
-                               Label* on_result, Label::Distance distance);
+                               CodeKind min_opt_level, Register feedback_vector,
+                               FeedbackSlot slot, Label* on_result,
+                               Label::Distance distance);
 
  protected:
   // The actual Push and Pop implementations. These don't generate any code
@@ -2204,8 +2262,40 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // for generating appropriate code.
   // Otherwise it returns false.
   // This function also checks wether veneers need to be emitted.
-  bool NeedExtraInstructionsOrRegisterBranch(Label* label,
-                                             ImmBranchType branch_type);
+  template <ImmBranchType branch_type>
+  bool NeedExtraInstructionsOrRegisterBranch(Label* label) {
+    static_assert((branch_type == CondBranchType) ||
+                  (branch_type == CompareBranchType) ||
+                  (branch_type == TestBranchType));
+
+    bool need_longer_range = false;
+    // There are two situations in which we care about the offset being out of
+    // range:
+    //  - The label is bound but too far away.
+    //  - The label is not bound but linked, and the previous branch
+    //    instruction in the chain is too far away.
+    if (label->is_bound() || label->is_linked()) {
+      need_longer_range = !Instruction::IsValidImmPCOffset(
+          branch_type, label->pos() - pc_offset());
+    }
+    if (!need_longer_range && !label->is_bound()) {
+      int max_reachable_pc =
+          pc_offset() + Instruction::ImmBranchRange(branch_type);
+
+      // Use the LSB of the max_reachable_pc (always four-byte aligned) to
+      // encode the branch type. We need only distinguish between TB[N]Z and
+      // CB[N]Z/conditional branch, as the ranges for the latter are the same.
+      int branch_type_tag = (branch_type == TestBranchType) ? 1 : 0;
+
+      unresolved_branches_.insert(
+          std::pair<int, Label*>(max_reachable_pc + branch_type_tag, label));
+      // Also maintain the next pool check.
+      next_veneer_pool_check_ =
+          std::min(next_veneer_pool_check_,
+                   max_reachable_pc - kVeneerDistanceCheckMargin);
+    }
+    return need_longer_range;
+  }
 
   void Movi16bitHelper(const VRegister& vd, uint64_t imm);
   void Movi32bitHelper(const VRegister& vd, uint64_t imm);
@@ -2213,12 +2303,14 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   void LoadStoreMacro(const CPURegister& rt, const MemOperand& addr,
                       LoadStoreOp op);
+  void LoadStoreMacroComplex(const CPURegister& rt, const MemOperand& addr,
+                             LoadStoreOp op);
 
   void LoadStorePairMacro(const CPURegister& rt, const CPURegister& rt2,
                           const MemOperand& addr, LoadStorePairOp op);
 
   int64_t CalculateTargetOffset(Address target, RelocInfo::Mode rmode,
-                                byte* pc);
+                                uint8_t* pc);
 
   void JumpHelper(int64_t offset, RelocInfo::Mode rmode, Condition cond = al);
 
@@ -2290,7 +2382,10 @@ class V8_NODISCARD UseScratchRegisterScope {
     DCHECK_EQ(availablefp_->type(), CPURegister::kVRegister);
   }
 
-  V8_EXPORT_PRIVATE ~UseScratchRegisterScope();
+  V8_EXPORT_PRIVATE ~UseScratchRegisterScope() {
+    available_->set_bits(old_available_);
+    availablefp_->set_bits(old_availablefp_);
+  }
 
   // Take a register from the appropriate temps list. It will be returned
   // automatically when the scope ends.
@@ -2306,8 +2401,15 @@ class V8_NODISCARD UseScratchRegisterScope {
   bool CanAcquire() const { return !available_->IsEmpty(); }
   bool CanAcquireFP() const { return !availablefp_->IsEmpty(); }
 
-  Register AcquireSameSizeAs(const Register& reg);
-  V8_EXPORT_PRIVATE VRegister AcquireSameSizeAs(const VRegister& reg);
+  Register AcquireSameSizeAs(const Register& reg) {
+    int code = AcquireNextAvailable(available_).code();
+    return Register::Create(code, reg.SizeInBits());
+  }
+
+  V8_EXPORT_PRIVATE VRegister AcquireSameSizeAs(const VRegister& reg) {
+    int code = AcquireNextAvailable(availablefp_).code();
+    return VRegister::Create(code, reg.SizeInBits());
+  }
 
   void Include(const CPURegList& list) { available_->Combine(list); }
   void IncludeFP(const CPURegList& list) { availablefp_->Combine(list); }
@@ -2349,7 +2451,12 @@ class V8_NODISCARD UseScratchRegisterScope {
 
  private:
   V8_EXPORT_PRIVATE static CPURegister AcquireNextAvailable(
-      CPURegList* available);
+      CPURegList* available) {
+    CHECK(!available->IsEmpty());
+    CPURegister result = available->PopLowestIndex();
+    DCHECK(!AreAliased(result, xzr, sp));
+    return result;
+  }
 
   // Available scratch registers.
   CPURegList* available_;    // kRegister
@@ -2371,6 +2478,23 @@ struct MoveCycleState {
   // Scratch register picked by {MoveToTempLocation}.
   base::Optional<CPURegister> scratch_reg;
 };
+
+// Provides access to exit frame parameters (GC-ed).
+inline MemOperand ExitFrameStackSlotOperand(int offset);
+
+// Provides access to exit frame parameters (GC-ed).
+inline MemOperand ExitFrameCallerStackSlotOperand(int index);
+
+// Calls an API function. Allocates HandleScope, extracts returned value
+// from handle and propagates exceptions.  Restores context.  On return removes
+// *stack_space_operand * kSystemPointerSize or stack_space * kSystemPointerSize
+// (GCed, includes the call JS arguments space and the additional space
+// allocated for the fast call).
+void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
+                              Register function_address,
+                              ExternalReference thunk_ref, Register thunk_arg,
+                              int stack_space, MemOperand* stack_space_operand,
+                              MemOperand return_value_operand, Label* done);
 
 }  // namespace internal
 }  // namespace v8

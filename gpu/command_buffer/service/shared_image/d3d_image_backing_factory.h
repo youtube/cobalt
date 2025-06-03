@@ -12,10 +12,10 @@
 
 #include <memory>
 
-#include "components/viz/common/resources/resource_format.h"
 #include "gpu/command_buffer/service/shared_image/shared_image_backing_factory.h"
 #include "gpu/gpu_gles2_export.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
+#include "third_party/skia/include/core/SkColor.h"
 
 namespace gfx {
 class Size;
@@ -46,10 +46,9 @@ class GPU_GLES2_EXPORT D3DImageBackingFactory
   // Returns true if DXGI swap chain shared images for overlays are supported.
   static bool IsSwapChainSupported();
 
-  // Clears the current back buffer to opaque black on the immediate context.
-  static bool ClearBackBufferToOpaque(
-      Microsoft::WRL::ComPtr<IDXGISwapChain1>& swap_chain,
-      Microsoft::WRL::ComPtr<ID3D11Device>& d3d11_device);
+  // Clears the current back buffer to |color| on the immediate context.
+  static bool ClearBackBufferToColor(IDXGISwapChain1* swap_chain,
+                                     const SkColor4f& color);
 
   struct GPU_GLES2_EXPORT SwapChainBackings {
     SwapChainBackings(std::unique_ptr<SharedImageBacking> front_buffer,
@@ -151,11 +150,17 @@ class GPU_GLES2_EXPORT D3DImageBackingFactory
   bool UseMapOnDefaultTextures();
   bool SupportsBGRA8UnormStorage();
 
+  // D3D11 device used for creating textures. This is also Skia's D3D11 device.
+  // Can be different from |angle_d3d11_device_| when using Graphite.
   Microsoft::WRL::ComPtr<ID3D11Device> d3d11_device_;
   absl::optional<bool> map_on_default_textures_;
   absl::optional<bool> supports_bgra8unorm_storage_;
 
   scoped_refptr<DXGISharedHandleManager> dxgi_shared_handle_manager_;
+
+  // D3D11 device used by ANGLE. Can be different from |d3d11_device_| when
+  // using Graphite.
+  Microsoft::WRL::ComPtr<ID3D11Device> angle_d3d11_device_;
 };
 
 }  // namespace gpu

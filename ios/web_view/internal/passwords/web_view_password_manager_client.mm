@@ -11,7 +11,7 @@
 #include "components/autofill/core/browser/logging/log_manager.h"
 #include "components/keyed_service/core/service_access_type.h"
 #include "components/password_manager/core/browser/password_form.h"
-#include "components/password_manager/core/browser/password_manager_util.h"
+#import "components/password_manager/core/browser/password_sync_util.h"
 #include "components/password_manager/core/common/password_manager_pref_names.h"
 #include "components/password_manager/ios/password_manager_ios_util.h"
 #import "ios/web_view/internal/app/application_context.h"
@@ -20,15 +20,11 @@
 #import "ios/web_view/internal/passwords/web_view_password_manager_log_router_factory.h"
 #import "ios/web_view/internal/passwords/web_view_password_requirements_service_factory.h"
 #import "ios/web_view/internal/passwords/web_view_password_reuse_manager_factory.h"
-#include "ios/web_view/internal/passwords/web_view_password_store_factory.h"
+#import "ios/web_view/internal/passwords/web_view_profile_password_store_factory.h"
 #include "ios/web_view/internal/signin/web_view_identity_manager_factory.h"
 #import "ios/web_view/internal/sync/web_view_sync_service_factory.h"
 #include "net/cert/cert_status_flags.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 using password_manager::PasswordFormManagerForUI;
 using password_manager::PasswordManagerMetricsRecorder;
@@ -54,7 +50,7 @@ WebViewPasswordManagerClient::Create(web::WebState* web_state,
   auto log_manager =
       autofill::LogManager::Create(logRouter, base::RepeatingClosure());
   scoped_refptr<password_manager::PasswordStoreInterface> profile_store =
-      ios_web_view::WebViewPasswordStoreFactory::GetForBrowserState(
+      ios_web_view::WebViewProfilePasswordStoreFactory::GetForBrowserState(
           browser_state, ServiceAccessType::EXPLICIT_ACCESS);
   scoped_refptr<password_manager::PasswordStoreInterface> account_store =
       ios_web_view::WebViewAccountPasswordStoreFactory::GetForBrowserState(
@@ -108,7 +104,7 @@ WebViewPasswordManagerClient::WebViewPasswordManagerClient(
 WebViewPasswordManagerClient::~WebViewPasswordManagerClient() = default;
 
 SyncState WebViewPasswordManagerClient::GetPasswordSyncState() const {
-  return password_manager_util::GetPasswordSyncState(sync_service_);
+  return password_manager::sync_util::GetPasswordSyncState(sync_service_);
 }
 
 bool WebViewPasswordManagerClient::PromptUserToChooseCredentials(
@@ -162,7 +158,8 @@ void WebViewPasswordManagerClient::FocusedInputChanged(
 }
 
 void WebViewPasswordManagerClient::AutomaticPasswordSave(
-    std::unique_ptr<PasswordFormManagerForUI> saved_form_manager) {
+    std::unique_ptr<PasswordFormManagerForUI> saved_form_manager,
+    bool is_update_confirmation) {
   NOTIMPLEMENTED();
 }
 
@@ -171,7 +168,7 @@ void WebViewPasswordManagerClient::PromptUserToEnableAutosignin() {
   NOTIMPLEMENTED();
 }
 
-bool WebViewPasswordManagerClient::IsIncognito() const {
+bool WebViewPasswordManagerClient::IsOffTheRecord() const {
   return web_state_->GetBrowserState()->IsOffTheRecord();
 }
 
@@ -253,7 +250,7 @@ void WebViewPasswordManagerClient::NotifyUserCredentialsWereLeaked(
 
 bool WebViewPasswordManagerClient::IsSavingAndFillingEnabled(
     const GURL& url) const {
-  return *saving_passwords_enabled_ && !IsIncognito() &&
+  return *saving_passwords_enabled_ && !IsOffTheRecord() &&
          !net::IsCertStatusError(GetMainFrameCertStatus()) &&
          IsFillingEnabled(url);
 }
@@ -310,11 +307,6 @@ bool WebViewPasswordManagerClient::IsIsolationForPasswordSitesEnabled() const {
 
 bool WebViewPasswordManagerClient::IsNewTabPage() const {
   return false;
-}
-
-password_manager::FieldInfoManager*
-WebViewPasswordManagerClient::GetFieldInfoManager() const {
-  return nullptr;
 }
 
 safe_browsing::PasswordProtectionService*

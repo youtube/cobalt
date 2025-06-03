@@ -37,7 +37,7 @@ class EditingViewPortElement final : public HTMLDivElement {
   explicit EditingViewPortElement(Document&);
 
  protected:
-  scoped_refptr<const ComputedStyle> CustomStyleForLayoutObject(
+  const ComputedStyle* CustomStyleForLayoutObject(
       const StyleRecalcContext&) override;
 
  private:
@@ -55,7 +55,7 @@ class TextControlInnerEditorElement final : public HTMLDivElement {
 
  private:
   LayoutObject* CreateLayoutObject(const ComputedStyle&) override;
-  scoped_refptr<const ComputedStyle> CustomStyleForLayoutObject(
+  const ComputedStyle* CustomStyleForLayoutObject(
       const StyleRecalcContext&) override;
   bool SupportsFocus() const override { return false; }
   bool is_visible_ = true;
@@ -78,6 +78,14 @@ class PasswordRevealButtonElement final : public HTMLDivElement {
 
   void DefaultEventHandler(Event&) override;
   bool WillRespondToMouseClickEvents() override;
+
+ private:
+  bool SupportsFocus() const override { return false; }
+};
+
+class PasswordStrongLabelElement final : public HTMLDivElement {
+ public:
+  explicit PasswordStrongLabelElement(Document&);
 
  private:
   bool SupportsFocus() const override { return false; }

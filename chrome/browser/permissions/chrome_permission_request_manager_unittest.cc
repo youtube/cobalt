@@ -149,7 +149,7 @@ class ChromePermissionRequestManagerTest
   permissions::MockPermissionRequest request2_;
   permissions::MockPermissionRequest request_mic_;
   permissions::MockPermissionRequest request_camera_;
-  raw_ptr<permissions::PermissionRequestManager> manager_;
+  raw_ptr<permissions::PermissionRequestManager, DanglingUntriaged> manager_;
   std::unique_ptr<permissions::MockPermissionPromptFactory> prompt_factory_;
 };
 
@@ -325,7 +325,7 @@ TEST_F(ChromePermissionRequestManagerTest,
           "true"},
          {QuietNotificationPermissionUiConfig::kEnableAdaptiveActivationDryRun,
           "true"}}}},
-      {features::kPermissionPredictions});
+      {});
 
   ASSERT_TRUE(
       QuietNotificationPermissionUiConfig::IsAdaptiveActivationDryRunEnabled());
@@ -410,7 +410,7 @@ TEST_F(ChromePermissionRequestManagerTest,
          {QuietNotificationPermissionUiConfig::
               kAdaptiveActivationActionWindowSizeInDays,
           "7"}}}},
-      {features::kPermissionPredictions});
+      {});
 
   ASSERT_EQ(
       base::Days(7),
@@ -456,8 +456,7 @@ TEST_F(ChromePermissionRequestManagerTest,
       {{features::kQuietNotificationPrompts,
         {{QuietNotificationPermissionUiConfig::kEnableAdaptiveActivation,
           "true"}}}},
-      {permissions::features::kBlockRepeatedNotificationPermissionPrompts,
-       features::kPermissionPredictions});
+      {permissions::features::kBlockRepeatedNotificationPermissionPrompts});
 
   EXPECT_FALSE(profile()->GetPrefs()->GetBoolean(
       prefs::kEnableQuietNotificationPermissionUi));
@@ -652,7 +651,7 @@ class ChromePermissionRequestManagerAdaptiveQuietUiActivationTest
         {{features::kQuietNotificationPrompts,
           {{QuietNotificationPermissionUiConfig::kEnableAdaptiveActivation,
             "true"}}}},
-        {features::kPermissionPredictions});
+        {});
   }
 
  protected:

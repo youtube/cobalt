@@ -21,6 +21,7 @@ import org.chromium.base.ActivityState;
 import org.chromium.base.ApiCompatibilityUtils;
 import org.chromium.base.ApplicationStatus;
 import org.chromium.base.CommandLine;
+import org.chromium.base.ResettersForTesting;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
@@ -35,6 +36,7 @@ import org.chromium.chrome.browser.lifecycle.PauseResumeWithNativeObserver;
 import org.chromium.chrome.browser.lifecycle.RecreateObserver;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
+import org.chromium.chrome.browser.tabmodel.TabModelSelectorTabModelObserver;
 import org.chromium.chrome.browser.util.AndroidTaskUtils;
 import org.chromium.components.browser_ui.widget.MenuOrKeyboardActionController;
 import org.chromium.ui.display.DisplayAndroidManager;
@@ -78,6 +80,8 @@ public class MultiInstanceManager
     protected final MultiWindowModeStateDispatcher mMultiWindowModeStateDispatcher;
     private final ActivityLifecycleDispatcher mActivityLifecycleDispatcher;
     private final MenuOrKeyboardActionController mMenuOrKeyboardActionController;
+
+    protected TabModelSelectorTabModelObserver mTabModelObserver;
 
     private int mActivityTaskId;
     private boolean mNativeInitialized;
@@ -470,6 +474,14 @@ public class MultiInstanceManager
         return false;
     }
 
+    public void moveTabToNewWindow(Tab tab) {
+        // Not implemented
+    }
+
+    public void moveTabToWindow(Activity activity, Tab tab, int atIndex) {
+        // Not implemented
+    }
+
     protected void moveTabToOtherWindow(Tab tab) {
         Intent intent = mMultiWindowModeStateDispatcher.getOpenInOtherWindowIntent();
         if (intent == null) return;
@@ -523,18 +535,23 @@ public class MultiInstanceManager
     public void initialize(int instanceId, int taskId) {}
 
     /**
+     * Perform initialization tasks for the manager after the tab state is initialized.
+     */
+    public void onTabStateInitialized() {}
+
+    /**
      * @return True if tab model merging for Android N+ is enabled.
      */
     public boolean isTabModelMergingEnabled() {
         return !CommandLine.getInstance().hasSwitch(ChromeSwitches.DISABLE_TAB_MERGING_FOR_TESTING);
     }
 
-    @VisibleForTesting
     public void setCurrentDisplayIdForTesting(int displayId) {
+        var oldValue = mDisplayId;
         mDisplayId = displayId;
+        ResettersForTesting.register(() -> mDisplayId = oldValue);
     }
 
-    @VisibleForTesting
     public DisplayManager.DisplayListener getDisplayListenerForTesting() {
         return mDisplayListener;
     }
@@ -542,5 +559,20 @@ public class MultiInstanceManager
     @VisibleForTesting
     public static void setTestDisplayIds(List<Integer> testDisplayIds) {
         sTestDisplayIds = testDisplayIds;
+    }
+
+    public TabModelSelectorTabModelObserver getTabModelObserverForTesting() {
+        return mTabModelObserver;
+    }
+
+    public void setTabModelObserverForTesting(TabModelSelectorTabModelObserver tabModelObserver) {
+        mTabModelObserver = tabModelObserver;
+    }
+
+    /**
+     * @return InstanceId for current instance.
+     */
+    public int getCurrentInstanceId() {
+        return MultiWindowUtils.INVALID_INSTANCE_ID;
     }
 }

@@ -23,21 +23,28 @@ AutofillPrivateEventRouterFactory::GetForProfile(
 // static
 AutofillPrivateEventRouterFactory*
 AutofillPrivateEventRouterFactory::GetInstance() {
-  return base::Singleton<AutofillPrivateEventRouterFactory>::get();
+  static base::NoDestructor<AutofillPrivateEventRouterFactory> instance;
+  return instance.get();
 }
 
 AutofillPrivateEventRouterFactory::AutofillPrivateEventRouterFactory()
     : ProfileKeyedServiceFactory(
           "AutofillPrivateEventRouter",
-          ProfileSelections::BuildRedirectedInIncognito()) {
+          ProfileSelections::Builder()
+              .WithRegular(ProfileSelection::kRedirectedToOriginal)
+              // TODO(crbug.com/1418376): Check if this service is needed in
+              // Guest mode.
+              .WithGuest(ProfileSelection::kRedirectedToOriginal)
+              .Build()) {
   DependsOn(ExtensionsBrowserClient::Get()->GetExtensionSystemFactory());
   DependsOn(autofill::PersonalDataManagerFactory::GetInstance());
 }
 
-KeyedService* AutofillPrivateEventRouterFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+AutofillPrivateEventRouterFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
   // TODO(1426498): pass router's dependencies directly instead of context.
-  return AutofillPrivateEventRouter::Create(context);
+  return std::make_unique<AutofillPrivateEventRouter>(context);
 }
 
 bool AutofillPrivateEventRouterFactory::

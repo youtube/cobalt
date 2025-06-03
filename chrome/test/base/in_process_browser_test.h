@@ -23,6 +23,9 @@
 #include "ui/base/page_transition_types.h"
 
 #if BUILDFLAG(IS_MAC)
+#include "base/apple/scoped_nsautorelease_pool.h"
+#include "base/memory/stack_allocated.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/base/test/scoped_fake_full_keyboard_access.h"
 #endif
 
@@ -34,12 +37,6 @@ namespace base {
 
 class CommandLine;
 
-#if BUILDFLAG(IS_MAC)
-namespace mac {
-class ScopedNSAutoreleasePool;
-}  // namespace mac
-#endif  // BUILDFLAG(IS_MAC)
-
 #if BUILDFLAG(IS_WIN)
 namespace win {
 class ScopedCOMInitializer;
@@ -48,6 +45,7 @@ class ScopedCOMInitializer;
 
 #if BUILDFLAG(IS_CHROMEOS_LACROS)
 class Process;
+class Version;
 #endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
 }  // namespace base
 
@@ -66,6 +64,7 @@ class Browser;
 class FakeAccountManagerUI;
 #endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
 class MainThreadStackSamplingProfiler;
+class PrefService;
 class Profile;
 #if BUILDFLAG(IS_MAC)
 class ScopedBundleSwizzlerMac;
@@ -149,6 +148,9 @@ class InProcessBrowserTest : public content::BrowserTestBase {
   InProcessBrowserTest& operator=(const InProcessBrowserTest&) = delete;
   ~InProcessBrowserTest() override;
 
+  // Returns the currently running InProcessBrowserTest.
+  static InProcessBrowserTest* GetCurrent();
+
   // Configures everything for an in process browser test, then invokes
   // BrowserMain(). BrowserMain() ends up invoking RunTestOnMainThreadLoop().
   void SetUp() override;
@@ -176,6 +178,9 @@ class InProcessBrowserTest : public content::BrowserTestBase {
   // If no browser is created in BrowserMain(), this will return nullptr unless
   // another browser instance is created at a later time and
   // SelectFirstBrowser() is called.
+  // In Lacros only mode, ash web browser is disabled, therefore, browser()
+  // is not created and should not be accessed from the tests in
+  // browser_tests_require_lacros test suite.
   Browser* browser() const { return browser_; }
 
   // Set |browser_| to the first browser on the browser list.
@@ -190,6 +195,9 @@ class InProcessBrowserTest : public content::BrowserTestBase {
   // https://crbug.com/1365899
   // The final value of the result is the format of key1=value1;key2=value2.
   void RecordPropertyFromMap(const std::map<std::string, std::string>& tags);
+
+  // Tests can override this to customize the initial local_state.
+  virtual void SetUpLocalStatePrefService(PrefService* local_state);
 
   // Start ash-chrome with specific flags.
   // In general, there is a shared ash chrome started and a lacros chrome
@@ -276,7 +284,7 @@ class InProcessBrowserTest : public content::BrowserTestBase {
   // after creating the user data directory, but before any browser is launched.
   // If a test wishes to set up some initial non-empty state in the user data
   // directory before the browser starts up, it can do so here. Returns true if
-  // successful.
+  // successful. To set initial prefs, see SetUpLocalStatePrefService.
   [[nodiscard]] virtual bool SetUpUserDataDirectory();
 
   // Initializes the display::Screen instance.
@@ -337,8 +345,8 @@ class InProcessBrowserTest : public content::BrowserTestBase {
 
 #if BUILDFLAG(IS_MAC)
   // Returns the autorelease pool in use inside RunTestOnMainThreadLoop().
-  base::mac::ScopedNSAutoreleasePool* AutoreleasePool() const {
-    return autorelease_pool_;
+  base::apple::ScopedNSAutoreleasePool* AutoreleasePool() {
+    return &autorelease_pool_.value();
   }
 #endif  // BUILDFLAG(IS_MAC)
 
@@ -367,6 +375,27 @@ class InProcessBrowserTest : public content::BrowserTestBase {
 
 #if BUILDFLAG(IS_CHROMEOS_LACROS)
   FakeAccountManagerUI* GetFakeAccountManagerUI() const;
+
+  // Return the Ash chrome version hooked with Lacros. This API does not
+  // depend on crosapi. So it is safe to call when crosapi is disabled and
+  // as early as in test SetUp().
+  static base::Version GetAshChromeVersion();
+
+  // The following are the helper functions to manage Ash browser based windows
+  // from Lacros browser tests. When running with Ash, Lacros browser tests can
+  // create some Ash browser based UIs, such as SWA, Web UI, etc. These UIs
+  // must be cleaned up when the test tears down, so that they won't pollute
+  // the tests running after, since Lacros browser tests are running with the
+  // shared Ash instance by default.
+  void VerifyNoAshBrowserWindowOpenRightNow();
+  void CloseAllAshBrowserWindows();
+  void WaitUntilAtLeastOneAshBrowserWindowOpen();
+  // Returns true if CloseAllAshBrowserWindows and
+  // WaitUntilAtLeaseOneAshBrowserWindowOpen is supported.
+  // TODO(crbug.com/1473375): Remove the following function once Ash stable
+  // channel supports the Ash Browser Window APIs in
+  // crosapi::mojom::TestController needed by the above functions.
+  bool IsCloseAndWaitAshBrowserWindowApisSupported() const;
 #endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_LACROS)
@@ -387,7 +416,7 @@ class InProcessBrowserTest : public content::BrowserTestBase {
   // If no browser is created in BrowserMain(), then |browser_| will remain
   // nullptr unless SelectFirstBrowser() is called after the creation of the
   // first browser instance at a later time.
-  raw_ptr<Browser, DanglingUntriaged> browser_ = nullptr;
+  raw_ptr<Browser, AcrossTasksDanglingUntriaged> browser_ = nullptr;
 
   // Used to run the process until the BrowserProcess signals the test to quit.
   std::unique_ptr<base::RunLoop> run_loop_;
@@ -419,8 +448,8 @@ class InProcessBrowserTest : public content::BrowserTestBase {
   feature_engagement::test::ScopedIphFeatureList block_all_iph_feature_list_;
 
 #if BUILDFLAG(IS_MAC)
-  raw_ptr<base::mac::ScopedNSAutoreleasePool, DanglingUntriaged>
-      autorelease_pool_ = nullptr;
+  STACK_ALLOCATED_IGNORE("https://crbug.com/1424190")
+  absl::optional<base::apple::ScopedNSAutoreleasePool> autorelease_pool_;
   std::unique_ptr<ScopedBundleSwizzlerMac> bundle_swizzler_;
 
   // Enable fake full keyboard access by default, so that tests don't depend on

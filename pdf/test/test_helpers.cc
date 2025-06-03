@@ -22,8 +22,9 @@ namespace chrome_pdf {
 
 base::FilePath GetTestDataFilePath(const base::FilePath& path) {
   base::FilePath source_root;
-  if (!base::PathService::Get(base::DIR_SOURCE_ROOT, &source_root))
+  if (!base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &source_root)) {
     return {};
+  }
 
   return source_root.Append(FILE_PATH_LITERAL("pdf"))
       .Append(FILE_PATH_LITERAL("test"))
@@ -48,7 +49,8 @@ testing::AssertionResult MatchesPngFile(
 
 sk_sp<SkSurface> CreateSkiaSurfaceForTesting(const gfx::Size& size,
                                              SkColor color) {
-  auto surface = SkSurface::MakeRasterN32Premul(size.width(), size.height());
+  auto surface = SkSurfaces::Raster(
+      SkImageInfo::MakeN32Premul(size.width(), size.height()));
   surface->getCanvas()->clear(color);
   return surface;
 }

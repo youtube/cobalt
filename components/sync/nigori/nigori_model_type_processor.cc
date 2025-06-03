@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "base/logging.h"
+#include "base/trace_event/trace_event.h"
 #include "components/sync/base/client_tag_hash.h"
 #include "components/sync/base/data_type_histogram.h"
 #include "components/sync/base/time.h"
@@ -34,7 +35,7 @@ const char kRawNigoriClientTagHash[] = "NigoriClientTagHash";
 
 }  // namespace
 
-NigoriModelTypeProcessor::NigoriModelTypeProcessor() : bridge_(nullptr) {}
+NigoriModelTypeProcessor::NigoriModelTypeProcessor() = default;
 
 NigoriModelTypeProcessor::~NigoriModelTypeProcessor() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
@@ -179,12 +180,13 @@ void NigoriModelTypeProcessor::OnUpdateReceived(
     // Remote update always win in case of conflict, because bridge takes care
     // of reapplying pending local changes after processing the remote update.
     entity_->RecordForcedRemoteUpdate(updates[0], /*trimmed_specifics=*/{});
-    error = bridge_->ApplyIncrementalSyncChanges(std::move(updates[0].entity));
   } else if (!entity_->MatchesData(updates[0].entity)) {
     // Inform the bridge of the new or updated data.
     entity_->RecordAcceptedRemoteUpdate(updates[0], /*trimmed_specifics=*/{});
-    error = bridge_->ApplyIncrementalSyncChanges(std::move(updates[0].entity));
   }
+  LogNonReflectionUpdateFreshnessToUma(NIGORI,
+                                       updates[0].entity.modification_time);
+  error = bridge_->ApplyIncrementalSyncChanges(std::move(updates[0].entity));
 
   if (error) {
     ReportError(*error);
@@ -198,6 +200,10 @@ void NigoriModelTypeProcessor::OnUpdateReceived(
 void NigoriModelTypeProcessor::StorePendingInvalidations(
     std::vector<sync_pb::ModelTypeState::Invalidation> invalidations_to_store) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  if (model_error_ || !bridge_) {
+    return;
+  }
   model_type_state_.mutable_invalidations()->Assign(
       invalidations_to_store.begin(), invalidations_to_store.end());
   // ApplyIncrementalSyncChanges does actually query and persist the
@@ -305,6 +311,7 @@ void NigoriModelTypeProcessor::RecordMemoryUsageAndCountsHistograms() {
 void NigoriModelTypeProcessor::ModelReadyToSync(
     NigoriSyncBridge* bridge,
     NigoriMetadataBatch nigori_metadata) {
+  TRACE_EVENT0("sync", "NigoriModelTypeProcessor::ModelReadyToSync");
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(bridge);
   DCHECK(!model_ready_to_sync_);

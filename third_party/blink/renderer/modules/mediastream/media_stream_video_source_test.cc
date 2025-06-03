@@ -5,6 +5,7 @@
 #include <utility>
 
 #include "base/memory/ptr_util.h"
+#include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
@@ -54,7 +55,7 @@ class MediaStreamVideoSourceTest : public testing::Test {
     stream_source_ = MakeGarbageCollected<MediaStreamSource>(
         String::FromUTF8("dummy_source_id"), MediaStreamSource::kTypeVideo,
         String::FromUTF8("dummy_source_name"), false /* remote */,
-        base::WrapUnique(mock_stream_video_source_));
+        base::WrapUnique(mock_stream_video_source_.get()));
     ON_CALL(*mock_stream_video_source_, OnSourceCanDiscardAlpha)
         .WillByDefault(Return());
     ON_CALL(*mock_stream_video_source_, SupportsEncodedOutput)
@@ -291,7 +292,8 @@ class MediaStreamVideoSourceTest : public testing::Test {
   WebString result_name_;
   Persistent<MediaStreamSource> stream_source_;
   // |mock_stream_video_source_| is owned by |stream_source_|.
-  MockMediaStreamVideoSource* mock_stream_video_source_;
+  raw_ptr<MockMediaStreamVideoSource, DanglingUntriaged>
+      mock_stream_video_source_;
 };
 
 TEST_F(MediaStreamVideoSourceTest, AddTrackAndStartSource) {
@@ -550,18 +552,16 @@ TEST_F(MediaStreamVideoSourceTest, ForwardsAtMaxFrameRateAndDropsWhenTooClose) {
   base::OnceClosure quit_closure = run_loop.QuitClosure();
 
   EXPECT_CALL(sink, OnVideoFrame).Times(3).WillRepeatedly(Return());
-  EXPECT_CALL(*mock_source(),
-              OnFrameDropped(media::VideoCaptureFrameDropReason::
-                                 kResolutionAdapterTimestampTooCloseToPrevious))
+  EXPECT_CALL(sink, OnNotifyFrameDropped(
+                        media::VideoCaptureFrameDropReason::
+                            kResolutionAdapterFrameRateIsHigherThanRequested))
       .Times(1)
       .WillOnce([&] { std::move(quit_closure).Run(); });
 
   DeliverVideoFrame(100, 100, base::Milliseconds(100));
   DeliverVideoFrame(100, 100, base::Milliseconds(200));
   DeliverVideoFrame(100, 100, base::Milliseconds(300));
-  DeliverVideoFrame(
-      100, 100,
-      base::Milliseconds(300 + VideoTrackAdapter::kMinTimeBetweenFramesMs - 1));
+  DeliverVideoFrame(100, 100, base::Milliseconds(304));
   run_loop.Run();
   EXPECT_EQ(3, sink.number_of_frames());
 

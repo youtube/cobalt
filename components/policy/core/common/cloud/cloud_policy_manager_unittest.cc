@@ -13,6 +13,7 @@
 #include "base/values.h"
 #include "components/policy/core/common/cloud/cloud_policy_constants.h"
 #include "components/policy/core/common/cloud/mock_cloud_policy_client.h"
+#include "components/policy/core/common/cloud/mock_cloud_policy_manager.h"
 #include "components/policy/core/common/cloud/mock_cloud_policy_store.h"
 #include "components/policy/core/common/cloud/test/policy_builder.h"
 #include "components/policy/core/common/configuration_policy_provider_test.h"
@@ -140,28 +141,6 @@ INSTANTIATE_TEST_SUITE_P(UserCloudPolicyManagerProviderTest,
                          testing::Values(TestHarness::CreateMandatory,
                                          TestHarness::CreateRecommended));
 
-class TestCloudPolicyManager : public CloudPolicyManager {
- public:
-  TestCloudPolicyManager(
-      CloudPolicyStore* store,
-      const scoped_refptr<base::SequencedTaskRunner>& task_runner)
-      : CloudPolicyManager(
-            dm_protocol::kChromeUserPolicyType,
-            std::string(),
-            store,
-            task_runner,
-            network::TestNetworkConnectionTracker::CreateGetter()) {}
-  TestCloudPolicyManager(const TestCloudPolicyManager&) = delete;
-  TestCloudPolicyManager& operator=(const TestCloudPolicyManager&) = delete;
-  ~TestCloudPolicyManager() override = default;
-
-  // Publish the protected members for testing.
-  using CloudPolicyManager::client;
-  using CloudPolicyManager::store;
-  using CloudPolicyManager::service;
-  using CloudPolicyManager::CheckAndPublishPolicy;
-};
-
 MATCHER_P(ProtoMatches, proto, std::string()) {
   return arg.SerializePartialAsString() == proto.SerializePartialAsString();
 }
@@ -186,7 +165,7 @@ class CloudPolicyManagerTest : public testing::Test {
     policy_.Build();
 
     EXPECT_CALL(store_, Load());
-    manager_ = std::make_unique<TestCloudPolicyManager>(
+    manager_ = std::make_unique<MockCloudPolicyManager>(
         &store_, task_environment_.GetMainThreadTaskRunner());
     manager_->Init(&schema_registry_);
     Mock::VerifyAndClearExpectations(&store_);
@@ -211,7 +190,7 @@ class CloudPolicyManagerTest : public testing::Test {
   SchemaRegistry schema_registry_;
   MockConfigurationPolicyObserver observer_;
   MockCloudPolicyStore store_;
-  std::unique_ptr<TestCloudPolicyManager> manager_;
+  std::unique_ptr<MockCloudPolicyManager> manager_;
 };
 
 TEST_F(CloudPolicyManagerTest, InitAndShutdown) {
@@ -298,7 +277,7 @@ TEST_F(CloudPolicyManagerTest, RefreshNotRegistered) {
 
   // A refresh on a non-registered store should not block.
   EXPECT_CALL(observer_, OnUpdatePolicy(manager_.get()));
-  manager_->RefreshPolicies();
+  manager_->RefreshPolicies(PolicyFetchReason::kTest);
   Mock::VerifyAndClearExpectations(&observer_);
 }
 
@@ -320,8 +299,8 @@ TEST_F(CloudPolicyManagerTest, RefreshSuccessful) {
 
   // Start a refresh.
   EXPECT_CALL(observer_, OnUpdatePolicy(_)).Times(0);
-  EXPECT_CALL(*client, FetchPolicy());
-  manager_->RefreshPolicies();
+  EXPECT_CALL(*client, FetchPolicy(_));
+  manager_->RefreshPolicies(PolicyFetchReason::kTest);
   Mock::VerifyAndClearExpectations(client);
   Mock::VerifyAndClearExpectations(&observer_);
   store_.policy_map_ = policy_map_.Clone();

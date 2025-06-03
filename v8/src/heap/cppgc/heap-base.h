@@ -250,11 +250,13 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
 
  protected:
   static std::unique_ptr<PageBackend> InitializePageBackend(
-      PageAllocator& allocator, FatalOutOfMemoryHandler& oom_handler);
+      PageAllocator& allocator);
 
   // Used by the incremental scheduler to finalize a GC if supported.
   virtual void FinalizeIncrementalGarbageCollectionIfNeeded(
       cppgc::Heap::StackState) = 0;
+
+  virtual bool IsGCAllowed() const;
 
   bool in_no_gc_scope() const { return no_gc_scope_ > 0; }
 

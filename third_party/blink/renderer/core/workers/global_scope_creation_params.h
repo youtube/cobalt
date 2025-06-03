@@ -61,7 +61,7 @@ struct CORE_EXPORT GlobalScopeCreationParams final {
       HttpsState starter_https_state,
       WorkerClients*,
       std::unique_ptr<WebContentSettingsClient>,
-      const Vector<OriginTrialFeature>* inherited_trial_features,
+      const Vector<mojom::blink::OriginTrialFeature>* inherited_trial_features,
       const base::UnguessableToken& parent_devtools_token,
       std::unique_ptr<WorkerSettings>,
       mojom::blink::V8CacheOptions,
@@ -83,7 +83,8 @@ struct CORE_EXPORT GlobalScopeCreationParams final {
       InterfaceRegistry* interface_registry = nullptr,
       scoped_refptr<base::SingleThreadTaskRunner>
           agent_group_scheduler_compositor_task_runner = nullptr,
-      const SecurityOrigin* top_level_frame_security_origin = nullptr);
+      const SecurityOrigin* top_level_frame_security_origin = nullptr,
+      bool parent_has_storage_access = false);
   GlobalScopeCreationParams(const GlobalScopeCreationParams&) = delete;
   GlobalScopeCreationParams& operator=(const GlobalScopeCreationParams&) =
       delete;
@@ -127,7 +128,8 @@ struct CORE_EXPORT GlobalScopeCreationParams final {
 
   // Origin trial features to be inherited by worker/worklet from the document
   // loading it.
-  std::unique_ptr<Vector<OriginTrialFeature>> inherited_trial_features;
+  std::unique_ptr<Vector<mojom::blink::OriginTrialFeature>>
+      inherited_trial_features;
 
   // The SecurityOrigin of the Document creating a Worker/Worklet.
   //
@@ -220,6 +222,10 @@ struct CORE_EXPORT GlobalScopeCreationParams final {
   // can be used, for instance, to check if the top level frame has an opaque
   // origin.
   scoped_refptr<const SecurityOrigin> top_level_frame_security_origin;
+
+  // Whether the parent ExecutionContext has storage access (via the Storage
+  // Access API).
+  const bool parent_has_storage_access;
 };
 
 }  // namespace blink

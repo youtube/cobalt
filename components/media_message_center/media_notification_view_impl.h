@@ -37,14 +37,6 @@ class COMPONENT_EXPORT(MEDIA_MESSAGE_CENTER) MediaNotificationViewImpl
  public:
   METADATA_HEADER(MediaNotificationViewImpl);
 
-  // The name of the histogram used when recorded whether the artwork was
-  // present.
-  static const char kArtworkHistogramName[];
-
-  // The name of the histogram used when recording the type of metadata that was
-  // displayed.
-  static const char kMetadataHistogramName[];
-
   // The type of metadata that was displayed. This is used in metrics so new
   // values must only be added to the end.
   enum class Metadata {
@@ -88,9 +80,10 @@ class COMPONENT_EXPORT(MEDIA_MESSAGE_CENTER) MediaNotificationViewImpl
   void UpdateWithMediaArtwork(const gfx::ImageSkia& image) override;
   void UpdateWithFavicon(const gfx::ImageSkia& icon) override;
   void UpdateWithVectorIcon(const gfx::VectorIcon* vector_icon) override;
-  void UpdateDeviceSelectorAvailability(bool availability) override;
   void UpdateWithMuteStatus(bool mute) override {}
   void UpdateWithVolume(float volume) override {}
+  void UpdateDeviceSelectorVisibility(bool visible) override;
+  void UpdateDeviceSelectorAvailability(bool has_devices) override {}
 
   void OnThemeChanged() override;
 

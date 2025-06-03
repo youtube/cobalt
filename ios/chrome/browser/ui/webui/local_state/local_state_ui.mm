@@ -11,16 +11,12 @@
 #import "components/grit/dev_ui_components_resources.h"
 #import "components/local_state/local_state_utils.h"
 #import "components/prefs/pref_service.h"
-#import "ios/chrome/browser/application_context/application_context.h"
-#import "ios/chrome/browser/browser_state/chrome_browser_state.h"
-#import "ios/chrome/browser/url/chrome_url_constants.h"
+#import "ios/chrome/browser/shared/model/application_context/application_context.h"
+#import "ios/chrome/browser/shared/model/browser_state/chrome_browser_state.h"
+#import "ios/chrome/browser/shared/model/url/chrome_url_constants.h"
 #import "ios/web/public/webui/web_ui_ios.h"
 #import "ios/web/public/webui/web_ui_ios_data_source.h"
 #import "ios/web/public/webui/web_ui_ios_message_handler.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace {
 
@@ -51,8 +47,8 @@ void LocalStateUIHandler::RegisterMessages() {
 }
 
 void LocalStateUIHandler::HandleRequestJson(const base::Value::List& args) {
-  absl::optional<std::string> json =
-      GetPrefsAsJson(GetApplicationContext()->GetLocalState());
+  absl::optional<std::string> json = local_state_utils::GetPrefsAsJson(
+      GetApplicationContext()->GetLocalState());
   if (!json) {
     json = "Error loading Local State file.";
   }

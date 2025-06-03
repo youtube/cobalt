@@ -72,7 +72,7 @@ class GPU_GLES2_EXPORT SharedImageBackingFactory {
       SkAlphaType alpha_type,
       uint32_t usage,
       std::string debug_label,
-      gfx::GpuMemoryBufferHandle handle);
+      gfx::GpuMemoryBufferHandle handle) = 0;
   virtual std::unique_ptr<SharedImageBacking> CreateSharedImage(
       const Mailbox& mailbox,
       gfx::GpuMemoryBufferHandle handle,
@@ -84,6 +84,24 @@ class GPU_GLES2_EXPORT SharedImageBackingFactory {
       SkAlphaType alpha_type,
       uint32_t usage,
       std::string debug_label) = 0;
+
+  // This new api is introduced for MappableSI work where client code sends
+  // |buffer_usage| info while creating shared image. This info is used in some
+  // backings to create native handle.
+  // TODO(crbug.com/1466569) : Remove this api once the MappableSI is complete
+  // and we have a mapping between shared image usage and BufferUsage.
+  virtual std::unique_ptr<SharedImageBacking> CreateSharedImage(
+      const Mailbox& mailbox,
+      viz::SharedImageFormat format,
+      SurfaceHandle surface_handle,
+      const gfx::Size& size,
+      const gfx::ColorSpace& color_space,
+      GrSurfaceOrigin surface_origin,
+      SkAlphaType alpha_type,
+      uint32_t usage,
+      std::string debug_label,
+      bool is_thread_safe,
+      gfx::BufferUsage buffer_usage);
 
   // Returns true if the factory is supported
   bool CanCreateSharedImage(uint32_t usage,

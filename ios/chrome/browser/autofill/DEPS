@@ -1,3 +1,11 @@
+include_rules = [
+  "+ios/chrome/browser/history",
+  "+ios/chrome/browser/signin",
+  "+ios/chrome/browser/sync/model",
+  "+ios/chrome/browser/webdata_services/model",
+  "+ios/chrome/browser/infobars",
+]
+
 specific_include_rules = {
   # web::HttpServer is deprecated in favor of net::EmbeddedTestServer.
   # TODO:(crbug.com/891834) Remove this exception.
@@ -10,21 +18,13 @@ specific_include_rules = {
     "+ios/chrome/browser/ui/autofill/chrome_autofill_client_ios.h",
   ],
   "^form_input_accessory_view_handler.mm": [
-    "+ios/chrome/browser/ui/util/uikit_ui_util.h",
-  ],
-  "^form_suggestion_controller.mm": [
-    "+ios/chrome/browser/ui/util/ui_util.h",
+    "+ios/chrome/browser/shared/ui/util/uikit_ui_util.h",
   ],
   "^form_suggestion_label.mm": [
-    "+ios/chrome/browser/ui/util/uikit_ui_util.h",
     "+ios/chrome/common/ui/colors/semantic_color_names.h",
     "+ios/chrome/common/ui/util/constraints_ui_util.h",
   ],
   "^form_suggestion_view.mm": [
-    "+ios/chrome/browser/ui/util/rtl_geometry.h",
-    "+ios/chrome/browser/ui/util/layout_guide_names.h",
-    "+ios/chrome/browser/ui/util/util_swift.h",
     "+ios/chrome/common/ui/util/constraints_ui_util.h",
   ],
-
 }

@@ -56,18 +56,21 @@ function getDirectoryModel() {
   const metadataModel = new MockMetadataModel({});
   const fileOperationManager = new MockFileOperationManager();
   return new DirectoryModel(
+      // @ts-ignore: error TS2345: Argument of type 'MockMetadataModel' is not
+      // assignable to parameter of type 'MetadataModel'.
       false, fileFilter, metadataModel, volumeManager, fileOperationManager);
 }
 
 /**
- * Tests that the directory will be re-scanned after the delete operation.
+ * Tests that the fake directory will be re-scanned after the delete and copy
+ * operation.
  */
 export function testRecanAfterDeletionForRecents() {
   const deleteEvent = /** @type {chrome.fileManagerPrivate.ProgressStatus} */ ({
     type: chrome.fileManagerPrivate.IOTaskType.DELETE,
     state: chrome.fileManagerPrivate.IOTaskState.SUCCESS,
   });
-  const otherEvent = /** @type {chrome.fileManagerPrivate.ProgressStatus} */ ({
+  const copyEvent = /** @type {chrome.fileManagerPrivate.ProgressStatus} */ ({
     type: chrome.fileManagerPrivate.IOTaskType.COPY,
     state: chrome.fileManagerPrivate.IOTaskState.SUCCESS,
   });
@@ -81,16 +84,66 @@ export function testRecanAfterDeletionForRecents() {
   // Current directory is not Recent.
   directoryModel.getCurrentRootType = () =>
       VolumeManagerCommon.RootType.DOWNLOADS;
+  // @ts-ignore: error TS2721: Cannot invoke an object which is possibly 'null'.
   onIOTaskProgressStatusCallback(deleteEvent);
   assertFalse(isRescanCalled);
-  onIOTaskProgressStatusCallback(otherEvent);
+  // @ts-ignore: error TS2721: Cannot invoke an object which is possibly 'null'.
+  onIOTaskProgressStatusCallback(copyEvent);
   assertFalse(isRescanCalled);
 
   // Current directory is Recent.
   directoryModel.getCurrentRootType = () => VolumeManagerCommon.RootType.RECENT;
+  // @ts-ignore: error TS2721: Cannot invoke an object which is possibly 'null'.
   onIOTaskProgressStatusCallback(deleteEvent);
   assertTrue(isRescanCalled);
   isRescanCalled = false;
-  onIOTaskProgressStatusCallback(otherEvent);
-  assertFalse(isRescanCalled);
+  // @ts-ignore: error TS2721: Cannot invoke an object which is possibly 'null'.
+  onIOTaskProgressStatusCallback(copyEvent);
+  assertTrue(isRescanCalled);
+}
+
+/**
+ * Tests that the non-watchable volume will be re-scanned after each of
+ * the IOTask operations.
+ */
+export function testRescanAfterIOTaskOperationOnlyForNonWatchableVolume() {
+  const directoryModel = getDirectoryModel();
+  let isRescanCalled = false;
+  directoryModel.rescanLater = () => {
+    isRescanCalled = true;
+  };
+  // Current directory is non-watchable.
+  // @ts-ignore: error TS2322: Type '() => { watchable: false; }' is not
+  // assignable to type '() => VolumeInfo'.
+  directoryModel.getCurrentVolumeInfo = () => {
+    return {
+      watchable: false,
+    };
+  };
+
+  /** @type {!Array<!chrome.fileManagerPrivate.IOTaskType>} */
+  const operations = [
+    chrome.fileManagerPrivate.IOTaskType.COPY,
+    chrome.fileManagerPrivate.IOTaskType.DELETE,
+    chrome.fileManagerPrivate.IOTaskType.EMPTY_TRASH,
+    chrome.fileManagerPrivate.IOTaskType.EXTRACT,
+    chrome.fileManagerPrivate.IOTaskType.MOVE,
+    chrome.fileManagerPrivate.IOTaskType.RESTORE,
+    chrome.fileManagerPrivate.IOTaskType.RESTORE_TO_DESTINATION,
+    chrome.fileManagerPrivate.IOTaskType.TRASH,
+    chrome.fileManagerPrivate.IOTaskType.ZIP,
+  ];
+
+  for (const operation of operations) {
+    const event = /** @type {chrome.fileManagerPrivate.ProgressStatus} */ ({
+      type: operation,
+      state: chrome.fileManagerPrivate.IOTaskState.SUCCESS,
+    });
+
+    isRescanCalled = false;
+    // @ts-ignore: error TS2721: Cannot invoke an object which is possibly
+    // 'null'.
+    onIOTaskProgressStatusCallback(event);
+    assertTrue(isRescanCalled);
+  }
 }

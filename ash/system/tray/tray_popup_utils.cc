@@ -9,6 +9,7 @@
 #include <utility>
 
 #include "ash/constants/ash_constants.h"
+#include "ash/constants/ash_features.h"
 #include "ash/public/cpp/ash_view_ids.h"
 #include "ash/resources/vector_icons/vector_icons.h"
 #include "ash/session/session_controller_impl.h"
@@ -33,6 +34,7 @@
 #include "ui/gfx/geometry/rrect_f.h"
 #include "ui/gfx/paint_vector_icon.h"
 #include "ui/gfx/vector_icon_utils.h"
+#include "ui/views/animation/ink_drop_host.h"
 #include "ui/views/border.h"
 #include "ui/views/controls/button/button.h"
 #include "ui/views/controls/button/md_text_button.h"
@@ -44,6 +46,7 @@
 #include "ui/views/layout/box_layout.h"
 #include "ui/views/layout/fill_layout.h"
 #include "ui/views/painter.h"
+#include "ui/views/view_utils.h"
 
 namespace ash {
 
@@ -247,6 +250,12 @@ void TrayPopupUtils::ConfigureAsStickyHeader(views::View* view) {
   view->layer()->SetFillsBoundsOpaquely(false);
 }
 
+void TrayPopupUtils::ConfigureRowButtonInkdrop(views::InkDropHost* ink_drop) {
+  ink_drop->SetMode(views::InkDropHost::InkDropMode::ON);
+  ink_drop->SetVisibleOpacity(1.0f);  // The colors already contain opacity
+  ink_drop->SetBaseColorId(cros_tokens::kCrosSysRippleNeutralOnSubtle);
+}
+
 views::LabelButton* TrayPopupUtils::CreateTrayPopupButton(
     views::Button::PressedCallback callback,
     const std::u16string& text) {
@@ -294,19 +303,24 @@ bool TrayPopupUtils::CanOpenWebUISettings() {
   return Shell::Get()->session_controller()->ShouldEnableSettings();
 }
 
+bool TrayPopupUtils::CanShowNightLightFeatureTile() {
+  CHECK(features::IsQsRevampEnabled());
+  return Shell::Get()->session_controller()->ShouldEnableSettings() ||
+         (Shell::Get()->session_controller()->GetSessionState() ==
+          session_manager::SessionState::LOCKED);
+}
+
 void TrayPopupUtils::InitializeAsCheckableRow(HoverHighlightView* container,
                                               bool checked,
                                               bool enterprise_managed) {
   const int dip_size = GetDefaultSizeOfVectorIcon(kCheckCircleIcon);
-  ui::ImageModel check_mark = ui::ImageModel::FromVectorIcon(
-      kHollowCheckCircleIcon,
-      // The mapping of `cros_tokens::kCrosSysSystemOnPrimaryContainer` cannot
-      // accommodate `check_mark` and other components, so we still want to
-      // guard with Jelly flag here.
+  // The mapping of `cros_tokens::kCrosSysSystemOnPrimaryContainer` cannot
+  // accommodate `check_mark` and other components, so we still want to
+  // guard with Jelly flag here.
+  ui::ImageModel check_mark = CreateCheckMark(
       chromeos::features::IsJellyEnabled()
           ? cros_tokens::kCrosSysSystemOnPrimaryContainer
-          : static_cast<ui::ColorId>(kColorAshIconColorProminent),
-      dip_size);
+          : static_cast<ui::ColorId>(kColorAshIconColorProminent));
   if (enterprise_managed) {
     ui::ImageModel enterprise_managed_icon = ui::ImageModel::FromVectorIcon(
         chromeos::kEnterpriseIcon, kColorAshIconColorBlocked, dip_size);
@@ -319,15 +333,40 @@ void TrayPopupUtils::InitializeAsCheckableRow(HoverHighlightView* container,
 
 void TrayPopupUtils::UpdateCheckMarkVisibility(HoverHighlightView* container,
                                                bool visible) {
-  if (!container)
+  if (!container) {
     return;
+  }
+
   container->SetRightViewVisible(visible);
   container->SetAccessibilityState(
       visible ? HoverHighlightView::AccessibilityState::CHECKED_CHECKBOX
               : HoverHighlightView::AccessibilityState::UNCHECKED_CHECKBOX);
 }
 
+void TrayPopupUtils::UpdateCheckMarkColor(HoverHighlightView* container,
+                                          ui::ColorId color_id) {
+  if (!container || !container->right_view()) {
+    return;
+  }
+
+  auto check_mark = CreateCheckMark(color_id);
+  if (views::IsViewClass<views::ImageView>(container->right_view())) {
+    static_cast<views::ImageView*>(container->right_view())
+        ->SetImage(check_mark);
+  }
+}
+
+ui::ImageModel TrayPopupUtils::CreateCheckMark(ui::ColorId color_id) {
+  return ui::ImageModel::FromVectorIcon(
+      kHollowCheckCircleIcon, color_id,
+      GetDefaultSizeOfVectorIcon(kCheckCircleIcon));
+}
+
+// static
 void TrayPopupUtils::SetLabelFontList(views::Label* label, FontStyle style) {
+  // See function header comment.
+  DCHECK(!features::IsQsRevampEnabled() ||
+         !chromeos::features::IsJellyEnabled());
   label->SetAutoColorReadabilityEnabled(false);
   const gfx::FontList google_sans_font_list({"Google Sans"}, gfx::Font::NORMAL,
                                             16, gfx::Font::Weight::MEDIUM);

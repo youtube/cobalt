@@ -60,6 +60,8 @@ class NET_EXPORT_PRIVATE URLRequestHttpJob : public URLRequestJob {
   void SetEarlyResponseHeadersCallback(
       ResponseHeadersCallback callback) override;
   void SetResponseHeadersCallback(ResponseHeadersCallback callback) override;
+  void SetIsSharedDictionaryReadAllowedCallback(
+      base::RepeatingCallback<bool()> callback) override;
 
  protected:
   URLRequestHttpJob(URLRequest* request,
@@ -214,11 +216,7 @@ class NET_EXPORT_PRIVATE URLRequestHttpJob : public URLRequestJob {
 
   // Called after getting the FirstPartySetMetadata during Start for this job.
   void OnGotFirstPartySetMetadata(
-      FirstPartySetMetadata first_party_set_metadata);
-
-  // Called after getting the FirstPartySetsCacheFilter match info during Start
-  // for this job.
-  void OnGotFirstPartySetCacheFilterMatchInfo(
+      FirstPartySetMetadata first_party_set_metadata,
       FirstPartySetsCacheFilter::MatchInfo match_info);
 
   // Returns true iff this request leg should include the Cookie header. Note
@@ -303,6 +301,8 @@ class NET_EXPORT_PRIVATE URLRequestHttpJob : public URLRequestJob {
   RequestHeadersCallback request_headers_callback_;
   ResponseHeadersCallback early_response_headers_callback_;
   ResponseHeadersCallback response_headers_callback_;
+
+  base::RepeatingCallback<bool()> is_shared_dictionary_read_allowed_callback_;
 
   // The First-Party Set metadata associated with this job. Set when the job is
   // started.

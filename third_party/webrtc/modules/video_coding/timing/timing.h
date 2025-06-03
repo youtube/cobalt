@@ -29,8 +29,32 @@ namespace webrtc {
 
 class VCMTiming {
  public:
-  static constexpr auto kDefaultRenderDelay = TimeDelta::Millis(10);
-  static constexpr auto kDelayMaxChangeMsPerS = 100;
+  struct VideoDelayTimings {
+    size_t num_decoded_frames;
+    // Pre-decode delay added to smooth out frame delay variation ("jitter")
+    // caused by the network. The target delay will be no smaller than this
+    // delay, thus it is called `minimum_delay`.
+    TimeDelta minimum_delay;
+    // Estimated time needed to decode a video frame. Obtained as the 95th
+    // percentile decode time over a recent time window.
+    TimeDelta estimated_max_decode_time;
+    // Post-decode delay added to smooth out frame delay variation caused by
+    // decoding and rendering. Set to a constant.
+    TimeDelta render_delay;
+    // Minimum total delay used when determining render time for a frame.
+    // Obtained from API, `playout-delay` RTP header extension, or A/V sync.
+    TimeDelta min_playout_delay;
+    // Maximum total delay used when determining render time for a frame.
+    // Obtained from `playout-delay` RTP header extension.
+    TimeDelta max_playout_delay;
+    // Target total delay. Obtained from all the elements above.
+    TimeDelta target_delay;
+    // Current total delay. Obtained by smoothening the `target_delay`.
+    TimeDelta current_delay;
+  };
+
+  static constexpr TimeDelta kDefaultRenderDelay = TimeDelta::Millis(10);
+  static constexpr int kDelayMaxChangeMsPerS = 100;
 
   VCMTiming(Clock* clock, const FieldTrialsView& field_trials);
   virtual ~VCMTiming() = default;
@@ -92,18 +116,7 @@ class VCMTiming {
   // render delay.
   TimeDelta TargetVideoDelay() const;
 
-  // Return current timing information. Returns true if the first frame has been
-  // decoded, false otherwise.
-  struct VideoDelayTimings {
-    TimeDelta max_decode_duration;
-    TimeDelta current_delay;
-    TimeDelta target_delay;
-    TimeDelta jitter_buffer_delay;
-    TimeDelta min_playout_delay;
-    TimeDelta max_playout_delay;
-    TimeDelta render_delay;
-    size_t num_decoded_frames;
-  };
+  // Return current timing information.
   VideoDelayTimings GetTimings() const;
 
   void SetTimingFrameInfo(const TimingFrameInfo& info);
@@ -117,14 +130,15 @@ class VCMTiming {
   // Updates the last time a frame was scheduled for decoding.
   void SetLastDecodeScheduledTimestamp(Timestamp last_decode_scheduled);
 
- protected:
-  TimeDelta RequiredDecodeTime() const RTC_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
+ private:
+  TimeDelta EstimatedMaxDecodeTime() const RTC_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
   Timestamp RenderTimeInternal(uint32_t frame_timestamp, Timestamp now) const
       RTC_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
   TimeDelta TargetDelayInternal() const RTC_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
+  TimeDelta StatsTargetDelayInternal() const
+      RTC_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
   bool UseLowLatencyRendering() const RTC_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 
- private:
   mutable Mutex mutex_;
   Clock* const clock_;
   const std::unique_ptr<TimestampExtrapolator> ts_extrapolator_

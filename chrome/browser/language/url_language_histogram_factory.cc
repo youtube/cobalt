@@ -11,7 +11,8 @@
 
 // static
 UrlLanguageHistogramFactory* UrlLanguageHistogramFactory::GetInstance() {
-  return base::Singleton<UrlLanguageHistogramFactory>::get();
+  static base::NoDestructor<UrlLanguageHistogramFactory> instance;
+  return instance.get();
 }
 
 // static
@@ -32,12 +33,13 @@ UrlLanguageHistogramFactory::UrlLanguageHistogramFactory()
               .WithGuest(ProfileSelection::kOriginalOnly)
               .Build()) {}
 
-UrlLanguageHistogramFactory::~UrlLanguageHistogramFactory() {}
+UrlLanguageHistogramFactory::~UrlLanguageHistogramFactory() = default;
 
-KeyedService* UrlLanguageHistogramFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+UrlLanguageHistogramFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* const browser_context) const {
   Profile* const profile = Profile::FromBrowserContext(browser_context);
-  return new language::UrlLanguageHistogram(profile->GetPrefs());
+  return std::make_unique<language::UrlLanguageHistogram>(profile->GetPrefs());
 }
 
 void UrlLanguageHistogramFactory::RegisterProfilePrefs(

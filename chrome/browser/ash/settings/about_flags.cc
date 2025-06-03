@@ -19,6 +19,7 @@
 #include "chromeos/ash/components/cryptohome/cryptohome_parameters.h"
 #include "chromeos/ash/components/dbus/session_manager/session_manager_client.h"
 #include "chromeos/ash/components/settings/cros_settings_names.h"
+#include "chromeos/ash/components/standalone_browser/lacros_availability.h"
 #include "components/account_id/account_id.h"
 #include "components/flags_ui/flags_storage.h"
 #include "components/flags_ui/flags_ui_pref_names.h"
@@ -141,6 +142,14 @@ void ReadOnlyFlagsStorage::SetOriginListFlag(
     const std::string& internal_entry_name,
     const std::string& origin_list_value) {}
 
+std::string ReadOnlyFlagsStorage::GetStringFlag(
+    const std::string& internal_entry_name) const {
+  return GetOriginListFlag(internal_entry_name);
+}
+
+void ReadOnlyFlagsStorage::SetStringFlag(const std::string& internal_entry_name,
+                                         const std::string& string_value) {}
+
 FeatureFlagsUpdate::FeatureFlagsUpdate(
     const ::flags_ui::FlagsStorage& flags_storage,
     PrefService* profile_prefs) {
@@ -216,7 +225,7 @@ void FeatureFlagsUpdate::UpdateSessionManager() {
         << "The unexpect value is set to LacrosAvailability: "
         << lacros_launch_switch_pref->GetValue()->GetInt();
     auto* entry = ::about_flags::GetCurrentFlagsState()->FindFeatureEntryByName(
-        crosapi::browser_util::kLacrosAvailabilityPolicyInternalName);
+        ash::standalone_browser::kLacrosAvailabilityPolicyInternalName);
     DCHECK(entry);
     int index;
     for (index = 0; index < entry->NumOptions(); ++index) {

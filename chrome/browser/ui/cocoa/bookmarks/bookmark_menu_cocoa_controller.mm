@@ -4,7 +4,7 @@
 
 #import "chrome/browser/ui/cocoa/bookmarks/bookmark_menu_cocoa_controller.h"
 
-#import "base/mac/foundation_util.h"
+#import "base/apple/foundation_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/user_metrics.h"
 #include "base/strings/sys_string_conversions.h"
@@ -117,7 +117,7 @@ void BookmarkRestorer::BookmarkModelBeingDeleted(BookmarkModel* model) {
 void BookmarkRestorer::BookmarkModelLoaded(BookmarkModel* model,
                                            bool ids_reassigned) {
   model->RemoveObserver(this);
-  if (const auto* node = bookmarks::GetBookmarkNodeByUuid(model, guid_)) {
+  if (const auto* node = model->GetNodeByUuid(guid_)) {
     DoOpenBookmark(profile_, disposition_, node);
   }
   delete this;
@@ -136,7 +136,7 @@ void OpenBookmarkByGUID(WindowOpenDisposition disposition,
   if (!model)
     return;  // Should never be reached.
 
-  if (const auto* node = bookmarks::GetBookmarkNodeByUuid(model, guid)) {
+  if (const auto* node = model->GetNodeByUuid(guid)) {
     // BookmarkModel already loaded this bookmark. Open it immediately.
     DoOpenBookmark(profile, disposition, node);
   } else {
@@ -150,7 +150,8 @@ void OpenBookmarkByGUID(WindowOpenDisposition disposition,
 }  // namespace
 
 @implementation BookmarkMenuCocoaController {
-  raw_ptr<BookmarkMenuBridge, DanglingUntriaged> _bridge;  // Weak. Owns |self|.
+  raw_ptr<BookmarkMenuBridge, AcrossTasksDanglingUntriaged>
+      _bridge;  // Weak. Owns |self|.
 }
 
 + (NSString*)tooltipForNode:(const BookmarkNode*)node {
@@ -171,9 +172,7 @@ void OpenBookmarkByGUID(WindowOpenDisposition disposition,
 }
 
 - (BOOL)validateMenuItem:(NSMenuItem*)menuItem {
-  AppController* controller =
-      base::mac::ObjCCastStrict<AppController>([NSApp delegate]);
-  return ![controller keyWindowIsModal];
+  return ![AppController.sharedController keyWindowIsModal];
 }
 
 // NSMenu delegate method: called just before menu is displayed.
@@ -184,7 +183,7 @@ void OpenBookmarkByGUID(WindowOpenDisposition disposition,
     return;  // Unfortunately, we can't update a menu with a dead profile.
   const auto* model = BookmarkModelFactory::GetForBrowserContext(profile);
   base::Uuid guid = _bridge->TagToGUID([item tag]);
-  const auto* node = bookmarks::GetBookmarkNodeByUuid(model, guid);
+  const auto* node = model->GetNodeByUuid(guid);
   _bridge->UpdateMenu(menu, node, /*recurse=*/false);
 }
 

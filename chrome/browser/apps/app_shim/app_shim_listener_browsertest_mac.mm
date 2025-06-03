@@ -8,12 +8,12 @@
 
 #include <memory>
 
+#include "base/apple/foundation_util.h"
 #include "base/check.h"
 #include "base/check_op.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
-#include "base/mac/foundation_util.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/strings/strcat.h"
@@ -84,6 +84,9 @@ class TestShimClient : public chrome::mojom::AppShim {
   void UpdateApplicationDockMenu(
       std::vector<chrome::mojom::ApplicationDockMenuItemPtr> dock_menu_items)
       override {}
+  void BindNotificationProvider(
+      mojo::PendingReceiver<mac_notifications::mojom::MacNotificationProvider>
+          provider) override {}
 
  private:
   void OnShimConnectedDone(
@@ -104,9 +107,9 @@ class TestShimClient : public chrome::mojom::AppShim {
     // lifetime here.
     const IpczAPI& ipcz = mojo::core::GetIpczAPIForMojo();
     IpczHandle node;
-    IpczResult result = ipcz.CreateNode(
-        &mojo::core::GetIpczDriverForMojo(), IPCZ_INVALID_DRIVER_HANDLE,
-        IPCZ_CREATE_NODE_AS_BROKER, nullptr, &node);
+    IpczResult result =
+        ipcz.CreateNode(&mojo::core::GetIpczDriverForMojo(),
+                        IPCZ_CREATE_NODE_AS_BROKER, nullptr, &node);
     CHECK_EQ(IPCZ_RESULT_OK, result);
     secondary_ipcz_broker_.reset(mojo::Handle{node});
 
@@ -137,9 +140,10 @@ TestShimClient::TestShimClient() {
   base::FilePath user_data_dir;
   CHECK(base::PathService::Get(chrome::DIR_USER_DATA, &user_data_dir));
 
-  std::string name_fragment = base::StrCat(
-      {base::mac::BaseBundleID(), ".", app_mode::kAppShimBootstrapNameFragment,
-       ".", base::MD5String(user_data_dir.value())});
+  std::string name_fragment =
+      base::StrCat({base::apple::BaseBundleID(), ".",
+                    app_mode::kAppShimBootstrapNameFragment, ".",
+                    base::MD5String(user_data_dir.value())});
   mojo::PlatformChannelEndpoint endpoint = ConnectToBrowser(name_fragment);
 
   mojo::ScopedMessagePipeHandle message_pipe;
@@ -206,6 +210,7 @@ class AppShimListenerBrowserTest : public InProcessBrowserTest,
   void ReopenApp() override {}
   void FilesOpened(const std::vector<base::FilePath>& files) override {}
   void ProfileSelectedFromMenu(const base::FilePath& profile_path) override {}
+  void OpenAppSettings() override {}
   void UrlsOpened(const std::vector<GURL>& urls) override {}
   void OpenAppWithOverrideUrl(const GURL& override_url) override {}
   void ApplicationWillTerminate() override {}

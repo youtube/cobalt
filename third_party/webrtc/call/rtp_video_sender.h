@@ -120,6 +120,11 @@ class RtpVideoSender : public RtpVideoSenderInterface,
                         uint32_t* sent_fec_rate_bps)
       RTC_LOCKS_EXCLUDED(mutex_) override;
 
+  // 'retransmission_mode' is either a value of enum RetransmissionMode, or
+  // computed with bitwise operators on values of enum RetransmissionMode.
+  void SetRetransmissionMode(int retransmission_mode)
+      RTC_LOCKS_EXCLUDED(mutex_) override;
+
   // Implements FecControllerOverride.
   void SetFecAllowed(bool fec_allowed) RTC_LOCKS_EXCLUDED(mutex_) override;
 
@@ -161,7 +166,7 @@ class RtpVideoSender : public RtpVideoSenderInterface,
   void ConfigureProtection();
   void ConfigureSsrcs(const std::map<uint32_t, RtpState>& suspended_ssrcs);
   bool NackEnabled() const;
-  uint32_t GetPacketizationOverheadRate() const;
+  DataRate GetPostEncodeOverhead() const;
   DataRate CalculateOverheadRate(DataRate data_rate,
                                  DataSize packet_size,
                                  DataSize overhead_per_packet,

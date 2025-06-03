@@ -82,9 +82,6 @@ OverviewSession* GetOverviewSession() {
 
 // static
 bool TabDragDropDelegate::IsChromeTabDrag(const ui::OSExchangeData& drag_data) {
-  if (!features::IsWebUITabStripTabDragIntegrationEnabled())
-    return false;
-
   return Shell::Get()->shell_delegate()->IsTabDrag(drag_data);
 }
 
@@ -197,11 +194,9 @@ void TabDragDropDelegate::OnNewBrowserWindowCreated(
   // It's possible new window is created when the dragged WebContents
   // closes itself during the drag session.
   if (!new_window) {
-    if (is_lacros && !crosapi::lacros_startup_state::IsLacrosPrimaryEnabled()) {
-      LOG(ERROR)
-          << "New browser window creation for tab detaching failed.\n"
-          << "Check whether about:flags#lacros-primary is enabled or "
-          << "--enable-features=LacrosPrimary is passed in when launching Ash";
+    if (is_lacros && !crosapi::lacros_startup_state::IsLacrosEnabled()) {
+      LOG(ERROR) << "New browser window creation for tab detaching failed.\n"
+                 << "Check whether Lacros is enabled";
     }
     return;
   }
@@ -261,9 +256,8 @@ void TabDragDropDelegate::OnNewBrowserWindowCreated(
           snap_position) {
     overview_session->MergeWindowIntoOverviewForWebUITabStrip(new_window);
   } else {
-    WindowState::Get(new_window)
-        ->set_snap_action_source(WindowSnapActionSource::kDragTabToSnap);
     split_view_controller->SnapWindow(new_window, snap_position,
+                                      WindowSnapActionSource::kDragTabToSnap,
                                       /*activate_window=*/true);
   }
 
@@ -282,9 +276,8 @@ void TabDragDropDelegate::OnNewBrowserWindowCreated(
   // |source_window_| is itself a child window of the browser since it
   // hosts web content (specifically, the tab strip WebUI). Snap its
   // toplevel window which is the browser window.
-  WindowState::Get(new_window)
-      ->set_snap_action_source(WindowSnapActionSource::kDragTabToSnap);
-  split_view_controller->SnapWindow(source_window_, opposite_position);
+  split_view_controller->SnapWindow(source_window_, opposite_position,
+                                    WindowSnapActionSource::kDragTabToSnap);
 }
 
 bool TabDragDropDelegate::ShouldPreventSnapToTheEdge(

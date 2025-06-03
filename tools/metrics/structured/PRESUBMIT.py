@@ -8,7 +8,6 @@ See http://dev.chromium.org/developers/how-tos/depottools/presubmit-scripts
 for more details on the presubmit API built into gcl.
 """
 
-USE_PYTHON3 = True
 
 STRUCTURED_XML = 'structured.xml'
 STRUCTURED_OLD_XML = 'structured.old.xml'
@@ -33,7 +32,7 @@ def CheckChange(input_api, output_api):
         errors.append(
             output_api.PresubmitError(
                 STRUCTURED_XML +
-                ' is not prettified; run git cl format to fix.'))
+                ' is not prettified; run `git cl format` to fix.'))
     elif basename == STRUCTURED_OLD_XML:
       errors.append(
           output_api.PresubmitError(

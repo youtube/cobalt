@@ -4,8 +4,8 @@
 
 #import "ios/chrome/browser/ui/settings/autofill/autofill_credit_card_table_view_controller.h"
 
+#import "base/apple/foundation_util.h"
 #import "base/check.h"
-#import "base/mac/foundation_util.h"
 #import "base/metrics/user_metrics.h"
 #import "base/strings/sys_string_conversions.h"
 #import "components/autofill/core/browser/personal_data_manager.h"
@@ -15,11 +15,11 @@
 #import "components/password_manager/core/common/password_manager_features.h"
 #import "components/prefs/pref_service.h"
 #import "components/strings/grit/components_strings.h"
-#import "ios/chrome/browser/application_context/application_context.h"
 #import "ios/chrome/browser/autofill/personal_data_manager_factory.h"
-#import "ios/chrome/browser/browser_state/chrome_browser_state.h"
-#import "ios/chrome/browser/main/browser.h"
 #import "ios/chrome/browser/net/crurl.h"
+#import "ios/chrome/browser/shared/model/application_context/application_context.h"
+#import "ios/chrome/browser/shared/model/browser/browser.h"
+#import "ios/chrome/browser/shared/model/browser_state/chrome_browser_state.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_info_button_cell.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_info_button_item.h"
@@ -30,6 +30,7 @@
 #import "ios/chrome/browser/shared/ui/table_view/table_view_utils.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/browser/ui/settings/autofill/autofill_add_credit_card_coordinator.h"
+#import "ios/chrome/browser/ui/settings/autofill/autofill_add_credit_card_coordinator_delegate.h"
 #import "ios/chrome/browser/ui/settings/autofill/autofill_constants.h"
 #import "ios/chrome/browser/ui/settings/autofill/autofill_credit_card_edit_table_view_controller.h"
 #import "ios/chrome/browser/ui/settings/autofill/cells/autofill_card_item.h"
@@ -40,10 +41,6 @@
 #import "ios/chrome/grit/ios_strings.h"
 #import "net/base/mac/url_conversions.h"
 #import "ui/base/l10n/l10n_util.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace {
 
@@ -65,6 +62,7 @@ typedef NS_ENUM(NSInteger, ItemType) {
 #pragma mark - AutofillCreditCardTableViewController
 
 @interface AutofillCreditCardTableViewController () <
+    AutofillAddCreditCardCoordinatorDelegate,
     PersonalDataManagerObserver,
     PopoverLabelViewControllerDelegate> {
   autofill::PersonalDataManager* _personalDataManager;
@@ -114,12 +112,6 @@ typedef NS_ENUM(NSInteger, ItemType) {
     _personalDataManager->AddObserver(_observer.get());
   }
   return self;
-}
-
-- (void)dealloc {
-  if (!_settingsAreDismissed) {
-    _personalDataManager->RemoveObserver(_observer.get());
-  }
 }
 
 #pragma mark - UIViewController
@@ -243,7 +235,8 @@ typedef NS_ENUM(NSInteger, ItemType) {
 
   AutofillCardItem* item = [[AutofillCardItem alloc] initWithType:ItemTypeCard];
   item.text = creditCardName;
-  item.leadingDetailText = autofill::GetCreditCardIdentifierString(creditCard);
+  item.leadingDetailText =
+      autofill::GetCreditCardNameAndLastFourDigits(creditCard);
   item.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
   item.accessibilityIdentifier = creditCardName;
   item.deletable = autofill::IsCreditCardLocal(creditCard);
@@ -274,6 +267,7 @@ typedef NS_ENUM(NSInteger, ItemType) {
   DCHECK(!_settingsAreDismissed);
 
   _personalDataManager->RemoveObserver(_observer.get());
+  [self stopAutofillAddCreditCardCoordinator];
 
   // Remove observer bridges.
   _observer.reset();
@@ -360,7 +354,7 @@ typedef NS_ENUM(NSInteger, ItemType) {
       break;
     case ItemTypeAutofillCardSwitch: {
       TableViewSwitchCell* switchCell =
-          base::mac::ObjCCastStrict<TableViewSwitchCell>(cell);
+          base::apple::ObjCCastStrict<TableViewSwitchCell>(cell);
       [switchCell.switchView addTarget:self
                                 action:@selector(autofillCardSwitchChanged:)
                       forControlEvents:UIControlEventValueChanged];
@@ -368,7 +362,7 @@ typedef NS_ENUM(NSInteger, ItemType) {
     }
     case ItemTypeAutofillCardManaged: {
       TableViewInfoButtonCell* managedCell =
-          base::mac::ObjCCastStrict<TableViewInfoButtonCell>(cell);
+          base::apple::ObjCCastStrict<TableViewInfoButtonCell>(cell);
       [managedCell.trailingButton
                  addTarget:self
                     action:@selector(didTapManagedUIInfoButton:)
@@ -397,7 +391,7 @@ typedef NS_ENUM(NSInteger, ItemType) {
       [self.tableViewModel indexPathForItemType:switchItemType
                               sectionIdentifier:SectionIdentifierSwitches];
   TableViewSwitchItem* switchItem =
-      base::mac::ObjCCastStrict<TableViewSwitchItem>(
+      base::apple::ObjCCastStrict<TableViewSwitchItem>(
           [self.tableViewModel itemAtIndexPath:switchPath]);
   switchItem.on = on;
 }
@@ -416,7 +410,7 @@ typedef NS_ENUM(NSInteger, ItemType) {
       [model indexPathForItemType:switchItemType
                 sectionIdentifier:SectionIdentifierSwitches];
   TableViewSwitchItem* switchItem =
-      base::mac::ObjCCastStrict<TableViewSwitchItem>(
+      base::apple::ObjCCastStrict<TableViewSwitchItem>(
           [model itemAtIndexPath:switchPath]);
   [switchItem setEnabled:enabled];
   [self reconfigureCellsForItems:@[ switchItem ]];
@@ -451,7 +445,7 @@ typedef NS_ENUM(NSInteger, ItemType) {
       [[AutofillCreditCardEditTableViewController alloc]
            initWithCreditCard:*creditCards[indexPath.item]
           personalDataManager:_personalDataManager];
-  controller.dispatcher = self.dispatcher;
+  [self configureHandlersForRootViewController:controller];
   [self.navigationController pushViewController:controller animated:YES];
 }
 
@@ -478,7 +472,7 @@ typedef NS_ENUM(NSInteger, ItemType) {
   TableViewItem* item = [self.tableViewModel itemAtIndexPath:indexPath];
   if ([item isKindOfClass:[AutofillCardItem class]]) {
     AutofillCardItem* autofillItem =
-        base::mac::ObjCCastStrict<AutofillCardItem>(item);
+        base::apple::ObjCCastStrict<AutofillCardItem>(item);
     return [autofillItem isDeletable];
   }
   return NO;
@@ -503,7 +497,7 @@ typedef NS_ENUM(NSInteger, ItemType) {
 
   self.deletionInProgress = YES;
   for (NSIndexPath* indexPath in indexPaths) {
-    AutofillCardItem* item = base::mac::ObjCCastStrict<AutofillCardItem>(
+    AutofillCardItem* item = base::apple::ObjCCastStrict<AutofillCardItem>(
         [self.tableViewModel itemAtIndexPath:indexPath]);
     _personalDataManager->RemoveByGUID(item.GUID);
   }
@@ -564,7 +558,7 @@ typedef NS_ENUM(NSInteger, ItemType) {
   self.addCreditCardCoordinator = [[AutofillAddCreditCardCoordinator alloc]
       initWithBaseViewController:self
                          browser:_browser];
-
+  self.addCreditCardCoordinator.delegate = self;
   [self.addCreditCardCoordinator start];
 }
 
@@ -586,12 +580,12 @@ typedef NS_ENUM(NSInteger, ItemType) {
 #pragma mark - Getters and Setter
 
 - (BOOL)isAutofillCreditCardEnabled {
-  return autofill::prefs::IsAutofillCreditCardEnabled(
+  return autofill::prefs::IsAutofillPaymentMethodsEnabled(
       _browser->GetBrowserState()->GetPrefs());
 }
 
 - (void)setAutofillCreditCardEnabled:(BOOL)isEnabled {
-  return autofill::prefs::SetAutofillCreditCardEnabled(
+  return autofill::prefs::SetAutofillPaymentMethodsEnabled(
       _browser->GetBrowserState()->GetPrefs(), isEnabled);
 }
 
@@ -615,6 +609,20 @@ typedef NS_ENUM(NSInteger, ItemType) {
 
 - (void)addButtonCallback {
   [self handleAddPayment];
+}
+
+- (void)stopAutofillAddCreditCardCoordinator {
+  [self.addCreditCardCoordinator stop];
+  self.addCreditCardCoordinator.delegate = nil;
+  self.addCreditCardCoordinator = nil;
+}
+
+#pragma mark - AutofillAddCreditCardCoordinatorDelegate
+
+- (void)autofillAddCreditCardCoordinatorWantsToBeStopped:
+    (AutofillAddCreditCardCoordinator*)coordinator {
+  CHECK_EQ(coordinator, self.addCreditCardCoordinator);
+  [self stopAutofillAddCreditCardCoordinator];
 }
 
 @end

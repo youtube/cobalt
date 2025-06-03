@@ -35,20 +35,7 @@ namespace syncer {
 static char kValidAccessToken[] = "AccessToken";
 static char kCacheGuid[] = "kqyg7097kro6GSUod+GSg==";
 
-MockConnectionManager::MockConnectionManager()
-    : server_reachable_(true),
-      conflict_all_commits_(false),
-      conflict_n_commits_(0),
-      next_new_id_(10000),
-      store_birthday_("Store BDay!"),
-      store_birthday_sent_(false),
-      client_stuck_(false),
-      countdown_to_postbuffer_fail_(0),
-      mid_commit_observer_(nullptr),
-      throttling_(false),
-      partial_failure_(false),
-      fail_non_periodic_get_updates_(false),
-      num_get_updates_requests_(0) {
+MockConnectionManager::MockConnectionManager() {
   SetNewTimestamp(0);
   SetAccessToken(kValidAccessToken);
 }
@@ -68,26 +55,14 @@ void MockConnectionManager::SetMidCommitObserver(
 
 HttpResponse MockConnectionManager::PostBuffer(const std::string& buffer_in,
                                                const std::string& access_token,
-                                               bool allow_batching,
                                                std::string* buffer_out) {
   ClientToServerMessage post;
-  if (!post.ParseFromString(buffer_in)) {
+  if (!post.ParseFromString(buffer_in) || !post.has_protocol_version() ||
+      !post.has_api_key() || !post.has_bag_of_chips()) {
     ADD_FAILURE();
-    // Note: Here and below, ForIoErrorForTest() is chosen somewhat arbitrarily,
-    // since HttpResponse doesn't have any better-fitting type of error.
-    return HttpResponse::ForIoErrorForTest();
-  }
-  if (!post.has_protocol_version()) {
-    ADD_FAILURE();
-    return HttpResponse::ForIoErrorForTest();
-  }
-  if (!post.has_api_key()) {
-    ADD_FAILURE();
-    return HttpResponse::ForIoErrorForTest();
-  }
-  if (!post.has_bag_of_chips()) {
-    ADD_FAILURE();
-    return HttpResponse::ForIoErrorForTest();
+    // Note: Here and below, ForNetError() is chosen somewhat arbitrarily, since
+    // HttpResponse doesn't have any better-fitting type of error.
+    return HttpResponse::ForNetError(net::ERR_FAILED);
   }
 
   requests_.push_back(post);
@@ -133,21 +108,21 @@ HttpResponse MockConnectionManager::PostBuffer(const std::string& buffer_in,
 
   if (post.message_contents() == ClientToServerMessage::COMMIT) {
     if (!ProcessCommit(&post, &client_to_server_response)) {
-      return HttpResponse::ForIoErrorForTest();
+      return HttpResponse::ForNetError(net::ERR_FAILED);
     }
 
   } else if (post.message_contents() == ClientToServerMessage::GET_UPDATES) {
     if (!ProcessGetUpdates(&post, &client_to_server_response)) {
-      return HttpResponse::ForIoErrorForTest();
+      return HttpResponse::ForNetError(net::ERR_FAILED);
     }
   } else if (post.message_contents() ==
              ClientToServerMessage::CLEAR_SERVER_DATA) {
     if (!ProcessClearServerData(&post, &client_to_server_response)) {
-      return HttpResponse::ForIoErrorForTest();
+      return HttpResponse::ForNetError(net::ERR_FAILED);
     }
   } else {
     EXPECT_TRUE(false) << "Unknown/unsupported ClientToServerMessage";
-    return HttpResponse::ForIoErrorForTest();
+    return HttpResponse::ForNetError(net::ERR_FAILED);
   }
 
   {

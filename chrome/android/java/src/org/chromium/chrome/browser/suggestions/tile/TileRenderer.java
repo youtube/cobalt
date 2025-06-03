@@ -24,7 +24,6 @@ import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.omnibox.suggestions.mostvisited.SuggestTileType;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.search_engines.TemplateUrlServiceFactory;
@@ -50,8 +49,6 @@ import java.util.Map;
  * manipulating the views as needed.
  */
 public class TileRenderer {
-    private static final String TAG = "TileRenderer";
-
     private final Context mContext;
     private final Resources.Theme mTheme;
     private RoundedIconGenerator mIconGenerator;
@@ -147,8 +144,7 @@ public class TileRenderer {
 
             for (Tile tile : sectionTiles) {
                 SuggestionsTileView tileView = oldTileViews.get(tile.getData());
-                if (tileView == null || tileView.getIconView() == null
-                        || tileView.getIconView().getDrawable() == null) {
+                if (tileView == null) {
                     tileView = buildTileView(tile, parent, setupDelegate);
                 }
 
@@ -240,9 +236,6 @@ public class TileRenderer {
 
     /** @return True, if the tile represents a Search query. */
     private boolean isSearchTile(Tile tile) {
-        if (!ChromeFeatureList.isEnabled(ChromeFeatureList.HISTORY_ORGANIC_REPEATABLE_QUERIES)) {
-            return false;
-        }
         TemplateUrlService searchService =
                 TemplateUrlServiceFactory.getForProfile(Profile.getLastUsedRegularProfile());
         return searchService != null
@@ -326,8 +319,7 @@ public class TileRenderer {
                 isFallbackColorDefault ? TileVisualType.ICON_DEFAULT : TileVisualType.ICON_COLOR);
     }
 
-    @LayoutRes
-    private int getLayout() {
+    private @LayoutRes int getLayout() {
         switch (mStyle) {
             case TileStyle.MODERN:
                 return R.layout.suggestions_tile_view;
@@ -338,8 +330,7 @@ public class TileRenderer {
         return 0;
     }
 
-    @LayoutRes
-    private int getTopSitesLayout() {
+    private @LayoutRes int getTopSitesLayout() {
         switch (mStyle) {
             case TileStyle.MODERN:
                 return R.layout.top_sites_tile_view;
@@ -350,7 +341,6 @@ public class TileRenderer {
         return 0;
     }
 
-    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
     public void setIconGeneratorForTesting(RoundedIconGenerator generator) {
         mIconGenerator = generator;
     }

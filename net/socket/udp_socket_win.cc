@@ -249,6 +249,16 @@ UDPSocketWin::UDPSocketWin(DatagramSocket::BindType bind_type,
   net_log_.BeginEventReferencingSource(NetLogEventType::SOCKET_ALIVE, source);
 }
 
+UDPSocketWin::UDPSocketWin(DatagramSocket::BindType bind_type,
+                           NetLogWithSource source_net_log)
+    : socket_(INVALID_SOCKET),
+      socket_options_(SOCKET_OPTION_MULTICAST_LOOP),
+      net_log_(source_net_log) {
+  EnsureWinsockInit();
+  net_log_.BeginEventReferencingSource(NetLogEventType::SOCKET_ALIVE,
+                                       net_log_.source());
+}
+
 UDPSocketWin::~UDPSocketWin() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   Close();
@@ -576,6 +586,23 @@ int UDPSocketWin::SetDoNotFragment() {
   DWORD val = 1;
   int rv = setsockopt(socket_, IPPROTO_IP, IP_DONTFRAGMENT,
                       reinterpret_cast<const char*>(&val), sizeof(val));
+  return rv == 0 ? OK : MapSystemError(WSAGetLastError());
+}
+
+int UDPSocketWin::SetRecvEcn() {
+  DCHECK_NE(socket_, INVALID_SOCKET);
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+
+  int rv;
+  unsigned int ecn = 1;
+  if (addr_family_ == AF_INET6) {
+    rv = setsockopt(socket_, IPPROTO_IPV6, IPV6_RECVTCLASS,
+                    reinterpret_cast<const char*>(&ecn), sizeof(ecn));
+  } else {
+    DCHECK_EQ(addr_family_, AF_INET);
+    rv = setsockopt(socket_, IPPROTO_IP, IP_RECVTOS,
+                    reinterpret_cast<const char*>(&ecn), sizeof(ecn));
+  }
   return rv == 0 ? OK : MapSystemError(WSAGetLastError());
 }
 

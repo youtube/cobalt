@@ -16,10 +16,10 @@ import './system_page.js';
 import {loadTimeData} from 'chrome://resources/ash/common/load_time_data.m.js';
 import {SelectorItem} from 'chrome://resources/ash/common/navigation_selector.js';
 import {NavigationViewPanelElement} from 'chrome://resources/ash/common/navigation_view_panel.js';
-import {startColorChangeUpdater} from 'chrome://resources/cr_components/color_change_listener/colors_css_updater.js';
+import {ColorChangeUpdater} from 'chrome://resources/cr_components/color_change_listener/colors_css_updater.js';
 import {CrToastElement} from 'chrome://resources/cr_elements/cr_toast/cr_toast.js';
 import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
-import {assert} from 'chrome://resources/js/assert_ts.js';
+import {assert} from 'chrome://resources/js/assert.js';
 import {PolymerElementProperties} from 'chrome://resources/polymer/v3_0/polymer/interfaces.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
@@ -86,11 +86,6 @@ export class DiagnosticsAppElement extends DiagnosticsAppElementBase {
         value: true,
       },
 
-      isInputEnabled: {
-        type: Boolean,
-        value: loadTimeData.getBoolean('isInputEnabled'),
-      },
-
       /**
        * Whether a user is logged in or not.
        * Note: A guest session is considered a logged-in state.
@@ -110,7 +105,6 @@ export class DiagnosticsAppElement extends DiagnosticsAppElementBase {
   protected bannerMessage: string;
   protected isLoggedIn: boolean;
   private saveSessionLogEnabled: boolean;
-  private isInputEnabled: boolean;
   private toastText: string;
   private browserProxy: DiagnosticsBrowserProxyImpl =
       DiagnosticsBrowserProxyImpl.getInstance();
@@ -121,11 +115,9 @@ export class DiagnosticsAppElement extends DiagnosticsAppElementBase {
   constructor() {
     super();
     this.browserProxy.initialize();
-    if (this.isInputEnabled) {
-      this.inputDataProvider.observeConnectedDevices(
-          new ConnectedDevicesObserverReceiver(this)
-              .$.bindNewPipeAndPassRemote());
-    }
+    this.inputDataProvider.observeConnectedDevices(
+        new ConnectedDevicesObserverReceiver(this)
+            .$.bindNewPipeAndPassRemote());
   }
 
   /**
@@ -184,19 +176,18 @@ export class DiagnosticsAppElement extends DiagnosticsAppElementBase {
           getNavigationIcon('ethernet'), 'connectivity'),
     ];
 
-    if (this.isInputEnabled) {
-      const devices: ConnectedDevices =
-          await this.inputDataProvider.getConnectedDevices();
-      // Check the existing value of |numKeyboards| if |GetConnectedDevices|
-      // returns no keyboards as it's possible |onKeyboardConnected| was called
-      // prior.
-      this.numKeyboards = devices.keyboards.length || this.numKeyboards;
-      const isTouchPadOrTouchScreenEnabled =
-          loadTimeData.getBoolean('isTouchpadEnabled') ||
-          loadTimeData.getBoolean('isTouchscreenEnabled');
-      if (this.numKeyboards > 0 || isTouchPadOrTouchScreenEnabled) {
-        pages.push(this.createInputSelector());
-      }
+    pages.push(this.createInputSelector());
+    const devices: ConnectedDevices =
+        await this.inputDataProvider.getConnectedDevices();
+    // Check the existing value of |numKeyboards| if |GetConnectedDevices|
+    // returns no keyboards as it's possible |onKeyboardConnected| was called
+    // prior.
+    this.numKeyboards = devices.keyboards.length || this.numKeyboards;
+    const isTouchPadOrTouchScreenEnabled =
+        loadTimeData.getBoolean('isTouchpadEnabled') ||
+        loadTimeData.getBoolean('isTouchscreenEnabled');
+    if (this.numKeyboards === 0 && !isTouchPadOrTouchScreenEnabled) {
+      pages.pop();
     }
 
     return pages;
@@ -211,10 +202,15 @@ export class DiagnosticsAppElement extends DiagnosticsAppElementBase {
     if (loadTimeData.getBoolean('isJellyEnabledForDiagnosticsApp')) {
       // TODO(b/276493287): After the Jelly experiment is launched, replace
       // `cros_styles.css` with `theme/colors.css` directly in `index.html`.
+      // Also add `theme/typography.css` to `index.html`.
       document.querySelector('link[href*=\'cros_styles.css\']')
           ?.setAttribute('href', 'chrome://theme/colors.css?sets=legacy,sys');
+      const typographyLink = document.createElement('link');
+      typographyLink.href = 'chrome://theme/typography.css';
+      typographyLink.rel = 'stylesheet';
+      document.head.appendChild(typographyLink);
       document.body.classList.add('jelly-enabled');
-      startColorChangeUpdater();
+      ColorChangeUpdater.forDocument().start();
     }
 
     this.createNavigationPanel();

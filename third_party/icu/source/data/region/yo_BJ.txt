@@ -107,9 +107,13 @@ yo_BJ{
         ZW{"Shimibabe"}
         ZZ{"Àgbègbè àìmɔ̀"}
     }
+    Countries%short{
+        GB{"Gɛ̀ɛ́sì"}
+        US{"Amɛrikà"}
+    }
     Countries%variant{
         CZ{"Shɛ́ɛ́kì"}
         TL{"Ìlà Òòrùn Tímɔ̀"}
-        TR{"Èdè Tɔɔki"}
+        TR{"Tɔɔki"}
     }
 }

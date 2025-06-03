@@ -17,8 +17,11 @@
     --cr-icon-button-margin-end: 0;
   }
 </style>
-<div class="cr-row first">
-  <div class="cr-padded-text">$i18n{tabDiscardingExceptionsHeader}</div>
+<div class="cr-row">
+  <div class="cr-padded-text">
+    $i18n{tabDiscardingExceptionsHeader}
+    <div class="secondary">$i18n{tabDiscardingExceptionsDescription}</div>
+  </div>
   <cr-button id="addButton" on-click="onAddClick_"
       aria-label="$i18n{tabDiscardingExceptionsAddButtonAriaLabel}">
     $i18n{add}
@@ -71,9 +74,18 @@
     </cr-action-menu>
   </template>
 </cr-lazy-render>
-<template is="dom-if" if="[[showDialog_]]" restamp>
-  <tab-discard-exception-dialog prefs="{{prefs}}"
-      rule-to-edit="[[selectedRule_]]"
-      on-close="onDialogClose_" on-add-exception="onAddException_">
-  </tab-discard-exception-dialog>
+<template is="dom-if" if="[[showAddDialog_]]" restamp>
+  <tab-discard-exception-add-dialog prefs="{{prefs}}"
+      on-close="onAddDialogClose_">
+  </tab-discard-exception-add-dialog>
+</template>
+<template is="dom-if" if="[[showTabbedAddDialog_]]" restamp>
+  <tab-discard-exception-tabbed-add-dialog prefs="{{prefs}}"
+      on-close="onTabbedAddDialogClose_">
+  </tab-discard-exception-tabbed-add-dialog>
+</template>
+<template is="dom-if" if="[[showEditDialog_]]" restamp>
+  <tab-discard-exception-edit-dialog prefs="{{prefs}}"
+      on-close="onEditDialogClose_" rule-to-edit="[[selectedRule_]]">
+  </tab-discard-exception-edit-dialog>
 </template>

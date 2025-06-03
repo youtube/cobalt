@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "testing/libfuzzer/proto/lpm_interface.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_core.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/frame/settings.h"
 #include "third_party/blink/renderer/core/testing/dummy_page_holder.h"
@@ -10,7 +11,6 @@
 #include "third_party/blink/renderer/modules/ml/webnn/fuzzer/webnn.pb.h"
 #include "third_party/blink/renderer/modules/ml/webnn/ml_graph_builder_utils.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
-#include "third_party/blink/renderer/platform/bindings/v8_per_isolate_data.h"
 #include "third_party/blink/renderer/platform/testing/blink_fuzzer_test_support.h"
 
 namespace blink {
@@ -71,10 +71,15 @@ DEFINE_PROTO_FUZZER(const webnn_proto::conv2d& conv2d) {
     return page_holder.release();
   }();
 
-  auto* builder = CreateMLGraphBuilder(
-      page_holder->GetFrame().DomWindow()->GetExecutionContext());
+  ScriptState* script_state =
+      ToScriptStateForMainWorld(&page_holder->GetFrame());
 
   DummyExceptionStateForTesting exception_state;
+  auto* builder = CreateMLGraphBuilder(
+      page_holder->GetFrame().DomWindow()->GetExecutionContext(), script_state,
+      exception_state);
+  CHECK(builder);
+
   auto* input =
       BuildInput(builder, "input", Vector<uint32_t>(conv2d.input_dimensions()),
                  ToV8MLOperandType(conv2d.input_type()), exception_state);
@@ -91,8 +96,10 @@ DEFINE_PROTO_FUZZER(const webnn_proto::conv2d& conv2d) {
   }
   builder->conv2d(input, filter, conv2d_options, exception_state);
 
-  V8PerIsolateData::MainThreadIsolate()->RequestGarbageCollectionForTesting(
-      v8::Isolate::kFullGarbageCollection);
+  page_holder->GetPage()
+      ->GetAgentGroupScheduler()
+      ->Isolate()
+      ->RequestGarbageCollectionForTesting(v8::Isolate::kFullGarbageCollection);
 }
 
 }  // namespace blink

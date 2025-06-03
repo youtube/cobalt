@@ -1,4 +1,4 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,28 +12,17 @@
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "components/bookmarks/browser/bookmark_model.h"
 #include "components/bookmarks/browser/bookmark_utils.h"
+#include "components/commerce/core/price_tracking_utils.h"
 #include "components/strings/grit/components_strings.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/views/controls/styled_label.h"
 #include "ui/views/layout/fill_layout.h"
+#include "ui/views/view_class_properties.h"
 #include "ui/views/view_tracker.h"
 #include "ui/views/view_utils.h"
 
 namespace {
-
-const std::u16string& GetBookmarkParentNameOrDefault(Profile* profile,
-                                                     const GURL& url) {
-  bookmarks::BookmarkModel* const model =
-      BookmarkModelFactory::GetForBrowserContext(profile);
-
-  if (bookmarks::IsBookmarkedByUser(model, url)) {
-    const bookmarks::BookmarkNode* existing_node =
-        model->GetMostRecentlyAddedUserNodeForURL(url);
-    return existing_node->parent()->GetTitle();
-  }
-  const bookmarks::BookmarkNode* node = model->other_node();
-  return node->GetTitle();
-}
 
 std::unique_ptr<views::StyledLabel> CreateBodyLabel(std::u16string& body_text) {
   return views::Builder<views::StyledLabel>()
@@ -45,6 +34,8 @@ std::unique_ptr<views::StyledLabel> CreateBodyLabel(std::u16string& body_text) {
 }
 
 }  // namespace
+
+DEFINE_ELEMENT_IDENTIFIER_VALUE(kPriceTrackingBubbleDialogId);
 
 PriceTrackingBubbleDialogView::PriceTrackingBubbleDialogView(
     View* anchor_view,
@@ -58,13 +49,15 @@ PriceTrackingBubbleDialogView::PriceTrackingBubbleDialogView(
       profile_(profile),
       url_(url),
       type_(type) {
+  SetProperty(views::kElementIdentifierKey, kPriceTrackingBubbleDialogId);
   SetShowCloseButton(true);
   SetLayoutManager(std::make_unique<views::FillLayout>());
   SetButtons(ui::DIALOG_BUTTON_CANCEL | ui::DIALOG_BUTTON_OK);
   set_fixed_width(views::LayoutProvider::Get()->GetDistanceMetric(
       views::DISTANCE_BUBBLE_PREFERRED_WIDTH));
 
-  auto folder_name = GetBookmarkParentNameOrDefault(profile_, url);
+  auto folder_name = commerce::GetBookmarkParentNameOrDefault(
+      BookmarkModelFactory::GetForBrowserContext(profile_), url);
 
   if (type == PriceTrackingBubbleDialogView::Type::TYPE_FIRST_USE_EXPERIENCE) {
     SetTitle(l10n_util::GetStringUTF16(
@@ -161,6 +154,9 @@ void PriceTrackingBubbleDialogView::OnCanceled(
   }
   std::move(on_track_price_callback).Run(false);
 }
+
+BEGIN_METADATA(PriceTrackingBubbleDialogView, LocationBarBubbleDelegateView)
+END_METADATA
 
 // PriceTrackingBubbleCoordinator
 PriceTrackingBubbleCoordinator::PriceTrackingBubbleCoordinator(

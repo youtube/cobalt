@@ -12,12 +12,11 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 
-import androidx.annotation.VisibleForTesting;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 
 import org.chromium.base.metrics.RecordHistogram;
-import org.chromium.chrome.browser.password_manager.ReauthResult;
+import org.chromium.chrome.browser.device_reauth.ReauthResult;
 
 /** Show the lock screen confirmation and lock the screen. */
 public class PasswordReauthenticationFragment extends Fragment {
@@ -83,7 +82,6 @@ public class PasswordReauthenticationFragment extends Fragment {
     /**
      * Prevent calling the {@link #lockDevice} method in {@link #onCreate}.
      */
-    @VisibleForTesting
     public static void preventLockingForTesting() {
         sPreventLockDevice = true;
     }

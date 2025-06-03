@@ -69,16 +69,15 @@ TEST(ValuesTest, SizeOfValue) {
 #endif
 
 TEST(ValuesTest, TestNothrow) {
-  static_assert(std::is_nothrow_move_constructible<Value>::value,
+  static_assert(std::is_nothrow_move_constructible_v<Value>,
                 "IsNothrowMoveConstructible");
-  static_assert(std::is_nothrow_default_constructible<Value>::value,
+  static_assert(std::is_nothrow_default_constructible_v<Value>,
                 "IsNothrowDefaultConstructible");
-  static_assert(std::is_nothrow_constructible<Value, std::string&&>::value,
+  static_assert(std::is_nothrow_constructible_v<Value, std::string&&>,
                 "IsNothrowMoveConstructibleFromString");
-  static_assert(
-      std::is_nothrow_constructible<Value, Value::BlobStorage&&>::value,
-      "IsNothrowMoveConstructibleFromBlob");
-  static_assert(std::is_nothrow_move_assignable<Value>::value,
+  static_assert(std::is_nothrow_constructible_v<Value, Value::BlobStorage&&>,
+                "IsNothrowMoveConstructibleFromBlob");
+  static_assert(std::is_nothrow_move_assignable_v<Value>,
                 "IsNothrowMoveAssignable");
 }
 
@@ -106,15 +105,15 @@ TEST(ValuesTest, ConstructBool) {
 }
 
 TEST(ValuesTest, ConstructFromPtrs) {
-  static_assert(!std::is_constructible<Value, int*>::value, "");
-  static_assert(!std::is_constructible<Value, const int*>::value, "");
-  static_assert(!std::is_constructible<Value, wchar_t*>::value, "");
-  static_assert(!std::is_constructible<Value, const wchar_t*>::value, "");
+  static_assert(!std::is_constructible_v<Value, int*>, "");
+  static_assert(!std::is_constructible_v<Value, const int*>, "");
+  static_assert(!std::is_constructible_v<Value, wchar_t*>, "");
+  static_assert(!std::is_constructible_v<Value, const wchar_t*>, "");
 
-  static_assert(std::is_constructible<Value, char*>::value, "");
-  static_assert(std::is_constructible<Value, const char*>::value, "");
-  static_assert(std::is_constructible<Value, char16_t*>::value, "");
-  static_assert(std::is_constructible<Value, const char16_t*>::value, "");
+  static_assert(std::is_constructible_v<Value, char*>, "");
+  static_assert(std::is_constructible_v<Value, const char*>, "");
+  static_assert(std::is_constructible_v<Value, char16_t*>, "");
+  static_assert(std::is_constructible_v<Value, const char16_t*>, "");
 }
 
 TEST(ValuesTest, ConstructInt) {
@@ -534,6 +533,49 @@ TEST(ValuesTest, ListInsert) {
   EXPECT_EQ(*iter, "Hello world!");
 }
 
+TEST(ValuesTest, ListResize) {
+  auto list = base::Value::List().Append("Hello world!");
+  EXPECT_EQ(list.size(), 1U);
+
+  list.resize(2);
+  // Adds an empty entry to the back to match the size.
+  EXPECT_EQ(list.size(), 2U);
+  EXPECT_TRUE(list[0].is_string());
+  EXPECT_TRUE(list[1].is_none());
+
+  list.resize(1);
+  // Shrinks the list and kicks the new entry out.
+  EXPECT_EQ(list.size(), 1U);
+  EXPECT_TRUE(list[0].is_string());
+
+  list.resize(0);
+  // Removes the remaining entry too.
+  EXPECT_EQ(list.size(), 0U);
+}
+
+TEST(ValuesTest, ReverseIter) {
+  Value::List list;
+  const Value::List& const_list = list;
+
+  list.Append(Value(true));
+  list.Append(Value(123));
+  list.Append(Value("Hello world!"));
+
+  auto iter = list.rbegin();
+  EXPECT_TRUE(const_list.rbegin() == iter);
+  EXPECT_EQ(*iter, "Hello world!");
+
+  ++iter;
+  EXPECT_EQ(*iter, 123);
+
+  ++iter;
+  EXPECT_EQ(*iter, true);
+
+  ++iter;
+  EXPECT_TRUE(list.rend() == iter);
+  EXPECT_TRUE(const_list.rend() == iter);
+}
+
 // Test all three behaviors of EnsureDict() (Create a new dict where no
 // matchining values exist, return an existing dict, create a dict overwriting
 // a value of another type).
@@ -630,6 +672,43 @@ TEST(ValuesTest, DictSetByDottedPath) {
   EXPECT_EQ(1U, b->size());
 
   EXPECT_EQ(c, b->Find("c"));
+}
+
+TEST(ValuesTest, RvalueDictSetByDottedPath) {
+  Value::Dict dict =
+      Value::Dict()
+          .SetByDottedPath("nested.dictionary.null", Value())
+          .SetByDottedPath("nested.dictionary.bool", false)
+          .SetByDottedPath("nested.dictionary.int", 42)
+          .SetByDottedPath("nested.dictionary.double", 1.2)
+          .SetByDottedPath("nested.dictionary.string", "value")
+          .SetByDottedPath("nested.dictionary.u16-string", u"u16-value")
+          .SetByDottedPath("nested.dictionary.std-string",
+                           std::string("std-value"))
+          .SetByDottedPath("nested.dictionary.blob", Value::BlobStorage({1, 2}))
+          .SetByDottedPath("nested.dictionary.list",
+                           Value::List().Append("value in list"))
+          .SetByDottedPath("nested.dictionary.dict",
+                           Value::Dict().Set("key", "value"));
+
+  Value::Dict expected =
+      Value::Dict()  //
+          .Set("nested",
+               base::Value::Dict()  //
+                   .Set("dictionary",
+                        base::Value::Dict()
+                            .Set("null", Value())
+                            .Set("bool", false)
+                            .Set("int", 42)
+                            .Set("double", 1.2)
+                            .Set("string", "value")
+                            .Set("u16-string", u"u16-value")
+                            .Set("std-string", std::string("std-value"))
+                            .Set("blob", Value::BlobStorage({1, 2}))
+                            .Set("list", Value::List().Append("value in list"))
+                            .Set("dict", Value::Dict().Set("key", "value"))));
+
+  EXPECT_EQ(dict, expected);
 }
 
 TEST(ValuesTest, DictSetWithDottedKey) {
@@ -1519,82 +1598,40 @@ TEST(ValuesTest, DictionarySetReturnsPointer) {
 }
 
 TEST(ValuesTest, Clone) {
-  Value::Dict original_dict;
-  Value* null_weak = original_dict.Set("null", Value());
-  Value* bool_weak = original_dict.Set("bool", Value(true));
-  Value* int_weak = original_dict.Set("int", Value(42));
-  Value* double_weak = original_dict.Set("double", Value(3.14));
-  Value* string_weak = original_dict.Set("string", Value("hello"));
-  Value* string16_weak = original_dict.Set("string16", Value(u"hello16"));
-
-  Value* binary_weak =
-      original_dict.Set("binary", Value(Value::BlobStorage(42, '!')));
+  Value original_null;
+  Value original_bool(true);
+  Value original_int(42);
+  Value original_double(3.14);
+  Value original_string("hello");
+  Value original_string16(u"hello16");
+  Value original_binary(Value::BlobStorage(42, '!'));
 
   Value::List list;
   list.Append(0);
   list.Append(1);
-  Value* list_weak = original_dict.Set("list", Value(std::move(list)));
+  Value original_list(std::move(list));
 
-  Value* dict_weak = original_dict.Set("dictionary", Value(Value::Type::DICT));
-  dict_weak->GetDict().Set("key", "value");
+  Value original_dict(Value::Dict()
+                          .Set("null", original_null.Clone())
+                          .Set("bool", original_bool.Clone())
+                          .Set("int", original_int.Clone())
+                          .Set("double", original_double.Clone())
+                          .Set("string", original_string.Clone())
+                          .Set("string16", original_string16.Clone())
+                          .Set("binary", original_binary.Clone())
+                          .Set("list", original_list.Clone()));
 
-  Value::Dict copy_dict = original_dict.Clone();
-
-  Value* copy_null = copy_dict.Find("null");
-  ASSERT_TRUE(copy_null);
-  ASSERT_NE(copy_null, null_weak);
-  ASSERT_TRUE(copy_null->is_none());
-
-  Value* copy_bool = copy_dict.Find("bool");
-  ASSERT_TRUE(copy_bool);
-  ASSERT_NE(copy_bool, bool_weak);
-  ASSERT_TRUE(copy_bool->is_bool());
-  ASSERT_TRUE(copy_bool->GetBool());
-
-  Value* copy_int = copy_dict.Find("int");
-  ASSERT_TRUE(copy_int);
-  ASSERT_NE(copy_int, int_weak);
-  ASSERT_TRUE(copy_int->is_int());
-  ASSERT_EQ(42, copy_int->GetInt());
-
-  Value* copy_double = copy_dict.Find("double");
-  ASSERT_TRUE(copy_double);
-  ASSERT_NE(copy_double, double_weak);
-  ASSERT_TRUE(copy_double->is_double());
-  ASSERT_EQ(3.14, copy_double->GetDouble());
-
-  Value* copy_string = copy_dict.Find("string");
-  ASSERT_TRUE(copy_string);
-  ASSERT_NE(copy_string, string_weak);
-  ASSERT_TRUE(copy_string->is_string());
-  ASSERT_EQ(std::string("hello"), copy_string->GetString());
-
-  Value* copy_string16 = copy_dict.Find("string16");
-  ASSERT_TRUE(copy_string16);
-  ASSERT_NE(copy_string16, string16_weak);
-  ASSERT_TRUE(copy_string16->is_string());
-  ASSERT_EQ(std::string("hello16"), copy_string16->GetString());
-
-  Value* copy_binary = copy_dict.Find("binary");
-  ASSERT_TRUE(copy_binary);
-  ASSERT_NE(copy_binary, binary_weak);
-  ASSERT_TRUE(copy_binary->is_blob());
-  ASSERT_NE(binary_weak->GetBlob().data(), copy_binary->GetBlob().data());
-  ASSERT_EQ(binary_weak->GetBlob(), copy_binary->GetBlob());
-
-  Value* copy_value = copy_dict.Find("list");
-  ASSERT_TRUE(copy_value);
-  ASSERT_NE(copy_value, list_weak);
-  ASSERT_TRUE(copy_value->is_list());
-  ASSERT_EQ(2U, copy_value->GetList().size());
-
-  copy_value = copy_dict.Find("dictionary");
-  ASSERT_TRUE(copy_value);
-  ASSERT_NE(copy_value, dict_weak);
-  ASSERT_TRUE(copy_value->is_dict());
-  Value::Dict* copy_nested_dictionary = copy_value->GetIfDict();
-  ASSERT_TRUE(copy_nested_dictionary);
-  EXPECT_TRUE(copy_nested_dictionary->Find("key"));
+  Value copy_value = original_dict.Clone();
+  const Value::Dict& copy_dict = copy_value.GetDict();
+  EXPECT_EQ(original_dict, copy_dict);
+  EXPECT_EQ(original_null, *copy_dict.Find("null"));
+  EXPECT_EQ(original_bool, *copy_dict.Find("bool"));
+  EXPECT_EQ(original_int, *copy_dict.Find("int"));
+  EXPECT_EQ(original_double, *copy_dict.Find("double"));
+  EXPECT_EQ(original_string, *copy_dict.Find("string"));
+  EXPECT_EQ(original_string16, *copy_dict.Find("string16"));
+  EXPECT_EQ(original_binary, *copy_dict.Find("binary"));
+  EXPECT_EQ(original_list, *copy_dict.Find("list"));
 }
 
 TEST(ValuesTest, TakeString) {
@@ -1904,42 +1941,6 @@ TEST(ValuesTest, Comparisons) {
       EXPECT_FALSE(values[i] >= values[j]);
     }
   }
-}
-
-TEST(ValuesTest, DeepCopyCovariantReturnTypes) {
-  Value::Dict original_dict;
-  Value* null_weak = original_dict.Set("null", Value());
-  Value* bool_weak = original_dict.Set("bool", true);
-  Value* int_weak = original_dict.Set("int", 42);
-  Value* double_weak = original_dict.Set("double", 3.14);
-  Value* string_weak = original_dict.Set("string", "hello");
-  Value* string16_weak = original_dict.Set("string16", u"hello16");
-  Value* binary_weak = original_dict.Set("binary", Value::BlobStorage(42, '!'));
-
-  Value::List list;
-  list.Append(0);
-  list.Append(1);
-  Value* list_weak = original_dict.Set("list", std::move(list));
-
-  auto copy_dict = std::make_unique<Value>(original_dict.Clone());
-  auto copy_null = std::make_unique<Value>(null_weak->Clone());
-  auto copy_bool = std::make_unique<Value>(bool_weak->Clone());
-  auto copy_int = std::make_unique<Value>(int_weak->Clone());
-  auto copy_double = std::make_unique<Value>(double_weak->Clone());
-  auto copy_string = std::make_unique<Value>(string_weak->Clone());
-  auto copy_string16 = std::make_unique<Value>(string16_weak->Clone());
-  auto copy_binary = std::make_unique<Value>(binary_weak->Clone());
-  auto copy_list = std::make_unique<Value>(list_weak->Clone());
-
-  EXPECT_EQ(original_dict, *copy_dict);
-  EXPECT_EQ(*null_weak, *copy_null);
-  EXPECT_EQ(*bool_weak, *copy_bool);
-  EXPECT_EQ(*int_weak, *copy_int);
-  EXPECT_EQ(*double_weak, *copy_double);
-  EXPECT_EQ(*string_weak, *copy_string);
-  EXPECT_EQ(*string16_weak, *copy_string16);
-  EXPECT_EQ(*binary_weak, *copy_binary);
-  EXPECT_EQ(*list_weak, *copy_list);
 }
 
 TEST(ValuesTest, Merge) {

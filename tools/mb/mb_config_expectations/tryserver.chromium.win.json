@@ -8,6 +8,7 @@
       "is_debug": false,
       "proprietary_codecs": true,
       "symbol_level": 1,
+      "use_dummy_lastchange": true,
       "use_remoteexec": true
     }
   },
@@ -20,6 +21,7 @@
       "is_debug": false,
       "proprietary_codecs": true,
       "symbol_level": 1,
+      "use_dummy_lastchange": true,
       "use_remoteexec": true
     }
   },
@@ -32,6 +34,7 @@
       "is_debug": false,
       "proprietary_codecs": true,
       "symbol_level": 1,
+      "use_dummy_lastchange": true,
       "use_remoteexec": true
     }
   },
@@ -43,6 +46,7 @@
       "is_debug": true,
       "proprietary_codecs": true,
       "symbol_level": 1,
+      "use_dummy_lastchange": true,
       "use_remoteexec": true
     }
   },
@@ -55,6 +59,7 @@
       "is_debug": true,
       "proprietary_codecs": true,
       "symbol_level": 1,
+      "use_dummy_lastchange": true,
       "use_remoteexec": true
     }
   },
@@ -68,6 +73,7 @@
       "is_debug": false,
       "proprietary_codecs": true,
       "symbol_level": 1,
+      "use_dummy_lastchange": true,
       "use_remoteexec": true
     }
   },
@@ -80,6 +86,7 @@
       "is_debug": false,
       "proprietary_codecs": true,
       "symbol_level": 1,
+      "use_dummy_lastchange": true,
       "use_remoteexec": true
     }
   },
@@ -93,6 +100,7 @@
       "proprietary_codecs": true,
       "symbol_level": 1,
       "target_cpu": "x86",
+      "use_dummy_lastchange": true,
       "use_remoteexec": true
     }
   },
@@ -105,6 +113,17 @@
       "is_debug": false,
       "proprietary_codecs": true,
       "symbol_level": 1,
+      "use_dummy_lastchange": true,
+      "use_remoteexec": true
+    }
+  },
+  "gpu-try-win-nvidia-dbg": {
+    "gn_args": {
+      "ffmpeg_branding": "Chrome",
+      "is_component_build": true,
+      "is_debug": true,
+      "proprietary_codecs": true,
+      "symbol_level": 1,
       "use_remoteexec": true
     }
   },
@@ -114,6 +133,7 @@
       "is_component_build": false,
       "is_debug": false,
       "symbol_level": 0,
+      "use_dummy_lastchange": true,
       "use_remoteexec": true
     }
   },
@@ -135,6 +155,26 @@
       "is_component_build": false,
       "is_debug": false,
       "symbol_level": 1,
+      "use_remoteexec": true
+    }
+  },
+  "win-clobber-rel": {
+    "gn_args": {
+      "dcheck_always_on": true,
+      "is_component_build": false,
+      "is_debug": false,
+      "symbol_level": 0,
+      "use_dummy_lastchange": true,
+      "use_remoteexec": true
+    }
+  },
+  "win-cr23-rel": {
+    "gn_args": {
+      "dcheck_always_on": true,
+      "is_component_build": false,
+      "is_debug": false,
+      "symbol_level": 0,
+      "use_dummy_lastchange": true,
       "use_remoteexec": true
     }
   },
@@ -160,6 +200,7 @@
       "pdf_enable_xfa": true,
       "proprietary_codecs": true,
       "symbol_level": 0,
+      "use_dummy_lastchange": true,
       "use_libfuzzer": true,
       "use_remoteexec": true
     }
@@ -170,6 +211,7 @@
       "is_component_build": false,
       "is_debug": false,
       "symbol_level": 0,
+      "use_dummy_lastchange": true,
       "use_perfetto_client_library": true,
       "use_remoteexec": true
     }
@@ -187,6 +229,24 @@
       "proprietary_codecs": true,
       "symbol_level": 0,
       "use_clang_coverage": true,
+      "use_dummy_lastchange": true,
+      "use_remoteexec": true
+    }
+  },
+  "win-siso-rel": {
+    "gn_args": {
+      "coverage_instrumentation_input_file": "//.code-coverage/files_to_instrument.txt",
+      "dcheck_always_on": true,
+      "enable_dangling_raw_ptr_checks": true,
+      "enable_dangling_raw_ptr_feature_flag": true,
+      "enable_resource_allowlist_generation": false,
+      "ffmpeg_branding": "Chrome",
+      "is_component_build": false,
+      "is_debug": false,
+      "proprietary_codecs": true,
+      "symbol_level": 0,
+      "use_clang_coverage": true,
+      "use_dummy_lastchange": true,
       "use_remoteexec": true
     }
   },
@@ -205,10 +265,12 @@
   },
   "win10-wpt-content-shell-fyi-rel": {
     "gn_args": {
-      "dcheck_always_on": true,
+      "dcheck_always_on": false,
+      "ffmpeg_branding": "Chrome",
       "is_component_build": false,
       "is_debug": false,
-      "symbol_level": 0,
+      "proprietary_codecs": true,
+      "symbol_level": 1,
       "use_remoteexec": true
     }
   },
@@ -222,6 +284,7 @@
       "is_debug": false,
       "proprietary_codecs": true,
       "symbol_level": 0,
+      "use_dummy_lastchange": true,
       "use_remoteexec": true
     }
   },
@@ -241,15 +304,18 @@
       "is_component_build": false,
       "is_debug": false,
       "symbol_level": 0,
+      "use_dummy_lastchange": true,
       "use_goma": true
     }
   },
   "win11-wpt-content-shell-fyi-rel": {
     "gn_args": {
-      "dcheck_always_on": true,
+      "dcheck_always_on": false,
+      "ffmpeg_branding": "Chrome",
       "is_component_build": false,
       "is_debug": false,
-      "symbol_level": 0,
+      "proprietary_codecs": true,
+      "symbol_level": 1,
       "use_remoteexec": true
     }
   },
@@ -266,16 +332,18 @@
       "proprietary_codecs": true,
       "symbol_level": 0,
       "use_clang_coverage": true,
+      "use_dummy_lastchange": true,
       "use_remoteexec": true
     }
   },
-  "win_archive": {
+  "win32-clobber-rel": {
     "gn_args": {
       "dcheck_always_on": true,
       "is_component_build": false,
       "is_debug": false,
       "symbol_level": 0,
       "target_cpu": "x86",
+      "use_dummy_lastchange": true,
       "use_remoteexec": true
     }
   },
@@ -287,6 +355,7 @@
       "proprietary_codecs": true,
       "symbol_level": 0,
       "target_cpu": "x86",
+      "use_dummy_lastchange": true,
       "use_remoteexec": true
     }
   },
@@ -300,6 +369,7 @@
       "proprietary_codecs": true,
       "symbol_level": 0,
       "target_cpu": "x86",
+      "use_dummy_lastchange": true,
       "use_remoteexec": true
     }
   },
@@ -311,6 +381,7 @@
       "is_debug": false,
       "proprietary_codecs": true,
       "symbol_level": 0,
+      "use_dummy_lastchange": true,
       "use_remoteexec": true
     }
   },
@@ -323,6 +394,7 @@
       "is_debug": false,
       "proprietary_codecs": true,
       "symbol_level": 1,
+      "use_dummy_lastchange": true,
       "use_remoteexec": true
     }
   },
@@ -332,15 +404,6 @@
       "is_component_build": false,
       "is_debug": false,
       "use_goma": true
-    }
-  },
-  "win_x64_archive": {
-    "gn_args": {
-      "dcheck_always_on": true,
-      "is_component_build": false,
-      "is_debug": false,
-      "symbol_level": 0,
-      "use_remoteexec": true
     }
   }
 }

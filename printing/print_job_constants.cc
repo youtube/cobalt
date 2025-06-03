@@ -19,6 +19,9 @@ const char kPreviewRequestID[] = "requestID";
 // Unique ID to identify a print preview UI.
 const char kPreviewUIID[] = "previewUIID";
 
+// If true, tell the printer to print without margins.
+const char kSettingBorderless[] = "borderless";
+
 // Capabilities option. Contains the capabilities in CDD format.
 const char kSettingCapabilities[] = "capabilities";
 
@@ -54,9 +57,6 @@ const char kSettingDpiHorizontal[] = "dpiHorizontal";
 
 // Vertical DPI
 const char kSettingDpiVertical[] = "dpiVertical";
-
-// Scaling value required to fit the document to page.
-const char kSettingFitToPageScaling[] = "fitToPageScaling";
 
 // Print job duplex mode. Value is an int from DuplexMode enum.
 const char kSettingDuplexMode[] = "duplex";
@@ -115,6 +115,9 @@ const char kSettingMediaSizeVendorId[] = "vendor_id";
 
 // Key that specifies whether the requested media is a default one.
 const char kSettingMediaSizeIsDefault[] = "is_default";
+
+// Key that specifies the requested media type (plain, photo paper, etc.)
+const char kSettingMediaType[] = "mediaType";
 
 // Key that specifies the bottom margin of the page.
 const char kSettingMarginBottom[] = "marginBottom";

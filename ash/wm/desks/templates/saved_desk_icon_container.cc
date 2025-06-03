@@ -13,7 +13,6 @@
 #include "ash/public/cpp/window_properties.h"
 #include "ash/shell.h"
 #include "ash/wm/desks/templates/saved_desk_constants.h"
-#include "ash/wm/desks/templates/saved_desk_icon_view.h"
 #include "base/check.h"
 #include "base/containers/contains.h"
 #include "base/ranges/algorithm.h"
@@ -22,7 +21,6 @@
 #include "ui/accessibility/ax_enums.mojom-shared.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/color/color_provider.h"
-#include "ui/views/view.h"
 #include "ui/views/widget/widget.h"
 
 namespace ash {
@@ -201,12 +199,12 @@ void SavedDeskIconContainer::PopulateIconContainerFromWindows(
     // If `window` is an incognito window, we want to display the incognito icon
     // instead of its favicons so denote it using
     // `DeskTemplate::kIncognitoWindowIdentifier`.
-    const bool is_incognito_window = delegate->IsIncognitoWindow(window);
+    const bool is_window_persistable = delegate->IsWindowPersistable(window);
     const std::string app_id =
-        is_incognito_window
-            ? DeskTemplate::kIncognitoWindowIdentifier
-            : ShelfID::Deserialize(window->GetProperty(kShelfIDKey)).app_id;
-    if (is_incognito_window && !incognito_window_color_provider_) {
+        is_window_persistable
+            ? ShelfID::Deserialize(window->GetProperty(kShelfIDKey)).app_id
+            : DeskTemplate::kIncognitoWindowIdentifier;
+    if (!is_window_persistable && !incognito_window_color_provider_) {
       incognito_window_color_provider_ =
           views::Widget::GetWidgetForNativeWindow(window)->GetColorProvider();
     }

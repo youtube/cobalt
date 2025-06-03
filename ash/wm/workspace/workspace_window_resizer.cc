@@ -17,7 +17,6 @@
 #include "ash/screen_util.h"
 #include "ash/session/session_controller_impl.h"
 #include "ash/shell.h"
-#include "ash/utility/haptics_util.h"
 #include "ash/wm/default_window_resizer.h"
 #include "ash/wm/desks/desks_util.h"
 #include "ash/wm/drag_window_resizer.h"
@@ -25,6 +24,7 @@
 #include "ash/wm/overview/overview_controller.h"
 #include "ash/wm/pip/pip_window_resizer.h"
 #include "ash/wm/tablet_mode/tablet_mode_controller.h"
+#include "ash/wm/tile_group/window_splitter.h"
 #include "ash/wm/toplevel_window_event_handler.h"
 #include "ash/wm/window_animations.h"
 #include "ash/wm/window_positioning_utils.h"
@@ -38,7 +38,7 @@
 #include "base/metrics/user_metrics.h"
 #include "base/ranges/algorithm.h"
 #include "chromeos/ui/base/window_properties.h"
-#include "chromeos/ui/wm/features.h"
+#include "chromeos/utils/haptics_util.h"
 #include "ui/aura/client/aura_constants.h"
 #include "ui/aura/client/window_types.h"
 #include "ui/aura/window.h"
@@ -46,7 +46,6 @@
 #include "ui/base/class_property.h"
 #include "ui/base/hit_test.h"
 #include "ui/compositor/layer.h"
-#include "ui/display/display.h"
 #include "ui/display/screen.h"
 #include "ui/events/devices/haptic_touchpad_effects.h"
 #include "ui/gfx/geometry/point_conversions.h"
@@ -818,6 +817,13 @@ void WorkspaceWindowResizer::Drag(const gfx::PointF& location_in_parent,
     }
     dwell_location_in_screen_.reset();
   }
+
+  if (window_splitter_) {
+    // Still need to call this when another snap type takes precedence, so that
+    // the window splitter can remove its own preview if showing.
+    window_splitter_->UpdateDrag(location_in_screen,
+                                 /*can_split=*/snap_type == SnapType::kNone);
+  }
 }
 
 void WorkspaceWindowResizer::CompleteDrag() {
@@ -861,18 +867,18 @@ void WorkspaceWindowResizer::CompleteDrag() {
     WMEventType type;
     switch (snap_type_) {
       case SnapType::kPrimary: {
-        window_state()->set_snap_action_source(
-            WindowSnapActionSource::kDragWindowToEdgeToSnap);
         base::RecordAction(base::UserMetricsAction("WindowDrag_MaximizeLeft"));
-        const WMEvent snap_primary_event(WM_EVENT_SNAP_PRIMARY);
+        const WindowSnapWMEvent snap_primary_event(
+            WM_EVENT_SNAP_PRIMARY,
+            WindowSnapActionSource::kDragWindowToEdgeToSnap);
         window_state()->OnWMEvent(&snap_primary_event);
         return;
       }
       case SnapType::kSecondary: {
-        window_state()->set_snap_action_source(
-            WindowSnapActionSource::kDragWindowToEdgeToSnap);
         base::RecordAction(base::UserMetricsAction("WindowDrag_MaximizeRight"));
-        const WMEvent snap_secondary_event(WM_EVENT_SNAP_SECONDARY);
+        const WindowSnapWMEvent snap_secondary_event(
+            WM_EVENT_SNAP_SECONDARY,
+            WindowSnapActionSource::kDragWindowToEdgeToSnap);
         window_state()->OnWMEvent(&snap_secondary_event);
         return;
       }
@@ -946,21 +952,15 @@ void WorkspaceWindowResizer::CompleteDrag() {
     return;
   }
 
-  if (window_state()->IsFloated()) {
-    // Update the restore bounds of a floated window in case it has changed
-    // displays.
-    if (!details().restore_bounds_in_parent.IsEmpty()) {
-      window_state()->SetRestoreBoundsInParent(
-          details().restore_bounds_in_parent);
-    }
-    return;
-  }
-
-  DCHECK(window_state()->IsNormalStateType());
+  DCHECK(window_state()->IsNormalStateType() || window_state()->IsFloated());
   // The window was normal and stays normal. This is a user
   // resize/drag and so the current bounds should be maintained, clearing
   // any prior restore bounds.
   window_state()->ClearRestoreBounds();
+
+  if (window_splitter_) {
+    window_splitter_->CompleteDrag(last_location_in_screen);
+  }
 }
 
 void WorkspaceWindowResizer::RevertDrag() {
@@ -1002,6 +1002,10 @@ void WorkspaceWindowResizer::RevertDrag() {
       attached_windows_[i]->SetBounds(bounds);
       last_y = attached_windows_[i]->bounds().bottom();
     }
+  }
+
+  if (window_splitter_) {
+    window_splitter_->Disengage();
   }
 }
 
@@ -1117,6 +1121,10 @@ WorkspaceWindowResizer::WorkspaceWindowResizer(
       window_state->window()->parent()->bounds().size());
   if (!parent_local_bounds.Intersects(restore_bounds_for_gesture_)) {
     restore_bounds_for_gesture_.AdjustToFit(parent_local_bounds);
+  }
+
+  if (features::IsWindowSplittingEnabled()) {
+    window_splitter_ = std::make_unique<WindowSplitter>(window_state->window());
   }
 
   std::unique_ptr<ash::PresentationTimeRecorder> recorder =
@@ -1602,7 +1610,7 @@ void WorkspaceWindowResizer::UpdateSnapPhantomWindow(
 
   // Fire a haptic event if necessary.
   if (need_haptic_feedback) {
-    haptics_util::PlayHapticTouchpadEffect(
+    chromeos::haptics_util::PlayHapticTouchpadEffect(
         ui::HapticTouchpadEffect::kSnap,
         ui::HapticTouchpadEffectStrength::kMedium);
   }
@@ -1707,20 +1715,20 @@ void WorkspaceWindowResizer::SetWindowStateTypeFromGesture(
     case WindowStateType::kPrimarySnapped:
       if (window_state->CanSnap()) {
         window_state->SetRestoreBoundsInParent(restore_bounds_for_gesture_);
-        window_state->set_snap_action_source(
-            WindowSnapActionSource::kDragWindowToEdgeToSnap);
 
-        const WMEvent event(WM_EVENT_SNAP_PRIMARY);
+        const WindowSnapWMEvent event(
+            WM_EVENT_SNAP_PRIMARY,
+            WindowSnapActionSource::kDragWindowToEdgeToSnap);
         window_state->OnWMEvent(&event);
       }
       break;
     case WindowStateType::kSecondarySnapped:
       if (window_state->CanSnap()) {
         window_state->SetRestoreBoundsInParent(restore_bounds_for_gesture_);
-        window_state->set_snap_action_source(
-            WindowSnapActionSource::kDragWindowToEdgeToSnap);
 
-        const WMEvent event(WM_EVENT_SNAP_SECONDARY);
+        const WindowSnapWMEvent event(
+            WM_EVENT_SNAP_SECONDARY,
+            WindowSnapActionSource::kDragWindowToEdgeToSnap);
         window_state->OnWMEvent(&event);
       }
       break;

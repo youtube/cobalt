@@ -159,8 +159,7 @@ enum class ComponentState {
   kUpdated,
   kUpToDate,
   kUpdateError,
-  kUninstalled,
-  kRegistration,
+  kPingOnly,
   kRun,
   kLastStatus
 };
@@ -185,6 +184,23 @@ class CrxInstaller : public base::RefCountedThreadSafe<CrxInstaller> {
     // Shell command run at the end of the install, if applicable. This string
     // must be escaped to be a command line.
     std::string installer_cmd_line;
+
+    // A `CrxInstaller` instance that runs other application installers needs
+    // the ability to report error codes that `update_client` should not
+    // interpret. For instance:
+    //   * the application installer error code may be an OS error code that
+    //   overlaps with the error codes in `update_client::InstallError`. Error
+    //   code `2` could mean `FINGERPRINT_WRITE_FAILED = 2` or the windows error
+    //   `ERROR_FILE_NOT_FOUND`.
+    //   * the application installer may report a non-zero success code.
+    //   `update_client` views any error code other than `0` as an error.
+    //   `ERROR_SUCCESS_REBOOT_INITIATED`, `ERROR_SUCCESS_REBOOT_REQUIRED`, and
+    //   `ERROR_SUCCESS_RESTART_REQUIRED` are examples of non-zero success
+    //   codes.
+    // In these cases, the `CrxInstaller` may choose to store the application
+    // installer result in `original_error`, and use a zero/non-zero `error`
+    // only to indicate a success/error.
+    int original_error = 0;
   };
 
   struct InstallParams {
@@ -369,15 +385,16 @@ using Callback = base::OnceCallback<void(Error error)>;
 // the browser process has gone single-threaded.
 class UpdateClient : public base::RefCountedThreadSafe<UpdateClient> {
  public:
-  // Returns `CrxComponent` instances corresponding to the component ids
-  // passed as an argument to the callback. The order of components in the input
-  // and output vectors must match. If the instance of the `CrxComponent` is not
-  // available for some reason, implementors of the callback must not skip
-  // skip the component, and instead, they must insert a `nullopt` value in
-  // the output vector.
-  using CrxDataCallback =
-      base::OnceCallback<std::vector<absl::optional<CrxComponent>>(
-          const std::vector<std::string>& ids)>;
+  // Calls `callback` with `CrxComponent` instances corresponding to the
+  // component ids passed as an argument. The order of components in the input
+  // and output vectors must match. If the instance of the `CrxComponent` is
+  // not available for some reason, implementors of the callback must not skip
+  // the component, and instead, they must insert a `nullopt` value in the
+  // output vector.
+  using CrxDataCallback = base::OnceCallback<void(
+      const std::vector<std::string>& ids,
+      base::OnceCallback<void(const std::vector<absl::optional<CrxComponent>>&)>
+          callback)>;
 
   // Called when state changes occur during an Install or Update call.
   using CrxStateChangeCallback =
@@ -493,6 +510,15 @@ class UpdateClient : public base::RefCountedThreadSafe<UpdateClient> {
   virtual void SendUninstallPing(const CrxComponent& crx_component,
                                  int reason,
                                  Callback callback) = 0;
+
+  // Sends an install ping for `crx_component`. The current implementation of
+  // this function only sends a best-effort ping. It has no other side effects
+  // regarding installs or updates done through an instance of this class.
+  virtual void SendInstallPing(const CrxComponent& crx_component,
+                               bool success,
+                               int error_code,
+                               int extra_code1,
+                               Callback callback) = 0;
 
   // Returns status details about a CRX update. The function returns true in
   // case of success and false in case of errors, such as |id| was

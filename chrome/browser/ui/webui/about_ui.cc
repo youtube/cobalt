@@ -37,8 +37,8 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/chrome_paths.h"
 #include "chrome/common/url_constants.h"
+#include "chrome/grit/branded_strings.h"
 #include "chrome/grit/browser_resources.h"
-#include "chrome/grit/chromium_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/about_ui/credit_utils.h"
 #include "components/grit/components_resources.h"
@@ -61,7 +61,6 @@
 #include <map>
 
 #include "base/base64.h"
-#include "base/cxx17_backports.h"
 #include "base/strings/strcat.h"
 #include "chrome/browser/ash/borealis/borealis_credits.h"
 #include "chrome/browser/ash/crosapi/browser_manager.h"
@@ -78,6 +77,7 @@
 #include "chromeos/ash/components/system/statistics_provider.h"
 #include "components/language/core/common/locale_util.h"
 #include "third_party/cros_system_api/dbus/service_constants.h"
+#include "third_party/zlib/google/compression_utils.h"
 #endif
 #if BUILDFLAG(IS_CHROMEOS_LACROS)
 #include "chrome/browser/lacros/lacros_url_handling.h"
@@ -283,10 +283,12 @@ class ChromeOSCreditsHandler
   ChromeOSCreditsHandler(const ChromeOSCreditsHandler&) = delete;
   ChromeOSCreditsHandler& operator=(const ChromeOSCreditsHandler&) = delete;
 
+  // |prefix| allows tests to specify different location for the credits files.
   static void Start(const std::string& path,
-                    content::URLDataSource::GotDataCallback callback) {
+                    content::URLDataSource::GotDataCallback callback,
+                    const base::FilePath& prefix) {
     scoped_refptr<ChromeOSCreditsHandler> handler(
-        new ChromeOSCreditsHandler(path, std::move(callback)));
+        new ChromeOSCreditsHandler(path, std::move(callback), prefix));
     handler->StartOnUIThread();
   }
 
@@ -294,8 +296,9 @@ class ChromeOSCreditsHandler
   friend class base::RefCountedThreadSafe<ChromeOSCreditsHandler>;
 
   ChromeOSCreditsHandler(const std::string& path,
-                         content::URLDataSource::GotDataCallback callback)
-      : path_(path), callback_(std::move(callback)) {}
+                         content::URLDataSource::GotDataCallback callback,
+                         const base::FilePath& prefix)
+      : path_(path), callback_(std::move(callback)), prefix_(prefix) {}
 
   virtual ~ChromeOSCreditsHandler() {}
 
@@ -308,12 +311,38 @@ class ChromeOSCreditsHandler
         base::BindOnce(&ChromeOSCreditsHandler::ResponseOnUIThread, this));
   }
 
+  // LoadCreditsFileAsync first attempts to load the uncompressed credits file.
+  // Then, if that's not present, it attempts to load and decompress the
+  // compressed credits file.
+  // If both fails, fall back to default contents as handled in
+  // ResponseOnUIThread.
   void LoadCreditsFileAsync() {
-    base::FilePath credits_file_path(chrome::kChromeOSCreditsPath);
-    if (!base::ReadFileToString(credits_file_path, &contents_)) {
+    if (prefix_.empty()) {
+      prefix_ = base::FilePath(chrome::kChromeOSCreditsPath).DirName();
+    }
+    base::FilePath credits =
+        prefix_.Append(base::FilePath(chrome::kChromeOSCreditsPath).BaseName());
+    if (base::ReadFileToString(credits, &contents_)) {
+      // Decompressed present; return.
+      return;
+    }
+
+    // Decompressed not present; load compressed.
+    base::FilePath compressed_credits = prefix_.Append(
+        base::FilePath(chrome::kChromeOSCreditsCompressedPath).BaseName());
+    std::string compressed;
+    if (!base::ReadFileToString(compressed_credits, &compressed)) {
       // File with credits not found, ResponseOnUIThread will load credits
       // from resources if contents_ is empty.
       contents_.clear();
+      return;
+    }
+
+    // Decompress.
+    if (!compression::GzipUncompress(compressed, &contents_)) {
+      LOG(DFATAL) << "Decompressing os credits failed";
+      contents_.clear();
+      return;
     }
   }
 
@@ -337,6 +366,9 @@ class ChromeOSCreditsHandler
 
   // Chrome OS credits contents that was loaded from file.
   std::string contents_;
+
+  // Directory containing files to read.
+  base::FilePath prefix_;
 };
 
 void OnBorealisCreditsLoaded(content::URLDataSource::GotDataCallback callback,
@@ -460,7 +492,7 @@ void AppendHeader(std::string* output, const std::string& unescaped_title) {
 // calling browser is Lacros.
 bool isLacrosPrimaryOrCurrentBrowser() {
 #if BUILDFLAG(IS_CHROMEOS_ASH)
-  return crosapi::browser_util::IsLacrosPrimaryBrowser();
+  return crosapi::browser_util::IsLacrosEnabled();
 #else
   return true;
 #endif
@@ -662,25 +694,31 @@ void AboutUIHTMLSource::StartDataRequest(
     response = AboutLinuxProxyConfig();
 #endif
 #if BUILDFLAG(IS_CHROMEOS_ASH)
-  } else if (source_name_ == chrome::kChromeUIOSCreditsHost) {
-    if (path == kCreditsCssPath) {
-      response = ui::ResourceBundle::GetSharedInstance().LoadDataResourceString(
-          IDR_ABOUT_UI_CREDITS_CSS);
-    } else {
-      ChromeOSCreditsHandler::Start(path, std::move(callback));
+  } else if (source_name_ == chrome::kChromeUIOSCreditsHost ||
+             source_name_ == chrome::kChromeUICrostiniCreditsHost ||
+             source_name_ == chrome::kChromeUIBorealisCreditsHost) {
+    int idr = IDR_ABOUT_UI_CREDITS_HTML;
+    if (path == kCreditsJsPath) {
+      idr = IDR_ABOUT_UI_CREDITS_JS;
+    } else if (path == kCreditsCssPath) {
+      idr = IDR_ABOUT_UI_CREDITS_CSS;
+    }
+    if (idr == IDR_ABOUT_UI_CREDITS_HTML) {
+      if (source_name_ == chrome::kChromeUIOSCreditsHost) {
+        ChromeOSCreditsHandler::Start(path, std::move(callback),
+                                      os_credits_prefix_);
+      } else if (source_name_ == chrome::kChromeUICrostiniCreditsHost) {
+        CrostiniCreditsHandler::Start(profile(), path, std::move(callback));
+      } else if (source_name_ == chrome::kChromeUIBorealisCreditsHost) {
+        HandleBorealisCredits(profile(), std::move(callback));
+      } else {
+        NOTREACHED();
+      }
       return;
     }
-  } else if (source_name_ == chrome::kChromeUICrostiniCreditsHost) {
-    if (path == kCreditsCssPath) {
-      response = ui::ResourceBundle::GetSharedInstance().LoadDataResourceString(
-          IDR_ABOUT_UI_CREDITS_CSS);
-    } else {
-      CrostiniCreditsHandler::Start(profile(), path, std::move(callback));
-      return;
-    }
-  } else if (source_name_ == chrome::kChromeUIBorealisCreditsHost) {
-    HandleBorealisCredits(profile(), std::move(callback));
-    return;
+
+    response =
+        ui::ResourceBundle::GetSharedInstance().LoadDataResourceString(idr);
 #endif
 #if !BUILDFLAG(IS_ANDROID)
   } else if (source_name_ == chrome::kChromeUITermsHost) {
@@ -718,17 +756,6 @@ std::string AboutUIHTMLSource::GetMimeType(const GURL& url) {
   return "text/html";
 }
 
-bool AboutUIHTMLSource::ShouldAddContentSecurityPolicy() {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-  if (source_name_ == chrome::kChromeUIOSCreditsHost ||
-      source_name_ == chrome::kChromeUICrostiniCreditsHost ||
-      source_name_ == chrome::kChromeUIBorealisCreditsHost) {
-    return false;
-  }
-#endif
-  return content::URLDataSource::ShouldAddContentSecurityPolicy();
-}
-
 std::string AboutUIHTMLSource::GetAccessControlAllowOriginForOrigin(
     const std::string& origin) {
 #if BUILDFLAG(IS_CHROMEOS_ASH)
@@ -742,7 +769,7 @@ std::string AboutUIHTMLSource::GetAccessControlAllowOriginForOrigin(
   return content::URLDataSource::GetAccessControlAllowOriginForOrigin(origin);
 }
 
-AboutUI::AboutUI(content::WebUI* web_ui, const std::string& name)
+AboutUI::AboutUI(content::WebUI* web_ui, const std::string& host)
     : WebUIController(web_ui) {
   Profile* profile = Profile::FromWebUI(web_ui);
 
@@ -752,7 +779,7 @@ AboutUI::AboutUI(content::WebUI* web_ui, const std::string& name)
 #endif
 
   content::URLDataSource::Add(
-      profile, std::make_unique<AboutUIHTMLSource>(name, profile));
+      profile, std::make_unique<AboutUIHTMLSource>(host, profile));
 }
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -764,7 +791,7 @@ bool AboutUI::OverrideHandleWebUIMessage(const GURL& source_url,
     return false;
 
 #if BUILDFLAG(IS_CHROMEOS_LACROS)
-  lacros_url_handling::NavigateInAsh(GURL(chrome::kOsUIAboutURL));
+  lacros_url_handling::NavigateInAsh(GURL(chrome::kChromeUIAboutURL));
 #else
   // Note: This will only be called by the UI when Lacros is available.
   DCHECK(crosapi::BrowserManager::Get());

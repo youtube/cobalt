@@ -2,9 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'chrome://webui-test/mojo_webui_test_support.js';
-
-import {BrowserProxy, CrToastManagerElement, DangerType, DownloadsManagerElement, loadTimeData, PageRemote, States} from 'chrome://downloads/downloads.js';
+import {BrowserProxy, CrToastManagerElement, DangerType, DownloadsManagerElement, loadTimeData, PageRemote, State} from 'chrome://downloads/downloads.js';
 import {stringToMojoString16, stringToMojoUrl} from 'chrome://resources/js/mojo_type_util.js';
 import {isMac} from 'chrome://resources/js/platform.js';
 import {keyDownOn} from 'chrome://resources/polymer/v3_0/iron-test-helpers/mock-interactions.js';
@@ -20,6 +18,7 @@ suite('manager tests', function() {
   let toastManager: CrToastManagerElement;
 
   setup(function() {
+    loadTimeData.overrideValues({'improvedDownloadWarningsUX': true});
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
 
     testBrowserProxy = new TestDownloadsProxy();
@@ -41,7 +40,7 @@ suite('manager tests', function() {
     callbackRouterRemote.insertItems(
         0, [createDownload({
           fileName: 'file name',
-          state: States.COMPLETE,
+          state: State.kComplete,
           sinceString: 'Today',
           url: stringToMojoUrl(url),
           displayUrl: stringToMojoString16(displayUrl),
@@ -88,8 +87,8 @@ suite('manager tests', function() {
 
   test('update', async () => {
     const dangerousDownload = createDownload({
-      dangerType: DangerType.DANGEROUS_FILE,
-      state: States.DANGEROUS,
+      dangerType: DangerType.kDangerousFile,
+      state: State.kDangerous,
     });
     callbackRouterRemote.insertItems(0, [dangerousDownload]);
     await callbackRouterRemote.$.flushForTesting();
@@ -98,8 +97,8 @@ suite('manager tests', function() {
                      .shadowRoot!.querySelector('.dangerous'));
 
     const safeDownload = Object.assign({}, dangerousDownload, {
-      dangerType: DangerType.NOT_DANGEROUS,
-      state: States.COMPLETE,
+      dangerType: DangerType.kNoApplicableDangerType,
+      state: State.kComplete,
     });
     callbackRouterRemote.updateItem(0, safeDownload);
     await callbackRouterRemote.$.flushForTesting();
@@ -111,7 +110,7 @@ suite('manager tests', function() {
   test('remove', async () => {
     callbackRouterRemote.insertItems(0, [createDownload({
                                        fileName: 'file name',
-                                       state: States.COMPLETE,
+                                       state: State.kComplete,
                                        sinceString: 'Today',
                                        url: stringToMojoUrl('a'.repeat(1000)),
                                      })]);
@@ -119,7 +118,10 @@ suite('manager tests', function() {
     flush();
     const item = manager.shadowRoot!.querySelector('downloads-item')!;
 
-    item.$.remove.click();
+    item.getMoreActionsButton().click();
+    const removeButton = item.shadowRoot!.querySelector<HTMLElement>('#remove');
+    assertTrue(!!removeButton);
+    removeButton.click();
     await testBrowserProxy.handler.whenCalled('remove');
     flush();
     const list = manager.shadowRoot!.querySelector('iron-list')!;
@@ -130,7 +132,7 @@ suite('manager tests', function() {
   test('toolbar hasClearableDownloads set correctly', async () => {
     const clearable = createDownload();
     callbackRouterRemote.insertItems(0, [clearable]);
-    const checkNotClearable = async (state: States) => {
+    const checkNotClearable = async (state: State) => {
       const download = createDownload({state: state});
       callbackRouterRemote.updateItem(0, clearable);
       await callbackRouterRemote.$.flushForTesting();
@@ -139,13 +141,13 @@ suite('manager tests', function() {
       await callbackRouterRemote.$.flushForTesting();
       assertFalse(manager.$.toolbar.hasClearableDownloads);
     };
-    await checkNotClearable(States.DANGEROUS);
-    await checkNotClearable(States.IN_PROGRESS);
-    await checkNotClearable(States.PAUSED);
+    await checkNotClearable(State.kDangerous);
+    await checkNotClearable(State.kInProgress);
+    await checkNotClearable(State.kPaused);
 
     callbackRouterRemote.updateItem(0, clearable);
     callbackRouterRemote.insertItems(
-        1, [createDownload({state: States.DANGEROUS})]);
+        1, [createDownload({state: State.kDangerous})]);
     await callbackRouterRemote.$.flushForTesting();
     assertTrue(manager.$.toolbar.hasClearableDownloads);
     callbackRouterRemote.removeItem(0);
@@ -163,7 +165,7 @@ suite('manager tests', function() {
     // Add a download entry so that clear-all-command is applicable.
     callbackRouterRemote.insertItems(0, [createDownload({
                                        fileName: 'file name',
-                                       state: States.COMPLETE,
+                                       state: State.kComplete,
                                        sinceString: 'Today',
                                        url: stringToMojoUrl('a'.repeat(1000)),
                                      })]);

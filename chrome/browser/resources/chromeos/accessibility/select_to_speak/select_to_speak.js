@@ -197,11 +197,13 @@ export class SelectToSpeak {
           'select_to_speak_listen_context_menu_option_text'),
       contexts: ['selection'],
       onclick: () => {
-        chrome.automation.getFocus(
-            focusedNode => this.requestSpeakSelectedText_(
-                MetricsUtils.StartSpeechMethod.CONTEXT_MENU, focusedNode));
+        this.getFocusedNodeAndSpeakSelectedText_();
       },
     });
+    chrome.accessibilityPrivate.onSelectToSpeakContextMenuClicked.addListener(
+        () => {
+          this.getFocusedNodeAndSpeakSelectedText_();
+        });
   }
 
   /**
@@ -290,6 +292,13 @@ export class SelectToSpeak {
       MetricsUtils.recordStartEvent(
           MetricsUtils.StartSpeechMethod.MOUSE, this.prefsManager_);
     });
+  }
+
+  /** @private */
+  getFocusedNodeAndSpeakSelectedText_() {
+    chrome.automation.getFocus(
+        focusedNode => this.requestSpeakSelectedText_(
+            MetricsUtils.StartSpeechMethod.CONTEXT_MENU, focusedNode));
   }
 
   /**
@@ -483,18 +492,25 @@ export class SelectToSpeak {
       chrome.tabs.query({active: true}, tabs => {
         // Closure doesn't realize that we did a !gsuiteAppRootNode earlier
         // so we check again here.
-        if (tabs.length === 0 || !gsuiteAppRootNode) {
+        if (!gsuiteAppRootNode || gsuiteAppRootNode.url === undefined) {
           return;
         }
-        const tab = tabs[0];
         this.inputHandler_.onRequestReadClipboardData();
         this.currentNodeGroupItem_ =
             new ParagraphUtils.NodeGroupItem(gsuiteAppRootNode, 0, false);
-        chrome.tabs.executeScript(tab.id, {
-          allFrames: true,
-          matchAboutBlank: true,
-          code: 'document.execCommand("copy");',
-        });
+        if (tabs.length > 0 && tabs[0].url === gsuiteAppRootNode.url) {
+          const tab = tabs[0];
+          chrome.tabs.executeScript(tab.id, {
+            allFrames: true,
+            matchAboutBlank: true,
+            code: 'document.execCommand("copy");',
+          });
+        } else {
+          // In Lacros because chrome.tabs didn't return a tab or it
+          // was a tab with a different URL.
+          chrome.accessibilityPrivate.clipboardCopyInActiveLacrosGoogleDoc(
+              gsuiteAppRootNode.url);
+        }
         if (userRequested) {
           MetricsUtils.recordStartEvent(methodNumber, this.prefsManager_);
         }
@@ -1613,8 +1629,10 @@ export class SelectToSpeak {
           chrome.i18n.getMessage('select_to_speak_natural_voice_dialog_title');
       const description = chrome.i18n.getMessage(
           'select_to_speak_natural_voice_dialog_description');
+      const cancelName =
+          chrome.i18n.getMessage('select_to_speak_natural_voice_dialog_cancel');
       chrome.accessibilityPrivate.showConfirmationDialog(
-          title, description, confirm => {
+          title, description, cancelName, confirm => {
             this.prefsManager_.setEnhancedNetworkVoicesFromDialog(confirm);
             if (callback !== undefined) {
               callback();

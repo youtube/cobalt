@@ -7,12 +7,15 @@
 
 #import "ios/chrome/browser/shared/coordinator/chrome_coordinator/chrome_coordinator.h"
 
-class WebOmniboxEditModelDelegate;
+class WebLocationBar;
+@class BubblePresenter;
 @protocol EditViewAnimatee;
 @class OmniboxPopupCoordinator;
 @class OmniboxTextFieldIOS;
 @protocol LocationBarOffsetProvider;
 @protocol OmniboxPopupPresenterDelegate;
+@protocol TextFieldViewContaining;
+@protocol ToolbarOmniboxConsumer;
 
 // The coordinator for the omnibox.
 @interface OmniboxCoordinator : ChromeCoordinator
@@ -23,12 +26,18 @@ class WebOmniboxEditModelDelegate;
     OmniboxPopupCoordinator* popupCoordinator;
 // The edit controller interfacing the `textField` and the omnibox components
 // code. Needs to be set before the coordinator is started.
-@property(nonatomic, assign) WebOmniboxEditModelDelegate* editModelDelegate;
+@property(nonatomic, assign) WebLocationBar* locationBar;
 // Returns the animatee for the omnibox focus orchestrator.
 @property(nonatomic, strong, readonly) id<EditViewAnimatee> animatee;
 
 /// Positioner for the popup. Has to be configured before calling `start`.
 @property(nonatomic, weak) id<OmniboxPopupPresenterDelegate> presenterDelegate;
+
+// Bubble presenter for displaying IPH bubbles relating to the omnibox.
+@property(nonatomic, strong) BubblePresenter* bubblePresenter;
+
+//// The edit view, which contains a text field.
+@property(nonatomic, readonly) UIView<TextFieldViewContaining>* editView;
 
 // The view controller managed by this coordinator. The parent of this
 // coordinator is expected to add it to the responder chain.
@@ -38,7 +47,7 @@ class WebOmniboxEditModelDelegate;
 - (id<LocationBarOffsetProvider>)offsetProvider;
 
 // Start this coordinator. When it starts, it expects to have `textField` and
-// `editModelDelegate`.
+// `locationBar`.
 - (void)start;
 // Stop this coordinator.
 - (void)stop;
@@ -62,6 +71,8 @@ class WebOmniboxEditModelDelegate;
 // Use this method to resign `textField` as the first responder.
 - (void)endEditing;
 
+// Returns the toolbar omnibox consumer.
+- (id<ToolbarOmniboxConsumer>)toolbarOmniboxConsumer;
 @end
 
 #endif  // IOS_CHROME_BROWSER_UI_OMNIBOX_OMNIBOX_COORDINATOR_H_

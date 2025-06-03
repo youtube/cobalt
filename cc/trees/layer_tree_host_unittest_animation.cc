@@ -21,6 +21,7 @@
 #include "cc/animation/scroll_offset_animation_curve_factory.h"
 #include "cc/animation/scroll_offset_animations.h"
 #include "cc/base/completion_event.h"
+#include "cc/base/features.h"
 #include "cc/layers/layer.h"
 #include "cc/layers/layer_impl.h"
 #include "cc/test/animation_test_common.h"
@@ -297,7 +298,7 @@ class LayerTreeHostAnimationTestCheckerboardDoesNotStarveDraws
   DrawResult PrepareToDrawOnThread(LayerTreeHostImpl* host_impl,
                                    LayerTreeHostImpl::FrameData* frame,
                                    DrawResult draw_result) override {
-    return DRAW_ABORTED_CHECKERBOARD_ANIMATIONS;
+    return DrawResult::kAbortedCheckerboardAnimations;
   }
 
  private:
@@ -743,7 +744,7 @@ class LayerTreeHostAnimationTestCheckerboardDoesntStartAnimations
     ++prevented_draw_;
     if (prevented_draw_ > 2)
       EndTest();
-    return DRAW_ABORTED_CHECKERBOARD_ANIMATIONS;
+    return DrawResult::kAbortedCheckerboardAnimations;
   }
 
   void DidCommitAndDrawFrame() override {
@@ -1081,6 +1082,9 @@ class LayerTreeHostPresentationDuringAnimation
 
  private:
   void OnPresentation(base::TimeTicks presentation_timestamp) { EndTest(); }
+
+  // Disable sub-sampling to deterministically record histograms under test.
+  base::MetricsSubSampler::ScopedDisableForTesting no_subsampling_;
 
   FakeContentLayerClient client_;
   scoped_refptr<FakePictureLayer> scroll_layer_;
@@ -1749,8 +1753,14 @@ class LayerTreeHostAnimationTestAnimationFinishesDuringCommit
   void BeginTest() override { PostSetNeedsCommitToMainThread(); }
 
   void DidCommit() override {
-    if (layer_tree_host()->SourceFrameNumber() == 1)
+    if (layer_tree_host()->SourceFrameNumber() == 1) {
       AddAnimatedTransformToAnimation(animation_child_.get(), 0.04, 5, 5);
+      // Blink animations will implicitly fill to ensure they remain active
+      // until a subsequent commit.
+      KeyframeModel* keyframe_model =
+          animation_child_->GetKeyframeModel(TargetProperty::TRANSFORM);
+      keyframe_model->set_fill_mode(KeyframeModel::FillMode::FORWARDS);
+    }
   }
 
   void WillCommit(const CommitState& commit_state) override {
@@ -1819,8 +1829,12 @@ class LayerTreeHostAnimationTestImplSideInvalidation
   void BeginTest() override { PostSetNeedsCommitToMainThread(); }
 
   void DidCommit() override {
-    if (layer_tree_host()->SourceFrameNumber() == 1)
+    if (layer_tree_host()->SourceFrameNumber() == 1) {
       AddAnimatedTransformToAnimation(animation_child_.get(), 0.04, 5, 5);
+      KeyframeModel* keyframe_model =
+          animation_child_->GetKeyframeModel(TargetProperty::TRANSFORM);
+      keyframe_model->set_fill_mode(KeyframeModel::FillMode::BOTH);
+    }
   }
 
   void WillCommit(const CommitState& commit_state) override {
@@ -2125,6 +2139,12 @@ SINGLE_AND_MULTI_THREAD_TEST_F(
 class LayerTreeHostAnimationTestChangeAnimation
     : public LayerTreeHostAnimationTest {
  public:
+  void SetUp() override {
+    scoped_feature_list.InitAndDisableFeature(
+        features::kNoPreserveLastMutation);
+    LayerTreeHostAnimationTest::SetUp();
+  }
+
   void SetupTree() override {
     LayerTreeHostAnimationTest::SetupTree();
     layer_ = Layer::Create();
@@ -2185,6 +2205,7 @@ class LayerTreeHostAnimationTestChangeAnimation
  private:
   scoped_refptr<Layer> layer_;
   ElementId layer_element_id_;
+  base::test::ScopedFeatureList scoped_feature_list;
 };
 
 SINGLE_AND_MULTI_THREAD_TEST_F(LayerTreeHostAnimationTestChangeAnimation);

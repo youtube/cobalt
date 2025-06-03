@@ -11,6 +11,7 @@
 #include <memory>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "ash/app_list/app_list_model_provider.h"
 #include "ash/app_list/app_list_view_delegate.h"
@@ -40,7 +41,6 @@ class AppListTestViewDelegate : public AppListViewDelegate,
 
   int dismiss_count() const { return dismiss_count_; }
   int open_search_result_count() const { return open_search_result_count_; }
-  int open_assistant_ui_count() const { return open_assistant_ui_count_; }
   std::map<size_t, int>& open_search_result_counts() {
     return open_search_result_counts_;
   }
@@ -61,6 +61,8 @@ class AppListTestViewDelegate : public AppListViewDelegate,
   // AppListViewDelegate overrides:
   bool KeyboardTraversalEngaged() override;
   void StartAssistant() override {}
+  std::vector<AppListSearchControlCategory> GetToggleableCategories()
+      const override;
   void StartSearch(const std::u16string& raw_query) override {}
   void StartZeroStateSearch(base::OnceClosure callback,
                             base::TimeDelta timeout) override;
@@ -105,12 +107,13 @@ class AppListTestViewDelegate : public AppListViewDelegate,
   bool IsInTabletMode() override;
   AppListNotifier* GetNotifier() override;
   std::unique_ptr<ScopedIphSession> CreateLauncherSearchIphSession() override;
-  void OpenSearchBoxIphUrl() override;
   void LoadIcon(const std::string& app_id) override {}
   bool HasValidProfile() const override;
   bool ShouldHideContinueSection() const override;
   void SetHideContinueSection(bool hide) override;
-  void CommitTemporarySortOrder() override {}
+  bool IsCategoryEnabled(AppListSearchControlCategory category) override;
+  void SetCategoryEnabled(AppListSearchControlCategory category,
+                          bool enabled) override {}
 
   // Do a bulk replacement of the items in the model.
   void ReplaceTestModel(int item_count);
@@ -130,7 +133,6 @@ class AppListTestViewDelegate : public AppListViewDelegate,
 
   int dismiss_count_ = 0;
   int open_search_result_count_ = 0;
-  int open_assistant_ui_count_ = 0;
   int next_profile_app_count_ = 0;
   int show_wallpaper_context_menu_count_ = 0;
   AppListState app_list_page_ = AppListState::kInvalidState;

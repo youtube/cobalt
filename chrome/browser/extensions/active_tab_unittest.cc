@@ -11,7 +11,6 @@
 #include "base/memory/raw_ptr.h"
 #include "base/values.h"
 #include "build/chromeos_buildflags.h"
-#include "chrome/browser/chrome_notification_types.h"
 #include "chrome/browser/extensions/active_tab_permission_granter.h"
 #include "chrome/browser/extensions/chrome_test_extension_loader.h"
 #include "chrome/browser/extensions/extension_service.h"
@@ -28,8 +27,6 @@
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/navigation_details.h"
 #include "content/public/browser/navigation_entry.h"
-#include "content/public/browser/notification_service.h"
-#include "content/public/browser/notification_types.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/navigation_simulator.h"
 #include "content/public/test/web_contents_tester.h"
@@ -44,7 +41,6 @@
 #include "extensions/common/features/feature.h"
 #include "extensions/common/features/feature_channel.h"
 #include "extensions/common/permissions/permissions_data.h"
-#include "extensions/common/value_builder.h"
 #include "extensions/test/test_extension_dir.h"
 
 using extensions::mojom::APIPermissionID;
@@ -427,6 +423,53 @@ TEST_F(ActiveTabTest, ChromeUrlGrants) {
   EXPECT_TRUE(IsBlocked(extension_with_tab_capture, internal, tab_id() + 1));
   EXPECT_FALSE(permissions_data->HasAPIPermissionForTab(
       tab_id() + 1, APIPermissionID::kTabCaptureForTab));
+}
+
+// Tests that an extension can have it's active tab permission cleared.
+TEST_F(ActiveTabTest, ClearActiveExtensionAndNotify) {
+  GURL google("http://www.google.com");
+  NavigateAndCommit(google);
+
+  // Grant access to the extension.
+  active_tab_permission_granter()->GrantIfRequested(extension.get());
+  ASSERT_TRUE(IsAllowed(extension, google));
+  ASSERT_TRUE(HasTabsPermission(extension));
+
+  // Clear and confirm access was removed.
+  active_tab_permission_granter()->ClearActiveExtensionAndNotify(
+      extension->id());
+  EXPECT_TRUE(IsBlocked(extension, google));
+  EXPECT_FALSE(HasTabsPermission(extension));
+}
+
+// Tests that clearing all extensions active tab permissions removes it for only
+// those that had active tab and doesn't affect others.
+TEST_F(ActiveTabTest, ClearAllActiveExtensionsAndNotify) {
+  GURL google("http://www.google.com");
+  NavigateAndCommit(google);
+
+  // Grant access to two extensions.
+  active_tab_permission_granter()->GrantIfRequested(extension.get());
+  active_tab_permission_granter()->GrantIfRequested(another_extension.get());
+
+  // Only the two active extensionsnow have access.
+  ASSERT_TRUE(IsAllowed(extension, google));
+  ASSERT_TRUE(IsAllowed(another_extension, google));
+  ASSERT_TRUE(IsBlocked(extension_without_active_tab, google));
+  ASSERT_TRUE(HasTabsPermission(extension));
+  ASSERT_TRUE(HasTabsPermission(another_extension));
+  ASSERT_FALSE(HasTabsPermission(extension_without_active_tab));
+
+  // Revoke access for all granted extensions.
+  active_tab_permission_granter()->RevokeForTesting();
+
+  // None of the extensions have access anymore.
+  EXPECT_TRUE(IsBlocked(extension, google));
+  EXPECT_TRUE(IsBlocked(another_extension, google));
+  EXPECT_TRUE(IsBlocked(extension_without_active_tab, google));
+  EXPECT_FALSE(HasTabsPermission(extension));
+  EXPECT_FALSE(HasTabsPermission(another_extension));
+  EXPECT_FALSE(HasTabsPermission(extension_without_active_tab));
 }
 
 // An active tab test that includes an ExtensionService.

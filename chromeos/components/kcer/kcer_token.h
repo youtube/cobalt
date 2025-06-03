@@ -37,7 +37,7 @@ class COMPONENT_EXPORT(KCER) KcerToken {
 
   // These methods mirror the methods from the Kcer class, except they are
   // specialized for a single token.
-  virtual void GenerateRsaKey(uint32_t modulus_length_bits,
+  virtual void GenerateRsaKey(RsaModulusLength modulus_length_bits,
                               bool hardware_backed,
                               Kcer::GenerateKeyCallback callback) = 0;
   virtual void GenerateEcKey(EllipticCurve curve,
@@ -66,7 +66,6 @@ class COMPONENT_EXPORT(KCER) KcerToken {
                     DataToSign data,
                     Kcer::SignCallback callback) = 0;
   virtual void SignRsaPkcs1Raw(PrivateKeyHandle key,
-                               SigningScheme signing_scheme,
                                DigestWithPrefix digest_with_prefix,
                                Kcer::SignCallback callback) = 0;
   virtual void GetTokenInfo(Kcer::GetTokenInfoCallback callback) = 0;

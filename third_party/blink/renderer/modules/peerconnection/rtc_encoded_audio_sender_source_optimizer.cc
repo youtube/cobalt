@@ -1,4 +1,4 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -25,8 +25,7 @@ RtcEncodedAudioSenderSourceOptimizer::PerformInProcessOptimization(
       context->GetTaskRunner(TaskType::kInternalMediaRealTime);
 
   auto* new_source = MakeGarbageCollected<RTCEncodedAudioUnderlyingSource>(
-      script_state, std::move(disconnect_callback_),
-      /*is_receiver=*/false);
+      script_state, std::move(disconnect_callback_));
 
   set_underlying_source_.Run(WrapCrossThreadPersistent(new_source),
                              std::move(current_runner));

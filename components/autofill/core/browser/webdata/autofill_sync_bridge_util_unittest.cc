@@ -166,20 +166,21 @@ TEST_F(AutofillSyncBridgeUtilTest, PopulateWalletTypesFromSyncData) {
   EXPECT_EQ(base::UTF8ToUTF16(nickname), wallet_cards.back().nickname());
 
   // Verify that the issuer and the issuer id are set correctly.
-  EXPECT_EQ(wallet_cards.front().card_issuer(), CreditCard::EXTERNAL_ISSUER);
+  EXPECT_EQ(wallet_cards.front().card_issuer(),
+            CreditCard::Issuer::kExternalIssuer);
   EXPECT_EQ(wallet_cards.front().issuer_id(), "amex");
-  EXPECT_EQ(wallet_cards.back().card_issuer(), CreditCard::GOOGLE);
+  EXPECT_EQ(wallet_cards.back().card_issuer(), CreditCard::Issuer::kGoogle);
   EXPECT_EQ(wallet_cards.back().issuer_id(), "google");
 
   // Verify that the virtual_card_enrollment_state is set correctly.
   EXPECT_EQ(wallet_cards.front().virtual_card_enrollment_state(),
-            CreditCard::UNENROLLED);
+            CreditCard::VirtualCardEnrollmentState::kUnenrolled);
   EXPECT_EQ(wallet_cards.back().virtual_card_enrollment_state(),
-            CreditCard::ENROLLED);
+            CreditCard::VirtualCardEnrollmentState::kEnrolled);
 
   // Verify that the virtual_card_enrollment_type is set correctly.
   EXPECT_EQ(wallet_cards.back().virtual_card_enrollment_type(),
-            CreditCard::NETWORK);
+            CreditCard::VirtualCardEnrollmentType::kNetwork);
 
   // Verify that the card_art_url is set correctly.
   EXPECT_TRUE(wallet_cards.front().card_art_url().is_empty());
@@ -260,8 +261,8 @@ TEST_F(AutofillSyncBridgeUtilTest,
 TEST_F(AutofillSyncBridgeUtilTest,
        CopyRelevantWalletMetadataFromDisk_KeepUseStats) {
   TestAutofillClock test_clock;
-  base::Time arbitrary_time = base::Time::FromDoubleT(25);
-  base::Time disk_time = base::Time::FromDoubleT(10);
+  base::Time arbitrary_time = base::Time::FromSecondsSinceUnixEpoch(25);
+  base::Time disk_time = base::Time::FromSecondsSinceUnixEpoch(10);
   test_clock.SetNow(arbitrary_time);
 
   std::vector<CreditCard> cards_on_disk;
@@ -484,6 +485,107 @@ TEST_F(AutofillSyncBridgeUtilTest, VirtualCardUsageDataFromUsageSpecifics) {
       usage_specifics.virtual_card_usage_data().virtual_card_last_four());
   EXPECT_EQ(virtual_card_usage_data.merchant_origin().Serialize(),
             usage_specifics.virtual_card_usage_data().merchant_url());
+}
+
+// Test to ensure that WalletCredential struct data for CVV storage is correctly
+// converted to AutofillWalletCredentialSpecifics.
+TEST_F(AutofillSyncBridgeUtilTest,
+       AutofillWalletCredentialSpecificsFromStructData) {
+  std::unique_ptr<ServerCvc> server_cvc = std::make_unique<ServerCvc>(
+      1234, u"890", base::Time::UnixEpoch() + base::Milliseconds(25000));
+
+  sync_pb::AutofillWalletCredentialSpecifics wallet_credential_specifics =
+      AutofillWalletCredentialSpecificsFromStructData(*server_cvc);
+
+  EXPECT_EQ(base::NumberToString(server_cvc->instrument_id),
+            wallet_credential_specifics.instrument_id());
+  EXPECT_EQ(base::UTF16ToUTF8(server_cvc->cvc),
+            wallet_credential_specifics.cvc());
+  EXPECT_EQ((server_cvc->last_updated_timestamp - base::Time::UnixEpoch())
+                .InMilliseconds(),
+            wallet_credential_specifics.last_updated_time_unix_epoch_millis());
+  EXPECT_EQ((server_cvc->last_updated_timestamp - base::Time::UnixEpoch())
+                .InMilliseconds(),
+            25000);
+}
+
+TEST_F(AutofillSyncBridgeUtilTest, AutofillWalletStructDataFromUsageSpecifics) {
+  sync_pb::AutofillWalletCredentialSpecifics wallet_credential_specifics;
+  wallet_credential_specifics.set_instrument_id("123");
+  wallet_credential_specifics.set_cvc("890");
+  wallet_credential_specifics.set_last_updated_time_unix_epoch_millis(
+      base::Milliseconds(25000).InMilliseconds());
+
+  ServerCvc server_cvc =
+      AutofillWalletCvcStructDataFromWalletCredentialSpecifics(
+          wallet_credential_specifics);
+
+  EXPECT_EQ(base::NumberToString(server_cvc.instrument_id),
+            wallet_credential_specifics.instrument_id());
+  EXPECT_EQ(base::UTF16ToUTF8(server_cvc.cvc),
+            wallet_credential_specifics.cvc());
+  EXPECT_EQ((server_cvc.last_updated_timestamp - base::Time::UnixEpoch())
+                .InMilliseconds(),
+            wallet_credential_specifics.last_updated_time_unix_epoch_millis());
+  EXPECT_EQ((server_cvc.last_updated_timestamp - base::Time::UnixEpoch())
+                .InMilliseconds(),
+            25000);
+}
+
+// Round trip test to ensure that WalletCredential struct data for CVV storage
+// is correctly converted to AutofillWalletCredentialSpecifics and then from
+// the converted AutofillWalletCredentialSpecifics to WalletCredential struct
+// data. In the end we compare the original and the converted struct data.
+TEST_F(AutofillSyncBridgeUtilTest,
+       AutofillWalletCredentialStructDataRoundTripTest) {
+  // Step 1 - Convert WalletCredential struct data to
+  // AutofillWalletCredentialSpecifics.
+  std::unique_ptr<ServerCvc> server_cvc = std::make_unique<ServerCvc>(
+      1234, u"890", base::Time::UnixEpoch() + base::Milliseconds(25000));
+
+  sync_pb::AutofillWalletCredentialSpecifics
+      wallet_credential_specifics_from_conversion =
+          AutofillWalletCredentialSpecificsFromStructData(*server_cvc);
+
+  EXPECT_EQ(base::NumberToString(server_cvc->instrument_id),
+            wallet_credential_specifics_from_conversion.instrument_id());
+  EXPECT_EQ(base::UTF16ToUTF8(server_cvc->cvc),
+            wallet_credential_specifics_from_conversion.cvc());
+  EXPECT_EQ((server_cvc->last_updated_timestamp - base::Time::UnixEpoch())
+                .InMilliseconds(),
+            wallet_credential_specifics_from_conversion
+                .last_updated_time_unix_epoch_millis());
+  EXPECT_EQ((server_cvc->last_updated_timestamp - base::Time::UnixEpoch())
+                .InMilliseconds(),
+            25000);
+
+  // Step 2 - Convert AutofillWalletCredentialSpecifics to WalletCredential
+  // struct data.
+  ServerCvc server_cvc_from_conversion =
+      AutofillWalletCvcStructDataFromWalletCredentialSpecifics(
+          wallet_credential_specifics_from_conversion);
+
+  EXPECT_EQ(base::NumberToString(server_cvc_from_conversion.instrument_id),
+            wallet_credential_specifics_from_conversion.instrument_id());
+  EXPECT_EQ(base::UTF16ToUTF8(server_cvc_from_conversion.cvc),
+            wallet_credential_specifics_from_conversion.cvc());
+  EXPECT_EQ((server_cvc_from_conversion.last_updated_timestamp -
+             base::Time::UnixEpoch())
+                .InMilliseconds(),
+            wallet_credential_specifics_from_conversion
+                .last_updated_time_unix_epoch_millis());
+  EXPECT_EQ((server_cvc_from_conversion.last_updated_timestamp -
+             base::Time::UnixEpoch())
+                .InMilliseconds(),
+            25000);
+
+  // Step 3 - Compare the original WalletCredential struct data to the
+  // converted WalletCredential struct data.
+  EXPECT_EQ(server_cvc_from_conversion.instrument_id,
+            server_cvc->instrument_id);
+  EXPECT_EQ(server_cvc_from_conversion.cvc, server_cvc->cvc);
+  EXPECT_EQ(server_cvc_from_conversion.last_updated_timestamp,
+            server_cvc->last_updated_timestamp);
 }
 
 }  // namespace

@@ -19,7 +19,7 @@ struct Config {
   // ActionUpload.
   int max_feed_query_requests_per_day = 20;
   int max_next_page_requests_per_day = 20;
-  int max_action_upload_requests_per_day = 20;
+  int max_action_upload_requests_per_day = 50;
   int max_list_recommended_web_feeds_requests_per_day = 20;
   int max_list_web_feeds_requests_per_day = 20;
   // We'll always attempt to refresh content older than this.
@@ -65,6 +65,9 @@ struct Config {
   int max_prefetch_image_requests_per_refresh = 50;
   // Maximum size of most recent viewed content hash list.
   int max_most_recent_viewed_content_hashes = 100;
+  // Maximum number of docviews to send in a request for signed-out view
+  // demotion.
+  size_t max_docviews_to_send = 500;
 
   // Configuration for Web Feeds.
 

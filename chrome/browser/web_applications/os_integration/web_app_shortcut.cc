@@ -150,6 +150,7 @@ ConvertIconProtoDataToShortcutsMenuIcon(
 }
 
 gfx::ImageFamily PackageIconsIntoImageFamily(
+    bool allow_empty,
     std::map<SquareSizePx, SkBitmap> icon_bitmaps) {
   gfx::ImageFamily image_family;
   for (auto& size_and_bitmap : icon_bitmaps) {
@@ -158,7 +159,7 @@ gfx::ImageFamily PackageIconsIntoImageFamily(
   }
 
   // If the image failed to load, use the standard application icon.
-  if (image_family.empty()) {
+  if (!allow_empty && image_family.empty()) {
     SquareSizePx icon_size_in_px = GetDesiredIconSizesForShortcut().back();
     gfx::ImageSkia image_skia = CreateDefaultApplicationIcon(icon_size_in_px);
     image_family.Add(gfx::Image(image_skia));
@@ -169,8 +170,13 @@ gfx::ImageFamily PackageIconsIntoImageFamily(
 
 std::unique_ptr<ShortcutInfo> SetFavicon(
     std::unique_ptr<ShortcutInfo> shortcut_info,
+    IconPurpose purpose,
     gfx::ImageFamily image_family) {
-  shortcut_info->favicon = std::move(image_family);
+  if (purpose == IconPurpose::ANY) {
+    shortcut_info->favicon = std::move(image_family);
+  } else if (purpose == IconPurpose::MASKABLE) {
+    shortcut_info->favicon_maskable = std::move(image_family);
+  }
   return shortcut_info;
 }
 
@@ -183,7 +189,7 @@ ShortcutInfo::~ShortcutInfo() {
 }
 
 std::unique_ptr<ShortcutInfo> BuildShortcutInfoWithoutFavicon(
-    const AppId& app_id,
+    const webapps::AppId& app_id,
     const GURL& start_url,
     const base::FilePath& profile_path,
     const std::string& profile_name,
@@ -247,26 +253,27 @@ std::unique_ptr<ShortcutInfo> BuildShortcutInfoWithoutFavicon(
   return shortcut_info;
 }
 
-void PopulateFaviconForShortcutInfo(
+void PopulateFaviconPurposeForShortcutInfo(
     const WebApp* app,
     WebAppIconManager& icon_manager,
-    std::unique_ptr<ShortcutInfo> shortcut_info_to_populate,
-    base::OnceCallback<void(std::unique_ptr<ShortcutInfo>)> callback) {
+    IconPurpose purpose,
+    base::OnceCallback<void(std::unique_ptr<ShortcutInfo>)> callback,
+    std::unique_ptr<ShortcutInfo> shortcut_info_to_populate) {
   DCHECK(app);
 
   // Build a common intersection between desired and downloaded icons.
   auto icon_sizes_in_px = base::STLSetIntersection<std::vector<SquareSizePx>>(
-      app->downloaded_icon_sizes(IconPurpose::ANY),
-      GetDesiredIconSizesForShortcut());
+      app->downloaded_icon_sizes(purpose), GetDesiredIconSizesForShortcut());
 
   auto populate_and_return_shortcut_info =
-      base::BindOnce(&SetFavicon, std::move(shortcut_info_to_populate))
+      base::BindOnce(&SetFavicon, std::move(shortcut_info_to_populate), purpose)
           .Then(std::move(callback));
 
   if (!icon_sizes_in_px.empty()) {
     icon_manager.ReadIcons(
-        app->app_id(), IconPurpose::ANY, icon_sizes_in_px,
-        base::BindOnce(&PackageIconsIntoImageFamily)
+        app->app_id(), purpose, icon_sizes_in_px,
+        base::BindOnce(&PackageIconsIntoImageFamily,
+                       /*allow_empty=*/purpose != IconPurpose::ANY)
             .Then(std::move(populate_and_return_shortcut_info)));
     return;
   }
@@ -275,9 +282,26 @@ void PopulateFaviconForShortcutInfo(
   // get.
   SquareSizePx desired_icon_size = GetDesiredIconSizesForShortcut().back();
   icon_manager.ReadIconAndResize(
-      app->app_id(), IconPurpose::ANY, desired_icon_size,
-      base::BindOnce(&PackageIconsIntoImageFamily)
+      app->app_id(), purpose, desired_icon_size,
+      base::BindOnce(&PackageIconsIntoImageFamily,
+                     /*allow_empty=*/purpose != IconPurpose::ANY)
           .Then(std::move(populate_and_return_shortcut_info)));
+}
+
+void PopulateFaviconForShortcutInfo(
+    const WebApp* app,
+    WebAppIconManager& icon_manager,
+    std::unique_ptr<ShortcutInfo> shortcut_info_to_populate,
+    base::OnceCallback<void(std::unique_ptr<ShortcutInfo>)> callback) {
+  DCHECK(app);
+
+  auto populate_favicon_maskable = base::BindOnce(
+      &PopulateFaviconPurposeForShortcutInfo, app, std::ref(icon_manager),
+      IconPurpose::MASKABLE, std::move(callback));
+
+  PopulateFaviconPurposeForShortcutInfo(app, icon_manager, IconPurpose::ANY,
+                                        std::move(populate_favicon_maskable),
+                                        std::move(shortcut_info_to_populate));
 }
 
 std::vector<WebAppShortcutsMenuItemInfo> CreateShortcutsMenuItemInfos(
@@ -296,6 +320,58 @@ std::vector<WebAppShortcutsMenuItemInfo> CreateShortcutsMenuItemInfos(
     shortcut_menu_item_infos.push_back(std::move(item_info));
   }
   return shortcut_menu_item_infos;
+}
+
+ShortcutLocations::ShortcutLocations() = default;
+ShortcutLocations::~ShortcutLocations() = default;
+
+base::Value ShortcutLocations::ToDebugValue() const {
+  base::Value::Dict debug_log;
+  debug_log.Set("on_desktop", on_desktop);
+  debug_log.Set("in_quick_launch_bar", in_quick_launch_bar);
+  debug_log.Set("in_startup", in_startup);
+  std::string menu_loc;
+  switch (applications_menu_location) {
+    case APP_MENU_LOCATION_NONE:
+      menu_loc = "LOC_NONE";
+      break;
+    case APP_MENU_LOCATION_SUBDIR_CHROMEAPPS:
+      menu_loc = "SUBDIR_CHROMEAPPS";
+      break;
+    case APP_MENU_LOCATION_HIDDEN:
+      menu_loc = "HIDDEN";
+      break;
+  }
+  debug_log.Set("menu_location", menu_loc);
+  return base::Value(std::move(debug_log));
+}
+
+ShortcutLocations MergeLocations(
+    const ShortcutLocations& user_specified_locations,
+    const ShortcutLocations& creation_locations) {
+  ShortcutLocations merged_locations;
+  merged_locations.on_desktop =
+      creation_locations.on_desktop || user_specified_locations.on_desktop;
+  merged_locations.in_quick_launch_bar =
+      creation_locations.in_quick_launch_bar ||
+      user_specified_locations.in_quick_launch_bar;
+  merged_locations.in_startup =
+      creation_locations.in_startup || user_specified_locations.in_startup;
+  return merged_locations;
+}
+
+bool operator==(const ShortcutLocations& location1,
+                const ShortcutLocations& location2) {
+  return (location1.on_desktop == location2.on_desktop) &&
+         (location1.in_quick_launch_bar == location2.in_quick_launch_bar) &&
+         (location1.in_startup == location2.in_startup) &&
+         (location1.applications_menu_location ==
+          location2.applications_menu_location);
+}
+
+bool operator!=(const ShortcutLocations& location1,
+                const ShortcutLocations& location2) {
+  return !(location1 == location2);
 }
 
 std::string GenerateApplicationNameFromInfo(const ShortcutInfo& shortcut_info) {

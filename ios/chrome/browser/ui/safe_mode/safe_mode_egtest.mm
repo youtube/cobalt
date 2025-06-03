@@ -2,15 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#import "base/apple/bundle_locations.h"
+#import "base/apple/foundation_util.h"
 #import "base/feature_list.h"
 #import "base/ios/ios_util.h"
-#import "base/mac/foundation_util.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
+#import "ios/chrome/browser/ui/content_suggestions/content_suggestions_constants.h"
 #import "ios/chrome/browser/ui/safe_mode/safe_mode_app_interface.h"
-#import "ios/chrome/grit/ios_chromium_strings.h"
+#import "ios/chrome/grit/ios_branded_strings.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "ios/chrome/test/earl_grey/chrome_earl_grey.h"
 #import "ios/chrome/test/earl_grey/chrome_earl_grey_app_interface.h"
+#import "ios/chrome/test/earl_grey/chrome_earl_grey_ui.h"
 #import "ios/chrome/test/earl_grey/chrome_matchers.h"
 #import "ios/chrome/test/earl_grey/chrome_test_case.h"
 #import "ios/chrome/test/earl_grey/earl_grey_scoped_block_swizzler.h"
@@ -19,13 +22,17 @@
 #import "ios/testing/scoped_block_swizzler.h"
 #import "ui/base/l10n/l10n_util.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 using chrome_test_util::ButtonWithAccessibilityLabel;
 
 namespace {
+
+// Returns a localized string by looking the given key up in
+// Localizable.strings.
+NSString* LocalizedString(NSString* key) {
+  return [base::apple::FrameworkBundle() localizedStringForKey:key
+                                                         value:@""
+                                                         table:nil];
+}
 
 // Verifies that `message` is displayed.
 void AssertMessageOnPage(NSString* message) {
@@ -47,7 +54,7 @@ void AssertMessageNotOnPage(NSString* message) {
 // Verifies that the button to reload chrome is displayed.
 void AssertTryAgainButtonOnPage() {
   id<GREYMatcher> tryAgainMatcher = ButtonWithAccessibilityLabel(
-      NSLocalizedString(@"IDS_IOS_SAFE_MODE_RELOAD_CHROME", @""));
+      LocalizedString(@"IDS_IOS_SAFE_MODE_RELOAD_CHROME"));
   [[EarlGrey selectElementWithMatcher:tryAgainMatcher]
       assertWithMatcher:grey_notNil()];
 }
@@ -74,12 +81,11 @@ void AssertTryAgainButtonOnPage() {
   [SafeModeAppInterface presentSafeMode];
 
   // Verifies screen content that shows that crash report is being uploaded.
-  AssertMessageOnPage(NSLocalizedString(@"IDS_IOS_SAFE_MODE_AW_SNAP", @""));
-  AssertMessageOnPage(
-      NSLocalizedString(@"IDS_IOS_SAFE_MODE_UNKNOWN_CAUSE", @""));
+  AssertMessageOnPage(LocalizedString(@"IDS_IOS_SAFE_MODE_AW_SNAP"));
+  AssertMessageOnPage(LocalizedString(@"IDS_IOS_SAFE_MODE_UNKNOWN_CAUSE"));
   AssertTryAgainButtonOnPage();
   AssertMessageOnPage(
-      NSLocalizedString(@"IDS_IOS_SAFE_MODE_SENDING_CRASH_REPORT", @""));
+      LocalizedString(@"IDS_IOS_SAFE_MODE_SENDING_CRASH_REPORT"));
 }
 
 // Tests that Safe Mode screen is displayed with a message that there are
@@ -99,12 +105,11 @@ void AssertTryAgainButtonOnPage() {
   [SafeModeAppInterface presentSafeMode];
   // Verifies screen content that does not show crash report being uploaded.
   // When devices are jailbroken, the crash reports are not very useful.
-  AssertMessageOnPage(NSLocalizedString(@"IDS_IOS_SAFE_MODE_AW_SNAP", @""));
-  AssertMessageOnPage(
-      NSLocalizedString(@"IDS_IOS_SAFE_MODE_TWEAKS_FOUND", @""));
+  AssertMessageOnPage(LocalizedString(@"IDS_IOS_SAFE_MODE_AW_SNAP"));
+  AssertMessageOnPage(LocalizedString(@"IDS_IOS_SAFE_MODE_TWEAKS_FOUND"));
   AssertTryAgainButtonOnPage();
   AssertMessageNotOnPage(
-      NSLocalizedString(@"IDS_IOS_SAFE_MODE_SENDING_CRASH_REPORT", @""));
+      LocalizedString(@"IDS_IOS_SAFE_MODE_SENDING_CRASH_REPORT"));
 }
 
 // Tests that Safe Mode screen is displayed with a message that there are
@@ -130,18 +135,17 @@ void AssertTryAgainButtonOnPage() {
   [SafeModeAppInterface presentSafeMode];
   // Verifies screen content that does not show crash report being uploaded.
   // When devices are jailbroken, the crash reports are not very useful.
-  AssertMessageOnPage(NSLocalizedString(@"IDS_IOS_SAFE_MODE_AW_SNAP", @""));
+  AssertMessageOnPage(LocalizedString(@"IDS_IOS_SAFE_MODE_AW_SNAP"));
   // Constructs the list of bad mods based on `badModulesList` above.
-  NSString* message =
-      [NSLocalizedString(@"IDS_IOS_SAFE_MODE_NAMED_TWEAKS_FOUND", @"")
-          stringByAppendingString:@"\n\n    iAmBad\n    MJackson"];
+  NSString* message = [LocalizedString(@"IDS_IOS_SAFE_MODE_NAMED_TWEAKS_FOUND")
+      stringByAppendingString:@"\n\n    iAmBad\n    MJackson"];
   AssertMessageOnPage(message);
   AssertTryAgainButtonOnPage();
   AssertMessageNotOnPage(
-      NSLocalizedString(@"IDS_IOS_SAFE_MODE_SENDING_CRASH_REPORT", @""));
+      LocalizedString(@"IDS_IOS_SAFE_MODE_SENDING_CRASH_REPORT"));
 }
 
-// Tests that a start NTP is shown after 2 crashes.
+// Tests that an NTP is shown after 2 crashes.
 - (void)testPostCrashNTP {
   [SafeModeAppInterface setFailedStartupAttemptCount:0];
   [ChromeEarlGrey closeAllTabsInCurrentMode];
@@ -164,9 +168,8 @@ void AssertTryAgainButtonOnPage() {
       relaunchPolicy:ForceRelaunchByKilling];
   [ChromeEarlGrey waitForMainTabCount:3];
   [ChromeEarlGrey waitForIncognitoTabCount:1];
-  [[EarlGrey
-      selectElementWithMatcher:grey_accessibilityLabel(l10n_util::GetNSString(
-                                   IDS_IOS_RETURN_TO_RECENT_TAB_TITLE))]
+
+  [[EarlGrey selectElementWithMatcher:chrome_test_util::FakeOmnibox()]
       assertWithMatcher:grey_sufficientlyVisible()];
   [SafeModeAppInterface setFailedStartupAttemptCount:0];
 }

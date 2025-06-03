@@ -14,6 +14,7 @@
 #include <tuple>
 
 #include "base/check.h"
+#include "base/containers/contains.h"
 #include "base/dcheck_is_on.h"
 #include "base/feature_list.h"
 #include "base/files/file_path.h"
@@ -379,7 +380,7 @@ void Database::CloseInternal(bool forced) {
     statement_ref->Close(forced);
   open_statements_.clear();
 
-  if (db_) {
+  if (is_open()) {
     // Call to InitScopedBlockingCall() cannot go at the beginning of the
     // function because Close() must be called from destructor to clean
     // statement_cache_, it won't cause any disk access and it most probably
@@ -411,6 +412,13 @@ void Database::CloseInternal(bool forced) {
     // valid `db_` value.
     db_ = nullptr;
   }
+}
+
+bool Database::is_open() const {
+  bool is_closed_due_to_poisoning =
+      poisoned_ && base::FeatureList::IsEnabled(
+                       sql::features::kConsiderPoisonedDatabasesClosed);
+  return static_cast<bool>(db_) && !is_closed_due_to_poisoning;
 }
 
 void Database::Close() {
@@ -648,7 +656,8 @@ std::string Database::CollectErrorInfo(int sqlite_error_code,
       while ((rc = sqlite3_step(sqlite_statement)) == SQLITE_ROW) {
         std::string text;
         base::StringAppendF(&text, "%s",
-                            sqlite3_column_text(sqlite_statement, 0));
+                            reinterpret_cast<const char*>(
+                                sqlite3_column_text(sqlite_statement, 0)));
         debug_info += text + "\n";
         if (diagnostics) {
           diagnostics->schema_sql_rows.push_back(text);
@@ -675,7 +684,8 @@ std::string Database::CollectErrorInfo(int sqlite_error_code,
       while ((rc = sqlite3_step(sqlite_statement)) == SQLITE_ROW) {
         std::string text;
         base::StringAppendF(&text, "%s",
-                            sqlite3_column_text(sqlite_statement, 0));
+                            reinterpret_cast<const char*>(
+                                sqlite3_column_text(sqlite_statement, 0)));
         debug_info += text + "\n";
         if (diagnostics) {
           diagnostics->schema_other_row_names.push_back(text);
@@ -1675,6 +1685,11 @@ bool Database::DoesColumnExist(const char* table_name,
                                const char* column_name) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
+  if (!db_) {
+    DCHECK(poisoned_) << "Illegal use of Database without a db";
+    return false;
+  }
+
   // sqlite3_table_column_metadata uses out-params to return column definition
   // details, such as the column type and whether it allows NULL values. These
   // aren't needed to compute the current method's result, so we pass in nullptr
@@ -1787,7 +1802,7 @@ bool Database::OpenInternal(const std::string& db_file_path,
         << "Database file path conflicts with SQLite magic identifier";
   }
 
-  if (db_) {
+  if (is_open()) {
     DLOG(DCHECK) << "sql::Database is already open.";
     return false;
   }
@@ -1801,8 +1816,6 @@ bool Database::OpenInternal(const std::string& db_file_path,
   // RazeAndPoison().  Until regular Close() is called, the caller
   // should be treating the database as open, but is_open() currently
   // only considers the sqlite3 handle's state.
-  // TODO(shess): Revise is_open() to consider poisoned_, and review
-  // to see if any non-testing code even depends on it.
   DCHECK(!poisoned_) << "sql::Database is already open.";
   poisoned_ = false;
 
@@ -1826,7 +1839,7 @@ bool Database::OpenInternal(const std::string& db_file_path,
 #if BUILDFLAG(IS_WIN)
     if (mode == OpenMode::kNone || mode == OpenMode::kRetryOnPoision) {
       // Do not allow query injection.
-      if (db_file_path.find('?') != std::string::npos) {
+      if (base::Contains(db_file_path, '?')) {
         return false;
       }
       open_flags |= SQLITE_OPEN_URI;
@@ -1841,6 +1854,17 @@ bool Database::OpenInternal(const std::string& db_file_path,
   auto sqlite_result_code = ToSqliteResultCode(
       sqlite3_open_v2(uri_file_path.c_str(), &db_, open_flags, vfs_name));
   if (sqlite_result_code != SqliteResultCode::kOk) {
+    // sqlite3_open_v2() will usually create a database connection handle, even
+    // if an error occurs (see https://www.sqlite.org/c3ref/open.html).
+    // Therefore, we'll clear `db_` immediately - particularly before triggering
+    // an error callback which may check whether a database connection exists.
+    if (db_) {
+      // Deallocate resources allocated during the failed open.
+      // See https://www.sqlite.org/c3ref/close.html.
+      sqlite3_close(db_);
+      db_ = nullptr;
+    }
+
     OnSqliteError(ToSqliteErrorCode(sqlite_result_code), nullptr,
                   "-- sqlite3_open_v2()");
     bool was_poisoned = poisoned_;

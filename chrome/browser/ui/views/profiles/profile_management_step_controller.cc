@@ -13,13 +13,20 @@
 #include "chrome/browser/profiles/profile_metrics.h"
 #include "chrome/browser/profiles/profile_window.h"
 #include "chrome/browser/profiles/profiles_state.h"
-#include "chrome/browser/ui/signin/profile_customization_util.h"
+#include "chrome/browser/search_engine_choice/search_engine_choice_service.h"
+#include "chrome/browser/ui/profiles/profile_customization_util.h"
 #include "chrome/browser/ui/views/profiles/profile_management_types.h"
 #include "chrome/browser/ui/views/profiles/profile_picker_signed_in_flow_controller.h"
 #include "chrome/browser/ui/views/profiles/profile_picker_web_contents_host.h"
+#include "google_apis/gaia/core_account_id.h"
 
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
 #include "chrome/browser/ui/views/profiles/profile_picker_dice_sign_in_provider.h"
+#endif
+
+#if BUILDFLAG(ENABLE_SEARCH_ENGINE_CHOICE)
+#include "chrome/browser/ui/webui/search_engine_choice/search_engine_choice_ui.h"
+#include "components/search_engines/search_engine_choice_utils.h"
 #endif
 
 namespace {
@@ -119,9 +126,10 @@ class DiceSignInStepController : public ProfileManagementStepController {
 
  private:
   void OnStepFinished(Profile* profile,
-                      bool is_saml,
+                      const CoreAccountInfo& account_info,
                       std::unique_ptr<content::WebContents> contents) {
-    std::move(signed_in_callback_).Run(profile, is_saml, std::move(contents));
+    std::move(signed_in_callback_)
+        .Run(profile, account_info, std::move(contents));
     // The step controller can be destroyed when `signed_in_callback_` runs.
     // Don't interact with members below.
   }
@@ -137,21 +145,21 @@ class FinishSamlSignInStepController : public ProfileManagementStepController {
       ProfilePickerWebContentsHost* host,
       Profile* profile,
       std::unique_ptr<content::WebContents> contents,
-      absl::optional<SkColor> profile_color,
-      FinishFlowCallback finish_flow_callback)
+      base::OnceCallback<void(PostHostClearedCallback)>
+          finish_picker_section_callback)
       : ProfileManagementStepController(host),
         profile_(profile),
         contents_(std::move(contents)),
-        profile_color_(profile_color),
-        finish_flow_callback_(std::move(finish_flow_callback)) {
-    DCHECK(finish_flow_callback_.value());
+        finish_picker_section_callback_(
+            std::move(finish_picker_section_callback)) {
+    DCHECK(finish_picker_section_callback_);
     profile_keep_alive_ = std::make_unique<ScopedProfileKeepAlive>(
         profile_, ProfileKeepAliveOrigin::kProfileCreationSamlFlow);
   }
 
   ~FinishSamlSignInStepController() override {
-    if (finish_flow_callback_.value()) {
-      finish_flow_callback_->Reset();
+    if (finish_picker_section_callback_) {
+      finish_picker_section_callback_.Reset();
     }
   }
 
@@ -183,26 +191,33 @@ class FinishSamlSignInStepController : public ProfileManagementStepController {
   }
 
   void OnSignInContentsFreedUp() {
-    DCHECK(finish_flow_callback_.value());
+    DCHECK(finish_picker_section_callback_);
 
     ProfileMetrics::LogProfileAddNewUser(
         ProfileMetrics::ADD_NEW_PROFILE_PICKER_SIGNED_IN);
 
+    // Second, ensure the profile creation and set up is complete.
     FinalizeNewProfileSetup(profile_,
                             profiles::GetDefaultNameForNewEnterpriseProfile(),
                             /*is_default_name=*/false);
 
+    // Finally, instruct the flow terminate in the picker and continue in a full
+    // browser window.
     auto continue_callback = PostHostClearedCallback(
         base::BindOnce(&FinishSamlSignInStepController::ContinueSAMLSignin,
                        std::move(contents_)));
-    std::move(finish_flow_callback_.value()).Run(std::move(continue_callback));
+    std::move(finish_picker_section_callback_)
+        .Run(std::move(continue_callback));
   }
 
   std::unique_ptr<ScopedProfileKeepAlive> profile_keep_alive_;
   raw_ptr<Profile> profile_;
   std::unique_ptr<content::WebContents> contents_;
-  absl::optional<SkColor> profile_color_;
-  FinishFlowCallback finish_flow_callback_;
+
+  // Callback to be executed to close the flow host, when it is ready to
+  // continue the SAML sign-in in the full browser.
+  base::OnceCallback<void(PostHostClearedCallback)>
+      finish_picker_section_callback_;
 
   base::WeakPtrFactory<FinishSamlSignInStepController> weak_ptr_factory_{this};
 };
@@ -237,6 +252,80 @@ class PostSignInStepController : public ProfileManagementStepController {
   base::WeakPtrFactory<PostSignInStepController> weak_ptr_factory_{this};
 };
 
+#if BUILDFLAG(ENABLE_SEARCH_ENGINE_CHOICE)
+
+class SearchEngineChoiceStepController
+    : public ProfileManagementStepController {
+ public:
+  SearchEngineChoiceStepController(
+      ProfilePickerWebContentsHost* host,
+      SearchEngineChoiceService* search_engine_choice_service,
+      base::OnceClosure step_completed_callback)
+      : ProfileManagementStepController(host),
+        search_engine_choice_service_(search_engine_choice_service),
+        step_completed_callback_(std::move(step_completed_callback)) {}
+
+  void Show(base::OnceCallback<void(bool success)> step_shown_callback,
+            bool reset_state) override {
+    CHECK(reset_state);
+
+    bool should_show_search_engine_choice_step =
+        search_engine_choice_service_ &&
+        search_engines::IsChoiceScreenFlagEnabled(
+            search_engines::ChoicePromo::kFre);
+
+    if (!should_show_search_engine_choice_step) {
+      std::move(step_completed_callback_).Run();
+      return;
+    }
+
+    base::OnceClosure navigation_finished_closure =
+        base::BindOnce(&SearchEngineChoiceStepController::OnLoadFinished,
+                       base::Unretained(this));
+    if (step_shown_callback) {
+      // Notify the caller first.
+      navigation_finished_closure =
+          base::BindOnce(std::move(step_shown_callback), true)
+              .Then(std::move(navigation_finished_closure));
+    }
+
+    search_engines::RecordChoiceScreenEvent(
+        search_engines::SearchEngineChoiceScreenEvents::
+            kFreChoiceScreenWasDisplayed);
+    host()->ShowScreenInPickerContents(
+        GURL(chrome::kChromeUISearchEngineChoiceURL),
+        std::move(navigation_finished_closure));
+  }
+
+  void OnNavigateBackRequested() override {
+    // Do nothing, navigating back is not allowed.
+    NOTREACHED_NORETURN();
+  }
+
+ private:
+  void OnLoadFinished() {
+    auto* search_engine_choice_ui = host()
+                                        ->GetPickerContents()
+                                        ->GetWebUI()
+                                        ->GetController()
+                                        ->GetAs<SearchEngineChoiceUI>();
+    CHECK(search_engine_choice_ui);
+    CHECK(step_completed_callback_);
+    search_engine_choice_ui->Initialize(
+        /*display_dialog_callback=*/base::OnceClosure(),
+        /*on_choice_made_callback=*/std::move(step_completed_callback_),
+        SearchEngineChoiceService::EntryPoint::kProfilePicker);
+  }
+
+  // May be nullptr.
+  raw_ptr<SearchEngineChoiceService> search_engine_choice_service_;
+
+  // Callback to be executed when the step is completed.
+  base::OnceClosure step_completed_callback_;
+};
+
+#endif  // BUILDFLAG(ENABLE_SEARCH_ENGINE_CHOICE)
+
 }  // namespace
 
 // static
@@ -264,11 +353,11 @@ ProfileManagementStepController::CreateForFinishSamlSignIn(
     ProfilePickerWebContentsHost* host,
     Profile* profile,
     std::unique_ptr<content::WebContents> contents,
-    absl::optional<SkColor> profile_color,
-    FinishFlowCallback finish_flow_callback) {
+    base::OnceCallback<void(PostHostClearedCallback)>
+        finish_picker_section_callback) {
   return std::make_unique<FinishSamlSignInStepController>(
-      host, profile, std::move(contents), profile_color,
-      std::move(finish_flow_callback));
+      host, profile, std::move(contents),
+      std::move(finish_picker_section_callback));
 }
 
 #endif
@@ -281,6 +370,18 @@ ProfileManagementStepController::CreateForPostSignInFlow(
   return std::make_unique<PostSignInStepController>(host,
                                                     std::move(signed_in_flow));
 }
+
+#if BUILDFLAG(ENABLE_SEARCH_ENGINE_CHOICE)
+// static
+std::unique_ptr<ProfileManagementStepController>
+ProfileManagementStepController::CreateForSearchEngineChoice(
+    ProfilePickerWebContentsHost* host,
+    SearchEngineChoiceService* search_engine_choice_service,
+    base::OnceClosure callback) {
+  return std::make_unique<SearchEngineChoiceStepController>(
+      host, search_engine_choice_service, std::move(callback));
+}
+#endif
 
 ProfileManagementStepController::ProfileManagementStepController(
     ProfilePickerWebContentsHost* host)

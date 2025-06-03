@@ -30,6 +30,7 @@ class ExtensionRegistry;
 class BatchGetStoreMetadatasResponse;
 
 BASE_DECLARE_FEATURE(kCWSInfoService);
+BASE_DECLARE_FEATURE(kCWSInfoFastCheck);
 
 // This is an interface class to allow for easy mocking.
 class CWSInfoServiceInterface {
@@ -70,6 +71,23 @@ class CWSInfoServiceInterface {
   };
   virtual absl::optional<CWSInfo> GetCWSInfo(
       const Extension& extension) const = 0;
+
+  // Initiates a fetch from CWS if:
+  // - at least one installed extension is missing CWS metadata information
+  // - Enough time (default: 24 hours) has elapsed since the last time the
+  //   metadata was fetched.
+  virtual void CheckAndMaybeFetchInfo() = 0;
+
+  class Observer : public base::CheckedObserver {
+   public:
+    // This callback is invoked when there is a change in store metadata
+    // saved by the service.
+    virtual void OnCWSInfoChanged() {}
+  };
+  // Use these methods to (de)register for changes in the CWS metadata retrieved
+  // by the service.
+  virtual void AddObserver(Observer* observer) = 0;
+  virtual void RemoveObserver(Observer* observer) = 0;
 };
 
 // This service retrieves information about installed extensions from CWS
@@ -80,6 +98,9 @@ class CWSInfoServiceInterface {
 // changes). Only extensions that update from CWS are queried.
 class CWSInfoService : public CWSInfoServiceInterface, public KeyedService {
  public:
+  // Convenience method to get the service for a profile.
+  static CWSInfoService* Get(Profile* profile);
+
   explicit CWSInfoService(Profile* profile);
 
   CWSInfoService(const CWSInfoService&) = delete;
@@ -89,23 +110,9 @@ class CWSInfoService : public CWSInfoServiceInterface, public KeyedService {
   // CWSInfoServiceInterface:
   absl::optional<bool> IsLiveInCWS(const Extension& extension) const override;
   absl::optional<CWSInfo> GetCWSInfo(const Extension& extension) const override;
-
-  // Initiates a fetch from CWS if:
-  // - at least one installed extension is missing CWS metadata information
-  // - Enough time (default: 24 hours) has elapsed since the last time the
-  //   metadata was fetched.
-  void CheckAndMaybeFetchInfo();
-
-  class Observer : public base::CheckedObserver {
-   public:
-    // This callback is invoked when there is a change in store metadata
-    // saved by the service.
-    virtual void OnInfoChanged() {}
-  };
-  // Use these methods to (de)register for changes in the CWS metadata retrieved
-  // by the service.
-  void AddObserver(Observer* observer);
-  void RemoveObserver(Observer* observer);
+  void CheckAndMaybeFetchInfo() override;
+  void AddObserver(Observer* observer) override;
+  void RemoveObserver(Observer* observer) override;
 
   // KeyedService:
   void Shutdown() override;
@@ -122,7 +129,10 @@ class CWSInfoService : public CWSInfoServiceInterface, public KeyedService {
   base::Time GetCWSInfoTimestampForTesting() const;
   void SetMaxExtensionIdsPerRequestForTesting(int max);
 
- private:
+ protected:
+  // Only used for testing to create a fake derived class.
+  CWSInfoService();
+
   // Returns true if the service can perform fetch operations, false otherwise.
   bool CanFetchInfo() const;
 
@@ -173,9 +183,13 @@ class CWSInfoService : public CWSInfoServiceInterface, public KeyedService {
   // Counts the number of times the downloaded metadata was different from that
   // currently saved.
   uint32_t info_changes_ = 0;
-
   // A timer used to periodically check if CWS information needs to be fetched.
   base::OneShotTimer info_check_timer_;
+  // Time from startup to first check of CWS information.
+  int startup_delay_secs_ = 0;
+  // Time interval between fetches from CWS info server. The interval value
+  // varies +/-25% from default of 24 hours for every fetch.
+  int current_fetch_interval_secs_ = 0;
 
   // List of observers that are notified whenever new CWS information is saved.
   base::ObserverList<Observer> observers_;

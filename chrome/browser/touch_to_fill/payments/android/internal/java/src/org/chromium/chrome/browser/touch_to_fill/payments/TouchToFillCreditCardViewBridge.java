@@ -8,9 +8,9 @@ import android.content.Context;
 
 import androidx.annotation.Nullable;
 
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNIAdditionalImport;
-import org.chromium.base.annotations.JNINamespace;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+
 import org.chromium.chrome.browser.autofill.PersonalDataManager;
 import org.chromium.chrome.browser.touch_to_fill.common.BottomSheetFocusHelper;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
@@ -21,7 +21,6 @@ import org.chromium.ui.base.WindowAndroid;
  * JNI wrapper for C++ TouchToFillCreditCardViewImpl. Delegates calls from native to Java.
  */
 @JNINamespace("autofill")
-@JNIAdditionalImport(TouchToFillCreditCardComponent.class)
 class TouchToFillCreditCardViewBridge {
     private final TouchToFillCreditCardComponent mComponent;
 

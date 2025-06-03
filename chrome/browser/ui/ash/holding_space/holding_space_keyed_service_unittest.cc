@@ -12,6 +12,7 @@
 #include "ash/public/cpp/holding_space/holding_space_constants.h"
 #include "ash/public/cpp/holding_space/holding_space_controller.h"
 #include "ash/public/cpp/holding_space/holding_space_controller_observer.h"
+#include "ash/public/cpp/holding_space/holding_space_file.h"
 #include "ash/public/cpp/holding_space/holding_space_image.h"
 #include "ash/public/cpp/holding_space/holding_space_item.h"
 #include "ash/public/cpp/holding_space/holding_space_model.h"
@@ -29,7 +30,6 @@
 #include "base/time/time.h"
 #include "base/time/time_override.h"
 #include "chrome/browser/ash/arc/fileapi/arc_file_system_bridge.h"
-#include "chrome/browser/ash/file_manager/fake_disk_mount_manager.h"
 #include "chrome/browser/ash/file_manager/fileapi_util.h"
 #include "chrome/browser/ash/file_manager/path_util.h"
 #include "chrome/browser/ash/file_manager/trash_common_util.h"
@@ -52,6 +52,7 @@
 #include "chrome/test/base/browser_with_test_window_test.h"
 #include "chrome/test/base/testing_profile_manager.h"
 #include "chromeos/ash/components/disks/disk_mount_manager.h"
+#include "chromeos/ash/components/disks/fake_disk_mount_manager.h"
 #include "chromeos/ui/base/file_icon_util.h"
 #include "components/account_id/account_id.h"
 #include "components/pref_registry/pref_registry_syncable.h"
@@ -128,7 +129,9 @@ HoldingSpaceItem* AddUninitializedItem(HoldingSpaceModel* model,
   // Create a holding space item and use it to create a serialized item
   // dictionary.
   auto item = HoldingSpaceItem::CreateFileBackedItem(
-      type, path, GURL("filesystem:ignored"),
+      type,
+      HoldingSpaceFile(path, HoldingSpaceFile::FileSystemType::kTest,
+                       GURL("filesystem:ignored")),
       base::BindOnce(&CreateTestHoldingSpaceImage));
   const auto serialized_holding_space_item = item->Serialize();
   auto deserialized_item = HoldingSpaceItem::Deserialize(
@@ -285,7 +288,8 @@ class ItemRemovedWaiter : public HoldingSpaceModelObserver {
     }
   }
 
-  raw_ptr<const HoldingSpaceItem, ExperimentalAsh> wait_item_ = nullptr;
+  raw_ptr<const HoldingSpaceItem, DanglingUntriaged | ExperimentalAsh>
+      wait_item_ = nullptr;
   std::unique_ptr<base::RunLoop> wait_loop_;
   bool wait_item_removed_ = false;
 
@@ -434,7 +438,7 @@ class HoldingSpaceKeyedServiceTest : public BrowserWithTestWindowTest {
                                      base::Time::Now());
     // Needed by `file_manager::VolumeManager`.
     disks::DiskMountManager::InitializeForTesting(
-        new file_manager::FakeDiskMountManager);
+        new disks::FakeDiskMountManager);
 
     // Needed for `app_list::MockFileSuggestKeyedService`.
     ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
@@ -602,7 +606,8 @@ class HoldingSpaceKeyedServiceTest : public BrowserWithTestWindowTest {
   }
 
  private:
-  raw_ptr<FakeChromeUserManager, ExperimentalAsh> fake_user_manager_;
+  raw_ptr<FakeChromeUserManager, DanglingUntriaged | ExperimentalAsh>
+      fake_user_manager_;
   user_manager::ScopedUserManager user_manager_enabler_;
   std::map<Profile*, testing::NiceMock<MockDownloadManager>*>
       download_managers_;
@@ -807,9 +812,12 @@ TEST_P(HoldingSpaceKeyedServiceWithExperimentalFeatureTest,
   for (const HoldingSpaceItem::Type type : GetHoldingSpaceItemTypes()) {
     const base::FilePath file_path = downloads_mount->CreateArbitraryFile();
     const GURL file_system_url = GetFileSystemUrl(GetProfile(), file_path);
+    const HoldingSpaceFile::FileSystemType file_system_type =
+        holding_space_util::ResolveFileSystemType(GetProfile(),
+                                                  file_system_url);
 
     auto holding_space_item = HoldingSpaceItem::CreateFileBackedItem(
-        type, file_path, file_system_url,
+        type, HoldingSpaceFile(file_path, file_system_type, file_system_url),
         base::BindOnce(
             &holding_space_util::ResolveImage,
             primary_holding_space_service->thumbnail_loader_for_testing()));
@@ -864,9 +872,12 @@ TEST_P(HoldingSpaceKeyedServiceWithExperimentalFeatureTest,
   // Add a finalized item to holding space. Because the item is finalized, it
   // should immediately be added to persistent storage.
   base::FilePath file_path = downloads_mount->CreateArbitraryFile();
+  GURL file_system_url = GetFileSystemUrl(GetProfile(), file_path);
+  HoldingSpaceFile::FileSystemType file_system_type =
+      holding_space_util::ResolveFileSystemType(GetProfile(), file_system_url);
   auto finalized_holding_space_item = HoldingSpaceItem::CreateFileBackedItem(
-      HoldingSpaceItem::Type::kDownload, file_path,
-      GetFileSystemUrl(GetProfile(), file_path),
+      HoldingSpaceItem::Type::kDownload,
+      HoldingSpaceFile(file_path, file_system_type, file_system_url),
       base::BindOnce(&holding_space_util::ResolveImage,
                      holding_space_service->thumbnail_loader_for_testing()));
   auto* finalized_holding_space_item_ptr = finalized_holding_space_item.get();
@@ -883,9 +894,13 @@ TEST_P(HoldingSpaceKeyedServiceWithExperimentalFeatureTest,
   // Add an in-progress item to holding space. Because the item is in progress,
   // it should *not* be added to persistent storage.
   file_path = downloads_mount->CreateArbitraryFile();
+  file_system_url = GetFileSystemUrl(GetProfile(), file_path);
+  file_system_type =
+      holding_space_util::ResolveFileSystemType(GetProfile(), file_system_url);
   auto in_progress_holding_space_item = HoldingSpaceItem::CreateFileBackedItem(
-      HoldingSpaceItem::Type::kDownload, file_path,
-      GetFileSystemUrl(GetProfile(), file_path),
+      HoldingSpaceItem::Type::kDownload,
+      HoldingSpaceFile(file_path, file_system_type,
+                       GetFileSystemUrl(GetProfile(), file_path)),
       HoldingSpaceProgress(/*current_bytes=*/50, /*total_bytes=*/100),
       base::BindOnce(&holding_space_util::ResolveImage,
                      holding_space_service->thumbnail_loader_for_testing()));
@@ -900,9 +915,12 @@ TEST_P(HoldingSpaceKeyedServiceWithExperimentalFeatureTest,
   // Add another finalized item to holding space. Because the item is finalized,
   // it should immediately be added to persistent storage.
   file_path = downloads_mount->CreateArbitraryFile();
+  file_system_url = GetFileSystemUrl(GetProfile(), file_path);
+  file_system_type =
+      holding_space_util::ResolveFileSystemType(GetProfile(), file_system_url);
   finalized_holding_space_item = HoldingSpaceItem::CreateFileBackedItem(
-      HoldingSpaceItem::Type::kDownload, file_path,
-      GetFileSystemUrl(GetProfile(), file_path),
+      HoldingSpaceItem::Type::kDownload,
+      HoldingSpaceFile(file_path, file_system_type, file_system_url),
       base::BindOnce(&holding_space_util::ResolveImage,
                      holding_space_service->thumbnail_loader_for_testing()));
   finalized_holding_space_item_ptr = finalized_holding_space_item.get();
@@ -918,8 +936,12 @@ TEST_P(HoldingSpaceKeyedServiceWithExperimentalFeatureTest,
   // Update the file path for a finalized item. Because the item is finalized,
   // it should be updated immediately in persistent storage.
   file_path = downloads_mount->CreateArbitraryFile();
+  file_system_url = GetFileSystemUrl(GetProfile(), file_path);
+  file_system_type =
+      holding_space_util::ResolveFileSystemType(GetProfile(), file_system_url);
   holding_space_model->UpdateItem(finalized_holding_space_item_ptr->id())
-      ->SetBackingFile(file_path, GetFileSystemUrl(GetProfile(), file_path));
+      ->SetBackingFile(
+          HoldingSpaceFile(file_path, file_system_type, file_system_url));
 
   ASSERT_EQ(persisted_holding_space_items.size(), 2u);
   persisted_holding_space_items[1u] =
@@ -932,8 +954,12 @@ TEST_P(HoldingSpaceKeyedServiceWithExperimentalFeatureTest,
   // Update the file path for the in-progress item. Because the item is still in
   // progress, it should not be added/updated to/in persistent storage.
   file_path = downloads_mount->CreateArbitraryFile();
+  file_system_url = GetFileSystemUrl(GetProfile(), file_path);
+  file_system_type =
+      holding_space_util::ResolveFileSystemType(GetProfile(), file_system_url);
   holding_space_model->UpdateItem(in_progress_holding_space_item_ptr->id())
-      ->SetBackingFile(file_path, GetFileSystemUrl(GetProfile(), file_path));
+      ->SetBackingFile(
+          HoldingSpaceFile(file_path, file_system_type, file_system_url));
 
   EXPECT_EQ(GetProfile()->GetPrefs()->GetList(
                 HoldingSpacePersistenceDelegate::kPersistencePath),
@@ -998,10 +1024,13 @@ TEST_P(HoldingSpaceKeyedServiceWithExperimentalFeatureTest,
             .Append("foo.txt"),
         /*content=*/std::string());
     const GURL file_system_url = GetFileSystemUrl(GetProfile(), file_path);
+    const HoldingSpaceFile::FileSystemType file_system_type =
+        holding_space_util::ResolveFileSystemType(GetProfile(),
+                                                  file_system_url);
 
     // Create the holding space item.
     auto holding_space_item = HoldingSpaceItem::CreateFileBackedItem(
-        type, file_path, file_system_url,
+        type, HoldingSpaceFile(file_path, file_system_type, file_system_url),
         base::BindOnce(
             &holding_space_util::ResolveImage,
             primary_holding_space_service->thumbnail_loader_for_testing()));
@@ -1021,7 +1050,7 @@ TEST_P(HoldingSpaceKeyedServiceWithExperimentalFeatureTest,
         primary_holding_space_model->items()[i].get();
 
     // Rename the file backing the holding space item.
-    base::FilePath file_path = holding_space_item->file_path();
+    base::FilePath file_path = holding_space_item->file().file_path;
     base::FilePath new_file_path = file_path.InsertBeforeExtension(" (Moved)");
     GURL file_path_url = GetFileSystemUrl(GetProfile(), file_path);
     GURL new_file_path_url = GetFileSystemUrl(GetProfile(), new_file_path);
@@ -1039,8 +1068,8 @@ TEST_P(HoldingSpaceKeyedServiceWithExperimentalFeatureTest,
     }
 
     // Verify that the holding space item has been updated in place.
-    ASSERT_EQ(holding_space_item->file_path(), new_file_path);
-    ASSERT_EQ(holding_space_item->file_system_url(), new_file_path_url);
+    ASSERT_EQ(holding_space_item->file().file_path, new_file_path);
+    ASSERT_EQ(holding_space_item->file().file_system_url, new_file_path_url);
     ASSERT_EQ(holding_space_item->GetText(),
               new_file_path.BaseName().LossyDisplayName());
 
@@ -1053,7 +1082,7 @@ TEST_P(HoldingSpaceKeyedServiceWithExperimentalFeatureTest,
 
     // Cache the base name of the file backing the holding space item as it will
     // not change due to rename of the holding space item's parent directory.
-    base::FilePath base_name = holding_space_item->file_path().BaseName();
+    base::FilePath base_name = holding_space_item->file().file_path.BaseName();
 
     // Rename the file backing the holding space item's parent directory.
     file_path = new_file_path.DirName();
@@ -1078,8 +1107,8 @@ TEST_P(HoldingSpaceKeyedServiceWithExperimentalFeatureTest,
     new_file_path_url = GetFileSystemUrl(GetProfile(), new_file_path);
 
     // Verify that the holding space item has been updated in place.
-    ASSERT_EQ(holding_space_item->file_path(), new_file_path);
-    ASSERT_EQ(holding_space_item->file_system_url(), new_file_path_url);
+    ASSERT_EQ(holding_space_item->file().file_path, new_file_path);
+    ASSERT_EQ(holding_space_item->file().file_system_url, new_file_path_url);
     ASSERT_EQ(holding_space_item->GetText(),
               new_file_path.BaseName().LossyDisplayName());
 
@@ -1124,10 +1153,13 @@ TEST_P(HoldingSpaceKeyedServiceWithExperimentalFeatureTest,
             .Append("foo.txt"),
         /*content=*/std::string());
     const GURL file_system_url = GetFileSystemUrl(GetProfile(), file_path);
+    const HoldingSpaceFile::FileSystemType file_system_type =
+        holding_space_util::ResolveFileSystemType(GetProfile(),
+                                                  file_system_url);
 
     // Create the holding space item.
     auto holding_space_item = HoldingSpaceItem::CreateFileBackedItem(
-        type, file_path, file_system_url,
+        type, HoldingSpaceFile(file_path, file_system_type, file_system_url),
         base::BindOnce(
             &holding_space_util::ResolveImage,
             primary_holding_space_service->thumbnail_loader_for_testing()));
@@ -1149,7 +1181,7 @@ TEST_P(HoldingSpaceKeyedServiceWithExperimentalFeatureTest,
   while (!primary_holding_space_model->items().empty()) {
     const auto* holding_space_item =
         primary_holding_space_model->items()[0].get();
-    base::FilePath file_path = holding_space_item->file_path();
+    base::FilePath file_path = holding_space_item->file().file_path;
 
     ItemRemovedWaiter waiter(primary_holding_space_model, holding_space_item);
 
@@ -1197,6 +1229,7 @@ TEST_P(HoldingSpaceKeyedServiceWithExperimentalFeatureTest,
     std::string item_id;
     base::FilePath path;
     GURL file_system_url;
+    HoldingSpaceFile::FileSystemType file_system_type;
   };
   struct TestCase {
     ItemInfo src;
@@ -1216,10 +1249,14 @@ TEST_P(HoldingSpaceKeyedServiceWithExperimentalFeatureTest,
               .Append(file_name),
           /*content=*/std::string());
       info->file_system_url = GetFileSystemUrl(GetProfile(), info->path);
+      info->file_system_type = holding_space_util::ResolveFileSystemType(
+          GetProfile(), info->file_system_url);
 
       // Create the holding space item.
       auto holding_space_item = HoldingSpaceItem::CreateFileBackedItem(
-          type, info->path, info->file_system_url,
+          type,
+          HoldingSpaceFile(info->path, info->file_system_type,
+                           info->file_system_url),
           base::BindOnce(
               &holding_space_util::ResolveImage,
               primary_holding_space_service->thumbnail_loader_for_testing()));
@@ -1260,13 +1297,13 @@ TEST_P(HoldingSpaceKeyedServiceWithExperimentalFeatureTest,
             /*content=*/std::string());
 
     ItemImageUpdateWaiter image_update_waiter(src_item);
-    ASSERT_EQ(
-        storage::AsyncFileTestHelper::Move(
-            context,
-            context->CrackURLInFirstPartyContext(
-                GetFileSystemUrl(GetProfile(), path_not_in_holding_space)),
-            context->CrackURLInFirstPartyContext(src_item->file_system_url())),
-        base::File::FILE_OK);
+    ASSERT_EQ(storage::AsyncFileTestHelper::Move(
+                  context,
+                  context->CrackURLInFirstPartyContext(GetFileSystemUrl(
+                      GetProfile(), path_not_in_holding_space)),
+                  context->CrackURLInFirstPartyContext(
+                      src_item->file().file_system_url)),
+              base::File::FILE_OK);
 
     image_update_waiter.Wait();
 
@@ -1274,8 +1311,10 @@ TEST_P(HoldingSpaceKeyedServiceWithExperimentalFeatureTest,
               primary_holding_space_model->GetItem(test_case.src.item_id));
     EXPECT_TRUE(primary_holding_space_model->GetItem(test_case.dst.item_id));
 
-    ASSERT_EQ(src_item->file_path(), test_case.src.path);
-    ASSERT_EQ(src_item->file_system_url(), test_case.src.file_system_url);
+    ASSERT_EQ(src_item->file().file_path, test_case.src.path);
+    ASSERT_EQ(src_item->file().file_system_url, test_case.src.file_system_url);
+    ASSERT_EQ(src_item->file().file_system_type,
+              test_case.src.file_system_type);
 
     {
       ItemUpdatedWaiter waiter(primary_holding_space_model, src_item);
@@ -1304,8 +1343,10 @@ TEST_P(HoldingSpaceKeyedServiceWithExperimentalFeatureTest,
     EXPECT_FALSE(primary_holding_space_model->GetItem(test_case.dst.item_id));
 
     // Verify that the holding space item has been updated in place.
-    ASSERT_EQ(src_item->file_path(), test_case.dst.path);
-    ASSERT_EQ(src_item->file_system_url(), test_case.dst.file_system_url);
+    ASSERT_EQ(src_item->file().file_path, test_case.dst.path);
+    ASSERT_EQ(src_item->file().file_system_url, test_case.dst.file_system_url);
+    ASSERT_EQ(src_item->file().file_system_type,
+              test_case.dst.file_system_type);
 
     final_persisted_holding_space_items.Append(item->Serialize());
   }
@@ -1350,10 +1391,14 @@ TEST_P(HoldingSpaceKeyedServiceWithExperimentalFeatureTest,
         for (const HoldingSpaceItem::Type type : GetHoldingSpaceItemTypes()) {
           const base::FilePath file = downloads_mount->CreateArbitraryFile();
           const GURL file_system_url = GetFileSystemUrl(GetProfile(), file);
+          const HoldingSpaceFile::FileSystemType file_system_type =
+              holding_space_util::ResolveFileSystemType(GetProfile(),
+                                                        file_system_url);
 
           auto fresh_holding_space_item =
               HoldingSpaceItem::CreateFileBackedItem(
-                  type, file, file_system_url,
+                  type,
+                  HoldingSpaceFile(file, file_system_type, file_system_url),
                   base::BindOnce(&holding_space_util::ResolveImage,
                                  primary_holding_space_service
                                      ->thumbnail_loader_for_testing()));
@@ -1378,7 +1423,10 @@ TEST_P(HoldingSpaceKeyedServiceWithExperimentalFeatureTest,
               base::UnguessableToken::Create().ToString());
           auto stale_holding_space_item =
               HoldingSpaceItem::CreateFileBackedItem(
-                  type, file_path, GURL("filesystem:fake_file_system_url"),
+                  type,
+                  HoldingSpaceFile(file_path,
+                                   HoldingSpaceFile::FileSystemType::kTest,
+                                   GURL("filesystem:fake_file_system_url")),
                   base::BindOnce(&CreateTestHoldingSpaceImage));
 
           // NOTE: While the `stale_holding_space_item` is persisted here, we do
@@ -1472,7 +1520,10 @@ TEST_P(HoldingSpaceKeyedServiceWithExperimentalFeatureTest,
               delayed_mount->GetRootPath().Append(delayed_mount_file_name);
           auto delayed_holding_space_item =
               HoldingSpaceItem::CreateFileBackedItem(
-                  type, delayed_mount_file, GURL("filesystem:fake"),
+                  type,
+                  HoldingSpaceFile(delayed_mount_file,
+                                   HoldingSpaceFile::FileSystemType::kTest,
+                                   GURL("filesystem:fake")),
                   base::BindOnce(&CreateTestHoldingSpaceImage));
           persisted_holding_space_items_before_restoration.Append(
               delayed_holding_space_item->Serialize());
@@ -1494,7 +1545,10 @@ TEST_P(HoldingSpaceKeyedServiceWithExperimentalFeatureTest,
               delayed_mount->GetRootPath().Append("non-existent");
           auto non_existant_delayed_holding_space_item =
               HoldingSpaceItem::CreateFileBackedItem(
-                  type, non_existent_path, GURL("filesystem:fake"),
+                  type,
+                  HoldingSpaceFile(non_existent_path,
+                                   HoldingSpaceFile::FileSystemType::kTest,
+                                   GURL("filesystem:fake")),
                   base::BindOnce(&CreateTestHoldingSpaceImage));
           // The item should be removed from the model and persistent storage
           // after delayed volume mount (when it can be confirmed the backing
@@ -1510,9 +1564,13 @@ TEST_P(HoldingSpaceKeyedServiceWithExperimentalFeatureTest,
 
           const base::FilePath file = downloads_mount->CreateArbitraryFile();
           const GURL file_system_url = GetFileSystemUrl(GetProfile(), file);
+          const HoldingSpaceFile::FileSystemType file_system_type =
+              holding_space_util::ResolveFileSystemType(GetProfile(),
+                                                        file_system_url);
           auto fresh_holding_space_item =
               HoldingSpaceItem::CreateFileBackedItem(
-                  type, file, file_system_url,
+                  type,
+                  HoldingSpaceFile(file, file_system_type, file_system_url),
                   base::BindOnce(&holding_space_util::ResolveImage,
                                  primary_holding_space_service
                                      ->thumbnail_loader_for_testing()));
@@ -1557,7 +1615,7 @@ TEST_P(HoldingSpaceKeyedServiceWithExperimentalFeatureTest,
           /*filter=*/base::BindLambdaForTesting(
               [&downloads_mount](const HoldingSpaceItem* item) -> bool {
                 return downloads_mount->GetRootPath().IsParent(
-                    item->file_path());
+                    item->file().file_path);
               }));
 
   std::vector<std::string> initialized_items;
@@ -1592,11 +1650,12 @@ TEST_P(HoldingSpaceKeyedServiceWithExperimentalFeatureTest,
     EXPECT_EQ(item->id(), restored_item->id());
     EXPECT_EQ(item->type(), restored_item->type());
     EXPECT_EQ(item->GetText(), restored_item->GetText());
-    EXPECT_EQ(item->file_path(), item->file_path());
+    EXPECT_EQ(item->file().file_path, restored_item->file().file_path);
     // NOTE: `restored_item` was created with a fake file system URL (as it
     // could not be properly resolved at the time of item creation).
-    EXPECT_EQ(item->file_system_url(),
-              GetFileSystemUrl(secondary_profile, restored_item->file_path()));
+    EXPECT_EQ(
+        item->file().file_system_url,
+        GetFileSystemUrl(secondary_profile, restored_item->file().file_path));
   }
 
   // Verify persisted holding space items.
@@ -1638,7 +1697,10 @@ TEST_P(HoldingSpaceKeyedServiceWithExperimentalFeatureTest,
               delayed_mount->GetRootPath().Append(delayed_mount_file_name);
           auto delayed_holding_space_item =
               HoldingSpaceItem::CreateFileBackedItem(
-                  type, delayed_mount_file, GURL("filesystem:fake"),
+                  type,
+                  HoldingSpaceFile(delayed_mount_file,
+                                   HoldingSpaceFile::FileSystemType::kTest,
+                                   GURL("filesystem:fake")),
                   base::BindOnce(&CreateTestHoldingSpaceImage));
           persisted_holding_space_items_before_restoration.Append(
               delayed_holding_space_item->Serialize());
@@ -1658,7 +1720,10 @@ TEST_P(HoldingSpaceKeyedServiceWithExperimentalFeatureTest,
               delayed_mount->GetRootPath().Append("non-existent");
           auto non_existant_delayed_holding_space_item =
               HoldingSpaceItem::CreateFileBackedItem(
-                  type, non_existent_path, GURL("filesystem:fake"),
+                  type,
+                  HoldingSpaceFile(non_existent_path,
+                                   HoldingSpaceFile::FileSystemType::kTest,
+                                   GURL("filesystem:fake")),
                   base::BindOnce(&CreateTestHoldingSpaceImage));
           // The item should be removed from the model and persistent storage
           // after delayed volume mount (when it can be confirmed the backing
@@ -1669,9 +1734,13 @@ TEST_P(HoldingSpaceKeyedServiceWithExperimentalFeatureTest,
 
           const base::FilePath file = downloads_mount->CreateArbitraryFile();
           const GURL file_system_url = GetFileSystemUrl(GetProfile(), file);
+          const HoldingSpaceFile::FileSystemType file_system_type =
+              holding_space_util::ResolveFileSystemType(GetProfile(),
+                                                        file_system_url);
           auto fresh_holding_space_item =
               HoldingSpaceItem::CreateFileBackedItem(
-                  type, file, file_system_url,
+                  type,
+                  HoldingSpaceFile(file, file_system_type, file_system_url),
                   base::BindOnce(&holding_space_util::ResolveImage,
                                  primary_holding_space_service
                                      ->thumbnail_loader_for_testing()));
@@ -1727,11 +1796,12 @@ TEST_P(HoldingSpaceKeyedServiceWithExperimentalFeatureTest,
     EXPECT_EQ(item->id(), restored_item->id());
     EXPECT_EQ(item->type(), restored_item->type());
     EXPECT_EQ(item->GetText(), restored_item->GetText());
-    EXPECT_EQ(item->file_path(), item->file_path());
+    EXPECT_EQ(item->file().file_path, restored_item->file().file_path);
     // NOTE: `restored_item` was created with a fake file system URL (as it
     // could not be properly resolved at the time of item creation).
-    EXPECT_EQ(item->file_system_url(),
-              GetFileSystemUrl(secondary_profile, restored_item->file_path()));
+    EXPECT_EQ(
+        item->file().file_system_url,
+        GetFileSystemUrl(secondary_profile, restored_item->file().file_path));
   }
 
   // Verify persisted holding space items.
@@ -1774,9 +1844,14 @@ TEST_P(HoldingSpaceKeyedServiceWithExperimentalFeatureTest,
         for (const HoldingSpaceItem::Type type : GetHoldingSpaceItemTypes()) {
           const base::FilePath file = downloads_mount->CreateArbitraryFile();
           const GURL file_system_url = GetFileSystemUrl(GetProfile(), file);
+          const HoldingSpaceFile::FileSystemType file_system_type =
+              holding_space_util::ResolveFileSystemType(GetProfile(),
+                                                        file_system_url);
+
           auto fresh_holding_space_item =
               HoldingSpaceItem::CreateFileBackedItem(
-                  type, file, file_system_url,
+                  type,
+                  HoldingSpaceFile(file, file_system_type, file_system_url),
                   base::BindOnce(&holding_space_util::ResolveImage,
                                  primary_holding_space_service
                                      ->thumbnail_loader_for_testing()));
@@ -1850,11 +1925,12 @@ TEST_P(HoldingSpaceKeyedServiceWithExperimentalFeatureTest,
     EXPECT_EQ(item->id(), restored_item->id());
     EXPECT_EQ(item->type(), restored_item->type());
     EXPECT_EQ(item->GetText(), restored_item->GetText());
-    EXPECT_EQ(item->file_path(), item->file_path());
+    EXPECT_EQ(item->file().file_path, restored_item->file().file_path);
     // NOTE: `restored_item` was created with a fake file system URL (as it
     // could not be properly resolved at the time of item creation).
-    EXPECT_EQ(item->file_system_url(),
-              GetFileSystemUrl(secondary_profile, restored_item->file_path()));
+    EXPECT_EQ(
+        item->file().file_system_url,
+        GetFileSystemUrl(secondary_profile, restored_item->file().file_path));
   }
 
   // Verify persisted holding space items.
@@ -1908,7 +1984,7 @@ TEST_P(HoldingSpaceKeyedServiceWithExperimentalFeatureTest,
                     ->GetList(HoldingSpacePersistenceDelegate::kPersistencePath)
                     .size());
   ASSERT_EQ(1u, holding_space_model->items().size());
-  EXPECT_EQ(file_path_2, holding_space_model->items()[0]->file_path());
+  EXPECT_EQ(file_path_2, holding_space_model->items()[0]->file().file_path);
 }
 
 // Verifies that files restored from persistence are not older than
@@ -1945,10 +2021,14 @@ TEST_P(HoldingSpaceKeyedServiceWithExperimentalFeatureTest,
         for (const HoldingSpaceItem::Type type : GetHoldingSpaceItemTypes()) {
           const base::FilePath file = downloads_mount->CreateArbitraryFile();
           const GURL file_system_url = GetFileSystemUrl(GetProfile(), file);
+          const HoldingSpaceFile::FileSystemType file_system_type =
+              holding_space_util::ResolveFileSystemType(GetProfile(),
+                                                        file_system_url);
 
           auto fresh_holding_space_item =
               HoldingSpaceItem::CreateFileBackedItem(
-                  type, file, file_system_url,
+                  type,
+                  HoldingSpaceFile(file, file_system_type, file_system_url),
                   base::BindOnce(&holding_space_util::ResolveImage,
                                  primary_holding_space_service
                                      ->thumbnail_loader_for_testing()));
@@ -2058,7 +2138,7 @@ TEST_P(HoldingSpaceKeyedServiceWithExperimentalFeatureTest,
   ASSERT_EQ(1u, model->items().size());
   const HoldingSpaceItem* arc_download_item = model->items()[0].get();
   EXPECT_EQ(arc_download_item->type(), HoldingSpaceItem::Type::kArcDownload);
-  EXPECT_EQ(arc_download_item->file_path(),
+  EXPECT_EQ(arc_download_item->file().file_path,
             file_manager::util::GetDownloadsFolderForProfile(profile).Append(
                 base::FilePath("Download.png")));
 }
@@ -2117,7 +2197,7 @@ TEST_P(HoldingSpaceKeyedServiceWithExperimentalFeatureTest,
   // Verify that a holding space item has been created.
   ASSERT_EQ(model->items().size(), 1u);
   EXPECT_EQ(model->items()[0]->type(), HoldingSpaceItem::Type::kDownload);
-  EXPECT_EQ(model->items()[0]->file_path(), current_path);
+  EXPECT_EQ(model->items()[0]->file().file_path, current_path);
   EXPECT_EQ(model->items()[0]->progress().GetValue(), 0.f);
 
   constexpr gfx::Size kImageSize(20, 20);
@@ -2158,7 +2238,7 @@ TEST_P(HoldingSpaceKeyedServiceWithExperimentalFeatureTest,
   // Verify that the holding space item has indeterminate progress.
   ASSERT_EQ(model->items().size(), 1u);
   EXPECT_EQ(model->items()[0]->type(), HoldingSpaceItem::Type::kDownload);
-  EXPECT_EQ(model->items()[0]->file_path(), current_path);
+  EXPECT_EQ(model->items()[0]->file().file_path, current_path);
   EXPECT_TRUE(model->items()[0]->progress().IsIndeterminate());
 
   // Update the received bytes and total bytes for the download.
@@ -2169,7 +2249,7 @@ TEST_P(HoldingSpaceKeyedServiceWithExperimentalFeatureTest,
   // Verify that the holding space item has expected progress.
   ASSERT_EQ(model->items().size(), 1u);
   EXPECT_EQ(model->items()[0]->type(), HoldingSpaceItem::Type::kDownload);
-  EXPECT_EQ(model->items()[0]->file_path(), current_path);
+  EXPECT_EQ(model->items()[0]->file().file_path, current_path);
   EXPECT_EQ(model->items()[0]->progress().GetValue(), 0.5f);
 
   // Remove the holding space item from the model.
@@ -2209,7 +2289,7 @@ TEST_P(HoldingSpaceKeyedServiceWithExperimentalFeatureTest,
   // Verify that a holding space item has been created.
   ASSERT_EQ(model->items().size(), 1u);
   EXPECT_EQ(model->items()[0]->type(), HoldingSpaceItem::Type::kDownload);
-  EXPECT_EQ(model->items()[0]->file_path(), current_path);
+  EXPECT_EQ(model->items()[0]->file().file_path, current_path);
   EXPECT_EQ(model->items()[0]->progress().GetValue(), 0.5f);
 
   // Not dangerous in-progress items should only have Cancel and Pause
@@ -2336,7 +2416,7 @@ TEST_P(HoldingSpaceKeyedServiceWithExperimentalFeatureTest,
   // Verify that the holding space item has been updated.
   ASSERT_EQ(model->items().size(), 1u);
   EXPECT_EQ(model->items()[0]->type(), HoldingSpaceItem::Type::kDownload);
-  EXPECT_EQ(model->items()[0]->file_path(), current_path);
+  EXPECT_EQ(model->items()[0]->file().file_path, current_path);
   EXPECT_TRUE(model->items()[0]->progress().IsComplete());
 
   // The image should be representative of the file type of the *target* file
@@ -2443,7 +2523,7 @@ TEST_P(HoldingSpaceKeyedServiceWithExperimentalFeatureTest,
   // Verify that a holding space item is created.
   ASSERT_EQ(model->items().size(), 1u);
   EXPECT_EQ(model->items()[0]->type(), HoldingSpaceItem::Type::kDownload);
-  EXPECT_EQ(model->items()[0]->file_path(), current_path);
+  EXPECT_EQ(model->items()[0]->file().file_path, current_path);
   EXPECT_EQ(model->items()[0]->progress().GetValue(), 0.f);
 
   // Complete the download.
@@ -2457,7 +2537,7 @@ TEST_P(HoldingSpaceKeyedServiceWithExperimentalFeatureTest,
   // enabled.
   ASSERT_EQ(model->items().size(), 1u);
   EXPECT_EQ(model->items()[0]->type(), HoldingSpaceItem::Type::kDownload);
-  EXPECT_EQ(model->items()[0]->file_path(), current_path);
+  EXPECT_EQ(model->items()[0]->file().file_path, current_path);
   EXPECT_TRUE(model->items()[0]->progress().IsComplete());
 }
 
@@ -2512,7 +2592,7 @@ TEST_P(HoldingSpaceKeyedServiceWithExperimentalFeatureTest,
   // Verify that a holding space item is created.
   ASSERT_EQ(model->items().size(), 1u);
   EXPECT_EQ(model->items()[0]->type(), HoldingSpaceItem::Type::kDownload);
-  EXPECT_EQ(model->items()[0]->file_path(), current_path);
+  EXPECT_EQ(model->items()[0]->file().file_path, current_path);
   EXPECT_EQ(model->items()[0]->progress().GetValue(), 0.f);
 
   // Make some progress and interrupt the download.
@@ -2532,7 +2612,7 @@ TEST_P(HoldingSpaceKeyedServiceWithExperimentalFeatureTest,
   // item.
   ASSERT_EQ(model->items().size(), 1u);
   EXPECT_EQ(model->items()[0]->type(), HoldingSpaceItem::Type::kDownload);
-  EXPECT_EQ(model->items()[0]->file_path(), current_path);
+  EXPECT_EQ(model->items()[0]->file().file_path, current_path);
   EXPECT_EQ(model->items()[0]->progress().GetValue(), 0.5f);
 
   // Complete the download.
@@ -2546,7 +2626,7 @@ TEST_P(HoldingSpaceKeyedServiceWithExperimentalFeatureTest,
   // enabled.
   ASSERT_EQ(model->items().size(), 1u);
   EXPECT_EQ(model->items()[0]->type(), HoldingSpaceItem::Type::kDownload);
-  EXPECT_EQ(model->items()[0]->file_path(), current_path);
+  EXPECT_EQ(model->items()[0]->file().file_path, current_path);
   EXPECT_TRUE(model->items()[0]->progress().IsComplete());
 }
 
@@ -2704,8 +2784,8 @@ TEST_P(HoldingSpaceKeyedServiceAddAndRemoveItemTest, AddAndRemoveItem) {
   EXPECT_EQ(item->id(), id);
   EXPECT_EQ(item->type(), GetType());
   EXPECT_EQ(item->GetText(), file_path.BaseName().LossyDisplayName());
-  EXPECT_EQ(item->file_path(), file_path);
-  EXPECT_EQ(item->file_system_url(),
+  EXPECT_EQ(item->file().file_path, file_path);
+  EXPECT_EQ(item->file().file_system_url,
             holding_space_util::ResolveFileSystemUrl(profile, file_path));
 
   // Verify holding space `item` image.
@@ -2797,8 +2877,8 @@ TEST_P(HoldingSpaceKeyedServiceAddAndRemoveItemTest, AddAndRemoveItemOfType) {
   EXPECT_EQ(item->id(), id);
   EXPECT_EQ(item->type(), GetType());
   EXPECT_EQ(item->GetText(), file_path.BaseName().LossyDisplayName());
-  EXPECT_EQ(item->file_path(), file_path);
-  EXPECT_EQ(item->file_system_url(),
+  EXPECT_EQ(item->file().file_path, file_path);
+  EXPECT_EQ(item->file().file_system_url,
             holding_space_util::ResolveFileSystemUrl(profile, file_path));
 
   // Verify holding space `item` image.
@@ -2879,7 +2959,7 @@ TEST_F(HoldingSpaceKeyedServiceNearbySharingTest, AddNearbyShareItem) {
   ASSERT_EQ(2u, model->items().size());
 
   const HoldingSpaceItem* item_1 = model->items()[0].get();
-  EXPECT_EQ(item_1_full_path, item_1->file_path());
+  EXPECT_EQ(item_1_full_path, item_1->file().file_path);
   EXPECT_TRUE(gfx::BitmapsAreEqual(
       *holding_space_util::ResolveImage(
            holding_space_service->thumbnail_loader_for_testing(),
@@ -2890,12 +2970,12 @@ TEST_F(HoldingSpaceKeyedServiceNearbySharingTest, AddNearbyShareItem) {
   // Verify the item file system URL resolves to the correct file in the file
   // manager's context.
   EXPECT_EQ(item_1_virtual_path,
-            GetVirtualPathFromUrl(item_1->file_system_url(),
+            GetVirtualPathFromUrl(item_1->file().file_system_url,
                                   downloads_mount->name()));
   EXPECT_EQ(u"File 1.png", item_1->GetText());
 
   const HoldingSpaceItem* item_2 = model->items()[1].get();
-  EXPECT_EQ(item_2_full_path, item_2->file_path());
+  EXPECT_EQ(item_2_full_path, item_2->file().file_path);
   EXPECT_TRUE(gfx::BitmapsAreEqual(
       *holding_space_util::ResolveImage(
            holding_space_service->thumbnail_loader_for_testing(),
@@ -2906,7 +2986,7 @@ TEST_F(HoldingSpaceKeyedServiceNearbySharingTest, AddNearbyShareItem) {
   // Verify the item file system URL resolves to the correct file in the file
   // manager's context.
   EXPECT_EQ(item_2_virtual_path,
-            GetVirtualPathFromUrl(item_2->file_system_url(),
+            GetVirtualPathFromUrl(item_2->file().file_system_url,
                                   downloads_mount->name()));
   EXPECT_EQ(u"File 2.png", item_2->GetText());
 }
@@ -2998,7 +3078,7 @@ TEST_P(HoldingSpaceKeyedServicePrintToPdfIntegrationTest, AddPrintedPdfItem) {
   // Verify that holding space is populated with the expected item.
   ASSERT_EQ(model->items().size(), 1u);
   EXPECT_EQ(model->items()[0]->type(), HoldingSpaceItem::Type::kPrintedPdf);
-  EXPECT_EQ(model->items()[0]->file_path(), file_path);
+  EXPECT_EQ(model->items()[0]->file().file_path, file_path);
 }
 
 // Base class for tests of incognito profile integration.
@@ -3026,7 +3106,8 @@ class HoldingSpaceKeyedServiceIncognitoDownloadsTest
   TestingProfile* incognito_profile() { return incognito_profile_; }
 
  private:
-  raw_ptr<TestingProfile, ExperimentalAsh> incognito_profile_ = nullptr;
+  raw_ptr<TestingProfile, DanglingUntriaged | ExperimentalAsh>
+      incognito_profile_ = nullptr;
 };
 
 TEST_F(HoldingSpaceKeyedServiceIncognitoDownloadsTest, AddDownloadItem) {
@@ -3070,7 +3151,7 @@ TEST_F(HoldingSpaceKeyedServiceIncognitoDownloadsTest, AddDownloadItem) {
   ASSERT_EQ(1u, model->items().size());
   HoldingSpaceItem* download_item = model->items()[0].get();
   EXPECT_EQ(download_item->type(), HoldingSpaceItem::Type::kDownload);
-  EXPECT_EQ(download_item->file_path(), current_path);
+  EXPECT_EQ(download_item->file().file_path, current_path);
   EXPECT_EQ(download_item->progress().GetValue(), 0.f);
 
   // Complete the download.
@@ -3083,7 +3164,7 @@ TEST_F(HoldingSpaceKeyedServiceIncognitoDownloadsTest, AddDownloadItem) {
   ASSERT_EQ(1u, model->items().size());
   download_item = model->items()[0].get();
   EXPECT_EQ(download_item->type(), HoldingSpaceItem::Type::kDownload);
-  EXPECT_EQ(download_item->file_path(), current_path);
+  EXPECT_EQ(download_item->file().file_path, current_path);
   EXPECT_TRUE(download_item->progress().IsComplete());
 }
 
@@ -3138,7 +3219,7 @@ TEST_F(HoldingSpaceKeyedServiceIncognitoDownloadsTest,
   ASSERT_EQ(1u, model->items().size());
   HoldingSpaceItem* download_item = model->items()[0].get();
   EXPECT_EQ(download_item->type(), HoldingSpaceItem::Type::kDownload);
-  EXPECT_EQ(download_item->file_path(), current_path);
+  EXPECT_EQ(download_item->file().file_path, current_path);
   EXPECT_FALSE(download_item->progress().IsComplete());
 
   // Verify that destroying a profile with an in-progress download destroys
@@ -3348,6 +3429,10 @@ TEST_P(HoldingSpaceSuggestionsDelegateTest, DownloadsFolderNotSuggested) {
 
 TEST_P(HoldingSpaceSuggestionsDelegateTest, PinAndUnpinSuggestions) {
   const base::FilePath file_path_1 = mount_point()->CreateArbitraryFile();
+  const GURL file_system_url_1 = GetFileSystemUrl(GetProfile(), file_path_1);
+  const HoldingSpaceFile::FileSystemType file_system_type_1 =
+      holding_space_util::ResolveFileSystemType(GetProfile(),
+                                                file_system_url_1);
 
   // Update Drive file suggestions. Fast-forward to ensure the suggestion fetch
   // completes.
@@ -3394,8 +3479,8 @@ TEST_P(HoldingSpaceSuggestionsDelegateTest, PinAndUnpinSuggestions) {
   // Pin the suggested Drive file and verify that the suggestion is removed
   // from the model if suggestions are enabled.
   auto pinned_item = HoldingSpaceItem::CreateFileBackedItem(
-      HoldingSpaceItem::Type::kPinnedFile, file_path_1,
-      GetFileSystemUrl(GetProfile(), file_path_1),
+      HoldingSpaceItem::Type::kPinnedFile,
+      HoldingSpaceFile(file_path_1, file_system_type_1, file_system_url_1),
       base::BindOnce(&CreateTestHoldingSpaceImage));
   const auto& pinned_item_id = pinned_item->id();
   model->AddItem(std::move(pinned_item));
@@ -3442,8 +3527,10 @@ TEST_P(HoldingSpaceSuggestionsDelegateTest, PinAndUnpinSuggestions) {
 
   // Initialize the pinned item for the suggested local file and verify that
   // the suggestion is removed from the model if suggestions are enabled.
-  model->InitializeOrRemoveItem(partially_initialized_pinned_item_ptr->id(),
-                                GetFileSystemUrl(GetProfile(), file_path_2));
+  model->InitializeOrRemoveItem(
+      partially_initialized_pinned_item_ptr->id(),
+      HoldingSpaceFile(file_path_2, HoldingSpaceFile::FileSystemType::kTest,
+                       GetFileSystemUrl(GetProfile(), file_path_2)));
   task_environment()->RunUntilIdle();
 
   if (suggestion_feature_enabled) {
@@ -3455,10 +3542,16 @@ TEST_P(HoldingSpaceSuggestionsDelegateTest, PinAndUnpinSuggestions) {
 // Verifies the file suggestion update on a profile with restored suggestions.
 TEST_P(HoldingSpaceSuggestionsDelegateTest, RestoreSuggestions) {
   const base::FilePath drive_file = mount_point()->CreateArbitraryFile();
+  const GURL drive_file_system_url = GetFileSystemUrl(GetProfile(), drive_file);
+  const HoldingSpaceFile::FileSystemType drive_file_system_type =
+      holding_space_util::ResolveFileSystemType(GetProfile(),
+                                                drive_file_system_url);
+
   std::unique_ptr<HoldingSpaceItem> drive_file_suggestion =
       HoldingSpaceItem::CreateFileBackedItem(
-          HoldingSpaceItem::Type::kDriveSuggestion, drive_file,
-          GetFileSystemUrl(GetProfile(), drive_file),
+          HoldingSpaceItem::Type::kDriveSuggestion,
+          HoldingSpaceFile(drive_file, drive_file_system_type,
+                           drive_file_system_url),
           base::BindOnce(&CreateTestHoldingSpaceImage));
 
   // Create a secondary profile with a persisted drive file suggestion.
@@ -3500,8 +3593,8 @@ TEST_P(HoldingSpaceSuggestionsDelegateTest, RestoreSuggestions) {
   if (suggestion_feature_enabled) {
     // The drive and local file suggestions should coexist in the model.
     ASSERT_EQ(model_items.size(), 2u);
-    EXPECT_EQ(model_items[0]->file_path(), local_file);
-    EXPECT_EQ(model_items[1]->file_path(), drive_file);
+    EXPECT_EQ(model_items[0]->file().file_path, local_file);
+    EXPECT_EQ(model_items[1]->file().file_path, drive_file);
   } else {
     EXPECT_TRUE(model_items.empty());
   }
@@ -3517,8 +3610,11 @@ TEST_P(HoldingSpaceSuggestionsDelegateTest, UpdateSuggestionsWithDelayedMount) {
   const base::FilePath delayed_mount_file_path =
       delayed_mount->GetRootPath().Append("delayed file");
   auto delayed_holding_space_item = HoldingSpaceItem::CreateFileBackedItem(
-      HoldingSpaceItem::Type::kDriveSuggestion, delayed_mount_file_path,
-      GURL("filesystem:fake"), base::BindOnce(&CreateTestHoldingSpaceImage));
+      HoldingSpaceItem::Type::kDriveSuggestion,
+      HoldingSpaceFile(delayed_mount_file_path,
+                       HoldingSpaceFile::FileSystemType::kTest,
+                       GURL("filesystem:fake")),
+      base::BindOnce(&CreateTestHoldingSpaceImage));
 
   // Create a secondary profile with a persisted delayed file suggestion.
   TestingProfile* const secondary_profile = CreateSecondaryProfile(
@@ -3556,11 +3652,11 @@ TEST_P(HoldingSpaceSuggestionsDelegateTest, UpdateSuggestionsWithDelayedMount) {
   const auto& model_items = secondary_holding_space_model->items();
   if (suggestion_feature_enabled) {
     ASSERT_EQ(model_items.size(), 2u);
-    EXPECT_EQ(model_items[0]->file_path(), local_file);
+    EXPECT_EQ(model_items[0]->file().file_path, local_file);
     EXPECT_EQ(model_items[0]->type(), HoldingSpaceItem::Type::kLocalSuggestion);
     EXPECT_TRUE(model_items[0]->IsInitialized());
 
-    EXPECT_EQ(model_items[1]->file_path(), delayed_mount_file_path);
+    EXPECT_EQ(model_items[1]->file().file_path, delayed_mount_file_path);
     EXPECT_EQ(model_items[1]->type(), HoldingSpaceItem::Type::kDriveSuggestion);
     EXPECT_FALSE(model_items[1]->IsInitialized());
   } else {

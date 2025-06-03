@@ -23,7 +23,6 @@
 #include "components/prefs/pref_service.h"
 #include "components/safe_browsing/content/browser/client_side_detection_service.h"
 #include "components/safe_browsing/content/browser/client_side_phishing_model.h"
-#include "components/safe_browsing/content/browser/client_side_phishing_model_optimization_guide.h"
 #include "components/safe_browsing/content/common/safe_browsing.mojom-shared.h"
 #include "components/safe_browsing/content/common/safe_browsing.mojom.h"
 #include "components/safe_browsing/content/common/visual_utils.h"
@@ -65,6 +64,8 @@ namespace {
 // Command-line flag that can be used to write extracted CSD features to disk.
 // This is also enables a few other behaviors that are useful for debugging.
 const char kCsdDebugFeatureDirectoryFlag[] = "csd-debug-feature-directory";
+const char kSkipCSDAllowlistOnPreclassification[] =
+    "safe-browsing-skip-csd-allowlist";
 
 void WriteFeaturesToDisk(const ClientPhishingRequest& features,
                          const base::FilePath& base_path) {
@@ -81,6 +82,11 @@ void WriteFeaturesToDisk(const ClientPhishingRequest& features,
 bool HasDebugFeatureDirectory() {
   return base::CommandLine::ForCurrentProcess()->HasSwitch(
       kCsdDebugFeatureDirectoryFlag);
+}
+
+bool ShouldSkipCSDAllowlist() {
+  return base::CommandLine::ForCurrentProcess()->HasSwitch(
+      kSkipCSDAllowlistOnPreclassification);
 }
 
 base::FilePath GetDebugFeatureDirectory() {
@@ -268,7 +274,7 @@ class ClientSideDetectionHost::ShouldClassifyUrlRequest
 
     // When doing debug feature dumps, ignore the allowlist.
     if (HasDebugFeatureDirectory()) {
-      OnAllowlistCheckDoneOnIO(url, NO_CLASSIFY_MAX,
+      OnAllowlistCheckDoneOnIO(url, phishing_reason,
                                /*match_allowlist=*/false);
       return;
     }
@@ -276,7 +282,15 @@ class ClientSideDetectionHost::ShouldClassifyUrlRequest
     if (!database_manager_.get()) {
       // We cannot check the Safe Browsing allowlists so we stop here
       // for safety.
-      OnAllowlistCheckDoneOnIO(url, NO_CLASSIFY_NO_DATABASE_MANAGER,
+      OnAllowlistCheckDoneOnIO(
+          url, /*phishing_reason=*/NO_CLASSIFY_NO_DATABASE_MANAGER,
+          /*match_allowlist=*/false);
+      return;
+    }
+
+    if (ShouldSkipCSDAllowlist()) {
+      // Command line flag to skip the allowlist check has been set.
+      OnAllowlistCheckDoneOnIO(url, phishing_reason,
                                /*match_allowlist=*/false);
       return;
     }
@@ -425,8 +439,9 @@ void ClientSideDetectionHost::DidFinishNavigation(
     return;
   }
 
-  if (base::FeatureList::IsEnabled(kClientSideDetectionKillswitch))
+  if (base::FeatureList::IsEnabled(kClientSideDetectionKillswitch)) {
     return;
+  }
 
   // TODO(noelutz): move this DCHECK to WebContents and fix all the unit tests
   // that don't call this method on the UI thread.
@@ -503,12 +518,10 @@ void ClientSideDetectionHost::PhishingDetectionDone(
   base::UmaHistogramEnumeration("SBClientPhishing.PhishingDetectorResult",
                                 result);
   if (result == mojom::PhishingDetectorResult::CLASSIFIER_NOT_READY) {
-    bool isModelAvailable =
-        base::FeatureList::IsEnabled(kClientSideDetectionModelOptimizationGuide)
-            ? csd_service_->IsModelAvailable()
-            : ClientSidePhishingModel::GetInstance()->IsEnabled();
+    bool is_model_available = csd_service_->IsModelAvailable();
     base::UmaHistogramBoolean(
-        "SBClientPhishing.BrowserReadyOnClassifierNotReady", isModelAvailable);
+        "SBClientPhishing.BrowserReadyOnClassifierNotReady",
+        is_model_available);
   }
   if (result != mojom::PhishingDetectorResult::SUCCESS)
     return;
@@ -541,9 +554,11 @@ void ClientSideDetectionHost::PhishingDetectionDone(
       size = gfx::Size(static_cast<int>(viewport.width()),
                        static_cast<int>(viewport.height()));
     }
-    bool can_extract_visual_features = visual_utils::CanExtractVisualFeatures(
-        IsExtendedReportingEnabled(*delegate_->GetPrefs()),
-        web_contents()->GetBrowserContext()->IsOffTheRecord(), size);
+    visual_utils::CanExtractVisualFeaturesResult
+        can_extract_visual_features_result =
+            visual_utils::CanExtractVisualFeatures(
+                IsExtendedReportingEnabled(*delegate_->GetPrefs()),
+                web_contents()->GetBrowserContext()->IsOffTheRecord(), size);
 #else
     gfx::Size size;
     content::RenderWidgetHostView* view =
@@ -551,12 +566,19 @@ void ClientSideDetectionHost::PhishingDetectionDone(
     if (view) {
       size = view->GetVisibleViewportSize();
     }
-    bool can_extract_visual_features = visual_utils::CanExtractVisualFeatures(
-        IsExtendedReportingEnabled(*delegate_->GetPrefs()),
-        web_contents()->GetBrowserContext()->IsOffTheRecord(), size,
-        zoom::ZoomController::GetZoomLevelForWebContents(web_contents()));
+    visual_utils::CanExtractVisualFeaturesResult
+        can_extract_visual_features_result =
+            visual_utils::CanExtractVisualFeatures(
+                IsExtendedReportingEnabled(*delegate_->GetPrefs()),
+                web_contents()->GetBrowserContext()->IsOffTheRecord(), size,
+                zoom::ZoomController::GetZoomLevelForWebContents(
+                    web_contents()));
 #endif
-    if (!can_extract_visual_features) {
+    base::UmaHistogramEnumeration("SBClientPhishing.VisualFeaturesClearReason",
+                                  can_extract_visual_features_result);
+    if (can_extract_visual_features_result !=
+        visual_utils::CanExtractVisualFeaturesResult::
+            kCanExtractVisualFeatures) {
       verdict->clear_visual_features();
     }
 
@@ -613,15 +635,61 @@ void ClientSideDetectionHost::PhishingDetectionDone(
           &token);
     }
 
-    if (CanGetAccessToken()) {
-      token_fetcher_->Start(
-          base::BindOnce(&ClientSideDetectionHost::OnGotAccessToken,
-                         weak_factory_.GetWeakPtr(), std::move(verdict)));
-      return;
+    // The check for image embedding model is important because the
+    // OptimizationGuide server can send a null model to signal there is a bad
+    // model in disk.
+    if (base::FeatureList::IsEnabled(kClientSideDetectionModelImageEmbedder) &&
+        IsEnhancedProtectionEnabled(*delegate_->GetPrefs()) &&
+        csd_service_->IsModelMetadataImageEmbeddingVersionMatching() &&
+        csd_service_->HasImageEmbeddingModel()) {
+      content::RenderFrameHost* rfh = web_contents()->GetPrimaryMainFrame();
+
+      phishing_image_embedder_.reset();
+      rfh->GetRemoteAssociatedInterfaces()->GetInterface(
+          &phishing_image_embedder_);
+
+      if (phishing_image_embedder_.is_bound()) {
+        phishing_image_embedder_->StartImageEmbedding(
+            current_url_,
+            base::BindOnce(&ClientSideDetectionHost::PhishingImageEmbeddingDone,
+                           weak_factory_.GetWeakPtr(), std::move(verdict)));
+      }
+    } else {
+      if (CanGetAccessToken()) {
+        token_fetcher_->Start(
+            base::BindOnce(&ClientSideDetectionHost::OnGotAccessToken,
+                           weak_factory_.GetWeakPtr(), std::move(verdict)));
+        return;
+      }
+
+      std::string empty_access_token;
+      SendRequest(std::move(verdict), empty_access_token);
     }
-    std::string empty_access_token;
-    SendRequest(std::move(verdict), empty_access_token);
   }
+}
+
+void ClientSideDetectionHost::PhishingImageEmbeddingDone(
+    std::unique_ptr<ClientPhishingRequest> verdict,
+    mojom::PhishingImageEmbeddingResult result,
+    const std::string& image_feature_embedding_string) {
+  base::UmaHistogramEnumeration("SBClientPhishing.PhishingImageEmbeddingResult",
+                                result);
+  if (result == mojom::PhishingImageEmbeddingResult::kSuccess) {
+    if (!verdict->mutable_image_feature_embedding()->ParseFromString(
+            image_feature_embedding_string)) {
+      VLOG(0) << "Failed to parse image feature embedding string";
+    }
+  }
+
+  if (CanGetAccessToken()) {
+    token_fetcher_->Start(
+        base::BindOnce(&ClientSideDetectionHost::OnGotAccessToken,
+                       weak_factory_.GetWeakPtr(), std::move(verdict)));
+    return;
+  }
+
+  std::string empty_access_token;
+  SendRequest(std::move(verdict), empty_access_token);
 }
 
 void ClientSideDetectionHost::MaybeShowPhishingWarning(bool is_from_cache,

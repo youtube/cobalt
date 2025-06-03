@@ -13,7 +13,6 @@
 #include "base/check_op.h"
 #include "base/memory/raw_ptr_exclusion.h"
 #include "base/message_loop/message_pump_type.h"
-#include "base/message_loop/timer_slack.h"
 #include "base/sequence_checker.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
@@ -31,6 +30,8 @@ class BASE_EXPORT MessagePump {
 
   // Returns true if the MessagePumpForUI has been overidden.
   static bool IsMessagePumpForUIFactoryOveridden();
+
+  static void InitializeFeatures();
 
   // Creates the default MessagePump based on |type|. Caller owns return value.
   static std::unique_ptr<MessagePump> Create(MessagePumpType type);
@@ -57,6 +58,12 @@ class BASE_EXPORT MessagePump {
       // work to run immediately. is_max() if there are no more immediate nor
       // delayed tasks.
       TimeTicks delayed_run_time;
+
+      // |leeway| determines the preferred time range for scheduling
+      // work. A larger leeway provides more freedom to schedule work at
+      // an optimal time for power consumption. This field is ignored
+      // for immediate work.
+      TimeDelta leeway;
 
       // A recent view of TimeTicks::Now(). Only valid if |delayed_run_time|
       // isn't null nor max. MessagePump impls should use remaining_delay()
@@ -253,8 +260,10 @@ class BASE_EXPORT MessagePump {
   virtual void ScheduleDelayedWork(
       const Delegate::NextWorkInfo& next_work_info) = 0;
 
-  // Sets the timer slack to the specified value.
-  virtual void SetTimerSlack(TimerSlack timer_slack);
+  // Returns an adjusted |run_time| based on alignment policies of the pump.
+  virtual TimeTicks AdjustDelayedRunTime(TimeTicks earliest_time,
+                                         TimeTicks run_time,
+                                         TimeTicks latest_time);
 };
 
 }  // namespace base

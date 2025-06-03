@@ -52,10 +52,12 @@ import org.robolectric.shadows.ShadowLooper;
 
 import org.chromium.base.Promise;
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.base.test.util.JniMocker;
 import org.chromium.chrome.R;
-import org.chromium.chrome.browser.BackPressHelper;
 import org.chromium.chrome.browser.IntentHandler;
+import org.chromium.chrome.browser.back_press.BackPressHelper;
+import org.chromium.chrome.browser.back_press.SecondaryActivityBackPressUma.SecondaryActivity;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.history_clusters.HistoryClustersBridge;
 import org.chromium.chrome.browser.history_clusters.HistoryClustersCoordinator;
@@ -91,24 +93,23 @@ import org.chromium.url.GURL;
 import java.util.Arrays;
 import java.util.Date;
 
-/**
- * Tests the History UI.
- */
+/** Tests the History UI. */
 @RunWith(BaseRobolectricTestRunner.class)
-@DisableFeatures(
-        {ChromeFeatureList.HISTORY_JOURNEYS, ChromeFeatureList.BACK_GESTURE_REFACTOR_ACTIVITY})
+@DisableFeatures({
+    ChromeFeatureList.HISTORY_JOURNEYS,
+    ChromeFeatureList.RENAME_JOURNEYS,
+    ChromeFeatureList.BACK_GESTURE_REFACTOR_ACTIVITY,
+    ChromeFeatureList.EMPTY_STATES
+})
 public class HistoryUITest {
     private static final int PAGE_INCREMENT = 2;
     private static final String HISTORY_SEARCH_QUERY = "some page";
 
-    @Rule
-    public AccountManagerTestRule mAccountManagerTestRule = new AccountManagerTestRule();
-    @Rule
-    public MockitoRule mMockitoRule = MockitoJUnit.rule();
-    @Rule
-    public TestRule mProcessor = new Features.JUnitProcessor();
-    @Rule
-    public JniMocker mJniMocker = new JniMocker();
+    @Rule public AccountManagerTestRule mAccountManagerTestRule = new AccountManagerTestRule();
+    @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
+    @Rule public TestRule mProcessor = new Features.JUnitProcessor();
+    @Rule public JniMocker mJniMocker = new JniMocker();
+
     @Rule
     public ActivityScenarioRule<TestActivity> mActivityScenarioRule =
             new ActivityScenarioRule<>(TestActivity.class);
@@ -126,26 +127,16 @@ public class HistoryUITest {
     private OnBackPressedDispatcher mOnBackPressedDispatcher;
     private LifecycleOwner mLifecycleOwner;
 
-    @Mock
-    private SnackbarManager mSnackbarManager;
-    @Mock
-    private Profile mProfile;
-    @Mock
-    LargeIconBridge.Natives mMockLargeIconBridgeJni;
-    @Mock
-    private UserPrefs.Natives mUserPrefsJni;
-    @Mock
-    private PrefService mPrefService;
-    @Mock
-    private IdentityServicesProvider mIdentityService;
-    @Mock
-    private SigninManager mSigninManager;
-    @Mock
-    private PrefChangeRegistrar.Natives mPrefChangeRegistrarJni;
-    @Mock
-    private TemplateUrlService mTemplateUrlService;
-    @Mock
-    private HistoryClustersBridge mHistoryClustersBridge;
+    @Mock private SnackbarManager mSnackbarManager;
+    @Mock private Profile mProfile;
+    @Mock LargeIconBridge.Natives mMockLargeIconBridgeJni;
+    @Mock private UserPrefs.Natives mUserPrefsJni;
+    @Mock private PrefService mPrefService;
+    @Mock private IdentityServicesProvider mIdentityService;
+    @Mock private SigninManager mSigninManager;
+    @Mock private PrefChangeRegistrar.Natives mPrefChangeRegistrarJni;
+    @Mock private TemplateUrlService mTemplateUrlService;
+    @Mock private HistoryClustersBridge mHistoryClustersBridge;
 
     public static Matcher<Intent> hasData(GURL uri) {
         return IntentMatchers.hasData(uri.getSpec());
@@ -163,7 +154,6 @@ public class HistoryUITest {
         mJniMocker.mock(LargeIconBridgeJni.TEST_HOOKS, mMockLargeIconBridgeJni);
         doReturn(1L).when(mMockLargeIconBridgeJni).init();
         mJniMocker.mock(UserPrefsJni.TEST_HOOKS, mUserPrefsJni);
-        Profile.setLastUsedProfileForTesting(mProfile);
         doReturn(mPrefService).when(mUserPrefsJni).get(mProfile);
         doReturn(true).when(mPrefService).getBoolean(Pref.ALLOW_DELETING_BROWSER_HISTORY);
         doReturn(true).when(mPrefService).getBoolean(HistoryManager.HISTORY_CLUSTERS_VISIBLE_PREF);
@@ -173,13 +163,24 @@ public class HistoryUITest {
         IncognitoUtils.setEnabledForTesting(true);
         TemplateUrlServiceFactory.setInstanceForTesting(mTemplateUrlService);
         HistoryClustersBridge.setInstanceForTesting(mHistoryClustersBridge);
-        mActivityScenarioRule.getScenario().onActivity(activity -> {
-            mActivity = activity;
-            mOnBackPressedDispatcher = activity.getOnBackPressedDispatcher();
-            mLifecycleOwner = activity;
-        });
-        mHistoryManager = new HistoryManager(mActivity, true, mSnackbarManager, false,
-                /* Supplier<Tab>= */ null, false, null, mHistoryProvider);
+        mActivityScenarioRule
+                .getScenario()
+                .onActivity(
+                        activity -> {
+                            mActivity = activity;
+                            mOnBackPressedDispatcher = activity.getOnBackPressedDispatcher();
+                            mLifecycleOwner = activity;
+                        });
+        mHistoryManager =
+                new HistoryManager(
+                        mActivity,
+                        true,
+                        mSnackbarManager,
+                        mProfile,
+                        /* Supplier<Tab>= */ null,
+                        false,
+                        null,
+                        mHistoryProvider);
         mHistoryClustersCoordinator = mHistoryManager.getHistoryClustersCoordinatorForTests();
         mAdapter = mHistoryManager.getContentManagerForTests().getAdapter();
         mRecyclerView = mHistoryManager.getContentManagerForTests().getRecyclerView();
@@ -203,10 +204,17 @@ public class HistoryUITest {
         // Some individual tests may override to enable this feature which is disabled by
         // the class by default.
         if (ChromeFeatureList.isEnabled(ChromeFeatureList.BACK_GESTURE_REFACTOR_ACTIVITY)) {
-            BackPressHelper.create(mLifecycleOwner, mOnBackPressedDispatcher, mHistoryManager);
+            BackPressHelper.create(
+                    mLifecycleOwner,
+                    mOnBackPressedDispatcher,
+                    mHistoryManager,
+                    SecondaryActivity.HISTORY);
         } else {
             BackPressHelper.create(
-                    mLifecycleOwner, mOnBackPressedDispatcher, mHistoryManager::onBackPressed);
+                    mLifecycleOwner,
+                    mOnBackPressedDispatcher,
+                    mHistoryManager::onBackPressed,
+                    SecondaryActivity.HISTORY);
         }
     }
 
@@ -228,7 +236,43 @@ public class HistoryUITest {
 
     @Test
     @SmallTest
+    @EnableFeatures(ChromeFeatureList.EMPTY_STATES)
+    public void testRemove_SingleItem_EmptyState() throws Exception {
+        final HistoryItemView itemView = (HistoryItemView) getItemView(2);
+
+        itemView.getRemoveButtonForTests().performClick();
+
+        // Check that one item was removed.
+        ShadowLooper.idleMainLooper();
+        Assert.assertEquals(1, mHistoryProvider.markItemForRemovalCallback.getCallCount());
+        Assert.assertEquals(1, mHistoryProvider.removeItemsCallback.getCallCount());
+        Assert.assertEquals(3, mAdapter.getItemCount());
+        Assert.assertEquals(View.VISIBLE, mRecyclerView.getVisibility());
+        Assert.assertEquals(View.GONE, mHistoryManager.getEmptyViewForTests().getVisibility());
+    }
+
+    @Test
+    @SmallTest
     public void testRemove_AllItems() throws Exception {
+        toggleItemSelection(2);
+        toggleItemSelection(3);
+
+        performMenuAction(R.id.selection_mode_delete_menu_id);
+
+        // Check that all items were removed. The onChangedCallback should be called three times -
+        // once for each item that is being removed and once for the removal of the header.
+        Assert.assertEquals(0, mAdapter.getItemCount());
+        Assert.assertEquals(2, mHistoryProvider.markItemForRemovalCallback.getCallCount());
+        Assert.assertEquals(1, mHistoryProvider.removeItemsCallback.getCallCount());
+        Assert.assertFalse(mHistoryManager.getSelectionDelegateForTests().isSelectionEnabled());
+        Assert.assertEquals(View.GONE, mRecyclerView.getVisibility());
+        Assert.assertEquals(View.VISIBLE, mHistoryManager.getEmptyViewForTests().getVisibility());
+    }
+
+    @Test
+    @SmallTest
+    @EnableFeatures(ChromeFeatureList.EMPTY_STATES)
+    public void testRemove_AllItems_EmptyState() throws Exception {
         toggleItemSelection(2);
         toggleItemSelection(3);
 
@@ -285,7 +329,8 @@ public class HistoryUITest {
     @SmallTest
     public void testOpenItem() throws Exception {
         clickItem(2);
-        assertThat(shadowOf(mActivity).peekNextStartedActivity(),
+        assertThat(
+                shadowOf(mActivity).peekNextStartedActivity(),
                 allOf(hasAction(equalTo(Intent.ACTION_VIEW)), hasData(mItem1.getUrl())));
     }
 
@@ -299,28 +344,35 @@ public class HistoryUITest {
         Intent intent = shadowOf(mActivity).getNextStartedActivity();
 
         assertThat(intent, hasData(mItem1.getUrl()));
-        Assert.assertEquals(intent.getSerializableExtra(IntentHandler.EXTRA_ADDITIONAL_URLS),
+        Assert.assertEquals(
+                intent.getSerializableExtra(IntentHandler.EXTRA_ADDITIONAL_URLS),
                 Arrays.asList(mItem2.getUrl().getSpec()));
     }
 
     @Test
     @SmallTest
     public void testOpenItemIntent() {
-        Intent intent = mHistoryManager.getContentManagerForTests().getOpenUrlIntent(
-                mItem1.getUrl(), null, false);
+        Intent intent =
+                mHistoryManager
+                        .getContentManagerForTests()
+                        .getOpenUrlIntent(mItem1.getUrl(), null, false);
         Assert.assertEquals(mItem1.getUrl().getSpec(), intent.getDataString());
         Assert.assertFalse(intent.hasExtra(IntentHandler.EXTRA_OPEN_NEW_INCOGNITO_TAB));
         Assert.assertFalse(intent.hasExtra(Browser.EXTRA_CREATE_NEW_TAB));
-        Assert.assertEquals(PageTransition.AUTO_BOOKMARK,
+        Assert.assertEquals(
+                PageTransition.AUTO_BOOKMARK,
                 intent.getIntExtra(IntentHandler.EXTRA_PAGE_TRANSITION_TYPE, -1));
 
-        intent = mHistoryManager.getContentManagerForTests().getOpenUrlIntent(
-                mItem2.getUrl(), true, true);
+        intent =
+                mHistoryManager
+                        .getContentManagerForTests()
+                        .getOpenUrlIntent(mItem2.getUrl(), true, true);
         Assert.assertEquals(mItem2.getUrl().getSpec(), intent.getDataString());
         Assert.assertTrue(
                 intent.getBooleanExtra(IntentHandler.EXTRA_OPEN_NEW_INCOGNITO_TAB, false));
         Assert.assertTrue(intent.getBooleanExtra(Browser.EXTRA_CREATE_NEW_TAB, false));
-        Assert.assertEquals(PageTransition.AUTO_BOOKMARK,
+        Assert.assertEquals(
+                PageTransition.AUTO_BOOKMARK,
                 intent.getIntExtra(IntentHandler.EXTRA_PAGE_TRANSITION_TYPE, -1));
     }
 
@@ -442,6 +494,7 @@ public class HistoryUITest {
 
     @Test
     @SmallTest
+    @DisableFeatures(ChromeFeatureList.BACK_GESTURE_REFACTOR_ACTIVITY)
     public void testSearchViewDismissedByBackPress() {
         final HistoryManagerToolbar toolbar = mHistoryManager.getToolbarForTests();
         View toolbarShadow = mHistoryManager.getSelectableListLayout().getToolbarShadowForTests();
@@ -458,22 +511,30 @@ public class HistoryUITest {
         Assert.assertEquals(View.GONE, toolbarSearchView.getVisibility());
 
         // Press back press to unselect item and the search view is showing again.
+        var backPressRecorder =
+                HistogramWatcher.newSingleRecordWatcher(
+                        "Android.BackPress.SecondaryActivity", SecondaryActivity.HISTORY);
         Assert.assertTrue(mHistoryManager.getHandleBackPressChangedSupplier().get());
         TestThreadUtils.runOnUiThreadBlocking(mOnBackPressedDispatcher::onBackPressed);
         Assert.assertFalse(mHistoryManager.getSelectionDelegateForTests().isSelectionEnabled());
         Assert.assertEquals(View.GONE, toolbarShadow.getVisibility());
         Assert.assertEquals(View.VISIBLE, toolbarSearchView.getVisibility());
+        backPressRecorder.assertExpected();
 
         // Press back to close the search view.
+        var backPressRecorder2 =
+                HistogramWatcher.newSingleRecordWatcher(
+                        "Android.BackPress.SecondaryActivity", SecondaryActivity.HISTORY);
         Assert.assertTrue(mHistoryManager.getHandleBackPressChangedSupplier().get());
         TestThreadUtils.runOnUiThreadBlocking(mOnBackPressedDispatcher::onBackPressed);
         Assert.assertEquals(View.GONE, toolbarShadow.getVisibility());
         Assert.assertEquals(View.GONE, toolbarSearchView.getVisibility());
+        backPressRecorder2.assertExpected();
     }
 
     @Test
     @SmallTest
-    @EnableFeatures({ChromeFeatureList.BACK_GESTURE_REFACTOR_ACTIVITY})
+    @EnableFeatures(ChromeFeatureList.BACK_GESTURE_REFACTOR_ACTIVITY)
     public void testSearchViewDismissedByBackPress_Refactored() {
         testSearchViewDismissedByBackPress();
     }
@@ -527,8 +588,10 @@ public class HistoryUITest {
 
         // Hide disclaimers to simulate setup for https://crbug.com/1071468.
         mHistoryManager.onMenuItemClick(infoMenuItem);
-        Assert.assertFalse("Privacy disclaimers should be hidden.",
-                mHistoryManager.getContentManagerForTests()
+        Assert.assertFalse(
+                "Privacy disclaimers should be hidden.",
+                mHistoryManager
+                        .getContentManagerForTests()
                         .getShouldShowPrivacyDisclaimersIfAvailable());
 
         // Simulate call indicating there are not other forms of browsing data.
@@ -584,7 +647,8 @@ public class HistoryUITest {
 
         TextView emptyView =
                 mHistoryManager.getSelectableListLayout().findViewById(R.id.empty_view);
-        assertThat(emptyView.getText(),
+        assertThat(
+                emptyView.getText(),
                 is("Can’t find that page. Check your spelling or try a web search."));
     }
 
@@ -631,7 +695,6 @@ public class HistoryUITest {
     @Test
     @SmallTest
     public void testScrollToLoadEnabled() {
-        HistoryContentManager.setScrollToLoadDisabledForTesting(false);
         // Reduce the height available to the recycler view to less than it needs so that scrolling
         // has an effect.
         mHeight--;
@@ -649,13 +712,17 @@ public class HistoryUITest {
 
         scrollRecyclerViewToBottom();
 
-        Assert.assertEquals(PAGE_INCREMENT + " more Items should be loaded",
-                mAdapter.getItemCount(), itemCount + PAGE_INCREMENT);
+        Assert.assertEquals(
+                PAGE_INCREMENT + " more Items should be loaded",
+                mAdapter.getItemCount(),
+                itemCount + PAGE_INCREMENT);
         itemCount = mAdapter.getItemCount();
 
         scrollRecyclerViewToBottom();
-        Assert.assertEquals(PAGE_INCREMENT + " more Items should be loaded",
-                mAdapter.getItemCount(), itemCount + PAGE_INCREMENT);
+        Assert.assertEquals(
+                PAGE_INCREMENT + " more Items should be loaded",
+                mAdapter.getItemCount(),
+                itemCount + PAGE_INCREMENT);
     }
 
     @Test
@@ -672,8 +739,10 @@ public class HistoryUITest {
         int itemCount = mAdapter.getItemCount();
         scrollRecyclerViewToBottom();
 
-        Assert.assertEquals("Should not load more items into view after scroll",
-                mAdapter.getItemCount(), itemCount);
+        Assert.assertEquals(
+                "Should not load more items into view after scroll",
+                mAdapter.getItemCount(),
+                itemCount);
         Assert.assertTrue(
                 "Footer should be added to the end of the view", mAdapter.hasListFooter());
         Assert.assertEquals(
@@ -683,16 +752,22 @@ public class HistoryUITest {
         DateDividedAdapter.TimedItem item = mAdapter.getLastGroupForTests().getItemAt(0);
         MoreProgressButton button =
                 (MoreProgressButton) ((DateDividedAdapter.FooterItem) item).getView();
-        Assert.assertSame("FooterItem view should be MoreProgressButton",
-                mAdapter.getMoreProgressButtonForTest(), button);
-        Assert.assertEquals("State for the MPB should be button", button.getStateForTest(),
+        Assert.assertSame(
+                "FooterItem view should be MoreProgressButton",
+                mAdapter.getMoreProgressButtonForTest(),
+                button);
+        Assert.assertEquals(
+                "State for the MPB should be button",
+                button.getStateForTest(),
                 MoreProgressButton.State.BUTTON);
 
         // Test click, should load more items
         button.findViewById(R.id.action_button).performClick();
 
-        Assert.assertEquals((PAGE_INCREMENT) + " more Items should be loaded",
-                mAdapter.getItemCount(), itemCount + PAGE_INCREMENT);
+        Assert.assertEquals(
+                (PAGE_INCREMENT) + " more Items should be loaded",
+                mAdapter.getItemCount(),
+                itemCount + PAGE_INCREMENT);
     }
 
     @Test
@@ -729,6 +804,26 @@ public class HistoryUITest {
 
     @Test
     @SmallTest
+    @EnableFeatures({ChromeFeatureList.HISTORY_JOURNEYS, ChromeFeatureList.RENAME_JOURNEYS})
+    public void testToggle_renameEnabled() {
+        Promise<HistoryClustersResult> promise = new Promise<>();
+        doReturn(promise).when(mHistoryClustersBridge).queryClusters(anyString());
+
+        TabLayout toggle = mHistoryManager.getView().findViewById(R.id.history_toggle_tab_layout);
+        TabLayout.Tab dateTab = toggle.getTabAt(0);
+        Assert.assertEquals(
+                mActivity.getString(R.string.history_clusters_by_date_tab_label),
+                dateTab.getText());
+        TabLayout.Tab journeysTab = toggle.getTabAt(1);
+        Assert.assertEquals(
+                mActivity.getString(R.string.history_clusters_by_group_tab_label),
+                journeysTab.getText());
+        Assert.assertNull(
+                mHistoryManager.getToolbarForTests().getMenu().findItem(R.id.optout_menu_id));
+    }
+
+    @Test
+    @SmallTest
     @EnableFeatures(ChromeFeatureList.HISTORY_JOURNEYS)
     public void testJourneysInfoHeader() {
         mAccountManagerTestRule.addAccount(AccountManagerTestRule.TEST_ACCOUNT_EMAIL);
@@ -759,8 +854,10 @@ public class HistoryUITest {
         // Hiding the disclaimer in the List UI should hide it in the Journeys UI.
         Assert.assertNull(recyclerView.findViewById(R.id.privacy_disclaimer));
         mHistoryClustersCoordinator.onMenuItemClick(
-                mHistoryClustersCoordinator.getToolbarForTesting().getMenu().findItem(
-                        R.id.info_menu_id));
+                mHistoryClustersCoordinator
+                        .getToolbarForTesting()
+                        .getMenu()
+                        .findItem(R.id.info_menu_id));
         recyclerView.measure(0, 0);
         recyclerView.layout(0, 0, 600, 1000);
         Assert.assertNotNull(recyclerView.findViewById(R.id.privacy_disclaimer));
@@ -784,8 +881,16 @@ public class HistoryUITest {
                 .when(mPrefService)
                 .isManagedPreference(HistoryManager.HISTORY_CLUSTERS_VISIBLE_PREF);
 
-        mHistoryManager = new HistoryManager(mActivity, true, mSnackbarManager, false,
-                /* Supplier<Tab>= */ null, false, null, mHistoryProvider);
+        mHistoryManager =
+                new HistoryManager(
+                        mActivity,
+                        true,
+                        mSnackbarManager,
+                        mProfile,
+                        /* Supplier<Tab>= */ null,
+                        false,
+                        null,
+                        mHistoryProvider);
 
         Assert.assertNull(mHistoryManager.getView().findViewById(R.id.history_toggle_tab_layout));
         Assert.assertNull(
@@ -805,7 +910,8 @@ public class HistoryUITest {
     @SuppressWarnings("unchecked")
     private SelectableItemView<HistoryItem> getItemView(int position) {
         ViewHolder mostRecentHolder = mRecyclerView.findViewHolderForAdapterPosition(position);
-        Assert.assertTrue(mostRecentHolder + " should be instance of SelectableItemViewHolder",
+        Assert.assertTrue(
+                mostRecentHolder + " should be instance of SelectableItemViewHolder",
                 mostRecentHolder instanceof SelectableItemViewHolder);
         return ((SelectableItemViewHolder<HistoryItem>) mostRecentHolder).getItemView();
     }

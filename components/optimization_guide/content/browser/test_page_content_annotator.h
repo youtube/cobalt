@@ -20,13 +20,6 @@ class TestPageContentAnnotator : public PageContentAnnotator {
   TestPageContentAnnotator();
   ~TestPageContentAnnotator() override;
 
-  // The given page topics are used for the matching BatchAnnotationResults by
-  // input string. If the input is not found, the output is left as nullopt.
-  void UsePageTopics(
-      const absl::optional<ModelInfo>& model_info,
-      const base::flat_map<std::string, std::vector<WeightedIdentifier>>&
-          topics_by_input);
-
   // The given page entities are used for the matching BatchAnnotationResults by
   // input string. If the input is not found, the output is left as nullopt.
   void UsePageEntities(
@@ -39,6 +32,12 @@ class TestPageContentAnnotator : public PageContentAnnotator {
   void UseVisibilityScores(
       const absl::optional<ModelInfo>& model_info,
       const base::flat_map<std::string, double>& visibility_scores_for_input);
+
+  // The given text embedding is used for the matching BatchAnnotationResults
+  // by input string. If the input is not found, the output is left as nullopt.
+  void UseTextEmbeddings(const absl::optional<ModelInfo>& model_info,
+                         const base::flat_map<std::string, std::vector<float>>&
+                             text_embeddings_for_input);
 
   // When set, |Annotate| will never call its callback.
   void SetAlwaysHang(bool hang);
@@ -67,15 +66,15 @@ class TestPageContentAnnotator : public PageContentAnnotator {
   // When set, |Annotate| will never call its callback.
   bool always_hang_ = false;
 
-  absl::optional<ModelInfo> topics_model_info_;
-  base::flat_map<std::string, std::vector<WeightedIdentifier>> topics_by_input_;
-
   absl::optional<ModelInfo> entities_model_info_;
   base::flat_map<std::string, std::vector<ScoredEntityMetadata>>
       entities_by_input_;
 
   absl::optional<ModelInfo> visibility_scores_model_info_;
   base::flat_map<std::string, double> visibility_scores_for_input_;
+
+  absl::optional<ModelInfo> text_embeddings_model_info_;
+  base::flat_map<std::string, std::vector<float>> text_embeddings_for_input_;
 
   std::vector<AnnotateInputsAndType> annotation_requests_;
 

@@ -4,24 +4,16 @@
 
 #import "ios/chrome/browser/ui/page_info/page_info_permissions_mediator.h"
 
-#import "base/test/scoped_feature_list.h"
 #import "ios/chrome/browser/ui/permissions/permission_info.h"
-#import "ios/web/common/features.h"
 #import "ios/web/public/permissions/permissions.h"
 #import "ios/web/public/test/fakes/fake_web_state.h"
 #import "testing/gtest/include/gtest/gtest.h"
 #import "testing/platform_test.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 // Tests for Permissions mediator for the page info.
 class PageInfoPermissionsTest : public PlatformTest {
  protected:
-  PageInfoPermissionsTest() {
-    feature_list_.InitAndEnableFeature(web::features::kMediaPermissionsControl);
-  }
+  PageInfoPermissionsTest() {}
 
   ~PageInfoPermissionsTest() override {
     if (@available(iOS 15.0, *)) {
@@ -55,7 +47,6 @@ class PageInfoPermissionsTest : public PlatformTest {
   web::WebState* web_state() { return fake_web_state_.get(); }
 
  private:
-  base::test::ScopedFeatureList feature_list_;
   std::unique_ptr<web::FakeWebState> fake_web_state_;
   PageInfoPermissionsMediator* mediator_ API_AVAILABLE(ios(15.0));
 };

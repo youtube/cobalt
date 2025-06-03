@@ -9,14 +9,15 @@ cr_cronet.py - cr - like helper tool for cronet developers
 
 import argparse
 import os
-import pipes
 import re
+import shlex
 import subprocess
 import sys
+from datetime import datetime
 
 
 def quoted_args(args):
-  return ' '.join([pipes.quote(arg) for arg in args])
+  return ' '.join([shlex.quote(arg) for arg in args])
 
 
 def run(command, **kwargs):
@@ -56,8 +57,15 @@ def install(out_dir):
 
 
 def test(out_dir, extra_options):
-  return run([out_dir + '/bin/run_cronet_test_instrumentation_apk'] +
-             extra_options)
+  # Ideally we would fetch this path from somewhere. Though, that's not trivial
+  # and very unlikely to change. This being "best effort test code", it should
+  # be fine just to hardcode it.
+  remote_netlog_dir = '/data/data/org.chromium.net.tests/app_cronet_test/NetLog'
+  run(['adb', 'shell', 'rm', '-rf', remote_netlog_dir])
+  run([out_dir + '/bin/run_cronet_test_instrumentation_apk'] + extra_options)
+  local_netlog_dir = 'netlogs_for-' + datetime.now().strftime(
+      "%y_%m_%d-%H_%M_%S")
+  return run(['adb', 'pull', remote_netlog_dir, local_netlog_dir])
 
 
 def unittest(out_dir, extra_options):
@@ -84,9 +92,9 @@ def debug(extra_options):
 
 
 def stack(out_dir):
-  return run_shell(
-      'adb logcat -d | CHROMIUM_OUTPUT_DIR=' + pipes.quote(out_dir) +
-      ' third_party/android_platform/development/scripts/stack')
+  return run_shell('adb logcat -d | CHROMIUM_OUTPUT_DIR=' +
+                   shlex.quote(out_dir) +
+                   ' third_party/android_platform/development/scripts/stack')
 
 
 def use_goma():
@@ -110,6 +118,7 @@ def map_config_to_android_builder(is_release, target_cpu):
       'x86': 'android-cronet-x86',
       'arm': 'android-cronet-arm',
       'arm64': 'android-cronet-arm64',
+      'riscv64': 'android-cronet-riscv64',
   }
   if target_cpu not in target_cpu_to_base_builder:
     raise ValueError('Unsupported target CPU')
@@ -147,7 +156,7 @@ def get_ios_gn_args(is_release, target_cpu):
     gn_args += [
         'is_debug = false',
         'is_official_build = true',
-    ],
+    ]
   return ' '.join(gn_args)
 
 
@@ -180,7 +189,7 @@ def android_gn_gen(is_release, target_cpu, out_dir):
   # Ideally we would call `mb_py gen` directly, but we need to filter out the
   # use_remoteexec arg, as that cannot be used in a local environment.
   gn_args = subprocess.check_output([
-      'python', mb_script, 'lookup', '-m', group_name, '-b', builder_name
+      'python3', mb_script, 'lookup', '-m', group_name, '-b', builder_name
   ]).decode('utf-8').strip()
   gn_args = filter_gn_args(gn_args.split("\n"))
   return gn(out_dir, ' '.join(gn_args))
@@ -212,6 +221,10 @@ def main():
                       help='name of the build directory')
   parser.add_argument('-x', '--x86', action='store_true',
                       help='build for Intel x86 architecture')
+  parser.add_argument('-R',
+                      '--riscv64',
+                      action='store_true',
+                      help='build for riscv64 architecture')
   parser.add_argument('-r', '--release', action='store_true',
                       help='use release configuration')
   parser.add_argument('-a', '--asan', action='store_true',
@@ -233,6 +246,8 @@ def main():
     if options.iphoneos:
       out_dir_suffix = '-iphoneos'
       target_cpu = 'arm64'
+    elif options.riscv64:
+      parser.error('iOS builds do not support riscv64.')
     else:
       out_dir_suffix = '-iphonesimulator'
       target_cpu = 'x64'
@@ -242,6 +257,9 @@ def main():
     if options.x86:
       target_cpu = 'x86'
       out_dir_suffix = '-x86'
+    elif options.riscv64:
+      target_cpu = 'riscv64'
+      out_dir_suffix = '-riscv64'
     else:
       target_cpu = 'arm64'
       out_dir_suffix = '-arm64'

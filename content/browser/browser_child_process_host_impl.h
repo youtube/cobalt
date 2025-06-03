@@ -33,6 +33,10 @@
 #include "base/win/object_watcher.h"
 #endif
 
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#include "content/browser/child_thread_type_switcher_linux.h"
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+
 namespace base {
 class CommandLine;
 }
@@ -127,7 +131,7 @@ class BrowserChildProcessHostImpl
       bool terminate_on_shutdown);
 
 #if !BUILDFLAG(IS_ANDROID)
-  void SetProcessBackgrounded(bool is_background);
+  void SetProcessPriority(base::Process::Priority priority);
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_ANDROID)
@@ -205,7 +209,7 @@ class BrowserChildProcessHostImpl
   mojo::Receiver<memory_instrumentation::mojom::CoordinatorConnector>
       coordinator_connector_receiver_{this};
 
-  std::unique_ptr<ChildProcessLauncher> child_process_;
+  std::unique_ptr<ChildProcessLauncher> child_process_launcher_;
 
 #if BUILDFLAG(IS_WIN)
   // Watches to see if the child process exits before the IPC channel has
@@ -256,6 +260,10 @@ class BrowserChildProcessHostImpl
   // For child process to connect to the system tracing service.
   std::unique_ptr<tracing::SystemTracingService> system_tracing_service_;
 #endif
+
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+  ChildThreadTypeSwitcher child_thread_type_switcher_;
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 
   base::WeakPtrFactory<BrowserChildProcessHostImpl> weak_factory_{this};
 };

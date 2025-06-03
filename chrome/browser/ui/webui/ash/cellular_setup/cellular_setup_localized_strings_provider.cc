@@ -60,8 +60,11 @@ constexpr webui::LocalizedString kLocalizedStringsWithoutPlaceholders[] = {
     {"eSimProfileDetectDuringActiveCellularConnectionMessage",
      IDS_CELLULAR_SETUP_ESIM_PROFILE_DETECT_DURING_ACTIVE_CELLULAR_CONNECTION_MESSAGE},
     {"scanQRCode", IDS_CELLULAR_SETUP_ESIM_PAGE_SCAN_QR_CODE},
-    {"scanQRCodeEnterActivationCode",
-     IDS_CELLULAR_SETUP_ESIM_PAGE_SCAN_QR_CODE_ENTER_ACTIVATION_CODE},
+    {"scanQRCodeNoProfilesFound",
+     IDS_CELLULAR_SETUP_ESIM_PAGE_SCAN_QR_CODE_NO_PROFILES_FOUND},
+    {"enterActivationCode", IDS_CELLULAR_SETUP_ESIM_PAGE_ENTER_ACTIVATION_CODE},
+    {"enterActivationCodeNoProfilesFound",
+     IDS_CELLULAR_SETUP_ESIM_PAGE_ENTER_ACTIVATION_CODE_NO_PROFILES_FOUND},
     {"switchCamera", IDS_CELLULAR_SETUP_ESIM_PAGE_SWITCH_CAMERA},
     {"qrCodeA11YCameraOn", IDS_CELLULAR_SETUP_ESIM_PAGE_A11Y_QR_CODE_CAMERA_ON},
     {"qrCodeA11YCameraScanSuccess",
@@ -79,16 +82,35 @@ constexpr webui::LocalizedString kLocalizedStringsWithoutPlaceholders[] = {
     {"scanQrCodeInputError",
      IDS_CELLULAR_SETUP_ESIM_PAGE_SCAN_QR_CODE_INPUT_ERROR},
     {"profileListPageMessage", IDS_CELLULAR_SETUP_PROFILE_LIST_PAGE_MESSAGE},
+    {"profileListPageMessageWithLink",
+     IDS_CELLULAR_SETUP_PROFILE_LIST_PAGE_MESSAGE_WITH_LINK},
     {"confirmationCodeMessage",
      IDS_CELLULAR_SETUP_ESIM_PAGE_CONFIRMATION_CODE_MESSAGE},
     {"confirmationCodeInput",
      IDS_CELLULAR_SETUP_ESIM_PAGE_CONFIRMATION_CODE_INPUT},
+    {"confirmationCodeErrorLegacy",
+     IDS_CELLULAR_SETUP_ESIM_PAGE_CONFIRMATION_CODE_ERROR_LEGACY},
     {"confirmationCodeError",
      IDS_CELLULAR_SETUP_ESIM_PAGE_CONFIRMATION_CODE_ERROR},
     {"confirmationCodeLoading",
      IDS_CELLULAR_SETUP_ESIM_PAGE_CONFIRMATION_CODE_LOADING},
-    {"verifyingActivationCode",
-     IDS_CELLULAR_SETUP_ESIM_PAGE_VERIFYING_ACTIVATION_CODE}};
+    {"profileInstallingMessage",
+     IDS_CELLULAR_SETUP_ESIM_PROFILE_INSTALLING_MESSAGE},
+    {"profileDiscoveryConsentTitle",
+     IDS_CELLULAR_SETUP_ESIM_PAGE_PROFILE_DISCOVERY_CONSENT_TITLE},
+    {"profileDiscoveryConsentMessageWithLink",
+     IDS_CELLULAR_SETUP_ESIM_PAGE_PROFILE_DISCOVERY_CONSENT_MESSAGE_WITH_LINK},
+    {"profileDiscoveryConsentScan",
+     IDS_CELLULAR_SETUP_ESIM_PAGE_PROFILE_DISCOVERY_CONSENT_SCAN},
+    {"profileDiscoveryConsentCancel",
+     IDS_CELLULAR_SETUP_ESIM_PAGE_PROFILE_DISCOVERY_CONSENT_CANCEL},
+    {"profileDiscoveryPageTitle",
+     IDS_CELLULAR_SETUP_PROFILE_DISCOVERY_PAGE_TITLE},
+    {"confimationCodePageTitle",
+     IDS_CELLULAR_SETUP_CONFIRMATION_CODE_PAGE_TITLE},
+    {"profileLoadingPageTitle", IDS_CELLULAR_SETUP_ESIM_PROFILE_LOADING_TITLE},
+    {"profileLoadingPageMessage",
+     IDS_CELLULAR_SETUP_ESIM_PROFILE_LOADING_MESSAGE}};
 
 struct NamedBoolean {
   const char* name;
@@ -103,7 +125,9 @@ struct NamedResourceId {
 const std::vector<const NamedBoolean>& GetBooleanValues() {
   static const base::NoDestructor<std::vector<const NamedBoolean>> named_bools(
       {{"useSecondEuicc",
-        base::FeatureList::IsEnabled(features::kCellularUseSecondEuicc)}});
+        base::FeatureList::IsEnabled(features::kCellularUseSecondEuicc)},
+       {"isSmdsSupportEnabled",
+        ash::features::IsSmdsSupportEnabled()}});
   return *named_bools;
 }
 

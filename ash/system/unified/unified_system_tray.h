@@ -41,6 +41,7 @@ class AshMessagePopupCollection;
 class CameraMicTrayItemView;
 class ChannelIndicatorView;
 class CurrentLocaleView;
+class HotspotTrayView;
 class ImeModeView;
 class ManagedDeviceTrayItemView;
 class NetworkTrayView;
@@ -53,6 +54,7 @@ class TrayBubbleView;
 class TrayItemView;
 class TimeTrayItemView;
 class UnifiedSliderBubbleController;
+class UnifiedSliderView;
 class UnifiedSystemTrayBubble;
 class UnifiedMessageCenterBubble;
 
@@ -108,9 +110,8 @@ class ASH_EXPORT UnifiedSystemTray
   // accelerator is shown.
   bool IsSliderBubbleShown() const;
 
-  // Gets the height of the slider bubble used to calculate the baseline of
-  // notification popups and side aligned toasts so they don't overlap.
-  int GetSliderBubbleHeight() const;
+  // Gets the slider view of the slider bubble.
+  UnifiedSliderView* GetSliderView() const;
 
   // True if the bubble containing notifications is visible..
   bool IsMessageCenterBubbleShown() const;
@@ -207,14 +208,14 @@ class ASH_EXPORT UnifiedSystemTray
   void HideBubble(const TrayBubbleView* bubble_view) override;
   void HideBubbleWithView(const TrayBubbleView* bubble_view) override;
   void ClickedOutsideBubble() override;
+  void UpdateTrayItemColor(bool is_active) override;
   void UpdateLayout() override;
   void UpdateAfterLoginStatusChange() override;
   bool ShouldEnableExtraKeyboardAccessibility() override;
   views::Widget* GetBubbleWidget() const override;
+  TrayBubbleView* GetBubbleView() override;
   const char* GetClassName() const override;
   absl::optional<AcceleratorAction> GetAcceleratorAction() const override;
-  void OnAnyBubbleVisibilityChanged(views::Widget* bubble_widget,
-                                    bool visible) override;
 
   // ShelfConfig::Observer:
   void OnShelfConfigUpdated() override;
@@ -264,9 +265,11 @@ class ASH_EXPORT UnifiedSystemTray
     return slider_bubble_controller_.get();
   }
 
-  CameraMicTrayItemView* camera_view() { return camera_view_; }
-
   CameraMicTrayItemView* mic_view() { return mic_view_; }
+
+  NotificationIconsController* notification_icons_controller() {
+    return notification_icons_controller_.get();
+  }
 
  private:
   static const base::TimeDelta kNotificationCountUpdateDelay;
@@ -330,7 +333,7 @@ class ASH_EXPORT UnifiedSystemTray
   raw_ptr<TimeTrayItemView, ExperimentalAsh> time_view_ = nullptr;
   raw_ptr<PrivacyIndicatorsTrayItemView, ExperimentalAsh>
       privacy_indicators_view_ = nullptr;
-
+  raw_ptr<HotspotTrayView, ExperimentalAsh> hotspot_tray_view_ = nullptr;
   raw_ptr<NetworkTrayView, ExperimentalAsh> network_tray_view_ = nullptr;
   raw_ptr<ChannelIndicatorView, ExperimentalAsh> channel_indicator_view_ =
       nullptr;

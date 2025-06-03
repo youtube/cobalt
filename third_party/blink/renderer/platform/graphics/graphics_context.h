@@ -31,6 +31,8 @@
 #include <memory>
 
 #include "base/dcheck_is_on.h"
+#include "base/memory/raw_ptr.h"
+#include "base/memory/raw_ref.h"
 #include "cc/paint/paint_flags.h"
 #include "third_party/blink/renderer/platform/fonts/font.h"
 #include "third_party/blink/renderer/platform/graphics/dark_mode_filter.h"
@@ -54,6 +56,10 @@
 class SkPath;
 class SkRRect;
 struct SkRect;
+
+namespace cc {
+class ColorFilter;
+}
 
 namespace paint_preview {
 class PaintPreviewTracker;
@@ -185,9 +191,9 @@ class PLATFORM_EXPORT GraphicsContext {
   cc::PaintCanvas* Canvas() { return canvas_; }
   const cc::PaintCanvas* Canvas() const { return canvas_; }
 
-  PaintController& GetPaintController() { return paint_controller_; }
+  PaintController& GetPaintController() { return *paint_controller_; }
   const PaintController& GetPaintController() const {
-    return paint_controller_;
+    return *paint_controller_;
   }
 
   DarkModeFilter* GetDarkModeFilter();
@@ -250,6 +256,13 @@ class PLATFORM_EXPORT GraphicsContext {
   }
   InterpolationQuality ImageInterpolationQuality() const {
     return ImmutableState()->GetInterpolationQuality();
+  }
+
+  void SetDynamicRangeLimit(cc::PaintFlags::DynamicRangeLimit limit) {
+    MutableState()->SetDynamicRangeLimit(limit);
+  }
+  cc::PaintFlags::DynamicRangeLimit DynamicRangeLimit() const {
+    return ImmutableState()->GetDynamicRangeLimit();
   }
 
   SkSamplingOptions ImageSamplingOptions() const {
@@ -451,7 +464,7 @@ class PLATFORM_EXPORT GraphicsContext {
   // the backdrop (i.e. EndLayer()).
   void BeginLayer(float opacity = 1.0f);
   void BeginLayer(SkBlendMode);
-  void BeginLayer(sk_sp<SkColorFilter>);
+  void BeginLayer(sk_sp<cc::ColorFilter>, const SkBlendMode* = nullptr);
   void BeginLayer(sk_sp<PaintFilter>);
   void EndLayer();
 
@@ -597,9 +610,9 @@ class PLATFORM_EXPORT GraphicsContext {
   // This is owned by paint_recorder_. Never delete this object.
   // Drawing operations are allowed only after the first BeginRecording() which
   // initializes this to not null.
-  cc::PaintCanvas* canvas_ = nullptr;
+  raw_ptr<cc::PaintCanvas, ExperimentalRenderer> canvas_ = nullptr;
 
-  PaintController& paint_controller_;
+  const raw_ref<PaintController, DanglingUntriaged> paint_controller_;
 
   // Paint states stack. The state controls the appearance of drawn content, so
   // this stack enables local drawing state changes with Save()/Restore() calls.
@@ -610,12 +623,14 @@ class PLATFORM_EXPORT GraphicsContext {
   wtf_size_t paint_state_index_ = 0;
 
   // Raw pointer to the current state.
-  GraphicsContextState* paint_state_ = nullptr;
+  raw_ptr<GraphicsContextState, ExperimentalRenderer> paint_state_ = nullptr;
 
   PaintRecorder paint_recorder_;
 
-  printing::MetafileSkia* printing_metafile_ = nullptr;
-  paint_preview::PaintPreviewTracker* paint_preview_tracker_ = nullptr;
+  raw_ptr<printing::MetafileSkia, DanglingUntriaged> printing_metafile_ =
+      nullptr;
+  raw_ptr<paint_preview::PaintPreviewTracker, DanglingUntriaged>
+      paint_preview_tracker_ = nullptr;
 
 #if DCHECK_IS_ON()
   int layer_count_ = 0;

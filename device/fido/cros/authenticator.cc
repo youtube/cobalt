@@ -12,6 +12,7 @@
 #include "base/barrier_closure.h"
 #include "base/containers/span.h"
 #include "base/functional/bind.h"
+#include "base/no_destructor.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chromeos/dbus/u2f/u2f_client.h"
@@ -66,9 +67,9 @@ AuthenticatorSupportedOptions ChromeOSAuthenticatorOptions(bool u2f_enabled) {
 }  // namespace
 
 const AuthenticatorSupportedOptions& ChromeOSAuthenticator::Options() const {
-  static const AuthenticatorSupportedOptions options =
-      ChromeOSAuthenticatorOptions(u2f_enabled_);
-  return options;
+  static const base::NoDestructor<AuthenticatorSupportedOptions> options(
+      ChromeOSAuthenticatorOptions(u2f_enabled_));
+  return *options;
 }
 
 absl::optional<FidoTransportProtocol>
@@ -346,10 +347,9 @@ void ChromeOSAuthenticator::OnGetAssertionResponse(
   std::vector<uint8_t> signature(assertion.signature().begin(),
                                  assertion.signature().end());
   std::vector<AuthenticatorGetAssertionResponse> authenticator_response;
-  authenticator_response.emplace_back(std::move(*authenticator_data),
-                                      std::move(signature));
-  authenticator_response.at(0).transport_used =
-      FidoTransportProtocol::kInternal;
+  authenticator_response.push_back(AuthenticatorGetAssertionResponse(
+      std::move(*authenticator_data), std::move(signature),
+      FidoTransportProtocol::kInternal));
   const std::string& credential_id = assertion.credential_id();
   authenticator_response.at(0).credential = PublicKeyCredentialDescriptor(
       CredentialType::kPublicKey,

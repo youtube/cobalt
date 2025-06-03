@@ -6,7 +6,7 @@ import {NativeEventTarget as EventTarget} from 'chrome://resources/ash/common/ev
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chromeos/chai_assert.js';
 
 import {EntryList, FakeEntryImpl} from '../../common/js/files_app_entry_types.js';
-import {metrics} from '../../common/js/metrics.js';
+import {installMockChrome} from '../../common/js/mock_chrome.js';
 import {VolumeManagerCommon} from '../../common/js/volume_manager_types.js';
 import {DirectoryChangeEvent} from '../../externs/directory_change_event.js';
 import {FakeEntry} from '../../externs/files_app_entry_interfaces.js';
@@ -38,31 +38,32 @@ let myFilesEntry;
 /**
  * @type {!FileTypeFiltersController}
  */
+// @ts-ignore: error TS6133: 'fileTypeFiltersController' is declared but its
+// value is never read.
 let fileTypeFiltersController;
 
-/**
- * Mock metrics.
- * @param {string} name
- * @param {*} value
- * @param {Array<*>|number=} opt_validValues
- */
-metrics.recordEnum = function(name, value, opt_validValues) {};
+/** @type {boolean} */
+let isScanCalled = false;
 
 const TOTAL_FILTER_BUTTON_COUNT = 5;
 
 export function setUp() {
+  installMockChrome({});
+  isScanCalled = false;
   class MockDirectoryModel extends EventTarget {
     constructor() {
       super();
 
       this.currentDirEntry = null;
-      window.isScanCalled = false;
+      isScanCalled = false;
     }
 
     clearCurrentDirAndScan() {
-      window.isScanCalled = true;
+      isScanCalled = true;
     }
 
+    // @ts-ignore: error TS7006: Parameter 'dirEntry' implicitly has an 'any'
+    // type.
     changeDirectoryEntry(dirEntry) {
       // Change the directory model's current directory to |dirEntry|.
       const previousDirEntry = this.currentDirEntry;
@@ -105,14 +106,15 @@ export function setUp() {
  * given container element.
  */
 export function testCreatedButtonLabels() {
-  const buttons = container.children;
+  const buttons = /** @type {!Array<!HTMLButtonElement>} */ (
+      Array.from(container.children));
   assertEquals(buttons.length, TOTAL_FILTER_BUTTON_COUNT);
 
-  assertEquals(buttons[0].textContent, 'All');
-  assertEquals(buttons[1].textContent, 'Audio');
-  assertEquals(buttons[2].textContent, 'Documents');
-  assertEquals(buttons[3].textContent, 'Images');
-  assertEquals(buttons[4].textContent, 'Videos');
+  assertEquals(buttons[0]?.textContent, 'All');
+  assertEquals(buttons[1]?.textContent, 'Audio');
+  assertEquals(buttons[2]?.textContent, 'Documents');
+  assertEquals(buttons[3]?.textContent, 'Images');
+  assertEquals(buttons[4]?.textContent, 'Videos');
 }
 
 /**
@@ -120,14 +122,15 @@ export function testCreatedButtonLabels() {
  * except the first button (button with label "All").
  */
 export function testButtonInitialActiveState() {
-  const buttons = container.children;
+  const buttons = /** @type {!Array<!HTMLButtonElement>} */ (
+      Array.from(container.children));
   assertEquals(buttons.length, TOTAL_FILTER_BUTTON_COUNT);
 
-  assertTrue(buttons[0].classList.contains('active'));
-  assertFalse(buttons[1].classList.contains('active'));
-  assertFalse(buttons[2].classList.contains('active'));
-  assertFalse(buttons[3].classList.contains('active'));
-  assertFalse(buttons[4].classList.contains('active'));
+  assertTrue(!!buttons[0]?.classList.contains('active'));
+  assertFalse(!!buttons[1]?.classList.contains('active'));
+  assertFalse(!!buttons[2]?.classList.contains('active'));
+  assertFalse(!!buttons[3]?.classList.contains('active'));
+  assertFalse(!!buttons[4]?.classList.contains('active'));
 }
 
 /**
@@ -136,19 +139,20 @@ export function testButtonInitialActiveState() {
  * active.
  */
 export function testButtonToggleState() {
-  const buttons = container.children;
+  const buttons = /** @type {!Array<!HTMLButtonElement>} */ (
+      Array.from(container.children));
   assertEquals(buttons.length, TOTAL_FILTER_BUTTON_COUNT);
 
   // State change: inactive -> active -> inactive.
-  assertFalse(buttons[1].classList.contains('active'));
-  buttons[1].click();
-  assertTrue(buttons[1].classList.contains('active'));
-  buttons[1].click();
-  assertFalse(buttons[1].classList.contains('active'));
-  assertTrue(buttons[0].classList.contains('active'));
+  assertFalse(!!buttons[1]?.classList.contains('active'));
+  buttons[1]?.click();
+  assertTrue(!!buttons[1]?.classList.contains('active'));
+  buttons[1]?.click();
+  assertFalse(!!buttons[1]?.classList.contains('active'));
+  assertTrue(!!buttons[0]?.classList.contains('active'));
   // Clicking active "All" does nothing.
-  buttons[0].click();
-  assertTrue(buttons[0].classList.contains('active'));
+  buttons[0]?.click();
+  assertTrue(!!buttons[0]?.classList.contains('active'));
 }
 
 /**
@@ -157,39 +161,40 @@ export function testButtonToggleState() {
  * button_1 becomes active.
  */
 export function testOnlyOneButtonCanActive() {
-  const buttons = container.children;
+  const buttons = /** @type {!Array<!HTMLButtonElement>} */ (
+      Array.from(container.children));
   assertEquals(buttons.length, TOTAL_FILTER_BUTTON_COUNT);
 
-  assertTrue(buttons[0].classList.contains('active'));
+  assertTrue(!!buttons[0]?.classList.contains('active'));
 
-  assertFalse(buttons[1].classList.contains('active'));
-  buttons[1].click();
-  assertFalse(buttons[0].classList.contains('active'));
-  assertTrue(buttons[1].classList.contains('active'));
-  assertFalse(buttons[2].classList.contains('active'));
-  assertFalse(buttons[3].classList.contains('active'));
-  assertFalse(buttons[4].classList.contains('active'));
+  assertFalse(!!buttons[1]?.classList.contains('active'));
+  buttons[1]?.click();
+  assertFalse(!!buttons[0]?.classList.contains('active'));
+  assertTrue(!!buttons[1]?.classList.contains('active'));
+  assertFalse(!!buttons[2]?.classList.contains('active'));
+  assertFalse(!!buttons[3]?.classList.contains('active'));
+  assertFalse(!!buttons[4]?.classList.contains('active'));
 
-  buttons[2].click();
-  assertFalse(buttons[0].classList.contains('active'));
-  assertFalse(buttons[1].classList.contains('active'));
-  assertTrue(buttons[2].classList.contains('active'));
-  assertFalse(buttons[3].classList.contains('active'));
-  assertFalse(buttons[4].classList.contains('active'));
+  buttons[2]?.click();
+  assertFalse(!!buttons[0]?.classList.contains('active'));
+  assertFalse(!!buttons[1]?.classList.contains('active'));
+  assertTrue(!!buttons[2]?.classList.contains('active'));
+  assertFalse(!!buttons[3]?.classList.contains('active'));
+  assertFalse(!!buttons[4]?.classList.contains('active'));
 
-  buttons[3].click();
-  assertFalse(buttons[0].classList.contains('active'));
-  assertFalse(buttons[1].classList.contains('active'));
-  assertFalse(buttons[2].classList.contains('active'));
-  assertTrue(buttons[3].classList.contains('active'));
-  assertFalse(buttons[4].classList.contains('active'));
+  buttons[3]?.click();
+  assertFalse(!!buttons[0]?.classList.contains('active'));
+  assertFalse(!!buttons[1]?.classList.contains('active'));
+  assertFalse(!!buttons[2]?.classList.contains('active'));
+  assertTrue(!!buttons[3]?.classList.contains('active'));
+  assertFalse(!!buttons[4]?.classList.contains('active'));
 
-  buttons[0].click();
-  assertTrue(buttons[0].classList.contains('active'));
-  assertFalse(buttons[1].classList.contains('active'));
-  assertFalse(buttons[2].classList.contains('active'));
-  assertFalse(buttons[3].classList.contains('active'));
-  assertFalse(buttons[4].classList.contains('active'));
+  buttons[0]?.click();
+  assertTrue(!!buttons[0]?.classList.contains('active'));
+  assertFalse(!!buttons[1]?.classList.contains('active'));
+  assertFalse(!!buttons[2]?.classList.contains('active'));
+  assertFalse(!!buttons[3]?.classList.contains('active'));
+  assertFalse(!!buttons[4]?.classList.contains('active'));
 }
 
 /**
@@ -209,39 +214,40 @@ export function testContainerIsShownOnlyInRecents() {
  * Recents view and go back again.
  */
 export function testActiveButtonIsResetOnLeavingRecents() {
-  const buttons = container.children;
+  const buttons = /** @type {!Array<!HTMLButtonElement>} */ (
+      Array.from(container.children));
   assertEquals(buttons.length, TOTAL_FILTER_BUTTON_COUNT);
 
   directoryModel.changeDirectoryEntry(recentEntry);
 
-  buttons[1].click();
-  assertFalse(buttons[0].classList.contains('active'));
-  assertTrue(buttons[1].classList.contains('active'));
-  assertFalse(buttons[2].classList.contains('active'));
-  assertFalse(buttons[3].classList.contains('active'));
-  assertFalse(buttons[4].classList.contains('active'));
+  buttons[1]?.click();
+  assertFalse(!!buttons[0]?.classList.contains('active'));
+  assertTrue(!!buttons[1]?.classList.contains('active'));
+  assertFalse(!!buttons[2]?.classList.contains('active'));
+  assertFalse(!!buttons[3]?.classList.contains('active'));
+  assertFalse(!!buttons[4]?.classList.contains('active'));
 
   // Changing directory to the same Recent doesn't reset states.
   directoryModel.changeDirectoryEntry(recentEntry);
-  assertFalse(buttons[0].classList.contains('active'));
-  assertTrue(buttons[1].classList.contains('active'));
-  assertFalse(buttons[2].classList.contains('active'));
-  assertFalse(buttons[3].classList.contains('active'));
-  assertFalse(buttons[4].classList.contains('active'));
+  assertFalse(!!buttons[0]?.classList.contains('active'));
+  assertTrue(!!buttons[1]?.classList.contains('active'));
+  assertFalse(!!buttons[2]?.classList.contains('active'));
+  assertFalse(!!buttons[3]?.classList.contains('active'));
+  assertFalse(!!buttons[4]?.classList.contains('active'));
 
   directoryModel.changeDirectoryEntry(myFilesEntry);
-  assertTrue(buttons[0].classList.contains('active'));
-  assertFalse(buttons[1].classList.contains('active'));
-  assertFalse(buttons[2].classList.contains('active'));
-  assertFalse(buttons[3].classList.contains('active'));
-  assertFalse(buttons[4].classList.contains('active'));
+  assertTrue(!!buttons[0]?.classList.contains('active'));
+  assertFalse(!!buttons[1]?.classList.contains('active'));
+  assertFalse(!!buttons[2]?.classList.contains('active'));
+  assertFalse(!!buttons[3]?.classList.contains('active'));
+  assertFalse(!!buttons[4]?.classList.contains('active'));
 
   directoryModel.changeDirectoryEntry(recentEntry);
-  assertTrue(buttons[0].classList.contains('active'));
-  assertFalse(buttons[1].classList.contains('active'));
-  assertFalse(buttons[2].classList.contains('active'));
-  assertFalse(buttons[3].classList.contains('active'));
-  assertFalse(buttons[4].classList.contains('active'));
+  assertTrue(!!buttons[0]?.classList.contains('active'));
+  assertFalse(!!buttons[1]?.classList.contains('active'));
+  assertFalse(!!buttons[2]?.classList.contains('active'));
+  assertFalse(!!buttons[3]?.classList.contains('active'));
+  assertFalse(!!buttons[4]?.classList.contains('active'));
 }
 
 /**
@@ -250,46 +256,47 @@ export function testActiveButtonIsResetOnLeavingRecents() {
  * Recent entry's property is modified.
  */
 export function testAppliedFilters() {
-  const buttons = container.children;
+  const buttons = /** @type {!Array<!HTMLButtonElement>} */ (
+      Array.from(container.children));
   assertEquals(buttons.length, TOTAL_FILTER_BUTTON_COUNT);
 
   directoryModel.changeDirectoryEntry(recentEntry);
 
-  buttons[1].click();
+  buttons[1]?.click();
   assertEquals(
       recentEntry.fileCategory, chrome.fileManagerPrivate.FileCategory.AUDIO);
-  assertTrue(window.isScanCalled);
-  window.isScanCalled = false;
+  assertTrue(isScanCalled);
+  isScanCalled = false;
 
   // Clicking an active button will trigger a scan for "All".
-  buttons[1].click();
+  buttons[1]?.click();
   assertEquals(
       recentEntry.fileCategory, chrome.fileManagerPrivate.FileCategory.ALL);
-  assertTrue(window.isScanCalled);
-  window.isScanCalled = false;
+  assertTrue(isScanCalled);
+  isScanCalled = false;
 
-  buttons[2].click();
+  buttons[2]?.click();
   assertEquals(
       recentEntry.fileCategory,
       chrome.fileManagerPrivate.FileCategory.DOCUMENT);
-  assertTrue(window.isScanCalled);
-  window.isScanCalled = false;
+  assertTrue(isScanCalled);
+  isScanCalled = false;
 
-  buttons[3].click();
+  buttons[3]?.click();
   assertEquals(
       recentEntry.fileCategory, chrome.fileManagerPrivate.FileCategory.IMAGE);
-  assertTrue(window.isScanCalled);
-  window.isScanCalled = false;
+  assertTrue(isScanCalled);
+  isScanCalled = false;
 
-  buttons[4].click();
+  buttons[4]?.click();
   assertEquals(
       recentEntry.fileCategory, chrome.fileManagerPrivate.FileCategory.VIDEO);
-  assertTrue(window.isScanCalled);
-  window.isScanCalled = false;
+  assertTrue(isScanCalled);
+  isScanCalled = false;
 
-  buttons[0].click();
+  buttons[0]?.click();
   assertEquals(
       recentEntry.fileCategory, chrome.fileManagerPrivate.FileCategory.ALL);
-  assertTrue(window.isScanCalled);
-  window.isScanCalled = false;
+  assertTrue(isScanCalled);
+  isScanCalled = false;
 }

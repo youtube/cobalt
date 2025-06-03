@@ -7,9 +7,16 @@
 
 #include <memory>
 
+class PrefService;
+class ProfileOAuth2TokenServiceDelegate;
+class ProfileOAuth2TokenService;
 class SystemIdentityManager;
 namespace policy {
 class ConfigurationPolicyProvider;
+}
+namespace password_manager {
+class BulkLeakCheckServiceInterface;
+class RecipientsFetcher;
 }
 
 namespace tests_hook {
@@ -44,6 +51,13 @@ bool DisableGeolocation();
 // on app startup to allow tests to run unimpeded.
 bool DisablePromoManagerFullScreenPromos();
 
+// Returns a token service that can be installed as a fake identity management
+// service that bridges iOS SSO library and Chrome account info when testing.
+// May return nullptr.
+std::unique_ptr<ProfileOAuth2TokenService> GetOverriddenTokenService(
+    PrefService* user_prefs,
+    std::unique_ptr<ProfileOAuth2TokenServiceDelegate> delegate);
+
 // Returns true if the upgrade sign-in promo should be disabled to allow other
 // tests to run unimpeded.
 bool DisableUpgradeSigninPromo();
@@ -68,6 +82,16 @@ policy::ConfigurationPolicyProvider* GetOverriddenPlatformPolicyProvider();
 // Allow overriding the SystemIdentityManager factory. The real factory will
 // be used if this hook returns null.
 std::unique_ptr<SystemIdentityManager> CreateSystemIdentityManager();
+
+// Returns a bulk leak check service that should be used when testing. The real
+// factory will be used if this hook returns a nullptr.
+std::unique_ptr<password_manager::BulkLeakCheckServiceInterface>
+GetOverriddenBulkLeakCheckService();
+
+// Returns a recipients fetcher instance that should be used in EG tests. The
+// real instance will be used if this hook returns a nullptr.
+std::unique_ptr<password_manager::RecipientsFetcher>
+GetOverriddenRecipientsFetcher();
 
 // Global integration tests setup.
 void SetUpTestsIfPresent();

@@ -4,6 +4,7 @@
 
 #include "chrome/browser/cart/cart_service.h"
 
+#include "base/containers/contains.h"
 #include "base/json/json_reader.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/no_destructor.h"
@@ -81,12 +82,12 @@ bool CompareTimeStampForProtoPair(const CartDB::KeyAndValue pair1,
   return pair1.second.timestamp() > pair2.second.timestamp();
 }
 
-absl::optional<base::Value> JSONToDictionary(int resource_id) {
-  absl::optional<base::Value> value = base::JSONReader::Read(
+base::Value::Dict JSONToDictionary(int resource_id) {
+  absl::optional<base::Value::Dict> value = base::JSONReader::ReadDict(
       ui::ResourceBundle::GetSharedInstance().LoadDataResourceString(
           resource_id));
-  DCHECK(value && value.has_value() && value->is_dict());
-  return value;
+  CHECK(value);
+  return std::move(*value);
 }
 
 const re2::RE2& GetSkipCartExtractionPattern() {
@@ -450,7 +451,8 @@ void CartService::RecordDiscountConsentStatusAtLoad(bool should_show_consent) {
 }
 
 bool CartService::IsCartExpired(const cart_db::ChromeCartContentProto& proto) {
-  return (base::Time::Now() - base::Time::FromDoubleT(proto.timestamp()))
+  return (base::Time::Now() -
+          base::Time::FromSecondsSinceUnixEpoch(proto.timestamp()))
              .InDays() > kCartExpirationTimeInDays;
 }
 
@@ -676,8 +678,8 @@ CartDB* CartService::GetDB() {
 
 void CartService::AddCartsWithFakeData() {
   DeleteCartsWithFakeData();
-  // Polulate and add some carts with fake data.
-  double time_now = base::Time::Now().ToDoubleT();
+  // Populate and add some carts with fake data.
+  double time_now = base::Time::Now().InSecondsFSinceUnixEpoch();
   cart_db::ChromeCartContentProto dummy_proto1;
   GURL dummy_url1 = GURL("https://www.example.com");
   dummy_proto1.set_key(std::string(kFakeDataPrefix) + eTLDPlusOne(dummy_url1));
@@ -913,8 +915,7 @@ void CartService::OnLoadCarts(CartDB::LoadCallback callback,
                      }),
       proto_pairs.end());
   for (auto proto_pair : proto_pairs) {
-    if (RE2::FullMatch(re2::StringPiece(proto_pair.first),
-                       GetSkipCartExtractionPattern())) {
+    if (RE2::FullMatch(proto_pair.first, GetSkipCartExtractionPattern())) {
       proto_pair.second.clear_product_image_urls();
       cart_db_->AddCart(proto_pair.first, proto_pair.second,
                         base::BindOnce(&CartService::OnOperationFinished,
@@ -993,7 +994,7 @@ void CartService::OnAddCart(const GURL& navigation_url,
       commerce_heuristics::CommerceHeuristicsData::GetInstance()
           .GetMerchantName(domain);
   std::string* merchant_name_from_resource =
-      domain_name_mapping_->FindStringKey(domain);
+      domain_name_mapping_.FindString(domain);
   if (merchant_name_from_component.has_value()) {
     proto.set_merchant(*merchant_name_from_component);
     CommerceHeuristicsDataMetricsHelper::RecordMerchantNameSource(
@@ -1013,7 +1014,7 @@ void CartService::OnAddCart(const GURL& navigation_url,
         commerce_heuristics::CommerceHeuristicsData::GetInstance()
             .GetMerchantCartURL(domain);
     std::string* fallback_url_from_resource =
-        domain_cart_url_mapping_->FindStringKey(domain);
+        domain_cart_url_mapping_.FindString(domain);
     if (fallback_url_from_component.has_value()) {
       proto.set_merchant_cart_url(*fallback_url_from_component);
     } else if (fallback_url_from_resource) {
@@ -1022,8 +1023,7 @@ void CartService::OnAddCart(const GURL& navigation_url,
   }
 
   // Skip extracting the block list.
-  if (RE2::FullMatch(re2::StringPiece(domain),
-                     GetSkipCartExtractionPattern())) {
+  if (RE2::FullMatch(domain, GetSkipCartExtractionPattern())) {
     proto.clear_product_image_urls();
     proto.clear_product_infos();
     cart_db_->AddCart(domain, std::move(proto),
@@ -1112,8 +1112,7 @@ void CartService::OnAddCart(const GURL& navigation_url,
   if (!has_product_image && cached_image_url.has_value()) {
     std::string url_string = cached_image_url.value().spec();
     auto existing_images = existing_proto.product_image_urls();
-    if (std::find(existing_images.begin(), existing_images.end(), url_string) ==
-        existing_images.end()) {
+    if (!base::Contains(existing_images, url_string)) {
       existing_proto.add_product_image_urls(url_string);
     }
   }

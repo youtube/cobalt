@@ -4,16 +4,14 @@
 
 #import "ios/chrome/browser/metrics/ios_chrome_default_browser_metrics_provider.h"
 
+#import "base/check.h"
 #import "base/metrics/histogram_functions.h"
 #import "base/metrics/histogram_macros.h"
+
 #import "components/metrics/metrics_log_uploader.h"
 #import "components/ukm/ios/ukm_url_recorder.h"
-#import "ios/chrome/browser/default_browser/utils.h"
+#import "ios/chrome/browser/default_browser/model/utils.h"
 #import "services/metrics/public/cpp/ukm_builders.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace {
 
@@ -57,6 +55,10 @@ void IOSChromeDefaultBrowserMetricsProvider::ProvideCurrentSessionData(
       ukm::builders::IOS_IsDefaultBrowser(ukm::NoURLSourceId())
           .SetIsDefaultBrowser(IsChromeLikelyDefaultBrowser())
           .Record(ukm::UkmRecorder::Get());
+      return;
+    case metrics::MetricsLogUploader::MetricServiceType::STRUCTURED_METRICS:
+      // `this` should never be instantiated with this service type.
+      CHECK(false);
       return;
   }
   NOTREACHED();

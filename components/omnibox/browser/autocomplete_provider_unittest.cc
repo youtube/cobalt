@@ -34,6 +34,7 @@
 #include "components/omnibox/browser/omnibox_prefs.h"
 #include "components/omnibox/browser/omnibox_triggered_feature_service.h"
 #include "components/omnibox/browser/search_provider.h"
+#include "components/omnibox/browser/suggestion_group_util.h"
 #include "components/omnibox/browser/zero_suggest_provider.h"
 #include "components/omnibox/common/omnibox_features.h"
 #include "components/open_from_clipboard/fake_clipboard_recent_content.h"
@@ -349,8 +350,10 @@ class AutocompleteProviderTest : public testing::Test {
 
   struct AssistedQueryStatsTestData {
     const AutocompleteMatch::Type match_type;
+    absl::optional<omnibox::GroupId> group_id;
     const std::string expected_aqs;
     const omnibox::metrics::ChromeSearchboxStats expected_searchbox_stats;
+    omnibox::SuggestType type;
     base::flat_set<omnibox::SuggestSubtype> subtypes;
   };
 
@@ -644,15 +647,18 @@ void AutocompleteProviderTest::RunAssistedQueryStatsTest(
   for (size_t i = 0; i < size; ++i) {
     AutocompleteMatch match(nullptr, kMaxRelevance - i, false,
                             aqs_test_data[i].match_type);
+    match.suggestion_group_id = aqs_test_data[i].group_id;
     match.allowed_to_be_default_match = true;
     match.keyword = kTestTemplateURLKeyword;
     match.search_terms_args =
         std::make_unique<TemplateURLRef::SearchTermsArgs>(std::u16string());
+    match.suggest_type = aqs_test_data[i].type;
     match.subtypes = aqs_test_data[i].subtypes;
     matches.push_back(match);
   }
   result_.Reset();
   result_.AppendMatches(matches);
+  result_.MergeSuggestionGroupsMap(omnibox::BuildDefaultGroups());
 
   // Update AQS.
   controller_->UpdateAssistedQueryStats(&result_);
@@ -1012,11 +1018,18 @@ TEST_F(AutocompleteProviderTest, SuggestionGroups) {
 TEST_F(AutocompleteProviderTest, UpdateAssistedQueryStats) {
   ResetControllerWithTestProviders(false, nullptr, nullptr);
 
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(omnibox::kCategoricalSuggestions);
+
   {
     omnibox::metrics::ChromeSearchboxStats searchbox_stats;
     AssistedQueryStatsTestData test_data[] = {
         //  MSVC doesn't support zero-length arrays, so supply some dummy data.
-        {AutocompleteMatchType::SEARCH_WHAT_YOU_TYPED, "", searchbox_stats}};
+        {AutocompleteMatchType::SEARCH_WHAT_YOU_TYPED,
+         {/* GroupID */},
+         "",
+         searchbox_stats,
+         omnibox::TYPE_NATIVE_CHROME}};
     SCOPED_TRACE("No matches");
     // Note: We pass 0 here to ignore the dummy data above.
     RunAssistedQueryStatsTest(test_data, 0);
@@ -1035,8 +1048,11 @@ TEST_F(AutocompleteProviderTest, UpdateAssistedQueryStats) {
     available_suggestion->add_subtypes(omnibox::SUBTYPE_OMNIBOX_ECHO_SEARCH);
 
     AssistedQueryStatsTestData test_data[] = {
-        {AutocompleteMatchType::SEARCH_WHAT_YOU_TYPED, "chrome..69i57",
-         searchbox_stats}};
+        {AutocompleteMatchType::SEARCH_WHAT_YOU_TYPED,
+         {/* GroupID */},
+         "chrome..69i57",
+         searchbox_stats,
+         omnibox::TYPE_NATIVE_CHROME}};
     SCOPED_TRACE("One match");
     RunAssistedQueryStatsTest(test_data, std::size(test_data));
   }
@@ -1055,10 +1071,132 @@ TEST_F(AutocompleteProviderTest, UpdateAssistedQueryStats) {
 
     AssistedQueryStatsTestData test_data[] = {
         {AutocompleteMatchType::SEARCH_SUGGEST_ENTITY,
+         {/* GroupID */},
          "chrome.0.46i39",
          searchbox_stats,
+         omnibox::TYPE_ENTITY,
          {omnibox::SUBTYPE_PERSONAL}}};
     SCOPED_TRACE("One match with provider populated subtypes");
+    RunAssistedQueryStatsTest(test_data, std::size(test_data));
+  }
+
+  {
+    base::test::ScopedFeatureList features;
+    features.InitAndEnableFeature(
+        omnibox::kMostVisitedTilesHorizontalRenderGroup);
+    omnibox::ResetDefaultGroupsForTest();
+
+    omnibox::metrics::ChromeSearchboxStats searchbox_stats;
+    searchbox_stats.set_client_name("chrome");
+    searchbox_stats.set_num_zero_prefix_suggestions_shown(1);
+    searchbox_stats.set_zero_prefix_enabled(true);
+    auto* available_suggestion = searchbox_stats.add_available_suggestions();
+    available_suggestion->set_index(0);
+    available_suggestion->set_type(omnibox::TYPE_QUERY);
+    available_suggestion->add_subtypes(
+        omnibox::SUBTYPE_ZERO_PREFIX_LOCAL_FREQUENT_QUERIES);
+    auto* assisted_query_info = searchbox_stats.mutable_assisted_query_info();
+    assisted_query_info->MergeFrom(searchbox_stats.available_suggestions(0));
+
+    AssistedQueryStatsTestData test_data[] = {
+        {AutocompleteMatchType::SEARCH_SUGGEST,
+         {omnibox::GROUP_MOBILE_MOST_VISITED},
+         "chrome.0.0i724",
+         searchbox_stats,
+         omnibox::TYPE_QUERY,
+         {omnibox::SUBTYPE_ZERO_PREFIX_LOCAL_FREQUENT_QUERIES}},
+        {AutocompleteMatchType::SEARCH_SUGGEST,
+         {omnibox::GROUP_MOBILE_MOST_VISITED},
+         "chrome.0.0i724",
+         searchbox_stats,
+         omnibox::TYPE_QUERY,
+         {omnibox::SUBTYPE_ZERO_PREFIX_LOCAL_FREQUENT_QUERIES}},
+        {AutocompleteMatchType::SEARCH_SUGGEST,
+         {omnibox::GROUP_MOBILE_MOST_VISITED},
+         "chrome.0.0i724",
+         searchbox_stats,
+         omnibox::TYPE_QUERY,
+         {omnibox::SUBTYPE_ZERO_PREFIX_LOCAL_FREQUENT_QUERIES}},
+    };
+    SCOPED_TRACE("Multiple matches in horizontal render group");
+    RunAssistedQueryStatsTest(test_data, std::size(test_data));
+  }
+
+  {
+    base::test::ScopedFeatureList features;
+    features.InitAndEnableFeature(
+        omnibox::kMostVisitedTilesHorizontalRenderGroup);
+    omnibox::ResetDefaultGroupsForTest();
+
+    omnibox::metrics::ChromeSearchboxStats searchbox_stats;
+    searchbox_stats.set_client_name("chrome");
+    searchbox_stats.set_num_zero_prefix_suggestions_shown(3);
+    searchbox_stats.set_zero_prefix_enabled(true);
+
+    auto* available_suggestion = searchbox_stats.add_available_suggestions();
+    available_suggestion->set_index(0);
+    available_suggestion->set_type(omnibox::TYPE_ENTITY);
+    available_suggestion->add_subtypes(omnibox::SUBTYPE_ZERO_PREFIX);
+
+    available_suggestion = searchbox_stats.add_available_suggestions();
+    available_suggestion->set_index(1);
+    available_suggestion->set_type(omnibox::TYPE_QUERY);
+    available_suggestion->add_subtypes(
+        omnibox::SUBTYPE_ZERO_PREFIX_LOCAL_FREQUENT_QUERIES);
+
+    available_suggestion = searchbox_stats.add_available_suggestions();
+    available_suggestion->set_index(2);
+    available_suggestion->set_type(omnibox::TYPE_ENTITY);
+    available_suggestion->add_subtypes(omnibox::SUBTYPE_ZERO_PREFIX);
+
+    auto stats_0 = searchbox_stats;
+    auto* assisted_query_info = stats_0.mutable_assisted_query_info();
+    assisted_query_info->MergeFrom(searchbox_stats.available_suggestions(0));
+
+    auto stats_1 = searchbox_stats;
+    assisted_query_info = stats_1.mutable_assisted_query_info();
+    assisted_query_info->MergeFrom(searchbox_stats.available_suggestions(1));
+
+    auto stats_2 = searchbox_stats;
+    assisted_query_info = stats_2.mutable_assisted_query_info();
+    assisted_query_info->MergeFrom(searchbox_stats.available_suggestions(2));
+
+    AssistedQueryStatsTestData test_data[] = {
+        // Entity Suggestion
+        {AutocompleteMatchType::SEARCH_SUGGEST_ENTITY,
+         {/* GroupID */},
+         "chrome.0.46i362j0i724j46i362",
+         stats_0,
+         omnibox::TYPE_ENTITY,
+         {omnibox::SUBTYPE_ZERO_PREFIX}},
+        // Three horizontally rendered tiles
+        {AutocompleteMatchType::SEARCH_SUGGEST,
+         {omnibox::GROUP_MOBILE_MOST_VISITED},
+         "chrome.1.46i362j0i724j46i362",
+         stats_1,
+         omnibox::TYPE_QUERY,
+         {omnibox::SUBTYPE_ZERO_PREFIX_LOCAL_FREQUENT_QUERIES}},
+        {AutocompleteMatchType::SEARCH_SUGGEST,
+         {omnibox::GROUP_MOBILE_MOST_VISITED},
+         "chrome.1.46i362j0i451j46i362",
+         stats_1,
+         omnibox::TYPE_QUERY,
+         {omnibox::SUBTYPE_ZERO_PREFIX_LOCAL_FREQUENT_URLS}},
+        {AutocompleteMatchType::SEARCH_SUGGEST,
+         {omnibox::GROUP_MOBILE_MOST_VISITED},
+         "chrome.1.46i362j0i450j46i362",
+         stats_1,
+         omnibox::TYPE_QUERY,
+         {omnibox::SUBTYPE_ZERO_PREFIX_LOCAL_HISTORY}},
+        // Entity suggestion.
+        {AutocompleteMatchType::SEARCH_SUGGEST_ENTITY,
+         {/* GroupID */},
+         "chrome.2.46i362j0i450j46i362",
+         stats_2,
+         omnibox::TYPE_ENTITY,
+         {omnibox::SUBTYPE_ZERO_PREFIX}},
+    };
+    SCOPED_TRACE("Multiple matches with horizontal render group");
     RunAssistedQueryStatsTest(test_data, std::size(test_data));
   }
 
@@ -1080,7 +1218,7 @@ TEST_F(AutocompleteProviderTest, UpdateAssistedQueryStats) {
     available_suggestion->add_subtypes(omnibox::SUBTYPE_TRENDS);
     available_suggestion = searchbox_stats.add_available_suggestions();
     available_suggestion->set_index(2);
-    available_suggestion->set_type(omnibox::TYPE_ENTITY);
+    available_suggestion->set_type(omnibox::TYPE_CATEGORICAL_QUERY);
     available_suggestion->add_subtypes(omnibox::SUBTYPE_PERSONAL);
     available_suggestion->add_subtypes(omnibox::SUBTYPE_TRENDS);
     available_suggestion = searchbox_stats.add_available_suggestions();
@@ -1124,33 +1262,43 @@ TEST_F(AutocompleteProviderTest, UpdateAssistedQueryStats) {
     // properly handled and reported as the same suggestion type.
     AssistedQueryStatsTestData test_data[] = {
         {AutocompleteMatchType::SEARCH_SUGGEST,
-         "chrome.0.0i39i143i362j46i39i143l2j46i39i143i362j46i39i143",
+         {/* GroupID */},
+         "chrome.0.0i39i143i362j46i39i143j185i39i143j46i39i143i362j46i39i143",
          searchbox_stats_0,
+         omnibox::TYPE_QUERY,
          {omnibox::SUBTYPE_PERSONAL, omnibox::SUBTYPE_TRENDS,
           omnibox::SUBTYPE_ZERO_PREFIX, omnibox::SUBTYPE_TRENDS}},
         // The next two matches should be detected as the same type, despite
         // repeated subtype match.
         {AutocompleteMatchType::SEARCH_SUGGEST_ENTITY,
-         "chrome.1.0i39i143i362j46i39i143l2j46i39i143i362j46i39i143",
+         {/* GroupID */},
+         "chrome.1.0i39i143i362j46i39i143j185i39i143j46i39i143i362j46i39i143",
          searchbox_stats_1,
+         omnibox::TYPE_ENTITY,
          {omnibox::SUBTYPE_PERSONAL, omnibox::SUBTYPE_TRENDS}},
         {AutocompleteMatchType::SEARCH_SUGGEST_ENTITY,
-         "chrome.2.0i39i143i362j46i39i143l2j46i39i143i362j46i39i143",
+         {/* GroupID */},
+         "chrome.2.0i39i143i362j46i39i143j185i39i143j46i39i143i362j46i39i143",
          searchbox_stats_2,
+         omnibox::TYPE_CATEGORICAL_QUERY,
          {omnibox::SUBTYPE_PERSONAL, omnibox::SUBTYPE_TRENDS,
           omnibox::SUBTYPE_PERSONAL}},
         // This match should not be bundled together with previous two, because
         // it comes with additional subtype information (42).
         {AutocompleteMatchType::SEARCH_SUGGEST_ENTITY,
-         "chrome.3.0i39i143i362j46i39i143l2j46i39i143i362j46i39i143",
+         {/* GroupID */},
+         "chrome.3.0i39i143i362j46i39i143j185i39i143j46i39i143i362j46i39i143",
          searchbox_stats_3,
+         omnibox::TYPE_ENTITY,
          {omnibox::SUBTYPE_PERSONAL, omnibox::SUBTYPE_TRENDS,
           omnibox::SUBTYPE_ZERO_PREFIX}},
         // This match should not be bundled together with the group before,
         // because these items are not adjacent.
         {AutocompleteMatchType::SEARCH_SUGGEST_ENTITY,
-         "chrome.4.0i39i143i362j46i39i143l2j46i39i143i362j46i39i143",
+         {/* GroupID */},
+         "chrome.4.0i39i143i362j46i39i143j185i39i143j46i39i143i362j46i39i143",
          searchbox_stats_4,
+         omnibox::TYPE_ENTITY,
          {omnibox::SUBTYPE_PERSONAL, omnibox::SUBTYPE_TRENDS}},
     };
     SCOPED_TRACE("Complex set of matches with repetitive subtypes");
@@ -1176,9 +1324,11 @@ TEST_F(AutocompleteProviderTest, UpdateAssistedQueryStats) {
     available_suggestion = searchbox_stats.add_available_suggestions();
     available_suggestion->set_index(2);
     available_suggestion->set_type(omnibox::TYPE_NAVIGATION);
+    available_suggestion->add_subtypes(omnibox::SUBTYPE_OMNIBOX_OTHER);
     available_suggestion = searchbox_stats.add_available_suggestions();
     available_suggestion->set_index(3);
     available_suggestion->set_type(omnibox::TYPE_NAVIGATION);
+    available_suggestion->add_subtypes(omnibox::SUBTYPE_OMNIBOX_OTHER);
     available_suggestion = searchbox_stats.add_available_suggestions();
     available_suggestion->set_index(4);
     available_suggestion->set_type(omnibox::TYPE_QUERY);
@@ -1238,34 +1388,50 @@ TEST_F(AutocompleteProviderTest, UpdateAssistedQueryStats) {
 
     AssistedQueryStatsTestData test_data[] = {
         {AutocompleteMatchType::SEARCH_WHAT_YOU_TYPED,
-         "chrome..69i57j69i58j5l2j0i362j0i362i450j0i362i451j69i59",
-         searchbox_stats_0},
+         {/* GroupID */},
+         "chrome..69i57j69i58j5i64l2j0i362j0i362i450j0i362i451j69i59",
+         searchbox_stats_0,
+         omnibox::TYPE_NATIVE_CHROME},
         {AutocompleteMatchType::URL_WHAT_YOU_TYPED,
-         "chrome..69i57j69i58j5l2j0i362j0i362i450j0i362i451j69i59",
-         searchbox_stats_1},
+         {/* GroupID */},
+         "chrome..69i57j69i58j5i64l2j0i362j0i362i450j0i362i451j69i59",
+         searchbox_stats_1,
+         omnibox::TYPE_NATIVE_CHROME},
         {AutocompleteMatchType::NAVSUGGEST,
-         "chrome.2.69i57j69i58j5l2j0i362j0i362i450j0i362i451j69i59",
-         searchbox_stats_2},
+         {/* GroupID */},
+         "chrome.2.69i57j69i58j5i64l2j0i362j0i362i450j0i362i451j69i59",
+         searchbox_stats_2,
+         omnibox::TYPE_NAVIGATION},
         {AutocompleteMatchType::NAVSUGGEST,
-         "chrome.3.69i57j69i58j5l2j0i362j0i362i450j0i362i451j69i59",
-         searchbox_stats_3},
+         {/* GroupID */},
+         "chrome.3.69i57j69i58j5i64l2j0i362j0i362i450j0i362i451j69i59",
+         searchbox_stats_3,
+         omnibox::TYPE_NAVIGATION},
         {AutocompleteMatchType::SEARCH_SUGGEST,
-         "chrome.4.69i57j69i58j5l2j0i362j0i362i450j0i362i451j69i59",
+         {/* GroupID */},
+         "chrome.4.69i57j69i58j5i64l2j0i362j0i362i450j0i362i451j69i59",
          searchbox_stats_4,
+         omnibox::TYPE_QUERY,
          {omnibox::SUBTYPE_ZERO_PREFIX}},
         {AutocompleteMatchType::SEARCH_SUGGEST,
-         "chrome.5.69i57j69i58j5l2j0i362j0i362i450j0i362i451j69i59",
+         {/* GroupID */},
+         "chrome.5.69i57j69i58j5i64l2j0i362j0i362i450j0i362i451j69i59",
          searchbox_stats_5,
+         omnibox::TYPE_QUERY,
          {omnibox::SUBTYPE_ZERO_PREFIX,
           omnibox::SUBTYPE_ZERO_PREFIX_LOCAL_HISTORY}},
         {AutocompleteMatchType::SEARCH_SUGGEST,
-         "chrome.6.69i57j69i58j5l2j0i362j0i362i450j0i362i451j69i59",
+         {/* GroupID */},
+         "chrome.6.69i57j69i58j5i64l2j0i362j0i362i450j0i362i451j69i59",
          searchbox_stats_6,
+         omnibox::TYPE_QUERY,
          {omnibox::SUBTYPE_ZERO_PREFIX,
           omnibox::SUBTYPE_ZERO_PREFIX_LOCAL_FREQUENT_URLS}},
         {AutocompleteMatchType::SEARCH_HISTORY,
-         "chrome.7.69i57j69i58j5l2j0i362j0i362i450j0i362i451j69i59",
-         searchbox_stats_7},
+         {/* GroupID */},
+         "chrome.7.69i57j69i58j5i64l2j0i362j0i362i450j0i362i451j69i59",
+         searchbox_stats_7,
+         omnibox::TYPE_NATIVE_CHROME},
     };
     SCOPED_TRACE("Trivial and zero-prefix matches");
     RunAssistedQueryStatsTest(test_data, std::size(test_data));

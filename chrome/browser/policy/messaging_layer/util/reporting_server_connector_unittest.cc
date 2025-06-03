@@ -6,84 +6,48 @@
 
 #include <cstddef>
 #include <memory>
+#include <string>
+#include <vector>
 
 #include "base/functional/bind.h"
 #include "base/task/thread_pool.h"
-#include "base/test/scoped_feature_list.h"
 #include "base/values.h"
 #include "build/build_config.h"
-#include "chrome/browser/policy/device_management_service_configuration.h"
-#include "chrome/browser/policy/messaging_layer/upload/encrypted_reporting_client.h"
 #include "chrome/browser/policy/messaging_layer/util/reporting_server_connector_test_util.h"
-#include "chrome/test/base/testing_browser_process.h"
-#include "components/policy/core/common/cloud/cloud_policy_client.h"
-#include "components/policy/core/common/cloud/device_management_service.h"
-#include "components/policy/core/common/cloud/mock_cloud_policy_client.h"
+#include "components/policy/core/common/cloud/cloud_policy_constants.h"
+#include "components/policy/core/common/cloud/encrypted_reporting_job_configuration.h"
 #include "components/reporting/util/status.h"
 #include "components/reporting/util/statusor.h"
 #include "components/reporting/util/test_support_callbacks.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/test/browser_task_environment.h"
-#include "services/network/public/cpp/weak_wrapper_shared_url_loader_factory.h"
-#include "services/network/test/test_url_loader_factory.h"
+#include "net/http/http_request_headers.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#if BUILDFLAG(IS_CHROMEOS)
+#include "base/test/scoped_feature_list.h"
+#endif  // BUILDFLAG(IS_CHROMEOS)
+
 #if BUILDFLAG(IS_CHROMEOS_ASH)
-#include "chromeos/ash/components/system/fake_statistics_provider.h"
-#include "chromeos/ash/components/system/statistics_provider.h"
+#include "chromeos/ash/components/install_attributes/stub_install_attributes.h"
+#endif
+
+#if BUILDFLAG(IS_CHROMEOS_LACROS)
+#include "chromeos/startup/browser_init_params.h"
 #endif
 
 using testing::_;
 using testing::DoAll;
 using testing::Eq;
+using testing::HasSubstr;
 using testing::Invoke;
 using testing::SizeIs;
 using testing::StartsWith;
 using testing::WithArg;
 
 namespace reporting {
-
-constexpr char kServerUrl[] = "https://example.com/reporting";
-
-class FakeEncryptedReportingClientDelegate
-    : public EncryptedReportingClient::Delegate {
- public:
-  explicit FakeEncryptedReportingClientDelegate(
-      std::unique_ptr<policy::DeviceManagementServiceConfiguration> config)
-      : device_management_service_(
-            std::make_unique<policy::DeviceManagementService>(
-                std::move(config))) {
-    device_management_service_->ScheduleInitialization(0);
-  }
-
-  FakeEncryptedReportingClientDelegate(
-      const FakeEncryptedReportingClientDelegate&) = delete;
-  FakeEncryptedReportingClientDelegate& operator=(
-      const FakeEncryptedReportingClientDelegate&) = delete;
-
-  ~FakeEncryptedReportingClientDelegate() override = default;
-
-  policy::DeviceManagementService* device_management_service() const override {
-    EXPECT_TRUE(
-        ::content::BrowserThread::CurrentlyOn(::content::BrowserThread::UI));
-    return device_management_service_.get();
-  }
-
- private:
-  const std::unique_ptr<policy::DeviceManagementService>
-      device_management_service_;
-};
-
-void CloudPolicyClientUpload(
-    ::policy::CloudPolicyClient::ResponseCallback callback) {
-  // Callback is expected to be called exactly once on UI task runner,
-  // regardless of the launching thread.
-  ASSERT_TRUE(
-      ::content::BrowserThread::CurrentlyOn(::content::BrowserThread::UI));
-  std::move(callback).Run(base::Value::Dict());
-}
 
 // Test ReportingServerConnector(). Because the function essentially obtains
 // cloud_policy_client through a series of linear function calls, it's not
@@ -95,39 +59,33 @@ class ReportingServerConnectorTest : public ::testing::Test {
  protected:
   void SetUp() override {
 #if BUILDFLAG(IS_CHROMEOS_ASH)
-    fake_statistics_provider_.SetMachineStatistic(
-        ash::system::kSerialNumberKeyForTest, "fake-serial-number");
+    install_attributes_.Get()->SetCloudManaged("fake-domain-name",
+                                               "fake-device-id");
 #endif
-    // Prepare to respond to `ReportingServerConnector::UploadEncryptedReport`.
-    TestingBrowserProcess::GetGlobal()->SetSharedURLLoaderFactory(
-        url_loader_factory_.GetSafeWeakWrapper());
-    auto config =
-        std::make_unique<policy::DeviceManagementServiceConfiguration>(
-            /*dm_server_url=*/"", /*realtime_reporting_server_url=*/"",
-            /*encrypted_reporting_server_url=*/kServerUrl);
-    auto fake_delegate = std::make_unique<FakeEncryptedReportingClientDelegate>(
-        std::move(config));
-    test_env_.SetEncryptedReportingClient(
-        std::make_unique<EncryptedReportingClient>(std::move(fake_delegate)));
   }
+
+  void VerifyDmTokenHeader() {
+    // Verify request header contains dm token
+    const net::HttpRequestHeaders& headers =
+        test_env_.url_loader_factory()->GetPendingRequest(0)->request.headers;
+    ASSERT_TRUE(headers.HasHeader(policy::dm_protocol::kAuthHeader));
+    std::string auth_header;
+    headers.GetHeader(policy::dm_protocol::kAuthHeader, &auth_header);
+    EXPECT_THAT(auth_header, HasSubstr(kFakeDmToken));
+  }
+
   content::BrowserTaskEnvironment task_environment_;
 
   ReportingServerConnector::TestEnvironment test_env_;
 
-  network::TestURLLoaderFactory url_loader_factory_;
-
 #if BUILDFLAG(IS_CHROMEOS_ASH)
-  ash::system::ScopedFakeStatisticsProvider fake_statistics_provider_;
+  ash::ScopedStubInstallAttributes install_attributes_ =
+      ash::ScopedStubInstallAttributes();
 #endif
 };
 
 TEST_F(ReportingServerConnectorTest,
        ExecuteUploadEncryptedReportingOnUIThread) {
-  // EnableEncryptedReportingClientForUpload is disabled by default,
-  // `policy::CloudPolicyClient` will be used for upload.
-  EXPECT_CALL(*test_env_.client(), UploadEncryptedReport(_, _, _))
-      .WillOnce(WithArg<2>(Invoke(CloudPolicyClientUpload)));
-
   // Call `ReportingServerConnector::UploadEncryptedReport` from the UI.
   test::TestEvent<StatusOr<base::Value::Dict>> response_event;
   content::GetUIThreadTaskRunner({})->PostTask(
@@ -137,24 +95,19 @@ TEST_F(ReportingServerConnectorTest,
                      response_event.cb()));
 
   task_environment_.RunUntilIdle();
-  EXPECT_TRUE(url_loader_factory_.pending_requests()->empty());
+  ASSERT_THAT(*test_env_.url_loader_factory()->pending_requests(), SizeIs(1));
 
-  EXPECT_OK(response_event.result());
+  VerifyDmTokenHeader();
+
+  test_env_.SimulateResponseForRequest(0);
+
+  EXPECT_TRUE(response_event.result().has_value());
 }
 
 TEST_F(ReportingServerConnectorTest,
        ExecuteUploadEncryptedReportingOnArbitraryThread) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndDisableFeature(
-      kEnableEncryptedReportingClientForUpload);
-
-  // EnableEncryptedReportingClientForUpload is explicitly disabled,
-  // `policy::CloudPolicyClient` will be used for upload.
-  EXPECT_CALL(*test_env_.client(), UploadEncryptedReport(_, _, _))
-      .WillOnce(WithArg<2>(Invoke(CloudPolicyClientUpload)));
-
-  // Call `ReportingServerConnector::UploadEncryptedReport` from the thread
-  // pool.
+  // Call `ReportingServerConnector::UploadEncryptedReport` from the
+  // thread pool.
   test::TestEvent<StatusOr<base::Value::Dict>> response_event;
   base::ThreadPool::PostTask(
       FROM_HERE,
@@ -163,22 +116,38 @@ TEST_F(ReportingServerConnectorTest,
                      response_event.cb()));
 
   task_environment_.RunUntilIdle();
-  ASSERT_TRUE(url_loader_factory_.pending_requests()->empty());
+  ASSERT_THAT(*test_env_.url_loader_factory()->pending_requests(), SizeIs(1));
 
-  EXPECT_OK(response_event.result());
+  VerifyDmTokenHeader();
+
+  test_env_.SimulateResponseForRequest(0);
+
+  EXPECT_TRUE(response_event.result().has_value());
 }
 
-TEST_F(ReportingServerConnectorTest, EncryptedReportingClientForUploadEnabled) {
+// This test verifies that we can upload from an unmanaged device when the
+// proper features are enabled.
+// TODO(b/281905099): remove feature dependencies after roll out.
+#if BUILDFLAG(IS_CHROMEOS_ASH) || BUILDFLAG(IS_CHROMEOS_LACROS)
+TEST_F(ReportingServerConnectorTest, UploadFromUnmanagedDevice) {
+  // Set the device management state to unmanaged.
+#if BUILDFLAG(IS_CHROMEOS_ASH)
+  install_attributes_.Get()->SetConsumerOwned();
+#elif BUILDFLAG(IS_CHROMEOS_LACROS)
+  auto params = crosapi::mojom::BrowserInitParams::New();
+  params->is_device_enterprised_managed = false;
+  chromeos::BrowserInitParams::SetInitParamsForTests(std::move(params));
+#endif
+
+  // Enable EnableReportingFromUnmanagedDevices feature. Required to
+  // upload records from an unmanaged device.
   base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(
-      kEnableEncryptedReportingClientForUpload);
+  scoped_feature_list.InitWithFeatures(
+      /*enabled_features=*/{kEnableReportingFromUnmanagedDevices},
+      /*disabled_features=*/{});
 
-  // EnableEncryptedReportingClientForUpload is enabled,
-  // `EncryptedReportingClient` will be used for upload.
-  EXPECT_CALL(*test_env_.client(), UploadEncryptedReport(_, _, _)).Times(0);
-
-  // Call `ReportingServerConnector::UploadEncryptedReport` from the thread
-  // pool.
+  // Call `ReportingServerConnector::UploadEncryptedReport` from the
+  // thread pool.
   test::TestEvent<StatusOr<base::Value::Dict>> response_event;
   base::ThreadPool::PostTask(
       FROM_HERE,
@@ -187,16 +156,17 @@ TEST_F(ReportingServerConnectorTest, EncryptedReportingClientForUploadEnabled) {
                      response_event.cb()));
 
   task_environment_.RunUntilIdle();
-  ASSERT_THAT(*url_loader_factory_.pending_requests(), SizeIs(1));
+  ASSERT_THAT(*test_env_.url_loader_factory()->pending_requests(), SizeIs(1));
 
-  const std::string& pending_request_url =
-      (*url_loader_factory_.pending_requests())[0].request.url.spec();
+  // Verify request header DOES NOT contain a dm token
+  const net::HttpRequestHeaders& headers =
+      test_env_.url_loader_factory()->GetPendingRequest(0)->request.headers;
+  EXPECT_FALSE(headers.HasHeader(policy::dm_protocol::kAuthHeader));
 
-  EXPECT_THAT(pending_request_url, StartsWith(kServerUrl));
+  test_env_.SimulateResponseForRequest(0);
 
-  url_loader_factory_.SimulateResponseForPendingRequest(pending_request_url,
-                                                        R"({"key": "value"})");
-
-  EXPECT_OK(response_event.result());
+  EXPECT_TRUE(response_event.result().has_value());
 }
+#endif  // BUILDFLAG(IS_CHROMEOS_ASH) || BUILDFLAG(IS_CHROMEOS_LACROS)
+
 }  // namespace reporting

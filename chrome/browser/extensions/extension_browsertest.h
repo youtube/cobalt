@@ -40,6 +40,11 @@
 
 class Profile;
 
+namespace content {
+class BrowserContext;
+class ServiceWorkerContext;
+}  // namespace content
+
 namespace extensions {
 class ExtensionCacheFake;
 class ExtensionService;
@@ -361,6 +366,13 @@ class ExtensionBrowserTest : virtual public InProcessBrowserTest,
   bool ExecuteScriptInBackgroundPageNoWait(const std::string& extension_id,
                                            const std::string& script);
 
+  // Get the ServiceWorkerContext for the default browser's profile.
+  content::ServiceWorkerContext* GetServiceWorkerContext();
+
+  // Get the ServiceWorkerContext for the `browser_context`.
+  static content::ServiceWorkerContext* GetServiceWorkerContext(
+      content::BrowserContext* browser_context);
+
 #if BUILDFLAG(IS_CHROMEOS_ASH)
   // True if the command line should be tweaked as if ChromeOS user is
   // already logged in.
@@ -445,7 +457,7 @@ class ExtensionBrowserTest : virtual public InProcessBrowserTest,
 #endif
 
   // The default profile to be used.
-  raw_ptr<Profile, DanglingUntriaged> profile_;
+  raw_ptr<Profile, AcrossTasksDanglingUntriaged> profile_;
 
   // Cache cache implementation.
   std::unique_ptr<ExtensionCacheFake> test_extension_cache_;

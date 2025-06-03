@@ -9,8 +9,8 @@
 #include "base/dcheck_is_on.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/renderer/core/core_export.h"
+#include "third_party/blink/renderer/core/layout/geometry/bfc_offset.h"
 #include "third_party/blink/renderer/core/layout/geometry/logical_size.h"
-#include "third_party/blink/renderer/core/layout/ng/geometry/ng_bfc_offset.h"
 #include "third_party/blink/renderer/core/layout/ng/ng_constraint_space.h"
 #include "third_party/blink/renderer/core/layout/ng/ng_floats_utils.h"
 #include "third_party/blink/renderer/core/layout/ng/ng_space_utils.h"
@@ -20,7 +20,7 @@
 
 namespace blink {
 
-class NGExclusionSpace;
+class ExclusionSpace;
 
 class CORE_EXPORT NGConstraintSpaceBuilder final {
   STACK_ALLOCATED();
@@ -70,13 +70,14 @@ class CORE_EXPORT NGConstraintSpaceBuilder final {
   // If inline size is indefinite, use the fallback size for available inline
   // size for orthogonal flow roots. See:
   // https://www.w3.org/TR/css-writing-modes-3/#orthogonal-auto
-  void AdjustInlineSizeIfNeeded(LayoutUnit* inline_size) const {
+  void AdjustInlineSizeIfNeeded(LayoutUnit* inline_size) {
     DCHECK(!is_in_parallel_flow_);
     DCHECK(adjust_inline_size_if_needed_);
     if (*inline_size != kIndefiniteSize)
       return;
     DCHECK_NE(orthogonal_fallback_inline_size_, kIndefiniteSize);
     *inline_size = orthogonal_fallback_inline_size_;
+    space_.EnsureRareData()->uses_orthogonal_fallback_inline_size = true;
   }
 
   // |available_size| is logical for the writing-mode of the container.
@@ -323,28 +324,17 @@ class CORE_EXPORT NGConstraintSpaceBuilder final {
       space_.EnsureRareData()->SetBlockStartAnnotationSpace(space);
   }
 
-  void SetMarginStrut(const NGMarginStrut& margin_strut) {
+  void SetMarginStrut(const MarginStrut& margin_strut) {
 #if DCHECK_IS_ON()
     DCHECK(!is_margin_strut_set_);
     is_margin_strut_set_ = true;
 #endif
-    if (!is_new_fc_ && margin_strut != NGMarginStrut())
+    if (!is_new_fc_ && margin_strut != MarginStrut()) {
       space_.EnsureRareData()->SetMarginStrut(margin_strut);
+    }
   }
 
-  // Set up a margin strut that discards all adjoining margins. This is used to
-  // discard block-start margins after fragmentainer breaks.
-  void SetDiscardingMarginStrut() {
-#if DCHECK_IS_ON()
-    DCHECK(!is_margin_strut_set_);
-    is_margin_strut_set_ = true;
-#endif
-    NGMarginStrut discarding_margin_strut;
-    discarding_margin_strut.discard_margins = true;
-    space_.EnsureRareData()->SetMarginStrut(discarding_margin_strut);
-  }
-
-  void SetBfcOffset(const NGBfcOffset& bfc_offset) {
+  void SetBfcOffset(const BfcOffset& bfc_offset) {
     if (!is_new_fc_) {
       if (space_.HasRareData())
         space_.rare_data_->bfc_offset = bfc_offset;
@@ -386,14 +376,14 @@ class CORE_EXPORT NGConstraintSpaceBuilder final {
       space_.EnsureRareData()->SetClearanceOffset(clearance_offset);
   }
 
-  void SetTableCellBorders(const NGBoxStrut& table_cell_borders,
+  void SetTableCellBorders(const BoxStrut& table_cell_borders,
                            WritingDirectionMode cell_writing_direction,
                            WritingDirectionMode table_writing_direction) {
 #if DCHECK_IS_ON()
     DCHECK(!is_table_cell_borders_set_);
     is_table_cell_borders_set_ = true;
 #endif
-    if (table_cell_borders != NGBoxStrut()) {
+    if (table_cell_borders != BoxStrut()) {
       space_.EnsureRareData()->SetTableCellBorders(
           table_cell_borders.ConvertToPhysical(table_writing_direction)
               .ConvertToLogical(cell_writing_direction));
@@ -450,7 +440,7 @@ class CORE_EXPORT NGConstraintSpaceBuilder final {
     space_.bitfields_.is_restricted_block_size_table_cell_child = true;
   }
 
-  void SetExclusionSpace(const NGExclusionSpace& exclusion_space) {
+  void SetExclusionSpace(const ExclusionSpace& exclusion_space) {
     if (!is_new_fc_)
       space_.exclusion_space_ = exclusion_space;
   }
@@ -467,7 +457,7 @@ class CORE_EXPORT NGConstraintSpaceBuilder final {
     }
   }
 
-  void SetTableRowData(const NGTableConstraintSpaceData* table_data,
+  void SetTableRowData(const TableConstraintSpaceData* table_data,
                        wtf_size_t row_index) {
 #if DCHECK_IS_ON()
     DCHECK(!is_table_row_data_set_);
@@ -477,7 +467,7 @@ class CORE_EXPORT NGConstraintSpaceBuilder final {
   }
 
   void SetTableSectionData(
-      scoped_refptr<const NGTableConstraintSpaceData> table_data,
+      scoped_refptr<const TableConstraintSpaceData> table_data,
       wtf_size_t section_index) {
 #if DCHECK_IS_ON()
     DCHECK(!is_table_section_data_set_);
@@ -525,7 +515,7 @@ class CORE_EXPORT NGConstraintSpaceBuilder final {
         target_stretch_block_sizes);
   }
 
-  void SetGridLayoutSubtree(NGGridLayoutSubtree&& grid_layout_subtree) {
+  void SetGridLayoutSubtree(GridLayoutSubtree&& grid_layout_subtree) {
 #if DCHECK_IS_ON()
     DCHECK(!is_grid_layout_subtree_set_);
     is_grid_layout_subtree_set_ = true;

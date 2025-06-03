@@ -21,7 +21,6 @@
 #include "media/capture/video/video_capture_feedback.h"
 #include "media/capture/video_capture_types.h"
 #include "mojo/public/cpp/bindings/callback_helpers.h"
-#include "ui/base/layout.h"
 
 namespace content {
 
@@ -55,16 +54,17 @@ WebContentsVideoCaptureDevice::Create(const std::string& device_id) {
 
 void WebContentsVideoCaptureDevice::Crop(
     const base::Token& crop_id,
-    uint32_t crop_version,
-    base::OnceCallback<void(media::mojom::CropRequestResult)> callback) {
+    uint32_t sub_capture_target_version,
+    base::OnceCallback<void(media::mojom::ApplySubCaptureTargetResult)>
+        callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(callback);
 
   tracker_.AsyncCall(&WebContentsFrameTracker::Crop)
-      .WithArgs(crop_id, crop_version,
+      .WithArgs(crop_id, sub_capture_target_version,
                 mojo::WrapCallbackWithDefaultInvokeIfNotRun(
                     std::move(callback),
-                    media::mojom::CropRequestResult::kErrorGeneric));
+                    media::mojom::ApplySubCaptureTargetResult::kErrorGeneric));
 }
 
 void WebContentsVideoCaptureDevice::OnFrameCaptured(

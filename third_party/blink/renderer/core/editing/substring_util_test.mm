@@ -53,24 +53,25 @@ TEST_F(SubStringUtilTest, SubstringUtil) {
       static_cast<WebLocalFrameImpl*>(web_view->MainFrame());
 
   gfx::Point baseline_point;
-  CFAttributedStringRef result = SubstringUtil::AttributedSubstringInRange(
-      frame->GetFrame(), 10, 3, baseline_point);
+  base::apple::ScopedCFTypeRef<CFAttributedStringRef> result =
+      SubstringUtil::AttributedSubstringInRange(frame->GetFrame(), 10, 3,
+                                                baseline_point);
   ASSERT_TRUE(result);
 
   gfx::Point point(baseline_point);
-  result = SubstringUtil::AttributedWordAtPoint(frame->FrameWidgetImpl(), point,
-                                                baseline_point);
+  result.reset(SubstringUtil::AttributedWordAtPoint(frame->FrameWidgetImpl(),
+                                                    point, baseline_point));
   ASSERT_TRUE(result);
 
   web_view->SetZoomLevel(3);
 
-  result = SubstringUtil::AttributedSubstringInRange(frame->GetFrame(), 5, 5,
-                                                     baseline_point);
+  result.reset(SubstringUtil::AttributedSubstringInRange(frame->GetFrame(), 5,
+                                                         5, baseline_point));
   ASSERT_TRUE(result);
 
   point = baseline_point;
-  result = SubstringUtil::AttributedWordAtPoint(frame->FrameWidgetImpl(), point,
-                                                baseline_point);
+  result.reset(SubstringUtil::AttributedWordAtPoint(frame->FrameWidgetImpl(),
+                                                    point, baseline_point));
   ASSERT_TRUE(result);
 }
 
@@ -104,15 +105,16 @@ TEST_F(SubStringUtilTest, SubstringUtilPinchZoom) {
       static_cast<WebLocalFrameImpl*>(web_view->MainFrame());
 
   gfx::Point baseline_point;
-  CFAttributedStringRef result = SubstringUtil::AttributedSubstringInRange(
-      frame->GetFrame(), 10, 3, baseline_point);
+  base::apple::ScopedCFTypeRef<CFAttributedStringRef> result =
+      SubstringUtil::AttributedSubstringInRange(frame->GetFrame(), 10, 3,
+                                                baseline_point);
   ASSERT_TRUE(result);
 
   web_view->SetPageScaleFactor(3);
 
   gfx::Point point_after_zoom;
-  result = SubstringUtil::AttributedSubstringInRange(frame->GetFrame(), 10, 3,
-                                                     point_after_zoom);
+  result.reset(SubstringUtil::AttributedSubstringInRange(frame->GetFrame(), 10,
+                                                         3, point_after_zoom));
   ASSERT_TRUE(result);
 
   // We won't have moved by a full factor of 3 because of the translations, but
@@ -135,14 +137,15 @@ TEST_F(SubStringUtilTest, SubstringUtilIframe) {
       To<LocalFrame>(main_frame->GetFrame()->Tree().FirstChild()));
 
   gfx::Point baseline_point;
-  CFAttributedStringRef result = SubstringUtil::AttributedSubstringInRange(
-      child_frame->GetFrame(), 11, 7, baseline_point);
-  ASSERT_NE(result, nullptr);
+  base::apple::ScopedCFTypeRef<CFAttributedStringRef> result =
+      SubstringUtil::AttributedSubstringInRange(child_frame->GetFrame(), 11, 7,
+                                                baseline_point);
+  ASSERT_TRUE(result);
 
   gfx::Point point(baseline_point);
-  result = SubstringUtil::AttributedWordAtPoint(main_frame->FrameWidgetImpl(),
-                                                point, baseline_point);
-  ASSERT_NE(result, nullptr);
+  result.reset(SubstringUtil::AttributedWordAtPoint(
+      main_frame->FrameWidgetImpl(), point, baseline_point));
+  ASSERT_TRUE(result);
 
   int y_before_change = baseline_point.y();
 
@@ -151,9 +154,9 @@ TEST_F(SubStringUtilTest, SubstringUtilIframe) {
       "document.querySelector('iframe').style.marginTop = '100px';"));
 
   point = gfx::Point(point.x(), point.y() + 100);
-  result = SubstringUtil::AttributedWordAtPoint(main_frame->FrameWidgetImpl(),
-                                                point, baseline_point);
-  ASSERT_NE(result, nullptr);
+  result.reset(SubstringUtil::AttributedWordAtPoint(
+      main_frame->FrameWidgetImpl(), point, baseline_point));
+  ASSERT_TRUE(result);
 
   EXPECT_EQ(y_before_change, baseline_point.y() - 100);
 }

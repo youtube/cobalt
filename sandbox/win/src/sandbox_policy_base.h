@@ -61,9 +61,11 @@ class ConfigBase final : public TargetConfig {
   ResultCode SetJobLevel(JobLevel job_level, uint32_t ui_exceptions) override;
   JobLevel GetJobLevel() const override;
   void SetJobMemoryLimit(size_t memory_limit) override;
-  ResultCode AddRule(SubSystem subsystem,
-                     Semantics semantics,
-                     const wchar_t* pattern) override;
+  ResultCode AllowFileAccess(FileSemantics semantics,
+                             const wchar_t* pattern) override;
+  ResultCode AllowNamedPipes(const wchar_t* pattern) override;
+  ResultCode AllowExtraDlls(const wchar_t* pattern) override;
+  ResultCode SetFakeGdiInit() override;
   void AddDllToUnload(const wchar_t* dll_name) override;
   ResultCode SetIntegrityLevel(IntegrityLevel integrity_level) override;
   IntegrityLevel GetIntegrityLevel() const override;
@@ -84,6 +86,7 @@ class ConfigBase final : public TargetConfig {
   void SetDesktop(Desktop desktop) override;
   void SetFilterEnvironment(bool filter) override;
   bool GetEnvironmentFiltered() override;
+  void SetZeroAppShim() override;
 
  private:
   // Can call Freeze()
@@ -100,6 +103,10 @@ class ConfigBase final : public TargetConfig {
   // Use in DCHECK only - returns `true` in non-DCHECK builds.
   bool IsOnCreatingThread() const;
 
+  // Lazily populates the policy_ and policy_maker_ members for internal rules.
+  // Can only be called before the object is fully configured.
+  LowLevelPolicy* PolicyMaker();
+
 #if DCHECK_IS_ON()
   // Used to sequence-check in DCHECK builds.
   uint32_t creating_thread_id_;
@@ -107,10 +114,6 @@ class ConfigBase final : public TargetConfig {
 
   // Once true the configuration is frozen and can be applied to later policies.
   bool configured_ = false;
-
-  ResultCode AddRuleInternal(SubSystem subsystem,
-                             Semantics semantics,
-                             const wchar_t* pattern);
 
   // Should only be called once the object is configured.
   PolicyGlobal* policy();
@@ -127,6 +130,7 @@ class ConfigBase final : public TargetConfig {
   Desktop desktop() { return desktop_; }
   // nullptr if no objects have been added via AddKernelObjectToClose().
   HandleCloser* handle_closer() { return handle_closer_.get(); }
+  bool zero_appshim() { return zero_appshim_; }
 
   TokenLevel lockdown_level_;
   TokenLevel initial_level_;
@@ -142,6 +146,7 @@ class ConfigBase final : public TargetConfig {
   uint32_t ui_exceptions_;
   Desktop desktop_;
   bool filter_environment_;
+  bool zero_appshim_;
 
   // Object in charge of generating the low level policy. Will be reset() when
   // Freeze() is called.
@@ -172,6 +177,7 @@ class PolicyBase final : public TargetPolicy {
   ResultCode SetStdoutHandle(HANDLE handle) override;
   ResultCode SetStderrHandle(HANDLE handle) override;
   void AddHandleToShare(HANDLE handle) override;
+  void AddDelegateData(base::span<const uint8_t> data) override;
 
   // Creates a Job object with the level specified in a previous call to
   // SetJobLevel().
@@ -232,9 +238,15 @@ class PolicyBase final : public TargetPolicy {
   // Remaining members are unique to this instance and will be configured every
   // time.
 
+  // Returns nullopt if no data has been set, or a view into the data.
+  absl::optional<base::span<const uint8_t>> delegate_data_span();
+
   // The user-defined global policy settings.
   HANDLE stdout_handle_;
   HANDLE stderr_handle_;
+  // An opaque blob of data the delegate uses to prime any pre-sandbox hooks.
+  std::unique_ptr<std::vector<const uint8_t>> delegate_data_;
+
   std::unique_ptr<Dispatcher> dispatcher_;
 
   // Contains the list of handles being shared with the target process.

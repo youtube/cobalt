@@ -4,19 +4,19 @@
 
 #include "ash/utility/haptics_tracking_test_input_controller.h"
 
-#include "ash/utility/haptics_util.h"
 #include "base/notreached.h"
+#include "chromeos/utils/haptics_util.h"
 #include "ui/events/devices/stylus_state.h"
 #include "ui/ozone/public/ozone_platform.h"
 
 namespace ash {
 
 HapticsTrackingTestInputController::HapticsTrackingTestInputController() {
-  haptics_util::SetInputControllerForTesting(this);
+  chromeos::haptics_util::SetInputControllerForTesting(this);
 }
 
 HapticsTrackingTestInputController::~HapticsTrackingTestInputController() {
-  haptics_util::SetInputControllerForTesting(nullptr);
+  chromeos::haptics_util::SetInputControllerForTesting(nullptr);
 }
 
 bool HapticsTrackingTestInputController::HasMouse() {
@@ -165,6 +165,11 @@ void HapticsTrackingTestInputController::GetTouchEventLog(
   std::move(reply).Run(std::vector<base::FilePath>());
 }
 
+void HapticsTrackingTestInputController::DescribeForLog(
+    DescribeForLogReply reply) const {
+  std::move(reply).Run(std::string());
+}
+
 void HapticsTrackingTestInputController::SetTouchEventLoggingEnabled(
     bool enabled) {
   NOTIMPLEMENTED_LOG_ONCE();
@@ -213,6 +218,12 @@ void HapticsTrackingTestInputController::SetInternalKeyboardFilter(
 void HapticsTrackingTestInputController::GetGesturePropertiesService(
     mojo::PendingReceiver<ui::ozone::mojom::GesturePropertiesService>
         receiver) {}
+
+bool HapticsTrackingTestInputController::AreAnyKeysPressed() {
+  return false;
+}
+
+void HapticsTrackingTestInputController::DisableKeyboardImposterCheck() {}
 
 int HapticsTrackingTestInputController::GetSentHapticCount(
     ui::HapticTouchpadEffect effect,

@@ -204,6 +204,32 @@ FieldAccess AccessBuilder::ForJSFunctionContext() {
   return access;
 }
 
+#ifdef V8_ENABLE_SANDBOX
+// static
+FieldAccess AccessBuilder::ForJSFunctionCode() {
+  FieldAccess access = {kTaggedBase,
+                        JSFunction::kCodeOffset,
+                        MaybeHandle<Name>(),
+                        OptionalMapRef(),
+                        Type::OtherInternal(),
+                        MachineType::IndirectPointer(),
+                        kIndirectPointerWriteBarrier,
+                        "JSFunctionCode"};
+  access.indirect_pointer_tag = kCodeIndirectPointerTag;
+  return access;
+}
+#else
+// static
+FieldAccess AccessBuilder::ForJSFunctionCode() {
+  FieldAccess access = {kTaggedBase,           JSFunction::kCodeOffset,
+                        Handle<Name>(),        OptionalMapRef(),
+                        Type::OtherInternal(), MachineType::TaggedPointer(),
+                        kPointerWriteBarrier,  "JSFunctionCode"};
+  return access;
+}
+
+#endif
+
 // static
 FieldAccess AccessBuilder::ForJSFunctionSharedFunctionInfo() {
   FieldAccess access = {
@@ -220,15 +246,6 @@ FieldAccess AccessBuilder::ForJSFunctionFeedbackCell() {
                         Handle<Name>(),       OptionalMapRef(),
                         Type::Internal(),     MachineType::TaggedPointer(),
                         kPointerWriteBarrier, "JSFunctionFeedbackCell"};
-  return access;
-}
-
-// static
-FieldAccess AccessBuilder::ForJSFunctionCode() {
-  FieldAccess access = {kTaggedBase,           JSFunction::kCodeOffset,
-                        Handle<Name>(),        OptionalMapRef(),
-                        Type::OtherInternal(), MachineType::TaggedPointer(),
-                        kPointerWriteBarrier,  "JSFunctionCode"};
   return access;
 }
 
@@ -1413,6 +1430,20 @@ FieldAccess AccessBuilder::ForFeedbackVectorClosureFeedbackCellArray() {
       kFullWriteBarrier, "FeedbackVectorClosureFeedbackCellArray"};
   return access;
 }
+
+#if V8_ENABLE_WEBASSEMBLY
+// static
+FieldAccess AccessBuilder::ForWasmArrayLength() {
+  return {compiler::kTaggedBase,
+          WasmArray::kLengthOffset,
+          MaybeHandle<Name>(),
+          compiler::OptionalMapRef(),
+          compiler::Type::OtherInternal(),
+          MachineType::Uint32(),
+          compiler::kNoWriteBarrier,
+          "WasmArrayLength"};
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 }  // namespace compiler
 }  // namespace internal

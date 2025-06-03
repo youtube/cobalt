@@ -16,11 +16,13 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/types/expected_macros.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/extensions/api/tab_groups/tab_groups_util.h"
 #include "chrome/browser/extensions/api/tabs/tabs_constants.h"
 #include "chrome/browser/extensions/browser_extension_window_controller.h"
 #include "chrome/browser/extensions/chrome_extension_function_details.h"
+#include "chrome/browser/extensions/extension_management.h"
 #include "chrome/browser/extensions/tab_helper.h"
 #include "chrome/browser/platform_util.h"
 #include "chrome/browser/profiles/profile.h"
@@ -35,9 +37,12 @@
 #include "chrome/browser/ui/scoped_tabbed_browser_displayer.h"
 #include "chrome/browser/ui/singleton_tabs.h"
 #include "chrome/browser/ui/tab_contents/tab_contents_iterator.h"
+#include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_keyed_service.h"
+#include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_service_factory.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/tabs/tab_utils.h"
+#include "chrome/browser/ui/ui_features.h"
 #include "chrome/common/extensions/api/tabs.h"
 #include "chrome/common/url_constants.h"
 #include "components/sessions/content/session_tab_helper.h"
@@ -55,6 +60,7 @@
 #include "extensions/common/constants.h"
 #include "extensions/common/error_utils.h"
 #include "extensions/common/extension.h"
+#include "extensions/common/extension_features.h"
 #include "extensions/common/feature_switch.h"
 #include "extensions/common/manifest_constants.h"
 #include "extensions/common/manifest_handlers/incognito_info.h"
@@ -62,6 +68,7 @@
 #include "extensions/common/permissions/api_permission.h"
 #include "extensions/common/permissions/permissions_data.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
+#include "third_party/blink/public/common/chrome_debug_urls.h"
 #include "url/gurl.h"
 
 using content::NavigationEntry;
@@ -115,10 +122,15 @@ Browser* CreateAndShowBrowser(Profile* profile,
 // take care of setting the id to TAB_ID_NONE if necessary (for
 // example with devtools).
 int GetTabIdForExtensions(const WebContents* web_contents) {
-  Browser* browser = chrome::FindBrowserWithWebContents(web_contents);
+  Browser* browser = chrome::FindBrowserWithTab(web_contents);
   if (browser && !ExtensionTabUtil::BrowserSupportsTabs(browser))
     return -1;
   return sessions::SessionTabHelper::IdForTab(web_contents).id();
+}
+
+bool IsFileUrl(const GURL& url) {
+  return url.SchemeIsFile() || (url.SchemeIs(content::kViewSourceScheme) &&
+                                GURL(url.GetContent()).SchemeIsFile());
 }
 
 ExtensionTabUtil::ScrubTabBehaviorType GetScrubTabBehaviorImpl(
@@ -238,16 +250,11 @@ base::expected<base::Value::Dict, std::string> ExtensionTabUtil::OpenTab(
   // -title
   // -favIconUrl
 
-  GURL url;
+  GURL url(chrome::kChromeUINewTabURL);
   if (params.url) {
-    auto result = ExtensionTabUtil::PrepareURLForNavigation(
-        *params.url, function->extension(), function->browser_context());
-    if (!result.has_value()) {
-      return base::unexpected(result.error());
-    }
-    url = std::move(*result);
-  } else {
-    url = GURL(chrome::kChromeUINewTabURL);
+    ASSIGN_OR_RETURN(url, ExtensionTabUtil::PrepareURLForNavigation(
+                              *params.url, function->extension(),
+                              function->browser_context()));
   }
 
   // Default to foreground for the new tab. The presence of 'active' property
@@ -312,7 +319,7 @@ base::expected<base::Value::Dict, std::string> ExtensionTabUtil::OpenTab(
   // The tab may have been created in a different window, so make sure we look
   // at the right tab strip.
   TabStripModel* tab_strip = navigate_params.browser->tab_strip_model();
-  int new_index = tab_strip->GetIndexOfWebContents(
+  const int new_index = tab_strip->GetIndexOfWebContents(
       navigate_params.navigated_or_inserted_contents);
   if (opener) {
     // Only set the opener if the opener tab is in the same tab strip as the
@@ -328,6 +335,16 @@ base::expected<base::Value::Dict, std::string> ExtensionTabUtil::OpenTab(
       ExtensionTabUtil::GetScrubTabBehavior(
           function->extension(), function->source_context_type(),
           navigate_params.navigated_or_inserted_contents);
+
+  if (tab_strip) {
+    absl::optional<tab_groups::TabGroupId> group =
+        tab_strip->GetTabGroupForTab(new_index);
+    if (group.has_value()) {
+      if (tab_groups_util::IsGroupSaved(group.value(), tab_strip)) {
+        return base::unexpected(tabs_constants::kSavedTabGroupNotEditableError);
+      }
+    }
+  }
 
   // Return data about the newly created tab.
   return ExtensionTabUtil::CreateTabObject(
@@ -440,8 +457,9 @@ api::tabs::Tab ExtensionTabUtil::CreateTabObject(
   if (tab_strip) {
     absl::optional<tab_groups::TabGroupId> group =
         tab_strip->GetTabGroupForTab(tab_index);
-    if (group.has_value())
+    if (group.has_value()) {
       tab_object.group_id = tab_groups_util::GetGroupId(group.value());
+    }
   }
 
   auto* audible_helper = RecentlyAudibleHelper::FromWebContents(contents);
@@ -700,10 +718,19 @@ bool ExtensionTabUtil::GetTabById(int tab_id,
                                   int* tab_index) {
   if (tab_id == api::tabs::TAB_ID_NONE)
     return false;
+  // If `browser_context` is null, then `Profile::FromBrowserContext` below
+  // will return nullptr, and the subsequent call to `GetPrimaryOTRProfile`
+  // will crash. Since this can happen during shutdown, early-out to avoid
+  // crashing.
+  if (!browser_context) {
+    return false;
+  }
+
   Profile* profile = Profile::FromBrowserContext(browser_context);
   Profile* incognito_profile =
       include_incognito
-          ? profile->GetPrimaryOTRProfile(/*create_if_needed=*/false)
+          ? (profile ? profile->GetPrimaryOTRProfile(/*create_if_needed=*/false)
+                     : nullptr)
           : nullptr;
   for (auto* target_browser : *BrowserList::GetInstance()) {
     if (target_browser->profile() == profile ||
@@ -798,17 +825,25 @@ bool ExtensionTabUtil::IsKillURL(const GURL& url) {
     DCHECK(url.IsAboutBlank() || url.IsAboutSrcdoc());
 #endif
 
-  static const char* const kill_hosts[] = {
-      chrome::kChromeUICrashHost,         chrome::kChromeUIDelayedHangUIHost,
-      chrome::kChromeUIHangUIHost,        chrome::kChromeUIKillHost,
+  // Disallow common renderer debug URLs.
+  // Note: this would also disallow JavaScript URLs, but we already explicitly
+  // check for those before calling into here from PrepareURLForNavigation.
+  if (blink::IsRendererDebugURL(url)) {
+    return true;
+  }
+
+  if (!url.SchemeIs(content::kChromeUIScheme)) {
+    return false;
+  }
+
+  // Also disallow a few more hosts which are not covered by the check above.
+  static const char* const kKillHosts[] = {
+      chrome::kChromeUIDelayedHangUIHost, chrome::kChromeUIHangUIHost,
       chrome::kChromeUIQuitHost,          chrome::kChromeUIRestartHost,
       content::kChromeUIBrowserCrashHost, content::kChromeUIMemoryExhaustHost,
   };
 
-  if (!url.SchemeIs(content::kChromeUIScheme))
-    return false;
-
-  return base::Contains(kill_hosts, url.host_piece());
+  return base::Contains(kKillHosts, url.host_piece());
 }
 
 base::expected<GURL, std::string> ExtensionTabUtil::PrepareURLForNavigation(
@@ -828,6 +863,12 @@ base::expected<GURL, std::string> ExtensionTabUtil::PrepareURLForNavigation(
   if (!url.is_valid()) {
     return base::unexpected(ErrorUtils::FormatErrorMessage(
         tabs_constants::kInvalidUrlError, url_string));
+  }
+
+  // Don't let the extension use JavaScript URLs in API triggered navigations.
+  if (url.SchemeIs(url::kJavaScriptScheme)) {
+    return base::unexpected(
+        tabs_constants::kJavaScriptUrlsNotAllowedInExtensionNavigations);
   }
 
   // Don't let the extension crash the browser or renderers.
@@ -851,6 +892,24 @@ base::expected<GURL, std::string> ExtensionTabUtil::PrepareURLForNavigation(
   // Don't let the extension navigate directly to chrome-untrusted scheme pages.
   if (url.SchemeIs(content::kChromeUIUntrustedScheme)) {
     return base::unexpected(tabs_constants::kCannotNavigateToChromeUntrusted);
+  }
+
+  // Don't let the extension navigate directly to file scheme pages, unless
+  // they have file access. `extension` can be null if the call is made from
+  // non-extension contexts (e.g. WebUI pages). In that case, we allow the
+  // navigation as such contexts are trusted and do not have a concept of file
+  // access.
+  if (extension && IsFileUrl(url) &&
+      // PDF viewer extension can navigate to file URLs.
+      extension->id() != extension_misc::kPdfExtensionId &&
+      !util::AllowFileAccess(extension->id(), browser_context) &&
+      base::FeatureList::IsEnabled(
+          extensions_features::kRestrictFileURLNavigation) &&
+      !extensions::ExtensionManagementFactory::GetForBrowserContext(
+           browser_context)
+           ->IsFileUrlNavigationAllowed(extension->id())) {
+    return base::unexpected(
+        tabs_constants::kFileUrlsNotAllowedInExtensionNavigations);
   }
 
   if (extension && browser_context) {
@@ -906,7 +965,7 @@ void ExtensionTabUtil::ForEachTab(
 // static
 WindowController* ExtensionTabUtil::GetWindowControllerOfTab(
     const WebContents* web_contents) {
-  Browser* browser = chrome::FindBrowserWithWebContents(web_contents);
+  Browser* browser = chrome::FindBrowserWithTab(web_contents);
   if (browser != nullptr)
     return browser->extension_window_controller();
 
@@ -965,17 +1024,15 @@ bool ExtensionTabUtil::OpenOptionsPage(const Extension* extension,
     url_to_navigate = url_to_navigate.ReplaceComponents(replacements);
   }
 
-  NavigateParams params(
-      GetSingletonTabNavigateParams(browser, url_to_navigate));
   // We need to respect path differences because we don't want opening the
   // options page to close a page that might be open to extension content.
   // However, if the options page opens inside the chrome://extensions page, we
   // can override an existing page.
   // Note: ref behavior is to ignore.
-  params.path_behavior = open_in_tab ? NavigateParams::RESPECT
-                                     : NavigateParams::IGNORE_AND_NAVIGATE;
-  params.url = url_to_navigate;
-  ShowSingletonTabOverwritingNTP(browser, &params);
+  ShowSingletonTabOverwritingNTP(browser, url_to_navigate,
+                                 open_in_tab
+                                     ? NavigateParams::RESPECT
+                                     : NavigateParams::IGNORE_AND_NAVIGATE);
   return true;
 }
 
@@ -1016,6 +1073,45 @@ TabStripModel* ExtensionTabUtil::GetEditableTabStripModel(Browser* browser) {
   if (!IsTabStripEditable())
     return nullptr;
   return browser->tab_strip_model();
+}
+
+// static
+bool ExtensionTabUtil::TabIsInSavedTabGroup(content::WebContents* contents,
+                                            TabStripModel* tab_strip_model) {
+  // If the feature is turned off, then the tab is not in a saved group.
+  if (!base::FeatureList::IsEnabled(features::kTabGroupsSave)) {
+    return false;
+  }
+
+  // If the tab_strip_model is empty, find the contents in one of the browsers.
+  if (!tab_strip_model) {
+    CHECK(contents);
+    Browser* browser = chrome::FindBrowserWithTab(contents);
+
+    // if the webcontents isn't in any tabstrip, its not in a saved tab group.
+    if (!browser) {
+      return false;
+    }
+    tab_strip_model = browser->tab_strip_model();
+  }
+
+  SavedTabGroupKeyedService* saved_tab_group_service =
+      SavedTabGroupServiceFactory::GetForProfile(tab_strip_model->profile());
+
+  // If the service failed to start, then there are no saved tab groups.
+  if (!saved_tab_group_service) {
+    return false;
+  }
+
+  // If the tab is not in a group, then its not going to be in a saved group.
+  int index = tab_strip_model->GetIndexOfWebContents(contents);
+  absl::optional<tab_groups::TabGroupId> tab_group_id =
+      tab_strip_model->GetTabGroupForTab(index);
+  if (!tab_group_id.has_value()) {
+    return false;
+  }
+
+  return saved_tab_group_service->model()->Contains(tab_group_id.value());
 }
 
 }  // namespace extensions

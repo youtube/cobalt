@@ -11,9 +11,29 @@ namespace extensions_features {
 // API Features
 ///////////////////////////////////////////////////////////////////////////////
 
+// Controls the availability of the ReadingList API.
+BASE_FEATURE(kApiReadingList,
+             "ApiReadingList",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 // Controls the availability of the runtime.getContexts() API.
 BASE_FEATURE(kApiRuntimeGetContexts,
              "ApiRuntimeGetContexts",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Controls the availability of the sidePanel.open() API.
+BASE_FEATURE(kApiSidePanelOpen,
+             "ApiSidePanelOpen",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Controls the availability of the userScripts API.
+BASE_FEATURE(kApiUserScripts,
+             "ApiUserScripts",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Controls the availability of navigation to file URLs.
+BASE_FEATURE(kRestrictFileURLNavigation,
+             "RestrictFileURLNavigation",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -75,7 +95,7 @@ BASE_FEATURE(kExtensionSourceUrlEnforcement,
 // File Handlers.
 BASE_FEATURE(kExtensionWebFileHandlers,
              "ExtensionWebFileHandlers",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // If enabled, only manifest v3 extensions is allowed while v2 will be disabled.
 // Note that this feature is now only checked by `ExtensionManagement` which
@@ -104,6 +124,12 @@ BASE_FEATURE(kForceWebRequestProxyForTest,
              "ForceWebRequestProxyForTest",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Launches Native Host executables directly on Windows rather than using a
+// cmd.exe process as a proxy.
+BASE_FEATURE(kLaunchWindowsNativeHostsDirectly,
+             "LaunchWindowsNativeHostsDirectly",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Controls whether extensions can use the new favicon fetching in Manifest V3.
 BASE_FEATURE(kNewExtensionFaviconHandling,
              "ExtensionsNewFaviconHandling",
@@ -123,7 +149,7 @@ BASE_FEATURE(kReportKeepaliveUkm,
 // user is in the developer mode.
 BASE_FEATURE(kRestrictDeveloperModeAPIs,
              "RestrictDeveloperModeAPIs",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Reports Extensions.WebRequest.KeepaliveRequestFinished when enabled.
 // Automatically disable extensions not included in the Safe Browsing CRX
@@ -156,12 +182,48 @@ BASE_FEATURE(kTelemetryExtensionPendingApprovalApi,
              "TelemetryExtensionPendingApprovalApi",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// If enabled, calling WebRequestEventRouter::Get will return an instance of the
+// per-BrowserContext WebRequestEventRouter instead of the global singleton
+// ExtensionWebRequestEventRouter.
+BASE_FEATURE(kUsePerBrowserContextWebRequestEventRouter,
+             "kUsePerBrowserContextWebRequestEventRouter",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Controls the <webview> tag behaviour changes proposed as part of the guest
 // view MPArch migration. See
 // https://docs.google.com/document/d/1RVbtvklXUg9QCNvMT0r-1qDwJNeQFGoTCOD1Ur9mDa4/edit?usp=sharing
 // for details.
 BASE_FEATURE(kWebviewTagMPArchBehavior,
              "WebviewTagMPArchBehavior",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+// If enabled, extensions installed from .zip files (from dev mode) are changed
+// from installing in base::TEMP_DIR to .../<profile_dir>/UnpackedExtensions and
+// persist until removed by the user.
+BASE_FEATURE(kExtensionsZipFileInstalledInProfileDir,
+             "ExtensionsZipFileInstalledInProfileDir",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+// If enabled, extensions with service workers use an optimized event
+// dispatching flow that does not start the worker for every event. It only
+// starts a worker if it is not already running.
+BASE_FEATURE(kExtensionsServiceWorkerOptimizedEventDispatch,
+             "ExtensionsServiceWorkerOptimizedEventDispatch",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// If enabled, the button for visiting the chrome webstore in both the
+// extensions menu in the app menu and the chrome://extensions sidebar will send
+// the user to the new chrome webstore URL.
+BASE_FEATURE(kNewWebstoreURL,
+             "NewWebstoreURL",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Enables a relaxed rule count for "safe" dynqmic or session scoped rules above
+// the current limit. If disabled, all dynamic and session scoped rules are
+// treated as "safe" but the rule limit's value will be the stricter "unsafe"
+// limit.
+BASE_FEATURE(kDeclarativeNetRequestSafeRuleLimits,
+             "DeclarativeNetRequestSafeDynamicRules",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 }  // namespace extensions_features

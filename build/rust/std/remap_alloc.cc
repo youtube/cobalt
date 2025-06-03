@@ -8,6 +8,7 @@
 #include <cstring>
 
 #include "build/build_config.h"
+#include "build/rust/std/alias.h"
 #include "build/rust/std/immediate_crash.h"
 
 #if BUILDFLAG(IS_ANDROID)
@@ -65,15 +66,29 @@
 extern "C" {
 
 #ifdef COMPONENT_BUILD
+#if BUILDFLAG(IS_WIN)
+#define REMAP_ALLOC_ATTRIBUTES __declspec(dllexport) __attribute__((weak))
+#else
 #define REMAP_ALLOC_ATTRIBUTES \
   __attribute__((visibility("default"))) __attribute__((weak))
+#endif
 #else
 #define REMAP_ALLOC_ATTRIBUTES __attribute__((weak))
 #endif  // COMPONENT_BUILD
 
-void* REMAP_ALLOC_ATTRIBUTES __rust_alloc(size_t size, size_t align) {
+// This must exist as the stdlib depends on it to prove that we know the
+// alloc shims below are unstable. In the future we may be required to replace
+// them with a #[global_allocator] crate (see file comment above for more).
+//
+// Marked as weak as when Rust drives linking it includes this symbol itself,
+// and we don't want a collision due to C++ being in the same link target, where
+// C++ causes us to explicitly link in the stdlib and this symbol here.
+[[maybe_unused]] __attribute__((
+    weak)) unsigned char __rust_no_alloc_shim_is_unstable;
+
+REMAP_ALLOC_ATTRIBUTES void* __rust_alloc(size_t size, size_t align) {
   // This mirrors kMaxSupportedAlignment from
-  // base/allocator/partition_allocator/partition_alloc_constants.h.
+  // base/allocator/partition_allocator/src/partition_alloc/partition_alloc_constants.h.
   // ParitionAlloc will crash if given an alignment larger than this.
   constexpr size_t max_align = (1 << 21) / 2;
   if (align > max_align) {
@@ -86,7 +101,7 @@ void* REMAP_ALLOC_ATTRIBUTES __rust_alloc(size_t size, size_t align) {
     // Note: PartitionAlloc by default will route aligned allocations back to
     // malloc() (the fast path) if they are for a small enough alignment. So we
     // just unconditionally use aligned allocation functions here.
-    // https://source.chromium.org/chromium/chromium/src/+/refs/heads/main:base/allocator/partition_allocator/shim/allocator_shim_default_dispatch_to_partition_alloc.cc;l=219-226;drc=31d99ff4aa0cc0b75063325ff243e911516a5a6a
+    // https://source.chromium.org/chromium/chromium/src/+/refs/heads/main:base/allocator/partition_allocator/src/partition_alloc/shim/allocator_shim_default_dispatch_to_partition_alloc.cc;l=219-226;drc=31d99ff4aa0cc0b75063325ff243e911516a5a6a
 
 #if defined(COMPILER_MSVC)
     // Because we use PartitionAlloc() as the allocator, free() is able to find
@@ -114,11 +129,11 @@ void* REMAP_ALLOC_ATTRIBUTES __rust_alloc(size_t size, size_t align) {
   }
 }
 
-void REMAP_ALLOC_ATTRIBUTES __rust_dealloc(void* p, size_t size, size_t align) {
+REMAP_ALLOC_ATTRIBUTES void __rust_dealloc(void* p, size_t size, size_t align) {
   free(p);
 }
 
-void* REMAP_ALLOC_ATTRIBUTES __rust_realloc(void* p,
+REMAP_ALLOC_ATTRIBUTES void* __rust_realloc(void* p,
                                             size_t old_size,
                                             size_t align,
                                             size_t new_size) {
@@ -131,7 +146,7 @@ void* REMAP_ALLOC_ATTRIBUTES __rust_realloc(void* p,
   }
 }
 
-void* REMAP_ALLOC_ATTRIBUTES __rust_alloc_zeroed(size_t size, size_t align) {
+REMAP_ALLOC_ATTRIBUTES void* __rust_alloc_zeroed(size_t size, size_t align) {
   if (align <= alignof(std::max_align_t)) {
     return calloc(size, 1);
   } else {
@@ -141,12 +156,13 @@ void* REMAP_ALLOC_ATTRIBUTES __rust_alloc_zeroed(size_t size, size_t align) {
   }
 }
 
-void REMAP_ALLOC_ATTRIBUTES __rust_alloc_error_handler(size_t size,
+REMAP_ALLOC_ATTRIBUTES void __rust_alloc_error_handler(size_t size,
                                                        size_t align) {
+  NO_CODE_FOLDING();
   IMMEDIATE_CRASH();
 }
 
-extern const unsigned char REMAP_ALLOC_ATTRIBUTES
+REMAP_ALLOC_ATTRIBUTES extern const unsigned char
     __rust_alloc_error_handler_should_panic = 0;
 
 }  // extern "C"

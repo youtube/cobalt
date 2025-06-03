@@ -11,11 +11,11 @@
 
 #import "base/containers/circular_deque.h"
 #import "base/time/time.h"
-#import "ios/chrome/browser/main/browser_observer.h"
-#import "ios/chrome/browser/main/browser_user_data.h"
 #import "ios/chrome/browser/metrics/tab_usage_recorder_metrics.h"
 #import "ios/chrome/browser/sessions/session_restoration_observer.h"
-#import "ios/chrome/browser/web_state_list/web_state_list_observer.h"
+#import "ios/chrome/browser/shared/model/browser/browser_observer.h"
+#import "ios/chrome/browser/shared/model/browser/browser_user_data.h"
+#import "ios/chrome/browser/shared/model/web_state_list/web_state_list_observer.h"
 #import "ios/web/common/user_agent.h"
 #import "ios/web/public/web_state_observer.h"
 
@@ -54,12 +54,10 @@ class TabUsageRecorderBrowserAgent
                          web::WebState* new_web_state);
 
   // Called when the Browser which the user is primarily interacting with has
-  // changed. The `active_web_state` is the active tab of the browser's
-  // webStateList. If the user began interacting with `active_web_state`,
+  // changed. If the user began interacting with `active_web_state`,
   // `primary_browser` should be true. If the user stopped interacting with
   // `active_web_state`, `primary_browser` should be false.
-  void RecordPrimaryBrowserChange(bool primary_browser,
-                                  web::WebState* active_web_state);
+  void RecordPrimaryBrowserChange(bool primary_browser);
 
   // Called when a page load begins, to keep track of how many page loads
   // happen before an evicted tab is seen.
@@ -154,25 +152,14 @@ class TabUsageRecorderBrowserAgent
   void WebStateDestroyed(web::WebState* web_state) override;
 
   // WebStateListObserver implementation.
-  void WebStateInsertedAt(WebStateList* web_state_list,
-                          web::WebState* web_state,
-                          int index,
-                          bool activating) override;
-  void WebStateReplacedAt(WebStateList* web_state_list,
-                          web::WebState* old_web_state,
-                          web::WebState* new_web_state,
-                          int index) override;
-  void WebStateDetachedAt(WebStateList* web_state_list,
-                          web::WebState* web_state,
-                          int index) override;
-  void WebStateActivatedAt(WebStateList* web_state_list,
-                           web::WebState* old_web_state,
-                           web::WebState* new_web_state,
-                           int active_index,
-                           ActiveWebStateChangeReason reason) override;
+  void WebStateListDidChange(WebStateList* web_state_list,
+                             const WebStateListChange& change,
+                             const WebStateListStatus& status) override;
 
   // SessionRestorationObserver implementation.
+  void WillStartSessionRestoration(Browser* browser) override;
   void SessionRestorationFinished(
+      Browser* browser,
       const std::vector<web::WebState*>& restored_web_states) override;
 
   // Keep track of when the most recent tab restore begins, to record the time

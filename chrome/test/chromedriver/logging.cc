@@ -85,14 +85,14 @@ const LevelPair kNameToLevel[] = {
 
 Log::Level GetLevelFromSeverity(int severity) {
   switch (severity) {
-    case logging::LOG_FATAL:
-    case logging::LOG_ERROR:
+    case logging::LOGGING_FATAL:
+    case logging::LOGGING_ERROR:
       return Log::kError;
-    case logging::LOG_WARNING:
+    case logging::LOGGING_WARNING:
       return Log::kWarning;
-    case logging::LOG_INFO:
+    case logging::LOGGING_INFO:
       return Log::kInfo;
-    case logging::LOG_VERBOSE:
+    case logging::LOGGING_VERBOSE:
     default:
       return Log::kDebug;
   }
@@ -248,7 +248,8 @@ void WebDriverLog::AddEntryTimestamped(const base::Time& timestamp,
     return;
 
   base::Value::Dict log_entry_dict;
-  log_entry_dict.Set("timestamp", std::trunc(timestamp.ToJsTime()));
+  log_entry_dict.Set("timestamp",
+                     std::trunc(timestamp.InMillisecondsFSinceUnixEpoch()));
   log_entry_dict.Set("level", LevelToName(level));
   if (!source.empty())
     log_entry_dict.Set("source", source);
@@ -335,7 +336,7 @@ bool InitLogging(uint16_t port) {
   if (!cmd_line->HasSwitch("vmodule"))
     cmd_line->AppendSwitchASCII("vmodule", "*/chrome/test/chromedriver/*=3");
 
-  logging::SetMinLogLevel(logging::LOG_WARNING);
+  logging::SetMinLogLevel(logging::LOGGING_WARNING);
   logging::SetLogItems(false,   // enable_process_id
                        false,   // enable_thread_id
                        false,   // enable_timestamp

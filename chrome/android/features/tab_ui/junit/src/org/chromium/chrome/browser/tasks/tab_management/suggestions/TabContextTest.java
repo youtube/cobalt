@@ -18,14 +18,12 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.robolectric.annotation.Config;
 
-import org.chromium.base.UserDataHost;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.JniMocker;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.profiles.ProfileJni;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabImpl;
-import org.chromium.chrome.browser.tab.state.CriticalPersistedTabData;
 import org.chromium.chrome.browser.tabmodel.TabModelFilter;
 import org.chromium.chrome.browser.tabmodel.TabModelFilterProvider;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
@@ -37,9 +35,7 @@ import org.chromium.url.JUnitTestGURLs;
 import java.util.Arrays;
 import java.util.List;
 
-/**
- * Tests functionality related to TabContext
- */
+/** Tests functionality related to TabContext */
 @SuppressWarnings({"ResultOfMethodCallIgnored", "ArraysAsListWithZeroOrOneArgument"})
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
@@ -49,35 +45,43 @@ public class TabContextTest {
     private static final int RELATED_TAB_1_ID = 2;
     private static final int NEW_TAB_1_ID = 3;
     private static final int NEW_TAB_2_ID = 4;
-    private static final int LAST_COMMITTED_INDEX = 1;
 
-    @Rule
-    public TestRule mProcessor = new Features.JUnitProcessor();
+    @Rule public TestRule mProcessor = new Features.JUnitProcessor();
 
-    @Rule
-    public JniMocker mocker = new JniMocker();
+    @Rule public JniMocker mocker = new JniMocker();
 
-    @Mock
-    public Profile.Natives mMockProfileNatives;
+    @Mock public Profile.Natives mMockProfileNatives;
 
-    @Mock
-    private TabModelSelector mTabModelSelector;
+    @Mock private TabModelSelector mTabModelSelector;
 
-    @Mock
-    private TabModelFilterProvider mTabModelFilterProvider;
+    @Mock private TabModelFilterProvider mTabModelFilterProvider;
 
-    @Mock
-    private TabModelFilter mTabModelFilter;
+    @Mock private TabModelFilter mTabModelFilter;
 
     private Tab mTab0 =
-            mockTab(TAB_0_ID, 6, "mock_title_tab_0", JUnitTestGURLs.getGURL(JUnitTestGURLs.URL_1),
-                    JUnitTestGURLs.getGURL(JUnitTestGURLs.URL_1), 100);
-    private Tab mRelatedTab0 = mockTab(RELATED_TAB_0_ID, 6, "mock_title_related_tab_0",
-            JUnitTestGURLs.getGURL(JUnitTestGURLs.URL_2),
-            JUnitTestGURLs.getGURL(JUnitTestGURLs.URL_2), 200);
-    private Tab mRelatedTab1 = mockTab(RELATED_TAB_1_ID, 6, "mock_title_related_tab_1",
-            JUnitTestGURLs.getGURL(JUnitTestGURLs.URL_3),
-            JUnitTestGURLs.getGURL(JUnitTestGURLs.URL_3), 300);
+            mockTab(
+                    TAB_0_ID,
+                    6,
+                    "mock_title_tab_0",
+                    JUnitTestGURLs.URL_1,
+                    JUnitTestGURLs.URL_1,
+                    100);
+    private Tab mRelatedTab0 =
+            mockTab(
+                    RELATED_TAB_0_ID,
+                    6,
+                    "mock_title_related_tab_0",
+                    JUnitTestGURLs.URL_2,
+                    JUnitTestGURLs.URL_2,
+                    200);
+    private Tab mRelatedTab1 =
+            mockTab(
+                    RELATED_TAB_1_ID,
+                    6,
+                    "mock_title_related_tab_1",
+                    JUnitTestGURLs.URL_3,
+                    JUnitTestGURLs.URL_3,
+                    300);
 
     @Before
     public void setUp() {
@@ -91,24 +95,18 @@ public class TabContextTest {
             int id, int rootId, String title, GURL url, GURL originalUrl, long timestampMillis) {
         TabImpl tab = mock(TabImpl.class);
         doReturn(id).when(tab).getId();
-        UserDataHost userDataHost = new UserDataHost();
-        doReturn(userDataHost).when(tab).getUserDataHost();
-        CriticalPersistedTabData criticalPersistedTabData = mock(CriticalPersistedTabData.class);
-        userDataHost.setUserData(CriticalPersistedTabData.class, criticalPersistedTabData);
-        doReturn(rootId).when(criticalPersistedTabData).getRootId();
+        doReturn(rootId).when(tab).getRootId();
         doReturn(title).when(tab).getTitle();
         doReturn(url).when(tab).getUrl();
         doReturn(originalUrl).when(tab).getOriginalUrl();
         WebContents webContents = mock(WebContents.class);
         doReturn(GURL.emptyGURL()).when(webContents).getVisibleUrl();
         doReturn(webContents).when(tab).getWebContents();
-        doReturn(timestampMillis).when(criticalPersistedTabData).getTimestampMillis();
+        doReturn(timestampMillis).when(tab).getTimestampMillis();
         return tab;
     }
 
-    /**
-     * Test finding related tabs
-     */
+    /** Test finding related tabs */
     @Test
     public void testRelatedTabsExist() {
         doReturn(mTab0).when(mTabModelFilter).getTabAt(eq(TAB_0_ID));
@@ -127,9 +125,7 @@ public class TabContextTest {
         Assert.assertEquals(RELATED_TAB_1_ID, groupedTabs.get(2).id);
     }
 
-    /**
-     * Test finding no related tabs
-     */
+    /** Test finding no related tabs */
     @Test
     public void testFindNoRelatedTabs() {
         doReturn(mTab0).when(mTabModelFilter).getTabAt(eq(TAB_0_ID));

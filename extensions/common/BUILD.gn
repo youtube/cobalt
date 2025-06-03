@@ -70,7 +70,7 @@ mojom("mojom") {
   sources = [
     "mojom/api_permission_id.mojom",
     "mojom/app_window.mojom",
-    "mojom/automation_query.mojom",
+    "mojom/automation_registry.mojom",
     "mojom/channel.mojom",
     "mojom/code_injection.mojom",
     "mojom/css_origin.mojom",
@@ -85,10 +85,12 @@ mojom("mojom") {
     "mojom/injection_type.mojom",
     "mojom/keep_alive.mojom",
     "mojom/manifest.mojom",
+    "mojom/message_port.mojom",
     "mojom/permission_set.mojom",
     "mojom/renderer.mojom",
     "mojom/renderer_host.mojom",
     "mojom/run_location.mojom",
+    "mojom/service_worker.mojom",
     "mojom/service_worker_host.mojom",
     "mojom/stack_frame.mojom",
     "mojom/url_pattern_set.mojom",
@@ -99,6 +101,7 @@ mojom("mojom") {
     "//content/public/common:interfaces",
     "//extensions/common/api:mojom",
     "//mojo/public/mojom/base",
+    "//services/accessibility/public/mojom:automation",
     "//ui/gfx/geometry/mojom",
     "//url/mojom:url_mojom_gurl",
   ]
@@ -176,6 +179,27 @@ mojom("mojom") {
       traits_sources =
           [ "//extensions/common/mojom/stack_frame_mojom_traits.cc" ]
     },
+    {
+      types = [
+        {
+          mojom = "extensions.mojom.Message"
+          cpp = "::extensions::Message"
+          move_only = true
+        },
+        {
+          mojom = "extensions.mojom.PortId"
+          cpp = "::extensions::PortId"
+        },
+        {
+          mojom = "extensions.mojom.MessagingEndpoint"
+          cpp = "::extensions::MessagingEndpoint"
+        },
+      ]
+      traits_headers =
+          [ "//extensions/common/mojom/message_port_mojom_traits.h" ]
+      traits_sources =
+          [ "//extensions/common/mojom/message_port_mojom_traits.cc" ]
+    },
   ]
   overridden_deps = [ "//content/public/common:interfaces" ]
 
@@ -210,7 +234,6 @@ static_library("common") {
     "api/declarative_net_request/dnr_manifest_handler.h",
     "api/extension_action/action_info.cc",
     "api/extension_action/action_info.h",
-    "api/messaging/channel_type.h",
     "api/messaging/message.h",
     "api/messaging/messaging_endpoint.cc",
     "api/messaging/messaging_endpoint.h",
@@ -243,8 +266,6 @@ static_library("common") {
     "csp_validator.cc",
     "csp_validator.h",
     "dom_action_types.h",
-    "draggable_region.cc",
-    "draggable_region.h",
     "error_utils.cc",
     "error_utils.h",
     "event_filter.cc",
@@ -320,7 +341,6 @@ static_library("common") {
     "install_warning.h",
     "manifest.cc",
     "manifest.h",
-    "manifest_constants.cc",
     "manifest_constants.h",
     "manifest_handler.cc",
     "manifest_handler.h",
@@ -438,14 +458,15 @@ static_library("common") {
     "utils/content_script_utils.h",
     "utils/extension_types_utils.cc",
     "utils/extension_types_utils.h",
-    "value_builder.cc",
-    "value_builder.h",
+    "utils/extension_utils.cc",
+    "utils/extension_utils.h",
     "value_counter.cc",
     "value_counter.h",
     "verifier_formats.cc",
     "verifier_formats.h",
     "view_type_util.cc",
     "view_type_util.h",
+    "web_file_handler_constants.h",
   ]
 
   configs += [
@@ -456,7 +477,7 @@ static_library("common") {
   public_deps = [
     ":common_constants",
     ":mojom",
-    "//components/services/app_service/public/cpp:app_file_handling",
+    "//components/services/app_service",
     "//content/public/common",
     "//ipc",
     "//skia",
@@ -576,6 +597,7 @@ source_set("unit_tests") {
     "extension_resource_unittest.cc",
     "extension_set_unittest.cc",
     "extension_unittest.cc",
+    "extension_urls_unittest.cc",
     "feature_switch_unittest.cc",
     "features/complex_feature_unittest.cc",
     "features/feature_provider_unittest.cc",
@@ -590,7 +612,6 @@ source_set("unit_tests") {
     "manifest_handlers/default_locale_manifest_unittest.cc",
     "manifest_handlers/extension_action_handler_unittest.cc",
     "manifest_handlers/externally_connectable_unittest.cc",
-    "manifest_handlers/file_handler_manifest_unittest.cc",
     "manifest_handlers/icons_handler_unittest.cc",
     "manifest_handlers/incognito_manifest_unittest.cc",
     "manifest_handlers/kiosk_mode_info_unittest.cc",
@@ -601,6 +622,7 @@ source_set("unit_tests") {
     "manifest_handlers/shared_module_manifest_unittest.cc",
     "manifest_unittest.cc",
     "message_bundle_unittest.cc",
+    "mojom/message_port_mojom_traits_unittest.cc",
     "mojom/permission_set_mojom_traits_unittest.cc",
     "mojom/url_pattern_set_mojom_traits_unittest.cc",
     "permissions/api_permission_set_unittest.cc",
@@ -613,7 +635,6 @@ source_set("unit_tests") {
     "url_pattern_set_unittest.cc",
     "url_pattern_unittest.cc",
     "user_script_unittest.cc",
-    "value_builder_unittest.cc",
     "value_counter_unittest.cc",
   ]
 
@@ -645,6 +666,10 @@ source_set("unit_tests") {
     "//ui/gfx",
     "//url",
   ]
+
+  if (is_chromeos) {
+    sources += [ "manifest_handlers/file_handler_manifest_unittest.cc" ]
+  }
 
   if (is_chromeos_ash) {
     sources += [ "manifest_handlers/action_handlers_handler_unittest.cc" ]

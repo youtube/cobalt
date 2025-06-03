@@ -11,6 +11,7 @@ import 'chrome://resources/cr_elements/cr_input/cr_input.js';
 import 'chrome://resources/cr_elements/cr_toggle/cr_toggle.js';
 import 'chrome://resources/cr_elements/cr_shared_style.css.js';
 import 'chrome://resources/cr_components/customize_themes/customize_themes.js';
+import 'chrome://resources/cr_components/theme_color_picker/theme_color_picker.js';
 import 'chrome://resources/polymer/v3_0/iron-flex-layout/iron-flex-layout-classes.js';
 import 'chrome://resources/polymer/v3_0/paper-styles/shadow.js';
 import '../settings_shared.css.js';
@@ -100,6 +101,12 @@ export class SettingsManageProfileElement extends
         type: String,
         value: '.*\\S.*',
       },
+
+      isChromeRefresh2023_: {
+        type: Boolean,
+        value: () =>
+            document.documentElement.hasAttribute('chrome-refresh-2023'),
+      },
     };
   }
 
@@ -181,13 +188,6 @@ export class SettingsManageProfileElement extends
       this.browserProxy_.setProfileIconToDefaultAvatar(
           this.profileAvatar_.index);
     }
-  }
-
-  /**
-   * @return Whether the profile name field is disabled.
-   */
-  private isProfileNameDisabled_(syncStatus: SyncStatus): boolean {
-    return !!syncStatus.supervisedUser && !syncStatus.childUser;
   }
 
   /**

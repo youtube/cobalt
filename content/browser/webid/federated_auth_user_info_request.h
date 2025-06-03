@@ -26,23 +26,31 @@ class FederatedIdentityPermissionContextDelegate;
 class FederatedProviderFetcher;
 class RenderFrameHost;
 
+using FederatedAuthUserInfoRequestResult =
+    blink::mojom::FederatedAuthUserInfoRequestResult;
+
 // Fetches data for user-info request.
 class CONTENT_EXPORT FederatedAuthUserInfoRequest {
  public:
-  // Returns an object which fetches data for user-info request. Starts fetch.
-  static std::unique_ptr<FederatedAuthUserInfoRequest> CreateAndStart(
+  // Returns an object which fetches data for user-info request.
+  static std::unique_ptr<FederatedAuthUserInfoRequest> Create(
       std::unique_ptr<IdpNetworkRequestManager> network_manager,
-      FederatedIdentityApiPermissionContextDelegate* api_permission_delegate,
       FederatedIdentityPermissionContextDelegate* permission_delegate,
       RenderFrameHost* render_frame_host,
       FedCmMetrics* metrics,
-      blink::mojom::IdentityProviderConfigPtr provider,
-      blink::mojom::FederatedAuthRequest::RequestUserInfoCallback callback);
+      blink::mojom::IdentityProviderConfigPtr provider);
 
   FederatedAuthUserInfoRequest(const FederatedAuthUserInfoRequest&) = delete;
   FederatedAuthUserInfoRequest& operator=(const FederatedAuthUserInfoRequest&) =
       delete;
   ~FederatedAuthUserInfoRequest();
+
+  // There is a separate method to set the callback because the callback relies
+  // on having a pointer to this object, hence cannot be passed in the
+  // constructor. Once the callback is set, start fetching.
+  void SetCallbackAndStart(
+      blink::mojom::FederatedAuthRequest::RequestUserInfoCallback callback,
+      FederatedIdentityApiPermissionContextDelegate* api_permission_delegate);
 
  private:
   FederatedAuthUserInfoRequest(
@@ -50,11 +58,7 @@ class CONTENT_EXPORT FederatedAuthUserInfoRequest {
       FederatedIdentityPermissionContextDelegate* permission_delegate,
       RenderFrameHost* render_frame_host,
       FedCmMetrics* metrics,
-      blink::mojom::IdentityProviderConfigPtr provider,
-      blink::mojom::FederatedAuthRequest::RequestUserInfoCallback callback);
-
-  void Start(
-      FederatedIdentityApiPermissionContextDelegate* api_permission_delegate);
+      blink::mojom::IdentityProviderConfigPtr provider);
 
   void OnAllConfigAndWellKnownFetched(
       std::vector<FederatedProviderFetcher::FetchResult> fetch_results);
@@ -66,11 +70,16 @@ class CONTENT_EXPORT FederatedAuthUserInfoRequest {
   void MaybeReturnAccounts(
       const IdpNetworkRequestManager::AccountList& accounts);
 
+  bool IsReturningAccount(const IdentityRequestAccount& account);
+
   void Complete(
       blink::mojom::RequestUserInfoStatus status,
-      absl::optional<std::vector<blink::mojom::IdentityUserInfoPtr>> user_info);
+      absl::optional<std::vector<blink::mojom::IdentityUserInfoPtr>> user_info,
+      FederatedAuthUserInfoRequestResult request_status);
 
-  void CompleteWithError();
+  void CompleteWithError(FederatedAuthUserInfoRequestResult error);
+
+  void AddDevToolsIssue(FederatedAuthUserInfoRequestResult error);
 
   std::unique_ptr<IdpNetworkRequestManager> network_manager_;
   // Owned by |BrowserContext|
@@ -78,6 +87,7 @@ class CONTENT_EXPORT FederatedAuthUserInfoRequest {
       nullptr;
   // Owned by |FederatedAuthRequestImpl|
   raw_ptr<FedCmMetrics> metrics_;
+  raw_ptr<RenderFrameHost, DanglingUntriaged> render_frame_host_;
 
   std::unique_ptr<FederatedProviderFetcher> provider_fetcher_;
   bool does_idp_have_failing_signin_status_{false};
@@ -87,6 +97,8 @@ class CONTENT_EXPORT FederatedAuthUserInfoRequest {
   url::Origin origin_;
   url::Origin embedding_origin_;
   url::Origin parent_frame_origin_;
+
+  base::TimeTicks request_start_time_;
 
   blink::mojom::FederatedAuthRequest::RequestUserInfoCallback callback_;
 

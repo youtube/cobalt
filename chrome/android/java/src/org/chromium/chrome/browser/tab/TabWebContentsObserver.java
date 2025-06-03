@@ -28,7 +28,6 @@ import org.chromium.chrome.browser.feedback.HelpAndFeedbackLauncherImpl;
 import org.chromium.chrome.browser.media.MediaCaptureNotificationServiceImpl;
 import org.chromium.chrome.browser.policy.PolicyAuditor;
 import org.chromium.chrome.browser.policy.PolicyAuditor.AuditEvent;
-import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.ui.native_page.NativePage;
 import org.chromium.chrome.browser.usb.UsbNotificationManager;
 import org.chromium.content_public.browser.GlobalRenderFrameHostId;
@@ -54,7 +53,6 @@ public class TabWebContentsObserver extends TabWebContentsUserData {
 
     private final TabImpl mTab;
     private final ObserverList<Callback<WebContents>> mInitObservers = new ObserverList<>();
-    private final Handler mHandler = new Handler();
     private WebContentsObserver mObserver;
     private GURL mLastUrl;
 
@@ -117,7 +115,6 @@ public class TabWebContentsObserver extends TabWebContentsUserData {
         }
     }
 
-    @VisibleForTesting
     public void simulateRendererKilledForTesting() {
         if (mObserver != null) mObserver.renderProcessGone();
     }
@@ -165,29 +162,37 @@ public class TabWebContentsObserver extends TabWebContentsUserData {
                 // observers in {@link WebContentsObserverProxy} receive callbacks for
                 // {@link WebContentsObserver#renderProcessGone} first.
                 SadTab sadTab = SadTab.from(mTab);
-                (new Handler()).post(() -> {
-                    sadTab.show(mTab.getThemedApplicationContext(),
-                            /* suggestionAction= */ () -> {
-                                Activity activity = mTab.getWindowAndroid().getActivity().get();
-                                assert activity != null;
-                                HelpAndFeedbackLauncherImpl
-                                        .getForProfile(
-                                                Profile.fromWebContents(mTab.getWebContents()))
-                                        .show(activity,
-                                                activity.getString(R.string.help_context_sad_tab),
-                                                null);
-                            },
+                (new Handler())
+                        .post(
+                                () -> {
+                                    sadTab.show(
+                                            mTab.getThemedApplicationContext(),
+                                            /* suggestionAction= */ () -> {
+                                                Activity activity =
+                                                        mTab.getWindowAndroid().getActivity().get();
+                                                assert activity != null;
+                                                HelpAndFeedbackLauncherImpl.getForProfile(
+                                                                mTab.getProfile())
+                                                        .show(
+                                                                activity,
+                                                                activity.getString(
+                                                                        R.string
+                                                                                .help_context_sad_tab),
+                                                                null);
+                                            },
 
-                            /* buttonAction= */ () -> {
-                                if (sadTab.showSendFeedbackView()) {
-                                    mTab.getActivity().startHelpAndFeedback(mTab.getUrl().getSpec(),
-                                            "MobileSadTabFeedback",
-                                            Profile.fromWebContents(mTab.getWebContents()));
-                                } else {
-                                    mTab.reload();
-                                }
-                            });
-                });
+                                            /* buttonAction= */ () -> {
+                                                if (sadTab.showSendFeedbackView()) {
+                                                    mTab.getActivity()
+                                                            .startHelpAndFeedback(
+                                                                    mTab.getUrl().getSpec(),
+                                                                    "MobileSadTabFeedback",
+                                                                    mTab.getProfile());
+                                                } else {
+                                                    mTab.reload();
+                                                }
+                                            });
+                                });
                 // This is necessary to correlate histogram data with stability counts.
                 RecordHistogram.recordBooleanHistogram("Stability.Android.RendererCrash", true);
             }

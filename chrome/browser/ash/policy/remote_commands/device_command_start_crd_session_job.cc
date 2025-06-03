@@ -18,16 +18,19 @@
 #include "base/memory/weak_ptr.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/notreached.h"
+#include "base/strings/string_piece.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
 #include "base/values.h"
-#include "build/build_config.h"
 #include "chrome/browser/ash/policy/remote_commands/crd_logging.h"
 #include "chrome/browser/ash/policy/remote_commands/crd_remote_command_utils.h"
 #include "chrome/browser/ash/policy/remote_commands/crd_uma_logger.h"
 #include "chrome/browser/device_identity/device_oauth2_token_service.h"
 #include "chrome/browser/device_identity/device_oauth2_token_service_factory.h"
+#include "chrome/browser/profiles/profile_manager.h"
+#include "chrome/common/pref_names.h"
 #include "components/policy/proto/device_management_backend.pb.h"
+#include "components/prefs/pref_service.h"
 #include "google_apis/gaia/gaia_constants.h"
 #include "google_apis/gaia/oauth2_access_token_manager.h"
 #include "remoting/host/chromeos/features.h"
@@ -36,6 +39,9 @@
 namespace policy {
 
 namespace {
+
+using SessionParameters = StartCrdSessionJobDelegate::SessionParameters;
+using ErrorCallback = StartCrdSessionJobDelegate::ErrorCallback;
 
 // OAuth2 Token scopes
 constexpr char kCloudDevicesOAuth2Scope[] =
@@ -59,6 +65,9 @@ const char kAckedUserPresenceFieldName[] = "ackedUserPresence";
 // The type of CRD session that the admin wants to start.
 const char kCrdSessionTypeFieldName[] = "crdSessionType";
 
+// The admin's email address.
+const char kAdminEmailFieldName[] = "adminEmail";
+
 // Result payload fields:
 
 // Integer value containing DeviceCommandStartCrdSessionJob::ResultCode
@@ -73,6 +82,14 @@ const char kResultMessageFieldName[] = "message";
 // Period in seconds since last user activity, if job finished with
 // FAILURE_NOT_IDLE result code.
 const char kResultLastActivityFieldName[] = "lastActivitySec";
+
+absl::optional<std::string> FindString(const base::Value::Dict& dict,
+                                       base::StringPiece key) {
+  if (!dict.contains(key)) {
+    return absl::nullopt;
+  }
+  return *dict.FindString(key);
+}
 
 void SendResultCodeToUma(CrdSessionType crd_session_type,
                          UserSessionType user_session_type,
@@ -141,6 +158,11 @@ void OnCrdSessionFinished(CrdSessionType crd_session_type,
       .LogSessionDuration(session_duration);
 }
 
+bool IsKioskSession(UserSessionType session_type) {
+  return session_type == UserSessionType::AUTO_LAUNCHED_KIOSK_SESSION ||
+         session_type == UserSessionType::MANUALLY_LAUNCHED_KIOSK_SESSION;
+}
+
 }  // namespace
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -200,7 +222,7 @@ class DeviceCommandStartCrdSessionJob::OAuthTokenFetcher
   const raw_ref<DeviceOAuth2TokenService, ExperimentalAsh> oauth_service_;
   absl::optional<std::string> oauth_token_for_test_;
   DeviceCommandStartCrdSessionJob::OAuthTokenCallback success_callback_;
-  DeviceCommandStartCrdSessionJob::ErrorCallback error_callback_;
+  ErrorCallback error_callback_;
   // Handler for the OAuth access token request.
   // When deleted the token manager will cancel the request (and not call us).
   std::unique_ptr<OAuth2AccessTokenManager::Request> oauth_request_;
@@ -211,10 +233,8 @@ class DeviceCommandStartCrdSessionJob::OAuthTokenFetcher
 ////////////////////////////////////////////////////////////////////////////////
 
 DeviceCommandStartCrdSessionJob::DeviceCommandStartCrdSessionJob(
-    Delegate* crd_host_delegate)
-    : delegate_(crd_host_delegate) {
-  DCHECK(crd_host_delegate);
-}
+    Delegate& delegate)
+    : delegate_(delegate) {}
 
 DeviceCommandStartCrdSessionJob::~DeviceCommandStartCrdSessionJob() = default;
 
@@ -251,14 +271,10 @@ bool DeviceCommandStartCrdSessionJob::ParseCommandPayload(
       ToCrdSessionTypeOrDefault(root_dict.FindInt(kCrdSessionTypeFieldName),
                                 CrdSessionType::REMOTE_SUPPORT_SESSION);
 
+  admin_email_ = FindString(root_dict, kAdminEmailFieldName);
+
   curtain_local_user_session_ =
       (crd_session_type == CrdSessionType::REMOTE_ACCESS_SESSION);
-
-  if (base::FeatureList::IsEnabled(
-          remoting::features::kForceCrdAdminRemoteAccess)) {
-    CRD_LOG(WARNING) << "Forcing remote access";
-    curtain_local_user_session_ = true;
-  }
 
   if (curtain_local_user_session_ &&
       !base::FeatureList::IsEnabled(
@@ -276,16 +292,10 @@ void DeviceCommandStartCrdSessionJob::RunImpl(
   CRD_LOG(INFO) << "Running start CRD session command";
 
   if (delegate_->HasActiveSession()) {
-    CHECK(!terminate_session_attempted_);
-    terminate_session_attempted_ = true;
-
     CRD_DVLOG(1) << "Terminating active session";
-    delegate_->TerminateSession(
-        base::BindOnce(&DeviceCommandStartCrdSessionJob::RunImpl,
-                       weak_factory_.GetWeakPtr(), std::move(result_callback)));
-    return;
+    delegate_->TerminateSession();
+    CHECK(!delegate_->HasActiveSession());
   }
-  terminate_session_attempted_ = false;
 
   result_callback_ = std::move(result_callback);
 
@@ -346,12 +356,18 @@ void DeviceCommandStartCrdSessionJob::FetchOAuthTokenASync(
 void DeviceCommandStartCrdSessionJob::StartCrdHostAndGetCode(
     const std::string& token) {
   CRD_DVLOG(1) << "Received OAuth token, now retrieving CRD access code";
-  Delegate::SessionParameters parameters{
-      .oauth_token = token,
-      .user_name = GetRobotAccountUserName(),
-      .terminate_upon_input = ShouldTerminateUponInput(),
-      .show_confirmation_dialog = ShouldShowConfirmationDialog(),
-      .curtain_local_user_session = curtain_local_user_session_};
+  SessionParameters parameters;
+  parameters.oauth_token = token;
+  parameters.user_name = GetRobotAccountUserName();
+  parameters.terminate_upon_input = ShouldTerminateUponInput();
+  parameters.show_confirmation_dialog = ShouldShowConfirmationDialog();
+  parameters.curtain_local_user_session = curtain_local_user_session_;
+  parameters.admin_email = admin_email_;
+  parameters.allow_troubleshooting_tools = ShouldAllowTroubleshootingTools();
+  parameters.show_troubleshooting_tools = ShouldShowTroubleshootingTools();
+  parameters.allow_reconnections = ShouldAllowReconnections();
+  parameters.allow_file_transfer = ShouldAllowFileTransfer();
+
   delegate_->StartCrdHostAndGetCode(
       parameters,
       base::BindOnce(&DeviceCommandStartCrdSessionJob::FinishWithSuccess,
@@ -514,8 +530,33 @@ bool DeviceCommandStartCrdSessionJob::ShouldTerminateUponInput() const {
   }
 }
 
-DeviceCommandStartCrdSessionJob::ErrorCallback
-DeviceCommandStartCrdSessionJob::GetErrorCallback() {
+bool DeviceCommandStartCrdSessionJob::ShouldAllowReconnections() const {
+  if (!base::FeatureList::IsEnabled(
+          remoting::features::kEnableCrdAdminRemoteAccessV2)) {
+    return false;
+  }
+
+  // Curtained off sessions support reconnections if Chrome restarts.
+  return curtain_local_user_session_;
+}
+
+bool DeviceCommandStartCrdSessionJob::ShouldShowTroubleshootingTools() const {
+  return IsKioskSession(GetCurrentUserSessionType());
+}
+
+bool DeviceCommandStartCrdSessionJob::ShouldAllowTroubleshootingTools() const {
+  return IsKioskSession(GetCurrentUserSessionType()) &&
+         CHECK_DEREF(ProfileManager::GetActiveUserProfile()->GetPrefs())
+             .GetBoolean(prefs::kKioskTroubleshootingToolsEnabled);
+}
+
+bool DeviceCommandStartCrdSessionJob::ShouldAllowFileTransfer() const {
+  return IsKioskSession(GetCurrentUserSessionType()) &&
+         base::FeatureList::IsEnabled(
+             remoting::features::kEnableCrdFileTransferForKiosk);
+}
+
+ErrorCallback DeviceCommandStartCrdSessionJob::GetErrorCallback() {
   return base::BindOnce(&DeviceCommandStartCrdSessionJob::FinishWithError,
                         weak_factory_.GetWeakPtr());
 }
@@ -523,7 +564,7 @@ DeviceCommandStartCrdSessionJob::GetErrorCallback() {
 void DeviceCommandStartCrdSessionJob::TerminateImpl() {
   result_callback_.Reset();
   weak_factory_.InvalidateWeakPtrs();
-  delegate_->TerminateSession(base::OnceClosure());
+  delegate_->TerminateSession();
 }
 
 }  // namespace policy

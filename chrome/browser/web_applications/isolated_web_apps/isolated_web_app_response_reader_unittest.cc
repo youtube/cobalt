@@ -8,9 +8,12 @@
 
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
+#include "base/test/gmock_expected_support.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
+#include "chrome/browser/ui/web_applications/test/isolated_web_app_builder.h"
 #include "chrome/browser/ui/web_applications/test/isolated_web_app_test_utils.h"
+#include "chrome/browser/web_applications/isolated_web_apps/error/unusable_swbn_file_error.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_url_info.h"
 #include "chrome/browser/web_applications/isolated_web_apps/signed_web_bundle_reader.h"
 #include "chrome/browser/web_applications/test/signed_web_bundle_utils.h"
@@ -24,10 +27,10 @@
 namespace web_app {
 namespace {
 
+using ::base::test::HasValue;
 using ::testing::Eq;
 using ::testing::IsFalse;
 using ::testing::IsTrue;
-using ::testing::UnorderedElementsAre;
 
 class IsolatedWebAppResponseReaderTest : public ::testing::Test {
  protected:
@@ -52,11 +55,9 @@ class IsolatedWebAppResponseReaderTest : public ::testing::Test {
     return web_bundle_path;
   }
 
-  absl::optional<SignedWebBundleReader::ReadIntegrityBlockAndMetadataError>
-  ReadIntegrityBlockAndMetadata(SignedWebBundleReader& reader) {
-    base::test::TestFuture<absl::optional<
-        SignedWebBundleReader::ReadIntegrityBlockAndMetadataError>>
-        future;
+  base::expected<void, UnusableSwbnFileError> ReadIntegrityBlockAndMetadata(
+      SignedWebBundleReader& reader) {
+    base::test::TestFuture<base::expected<void, UnusableSwbnFileError>> future;
     reader.StartReading(
         base::BindOnce(
             [](web_package::SignedWebBundleIntegrityBlock integrity_block,
@@ -90,11 +91,11 @@ TEST_F(IsolatedWebAppResponseReaderTest,
        ReadResponseStripsQueryParametersAndFragment) {
   base::FilePath web_bundle_path = CreateSignedBundleAndWriteToDisk();
   auto reader = SignedWebBundleReader::Create(web_bundle_path, base_url_);
-  auto error = ReadIntegrityBlockAndMetadata(*reader.get());
-  ASSERT_THAT(error.has_value(), IsFalse());
+  auto status = ReadIntegrityBlockAndMetadata(*reader.get());
+  ASSERT_THAT(status, HasValue());
 
   auto response_reader =
-      std::make_unique<IsolatedWebAppResponseReader>(std::move(reader));
+      std::make_unique<IsolatedWebAppResponseReaderImpl>(std::move(reader));
 
   {
     network::ResourceRequest request;
@@ -104,7 +105,7 @@ TEST_F(IsolatedWebAppResponseReaderTest,
                        IsolatedWebAppResponseReader::Error>>
         response_future;
     response_reader->ReadResponse(request, response_future.GetCallback());
-    EXPECT_THAT(response_future.Get().has_value(), IsTrue());
+    EXPECT_THAT(response_future.Get(), HasValue());
   }
 
   {
@@ -115,18 +116,18 @@ TEST_F(IsolatedWebAppResponseReaderTest,
                        IsolatedWebAppResponseReader::Error>>
         response_future;
     response_reader->ReadResponse(request, response_future.GetCallback());
-    EXPECT_THAT(response_future.Get().has_value(), IsTrue());
+    EXPECT_THAT(response_future.Get(), HasValue());
   }
 }
 
 TEST_F(IsolatedWebAppResponseReaderTest, ReadResponseBody) {
   base::FilePath web_bundle_path = CreateSignedBundleAndWriteToDisk();
   auto reader = SignedWebBundleReader::Create(web_bundle_path, base_url_);
-  auto error = ReadIntegrityBlockAndMetadata(*reader.get());
-  ASSERT_THAT(error.has_value(), IsFalse());
+  auto status = ReadIntegrityBlockAndMetadata(*reader.get());
+  ASSERT_THAT(status, HasValue());
 
   auto response_reader =
-      std::make_unique<IsolatedWebAppResponseReader>(std::move(reader));
+      std::make_unique<IsolatedWebAppResponseReaderImpl>(std::move(reader));
 
   network::ResourceRequest request;
   request.url = base_url_;
@@ -134,7 +135,7 @@ TEST_F(IsolatedWebAppResponseReaderTest, ReadResponseBody) {
                                         IsolatedWebAppResponseReader::Error>>
       response_future;
   response_reader->ReadResponse(request, response_future.GetCallback());
-  ASSERT_THAT(response_future.Get().has_value(), IsTrue());
+  ASSERT_THAT(response_future.Get(), HasValue());
 
   IsolatedWebAppResponseReader::Response response = *response_future.Take();
   EXPECT_THAT(response.head()->response_code, Eq(200));
@@ -159,6 +160,42 @@ TEST_F(IsolatedWebAppResponseReaderTest, ReadResponseBody) {
         response_body_future.GetCallback());
     EXPECT_THAT(response_body_future.Get(), Eq(net::ERR_FAILED));
   }
+}
+
+TEST_F(IsolatedWebAppResponseReaderTest, Close) {
+  base::FilePath web_bundle_path = CreateSignedBundleAndWriteToDisk();
+  auto reader = SignedWebBundleReader::Create(web_bundle_path, base_url_);
+  // TODO: handle return value.
+  auto status = ReadIntegrityBlockAndMetadata(*reader.get());
+  ASSERT_THAT(status, HasValue());
+  auto* raw_reader = reader.get();
+
+  auto response_reader =
+      std::make_unique<IsolatedWebAppResponseReaderImpl>(std::move(reader));
+
+  network::ResourceRequest request;
+  request.url = base_url_;
+  base::test::TestFuture<base::expected<IsolatedWebAppResponseReader::Response,
+                                        IsolatedWebAppResponseReader::Error>>
+      response_future;
+  response_reader->ReadResponse(request, response_future.GetCallback());
+  IsolatedWebAppResponseReader::Response response = *response_future.Take();
+
+  base::test::TestFuture<void> close_future;
+  response_reader->Close(close_future.GetCallback());
+  ASSERT_TRUE(close_future.Wait());
+
+  EXPECT_EQ(raw_reader->GetState(), SignedWebBundleReader::State::kClosed);
+
+  // If the response_reader is closed, then reading the response should return
+  // `net::ERR_FAILED`.
+  base::test::TestFuture<net::Error> response_body_future;
+  ReadResponseBody(
+      response.head()->payload_length,
+      base::BindOnce(&IsolatedWebAppResponseReader::Response::ReadBody,
+                     base::Unretained(&response)),
+      response_body_future.GetCallback());
+  EXPECT_THAT(response_body_future.Get(), Eq(net::ERR_FAILED));
 }
 
 }  // namespace

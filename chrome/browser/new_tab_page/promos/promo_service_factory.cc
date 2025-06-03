@@ -26,7 +26,8 @@ PromoService* PromoServiceFactory::GetForProfile(Profile* profile) {
 
 // static
 PromoServiceFactory* PromoServiceFactory::GetInstance() {
-  return base::Singleton<PromoServiceFactory>::get();
+  static base::NoDestructor<PromoServiceFactory> instance;
+  return instance.get();
 }
 
 PromoServiceFactory::PromoServiceFactory()
@@ -43,10 +44,11 @@ PromoServiceFactory::PromoServiceFactory()
 
 PromoServiceFactory::~PromoServiceFactory() = default;
 
-KeyedService* PromoServiceFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+PromoServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
   auto url_loader_factory = context->GetDefaultStoragePartition()
                                 ->GetURLLoaderFactoryForBrowserProcess();
-  return new PromoService(url_loader_factory,
-                          Profile::FromBrowserContext(context));
+  return std::make_unique<PromoService>(url_loader_factory,
+                                        Profile::FromBrowserContext(context));
 }

@@ -10,10 +10,12 @@
 #include "base/functional/bind.h"
 #include "components/performance_manager/graph/graph_impl.h"
 #include "components/performance_manager/graph/graph_impl_util.h"
+#include "components/performance_manager/graph/initializing_frame_node_observer.h"
 #include "components/performance_manager/graph/page_node_impl.h"
 #include "components/performance_manager/graph/process_node_impl.h"
 #include "components/performance_manager/graph/worker_node_impl.h"
 #include "components/performance_manager/public/v8_memory/web_memory.h"
+#include "content/public/browser/browser_thread.h"
 
 namespace performance_manager {
 
@@ -42,11 +44,15 @@ FrameNodeImpl::FrameNodeImpl(ProcessNodeImpl* process_node,
               .render_process_host_id()
               .value(),
           render_frame_id)) {
+  // Nodes are created on the UI thread, then accessed on the PM sequence.
+  // `weak_this_` can be returned from GetWeakPtrOnUIThread() and dereferenced
+  // on the PM sequence.
+  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+  DETACH_FROM_SEQUENCE(sequence_checker_);
   weak_this_ = weak_factory_.GetWeakPtr();
 
   DCHECK(process_node);
   DCHECK(page_node);
-  DETACH_FROM_SEQUENCE(sequence_checker_);
 }
 
 FrameNodeImpl::~FrameNodeImpl() {
@@ -156,6 +162,11 @@ content::SiteInstanceId FrameNodeImpl::site_instance_id() const {
   return site_instance_id_;
 }
 
+resource_attribution::FrameContext FrameNodeImpl::resource_context() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  return resource_attribution::FrameContext::FromFrameNode(this);
+}
+
 const RenderFrameHostProxy& FrameNodeImpl::render_frame_host_proxy() const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return render_frame_host_proxy_;
@@ -243,11 +254,16 @@ bool FrameNodeImpl::is_audible() const {
   return is_audible_.value();
 }
 
-const absl::optional<gfx::Rect>& FrameNodeImpl::viewport_intersection() const {
+bool FrameNodeImpl::is_capturing_video_stream() const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  // The viewport intersection of the main frame is not tracked.
+  return is_capturing_video_stream_.value();
+}
+
+absl::optional<bool> FrameNodeImpl::intersects_viewport() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  // The intersection with the viewport of the main frame is not tracked.
   DCHECK(!IsMainFrame());
-  return viewport_intersection_.value();
+  return intersects_viewport_.value();
 }
 
 FrameNode::Visibility FrameNodeImpl::visibility() const {
@@ -302,12 +318,22 @@ void FrameNodeImpl::SetIsAudible(bool is_audible) {
   is_audible_.SetAndMaybeNotify(this, is_audible);
 }
 
-void FrameNodeImpl::SetViewportIntersection(
-    const gfx::Rect& viewport_intersection) {
+void FrameNodeImpl::SetIsCapturingVideoStream(bool is_capturing_video_stream) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  // The viewport intersection of the main frame is not tracked.
+  DCHECK_NE(is_capturing_video_stream, is_capturing_video_stream_.value());
+  is_capturing_video_stream_.SetAndMaybeNotify(this, is_capturing_video_stream);
+}
+
+void FrameNodeImpl::SetIntersectsViewport(bool intersects_viewport) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  // The intersection with the viewport of the main frame is not tracked.
   DCHECK(!IsMainFrame());
-  viewport_intersection_.SetAndMaybeNotify(this, viewport_intersection);
+  intersects_viewport_.SetAndMaybeNotify(this, intersects_viewport);
+}
+
+void FrameNodeImpl::SetInitialVisibility(Visibility visibility) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  visibility_.Set(this, visibility);
 }
 
 void FrameNodeImpl::SetVisibility(Visibility visibility) {
@@ -377,11 +403,19 @@ void FrameNodeImpl::RemoveChildWorker(WorkerNodeImpl* worker_node) {
 void FrameNodeImpl::SetPriorityAndReason(
     const PriorityAndReason& priority_and_reason) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  // This is also called during initialization to set the initial value. In this
+  // case, do not notify the observers as they aren't even aware of this frame
+  // node anyways.
+  if (CanSetProperty()) {
+    priority_and_reason_.Set(this, priority_and_reason);
+    return;
+  }
   priority_and_reason_.SetAndMaybeNotify(this, priority_and_reason);
 }
 
 base::WeakPtr<FrameNodeImpl> FrameNodeImpl::GetWeakPtrOnUIThread() {
-  // TODO(siggi): Validate the thread context here.
+  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   return weak_this_;
 }
 
@@ -462,6 +496,11 @@ content::BrowsingInstanceId FrameNodeImpl::GetBrowsingInstanceId() const {
 content::SiteInstanceId FrameNodeImpl::GetSiteInstanceId() const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return site_instance_id();
+}
+
+resource_attribution::FrameContext FrameNodeImpl::GetResourceContext() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  return resource_context();
 }
 
 bool FrameNodeImpl::VisitChildFrameNodes(
@@ -577,11 +616,6 @@ bool FrameNodeImpl::VisitChildDedicatedWorkers(
   return true;
 }
 
-const PriorityAndReason& FrameNodeImpl::GetPriorityAndReason() const {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  return priority_and_reason();
-}
-
 bool FrameNodeImpl::HadFormInteraction() const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return had_form_interaction();
@@ -597,10 +631,14 @@ bool FrameNodeImpl::IsAudible() const {
   return is_audible();
 }
 
-const absl::optional<gfx::Rect>& FrameNodeImpl::GetViewportIntersection()
-    const {
+bool FrameNodeImpl::IsCapturingVideoStream() const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  return viewport_intersection();
+  return is_capturing_video_stream();
+}
+
+absl::optional<bool> FrameNodeImpl::IntersectsViewport() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  return intersects_viewport();
 }
 
 FrameNode::Visibility FrameNodeImpl::GetVisibility() const {
@@ -616,6 +654,11 @@ uint64_t FrameNodeImpl::GetResidentSetKbEstimate() const {
 uint64_t FrameNodeImpl::GetPrivateFootprintKbEstimate() const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return private_footprint_kb_estimate();
+}
+
+const PriorityAndReason& FrameNodeImpl::GetPriorityAndReason() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  return priority_and_reason();
 }
 
 void FrameNodeImpl::AddChildFrame(FrameNodeImpl* child_frame_node) {
@@ -645,15 +688,24 @@ void FrameNodeImpl::RemoveChildFrame(FrameNodeImpl* child_frame_node) {
 void FrameNodeImpl::OnJoiningGraph() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
+  // Make sure all weak pointers, even `weak_this_` that was created on the UI
+  // thread in the constructor, can only be dereferenced on the graph sequence.
+  //
+  // If this is the first pointer dereferenced, it will bind all pointers from
+  // `weak_factory_` to the current sequence. If not, get() will DCHECK.
+  // DCHECK'ing the return value of get() prevents the compiler from optimizing
+  // it away.
+  //
+  // TODO(crbug.com/1134162): Use WeakPtrFactory::BindToCurrentSequence for this
+  // (it's clearer but currently not exposed publicly).
+  DCHECK(GetWeakPtr().get());
+
   // Enable querying this node using process and frame routing ids.
   graph()->RegisterFrameNodeForId(process_node_->GetRenderProcessId(),
                                   render_frame_id_, this);
 
-  // Set the initial frame visibility. This is done on the graph because the
-  // page node must be accessed. OnFrameNodeAdded() has not been called yet for
-  // this frame, so it is important to avoid sending a notification for this
-  // property change.
-  visibility_.Set(this, GetInitialFrameVisibility());
+  // Notify the initializing observers.
+  graph()->NotifyFrameNodeInitializing(this);
 
   // Wire this up to the other nodes in the graph.
   if (parent_frame_node_)
@@ -682,6 +734,9 @@ void FrameNodeImpl::OnBeforeLeavingGraph() {
   // And leave the process.
   DCHECK(graph()->NodeInGraph(process_node_));
   process_node_->RemoveFrame(this);
+
+  // Notify the initializing observers for cleanup.
+  graph()->NotifyFrameNodeTearingDown(this);
 
   // Disable querying this node using process and frame routing ids.
   graph()->UnregisterFrameNodeForId(process_node_->GetRenderProcessId(),
@@ -765,25 +820,6 @@ bool FrameNodeImpl::HasFrameNodeInDescendants(FrameNodeImpl* frame_node) const {
 bool FrameNodeImpl::HasFrameNodeInTree(FrameNodeImpl* frame_node) const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return GetFrameTreeRoot() == frame_node->GetFrameTreeRoot();
-}
-
-FrameNode::Visibility FrameNodeImpl::GetInitialFrameVisibility() const {
-  DCHECK(!viewport_intersection_.value());
-
-  // If the page hosting this frame is not visible, then the frame is also not
-  // visible.
-  if (!page_node()->is_visible())
-    return FrameNode::Visibility::kNotVisible;
-
-  // The visibility of the frame depends on the viewport intersection of said
-  // frame. Since a main frame has no viewport intersection, it is always
-  // visible in the page.
-  if (IsMainFrame())
-    return FrameNode::Visibility::kVisible;
-
-  // Since the viewport intersection of a frame is not initially available, the
-  // visibility of a child frame is initially unknown.
-  return FrameNode::Visibility::kUnknown;
 }
 
 FrameNodeImpl::DocumentProperties::DocumentProperties() = default;

@@ -124,7 +124,7 @@ class MojoMediaClientImpl : public MojoMediaClient {
           std::move(log), target_color_space, gpu::GpuPreferences(),
           gpu_driver_bug_workarounds_,
           /*get_stub_cb=*/base::NullCallback(),
-          VideoDecodeAccelerator::Config::OutputMode::IMPORT);
+          VideoDecodeAccelerator::Config::OutputMode::kImport);
     } else {
       return VideoDecoderPipeline::Create(
           gpu_driver_bug_workarounds_,
@@ -183,7 +183,8 @@ void StableVideoDecoderFactoryService::BindReceiver(
 }
 
 void StableVideoDecoderFactoryService::CreateStableVideoDecoder(
-    mojo::PendingReceiver<stable::mojom::StableVideoDecoder> receiver) {
+    mojo::PendingReceiver<stable::mojom::StableVideoDecoder> receiver,
+    mojo::PendingRemote<stable::mojom::StableVideoDecoderTracker> tracker) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   std::unique_ptr<mojom::VideoDecoder> dst_video_decoder;
@@ -196,7 +197,8 @@ void StableVideoDecoderFactoryService::CreateStableVideoDecoder(
         mojo::PendingRemote<stable::mojom::StableVideoDecoder>());
   }
   video_decoders_.Add(std::make_unique<StableVideoDecoderService>(
-                          std::move(dst_video_decoder), &cdm_service_context_),
+                          std::move(tracker), std::move(dst_video_decoder),
+                          &cdm_service_context_),
                       std::move(receiver));
 }
 

@@ -5,8 +5,10 @@
 #include "content/browser/devtools/web_contents_devtools_agent_host.h"
 
 #include "base/unguessable_token.h"
+#include "content/browser/devtools/protocol/io_handler.h"
 #include "content/browser/devtools/protocol/target_auto_attacher.h"
 #include "content/browser/devtools/protocol/target_handler.h"
+#include "content/browser/devtools/protocol/tracing_handler.h"
 #include "content/browser/devtools/render_frame_devtools_agent_host.h"
 #include "content/browser/portal/portal.h"
 #include "content/browser/renderer_host/frame_tree_node.h"
@@ -27,8 +29,23 @@ WebContentsDevToolsAgentHost* FindAgentHost(WebContents* wc) {
   return it == g_agent_host_instances.Get().end() ? nullptr : it->second;
 }
 
+// This implements the DevTools definition of outermost web contents,
+// which is currently the one associated to outermost frame, not
+// traversing the guest view (so for something within a guest view),
+// this returns the parent guest view. This is for compatibility,
+// as guest views were historically exposed as independent targets.
+// Note this differs from `WebContents::GetResponsibleWebContents()`
+// that traverses guest views.
+WebContents* GetRootWebContentsForDevTools(WebContents* wc) {
+  RenderFrameHost* current = wc->GetPrimaryMainFrame();
+  while (RenderFrameHost* parent = current->GetParentOrOuterDocument()) {
+    current = parent;
+  }
+  return WebContents::FromRenderFrameHost(current);
+}
+
 bool ShouldCreateDevToolsAgentHost(WebContents* wc) {
-  return wc == wc->GetResponsibleWebContents();
+  return wc == GetRootWebContentsForDevTools(wc);
 }
 
 }  // namespace
@@ -101,6 +118,10 @@ class WebContentsDevToolsAgentHost::AutoAttacher
       }
       web_contents_->ForEachRenderFrameHost(
           [&hosts](RenderFrameHost* rfh) { AddFrame(hosts, rfh); });
+      // In case primary main frame has been filtered out but some criteria
+      // in AddFrame(), ensure it's added.
+      hosts.insert(
+          RenderFrameDevToolsAgentHost::GetOrCreateFor(rfh->frame_tree_node()));
     }
     DispatchSetAttachedTargetsOfType(hosts, DevToolsAgentHost::kTypePage);
     return hosts;
@@ -119,6 +140,12 @@ class WebContentsDevToolsAgentHost::AutoAttacher
       return;
     if (ftn->IsFencedFrameRoot())
       return;
+    // Allow portals, but ignore other kinds of embedders (e.g. GuestViews)
+    if (!ftn->frame_tree().delegate()->IsPortal() &&
+        ftn->render_manager()->GetOuterDelegateNode()) {
+      return;
+    }
+
     hosts.insert(RenderFrameDevToolsAgentHost::GetOrCreateFor(ftn));
   }
 
@@ -128,16 +155,23 @@ class WebContentsDevToolsAgentHost::AutoAttacher
 // static
 WebContentsDevToolsAgentHost* WebContentsDevToolsAgentHost::GetFor(
     WebContents* web_contents) {
-  return FindAgentHost(web_contents->GetResponsibleWebContents());
+  return FindAgentHost(GetRootWebContentsForDevTools(web_contents));
 }
 
 // static
 WebContentsDevToolsAgentHost* WebContentsDevToolsAgentHost::GetOrCreateFor(
     WebContents* web_contents) {
-  web_contents = web_contents->GetResponsibleWebContents();
+  web_contents = GetRootWebContentsForDevTools(web_contents);
   if (auto* host = FindAgentHost(web_contents))
     return host;
   return new WebContentsDevToolsAgentHost(web_contents);
+}
+
+// static
+bool WebContentsDevToolsAgentHost::IsDebuggerAttached(
+    WebContents* web_contents) {
+  WebContentsDevToolsAgentHost* host = FindAgentHost(web_contents);
+  return host && host->IsAttached();
 }
 
 // static
@@ -158,7 +192,16 @@ WebContentsDevToolsAgentHost::WebContentsDevToolsAgentHost(WebContents* wc)
 
 void WebContentsDevToolsAgentHost::InnerAttach(WebContents* wc) {
   CHECK(!web_contents());
-  bool inserted =
+  // With ConnectWebContents(), we may be attaching to a WC that has
+  // a different host created.
+  // TODO(caseq): find a better solution. See also a similar comment in
+  // RenderFrameDevToolsAgentHost::SetFrameTreeNode();
+  auto prev_entry = g_agent_host_instances.Get().find(wc);
+  if (prev_entry != g_agent_host_instances.Get().end()) {
+    CHECK_NE(prev_entry->second, this);
+    prev_entry->second->InnerDetach();
+  }
+  const bool inserted =
       g_agent_host_instances.Get().insert(std::make_pair(wc, this)).second;
   CHECK(inserted);
   auto_attacher_->SetWebContents(wc);
@@ -183,7 +226,7 @@ void WebContentsDevToolsAgentHost::PortalActivated(const Portal& portal) {
     WebContents* old_wc = web_contents();
     WebContents* new_wc = portal.GetPortalContents();
     // Assure instrumentation calls for the new WC would be routed here.
-    DCHECK(new_wc->GetResponsibleWebContents() == new_wc);
+    DCHECK(GetRootWebContentsForDevTools(new_wc) == new_wc);
     DCHECK(g_agent_host_instances.Get()[old_wc] == this);
 
     g_agent_host_instances.Get().erase(old_wc);
@@ -195,6 +238,9 @@ void WebContentsDevToolsAgentHost::PortalActivated(const Portal& portal) {
 
 void WebContentsDevToolsAgentHost::WillInitiatePrerender(FrameTreeNode* ftn) {
   auto_attacher_->WillInitiatePrerender(ftn);
+  for (auto* tracing : protocol::TracingHandler::ForAgentHost(this)) {
+    tracing->WillInitiatePrerender(ftn);
+  }
 }
 
 void WebContentsDevToolsAgentHost::UpdateChildFrameTrees(
@@ -333,9 +379,7 @@ scoped_refptr<DevToolsAgentHost>
 WebContentsDevToolsAgentHost::GetOrCreatePrimaryFrameAgent() {
   if (WebContents* wc = web_contents()) {
     return RenderFrameDevToolsAgentHost::GetOrCreateFor(
-        static_cast<WebContentsImpl*>(web_contents())
-            ->GetPrimaryFrameTree()
-            .root());
+        static_cast<WebContentsImpl*>(wc)->GetPrimaryFrameTree().root());
   }
   return nullptr;
 }
@@ -352,6 +396,21 @@ void WebContentsDevToolsAgentHost::RenderFrameHostChanged(
   if (new_host == web_contents()->GetPrimaryMainFrame()) {
     std::ignore = RevalidateSessionAccess();
     // `this` is invalid at this point!
+  }
+}
+
+void WebContentsDevToolsAgentHost::ReadyToCommitNavigation(
+    NavigationHandle* navigation_handle) {
+  CHECK(web_contents());
+  NavigationRequest* request = NavigationRequest::From(navigation_handle);
+  for (auto* tracing : protocol::TracingHandler::ForAgentHost(this)) {
+    tracing->ReadyToCommitNavigation(request);
+  }
+}
+
+void WebContentsDevToolsAgentHost::FrameDeleted(int frame_tree_node_id) {
+  for (auto* tracing : protocol::TracingHandler::ForAgentHost(this)) {
+    tracing->FrameDeleted(frame_tree_node_id);
   }
 }
 
@@ -373,6 +432,11 @@ bool WebContentsDevToolsAgentHost::AttachSession(DevToolsSession* session,
           ? protocol::TargetHandler::AccessMode::kRegular
           : protocol::TargetHandler::AccessMode::kAutoAttachOnly,
       GetId(), auto_attacher_.get(), session);
+  DevToolsSession* root_session = session->GetRootSession();
+  CHECK(root_session);
+  session->CreateAndAddHandler<protocol::IOHandler>(GetIOContext());
+  session->CreateAndAddHandler<protocol::TracingHandler>(this, GetIOContext(),
+                                                         root_session);
   return true;
 }
 

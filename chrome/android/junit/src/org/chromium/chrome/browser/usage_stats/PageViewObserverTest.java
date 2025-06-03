@@ -56,35 +56,23 @@ import java.lang.ref.WeakReference;
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 public final class PageViewObserverTest {
-    private static final GURL STARTING_URL = JUnitTestGURLs.getGURL(JUnitTestGURLs.URL_1);
-    private static final GURL STARTING_URL_WITH_PATH =
-            JUnitTestGURLs.getGURL(JUnitTestGURLs.URL_1_WITH_PATH);
-    private static final GURL DIFFERENT_URL = JUnitTestGURLs.getGURL(JUnitTestGURLs.URL_2);
+    private static final GURL STARTING_URL = JUnitTestGURLs.URL_1;
+    private static final GURL STARTING_URL_WITH_PATH = JUnitTestGURLs.URL_1_WITH_PATH;
+    private static final GURL DIFFERENT_URL = JUnitTestGURLs.URL_2;
     private static final String STARTING_FQDN = "www.one.com";
     private static final String DIFFERENT_FQDN = "www.two.com";
 
-    @Mock
-    private Activity mActivity;
-    @Mock
-    private ObservableSupplier<Tab> mTabSupplier;
-    @Mock
-    private TabImpl mTab;
-    @Mock
-    private TabImpl mTab2;
-    @Mock
-    private EventTracker mEventTracker;
-    @Mock
-    private TokenTracker mTokenTracker;
-    @Mock
-    private SuspensionTracker mSuspensionTracker;
-    @Mock
-    private WindowAndroid mWindowAndroid;
-    @Mock
-    private ChromeActivity mChromeActivity;
-    @Mock
-    private Supplier<TabContentManager> mTabContentManagerSupplier;
-    @Captor
-    private ArgumentCaptor<Callback<Tab>> mTabSupplierCaptor;
+    @Mock private Activity mActivity;
+    @Mock private ObservableSupplier<Tab> mTabSupplier;
+    @Mock private TabImpl mTab;
+    @Mock private TabImpl mTab2;
+    @Mock private EventTracker mEventTracker;
+    @Mock private TokenTracker mTokenTracker;
+    @Mock private SuspensionTracker mSuspensionTracker;
+    @Mock private WindowAndroid mWindowAndroid;
+    @Mock private ChromeActivity mChromeActivity;
+    @Mock private Supplier<TabContentManager> mTabContentManagerSupplier;
+    @Captor private ArgumentCaptor<Callback<Tab>> mTabSupplierCaptor;
 
     private UserDataHost mUserDataHost;
     private UserDataHost mUserDataHostTab2;
@@ -496,8 +484,14 @@ public final class PageViewObserverTest {
     }
 
     private PageViewObserver createPageViewObserver() {
-        PageViewObserver observer = new PageViewObserver(mActivity, mTabSupplier, mEventTracker,
-                mTokenTracker, mSuspensionTracker, mTabContentManagerSupplier);
+        PageViewObserver observer =
+                new PageViewObserver(
+                        mActivity,
+                        mTabSupplier,
+                        mEventTracker,
+                        mTokenTracker,
+                        mSuspensionTracker,
+                        mTabContentManagerSupplier);
         verify(mTabSupplier, times(1)).addObserver(mTabSupplierCaptor.capture());
         Tab tab = mTabSupplier.get();
         mTabSupplierCaptor.getValue().onResult(tab);

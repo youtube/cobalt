@@ -14,17 +14,24 @@
 #include "base/time/time.h"
 #include "base/timer/timer.h"
 #include "components/keyed_service/core/keyed_service.h"
-#include "components/omnibox/browser/autocomplete_provider_client.h"
 #include "components/optimization_guide/core/optimization_guide_decision.h"
 #include "components/page_image_service/mojom/page_image_service.mojom.h"
-#include "components/sync/driver/sync_service.h"
-#include "components/unified_consent/consent_throttle.h"
+#include "components/sync/service/sync_service.h"
+
+class AutocompleteSchemeClassifier;
+class RemoteSuggestionsService;
+class SearchTermsData;
+class TemplateURL;
+class TemplateURLService;
 
 namespace optimization_guide {
-class NewOptimizationGuideDecider;
+class OptimizationGuideDecider;
 }  // namespace optimization_guide
 
 namespace page_image_service {
+
+class ImageServiceConsentHelper;
+enum class PageImageServiceConsentStatus;
 
 // Through my manual testing, 16ms (which is about a frame at 60hz) allowed
 // for decent aggregation without introducing any perceptible lag.
@@ -37,10 +44,12 @@ class ImageService : public KeyedService {
  public:
   using ResultCallback = base::OnceCallback<void(const GURL& image_url)>;
 
-  ImageService(
-      std::unique_ptr<AutocompleteProviderClient> autocomplete_provider_client,
-      optimization_guide::NewOptimizationGuideDecider* opt_guide,
-      syncer::SyncService* sync_service);
+  ImageService(TemplateURLService* template_url_service,
+               RemoteSuggestionsService* remote_suggestions_service,
+               optimization_guide::OptimizationGuideDecider* opt_guide,
+               syncer::SyncService* sync_service,
+               std::unique_ptr<AutocompleteSchemeClassifier>
+                   autocomplete_scheme_classifier);
   ImageService(const ImageService&) = delete;
   ImageService& operator=(const ImageService&) = delete;
 
@@ -60,8 +69,9 @@ class ImageService : public KeyedService {
 
   // Asynchronously returns whether `client_id` has consent to fetch an image.
   // Public for testing purposes only.
-  void GetConsentToFetchImage(mojom::ClientId client_id,
-                              base::OnceCallback<void(bool)> callback);
+  void GetConsentToFetchImage(
+      mojom::ClientId client_id,
+      base::OnceCallback<void(PageImageServiceConsentStatus)> callback);
 
  private:
   class SuggestEntityImageURLFetcher;
@@ -80,11 +90,14 @@ class ImageService : public KeyedService {
                        const GURL& page_url,
                        const mojom::Options& options,
                        ResultCallback callback,
-                       bool consent_is_enabled);
+                       PageImageServiceConsentStatus status);
 
   // Fetches an image from Suggest appropriate for `search_query` and
   // `entity_id`, returning the result asynchronously to `callback`.
-  void FetchSuggestImage(const std::u16string& search_query,
+  void FetchSuggestImage(const TemplateURL* template_url,
+                         const SearchTermsData& search_terms_data,
+                         mojom::ClientId client_id,
+                         const std::u16string& search_query,
                          const std::string& entity_id,
                          ResultCallback callback);
 
@@ -115,18 +128,19 @@ class ImageService : public KeyedService {
           optimization_guide::OptimizationGuideDecisionWithMetadata>&
           decisions);
 
-  // Autocomplete provider client used to make Suggest image requests.
-  std::unique_ptr<AutocompleteProviderClient> autocomplete_provider_client_;
-
-  // Non-owning pointer to the Optimization Guide source of images.
-  // Will be left as nullptr if the OptimizationGuide feature is disabled.
-  raw_ptr<optimization_guide::NewOptimizationGuideDecider> opt_guide_ = nullptr;
+  // Non-owning pointers to service dependencies. They may be nullptr.
+  raw_ptr<TemplateURLService> template_url_service_ = nullptr;
+  raw_ptr<RemoteSuggestionsService> remote_suggestions_service_ = nullptr;
+  raw_ptr<optimization_guide::OptimizationGuideDecider> opt_guide_ = nullptr;
 
   // The History consent throttle, used for most clients.
-  unified_consent::ConsentThrottle history_consent_throttle_;
+  std::unique_ptr<ImageServiceConsentHelper> history_consent_helper_;
 
   // The Bookmarks consent throttle.
-  unified_consent::ConsentThrottle bookmarks_consent_throttle_;
+  std::unique_ptr<ImageServiceConsentHelper> bookmarks_consent_helper_;
+
+  // Used to make proper suggest requests.
+  std::unique_ptr<AutocompleteSchemeClassifier> autocomplete_scheme_classifier_;
 
   // Stores all the Optimization Guide requests that are still waiting to be
   // aggregated into a batch and sent. When sent in a batch, the requests are

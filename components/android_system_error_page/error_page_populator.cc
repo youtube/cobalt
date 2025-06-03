@@ -8,10 +8,10 @@
 #include "base/strings/escape.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
-#include "components/content_relationship_verification/content_relationship_verification_constants.h"
 #include "components/grit/components_resources.h"
 #include "components/strings/grit/components_strings.h"
 #include "net/base/net_errors.h"
+#include "third_party/blink/public/platform/resource_request_blocked_reason.h"
 #include "third_party/blink/public/platform/web_url_error.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/resource/resource_bundle.h"
@@ -44,21 +44,23 @@ void PopulateErrorPageHtml(const blink::WebURLError& error,
   if (err.empty())
     reason_id = IDS_ANDROID_ERROR_PAGE_WEBPAGE_TEMPORARILY_DOWN;
 
-  std::string escaped_url = base::EscapeForHTML(url_string);
+  std::vector<std::string> replacements;
 
-  // Restrict webview content error.
+  // Handle supervised user url blocked error.
   if (error.reason() == net::ERR_ACCESS_DENIED &&
       error.extended_reason() ==
           static_cast<int>(
-              content_relationship_verification::kExtendedErrorReason)) {
+              blink::ResourceRequestBlockedReason::kSupervisedUserUrlBlocked)) {
+    replacements.push_back(l10n_util::GetStringUTF8(
+        IDS_ANDROID_ERROR_PAGE_SUPERVISED_USER_URL_BLOCKED_MESSAGE));
     *error_html = base::ReplaceStringPlaceholders(
         ui::ResourceBundle::GetSharedInstance().LoadDataResourceString(
-            IDR_ANDROID_ERROR_CONTENT_BLOCKED_ERROR_HTML),
-        {escaped_url}, nullptr);
+            IDR_ANDROID_SUPERVISED_USER_URL_BLOCKED_HTML),
+        replacements, nullptr);
     return;
   }
 
-  std::vector<std::string> replacements;
+  std::string escaped_url = base::EscapeForHTML(url_string);
 
   replacements.push_back(
       l10n_util::GetStringUTF8(IDS_ANDROID_ERROR_PAGE_WEBPAGE_NOT_AVAILABLE));

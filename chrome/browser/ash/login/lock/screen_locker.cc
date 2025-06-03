@@ -22,8 +22,8 @@
 #include "base/task/current_thread.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
+#include "base/trace_event/trace_event.h"
 #include "chrome/browser/ash/accessibility/accessibility_manager.h"
-#include "chrome/browser/ash/authpolicy/authpolicy_helper.h"
 #include "chrome/browser/ash/login/hats_unlock_survey_trigger.h"
 #include "chrome/browser/ash/login/helper.h"
 #include "chrome/browser/ash/login/lock/views_screen_locker.h"
@@ -42,7 +42,6 @@
 #include "chrome/browser/certificate_provider/certificate_provider_service.h"
 #include "chrome/browser/certificate_provider/certificate_provider_service_factory.h"
 #include "chrome/browser/certificate_provider/pin_dialog_manager.h"
-#include "chrome/browser/chrome_notification_types.h"
 #include "chrome/browser/lifetime/application_lifetime.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/ash/login_screen_client_impl.h"
@@ -124,6 +123,7 @@ class ScreenLockObserver : public SessionManagerClient::StubDelegate,
 
   // session_manager::SessionManagerObserver:
   void OnSessionStateChanged() override {
+    TRACE_EVENT0("login", "ScreenLockObserver::OnSessionStateChanged");
     // Only set MarkStrongAuth for the first time session becomes active, which
     // is when user first sign-in.
     // For unlocking case which state changes from active->lock->active, it
@@ -169,21 +169,15 @@ chromeos::CertificateProviderService* GetLoginScreenCertProviderService() {
 }  // namespace
 
 // static
-ScreenLocker* ScreenLocker::screen_locker_ = nullptr;
-
-//////////////////////////////////////////////////////////////////////////////
-// ScreenLocker::Delegate, public:
-
-ScreenLocker::Delegate::Delegate() = default;
-
-ScreenLocker::Delegate::~Delegate() = default;
+ScreenLocker* ScreenLocker::screen_locker_ = nullptr;  // Only on UI thread
 
 //////////////////////////////////////////////////////////////////////////////
 // ScreenLocker, public:
 
 ScreenLocker::ScreenLocker(const user_manager::UserList& users)
     : users_(users) {
-  DCHECK(!screen_locker_);
+  CHECK(base::CurrentUIThread::IsSet());
+  CHECK(!screen_locker_);
   screen_locker_ = this;
 
   ui::ResourceBundle& bundle = ui::ResourceBundle::GetSharedInstance();
@@ -227,9 +221,9 @@ void ScreenLocker::Init() {
   authenticator_ = UserSessionManager::GetInstance()->CreateAuthenticator(this);
   extended_authenticator_ = ExtendedAuthenticator::Create(this);
 
-  // Create delegate that calls into the views-based lock screen via mojo.
+  // Create ViewScreenLocker that calls into the views-based lock screen via
+  // mojo.
   views_screen_locker_ = std::make_unique<ViewsScreenLocker>(this);
-  delegate_ = views_screen_locker_.get();
 
   // Create and display lock screen.
   CHECK(LoginScreenClientImpl::HasInstance());
@@ -262,10 +256,10 @@ void ScreenLocker::OnAuthFailure(const AuthFailure& error) {
   // Don't enable signout button here as we're showing
   // MessageBubble.
 
-  delegate_->ShowErrorMessage(incorrect_passwords_count_++
-                                  ? IDS_LOGIN_ERROR_AUTHENTICATING_2ND_TIME
-                                  : IDS_LOGIN_ERROR_AUTHENTICATING,
-                              HelpAppLauncher::HELP_CANT_ACCESS_ACCOUNT);
+  views_screen_locker_->ShowErrorMessage(
+      incorrect_passwords_count_++ ? IDS_LOGIN_ERROR_AUTHENTICATING_2ND_TIME
+                                   : IDS_LOGIN_ERROR_AUTHENTICATING,
+      HelpAppLauncher::HELP_CANT_ACCESS_ACCOUNT);
 
   if (auth_status_consumer_)
     auth_status_consumer_->OnAuthFailure(error);
@@ -501,18 +495,6 @@ void ScreenLocker::OnPinAttemptDone(std::unique_ptr<UserContext> user_context,
 void ScreenLocker::ContinueAuthenticate(
     std::unique_ptr<UserContext> user_context) {
   DCHECK(!user_context->IsUsingPin());
-  if (user_context->GetAccountId().GetAccountType() ==
-          AccountType::ACTIVE_DIRECTORY &&
-      user_context->GetKey()->GetKeyType() == Key::KEY_TYPE_PASSWORD_PLAIN) {
-    // Try to get kerberos TGT while we have user's password typed on the lock
-    // screen. Failure to get TGT here is OK - that could mean e.g. Active
-    // Directory server is not reachable. AuthPolicyCredentialsManager regularly
-    // checks TGT status inside the user session.
-    AuthPolicyHelper::TryAuthenticateUser(
-        user_context->GetAccountId().GetUserEmail(),
-        user_context->GetAccountId().GetObjGuid(),
-        user_context->GetKey()->GetSecret());
-  }
   content::GetUIThreadTaskRunner({})->PostTask(
       FROM_HERE,
       base::BindOnce(&ScreenLocker::AttemptUnlock, weak_factory_.GetWeakPtr(),
@@ -520,7 +502,13 @@ void ScreenLocker::ContinueAuthenticate(
 }
 
 void ScreenLocker::AttemptUnlock(std::unique_ptr<UserContext> user_context) {
-  authenticator_->AuthenticateToUnlock(std::move(user_context));
+  DCHECK(user_context);
+  // Retrieve accountId before std::move(user_context).
+  const AccountId accountId = user_context->GetAccountId();
+
+  authenticator_->AuthenticateToUnlock(
+      user_manager::UserManager::Get()->IsEphemeralAccountId(accountId),
+      std::move(user_context));
 }
 
 const user_manager::User* ScreenLocker::FindUnlockUser(
@@ -538,18 +526,18 @@ void ScreenLocker::OnStartLockCallback(bool locked) {
   if (!locked)
     return;
 
-  delegate_->OnAshLockAnimationFinished();
+  views_screen_locker_->OnAshLockAnimationFinished();
 
   AccessibilityManager::Get()->PlayEarcon(
       Sound::kLock, PlaySoundOption::kOnlyIfSpokenFeedbackEnabled);
 }
 
 void ScreenLocker::ClearErrors() {
-  delegate_->ClearErrors();
+  views_screen_locker_->ClearErrors();
 }
 
 void ScreenLocker::Signout() {
-  delegate_->ClearErrors();
+  views_screen_locker_->ClearErrors();
   base::RecordAction(UserMetricsAction("ScreenLocker_Signout"));
   // We expect that this call will not wait for any user input.
   // If it changes at some point, we will need to force exit.
@@ -566,7 +554,7 @@ void ScreenLocker::EnableInput() {
 void ScreenLocker::ShowErrorMessage(int error_msg_id,
                                     HelpAppLauncher::HelpTopic help_topic_id,
                                     bool sign_out_only) {
-  delegate_->ShowErrorMessage(error_msg_id, help_topic_id);
+  views_screen_locker_->ShowErrorMessage(error_msg_id, help_topic_id);
 }
 
 user_manager::UserList ScreenLocker::GetUsersToShow() const {
@@ -630,7 +618,7 @@ void ScreenLocker::HandleShowLockScreenRequest() {
 void ScreenLocker::Show() {
   VLOG(1) << "ScreenLocker::Show()";
   base::RecordAction(UserMetricsAction("ScreenLocker_Show"));
-  DCHECK(base::CurrentUIThread::IsSet());
+  CHECK(base::CurrentUIThread::IsSet());
 
   // Check whether the currently logged in user is a guest account and if so,
   // refuse to lock the screen (crosbug.com/23764).
@@ -655,29 +643,33 @@ void ScreenLocker::Show() {
 
 // static
 void ScreenLocker::Hide() {
-  DCHECK(base::CurrentUIThread::IsSet());
+  CHECK(base::CurrentUIThread::IsSet());
   // For a guest user, screen_locker_ would have never been initialized.
   if (user_manager::UserManager::Get()->IsLoggedInAsGuest()) {
     VLOG(1) << "Refusing to hide lock screen for guest account";
     return;
   }
 
-  DCHECK(screen_locker_);
+  CHECK(screen_locker_);
   SessionControllerClientImpl::Get()->RunUnlockAnimation(
       base::BindOnce(&ScreenLocker::OnUnlockAnimationFinished));
 }
 
 void ScreenLocker::ResetToLockedState() {
+  CHECK(base::CurrentUIThread::IsSet());
   LoginScreen::Get()->GetModel()->ResetFingerprintUIState(
       user_manager::UserManager::Get()->GetPrimaryUser()->GetAccountId());
+  CHECK(screen_locker_);
   screen_locker_->unlock_started_ = false;
 }
 
 // static
 void ScreenLocker::OnUnlockAnimationFinished(bool aborted) {
   VLOG(1) << "ScreenLocker::OnUnlockAnimationFinished aborted=" << aborted;
+  CHECK(base::CurrentUIThread::IsSet());
   if (aborted) {
     // Reset state that was impacted by successful auth.
+    CHECK(screen_locker_);
     screen_locker_->ResetToLockedState();
     return;
   }
@@ -695,6 +687,7 @@ void ScreenLocker::RefreshPinAndFingerprintTimeout() {
 
 // static
 void ScreenLocker::ScheduleDeletion() {
+  CHECK(base::CurrentUIThread::IsSet());
   // Avoid possible multiple calls.
   if (screen_locker_ == nullptr)
     return;
@@ -738,7 +731,8 @@ void ScreenLocker::SetClocksForTesting(const base::Clock* clock,
                                        const base::TickClock* tick_clock) {
   // Testing clocks should be already set at timer's initialization,
   // which happens in ScreenLocker's constructor.
-  DCHECK(!screen_locker_);
+  CHECK(base::CurrentUIThread::IsSet());
+  CHECK(!screen_locker_);
   g_clock_for_testing_ = clock;
   g_tick_clock_for_testing_ = tick_clock;
 }
@@ -754,7 +748,7 @@ ScreenLocker::AuthState::~AuthState() = default;
 
 ScreenLocker::~ScreenLocker() {
   VLOG(1) << "Destroying ScreenLocker " << this;
-  DCHECK(base::CurrentUIThread::IsSet());
+  CHECK(base::CurrentUIThread::IsSet());
   user_manager::UserManager::Get()->RemoveSessionStateObserver(this);
 
   GetLoginScreenCertProviderService()
@@ -966,8 +960,9 @@ void ScreenLocker::OnFingerprintAuthFailure(const user_manager::User& user) {
               << " unlock attempt.";
       LoginScreen::Get()->GetModel()->SetFingerprintState(
           user.GetAccountId(), FingerprintState::DISABLED_FROM_ATTEMPTS);
-      delegate_->ShowErrorMessage(IDS_LOGIN_ERROR_FINGERPRINT_MAX_ATTEMPT,
-                                  HelpAppLauncher::HELP_CANT_ACCESS_ACCOUNT);
+      views_screen_locker_->ShowErrorMessage(
+          IDS_LOGIN_ERROR_FINGERPRINT_MAX_ATTEMPT,
+          HelpAppLauncher::HELP_CANT_ACCESS_ACCOUNT);
     }
   }
 

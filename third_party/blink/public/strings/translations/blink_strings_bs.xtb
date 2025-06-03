@@ -16,6 +16,7 @@
 <translation id="1729654308190250600">Upišite adresu e-pošte.</translation>
 <translation id="1758486001363313524">Drugo…</translation>
 <translation id="1787192514241997742">ukupno vrijeme: <ph name="REMAINING_TIME" /></translation>
+<translation id="1800494066469288780">Dozvoli pristup kameri</translation>
 <translation id="1822429046913737220">prijepodne/poslijepodne</translation>
 <translation id="1832974991323546415">reproduciranje na udaljenom uređaju</translation>
 <translation id="1921819250265091946">dd</translation>
@@ -24,9 +25,9 @@
 <translation id="1993104285338243655">Prebačeno na preslikavanje</translation>
 <translation id="2031987842108996681">Crveni kanal</translation>
 <translation id="2060505056492490888">"<ph name="DOT" />" se koristi na pogrešnom mjestu na domeni "<ph name="INVALIDDOMAIN" />".</translation>
+<translation id="2068711044993563745">Minimalna vrijednost (<ph name="MINIMUM" />) mora biti manja od maksimalne vrijednosti (<ph name="MAXIMUM" />).</translation>
 <translation id="2148716181193084225">Danas</translation>
 <translation id="2226276347425096477">Skratite ovaj tekst na sljedeći broj znakova ili manje: <ph name="MAX_CHARACTERS" /> (trenutno koristite sljedeći broj znakova: <ph name="CURRENT_LENGTH" />).</translation>
-<translation id="2246498165605549352">Lokalni fajl</translation>
 <translation id="2247351761944213033"><ph name="WEEKNUMBER" />. sedmica, <ph name="YEAR" />.</translation>
 <translation id="2277199496770840904">Zapis <ph name="NUMBER" /></translation>
 <translation id="2393030564806080191">Heksadecimalna vrijednost boje</translation>
@@ -45,11 +46,13 @@
 <translation id="2761667185364618470">Označite ovaj kvadratić ako želite nastaviti.</translation>
 <translation id="2908441821576996758">Unesite listu adresa e-pošte odvojenu zarezima.</translation>
 <translation id="3049748772180311791"><ph name="QUANTITY" /> MB</translation>
+<translation id="3053226512517284904">prikaz menija zvučnih opisa</translation>
 <translation id="3075154866155599887">Unesite važeću vrijednost. Polje je nepotpuno ili sadrži nevažeći datum.</translation>
 <translation id="310520048233152454">Unesite URL.</translation>
 <translation id="3220661731597678625">trenutni korak</translation>
 <translation id="3321030238473337787">Brzina reprodukcije</translation>
 <translation id="3329013043687509092">Zasićenje</translation>
+<translation id="3377518164566272702">Dozvoli pristup mikrofonu i kameri</translation>
 <translation id="3450233048674729344">Vrijednost mora biti <ph name="MAXIMUM" /> ili manja.</translation>
 <translation id="3732799496749320381">mm</translation>
 <translation id="3754210790023674521">Izađi iz načina rada slike u slici</translation>
@@ -65,6 +68,7 @@
 <translation id="4718048029184481307">Reproduciranje u načinu rada slike u slici</translation>
 <translation id="4748357248530471599">aktiviranje/deaktiviranje ureza u ekranu u cijeli ekran</translation>
 <translation id="4763480195061959176">videozapis</translation>
+<translation id="4792862212177489858">Dijeli lokaciju</translation>
 <translation id="4812940957355064477">Unesite broj.</translation>
 <translation id="4912200001568447310">trenutna stavka</translation>
 <translation id="4915360478455618802">Prikaz birača vremena</translation>
@@ -74,6 +78,7 @@
 <translation id="4975562563186953947">Odabrano <ph name="SELECTED_COUNT" /></translation>
 <translation id="4992066212339426712">Uključi zvuk</translation>
 <translation id="49969490063480558">Unesite dio nakon znaka "<ph name="ATSIGN" />". Adresa "<ph name="INVALIDADDRESS" />" je nepotpuna.</translation>
+<translation id="5037575921016181960">Jaka lozinka</translation>
 <translation id="5090250355906949916">regulator vremena videozapisa</translation>
 <translation id="509897012892853729">Plavi kanal</translation>
 <translation id="5117590920725113268">Prikaz sljedećeg mjeseca</translation>
@@ -89,6 +94,7 @@
 <translation id="5425179576310518467">trenutni datum</translation>
 <translation id="5466621249238537318">Odaberite jedan ili više fajlova.</translation>
 <translation id="5468998798572797635">napuštanje prikaza preko cijelog ekrana</translation>
+<translation id="5514612371225420585">Fajl na vašem uređaju</translation>
 <translation id="5516235301412634559">0,75</translation>
 <translation id="5537725057119320332">Emitiraj</translation>
 <translation id="5546461542133609677">uključi zvuk</translation>
@@ -113,6 +119,7 @@
 <translation id="6398862346408813489">Prikaži ploču za odabir mjeseca</translation>
 <translation id="6404546809543547843">regulator vremena audiozapisa</translation>
 <translation id="6443871981718447451">prikaži meni za titlove</translation>
+<translation id="6484738902856791350">Formatiraj za lakšu čitljivost</translation>
 <translation id="6550675742724504774">Opcije</translation>
 <translation id="6572309429103589720">Gramatički neispravno</translation>
 <translation id="658823671542763450">prikaz preko cijelog ekrana</translation>
@@ -176,6 +183,7 @@
 <translation id="9132465097189459683">Drugo…</translation>
 <translation id="9155987714137265666"><ph name="WEEK" />, počevši od <ph name="WEEK_START_DATE" /></translation>
 <translation id="916607977885256133">Slika u slici</translation>
+<translation id="918430632320614861">Dozvoli pristup mikrofonu</translation>
 <translation id="945780513535800434">Djelimično označeno</translation>
 <translation id="954003015749068518">pokretanje načina rada slika u slici</translation>
 </translationbundle>

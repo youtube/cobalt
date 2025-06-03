@@ -174,8 +174,7 @@ void InspectorTraceEvents::DidFinishLoading(uint64_t identifier,
                                             DocumentLoader* loader,
                                             base::TimeTicks finish_time,
                                             int64_t encoded_data_length,
-                                            int64_t decoded_body_length,
-                                            bool should_report_corb_blocking) {
+                                            int64_t decoded_body_length) {
   DEVTOOLS_TIMELINE_TRACE_EVENT_INSTANT(
       "ResourceFinish", inspector_resource_finish_event::Data, loader,
       identifier, finish_time, false, encoded_data_length, decoded_body_length);
@@ -324,6 +323,8 @@ const char* PseudoTypeToString(CSSSelector::PseudoType pseudo_type) {
     DEFINE_STRING_MAPPING(PseudoRequired)
     DEFINE_STRING_MAPPING(PseudoReadOnly)
     DEFINE_STRING_MAPPING(PseudoReadWrite)
+    DEFINE_STRING_MAPPING(PseudoUserInvalid)
+    DEFINE_STRING_MAPPING(PseudoUserValid)
     DEFINE_STRING_MAPPING(PseudoValid)
     DEFINE_STRING_MAPPING(PseudoInvalid)
     DEFINE_STRING_MAPPING(PseudoIndeterminate)
@@ -364,11 +365,11 @@ const char* PseudoTypeToString(CSSSelector::PseudoType pseudo_type) {
     DEFINE_STRING_MAPPING(PseudoFullScreenAncestor)
     DEFINE_STRING_MAPPING(PseudoFullscreen)
     DEFINE_STRING_MAPPING(PseudoPaused)
+    DEFINE_STRING_MAPPING(PseudoPermissionGranted)
     DEFINE_STRING_MAPPING(PseudoPictureInPicture)
     DEFINE_STRING_MAPPING(PseudoPlaying)
     DEFINE_STRING_MAPPING(PseudoInRange)
     DEFINE_STRING_MAPPING(PseudoOutOfRange)
-    DEFINE_STRING_MAPPING(PseudoToggle)
     DEFINE_STRING_MAPPING(PseudoTrue)
     DEFINE_STRING_MAPPING(PseudoWebKitCustomElement)
     DEFINE_STRING_MAPPING(PseudoBlinkInternalElement)
@@ -387,6 +388,8 @@ const char* PseudoTypeToString(CSSSelector::PseudoType pseudo_type) {
     DEFINE_STRING_MAPPING(PseudoMultiSelectFocus)
     DEFINE_STRING_MAPPING(PseudoOpen)
     DEFINE_STRING_MAPPING(PseudoClosed)
+    DEFINE_STRING_MAPPING(PseudoDialogInTopLayer)
+    DEFINE_STRING_MAPPING(PseudoPopoverInTopLayer)
     DEFINE_STRING_MAPPING(PseudoPopoverOpen)
     DEFINE_STRING_MAPPING(PseudoHostHasAppearance)
     DEFINE_STRING_MAPPING(PseudoVideoPersistent)
@@ -405,6 +408,8 @@ const char* PseudoTypeToString(CSSSelector::PseudoType pseudo_type) {
     DEFINE_STRING_MAPPING(PseudoViewTransitionImagePair);
     DEFINE_STRING_MAPPING(PseudoViewTransitionNew);
     DEFINE_STRING_MAPPING(PseudoViewTransitionOld);
+    DEFINE_STRING_MAPPING(PseudoDetailsContent)
+    DEFINE_STRING_MAPPING(PseudoDetailsSummary)
     DEFINE_STRING_MAPPING(PseudoParent);
     DEFINE_STRING_MAPPING(PseudoUnparsed)
 #undef DEFINE_STRING_MAPPING
@@ -563,14 +568,6 @@ void inspector_schedule_style_invalidation_tracking_event::PseudoChange(
   auto dict = std::move(context).WriteDictionary();
   FillCommonPart(dict, element, invalidation_set, kAttribute);
   dict.Add("changedPseudo", PseudoTypeToString(pseudo_type));
-}
-
-void inspector_schedule_style_invalidation_tracking_event::RuleSetInvalidation(
-    perfetto::TracedValue context,
-    ContainerNode& root_node,
-    const InvalidationSet& invalidation_set) {
-  auto dict = std::move(context).WriteDictionary();
-  FillCommonPart(dict, root_node, invalidation_set, kRuleSet);
 }
 
 String DescendantInvalidationSetToIdString(const InvalidationSet& set) {
@@ -909,6 +906,8 @@ void RecordTiming(perfetto::TracedValue context,
            timing.CalculateMillisecondDelta(timing.WorkerReady()));
   dict.Add("sendStart", timing.CalculateMillisecondDelta(timing.SendStart()));
   dict.Add("sendEnd", timing.CalculateMillisecondDelta(timing.SendEnd()));
+  dict.Add("receiveHeadersStart",
+           timing.CalculateMillisecondDelta(timing.ReceiveHeadersStart()));
   dict.Add("receiveHeadersEnd",
            timing.CalculateMillisecondDelta(timing.ReceiveHeadersEnd()));
   dict.Add("pushStart", timing.PushStart().since_origin().InSecondsF());
@@ -949,7 +948,8 @@ void inspector_receive_response_event::Data(perfetto::TracedValue context,
   }
 
   if (!response.ResponseTime().is_null()) {
-    dict.Add("responseTime", response.ResponseTime().ToJsTime());
+    dict.Add("responseTime",
+             response.ResponseTime().InMillisecondsFSinceUnixEpoch());
   }
   if (!response.CacheStorageCacheName().empty()) {
     dict.Add("cacheStorageCacheName", response.CacheStorageCacheName());
@@ -1237,8 +1237,9 @@ void inspector_deserialize_script_event::Data(perfetto::TracedValue context,
 
 inspector_compile_script_event::V8ConsumeCacheResult::V8ConsumeCacheResult(
     int cache_size,
-    bool rejected)
-    : cache_size(cache_size), rejected(rejected) {}
+    bool rejected,
+    bool full)
+    : cache_size(cache_size), rejected(rejected), full(full) {}
 
 void inspector_compile_script_event::Data(
     perfetto::TracedValue context,
@@ -1254,6 +1255,7 @@ void inspector_compile_script_event::Data(
   if (consume_cache_result) {
     dict.Add("consumedCacheSize", consume_cache_result->cache_size);
     dict.Add("cacheRejected", consume_cache_result->rejected);
+    dict.Add("cacheKind", consume_cache_result->full ? "full" : "normal");
   }
   if (eager) {
     // Eager compilation is rare so only add this key when it's set.

@@ -6171,8 +6171,8 @@ Lorg/chromium/chrome/browser/tasks/tab_management/TabGridItemTouchHelperCallback
 Lorg/chromium/chrome/browser/tasks/tab_management/TabGridPanelProperties;
 Lorg/chromium/chrome/browser/tasks/tab_management/TabGridPanelViewBinder$ViewHolder;
 HSPLorg/chromium/chrome/browser/tasks/tab_management/TabGridPanelViewBinder$ViewHolder;-><init>(Lorg/chromium/chrome/browser/tasks/tab_management/TabGroupUiToolbarView;Landroidx/recyclerview/widget/RecyclerView;Lorg/chromium/chrome/browser/tasks/tab_management/TabGridDialogView;)V
-Lorg/chromium/chrome/browser/tasks/tab_management/TabGridThumbnailView;
-HSPLorg/chromium/chrome/browser/tasks/tab_management/TabGridThumbnailView;-><init>(Landroid/content/Context;Landroid/util/AttributeSet;)V
+Lorg/chromium/chrome/browser/tasks/tab_management/TabThumbnailView;
+HSPLorg/chromium/chrome/browser/tasks/tab_management/TabThumbnailView;-><init>(Landroid/content/Context;Landroid/util/AttributeSet;)V
 Lorg/chromium/chrome/browser/tasks/tab_management/TabGroupUi;
 Lorg/chromium/chrome/browser/tasks/tab_management/TabGroupUiCoordinator;
 HSPLorg/chromium/chrome/browser/tasks/tab_management/TabGroupUiCoordinator;-><init>(Landroidx/appcompat/app/AppCompatActivity;Landroid/view/ViewGroup;Lorg/chromium/chrome/browser/tabmodel/IncognitoStateProvider;Lorg/chromium/components/browser_ui/widget/scrim/ScrimCoordinator;Lorg/chromium/base/supplier/ObservableSupplier;Lorg/chromium/components/browser_ui/bottomsheet/BottomSheetController;Lorg/chromium/chrome/browser/init/ActivityLifecycleDispatcherImpl;Lorg/chromium/base/supplier/Supplier;Lorg/chromium/chrome/browser/tabmodel/TabModelSelector;Lorg/chromium/chrome/browser/compositor/layouts/content/TabContentManager;Lorg/chromium/chrome/browser/compositor/CompositorViewHolder;Lorg/chromium/chrome/browser/toolbar/ToolbarManager$$ExternalSyntheticLambda14;Lorg/chromium/chrome/browser/tabmodel/TabCreatorManager;Lorg/chromium/base/supplier/Supplier;Lorg/chromium/base/supplier/OneshotSupplier;)V
@@ -7060,9 +7060,6 @@ Lorg/chromium/chrome/browser/toolbar/top/VisibleUrlText;
 HSPLorg/chromium/chrome/browser/toolbar/top/VisibleUrlText;-><init>(Ljava/lang/CharSequence;Ljava/lang/CharSequence;)V
 Lorg/chromium/chrome/browser/translate/TranslateUtils;
 HSPLorg/chromium/chrome/browser/translate/TranslateUtils;->canTranslateCurrentTab(Lorg/chromium/chrome/browser/tab/Tab;Z)Z
-Lorg/chromium/chrome/browser/ui/AppLaunchDrawBlocker;
-HSPLorg/chromium/chrome/browser/ui/AppLaunchDrawBlocker;-><init>(Lorg/chromium/chrome/browser/init/ActivityLifecycleDispatcherImpl;Lorg/chromium/chrome/browser/ChromeTabbedActivity$$ExternalSyntheticLambda4;Lorg/chromium/chrome/browser/ChromeTabbedActivity$$ExternalSyntheticLambda4;Lorg/chromium/chrome/browser/ChromeTabbedActivity$$ExternalSyntheticLambda4;Lorg/chromium/chrome/browser/ChromeTabbedActivity$$ExternalSyntheticLambda4;Lorg/chromium/chrome/browser/ChromeTabbedActivity$$ExternalSyntheticLambda4;Lorg/chromium/chrome/browser/ChromeTabbedActivity$$ExternalSyntheticLambda4;Lorg/chromium/chrome/browser/ui/IncognitoRestoreAppLaunchDrawBlockerFactory;)V
-HSPLorg/chromium/chrome/browser/ui/AppLaunchDrawBlocker;->recordBlockDrawForInitialTabHistograms(ZZ)V
 Lorg/chromium/chrome/browser/ui/AppLaunchDrawBlocker$$ExternalSyntheticLambda0;
 HSPLorg/chromium/chrome/browser/ui/AppLaunchDrawBlocker$$ExternalSyntheticLambda0;-><init>(Lorg/chromium/chrome/browser/ui/AppLaunchDrawBlocker;)V
 HSPLorg/chromium/chrome/browser/ui/AppLaunchDrawBlocker$$ExternalSyntheticLambda0;->run()V
@@ -7334,9 +7331,6 @@ HSPLorg/chromium/chrome/browser/util/ChromeAccessibilityUtil$ActivityStateListen
 HSPLorg/chromium/chrome/browser/util/ChromeAccessibilityUtil$ActivityStateListenerImpl;->onActivityStateChange(Landroid/app/Activity;I)V
 Lorg/chromium/chrome/browser/util/ChromeFileProvider;
 HSPLorg/chromium/chrome/browser/util/ChromeFileProvider;-><init>()V
-Lorg/chromium/chrome/browser/video_tutorials/VideoTutorialServiceFactory$LazyHolder;
-Lorg/chromium/chrome/browser/video_tutorials/iph/TryNowTrackerImpl;
-HSPLorg/chromium/chrome/browser/video_tutorials/iph/TryNowTrackerImpl;-><init>()V
 Lorg/chromium/chrome/browser/vr/VrDelegate;
 HSPLorg/chromium/chrome/browser/vr/VrDelegate;-><init>()V
 Lorg/chromium/chrome/browser/vr/VrDelegateFallback;

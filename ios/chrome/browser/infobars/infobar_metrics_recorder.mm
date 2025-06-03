@@ -7,11 +7,7 @@
 #import "base/metrics/histogram_functions.h"
 #import "base/metrics/histogram_macros.h"
 #import "base/notreached.h"
-#import "ios/chrome/browser/default_browser/utils.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
+#import "ios/chrome/browser/default_browser/model/utils.h"
 
 namespace {
 
@@ -108,12 +104,12 @@ const char kInfobarPermissionsBadgeTappedHistogram[] =
 
 // Histogram names for InfobarTypeTailoredSecurityService.
 const char kInfobarTailoredSecurityServiceBannerEventHistogram[] =
-    "Mobile.Messages.Banner.Event.InfobarTypePermissions";
+    "Mobile.Messages.Banner.Event.InfobarTypeTailoredSecurityService";
 const char kInfobarTailoredSecurityServiceBannerDismissTypeHistogram[] =
-    "Mobile.Messages.Banner.Dismiss.InfobarTypePermissions";
+    "Mobile.Messages.Banner.Dismiss.InfobarTypeTailoredSecurityService";
 // Modal.
 const char kInfobarTailoredSecurityServiceModalEventHistogram[] =
-    "Mobile.Messages.Modal.Event.InfobarTypePermissions";
+    "Mobile.Messages.Modal.Event.InfobarTypeTailoredSecurityService";
 
 // Histogram names for InfobarTypeSyncError.
 // Banner.
@@ -127,6 +123,30 @@ const char kInfobarSyncErrorModalEventHistogram[] =
 // Badge.
 const char kInfobarSyncErrorBadgeTappedHistogram[] =
     "Mobile.Messages.Badge.Tapped.InfobarTypeSyncError";
+
+// Histogram names for the Tabpickup banner.
+const char kInfobarTabPickupBannerEventHistogram[] =
+    "Mobile.Messages.Banner.Event.InfobarTypeTabPickup";
+const char kInfobarTabPickupBannerDismissTypeHistogram[] =
+    "Mobile.Messages.Banner.Dismiss.InfobarTypeTabPickup";
+// Modal.
+const char kInfobarTabPickupModalEventHistogram[] =
+    "Mobile.Messages.Modal.Event.InfobarTypeTabPickup";
+// Badge.
+const char kInfobarTabPickupBadgeTappedHistogram[] =
+    "Mobile.Messages.Badge.Tapped.InfobarTypeTabPickup";
+
+// Histogram names for the Parcel Tracking banner.
+const char kInfobarParcelTrackingBannerEventHistogram[] =
+    "Mobile.Messages.Banner.Event.InfobarTypeParcelTracking";
+const char kInfobarParcelTrackingBannerDismissTypeHistogram[] =
+    "Mobile.Messages.Banner.Dismiss.InfobarTypeParcelTracking";
+// Modal.
+const char kInfobarParcelTrackingModalEventHistogram[] =
+    "Mobile.Messages.Modal.Event.InfobarTypeParcelTracking";
+// Badge.
+const char kInfobarParcelTrackingBadgeTappedHistogram[] =
+    "Mobile.Messages.Badge.Tapped.InfobarTypeParcelTracking";
 
 }  // namespace
 
@@ -187,6 +207,13 @@ const char kInfobarSyncErrorBadgeTappedHistogram[] =
     case InfobarType::kInfobarTypeSyncError:
       UMA_HISTOGRAM_ENUMERATION(kInfobarSyncErrorBannerEventHistogram, event);
       break;
+    case InfobarType::kInfobarTypeTabPickup:
+      UMA_HISTOGRAM_ENUMERATION(kInfobarTabPickupBannerEventHistogram, event);
+      break;
+    case InfobarType::kInfobarTypeParcelTracking:
+      UMA_HISTOGRAM_ENUMERATION(kInfobarParcelTrackingBannerEventHistogram,
+                                event);
+      break;
   }
 }
 
@@ -229,6 +256,14 @@ const char kInfobarSyncErrorBadgeTappedHistogram[] =
       UMA_HISTOGRAM_ENUMERATION(kInfobarSyncErrorBannerDismissTypeHistogram,
                                 dismissType);
       break;
+    case InfobarType::kInfobarTypeTabPickup:
+      UMA_HISTOGRAM_ENUMERATION(kInfobarTabPickupBannerDismissTypeHistogram,
+                                dismissType);
+      break;
+    case InfobarType::kInfobarTypeParcelTracking:
+      UMA_HISTOGRAM_ENUMERATION(
+          kInfobarParcelTrackingBannerDismissTypeHistogram, dismissType);
+      break;
   }
 }
 
@@ -269,6 +304,13 @@ const char kInfobarSyncErrorBadgeTappedHistogram[] =
     case InfobarType::kInfobarTypeSyncError:
       UMA_HISTOGRAM_ENUMERATION(kInfobarSyncErrorModalEventHistogram, event);
       break;
+    case InfobarType::kInfobarTypeTabPickup:
+      UMA_HISTOGRAM_ENUMERATION(kInfobarTabPickupModalEventHistogram, event);
+      break;
+    case InfobarType::kInfobarTypeParcelTracking:
+      UMA_HISTOGRAM_ENUMERATION(kInfobarParcelTrackingModalEventHistogram,
+                                event);
+      break;
   }
 }
 
@@ -305,6 +347,13 @@ const char kInfobarSyncErrorBadgeTappedHistogram[] =
       break;
     case InfobarType::kInfobarTypeSyncError:
       UMA_HISTOGRAM_ENUMERATION(kInfobarSyncErrorBadgeTappedHistogram, state);
+      break;
+    case InfobarType::kInfobarTypeTabPickup:
+      UMA_HISTOGRAM_ENUMERATION(kInfobarTabPickupBadgeTappedHistogram, state);
+      break;
+    case InfobarType::kInfobarTypeParcelTracking:
+      UMA_HISTOGRAM_ENUMERATION(kInfobarParcelTrackingBadgeTappedHistogram,
+                                state);
       break;
   }
 }

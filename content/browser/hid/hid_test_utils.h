@@ -48,6 +48,7 @@ class MockHidDelegate : public HidDelegate {
   void OnDeviceRemoved(const device::mojom::HidDeviceInfo& device);
   void OnDeviceChanged(const device::mojom::HidDeviceInfo& device);
   void OnPermissionRevoked(const url::Origin& origin);
+  void OnHidManagerConnectionError();
 
   MOCK_METHOD0(RunChooserInternal,
                std::vector<device::mojom::HidDeviceInfoPtr>());
@@ -78,8 +79,13 @@ class MockHidDelegate : public HidDelegate {
   MOCK_METHOD2(DecrementConnectionCount,
                void(BrowserContext*, const url::Origin&));
 
+  const base::ObserverList<Observer>& observer_list() { return observer_list_; }
+
+  void SetAssertBrowserContext(bool assert_browser_context);
+
  private:
   base::ObserverList<Observer> observer_list_;
+  bool assert_browser_context_ = false;
 };
 
 // Test implementation of ContentBrowserClient for HID tests. The test client

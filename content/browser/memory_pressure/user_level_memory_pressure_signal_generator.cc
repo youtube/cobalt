@@ -5,10 +5,10 @@
 #include "content/browser/memory_pressure/user_level_memory_pressure_signal_generator.h"
 
 #if BUILDFLAG(IS_ANDROID)
-#include <ctype.h>
 #include <fcntl.h>
 #include <inttypes.h>
 #include <unistd.h>
+
 #include "base/android/child_process_binding_types.h"
 #include "base/feature_list.h"
 #include "base/files/file.h"
@@ -28,9 +28,9 @@
 #include "base/time/time.h"
 #include "content/browser/child_process_host_impl.h"
 #include "content/browser/renderer_host/render_process_host_impl.h"
+#include "content/common/user_level_memory_pressure_signal_features.h"
 #include "content/public/browser/browser_child_process_host_iterator.h"
 #include "content/public/browser/child_process_data.h"
-#include "content/public/browser/user_level_memory_pressure_signal_features.h"
 
 namespace memory_pressure {
 
@@ -39,33 +39,60 @@ constexpr uint64_t k1MB = 1024ull * 1024;
 constexpr base::TimeDelta kDefaultMeasurementInterval = base::Seconds(1);
 
 // Time interval between measuring total private memory footprint.
+base::TimeDelta MeasurementIntervalFor3GbDevices() {
+  static const base::FeatureParam<base::TimeDelta> kMeasurementInterval{
+      &content::features::kUserLevelMemoryPressureSignalOn3GbDevices,
+      "measurement_interval", kDefaultMeasurementInterval};
+  return kMeasurementInterval.Get();
+}
+
 base::TimeDelta MeasurementIntervalFor4GbDevices() {
   static const base::FeatureParam<base::TimeDelta> kMeasurementInterval{
-      &features::kUserLevelMemoryPressureSignalOn4GbDevices,
+      &content::features::kUserLevelMemoryPressureSignalOn4GbDevices,
       "measurement_interval", kDefaultMeasurementInterval};
   return kMeasurementInterval.Get();
 }
 
 base::TimeDelta MeasurementIntervalFor6GbDevices() {
   static const base::FeatureParam<base::TimeDelta> kMeasurementInterval{
-      &features::kUserLevelMemoryPressureSignalOn6GbDevices,
+      &content::features::kUserLevelMemoryPressureSignalOn6GbDevices,
       "measurement_interval", kDefaultMeasurementInterval};
   return kMeasurementInterval.Get();
 }
 
-constexpr size_t kDefaultMemoryThresholdMB = 485;
+// The memory threshold: 738 was selected at around the 99th percentile of
+// the Memory.Total.PrivateMemoryFootprint reported by Android devices whose
+// system memory were 3GB.
+constexpr size_t kMemoryThresholdMBOf3GbDevices = 738;
 
-uint64_t MemoryThresholdParamFor4GbDevices() {
+uint64_t MemoryThresholdParamFor3GbDevices() {
   static const base::FeatureParam<int> kMemoryThresholdParam{
-      &features::kUserLevelMemoryPressureSignalOn4GbDevices,
-      "memory_threshold_mb", kDefaultMemoryThresholdMB};
+      &content::features::kUserLevelMemoryPressureSignalOn3GbDevices,
+      "memory_threshold_mb", kMemoryThresholdMBOf3GbDevices};
   return base::as_unsigned(kMemoryThresholdParam.Get()) * k1MB;
 }
 
+// The memory threshold: 458 was selected at around the 99th percentile of
+// the Memory.Total.PrivateMemoryFootprint reported by Android devices whose
+// system memory were 4GB.
+constexpr size_t kMemoryThresholdMBOf4GbDevices = 458;
+
+uint64_t MemoryThresholdParamFor4GbDevices() {
+  static const base::FeatureParam<int> kMemoryThresholdParam{
+      &content::features::kUserLevelMemoryPressureSignalOn4GbDevices,
+      "memory_threshold_mb", kMemoryThresholdMBOf4GbDevices};
+  return base::as_unsigned(kMemoryThresholdParam.Get()) * k1MB;
+}
+
+// The memory threshold: 494 was selected at around the 99th percentile of
+// the Memory.Total.PrivateMemoryFootprint reported by Android devices whose
+// system memory were 6GB.
+constexpr size_t kMemoryThresholdMBOf6GbDevices = 494;
+
 uint64_t MemoryThresholdParamFor6GbDevices() {
   static const base::FeatureParam<int> kMemoryThresholdParam{
-      &features::kUserLevelMemoryPressureSignalOn6GbDevices,
-      "memory_threshold_mb", kDefaultMemoryThresholdMB};
+      &content::features::kUserLevelMemoryPressureSignalOn6GbDevices,
+      "memory_threshold_mb", kMemoryThresholdMBOf6GbDevices};
   return base::as_unsigned(kMemoryThresholdParam.Get()) * k1MB;
 }
 
@@ -73,17 +100,24 @@ uint64_t MemoryThresholdParamFor6GbDevices() {
 
 // static
 void UserLevelMemoryPressureSignalGenerator::Initialize() {
-  if (features::IsUserLevelMemoryPressureSignalEnabledOn4GbDevices()) {
+  if (content::features::IsUserLevelMemoryPressureSignalEnabledOn3GbDevices()) {
     UserLevelMemoryPressureSignalGenerator::Get().Start(
-        MemoryThresholdParamFor4GbDevices(), MeasurementIntervalFor4GbDevices(),
-        features::MinUserMemoryPressureIntervalOn4GbDevices());
+        MemoryThresholdParamFor3GbDevices(), MeasurementIntervalFor3GbDevices(),
+        content::features::MinUserMemoryPressureIntervalOn3GbDevices());
     return;
   }
 
-  if (features::IsUserLevelMemoryPressureSignalEnabledOn6GbDevices()) {
+  if (content::features::IsUserLevelMemoryPressureSignalEnabledOn4GbDevices()) {
+    UserLevelMemoryPressureSignalGenerator::Get().Start(
+        MemoryThresholdParamFor4GbDevices(), MeasurementIntervalFor4GbDevices(),
+        content::features::MinUserMemoryPressureIntervalOn4GbDevices());
+    return;
+  }
+
+  if (content::features::IsUserLevelMemoryPressureSignalEnabledOn6GbDevices()) {
     UserLevelMemoryPressureSignalGenerator::Get().Start(
         MemoryThresholdParamFor6GbDevices(), MeasurementIntervalFor6GbDevices(),
-        features::MinUserMemoryPressureIntervalOn6GbDevices());
+        content::features::MinUserMemoryPressureIntervalOn6GbDevices());
     return;
   }
 

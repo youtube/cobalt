@@ -14,12 +14,22 @@
 #include "components/saved_tab_groups/saved_tab_group_tab.h"
 #include "components/tab_groups/tab_group_id.h"
 #include "content/public/browser/web_contents.h"
+#include "url/gurl.h"
 
 SavedTabGroupTab SavedTabGroupUtils::CreateSavedTabGroupTabFromWebContents(
     content::WebContents* contents,
     base::Uuid saved_tab_group_id) {
+  // in order to protect from filesystem access or chrome settings page use,
+  // replace the URL with the new tab page, when creating from sync or an
+  // unsaved group.
+  if (!IsURLValidForSavedTabGroups(contents->GetVisibleURL())) {
+    return SavedTabGroupTab(GURL(chrome::kChromeUINewTabURL), u"Unsavable tab",
+                            saved_tab_group_id,
+                            /*position=*/absl::nullopt);
+  }
+
   SavedTabGroupTab tab(contents->GetVisibleURL(), contents->GetTitle(),
-                       saved_tab_group_id);
+                       saved_tab_group_id, /*position=*/absl::nullopt);
   tab.SetFavicon(favicon::TabFaviconFromWebContents(contents));
   return tab;
 }
@@ -28,10 +38,14 @@ content::WebContents* SavedTabGroupUtils::OpenTabInBrowser(
     const GURL& url,
     Browser* browser,
     Profile* profile,
-    WindowOpenDisposition disposition) {
+    WindowOpenDisposition disposition,
+    absl::optional<int> tabstrip_index,
+    absl::optional<tab_groups::TabGroupId> local_group_id) {
   NavigateParams params(profile, url, ui::PAGE_TRANSITION_AUTO_BOOKMARK);
   params.disposition = disposition;
   params.browser = browser;
+  params.tabstrip_index = tabstrip_index.value_or(params.tabstrip_index);
+  params.group = local_group_id;
   base::WeakPtr<content::NavigationHandle> handle = Navigate(&params);
   return handle ? handle->GetWebContents() : nullptr;
 }
@@ -40,7 +54,9 @@ content::WebContents* SavedTabGroupUtils::OpenTabInBrowser(
 Browser* SavedTabGroupUtils::GetBrowserWithTabGroupId(
     tab_groups::TabGroupId group_id) {
   for (Browser* browser : *BrowserList::GetInstance()) {
-    if (browser->tab_strip_model()->group_model()->ContainsTabGroup(group_id)) {
+    const TabStripModel* const tab_strip_model = browser->tab_strip_model();
+    if (tab_strip_model && tab_strip_model->SupportsTabGroups() &&
+        tab_strip_model->group_model()->ContainsTabGroup(group_id)) {
       return browser;
     }
   }
@@ -79,4 +95,9 @@ std::vector<content::WebContents*> SavedTabGroupUtils::GetWebContentsesInGroup(
     contentses.push_back(browser->tab_strip_model()->GetWebContentsAt(index));
   }
   return contentses;
+}
+
+// static
+bool SavedTabGroupUtils::IsURLValidForSavedTabGroups(const GURL& gurl) {
+  return gurl.SchemeIsHTTPOrHTTPS() || gurl == GURL(chrome::kChromeUINewTabURL);
 }

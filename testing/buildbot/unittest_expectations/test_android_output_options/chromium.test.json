@@ -21,7 +21,6 @@
         },
         "name": "foo_test",
         "swarming": {
-          "can_use_on_swarming_builders": true,
           "dimensions": {
             "device_os": "KTU84P",
             "device_os_type": "userdebug",
@@ -57,7 +56,6 @@
         },
         "name": "foo_test",
         "swarming": {
-          "can_use_on_swarming_builders": true,
           "dimensions": {
             "device_os": "LMY41U",
             "device_os_type": "user",

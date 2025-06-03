@@ -2,9 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import {TestRunner} from 'test_runner';
+import {ElementsTestRunner} from 'elements_test_runner';
+import * as UI from 'devtools/ui/legacy/legacy.js';
+import * as Animation from 'devtools/panels/animation/animation.js';
+
 (async function() {
   TestRunner.addResult(`Tests the display of animations on the animation timeline.\n`);
-  await TestRunner.loadLegacyModule('elements'); await TestRunner.loadTestModule('elements_test_runner');
   await TestRunner.showPanel('elements');
   await TestRunner.loadHTML(`
       <style>
@@ -57,12 +61,12 @@
   `);
 
   // Override timeline width for testing
-  Animation.AnimationTimeline.prototype.width = function() {
+  Animation.AnimationTimeline.AnimationTimeline.prototype.width = function() {
     return 1000;
   };
 
-  await UI.viewManager.showView('animations');
-  var timeline = Animation.AnimationTimeline.instance();
+  await UI.ViewManager.ViewManager.instance().showView('animations');
+  var timeline = Animation.AnimationTimeline.AnimationTimeline.instance();
   TestRunner.evaluateInPage('startAnimationWithDelay()');
   ElementsTestRunner.waitForAnimationAdded(step2);
 

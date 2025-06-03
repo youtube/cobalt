@@ -22,6 +22,11 @@ class DownloadPrefs;
 // Gets the download manager for a browser.
 content::DownloadManager* DownloadManagerForBrowser(Browser* browser);
 
+// Sets the kPromptForDownload pref on `browser`. Generally this should be used
+// with `prompt_for_download` false, as prompting for download location in a
+// browser test will make the download time out.
+void SetPromptForDownload(Browser* browser, bool prompt_for_download);
+
 // DownloadTestObserver subclass that observes one download until it transitions
 // from a non-resumable state to a resumable state a specified number of
 // times. Note that this observer can only observe a single download.
@@ -160,13 +165,19 @@ class DownloadTestBase : public InProcessBrowserTest {
   // foreground tab, etc).
   // |browser_test_flags| indicate what to wait for, and is an OR of 0 or more
   // values in the ui_test_utils::BrowserTestWaitFlags enum.
+  // |prompt_for_download| indicates whether to prompt for the download location
+  // and should generally be false, since the download location prompt can
+  // cause the browser test to time out.
   void DownloadAndWaitWithDisposition(Browser* browser,
                                       const GURL& url,
                                       WindowOpenDisposition disposition,
-                                      int browser_test_flags);
+                                      int browser_test_flags,
+                                      bool prompt_for_download = false);
 
   // Download a file in the current tab, then wait for the download to finish.
-  void DownloadAndWait(Browser* browser, const GURL& url);
+  void DownloadAndWait(Browser* browser,
+                       const GURL& url,
+                       bool prompt_for_download = false);
 
   // Should only be called when the download is known to have finished
   // (in error or not).
@@ -181,10 +192,10 @@ class DownloadTestBase : public InProcessBrowserTest {
                               const base::FilePath& downloaded_file,
                               const base::FilePath& origin_file);
 
-  content::DownloadTestObserver* CreateInProgressDownloadObserver(
-      size_t download_count);
-
-  download::DownloadItem* CreateSlowTestDownload();
+  // Creates an in-progress download and returns a pointer to its DownloadItem.
+  // Either supply a `browser` or the `browser()` in the test fixture will be
+  // used.
+  download::DownloadItem* CreateSlowTestDownload(Browser* browser = nullptr);
 
   bool RunSizeTest(Browser* browser,
                    SizeTestType type,
@@ -238,6 +249,12 @@ class DownloadTestBase : public InProcessBrowserTest {
       content::TestFileErrorInjector* error_injector,
       download::DownloadInterruptReason error);
 
+  // Provide equivalent to embedded_test_server() with a variant that uses HTTPS
+  // to avoid insecure download warnings.
+  net::EmbeddedTestServer* https_test_server() {
+    return https_test_server_.get();
+  }
+
  private:
   // Location of the test data.
   base::FilePath test_dir_;
@@ -246,6 +263,10 @@ class DownloadTestBase : public InProcessBrowserTest {
   std::unique_ptr<DownloadTestFileActivityObserver> file_activity_observer_;
   extensions::ScopedIgnoreContentVerifierForTest ignore_content_verifier_;
   extensions::ScopedInstallVerifierBypassForTest ignore_install_verification_;
+
+  // By default, the embedded test server uses HTTP. Keep an HTTPS server
+  // as well so that we can avoid unexpected insecure download warnings.
+  std::unique_ptr<net::EmbeddedTestServer> https_test_server_;
 };
 
 #endif  // CHROME_BROWSER_DOWNLOAD_DOWNLOAD_BROWSERTEST_UTILS_H_

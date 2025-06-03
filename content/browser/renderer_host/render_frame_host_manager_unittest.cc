@@ -286,17 +286,128 @@ class RenderDocumentFeatureTest : public testing::Test {
 
 TEST_F(RenderDocumentFeatureTest, FeatureDisabled) {
   DisableRenderDocument();
-  EXPECT_FALSE(ShouldCreateNewHostForSameSiteSubframe());
+  // Non-local-root subframe.
+  EXPECT_FALSE(ShouldCreateNewRenderFrameHostOnSameSiteNavigation(
+      /*is_main_frame=*/false, /*is_local_root=*/false));
+
+  // Local root subframe.
+  EXPECT_FALSE(ShouldCreateNewRenderFrameHostOnSameSiteNavigation(
+      /*is_main_frame=*/false, /*is_local_root=*/true));
+
+  // Main frame.
+  EXPECT_FALSE(ShouldCreateNewRenderFrameHostOnSameSiteNavigation(
+      /*is_main_frame=*/true, /*is_local_root=*/true));
+
+  // Crashed main frame.
+  EXPECT_TRUE(ShouldCreateNewRenderFrameHostOnSameSiteNavigation(
+      /*is_main_frame=*/true, /*is_local_root=*/true,
+      /*has_committed_any_navigation=*/true, /*must_be_replaced=*/true));
 }
 
 TEST_F(RenderDocumentFeatureTest, LevelCrashed) {
   SetLevel(RenderDocumentLevel::kCrashedFrame);
-  EXPECT_FALSE(ShouldCreateNewHostForSameSiteSubframe());
+  // Non-local-root subframe.
+  EXPECT_FALSE(ShouldCreateNewRenderFrameHostOnSameSiteNavigation(
+      /*is_main_frame=*/false, /*is_local_root=*/false));
+
+  // Local root subframe.
+  EXPECT_FALSE(ShouldCreateNewRenderFrameHostOnSameSiteNavigation(
+      /*is_main_frame=*/false, /*is_local_root=*/true));
+
+  // Main frame.
+  EXPECT_FALSE(ShouldCreateNewRenderFrameHostOnSameSiteNavigation(
+      /*is_main_frame=*/true, /*is_local_root=*/true));
+
+  // Crashed main frame.
+  EXPECT_TRUE(ShouldCreateNewRenderFrameHostOnSameSiteNavigation(
+      /*is_main_frame=*/true, /*is_local_root=*/true,
+      /*has_committed_any_navigation=*/true, /*must_be_replaced=*/true));
 }
 
-TEST_F(RenderDocumentFeatureTest, LevelSub) {
+TEST_F(RenderDocumentFeatureTest, LevelNonLocalRootSubframe) {
+  SetLevel(RenderDocumentLevel::kNonLocalRootSubframe);
+  // Non-local-root subframe.
+  EXPECT_TRUE(ShouldCreateNewRenderFrameHostOnSameSiteNavigation(
+      /*is_main_frame=*/false, /*is_local_root=*/false));
+
+  // Initial non-local-root subframe.
+  EXPECT_FALSE(ShouldCreateNewRenderFrameHostOnSameSiteNavigation(
+      /*is_main_frame=*/false, /*is_local_root=*/false,
+      /*has_committed_any_navigation=*/false));
+
+  // Crashed non-local-root subframe.
+  EXPECT_TRUE(ShouldCreateNewRenderFrameHostOnSameSiteNavigation(
+      /*is_main_frame=*/false, /*is_local_root=*/false,
+      /*has_committed_any_navigation=*/false, /*must_be_replaced=*/true));
+  EXPECT_TRUE(ShouldCreateNewRenderFrameHostOnSameSiteNavigation(
+      /*is_main_frame=*/false, /*is_local_root=*/false,
+      /*has_committed_any_navigation=*/true, /*must_be_replaced=*/true));
+
+  // Local root subframe.
+  EXPECT_FALSE(ShouldCreateNewRenderFrameHostOnSameSiteNavigation(
+      /*is_main_frame=*/false, /*is_local_root=*/true));
+
+  // Main frame.
+  EXPECT_FALSE(ShouldCreateNewRenderFrameHostOnSameSiteNavigation(
+      /*is_main_frame=*/true, /*is_local_root=*/true));
+}
+
+TEST_F(RenderDocumentFeatureTest, LevelSubframe) {
   SetLevel(RenderDocumentLevel::kSubframe);
-  EXPECT_TRUE(ShouldCreateNewHostForSameSiteSubframe());
+
+  // Non-local-root subframe.
+  EXPECT_TRUE(ShouldCreateNewRenderFrameHostOnSameSiteNavigation(
+      /*is_main_frame=*/false, /*is_local_root=*/false));
+
+  // Local root subframe.
+  EXPECT_TRUE(ShouldCreateNewRenderFrameHostOnSameSiteNavigation(
+      /*is_main_frame=*/false, /*is_local_root=*/true));
+
+  // Initial local root subframe.
+  EXPECT_FALSE(ShouldCreateNewRenderFrameHostOnSameSiteNavigation(
+      /*is_main_frame=*/false, /*is_local_root=*/true,
+      /*has_committed_any_navigation=*/false));
+
+  // Crashed local root subframe.
+  EXPECT_TRUE(ShouldCreateNewRenderFrameHostOnSameSiteNavigation(
+      /*is_main_frame=*/false, /*is_local_root=*/true,
+      /*has_committed_any_navigation=*/false, /*must_be_replaced=*/true));
+  EXPECT_TRUE(ShouldCreateNewRenderFrameHostOnSameSiteNavigation(
+      /*is_main_frame=*/false, /*is_local_root=*/true,
+      /*has_committed_any_navigation=*/true, /*must_be_replaced=*/true));
+
+  // Main frame.
+  EXPECT_FALSE(ShouldCreateNewRenderFrameHostOnSameSiteNavigation(
+      /*is_main_frame=*/true, /*is_local_root=*/true));
+}
+
+TEST_F(RenderDocumentFeatureTest, LevelAllFrames) {
+  SetLevel(RenderDocumentLevel::kAllFrames);
+
+  // Non-local-root subframe.
+  EXPECT_TRUE(ShouldCreateNewRenderFrameHostOnSameSiteNavigation(
+      /*is_main_frame=*/false, /*is_local_root=*/false));
+
+  // Local root subframe.
+  EXPECT_TRUE(ShouldCreateNewRenderFrameHostOnSameSiteNavigation(
+      /*is_main_frame=*/false, /*is_local_root=*/true));
+
+  // Main frame.
+  EXPECT_TRUE(ShouldCreateNewRenderFrameHostOnSameSiteNavigation(
+      /*is_main_frame=*/true, /*is_local_root=*/true));
+
+  // Initial main frame.
+  EXPECT_FALSE(ShouldCreateNewRenderFrameHostOnSameSiteNavigation(
+      /*is_main_frame=*/true, /*is_local_root=*/true,
+      /*has_committed_any_navigation=*/false));
+
+  // Crashed main frame.
+  EXPECT_TRUE(ShouldCreateNewRenderFrameHostOnSameSiteNavigation(
+      /*is_main_frame=*/true, /*is_local_root=*/true,
+      /*has_committed_any_navigation=*/false, /*must_be_replaced=*/true));
+  EXPECT_TRUE(ShouldCreateNewRenderFrameHostOnSameSiteNavigation(
+      /*is_main_frame=*/true, /*is_local_root=*/true,
+      /*has_committed_any_navigation=*/true, /*must_be_replaced=*/true));
 }
 
 class RenderFrameHostManagerTest
@@ -398,6 +509,7 @@ class RenderFrameHostManagerTest
             controller.GetLastCommittedEntryIndex(), controller.GetEntryCount(),
             frame_tree_node->current_replication_state().frame_policy,
             frame_tree_node->AncestorOrSelfHasCSPEE(),
+            blink::mojom::SystemEntropy::kNormal,
             /*soft_navigation_heuristics_task_id=*/absl::nullopt);
     commit_params->post_content_type = post_content_type;
 
@@ -405,7 +517,7 @@ class RenderFrameHostManagerTest
         NavigationRequest::Create(
             frame_tree_node, std::move(common_params), std::move(commit_params),
             !entry->is_renderer_initiated(), false /* was_opener_suppressed */,
-            nullptr /* initiator_frame_token */,
+            absl::nullopt /* initiator_frame_token */,
             ChildProcessHost::kInvalidUniqueID /* initiator_process_id */,
             entry->extra_headers(), frame_entry, entry, is_form_submission,
             nullptr /* navigation_ui_data */, absl::nullopt /* impression */,
@@ -415,7 +527,7 @@ class RenderFrameHostManagerTest
 
     // Simulates request creation that triggers the 1st internal call to
     // GetFrameHostForNavigation.
-    manager->DidCreateNavigationRequest(navigation_request.get());
+    frame_tree_node->TakeNavigationRequest(std::move(navigation_request));
 
     // And also simulates the 2nd and final call to GetFrameHostForNavigation
     // that determines the final frame that will commit the navigation.
@@ -423,7 +535,7 @@ class RenderFrameHostManagerTest
         BrowsingContextGroupSwap::CreateDefault();
     TestRenderFrameHost* frame_host = static_cast<TestRenderFrameHost*>(
         manager
-            ->GetFrameHostForNavigation(navigation_request.get(),
+            ->GetFrameHostForNavigation(frame_tree_node->navigation_request(),
                                         &ignored_bcg_swap_info)
             .value());
     CHECK(frame_host);
@@ -441,10 +553,14 @@ class RenderFrameHostManagerTest
   // Exposes RenderFrameHostManager::CollectOpenerFrameTrees for testing.
   void CollectOpenerFrameTrees(
       FrameTreeNode* node,
+      SiteInstanceImpl* site_instance,
       std::vector<FrameTree*>* opener_frame_trees,
-      std::unordered_set<FrameTreeNode*>* nodes_with_back_links) {
-    node->render_manager()->CollectOpenerFrameTrees(opener_frame_trees,
-                                                    nodes_with_back_links);
+      std::unordered_set<FrameTreeNode*>* nodes_with_back_links,
+      std::unordered_set<FrameTreeNode*>*
+          cross_browsing_context_group_openers) {
+    node->render_manager()->CollectOpenerFrameTrees(
+        site_instance, opener_frame_trees, nodes_with_back_links,
+        cross_browsing_context_group_openers);
   }
 
  private:
@@ -1008,11 +1124,10 @@ TEST_P(RenderFrameHostManagerTest, WebUI) {
       nullptr /* blob_url_loader_factory */, false /* is_initial_entry */);
   RenderFrameHostImpl* host = NavigateToEntry(manager, &entry);
 
-  // We commit the pending RenderFrameHost immediately because the previous
-  // RenderFrameHost was not live.  We test a case where it is live in
-  // WebUIInNewTab.
+  // The initial non-live RenderFrameHost should be reused for the new WebUI
+  // navigation.  We test a case where it is live in WebUIInNewTab.
   EXPECT_TRUE(host);
-  EXPECT_NE(initial_rfh, host);
+  EXPECT_EQ(initial_rfh, host);
   EXPECT_EQ(host, manager->current_frame_host());
   EXPECT_FALSE(GetPendingFrameHost(manager));
 
@@ -1061,10 +1176,17 @@ TEST_P(RenderFrameHostManagerTest, WebUIInNewTab) {
       nullptr /* blob_url_loader_factory */, false /* is_initial_entry */);
   RenderFrameHostImpl* host1 = NavigateToEntry(manager1, &entry1);
 
-  // We should have a pending navigation to the WebUI RenderViewHost.
-  // It should already have bindings.
-  EXPECT_EQ(host1, GetPendingFrameHost(manager1));
-  EXPECT_NE(host1, manager1->current_frame_host());
+  // Because we've called CreateRenderView(), the initial RenderFrameHost is
+  // live prior to the navigation start, but it can still be reused for the
+  // WebUI RenderFrameHost, since it hasn't committed any navigations and it has
+  // an unassigned SiteInstance and unlocked process.  There should be no
+  // speculative RenderFrameHost.
+  EXPECT_FALSE(GetPendingFrameHost(manager1));
+  EXPECT_EQ(host1, manager1->current_frame_host());
+
+  // At this point, the initial RFH should have set the WebUI bindings.  This
+  // should happen as part of selecting that RFH for the WebUI navigation in
+  // GetFrameHostForNavigation().
   EXPECT_TRUE(host1->GetEnabledBindings() & BINDINGS_POLICY_WEB_UI);
 
   // Commit and ensure we still have bindings.
@@ -2555,8 +2677,11 @@ TEST_P(RenderFrameHostManagerTest, TraverseComplexOpenerChain) {
 
   std::vector<FrameTree*> opener_frame_trees;
   std::unordered_set<FrameTreeNode*> nodes_with_back_links;
+  std::unordered_set<FrameTreeNode*> cross_browsing_context_group_openers;
 
-  CollectOpenerFrameTrees(root1, &opener_frame_trees, &nodes_with_back_links);
+  CollectOpenerFrameTrees(root1, /*site_instance=*/nullptr, &opener_frame_trees,
+                          &nodes_with_back_links,
+                          &cross_browsing_context_group_openers);
 
   EXPECT_EQ(4U, opener_frame_trees.size());
   EXPECT_EQ(tree1, opener_frame_trees[0]);
@@ -3239,25 +3364,24 @@ TEST_P(RenderFrameHostManagerTest, NavigateFromDeadRendererToWebUI) {
           controller().GetEntryCount(),
           frame_tree_node->current_replication_state().frame_policy,
           frame_tree_node->AncestorOrSelfHasCSPEE(),
+          blink::mojom::SystemEntropy::kNormal,
           /*soft_navigation_heuristics_task_id=*/absl::nullopt);
 
   std::unique_ptr<NavigationRequest> navigation_request =
       NavigationRequest::CreateBrowserInitiated(
           frame_tree_node, std::move(common_params), std::move(commit_params),
-          false /* was_opener_suppressed */,
-          nullptr /* initiator_frame_token */,
-          ChildProcessHost::kInvalidUniqueID /* initiator_process_id */,
-          entry.extra_headers(), frame_entry, &entry,
-          false /* is_form_submission */, nullptr /* navigation_ui_data */,
-          absl::nullopt /* impression */, false /* is_pdf */
+          false /* was_opener_suppressed */, entry.extra_headers(), frame_entry,
+          &entry, false /* is_form_submission */,
+          nullptr /* navigation_ui_data */, absl::nullopt /* impression */,
+          false /* is_pdf */
       );
-  manager->DidCreateNavigationRequest(navigation_request.get());
+  frame_tree_node->TakeNavigationRequest(std::move(navigation_request));
 
-  // As the initial RenderFrame was not live, the new RenderFrameHost should be
-  // made as active/current immediately along with its WebUI at request time.
+  // The initial non-live RenderFrameHost should be reused for the WebUI
+  // navigation, and it should have gotten WebUI bindings by this time.
   RenderFrameHostImpl* host = manager->current_frame_host();
   ASSERT_TRUE(host);
-  EXPECT_NE(host, initial_host);
+  EXPECT_EQ(host, initial_host);
   EXPECT_TRUE(host->IsRenderFrameLive());
   WebUIImpl* web_ui = host->web_ui();
   EXPECT_TRUE(web_ui);
@@ -3267,8 +3391,9 @@ TEST_P(RenderFrameHostManagerTest, NavigateFromDeadRendererToWebUI) {
   BrowsingContextGroupSwap ignored_bcg_swap_info =
       BrowsingContextGroupSwap::CreateDefault();
   EXPECT_EQ(host, manager
-                      ->GetFrameHostForNavigation(navigation_request.get(),
-                                                  &ignored_bcg_swap_info)
+                      ->GetFrameHostForNavigation(
+                          frame_tree_node->navigation_request(),
+                          &ignored_bcg_swap_info)
                       .value());
 
   // No pending RenderFrameHost as the current one should be reused.

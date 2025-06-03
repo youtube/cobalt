@@ -10,18 +10,22 @@
 import 'chrome://resources/cr_components/settings_prefs/prefs.js';
 import './privacy_guide_description_item.js';
 import './privacy_guide_fragment_shared.css.js';
-import '../../controls/settings_radio_group.js';
+import '/shared/settings/controls/settings_radio_group.js';
 import '../../privacy_page/collapse_radio_button.js';
 
 import {PrefsMixin} from 'chrome://resources/cr_components/settings_prefs/prefs_mixin.js';
+import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
+import {loadTimeData} from '../../i18n_setup.js';
 import {MetricsBrowserProxy, MetricsBrowserProxyImpl, PrivacyGuideSettingsStates, PrivacyGuideStepsEligibleAndReached} from '../../metrics_browser_proxy.js';
 import {SafeBrowsingSetting} from '../../privacy_page/security_page.js';
 
 import {getTemplate} from './privacy_guide_safe_browsing_fragment.html.js';
 
-const PrivacyGuideSafeBrowsingFragmentBase = PrefsMixin(PolymerElement);
+
+const PrivacyGuideSafeBrowsingFragmentBase =
+    I18nMixin(PrefsMixin(PolymerElement));
 
 export class PrivacyGuideSafeBrowsingFragmentElement extends
     PrivacyGuideSafeBrowsingFragmentBase {
@@ -50,12 +54,29 @@ export class PrivacyGuideSafeBrowsingFragmentElement extends
         type: Object,
         value: SafeBrowsingSetting,
       },
+
+      enableFriendlierSafeBrowsingSettings_: {
+        type: Boolean,
+        value() {
+          return loadTimeData.getBoolean(
+              'enableFriendlierSafeBrowsingSettings');
+        },
+      },
+
+      enableHashPrefixRealTimeLookups_: {
+        type: Boolean,
+        value() {
+          return loadTimeData.getBoolean('enableHashPrefixRealTimeLookups');
+        },
+      },
     };
   }
 
   private metricsBrowserProxy_: MetricsBrowserProxy =
       MetricsBrowserProxyImpl.getInstance();
   private startStateEnhanced_: boolean;
+  private enableFriendlierSafeBrowsingSettings_: boolean;
+  private enableHashPrefixRealTimeLookups_: boolean;
 
   override ready() {
     super.ready();
@@ -64,6 +85,11 @@ export class PrivacyGuideSafeBrowsingFragmentElement extends
   }
 
   override focus() {
+    // The fragment element is focused when it becomes visible. Move the focus
+    // to the fragment header, so that the newly shown content of the fragment
+    // is downwards from the focus position. This allows users of screen readers
+    // to continue navigating the screen reader position downwards through the
+    // newly visible content.
     this.shadowRoot!.querySelector<HTMLElement>('[focus-element]')!.focus();
   }
 
@@ -102,16 +128,34 @@ export class PrivacyGuideSafeBrowsingFragmentElement extends
         'Settings.PrivacyGuide.ChangeSafeBrowsingStandard');
   }
 
-  private onRadioGroupKeyDown_(event: KeyboardEvent) {
-    switch (event.key) {
-      case 'ArrowLeft':
-      case 'ArrowRight':
-        // This event got consumed by the radio group to change the radio button
-        // selection. Do not propagate further, to not cause a privacy guide
-        // navigation.
-        event.stopPropagation();
-        break;
-    }
+  private getSafeBrowsingEnhancedSubLabel_(): string {
+    return this.i18n(
+        this.enableFriendlierSafeBrowsingSettings_ ?
+            'safeBrowsingEnhancedDescUpdated' :
+            'safeBrowsingEnhancedDesc');
+  }
+
+  private getSafeBrowsingStandardSubLabel_(): string {
+    return this.i18n(
+        this.enableFriendlierSafeBrowsingSettings_ ?
+            this.enableHashPrefixRealTimeLookups_ ?
+            'safeBrowsingStandardDescUpdatedProxy' :
+            'safeBrowsingStandardDescUpdated' :
+            'safeBrowsingStandardDesc');
+  }
+
+  private getStandardProtectionFeatureDescription2_(): string {
+    return this.i18n(
+        this.enableHashPrefixRealTimeLookups_ ?
+            'privacyGuideSafeBrowsingCardStandardProtectionFeatureDescription2Proxy' :
+            'privacyGuideSafeBrowsingCardStandardProtectionFeatureDescription2');
+  }
+
+  private getStandardProtectionPrivacyDescription1_(): string {
+    return this.i18n(
+        this.enableHashPrefixRealTimeLookups_ ?
+            'privacyGuideSafeBrowsingCardStandardProtectionPrivacyDescription1Proxy' :
+            'privacyGuideSafeBrowsingCardStandardProtectionPrivacyDescription1');
   }
 }
 

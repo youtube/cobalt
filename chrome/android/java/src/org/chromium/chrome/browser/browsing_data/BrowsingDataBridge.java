@@ -6,9 +6,10 @@ package org.chromium.chrome.browser.browsing_data;
 
 import androidx.annotation.VisibleForTesting;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.ThreadUtils;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.NativeMethods;
 import org.chromium.chrome.browser.profiles.Profile;
 
 /**
@@ -158,7 +159,6 @@ public final class BrowsingDataBridge {
     }
 
     /** This lets us mark an origin as important for testing. */
-    @VisibleForTesting
     public static void markOriginAsImportantForTesting(String origin) {
         BrowsingDataBridgeJni.get().markOriginAsImportantForTesting(getProfile(), origin);
     }
@@ -249,7 +249,7 @@ public final class BrowsingDataBridge {
     }
 
     @NativeMethods
-    interface Natives {
+    public interface Natives {
         void clearBrowsingData(BrowsingDataBridge caller, Profile profile, int[] dataTypes,
                 int timePeriod, String[] excludedDomains, int[] excludedDomainReasons,
                 String[] ignoredDomains, int[] ignoredDomainReasons);

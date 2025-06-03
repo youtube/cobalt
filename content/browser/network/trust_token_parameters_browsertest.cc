@@ -7,7 +7,7 @@
 #include "base/strings/stringprintf.h"
 #include "base/test/bind.h"
 #include "base/test/scoped_feature_list.h"
-#include "content/public/common/network_service_util.h"
+#include "content/public/browser/network_service_util.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/content_browser_test.h"
 #include "content/public/test/content_browser_test_utils.h"
@@ -43,7 +43,7 @@ class TrustTokenParametersBrowsertest
     auto& field_trial_param =
         network::features::kTrustTokenOperationsRequiringOriginTrial;
     features_.InitAndEnableFeatureWithParameters(
-        network::features::kPrivateStateTokens,
+        network::features::kFledgePst,
         {{field_trial_param.name,
           field_trial_param.GetName(
               network::features::TrustTokenOriginTrialSpec::
@@ -157,7 +157,7 @@ IN_PROC_BROWSER_TEST_P(TrustTokenParametersBrowsertest,
 
   EXPECT_TRUE(
       ExecJs(shell(),
-             base::StringPrintf(
+             base::StringPrintfNonConstexpr(
                  JsReplace("let request = new XMLHttpRequest();"
                            "request.open($1, $2);"
                            "request.setPrivateToken(%s);"

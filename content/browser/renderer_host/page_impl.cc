@@ -33,8 +33,8 @@ PageImpl::PageImpl(RenderFrameHostImpl& rfh, PageDelegate& delegate)
           blink::features::kSharedStorageSelectURLLimit)) {
     select_url_overall_budget_ = static_cast<double>(
         blink::features::kSharedStorageSelectURLBitBudgetPerPageLoad.Get());
-    select_url_max_bits_per_origin_ = static_cast<double>(
-        blink::features::kSharedStorageSelectURLBitBudgetPerOriginPerPageLoad
+    select_url_max_bits_per_site_ = static_cast<double>(
+        blink::features::kSharedStorageSelectURLBitBudgetPerSitePerPageLoad
             .Get());
   }
 }
@@ -93,6 +93,10 @@ base::WeakPtr<PageImpl> PageImpl::GetWeakPtrImpl() {
 
 bool PageImpl::IsPageScaleFactorOne() {
   return GetPageScaleFactor() == 1.f;
+}
+
+const std::string& PageImpl::GetContentsMimeType() const {
+  return contents_mime_type_;
 }
 
 void PageImpl::OnFirstVisuallyNonEmptyPaint() {
@@ -177,6 +181,8 @@ void PageImpl::SetActivationStartTime(base::TimeTicks activation_start) {
 void PageImpl::ActivateForPrerendering(
     StoredPage::RenderViewHostImplSafeRefSet& render_view_hosts,
     absl::optional<blink::ViewTransitionState> view_transition_state) {
+  TRACE_EVENT0("navigation", "PageImpl::ActivateForPrerendering");
+
   base::OnceClosure did_activate_render_views =
       base::BindOnce(&PageImpl::DidActivateAllRenderViewsForPrerendering,
                      weak_factory_.GetWeakPtr());
@@ -247,6 +253,9 @@ void PageImpl::MaybeDispatchLoadEventsOnPrerenderActivation() {
 }
 
 void PageImpl::DidActivateAllRenderViewsForPrerendering() {
+  TRACE_EVENT0("navigation",
+               "PageImpl::DidActivateAllRenderViewsForPrerendering");
+
   // Tell each RenderFrameHostImpl in this Page that activation finished.
   main_document_->ForEachRenderFrameHostIncludingSpeculative(
       [this](RenderFrameHostImpl* rfh) {
@@ -319,8 +328,9 @@ base::flat_map<std::string, std::string> PageImpl::GetKeyboardLayoutMap() {
   return GetMainDocument().GetRenderWidgetHost()->GetKeyboardLayoutMap();
 }
 
-bool PageImpl::CheckAndMaybeDebitSelectURLBudgets(const url::Origin& origin,
-                                                  double bits_to_charge) {
+bool PageImpl::CheckAndMaybeDebitSelectURLBudgets(
+    const net::SchemefulSite& site,
+    double bits_to_charge) {
   if (!select_url_overall_budget_) {
     // The limits are not enabled.
     return true;
@@ -331,21 +341,21 @@ bool PageImpl::CheckAndMaybeDebitSelectURLBudgets(const url::Origin& origin,
     return false;
   }
 
-  DCHECK(select_url_max_bits_per_origin_);
+  DCHECK(select_url_max_bits_per_site_);
 
-  // Return false if the max bits per origin is set to a value smaller than the
+  // Return false if the max bits per site is set to a value smaller than the
   // current bits to charge.
-  if (bits_to_charge > select_url_max_bits_per_origin_.value()) {
+  if (bits_to_charge > select_url_max_bits_per_site_.value()) {
     return false;
   }
 
-  // Charge the per-origin budget or return false if there is not enough.
-  auto it = select_url_per_origin_budget_.find(origin);
-  if (it == select_url_per_origin_budget_.end()) {
-    select_url_per_origin_budget_[origin] =
-        select_url_max_bits_per_origin_.value() - bits_to_charge;
+  // Charge the per-site budget or return false if there is not enough.
+  auto it = select_url_per_site_budget_.find(site);
+  if (it == select_url_per_site_budget_.end()) {
+    select_url_per_site_budget_[site] =
+        select_url_max_bits_per_site_.value() - bits_to_charge;
   } else if (bits_to_charge > it->second) {
-    // There is insufficient per-origin budget remaining.
+    // There is insufficient per-site budget remaining.
     return false;
   } else {
     it->second -= bits_to_charge;

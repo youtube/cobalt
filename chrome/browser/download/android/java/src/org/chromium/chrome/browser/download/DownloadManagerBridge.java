@@ -15,18 +15,20 @@ import android.os.Build.VERSION_CODES;
 import android.os.Environment;
 import android.text.TextUtils;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.Callback;
 import org.chromium.base.ContentUriUtils;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.Log;
 import org.chromium.base.StrictModeContext;
 import org.chromium.base.ThreadUtils;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.NativeMethods;
 import org.chromium.base.task.AsyncTask;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
 import org.chromium.components.browser_ui.util.DownloadUtils;
+import org.chromium.url.GURL;
 
 import java.io.File;
 import java.util.concurrent.RejectedExecutionException;
@@ -89,7 +91,7 @@ public class DownloadManagerBridge {
      * String, long, boolean)
      */
     public static long addCompletedDownload(String fileName, String description, String mimeType,
-            String filePath, long fileSizeBytes, String originalUrl, String referer,
+            String filePath, long fileSizeBytes, GURL originalUrl, GURL referer,
             String downloadGuid) {
         assert !ThreadUtils.runningOnUiThread();
         assert VERSION.SDK_INT < VERSION_CODES.Q
@@ -271,10 +273,10 @@ public class DownloadManagerBridge {
      */
     @CalledByNative
     private static void addCompletedDownload(String fileName, String description,
-            String originalMimeType, String filePath, long fileSizeBytes, String originalUrl,
-            String referrer, String downloadGuid, long callbackId) {
+            String originalMimeType, String filePath, long fileSizeBytes, GURL originalUrl,
+            GURL referrer, String downloadGuid, long callbackId) {
         final String mimeType =
-                MimeUtils.remapGenericMimeType(originalMimeType, originalUrl, fileName);
+                MimeUtils.remapGenericMimeType(originalMimeType, originalUrl.getSpec(), fileName);
         AsyncTask<Long> task = new AsyncTask<Long>() {
             @Override
             protected Long doInBackground() {

@@ -7,11 +7,16 @@
 #include <utility>
 
 #include "ash/public/cpp/child_accounts/parent_access_controller.h"
+#include "ash/public/cpp/login/login_utils.h"
 #include "ash/public/cpp/login_screen.h"
 #include "ash/public/cpp/login_screen_model.h"
+#include "ash/webui/settings/public/constants/routes.mojom.h"
+#include "ash/webui/settings/public/constants/setting.mojom-shared.h"
+#include "base/check_is_test.h"
 #include "base/functional/bind.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/strings/string_number_conversions.h"
 #include "chrome/browser/ash/child_accounts/parent_access_code/parent_access_service.h"
 #include "chrome/browser/ash/login/existing_user_controller.h"
 #include "chrome/browser/ash/login/hats_unlock_survey_trigger.h"
@@ -31,7 +36,6 @@
 #include "chrome/browser/ui/settings_window_manager_chromeos.h"
 #include "chrome/browser/ui/webui/ash/lock_screen_reauth/lock_screen_reauth_dialogs.h"
 #include "chrome/browser/ui/webui/ash/login/l10n_util.h"
-#include "chrome/browser/ui/webui/settings/chromeos/constants/routes.mojom.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chromeos/ash/components/settings/cros_settings_provider.h"
 #include "components/session_manager/core/session_manager.h"
@@ -57,9 +61,20 @@ LoginScreenClientImpl::LoginScreenClientImpl()
 
   DCHECK(!g_login_screen_client_instance);
   g_login_screen_client_instance = this;
+
+  if (user_manager::UserManager::IsInitialized()) {
+    user_manager::UserManager::Get()->AddObserver(this);
+  } else {
+    CHECK_IS_TEST();
+  }
 }
 
 LoginScreenClientImpl::~LoginScreenClientImpl() {
+  if (user_manager::UserManager::IsInitialized()) {
+    user_manager::UserManager::Get()->RemoveObserver(this);
+  } else {
+    CHECK_IS_TEST();
+  }
   ash::LoginScreen::Get()->SetClient(nullptr);
   DCHECK_EQ(this, g_login_screen_client_instance);
   g_login_screen_client_instance = nullptr;
@@ -158,11 +173,6 @@ ash::ParentCodeValidationResult LoginScreenClientImpl::ValidateParentAccessCode(
 void LoginScreenClientImpl::OnFocusPod(const AccountId& account_id) {
   if (delegate_)
     delegate_->HandleOnFocusPod(account_id);
-}
-
-void LoginScreenClientImpl::OnNoPodFocused() {
-  if (delegate_)
-    delegate_->HandleOnNoPodFocused();
 }
 
 void LoginScreenClientImpl::FocusLockScreenApps(bool reverse) {
@@ -288,7 +298,10 @@ void LoginScreenClientImpl::ShowParentAccessHelpApp() {
 void LoginScreenClientImpl::ShowLockScreenNotificationSettings() {
   chrome::SettingsWindowManager::GetInstance()->ShowOSSettings(
       ProfileManager::GetActiveUserProfile(),
-      chromeos::settings::mojom::kSecurityAndSignInSubpagePathV2);
+      std::string(chromeos::settings::mojom::kSecurityAndSignInSubpagePathV2) +
+          "?settingId=" +
+          base::NumberToString(static_cast<int>(
+              chromeos::settings::mojom::Setting::kLockScreenNotification)));
 }
 
 void LoginScreenClientImpl::OnFocusLeavingSystemTray(bool reverse) {
@@ -304,14 +317,6 @@ void LoginScreenClientImpl::OnSystemTrayBubbleShown() {
 void LoginScreenClientImpl::OnLoginScreenShown() {
   for (LoginScreenShownObserver& observer : login_screen_shown_observers_)
     observer.OnLoginScreenShown();
-}
-
-void LoginScreenClientImpl::LoadWallpaper(const AccountId& account_id) {
-  WallpaperControllerClientImpl::Get()->ShowUserWallpaper(account_id);
-}
-
-void LoginScreenClientImpl::SignOutUser() {
-  ash::ScreenLocker::default_screen_locker()->Signout();
 }
 
 void LoginScreenClientImpl::CancelAddUser() {
@@ -378,6 +383,11 @@ views::Widget* LoginScreenClientImpl::GetLoginWindowWidget() {
     return ash::LoginDisplayHost::default_host()->GetLoginWindowWidget();
   }
   return nullptr;
+}
+
+void LoginScreenClientImpl::OnUserImageChanged(const user_manager::User& user) {
+  ash::LoginScreen::Get()->GetModel()->SetAvatarForUser(
+      user.GetAccountId(), ash::BuildAshUserAvatarForUser(user));
 }
 
 void LoginScreenClientImpl::OnParentAccessValidation(

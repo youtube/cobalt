@@ -335,6 +335,18 @@ static constexpr SSL_CIPHER kCiphers[] = {
      SSL_HANDSHAKE_MAC_DEFAULT,
     },
 
+    // Cipher C027
+    {
+     TLS1_TXT_ECDHE_RSA_WITH_AES_128_CBC_SHA256,
+     "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256",
+     TLS1_CK_ECDHE_RSA_WITH_AES_128_CBC_SHA256,
+     SSL_kECDHE,
+     SSL_aRSA,
+     SSL_AES128,
+     SSL_SHA256,
+     SSL_HANDSHAKE_MAC_SHA256,
+    },
+
     // GCM based TLS v1.2 ciphersuites from RFC 5289
 
     // Cipher C02B
@@ -455,6 +467,16 @@ Span<const SSL_CIPHER> AllCiphers() {
   return MakeConstSpan(kCiphers, OPENSSL_ARRAY_SIZE(kCiphers));
 }
 
+static constexpr size_t NumTLS13Ciphers() {
+  size_t num = 0;
+  for (const auto &cipher : kCiphers) {
+    if (cipher.algorithm_mkey == SSL_kGENERIC) {
+      num++;
+    }
+  }
+  return num;
+}
+
 #define CIPHER_ADD 1
 #define CIPHER_KILL 2
 #define CIPHER_DEL 3
@@ -470,20 +492,23 @@ typedef struct cipher_order_st {
 
 typedef struct cipher_alias_st {
   // name is the name of the cipher alias.
-  const char *name;
+  const char *name = nullptr;
 
   // The following fields are bitmasks for the corresponding fields on
   // |SSL_CIPHER|. A cipher matches a cipher alias iff, for each bitmask, the
   // bit corresponding to the cipher's value is set to 1. If any bitmask is
   // all zeroes, the alias matches nothing. Use |~0u| for the default value.
-  uint32_t algorithm_mkey;
-  uint32_t algorithm_auth;
-  uint32_t algorithm_enc;
-  uint32_t algorithm_mac;
+  uint32_t algorithm_mkey = ~0u;
+  uint32_t algorithm_auth = ~0u;
+  uint32_t algorithm_enc = ~0u;
+  uint32_t algorithm_mac = ~0u;
 
   // min_version, if non-zero, matches all ciphers which were added in that
   // particular protocol version.
-  uint16_t min_version;
+  uint16_t min_version = 0;
+
+  // include_deprecated, if true, means this alias includes deprecated ciphers.
+  bool include_deprecated = false;
 } CIPHER_ALIAS;
 
 static const CIPHER_ALIAS kCipherAliases[] = {
@@ -515,12 +540,16 @@ static const CIPHER_ALIAS kCipherAliases[] = {
     {"PSK", SSL_kPSK, SSL_aPSK, ~0u, ~0u, 0},
 
     // symmetric encryption aliases
-    {"3DES", ~0u, ~0u, SSL_3DES, ~0u, 0},
-    {"AES128", ~0u, ~0u, SSL_AES128 | SSL_AES128GCM, ~0u, 0},
-    {"AES256", ~0u, ~0u, SSL_AES256 | SSL_AES256GCM, ~0u, 0},
+    {"3DES", ~0u, ~0u, SSL_3DES, ~0u, 0, /*include_deprecated=*/true},
+    {"AES128", ~0u, ~0u, SSL_AES128 | SSL_AES128GCM, ~0u, 0,
+     /*include_deprecated=*/false},
+    {"AES256", ~0u, ~0u, SSL_AES256 | SSL_AES256GCM, ~0u, 0,
+     /*include_deprecated=*/false},
     {"AES", ~0u, ~0u, SSL_AES, ~0u, 0},
-    {"AESGCM", ~0u, ~0u, SSL_AES128GCM | SSL_AES256GCM, ~0u, 0},
-    {"CHACHA20", ~0u, ~0u, SSL_CHACHA20POLY1305, ~0u, 0},
+    {"AESGCM", ~0u, ~0u, SSL_AES128GCM | SSL_AES256GCM, ~0u, 0,
+     /*include_deprecated=*/false},
+    {"CHACHA20", ~0u, ~0u, SSL_CHACHA20POLY1305, ~0u, 0,
+     /*include_deprecated=*/false},
 
     // MAC aliases
     {"SHA1", ~0u, ~0u, ~0u, SSL_SHA1, 0},
@@ -613,6 +642,14 @@ bool ssl_cipher_get_evp_aead(const EVP_AEAD **out_aead,
     }
 
     *out_mac_secret_len = SHA_DIGEST_LENGTH;
+  } else if (cipher->algorithm_mac == SSL_SHA256) {
+    if (cipher->algorithm_enc == SSL_AES128) {
+      *out_aead = EVP_aead_aes_128_cbc_sha256_tls();
+    } else {
+      return false;
+    }
+
+    *out_mac_secret_len = SHA256_DIGEST_LENGTH;
   } else {
     return false;
   }
@@ -689,54 +726,6 @@ static void ll_append_head(CIPHER_ORDER **head, CIPHER_ORDER *curr,
   *head = curr;
 }
 
-static bool ssl_cipher_collect_ciphers(Array<CIPHER_ORDER> *out_co_list,
-                                       CIPHER_ORDER **out_head,
-                                       CIPHER_ORDER **out_tail) {
-  Array<CIPHER_ORDER> co_list;
-  if (!co_list.Init(OPENSSL_ARRAY_SIZE(kCiphers))) {
-    return false;
-  }
-
-  size_t co_list_num = 0;
-  for (const SSL_CIPHER &cipher : kCiphers) {
-    // TLS 1.3 ciphers do not participate in this mechanism.
-    if (cipher.algorithm_mkey != SSL_kGENERIC) {
-      co_list[co_list_num].cipher = &cipher;
-      co_list[co_list_num].next = NULL;
-      co_list[co_list_num].prev = NULL;
-      co_list[co_list_num].active = false;
-      co_list[co_list_num].in_group = false;
-      co_list_num++;
-    }
-  }
-
-  // Prepare linked list from list entries.
-  if (co_list_num > 0) {
-    co_list[0].prev = NULL;
-
-    if (co_list_num > 1) {
-      co_list[0].next = &co_list[1];
-
-      for (size_t i = 1; i < co_list_num - 1; i++) {
-        co_list[i].prev = &co_list[i - 1];
-        co_list[i].next = &co_list[i + 1];
-      }
-
-      co_list[co_list_num - 1].prev = &co_list[co_list_num - 2];
-    }
-
-    co_list[co_list_num - 1].next = NULL;
-
-    *out_head = &co_list[0];
-    *out_tail = &co_list[co_list_num - 1];
-  } else {
-    *out_head = nullptr;
-    *out_tail = nullptr;
-  }
-  *out_co_list = std::move(co_list);
-  return true;
-}
-
 SSLCipherPreferenceList::~SSLCipherPreferenceList() {
   OPENSSL_free(in_group_flags);
 }
@@ -783,6 +772,11 @@ void SSLCipherPreferenceList::Remove(const SSL_CIPHER *cipher) {
   sk_SSL_CIPHER_delete(ciphers.get(), index);
 }
 
+bool ssl_cipher_is_deprecated(const SSL_CIPHER *cipher) {
+  return cipher->id == TLS1_CK_ECDHE_RSA_WITH_AES_128_CBC_SHA256 ||
+         cipher->algorithm_enc == SSL_3DES;
+}
+
 // ssl_cipher_apply_rule applies the rule type |rule| to ciphers matching its
 // parameters in the linked list from |*head_p| to |*tail_p|. It writes the new
 // head and tail of the list to |*head_p| and |*tail_p|, respectively.
@@ -790,19 +784,19 @@ void SSLCipherPreferenceList::Remove(const SSL_CIPHER *cipher) {
 // - If |cipher_id| is non-zero, only that cipher is selected.
 // - Otherwise, if |strength_bits| is non-negative, it selects ciphers
 //   of that strength.
-// - Otherwise, it selects ciphers that match each bitmasks in |alg_*| and
-//   |min_version|.
-static void ssl_cipher_apply_rule(
-    uint32_t cipher_id, uint32_t alg_mkey, uint32_t alg_auth,
-    uint32_t alg_enc, uint32_t alg_mac, uint16_t min_version, int rule,
-    int strength_bits, bool in_group, CIPHER_ORDER **head_p,
-    CIPHER_ORDER **tail_p) {
+// - Otherwise, |alias| must be non-null. It selects ciphers that matches
+//   |*alias|.
+static void ssl_cipher_apply_rule(uint32_t cipher_id, const CIPHER_ALIAS *alias,
+                                  int rule, int strength_bits, bool in_group,
+                                  CIPHER_ORDER **head_p,
+                                  CIPHER_ORDER **tail_p) {
   CIPHER_ORDER *head, *tail, *curr, *next, *last;
   const SSL_CIPHER *cp;
   bool reverse = false;
 
-  if (cipher_id == 0 && strength_bits == -1 && min_version == 0 &&
-      (alg_mkey == 0 || alg_auth == 0 || alg_enc == 0 || alg_mac == 0)) {
+  if (cipher_id == 0 && strength_bits == -1 && alias->min_version == 0 &&
+      (alias->algorithm_mkey == 0 || alias->algorithm_auth == 0 ||
+       alias->algorithm_enc == 0 || alias->algorithm_mac == 0)) {
     // The rule matches nothing, so bail early.
     return;
   }
@@ -848,11 +842,13 @@ static void ssl_cipher_apply_rule(
         continue;
       }
     } else {
-      if (!(alg_mkey & cp->algorithm_mkey) ||
-          !(alg_auth & cp->algorithm_auth) ||
-          !(alg_enc & cp->algorithm_enc) ||
-          !(alg_mac & cp->algorithm_mac) ||
-          (min_version != 0 && SSL_CIPHER_get_min_version(cp) != min_version)) {
+      if (!(alias->algorithm_mkey & cp->algorithm_mkey) ||
+          !(alias->algorithm_auth & cp->algorithm_auth) ||
+          !(alias->algorithm_enc & cp->algorithm_enc) ||
+          !(alias->algorithm_mac & cp->algorithm_mac) ||
+          (alias->min_version != 0 &&
+           SSL_CIPHER_get_min_version(cp) != alias->min_version) ||
+          (!alias->include_deprecated && ssl_cipher_is_deprecated(cp))) {
         continue;
       }
     }
@@ -944,8 +940,8 @@ static bool ssl_cipher_strength_sort(CIPHER_ORDER **head_p,
   // Go through the list of used strength_bits values in descending order.
   for (int i = max_strength_bits; i >= 0; i--) {
     if (number_uses[i] > 0) {
-      ssl_cipher_apply_rule(0, 0, 0, 0, 0, 0, CIPHER_ORD, i, false, head_p,
-                            tail_p);
+      ssl_cipher_apply_rule(/*cipher_id=*/0, /*alias=*/nullptr, CIPHER_ORD, i,
+                            false, head_p, tail_p);
     }
   }
 
@@ -955,13 +951,9 @@ static bool ssl_cipher_strength_sort(CIPHER_ORDER **head_p,
 static bool ssl_cipher_process_rulestr(const char *rule_str,
                                        CIPHER_ORDER **head_p,
                                        CIPHER_ORDER **tail_p, bool strict) {
-  uint32_t alg_mkey, alg_auth, alg_enc, alg_mac;
-  uint16_t min_version;
   const char *l, *buf;
-  int rule;
-  bool multi, skip_rule, in_group = false, has_group = false;
+  bool in_group = false, has_group = false;
   size_t j, buf_len;
-  uint32_t cipher_id;
   char ch;
 
   l = rule_str;
@@ -972,6 +964,7 @@ static bool ssl_cipher_process_rulestr(const char *rule_str,
       break;  // done
     }
 
+    int rule;
     if (in_group) {
       if (ch == ']') {
         if (*tail_p) {
@@ -1026,14 +1019,13 @@ static bool ssl_cipher_process_rulestr(const char *rule_str,
       continue;
     }
 
-    multi = false;
-    cipher_id = 0;
-    alg_mkey = ~0u;
-    alg_auth = ~0u;
-    alg_enc = ~0u;
-    alg_mac = ~0u;
-    min_version = 0;
-    skip_rule = false;
+    bool multi = false;
+    uint32_t cipher_id = 0;
+    CIPHER_ALIAS alias;
+    bool skip_rule = false;
+
+    // When adding, exclude deprecated ciphers by default.
+    alias.include_deprecated = rule != CIPHER_ADD;
 
     for (;;) {
       ch = *l;
@@ -1071,16 +1063,24 @@ static bool ssl_cipher_process_rulestr(const char *rule_str,
         // If not an exact cipher, look for a matching cipher alias.
         for (j = 0; j < kCipherAliasesLen; j++) {
           if (rule_equals(kCipherAliases[j].name, buf, buf_len)) {
-            alg_mkey &= kCipherAliases[j].algorithm_mkey;
-            alg_auth &= kCipherAliases[j].algorithm_auth;
-            alg_enc &= kCipherAliases[j].algorithm_enc;
-            alg_mac &= kCipherAliases[j].algorithm_mac;
+            alias.algorithm_mkey &= kCipherAliases[j].algorithm_mkey;
+            alias.algorithm_auth &= kCipherAliases[j].algorithm_auth;
+            alias.algorithm_enc &= kCipherAliases[j].algorithm_enc;
+            alias.algorithm_mac &= kCipherAliases[j].algorithm_mac;
 
-            if (min_version != 0 &&
-                min_version != kCipherAliases[j].min_version) {
+            // When specifying a combination of aliases, if any aliases
+            // enables deprecated ciphers, deprecated ciphers are included. This
+            // is slightly different from the bitmasks in that adding aliases
+            // can increase the set of matched ciphers. This is so that an alias
+            // like "RSA" will only specifiy AES-based RSA ciphers, but
+            // "RSA+3DES" will still specify 3DES.
+            alias.include_deprecated |= kCipherAliases[j].include_deprecated;
+
+            if (alias.min_version != 0 &&
+                alias.min_version != kCipherAliases[j].min_version) {
               skip_rule = true;
             } else {
-              min_version = kCipherAliases[j].min_version;
+              alias.min_version = kCipherAliases[j].min_version;
             }
             break;
           }
@@ -1118,8 +1118,8 @@ static bool ssl_cipher_process_rulestr(const char *rule_str,
         l++;
       }
     } else if (!skip_rule) {
-      ssl_cipher_apply_rule(cipher_id, alg_mkey, alg_auth, alg_enc, alg_mac,
-                            min_version, rule, -1, in_group, head_p, tail_p);
+      ssl_cipher_apply_rule(cipher_id, &alias, rule, -1, in_group, head_p,
+                            tail_p);
     }
   }
 
@@ -1139,67 +1139,80 @@ bool ssl_create_cipher_list(UniquePtr<SSLCipherPreferenceList> *out_cipher_list,
     return false;
   }
 
-  // Now we have to collect the available ciphers from the compiled in ciphers.
-  // We cannot get more than the number compiled in, so it is used for
-  // allocation.
-  Array<CIPHER_ORDER> co_list;
-  CIPHER_ORDER *head = nullptr, *tail = nullptr;
-  if (!ssl_cipher_collect_ciphers(&co_list, &head, &tail)) {
-    return false;
+  // We prefer ECDHE ciphers over non-PFS ciphers. Then we prefer AEAD over
+  // non-AEAD. The constants are masked by 0xffff to remove the vestigial 0x03
+  // byte from SSL 2.0.
+  static const uint16_t kAESCiphers[] = {
+      TLS1_CK_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256 & 0xffff,
+      TLS1_CK_ECDHE_RSA_WITH_AES_128_GCM_SHA256 & 0xffff,
+      TLS1_CK_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384 & 0xffff,
+      TLS1_CK_ECDHE_RSA_WITH_AES_256_GCM_SHA384 & 0xffff,
+  };
+  static const uint16_t kChaChaCiphers[] = {
+      TLS1_CK_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256 & 0xffff,
+      TLS1_CK_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256 & 0xffff,
+      TLS1_CK_ECDHE_PSK_WITH_CHACHA20_POLY1305_SHA256 & 0xffff,
+  };
+  static const uint16_t kLegacyCiphers[] = {
+      TLS1_CK_ECDHE_ECDSA_WITH_AES_128_CBC_SHA & 0xffff,
+      TLS1_CK_ECDHE_RSA_WITH_AES_128_CBC_SHA & 0xffff,
+      TLS1_CK_ECDHE_PSK_WITH_AES_128_CBC_SHA & 0xffff,
+      TLS1_CK_ECDHE_ECDSA_WITH_AES_256_CBC_SHA & 0xffff,
+      TLS1_CK_ECDHE_RSA_WITH_AES_256_CBC_SHA & 0xffff,
+      TLS1_CK_ECDHE_PSK_WITH_AES_256_CBC_SHA & 0xffff,
+      TLS1_CK_ECDHE_RSA_WITH_AES_128_CBC_SHA256 & 0xffff,
+      TLS1_CK_RSA_WITH_AES_128_GCM_SHA256 & 0xffff,
+      TLS1_CK_RSA_WITH_AES_256_GCM_SHA384 & 0xffff,
+      TLS1_CK_RSA_WITH_AES_128_SHA & 0xffff,
+      TLS1_CK_PSK_WITH_AES_128_CBC_SHA & 0xffff,
+      TLS1_CK_RSA_WITH_AES_256_SHA & 0xffff,
+      TLS1_CK_PSK_WITH_AES_256_CBC_SHA & 0xffff,
+      SSL3_CK_RSA_DES_192_CBC3_SHA & 0xffff,
+  };
+
+  // Set up a linked list of ciphers.
+  CIPHER_ORDER co_list[OPENSSL_ARRAY_SIZE(kAESCiphers) +
+                       OPENSSL_ARRAY_SIZE(kChaChaCiphers) +
+                       OPENSSL_ARRAY_SIZE(kLegacyCiphers)];
+  for (size_t i = 0; i < OPENSSL_ARRAY_SIZE(co_list); i++) {
+    co_list[i].next =
+        i + 1 < OPENSSL_ARRAY_SIZE(co_list) ? &co_list[i + 1] : nullptr;
+    co_list[i].prev = i == 0 ? nullptr : &co_list[i - 1];
+    co_list[i].active = false;
+    co_list[i].in_group = false;
   }
+  CIPHER_ORDER *head = &co_list[0];
+  CIPHER_ORDER *tail = &co_list[OPENSSL_ARRAY_SIZE(co_list) - 1];
 
-  // Now arrange all ciphers by preference:
-  // TODO(davidben): Compute this order once and copy it.
-
-  // Everything else being equal, prefer ECDHE_ECDSA and ECDHE_RSA over other
-  // key exchange mechanisms
-  ssl_cipher_apply_rule(0, SSL_kECDHE, SSL_aECDSA, ~0u, ~0u, 0, CIPHER_ADD, -1,
-                        false, &head, &tail);
-  ssl_cipher_apply_rule(0, SSL_kECDHE, ~0u, ~0u, ~0u, 0, CIPHER_ADD, -1, false,
-                        &head, &tail);
-  ssl_cipher_apply_rule(0, ~0u, ~0u, ~0u, ~0u, 0, CIPHER_DEL, -1, false, &head,
-                        &tail);
-
-  // Order the bulk ciphers. First the preferred AEAD ciphers. We prefer
-  // CHACHA20 unless there is hardware support for fast and constant-time
-  // AES_GCM. Of the two CHACHA20 variants, the new one is preferred over the
-  // old one.
+  // Order AES ciphers vs ChaCha ciphers based on whether we have AES hardware.
+  //
+  // TODO(crbug.com/boringssl/29): We should also set up equipreference groups
+  // as a server.
+  size_t num = 0;
   if (has_aes_hw) {
-    ssl_cipher_apply_rule(0, ~0u, ~0u, SSL_AES128GCM, ~0u, 0, CIPHER_ADD, -1,
-                          false, &head, &tail);
-    ssl_cipher_apply_rule(0, ~0u, ~0u, SSL_AES256GCM, ~0u, 0, CIPHER_ADD, -1,
-                          false, &head, &tail);
-    ssl_cipher_apply_rule(0, ~0u, ~0u, SSL_CHACHA20POLY1305, ~0u, 0, CIPHER_ADD,
-                          -1, false, &head, &tail);
-  } else {
-    ssl_cipher_apply_rule(0, ~0u, ~0u, SSL_CHACHA20POLY1305, ~0u, 0, CIPHER_ADD,
-                          -1, false, &head, &tail);
-    ssl_cipher_apply_rule(0, ~0u, ~0u, SSL_AES128GCM, ~0u, 0, CIPHER_ADD, -1,
-                          false, &head, &tail);
-    ssl_cipher_apply_rule(0, ~0u, ~0u, SSL_AES256GCM, ~0u, 0, CIPHER_ADD, -1,
-                          false, &head, &tail);
+    for (uint16_t id : kAESCiphers) {
+      co_list[num++].cipher = SSL_get_cipher_by_value(id);
+      assert(co_list[num - 1].cipher != nullptr);
+    }
   }
-
-  // Then the legacy non-AEAD ciphers: AES_128_CBC, AES_256_CBC,
-  // 3DES_EDE_CBC_SHA.
-  ssl_cipher_apply_rule(0, ~0u, ~0u, SSL_AES128, ~0u, 0, CIPHER_ADD, -1, false,
-                        &head, &tail);
-  ssl_cipher_apply_rule(0, ~0u, ~0u, SSL_AES256, ~0u, 0, CIPHER_ADD, -1, false,
-                        &head, &tail);
-  ssl_cipher_apply_rule(0, ~0u, ~0u, SSL_3DES, ~0u, 0, CIPHER_ADD, -1, false,
-                        &head, &tail);
-
-  // Temporarily enable everything else for sorting
-  ssl_cipher_apply_rule(0, ~0u, ~0u, ~0u, ~0u, 0, CIPHER_ADD, -1, false, &head,
-                        &tail);
-
-  // Move ciphers without forward secrecy to the end.
-  ssl_cipher_apply_rule(0, (SSL_kRSA | SSL_kPSK), ~0u, ~0u, ~0u, 0, CIPHER_ORD,
-                        -1, false, &head, &tail);
-
-  // Now disable everything (maintaining the ordering!)
-  ssl_cipher_apply_rule(0, ~0u, ~0u, ~0u, ~0u, 0, CIPHER_DEL, -1, false, &head,
-                        &tail);
+  for (uint16_t id : kChaChaCiphers) {
+    co_list[num++].cipher = SSL_get_cipher_by_value(id);
+    assert(co_list[num - 1].cipher != nullptr);
+  }
+  if (!has_aes_hw) {
+    for (uint16_t id : kAESCiphers) {
+      co_list[num++].cipher = SSL_get_cipher_by_value(id);
+      assert(co_list[num - 1].cipher != nullptr);
+    }
+  }
+  for (uint16_t id : kLegacyCiphers) {
+    co_list[num++].cipher = SSL_get_cipher_by_value(id);
+    assert(co_list[num - 1].cipher != nullptr);
+  }
+  assert(num == OPENSSL_ARRAY_SIZE(co_list));
+  static_assert(OPENSSL_ARRAY_SIZE(co_list) + NumTLS13Ciphers() ==
+                    OPENSSL_ARRAY_SIZE(kCiphers),
+                "Not all ciphers are included in the cipher order");
 
   // If the rule_string begins with DEFAULT, apply the default rule before
   // using the (possibly available) additional rules.
@@ -1357,10 +1370,6 @@ uint16_t SSL_CIPHER_get_protocol_id(const SSL_CIPHER *cipher) {
   return static_cast<uint16_t>(cipher->id);
 }
 
-uint16_t SSL_CIPHER_get_value(const SSL_CIPHER *cipher) {
-  return SSL_CIPHER_get_protocol_id(cipher);
-}
-
 int SSL_CIPHER_is_aead(const SSL_CIPHER *cipher) {
   return (cipher->algorithm_mac & SSL_AEAD) != 0;
 }
@@ -1390,6 +1399,8 @@ int SSL_CIPHER_get_digest_nid(const SSL_CIPHER *cipher) {
       return NID_undef;
     case SSL_SHA1:
       return NID_sha1;
+    case SSL_SHA256:
+      return NID_sha256;
   }
   assert(0);
   return NID_undef;
@@ -1425,17 +1436,25 @@ int SSL_CIPHER_get_auth_nid(const SSL_CIPHER *cipher) {
   return NID_undef;
 }
 
-int SSL_CIPHER_get_prf_nid(const SSL_CIPHER *cipher) {
+const EVP_MD *SSL_CIPHER_get_handshake_digest(const SSL_CIPHER *cipher) {
   switch (cipher->algorithm_prf) {
     case SSL_HANDSHAKE_MAC_DEFAULT:
-      return NID_md5_sha1;
+      return EVP_md5_sha1();
     case SSL_HANDSHAKE_MAC_SHA256:
-      return NID_sha256;
+      return EVP_sha256();
     case SSL_HANDSHAKE_MAC_SHA384:
-      return NID_sha384;
+      return EVP_sha384();
   }
   assert(0);
-  return NID_undef;
+  return NULL;
+}
+
+int SSL_CIPHER_get_prf_nid(const SSL_CIPHER *cipher) {
+  const EVP_MD *md = SSL_CIPHER_get_handshake_digest(cipher);
+  if (md == NULL) {
+    return NID_undef;
+  }
+  return EVP_MD_nid(md);
 }
 
 int SSL_CIPHER_is_block_cipher(const SSL_CIPHER *cipher) {
@@ -1464,13 +1483,15 @@ uint16_t SSL_CIPHER_get_max_version(const SSL_CIPHER *cipher) {
   return TLS1_2_VERSION;
 }
 
+static const char* kUnknownCipher = "(NONE)";
+
 // return the actual cipher being used
 const char *SSL_CIPHER_get_name(const SSL_CIPHER *cipher) {
   if (cipher != NULL) {
     return cipher->name;
   }
 
-  return "(NONE)";
+  return kUnknownCipher;
 }
 
 const char *SSL_CIPHER_standard_name(const SSL_CIPHER *cipher) {
@@ -1638,6 +1659,10 @@ const char *SSL_CIPHER_description(const SSL_CIPHER *cipher, char *buf,
       mac = "SHA1";
       break;
 
+    case SSL_SHA256:
+      mac = "SHA256";
+      break;
+
     case SSL_AEAD:
       mac = "AEAD";
       break;
@@ -1657,8 +1682,8 @@ const char *SSL_CIPHER_description(const SSL_CIPHER *cipher, char *buf,
     return "Buffer too small";
   }
 
-  BIO_snprintf(buf, len, "%-23s Kx=%-8s Au=%-4s Enc=%-9s Mac=%-4s\n",
-               cipher->name, kx, au, enc, mac);
+  snprintf(buf, len, "%-23s Kx=%-8s Au=%-4s Enc=%-9s Mac=%-4s\n", cipher->name,
+           kx, au, enc, mac);
   return buf;
 }
 
@@ -1677,3 +1702,13 @@ const char *SSL_COMP_get0_name(const SSL_COMP *comp) { return comp->name; }
 int SSL_COMP_get_id(const SSL_COMP *comp) { return comp->id; }
 
 void SSL_COMP_free_compression_methods(void) {}
+
+size_t SSL_get_all_cipher_names(const char **out, size_t max_out) {
+  return GetAllNames(out, max_out, MakeConstSpan(&kUnknownCipher, 1),
+                     &SSL_CIPHER::name, MakeConstSpan(kCiphers));
+}
+
+size_t SSL_get_all_standard_cipher_names(const char **out, size_t max_out) {
+  return GetAllNames(out, max_out, Span<const char *>(),
+                     &SSL_CIPHER::standard_name, MakeConstSpan(kCiphers));
+}

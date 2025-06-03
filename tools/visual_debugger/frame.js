@@ -56,7 +56,6 @@ class DrawFrame {
       height: parseInt(json.windowy),
     };
     this.logs_ = json.logs;
-    this.drawTexts_ = json.text;
     this.drawCalls_ = json.drawcalls.map(c => new DrawCall(c));
     this.buffer_map = json.buff_map;
 
@@ -129,7 +128,7 @@ class DrawFrame {
   }
 
   submissionCount() {
-    return this.drawCalls_.length + this.drawTexts_.length + this.logs_.length;
+    return this.drawCalls_.length + this.logs_.length;
   }
 
   submissionFreezeIndex() {
@@ -137,7 +136,7 @@ class DrawFrame {
       (this.submissionCount() - 1);
   }
 
-  updateCanvasSize(canvas, scale, orientationDeg) {
+  updateCanvasSize(canvas, context, scale, orientationDeg) {
     // Swap canvas width/height for 90 or 270 deg rotations
     if (orientationDeg === 90 || orientationDeg === 270) {
       canvas.width = this.size_.height * scale;
@@ -153,6 +152,17 @@ class DrawFrame {
     const padding = 20;
     canvas.width += padding * 2;
     canvas.height += padding * 2;
+
+    // Fill the actual frame bounds to an opaque color.
+    context.save();
+    context.fillStyle = "white";
+    context.fillRect(
+      padding,
+      padding,
+      canvas.width - padding * 2,
+      canvas.height - padding * 2
+    );
+    context.restore();
   }
 
   getFilter(source_index) {
@@ -202,6 +212,10 @@ class DrawFrame {
     context.translate(-this.size_.width / 2, -this.size_.height / 2);
 
     for (const call of this.drawCalls_) {
+
+      // Assumed to be a positional text call.
+      if(call.text) continue;
+
       if (call.drawIndex_ > this.submissionFreezeIndex()) break;
 
       // If thread not enabled, then skip draw call from this thread.
@@ -229,33 +243,36 @@ class DrawFrame {
     }
 
 
-    for (const text of this.drawTexts_) {
+    for (const text of this.drawCalls_) {
+      // Not a positional text call.
+      if(!text.text) continue;
+
       // If thread not enabled, then skip text calls from this thread.
-      if (!this.threadMapping_[text.thread_id].threadEnabled) {
+      if (!this.threadMapping_[text.threadId_].threadEnabled) {
         continue;
       }
 
-      if (text.drawindex > this.submissionFreezeIndex()) break;
+      if (text.drawIndex_ > this.submissionFreezeIndex()) break;
 
       var color;
       // If thread is overriding, take thread color.
-      if (this.threadMapping_[text.thread_id].overrideFilters) {
-        color = this.threadMapping_[text.thread_id].threadColor;
+      if (this.threadMapping_[text.threadId_].overrideFilters) {
+        color = this.threadMapping_[text.threadId_].threadColor;
       }
       // Otherwise, take filter's color.
       else {
-        let filter = this.getFilter(text.source_index);
+        let filter = this.getFilter(text.sourceIndex_);
         if (!filter) continue;
 
         color = (filter && filter.drawColor) ?
-          filter.drawColor : text.option.color;
+          filter.drawColor : text.color_;
       }
       context.fillStyle = color;
       // TODO: This should also create some DrawText object or something.
       this.drawText(context,
                     text.text,
-                    text.pos[0],
-                    text.pos[1],
+                    text.pos_.x,
+                    text.pos_.y,
                     transformMatrix);
     }
   }
@@ -375,6 +392,7 @@ class Viewer {
     }
   }
 
+
   drawPreviousFrame() {
     // When we switch to a different frame, we need to unfreeze the current
     // frame (to make sure the frame draws completely the next time it is drawn
@@ -389,7 +407,10 @@ class Viewer {
   redrawCurrentFrame_() {
     const frame = this.getCurrentFrame();
     if (!frame) return;
-    frame.updateCanvasSize(this.canvas_, this.viewScale, this.viewOrientation);
+    frame.updateCanvasSize(this.canvas_,
+                           this.drawContext_,
+                           this.viewScale,
+                           this.viewOrientation);
     frame.draw(this.canvas_,
                this.drawContext_,
                this.viewScale,
@@ -455,7 +476,7 @@ class Player {
     this.viewer_ = viewer;
     this.paused_ = false;
     this.nextFrameScheduled_ = false;
-
+    this.live_ = true;
     this.drawCb_ = draw_cb;
 
     Player.instances[0] = this;
@@ -466,6 +487,10 @@ class Player {
     if (this.nextFrameScheduled_) return;
 
     const drawn = this.viewer_.drawNextFrame();
+    if(this.live_){
+      while(this.viewer_.drawNextFrame());
+    }
+
     this.didDrawNewFrame_();
     if (!drawn) return;
 
@@ -477,8 +502,15 @@ class Player {
     });
   }
 
+  live()
+  {
+    this.live_ = true;
+    this.play();
+  }
+
   pause() {
     this.paused_ = true;
+    this.live_ = false;
   }
 
   rewind() {

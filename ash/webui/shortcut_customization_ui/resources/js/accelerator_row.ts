@@ -9,14 +9,14 @@ import '../css/shortcut_customization_shared.css.js';
 import 'chrome://resources/cr_elements/cr_input/cr_input.js';
 import 'chrome://resources/polymer/v3_0/iron-icon/iron-icon.js';
 
+import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
 import {PolymerElementProperties} from 'chrome://resources/polymer/v3_0/polymer/interfaces.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {getTemplate} from './accelerator_row.html.js';
 import {getShortcutProvider} from './mojo_interface_provider.js';
-import {AcceleratorInfo, AcceleratorSource, LayoutStyle, ShortcutProviderInterface, TextAcceleratorInfo, TextAcceleratorPart} from './shortcut_types.js';
-import {isCustomizationDisabled} from './shortcut_utils.js';
-import {TextAcceleratorElement} from './text_accelerator.js';
+import {AcceleratorInfo, AcceleratorSource, LayoutStyle, ShortcutProviderInterface, StandardAcceleratorInfo, TextAcceleratorInfo, TextAcceleratorPart} from './shortcut_types.js';
+import {getAriaLabelForStandardAccelerators, getAriaLabelForTextAccelerators, getTextAcceleratorParts, isCustomizationAllowed} from './shortcut_utils.js';
 
 export type ShowEditDialogEvent = CustomEvent<{
   description: string,
@@ -37,7 +37,8 @@ declare global {
  * description of the shortcut along with a list of accelerators.
  * TODO(jimmyxgong): Implement opening a dialog when clicked.
  */
-export class AcceleratorRowElement extends PolymerElement {
+const AcceleratorRowElementBase = I18nMixin(PolymerElement);
+export class AcceleratorRowElement extends AcceleratorRowElementBase {
   static get is(): string {
     return 'accelerator-row';
   }
@@ -89,7 +90,7 @@ export class AcceleratorRowElement extends PolymerElement {
   override disconnectedCallback(): void {
     super.disconnectedCallback();
     if (!this.isLocked) {
-      this.removeEventListener('click', () => this.showDialog());
+      this.removeEventListener('edit-icon-clicked', () => this.showDialog());
     }
   }
 
@@ -98,7 +99,7 @@ export class AcceleratorRowElement extends PolymerElement {
         .then(({isMutable}) => {
           this.isLocked = !isMutable;
           if (!this.isLocked) {
-            this.addEventListener('click', () => this.showDialog());
+            this.addEventListener('edit-icon-clicked', () => this.showDialog());
           }
         });
   }
@@ -112,7 +113,7 @@ export class AcceleratorRowElement extends PolymerElement {
   }
 
   private showDialog(): void {
-    if (isCustomizationDisabled() || this.isTextLayout()) {
+    if (!isCustomizationAllowed() || this.isTextLayout()) {
       return;
     }
 
@@ -133,7 +134,51 @@ export class AcceleratorRowElement extends PolymerElement {
 
   protected getTextAcceleratorParts(infos: TextAcceleratorInfo[]):
       TextAcceleratorPart[] {
-    return TextAcceleratorElement.getTextAcceleratorParts(infos);
+    return getTextAcceleratorParts(infos);
+  }
+
+  protected isEmptyList(infos: AcceleratorInfo[]): boolean {
+    return infos.length === 0;
+  }
+
+  // Returns true if it is the first accelerator in the list.
+  protected isFirstAccelerator(index: number): boolean {
+    return index === 0;
+  }
+
+  private onEditIconClicked(): void {
+    this.dispatchEvent(
+        new CustomEvent('edit-icon-clicked', {bubbles: true, composed: true}));
+  }
+
+  protected getTabIndex(): number {
+    // If customization is disabled, this element should not be tab-focusable.
+    return !isCustomizationAllowed() ? -1 : 0;
+  }
+
+  protected onFocusOrMouseEnter(): void {
+    (this.shadowRoot!.querySelector('#container')! as HTMLElement).focus();
+  }
+
+  private getAriaLabel(): string {
+    let acceleratorText;
+
+    if (this.acceleratorInfos.length === 0) {
+      // No shortcut assigned case:
+      acceleratorText = this.i18n('noShortcutAssigned');
+    } else if (this.isDefaultLayout()) {
+      // Default accelerator:
+      acceleratorText = getAriaLabelForStandardAccelerators(
+          this.acceleratorInfos as StandardAcceleratorInfo[],
+          this.i18n('acceleratorTextDivider'));
+    } else {
+      // Text accelerator:
+      acceleratorText = getAriaLabelForTextAccelerators(
+          this.acceleratorInfos as TextAcceleratorInfo[]);
+    }
+
+    return this.i18n(
+        'acceleratorRowAriaLabel', this.description, acceleratorText);
   }
 
   static get template(): HTMLTemplateElement {

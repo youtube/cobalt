@@ -1104,7 +1104,8 @@ void X11Window::SetDecorationInsets(const gfx::Insets* insets_px) {
   }
 }
 
-void X11Window::SetOpaqueRegion(const std::vector<gfx::Rect>* region_px) {
+void X11Window::SetOpaqueRegion(
+    absl::optional<std::vector<gfx::Rect>> region_px) {
   auto atom = x11::GetAtom("_NET_WM_OPAQUE_REGION");
   if (!region_px) {
     x11::DeleteProperty(xwindow_, atom);
@@ -1120,7 +1121,7 @@ void X11Window::SetOpaqueRegion(const std::vector<gfx::Rect>* region_px) {
   x11::SetArrayProperty(xwindow_, atom, x11::Atom::CARDINAL, value);
 }
 
-void X11Window::SetInputRegion(const gfx::Rect* region_px) {
+void X11Window::SetInputRegion(absl::optional<gfx::Rect> region_px) {
   if (!region_px) {
     // Reset the input region.
     connection_->shape().Mask({
@@ -1279,15 +1280,18 @@ void X11Window::SetX11ExtensionDelegate(X11ExtensionDelegate* delegate) {
   x11_extension_delegate_ = delegate;
 }
 
-bool X11Window::HandleAsAtkEvent(const x11::Event& x11_event, bool transient) {
+bool X11Window::HandleAsAtkEvent(const x11::KeyEvent& key_event,
+                                 bool send_event,
+                                 bool transient) {
 #if !BUILDFLAG(USE_ATK)
   // TODO(crbug.com/1014934): Support ATK in Ozone/X11.
   NOTREACHED();
   return false;
 #else
-  if (!x11_extension_delegate_ || !x11_event.As<x11::KeyEvent>())
+  if (!x11_extension_delegate_) {
     return false;
-  auto atk_key_event = AtkKeyEventFromXEvent(x11_event);
+  }
+  auto atk_key_event = AtkKeyEventFromXEvent(key_event, send_event);
   return x11_extension_delegate_->OnAtkKeyEvent(atk_key_event.get(), transient);
 #endif
 }
@@ -1331,9 +1335,11 @@ uint32_t X11Window::DispatchEvent(const PlatformEvent& event) {
   if (event->IsMouseEvent())
     X11WindowManager::GetInstance()->MouseOnWindow(this);
 #if BUILDFLAG(USE_ATK)
-  if (HandleAsAtkEvent(current_xevent,
-                       current_xevent.window() == transient_window_)) {
-    return POST_DISPATCH_STOP_PROPAGATION;
+  if (auto* key = current_xevent.As<x11::KeyEvent>()) {
+    if (HandleAsAtkEvent(*key, current_xevent.send_event(),
+                         key->event == transient_window_)) {
+      return POST_DISPATCH_STOP_PROPAGATION;
+    }
   }
 #endif
 
@@ -2003,10 +2009,9 @@ void X11Window::AfterActivationStateChanged() {
   if (had_pointer_grab_ && !has_pointer_grab_)
     OnXWindowLostPointerGrab();
 
-  bool had_pointer_capture = had_pointer_ || had_pointer_grab_;
-  bool has_pointer_capture = has_pointer_ || has_pointer_grab_;
-  if (had_pointer_capture && !has_pointer_capture)
+  if (had_pointer_grab_ && !has_pointer_grab_) {
     OnXWindowLostCapture();
+  }
 
   bool is_active = IsActive();
   if (!was_active_ && is_active)
@@ -2144,8 +2149,56 @@ void X11Window::OnFocusEvent(bool focus_in,
   AfterActivationStateChanged();
 }
 
-bool X11Window::IsTargetedBy(const x11::Event& x11_event) const {
-  return x11_event.window() == xwindow_;
+bool X11Window::IsTargetedBy(const x11::Event& xev) const {
+  if (auto* button = xev.As<x11::ButtonEvent>()) {
+    return button->event == xwindow_;
+  }
+  if (auto* key = xev.As<x11::KeyEvent>()) {
+    return key->event == xwindow_;
+  }
+  if (auto* motion = xev.As<x11::MotionNotifyEvent>()) {
+    return motion->event == xwindow_;
+  }
+  if (auto* xievent = xev.As<x11::Input::DeviceEvent>()) {
+    return xievent->event == xwindow_;
+  }
+  if (auto* motion = xev.As<x11::MotionNotifyEvent>()) {
+    return motion->event == xwindow_;
+  }
+  if (auto* crossing = xev.As<x11::CrossingEvent>()) {
+    return crossing->event == xwindow_;
+  }
+  if (auto* expose = xev.As<x11::ExposeEvent>()) {
+    return expose->window == xwindow_;
+  }
+  if (auto* focus = xev.As<x11::FocusEvent>()) {
+    return focus->event == xwindow_;
+  }
+  if (auto* configure = xev.As<x11::ConfigureNotifyEvent>()) {
+    return configure->window == xwindow_;
+  }
+  if (auto* crossing_input = xev.As<x11::Input::CrossingEvent>()) {
+    return crossing_input->event == xwindow_;
+  }
+  if (auto* map = xev.As<x11::MapNotifyEvent>()) {
+    return map->window == xwindow_;
+  }
+  if (auto* unmap = xev.As<x11::UnmapNotifyEvent>()) {
+    return unmap->window == xwindow_;
+  }
+  if (auto* client = xev.As<x11::ClientMessageEvent>()) {
+    return client->window == xwindow_;
+  }
+  if (auto* property = xev.As<x11::PropertyNotifyEvent>()) {
+    return property->window == xwindow_;
+  }
+  if (auto* selection = xev.As<x11::SelectionNotifyEvent>()) {
+    return selection->requestor == xwindow_;
+  }
+  if (auto* visibility = xev.As<x11::VisibilityNotifyEvent>()) {
+    return visibility->window == xwindow_;
+  }
+  return false;
 }
 
 void X11Window::SetTransientWindow(x11::Window window) {

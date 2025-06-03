@@ -18,6 +18,7 @@
 #include "base/strings/stringprintf.h"
 #include "base/task/thread_pool.h"
 #include "base/test/scoped_path_override.h"
+#include "base/test/test_future.h"
 #include "base/test/test_simple_task_runner.h"
 #include "chrome/browser/ash/login/users/fake_chrome_user_manager.h"
 #include "chrome/browser/browser_process_platform_part_ash.h"
@@ -45,6 +46,8 @@ constexpr char kTestComponentValidMinEnvVersion[] = "1.0";
 constexpr char kTestComponentInvalidMinEnvVersion[] = "0.0.1";
 constexpr char kTestComponentMountPath[] =
     "/run/imageloader/demo-mode-resources";
+
+constexpr char kGrowthCampaignsName[] = "growth-campaigns";
 
 MATCHER_P(CrxComponentWithName, name, "") {
   return arg.name == name;
@@ -330,14 +333,14 @@ class CrOSComponentInstallerTest : public testing::Test {
     if (!base::CreateDirectory(path))
       return absl::nullopt;
 
-    const std::string manifest_template = R"({
+    static constexpr char kManifestTemplate[] = R"({
         "name": "%s",
         "version": "%s",
         "min_env_version": "%s"
     })";
     const std::string manifest =
-        base::StringPrintf(manifest_template.c_str(), name.c_str(),
-                           version.c_str(), min_env_version.c_str());
+        base::StringPrintf(kManifestTemplate, name.c_str(), version.c_str(),
+                           min_env_version.c_str());
     if (!base::WriteFile(path.AppendASCII("manifest.json"), manifest))
       return absl::nullopt;
 
@@ -374,9 +377,19 @@ TEST_F(CrOSComponentInstallerTest, CompatibleCrOSComponent) {
             std::string());
 
   const base::FilePath kPath("/component/path/v0");
-  cros_component_manager->RegisterCompatiblePath(kComponent, kPath);
+  const base::Version kVersion = base::Version("1.0.0.0");
+  cros_component_manager->RegisterCompatiblePath(
+      kComponent, CompatibleComponentInfo(kPath, kVersion));
   EXPECT_TRUE(cros_component_manager->IsCompatible(kComponent));
   EXPECT_EQ(cros_component_manager->GetCompatiblePath(kComponent), kPath);
+  // Make sure the version has also been updated.
+  base::test::TestFuture<const base::Version&> get_version_future;
+  cros_component_manager->GetVersion(kComponent,
+                                     get_version_future.GetCallback());
+  const base::Version& result = get_version_future.Get<0>();
+  EXPECT_EQ(result.CompareTo(kVersion), 0);
+
+  // Unregister the version.
   cros_component_manager->UnregisterCompatiblePath(kComponent);
   EXPECT_FALSE(cros_component_manager->IsCompatible(kComponent));
 }
@@ -1060,6 +1073,40 @@ TEST_F(CrOSComponentInstallerTest,
                         load_result2,
                         GetInstalledComponentPath(kTestComponentName, "2.0"));
   EXPECT_EQ(mount_path1, mount_path2);
+}
+
+TEST_F(CrOSComponentInstallerTest, LoadGrowthComponent) {
+  image_loader_client()->SetMountPathForComponent(
+      kGrowthCampaignsName,
+      base::FilePath("/run/imageloader/growth-campaigns"));
+  TestUpdater updater;
+  std::unique_ptr<MockComponentUpdateService> update_service =
+      CreateUpdateServiceForSingleRegistration(kGrowthCampaignsName, &updater);
+  scoped_refptr<CrOSComponentInstaller> cros_component_manager =
+      base::MakeRefCounted<CrOSComponentInstaller>(nullptr,
+                                                   update_service.get());
+
+  absl::optional<CrOSComponentManager::Error> load_result;
+  base::FilePath mount_path;
+  cros_component_manager->Load(
+      kGrowthCampaignsName, CrOSComponentManager::MountPolicy::kMount,
+      CrOSComponentManager::UpdatePolicy::kDontForce,
+      base::BindOnce(&RecordLoadResult, &load_result, &mount_path));
+
+  RunUntilIdle();
+  absl::optional<base::FilePath> unpacked_path = CreateUnpackedComponent(
+      kGrowthCampaignsName, "1.0", kTestComponentValidMinEnvVersion);
+  ASSERT_TRUE(unpacked_path.has_value());
+  ASSERT_TRUE(updater.FinishForegroundUpdate(
+      kGrowthCampaignsName, update_client::Error::NONE, unpacked_path.value()));
+
+  RunUntilIdle();
+  ASSERT_FALSE(updater.HasPendingUpdate(kGrowthCampaignsName));
+
+  VerifyComponentLoaded(cros_component_manager, kGrowthCampaignsName,
+                        load_result,
+                        GetInstalledComponentPath(kGrowthCampaignsName, "1.0"));
+  EXPECT_EQ(base::FilePath("/run/imageloader/growth-campaigns"), mount_path);
 }
 
 }  // namespace component_updater

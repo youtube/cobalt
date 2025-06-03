@@ -48,7 +48,7 @@ class WorkerReportingProxy;
 class WorkerThread;
 
 class CORE_EXPORT WorkerOrWorkletGlobalScope
-    : public EventTargetWithInlineData,
+    : public EventTarget,
       public ExecutionContext,
       public scheduler::WorkerScheduler::Delegate,
       public BackForwardCacheLoaderHelperImpl::Delegate {
@@ -200,6 +200,12 @@ class CORE_EXPORT WorkerOrWorkletGlobalScope
   virtual void OnConsoleApiMessage(mojom::ConsoleMessageLevel level,
                                    const String& message,
                                    SourceLocation* location);
+
+  // Called when BestEffortServiceWorker(crbug.com/1420517) is enabled.
+  virtual absl::optional<
+      mojo::PendingRemote<network::mojom::blink::URLLoaderFactory>>
+  FindRaceNetworkRequestURLLoaderFactory(
+      const base::UnguessableToken& token) = 0;
 
  protected:
   // Sets outside's CSP used for off-main-thread top-level worker script

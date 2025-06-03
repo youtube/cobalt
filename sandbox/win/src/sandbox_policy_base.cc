@@ -9,6 +9,7 @@
 
 #include <memory>
 #include <utility>
+#include <vector>
 
 #include "base/containers/span.h"
 #include "base/functional/callback.h"
@@ -47,6 +48,14 @@ constexpr size_t kOneMemPage = 4096;
 // The IPC and Policy shared memory sizes.
 constexpr size_t kIPCMemSize = kOneMemPage * 2;
 constexpr size_t kPolMemSize = kOneMemPage * 6;
+
+// Offset of pShimData in ntdll!_PEB.
+#if defined(_WIN64)
+// This is the same on x64 and arm64.
+constexpr ptrdiff_t kShimDataOffset = 0x2d8;
+#else
+constexpr ptrdiff_t kShimDataOffset = 0x1e8;
+#endif
 
 // Helper function to allocate space (on the heap) for policy.
 sandbox::PolicyGlobal* MakeBrokerPolicyMemory() {
@@ -93,6 +102,30 @@ bool ReplacePackageSidInDacl(HANDLE token,
                            DACL_SECURITY_INFORMATION);
 }
 
+bool ApplyZeroAppShimToSuspendedProcess(HANDLE process) {
+  PROCESS_BASIC_INFORMATION proc_info{};
+  ULONG bytes_returned = 0;
+  NTSTATUS ret = GetNtExports()->QueryInformationProcess(
+      process, ProcessBasicInformation, &proc_info, sizeof(proc_info),
+      &bytes_returned);
+  if (!NT_SUCCESS(ret) || sizeof(proc_info) != bytes_returned) {
+    return false;
+  }
+
+  void* address = reinterpret_cast<void*>(
+      reinterpret_cast<uintptr_t>(proc_info.PebBaseAddress) + kShimDataOffset);
+  size_t zero = 0;
+  SIZE_T written;
+  if (!::WriteProcessMemory(process, const_cast<void*>(address), &zero,
+                            sizeof(zero), &written)) {
+    return false;
+  }
+  if (written != sizeof(zero)) {
+    return false;
+  }
+  return true;
+}
+
 }  // namespace
 
 SANDBOX_INTERCEPT IntegrityLevel g_shared_delayed_integrity_level =
@@ -120,6 +153,7 @@ ConfigBase::ConfigBase() noexcept
       ui_exceptions_(0),
       desktop_(Desktop::kDefault),
       filter_environment_(false),
+      zero_appshim_(false),
       policy_maker_(nullptr),
       policy_(nullptr) {
 }
@@ -183,82 +217,59 @@ ConfigBase::~ConfigBase() {
   policy_.ClearAndDelete();  // Allocated by MakeBrokerPolicyMemory.
 }
 
-ResultCode ConfigBase::AddRule(SubSystem subsystem,
-                               Semantics semantics,
-                               const wchar_t* pattern) {
+sandbox::LowLevelPolicy* ConfigBase::PolicyMaker() {
   DCHECK(IsOnCreatingThread());
-  DCHECK(!configured_);
-  ResultCode result = AddRuleInternal(subsystem, semantics, pattern);
-  LOG_IF(ERROR, result != SBOX_ALL_OK)
-      << "Failed to add sandbox rule."
-      << " error = " << result
-      << ", subsystem = " << static_cast<int>(subsystem)
-      << ", semantics = " << static_cast<int>(semantics) << ", pattern = '"
-      << pattern << "'";
-  return result;
-}
-
-ResultCode ConfigBase::AddRuleInternal(SubSystem subsystem,
-                                       Semantics semantics,
-                                       const wchar_t* pattern) {
   DCHECK(!configured_);
   if (!policy_) {
     policy_ = MakeBrokerPolicyMemory();
+    DCHECK(!policy_maker_);
     policy_maker_ = std::make_unique<LowLevelPolicy>(policy_);
   }
-  DCHECK(policy_maker_);
+  return policy_maker_.get();
+}
 
-  switch (subsystem) {
-    case SubSystem::kFiles: {
-      if (!FileSystemPolicy::GenerateRules(pattern, semantics,
-                                           policy_maker_.get())) {
-        NOTREACHED();
-        return SBOX_ERROR_BAD_PARAMS;
-      }
-      break;
-    }
-    case SubSystem::kNamedPipes: {
-      if (!NamedPipePolicy::GenerateRules(pattern, semantics,
-                                          policy_maker_.get())) {
-        NOTREACHED();
-        return SBOX_ERROR_BAD_PARAMS;
-      }
-      break;
-    }
-    case SubSystem::kWin32kLockdown: {
-      DCHECK_EQ(MITIGATION_WIN32K_DISABLE,
-                mitigations_ & MITIGATION_WIN32K_DISABLE)
-          << "Enable MITIGATION_WIN32K_DISABLE before adding win32k policy "
-             "rules.";
-      if (!ProcessMitigationsWin32KLockdownPolicy::GenerateRules(
-              pattern, semantics, policy_maker_.get())) {
-        NOTREACHED();
-        return SBOX_ERROR_BAD_PARAMS;
-      }
-      break;
-    }
-    case SubSystem::kSignedBinary: {
-      // Signed intercept rules only supported on Windows 10 TH2 and above. This
-      // must match the version checks in process_mitigations.cc for
-      // consistency.
-      if (base::win::GetVersion() >= base::win::Version::WIN10_TH2) {
-        DCHECK_EQ(MITIGATION_FORCE_MS_SIGNED_BINS,
-                  mitigations_ & MITIGATION_FORCE_MS_SIGNED_BINS)
-            << "Enable MITIGATION_FORCE_MS_SIGNED_BINS before adding signed "
-               "policy rules.";
-        if (!SignedPolicy::GenerateRules(pattern, semantics,
-                                         policy_maker_.get())) {
-          NOTREACHED();
-          return SBOX_ERROR_BAD_PARAMS;
-        }
-      }
-      break;
-    }
-    case SubSystem::kProcess: {
-      return SBOX_ERROR_UNSUPPORTED;
+ResultCode ConfigBase::AllowFileAccess(FileSemantics semantics,
+                                       const wchar_t* pattern) {
+  if (!FileSystemPolicy::GenerateRules(pattern, semantics, PolicyMaker())) {
+    NOTREACHED();
+    return SBOX_ERROR_BAD_PARAMS;
+  }
+  return SBOX_ALL_OK;
+}
+
+ResultCode ConfigBase::AllowNamedPipes(const wchar_t* pattern) {
+  if (!NamedPipePolicy::GenerateRules(pattern, PolicyMaker())) {
+    NOTREACHED();
+    return SBOX_ERROR_BAD_PARAMS;
+  }
+  return SBOX_ALL_OK;
+}
+
+ResultCode ConfigBase::SetFakeGdiInit() {
+  DCHECK_EQ(MITIGATION_WIN32K_DISABLE, mitigations_ & MITIGATION_WIN32K_DISABLE)
+      << "Enable MITIGATION_WIN32K_DISABLE before adding win32k policy "
+         "rules.";
+  if (!ProcessMitigationsWin32KLockdownPolicy::GenerateRules(PolicyMaker())) {
+    NOTREACHED();
+    return SBOX_ERROR_BAD_PARAMS;
+  }
+  return SBOX_ALL_OK;
+}
+
+ResultCode ConfigBase::AllowExtraDlls(const wchar_t* pattern) {
+  // Signed intercept rules only supported on Windows 10 TH2 and above. This
+  // must match the version checks in process_mitigations.cc for
+  // consistency.
+  if (base::win::GetVersion() >= base::win::Version::WIN10_TH2) {
+    DCHECK_EQ(MITIGATION_FORCE_MS_SIGNED_BINS,
+              mitigations_ & MITIGATION_FORCE_MS_SIGNED_BINS)
+        << "Enable MITIGATION_FORCE_MS_SIGNED_BINS before adding signed "
+           "policy rules.";
+    if (!SignedPolicy::GenerateRules(pattern, PolicyMaker())) {
+      NOTREACHED();
+      return SBOX_ERROR_BAD_PARAMS;
     }
   }
-
   return SBOX_ALL_OK;
 }
 
@@ -437,12 +448,17 @@ bool ConfigBase::GetEnvironmentFiltered() {
   return filter_environment_;
 }
 
+void ConfigBase::SetZeroAppShim() {
+  zero_appshim_ = true;
+}
+
 PolicyBase::PolicyBase(base::StringPiece tag)
     : tag_(tag),
       config_(),
       config_ptr_(nullptr),
       stdout_handle_(INVALID_HANDLE_VALUE),
       stderr_handle_(INVALID_HANDLE_VALUE),
+      delegate_data_(nullptr),
       job_() {
   dispatcher_ = std::make_unique<TopLevelDispatcher>(this);
 }
@@ -612,6 +628,12 @@ ResultCode PolicyBase::ApplyToTarget(std::unique_ptr<TargetProcess> target) {
   // Policy rules are compiled when the underlying ConfigBase is frozen.
   DCHECK(config()->IsConfigured());
 
+  if (config()->zero_appshim()) {
+    if (!ApplyZeroAppShimToSuspendedProcess(target->Process())) {
+      return SBOX_ERROR_DISABLING_APPHELP;
+    }
+  }
+
   if (!ApplyProcessMitigationsToSuspendedProcess(
           target->Process(), config()->GetProcessMitigations())) {
     return SBOX_ERROR_APPLY_ASLR_MITIGATIONS;
@@ -628,8 +650,8 @@ ResultCode PolicyBase::ApplyToTarget(std::unique_ptr<TargetProcess> target) {
   DWORD win_error = ERROR_SUCCESS;
   // Initialize the sandbox infrastructure for the target.
   // TODO(wfh) do something with win_error code here.
-  ret = target->Init(dispatcher_.get(), config()->policy_span(), kIPCMemSize,
-                     &win_error);
+  ret = target->Init(dispatcher_.get(), config()->policy_span(),
+                     delegate_data_span(), kIPCMemSize, &win_error);
 
   if (ret != SBOX_ALL_OK)
     return ret;
@@ -736,6 +758,21 @@ bool PolicyBase::SetupHandleCloser(TargetProcess& target) {
   if (!handle_closer)
     return true;
   return handle_closer->InitializeTargetHandles(target);
+}
+
+absl::optional<base::span<const uint8_t>> PolicyBase::delegate_data_span() {
+  if (delegate_data_) {
+    return base::make_span(*delegate_data_);
+  }
+  return absl::nullopt;
+}
+
+void PolicyBase::AddDelegateData(base::span<const uint8_t> data) {
+  CHECK(data.size() > 0u);
+  // Can only set this once - as there is only one region sent to the child.
+  CHECK(!delegate_data_);
+  delegate_data_ =
+      std::make_unique<std::vector<const uint8_t>>(data.begin(), data.end());
 }
 
 }  // namespace sandbox

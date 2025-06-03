@@ -29,7 +29,7 @@
 #include "third_party/blink/renderer/core/dom/text.h"
 #include "third_party/blink/renderer/core/frame/local_frame_view.h"
 #include "third_party/blink/renderer/core/layout/hit_test_result.h"
-#include "third_party/blink/renderer/core/layout/ng/inline/ng_offset_mapping.h"
+#include "third_party/blink/renderer/core/layout/inline/offset_mapping.h"
 
 namespace blink {
 
@@ -236,7 +236,7 @@ void LayoutTextFragment::UpdateHitTestResult(
 DOMNodeId LayoutTextFragment::OwnerNodeId() const {
   NOT_DESTROYED();
   Node* node = AssociatedTextNode();
-  return node ? DOMNodeIds::IdForNode(node) : kInvalidDOMNodeId;
+  return node ? node->GetDomNodeId() : kInvalidDOMNodeId;
 }
 
 Position LayoutTextFragment::PositionForCaretOffset(unsigned offset) const {
@@ -286,9 +286,8 @@ String LayoutTextFragment::PlainText() const {
   LayoutText* first_letter = GetFirstLetterPart();
   if (!first_letter)
     return LayoutText::PlainText();
-  const NGOffsetMapping* remaining_text_mapping = GetNGOffsetMapping();
-  const NGOffsetMapping* first_letter_mapping =
-      first_letter->GetNGOffsetMapping();
+  const OffsetMapping* remaining_text_mapping = GetOffsetMapping();
+  const OffsetMapping* first_letter_mapping = first_letter->GetOffsetMapping();
   if (first_letter_mapping && remaining_text_mapping &&
       first_letter_mapping != remaining_text_mapping)
     return first_letter_mapping->GetText() + LayoutText::PlainText();

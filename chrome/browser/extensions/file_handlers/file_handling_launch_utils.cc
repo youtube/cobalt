@@ -17,8 +17,7 @@ void EnqueueLaunchParamsInWebContents(content::WebContents* web_contents,
                                       const Extension& extension,
                                       const GURL& url,
                                       std::vector<base::FilePath> paths) {
-  CHECK(extensions::WebFileHandlers::SupportsWebFileHandlers(
-      extension.manifest_version()));
+  CHECK(extensions::WebFileHandlers::SupportsWebFileHandlers(extension));
 
   // Enable LaunchQueue in Web file handlers.
   web_app::WebAppLaunchParams launch_params;
@@ -26,10 +25,10 @@ void EnqueueLaunchParamsInWebContents(content::WebContents* web_contents,
   launch_params.app_id = extension.id();
   launch_params.target_url = url;
   launch_params.paths = paths;
-
   web_app::WebAppTabHelper::CreateForWebContents(web_contents);
-  auto* tab_helper = web_app::WebAppTabHelper::FromWebContents(web_contents);
-  tab_helper->EnsureLaunchQueue().Enqueue(launch_params);
+  web_app::WebAppTabHelper::FromWebContents(web_contents)
+      ->EnsureLaunchQueue()
+      .Enqueue(launch_params);
 }
 
 }  // namespace extensions

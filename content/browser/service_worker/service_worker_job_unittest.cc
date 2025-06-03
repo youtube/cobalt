@@ -22,7 +22,6 @@
 #include "base/time/time.h"
 #include "components/services/storage/service_worker/service_worker_database.h"
 #include "content/browser/renderer_host/frame_tree_node.h"
-#include "content/browser/service_worker/embedded_worker_status.h"
 #include "content/browser/service_worker/embedded_worker_test_helper.h"
 #include "content/browser/service_worker/fake_embedded_worker_instance_client.h"
 #include "content/browser/service_worker/service_worker_consts.h"
@@ -52,6 +51,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/features.h"
+#include "third_party/blink/public/common/service_worker/embedded_worker_status.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
 #include "third_party/blink/public/mojom/service_worker/embedded_worker.mojom.h"
 #include "third_party/blink/public/mojom/service_worker/service_worker.mojom.h"
@@ -140,7 +140,7 @@ void RequestTermination(
 class EmbeddedWorkerStatusObserver : public ServiceWorkerVersion::Observer {
  public:
   EmbeddedWorkerStatusObserver(base::OnceClosure quit_closure,
-                               EmbeddedWorkerStatus running_status)
+                               blink::EmbeddedWorkerStatus running_status)
       : quit_closure_(std::move(quit_closure)),
         expected_running_status_(running_status) {}
 
@@ -159,7 +159,7 @@ class EmbeddedWorkerStatusObserver : public ServiceWorkerVersion::Observer {
 
   base::OnceClosure quit_closure_;
 
-  EmbeddedWorkerStatus expected_running_status_;
+  blink::EmbeddedWorkerStatus expected_running_status_;
 };
 
 network::CrossOriginEmbedderPolicy CrossOriginEmbedderPolicyNone() {
@@ -205,7 +205,7 @@ class ServiceWorkerJobTest : public testing::Test {
                         blink::ServiceWorkerStatusCode expected_status =
                             blink::ServiceWorkerStatusCode::kOk);
   void WaitForVersionRunningStatus(scoped_refptr<ServiceWorkerVersion> version,
-                                   EmbeddedWorkerStatus running_status);
+                                   blink::EmbeddedWorkerStatus running_status);
   scoped_refptr<ServiceWorkerRegistration> FindRegistrationForScope(
       const GURL& scope,
       const blink::StorageKey& key,
@@ -263,7 +263,7 @@ void ServiceWorkerJobTest::RunUnregisterJob(
 
 void ServiceWorkerJobTest::WaitForVersionRunningStatus(
     scoped_refptr<ServiceWorkerVersion> version,
-    EmbeddedWorkerStatus running_status) {
+    blink::EmbeddedWorkerStatus running_status) {
   if (version->running_status() == running_status)
     return;
 
@@ -499,7 +499,7 @@ TEST_F(ServiceWorkerJobTest, Unregister) {
 
   RunUnregisterJob(options.scope, key);
 
-  WaitForVersionRunningStatus(version, EmbeddedWorkerStatus::STOPPED);
+  WaitForVersionRunningStatus(version, blink::EmbeddedWorkerStatus::kStopped);
   registry()->GetRemoteStorageControl().FlushForTesting();
 
   // The service worker registration object host and service worker object host
@@ -508,7 +508,7 @@ TEST_F(ServiceWorkerJobTest, Unregister) {
   // reference to the corresponding instance.
   EXPECT_TRUE(registration->HasOneRef());
   EXPECT_TRUE(version->HasOneRef());
-  EXPECT_EQ(EmbeddedWorkerStatus::STOPPED, version->running_status());
+  EXPECT_EQ(blink::EmbeddedWorkerStatus::kStopped, version->running_status());
   EXPECT_EQ(ServiceWorkerVersion::REDUNDANT, version->status());
 
   registration = FindRegistrationForScope(
@@ -934,15 +934,15 @@ TEST_F(ServiceWorkerJobTest, UnregisterWaitingSetsRedundant) {
             ServiceWorkerVersion::FetchHandlerExistence::EXISTS);
   version->SetStatus(ServiceWorkerVersion::INSTALLED);
   registration->SetWaitingVersion(version);
-  EXPECT_EQ(EmbeddedWorkerStatus::RUNNING, version->running_status());
+  EXPECT_EQ(blink::EmbeddedWorkerStatus::kRunning, version->running_status());
   EXPECT_EQ(ServiceWorkerVersion::INSTALLED, version->status());
 
   RunUnregisterJob(GURL("https://www.example.com/"), key);
-  WaitForVersionRunningStatus(version, EmbeddedWorkerStatus::STOPPED);
+  WaitForVersionRunningStatus(version, blink::EmbeddedWorkerStatus::kStopped);
 
   // The version should be stopped since there is no controllee after
   // unregistration.
-  EXPECT_EQ(EmbeddedWorkerStatus::STOPPED, version->running_status());
+  EXPECT_EQ(blink::EmbeddedWorkerStatus::kStopped, version->running_status());
   EXPECT_EQ(ServiceWorkerVersion::REDUNDANT, version->status());
 }
 
@@ -963,16 +963,16 @@ TEST_F(ServiceWorkerJobTest, UnregisterActiveSetsRedundant) {
 
   scoped_refptr<ServiceWorkerVersion> version = registration->active_version();
   observer.RunUntilStatusChange(version.get(), ServiceWorkerVersion::ACTIVATED);
-  EXPECT_EQ(EmbeddedWorkerStatus::RUNNING, version->running_status());
+  EXPECT_EQ(blink::EmbeddedWorkerStatus::kRunning, version->running_status());
   EXPECT_EQ(ServiceWorkerVersion::ACTIVATED, version->status());
 
   RunUnregisterJob(GURL("https://www.example.com/"), key);
 
-  WaitForVersionRunningStatus(version, EmbeddedWorkerStatus::STOPPED);
+  WaitForVersionRunningStatus(version, blink::EmbeddedWorkerStatus::kStopped);
 
   // The version should be stopped since there is no controllee after
   // unregistration.
-  EXPECT_EQ(EmbeddedWorkerStatus::STOPPED, version->running_status());
+  EXPECT_EQ(blink::EmbeddedWorkerStatus::kStopped, version->running_status());
   EXPECT_EQ(ServiceWorkerVersion::REDUNDANT, version->status());
 }
 
@@ -996,21 +996,21 @@ TEST_F(ServiceWorkerJobTest,
   registration->active_version()->AddControllee(container_host);
 
   scoped_refptr<ServiceWorkerVersion> version = registration->active_version();
-  EXPECT_EQ(EmbeddedWorkerStatus::RUNNING, version->running_status());
+  EXPECT_EQ(blink::EmbeddedWorkerStatus::kRunning, version->running_status());
   EXPECT_EQ(ServiceWorkerVersion::ACTIVATED, version->status());
 
   RunUnregisterJob(GURL("https://www.example.com/"), key);
 
   // The version should be running since there is still a controllee.
-  EXPECT_EQ(EmbeddedWorkerStatus::RUNNING, version->running_status());
+  EXPECT_EQ(blink::EmbeddedWorkerStatus::kRunning, version->running_status());
   EXPECT_EQ(ServiceWorkerVersion::ACTIVATED, version->status());
 
   registration->active_version()->RemoveControllee(
       container_host->client_uuid());
-  WaitForVersionRunningStatus(version, EmbeddedWorkerStatus::STOPPED);
+  WaitForVersionRunningStatus(version, blink::EmbeddedWorkerStatus::kStopped);
 
   // The version should be stopped since there is no controllee.
-  EXPECT_EQ(EmbeddedWorkerStatus::STOPPED, version->running_status());
+  EXPECT_EQ(blink::EmbeddedWorkerStatus::kStopped, version->running_status());
   EXPECT_EQ(ServiceWorkerVersion::REDUNDANT, version->status());
 }
 
@@ -1053,7 +1053,7 @@ TEST_F(ServiceWorkerJobTest, RegisterSameWhileUninstalling) {
   EXPECT_FALSE(registration->is_uninstalled());
   EXPECT_EQ(nullptr, registration->installing_version());
   EXPECT_EQ(nullptr, registration->waiting_version());
-  EXPECT_EQ(EmbeddedWorkerStatus::RUNNING, version->running_status());
+  EXPECT_EQ(blink::EmbeddedWorkerStatus::kRunning, version->running_status());
   EXPECT_EQ(ServiceWorkerVersion::ACTIVATED, version->status());
 }
 
@@ -1096,7 +1096,7 @@ TEST_F(ServiceWorkerJobTest, RegisterSameWhileUninstallingAndUnregister) {
   EXPECT_FALSE(registration->is_uninstalled());
   EXPECT_EQ(nullptr, registration->installing_version());
   EXPECT_EQ(nullptr, registration->waiting_version());
-  EXPECT_EQ(EmbeddedWorkerStatus::RUNNING, version->running_status());
+  EXPECT_EQ(blink::EmbeddedWorkerStatus::kRunning, version->running_status());
   EXPECT_EQ(ServiceWorkerVersion::ACTIVATED, version->status());
 
   // Unregister again and make sure its resources will be purged despite
@@ -1148,7 +1148,8 @@ TEST_F(ServiceWorkerJobTest, RegisterWhileUninstalling) {
   // Verify the new version is installed but not activated yet.
   EXPECT_EQ(nullptr, registration->installing_version());
   EXPECT_TRUE(new_version);
-  EXPECT_EQ(EmbeddedWorkerStatus::RUNNING, new_version->running_status());
+  EXPECT_EQ(blink::EmbeddedWorkerStatus::kRunning,
+            new_version->running_status());
   EXPECT_EQ(ServiceWorkerVersion::INSTALLED, new_version->status());
 
   // Make the old version eligible for eviction.
@@ -1208,22 +1209,28 @@ TEST_F(ServiceWorkerJobTest, RegisterAndUnregisterWhileUninstalling) {
   EXPECT_TRUE(registration->is_uninstalling());
   EXPECT_EQ(old_version, registration->active_version());
 
-  EXPECT_EQ(EmbeddedWorkerStatus::RUNNING, old_version->running_status());
+  EXPECT_EQ(blink::EmbeddedWorkerStatus::kRunning,
+            old_version->running_status());
   EXPECT_EQ(ServiceWorkerVersion::ACTIVATED, old_version->status());
-  EXPECT_EQ(EmbeddedWorkerStatus::RUNNING, new_version->running_status());
+  EXPECT_EQ(blink::EmbeddedWorkerStatus::kRunning,
+            new_version->running_status());
   EXPECT_EQ(ServiceWorkerVersion::INSTALLED, new_version->status());
 
   old_version->RemoveControllee(container_host->client_uuid());
 
-  WaitForVersionRunningStatus(old_version, EmbeddedWorkerStatus::STOPPED);
-  WaitForVersionRunningStatus(new_version, EmbeddedWorkerStatus::STOPPED);
+  WaitForVersionRunningStatus(old_version,
+                              blink::EmbeddedWorkerStatus::kStopped);
+  WaitForVersionRunningStatus(new_version,
+                              blink::EmbeddedWorkerStatus::kStopped);
 
   EXPECT_FALSE(registration->is_uninstalling());
   EXPECT_TRUE(registration->is_uninstalled());
 
-  EXPECT_EQ(EmbeddedWorkerStatus::STOPPED, old_version->running_status());
+  EXPECT_EQ(blink::EmbeddedWorkerStatus::kStopped,
+            old_version->running_status());
   EXPECT_EQ(ServiceWorkerVersion::REDUNDANT, old_version->status());
-  EXPECT_EQ(EmbeddedWorkerStatus::STOPPED, new_version->running_status());
+  EXPECT_EQ(blink::EmbeddedWorkerStatus::kStopped,
+            new_version->running_status());
   EXPECT_EQ(ServiceWorkerVersion::REDUNDANT, new_version->status());
 }
 
@@ -1300,8 +1307,9 @@ TEST_F(ServiceWorkerJobTest, RegisterSameScriptMultipleTimesWhileUninstalling) {
 // script with bad origin. (see https://crbug.com/1312995)
 TEST_F(ServiceWorkerJobTest, RegisterBadOrigin) {
   blink::mojom::ServiceWorkerRegistrationOptions options;
-  options.scope = GURL("bad-origin://www.example.com/");
-  GURL script_url("bad-origin://www.example.com/service_worker.js");
+  // http fails the trustworthiness check.
+  options.scope = GURL("http://www.example.com/");
+  GURL script_url("http://www.example.com/service_worker.js");
 
   base::RunLoop run_loop;
   scoped_refptr<ServiceWorkerRegistration> registration;
@@ -1330,7 +1338,7 @@ TEST_F(ServiceWorkerJobTest, RegisterBadOrigin) {
 
   EXPECT_FALSE(registration);
   EXPECT_TRUE(version->HasOneRef());
-  EXPECT_EQ(EmbeddedWorkerStatus::STOPPED, version->running_status());
+  EXPECT_EQ(blink::EmbeddedWorkerStatus::kStopped, version->running_status());
   EXPECT_EQ(ServiceWorkerVersion::REDUNDANT, version->status());
 }
 
@@ -1350,7 +1358,9 @@ class FetchHandlerInstanceClient : public FakeEmbeddedWorkerInstanceClient {
   void EvaluateScript() override {
     host()->OnScriptEvaluationStart();
     host()->OnStarted(blink::mojom::ServiceWorkerStartStatus::kNormalCompletion,
-                      fetch_handler_type_, helper()->GetNextThreadId(),
+                      fetch_handler_type_, /*has_hid_event_handlers=*/false,
+                      /*has_usb_event_handlers=*/false,
+                      helper()->GetNextThreadId(),
                       blink::mojom::EmbeddedWorkerStartTiming::New());
   }
 
@@ -1545,6 +1555,7 @@ class UpdateJobTestHelper : public EmbeddedWorkerTestHelper,
       host()->OnStarted(
           blink::mojom::ServiceWorkerStartStatus::kAbruptCompletion,
           blink::mojom::ServiceWorkerFetchHandlerType::kNoHandler,
+          /*has_hid_event_handlers=*/false, /*has_usb_event_handlers=*/false,
           helper()->GetNextThreadId(),
           blink::mojom::EmbeddedWorkerStartTiming::New());
     }
@@ -1562,6 +1573,10 @@ class UpdateJobTestHelper : public EmbeddedWorkerTestHelper,
 
     void InitializeGlobalScope(
         mojo::PendingAssociatedRemote<blink::mojom::ServiceWorkerHost>,
+        mojo::PendingAssociatedRemote<
+            blink::mojom::AssociatedInterfaceProvider>,
+        mojo::PendingAssociatedReceiver<
+            blink::mojom::AssociatedInterfaceProvider>,
         blink::mojom::ServiceWorkerRegistrationObjectInfoPtr,
         blink::mojom::ServiceWorkerObjectInfoPtr,
         blink::mojom::FetchHandlerExistence,
@@ -1572,7 +1587,9 @@ class UpdateJobTestHelper : public EmbeddedWorkerTestHelper,
     }
 
    private:
-    raw_ptr<ScriptFailureEmbeddedWorkerInstanceClient> client_;
+    raw_ptr<ScriptFailureEmbeddedWorkerInstanceClient,
+            AcrossTasksDanglingUntriaged>
+        client_;
   };
 
   ServiceWorkerJobCoordinator* job_coordinator() {
@@ -1682,7 +1699,7 @@ class UpdateJobTestHelper : public EmbeddedWorkerTestHelper,
     update_found_ = true;
   }
 
-  raw_ptr<FakeEmbeddedWorkerInstanceClient>
+  raw_ptr<FakeEmbeddedWorkerInstanceClient, AcrossTasksDanglingUntriaged>
       initial_embedded_worker_instance_client_ = nullptr;
   scoped_refptr<ServiceWorkerRegistration> observed_registration_;
   std::vector<AttributeChangeLogEntry> attribute_change_log_;
@@ -1720,6 +1737,15 @@ class ServiceWorkerUpdateJobTest : public ServiceWorkerJobTest {
     storage_partition_impl_->Initialize();
     helper_->context_wrapper()->set_storage_partition(
         storage_partition_impl_.get());
+  }
+
+  void TearDown() override {
+    // These need to be cleared before `helper_` to avoid dangling pointers.
+    storage_partition_impl_->OnBrowserContextWillBeDestroyed();
+    storage_partition_impl_.reset();
+    update_helper_ = nullptr;
+
+    ServiceWorkerJobTest::TearDown();
   }
 
  protected:
@@ -2043,7 +2069,9 @@ TEST_F(ServiceWorkerUpdateJobTest, Update_ScriptUrlChanged) {
   registration->SetTaskRunnerForTest(runner);
 
   // Queue an Update. When this runs, it will use the waiting version's script.
-  job_coordinator()->Update(registration.get(), false);
+  job_coordinator()->Update(registration.get(), false, false,
+                            blink::mojom::FetchClientSettingsObject::New(),
+                            base::NullCallback());
 
   // Add a waiting version with a new script.
   scoped_refptr<ServiceWorkerVersion> version = new ServiceWorkerVersion(
@@ -2151,7 +2179,9 @@ TEST_F(ServiceWorkerUpdateJobTest, Update_UninstallingRegistration) {
                          run_loop.QuitClosure()));
 
   // Update should abort after it starts and sees uninstalling.
-  job_coordinator()->Update(registration.get(), false);
+  job_coordinator()->Update(registration.get(), false, false,
+                            blink::mojom::FetchClientSettingsObject::New(),
+                            base::NullCallback());
 
   run_loop.Run();
 

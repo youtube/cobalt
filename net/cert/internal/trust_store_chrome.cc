@@ -87,8 +87,10 @@ TrustStoreChrome::TrustStoreChrome(base::span<const ChromeRootCertInfo> certs,
     CertErrors errors;
     auto parsed = ParsedCertificate::Create(
         std::move(cert), x509_util::DefaultParseCertificateOptions(), &errors);
-    DCHECK(parsed);
-    trust_store_.AddTrustAnchor(parsed);
+    // There should always be a valid cert, because we should be parsing Chrome
+    // Root Store static data compiled in.
+    CHECK(parsed);
+    trust_store_.AddTrustAnchor(std::move(parsed));
   }
   version_ = version;
 }
@@ -107,10 +109,8 @@ void TrustStoreChrome::SyncGetIssuersOf(const ParsedCertificate* cert,
   trust_store_.SyncGetIssuersOf(cert, issuers);
 }
 
-CertificateTrust TrustStoreChrome::GetTrust(
-    const ParsedCertificate* cert,
-    base::SupportsUserData* debug_data) {
-  return trust_store_.GetTrust(cert, debug_data);
+CertificateTrust TrustStoreChrome::GetTrust(const ParsedCertificate* cert) {
+  return trust_store_.GetTrust(cert);
 }
 
 bool TrustStoreChrome::Contains(const ParsedCertificate* cert) const {
@@ -140,7 +140,7 @@ ParsedCertificateList CompiledChromeRootStoreAnchors() {
     auto parsed = ParsedCertificate::Create(
         std::move(cert), x509_util::DefaultParseCertificateOptions(), &errors);
     DCHECK(parsed);
-    parsed_cert_list.push_back(parsed);
+    parsed_cert_list.push_back(std::move(parsed));
   }
 
   return parsed_cert_list;

@@ -60,6 +60,10 @@
 #include "content/public/browser/session_storage_namespace.h"
 #include "content/public/browser/web_contents.h"
 
+#if BUILDFLAG(IS_CHROMEOS)
+#include "chromeos/components/kiosk/kiosk_utils.h"
+#endif  // BUILDFLAG(IS_CHROMEOS)
+
 #if BUILDFLAG(IS_CHROMEOS_ASH)
 #include "chrome/browser/ash/crostini/crostini_util.h"
 #endif
@@ -165,10 +169,12 @@ bool SessionService::IsRelevantWindowType(
 }
 
 bool SessionService::ShouldRestore(Browser* browser) {
+#if BUILDFLAG(IS_CHROMEOS)
   // Do not restore browser window in the kiosk session.
-  if (profiles::IsKioskSession()) {
+  if (chromeos::IsKioskSession()) {
     return false;
   }
+#endif
 
   // ChromeOS and OSX have different ideas of application lifetime than
   // the other platforms.
@@ -200,7 +206,7 @@ bool SessionService::ShouldRestore(Browser* browser) {
   }
   if (primary_user_profile &&
       BrowserLauncher::GetForProfile(primary_user_profile)
-          ->is_launching_for_full_restore()) {
+          ->is_launching_for_last_opened_profiles()) {
     return true;
   }
 #endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
@@ -258,6 +264,7 @@ void SessionService::MoveCurrentSessionToLastSession() {
 
 void SessionService::DeleteLastSession() {
   command_storage_manager()->DeleteLastSession();
+  ++count_delete_last_session_for_testing_;
 }
 
 void SessionService::SetTabGroup(SessionID window_id,

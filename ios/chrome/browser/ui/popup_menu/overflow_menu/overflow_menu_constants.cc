@@ -12,6 +12,7 @@
 namespace overflow_menu {
 // WARNING - PLEASE READ: Sadly, we cannot switch over strings in C++, so be
 // very careful when updating this method to ensure all enums are accounted for.
+// LINT.IfChange(stringToDestination)
 Destination DestinationForStringName(std::string destination) {
   if (destination == "overflow_menu::Destination::Bookmarks") {
     return overflow_menu::Destination::Bookmarks;
@@ -42,9 +43,11 @@ Destination DestinationForStringName(std::string destination) {
     return overflow_menu::Destination::Settings;
   }
 }
+// LINT.ThenChange(:destinationToString)
 
 // WARNING - PLEASE READ: Sadly, we cannot switch over strings in C++, so be
 // very careful when updating this method to ensure all enums are accounted for.
+// LINT.IfChange(destinationToString)
 std::string StringNameForDestination(Destination destination) {
   switch (destination) {
     case overflow_menu::Destination::Bookmarks:
@@ -71,6 +74,88 @@ std::string StringNameForDestination(Destination destination) {
       return "overflow_menu::Destination::SpotlightDebugger";
   }
 }
+// LINT.ThenChange(:stringToDestination)
+
+// WARNING - PLEASE READ: Sadly, we cannot switch over strings in C++, so be
+// very careful when updating this method to ensure all enums are accounted for.
+// LINT.IfChange(stringToActionType)
+ActionType ActionTypeForStringName(std::string action) {
+  if (action == "Reload") {
+    return overflow_menu::ActionType::Reload;
+  } else if (action == "NewTab") {
+    return overflow_menu::ActionType::NewTab;
+  } else if (action == "NewIncognitoTab") {
+    return overflow_menu::ActionType::NewIncognitoTab;
+  } else if (action == "NewWindow") {
+    return overflow_menu::ActionType::NewWindow;
+  } else if (action == "Follow") {
+    return overflow_menu::ActionType::Follow;
+  } else if (action == "Bookmark") {
+    return overflow_menu::ActionType::Bookmark;
+  } else if (action == "ReadingList") {
+    return overflow_menu::ActionType::ReadingList;
+  } else if (action == "ClearBrowsingData") {
+    return overflow_menu::ActionType::ClearBrowsingData;
+  } else if (action == "Translate") {
+    return overflow_menu::ActionType::Translate;
+  } else if (action == "DesktopSite") {
+    return overflow_menu::ActionType::DesktopSite;
+  } else if (action == "FindInPage") {
+    return overflow_menu::ActionType::FindInPage;
+  } else if (action == "TextZoom") {
+    return overflow_menu::ActionType::TextZoom;
+  } else if (action == "ReportAnIssue") {
+    return overflow_menu::ActionType::ReportAnIssue;
+  } else if (action == "Help") {
+    return overflow_menu::ActionType::Help;
+  } else if (action == "ShareChrome") {
+    return overflow_menu::ActionType::ShareChrome;
+  } else if (action == "EditActions") {
+    return overflow_menu::ActionType::EditActions;
+  } else {
+    NOTREACHED_NORETURN();
+  }
+}
+// LINT.ThenChange(:actionTypeToString)
+
+// LINT.IfChange(actionTypeToString)
+std::string StringNameForActionType(ActionType action) {
+  switch (action) {
+    case overflow_menu::ActionType::Reload:
+      return "Reload";
+    case overflow_menu::ActionType::NewTab:
+      return "NewTab";
+    case overflow_menu::ActionType::NewIncognitoTab:
+      return "NewIncognitoTab";
+    case overflow_menu::ActionType::NewWindow:
+      return "NewWindow";
+    case overflow_menu::ActionType::Follow:
+      return "Follow";
+    case overflow_menu::ActionType::Bookmark:
+      return "Bookmark";
+    case overflow_menu::ActionType::ReadingList:
+      return "ReadingList";
+    case overflow_menu::ActionType::ClearBrowsingData:
+      return "ClearBrowsingData";
+    case overflow_menu::ActionType::Translate:
+      return "Translate";
+    case overflow_menu::ActionType::DesktopSite:
+      return "DesktopSite";
+    case overflow_menu::ActionType::FindInPage:
+      return "FindInPage";
+    case overflow_menu::ActionType::TextZoom:
+      return "TextZoom";
+    case overflow_menu::ActionType::ReportAnIssue:
+      return "ReportAnIssue";
+    case overflow_menu::ActionType::Help:
+      return "Help";
+    case overflow_menu::ActionType::ShareChrome:
+      return "ShareChrome";
+    case overflow_menu::ActionType::EditActions:
+      return "EditActions";
+  }
+}
+// LINT.ThenChange(:stringToActionType)
 
 // WARNING - PLEASE READ: Sadly, we cannot switch over strings in C++, so be
 // very careful when updating this method to ensure all enums are accounted for.

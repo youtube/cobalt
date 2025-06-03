@@ -19,7 +19,8 @@ ArcVpnProviderManager* ArcVpnProviderManagerFactory::GetForBrowserContext(
 
 // static
 ArcVpnProviderManagerFactory* ArcVpnProviderManagerFactory::GetInstance() {
-  return base::Singleton<ArcVpnProviderManagerFactory>::get();
+  static base::NoDestructor<ArcVpnProviderManagerFactory> instance;
+  return instance.get();
 }
 
 ArcVpnProviderManagerFactory::ArcVpnProviderManagerFactory()
@@ -27,11 +28,16 @@ ArcVpnProviderManagerFactory::ArcVpnProviderManagerFactory()
           "ArcVpnProviderManager",
           // This matches the logic in ExtensionSyncServiceFactory, which uses
           // the original browser context.
-          ProfileSelections::BuildRedirectedInIncognito()) {
+          ProfileSelections::Builder()
+              .WithRegular(ProfileSelection::kRedirectedToOriginal)
+              // TODO(crbug.com/1418376): Check if this service is needed in
+              // Guest mode.
+              .WithGuest(ProfileSelection::kRedirectedToOriginal)
+              .Build()) {
   DependsOn(ArcAppListPrefsFactory::GetInstance());
 }
 
-ArcVpnProviderManagerFactory::~ArcVpnProviderManagerFactory() {}
+ArcVpnProviderManagerFactory::~ArcVpnProviderManagerFactory() = default;
 
 KeyedService* ArcVpnProviderManagerFactory::BuildServiceInstanceFor(
     content::BrowserContext* context) const {

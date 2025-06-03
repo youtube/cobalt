@@ -6,14 +6,10 @@
 
 namespace autofill {
 
-TestAutofillDataModel::TestAutofillDataModel(const std::string& guid,
-                                             const std::string& origin)
-    : AutofillDataModel(guid, origin) {}
+TestAutofillDataModel::TestAutofillDataModel() = default;
 
-TestAutofillDataModel::TestAutofillDataModel(const std::string& guid,
-                                             size_t use_count,
-                                             base::Time use_date)
-    : AutofillDataModel(guid, std::string()) {
+TestAutofillDataModel::TestAutofillDataModel(size_t use_count,
+                                             base::Time use_date) {
   set_use_count(use_count);
   set_use_date(use_date);
 }

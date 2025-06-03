@@ -20,7 +20,6 @@
 #include "base/trace_event/memory_dump_provider.h"
 #include "base/trace_event/trace_event.h"
 #include "cc/cc_export.h"
-#include "components/viz/common/resources/resource_format.h"
 #include "components/viz/common/resources/shared_image_format.h"
 #include "gpu/command_buffer/common/gl2_types.h"
 #include "gpu/command_buffer/common/mailbox.h"
@@ -77,6 +76,9 @@ struct StagingBuffer {
   // Id of the content that's rastered into this staging buffer.  Used to
   // retrieve staging buffer with known content for reuse for partial raster.
   uint64_t content_id = 0;
+
+  // Whether the underlying buffer is shared memory or GPU native.
+  bool is_shared_memory = false;
 };
 
 class CC_EXPORT StagingBufferPool final

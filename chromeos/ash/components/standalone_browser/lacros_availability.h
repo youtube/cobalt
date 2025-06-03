@@ -10,29 +10,43 @@
 #include "base/strings/string_piece.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
+namespace policy {
+class PolicyMap;
+}
+
 namespace user_manager {
 class User;
 }
 
 namespace ash::standalone_browser {
-
 // Represents the policy indicating how to launch Lacros browser, named
 // LacrosAvailability. The values shall be consistent with the controlling
 // policy.
+// Values 2 and 3 were removed and should not be reused.
 enum class LacrosAvailability {
   // Indicates that the user decides whether to enable Lacros (if allowed) and
   // make it the primary/only browser.
   kUserChoice = 0,
   // Indicates that Lacros is not allowed to be enabled.
   kLacrosDisallowed = 1,
-  // Indicates that Lacros will be enabled (if allowed). Ash browser is the
-  // primary browser.
-  kSideBySide = 2,
-  // Similar to kSideBySide but Lacros is the primary browser.
-  kLacrosPrimary = 3,
   // Indicates that Lacros (if allowed) is the only available browser.
   kLacrosOnly = 4
 };
+
+// The internal name in about_flags.cc for the lacros-availablility-policy
+// config.
+inline constexpr char kLacrosAvailabilityPolicyInternalName[] =
+    "lacros-availability-policy";
+
+// The commandline flag name of lacros-availability-policy.
+// The value should be the policy value as defined just below.
+// The values need to be consistent with kLacrosAvailabilityMap above.
+inline constexpr char kLacrosAvailabilityPolicySwitch[] =
+    "lacros-availability-policy";
+inline constexpr char kLacrosAvailabilityPolicyUserChoice[] = "user_choice";
+inline constexpr char kLacrosAvailabilityPolicyLacrosDisabled[] =
+    "lacros_disabled";
+inline constexpr char kLacrosAvailabilityPolicyLacrosOnly[] = "lacros_only";
 
 // When this feature is enabled, Lacros is allowed to roll out by policy to
 // Googlers.
@@ -56,8 +70,13 @@ LacrosAvailability DetermineLacrosAvailabilityFromPolicyValue(
     const user_manager::User* user,
     base::StringPiece policy_value);
 
+// Returns LacrosAvailability policy for the given `user` and its `policy_map`.
+// This function may take a look at more surrounding context.
+LacrosAvailability GetLacrosAvailability(const user_manager::User* user,
+                                         const policy::PolicyMap& policy_map);
+
 // Returns true if the given user's profile is associated with a google internal
-// account.
+// account. This includes @managedchrome.com accounts.
 // TODO(andreaorru): conceptually, this is an internal utility function
 // and should not be exported. Currently, `crosapi::browser_util` still
 // depends on it. Remove once the IsLacrosEnabled* refactoring is complete.

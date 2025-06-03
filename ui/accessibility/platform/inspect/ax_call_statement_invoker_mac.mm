@@ -93,7 +93,7 @@ AXOptionalNSObject AXCallStatementInvoker::Invoke(
   // Case 2: try to get target from the tree indexer. The target may refer to
   // an accessible element by DOM id or by a line number (:LINE_NUM format) in
   // a result accessible tree. The tree indexer keeps the mappings between
-  // accesible elements and their DOM ids and line numbers.
+  // accessible elements and their DOM ids and line numbers.
   if (!target)
     target = indexer_->NodeBy(property_node.name_or_value);
 
@@ -165,7 +165,7 @@ AXOptionalNSObject AXCallStatementInvoker::InvokeFor(
   }
 
   if (AXElementWrapper::IsValidElement(target))
-    return InvokeForAXElement({target}, property_node);
+    return InvokeForAXElement(AXElementWrapper{target}, property_node);
 
   if (IsAXTextMarkerRange(target)) {
     return InvokeForAXTextMarkerRange(target, property_node);
@@ -283,7 +283,7 @@ AXOptionalNSObject AXCallStatementInvoker::InvokeForAXElement(
         optional_arg_selector
             ? ax_element.Invoke<BOOL, SEL>(selector, *optional_arg_selector)
             : ax_element.Invoke<BOOL>(selector);
-    return AXOptionalNSObject([NSNumber numberWithBool:return_value]);
+    return AXOptionalNSObject(@(return_value));
   }
 
   if (property_node.name_or_value == "setAccessibilityFocused")

@@ -9,6 +9,7 @@
 #include <utility>
 
 #include "base/containers/span.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/test/mock_callback.h"
 #include "mojo/public/cpp/bindings/receiver_set.h"
@@ -137,6 +138,7 @@ class MockWebTransport : public network::mojom::blink::WebTransport {
                     void(uint32_t, mojo::ScopedDataPipeConsumerHandle)>));
 
   MOCK_METHOD1(SetOutgoingDatagramExpirationDuration, void(base::TimeDelta));
+  MOCK_METHOD1(GetStats, void(GetStatsCallback));
   MOCK_METHOD0(Close, void());
   MOCK_METHOD2(Close, void(uint32_t, String));
 
@@ -278,8 +280,8 @@ class WebTransportTest : public ::testing::Test {
     tester.WaitUntilSettled();
 
     EXPECT_TRUE(tester.IsFulfilled());
-    auto* writable = V8WritableStream::ToImplWithTypeCheck(
-        scope.GetIsolate(), tester.Value().V8Value());
+    auto* writable = V8WritableStream::ToWrappable(scope.GetIsolate(),
+                                                   tester.Value().V8Value());
     EXPECT_TRUE(writable);
     return static_cast<SendStream*>(writable);
   }
@@ -306,7 +308,7 @@ class WebTransportTest : public ::testing::Test {
     v8::Local<v8::Value> v8value = ReadValueFromStream(scope, streams);
 
     ReadableStream* readable =
-        V8ReadableStream::ToImplWithTypeCheck(scope.GetIsolate(), v8value);
+        V8ReadableStream::ToWrappable(scope.GetIsolate(), v8value);
     EXPECT_TRUE(readable);
 
     return static_cast<ReceiveStream*>(readable);
@@ -324,7 +326,8 @@ class WebTransportTest : public ::testing::Test {
         mojom::blink::WebTransportConnector::Name_, {});
   }
 
-  const BrowserInterfaceBrokerProxy* interface_broker_ = nullptr;
+  raw_ptr<const BrowserInterfaceBrokerProxy, ExperimentalRenderer>
+      interface_broker_ = nullptr;
   WTF::Deque<AcceptUnidirectionalStreamCallback>
       pending_unidirectional_accept_callbacks_;
   WTF::Deque<AcceptBidirectionalStreamCallback>
@@ -1398,8 +1401,8 @@ TEST_F(WebTransportTest, CreateSendStream) {
   tester.WaitUntilSettled();
 
   EXPECT_TRUE(tester.IsFulfilled());
-  auto* writable = V8WritableStream::ToImplWithTypeCheck(
-      scope.GetIsolate(), tester.Value().V8Value());
+  auto* writable = V8WritableStream::ToWrappable(scope.GetIsolate(),
+                                                 tester.Value().V8Value());
   EXPECT_TRUE(writable);
 }
 
@@ -1437,8 +1440,8 @@ TEST_F(WebTransportTest, CreateSendStreamFailure) {
   tester.WaitUntilSettled();
 
   EXPECT_TRUE(tester.IsRejected());
-  DOMException* exception = V8DOMException::ToImplWithTypeCheck(
-      scope.GetIsolate(), tester.Value().V8Value());
+  DOMException* exception =
+      V8DOMException::ToWrappable(scope.GetIsolate(), tester.Value().V8Value());
   EXPECT_EQ(exception->name(), "NetworkError");
   EXPECT_EQ(exception->message(), "Failed to create send stream.");
 }
@@ -1798,7 +1801,7 @@ TEST_F(WebTransportTest, CreateReceiveStreamThenClose) {
 
   read_tester.WaitUntilSettled();
   EXPECT_TRUE(read_tester.IsRejected());
-  WebTransportError* exception = V8WebTransportError::ToImplWithTypeCheck(
+  WebTransportError* exception = V8WebTransportError::ToWrappable(
       scope.GetIsolate(), read_tester.Value().V8Value());
   ASSERT_TRUE(exception);
   EXPECT_EQ(exception->name(), "WebTransportError");
@@ -1826,7 +1829,7 @@ TEST_F(WebTransportTest, CreateReceiveStreamThenRemoteClose) {
 
   read_tester.WaitUntilSettled();
   EXPECT_TRUE(read_tester.IsRejected());
-  WebTransportError* exception = V8WebTransportError::ToImplWithTypeCheck(
+  WebTransportError* exception = V8WebTransportError::ToWrappable(
       scope.GetIsolate(), read_tester.Value().V8Value());
   ASSERT_TRUE(exception);
   EXPECT_EQ(exception->name(), "WebTransportError");
@@ -1858,9 +1861,8 @@ TEST_F(WebTransportTest, CreateBidirectionalStream) {
   tester.WaitUntilSettled();
 
   EXPECT_TRUE(tester.IsFulfilled());
-  auto* bidirectional_stream =
-      V8WebTransportBidirectionalStream::ToImplWithTypeCheck(
-          scope.GetIsolate(), tester.Value().V8Value());
+  auto* bidirectional_stream = V8WebTransportBidirectionalStream::ToWrappable(
+      scope.GetIsolate(), tester.Value().V8Value());
   EXPECT_TRUE(bidirectional_stream);
 }
 
@@ -1889,8 +1891,8 @@ TEST_F(WebTransportTest, ReceiveBidirectionalStream) {
   v8::Local<v8::Value> v8value = ReadValueFromStream(scope, streams);
 
   BidirectionalStream* bidirectional_stream =
-      V8WebTransportBidirectionalStream::ToImplWithTypeCheck(scope.GetIsolate(),
-                                                             v8value);
+      V8WebTransportBidirectionalStream::ToWrappable(scope.GetIsolate(),
+                                                     v8value);
   EXPECT_TRUE(bidirectional_stream);
 }
 
@@ -1979,7 +1981,7 @@ TEST_F(WebTransportTest, ReceivedResetStream) {
   V8TestingScope scope;
   v8::Isolate* isolate = scope.GetIsolate();
   constexpr uint32_t kStreamId = 99;
-  constexpr uint8_t kCode = 24;
+  constexpr uint32_t kCode = 0xffffffff;
 
   auto* web_transport =
       CreateAndConnectSuccessfully(scope, "https://example.com");
@@ -2005,9 +2007,8 @@ TEST_F(WebTransportTest, ReceivedResetStream) {
   tester.WaitUntilSettled();
 
   EXPECT_TRUE(tester.IsFulfilled());
-  auto* bidirectional_stream =
-      V8WebTransportBidirectionalStream::ToImplWithTypeCheck(
-          scope.GetIsolate(), tester.Value().V8Value());
+  auto* bidirectional_stream = V8WebTransportBidirectionalStream::ToWrappable(
+      scope.GetIsolate(), tester.Value().V8Value());
   EXPECT_TRUE(bidirectional_stream);
 
   web_transport->OnReceivedResetStream(kStreamId, kCode);
@@ -2016,7 +2017,7 @@ TEST_F(WebTransportTest, ReceivedResetStream) {
   v8::Local<v8::Value> error_value =
       bidirectional_stream->readable()->GetStoredError(isolate);
   WebTransportError* error =
-      V8WebTransportError::ToImplWithTypeCheck(scope.GetIsolate(), error_value);
+      V8WebTransportError::ToWrappable(scope.GetIsolate(), error_value);
   ASSERT_TRUE(error);
 
   EXPECT_EQ(error->streamErrorCode(), kCode);
@@ -2029,7 +2030,7 @@ TEST_F(WebTransportTest, ReceivedStopSending) {
   V8TestingScope scope;
   v8::Isolate* isolate = scope.GetIsolate();
   constexpr uint32_t kStreamId = 51;
-  constexpr uint8_t kCode = 255;
+  constexpr uint32_t kCode = 255;
 
   auto* web_transport =
       CreateAndConnectSuccessfully(scope, "https://example.com");
@@ -2055,9 +2056,8 @@ TEST_F(WebTransportTest, ReceivedStopSending) {
   tester.WaitUntilSettled();
 
   EXPECT_TRUE(tester.IsFulfilled());
-  auto* bidirectional_stream =
-      V8WebTransportBidirectionalStream::ToImplWithTypeCheck(
-          scope.GetIsolate(), tester.Value().V8Value());
+  auto* bidirectional_stream = V8WebTransportBidirectionalStream::ToWrappable(
+      scope.GetIsolate(), tester.Value().V8Value());
   EXPECT_TRUE(bidirectional_stream);
 
   web_transport->OnReceivedStopSending(kStreamId, kCode);
@@ -2066,7 +2066,7 @@ TEST_F(WebTransportTest, ReceivedStopSending) {
   v8::Local<v8::Value> error_value =
       bidirectional_stream->writable()->GetStoredError(isolate);
   WebTransportError* error =
-      V8WebTransportError::ToImplWithTypeCheck(scope.GetIsolate(), error_value);
+      V8WebTransportError::ToWrappable(scope.GetIsolate(), error_value);
   ASSERT_TRUE(error);
 
   EXPECT_EQ(error->streamErrorCode(), kCode);

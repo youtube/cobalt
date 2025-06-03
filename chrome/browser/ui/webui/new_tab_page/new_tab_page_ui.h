@@ -17,6 +17,7 @@
 #include "chrome/browser/new_tab_page/modules/history_clusters/history_clusters.mojom.h"
 #include "chrome/browser/new_tab_page/modules/photos/photos.mojom.h"
 #include "chrome/browser/new_tab_page/modules/recipes/recipes.mojom.h"
+#include "chrome/browser/new_tab_page/modules/v2/history_clusters/history_clusters_v2.mojom.h"
 #include "components/user_education/webui/help_bubble_handler.h"
 #include "ui/webui/resources/cr_components/help_bubble/help_bubble.mojom.h"
 #include "ui/webui/resources/js/browser_command/browser_command.mojom.h"
@@ -84,6 +85,7 @@ namespace ntp {
 class FeedHandler;
 }
 class HistoryClustersPageHandler;
+class HistoryClustersPageHandlerV2;
 class HelpBubbleHandler;
 class NewTabPageUI
     : public ui::MojoWebUIController,
@@ -103,6 +105,7 @@ class NewTabPageUI
   ~NewTabPageUI() override;
 
   DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kCustomizeChromeButtonElementId);
+  DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kModulesCustomizeIPHAnchorElement);
 
   static bool IsNewTabPageOrigin(const GURL& url);
   static void RegisterProfilePrefs(PrefRegistrySimple* registry);
@@ -192,6 +195,13 @@ class NewTabPageUI
       mojo::PendingReceiver<ntp::history_clusters::mojom::PageHandler>
           pending_page_handler);
 
+  // Instantiates the implementor of the
+  // ntp::history_clusters_v2::mojom::PageHandler mojo interface passing to it
+  // the pending receiver that will be internally bound.
+  void BindInterface(
+      mojo::PendingReceiver<ntp::history_clusters_v2::mojom::PageHandler>
+          pending_page_handler);
+
   void BindInterface(
       mojo::PendingReceiver<page_image_service::mojom::PageImageServiceHandler>
           pending_page_handler);
@@ -277,6 +287,7 @@ class NewTabPageUI
 #endif
   std::unique_ptr<CartHandler> cart_handler_;
   std::unique_ptr<HistoryClustersPageHandler> history_clusters_handler_;
+  std::unique_ptr<HistoryClustersPageHandlerV2> history_clusters_handler_v2_;
   std::unique_ptr<page_image_service::ImageServiceHandler>
       image_service_handler_;
   raw_ptr<Profile> profile_;

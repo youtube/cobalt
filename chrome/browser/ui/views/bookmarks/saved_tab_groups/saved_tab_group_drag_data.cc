@@ -34,7 +34,13 @@ void AddButtonImageToOSExchangeData(SavedTabGroupButton* button,
   const gfx::Rect og_bounds = button->bounds();
   gfx::Rect adjusted_bounds = og_bounds;
   adjusted_bounds.Offset(-og_bounds.OffsetFromOrigin());
-  button->SetBoundsRect(adjusted_bounds);
+  // `adjusted_bounds` is in mirrored coordinates (i.e. origin in the top right
+  // in RTL). However painting takes place in unmirrored coordinates (i.e.
+  // origin in the top left, even in RTL), so to place the button at the origin,
+  // we must place it at the unmirrored origin.
+  const gfx::Rect unmirrored_bounds =
+      button->parent()->GetMirroredRect(adjusted_bounds);
+  button->SetBoundsRect(unmirrored_bounds);
 
   // Take a snapshot of the button.
   SkBitmap bitmap;
@@ -102,6 +108,4 @@ void SavedTabGroupDragData::WriteToOSExchangeData(
   base::Pickle data_pickle;
   data_pickle.WriteString(button->guid().AsLowercaseString());
   data->SetPickledData(GetFormatType(), data_pickle);
-
-  // TODO(tbergquist): Save profile too so we can prevent cross-profile drops.
 }

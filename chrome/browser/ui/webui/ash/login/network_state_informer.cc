@@ -37,15 +37,6 @@ NetworkStateInformer::State GetStateForNetwork(const NetworkState* network) {
     return NetworkStateInformer::CONNECTING;
   }
   if (!network->IsConnectedState()) {
-    // If there is no connection treat as online for Active Directory devices.
-    // These devices do not have to be online to reach the server.
-    // TODO(rsorokin): Fix reporting network connectivity for Active Directory
-    // devices (crbug.com/685691).
-    if (g_browser_process->platform_part()
-            ->browser_policy_connector_ash()
-            ->IsActiveDirectoryManaged()) {
-      return NetworkStateInformer::ONLINE;
-    }
     return NetworkStateInformer::OFFLINE;
   }
   switch (network->GetPortalState()) {
@@ -59,7 +50,7 @@ NetworkStateInformer::State GetStateForNetwork(const NetworkState* network) {
     case NetworkState::PortalState::kProxyAuthRequired:
       return NetworkStateInformer::PROXY_AUTH_REQUIRED;
     case NetworkState::PortalState::kNoInternet:
-      return NetworkStateInformer::CAPTIVE_PORTAL;
+      return NetworkStateInformer::OFFLINE;
   }
 }
 
@@ -130,33 +121,6 @@ std::string NetworkStateInformer::GetNetworkName(
   if (!network)
     return std::string();
   return network->name();
-}
-
-// static
-bool NetworkStateInformer::IsOnline(State state,
-                                    NetworkError::ErrorReason reason) {
-  switch (reason) {
-    case NetworkError::ERROR_REASON_PORTAL_DETECTED:
-    case NetworkError::ERROR_REASON_LOADING_TIMEOUT:
-      return false;
-    case NetworkError::ERROR_REASON_PROXY_AUTH_CANCELLED:
-    case NetworkError::ERROR_REASON_PROXY_AUTH_SUPPLIED:
-    case NetworkError::ERROR_REASON_PROXY_CONNECTION_FAILED:
-    case NetworkError::ERROR_REASON_PROXY_CONFIG_CHANGED:
-    case NetworkError::ERROR_REASON_NETWORK_STATE_CHANGED:
-    case NetworkError::ERROR_REASON_UPDATE:
-    case NetworkError::ERROR_REASON_FRAME_ERROR:
-    case NetworkError::ERROR_REASON_NONE:
-      return state == NetworkStateInformer::ONLINE;
-  }
-}
-
-// static
-bool NetworkStateInformer::IsBehindCaptivePortal(
-    State state,
-    NetworkError::ErrorReason reason) {
-  return state == NetworkStateInformer::CAPTIVE_PORTAL ||
-         reason == NetworkError::ERROR_REASON_PORTAL_DETECTED;
 }
 
 // static

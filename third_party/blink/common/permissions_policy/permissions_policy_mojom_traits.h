@@ -38,6 +38,10 @@ class BLINK_COMMON_EXPORT
                                    origin_with_possible_wildcards) {
     return origin_with_possible_wildcards.csp_source.is_host_wildcard;
   }
+  static bool is_port_wildcard(const blink::OriginWithPossibleWildcards&
+                                   origin_with_possible_wildcards) {
+    return origin_with_possible_wildcards.csp_source.is_port_wildcard;
+  }
 
   static bool Read(blink::mojom::OriginWithPossibleWildcardsDataView in,
                    blink::OriginWithPossibleWildcards* out);
@@ -67,6 +71,10 @@ class BLINK_COMMON_EXPORT
   static bool matches_opaque_src(
       const blink::ParsedPermissionsPolicyDeclaration& policy) {
     return policy.matches_opaque_src;
+  }
+  static const absl::optional<std::string>& reporting_endpoint(
+      const blink::ParsedPermissionsPolicyDeclaration& policy) {
+    return policy.reporting_endpoint;
   }
 
   static bool Read(blink::mojom::ParsedPermissionsPolicyDeclarationDataView in,

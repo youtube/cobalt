@@ -13,6 +13,7 @@
 #include "base/command_line.h"
 #include "base/i18n/break_iterator.h"
 #include "base/i18n/char_iterator.h"
+#include "base/i18n/rtl.h"
 #include "base/notreached.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/ranges/algorithm.h"
@@ -38,6 +39,7 @@
 #include "ui/gfx/render_text_harfbuzz.h"
 #include "ui/gfx/scoped_canvas.h"
 #include "ui/gfx/skia_paint_util.h"
+#include "ui/gfx/text_constants.h"
 #include "ui/gfx/text_elider.h"
 #include "ui/gfx/text_utils.h"
 #include "ui/gfx/utf16_indexing.h"
@@ -383,7 +385,8 @@ void SkiaTextRenderer::DrawStrike(int x,
                                   int width,
                                   SkScalar thickness_factor) {
   const SkScalar text_size = font_.getSize();
-  const SkScalar height = text_size * thickness_factor;
+  // Strike should have a minimum height of 1.0f.
+  const SkScalar height = std::max(1.0f, text_size * thickness_factor);
   const SkScalar top = y - text_size * kStrikeThroughOffset - height / 2;
   SkScalar x_scalar = SkIntToScalar(x);
   const SkRect r =
@@ -518,6 +521,7 @@ void RenderText::SetText(const std::u16string& text) {
   weights_.SetValue(weights_.breaks().front().second);
   for (auto& style : styles_)
     style.SetValue(style.breaks().front().second);
+  elidings_.SetValue(false);
   cached_bounds_and_offset_valid_ = false;
 
   // Reset selection model. SetText should always followed by SetSelectionModel
@@ -568,6 +572,7 @@ void RenderText::SetFontList(const FontList& font_list) {
   styles_[TEXT_STYLE_ITALIC].SetValue((font_style & Font::ITALIC) != 0);
   styles_[TEXT_STYLE_UNDERLINE].SetValue((font_style & Font::UNDERLINE) != 0);
   styles_[TEXT_STYLE_HEAVY_UNDERLINE].SetValue(false);
+  styles_[TEXT_STYLE_STRIKE].SetValue((font_style & Font::STRIKE_THROUGH) != 0);
   baseline_ = kInvalidBaseline;
   cached_bounds_and_offset_valid_ = false;
   OnLayoutTextAttributeChanged(false);
@@ -915,6 +920,16 @@ void RenderText::ApplyWeight(Font::Weight weight, const Range& range) {
     cached_bounds_and_offset_valid_ = false;
     OnLayoutTextAttributeChanged(false);
   }
+}
+
+void RenderText::SetEliding(bool value) {
+  elidings_.SetValue(value);
+  OnLayoutTextAttributeChanged(false);
+}
+
+void RenderText::ApplyEliding(bool value, const Range& range) {
+  elidings_.ApplyValue(value, range);
+  OnLayoutTextAttributeChanged(false);
 }
 
 bool RenderText::GetStyle(TextStyle style) const {
@@ -1590,6 +1605,9 @@ void RenderText::EnsureLayoutTextUpdated() const {
       U16_SET_CP_START(text_.data(), 0, reveal_index);
   }
 
+  BreakList<bool>::const_iterator eliding_iterator = elidings_.breaks().begin();
+  bool previous_grapheme_elided = false;
+
   // Iterates through graphemes from |text_| and rewrite its codepoints to
   // |layout_text_|.
   base::i18n::UTF16CharIterator text_iter(text_);
@@ -1629,32 +1647,37 @@ void RenderText::EnsureLayoutTextUpdated() const {
       grapheme_codepoints.push_back(RenderText::kPasswordReplacementChar);
     }
 
-    // Rewrite each codepoint of the grapheme.
-    for (uint32_t codepoint : grapheme_codepoints) {
-      // Handle unicode control characters ISO 6429 (block C0). Range from 0 to
-      // 0x1F and 0x7F. The newline character should be kept as-is when
-      // rendertext is multiline.
-      if (!multiline_ || !is_newline_grapheme)
+    // Handle unicode control characters ISO 6429 (block C0). Range from 0 to
+    // 0x1F and 0x7F. The newline character should be kept as-is when
+    // rendertext is multiline.
+    if (!multiline_ || !is_newline_grapheme) {
+      for (uint32_t& codepoint : grapheme_codepoints)
         codepoint = ReplaceControlCharacter(codepoint);
+    }
 
-      // Truncate the remaining codepoints if appending the codepoint to
-      // |layout_text_| is making the text larger than |truncate_length_|.
-      size_t codepoint_length = U16_LENGTH(codepoint);
-      text_truncated =
-          (truncate_length_ != 0 &&
-           ((layout_text_.size() + codepoint_length > truncate_length_) ||
-            (!text_iter.end() &&
-             (layout_text_.size() + codepoint_length == truncate_length_))));
+    // Truncate text when the input text it above |truncate_length_|.
+    text_truncated = (truncate_length_ != 0 &&
+                      ((text_grapheme_end_position > truncate_length_) ||
+                       (!text_iter.end() &&
+                        (text_grapheme_end_position == truncate_length_))));
 
-      if (text_truncated) {
-        codepoint = kEllipsisCodepoint;
-        codepoint_length = U16_LENGTH(codepoint);
-        // On truncate, remove the whole current grapheme.
-        layout_text_.resize(layout_grapheme_start_position);
-      }
+    // If the text is elided, replace it by an ellipsis. Do not append an
+    // ellipsis if it was already inserted.
+    eliding_iterator = IncrementBreakListIteratorToPosition(
+        elidings_, eliding_iterator, text_grapheme_start_position);
+    const bool elided_grapheme = eliding_iterator->second;
+    if (elided_grapheme || text_truncated) {
+      grapheme_codepoints.clear();
+      // Append an ellipsis if not already done.
+      if (!previous_grapheme_elided)
+        grapheme_codepoints.push_back(kEllipsisCodepoint);
+    }
+    previous_grapheme_elided = elided_grapheme;
 
+    for (uint32_t codepoint : grapheme_codepoints) {
       // Append the codepoint to the layout text.
       const size_t current_layout_text_position = layout_text_.size();
+      const size_t codepoint_length = U16_LENGTH(codepoint);
       if (codepoint_length == 1) {
         layout_text_ += codepoint;
       } else {
@@ -1681,10 +1704,6 @@ void RenderText::EnsureLayoutTextUpdated() const {
                                        text_grapheme_start_position + 1);
       if (composition_range_.Contains(grapheme_start_range))
         layout_styles_[TEXT_STYLE_HEAVY_UNDERLINE].ApplyValue(true, range);
-
-      // Stop appending characters if the text is truncated.
-      if (text_truncated)
-        break;
     }
   }
 
@@ -1795,6 +1814,16 @@ Point RenderText::ToViewPoint(const PointF& point, size_t line) {
 HorizontalAlignment RenderText::GetCurrentHorizontalAlignment() {
   if (horizontal_alignment_ != ALIGN_TO_HEAD)
     return horizontal_alignment_;
+
+  if (directionality_mode_ == gfx::DIRECTIONALITY_FROM_TEXT) {
+    if (base::i18n::GetForcedTextDirection() == base::i18n::RIGHT_TO_LEFT) {
+      return ALIGN_RIGHT;
+    }
+    if (base::i18n::GetForcedTextDirection() == base::i18n::LEFT_TO_RIGHT) {
+      return ALIGN_LEFT;
+    }
+  }
+
   return GetDisplayTextDirection() == base::i18n::RIGHT_TO_LEFT ?
       ALIGN_RIGHT : ALIGN_LEFT;
 }
@@ -1886,9 +1915,6 @@ base::i18n::TextDirection RenderText::GetTextDirectionForGivenText(
       // Derive the direction from the display text, which differs from text()
       // in the case of obscured (password) textfields.
       return base::i18n::GetFirstStrongCharacterDirection(text);
-    case DIRECTIONALITY_FROM_UI:
-      return base::i18n::IsRTL() ? base::i18n::RIGHT_TO_LEFT
-                                 : base::i18n::LEFT_TO_RIGHT;
     case DIRECTIONALITY_FORCE_LTR:
       return base::i18n::LEFT_TO_RIGHT;
     case DIRECTIONALITY_FORCE_RTL:
@@ -1927,6 +1953,7 @@ void RenderText::UpdateStyleLengths() {
   weights_.SetMax(text_length);
   for (auto& style : styles_)
     style.SetMax(text_length);
+  elidings_.SetMax(text_length);
 }
 
 void RenderText::UpdateLayoutStyleLengths(size_t max_length) const {

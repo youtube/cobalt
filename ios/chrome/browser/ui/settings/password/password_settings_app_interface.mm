@@ -6,35 +6,32 @@
 
 #import <MaterialComponents/MaterialSnackbar.h>
 
-#import "base/mac/foundation_util.h"
+#import "base/apple/foundation_util.h"
 #import "base/strings/stringprintf.h"
 #import "base/strings/sys_string_conversions.h"
 #import "base/strings/utf_string_conversions.h"
 #import "base/test/ios/wait_util.h"
-#import "base/time/time.h"
 #import "components/keyed_service/core/service_access_type.h"
 #import "components/password_manager/core/browser/password_form.h"
 #import "components/password_manager/core/browser/password_store_consumer.h"
 #import "components/password_manager/core/browser/password_store_interface.h"
+#import "components/password_manager/core/common/password_manager_features.h"
 #import "components/password_manager/core/common/password_manager_pref_names.h"
+#import "components/password_manager/ios/fake_bulk_leak_check_service.h"
 #import "components/prefs/pref_service.h"
-#import "ios/chrome/browser/browser_state/chrome_browser_state.h"
-#import "ios/chrome/browser/passwords/ios_chrome_password_store_factory.h"
-#import "ios/chrome/browser/sync/sync_service_factory.h"
+#import "ios/chrome/browser/passwords/model/ios_chrome_bulk_leak_check_service_factory.h"
+#import "ios/chrome/browser/passwords/model/ios_chrome_profile_password_store_factory.h"
+#import "ios/chrome/browser/shared/model/browser_state/chrome_browser_state.h"
+#import "ios/chrome/browser/sync/model/sync_service_factory.h"
 #import "ios/chrome/test/app/chrome_test_util.h"
+#import "ios/chrome/test/app/mock_reauthentication_module.h"
 #import "ios/chrome/test/app/password_test_util.h"
 #import "url/gurl.h"
 #import "url/origin.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
-using chrome_test_util::SetUpAndReturnMockReauthenticationModule;
-using chrome_test_util::
-    SetUpAndReturnMockReauthenticationModuleForExportFromSettings;
 using chrome_test_util::
     SetUpAndReturnMockReauthenticationModuleForPasswordManager;
+using password_manager::FakeBulkLeakCheckService;
 using password_manager::PasswordForm;
 
 namespace {
@@ -45,7 +42,7 @@ scoped_refptr<password_manager::PasswordStoreInterface> GetPasswordStore() {
   // This test does not deal with Incognito, and should not run in Incognito
   // context. Therefore IMPLICIT_ACCESS is used to let the test fail if in
   // Incognito context.
-  return IOSChromePasswordStoreFactory::GetForBrowserState(
+  return IOSChromeProfilePasswordStoreFactory::GetForBrowserState(
       chrome_test_util::GetOriginalBrowserState(),
       ServiceAccessType::IMPLICIT_ACCESS);
 }
@@ -153,47 +150,43 @@ bool ClearPasswordStore() {
 
 @implementation PasswordSettingsAppInterface
 
-static MockReauthenticationModule* _mockReauthenticationModule;
 static std::unique_ptr<ScopedPasswordSettingsReauthModuleOverride>
     _scopedReauthOverride;
 
+// Helper for accessing the scoped override's module.
++ (MockReauthenticationModule*)mockModule {
+  DCHECK(_scopedReauthOverride);
+
+  return base::apple::ObjCCastStrict<MockReauthenticationModule>(
+      _scopedReauthOverride->module);
+}
+
 + (void)setUpMockReauthenticationModule {
-  _mockReauthenticationModule = SetUpAndReturnMockReauthenticationModule();
-}
-
-+ (void)setUpMockReauthenticationModuleForAddPassword {
-  _mockReauthenticationModule = SetUpAndReturnMockReauthenticationModule(true);
-}
-
-+ (void)setUpMockReauthenticationModuleForPasswordManager {
-  _mockReauthenticationModule =
+  _scopedReauthOverride =
       SetUpAndReturnMockReauthenticationModuleForPasswordManager();
+}
+
++ (void)removeMockReauthenticationModule {
+  _scopedReauthOverride = nullptr;
 }
 
 + (void)mockReauthenticationModuleExpectedResult:
     (ReauthenticationResult)expectedResult {
-  if (_mockReauthenticationModule) {
-    _mockReauthenticationModule.expectedResult = expectedResult;
-  }
-  if (_scopedReauthOverride) {
-    MockReauthenticationModule* mockModule =
-        base::mac::ObjCCastStrict<MockReauthenticationModule>(
-            _scopedReauthOverride->module);
-    mockModule.expectedResult = expectedResult;
-  }
+  [self mockModule].expectedResult = expectedResult;
 }
 
 + (void)mockReauthenticationModuleCanAttempt:(BOOL)canAttempt {
-  _mockReauthenticationModule.canAttempt = canAttempt;
+  DCHECK(_scopedReauthOverride);
+
+  [self mockModule].canAttempt = canAttempt;
 }
 
-+ (void)setUpMockReauthenticationModuleForExportFromSettings {
-  _scopedReauthOverride =
-      SetUpAndReturnMockReauthenticationModuleForExportFromSettings();
++ (void)mockReauthenticationModuleShouldReturnSynchronously:(BOOL)returnSync {
+  [self mockModule].shouldReturnSynchronously = returnSync;
 }
 
-+ (void)removeMockReauthenticationModuleForExportFromSettings {
-  _scopedReauthOverride = nullptr;
++ (void)mockReauthenticationModuleReturnMockedResult {
+  [[self mockModule] returnMockedReauthenticationResult];
 }
 
 + (void)dismissSnackBar {
@@ -208,10 +201,10 @@ static std::unique_ptr<ScopedPasswordSettingsReauthModuleOverride>
 }
 
 + (BOOL)saveExamplePassword:(NSString*)password
-                   userName:(NSString*)userName
+                   username:(NSString*)username
                      origin:(NSString*)origin {
   PasswordForm example;
-  example.username_value = base::SysNSStringToUTF16(userName);
+  example.username_value = base::SysNSStringToUTF16(username);
   example.password_value = base::SysNSStringToUTF16(password);
   example.url = GURL(base::SysNSStringToUTF16(origin));
   example.signon_realm = example.url.spec();
@@ -220,10 +213,10 @@ static std::unique_ptr<ScopedPasswordSettingsReauthModuleOverride>
 
 + (BOOL)saveExampleNote:(NSString*)note
                password:(NSString*)password
-               userName:(NSString*)userName
+               username:(NSString*)username
                  origin:(NSString*)origin {
   PasswordForm example;
-  example.username_value = base::SysNSStringToUTF16(userName);
+  example.username_value = base::SysNSStringToUTF16(username);
   example.password_value = base::SysNSStringToUTF16(password);
   example.url = GURL(base::SysNSStringToUTF16(origin));
   example.signon_realm = example.url.spec();
@@ -233,10 +226,10 @@ static std::unique_ptr<ScopedPasswordSettingsReauthModuleOverride>
 }
 
 + (BOOL)saveCompromisedPassword:(NSString*)password
-                       userName:(NSString*)userName
+                       username:(NSString*)username
                          origin:(NSString*)origin {
   PasswordForm example;
-  example.username_value = base::SysNSStringToUTF16(userName);
+  example.username_value = base::SysNSStringToUTF16(username);
   example.password_value = base::SysNSStringToUTF16(password);
   example.url = GURL(base::SysNSStringToUTF16(origin));
   example.signon_realm = example.url.spec();
@@ -246,7 +239,7 @@ static std::unique_ptr<ScopedPasswordSettingsReauthModuleOverride>
 }
 
 + (BOOL)saveMutedCompromisedPassword:(NSString*)password
-                            userName:(NSString*)userName
+                            username:(NSString*)userName
                               origin:(NSString*)origin {
   PasswordForm example;
   example.username_value = base::SysNSStringToUTF16(userName);
@@ -261,32 +254,6 @@ static std::unique_ptr<ScopedPasswordSettingsReauthModuleOverride>
   return SaveToPasswordStore(example);
 }
 
-+ (BOOL)saveReusedPassword:(NSString*)password
-                  userName:(NSString*)userName
-                    origin:(NSString*)origin {
-  PasswordForm example;
-  example.username_value = base::SysNSStringToUTF16(userName);
-  example.password_value = base::SysNSStringToUTF16(password);
-  example.url = GURL(base::SysNSStringToUTF16(origin));
-  example.signon_realm = example.url.spec();
-  example.password_issues.insert({password_manager::InsecureType::kReused,
-                                  password_manager::InsecurityMetadata()});
-  return SaveToPasswordStore(example);
-}
-
-+ (BOOL)saveWeakPassword:(NSString*)password
-                userName:(NSString*)userName
-                  origin:(NSString*)origin {
-  PasswordForm example;
-  example.username_value = base::SysNSStringToUTF16(userName);
-  example.password_value = base::SysNSStringToUTF16(password);
-  example.url = GURL(base::SysNSStringToUTF16(origin));
-  example.signon_realm = example.url.spec();
-  example.password_issues.insert({password_manager::InsecureType::kWeak,
-                                  password_manager::InsecurityMetadata()});
-  return SaveToPasswordStore(example);
-}
-
 + (BOOL)saveExampleBlockedOrigin:(NSString*)origin {
   PasswordForm example;
   example.url = GURL(base::SysNSStringToUTF16(origin));
@@ -296,10 +263,10 @@ static std::unique_ptr<ScopedPasswordSettingsReauthModuleOverride>
 }
 
 + (BOOL)saveExampleFederatedOrigin:(NSString*)federatedOrigin
-                          userName:(NSString*)userName
+                          username:(NSString*)username
                             origin:(NSString*)origin {
   PasswordForm federated;
-  federated.username_value = base::SysNSStringToUTF16(userName);
+  federated.username_value = base::SysNSStringToUTF16(username);
   federated.url = GURL(base::SysNSStringToUTF16(origin));
   federated.signon_realm = federated.url.spec();
   federated.federation_origin =
@@ -324,6 +291,19 @@ static std::unique_ptr<ScopedPasswordSettingsReauthModuleOverride>
       chrome_test_util::GetOriginalBrowserState();
   return browserState->GetPrefs()->GetBoolean(
       password_manager::prefs::kCredentialsEnableService);
+}
+
++ (void)setFakeBulkLeakCheckBufferedState:
+    (password_manager::BulkLeakCheckServiceInterface::State)state {
+  FakeBulkLeakCheckService* fakeBulkLeakCheckService =
+      static_cast<FakeBulkLeakCheckService*>(
+          IOSChromeBulkLeakCheckServiceFactory::GetForBrowserState(
+              chrome_test_util::GetOriginalBrowserState()));
+  fakeBulkLeakCheckService->SetBufferedState(state);
+}
+
++ (BOOL)isPasswordCheckupEnabled {
+  return password_manager::features::IsPasswordCheckupEnabled();
 }
 
 @end

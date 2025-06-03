@@ -86,6 +86,14 @@ class TabletModeWindowState : public WindowState::State {
       WindowState* window_state,
       chromeos::WindowStateType target_state);
 
+  // If `target_state` is PRIMARY/SECONDARY_SNAPPED or TRUSTED_PINNED/PINNED,
+  // returns `target_state`. Otherwise depending on the capabilities of the
+  // window either returns `WindowStateType::kMaximized` or
+  // `WindowStateType::kNormal`.
+  chromeos::WindowStateType AdjustStateForTabletMode(
+      WindowState* window_state,
+      chromeos::WindowStateType target_state);
+
   // Updates the bounds to the maximum possible bounds according to the current
   // window state. If `animate` is set we animate the change.
   void UpdateBounds(WindowState* window_state,
@@ -102,7 +110,8 @@ class TabletModeWindowState : public WindowState::State {
   // it cannot be snapped.
   void DoTabletSnap(WindowState* window_state,
                     WMEventType snap_event_type,
-                    float snap_ratio);
+                    float snap_ratio,
+                    WindowSnapActionSource snap_action_source);
 
   // Called by `WM_EVENT_RESTORE`, or a `WM_EVENT_NORMAL` that is restoring.
   // Restores to the state in `window_states`'s restore history.

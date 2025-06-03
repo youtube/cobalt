@@ -55,6 +55,7 @@
 #include "content/public/browser/android/media_url_interceptor_register.h"
 #include "content/public/browser/browser_main_runner.h"
 #include "content/public/browser/browser_thread.h"
+#include "content/public/browser/network_service_util.h"
 #include "content/public/common/content_descriptor_keys.h"
 #include "content/public/common/content_features.h"
 #include "content/public/common/content_switches.h"
@@ -70,6 +71,7 @@
 #include "services/network/public/cpp/features.h"
 #include "third_party/abseil-cpp/absl/types/variant.h"
 #include "third_party/blink/public/common/features.h"
+#include "third_party/blink/public/common/switches.h"
 #include "tools/v8_context_snapshot/buildflags.h"
 #include "ui/base/ui_base_paths.h"
 #include "ui/base/ui_base_switches.h"
@@ -154,6 +156,10 @@ absl::optional<int> AwMainDelegate::BasicStartupComplete() {
   // See crbug.com/1309151.
   cl->AppendSwitch(switches::kDisableGpuShaderDiskCache);
 
+  // Keep data: URL support in SVGUseElement for webview until deprecation is
+  // completed in the Web Platform.
+  cl->AppendSwitch(blink::switches::kDataUrlInSvgUseEnabled);
+
   if (cl->GetSwitchValueASCII(switches::kProcessType).empty()) {
     // Browser process (no type specified).
 
@@ -181,28 +187,6 @@ absl::optional<int> AwMainDelegate::BasicStartupComplete() {
     base::android::RegisterApkAssetWithFileDescriptorStore(
         content::kV8Snapshot64DataDescriptor,
         gin::V8Initializer::GetSnapshotFilePath(false, file_type));
-
-    {
-      // Disable origin trial features on WebView unless the flag was explicitly
-      // specified via command-line.
-      std::string disabled_origin_trials_switch_value = cl->GetSwitchValueASCII(
-          embedder_support::kOriginTrialDisabledFeatures);
-      base::flat_set<std::string> disabled_origin_trials(
-          base::SplitString(disabled_origin_trials_switch_value, "|",
-                            base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY));
-
-      // Disable origin trials for the FedCM API on WebView because the FedCM
-      // API is not implemented on WebView. The inserted feature string should
-      // match a name in
-      // third_party/blink/renderer/platform/runtime_enabled_features.json5.
-      // Currently, there is no method to obtain these strings directly so it is
-      // hard coded.
-      disabled_origin_trials.insert("FedCM");
-
-      cl->AppendSwitchASCII(
-          embedder_support::kOriginTrialDisabledFeatures,
-          base::JoinString(std::move(disabled_origin_trials).extract(), "|"));
-    }
   }
 
   if (cl->HasSwitch(switches::kWebViewSandboxedRenderer)) {
@@ -210,13 +194,13 @@ absl::optional<int> AwMainDelegate::BasicStartupComplete() {
   }
 
   {
+    // TODO(crbug.com/1453407): Consider to migrate all the following overrides
+    // to the new mechanism in android_webview/browser/aw_field_trials.cc.
     base::ScopedAddFeatureFlags features(cl);
 
     if (base::android::BuildInfo::GetInstance()->sdk_int() >=
         base::android::SDK_VERSION_OREO) {
       features.EnableIfNotSet(autofill::features::kAutofillExtractAllDatalists);
-      features.EnableIfNotSet(
-          autofill::features::kAutofillSkipComparingInferredLabels);
     }
 
     if (cl->HasSwitch(switches::kWebViewLogJsConsoleMessages)) {
@@ -232,6 +216,8 @@ absl::optional<int> AwMainDelegate::BasicStartupComplete() {
     if (cl->HasSwitch(switches::kWebViewFencedFrames)) {
       features.EnableIfNotSet(blink::features::kFencedFrames);
       features.EnableIfNotSet(blink::features::kFencedFramesAPIChanges);
+      features.EnableIfNotSet(blink::features::kFencedFramesDefaultMode);
+      features.EnableIfNotSet(::features::kFencedFramesEnforceFocus);
       features.EnableIfNotSet(blink::features::kSharedStorageAPI);
       features.EnableIfNotSet(::features::kPrivacySandboxAdsAPIsOverride);
     }
@@ -278,13 +264,6 @@ absl::optional<int> AwMainDelegate::BasicStartupComplete() {
 
     features.DisableIfNotSet(::features::kPeriodicBackgroundSync);
 
-    // TODO(crbug.com/921655): Add support for User Agent Client hints on
-    // WebView.
-    features.DisableIfNotSet(blink::features::kUserAgentClientHint);
-
-    // Disable Reducing User Agent minor version on WebView.
-    features.DisableIfNotSet(blink::features::kReduceUserAgentMinorVersion);
-
     // Disabled until viz scheduling can be improved.
     features.DisableIfNotSet(::features::kUseSurfaceLayerForVideoDefault);
 
@@ -308,15 +287,8 @@ absl::optional<int> AwMainDelegate::BasicStartupComplete() {
     // Disable key pinning enforcement on webview.
     features.DisableIfNotSet(net::features::kStaticKeyPinningEnforcement);
 
-    // Have the network service in the browser process even if we have separate
-    // renderer processes. See also: switches::kInProcessGPU above.
-    features.EnableIfNotSet(::features::kNetworkServiceInProcess);
-
     // FedCM is not yet supported on WebView.
     features.DisableIfNotSet(::features::kFedCm);
-
-    // Disable network-change migration on WebView due to crbug.com/1430082.
-    features.DisableIfNotSet(net::features::kMigrateSessionsOnNetworkChangeV2);
   }
 
   android_webview::RegisterPathProvider();
@@ -336,6 +308,10 @@ absl::optional<int> AwMainDelegate::BasicStartupComplete() {
   // this causes re-entrancy into the allocator shim, while the TLS object is
   // partially-initialized, which the TLS object is supposed to protect again.
   heap_profiling::InitTLSSlot();
+
+  // Have the network service in the browser process even if we have separate
+  // renderer processes. See also: switches::kInProcessGPU above.
+  content::ForceInProcessNetworkService();
 
   return absl::nullopt;
 }
@@ -502,7 +478,8 @@ void AwMainDelegate::InitializeMemorySystem(const bool is_browser_process) {
       .SetDispatcherParameters(memory_system::DispatcherParameters::
                                    PoissonAllocationSamplerInclusion::kEnforce,
                                memory_system::DispatcherParameters::
-                                   AllocationTraceRecorderInclusion::kIgnore)
+                                   AllocationTraceRecorderInclusion::kIgnore,
+                               process_type)
       .Initialize(memory_system_);
 }
 }  // namespace android_webview

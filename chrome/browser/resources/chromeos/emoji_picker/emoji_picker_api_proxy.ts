@@ -4,7 +4,10 @@
 import {Url} from 'chrome://resources/mojo/url/mojom/url.mojom-webui.js';
 
 import {PageHandlerFactory, PageHandlerRemote, Status, TenorGifResponse} from './emoji_picker.mojom-webui.js';
+import {NewWindowProxy} from './new_window_proxy.mojom-webui.js';
 import {EmojiVariants, GifSubcategoryData, VisualContent} from './types.js';
+
+const HELP_CENTRE_URL = 'https://support.google.com/chrome?p=palette';
 
 /** @interface */
 export interface EmojiPickerApiProxy {
@@ -31,11 +34,14 @@ export interface EmojiPickerApiProxy {
 
   convertTenorGifsToEmoji(gifs: TenorGifResponse): EmojiVariants[];
 
+  openHelpCentreArticle(): void;
+
   onUiFullyLoaded(): void;
 }
 
 export class EmojiPickerApiProxyImpl implements EmojiPickerApiProxy {
   handler = new PageHandlerRemote();
+  newWindowProxy = NewWindowProxy.getRemote();
   static instance: EmojiPickerApiProxy|null = null;
   constructor() {
     const factory = PageHandlerFactory.getRemote();
@@ -101,6 +107,18 @@ export class EmojiPickerApiProxyImpl implements EmojiPickerApiProxy {
         },
       });
     }
+
+    // Avoid sending blank queries to the backend.
+    if (query.trim().length === 0) {
+      return Promise.resolve({
+        status: Status.kHttpOk,
+        searchGifs: {
+          next: '',
+          results: [],
+        },
+      });
+    }
+
     return this.handler.searchGifs(query, pos || null);
   }
 
@@ -108,6 +126,13 @@ export class EmojiPickerApiProxyImpl implements EmojiPickerApiProxy {
   getGifsByIds(ids: string[]):
       Promise<{status: Status, selectedGifs: VisualContent[]}> {
     return this.handler.getGifsByIds(ids);
+  }
+
+  /** @override */
+  openHelpCentreArticle(): void {
+    this.newWindowProxy.openUrl({
+      url: HELP_CENTRE_URL,
+    });
   }
 
   onUiFullyLoaded(): void {

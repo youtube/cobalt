@@ -27,31 +27,42 @@ TEST(TasksApiUrlGeneratorUtilsTest, ReturnsListTaskListsUrlWithOptionalArgs) {
 }
 
 TEST(TasksApiUrlGeneratorUtilsTest, ReturnsListTasksUrl) {
-  EXPECT_EQ(
-      GetListTasksUrl("task-list-id", /*include_completed=*/false,
-                      /*max_results=*/absl::nullopt,
-                      /*page_token=*/""),
-      "https://tasks.googleapis.com/tasks/v1/lists/task-list-id/tasks"
-      "?fields=kind%2Citems(id%2Ctitle%2Cstatus%2Cparent%2Cdue)%2CnextPageToken"
-      "&showCompleted=false");
+  EXPECT_EQ(GetListTasksUrl("task-list-id", /*include_completed=*/false,
+                            /*max_results=*/absl::nullopt,
+                            /*page_token=*/""),
+            "https://tasks.googleapis.com/tasks/v1/lists/task-list-id/tasks"
+            "?fields=kind%2Citems(id%2Ctitle%2Cstatus%2Cparent%2Cposition"
+            "%2Cdue%2Clinks(type)%2Cnotes)%2CnextPageToken"
+            "&showCompleted=false");
 }
 
 TEST(TasksApiUrlGeneratorUtilsTest, ReturnsListTasksUrlWithOptionalArgs) {
-  EXPECT_EQ(
-      GetListTasksUrl("task-list-id", /*include_completed=*/true,
-                      /*max_results=*/100,
-                      /*page_token=*/"qwerty"),
-      "https://tasks.googleapis.com/tasks/v1/lists/task-list-id/tasks"
-      "?fields=kind%2Citems(id%2Ctitle%2Cstatus%2Cparent%2Cdue)%2CnextPageToken"
-      "&showCompleted=true"
-      "&maxResults=100"
-      "&pageToken=qwerty");
+  EXPECT_EQ(GetListTasksUrl("task-list-id", /*include_completed=*/true,
+                            /*max_results=*/100,
+                            /*page_token=*/"qwerty"),
+            "https://tasks.googleapis.com/tasks/v1/lists/task-list-id/tasks"
+            "?fields=kind%2Citems(id%2Ctitle%2Cstatus%2Cparent%2Cposition%"
+            "2Cdue%2Clinks(type)%2Cnotes)%2CnextPageToken"
+            "&showCompleted=true"
+            "&maxResults=100"
+            "&pageToken=qwerty");
 }
 
 TEST(TasksApiUrlGeneratorUtilsTest, ReturnsPatchTaskUrl) {
   EXPECT_EQ(GetPatchTaskUrl("task-list-id", "task-id"),
             "https://tasks.googleapis.com/tasks/v1/"
             "lists/task-list-id/tasks/task-id");
+}
+
+TEST(TasksApiUrlGeneratorUtilsTest, ReturnsInsertTaskUrl) {
+  EXPECT_EQ(GetInsertTaskUrl("task-list-id", /*previous_task_id=*/""),
+            "https://tasks.googleapis.com/tasks/v1/lists/task-list-id/tasks");
+}
+
+TEST(TasksApiUrlGeneratorUtilsTest, ReturnsInsertTaskUrlWithOptionalArgs) {
+  EXPECT_EQ(GetInsertTaskUrl("task-list-id", "previous-task-id"),
+            "https://tasks.googleapis.com/tasks/v1/lists/task-list-id/tasks"
+            "?previous=previous-task-id");
 }
 
 }  // namespace google_apis::tasks

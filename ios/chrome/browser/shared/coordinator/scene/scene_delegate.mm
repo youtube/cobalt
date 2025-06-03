@@ -4,24 +4,52 @@
 
 #import "ios/chrome/browser/shared/coordinator/scene/scene_delegate.h"
 
-#import "base/mac/foundation_util.h"
+#import "base/apple/foundation_util.h"
+#import "base/files/file_path.h"
+#import "base/path_service.h"
+#import "base/strings/sys_string_conversions.h"
+#import "components/breadcrumbs/core/breadcrumb_persistent_storage_util.h"
+#import "components/previous_session_info/previous_session_info.h"
 #import "ios/chrome/app/chrome_overlay_window.h"
 #import "ios/chrome/app/main_application_delegate.h"
-#import "ios/chrome/browser/crash_report/main_thread_freeze_detector.h"
+#import "ios/chrome/browser/crash_report/model/main_thread_freeze_detector.h"
+#import "ios/chrome/browser/shared/model/paths/paths.h"
 #import "ios/chrome/browser/ui/appearance/appearance_customization.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
+namespace {
 
+// Set the breadcrumbs log in PreviousSessionInfo.
+void SyncBreadcrumbsLog() {
+  static dispatch_once_t once;
+  dispatch_once(&once, ^{
+    base::FilePath storage_dir;
+    bool result = base::PathService::Get(ios::DIR_USER_DATA, &storage_dir);
+    DCHECK(result);
+    const base::FilePath breadcrumbs_file_path =
+        breadcrumbs::GetBreadcrumbPersistentStorageFilePath(storage_dir);
+    dispatch_async(
+        dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+          NSString* breadcrumbs = [NSString
+              stringWithContentsOfFile:base::SysUTF8ToNSString(
+                                           breadcrumbs_file_path.value())
+                              encoding:NSUTF8StringEncoding
+                                 error:NULL];
+          [[PreviousSessionInfo sharedInstance] setBreadcrumbsLog:breadcrumbs];
+        });
+  });
+}
+}  // namespace
 NSString* const kOriginDetectedKey = @"OriginDetectedKey";
 
 @implementation SceneDelegate
 
+@synthesize sceneState = _sceneState;
+@synthesize sceneController = _sceneController;
+
 - (SceneState*)sceneState {
   if (!_sceneState) {
     MainApplicationDelegate* appDelegate =
-        base::mac::ObjCCastStrict<MainApplicationDelegate>(
+        base::apple::ObjCCastStrict<MainApplicationDelegate>(
             UIApplication.sharedApplication.delegate);
     _sceneState = [[SceneState alloc] initWithAppState:appDelegate.appState];
     _sceneController = [[SceneController alloc] initWithSceneState:_sceneState];
@@ -41,6 +69,10 @@ NSString* const kOriginDetectedKey = @"OriginDetectedKey";
     // app is restored.  This is a no-op in non-prewarming.
     [[MainThreadFreezeDetector sharedInstance] start];
 
+    // Sync the breadcrumbs log as early as possible, before any MetricKit crash
+    // reports may come in.
+    SyncBreadcrumbsLog();
+
     // Sizing of the window is handled by UIKit.
     _window = [[ChromeOverlayWindow alloc] init];
     CustomizeUIWindowAppearance(_window);
@@ -56,12 +88,12 @@ NSString* const kOriginDetectedKey = @"OriginDetectedKey";
   return _window;
 }
 
-#pragma mark Connecting and Disconnecting the Scene
+#pragma mark - UISceneDelegate
 
 - (void)scene:(UIScene*)scene
     willConnectToSession:(UISceneSession*)session
                  options:(UISceneConnectionOptions*)connectionOptions {
-  self.sceneState.scene = base::mac::ObjCCastStrict<UIWindowScene>(scene);
+  self.sceneState.scene = base::apple::ObjCCastStrict<UIWindowScene>(scene);
   self.sceneState.currentOrigin = [self originFromSession:session
                                                   options:connectionOptions];
   self.sceneState.activationLevel = SceneActivationLevelBackground;
@@ -70,6 +102,17 @@ NSString* const kOriginDetectedKey = @"OriginDetectedKey";
     self.sceneState.startupHadExternalIntent = YES;
   }
 }
+
+- (void)sceneDidDisconnect:(UIScene*)scene {
+  CHECK(_sceneState);
+  self.sceneState.activationLevel = SceneActivationLevelDisconnected;
+  _sceneState = nil;
+  // Setting the level to Disconnected had the side effect of tearing down the
+  // controller’s UI.
+  _sceneController = nil;
+}
+
+#pragma mark - private
 
 - (WindowActivityOrigin)originFromSession:(UISceneSession*)session
                                   options:(UISceneConnectionOptions*)options {
@@ -98,10 +141,6 @@ NSString* const kOriginDetectedKey = @"OriginDetectedKey";
   }
 
   return origin;
-}
-
-- (void)sceneDidDisconnect:(UIScene*)scene {
-  self.sceneState.activationLevel = SceneActivationLevelUnattached;
 }
 
 #pragma mark Transitioning to the Foreground

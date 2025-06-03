@@ -11,6 +11,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
+#include "base/types/optional_ref.h"
 #include "components/optimization_guide/proto/models.pb.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
@@ -31,7 +32,7 @@ namespace optimization_guide {
 // WeakPointers of this class must only be dereferenced on the
 // |execution_task_runner| thread as well. This in turn means that this class
 // must be destroyed on the |execution_task_runner| thread as well.
-template <class OutputType, class... InputTypes>
+template <class OutputType, class InputType>
 class ModelExecutor {
  public:
   ModelExecutor() = default;
@@ -46,8 +47,11 @@ class ModelExecutor {
       scoped_refptr<base::SequencedTaskRunner> reply_task_runner) = 0;
 
   // Updates model file. If `SetShouldUnloadModelOnComplete` is false,
-  // immedidately loads model into memory.
-  virtual void UpdateModelFile(const base::FilePath& file_path) = 0;
+  // immedidately loads model into memory. `file_path` will be nullopt if no
+  // valid model is found, and the previous model should be unloaded in that
+  // case.
+  virtual void UpdateModelFile(
+      base::optional_ref<const base::FilePath> file_path) = 0;
 
   virtual void UnloadModel() = 0;
 
@@ -56,11 +60,34 @@ class ModelExecutor {
   // needed.
   virtual void SetShouldUnloadModelOnComplete(bool should_auto_unload) = 0;
 
+  // Sets whether the model should be loaded as soon as its file path is
+  // available.
+  virtual void SetShouldPreloadModel(bool should_preload_model) = 0;
+
   using ExecutionCallback =
       base::OnceCallback<void(const absl::optional<OutputType>&)>;
   virtual void SendForExecution(ExecutionCallback callback_on_complete,
                                 base::TimeTicks start_time,
-                                InputTypes... args) = 0;
+                                InputType input) = 0;
+
+  // Some callers define their InputType as a const ref type, but you can't make
+  // vectors of references. Strip those qualifiers off and add them back to the
+  // vector instead.
+  using ConstRefInputVector = const std::vector<typename std::remove_const<
+      typename std::remove_reference<InputType>::type>::type>&;
+
+  // It is guaranteed that the output passed to |BatchExecutionCallback| will
+  // always be in the same order as the input vector.
+  using BatchExecutionCallback =
+      base::OnceCallback<void(const std::vector<absl::optional<OutputType>>&)>;
+  virtual void SendForBatchExecution(
+      BatchExecutionCallback callback_on_complete,
+      base::TimeTicks start_time,
+      ConstRefInputVector inputs) = 0;
+
+  // Synchronous batch execution.
+  virtual std::vector<absl::optional<OutputType>> SendForBatchExecutionSync(
+      ConstRefInputVector inputs) = 0;
 
   // IMPORTANT: These WeakPointers must only be dereferenced on the
   // |execution_task_runner| thread.

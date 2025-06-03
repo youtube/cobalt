@@ -274,9 +274,9 @@ export class OutputFormatter {
       OutputFormatter.format(this.output_, {
         node,
         outputFormat: ` @cell_summary($if($tableCellAriaRowIndex,
-                  $tableCellAriaRowIndex, $tableCellRowIndex),
-                $if($tableCellAriaColumnIndex, $tableCellAriaColumnIndex,
-                  $tableCellColumnIndex))`,
+          $tableCellAriaRowIndex, $tableCellRowIndex),
+        $if($tableCellAriaColumnIndex, $tableCellAriaColumnIndex,
+          $tableCellColumnIndex))`,
         outputBuffer: buff,
         outputFormatLogger: formatLog,
       });
@@ -804,7 +804,15 @@ export class OutputFormatter {
         }
       }
     } else if (node[relationName]) {
-      const related = node[relationName];
+      let related;
+      // TODO(https://crbug.com/1460020): Support multiple IDs in
+      // aria-errormessage.
+      if (relationName === 'errorMessage') {
+        related = node[relationName][0];
+      } else {
+        related = node[relationName];
+      }
+
       this.output_.formatNode(
           related, related, outputTypes.OutputCustomEvent.NAVIGATE, buff,
           formatLog);

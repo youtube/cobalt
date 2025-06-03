@@ -5,6 +5,7 @@
 #ifndef V8_MAGLEV_MAGLEV_PHI_REPRESENTATION_SELECTOR_H_
 #define V8_MAGLEV_MAGLEV_PHI_REPRESENTATION_SELECTOR_H_
 
+#include "src/compiler/turboshaft/snapshot-table.h"
 #include "src/maglev/maglev-compilation-info.h"
 #include "src/maglev/maglev-graph-builder.h"
 #include "src/maglev/maglev-graph-processor.h"
@@ -16,11 +17,18 @@ namespace maglev {
 class Graph;
 
 class MaglevPhiRepresentationSelector {
+  template <class Value>
+  using SnapshotTable = compiler::turboshaft::SnapshotTable<Value>;
+  using Key = SnapshotTable<ValueNode*>::Key;
+  using Snapshot = SnapshotTable<ValueNode*>::Snapshot;
+
  public:
   explicit MaglevPhiRepresentationSelector(MaglevGraphBuilder* builder)
       : builder_(builder),
         new_nodes_current_block_start_(builder->zone()),
-        new_nodes_current_block_end_(builder->zone()) {}
+        new_nodes_current_block_end_(builder->zone()),
+        phi_taggings_(builder->zone()),
+        predecessors_(builder->zone()) {}
 
   void PreProcessGraph(Graph* graph) {
     if (v8_flags.trace_maglev_phi_untagging) {
@@ -36,6 +44,7 @@ class MaglevPhiRepresentationSelector {
   }
   void PreProcessBasicBlock(BasicBlock* block) {
     MergeNewNodesInBlock(current_block_);
+    PreparePhiTaggings(current_block_, block);
     current_block_ = block;
   }
 
@@ -75,7 +84,8 @@ class MaglevPhiRepresentationSelector {
         // untagged. Depending on the conversion, it might need to be replaced
         // by another untagged->untagged conversion, or it might need to be
         // removed alltogether (or rather, replaced by an identity node).
-        UpdateUntaggingOfPhi(n->template Cast<ValueNode>());
+        UpdateUntaggingOfPhi(node->input(0).node()->Cast<Phi>(),
+                             n->template Cast<ValueNode>());
       }
     } else {
       result = UpdateNonUntaggingNodeInputs(n, state);
@@ -146,17 +156,25 @@ class MaglevPhiRepresentationSelector {
 
   // Updates {old_untagging} to reflect that its Phi input has been untagged and
   // that a different conversion is now needed.
-  void UpdateUntaggingOfPhi(ValueNode* old_untagging);
+  void UpdateUntaggingOfPhi(Phi* phi, ValueNode* old_untagging);
 
   // NewNodePosition is used to represent where a new node should be inserted:
   // at the start of a block (kStart), or at the end of a block (kEnd).
   enum class NewNodePosition { kStart, kEnd };
 
   // Returns a tagged node that represents a tagged version of {phi}.
-  ValueNode* EnsurePhiTagged(Phi* phi, BasicBlock* block, NewNodePosition pos);
+  // If we are calling EnsurePhiTagged to ensure a Phi input of a Phi is tagged,
+  // then {predecessor_index} should be set to the id of this input (ie, 0 for
+  // the 1st input, 1 for the 2nd, etc.), so that we can use the SnapshotTable
+  // to find existing tagging for {phi} in the {predecessor_index}th predecessor
+  // of the current block.
+  ValueNode* EnsurePhiTagged(
+      Phi* phi, BasicBlock* block, NewNodePosition pos,
+      base::Optional<int> predecessor_index = base::nullopt);
 
   ValueNode* AddNode(ValueNode* node, BasicBlock* block, NewNodePosition pos,
                      DeoptFrame* deopt_frame = nullptr);
+  void RegisterNewNode(ValueNode* node);
 
   // Merges the nodes from {new_nodes_current_block_start_} and
   // {new_nodes_current_block_end_} into their destinations.
@@ -171,6 +189,8 @@ class MaglevPhiRepresentationSelector {
   // Replaces Identity nodes by their inputs in {deopt_info}
   template <typename DeoptInfoT>
   void BypassIdentities(DeoptInfoT* deopt_info);
+
+  void PreparePhiTaggings(BasicBlock* old_block, const BasicBlock* new_block);
 
   MaglevGraphLabeller* graph_labeller() const {
     return builder_->graph_labeller();
@@ -187,6 +207,13 @@ class MaglevPhiRepresentationSelector {
   // inserted respectively at the begining and the end of the current block.
   ZoneVector<Node*> new_nodes_current_block_start_;
   ZoneVector<Node*> new_nodes_current_block_end_;
+
+  // {phi_taggings_} is a SnapshotTable containing mappings from untagged Phis
+  // to Tagged alternatives for those phis.
+  SnapshotTable<ValueNode*> phi_taggings_;
+  // {predecessors_} is used during merging, but we use an instance variable for
+  // it, in order to save memory and not reallocate it for each merge.
+  ZoneVector<Snapshot> predecessors_;
 
 #ifdef DEBUG
   std::unordered_set<NodeBase*> new_nodes_;

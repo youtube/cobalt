@@ -60,6 +60,7 @@ static_library("core") {
     "//components/policy/core/common",
     "//components/prefs",
     "//components/resources",
+    "//components/safe_browsing/core/common:common",
     "//components/ssl_errors",
     "//components/strings",
     "//components/url_formatter",
@@ -69,6 +70,8 @@ static_library("core") {
   ]
 
   public_deps = [ "//components/security_interstitials/core/common/mojom" ]
+
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
 }
 
 static_library("unsafe_resource") {
@@ -86,6 +89,8 @@ static_library("unsafe_resource") {
     "//net",
     "//services/network/public/mojom",
   ]
+
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
 }
 
 source_set("unit_tests") {

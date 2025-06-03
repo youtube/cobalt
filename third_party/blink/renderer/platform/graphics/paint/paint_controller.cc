@@ -74,15 +74,16 @@ void PaintController::EnsureChunk() {
 void PaintController::RecordHitTestData(const DisplayItemClient& client,
                                         const gfx::Rect& rect,
                                         TouchAction touch_action,
-                                        bool blocking_wheel) {
+                                        bool blocking_wheel,
+                                        cc::HitTestOpaqueness opaqueness,
+                                        DisplayItem::Type type) {
   if (rect.IsEmpty())
     return;
-  PaintChunk::Id id(client.Id(), DisplayItem::kHitTest, current_fragment_);
+  PaintChunk::Id id(client.Id(), type, current_fragment_);
   CheckNewChunkId(id);
   ValidateNewChunkClient(client);
   if (paint_chunker_.AddHitTestDataToCurrentChunk(
-          id, client, rect, touch_action, blocking_wheel)) {
-    RecordDebugInfo(client);
+          id, client, rect, touch_action, blocking_wheel, opaqueness)) {
     CheckNewChunk();
   }
 }
@@ -115,9 +116,10 @@ void PaintController::RecordScrollHitTestData(
 
 void PaintController::RecordSelection(
     absl::optional<PaintedSelectionBound> start,
-    absl::optional<PaintedSelectionBound> end) {
+    absl::optional<PaintedSelectionBound> end,
+    String debug_info) {
   DCHECK(start.has_value() || end.has_value());
-  paint_chunker_.AddSelectionToCurrentChunk(start, end);
+  paint_chunker_.AddSelectionToCurrentChunk(start, end, debug_info);
 }
 
 bool PaintController::UseCachedItemIfPossible(const DisplayItemClient& client,
@@ -212,7 +214,7 @@ sk_sp<SkTextBlob> PaintController::CachedTextBlob() const {
     return nullptr;
   }
   const cc::PaintOp& op = record.GetFirstOp();
-  if (op.GetType() != cc::PaintOpType::DrawTextBlob) {
+  if (op.GetType() != cc::PaintOpType::kDrawtextblob) {
     return nullptr;
   }
   return static_cast<const cc::DrawTextBlobOp&>(op).blob;

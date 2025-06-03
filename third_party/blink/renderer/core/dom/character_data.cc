@@ -23,10 +23,12 @@
 #include "third_party/blink/renderer/core/dom/character_data.h"
 
 #include "base/numerics/checked_math.h"
+#include "third_party/blink/renderer/core/dom/child_node_part.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/events/event.h"
 #include "third_party/blink/renderer/core/dom/mutation_observer_interest_group.h"
 #include "third_party/blink/renderer/core/dom/mutation_record.h"
+#include "third_party/blink/renderer/core/dom/node_cloning_data.h"
 #include "third_party/blink/renderer/core/dom/processing_instruction.h"
 #include "third_party/blink/renderer/core/dom/text.h"
 #include "third_party/blink/renderer/core/editing/frame_selection.h"
@@ -240,7 +242,8 @@ void CharacterData::DidModifyData(const String& old_data, UpdateSource source) {
   // Skip DOM mutation events if the modification is from parser.
   // Note that mutation observer events will still fire.
   // Spec: https://html.spec.whatwg.org/C/#insert-a-character
-  if (source != kUpdateFromParser && !IsInShadowTree()) {
+  if (source != kUpdateFromParser && !IsInShadowTree() &&
+      !GetDocument().ShouldSuppressMutationEvents()) {
     if (GetDocument().HasListenerType(
             Document::kDOMCharacterDataModifiedListener)) {
       DispatchScopedEvent(*MutationEvent::Create(
@@ -250,6 +253,18 @@ void CharacterData::DidModifyData(const String& old_data, UpdateSource source) {
     DispatchSubtreeModifiedEvent();
   }
   probe::CharacterDataModified(this);
+}
+
+Node* CharacterData::Clone(Document& factory,
+                           NodeCloningData& cloning_data,
+                           ContainerNode* append_to,
+                           ExceptionState& append_exception_state) const {
+  CharacterData* clone = CloneWithData(factory, data());
+  PartRoot::CloneParts(*this, *clone, cloning_data);
+  if (append_to) {
+    append_to->AppendChild(clone, append_exception_state);
+  }
+  return clone;
 }
 
 }  // namespace blink

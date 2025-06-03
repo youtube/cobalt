@@ -17,6 +17,7 @@
 #include "src/handles/handles.h"
 #include "src/handles/persistent-handles.h"
 #include "src/objects/objects.h"
+#include "src/objects/tagged.h"
 #include "src/utils/identity-map.h"
 #include "src/utils/utils.h"
 
@@ -68,9 +69,9 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   V(TraceTurboScheduled, trace_turbo_scheduled, 13)                  \
   V(TraceTurboAllocation, trace_turbo_allocation, 14)                \
   V(TraceHeapBroker, trace_heap_broker, 15)                          \
-  V(WasmRuntimeExceptionSupport, wasm_runtime_exception_support, 16) \
-  V(DiscardResultForTesting, discard_result_for_testing, 17)         \
-  V(InlineJSWasmCalls, inline_js_wasm_calls, 18)
+  V(DiscardResultForTesting, discard_result_for_testing, 16)         \
+  V(InlineJSWasmCalls, inline_js_wasm_calls, 17)                     \
+  V(TurboshaftTraceReduction, turboshaft_trace_reduction, 18)
 
   enum Flag {
 #define DEF_ENUM(Camel, Lower, Bit) k##Camel = 1 << Bit,
@@ -140,13 +141,13 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   bool has_context() const;
-  Context context() const;
+  Tagged<Context> context() const;
 
   bool has_native_context() const;
-  NativeContext native_context() const;
+  Tagged<NativeContext> native_context() const;
 
   bool has_global_object() const;
-  JSGlobalObject global_object() const;
+  Tagged<JSGlobalObject> global_object() const;
 
   // Accessors for the different compilation modes.
   bool IsOptimizing() const {
@@ -171,7 +172,7 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   }
 
   template <typename T>
-  Handle<T> CanonicalHandle(T object, Isolate* isolate) {
+  Handle<T> CanonicalHandle(Tagged<T> object, Isolate* isolate) {
     DCHECK_NOT_NULL(canonical_handles_);
     DCHECK(PersistentHandlesScope::IsActive(isolate));
     auto find_result = canonical_handles_->FindOrInsert(object);

@@ -6,12 +6,13 @@
 
 #include <memory>
 
+#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/user_metrics.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
-#include "chrome/app/chrome_command_ids.h"
+#include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/bookmarks/bookmark_model_factory.h"
 #include "chrome/browser/bookmarks/managed_bookmark_service_factory.h"
 #include "chrome/browser/favicon/favicon_utils.h"
@@ -21,6 +22,9 @@
 #include "chrome/browser/ui/bookmarks/bookmark_utils.h"
 #include "chrome/browser/ui/bookmarks/bookmark_utils_desktop.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_command_controller.h"
+#include "chrome/browser/ui/toolbar/app_menu_model.h"
+#include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/bookmarks/bookmark_bar_view.h"
 #include "chrome/browser/ui/views/event_utils.h"
 #include "chrome/grit/generated_resources.h"
@@ -37,6 +41,8 @@
 #include "ui/base/dragdrop/mojom/drag_drop_types.mojom.h"
 #include "ui/base/dragdrop/os_exchange_data.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/models/image_model.h"
+#include "ui/base/models/simple_menu_model.h"
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/base/theme_provider.h"
 #include "ui/base/window_open_disposition.h"
@@ -89,7 +95,7 @@ class BookmarkModelDropObserver : public bookmarks::BaseBookmarkModelObserver {
     DCHECK(drop_parent_);
 
     DCHECK(bookmark_model_);
-    bookmark_model_->AddObserver(this);
+    bookmark_model_observation_.Observe(bookmark_model_);
   }
 
   BookmarkModelDropObserver(const BookmarkModelDropObserver&) = delete;
@@ -113,8 +119,7 @@ class BookmarkModelDropObserver : public bookmarks::BaseBookmarkModelObserver {
   void BookmarkModelBeingDeleted(BookmarkModel* model) override { CleanUp(); }
 
   void CleanUp() {
-    if (bookmark_model_)
-      bookmark_model_->RemoveObserver(this);
+    bookmark_model_observation_.Reset();
     bookmark_model_ = nullptr;
   }
 
@@ -123,6 +128,8 @@ class BookmarkModelDropObserver : public bookmarks::BaseBookmarkModelObserver {
   raw_ptr<const bookmarks::BookmarkNode> drop_parent_;
   const size_t index_to_drop_at_;
   raw_ptr<bookmarks::BookmarkModel> bookmark_model_;
+  base::ScopedObservation<BookmarkModel, BaseBookmarkModelObserver>
+      bookmark_model_observation_{this};
 };
 
 }  // namespace
@@ -134,13 +141,13 @@ BookmarkMenuDelegate::BookmarkMenuDelegate(Browser* browser,
       parent_(parent),
       menu_(nullptr),
       parent_menu_item_(nullptr),
-      next_menu_id_(IDC_FIRST_UNBOUNDED_MENU),
+      next_menu_id_(AppMenuModel::kMinBookmarksCommandId),
       real_delegate_(nullptr),
       is_mutating_model_(false),
       location_(BookmarkLaunchLocation::kNone) {}
 
 BookmarkMenuDelegate::~BookmarkMenuDelegate() {
-  GetBookmarkModel()->RemoveObserver(this);
+  bookmark_model_observation_.Reset();
 }
 
 void BookmarkMenuDelegate::Init(views::MenuDelegate* real_delegate,
@@ -149,7 +156,7 @@ void BookmarkMenuDelegate::Init(views::MenuDelegate* real_delegate,
                                 size_t start_child_index,
                                 ShowOptions show_options,
                                 BookmarkLaunchLocation location) {
-  GetBookmarkModel()->AddObserver(this);
+  bookmark_model_observation_.Observe(GetBookmarkModel());
   real_delegate_ = real_delegate;
   location_ = location;
   // Assume that the menu will only use mnemonics if there's already a parent
@@ -175,8 +182,7 @@ void BookmarkMenuDelegate::Init(views::MenuDelegate* real_delegate,
       parent->AppendSeparator();
       // Add a "Bookmarks" title.
       if (features::IsChromeRefresh2023()) {
-        parent->AppendMenuItem(
-            IDC_BOOKMARKS_LIST_TITLE,
+        parent->AppendTitle(
             l10n_util::GetStringUTF16(IDS_BOOKMARKS_LIST_TITLE));
       }
     }
@@ -212,18 +218,16 @@ std::u16string BookmarkMenuDelegate::GetTooltipText(
     int id,
     const gfx::Point& screen_loc) const {
   auto i = menu_id_to_node_map_.find(id);
-  // When removing bookmarks it may be possible to end up here without a node.
-  if (i == menu_id_to_node_map_.end()) {
-    DCHECK(is_mutating_model_);
-    return std::u16string();
-  }
-
-  const BookmarkNode* node = i->second;
-  if (node->is_url()) {
-    const views::TooltipManager* tooltip_manager = parent_->GetTooltipManager();
-    return BookmarkBarView::CreateToolTipForURLAndTitle(
-        tooltip_manager->GetMaxWidth(screen_loc),
-        tooltip_manager->GetFontList(), node->url(), node->GetTitle());
+  // Ignore queries about unknown items, e.g. the empty menu item.
+  if (i != menu_id_to_node_map_.end()) {
+    const BookmarkNode* node = i->second;
+    if (node->is_url()) {
+      const views::TooltipManager* tooltip_manager =
+          parent_->GetTooltipManager();
+      return BookmarkBarView::CreateToolTipForURLAndTitle(
+          tooltip_manager->GetMaxWidth(screen_loc),
+          tooltip_manager->GetFontList(), node->url(), node->GetTitle());
+    }
   }
   return std::u16string();
 }
@@ -236,6 +240,11 @@ bool BookmarkMenuDelegate::IsTriggerableEvent(views::MenuItemView* menu,
 }
 
 void BookmarkMenuDelegate::ExecuteCommand(int id, int mouse_event_flags) {
+  if (id == IDC_SHOW_BOOKMARK_SIDE_PANEL) {
+    browser_->command_controller()->ExecuteCommand(id);
+    return;
+  }
+
   DCHECK(menu_id_to_node_map_.find(id) != menu_id_to_node_map_.end());
 
   std::vector<const BookmarkNode*> selection = {menu_id_to_node_map_[id]};
@@ -250,6 +259,9 @@ void BookmarkMenuDelegate::ExecuteCommand(int id, int mouse_event_flags) {
 bool BookmarkMenuDelegate::ShouldExecuteCommandWithoutClosingMenu(
     int id,
     const ui::Event& event) {
+  if (id == IDC_SHOW_BOOKMARK_SIDE_PANEL) {
+    return false;
+  }
   if (ui::DispositionFromEventFlags(event.flags()) ==
       WindowOpenDisposition::NEW_BACKGROUND_TAB) {
     DCHECK(menu_id_to_node_map_.find(id) != menu_id_to_node_map_.end());
@@ -276,9 +288,12 @@ bool BookmarkMenuDelegate::AreDropTypesRequired(MenuItemView* menu) {
 
 bool BookmarkMenuDelegate::CanDrop(MenuItemView* menu,
                                    const ui::OSExchangeData& data) {
+  if (menu->GetCommand() == IDC_SHOW_BOOKMARK_SIDE_PANEL) {
+    return false;
+  }
+
   // Only accept drops of 1 node, which is the case for all data dragged from
   // bookmark bar and menus.
-
   if (!drop_data_.Read(data) || drop_data_.size() != 1 ||
       !profile_->GetPrefs()->GetBoolean(
           bookmarks::prefs::kEditBookmarksEnabled))
@@ -315,11 +330,15 @@ ui::mojom::DragOperation BookmarkMenuDelegate::GetDropOperation(
     views::MenuDelegate::DropPosition* position) {
   // Should only get here if we have drop data.
   DCHECK(drop_data_.is_valid());
+  BookmarkModel* const model = GetBookmarkModel();
+
+  if (item->GetCommand() == IDC_SHOW_BOOKMARK_SIDE_PANEL) {
+    return ui::mojom::DragOperation::kNone;
+  }
 
   const BookmarkNode* node = menu_id_to_node_map_[item->GetCommand()];
   const BookmarkNode* drop_parent = node->parent();
   size_t index_to_drop_at = drop_parent->GetIndexOf(node).value();
-  BookmarkModel* model = GetBookmarkModel();
   switch (*position) {
     case views::MenuDelegate::DropPosition::kAfter:
       if (node == model->other_node() || node == model->mobile_node()) {
@@ -401,7 +420,11 @@ bool BookmarkMenuDelegate::ShowContextMenu(MenuItemView* source,
                                            int id,
                                            const gfx::Point& p,
                                            ui::MenuSourceType source_type) {
-  DCHECK(menu_id_to_node_map_.find(id) != menu_id_to_node_map_.end());
+  // The IDC_SHOW_BOOKMARK_SIDE_PANEL menu item does not map to a bookmark node
+  // and therefore no context menu for it should be shown.
+  if (menu_id_to_node_map_.find(id) == menu_id_to_node_map_.end()) {
+    return false;
+  }
   const BookmarkNode* node = menu_id_to_node_map_[id];
   std::vector<const BookmarkNode*> nodes(1, node);
   context_menu_ = std::make_unique<BookmarkContextMenu>(
@@ -413,6 +436,9 @@ bool BookmarkMenuDelegate::ShowContextMenu(MenuItemView* source,
 }
 
 bool BookmarkMenuDelegate::CanDrag(MenuItemView* menu) {
+  if (menu->GetCommand() == IDC_SHOW_BOOKMARK_SIDE_PANEL) {
+    return false;
+  }
   const BookmarkNode* node = menu_id_to_node_map_[menu->GetCommand()];
   // Don't let users drag the other folder.
   return node->parent() != GetBookmarkModel()->root_node();
@@ -464,7 +490,7 @@ void BookmarkMenuDelegate::WillRemoveBookmarks(
 
   // Remove the observer so that when the remove happens we don't prematurely
   // cancel the menu. The observer is added back in DidRemoveBookmarks().
-  GetBookmarkModel()->RemoveObserver(this);
+  bookmark_model_observation_.Reset();
 
   // Remove the menu items.
   std::set<MenuItemView*> changed_parent_menus;
@@ -513,7 +539,7 @@ void BookmarkMenuDelegate::WillRemoveBookmarks(
 
 void BookmarkMenuDelegate::DidRemoveBookmarks() {
   // Balances remove in WillRemoveBookmarksImpl.
-  GetBookmarkModel()->AddObserver(this);
+  bookmark_model_observation_.Observe(GetBookmarkModel());
   DCHECK(is_mutating_model_);
   is_mutating_model_ = false;
 }
@@ -547,7 +573,6 @@ MenuItemView* BookmarkMenuDelegate::CreateMenu(const BookmarkNode* parent,
   MenuItemView* menu = new MenuItemView(real_delegate_);
   menu->SetCommand(GetAndIncrementNextMenuID());
   AddMenuToMaps(menu, parent);
-  menu->set_has_icons(true);
   bool show_permanent = show_options == SHOW_PERMANENT_FOLDERS;
   if (show_permanent && parent == GetBookmarkModel()->bookmark_bar_node())
     BuildMenuForManagedNode(menu);
@@ -605,6 +630,21 @@ void BookmarkMenuDelegate::BuildMenu(const BookmarkNode* parent,
                                      size_t start_child_index,
                                      MenuItemView* menu) {
   DCHECK_LE(start_child_index, parent->children().size());
+  if (parent == GetBookmarkModel()->other_node()) {
+    ui::ImageModel bookmarks_side_panel_icon =
+        base::FeatureList::IsEnabled(features::kSidePanelPinning)
+            ? ui::ImageModel::FromVectorIcon(
+                  kBookmarksSidePanelIcon, ui::kColorMenuIcon,
+                  ui::SimpleMenuModel::kDefaultIconSize)
+            : ui::ImageModel();
+    menu->AppendMenuItem(
+        IDC_SHOW_BOOKMARK_SIDE_PANEL,
+        l10n_util::GetStringUTF16(IDS_BOOKMARKS_ALL_BOOKMARKS_OPEN_SIDE_PANEL),
+        bookmarks_side_panel_icon);
+    if (!parent->children().empty()) {
+      menu->AppendSeparator();
+    }
+  }
   const ui::ImageModel folder_icon = chrome::GetBookmarkFolderIcon(
       chrome::BookmarkFolderIconType::kNormal, ui::kColorMenuIcon);
   for (auto i = parent->children().cbegin() + start_child_index;

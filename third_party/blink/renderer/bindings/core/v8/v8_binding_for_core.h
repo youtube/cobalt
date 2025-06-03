@@ -62,7 +62,6 @@ class EventLoop;
 // new utility function, consider adding it to V8Binding.h instead unless it has
 // dependencies to core/.
 
-class DOMWindow;
 class ExceptionState;
 class ExecutionContext;
 class Frame;
@@ -340,7 +339,7 @@ inline absl::optional<base::Time> ToCoreNullableDate(
   double time_value = object.As<v8::Date>()->ValueOf();
   if (!std::isfinite(time_value))
     return absl::nullopt;
-  return base::Time::FromJsTime(time_value);
+  return base::Time::FromMillisecondsSinceUnixEpoch(time_value);
 }
 
 // USVString conversion helper.
@@ -431,9 +430,11 @@ CORE_EXPORT bool HasCallableIteratorSymbol(v8::Isolate*,
 
 CORE_EXPORT v8::Isolate* ToIsolate(const LocalFrame*);
 
-CORE_EXPORT DOMWindow* ToDOMWindow(v8::Isolate*, v8::Local<v8::Value>);
+CORE_EXPORT LocalDOMWindow* ToLocalDOMWindow(const ScriptState*);
+CORE_EXPORT ExecutionContext* ToExecutionContext(const ScriptState*);
+
 CORE_EXPORT LocalDOMWindow* ToLocalDOMWindow(v8::Local<v8::Context>);
-LocalDOMWindow* EnteredDOMWindow(v8::Isolate*);
+CORE_EXPORT LocalDOMWindow* EnteredDOMWindow(v8::Isolate*);
 LocalDOMWindow* IncumbentDOMWindow(v8::Isolate*);
 CORE_EXPORT LocalDOMWindow* CurrentDOMWindow(v8::Isolate*);
 CORE_EXPORT ExecutionContext* ToExecutionContext(v8::Local<v8::Context>);
@@ -495,7 +496,7 @@ NotSharedType ToNotShared(v8::Isolate* isolate,
                           ExceptionState& exception_state) {
   using DOMTypedArray = typename NotSharedType::TypedArrayType;
   DOMTypedArray* dom_typed_array =
-      V8TypeOf<DOMTypedArray>::Type::ToImplWithTypeCheck(isolate, value);
+      V8TypeOf<DOMTypedArray>::Type::ToWrappable(isolate, value);
   if (dom_typed_array && dom_typed_array->IsShared()) {
     exception_state.ThrowTypeError(
         "The provided ArrayBufferView value must not be shared.");
@@ -512,7 +513,7 @@ MaybeSharedType ToMaybeShared(v8::Isolate* isolate,
                               ExceptionState& exception_state) {
   using DOMTypedArray = typename MaybeSharedType::TypedArrayType;
   DOMTypedArray* dom_typed_array =
-      V8TypeOf<DOMTypedArray>::Type::ToImplWithTypeCheck(isolate, value);
+      V8TypeOf<DOMTypedArray>::Type::ToWrappable(isolate, value);
   return MaybeSharedType(dom_typed_array);
 }
 

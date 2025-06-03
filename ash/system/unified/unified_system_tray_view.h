@@ -158,13 +158,11 @@ class ASH_EXPORT UnifiedSystemTrayView : public views::View,
   FeaturePodsContainerView* feature_pods_container() {
     return feature_pods_container_;
   }
+  View* detailed_view_container() { return detailed_view_container_; }
 
   NotificationHiddenView* notification_hidden_view_for_testing() {
     return notification_hidden_view_;
   }
-
-  View* detailed_view() { return detailed_view_container_; }
-  View* detailed_view_for_testing() { return detailed_view_container_; }
   PageIndicatorView* page_indicator_view_for_test() {
     return page_indicator_view_;
   }
@@ -185,7 +183,9 @@ class ASH_EXPORT UnifiedSystemTrayView : public views::View,
   double expanded_amount_;
 
   // Unowned.
-  const raw_ptr<UnifiedSystemTrayController, ExperimentalAsh> controller_;
+  const raw_ptr<UnifiedSystemTrayController,
+                DanglingUntriaged | ExperimentalAsh>
+      controller_;
 
   // Owned by views hierarchy.
   const raw_ptr<NotificationHiddenView, ExperimentalAsh>
@@ -199,10 +199,8 @@ class ASH_EXPORT UnifiedSystemTrayView : public views::View,
   const raw_ptr<UnifiedSystemInfoView, ExperimentalAsh> system_info_view_;
   const raw_ptr<SystemTrayContainer, ExperimentalAsh> system_tray_container_;
   const raw_ptr<views::View, ExperimentalAsh> detailed_view_container_;
-
-  // Null if media::kGlobalMediaControlsForChromeOS is disabled.
-  raw_ptr<UnifiedMediaControlsContainer, ExperimentalAsh>
-      media_controls_container_ = nullptr;
+  const raw_ptr<UnifiedMediaControlsContainer, ExperimentalAsh>
+      media_controls_container_;
 
   // The maximum height available to the view.
   int max_height_ = 0;

@@ -5,12 +5,9 @@
 #import "ios/chrome/browser/infobars/overlays/browser_agent/infobar_overlay_browser_agent.h"
 
 #import "base/check.h"
+#import "ios/chrome/browser/infobars/overlays/browser_agent/interaction_handlers/default/default_infobar_banner_interaction_handler.h"
 #import "ios/chrome/browser/infobars/overlays/browser_agent/interaction_handlers/infobar_interaction_handler.h"
 #import "ios/chrome/browser/infobars/overlays/infobar_overlay_util.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 #pragma mark - InfobarOverlayBrowserAgent
 
@@ -42,6 +39,15 @@ void InfobarOverlayBrowserAgent::AddInfobarInteractionHandler(
   }
   // Add the interaction handler to the list.
   interaction_handlers_[type] = std::move(interaction_handler);
+}
+
+void InfobarOverlayBrowserAgent::
+    AddDefaultInfobarInteractionHandlerForInfobarType(
+        InfobarType infobar_type) {
+  AddInfobarInteractionHandler(std::make_unique<InfobarInteractionHandler>(
+      infobar_type,
+      std::make_unique<DefaultInfobarBannerInteractionHandler>(infobar_type),
+      /*modal_handler=*/nullptr));
 }
 
 #pragma mark Private

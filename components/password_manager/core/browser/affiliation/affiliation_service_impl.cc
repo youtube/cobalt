@@ -8,7 +8,6 @@
 #include "base/containers/cxx20_erase.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
-#include "base/functional/callback_helpers.h"
 #include "base/location.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/ranges/algorithm.h"
@@ -18,10 +17,6 @@
 #include "base/time/default_tick_clock.h"
 #include "components/password_manager/core/browser/affiliation/affiliation_backend.h"
 #include "components/password_manager/core/browser/affiliation/affiliation_fetcher_interface.h"
-#include "components/password_manager/core/browser/password_store_factory_util.h"
-#include "components/password_manager/core/common/password_manager_features.h"
-#include "components/password_manager/core/common/password_manager_pref_names.h"
-#include "components/prefs/pref_service.h"
 #include "services/network/public/cpp/network_connection_tracker.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "url/gurl.h"
@@ -31,7 +26,7 @@ namespace password_manager {
 
 namespace {
 
-void LogFetchResult(metrics_util::GetChangePasswordUrlMetric result) {
+void LogFetchResult(GetChangePasswordUrlMetric result) {
   base::UmaHistogramEnumeration(kGetChangePasswordURLMetricName, result);
 }
 
@@ -103,11 +98,9 @@ struct AffiliationServiceImpl::FetchInfo {
 // passing it in the constructor.
 AffiliationServiceImpl::AffiliationServiceImpl(
     scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
-    scoped_refptr<base::SequencedTaskRunner> backend_task_runner,
-    PrefService* pref_service)
+    scoped_refptr<base::SequencedTaskRunner> backend_task_runner)
     : url_loader_factory_(std::move(url_loader_factory)),
       fetcher_factory_(std::make_unique<AffiliationFetcherFactoryImpl>()),
-      pref_service_(pref_service),
       backend_task_runner_(std::move(backend_task_runner)) {}
 
 AffiliationServiceImpl::~AffiliationServiceImpl() = default;
@@ -116,22 +109,18 @@ void AffiliationServiceImpl::Init(
     network::NetworkConnectionTracker* network_connection_tracker,
     const base::FilePath& db_path) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  backend_ = new AffiliationBackend(backend_task_runner_,
-                                    base::DefaultClock::GetInstance(),
-                                    base::DefaultTickClock::GetInstance());
+  backend_ = std::make_unique<AffiliationBackend>(
+      backend_task_runner_, base::DefaultClock::GetInstance(),
+      base::DefaultTickClock::GetInstance());
 
-  backend_task_runner_->PostTask(
-      FROM_HERE,
-      base::BindOnce(&AffiliationBackend::Initialize,
-                     base::Unretained(backend_), url_loader_factory_->Clone(),
-                     base::Unretained(network_connection_tracker), db_path));
+  PostToBackend(&AffiliationBackend::Initialize, url_loader_factory_->Clone(),
+                base::Unretained(network_connection_tracker), db_path);
 }
 
 void AffiliationServiceImpl::Shutdown() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (backend_) {
-    backend_task_runner_->DeleteSoon(FROM_HERE, backend_.get());
-    backend_ = nullptr;
+    backend_task_runner_->DeleteSoon(FROM_HERE, std::move(backend_));
   }
 }
 
@@ -152,8 +141,7 @@ void AffiliationServiceImpl::PrefetchChangePasswordURLs(
   }
   if (!facets.empty()) {
     auto fetcher = fetcher_factory_->CreateInstance(url_loader_factory_, this);
-    fetcher->StartRequest(facets,
-                          /*request_info=*/{.change_password_info = true});
+    fetcher->StartRequest(facets, kChangePasswordUrlRequestInfo);
     pending_fetches_.emplace_back(std::move(fetcher), tuple_origins,
                                   std::move(callback));
   }
@@ -168,11 +156,9 @@ GURL AffiliationServiceImpl::GetChangePasswordURL(const GURL& url) const {
   auto it = change_password_urls_.find(url::SchemeHostPort(url));
   if (it != change_password_urls_.end()) {
     if (it->second.group_url_override) {
-      LogFetchResult(
-          metrics_util::GetChangePasswordUrlMetric::kGroupUrlOverrideUsed);
+      LogFetchResult(GetChangePasswordUrlMetric::kGroupUrlOverrideUsed);
     } else {
-      LogFetchResult(
-          metrics_util::GetChangePasswordUrlMetric::kUrlOverrideUsed);
+      LogFetchResult(GetChangePasswordUrlMetric::kUrlOverrideUsed);
     }
     return it->second.change_password_url;
   }
@@ -181,10 +167,9 @@ GURL AffiliationServiceImpl::GetChangePasswordURL(const GURL& url) const {
   if (base::ranges::any_of(pending_fetches_, [&tuple](const auto& info) {
         return base::Contains(info.requested_tuple_origins, tuple);
       })) {
-    LogFetchResult(metrics_util::GetChangePasswordUrlMetric::kNotFetchedYet);
+    LogFetchResult(GetChangePasswordUrlMetric::kNotFetchedYet);
   } else {
-    LogFetchResult(
-        metrics_util::GetChangePasswordUrlMetric::kNoUrlOverrideAvailable);
+    LogFetchResult(GetChangePasswordUrlMetric::kNoUrlOverrideAvailable);
   }
   return GURL();
 }
@@ -229,106 +214,47 @@ void AffiliationServiceImpl::GetAffiliationsAndBranding(
     const FacetURI& facet_uri,
     AffiliationService::StrategyOnCacheMiss cache_miss_strategy,
     ResultCallback result_callback) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  DCHECK(backend_);
-  backend_task_runner_->PostTask(
-      FROM_HERE,
-      base::BindOnce(&AffiliationBackend::GetAffiliationsAndBranding,
-                     base::Unretained(backend_), facet_uri, cache_miss_strategy,
-                     std::move(result_callback),
-                     base::SequencedTaskRunner::GetCurrentDefault()));
+  PostToBackend(&AffiliationBackend::GetAffiliationsAndBranding, facet_uri,
+                cache_miss_strategy, std::move(result_callback),
+                base::SequencedTaskRunner::GetCurrentDefault());
 }
 
 void AffiliationServiceImpl::Prefetch(const FacetURI& facet_uri,
                                       const base::Time& keep_fresh_until) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  DCHECK(backend_);
-  backend_task_runner_->PostTask(
-      FROM_HERE,
-      base::BindOnce(&AffiliationBackend::Prefetch, base::Unretained(backend_),
-                     facet_uri, keep_fresh_until));
+  PostToBackend(&AffiliationBackend::Prefetch, facet_uri, keep_fresh_until);
 }
 
 void AffiliationServiceImpl::CancelPrefetch(
     const FacetURI& facet_uri,
     const base::Time& keep_fresh_until) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  DCHECK(backend_);
-  backend_task_runner_->PostTask(
-      FROM_HERE,
-      base::BindOnce(&AffiliationBackend::CancelPrefetch,
-                     base::Unretained(backend_), facet_uri, keep_fresh_until));
+  PostToBackend(&AffiliationBackend::CancelPrefetch, facet_uri,
+                keep_fresh_until);
 }
 
 void AffiliationServiceImpl::KeepPrefetchForFacets(
     std::vector<FacetURI> facet_uris) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  DCHECK(backend_);
-
-  if (base::FeatureList::IsEnabled(features::kPasswordsGrouping)) {
-    // Update pref to indicate grouping info was requested.
-    pref_service_->SetBoolean(prefs::kPasswordsGroupingInfoRequested, true);
-  }
-
-  backend_task_runner_->PostTask(
-      FROM_HERE,
-      base::BindOnce(&AffiliationBackend::KeepPrefetchForFacets,
-                     base::Unretained(backend_), std::move(facet_uris)));
+  PostToBackend(&AffiliationBackend::KeepPrefetchForFacets,
+                std::move(facet_uris));
 }
 
 void AffiliationServiceImpl::TrimCacheForFacetURI(const FacetURI& facet_uri) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  DCHECK(backend_);
-  backend_task_runner_->PostTask(
-      FROM_HERE, base::BindOnce(&AffiliationBackend::TrimCacheForFacetURI,
-                                base::Unretained(backend_), facet_uri));
+  PostToBackend(&AffiliationBackend::TrimCacheForFacetURI, facet_uri);
 }
 
 void AffiliationServiceImpl::TrimUnusedCache(std::vector<FacetURI> facet_uris) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  DCHECK(backend_);
-  backend_task_runner_->PostTask(
-      FROM_HERE,
-      base::BindOnce(&AffiliationBackend::TrimUnusedCache,
-                     base::Unretained(backend_), std::move(facet_uris)));
+  PostToBackend(&AffiliationBackend::TrimUnusedCache, std::move(facet_uris));
 }
 
 void AffiliationServiceImpl::GetGroupingInfo(std::vector<FacetURI> facet_uris,
                                              GroupsCallback callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(backend_);
-  DCHECK(base::FeatureList::IsEnabled(features::kPasswordsGrouping));
 
-  // If grouping info was requested before, simply return groups from the cache.
-  if (pref_service_->GetBoolean(prefs::kPasswordsGroupingInfoRequested)) {
-    backend_task_runner_->PostTaskAndReplyWithResult(
-        FROM_HERE,
-        base::BindOnce(&AffiliationBackend::GetGroupingInfo,
-                       base::Unretained(backend_), std::move(facet_uris)),
-        std::move(callback));
-    return;
-  }
-
-  // Update pref right away to avoid any additional requests in the future.
-  pref_service_->SetBoolean(prefs::kPasswordsGroupingInfoRequested, true);
-
-  // Create a callback to call AffiliationServiceImpl::GetGroupingInfo() one
-  // more time.
-  auto get_groups_callback = base::BindOnce(
-      &AffiliationService::GetGroupingInfo, weak_ptr_factory_.GetWeakPtr(),
-      facet_uris, std::move(callback));
-
-  // Make sure to invoke |get_groups_callback| in main sequence.
-  auto callback_in_main_sequence =
-      base::BindOnce(base::IgnoreResult(&base::TaskRunner::PostTask),
-                     base::SequencedTaskRunner::GetCurrentDefault(), FROM_HERE,
-                     std::move(get_groups_callback));
-  // Request affiliation backend to update affiliation information.
-  backend_task_runner_->PostTask(
+  backend_task_runner_->PostTaskAndReplyWithResult(
       FROM_HERE,
-      base::BindOnce(&AffiliationBackend::UpdateAffiliationsAndBranding,
-                     base::Unretained(backend_), facet_uris,
-                     std::move(callback_in_main_sequence)));
+      base::BindOnce(&AffiliationBackend::GetGroupingInfo,
+                     base::Unretained(backend_.get()), std::move(facet_uris)),
+      std::move(callback));
 }
 
 void AffiliationServiceImpl::GetPSLExtensions(
@@ -338,7 +264,7 @@ void AffiliationServiceImpl::GetPSLExtensions(
   backend_task_runner_->PostTaskAndReplyWithResult(
       FROM_HERE,
       base::BindOnce(&AffiliationBackend::GetPSLExtensions,
-                     base::Unretained(backend_)),
+                     base::Unretained(backend_.get())),
       std::move(callback));
 }
 

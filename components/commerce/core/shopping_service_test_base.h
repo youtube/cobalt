@@ -14,7 +14,7 @@
 #include "base/values.h"
 #include "components/commerce/core/shopping_service.h"
 #include "components/commerce/core/web_wrapper.h"
-#include "components/optimization_guide/core/new_optimization_guide_decider.h"
+#include "components/optimization_guide/core/optimization_guide_decider.h"
 #include "components/optimization_guide/core/optimization_guide_decision.h"
 #include "components/optimization_guide/core/optimization_metadata.h"
 #include "components/optimization_guide/proto/hints.pb.h"
@@ -48,10 +48,12 @@ class TestSyncService;
 
 namespace commerce {
 
+extern const uint64_t kInvalidDiscountId;
+
 // A mock Optimization Guide decider that allows us to specify the response for
 // a particular URL.
 class MockOptGuideDecider
-    : public optimization_guide::NewOptimizationGuideDecider {
+    : public optimization_guide::OptimizationGuideDecider {
  public:
   MockOptGuideDecider();
   MockOptGuideDecider(const MockOptGuideDecider&) = delete;
@@ -93,7 +95,8 @@ class MockOptGuideDecider
       const uint64_t product_cluster_id,
       const std::string& country_code,
       const int64_t amount_micros = 0,
-      const std::string& currency_code = "USD");
+      const std::string& currency_code = "USD",
+      const std::string& gpc_title = "example_gpc_title");
 
   void AddPriceUpdateToPriceTrackingResponse(OptimizationMetadata* out_meta,
                                              const std::string& currency_code,
@@ -106,6 +109,21 @@ class MockOptGuideDecider
       const std::string& details_page_url,
       const bool has_return_policy,
       const bool contains_sensitive_content);
+
+  OptimizationMetadata BuildPriceInsightsResponse(
+      const uint64_t product_cluster_id,
+      const std::string& price_range_currency_code,
+      const int64_t low_typical_price_micros,
+      const int64_t high_typical_price_micros,
+      const std::string& price_history_currency_code,
+      const std::string& attributes,
+      const std::vector<std::tuple<std::string, int64_t>>& history_prices,
+      const std::string& jackpot_url,
+      const PriceBucket& price_bucket,
+      const bool has_multiple_catalogs);
+
+  OptimizationMetadata BuildDiscountsResponse(
+      const std::vector<DiscountInfo>& infos);
 
  private:
   absl::optional<GURL> response_url_;
@@ -123,11 +141,22 @@ class MockOptGuideDecider
 class MockWebWrapper : public WebWrapper {
  public:
   MockWebWrapper(const GURL& last_committed_url, bool is_off_the_record);
+
+  // `result` specified the result of the subsequent javascript execution. This
+  // object does not take ownership of the provided pointer.
+  MockWebWrapper(const GURL& last_committed_url,
+                 bool is_off_the_record,
+                 base::Value* result);
+
   MockWebWrapper(const MockWebWrapper&) = delete;
   MockWebWrapper operator=(const MockWebWrapper&) = delete;
+
   ~MockWebWrapper() override;
 
   const GURL& GetLastCommittedURL() override;
+
+  bool IsFirstLoadForNavigationFinished() override;
+  void SetIsFirstLoadForNavigationFinished(bool finished);
 
   bool IsOffTheRecord() override;
 
@@ -135,15 +164,11 @@ class MockWebWrapper : public WebWrapper {
       const std::u16string& script,
       base::OnceCallback<void(const base::Value)> callback) override;
 
-  // Set the result of some javascript execution. This object does not take
-  // ownership of the provided pointer.
-  void SetMockJavaScriptResult(base::Value* result);
-
  private:
-  GURL last_committed_url_;
-  bool is_off_the_record_;
-
-  raw_ptr<base::Value> mock_js_result_;
+  const GURL last_committed_url_;
+  const bool is_off_the_record_;
+  bool is_first_load_finished_{true};
+  const raw_ptr<base::Value> mock_js_result_;
 };
 
 class ShoppingServiceTestBase : public testing::Test {
@@ -152,6 +177,8 @@ class ShoppingServiceTestBase : public testing::Test {
   ShoppingServiceTestBase(const ShoppingServiceTestBase&) = delete;
   ShoppingServiceTestBase operator=(const ShoppingServiceTestBase&) = delete;
   ~ShoppingServiceTestBase() override;
+
+  void SetUp() override;
 
   void TestBody() override;
 
@@ -165,6 +192,10 @@ class ShoppingServiceTestBase : public testing::Test {
   static void MergeProductInfoData(ProductInfo* info,
                                    const base::Value::Dict& on_page_data_map);
 
+  // Skip the delay for running the on-page local extraction for product info
+  // and wait until the task completes.
+  void SimulateProductInfoLocalExtractionTaskFinished();
+
   // Get the count of the number of tabs a particular URL is open in from the
   // product info cache.
   int GetProductInfoCacheOpenURLCount(const GURL& url);
@@ -173,12 +204,15 @@ class ShoppingServiceTestBase : public testing::Test {
   const ProductInfo* GetFromProductInfoCache(const GURL& url);
 
  protected:
-  base::test::TaskEnvironment task_environment_;
+  base::test::TaskEnvironment task_environment_{
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
 
   // Used primarily for decoding JSON for the mock javascript execution.
   data_decoder::test::InProcessDataDecoder in_process_data_decoder_;
 
-  std::unique_ptr<bookmarks::BookmarkModel> bookmark_model_;
+  std::unique_ptr<bookmarks::BookmarkModel> local_or_syncable_bookmark_model_;
+
+  std::unique_ptr<bookmarks::BookmarkModel> account_bookmark_model_;
 
   std::unique_ptr<MockOptGuideDecider> opt_guide_;
 

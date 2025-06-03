@@ -8,7 +8,6 @@ import static org.mockito.Mockito.doReturn;
 
 import androidx.test.filters.SmallTest;
 
-import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
@@ -25,33 +24,24 @@ import org.chromium.chrome.browser.commerce.ShoppingServiceFactory;
 import org.chromium.chrome.browser.endpoint_fetcher.EndpointFetcher;
 import org.chromium.chrome.browser.endpoint_fetcher.EndpointFetcherJni;
 import org.chromium.chrome.browser.profiles.Profile;
-import org.chromium.chrome.browser.signin.services.IdentityServicesProvider;
 import org.chromium.chrome.test.util.browser.Features;
 import org.chromium.components.commerce.core.ShoppingService;
 
-/**
- * Unit tests for {@link CommerceSubscriptionsServiceFactory}.
- */
+/** Unit tests for {@link CommerceSubscriptionsServiceFactory}. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 public class CommerceSubscriptionsServiceFactoryUnitTest {
-    @Rule
-    public TestRule mProcessor = new Features.JUnitProcessor();
+    @Rule public TestRule mProcessor = new Features.JUnitProcessor();
 
-    @Rule
-    public JniMocker mMocker = new JniMocker();
+    @Rule public JniMocker mMocker = new JniMocker();
 
-    @Mock
-    private Profile mProfileOne;
+    @Mock private Profile mProfileOne;
 
-    @Mock
-    private Profile mProfileTwo;
+    @Mock private Profile mProfileTwo;
 
-    @Mock
-    EndpointFetcher.Natives mEndpointFetcherJniMock;
+    @Mock EndpointFetcher.Natives mEndpointFetcherJniMock;
 
-    @Mock
-    ShoppingService mShoppingService;
+    @Mock ShoppingService mShoppingService;
 
     @Before
     public void setUp() {
@@ -60,11 +50,6 @@ public class CommerceSubscriptionsServiceFactoryUnitTest {
         doReturn(false).when(mProfileTwo).isOffTheRecord();
         mMocker.mock(EndpointFetcherJni.TEST_HOOKS, mEndpointFetcherJniMock);
         ShoppingServiceFactory.setShoppingServiceForTesting(mShoppingService);
-    }
-
-    @After
-    public void tearDown() {
-        IdentityServicesProvider.setInstanceForTests(null);
     }
 
     @Test

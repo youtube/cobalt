@@ -4,6 +4,7 @@
 
 #include "third_party/blink/renderer/platform/graphics/gpu/webgpu_swap_buffer_provider.h"
 
+#include "base/memory/raw_ptr.h"
 #include "base/test/task_environment.h"
 #include "gpu/command_buffer/client/webgpu_interface_stub.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -29,6 +30,12 @@ class MockWebGPUInterface : public gpu::webgpu::WebGPUInterfaceStub {
     procs()->deviceRelease = [](WGPUDevice) {};
     procs()->textureReference = [](WGPUTexture) {};
     procs()->textureRelease = [](WGPUTexture) {};
+
+    procs()->deviceGetLimits =
+        [](WGPUDevice, WGPUSupportedLimits* supportedLimits) -> WGPUBool {
+      supportedLimits->limits.maxTextureDimension2D = 8192;
+      return 1;
+    };
   }
 
   MOCK_METHOD(gpu::webgpu::ReservedTexture,
@@ -104,15 +111,13 @@ class WebGPUSwapBufferProviderForTests : public WebGPUSwapBufferProvider {
       WGPUTextureUsage usage,
       WGPUTextureFormat format,
       PredefinedColorSpace color_space,
-      gfx::HDRMode hdr_mode,
-      absl::optional<gfx::HDRMetadata> hdr_metadata)
+      const gfx::HDRMetadata& hdr_metadata)
       : WebGPUSwapBufferProvider(client,
                                  dawn_control_client,
                                  device,
                                  usage,
                                  format,
                                  color_space,
-                                 hdr_mode,
                                  hdr_metadata),
         alive_(alive),
         client_(client) {
@@ -138,8 +143,8 @@ class WebGPUSwapBufferProviderForTests : public WebGPUSwapBufferProvider {
   }
 
  private:
-  bool* alive_;
-  FakeProviderClient* client_;
+  raw_ptr<bool, ExperimentalRenderer> alive_;
+  raw_ptr<FakeProviderClient, ExperimentalRenderer> client_;
   WGPUTextureDescriptor texture_desc_;
 };
 
@@ -165,16 +170,15 @@ class WebGPUSwapBufferProviderTest : public testing::Test {
 
     provider_ = base::MakeRefCounted<WebGPUSwapBufferProviderForTests>(
         &provider_alive_, &client_, fake_device_, dawn_control_client_, kUsage,
-        kFormat, PredefinedColorSpace::kSRGB, gfx::HDRMode::kDefault,
-        absl::nullopt);
+        kFormat, PredefinedColorSpace::kSRGB, gfx::HDRMetadata());
   }
 
   void TearDown() override { Platform::UnsetMainThreadTaskRunnerForTesting(); }
 
   base::test::TaskEnvironment task_environment_;
   scoped_refptr<DawnControlClientHolder> dawn_control_client_;
-  MockWebGPUInterface* webgpu_;
-  viz::TestSharedImageInterface* sii_;
+  raw_ptr<MockWebGPUInterface, ExperimentalRenderer> webgpu_;
+  raw_ptr<viz::TestSharedImageInterface, ExperimentalRenderer> sii_;
   FakeProviderClient client_;
   scoped_refptr<WebGPUSwapBufferProviderForTests> provider_;
   bool provider_alive_ = true;

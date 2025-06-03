@@ -23,7 +23,7 @@
 
 #include "gtest/gtest.h"
 #include "absl/base/config.h"
-#include "absl/base/internal/raw_logging.h"
+#include "absl/log/log.h"
 #include "absl/meta/type_traits.h"
 #include "absl/strings/string_view.h"
 
@@ -996,7 +996,7 @@ TEST(optionalTest, PointerStuff) {
 
 // MSVC has a bug with "cv-qualifiers in class construction", fixed in 2017. See
 // https://docs.microsoft.com/en-us/cpp/cpp-conformance-improvements-2017#bug-fixes
-// The compiler some incorrectly ingores the cv-qualifier when generating a
+// The compiler some incorrectly ignores the cv-qualifier when generating a
 // class object via a constructor call. For example:
 //
 // class optional {
@@ -1542,8 +1542,7 @@ TEST(optionalTest, Hash) {
 struct MoveMeNoThrow {
   MoveMeNoThrow() : x(0) {}
   [[noreturn]] MoveMeNoThrow(const MoveMeNoThrow& other) : x(other.x) {
-    ABSL_RAW_LOG(FATAL, "Should not be called.");
-    abort();
+    LOG(FATAL) << "Should not be called.";
   }
   MoveMeNoThrow(MoveMeNoThrow&& other) noexcept : x(other.x) {}
   int x;

@@ -4,11 +4,11 @@
 
 package org.chromium.device.bluetooth;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.Log;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNIAdditionalImport;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
 
 import java.util.List;
 
@@ -20,7 +20,6 @@ import java.util.List;
  * device::BluetoothRemoteGattServiceAndroid.
  */
 @JNINamespace("device")
-@JNIAdditionalImport(Wrappers.class)
 final class ChromeBluetoothRemoteGattService {
     private static final String TAG = "Bluetooth";
 

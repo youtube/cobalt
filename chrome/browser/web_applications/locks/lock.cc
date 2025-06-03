@@ -7,6 +7,8 @@
 #include <memory>
 #include <ostream>
 
+#include "chrome/browser/web_applications/locks/web_app_lock_manager.h"
+#include "chrome/browser/web_applications/web_app_provider.h"
 #include "components/services/storage/indexed_db/locks/partitioned_lock_manager.h"
 
 namespace web_app {
@@ -26,7 +28,7 @@ std::string LockTypeToString(LockDescription::Type type) {
   }
 }
 
-LockDescription::LockDescription(base::flat_set<AppId> app_ids,
+LockDescription::LockDescription(base::flat_set<webapps::AppId> app_ids,
                                  LockDescription::Type type)
     : app_ids_(std::move(app_ids)), type_(type) {}
 LockDescription::~LockDescription() = default;
@@ -59,8 +61,14 @@ std::ostream& operator<<(std::ostream& out,
   return out << lock_description.AsDebugValue();
 }
 
-Lock::Lock(std::unique_ptr<content::PartitionedLockHolder> holder)
-    : holder_(std::move(holder)) {}
+WebContentsManager& Lock::web_contents_manager() {
+  CHECK(lock_manager_);
+  return lock_manager_->provider().web_contents_manager();
+}
+
+Lock::Lock(std::unique_ptr<content::PartitionedLockHolder> holder,
+           base::WeakPtr<WebAppLockManager> lock_manager)
+    : holder_(std::move(holder)), lock_manager_(std::move(lock_manager)) {}
 
 Lock::~Lock() = default;
 

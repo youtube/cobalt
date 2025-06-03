@@ -21,7 +21,7 @@
 #include "chrome/browser/web_applications/web_app_icon_manager.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/browser/web_applications/web_app_registrar.h"
-#include "chrome/grit/chromium_strings.h"
+#include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
@@ -44,8 +44,8 @@ void LaunchAppUserChoiceDialogView::SetDefaultRememberSelectionForTesting(
 
 LaunchAppUserChoiceDialogView::LaunchAppUserChoiceDialogView(
     Profile* profile,
-    const web_app::AppId& app_id,
-    chrome::WebAppLaunchAcceptanceCallback close_callback)
+    const webapps::AppId& app_id,
+    WebAppLaunchAcceptanceCallback close_callback)
     : profile_(profile),
       app_id_(app_id),
       close_callback_(std::move(close_callback)) {}

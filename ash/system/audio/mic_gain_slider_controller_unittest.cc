@@ -52,7 +52,8 @@ class MicGainSliderControllerTest : public AshTestBase,
     AshTestBase::TearDown();
   }
 
-  bool IsQsRevampEnabled() const { return GetParam(); }
+  // TODO(b/305075031) clean up after the flag is removed.
+  bool IsQsRevampEnabled() const { return true; }
 
   std::unique_ptr<views::View> GetMuteToastView() {
     return mic_gain_slider_controller_.CreateView();
@@ -123,11 +124,8 @@ TEST_P(MicGainSliderControllerTest, RecordInputGainChangedSource) {
 TEST_P(MicGainSliderControllerTest, CreateMuteToastView) {
   auto toast_view = GetMuteToastView();
   if (IsQsRevampEnabled()) {
-    // Hide the slider icon and show the mic button in the mute toast view.
-    EXPECT_FALSE(toast_view->children()[0]->GetVisible());
-    EXPECT_EQ(
-        u"Toggle Mic. Mic is on, toggling will mute input.",
-        static_cast<IconButton*>(toast_view->children()[1])->GetTooltipText());
+    // `MicGainSliderView` is the first child in the toast view and is visible.
+    EXPECT_TRUE(toast_view->children()[0]->GetVisible());
   } else {
     EXPECT_EQ(
         u"Toggle Mic. Mic is on, toggling will mute input.",
@@ -137,6 +135,10 @@ TEST_P(MicGainSliderControllerTest, CreateMuteToastView) {
 
 // Verify pressing the mute button is recorded to metrics.
 TEST_P(MicGainSliderControllerTest, RecordInputGainMuteSource) {
+  // For QsRevamp: `slider_view_` doesn't have a `button()`.
+  if (IsQsRevampEnabled()) {
+    return;
+  }
   PressSliderButton();
   histogram_tester_.ExpectBucketCount(
       CrasAudioHandler::kInputGainMuteSourceHistogramName,

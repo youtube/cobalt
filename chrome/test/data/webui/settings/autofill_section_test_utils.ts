@@ -11,7 +11,7 @@ import {assertFalse, assertGT, assertTrue} from 'chrome://webui-test/chai_assert
 import {eventToPromise} from 'chrome://webui-test/test_util.js';
 import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
 
-import {createAddressEntry, TestAutofillManager} from './passwords_and_autofill_fake_data.js';
+import {createAddressEntry, TestAutofillManager} from './autofill_fake_data.js';
 // clang-format on
 
 /**
@@ -203,4 +203,29 @@ export async function createRemoveAddressDialog(
   await flushTasks();
 
   return initiateRemoving(section, 0);
+}
+
+/**
+ * Performs some UI and manager manipulations to simulate the address removal.
+ */
+export async function deleteAddress(
+    section: SettingsAutofillSectionElement, manager: TestAutofillManager,
+    index: number) {
+  const dialog = await initiateRemoving(section, index);
+  const closePromise = eventToPromise('close', dialog.$.dialog);
+  dialog.$.remove.click();
+  await closePromise;
+
+  const address = [...manager.data.addresses];
+  address.splice(index, 1);
+  manager.data.addresses = address;
+  manager.lastCallback.setPersonalDataManagerListener!
+      (address, [], [], manager.data.accountInfo);
+  await flushTasks();
+}
+
+export function getAddressFieldValue(
+    address: chrome.autofillPrivate.AddressEntry,
+    type: chrome.autofillPrivate.ServerFieldType): string|undefined {
+  return address.fields.find(entry => entry.type === type)?.value;
 }

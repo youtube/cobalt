@@ -284,13 +284,17 @@ struct BLINK_COMMON_EXPORT StructTraits<blink::mojom::WebPreferencesDataView,
     return r.enable_scroll_animator;
   }
 
-  static bool threaded_scrolling_enabled(
-      const blink::web_pref::WebPreferences& r) {
-    return r.threaded_scrolling_enabled;
-  }
-
   static bool prefers_reduced_motion(const blink::web_pref::WebPreferences& r) {
     return r.prefers_reduced_motion;
+  }
+
+  static bool prefers_reduced_transparency(
+      const blink::web_pref::WebPreferences& r) {
+    return r.prefers_reduced_transparency;
+  }
+
+  static bool inverted_colors(const blink::web_pref::WebPreferences& r) {
+    return r.inverted_colors;
   }
 
   static bool touch_event_feature_detection_enabled(
@@ -416,10 +420,6 @@ struct BLINK_COMMON_EXPORT StructTraits<blink::mojom::WebPreferencesDataView,
     return r.spatial_navigation_enabled;
   }
 
-  static bool navigate_on_drag_drop(const blink::web_pref::WebPreferences& r) {
-    return r.navigate_on_drag_drop;
-  }
-
   static bool fake_no_alloc_direct_call_for_testing_enabled(
       const blink::web_pref::WebPreferences& r) {
     return r.fake_no_alloc_direct_call_for_testing_enabled;
@@ -537,6 +537,15 @@ struct BLINK_COMMON_EXPORT StructTraits<blink::mojom::WebPreferencesDataView,
 #if BUILDFLAG(IS_ANDROID)
   static float font_scale_factor(const blink::web_pref::WebPreferences& r) {
     return r.font_scale_factor;
+  }
+
+  static int font_weight_adjustment(const blink::web_pref::WebPreferences& r) {
+    return r.font_weight_adjustment;
+  }
+
+  static int text_size_contrast_factor(
+      const blink::web_pref::WebPreferences& r) {
+    return r.text_size_contrast_factor;
   }
 
   static float device_scale_adjustment(
@@ -733,23 +742,6 @@ struct BLINK_COMMON_EXPORT StructTraits<blink::mojom::WebPreferencesDataView,
 
   static bool lazy_load_enabled(const blink::web_pref::WebPreferences& r) {
     return r.lazy_load_enabled;
-  }
-
-  static const std::map<blink::mojom::EffectiveConnectionType, int32_t>&
-  lazy_frame_loading_distance_thresholds_px(
-      const blink::web_pref::WebPreferences& r) {
-    return r.lazy_frame_loading_distance_thresholds_px;
-  }
-
-  static const std::map<blink::mojom::EffectiveConnectionType, int32_t>&
-  lazy_image_loading_distance_thresholds_px(
-      const blink::web_pref::WebPreferences& r) {
-    return r.lazy_image_loading_distance_thresholds_px;
-  }
-
-  static const std::map<blink::mojom::EffectiveConnectionType, int32_t>&
-  lazy_image_first_k_fully_load(const blink::web_pref::WebPreferences& r) {
-    return r.lazy_image_first_k_fully_load;
   }
 
   static bool allow_mixed_content_upgrades(

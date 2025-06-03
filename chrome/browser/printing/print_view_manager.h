@@ -47,16 +47,17 @@ class PrintViewManager : public PrintViewManagerBase,
   // selection or the entire frame is being printed.
   bool PrintPreviewNow(content::RenderFrameHost* rfh, bool has_selection);
 
+#if BUILDFLAG(IS_CHROMEOS_ASH)
   // Initiate print preview of the current document and provide the renderer
   // a printing::mojom::PrintRenderer to perform the actual rendering of
   // the print document.
   bool PrintPreviewWithPrintRenderer(
       content::RenderFrameHost* rfh,
       mojo::PendingAssociatedRemote<mojom::PrintRenderer> print_renderer);
+#endif
 
-  // Notify PrintViewManager that print preview is starting in the renderer for
-  // a particular WebNode.
-  void PrintPreviewForWebNode(content::RenderFrameHost* rfh);
+  // Initiate print preview for the node under the context menu.
+  void PrintPreviewForNodeUnderContextMenu(content::RenderFrameHost* rfh);
 
   // Notify PrintViewManager that print preview is about to finish. Unblock the
   // renderer in the case of scripted print preview if needed.
@@ -113,10 +114,14 @@ class PrintViewManager : public PrintViewManagerBase,
   // false if print preview is impossible at the moment.
   bool PrintPreview(
       content::RenderFrameHost* rfh,
+#if BUILDFLAG(IS_CHROMEOS_ASH)
       mojo::PendingAssociatedRemote<mojom::PrintRenderer> print_renderer,
+#endif
       bool has_selection);
 
-  void OnScriptedPrintPreviewReply(SetupScriptedPrintPreviewCallback callback);
+  // Notify PrintViewManager that print preview is starting in the renderer for
+  // a particular WebNode.
+  void PrintPreviewForWebNode(content::RenderFrameHost* rfh);
 
   // Helper method for ShowScriptedPrintPreview(), called from
   // RejectPrintPreviewRequestIfRestricted(). Based on value of

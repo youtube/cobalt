@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "components/browsing_topics/browsing_topics_calculator.h"
+#include <memory>
 
 #include "base/files/scoped_temp_dir.h"
 #include "base/logging.h"
@@ -18,13 +19,11 @@
 #include "components/history/core/browser/history_database_params.h"
 #include "components/history/core/browser/history_service.h"
 #include "components/history/core/test/test_history_database.h"
-#include "components/optimization_guide/content/browser/test_page_content_annotations_service.h"
-#include "components/optimization_guide/content/browser/test_page_content_annotator.h"
 #include "components/optimization_guide/core/test_model_info_builder.h"
-#include "components/optimization_guide/core/test_optimization_guide_model_provider.h"
 #include "components/privacy_sandbox/privacy_sandbox_prefs.h"
 #include "components/privacy_sandbox/privacy_sandbox_settings_impl.h"
 #include "components/privacy_sandbox/privacy_sandbox_test_util.h"
+#include "components/privacy_sandbox/tracking_protection_settings.h"
 #include "components/sync_preferences/testing_pref_service_syncable.h"
 #include "components/ukm/test_ukm_recorder.h"
 #include "content/public/test/browser_task_environment.h"
@@ -36,7 +35,6 @@ namespace browsing_topics {
 
 namespace {
 
-constexpr size_t kTaxonomySize = 349;
 constexpr int kTaxonomyVersion = 1;
 
 constexpr char kHost1[] = "www.foo1.com";
@@ -61,8 +59,13 @@ class BrowsingTopicsCalculatorTest : public testing::Test {
     host_content_settings_map_ = base::MakeRefCounted<HostContentSettingsMap>(
         &prefs_, /*is_off_the_record=*/false, /*store_last_modified=*/false,
         /*restore_session=*/false, /*should_record_metrics=*/false);
+    tracking_protection_settings_ =
+        std::make_unique<privacy_sandbox::TrackingProtectionSettings>(
+            &prefs_,
+            /*onboarding_service=*/nullptr, /*is_incognito=*/false);
     cookie_settings_ = base::MakeRefCounted<content_settings::CookieSettings>(
-        host_content_settings_map_.get(), &prefs_, false, "chrome-extension");
+        host_content_settings_map_.get(), &prefs_,
+        tracking_protection_settings_.get(), false, "chrome-extension");
     auto privacy_sandbox_delegate = std::make_unique<
         privacy_sandbox_test_util::MockPrivacySandboxSettingsDelegate>();
     privacy_sandbox_delegate->SetUpIsPrivacySandboxRestrictedResponse(
@@ -72,7 +75,8 @@ class BrowsingTopicsCalculatorTest : public testing::Test {
     privacy_sandbox_settings_ =
         std::make_unique<privacy_sandbox::PrivacySandboxSettingsImpl>(
             std::move(privacy_sandbox_delegate),
-            host_content_settings_map_.get(), cookie_settings_, &prefs_);
+            host_content_settings_map_.get(), cookie_settings_,
+            tracking_protection_settings_.get(), &prefs_);
     privacy_sandbox_settings_->SetAllPrivacySandboxAllowedForTesting();
 
     topics_site_data_manager_ =
@@ -83,19 +87,13 @@ class BrowsingTopicsCalculatorTest : public testing::Test {
     history_service_->Init(
         history::TestHistoryDatabaseParamsForPath(temp_dir_.GetPath()));
 
-    page_content_annotations_service_ =
-        optimization_guide::TestPageContentAnnotationsService::Create(
-            /*optimization_guide_model_provider=*/nullptr,
-            history_service_.get());
-
-    page_content_annotations_service_->OverridePageContentAnnotatorForTesting(
-        &test_page_content_annotator_);
-
     task_environment_.RunUntilIdle();
   }
 
   ~BrowsingTopicsCalculatorTest() override {
+    cookie_settings_->ShutdownOnUIThread();
     host_content_settings_map_->ShutdownOnUIThread();
+    tracking_protection_settings_->Shutdown();
   }
 
   EpochTopics CalculateTopics(base::circular_deque<EpochTopics> epochs = {}) {
@@ -106,8 +104,7 @@ class BrowsingTopicsCalculatorTest : public testing::Test {
     TesterBrowsingTopicsCalculator topics_calculator =
         TesterBrowsingTopicsCalculator(
             privacy_sandbox_settings_.get(), history_service_.get(),
-            topics_site_data_manager_.get(),
-            page_content_annotations_service_.get(), epochs,
+            topics_site_data_manager_.get(), &test_annotator_, epochs,
             base::BindLambdaForTesting([&](EpochTopics epoch_topics) {
               result = std::move(epoch_topics);
               run_loop.Quit();
@@ -146,26 +143,14 @@ class BrowsingTopicsCalculatorTest : public testing::Test {
           main_frame_hosts_with_context_domains) {
     for (auto& [main_frame_host, context_domains] :
          main_frame_hosts_with_context_domains) {
-      topics_site_data_manager_->OnBrowsingTopicsApiUsed(
-          HashMainFrameHostForStorage(main_frame_host),
-          base::flat_set<HashedDomain>(context_domains.begin(),
-                                       context_domains.end()),
-          base::Time::Now());
+      for (const HashedDomain& context_domain : context_domains) {
+        topics_site_data_manager_->OnBrowsingTopicsApiUsed(
+            HashMainFrameHostForStorage(main_frame_host), context_domain,
+            base::NumberToString(context_domain.value()), base::Time::Now());
+      }
     }
 
     task_environment_.RunUntilIdle();
-  }
-
-  std::vector<optimization_guide::WeightedIdentifier> TopicsAndWeight(
-      const std::vector<int32_t>& topics,
-      double weight) {
-    std::vector<optimization_guide::WeightedIdentifier> result;
-    for (int32_t topic : topics) {
-      result.emplace_back(
-          optimization_guide::WeightedIdentifier(topic, weight));
-    }
-
-    return result;
   }
 
   void ExpectResultTopicsEqual(
@@ -186,18 +171,16 @@ class BrowsingTopicsCalculatorTest : public testing::Test {
   sync_preferences::TestingPrefServiceSyncable prefs_;
   scoped_refptr<HostContentSettingsMap> host_content_settings_map_;
   scoped_refptr<content_settings::CookieSettings> cookie_settings_;
+  std::unique_ptr<privacy_sandbox::TrackingProtectionSettings>
+      tracking_protection_settings_;
   std::unique_ptr<privacy_sandbox::PrivacySandboxSettings>
       privacy_sandbox_settings_;
+  TestAnnotator test_annotator_;
 
   std::unique_ptr<content::TesterBrowsingTopicsSiteDataManager>
       topics_site_data_manager_;
 
   std::unique_ptr<history::HistoryService> history_service_;
-
-  std::unique_ptr<optimization_guide::PageContentAnnotationsService>
-      page_content_annotations_service_;
-
-  optimization_guide::TestPageContentAnnotator test_page_content_annotator_;
 
   base::ScopedTempDir temp_dir_;
 };
@@ -247,7 +230,8 @@ class BrowsingTopicsCalculatorUnsupporedTaxonomyVersionTest
  public:
   BrowsingTopicsCalculatorUnsupporedTaxonomyVersionTest() {
     feature_list_.InitAndEnableFeatureWithParameters(
-        blink::features::kBrowsingTopics, {{"taxonomy_version", "999"}});
+        blink::features::kBrowsingTopicsParameters,
+        {{"taxonomy_version", "999"}});
   }
 
  private:
@@ -258,8 +242,8 @@ TEST_F(BrowsingTopicsCalculatorUnsupporedTaxonomyVersionTest,
        TaxonomyVersionNotSupportedInBinary) {
   base::HistogramTester histograms;
 
-  test_page_content_annotator_.UsePageTopics(
-      *optimization_guide::TestModelInfoBuilder().SetVersion(1).Build(), {});
+  test_annotator_.UseModelInfo(
+      *optimization_guide::TestModelInfoBuilder().SetVersion(1).Build());
 
   EpochTopics result = CalculateTopics();
   EXPECT_TRUE(result.empty());
@@ -274,12 +258,11 @@ TEST_F(BrowsingTopicsCalculatorTest, TopicsMetadata) {
   base::HistogramTester histograms;
   base::Time begin_time = base::Time::Now();
 
-  test_page_content_annotator_.UsePageTopics(
-      *optimization_guide::TestModelInfoBuilder().SetVersion(1).Build(), {});
+  test_annotator_.UseModelInfo(
+      *optimization_guide::TestModelInfoBuilder().SetVersion(1).Build());
 
   EpochTopics result1 = CalculateTopics();
   EXPECT_FALSE(result1.empty());
-  EXPECT_EQ(result1.taxonomy_size(), kTaxonomySize);
   EXPECT_EQ(result1.taxonomy_version(), kTaxonomyVersion);
   EXPECT_EQ(result1.model_version(), 1);
   EXPECT_EQ(result1.calculation_time(), begin_time);
@@ -291,12 +274,12 @@ TEST_F(BrowsingTopicsCalculatorTest, TopicsMetadata) {
 
   task_environment_.AdvanceClock(base::Seconds(2));
 
-  test_page_content_annotator_.UsePageTopics(
-      *optimization_guide::TestModelInfoBuilder().SetVersion(50).Build(), {});
+  test_annotator_.UseModelInfo(
+      *optimization_guide::TestModelInfoBuilder().SetVersion(50).Build());
 
   EpochTopics result2 = CalculateTopics();
   EXPECT_FALSE(result2.empty());
-  EXPECT_EQ(result2.taxonomy_size(), kTaxonomySize);
+
   EXPECT_EQ(result2.taxonomy_version(), kTaxonomyVersion);
   EXPECT_EQ(result2.model_version(), 50);
   EXPECT_EQ(result2.calculation_time(), begin_time + base::Seconds(2));
@@ -307,20 +290,65 @@ TEST_F(BrowsingTopicsCalculatorTest, TopicsMetadata) {
       /*expected_bucket_count=*/2);
 }
 
+// Regression test for crbug/1495959.
+TEST_F(BrowsingTopicsCalculatorTest, ModelAvailableAfterDelay) {
+  test_annotator_.SetModelAvailable(false);
+
+  base::Time begin_time = base::Time::Now();
+
+  AddHistoryEntries({kHost1, kHost2, kHost3, kHost4, kHost5, kHost6},
+                    begin_time);
+
+  task_environment_.AdvanceClock(base::Seconds(1));
+
+  // This PostTask will run when the |CalculateTopics| run loop starts and will
+  // signal to the calculator that the model is ready, triggering it to start.
+  task_environment_.GetMainThreadTaskRunner()->PostTask(
+      FROM_HERE,
+      base::BindOnce(
+          [](TestAnnotator* annotator) {
+            annotator->UseModelInfo(*optimization_guide::TestModelInfoBuilder()
+                                         .SetVersion(1)
+                                         .Build());
+            annotator->UseAnnotations({
+                {kHost1, {1, 2, 3, 4, 5, 6}},
+                {kHost2, {2, 3, 4, 5, 6}},
+                {kHost3, {3, 4, 5, 6}},
+                {kHost4, {4, 5, 6}},
+                {kHost5, {5, 6}},
+                {kHost6, {6}},
+            });
+            annotator->SetModelAvailable(true);
+          },
+          &test_annotator_));
+
+  EpochTopics result = CalculateTopics();
+  ExpectResultTopicsEqual(result.top_topics_and_observing_domains(),
+                          {{Topic(6), {}},
+                           {Topic(5), {}},
+                           {Topic(4), {}},
+                           {Topic(3), {}},
+                           {Topic(2), {}}});
+
+  EXPECT_EQ(result.padded_top_topics_start_index(), 5u);
+}
+
 TEST_F(BrowsingTopicsCalculatorTest, TopTopicsRankedByFrequency) {
   base::Time begin_time = base::Time::Now();
 
   AddHistoryEntries({kHost1, kHost2, kHost3, kHost4, kHost5, kHost6},
                     begin_time);
 
-  test_page_content_annotator_.UsePageTopics(
-      *optimization_guide::TestModelInfoBuilder().SetVersion(1).Build(),
-      {{kHost1, TopicsAndWeight({1, 2, 3, 4, 5, 6}, 0.1)},
-       {kHost2, TopicsAndWeight({2, 3, 4, 5, 6}, 0.1)},
-       {kHost3, TopicsAndWeight({3, 4, 5, 6}, 0.1)},
-       {kHost4, TopicsAndWeight({4, 5, 6}, 0.1)},
-       {kHost5, TopicsAndWeight({5, 6}, 0.1)},
-       {kHost6, TopicsAndWeight({6}, 0.1)}});
+  test_annotator_.UseModelInfo(
+      *optimization_guide::TestModelInfoBuilder().SetVersion(1).Build());
+  test_annotator_.UseAnnotations({
+      {kHost1, {1, 2, 3, 4, 5, 6}},
+      {kHost2, {2, 3, 4, 5, 6}},
+      {kHost3, {3, 4, 5, 6}},
+      {kHost4, {4, 5, 6}},
+      {kHost5, {5, 6}},
+      {kHost6, {6}},
+  });
 
   task_environment_.AdvanceClock(base::Seconds(1));
 
@@ -341,14 +369,8 @@ TEST_F(BrowsingTopicsCalculatorTest, ModelHasNoTopicsForHost) {
   AddHistoryEntries({kHost1, kHost2, kHost3, kHost4, kHost5, kHost6},
                     begin_time);
 
-  test_page_content_annotator_.UsePageTopics(
-      *optimization_guide::TestModelInfoBuilder().SetVersion(1).Build(),
-      {{kHost1, {}},
-       {kHost2, {}},
-       {kHost3, {}},
-       {kHost4, {}},
-       {kHost5, {}},
-       {kHost6, {}}});
+  test_annotator_.UseModelInfo(
+      *optimization_guide::TestModelInfoBuilder().SetVersion(1).Build());
 
   task_environment_.AdvanceClock(base::Seconds(1));
 
@@ -371,14 +393,16 @@ TEST_F(BrowsingTopicsCalculatorTest,
                      kHost3, kHost4, kHost5, kHost6},
                     begin_time);
 
-  test_page_content_annotator_.UsePageTopics(
-      *optimization_guide::TestModelInfoBuilder().SetVersion(1).Build(),
-      {{kHost1, TopicsAndWeight({1, 2}, 0.1)},
-       {kHost2, TopicsAndWeight({2, 3, 4, 5, 6}, 0.1)},
-       {kHost3, TopicsAndWeight({3, 4, 5, 6}, 0.1)},
-       {kHost4, TopicsAndWeight({4, 5, 6}, 0.1)},
-       {kHost5, TopicsAndWeight({5, 6}, 0.1)},
-       {kHost6, TopicsAndWeight({6}, 0.1)}});
+  test_annotator_.UseModelInfo(
+      *optimization_guide::TestModelInfoBuilder().SetVersion(1).Build());
+  test_annotator_.UseAnnotations({
+      {kHost1, {1, 2}},
+      {kHost2, {2, 3, 4, 5, 6}},
+      {kHost3, {3, 4, 5, 6}},
+      {kHost4, {4, 5, 6}},
+      {kHost5, {5, 6}},
+      {kHost6, {6}},
+  });
 
   task_environment_.AdvanceClock(base::Seconds(1));
 
@@ -393,46 +417,17 @@ TEST_F(BrowsingTopicsCalculatorTest,
   EXPECT_EQ(result.padded_top_topics_start_index(), 5u);
 }
 
-TEST_F(BrowsingTopicsCalculatorTest,
-       TopTopicsRankingNotAffectedByAnnotationWeight) {
-  base::Time begin_time = base::Time::Now();
-
-  AddHistoryEntries({kHost1, kHost2, kHost3, kHost4, kHost5, kHost6},
-                    begin_time);
-
-  // Setting the weight for Topic(1) and Topic(2) to 0.9. This weight shouldn't
-  // affect the top topics ordering.
-  test_page_content_annotator_.UsePageTopics(
-      *optimization_guide::TestModelInfoBuilder().SetVersion(1).Build(),
-      {{kHost1, TopicsAndWeight({1, 2}, 0.9)},
-       {kHost2, TopicsAndWeight({2, 3, 4, 5, 6}, 0.1)},
-       {kHost3, TopicsAndWeight({3, 4, 5, 6}, 0.1)},
-       {kHost4, TopicsAndWeight({4, 5, 6}, 0.1)},
-       {kHost5, TopicsAndWeight({5, 6}, 0.1)},
-       {kHost6, TopicsAndWeight({6}, 0.1)}});
-
-  task_environment_.AdvanceClock(base::Seconds(1));
-
-  EpochTopics result = CalculateTopics();
-  ExpectResultTopicsEqual(result.top_topics_and_observing_domains(),
-                          {{Topic(6), {}},
-                           {Topic(5), {}},
-                           {Topic(4), {}},
-                           {Topic(3), {}},
-                           {Topic(2), {}}});
-
-  EXPECT_EQ(result.padded_top_topics_start_index(), 5u);
-}
-
 TEST_F(BrowsingTopicsCalculatorTest, AllTopTopicsRandomlyPadded) {
-  test_page_content_annotator_.UsePageTopics(
-      *optimization_guide::TestModelInfoBuilder().SetVersion(1).Build(),
-      {{kHost1, TopicsAndWeight({1, 2, 3, 4, 5, 6}, 0.1)},
-       {kHost2, TopicsAndWeight({2, 3, 4, 5, 6}, 0.1)},
-       {kHost3, TopicsAndWeight({3, 4, 5, 6}, 0.1)},
-       {kHost4, TopicsAndWeight({4, 5, 6}, 0.1)},
-       {kHost5, TopicsAndWeight({5, 6}, 0.1)},
-       {kHost6, TopicsAndWeight({6}, 0.1)}});
+  test_annotator_.UseModelInfo(
+      *optimization_guide::TestModelInfoBuilder().SetVersion(1).Build());
+  test_annotator_.UseAnnotations({
+      {kHost1, {1, 2, 3, 4, 5, 6}},
+      {kHost2, {2, 3, 4, 5, 6}},
+      {kHost3, {3, 4, 5, 6}},
+      {kHost4, {4, 5, 6}},
+      {kHost5, {5, 6}},
+      {kHost6, {6}},
+  });
 
   EpochTopics result = CalculateTopics();
   ExpectResultTopicsEqual(result.top_topics_and_observing_domains(),
@@ -452,14 +447,16 @@ TEST_F(BrowsingTopicsCalculatorTest, TopTopicsPartiallyPadded) {
 
   AddHistoryEntries({kHost4, kHost5, kHost6}, begin_time);
 
-  test_page_content_annotator_.UsePageTopics(
-      *optimization_guide::TestModelInfoBuilder().SetVersion(1).Build(),
-      {{kHost1, TopicsAndWeight({1, 2, 3, 4, 5, 6}, 0.1)},
-       {kHost2, TopicsAndWeight({2, 3, 4, 5, 6}, 0.1)},
-       {kHost3, TopicsAndWeight({3, 4, 5, 6}, 0.1)},
-       {kHost4, TopicsAndWeight({4, 5, 6}, 0.1)},
-       {kHost5, TopicsAndWeight({5, 6}, 0.1)},
-       {kHost6, TopicsAndWeight({6}, 0.1)}});
+  test_annotator_.UseModelInfo(
+      *optimization_guide::TestModelInfoBuilder().SetVersion(1).Build());
+  test_annotator_.UseAnnotations({
+      {kHost1, {1, 2, 3, 4, 5, 6}},
+      {kHost2, {2, 3, 4, 5, 6}},
+      {kHost3, {3, 4, 5, 6}},
+      {kHost4, {4, 5, 6}},
+      {kHost5, {5, 6}},
+      {kHost6, {6}},
+  });
 
   task_environment_.AdvanceClock(base::Seconds(1));
 
@@ -498,14 +495,16 @@ TEST_F(BrowsingTopicsCalculatorTest, CalculationResultUkm) {
 
   AddHistoryEntries({kHost4, kHost5, kHost6}, begin_time);
 
-  test_page_content_annotator_.UsePageTopics(
-      *optimization_guide::TestModelInfoBuilder().SetVersion(1).Build(),
-      {{kHost1, TopicsAndWeight({1, 2, 3, 4, 5, 6}, 0.1)},
-       {kHost2, TopicsAndWeight({2, 3, 4, 5, 6}, 0.1)},
-       {kHost3, TopicsAndWeight({3, 4, 5, 6}, 0.1)},
-       {kHost4, TopicsAndWeight({4, 5, 6}, 0.1)},
-       {kHost5, TopicsAndWeight({5, 6}, 0.1)},
-       {kHost6, TopicsAndWeight({6}, 0.1)}});
+  test_annotator_.UseModelInfo(
+      *optimization_guide::TestModelInfoBuilder().SetVersion(1).Build());
+  test_annotator_.UseAnnotations({
+      {kHost1, {1, 2, 3, 4, 5, 6}},
+      {kHost2, {2, 3, 4, 5, 6}},
+      {kHost3, {3, 4, 5, 6}},
+      {kHost4, {4, 5, 6}},
+      {kHost5, {5, 6}},
+      {kHost6, {6}},
+  });
 
   task_environment_.AdvanceClock(base::Seconds(1));
 
@@ -570,14 +569,16 @@ TEST_F(BrowsingTopicsCalculatorTest, TopTopicsAndObservingDomains) {
        {kHost4, {HashedDomain(3)}},
        {kHost5, {HashedDomain(1), HashedDomain(2), HashedDomain(3)}}});
 
-  test_page_content_annotator_.UsePageTopics(
-      *optimization_guide::TestModelInfoBuilder().SetVersion(1).Build(),
-      {{kHost1, TopicsAndWeight({1, 2, 3, 4, 5, 6}, 0.1)},
-       {kHost2, TopicsAndWeight({2, 3, 4, 5, 6}, 0.1)},
-       {kHost3, TopicsAndWeight({3, 4, 5, 6}, 0.1)},
-       {kHost4, TopicsAndWeight({4, 5, 6}, 0.1)},
-       {kHost5, TopicsAndWeight({5, 6}, 0.1)},
-       {kHost6, TopicsAndWeight({6}, 0.1)}});
+  test_annotator_.UseModelInfo(
+      *optimization_guide::TestModelInfoBuilder().SetVersion(1).Build());
+  test_annotator_.UseAnnotations({
+      {kHost1, {1, 2, 3, 4, 5, 6}},
+      {kHost2, {2, 3, 4, 5, 6}},
+      {kHost3, {3, 4, 5, 6}},
+      {kHost4, {4, 5, 6}},
+      {kHost5, {5, 6}},
+      {kHost6, {6}},
+  });
 
   task_environment_.AdvanceClock(base::Seconds(1));
 
@@ -608,14 +609,16 @@ TEST_F(
        {kHost4, {HashedDomain(3)}},
        {kHost5, {HashedDomain(1), HashedDomain(2), HashedDomain(3)}}});
 
-  test_page_content_annotator_.UsePageTopics(
-      *optimization_guide::TestModelInfoBuilder().SetVersion(1).Build(),
-      {{kHost1, TopicsAndWeight({1, 2, 103, 4, 5, 6}, 0.1)},
-       {kHost2, TopicsAndWeight({2, 103, 4, 5, 6}, 0.1)},
-       {kHost3, TopicsAndWeight({103, 4, 5, 6}, 0.1)},
-       {kHost4, TopicsAndWeight({4, 5, 6}, 0.1)},
-       {kHost5, TopicsAndWeight({5, 6}, 0.1)},
-       {kHost6, TopicsAndWeight({6}, 0.1)}});
+  test_annotator_.UseModelInfo(
+      *optimization_guide::TestModelInfoBuilder().SetVersion(1).Build());
+  test_annotator_.UseAnnotations({
+      {kHost1, {1, 2, 103, 4, 5, 6}},
+      {kHost2, {2, 103, 4, 5, 6}},
+      {kHost3, {103, 4, 5, 6}},
+      {kHost4, {4, 5, 6}},
+      {kHost5, {5, 6}},
+      {kHost6, {6}},
+  });
 
   task_environment_.AdvanceClock(base::Seconds(1));
 
@@ -645,14 +648,16 @@ TEST_F(
        {kHost4, {HashedDomain(3)}},
        {kHost5, {HashedDomain(1), HashedDomain(2), HashedDomain(3)}}});
 
-  test_page_content_annotator_.UsePageTopics(
-      *optimization_guide::TestModelInfoBuilder().SetVersion(1).Build(),
-      {{kHost1, TopicsAndWeight({1, 2, 103, 4, 5, 6}, 0.1)},
-       {kHost2, TopicsAndWeight({2, 103, 4, 5, 6}, 0.1)},
-       {kHost3, TopicsAndWeight({103, 4, 5, 6}, 0.1)},
-       {kHost4, TopicsAndWeight({4, 5, 6}, 0.1)},
-       {kHost5, TopicsAndWeight({5, 6}, 0.1)},
-       {kHost6, TopicsAndWeight({6}, 0.1)}});
+  test_annotator_.UseModelInfo(
+      *optimization_guide::TestModelInfoBuilder().SetVersion(1).Build());
+  test_annotator_.UseAnnotations({
+      {kHost1, {1, 2, 103, 4, 5, 6}},
+      {kHost2, {2, 103, 4, 5, 6}},
+      {kHost3, {103, 4, 5, 6}},
+      {kHost4, {4, 5, 6}},
+      {kHost5, {5, 6}},
+      {kHost6, {6}},
+  });
 
   task_environment_.AdvanceClock(base::Seconds(1));
 
@@ -686,14 +691,16 @@ TEST_F(BrowsingTopicsCalculatorTest,
        {kHost4, {HashedDomain(3)}},
        {kHost5, {HashedDomain(1), HashedDomain(2), HashedDomain(3)}}});
 
-  test_page_content_annotator_.UsePageTopics(
-      *optimization_guide::TestModelInfoBuilder().SetVersion(1).Build(),
-      {{kHost1, TopicsAndWeight({1, 2, 3, 4, 5, 6}, 0.1)},
-       {kHost2, TopicsAndWeight({2, 3, 4, 5, 6}, 0.1)},
-       {kHost3, TopicsAndWeight({3, 4, 5, 6}, 0.1)},
-       {kHost4, TopicsAndWeight({4, 5, 6}, 0.1)},
-       {kHost5, TopicsAndWeight({5, 6}, 0.1)},
-       {kHost6, TopicsAndWeight({6}, 0.1)}});
+  test_annotator_.UseModelInfo(
+      *optimization_guide::TestModelInfoBuilder().SetVersion(1).Build());
+  test_annotator_.UseAnnotations({
+      {kHost1, {1, 2, 3, 4, 5, 6}},
+      {kHost2, {2, 3, 4, 5, 6}},
+      {kHost3, {3, 4, 5, 6}},
+      {kHost4, {4, 5, 6}},
+      {kHost5, {5, 6}},
+      {kHost6, {6}},
+  });
 
   task_environment_.AdvanceClock(base::Seconds(1));
 
@@ -726,14 +733,16 @@ TEST_F(BrowsingTopicsCalculatorTest,
       {{kHost4, {HashedDomain(3)}},
        {kHost5, {HashedDomain(1), HashedDomain(2), HashedDomain(3)}}});
 
-  test_page_content_annotator_.UsePageTopics(
-      *optimization_guide::TestModelInfoBuilder().SetVersion(1).Build(),
-      {{kHost1, TopicsAndWeight({1, 2, 3, 4, 5, 6}, 0.1)},
-       {kHost2, TopicsAndWeight({2, 3, 4, 5, 6}, 0.1)},
-       {kHost3, TopicsAndWeight({3, 4, 5, 6}, 0.1)},
-       {kHost4, TopicsAndWeight({4, 5, 6}, 0.1)},
-       {kHost5, TopicsAndWeight({5, 6}, 0.1)},
-       {kHost6, TopicsAndWeight({6}, 0.1)}});
+  test_annotator_.UseModelInfo(
+      *optimization_guide::TestModelInfoBuilder().SetVersion(1).Build());
+  test_annotator_.UseAnnotations({
+      {kHost1, {1, 2, 3, 4, 5, 6}},
+      {kHost2, {2, 3, 4, 5, 6}},
+      {kHost3, {3, 4, 5, 6}},
+      {kHost4, {4, 5, 6}},
+      {kHost5, {5, 6}},
+      {kHost6, {6}},
+  });
 
   task_environment_.AdvanceClock(base::Seconds(1));
 
@@ -774,14 +783,16 @@ TEST_F(BrowsingTopicsCalculatorTest,
       {{kHost4, {HashedDomain(3)}},
        {kHost5, {HashedDomain(1), HashedDomain(2), HashedDomain(3)}}});
 
-  test_page_content_annotator_.UsePageTopics(
-      *optimization_guide::TestModelInfoBuilder().SetVersion(1).Build(),
-      {{kHost1, TopicsAndWeight({1, 2, 3, 4, 5, 6}, 0.1)},
-       {kHost2, TopicsAndWeight({2, 3, 4, 5, 6}, 0.1)},
-       {kHost3, TopicsAndWeight({3, 4, 5, 6}, 0.1)},
-       {kHost4, TopicsAndWeight({4, 5, 6}, 0.1)},
-       {kHost5, TopicsAndWeight({5, 6}, 0.1)},
-       {kHost6, TopicsAndWeight({6}, 0.1)}});
+  test_annotator_.UseModelInfo(
+      *optimization_guide::TestModelInfoBuilder().SetVersion(1).Build());
+  test_annotator_.UseAnnotations({
+      {kHost1, {1, 2, 3, 4, 5, 6}},
+      {kHost2, {2, 3, 4, 5, 6}},
+      {kHost3, {3, 4, 5, 6}},
+      {kHost4, {4, 5, 6}},
+      {kHost5, {5, 6}},
+      {kHost6, {6}},
+  });
 
   task_environment_.AdvanceClock(base::Seconds(1));
 
@@ -823,14 +834,16 @@ TEST_F(BrowsingTopicsCalculatorTest,
                              {kHost4, {HashedDomain(3)}},
                              {kHost5, large_size_domains}});
 
-  test_page_content_annotator_.UsePageTopics(
-      *optimization_guide::TestModelInfoBuilder().SetVersion(1).Build(),
-      {{kHost1, TopicsAndWeight({1, 2, 3, 4, 5, 6}, 0.1)},
-       {kHost2, TopicsAndWeight({2, 3, 4, 5, 6}, 0.1)},
-       {kHost3, TopicsAndWeight({3, 4, 5, 6}, 0.1)},
-       {kHost4, TopicsAndWeight({4, 5, 6}, 0.1)},
-       {kHost5, TopicsAndWeight({5, 6}, 0.1)},
-       {kHost6, TopicsAndWeight({6}, 0.1)}});
+  test_annotator_.UseModelInfo(
+      *optimization_guide::TestModelInfoBuilder().SetVersion(1).Build());
+  test_annotator_.UseAnnotations({
+      {kHost1, {1, 2, 3, 4, 5, 6}},
+      {kHost2, {2, 3, 4, 5, 6}},
+      {kHost3, {3, 4, 5, 6}},
+      {kHost4, {4, 5, 6}},
+      {kHost5, {5, 6}},
+      {kHost6, {6}},
+  });
 
   task_environment_.AdvanceClock(base::Seconds(1));
 
@@ -861,14 +874,16 @@ TEST_F(BrowsingTopicsCalculatorTest, TopicBlocked) {
        {kHost4, {HashedDomain(3)}},
        {kHost5, {HashedDomain(1), HashedDomain(2), HashedDomain(3)}}});
 
-  test_page_content_annotator_.UsePageTopics(
-      *optimization_guide::TestModelInfoBuilder().SetVersion(1).Build(),
-      {{kHost1, TopicsAndWeight({1, 2, 3, 4, 5, 6}, 0.1)},
-       {kHost2, TopicsAndWeight({2, 3, 4, 5, 6}, 0.1)},
-       {kHost3, TopicsAndWeight({3, 4, 5, 6}, 0.1)},
-       {kHost4, TopicsAndWeight({4, 5, 6}, 0.1)},
-       {kHost5, TopicsAndWeight({5, 6}, 0.1)},
-       {kHost6, TopicsAndWeight({6}, 0.1)}});
+  test_annotator_.UseModelInfo(
+      *optimization_guide::TestModelInfoBuilder().SetVersion(1).Build());
+  test_annotator_.UseAnnotations({
+      {kHost1, {1, 2, 3, 4, 5, 6}},
+      {kHost2, {2, 3, 4, 5, 6}},
+      {kHost3, {3, 4, 5, 6}},
+      {kHost4, {4, 5, 6}},
+      {kHost5, {5, 6}},
+      {kHost6, {6}},
+  });
 
   task_environment_.AdvanceClock(base::Seconds(1));
 
@@ -904,21 +919,23 @@ TEST_F(BrowsingTopicsCalculatorTest, TopicBlockedByFinch) {
        {kHost4, {HashedDomain(3)}},
        {kHost5, {HashedDomain(1), HashedDomain(2), HashedDomain(3)}}});
 
-  test_page_content_annotator_.UsePageTopics(
-      *optimization_guide::TestModelInfoBuilder().SetVersion(1).Build(),
-      {{kHost1, TopicsAndWeight({1, 2, 3, 4, 5, 6}, 0.1)},
-       {kHost2, TopicsAndWeight({2, 3, 4, 5, 6}, 0.1)},
-       {kHost3, TopicsAndWeight({3, 4, 5, 6}, 0.1)},
-       {kHost4, TopicsAndWeight({4, 5, 6}, 0.1)},
-       {kHost5, TopicsAndWeight({5, 6}, 0.1)},
-       {kHost6, TopicsAndWeight({6}, 0.1)}});
+  test_annotator_.UseModelInfo(
+      *optimization_guide::TestModelInfoBuilder().SetVersion(1).Build());
+  test_annotator_.UseAnnotations({
+      {kHost1, {1, 2, 3, 4, 5, 6}},
+      {kHost2, {2, 3, 4, 5, 6}},
+      {kHost3, {3, 4, 5, 6}},
+      {kHost4, {4, 5, 6}},
+      {kHost5, {5, 6}},
+      {kHost6, {6}},
+  });
 
   task_environment_.AdvanceClock(base::Seconds(1));
 
   base::test::ScopedFeatureList feature_list;
   feature_list.InitAndEnableFeatureWithParameters(
-      blink::features::kBrowsingTopics,
-      {{"browsing_topics_disabled_topics_list", "6,4"}});
+      blink::features::kBrowsingTopicsParameters,
+      {{"disabled_topics_list", "6,4"}});
 
   EpochTopics result = CalculateTopics();
   ExpectResultTopicsEqual(
@@ -930,6 +947,50 @@ TEST_F(BrowsingTopicsCalculatorTest, TopicBlockedByFinch) {
        {Topic(2), {}}});
 
   EXPECT_EQ(result.padded_top_topics_start_index(), 5u);
+}
+
+TEST_F(BrowsingTopicsCalculatorTest, TopicsPrioritizedByFinch) {
+  base::Time begin_time = base::Time::Now();
+
+  AddHistoryEntries({kHost1, kHost2, kHost3, kHost4, kHost5, kHost6},
+                    begin_time);
+
+  AddApiUsageContextEntries(
+      {{kHost1, {}},
+       {kHost2, {}},
+       {kHost3, {HashedDomain(2)}},
+       {kHost4, {HashedDomain(3)}},
+       {kHost5, {HashedDomain(1), HashedDomain(2), HashedDomain(3)}}});
+
+  test_annotator_.UseModelInfo(
+      *optimization_guide::TestModelInfoBuilder().SetVersion(1).Build());
+  test_annotator_.UseAnnotations({
+      {kHost1, {74, 2, 3, 4, 5, 6}},
+      {kHost2, {2, 3, 4, 5, 6}},
+      {kHost3, {3, 4, 5, 6}},
+      {kHost4, {4, 5, 6}},
+      {kHost5, {5, 6}},
+      {kHost6, {6}},
+  });
+
+  task_environment_.AdvanceClock(base::Seconds(1));
+
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeatureWithParameters(
+      blink::features::kBrowsingTopicsParameters,
+      {{"prioritized_topics_list", "4,57"}});  // 74 is descended from 57.
+
+  EpochTopics result = CalculateTopics();
+  ExpectResultTopicsEqual(
+      result.top_topics_and_observing_domains(),
+      {{Topic(4), {HashedDomain(2), HashedDomain(3)}},
+       {Topic(74), {}},
+       {Topic(6), {HashedDomain(1), HashedDomain(2), HashedDomain(3)}},
+       {Topic(5), {HashedDomain(1), HashedDomain(2), HashedDomain(3)}},
+       {Topic(3), {HashedDomain(2)}}});
+
+  EXPECT_EQ(result.padded_top_topics_start_index(), 5u);
+  EXPECT_EQ(result.config_version(), 2);
 }
 
 TEST_F(BrowsingTopicsCalculatorTest, PaddedTopicsDoNotDuplicate) {
@@ -944,14 +1005,16 @@ TEST_F(BrowsingTopicsCalculatorTest, PaddedTopicsDoNotDuplicate) {
        {kHost4, {HashedDomain(3)}},
        {kHost5, {HashedDomain(1), HashedDomain(2), HashedDomain(3)}}});
 
-  test_page_content_annotator_.UsePageTopics(
-      *optimization_guide::TestModelInfoBuilder().SetVersion(1).Build(),
-      {{kHost1, TopicsAndWeight({1, 2, 3, 4, 5, 102}, 0.1)},
-       {kHost2, TopicsAndWeight({2, 3, 4, 5, 102}, 0.1)},
-       {kHost3, TopicsAndWeight({3, 4, 5, 102}, 0.1)},
-       {kHost4, TopicsAndWeight({4, 5, 102}, 0.1)},
-       {kHost5, TopicsAndWeight({5, 102}, 0.1)},
-       {kHost6, TopicsAndWeight({102}, 0.1)}});
+  test_annotator_.UseModelInfo(
+      *optimization_guide::TestModelInfoBuilder().SetVersion(1).Build());
+  test_annotator_.UseAnnotations({
+      {kHost1, {1, 2, 3, 4, 5, 102}},
+      {kHost2, {2, 3, 4, 5, 102}},
+      {kHost3, {3, 4, 5, 102}},
+      {kHost4, {4, 5, 102}},
+      {kHost5, {5, 102}},
+      {kHost6, {102}},
+  });
 
   task_environment_.AdvanceClock(base::Seconds(1));
 
@@ -979,14 +1042,16 @@ TEST_F(BrowsingTopicsCalculatorTest, Metrics_LessThan5HistoryTopics) {
        {kHost4, {HashedDomain(3)}},
        {kHost5, {HashedDomain(1), HashedDomain(2), HashedDomain(3)}}});
 
-  test_page_content_annotator_.UsePageTopics(
-      *optimization_guide::TestModelInfoBuilder().SetVersion(1).Build(),
-      {{kHost1, TopicsAndWeight({1, 2, 3, 4, 5, 6}, 0.1)},
-       {kHost2, TopicsAndWeight({2, 3, 4, 5, 6}, 0.1)},
-       {kHost3, TopicsAndWeight({3, 4, 5, 6}, 0.1)},
-       {kHost4, TopicsAndWeight({4, 5, 6}, 0.1)},
-       {kHost5, TopicsAndWeight({5, 6}, 0.1)},
-       {kHost6, TopicsAndWeight({6}, 0.1)}});
+  test_annotator_.UseModelInfo(
+      *optimization_guide::TestModelInfoBuilder().SetVersion(1).Build());
+  test_annotator_.UseAnnotations({
+      {kHost1, {1, 2, 3, 4, 5, 6}},
+      {kHost2, {2, 3, 4, 5, 6}},
+      {kHost3, {3, 4, 5, 6}},
+      {kHost4, {4, 5, 6}},
+      {kHost5, {5, 6}},
+      {kHost6, {6}},
+  });
 
   task_environment_.AdvanceClock(base::Seconds(1));
 
@@ -1052,14 +1117,16 @@ TEST_F(BrowsingTopicsCalculatorTest, Metrics_MoreThan5HistoryTopics) {
        {kHost4, {HashedDomain(3)}},
        {kHost5, {HashedDomain(1), HashedDomain(2), HashedDomain(3)}}});
 
-  test_page_content_annotator_.UsePageTopics(
-      *optimization_guide::TestModelInfoBuilder().SetVersion(1).Build(),
-      {{kHost1, TopicsAndWeight({1, 2, 3, 4, 5, 6}, 0.1)},
-       {kHost2, TopicsAndWeight({2, 3, 4, 5, 6}, 0.1)},
-       {kHost3, TopicsAndWeight({3, 4, 5, 6}, 0.1)},
-       {kHost4, TopicsAndWeight({4, 5, 6}, 0.1)},
-       {kHost5, TopicsAndWeight({5, 6}, 0.1)},
-       {kHost6, TopicsAndWeight({6}, 0.1)}});
+  test_annotator_.UseModelInfo(
+      *optimization_guide::TestModelInfoBuilder().SetVersion(1).Build());
+  test_annotator_.UseAnnotations({
+      {kHost1, {1, 2, 3, 4, 5, 6}},
+      {kHost2, {2, 3, 4, 5, 6}},
+      {kHost3, {3, 4, 5, 6}},
+      {kHost4, {4, 5, 6}},
+      {kHost5, {5, 6}},
+      {kHost6, {6}},
+  });
 
   task_environment_.AdvanceClock(base::Seconds(1));
 
@@ -1096,13 +1163,15 @@ TEST_F(BrowsingTopicsCalculatorTest, NoDescendantTopics) {
                              {kHost4, {HashedDomain(4)}},
                              {kHost5, {HashedDomain(5)}}});
 
-  test_page_content_annotator_.UsePageTopics(
-      *optimization_guide::TestModelInfoBuilder().SetVersion(1).Build(),
-      {{kHost1, TopicsAndWeight({2, 3, 4, 5, 6}, 0.1)},
-       {kHost2, TopicsAndWeight({3, 4, 5, 6}, 0.1)},
-       {kHost3, TopicsAndWeight({4, 5, 6}, 0.1)},
-       {kHost4, TopicsAndWeight({5, 6}, 0.1)},
-       {kHost5, TopicsAndWeight({6}, 0.1)}});
+  test_annotator_.UseModelInfo(
+      *optimization_guide::TestModelInfoBuilder().SetVersion(1).Build());
+  test_annotator_.UseAnnotations({
+      {kHost1, {2, 3, 4, 5, 6}},
+      {kHost2, {3, 4, 5, 6}},
+      {kHost3, {4, 5, 6}},
+      {kHost4, {5, 6}},
+      {kHost5, {6}},
+  });
 
   task_environment_.AdvanceClock(base::Seconds(1));
 
@@ -1140,20 +1209,16 @@ TEST_F(BrowsingTopicsCalculatorTest, DescendantTopicIsBlocked) {
                              {kHost4, {HashedDomain(4)}},
                              {kHost5, {HashedDomain(5)}}});
 
-  test_page_content_annotator_.UsePageTopics(
-      *optimization_guide::TestModelInfoBuilder().SetVersion(1).Build(),
-      {{kHost1,
-        TopicsAndWeight({1, 2, 3, 4, 5}, 0.1)},  // 1 is the parent topic of 2-5
-       {kHost2, TopicsAndWeight({2, 3, 4, 5}, 0.1)},
-       {kHost3, TopicsAndWeight(
-                    {
-                        3,
-                        4,
-                        5,
-                    },
-                    0.1)},
-       {kHost4, TopicsAndWeight({4, 5}, 0.1)},
-       {kHost5, TopicsAndWeight({5}, 0.1)}});
+  test_annotator_.UseModelInfo(
+      *optimization_guide::TestModelInfoBuilder().SetVersion(1).Build());
+  // 1 is the parent topic of 2-5.
+  test_annotator_.UseAnnotations({
+      {kHost1, {1, 2, 3, 4, 5}},
+      {kHost2, {2, 3, 4, 5}},
+      {kHost3, {3, 4, 5}},
+      {kHost4, {4, 5}},
+      {kHost5, {5}},
+  });
 
   privacy_sandbox_settings_->SetTopicAllowed(
       privacy_sandbox::CanonicalTopic(Topic(5), kTaxonomyVersion),
@@ -1197,16 +1262,16 @@ TEST_F(BrowsingTopicsCalculatorTest, TopicHasDistantDescendant) {
                              {kHost4, {HashedDomain(4)}},
                              {kHost5, {HashedDomain(5)}}});
 
-  test_page_content_annotator_.UsePageTopics(
-      *optimization_guide::TestModelInfoBuilder().SetVersion(1).Build(),
-      {{kHost1,
-        TopicsAndWeight(
-            {1, 2, 3, 4, 21},
-            0.1)},  // 1 is the parent topic of 2-4, and grandparent of 21
-       {kHost2, TopicsAndWeight({2, 3, 4, 21}, 0.1)},
-       {kHost3, TopicsAndWeight({3, 4, 21}, 0.1)},
-       {kHost4, TopicsAndWeight({4, 21}, 0.1)},
-       {kHost5, TopicsAndWeight({21}, 0.1)}});
+  test_annotator_.UseModelInfo(
+      *optimization_guide::TestModelInfoBuilder().SetVersion(1).Build());
+  // 1 is the parent topic of 2-4, and grandparent of 21.
+  test_annotator_.UseAnnotations({
+      {kHost1, {1, 2, 3, 4, 21}},
+      {kHost2, {2, 3, 4, 21}},
+      {kHost3, {3, 4, 21}},
+      {kHost4, {4, 21}},
+      {kHost5, {21}},
+  });
 
   task_environment_.AdvanceClock(base::Seconds(1));
   EpochTopics result = CalculateTopics();
@@ -1247,14 +1312,16 @@ TEST_F(BrowsingTopicsCalculatorTest, MultipleTopTopicsHaveDescendants) {
                              {kHost4, {HashedDomain(4)}},
                              {kHost5, {HashedDomain(5)}}});
 
-  // 1 is the ancestor of 21, 57 is the ancestor of 63 and 64
-  test_page_content_annotator_.UsePageTopics(
-      *optimization_guide::TestModelInfoBuilder().SetVersion(1).Build(),
-      {{kHost1, TopicsAndWeight({1, 57, 63, 64, 21}, 0.1)},
-       {kHost2, TopicsAndWeight({57, 63, 64, 21}, 0.1)},
-       {kHost3, TopicsAndWeight({63, 64, 21}, 0.1)},
-       {kHost4, TopicsAndWeight({64, 21}, 0.1)},
-       {kHost5, TopicsAndWeight({21}, 0.1)}});
+  test_annotator_.UseModelInfo(
+      *optimization_guide::TestModelInfoBuilder().SetVersion(1).Build());
+  // 1 is the ancestor of 21, 57 is the ancestor of 63 and 64.
+  test_annotator_.UseAnnotations({
+      {kHost1, {1, 57, 63, 64, 21}},
+      {kHost2, {57, 63, 64, 21}},
+      {kHost3, {63, 64, 21}},
+      {kHost4, {64, 21}},
+      {kHost5, {21}},
+  });
 
   task_environment_.AdvanceClock(base::Seconds(1));
   EpochTopics result = CalculateTopics();

@@ -8,22 +8,23 @@
 #import "base/ios/ios_util.h"
 #import "components/history/core/browser/browsing_history_service.h"
 #import "components/keyed_service/core/service_access_type.h"
-#import "components/sync/driver/sync_service.h"
-#import "ios/chrome/browser/browser_state/chrome_browser_state.h"
+#import "components/sync/service/sync_service.h"
 #import "ios/chrome/browser/history/history_service_factory.h"
 #import "ios/chrome/browser/history/web_history_service_factory.h"
-#import "ios/chrome/browser/main/browser.h"
-#import "ios/chrome/browser/main/browser_observer_bridge.h"
 #import "ios/chrome/browser/policy/policy_util.h"
 #import "ios/chrome/browser/shared/coordinator/alert/action_sheet_coordinator.h"
+#import "ios/chrome/browser/shared/model/browser/browser.h"
+#import "ios/chrome/browser/shared/model/browser/browser_observer_bridge.h"
+#import "ios/chrome/browser/shared/model/browser_state/chrome_browser_state.h"
 #import "ios/chrome/browser/shared/ui/table_view/table_view_navigation_controller.h"
-#import "ios/chrome/browser/sync/sync_service_factory.h"
+#import "ios/chrome/browser/sync/model/sync_service_factory.h"
 #import "ios/chrome/browser/ui/history/history_clear_browsing_data_coordinator.h"
+#import "ios/chrome/browser/ui/history/history_clear_browsing_data_coordinator_delegate.h"
 #import "ios/chrome/browser/ui/history/history_coordinator_delegate.h"
 #import "ios/chrome/browser/ui/history/history_mediator.h"
 #import "ios/chrome/browser/ui/history/history_menu_provider.h"
 #import "ios/chrome/browser/ui/history/history_table_view_controller.h"
-#import "ios/chrome/browser/ui/history/history_ui_delegate.h"
+#import "ios/chrome/browser/ui/history/history_table_view_controller_delegate.h"
 #import "ios/chrome/browser/ui/history/ios_browsing_history_driver.h"
 #import "ios/chrome/browser/ui/history/ios_browsing_history_driver_delegate_bridge.h"
 #import "ios/chrome/browser/ui/history/public/history_presentation_delegate.h"
@@ -31,10 +32,6 @@
 #import "ios/chrome/browser/ui/menu/menu_histograms.h"
 #import "ios/chrome/browser/ui/sharing/sharing_coordinator.h"
 #import "ios/chrome/browser/ui/sharing/sharing_params.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace {
 
@@ -50,7 +47,8 @@ history::WebHistoryService* WebHistoryServiceGetter(
 
 @interface HistoryCoordinator () <BrowserObserving,
                                   HistoryMenuProvider,
-                                  HistoryUIDelegate> {
+                                  HistoryClearBrowsingDataCoordinatorDelegate,
+                                  HistoryTableViewControllerDelegate> {
   // Provides delegate bridge instance for `_browsingHistoryDriver`.
   std::unique_ptr<IOSBrowsingHistoryDriverDelegateBridge>
       _browsingHistoryDriverDelegate;
@@ -191,13 +189,33 @@ history::WebHistoryService* WebHistoryServiceGetter(
   _browsingHistoryDriverDelegate = nullptr;
 }
 
-#pragma mark - HistoryUIDelegate
+#pragma mark - HistoryTableViewControllerDelegate
 
-- (void)dismissHistoryWithCompletion:(ProceduralBlock)completionHandler {
+- (void)dismissHistoryTableViewController:
+            (HistoryTableViewController*)controller
+                           withCompletion:(ProceduralBlock)completionHandler {
   [self.delegate closeHistoryWithCompletion:completionHandler];
 }
 
-- (void)displayPrivacySettings {
+#pragma mark - HistoryClearBrowsingDataCoordinatorDelegate
+
+- (void)dismissHistoryClearBrowsingData:
+            (HistoryClearBrowsingDataCoordinator*)coordinator
+                         withCompletion:(ProceduralBlock)completionHandler {
+  DCHECK_EQ(self.historyClearBrowsingDataCoordinator, coordinator);
+  __weak HistoryCoordinator* weakSelf = self;
+  [coordinator stopWithCompletion:^() {
+    if (completionHandler) {
+      completionHandler();
+    }
+    weakSelf.historyClearBrowsingDataCoordinator = nil;
+  }];
+}
+
+- (void)displayClearHistoryData {
+  if (self.historyClearBrowsingDataCoordinator) {
+    return;
+  }
   self.historyClearBrowsingDataCoordinator =
       [[HistoryClearBrowsingDataCoordinator alloc]
           initWithBaseViewController:self.historyNavigationController

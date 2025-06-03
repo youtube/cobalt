@@ -1,4 +1,4 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -19,9 +19,10 @@ class NumericQuantityFieldTest
  protected:
   std::unique_ptr<FormField> Parse(
       AutofillScanner* scanner,
+      const GeoIpCountryCode& client_country,
       const LanguageCode& page_language = LanguageCode("en")) override {
-    return NumericQuantityField::Parse(scanner, page_language,
-                                       GetActivePatternSource(),
+    return NumericQuantityField::Parse(scanner, client_country, page_language,
+                                       *GetActivePatternSource(),
                                        /*log_manager=*/nullptr);
   }
 };

@@ -12,7 +12,9 @@
 #include "src/execution/thread-local-top.h"
 #include "src/heap/linear-allocation-area.h"
 #include "src/roots/roots.h"
+#include "src/sandbox/code-pointer-table.h"
 #include "src/sandbox/external-pointer-table.h"
+#include "src/sandbox/trusted-pointer-table.h"
 #include "src/utils/utils.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"  // nogncheck
 
@@ -53,6 +55,8 @@ class Isolate;
   V(kEmbedderDataOffset, Internals::kNumIsolateDataSlots* kSystemPointerSize, \
     embedder_data)                                                            \
   ISOLATE_DATA_FIELDS_POINTER_COMPRESSION(V)                                  \
+  V(kApiCallbackThunkArgumentOffset, kSystemPointerSize,                      \
+    api_callback_thunk_argument)                                              \
   /* Full tables (arbitrary size, potentially slower access). */              \
   V(kRootsTableOffset, RootsTable::kEntriesCount* kSystemPointerSize,         \
     roots_table)                                                              \
@@ -68,7 +72,9 @@ class Isolate;
   V(kExternalPointerTableOffset, ExternalPointerTable::kSize, \
     external_pointer_table)                                   \
   V(kSharedExternalPointerTableOffset, kSystemPointerSize,    \
-    shared_external_pointer_table)
+    shared_external_pointer_table)                            \
+  V(kTrustedPointerTableOffset, TrustedPointerTable::kSize,   \
+    trusted_pointer_table)
 #else
 #define ISOLATE_DATA_FIELDS_POINTER_COMPRESSION(V)
 #endif  // V8_COMPRESS_POINTERS
@@ -119,6 +125,14 @@ class IsolateData final {
            Builtins::ToInt(id) * kSystemPointerSize;
   }
 
+  static constexpr int jslimit_offset() {
+    return stack_guard_offset() + StackGuard::jslimit_offset();
+  }
+
+  static constexpr int real_jslimit_offset() {
+    return stack_guard_offset() + StackGuard::real_jslimit_offset();
+  }
+
 #define V(Offset, Size, Name) \
   Address Name##_address() { return reinterpret_cast<Address>(&Name##_); }
   ISOLATE_DATA_FIELDS(V)
@@ -133,6 +147,9 @@ class IsolateData final {
   Address* builtin_tier0_entry_table() { return builtin_tier0_entry_table_; }
   Address* builtin_tier0_table() { return builtin_tier0_table_; }
   RootsTable& roots() { return roots_table_; }
+  Address api_callback_thunk_argument() const {
+    return api_callback_thunk_argument_;
+  }
   const RootsTable& roots() const { return roots_table_; }
   ExternalReferenceTable* external_reference_table() {
     return &external_reference_table_;
@@ -181,10 +198,10 @@ class IsolateData final {
   StackGuard stack_guard_;
 
   //
-  // Hot flags that are regularily checked.
+  // Hot flags that are regularly checked.
   //
 
-  // These flags are regularily checked by write barriers.
+  // These flags are regularly checked by write barriers.
   // Only valid values are 0 or 1.
   uint8_t is_marking_flag_ = false;
   uint8_t is_minor_marking_flag_ = false;
@@ -242,11 +259,16 @@ class IsolateData final {
   // runtime checks.
   void* embedder_data_[Internals::kNumIsolateDataSlots] = {};
 
-  // Table containing pointers to external objects.
+  // Tables containing pointers to objects outside of the V8 sandbox.
 #ifdef V8_COMPRESS_POINTERS
   ExternalPointerTable external_pointer_table_;
   ExternalPointerTable* shared_external_pointer_table_;
+  TrustedPointerTable trusted_pointer_table_;
 #endif
+
+  // This is a storage for an additional argument for the Api callback thunk
+  // functions, see InvokeAccessorGetterCallback and InvokeFunctionCallback.
+  Address api_callback_thunk_argument_ = kNullAddress;
 
   RootsTable roots_table_;
   ExternalReferenceTable external_reference_table_;
@@ -282,6 +304,7 @@ class IsolateData final {
 // issues because of different compilers used for snapshot generator and
 // actual V8 code.
 void IsolateData::AssertPredictableLayout() {
+  static_assert(std::is_standard_layout<StackGuard>::value);
   static_assert(std::is_standard_layout<RootsTable>::value);
   static_assert(std::is_standard_layout<ThreadLocalTop>::value);
   static_assert(std::is_standard_layout<ExternalReferenceTable>::value);

@@ -17,11 +17,11 @@ import android.os.HandlerThread;
 import android.os.Looper;
 import android.view.Surface;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.Log;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
-import org.chromium.build.annotations.MainDex;
 
 import java.nio.ByteBuffer;
 import java.util.LinkedList;
@@ -31,7 +31,6 @@ import java.util.Queue;
  * A MediaCodec wrapper for adapting the API and catching exceptions.
  */
 @JNINamespace("media")
-@MainDex
 class MediaCodecBridge {
     private static final String TAG = "MediaCodecBridge";
 
@@ -703,15 +702,21 @@ class MediaCodecBridge {
         try {
             mMediaCodec.configure(format, surface, crypto, flags);
 
-            // This is always provided by MediaFormatBuilder.
-            mMaxInputSize = format.getInteger(MediaFormat.KEY_MAX_INPUT_SIZE);
+            MediaFormat inputFormat = mMediaCodec.getInputFormat();
 
-            if (flags != MediaCodec.CONFIGURE_FLAG_ENCODE) return true;
+            // This is always provided by MediaFormatBuilder, but we should see if the input
+            // format has the real value.
+            mMaxInputSize = format.getInteger(MediaFormat.KEY_MAX_INPUT_SIZE);
+            if (flags != MediaCodec.CONFIGURE_FLAG_ENCODE) {
+                if (inputFormat.containsKey(MediaFormat.KEY_MAX_INPUT_SIZE)) {
+                    mMaxInputSize = inputFormat.getInteger(MediaFormat.KEY_MAX_INPUT_SIZE);
+                }
+                return true;
+            }
 
             // Non 16x16 aligned resolutions don't work well with the MediaCodec encoder
             // unfortunately, see https://crbug.com/1084702 for details. It seems they
             // only work when the stride and slice height information are provided.
-            MediaFormat inputFormat = mMediaCodec.getInputFormat();
             boolean requireAlignedResolution = !inputFormat.containsKey(MediaFormat.KEY_STRIDE)
                     || !inputFormat.containsKey(MediaFormat.KEY_SLICE_HEIGHT);
 

@@ -9,10 +9,10 @@
 #include "third_party/blink/renderer/core/editing/frame_selection.h"
 #include "third_party/blink/renderer/core/editing/selection_template.h"
 #include "third_party/blink/renderer/core/editing/testing/editing_test_base.h"
+#include "third_party/blink/renderer/core/layout/inline/inline_cursor.h"
 #include "third_party/blink/renderer/core/layout/layout_object.h"
 #include "third_party/blink/renderer/core/layout/layout_text.h"
 #include "third_party/blink/renderer/core/layout/layout_text_fragment.h"
-#include "third_party/blink/renderer/core/layout/ng/inline/ng_inline_cursor.h"
 #include "third_party/blink/renderer/platform/testing/runtime_enabled_features_test_helpers.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
 
@@ -36,7 +36,7 @@ class LayoutSelectionTestBase : public EditingTestBase {
                                   const LayoutText& layout_text,
                                   SelectionState state) {
     if (layout_text.IsInLayoutNGInlineFormattingContext()) {
-      NGInlineCursor cursor(*layout_text.FragmentItemsContainer());
+      InlineCursor cursor(*layout_text.FragmentItemsContainer());
       cursor.MoveTo(layout_text);
       if (!cursor)
         return;
@@ -249,7 +249,7 @@ TEST_F(LayoutSelectionTest,
        InvalidationShouldNotChangeRefferedLayoutObjectState) {
   SetBodyContent(
       "<div id='d1'>div1</div><div id='d2'>foo<span>bar</span>baz</div>");
-  Node* span = GetDocument().QuerySelector("span");
+  Node* span = GetDocument().QuerySelector(AtomicString("span"));
   Selection().SetSelectionAndEndTyping(
       SelectionInDOMTree::Builder()
           .SetBaseAndExtent(Position(span->firstChild(), 0),
@@ -267,8 +267,8 @@ TEST_F(LayoutSelectionTest,
       "    'baz', None, NotInvalidate ",
       DumpSelectionInfo());
 
-  Node* d1 = GetDocument().QuerySelector("#d1");
-  Node* d2 = GetDocument().QuerySelector("#d2");
+  Node* d1 = GetDocument().QuerySelector(AtomicString("#d1"));
+  Node* d2 = GetDocument().QuerySelector(AtomicString("#d2"));
   Selection().SetSelectionAndEndTyping(
       SelectionInDOMTree::Builder()
           .SetBaseAndExtent(Position(d1, 0), Position(d2, 0))
@@ -814,8 +814,8 @@ TEST_F(LayoutSelectionTest, ClearBySlotChange) {
       DumpSelectionInfo());
   Element* slot =
       GetDocument().body()->firstChild()->GetShadowRoot()->QuerySelector(
-          "slot");
-  slot->setAttribute("name", "s2");
+          AtomicString("slot"));
+  slot->setAttribute(html_names::kNameAttr, AtomicString("s2"));
   GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kTest);
   Selection().CommitAppearanceIfNeeded();
   EXPECT_EQ(
@@ -854,8 +854,8 @@ TEST_F(LayoutSelectionTest, MoveNode) {
       "    B, Contain, NotInvalidate \n"
       "      'bar', End(0,2), ShouldInvalidate ",
       DumpSelectionInfo());
-  Node* div1 = GetDocument().QuerySelector("#div1");
-  Node* div2 = GetDocument().QuerySelector("#div2");
+  Node* div1 = GetDocument().QuerySelector(AtomicString("#div1"));
+  Node* div2 = GetDocument().QuerySelector(AtomicString("#div2"));
   div1->appendChild(div2);
   EXPECT_EQ(
       "BODY, Contain, NotInvalidate \n"
@@ -937,7 +937,7 @@ class NGLayoutSelectionTest
   LayoutSelectionStatus ComputeLayoutSelectionStatus(
       const LayoutObject& layout_object) const {
     DCHECK(layout_object.IsText());
-    NGInlineCursor cursor(*layout_object.FragmentItemsContainer());
+    InlineCursor cursor(*layout_object.FragmentItemsContainer());
     cursor.MoveTo(layout_object);
     return Selection().ComputeLayoutSelectionStatus(cursor);
   }
@@ -945,7 +945,7 @@ class NGLayoutSelectionTest
   SelectionState ComputePaintingSelectionStateForCursor(
       const LayoutObject& layout_object) const {
     DCHECK(layout_object.IsText());
-    NGInlineCursor cursor;
+    InlineCursor cursor;
     cursor.MoveTo(layout_object);
     return Selection().ComputePaintingSelectionStateForCursor(cursor.Current());
   }
@@ -1059,7 +1059,7 @@ TEST_F(NGLayoutSelectionTest, StartAndEndMultilineState) {
   LayoutObject* const div_text =
       GetDocument().body()->firstChild()->firstChild()->GetLayoutObject();
 
-  NGInlineCursor cursor(*(div_text->FragmentItemsContainer()));
+  InlineCursor cursor(*(div_text->FragmentItemsContainer()));
   cursor.MoveTo(*div_text);
   EXPECT_EQ(LayoutSelectionStatus(1u, 3u, SelectSoftLineBreak::kNotSelected),
             Selection().ComputeLayoutSelectionStatus(cursor));
@@ -1094,7 +1094,7 @@ TEST_F(NGLayoutSelectionTest, BeforeStartAndAfterEndMultilineState) {
       "style='white-space:pre'>ba|z\nquu</div>");
   LayoutObject* const div_text =
       GetDocument().body()->firstChild()->firstChild()->GetLayoutObject();
-  NGInlineCursor cursor(*(div_text->FragmentItemsContainer()));
+  InlineCursor cursor(*(div_text->FragmentItemsContainer()));
   cursor.MoveTo(*div_text);
   EXPECT_EQ(LayoutSelectionStatus(3u, 3u, SelectSoftLineBreak::kNotSelected),
             Selection().ComputeLayoutSelectionStatus(cursor));
@@ -1114,7 +1114,7 @@ TEST_F(NGLayoutSelectionTest, BeforeStartAndAfterEndMultilineState) {
 
   LayoutObject* const second_div_text =
       GetDocument().body()->lastChild()->firstChild()->GetLayoutObject();
-  NGInlineCursor second_cursor(*(second_div_text->FragmentItemsContainer()));
+  InlineCursor second_cursor(*(second_div_text->FragmentItemsContainer()));
   second_cursor.MoveTo(*second_div_text);
   EXPECT_EQ(LayoutSelectionStatus(0u, 2u, SelectSoftLineBreak::kNotSelected),
             Selection().ComputeLayoutSelectionStatus(second_cursor));
@@ -1221,7 +1221,7 @@ TEST_F(NGLayoutSelectionTest, BRStatus) {
   Selection().SetSelectionAndEndTyping(selection);
   Selection().CommitAppearanceIfNeeded();
   LayoutObject* const layout_br =
-      GetDocument().QuerySelector("br")->GetLayoutObject();
+      GetDocument().QuerySelector(AtomicString("br"))->GetLayoutObject();
   CHECK(layout_br->IsBR());
   EXPECT_EQ(LayoutSelectionStatus(3u, 4u, SelectSoftLineBreak::kNotSelected),
             ComputeLayoutSelectionStatus(*layout_br));
@@ -1234,7 +1234,7 @@ TEST_F(NGLayoutSelectionTest, WBRStatus) {
   SetSelectionAndUpdateLayoutSelection(
       "<div style=\"width:0\">^foo<wbr>bar|</div>");
   const LayoutObject* layout_wbr =
-      GetDocument().QuerySelector("wbr")->GetLayoutObject();
+      GetDocument().QuerySelector(AtomicString("wbr"))->GetLayoutObject();
   EXPECT_EQ(LayoutSelectionStatus(3u, 4u, SelectSoftLineBreak::kSelected),
             ComputeLayoutSelectionStatus(*layout_wbr));
   EXPECT_EQ(SelectionState::kInside,
@@ -1246,7 +1246,7 @@ TEST_F(NGLayoutSelectionTest, SoftHyphen0to1) {
       "<div id='container' style='width:3ch'>^0|123&shy;456</div>");
   auto* element = GetElementById("container");
   auto* block_flow = To<LayoutBlockFlow>(element->GetLayoutObject());
-  NGInlineCursor cursor(*block_flow);
+  InlineCursor cursor(*block_flow);
   while (!cursor.Current()->IsLayoutGeneratedText())
     cursor.MoveToNext();
   auto status = Selection().ComputeLayoutSelectionStatus(cursor);
@@ -1258,7 +1258,7 @@ TEST_F(NGLayoutSelectionTest, SoftHyphen0to4) {
       "<div id='container' style='width:3ch'>^0123|&shy;456</div>");
   auto* element = GetElementById("container");
   auto* block_flow = To<LayoutBlockFlow>(element->GetLayoutObject());
-  NGInlineCursor cursor(*block_flow);
+  InlineCursor cursor(*block_flow);
   while (!cursor.Current()->IsLayoutGeneratedText())
     cursor.MoveToNext();
   auto status = Selection().ComputeLayoutSelectionStatus(cursor);
@@ -1270,7 +1270,7 @@ TEST_F(NGLayoutSelectionTest, SoftHyphen1to5) {
       "<div id='container' style='width:3ch'>0^123&shy;|456</div>");
   auto* element = GetElementById("container");
   auto* block_flow = To<LayoutBlockFlow>(element->GetLayoutObject());
-  NGInlineCursor cursor(*block_flow);
+  InlineCursor cursor(*block_flow);
   while (!cursor.Current()->IsLayoutGeneratedText())
     cursor.MoveToNext();
   auto status = Selection().ComputeLayoutSelectionStatus(cursor);

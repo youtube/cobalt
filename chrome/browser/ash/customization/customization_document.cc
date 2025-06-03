@@ -127,7 +127,7 @@ constexpr net::NetworkTrafficAnnotationTag kCustomizationDocumentNetworkTag =
         })");
 
 struct CustomizationDocumentTestOverride {
-  raw_ptr<ServicesCustomizationDocument, ExperimentalAsh>
+  raw_ptr<ServicesCustomizationDocument, DanglingUntriaged | ExperimentalAsh>
       customization_document = nullptr;
   scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory;
 };
@@ -200,15 +200,9 @@ std::string ReadFileInBackground(const base::FilePath& file) {
 
 }  // anonymous namespace
 
-// Template URL where to fetch OEM services customization manifest from.
-const char ServicesCustomizationDocument::kManifestUrl[] =
-    "https://ssl.gstatic.com/chrome/chromeos-customization/%s.json";
-
 // A custom extensions::ExternalLoader that the ServicesCustomizationDocument
 // creates and uses to publish OEM default apps to the extensions system.
-class ServicesCustomizationExternalLoader
-    : public extensions::ExternalLoader,
-      public base::SupportsWeakPtr<ServicesCustomizationExternalLoader> {
+class ServicesCustomizationExternalLoader : public extensions::ExternalLoader {
  public:
   explicit ServicesCustomizationExternalLoader(Profile* profile)
       : profile_(profile) {}
@@ -246,6 +240,10 @@ class ServicesCustomizationExternalLoader
     LoadFinished(apps_.Clone());
   }
 
+  base::WeakPtr<ServicesCustomizationExternalLoader> AsWeakPtr() {
+    return weak_ptr_factory_.GetWeakPtr();
+  }
+
  protected:
   ~ServicesCustomizationExternalLoader() override {}
 
@@ -253,6 +251,8 @@ class ServicesCustomizationExternalLoader
   bool is_apps_set_ = false;
   base::Value::Dict apps_;
   raw_ptr<Profile, ExperimentalAsh> profile_;
+  base::WeakPtrFactory<ServicesCustomizationExternalLoader> weak_ptr_factory_{
+      this};
 };
 
 // CustomizationDocument implementation. ---------------------------------------

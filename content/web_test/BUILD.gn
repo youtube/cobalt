@@ -23,6 +23,7 @@ mojom("web_test_common_mojom") {
   sources = [
     "common/fake_bluetooth_chooser.mojom",
     "common/mojo_echo.mojom",
+    "common/mojo_optional_numerics_unittest.mojom",
     "common/web_test.mojom",
     "common/web_test_bluetooth_fake_adapter_setter.mojom",
   ]
@@ -105,12 +106,12 @@ static_library("web_test_browser") {
     "browser/leak_detector.h",
     "browser/mojo_echo.cc",
     "browser/mojo_echo.h",
+    "browser/mojo_optional_numerics_unittest.cc",
+    "browser/mojo_optional_numerics_unittest.h",
     "browser/mojo_web_test_helper.cc",
     "browser/mojo_web_test_helper.h",
     "browser/test_info_extractor.cc",
     "browser/test_info_extractor.h",
-    "browser/web_test_attribution_manager.cc",
-    "browser/web_test_attribution_manager.h",
     "browser/web_test_background_fetch_delegate.cc",
     "browser/web_test_background_fetch_delegate.h",
     "browser/web_test_bluetooth_adapter_provider.cc",
@@ -136,6 +137,8 @@ static_library("web_test_browser") {
     "browser/web_test_devtools_bindings.h",
     "browser/web_test_download_manager_delegate.cc",
     "browser/web_test_download_manager_delegate.h",
+    "browser/web_test_fedcm_manager.cc",
+    "browser/web_test_fedcm_manager.h",
     "browser/web_test_first_device_bluetooth_chooser.cc",
     "browser/web_test_first_device_bluetooth_chooser.h",
     "browser/web_test_javascript_dialog_manager.cc",
@@ -146,6 +149,8 @@ static_library("web_test_browser") {
     "browser/web_test_permission_manager.h",
     "browser/web_test_push_messaging_service.cc",
     "browser/web_test_push_messaging_service.h",
+    "browser/web_test_sensor_provider_manager.cc",
+    "browser/web_test_sensor_provider_manager.h",
     "browser/web_test_shell_platform_delegate.cc",
     "browser/web_test_shell_platform_delegate.h",
     "browser/web_test_storage_access_manager.cc",
@@ -155,16 +160,17 @@ static_library("web_test_browser") {
   ]
 
   if (is_mac) {
-    sources += [
-      "browser/web_test_browser_main_platform_support_mac.mm",
-      "browser/web_test_shell_platform_delegate_mac.mm",
-    ]
+    sources += [ "browser/web_test_shell_platform_delegate_mac.mm" ]
   } else if (toolkit_views && !is_castos) {
     sources += [ "browser/web_test_shell_platform_delegate_views.cc" ]
   } else if (is_ios) {
     sources += [ "browser/web_test_shell_platform_delegate_ios.mm" ]
   } else {
     sources += [ "browser/web_test_shell_platform_delegate_aura.cc" ]
+  }
+
+  if (is_apple) {
+    sources += [ "browser/web_test_browser_main_platform_support_mac.mm" ]
   }
 
   if (is_win) {
@@ -240,10 +246,6 @@ static_library("web_test_browser") {
 
   if (use_ozone) {
     deps += [ "//ui/ozone" ]
-  }
-
-  if (is_fuchsia) {
-    deps += [ "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.ui.scenic:fuchsia.ui.scenic_hlcpp" ]
   }
 
   if (is_cobalt) {
@@ -381,7 +383,7 @@ static_library("web_test_renderer") {
     "//third_party/blink/renderer/core/web_test",
   ]
 
-  if (enable_printing) {
+  if (enable_printing || enable_printing_unittests) {
     sources += [
       "renderer/pixel_dump.cc",
       "renderer/pixel_dump.h",

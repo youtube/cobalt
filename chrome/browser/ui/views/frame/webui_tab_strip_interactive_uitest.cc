@@ -178,10 +178,6 @@ IN_PROC_BROWSER_TEST_F(WebUITabStripInteractiveTest, CanUseInImmersiveMode) {
   WebUITabStripContainerView* const container = browser_view->webui_tab_strip();
   ASSERT_NE(nullptr, container);
 
-  // IPH may cause a reveal. Stop it.
-  auto lock =
-      browser_view->GetFeaturePromoController()->BlockPromosForTesting();
-
   EXPECT_FALSE(immersive_mode_controller->IsRevealed());
 
   // Try opening the tab strip.
@@ -269,10 +265,17 @@ INSTANTIATE_TEST_SUITE_P(/* no prefix */,
 //
 // This sequence of events would crash without the associated bugfix. More
 // detail is provided in the actual test sequence.
-//
-// Note: if this test flakes, please reopen https://crbug.com/1399655.
+
+#if BUILDFLAG(IS_CHROMEOS_ASH)
+// TODO(https://crbug.com/1399655): Flaky on linux-chromeos-chrome. Reenable
+// this test when the flakiness will be resolved.
+#define MAYBE_CloseTabDuringDragDoesNotCrash \
+  DISABLED_CloseTabDuringDragDoesNotCrash
+#else
+#define MAYBE_CloseTabDuringDragDoesNotCrash CloseTabDuringDragDoesNotCrash
+#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 IN_PROC_BROWSER_TEST_P(WebUITabStripDragInteractiveTest,
-                       CloseTabDuringDragDoesNotCrash) {
+                       MAYBE_CloseTabDuringDragDoesNotCrash) {
   DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kSecondTabElementId);
   DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kWebUiTabStripElementId);
 
@@ -323,7 +326,7 @@ IN_PROC_BROWSER_TEST_P(WebUITabStripDragInteractiveTest,
       AddInstrumentedTab(kSecondTabElementId, GURL("about:blank")),
       // Click the counter button and then wait for the WebUI tabstrip to
       // appear.
-      PressButton(kTabCounterButtonElementId),
+      PressButton(kToolbarTabCounterButtonElementId),
       InstrumentNonTabWebView(kWebUiTabStripElementId, get_tabstrip_webview),
       // Verify there are two tabs.
       CheckResult(get_tab_count, 2),

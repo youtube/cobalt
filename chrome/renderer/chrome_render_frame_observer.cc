@@ -29,6 +29,7 @@
 #include "chrome/common/open_search_description_document_handler.mojom.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/renderer/chrome_content_settings_agent_delegate.h"
+#include "chrome/renderer/companion/visual_search/visual_search_classifier_agent.h"
 #include "chrome/renderer/media/media_feeds.h"
 #include "components/crash/core/common/crash_key.h"
 #include "components/lens/lens_metadata.mojom.h"
@@ -75,6 +76,7 @@
 
 #if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
 #include "components/safe_browsing/content/renderer/phishing_classifier/phishing_classifier_delegate.h"
+#include "components/safe_browsing/content/renderer/phishing_classifier/phishing_image_embedder_delegate.h"
 #endif
 
 #if BUILDFLAG(ENABLE_OFFLINE_PAGES)
@@ -198,10 +200,11 @@ ChromeRenderFrameObserver::ChromeRenderFrameObserver(
   SetClientSidePhishingDetection();
 #endif
 
-  if (!translate::IsSubFrameTranslationEnabled()) {
-    translate_agent_ = new translate::TranslateAgent(
-        render_frame, ISOLATED_WORLD_ID_TRANSLATE);
-  }
+#if !BUILDFLAG(IS_ANDROID)
+  SetVisualSearchClassifierAgent();
+#endif
+  translate_agent_ =
+      new translate::TranslateAgent(render_frame, ISOLATED_WORLD_ID_TRANSLATE);
 }
 
 ChromeRenderFrameObserver::~ChromeRenderFrameObserver() {
@@ -325,7 +328,7 @@ void ChromeRenderFrameObserver::DidClearWindowObject() {
 
   // Install ReadAnythingAppController on render frames with the Read Anything
   // url, which is chrome-untrusted. ReadAnythingAppController installs v8
-  // bindings in the chrome.readAnything namespace which are consumed by
+  // bindings in the chrome.readingMode namespace which are consumed by
   // read_anything/app.ts, the resource of the Read Anything WebUI.
   if (features::IsReadAnythingEnabled() &&
       render_frame()->GetWebFrame()->GetDocument().Url() ==
@@ -507,6 +510,20 @@ void ChromeRenderFrameObserver::RequestImageForContextNode(
                           image_extension, std::move(latency_logs));
 }
 
+void ChromeRenderFrameObserver::RequestBitmapForContextNode(
+    RequestBitmapForContextNodeCallback callback) {
+  WebNode context_node = render_frame()->GetWebFrame()->ContextMenuImageNode();
+  SkBitmap image;
+  if (context_node.IsNull() || !context_node.IsElementNode()) {
+    std::move(callback).Run(image);
+    return;
+  }
+
+  WebElement web_element = context_node.To<WebElement>();
+  image = web_element.ImageContents();
+  std::move(callback).Run(image);
+}
+
 void ChromeRenderFrameObserver::RequestReloadImageForContextNode() {
   WebLocalFrame* frame = render_frame()->GetWebFrame();
   // TODO(dglazkov): This code is clearly in the wrong place. Need
@@ -551,6 +568,16 @@ void ChromeRenderFrameObserver::SetClientSidePhishingDetection() {
 #if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
   phishing_classifier_ = safe_browsing::PhishingClassifierDelegate::Create(
       render_frame(), nullptr);
+  phishing_image_embedder_ =
+      safe_browsing::PhishingImageEmbedderDelegate::Create(render_frame());
+#endif
+}
+
+void ChromeRenderFrameObserver::SetVisualSearchClassifierAgent() {
+#if !BUILDFLAG(IS_ANDROID)
+  visual_classifier_ =
+      companion::visual_search::VisualSearchClassifierAgent::Create(
+          render_frame());
 #endif
 }
 
@@ -676,6 +703,10 @@ void ChromeRenderFrameObserver::CapturePageText(
   if (phishing_classifier_) {
     phishing_classifier_->PageCaptured(
         &contents, layout_type == blink::WebMeaningfulLayout::kFinishedParsing);
+  }
+  if (phishing_image_embedder_) {
+    phishing_image_embedder_->PageCaptured(
+        layout_type == blink::WebMeaningfulLayout::kFinishedParsing);
   }
 #endif
 }

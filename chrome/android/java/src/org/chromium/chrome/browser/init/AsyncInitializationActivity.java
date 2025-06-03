@@ -8,13 +8,8 @@ import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.Intent;
 import android.content.res.Configuration;
-import android.graphics.Rect;
-import android.os.Build;
-import android.os.Build.VERSION;
-import android.os.Build.VERSION_CODES;
 import android.os.Bundle;
 import android.os.Handler;
-import android.os.Process;
 import android.os.SystemClock;
 import android.view.Display;
 import android.view.Menu;
@@ -25,11 +20,9 @@ import androidx.annotation.CallSuper;
 import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 
-import org.chromium.base.IntentUtils;
 import org.chromium.base.StrictModeContext;
 import org.chromium.base.SysUtils;
 import org.chromium.base.TraceEvent;
-import org.chromium.base.compat.ApiHelperForR;
 import org.chromium.base.library_loader.LibraryLoader;
 import org.chromium.base.library_loader.LoaderErrors;
 import org.chromium.base.library_loader.ProcessInitException;
@@ -40,7 +33,6 @@ import org.chromium.chrome.browser.IntentHandler;
 import org.chromium.chrome.browser.LaunchIntentDispatcher;
 import org.chromium.chrome.browser.WarmupManager;
 import org.chromium.chrome.browser.firstrun.FirstRunFlowSequencer;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
 import org.chromium.chrome.browser.metrics.SimpleStartupForegroundSessionDetector;
 import org.chromium.chrome.browser.multiwindow.MultiWindowModeStateDispatcher;
@@ -48,13 +40,13 @@ import org.chromium.chrome.browser.multiwindow.MultiWindowModeStateDispatcherImp
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tasks.tab_management.TabUiFeatureUtilities;
 import org.chromium.chrome.features.start_surface.StartSurfaceConfiguration;
+import org.chromium.components.browser_ui.share.ShareHelper;
 import org.chromium.components.browser_ui.util.FirstDrawDetector;
 import org.chromium.ui.base.ActivityIntentRequestTrackerDelegate;
 import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.base.IntentRequestTracker;
 import org.chromium.ui.base.WindowAndroid;
-import org.chromium.ui.display.DisplayAndroid;
 import org.chromium.ui.display.DisplayUtil;
 
 /**
@@ -64,8 +56,6 @@ public abstract class AsyncInitializationActivity
         extends ChromeBaseAppCompatActivity implements ChromeActivityNativeDelegate, BrowserParts {
     @VisibleForTesting
     public static final String FIRST_DRAW_COMPLETED_TIME_MS_UMA = "FirstDrawCompletedTime";
-    private static final String TAG = "AsyncInitActivity";
-    static Boolean sOverrideNativeLibraryCannotBeLoadedForTesting;
     protected final Handler mHandler;
 
     private final NativeInitializationController mNativeInitializationController =
@@ -79,6 +69,13 @@ public abstract class AsyncInitializationActivity
 
     /** Time at which onCreate is called. This is realtime, counted in ms since device boot. */
     private long mOnCreateTimestampMs;
+    /** Time at which onPause is called. */
+    private long mOnPauseTimestampMs;
+    /**
+     * Time at which onPause is called before the activity is recreated due to unfolding. The
+     * timestamp is captured only if recreation starts when the activity is not in stopped state.
+     */
+    private long mOnPauseBeforeFoldRecreateTimestampMs;
 
     private ActivityWindowAndroid mWindowAndroid;
     private Bundle mSavedInstanceState;
@@ -146,7 +143,8 @@ public abstract class AsyncInitializationActivity
         // 2. To ensure mIsTablet only needs to be set once. Since the override lasts for the life
         //    of the activity, it will never change via onConfigurationUpdated().
         // See crbug.com/588838, crbug.com/662338, crbug.com/780593.
-        overrideConfig.smallestScreenWidthDp = getCurrentSmallestScreenWidth(baseContext);
+        overrideConfig.smallestScreenWidthDp =
+                DisplayUtil.getCurrentSmallestScreenWidth(baseContext);
         return true;
     }
 
@@ -305,6 +303,8 @@ public abstract class AsyncInitializationActivity
         boolean willCreate = onCreateInternal(savedInstanceState);
         if (!willCreate) {
             onAbortCreate();
+        } else {
+            onPostCreate();
         }
         TraceEvent.end("AsyncInitializationActivity.onCreate()");
     }
@@ -322,6 +322,14 @@ public abstract class AsyncInitializationActivity
     protected void onAbortCreate() {}
 
     /**
+     * Override to perform operations after the framework successfully calls {@link
+     * #onCreateInternal}. This method is used in the ChromeActivity derived class to increment the
+     * "Chrome.UMA.OnPostCreateCounter2" counter for the histogram
+     * UMA.AndroidPreNative.ChromeActivityCounter2.
+     */
+    protected void onPostCreate() {}
+
+    /**
      * Called from onCreate() to give derived classes a chance to dispatch the intent using
      * {@link LaunchIntentDispatcher}. If the method returns anything other than Action.CONTINUE,
      * the activity is aborted. Default implementation returns Action.CONTINUE.
@@ -336,7 +344,7 @@ public abstract class AsyncInitializationActivity
     /**
      * @return true if will proceed with Activity creation, false if will abort.
      */
-    private final boolean onCreateInternal(Bundle savedInstanceState) {
+    private boolean onCreateInternal(Bundle savedInstanceState) {
         initializeStartupMetrics();
         setIntent(IntentHandler.rewriteFromHistoryIntent(getIntent()));
 
@@ -353,17 +361,8 @@ public abstract class AsyncInitializationActivity
             return false;
         }
 
-        if (nativeLibraryCannotBeLoaded()) {
-            // For intents into Chrome, ensure that the right library can be loaded.
-            Intent newIntent = new Intent(this, LaunchFailedActivity.class);
-            IntentUtils.safeStartActivity(this, newIntent);
-            abortLaunch(LaunchIntentDispatcher.Action.FINISH_ACTIVITY);
-            return false;
-        }
-
         if (requiresFirstRunToBeCompleted(intent)
-                && FirstRunFlowSequencer.launch(this, intent, false /* requiresBroadcast */,
-                        shouldPreferLightweightFre(intent))) {
+                && FirstRunFlowSequencer.launch(this, intent, shouldPreferLightweightFre(intent))) {
             abortLaunch(LaunchIntentDispatcher.Action.FINISH_ACTIVITY);
             return false;
         }
@@ -382,14 +381,6 @@ public abstract class AsyncInitializationActivity
 
         ChromeBrowserInitializer.getInstance().handlePreNativeStartupAndLoadLibraries(this);
         return true;
-    }
-
-    private static boolean nativeLibraryCannotBeLoaded() {
-        if (sOverrideNativeLibraryCannotBeLoadedForTesting != null) {
-            return sOverrideNativeLibraryCannotBeLoadedForTesting;
-        }
-
-        return Process.is64Bit() && !ChromeBrowserInitializer.canBeLoadedIn64Bit();
     }
 
     /**
@@ -433,17 +424,9 @@ public abstract class AsyncInitializationActivity
         if (mFirstDrawComplete) onFirstDrawComplete();
     }
 
-    @VisibleForTesting
     public void startDelayedNativeInitializationForTests() {
         mStartupDelayed = true;
         startDelayedNativeInitialization();
-    }
-
-    /**
-     * @return Whether the native library initialization is delayed at this point.
-     */
-    protected boolean isStartupDelayed() {
-        return mStartupDelayed;
     }
 
     /**
@@ -493,6 +476,23 @@ public abstract class AsyncInitializationActivity
     }
 
     /**
+     * @return The timestamp for OnPause event before activity restarts due to unfolding in ms.
+     */
+    protected long getOnPauseBeforeFoldRecreateTimestampMs() {
+        try (TraceEvent e = TraceEvent.scoped("AsyncInit.getOnPauseBeforeFoldRecreateTimestampMs",
+                     Long.toString(mOnPauseBeforeFoldRecreateTimestampMs))) {
+            return mOnPauseBeforeFoldRecreateTimestampMs;
+        }
+    }
+
+    protected void setOnPauseBeforeFoldRecreateTimestampMs() {
+        try (TraceEvent e = TraceEvent.scoped("AsyncInit.setOnPauseBeforeFoldRecreateTimestampMs",
+                     Long.toString(mOnPauseTimestampMs))) {
+            mOnPauseBeforeFoldRecreateTimestampMs = mOnPauseTimestampMs;
+        }
+    }
+
+    /**
      * @return The saved bundle for the last recorded state.
      */
     public Bundle getSavedInstanceState() {
@@ -538,6 +538,7 @@ public abstract class AsyncInitializationActivity
     @CallSuper
     @Override
     public void onPause() {
+        mOnPauseTimestampMs = SystemClock.uptimeMillis();
         SimpleStartupForegroundSessionDetector.discardSession();
         mNativeInitializationController.onPause();
         super.onPause();
@@ -555,6 +556,7 @@ public abstract class AsyncInitializationActivity
     @SuppressLint("MissingSuperCall") // Empty method in parent Activity class.
     public void onNewIntent(Intent intent) {
         if (intent == null) return;
+        if (ShareHelper.isCleanerIntent(intent)) return;
         mNativeInitializationController.onNewIntent(intent);
         setIntent(intent);
     }
@@ -658,16 +660,14 @@ public abstract class AsyncInitializationActivity
     /**
      * Creates an {@link ActivityWindowAndroid} to delegate calls to, if the Activity requires it.
      */
-    @Nullable
-    protected ActivityWindowAndroid createWindowAndroid() {
+    protected @Nullable ActivityWindowAndroid createWindowAndroid() {
         return null;
     }
 
     /**
      * @return A {@link ActivityWindowAndroid} instance.  May be null if one was not created.
      */
-    @Nullable
-    public ActivityWindowAndroid getWindowAndroid() {
+    public @Nullable ActivityWindowAndroid getWindowAndroid() {
         return mWindowAndroid;
     }
 
@@ -739,36 +739,6 @@ public abstract class AsyncInitializationActivity
      */
     protected boolean isInstantStartEnabled() {
         return TabUiFeatureUtilities.supportInstantStart(isTablet(), this);
-    }
-
-    /**
-     * Get current smallest screen width in dp. This method uses {@link WindowManager} on
-     * Android R and above; otherwise, {@link DisplayUtil#getSmallestWidth(DisplayAndroid)}.
-     *
-     * @param context {@link Context} used to get system service and target display.
-     * @return Smallest screen width in dp.
-     */
-    protected int getCurrentSmallestScreenWidth(Context context) {
-        DisplayAndroid display = DisplayAndroid.getNonMultiDisplay(context);
-        // Android T does not receive updated width upon foldable unfold from window context.
-        // Continue to rely on context on this case.
-        Context windowManagerContext = (ChromeFeatureList.sFoldableJankFix.isEnabled()
-                                               && VERSION.SDK_INT >= VERSION_CODES.R
-                                               && VERSION.SDK_INT < VERSION_CODES.TIRAMISU)
-                ? (display.getWindowContext() != null ? display.getWindowContext() : context)
-                : context;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            // Context#getSystemService(Context.WINDOW_SERVICE) is preferred over
-            // Activity#getWindowManager, because during #attachBaseContext, #getWindowManager
-            // is not ready yet and always returns null. See crbug.com/1252150.
-            WindowManager manager =
-                    (WindowManager) windowManagerContext.getSystemService(Context.WINDOW_SERVICE);
-            assert manager != null;
-            Rect bounds = ApiHelperForR.getMaximumWindowMetricsBounds(manager);
-            return DisplayUtil.pxToDp(
-                    display, Math.min(bounds.right - bounds.left, bounds.bottom - bounds.top));
-        }
-        return DisplayUtil.pxToDp(display, DisplayUtil.getSmallestWidth(display));
     }
 
     /**

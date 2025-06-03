@@ -9,7 +9,6 @@ import android.os.Bundle;
 import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.ApplicationStatus;
 import org.chromium.base.Callback;
@@ -17,14 +16,13 @@ import org.chromium.base.CallbackController;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.OneshotSupplier;
+import org.chromium.base.supplier.Supplier;
 import org.chromium.chrome.browser.layouts.LayoutStateProvider;
 import org.chromium.chrome.browser.layouts.LayoutType;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
 import org.chromium.chrome.browser.lifecycle.SaveInstanceStateObserver;
 import org.chromium.chrome.browser.lifecycle.StartStopWithNativeObserver;
 import org.chromium.chrome.browser.profiles.Profile;
-import org.chromium.chrome.browser.tab.TabLaunchType;
-import org.chromium.chrome.browser.tab.state.CriticalPersistedTabData;
 import org.chromium.chrome.browser.tabmodel.IncognitoTabModelObserver;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
@@ -114,7 +112,7 @@ public class IncognitoReauthControllerImpl
     private final LayoutStateProvider.LayoutStateObserver mLayoutStateObserver =
             new LayoutStateProvider.LayoutStateObserver() {
                 @Override
-                public void onStartedShowing(int layoutType, boolean showToolbar) {
+                public void onStartedShowing(int layoutType) {
                     if (layoutType == LayoutType.BROWSING) {
                         showDialogIfRequired();
                     }
@@ -179,6 +177,11 @@ public class IncognitoReauthControllerImpl
      * fullscreen re-auth. Back presses done from tab switcher re-auth screen, is handled elsewhere.
      */
     private final @NonNull Runnable mBackPressInReauthFullScreenRunnable;
+    /**
+     * A supplier to indicate if the re-auth was pending in the previous Chrome session before it
+     * was destroyed.
+     */
+    private final @NonNull Supplier<Boolean> mIsIncognitoReauthPendingOnRestoreSupplier;
 
     // No strong reference to this should be made outside of this class because
     // we set this to null in hideDialogIfShowing for it to be garbage collected.
@@ -198,6 +201,9 @@ public class IncognitoReauthControllerImpl
      *         used to determine the current {@link LayoutType} which is shown.
      * @param profileSupplier A Observable Supplier of {@link Profile} which is used to query the
      *         preference value of the Incognito lock setting.
+     * @param incognitoReauthPendingOnRestoreSupplier Supplier to indicate where the {@link
+     *         IncognitoReauthControllerImpl#KEY_IS_INCOGNITO_REAUTH_PENDING} was set to true in the
+     * saved instance state.
      * @param taskId The task Id of the {@link ChromeActivity} associated with this controller.
      */
     public IncognitoReauthControllerImpl(@NonNull TabModelSelector tabModelSelector,
@@ -205,7 +211,7 @@ public class IncognitoReauthControllerImpl
             @NonNull OneshotSupplier<LayoutStateProvider> layoutStateProviderOneshotSupplier,
             @NonNull ObservableSupplier<Profile> profileSupplier,
             @NonNull IncognitoReauthCoordinatorFactory incognitoReauthCoordinatorFactory,
-            int taskId) {
+            @NonNull Supplier<Boolean> incognitoReauthPendingOnRestoreSupplier, int taskId) {
         mTabModelSelector = tabModelSelector;
         mActivityLifecycleDispatcher = dispatcher;
         mProfileObservableSupplier = profileSupplier;
@@ -215,6 +221,7 @@ public class IncognitoReauthControllerImpl
         mBackPressInReauthFullScreenRunnable =
                 incognitoReauthCoordinatorFactory.getBackPressRunnable();
         mTaskId = taskId;
+        mIsIncognitoReauthPendingOnRestoreSupplier = incognitoReauthPendingOnRestoreSupplier;
 
         layoutStateProviderOneshotSupplier.onAvailable(
                 mLayoutStateProviderCallbackController.makeCancelable(layoutStateProvider -> {
@@ -354,7 +361,6 @@ public class IncognitoReauthControllerImpl
         }
     }
 
-    @VisibleForTesting
     IncognitoReauthManager.IncognitoReauthCallback getIncognitoReauthCallbackForTesting() {
         return mIncognitoReauthCallback;
     }
@@ -394,18 +400,8 @@ public class IncognitoReauthControllerImpl
     // Tab state initialized is called when creating tabs from launcher shortcut or restore. Re-auth
     // dialogs should be shown iff any Incognito tabs were restored.
     private void onTabStateInitializedForReauth() {
-        boolean hasRestoredIncognitoTabs = false;
-        TabModel incognitoTabModel = mTabModelSelector.getModel(/*incognito=*/true);
-        for (int i = 0; i < incognitoTabModel.getCount(); ++i) {
-            @TabLaunchType
-            Integer tabLaunchType = CriticalPersistedTabData.from(incognitoTabModel.getTabAt(i))
-                                            .getTabLaunchTypeAtCreation();
-            if (tabLaunchType == TabLaunchType.FROM_RESTORE) {
-                hasRestoredIncognitoTabs = true;
-                break;
-            }
-        }
-        mIncognitoReauthPending = hasRestoredIncognitoTabs;
+        mIncognitoReauthPending = mTabModelSelector.getModel(/*incognito=*/true).getCount() > 0
+                && mIsIncognitoReauthPendingOnRestoreSupplier.get();
         showDialogIfRequired();
     }
 }

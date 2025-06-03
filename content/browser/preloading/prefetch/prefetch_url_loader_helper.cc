@@ -7,12 +7,12 @@
 #include "base/memory/weak_ptr.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/time/time.h"
-#include "content/browser/preloading/prefetch/prefetch_container.h"
 #include "content/browser/preloading/prefetch/prefetch_origin_prober.h"
 #include "content/browser/preloading/prefetch/prefetch_params.h"
 #include "content/browser/preloading/prefetch/prefetch_probe_result.h"
 #include "content/browser/preloading/prefetch/prefetch_service.h"
 #include "content/browser/preloading/prefetch/prefetch_serving_page_metrics_container.h"
+#include "content/browser/preloading/prefetch/prefetch_status.h"
 #include "content/browser/renderer_host/frame_tree_node.h"
 #include "content/browser/renderer_host/navigation_request.h"
 #include "content/public/browser/prefetch_metrics.h"
@@ -24,8 +24,7 @@
 namespace content {
 namespace {
 
-using GetPrefetchCallback =
-    base::OnceCallback<void(base::WeakPtr<PrefetchContainer>)>;
+using GetPrefetchCallback = base::OnceCallback<void(PrefetchContainer::Reader)>;
 
 PrefetchServingPageMetricsContainer*
 PrefetchServingPageMetricsContainerFromFrameTreeNodeId(int frame_tree_node_id) {
@@ -59,29 +58,37 @@ PrefetchOriginProber* GetPrefetchOriginProber(int frame_tree_node_id) {
 // Called when all checks below are complete.
 void OnComplete(int frame_tree_node_id,
                 GetPrefetchCallback get_prefetch_callback,
-                base::WeakPtr<PrefetchContainer> prefetch_container,
+                PrefetchContainer::Reader reader,
                 PrefetchProbeResult probe_result) {
-  if (!prefetch_container ||
-      !prefetch_container->IsPrefetchServable(PrefetchCacheableDuration())) {
-    std::move(get_prefetch_callback).Run(nullptr);
+  if (!reader) {
+    std::move(get_prefetch_callback).Run({});
     return;
+  }
+
+  switch (reader.GetServableState(PrefetchCacheableDuration())) {
+    case PrefetchContainer::ServableState::kNotServable:
+    case PrefetchContainer::ServableState::kShouldBlockUntilHeadReceived:
+      std::move(get_prefetch_callback).Run({});
+      return;
+    case PrefetchContainer::ServableState::kServable:
+      break;
   }
 
   // Delay updating the prefetch with the probe result in case it becomes not
   // servable.
-  if (prefetch_container) {
-    prefetch_container->OnPrefetchProbeResult(probe_result);
+  if (reader) {
+    reader.OnPrefetchProbeResult(probe_result);
 
     PrefetchServingPageMetricsContainer* serving_page_metrics_container =
         PrefetchServingPageMetricsContainerFromFrameTreeNodeId(
             frame_tree_node_id);
     if (serving_page_metrics_container) {
       serving_page_metrics_container->SetPrefetchStatus(
-          prefetch_container->GetPrefetchStatus());
+          reader.GetPrefetchStatus());
     }
   }
 
-  std::move(get_prefetch_callback).Run(std::move(prefetch_container));
+  std::move(get_prefetch_callback).Run(std::move(reader));
 }
 
 // Called when cookie copy is completed (if asynchronously waited).
@@ -90,26 +97,26 @@ void OnComplete(int frame_tree_node_id,
 // time.
 void OnCookieCopyComplete(int frame_tree_node_id,
                           GetPrefetchCallback get_prefetch_callback,
-                          base::WeakPtr<PrefetchContainer> prefetch_container,
+                          PrefetchContainer::Reader reader,
                           PrefetchProbeResult probe_result,
                           base::TimeTicks cookie_copy_start_time) {
   base::TimeDelta wait_time = base::TimeTicks::Now() - cookie_copy_start_time;
-  DCHECK_GT(wait_time, base::TimeDelta());
+  CHECK_GT(wait_time, base::TimeDelta());
   RecordCookieWaitTime(wait_time);
   OnComplete(frame_tree_node_id, std::move(get_prefetch_callback),
-             std::move(prefetch_container), probe_result);
+             std::move(reader), probe_result);
 }
 
-// Starts the cookie copy for next redirect hop of |prefetch_container|.
+// Starts the cookie copy for next redirect hop of |reader|.
 void StartCookieCopy(int frame_tree_node_id,
-                     base::WeakPtr<PrefetchContainer> prefetch_container) {
+                     const PrefetchContainer::Reader& reader) {
   PrefetchService* prefetch_service =
       PrefetchService::GetFromFrameTreeNodeId(frame_tree_node_id);
   if (!prefetch_service) {
     return;
   }
 
-  prefetch_service->CopyIsolatedCookies(prefetch_container);
+  prefetch_service->CopyIsolatedCookies(reader);
 }
 
 // Ensures that the cookies for prefetch are copied from its isolated
@@ -118,22 +125,21 @@ void EnsureCookiesCopiedAndInterceptPrefetchedNavigation(
     int frame_tree_node_id,
     const network::ResourceRequest& tentative_resource_request,
     GetPrefetchCallback get_prefetch_callback,
-    base::WeakPtr<PrefetchContainer> prefetch_container,
+    PrefetchContainer::Reader reader,
     PrefetchProbeResult probe_result) {
-  if (prefetch_container &&
-      !prefetch_container->HasIsolatedCookieCopyStarted()) {
-    StartCookieCopy(frame_tree_node_id, prefetch_container);
+  if (reader && !reader.HasIsolatedCookieCopyStarted()) {
+    StartCookieCopy(frame_tree_node_id, reader);
   }
 
-  if (prefetch_container) {
-    prefetch_container->OnInterceptorCheckCookieCopy();
+  if (reader) {
+    reader.OnInterceptorCheckCookieCopy();
   }
 
-  if (prefetch_container &&
-      prefetch_container->IsIsolatedCookieCopyInProgress()) {
-    prefetch_container->SetOnCookieCopyCompleteCallback(base::BindOnce(
+  if (reader && reader.IsIsolatedCookieCopyInProgress()) {
+    auto temp_reader = reader.Clone();
+    temp_reader.SetOnCookieCopyCompleteCallback(base::BindOnce(
         &OnCookieCopyComplete, frame_tree_node_id,
-        std::move(get_prefetch_callback), prefetch_container, probe_result,
+        std::move(get_prefetch_callback), std::move(reader), probe_result,
         /* cookie_copy_start_time */ base::TimeTicks::Now()));
     return;
   }
@@ -141,7 +147,7 @@ void EnsureCookiesCopiedAndInterceptPrefetchedNavigation(
   RecordCookieWaitTime(base::TimeDelta());
 
   OnComplete(frame_tree_node_id, std::move(get_prefetch_callback),
-             std::move(prefetch_container), probe_result);
+             std::move(reader), probe_result);
 }
 
 // Called when the `PrefetchOriginProber` check is done (if performed).
@@ -150,7 +156,7 @@ void EnsureCookiesCopiedAndInterceptPrefetchedNavigation(
 void OnProbeComplete(int frame_tree_node_id,
                      const network::ResourceRequest& tentative_resource_request,
                      GetPrefetchCallback get_prefetch_callback,
-                     base::WeakPtr<PrefetchContainer> prefetch_container,
+                     PrefetchContainer::Reader reader,
                      base::TimeTicks probe_start_time,
                      PrefetchProbeResult probe_result) {
   PrefetchServingPageMetricsContainer* serving_page_metrics_container =
@@ -164,21 +170,20 @@ void OnProbeComplete(int frame_tree_node_id,
   if (PrefetchProbeResultIsSuccess(probe_result)) {
     EnsureCookiesCopiedAndInterceptPrefetchedNavigation(
         frame_tree_node_id, tentative_resource_request,
-        std::move(get_prefetch_callback), std::move(prefetch_container),
-        probe_result);
+        std::move(get_prefetch_callback), std::move(reader), probe_result);
     return;
   }
 
-  if (prefetch_container) {
-    prefetch_container->OnPrefetchProbeResult(probe_result);
+  if (reader) {
+    reader.OnPrefetchProbeResult(probe_result);
 
     if (serving_page_metrics_container) {
       serving_page_metrics_container->SetPrefetchStatus(
-          prefetch_container->GetPrefetchStatus());
+          reader.GetPrefetchStatus());
     }
   }
 
-  std::move(get_prefetch_callback).Run(nullptr);
+  std::move(get_prefetch_callback).Run({});
 }
 
 }  // namespace
@@ -187,48 +192,68 @@ void OnGotPrefetchToServe(
     int frame_tree_node_id,
     const network::ResourceRequest& tentative_resource_request,
     GetPrefetchCallback get_prefetch_callback,
-    base::WeakPtr<PrefetchContainer> prefetch_container) {
+    PrefetchContainer::Reader reader) {
+  // TODO(crbug.com/1462206): With multiple prefetches matching, we should
+  // move some of the checks here in `PrefetchService::ReturnPrefetchToServe`.
+  // Why ? Because we might be able to serve a different prefetch if the
+  // prefetch in the `reader` cannot be served.
+
   // The |tentative_resource_request.url| might be different from
-  // |prefetch_container->GetURL()| because of No-Vary-Search non-exact url
+  // |GetCurrentURLToServe()| because of No-Vary-Search non-exact url
   // match.
 #if DCHECK_IS_ON()
-  if (prefetch_container) {
+  if (reader) {
     GURL::Replacements replacements;
     replacements.ClearRef();
     replacements.ClearQuery();
     DCHECK_EQ(tentative_resource_request.url.ReplaceComponents(replacements),
-              prefetch_container->GetCurrentURLToServe().ReplaceComponents(
-                  replacements));
+              reader.GetCurrentURLToServe().ReplaceComponents(replacements));
   }
 #endif
 
-  if (!prefetch_container ||
-      !prefetch_container->IsPrefetchServable(PrefetchCacheableDuration()) ||
-      prefetch_container->HaveDefaultContextCookiesChanged(
-          tentative_resource_request.url)) {
-    std::move(get_prefetch_callback).Run(nullptr);
+  if (!reader) {
+    std::move(get_prefetch_callback).Run({});
     return;
   }
 
+  switch (reader.GetServableState(PrefetchCacheableDuration())) {
+    case PrefetchContainer::ServableState::kNotServable:
+    case PrefetchContainer::ServableState::kShouldBlockUntilHeadReceived:
+      std::move(get_prefetch_callback).Run({});
+      return;
+    case PrefetchContainer::ServableState::kServable:
+      break;
+  }
+
+  if (reader.HaveDefaultContextCookiesChanged()) {
+    reader.GetPrefetchContainer()->OnCookiesChanged();
+    std::move(get_prefetch_callback).Run({});
+    return;
+  }
+
+  // TODO(crbug.com/1462206): Should we check for existence of an
+  // `origin_prober` earlier instead of waiting until we have a matching
+  // prefetch?
   PrefetchOriginProber* origin_prober =
       GetPrefetchOriginProber(frame_tree_node_id);
   if (!origin_prober) {
-    std::move(get_prefetch_callback).Run(nullptr);
+    std::move(get_prefetch_callback).Run({});
     return;
   }
-  if (origin_prober->ShouldProbeOrigins()) {
+  if (reader.IsIsolatedNetworkContextRequiredToServe() &&
+      origin_prober->ShouldProbeOrigins()) {
     origin_prober->Probe(
         url::SchemeHostPort(tentative_resource_request.url).GetURL(),
-        base::BindOnce(
-            &OnProbeComplete, frame_tree_node_id, tentative_resource_request,
-            std::move(get_prefetch_callback), std::move(prefetch_container),
-            /* probe_start_time */ base::TimeTicks::Now()));
+        base::BindOnce(&OnProbeComplete, frame_tree_node_id,
+                       tentative_resource_request,
+                       std::move(get_prefetch_callback), std::move(reader),
+                       /* probe_start_time */ base::TimeTicks::Now()));
     return;
   }
 
   EnsureCookiesCopiedAndInterceptPrefetchedNavigation(
       frame_tree_node_id, tentative_resource_request,
-      std::move(get_prefetch_callback), std::move(prefetch_container),
+      std::move(get_prefetch_callback), std::move(reader),
       PrefetchProbeResult::kNoProbing);
 }
 

@@ -103,7 +103,7 @@ void PressureClientImpl::Trace(Visitor* visitor) const {
   ExecutionContextClient::Trace(visitor);
 }
 
-// https://wicg.github.io/compute-pressure/#dfn-passes-privacy-test
+// https://w3c.github.io/compute-pressure/#dfn-passes-privacy-test
 bool PressureClientImpl::PassesPrivacyTest() const {
   const ExecutionContext* context = GetExecutionContext();
 
@@ -155,13 +155,13 @@ bool PressureClientImpl::PassesPrivacyTest() const {
     return false;
   }
 
-  // 9. If origin is same origin-domain with focused document, return true.
+  // 9. If origin is same origin with focused document, return true.
   // 10. Otherwise, return false.
   const SecurityOrigin* focused_frame_origin =
       focused_frame->GetSecurityContext()->GetSecurityOrigin();
   const SecurityOrigin* this_origin =
       this_frame->GetSecurityContext()->GetSecurityOrigin();
-  return focused_frame_origin->CanAccess(this_origin);
+  return focused_frame_origin->IsSameOriginWith(this_origin);
 }
 
 }  // namespace blink

@@ -9,10 +9,6 @@ import("//build/config/chromeos/ui_mode.gni")
 import("//rlz/buildflags/buildflags.gni")
 import("//testing/test.gni")
 
-config("rlz_lib_config") {
-  defines = [ "RLZ_NETWORK_IMPLEMENTATION_CHROME_NET" ]
-}
-
 source_set("rlz_utils") {
   sources = [
     "lib/assert.cc",
@@ -146,8 +142,6 @@ if (enable_rlz_support) {
         "//chromeos/ash/components/system",
       ]
     }
-
-    public_configs = [ ":rlz_lib_config" ]
   }
 
   source_set("test_support") {
@@ -215,20 +209,6 @@ if (!is_ios && !is_android) {
     deps = [
       ":rlz_lib",
       "//build/win:default_exe_manifest",
-    ]
-  }
-}
-
-if (is_win) {
-  shared_library("rlz") {
-    sources = [
-      "win/dll/dll_main.cc",
-      "win/dll/exports.cc",
-    ]
-    deps = [
-      ":rlz_lib",
-      ":rlz_utils",
-      "//third_party/zlib",
     ]
   }
 }

@@ -87,8 +87,9 @@ WebPreferences::WebPreferences()
       should_print_backgrounds(false),
       should_clear_document_background(true),
       enable_scroll_animator(false),
-      threaded_scrolling_enabled(true),
       prefers_reduced_motion(false),
+      prefers_reduced_transparency(false),
+      inverted_colors(false),
       touch_event_feature_detection_enabled(false),
       pointer_events_max_touch_points(0),
       available_pointer_types(0),
@@ -139,7 +140,6 @@ WebPreferences::WebPreferences()
       smart_insert_delete_enabled(false),
 #endif
       spatial_navigation_enabled(false),
-      navigate_on_drag_drop(true),
       fake_no_alloc_direct_call_for_testing_enabled(false),
       v8_cache_options(blink::mojom::V8CacheOptions::kDefault),
       record_whole_document(false),
@@ -163,6 +163,8 @@ WebPreferences::WebPreferences()
 #else
       text_autosizing_enabled(true),
       font_scale_factor(1.0f),
+      font_weight_adjustment(0),
+      text_size_contrast_factor(0),
       device_scale_adjustment(1.0f),
       force_enable_zoom(false),
       support_deprecated_target_density_dpi(false),
@@ -213,7 +215,11 @@ WebPreferences::WebPreferences()
       always_show_focus(false),
       touch_drag_drop_enabled(IsTouchDragDropEnabled()) {
   standard_font_family_map[web_pref::kCommonScript] = u"Times New Roman";
+#if BUILDFLAG(IS_MAC)
+  fixed_font_family_map[web_pref::kCommonScript] = u"Menlo";
+#else
   fixed_font_family_map[web_pref::kCommonScript] = u"Courier New";
+#endif
   serif_font_family_map[web_pref::kCommonScript] = u"Times New Roman";
   sans_serif_font_family_map[web_pref::kCommonScript] = u"Arial";
   cursive_font_family_map[web_pref::kCommonScript] = u"Script";

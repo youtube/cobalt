@@ -33,6 +33,22 @@
 // only defined starting 10.0.20226.0.
 #define CET_DYNAMIC_APIS_OUT_OF_PROC_ONLY_MASK (1 << 8)
 
+// From insider SDK 10.0.25295.0 and also from MSDN.
+// TODO: crbug.com/1414570 Remove this struct when SDK updates
+typedef struct _PROCESS_MITIGATION_SYSTEM_CALL_DISABLE_POLICY_2 {
+  union {
+    DWORD Flags;
+    struct {
+      DWORD DisallowWin32kSystemCalls : 1;
+      DWORD AuditDisallowWin32kSystemCalls : 1;
+      DWORD DisallowFsctlSystemCalls : 1;
+      DWORD AuditDisallowFsctlSystemCalls : 1;
+      DWORD ReservedFlags : 28;
+    } DUMMYSTRUCTNAME;
+  } DUMMYUNIONNAME;
+} PROCESS_MITIGATION_SYSTEM_CALL_DISABLE_POLICY_2,
+    *PPROCESS_MITIGATION_SYSTEM_CALL_DISABLE_POLICY_2;
+
 namespace {
 
 //------------------------------------------------------------------------------
@@ -48,8 +64,8 @@ void TestWin10NonSystemFont(bool is_success_test) {
   font_path = font_path.Append(L"arial.ttf");
 
   sandbox::TestRunner runner;
-  EXPECT_TRUE(runner.AddFsRule(sandbox::Semantics::kFilesAllowReadonly,
-                               font_path.value().c_str()));
+  EXPECT_TRUE(runner.AllowFileAccess(sandbox::FileSemantics::kAllowReadonly,
+                                     font_path.value().c_str()));
 
   if (!is_success_test) {
     sandbox::TargetPolicy* policy = runner.GetPolicy();
@@ -66,76 +82,6 @@ void TestWin10NonSystemFont(bool is_success_test) {
   EXPECT_EQ((is_success_test ? sandbox::SBOX_TEST_SUCCEEDED
                              : sandbox::SBOX_TEST_FAILED),
             runner.RunTest(test_command.c_str()));
-}
-
-//------------------------------------------------------------------------------
-// ForceMsSigned test helper function.
-// - LoadLibrary fails with ERROR_INVALID_IMAGE_HASH if this mitigation is
-//   enabled and the target is not appropriately signed.
-// - Acquire the global g_hooking_dll_mutex mutex before calling
-//   (as we meddle with a shared system resource).
-// - Note: Do not use ASSERTs in this function, as a global mutex is held.
-//
-// Trigger test child process (with or without mitigation enabled).
-//------------------------------------------------------------------------------
-void TestWin10MsSigned(int expected,
-                       bool enable_mitigation,
-                       bool delayed,
-                       bool use_ms_signed_binary,
-                       bool add_dll_permission,
-                       bool add_directory_permission) {
-  sandbox::TestRunner runner;
-  sandbox::TargetConfig* config = runner.GetPolicy()->GetConfig();
-
-  if (enable_mitigation) {
-    // Enable the ForceMsSigned mitigation.
-    if (delayed) {
-      EXPECT_EQ(config->SetDelayedProcessMitigations(
-                    sandbox::MITIGATION_FORCE_MS_SIGNED_BINS),
-                sandbox::SBOX_ALL_OK);
-    } else {
-      EXPECT_EQ(config->SetProcessMitigations(
-                    sandbox::MITIGATION_FORCE_MS_SIGNED_BINS),
-                sandbox::SBOX_ALL_OK);
-    }
-  }
-
-  // Choose the appropriate DLL and make sure the sandbox allows access to it.
-  base::FilePath dll_path;
-  if (use_ms_signed_binary) {
-    EXPECT_TRUE(base::PathService::Get(base::DIR_SYSTEM, &dll_path));
-    dll_path = dll_path.Append(L"gdi32.dll");
-  } else {
-    EXPECT_TRUE(base::PathService::Get(base::DIR_EXE, &dll_path));
-    dll_path = dll_path.Append(hooking_dll::g_hook_dll_file);
-
-    if (add_dll_permission) {
-      EXPECT_EQ(sandbox::SBOX_ALL_OK,
-                config->AddRule(sandbox::SubSystem::kSignedBinary,
-                                sandbox::Semantics::kSignedAllowLoad,
-                                dll_path.value().c_str()));
-    }
-    if (add_directory_permission) {
-      base::FilePath exe_path;
-      EXPECT_TRUE(base::PathService::Get(base::DIR_EXE, &exe_path));
-      EXPECT_EQ(sandbox::SBOX_ALL_OK,
-                config->AddRule(
-                    sandbox::SubSystem::kSignedBinary,
-                    sandbox::Semantics::kSignedAllowLoad,
-                    exe_path.DirName().AppendASCII("*.dll").value().c_str()));
-    }
-  }
-  EXPECT_TRUE(runner.AddFsRule(sandbox::Semantics::kFilesAllowReadonly,
-                               dll_path.value().c_str()));
-  // Set up test string.
-  std::wstring test = L"TestDllLoad \"";
-  test += dll_path.value().c_str();
-  test += L"\"";
-
-  // Note: ERROR_INVALID_IMAGE_HASH is being displayed in a system pop-up when
-  //       the DLL load is attempted for delayed mitigations, but the value
-  //       returned from the test process itself is SBOX_TEST_FAILED.
-  EXPECT_EQ(expected, runner.RunTest(test.c_str()));
 }
 
 }  // namespace
@@ -455,28 +401,29 @@ SBOX_TESTS_COMMAND int CheckPolicy(int argc, wchar_t** argv) {
 
       break;
     }
+    //--------------------------------------------------
+    // MITIGATION_FSCTL_DISABLED
+    //--------------------------------------------------
+    case (TESTPOLICY_FSCTLDISABLED): {
+      PROCESS_MITIGATION_SYSTEM_CALL_DISABLE_POLICY_2 policy = {};
+      if (!::GetProcessMitigationPolicy(::GetCurrentProcess(),
+                                        ProcessSystemCallDisablePolicy, &policy,
+                                        sizeof(policy))) {
+        return SBOX_TEST_NOT_FOUND;
+      }
+      // We wish to disable the policy.
+      if (!policy.DisallowFsctlSystemCalls) {
+        return SBOX_TEST_FAILED;
+      }
+
+      break;
+    }
 
     default:
       return SBOX_TEST_INVALID_PARAMETER;
   }
 
   return SBOX_TEST_SUCCEEDED;
-}
-
-// ForceMsSigned tests:
-// Try to load the DLL given in arg1.
-SBOX_TESTS_COMMAND int TestDllLoad(int argc, wchar_t** argv) {
-  if (argc < 1 || !argv[0])
-    return SBOX_TEST_INVALID_PARAMETER;
-
-  std::wstring dll = argv[0];
-  base::ScopedNativeLibrary test_dll((base::FilePath(dll)));
-  if (test_dll.is_valid())
-    return SBOX_TEST_SUCCEEDED;
-
-  // Note: GetLastError() does not get an accurate failure code
-  //       at this point.
-  return SBOX_TEST_FAILED;
 }
 
 // This test attempts a non-system font load.
@@ -796,148 +743,11 @@ TEST(ProcessMitigationsTest, DISABLED_CheckWin10MsSignedPolicySuccess) {
   EXPECT_TRUE(base::PathService::Get(base::DIR_EXE, &exe_path));
   // Allow all *.dll in current directory to load.
   EXPECT_EQ(sandbox::SBOX_ALL_OK,
-            config2->AddRule(
-                sandbox::SubSystem::kSignedBinary,
-                sandbox::Semantics::kSignedAllowLoad,
+            config2->AllowExtraDlls(
                 exe_path.DirName().AppendASCII("*.dll").value().c_str()));
 #endif  // defined(COMPONENT_BUILD)
 
   EXPECT_EQ(SBOX_TEST_SUCCEEDED, runner2.RunTest(test_command.c_str()));
-}
-// This test validates that we can load an unsigned DLL if the
-// MITIGATION_FORCE_MS_SIGNED_BINS mitigation is NOT set.
-TEST(ProcessMitigationsTest, CheckWin10MsSigned_Success) {
-  if (base::win::GetVersion() < base::win::Version::WIN10_TH2)
-    return;
-
-  ScopedTestMutex mutex(hooking_dll::g_hooking_dll_mutex);
-
-  TestWin10MsSigned(sandbox::SBOX_TEST_SUCCEEDED /* expected */,
-                    false /* enable_mitigation */,
-                    false /* delayed */,
-                    false /* use_ms_signed_binary */,
-                    false /* add_dll_permission */,
-                    false /* add_directory_permission */);
-}
-
-// This test validates that setting the MITIGATION_FORCE_MS_SIGNED_BINS
-// mitigation prevents the loading of an unsigned DLL.
-TEST(ProcessMitigationsTest, CheckWin10MsSigned_Failure) {
-  if (base::win::GetVersion() < base::win::Version::WIN10_TH2)
-    return;
-
-  ScopedTestMutex mutex(hooking_dll::g_hooking_dll_mutex);
-
-  TestWin10MsSigned(sandbox::SBOX_TEST_FAILED /* expected */,
-                    true /* enable_mitigation */,
-                    true /* delayed */,
-                    false /* use_ms_signed_binary */,
-                    false /* add_dll_permission */,
-                    false /* add_directory_permission */);
-}
-
-// ASAN doesn't initialize early enough for the intercepts in NtCreateSection to
-// be able to use std::unique_ptr, so disable pre-launch CIG on ASAN builds.
-#if !defined(ADDRESS_SANITIZER)
-#define MAYBE_CheckWin10MsSigned_FailurePreSpawn \
-  CheckWin10MsSigned_FailurePreSpawn
-#else
-#define MAYBE_CheckWin10MsSigned_FailurePreSpawn \
-  DISABLED_CheckWin10MsSigned_FailurePreSpawn
-#endif
-
-// This test validates that setting the MITIGATION_FORCE_MS_SIGNED_BINS
-// mitigation allows the loading of an unsigned DLL if intercept in place.
-
-// Disabled due to crbug.com/1081080. This test was previously disabled on ASAN
-// builds, so if re-enabling remember to test that behaviour.
-TEST(ProcessMitigationsTest, DISABLED_CheckWin10MsSignedWithIntercept_Success) {
-  if (base::win::GetVersion() < base::win::Version::WIN10_TH2)
-    return;
-
-  ScopedTestMutex mutex(hooking_dll::g_hooking_dll_mutex);
-
-  // Expect success; Enable mitigation; Use non MS-signed binary.
-#if defined(COMPONENT_BUILD)
-  // In a component build, add the directory to the allowed list.
-  TestWin10MsSigned(sandbox::SBOX_TEST_SUCCEEDED /* expected */,
-                    true /* enable_mitigation */,
-                    false /* delayed */,
-                    false /* use_ms_signed_binary */,
-                    true /* add_dll_permission */,
-                    true /* add_directory_permission */);
-#else
-  TestWin10MsSigned(sandbox::SBOX_TEST_SUCCEEDED /* expected */,
-                    true /* enable_mitigation */,
-                    false /* delayed */,
-                    false /* use_ms_signed_binary */,
-                    true /* add_dll_permission */,
-                    false /* add_directory_permission */);
-#endif  // defined(COMPONENT_BUILD)
-}
-
-// This test validates that setting the MITIGATION_FORCE_MS_SIGNED_BINS
-// mitigation pre-load prevents the loading of an unsigned DLL.
-TEST(ProcessMitigationsTest, MAYBE_CheckWin10MsSigned_FailurePreSpawn) {
-  if (base::win::GetVersion() < base::win::Version::WIN10_TH2)
-    return;
-
-  ScopedTestMutex mutex(hooking_dll::g_hooking_dll_mutex);
-
-  // Other code in base/process relies on this invariant.
-  static_assert(
-      base::win::kStatusInvalidImageHashExitCode == STATUS_INVALID_IMAGE_HASH,
-      "Invalid hash exit code does not match between base and sandbox.");
-
-#if defined(COMPONENT_BUILD)
-  // In a component build, the executable will fail to start-up because
-  // imports e.g. base.dll cannot be resolved.
-  int expected = STATUS_INVALID_IMAGE_HASH;
-#else
-  // In a non-component build, the process will start, but the unsigned
-  // DLL will fail to load inside the test itself.
-  int expected = sandbox::SBOX_TEST_FAILED;
-#endif
-
-  TestWin10MsSigned(expected /* expected */,
-                    true /* enable_mitigation */,
-                    false /* delayed */,
-                    false /* use_ms_signed_binary */,
-                    false /* add_dll_permission */,
-                    false /* add_directory_permission */);
-}
-
-// This test validates that we can load a signed Microsoft DLL if the
-// MITIGATION_FORCE_MS_SIGNED_BINS mitigation is NOT set.  Very basic
-// sanity test.
-TEST(ProcessMitigationsTest, CheckWin10MsSigned_MsBaseline) {
-  if (base::win::GetVersion() < base::win::Version::WIN10_TH2)
-    return;
-
-  ScopedTestMutex mutex(hooking_dll::g_hooking_dll_mutex);
-
-  TestWin10MsSigned(sandbox::SBOX_TEST_SUCCEEDED /* expected */,
-                    false /* enable_mitigation */,
-                    false /* delayed */,
-                    true /* use_ms_signed_binary */,
-                    false /* add_dll_permission */,
-                    false /* add_directory_permission */);
-}
-
-// This test validates that setting the MITIGATION_FORCE_MS_SIGNED_BINS
-// mitigation still allows the load of an MS-signed DLL.
-TEST(ProcessMitigationsTest, CheckWin10MsSigned_MsSuccess) {
-  if (base::win::GetVersion() < base::win::Version::WIN10_TH2)
-    return;
-
-  ScopedTestMutex mutex(hooking_dll::g_hooking_dll_mutex);
-
-  TestWin10MsSigned(sandbox::SBOX_TEST_SUCCEEDED /* expected */,
-                    true /* enable_mitigation */,
-                    true /* delayed */,
-                    true /* use_ms_signed_binary */,
-                    false /* add_dll_permission */,
-                    false /* add_directory_permission */);
 }
 
 //------------------------------------------------------------------------------
@@ -1370,6 +1180,29 @@ TEST(ProcessMitigationsTest, SetPreAndPostStartupSamePolicy_ASLR) {
                 MITIGATION_RELOCATE_IMAGE | MITIGATION_RELOCATE_IMAGE_REQUIRED),
             SBOX_ALL_OK);
 
+  EXPECT_EQ(SBOX_TEST_SUCCEEDED, runner.RunTest(test_command.c_str()));
+}
+
+// This test validates that setting MITIGATION_FSCTL_DISABLED applies the
+// FSCTL syscall mitigation to the child process.
+TEST(ProcessMitigationsTest, FsctlDisabled) {
+  // TODO: update version check when the planned OS servicing is done for Win10
+  // 22H2 & later.
+  if (base::win::GetVersion() <= base::win::Version::WIN11_22H2) {
+    return;
+  }
+
+  std::wstring test_command = L"CheckPolicy ";
+  test_command += std::to_wstring(TESTPOLICY_FSCTLDISABLED);
+
+  //---------------------------------
+  // 1) Test setting pre-startup.
+  //---------------------------------
+  TestRunner runner;
+  sandbox::TargetConfig* config = runner.GetPolicy()->GetConfig();
+
+  EXPECT_EQ(config->SetProcessMitigations(MITIGATION_FSCTL_DISABLED),
+            SBOX_ALL_OK);
   EXPECT_EQ(SBOX_TEST_SUCCEEDED, runner.RunTest(test_command.c_str()));
 }
 

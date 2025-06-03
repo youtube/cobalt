@@ -19,6 +19,7 @@
 #include "base/time/tick_clock.h"
 #include "base/trace_event/trace_event.h"
 #include "base/trace_event/traced_value.h"
+#include "components/viz/common/features.h"
 #include "components/viz/common/quads/compositor_render_pass.h"
 #include "components/viz/common/resources/returned_resource.h"
 #include "components/viz/common/resources/transferable_resource.h"
@@ -51,6 +52,10 @@ void RequestCopyOfOutputOnRenderPass(std::unique_ptr<CopyOutputRequest> request,
   render_pass.copy_requests.push_back(std::move(request));
 }
 
+bool ShouldBlockActivationOnDependenciesWhenInteractive() {
+  return !features::ShouldDrawImmediatelyWhenInteractive();
+}
+
 }  // namespace
 
 Surface::PresentationHelper::PresentationHelper(
@@ -70,7 +75,7 @@ void Surface::PresentationHelper::DidPresent(
     base::TimeTicks draw_start_timestamp,
     const gfx::SwapTimings& swap_timings,
     const gfx::PresentationFeedback& feedback) {
-  if (surface_client_ && frame_token_) {
+  if (surface_client_ && frame_token_ != kInvalidOrLocalFrameToken) {
     surface_client_->OnSurfacePresented(frame_token_, draw_start_timestamp,
                                         swap_timings, feedback);
   }
@@ -100,6 +105,10 @@ Surface::~Surface() {
   ClearCopyRequests();
 
   surface_manager_->SurfaceDestroyed(this);
+
+  for (auto& frame : uncommitted_frames_) {
+    UnrefFrameResourcesAndRunCallbacks(std::move(frame));
+  }
 
   UnrefFrameResourcesAndRunCallbacks(std::move(pending_frame_data_));
   UnrefFrameResourcesAndRunCallbacks(std::move(active_frame_data_));
@@ -418,8 +427,9 @@ void Surface::CommitFramesRecursively(const CommitPredicate& predicate) {
     const auto& ack =
         uncommitted_frames_.front().frame.metadata.begin_frame_ack;
 
-    if (!predicate.Run(surface_id(), ack.frame_id))
+    if (!predicate(surface_id(), ack.frame_id)) {
       break;
+    }
 
     CommitFrame(std::move(uncommitted_frames_.front()));
     uncommitted_frames_.pop_front();
@@ -452,18 +462,18 @@ void Surface::CommitFramesRecursively(const CommitPredicate& predicate) {
   }
 }
 
-absl::optional<BeginFrameId> Surface::GetFirstUncommitedFrameId() {
+absl::optional<uint64_t> Surface::GetFirstUncommitedFrameIndex() {
   if (uncommitted_frames_.empty())
     return absl::nullopt;
-  return uncommitted_frames_.front().frame.metadata.begin_frame_ack.frame_id;
+  return uncommitted_frames_.front().frame_index;
 }
 
-absl::optional<BeginFrameId> Surface::GetUncommitedFrameIdNewerThan(
-    const BeginFrameId& frame_id) {
+absl::optional<uint64_t> Surface::GetUncommitedFrameIndexNewerThan(
+    uint64_t frame_index) {
   for (auto& frame : uncommitted_frames_) {
-    if (frame.frame.metadata.begin_frame_ack.frame_id.IsNextInSequenceTo(
-            frame_id))
-      return frame.frame.metadata.begin_frame_ack.frame_id;
+    if (frame.frame_index > frame_index) {
+      return frame.frame_index;
+    }
   }
   return absl::nullopt;
 }
@@ -646,6 +656,14 @@ void Surface::UpdateActivationDependencies(
   if (current_frame.metadata.deadline.IsZero())
     return;
 
+  bool should_block_on_dependencies =
+      ShouldBlockActivationOnDependenciesWhenInteractive() ||
+      !current_frame.metadata.is_handling_interaction;
+
+  if (!should_block_on_dependencies) {
+    return;
+  }
+
   base::flat_set<SurfaceAllocationGroup*> new_blocking_allocation_groups;
   std::vector<SurfaceId> new_activation_dependencies;
   for (const SurfaceId& surface_id :
@@ -732,21 +750,8 @@ const CompositorFrameMetadata& Surface::GetActiveFrameMetadata() const {
   return active_frame_data_->frame.metadata;
 }
 
-void Surface::ResetInterpolatedFrame() {
-  interpolated_frame_.reset();
-  has_damage_from_interpolated_frame_ = true;
-}
-
 void Surface::SetInterpolatedFrame(CompositorFrame frame) {
   interpolated_frame_.emplace(std::move(frame));
-}
-
-bool Surface::HasSurfaceAnimationDamage() const {
-  return interpolated_frame_.has_value() || has_damage_from_interpolated_frame_;
-}
-
-void Surface::DidAggregate() {
-  has_damage_from_interpolated_frame_ = false;
 }
 
 const CompositorFrame& Surface::GetPendingFrame() {

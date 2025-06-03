@@ -28,7 +28,7 @@ namespace {
 // leading `0x`.
 // The FeatureParam may be overriden via Finch config, or via the command line
 // with
-// --force-fieldtrial-params=WebGPUOriginTrial.Enabled:AdapterBlockList/params
+// --force-fieldtrial-params=WebGPU.Enabled:AdapterBlockList/params
 // where `params` is URL-encoded.
 const base::FeatureParam<std::string> kAdapterBlockList{
     &features::kWebGPUService, "AdapterBlockList", ""};
@@ -44,8 +44,9 @@ bool IsWebGPUAdapterBlocklisted(const WGPUAdapterProperties& properties,
 #if BUILDFLAG(USE_DAWN)
 #if BUILDFLAG(IS_MAC)
   constexpr uint32_t kAMDVendorID = 0x1002;
-  // Blocklisted due to crbug.com/tint/1094
-  if (!base::mac::IsAtLeastOS13() && properties.vendorID == kAMDVendorID &&
+  // Blocklisted due to https://crbug.com/tint/1094
+  if (base::mac::MacOSMajorVersion() < 13 &&
+      properties.vendorID == kAMDVendorID &&
       properties.backendType == WGPUBackendType_Metal) {
     return true;
   }
@@ -54,6 +55,11 @@ bool IsWebGPUAdapterBlocklisted(const WGPUAdapterProperties& properties,
   // TODO(crbug.com/1266550): SwiftShader and CPU adapters are blocked until
   // fully tested.
   if (properties.adapterType == WGPUAdapterType_CPU) {
+    return true;
+  }
+
+  // TODO(dawn:1705): d3d11 is not full implemented yet.
+  if (properties.backendType == WGPUBackendType_D3D11) {
     return true;
   }
 

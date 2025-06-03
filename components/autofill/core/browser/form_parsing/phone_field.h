@@ -13,6 +13,7 @@
 #include "base/gtest_prod_util.h"
 #include "base/strings/string_piece.h"
 #include "components/autofill/core/browser/autofill_type.h"
+#include "components/autofill/core/browser/country_type.h"
 #include "components/autofill/core/browser/data_model/phone_number.h"
 #include "components/autofill/core/browser/form_parsing/form_field.h"
 #include "components/autofill/core/common/language_code.h"
@@ -29,13 +30,16 @@ class LogManager;
 // - number
 class PhoneField : public FormField {
  public:
+  ~PhoneField() override;
   PhoneField(const PhoneField&) = delete;
   PhoneField& operator=(const PhoneField&) = delete;
 
-  static std::unique_ptr<FormField> Parse(AutofillScanner* scanner,
-                                          const LanguageCode& page_language,
-                                          PatternSource pattern_source,
-                                          LogManager* log_manager);
+  static std::unique_ptr<FormField> Parse(
+      AutofillScanner* scanner,
+      const GeoIpCountryCode& client_country,
+      const LanguageCode& page_language,
+      PatternSource pattern_source,
+      LogManager* log_manager);
 
 #if defined(UNIT_TEST)
   // Assign types to the fields for the testing purposes.
@@ -75,7 +79,7 @@ class PhoneField : public FormField {
     FIELD_EXTENSION,
     FIELD_MAX,
   };
-  using ParsedPhoneFields = std::array<AutofillField*, FIELD_MAX>;
+  using ParsedPhoneFields = std::array<raw_ptr<AutofillField>, FIELD_MAX>;
 
   explicit PhoneField(ParsedPhoneFields fields);
 
@@ -103,7 +107,7 @@ class PhoneField : public FormField {
   // Convenient wrapper for ParseFieldSpecifics().
   static bool ParsePhoneField(AutofillScanner* scanner,
                               base::StringPiece16 regex,
-                              AutofillField** field,
+                              raw_ptr<AutofillField>* field,
                               const RegExLogging& logging,
                               const bool is_country_code_field,
                               const std::string& json_field_type,
@@ -124,7 +128,7 @@ class PhoneField : public FormField {
   // "Augmented" refers to the fact that we are looking for select options that
   // contain not only a country code but also further text like "Germany (+49)".
   static bool LikelyAugmentedPhoneCountryCode(AutofillScanner* scanner,
-                                              AutofillField** match);
+                                              raw_ptr<AutofillField>* match);
 
   // FIELD_PHONE is always present; holds suffix if prefix is present.
   // The rest could be NULL.

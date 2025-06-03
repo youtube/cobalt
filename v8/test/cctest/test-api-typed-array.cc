@@ -6,6 +6,7 @@
 #include "src/base/strings.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-buffer.h"
+#include "test/cctest/heap/heap-utils.h"
 #include "test/cctest/test-api.h"
 
 using ::v8::Array;
@@ -17,7 +18,7 @@ namespace {
 
 void CheckElementValue(i::Isolate* isolate, int expected,
                        i::Handle<i::Object> obj, int offset) {
-  i::Object element =
+  i::Tagged<i::Object> element =
       *i::Object::GetElement(isolate, obj, offset).ToHandleChecked();
   CHECK_EQ(expected, i::Smi::ToInt(element));
 }
@@ -139,7 +140,7 @@ void ObjectWithExternalArrayTestHelper(Local<Context> context,
       "}"
       "sum;");
   // Force GC to trigger verification.
-  CcTest::CollectAllGarbage();
+  i::heap::InvokeMajorGC(CcTest::heap());
   CHECK_EQ(28, result->Int32Value(context).FromJust());
 
   // Make sure out-of-range loads do not throw.
@@ -177,8 +178,8 @@ void ObjectWithExternalArrayTestHelper(Local<Context> context,
   CHECK_EQ(0, result->Int32Value(context).FromJust());
   if (array_type == i::kExternalFloat64Array ||
       array_type == i::kExternalFloat32Array) {
-    CHECK(std::isnan(
-        i::Object::GetElement(isolate, jsobj, 7).ToHandleChecked()->Number()));
+    CHECK(std::isnan(i::Object::Number(
+        *i::Object::GetElement(isolate, jsobj, 7).ToHandleChecked())));
   } else {
     CheckElementValue(isolate, 0, jsobj, 7);
   }
@@ -189,9 +190,9 @@ void ObjectWithExternalArrayTestHelper(Local<Context> context,
       "}"
       "ext_array[6];");
   CHECK_EQ(2, result->Int32Value(context).FromJust());
-  CHECK_EQ(2, static_cast<int>(i::Object::GetElement(isolate, jsobj, 6)
-                                   .ToHandleChecked()
-                                   ->Number()));
+  CHECK_EQ(2,
+           static_cast<int>(i::Object::Number(
+               *i::Object::GetElement(isolate, jsobj, 6).ToHandleChecked())));
 
   if (array_type != i::kExternalFloat32Array &&
       array_type != i::kExternalFloat64Array) {

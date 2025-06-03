@@ -57,8 +57,6 @@ class MailboxToSurfaceBridgeImpl : public device::MailboxToSurfaceBridge {
 
   void ResizeSurface(int width, int height) override;
 
-  bool CopyMailboxToSurfaceAndSwap(const gpu::MailboxHolder& mailbox) override;
-
   bool CopyMailboxToSurfaceAndSwap(const gpu::MailboxHolder& mailbox,
                                    const gfx::Transform& uv_transform) override;
 
@@ -95,6 +93,7 @@ class MailboxToSurfaceBridgeImpl : public device::MailboxToSurfaceBridge {
   // in the same class like this.
   base::OnceClosure on_context_bound_;
 
+  // Only initialized if we have Surface (i.e surface_handle_ is not null).
   int surface_width_ = 0;
   int surface_height_ = 0;
 

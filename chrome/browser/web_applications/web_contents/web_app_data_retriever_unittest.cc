@@ -13,6 +13,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/bind.h"
 #include "chrome/browser/web_applications/web_app.h"
+#include "chrome/browser/web_applications/web_app_helpers.h"
 #include "chrome/browser/web_applications/web_app_install_info.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
 #include "chrome/test/base/testing_profile.h"
@@ -61,26 +62,27 @@ class FakeWebPageMetadataAgent
 
   // Set |web_app_info| to respond on |GetWebAppInstallInfo|.
   void SetWebAppInstallInfo(const WebAppInstallInfo& web_app_info) {
-    web_app_info_ = web_app_info.Clone();
+    web_app_info_ = std::make_unique<WebAppInstallInfo>(web_app_info.Clone());
   }
 
   void GetWebPageMetadata(GetWebPageMetadataCallback callback) override {
     webapps::mojom::WebPageMetadataPtr web_page_metadata(
         webapps::mojom::WebPageMetadata::New());
-    web_page_metadata->application_name = web_app_info_.title;
-    web_page_metadata->description = web_app_info_.description;
-    web_page_metadata->application_url = web_app_info_.start_url;
+    CHECK(web_app_info_);
+    web_page_metadata->application_name = web_app_info_->title;
+    web_page_metadata->description = web_app_info_->description;
+    web_page_metadata->application_url = web_app_info_->start_url;
 
     // Convert more fields as needed.
-    DCHECK(web_app_info_.manifest_icons.empty());
-    DCHECK(web_app_info_.mobile_capable ==
+    DCHECK(web_app_info_->manifest_icons.empty());
+    DCHECK(web_app_info_->mobile_capable ==
            WebAppInstallInfo::MOBILE_CAPABLE_UNSPECIFIED);
 
     std::move(callback).Run(std::move(web_page_metadata));
   }
 
  private:
-  WebAppInstallInfo web_app_info_;
+  std::unique_ptr<WebAppInstallInfo> web_app_info_;
 
   mojo::AssociatedReceiver<webapps::mojom::WebPageMetadataAgent> receiver_{
       this};
@@ -308,7 +310,7 @@ TEST_F(WebAppDataRetrieverTest,
   base::RunLoop run_loop;
   WebAppDataRetriever retriever;
   retriever.CheckInstallabilityAndRetrieveManifest(
-      web_contents(), /*bypass_service_worker_check=*/false,
+      web_contents(),
       base::BindLambdaForTesting(
           [&](blink::mojom::ManifestPtr opt_manifest, const GURL& manifest_url,
               bool valid_manifest_for_web_app,
@@ -330,11 +332,13 @@ TEST_F(WebAppDataRetrieverTest, GetIcons_WebContentsDestroyed) {
   web_contents_tester()->NavigateAndCommit(GURL("https://foo.example"));
 
   bool skip_page_favicons = true;
+  bool fail_all_if_any_fail = false;
 
   base::RunLoop run_loop;
   WebAppDataRetriever retriever;
-  retriever.GetIcons(web_contents(), /*icon_urls=*/base::flat_set<GURL>(),
-                     skip_page_favicons,
+  retriever.GetIcons(web_contents(),
+                     /*extra_favicon_urls=*/base::flat_set<GURL>(),
+                     skip_page_favicons, fail_all_if_any_fail,
                      base::BindLambdaForTesting(
                          [&](IconsDownloadedResult result, IconsMap icons_map,
                              DownloadedIconsHttpResults icons_http_results) {
@@ -353,6 +357,10 @@ TEST_F(WebAppDataRetrieverTest, GetWebAppInstallInfo_FrameNavigated) {
   const GURL kFooUrl("https://foo.example/bar");
   web_contents_tester()->NavigateAndCommit(kFooUrl.DeprecatedGetOriginAsURL());
 
+  // TODO(b/280862254): This will stop working once we remove the default
+  // constructor.
+  SetRendererWebAppInstallInfo(WebAppInstallInfo());
+
   base::RunLoop run_loop;
   WebAppDataRetriever retriever;
   retriever.GetWebAppInstallInfo(
@@ -362,8 +370,19 @@ TEST_F(WebAppDataRetrieverTest, GetWebAppInstallInfo_FrameNavigated) {
   web_contents_tester()->NavigateAndCommit(kFooUrl);
   run_loop.Run();
 
-  EXPECT_EQ(kFooUrl.DeprecatedGetOriginAsURL(), web_app_info()->start_url);
-  EXPECT_EQ(kFooTitle, web_app_info()->title);
+  if (web_contents()
+          ->GetPrimaryMainFrame()
+          ->ShouldChangeRenderFrameHostOnSameSiteNavigation()) {
+    // If the RenderFrameHost changes, the FakeWebPageMetadataAgent mojo
+    // connection will be disconnected, causing the callback to be called with
+    // a null info.
+    EXPECT_EQ(nullptr, web_app_info());
+  } else {
+    // Otherwise, the mojo connection will persist and the callback will get
+    // the info from the previous document.
+    EXPECT_EQ(kFooUrl.DeprecatedGetOriginAsURL(), web_app_info()->start_url);
+    EXPECT_EQ(kFooTitle, web_app_info()->title);
+  }
 }
 
 TEST_F(WebAppDataRetrieverTest, CheckInstallabilityAndRetrieveManifest) {
@@ -380,6 +399,7 @@ TEST_F(WebAppDataRetrieverTest, CheckInstallabilityAndRetrieveManifest) {
     manifest->short_name = manifest_short_name;
     manifest->name = manifest_name;
     manifest->start_url = manifest_start_url;
+    manifest->id = GenerateManifestIdFromStartUrlOnly(manifest_start_url);
     manifest->scope = manifest_scope;
     manifest->has_theme_color = true;
     manifest->theme_color = manifest_theme_color;
@@ -395,7 +415,7 @@ TEST_F(WebAppDataRetrieverTest, CheckInstallabilityAndRetrieveManifest) {
   WebAppDataRetriever retriever;
 
   retriever.CheckInstallabilityAndRetrieveManifest(
-      web_contents(), /*bypass_service_worker_check=*/false,
+      web_contents(),
       base::BindLambdaForTesting(
           [&](blink::mojom::ManifestPtr opt_manifest, const GURL& manifest_url,
               bool valid_manifest_for_web_app,
@@ -434,7 +454,7 @@ TEST_F(WebAppDataRetrieverTest, CheckInstallabilityFails) {
   WebAppDataRetriever retriever;
 
   retriever.CheckInstallabilityAndRetrieveManifest(
-      web_contents(), /*bypass_service_worker_check=*/false,
+      web_contents(),
       base::BindLambdaForTesting(
           [&](blink::mojom::ManifestPtr opt_manifest, const GURL& manifest_url,
               bool valid_manifest_for_web_app,

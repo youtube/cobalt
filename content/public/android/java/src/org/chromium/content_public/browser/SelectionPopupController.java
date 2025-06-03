@@ -8,8 +8,12 @@ import android.content.Intent;
 import android.view.ActionMode;
 import android.view.textclassifier.TextClassifier;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.content.browser.selection.SelectionPopupControllerImpl;
+import org.chromium.content_public.browser.selection.SelectionDropdownMenuDelegate;
 import org.chromium.ui.base.WindowAndroid;
 
 /**
@@ -58,17 +62,30 @@ public interface SelectionPopupController {
     }
 
     /**
-     * Set {@link ActionMode.Callback} used by {@link SelectionPopupController}.
-     * @param callback ActionMode.Callback instance.
+     * Set allow using magnifer built using surface control instead of the system-proivded one.
      */
-    void setActionModeCallback(ActionMode.Callback2 callback);
+    static void setAllowSurfaceControlMagnifier() {
+        SelectionPopupControllerImpl.setAllowSurfaceControlMagnifier();
+    }
 
     /**
-     * Set {@link ActionMode.Callback} used by {@link SelectionPopupController} when no text is
-     * selected.
-     * @param callback ActionMode.Callback instance.
+     * Check if need to disable SurfaceControl during selection.
      */
-    void setNonSelectionActionModeCallback(ActionMode.Callback callback);
+    static boolean needsSurfaceViewDuringSelection() {
+        return !SelectionPopupControllerImpl.isMagnifierWithSurfaceControlSupported();
+    }
+
+    /**
+     * Set {@link ActionModeCallback} used by {@link SelectionPopupController}.
+     */
+    void setActionModeCallback(ActionModeCallback callback);
+
+    /**
+     * Sets the {@link AdditionalSelectionMenuItemProvider} used by {@link SelectionPopupController}
+     * when no text is selected.
+     */
+    void setNonSelectionAdditionalMenuItemProvider(
+            @Nullable AdditionalSelectionMenuItemProvider provider);
 
     /**
      * @return {@link SelectionClient.ResultCallback} instance.
@@ -157,4 +174,9 @@ public interface SelectionPopupController {
      * @param focused If the WebContents currently has focus.
      */
     void updateTextSelectionUI(boolean focused);
+
+    /**
+     * Set the dropdown menu delegate that handles showing a dropdown style text selection menu.
+     */
+    void setDropdownMenuDelegate(@NonNull SelectionDropdownMenuDelegate dropdownMenuDelegate);
 }

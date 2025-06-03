@@ -88,11 +88,7 @@ RendererSandboxedProcessLauncherDelegateWin::
 }
 
 bool RendererSandboxedProcessLauncherDelegateWin::AllowWindowsFontsDir() {
-  if (is_pdf_renderer_) {
-    return true;
-  }
-  return base::FeatureList::IsEnabled(
-      sandbox::policy::features::kWinSboxAllowSystemFonts);
+  return is_pdf_renderer_;
 }
 
 std::string RendererSandboxedProcessLauncherDelegateWin::GetSandboxTag() {
@@ -139,8 +135,7 @@ bool RendererSandboxedProcessLauncherDelegateWin::InitializeConfig(
     }
   }
 
-  config->SetFilterEnvironment(base::FeatureList::IsEnabled(
-      sandbox::policy::features::kRendererFilterEnvironment));
+  config->SetFilterEnvironment(/*filter=*/true);
 
   ContentBrowserClient::ChildSpawnFlags flags(
       ContentBrowserClient::ChildSpawnFlags::kChildSpawnFlagNone);

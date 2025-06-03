@@ -9,13 +9,19 @@
 #include "base/command_line.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
+#include "base/json/json_writer.h"
 #include "base/memory/raw_ptr.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "base/test/scoped_feature_list.h"
+#include "base/test/values_test_util.h"
+#include "base/values.h"
 #include "components/network_session_configurator/common/network_switches.h"
 #include "content/browser/webid/fake_identity_request_dialog_controller.h"
-#include "content/browser/webid/test/mock_mdoc_provider.h"
+#include "content/browser/webid/identity_registry.h"
+#include "content/browser/webid/test/mock_digital_credential_provider.h"
+#include "content/browser/webid/test/mock_identity_request_dialog_controller.h"
+#include "content/browser/webid/test/mock_modal_dialog_view_delegate.h"
 #include "content/browser/webid/test/webid_test_content_browser_client.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/content_browser_client.h"
@@ -37,9 +43,11 @@
 #include "net/test/embedded_test_server/http_response.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/blink/public/common/features.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 
+using ::base::test::IsJson;
 using net::EmbeddedTestServer;
 using net::HttpStatusCode;
 using net::test_server::BasicHttpResponse;
@@ -47,7 +55,9 @@ using net::test_server::HttpMethod;
 using net::test_server::HttpRequest;
 using net::test_server::HttpResponse;
 using ::testing::_;
+using ::testing::NiceMock;
 using ::testing::WithArg;
+using ::testing::WithArgs;
 
 namespace content {
 
@@ -67,10 +77,9 @@ constexpr char kIdpForbiddenHeader[] = "Sec-FedCM-CSRF";
 
 // TODO(crbug.com/1381501): Replace these with a standardized header once
 // we collected enough metrics.
-static constexpr char kGoogleSigninHeader[] = "Google-Accounts-SignIn";
-static constexpr char kGoogleSignoutHeader[] = "Google-Accounts-SignOut";
-static constexpr char kGoogleHeaderValue[] =
-    "email=\"foo@example.com\", sessionindex=0, obfuscatedid=123";
+static constexpr char kSetLoginHeader[] = "Set-Login";
+static constexpr char kLoggedInHeaderValue[] = "logged-in";
+static constexpr char kLoggedOutHeaderValue[] = "logged-out";
 
 // Token value in //content/test/data/id_assertion_endpoint.json
 constexpr char kToken[] = "[not a real token]";
@@ -91,6 +100,7 @@ class IdpTestServer {
     std::string accounts_endpoint_url;
     std::string client_metadata_endpoint_url;
     std::string id_assertion_endpoint_url;
+    std::string login_url;
     std::map<std::string,
              base::RepeatingCallback<std::unique_ptr<HttpResponse>(
                  const HttpRequest&)>>
@@ -137,11 +147,11 @@ class IdpTestServer {
   std::unique_ptr<HttpResponse> BuildIdpHeaderResponse(
       const HttpRequest& request) {
     auto response = std::make_unique<BasicHttpResponse>();
-    if (request.relative_url.find("/header/gsignin") != std::string::npos) {
-      response->AddCustomHeader(kGoogleSigninHeader, kGoogleHeaderValue);
-    } else if (request.relative_url.find("/header/gsignout") !=
+    if (request.relative_url.find("/header/signin") != std::string::npos) {
+      response->AddCustomHeader(kSetLoginHeader, kLoggedInHeaderValue);
+    } else if (request.relative_url.find("/header/signout") !=
                std::string::npos) {
-      response->AddCustomHeader(kGoogleSignoutHeader, kGoogleHeaderValue);
+      response->AddCustomHeader(kSetLoginHeader, kLoggedOutHeaderValue);
     } else {
       return nullptr;
     }
@@ -161,7 +171,8 @@ class IdpTestServer {
     std::string content = ConvertToJsonDictionary(
         {{"accounts_endpoint", details.accounts_endpoint_url},
          {"client_metadata_endpoint", details.client_metadata_endpoint_url},
-         {"id_assertion_endpoint", details.id_assertion_endpoint_url}});
+         {"id_assertion_endpoint", details.id_assertion_endpoint_url},
+         {"login_url", details.login_url}});
     response.set_code(details.status_code);
     response.set_content(content);
     response.set_content_type(details.content_type);
@@ -190,6 +201,29 @@ class IdpTestServer {
   ConfigDetails config_details_;
 };
 
+class TestFederatedIdentityModalDialogViewDelegate
+    : public NiceMock<MockModalDialogViewDelegate> {
+ public:
+  base::OnceClosure closure_;
+  bool closed_{false};
+
+  void SetClosure(base::OnceClosure closure) { closure_ = std::move(closure); }
+
+  void NotifyClose() override {
+    DCHECK(closure_);
+    std::move(closure_).Run();
+    closed_ = true;
+  }
+
+  base::WeakPtr<TestFederatedIdentityModalDialogViewDelegate> GetWeakPtr() {
+    return weak_ptr_factory_.GetWeakPtr();
+  }
+
+ private:
+  base::WeakPtrFactory<TestFederatedIdentityModalDialogViewDelegate>
+      weak_ptr_factory_{this};
+};
+
 }  // namespace
 
 class WebIdBrowserTest : public ContentBrowserTest {
@@ -215,7 +249,8 @@ class WebIdBrowserTest : public ContentBrowserTest {
 
     test_browser_client_ = std::make_unique<WebIdTestContentBrowserClient>();
     SetTestIdentityRequestDialogController("not_real_account");
-    SetTestMDocProvider();
+    SetTestDigitalCredentialProvider();
+    SetTestModalDialogViewDelegate();
   }
 
   void TearDown() override { ContentBrowserTest::TearDown(); }
@@ -263,8 +298,13 @@ class WebIdBrowserTest : public ContentBrowserTest {
     std::string client_metadata_endpoint_url =
         "/fedcm/client_metadata_endpoint.json";
     std::string id_assertion_endpoint_url = "/fedcm/id_assertion_endpoint.json";
-    return {net::HTTP_OK, kTestContentType, accounts_endpoint_url,
-            client_metadata_endpoint_url, id_assertion_endpoint_url};
+    std::string login_url = "/fedcm/login.html";
+    return {net::HTTP_OK,
+            kTestContentType,
+            accounts_endpoint_url,
+            client_metadata_endpoint_url,
+            id_assertion_endpoint_url,
+            login_url};
   }
 
   IdpTestServer* idp_server() { return idp_server_.get(); }
@@ -277,14 +317,24 @@ class WebIdBrowserTest : public ContentBrowserTest {
         std::move(controller));
   }
 
-  void SetTestMDocProvider() {
-    auto provider = std::make_unique<MockMDocProvider>();
-    test_browser_client_->SetMDocProvider(std::move(provider));
+  void SetTestDigitalCredentialProvider() {
+    auto provider = std::make_unique<MockDigitalCredentialProvider>();
+    test_browser_client_->SetDigitalCredentialProvider(std::move(provider));
+  }
+
+  void SetTestModalDialogViewDelegate() {
+    test_modal_dialog_view_delegate_ =
+        std::make_unique<TestFederatedIdentityModalDialogViewDelegate>();
+    test_browser_client_->SetIdentityRegistry(
+        shell()->web_contents(), test_modal_dialog_view_delegate_->GetWeakPtr(),
+        url::Origin::Create(GURL(BaseIdpUrl())));
   }
 
  protected:
   base::test::ScopedFeatureList scoped_feature_list_;
   std::unique_ptr<WebIdTestContentBrowserClient> test_browser_client_;
+  std::unique_ptr<TestFederatedIdentityModalDialogViewDelegate>
+      test_modal_dialog_view_delegate_;
 
  private:
   EmbeddedTestServer https_server_{net::EmbeddedTestServer::TYPE_HTTPS};
@@ -294,9 +344,26 @@ class WebIdBrowserTest : public ContentBrowserTest {
 class WebIdIdpSigninStatusBrowserTest : public WebIdBrowserTest {
  public:
   void SetUpCommandLine(base::CommandLine* command_line) override {
-    scoped_feature_list_.InitAndEnableFeatureWithParameters(
-        features::kFedCm,
-        {{features::kFedCmIdpSigninStatusFieldTrialParamName, "true"}});
+    scoped_feature_list_.InitAndEnableFeature(
+        features::kFedCmIdpSigninStatusEnabled);
+    command_line->AppendSwitch(switches::kIgnoreCertificateErrors);
+  }
+
+  ShellFederatedPermissionContext* sharing_context() {
+    BrowserContext* context = shell()->web_contents()->GetBrowserContext();
+    return static_cast<ShellFederatedPermissionContext*>(
+        context->GetFederatedIdentityPermissionContext());
+  }
+};
+
+class WebIdIdpSigninStatusForFetchKeepAliveBrowserTest
+    : public WebIdBrowserTest {
+ public:
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    scoped_feature_list_.InitWithFeatures(
+        {features::kFedCmIdpSigninStatusEnabled,
+         blink::features::kKeepAliveInBrowserMigration},
+        {});
     command_line->AppendSwitch(switches::kIgnoreCertificateErrors);
   }
 
@@ -457,7 +524,7 @@ IN_PROC_BROWSER_TEST_F(WebIdIdPRegistryBrowserTest, UnregisterIdP) {
 
 // Verify that IDP sign-in headers work.
 IN_PROC_BROWSER_TEST_F(WebIdIdpSigninStatusBrowserTest, IdpSigninToplevel) {
-  GURL url = https_server().GetURL(kRpHostName, "/header/gsignin");
+  GURL url = https_server().GetURL(kRpHostName, "/header/signin");
   EXPECT_FALSE(sharing_context()
                    ->GetIdpSigninStatus(url::Origin::Create(url))
                    .has_value());
@@ -469,7 +536,7 @@ IN_PROC_BROWSER_TEST_F(WebIdIdpSigninStatusBrowserTest, IdpSigninToplevel) {
 
 // Verify that IDP sign-out headers work.
 IN_PROC_BROWSER_TEST_F(WebIdIdpSigninStatusBrowserTest, IdpSignoutToplevel) {
-  GURL url = https_server().GetURL(kRpHostName, "/header/gsignout");
+  GURL url = https_server().GetURL(kRpHostName, "/header/signout");
   EXPECT_FALSE(sharing_context()
                    ->GetIdpSigninStatus(url::Origin::Create(url))
                    .has_value());
@@ -484,7 +551,7 @@ IN_PROC_BROWSER_TEST_F(WebIdIdpSigninStatusBrowserTest,
                        IdpSigninAndOutSubresource) {
   static constexpr char script[] = R"(
     (async () => {
-      var resp = await fetch('/header/gsign%s');
+      var resp = await fetch('/header/sign%s');
       return resp.status;
     }) ();
   )";
@@ -513,12 +580,133 @@ IN_PROC_BROWSER_TEST_F(WebIdIdpSigninStatusBrowserTest,
   EXPECT_FALSE(*value);
 }
 
-class WebIdMDocsBrowserTest : public WebIdBrowserTest {
+// Verify that IDP sign-in/out headers work in fetch keepalive subresources when
+// proxied via browser.
+IN_PROC_BROWSER_TEST_F(WebIdIdpSigninStatusForFetchKeepAliveBrowserTest,
+                       IdpSigninAndOutSubresourceFetchKeepAliveInBrowser) {
+  static constexpr char script[] = R"(
+    (async () => {
+      var resp = await fetch('/header/sign%s', {keepalive: true});
+      return resp.status;
+    }) ();
+  )";
+
+  GURL url_for_origin = https_server().GetURL(kRpHostName, "/header/");
+  url::Origin origin = url::Origin::Create(url_for_origin);
+  EXPECT_FALSE(sharing_context()->GetIdpSigninStatus(origin).has_value());
+  {
+    base::RunLoop run_loop;
+    sharing_context()->SetIdpStatusClosureForTesting(run_loop.QuitClosure());
+    EXPECT_EQ(200, EvalJs(shell(), base::StringPrintf(script, "in")));
+    run_loop.Run();
+  }
+  auto value = sharing_context()->GetIdpSigninStatus(origin);
+  ASSERT_TRUE(value.has_value());
+  EXPECT_TRUE(*value);
+
+  {
+    base::RunLoop run_loop;
+    sharing_context()->SetIdpStatusClosureForTesting(run_loop.QuitClosure());
+    EXPECT_EQ(200, EvalJs(shell(), base::StringPrintf(script, "out")));
+    run_loop.Run();
+  }
+  value = sharing_context()->GetIdpSigninStatus(origin);
+  ASSERT_TRUE(value.has_value());
+  EXPECT_FALSE(*value);
+}
+
+// Verify that IDP sign-in/out headers work in sync XHR.
+IN_PROC_BROWSER_TEST_F(WebIdIdpSigninStatusBrowserTest,
+                       IdpSigninAndOutSyncXhr) {
+  static constexpr char script[] = R"(
+    (async () => {
+      const request = new XMLHttpRequest();
+      request.open('GET', '/header/sign%s', false);
+      request.send(null);
+      return request.status;
+    }) ();
+  )";
+
+  GURL url_for_origin = https_server().GetURL(kRpHostName, "/header/");
+  url::Origin origin = url::Origin::Create(url_for_origin);
+  EXPECT_FALSE(sharing_context()->GetIdpSigninStatus(origin).has_value());
+  {
+    base::RunLoop run_loop;
+    sharing_context()->SetIdpStatusClosureForTesting(run_loop.QuitClosure());
+    EXPECT_EQ(200, EvalJs(shell(), base::StringPrintf(script, "in")));
+    run_loop.Run();
+  }
+  auto value = sharing_context()->GetIdpSigninStatus(origin);
+  ASSERT_TRUE(value.has_value());
+  EXPECT_TRUE(*value);
+
+  {
+    base::RunLoop run_loop;
+    sharing_context()->SetIdpStatusClosureForTesting(run_loop.QuitClosure());
+    EXPECT_EQ(200, EvalJs(shell(), base::StringPrintf(script, "out")));
+    run_loop.Run();
+  }
+  value = sharing_context()->GetIdpSigninStatus(origin);
+  ASSERT_TRUE(value.has_value());
+  EXPECT_FALSE(*value);
+}
+
+// Verify that an IdP can call close to close modal dialog views.
+IN_PROC_BROWSER_TEST_F(WebIdIdpSigninStatusBrowserTest, IdPClose) {
+  GURL configURL = GURL(BaseIdpUrl());
+  idp_server()->SetConfigResponseDetails(BuildValidConfigDetails());
+
+  // We navigate to the IdP's configURL so that we can run
+  // the script below with the IdP's origin as the top level
+  // first party context.
+  EXPECT_TRUE(NavigateToURL(shell(), configURL));
+
+  std::string script = R"(
+        (async () => {
+          await IdentityProvider.close();
+          return true;
+        }) ()
+    )";
+
+#if BUILDFLAG(IS_ANDROID)
+  // On Android, IdentityProvider.close() should invoke CloseModalDialog() on
+  // the dialog controller.
+  auto controller = std::make_unique<MockIdentityRequestDialogController>();
+  base::RunLoop run_loop;
+  EXPECT_CALL(*controller, CloseModalDialog).WillOnce([&run_loop]() {
+    run_loop.Quit();
+  });
+  test_browser_client_->SetIdentityRequestDialogController(
+      std::move(controller));
+
+  // Run the script.
+  EXPECT_EQ(true, EvalJs(shell(), script));
+  run_loop.Run();
+#else
+  // On desktop, IdentityProvider.close() should invoke NotifyClose() on the
+  // delegate set on the identity registry. Check that modal dialog is not
+  // closed.
+  EXPECT_FALSE(test_modal_dialog_view_delegate_->closed_);
+
+  // Run the script.
+  {
+    base::RunLoop run_loop;
+    test_modal_dialog_view_delegate_->SetClosure(run_loop.QuitClosure());
+    EXPECT_EQ(true, EvalJs(shell(), script));
+    run_loop.Run();
+  }
+
+  // Check that modal dialog is closed.
+  EXPECT_TRUE(test_modal_dialog_view_delegate_->closed_);
+#endif  // BUILDFLAG(IS_ANDROID)
+}
+
+class WebIdDigitalCredentialsBrowserTest : public WebIdBrowserTest {
  public:
   void SetUpCommandLine(base::CommandLine* command_line) override {
     std::vector<base::test::FeatureRef> features;
     features.push_back(net::features::kSplitCacheByNetworkIsolationKey);
-    features.push_back(features::kWebIdentityMDocs);
+    features.push_back(features::kWebIdentityDigitalCredentials);
     scoped_feature_list_.InitWithFeatures(features, {});
 
     command_line->AppendSwitch(switches::kIgnoreCertificateErrors);
@@ -531,33 +719,63 @@ class WebIdMDocsBrowserTest : public WebIdBrowserTest {
   }
 };
 
-// Test that an mdoc can be requested via a JS API.
-IN_PROC_BROWSER_TEST_F(WebIdMDocsBrowserTest, RequestMDoc) {
+// Test that a Verifiable Credential can be requested via the JS API.
+IN_PROC_BROWSER_TEST_F(WebIdDigitalCredentialsBrowserTest,
+                       RequestDigitalCredentials) {
   idp_server()->SetConfigResponseDetails(BuildValidConfigDetails());
-  MockMDocProvider* mdoc_provider = static_cast<MockMDocProvider*>(
-      test_browser_client_->GetMDocProviderForTests());
+  MockDigitalCredentialProvider* digital_credential_provider =
+      static_cast<MockDigitalCredentialProvider*>(
+          test_browser_client_->GetDigitalCredentialProviderForTests());
 
-  EXPECT_CALL(*mdoc_provider, RequestMDoc(_, _, _, _, _))
-      .WillOnce(WithArg<4>([](MDocProvider::MDocCallback callback) {
-        std::move(callback).Run("test-mdoc");
-      }));
+  const char request[] = R"(
+  {
+   "providers": [ {
+      "params": {
+         "extraParamAsNeededByDigitalCredentials": "true",
+         "nonce": "1234",
+         "readerPublicKey": "test_reader_public_key"
+      },
+      "responseFormat": [ "mdoc" ],
+      "selector": {
+         "fields": [ {
+            "equals": "org.iso.18013.5.1.mDL",
+            "name": "doctype"
+         }, {
+            "name": "org.iso.18013.5.1.family_name"
+         }, {
+            "name": "org.iso.18013.5.1.portrait"
+         } ]
+      }
+   } ]
+  }
+  )";
+
+  EXPECT_CALL(*digital_credential_provider,
+              RequestDigitalCredential(_, _, IsJson(request), _))
+      .WillOnce(WithArg<3>(
+          [](DigitalCredentialProvider::DigitalCredentialCallback callback) {
+            std::move(callback).Run("test-mdoc");
+          }));
 
   std::string script = R"(
         (async () => {
           const {token} = await navigator.credentials.get({
             identity: {
               providers: [{
-                configURL: '',
-                clientId: '',
-                mdoc: {
-                  documentType: 'test_document_type',
-                  readerPublicKey: 'test_reader_public_key',
-                  requestedElements: [
-                    {
-                      namespace: 'test_namespace',
-                      name: 'test_name'
-                    }
-                  ],
+                holder: {
+                  selector: {
+                    format: ['mdoc'],
+                    doctype: 'org.iso.18013.5.1.mDL',
+                    fields: [
+                      'org.iso.18013.5.1.family_name',
+                      'org.iso.18013.5.1.portrait',
+                    ]
+                  },
+                  params: {
+                    nonce: '1234',
+                    readerPublicKey: 'test_reader_public_key',
+                    extraParamAsNeededByDigitalCredentials: true,
+                  },
                 },
               }],
             },
@@ -571,28 +789,32 @@ IN_PROC_BROWSER_TEST_F(WebIdMDocsBrowserTest, RequestMDoc) {
 
 // Test that when there's a pending mdoc request, a second `get` call should be
 // rejected.
-IN_PROC_BROWSER_TEST_F(WebIdMDocsBrowserTest,
-                       OnlyOneInFlightMDocRequestIsAllowed) {
+IN_PROC_BROWSER_TEST_F(WebIdDigitalCredentialsBrowserTest,
+                       OnlyOneInFlightDigitalCredentialRequestIsAllowed) {
   idp_server()->SetConfigResponseDetails(BuildValidConfigDetails());
-  MockMDocProvider* mdoc_provider = static_cast<MockMDocProvider*>(
-      test_browser_client_->GetMDocProviderForTests());
+  MockDigitalCredentialProvider* digital_credential_provider =
+      static_cast<MockDigitalCredentialProvider*>(
+          test_browser_client_->GetDigitalCredentialProviderForTests());
 
   std::string script = R"(
         (async () => {
           const {token} = await navigator.credentials.get({
             identity: {
               providers: [{
-                configURL: '',
-                clientId: '',
-                mdoc: {
-                  documentType: 'test_document_type',
-                  readerPublicKey: 'test_reader_public_key',
-                  requestedElements: [
-                    {
-                      namespace: 'test_namespace',
-                      name: 'test_name'
-                    }
-                  ],
+                holder: {
+                  selector: {
+                    format: ["mdoc"],
+                    doctype: 'org.iso.18013.5.1.mDL',
+                    fields: [
+                      'org.iso.18013.5.1.family_name',
+                      'org.iso.18013.5.1.portrait',
+                    ],
+                  },
+                  params: {
+                    nonce: '1234',
+                    readerPublicKey: 'test_reader_public_key',
+                    extraParamAsNeededByDigitalCredentials: true,
+                  },
                 },
               }],
             },
@@ -601,15 +823,17 @@ IN_PROC_BROWSER_TEST_F(WebIdMDocsBrowserTest,
         }) ()
     )";
 
-  EXPECT_CALL(*mdoc_provider, RequestMDoc(_, _, _, _, _))
-      .WillOnce(WithArg<4>([&](MDocProvider::MDocCallback callback) {
-        EXPECT_EQ(
-            "a JavaScript error: \"AbortError: Only one "
-            "navigator.credentials.get request may be outstanding at one "
-            "time.\"\n",
-            EvalJs(shell(), script).error);
-        std::move(callback).Run("test-mdoc");
-      }));
+  EXPECT_CALL(*digital_credential_provider,
+              RequestDigitalCredential(_, _, _, _))
+      .WillOnce(WithArg<3>(
+          [&](DigitalCredentialProvider::DigitalCredentialCallback callback) {
+            EXPECT_EQ(
+                "a JavaScript error: \"AbortError: Only one "
+                "navigator.credentials.get request may be outstanding at one "
+                "time.\"\n",
+                EvalJs(shell(), script).error);
+            std::move(callback).Run("test-mdoc");
+          }));
 
   EXPECT_EQ("test-mdoc", EvalJs(shell(), script));
 }
@@ -633,6 +857,7 @@ IN_PROC_BROWSER_TEST_F(WebIdAuthzBrowserTest, Authz_noPopUpWindow) {
             content += "nonce=12345&";
             content += "account_id=not_real_account&";
             content += "disclosure_text_shown=false&";
+            content += "is_auto_selected=false&";
             // Asserts that the scope, response_type and params parameters
             // were passed correctly to the id assertion endpoint.
             content += "scope=name+email+picture&";
@@ -694,15 +919,20 @@ IN_PROC_BROWSER_TEST_F(WebIdAuthzBrowserTest, Authz_openPopUpWindow) {
   // Points the id assertion endpoint to a servlet.
   config_details.id_assertion_endpoint_url = "/authz/id_assertion_endpoint.php";
 
+  // Points to the relative url of the authorization servlet.
+  std::string continue_on = "/authz.html";
+
   // Add a servlet to serve a response for the id assertoin endpoint.
   config_details.servlets["/authz/id_assertion_endpoint.php"] =
       base::BindRepeating(
-          [](const HttpRequest& request) -> std::unique_ptr<HttpResponse> {
+          [](std::string url,
+             const HttpRequest& request) -> std::unique_ptr<HttpResponse> {
             std::string content;
             content += "client_id=client_id_1&";
             content += "nonce=12345&";
             content += "account_id=not_real_account&";
             content += "disclosure_text_shown=false&";
+            content += "is_auto_selected=false&";
             content += "scope=calendar.readonly";
 
             EXPECT_EQ(request.content, content);
@@ -712,16 +942,55 @@ IN_PROC_BROWSER_TEST_F(WebIdAuthzBrowserTest, Authz_openPopUpWindow) {
             response->set_content_type("text/json");
             // scope=calendar.readonly was requested, so need to
             // return a continuation url instead of a token.
-            response->set_content(
-                R"({"continue_on": "https://idp.example/continue.php"})");
+            auto body = R"({"continue_on": ")" + url + R"("})";
+            response->set_content(body);
             return response;
-          });
+          },
+          continue_on);
 
   idp_server()->SetConfigResponseDetails(config_details);
 
+  // Create a WebContents that represents the modal dialog, specifically
+  // the structure that the Identity Registry hangs to.
+  Shell* modal = CreateBrowser();
+  auto config_url = GURL(BaseIdpUrl());
+
+  modal->LoadURL(config_url);
+  EXPECT_TRUE(WaitForLoadStop(modal->web_contents()));
+
+  auto mock = std::make_unique<
+      ::testing::NiceMock<MockIdentityRequestDialogController>>();
+  test_browser_client_->SetIdentityRequestDialogController(std::move(mock));
+
+  MockIdentityRequestDialogController* controller =
+      static_cast<MockIdentityRequestDialogController*>(
+          test_browser_client_->GetIdentityRequestDialogControllerForTests());
+
+  // Expects the account chooser to be opened. Selects the first account.
+  EXPECT_CALL(*controller, ShowAccountsDialog(_, _, _, _, _, _, _))
+      .WillOnce(::testing::WithArg<5>([&config_url](auto on_selected) {
+        std::move(on_selected)
+            .Run(config_url,
+                 /* account_id=*/"not_real_account",
+                 /* is_sign_in= */ true);
+      }));
+
+  base::RunLoop run_loop;
+  EXPECT_CALL(*controller, ShowModalDialog(_, _))
+      .WillOnce(::testing::WithArg<0>(
+          [&config_url, continue_on, &modal, &run_loop](const GURL& url) {
+            // Expect that the relative continue_on url will be resolved
+            // before opening the dialog.
+            EXPECT_EQ(url.spec(), config_url.Resolve(continue_on));
+            // When the pop-up window is opened, resolve it immediately by
+            // returning a test web contents, which can then later be used
+            // to refer to the identity registry.
+            run_loop.Quit();
+            return modal->web_contents();
+          }));
+
   std::string script = R"(
-        (async () => {
-          var x = (await navigator.credentials.get({
+          var result = navigator.credentials.get({
             identity: {
               providers: [{
                 configURL: ')" +
@@ -733,15 +1002,65 @@ IN_PROC_BROWSER_TEST_F(WebIdAuthzBrowserTest, Authz_openPopUpWindow) {
                 ],
               }]
             }
-          }));
-          return x.token;
-        }) ()
+         }).then(({token}) => token);
     )";
 
-  // Assert that a fake token was returned from the pop-up window,
-  // as opposed to directly from the id assertion endpoint.
-  EXPECT_EQ(std::string("--fake-token-from-pop-up-window--"),
-            EvalJs(shell(), script));
+  // Kick off the identity credential request and deliberately
+  // leave the promise hanging, since it requires UX permission
+  // prompts to be accepted later.
+  EXPECT_TRUE(content::ExecJs(shell(), script,
+                              content::EXECUTE_SCRIPT_NO_RESOLVE_PROMISES));
+
+  // Wait for the modal dialog to be resolved.
+  run_loop.Run();
+
+  std::string token = "--fake-token-from-pop-up-window--";
+
+  // Resolve the hanging token request by notifying the registry.
+  EXPECT_TRUE(content::ExecJs(
+      modal, R"(IdentityProvider.resolve(')" + token + R"('))"));
+
+  // Finally, wait for the promise to resolve and compare its result
+  // to the expected token that was provided in the modal dialog.
+  EXPECT_EQ(token, EvalJs(shell(), "result"));
+}
+
+class WebIdErrorBrowserTest : public WebIdBrowserTest {
+ public:
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    std::vector<base::test::FeatureRef> features;
+    features.push_back(features::kFedCmError);
+    scoped_feature_list_.InitWithFeatures(features, {});
+
+    command_line->AppendSwitch(switches::kIgnoreCertificateErrors);
+  }
+};
+
+// Verify that an IdentityCredentialError exception is returned.
+IN_PROC_BROWSER_TEST_F(WebIdErrorBrowserTest, IdentityCredentialError) {
+  IdpTestServer::ConfigDetails config_details = BuildValidConfigDetails();
+
+  // Points the id assertion endpoint to a servlet.
+  config_details.id_assertion_endpoint_url = "/error/id_assertion_endpoint.php";
+
+  // Add a servlet to serve a response for the id assertion endpoint.
+  config_details.servlets["/error/id_assertion_endpoint.php"] =
+      base::BindRepeating([](const HttpRequest& request)
+                              -> std::unique_ptr<HttpResponse> {
+        auto response = std::make_unique<BasicHttpResponse>();
+        response->set_code(net::HTTP_OK);
+        response->set_content_type("text/json");
+        response->set_content(
+            R"({"error": {"code": "invalid_request", "url": "https://idp.com/error"}})");
+        return response;
+      });
+
+  idp_server()->SetConfigResponseDetails(config_details);
+
+  std::string expected_error =
+      "a JavaScript error: \"IdentityCredentialError: Error "
+      "retrieving a token.\"\n";
+  EXPECT_EQ(expected_error, EvalJs(shell(), GetBasicRequestString()).error);
 }
 
 }  // namespace content

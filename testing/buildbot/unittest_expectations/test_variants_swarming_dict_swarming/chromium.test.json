@@ -10,7 +10,6 @@
         "name": "swarming_test swarming",
         "swarming": {
           "a": "b",
-          "can_use_on_swarming_builders": true,
           "dimensions": {
             "foo": "bar",
             "hello": "world",

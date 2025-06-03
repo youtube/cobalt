@@ -6,6 +6,7 @@
 
 #include "base/check.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/trace_event/memory_usage_estimator.h"
 #include "net/base/registry_controlled_domains/registry_controlled_domain.h"
 #include "net/base/url_util.h"
 #include "url/gurl.h"
@@ -138,6 +139,10 @@ const url::Origin& SchemefulSite::GetInternalOriginForTesting() const {
   return site_as_origin_;
 }
 
+size_t SchemefulSite::EstimateMemoryUsage() const {
+  return base::trace_event::EstimateMemoryUsage(site_as_origin_);
+}
+
 bool SchemefulSite::operator==(const SchemefulSite& other) const {
   return site_as_origin_ == other.site_as_origin_;
 }
@@ -154,11 +159,23 @@ bool SchemefulSite::operator<(const SchemefulSite& other) const {
 
 // static
 absl::optional<SchemefulSite> SchemefulSite::DeserializeWithNonce(
+    base::PassKey<NetworkAnonymizationKey>,
+    const std::string& value) {
+  return DeserializeWithNonce(value);
+}
+
+// static
+absl::optional<SchemefulSite> SchemefulSite::DeserializeWithNonce(
     const std::string& value) {
   absl::optional<url::Origin> result = url::Origin::Deserialize(value);
   if (!result)
     return absl::nullopt;
   return SchemefulSite(result.value());
+}
+
+absl::optional<std::string> SchemefulSite::SerializeWithNonce(
+    base::PassKey<NetworkAnonymizationKey>) {
+  return SerializeWithNonce();
 }
 
 absl::optional<std::string> SchemefulSite::SerializeWithNonce() {

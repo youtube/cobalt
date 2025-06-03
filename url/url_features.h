@@ -18,15 +18,20 @@ COMPONENT_EXPORT(URL) bool IsUsingIDNA2008NonTransitional();
 // Returns true if Chrome is recording IDNA 2008 related metrics.
 COMPONENT_EXPORT(URL) bool IsRecordingIDNA2008Metrics();
 
-// Returns true if Chrome is enforcing the 4 part check for IPv4 embedded IPv6
-// addresses.
-COMPONENT_EXPORT(URL)
-BASE_DECLARE_FEATURE(kStrictIPv4EmbeddedIPv6AddressParsing);
+// Returns true if IsUsingStandardCompliantHostCharacters feature is enabled.
+// See url::kStandardCompliantHostCharacters for details.
+COMPONENT_EXPORT(URL) bool IsUsingStandardCompliantHostCharacters();
 
 // When enabled, allows resolving of a bare fragment containing a colon against
 // a non-hierarchical URL. (For example '#foo:bar' against 'about:blank'.)
 COMPONENT_EXPORT(URL)
 BASE_DECLARE_FEATURE(kResolveBareFragmentWithColonOnNonHierarchical);
+
+// When enabled, Chrome uses URL Standard compliant mode to
+// handle punctuation characters in URL host part.
+// https://crbug.com/1416013 for details.
+COMPONENT_EXPORT(URL)
+BASE_DECLARE_FEATURE(kStandardCompliantHostCharacters);
 
 }  // namespace url
 
