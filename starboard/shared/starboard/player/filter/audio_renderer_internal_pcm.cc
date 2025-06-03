@@ -705,8 +705,8 @@ bool AudioRendererPcm::AppendAudioToFrameBuffer(bool* is_frame_buffer_full) {
 
   int offset_to_append = total_frames_sent_to_sink_ % max_cached_frames_;
 
-  scoped_refptr<DecodedAudio> decoded_audio = time_stretcher_.Read(
-      max_cached_frames_ - frames_in_buffer, playback_rate_);
+  scoped_refptr<DecodedAudio> decoded_audio =
+      time_stretcher_.Read(max_cached_frames_ - frames_in_buffer, 1);
   SB_DCHECK(decoded_audio);
 
   {
