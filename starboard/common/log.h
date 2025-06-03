@@ -153,6 +153,13 @@ class LogMessageVoidify {
   SB_LOG_IF(FATAL, !(condition)) << "Check failed: " #condition ". "
 #endif  // SB_LOGGING_IS_OFFICIAL_BUILD
 
+#define SB_CHECK_EQ(a, b)                                                   \
+  SB_CHECK((a) == (b)) << #a << "(" << (a) << ") should be equal to " << #b \
+                       << "(" << (b) << ")";
+#define SB_CHECK_NE(a, b)                                                 \
+  SB_CHECK((a) != (b)) << #a << "(" << (a) << ") should be not-equal to " \
+                       << #b << "(" << (b) << ")";
+
 #if SB_LOGGING_IS_OFFICIAL_BUILD || \
     (defined(NDEBUG) && !defined(COBALT_LOGGING_ENABLED))
 #define SB_DLOG_IS_ON(severity) false
@@ -170,6 +177,14 @@ class LogMessageVoidify {
 #define SB_DCHECK(condition) SB_CHECK(condition)
 #define SB_DCHECK_ENABLED 1
 #endif
+
+#define SB_DCHECK_EQ(a, b)                                                    \
+  SB_DCHECK((a) == (b)) << #a << "(" << (a) << ") should equal " << #b << "(" \
+                        << (b) << ")";
+
+#define SB_DCHECK_NE(a, b)                                                 \
+  SB_DCHECK((a) != (b)) << #a << "(" << (a) << ") should be not-equal to " \
+                        << #b << "(" << (b) << ")";
 
 #define SB_DLOG(severity) SB_DLOG_IF(severity, SB_DLOG_IS_ON(severity))
 #define SB_DSTACK(severity) SB_STACK_IF(severity, SB_DLOG_IS_ON(severity))

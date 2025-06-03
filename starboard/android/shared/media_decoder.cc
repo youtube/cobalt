@@ -204,7 +204,7 @@ void MediaDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
   if (decoder_thread_ == 0) {
     pthread_create(&decoder_thread_, nullptr,
                    &MediaDecoder::DecoderThreadEntryPoint, this);
-    SB_DCHECK(decoder_thread_ != 0);
+    SB_DCHECK_NE(decoder_thread_, 0);
   }
 
   ScopedLock scoped_lock(mutex_);
@@ -231,7 +231,7 @@ void MediaDecoder::WriteEndOfStream() {
 }
 
 void MediaDecoder::SetPlaybackRate(double playback_rate) {
-  SB_DCHECK(media_type_ == kSbMediaTypeVideo);
+  SB_DCHECK_EQ(media_type_, kSbMediaTypeVideo);
   SB_DCHECK(media_codec_bridge_);
   media_codec_bridge_->SetPlaybackRate(playback_rate);
 }
@@ -448,7 +448,7 @@ bool MediaDecoder::ProcessOneInputBuffer(
   const void* data = NULL;
   int size = 0;
   if (event.type == Event::kWriteCodecConfig) {
-    SB_DCHECK(media_type_ == kSbMediaTypeAudio);
+    SB_DCHECK_EQ(media_type_, kSbMediaTypeAudio);
     data = event.codec_config.data();
     size = event.codec_config.size();
   } else if (event.type == Event::kWriteInputBuffer) {
@@ -527,7 +527,7 @@ bool MediaDecoder::ProcessOneInputBuffer(
 }
 
 void MediaDecoder::HandleError(const char* action_name, jint status) {
-  SB_DCHECK(status != MEDIA_CODEC_OK);
+  SB_DCHECK_NE(status, MEDIA_CODEC_OK);
 
   bool retry = false;
 
