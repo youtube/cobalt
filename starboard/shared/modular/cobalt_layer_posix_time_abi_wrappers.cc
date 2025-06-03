@@ -23,6 +23,18 @@ int clock_gettime(clockid_t clk_id, struct timespec* ts) {
   return __abi_wrap_clock_gettime(clk_id, ts);
 }
 
+int __abi_wrap_clock_nanosleep(clockid_t clk_id,
+                               int flags,
+                               const struct timespec* ts,
+                               struct timespec* remain);
+
+int clock_nanosleep(clockid_t clk_id,
+                    int flags,
+                    const struct timespec* ts,
+                    struct timespec* remain) {
+  return __abi_wrap_clock_nanosleep(clk_id, flags, ts, remain);
+}
+
 time_t __abi_wrap_time(time_t* tloc);
 
 time_t time(time_t* tloc) {
