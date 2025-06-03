@@ -236,7 +236,7 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
     int max_video_input_size,
     std::string* error_message) {
   SB_DCHECK(error_message);
-  SB_DCHECK(max_width.has_engaged() == max_height.has_engaged());
+  SB_DCHECK_EQ(max_width.has_engaged(), max_height.has_engaged());
   SB_DCHECK(max_width.value_or(1920) > 0);
   SB_DCHECK(max_height.value_or(1080) > 0);
 
