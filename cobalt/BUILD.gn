@@ -14,7 +14,6 @@
 
 import("//build/linux/strip_binary.gni")
 import("//cobalt/build/modular_executable.gni")
-import("//starboard/build/buildflags.gni")
 import("//testing/test.gni")
 import("//ui/base/ui_features.gni")
 
