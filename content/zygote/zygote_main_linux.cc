@@ -161,7 +161,9 @@ static void EnterLayerOneSandbox(sandbox::policy::SandboxLinux* linux_sandbox,
 
 bool ZygoteMain(
     std::vector<std::unique_ptr<ZygoteForkDelegate>> fork_delegates) {
+#if !BUILDFLAG(IS_STARBOARD)
   sandbox::SetAmZygoteOrRenderer(true, GetSandboxFD());
+#endif
 
   auto* linux_sandbox = sandbox::policy::SandboxLinux::GetInstance();
 

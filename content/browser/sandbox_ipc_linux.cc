@@ -119,10 +119,12 @@ void SandboxIPCHandler::HandleRequestFromChild(int fd) {
   if (!iter.ReadInt(&kind))
     return;
 
+#if !BUILDFLAG(IS_STARBOARD)
   // Give sandbox first shot at request, if it is not handled, then
   // false is returned and we continue on.
   if (sandbox::HandleInterceptedCall(kind, fd, iter, fds))
     return;
+#endif  // !BUILDFLAG(IS_STARBOARD)
 
   if (kind ==
       sandbox::policy::SandboxLinux::METHOD_MAKE_SHARED_MEMORY_SEGMENT) {
