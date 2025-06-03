@@ -3,7 +3,7 @@ permissions: read-all
 
 on:
   pull_request:
-    types: [labeled]
+    types: [opened, reopened, synchronize, labeled]
     branches:
       - main
       - experimental/*
@@ -24,7 +24,6 @@ on:
 jobs:
   # This is the raspi build config
   raspi:
-    if: ${{ github.event.label.name == 'raspi' }}
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
