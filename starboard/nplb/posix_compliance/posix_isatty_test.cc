@@ -18,6 +18,7 @@
 #include <stdio.h>
 #include <unistd.h>
 
+#include "starboard/common/log.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -29,20 +30,16 @@ class PosixIsattyTest : public ::testing::Test {
   void SetUp() override { errno = 0; }
 };
 
-// Tests that isatty() recognizes stdin as a tty.
+// Tests that isatty() handles stdin correctly. When the test is run from a
+// terminal, isatty(STDIN_FILENO) should return 1. It should return 0 in all
+// other cases, e.g., running from a Github Action.
 TEST_F(PosixIsattyTest, HandlesStdin) {
-  EXPECT_TRUE(isatty(STDIN_FILENO));
-  EXPECT_EQ(0, errno) << "errno was set: " << strerror(errno);
-}
-
-// Tests that isatty() recognizes /dev/tty as a tty.
-TEST_F(PosixIsattyTest, HandlesDevTty) {
-  int fd = open("/dev/tty", O_RDWR);
-  ASSERT_NE(-1, fd) << "Failed to open /dev/tty: " << strerror(errno);
-  
-  EXPECT_TRUE(isatty(fd));
-  EXPECT_EQ(0, errno) << "errno was set: " << strerror(errno);
-  close(fd);
+  if (!isatty(STDIN_FILENO)) {
+    SB_DLOG(WARNING) << "isatty(STD_FILENO) 0 false with errno "
+                     << strerror(errno)
+                     << ". This should only occur when this test is not run "
+                        "from a terminal.";
+  }
 }
 
 // Tests that isatty() does not recognize invalid file descriptors as a tty.
@@ -102,18 +99,6 @@ TEST_F(PosixIsattyTest, HandlesDevices) {
 
   EXPECT_FALSE(isatty(fd));
   EXPECT_EQ(ENOTTY, errno) << "Expected ENOTTY, got " << strerror(errno);
-  close(fd);
-}
-
-// Tests that isatty() recognizes a duplicate of a valid file descriptor as a
-// tty.
-TEST_F(PosixIsattyTest, HandlesValidDuplicateFd) {
-  ASSERT_TRUE(isatty(STDIN_FILENO));
-  ASSERT_EQ(0, errno) << "errno was set: " << strerror(errno);
-
-  int fd = dup(STDIN_FILENO);
-  EXPECT_TRUE(isatty(fd));
-  EXPECT_EQ(0, errno) << "errno was set: " << strerror(errno);
   close(fd);
 }
 
