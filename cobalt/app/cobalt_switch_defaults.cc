@@ -20,6 +20,7 @@
 #include "cobalt/browser/switches.h"
 #include "content/public/common/content_switches.h"
 #include "content/shell/common/shell_switches.h"
+#include "gpu/command_buffer/service/gpu_switches.h"
 #include "gpu/config/gpu_switches.h"
 #include "media/base/media_switches.h"
 #include "sandbox/policy/switches.h"
@@ -59,8 +60,16 @@ const base::CommandLine::SwitchMap GetCobaltParamSwitchDefaults() {
   const base::CommandLine::SwitchMap cobalt_param_switch_defaults({
     // Disable Vulkan.
     {switches::kDisableFeatures, "Vulkan"},
-        // Enable LimitImageDecodeCacheSize, and set its limit to 32 mbytes.
-        {switches::kEnableFeatures, "LimitImageDecodeCacheSize:mb/32"},
+        // The Renderer Compositor (a.k.a. "cc" see //docs/how_cc_works.md) has
+        // two important parts re. memory consumption, one is the image decode
+        // cache whose size is specified by the LimitImageDecodeCacheSize flag
+        // and the tile manager cache of rasterized content (i.e. content that
+        // has been rastered already or pre-rastered and is kept for later fast
+        // (re)use) that can be overwritten with the kForceGpuMemAvailableMb
+        // switch.
+        // TODO(mcasas): Ideally configure depending on policy.
+        {switches::kForceGpuMemAvailableMb, "32"},
+        {switches::kEnableFeatures, "LimitImageDecodeCacheSize:mb/24"},
     // Force some ozone settings.
 #if BUILDFLAG(IS_OZONE)
         {switches::kUseGL, "angle"}, {switches::kUseANGLE, "gles-egl"},
