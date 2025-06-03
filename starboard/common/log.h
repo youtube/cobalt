@@ -182,7 +182,7 @@ class LogMessageVoidify {
   SB_DCHECK((a) == (b)) << #a << "(" << (a) << ") should equal " << #b << "(" \
                         << (b) << ")";
 
-#define SB_CHECK_NE(a, b)                                                  \
+#define SB_DCHECK_NE(a, b)                                                 \
   SB_DCHECK((a) != (b)) << #a << "(" << (a) << ") should be not-equal to " \
                         << #b << "(" << (b) << ")";
 
