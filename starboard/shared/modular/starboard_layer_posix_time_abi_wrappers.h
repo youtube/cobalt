@@ -48,6 +48,11 @@ struct musl_timespec {
       (__SB_BYTE_ORDER != 4321);
 };
 
+struct musl_timeval {
+  int64_t tv_sec;
+  int64_t tv_usec;
+};
+
 struct musl_tm {
   int32_t /* int */ tm_sec;
   int32_t /* int */ tm_min;
@@ -62,47 +67,141 @@ struct musl_tm {
   const char* __tm_zone;
 };
 // Copying macro constants from //third_party/musl/include/time.h
+#define MUSL_CLOCK_INVALID -1
 #define MUSL_CLOCK_REALTIME 0
 #define MUSL_CLOCK_MONOTONIC 1
 #define MUSL_CLOCK_PROCESS_CPUTIME_ID 2
 #define MUSL_CLOCK_THREAD_CPUTIME_ID 3
+#define MUSL_CLOCK_MONOTONIC_RAW 4
+#define MUSL_CLOCK_REALTIME_COARSE 5
+#define MUSL_CLOCK_MONOTONIC_COARSE 6
+#define MUSL_CLOCK_BOOTTIME 7
+#define MUSL_CLOCK_REALTIME_ALARM 8
+#define MUSL_CLOCK_BOOTTIME_ALARM 9
+#define MUSL_CLOCK_TAI 11
 
 inline int clock_id_to_musl_clock_id(int clock_id) {
   switch (clock_id) {
+#if defined(CLOCK_REALTIME)
     case CLOCK_REALTIME:
       return MUSL_CLOCK_REALTIME;
+#endif
+#if defined(CLOCK_MONOTONIC)
     case CLOCK_MONOTONIC:
       return MUSL_CLOCK_MONOTONIC;
+#endif
+#if defined(CLOCK_PROCESS_CPUTIME_ID)
     case CLOCK_PROCESS_CPUTIME_ID:
       return MUSL_CLOCK_PROCESS_CPUTIME_ID;
+#endif
+#if defined(CLOCK_THREAD_CPUTIME_ID)
     case CLOCK_THREAD_CPUTIME_ID:
       return MUSL_CLOCK_THREAD_CPUTIME_ID;
+#endif
+#if defined(CLOCK_MONOTONIC_RAW)
+    case CLOCK_MONOTONIC_RAW:
+      return MUSL_CLOCK_MONOTONIC_RAW;
+#endif
+#if defined(CLOCK_REALTIME_COARSE)
+    case CLOCK_REALTIME_COARSE:
+      return MUSL_CLOCK_REALTIME_COARSE;
+#endif
+#if defined(CLOCK_MONOTONIC_COARSE)
+    case CLOCK_MONOTONIC_COARSE:
+      return MUSL_CLOCK_MONOTONIC_COARSE;
+#endif
+#if defined(CLOCK_BOOTTIME)
+    case CLOCK_BOOTTIME:
+      return MUSL_CLOCK_BOOTTIME;
+#endif
+#if defined(CLOCK_REALTIME_ALARM)
+    case CLOCK_REALTIME_ALARM:
+      return MUSL_CLOCK_REALTIME_ALARM;
+#endif
+#if defined(CLOCK_BOOTTIME_ALARM)
+    case CLOCK_BOOTTIME_ALARM:
+      return MUSL_CLOCK_BOOTTIME_ALARM;
+#endif
+#if defined(CLOCK_TAI)
+    case CLOCK_TAI:
+      return MUSL_CLOCK_TAI;
+#endif
     default:
-      SbLog(kSbLogPriorityError,
-            "Unsuppored clock_id defaulting to CLOCK_REALTIME.");
-      return MUSL_CLOCK_REALTIME;
+      // return a value to be treated as an invalid clock ID.
+      return MUSL_CLOCK_INVALID;
   }
 }
 
 inline int musl_clock_id_to_clock_id(int musl_clock_id) {
   switch (musl_clock_id) {
+#if defined(CLOCK_REALTIME)
     case MUSL_CLOCK_REALTIME:
       return CLOCK_REALTIME;
+#endif
+#if defined(CLOCK_MONOTONIC)
     case MUSL_CLOCK_MONOTONIC:
       return CLOCK_MONOTONIC;
+#endif
+#if defined(CLOCK_PROCESS_CPUTIME_ID)
     case MUSL_CLOCK_PROCESS_CPUTIME_ID:
       return CLOCK_PROCESS_CPUTIME_ID;
+#endif
+#if defined(CLOCK_THREAD_CPUTIME_ID)
     case MUSL_CLOCK_THREAD_CPUTIME_ID:
       return CLOCK_THREAD_CPUTIME_ID;
+#endif
+#if defined(CLOCK_MONOTONIC_RAW)
+    case MUSL_CLOCK_MONOTONIC_RAW:
+      return CLOCK_MONOTONIC_RAW;
+#endif
+#if defined(CLOCK_REALTIME_COARSE)
+    case MUSL_CLOCK_REALTIME_COARSE:
+      return CLOCK_REALTIME_COARSE;
+#endif
+#if defined(CLOCK_MONOTONIC_COARSE)
+    case MUSL_CLOCK_MONOTONIC_COARSE:
+      return CLOCK_MONOTONIC_COARSE;
+#endif
+#if defined(CLOCK_BOOTTIME)
+    case MUSL_CLOCK_BOOTTIME:
+      return CLOCK_BOOTTIME;
+#endif
+#if defined(CLOCK_REALTIME_ALARM)
+    case MUSL_CLOCK_REALTIME_ALARM:
+      return CLOCK_REALTIME_ALARM;
+#endif
+#if defined(CLOCK_BOOTTIME_ALARM)
+    case MUSL_CLOCK_BOOTTIME_ALARM:
+      return CLOCK_BOOTTIME_ALARM;
+#endif
+#if defined(CLOCK_TAI)
+    case MUSL_CLOCK_TAI:
+      return CLOCK_TAI;
+#endif
     default:
-      SbLog(kSbLogPriorityError,
-            "Unsuppored clock_id defaulting to CLOCK_REALTIME.");
-      return CLOCK_REALTIME;
+      // return a value to be treated as an invalid clock ID.
+      return MUSL_CLOCK_INVALID;
+  }
+}
+
+#define MUSL_TIMER_ABSTIME 1
+
+inline int musl_nanosleep_flags_to_nanosleep_flags(int musl_flags) {
+  switch (musl_flags) {
+    case MUSL_TIMER_ABSTIME:
+      return TIMER_ABSTIME;
+    default:
+      return musl_flags;
   }
 }
 
 SB_EXPORT int __abi_wrap_clock_gettime(int /* clockid_t */ musl_clock_id,
                                        struct musl_timespec* mts);
+
+SB_EXPORT int __abi_wrap_clock_nanosleep(int /* clockid_t */ musl_clock_id,
+                                         int flags,
+                                         const struct musl_timespec* ts,
+                                         struct musl_timespec* remain);
 
 SB_EXPORT int64_t __abi_wrap_time(int64_t* /* time_t* */ musl_tloc);
 

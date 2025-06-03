@@ -471,7 +471,10 @@ static_library("c_internal") {
     "src/time/__tm_to_secs.c",
     "src/time/__year_to_secs.c",
     "src/time/gettimeofday.c",
+    "src/time/nanosleep.c",
     "src/time/strftime.c",
+    "src/unistd/sleep.c",
+    "src/unistd/usleep.c",
   ]
 
   if (musl_arch == "i386" || musl_arch == "x86_64" || musl_arch == "aarch64") {
