@@ -97,7 +97,7 @@ void VideoDmpReader::Registry::Register(const std::string& filename,
   SB_DCHECK(!filename.empty());
 
   ScopedLock scoped_lock(mutex_);
-  SB_DCHECK(dmp_infos_.find(filename) == dmp_infos_.end());
+  SB_DCHECK_EQ(dmp_infos_.find(filename), dmp_infos_.end());
   dmp_infos_[filename] = dmp_info;
 }
 
@@ -245,7 +245,7 @@ void VideoDmpReader::ParseHeader(uint32_t* dmp_writer_version) {
   if (byte_order_mark != kByteOrderMark) {
     std::reverse(reinterpret_cast<uint8_t*>(&byte_order_mark),
                  reinterpret_cast<uint8_t*>(&byte_order_mark + 1));
-    SB_CHECK(byte_order_mark == kByteOrderMark);
+    SB_CHECK_EQ(byte_order_mark, kByteOrderMark);
     reverse_byte_order_ = true;
   }
 
@@ -352,7 +352,7 @@ void VideoDmpReader::EnsureSampleLoaded(SbMediaType type, size_t index) {
   if (!reverse_byte_order_.has_engaged()) {
     uint32_t dmp_writer_version = 0;
     ParseHeader(&dmp_writer_version);
-    SB_DCHECK(dmp_writer_version == kSupportedWriterVersion);
+    SB_DCHECK_EQ(dmp_writer_version, kSupportedWriterVersion);
   }
 
   if (type == kSbMediaTypeAudio) {
@@ -360,7 +360,7 @@ void VideoDmpReader::EnsureSampleLoaded(SbMediaType type, size_t index) {
     }
     SB_CHECK(index < audio_access_units_.size());
   } else {
-    SB_DCHECK(type == kSbMediaTypeVideo);
+    SB_DCHECK_EQ(type, kSbMediaTypeVideo);
     while (index >= video_access_units_.size() && ParseOneRecord()) {
     }
     SB_CHECK(index < video_access_units_.size());

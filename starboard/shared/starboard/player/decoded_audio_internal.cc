@@ -90,7 +90,7 @@ DecodedAudio::DecodedAudio(int channels,
 
 int DecodedAudio::frames() const {
   int bytes_per_sample = GetBytesPerSample(sample_type_);
-  SB_DCHECK(size_in_bytes_ % (bytes_per_sample * channels_) == 0);
+  SB_DCHECK_EQ(size_in_bytes_ % (bytes_per_sample * channels_), 0);
   return static_cast<int>(size_in_bytes_ / bytes_per_sample / channels_);
 }
 
@@ -106,7 +106,7 @@ void DecodedAudio::ShrinkTo(int new_size_in_bytes) {
 
 void DecodedAudio::AdjustForSeekTime(int sample_rate, int64_t seeking_to_time) {
   SB_DCHECK(!is_end_of_stream());
-  SB_DCHECK(sample_rate != 0);
+  SB_DCHECK_NE(sample_rate, 0);
 
   int frames_to_skip =
       media::AudioDurationToFrames(seeking_to_time - timestamp(), sample_rate);
@@ -129,7 +129,7 @@ void DecodedAudio::AdjustForSeekTime(int sample_rate, int64_t seeking_to_time) {
     return;
   }
 
-  SB_DCHECK(storage_type_ == kSbMediaAudioFrameStorageTypePlanar);
+  SB_DCHECK_EQ(storage_type_, kSbMediaAudioFrameStorageTypePlanar);
 
   Buffer new_storage(size_in_bytes_ - frames_to_skip * bytes_per_frame);
   const auto new_frames = frames() - frames_to_skip;
@@ -155,7 +155,7 @@ void DecodedAudio::AdjustForDiscardedDurations(
     int64_t discarded_duration_from_back) {
   SB_DCHECK(discarded_duration_from_front >= 0);
   SB_DCHECK(discarded_duration_from_back >= 0);
-  SB_DCHECK(storage_type() == kSbMediaAudioFrameStorageTypeInterleaved);
+  SB_DCHECK_EQ(storage_type(), kSbMediaAudioFrameStorageTypeInterleaved);
 
   if (discarded_duration_from_front == 0 && discarded_duration_from_back == 0) {
     return;
