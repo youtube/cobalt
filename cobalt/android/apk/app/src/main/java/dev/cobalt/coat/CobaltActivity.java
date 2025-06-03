@@ -68,11 +68,12 @@ public abstract class CobaltActivity extends Activity {
   private static final String URL_ARG = "--url=";
   private static final java.lang.String META_DATA_APP_URL = "cobalt.APP_URL";
 
+  // This key differs in naming format for legacy reasons
   public static final String COMMAND_LINE_ARGS_KEY = "commandLineArgs";
-  public static final String COMMAND_LINE_JS_FLAGS_KEY = "jsFlags";
-  public static final String COMMAND_LINE_ENABLE_FEATURES_KEY = "enableFeatures";
-  public static final String COMMAND_LINE_DISABLE_FEATURES_KEY = "disableFeatures";
-  public static final String COMMAND_LINE_BLINK_ENABLE_FEATURES_KEY = "blinkEnableFeatures";
+  public static final String COMMAND_LINE_JS_FLAGS_KEY = "js-flags";
+  public static final String COMMAND_LINE_ENABLE_FEATURES_KEY = "enable-features";
+  public static final String COMMAND_LINE_DISABLE_FEATURES_KEY = "disable-features";
+  public static final String COMMAND_LINE_BLINK_ENABLE_FEATURES_KEY = "blink-enable-features";
 
   private static final Pattern URL_PARAM_PATTERN = Pattern.compile("^[a-zA-Z0-9_=]*$");
 
