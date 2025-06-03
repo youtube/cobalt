@@ -62,10 +62,7 @@ struct SbAudioSinkPrivate {
   virtual bool IsType(Type* type) = 0;
 };
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace audio_sink {
+namespace starboard::shared::starboard::audio_sink {
 
 class SbAudioSinkImpl : public SbAudioSinkPrivate {
  public:
@@ -119,9 +116,6 @@ class SbAudioSinkImpl : public SbAudioSinkPrivate {
   static void PlatformTearDown();
 };
 
-}  // namespace audio_sink
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::audio_sink
 
 #endif  // STARBOARD_SHARED_STARBOARD_AUDIO_SINK_AUDIO_SINK_INTERNAL_H_

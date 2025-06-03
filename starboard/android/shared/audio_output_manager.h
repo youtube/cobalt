@@ -20,10 +20,9 @@
 #include "base/android/jni_android.h"
 #include "base/android/scoped_java_ref.h"
 #include "base/memory/singleton.h"
+#include "starboard/media.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
 // TODO: (cobalt b/372559388) Update namespace to jni_zero.
 using base::android::JavaParamRef;
@@ -35,12 +34,37 @@ class AudioOutputManager {
   // Returns the singleton.
   static AudioOutputManager* GetInstance();
 
+  ScopedJavaLocalRef<jobject> CreateAudioTrackBridge(
+      JNIEnv* env,
+      int sample_type,
+      int sample_rate,
+      int channel_count,
+      int preferred_buffer_size_in_bytes,
+      int tunnel_mode_audio_session_id,
+      jboolean is_web_audio);
+
+  void DestroyAudioTrackBridge(JNIEnv* env, ScopedJavaLocalRef<jobject>& obj);
+
   bool GetOutputDeviceInfo(JNIEnv* env,
                            jint index,
                            ScopedJavaLocalRef<jobject>& obj);
 
+  int GetMinBufferSize(JNIEnv* env,
+                       jint sample_type,
+                       jint sample_rate,
+                       jint channel_count);
+
+  int GetMinBufferSizeInFrames(JNIEnv* env,
+                               SbMediaAudioSampleType sample_type,
+                               int channels,
+                               int sampling_frequency_hz);
+
+  bool GetAndResetHasAudioDeviceChanged(JNIEnv* env);
+
  private:
-  AudioOutputManager() = default;
+  // The constructor runs exactly once because of
+  // base::DefaultSingletonTraits<AudioOutputManager>.
+  AudioOutputManager();
   ~AudioOutputManager() = default;
 
   // Prevent copy construction and assignment
@@ -53,8 +77,6 @@ class AudioOutputManager {
   ScopedJavaGlobalRef<jobject> j_audio_output_manager_;
 };
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared
 
 #endif  //  STARBOARD_ANDROID_SHARED_AUDIO_OUTPUT_MANAGER_H_

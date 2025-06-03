@@ -41,6 +41,7 @@ generate_jni("jni_headers") {
     "apk/app/src/main/java/dev/cobalt/media/AudioOutputManager.java",
     "apk/app/src/main/java/dev/cobalt/media/MediaCodecBridge.java",
     "apk/app/src/main/java/dev/cobalt/media/MediaCodecBridgeBuilder.java",
+    "apk/app/src/main/java/dev/cobalt/media/MediaDrmBridge.java",
   ]
 
   if (!use_evergreen) {
@@ -294,8 +295,8 @@ shared_library("libchrobalt") {
     ]
   }
   sources = [
-    "//cobalt/cobalt_main_delegate.cc",
-    "//cobalt/cobalt_main_delegate.h",
+    "//cobalt/app/cobalt_main_delegate.cc",
+    "//cobalt/app/cobalt_main_delegate.h",
     "cobalt_library_loader.cc",
   ]
   configs -= [ "//build/config/android:hide_all_but_jni_onload" ]

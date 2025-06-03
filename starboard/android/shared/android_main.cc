@@ -35,9 +35,7 @@
 #include "starboard/crashpad_wrapper/wrapper.h"  // nogncheck
 #endif
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
 std::atomic_bool g_block_swapbuffers{false};
 
@@ -319,6 +317,4 @@ extern "C" int SbRunStarboardMain(int argc,
 
 }  // namespace
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared

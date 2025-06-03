@@ -25,9 +25,7 @@
 #include "starboard/shared/ffmpeg/ffmpeg_dispatch.h"
 #include "starboard/shared/starboard/lazy_initialization_internal.h"
 
-namespace starboard {
-namespace shared {
-namespace ffmpeg {
+namespace starboard::shared::ffmpeg {
 
 namespace {
 
@@ -362,6 +360,4 @@ int FFMPEGDispatch::specialization_version() const {
   return (avcodec_version() >> 16) * 10 + ((avcodec_version() & 0xFF) >= 100);
 }
 
-}  // namespace ffmpeg
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::ffmpeg

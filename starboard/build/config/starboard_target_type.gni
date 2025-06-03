@@ -24,7 +24,7 @@ declare_args() {
 }
 
 if (starboard_target_type == "") {
-  if (sb_is_modular && !sb_is_evergreen) {
+  if (sb_is_modular && !use_evergreen) {
     starboard_target_type = "shared_library"
   } else {
     starboard_target_type = "component"

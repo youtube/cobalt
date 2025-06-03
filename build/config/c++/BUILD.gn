@@ -74,6 +74,7 @@ config("runtime_library") {
       # before the general musl include directory to prefer Starboard-specific
       # posix headers over default posix headers.
       cflags_cc += [
+        "-isystem" + rebase_path("//cobalt/platform/includes", root_build_dir),
         "-isystem" + rebase_path("//third_party/musl/src/starboard/include",
                                  root_build_dir),
         "-isystem" + rebase_path("//third_party/musl/include", root_build_dir),

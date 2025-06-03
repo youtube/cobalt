@@ -18,11 +18,7 @@
 
 #include "starboard/common/log.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
+namespace starboard::shared::starboard::player::filter {
 
 MediaTimeProviderImpl::MediaTimeProviderImpl(
     std::unique_ptr<MonotonicSystemTimeProvider> system_time_provider)
@@ -115,8 +111,4 @@ int64_t MediaTimeProviderImpl::GetCurrentMediaTime_Locked(
   return seek_to_time_ + elapsed;
 }
 
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player::filter

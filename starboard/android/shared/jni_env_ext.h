@@ -25,9 +25,7 @@
 #include "starboard/common/log.h"
 #include "starboard/system.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
 // An extension to JNIEnv to simplify making JNI calls.
 //
@@ -385,8 +383,6 @@ struct JniEnvExt : public JNIEnv {
 SB_COMPILE_ASSERT(sizeof(JNIEnv) == sizeof(JniEnvExt),
                   JniEnvExt_must_not_add_fields);
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared
 
 #endif  // STARBOARD_ANDROID_SHARED_JNI_ENV_EXT_H_

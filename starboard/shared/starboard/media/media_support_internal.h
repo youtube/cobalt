@@ -20,10 +20,7 @@
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/media/mime_type.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace media {
+namespace starboard::shared::starboard::media {
 
 // Indicates whether this platform supports decoding |video_codec| and
 // |audio_codec| along with decrypting using |key_system|. If |video_codec| is
@@ -100,9 +97,6 @@ SB_EXPORT_ANDROID bool MediaIsAudioSupported(SbMediaAudioCodec audio_codec,
                                              const MimeType* mime_type,
                                              int64_t bitrate);
 
-}  // namespace media
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::media
 
 #endif  // STARBOARD_SHARED_STARBOARD_MEDIA_MEDIA_SUPPORT_INTERNAL_H_

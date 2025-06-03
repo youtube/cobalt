@@ -17,7 +17,7 @@
 #include "base/feature_list.h"
 #include "base/no_destructor.h"
 #include "base/path_service.h"
-#include "cobalt/browser/cobalt_experiment_names.h"
+#include "cobalt/browser/constants/cobalt_experiment_names.h"
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
 #include "components/metrics/metrics_pref_names.h"
 #include "components/metrics/metrics_service.h"
@@ -100,7 +100,7 @@ void GlobalFeatures::CreateExperimentConfig() {
 void GlobalFeatures::CreateMetricsServices() {
   CreateMetricsLocalState();
   DCHECK(metrics_local_state_)
-      << "CreateLocalState() must have been called previously";
+      << "CreateMetricsLocalState() must have been called previously";
   auto client = std::make_unique<CobaltMetricsServicesManagerClient>(
       metrics_local_state_.get());
   metrics_services_manager_client_ = client.get();

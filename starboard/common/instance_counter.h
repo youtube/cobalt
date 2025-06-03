@@ -27,9 +27,9 @@
 
 #else  // defined(COBALT_BUILD_TYPE_GOLD)
 
-#define DECLARE_INSTANCE_COUNTER(class_name)                \
-  namespace {                                               \
-  std::atomic<int32_t> s_##class_name##_instance_count = 0; \
+#define DECLARE_INSTANCE_COUNTER(class_name)               \
+  namespace {                                              \
+  std::atomic<int32_t> s_##class_name##_instance_count{0}; \
   }
 
 #define ON_INSTANCE_CREATED(class_name)                        \

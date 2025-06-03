@@ -20,11 +20,7 @@
 #include "starboard/common/media.h"
 #include "starboard/shared/starboard/player/filter/cpu_video_frame.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
+namespace starboard::shared::starboard::player::filter {
 
 void StubVideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
                                   const ErrorCB& error_cb) {
@@ -149,8 +145,4 @@ scoped_refptr<VideoFrame> StubVideoDecoder::CreateOutputFrame(
       reinterpret_cast<const uint8_t*>(data.data()));
 }
 
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player::filter

@@ -24,11 +24,7 @@
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink.h"
 #include "starboard/shared/starboard/thread_checker.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
+namespace starboard::shared::starboard::player::filter {
 
 class AudioRendererSinkImpl : public AudioRendererSink {
  public:
@@ -95,10 +91,6 @@ class AudioRendererSinkImpl : public AudioRendererSink {
   double volume_ = 1.0;
 };
 
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player::filter
 
 #endif  //  STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_RENDERER_SINK_IMPL_H_

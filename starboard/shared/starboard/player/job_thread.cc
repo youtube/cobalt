@@ -19,10 +19,7 @@
 #include "starboard/common/condition_variable.h"
 #include "starboard/shared/pthread/thread_create_priority.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
+namespace starboard::shared::starboard::player {
 
 namespace {
 
@@ -103,7 +100,4 @@ void JobThread::RunLoop() {
   job_queue_.reset();
 }
 
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player

@@ -28,7 +28,6 @@ import dev.cobalt.util.Log;
 import org.chromium.base.annotations.CalledByNative;
 
 class MediaCodecBridgeBuilder {
-  @SuppressWarnings("unused")
   @CalledByNative
   public static MediaCodecBridge createAudioDecoder(
       long nativeMediaCodecBridge,

@@ -30,11 +30,7 @@
 #include "starboard/shared/starboard/player/filter/video_render_algorithm_impl.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_internal_impl.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
+namespace starboard::shared::starboard::player::filter {
 
 namespace {
 
@@ -177,7 +173,7 @@ std::unique_ptr<PlayerComponents> PlayerComponents::Factory::CreateComponents(
                              &audio_renderer_sink, &video_decoder,
                              &video_render_algorithm, &video_renderer_sink,
                              error_message)) {
-      return nullptr;
+      std::unique_ptr<PlayerComponents>();
     }
     if (use_stub_audio_decoder) {
       SB_DCHECK(!audio_decoder);
@@ -294,8 +290,4 @@ void PlayerComponents::Factory::GetAudioRendererParams(
   *max_cached_frames = AlignUp(*max_cached_frames, kAudioSinkFramesAlignment);
 }
 
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player::filter

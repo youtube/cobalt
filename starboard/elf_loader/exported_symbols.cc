@@ -14,7 +14,15 @@
 
 #include "starboard/elf_loader/exported_symbols.h"
 
+#include "build/build_config.h"
+
 #include <dirent.h>
+
+// TODO: Cobalt b/421944504 - Cleanup once we are done with all the symbols.
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+#include <dlfcn.h>
+#endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+
 #include <errno.h>
 #include <fcntl.h>
 #include <ifaddrs.h>
@@ -22,6 +30,7 @@
 #include <netdb.h>
 #include <sched.h>
 #include <stdlib.h>
+#include <sys/epoll.h>
 #include <sys/mman.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -213,9 +222,12 @@ ExportedSymbols::ExportedSymbols() {
   // POSIX APIs
   REGISTER_SYMBOL(calloc);
   REGISTER_SYMBOL(close);
-  REGISTER_SYMBOL(closedir);
   REGISTER_SYMBOL(dup);
   REGISTER_SYMBOL(dup2);
+  REGISTER_SYMBOL(epoll_create);
+  REGISTER_SYMBOL(epoll_create1);
+  REGISTER_SYMBOL(epoll_ctl);
+  REGISTER_SYMBOL(epoll_wait);
   REGISTER_SYMBOL(fcntl);
   REGISTER_SYMBOL(free);
   REGISTER_SYMBOL(freeifaddrs);
@@ -235,10 +247,12 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(msync);
   REGISTER_SYMBOL(munmap);
   REGISTER_SYMBOL(open);
-  REGISTER_SYMBOL(opendir);
+  REGISTER_SYMBOL(pipe);
   REGISTER_SYMBOL(posix_memalign);
   REGISTER_SYMBOL(pread);
   REGISTER_SYMBOL(pwrite);
+  REGISTER_SYMBOL(rand);
+  REGISTER_SYMBOL(rand_r);
   REGISTER_SYMBOL(read);
   REGISTER_SYMBOL(realloc);
   REGISTER_SYMBOL(recv);
@@ -251,6 +265,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(socket);
   REGISTER_SYMBOL(snprintf);
   REGISTER_SYMBOL(sprintf);
+  REGISTER_SYMBOL(srand);
   REGISTER_SYMBOL(unlink);
   REGISTER_SYMBOL(usleep);
   REGISTER_SYMBOL(vfwprintf);
@@ -263,18 +278,27 @@ ExportedSymbols::ExportedSymbols() {
   // Platform-specific types with musl-based types. These wrappers are defined
   // in //starboard/shared/modular.
   // TODO: b/316603042 - Detect via NPLB and only add the wrapper if needed.
+
+  REGISTER_WRAPPER(accept);
+  REGISTER_WRAPPER(bind);
   REGISTER_WRAPPER(clock_gettime);
+  REGISTER_WRAPPER(closedir);
+  REGISTER_WRAPPER(clock_nanosleep);
+  REGISTER_WRAPPER(connect);
   if (errno_translation()) {
     REGISTER_WRAPPER(__errno_location);
   } else {
     REGISTER_SYMBOL(__errno_location);
   }
   REGISTER_WRAPPER(fstat);
+  REGISTER_WRAPPER(freeaddrinfo);
   REGISTER_WRAPPER(ftruncate);
+  REGISTER_WRAPPER(getaddrinfo);
+  REGISTER_WRAPPER(getifaddrs);
   REGISTER_WRAPPER(gmtime_r);
   REGISTER_WRAPPER(lseek);
   REGISTER_WRAPPER(mmap);
-
+  REGISTER_WRAPPER(opendir);
   REGISTER_WRAPPER(pthread_attr_init);
   REGISTER_WRAPPER(pthread_attr_destroy);
   REGISTER_WRAPPER(pthread_attr_getdetachstate);
@@ -282,6 +306,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(pthread_attr_getscope);
   REGISTER_WRAPPER(pthread_attr_getstack);
   REGISTER_WRAPPER(pthread_attr_getstacksize);
+  REGISTER_WRAPPER(pthread_attr_init);
   REGISTER_WRAPPER(pthread_attr_setdetachstate);
   REGISTER_WRAPPER(pthread_attr_setschedpolicy);
   REGISTER_WRAPPER(pthread_attr_setscope);
@@ -300,8 +325,8 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(pthread_create);
   REGISTER_WRAPPER(pthread_detach);
   REGISTER_WRAPPER(pthread_equal);
-  REGISTER_WRAPPER(pthread_getname_np);
   REGISTER_WRAPPER(pthread_getattr_np);
+  REGISTER_WRAPPER(pthread_getname_np);
   REGISTER_WRAPPER(pthread_getschedparam);
   REGISTER_WRAPPER(pthread_getspecific);
   REGISTER_WRAPPER(pthread_join);
@@ -311,14 +336,14 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(pthread_mutex_destroy);
   REGISTER_WRAPPER(pthread_mutex_init);
   REGISTER_WRAPPER(pthread_mutex_lock);
-  REGISTER_WRAPPER(pthread_mutex_unlock);
   REGISTER_WRAPPER(pthread_mutex_trylock);
+  REGISTER_WRAPPER(pthread_mutex_unlock);
   REGISTER_WRAPPER(pthread_mutexattr_destroy);
-  REGISTER_WRAPPER(pthread_mutexattr_gettype);
   REGISTER_WRAPPER(pthread_mutexattr_getpshared);
+  REGISTER_WRAPPER(pthread_mutexattr_gettype);
   REGISTER_WRAPPER(pthread_mutexattr_init);
-  REGISTER_WRAPPER(pthread_mutexattr_settype);
   REGISTER_WRAPPER(pthread_mutexattr_setpshared);
+  REGISTER_WRAPPER(pthread_mutexattr_settype);
   REGISTER_WRAPPER(pthread_once);
   REGISTER_WRAPPER(pthread_rwlock_destroy);
   REGISTER_WRAPPER(pthread_rwlock_init);
@@ -328,33 +353,38 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(pthread_rwlock_unlock);
   REGISTER_WRAPPER(pthread_rwlock_wrlock);
   REGISTER_WRAPPER(pthread_self);
-  REGISTER_WRAPPER(pthread_setspecific);
   REGISTER_WRAPPER(pthread_setname_np);
   REGISTER_WRAPPER(pthread_setschedparam);
+  REGISTER_WRAPPER(pthread_setspecific);
+  REGISTER_WRAPPER(readdir);
   REGISTER_WRAPPER(readdir_r);
-  REGISTER_WRAPPER(stat);
-  REGISTER_WRAPPER(time);
-  REGISTER_WRAPPER(accept);
-  REGISTER_WRAPPER(bind);
-  REGISTER_WRAPPER(connect);
-  REGISTER_WRAPPER(getaddrinfo);
-  REGISTER_WRAPPER(freeaddrinfo);
-  REGISTER_WRAPPER(getifaddrs);
   REGISTER_WRAPPER(setsockopt);
   REGISTER_WRAPPER(shutdown);
+  REGISTER_WRAPPER(stat);
+  REGISTER_SYMBOL(vswprintf);
   REGISTER_WRAPPER(writev);
 
-  REGISTER_SYMBOL(vswprintf);
-
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+  // TODO: Cobalt b/399696581 - Remove once the //base cleanup is done.
+  REGISTER_SYMBOL(pthread_atfork);
+#endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 }  // NOLINT
 
 const void* ExportedSymbols::Lookup(const char* name) {
   const void* address = map_[name];
   // Any symbol that is not registered as part of the Starboard API in the
   // constructor of this class is a leak, and is an error.
-  if (!address) {
-    SB_LOG(ERROR) << "Failed to retrieve the address of '" << name << "'.";
+  if (address) {
+    return address;
   }
+
+  SB_LOG(ERROR) << "Failed to retrieve the address of '" << name << "'.";
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+  // TODO: Cobalt b/421944504 - Cleanup once we are done with all the symbols or
+  // potentially keep it behind a flag to help with future maintenance.
+  address = dlsym(RTLD_DEFAULT, name);
+  SB_LOG(ERROR) << "'. Falling back to dlsym address " << address << "'.";
+#endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   return address;
 }
 

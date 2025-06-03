@@ -1,0 +1,14 @@
+# Copyright 2020 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# Stored in a JSON file to allow tools other than GN to read and parse
+# easily.
+_icu_version_config = read_file("version.json", "json")
+
+declare_args() {
+  # Contains the major version number of the ICU library, for dependencies that
+  # need different configuration based on the library version. Currently this
+  # is only useful in Fuchsia.
+  icu_major_version_number = _icu_version_config.major_version
+}

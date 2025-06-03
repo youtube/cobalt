@@ -39,12 +39,7 @@
 #include <arm_neon.h>
 #endif
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
-namespace internal {
+namespace starboard::shared::starboard::player::filter::internal {
 
 namespace {
 
@@ -344,16 +339,11 @@ int OptimalIndex(const scoped_refptr<DecodedAudio>& search_block,
                     energy_candidate_blocks.get());
 }
 
-void GetSymmetricHanningWindow(int window_length, float* window) {
+void GetPeriodicHanningWindow(int window_length, float* window) {
   const float scale = static_cast<float>(2.0 * M_PI) / window_length;
   for (int n = 0; n < window_length; ++n) {
     window[n] = 0.5f * (1.0f - cosf(n * scale));
   }
 }
 
-}  // namespace internal
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player::filter::internal

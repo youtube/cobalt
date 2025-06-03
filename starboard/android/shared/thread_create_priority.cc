@@ -46,9 +46,8 @@ SbThreadPriority NiceToSbPriority(int nice) {
 }
 
 }  // namespace
-namespace starboard {
-namespace shared {
-namespace pthread {
+
+namespace starboard::shared::pthread {
 
 void SetNiceValue(int nice) {
   int result = setpriority(PRIO_PROCESS, 0, nice);
@@ -90,9 +89,7 @@ void ThreadSetPriority(SbThreadPriority priority) {
   }
 }
 
-}  // namespace pthread
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::pthread
 
 bool SbThreadSetPriority(SbThreadPriority priority) {
   starboard::shared::pthread::ThreadSetPriority(priority);

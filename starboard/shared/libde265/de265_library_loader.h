@@ -19,9 +19,7 @@
 
 #include "starboard/shared/internal_only.h"
 
-namespace starboard {
-namespace shared {
-namespace de265 {
+namespace starboard::shared::de265 {
 
 bool is_de265_supported();
 
@@ -49,8 +47,6 @@ extern const uint8_t* (*de265_get_image_plane)(const de265_image*,
                                                int* out_stride);
 extern de265_PTS (*de265_get_image_PTS)(const de265_image*);
 
-}  // namespace de265
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::de265
 
 #endif  // STARBOARD_SHARED_LIBDE265_DE265_LIBRARY_LOADER_H_

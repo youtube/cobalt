@@ -15,9 +15,7 @@
 #ifndef STARBOARD_ANDROID_SHARED_RUNTIME_RESOURCE_OVERLAY_H_
 #define STARBOARD_ANDROID_SHARED_RUNTIME_RESOURCE_OVERLAY_H_
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
 // Caches the Runtime Resource Overlay variables.
 // All RRO variables which can be retrieved here must be defined
@@ -40,8 +38,6 @@ class RuntimeResourceOverlay {
   int max_video_buffer_budget_;
 };
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared
 
 #endif  // STARBOARD_ANDROID_SHARED_RUNTIME_RESOURCE_OVERLAY_H_

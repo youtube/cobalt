@@ -85,7 +85,7 @@ typedef union musl_pthread_once_t {
   void* ptr;
 } musl_pthread_once_t;
 
-#define MUSL_PTHREAD_RWLOCK_MAX_SIZE 56
+#define MUSL_PTHREAD_RWLOCK_MAX_SIZE 80
 typedef union musl_pthread_rwlock_t {
   uint8_t rwlock_buffer[MUSL_PTHREAD_RWLOCK_MAX_SIZE];
   void* ptr;

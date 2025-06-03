@@ -19,10 +19,7 @@
 #include "starboard/shared/starboard/player/filter/testing/test_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace media {
+namespace starboard::shared::starboard::media {
 namespace {
 
 using ::starboard::shared::starboard::media::ConvertAnnexBToAvcc;
@@ -35,6 +32,7 @@ const uint8_t kSliceStartCode = 0x61;
 const uint8_t kIdrStartCode = AvcParameterSets::kIdrStartCode;
 const uint8_t kSpsStartCode = AvcParameterSets::kSpsStartCode;
 const uint8_t kPpsStartCode = AvcParameterSets::kPpsStartCode;
+const uint8_t kAudStartCode = AvcParameterSets::kAudStartCode;
 
 const std::vector<uint8_t> kRawSlice = {kSliceStartCode, 0, 0, 1, 0, 0, 0};
 const std::vector<uint8_t> kRawIdr = {kIdrStartCode, 1, 2, 3, 4};
@@ -48,6 +46,7 @@ const std::vector<uint8_t> kIdrInAnnexB = {0, 0, 0, 1, kIdrStartCode,
                                            1, 2, 3, 4};
 const std::vector<uint8_t> kSliceInAnnexB = {0, 0, 0, 1, kSliceStartCode, 0, 0,
                                              1, 0, 0, 0};
+const std::vector<uint8_t> kAudInAnnexB = {0, 0, 0, 1, kAudStartCode, 0xe0};
 
 std::vector<uint8_t> operator+(const std::vector<uint8_t>& left,
                                const std::vector<uint8_t>& right) {
@@ -195,6 +194,14 @@ TEST(AvcParameterSetsTest, Ctor) {
   auto nalus_in_annex_b = kSpsInAnnexB + kPpsInAnnexB + kIdrInAnnexB;
   AvcParameterSets parameter_sets_5(kAnnexB, nalus_in_annex_b.data(),
                                     nalus_in_annex_b.size());
+
+  AvcParameterSets parameter_sets_6(kAnnexB, kAudInAnnexB.data(),
+                                    kAudInAnnexB.size());
+  auto nalus_in_annex_b_with_optional =
+      kAudInAnnexB + kSpsInAnnexB + kPpsInAnnexB + kIdrInAnnexB;
+  AvcParameterSets parameter_sets_7(kAnnexB,
+                                    nalus_in_annex_b_with_optional.data(),
+                                    nalus_in_annex_b_with_optional.size());
 }
 
 TEST(AvcParameterSetsTest, SingleSpsAndPps) {
@@ -442,6 +449,33 @@ TEST(AvcParameterSetsTest, MultiNalusWithoutSpsPps) {
   }
 }
 
+TEST(AvcParameterSetsTest, CombinedSize) {
+  auto nalus_in_annex_b = kSpsInAnnexB + kPpsInAnnexB + kIdrInAnnexB;
+  AvcParameterSets parameter_sets(kAnnexB, nalus_in_annex_b.data(),
+                                  nalus_in_annex_b.size());
+  ASSERT_TRUE(parameter_sets.combined_size_in_bytes() ==
+              (kSpsInAnnexB.size() + kPpsInAnnexB.size()));
+}
+
+TEST(AvcParameterSetsTest, CombinedSizeWithOptionalParameter) {
+  auto aud_first = kAudInAnnexB + kSpsInAnnexB + kPpsInAnnexB + kIdrInAnnexB;
+  AvcParameterSets parameter_sets_aud_first(kAnnexB, aud_first.data(),
+                                            aud_first.size());
+  ASSERT_TRUE(parameter_sets_aud_first.combined_size_in_bytes() ==
+              (kSpsInAnnexB.size() + kPpsInAnnexB.size()));
+  ASSERT_TRUE(
+      parameter_sets_aud_first.combined_size_in_bytes_with_optionals() ==
+      (kAudInAnnexB.size() + kSpsInAnnexB.size() + kPpsInAnnexB.size()));
+
+  auto aud_last = kPpsInAnnexB + kSpsInAnnexB + kAudInAnnexB + kIdrInAnnexB;
+  AvcParameterSets parameter_sets(kAnnexB, aud_last.data(), aud_last.size());
+  ASSERT_TRUE(parameter_sets.combined_size_in_bytes() ==
+              (kPpsInAnnexB.size() + kSpsInAnnexB.size()));
+  ASSERT_TRUE(
+      parameter_sets.combined_size_in_bytes_with_optionals() ==
+      (kPpsInAnnexB.size() + kSpsInAnnexB.size() + kAudInAnnexB.size()));
+}
+
 TEST(AvcParameterSetsTest, ConvertAnnexBToAvcc) {
   {
     std::vector<uint8_t> raw_nalus[] = {kRawSlice, kRawIdr, kRawSps, kRawPps};
@@ -517,7 +551,5 @@ TEST(AvcParameterSetsTest, ConvertAnnexBToAvccInvalidNalus) {
 }
 
 }  // namespace
-}  // namespace media
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+
+}  // namespace starboard::shared::starboard::media

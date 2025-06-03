@@ -24,9 +24,7 @@
 #include "starboard/configuration.h"
 #include "starboard/event.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
+namespace starboard::shared::starboard {
 
 namespace {
 
@@ -502,6 +500,4 @@ int Application::RunLoop() {
   return error_level_;
 }
 
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard

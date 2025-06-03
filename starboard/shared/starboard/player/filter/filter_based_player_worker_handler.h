@@ -33,11 +33,7 @@
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/shared/starboard/player/player_worker.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
+namespace starboard::shared::starboard::player::filter {
 
 class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
                                        private JobQueue::JobOwner {
@@ -117,10 +113,6 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
   const media::VideoStreamInfo video_stream_info_;
 };
 
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player::filter
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_FILTER_BASED_PLAYER_WORKER_HANDLER_H_

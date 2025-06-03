@@ -42,9 +42,7 @@ namespace {
 const char kTouchscreenPointerSwitch[] = "touchscreen_pointer";
 }
 
-namespace starboard {
-namespace shared {
-namespace x11 {
+namespace starboard::shared::x11 {
 
 using ::starboard::shared::dev_input::DevInput;
 
@@ -1386,6 +1384,4 @@ SbWindow ApplicationX11::FindWindow(Window window) {
   return kSbWindowInvalid;
 }
 
-}  // namespace x11
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::x11

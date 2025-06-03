@@ -24,9 +24,7 @@
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "third_party/internal/ce_cdm/cdm/include/cdm.h"
 
-namespace starboard {
-namespace shared {
-namespace widevine {
+namespace starboard::shared::widevine {
 
 // Manages the scheduled callbacks of Widevine.  All its public functions can
 // be called from any threads.
@@ -58,7 +56,7 @@ class WidevineTimer : public ::widevine::Cdm::ITimer {
 };
 
 }  // namespace widevine
-}  // namespace shared
-}  // namespace starboard
+
+}  // namespace starboard::shared::widevine
 
 #endif  // STARBOARD_SHARED_WIDEVINE_WIDEVINE_TIMER_H_
