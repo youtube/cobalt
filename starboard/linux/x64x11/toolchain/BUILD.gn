@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import("//build/config/clang/clang.gni")
+import("//cobalt/build/configs/hacks.gni")
 import("//starboard/build/toolchain/cobalt_toolchains.gni")
 import("//starboard/shared/toolchain/overridable_gcc_toolchain.gni")
 
@@ -23,7 +24,7 @@ overridable_clang_toolchain("starboard") {
     current_cpu = "x64"
     is_starboard = true
   }
-  propagates_configs = true
+  propagates_configs = !enable_cobalt_hermetic_hacks
 }
 
 clang_toolchain("native_target") {
