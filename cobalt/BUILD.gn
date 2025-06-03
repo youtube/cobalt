@@ -93,12 +93,15 @@ source_set("common") {
     "app/cobalt_switch_defaults.h",
   ]
 
+  public_deps = [
+    "//cobalt/browser",
+    "//cobalt/browser:switches",
+  ]
+
   deps = [
     ":content_shell_lib",
     "//base",
     "//chrome/common:non_code_constants",
-    "//cobalt/browser",
-    "//cobalt/browser:switches",
     "//cobalt/gpu",
     "//cobalt/renderer",
     "//components/memory_system:memory_system",
@@ -206,9 +209,177 @@ config("content_shell_lib_warnings") {
   }
 }
 
+# TODO(b/384748332): Remove dependency on content shell
+group("content_shell_lib_deps") {
+  testonly = true
+  public_deps = [
+    "//content/shell:android_shell_descriptors",
+
+    # content_shell_lib also exposes all public content APIs.
+    "//base",
+    "//base:base_static",
+    "//base/third_party/dynamic_annotations",
+    "//build:chromeos_buildflags",
+    "//cc/base",
+    "//components/cdm/renderer",
+    "//components/custom_handlers",
+    "//components/custom_handlers:test_support",
+    "//components/keyed_service/content",
+    "//components/metrics",
+    "//components/metrics:net",
+    "//components/metrics:test_support",
+    "//components/network_hints/browser:browser",
+    "//components/network_hints/renderer",
+    "//components/network_session_configurator/common",
+    "//components/origin_trials:browser",
+    "//components/origin_trials:common",
+    "//components/performance_manager",
+    "//components/permissions",
+    "//components/prefs",
+    "//components/services/storage/test_api",
+    "//components/url_formatter",
+    "//components/variations",
+    "//components/variations/service",
+    "//components/web_cache/renderer",
+    "//content:content_resources",
+    "//content:dev_ui_content_resources",
+    "//content/common:main_frame_counter",
+    "//content/public/app",
+    "//content/public/browser",
+    "//content/public/child",
+    "//content/public/common",
+    "//content/public/common",
+    "//content/public/gpu",
+    "//content/public/renderer",
+    "//content/public/utility",
+    "//content/shell:content_browsertests_mojom",
+    "//content/shell:resources",
+    "//content/shell:shell_controller_mojom",
+    "//content/test:content_test_mojo_bindings",
+    "//content/test:test_support",
+    "//device/bluetooth",
+    "//media",
+    "//media/mojo:buildflags",
+    "//net",
+    "//net:net_resources",
+    "//ppapi/buildflags",
+    "//services/device/public/cpp:test_support",
+    "//services/network:network_service",
+    "//services/network/public/cpp",
+    "//services/test/echo:lib",
+    "//services/test/echo/public/mojom",
+    "//third_party/blink/public:blink",
+    "//third_party/blink/public:image_resources",
+    "//third_party/blink/public:resources",
+    "//third_party/blink/public/strings",
+    "//third_party/blink/public/strings:accessibility_strings",
+    "//ui/base",
+    "//ui/base/clipboard",
+    "//ui/base/ime/init",
+    "//ui/gfx",
+    "//ui/gfx/geometry",
+    "//ui/platform_window",
+    "//url",
+    "//v8",
+  ]
+
+  if (is_fuchsia) {
+    public_deps += [
+      "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.element:fuchsia.element_hlcpp",
+      "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.ui.policy:fuchsia.ui.policy_hlcpp",
+    ]
+  } else {
+    public_deps += [
+      "//components/crash/content/browser",
+      "//components/crash/core/app",
+    ]
+  }
+
+  if (enable_cast_renderer) {
+    public_deps += [ "//media/mojo/services" ]
+  }
+
+  if (is_win) {
+    public_deps += [ "//gin" ]
+  }
+
+  if (is_linux) {
+    public_deps += [ "//ui/linux:linux_ui_factory" ]
+  }
+
+  if (is_mac) {
+    public_deps += [ "//ui/display:test_support" ]
+  }
+
+  if (is_ios) {
+    public_deps += [
+      "//components/permissions",
+      "//services/tracing/public/cpp",
+      "//services/tracing/public/mojom:mojom",
+      "//ui/shell_dialogs",
+    ]
+  }
+
+  if (is_android) {
+    public_deps += [
+      "//components/embedder_support/android:view",
+      "//content/shell/android:content_shell_jni_headers",
+      "//mojo/public/java/system:test_support",
+      "//ui/android",
+    ]
+  }
+
+  if (use_aura) {
+    public_deps += [
+      "//ui/aura",
+      "//ui/aura:test_support",
+      "//ui/events",
+      "//ui/wm",
+    ]
+
+    if (shell_use_toolkit_views) {
+      public_deps += [
+        "//ui/color:color_headers",
+        "//ui/native_theme",
+        "//ui/resources",
+        "//ui/views:test_support",
+        "//ui/views/controls/webview",
+        "//ui/wm:test_support",
+      ]
+    }
+  }
+
+  if (is_chromeos_ash) {
+    public_deps += [ "//chromeos/ash/components/dbus" ]
+  }
+
+  if (is_chromeos_lacros) {
+    public_deps += [
+      "//chromeos/dbus/constants",
+      "//chromeos/lacros/dbus",
+    ]
+  }
+
+  if (is_linux || is_chromeos) {
+    public_deps += [ "//build/config/freetype" ]
+  }
+
+  if (use_ozone) {
+    public_deps += [ "//ui/ozone" ]
+  }
+
+  if (is_cobalt && use_starboard_media) {
+    public_deps += [ "//starboard:starboard_group" ]
+    if (is_android) {
+      public_deps += [ "//starboard/android/shared:starboard_platform" ]
+    }
+  }
+}
+
 # TODO(b/422171398): Refactor source set to not depend on content shell
 static_library("content_shell_lib") {
   testonly = true
+  deps = [ ":content_shell_lib_deps" ]
   sources = [
     "//content/shell/browser/shell.cc",
     "//content/shell/browser/shell.h",
@@ -323,98 +494,11 @@ static_library("content_shell_lib") {
     check_includes = false
   }
 
-  # TODO(b/384748332): Remove dependency on content shell
-  public_deps = [
-    "//content/shell:android_shell_descriptors",
-
-    # content_shell_lib also exposes all public content APIs.
-    "//content/public/app",
-    "//content/public/browser",
-    "//content/public/child",
-    "//content/public/common",
-    "//content/public/gpu",
-    "//content/public/renderer",
-    "//content/public/utility",
-    "//services/network:network_service",
-  ]
-  deps = [
-    "//base",
-    "//base:base_static",
-    "//base/third_party/dynamic_annotations",
-    "//build:chromeos_buildflags",
-    "//cc/base",
-    "//components/cdm/renderer",
-    "//components/custom_handlers",
-    "//components/custom_handlers:test_support",
-    "//components/keyed_service/content",
-    "//components/metrics",
-    "//components/metrics:net",
-    "//components/metrics:test_support",
-    "//components/network_hints/browser:browser",
-    "//components/network_hints/renderer",
-    "//components/network_session_configurator/common",
-    "//components/origin_trials:browser",
-    "//components/origin_trials:common",
-    "//components/performance_manager",
-    "//components/permissions",
-    "//components/prefs",
-    "//components/services/storage/test_api",
-    "//components/url_formatter",
-    "//components/variations",
-    "//components/variations/service",
-    "//components/web_cache/renderer",
-    "//content:content_resources",
-    "//content:dev_ui_content_resources",
-    "//content/common:main_frame_counter",
-    "//content/public/common",
-    "//content/shell:content_browsertests_mojom",
-    "//content/shell:resources",
-    "//content/shell:shell_controller_mojom",
-    "//content/test:content_test_mojo_bindings",
-    "//content/test:test_support",
-    "//device/bluetooth",
-    "//media",
-    "//media/mojo:buildflags",
-    "//net",
-    "//net:net_resources",
-    "//ppapi/buildflags",
-    "//services/device/public/cpp:test_support",
-    "//services/network/public/cpp",
-    "//services/test/echo:lib",
-    "//services/test/echo/public/mojom",
-    "//third_party/blink/public:blink",
-    "//third_party/blink/public:image_resources",
-    "//third_party/blink/public:resources",
-    "//third_party/blink/public/strings",
-    "//third_party/blink/public/strings:accessibility_strings",
-    "//ui/base",
-    "//ui/base/clipboard",
-    "//ui/base/ime/init",
-    "//ui/gfx",
-    "//ui/gfx/geometry",
-    "//ui/platform_window",
-    "//url",
-    "//v8",
-  ]
-
   if (is_fuchsia) {
     sources += [
       "//content/shell/browser/fuchsia_view_presenter.cc",
       "//content/shell/browser/fuchsia_view_presenter.h",
     ]
-    deps += [
-      "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.element:fuchsia.element_hlcpp",
-      "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.ui.policy:fuchsia.ui.policy_hlcpp",
-    ]
-  } else {
-    deps += [
-      "//components/crash/content/browser",
-      "//components/crash/core/app",
-    ]
-  }
-
-  if (enable_cast_renderer) {
-    deps += [ "//media/mojo/services" ]
   }
 
   if (is_win) {
@@ -422,55 +506,13 @@ static_library("content_shell_lib") {
       "//content/shell/common/v8_crashpad_support_win.cc",
       "//content/shell/common/v8_crashpad_support_win.h",
     ]
-    deps += [ "//gin" ]
-  }
-
-  if (is_linux) {
-    deps += [ "//ui/linux:linux_ui_factory" ]
-  }
-
-  if (is_mac) {
-    deps += [ "//ui/display:test_support" ]
-  }
-
-  if (is_ios) {
-    deps += [
-      "//components/permissions",
-      "//services/tracing/public/cpp",
-      "//services/tracing/public/mojom:mojom",
-      "//ui/shell_dialogs",
-    ]
-  }
-
-  if (is_android) {
-    deps += [
-      "//components/embedder_support/android:view",
-      "//content/shell/android:content_shell_jni_headers",
-      "//mojo/public/java/system:test_support",
-      "//ui/android",
-    ]
   }
 
   if (use_aura) {
-    deps += [
-      "//ui/aura",
-      "//ui/aura:test_support",
-      "//ui/events",
-      "//ui/wm",
-    ]
-
     if (shell_use_toolkit_views) {
       sources += [
         "//content/shell/browser/shell_platform_delegate_views.cc",
         "//content/shell/browser/shell_web_contents_view_delegate_views.cc",
-      ]
-      deps += [
-        "//ui/color:color_headers",
-        "//ui/native_theme",
-        "//ui/resources",
-        "//ui/views:test_support",
-        "//ui/views/controls/webview",
-        "//ui/wm:test_support",
       ]
     } else {
       sources += [
@@ -483,31 +525,5 @@ static_library("content_shell_lib") {
       "//content/shell/browser/shell_platform_data_aura.cc",
       "//content/shell/browser/shell_platform_data_aura.h",
     ]
-  }
-
-  if (is_chromeos_ash) {
-    deps += [ "//chromeos/ash/components/dbus" ]
-  }
-
-  if (is_chromeos_lacros) {
-    deps += [
-      "//chromeos/dbus/constants",
-      "//chromeos/lacros/dbus",
-    ]
-  }
-
-  if (is_linux || is_chromeos) {
-    deps += [ "//build/config/freetype" ]
-  }
-
-  if (use_ozone) {
-    deps += [ "//ui/ozone" ]
-  }
-
-  if (is_cobalt && use_starboard_media) {
-    deps += [ "//starboard:starboard_group" ]
-    if (is_android) {
-      deps += [ "//starboard/android/shared:starboard_platform" ]
-    }
   }
 }
