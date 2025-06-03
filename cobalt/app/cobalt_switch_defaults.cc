@@ -65,7 +65,7 @@ const base::CommandLine::SwitchMap GetCobaltParamSwitchDefaults() {
         // cache whose size is specified by the LimitImageDecodeCacheSize flag
         // and the tile manager cache of rasterized content (i.e. content that
         // has been rastered already or pre-rastered and is kept for later fast
-        // (re)use) that can be overwriten with the kForceGpuMemAvailableMb
+        // (re)use) that can be overwritten with the kForceGpuMemAvailableMb
         // switch.
         // TODO(mcasas): Ideally configure depending on policy.
         {switches::kForceGpuMemAvailableMb, "32"},
