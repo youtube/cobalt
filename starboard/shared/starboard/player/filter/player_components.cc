@@ -173,7 +173,7 @@ std::unique_ptr<PlayerComponents> PlayerComponents::Factory::CreateComponents(
                              &audio_renderer_sink, &video_decoder,
                              &video_render_algorithm, &video_renderer_sink,
                              error_message)) {
-      return nullptr;
+      std::unique_ptr<PlayerComponents>();
     }
     if (use_stub_audio_decoder) {
       SB_DCHECK(!audio_decoder);
