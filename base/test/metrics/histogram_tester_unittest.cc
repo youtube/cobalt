@@ -9,6 +9,8 @@
 
 #include "base/metrics/histogram_macros.h"
 #include "base/metrics/histogram_samples.h"
+#include "base/metrics/persistent_histogram_allocator.h"
+#include "base/metrics/statistics_recorder.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest-spi.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -29,7 +31,12 @@ const char kHistogram6[] = "Test6";
 
 namespace base {
 
-typedef testing::Test HistogramTesterTest;
+class HistogramTesterTest : public testing::Test {
+  std::unique_ptr<StatisticsRecorder> recorder_for_testing_;
+public:
+  HistogramTesterTest()
+    : recorder_for_testing_(StatisticsRecorder::CreateTemporaryForTesting()) {}
+};
 
 TEST_F(HistogramTesterTest, Scope) {
   // Record a histogram before the creation of the recorder.
