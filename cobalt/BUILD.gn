@@ -56,6 +56,8 @@ if (!is_android) {
     deps = [
       ":common",
       "//base",
+      "//cobalt/shell:content_shell_app",
+      "//cobalt/shell:content_shell_lib",
       "//content/public/app",
       "//starboard:starboard_headers_only",
     ]
@@ -90,11 +92,6 @@ source_set("common") {
     "app/cobalt_switch_defaults.h",
   ]
 
-  public_deps = [
-    "//cobalt/shell:content_shell_app",
-    "//cobalt/shell:content_shell_lib",
-  ]
-
   deps = [
     "//base",
     "//chrome/common:non_code_constants",
@@ -102,6 +99,8 @@ source_set("common") {
     "//cobalt/browser:switches",
     "//cobalt/gpu",
     "//cobalt/renderer",
+    "//cobalt/shell:content_shell_app",
+    "//cobalt/shell:content_shell_lib",
     "//components/memory_system:memory_system",
     "//content/public/app",
     "//content/shell:pak",
@@ -168,6 +167,7 @@ test("cobalt_unittests") {
     "//cobalt/browser/migrate_storage_record:unittest",
     "//cobalt/browser/user_agent",
     "//cobalt/common/eztime:eztime_test",
+    "//cobalt/shell:content_shell_lib",
     "//components/metrics",
     "//components/prefs",
     "//components/prefs:test_support",
