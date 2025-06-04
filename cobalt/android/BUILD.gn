@@ -270,12 +270,14 @@ shared_library("libchrobalt") {
   deps = [
     ":content_shell_jni_headers",
     "//cobalt/browser",
+    "//cobalt/browser:embed_polyfilled_javascript",
     "//cobalt/gpu",
     "//cobalt/renderer",
     "//gpu/command_buffer/service",
 
     # TODO: what can be removed in the dependencies?
     "//components/crash/content/browser",
+    "//components/js_injection/browser:browser",
     "//components/memory_system",
     "//content/shell:content_shell_app",
     "//content/shell:content_shell_lib",
