@@ -22,9 +22,7 @@
 #include "starboard/media.h"
 #include "starboard/player.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared::exoplayer {
 
 class ExoPlayer final {
  public:
@@ -86,8 +84,6 @@ class ExoPlayer final {
   int ticket_ = SB_PLAYER_INITIAL_TICKET;
 };
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared::exoplayer
 
 #endif  // STARBOARD_ANDROID_SHARED_EXOPLAYER_EXOPLAYER_H_

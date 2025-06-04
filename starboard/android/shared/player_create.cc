@@ -17,6 +17,9 @@
 
 #include "starboard/player.h"
 
+// TODO: Remove //media/base:base dependency cycle to use base::FeatureList
+// here. #include "media/base/media_switches.h"
+#include "starboard/android/shared/exoplayer/exoplayer.h"
 #include "starboard/android/shared/video_max_video_input_size.h"
 #include "starboard/android/shared/video_window.h"
 #include "starboard/common/log.h"
@@ -111,6 +114,15 @@ SbPlayer SbPlayerCreate(SbWindow window,
     player_error_func(kSbPlayerInvalid, context, kSbPlayerErrorDecode,
                       "|player_status_func| cannot be null");
     return kSbPlayerInvalid;
+  }
+
+  // TODO: Remove //media/base:base dependency cycle to use base::FeatureList
+  // here.
+  if (/* base::FeatureList::IsEnabled(media::kCobaltUseExoPlayer) */ (true)) {
+    SB_LOG(INFO) << "Using ExoPlayer SbPlayerCreate() implementation;.";
+    return starboard::android::shared::exoplayer::ExoPlayer::CreateInstance(
+        creation_param, sample_deallocate_func, decoder_status_func,
+        player_status_func, player_error_func, context);
   }
 
   auto audio_codec = audio_stream_info.codec;

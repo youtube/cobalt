@@ -17,9 +17,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/time.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared::exoplayer {
 namespace {
 
 using std::placeholders::_1;
@@ -207,6 +205,5 @@ void ExoPlayer::UpdateMediaInfo(int64_t media_time,
   // SB_LOG(INFO) << "Finished updatemediainfo";
 }
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared::exoplayer
+                                                     

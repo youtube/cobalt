@@ -1,4 +1,4 @@
-// Copyright 2017 The Cobalt Authors. All Rights Reserved.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,24 +14,19 @@
 
 #include "starboard/player.h"
 
-// TODO: Remove //media/base:base dependency cycle to use base::FeatureList
-// here. #include "media/base/media_switches.h"
 #include "starboard/android/shared/exoplayer/exoplayer.h"
-#include "starboard/shared/starboard/player/player_internal.h"
+#include "starboard/common/log.h"
 
-void SbPlayerDestroy(SbPlayer player) {
+void SbPlayerSetVolume(SbPlayer player, double volume) {
   if (!SbPlayerIsValid(player)) {
+    SB_DLOG(WARNING) << "player is invalid.";
     return;
   }
 
-  // TODO: Remove //media/base:base dependency cycle to use base::FeatureList
-  // here.
-  if (/* base::FeatureList::IsEnabled(media::kCobaltUseExoPlayer) */ (true)) {
-    SB_LOG(INFO) << "Using ExoPlayer SbPlayeDestroy() implementation;.";
-    delete starboard::android::shared::exoplayer::ExoPlayer::
-        GetExoPlayerForSbPlayer(player);
-    return;
-  }
-
-  delete player;
+  auto exoplayer =
+      starboard::android::shared::exoplayer::ExoPlayer::GetExoPlayerForSbPlayer(
+          player);
+  SB_DCHECK(exoplayer);
+  exoplayer->SetVolume(volume);
 }
+ 

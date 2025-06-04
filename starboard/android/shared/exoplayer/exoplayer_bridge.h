@@ -29,9 +29,7 @@
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/shared/starboard/player/job_thread.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared::exoplayer {
 
 using starboard::android::shared::JniEnvExt;
 using starboard::android::shared::VideoSurfaceHolder;
@@ -128,8 +126,6 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   std::function<void()> update_job_;
 };
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared::exoplayer
 
 #endif  // STARBOARD_ANDROID_SHARED_EXOPLAYER_EXOPLAYER_BRIDGE_H_

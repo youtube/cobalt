@@ -22,9 +22,7 @@
 #include "starboard/common/log.h"
 #include "starboard/shared/starboard/media/mime_type.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared::exoplayer {
 namespace {
 
 using starboard::android::shared::ScopedLocalJavaRef;
@@ -570,6 +568,5 @@ void ExoPlayerBridge::UpdatePlayerError(SbPlayerError error,
   player_error_func_(player_, context_, error, error_message.c_str());
 }
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared::exoplayer
+                                                     
