@@ -795,6 +795,4 @@ void DrmSystemWidevine::SendSessionUpdateRequest(
       message.c_str(), static_cast<int>(message.size()), NULL);
 }
 
-}  // namespace widevine
-
-}  // namespace starboard::shared::widevine::
+}  // namespace starboard::shared::widevine

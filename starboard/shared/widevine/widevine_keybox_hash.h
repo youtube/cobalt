@@ -25,8 +25,6 @@ namespace starboard::shared::widevine {
 // NOTE: this is not a cryptographic hash, but serves our purposes here.
 std::string GetWidevineKeyboxHash();
 
-}  // namespace widevine
-
 }  // namespace starboard::shared::widevine
 
 #endif  // STARBOARD_SHARED_WIDEVINE_WIDEVINE_KEYBOX_HASH_H_
