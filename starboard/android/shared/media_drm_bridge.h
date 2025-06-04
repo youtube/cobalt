@@ -22,7 +22,7 @@
 
 #include "base/android/jni_android.h"
 #include "base/android/jni_int_wrapper.h"
-#include "base/memory/raw_ptr.h"
+#include "base/memory/raw_ref.h"
 #include "starboard/drm.h"
 
 namespace starboard::android::shared {
@@ -36,16 +36,13 @@ class MediaDrmBridge {
  public:
   class Host {
    public:
-    virtual void CallUpdateRequestCallback(int ticket,
-                                           SbDrmSessionRequestType request_type,
-                                           const void* session_id,
-                                           int session_id_size,
-                                           const void* content,
-                                           int content_size,
-                                           const char* url) = 0;
-    virtual void CallDrmSessionKeyStatusesChangedCallback(
-        const void* session_id,
-        int session_id_size,
+    virtual void OnSessionUpdate(int ticket,
+                                 SbDrmSessionRequestType request_type,
+                                 std::string_view session_id,
+                                 std::string_view content,
+                                 const char* url) = 0;
+    virtual void OnKeyStatusChange(
+        std::string_view session_id,
         const std::vector<SbDrmKeyId>& drm_key_ids,
         const std::vector<SbDrmKeyStatus>& drm_key_statuses) = 0;
 
@@ -53,7 +50,7 @@ class MediaDrmBridge {
     ~Host() = default;
   };
 
-  MediaDrmBridge(MediaDrmBridge::Host* host, const char* key_system);
+  MediaDrmBridge(raw_ref<MediaDrmBridge::Host> host, const char* key_system);
   ~MediaDrmBridge();
 
   MediaDrmBridge(const MediaDrmBridge&) = delete;
@@ -62,8 +59,6 @@ class MediaDrmBridge {
   bool is_valid() const {
     return !j_media_drm_bridge_.is_null() && !j_media_crypto_.is_null();
   }
-
-  Host* host() const { return host_.get(); }
 
   jobject GetMediaCrypto() const { return j_media_crypto_.obj(); }
 
@@ -83,18 +78,18 @@ class MediaDrmBridge {
 
   void OnSessionMessage(JNIEnv* env,
                         jint ticket,
-                        const JavaParamRef<jbyteArray>& sessionId,
-                        jint requestType,
+                        const JavaParamRef<jbyteArray>& session_id,
+                        jint request_type,
                         const JavaParamRef<jbyteArray>& message);
   void OnKeyStatusChange(JNIEnv* env,
-                         const JavaParamRef<jbyteArray>& sessionId,
-                         const JavaParamRef<jobjectArray>& keyInformation);
+                         const JavaParamRef<jbyteArray>& session_id,
+                         const JavaParamRef<jobjectArray>& key_information);
 
   static bool IsWidevineSupported(JNIEnv* env);
   static bool IsCbcsSupported(JNIEnv* env);
 
  private:
-  const raw_ptr<MediaDrmBridge::Host> host_;
+  const raw_ref<MediaDrmBridge::Host> host_;
   std::vector<uint8_t> metrics_;
 
   ScopedJavaGlobalRef<jobject> j_media_drm_bridge_;
