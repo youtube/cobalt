@@ -24,7 +24,7 @@ declare_args() {
 }
 
 if (starboard_target_type == "") {
-  if (sb_is_modular && !sb_is_evergreen) {
+  if (sb_is_modular && !use_evergreen) {
     starboard_target_type = "shared_library"
   } else {
     starboard_target_type = "component"
@@ -34,6 +34,10 @@ if (starboard_target_type == "") {
 template("starboard_platform_target") {
   target(starboard_target_type, target_name) {
     forward_variables_from(invoker, [ "extra_configs" ])
+    visibility = [
+      ":starboard_group",
+      ":starboard_group($default_toolchain)",
+    ]
 
     if (starboard_target_type == "shared_library") {
       output_extension = starboard_shared_library_extension

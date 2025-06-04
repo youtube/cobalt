@@ -14,10 +14,14 @@
 
 #include "starboard/android/shared/media_capabilities_cache.h"
 
+#include <jni.h>
+
 #include <utility>
 
+#include "base/android/jni_android.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
+#include "starboard/android/shared/media_drm_bridge.h"
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/log.h"
 #include "starboard/common/once.h"
@@ -25,11 +29,10 @@
 #include "starboard/shared/starboard/media/mime_supportability_cache.h"
 #include "starboard/thread.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 namespace {
 
+using base::android::AttachCurrentThread;
 using ::starboard::shared::starboard::media::KeySystemSupportabilityCache;
 using ::starboard::shared::starboard::media::MimeSupportabilityCache;
 
@@ -175,15 +178,11 @@ void ConvertStringToLowerCase(std::string* str) {
 }
 
 bool GetIsWidevineSupported() {
-  return JniEnvExt::Get()->CallStaticBooleanMethodOrAbort(
-             "dev/cobalt/media/MediaDrmBridge",
-             "isWidevineCryptoSchemeSupported", "()Z") == JNI_TRUE;
+  return MediaDrmBridge::IsWidevineSupported(AttachCurrentThread());
 }
 
 bool GetIsCbcsSupported() {
-  return JniEnvExt::Get()->CallStaticBooleanMethodOrAbort(
-             "dev/cobalt/media/MediaDrmBridge", "isCbcsSchemeSupported",
-             "()Z") == JNI_TRUE;
+  return MediaDrmBridge::IsCbcsSupported(AttachCurrentThread());
 }
 
 std::set<SbMediaTransferId> GetSupportedHdrTypes() {
@@ -685,14 +684,4 @@ Java_dev_cobalt_util_DisplayUtil_nativeOnDisplayChanged() {
   MimeSupportabilityCache::GetInstance()->ClearCachedMimeSupportabilities();
 }
 
-extern "C" SB_EXPORT_PLATFORM void
-Java_dev_cobalt_media_AudioOutputManager_nativeOnAudioDeviceChanged() {
-  // Audio output device change could change passthrough decoder capabilities,
-  // so we have to reload codec capabilities.
-  MediaCapabilitiesCache::GetInstance()->ClearCache();
-  MimeSupportabilityCache::GetInstance()->ClearCachedMimeSupportabilities();
-}
-
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared

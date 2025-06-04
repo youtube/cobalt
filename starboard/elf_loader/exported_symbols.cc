@@ -14,7 +14,15 @@
 
 #include "starboard/elf_loader/exported_symbols.h"
 
+#include "build/build_config.h"
+
 #include <dirent.h>
+
+// TODO: Cobalt b/421944504 - Cleanup once we are done with all the symbols.
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+#include <dlfcn.h>
+#endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+
 #include <errno.h>
 #include <fcntl.h>
 #include <ifaddrs.h>
@@ -22,6 +30,7 @@
 #include <netdb.h>
 #include <sched.h>
 #include <stdlib.h>
+#include <sys/epoll.h>
 #include <sys/mman.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -60,6 +69,11 @@
 #define REGISTER_SYMBOL(s)                        \
   do {                                            \
     map_[#s] = reinterpret_cast<const void*>(&s); \
+  } while (0)
+
+#define REGISTER_WRAPPER(s)                                    \
+  do {                                                         \
+    map_[#s] = reinterpret_cast<const void*>(&__abi_wrap_##s); \
   } while (0)
 
 namespace starboard {
@@ -208,9 +222,12 @@ ExportedSymbols::ExportedSymbols() {
   // POSIX APIs
   REGISTER_SYMBOL(calloc);
   REGISTER_SYMBOL(close);
-  REGISTER_SYMBOL(closedir);
   REGISTER_SYMBOL(dup);
   REGISTER_SYMBOL(dup2);
+  REGISTER_SYMBOL(epoll_create);
+  REGISTER_SYMBOL(epoll_create1);
+  REGISTER_SYMBOL(epoll_ctl);
+  REGISTER_SYMBOL(epoll_wait);
   REGISTER_SYMBOL(fcntl);
   REGISTER_SYMBOL(free);
   REGISTER_SYMBOL(freeifaddrs);
@@ -230,10 +247,12 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(msync);
   REGISTER_SYMBOL(munmap);
   REGISTER_SYMBOL(open);
-  REGISTER_SYMBOL(opendir);
+  REGISTER_SYMBOL(pipe);
   REGISTER_SYMBOL(posix_memalign);
   REGISTER_SYMBOL(pread);
   REGISTER_SYMBOL(pwrite);
+  REGISTER_SYMBOL(rand);
+  REGISTER_SYMBOL(rand_r);
   REGISTER_SYMBOL(read);
   REGISTER_SYMBOL(realloc);
   REGISTER_SYMBOL(recv);
@@ -246,6 +265,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(socket);
   REGISTER_SYMBOL(snprintf);
   REGISTER_SYMBOL(sprintf);
+  REGISTER_SYMBOL(srand);
   REGISTER_SYMBOL(unlink);
   REGISTER_SYMBOL(usleep);
   REGISTER_SYMBOL(vfwprintf);
@@ -258,137 +278,113 @@ ExportedSymbols::ExportedSymbols() {
   // Platform-specific types with musl-based types. These wrappers are defined
   // in //starboard/shared/modular.
   // TODO: b/316603042 - Detect via NPLB and only add the wrapper if needed.
-  map_["clock_gettime"] =
-      reinterpret_cast<const void*>(&__abi_wrap_clock_gettime);
+
+  REGISTER_WRAPPER(accept);
+  REGISTER_WRAPPER(bind);
+  REGISTER_WRAPPER(clock_gettime);
+  REGISTER_WRAPPER(closedir);
+  REGISTER_WRAPPER(clock_nanosleep);
+  REGISTER_WRAPPER(connect);
   if (errno_translation()) {
-    map_["__errno_location"] =
-        reinterpret_cast<const void*>(__abi_wrap___errno_location);
+    REGISTER_WRAPPER(__errno_location);
   } else {
-    map_["__errno_location"] = reinterpret_cast<const void*>(__errno_location);
+    REGISTER_SYMBOL(__errno_location);
   }
-  map_["fstat"] = reinterpret_cast<const void*>(&__abi_wrap_fstat);
-  map_["ftruncate"] = reinterpret_cast<const void*>(&__abi_wrap_ftruncate);
-  map_["gettimeofday"] =
-      reinterpret_cast<const void*>(&__abi_wrap_gettimeofday);
-  map_["gmtime_r"] = reinterpret_cast<const void*>(&__abi_wrap_gmtime_r);
-  map_["lseek"] = reinterpret_cast<const void*>(&__abi_wrap_lseek);
-  map_["mmap"] = reinterpret_cast<const void*>(&__abi_wrap_mmap);
-
-  map_["pthread_attr_init"] =
-      reinterpret_cast<const void*>(&__abi_wrap_pthread_attr_init);
-  map_["pthread_attr_destroy"] =
-      reinterpret_cast<const void*>(&__abi_wrap_pthread_attr_destroy);
-  map_["pthread_attr_getdetachstate"] =
-      reinterpret_cast<const void*>(&__abi_wrap_pthread_attr_getdetachstate);
-  map_["pthread_attr_getschedpolicy"] =
-      reinterpret_cast<const void*>(&__abi_wrap_pthread_attr_getschedpolicy);
-  map_["pthread_attr_getscope"] =
-      reinterpret_cast<const void*>(&__abi_wrap_pthread_attr_getscope);
-  map_["pthread_attr_getstack"] =
-      reinterpret_cast<const void*>(&__abi_wrap_pthread_attr_getstack);
-  map_["pthread_attr_getstacksize"] =
-      reinterpret_cast<const void*>(&__abi_wrap_pthread_attr_getstacksize);
-  map_["pthread_attr_setdetachstate"] =
-      reinterpret_cast<const void*>(&__abi_wrap_pthread_attr_setdetachstate);
-  map_["pthread_attr_setschedpolicy"] =
-      reinterpret_cast<const void*>(&__abi_wrap_pthread_attr_setschedpolicy);
-  map_["pthread_attr_setscope"] =
-      reinterpret_cast<const void*>(&__abi_wrap_pthread_attr_setscope);
-  map_["pthread_attr_setstack"] =
-      reinterpret_cast<const void*>(&__abi_wrap_pthread_attr_setstack);
-  map_["pthread_attr_setstacksize"] =
-      reinterpret_cast<const void*>(&__abi_wrap_pthread_attr_setstacksize);
-  map_["pthread_cond_broadcast"] =
-      reinterpret_cast<const void*>(&__abi_wrap_pthread_cond_broadcast);
-  map_["pthread_cond_destroy"] =
-      reinterpret_cast<const void*>(&__abi_wrap_pthread_cond_destroy);
-  map_["pthread_cond_init"] =
-      reinterpret_cast<const void*>(&__abi_wrap_pthread_cond_init);
-  map_["pthread_cond_signal"] =
-      reinterpret_cast<const void*>(&__abi_wrap_pthread_cond_signal);
-  map_["pthread_cond_timedwait"] =
-      reinterpret_cast<const void*>(&__abi_wrap_pthread_cond_timedwait);
-  map_["pthread_cond_wait"] =
-      reinterpret_cast<const void*>(&__abi_wrap_pthread_cond_wait);
-  map_["pthread_condattr_destroy"] =
-      reinterpret_cast<const void*>(&__abi_wrap_pthread_condattr_destroy);
-  map_["pthread_condattr_getclock"] =
-      reinterpret_cast<const void*>(&__abi_wrap_pthread_condattr_getclock);
-  map_["pthread_condattr_init"] =
-      reinterpret_cast<const void*>(&__abi_wrap_pthread_condattr_init);
-  map_["pthread_condattr_setclock"] =
-      reinterpret_cast<const void*>(&__abi_wrap_pthread_condattr_setclock);
-  map_["pthread_create"] =
-      reinterpret_cast<const void*>(&__abi_wrap_pthread_create);
-  map_["pthread_detach"] =
-      reinterpret_cast<const void*>(&__abi_wrap_pthread_detach);
-  map_["pthread_equal"] =
-      reinterpret_cast<const void*>(&__abi_wrap_pthread_equal);
-  map_["pthread_getname_np"] =
-      reinterpret_cast<const void*>(&__abi_wrap_pthread_getname_np);
-  map_["pthread_getspecific"] =
-      reinterpret_cast<const void*>(&__abi_wrap_pthread_getspecific);
-  map_["pthread_join"] =
-      reinterpret_cast<const void*>(&__abi_wrap_pthread_join);
-  map_["pthread_key_create"] =
-      reinterpret_cast<const void*>(&__abi_wrap_pthread_key_create);
-  map_["pthread_key_delete"] =
-      reinterpret_cast<const void*>(&__abi_wrap_pthread_key_delete);
-  map_["pthread_mutex_destroy"] =
-      reinterpret_cast<const void*>(&__abi_wrap_pthread_mutex_destroy);
-  map_["pthread_mutex_init"] =
-      reinterpret_cast<const void*>(&__abi_wrap_pthread_mutex_init);
-  map_["pthread_mutex_lock"] =
-      reinterpret_cast<const void*>(&__abi_wrap_pthread_mutex_lock);
-  map_["pthread_mutex_unlock"] =
-      reinterpret_cast<const void*>(&__abi_wrap_pthread_mutex_unlock);
-  map_["pthread_mutex_trylock"] =
-      reinterpret_cast<const void*>(&__abi_wrap_pthread_mutex_trylock);
-  map_["pthread_mutexattr_destroy"] =
-      reinterpret_cast<const void*>(&__abi_wrap_pthread_mutexattr_destroy);
-  map_["pthread_mutexattr_gettype"] =
-      reinterpret_cast<const void*>(&__abi_wrap_pthread_mutexattr_gettype);
-  map_["pthread_mutexattr_getpshared"] =
-      reinterpret_cast<const void*>(&__abi_wrap_pthread_mutexattr_getpshared);
-  map_["pthread_mutexattr_init"] =
-      reinterpret_cast<const void*>(&__abi_wrap_pthread_mutexattr_init);
-  map_["pthread_mutexattr_settype"] =
-      reinterpret_cast<const void*>(&__abi_wrap_pthread_mutexattr_settype);
-  map_["pthread_mutexattr_setpshared"] =
-      reinterpret_cast<const void*>(&__abi_wrap_pthread_mutexattr_setpshared);
-  map_["pthread_once"] =
-      reinterpret_cast<const void*>(&__abi_wrap_pthread_once);
-  map_["pthread_self"] =
-      reinterpret_cast<const void*>(&__abi_wrap_pthread_self);
-  map_["pthread_setspecific"] =
-      reinterpret_cast<const void*>(&__abi_wrap_pthread_setspecific);
-  map_["pthread_setname_np"] =
-      reinterpret_cast<const void*>(&__abi_wrap_pthread_setname_np);
-  map_["readdir_r"] = reinterpret_cast<const void*>(&__abi_wrap_readdir_r);
-  map_["stat"] = reinterpret_cast<const void*>(&__abi_wrap_stat);
-  map_["time"] = reinterpret_cast<const void*>(&__abi_wrap_time);
-  map_["accept"] = reinterpret_cast<const void*>(&__abi_wrap_accept);
-  map_["bind"] = reinterpret_cast<const void*>(&__abi_wrap_bind);
-  map_["connect"] = reinterpret_cast<const void*>(&__abi_wrap_connect);
-  map_["getaddrinfo"] = reinterpret_cast<const void*>(&__abi_wrap_getaddrinfo);
-  map_["freeaddrinfo"] =
-      reinterpret_cast<const void*>(&__abi_wrap_freeaddrinfo);
-  map_["getifaddrs"] = reinterpret_cast<const void*>(&__abi_wrap_getifaddrs);
-  map_["setsockopt"] = reinterpret_cast<const void*>(&__abi_wrap_setsockopt);
-  map_["shutdown"] = reinterpret_cast<const void*>(&__abi_wrap_shutdown);
-  map_["writev"] = reinterpret_cast<const void*>(&__abi_wrap_writev);
-
+  REGISTER_WRAPPER(fstat);
+  REGISTER_WRAPPER(freeaddrinfo);
+  REGISTER_WRAPPER(ftruncate);
+  REGISTER_WRAPPER(getaddrinfo);
+  REGISTER_WRAPPER(getifaddrs);
+  REGISTER_WRAPPER(gmtime_r);
+  REGISTER_WRAPPER(lseek);
+  REGISTER_WRAPPER(mmap);
+  REGISTER_WRAPPER(opendir);
+  REGISTER_WRAPPER(pthread_attr_init);
+  REGISTER_WRAPPER(pthread_attr_destroy);
+  REGISTER_WRAPPER(pthread_attr_getdetachstate);
+  REGISTER_WRAPPER(pthread_attr_getschedpolicy);
+  REGISTER_WRAPPER(pthread_attr_getscope);
+  REGISTER_WRAPPER(pthread_attr_getstack);
+  REGISTER_WRAPPER(pthread_attr_getstacksize);
+  REGISTER_WRAPPER(pthread_attr_init);
+  REGISTER_WRAPPER(pthread_attr_setdetachstate);
+  REGISTER_WRAPPER(pthread_attr_setschedpolicy);
+  REGISTER_WRAPPER(pthread_attr_setscope);
+  REGISTER_WRAPPER(pthread_attr_setstack);
+  REGISTER_WRAPPER(pthread_attr_setstacksize);
+  REGISTER_WRAPPER(pthread_cond_broadcast);
+  REGISTER_WRAPPER(pthread_cond_destroy);
+  REGISTER_WRAPPER(pthread_cond_init);
+  REGISTER_WRAPPER(pthread_cond_signal);
+  REGISTER_WRAPPER(pthread_cond_timedwait);
+  REGISTER_WRAPPER(pthread_cond_wait);
+  REGISTER_WRAPPER(pthread_condattr_destroy);
+  REGISTER_WRAPPER(pthread_condattr_getclock);
+  REGISTER_WRAPPER(pthread_condattr_init);
+  REGISTER_WRAPPER(pthread_condattr_setclock);
+  REGISTER_WRAPPER(pthread_create);
+  REGISTER_WRAPPER(pthread_detach);
+  REGISTER_WRAPPER(pthread_equal);
+  REGISTER_WRAPPER(pthread_getattr_np);
+  REGISTER_WRAPPER(pthread_getname_np);
+  REGISTER_WRAPPER(pthread_getschedparam);
+  REGISTER_WRAPPER(pthread_getspecific);
+  REGISTER_WRAPPER(pthread_join);
+  REGISTER_WRAPPER(pthread_key_create);
+  REGISTER_WRAPPER(pthread_key_delete);
+  REGISTER_WRAPPER(pthread_kill);
+  REGISTER_WRAPPER(pthread_mutex_destroy);
+  REGISTER_WRAPPER(pthread_mutex_init);
+  REGISTER_WRAPPER(pthread_mutex_lock);
+  REGISTER_WRAPPER(pthread_mutex_trylock);
+  REGISTER_WRAPPER(pthread_mutex_unlock);
+  REGISTER_WRAPPER(pthread_mutexattr_destroy);
+  REGISTER_WRAPPER(pthread_mutexattr_getpshared);
+  REGISTER_WRAPPER(pthread_mutexattr_gettype);
+  REGISTER_WRAPPER(pthread_mutexattr_init);
+  REGISTER_WRAPPER(pthread_mutexattr_setpshared);
+  REGISTER_WRAPPER(pthread_mutexattr_settype);
+  REGISTER_WRAPPER(pthread_once);
+  REGISTER_WRAPPER(pthread_rwlock_destroy);
+  REGISTER_WRAPPER(pthread_rwlock_init);
+  REGISTER_WRAPPER(pthread_rwlock_rdlock);
+  REGISTER_WRAPPER(pthread_rwlock_tryrdlock);
+  REGISTER_WRAPPER(pthread_rwlock_trywrlock);
+  REGISTER_WRAPPER(pthread_rwlock_unlock);
+  REGISTER_WRAPPER(pthread_rwlock_wrlock);
+  REGISTER_WRAPPER(pthread_self);
+  REGISTER_WRAPPER(pthread_setname_np);
+  REGISTER_WRAPPER(pthread_setschedparam);
+  REGISTER_WRAPPER(pthread_setspecific);
+  REGISTER_WRAPPER(readdir);
+  REGISTER_WRAPPER(readdir_r);
+  REGISTER_WRAPPER(setsockopt);
+  REGISTER_WRAPPER(shutdown);
+  REGISTER_WRAPPER(stat);
   REGISTER_SYMBOL(vswprintf);
+  REGISTER_WRAPPER(writev);
 
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+  // TODO: Cobalt b/399696581 - Remove once the //base cleanup is done.
+  REGISTER_SYMBOL(pthread_atfork);
+#endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 }  // NOLINT
 
 const void* ExportedSymbols::Lookup(const char* name) {
   const void* address = map_[name];
   // Any symbol that is not registered as part of the Starboard API in the
   // constructor of this class is a leak, and is an error.
-  if (!address) {
-    SB_LOG(ERROR) << "Failed to retrieve the address of '" << name << "'.";
+  if (address) {
+    return address;
   }
+
+  SB_LOG(ERROR) << "Failed to retrieve the address of '" << name << "'.";
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+  // TODO: Cobalt b/421944504 - Cleanup once we are done with all the symbols or
+  // potentially keep it behind a flag to help with future maintenance.
+  address = dlsym(RTLD_DEFAULT, name);
+  SB_LOG(ERROR) << "'. Falling back to dlsym address " << address << "'.";
+#endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   return address;
 }
 

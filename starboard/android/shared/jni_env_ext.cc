@@ -36,9 +36,7 @@ void Destroy(void* value) {
 
 }  // namespace
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
 // Warning: use __android_log_write for logging in this file.
 
@@ -105,6 +103,4 @@ jclass JniEnvExt::FindClassExtOrAbort(const char* name) {
   return static_cast<jclass>(clazz_obj);
 }
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared

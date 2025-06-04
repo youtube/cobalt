@@ -134,6 +134,7 @@ struct StarboardRendererTraits {
   const base::UnguessableToken& overlay_plane_id;
   base::TimeDelta audio_write_duration_local;
   base::TimeDelta audio_write_duration_remote;
+  const std::string& max_video_capabilities;
   mojo::PendingReceiver<mojom::StarboardRendererExtension>
         renderer_extension_receiver;
   mojo::PendingRemote<mojom::StarboardRendererClientExtension>
@@ -145,17 +146,19 @@ struct StarboardRendererTraits {
       const base::UnguessableToken& overlay_plane_id,
       base::TimeDelta audio_write_duration_local,
       base::TimeDelta audio_write_duration_remote,
+      const std::string& max_video_capabilities,
       mojo::PendingReceiver<mojom::StarboardRendererExtension>
           renderer_extension_receiver,
       mojo::PendingRemote<mojom::StarboardRendererClientExtension>
           client_extension_remote);
+  StarboardRendererTraits(StarboardRendererTraits&& that) = default;
   ~StarboardRendererTraits();
 };
 
 // Creates a platform-specific media::StarboardRenderer.
 // This is used on Cobalt (android/linux).
 std::unique_ptr<Renderer> CreatePlatformStarboardRenderer(
-    StarboardRendererTraits& traits);
+    StarboardRendererTraits traits);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 // Creates a CDM factory, right now only used on android and chromeos.

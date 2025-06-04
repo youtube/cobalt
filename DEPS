@@ -1096,8 +1096,15 @@ deps = {
       'dep_type': 'cipd',
   },
 
-  'src/third_party/angle':
-    Var('chromium_git') + '/angle/angle.git' + '@' +  Var('angle_revision'),
+# Cobalt: imported
+# 'src/third_party/angle':
+#   Var('chromium_git') + '/angle/angle.git' + '@' +  Var('angle_revision'),
+
+# Cobalt: Dependencies from angle's DEPS file.
+  'src/third_party/angle/third_party/rapidjson/src':
+    Var('chromium_git') + '/external/github.com/Tencent/rapidjson.git' + '@' + '781a4e667d84aeedbeb8184b7b62425ea66ec59f',
+  'src/third_party/angle/third_party/glmark2/src':
+    Var('chromium_git') + '/external/github.com/glmark2/glmark2.git' + '@' + 'ca8de51fedb70bace5351c6b002eb952c747e889',
 
   'src/third_party/content_analysis_sdk/src':
     Var('chromium_git') + '/external/github.com/chromium/content_analysis_sdk.git' + '@' + 'b8744f00646d175057f0be7443c7c72a311b5381',
@@ -1381,8 +1388,9 @@ deps = {
   'src/third_party/hunspell_dictionaries':
     Var('chromium_git') + '/chromium/deps/hunspell_dictionaries.git' + '@' + '41cdffd71c9948f63c7ad36e1fb0ff519aa7a37e',
 
-  'src/third_party/icu':
-    Var('chromium_git') + '/chromium/deps/icu.git' + '@' + 'd8daa943f64cd5dd2a55e9baf2e655ab4bfa5ae9',
+# Cobalt: imported
+# 'src/third_party/icu':
+#   Var('chromium_git') + '/chromium/deps/icu.git' + '@' + 'd8daa943f64cd5dd2a55e9baf2e655ab4bfa5ae9',
 
   'src/third_party/icu4j': {
       'packages': [

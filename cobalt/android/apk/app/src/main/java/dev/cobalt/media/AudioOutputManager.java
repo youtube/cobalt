@@ -32,8 +32,12 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.chromium.base.annotations.CalledByNative;
+import org.chromium.base.annotations.JNINamespace;
+import org.chromium.base.annotations.NativeMethods;
 
 /** Creates and destroys AudioTrackBridge and handles the volume change. */
+@JNINamespace("starboard::android::shared")
 public class AudioOutputManager {
   private List<AudioTrackBridge> audioTrackBridgeList;
   private Context context;
@@ -46,8 +50,7 @@ public class AudioOutputManager {
     audioTrackBridgeList = new ArrayList<AudioTrackBridge>();
   }
 
-  @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   AudioTrackBridge createAudioTrackBridge(
       int sampleType,
       int sampleRate,
@@ -125,34 +128,30 @@ public class AudioOutputManager {
     return audioTrackBridge;
   }
 
-  @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   void destroyAudioTrackBridge(AudioTrackBridge audioTrackBridge) {
     audioTrackBridge.release();
     audioTrackBridgeList.remove(audioTrackBridge);
   }
 
   /** Stores info from AudioDeviceInfo to be passed to the native app. */
-  @SuppressWarnings("unused")
-  @UsedByNative
   public static class OutputDeviceInfo {
-    @UsedByNative public int type;
-    @UsedByNative public int channels;
+    public int type;
+    public int channels;
 
-    @UsedByNative
+    @CalledByNative("OutputDeviceInfo")
     public int getType() {
       return type;
     }
 
-    @UsedByNative
+    @CalledByNative("OutputDeviceInfo")
     public int getChannels() {
       return channels;
     }
   }
 
   /** Returns output device info. */
-  @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   boolean getOutputDeviceInfo(int index, OutputDeviceInfo outDeviceInfo) {
     if (index < 0) {
       return false;
@@ -310,8 +309,7 @@ public class AudioOutputManager {
   }
 
   /** Returns the minimum buffer size of AudioTrack. */
-  @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   int getMinBufferSize(int sampleType, int sampleRate, int channelCount) {
     int channelConfig;
     switch (channelCount) {
@@ -331,7 +329,6 @@ public class AudioOutputManager {
   }
 
   /** Generate audio session id used by tunneled playback. */
-  @SuppressWarnings("unused")
   @UsedByNative
   int generateTunnelModeAudioSessionId(int numberOfChannels) {
     // Android 9.0 (Build.VERSION.SDK_INT >= 28) support v2 sync header that
@@ -357,7 +354,6 @@ public class AudioOutputManager {
   }
 
   /** Returns whether passthrough on `encoding` is supported. */
-  @SuppressWarnings("unused")
   @UsedByNative
   boolean hasPassthroughSupportFor(int encoding) {
     AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
@@ -521,7 +517,7 @@ public class AudioOutputManager {
         .build();
   }
 
-  @UsedByNative
+  @CalledByNative
   private boolean getAndResetHasAudioDeviceChanged() {
     return hasAudioDeviceChanged.getAndSet(false);
   }
@@ -530,12 +526,12 @@ public class AudioOutputManager {
       new AudioDeviceCallback() {
         @Override
         public void onAudioDevicesAdded(AudioDeviceInfo[] addedDevices) {
-          nativeOnAudioDeviceChanged();
+          AudioOutputManagerJni.get().onAudioDeviceChanged();
         }
 
         @Override
         public void onAudioDevicesRemoved(AudioDeviceInfo[] removedDevices) {
-          nativeOnAudioDeviceChanged();
+          AudioOutputManagerJni.get().onAudioDeviceChanged();
         }
       };
 
@@ -551,5 +547,8 @@ public class AudioOutputManager {
     audioDeviceListenerAdded = true;
   }
 
-  private static native void nativeOnAudioDeviceChanged();
+  @NativeMethods
+  interface Natives {
+    void onAudioDeviceChanged();
+  }
 }

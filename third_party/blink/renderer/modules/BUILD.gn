@@ -174,7 +174,6 @@ component("modules") {
       "//third_party/blink/renderer/modules/cobalt/h5vcc_accessibility",
       "//third_party/blink/renderer/modules/cobalt/h5vcc_experiments",
       "//third_party/blink/renderer/modules/cobalt/h5vcc_metrics",
-      "//third_party/blink/renderer/modules/cobalt/h5vcc_storage",
       "//third_party/blink/renderer/modules/cobalt/h5vcc_system",
       "//third_party/blink/renderer/modules/cobalt/h5vcc_runtime",
     ]
@@ -659,6 +658,10 @@ source_set("unit_tests") {
     "xr/xr_view_test.cc",
   ]
 
+  if (is_cobalt) {
+    sources += [ "cobalt/h5vcc_experiments/experiments_utils_test.cc" ]
+  }
+
   if (rtc_use_h264) {
     sources += [ "mediarecorder/h264_encoder_unittest.cc" ]
   }
@@ -722,6 +725,12 @@ source_set("unit_tests") {
     "//third_party/webrtc_overrides:webrtc_component",
     "//v8",
   ]
+
+  if (is_cobalt) {
+    deps += [
+      "//third_party/blink/renderer/modules/cobalt/h5vcc_experiments:experiments_utils"
+    ]
+  }
 
   # This uses target_os rather than current_os (which is what is_android is set
   # from) for the case of generating the v8 context snapshot for android. When

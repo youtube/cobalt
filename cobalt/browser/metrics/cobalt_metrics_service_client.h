@@ -44,6 +44,10 @@ namespace cobalt {
 
 constexpr auto kStandardUploadIntervalMinutes = base::Minutes(5);
 
+// The minimum frequency in which we can mark the app as non idle for reporting
+// reasons.
+constexpr base::TimeDelta kMinIdleRefreshInterval = base::Seconds(30);
+
 // This class allows for necessary customizations of metrics::MetricsService,
 // the central metrics (e.g. UMA) collecting and reporting control. Threading:
 // this class is intended to be used on a single thread after construction.
@@ -102,6 +106,8 @@ class CobaltMetricsServiceClient : public metrics::MetricsServiceClient {
   // Completes the two-phase initialization of CobaltMetricsServiceClient.
   void Initialize();
 
+  base::RepeatingTimer idle_refresh_timer_;
+
  private:
   // Virtual to be overridden in tests.
   virtual std::unique_ptr<metrics::MetricsService> CreateMetricsServiceInternal(
@@ -114,6 +120,12 @@ class CobaltMetricsServiceClient : public metrics::MetricsServiceClient {
 
   // Virtual to be overridden in tests.
   virtual void OnApplicationNotIdleInternal();
+
+  // Periodically tells UMA the app is not idle so that metrics payloads
+  // continue to be uploaded.
+  // TODO(cobalt, b/417477183): Consider removing this when user actions work in
+  // Kabuki.
+  void StartIdleRefreshTimer();
 
   const std::unique_ptr<variations::SyntheticTrialRegistry>
       synthetic_trial_registry_;

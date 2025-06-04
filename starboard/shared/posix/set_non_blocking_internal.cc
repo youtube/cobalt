@@ -16,15 +16,11 @@
 
 #include <fcntl.h>
 
-namespace starboard {
-namespace shared {
-namespace posix {
+namespace starboard::shared::posix {
 
 bool SetNonBlocking(int socket_fd) {
   int flags = fcntl(socket_fd, F_GETFL, 0);
   return !(flags < 0 || fcntl(socket_fd, F_SETFL, flags | O_NONBLOCK) == -1);
 }
 
-}  // namespace posix
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::posix

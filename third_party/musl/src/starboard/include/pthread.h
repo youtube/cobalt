@@ -124,14 +124,14 @@ typedef union pthread_attr_t {
   void* ptr;
 } pthread_attr_t;
 
-// Max size of the native conditional attribute type.
-#define MUSL_PTHREAD_RWLOCK_MAX_SIZE 56
+// Max size of the native rwlock type.
+#define MUSL_PTHREAD_RWLOCK_MAX_SIZE 80
 
 // An opaque handle to a native attribute type with reserved memory
 // buffer aligned at void  pointer type.
 typedef union pthread_rwlock_t {
   // Reserved memory in which the implementation should map its
-  // native attribute type.
+  // native rwlock type.
   uint8_t rwlock_buffer[MUSL_PTHREAD_RWLOCK_MAX_SIZE];
 
   // Guarantees alignment of the type to a void pointer.
@@ -261,6 +261,8 @@ int pthread_rwlock_wrlock(pthread_rwlock_t*);
 int pthread_rwlock_unlock(pthread_rwlock_t*);
 int pthread_rwlock_tryrdlock(pthread_rwlock_t*);
 int pthread_rwlock_trywrlock(pthread_rwlock_t*);
+
+int pthread_kill(pthread_t, int);
 
 #ifdef __cplusplus
 }  // extern "C"

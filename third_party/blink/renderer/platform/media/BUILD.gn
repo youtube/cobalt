@@ -118,7 +118,7 @@ component("media") {
 
   if (is_cobalt && use_starboard_media) {
     deps += [
-      "//starboard($starboard_toolchain)",
+      "//starboard:starboard_group",
     ]
   }
 }

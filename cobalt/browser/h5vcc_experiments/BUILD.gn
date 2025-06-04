@@ -21,12 +21,12 @@ source_set("h5vcc_experiments") {
 
   deps = [
     "//base",
-    "//cobalt/browser:cobalt_experiment_names",
     "//cobalt/browser:global_features",
+    "//cobalt/browser/constants:cobalt_experiment_names",
     "//cobalt/browser/h5vcc_experiments/public/mojom",
     "//components/prefs",
     "//content/public/browser",
     "//mojo/public/cpp/bindings",
-    "//starboard($starboard_toolchain)",
+    "//starboard:starboard_group",
   ]
 }

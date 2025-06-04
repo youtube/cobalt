@@ -16,12 +16,13 @@
 
 #include "starboard/common/log.h"
 
-#include "starboard/android/shared/jni_env_ext.h"
+#include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/extension/graphics.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
+
+// TODO: (cobalt b/372559388) Update namespace to jni_zero.
+using base::android::AttachCurrentThread;
 
 namespace {
 
@@ -71,7 +72,8 @@ bool DefaultGetRenderRootTransform(float* m00,
 }
 
 void ReportFullyDrawn() {
-  JniEnvExt::Get()->CallStarboardVoidMethodOrAbort("reportFullyDrawn", "()V");
+  JNIEnv* env = AttachCurrentThread();
+  StarboardBridge::GetInstance()->ReportFullyDrawn(env);
 }
 
 const CobaltExtensionGraphicsApi kGraphicsApi = {
@@ -92,6 +94,4 @@ const void* GetGraphicsApi() {
   return &kGraphicsApi;
 }
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared
