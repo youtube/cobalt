@@ -19,7 +19,7 @@ class ShellContentGpuClient;
 class ShellContentRendererClient;
 class ShellContentUtilityClient;
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
+#if !BUILDFLAG(IS_ANDROID)
 class WebTestBrowserMainRunner;
 #endif
 
@@ -60,7 +60,7 @@ class ShellMainDelegate : public ContentMainDelegate {
   // content_browsertests should not set the kRunWebTests command line flag, so
   // |is_content_browsertests_| and |web_test_runner_| are mututally exclusive.
   bool is_content_browsertests_;
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
+#if !BUILDFLAG(IS_ANDROID)
   // Only present when running web tests, which run inside Content Shell.
   //
   // Web tests are not browser tests, so |is_content_browsertests_| and
