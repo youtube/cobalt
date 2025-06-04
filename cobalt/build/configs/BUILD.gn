@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//build/config/arm.gni")
 import("//cobalt/build/configs/hacks.gni")
 import("//starboard/build/buildflags.gni")
 
@@ -24,22 +25,30 @@ config("cobalt_config") {
     configs += [ "//${starboard_path}/platform_configuration" ]
   } else if (is_cobalt_hermetic_build &&
              current_toolchain == cobalt_toolchain) {
-    configs += [ "//starboard/build/config:starboard" ]
-    if (sb_is_evergreen) {
-      if (current_cpu == "arm") {
-        # TODO: b/419893744 - Find a way to switch between hardfp, softfp.
-        configs += [ "//starboard/evergreen/arm/hardfp/platform_configuration" ]
-      } else if (current_cpu == "x64") {
-        configs += [ "//starboard/evergreen/x64/platform_configuration" ]
+    configs += [
+      "//starboard/build/config:starboard",
+      ":modular_platform_configuration",
+    ]
+  }
+}
+
+if (is_cobalt_hermetic_build && current_toolchain == cobalt_toolchain) {
+  config("modular_platform_configuration") {
+    cpu_path = current_cpu
+    if (current_cpu == "arm") {
+      cpu_path += "/$arm_float_abi"
+      if (arm_float_abi == "hard") {
+        cpu_path += "fp"
       }
+    }
+    if (sb_is_evergreen) {
+      configs = [ "//starboard/evergreen/$cpu_path/platform_configuration" ]
     } else {
-      configs += [
+      configs = [
         # TODO: b/390500840 - Remove hardcoded x64 config, switch config based on platform.
-        "//starboard/build/config/modular/x64",
+        "//starboard/build/config/modular/$cpu_path",
       ]
     }
-  } else {
-    # No configs to add for any other toolchain
   }
 }
 
