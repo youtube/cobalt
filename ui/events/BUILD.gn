@@ -691,6 +691,9 @@ if (use_blink) {
     if (is_android) {
       sources += [ "android/motion_event_android_unittest.cc" ]
       deps += [ "//ui/android:ui_full_java" ]
+      if (is_cobalt) {
+        sources += [ "keycodes/cobalt/keyboard_code_conversion_cobalt_unittest.cc" ]
+      }
     } else {
       data_deps = [ "//third_party/mesa_headers" ]
     }

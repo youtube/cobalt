@@ -17,10 +17,7 @@
 #include "starboard/media.h"
 #include "starboard/shared/widevine/drm_system_widevine.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace media {
+namespace starboard::shared::starboard::media {
 
 bool MediaIsSupported(SbMediaVideoCodec video_codec,
                       SbMediaAudioCodec audio_codec,
@@ -30,7 +27,4 @@ bool MediaIsSupported(SbMediaVideoCodec video_codec,
   return DrmSystemWidevine::IsKeySystemSupported(key_system);
 }
 
-}  // namespace media
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::media

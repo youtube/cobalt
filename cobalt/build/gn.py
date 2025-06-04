@@ -54,6 +54,7 @@ _COBALT_LINUX_PLATFORMS = [
     'linux-x64x11',
     'linux-x64x11-modular',
     'linux-x64x11-no-starboard',
+    'raspi-2',
 ]
 _COBALT_ANDROID_PLATFORMS = [
     'android-arm',

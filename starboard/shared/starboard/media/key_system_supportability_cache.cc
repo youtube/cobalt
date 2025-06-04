@@ -23,10 +23,7 @@
 #include "starboard/common/once.h"
 #include "starboard/media.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace media {
+namespace starboard::shared::starboard::media {
 
 namespace {
 
@@ -163,7 +160,4 @@ void KeySystemSupportabilityCache::ClearCache() {
   GetContainer<SbMediaVideoCodec>()->ClearContainer();
 }
 
-}  // namespace media
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::media

@@ -19,9 +19,7 @@
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/extension/graphics.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
 // TODO: (cobalt b/372559388) Update namespace to jni_zero.
 using base::android::AttachCurrentThread;
@@ -96,6 +94,4 @@ const void* GetGraphicsApi() {
   return &kGraphicsApi;
 }
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared

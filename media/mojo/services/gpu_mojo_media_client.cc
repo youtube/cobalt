@@ -291,7 +291,7 @@ std::unique_ptr<Renderer> GpuMojoMediaClient::CreateStarboardRenderer(
       config.max_video_capabilities,
       std::move(renderer_extension_receiver),
       std::move(client_extension_remote));
-  return CreatePlatformStarboardRenderer(traits);
+  return CreatePlatformStarboardRenderer(std::move(traits));
 }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 

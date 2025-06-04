@@ -22,10 +22,7 @@
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/media/mime_type.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace media {
+namespace starboard::shared::starboard::media {
 
 // TODO: add unit tests for ParsedMimeInfo
 class ParsedMimeInfo {
@@ -98,9 +95,6 @@ class ParsedMimeInfo {
   VideoCodecInfo video_info_;
 };
 
-}  // namespace media
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::media
 
 #endif  // STARBOARD_SHARED_STARBOARD_MEDIA_PARSED_MIME_INFO_H_

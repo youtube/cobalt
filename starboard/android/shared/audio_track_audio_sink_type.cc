@@ -33,9 +33,7 @@ starboard::android::shared::AudioTrackAudioSinkType*
     audio_track_audio_sink_type_;
 }
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 namespace {
 
 using ::starboard::shared::starboard::media::GetBytesPerSample;
@@ -587,14 +585,9 @@ int AudioTrackAudioSinkType::GetMinBufferSizeInFramesInternal(
                                  : kMaxRequiredFramesLocal;
 }
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace audio_sink {
+namespace starboard::shared::starboard::audio_sink {
 
 // static
 void SbAudioSinkImpl::PlatformInitialize() {
@@ -614,7 +607,4 @@ void SbAudioSinkImpl::PlatformTearDown() {
   audio_track_audio_sink_type_ = NULL;
 }
 
-}  // namespace audio_sink
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::audio_sink

@@ -26,12 +26,7 @@
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
 #include "starboard/system.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
-namespace testing {
+namespace starboard::shared::starboard::player::filter::testing {
 namespace {
 
 using ::starboard::shared::starboard::media::MimeType;
@@ -313,9 +308,4 @@ scoped_refptr<InputBuffer> GetAudioInputBuffer(
   return input_buffer;
 }
 
-}  // namespace testing
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player::filter::testing

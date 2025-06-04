@@ -149,7 +149,6 @@ class MediaCodecBridge {
     private int mStatus;
     private int mIndex;
 
-    @SuppressWarnings("unused")
     @CalledByNative("DequeueInputResult")
     private DequeueInputResult() {
       mStatus = MediaCodecStatus.ERROR;
@@ -163,13 +162,11 @@ class MediaCodecBridge {
       mIndex = index;
     }
 
-    @SuppressWarnings("unused")
     @CalledByNative("DequeueInputResult")
     private int status() {
       return mStatus;
     }
 
-    @SuppressWarnings("unused")
     @CalledByNative("DequeueInputResult")
     private int index() {
       return mIndex;
@@ -195,7 +192,6 @@ class MediaCodecBridge {
       mNumBytes = 0;
     }
 
-    @SuppressWarnings("unused")
     @CalledByNative("DequeueOutputResult")
     private DequeueOutputResult(
         int status,
@@ -275,13 +271,11 @@ class MediaCodecBridge {
       return mFormatHasCropValues.orElse(false);
     }
 
-    @SuppressWarnings("unused")
     @CalledByNative("GetOutputFormatResult")
     private int status() {
       return mStatus;
     }
 
-    @SuppressWarnings("unused")
     @CalledByNative("GetOutputFormatResult")
     private int textureWidth() {
       return (mFormat != null && mFormat.containsKey(MediaFormat.KEY_WIDTH))
@@ -289,7 +283,6 @@ class MediaCodecBridge {
           : 0;
     }
 
-    @SuppressWarnings("unused")
     @CalledByNative("GetOutputFormatResult")
     private int textureHeight() {
       return (mFormat != null && mFormat.containsKey(MediaFormat.KEY_HEIGHT))
@@ -297,37 +290,31 @@ class MediaCodecBridge {
           : 0;
     }
 
-    @SuppressWarnings("unused")
     @CalledByNative("GetOutputFormatResult")
     private int cropLeft() {
       return formatHasCropValues() ? mFormat.getInteger(KEY_CROP_LEFT) : -1;
     }
 
-    @SuppressWarnings("unused")
     @CalledByNative("GetOutputFormatResult")
     private int cropTop() {
       return formatHasCropValues() ? mFormat.getInteger(KEY_CROP_TOP) : -1;
     }
 
-    @SuppressWarnings("unused")
     @CalledByNative("GetOutputFormatResult")
     private int cropRight() {
       return formatHasCropValues() ? mFormat.getInteger(KEY_CROP_RIGHT) : -1;
     }
 
-    @SuppressWarnings("unused")
     @CalledByNative("GetOutputFormatResult")
     private int cropBottom() {
       return formatHasCropValues() ? mFormat.getInteger(KEY_CROP_BOTTOM) : -1;
     }
 
-    @SuppressWarnings("unused")
     @CalledByNative("GetOutputFormatResult")
     private int sampleRate() {
       return mFormat.getInteger(MediaFormat.KEY_SAMPLE_RATE);
     }
 
-    @SuppressWarnings("unused")
     @CalledByNative("GetOutputFormatResult")
     private int channelCount() {
       return mFormat.getInteger(MediaFormat.KEY_CHANNEL_COUNT);
@@ -407,7 +394,6 @@ class MediaCodecBridge {
     // Contains the error message when mMediaCodecBridge is null.
     private String mErrorMessage;
 
-    @SuppressWarnings("unused")
     @CalledByNative("CreateMediaCodecBridgeResult")
     private CreateMediaCodecBridgeResult() {
       mMediaCodecBridge = null;
@@ -537,7 +523,6 @@ class MediaCodecBridge {
     return Build.VERSION.SDK_INT >= 34;
   }
 
-  @SuppressWarnings("unused")
   @CalledByNative
   public static void createVideoMediaCodecBridge(
       long nativeMediaCodecBridge,
@@ -745,7 +730,6 @@ class MediaCodecBridge {
     outCreateMediaCodecBridgeResult.mMediaCodecBridge = bridge;
   }
 
-  @SuppressWarnings("unused")
   @CalledByNative
   public void release() {
     try {
@@ -833,7 +817,6 @@ class MediaCodecBridge {
     return MediaCodecStatus.OK;
   }
 
-  @SuppressWarnings("unused")
   @CalledByNative
   private void stop() {
     synchronized (this) {
@@ -885,7 +868,6 @@ class MediaCodecBridge {
     }
   }
 
-  @SuppressWarnings("unused")
   @CalledByNative
   private int queueInputBuffer(
       int index, int offset, int size, long presentationTimeUs, int flags) {
@@ -899,7 +881,6 @@ class MediaCodecBridge {
     return MediaCodecStatus.OK;
   }
 
-  @SuppressWarnings("unused")
   @CalledByNative
   private int queueSecureInputBuffer(
       int index,
@@ -965,7 +946,6 @@ class MediaCodecBridge {
     }
   }
 
-  @SuppressWarnings("unused")
   @CalledByNative
   private void releaseOutputBufferAtTimestamp(int index, long renderTimestampNs) {
     try {

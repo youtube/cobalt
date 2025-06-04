@@ -130,6 +130,8 @@ public abstract class CobaltActivity extends Activity {
             "--disable-features=AImageReader",
             // Disable concurrent-marking due to b/415843979
             "--js-flags=--no-concurrent_marking",
+            // Use passthrough command decoder.
+            "--use-cmd-decoder=passthrough",
           };
       CommandLine.getInstance().appendSwitchesAndArguments(cobaltCommandLineParams);
       if (shouldSetJNIPrefix) {

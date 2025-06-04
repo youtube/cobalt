@@ -196,11 +196,6 @@ config("hacky_wnos") {
   cflags = [
     "-Wno-undefined-internal",
 
-    # Disable errors for the warning till the Android NDK r19 is fixed.
-    # The warning is trigger when compiling .c files and complains for
-    # "-stdlib=libc++" which is added by the NDK.
-    "-Wno-error=unused-command-line-argument",
-
     # Don"t warn about register variables (in base and net)
     "-Wno-deprecated-register",
 
@@ -251,6 +246,16 @@ config("hacky_wnos") {
     "-Wno-unknown-warning-option",
     "-Wno-user-defined-warnings",
   ]
+
+  # Some platforms like raspi-2 using gcc won't recognize this flag.
+  if (is_clang) {
+    cflags += [
+      # Disable errors for the warning till the Android NDK r19 is fixed.
+      # The warning is trigger when compiling .c files and complains for
+      # "-stdlib=libc++" which is added by the NDK.
+      "-Wno-error=unused-command-line-argument",
+    ]
+  }
 }
 
 if (current_toolchain == starboard_toolchain) {

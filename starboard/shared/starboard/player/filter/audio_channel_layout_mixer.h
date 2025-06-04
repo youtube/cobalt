@@ -23,11 +23,7 @@
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
+namespace starboard::shared::starboard::player::filter {
 
 class AudioChannelLayoutMixer {
  public:
@@ -44,10 +40,6 @@ class AudioChannelLayoutMixer {
       int output_channels);
 };
 
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player::filter
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_CHANNEL_LAYOUT_MIXER_H_

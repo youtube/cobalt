@@ -20,9 +20,7 @@
 #include <map>
 #include <string>
 
-namespace starboard {
-namespace shared {
-namespace starboard {
+namespace starboard::shared::starboard {
 
 // Stores a map of internationalized strings for a particular language.
 // Initialized from a language-specific file in a simple, CSV-style format.
@@ -52,8 +50,6 @@ class LocalizedStrings {
   MatchType match_type_ = kNoMatch;
 };
 
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_LOCALIZED_STRINGS_H_

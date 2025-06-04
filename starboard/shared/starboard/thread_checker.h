@@ -19,9 +19,7 @@
 
 #include "starboard/thread.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
+namespace starboard::shared::starboard {
 
 #if defined(COBALT_BUILD_TYPE_GOLD)
 
@@ -76,8 +74,6 @@ class ThreadChecker {
 
 #endif  // defined(COBALT_BUILD_TYPE_GOLD)
 
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_THREAD_CHECKER_H_

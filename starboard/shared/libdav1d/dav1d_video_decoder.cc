@@ -27,9 +27,7 @@
 #include "third_party/dav1d/libdav1d/include/dav1d/headers.h"
 #include "third_party/dav1d/libdav1d/include/dav1d/picture.h"
 
-namespace starboard {
-namespace shared {
-namespace libdav1d {
+namespace starboard::shared::libdav1d {
 
 namespace {
 
@@ -389,6 +387,4 @@ SbDecodeTarget VideoDecoder::GetCurrentDecodeTarget() {
   }
 }
 
-}  // namespace libdav1d
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::libdav1d

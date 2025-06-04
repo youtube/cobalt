@@ -48,9 +48,9 @@ jobs:
           git checkout refs/remotes/branch/${{ matrix.branch.branch_num }}
           ORIGINAL_TREE_HASH=$(git rev-parse HEAD^{tree})
           ORIGINAL_COMMIT_HASH=$(git rev-parse HEAD)
-          NEW_ROOT_COMMIT_HASH=$(git commit-tree "$ORIGINAL_TREE_HASH" -m "First commit for ${{ matrix.branch.milestone }}.")
-          git checkout -b chromium/${{ matrix.branch.milestone }} $NEW_ROOT_COMMIT_HASH
-          git commit --amend --no-edit -c ORIGINAL_COMMIT_HASH
+          NEW_ROOT_COMMIT_HASH=$(git commit-tree "${ORIGINAL_TREE_HASH}" -m "First commit for ${{ matrix.branch.milestone }}.")
+          git checkout -b chromium/${{ matrix.branch.milestone }} "${NEW_ROOT_COMMIT_HASH}"
+          git commit --amend --no-edit -c "${ORIGINAL_COMMIT_HASH}"
           git push --set-upstream origin chromium/${{ matrix.branch.milestone }}
       - name: Pull ${{ matrix.branch.milestone }} from upstream and apply diffs
         id: diff_step

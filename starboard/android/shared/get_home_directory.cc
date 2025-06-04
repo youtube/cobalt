@@ -24,15 +24,11 @@
 
 using ::starboard::android::shared::g_app_files_dir;
 
-namespace starboard {
-namespace shared {
-namespace starboard {
+namespace starboard::shared::starboard {
 
 bool GetHomeDirectory(char* out_path, int path_size) {
   int len = ::starboard::strlcpy(out_path, g_app_files_dir, path_size);
   return len < path_size;
 }
 
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard

@@ -272,6 +272,7 @@ if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
       ":installation_store_proto",
       ":pending_restart",
       "//starboard:starboard_with_main",
+      "//starboard/common",
       "//testing/gmock",
       "//testing/gtest",
     ]

@@ -26,9 +26,7 @@
 
 #include "starboard/common/log.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
+namespace starboard::shared::starboard {
 
 const int kRgbWhite = 0xFFFFFF;
 const int kRgbBlack = 0x000000;
@@ -169,8 +167,6 @@ SbAccessibilityCaptionOpacityPercentage GetClosestOpacity(int opacity_percent) {
   }
 }
 
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_ACCESSIBILITY_INTERNAL_H_

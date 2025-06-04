@@ -23,10 +23,7 @@
 #include "starboard/system.h"
 #include "starboard/thread.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
+namespace starboard::shared::starboard::player {
 
 namespace {
 
@@ -305,7 +302,4 @@ bool JobQueue::TryToRunOneJob(bool wait_for_next_job) {
   return true;
 }
 
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player

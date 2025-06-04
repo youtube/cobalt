@@ -24,9 +24,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
 const char* g_app_assets_dir = "/cobalt/assets";
 const char* g_app_files_dir = NULL;
@@ -133,6 +131,4 @@ AAssetDir* OpenAndroidAssetDir(const char* path) {
   }
 }
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared
