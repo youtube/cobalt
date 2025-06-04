@@ -23,7 +23,7 @@ if (use_aura) {
 }
 
 # Web test support not built on android, but is everywhere else.
-support_web_tests = !is_android
+#support_web_tests = !is_android
 
 # TODO(b/384748332): Changes below are for removing dependency on content shell
 config("content_shell_lib_warnings") {
@@ -407,13 +407,6 @@ group("content_shell_app_deps") {
     "//content/public/renderer",
     "//v8",
   ]
-  if (support_web_tests) {
-    public_deps += [
-      "//content/web_test:web_test_browser",
-      "//content/web_test:web_test_common",
-      "//content/web_test:web_test_renderer",
-    ]
-  }
   if (!is_fuchsia) {
     public_deps += [
       "//components/crash/core/app",
