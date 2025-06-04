@@ -57,8 +57,6 @@ class WidevineStorage : public ::widevine::Cdm::IStorage {
   std::map<std::string, std::string> cache_;
 };
 
-}  // namespace widevine
-
 }  // namespace starboard::shared::widevine
 
 #endif  // STARBOARD_SHARED_WIDEVINE_WIDEVINE_STORAGE_H_
