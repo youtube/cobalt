@@ -32,21 +32,23 @@ config("cobalt_config") {
   }
 }
 
-config("modular_platform_configuration") {
-  cpu_path = current_cpu
-  if (current_cpu == "arm") {
-    cpu_path += "/$arm_float_abi"
-    if (arm_float_abi == "hard") {
-      cpu_path += "fp"
+if (is_cobalt_hermetic_build && current_toolchain == cobalt_toolchain) {
+  config("modular_platform_configuration") {
+    cpu_path = current_cpu
+    if (current_cpu == "arm") {
+      cpu_path += "/$arm_float_abi"
+      if (arm_float_abi == "hard") {
+        cpu_path += "fp"
+      }
     }
-  }
-  if (sb_is_evergreen) {
-    configs = [ "//starboard/evergreen/$cpu_path/platform_configuration" ]
-  } else {
-    configs = [
-      # TODO: b/390500840 - Remove hardcoded x64 config, switch config based on platform.
-      "//starboard/build/config/modular/$cpu_path",
-    ]
+    if (sb_is_evergreen) {
+      configs = [ "//starboard/evergreen/$cpu_path/platform_configuration" ]
+    } else {
+      configs = [
+        # TODO: b/390500840 - Remove hardcoded x64 config, switch config based on platform.
+        "//starboard/build/config/modular/$cpu_path",
+      ]
+    }
   }
 }
 
