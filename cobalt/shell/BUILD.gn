@@ -72,7 +72,6 @@ group("content_shell_lib_deps") {
     "//content/public/browser",
     "//content/public/child",
     "//content/public/common",
-    "//content/public/common",
     "//content/public/gpu",
     "//content/public/renderer",
     "//content/public/utility",
