@@ -118,6 +118,7 @@ class VideoDecoder
   void TryToSignalPrerollForTunnelMode();
   bool IsFrameRenderedCallbackEnabled();
   void OnFrameRendered(int64_t frame_timestamp);
+  void OnFirstTunnelFrameReady();
   void OnTunnelModePrerollTimeout();
   void OnTunnelModeCheckForNeedMoreInput();
 
