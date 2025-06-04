@@ -101,6 +101,9 @@ cc::ManagedMemoryPolicy GetGpuMemoryPolicy(
                 ::switches::kForceGpuMemAvailableMb),
             &actual.bytes_limit_when_visible))
       actual.bytes_limit_when_visible *= 1024 * 1024;
+
+    actual.priority_cutoff_when_visible =
+      gpu::MemoryAllocation::CUTOFF_ALLOW_REQUIRED_ONLY;
     return actual;
   }
 
