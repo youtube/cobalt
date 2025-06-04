@@ -21,6 +21,8 @@
 
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
+#include "base/memory/raw_ref.h"
+#include "starboard/android/shared/jni_utils.h"
 #include "starboard/common/log.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
@@ -40,38 +42,71 @@ const char kNoUrl[] = "";
 // They are defined in the same order as in their Java counterparts.  Their
 // values should be kept in consistent with their Java counterparts defined in
 // android.media.MediaDrm.KeyStatus.
-constexpr jint MEDIA_DRM_KEY_STATUS_EXPIRED = 1;
-constexpr jint MEDIA_DRM_KEY_STATUS_INTERNAL_ERROR = 4;
-constexpr jint MEDIA_DRM_KEY_STATUS_OUTPUT_NOT_ALLOWED = 2;
-constexpr jint MEDIA_DRM_KEY_STATUS_PENDING = 3;
-constexpr jint MEDIA_DRM_KEY_STATUS_USABLE = 0;
+enum class MediaDrmKeyStatus : jint {
+  kExpired = 1,
+  kInternalError = 4,
+  kOutputNotAllowed = 2,
+  kPending = 3,
+  kUsable = 0,
+};
 
 // They must have the same values as defined in MediaDrm.KeyRequest.
-constexpr jint REQUEST_TYPE_INITIAL = 0;
-constexpr jint REQUEST_TYPE_RENEWAL = 1;
-constexpr jint REQUEST_TYPE_RELEASE = 2;
+enum class RequestType : jint {
+  kInitial = 0,
+  kRenewal = 1,
+  kRelease = 2,
+};
 
-SbDrmSessionRequestType SbDrmSessionRequestTypeFromMediaDrmKeyRequestType(
-    jint request_type) {
-  if (request_type == REQUEST_TYPE_INITIAL) {
-    return kSbDrmSessionRequestTypeLicenseRequest;
+SbDrmSessionRequestType ToSbDrmSessionRequestType(RequestType request_type) {
+  switch (request_type) {
+    case RequestType::kInitial:
+      return kSbDrmSessionRequestTypeLicenseRequest;
+    case RequestType::kRenewal:
+      return kSbDrmSessionRequestTypeLicenseRenewal;
+    case RequestType::kRelease:
+      return kSbDrmSessionRequestTypeLicenseRelease;
+    default:
+      SB_NOTREACHED() << "Unknown key request type: "
+                      << static_cast<jint>(request_type);
+      return kSbDrmSessionRequestTypeLicenseRequest;
   }
-  if (request_type == REQUEST_TYPE_RENEWAL) {
-    return kSbDrmSessionRequestTypeLicenseRenewal;
+}
+
+SbDrmKeyStatus ToSbDrmKeyStatus(MediaDrmKeyStatus status_code) {
+  switch (status_code) {
+    case MediaDrmKeyStatus::kExpired:
+      return kSbDrmKeyStatusExpired;
+    case MediaDrmKeyStatus::kInternalError:
+      return kSbDrmKeyStatusError;
+    case MediaDrmKeyStatus::kOutputNotAllowed:
+      return kSbDrmKeyStatusRestricted;
+    case MediaDrmKeyStatus::kPending:
+      return kSbDrmKeyStatusPending;
+    case MediaDrmKeyStatus::kUsable:
+      return kSbDrmKeyStatusUsable;
+    default:
+      SB_NOTREACHED() << "Unknown status=" << static_cast<int>(status_code);
+      return kSbDrmKeyStatusError;
   }
-  if (request_type == REQUEST_TYPE_RELEASE) {
-    return kSbDrmSessionRequestTypeLicenseRelease;
-  }
-  SB_NOTREACHED();
-  return kSbDrmSessionRequestTypeLicenseRequest;
+}
+
+std::string JavaByteArrayToString(JNIEnv* env,
+                                  const JavaRef<jbyteArray>& j_byte_array) {
+  std::string out;
+  base::android::JavaByteArrayToString(env, j_byte_array, &out);
+  return out;
+}
+
+std::string JavaByteArrayToString(JNIEnv* env, jbyteArray j_byte_array) {
+  return JavaByteArrayToString(
+      env, ScopedJavaLocalRef<jbyteArray>(env, j_byte_array));
 }
 
 }  // namespace
 
-MediaDrmBridge::MediaDrmBridge(MediaDrmBridge::Host* host,
+MediaDrmBridge::MediaDrmBridge(raw_ref<MediaDrmBridge::Host> host,
                                const char* key_system)
     : host_(host) {
-  SB_DCHECK(host_);
   JNIEnv* env = AttachCurrentThread();
 
   ScopedJavaLocalRef<jstring> j_key_system(
@@ -185,40 +220,27 @@ bool MediaDrmBridge::CreateMediaCryptoSession() {
   return true;
 }
 
-void MediaDrmBridge::OnSessionMessage(JNIEnv* env,
-                                      jint ticket,
-                                      const JavaParamRef<jbyteArray>& sessionId,
-                                      jint requestType,
-                                      const JavaParamRef<jbyteArray>& message) {
-  jbyte* session_id_elements = env->GetByteArrayElements(sessionId, nullptr);
-  jsize session_id_size = env->GetArrayLength(sessionId);
-
-  jbyte* message_elements = env->GetByteArrayElements(message, nullptr);
-  jsize message_size = env->GetArrayLength(message);
-
-  SB_DCHECK(session_id_elements);
-  SB_DCHECK(message_elements);
-
-  host_->CallUpdateRequestCallback(
-      ticket, SbDrmSessionRequestTypeFromMediaDrmKeyRequestType(requestType),
-      session_id_elements, session_id_size, message_elements, message_size,
-      kNoUrl);
-  env->ReleaseByteArrayElements(sessionId, session_id_elements, JNI_ABORT);
-  env->ReleaseByteArrayElements(message, message_elements, JNI_ABORT);
+void MediaDrmBridge::OnSessionMessage(
+    JNIEnv* env,
+    jint ticket,
+    const JavaParamRef<jbyteArray>& session_id,
+    jint request_type,
+    const JavaParamRef<jbyteArray>& message) {
+  host_->OnSessionUpdate(
+      ticket, ToSbDrmSessionRequestType(static_cast<RequestType>(request_type)),
+      JavaByteArrayToString(env, session_id),
+      JavaByteArrayToString(env, message), kNoUrl);
 }
 
 void MediaDrmBridge::OnKeyStatusChange(
     JNIEnv* env,
-    const JavaParamRef<jbyteArray>& sessionId,
-    const JavaParamRef<jobjectArray>& keyInformation) {
-  jbyte* session_id_elements = env->GetByteArrayElements(sessionId, nullptr);
-  jsize session_id_size = env->GetArrayLength(sessionId);
-
-  SB_DCHECK(session_id_elements);
+    const JavaParamRef<jbyteArray>& session_id,
+    const JavaParamRef<jobjectArray>& key_information) {
+  std::string session_id_bytes = JavaByteArrayToString(env, session_id);
 
   // nullptr array indicates key status isn't supported (i.e. Android API < 23)
   jsize length =
-      (keyInformation == nullptr) ? 0 : env->GetArrayLength(keyInformation);
+      (key_information == nullptr) ? 0 : env->GetArrayLength(key_information);
   std::vector<SbDrmKeyId> drm_key_ids(length);
   std::vector<SbDrmKeyStatus> drm_key_statuses(length);
 
@@ -235,39 +257,21 @@ void MediaDrmBridge::OnKeyStatusChange(
   SB_DCHECK(getStatusCodeMethod);
 
   for (jsize i = 0; i < length; ++i) {
-    jobject j_key_status = env->GetObjectArrayElement(keyInformation, i);
+    jobject j_key_status = env->GetObjectArrayElement(key_information, i);
     jbyteArray j_key_id = static_cast<jbyteArray>(
         env->CallObjectMethod(j_key_status, getKeyIdMethod));
+    std::string key_id = JavaByteArrayToString(env, j_key_id);
 
-    jbyte* key_id_elements = env->GetByteArrayElements(j_key_id, nullptr);
-    jsize key_id_size = env->GetArrayLength(j_key_id);
-    SB_DCHECK(key_id_elements);
-
-    SB_DCHECK(key_id_size <= sizeof(drm_key_ids[i].identifier));
-    memcpy(drm_key_ids[i].identifier, key_id_elements, key_id_size);
-    env->ReleaseByteArrayElements(j_key_id, key_id_elements, JNI_ABORT);
-    drm_key_ids[i].identifier_size = key_id_size;
+    SB_DCHECK(key_id.size() <= sizeof(drm_key_ids[i].identifier));
+    memcpy(drm_key_ids[i].identifier, key_id.data(), key_id.size());
+    drm_key_ids[i].identifier_size = key_id.size();
 
     jint j_status_code = env->CallIntMethod(j_key_status, getStatusCodeMethod);
-    if (j_status_code == MEDIA_DRM_KEY_STATUS_EXPIRED) {
-      drm_key_statuses[i] = kSbDrmKeyStatusExpired;
-    } else if (j_status_code == MEDIA_DRM_KEY_STATUS_INTERNAL_ERROR) {
-      drm_key_statuses[i] = kSbDrmKeyStatusError;
-    } else if (j_status_code == MEDIA_DRM_KEY_STATUS_OUTPUT_NOT_ALLOWED) {
-      drm_key_statuses[i] = kSbDrmKeyStatusRestricted;
-    } else if (j_status_code == MEDIA_DRM_KEY_STATUS_PENDING) {
-      drm_key_statuses[i] = kSbDrmKeyStatusPending;
-    } else if (j_status_code == MEDIA_DRM_KEY_STATUS_USABLE) {
-      drm_key_statuses[i] = kSbDrmKeyStatusUsable;
-    } else {
-      SB_NOTREACHED();
-      drm_key_statuses[i] = kSbDrmKeyStatusError;
-    }
+    drm_key_statuses[i] =
+        ToSbDrmKeyStatus(static_cast<MediaDrmKeyStatus>(j_status_code));
   }
 
-  host_->CallDrmSessionKeyStatusesChangedCallback(
-      session_id_elements, session_id_size, drm_key_ids, drm_key_statuses);
-  env->ReleaseByteArrayElements(sessionId, session_id_elements, JNI_ABORT);
+  host_->OnKeyStatusChange(session_id_bytes, drm_key_ids, drm_key_statuses);
 }
 
 // static
