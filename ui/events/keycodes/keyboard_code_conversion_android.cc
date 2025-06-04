@@ -771,11 +771,6 @@ KeyboardCode KeyboardCodeFromAndroidKeyCode(int keycode) {
       return VKEY_PRIOR;
     case AKEYCODE_CHANNEL_DOWN:
       return VKEY_NEXT;
-// TODO: b/415832960 - Change to using a separate file specific to Cobalt inputs.
-#if BUILDFLAG(IS_COBALT)
-    case AKEYCODE_CAPTIONS:
-      return KEY_SUBTITLES;
-#endif  // BUILDFLAG(IS_COBALT)
     default:
       return VKEY_UNKNOWN;
   }
