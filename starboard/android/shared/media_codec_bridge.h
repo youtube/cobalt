@@ -16,11 +16,11 @@
 #define STARBOARD_ANDROID_SHARED_MEDIA_CODEC_BRIDGE_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "base/android/scoped_java_ref.h"
 #include "starboard/android/shared/media_common.h"
-#include "starboard/common/optional.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
 namespace starboard::android::shared {
@@ -166,8 +166,8 @@ class MediaCodecBridge {
       int width_hint,
       int height_hint,
       int fps,
-      optional<int> max_width,
-      optional<int> max_height,
+      std::optional<int> max_width,
+      std::optional<int> max_height,
       Handler* handler,
       jobject j_surface,
       jobject j_media_crypto,

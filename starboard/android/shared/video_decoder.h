@@ -17,6 +17,7 @@
 
 #include <atomic>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -28,7 +29,6 @@
 #include "starboard/android/shared/video_frame_tracker.h"
 #include "starboard/android/shared/video_window.h"
 #include "starboard/common/condition_variable.h"
-#include "starboard/common/optional.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/decode_target.h"
 #include "starboard/media.h"
@@ -192,7 +192,7 @@ class VideoDecoder
   double playback_rate_ = 1.0;
 
   // The last enqueued |SbMediaColorMetadata|.
-  optional<SbMediaColorMetadata> color_metadata_;
+  std::optional<SbMediaColorMetadata> color_metadata_;
 
   std::unique_ptr<MediaDecoder> media_decoder_;
 
@@ -221,7 +221,7 @@ class VideoDecoder
   int buffered_output_frames_ = 0;
   int max_buffered_output_frames_ = 0;
   bool first_output_format_changed_ = false;
-  optional<VideoOutputFormat> output_format_;
+  std::optional<VideoOutputFormat> output_format_;
   size_t number_of_preroll_frames_;
 };
 
