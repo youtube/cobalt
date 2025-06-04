@@ -45,6 +45,6 @@ jobs:
         uses: gsactions/commit-message-checker@16fa2d5de096ae0d35626443bcd24f1e756cafee
         with:
           accessToken: ${{ secrets.GITHUB_TOKEN }}
-          pattern: '(b\/\d+|^(Bug|Fixed|Issue): \d+$|(partnerissuetracker\.corp|issuetracker)\.google\.com\/u\/\d+\/issues\/\d+$)'
+          pattern: '^(Bug|Fixed|Issue): \d+$'
           flags: 'gm'
           error: 'PR title or description should include at least one bug ID.'
