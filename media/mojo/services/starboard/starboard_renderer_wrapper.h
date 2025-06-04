@@ -18,7 +18,9 @@
 #include <memory>
 
 #include "base/memory/weak_ptr.h"
+#include "base/threading/sequence_bound.h"
 #include "base/threading/thread_checker.h"
+#include "gpu/ipc/service/command_buffer_stub.h"
 #include "media/base/renderer.h"
 #include "media/mojo/mojom/renderer_extensions.mojom.h"
 #include "media/mojo/services/gpu_mojo_media_client.h"
@@ -33,6 +35,8 @@ class TimeDelta;
 }  // namespace base
 
 namespace media {
+
+class StarboardGpuFactory;
 
 // Simple wrapper around a StarboardRenderer.
 // Wraps media::StarboardRenderer to remove its dependence on
@@ -77,15 +81,27 @@ class StarboardRendererWrapper final
   void OnPaintVideoHoleFrameByStarboard(const gfx::Size& size);
   void OnUpdateStarboardRenderingModeByStarboard(
       const StarboardRenderingMode mode);
+  void OnGpuFactoryInitialized();
+  bool IsGpuChannelTokenAvailable() const { return !!command_buffer_id_; }
 
   mojo::Receiver<RendererExtension> renderer_extension_receiver_;
   mojo::Remote<ClientExtension> client_extension_remote_;
   StarboardRenderer renderer_;
   mojom::CommandBufferIdPtr command_buffer_id_;
+  base::SequenceBound<StarboardGpuFactory> gpu_factory_;
+  scoped_refptr<base::SingleThreadTaskRunner> gpu_task_runner_;
 
-  base::WeakPtrFactory<StarboardRendererWrapper> weak_factory_{this};
+  raw_ptr<RendererClient> client_ = nullptr;
+  raw_ptr<MediaResource> media_resource_ = nullptr;
+  PipelineStatusCallback init_cb_;
+
+  bool is_gpu_factory_initialized_ = false;
+  base::RepeatingCallback<gpu::CommandBufferStub*(base::UnguessableToken,
+                                                  int32_t)>
+      get_starboard_command_buffer_stub_cb_;
 
   THREAD_CHECKER(thread_checker_);
+  base::WeakPtrFactory<StarboardRendererWrapper> weak_factory_{this};
 };
 
 }  // namespace media

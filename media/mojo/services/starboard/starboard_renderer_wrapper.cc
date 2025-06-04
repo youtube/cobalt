@@ -18,6 +18,7 @@
 
 #include "base/time/time.h"
 #include "media/base/starboard/starboard_rendering_mode.h"
+#include "media/gpu/starboard/starboard_gpu_factory.h"
 #include "media/mojo/services/mojo_media_log.h"
 
 namespace media {
@@ -36,7 +37,12 @@ StarboardRendererWrapper::StarboardRendererWrapper(
           traits.overlay_plane_id,
           traits.audio_write_duration_local,
           traits.audio_write_duration_remote,
-          traits.max_video_capabilities) {
+          traits.max_video_capabilities),
+      get_starboard_command_buffer_stub_cb_(
+          traits.get_starboard_command_buffer_stub_cb),
+      gpu_factory_(traits.gpu_task_runner,
+                   traits.get_starboard_command_buffer_stub_cb),
+      gpu_task_runner_(std::move(traits.gpu_task_runner)) {
   DETACH_FROM_THREAD(thread_checker_);
 }
 
@@ -50,9 +56,20 @@ void StarboardRendererWrapper::Initialize(MediaResource* media_resource,
   // OnGpuChannelTokenReady() is called before Initialize()
   // in StarboardRendererClient, so it is safe to access
   // |command_buffer_id_| for posting gpu tasks.
-  if (command_buffer_id_) {
-    // TODO(b/409105749): create TextureOwner if SbPlayer works in
-    // decode-to-texture mode.
+  if (IsGpuChannelTokenAvailable()) {
+    // Create StarboardGpuFactory() using |command_buffer_id_|.
+    base::WaitableEvent done_event(
+        base::WaitableEvent::ResetPolicy::MANUAL,
+        base::WaitableEvent::InitialState::NOT_SIGNALED);
+    gpu_factory_.AsyncCall(&StarboardGpuFactory::Initialize)
+        .WithArgs(command_buffer_id_->channel_token,
+                  command_buffer_id_->route_id, &done_event)
+        .Then(base::BindOnce(&StarboardRendererWrapper::OnGpuFactoryInitialized,
+                             weak_factory_.GetWeakPtr()));
+    // Blocking is okay here because it ensures StarboardRenderer is initialized
+    // after getting gpu::CommandBufferStub().
+    base::ScopedAllowBaseSyncPrimitivesOutsideBlockingScope allow_wait;
+    done_event.Wait();
   }
 
   renderer_.SetStarboardRendererCallbacks(
@@ -62,6 +79,15 @@ void StarboardRendererWrapper::Initialize(MediaResource* media_resource,
       base::BindRepeating(
           &StarboardRendererWrapper::OnUpdateStarboardRenderingModeByStarboard,
           weak_factory_.GetWeakPtr()));
+
+  if (IsGpuChannelTokenAvailable() && !is_gpu_factory_initialized_) {
+    // Delay |init_cb| after StarboardGpuFactory() is created.
+    media_resource_ = media_resource;
+    client_ = client;
+    init_cb_ = std::move(init_cb);
+    return;
+  }
+
   renderer_.Initialize(media_resource, client, std::move(init_cb));
 }
 
@@ -117,6 +143,16 @@ void StarboardRendererWrapper::OnGpuChannelTokenReady(
     mojom::CommandBufferIdPtr command_buffer_id) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   command_buffer_id_ = std::move(command_buffer_id);
+}
+
+void StarboardRendererWrapper::OnGpuFactoryInitialized() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  is_gpu_factory_initialized_ = true;
+  // TODO(b/375070492): add |decode_target_graphics_context_provider_|.
+
+  if (media_resource_ != nullptr && client_ != nullptr && !init_cb_.is_null()) {
+    renderer_.Initialize(media_resource_, client_, std::move(init_cb_));
+  }
 }
 
 void StarboardRendererWrapper::OnPaintVideoHoleFrameByStarboard(
