@@ -264,6 +264,10 @@ void MediaDrmBridge::OnKeyStatusChange(
       drm_key_statuses[i] = kSbDrmKeyStatusError;
     }
   }
+
+  host_->CallDrmSessionKeyStatusesChangedCallback(
+      session_id_elements, session_id_size, drm_key_ids, drm_key_statuses);
+  env->ReleaseByteArrayElements(sessionId, session_id_elements, JNI_ABORT);
 }
 
 // static
