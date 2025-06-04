@@ -14,6 +14,8 @@
 
 #include "starboard/player.h"
 
+// TODO: Remove //media/base:base dependency cycle to use base::FeatureList
+// here. #include "media/base/media_switches.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/common/log.h"
 #include "starboard/shared/starboard/player/player_internal.h"
@@ -30,5 +32,10 @@ void SbPlayerSetBounds(SbPlayer player,
   }
   starboard::android::shared::JniEnvExt::Get()->CallStarboardVoidMethodOrAbort(
       "setVideoSurfaceBounds", "(IIII)V", x, y, width, height);
-  player->SetBounds(z_index, x, y, width, height);
+  // TODO: Remove //media/base:base dependency cycle to use base::FeatureList
+  // here.
+  if (/* !base::FeatureList::IsEnabled(media::kCobaltUseExoPlayer) */ (false)) {
+    // Skip fowarding the bounds to the ExoPlayer.
+    player->SetBounds(z_index, x, y, width, height);
+  }
 }

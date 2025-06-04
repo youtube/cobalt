@@ -14,7 +14,15 @@
 
 #include "starboard/player.h"
 
+// TODO: Remove //media/base:base dependency cycle to use base::FeatureList
+// here. #include "media/base/media_switches.h"
+
 int SbPlayerGetMaximumNumberOfSamplesPerWrite(SbPlayer player,
                                               SbMediaType sample_type) {
+  // TODO: Remove //media/base:base dependency cycle to use base::FeatureList
+  // here.
+  if (/* !base::FeatureList::IsEnabled(media::kCobaltUseExoPlayer) */ (true)) {
+    return 1;
+  }
   return 256;
 }

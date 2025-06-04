@@ -1,0 +1,14 @@
+Name: Media3 Container module
+Short Name: media3-container
+URL: 
+Version: 1.2.0
+License: Apache Version 2.0
+License File: LICENSE
+CPEPrefix: unknown
+Security Critical: yes
+
+Description:
+Media3 Container module
+
+Local Modifications:
+No modifications.

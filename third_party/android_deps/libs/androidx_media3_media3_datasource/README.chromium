@@ -1,0 +1,14 @@
+Name: Media3 DataSource module
+Short Name: media3-datasource
+URL: 
+Version: 1.2.0
+License: Apache 2.0
+License File: LICENSE
+CPEPrefix: unknown
+Security Critical: yes
+
+Description:
+Media3 DataSource module
+
+Local Modifications:
+No modifications.

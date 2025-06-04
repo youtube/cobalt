@@ -717,6 +717,102 @@ if (!limit_android_deps) {
   }
 
   # This is generated, do not edit. Update BuildConfigGenerator.groovy instead.
+  android_aar_prebuilt("androidx_media3_media3_common_java") {
+    aar_path = "libs/androidx_media3_media3_common/media3-common-1.2.0.aar"
+    info_path =
+        "libs/androidx_media3_media3_common/androidx_media3_media3_common.info"
+    deps = [
+      "//third_party/android_deps:guava_android_java",
+      "//third_party/androidx:androidx_annotation_annotation_experimental_java",
+      "//third_party/androidx:androidx_annotation_annotation_java",
+    ]
+    resource_overlay = true
+  }
+
+  # This is generated, do not edit. Update BuildConfigGenerator.groovy instead.
+  android_aar_prebuilt("androidx_media3_media3_database_java") {
+    aar_path = "libs/androidx_media3_media3_database/media3-database-1.2.0.aar"
+    info_path = "libs/androidx_media3_media3_database/androidx_media3_media3_database.info"
+    deps = [
+      ":androidx_media3_media3_common_java",
+      "//third_party/androidx:androidx_annotation_annotation_java",
+    ]
+    resource_overlay = true
+  }
+
+  # This is generated, do not edit. Update BuildConfigGenerator.groovy instead.
+  android_aar_prebuilt("androidx_media3_media3_datasource_java") {
+    aar_path =
+        "libs/androidx_media3_media3_datasource/media3-datasource-1.2.0.aar"
+    info_path = "libs/androidx_media3_media3_datasource/androidx_media3_media3_datasource.info"
+    deps = [
+      ":androidx_media3_media3_common_java",
+      ":androidx_media3_media3_database_java",
+      "//third_party/androidx:androidx_annotation_annotation_java",
+      "//third_party/androidx:androidx_exifinterface_exifinterface_java",
+    ]
+    resource_overlay = true
+  }
+
+  # This is generated, do not edit. Update BuildConfigGenerator.groovy instead.
+  android_aar_prebuilt("androidx_media3_media3_decoder_java") {
+    aar_path = "libs/androidx_media3_media3_decoder/media3-decoder-1.2.0.aar"
+    info_path = "libs/androidx_media3_media3_decoder/androidx_media3_media3_decoder.info"
+    deps = [
+      ":androidx_media3_media3_common_java",
+      "//third_party/androidx:androidx_annotation_annotation_java",
+    ]
+    resource_overlay = true
+  }
+
+  # This is generated, do not edit. Update BuildConfigGenerator.groovy instead.
+  android_aar_prebuilt("androidx_media3_media3_exoplayer_java") {
+    aar_path =
+        "libs/androidx_media3_media3_exoplayer/media3-exoplayer-1.2.0.aar"
+    info_path = "libs/androidx_media3_media3_exoplayer/androidx_media3_media3_exoplayer.info"
+    deps = [
+      ":androidx_media3_media3_common_java",
+      ":androidx_media3_media3_database_java",
+      ":androidx_media3_media3_datasource_java",
+      ":androidx_media3_media3_decoder_java",
+      ":androidx_media3_media3_extractor_java",
+      "//third_party/androidx:androidx_annotation_annotation_java",
+      "//third_party/androidx:androidx_collection_collection_java",
+      "//third_party/androidx:androidx_core_core_java",
+      "//third_party/androidx:androidx_exifinterface_exifinterface_java",
+    ]
+    resource_overlay = true
+  }
+
+  # This is generated, do not edit. Update BuildConfigGenerator.groovy instead.
+  android_aar_prebuilt("androidx_media3_media3_extractor_java") {
+    aar_path =
+        "libs/androidx_media3_media3_extractor/media3-extractor-1.2.0.aar"
+    info_path = "libs/androidx_media3_media3_extractor/androidx_media3_media3_extractor.info"
+    deps = [
+      ":androidx_media3_media3_common_java",
+      ":androidx_media3_media3_container_java",
+      ":androidx_media3_media3_decoder_java",
+      "//third_party/androidx:androidx_annotation_annotation_java",
+    ]
+    resource_overlay = true
+  }
+
+  # This is generated, do not edit. Update BuildConfigGenerator.groovy instead.
+  android_aar_prebuilt("androidx_media3_media3_session_java") {
+    aar_path = "libs/androidx_media3_media3_session/media3-session-1.2.0.aar"
+    info_path = "libs/androidx_media3_media3_session/androidx_media3_media3_session.info"
+    deps = [
+      ":androidx_media3_media3_common_java",
+      ":androidx_media3_media3_datasource_java",
+      "//third_party/androidx:androidx_collection_collection_java",
+      "//third_party/androidx:androidx_core_core_java",
+      "//third_party/androidx:androidx_media_media_java",
+    ]
+    resource_overlay = true
+  }
+
+  # This is generated, do not edit. Update BuildConfigGenerator.groovy instead.
   android_aar_prebuilt("com_android_support_asynclayoutinflater_java") {
     aar_path = "libs/com_android_support_asynclayoutinflater/asynclayoutinflater-28.0.0.aar"
     info_path = "libs/com_android_support_asynclayoutinflater/com_android_support_asynclayoutinflater.info"
@@ -962,6 +1058,17 @@ if (!limit_android_deps) {
   }
 
   # This is generated, do not edit. Update BuildConfigGenerator.groovy instead.
+  android_aar_prebuilt("google_play_services_ads_identifier_java") {
+    aar_path = "libs/com_google_android_gms_play_services_ads_identifier/play-services-ads-identifier-18.2.0.aar"
+    info_path = "libs/com_google_android_gms_play_services_ads_identifier/com_google_android_gms_play_services_ads_identifier.info"
+    deps = [
+      ":google_play_services_base_java",
+      ":google_play_services_basement_java",
+      ":google_play_services_tasks_java",
+    ]
+  }
+
+  # This is generated, do not edit. Update BuildConfigGenerator.groovy instead.
   android_aar_prebuilt("google_play_services_auth_java") {
     aar_path = "libs/com_google_android_gms_play_services_auth/play-services-auth-20.1.0.aar"
     info_path = "libs/com_google_android_gms_play_services_auth/com_google_android_gms_play_services_auth.info"
@@ -973,18 +1080,6 @@ if (!limit_android_deps) {
       ":google_play_services_tasks_java",
       "//third_party/androidx:androidx_fragment_fragment_java",
       "//third_party/androidx:androidx_loader_loader_java",
-    ]
-  }
-
-  # This is generated, do not edit. Update BuildConfigGenerator.groovy instead.
-  android_aar_prebuilt("google_play_services_ads_identifier_java") {
-    aar_path = "cipd/libs/com_google_android_gms_play_services_ads_identifier/play-services-ads-identifier-18.2.0.aar"
-    info_path = "libs/com_google_android_gms_play_services_ads_identifier/com_google_android_gms_play_services_ads_identifier.info"
-    enable_bytecode_checks = false
-    deps = [
-      "$google_play_services_package:google_play_services_base_java",
-      "$google_play_services_package:google_play_services_basement_java",
-      "$google_play_services_package:google_play_services_tasks_java",
     ]
   }
 
@@ -1013,7 +1108,7 @@ if (!limit_android_deps) {
 
   # This is generated, do not edit. Update BuildConfigGenerator.groovy instead.
   android_aar_prebuilt("google_play_services_base_java") {
-    aar_path = "libs/com_google_android_gms_play_services_base/play-services-base-18.0.1.aar"
+    aar_path = "libs/com_google_android_gms_play_services_base/play-services-base-18.5.0.aar"
     info_path = "libs/com_google_android_gms_play_services_base/com_google_android_gms_play_services_base.info"
     deps = [
       ":google_play_services_basement_java",
@@ -1028,7 +1123,7 @@ if (!limit_android_deps) {
 
   # This is generated, do not edit. Update BuildConfigGenerator.groovy instead.
   android_aar_prebuilt("google_play_services_basement_java") {
-    aar_path = "libs/com_google_android_gms_play_services_basement/play-services-basement-18.1.0.aar"
+    aar_path = "libs/com_google_android_gms_play_services_basement/play-services-basement-18.4.0.aar"
     info_path = "libs/com_google_android_gms_play_services_basement/com_google_android_gms_play_services_basement.info"
     deps = [
       "//third_party/androidx:androidx_collection_collection_java",
@@ -1137,7 +1232,7 @@ if (!limit_android_deps) {
 
   # This is generated, do not edit. Update BuildConfigGenerator.groovy instead.
   android_aar_prebuilt("google_play_services_tasks_java") {
-    aar_path = "libs/com_google_android_gms_play_services_tasks/play-services-tasks-18.0.2.aar"
+    aar_path = "libs/com_google_android_gms_play_services_tasks/play-services-tasks-18.2.0.aar"
     info_path = "libs/com_google_android_gms_play_services_tasks/com_google_android_gms_play_services_tasks.info"
     deps = [ ":google_play_services_basement_java" ]
   }
@@ -1682,6 +1777,25 @@ if (!limit_android_deps) {
       ":android_arch_core_runtime_java",
       ":android_arch_lifecycle_common_java",
     ]
+  }
+
+  # This is generated, do not edit. Update BuildConfigGenerator.groovy instead.
+  android_aar_prebuilt("androidx_media3_media3_container_java") {
+    aar_path =
+        "libs/androidx_media3_media3_container/media3-container-1.2.0.aar"
+    info_path = "libs/androidx_media3_media3_container/androidx_media3_media3_container.info"
+
+    # To remove visibility constraint, add this dependency to
+    # //third_party/android_deps/build.gradle.
+    visibility = [
+      ":*",
+      "//third_party/androidx:*",
+    ]
+    deps = [
+      ":androidx_media3_media3_common_java",
+      "//third_party/androidx:androidx_annotation_annotation_java",
+    ]
+    resource_overlay = true
   }
 
   # This is generated, do not edit. Update BuildConfigGenerator.groovy instead.
