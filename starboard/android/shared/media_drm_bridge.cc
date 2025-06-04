@@ -229,7 +229,7 @@ void MediaDrmBridge::OnSessionMessage(
   host_->OnSessionUpdate(
       ticket, ToSbDrmSessionRequestType(static_cast<RequestType>(request_type)),
       JavaByteArrayToString(env, session_id),
-      JavaByteArrayToString(env, message), message_bytes, kNoUrl);
+      JavaByteArrayToString(env, message), kNoUrl);
 }
 
 void MediaDrmBridge::OnKeyStatusChange(
