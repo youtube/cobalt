@@ -1,4 +1,4 @@
-// Copyright 2017 The Cobalt Authors. All Rights Reserved.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,24 +14,16 @@
 
 #include "starboard/player.h"
 
-// TODO: Remove //media/base:base dependency cycle to use base::FeatureList
-// here. #include "media/base/media_switches.h"
-#include "starboard/android/shared/exoplayer/exoplayer.h"
+#include "starboard/common/log.h"
+#include "starboard/decode_target.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 
-void SbPlayerDestroy(SbPlayer player) {
+SbDecodeTarget SbPlayerGetCurrentFrame(SbPlayer player) {
   if (!SbPlayerIsValid(player)) {
-    return;
+    SB_DLOG(WARNING) << "player is invalid.";
+    return kSbDecodeTargetInvalid;
   }
 
-  // TODO: Remove //media/base:base dependency cycle to use base::FeatureList
-  // here.
-  if (/* base::FeatureList::IsEnabled(media::kCobaltUseExoPlayer) */ (true)) {
-    SB_LOG(INFO) << "Using ExoPlayer SbPlayeDestroy() implementation;.";
-    delete starboard::android::shared::exoplayer::ExoPlayer::
-        GetExoPlayerForSbPlayer(player);
-    return;
-  }
-
-  delete player;
+  SB_LOG(WARNING) << "ExoPlayer does not support decode-to-texture";
+  return kSbDecodeTargetInvalid;
 }

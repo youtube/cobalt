@@ -1,4 +1,4 @@
-// Copyright 2024 The Cobalt Authors. All Rights Reserved.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,15 +14,17 @@
 
 #include "starboard/player.h"
 
-// TODO: Remove //media/base:base dependency cycle to use base::FeatureList
-// here. #include "media/base/media_switches.h"
+#include "starboard/common/log.h"
 
-int SbPlayerGetMaximumNumberOfSamplesPerWrite(SbPlayer player,
-                                              SbMediaType sample_type) {
-  // TODO: Remove //media/base:base dependency cycle to use base::FeatureList
-  // here.
-  if (/* !base::FeatureList::IsEnabled(media::kCobaltUseExoPlayer) */ (true)) {
-    return 1;
+bool SbPlayerGetAudioConfiguration(
+    SbPlayer player,
+    int index,
+    SbMediaAudioConfiguration* out_audio_configuration) {
+  if (!SbPlayerIsValid(player)) {
+    SB_DLOG(WARNING) << "player is invalid.";
+    return;
   }
-  return 256;
+
+  return false;
 }
+ 
