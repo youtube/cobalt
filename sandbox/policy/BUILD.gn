@@ -107,6 +107,8 @@ component("policy") {
   }
   if (is_cobalt_hermetic_build) {
     sources += [
+
+      "starboard/decoding_policy_stub.cc",
       "export.h",
       "linux/sandbox_debug_handling_linux.cc",
       "linux/sandbox_debug_handling_linux.h",
