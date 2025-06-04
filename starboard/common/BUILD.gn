@@ -61,8 +61,6 @@ static_library("common") {
     "murmurhash2.h",
     "mutex.cc",
     "mutex.h",
-    "optional.cc",
-    "optional.h",
     "paths.cc",
     "paths.h",
     "player.cc",
