@@ -364,10 +364,6 @@ void DrmSystem::CloseSession(const void* session_id, int session_id_size) {
 DrmSystem::DecryptStatus DrmSystem::Decrypt(InputBuffer* buffer) {
   SB_DCHECK(buffer);
   SB_DCHECK(buffer->drm_info());
-<<<<<<< HEAD
-  SB_DCHECK(j_media_crypto_);
-=======
->>>>>>> 0ce83ed4050 (Remove DCHECK on `j_mdia_crypto_` (#5869))
   // The actual decryption will take place by calling |queueSecureInputBuffer|
   // in the decoders.  Our existence implies that there is enough information
   // to perform the decryption.
