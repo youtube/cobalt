@@ -244,6 +244,7 @@ constexpr bool kUseLazyCommit = false;
 
 // On these platforms, lock all the partitions before fork(), and unlock after.
 // This may be required on more platforms in the future.
+<<<<<<< HEAD:base/allocator/partition_allocator/src/partition_alloc/partition_alloc_config.h
 #define PA_CONFIG_HAS_ATFORK_HANDLER()                 \
   (PA_BUILDFLAG(IS_APPLE) || PA_BUILDFLAG(IS_LINUX) || \
    PA_BUILDFLAG(IS_CHROMEOS))
@@ -260,6 +261,10 @@ constexpr bool kUseLazyCommit = false;
 #else
 #define PA_CONFIG_ENABLE_SHADOW_METADATA() 0
 #endif
+=======
+#define PA_CONFIG_HAS_ATFORK_HANDLER()                                      \
+  (BUILDFLAG(IS_APPLE) || (BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD)) || BUILDFLAG(IS_CHROMEOS))
+>>>>>>> 0295a58a6e5 ([POSIX] Remove unnecessary pthread_atfork call (#5924)):base/allocator/partition_allocator/partition_alloc_config.h
 
 // PartitionAlloc uses PartitionRootEnumerator to acquire all
 // PartitionRoots at BeforeFork and to release at AfterFork.
