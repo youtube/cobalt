@@ -217,7 +217,10 @@ component("core") {
   output_name = "blink_core"
 
   visibility = []  # Allow re-assignment of list.
-  visibility = [ "//third_party/blink/*" ]
+  visibility = [
+    "//third_party/blink/*",
+    "//cobalt/third_party/blink/renderer/core/web_test:web_test",
+  ]
 
   sources = [
     "core_initializer.cc",

@@ -14,6 +14,8 @@
 
 import("//build/config/chromecast_build.gni")
 import("//build/config/ui.gni")
+import("//cobalt/build/configs/common.gn")
+import("//ppapi/buildflags/buildflags.gni")
 import("//starboard/build/buildflags.gni")
 
 # TODO(crbug.com/1336055, spang): Investigate using shell_views with cast builds as
@@ -22,9 +24,8 @@ if (use_aura) {
   shell_use_toolkit_views = toolkit_views && !is_castos
 }
 
-# TODO(b/378876835): Add web_test capability. See //content/shell:content_shell_app.
 # Web test support not built on android, but is everywhere else.
-#support_web_tests = !is_android
+support_web_tests = !is_android
 
 # TODO(b/384748332): Changes below are for removing dependency on content shell
 config("content_shell_lib_warnings") {
@@ -325,6 +326,13 @@ static_library("content_shell_lib") {
     ]
   }
 
+  if (enable_plugins) {
+    sources += [
+      "//content/shell/browser/shell_plugin_service_filter.cc",
+      "//content/shell/browser/shell_plugin_service_filter.h",
+    ]
+  }
+
   if (is_win) {
     sources += [
       "//content/shell/common/v8_crashpad_support_win.cc",
@@ -373,6 +381,13 @@ static_library("content_shell_app") {
     "//content/shell/app/shell_main_delegate.h",
   ]
   public_deps = [ ":content_shell_app_deps" ]
+  if (support_web_tests) {
+    deps = [
+      "//cobalt/web_test:web_test_browser",
+      "//cobalt/web_test:web_test_common",
+      "//cobalt/web_test:web_test_renderer",
+    ]
+  }
   if (is_apple) {
     configs += [ "//build/config/compiler:enable_arc" ]
     sources += [
