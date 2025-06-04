@@ -56,8 +56,6 @@ if (!is_android) {
     deps = [
       ":common",
       "//base",
-      "//cobalt/shell:content_shell_app",
-      "//cobalt/shell:content_shell_lib",
       "//content/public/app",
       "//starboard:starboard_headers_only",
     ]
