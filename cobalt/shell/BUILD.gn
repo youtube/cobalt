@@ -22,6 +22,7 @@ if (use_aura) {
   shell_use_toolkit_views = toolkit_views && !is_castos
 }
 
+# TODO(b/378876835): Add web_test capability. See //content/shell:content_shell_app.
 # Web test support not built on android, but is everywhere else.
 #support_web_tests = !is_android
 
