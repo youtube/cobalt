@@ -717,8 +717,6 @@ bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
     return false;
   }
 
-  jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
-  SB_DCHECK(!drm_system_ || j_media_crypto);
   if (video_stream_info.codec == kSbMediaVideoCodecAv1) {
     SB_DCHECK(video_fps_ > 0);
   } else {
