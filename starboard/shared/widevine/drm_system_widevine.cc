@@ -515,7 +515,7 @@ SbDrmSystemPrivate::DecryptStatus DrmSystemWidevine::Decrypt(
       }
       {
         ScopedLock lock(unblock_key_retry_mutex_);
-        unblock_key_retry_start_time_ = nullopt;
+        unblock_key_retry_start_time_ = std::nullopt;
       }
       input.data += subsample.encrypted_byte_count;
       output.data += subsample.encrypted_byte_count;
