@@ -15,10 +15,10 @@
 #include <string>
 #include <vector>
 
+#include <optional>
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/media.h"
 #include "starboard/common/mutex.h"
-#include "starboard/common/optional.h"
 #include "starboard/common/time.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/decode_target.h"
@@ -86,8 +86,8 @@ class SbPlayerTest : public ::testing::Test {
 
   void ClearPlayerStateAndError() {
     ScopedLock scoped_lock(mutex_);
-    player_state_ = nullopt;
-    player_error_ = nullopt;
+    player_state_ = std::nullopt;
+    player_error_ = std::nullopt;
   }
 
   void WaitForPlayerInitializedOrError(bool* error_occurred) {
@@ -101,12 +101,12 @@ class SbPlayerTest : public ::testing::Test {
     for (;;) {
       ScopedLock scoped_lock(mutex_);
 
-      if (player_error_.has_engaged()) {
+      if (player_error_.has_value()) {
         *error_occurred = true;
         return;
       }
 
-      if (player_state_.has_engaged()) {
+      if (player_state_.has_value()) {
         *error_occurred = player_state_.value() == kSbPlayerStateInitialized;
         return;
       }
@@ -126,8 +126,8 @@ class SbPlayerTest : public ::testing::Test {
 
   Mutex mutex_;
   ConditionVariable condition_variable_{mutex_};
-  optional<SbPlayerState> player_state_;
-  optional<SbPlayerError> player_error_;
+  std::optional<SbPlayerState> player_state_;
+  std::optional<SbPlayerError> player_error_;
 };
 
 TEST_F(SbPlayerTest, SunnyDay) {

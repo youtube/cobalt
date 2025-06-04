@@ -112,8 +112,8 @@ MediaDecoder::MediaDecoder(Host* host,
                            SbMediaVideoCodec video_codec,
                            int width_hint,
                            int height_hint,
-                           optional<int> max_width,
-                           optional<int> max_height,
+                           std::optional<int> max_width,
+                           std::optional<int> max_height,
                            int fps,
                            jobject j_output_surface,
                            SbDrmSystem drm_system,
@@ -428,7 +428,7 @@ bool MediaDecoder::ProcessOneInputBuffer(
         pending_queue_input_buffer_task_->dequeue_input_result;
     SB_DCHECK(dequeue_input_result.index >= 0);
     event = pending_queue_input_buffer_task_->event;
-    pending_queue_input_buffer_task_ = nullopt_t();
+    pending_queue_input_buffer_task_ = std::nullopt;
     input_buffer_already_written = true;
   } else {
     dequeue_input_result.index = input_buffer_indices->front();
@@ -705,7 +705,7 @@ bool MediaDecoder::Flush() {
     pending_tasks_.clear();
     input_buffer_indices_.clear();
     dequeue_output_results_.clear();
-    pending_queue_input_buffer_task_ = nullopt_t();
+    pending_queue_input_buffer_task_ = std::nullopt;
 
     // 2.3. Add OutputFormatChanged to get current output format after Flush().
     DequeueOutputResult dequeue_output_result = {};
