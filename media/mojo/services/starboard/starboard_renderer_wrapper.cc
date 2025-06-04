@@ -16,6 +16,8 @@
 
 #include <utility>
 
+#include "base/functional/callback_helpers.h"
+#include "base/task/bind_post_task.h"
 #include "base/time/time.h"
 #include "media/base/starboard/starboard_rendering_mode.h"
 #include "media/mojo/services/mojo_media_log.h"
@@ -38,6 +40,10 @@ StarboardRendererWrapper::StarboardRendererWrapper(
           traits.audio_write_duration_remote,
           traits.max_video_capabilities) {
   DETACH_FROM_THREAD(thread_checker_);
+  base::SequenceBound<StarboardGpuFactoryImpl> gpu_factory_impl(
+      traits.gpu_task_runner,
+      std::move(traits.get_starboard_command_buffer_stub_cb));
+  gpu_factory_ = std::move(gpu_factory_impl);
 }
 
 StarboardRendererWrapper::~StarboardRendererWrapper() = default;
@@ -46,60 +52,72 @@ void StarboardRendererWrapper::Initialize(MediaResource* media_resource,
                                           RendererClient* client,
                                           PipelineStatusCallback init_cb) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK(init_cb);
 
-  // OnGpuChannelTokenReady() is called before Initialize()
-  // in StarboardRendererClient, so it is safe to access
-  // |command_buffer_id_| for posting gpu tasks.
-  if (command_buffer_id_) {
-    // TODO(b/409105749): create TextureOwner if SbPlayer works in
-    // decode-to-texture mode.
-  }
-
-  renderer_.SetStarboardRendererCallbacks(
+  GetRenderer()->SetStarboardRendererCallbacks(
       base::BindRepeating(
           &StarboardRendererWrapper::OnPaintVideoHoleFrameByStarboard,
           weak_factory_.GetWeakPtr()),
       base::BindRepeating(
           &StarboardRendererWrapper::OnUpdateStarboardRenderingModeByStarboard,
           weak_factory_.GetWeakPtr()));
-  renderer_.Initialize(media_resource, client, std::move(init_cb));
+
+  base::ScopedClosureRunner scoped_init_cb(
+      base::BindOnce(&StarboardRendererWrapper::ContinueInitialization,
+                     weak_factory_.GetWeakPtr(), std::move(media_resource),
+                     std::move(client), std::move(init_cb)));
+
+  // OnGpuChannelTokenReady() is called before Initialize()
+  // in StarboardRendererClient if GpuVideoAcceleratorFactories is available.
+  // In this case, it is safe to access |command_buffer_id_| for posting gpu
+  // tasks.
+  if (IsGpuChannelTokenAvailable()) {
+    // Create StarboardGpuFactory using |command_buffer_id_|.
+    base::OnceClosure init_callback = scoped_init_cb.Release();
+    GetGpuFactory()
+        ->AsyncCall(&StarboardGpuFactory::Initialize)
+        .WithArgs(command_buffer_id_->channel_token,
+                  command_buffer_id_->route_id,
+                  base::BindPostTaskToCurrentDefault(std::move(init_callback)));
+    return;
+  }
 }
 
 void StarboardRendererWrapper::Flush(base::OnceClosure flush_cb) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  renderer_.Flush(std::move(flush_cb));
+  GetRenderer()->Flush(std::move(flush_cb));
 }
 
 void StarboardRendererWrapper::StartPlayingFrom(base::TimeDelta time) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  renderer_.StartPlayingFrom(time);
+  GetRenderer()->StartPlayingFrom(time);
 }
 
 void StarboardRendererWrapper::SetPlaybackRate(double playback_rate) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  renderer_.SetPlaybackRate(playback_rate);
+  GetRenderer()->SetPlaybackRate(playback_rate);
 }
 
 void StarboardRendererWrapper::SetVolume(float volume) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  renderer_.SetVolume(volume);
+  GetRenderer()->SetVolume(volume);
 }
 
 void StarboardRendererWrapper::SetCdm(CdmContext* cdm_context,
                                       CdmAttachedCB cdm_attached_cb) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  renderer_.SetCdm(cdm_context, std::move(cdm_attached_cb));
+  GetRenderer()->SetCdm(cdm_context, std::move(cdm_attached_cb));
 }
 
 void StarboardRendererWrapper::SetLatencyHint(
     absl::optional<base::TimeDelta> latency_hint) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  renderer_.SetLatencyHint(latency_hint);
+  GetRenderer()->SetLatencyHint(latency_hint);
 }
 
 base::TimeDelta StarboardRendererWrapper::GetMediaTime() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  return renderer_.GetMediaTime();
+  return GetRenderer()->GetMediaTime();
 }
 
 RendererType StarboardRendererWrapper::GetRendererType() {
@@ -110,13 +128,39 @@ RendererType StarboardRendererWrapper::GetRendererType() {
 void StarboardRendererWrapper::OnVideoGeometryChange(
     const gfx::Rect& output_rect) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  renderer_.OnVideoGeometryChange(output_rect);
+  GetRenderer()->OnVideoGeometryChange(output_rect);
 }
 
 void StarboardRendererWrapper::OnGpuChannelTokenReady(
     mojom::CommandBufferIdPtr command_buffer_id) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   command_buffer_id_ = std::move(command_buffer_id);
+}
+
+StarboardRenderer* StarboardRendererWrapper::GetRenderer() {
+  if (test_renderer_) {
+    return test_renderer_;
+  }
+  return &renderer_;
+}
+
+base::SequenceBound<StarboardGpuFactory>*
+StarboardRendererWrapper::GetGpuFactory() {
+  if (test_gpu_factory_) {
+    return test_gpu_factory_;
+  }
+  return &gpu_factory_;
+}
+
+void StarboardRendererWrapper::ContinueInitialization(
+    MediaResource* media_resource,
+    RendererClient* client,
+    PipelineStatusCallback init_cb) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK(init_cb);
+  // TODO(b/375070492): add |decode_target_graphics_context_provider_|.
+
+  GetRenderer()->Initialize(media_resource, client, std::move(init_cb));
 }
 
 void StarboardRendererWrapper::OnPaintVideoHoleFrameByStarboard(
