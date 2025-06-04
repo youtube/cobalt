@@ -101,9 +101,9 @@ class MEDIA_EXPORT StarboardCdm : public ContentDecryptionModule,
     const int ticket;
     const std::optional<std::string> id;
 
-    SessionTicketAndOptionalId(int ticket,
-                               const void* session_id_data,
-                               int session_id_size);
+    SessionTicketAndOptionalId(int ticket, const std::string& session_id);
+    // Create SessionTicketAndOptionalId with null session id.
+    SessionTicketAndOptionalId(int ticket);
 
     std::string ToString() const;
   };

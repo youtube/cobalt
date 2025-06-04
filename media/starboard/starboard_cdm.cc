@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "base/logging.h"
+#include "starboard/common/drm.h"
 
 namespace media {
 
@@ -60,26 +61,6 @@ CdmMessageType SbDrmSessionRequestTypeToMediaMessageType(
   NOTREACHED() << "Unexpected SbDrmSessionRequestType " << type;
 }
 
-#define DEFINE_NAME(code) \
-  case code:              \
-    return #code;
-
-std::string ToString(SbDrmSessionRequestType type) {
-  switch (type) {
-    DEFINE_NAME(kSbDrmSessionRequestTypeLicenseRequest)
-    DEFINE_NAME(kSbDrmSessionRequestTypeLicenseRenewal)
-    DEFINE_NAME(kSbDrmSessionRequestTypeLicenseRelease)
-    DEFINE_NAME(kSbDrmSessionRequestTypeIndividualizationRequest)
-    default:
-      NOTREACHED() << "Unexpected=" << static_cast<int>(type);
-      return "Unexpected_SbDrmSessionRequestType";
-  }
-}
-
-std::ostream& operator<<(std::ostream& os, SbDrmSessionRequestType type) {
-  return os << ToString(type);
-}
-
 CdmKeyInformation::KeyStatus ToCdmKeyStatus(SbDrmKeyStatus status) {
   switch (status) {
     case kSbDrmKeyStatusUsable:
@@ -98,24 +79,6 @@ CdmKeyInformation::KeyStatus ToCdmKeyStatus(SbDrmKeyStatus status) {
       return CdmKeyInformation::KeyStatus::INTERNAL_ERROR;
   }
   NOTREACHED() << "Unexpected SbDrmKeyStatus " << status;
-}
-
-std::string ToString(SbDrmStatus status) {
-  switch (status) {
-    DEFINE_NAME(kSbDrmStatusSuccess)
-    DEFINE_NAME(kSbDrmStatusTypeError)
-    DEFINE_NAME(kSbDrmStatusNotSupportedError)
-    DEFINE_NAME(kSbDrmStatusInvalidStateError)
-    DEFINE_NAME(kSbDrmStatusQuotaExceededError)
-    DEFINE_NAME(kSbDrmStatusUnknownError)
-    default:
-      NOTREACHED() << "Unexpected=" << static_cast<int>(status);
-      return "Unexpected_SbDrmStatus";
-  }
-}
-
-std::ostream& operator<<(std::ostream& os, SbDrmStatus status) {
-  return os << ToString(status);
 }
 
 std::string BytesToString(const void* data, int length) {
@@ -517,7 +480,10 @@ void StarboardCdm::OnSessionUpdateRequestGeneratedFunc(
       base::BindOnce(
           &StarboardCdm::OnSessionUpdateRequestGenerated,
           cdm->weak_factory_.GetWeakPtr(),
-          SessionTicketAndOptionalId(ticket, session_id, session_id_size),
+          session_id == nullptr
+              ? SessionTicketAndOptionalId(ticket)
+              : SessionTicketAndOptionalId(
+                    ticket, BytesToString(session_id, session_id_size)),
           status, type, error_message ? std::string(error_message) : "",
           std::move(content_copy), content_size));
 }
@@ -566,7 +532,8 @@ void StarboardCdm::OnSessionKeyStatusesChangedFunc(
     CdmKeyInformation::KeyStatus status = ToCdmKeyStatus(key_statuses[i]);
     has_additional_usable_key |= (status == CdmKeyInformation::USABLE);
 
-    keys_info.emplace_back(new CdmKeyInformation(key_id, status, 0));
+    keys_info.emplace_back(
+        std::make_unique<CdmKeyInformation>(key_id, status, 0));
   }
 
   cdm->task_runner_->PostTask(
@@ -611,14 +578,13 @@ void StarboardCdm::OnSessionClosedFunc(SbDrmSystem sb_drm,
                                 BytesToString(session_id, session_id_size)));
 }
 
+StarboardCdm::SessionTicketAndOptionalId::SessionTicketAndOptionalId(int ticket)
+    : ticket(ticket), id(std::nullopt) {}
+
 StarboardCdm::SessionTicketAndOptionalId::SessionTicketAndOptionalId(
     int ticket,
-    const void* session_id_data,
-    int session_id_size)
-    : ticket(ticket),
-      id(session_id_data ? std::optional<std::string>(
-                               BytesToString(session_id_data, session_id_size))
-                         : std::nullopt) {}
+    const std::string& session_id)
+    : ticket(ticket), id(session_id) {}
 
 std::string StarboardCdm::SessionTicketAndOptionalId::ToString() const {
   return "{ticket: " +
