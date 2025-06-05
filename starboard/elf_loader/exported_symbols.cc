@@ -299,6 +299,8 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(lseek);
   REGISTER_WRAPPER(mmap);
   REGISTER_WRAPPER(opendir);
+  REGISTER_WRAPPER(poll);
+  REGISTER_WRAPPER(ppoll);
   REGISTER_WRAPPER(pthread_attr_init);
   REGISTER_WRAPPER(pthread_attr_destroy);
   REGISTER_WRAPPER(pthread_attr_getdetachstate);
@@ -358,6 +360,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(pthread_setspecific);
   REGISTER_WRAPPER(readdir);
   REGISTER_WRAPPER(readdir_r);
+  REGISTER_WRAPPER(select);
   REGISTER_WRAPPER(setsockopt);
   REGISTER_WRAPPER(shutdown);
   REGISTER_WRAPPER(stat);
