@@ -52,7 +52,8 @@ TEST(PosixAlignedAllocTests,
   errno = 0;
   void* ptr = aligned_alloc(kValidAlignment, kValidSize);
 
-  ASSERT_NE(nullptr, ptr) << "aligned_alloc returned NULL. errno: " << errno;
+  ASSERT_NE(nullptr, ptr) << "aligned_alloc returned NULL. errno: "
+                          << strerror(errno);
   EXPECT_EQ(0, errno);
   EXPECT_TRUE(IsMemoryAligned(ptr, kValidAlignment));
 
@@ -69,8 +70,8 @@ TEST(PosixAlignedAllocTests, HandlesZeroSizeCorrectly) {
   void* ptr = aligned_alloc(kValidAlignment, kZeroSize);
 
   // For size 0, aligned_alloc may return NULL or a unique pointer.
-  // It should not set errno to EINVAL if alignment is valid.
-  EXPECT_NE(EINVAL, errno) << "errno was " << errno;
+  // It should not set an error.
+  EXPECT_EQ(errno, 0) << "errno was " << strerror(errno);
 
   if (ptr != nullptr) {
     EXPECT_TRUE(IsMemoryAligned(ptr, kValidAlignment));
@@ -86,7 +87,8 @@ TEST(PosixAlignedAllocTests,
   errno = 0;
   void* ptr = aligned_alloc(kAlignmentOne, kAnySize);
 
-  ASSERT_NE(nullptr, ptr) << "aligned_alloc returned NULL. errno: " << errno;
+  ASSERT_NE(nullptr, ptr) << "aligned_alloc returned NULL. errno: "
+                          << strerror(errno);
   EXPECT_EQ(0, errno);
   EXPECT_TRUE(IsMemoryAligned(ptr, kAlignmentOne));
 
@@ -96,17 +98,13 @@ TEST(PosixAlignedAllocTests,
 TEST(PosixAlignedAllocTests,
      AllocatesSuccessfullyWithAlignmentEqualToSizeofVoidPointer) {
   const size_t kAlignmentSizeofVoidPtr = sizeof(void*);
-  if (!((kAlignmentSizeofVoidPtr > 0) &&
-        ((kAlignmentSizeofVoidPtr & (kAlignmentSizeofVoidPtr - 1)) == 0))) {
-    GTEST_SKIP() << "sizeof(void*) (" << kAlignmentSizeofVoidPtr
-                 << ") is not a power of two on this system, skipping test.";
-  }
   const size_t kTestSize = kAlignmentSizeofVoidPtr * 4;
 
   errno = 0;
   void* ptr = aligned_alloc(kAlignmentSizeofVoidPtr, kTestSize);
 
-  ASSERT_NE(nullptr, ptr) << "aligned_alloc returned NULL. errno: " << errno;
+  ASSERT_NE(nullptr, ptr) << "aligned_alloc returned NULL. errno: "
+                          << strerror(errno);
   EXPECT_EQ(0, errno);
   EXPECT_TRUE(IsMemoryAligned(ptr, kAlignmentSizeofVoidPtr));
 
@@ -124,16 +122,11 @@ TEST(PosixAlignedAllocTests, AllocatesSuccessfullyWithLargeAlignmentAndSize) {
   void* ptr = aligned_alloc(kLargeAlignment, kLargeSize);
 
   if (ptr == nullptr) {
-    // ENOMEM is a possible outcome for large allocations, but not EINVAL.
-    EXPECT_NE(EINVAL, errno)
-        << "errno was EINVAL for large allocation. Actual: " << errno;
-    if (errno == ENOMEM) {
-      GTEST_SKIP()
-          << "Large allocation failed due to ENOMEM (expected possibility).";
-    } else {
-      GTEST_FAIL() << "Large allocation failed with unexpected errno: " << errno
-                   << " (expected ENOMEM or success).";
-    }
+    // ENOMEM is a possible outcome for large allocations, unlikely to ever hit
+    // this given size constraints in Cobalt.
+    EXPECT_EQ(ENOMEM, errno)
+        << "Large allocation failed. ENOMEM expected, actual: "
+        << strerror(errno);
   } else {
     EXPECT_EQ(0, errno);
     EXPECT_TRUE(IsMemoryAligned(ptr, kLargeAlignment));
