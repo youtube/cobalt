@@ -171,6 +171,8 @@ static_library("starboard_platform") {
     "audio_decoder_passthrough.h",
     "audio_output_manager.cc",
     "audio_output_manager.h",
+    "audio_permission_requester.cc",
+    "audio_permission_requester.h",
     "audio_renderer_passthrough.cc",
     "audio_renderer_passthrough.h",
     "audio_sink_get_max_channels.cc",

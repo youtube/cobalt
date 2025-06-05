@@ -21,6 +21,7 @@
 #include <jni.h>
 
 #include "starboard/android/shared/jni_env_ext.h"
+#include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
 #include "starboard/common/once.h"
@@ -28,6 +29,9 @@
 #include "starboard/shared/gles/gl_call.h"
 
 namespace starboard::android::shared {
+
+// TODO: (cobalt b/372559388) Update namespace to jni_zero.
+using base::android::AttachCurrentThread;
 
 namespace {
 
@@ -125,21 +129,21 @@ void VideoSurfaceHolder::ClearVideoWindow(bool force_reset_surface) {
     return;
   }
 
-  JniEnvExt* env = JniEnvExt::Get();
+  JNIEnv* env = AttachCurrentThread();
   if (!env) {
     SB_LOG(INFO) << "Tried to clear video window when JniEnvExt was null.";
     return;
   }
 
   if (force_reset_surface) {
-    env->CallStarboardVoidMethodOrAbort("resetVideoSurface", "()V");
+    StarboardBridge::GetInstance()->ResetVideoSurface(env);
     SB_LOG(INFO) << "Video surface has been reset.";
     return;
   } else if (g_reset_surface_on_clear_window) {
     int width = ANativeWindow_getWidth(g_native_video_window);
     int height = ANativeWindow_getHeight(g_native_video_window);
     if (width <= height) {
-      env->CallStarboardVoidMethodOrAbort("resetVideoSurface", "()V");
+      StarboardBridge::GetInstance()->ResetVideoSurface(env);
       return;
     }
   }
