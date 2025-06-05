@@ -203,6 +203,7 @@ TEST_F(PosixEnvironmentSetenvTests, SetValueToEmptyString) {
 TEST_F(PosixEnvironmentSetenvTests, SetValueToNullptrIsTreatedAsEmptyString) {
   // This tests a common, though not universally POSIX-mandated, behavior
   // where a nullptr value for setenv is treated as an empty string.
+  // TODO: b/390675141 - Remove this after non-hermetic linux build is removed.
 #if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
   GTEST_SKIP() << "Non-hermetic builds fail this test.";
 #endif
@@ -252,6 +253,8 @@ class PosixEnvironmentEnvironTests : public ::testing::Test {
   static constexpr const char* kTestVarValue = "environ_rocks";
   static constexpr const char* kTestVarEntry =
       "POSIX_ENVIRON_TEST_VAR=environ_rocks";
+  static constexpr const char* kVarEmptyValue = "POSIX_SETENV_EMPTY_VALUE_VAR";
+  static constexpr const char* kVarNullValue = "POSIX_SETENV_NULL_VALUE_VAR";
 
   void SetUp() override {
     TearDown();  // Guarantee to start with an environment without the test
@@ -301,6 +304,17 @@ TEST_F(PosixEnvironmentEnvironTests,
     GTEST_SKIP() << "Skipping test as environment is empty.";
     return;
   }
+
+  // Set some values to be tested.
+  ASSERT_EQ(0, setenv(kTestVarName, kTestVarValue, 1 /* overwrite */));
+  // TODO: b/390675141 - Remove this after non-hermetic linux build is removed.
+  // Non-hermetic builds crash when passing a null pointer as the value to
+  // setenv.
+#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+  const char* value = nullptr;
+  ASSERT_EQ(0, setenv(kVarNullValue, value, 1 /* overwrite */));
+#endif
+  ASSERT_EQ(0, setenv(kVarEmptyValue, "", 1 /* overwrite */));
 
   // Check the first few entries for the expected "NAME=VALUE" format.
   // Iterate a reasonable number of times to avoid an infinite loop
