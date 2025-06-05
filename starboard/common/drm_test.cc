@@ -21,62 +21,63 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
+namespace {
 
-TEST(DrmTest, GetSbDrmSessionRequestTypeName) {
-  EXPECT_STREQ(
-      GetSbDrmSessionRequestTypeName(kSbDrmSessionRequestTypeLicenseRequest),
-      "license-request");
-  EXPECT_STREQ(
-      GetSbDrmSessionRequestTypeName(kSbDrmSessionRequestTypeLicenseRenewal),
-      "license-renewal");
-  EXPECT_STREQ(
-      GetSbDrmSessionRequestTypeName(kSbDrmSessionRequestTypeLicenseRelease),
-      "license-release");
-  EXPECT_STREQ(GetSbDrmSessionRequestTypeName(
-                   kSbDrmSessionRequestTypeIndividualizationRequest),
-               "individualization-request");
+struct DrmSessionRequestTypeParam {
+  SbDrmSessionRequestType type;
+  const char* name;
+};
+
+class DrmSessionRequestTypeNameTest
+    : public ::testing::TestWithParam<DrmSessionRequestTypeParam> {};
+
+TEST_P(DrmSessionRequestTypeNameTest, GetsNameCorrectly) {
+  const auto& [type, name] = GetParam();
+
+  SB_LOG(INFO) << "Testing SbDrmSessionRequestType value: " << type
+               << " with expected name: " << name;
+  EXPECT_STREQ(GetSbDrmSessionRequestTypeName(type), name);
 }
 
-TEST(DrmTest, GetSbDrmStatusName) {
-  EXPECT_STREQ(GetSbDrmStatusName(kSbDrmStatusSuccess), "success");
-  EXPECT_STREQ(GetSbDrmStatusName(kSbDrmStatusTypeError), "error");
-  EXPECT_STREQ(GetSbDrmStatusName(kSbDrmStatusNotSupportedError),
-               "not-supported-error");
-  EXPECT_STREQ(GetSbDrmStatusName(kSbDrmStatusInvalidStateError),
-               "invalid-state-error");
-  EXPECT_STREQ(GetSbDrmStatusName(kSbDrmStatusQuotaExceededError),
-               "quota-exceeded-error");
-  EXPECT_STREQ(GetSbDrmStatusName(kSbDrmStatusUnknownError), "unknown-error");
+INSTANTIATE_TEST_SUITE_P(
+    DrmTest,
+    DrmSessionRequestTypeNameTest,
+    ::testing::Values(
+        DrmSessionRequestTypeParam{kSbDrmSessionRequestTypeLicenseRequest,
+                                   "license-request"},
+        DrmSessionRequestTypeParam{kSbDrmSessionRequestTypeLicenseRenewal,
+                                   "license-renewal"},
+        DrmSessionRequestTypeParam{kSbDrmSessionRequestTypeLicenseRelease,
+                                   "license-release"},
+        DrmSessionRequestTypeParam{
+            kSbDrmSessionRequestTypeIndividualizationRequest,
+            "individualization-request"}));
+
+struct DrmStatusParam {
+  SbDrmStatus status;
+  const char* name;
+};
+
+class DrmStatusNameTest : public ::testing::TestWithParam<DrmStatusParam> {};
+
+TEST_P(DrmStatusNameTest, GetsNameCorrectly) {
+  const auto& [status, name] = GetParam();
+
+  SB_LOG(INFO) << "Testing SbDrmStatus value: " << status
+               << " with expected name: " << name;
+  EXPECT_STREQ(GetSbDrmStatusName(status), name);
 }
 
-// You can see the log output by running a unit test
-// $ autoninja -C out/linux-x64x11_devel starboard_unittests_wrapper &
-// $ out/linux-x64x11_devel/starboard_unittests_wrapper \
-//   --gtest_filter=DrmTest.LogSbDrmSessionRequestType
-TEST(DrmTest, LogSbDrmSessionRequestType) {
-#define LOG_SB_DRM_SESSION_REQUEST_TYPE(type) \
-  SB_LOG(INFO) << #type << "=" << type;
+INSTANTIATE_TEST_SUITE_P(
+    DrmTest,
+    DrmStatusNameTest,
+    ::testing::Values(
+        DrmStatusParam{kSbDrmStatusSuccess, "success"},
+        DrmStatusParam{kSbDrmStatusTypeError, "error"},
+        DrmStatusParam{kSbDrmStatusNotSupportedError, "not-supported-error"},
+        DrmStatusParam{kSbDrmStatusInvalidStateError, "invalid-state-error"},
+        DrmStatusParam{kSbDrmStatusQuotaExceededError, "quota-exceeded-error"},
+        DrmStatusParam{kSbDrmStatusUnknownError, "unknown-error"}));
 
-  LOG_SB_DRM_SESSION_REQUEST_TYPE(kSbDrmSessionRequestTypeLicenseRequest);
-  LOG_SB_DRM_SESSION_REQUEST_TYPE(kSbDrmSessionRequestTypeLicenseRenewal);
-  LOG_SB_DRM_SESSION_REQUEST_TYPE(kSbDrmSessionRequestTypeLicenseRelease);
-  LOG_SB_DRM_SESSION_REQUEST_TYPE(
-      kSbDrmSessionRequestTypeIndividualizationRequest);
-}
-
-// You can see the log output by running a unit test
-// $ autoninja -C out/linux-x64x11_devel starboard_unittests_wrapper &
-// $ out/linux-x64x11_devel/starboard_unittests_wrapper \
-//   --gtest_filter=DrmTest.LogSbDrmStatus
-TEST(DrmTest, LogSbDrmStatus) {
-#define LOG_SB_DRM_STATUS(status) SB_LOG(INFO) << #status << "=" << status;
-
-  LOG_SB_DRM_STATUS(kSbDrmStatusSuccess);
-  LOG_SB_DRM_STATUS(kSbDrmStatusTypeError);
-  LOG_SB_DRM_STATUS(kSbDrmStatusNotSupportedError);
-  LOG_SB_DRM_STATUS(kSbDrmStatusInvalidStateError);
-  LOG_SB_DRM_STATUS(kSbDrmStatusQuotaExceededError);
-  LOG_SB_DRM_STATUS(kSbDrmStatusUnknownError);
-}
-
+}  // namespace
 }  // namespace starboard

@@ -31,7 +31,8 @@ const char* GetSbDrmSessionRequestTypeName(
     case kSbDrmSessionRequestTypeIndividualizationRequest:
       return "individualization-request";
     default:
-      SB_NOTREACHED() << "unexpected=" << static_cast<int>(request_type);
+      SB_NOTREACHED() << "Unexpected SbDrmSessionRequestType="
+                      << static_cast<int>(request_type);
       return "unexpected";
   }
 }
@@ -51,7 +52,7 @@ const char* GetSbDrmStatusName(SbDrmStatus status) {
     case kSbDrmStatusUnknownError:
       return "unknown-error";
     default:
-      SB_NOTREACHED() << "unexpected=" << static_cast<int>(status);
+      SB_NOTREACHED() << "Unexpected SbDrmStatus" << static_cast<int>(status);
       return "unexpected";
   }
 }
