@@ -14,7 +14,6 @@
 
 import("//build/config/chromecast_build.gni")
 import("//build/config/ui.gni")
-import("//cobalt/build/configs/common.gn")
 import("//ppapi/buildflags/buildflags.gni")
 import("//starboard/build/buildflags.gni")
 
