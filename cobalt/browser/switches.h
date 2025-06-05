@@ -31,6 +31,11 @@ std::string GetInitialURL(const base::CommandLine& command_line);
 constexpr char kInitialURL[] = "url";
 constexpr char kRequireCSP[] = "require_csp";
 
+# if !BUILDFLAG(IS_ANDROIDTV)
+// Specify the initial window size: --window-size=w,h
+constexpr char kWindowSize[] = "window-size";
+#endif
+
 }  // namespace switches
 }  // namespace cobalt
 

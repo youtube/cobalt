@@ -57,9 +57,6 @@ public final class CommandLineOverrideHelper {
     public static List<String> getDefaultCommandLineOverridesList() {
         List<String> paramOverrides = new ArrayList<>();
 
-        // Disable first run experience.
-        paramOverrides.add("--disable-fre");
-        paramOverrides.add("--no-first-run");
         // Run Cobalt as a single process.
         paramOverrides.add("--single-process");
         // Enable Blink to work in overlay video mode.
