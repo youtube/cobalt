@@ -95,6 +95,7 @@ LibcCloseFuncPtr LoadCloseSymbol() {
 #endif
 }
 
+#if !BUILDFLAG(IS_STARBOARD)
 extern "C" {
 
 NO_SANITIZE("cfi-icall")
@@ -110,3 +111,4 @@ __attribute__((visibility("default"), noinline)) int close(int fd) {
 }
 
 }  // extern "C"
+#endif  // !BUILDFLAG(IS_STARBOARD)

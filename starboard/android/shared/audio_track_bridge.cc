@@ -34,13 +34,14 @@ const jint kNoOffset = 0;
 
 }  // namespace
 
-AudioTrackBridge::AudioTrackBridge(SbMediaAudioCodingType coding_type,
-                                   optional<SbMediaAudioSampleType> sample_type,
-                                   int channels,
-                                   int sampling_frequency_hz,
-                                   int preferred_buffer_size_in_bytes,
-                                   int tunnel_mode_audio_session_id,
-                                   bool is_web_audio) {
+AudioTrackBridge::AudioTrackBridge(
+    SbMediaAudioCodingType coding_type,
+    std::optional<SbMediaAudioSampleType> sample_type,
+    int channels,
+    int sampling_frequency_hz,
+    int preferred_buffer_size_in_bytes,
+    int tunnel_mode_audio_session_id,
+    bool is_web_audio) {
   if (coding_type == kSbMediaAudioCodingTypePcm) {
     SB_DCHECK(SbAudioSinkIsAudioSampleTypeSupported(sample_type.value()));
 

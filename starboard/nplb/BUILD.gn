@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import("//cobalt/build/configs/hacks.gni")
+import("//starboard/build/buildflags.gni")
 import("//starboard/build/config/os_definitions.gni")
 import("//testing/test.gni")
 
@@ -40,12 +41,6 @@ test("nplb") {
 
   sources = [
     "//starboard/common/test_main.cc",
-    "//starboard/nplb/sabi/alignment_test.cc",
-    "//starboard/nplb/sabi/endianness_test.cc",
-    "//starboard/nplb/sabi/signedness_and_size_of_enum_test.cc",
-    "//starboard/nplb/sabi/signedness_of_char_test.cc",
-    "//starboard/nplb/sabi/size_test.cc",
-    "//starboard/nplb/sabi/struct_alignment_test.cc",
     "//starboard/shared/starboard/drm/drm_test_helpers.cc",
     "//starboard/shared/starboard/drm/drm_test_helpers.h",
     "align_test.cc",
@@ -99,7 +94,6 @@ test("nplb") {
     "microphone_open_test.cc",
     "microphone_read_test.cc",
     "murmurhash2_test.cc",
-    "optional_test.cc",
     "player_creation_param_helpers.cc",
     "player_creation_param_helpers.h",
     "player_get_preferred_output_mode_test.cc",
@@ -108,6 +102,7 @@ test("nplb") {
     "posix_compliance/madvise_test.cc",
     "posix_compliance/malloc_usable_size_test.cc",
     "posix_compliance/posix_arpa_inet_test.cc",
+    "posix_compliance/posix_clock_nanosleep_test.cc",
     "posix_compliance/posix_condition_variable_broadcast_test.cc",
     "posix_compliance/posix_condition_variable_create_test.cc",
     "posix_compliance/posix_condition_variable_destroy_test.cc",
@@ -146,10 +141,12 @@ test("nplb") {
     "posix_compliance/posix_mutex_acquire_try_test.cc",
     "posix_compliance/posix_mutex_create_test.cc",
     "posix_compliance/posix_mutex_destroy_test.cc",
+    "posix_compliance/posix_nanosleep_test.cc",
     "posix_compliance/posix_once_test.cc",
     "posix_compliance/posix_pipe_test.cc",
     "posix_compliance/posix_rand_r_test.cc",
     "posix_compliance/posix_rand_test.cc",
+    "posix_compliance/posix_sleep_test.cc",
     "posix_compliance/posix_socket_accept_test.cc",
     "posix_compliance/posix_socket_bind_test.cc",
     "posix_compliance/posix_socket_connect_test.cc",
@@ -185,7 +182,12 @@ test("nplb") {
     "posix_compliance/posix_thread_set_name_test.cc",
     "posix_compliance/posix_thread_sleep_test.cc",
     "posix_compliance/posix_thread_yield_test.cc",
+    "posix_compliance/posix_time_clock_gettime_test.cc",
+    "posix_compliance/posix_time_clock_test.cc",
+    "posix_compliance/posix_time_gettimeofday_test.cc",
     "posix_compliance/posix_time_test.cc",
+    "posix_compliance/posix_time_time_test.cc",
+    "posix_compliance/posix_usleep_test.cc",
     "random_helpers.cc",
     "recursive_mutex_test.cc",
     "semaphore_test.cc",
@@ -225,8 +227,14 @@ test("nplb") {
     "url_player_create_test.cc",
   ]
 
-  if (!is_android) {
+  if (!is_androidtv) {
     sources += [
+      "//starboard/nplb/sabi/alignment_test.cc",
+      "//starboard/nplb/sabi/endianness_test.cc",
+      "//starboard/nplb/sabi/signedness_and_size_of_enum_test.cc",
+      "//starboard/nplb/sabi/signedness_of_char_test.cc",
+      "//starboard/nplb/sabi/size_test.cc",
+      "//starboard/nplb/sabi/struct_alignment_test.cc",
       "//starboard/testing/fake_graphics_context_provider.cc",
       "//starboard/testing/fake_graphics_context_provider.h",
       "maximum_player_configuration_explorer_test.cc",
