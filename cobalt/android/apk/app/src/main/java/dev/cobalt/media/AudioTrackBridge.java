@@ -24,15 +24,17 @@ import android.media.AudioTrack;
 import android.os.Build;
 import androidx.annotation.RequiresApi;
 import dev.cobalt.util.Log;
-import dev.cobalt.util.UsedByNative;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.Locale;
+import org.chromium.base.annotations.CalledByNative;
+import org.chromium.base.annotations.JNINamespace;
 
 /**
  * A wrapper of the android AudioTrack class. Android AudioTrack would not start playing until the
  * buffer is fully filled once.
  */
+@JNINamespace("starboard::android::shared")
 public class AudioTrackBridge {
   // Also used by AudioOutputManager.
   static final int AV_SYNC_HEADER_V1_SIZE = 16;
@@ -215,8 +217,7 @@ public class AudioTrackBridge {
     avSyncPacketBytesRemaining = 0;
   }
 
-  @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   public int setVolume(float gain) {
     if (audioTrack == null) {
       Log.e(TAG, "Unable to setVolume with NULL audio track.");
@@ -226,8 +227,7 @@ public class AudioTrackBridge {
   }
 
   // TODO (b/262608024): Have this method return a boolean and return false on failure.
-  @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   private void play() {
     if (audioTrack == null) {
       Log.e(TAG, "Unable to play with NULL audio track.");
@@ -241,8 +241,7 @@ public class AudioTrackBridge {
   }
 
   // TODO (b/262608024): Have this method return a boolean and return false on failure.
-  @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   private void pause() {
     if (audioTrack == null) {
       Log.e(TAG, "Unable to pause with NULL audio track.");
@@ -256,8 +255,7 @@ public class AudioTrackBridge {
   }
 
   // TODO (b/262608024): Have this method return a boolean and return false on failure.
-  @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   private void stop() {
     if (audioTrack == null) {
       Log.e(TAG, "Unable to stop with NULL audio track.");
@@ -270,8 +268,7 @@ public class AudioTrackBridge {
     }
   }
 
-  @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   private void flush() {
     if (audioTrack == null) {
       Log.e(TAG, "Unable to flush with NULL audio track.");
@@ -287,9 +284,8 @@ public class AudioTrackBridge {
     }
   }
 
-  @SuppressWarnings("unused")
-  @UsedByNative
-  private int write(byte[] audioData, int sizeInBytes, long presentationTimeInMicroseconds) {
+  @CalledByNative
+  private int writeWithPresentationTime(byte[] audioData, int sizeInBytes, long presentationTimeInMicroseconds) {
     if (audioTrack == null) {
       Log.e(TAG, "Unable to write with NULL audio track.");
       return 0;
@@ -362,8 +358,7 @@ public class AudioTrackBridge {
     return ret;
   }
 
-  @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   private int write(float[] audioData, int sizeInFloats) {
     if (audioTrack == null) {
       Log.e(TAG, "Unable to write with NULL audio track.");
@@ -375,8 +370,7 @@ public class AudioTrackBridge {
     return audioTrack.write(audioData, 0, sizeInFloats, AudioTrack.WRITE_NON_BLOCKING);
   }
 
-  @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   private AudioTimestamp getAudioTimestamp() {
     // TODO: Consider calling with TIMEBASE_MONOTONIC and returning that
     // information to the starboard audio sink.
@@ -412,8 +406,7 @@ public class AudioTrackBridge {
     return audioTimestamp;
   }
 
-  @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   private int getUnderrunCount() {
     if (audioTrack == null) {
       Log.e(TAG, "Unable to call getUnderrunCount() with NULL audio track.");
@@ -422,8 +415,7 @@ public class AudioTrackBridge {
     return audioTrack.getUnderrunCount();
   }
 
-  @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   private int getStartThresholdInFrames() {
     if (Build.VERSION.SDK_INT >= 31) {
       return getStartThresholdInFramesV31();
