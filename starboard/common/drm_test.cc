@@ -23,31 +23,30 @@
 namespace starboard {
 
 TEST(DrmTest, GetSbDrmSessionRequestTypeName) {
-  EXPECT_EQ(
+  EXPECT_STREQ(
       GetSbDrmSessionRequestTypeName(kSbDrmSessionRequestTypeLicenseRequest),
-      std::string("license-request"));
-  EXPECT_EQ(
+      "license-request");
+  EXPECT_STREQ(
       GetSbDrmSessionRequestTypeName(kSbDrmSessionRequestTypeLicenseRenewal),
-      std::string("license-renewal"));
-  EXPECT_EQ(
+      "license-renewal");
+  EXPECT_STREQ(
       GetSbDrmSessionRequestTypeName(kSbDrmSessionRequestTypeLicenseRelease),
-      std::string("license-release"));
-  EXPECT_EQ(GetSbDrmSessionRequestTypeName(
-                kSbDrmSessionRequestTypeIndividualizationRequest),
-            "individualization-request");
+      "license-release");
+  EXPECT_STREQ(GetSbDrmSessionRequestTypeName(
+                   kSbDrmSessionRequestTypeIndividualizationRequest),
+               "individualization-request");
 }
 
 TEST(DrmTest, GetSbDrmStatusName) {
-  EXPECT_EQ(GetSbDrmStatusName(kSbDrmStatusSuccess), std::string("success"));
-  EXPECT_EQ(GetSbDrmStatusName(kSbDrmStatusTypeError), std::string("error"));
-  EXPECT_EQ(GetSbDrmStatusName(kSbDrmStatusNotSupportedError),
-            std::string("not-supported-error"));
-  EXPECT_EQ(GetSbDrmStatusName(kSbDrmStatusInvalidStateError),
-            std::string("invalid-state-error"));
-  EXPECT_EQ(GetSbDrmStatusName(kSbDrmStatusQuotaExceededError),
-            std::string("quota-exceeded-error"));
-  EXPECT_EQ(GetSbDrmStatusName(kSbDrmStatusUnknownError),
-            std::string("unknown-error"));
+  EXPECT_STREQ(GetSbDrmStatusName(kSbDrmStatusSuccess), "success");
+  EXPECT_STREQ(GetSbDrmStatusName(kSbDrmStatusTypeError), "error");
+  EXPECT_STREQ(GetSbDrmStatusName(kSbDrmStatusNotSupportedError),
+               "not-supported-error");
+  EXPECT_STREQ(GetSbDrmStatusName(kSbDrmStatusInvalidStateError),
+               "invalid-state-error");
+  EXPECT_STREQ(GetSbDrmStatusName(kSbDrmStatusQuotaExceededError),
+               "quota-exceeded-error");
+  EXPECT_STREQ(GetSbDrmStatusName(kSbDrmStatusUnknownError), "unknown-error");
 }
 
 // You can see the log output by running a unit test

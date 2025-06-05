@@ -19,7 +19,7 @@
 
 namespace starboard {
 
-std::string_view GetSbDrmSessionRequestTypeName(
+const char* GetSbDrmSessionRequestTypeName(
     SbDrmSessionRequestType request_type) {
   switch (request_type) {
     case kSbDrmSessionRequestTypeLicenseRequest:
@@ -36,7 +36,7 @@ std::string_view GetSbDrmSessionRequestTypeName(
   }
 }
 
-std::string_view GetSbDrmStatusName(SbDrmStatus status) {
+const char* GetSbDrmStatusName(SbDrmStatus status) {
   switch (status) {
     case kSbDrmStatusSuccess:
       return "success";

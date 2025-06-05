@@ -16,16 +16,15 @@
 #define STARBOARD_COMMON_DRM_H_
 
 #include <ostream>
-#include <string_view>
 
 #include "starboard/drm.h"
 
 namespace starboard {
 
-std::string_view GetSbDrmSessionRequestTypeName(
+const char* GetSbDrmSessionRequestTypeName(
     SbDrmSessionRequestType request_type);
 
-std::string_view GetSbDrmStatusName(SbDrmStatus status);
+const char* GetSbDrmStatusName(SbDrmStatus status);
 
 }  // namespace starboard
 
