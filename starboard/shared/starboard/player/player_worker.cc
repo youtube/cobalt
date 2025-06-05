@@ -34,6 +34,7 @@ using ::starboard::GetPlayerStateName;
 using std::placeholders::_1;
 using std::placeholders::_2;
 using std::placeholders::_3;
+using std::placeholders::_4;
 
 typedef shared::starboard::player::PlayerWorker::Handler::HandlerResult
     HandlerResult;
@@ -147,9 +148,11 @@ PlayerWorker::PlayerWorker(SbMediaAudioCodec audio_codec,
 
 void PlayerWorker::UpdateMediaInfo(int64_t time,
                                    int dropped_video_frames,
-                                   bool is_progressing) {
+                                   bool is_progressing,
+                                   int64_t average_video_frame_early_us) {
   if (player_state_ == kSbPlayerStatePresenting) {
-    update_media_info_cb_(time, dropped_video_frames, ticket_, is_progressing);
+    update_media_info_cb_(time, dropped_video_frames, ticket_, is_progressing,
+                          average_video_frame_early_us);
   }
 }
 
@@ -219,7 +222,7 @@ void PlayerWorker::DoInit() {
   update_player_error_cb = std::bind(&PlayerWorker::UpdatePlayerError, this, _1,
                                      HandlerResult{false}, _2);
   HandlerResult result = handler_->Init(
-      player_, std::bind(&PlayerWorker::UpdateMediaInfo, this, _1, _2, _3),
+      player_, std::bind(&PlayerWorker::UpdateMediaInfo, this, _1, _2, _3, _4),
       std::bind(&PlayerWorker::player_state, this),
       std::bind(&PlayerWorker::UpdatePlayerState, this, _1),
       update_player_error_cb);

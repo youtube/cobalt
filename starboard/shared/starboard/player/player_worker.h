@@ -45,7 +45,8 @@ class PlayerWorker {
   typedef std::function<void(int64_t media_time,
                              int dropped_video_frames,
                              int ticket,
-                             bool is_progressing)>
+                             bool is_progressing,
+                             int64_t average_video_frame_early_us)>
       UpdateMediaInfoCB;
 
   struct Bounds {
@@ -70,8 +71,10 @@ class PlayerWorker {
     typedef ::starboard::shared::starboard::player::InputBuffer InputBuffer;
     typedef ::starboard::shared::starboard::player::InputBuffers InputBuffers;
 
-    typedef std::function<
-        void(int64_t media_time, int dropped_video_frames, bool is_progressing)>
+    typedef std::function<void(int64_t media_time,
+                               int dropped_video_frames,
+                               bool is_progressing,
+                               int64_t average_video_frame_early_us)>
         UpdateMediaInfoCB;
     typedef std::function<SbPlayerState()> GetPlayerStateCB;
     typedef std::function<void(SbPlayerState player_state)> UpdatePlayerStateCB;
@@ -189,7 +192,10 @@ class PlayerWorker {
   PlayerWorker(const PlayerWorker&) = delete;
   PlayerWorker& operator=(const PlayerWorker&) = delete;
 
-  void UpdateMediaInfo(int64_t time, int dropped_video_frames, bool underflow);
+  void UpdateMediaInfo(int64_t time,
+                       int dropped_video_frames,
+                       bool underflow,
+                       int64_t average_video_frame_early_us);
 
   SbPlayerState player_state() const { return player_state_; }
   void UpdatePlayerState(SbPlayerState player_state);
