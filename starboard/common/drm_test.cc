@@ -14,11 +14,41 @@
 
 #include "starboard/common/drm.h"
 
+#include <string>
+
 #include "starboard/common/log.h"
 #include "starboard/drm.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
+
+TEST(DrmTest, GetSbDrmSessionRequestTypeName) {
+  EXPECT_EQ(
+      GetSbDrmSessionRequestTypeName(kSbDrmSessionRequestTypeLicenseRequest),
+      std::string("license-request"));
+  EXPECT_EQ(
+      GetSbDrmSessionRequestTypeName(kSbDrmSessionRequestTypeLicenseRenewal),
+      std::string("license-renewal"));
+  EXPECT_EQ(
+      GetSbDrmSessionRequestTypeName(kSbDrmSessionRequestTypeLicenseRelease),
+      std::string("license-release"));
+  EXPECT_EQ(GetSbDrmSessionRequestTypeName(
+                kSbDrmSessionRequestTypeIndividualizationRequest),
+            "individualization-request");
+}
+
+TEST(DrmTest, GetSbDrmStatusName) {
+  EXPECT_EQ(GetSbDrmStatusName(kSbDrmStatusSuccess), std::string("success"));
+  EXPECT_EQ(GetSbDrmStatusName(kSbDrmStatusTypeError), std::string("error"));
+  EXPECT_EQ(GetSbDrmStatusName(kSbDrmStatusNotSupportedError),
+            std::string("not-supported-error"));
+  EXPECT_EQ(GetSbDrmStatusName(kSbDrmStatusInvalidStateError),
+            std::string("invalid-state-error"));
+  EXPECT_EQ(GetSbDrmStatusName(kSbDrmStatusQuotaExceededError),
+            std::string("quota-exceeded-error"));
+  EXPECT_EQ(GetSbDrmStatusName(kSbDrmStatusUnknownError),
+            std::string("unknown-error"));
+}
 
 // You can see the log output by running a unit test
 // $ autoninja -C out/linux-x64x11_devel starboard_unittests_wrapper &

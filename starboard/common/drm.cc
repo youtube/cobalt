@@ -15,12 +15,12 @@
 #include "starboard/common/drm.h"
 
 #include "starboard/common/log.h"
+#include "starboard/drm.h"
 
 namespace starboard {
-namespace {
 
-std::string GetSbDrmSessionRequestTypeName(
-    const SbDrmSessionRequestType& request_type) {
+std::string_view GetSbDrmSessionRequestTypeName(
+    SbDrmSessionRequestType request_type) {
   switch (request_type) {
     case kSbDrmSessionRequestTypeLicenseRequest:
       return "license-request";
@@ -31,12 +31,12 @@ std::string GetSbDrmSessionRequestTypeName(
     case kSbDrmSessionRequestTypeIndividualizationRequest:
       return "individualization-request";
     default:
-      SB_NOTREACHED() << "Unexpected=" << static_cast<int>(request_type);
-      return "Unexpected";
+      SB_NOTREACHED() << "unexpected=" << static_cast<int>(request_type);
+      return "unexpected";
   }
 }
 
-std::string GetSbDrmStatusName(const SbDrmStatus& status) {
+std::string_view GetSbDrmStatusName(SbDrmStatus status) {
   switch (status) {
     case kSbDrmStatusSuccess:
       return "success";
@@ -51,19 +51,17 @@ std::string GetSbDrmStatusName(const SbDrmStatus& status) {
     case kSbDrmStatusUnknownError:
       return "unknown-error";
     default:
-      SB_NOTREACHED() << "Unexpected=" << static_cast<int>(status);
-      return "Unexpected";
+      SB_NOTREACHED() << "unexpected=" << static_cast<int>(status);
+      return "unexpected";
   }
 }
-}  // namespace
+}  // namespace starboard
 
 std::ostream& operator<<(std::ostream& os,
-                         const SbDrmSessionRequestType& request_type) {
-  return os << GetSbDrmSessionRequestTypeName(request_type);
+                         SbDrmSessionRequestType request_type) {
+  return os << starboard::GetSbDrmSessionRequestTypeName(request_type);
 }
 
-std::ostream& operator<<(std::ostream& os, const SbDrmStatus& status) {
-  return os << GetSbDrmStatusName(status);
+std::ostream& operator<<(std::ostream& os, SbDrmStatus status) {
+  return os << starboard::GetSbDrmStatusName(status);
 }
-
-}  // namespace starboard

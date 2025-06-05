@@ -16,15 +16,21 @@
 #define STARBOARD_COMMON_DRM_H_
 
 #include <ostream>
+#include <string_view>
 
-#include "starboard/media.h"
+#include "starboard/drm.h"
 
 namespace starboard {
 
-std::ostream& operator<<(std::ostream& os, const SbDrmSessionRequestType& type);
+std::string_view GetSbDrmSessionRequestTypeName(
+    SbDrmSessionRequestType request_type);
 
-std::ostream& operator<<(std::ostream& os, const SbDrmStatus& status);
+std::string_view GetSbDrmStatusName(SbDrmStatus status);
 
 }  // namespace starboard
+
+std::ostream& operator<<(std::ostream& os, SbDrmSessionRequestType type);
+
+std::ostream& operator<<(std::ostream& os, SbDrmStatus status);
 
 #endif
