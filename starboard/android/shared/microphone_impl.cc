@@ -22,14 +22,17 @@
 #include <memory>
 #include <queue>
 
-#include "starboard/android/shared/jni_env_ext.h"
+#include "starboard/android/shared/audio_permission_requester.h"
+#include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
 #include "starboard/shared/starboard/thread_checker.h"
 
-using starboard::android::shared::JniEnvExt;
-
 namespace starboard::android::shared {
+
+// TODO: (cobalt b/372559388) Update namespace to jni_zero.
+using base::android::AttachCurrentThread;
+
 namespace {
 
 const int kSampleRateInHz = 16000;
@@ -103,31 +106,23 @@ SbMicrophoneImpl::~SbMicrophoneImpl() {
 }
 
 bool SbMicrophoneImpl::RequestAudioPermission() {
-  JniEnvExt* env = JniEnvExt::Get();
-  jobject j_audio_permission_requester =
-      static_cast<jobject>(env->CallStarboardObjectMethodOrAbort(
-          "getAudioPermissionRequester",
-          "()Ldev/cobalt/coat/AudioPermissionRequester;"));
-  jboolean j_permission = env->CallBooleanMethodOrAbort(
-      j_audio_permission_requester, "requestRecordAudioPermission", "(J)Z",
-      reinterpret_cast<intptr_t>(this));
-  return j_permission;
+  JNIEnv* env = AttachCurrentThread();
+  return RequestRecordAudioPermission(env);
 }
 
 // static
 bool SbMicrophoneImpl::IsMicrophoneDisconnected() {
-  JniEnvExt* env = JniEnvExt::Get();
+  JNIEnv* env = AttachCurrentThread();
   jboolean j_microphone =
-      env->CallStarboardBooleanMethodOrAbort("isMicrophoneDisconnected", "()Z");
-  return j_microphone;
+      StarboardBridge::GetInstance()->IsMicrophoneDisconnected(env);
+  return j_microphone == JNI_TRUE;
 }
 
 // static
 bool SbMicrophoneImpl::IsMicrophoneMute() {
-  JniEnvExt* env = JniEnvExt::Get();
-  jboolean j_microphone =
-      env->CallStarboardBooleanMethodOrAbort("isMicrophoneMute", "()Z");
-  return j_microphone;
+  JNIEnv* env = AttachCurrentThread();
+  jboolean j_microphone = StarboardBridge::GetInstance()->IsMicrophoneMute(env);
+  return j_microphone == JNI_TRUE;
 }
 
 bool SbMicrophoneImpl::Open() {

@@ -29,11 +29,10 @@ END_MARKERS = (
 )
 
 
-def _get_test_name_from_run_line(line: str) -> str | None:
+def _get_test_name_from_run_line(line: str) -> str:
   """Extracts test name like 'Suite.Test' from a gtest marker line."""
-  # "[ RUN      ] Foo.Bar" -> "Foo.Bar"
   match = re.search(rf"{re.escape(RUN_MARKER)}\s*([^\s]+)$", line)
-  return match.group(1) if match else None
+  return match.group(1) if match else 'UnknownSuite.UnknownTest'
 
 
 def _extract_crash_info(log_path: pathlib.Path) -> tuple[str, str, str]:
@@ -50,7 +49,7 @@ def _extract_crash_info(log_path: pathlib.Path) -> tuple[str, str, str]:
 
   run_line_idx: int = -1
   current_idx: int = -1
-  current_test: str | None = None
+  current_test: str = ''
   for idx, line in enumerate(lines):
     current_idx = idx
     if RUN_MARKER in line:
@@ -61,7 +60,7 @@ def _extract_crash_info(log_path: pathlib.Path) -> tuple[str, str, str]:
     elif current_test and SUITE_MARKER in line:
       break
     elif line.startswith(END_MARKERS):
-      current_test = None
+      current_test = ''
 
   if current_test:
     test_suite, test_name = current_test.split('.')

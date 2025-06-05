@@ -146,7 +146,7 @@ class MediaDecoder final
   static void* DecoderThreadEntryPoint(void* context);
   void DecoderThreadFunc();
 
-  void TeardownCodec();
+  void TerminateDecoderThread();
 
   void CollectPendingData_Locked(
       std::deque<Event>* pending_tasks,
