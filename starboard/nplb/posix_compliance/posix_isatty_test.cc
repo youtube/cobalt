@@ -28,7 +28,26 @@ namespace {
 
 class PosixIsattyTest : public ::testing::Test {
  protected:
-  void SetUp() override { errno = 0; }
+  PosixIsattyTest()
+      : original_stdin_fd_(-1),
+        original_stdout_fd_(-1),
+        original_stderr_fd_(-1),
+        stdio_descriptors_cached_(false) {}
+
+  void SetUp() override {
+    errno = 0;
+
+    stdio_descriptors_cached_ = false;
+    original_stdin_fd_ = -1;
+    original_stdout_fd_ = -1;
+    original_stderr_fd_ = -1;
+  }
+
+  void TearDown() override {
+    if (stdio_descriptors_cached_) {
+      RestoreStdioFileNos();
+    }
+  }
 
   void CacheStdioFileNos() {
     original_stdin_fd_ = dup(STDIN_FILENO);
@@ -41,6 +60,8 @@ class PosixIsattyTest : public ::testing::Test {
         << "Failed to cache original STDOUT_FILENO: " << strerror(errno);
     ASSERT_NE(-1, original_stderr_fd_)
         << "Failed to cache original STDERR_FILENO: " << strerror(errno);
+
+    stdio_descriptors_cached_ = true;
   }
 
   void RestoreStdioFileNos() {
@@ -64,6 +85,7 @@ class PosixIsattyTest : public ::testing::Test {
   int original_stdin_fd_;
   int original_stdout_fd_;
   int original_stderr_fd_;
+  bool stdio_descriptors_cached_;
 };
 
 // Tests that isatty() handles stdin correctly. When the test is run from a
@@ -93,7 +115,6 @@ TEST_F(PosixIsattyTest, HandlesStdin) {
   EXPECT_EQ(0, isatty(STDIN_FILENO));
   EXPECT_EQ(ENOTTY, errno) << "Expected ENOTTY, got " << strerror(errno);
   close(STDIN_FILENO);
-  RestoreStdioFileNos();
 }
 
 // Tests that isatty() handles stdout correctly. When the test is run from a
@@ -123,7 +144,6 @@ TEST_F(PosixIsattyTest, HandlesStdout) {
   EXPECT_EQ(0, isatty(STDOUT_FILENO));
   EXPECT_EQ(ENOTTY, errno) << "Expected ENOTTY, got " << strerror(errno);
   close(STDOUT_FILENO);
-  RestoreStdioFileNos();
 }
 
 // Tests that isatty() handles stderr correctly. When the test is run from a
@@ -153,7 +173,6 @@ TEST_F(PosixIsattyTest, HandlesStderr) {
   EXPECT_EQ(0, isatty(STDERR_FILENO));
   EXPECT_EQ(ENOTTY, errno) << "Expected ENOTTY, got " << strerror(errno);
   close(STDERR_FILENO);
-  RestoreStdioFileNos();
 }
 
 // Tests that isatty() does not recognize invalid file descriptors as a tty.
