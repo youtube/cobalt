@@ -41,12 +41,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
 
 /** A wrapper of the android MediaDrm class. */
-@JNINamespace("starboard::android::shared")
+@UsedByNative
 public class MediaDrmBridge {
   // Implementation Notes:
   // - A media crypto session (mMediaCryptoSession) is opened after MediaDrm
@@ -77,7 +74,7 @@ public class MediaDrmBridge {
   private static final UUID WIDEVINE_UUID = UUID.fromString("edef8ba9-79d6-4ace-a3c8-27dcd51d21ed");
 
   // Deprecated in API 26, but we still log it on earlier devices.
-  // We do handle STATUS_EXPIRED in onKeyStatusChange() for API 23+ devices.
+  // We do handle STATUS_EXPIRED in nativeOnKeyStatusChange() for API 23+ devices.
   @SuppressWarnings("deprecation")
   private static final int MEDIA_DRM_EVENT_KEY_EXPIRED = MediaDrm.EVENT_KEY_EXPIRED;
 
@@ -105,6 +102,7 @@ public class MediaDrmBridge {
 
   // Return value type for calls to updateSession(), which contains whether or not the call
   // succeeded, and optionally an error message (that is empty on success).
+  @UsedByNative
   private static class UpdateSessionResult {
     public enum Status {
       SUCCESS,
@@ -132,12 +130,12 @@ public class MediaDrmBridge {
           errorMessage + " StackTrace: " + android.util.Log.getStackTraceString(e));
     }
 
-    @CalledByNative("UpdateSessionResult")
+    @UsedByNative
     public boolean isSuccess() {
       return mIsSuccess;
     }
 
-    @CalledByNative("UpdateSessionResult")
+    @UsedByNative
     public String getErrorMessage() {
       return mErrorMessage;
     }
@@ -148,7 +146,7 @@ public class MediaDrmBridge {
    *
    * @param nativeMediaDrmBridge The native owner of this class.
    */
-  @CalledByNative
+  @UsedByNative
   static MediaDrmBridge create(String keySystem, long nativeMediaDrmBridge) {
     UUID cryptoScheme = WIDEVINE_UUID;
     if (!MediaDrm.isCryptoSchemeSupported(cryptoScheme)) {
@@ -182,7 +180,7 @@ public class MediaDrmBridge {
    *
    * @return true if the container and the crypto scheme is supported, or false otherwise.
    */
-  @CalledByNative
+  @UsedByNative
   static boolean isWidevineCryptoSchemeSupported() {
     return MediaDrm.isCryptoSchemeSupported(WIDEVINE_UUID);
   }
@@ -192,7 +190,7 @@ public class MediaDrmBridge {
    *
    * @return true if the `cbcs` encryption is supported, or false otherwise.
    */
-  @CalledByNative
+  @UsedByNative
   static boolean isCbcsSchemeSupported() {
     // While 'cbcs' scheme was originally implemented in N, there was a bug (in the
     // DRM code) which means that it didn't really work properly until N-MR1).
@@ -200,7 +198,7 @@ public class MediaDrmBridge {
   }
 
   /** Destroy the MediaDrmBridge object. */
-  @CalledByNative
+  @UsedByNative
   void destroy() {
     mNativeMediaDrmBridge = INVALID_NATIVE_MEDIA_DRM_BRIDGE;
     if (mMediaDrm != null) {
@@ -208,7 +206,7 @@ public class MediaDrmBridge {
     }
   }
 
-  @CalledByNative
+  @UsedByNative
   void createSession(int ticket, byte[] initData, String mime) {
     Log.d(TAG, "createSession()");
 
@@ -258,7 +256,7 @@ public class MediaDrmBridge {
    * @param sessionId Reference ID of session to be updated.
    * @param response Response data from the server.
    */
-  @CalledByNative
+  @UsedByNative
   UpdateSessionResult updateSession(int ticket, byte[] sessionId, byte[] response) {
     Log.d(TAG, "updateSession()");
     if (mMediaDrm == null) {
@@ -307,7 +305,7 @@ public class MediaDrmBridge {
    *
    * @param sessionId ID of session to be closed.
    */
-  @CalledByNative
+  @UsedByNative
   void closeSession(byte[] sessionId) {
     Log.d(TAG, "closeSession()");
     if (mMediaDrm == null) {
@@ -334,7 +332,7 @@ public class MediaDrmBridge {
     Log.d(TAG, "Session closed: sessionId=" + bytesToString(sessionId));
   }
 
-  @CalledByNative
+  @UsedByNative
   byte[] getMetricsInBase64() {
     if (Build.VERSION.SDK_INT < 28) {
       return null;
@@ -349,7 +347,7 @@ public class MediaDrmBridge {
     return Base64.encode(metrics, Base64.NO_PADDING | Base64.NO_WRAP | Base64.URL_SAFE);
   }
 
-  @CalledByNative
+  @UsedByNative
   MediaCrypto getMediaCrypto() {
     return mMediaCrypto;
   }
@@ -436,7 +434,7 @@ public class MediaDrmBridge {
               byte[] sessionId,
               List<MediaDrm.KeyStatus> keyInformation,
               boolean hasNewUsableKey) {
-            MediaDrmBridgeJni.get().onKeyStatusChange(
+            nativeOnKeyStatusChange(
                 mNativeMediaDrmBridge,
                 sessionId,
                 keyInformation.toArray(new MediaDrm.KeyStatus[keyInformation.size()]));
@@ -481,7 +479,7 @@ public class MediaDrmBridge {
 
     int requestType = request.getRequestType();
 
-    MediaDrmBridgeJni.get().onSessionMessage(
+    nativeOnSessionMessage(
         mNativeMediaDrmBridge, ticket, sessionId, requestType, request.getData());
   }
 
@@ -596,7 +594,7 @@ public class MediaDrmBridge {
     }
   }
 
-  @CalledByNative
+  @UsedByNative
   boolean createMediaCryptoSession() {
     if (mMediaCryptoSession != null) {
       return true;
@@ -772,18 +770,9 @@ public class MediaDrmBridge {
     return mNativeMediaDrmBridge != INVALID_NATIVE_MEDIA_DRM_BRIDGE;
   }
 
-  @NativeMethods
-  interface Natives {
-    void onSessionMessage(
-        long nativeMediaDrmBridge,
-        int ticket,
-        byte[] sessionId,
-        int requestType,
-        byte[] message);
+  private native void nativeOnSessionMessage(
+      long nativeMediaDrmBridge, int ticket, byte[] sessionId, int requestType, byte[] message);
 
-    void onKeyStatusChange(
-        long nativeMediaDrmBridge,
-        byte[] sessionId,
-        MediaDrm.KeyStatus[] keyInformation);
-  }
+  private native void nativeOnKeyStatusChange(
+      long nativeMediaDrmBridge, byte[] sessionId, MediaDrm.KeyStatus[] keyInformation);
 }

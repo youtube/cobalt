@@ -29,7 +29,7 @@ namespace nplb {
 namespace {
 
 TEST(PosixFileSeekTest, InvalidFileErrors) {
-  int invalid_fd = -1;
+  constexpr int invalid_fd = -1;
   int result = static_cast<int>(lseek(invalid_fd, 50, SEEK_SET));
   EXPECT_EQ(-1, result);
 
@@ -56,7 +56,7 @@ TEST(PosixFileSeekTest, FromEndWorks) {
   int64_t position = lseek(file, 0, SEEK_END);
   EXPECT_EQ(info.st_size, position);
 
-  int64_t target = -(random_file.size() / 6);
+  const int64_t target = -(random_file.size() / 6);
   position = lseek(file, target, SEEK_END);
   EXPECT_EQ(info.st_size + target, position);
 
@@ -80,7 +80,7 @@ TEST(PosixFileSeekTest, FromCurrentWorks) {
   int64_t position = lseek(file, 0, SEEK_CUR);
   EXPECT_EQ(0, position);
 
-  int64_t target = random_file.size() / 6;
+  const int64_t target = random_file.size() / 6;
   position = lseek(file, target, SEEK_CUR);
   EXPECT_EQ(target, position);
 
@@ -133,18 +133,18 @@ TEST(PosixFileSeekTest, FromBeginWorks) {
 }
 
 std::string GetTestStaticContentFile() {
-  std::string filename = GetFileTestsFilePaths().front();
-  int content_length = GetTestFileExpectedContent(filename).length();
+  const std::string filename = GetFileTestsFilePaths().front();
+  const int content_length = GetTestFileExpectedContent(filename).length();
   EXPECT_GT(content_length, 40);
   return filename;
 }
 
 TEST(PosixFileSeekTest, FromEndInStaticContentWorks) {
-  std::string filename = GetTestStaticContentFile();
+  const std::string filename = GetTestStaticContentFile();
   int file = open(filename.c_str(), O_RDONLY);
   ASSERT_TRUE(file >= 0);
 
-  int content_length = GetTestFileExpectedContent(filename).length();
+  const int content_length = GetTestFileExpectedContent(filename).length();
 
   struct stat info;
   int result = fstat(file, &info);
@@ -153,7 +153,7 @@ TEST(PosixFileSeekTest, FromEndInStaticContentWorks) {
   int64_t position = lseek(file, 0, SEEK_END);
   EXPECT_EQ(info.st_size, position);
 
-  int64_t target = -(content_length / 6);
+  const int64_t target = -(content_length / 6);
   position = lseek(file, target, SEEK_END);
   EXPECT_EQ(info.st_size + target, position);
 

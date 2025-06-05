@@ -23,8 +23,8 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-const size_t kSize = kSbMemoryPageSize * 8;
-const void* kFailed = MAP_FAILED;
+constexpr size_t kSize = kSbMemoryPageSize * 8;
+constexpr const void* kFailed = MAP_FAILED;
 
 TEST(PosixMemoryMapTest, AllocatesNormally) {
   void* memory = mmap(nullptr, kSize, PROT_READ, MAP_PRIVATE | MAP_ANON, -1, 0);
@@ -55,7 +55,7 @@ TEST(PosixMemoryMapTest, CanReadWriteToResult) {
   void* memory = mmap(nullptr, kSize, PROT_READ | PROT_WRITE,
                       MAP_PRIVATE | MAP_ANON, -1, 0);
   ASSERT_NE(kFailed, memory);
-  char* data = static_cast<char*>(memory);
+  char* const data = static_cast<char*>(memory);
   for (int i = 0; i < kSize; ++i) {
     data[i] = static_cast<char>(i);
   }
@@ -112,14 +112,14 @@ CopySumFunctionIntoMemory(void* memory) {
   // MIPS32 instructions. Most other instructions are aligned to at least even
   // addresses, so this code should do nothing for those architectures.
   // https://www.linux-mips.org/wiki/MIPS16
-  ptrdiff_t sum_function_offset =
+  const ptrdiff_t sum_function_offset =
       sum_function_start -
       reinterpret_cast<uint8_t*>(
           reinterpret_cast<uintptr_t>(sum_function_start) & ~0x1);
   sum_function_start -= sum_function_offset;
 
   // Get the last address of the page that |sum_function_start| is on.
-  uint8_t* sum_function_page_end = reinterpret_cast<uint8_t*>(
+  uint8_t* const sum_function_page_end = reinterpret_cast<uint8_t*>(
       (reinterpret_cast<uintptr_t>(sum_function_start) / kSbMemoryPageSize) *
           kSbMemoryPageSize +
       kSbMemoryPageSize);
@@ -141,7 +141,7 @@ CopySumFunctionIntoMemory(void* memory) {
                            nullptr, nullptr);
   }
 
-  size_t bytes_to_copy = sum_function_page_end - sum_function_start;
+  const size_t bytes_to_copy = sum_function_page_end - sum_function_start;
   if (bytes_to_copy > kSbMemoryPageSize) {
     return std::make_tuple(
         ::testing::AssertionFailure()
@@ -152,7 +152,7 @@ CopySumFunctionIntoMemory(void* memory) {
 
   memcpy(memory, sum_function_start, bytes_to_copy);
 
-  SumFunction mapped_function = reinterpret_cast<SumFunction>(
+  SumFunction const mapped_function = reinterpret_cast<SumFunction>(
       reinterpret_cast<uint8_t*>(memory) + sum_function_offset);
 
   return std::make_tuple(::testing::AssertionSuccess(), mapped_function,
@@ -160,20 +160,20 @@ CopySumFunctionIntoMemory(void* memory) {
 }
 
 TEST(PosixMemoryMapTest, CanChangeMemoryProtection) {
-  int all_from_flags[] = {
+  const int all_from_flags[] = {
       PROT_NONE,
       PROT_READ,
       PROT_WRITE,
       PROT_READ | PROT_WRITE,
   };
-  int all_to_flags[] = {
+  const int all_to_flags[] = {
       PROT_NONE,  PROT_READ,
       PROT_WRITE, PROT_READ | PROT_WRITE,
       PROT_EXEC,  PROT_READ | PROT_EXEC,
   };
 
-  for (int from_flags : all_from_flags) {
-    for (int to_flags : all_to_flags) {
+  for (const int from_flags : all_from_flags) {
+    for (const int to_flags : all_to_flags) {
       void* memory =
           mmap(nullptr, kSize, from_flags, MAP_PRIVATE | MAP_ANON, -1, 0);
       // If the platform does not support a particular protection flags
@@ -183,19 +183,22 @@ TEST(PosixMemoryMapTest, CanChangeMemoryProtection) {
         continue;
       }
 
-      SumFunction mapped_function = nullptr;
-      SumFunction original_function = nullptr;
+      SumFunction mapped_function_val = nullptr;
+      SumFunction original_function_val = nullptr;
       if (kSbCanMapExecutableMemory) {
         // We can only test the ability to execute memory after changing
         // protections if we have write permissions either now or then, because
         // we have to actually put a valid function into the mapped memory.
         if (from_flags & PROT_WRITE) {
-          auto copy_sum_function_result = CopySumFunctionIntoMemory(memory);
+          const auto copy_sum_function_result = CopySumFunctionIntoMemory(memory);
           ASSERT_TRUE(std::get<0>(copy_sum_function_result));
-          mapped_function = std::get<1>(copy_sum_function_result);
-          original_function = std::get<2>(copy_sum_function_result);
+          mapped_function_val = std::get<1>(copy_sum_function_result);
+          original_function_val = std::get<2>(copy_sum_function_result);
         }
       }
+      SumFunction const mapped_function = mapped_function_val;
+      SumFunction const original_function = original_function_val;
+
 
       if (mprotect(memory, kSize, to_flags) != 0) {
         EXPECT_EQ(munmap(memory, kSize), 0);

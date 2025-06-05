@@ -53,18 +53,18 @@ size_t array_size(const T (&)[n]) {
 
 TYPED_TEST_CASE(PosixFileReadTest, PosixFileReadTestTypes);
 
-const int kBufferLength = 16 * 1024;
+constexpr int kBufferLength = 16 * 1024;
 
 TYPED_TEST(PosixFileReadTest, InvalidFileErrors) {
   char buffer[kBufferLength];
-  int result = TypeParam::Read(-1, buffer, kBufferLength);
+  const int result = TypeParam::Read(-1, buffer, kBufferLength);
   EXPECT_EQ(-1, result);
 }
 
 TYPED_TEST(PosixFileReadTest, BasicReading) {
   // Create a pattern file that is not an even multiple of the buffer size,
   // but is over several times the size of the buffer.
-  const int kFileSize = kBufferLength * 16 / 3;
+  constexpr int kFileSize = kBufferLength * 16 / 3;
   ScopedRandomFile random_file(kFileSize);
   const std::string& filename = random_file.filename();
 
@@ -73,10 +73,10 @@ TYPED_TEST(PosixFileReadTest, BasicReading) {
 
   // Create a bigger buffer than necessary, so we can test the memory around
   // the portion given to SbFileRead.
-  const int kRealBufferLength = kBufferLength * 2;
+  constexpr int kRealBufferLength = kBufferLength * 2;
   char real_buffer[kRealBufferLength] = {0};
-  const int kBufferOffset = kBufferLength / 2;
-  char* buffer = real_buffer + kBufferOffset;
+  constexpr int kBufferOffset = kBufferLength / 2;
+  char* const buffer = real_buffer + kBufferOffset;
 
   // Initialize to some arbitrary pattern so we can verify it later.
   for (int i = 0; i < kRealBufferLength; ++i) {
@@ -122,12 +122,12 @@ TYPED_TEST(PosixFileReadTest, BasicReading) {
     EXPECT_EQ('\xCD', real_buffer[i]);
   }
 
-  bool result = close(file);
+  const bool result = close(file);
   EXPECT_TRUE(result == 0);
 }
 
 TYPED_TEST(PosixFileReadTest, ReadZeroBytes) {
-  const int kFileSize = kBufferLength;
+  constexpr int kFileSize = kBufferLength;
   ScopedRandomFile random_file(kFileSize);
   const std::string& filename = random_file.filename();
 
@@ -136,10 +136,10 @@ TYPED_TEST(PosixFileReadTest, ReadZeroBytes) {
 
   // Create a bigger buffer than necessary, so we can test the memory around
   // the portion given to SbFileRead.
-  const int kRealBufferLength = kBufferLength * 2;
+  constexpr int kRealBufferLength = kBufferLength * 2;
   char real_buffer[kRealBufferLength] = {0};
-  const int kBufferOffset = kBufferLength / 2;
-  char* buffer = real_buffer + kBufferOffset;
+  constexpr int kBufferOffset = kBufferLength / 2;
+  char* const buffer = real_buffer + kBufferOffset;
 
   // Initialize to some arbitrary pattern so we can verify it later.
   for (int i = 0; i < kRealBufferLength; ++i) {
@@ -156,12 +156,12 @@ TYPED_TEST(PosixFileReadTest, ReadZeroBytes) {
     EXPECT_EQ('\xCD', real_buffer[i]);
   }
 
-  int result = close(file);
+  const int result = close(file);
   EXPECT_TRUE(result == 0);
 }
 
 TYPED_TEST(PosixFileReadTest, ReadFromMiddle) {
-  const int kFileSize = kBufferLength * 2;
+  constexpr int kFileSize = kBufferLength * 2;
   ScopedRandomFile random_file(kFileSize);
   const std::string& filename = random_file.filename();
 
@@ -170,10 +170,10 @@ TYPED_TEST(PosixFileReadTest, ReadFromMiddle) {
 
   // Create a bigger buffer than necessary, so we can test the memory around
   // the portion given to SbFileRead.
-  const int kRealBufferLength = kBufferLength * 2;
+  constexpr int kRealBufferLength = kBufferLength * 2;
   char real_buffer[kRealBufferLength] = {0};
-  const int kBufferOffset = kBufferLength / 2;
-  char* buffer = real_buffer + kBufferOffset;
+  constexpr int kBufferOffset = kBufferLength / 2;
+  char* const buffer = real_buffer + kBufferOffset;
 
   // Initialize to some arbitrary pattern so we can verify it later.
   for (int i = 0; i < kRealBufferLength; ++i) {
@@ -181,9 +181,9 @@ TYPED_TEST(PosixFileReadTest, ReadFromMiddle) {
   }
 
   // Read from the middle of the file.
-  int position = static_cast<int>(lseek(file, kFileSize / 4, SEEK_SET));
+  const int position = static_cast<int>(lseek(file, kFileSize / 4, SEEK_SET));
   EXPECT_EQ(kFileSize / 4, position);
-  int bytes_read = TypeParam::Read(file, buffer, kBufferLength);
+  const int bytes_read = TypeParam::Read(file, buffer, kBufferLength);
   EXPECT_GE(kBufferLength, bytes_read);
   EXPECT_LT(0, bytes_read);
 
@@ -203,21 +203,21 @@ TYPED_TEST(PosixFileReadTest, ReadFromMiddle) {
     }
   }
 
-  int result = close(file);
+  const int result = close(file);
   EXPECT_TRUE(result == 0);
 }
 
 TYPED_TEST(PosixFileReadTest, ReadStaticContent) {
-  for (auto filename : GetFileTestsFilePaths()) {
+  for (const auto& filename : GetFileTestsFilePaths()) {
     int file = open(filename.c_str(), O_RDONLY);
     ASSERT_TRUE(file >= 0) << "Can't open: " << filename;
 
     // Create a bigger buffer than necessary, so we can test the memory around
     // the portion given to SbFileRead.
-    const int kRealBufferLength = kBufferLength * 2;
+    constexpr int kRealBufferLength = kBufferLength * 2;
     char real_buffer[kRealBufferLength] = {0};
-    const int kBufferOffset = kBufferLength / 2;
-    char* buffer = real_buffer + kBufferOffset;
+    constexpr int kBufferOffset = kBufferLength / 2;
+    char* const buffer = real_buffer + kBufferOffset;
 
     // Initialize to some arbitrary pattern so we can verify it later.
     for (int i = 0; i < kRealBufferLength; ++i) {
@@ -261,14 +261,14 @@ TYPED_TEST(PosixFileReadTest, ReadStaticContent) {
 
     EXPECT_EQ(GetTestFileExpectedContent(filename), content);
 
-    int result = close(file);
+    const int result = close(file);
     EXPECT_TRUE(result == 0);
   }
 }
 
 TYPED_TEST(PosixFileReadTest, PreadSuccess) {
   // Create a temporary file.
-  std::string tmpl = GetTempDir() + "pread_test.XXXXXX";
+  const std::string tmpl = GetTempDir() + "pread_test.XXXXXX";
   char buffer[tmpl.size() + 1];
   strcpy(buffer, tmpl.c_str());
   int fd = mkstemp(buffer);
@@ -296,7 +296,7 @@ TYPED_TEST(PosixFileReadTest, PreadSuccess) {
 
 TYPED_TEST(PosixFileReadTest, PreadOffset) {
   // Create a temporary file.
-  std::string tmpl = GetTempDir() + "pread_offset_test.XXXXXX";
+  const std::string tmpl = GetTempDir() + "pread_offset_test.XXXXXX";
   char buffer[tmpl.size() + 1];
   strcpy(buffer, tmpl.c_str());
   int fd = mkstemp(buffer);
@@ -323,7 +323,7 @@ TYPED_TEST(PosixFileReadTest, PreadOffset) {
 
 TYPED_TEST(PosixFileReadTest, PreadReadMore) {
   // Create a temporary file.
-  std::string tmpl = GetTempDir() + "pread_read_more.XXXXXX";
+  const std::string tmpl = GetTempDir() + "pread_read_more.XXXXXX";
   char buffer[tmpl.size() + 1];
   strcpy(buffer, tmpl.c_str());
   int fd = mkstemp(buffer);

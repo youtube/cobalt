@@ -72,8 +72,8 @@ long TimevalDiffToMicroseconds(const struct timeval* start,
   if (!start || !end) {
     return 0;
   }
-  long seconds_diff = end->tv_sec - start->tv_sec;
-  long useconds_diff = end->tv_usec - start->tv_usec;
+  const long seconds_diff = end->tv_sec - start->tv_sec;
+  const long useconds_diff = end->tv_usec - start->tv_usec;
   return (seconds_diff * 1'000'000L) + useconds_diff;
 }
 
@@ -82,10 +82,10 @@ TEST_F(PosixNanosleepTests, SuccessfulSleep) {
   ASSERT_EQ(0, gettimeofday(&start_time, nullptr))
       << "gettimeofday failed for start_time";
 
-  struct timespec req = {0, kTestSleepNs};
+  const struct timespec req = {0, kTestSleepNs};
   struct timespec rem;
   errno = 0;
-  int ret = nanosleep(&req, &rem);
+  const int ret = nanosleep(&req, &rem);
   EXPECT_EQ(0, ret) << "Expected successful sleep. Return: " << ret
                     << ", errno: " << errno << " (" << strerror(errno) << ")";
 
@@ -93,23 +93,23 @@ TEST_F(PosixNanosleepTests, SuccessfulSleep) {
   ASSERT_EQ(0, gettimeofday(&end_time, nullptr))
       << "gettimeofday failed for end_time";
 
-  long elapsed_us = TimevalDiffToMicroseconds(&start_time, &end_time);
+  const long elapsed_us = TimevalDiffToMicroseconds(&start_time, &end_time);
   EXPECT_GE(elapsed_us, kTestSleepUs)
       << "Sleep duration was too short. Requested: " << kTestSleepUs
       << "us, Elapsed: " << elapsed_us << "us.";
 }
 
 TEST_F(PosixNanosleepTests, SuccessfulSleepNullRemain) {
-  struct timespec req = {0, kShortSleepNs};
+  const struct timespec req = {0, kShortSleepNs};
   errno = 0;
-  int ret = nanosleep(&req, nullptr);
+  const int ret = nanosleep(&req, nullptr);
   EXPECT_EQ(0, ret) << "Expected successful sleep with NULL remain. Return: "
                     << ret << ", errno: " << errno << " (" << strerror(errno)
                     << ")";
 }
 
 TEST_F(PosixNanosleepTests, ZeroDurationSleep) {
-  struct timespec req = {0, 0L};
+  const struct timespec req = {0, 0L};
   struct timespec rem;
   errno = 0;
 
@@ -117,7 +117,7 @@ TEST_F(PosixNanosleepTests, ZeroDurationSleep) {
   ASSERT_EQ(0, gettimeofday(&start_time, nullptr))
       << "gettimeofday failed for start_time";
 
-  int ret = nanosleep(&req, &rem);
+  const int ret = nanosleep(&req, &rem);
 
   ASSERT_EQ(0, gettimeofday(&end_time, nullptr))
       << "gettimeofday failed for end_time";
@@ -126,37 +126,37 @@ TEST_F(PosixNanosleepTests, ZeroDurationSleep) {
       << "Expected immediate return for zero duration sleep. Return: " << ret
       << ", errno: " << errno << " (" << strerror(errno) << ")";
 
-  long elapsed_us = TimevalDiffToMicroseconds(&start_time, &end_time);
+  const long elapsed_us = TimevalDiffToMicroseconds(&start_time, &end_time);
   EXPECT_LT(elapsed_us, kShortDurationThresholdUs)
       << "Zero duration sleep took too long. Elapsed: " << elapsed_us
       << "us. Threshold: " << kShortDurationThresholdUs << "us.";
 }
 
 TEST_F(PosixNanosleepTests, ErrorEinvalRequestNsNegative) {
-  struct timespec req = {0, -1L};
+  const struct timespec req = {0, -1L};
   struct timespec rem;
   errno = 0;
-  int ret = nanosleep(&req, &rem);
+  const int ret = nanosleep(&req, &rem);
   EXPECT_EQ(-1, ret) << "nanosleep should return -1 for invalid input.";
   EXPECT_EQ(EINVAL, errno) << "Expected EINVAL for negative ns. errno: "
                            << errno << " (" << strerror(errno) << ")";
 }
 
 TEST_F(PosixNanosleepTests, ErrorEinvalRequestNsTooLarge) {
-  struct timespec req = {0, 1'000'000'000L};
+  const struct timespec req = {0, 1'000'000'000L};
   struct timespec rem;
   errno = 0;
-  int ret = nanosleep(&req, &rem);
+  const int ret = nanosleep(&req, &rem);
   EXPECT_EQ(-1, ret) << "nanosleep should return -1 for invalid input.";
   EXPECT_EQ(EINVAL, errno) << "Expected EINVAL for ns >= 10^9. errno: " << errno
                            << " (" << strerror(errno) << ")";
 }
 
 TEST_F(PosixNanosleepTests, ErrorEinvalRequestSecondsNegative) {
-  struct timespec req = {-1, 0L};
+  const struct timespec req = {-1, 0L};
   struct timespec rem;
   errno = 0;
-  int ret = nanosleep(&req, &rem);
+  const int ret = nanosleep(&req, &rem);
   EXPECT_EQ(-1, ret) << "nanosleep should return -1 for invalid input.";
   EXPECT_EQ(EINVAL, errno) << "Expected EINVAL for negative tv_sec. errno: "
                            << errno << " (" << strerror(errno) << ")";
@@ -166,8 +166,8 @@ TEST_F(PosixNanosleepTests, ErrorEfaultRequestNull) {
   struct timespec rem;
   errno = 0;
 
-  timespec* req = nullptr;
-  int ret = nanosleep(req, &rem);
+  const timespec* req = nullptr;
+  const int ret = nanosleep(req, &rem);
 
   EXPECT_EQ(-1, ret) << "nanosleep should return -1 for NULL request pointer.";
   EXPECT_EQ(EFAULT, errno)
@@ -176,7 +176,7 @@ TEST_F(PosixNanosleepTests, ErrorEfaultRequestNull) {
 }
 
 TEST_F(PosixNanosleepTests, ErrorEintr) {
-  struct timespec req = {kLongSleepSec, 0};
+  const struct timespec req = {kLongSleepSec, 0};
   struct timespec rem;
 
   struct sigaction sa;
@@ -188,7 +188,7 @@ TEST_F(PosixNanosleepTests, ErrorEintr) {
   alarm(kAlarmSec);
 
   errno = 0;
-  int ret = nanosleep(&req, &rem);
+  const int ret = nanosleep(&req, &rem);
   alarm(0);
 
   ASSERT_EQ(-1, ret) << "nanosleep should return -1 for NULL request pointer.";

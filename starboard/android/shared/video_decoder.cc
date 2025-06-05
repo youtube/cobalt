@@ -47,17 +47,6 @@ using VideoRenderAlgorithmBase =
 using std::placeholders::_1;
 using std::placeholders::_2;
 
-template <typename T>
-inline std::ostream& operator<<(std::ostream& stream,
-                                const std::optional<T>& maybe_value) {
-  if (maybe_value) {
-    stream << *maybe_value;
-  } else {
-    stream << "nullopt";
-  }
-  return stream;
-}
-
 bool IsSoftwareDecodeRequired(const std::string& max_video_capabilities) {
   if (max_video_capabilities.empty()) {
     SB_LOG(INFO)
@@ -110,15 +99,15 @@ bool IsSoftwareDecodeRequired(const std::string& max_video_capabilities) {
 void ParseMaxResolution(const std::string& max_video_capabilities,
                         int frame_width,
                         int frame_height,
-                        std::optional<int>* max_width,
-                        std::optional<int>* max_height) {
+                        optional<int>* max_width,
+                        optional<int>* max_height) {
   SB_DCHECK(frame_width > 0);
   SB_DCHECK(frame_height > 0);
   SB_DCHECK(max_width);
   SB_DCHECK(max_height);
 
-  *max_width = std::nullopt;
-  *max_height = std::nullopt;
+  *max_width = nullopt;
+  *max_height = nullopt;
 
   if (max_video_capabilities.empty()) {
     SB_LOG(INFO)
@@ -626,7 +615,7 @@ void VideoDecoder::Reset() {
   // may have invalid frames. Reset |output_format_| to null here to skip max
   // output buffers check.
   decoded_output_frames_ = 0;
-  output_format_ = std::nullopt;
+  output_format_ = starboard::nullopt;
 
   tunnel_mode_prerolling_.store(true);
   tunnel_mode_frame_rendered_.store(false);
@@ -717,13 +706,15 @@ bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
     return false;
   }
 
+  jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
+  SB_DCHECK(!drm_system_ || j_media_crypto);
   if (video_stream_info.codec == kSbMediaVideoCodecAv1) {
     SB_DCHECK(video_fps_ > 0);
   } else {
     SB_DCHECK(video_fps_ == 0);
   }
 
-  std::optional<int> max_width, max_height;
+  optional<int> max_width, max_height;
   // TODO(b/281431214): Evaluate if we should also parse the fps from
   //                    `max_video_capabilities_` and pass to MediaDecoder ctor.
   ParseMaxResolution(max_video_capabilities_, video_stream_info.frame_width,
@@ -766,7 +757,7 @@ void VideoDecoder::TeardownCodec() {
     owns_video_surface_ = false;
   }
   media_decoder_.reset();
-  color_metadata_ = std::nullopt;
+  color_metadata_ = starboard::nullopt;
 
   SbDecodeTarget decode_target_to_release = kSbDecodeTargetInvalid;
   {
@@ -936,7 +927,7 @@ void VideoDecoder::RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) {
     // resolutions. In that case, it's hard to determine the max supported
     // output buffers. So, we reset |output_format_| to null here to skip max
     // output buffers check.
-    output_format_ = std::nullopt;
+    output_format_ = starboard::nullopt;
     return;
   }
   output_format_ = VideoOutputFormat(

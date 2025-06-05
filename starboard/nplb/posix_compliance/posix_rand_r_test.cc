@@ -27,7 +27,7 @@ namespace {
 TEST(PosixRandrTest, ReturnsValueWithinRange) {
   unsigned int seed = 123;  // Initial seed
   for (int i = 0; i < 100; ++i) {
-    int random_value = rand_r(&seed);
+    const int random_value = rand_r(&seed);
     EXPECT_GE(random_value, 0);
     EXPECT_LE(random_value, RAND_MAX);
   }
@@ -43,11 +43,11 @@ TEST(PosixRandrTest, DifferentInitialSeedsProduceDifferentSequences) {
   unsigned int seed1 = 1;
   unsigned int seed2 = 2;
 
-  int rand_val1_seq1 = rand_r(&seed1);
-  int rand_val2_seq1 = rand_r(&seed1);
+  const int rand_val1_seq1 = rand_r(&seed1);
+  const int rand_val2_seq1 = rand_r(&seed1);
 
-  int rand_val1_seq2 = rand_r(&seed2);
-  int rand_val2_seq2 = rand_r(&seed2);
+  const int rand_val1_seq2 = rand_r(&seed2);
+  const int rand_val2_seq2 = rand_r(&seed2);
 
   EXPECT_NE(rand_val1_seq1, rand_val1_seq2);
   EXPECT_NE(rand_val2_seq1, rand_val2_seq2);
@@ -55,17 +55,17 @@ TEST(PosixRandrTest, DifferentInitialSeedsProduceDifferentSequences) {
 
 // Test that the same initial seed produces a repeatable sequence.
 TEST(PosixRandrTest, SameInitialSeedProducesRepeatableSequence) {
-  unsigned int seed_orig = 123;
+  const unsigned int seed_orig = 123;
   unsigned int seed1 = seed_orig;
   unsigned int seed2 = seed_orig;
 
-  int seq1_val1 = rand_r(&seed1);
-  int seq1_val2 = rand_r(&seed1);
-  int seq1_val3 = rand_r(&seed1);
+  const int seq1_val1 = rand_r(&seed1);
+  const int seq1_val2 = rand_r(&seed1);
+  const int seq1_val3 = rand_r(&seed1);
 
-  int seq2_val1 = rand_r(&seed2);
-  int seq2_val2 = rand_r(&seed2);
-  int seq2_val3 = rand_r(&seed2);
+  const int seq2_val1 = rand_r(&seed2);
+  const int seq2_val2 = rand_r(&seed2);
+  const int seq2_val3 = rand_r(&seed2);
 
   EXPECT_EQ(seq1_val1, seq2_val1);
   EXPECT_EQ(seq1_val2, seq2_val2);
@@ -76,9 +76,9 @@ TEST(PosixRandrTest, SameInitialSeedProducesRepeatableSequence) {
 TEST(PosixRandrTest, MultipleCallsProduceDifferentValues) {
   unsigned int seed =
       static_cast<unsigned int>(time(NULL));  // Seed with current time
-  int val1 = rand_r(&seed);
-  int val2 = rand_r(&seed);
-  int val3 = rand_r(&seed);
+  const int val1 = rand_r(&seed);
+  const int val2 = rand_r(&seed);
+  const int val3 = rand_r(&seed);
 
   EXPECT_NE(val1, val2);
   EXPECT_NE(val2, val3);

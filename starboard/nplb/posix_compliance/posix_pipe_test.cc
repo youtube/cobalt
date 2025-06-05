@@ -43,11 +43,11 @@ TEST(PosixPipeTest, PipeLeavesClosedOnExecClearOnBothEndsOfPipe) {
   int pipe_fds[2];
   ASSERT_EQ(pipe(pipe_fds), 0);
 
-  int flags_read_end = fcntl(pipe_fds[0], F_GETFD);
+  const int flags_read_end = fcntl(pipe_fds[0], F_GETFD);
   EXPECT_NE(flags_read_end, -1);
   EXPECT_FALSE(flags_read_end & FD_CLOEXEC);
 
-  int flags_write_end = fcntl(pipe_fds[1], F_GETFD);
+  const int flags_write_end = fcntl(pipe_fds[1], F_GETFD);
   EXPECT_NE(flags_write_end, -1);
   EXPECT_FALSE(flags_write_end & FD_CLOEXEC);
 
@@ -61,11 +61,11 @@ TEST(PosixPipeTest, PipeLeavesClosedOnForkClearOnBothEndsOfPipe) {
   int pipe_fds[2];
   ASSERT_EQ(pipe(pipe_fds), 0);
 
-  int flags_read_end = fcntl(pipe_fds[0], F_GETFD);
+  const int flags_read_end = fcntl(pipe_fds[0], F_GETFD);
   EXPECT_NE(flags_read_end, -1);
   EXPECT_FALSE(flags_read_end & FD_CLOFORK);
 
-  int flags_write_end = fcntl(pipe_fds[1], F_GETFD);
+  const int flags_write_end = fcntl(pipe_fds[1], F_GETFD);
   EXPECT_NE(flags_write_end, -1);
   EXPECT_FALSE(flags_write_end & FD_CLOFORK);
 
@@ -81,11 +81,11 @@ TEST(PosixPipeTest, PipeLeavesNonBlockClearOnBothEndsOfPipe) {
   int pipe_fds[2];
   ASSERT_EQ(pipe(pipe_fds), 0);
 
-  int flags_read_end = fcntl(pipe_fds[0], F_GETFL);
+  const int flags_read_end = fcntl(pipe_fds[0], F_GETFL);
   EXPECT_NE(flags_read_end, -1);
   EXPECT_FALSE(flags_read_end & O_NONBLOCK);
 
-  int flags_write_end = fcntl(pipe_fds[1], F_GETFL);
+  const int flags_write_end = fcntl(pipe_fds[1], F_GETFL);
   EXPECT_NE(flags_write_end, -1);
   EXPECT_FALSE(flags_write_end & O_NONBLOCK);
 
@@ -98,16 +98,16 @@ TEST(PosixPipeTest, DataWrittenToPipeCanBeRead) {
   int pipe_fds[2];
   ASSERT_EQ(pipe(pipe_fds), 0);
 
-  const char TEST_DATA[] = "Hello, POSIX Pipe!";
-  const size_t DATA_SIZE = sizeof(TEST_DATA);  // Include null terminator
+  static constexpr char TEST_DATA[] = "Hello, POSIX Pipe!";
+  constexpr size_t DATA_SIZE = sizeof(TEST_DATA);  // Include null terminator
   char read_buffer[DATA_SIZE];
 
   // Write to the write end
-  ssize_t bytes_written = write(pipe_fds[1], TEST_DATA, DATA_SIZE);
+  const ssize_t bytes_written = write(pipe_fds[1], TEST_DATA, DATA_SIZE);
   EXPECT_EQ(bytes_written, DATA_SIZE);
 
   // Read from the read end
-  ssize_t bytes_read = read(pipe_fds[0], read_buffer, DATA_SIZE);
+  const ssize_t bytes_read = read(pipe_fds[0], read_buffer, DATA_SIZE);
   EXPECT_EQ(bytes_read, DATA_SIZE);
   EXPECT_STREQ(read_buffer, TEST_DATA);
 

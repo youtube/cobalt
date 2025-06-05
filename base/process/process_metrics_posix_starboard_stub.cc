@@ -14,7 +14,6 @@
 
 #include "base/process/process.h"
 #if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
-#include "base/notreached.h"
 #include "base/starboard/linker_stub.h"
 #endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 
@@ -27,17 +26,17 @@ namespace base {
 // Stub symbols have been provided here to satisfy the linker and build cobalt
 
 size_t GetMaxFds() {
-  NOTIMPLEMENTED();
+  COBALT_LINKER_STUB();
   return 0;
 }
 
 // Stub for base::IncreaseFdLimitTo(unsigned int)
 void IncreaseFdLimitTo(unsigned int max_descriptors) {
-  NOTIMPLEMENTED();
+  COBALT_LINKER_STUB();
 }
 
 bool Process::CanBackgroundProcesses() {
-  NOTIMPLEMENTED();
+  COBALT_LINKER_STUB();
   return false;
 }
 

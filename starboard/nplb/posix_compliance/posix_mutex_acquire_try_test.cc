@@ -28,12 +28,12 @@ struct TestContext {
   explicit TestContext(pthread_mutex_t* mutex)
       : was_locked_(false), mutex_(mutex) {}
   bool was_locked_;
-  pthread_mutex_t* mutex_;
+  pthread_mutex_t* const mutex_;
 };
 
 void* EntryPoint(void* parameter) {
   pthread_setname_np(pthread_self(), posix::kThreadName);
-  TestContext* context = static_cast<TestContext*>(parameter);
+  TestContext* const context = static_cast<TestContext*>(parameter);
   context->was_locked_ = (pthread_mutex_trylock(context->mutex_) == 0);
   return NULL;
 }

@@ -21,8 +21,8 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-const int kALot = 128 * 1024;
-const int kABunch = 2 * 1024;
+constexpr int kALot = 128 * 1024;
+constexpr int kABunch = 2 * 1024;
 
 TEST(PosixMutexCreateTest, SunnyDay) {
   pthread_mutex_t mutex;

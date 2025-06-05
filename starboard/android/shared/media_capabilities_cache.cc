@@ -14,14 +14,10 @@
 
 #include "starboard/android/shared/media_capabilities_cache.h"
 
-#include <jni.h>
-
 #include <utility>
 
-#include "base/android/jni_android.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
-#include "starboard/android/shared/media_drm_bridge.h"
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/log.h"
 #include "starboard/common/once.h"
@@ -32,7 +28,6 @@
 namespace starboard::android::shared {
 namespace {
 
-using base::android::AttachCurrentThread;
 using ::starboard::shared::starboard::media::KeySystemSupportabilityCache;
 using ::starboard::shared::starboard::media::MimeSupportabilityCache;
 
@@ -178,11 +173,15 @@ void ConvertStringToLowerCase(std::string* str) {
 }
 
 bool GetIsWidevineSupported() {
-  return MediaDrmBridge::IsWidevineSupported(AttachCurrentThread());
+  return JniEnvExt::Get()->CallStaticBooleanMethodOrAbort(
+             "dev/cobalt/media/MediaDrmBridge",
+             "isWidevineCryptoSchemeSupported", "()Z") == JNI_TRUE;
 }
 
 bool GetIsCbcsSupported() {
-  return MediaDrmBridge::IsCbcsSupported(AttachCurrentThread());
+  return JniEnvExt::Get()->CallStaticBooleanMethodOrAbort(
+             "dev/cobalt/media/MediaDrmBridge", "isCbcsSchemeSupported",
+             "()Z") == JNI_TRUE;
 }
 
 std::set<SbMediaTransferId> GetSupportedHdrTypes() {

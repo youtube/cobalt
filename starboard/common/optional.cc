@@ -1,4 +1,4 @@
-// Copyright 2019 The Cobalt Authors. All Rights Reserved.
+// Copyright 2014 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,21 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_SHARED_WIDEVINE_WIDEVINE_KEYBOX_HASH_H_
-#define STARBOARD_SHARED_WIDEVINE_WIDEVINE_KEYBOX_HASH_H_
+#include "starboard/common/optional.h"
 
-#include <string>
-
-#include "starboard/types.h"
-
-namespace starboard::shared::widevine {
-
-// Computes the checksum of the Widevine Keybox.
-// NOTE: this is not a cryptographic hash, but serves our purposes here.
-std::string GetWidevineKeyboxHash();
-
-}  // namespace widevine
-
-}  // namespace starboard::shared::widevine
-
-#endif  // STARBOARD_SHARED_WIDEVINE_WIDEVINE_KEYBOX_HASH_H_
+namespace starboard {
+nullopt_t::nullopt_t() {}
+in_place_t::in_place_t() {}
+const nullopt_t nullopt;
+const in_place_t in_place;
+}  // namespace starboard

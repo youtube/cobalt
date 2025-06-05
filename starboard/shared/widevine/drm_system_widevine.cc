@@ -515,7 +515,7 @@ SbDrmSystemPrivate::DecryptStatus DrmSystemWidevine::Decrypt(
       }
       {
         ScopedLock lock(unblock_key_retry_mutex_);
-        unblock_key_retry_start_time_ = std::nullopt;
+        unblock_key_retry_start_time_ = nullopt;
       }
       input.data += subsample.encrypted_byte_count;
       output.data += subsample.encrypted_byte_count;
@@ -795,4 +795,6 @@ void DrmSystemWidevine::SendSessionUpdateRequest(
       message.c_str(), static_cast<int>(message.size()), NULL);
 }
 
-}  // namespace starboard::shared::widevine
+}  // namespace widevine
+
+}  // namespace starboard::shared::widevine::

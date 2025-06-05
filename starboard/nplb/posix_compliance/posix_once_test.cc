@@ -75,7 +75,7 @@ struct RunPosixOnceContext {
 void* RunPosixOnceEntryPoint(void* context) {
   pthread_setname_np(pthread_self(), posix::kThreadName);
 
-  RunPosixOnceContext* run_sbonce_context =
+  RunPosixOnceContext* const run_sbonce_context =
       reinterpret_cast<RunPosixOnceContext*>(context);
 
   {
@@ -87,7 +87,7 @@ void* RunPosixOnceEntryPoint(void* context) {
   }
 
   sched_yield();
-  static const int kIterationCount = 3;
+  static constexpr int kIterationCount = 3;
   for (int i = 0; i < kIterationCount; ++i) {
     pthread_once(&run_sbonce_context->once_control, &IncrementGlobalValue);
   }
@@ -99,10 +99,10 @@ void* RunPosixOnceEntryPoint(void* context) {
 // times using a shared pthread_once_t object.  We then test that the
 // initialization routine got called exactly one time.
 TEST(PosixOnceTest, SunnyDayMultipleThreadsInit) {
-  const int kMany = kSbMaxThreads;
+  constexpr int kMany = kSbMaxThreads;
   std::vector<pthread_t> threads(kMany);
 
-  const int kIterationCount = 10;
+  constexpr int kIterationCount = 10;
   for (int i = 0; i < kIterationCount; ++i) {
     pthread_once_t once_control = PTHREAD_ONCE_INIT;
     RunPosixOnceContext context;
@@ -145,7 +145,7 @@ int* GetIntSingleton() {
 }
 
 TEST(PosixOnceTest, InitializeOnceMacroFunction) {
-  int* int_singelton = GetIntSingleton();
+  int* const int_singelton = GetIntSingleton();
   ASSERT_TRUE(int_singelton);
   EXPECT_EQ(*int_singelton, 0)
       << "Singleton Macro does not default initialize.";

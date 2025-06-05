@@ -16,8 +16,8 @@
 
 #include <unistd.h>
 #include <atomic>
-#include <optional>
 
+#include "starboard/common/optional.h"
 #include "starboard/common/spin_lock.h"
 #include "starboard/common/time.h"
 #include "starboard/configuration_constants.h"
@@ -62,7 +62,7 @@ class SbMediaSetAudioWriteDurationTest
   void TryToWritePendingSample() {
     {
       starboard::ScopedSpinLock lock(&pending_decoder_status_lock_);
-      if (!pending_decoder_status_.has_value()) {
+      if (!pending_decoder_status_.has_engaged()) {
         return;
       }
     }
@@ -85,7 +85,7 @@ class SbMediaSetAudioWriteDurationTest
     int ticket = pending_decoder_status_->ticket;
     {
       starboard::ScopedSpinLock lock(&pending_decoder_status_lock_);
-      pending_decoder_status_ = std::nullopt;
+      pending_decoder_status_ = nullopt;
     }
 
     CallSbPlayerWriteSamples(player, kSbMediaTypeAudio, &dmp_reader_, index_,
@@ -103,7 +103,7 @@ class SbMediaSetAudioWriteDurationTest
                                  SbMediaType type,
                                  int ticket) {
     starboard::ScopedSpinLock lock(&pending_decoder_status_lock_);
-    SB_DCHECK(!pending_decoder_status_.has_value());
+    SB_DCHECK(!pending_decoder_status_.has_engaged());
     PendingDecoderStatus pending_decoder_status = {};
     pending_decoder_status.player = player;
     pending_decoder_status.type = type;
@@ -167,7 +167,7 @@ class SbMediaSetAudioWriteDurationTest
   // Guard access to |pending_decoder_status_|.
   mutable std::atomic_int pending_decoder_status_lock_{
       starboard::kSpinLockStateReleased};
-  std::optional<PendingDecoderStatus> pending_decoder_status_;
+  optional<PendingDecoderStatus> pending_decoder_status_;
 
  private:
   static void DecoderStatusFunc(SbPlayer player,

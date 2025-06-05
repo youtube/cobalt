@@ -35,14 +35,14 @@ class PosixFileWriteTest : public testing::Test {};
 
 class PosixFileWriter {
  public:
-  static ssize_t Write(int file, char* data, size_t size) {
+  static ssize_t Write(const int file, char* data, const size_t size) {
     return write(file, data, size);
   }
 };
 
 class PosixFileWriterAll {
  public:
-  static ssize_t Write(int file, char* data, size_t size) {
+  static ssize_t Write(const int file, char* data, const size_t size) {
     return WriteAll(file, data, size);
   }
 };
@@ -52,18 +52,18 @@ typedef testing::Types<PosixFileWriter, PosixFileWriterAll>
 
 TYPED_TEST_CASE(PosixFileWriteTest, PosixFileWriteTestTypes);
 
-const int kBufferLength = 16 * 1024;
+constexpr int kBufferLength = 16 * 1024;
 
 TYPED_TEST(PosixFileWriteTest, InvalidFileErrors) {
   char buffer[kBufferLength] = {0};
-  int result = TypeParam::Write(-1, buffer, kBufferLength);
+  const int result = TypeParam::Write(-1, buffer, kBufferLength);
   EXPECT_EQ(-1, result);
 }
 
 TYPED_TEST(PosixFileWriteTest, BasicWriting) {
   // Choose a file size that is not an even multiple of the buffer size, but
   // is over several times the size of the buffer.
-  const int kFileSize = kBufferLength * 16 / 3;
+  constexpr int kFileSize = kBufferLength * 16 / 3;
   ScopedRandomFile random_file(0, ScopedRandomFile::kDontCreate);
   const std::string& filename = random_file.filename();
 
@@ -103,9 +103,9 @@ TYPED_TEST(PosixFileWriteTest, BasicWriting) {
   }
 
   // Tests reading and writing from same opened file.
-  int result = fsync(file);
-  ASSERT_TRUE(result == 0);
-  int position = static_cast<int>(lseek(file, 0, SEEK_SET));
+  const int fsync_result = fsync(file);
+  ASSERT_TRUE(fsync_result == 0);
+  const int position = static_cast<int>(lseek(file, 0, SEEK_SET));
   ASSERT_EQ(0, position);
 
   // Read and check the whole file.
@@ -134,8 +134,8 @@ TYPED_TEST(PosixFileWriteTest, BasicWriting) {
   // Check that we read the whole file.
   EXPECT_EQ(kFileSize, total);
 
-  result = close(file);
-  EXPECT_TRUE(result == 0);
+  const int close_result = close(file);
+  EXPECT_TRUE(close_result == 0);
 }
 
 TYPED_TEST(PosixFileWriteTest, WriteZeroBytes) {
@@ -176,18 +176,18 @@ TYPED_TEST(PosixFileWriteTest, BasicPwrite) {
   ASSERT_GE(file, 0) << strerror(errno);
 
   const char write_data1[] = "Hello";
-  const size_t write_size1 = sizeof(write_data1) - 1;
-  const off_t offset1 = 0;
+  constexpr size_t write_size1 = sizeof(write_data1) - 1;
+  constexpr off_t offset1 = 0;
 
-  ssize_t bytes_pwritten1 = pwrite(file, write_data1, write_size1, offset1);
+  const ssize_t bytes_pwritten1 = pwrite(file, write_data1, write_size1, offset1);
   ASSERT_EQ(static_cast<ssize_t>(write_size1), bytes_pwritten1);
   EXPECT_EQ(0, lseek(file, 0, SEEK_CUR));  // Offset should not change
 
   const char write_data2[] = "World";
-  const size_t write_size2 = sizeof(write_data2) - 1;
-  const off_t offset2 = 6;
+  constexpr size_t write_size2 = sizeof(write_data2) - 1;
+  constexpr off_t offset2 = 6;
 
-  ssize_t bytes_pwritten2 = pwrite(file, write_data2, write_size2, offset2);
+  const ssize_t bytes_pwritten2 = pwrite(file, write_data2, write_size2, offset2);
   ASSERT_EQ(static_cast<ssize_t>(write_size2), bytes_pwritten2);
   EXPECT_EQ(0, lseek(file, 0, SEEK_CUR));  // Offset should not change
 
@@ -210,10 +210,10 @@ TYPED_TEST(PosixFileWriteTest, PwriteBeyondEndOfFile) {
   ASSERT_GE(file, 0) << strerror(errno);
 
   const char write_data[] = "Test";
-  const size_t write_size = sizeof(write_data) - 1;
-  const off_t offset = 10;  // Write beyond the initial empty file
+  constexpr size_t write_size = sizeof(write_data) - 1;
+  constexpr off_t offset = 10;  // Write beyond the initial empty file
 
-  ssize_t bytes_pwritten = pwrite(file, write_data, write_size, offset);
+  const ssize_t bytes_pwritten = pwrite(file, write_data, write_size, offset);
   ASSERT_EQ(static_cast<ssize_t>(write_size), bytes_pwritten);
   EXPECT_EQ(0, lseek(file, 0, SEEK_CUR));  // Offset should not change
 
@@ -270,7 +270,7 @@ TYPED_TEST(PosixFileWriteTest, PwriteZeroLength) {
   const char data[] = "SomeData";
   pwrite(file, data, sizeof(data) - 1, 5);
 
-  ssize_t bytes_pwritten = pwrite(file, nullptr, 0, 2);
+  const ssize_t bytes_pwritten = pwrite(file, nullptr, 0, 2);
   EXPECT_EQ(0, bytes_pwritten);
   EXPECT_EQ(0, lseek(file, 0, SEEK_CUR));  // Offset should not change
 
@@ -295,9 +295,9 @@ TYPED_TEST(PosixFileWriteTest, BasicWritev) {
       open(filename.c_str(), O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
   ASSERT_GE(file, 0) << strerror(errno);
 
-  std::string data1 = "Hello, ";
-  std::string data2 = "World!";
-  std::string data3 = " 123";
+  const std::string data1 = "Hello, ";
+  const std::string data2 = "World!";
+  const std::string data3 = " 123";
 
   const struct iovec iov[3] = {
       {.iov_base = const_cast<char*>(data1.c_str()), .iov_len = data1.size()},
@@ -325,9 +325,9 @@ TYPED_TEST(PosixFileWriteTest, WritevPartial) {
       open(filename.c_str(), O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
   ASSERT_GE(file, 0) << strerror(errno);
 
-  std::string data1 = "First";
-  std::string data2 = "Second";
-  std::string data3 = "Third";
+  const std::string data1 = "First";
+  const std::string data2 = "Second";
+  const std::string data3 = "Third";
 
   const struct iovec iov[3] = {
       {.iov_base = const_cast<char*>(data1.c_str()), .iov_len = data1.size()},
