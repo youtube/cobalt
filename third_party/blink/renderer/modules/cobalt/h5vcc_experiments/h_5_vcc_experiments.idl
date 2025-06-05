@@ -39,11 +39,11 @@ interface H5vccExperiments {
 
   // Returns a list of Cobalt's currently active client experiment IDs for use
   // by the client to log.
-  readonly attribute FrozenArray<unsigned long> activeExperimentIds;
+  //readonly attribute FrozenArray<unsigned long> activeExperimentIds;
 
   // The following APIs fetch Cobalt's current value for the given feature name
   // or feature param.
-  OverrideState getFeature(DOMString feature_name);
+  //OverrideState getFeature(DOMString feature_name);
 
-  DOMString getFeatureParam(DOMString feature_param_name);
+  //DOMString getFeatureParam(DOMString feature_param_name);
 };

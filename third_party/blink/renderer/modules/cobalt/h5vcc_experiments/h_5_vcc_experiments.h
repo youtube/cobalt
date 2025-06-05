@@ -45,9 +45,9 @@ class MODULES_EXPORT H5vccExperiments final
                                    const ExperimentConfiguration*,
                                    ExceptionState&);
   ScriptPromise resetExperimentState(ScriptState*, ExceptionState&);
-  WTF::Vector<uint32_t> activeExperimentIds();
-  String getFeature(const String&);
-  const String& getFeatureParam(const String&);
+  // WTF::Vector<uint32_t> activeExperimentIds();
+  // String getFeature(const String&);
+  // const String& getFeatureParam(const String&);
 
   void Trace(Visitor*) const override;
 
@@ -58,8 +58,9 @@ class MODULES_EXPORT H5vccExperiments final
   void EnsureReceiverIsBound();
   HeapMojoRemote<h5vcc_experiments::mojom::blink::H5vccExperiments>
       remote_h5vcc_experiments_;
-  // Holds Promises returned by remote_h5vcc_experiments_ so that they can be
-  // rejected in the case of a Mojo connection error.
+  // Holds promises associated with outstanding async remote_h5vcc_experiments_
+  // requests so that they can be rejected in the case of a Mojo connection
+  // error.
   HeapHashSet<Member<ScriptPromiseResolver>> ongoing_requests_;
 
   String feature_param_value_;

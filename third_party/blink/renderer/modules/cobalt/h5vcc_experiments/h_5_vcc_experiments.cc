@@ -78,38 +78,41 @@ ScriptPromise H5vccExperiments::resetExperimentState(
   return resolver->Promise();
 }
 
-WTF::Vector<uint32_t> H5vccExperiments::activeExperimentIds() {
-  EnsureReceiverIsBound();
-  remote_h5vcc_experiments_->GetActiveExperimentIds(&active_experiment_ids_);
-  return active_experiment_ids_;
-}
+// WTF::Vector<uint32_t> H5vccExperiments::activeExperimentIds() {
+//   EnsureReceiverIsBound();
+//   //
+//   remote_h5vcc_experiments_->GetActiveExperimentIds(&active_experiment_ids_);
+//   return active_experiment_ids_;
+// }
 
-String H5vccExperiments::getFeature(const String& feature_name) {
-  EnsureReceiverIsBound();
-  h5vcc_experiments::mojom::blink::OverrideState feature_state;
+// String H5vccExperiments::getFeature(const String& feature_name) {
+//   EnsureReceiverIsBound();
+//   // h5vcc_experiments::mojom::blink::OverrideState feature_state;
+//   // remote_h5vcc_experiments_->GetFeature(feature_name, &feature_state);
+//   // switch (feature_state) {
+//   //   case
+//   //   h5vcc_experiments::mojom::blink::OverrideState::OVERRIDE_USE_DEFAULT:
+//   //     return V8OverrideState(V8OverrideState::Enum::kDEFAULT);
+//   //   case h5vcc_experiments::mojom::blink::OverrideState::
+//   //       OVERRIDE_ENABLE_FEATURE:
+//   //     return V8OverrideState(V8OverrideState::Enum::kENABLED);
+//   //   case h5vcc_experiments::mojom::blink::OverrideState::
+//   //       OVERRIDE_DISABLE_FEATURE:
+//   //     return V8OverrideState(V8OverrideState::Enum::kDISABLED);
+//   // }
+//   // NOTREACHED_NORETURN() << "Invalid feature OverrideState for feature "
+//   //                       << feature_name;
 
-  remote_h5vcc_experiments_->GetFeature(feature_name, &feature_state);
-  switch (feature_state) {
-    case h5vcc_experiments::mojom::blink::OverrideState::OVERRIDE_USE_DEFAULT:
-      return V8OverrideState(V8OverrideState::Enum::kDEFAULT);
-    case h5vcc_experiments::mojom::blink::OverrideState::
-        OVERRIDE_ENABLE_FEATURE:
-      return V8OverrideState(V8OverrideState::Enum::kENABLED);
-    case h5vcc_experiments::mojom::blink::OverrideState::
-        OVERRIDE_DISABLE_FEATURE:
-      return V8OverrideState(V8OverrideState::Enum::kDISABLED);
-  }
-  NOTREACHED_NORETURN() << "Invalid feature OverrideState for feature "
-                        << feature_name;
-}
+//   return feature_param_value_;
+// }
 
-const String& H5vccExperiments::getFeatureParam(
-    const String& feature_param_name) {
-  EnsureReceiverIsBound();
-  remote_h5vcc_experiments_->GetFeatureParam(feature_param_name,
-                                             &feature_param_value_);
-  return feature_param_value_;
-}
+// const String& H5vccExperiments::getFeatureParam(
+//     const String& feature_param_name) {
+//   EnsureReceiverIsBound();
+//   // remote_h5vcc_experiments_->GetFeatureParam(feature_param_name,
+//   //                                            &feature_param_value_);
+//   return feature_param_value_;
+// }
 
 void H5vccExperiments::OnSetExperimentState(ScriptPromiseResolver* resolver) {
   ongoing_requests_.erase(resolver);
@@ -123,7 +126,11 @@ void H5vccExperiments::OnResetExperimentState(ScriptPromiseResolver* resolver) {
 
 void H5vccExperiments::OnConnectionError() {
   remote_h5vcc_experiments_.reset();
-  for (auto& resolver : ongoing_requests_) {
+  HeapHashSet<Member<ScriptPromiseResolver>> h5vcc_experiments_promises;
+  // Script may execute during a call to Resolve(). Swap these sets to prevent
+  // concurrent modification.
+  ongoing_requests_.swap(h5vcc_experiments_promises);
+  for (auto& resolver : h5vcc_experiments_promises) {
     resolver->Reject("Mojo connection error.");
   }
   ongoing_requests_.clear();
