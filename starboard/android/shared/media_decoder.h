@@ -39,6 +39,10 @@
 
 namespace starboard::android::shared {
 
+// TODO(b/329686979): Consider experimenting merging video input thread and
+// audio processing thread.
+// TODO(b/329686979): Consider experimenting processing video input and/or audio
+// processing on the PlayerWorker thread.
 // TODO: Better encapsulation the MediaCodecBridge so the decoders no longer
 //       need to talk directly to the MediaCodecBridge.
 class MediaDecoder final
@@ -153,12 +157,18 @@ class MediaDecoder final
 
   static void* DecoderThreadEntryPoint(void* context);
   void DecoderThreadFunc();
+  void VideoInputProcessingThreadFunc();
 
-  void TerminateDecoderThread();
+  static void* VideoTickingThreadEntryPoint(void* context);
+  void VideoTickingThreadFunc();
+
+  void TerminateThreads();
 
   void CollectPendingData_Locked(
       std::deque<PendingInput>* pending_inputs,
       std::vector<int>* input_buffer_indices,
+      std::vector<DequeueOutputResult>* dequeue_output_results);
+  void CollectPendingDataForVideoTicking_Locked(
       std::vector<DequeueOutputResult>* dequeue_output_results);
   bool ProcessOneInputBuffer(std::deque<PendingInput>* pending_inputs,
                              std::vector<int>* input_buffer_indices);
@@ -183,6 +193,8 @@ class MediaDecoder final
 
   ::starboard::shared::starboard::ThreadChecker thread_checker_;
 
+  // TODO: This shouldn't be enabled when `tunnel_mode_enabled_` is true.
+  const bool enabled_video_ticking_thread_ = true;
   const SbMediaType media_type_;
   Host* host_;
   DrmSystem* const drm_system_;
@@ -206,7 +218,7 @@ class MediaDecoder final
   std::atomic<int32_t> number_of_pending_inputs_{0};
 
   Mutex mutex_;
-  ConditionVariable condition_variable_;
+  ConditionVariable condition_variable_{mutex_};
   std::deque<PendingInput> pending_inputs_;
   std::vector<int> input_buffer_indices_;
   std::vector<DequeueOutputResult> dequeue_output_results_;
@@ -214,8 +226,14 @@ class MediaDecoder final
   bool is_output_restricted_ = false;
   bool first_call_on_handler_thread_ = true;
 
-  // Working thread to avoid lengthy decoding work block the player thread.
+  // Working threads to avoid lengthy decoding work block the player thread.
   pthread_t decoder_thread_ = 0;
+  // Working thread for video ticking, only used when
+  // `enabled_video_ticking_thread_` is true.
+  pthread_t video_ticking_thread_ = 0;
+  Mutex video_ticking_mutex_;
+  ConditionVariable video_ticking_condition_variable_{video_ticking_mutex_};
+
   std::unique_ptr<MediaCodecBridge> media_codec_bridge_;
 };
 
