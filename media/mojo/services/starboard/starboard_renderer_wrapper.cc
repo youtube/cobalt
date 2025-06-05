@@ -30,7 +30,7 @@ StarboardRendererWrapper::StarboardRendererWrapper(
       client_extension_remote_(std::move(traits.client_extension_remote),
                                traits.task_runner),
       renderer_(
-          std::move(traits.task_runner),
+          traits.task_runner,
           std::make_unique<MojoMediaLog>(std::move(traits.media_log_remote),
                                          traits.task_runner),
           traits.overlay_plane_id,
