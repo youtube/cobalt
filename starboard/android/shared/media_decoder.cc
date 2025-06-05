@@ -149,16 +149,8 @@ MediaDecoder::MediaDecoder(Host* host,
 
 MediaDecoder::~MediaDecoder() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
-  destroying_.store(true);
-  {
-    ScopedLock scoped_lock(mutex_);
-    condition_variable_.Signal();
-  }
 
-  if (decoder_thread_ != 0) {
-    pthread_join(decoder_thread_, NULL);
-    decoder_thread_ = 0;
-  }
+  TerminateDecoderThread();
 
   if (is_valid()) {
     host_->OnFlushing();
@@ -378,6 +370,22 @@ void MediaDecoder::DecoderThreadFunc() {
   }
 
   SB_LOG(INFO) << "Destroying decoder thread.";
+}
+
+void MediaDecoder::TerminateDecoderThread() {
+  SB_DCHECK(thread_checker_.CalledOnValidThread());
+
+  destroying_.store(true);
+
+  {
+    ScopedLock scoped_lock(mutex_);
+    condition_variable_.Signal();
+  }
+
+  if (decoder_thread_ != 0) {
+    pthread_join(decoder_thread_, nullptr);
+    decoder_thread_ = 0;
+  }
 }
 
 void MediaDecoder::CollectPendingData_Locked(
@@ -672,6 +680,8 @@ void MediaDecoder::OnMediaCodecFrameRendered(int64_t frame_timestamp) {
 }
 
 bool MediaDecoder::Flush() {
+  SB_DCHECK(thread_checker_.CalledOnValidThread());
+
   // Try to flush if we can, otherwise return |false| to recreate the codec
   // completely. Flush() is called by `player_worker` thread,
   // but MediaDecoder is on `audio_decoder` and `video_decoder`
@@ -679,16 +689,8 @@ bool MediaDecoder::Flush() {
   // `video_decoder` threads to clean up all pending tasks,
   // and Flush()/Start() |media_codec_bridge_|.
 
-  // 1. Destroy `audio_decoder` and `video_decoder` threads.
-  destroying_.store(true);
-  {
-    ScopedLock scoped_lock(mutex_);
-    condition_variable_.Signal();
-  }
-  if (decoder_thread_ != 0) {
-    pthread_join(decoder_thread_, NULL);
-    decoder_thread_ = 0;
-  }
+  // 1. Terminate `audio_decoder` or `video_decoder` thread.
+  TerminateDecoderThread();
 
   // 2. Flush()/Start() |media_codec_bridge_| and clean up pending tasks.
   if (is_valid()) {
