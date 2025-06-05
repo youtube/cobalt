@@ -248,7 +248,9 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(munmap);
   REGISTER_SYMBOL(open);
   REGISTER_SYMBOL(pipe);
+  REGISTER_SYMBOL(poll);
   REGISTER_SYMBOL(posix_memalign);
+  REGISTER_SYMBOL(ppoll);
   REGISTER_SYMBOL(pread);
   REGISTER_SYMBOL(pwrite);
   REGISTER_SYMBOL(rand);
@@ -260,6 +262,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(recvmsg);
   REGISTER_SYMBOL(rmdir);
   REGISTER_SYMBOL(sched_yield);
+  REGISTER_SYMBOL(select);
   REGISTER_SYMBOL(send);
   REGISTER_SYMBOL(sendto);
   REGISTER_SYMBOL(socket);
@@ -299,8 +302,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(lseek);
   REGISTER_WRAPPER(mmap);
   REGISTER_WRAPPER(opendir);
-  REGISTER_WRAPPER(poll);
-  REGISTER_WRAPPER(ppoll);
   REGISTER_WRAPPER(pthread_attr_init);
   REGISTER_WRAPPER(pthread_attr_destroy);
   REGISTER_WRAPPER(pthread_attr_getdetachstate);
@@ -360,7 +361,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(pthread_setspecific);
   REGISTER_WRAPPER(readdir);
   REGISTER_WRAPPER(readdir_r);
-  REGISTER_WRAPPER(select);
   REGISTER_WRAPPER(setsockopt);
   REGISTER_WRAPPER(shutdown);
   REGISTER_WRAPPER(stat);
