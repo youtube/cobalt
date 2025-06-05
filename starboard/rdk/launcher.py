@@ -90,7 +90,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
   # Wait up to 900 seconds for new output from the RDK
   _PEXPECT_READLINE_TIMEOUT_MAX_RETRIES = 900
   # Delay between subsequent SSH commands
-  _INTER_COMMAND_DELAY_SECONDS = 1.5
+  _INTER_COMMAND_DELAY_SECONDS = 2.5
 
   # This is used to strip ansi color codes from pexpect output.
   _PEXPECT_SANITIZE_LINE_RE = re.compile(r'\x1b[^m]*m')

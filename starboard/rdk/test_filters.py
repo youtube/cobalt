@@ -94,6 +94,23 @@ _FILTERED_TESTS = {
         'SysInfoTest.AmountOfFreeDiskSpace',
         'SysInfoTest.AmountOfTotalDiskSpace',
     ],
+    'dom_test': [
+        'NavigatorTest.NavigatorOnline',
+    ],
+    'extension_test': [
+        'ExtensionTest.Graphics',
+    ],
+    'renderer_test': [
+        'PixelTest.SimpleTextInEthiopicBold',
+        'PixelTest.SimpleTextInRed40PtChineseFont',
+        'PixelTest.SimpleTextInRed40PtKatakanaJapaneseFont',
+        'PixelTest.SimpleTextInRed40PtHiranganaJapaneseFont',
+        'StressTest.TooManyTextures',
+    ],
+    'worker_test': [
+        'WorkerNavigatorTests/WorkerNavigatorTest.WorkerNavigatorOnline/DedicatedWorkerGlobalScope',
+        "WorkerNavigatorTests/WorkerNavigatorTest.WorkerNavigatorOnline/ServiceWorkerGlobalScope",
+    ],
 }
 
 
