@@ -773,6 +773,10 @@ KeyboardCode KeyboardCodeFromAndroidKeyCode(int keycode) {
       return VKEY_PRIOR;
     case AKEYCODE_CHANNEL_DOWN:
       return VKEY_NEXT;
+    // Cobalt keycode mappings
+    case AKEYCODE_CAPTIONS:
+      return KEY_SUBTITLES;
+    // End of Cobalt keycode mappings
     default:
       return VKEY_UNKNOWN;
   }
