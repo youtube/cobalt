@@ -14,9 +14,9 @@
 
 #include "starboard/common/drm.h"
 
+#include <sstream>
 #include <string>
 
-#include "starboard/common/log.h"
 #include "starboard/drm.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -28,20 +28,27 @@ struct DrmSessionRequestTypeParam {
   const char* name;
 };
 
-class DrmSessionRequestTypeNameTest
+class SbDrmSessionRequestTypeTest
     : public ::testing::TestWithParam<DrmSessionRequestTypeParam> {};
 
-TEST_P(DrmSessionRequestTypeNameTest, GetsNameCorrectly) {
+TEST_P(SbDrmSessionRequestTypeTest, GetSbDrmSessionRequestTypeName) {
   const auto& [type, name] = GetParam();
 
-  SB_LOG(INFO) << "Testing SbDrmSessionRequestType value: " << type
-               << " with expected name: " << name;
   EXPECT_STREQ(GetSbDrmSessionRequestTypeName(type), name);
+}
+
+TEST_P(SbDrmSessionRequestTypeTest, StreamInsertionOperator) {
+  const auto& [type, name] = GetParam();
+  std::stringstream ss;
+
+  ss << type;
+
+  EXPECT_EQ(ss.str(), name);
 }
 
 INSTANTIATE_TEST_SUITE_P(
     DrmTest,
-    DrmSessionRequestTypeNameTest,
+    SbDrmSessionRequestTypeTest,
     ::testing::Values(
         DrmSessionRequestTypeParam{kSbDrmSessionRequestTypeLicenseRequest,
                                    "license-request"},
@@ -58,19 +65,26 @@ struct DrmStatusParam {
   const char* name;
 };
 
-class DrmStatusNameTest : public ::testing::TestWithParam<DrmStatusParam> {};
+class SbDrmStatusTest : public ::testing::TestWithParam<DrmStatusParam> {};
 
-TEST_P(DrmStatusNameTest, GetsNameCorrectly) {
+TEST_P(SbDrmStatusTest, GetSbDrmStatusName) {
   const auto& [status, name] = GetParam();
 
-  SB_LOG(INFO) << "Testing SbDrmStatus value: " << status
-               << " with expected name: " << name;
   EXPECT_STREQ(GetSbDrmStatusName(status), name);
+}
+
+TEST_P(SbDrmStatusTest, StreamInsertionOperator) {
+  const auto& [type, name] = GetParam();
+  std::stringstream ss;
+
+  ss << type;
+
+  EXPECT_EQ(ss.str(), name);
 }
 
 INSTANTIATE_TEST_SUITE_P(
     DrmTest,
-    DrmStatusNameTest,
+    SbDrmStatusTest,
     ::testing::Values(
         DrmStatusParam{kSbDrmStatusSuccess, "success"},
         DrmStatusParam{kSbDrmStatusTypeError, "error"},
