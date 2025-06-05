@@ -19,10 +19,10 @@
 
 #include <jni.h>
 
-#include <memory>
-
 #include <atomic>
+#include <memory>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 
@@ -35,8 +35,8 @@
 namespace starboard::android::shared {
 
 class DrmSystem : public ::SbDrmSystemPrivate,
-                  private Thread,
-                  private MediaDrmBridge::Host {
+                  public MediaDrmBridge::Host,
+                  private Thread {
  public:
   DrmSystem(const char* key_system,
             void* context,
@@ -66,16 +66,13 @@ class DrmSystem : public ::SbDrmSystemPrivate,
   jobject GetMediaCrypto() const { return media_drm_bridge_->GetMediaCrypto(); }
 
   // MediaDrmBridge::Host methods.
-  void CallUpdateRequestCallback(int ticket,
-                                 SbDrmSessionRequestType request_type,
-                                 const void* session_id,
-                                 int session_id_size,
-                                 const void* content,
-                                 int content_size,
-                                 const char* url) override;
-  void CallDrmSessionKeyStatusesChangedCallback(
-      const void* session_id,
-      int session_id_size,
+  void OnSessionUpdate(int ticket,
+                       SbDrmSessionRequestType request_type,
+                       std::string_view session_id,
+                       std::string_view content,
+                       const char* url) override;
+  void OnKeyStatusChange(
+      std::string_view session_id,
       const std::vector<SbDrmKeyId>& drm_key_ids,
       const std::vector<SbDrmKeyStatus>& drm_key_statuses) override;
 

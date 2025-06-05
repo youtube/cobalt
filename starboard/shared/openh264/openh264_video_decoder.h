@@ -17,11 +17,11 @@
 
 #include <limits>
 #include <memory>
+#include <optional>
 #include <queue>
 #include <string>
 #include <vector>
 
-#include "starboard/common/optional.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/decode_target.h"
 #include "starboard/shared/internal_only.h"
@@ -129,7 +129,7 @@ class VideoDecoder : public starboard::player::filter::VideoDecoder,
   int frames_being_decoded_ = 0;
 
   // Store current avc level profile and resolution.
-  optional<shared::starboard::media::VideoConfig> video_config_;
+  std::optional<shared::starboard::media::VideoConfig> video_config_;
 };
 
 }  // namespace starboard::shared::openh264

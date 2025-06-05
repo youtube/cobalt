@@ -20,10 +20,10 @@
 #include <utility>
 #include <vector>
 
+#include <optional>
 #include "starboard/common/file.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
-#include "starboard/common/optional.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
@@ -174,7 +174,7 @@ class VideoDmpReader {
   ReadCB read_cb_;
   DmpInfo dmp_info_;
 
-  optional<bool> reverse_byte_order_;
+  std::optional<bool> reverse_byte_order_;
 
   std::vector<AudioAccessUnit> audio_access_units_;
   std::vector<VideoAccessUnit> video_access_units_;

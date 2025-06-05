@@ -55,8 +55,6 @@ class WidevineTimer : public ::widevine::Cdm::ITimer {
   std::map<IClient*, JobQueue::JobOwner*> active_clients_;
 };
 
-}  // namespace widevine
-
 }  // namespace starboard::shared::widevine
 
 #endif  // STARBOARD_SHARED_WIDEVINE_WIDEVINE_TIMER_H_

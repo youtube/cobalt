@@ -261,7 +261,7 @@ void AudioRendererPcm::Seek(int64_t seek_to_time) {
 
   if (first_input_written_) {
     decoder_->Reset();
-    decoder_sample_rate_ = nullopt;
+    decoder_sample_rate_ = std::nullopt;
     first_input_written_ = false;
   }
 

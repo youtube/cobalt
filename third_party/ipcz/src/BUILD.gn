@@ -6,7 +6,7 @@ import("//build/buildflag_header.gni")
 import("//build_overrides/ipcz.gni")
 import("//testing/test.gni")
 
-enable_multiprocess_tests = is_linux
+enable_multiprocess_tests = is_linux && !is_starboard
 
 buildflag_header("test_buildflags") {
   header = "test_buildflags.h"
