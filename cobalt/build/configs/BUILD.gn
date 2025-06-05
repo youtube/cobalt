@@ -21,7 +21,8 @@ config("cobalt_config") {
     ":default_includes",
     ":buildflag_defines",
   ]
-  if (current_toolchain == starboard_toolchain) {
+  if (current_toolchain == starboard_toolchain &&
+      starboard_toolchain != default_toolchain) {
     configs += [ "//${starboard_path}/platform_configuration" ]
   } else if (is_cobalt_hermetic_build &&
              current_toolchain == cobalt_toolchain) {
