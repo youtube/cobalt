@@ -137,9 +137,14 @@ CommandLinePreprocessor::CommandLinePreprocessor(int argc,
     }
   }
 
-  CHECK(!cmd_line_.HasSwitch("window-size"))
-      << "--window-size is not supported, since it is a Chrome (not Cobalt) "
-         "command line switch. Try --content-shell-host-window-size instead.";
+  // Override kContentShellHostWindowSize if the user sets kWindowSize.
+  if (cmd_line_.HasSwitch(::switches::kWindowSize)) {
+    std::string window_size =
+        cmd_line_.GetSwitchValueASCII(::switches::kWindowSize);
+    std::replace(window_size.begin(), window_size.end(), ',', 'x');
+    cmd_line_.AppendSwitchASCII(::switches::kContentShellHostWindowSize,
+                                window_size);
+  }
 
   // Any remaining parameter switches are set to their defaults.
   for (const auto& iter : cobalt_param_switch_defaults) {
