@@ -18,6 +18,7 @@
 #include "base/android/jni_string.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/common/string.h"
+#include "starboard/common/time.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "cobalt/android/jni_headers/MediaCodecBridgeBuilder_jni.h"
@@ -104,6 +105,24 @@ JNI_MediaCodecBridge_OnMediaCodecFrameRendered(JNIEnv* env,
   MediaCodecBridge* media_codec_bridge =
       reinterpret_cast<MediaCodecBridge*>(native_media_codec_bridge);
   SB_DCHECK(media_codec_bridge);
+
+  static int64_t last_render_ms = CurrentMonotonicTime() / 1'000;
+  static int render_count = 0;
+  int64_t render_ms = render_at_system_time_ns / 1'000'000;
+  int64_t render_gap_ms = render_ms - last_render_ms;
+  if (render_gap_ms > 1'000) {
+    render_count = 0;
+  }
+  render_count++;
+  if (render_count < 10) {
+    SB_LOG(INFO) << "Rendered: pts(msec)=" << presentation_time_us / 1'000
+                 << ", render_gap(msec)="
+                 << (render_gap_ms > 1'000 ? "n/a"
+                                           : std::to_string(render_gap_ms))
+                 << ", render(msec)=" << render_ms;
+  }
+  last_render_ms = render_ms;
+
   media_codec_bridge->OnMediaCodecFrameRendered(presentation_time_us);
 }
 
