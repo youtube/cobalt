@@ -67,7 +67,7 @@ class ContinuousAudioTrackSink
     bool is_eos_reached;
   };
   SourceState GetSourceState();
-  bool WriteFrames(const SourceState& source);
+  bool WriteAudioFrames(const SourceState& source);
 
   bool OnReadData(void* buffer, int num_frames_to_read);
 
@@ -119,6 +119,8 @@ class ContinuousAudioTrackSink
 
   pthread_t main_thread_ = 0;
   bool thread_stop_ = false;
+
+  int64_t last_report_callback_us_ = 0;
 };
 
 }  // namespace starboard::android::shared

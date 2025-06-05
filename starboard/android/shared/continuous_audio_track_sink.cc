@@ -32,6 +32,8 @@ namespace {
 
 using ::starboard::shared::starboard::media::GetBytesPerSample;
 
+constexpr bool kEstimateAudioTimestamp = false;
+
 // The maximum number of frames that can be written to android audio track per
 // write request. If we don't set this cap for writing frames to audio track,
 // we will repeatedly allocate a large byte array which cannot be consumed by
@@ -150,6 +152,12 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
         stream_->WriteFrames(kSilenceFrames.data(), kIntervalFrames);
     SB_CHECK(result.has_value());
     SB_CHECK(*result == kIntervalFrames);
+
+    aaudio_in_frames_ += *result;
+    aaudio_in_ts_ = {
+        .frame_position = aaudio_in_frames_,
+        .system_time_us = CurrentMonotonicTime(),
+    };
     initial_silence_frames_ += kIntervalFrames;
   };
 
@@ -173,21 +181,26 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
                      << source.available_frames;
         data_has_arrived_ = true;
       } else {
-        SB_LOG(INFO) << "No data yet: write silence frames";
         int64_t frames_in_buffer_ms = stream_->GetFramesInBufferMsec();
+        const int64_t start_buffer_ms = frames_in_buffer_ms;
 
         while (frames_in_buffer_ms < kMinimumBufferMs) {
           write_silence_frames();
           frames_in_buffer_ms += kIntervalMs;
         }
-
+        if (frames_in_buffer_ms != start_buffer_ms) {
+          SB_LOG(INFO) << "No data yet: write silence frames: increase(msec)="
+                       << (frames_in_buffer_ms - start_buffer_ms)
+                       << ", frames_in_buffer(msec)=" << frames_in_buffer_ms
+                       << ", start_buffer(msec)=" << start_buffer_ms;
+        }
         usleep(kIntervalMs * 1'000);
         continue;
       }
     }
 
-    if (bool ok = WriteFrames(source); !ok) {
-      SB_LOG(INFO) << "WriteFrames failed:";
+    if (bool ok = WriteAudioFrames(source); !ok) {
+      SB_LOG(INFO) << "WriteAudioFrames failed:";
       break;
     }
     usleep(kIntervalMs * 1'000);
@@ -212,7 +225,7 @@ ContinuousAudioTrackSink::GetSourceState() {
   };
 }
 
-bool ContinuousAudioTrackSink::WriteFrames(const SourceState& source) {
+bool ContinuousAudioTrackSink::WriteAudioFrames(const SourceState& source) {
   const int source_buffer_size = frames_per_channel_;
 
   int frame_offset =
@@ -233,9 +246,14 @@ bool ContinuousAudioTrackSink::WriteFrames(const SourceState& source) {
     }
     frames_written += *result;
     pending_frames_in_platform_buffer_ += *result;
+
+    aaudio_in_frames_ += *result;
+    aaudio_in_ts_ = {
+        .frame_position = aaudio_in_frames_,
+        .system_time_us = CurrentMonotonicTime(),
+    };
+
     if (*result != frames_to_write) {
-      SB_LOG(INFO) << __func__ << ": partial write: actual=" << *result
-                   << " != expected=" << frames_to_write;
       return false;
     }
     return true;
@@ -306,14 +324,15 @@ void ContinuousAudioTrackSink::ReportPlayedFrames() {
            ts.frame_position * 1'000 / sampling_frequency_hz_;
   };
 
-  thread_local int64_t last_callback_us = 0;
   int64_t now_us = CurrentMonotonicTime();
-  if (now_us - last_callback_us > 5'000'000) {
+  if (last_report_callback_us_ == 0) {
+    last_report_callback_us_ = now_us;
+  } else if (now_us - last_report_callback_us_ > 5'000'000) {
     SB_LOG(INFO) << "latency(msec)="
                  << GetOriginMs(*latest_timestamp) - GetOriginMs(aaudio_in_ts_)
                  << ", origin_out(msec)=" << GetOriginMs(*latest_timestamp)
                  << ", origin_in(msec)=" << GetOriginMs(aaudio_in_ts_);
-    last_callback_us = now_us;
+    last_report_callback_us_ = now_us;
   }
 
   AudioStream::Timestamp timestamp = [&] {
@@ -325,7 +344,10 @@ void ContinuousAudioTrackSink::ReportPlayedFrames() {
       SB_LOG(INFO) << "timestamp is before playback starts";
       return *latest_timestamp;
     }
-    return GetEstimatedNowTimestamp(*latest_timestamp, sampling_frequency_hz_);
+    return kEstimateAudioTimestamp
+               ? GetEstimatedNowTimestamp(*latest_timestamp,
+                                          sampling_frequency_hz_)
+               : *latest_timestamp;
   }();
 
   auto SanitizePosition = [&](int64_t frame_position) {

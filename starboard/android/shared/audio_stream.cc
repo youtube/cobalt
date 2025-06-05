@@ -410,8 +410,14 @@ bool AudioStream::PauseAndFlush() {
 }
 
 std::optional<int> AudioStream::WriteFrames(void* buffer, int frames) {
+  int64_t start_us = CurrentMonotonicTime();
   aaudio_result_t result =
       AAudioStream_write(stream_, buffer, frames, /*timeoutNanoseconds=*/0);
+  int64_t elapsed_ms = (CurrentMonotonicTime() - start_us) / 1'000;
+  if (elapsed_ms > 1) {
+    SB_LOG(WARNING) << "AAudioStream_write completed: elapsec(msec)="
+                    << elapsed_ms;
+  }
   if (result < 0) {
     SB_LOG(ERROR) << "AAudioStream_write failed: "
                   << AAudio_convertResultToText(result)
@@ -421,7 +427,6 @@ std::optional<int> AudioStream::WriteFrames(void* buffer, int frames) {
 
     return std::nullopt;
   }
-  SB_LOG(INFO) << __func__ << ": frames_written=" << result;
   if (result == 0) {
     consecutive_failure_count_++;
     SB_CHECK(consecutive_failure_count_ < 100);
