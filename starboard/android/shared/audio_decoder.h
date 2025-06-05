@@ -73,6 +73,10 @@ class AudioDecoder
   void RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) override;
   bool Tick(MediaCodecBridge* media_codec_bridge) override { return false; }
   void OnFlushing() override {}
+  bool IsBufferDecodeOnly(
+      const scoped_refptr<InputBuffer>& input_buffer) override {
+    return false;
+  }
 
   void ReportError(SbPlayerError error, const std::string& error_message);
 
