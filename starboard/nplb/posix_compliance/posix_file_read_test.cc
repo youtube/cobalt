@@ -18,6 +18,10 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include <algorithm>
+#include <string>
+#include <vector>
+
 #include "starboard/common/file.h"
 #include "starboard/nplb/file_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -46,18 +50,13 @@ class PosixReadAll {
 
 typedef testing::Types<PosixRead, PosixReadAll> PosixFileReadTestTypes;
 
-template <typename T, size_t n>
-size_t array_size(const T (&)[n]) {
-  return n;
-}
-
 TYPED_TEST_CASE(PosixFileReadTest, PosixFileReadTestTypes);
 
 const int kBufferLength = 16 * 1024;
 
 TYPED_TEST(PosixFileReadTest, InvalidFileErrors) {
-  char buffer[kBufferLength];
-  int result = TypeParam::Read(-1, buffer, kBufferLength);
+  std::vector<char> buffer(kBufferLength);
+  int result = TypeParam::Read(-1, buffer.data(), buffer.size());
   EXPECT_EQ(-1, result);
 }
 
@@ -74,21 +73,19 @@ TYPED_TEST(PosixFileReadTest, BasicReading) {
   // Create a bigger buffer than necessary, so we can test the memory around
   // the portion given to SbFileRead.
   const int kRealBufferLength = kBufferLength * 2;
-  char real_buffer[kRealBufferLength] = {0};
+  std::vector<char> real_buffer(kRealBufferLength);
   const int kBufferOffset = kBufferLength / 2;
-  char* buffer = real_buffer + kBufferOffset;
 
   // Initialize to some arbitrary pattern so we can verify it later.
-  for (int i = 0; i < kRealBufferLength; ++i) {
-    real_buffer[i] = '\xCD';
-  }
+  std::fill(real_buffer.begin(), real_buffer.end(), '\xCD');
 
   // Read and check the whole file.
   int total = 0;
   int previous_total = 0;
   int max = 0;
   while (true) {
-    int bytes_read = TypeParam::Read(file, buffer, kBufferLength);
+    int bytes_read =
+        TypeParam::Read(file, real_buffer.data() + kBufferOffset, kBufferLength);
     if (bytes_read == 0) {
       break;
     }
@@ -106,8 +103,9 @@ TYPED_TEST(PosixFileReadTest, BasicReading) {
       max = bytes_read;
     }
 
-    ScopedRandomFile::ExpectPattern(previous_total, buffer, bytes_read,
-                                    __LINE__);
+    ScopedRandomFile::ExpectPattern(previous_total,
+                                    real_buffer.data() + kBufferOffset,
+                                    bytes_read, __LINE__);
   }
 
   // Check that we read the whole file.
@@ -137,18 +135,16 @@ TYPED_TEST(PosixFileReadTest, ReadZeroBytes) {
   // Create a bigger buffer than necessary, so we can test the memory around
   // the portion given to SbFileRead.
   const int kRealBufferLength = kBufferLength * 2;
-  char real_buffer[kRealBufferLength] = {0};
+  std::vector<char> real_buffer(kRealBufferLength);
   const int kBufferOffset = kBufferLength / 2;
-  char* buffer = real_buffer + kBufferOffset;
 
   // Initialize to some arbitrary pattern so we can verify it later.
-  for (int i = 0; i < kRealBufferLength; ++i) {
-    real_buffer[i] = '\xCD';
-  }
+  std::fill(real_buffer.begin(), real_buffer.end(), '\xCD');
 
   // Read zero bytes.
   for (int i = 0; i < 10; ++i) {
-    int bytes_read = TypeParam::Read(file, buffer, 0);
+    int bytes_read = TypeParam::Read(
+        file, real_buffer.data() + kBufferOffset, 0);
     EXPECT_EQ(0, bytes_read);
   }
 
@@ -171,23 +167,22 @@ TYPED_TEST(PosixFileReadTest, ReadFromMiddle) {
   // Create a bigger buffer than necessary, so we can test the memory around
   // the portion given to SbFileRead.
   const int kRealBufferLength = kBufferLength * 2;
-  char real_buffer[kRealBufferLength] = {0};
+  std::vector<char> real_buffer(kRealBufferLength);
   const int kBufferOffset = kBufferLength / 2;
-  char* buffer = real_buffer + kBufferOffset;
 
   // Initialize to some arbitrary pattern so we can verify it later.
-  for (int i = 0; i < kRealBufferLength; ++i) {
-    real_buffer[i] = '\xCD';
-  }
+  std::fill(real_buffer.begin(), real_buffer.end(), '\xCD');
 
   // Read from the middle of the file.
   int position = static_cast<int>(lseek(file, kFileSize / 4, SEEK_SET));
   EXPECT_EQ(kFileSize / 4, position);
-  int bytes_read = TypeParam::Read(file, buffer, kBufferLength);
+  int bytes_read =
+      TypeParam::Read(file, real_buffer.data() + kBufferOffset, kBufferLength);
   EXPECT_GE(kBufferLength, bytes_read);
   EXPECT_LT(0, bytes_read);
 
-  ScopedRandomFile::ExpectPattern(position, buffer, bytes_read, __LINE__);
+  ScopedRandomFile::ExpectPattern(
+      position, real_buffer.data() + kBufferOffset, bytes_read, __LINE__);
 
   for (int i = 0; i < kBufferOffset; ++i) {
     EXPECT_EQ('\xCD', real_buffer[i]);
@@ -215,21 +210,19 @@ TYPED_TEST(PosixFileReadTest, ReadStaticContent) {
     // Create a bigger buffer than necessary, so we can test the memory around
     // the portion given to SbFileRead.
     const int kRealBufferLength = kBufferLength * 2;
-    char real_buffer[kRealBufferLength] = {0};
+    std::vector<char> real_buffer(kRealBufferLength);
     const int kBufferOffset = kBufferLength / 2;
-    char* buffer = real_buffer + kBufferOffset;
 
     // Initialize to some arbitrary pattern so we can verify it later.
-    for (int i = 0; i < kRealBufferLength; ++i) {
-      real_buffer[i] = '\xCD';
-    }
+    std::fill(real_buffer.begin(), real_buffer.end(), '\xCD');
 
     // Read and check the whole file.
     std::string content;
     int total = 0;
     int max = 0;
     while (true) {
-      int bytes_read = TypeParam::Read(file, buffer, kBufferLength);
+      int bytes_read = TypeParam::Read(
+          file, real_buffer.data() + kBufferOffset, kBufferLength);
       if (bytes_read == 0) {
         break;
       }
@@ -247,7 +240,7 @@ TYPED_TEST(PosixFileReadTest, ReadStaticContent) {
       }
 
       // Accumulate the content of the whole file.
-      content.append(buffer, bytes_read);
+      content.append(real_buffer.data() + kBufferOffset, bytes_read);
     }
 
     // Check that we didn't write over any other parts of the buffer.
@@ -268,81 +261,87 @@ TYPED_TEST(PosixFileReadTest, ReadStaticContent) {
 
 TYPED_TEST(PosixFileReadTest, PreadSuccess) {
   // Create a temporary file.
-  std::string tmpl = GetTempDir() + "pread_test.XXXXXX";
-  char buffer[tmpl.size() + 1];
-  strcpy(buffer, tmpl.c_str());
-  int fd = mkstemp(buffer);
+  std::string tmpl_str = GetTempDir() + "pread_test.XXXXXX";
+  std::vector<char> buffer(tmpl_str.begin(), tmpl_str.end());
+  buffer.push_back('\0');
+  int fd = mkstemp(buffer.data());
   ASSERT_NE(fd, -1) << "mkstemp failed: " << strerror(errno);
-  unlink(buffer);  // delete the file.
+  unlink(buffer.data());  // delete the file.
 
   // Write some data to the file.
-  const char write_data[] = "Hello, pread!";
-  const auto bytes_written = write(fd, write_data, sizeof(write_data) - 1);
+  const std::string write_data = "Hello, pread!";
+  const auto bytes_written =
+      write(fd, write_data.c_str(), write_data.length());
   EXPECT_NE(bytes_written, -1) << "write() failed: " << strerror(errno);
-  ASSERT_EQ(bytes_written, sizeof(write_data) - 1);
+  ASSERT_EQ(bytes_written, write_data.length());
 
   // Prepare a buffer to read into.
-  char read_buffer[sizeof(write_data)] = {};
+  std::vector<char> read_buffer(write_data.length());
 
   // Read from the beginning of the file using pread.
-  const ssize_t bytes_read = pread(fd, read_buffer, sizeof(read_buffer) - 1, 0);
-  ASSERT_EQ(bytes_read, sizeof(write_data) - 1) << strerror(errno);
+  const ssize_t bytes_read =
+      pread(fd, read_buffer.data(), read_buffer.size(), 0);
+  ASSERT_EQ(bytes_read, write_data.length()) << strerror(errno);
 
   // Verify the data read.
-  EXPECT_STREQ(read_buffer, write_data);
+  EXPECT_EQ(std::string(read_buffer.begin(), read_buffer.end()), write_data);
 
   EXPECT_EQ(close(fd), 0) << "close failed: " << strerror(errno);
 }
 
 TYPED_TEST(PosixFileReadTest, PreadOffset) {
   // Create a temporary file.
-  std::string tmpl = GetTempDir() + "pread_offset_test.XXXXXX";
-  char buffer[tmpl.size() + 1];
-  strcpy(buffer, tmpl.c_str());
-  int fd = mkstemp(buffer);
+  std::string tmpl_str = GetTempDir() + "pread_offset_test.XXXXXX";
+  std::vector<char> buffer(tmpl_str.begin(), tmpl_str.end());
+  buffer.push_back('\0');
+  int fd = mkstemp(buffer.data());
   ASSERT_NE(fd, -1) << "mkstemp failed: " << strerror(errno);
-  unlink(buffer);  // delete the file.
+  unlink(buffer.data());  // delete the file.
 
   // Write data with an offset.
-  const char write_data[] = "0123456789";
-  const auto bytes_written = write(fd, write_data, sizeof(write_data) - 1);
+  const std::string write_data = "0123456789";
+  const auto bytes_written =
+      write(fd, write_data.c_str(), write_data.length());
   EXPECT_NE(bytes_written, -1) << "write() failed: " << strerror(errno);
-  ASSERT_EQ(bytes_written, sizeof(write_data) - 1);
+  ASSERT_EQ(bytes_written, write_data.length());
 
   // Read only part of the data using an offset with pread.
-  char read_buffer[5] = {};
-  const ssize_t bytes_read = pread(fd, read_buffer, sizeof(read_buffer) - 1,
-                                   2);  // Read from offset 2.
-  ASSERT_EQ(bytes_read, sizeof(read_buffer) - 1) << strerror(errno);
+  std::vector<char> read_buffer(4);  // Expect "2345"
+  const ssize_t bytes_read =
+      pread(fd, read_buffer.data(), read_buffer.size(), 2);  // Read from offset 2.
+  ASSERT_EQ(bytes_read, read_buffer.size()) << strerror(errno);
 
   // Verify the data read.
-  EXPECT_STREQ(read_buffer, "2345");
+  EXPECT_EQ(std::string(read_buffer.begin(), read_buffer.end()), "2345");
 
   EXPECT_EQ(close(fd), 0) << "close failed: " << strerror(errno);
 }
 
 TYPED_TEST(PosixFileReadTest, PreadReadMore) {
   // Create a temporary file.
-  std::string tmpl = GetTempDir() + "pread_read_more.XXXXXX";
-  char buffer[tmpl.size() + 1];
-  strcpy(buffer, tmpl.c_str());
-  int fd = mkstemp(buffer);
+  std::string tmpl_str = GetTempDir() + "pread_read_more.XXXXXX";
+  std::vector<char> buffer(tmpl_str.begin(), tmpl_str.end());
+  buffer.push_back('\0');
+  int fd = mkstemp(buffer.data());
   ASSERT_NE(fd, -1) << "mkstemp failed: " << strerror(errno);
-  unlink(buffer);  // delete the file.
+  unlink(buffer.data());  // delete the file.
 
   // Write some data.
-  const char write_data[] = "abc";
-  const auto bytes_written = write(fd, write_data, sizeof(write_data) - 1);
+  const std::string write_data = "abc";
+  const auto bytes_written =
+      write(fd, write_data.c_str(), write_data.length());
   EXPECT_NE(bytes_written, -1) << "write() failed: " << strerror(errno);
-  ASSERT_EQ(bytes_written, sizeof(write_data) - 1);
+  ASSERT_EQ(bytes_written, write_data.length());
 
   // Try to read more than is available.
-  char read_buffer[10] = {};
-  const ssize_t bytes_read = pread(fd, read_buffer, sizeof(read_buffer) - 1, 0);
-  EXPECT_EQ(bytes_read, sizeof(write_data) - 1) << strerror(errno);
+  std::vector<char> read_buffer(9);
+  const ssize_t bytes_read =
+      pread(fd, read_buffer.data(), read_buffer.size(), 0);
+  EXPECT_EQ(bytes_read, write_data.length()) << strerror(errno);
 
   // Verify the data read.
-  EXPECT_STREQ(read_buffer, "abc");
+  EXPECT_EQ(std::string(read_buffer.begin(), read_buffer.begin() + bytes_read),
+            write_data);
   EXPECT_EQ(close(fd), 0) << "close failed: " << strerror(errno);
 }
 

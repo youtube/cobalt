@@ -15,6 +15,8 @@
 // Here we are not trying to do anything fancy, just to really sanity check that
 // this is hooked up to something.
 
+#include <vector>
+
 #include "starboard/nplb/posix_compliance/posix_socket_helpers.h"
 
 namespace starboard {
@@ -78,8 +80,8 @@ TEST(PosixSocketRecvfromTest, SunnyDay) {
 
   // Create the buffers and fill the send buffer with a pattern, the receive
   // buffer with zeros.
-  char* send_buf = new char[kBufSize];
-  char* receive_buf = new char[kBufSize];
+  std::vector<char> send_buf(kBufSize);
+  std::vector<char> receive_buf(kBufSize);
   for (int i = 0; i < kBufSize; ++i) {
     send_buf[i] = static_cast<char>(i);
     receive_buf[i] = 0;
@@ -87,8 +89,8 @@ TEST(PosixSocketRecvfromTest, SunnyDay) {
 
   // Send from server to client and verify the pattern.
   int transferred = 0;
-  transferred = Transfer(client_socket_fd, receive_buf, server_socket_fd,
-                         send_buf, kBufSize);
+  transferred = Transfer(client_socket_fd, receive_buf.data(),
+                         server_socket_fd, send_buf.data(), kBufSize);
   EXPECT_EQ(kBufSize, transferred);
   for (int i = 0; i < kBufSize; ++i) {
     EXPECT_EQ(send_buf[i], receive_buf[i]) << "Position " << i;
@@ -98,8 +100,8 @@ TEST(PosixSocketRecvfromTest, SunnyDay) {
   for (int i = 0; i < kBufSize; ++i) {
     receive_buf[i] = 0;
   }
-  transferred = Transfer(server_socket_fd, receive_buf, client_socket_fd,
-                         send_buf, kBufSize);
+  transferred = Transfer(server_socket_fd, receive_buf.data(),
+                         client_socket_fd, send_buf.data(), kBufSize);
   EXPECT_EQ(kBufSize, transferred);
   for (int i = 0; i < kBufSize; ++i) {
     EXPECT_EQ(send_buf[i], receive_buf[i]) << "Position " << i;
@@ -108,8 +110,6 @@ TEST(PosixSocketRecvfromTest, SunnyDay) {
   EXPECT_TRUE(close(server_socket_fd) == 0);
   EXPECT_TRUE(close(client_socket_fd) == 0);
   EXPECT_TRUE(close(listen_socket_fd) == 0);
-  delete[] send_buf;
-  delete[] receive_buf;
 }
 
 }  // namespace

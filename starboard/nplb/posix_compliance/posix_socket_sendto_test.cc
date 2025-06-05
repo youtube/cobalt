@@ -20,6 +20,9 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <array>
+#include <vector>
+
 #include "starboard/nplb/posix_compliance/posix_socket_helpers.h"
 #include "starboard/thread.h"
 
@@ -32,8 +35,7 @@ void* PosixSocketSendToServerSocketEntryPoint(void* trio_as_void_ptr) {
   struct trio_socket_fd* trio_ptr =
       reinterpret_cast<struct trio_socket_fd*>(trio_as_void_ptr);
   const size_t kBufSize = 1024;
-  char* send_buf = new char[kBufSize];
-  memset(send_buf, 0, kBufSize);
+  std::vector<char> send_buf(kBufSize, 0);
 
   pthread_setname_np(pthread_self(), "SendToTest");
 
@@ -45,21 +47,20 @@ void* PosixSocketSendToServerSocketEntryPoint(void* trio_as_void_ptr) {
   int64_t kTimeout = 1'000'000;  // 1 second
   int result = 0;
   while (result >= 0 && (now - start < kTimeout)) {
-    result = sendto(*(trio_ptr->server_socket_fd_ptr), send_buf, kBufSize,
-                    kSendFlags, NULL, 0);
+    result = sendto(*(trio_ptr->server_socket_fd_ptr), send_buf.data(),
+                    send_buf.size(), kSendFlags, NULL, 0);
     now = CurrentMonotonicTime();
   }
 
-  delete[] send_buf;
   return NULL;
 }
 
 TEST(PosixSocketSendtoTest, RainyDayInvalidSocket) {
-  char buf[16];
+  std::array<char, 16> buf{};
   int invalid_socket_fd = -1;
 
   ssize_t bytes_written =
-      sendto(invalid_socket_fd, buf, sizeof(buf), kSendFlags, NULL, 0);
+      sendto(invalid_socket_fd, buf.data(), buf.size(), kSendFlags, NULL, 0);
   EXPECT_FALSE(bytes_written >= 0);
 }
 
@@ -67,9 +68,9 @@ TEST(PosixSocketSendtoTest, RainyDayUnconnectedSocket) {
   int socket_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
   ASSERT_TRUE(socket_fd >= 0);
 
-  char buf[16];
+  std::array<char, 16> buf{};
   ssize_t bytes_written =
-      sendto(socket_fd, buf, sizeof(buf), kSendFlags, NULL, 0);
+      sendto(socket_fd, buf.data(), buf.size(), kSendFlags, NULL, 0);
   EXPECT_FALSE(bytes_written >= 0);
 
   EXPECT_TRUE(errno == ECONNRESET || errno == ENETRESET || errno == EPIPE ||
@@ -139,8 +140,9 @@ TEST(PosixSocketSendtoTest, RainyDaySendToSocketUntilBlocking) {
   uint64_t num_bytes = 0;
   result = 0;
   while (num_bytes < kMaxTransferLimit) {
-    char buff[kChunkSize] = {};
-    result = sendto(client_socket_fd, buff, sizeof(buff), kSendFlags, NULL, 0);
+    std::vector<char> buff(kChunkSize, 0);
+    result = sendto(client_socket_fd, buff.data(), buff.size(), kSendFlags,
+                    NULL, 0);
 
     if (result < 0) {
       // If we didn't get a socket, it should be pending.
@@ -187,9 +189,10 @@ TEST(PosixSocketSendtoTest, RainyDaySendToSocketConnectionReset) {
   // connection will reset.
   int kNumRetries = 1000;
   for (int i = 0; i < kNumRetries; ++i) {
-    char buff[kChunkSize] = {};
+    std::vector<char> buff(kChunkSize, 0);
     usleep(1000);
-    result = sendto(client_socket_fd, buff, sizeof(buff), kSendFlags, NULL, 0);
+    result = sendto(client_socket_fd, buff.data(), buff.size(), kSendFlags,
+                    NULL, 0);
 
     if (result < 0) {
       EXPECT_TRUE(errno == ECONNRESET || errno == ENETRESET || errno == EPIPE ||

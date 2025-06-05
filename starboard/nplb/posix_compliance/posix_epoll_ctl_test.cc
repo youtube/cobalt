@@ -21,6 +21,8 @@
 #include <sys/epoll.h>
 #include <unistd.h>
 
+#include <array>
+
 #include "starboard/nplb/posix_compliance/posix_epoll_test_helper.cc"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -31,13 +33,13 @@ namespace {
 class PosixEpollCtlTests : public PosixEpollTest {
  protected:
   int epfd_ = -1;
-  int pipe_fds_[2] = {-1, -1};  // pipe_fds_[0] for read, pipe_fds_[1] for write
+  std::array<int, 2> pipe_fds_ = {-1, -1};  // pipe_fds_[0] for read, pipe_fds_[1] for write
 
   void SetUp() override {
     epfd_ = epoll_create1(0);
     ASSERT_NE(epfd_, -1) << "Failed to create epoll instance in SetUp: "
                          << strerror(errno);
-    ASSERT_TRUE(CreatePipe(pipe_fds_, O_NONBLOCK))
+    ASSERT_TRUE(CreatePipe(pipe_fds_.data(), O_NONBLOCK))
         << "Failed to create pipe in SetUp: " << strerror(errno);
   }
 
