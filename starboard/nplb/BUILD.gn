@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import("//cobalt/build/configs/hacks.gni")
+import("//starboard/build/buildflags.gni")
 import("//starboard/build/config/os_definitions.gni")
 import("//testing/test.gni")
 
@@ -40,12 +41,6 @@ test("nplb") {
 
   sources = [
     "//starboard/common/test_main.cc",
-    "//starboard/nplb/sabi/alignment_test.cc",
-    "//starboard/nplb/sabi/endianness_test.cc",
-    "//starboard/nplb/sabi/signedness_and_size_of_enum_test.cc",
-    "//starboard/nplb/sabi/signedness_of_char_test.cc",
-    "//starboard/nplb/sabi/size_test.cc",
-    "//starboard/nplb/sabi/struct_alignment_test.cc",
     "//starboard/shared/starboard/drm/drm_test_helpers.cc",
     "//starboard/shared/starboard/drm/drm_test_helpers.h",
     "align_test.cc",
@@ -232,8 +227,14 @@ test("nplb") {
     "url_player_create_test.cc",
   ]
 
-  if (!is_android) {
+  if (!is_androidtv) {
     sources += [
+      "//starboard/nplb/sabi/alignment_test.cc",
+      "//starboard/nplb/sabi/endianness_test.cc",
+      "//starboard/nplb/sabi/signedness_and_size_of_enum_test.cc",
+      "//starboard/nplb/sabi/signedness_of_char_test.cc",
+      "//starboard/nplb/sabi/size_test.cc",
+      "//starboard/nplb/sabi/struct_alignment_test.cc",
       "//starboard/testing/fake_graphics_context_provider.cc",
       "//starboard/testing/fake_graphics_context_provider.h",
       "maximum_player_configuration_explorer_test.cc",

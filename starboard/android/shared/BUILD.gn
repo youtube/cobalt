@@ -33,6 +33,14 @@ shared_library("starboard_jni_state") {
   configs -= [ "//build/config/android:hide_all_but_jni_onload" ]
 }
 
+config("starboard_platform_libs") {
+  libs = [
+    "EGL",
+    "OpenSLES",
+    "mediandk",
+  ]
+}
+
 # TODO(cobalt, b/375669373): re-enable API without ApplicationAndroid
 static_library("starboard_platform") {
   sources = [
@@ -308,7 +316,10 @@ static_library("starboard_platform") {
     "//starboard/shared/starboard/player/player_set_playback_rate.cc",
   ]
 
-  configs += [ "//starboard/build/config:starboard_implementation" ]
+  configs += [
+    "//starboard/build/config:starboard_implementation",
+    ":starboard_platform_libs",
+  ]
 
   public_deps = [
     ":starboard_base_symbolize",
