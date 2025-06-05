@@ -36,7 +36,7 @@ def _get_test_name_from_run_line(line: str) -> str | None:
   return match.group(1) if match else None
 
 
-def _extract_crash(log_path: pathlib.Path) -> tuple[str, str, str]:
+def _extract_crash_info(log_path: pathlib.Path) -> tuple[str, str, str]:
   """
   Identifies the crashed test and its log output from a gtest log file.
   A crashed test will have a run marker but no end marker.
@@ -51,17 +51,16 @@ def _extract_crash(log_path: pathlib.Path) -> tuple[str, str, str]:
   run_line_idx: int = -1
   current_idx: int = -1
   current_test: str | None = None
-  for i, line_content in enumerate(lines):
-    current_idx = i
-    line_strip = line_content.strip()
-    if RUN_MARKER in line_strip:
+  for idx, line in enumerate(lines):
+    current_idx = idx
+    if RUN_MARKER in line:
       if current_test:
         break
-      run_line_idx = i
-      current_test = _get_test_name_from_run_line(line_strip)
-    elif current_test and SUITE_MARKER in line_strip:
+      run_line_idx = idx
+      current_test = _get_test_name_from_run_line(line)
+    elif current_test and SUITE_MARKER in line:
       break
-    elif line_strip.startswith(END_MARKERS):
+    elif line.startswith(END_MARKERS):
       current_test = None
 
   if current_test:
@@ -100,8 +99,8 @@ if __name__ == '__main__':
         help='Path to the output XML report file.')
     args = parser.parse_args()
 
-    test_suite, test_name, log_tail = _extract_crash(args.log_path)
+    suite, name, log = _extract_crash_info(args.log_path)
     args.xml_path.parent.mkdir(parents=True, exist_ok=True)
-    write_junit_xml(args.xml_path, test_suite, test_name, log_tail)
+    write_junit_xml(args.xml_path, suite, name, log)
 
   main()
