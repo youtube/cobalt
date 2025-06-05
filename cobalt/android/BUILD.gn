@@ -168,6 +168,7 @@ android_library("cobalt_main_java") {
     "apk/app/src/main/java/dev/cobalt/coat/CobaltService.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltSystemConfigChangeReceiver.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltTextToSpeechHelper.java",
+    "apk/app/src/main/java/dev/cobalt/coat/CommandLineOverrideHelper.java",
     "apk/app/src/main/java/dev/cobalt/coat/CrashContext.java",
     "apk/app/src/main/java/dev/cobalt/coat/CrashContextUpdateHandler.java",
     "apk/app/src/main/java/dev/cobalt/coat/ErrorDialog.java",
@@ -321,7 +322,10 @@ content_shell_apk_tmpl("cobalt_apk") {
 }
 
 robolectric_binary("cobalt_coat_junit_tests") {
-  sources = [ "apk/app/src/test/java/dev/cobalt/coat/CobaltActivityTest.java" ]
+  sources = [
+    "apk/app/src/test/java/dev/cobalt/coat/CobaltActivityTest.java",
+    "apk/app/src/test/java/dev/cobalt/coat/CommandLineOverrideHelperTest.java",
+  ]
   deps = [
     ":cobalt_apk_java",
     "//base:base_java",
