@@ -54,13 +54,13 @@ TEST_F(MadviseTest, SunnyDay) {
 }
 
 TEST_F(MadviseTest, SunnyDayNotAligned) {
-  int* memUnaligned = memory + 1;
+  int* const memUnaligned = memory + 1;
   EXPECT_EQ(-1, madvise(memUnaligned, kSbMemoryPageSize, MADV_NORMAL));
   EXPECT_EQ(errno, EINVAL);
 }
 
 TEST_F(MadviseTest, SunnyDayAligned) {
-  int* memAligned = memory + kSbMemoryPageSize;
+  int* const memAligned = memory + kSbMemoryPageSize;
   EXPECT_EQ(0, madvise(memAligned, kSbMemoryPageSize, MADV_NORMAL))
       << strerror(errno);
 }

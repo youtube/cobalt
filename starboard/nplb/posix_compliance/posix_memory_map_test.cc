@@ -14,6 +14,7 @@
 
 #include <sys/mman.h>
 #include <algorithm>
+#include <array>
 
 #include "starboard/common/memory.h"
 #include "starboard/configuration_constants.h"
@@ -55,7 +56,7 @@ TEST(PosixMemoryMapTest, CanReadWriteToResult) {
   void* memory = mmap(nullptr, kSize, PROT_READ | PROT_WRITE,
                       MAP_PRIVATE | MAP_ANON, -1, 0);
   ASSERT_NE(kFailed, memory);
-  char* data = static_cast<char*>(memory);
+  char* const data = static_cast<char*>(memory);
   for (int i = 0; i < kSize; ++i) {
     data[i] = static_cast<char>(i);
   }
@@ -100,48 +101,50 @@ CopySumFunctionIntoMemory(void* memory) {
 
   // A function pointer can't be cast to void*, but uint8* seems to be okay. So
   // cast to a uint* which will be implicitly casted to a void* below.
-  SumFunction original_function = &Sum;
+  SumFunction selected_original_function = &Sum;
   if (reinterpret_cast<uintptr_t>(&Sum2) % kSbMemoryPageSize <
       reinterpret_cast<uintptr_t>(&Sum) % kSbMemoryPageSize) {
-    original_function = &Sum2;
+    selected_original_function = &Sum2;
   }
 
-  uint8_t* sum_function_start = reinterpret_cast<uint8_t*>(original_function);
+  uint8_t* temp_sum_function_start = reinterpret_cast<uint8_t*>(selected_original_function);
 
   // MIPS16 instruction are kept odd addresses to differentiate between that and
   // MIPS32 instructions. Most other instructions are aligned to at least even
   // addresses, so this code should do nothing for those architectures.
   // https://www.linux-mips.org/wiki/MIPS16
-  ptrdiff_t sum_function_offset =
-      sum_function_start -
+  const ptrdiff_t sum_function_offset =
+      temp_sum_function_start -
       reinterpret_cast<uint8_t*>(
-          reinterpret_cast<uintptr_t>(sum_function_start) & ~0x1);
-  sum_function_start -= sum_function_offset;
+          reinterpret_cast<uintptr_t>(temp_sum_function_start) & ~0x1);
+  temp_sum_function_start -= sum_function_offset; // Now sum_function_start is aligned for copy
 
-  // Get the last address of the page that |sum_function_start| is on.
-  uint8_t* sum_function_page_end = reinterpret_cast<uint8_t*>(
-      (reinterpret_cast<uintptr_t>(sum_function_start) / kSbMemoryPageSize) *
+  const uint8_t* const sum_function_start_for_copy = temp_sum_function_start;
+
+  // Get the last address of the page that |sum_function_start_for_copy| is on.
+  const uint8_t* const sum_function_page_end = reinterpret_cast<uint8_t*>(
+      (reinterpret_cast<uintptr_t>(sum_function_start_for_copy) / kSbMemoryPageSize) *
           kSbMemoryPageSize +
       kSbMemoryPageSize);
   if (!starboard::common::MemoryIsAligned(sum_function_page_end,
                                           kSbMemoryPageSize)) {
     return std::make_tuple(::testing::AssertionFailure()
                                << "Expected |Sum| page end ("
-                               << static_cast<void*>(sum_function_page_end)
+                               << static_cast<const void*>(sum_function_page_end)
                                << ") to be aligned to " << kSbMemoryPageSize,
                            nullptr, nullptr);
   }
-  if (sum_function_start >= sum_function_page_end) {
+  if (sum_function_start_for_copy >= sum_function_page_end) {
     return std::make_tuple(::testing::AssertionFailure()
                                << "Expected |Sum| function page start ("
-                               << static_cast<void*>(sum_function_start)
+                               << static_cast<const void*>(sum_function_start_for_copy)
                                << ") to be less than |Sum| function page end ("
-                               << static_cast<void*>(sum_function_page_end)
+                               << static_cast<const void*>(sum_function_page_end)
                                << ")",
                            nullptr, nullptr);
   }
 
-  size_t bytes_to_copy = sum_function_page_end - sum_function_start;
+  const size_t bytes_to_copy = sum_function_page_end - sum_function_start_for_copy;
   if (bytes_to_copy > kSbMemoryPageSize) {
     return std::make_tuple(
         ::testing::AssertionFailure()
@@ -150,23 +153,23 @@ CopySumFunctionIntoMemory(void* memory) {
         nullptr, nullptr);
   }
 
-  memcpy(memory, sum_function_start, bytes_to_copy);
+  memcpy(memory, sum_function_start_for_copy, bytes_to_copy);
 
-  SumFunction mapped_function = reinterpret_cast<SumFunction>(
+  const SumFunction mapped_function = reinterpret_cast<SumFunction>(
       reinterpret_cast<uint8_t*>(memory) + sum_function_offset);
 
   return std::make_tuple(::testing::AssertionSuccess(), mapped_function,
-                         original_function);
+                         selected_original_function);
 }
 
 TEST(PosixMemoryMapTest, CanChangeMemoryProtection) {
-  int all_from_flags[] = {
+  const std::array<int, 4> all_from_flags = {
       PROT_NONE,
       PROT_READ,
       PROT_WRITE,
       PROT_READ | PROT_WRITE,
   };
-  int all_to_flags[] = {
+  const std::array<int, 6> all_to_flags = {
       PROT_NONE,  PROT_READ,
       PROT_WRITE, PROT_READ | PROT_WRITE,
       PROT_EXEC,  PROT_READ | PROT_EXEC,
@@ -183,17 +186,17 @@ TEST(PosixMemoryMapTest, CanChangeMemoryProtection) {
         continue;
       }
 
-      SumFunction mapped_function = nullptr;
-      SumFunction original_function = nullptr;
+      SumFunction mapped_fn = nullptr;
+      SumFunction original_fn = nullptr;
       if (kSbCanMapExecutableMemory) {
         // We can only test the ability to execute memory after changing
         // protections if we have write permissions either now or then, because
         // we have to actually put a valid function into the mapped memory.
         if (from_flags & PROT_WRITE) {
-          auto copy_sum_function_result = CopySumFunctionIntoMemory(memory);
+          const auto copy_sum_function_result = CopySumFunctionIntoMemory(memory);
           ASSERT_TRUE(std::get<0>(copy_sum_function_result));
-          mapped_function = std::get<1>(copy_sum_function_result);
-          original_function = std::get<2>(copy_sum_function_result);
+          mapped_fn = std::get<1>(copy_sum_function_result);
+          original_fn = std::get<2>(copy_sum_function_result);
         }
       }
 
@@ -203,15 +206,15 @@ TEST(PosixMemoryMapTest, CanChangeMemoryProtection) {
       }
 
       if (kSbCanMapExecutableMemory) {
-        if ((to_flags & PROT_EXEC) && mapped_function != nullptr) {
-          EXPECT_EQ(original_function(0xc0ba178, 0xbadf00d),
-                    mapped_function(0xc0ba178, 0xbadf00d));
+        if ((to_flags & PROT_EXEC) && mapped_fn != nullptr) {
+          EXPECT_EQ(original_fn(0xc0ba178, 0xbadf00d),
+                    mapped_fn(0xc0ba178, 0xbadf00d));
         }
       }
 
       if (to_flags & PROT_READ) {
         for (int i = 0; i < kSize; i++) {
-          volatile uint8_t force_read = static_cast<uint8_t*>(memory)[i];
+          [[maybe_unused]] volatile const uint8_t force_read = static_cast<const uint8_t*>(memory)[i];
         }
       }
       if (to_flags & PROT_WRITE) {

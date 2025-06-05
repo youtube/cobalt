@@ -200,8 +200,8 @@ TEST(PosixConditionVariableWaitTimedTest, FLAKY_SunnyDayNearMaxTime) {
 
   // We should have waited at least the delay_after_signal amount, but not the
   // full delay.
-  int64_t delay_after_singal_sec = context.delay_after_signal / 1'000'000;
-  EXPECT_LE(delay_after_singal_sec,
+  const int64_t delay_after_signal_sec = context.delay_after_signal / 1'000'000;
+  EXPECT_LE(delay_after_signal_sec,
             CurrentTime(false /* use_monotonic */) - start);
   EXPECT_GT(INT_MAX, CurrentTime(false /* use_monotonic */) - start);
 

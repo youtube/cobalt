@@ -46,7 +46,7 @@ TEST(PosixSbMemoryAllocateTest, AllocatesOne) {
 TEST(PosixMemoryAllocateTest, CanReadWriteToResult) {
   void* memory = malloc(kSize);
   ASSERT_NE(static_cast<void*>(NULL), memory);
-  char* data = static_cast<char*>(memory);
+  char* const data = static_cast<char*>(memory);
   for (int i = 0; i < kSize; ++i) {
     data[i] = static_cast<char>(i);
   }

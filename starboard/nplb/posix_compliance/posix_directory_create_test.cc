@@ -35,7 +35,7 @@ const std::string kManyFileSeparators =  // NOLINT(runtime/string)
 TEST(PosixDirectoryCreateTest, SunnyDay) {
   ScopedRandomFile dir(ScopedRandomFile::kDontCreate);
 
-  const std::string& path = dir.filename();
+  const std::string& path = dir.filename(); // Assuming dir.filename() returns const&
 
   struct stat info;
   EXPECT_FALSE(stat(path.c_str(), &info) == 0 && S_ISDIR(info.st_mode));
@@ -51,7 +51,7 @@ TEST(PosixDirectoryCreateTest, SunnyDay) {
 TEST(PosixDirectoryCreateTest, SunnyDayTrailingSeparators) {
   ScopedRandomFile dir(ScopedRandomFile::kDontCreate);
 
-  std::string path = dir.filename() + kManyFileSeparators.c_str();
+  const std::string path = dir.filename() + kManyFileSeparators.c_str();
 
   struct stat info;
   EXPECT_FALSE(stat(path.c_str(), &info) == 0 && S_ISDIR(info.st_mode));
@@ -61,7 +61,7 @@ TEST(PosixDirectoryCreateTest, SunnyDayTrailingSeparators) {
 
 TEST(PosixDirectoryCreateTest, SunnyDayTempDirectory) {
   std::vector<char> temp_path(kSbFileMaxPath);
-  bool system_path_success = SbSystemGetPath(kSbSystemPathTempDirectory,
+  const bool system_path_success = SbSystemGetPath(kSbSystemPathTempDirectory,
                                              temp_path.data(), kSbFileMaxPath);
   ASSERT_TRUE(system_path_success);
   struct stat info;
@@ -72,7 +72,7 @@ TEST(PosixDirectoryCreateTest, SunnyDayTempDirectory) {
 
 TEST(PosixDirectoryCreateTest, SunnyDayTempDirectoryManySeparators) {
   std::vector<char> temp_path(kSbFileMaxPath);
-  bool system_path_success = SbSystemGetPath(
+  const bool system_path_success = SbSystemGetPath(
       kSbSystemPathTempDirectory, temp_path.data(), temp_path.size());
   ASSERT_TRUE(system_path_success);
   const int new_size = starboard::strlcat(
@@ -91,7 +91,7 @@ TEST(PosixDirectoryCreateTest, FailureEmptyPath) {
 
 TEST(PosixDirectoryCreateTest, FailureNonexistentParent) {
   ScopedRandomFile dir(ScopedRandomFile::kDontCreate);
-  std::string path = dir.filename() + kSbFileSepString + "test";
+  const std::string path = dir.filename() + kSbFileSepString + "test";
 
   struct stat info;
   EXPECT_FALSE(stat(path.c_str(), &info) == 0 && S_ISDIR(info.st_mode));

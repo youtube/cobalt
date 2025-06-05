@@ -25,13 +25,13 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-void ExpectFileExists(const char* path) {
+void ExpectFileExists(const char* const path) {
   struct stat info;
   EXPECT_TRUE(stat(path, &info) == 0) << "Filename is " << path;
 }
 
 TEST(PosixDirectoryOpenTest, SunnyDay) {
-  std::string path = GetTempDir();
+  const std::string path = GetTempDir();
   EXPECT_FALSE(path.empty());
   ExpectFileExists(path.c_str());
 
@@ -41,7 +41,7 @@ TEST(PosixDirectoryOpenTest, SunnyDay) {
 }
 
 TEST(PosixDirectoryOpenTest, SunnyDayStaticContent) {
-  for (auto dir_path : GetFileTestsDirectoryPaths()) {
+  for (const auto& dir_path : GetFileTestsDirectoryPaths()) {
     DIR* directory = opendir(dir_path.c_str());
     EXPECT_TRUE(directory != NULL) << dir_path;
     EXPECT_TRUE(closedir(directory) == 0);
@@ -49,7 +49,7 @@ TEST(PosixDirectoryOpenTest, SunnyDayStaticContent) {
 }
 
 TEST(PosixDirectoryOpenTest, SunnyDayWithNullError) {
-  std::string path = GetTempDir();
+  const std::string path = GetTempDir();
   EXPECT_FALSE(path.empty());
   ExpectFileExists(path.c_str());
 
@@ -59,7 +59,7 @@ TEST(PosixDirectoryOpenTest, SunnyDayWithNullError) {
 }
 
 TEST(PosixDirectoryOpenTest, ManySunnyDay) {
-  std::string path = GetTempDir();
+  const std::string path = GetTempDir();
   EXPECT_FALSE(path.empty());
   ExpectFileExists(path.c_str());
 
@@ -82,7 +82,7 @@ TEST(PosixDirectoryOpenTest, FailsInvalidPath) {
   ExpectFileExists(path.c_str());
 
   // Funny way to make sure the directory seems valid but doesn't exist.
-  int len = static_cast<int>(path.length());
+  const int len = static_cast<int>(path.length());
   if (path[len - 1] != 'z') {
     path[len - 1] = 'z';
   } else {

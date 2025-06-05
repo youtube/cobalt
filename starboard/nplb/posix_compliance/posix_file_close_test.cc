@@ -25,7 +25,7 @@ namespace {
 TEST(PosixFileCloseTest, CloseInvalidFails) {
   constexpr int kInvalidFD = -1;
 
-  const int result = close(kInvalidFD);
+  const int result = close(kInvalidFD); // result is already const
   EXPECT_NE(result, 0) << "close() with an invalid fd should not succeed";
   constexpr int kExpectedFailure = -1;
   EXPECT_EQ(result, kExpectedFailure)

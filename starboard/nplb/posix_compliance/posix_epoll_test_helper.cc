@@ -16,6 +16,8 @@
 #include <sys/epoll.h>
 #include <unistd.h>
 
+#include <array>
+
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -25,11 +27,11 @@ namespace {
 // A helper function to create a pipe.
 // Returns true on success, false on failure.
 // pipe_fds[0] is the read end, pipe_fds[1] is the write end.
-bool CreatePipe(int pipe_fds[2], int flags = 0) {
+bool CreatePipe(std::array<int, 2>& pipe_fds, int flags = 0) {
   if (flags == 0) {
-    return pipe(pipe_fds) == 0;
+    return pipe(pipe_fds.data()) == 0;
   }
-  return pipe2(pipe_fds, flags) == 0;
+  return pipe2(pipe_fds.data(), flags) == 0;
 }
 
 // Test fixture for epoll tests

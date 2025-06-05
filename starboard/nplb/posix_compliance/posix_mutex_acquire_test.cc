@@ -14,6 +14,7 @@
 
 #include <pthread.h>
 
+#include <array> // For std::array
 #include "starboard/configuration.h"
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -31,7 +32,7 @@ struct TestContext {
 const int kLoops = 10000;
 
 void* EntryPoint(void* parameter) {
-  TestContext* context = static_cast<TestContext*>(parameter);
+  TestContext* const context = static_cast<TestContext*>(parameter);
 
   for (int i = 0; i < kLoops; ++i) {
     pthread_mutex_lock(&context->mutex);
@@ -48,7 +49,7 @@ TEST(PosixMutexAcquireTest, SunnyDayContended) {
   TestContext context;
   EXPECT_EQ(pthread_mutex_init(&context.mutex, NULL), 0);
   const int kThreads = 4;
-  pthread_t threads[kThreads];
+  std::array<pthread_t, kThreads> threads;
   for (int i = 0; i < kThreads; ++i) {
     pthread_create(&threads[i], NULL, EntryPoint, &context);
   }

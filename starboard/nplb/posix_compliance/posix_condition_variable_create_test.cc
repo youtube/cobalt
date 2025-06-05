@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <array>
 #include <pthread.h>
 
 #include "testing/gtest/include/gtest/gtest.h"
@@ -44,7 +45,7 @@ TEST(PosixConditionVariableCreateTest, SunnyDayALot) {
 }
 
 TEST(PosixConditionVariableCreateTest, SunnyDayABunchAtOnce) {
-  pthread_cond_t conditions[kABunch];
+  std::array<pthread_cond_t, kABunch> conditions;
   for (int i = 0; i < kABunch; ++i) {
     EXPECT_EQ(pthread_cond_init(&conditions[i], NULL), 0);
   }
