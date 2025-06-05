@@ -37,7 +37,7 @@ bool FileExists(const char* path) {
 }
 
 TEST(PosixDirectoryGetNextTest, SunnyDay) {
-  const int kNumFiles = 65;
+  constexpr int kNumFiles = 65;
   ScopedRandomFile files[kNumFiles];
 
   std::string directory_name = files[0].filename();
@@ -63,7 +63,7 @@ TEST(PosixDirectoryGetNextTest, SunnyDay) {
 
     struct dirent dirent_buffer;
     struct dirent* dirent;
-    int result = readdir_r(directory, &dirent_buffer, &dirent);
+    const int result = readdir_r(directory, &dirent_buffer, &dirent);
     if (result || !dirent) {
       break;
     }
@@ -96,17 +96,17 @@ TEST(PosixDirectoryGetNextTest, SunnyDay) {
 }
 
 TEST(PosixDirectoryGetNextTest, SunnyDayStaticContent) {
-  std::string testdata_dir = GetFileTestsDataDir();
+  const std::string testdata_dir = GetFileTestsDataDir();
   EXPECT_FALSE(testdata_dir.empty());
   EXPECT_TRUE(FileExists(testdata_dir.c_str()))
       << "Missing directory: " << testdata_dir;
 
   // Make sure all the test directories and files are found exactly once.
   StringSet paths_to_find;
-  for (auto path : GetFileTestsDirectoryPaths()) {
+  for (const auto& path : GetFileTestsDirectoryPaths()) {
     paths_to_find.insert(path);
   }
-  for (auto path : GetFileTestsFilePaths()) {
+  for (const auto& path : GetFileTestsFilePaths()) {
     paths_to_find.insert(path);
   }
 
@@ -114,7 +114,7 @@ TEST(PosixDirectoryGetNextTest, SunnyDayStaticContent) {
   std::queue<std::string> directory_queue;
   directory_queue.push(testdata_dir);
   while (!directory_queue.empty()) {
-    std::string path = directory_queue.front();
+    const std::string path = directory_queue.front();
     directory_queue.pop();
 
     DIR* directory = opendir(path.c_str());
@@ -129,13 +129,13 @@ TEST(PosixDirectoryGetNextTest, SunnyDayStaticContent) {
 
       struct dirent dirent_buffer;
       struct dirent* dirent;
-      int result = readdir_r(directory, &dirent_buffer, &dirent);
+      const int result = readdir_r(directory, &dirent_buffer, &dirent);
       if (result || !dirent) {
         break;
       }
 
       starboard::strlcpy(entry.data(), dirent->d_name, entry.size());
-      std::string entry_name = entry.data();
+      const std::string entry_name = entry.data();
 
       // Accept and ignore '.' and '..' directories.
       if (entry_name == "." || entry_name == "..") {
@@ -143,7 +143,7 @@ TEST(PosixDirectoryGetNextTest, SunnyDayStaticContent) {
       }
 
       // Absolute path of the entry.
-      std::string entry_path = path + kSbFileSepChar + entry_name;
+      const std::string entry_path = path + kSbFileSepChar + entry_name;
 
       StringSet::iterator iterator = paths_to_find.find(entry_path);
       if (iterator != paths_to_find.end()) {
@@ -174,7 +174,7 @@ TEST(PosixDirectoryGetNextTest, FailureNullEntry) {
   // Ensure there's at least one file in the directory.
   ScopedRandomFile file;
 
-  std::string path = GetTempDir();
+  const std::string path = GetTempDir();
   EXPECT_FALSE(path.empty());
   EXPECT_TRUE(FileExists(path.c_str())) << "Directory is " << path;
 
@@ -182,7 +182,7 @@ TEST(PosixDirectoryGetNextTest, FailureNullEntry) {
   EXPECT_TRUE(directory);
   struct dirent dirent_buffer;
   struct dirent* dirent;
-  int result = readdir_r(directory, &dirent_buffer, &dirent);
+  const int result = readdir_r(directory, &dirent_buffer, &dirent);
   EXPECT_FALSE(result || !dirent);
   EXPECT_TRUE(closedir(directory) == 0);
 }
@@ -200,12 +200,12 @@ TEST(PosixDirectoryGetNextTest, FailureOnInsufficientSize) {
   for (int i = 0; i < kSbFileMaxName; i++) {
     entry[i] = i;
   }
-  std::vector<char> entry_copy = entry;
+  const std::vector<char> entry_copy = entry;
 
   struct dirent dirent_buffer;
   struct dirent* dirent;
 
-  int result = readdir_r(directory, &dirent_buffer, &dirent);
+  const int result = readdir_r(directory, &dirent_buffer, &dirent);
 
   EXPECT_TRUE(!result && dirent);
   starboard::strlcpy(entry.data(), dirent->d_name, 0);

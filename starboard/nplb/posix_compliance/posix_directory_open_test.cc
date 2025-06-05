@@ -31,7 +31,7 @@ void ExpectFileExists(const char* path) {
 }
 
 TEST(PosixDirectoryOpenTest, SunnyDay) {
-  std::string path = GetTempDir();
+  const std::string path = GetTempDir();
   EXPECT_FALSE(path.empty());
   ExpectFileExists(path.c_str());
 
@@ -41,7 +41,7 @@ TEST(PosixDirectoryOpenTest, SunnyDay) {
 }
 
 TEST(PosixDirectoryOpenTest, SunnyDayStaticContent) {
-  for (auto dir_path : GetFileTestsDirectoryPaths()) {
+  for (const auto& dir_path : GetFileTestsDirectoryPaths()) {
     DIR* directory = opendir(dir_path.c_str());
     EXPECT_TRUE(directory != NULL) << dir_path;
     EXPECT_TRUE(closedir(directory) == 0);
@@ -49,7 +49,7 @@ TEST(PosixDirectoryOpenTest, SunnyDayStaticContent) {
 }
 
 TEST(PosixDirectoryOpenTest, SunnyDayWithNullError) {
-  std::string path = GetTempDir();
+  const std::string path = GetTempDir();
   EXPECT_FALSE(path.empty());
   ExpectFileExists(path.c_str());
 
@@ -59,11 +59,11 @@ TEST(PosixDirectoryOpenTest, SunnyDayWithNullError) {
 }
 
 TEST(PosixDirectoryOpenTest, ManySunnyDay) {
-  std::string path = GetTempDir();
+  const std::string path = GetTempDir();
   EXPECT_FALSE(path.empty());
   ExpectFileExists(path.c_str());
 
-  const int kMany = kSbFileMaxOpen;
+  constexpr int kMany = kSbFileMaxOpen;
   std::vector<DIR*> directories(kMany, 0);
 
   for (int i = 0; i < directories.size(); ++i) {
@@ -82,7 +82,7 @@ TEST(PosixDirectoryOpenTest, FailsInvalidPath) {
   ExpectFileExists(path.c_str());
 
   // Funny way to make sure the directory seems valid but doesn't exist.
-  int len = static_cast<int>(path.length());
+  const int len = static_cast<int>(path.length());
   if (path[len - 1] != 'z') {
     path[len - 1] = 'z';
   } else {

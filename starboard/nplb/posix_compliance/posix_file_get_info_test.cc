@@ -31,7 +31,7 @@ namespace {
 
 TEST(PosixFileGetInfoTest, InvalidFileErrors) {
   struct stat info;
-  int result = fstat(-1, &info);
+  const int result = fstat(-1, &info);
   EXPECT_FALSE(result == 0);
 }
 
@@ -45,7 +45,7 @@ TEST(PosixFileGetInfoTest, WorksOnARegularFile) {
   // in extra sensitivity to make flakiness more apparent.
   constexpr int kTrials = 100;
   for (int i = 0; i < kTrials; ++i) {
-    int64_t time_usec = CurrentPosixTime();
+    const int64_t time_usec = CurrentPosixTime();
 
     constexpr int kFileSize = 12;
     starboard::nplb::ScopedRandomFile random_file(kFileSize);
@@ -56,7 +56,7 @@ TEST(PosixFileGetInfoTest, WorksOnARegularFile) {
 
     {
       struct stat info;
-      int result = fstat(file, &info);
+      const int result = fstat(file, &info);
       EXPECT_EQ(kFileSize, info.st_size);
       EXPECT_FALSE(S_ISDIR(info.st_mode));
       EXPECT_FALSE(S_ISLNK(info.st_mode));
@@ -68,20 +68,20 @@ TEST(PosixFileGetInfoTest, WorksOnARegularFile) {
       EXPECT_NEAR(time_usec, ToMicroseconds(info.st_ctim), kOneMinute);
     }
 
-    int result = close(file);
+    const int result = close(file);
     EXPECT_TRUE(result == 0);
   }
 }
 
 TEST(PosixFileGetInfoTest, WorksOnStaticContentFiles) {
-  int count = 1;
-  for (auto filename : GetFileTestsFilePaths()) {
+  const int count = 1;
+  for (const auto& filename : GetFileTestsFilePaths()) {
     int file = open(filename.c_str(), O_RDONLY);
     ASSERT_TRUE(file >= 0);
 
     struct stat info;
     EXPECT_TRUE(fstat(file, &info) == 0);
-    size_t content_length = GetTestFileExpectedContent(filename).length();
+    const size_t content_length = GetTestFileExpectedContent(filename).length();
     EXPECT_EQ(content_length, info.st_size);
     EXPECT_FALSE(S_ISDIR(info.st_mode));
     EXPECT_FALSE(S_ISLNK(info.st_mode));

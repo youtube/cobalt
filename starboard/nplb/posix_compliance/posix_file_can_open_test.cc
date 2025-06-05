@@ -25,13 +25,13 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-static void CheckFileCanOpen(const std::string& filename, int flags) {
+static void CheckFileCanOpen(const std::string& filename, const int flags) {
   const bool success = starboard::FileCanOpen(filename.c_str(), flags);
   EXPECT_TRUE(success) << "FileCanOpen(" << filename << ", flags=" << flags
                        << ") failed unexpectedly.";
 }
 
-static void CheckFileCanNotOpen(const std::string& filename, int flags) {
+static void CheckFileCanNotOpen(const std::string& filename, const int flags) {
   const bool success = starboard::FileCanOpen(filename.c_str(), flags);
   EXPECT_FALSE(success) << "FileCanOpen(" << filename << ", flags=" << flags
                         << ") succeeded unexpectedly.";
@@ -56,13 +56,13 @@ TEST(PosixFileCanOpenTest, ExistingFileSucceeds) {
 }
 
 TEST(PosixFileCanOpenTest, NonExistingStaticContentFileFails) {
-  std::string directory_path = GetFileTestsDataDir();
-  std::string missing_file = directory_path + kSbFileSepChar + "missing_file";
+  const std::string directory_path = GetFileTestsDataDir();
+  const std::string missing_file = directory_path + kSbFileSepChar + "missing_file";
   CheckFileCanNotOpen(missing_file, O_RDONLY);
 }
 
 TEST(PosixFileCanOpenTest, ExistingStaticContentFileSucceeds) {
-  for (auto path : GetFileTestsFilePaths()) {
+  for (const auto& path : GetFileTestsFilePaths()) {
     CheckFileCanOpen(path, O_RDONLY);
   }
 }

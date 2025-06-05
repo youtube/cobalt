@@ -61,7 +61,7 @@ class PosixEpollWaitTests : public PosixEpollTest {
   }
 
   // Helper to add to epoll
-  void AddToEpoll(int fd_to_add, uint32_t ev_mask) {
+  void AddToEpoll(const int fd_to_add, const uint32_t ev_mask) {
     struct epoll_event event = {};
     event.events = ev_mask;
     event.data.fd = fd_to_add;
@@ -71,7 +71,7 @@ class PosixEpollWaitTests : public PosixEpollTest {
   }
 
   // Helper to remove from epoll
-  void RemoveFromEpoll(int fd_to_remove) {
+  void RemoveFromEpoll(const int fd_to_remove) {
     struct epoll_event event {};  // Dummy event, required for older kernels
     if (epfd_ >= 0 && fd_to_remove >= 0) {
       epoll_ctl(epfd_, EPOLL_CTL_DEL, fd_to_remove, &event);
@@ -82,12 +82,12 @@ class PosixEpollWaitTests : public PosixEpollTest {
 TEST_F(PosixEpollWaitTests, EventReportedSuccessfully) {
   AddToEpoll(pipe_fds_[0], EPOLLIN);  // Watch read end for input
 
-  char buffer = 'x';
-  const size_t buffer_length = sizeof(buffer);
+  const char buffer = 'x';
+  constexpr size_t buffer_length = sizeof(buffer);
   ASSERT_EQ(write(pipe_fds_[1], &buffer, buffer_length), buffer_length)
       << "Write to pipe failed: " << strerror(errno);
 
-  int nfds = epoll_wait(epfd_, events_, kMaxEvents, kModerateTimeoutMs);
+  const int nfds = epoll_wait(epfd_, events_, kMaxEvents, kModerateTimeoutMs);
   ASSERT_EQ(nfds, 1) << "epoll_wait did not return 1 event: " << strerror(errno)
                      << " (nfds=" << nfds << ")";
   ASSERT_EQ(events_[0].data.fd, pipe_fds_[0]);
@@ -103,7 +103,7 @@ TEST_F(PosixEpollWaitTests, TimeoutZeroReturnsImmediately) {
   while (read(pipe_fds_[0], buffer, sizeof(buffer)) > 0)
     ;  // Drain
 
-  int nfds = epoll_wait(epfd_, events_, kMaxEvents, 0);  // 0ms timeout
+  const int nfds = epoll_wait(epfd_, events_, kMaxEvents, 0);  // 0ms timeout
   ASSERT_EQ(nfds, 0) << "epoll_wait with 0 timeout did not return 0: "
                      << strerror(errno);
   RemoveFromEpoll(pipe_fds_[0]);
@@ -117,7 +117,7 @@ TEST_F(PosixEpollWaitTests, TimeoutPositiveReturnsAfterTimeout) {
   while (read(pipe_fds_[0], buffer, sizeof(buffer)) > 0) {
   }  // Drain
 
-  int nfds = epoll_wait(epfd_, events_, kMaxEvents, kShortTimeoutMs);
+  const int nfds = epoll_wait(epfd_, events_, kMaxEvents, kShortTimeoutMs);
   ASSERT_EQ(nfds, 0)
       << "epoll_wait with positive timeout did not return 0 (event occurred?): "
       << strerror(errno);
@@ -127,19 +127,19 @@ TEST_F(PosixEpollWaitTests, TimeoutPositiveReturnsAfterTimeout) {
 TEST_F(PosixEpollWaitTests, MaxEventsLimitsReturnedEvents) {
   int p2[2] = {-1, -1};
   ASSERT_TRUE(CreatePipe(p2, O_NONBLOCK));
-  int pipe2_read_fd = p2[0];
-  int pipe2_write_fd = p2[1];
+  const int pipe2_read_fd = p2[0];
+  const int pipe2_write_fd = p2[1];
 
   AddToEpoll(pipe_fds_[0], EPOLLIN);
   AddToEpoll(pipe2_read_fd, EPOLLIN);
 
-  char buffer = 'z';
+  const char buffer = 'z';
   ASSERT_EQ(write(pipe_fds_[1], &buffer, 1), 1);
   ASSERT_EQ(write(pipe2_write_fd, &buffer, 1), 1);
 
-  const int kMaxEventsForThisTest = 1;
+  constexpr int kMaxEventsForThisTest = 1;
   struct epoll_event single_event[kMaxEventsForThisTest];
-  int nfds = epoll_wait(epfd_, single_event, kMaxEventsForThisTest,
+  const int nfds = epoll_wait(epfd_, single_event, kMaxEventsForThisTest,
                         kModerateTimeoutMs);
   ASSERT_EQ(nfds, kMaxEventsForThisTest)
       << "epoll_wait did not return max_events: " << strerror(errno);
@@ -182,7 +182,7 @@ TEST_F(PosixEpollWaitTests, WaitForWriteOnReadOnlyPipeEndNeverSignalsWritable) {
   // We expect a timeout, not EPOLLOUT.
   AddToEpoll(pipe_fds_[0], EPOLLOUT);
 
-  int nfds = epoll_wait(epfd_, events_, kMaxEvents, kShortTimeoutMs);
+  const int nfds = epoll_wait(epfd_, events_, kMaxEvents, kShortTimeoutMs);
 
   ASSERT_EQ(nfds, 0)
       << "epoll_wait should timeout for EPOLLOUT on read-only pipe end. "
@@ -200,7 +200,7 @@ TEST_F(PosixEpollWaitTests, WaitForReadOnWriteOnlyPipeEndNeverSignalsReadable) {
   // We expect a timeout, not EPOLLIN.
   AddToEpoll(pipe_fds_[1], EPOLLIN);
 
-  int nfds = epoll_wait(epfd_, events_, kMaxEvents, kShortTimeoutMs);
+  const int nfds = epoll_wait(epfd_, events_, kMaxEvents, kShortTimeoutMs);
 
   ASSERT_EQ(nfds, 0)
       << "epoll_wait should timeout for EPOLLIN on write-only pipe end. "

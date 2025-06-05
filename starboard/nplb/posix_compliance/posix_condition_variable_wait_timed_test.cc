@@ -24,7 +24,7 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-void InitCondition(pthread_cond_t* condition, bool use_monotonic) {
+void InitCondition(pthread_cond_t* condition, const bool use_monotonic) {
 #if !SB_HAS_QUIRK(NO_CONDATTR_SETCLOCK_SUPPORT)
   pthread_condattr_t attribute;
   EXPECT_EQ(pthread_condattr_init(&attribute), 0);
@@ -38,7 +38,7 @@ void InitCondition(pthread_cond_t* condition, bool use_monotonic) {
 #endif
 }
 
-int64_t CurrentTime(bool use_monotonic) {
+int64_t CurrentTime(const bool use_monotonic) {
   if (use_monotonic) {
     return starboard::CurrentMonotonicTime();
   } else {
@@ -46,7 +46,8 @@ int64_t CurrentTime(bool use_monotonic) {
   }
 }
 
-struct timespec CalculateDelayTimestamp(int64_t delay_us, bool use_monotonic) {
+struct timespec CalculateDelayTimestamp(const int64_t delay_us,
+                                        const bool use_monotonic) {
   int64_t timeout_time_usec = 0;
   if (use_monotonic) {
     timeout_time_usec = starboard::CurrentMonotonicTime();
@@ -71,29 +72,29 @@ struct timespec CalculateDelayTimestamp(int64_t delay_us, bool use_monotonic) {
 // run within the specified time.
 
 void DoSunnyDay(posix::TakeThenSignalContext* context,
-                bool check_timeout,
-                bool use_monotonic) {
+                const bool check_timeout,
+                const bool use_monotonic) {
   pthread_t thread = 0;
   pthread_create(&thread, NULL, posix::TakeThenSignalEntryPoint, context);
 
-  const int64_t kDelayUs = 10'000;  // 10ms
+  constexpr int64_t kDelayUs = 10'000;  // 10ms
   // Allow two-millisecond-level precision.
-  const int64_t kPrecisionUs = 2'000;  // 2ms
+  constexpr int64_t kPrecisionUs = 2'000;  // 2ms
 
   // We know the thread hasn't signaled the condition variable yet, and won't
   // unless we tell it, so it should wait at least the whole delay time.
   if (check_timeout) {
     EXPECT_EQ(pthread_mutex_lock(&context->mutex), 0);
-    int64_t start = CurrentTime(use_monotonic);
+    const int64_t start = CurrentTime(use_monotonic);
 
-    struct timespec delay_timestamp =
+    const struct timespec delay_timestamp =
         CalculateDelayTimestamp(kDelayUs, use_monotonic);
 
     EXPECT_EQ(pthread_cond_timedwait(&context->condition, &context->mutex,
                                      &delay_timestamp),
               ETIMEDOUT);
-    int64_t end = CurrentTime(use_monotonic);
-    int64_t elapsed = end - start;
+    const int64_t end = CurrentTime(use_monotonic);
+    const int64_t elapsed = end - start;
 
     EXPECT_LE(kDelayUs, elapsed + kPrecisionUs);
     EXPECT_GT(kDelayUs * 2, elapsed - kPrecisionUs);
@@ -107,12 +108,12 @@ void DoSunnyDay(posix::TakeThenSignalContext* context,
     // acquire the mutex we are holding.
     context->do_signal.Put();
 
-    int64_t start = CurrentTime(use_monotonic);
+    const int64_t start = CurrentTime(use_monotonic);
 
     // We release the mutex when we wait, allowing the thread to actually do the
     // signaling, and ensuring we are waiting before it signals.
 
-    struct timespec delay_timestamp =
+    const struct timespec delay_timestamp =
         CalculateDelayTimestamp(kDelayUs, use_monotonic);
     EXPECT_EQ(pthread_cond_timedwait(&context->condition, &context->mutex,
                                      &delay_timestamp),
@@ -159,7 +160,7 @@ TEST(PosixConditionVariableWaitTimedTest, FLAKY_SunnyDayAutoInit) {
   // Without the initial timeout test, the two threads will be racing to
   // auto-init the mutex and condition variable. So we run several trials in
   // this mode, hoping to have the auto-initting contend in various ways.
-  const int kTrials = 64;
+  constexpr int kTrials = 64;
   for (int i = 0; i < kTrials; ++i) {
     posix::TakeThenSignalContext context = {posix::TestSemaphore(0),
                                             PTHREAD_MUTEX_INITIALIZER,
@@ -171,7 +172,7 @@ TEST(PosixConditionVariableWaitTimedTest, FLAKY_SunnyDayAutoInit) {
 // Test marked as flaky because it relies on timing sensitive execution similar
 // to DoSunnyDay().
 TEST(PosixConditionVariableWaitTimedTest, FLAKY_SunnyDayNearMaxTime) {
-  const int64_t kOtherDelaySec = 3'000'000;  // 3s
+  constexpr int64_t kOtherDelaySec = 3'000'000;  // 3s
   posix::TakeThenSignalContext context = {
       posix::TestSemaphore(0), PTHREAD_MUTEX_INITIALIZER,
       PTHREAD_COND_INITIALIZER, kOtherDelaySec};
@@ -187,11 +188,10 @@ TEST(PosixConditionVariableWaitTimedTest, FLAKY_SunnyDayNearMaxTime) {
   // acquire the mutex we are holding, after it waits for delay_after_signal.
   context.do_signal.Put();
 
-  int64_t start = CurrentTime(false /* use_monotonic */);
+  const int64_t start = CurrentTime(false /* use_monotonic */);
 
   // Try to wait until the end of time.
-  struct timespec delay_timestamp = {0};
-  delay_timestamp.tv_sec = INT_MAX;
+  const struct timespec delay_timestamp = { .tv_sec = INT_MAX, .tv_nsec = 0 };
 
   // We release the mutex when we wait, allowing the thread to actually do the
   EXPECT_EQ(pthread_cond_timedwait(&context.condition, &context.mutex,
@@ -200,8 +200,8 @@ TEST(PosixConditionVariableWaitTimedTest, FLAKY_SunnyDayNearMaxTime) {
 
   // We should have waited at least the delay_after_signal amount, but not the
   // full delay.
-  int64_t delay_after_singal_sec = context.delay_after_signal / 1'000'000;
-  EXPECT_LE(delay_after_singal_sec,
+  const int64_t delay_after_signal_sec = context.delay_after_signal / 1'000'000;
+  EXPECT_LE(delay_after_signal_sec,
             CurrentTime(false /* use_monotonic */) - start);
   EXPECT_GT(INT_MAX, CurrentTime(false /* use_monotonic */) - start);
 

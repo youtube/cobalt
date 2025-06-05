@@ -100,14 +100,14 @@ TEST(PosixFileDescriptorDuplicateTest, Dup2DuplicatesValidOpenFd) {
 }
 
 TEST(PosixFileDescriptorDuplicateTest, DupNegativeIntFails) {
-  int new_fd = dup(-1);
+  const int new_fd = dup(-1);
 
   EXPECT_EQ(new_fd, -1);
   EXPECT_EQ(errno, EBADF);
 }
 
 TEST(PosixFileDescriptorDuplicateTest, Dup2NegativeIntASOldFdFails) {
-  int new_fd = dup2(-1, STDERR_FILENO);
+  const int new_fd = dup2(-1, STDERR_FILENO);
 
   EXPECT_EQ(new_fd, -1);
   EXPECT_EQ(errno, EBADF);
@@ -120,7 +120,7 @@ TEST(PosixFileDescriptorDuplicateTest, DupClosedFdFails) {
   ASSERT_GE(fd, 0) << "open: " << strerror(errno);
   EXPECT_EQ(close(fd), 0) << "close: " << strerror(errno);
 
-  int new_fd = dup(fd);  // fd no longer represents a file descriptor
+  const int new_fd = dup(fd);  // fd no longer represents a file descriptor
 
   EXPECT_EQ(new_fd, -1);
   EXPECT_EQ(errno, EBADF);
@@ -134,14 +134,14 @@ TEST(PosixFileDescriptorDuplicateTest, Dup2ClosedOldFdFails) {
   EXPECT_EQ(close(fd), 0) << "close: " << strerror(errno);
 
   // fd no longer represents a file descriptor
-  int new_fd = dup2(fd, STDERR_FILENO);
+  const int new_fd = dup2(fd, STDERR_FILENO);
 
   EXPECT_EQ(new_fd, -1);
   EXPECT_EQ(errno, EBADF);
 }
 
 TEST(PosixFileDescriptorDuplicateTest, Dup2NegativeIntASNewFdFails) {
-  int new_fd = dup2(STDOUT_FILENO, -1);
+  const int new_fd = dup2(STDOUT_FILENO, -1);
 
   EXPECT_EQ(new_fd, -1);
   EXPECT_EQ(errno, EBADF);
