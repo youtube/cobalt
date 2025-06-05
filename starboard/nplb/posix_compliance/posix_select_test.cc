@@ -36,10 +36,10 @@
 
 #include <errno.h>
 #include <fcntl.h>
-#include <gtest/gtest.h>
 #include <sys/select.h>
-#include <time.h>
 #include <unistd.h>
+
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
 namespace nplb {

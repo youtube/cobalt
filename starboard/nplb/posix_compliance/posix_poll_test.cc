@@ -36,11 +36,11 @@
 
 #include <errno.h>
 #include <fcntl.h>
-#include <gtest/gtest.h>
 #include <poll.h>
 #include <pthread.h>
-#include <signal.h>
 #include <unistd.h>
+
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
 namespace nplb {

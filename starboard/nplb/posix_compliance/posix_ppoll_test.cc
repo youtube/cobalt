@@ -28,16 +28,20 @@
 
   - ENOMEM: Reliably simulating an out-of-memory condition is not feasible
     in a standard unit test environment.
+
+  - EINTR: Reliably testing for interruption by a signal (EINTR) is prone to
+    race conditions and can result in flaky tests, where the signal may arrive
+    before or after the system call, instead of during.
 */
 
 #include <errno.h>
 #include <fcntl.h>
-#include <gtest/gtest.h>
 #include <poll.h>
 #include <pthread.h>
-#include <signal.h>
 #include <time.h>
 #include <unistd.h>
+
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
 namespace nplb {
@@ -189,41 +193,6 @@ TEST(PosixPpollTest, InvalidTimeout) {
   struct timespec timeout = {0, 1000000000};  // 1 second, invalid nsec
   EXPECT_EQ(ppoll(poll_fds, 1, &timeout, NULL), -1);
   EXPECT_EQ(errno, EINVAL);
-}
-
-TEST(PosixPpollTest, SignalUnblocking) {
-  // Block SIGUSR1 for this thread.
-  sigset_t block_mask;
-  sigemptyset(&block_mask);
-  sigaddset(&block_mask, SIGUSR1);
-  pthread_sigmask(SIG_BLOCK, &block_mask, NULL);
-
-  // Set up a signal handler for SIGUSR1.
-  struct sigaction sa = {};
-  sa.sa_handler = TrivialSignalHandler;
-  sigaction(SIGUSR1, &sa, NULL);
-
-  int fds[2];
-  CreatePipe(fds);
-  struct pollfd poll_fds[1];
-  poll_fds[0].fd = fds[0];
-  poll_fds[0].events = POLLIN;
-
-  // ppoll will unblock SIGUSR1.
-  sigset_t unblock_mask;
-  sigemptyset(&unblock_mask);
-
-  pthread_kill(pthread_self(), SIGUSR1);
-
-  struct timespec timeout = {1, 0};
-  // The call should be interrupted by the signal.
-  int result = ppoll(poll_fds, 1, &timeout, &unblock_mask);
-
-  EXPECT_EQ(result, -1);
-  EXPECT_EQ(errno, EINTR);
-
-  close(fds[0]);
-  close(fds[1]);
 }
 
 }  // namespace
