@@ -17,7 +17,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 namespace {
 
@@ -28,8 +28,8 @@ int musl_flag_to_platform_flag(int flag) {
     case MUSL_O_CLOEXEC:
       return O_CLOEXEC;
     default:
-      SbLog(kSbLogPriorityWarning,
-            "Unable to convert musl flag to platform flag, using value as-is");
+      SB_LOG(WARNING) << "Unable to convert musl flag to platform flag, "
+                      << "using value as-is";
       return flag;
   }
 }
