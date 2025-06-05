@@ -9,10 +9,7 @@ class MockH5vccExperiments {
     this.interceptor_ =
       new MojoInterfaceInterceptor(H5vccExperiments.$interfaceName);
     this.receiver_ = new H5vccExperimentsReceiver(this);
-    this.interceptor_.oninterfacerequest = e => {
-      this.receiver_.$.bindHandle(e.handle);
-    }
-    this.interceptor_.start();
+    this.interceptor_.oninterfacerequest = e => this.bind(e.handle);
     this.stub_result_ = new Map();
   }
 
@@ -29,12 +26,21 @@ class MockH5vccExperiments {
     this.receiver_.$.close();
   }
 
+  bind(handle) {
+    this.receiver_.$.bindHandle(handle);
+  }
+
+  // Added for stubbing getFeature() and getFeatureParam() result in tests.
+  stubResult(key, value) {
+    this.stub_result_.set(key, value);
+  }
+
   stubGetFeature(feature_name, stub_result) {
-    this.stub_result_.set(feature_name, stub_result);
+    this.stubResult(feature_name, stub_result);
   }
 
   stubGetFeatureParam(feature_param_name, stub_result) {
-    this.stub_result_.set(feature_param_name, stub_result)
+    this.stubResult(feature_param_name, stub_result);
   }
 
   getFeature(feature_name) {
