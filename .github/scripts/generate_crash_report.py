@@ -21,6 +21,7 @@ import pathlib
 import argparse
 
 RUN_MARKER = '[ RUN      ]'
+SUITE_MARKER = '[==========]'
 END_MARKERS = (
     '[       OK ]',
     '[  FAILED  ]',
@@ -48,21 +49,24 @@ def _extract_crash(log_path: pathlib.Path) -> tuple[str, str, str]:
     lines = f.readlines()
 
   run_line_idx: int = -1
+  current_idx: int = -1
   current_test: str | None = None
   for i, line_content in enumerate(lines):
+    current_idx = i
     line_strip = line_content.strip()
     if RUN_MARKER in line_strip:
-      new_test = _get_test_name_from_run_line(line_strip)
-      if new_test and current_test:
+      if current_test:
         break
       run_line_idx = i
-      current_test = new_test
-    elif current_test and line_strip.startswith(END_MARKERS):
+      current_test = _get_test_name_from_run_line(line_strip)
+    elif current_test and SUITE_MARKER in line_strip:
+      break
+    elif line_strip.startswith(END_MARKERS):
       current_test = None
 
   if current_test:
     test_suite, test_name = current_test.split('.')
-    return test_suite, test_name, ''.join(lines[run_line_idx + 1:])
+    return test_suite, test_name, ''.join(lines[run_line_idx:current_idx - 1])
   return 'UnknownSuite', 'UnknownTest', 'No crash detected in test log.'
 
 
