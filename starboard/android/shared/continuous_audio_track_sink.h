@@ -19,6 +19,7 @@
 
 #include <atomic>
 #include <functional>
+#include <mutex>
 #include <string>
 
 #include "starboard/android/shared/audio_track_bridge.h"
@@ -26,7 +27,6 @@
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
-#include "starboard/common/mutex.h"
 #include "starboard/configuration.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
@@ -87,7 +87,7 @@ class ContinuousAudioTrackSink
   volatile bool quit_ = false;
   pthread_t audio_out_thread_ = 0;
 
-  Mutex mutex_;
+  std::mutex mutex_;
   double playback_rate_ = 1.0;
 };
 

@@ -184,7 +184,7 @@ void AudioTrackAudioSink::SetPlaybackRate(double playback_rate) {
                            "currently supported.";
     playback_rate = (playback_rate > 0.0) ? 1.0 : 0.0;
   }
-  ScopedLock lock(mutex_);
+  std::scoped_lock lock(mutex_);
   playback_rate_ = playback_rate;
 }
 
@@ -267,7 +267,7 @@ void AudioTrackAudioSink::AudioThreadFunc() {
     update_source_status_func_(&frames_in_buffer, &offset_in_frames,
                                &is_playing, &is_eos_reached, context_);
     {
-      ScopedLock lock(mutex_);
+      std::scoped_lock lock(mutex_);
       if (playback_rate_ == 0.0) {
         is_playing = false;
       }
@@ -529,7 +529,7 @@ void AudioTrackAudioSinkType::TestMinRequiredFrames() {
                      << sample_rate << "hz, with "
                      << (has_remote_audio_output ? "remote" : "local")
                      << " audio output device.";
-        ScopedLock lock(min_required_frames_map_mutex_);
+        std::scoped_lock lock(min_required_frames_map_mutex_);
         has_remote_audio_output_ = has_remote_audio_output;
         min_required_frames_map_[sample_rate] =
             std::min(min_required_frames, has_remote_audio_output_
@@ -563,7 +563,7 @@ int AudioTrackAudioSinkType::GetMinBufferSizeInFramesInternal(
     SbMediaAudioSampleType sample_type,
     int sampling_frequency_hz) {
   bool has_remote_audio_output = HasRemoteAudioOutput();
-  ScopedLock lock(min_required_frames_map_mutex_);
+  std::scoped_lock lock(min_required_frames_map_mutex_);
   if (has_remote_audio_output == has_remote_audio_output_) {
     // There's no audio output type change, we can use the numbers we got from
     // the tests at app launch.
