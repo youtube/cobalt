@@ -88,7 +88,6 @@ public class ShellManager extends FrameLayout {
         if (previousShell != null) previousShell.close();
     }
 
-    @SuppressWarnings("unused")
     @CalledByNative
     private Object createShell(long nativeShellPtr) {
         if (mContentViewRenderView == null) {
