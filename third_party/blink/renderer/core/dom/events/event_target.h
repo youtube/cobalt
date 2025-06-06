@@ -368,11 +368,25 @@ class CORE_EXPORT EventTarget : public ScriptWrappable {
   RegisteredEventListener* GetAttributeRegisteredEventListener(
       const AtomicString& event_type);
 
+<<<<<<< HEAD
   // Fire event listeners. This method makes a copy of the `EventListenerVector`
   // on invocation to match the HTML spec. Do not try to optimize it away.
   // The spec snapshots the array at the beginning of a dispatch so that
   // listeners adding or removing other event listeners during dispatch is
   // done in a consistent way.
+=======
+  // NOTE: To future Cobalt rebasers, this local change and associated change in
+  // event_target.cc can be overriden entirely if the new change is passing a
+  // EventListenerVectorSnapshot (i.e., a copy of EventListenerVector). It's
+  // based on an upstream patch in Chromium to fix this crash b/420931375. Upon
+  // rebasing, assuming you're using EventListenerVectorSnapshot, you should be
+  // introducing the more complete fix and this patch is no longer needed.
+  // To add EventListenerVectorSnapshot was a much more invasive change and
+  // required modifying many upstream, core, classes (e.g., vector.h), which I
+  // didn't want  to do. The key to fixing this bug was to create a copy of
+  // EventListenerVector before passing to FireEventListeners, which this change
+  // does.
+>>>>>>> 9ddd45a60b9 (BACKPORT: Improve event listener dispatch (#5981))
   bool FireEventListeners(Event&, EventTargetData*, EventListenerVector);
   void CountLegacyEvents(const AtomicString& legacy_type_name,
                          EventListenerVector*,
