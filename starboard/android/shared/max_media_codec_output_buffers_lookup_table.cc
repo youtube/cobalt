@@ -59,7 +59,7 @@ std::string MaxMediaCodecOutputBuffersLookupTable::DumpContent() const {
 
 int MaxMediaCodecOutputBuffersLookupTable::GetMaxOutputVideoBuffers(
     const VideoOutputFormat& format) const {
-  ScopedLock scoped_lock(mutex_);
+  std::scoped_lock scoped_lock(mutex_);
 
   auto iter = lookup_table_.find(format);
   if (iter == lookup_table_.end() || !enable_) {
@@ -70,7 +70,7 @@ int MaxMediaCodecOutputBuffersLookupTable::GetMaxOutputVideoBuffers(
 }
 
 void MaxMediaCodecOutputBuffersLookupTable::SetEnabled(bool enable) {
-  ScopedLock scoped_lock(mutex_);
+  std::scoped_lock scoped_lock(mutex_);
 
   enable_ = enable;
 }
@@ -78,7 +78,7 @@ void MaxMediaCodecOutputBuffersLookupTable::SetEnabled(bool enable) {
 void MaxMediaCodecOutputBuffersLookupTable::UpdateMaxOutputBuffers(
     const VideoOutputFormat& format,
     int max_num_of_frames) {
-  ScopedLock scoped_lock(mutex_);
+  std::scoped_lock scoped_lock(mutex_);
 
   if (!enable_) {
     return;

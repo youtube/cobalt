@@ -17,12 +17,12 @@
 
 #include <atomic>
 #include <memory>
+#include <mutex>
 #include <queue>
 
 #include "starboard/android/shared/audio_decoder.h"
 #include "starboard/android/shared/audio_track_bridge.h"
 #include "starboard/android/shared/drm_system.h"
-#include "starboard/common/mutex.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/drm.h"
 #include "starboard/media.h"
@@ -119,7 +119,7 @@ class AudioRendererPassthrough
 
   bool end_of_stream_written_ = false;  // Only accessed on PlayerWorker thread.
 
-  Mutex mutex_;
+  mutable std::mutex mutex_;
   bool stop_called_ = false;
   int64_t total_frames_written_ = 0;
   int64_t playback_head_position_when_stopped_ = 0;
