@@ -61,6 +61,14 @@ class AudioOutputManager {
 
   bool GetAndResetHasAudioDeviceChanged(JNIEnv* env);
 
+  int GenerateTunnelModeAudioSessionId(JNIEnv* env, int numberOfChannels);
+
+  bool HasPassthroughSupportFor(JNIEnv* env, int encoding);
+
+  bool GetAudioConfiguration(JNIEnv* env,
+                             int index,
+                             SbMediaAudioConfiguration* configuration);
+
  private:
   // The constructor runs exactly once because of
   // base::DefaultSingletonTraits<AudioOutputManager>.

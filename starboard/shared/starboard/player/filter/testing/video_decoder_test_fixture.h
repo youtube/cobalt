@@ -20,10 +20,10 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <set>
 
 #include "starboard/common/condition_variable.h"
-#include "starboard/common/mutex.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/drm.h"
@@ -135,7 +135,7 @@ class VideoDecoderTestFixture {
  protected:
   JobQueue* job_queue_;
 
-  Mutex mutex_;
+  std::mutex mutex_;
   std::deque<Event> event_queue_;
 
   // Test parameter filename for the VideoDmpReader to load and test with.

@@ -833,9 +833,14 @@ DispatchEventResult EventTarget::FireEventListeners(Event& event) {
   return GetDispatchEventResult(event);
 }
 
+// NOTE: To future Cobalt rebasers, this change to use
+// a copy of listeners_vector can be overriden entirely upon rebasing as
+// long as the code uses EventListenerVectorSnapshot. It's based on
+// an upstream patch in Chromium to fix this crash b/420931375. You should
+// be introducing the more complete fix and this patch is no longer needed.
 bool EventTarget::FireEventListeners(Event& event,
                                      EventTargetData* d,
-                                     EventListenerVector& entry) {
+                                     EventListenerVector entry) {
   // Fire all listeners registered for this event. Don't fire listeners removed
   // during event dispatch. Also, don't fire event listeners added during event
   // dispatch. Conveniently, all new event listeners will be added after or at

@@ -42,6 +42,8 @@ static_library("common") {
     "configuration_defaults.h",
     "device_type.cc",
     "device_type.h",
+    "drm.cc",
+    "drm.h",
     "experimental/concurrency_debug.cc",
     "experimental/concurrency_debug.h",
     "file.cc",
@@ -104,6 +106,7 @@ static_library("file_wrapper") {
 source_set("common_test") {
   testonly = true
   sources = [
+    "drm_test.cc",
     "fixed_no_free_allocator_test.cc",
     "log_unittest.cc",
     "media_test.cc",

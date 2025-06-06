@@ -16,10 +16,10 @@
 #define STARBOARD_SHARED_WIDEVINE_WIDEVINE_STORAGE_H_
 
 #include <map>
+#include <mutex>
 #include <string>
 #include <vector>
 
-#include "starboard/common/mutex.h"
 #include "third_party/internal/ce_cdm/cdm/include/cdm.h"
 
 namespace starboard::shared::widevine {
@@ -52,7 +52,7 @@ class WidevineStorage : public ::widevine::Cdm::IStorage {
   bool existsInternal(const std::string& name) const;
   bool removeInternal(const std::string& name);
 
-  Mutex lock_;
+  mutable std::mutex lock_;
   std::string path_name_;
   std::map<std::string, std::string> cache_;
 };

@@ -7,7 +7,7 @@ proto_library("storage_proto") {
 }
 
 source_set("migrate_storage_record") {
-  # Needed to depend on |//content/shell:content_shell_lib|.
+  # Needed to depend on |//cobalt/shell:content_shell_lib|.
   testonly = true
 
   sources = [
@@ -18,8 +18,8 @@ source_set("migrate_storage_record") {
     ":storage_proto",
     "//base",
     "//cobalt/browser:switches",
+    "//cobalt/shell:content_shell_lib",
     "//components/url_matcher",
-    "//content/shell:content_shell_lib",
     "//net",
     "//services/network/public/mojom:cookies_mojom",
     "//starboard/common",

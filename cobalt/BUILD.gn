@@ -56,9 +56,9 @@ if (!is_android) {
     deps = [
       ":common",
       "//base",
+      "//cobalt/shell:content_shell_app",
+      "//cobalt/shell:content_shell_lib",
       "//content/public/app",
-      "//content/shell:content_shell_app",
-      "//content/shell:content_shell_lib",
       "//starboard:starboard_headers_only",
     ]
 
@@ -99,10 +99,10 @@ source_set("common") {
     "//cobalt/browser:switches",
     "//cobalt/gpu",
     "//cobalt/renderer",
+    "//cobalt/shell:content_shell_app",
+    "//cobalt/shell:content_shell_lib",
     "//components/memory_system:memory_system",
     "//content/public/app",
-    "//content/shell:content_shell_app",
-    "//content/shell:content_shell_lib",
     "//content/shell:pak",
     "//gpu/command_buffer/service",
     "//media",
@@ -182,12 +182,12 @@ test("cobalt_unittests") {
   deps += [
     "//chrome/common:non_code_constants",
     "//cobalt/browser:switches",
-    "//content/public/common:switches",
 
     # TODO(cobalt b/375241103) This dependency is large in scope. It would be
     # better to find more well-scoped targets to depend on to provide the
     # switch constants definitions.
-    "//content/shell:content_shell_lib",
+    "//cobalt/shell:content_shell_lib",
+    "//content/public/common:switches",
     "//gpu/config",
     "//sandbox/policy:policy",
   ]

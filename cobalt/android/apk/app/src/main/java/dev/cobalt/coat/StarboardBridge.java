@@ -250,13 +250,11 @@ public class StarboardBridge {
     }
   }
 
-  @SuppressWarnings("unused")
   @CalledByNative
   protected void applicationStarted() {
     applicationStarted = true;
   }
 
-  @SuppressWarnings("unused")
   @CalledByNative
   protected void applicationStopping() {
     applicationStarted = false;
@@ -292,7 +290,6 @@ public class StarboardBridge {
     return appContext;
   }
 
-  @SuppressWarnings("unused")
   @CalledByNative
   void raisePlatformError(@PlatformError.ErrorType int errorType, long data) {
     PlatformError error = new PlatformError(activityHolder, errorType, data);
@@ -312,7 +309,6 @@ public class StarboardBridge {
     return activityHolder;
   }
 
-  @SuppressWarnings("unused")
   @CalledByNative
   protected String[] getArgs() {
     if (args == null) {
@@ -330,7 +326,6 @@ public class StarboardBridge {
    * Returns the absolute path to the directory where application specific files should be written.
    * May be overridden for use cases that need to segregate storage.
    */
-  @SuppressWarnings("unused")
   @CalledByNative
   protected String getFilesAbsolutePath() {
     return appContext.getFilesDir().getAbsolutePath();
@@ -340,7 +335,6 @@ public class StarboardBridge {
    * Returns the absolute path to the application specific cache directory on the filesystem. May be
    * overridden for use cases that need to segregate storage.
    */
-  @SuppressWarnings("unused")
   @CalledByNative
   protected String getCacheAbsolutePath() {
     return appContext.getCacheDir().getAbsolutePath();
@@ -348,7 +342,6 @@ public class StarboardBridge {
 
   // TODO: (cobalt b/372559388) remove or migrate JNI?
   // Used in starboard/android/shared/speech_synthesis_speak.cc
-  @SuppressWarnings("unused")
   @CalledByNative
   CobaltTextToSpeechHelper getTextToSpeechHelper() {
     if (ttsHelper == null) {
@@ -422,7 +415,6 @@ public class StarboardBridge {
     }
   }
 
-  @SuppressWarnings("unused")
   @CalledByNative
   Size getDeviceResolution() {
     String displaySize =
@@ -446,7 +438,6 @@ public class StarboardBridge {
     }
   }
 
-  @SuppressWarnings("unused")
   @CalledByNative
   boolean isNetworkConnected() {
     if (networkStatus == null) {
@@ -534,13 +525,11 @@ public class StarboardBridge {
   // TODO: (cobalt b/372559388) remove or migrate JNI?
   // Used in starboard/android/shared/system_get_property.cc
   /** Returns boolean for kSbSystemPropertyLimitAdTracking */
-  @SuppressWarnings("unused")
   @CalledByNative
   protected boolean getLimitAdTracking() {
     return this.advertisingId.isLimitAdTrackingEnabled();
   }
 
-  @SuppressWarnings("unused")
   @CalledByNative
   AudioOutputManager getAudioOutputManager() {
     if (audioOutputManager == null) {
@@ -681,7 +670,6 @@ public class StarboardBridge {
   }
 
   // Returns the saved app start timestamp.
-  @SuppressWarnings("unused")
   @CalledByNative
   protected long getAppStartTimestamp() {
     return mAppStartTimestamp;
@@ -713,7 +701,6 @@ public class StarboardBridge {
     CrashContext.INSTANCE.registerCrashContextUpdateHandler(handler);
   }
 
-  @SuppressWarnings("unused")
   @CalledByNative
   protected boolean getIsAmatiDevice() {
     return this.isAmatiDevice;
