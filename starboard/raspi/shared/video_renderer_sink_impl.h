@@ -15,7 +15,8 @@
 #ifndef STARBOARD_RASPI_SHARED_VIDEO_RENDERER_SINK_IMPL_H_
 #define STARBOARD_RASPI_SHARED_VIDEO_RENDERER_SINK_IMPL_H_
 
-#include "starboard/common/mutex.h"
+#include <mutex>
+
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
@@ -44,7 +45,7 @@ class VideoRendererSinkImpl
   SbPlayer player_;
   RenderCB render_cb_;
 
-  Mutex mutex_;
+  std::mutex mutex_;
   int z_index_;
   int x_;
   int y_;
