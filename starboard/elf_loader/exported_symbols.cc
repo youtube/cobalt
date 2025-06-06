@@ -220,6 +220,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbWindowSetDefaultOptions);
 
   // POSIX APIs
+  REGISTER_SYMBOL(aligned_alloc);
   REGISTER_SYMBOL(calloc);
   REGISTER_SYMBOL(close);
   REGISTER_SYMBOL(dup);
@@ -235,6 +236,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(getpeername);
   REGISTER_SYMBOL(getsockname);
   REGISTER_SYMBOL(getsockopt);
+  REGISTER_SYMBOL(isatty);
   REGISTER_SYMBOL(listen);
   REGISTER_SYMBOL(madvise);
   REGISTER_SYMBOL(malloc);
