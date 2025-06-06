@@ -89,6 +89,7 @@ _UNKNOWN_SOURCE_FILES = 'unknown_source_file(s)'
 _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     '__errno_location',
     'accept',
+    'aligned_alloc',
     'bind',
     'calloc',
     'clock_gettime',
