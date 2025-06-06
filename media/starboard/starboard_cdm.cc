@@ -351,6 +351,7 @@ void StarboardCdm::OnSessionUpdateRequestGenerated(
     return;
   }
 
+  LOG(INFO) << "Scheduling session message callback.";
   task_runner_->PostTask(
       FROM_HERE,
       base::BindOnce(message_cb_, session_id.value(),

@@ -87,7 +87,7 @@ INSTANTIATE_TEST_SUITE_P(
     SbDrmStatusTest,
     ::testing::Values(
         DrmStatusParam{kSbDrmStatusSuccess, "success"},
-        DrmStatusParam{kSbDrmStatusTypeError, "error"},
+        DrmStatusParam{kSbDrmStatusTypeError, "type-error"},
         DrmStatusParam{kSbDrmStatusNotSupportedError, "not-supported-error"},
         DrmStatusParam{kSbDrmStatusInvalidStateError, "invalid-state-error"},
         DrmStatusParam{kSbDrmStatusQuotaExceededError, "quota-exceeded-error"},

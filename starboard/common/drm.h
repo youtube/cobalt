@@ -32,4 +32,4 @@ std::ostream& operator<<(std::ostream& os, SbDrmSessionRequestType type);
 
 std::ostream& operator<<(std::ostream& os, SbDrmStatus status);
 
-#endif
+#endif  // STARBOARD_COMMON_DRM_H_

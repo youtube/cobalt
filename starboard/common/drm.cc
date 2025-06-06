@@ -42,7 +42,7 @@ const char* GetSbDrmStatusName(SbDrmStatus status) {
     case kSbDrmStatusSuccess:
       return "success";
     case kSbDrmStatusTypeError:
-      return "error";
+      return "type-error";
     case kSbDrmStatusNotSupportedError:
       return "not-supported-error";
     case kSbDrmStatusInvalidStateError:
