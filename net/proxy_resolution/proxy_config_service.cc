@@ -108,7 +108,7 @@ ProxyConfigService::CreateSystemProxyConfigService(
              << "profile_io_data.cc::CreateProxyConfigService and this should "
              << "be used only for examples.";
   return std::make_unique<UnsetProxyConfigService>();
-#elif BUILDFLAG(IS_LINUX)
+#elif BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD)
   std::unique_ptr<ProxyConfigServiceLinux> linux_config_service(
       std::make_unique<ProxyConfigServiceLinux>());
 

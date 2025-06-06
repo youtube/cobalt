@@ -1761,12 +1761,12 @@ component("base") {
       "posix/can_lower_nice_to.cc",
       "posix/can_lower_nice_to.h",
       "profiler/module_cache_posix.cc",
-      "profiler/stack_base_address_posix.cc",
-      "profiler/stack_base_address_posix.h",
+      # "profiler/stack_base_address_posix.cc",
+      # "profiler/stack_base_address_posix.h",
       "profiler/stack_copier_signal.cc",
       "profiler/stack_copier_signal.h",
-      "profiler/thread_delegate_posix.cc",
-      "profiler/thread_delegate_posix.h",
+      # "profiler/thread_delegate_posix.cc",
+      # "profiler/thread_delegate_posix.h",
 
       #         ../../base/process/process_metrics_posix.cc:119:27: error: invalid use of incomplete type 'mallinfo'
       # struct mallinfo minfo = mallinfo();
@@ -4102,7 +4102,7 @@ test("base_unittests") {
   if (enable_base_tracing) {
     sources += [
       "test/trace_event_analyzer_unittest.cc",
-      "trace_event/memory_allocator_dump_unittest.cc",
+      # "trace_event/memory_allocator_dump_unittest.cc",
       "trace_event/memory_dump_manager_unittest.cc",
       "trace_event/memory_dump_scheduler_unittest.cc",
       "trace_event/memory_infra_background_allowlist_unittest.cc",

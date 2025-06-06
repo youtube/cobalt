@@ -695,7 +695,16 @@ scoped_refptr<Channel> Channel::Create(
 #endif
 }
 
-#if !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
+// static
+bool Channel::SupportsChannelUpgrade() {
+  return false;
+}
+
+void Channel::OfferChannelUpgrade() {
+  NOTIMPLEMENTED();
+}
+#elif !BUILDFLAG(IS_NACL)
 #if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID))
 // static
 bool Channel::SupportsChannelUpgrade() {

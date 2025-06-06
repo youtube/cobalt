@@ -292,7 +292,7 @@ static_library("test_support") {
     ]
   }
 
-  if (use_blink && !is_cobalt_hermetic_build) {
+  if (use_blink) {
     sources += [
       "launcher/test_launcher.cc",
       "launcher/test_launcher.h",
