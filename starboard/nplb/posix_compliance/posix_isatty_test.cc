@@ -215,7 +215,7 @@ TEST_F(PosixIsattyTest, HandlesOpenFile) {
   close(fd);
 }
 
-// Tests that isatty() recognizes a tty device as a tty .
+// Tests that isatty() recognizes a tty device as a tty.
 TEST_F(PosixIsattyTest, HandlesTtyDevice) {
   int retval = isatty(STDIN_FILENO);
 
