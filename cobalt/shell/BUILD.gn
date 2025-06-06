@@ -23,7 +23,7 @@ if (use_aura) {
 }
 
 # Web test support not built on android, but is everywhere else.
-support_web_tests = !is_android
+support_web_tests = !is_android && !is_starboard
 
 # TODO(b/384748332): Changes below are for removing dependency on content shell
 config("content_shell_lib_warnings") {
