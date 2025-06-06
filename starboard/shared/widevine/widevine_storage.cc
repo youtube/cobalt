@@ -167,14 +167,14 @@ bool WidevineStorage::remove(const std::string& name) {
 
 int32_t WidevineStorage::size(const std::string& name) {
   SB_DCHECK(name != kCobaltWidevineKeyboxChecksumKey);
-  ScopedLock scoped_lock(lock_);
+  std::scoped_lock scoped_lock(lock_);
   auto iter = cache_.find(name);
   return iter == cache_.end() ? -1 : static_cast<int32_t>(iter->second.size());
 }
 
 bool WidevineStorage::list(std::vector<std::string>* records) {
   SB_DCHECK(records);
-  ScopedLock scoped_lock(lock_);
+  std::scoped_lock scoped_lock(lock_);
   records->clear();
   for (auto item : cache_) {
     if (item.first == kCobaltWidevineKeyboxChecksumKey) {
@@ -188,7 +188,7 @@ bool WidevineStorage::list(std::vector<std::string>* records) {
 bool WidevineStorage::readInternal(const std::string& name,
                                    std::string* data) const {
   SB_DCHECK(data);
-  ScopedLock scoped_lock(lock_);
+  std::scoped_lock scoped_lock(lock_);
   auto iter = cache_.find(name);
   if (iter == cache_.end()) {
     return false;
@@ -199,7 +199,7 @@ bool WidevineStorage::readInternal(const std::string& name,
 
 bool WidevineStorage::writeInternal(const std::string& name,
                                     const std::string& data) {
-  ScopedLock scoped_lock(lock_);
+  std::scoped_lock scoped_lock(lock_);
   cache_[name] = data;
 
   std::vector<uint8_t> content;
@@ -211,12 +211,12 @@ bool WidevineStorage::writeInternal(const std::string& name,
 }
 
 bool WidevineStorage::existsInternal(const std::string& name) const {
-  ScopedLock scoped_lock(lock_);
+  std::scoped_lock scoped_lock(lock_);
   return cache_.find(name) != cache_.end();
 }
 
 bool WidevineStorage::removeInternal(const std::string& name) {
-  ScopedLock scoped_lock(lock_);
+  std::scoped_lock scoped_lock(lock_);
   auto iter = cache_.find(name);
   if (iter == cache_.end()) {
     return false;

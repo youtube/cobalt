@@ -15,9 +15,9 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_FRAME_DISCARDER_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_FRAME_DISCARDER_H_
 
+#include <mutex>
 #include <queue>
 
-#include "starboard/common/mutex.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
@@ -49,7 +49,7 @@ class AudioFrameDiscarder {
 
   static constexpr size_t kMaxNumberOfPendingInputBufferInfos = 128;
 
-  Mutex mutex_;
+  std::mutex mutex_;
   std::queue<InputBufferInfo> input_buffer_infos_;
 };
 
