@@ -277,10 +277,10 @@ shared_library("libchrobalt") {
     "//gpu/command_buffer/service",
 
     # TODO: what can be removed in the dependencies?
+    "//cobalt/shell:content_shell_app",
+    "//cobalt/shell:content_shell_lib",
     "//components/crash/content/browser",
     "//components/memory_system",
-    "//content/shell:content_shell_app",
-    "//content/shell:content_shell_lib",
     "//content/shell:pak",
     "//media",
     "//skia",
