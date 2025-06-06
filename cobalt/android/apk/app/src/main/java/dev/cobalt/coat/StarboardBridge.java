@@ -424,14 +424,10 @@ public class StarboardBridge {
     }
   }
 
-<<<<<<< HEAD
   // TODO: (cobalt b/372559388) remove or migrate JNI?
   // Used in starboard/android/shared/window_get_size.cc
   @SuppressWarnings("unused")
   @UsedByNative
-=======
-  @CalledByNative
->>>>>>> 07d8b58cac0 (Remove unnecessary @SuppressWarnings("unused") annotation (#6004))
   Size getDeviceResolution() {
     String displaySize =
         android.os.Build.VERSION.SDK_INT < 28
@@ -454,14 +450,10 @@ public class StarboardBridge {
     }
   }
 
-<<<<<<< HEAD
   // TODO: (cobalt b/372559388) remove or migrate JNI?
   // Used in starboard/android/shared/system_network_is_disconnected.cc
   @SuppressWarnings("unused")
   @UsedByNative
-=======
-  @CalledByNative
->>>>>>> 07d8b58cac0 (Remove unnecessary @SuppressWarnings("unused") annotation (#6004))
   boolean isNetworkConnected() {
     if (networkStatus == null) {
       throw new IllegalArgumentException("networkStatus cannot be null for native code");
@@ -559,14 +551,10 @@ public class StarboardBridge {
     return this.advertisingId.isLimitAdTrackingEnabled();
   }
 
-<<<<<<< HEAD
   // TODO: (cobalt b/372559388) remove or migrate JNI?
   // Used in starboard/android/shared/audio_track_bridge.cc
   @SuppressWarnings("unused")
   @UsedByNative
-=======
-  @CalledByNative
->>>>>>> 07d8b58cac0 (Remove unnecessary @SuppressWarnings("unused") annotation (#6004))
   AudioOutputManager getAudioOutputManager() {
     if (audioOutputManager == null) {
       throw new IllegalArgumentException("audioOutputManager cannot be null for native code");
