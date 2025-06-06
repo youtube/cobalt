@@ -17,13 +17,15 @@ template("loader_final_target") {
   if (current_toolchain == default_toolchain) {
     group("${original_target_name}_loader") {
       forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
-      deps = [ ":${original_target_name}_copy" ]
+      data_deps = [ ":${original_target_name}_copy" ]
+      write_runtime_deps = "$root_build_dir/${target_name}.runtime_deps"
     }
 
     shared_library(original_target_name) {
       forward_variables_from(invoker, "*")
     }
 
+    # TODO: b/421951995 - Use original loader target instead of copy target.
     copy("${original_target_name}_copy") {
       forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
 
@@ -34,7 +36,9 @@ template("loader_final_target") {
 
       sources = [ "${starboard_toolchain_out_dir}/${loader_target_output}" ]
       outputs = [ "${root_out_dir}/${loader_target_output}" ]
+
       deps = [ loader_target ]
+      data_deps = deps  # Needed for .runtime_deps file.
     }
   } else if (current_toolchain == starboard_toolchain) {
     not_needed(invoker, "*", TESTONLY_AND_VISIBILITY)
@@ -57,10 +61,6 @@ template("loader_final_target") {
         ":${original_target_name}($default_toolchain)",
         "//starboard:starboard_group",
       ]
-
-      # TODO: b/417685824 - Not complete, as it doesn't include the copied
-      # _loader target. Could create a phony shlib intermediary.
-      write_runtime_deps = "$root_build_dir/${target_name}.runtime_deps"
     }
   }
 }
