@@ -248,7 +248,9 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(munmap);
   REGISTER_SYMBOL(open);
   REGISTER_SYMBOL(pipe);
+  REGISTER_SYMBOL(poll);
   REGISTER_SYMBOL(posix_memalign);
+  REGISTER_SYMBOL(ppoll);
   REGISTER_SYMBOL(pread);
   REGISTER_SYMBOL(pwrite);
   REGISTER_SYMBOL(rand);
@@ -260,6 +262,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(recvmsg);
   REGISTER_SYMBOL(rmdir);
   REGISTER_SYMBOL(sched_yield);
+  REGISTER_SYMBOL(select);
   REGISTER_SYMBOL(send);
   REGISTER_SYMBOL(sendto);
   REGISTER_SYMBOL(socket);

@@ -16,6 +16,7 @@
 #define STARBOARD_ELF_LOADER_EXPORTED_SYMBOLS_H_
 
 #include <map>
+#include <poll>
 #include <string>
 
 namespace starboard {
