@@ -304,7 +304,12 @@ class VideoRenderAlgorithmTunneled : public VideoRenderAlgorithmBase {
 
   void Render(MediaTimeProvider* media_time_provider,
               std::list<scoped_refptr<VideoFrame>>* frames,
-              VideoRendererSink::DrawFrameCB draw_frame_cb) override {}
+              VideoRendererSink::DrawFrameCB draw_frame_cb) override {
+    // Clear output frames.
+    while (!frames->empty() && !frames->front()->is_end_of_stream()) {
+      frames->pop_front();
+    }
+  }
   void Seek(int64_t seek_to_time) override {
     frame_tracker_->Seek(seek_to_time);
   }

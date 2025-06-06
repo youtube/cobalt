@@ -75,6 +75,7 @@ class MediaCodecBridge {
   private final String mMime;
   private double mPlaybackRate = 1.0;
   private int mFps = 30;
+  private final boolean mIsTunnelingPlayback;
 
   private MediaCodec.OnFrameRenderedListener mFrameRendererListener;
 
@@ -427,6 +428,7 @@ class MediaCodecBridge {
     mLastPresentationTimeUs = 0;
     mFlushed = true;
     mBitrateAdjustmentType = bitrateAdjustmentType;
+    mIsTunnelingPlayback = tunnelModeAudioSessionId != -1;
     mCallback =
         new MediaCodec.Callback() {
           @Override
@@ -496,7 +498,7 @@ class MediaCodecBridge {
         };
     mMediaCodec.get().setCallback(mCallback);
 
-    if (isFrameRenderedCallbackEnabled() || tunnelModeAudioSessionId != -1) {
+    if (isFrameRenderedCallbackEnabled() || mIsTunnelingPlayback) {
       mFrameRendererListener =
           new MediaCodec.OnFrameRenderedListener() {
             @Override
@@ -512,6 +514,10 @@ class MediaCodecBridge {
             }
           };
       mMediaCodec.get().setOnFrameRenderedListener(mFrameRendererListener, null);
+    }
+
+    if (mIsTunnelingPlayback) {
+      setupTunnelingPlayback();
     }
   }
 
@@ -799,7 +805,7 @@ class MediaCodecBridge {
     try {
       mMediaCodec.get().setParameters(b);
     } catch (IllegalStateException e) {
-      Log.e(TAG, "Failed to set MediaCodec operating rate", e);
+      Log.e(TAG, "Failed to set MediaCodec operating rate: ", e);
     }
   }
 
@@ -1084,6 +1090,26 @@ class MediaCodecBridge {
               + ").");
     } catch (Exception e) {
       Log.e(TAG, "MediaFormat.getInteger(KEY_MAX_INPUT_SIZE) failed with exception: ", e);
+    }
+  }
+
+  private void setupTunnelingPlayback() {
+    if (Build.VERSION.SDK_INT >= 31) {
+      // |PARAMETER_KEY_TUNNEL_PEEK| should be default to enabled according to the API
+      // documentation, but some devices don't adhere to the documentation and we need to set the
+      // parameter explicitly.
+      Bundle bundle = new Bundle();
+      bundle.putInt(MediaCodec.PARAMETER_KEY_TUNNEL_PEEK, 1);
+      try {
+        mMediaCodec.get().setParameters(bundle);
+      } catch (IllegalStateException e) {
+        Log.e(TAG, "Failed to set MediaCodec PARAMETER_KEY_TUNNEL_PEEK: ", e);
+      }
+    } else {
+      Log.w(
+          TAG,
+          "MediaCodec PARAMETER_KEY_TUNNEL_PEEK is not supported in SDK version < 31: SDK version="
+              + Build.VERSION.SDK_INT);
     }
   }
 
