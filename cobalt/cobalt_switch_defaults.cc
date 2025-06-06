@@ -16,7 +16,6 @@
 
 #include "base/base_switches.h"
 #include "base/files/file_path.h"
-#include "chrome/common/chrome_switches.h"
 #include "cobalt/browser/switches.h"
 #include "content/public/common/content_switches.h"
 #include "content/shell/common/shell_switches.h"
@@ -33,10 +32,8 @@ namespace {
 
 // List of toggleable default switches.
 static constexpr auto kCobaltToggleSwitches = std::to_array<const char*>({
-  // Disable first run experience, kiosk, etc.
-  "disable-fre", switches::kNoFirstRun, switches::kKioskMode,
-      // Enable Blink to work in overlay video mode
-      switches::kForceVideoOverlays,
+  // Enable Blink to work in overlay video mode
+  switches::kForceVideoOverlays,
       // Disable multiprocess mode.
       switches::kSingleProcess,
       // Accelerated GL is blanket disabled for Linux. Ignore the GPU blocklist
@@ -114,11 +111,19 @@ CommandLinePreprocessor::CommandLinePreprocessor(int argc,
     }
   }
 
+<<<<<<< HEAD:cobalt/cobalt_switch_defaults.cc
   // Ensure the window size configs are consistent wherever they are set.
   if (cmd_line_.HasSwitch(::switches::kWindowSize)) {
     // --window-size takes priority over other window-size configs.
     const auto window_size =
         cmd_line_.GetSwitchValueASCII(::switches::kWindowSize);
+=======
+  // Override kContentShellHostWindowSize if the user sets kWindowSize.
+  if (cmd_line_.HasSwitch(switches::kWindowSize)) {
+    std::string window_size =
+        cmd_line_.GetSwitchValueASCII(switches::kWindowSize);
+    std::replace(window_size.begin(), window_size.end(), ',', 'x');
+>>>>>>> bf6ddf45e67 (cobalt: Remove Chrome command line switches (#5960)):cobalt/app/cobalt_switch_defaults.cc
     cmd_line_.AppendSwitchASCII(::switches::kContentShellHostWindowSize,
                                 window_size);
   }
