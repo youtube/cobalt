@@ -94,7 +94,6 @@ source_set("common") {
 
   deps = [
     "//base",
-    "//chrome/common:non_code_constants",
     "//cobalt/browser",
     "//cobalt/browser:switches",
     "//cobalt/gpu",
