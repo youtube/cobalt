@@ -539,12 +539,8 @@ class MediaCodecBridge {
     return Build.VERSION.SDK_INT >= 34;
   }
 
-<<<<<<< HEAD
   @SuppressWarnings("unused")
   @UsedByNative
-=======
-  @CalledByNative
->>>>>>> 696e6935296 (Remove unnecessary annotation (#5907))
   public static void createVideoMediaCodecBridge(
       long nativeMediaCodecBridge,
       String mime,
