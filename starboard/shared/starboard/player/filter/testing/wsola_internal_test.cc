@@ -90,7 +90,7 @@ TEST(WsolaInternalTest, OptimalIndex_ExactMatch) {
   Interval exclude_interval = {-1, -1};  // No exclusion
 
   int optimal_index =
-      OptimalIndex(search_block, target_block,
+      OptimalIndex(search_block.get(), target_block.get(),
                    kSbMediaAudioFrameStorageTypeInterleaved, exclude_interval);
   // Due to floating point precision and quadratic interpolation, it might not
   // be exactly 25, but should be very close. We test for a small range.
@@ -109,7 +109,7 @@ TEST(WsolaInternalTest, OptimalIndex_NoMatch) {
   Interval exclude_interval = {-1, -1};  // No exclusion
 
   int optimal_index =
-      OptimalIndex(search_block, target_block,
+      OptimalIndex(search_block.get(), target_block.get(),
                    kSbMediaAudioFrameStorageTypeInterleaved, exclude_interval);
   // With no clear match, the result is less predictable, but it shouldn't crash
   // and should return a valid index within the search range.
@@ -140,7 +140,7 @@ TEST(WsolaInternalTest, OptimalIndex_ExcludeInterval) {
   Interval exclude_interval = {5, 15};  // Exclude indices from 5 to 15
 
   int optimal_index =
-      OptimalIndex(search_block, target_block,
+      OptimalIndex(search_block.get(), target_block.get(),
                    kSbMediaAudioFrameStorageTypeInterleaved, exclude_interval);
 
   // The match at 10 should be excluded, so it should find the match at 50.
@@ -164,7 +164,7 @@ TEST(WsolaInternalTest, OptimalIndex_SmallBlocks) {
   Interval exclude_interval = {-1, -1};
 
   int optimal_index =
-      OptimalIndex(search_block, target_block,
+      OptimalIndex(search_block.get(), target_block.get(),
                    kSbMediaAudioFrameStorageTypeInterleaved, exclude_interval);
   EXPECT_NEAR(optimal_index, 10, 1);
 }
