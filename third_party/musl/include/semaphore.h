@@ -14,9 +14,21 @@ extern "C" {
 
 #define SEM_FAILED ((sem_t *)0)
 
+#if defined(STARBOARD)
+#include <stdint.h>
+
+#define MUSL_SEM_MAX_SIZE 64
+typedef union sem_t {
+	uint8_t sem_buffer[MUSL_SEM_MAX_SIZE];
+
+	// Guarantees alignment of the type to a void pointer.
+	void* ptr;
+  } sem_t;
+#else
 typedef struct {
 	volatile int __val[4*sizeof(long)/sizeof(int)];
 } sem_t;
+#endif //  defined(STARBOARD)
 
 int    sem_close(sem_t *);
 int    sem_destroy(sem_t *);

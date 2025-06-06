@@ -53,6 +53,7 @@
 #include "starboard/shared/modular/starboard_layer_posix_errno_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_mmap_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_pthread_abi_wrappers.h"
+#include "starboard/shared/modular/starboard_layer_posix_semaphore_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_socket_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_stat_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_time_abi_wrappers.h"
@@ -362,6 +363,11 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(readdir);
   REGISTER_WRAPPER(readdir_r);
   REGISTER_WRAPPER(setsockopt);
+  REGISTER_WRAPPER(sem_destroy);
+  REGISTER_WRAPPER(sem_init);
+  REGISTER_WRAPPER(sem_post);
+  REGISTER_WRAPPER(sem_timedwait);
+  REGISTER_WRAPPER(sem_wait);
   REGISTER_WRAPPER(shutdown);
   REGISTER_WRAPPER(stat);
   REGISTER_WRAPPER(writev);
