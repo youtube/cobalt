@@ -1,4 +1,4 @@
-// Copyright 2014 The Cobalt Authors. All Rights Reserved.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,11 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/common/optional.h"
+#ifndef STARBOARD_ANDROID_SHARED_AUDIO_PERMISSION_REQUESTER_H_
+#define STARBOARD_ANDROID_SHARED_AUDIO_PERMISSION_REQUESTER_H_
 
-namespace starboard {
-nullopt_t::nullopt_t() {}
-in_place_t::in_place_t() {}
-const nullopt_t nullopt;
-const in_place_t in_place;
-}  // namespace starboard
+#include <jni.h>
+
+namespace starboard::android::shared {
+bool RequestRecordAudioPermission(JNIEnv* env);
+
+}  // namespace starboard::android::shared
+
+#endif  //  STARBOARD_ANDROID_SHARED_AUDIO_PERMISSION_REQUESTER_H_
