@@ -331,6 +331,7 @@ public class AudioOutputManager {
   }
 
   /** Generate audio session id used by tunneled playback. */
+  @SuppressWarnings("unused")
   @UsedByNative
   int generateTunnelModeAudioSessionId(int numberOfChannels) {
     // Android 9.0 (Build.VERSION.SDK_INT >= 28) support v2 sync header that
@@ -356,6 +357,7 @@ public class AudioOutputManager {
   }
 
   /** Returns whether passthrough on `encoding` is supported. */
+  @SuppressWarnings("unused")
   @UsedByNative
   boolean hasPassthroughSupportFor(int encoding) {
     AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
