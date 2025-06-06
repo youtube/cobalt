@@ -16,14 +16,18 @@
 #define STARBOARD_SHARED_STARBOARD_PLAYER_VIDEO_DMP_READER_H_
 
 #include <map>
+#include <mutex>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "starboard/common/file.h"
 #include "starboard/common/log.h"
+<<<<<<< HEAD
 #include "starboard/common/mutex.h"
 #include "starboard/common/optional.h"
+=======
+>>>>>>> b81f8f0b4e2 ([Refactor] Replace starboard::mutex in starboard/player/filter (#6018))
 #include "starboard/common/ref_counted.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
@@ -152,7 +156,7 @@ class VideoDmpReader {
     void Register(const std::string& filename, const DmpInfo& dmp_info);
 
    private:
-    Mutex mutex_;
+    mutable std::mutex mutex_;
     std::map<std::string, DmpInfo> dmp_infos_;
   };
 
