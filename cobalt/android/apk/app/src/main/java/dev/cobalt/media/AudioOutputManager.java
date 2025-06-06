@@ -26,7 +26,6 @@ import android.media.AudioTrack;
 import android.os.Build;
 import androidx.annotation.RequiresApi;
 import dev.cobalt.util.Log;
-import dev.cobalt.util.UsedByNative;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -138,6 +137,9 @@ public class AudioOutputManager {
   public static class OutputDeviceInfo {
     public int type;
     public int channels;
+
+    @CalledByNative("OutputDeviceInfo")
+    private OutputDeviceInfo() {}
 
     @CalledByNative("OutputDeviceInfo")
     public int getType() {
@@ -329,7 +331,7 @@ public class AudioOutputManager {
   }
 
   /** Generate audio session id used by tunneled playback. */
-  @UsedByNative
+  @CalledByNative
   int generateTunnelModeAudioSessionId(int numberOfChannels) {
     // Android 9.0 (Build.VERSION.SDK_INT >= 28) support v2 sync header that
     // aligns sync header with audio frame size. V1 sync header has alignment
@@ -354,7 +356,7 @@ public class AudioOutputManager {
   }
 
   /** Returns whether passthrough on `encoding` is supported. */
-  @UsedByNative
+  @CalledByNative
   boolean hasPassthroughSupportFor(int encoding) {
     AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
     AudioDeviceInfo[] deviceInfos = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS);
