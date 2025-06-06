@@ -122,7 +122,7 @@ void AudioDecoder::Decode(const InputBuffers& input_buffers,
     media_decoder_->WriteInputBuffers(input_buffers);
   }
 
-  ScopedLock lock(decoded_audios_mutex_);
+  std::scoped_lock lock(decoded_audios_mutex_);
   if (media_decoder_ &&
       (media_decoder_->GetNumberOfPendingTasks() + decoded_audios_.size() <=
        kMaxPendingWorkSize)) {
@@ -149,7 +149,7 @@ scoped_refptr<AudioDecoder::DecodedAudio> AudioDecoder::Read(
 
   scoped_refptr<DecodedAudio> result;
   {
-    starboard::ScopedLock lock(decoded_audios_mutex_);
+    std::scoped_lock lock(decoded_audios_mutex_);
     SB_DCHECK(!decoded_audios_.empty());
     if (!decoded_audios_.empty()) {
       result = decoded_audios_.front();
@@ -249,7 +249,7 @@ void AudioDecoder::ProcessOutputBuffer(
         audio_stream_info_.samples_per_second, &decoded_audio);
 
     {
-      starboard::ScopedLock lock(decoded_audios_mutex_);
+      std::scoped_lock lock(decoded_audios_mutex_);
       decoded_audios_.push(decoded_audio);
       VERBOSE_MEDIA_LOG() << "T2: timestamp "
                           << decoded_audios_.front()->timestamp();
@@ -260,7 +260,7 @@ void AudioDecoder::ProcessOutputBuffer(
   // BUFFER_FLAG_END_OF_STREAM may come with the last valid output buffer.
   if (dequeue_output_result.flags & BUFFER_FLAG_END_OF_STREAM) {
     {
-      starboard::ScopedLock lock(decoded_audios_mutex_);
+      std::scoped_lock lock(decoded_audios_mutex_);
       decoded_audios_.push(new DecodedAudio());
     }
     audio_frame_discarder_.OnDecodedAudioEndOfStream();
