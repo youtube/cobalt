@@ -17,9 +17,9 @@
 
 #include <functional>
 #include <map>
+#include <mutex>
 #include <string>
 
-#include "starboard/common/mutex.h"
 #include "starboard/media.h"
 
 namespace starboard::android::shared {
@@ -62,7 +62,7 @@ class MaxMediaCodecOutputBuffersLookupTable {
 
   bool enable_ = true;
 
-  Mutex mutex_;
+  mutable std::mutex mutex_;
   std::map<VideoOutputFormat, int> lookup_table_;
 };
 
