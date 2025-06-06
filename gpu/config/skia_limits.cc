@@ -33,7 +33,7 @@ void DetermineGrCacheLimitsFromAvailableMemory(
   constexpr uint64_t kHighEndMemoryThreshold = 4096ULL * 1024 * 1024;
 
   if (base::SysInfo::IsLowEndDevice()) {
-    *max_resource_cache_bytes = kMaxLowEndGaneshResourceCacheBytes;
+    *max_resource_cache_bytes = kMaxLowEndGaneshResourceCacheBytes / 4;
     *max_glyph_cache_texture_bytes = kMaxLowEndGlyphCacheTextureBytes;
   } else if (base::SysInfo::AmountOfPhysicalMemory() >=
              kHighEndMemoryThreshold) {
