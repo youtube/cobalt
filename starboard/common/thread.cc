@@ -19,10 +19,10 @@
 #include <pthread.h>
 #include <unistd.h>
 #include <atomic>
+#include <optional>
 
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
-#include "starboard/common/optional.h"
 #include "starboard/common/semaphore.h"
 
 namespace starboard {
