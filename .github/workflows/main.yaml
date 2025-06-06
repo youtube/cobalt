@@ -322,8 +322,6 @@ jobs:
       - name: Run API Leak Detector
         uses: ./src/.github/actions/api_leak_detector
         if: inputs.run_api_leak_detector
-        with:
-          relative_manifest_path: ${{ inputs.leak_manifest_filename }}
 
   on-device-test:
     needs: [initialize, build]
