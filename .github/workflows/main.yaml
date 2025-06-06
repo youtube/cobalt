@@ -320,7 +320,7 @@ jobs:
           upload_on_device_test_artifacts: ${{ matrix.config == 'devel' && needs.initialize.outputs.test_on_device == 'true' }}
           upload_web_test_artifacts: ${{ matrix.config == 'devel' && needs.initialize.outputs.web_tests == 'true' }}
       - name: Run API Leak Detector
-        uses: ./.github/actions/api_leak_detector
+        uses: ./src/.github/actions/api_leak_detector
         if: inputs.run_api_leak_detector
         with:
           relative_manifest_path: ${{ inputs.leak_manifest_filename }}
