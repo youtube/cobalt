@@ -271,6 +271,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(vfwprintf);
   REGISTER_SYMBOL(vsnprintf);
   REGISTER_SYMBOL(vsscanf);
+  REGISTER_SYMBOL(vswprintf);
   REGISTER_SYMBOL(write);
 
   // Custom mapped POSIX APIs to compatibility wrappers.
@@ -361,13 +362,8 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(setsockopt);
   REGISTER_WRAPPER(shutdown);
   REGISTER_WRAPPER(stat);
-  REGISTER_SYMBOL(vswprintf);
   REGISTER_WRAPPER(writev);
 
-#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
-  // TODO: Cobalt b/399696581 - Remove once the //base cleanup is done.
-  REGISTER_SYMBOL(pthread_atfork);
-#endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 }  // NOLINT
 
 const void* ExportedSymbols::Lookup(const char* name) {
@@ -383,7 +379,9 @@ const void* ExportedSymbols::Lookup(const char* name) {
   // TODO: Cobalt b/421944504 - Cleanup once we are done with all the symbols or
   // potentially keep it behind a flag to help with future maintenance.
   address = dlsym(RTLD_DEFAULT, name);
-  SB_LOG(ERROR) << "'. Falling back to dlsym address " << address << "'.";
+  if (address == nullptr) {
+    SB_LOG(ERROR) << "Fallback dlsym failed for '" << name << "'.";
+  }
 #endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   return address;
 }
