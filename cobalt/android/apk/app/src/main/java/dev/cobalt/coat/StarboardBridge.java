@@ -250,13 +250,11 @@ public class StarboardBridge {
     }
   }
 
-  @SuppressWarnings("unused")
   @CalledByNative
   protected void applicationStarted() {
     applicationStarted = true;
   }
 
-  @SuppressWarnings("unused")
   @CalledByNative
   protected void applicationStopping() {
     applicationStarted = false;
@@ -292,7 +290,6 @@ public class StarboardBridge {
     return appContext;
   }
 
-  @SuppressWarnings("unused")
   @CalledByNative
   void raisePlatformError(@PlatformError.ErrorType int errorType, long data) {
     PlatformError error = new PlatformError(activityHolder, errorType, data);
@@ -312,7 +309,6 @@ public class StarboardBridge {
     return activityHolder;
   }
 
-  @SuppressWarnings("unused")
   @CalledByNative
   protected String[] getArgs() {
     if (args == null) {
@@ -330,7 +326,6 @@ public class StarboardBridge {
    * Returns the absolute path to the directory where application specific files should be written.
    * May be overridden for use cases that need to segregate storage.
    */
-  @SuppressWarnings("unused")
   @CalledByNative
   protected String getFilesAbsolutePath() {
     return appContext.getFilesDir().getAbsolutePath();
@@ -340,7 +335,6 @@ public class StarboardBridge {
    * Returns the absolute path to the application specific cache directory on the filesystem. May be
    * overridden for use cases that need to segregate storage.
    */
-  @SuppressWarnings("unused")
   @CalledByNative
   protected String getCacheAbsolutePath() {
     return appContext.getCacheDir().getAbsolutePath();
@@ -348,7 +342,6 @@ public class StarboardBridge {
 
   // TODO: (cobalt b/372559388) remove or migrate JNI?
   // Used in starboard/android/shared/speech_synthesis_speak.cc
-  @SuppressWarnings("unused")
   @CalledByNative
   CobaltTextToSpeechHelper getTextToSpeechHelper() {
     if (ttsHelper == null) {
@@ -422,7 +415,6 @@ public class StarboardBridge {
     }
   }
 
-  @SuppressWarnings("unused")
   @CalledByNative
   Size getDeviceResolution() {
     String displaySize =
@@ -446,7 +438,6 @@ public class StarboardBridge {
     }
   }
 
-  @SuppressWarnings("unused")
   @CalledByNative
   boolean isNetworkConnected() {
     if (networkStatus == null) {
@@ -455,15 +446,13 @@ public class StarboardBridge {
     return networkStatus.isConnected();
   }
 
-  // TODO: (cobalt b/372559388) remove or migrate JNI?
-  // Used in starboard/android/shared/microphone_impl.cc
   /**
    * Checks if there is no microphone connected to the system.
    *
    * @return true if no device is connected.
    */
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   public boolean isMicrophoneDisconnected() {
     // A check specifically for microphones is not available before API 28, so it is assumed that a
     // connected input audio device is a microphone.
@@ -486,15 +475,13 @@ public class StarboardBridge {
     return true;
   }
 
-  // TODO: (cobalt b/372559388) remove or migrate JNI?
-  // Used in starboard/android/shared/microphone_impl.cc
   /**
    * Checks if the microphone is muted.
    *
    * @return true if the microphone mute is on.
    */
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   public boolean isMicrophoneMute() {
     AudioManager audioManager = (AudioManager) appContext.getSystemService(AUDIO_SERVICE);
     return audioManager.isMicrophoneMute();
@@ -538,13 +525,11 @@ public class StarboardBridge {
   // TODO: (cobalt b/372559388) remove or migrate JNI?
   // Used in starboard/android/shared/system_get_property.cc
   /** Returns boolean for kSbSystemPropertyLimitAdTracking */
-  @SuppressWarnings("unused")
   @CalledByNative
   protected boolean getLimitAdTracking() {
     return this.advertisingId.isLimitAdTrackingEnabled();
   }
 
-  @SuppressWarnings("unused")
   @CalledByNative
   AudioOutputManager getAudioOutputManager() {
     if (audioOutputManager == null) {
@@ -555,7 +540,7 @@ public class StarboardBridge {
 
   /** Returns Java layer implementation for AudioPermissionRequester */
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   AudioPermissionRequester getAudioPermissionRequester() {
     return audioPermissionRequester;
   }
@@ -564,10 +549,8 @@ public class StarboardBridge {
     audioPermissionRequester.onRequestPermissionsResult(requestCode, permissions, grantResults);
   }
 
-  // TODO: (cobalt b/372559388) remove or migrate JNI?
-  // Used in starboard/android/shared/video_window.cc
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   public void resetVideoSurface() {
     Activity activity = activityHolder.get();
     if (activity instanceof CobaltActivity) {
@@ -575,10 +558,8 @@ public class StarboardBridge {
     }
   }
 
-  // TODO: (cobalt b/372559388) remove or migrate JNI?
-  // Used in starboard/android/shared/player_set_bounds.cc
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   public void setVideoSurfaceBounds(final int x, final int y, final int width, final int height) {
     Activity activity = activityHolder.get();
     if (activity instanceof CobaltActivity) {
@@ -689,7 +670,6 @@ public class StarboardBridge {
   }
 
   // Returns the saved app start timestamp.
-  @SuppressWarnings("unused")
   @CalledByNative
   protected long getAppStartTimestamp() {
     return mAppStartTimestamp;
@@ -721,7 +701,6 @@ public class StarboardBridge {
     CrashContext.INSTANCE.registerCrashContextUpdateHandler(handler);
   }
 
-  @SuppressWarnings("unused")
   @CalledByNative
   protected boolean getIsAmatiDevice() {
     return this.isAmatiDevice;

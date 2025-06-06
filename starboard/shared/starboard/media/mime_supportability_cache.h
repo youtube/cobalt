@@ -16,11 +16,11 @@
 #define STARBOARD_SHARED_STARBOARD_MEDIA_MIME_SUPPORTABILITY_CACHE_H_
 
 #include <atomic>
+#include <mutex>
 #include <queue>
 #include <string>
 #include <unordered_map>
 
-#include "starboard/common/mutex.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/media/parsed_mime_info.h"
 
@@ -110,7 +110,7 @@ class MimeSupportabilityCache {
 
   typedef std::unordered_map<std::string, Entry> Entries;
 
-  Mutex mutex_;
+  std::mutex mutex_;
   Entries entries_;
   std::queue<Entries::iterator> fifo_queue_;
   std::atomic_int max_size_{kDefaultCacheMaxSize};
