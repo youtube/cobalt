@@ -23,11 +23,6 @@
 
 #include "starboard/common/file.h"
 #include "starboard/common/log.h"
-<<<<<<< HEAD
-#include "starboard/common/mutex.h"
-#include "starboard/common/optional.h"
-=======
->>>>>>> b81f8f0b4e2 ([Refactor] Replace starboard::mutex in starboard/player/filter (#6018))
 #include "starboard/common/ref_counted.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
