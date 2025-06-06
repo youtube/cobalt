@@ -92,11 +92,14 @@ source_set("common") {
     "app/cobalt_switch_defaults.h",
   ]
 
+  public_deps = [
+    "//cobalt/browser",
+    "//cobalt/browser:switches",
+  ]
+
   deps = [
     "//base",
     "//chrome/common:non_code_constants",
-    "//cobalt/browser",
-    "//cobalt/browser:switches",
     "//cobalt/gpu",
     "//cobalt/renderer",
     "//cobalt/shell:content_shell_app",
@@ -167,7 +170,6 @@ test("cobalt_unittests") {
     "//cobalt/browser/migrate_storage_record:unittest",
     "//cobalt/browser/user_agent",
     "//cobalt/common/eztime:eztime_test",
-    "//cobalt/shell:content_shell_lib",
     "//components/metrics",
     "//components/prefs",
     "//components/prefs:test_support",
@@ -187,6 +189,7 @@ test("cobalt_unittests") {
     # TODO(cobalt b/375241103) This dependency is large in scope. It would be
     # better to find more well-scoped targets to depend on to provide the
     # switch constants definitions.
+    "//cobalt/shell:content_shell_lib",
     "//content/public/common:switches",
     "//gpu/config",
     "//sandbox/policy:policy",

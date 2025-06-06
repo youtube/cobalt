@@ -7,10 +7,7 @@ import("//ppapi/buildflags/buildflags.gni")
 assert(enable_ppapi, "PPAPI plugins must be enabled.")
 
 group("ppapi_plugin") {
-  visibility = [
-    "//content/*",
-    "//cobalt/web_test:web_test_browser",
-  ]  # This is an internal content API.
+  visibility = [ "//content/*" ]  # This is an internal content API.
 
   if (is_component_build) {
     public_deps = [ "//content" ]

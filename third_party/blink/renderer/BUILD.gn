@@ -8,10 +8,7 @@ if (is_clang) {
   import("//build/config/clang/clang.gni")
 }
 
-visibility = [
-  "//third_party/blink/*",
-  "//cobalt/third_party/blink/renderer/core/web_test:web_test",
-]
+visibility = [ "//third_party/blink/*" ]
 
 # arguments --------------------------------------------------------------------
 
