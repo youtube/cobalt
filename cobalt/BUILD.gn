@@ -92,14 +92,11 @@ source_set("common") {
     "app/cobalt_switch_defaults.h",
   ]
 
-  public_deps = [
-    "//cobalt/browser",
-    "//cobalt/browser:switches",
-  ]
-
   deps = [
     "//base",
     "//chrome/common:non_code_constants",
+    "//cobalt/browser",
+    "//cobalt/browser:switches",
     "//cobalt/gpu",
     "//cobalt/renderer",
     "//cobalt/shell:content_shell_app",

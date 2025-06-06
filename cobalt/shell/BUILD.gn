@@ -22,7 +22,7 @@ if (use_aura) {
   shell_use_toolkit_views = toolkit_views && !is_castos
 }
 
-# Web test support not built on android, but is everywhere else.
+# Web test support only built for the linux-x64x11-no-starboard target.
 support_web_tests = !is_android && !is_starboard
 
 # TODO(b/384748332): Changes below are for removing dependency on content shell
