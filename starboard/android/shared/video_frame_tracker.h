@@ -16,14 +16,12 @@
 #define STARBOARD_ANDROID_SHARED_VIDEO_FRAME_TRACKER_H_
 
 #include <list>
+#include <mutex>
 #include <vector>
 
-#include "starboard/common/mutex.h"
 #include "starboard/shared/starboard/thread_checker.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
 class VideoFrameTracker {
  public:
@@ -51,13 +49,11 @@ class VideoFrameTracker {
   int dropped_frames_ = 0;
   int64_t seek_to_time_ = 0;  // microseconds
 
-  Mutex rendered_frames_mutex_;
+  std::mutex rendered_frames_mutex_;
   std::vector<int64_t> rendered_frames_on_tracker_thread_;  // microseconds
   std::vector<int64_t> rendered_frames_on_decoder_thread_;  // microseconds
 };
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared
 
 #endif  // STARBOARD_ANDROID_SHARED_VIDEO_FRAME_TRACKER_H_

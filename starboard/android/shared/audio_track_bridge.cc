@@ -22,9 +22,7 @@
 #include "starboard/common/log.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
 namespace {
 
@@ -34,13 +32,14 @@ const jint kNoOffset = 0;
 
 }  // namespace
 
-AudioTrackBridge::AudioTrackBridge(SbMediaAudioCodingType coding_type,
-                                   optional<SbMediaAudioSampleType> sample_type,
-                                   int channels,
-                                   int sampling_frequency_hz,
-                                   int preferred_buffer_size_in_bytes,
-                                   int tunnel_mode_audio_session_id,
-                                   bool is_web_audio) {
+AudioTrackBridge::AudioTrackBridge(
+    SbMediaAudioCodingType coding_type,
+    std::optional<SbMediaAudioSampleType> sample_type,
+    int channels,
+    int sampling_frequency_hz,
+    int preferred_buffer_size_in_bytes,
+    int tunnel_mode_audio_session_id,
+    bool is_web_audio) {
   if (coding_type == kSbMediaAudioCodingTypePcm) {
     SB_DCHECK(SbAudioSinkIsAudioSampleTypeSupported(sample_type.value()));
 
@@ -297,6 +296,4 @@ int AudioTrackBridge::GetStartThresholdInFrames(
                                    "getStartThresholdInFrames", "()I");
 }
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared

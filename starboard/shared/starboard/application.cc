@@ -25,9 +25,7 @@
 
 #include "starboard/shared/starboard/command_line.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
+namespace starboard::shared::starboard {
 
 namespace {
 
@@ -503,6 +501,4 @@ int Application::RunLoop() {
   return error_level_;
 }
 
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard

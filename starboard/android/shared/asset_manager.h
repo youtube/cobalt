@@ -16,14 +16,11 @@
 #define STARBOARD_ANDROID_SHARED_ASSET_MANAGER_H_
 
 #include <map>
+#include <mutex>
 #include <set>
 #include <string>
 
-#include "starboard/common/mutex.h"
-
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
 // This class handles opening/closing Android asset files as POSIX filehandles.
 class AssetManager {
@@ -41,14 +38,12 @@ class AssetManager {
   void ClearTempDir();
 
   std::string tmp_root_;
-  mutable Mutex mutex_;
+  mutable std::mutex mutex_;
   uint64_t internal_fd_ = 0;                       // Guarded by |mutex_|.
   std::set<uint64_t> in_use_internal_fd_set_;      // Guarded by |mutex_|.
   std::map<int, uint64_t> fd_to_internal_fd_map_;  // Guarded by |mutex_|.
 };
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared
 
 #endif  // STARBOARD_ANDROID_SHARED_ASSET_MANAGER_H_

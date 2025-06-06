@@ -23,16 +23,15 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include <mutex>
+
 #include "starboard/android/shared/file_internal.h"
 #include "starboard/common/log.h"
-#include "starboard/common/mutex.h"
 #include "starboard/common/once.h"
 #include "starboard/common/string.h"
 #include "starboard/system.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
 namespace {
 
@@ -87,7 +86,7 @@ AssetManager::AssetManager() {
 }
 
 uint64_t AssetManager::AcquireInternalFd() {
-  ScopedLock scoped_lock(mutex_);
+  std::scoped_lock scoped_lock(mutex_);
   do {
     ++internal_fd_;
   } while (in_use_internal_fd_set_.count(internal_fd_) == 1);
@@ -147,7 +146,7 @@ int AssetManager::Open(const char* path, int oflag) {
 }
 
 bool AssetManager::IsAssetFd(int fd) const {
-  ScopedLock scoped_lock(mutex_);
+  std::scoped_lock scoped_lock(mutex_);
   return fd_to_internal_fd_map_.count(fd) == 1;
 }
 
@@ -177,6 +176,4 @@ void AssetManager::ClearTempDir() {
   mkdir(tmp_root_.c_str(), 0700);
 }
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared

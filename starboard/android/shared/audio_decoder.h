@@ -18,6 +18,7 @@
 #include <jni.h>
 
 #include <memory>
+#include <mutex>
 #include <queue>
 #include <string>
 
@@ -33,9 +34,7 @@
 #include "starboard/shared/starboard/player/filter/audio_frame_discarder.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
 class AudioDecoder
     : public ::starboard::shared::starboard::player::filter::AudioDecoder,
@@ -90,15 +89,13 @@ class AudioDecoder
   ErrorCB error_cb_;
   ConsumedCB consumed_cb_;
 
-  starboard::Mutex decoded_audios_mutex_;
+  std::mutex decoded_audios_mutex_;
   std::queue<scoped_refptr<DecodedAudio>> decoded_audios_;
 
   AudioFrameDiscarder audio_frame_discarder_;
   std::unique_ptr<MediaDecoder> media_decoder_;
 };
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared
 
 #endif  // STARBOARD_ANDROID_SHARED_AUDIO_DECODER_H_

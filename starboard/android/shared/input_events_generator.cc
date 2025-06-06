@@ -24,9 +24,7 @@
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/key.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
 using ::starboard::shared::starboard::Application;
 typedef ::starboard::android::shared::InputEventsGenerator::Event Event;
@@ -963,6 +961,4 @@ void InputEventsGenerator::CreateInputEventsFromSbKey(SbKey key,
                              &Application::DeleteDestructor<SbInputData>)));
 }
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared

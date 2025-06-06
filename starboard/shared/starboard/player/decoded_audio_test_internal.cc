@@ -21,10 +21,7 @@
 #include "starboard/shared/starboard/media/media_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
+namespace starboard::shared::starboard::player {
 namespace {
 
 using ::starboard::shared::starboard::media::GetBytesPerSample;
@@ -375,7 +372,5 @@ TEST(DecodedAudioTest, Clone) {
 }
 
 }  // namespace
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+
+}  // namespace starboard::shared::starboard::player

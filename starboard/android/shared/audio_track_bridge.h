@@ -16,15 +16,13 @@
 #define STARBOARD_ANDROID_SHARED_AUDIO_TRACK_BRIDGE_H_
 
 #include <jni.h>
+#include <optional>
 
 #include "starboard/android/shared/jni_env_ext.h"
-#include "starboard/common/optional.h"
 #include "starboard/media.h"
 #include "starboard/types.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
 // The C++ encapsulation of the Java class AudioTrackBridge.
 class AudioTrackBridge {
@@ -36,7 +34,7 @@ class AudioTrackBridge {
   static constexpr int kAudioTrackErrorDeadObject = -6;
 
   AudioTrackBridge(SbMediaAudioCodingType coding_type,
-                   optional<SbMediaAudioSampleType> sample_type,
+                   std::optional<SbMediaAudioSampleType> sample_type,
                    int channels,
                    int sampling_frequency_hz,
                    int preferred_buffer_size_in_bytes,
@@ -95,8 +93,6 @@ class AudioTrackBridge {
   jobject j_audio_data_ = nullptr;
 };
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared
 
 #endif  // STARBOARD_ANDROID_SHARED_AUDIO_TRACK_BRIDGE_H_

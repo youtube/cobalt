@@ -34,9 +34,7 @@
 
 using wv3cdm = ::widevine::Cdm;
 
-namespace starboard {
-namespace shared {
-namespace widevine {
+namespace starboard::shared::widevine {
 namespace {
 
 const int kInitializationVectorSize = 16;
@@ -517,7 +515,7 @@ SbDrmSystemPrivate::DecryptStatus DrmSystemWidevine::Decrypt(
       }
       {
         ScopedLock lock(unblock_key_retry_mutex_);
-        unblock_key_retry_start_time_ = nullopt;
+        unblock_key_retry_start_time_ = std::nullopt;
       }
       input.data += subsample.encrypted_byte_count;
       output.data += subsample.encrypted_byte_count;
@@ -798,5 +796,5 @@ void DrmSystemWidevine::SendSessionUpdateRequest(
 }
 
 }  // namespace widevine
-}  // namespace shared
-}  // namespace starboard
+
+}  // namespace starboard::shared::widevine::

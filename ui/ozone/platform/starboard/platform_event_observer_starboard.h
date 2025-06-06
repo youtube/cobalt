@@ -1,4 +1,4 @@
-// Copyright 2014 The Cobalt Authors. All Rights Reserved.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,11 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/common/optional.h"
+#ifndef UI_OZONE_PLATFORM_STARBOARD_PLATFORM_EVENT_OBSERVER_H_
+#define UI_OZONE_PLATFORM_STARBOARD_PLATFORM_EVENT_OBSERVER_H_
 
 namespace starboard {
-nullopt_t::nullopt_t() {}
-in_place_t::in_place_t() {}
-const nullopt_t nullopt;
-const in_place_t in_place;
+
+class EVENTS_EXPORT PlatformEventObserverStarboard {
+ public:
+  virtual void ProcessWindowSizeChangedEvent(int width, int height) = 0;
+
+ protected:
+  virtual ~PlatformEventObserverStarboard() = default;
+};
+
 }  // namespace starboard
+
+#endif  // UI_OZONE_PLATFORM_STARBOARD

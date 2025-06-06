@@ -107,14 +107,14 @@ int GetDefaultAudioFramesPerBuffer(AudioCodec codec) {
 }  // namespace
 
 StarboardRenderer::StarboardRenderer(
-    scoped_refptr<base::SequencedTaskRunner> task_runner,
+    const scoped_refptr<base::SequencedTaskRunner>& task_runner,
     std::unique_ptr<MediaLog> media_log,
     const base::UnguessableToken& overlay_plane_id,
     TimeDelta audio_write_duration_local,
     TimeDelta audio_write_duration_remote,
     const std::string& max_video_capabilities)
     : state_(STATE_UNINITIALIZED),
-      task_runner_(std::move(task_runner)),
+      task_runner_(task_runner),
       media_log_(std::move(media_log)),
       set_bounds_helper_(new SbPlayerSetBoundsHelper),
       cdm_context_(nullptr),

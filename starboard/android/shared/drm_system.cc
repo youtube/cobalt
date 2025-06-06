@@ -164,9 +164,7 @@ Java_dev_cobalt_media_MediaDrmBridge_nativeOnKeyStatusChange(
   env->ReleaseByteArrayElements(j_session_id, session_id_elements, JNI_ABORT);
 }
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
 namespace {
 
@@ -366,7 +364,6 @@ void DrmSystem::CloseSession(const void* session_id, int session_id_size) {
 DrmSystem::DecryptStatus DrmSystem::Decrypt(InputBuffer* buffer) {
   SB_DCHECK(buffer);
   SB_DCHECK(buffer->drm_info());
-  SB_DCHECK(j_media_crypto_);
   // The actual decryption will take place by calling |queueSecureInputBuffer|
   // in the decoders.  Our existence implies that there is enough information
   // to perform the decryption.
@@ -462,6 +459,4 @@ void DrmSystem::CallKeyStatusesChangedCallbackWithKeyStatusRestricted_Locked() {
   }
 }
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared

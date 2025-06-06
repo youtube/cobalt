@@ -17,12 +17,12 @@
 
 #include <atomic>
 #include <memory>
+#include <mutex>
 #include <queue>
 
 #include "starboard/android/shared/audio_decoder.h"
 #include "starboard/android/shared/audio_track_bridge.h"
 #include "starboard/android/shared/drm_system.h"
-#include "starboard/common/mutex.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/drm.h"
 #include "starboard/media.h"
@@ -36,9 +36,7 @@
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/shared/starboard/player/job_thread.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
 // TODO: The audio receiver often requires some warm up time to switch the
 //       output to eac3.  Consider pushing some silence at the very beginning so
@@ -121,7 +119,7 @@ class AudioRendererPassthrough
 
   bool end_of_stream_written_ = false;  // Only accessed on PlayerWorker thread.
 
-  Mutex mutex_;
+  mutable std::mutex mutex_;
   bool stop_called_ = false;
   int64_t total_frames_written_ = 0;
   int64_t playback_head_position_when_stopped_ = 0;
@@ -149,8 +147,6 @@ class AudioRendererPassthrough
   std::unique_ptr<JobThread> audio_track_thread_;
 };
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared
 
 #endif  // STARBOARD_ANDROID_SHARED_AUDIO_RENDERER_PASSTHROUGH_H_
