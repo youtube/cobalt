@@ -34,8 +34,8 @@ namespace {
 
 // List of toggleable default switches.
 static constexpr auto kCobaltToggleSwitches = std::to_array<const char*>({
-    // Enable Blink to work in overlay video mode
-    switches::kForceVideoOverlays,
+  // Enable Blink to work in overlay video mode
+  switches::kForceVideoOverlays,
       // Disable multiprocess mode.
       switches::kSingleProcess,
       // Hide content shell toolbar.
@@ -138,9 +138,9 @@ CommandLinePreprocessor::CommandLinePreprocessor(int argc,
   }
 
   // Override kContentShellHostWindowSize if the user sets kWindowSize.
-  if (cmd_line_.HasSwitch(::switches::kWindowSize)) {
+  if (cmd_line_.HasSwitch(switches::kWindowSize)) {
     std::string window_size =
-        cmd_line_.GetSwitchValueASCII(::switches::kWindowSize);
+        cmd_line_.GetSwitchValueASCII(switches::kWindowSize);
     std::replace(window_size.begin(), window_size.end(), ',', 'x');
     cmd_line_.AppendSwitchASCII(::switches::kContentShellHostWindowSize,
                                 window_size);
