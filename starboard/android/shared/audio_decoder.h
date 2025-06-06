@@ -18,6 +18,7 @@
 #include <jni.h>
 
 #include <memory>
+#include <mutex>
 #include <queue>
 #include <string>
 
@@ -88,7 +89,7 @@ class AudioDecoder
   ErrorCB error_cb_;
   ConsumedCB consumed_cb_;
 
-  starboard::Mutex decoded_audios_mutex_;
+  std::mutex decoded_audios_mutex_;
   std::queue<scoped_refptr<DecodedAudio>> decoded_audios_;
 
   AudioFrameDiscarder audio_frame_discarder_;
