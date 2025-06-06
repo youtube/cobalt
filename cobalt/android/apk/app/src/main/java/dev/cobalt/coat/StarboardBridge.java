@@ -713,14 +713,10 @@ public class StarboardBridge {
     return mAppStartDuration;
   }
 
-<<<<<<< HEAD
   // TODO: (cobalt b/372559388) remove or migrate JNI?
   // Used in starboard/android/shared/graphics.cc
   @SuppressWarnings("unused")
   @UsedByNative
-=======
-  @CalledByNative
->>>>>>> 696e6935296 (Remove unnecessary annotation (#5907))
   void reportFullyDrawn() {
     Activity activity = activityHolder.get();
     if (activity != null) {
