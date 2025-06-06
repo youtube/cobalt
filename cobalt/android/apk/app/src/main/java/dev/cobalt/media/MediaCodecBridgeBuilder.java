@@ -28,12 +28,8 @@ import dev.cobalt.util.Log;
 import dev.cobalt.util.UsedByNative;
 
 class MediaCodecBridgeBuilder {
-<<<<<<< HEAD
   @SuppressWarnings("unused")
   @UsedByNative
-=======
-  @CalledByNative
->>>>>>> 696e6935296 (Remove unnecessary annotation (#5907))
   public static MediaCodecBridge createAudioDecoder(
       long nativeMediaCodecBridge,
       String mime,
