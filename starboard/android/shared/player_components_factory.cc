@@ -22,10 +22,10 @@
 #include <vector>
 
 #include "starboard/android/shared/audio_decoder.h"
+#include "starboard/android/shared/audio_output_manager.h"
 #include "starboard/android/shared/audio_renderer_passthrough.h"
 #include "starboard/android/shared/audio_track_audio_sink_type.h"
 #include "starboard/android/shared/drm_system.h"
-#include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_common.h"
@@ -645,14 +645,10 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
     SB_DCHECK(IsTunnelModeSupported(creation_parameters,
                                     &force_secure_pipeline_under_tunnel_mode));
 
-    JniEnvExt* env = JniEnvExt::Get();
-    ScopedLocalJavaRef<jobject> j_audio_output_manager(
-        env->CallStarboardObjectMethodOrAbort(
-            "getAudioOutputManager",
-            "()Ldev/cobalt/media/AudioOutputManager;"));
-    int tunnel_mode_audio_session_id = env->CallIntMethodOrAbort(
-        j_audio_output_manager.Get(), "generateTunnelModeAudioSessionId",
-        "(I)I", creation_parameters.audio_stream_info().number_of_channels);
+    JNIEnv* env = AttachCurrentThread();
+    int tunnel_mode_audio_session_id =
+        AudioOutputManager::GetInstance()->GenerateTunnelModeAudioSessionId(
+            env, creation_parameters.audio_stream_info().number_of_channels);
 
     // AudioManager.generateAudioSessionId() return ERROR (-1) to indicate a
     // failure, please see the following url for more details:
