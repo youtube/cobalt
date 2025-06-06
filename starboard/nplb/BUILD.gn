@@ -246,6 +246,7 @@ test("nplb") {
       "player_test_fixture.cc",
       "player_test_fixture.h",
       "player_write_sample_test.cc",
+      "posix_compliance/posix_aligned_alloc_test.cc",
       "speech_synthesis_basic_test.cc",
       "vertical_video_test.cc",
       "window_create_test.cc",
