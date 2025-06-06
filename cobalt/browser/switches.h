@@ -31,6 +31,9 @@ std::string GetInitialURL(const base::CommandLine& command_line);
 constexpr char kInitialURL[] = "url";
 constexpr char kRequireCSP[] = "require_csp";
 
+// Specify the initial window size: --window-size=w,h
+constexpr char kWindowSize[] = "window-size";
+
 }  // namespace switches
 }  // namespace cobalt
 
