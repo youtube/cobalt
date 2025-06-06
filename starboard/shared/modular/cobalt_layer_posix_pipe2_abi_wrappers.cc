@@ -12,6 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <fcntl.h>
+
+static_assert(O_NONBLOCK == 04000,
+              "The Starboard layer wrapper expects this value from musl");
+
 extern "C" {
 
 int __abi_wrap_pipe2(int fildes[2], int flag);
