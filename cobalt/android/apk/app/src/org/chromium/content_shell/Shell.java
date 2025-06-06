@@ -153,11 +153,9 @@ public class Shell extends LinearLayout {
         return url;
     }
 
-    @SuppressWarnings("unused")
     @CalledByNative
     private void onUpdateUrl(String url) {}
 
-    @SuppressWarnings("unused")
     @CalledByNative
     private void onLoadProgressChanged(double progress) {}
 
@@ -170,7 +168,6 @@ public class Shell extends LinearLayout {
         return mIsFullscreen;
     }
 
-    @SuppressWarnings("unused")
     @CalledByNative
     private void setIsLoading(boolean loading) {
         mLoading = loading;
@@ -184,7 +181,6 @@ public class Shell extends LinearLayout {
      * Initializes the ContentView based on the native tab contents pointer passed in.
      * @param webContents A {@link WebContents} object.
      */
-    @SuppressWarnings("unused")
     @CalledByNative
     private void initFromNativeTabContents(WebContents webContents) {
         Context context = getContext();

@@ -155,7 +155,6 @@ class MediaCodecBridge {
       mIndex = -1;
     }
 
-    @SuppressWarnings("unused")
     @CalledByNative("DequeueInputResult")
     private DequeueInputResult(int status, int index) {
       mStatus = status;
@@ -181,7 +180,6 @@ class MediaCodecBridge {
     private long mPresentationTimeMicroseconds;
     private int mNumBytes;
 
-    @SuppressWarnings("unused")
     @CalledByNative("DequeueOutputResult")
     private DequeueOutputResult() {
       mStatus = MediaCodecStatus.ERROR;
@@ -208,37 +206,31 @@ class MediaCodecBridge {
       mNumBytes = numBytes;
     }
 
-    @SuppressWarnings("unused")
     @CalledByNative("DequeueOutputResult")
     private int status() {
       return mStatus;
     }
 
-    @SuppressWarnings("unused")
     @CalledByNative("DequeueOutputResult")
     private int index() {
       return mIndex;
     }
 
-    @SuppressWarnings("unused")
     @CalledByNative("DequeueOutputResult")
     private int flags() {
       return mFlags;
     }
 
-    @SuppressWarnings("unused")
     @CalledByNative("DequeueOutputResult")
     private int offset() {
       return mOffset;
     }
 
-    @SuppressWarnings("unused")
     @CalledByNative("DequeueOutputResult")
     private long presentationTimeMicroseconds() {
       return mPresentationTimeMicroseconds;
     }
 
-    @SuppressWarnings("unused")
     @CalledByNative("DequeueOutputResult")
     private int numBytes() {
       return mNumBytes;
@@ -252,7 +244,6 @@ class MediaCodecBridge {
     private MediaFormat mFormat;
     private Optional<Boolean> mFormatHasCropValues = Optional.empty();
 
-    @SuppressWarnings("unused")
     @CalledByNative("GetOutputFormatResult")
     private GetOutputFormatResult() {
       mStatus = MediaCodecStatus.ERROR;
@@ -331,7 +322,6 @@ class MediaCodecBridge {
     public int colorTransfer;
     public ByteBuffer hdrStaticInfo;
 
-    @SuppressWarnings("unused")
     @CalledByNative("ColorInfo")
     ColorInfo(
         int colorRange,
@@ -400,13 +390,11 @@ class MediaCodecBridge {
       mErrorMessage = "";
     }
 
-    @SuppressWarnings("unused")
     @CalledByNative("CreateMediaCodecBridgeResult")
     private MediaCodecBridge mediaCodecBridge() {
       return mMediaCodecBridge;
     }
 
-    @SuppressWarnings("unused")
     @CalledByNative("CreateMediaCodecBridgeResult")
     private String errorMessage() {
       return mErrorMessage;
@@ -753,7 +741,6 @@ class MediaCodecBridge {
     return start(null);
   }
 
-  @SuppressWarnings("unused")
   @CalledByNative
   private boolean restart() {
     // Restart MediaCodec after flush().
@@ -775,7 +762,6 @@ class MediaCodecBridge {
     return true;
   }
 
-  @SuppressWarnings("unused")
   @CalledByNative
   private void setPlaybackRate(double playbackRate) {
     if (mPlaybackRate == playbackRate) {
@@ -809,7 +795,6 @@ class MediaCodecBridge {
     }
   }
 
-  @SuppressWarnings("unused")
   @CalledByNative
   private int flush() {
     try {
@@ -834,7 +819,6 @@ class MediaCodecBridge {
     }
   }
 
-  @SuppressWarnings("unused")
   @CalledByNative
   private void getOutputFormat(GetOutputFormatResult outGetOutputFormatResult) {
     MediaFormat format = null;
@@ -850,7 +834,6 @@ class MediaCodecBridge {
   }
 
   /** Returns null if MediaCodec throws IllegalStateException. */
-  @SuppressWarnings("unused")
   @CalledByNative
   private ByteBuffer getInputBuffer(int index) {
     try {
@@ -862,7 +845,6 @@ class MediaCodecBridge {
   }
 
   /** Returns null if MediaCodec throws IllegalStateException. */
-  @SuppressWarnings("unused")
   @CalledByNative
   private ByteBuffer getOutputBuffer(int index) {
     try {
@@ -940,7 +922,6 @@ class MediaCodecBridge {
     return MediaCodecStatus.OK;
   }
 
-  @SuppressWarnings("unused")
   @CalledByNative
   private void releaseOutputBuffer(int index, boolean render) {
     try {
@@ -961,7 +942,6 @@ class MediaCodecBridge {
     }
   }
 
-  @SuppressWarnings("unused")
   @CalledByNative
   private boolean configureVideo(
       MediaFormat format,
@@ -1113,7 +1093,6 @@ class MediaCodecBridge {
     }
   }
 
-  @SuppressWarnings("unused")
   @CalledByNative
   public boolean configureAudio(MediaFormat format, MediaCrypto crypto, int flags) {
     try {
