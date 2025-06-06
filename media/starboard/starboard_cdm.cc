@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "base/logging.h"
+#include "starboard/common/drm.h"
 
 namespace media {
 
@@ -38,6 +39,10 @@ const char* GetInitDataTypeName(EmeInitDataType type) {
       return "unknown";
   }
   NOTREACHED() << "Unexpected EmeInitDataType";
+}
+
+std::ostream& operator<<(std::ostream& os, EmeInitDataType type) {
+  return os << GetInitDataTypeName(type);
 }
 
 CdmMessageType SbDrmSessionRequestTypeToMediaMessageType(
@@ -74,6 +79,10 @@ CdmKeyInformation::KeyStatus ToCdmKeyStatus(SbDrmKeyStatus status) {
       return CdmKeyInformation::KeyStatus::INTERNAL_ERROR;
   }
   NOTREACHED() << "Unexpected SbDrmKeyStatus " << status;
+}
+
+std::string BytesToString(const void* data, int length) {
+  return std::string(static_cast<const char*>(data), length);
 }
 
 }  // namespace
@@ -171,7 +180,7 @@ void StarboardCdm::CreateSessionAndGenerateRequest(
       std::make_pair(ticket, std::move(session_update_request)));
 
   LOG(INFO) << "Generate session update request of drm system (" << sb_drm_
-            << "), type: " << GetInitDataTypeName(init_data_type)
+            << "), type: " << init_data_type
             << ", init data size: " << init_data.size()
             << ", ticket: " << ticket;
 
@@ -193,7 +202,6 @@ void StarboardCdm::UpdateSession(const std::string& session_id,
                                  const std::vector<uint8_t>& response,
                                  std::unique_ptr<SimpleCdmPromise> promise) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
-  LOG(INFO) << "StarboardCdm - update session";
 
   auto it = std::find(session_list_.begin(), session_list_.end(), session_id);
   if (it == session_list_.end()) {
@@ -222,8 +230,8 @@ void StarboardCdm::UpdateSession(const std::string& session_id,
   ticket_to_session_update_map_.insert(std::make_pair(ticket, session_update));
 
   LOG(INFO) << "Update session of drm system (" << sb_drm_
-            << "), key length: " << response.size() << ", ticket: " << ticket
-            << ", session id: " << session_id;
+            << "), response length: " << response.size()
+            << ", ticket: " << ticket << ", session id: " << session_id;
 
   SbDrmUpdateSession(sb_drm_, ticket, response.data(), response.size(),
                      session_id.c_str(), session_id.size());
@@ -291,8 +299,9 @@ void StarboardCdm::OnSessionUpdateRequestGenerated(
 
   LOG(INFO) << "Receiving session update request notification from drm system ("
             << sb_drm_ << "), status: " << status << ", type: " << type
-            << ", ticket: " << ticket
-            << ", session id: " << session_id.value_or("n/a");
+            << ", ticket_and_session_id: " << ticket_and_optional_id.ToString()
+            << ", message size: " << message.size() << ", error message: "
+            << (error_message.empty() ? "n/a" : error_message);
 
   if (SbDrmTicketIsValid(ticket)) {
     // Called back as a result of |SbDrmGenerateSessionUpdateRequest|.
@@ -335,10 +344,6 @@ void StarboardCdm::OnSessionUpdateRequestGenerated(
     }
   }
 
-  LOG(INFO) << "Calling session update request callback on drm system ("
-            << sb_drm_ << ") with type: " << type
-            << ", message size: " << message.size();
-
   auto session_iterator =
       std::find(session_list_.begin(), session_list_.end(), session_id.value());
   if (session_iterator == session_list_.end()) {
@@ -346,6 +351,7 @@ void StarboardCdm::OnSessionUpdateRequestGenerated(
     return;
   }
 
+  LOG(INFO) << "Scheduling session message callback.";
   task_runner_->PostTask(
       FROM_HERE,
       base::BindOnce(message_cb_, session_id.value(),
@@ -358,7 +364,8 @@ void StarboardCdm::OnSessionUpdated(int ticket,
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   LOG(INFO) << "Receiving session updated notification from drm system ("
             << sb_drm_ << "), status: " << status << ", ticket: " << ticket
-            << ", error message: " << error_message;
+            << ", error message: "
+            << (error_message.empty() ? "n/a" : error_message);
 
   // Restore the context of |UpdateSession|.
   TicketToSessionUpdateMap::iterator session_update_iterator =
@@ -390,7 +397,7 @@ void StarboardCdm::OnSessionKeyStatusChanged(const std::string& session_id,
   LOG(INFO) << "Receiving session key status changed notification from drm"
             << " system (" << sb_drm_ << "), session id: " << session_id
             << ", number of key ids: " << keys_info.size()
-            << ", has_additional_usable_key?: "
+            << ", has_additional_usable_key: "
             << (has_additional_usable_key ? "true" : "false");
 
   // Find the session by ID.
@@ -465,25 +472,21 @@ void StarboardCdm::OnSessionUpdateRequestGeneratedFunc(
   StarboardCdm* cdm = static_cast<StarboardCdm*>(context);
   DCHECK_EQ(sb_drm, cdm->sb_drm_);
 
-  std::optional<std::string> session_id_copy;
-  if (session_id) {
-    session_id_copy =
-        std::string(static_cast<const char*>(session_id),
-                    static_cast<const char*>(session_id) + session_id_size);
-  }
-
   const uint8_t* begin = static_cast<const uint8_t*>(content);
   const uint8_t* end = begin + content_size;
   const std::vector<uint8_t> content_copy(begin, end);
 
   cdm->task_runner_->PostTask(
       FROM_HERE,
-      base::BindOnce(&StarboardCdm::OnSessionUpdateRequestGenerated,
-                     cdm->weak_factory_.GetWeakPtr(),
-                     SessionTicketAndOptionalId{ticket, session_id_copy},
-                     status, type,
-                     error_message ? std::string(error_message) : "",
-                     std::move(content_copy), content_size));
+      base::BindOnce(
+          &StarboardCdm::OnSessionUpdateRequestGenerated,
+          cdm->weak_factory_.GetWeakPtr(),
+          session_id == nullptr
+              ? SessionTicketAndOptionalId(ticket)
+              : SessionTicketAndOptionalId(
+                    ticket, BytesToString(session_id, session_id_size)),
+          status, type, error_message ? std::string(error_message) : "",
+          std::move(content_copy), content_size));
 }
 
 // static
@@ -520,10 +523,6 @@ void StarboardCdm::OnSessionKeyStatusesChangedFunc(
 
   DCHECK(session_id != NULL);
 
-  std::string session_id_copy =
-      std::string(static_cast<const char*>(session_id),
-                  static_cast<const char*>(session_id) + session_id_size);
-
   bool has_additional_usable_key = false;
   CdmKeysInfo keys_info;
 
@@ -534,13 +533,15 @@ void StarboardCdm::OnSessionKeyStatusesChangedFunc(
     CdmKeyInformation::KeyStatus status = ToCdmKeyStatus(key_statuses[i]);
     has_additional_usable_key |= (status == CdmKeyInformation::USABLE);
 
-    keys_info.emplace_back(new CdmKeyInformation(key_id, status, 0));
+    keys_info.emplace_back(
+        std::make_unique<CdmKeyInformation>(key_id, status, 0));
   }
 
   cdm->task_runner_->PostTask(
       FROM_HERE,
       base::BindOnce(&StarboardCdm::OnSessionKeyStatusChanged,
-                     cdm->weak_factory_.GetWeakPtr(), session_id_copy,
+                     cdm->weak_factory_.GetWeakPtr(),
+                     BytesToString(session_id, session_id_size),
                      std::move(keys_info), has_additional_usable_key));
 }
 
@@ -572,14 +573,24 @@ void StarboardCdm::OnSessionClosedFunc(SbDrmSystem sb_drm,
 
   DCHECK(session_id != NULL);
 
-  std::string session_id_copy =
-      std::string(static_cast<const char*>(session_id),
-                  static_cast<const char*>(session_id) + session_id_size);
-
   cdm->task_runner_->PostTask(
-      FROM_HERE,
-      base::BindOnce(&StarboardCdm::OnSessionClosed,
-                     cdm->weak_factory_.GetWeakPtr(), session_id_copy));
+      FROM_HERE, base::BindOnce(&StarboardCdm::OnSessionClosed,
+                                cdm->weak_factory_.GetWeakPtr(),
+                                BytesToString(session_id, session_id_size)));
 }
 
+StarboardCdm::SessionTicketAndOptionalId::SessionTicketAndOptionalId(int ticket)
+    : ticket(ticket), id(std::nullopt) {}
+
+StarboardCdm::SessionTicketAndOptionalId::SessionTicketAndOptionalId(
+    int ticket,
+    const std::string& session_id)
+    : ticket(ticket), id(session_id) {}
+
+std::string StarboardCdm::SessionTicketAndOptionalId::ToString() const {
+  return "{ticket: " +
+         (ticket == kSbDrmTicketInvalid ? "kSbDrmTicketInvalid"
+                                        : std::to_string(ticket)) +
+         ", id: " + id.value_or("n/a") + "}";
+}
 }  // namespace media
