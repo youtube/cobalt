@@ -53,6 +53,7 @@ ScriptPromise H5vccExperiments::setExperimentState(
     return promise;
   }
 
+  ongoing_requests_.insert(resolver);
   remote_h5vcc_experiments_->SetExperimentState(
       std::move(experiment_config_dict.value()),
       WTF::BindOnce(&H5vccExperiments::OnSetExperimentState,
@@ -69,6 +70,7 @@ ScriptPromise H5vccExperiments::resetExperimentState(
 
   EnsureReceiverIsBound();
 
+  ongoing_requests_.insert(resolver);
   remote_h5vcc_experiments_->ResetExperimentState(
       WTF::BindOnce(&H5vccExperiments::OnResetExperimentState,
                     WrapPersistent(this), WrapPersistent(resolver)));
@@ -76,44 +78,62 @@ ScriptPromise H5vccExperiments::resetExperimentState(
   return resolver->Promise();
 }
 
-WTF::Vector<uint32_t> H5vccExperiments::activeExperimentIds() {
-  EnsureReceiverIsBound();
-  remote_h5vcc_experiments_->GetActiveExperimentIds(&active_experiment_ids_);
-  return active_experiment_ids_;
-}
+// WTF::Vector<uint32_t> H5vccExperiments::activeExperimentIds() {
+//   EnsureReceiverIsBound();
+//   //
+//   remote_h5vcc_experiments_->GetActiveExperimentIds(&active_experiment_ids_);
+//   return active_experiment_ids_;
+// }
 
-String H5vccExperiments::getFeature(const String& feature_name) {
-  EnsureReceiverIsBound();
-  h5vcc_experiments::mojom::blink::OverrideState feature_state;
-  remote_h5vcc_experiments_->GetFeature(feature_name, &feature_state);
-  switch (feature_state) {
-    case h5vcc_experiments::mojom::blink::OverrideState::OVERRIDE_USE_DEFAULT:
-      return V8OverrideState(V8OverrideState::Enum::kDEFAULT);
-    case h5vcc_experiments::mojom::blink::OverrideState::
-        OVERRIDE_ENABLE_FEATURE:
-      return V8OverrideState(V8OverrideState::Enum::kENABLED);
-    case h5vcc_experiments::mojom::blink::OverrideState::
-        OVERRIDE_DISABLE_FEATURE:
-      return V8OverrideState(V8OverrideState::Enum::kDISABLED);
-  }
-  NOTREACHED_NORETURN() << "Invalid feature OverrideState for feature "
-                        << feature_name;
-}
+// String H5vccExperiments::getFeature(const String& feature_name) {
+//   EnsureReceiverIsBound();
+//   // h5vcc_experiments::mojom::blink::OverrideState feature_state;
+//   // remote_h5vcc_experiments_->GetFeature(feature_name, &feature_state);
+//   // switch (feature_state) {
+//   //   case
+//   //   h5vcc_experiments::mojom::blink::OverrideState::OVERRIDE_USE_DEFAULT:
+//   //     return V8OverrideState(V8OverrideState::Enum::kDEFAULT);
+//   //   case h5vcc_experiments::mojom::blink::OverrideState::
+//   //       OVERRIDE_ENABLE_FEATURE:
+//   //     return V8OverrideState(V8OverrideState::Enum::kENABLED);
+//   //   case h5vcc_experiments::mojom::blink::OverrideState::
+//   //       OVERRIDE_DISABLE_FEATURE:
+//   //     return V8OverrideState(V8OverrideState::Enum::kDISABLED);
+//   // }
+//   // NOTREACHED_NORETURN() << "Invalid feature OverrideState for feature "
+//   //                       << feature_name;
 
-const String& H5vccExperiments::getFeatureParam(
-    const String& feature_param_name) {
-  EnsureReceiverIsBound();
-  remote_h5vcc_experiments_->GetFeatureParam(feature_param_name,
-                                             &feature_param_value_);
-  return feature_param_value_;
-}
+//   return feature_param_value_;
+// }
+
+// const String& H5vccExperiments::getFeatureParam(
+//     const String& feature_param_name) {
+//   EnsureReceiverIsBound();
+//   // remote_h5vcc_experiments_->GetFeatureParam(feature_param_name,
+//   //                                            &feature_param_value_);
+//   return feature_param_value_;
+// }
 
 void H5vccExperiments::OnSetExperimentState(ScriptPromiseResolver* resolver) {
+  ongoing_requests_.erase(resolver);
   resolver->Resolve();
 }
 
 void H5vccExperiments::OnResetExperimentState(ScriptPromiseResolver* resolver) {
+  ongoing_requests_.erase(resolver);
   resolver->Resolve();
+}
+
+void H5vccExperiments::OnConnectionError() {
+  remote_h5vcc_experiments_.reset();
+  HeapHashSet<Member<ScriptPromiseResolver>> h5vcc_experiments_promises;
+  // Script may execute during a call to Resolve(). Swap these sets to prevent
+  // concurrent modification.
+  ongoing_requests_.swap(h5vcc_experiments_promises);
+  for (auto& resolver : h5vcc_experiments_promises) {
+    resolver->Reject("Mojo connection error.");
+  }
+  ongoing_requests_.clear();
 }
 
 void H5vccExperiments::EnsureReceiverIsBound() {
@@ -127,10 +147,13 @@ void H5vccExperiments::EnsureReceiverIsBound() {
       GetExecutionContext()->GetTaskRunner(TaskType::kMiscPlatformAPI);
   GetExecutionContext()->GetBrowserInterfaceBroker().GetInterface(
       remote_h5vcc_experiments_.BindNewPipeAndPassReceiver(task_runner));
+  remote_h5vcc_experiments_.set_disconnect_handler(WTF::BindOnce(
+      &H5vccExperiments::OnConnectionError, WrapWeakPersistent(this)));
 }
 
 void H5vccExperiments::Trace(Visitor* visitor) const {
   visitor->Trace(remote_h5vcc_experiments_);
+  visitor->Trace(ongoing_requests_);
   ExecutionContextLifecycleObserver::Trace(visitor);
   ScriptWrappable::Trace(visitor);
 }

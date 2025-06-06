@@ -7,9 +7,9 @@ import {
 class MockH5vccExperiments {
   constructor() {
     this.interceptor_ =
-        new MojoInterfaceInterceptor(H5vccExperiments.$interfaceName);
-    this.interceptor_.oninterfacerequest = e => this.bind(e.handle);
+      new MojoInterfaceInterceptor(H5vccExperiments.$interfaceName);
     this.receiver_ = new H5vccExperimentsReceiver(this);
+    this.interceptor_.oninterfacerequest = e => this.bind(e.handle);
     this.stub_result_ = new Map();
   }
 
@@ -23,6 +23,7 @@ class MockH5vccExperiments {
 
   reset() {
     this.stub_result_ = new Map();
+    this.receiver_.$.close();
   }
 
   bind(handle) {
@@ -50,12 +51,12 @@ class MockH5vccExperiments {
     return this.stub_result_.get(feature_param_name);
   }
 
-  resetExperimentState() {
-    return Promise.resolve();
+  async resetExperimentState() {
+    return;
   }
 
-  setExperimentState() {
-    return Promise.resolve();
+  async setExperimentState(experiment_config) {
+    return;
   }
 }
 
