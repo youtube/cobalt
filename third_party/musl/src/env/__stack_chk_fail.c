@@ -1,5 +1,9 @@
 #include <string.h>
 #include <stdint.h>
+
+#if defined(STARBOARD)
+#include "atomic.h"
+#else
 #include "pthread_impl.h"
 
 uintptr_t __stack_chk_guard;
@@ -20,6 +24,8 @@ void __init_ssp(void *entropy)
 
 	__pthread_self()->canary = __stack_chk_guard;
 }
+
+#endif  // define(STARBOARD)
 
 void __stack_chk_fail(void)
 {
