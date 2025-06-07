@@ -75,10 +75,57 @@ if (!is_android) {
     configs += [ "//build/config/gcc:rpath_for_built_shared_libraries" ]
   }
 
+<<<<<<< HEAD
   strip_binary("strip_cobalt_binary") {
     binary_input = "$root_out_dir/cobalt"
     deps = [ ":cobalt" ]
     testonly = true
+=======
+  if (!is_cobalt_hermetic_build) {
+    strip_binary("strip_cobalt_binary") {
+      binary_input = "$root_out_dir/cobalt"
+      deps = [ ":cobalt" ]
+      testonly = true
+    }
+  }
+}
+
+source_set("common") {
+  testonly = true
+
+  sources = [
+    "app/cobalt_main_delegate.cc",
+    "app/cobalt_main_delegate.h",
+    "app/cobalt_switch_defaults.cc",
+    "app/cobalt_switch_defaults.h",
+  ]
+
+  deps = [
+    "//base",
+    "//cobalt/browser",
+    "//cobalt/browser:switches",
+    "//cobalt/gpu",
+    "//cobalt/renderer",
+    "//cobalt/shell:content_shell_app",
+    "//cobalt/shell:content_shell_lib",
+    "//components/memory_system:memory_system",
+    "//content/public/app",
+    "//content/shell:pak",
+    "//gpu/command_buffer/service",
+    "//media",
+    "//sandbox/policy",
+    "//starboard:starboard_headers_only",
+    "//third_party/blink/public/common",
+    "//ui/gl",
+  ]
+
+  if (use_ozone) {
+    deps += [ "//ui/ozone:ozone_switches" ]
+  }
+
+  if (is_starboard) {
+    deps += [ "//ui/ozone/platform/starboard:starboard" ]
+>>>>>>> bf6ddf45e67 (cobalt: Remove Chrome command line switches (#5960))
   }
 }
 

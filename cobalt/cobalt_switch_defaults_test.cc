@@ -18,7 +18,6 @@
 
 #include "base/base_switches.h"
 #include "base/files/file_path.h"
-#include "chrome/common/chrome_switches.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt_switch_defaults.h"
 #include "content/public/common/content_switches.h"
@@ -105,8 +104,7 @@ TEST(CobaltSwitchDefaultsTest, AlwaysEnabledSwitches) {
   CommandLinePreprocessor cmd_line_pxr(input_argc, input_argv.data());
 
   std::vector<const char*> always_on_switches {
-    "disable-fre", ::switches::kNoFirstRun, ::switches::kKioskMode,
-        ::switches::kForceVideoOverlays, ::switches::kSingleProcess,
+    ::switches::kForceVideoOverlays, ::switches::kSingleProcess,
         ::switches::kIgnoreGpuBlocklist,
 #if BUILDFLAG(IS_ANDROID)
         ::switches::kUserLevelMemoryPressureSignalParams,
