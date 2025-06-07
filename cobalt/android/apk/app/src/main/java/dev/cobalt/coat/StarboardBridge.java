@@ -234,7 +234,6 @@ public class StarboardBridge {
   }
 
   // Warning: "Stopped" refers to Starboard "Stopped" event, it's different from Android's "onStop".
-  @SuppressWarnings("unused")
   @CalledByNative
   protected void afterStopped() {
     applicationStopped = true;
@@ -262,7 +261,6 @@ public class StarboardBridge {
     applicationStopped = true;
   }
 
-  @SuppressWarnings("unused")
   @CalledByNative
   public void requestSuspend() {
     Activity activity = activityHolder.get();
@@ -284,7 +282,6 @@ public class StarboardBridge {
 
   // private native boolean nativeOnSearchRequested();
 
-  @SuppressWarnings("unused")
   @CalledByNative
   public Context getApplicationContext() {
     if (appContext == null) {
@@ -507,7 +504,6 @@ public class StarboardBridge {
   }
 
   /** Returns string for kSbSystemPropertyUserAgentAuxField */
-  @SuppressWarnings("unused")
   @CalledByNative
   protected String getUserAgentAuxField() {
     StringBuilder sb = new StringBuilder();
@@ -537,7 +533,6 @@ public class StarboardBridge {
   // TODO: (cobalt b/372559388) remove or migrate JNI?
   // Used in starboard/android/shared/system_get_property.cc
   /** Returns string for kSbSystemPropertyAdvertisingId */
-  @SuppressWarnings("unused")
   @CalledByNative
   protected String getAdvertisingId() {
     return this.advertisingId.getId();
@@ -598,7 +593,6 @@ public class StarboardBridge {
   // TODO: (cobalt b/372559388) remove or migrate JNI?
   // Used in starboard/android/shared/media_capabilities_cache.cc
   /** Return supported hdr types. */
-  @SuppressWarnings("unused")
   @CalledByNative
   public int[] getSupportedHdrTypes() {
     Display defaultDisplay = DisplayUtil.getDefaultDisplay();
@@ -705,7 +699,6 @@ public class StarboardBridge {
   }
 
   // Returns the saved app start timestamp.
-  @SuppressWarnings("unused")
   @CalledByNative
   protected long getAppStartDuration() {
     return mAppStartDuration;
