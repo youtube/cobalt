@@ -13,7 +13,9 @@
 // limitations under the License.
 
 #include <sys/mman.h>
+
 #include <algorithm>
+#include <array>
 
 #include "starboard/common/memory.h"
 #include "starboard/configuration_constants.h"
@@ -160,13 +162,13 @@ CopySumFunctionIntoMemory(void* memory) {
 }
 
 TEST(PosixMemoryMapTest, CanChangeMemoryProtection) {
-  int all_from_flags[] = {
+  const std::array<int, 4> all_from_flags = {
       PROT_NONE,
       PROT_READ,
       PROT_WRITE,
       PROT_READ | PROT_WRITE,
   };
-  int all_to_flags[] = {
+  const std::array<int, 6> all_to_flags = {
       PROT_NONE,  PROT_READ,
       PROT_WRITE, PROT_READ | PROT_WRITE,
       PROT_EXEC,  PROT_READ | PROT_EXEC,
