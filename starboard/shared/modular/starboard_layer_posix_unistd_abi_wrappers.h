@@ -50,6 +50,8 @@ typedef int32_t ssize_t;
 extern "C" {
 #endif
 
+#define MUSL_SC_PAGESIZE 30
+
 SB_EXPORT int __abi_wrap_ftruncate(int fildes, musl_off_t length);
 
 SB_EXPORT musl_off_t __abi_wrap_lseek(int fildes,
@@ -59,6 +61,8 @@ SB_EXPORT musl_off_t __abi_wrap_lseek(int fildes,
 SB_EXPORT ssize_t __abi_wrap_read(int fildes, void* buf, size_t nbyte);
 
 SB_EXPORT ssize_t __abi_wrap_write(int fildes, const void* buf, size_t nbyte);
+
+SB_EXPORT long __abi_wrap_sysconf(int name);
 
 #ifdef __cplusplus
 }  // extern "C"
