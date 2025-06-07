@@ -17,6 +17,7 @@
 #include <vector>
 
 #include "base/base_switches.h"
+#include "base/check.h"
 #include "base/files/file_path.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt_switch_defaults.h"
@@ -43,6 +44,10 @@ std::string GetSwitchValue(const CommandLinePreprocessor& cmd_line_pxr,
     return cmd_line_pxr.get_cmd_line_for_test().GetSwitchValueASCII(switch_str);
   }
   return "";
+}
+
+TEST(CobaltCrashTest, ThisTestCrashes) {
+  DCHECK(0);
 }
 
 TEST(CobaltSwitchDefaultsTest, MergeDisabledFeatures) {
