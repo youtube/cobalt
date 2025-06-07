@@ -24,7 +24,7 @@ namespace nplb {
 namespace {
 
 void* PosixTakeThenSignalEntryPoint(void* context) {
-  posix::TakeThenSignalContext* test_context =
+  posix::TakeThenSignalContext* const test_context =
       static_cast<posix::TakeThenSignalContext*>(context);
 
   // Don't signal the condition variable until we are asked.
@@ -70,7 +70,7 @@ TEST(PosixConditionVariableWaitTest, SunnyDayAutoInit) {
 }
 
 TEST(PosixConditionVariableWaitTest, SunnyDay) {
-  const int kMany = kSbMaxThreads > 64 ? 64 : kSbMaxThreads;
+  const int kMany = kSbMaxThreads > 64 ? 64 : kSbMaxThreads; // kMany is already const. No change needed here.
   posix::WaiterContext context;
 
   std::vector<pthread_t> threads(kMany);

@@ -47,14 +47,14 @@ TEST(PosixEpollCreateTests, CreatesValidFileDescriptorOnSuccess) {
 }
 
 TEST(PosixEpollCreateTests, FailsWithEINVALWhenSizeIsZero) {
-  int epoll_fd = epoll_create(0);
+  const int epoll_fd = epoll_create(0);
 
   ASSERT_EQ(epoll_fd, -1);
   ASSERT_EQ(errno, EINVAL);
 }
 
 TEST(PosixEpollCreateTests, FailsWithEINVALWhenSizeIsNegative) {
-  int epoll_fd = epoll_create(-1);
+  const int epoll_fd = epoll_create(-1);
 
   ASSERT_EQ(epoll_fd, -1);
   ASSERT_EQ(errno, EINVAL);
@@ -71,7 +71,7 @@ TEST(PosixEpollCreate1Tests, CreateSuccessfullyWithCloExec) {
   ASSERT_NE(epfd, -1) << "epoll_create1(EPOLL_CLOEXEC) failed: "
                       << strerror(errno);
 
-  int flags = fcntl(epfd, F_GETFD);
+  const int flags = fcntl(epfd, F_GETFD);
   ASSERT_NE(flags, -1) << "fcntl(F_GETFD) failed: " << strerror(errno);
   ASSERT_TRUE(flags & FD_CLOEXEC) << "FD_CLOEXEC was not set.";
   ASSERT_EQ(close(epfd), 0) << "close failed: " << strerror(errno);
@@ -81,7 +81,7 @@ TEST(PosixEpollCreate1Tests, ErrorInvalidFlags) {
   // An arbitrary invalid flag value.
   // EPOLL_CLOEXEC is 0x80000. We pick another bit not used by epoll_create1.
   const int kInvalidFlag = 0x1;
-  int epfd = epoll_create1(kInvalidFlag);
+  const int epfd = epoll_create1(kInvalidFlag);
   ASSERT_EQ(epfd, -1);
   ASSERT_EQ(errno, EINVAL);
   // No fd to close as creation failed.

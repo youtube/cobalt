@@ -23,10 +23,10 @@ namespace nplb {
 namespace {
 
 // Choose a size that isn't naturally aligned to anything.
-const size_t kSize = 1024 * 128 + 1;
+const size_t kSize = 1024 * 128 + 1; // kSize is already const
 
 TEST(PosixMemoryAllocateAlignedTest, AllocatesAligned) {
-  const size_t kMaxAlign = 4096 + 1;
+  const size_t kMaxAlign = 4096 + 1; // kMaxAlign is already const
   for (size_t align = sizeof(void*); align < kMaxAlign; align <<= 1) {
     void* memory = NULL;
     posix_memalign(&memory, align, kSize);
@@ -37,7 +37,7 @@ TEST(PosixMemoryAllocateAlignedTest, AllocatesAligned) {
 }
 
 TEST(PosixMemoryAllocateAlignedTest, AllocatesAlignedZero) {
-  const size_t kMaxAlign = 4096 + 1;
+  const size_t kMaxAlign = 4096 + 1; // kMaxAlign is already const
   for (size_t align = sizeof(void*); align < kMaxAlign; align <<= 1) {
     void* memory = NULL;
     posix_memalign(&memory, align, 0);
@@ -52,7 +52,7 @@ TEST(PosixMemoryAllocateAlignedTest, CanReadWriteToResult) {
   void* memory = NULL;
   posix_memalign(&memory, kAlign, kSize);
   ASSERT_NE(static_cast<void*>(NULL), memory);
-  char* data = static_cast<char*>(memory);
+  char* const data = static_cast<char*>(memory);
   for (int i = 0; i < kSize; ++i) {
     data[i] = static_cast<char>(i);
   }
