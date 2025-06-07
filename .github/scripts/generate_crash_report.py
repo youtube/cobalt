@@ -19,6 +19,7 @@ import html
 import datetime
 import pathlib
 import argparse
+from typing import Tuple
 
 RUN_MARKER = '[ RUN      ]'
 SUITE_MARKER = '[==========]'
@@ -35,7 +36,7 @@ def _get_test_name_from_run_line(line: str) -> str:
   return match.group(1) if match else 'UnknownSuite.UnknownTest'
 
 
-def _extract_crash_info(log_path: pathlib.Path) -> tuple[str, str, str]:
+def _extract_crash_info(log_path: pathlib.Path) -> Tuple[str, str, str]:
   """
   Identifies the crashed test and its log output from a gtest log file.
   A crashed test will have a run marker but no end marker.
