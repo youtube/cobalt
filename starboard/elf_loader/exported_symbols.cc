@@ -370,6 +370,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(sem_wait);
   REGISTER_WRAPPER(shutdown);
   REGISTER_WRAPPER(stat);
+  REGISTER_WRAPPER(sysconf);
   REGISTER_WRAPPER(writev);
 
 }  // NOLINT
