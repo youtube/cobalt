@@ -19,6 +19,7 @@
 
 #include <limits>
 #include <memory>
+#include <mutex>
 #include <queue>
 #include <string>
 
@@ -101,7 +102,7 @@ class VideoDecoder : public starboard::player::filter::VideoDecoder,
   // to obtain the current decode target (which ultimately ends up being a
   // copy of |decode_target_|), we need to safe-guard access to |decode_target_|
   // and we do so through this mutex.
-  Mutex decode_target_mutex_;
+  std::mutex decode_target_mutex_;
 
   std::queue<scoped_refptr<CpuVideoFrame>> frames_;
 };
