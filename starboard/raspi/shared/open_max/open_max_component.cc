@@ -158,7 +158,7 @@ OMX_BUFFERHEADERTYPE* OpenMaxComponent::GetOutputBuffer() {
     output_setting_changed_ = false;
   }
 
-  ScopedLock scoped_lock(mutex_);
+  std::scoped_lock scoped_lock(mutex_);
   if (filled_output_buffers_.empty()) {
     return NULL;
   }
@@ -177,7 +177,7 @@ void OpenMaxComponent::DropOutputBuffer(OMX_BUFFERHEADERTYPE* buffer) {
   }
 
   {
-    ScopedLock scoped_lock(mutex_);
+    std::scoped_lock scoped_lock(mutex_);
     if (output_buffers_.empty()) {
       SB_DCHECK(outstanding_output_buffers_ == 0);
       return;
@@ -348,7 +348,7 @@ void OpenMaxComponent::EnableOutputTunnelling(
 }
 
 OMX_BUFFERHEADERTYPE* OpenMaxComponent::GetUnusedInputBuffer() {
-  ScopedLock scoped_lock(mutex_);
+  std::scoped_lock scoped_lock(mutex_);
   if (!free_input_buffers_.empty()) {
     OMX_BUFFERHEADERTYPE* buffer_header = free_input_buffers_.front();
     free_input_buffers_.pop();
@@ -358,19 +358,19 @@ OMX_BUFFERHEADERTYPE* OpenMaxComponent::GetUnusedInputBuffer() {
 }
 
 void OpenMaxComponent::OnOutputSettingChanged() {
-  ScopedLock scoped_lock(mutex_);
+  std::scoped_lock scoped_lock(mutex_);
   output_setting_changed_ = true;
 }
 
 OMX_ERRORTYPE OpenMaxComponent::OnEmptyBufferDone(
     OMX_BUFFERHEADERTYPE* buffer) {
-  ScopedLock scoped_lock(mutex_);
+  std::scoped_lock scoped_lock(mutex_);
   free_input_buffers_.push(buffer);
   return OMX_ErrorNone;
 }
 
 void OpenMaxComponent::OnFillBufferDone(OMX_BUFFERHEADERTYPE* buffer) {
-  ScopedLock scoped_lock(mutex_);
+  std::scoped_lock scoped_lock(mutex_);
   filled_output_buffers_.push(buffer);
 }
 
