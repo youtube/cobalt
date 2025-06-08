@@ -59,21 +59,21 @@ class Registry {
  public:
   void Register(SbDrmSystem drm_system) {
     SB_DCHECK(SbDrmSystemIsValid(drm_system));
-    std::scoped_lock scoped_lock(mutex_);
+    std::lock_guard scoped_lock(mutex_);
     auto iter = std::find(drm_systems_.begin(), drm_systems_.end(), drm_system);
     SB_DCHECK(iter == drm_systems_.end());
     drm_systems_.push_back(drm_system);
   }
 
   void Unregister(SbDrmSystem drm_system) {
-    std::scoped_lock scoped_lock(mutex_);
+    std::lock_guard scoped_lock(mutex_);
     auto iter = std::find(drm_systems_.begin(), drm_systems_.end(), drm_system);
     SB_DCHECK(iter != drm_systems_.end());
     drm_systems_.erase(iter);
   }
 
   bool Contains(SbDrmSystem drm_system) const {
-    std::scoped_lock scoped_lock(mutex_);
+    std::lock_guard scoped_lock(mutex_);
     auto iter = std::find(drm_systems_.begin(), drm_systems_.end(), drm_system);
     return iter != drm_systems_.end();
   }
@@ -161,7 +161,7 @@ void EnsureWidevineCdmIsInitialized(const std::string& company_name,
   static WidevineTimer s_timer;
   static bool s_initialized = false;
 
-  std::scoped_lock scoped_lock(*GetInitializationMutex());
+  std::lock_guard scoped_lock(*GetInitializationMutex());
 
   if (s_initialized) {
     return;
@@ -495,7 +495,7 @@ SbDrmSystemPrivate::DecryptStatus DrmSystemWidevine::Decrypt(
         }
         if (status == wv3cdm::kKeyUsageBlockedByPolicy) {
           {
-            std::scoped_lock lock(unblock_key_retry_mutex_);
+            std::lock_guard lock(unblock_key_retry_mutex_);
             if (!unblock_key_retry_start_time_) {
               unblock_key_retry_start_time_ = CurrentMonotonicTime();
             }
@@ -514,7 +514,7 @@ SbDrmSystemPrivate::DecryptStatus DrmSystemWidevine::Decrypt(
         return kFailure;
       }
       {
-        std::scoped_lock lock(unblock_key_retry_mutex_);
+        std::lock_guard lock(unblock_key_retry_mutex_);
         unblock_key_retry_start_time_ = std::nullopt;
       }
       input.data += subsample.encrypted_byte_count;

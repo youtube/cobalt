@@ -288,7 +288,7 @@ class SB_EXPORT_ANDROID Application {
   // Registers a |callback| function that will be called when |Teardown| is
   // called.
   void RegisterTeardownCallback(TeardownCallback callback) {
-    std::scoped_lock lock(callbacks_lock_);
+    std::lock_guard lock(callbacks_lock_);
     teardown_callbacks_.push_back(callback);
   }
 
