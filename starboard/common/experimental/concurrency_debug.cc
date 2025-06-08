@@ -22,7 +22,6 @@
 #include <vector>
 
 #include "starboard/common/log.h"
-#include "starboard/common/mutex.h"
 #include "starboard/system.h"
 
 namespace starboard {
