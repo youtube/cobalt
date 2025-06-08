@@ -129,7 +129,7 @@ class SbPlayerPrivateImpl final : public SbPlayerPrivate {
 
   std::unique_ptr<PlayerWorker> worker_;
 
-  Mutex audio_configurations_mutex_;
+  std::mutex audio_configurations_mutex_;
   std::vector<SbMediaAudioConfiguration> audio_configurations_;
 
   static int number_of_players_;
