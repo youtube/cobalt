@@ -204,7 +204,7 @@ bool SbPlayerPrivateImpl::GetAudioConfiguration(
   SB_DCHECK(index >= 0);
   SB_DCHECK(out_audio_configuration);
 
-  ScopedLock lock(audio_configurations_mutex_);
+  std::scoped_lock lock(audio_configurations_mutex_);
   if (audio_configurations_.empty()) {
 #if !defined(COBALT_BUILD_TYPE_GOLD)
     int64_t start = CurrentMonotonicTime();
