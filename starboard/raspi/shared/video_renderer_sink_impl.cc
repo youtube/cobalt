@@ -51,7 +51,7 @@ void VideoRendererSinkImpl::SetBounds(int z_index,
                                       int y,
                                       int width,
                                       int height) {
-  std::scoped_lock lock(mutex_);
+  std::lock_guard lock(mutex_);
 
   z_index_ = z_index;
   x_ = x;
@@ -72,7 +72,7 @@ VideoRendererSinkImpl::DrawFrameStatus VideoRendererSinkImpl::DrawFrame(
     int64_t release_time_in_nanoseconds) {
   SB_DCHECK(release_time_in_nanoseconds == 0);
 
-  std::scoped_lock lock(mutex_);
+  std::lock_guard lock(mutex_);
   ::starboard::shared::starboard::Application::Get()->HandleFrame(
       player_, frame, z_index_, x_, y_, width_, height_);
   return kNotReleased;
