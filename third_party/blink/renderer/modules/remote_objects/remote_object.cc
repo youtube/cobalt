@@ -15,10 +15,6 @@
 
 // For BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "build/build_config.h"
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "base/strings/string_util.h"
-#include "starboard/media.h"  // nogncheck
-#endif                        // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 namespace blink {
 
